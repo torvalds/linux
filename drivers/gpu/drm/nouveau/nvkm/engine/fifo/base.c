@@ -76,23 +76,25 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 		return ret;
 
 	/* validate dma object representing push buffer */
-	handle = nvkm_client_search(client, pushbuf);
-	if (!handle)
-		return -ENOENT;
-	dmaobj = (void *)handle->object;
+	if (pushbuf) {
+		handle = nvkm_client_search(client, pushbuf);
+		if (!handle)
+			return -ENOENT;
+		dmaobj = (void *)handle->object;
 
-	dmaeng = (void *)dmaobj->base.engine;
-	switch (dmaobj->base.oclass->handle) {
-	case NV_DMA_FROM_MEMORY:
-	case NV_DMA_IN_MEMORY:
-		break;
-	default:
-		return -EINVAL;
+		dmaeng = (void *)dmaobj->base.engine;
+		switch (dmaobj->base.oclass->handle) {
+		case NV_DMA_FROM_MEMORY:
+		case NV_DMA_IN_MEMORY:
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		ret = dmaeng->bind(dmaobj, parent, &chan->pushgpu);
+		if (ret)
+			return ret;
 	}
-
-	ret = dmaeng->bind(dmaobj, parent, &chan->pushgpu);
-	if (ret)
-		return ret;
 
 	/* find a free fifo channel */
 	spin_lock_irqsave(&fifo->lock, flags);

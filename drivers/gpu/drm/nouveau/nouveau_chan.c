@@ -193,6 +193,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	const u16 *oclass = oclasses;
 	union {
 		struct nv50_channel_gpfifo_v0 nv50;
+		struct fermi_channel_gpfifo_v0 fermi;
 		struct kepler_channel_gpfifo_a_v0 kepler;
 	} args;
 	struct nouveau_channel *chan;
@@ -210,15 +211,23 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
 			args.kepler.engine  = engine;
-			args.kepler.pushbuf = nvif_handle(&chan->push.ctxdma);
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
+			args.kepler.vm = 0;
 			size = sizeof(args.kepler);
+		} else
+		if (oclass[0] >= FERMI_CHANNEL_GPFIFO) {
+			args.fermi.version = 0;
+			args.fermi.ilength = 0x02000;
+			args.fermi.ioffset = 0x10000 + chan->push.vma.offset;
+			args.fermi.vm = 0;
+			size = sizeof(args.fermi);
 		} else {
 			args.nv50.version = 0;
-			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
 			args.nv50.ilength = 0x02000;
 			args.nv50.ioffset = 0x10000 + chan->push.vma.offset;
+			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
+			args.nv50.vm = 0;
 			size = sizeof(args.nv50);
 		}
 
@@ -227,6 +236,9 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		if (ret == 0) {
 			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A)
 				chan->chid = args.kepler.chid;
+			else
+			if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO)
+				chan->chid = args.fermi.chid;
 			else
 				chan->chid = args.nv50.chid;
 			return ret;

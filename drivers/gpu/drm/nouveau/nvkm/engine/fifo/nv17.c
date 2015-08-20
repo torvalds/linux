@@ -70,7 +70,7 @@ nv17_fifo_chan_ctor(struct nvkm_object *parent,
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent, "create channel dma vers %d pushbuf %llx "
-				   "offset %016llx\n", args->v0.version,
+				   "offset %08x\n", args->v0.version,
 			   args->v0.pushbuf, args->v0.offset);
 	} else
 		return ret;

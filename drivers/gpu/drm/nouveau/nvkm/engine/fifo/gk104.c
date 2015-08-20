@@ -252,10 +252,12 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nvif_ioctl(parent, "create channel gpfifo vers %d pushbuf %llx "
+		nvif_ioctl(parent, "create channel gpfifo vers %d "
 				   "ioffset %016llx ilength %08x engine %08x\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.ioffset,
+			   args->v0.version, args->v0.ioffset,
 			   args->v0.ilength, args->v0.engine);
+		if (args->v0.vm)
+			return -ENOENT;
 	} else
 		return ret;
 
@@ -282,8 +284,7 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	i = __ffs(engines);
 
 	ret = nvkm_fifo_channel_create(parent, engine, oclass, 1,
-				       fifo->user.bar.offset, 0x200,
-				       args->v0.pushbuf,
+				       fifo->user.bar.offset, 0x200, 0,
 				       fifo_engine[i].mask, &chan);
 	*pobject = nv_object(chan);
 	if (ret)

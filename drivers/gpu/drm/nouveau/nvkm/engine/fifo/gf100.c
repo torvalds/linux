@@ -199,7 +199,7 @@ gf100_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_object **pobject)
 {
 	union {
-		struct nv50_channel_gpfifo_v0 v0;
+		struct fermi_channel_gpfifo_v0 v0;
 	} *args = data;
 	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct gf100_fifo *fifo = (void *)engine;
@@ -211,16 +211,17 @@ gf100_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nvif_ioctl(parent, "create channel gpfifo vers %d pushbuf %llx "
+		nvif_ioctl(parent, "create channel gpfifo vers %d "
 				   "ioffset %016llx ilength %08x\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.ioffset,
+			   args->v0.version, args->v0.ioffset,
 			   args->v0.ilength);
+		if (args->v0.vm)
+			return -ENOENT;
 	} else
 		return ret;
 
 	ret = nvkm_fifo_channel_create(parent, engine, oclass, 1,
-				       fifo->user.bar.offset, 0x1000,
-				       args->v0.pushbuf,
+				       fifo->user.bar.offset, 0x1000, 0,
 				       (1ULL << NVDEV_ENGINE_SW) |
 				       (1ULL << NVDEV_ENGINE_GR) |
 				       (1ULL << NVDEV_ENGINE_CE0) |

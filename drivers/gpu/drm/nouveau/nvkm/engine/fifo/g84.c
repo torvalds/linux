@@ -173,7 +173,7 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 		       struct nvkm_object **pobject)
 {
 	union {
-		struct nv03_channel_dma_v0 v0;
+		struct nv50_channel_dma_v0 v0;
 	} *args = data;
 	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
@@ -185,6 +185,8 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 		nvif_ioctl(parent, "create channel dma vers %d pushbuf %llx "
 				   "offset %016llx\n", args->v0.version,
 			   args->v0.pushbuf, args->v0.offset);
+		if (args->v0.vm)
+			return -ENOENT;
 	} else
 		return ret;
 
@@ -262,6 +264,8 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 				   "ioffset %016llx ilength %08x\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.ioffset,
 			   args->v0.ilength);
+		if (args->v0.vm)
+			return -ENOENT;
 	} else
 		return ret;
 
