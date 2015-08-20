@@ -69,33 +69,43 @@ nvkm_sw_chan_event = {
 	.ctor = nvkm_sw_chan_event_ctor,
 };
 
-void
-nvkm_sw_chan_dtor(struct nvkm_object *base)
+static void *
+nvkm_sw_chan_dtor(struct nvkm_object *object)
 {
-	struct nvkm_sw_chan *chan = (void *)base;
-	list_del(&chan->head);
+	struct nvkm_sw_chan *chan = nvkm_sw_chan(object);
+	struct nvkm_sw *sw = chan->sw;
+	unsigned long flags;
+	void *data = chan;
+
+	if (chan->func->dtor)
+		data = chan->func->dtor(chan);
 	nvkm_event_fini(&chan->event);
-	nvkm_engctx_destroy(&chan->base);
+
+	spin_lock_irqsave(&sw->engine.lock, flags);
+	list_del(&chan->head);
+	spin_unlock_irqrestore(&sw->engine.lock, flags);
+	return data;
 }
 
+static const struct nvkm_object_func
+nvkm_sw_chan = {
+	.dtor = nvkm_sw_chan_dtor,
+};
+
 int
-nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func,
-		  struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func, struct nvkm_sw *sw,
+		  struct nvkm_fifo_chan *fifo, const struct nvkm_oclass *oclass,
+		  struct nvkm_sw_chan *chan)
 {
-	struct nvkm_sw *sw = (void *)engine;
-	struct nvkm_sw_chan *chan;
-	int ret;
+	unsigned long flags;
 
-	ret = nvkm_engctx_create_(parent, engine, oclass, parent,
-				  0, 0, 0, length, pobject);
-	chan = *pobject;
-	if (ret)
-		return ret;
-
+	nvkm_object_ctor(&nvkm_sw_chan, oclass, &chan->object);
 	chan->func = func;
-	chan->fifo = nvkm_fifo_chan(parent);
+	chan->sw = sw;
+	chan->fifo = fifo;
+	spin_lock_irqsave(&sw->engine.lock, flags);
 	list_add(&chan->head, &sw->chan);
+	spin_unlock_irqrestore(&sw->engine.lock, flags);
 
 	return nvkm_event_init(&nvkm_sw_chan_event, 1, 1, &chan->event);
 }

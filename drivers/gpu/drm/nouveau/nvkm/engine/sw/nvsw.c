@@ -21,19 +21,22 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#define nvkm_nvsw(p) container_of((p), struct nvkm_nvsw, object)
 #include "nvsw.h"
 #include "chan.h"
 
 #include <nvif/class.h>
 
-struct nvkm_nvsw {
-	struct nvkm_object object;
-	struct nvkm_sw_chan *chan;
-};
+static int
+nvkm_nvsw_mthd_(struct nvkm_object *base, u32 mthd, void *data, u32 size)
+{
+	struct nvkm_nvsw *nvsw = nvkm_nvsw(base);
+	if (nvsw->func->mthd)
+		return nvsw->func->mthd(nvsw, mthd, data, size);
+	return -ENODEV;
+}
 
 static int
-nvkm_nvsw_ntfy(struct nvkm_object *base, u32 mthd, struct nvkm_event **pevent)
+nvkm_nvsw_ntfy_(struct nvkm_object *base, u32 mthd, struct nvkm_event **pevent)
 {
 	struct nvkm_nvsw *nvsw = nvkm_nvsw(base);
 	switch (mthd) {
@@ -46,29 +49,36 @@ nvkm_nvsw_ntfy(struct nvkm_object *base, u32 mthd, struct nvkm_event **pevent)
 	return -EINVAL;
 }
 
+static const struct nvkm_object_func
+nvkm_nvsw_ = {
+	.mthd = nvkm_nvsw_mthd_,
+	.ntfy = nvkm_nvsw_ntfy_,
+};
+
 int
-nvkm_nvsw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
+nvkm_nvsw_new_(const struct nvkm_nvsw_func *func, struct nvkm_sw_chan *chan,
+	       const struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nvkm_sw_chan *chan = (void *)parent;
 	struct nvkm_nvsw *nvsw;
-	int ret;
 
-	ret = nvkm_object_create(parent, engine, oclass, 0, &nvsw);
+	if (!(nvsw = kzalloc(sizeof(*nvsw), GFP_KERNEL)))
+		return -ENOMEM;
 	*pobject = &nvsw->object;
-	if (ret)
-		return ret;
 
+	nvkm_object_ctor(&nvkm_nvsw_, oclass, &nvsw->object);
+	nvsw->func = func;
 	nvsw->chan = chan;
 	return 0;
 }
 
-struct nvkm_ofuncs
-nvkm_nvsw_ofuncs = {
-	.ctor = nvkm_nvsw_ctor,
-	.dtor = nvkm_object_destroy,
-	.init = _nvkm_object_init,
-	.fini = _nvkm_object_fini,
-	.ntfy = nvkm_nvsw_ntfy,
+static const struct nvkm_nvsw_func
+nvkm_nvsw = {
 };
+
+int
+nvkm_nvsw_new(struct nvkm_sw_chan *chan, const struct nvkm_oclass *oclass,
+	      void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nvkm_nvsw_new_(&nvkm_nvsw, chan, oclass, data, size, pobject);
+}

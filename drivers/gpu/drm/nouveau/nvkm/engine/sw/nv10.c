@@ -28,54 +28,38 @@
 #include <nvif/ioctl.h>
 
 /*******************************************************************************
- * software object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-nv10_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV10, &nvkm_nvsw_ofuncs },
-	{}
-};
-
-/*******************************************************************************
  * software context
  ******************************************************************************/
 
 static const struct nvkm_sw_chan_func
-nv10_sw_chan_func = {
+nv10_sw_chan = {
 };
 
 static int
-nv10_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, void *data, u32 size,
-		     struct nvkm_object **pobject)
+nv10_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifo,
+		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nvkm_sw_chan *chan;
-	int ret;
 
-	ret = nvkm_sw_context_create(&nv10_sw_chan_func,
-				     parent, engine, oclass, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->object;
 
-	return 0;
+	return nvkm_sw_chan_ctor(&nv10_sw_chan, sw, fifo, oclass, chan);
 }
-
-static struct nvkm_oclass
-nv10_sw_cclass = {
-	.handle = NV_ENGCTX(SW, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv10_sw_context_ctor,
-		.dtor = _nvkm_sw_context_dtor,
-		.init = _nvkm_sw_context_init,
-		.fini = _nvkm_sw_context_fini,
-	},
-};
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
+
+static const struct nvkm_sw_func
+nv10_sw = {
+	.chan_new = nv10_sw_chan_new,
+	.sclass = {
+		{ nvkm_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_NV10 } },
+		{}
+	}
+};
 
 static int
 nv10_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -90,8 +74,7 @@ nv10_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(sw)->cclass = &nv10_sw_cclass;
-	nv_engine(sw)->sclass = nv10_sw_sclass;
+	sw->func = &nv10_sw;
 	nv_subdev(sw)->intr = nv04_sw_intr;
 	return 0;
 }

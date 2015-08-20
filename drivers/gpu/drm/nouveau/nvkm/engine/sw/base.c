@@ -46,6 +46,48 @@ nvkm_sw_mthd(struct nvkm_sw *sw, int chid, int subc, u32 mthd, u32 data)
 	return handled;
 }
 
+static int
+nvkm_sw_oclass_new(const struct nvkm_oclass *oclass, void *data, u32 size,
+		   struct nvkm_object **pobject)
+{
+	struct nvkm_sw_chan *chan = nvkm_sw_chan(oclass->parent);
+	const struct nvkm_sw_chan_sclass *sclass = oclass->engn;
+	return sclass->ctor(chan, oclass, data, size, pobject);
+}
+
+static int
+nvkm_sw_oclass_get(struct nvkm_oclass *oclass, int index)
+{
+	struct nvkm_sw *sw = nvkm_sw(oclass->engine);
+	int c = 0;
+
+	while (sw->func->sclass[c].ctor) {
+		if (c++ == index) {
+			oclass->engn = &sw->func->sclass[index];
+			oclass->base =  sw->func->sclass[index].base;
+			oclass->base.ctor = nvkm_sw_oclass_new;
+			return index;
+		}
+	}
+
+	return c;
+}
+
+static int
+nvkm_sw_cclass_get(struct nvkm_fifo_chan *fifoch,
+		   const struct nvkm_oclass *oclass,
+		   struct nvkm_object **pobject)
+{
+	struct nvkm_sw *sw = nvkm_sw(oclass->engine);
+	return sw->func->chan_new(sw, fifoch, oclass, pobject);
+}
+
+static const struct nvkm_engine_func
+nvkm_sw = {
+	.fifo.cclass = nvkm_sw_cclass_get,
+	.fifo.sclass = nvkm_sw_oclass_get,
+};
+
 int
 nvkm_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, int length, void **pobject)
@@ -59,6 +101,7 @@ nvkm_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	sw->engine.func = &nvkm_sw;
 	INIT_LIST_HEAD(&sw->chan);
 	return 0;
 }

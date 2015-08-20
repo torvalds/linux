@@ -4,6 +4,7 @@
 
 struct nvkm_sw {
 	struct nvkm_engine engine;
+	const struct nvkm_sw_func *func;
 	struct list_head chan;
 };
 

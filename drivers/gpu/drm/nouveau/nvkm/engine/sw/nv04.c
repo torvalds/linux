@@ -40,9 +40,9 @@ struct nv04_sw_chan {
  ******************************************************************************/
 
 static int
-nv04_sw_mthd_get_ref(struct nvkm_object *object, void *data, u32 size)
+nv04_nvsw_mthd_get_ref(struct nvkm_nvsw *nvsw, void *data, u32 size)
 {
-	struct nv04_sw_chan *chan = (void *)object->parent;
+	struct nv04_sw_chan *chan = nv04_sw_chan(nvsw->chan);
 	union {
 		struct nv04_nvsw_get_ref_v0 v0;
 	} *args = data;
@@ -56,31 +56,28 @@ nv04_sw_mthd_get_ref(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
-nv04_sw_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
+nv04_nvsw_mthd(struct nvkm_nvsw *nvsw, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
 	case NV04_NVSW_GET_REF:
-		return nv04_sw_mthd_get_ref(object, data, size);
+		return nv04_nvsw_mthd_get_ref(nvsw, data, size);
 	default:
 		break;
 	}
 	return -EINVAL;
 }
 
-static struct nvkm_ofuncs
-nv04_sw_ofuncs = {
-	.ctor = nvkm_nvsw_ctor,
-	.dtor = nvkm_object_destroy,
-	.init = _nvkm_object_init,
-	.fini = _nvkm_object_fini,
-	.mthd = nv04_sw_mthd,
+static const struct nvkm_nvsw_func
+nv04_nvsw = {
+	.mthd = nv04_nvsw_mthd,
 };
 
-static struct nvkm_oclass
-nv04_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV04, &nv04_sw_ofuncs },
-	{}
-};
+static int
+nv04_nvsw_new(struct nvkm_sw_chan *chan, const struct nvkm_oclass *oclass,
+	      void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nvkm_nvsw_new_(&nv04_nvsw, chan, oclass, data, size, pobject);
+}
 
 /*******************************************************************************
  * software context
@@ -103,38 +100,23 @@ nv04_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 }
 
 static const struct nvkm_sw_chan_func
-nv04_sw_chan_func = {
+nv04_sw_chan = {
 	.mthd = nv04_sw_chan_mthd,
 };
 
 static int
-nv04_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, void *data, u32 size,
-		     struct nvkm_object **pobject)
+nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifo,
+		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nv04_sw_chan *chan;
-	int ret;
 
-	ret = nvkm_sw_context_create(&nv04_sw_chan_func,
-				     parent, engine, oclass, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
 	atomic_set(&chan->ref, 0);
-	return 0;
-}
+	*pobject = &chan->base.object;
 
-static struct nvkm_oclass
-nv04_sw_cclass = {
-	.handle = NV_ENGCTX(SW, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_sw_context_ctor,
-		.dtor = _nvkm_sw_context_dtor,
-		.init = _nvkm_sw_context_init,
-		.fini = _nvkm_sw_context_fini,
-	},
-};
+	return nvkm_sw_chan_ctor(&nv04_sw_chan, sw, fifo, oclass, &chan->base);
+}
 
 /*******************************************************************************
  * software engine/subdev functions
@@ -145,6 +127,15 @@ nv04_sw_intr(struct nvkm_subdev *subdev)
 {
 	nvkm_mask(subdev->device, 0x000100, 0x80000000, 0x00000000);
 }
+
+static const struct nvkm_sw_func
+nv04_sw = {
+	.chan_new = nv04_sw_chan_new,
+	.sclass = {
+		{ nv04_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_NV04 } },
+		{}
+	}
+};
 
 static int
 nv04_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -159,8 +150,7 @@ nv04_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(sw)->cclass = &nv04_sw_cclass;
-	nv_engine(sw)->sclass = nv04_sw_sclass;
+	sw->func = &nv04_sw;
 	nv_subdev(sw)->intr = nv04_sw_intr;
 	return 0;
 }

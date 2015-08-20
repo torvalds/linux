@@ -25,33 +25,26 @@
 
 #include <subdev/bar.h>
 #include <engine/disp.h>
+#include <engine/fifo.h>
 
+#include <nvif/event.h>
 #include <nvif/ioctl.h>
-
-/*******************************************************************************
- * software object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf100_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_GF100, &nvkm_nvsw_ofuncs },
-	{}
-};
 
 /*******************************************************************************
  * software context
  ******************************************************************************/
 
 static int
-gf100_sw_vblsem_release(struct nvkm_notify *notify)
+gf100_sw_chan_vblsem_release(struct nvkm_notify *notify)
 {
 	struct nv50_sw_chan *chan =
 		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
-	struct nvkm_sw *sw = (void *)nv_object(chan)->engine;
+	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
 	struct nvkm_bar *bar = device->bar;
+	u32 inst = chan->base.fifo->inst->addr >> 12;
 
-	nvkm_wr32(device, 0x001718, 0x80000000 | chan->vblank.channel);
+	nvkm_wr32(device, 0x001718, 0x80000000 | inst);
 	bar->flush(bar);
 	nvkm_wr32(device, 0x06000c, upper_32_bits(chan->vblank.offset));
 	nvkm_wr32(device, 0x060010, lower_32_bits(chan->vblank.offset));
@@ -64,7 +57,7 @@ static bool
 gf100_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 {
 	struct nv50_sw_chan *chan = nv50_sw_chan(base);
-	struct nvkm_engine *engine = chan->base.base.gpuobj.object.engine;
+	struct nvkm_engine *engine = chan->base.object.engine;
 	struct nvkm_device *device = engine->subdev.device;
 	switch (mthd) {
 	case 0x0400:
@@ -103,26 +96,57 @@ gf100_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 }
 
 static const struct nvkm_sw_chan_func
-gf100_sw_chan_func = {
+gf100_sw_chan = {
+	.dtor = nv50_sw_chan_dtor,
 	.mthd = gf100_sw_chan_mthd,
 };
 
-static struct nv50_sw_cclass
-gf100_sw_cclass = {
-	.base.handle = NV_ENGCTX(SW, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_sw_context_ctor,
-		.dtor = nv50_sw_context_dtor,
-		.init = _nvkm_sw_context_init,
-		.fini = _nvkm_sw_context_fini,
-	},
-	.vblank = gf100_sw_vblsem_release,
-	.chan = &gf100_sw_chan_func,
-};
+static int
+gf100_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
+		  const struct nvkm_oclass *oclass,
+		  struct nvkm_object **pobject)
+{
+	struct nvkm_disp *disp = sw->engine.subdev.device->disp;
+	struct nv50_sw_chan *chan;
+	int ret, i;
+
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->base.object;
+
+	ret = nvkm_sw_chan_ctor(&gf100_sw_chan, sw, fifoch, oclass,
+				&chan->base);
+	if (ret)
+		return ret;
+
+	for (i = 0; disp && i < disp->vblank.index_nr; i++) {
+		ret = nvkm_notify_init(NULL, &disp->vblank,
+				       gf100_sw_chan_vblsem_release, false,
+				       &(struct nvif_notify_head_req_v0) {
+					.head = i,
+				       },
+				       sizeof(struct nvif_notify_head_req_v0),
+				       sizeof(struct nvif_notify_head_rep_v0),
+				       &chan->vblank.notify[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
+
+static const struct nvkm_sw_func
+gf100_sw_func = {
+	.chan_new = gf100_sw_chan_new,
+	.sclass = {
+		{ nvkm_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_GF100 } },
+		{}
+	}
+};
 
 struct nvkm_oclass *
 gf100_sw_oclass = &(struct nv50_sw_oclass) {
@@ -133,6 +157,5 @@ gf100_sw_oclass = &(struct nv50_sw_oclass) {
 		.init = _nvkm_sw_init,
 		.fini = _nvkm_sw_fini,
 	},
-	.cclass = &gf100_sw_cclass.base,
-	.sclass =  gf100_sw_sclass,
+	.func = &gf100_sw_func,
 }.base;
