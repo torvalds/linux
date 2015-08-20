@@ -24,10 +24,6 @@
  */
 #include "priv.h"
 
-struct nv50_therm_priv {
-	struct nvkm_therm_priv base;
-};
-
 static int
 pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 {
@@ -125,10 +121,10 @@ nv50_sensor_setup(struct nvkm_therm *therm)
 }
 
 static int
-nv50_temp_get(struct nvkm_therm *therm)
+nv50_temp_get(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 	int core_temp;
 
 	core_temp = nv_rd32(therm, 0x20014) & 0x3fff;
@@ -155,23 +151,23 @@ nv50_therm_ctor(struct nvkm_object *parent,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct nv50_therm_priv *priv;
+	struct nvkm_therm_priv *therm;
 	int ret;
 
-	ret = nvkm_therm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &therm);
+	*pobject = nv_object(therm);
 	if (ret)
 		return ret;
 
-	priv->base.base.pwm_ctrl = nv50_fan_pwm_ctrl;
-	priv->base.base.pwm_get = nv50_fan_pwm_get;
-	priv->base.base.pwm_set = nv50_fan_pwm_set;
-	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
-	priv->base.base.temp_get = nv50_temp_get;
-	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	nv_subdev(priv)->intr = nv40_therm_intr;
+	therm->base.pwm_ctrl = nv50_fan_pwm_ctrl;
+	therm->base.pwm_get = nv50_fan_pwm_get;
+	therm->base.pwm_set = nv50_fan_pwm_set;
+	therm->base.pwm_clock = nv50_fan_pwm_clock;
+	therm->base.temp_get = nv50_temp_get;
+	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
+	nv_subdev(therm)->intr = nv40_therm_intr;
 
-	return nvkm_therm_preinit(&priv->base.base);
+	return nvkm_therm_preinit(&therm->base);
 }
 
 static int

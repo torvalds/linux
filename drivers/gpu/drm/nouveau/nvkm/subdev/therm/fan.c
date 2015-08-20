@@ -31,9 +31,8 @@
 static int
 nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 {
-	struct nvkm_therm *therm = fan->parent;
-	struct nvkm_therm_priv *priv = (void *)therm;
-	struct nvkm_timer *ptimer = nvkm_timer(priv);
+	struct nvkm_therm_priv *therm = (void *)fan->parent;
+	struct nvkm_timer *ptimer = nvkm_timer(therm);
 	unsigned long flags;
 	int ret = 0;
 	int duty;
@@ -50,7 +49,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	}
 
 	/* check that we're not already at the target duty cycle */
-	duty = fan->get(therm);
+	duty = fan->get(&therm->base);
 	if (duty == target) {
 		spin_unlock_irqrestore(&fan->lock, flags);
 		return 0;
@@ -71,7 +70,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	}
 
 	nv_debug(therm, "FAN update: %d\n", duty);
-	ret = fan->set(therm, duty);
+	ret = fan->set(&therm->base, duty);
 	if (ret) {
 		spin_unlock_irqrestore(&fan->lock, flags);
 		return ret;
@@ -109,29 +108,29 @@ nvkm_fan_alarm(struct nvkm_alarm *alarm)
 }
 
 int
-nvkm_therm_fan_get(struct nvkm_therm *therm)
+nvkm_therm_fan_get(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	return priv->fan->get(therm);
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	return therm->fan->get(&therm->base);
 }
 
 int
-nvkm_therm_fan_set(struct nvkm_therm *therm, bool immediate, int percent)
+nvkm_therm_fan_set(struct nvkm_therm *obj, bool immediate, int percent)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	return nvkm_fan_update(priv->fan, immediate, percent);
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	return nvkm_fan_update(therm->fan, immediate, percent);
 }
 
 int
-nvkm_therm_fan_sense(struct nvkm_therm *therm)
+nvkm_therm_fan_sense(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_timer *ptimer = nvkm_timer(therm);
 	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	u32 cycles, cur, prev;
 	u64 start, end, tach;
 
-	if (priv->fan->tach.func == DCB_GPIO_UNUSED)
+	if (therm->fan->tach.func == DCB_GPIO_UNUSED)
 		return -ENODEV;
 
 	/* Time a complete rotation and extrapolate to RPM:
@@ -139,12 +138,12 @@ nvkm_therm_fan_sense(struct nvkm_therm *therm)
 	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
 	start = ptimer->read(ptimer);
-	prev = gpio->get(gpio, 0, priv->fan->tach.func, priv->fan->tach.line);
+	prev = gpio->get(gpio, 0, therm->fan->tach.func, therm->fan->tach.line);
 	cycles = 0;
 	do {
 		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
 
-		cur = gpio->get(gpio, 0, priv->fan->tach.func, priv->fan->tach.line);
+		cur = gpio->get(gpio, 0, therm->fan->tach.func, therm->fan->tach.line);
 		if (prev != cur) {
 			if (!start)
 				start = ptimer->read(ptimer);
@@ -163,71 +162,72 @@ nvkm_therm_fan_sense(struct nvkm_therm *therm)
 }
 
 int
-nvkm_therm_fan_user_get(struct nvkm_therm *therm)
+nvkm_therm_fan_user_get(struct nvkm_therm *obj)
 {
-	return nvkm_therm_fan_get(therm);
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	return nvkm_therm_fan_get(&therm->base);
 }
 
 int
-nvkm_therm_fan_user_set(struct nvkm_therm *therm, int percent)
+nvkm_therm_fan_user_set(struct nvkm_therm *obj, int percent)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 
-	if (priv->mode != NVKM_THERM_CTRL_MANUAL)
+	if (therm->mode != NVKM_THERM_CTRL_MANUAL)
 		return -EINVAL;
 
-	return nvkm_therm_fan_set(therm, true, percent);
+	return nvkm_therm_fan_set(&therm->base, true, percent);
 }
 
 static void
-nvkm_therm_fan_set_defaults(struct nvkm_therm *therm)
+nvkm_therm_fan_set_defaults(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 
-	priv->fan->bios.pwm_freq = 0;
-	priv->fan->bios.min_duty = 0;
-	priv->fan->bios.max_duty = 100;
-	priv->fan->bios.bump_period = 500;
-	priv->fan->bios.slow_down_period = 2000;
-	priv->fan->bios.linear_min_temp = 40;
-	priv->fan->bios.linear_max_temp = 85;
+	therm->fan->bios.pwm_freq = 0;
+	therm->fan->bios.min_duty = 0;
+	therm->fan->bios.max_duty = 100;
+	therm->fan->bios.bump_period = 500;
+	therm->fan->bios.slow_down_period = 2000;
+	therm->fan->bios.linear_min_temp = 40;
+	therm->fan->bios.linear_max_temp = 85;
 }
 
 static void
-nvkm_therm_fan_safety_checks(struct nvkm_therm *therm)
+nvkm_therm_fan_safety_checks(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 
-	if (priv->fan->bios.min_duty > 100)
-		priv->fan->bios.min_duty = 100;
-	if (priv->fan->bios.max_duty > 100)
-		priv->fan->bios.max_duty = 100;
+	if (therm->fan->bios.min_duty > 100)
+		therm->fan->bios.min_duty = 100;
+	if (therm->fan->bios.max_duty > 100)
+		therm->fan->bios.max_duty = 100;
 
-	if (priv->fan->bios.min_duty > priv->fan->bios.max_duty)
-		priv->fan->bios.min_duty = priv->fan->bios.max_duty;
+	if (therm->fan->bios.min_duty > therm->fan->bios.max_duty)
+		therm->fan->bios.min_duty = therm->fan->bios.max_duty;
 }
 
 int
-nvkm_therm_fan_init(struct nvkm_therm *therm)
+nvkm_therm_fan_init(struct nvkm_therm *obj)
 {
 	return 0;
 }
 
 int
-nvkm_therm_fan_fini(struct nvkm_therm *therm, bool suspend)
+nvkm_therm_fan_fini(struct nvkm_therm *obj, bool suspend)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_timer *ptimer = nvkm_timer(therm);
 
 	if (suspend)
-		ptimer->alarm_cancel(ptimer, &priv->fan->alarm);
+		ptimer->alarm_cancel(ptimer, &therm->fan->alarm);
 	return 0;
 }
 
 int
-nvkm_therm_fan_ctor(struct nvkm_therm *therm)
+nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	struct nvkm_bios *bios = nvkm_bios(therm);
 	struct dcb_gpio_func func;
@@ -241,42 +241,42 @@ nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 			nv_debug(therm, "GPIO_FAN is in input mode\n");
 			ret = -EINVAL;
 		} else {
-			ret = nvkm_fanpwm_create(therm, &func);
+			ret = nvkm_fanpwm_create(&therm->base, &func);
 			if (ret != 0)
-				ret = nvkm_fantog_create(therm, &func);
+				ret = nvkm_fantog_create(&therm->base, &func);
 		}
 	}
 
 	/* no controllable fan found, create a dummy fan module */
 	if (ret != 0) {
-		ret = nvkm_fannil_create(therm);
+		ret = nvkm_fannil_create(&therm->base);
 		if (ret)
 			return ret;
 	}
 
-	nv_info(therm, "FAN control: %s\n", priv->fan->type);
+	nv_info(therm, "FAN control: %s\n", therm->fan->type);
 
 	/* read the current speed, it is useful when resuming */
-	priv->fan->percent = nvkm_therm_fan_get(therm);
+	therm->fan->percent = nvkm_therm_fan_get(&therm->base);
 
 	/* attempt to detect a tachometer connection */
-	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan->tach);
+	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &therm->fan->tach);
 	if (ret)
-		priv->fan->tach.func = DCB_GPIO_UNUSED;
+		therm->fan->tach.func = DCB_GPIO_UNUSED;
 
 	/* initialise fan bump/slow update handling */
-	priv->fan->parent = therm;
-	nvkm_alarm_init(&priv->fan->alarm, nvkm_fan_alarm);
-	spin_lock_init(&priv->fan->lock);
+	therm->fan->parent = &therm->base;
+	nvkm_alarm_init(&therm->fan->alarm, nvkm_fan_alarm);
+	spin_lock_init(&therm->fan->lock);
 
 	/* other random init... */
-	nvkm_therm_fan_set_defaults(therm);
-	nvbios_perf_fan_parse(bios, &priv->fan->perf);
-	if (!nvbios_fan_parse(bios, &priv->fan->bios)) {
+	nvkm_therm_fan_set_defaults(&therm->base);
+	nvbios_perf_fan_parse(bios, &therm->fan->perf);
+	if (!nvbios_fan_parse(bios, &therm->fan->bios)) {
 		nv_debug(therm, "parsing the fan table failed\n");
-		if (nvbios_therm_fan_parse(bios, &priv->fan->bios))
+		if (nvbios_therm_fan_parse(bios, &therm->fan->bios))
 			nv_error(therm, "parsing both fan tables failed\n");
 	}
-	nvkm_therm_fan_safety_checks(therm);
+	nvkm_therm_fan_safety_checks(&therm->base);
 	return 0;
 }

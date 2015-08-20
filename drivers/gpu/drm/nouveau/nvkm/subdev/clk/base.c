@@ -76,7 +76,7 @@ nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 static int
 nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 {
-	struct nvkm_therm *ptherm = nvkm_therm(clk);
+	struct nvkm_therm *therm = nvkm_therm(clk);
 	struct nvkm_volt *volt = nvkm_volt(clk);
 	struct nvkm_cstate *cstate;
 	int ret;
@@ -87,8 +87,8 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 		cstate = &pstate->base;
 	}
 
-	if (ptherm) {
-		ret = nvkm_therm_cstate(ptherm, pstate->fanspeed, +1);
+	if (therm) {
+		ret = nvkm_therm_cstate(therm, pstate->fanspeed, +1);
 		if (ret && ret != -ENODEV) {
 			nv_error(clk, "failed to raise fan speed: %d\n", ret);
 			return ret;
@@ -115,8 +115,8 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 			nv_error(clk, "failed to lower voltage: %d\n", ret);
 	}
 
-	if (ptherm) {
-		ret = nvkm_therm_cstate(ptherm, pstate->fanspeed, -1);
+	if (therm) {
+		ret = nvkm_therm_cstate(therm, pstate->fanspeed, -1);
 		if (ret && ret != -ENODEV)
 			nv_error(clk, "failed to lower fan speed: %d\n", ret);
 	}

@@ -23,10 +23,6 @@
  */
 #include "priv.h"
 
-struct gf110_therm_priv {
-	struct nvkm_therm_priv base;
-};
-
 static int
 pwm_info(struct nvkm_therm *therm, int line)
 {
@@ -116,21 +112,21 @@ gf110_fan_pwm_clock(struct nvkm_therm *therm, int line)
 int
 gf110_therm_init(struct nvkm_object *object)
 {
-	struct gf110_therm_priv *priv = (void *)object;
+	struct nvkm_therm_priv *therm = (void *)object;
 	int ret;
 
-	ret = nvkm_therm_init(&priv->base.base);
+	ret = nvkm_therm_init(&therm->base);
 	if (ret)
 		return ret;
 
 	/* enable fan tach, count revolutions per-second */
-	nv_mask(priv, 0x00e720, 0x00000003, 0x00000002);
-	if (priv->base.fan->tach.func != DCB_GPIO_UNUSED) {
-		nv_mask(priv, 0x00d79c, 0x000000ff, priv->base.fan->tach.line);
-		nv_wr32(priv, 0x00e724, nv_device(priv)->crystal * 1000);
-		nv_mask(priv, 0x00e720, 0x00000001, 0x00000001);
+	nv_mask(therm, 0x00e720, 0x00000003, 0x00000002);
+	if (therm->fan->tach.func != DCB_GPIO_UNUSED) {
+		nv_mask(therm, 0x00d79c, 0x000000ff, therm->fan->tach.line);
+		nv_wr32(therm, 0x00e724, nv_device(therm)->crystal * 1000);
+		nv_mask(therm, 0x00e720, 0x00000001, 0x00000001);
 	}
-	nv_mask(priv, 0x00e720, 0x00000002, 0x00000000);
+	nv_mask(therm, 0x00e720, 0x00000002, 0x00000000);
 
 	return 0;
 }
@@ -140,24 +136,24 @@ gf110_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, void *data, u32 size,
 		 struct nvkm_object **pobject)
 {
-	struct gf110_therm_priv *priv;
+	struct nvkm_therm_priv *therm;
 	int ret;
 
-	ret = nvkm_therm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &therm);
+	*pobject = nv_object(therm);
 	if (ret)
 		return ret;
 
-	g84_sensor_setup(&priv->base.base);
+	g84_sensor_setup(&therm->base);
 
-	priv->base.base.pwm_ctrl = gf110_fan_pwm_ctrl;
-	priv->base.base.pwm_get = gf110_fan_pwm_get;
-	priv->base.base.pwm_set = gf110_fan_pwm_set;
-	priv->base.base.pwm_clock = gf110_fan_pwm_clock;
-	priv->base.base.temp_get = g84_temp_get;
-	priv->base.base.fan_sense = gt215_therm_fan_sense;
-	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	return nvkm_therm_preinit(&priv->base.base);
+	therm->base.pwm_ctrl = gf110_fan_pwm_ctrl;
+	therm->base.pwm_get = gf110_fan_pwm_get;
+	therm->base.pwm_set = gf110_fan_pwm_set;
+	therm->base.pwm_clock = gf110_fan_pwm_clock;
+	therm->base.temp_get = g84_temp_get;
+	therm->base.fan_sense = gt215_therm_fan_sense;
+	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
+	return nvkm_therm_preinit(&therm->base);
 }
 
 struct nvkm_oclass

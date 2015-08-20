@@ -23,10 +23,6 @@
  */
 #include "priv.h"
 
-struct gm107_therm_priv {
-	struct nvkm_therm_priv base;
-};
-
 static int
 gm107_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 {
@@ -61,22 +57,22 @@ gm107_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, void *data, u32 size,
 		 struct nvkm_object **pobject)
 {
-	struct gm107_therm_priv *priv;
+	struct nvkm_therm_priv *therm;
 	int ret;
 
-	ret = nvkm_therm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &therm);
+	*pobject = nv_object(therm);
 	if (ret)
 		return ret;
 
-	priv->base.base.pwm_ctrl = gm107_fan_pwm_ctrl;
-	priv->base.base.pwm_get = gm107_fan_pwm_get;
-	priv->base.base.pwm_set = gm107_fan_pwm_set;
-	priv->base.base.pwm_clock = gm107_fan_pwm_clock;
-	priv->base.base.temp_get = g84_temp_get;
-	priv->base.base.fan_sense = gt215_therm_fan_sense;
-	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	return nvkm_therm_preinit(&priv->base.base);
+	therm->base.pwm_ctrl = gm107_fan_pwm_ctrl;
+	therm->base.pwm_get = gm107_fan_pwm_get;
+	therm->base.pwm_set = gm107_fan_pwm_set;
+	therm->base.pwm_clock = gm107_fan_pwm_clock;
+	therm->base.temp_get = g84_temp_get;
+	therm->base.fan_sense = gt215_therm_fan_sense;
+	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
+	return nvkm_therm_preinit(&therm->base);
 }
 
 struct nvkm_oclass

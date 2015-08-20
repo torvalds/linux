@@ -24,7 +24,7 @@ enum nvkm_therm_attr_type {
 };
 
 struct nvkm_therm {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	int (*pwm_ctrl)(struct nvkm_therm *, int line, bool);
 	int (*pwm_get)(struct nvkm_therm *, int line, u32 *, u32 *);
@@ -50,16 +50,16 @@ nvkm_therm(void *obj)
 #define nvkm_therm_create(p,e,o,d)                                          \
 	nvkm_therm_create_((p), (e), (o), sizeof(**d), (void **)d)
 #define nvkm_therm_destroy(p) ({                                            \
-	struct nvkm_therm *therm = (p);                                     \
-        _nvkm_therm_dtor(nv_object(therm));                                 \
+	struct nvkm_therm *_therm = (p);                                     \
+        _nvkm_therm_dtor(nv_object(_therm));                                 \
 })
 #define nvkm_therm_init(p) ({                                               \
-	struct nvkm_therm *therm = (p);                                     \
-        _nvkm_therm_init(nv_object(therm));                                 \
+	struct nvkm_therm *_therm = (p);                                     \
+        _nvkm_therm_init(nv_object(_therm));                                 \
 })
 #define nvkm_therm_fini(p,s) ({                                             \
-	struct nvkm_therm *therm = (p);                                     \
-        _nvkm_therm_init(nv_object(therm), (s));                            \
+	struct nvkm_therm *_therm = (p);                                     \
+        _nvkm_therm_init(nv_object(_therm), (s));                            \
 })
 
 int  nvkm_therm_create_(struct nvkm_object *, struct nvkm_object *,

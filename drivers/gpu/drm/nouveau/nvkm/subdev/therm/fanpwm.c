@@ -29,84 +29,85 @@
 #include <subdev/bios/fan.h>
 #include <subdev/gpio.h>
 
-struct nvkm_fanpwm_priv {
+struct nvkm_fanpwm {
 	struct nvkm_fan base;
 	struct dcb_gpio_func func;
 };
 
 static int
-nvkm_fanpwm_get(struct nvkm_therm *therm)
+nvkm_fanpwm_get(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *tpriv = (void *)therm;
-	struct nvkm_fanpwm_priv *priv = (void *)tpriv->fan;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	struct nvkm_fanpwm *fan = (void *)therm->fan;
 	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	int card_type = nv_device(therm)->card_type;
 	u32 divs, duty;
 	int ret;
 
-	ret = therm->pwm_get(therm, priv->func.line, &divs, &duty);
+	ret = therm->base.pwm_get(&therm->base, fan->func.line, &divs, &duty);
 	if (ret == 0 && divs) {
 		divs = max(divs, duty);
-		if (card_type <= NV_40 || (priv->func.log[0] & 1))
+		if (card_type <= NV_40 || (fan->func.log[0] & 1))
 			duty = divs - duty;
 		return (duty * 100) / divs;
 	}
 
-	return gpio->get(gpio, 0, priv->func.func, priv->func.line) * 100;
+	return gpio->get(gpio, 0, fan->func.func, fan->func.line) * 100;
 }
 
 static int
-nvkm_fanpwm_set(struct nvkm_therm *therm, int percent)
+nvkm_fanpwm_set(struct nvkm_therm *obj, int percent)
 {
-	struct nvkm_therm_priv *tpriv = (void *)therm;
-	struct nvkm_fanpwm_priv *priv = (void *)tpriv->fan;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	struct nvkm_fanpwm *fan = (void *)therm->fan;
 	int card_type = nv_device(therm)->card_type;
 	u32 divs, duty;
 	int ret;
 
-	divs = priv->base.perf.pwm_divisor;
-	if (priv->base.bios.pwm_freq) {
+	divs = fan->base.perf.pwm_divisor;
+	if (fan->base.bios.pwm_freq) {
 		divs = 1;
-		if (therm->pwm_clock)
-			divs = therm->pwm_clock(therm, priv->func.line);
-		divs /= priv->base.bios.pwm_freq;
+		if (therm->base.pwm_clock)
+			divs = therm->base.pwm_clock(&therm->base,
+						     fan->func.line);
+		divs /= fan->base.bios.pwm_freq;
 	}
 
 	duty = ((divs * percent) + 99) / 100;
-	if (card_type <= NV_40 || (priv->func.log[0] & 1))
+	if (card_type <= NV_40 || (fan->func.log[0] & 1))
 		duty = divs - duty;
 
-	ret = therm->pwm_set(therm, priv->func.line, divs, duty);
+	ret = therm->base.pwm_set(&therm->base, fan->func.line, divs, duty);
 	if (ret == 0)
-		ret = therm->pwm_ctrl(therm, priv->func.line, true);
+		ret = therm->base.pwm_ctrl(&therm->base, fan->func.line, true);
 	return ret;
 }
 
 int
-nvkm_fanpwm_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
+nvkm_fanpwm_create(struct nvkm_therm *obj, struct dcb_gpio_func *func)
 {
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_device *device = nv_device(therm);
-	struct nvkm_therm_priv *tpriv = (void *)therm;
 	struct nvkm_bios *bios = nvkm_bios(therm);
-	struct nvkm_fanpwm_priv *priv;
-	struct nvbios_therm_fan fan;
+	struct nvkm_fanpwm *fan;
+	struct nvbios_therm_fan info;
 	u32 divs, duty;
 
-	nvbios_fan_parse(bios, &fan);
+	nvbios_fan_parse(bios, &info);
 
 	if (!nvkm_boolopt(device->cfgopt, "NvFanPWM", func->param) ||
-	    !therm->pwm_ctrl || fan.type == NVBIOS_THERM_FAN_TOGGLE ||
-	     therm->pwm_get(therm, func->line, &divs, &duty) == -ENODEV)
+	    !therm->base.pwm_ctrl || info.type == NVBIOS_THERM_FAN_TOGGLE ||
+	     therm->base.pwm_get(&therm->base, func->line, &divs, &duty) == -ENODEV)
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	tpriv->fan = &priv->base;
-	if (!priv)
+	fan = kzalloc(sizeof(*fan), GFP_KERNEL);
+	therm->fan = &fan->base;
+	if (!fan)
 		return -ENOMEM;
 
-	priv->base.type = "PWM";
-	priv->base.get = nvkm_fanpwm_get;
-	priv->base.set = nvkm_fanpwm_set;
-	priv->func = *func;
+	fan->base.type = "PWM";
+	fan->base.get = nvkm_fanpwm_get;
+	fan->base.set = nvkm_fanpwm_set;
+	fan->func = *func;
 	return 0;
 }

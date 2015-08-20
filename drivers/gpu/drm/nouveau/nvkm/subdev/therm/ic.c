@@ -30,8 +30,8 @@ static bool
 probe_monitoring_device(struct nvkm_i2c_port *i2c,
 			struct i2c_board_info *info, void *data)
 {
-	struct nvkm_therm_priv *priv = data;
-	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+	struct nvkm_therm_priv *therm = data;
+	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 	struct i2c_client *client;
 
 	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
@@ -46,11 +46,11 @@ probe_monitoring_device(struct nvkm_i2c_port *i2c,
 		return false;
 	}
 
-	nv_info(priv,
+	nv_info(therm,
 		"Found an %s at address 0x%x (controlled by lm_sensors, "
 		"temp offset %+i C)\n",
 		info->type, info->addr, sensor->offset_constant);
-	priv->ic = client;
+	therm->ic = client;
 	return true;
 }
 
@@ -80,9 +80,9 @@ nv_board_infos[] = {
 };
 
 void
-nvkm_therm_ic_ctor(struct nvkm_therm *therm)
+nvkm_therm_ic_ctor(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_bios *bios = nvkm_bios(therm);
 	struct nvkm_i2c *i2c = nvkm_i2c(therm);
 	struct nvbios_extdev_func extdev_entry;
@@ -95,7 +95,7 @@ nvkm_therm_ic_ctor(struct nvkm_therm *therm)
 
 		i2c->identify(i2c, NV_I2C_DEFAULT(0), "monitoring device",
 			      board, probe_monitoring_device, therm);
-		if (priv->ic)
+		if (therm->ic)
 			return;
 	}
 
@@ -107,7 +107,7 @@ nvkm_therm_ic_ctor(struct nvkm_therm *therm)
 
 		i2c->identify(i2c, NV_I2C_DEFAULT(0), "monitoring device",
 			      board, probe_monitoring_device, therm);
-		if (priv->ic)
+		if (therm->ic)
 			return;
 	}
 

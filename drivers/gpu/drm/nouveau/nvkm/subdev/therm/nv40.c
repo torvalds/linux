@@ -24,10 +24,6 @@
  */
 #include "priv.h"
 
-struct nv40_therm_priv {
-	struct nvkm_therm_priv base;
-};
-
 enum nv40_sensor_style { INVALID_STYLE = -1, OLD_STYLE = 0, NEW_STYLE = 1 };
 
 static enum nv40_sensor_style
@@ -76,11 +72,11 @@ nv40_sensor_setup(struct nvkm_therm *therm)
 }
 
 static int
-nv40_temp_get(struct nvkm_therm *therm)
+nv40_temp_get(struct nvkm_therm *obj)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
-	enum nv40_sensor_style style = nv40_sensor_style(therm);
+	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
+	enum nv40_sensor_style style = nv40_sensor_style(&therm->base);
 	int core_temp;
 
 	if (style == NEW_STYLE) {
@@ -184,21 +180,21 @@ nv40_therm_ctor(struct nvkm_object *parent,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct nv40_therm_priv *priv;
+	struct nvkm_therm_priv *therm;
 	int ret;
 
-	ret = nvkm_therm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &therm);
+	*pobject = nv_object(therm);
 	if (ret)
 		return ret;
 
-	priv->base.base.pwm_ctrl = nv40_fan_pwm_ctrl;
-	priv->base.base.pwm_get = nv40_fan_pwm_get;
-	priv->base.base.pwm_set = nv40_fan_pwm_set;
-	priv->base.base.temp_get = nv40_temp_get;
-	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	nv_subdev(priv)->intr = nv40_therm_intr;
-	return nvkm_therm_preinit(&priv->base.base);
+	therm->base.pwm_ctrl = nv40_fan_pwm_ctrl;
+	therm->base.pwm_get = nv40_fan_pwm_get;
+	therm->base.pwm_set = nv40_fan_pwm_set;
+	therm->base.temp_get = nv40_temp_get;
+	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
+	nv_subdev(therm)->intr = nv40_therm_intr;
+	return nvkm_therm_preinit(&therm->base);
 }
 
 static int
