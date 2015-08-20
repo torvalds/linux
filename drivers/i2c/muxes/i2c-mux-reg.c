@@ -59,9 +59,6 @@ static int i2c_mux_reg_set(const struct regmux *mux, unsigned int chan_id)
 		if (!mux->data.write_only)
 			ioread8(mux->data.reg);
 		break;
-	default:
-		pr_err("Invalid register size\n");
-		return -EINVAL;
 	}
 
 	return 0;
@@ -155,10 +152,6 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	/* map address from "reg" if exists */
 	if (of_address_to_resource(np, 0, &res)) {
 		mux->data.reg_size = resource_size(&res);
-		if (mux->data.reg_size > 4) {
-			dev_err(&pdev->dev, "Invalid address size\n");
-			return -EINVAL;
-		}
 		mux->data.reg = devm_ioremap_resource(&pdev->dev, &res);
 		if (IS_ERR(mux->data.reg))
 			return PTR_ERR(mux->data.reg);
@@ -211,13 +204,15 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 			"Register not set, using platform resource\n");
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		mux->data.reg_size = resource_size(res);
-		if (mux->data.reg_size > 4) {
-			dev_err(&pdev->dev, "Invalid resource size\n");
-			return -EINVAL;
-		}
 		mux->data.reg = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(mux->data.reg))
 			return PTR_ERR(mux->data.reg);
+	}
+
+	if (mux->data.reg_size != 4 && mux->data.reg_size != 2 &&
+	    mux->data.reg_size != 1) {
+		dev_err(&pdev->dev, "Invalid register size\n");
+		return -EINVAL;
 	}
 
 	mux->adap = devm_kzalloc(&pdev->dev,
