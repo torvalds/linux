@@ -33,14 +33,15 @@ static u32
 nv50_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct nv50_fuse *fuse = (void *)object;
+	struct nvkm_device *device = fuse->base.subdev.device;
 	unsigned long flags;
 	u32 fuse_enable, val;
 
 	/* racy if another part of nvkm start writing to this reg */
 	spin_lock_irqsave(&fuse->fuse_enable_lock, flags);
-	fuse_enable = nv_mask(fuse, 0x1084, 0x800, 0x800);
-	val = nv_rd32(fuse, 0x21000 + addr);
-	nv_wr32(fuse, 0x1084, fuse_enable);
+	fuse_enable = nvkm_mask(device, 0x1084, 0x800, 0x800);
+	val = nvkm_rd32(device, 0x21000 + addr);
+	nvkm_wr32(device, 0x1084, fuse_enable);
 	spin_unlock_irqrestore(&fuse->fuse_enable_lock, flags);
 	return val;
 }

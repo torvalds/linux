@@ -33,16 +33,17 @@ static u32
 gf100_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct gf100_fuse *fuse = (void *)object;
+	struct nvkm_device *device = fuse->base.subdev.device;
 	unsigned long flags;
 	u32 fuse_enable, unk, val;
 
 	/* racy if another part of nvkm start writing to these regs */
 	spin_lock_irqsave(&fuse->fuse_enable_lock, flags);
-	fuse_enable = nv_mask(fuse, 0x22400, 0x800, 0x800);
-	unk = nv_mask(fuse, 0x21000, 0x1, 0x1);
-	val = nv_rd32(fuse, 0x21100 + addr);
-	nv_wr32(fuse, 0x21000, unk);
-	nv_wr32(fuse, 0x22400, fuse_enable);
+	fuse_enable = nvkm_mask(device, 0x22400, 0x800, 0x800);
+	unk = nvkm_mask(device, 0x21000, 0x1, 0x1);
+	val = nvkm_rd32(device, 0x21100 + addr);
+	nvkm_wr32(device, 0x21000, unk);
+	nvkm_wr32(device, 0x22400, fuse_enable);
 	spin_unlock_irqrestore(&fuse->fuse_enable_lock, flags);
 	return val;
 }

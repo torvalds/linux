@@ -27,7 +27,8 @@ static u32
 gm107_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct nvkm_fuse *fuse = (void *)object;
-	return nv_rd32(fuse, 0x21100 + addr);
+	struct nvkm_device *device = fuse->subdev.device;
+	return nvkm_rd32(device, 0x21100 + addr);
 }
 
 
