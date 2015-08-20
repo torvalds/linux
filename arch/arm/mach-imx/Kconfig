@@ -612,6 +612,7 @@ config SOC_IMX7
 config SOC_IMX7D
 	bool "i.MX7 Dual support"
 	select SOC_IMX7
+	select PCI_DOMAINS if PCI
 	select PINCTRL_IMX7D
 	select HAVE_IMX_RPMSG
 	select RPMSG

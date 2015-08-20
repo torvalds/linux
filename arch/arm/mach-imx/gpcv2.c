@@ -108,7 +108,7 @@ static u32 gpcv2_saved_imrs[IMR_NUM];
 static u32 gpcv2_mf_irqs[IMR_NUM];
 static u32 gpcv2_mf_request_on[IMR_NUM];
 static DEFINE_SPINLOCK(gpcv2_lock);
-static struct notifier_block nb_mipi;
+static struct notifier_block nb_mipi, nb_pcie;
 
 static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 {
@@ -618,6 +618,41 @@ static int imx_mipi_regulator_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int imx_pcie_regulator_notify(struct notifier_block *nb,
+					unsigned long event,
+					void *ignored)
+{
+	u32 val = 0;
+
+	val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
+	writel_relaxed(val | BIT(3), gpc_base + GPC_PGC_CPU_MAPPING);
+
+	switch (event) {
+	case REGULATOR_EVENT_PRE_DO_ENABLE:
+		val = readl_relaxed(gpc_base + GPC_PU_PGC_SW_PUP_REQ);
+		writel_relaxed(val | BIT(1), gpc_base + GPC_PU_PGC_SW_PUP_REQ);
+		while (readl_relaxed(gpc_base + GPC_PU_PGC_SW_PUP_REQ) & BIT(1))
+			;
+		break;
+	case REGULATOR_EVENT_PRE_DO_DISABLE:
+		/* only disable phy need to set PGC bit, enable does NOT need */
+		imx_gpcv2_set_m_core_pgc(true, GPC_PGC_PCIE_PHY);
+		val = readl_relaxed(gpc_base + GPC_PU_PGC_SW_PDN_REQ);
+		writel_relaxed(val | BIT(1), gpc_base + GPC_PU_PGC_SW_PDN_REQ);
+		while (readl_relaxed(gpc_base + GPC_PU_PGC_SW_PDN_REQ) & BIT(1))
+			;
+		imx_gpcv2_set_m_core_pgc(false, GPC_PGC_PCIE_PHY);
+		break;
+	default:
+		break;
+	}
+
+	val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
+	writel_relaxed(val & ~BIT(3), gpc_base + GPC_PGC_CPU_MAPPING);
+
+	return NOTIFY_OK;
+}
+
 static int __init imx_gpcv2_init(struct device_node *node,
 			       struct device_node *parent)
 {
@@ -729,7 +764,7 @@ void __init imx_gpcv2_check_dt(void)
 static int imx_gpcv2_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct regulator *mipi_reg;
+	struct regulator *mipi_reg, *pcie_reg;
 
 	if (cpu_is_imx7d()) {
 		mipi_reg = devm_regulator_get(&pdev->dev, "mipi-phy");
@@ -748,6 +783,22 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (cpu_is_imx7d()) {
+		pcie_reg = devm_regulator_get(&pdev->dev, "pcie-phy");
+		if (IS_ERR(pcie_reg)) {
+			ret = PTR_ERR(pcie_reg);
+			dev_info(&pdev->dev, "pcie regulator not ready.\n");
+			return ret;
+		}
+		nb_pcie.notifier_call = &imx_pcie_regulator_notify;
+
+		ret = regulator_register_notifier(pcie_reg, &nb_pcie);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"pcie regulator notifier request failed\n");
+			return ret;
+		}
+	}
 	return 0;
 }
 
