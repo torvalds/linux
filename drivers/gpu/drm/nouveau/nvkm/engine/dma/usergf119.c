@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#define gf110_dmaobj(p) container_of((p), struct gf110_dmaobj, base)
+#define gf119_dmaobj(p) container_of((p), struct gf119_dmaobj, base)
 #include "user.h"
 
 #include <core/client.h>
@@ -31,16 +31,16 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
-struct gf110_dmaobj {
+struct gf119_dmaobj {
 	struct nvkm_dmaobj base;
 	u32 flags0;
 };
 
 static int
-gf110_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
+gf119_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
 		  int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct gf110_dmaobj *dmaobj = gf110_dmaobj(base);
+	struct gf119_dmaobj *dmaobj = gf119_dmaobj(base);
 	struct nvkm_device *device = dmaobj->base.dma->engine.subdev.device;
 	int ret;
 
@@ -60,19 +60,19 @@ gf110_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
 }
 
 static const struct nvkm_dmaobj_func
-gf110_dmaobj_func = {
-	.bind = gf110_dmaobj_bind,
+gf119_dmaobj_func = {
+	.bind = gf119_dmaobj_bind,
 };
 
 int
-gf110_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
+gf119_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		 void *data, u32 size, struct nvkm_dmaobj **pdmaobj)
 {
 	union {
-		struct gf110_dma_v0 v0;
+		struct gf119_dma_v0 v0;
 	} *args;
 	struct nvkm_object *parent = oclass->parent;
-	struct gf110_dmaobj *dmaobj;
+	struct gf119_dmaobj *dmaobj;
 	u32 kind, page;
 	int ret;
 
@@ -80,14 +80,14 @@ gf110_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		return -ENOMEM;
 	*pdmaobj = &dmaobj->base;
 
-	ret = nvkm_dmaobj_ctor(&gf110_dmaobj_func, dma, oclass,
+	ret = nvkm_dmaobj_ctor(&gf119_dmaobj_func, dma, oclass,
 			       &data, &size, &dmaobj->base);
 	if (ret)
 		return ret;
 
 	args = data;
 
-	nvif_ioctl(parent, "create gf110 dma size %d\n", size);
+	nvif_ioctl(parent, "create gf119 dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent,
 			   "create gf100 dma vers %d page %d kind %02x\n",
@@ -97,11 +97,11 @@ gf110_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	} else
 	if (size == 0) {
 		if (dmaobj->base.target != NV_MEM_TARGET_VM) {
-			kind = GF110_DMA_V0_KIND_PITCH;
-			page = GF110_DMA_V0_PAGE_SP;
+			kind = GF119_DMA_V0_KIND_PITCH;
+			page = GF119_DMA_V0_PAGE_SP;
 		} else {
-			kind = GF110_DMA_V0_KIND_VM;
-			page = GF110_DMA_V0_PAGE_LP;
+			kind = GF119_DMA_V0_KIND_VM;
+			page = GF119_DMA_V0_PAGE_LP;
 		}
 	} else
 		return ret;

@@ -251,13 +251,13 @@ struct gf100_dma_v0 {
 	__u8  pad03[5];
 };
 
-struct gf110_dma_v0 {
+struct gf119_dma_v0 {
 	__u8  version;
-#define GF110_DMA_V0_PAGE_LP                                               0x00
-#define GF110_DMA_V0_PAGE_SP                                               0x01
+#define GF119_DMA_V0_PAGE_LP                                               0x00
+#define GF119_DMA_V0_PAGE_SP                                               0x01
 	__u8  page;
-#define GF110_DMA_V0_KIND_PITCH                                            0x00
-#define GF110_DMA_V0_KIND_VM                                               0xff
+#define GF119_DMA_V0_KIND_PITCH                                            0x00
+#define GF119_DMA_V0_KIND_VM                                               0xff
 	__u8  kind;
 	__u8  pad03[5];
 };

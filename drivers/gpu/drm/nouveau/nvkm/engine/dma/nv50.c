@@ -24,14 +24,13 @@
 #include "priv.h"
 #include "user.h"
 
-struct nvkm_oclass *
-nv50_dmaeng_oclass = &(struct nvkm_dma_impl) {
-	.base.handle = NV_ENGINE(DMAOBJ, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_dma_ctor,
-		.dtor = _nvkm_dma_dtor,
-		.init = _nvkm_dma_init,
-		.fini = _nvkm_dma_fini,
-	},
+static const struct nvkm_dma_func
+nv50_dma = {
 	.class_new = nv50_dmaobj_new,
-}.base;
+};
+
+int
+nv50_dma_new(struct nvkm_device *device, int index, struct nvkm_dma **pdma)
+{
+	return nvkm_dma_new_(&nv50_dma, device, index, pdma);
+}

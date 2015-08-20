@@ -28,7 +28,6 @@ gk104_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0xe4:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk104_gr_oclass;
@@ -36,7 +35,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe7:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk104_gr_oclass;
@@ -44,7 +42,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe6:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk104_gr_oclass;
@@ -52,14 +49,12 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xea:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk20a_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk20a_gr_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xf0:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk110_gr_oclass;
@@ -67,7 +62,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = &gk110_pm_oclass;
 		break;
 	case 0xf1:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk110b_gr_oclass;
@@ -75,14 +69,12 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = &gk110_pm_oclass;
 		break;
 	case 0x106:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk208_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk110_disp_oclass;
 		break;
 	case 0x108:
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk208_gr_oclass;

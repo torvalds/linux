@@ -52,14 +52,13 @@ nvkm_dma_oclass_new(struct nvkm_device *device,
 		    struct nvkm_object **pobject)
 {
 	struct nvkm_dma *dma = nvkm_dma(oclass->engine);
-	struct nvkm_dma_impl *impl = (void *)dma->engine.subdev.object.oclass;
 	struct nvkm_dmaobj *dmaobj = NULL;
 	struct nvkm_client *client = oclass->client;
 	struct rb_node **ptr = &client->dmaroot.rb_node;
 	struct rb_node *parent = NULL;
 	int ret;
 
-	ret = impl->class_new(dma, oclass, data, size, &dmaobj);
+	ret = dma->func->class_new(dma, oclass, data, size, &dmaobj);
 	if (dmaobj)
 		*pobject = &dmaobj->object;
 	if (ret)
@@ -130,26 +129,29 @@ nvkm_dma_oclass_fifo_get(struct nvkm_oclass *oclass, int index)
 	return count;
 }
 
+static void *
+nvkm_dma_dtor(struct nvkm_engine *engine)
+{
+	return nvkm_dma(engine);
+}
+
 static const struct nvkm_engine_func
 nvkm_dma = {
+	.dtor = nvkm_dma_dtor,
 	.base.sclass = nvkm_dma_oclass_base_get,
 	.fifo.sclass = nvkm_dma_oclass_fifo_get,
 };
 
 int
-_nvkm_dma_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+nvkm_dma_new_(const struct nvkm_dma_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_dma **pdma)
 {
-	struct nvkm_dma *dmaeng;
-	int ret;
+	struct nvkm_dma *dma;
 
-	ret = nvkm_engine_create(parent, engine, oclass, true, "DMAOBJ",
-				 "dmaobj", &dmaeng);
-	*pobject = nv_object(dmaeng);
-	if (ret)
-		return ret;
+	if (!(dma = *pdma = kzalloc(sizeof(*dma), GFP_KERNEL)))
+		return -ENOMEM;
+	dma->func = func;
 
-	dmaeng->engine.func = &nvkm_dma;
-	return 0;
+	return nvkm_engine_ctor(&nvkm_dma, device, index,
+				0, true, &dma->engine);
 }

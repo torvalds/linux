@@ -13,6 +13,6 @@ int nv50_dmaobj_new(struct nvkm_dma *, const struct nvkm_oclass *, void *, u32,
 		    struct nvkm_dmaobj **);
 int gf100_dmaobj_new(struct nvkm_dma *, const struct nvkm_oclass *, void *, u32,
 		     struct nvkm_dmaobj **);
-int gf110_dmaobj_new(struct nvkm_dma *, const struct nvkm_oclass *, void *, u32,
+int gf119_dmaobj_new(struct nvkm_dma *, const struct nvkm_oclass *, void *, u32,
 		     struct nvkm_dmaobj **);
 #endif

@@ -2339,7 +2339,7 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 		union {
 			struct nv50_dma_v0 nv50;
 			struct gf100_dma_v0 gf100;
-			struct gf110_dma_v0 gf110;
+			struct gf119_dma_v0 gf119;
 		};
 	} args = {};
 	struct nv50_fbdma *fbdma;
@@ -2375,9 +2375,9 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 		args.gf100.kind = kind;
 		size += sizeof(args.gf100);
 	} else {
-		args.gf110.page = GF110_DMA_V0_PAGE_LP;
-		args.gf110.kind = kind;
-		size += sizeof(args.gf110);
+		args.gf119.page = GF119_DMA_V0_PAGE_LP;
+		args.gf119.kind = kind;
+		size += sizeof(args.gf119);
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
