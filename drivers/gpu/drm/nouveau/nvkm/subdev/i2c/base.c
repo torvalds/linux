@@ -282,31 +282,34 @@ nvkm_i2c_identify(struct nvkm_i2c *i2c, int index, const char *what,
 		  bool (*match)(struct nvkm_i2c_port *,
 				struct i2c_board_info *, void *), void *data)
 {
+	struct nvkm_subdev *subdev = &i2c->subdev;
 	struct nvkm_i2c_port *port = nvkm_i2c_find(i2c, index);
 	int i;
 
 	if (!port) {
-		nv_debug(i2c, "no bus when probing %s on %d\n", what, index);
+		nvkm_debug(subdev, "no bus when probing %s on %d\n",
+			   what, index);
 		return -ENODEV;
 	}
 
-	nv_debug(i2c, "probing %ss on bus: %d\n", what, port->index);
+	nvkm_debug(subdev, "probing %ss on bus: %d\n", what, port->index);
 	for (i = 0; info[i].dev.addr; i++) {
 		u8 orig_udelay = 0;
 
 		if ((port->adapter.algo == &i2c_bit_algo) &&
 		    (info[i].udelay != 0)) {
 			struct i2c_algo_bit_data *algo = port->adapter.algo_data;
-			nv_debug(i2c, "using custom udelay %d instead of %d\n",
-			         info[i].udelay, algo->udelay);
+			nvkm_debug(subdev,
+				   "using custom udelay %d instead of %d\n",
+				   info[i].udelay, algo->udelay);
 			orig_udelay = algo->udelay;
 			algo->udelay = info[i].udelay;
 		}
 
 		if (nv_probe_i2c(port, info[i].dev.addr) &&
 		    (!match || match(port, &info[i].dev, data))) {
-			nv_info(i2c, "detected %s: %s\n", what,
-				info[i].dev.type);
+			nvkm_info(subdev, "detected %s: %s\n", what,
+				  info[i].dev.type);
 			return i;
 		}
 
@@ -316,7 +319,7 @@ nvkm_i2c_identify(struct nvkm_i2c *i2c, int index, const char *what,
 		}
 	}
 
-	nv_debug(i2c, "no devices found.\n");
+	nvkm_debug(subdev, "no devices found.\n");
 	return -ENODEV;
 }
 

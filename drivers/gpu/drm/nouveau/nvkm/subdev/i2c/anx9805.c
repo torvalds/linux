@@ -32,11 +32,13 @@ struct anx9805_i2c_port {
 static int
 anx9805_train(struct nvkm_i2c_port *port, int link_nr, int link_bw, bool enh)
 {
+	struct nvkm_i2c *i2c = nvkm_i2c(port);
+	struct nvkm_subdev *subdev = &i2c->subdev;
 	struct anx9805_i2c_port *chan = (void *)port;
 	struct nvkm_i2c_port *mast = (void *)nv_object(chan)->parent;
 	u8 tmp, i;
 
-	DBG("ANX9805 train %d 0x%02x %d\n", link_nr, link_bw, enh);
+	DBG("ANX9805 train %d %02x %d\n", link_nr, link_bw, enh);
 
 	nv_wri2cr(mast, chan->addr, 0xa0, link_bw);
 	nv_wri2cr(mast, chan->addr, 0xa1, link_nr | (enh ? 0x80 : 0x00));
@@ -47,13 +49,13 @@ anx9805_train(struct nvkm_i2c_port *port, int link_nr, int link_bw, bool enh)
 	while ((tmp = nv_rdi2cr(mast, chan->addr, 0xa8)) & 0x01) {
 		mdelay(5);
 		if (i++ == 100) {
-			nv_error(port, "link training timed out\n");
+			nvkm_error(subdev, "link training timed out\n");
 			return -ETIMEDOUT;
 		}
 	}
 
 	if (tmp & 0x70) {
-		nv_error(port, "link training failed: 0x%02x\n", tmp);
+		nvkm_error(subdev, "link training failed: %02x\n", tmp);
 		return -EIO;
 	}
 

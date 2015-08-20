@@ -55,8 +55,10 @@ g94_aux_mask(struct nvkm_i2c *i2c, u32 type, u32 mask, u32 data)
 	nvkm_wr32(device, 0x00e068, temp);
 }
 
-#define AUX_DBG(fmt, args...) nv_debug(i2c, "AUXCH(%d): " fmt, ch, ##args)
-#define AUX_ERR(fmt, args...) nv_error(i2c, "AUXCH(%d): " fmt, ch, ##args)
+#define AUX_DBG(fmt, args...)                                                  \
+	nvkm_debug(&i2c->subdev, "AUXCH(%d): " fmt, ch, ##args)
+#define AUX_ERR(fmt, args...)                                                  \
+	nvkm_error(&i2c->subdev, "AUXCH(%d): " fmt, ch, ##args)
 
 static void
 auxch_fini(struct nvkm_i2c *i2c, int ch)
@@ -80,7 +82,7 @@ auxch_init(struct nvkm_i2c *i2c, int ch)
 		ctrl = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 		udelay(1);
 		if (!timeout--) {
-			AUX_ERR("begin idle timeout 0x%08x\n", ctrl);
+			AUX_ERR("begin idle timeout %08x\n", ctrl);
 			return -EBUSY;
 		}
 	} while (ctrl & 0x03010000);
@@ -92,7 +94,7 @@ auxch_init(struct nvkm_i2c *i2c, int ch)
 		ctrl = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 		udelay(1);
 		if (!timeout--) {
-			AUX_ERR("magic wait 0x%08x\n", ctrl);
+			AUX_ERR("magic wait %08x\n", ctrl);
 			auxch_fini(i2c, ch);
 			return -EBUSY;
 		}
@@ -113,7 +115,7 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 	int ch = port->addr;
 	int ret, i;
 
-	AUX_DBG("%d: 0x%08x %d\n", type, addr, size);
+	AUX_DBG("%d: %08x %d\n", type, addr, size);
 
 	ret = auxch_init(i2c, ch);
 	if (ret < 0)
@@ -129,7 +131,7 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 	if (!(type & 1)) {
 		memcpy(xbuf, data, size);
 		for (i = 0; i < 16; i += 4) {
-			AUX_DBG("wr 0x%08x\n", xbuf[i / 4]);
+			AUX_DBG("wr %08x\n", xbuf[i / 4]);
 			nvkm_wr32(device, 0x00e4c0 + (ch * 0x50) + i, xbuf[i / 4]);
 		}
 	}
@@ -156,7 +158,7 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 			ctrl = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 			udelay(1);
 			if (!timeout--) {
-				AUX_ERR("tx req timeout 0x%08x\n", ctrl);
+				AUX_ERR("tx req timeout %08x\n", ctrl);
 				ret = -EIO;
 				goto out;
 			}
@@ -173,13 +175,13 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 		if ((stat & 0x00000e00))
 			ret = -EIO;
 
-		AUX_DBG("%02d 0x%08x 0x%08x\n", retries, ctrl, stat);
+		AUX_DBG("%02d %08x %08x\n", retries, ctrl, stat);
 	}
 
 	if (type & 1) {
 		for (i = 0; i < 16; i += 4) {
 			xbuf[i / 4] = nvkm_rd32(device, 0x00e4d0 + (ch * 0x50) + i);
-			AUX_DBG("rd 0x%08x\n", xbuf[i / 4]);
+			AUX_DBG("rd %08x\n", xbuf[i / 4]);
 		}
 		memcpy(data, xbuf, size);
 	}

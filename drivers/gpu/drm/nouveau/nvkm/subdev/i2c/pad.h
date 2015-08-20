@@ -46,9 +46,11 @@ int _nvkm_i2c_pad_fini(struct nvkm_object *, bool);
 #ifndef MSG
 #define MSG(l,f,a...) do {                                                     \
 	struct nvkm_i2c_pad *_pad = (void *)pad;                               \
-	nv_##l(_pad, "PAD:%c:%02x: "f,                                         \
-	       _pad->index >= 0x100 ? 'X' : 'S',                               \
-	       _pad->index >= 0x100 ? _pad->index - 0x100 : _pad->index, ##a); \
+	struct nvkm_i2c *_i2c = nvkm_i2c(_pad);                                \
+	nvkm_##l(&_i2c->subdev, "PAD:%c:%02x: "f,                              \
+		 _pad->index >= 0x100 ? 'X' : 'S',                             \
+		 _pad->index >= 0x100 ?                                        \
+		 _pad->index - 0x100 : _pad->index, ##a);                      \
 } while(0)
 #define DBG(f,a...) MSG(debug, f, ##a)
 #define ERR(f,a...) MSG(error, f, ##a)
