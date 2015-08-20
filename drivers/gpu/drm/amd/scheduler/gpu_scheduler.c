@@ -108,7 +108,6 @@ static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
 static struct amd_sched_entity *
 amd_sched_select_context(struct amd_gpu_scheduler *sched)
 {
-	struct amd_sched_entity *wake_entity = NULL;
 	struct amd_sched_entity *tmp;
 
 	if (!amd_sched_ready(sched))
@@ -119,11 +118,6 @@ amd_sched_select_context(struct amd_gpu_scheduler *sched)
 	if (tmp == NULL)
 		tmp = amd_sched_rq_select_entity(&sched->sched_rq);
 
-	if (sched->current_entity && (sched->current_entity != tmp))
-		wake_entity = sched->current_entity;
-	sched->current_entity = tmp;
-	if (wake_entity && wake_entity->need_wakeup)
-		wake_up(&wake_entity->wait_queue);
 	return tmp;
 }
 
@@ -184,16 +178,17 @@ static bool is_context_entity_initialized(struct amd_gpu_scheduler *sched,
 		entity->belongto_rq != NULL;
 }
 
-static bool is_context_entity_idle(struct amd_gpu_scheduler *sched,
-				   struct amd_sched_entity *entity)
+/**
+ * Check if entity is idle
+ *
+ * @entity	The pointer to a valid scheduler entity
+ *
+ * Return true if entity don't has any unscheduled jobs.
+ */
+static bool amd_sched_entity_is_idle(struct amd_sched_entity *entity)
 {
-	/**
-	 * Idle means no pending IBs, and the entity is not
-	 * currently being used.
-	*/
-	barrier();
-	if ((sched->current_entity != entity) &&
-	    kfifo_is_empty(&entity->job_queue))
+	rmb();
+	if (kfifo_is_empty(&entity->job_queue))
 		return true;
 
 	return false;
@@ -210,8 +205,8 @@ static bool is_context_entity_idle(struct amd_gpu_scheduler *sched,
 int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			    struct amd_sched_entity *entity)
 {
-	int r = 0;
 	struct amd_sched_rq *rq = entity->belongto_rq;
+	long r;
 
 	if (!is_context_entity_initialized(sched, entity))
 		return 0;
@@ -220,13 +215,11 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs
 	*/
-	r = wait_event_timeout(
-		entity->wait_queue,
-		is_context_entity_idle(sched, entity),
-		msecs_to_jiffies(AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS)
-		) ?  0 : -1;
+	r = wait_event_timeout(entity->wait_queue,
+		amd_sched_entity_is_idle(entity),
+		msecs_to_jiffies(AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS));
 
-	if (r)
+	if (r <= 0)
 		DRM_INFO("Entity %p is in waiting state during fini\n",
 			 entity);
 
@@ -325,6 +318,12 @@ static int amd_sched_main(void *param)
 			fence_put(fence);
 		}
 		mutex_unlock(&sched->sched_lock);
+
+		if (c_entity->need_wakeup) {
+			c_entity->need_wakeup = false;
+			wake_up(&c_entity->wait_queue);
+		}
+
 	}
 	return 0;
 }
