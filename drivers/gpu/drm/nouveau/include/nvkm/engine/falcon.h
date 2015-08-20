@@ -29,7 +29,7 @@ struct nvkm_falcon_data {
 #include <core/engine.h>
 
 struct nvkm_falcon {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 
 	u32 addr;
 	u8  version;
@@ -57,7 +57,7 @@ struct nvkm_falcon {
 	nvkm_falcon_create_((p), (e), (c), (b), (d), (i), (f),              \
 			       sizeof(**r),(void **)r)
 #define nvkm_falcon_destroy(p)                                              \
-	nvkm_engine_destroy(&(p)->base)
+	nvkm_engine_destroy(&(p)->engine)
 #define nvkm_falcon_init(p) ({                                              \
 	struct nvkm_falcon *falcon = (p);                                   \
 	_nvkm_falcon_init(nv_object(falcon));                               \

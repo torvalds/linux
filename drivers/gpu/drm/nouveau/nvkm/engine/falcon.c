@@ -77,7 +77,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 	u32 caps;
 
 	/* enable engine, and determine its capabilities */
-	ret = nvkm_engine_init(&falcon->base);
+	ret = nvkm_engine_init(&falcon->engine);
 	if (ret)
 		return ret;
 
@@ -253,7 +253,7 @@ _nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
 	nv_mo32(falcon, 0x048, 0x00000003, 0x00000000);
 	nv_wo32(falcon, 0x014, 0xffffffff);
 
-	return nvkm_engine_fini(&falcon->base, suspend);
+	return nvkm_engine_fini(&falcon->engine, suspend);
 }
 
 int

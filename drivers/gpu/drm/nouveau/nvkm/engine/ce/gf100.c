@@ -85,7 +85,7 @@ gf100_ce_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wo32(priv, 0x084, nv_engidx(&priv->base.base) - NVDEV_ENGINE_CE0);
+	nv_wo32(priv, 0x084, nv_engidx(&priv->base.engine) - NVDEV_ENGINE_CE0);
 	return 0;
 }
 
