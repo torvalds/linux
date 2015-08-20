@@ -1056,16 +1056,16 @@ nouveau_drm_pci_driver = {
 };
 
 struct drm_device *
-nouveau_platform_device_create_(struct platform_device *pdev, int size,
-				void **pobject)
+nouveau_platform_device_create(struct platform_device *pdev,
+			       struct nvkm_device **pdevice)
 {
 	struct drm_device *drm;
 	int err;
 
-	err = nvkm_device_create_(pdev, NVKM_BUS_PLATFORM,
-				  nouveau_platform_name(pdev),
-				  dev_name(&pdev->dev), nouveau_config,
-				  nouveau_debug, size, pobject);
+	err = nvkm_device_create(pdev, NVKM_BUS_PLATFORM,
+				 nouveau_platform_name(pdev),
+				 dev_name(&pdev->dev), nouveau_config,
+				 nouveau_debug, pdevice);
 	if (err)
 		return ERR_PTR(err);
 
@@ -1085,7 +1085,7 @@ nouveau_platform_device_create_(struct platform_device *pdev, int size,
 	return drm;
 
 err_free:
-	nvkm_object_ref(NULL, (struct nvkm_object **)pobject);
+	nvkm_object_ref(NULL, (struct nvkm_object **)pdevice);
 
 	return ERR_PTR(err);
 }

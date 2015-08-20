@@ -396,8 +396,8 @@ gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		   struct nvkm_oclass *oclass, void *data, u32 size,
 		   struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct gk20a_instmem *imem;
-	struct nouveau_platform_device *plat;
 	int ret;
 
 	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
@@ -407,12 +407,11 @@ gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	spin_lock_init(&imem->lock);
 
-	plat = nv_device_to_platform(nv_device(parent));
-	if (plat->gpu->iommu.domain) {
-		imem->domain = plat->gpu->iommu.domain;
-		imem->mm = plat->gpu->iommu.mm;
-		imem->iommu_pgshift = plat->gpu->iommu.pgshift;
-		imem->mm_mutex = &plat->gpu->iommu.mutex;
+	if (device->gpu->iommu.domain) {
+		imem->domain = device->gpu->iommu.domain;
+		imem->mm = device->gpu->iommu.mm;
+		imem->iommu_pgshift = device->gpu->iommu.pgshift;
+		imem->mm_mutex = &device->gpu->iommu.mutex;
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {

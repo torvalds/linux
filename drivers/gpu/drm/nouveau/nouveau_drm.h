@@ -182,11 +182,8 @@ nouveau_drm(struct drm_device *dev)
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
-#define nouveau_platform_device_create(p, u)                                   \
-	nouveau_platform_device_create_(p, sizeof(**u), (void **)u)
 struct drm_device *
-nouveau_platform_device_create_(struct platform_device *pdev,
-				int size, void **pobject);
+nouveau_platform_device_create(struct platform_device *, struct nvkm_device **);
 void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \

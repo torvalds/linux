@@ -144,6 +144,8 @@ struct nvkm_device {
 	struct nvkm_sw *sw;
 	struct nvkm_engine *vic;
 	struct nvkm_engine *vp;
+
+	struct nouveau_platform_gpu *gpu;
 };
 
 struct nvkm_device *nvkm_device_find(u64 name);

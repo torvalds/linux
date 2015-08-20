@@ -152,8 +152,8 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct gk20a_volt *volt;
-	struct nouveau_platform_device *plat;
 	int i, ret, uv;
 
 	ret = nvkm_volt_create(parent, engine, oclass, &volt);
@@ -161,12 +161,10 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	plat = nv_device_to_platform(nv_device(parent));
-
-	uv = regulator_get_voltage(plat->gpu->vdd);
+	uv = regulator_get_voltage(device->gpu->vdd);
 	nvkm_info(&volt->base.subdev, "The default voltage is %duV\n", uv);
 
-	volt->vdd = plat->gpu->vdd;
+	volt->vdd = device->gpu->vdd;
 	volt->base.vid_get = gk20a_volt_vid_get;
 	volt->base.vid_set = gk20a_volt_vid_set;
 	volt->base.set_id = gk20a_volt_set_id;
@@ -178,7 +176,7 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		volt->base.vid[i].vid = i;
 		volt->base.vid[i].uv =
 			gk20a_volt_calc_voltage(&gk20a_cvb_coef[i],
-						plat->gpu_speedo);
+						device->gpu->gpu_speedo);
 		nvkm_debug(&volt->base.subdev, "%2d: vid=%d, uv=%d\n", i,
 			   volt->base.vid[i].vid, volt->base.vid[i].uv);
 	}

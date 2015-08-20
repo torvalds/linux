@@ -54,19 +54,9 @@ struct nouveau_platform_gpu {
 		struct iommu_domain *domain;
 		unsigned long pgshift;
 	} iommu;
-};
-
-struct nouveau_platform_device {
-	struct nvkm_device device;
-
-	struct nouveau_platform_gpu *gpu;
 
 	int gpu_speedo;
 };
 
-#define nv_device_to_platform(d)                                               \
-	container_of(d, struct nouveau_platform_device, device)
-
 extern struct platform_driver nouveau_platform_driver;
-
 #endif

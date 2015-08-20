@@ -650,8 +650,8 @@ gk20a_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct gk20a_clk *clk;
-	struct nouveau_platform_device *plat;
 	int ret;
 	int i;
 
@@ -670,8 +670,7 @@ gk20a_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	clk->params = &gk20a_pllg_params;
 
-	plat = nv_device_to_platform(nv_device(parent));
-	clk->parent_rate = clk_get_rate(plat->gpu->clk);
+	clk->parent_rate = clk_get_rate(device->gpu->clk);
 	nvkm_info(&clk->base.subdev, "parent clock rate: %d Mhz\n",
 		  clk->parent_rate / MHZ);
 
