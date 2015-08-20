@@ -73,6 +73,15 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	if (bin_len < 64 || bin_len > SPECTRAL_ATH10K_MAX_NUM_BINS)
 		return -EINVAL;
 
+	/* qca99x0 reports bin size as 68 bytes (64 bytes + 4 bytes) in
+	 * report mode 2. First 64 bytes carries inband tones (-32 to +31)
+	 * and last 4 byte carries band edge detection data (+32) mainly
+	 * used in radar detection purpose. Strip last 4 byte to make bin
+	 * size is valid one.
+	 */
+	if (bin_len == 68)
+		bin_len -= 4;
+
 	reg0 = __le32_to_cpu(fftr->reg0);
 	reg1 = __le32_to_cpu(fftr->reg1);
 
