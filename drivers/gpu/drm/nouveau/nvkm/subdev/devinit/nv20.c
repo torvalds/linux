@@ -30,10 +30,10 @@
 #include <subdev/bios/init.h>
 
 static void
-nv20_devinit_meminit(struct nvkm_devinit *devinit)
+nv20_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nv04_devinit *init = (void *)devinit;
-	struct nvkm_device *device = nv_device(init);
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	uint32_t mask = (device->chipset >= 0x25 ? 0x300 : 0x900);
 	uint32_t amount, off;
 	struct io_mapping *fb;
@@ -41,7 +41,7 @@ nv20_devinit_meminit(struct nvkm_devinit *devinit)
 	/* Map the framebuffer aperture */
 	fb = fbmem_init(nv_device(init));
 	if (!fb) {
-		nv_error(init, "failed to map fb\n");
+		nvkm_error(subdev, "failed to map fb\n");
 		return;
 	}
 

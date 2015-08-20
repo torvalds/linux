@@ -32,7 +32,8 @@
 static void
 nv10_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nvkm_device *device = init->subdev.device;
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	static const int mem_width[] = { 0x10, 0x00, 0x20 };
 	int mem_width_count;
 	uint32_t patt = 0xdeadbeef;
@@ -47,7 +48,7 @@ nv10_devinit_meminit(struct nvkm_devinit *init)
 	/* Map the framebuffer aperture */
 	fb = fbmem_init(device);
 	if (!fb) {
-		nv_error(init, "failed to map fb\n");
+		nvkm_error(subdev, "failed to map fb\n");
 		return;
 	}
 

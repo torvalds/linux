@@ -81,11 +81,12 @@ static int
 pmu_load(struct nv50_devinit *init, u8 type, bool post,
 	 u32 *init_addr_pmu, u32 *args_addr_pmu)
 {
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvbios_pmuR pmu;
 
 	if (!nvbios_pmuRm(bios, type, &pmu)) {
-		nv_error(init, "VBIOS PMU fuc %02x not found\n", type);
+		nvkm_error(subdev, "VBIOS PMU fuc %02x not found\n", type);
 		return -EINVAL;
 	}
 
@@ -109,7 +110,7 @@ static int
 gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 {
 	struct nv50_devinit *init = (void *)nvkm_devinit(subdev);
-	struct nvkm_device *device = init->base.subdev.device;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct bit_entry bit_I;
 	u32 exec, args;
@@ -117,7 +118,7 @@ gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 
 	if (bit_entry(bios, 'I', &bit_I) || bit_I.version != 1 ||
 					    bit_I.length < 0x1c) {
-		nv_error(init, "VBIOS PMU init data not found\n");
+		nvkm_error(subdev, "VBIOS PMU init data not found\n");
 		return -EINVAL;
 	}
 

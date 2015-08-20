@@ -44,13 +44,13 @@ nv50_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 
 	ret = nvbios_pll_parse(bios, type, &info);
 	if (ret) {
-		nv_error(subdev, "failed to retrieve pll data, %d\n", ret);
+		nvkm_error(subdev, "failed to retrieve pll data, %d\n", ret);
 		return ret;
 	}
 
 	ret = nv04_pll_calc(subdev, &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret) {
-		nv_error(subdev, "failed pll calculation\n");
+		nvkm_error(subdev, "failed pll calculation\n");
 		return ret;
 	}
 
@@ -94,9 +94,11 @@ nv50_devinit_disable(struct nvkm_devinit *init)
 int
 nv50_devinit_init(struct nvkm_object *object)
 {
-	struct nvkm_bios *bios = nvkm_bios(object);
-	struct nvkm_ibus *ibus = nvkm_ibus(object);
 	struct nv50_devinit *init = (void *)object;
+	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
+	struct nvkm_subdev *ibus = device->ibus;
 	struct nvbios_outp info;
 	struct dcb_output outp;
 	u8  ver = 0xff, hdr, cnt, len;
@@ -105,7 +107,7 @@ nv50_devinit_init(struct nvkm_object *object)
 	if (!init->base.post) {
 		if (!nv_rdvgac(init, 0, 0x00) &&
 		    !nv_rdvgac(init, 0, 0x1a)) {
-			nv_info(init, "adaptor not initialised\n");
+			nvkm_debug(subdev, "adaptor not initialised\n");
 			init->base.post = true;
 		}
 	}

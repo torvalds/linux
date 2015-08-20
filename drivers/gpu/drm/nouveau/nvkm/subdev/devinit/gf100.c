@@ -55,7 +55,7 @@ gf100_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 		nvkm_wr32(device, info.reg + 0x10, fN << 16);
 		break;
 	default:
-		nv_warn(init, "0x%08x/%dKhz unimplemented\n", type, freq);
+		nvkm_warn(subdev, "%08x/%dKhz unimplemented\n", type, freq);
 		ret = -EINVAL;
 		break;
 	}

@@ -35,7 +35,8 @@
 static void
 nv04_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nvkm_device *device = init->subdev.device;
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 patt = 0xdeadbeef;
 	struct io_mapping *fb;
 	int i;
@@ -43,7 +44,7 @@ nv04_devinit_meminit(struct nvkm_devinit *init)
 	/* Map the framebuffer aperture */
 	fb = fbmem_init(device);
 	if (!fb) {
-		nv_error(init, "failed to map fb\n");
+		nvkm_error(subdev, "failed to map fb\n");
 		return;
 	}
 
@@ -414,6 +415,7 @@ int
 nv04_devinit_init(struct nvkm_object *object)
 {
 	struct nv04_devinit *init = (void *)object;
+	struct nvkm_subdev *subdev = &init->base.subdev;
 
 	if (!init->base.post) {
 		u32 htotal = nv_rdvgac(init, 0, 0x06);
@@ -422,7 +424,7 @@ nv04_devinit_init(struct nvkm_object *object)
 		htotal |= (nv_rdvgac(init, 0, 0x25) & 0x01) << 10;
 		htotal |= (nv_rdvgac(init, 0, 0x41) & 0x01) << 11;
 		if (!htotal) {
-			nv_info(init, "adaptor not initialised\n");
+			nvkm_debug(subdev, "adaptor not initialised\n");
 			init->base.post = true;
 		}
 	}

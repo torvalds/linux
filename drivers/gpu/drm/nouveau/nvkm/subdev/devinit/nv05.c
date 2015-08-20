@@ -44,7 +44,8 @@ nv05_devinit_meminit(struct nvkm_devinit *init)
 		{ 0x06, 0x00 },
 		{ 0x00, 0x00 }
 	};
-	struct nvkm_device *device = init->subdev.device;
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct io_mapping *fb;
 	u32 patt = 0xdeadbeef;
@@ -55,7 +56,7 @@ nv05_devinit_meminit(struct nvkm_devinit *init)
 	/* Map the framebuffer aperture */
 	fb = fbmem_init(device);
 	if (!fb) {
-		nv_error(init, "failed to map fb\n");
+		nvkm_error(subdev, "failed to map fb\n");
 		return;
 	}
 
