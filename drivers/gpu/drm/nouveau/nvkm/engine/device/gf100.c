@@ -28,31 +28,22 @@ gf100_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0xc0:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xc4:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xc3:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xce:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xcf:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xc1:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xc8:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xd9:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	case 0xd7:
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	default:
 		return -EINVAL;

@@ -61,31 +61,8 @@ nv10_sw = {
 	}
 };
 
-static int
-nv10_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv10_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
 {
-	struct nvkm_sw *sw;
-	int ret;
-
-	ret = nvkm_sw_create(parent, engine, oclass, &sw);
-	*pobject = nv_object(sw);
-	if (ret)
-		return ret;
-
-	sw->func = &nv10_sw;
-	nv_subdev(sw)->intr = nv04_sw_intr;
-	return 0;
+	return nvkm_sw_new_(&nv10_sw, device, index, psw);
 }
-
-struct nvkm_oclass *
-nv10_sw_oclass = &(struct nvkm_oclass) {
-	.handle = NV_ENGINE(SW, 0x10),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv10_sw_ctor,
-		.dtor = _nvkm_sw_dtor,
-		.init = _nvkm_sw_init,
-		.fini = _nvkm_sw_fini,
-	},
-};

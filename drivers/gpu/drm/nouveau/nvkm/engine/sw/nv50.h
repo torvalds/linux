@@ -6,21 +6,6 @@
 #include "nvsw.h"
 #include <core/notify.h>
 
-struct nv50_sw_oclass {
-	struct nvkm_oclass base;
-	const struct nvkm_sw_func *func;
-};
-
-int  nv50_sw_ctor(struct nvkm_object *, struct nvkm_object *,
-			struct nvkm_oclass *, void *, u32,
-			struct nvkm_object **);
-
-struct nv50_sw_cclass {
-	struct nvkm_oclass base;
-	int (*vblank)(struct nvkm_notify *);
-	const struct nvkm_sw_chan_func *chan;
-};
-
 struct nv50_sw_chan {
 	struct nvkm_sw_chan base;
 	struct {

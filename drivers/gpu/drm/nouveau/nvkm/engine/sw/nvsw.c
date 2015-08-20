@@ -27,18 +27,19 @@
 #include <nvif/class.h>
 
 static int
-nvkm_nvsw_mthd_(struct nvkm_object *base, u32 mthd, void *data, u32 size)
+nvkm_nvsw_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	struct nvkm_nvsw *nvsw = nvkm_nvsw(base);
+	struct nvkm_nvsw *nvsw = nvkm_nvsw(object);
 	if (nvsw->func->mthd)
 		return nvsw->func->mthd(nvsw, mthd, data, size);
 	return -ENODEV;
 }
 
 static int
-nvkm_nvsw_ntfy_(struct nvkm_object *base, u32 mthd, struct nvkm_event **pevent)
+nvkm_nvsw_ntfy_(struct nvkm_object *object, u32 mthd,
+		struct nvkm_event **pevent)
 {
-	struct nvkm_nvsw *nvsw = nvkm_nvsw(base);
+	struct nvkm_nvsw *nvsw = nvkm_nvsw(object);
 	switch (mthd) {
 	case NVSW_NTFY_UEVENT:
 		*pevent = &nvsw->chan->event;

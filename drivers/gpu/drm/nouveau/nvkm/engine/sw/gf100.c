@@ -140,7 +140,7 @@ gf100_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
  ******************************************************************************/
 
 static const struct nvkm_sw_func
-gf100_sw_func = {
+gf100_sw = {
 	.chan_new = gf100_sw_chan_new,
 	.sclass = {
 		{ nvkm_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_GF100 } },
@@ -148,14 +148,8 @@ gf100_sw_func = {
 	}
 };
 
-struct nvkm_oclass *
-gf100_sw_oclass = &(struct nv50_sw_oclass) {
-	.base.handle = NV_ENGINE(SW, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_sw_ctor,
-		.dtor = _nvkm_sw_dtor,
-		.init = _nvkm_sw_init,
-		.fini = _nvkm_sw_fini,
-	},
-	.func = &gf100_sw_func,
-}.base;
+int
+gf100_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
+{
+	return nvkm_sw_new_(&gf100_sw, device, index, psw);
+}

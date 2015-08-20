@@ -31,7 +31,6 @@ gm100_identify(struct nvkm_device *device)
 
 #if 0
 #endif
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 #if 0
 #endif
 #if 0
@@ -44,7 +43,6 @@ gm100_identify(struct nvkm_device *device)
 #endif
 #if 0
 #endif
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 #if 0
 #endif
 		break;
@@ -55,13 +53,11 @@ gm100_identify(struct nvkm_device *device)
 #endif
 #if 0
 #endif
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 #if 0
 #endif
 		break;
 	case 0x12b:
 
-		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		break;
 	default:
 		return -EINVAL;

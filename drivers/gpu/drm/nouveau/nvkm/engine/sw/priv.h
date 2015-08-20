@@ -4,6 +4,9 @@
 #include <engine/sw.h>
 struct nvkm_sw_chan;
 
+int nvkm_sw_new_(const struct nvkm_sw_func *, struct nvkm_device *,
+		 int index, struct nvkm_sw **);
+
 struct nvkm_sw_chan_sclass {
 	int (*ctor)(struct nvkm_sw_chan *, const struct nvkm_oclass *,
 		    void *data, u32 size, struct nvkm_object **);

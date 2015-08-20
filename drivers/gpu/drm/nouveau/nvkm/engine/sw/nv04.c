@@ -122,12 +122,6 @@ nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifo,
  * software engine/subdev functions
  ******************************************************************************/
 
-void
-nv04_sw_intr(struct nvkm_subdev *subdev)
-{
-	nvkm_mask(subdev->device, 0x000100, 0x80000000, 0x00000000);
-}
-
 static const struct nvkm_sw_func
 nv04_sw = {
 	.chan_new = nv04_sw_chan_new,
@@ -137,31 +131,8 @@ nv04_sw = {
 	}
 };
 
-static int
-nv04_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv04_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
 {
-	struct nvkm_sw *sw;
-	int ret;
-
-	ret = nvkm_sw_create(parent, engine, oclass, &sw);
-	*pobject = nv_object(sw);
-	if (ret)
-		return ret;
-
-	sw->func = &nv04_sw;
-	nv_subdev(sw)->intr = nv04_sw_intr;
-	return 0;
+	return nvkm_sw_new_(&nv04_sw, device, index, psw);
 }
-
-struct nvkm_oclass *
-nv04_sw_oclass = &(struct nvkm_oclass) {
-	.handle = NV_ENGINE(SW, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_sw_ctor,
-		.dtor = _nvkm_sw_dtor,
-		.init = _nvkm_sw_init,
-		.fini = _nvkm_sw_fini,
-	},
-};

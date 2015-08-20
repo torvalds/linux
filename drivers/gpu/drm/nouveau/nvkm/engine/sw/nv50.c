@@ -48,7 +48,7 @@ nv50_sw_chan_vblsem_release(struct nvkm_notify *notify)
 	nvkm_wr32(device, 0x001710, 0x80000000 | chan->vblank.ctxdma);
 	nvkm_bar_flush(device->bar);
 
-	if (nv_device(sw)->chipset == 0x50) {
+	if (device->chipset == 0x50) {
 		nvkm_wr32(device, 0x001570, chan->vblank.offset);
 		nvkm_wr32(device, 0x001574, chan->vblank.value);
 	} else {
@@ -133,27 +133,8 @@ nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
  * software engine/subdev functions
  ******************************************************************************/
 
-int
-nv50_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
-{
-	struct nv50_sw_oclass *pclass = (void *)oclass;
-	struct nvkm_sw *sw;
-	int ret;
-
-	ret = nvkm_sw_create(parent, engine, oclass, &sw);
-	*pobject = nv_object(sw);
-	if (ret)
-		return ret;
-
-	sw->func = pclass->func;
-	nv_subdev(sw)->intr = nv04_sw_intr;
-	return 0;
-}
-
 static const struct nvkm_sw_func
-nv50_sw_func = {
+nv50_sw = {
 	.chan_new = nv50_sw_chan_new,
 	.sclass = {
 		{ nvkm_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_NV50 } },
@@ -161,14 +142,8 @@ nv50_sw_func = {
 	}
 };
 
-struct nvkm_oclass *
-nv50_sw_oclass = &(struct nv50_sw_oclass) {
-	.base.handle = NV_ENGINE(SW, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_sw_ctor,
-		.dtor = _nvkm_sw_dtor,
-		.init = _nvkm_sw_init,
-		.fini = _nvkm_sw_fini,
-	},
-	.func = &nv50_sw_func,
-}.base;
+int
+nv50_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
+{
+	return nvkm_sw_new_(&nv50_sw, device, index, psw);
+}

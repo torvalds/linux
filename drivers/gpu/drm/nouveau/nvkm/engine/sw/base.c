@@ -82,26 +82,29 @@ nvkm_sw_cclass_get(struct nvkm_fifo_chan *fifoch,
 	return sw->func->chan_new(sw, fifoch, oclass, pobject);
 }
 
+static void *
+nvkm_sw_dtor(struct nvkm_engine *engine)
+{
+	return nvkm_sw(engine);
+}
+
 static const struct nvkm_engine_func
 nvkm_sw = {
+	.dtor = nvkm_sw_dtor,
 	.fifo.cclass = nvkm_sw_cclass_get,
 	.fifo.sclass = nvkm_sw_oclass_get,
 };
 
 int
-nvkm_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_sw_new_(const struct nvkm_sw_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_sw **psw)
 {
 	struct nvkm_sw *sw;
-	int ret;
 
-	ret = nvkm_engine_create_(parent, engine, oclass, true, "sw",
-				  "sw", length, pobject);
-	sw = *pobject;
-	if (ret)
-		return ret;
-
-	sw->engine.func = &nvkm_sw;
+	if (!(sw = *psw = kzalloc(sizeof(*sw), GFP_KERNEL)))
+		return -ENOMEM;
 	INIT_LIST_HEAD(&sw->chan);
-	return 0;
+	sw->func = func;
+
+	return nvkm_engine_ctor(&nvkm_sw, device, index, 0, true, &sw->engine);
 }
