@@ -59,3 +59,4 @@ obj-$(CONFIG_DMA_SUN4I) += sun4i-dma.o
 obj-$(CONFIG_IMG_MDC_DMA) += img-mdc-dma.o
 obj-$(CONFIG_XGENE_DMA) += xgene-dma.o
 obj-$(CONFIG_ZX_DMA) += zx296702_dma.o
+obj-$(CONFIG_AXI_DMAC) += dma-axi-dmac.o

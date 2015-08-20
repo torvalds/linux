@@ -534,4 +534,14 @@ config QCOM_BAM_DMA
 	  Enable support for the QCOM BAM DMA controller.  This controller
 	  provides DMA capabilities for a variety of on-chip devices.
 
+config AXI_DMAC
+	tristate "Analog Devices AXI-DMAC DMA support"
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_SOCFPGA || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the Analog Devices AXI-DMAC peripheral. This DMA
+	  controller is often used in Analog Device's reference designs for FPGA
+	  platforms.
+
 endif
