@@ -388,6 +388,10 @@ static int nci_open_device(struct nci_dev *ndev)
 				   msecs_to_jiffies(NCI_INIT_TIMEOUT));
 	}
 
+	if (ndev->ops->post_setup) {
+		rc = ndev->ops->post_setup(ndev);
+	}
+
 	if (!rc) {
 		rc = __nci_request(ndev, nci_init_complete_req, 0,
 				   msecs_to_jiffies(NCI_INIT_TIMEOUT));
