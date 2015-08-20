@@ -2761,9 +2761,6 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
-		bits |= ATH9K_RX_FILTER_CONTROL_WRAPPER;
-
 	REG_WRITE(ah, AR_RX_FILTER, bits);
 
 	phybits = 0;
