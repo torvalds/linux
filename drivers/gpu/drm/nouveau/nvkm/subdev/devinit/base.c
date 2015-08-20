@@ -36,7 +36,7 @@ _nvkm_devinit_fini(struct nvkm_object *object, bool suspend)
 		init->post = true;
 
 	/* unlock the extended vga crtc regs */
-	nv_lockvgac(init, false);
+	nvkm_lockvgac(init->subdev.device, false);
 
 	return nvkm_subdev_fini(&init->subdev, suspend);
 }
@@ -67,7 +67,7 @@ _nvkm_devinit_dtor(struct nvkm_object *object)
 	struct nvkm_devinit *init = (void *)object;
 
 	/* lock crtc regs */
-	nv_lockvgac(init, true);
+	nvkm_lockvgac(init->subdev.device, true);
 
 	nvkm_subdev_destroy(&init->subdev);
 }

@@ -49,7 +49,7 @@ nv04_devinit_meminit(struct nvkm_devinit *init)
 	}
 
 	/* Sequencer and refresh off */
-	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) | 0x20);
+	nvkm_wrvgas(device, 0, 1, nvkm_rdvgas(device, 0, 1) | 0x20);
 	nvkm_mask(device, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
 
 	nvkm_mask(device, NV04_PFB_BOOT_0, ~0,
@@ -105,7 +105,7 @@ nv04_devinit_meminit(struct nvkm_devinit *init)
 
 	/* Refresh on, sequencer on */
 	nvkm_mask(device, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
-	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) & ~0x20);
+	nvkm_wrvgas(device, 0, 1, nvkm_rdvgas(device, 0, 1) & ~0x20);
 	fbmem_fini(fb);
 }
 
@@ -406,8 +406,8 @@ nv04_devinit_fini(struct nvkm_object *object, bool suspend)
 
 	/* unslave crtcs */
 	if (init->owner < 0)
-		init->owner = nv_rdvgaowner(init);
-	nv_wrvgaowner(init, 0);
+		init->owner = nvkm_rdvgaowner(device);
+	nvkm_wrvgaowner(device, 0);
 	return 0;
 }
 
@@ -416,13 +416,14 @@ nv04_devinit_init(struct nvkm_object *object)
 {
 	struct nv04_devinit *init = (void *)object;
 	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_device *device = subdev->device;
 
 	if (!init->base.post) {
-		u32 htotal = nv_rdvgac(init, 0, 0x06);
-		htotal |= (nv_rdvgac(init, 0, 0x07) & 0x01) << 8;
-		htotal |= (nv_rdvgac(init, 0, 0x07) & 0x20) << 4;
-		htotal |= (nv_rdvgac(init, 0, 0x25) & 0x01) << 10;
-		htotal |= (nv_rdvgac(init, 0, 0x41) & 0x01) << 11;
+		u32 htotal = nvkm_rdvgac(device, 0, 0x06);
+		htotal |= (nvkm_rdvgac(device, 0, 0x07) & 0x01) << 8;
+		htotal |= (nvkm_rdvgac(device, 0, 0x07) & 0x20) << 4;
+		htotal |= (nvkm_rdvgac(device, 0, 0x25) & 0x01) << 10;
+		htotal |= (nvkm_rdvgac(device, 0, 0x41) & 0x01) << 11;
 		if (!htotal) {
 			nvkm_debug(subdev, "adaptor not initialised\n");
 			init->base.post = true;
@@ -438,7 +439,7 @@ nv04_devinit_dtor(struct nvkm_object *object)
 	struct nv04_devinit *init = (void *)object;
 
 	/* restore vga owner saved at first init */
-	nv_wrvgaowner(init, init->owner);
+	nvkm_wrvgaowner(init->base.subdev.device, init->owner);
 
 	nvkm_devinit_destroy(&init->base);
 }

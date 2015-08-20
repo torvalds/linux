@@ -367,7 +367,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 			u32 sel_clk = nvkm_rd32(device, 0x680524);
 			if ((info->reg == 0x680508 && sel_clk & 0x20) ||
 			    (info->reg == 0x680520 && sel_clk & 0x80)) {
-				if (nv_rdvgac(bios, 0, 0x27) < 0xa3)
+				if (nvkm_rdvgac(device, 0, 0x27) < 0xa3)
 					info->refclk = 200000;
 				else
 					info->refclk = 25000;

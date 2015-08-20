@@ -70,7 +70,7 @@ nv05_devinit_meminit(struct nvkm_devinit *init)
 	}
 
 	/* Sequencer off */
-	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) | 0x20);
+	nvkm_wrvgas(device, 0, 1, nvkm_rdvgas(device, 0, 1) | 0x20);
 
 	if (nvkm_rd32(device, NV04_PFB_BOOT_0) & NV04_PFB_BOOT_0_UMA_ENABLE)
 		goto out;
@@ -122,7 +122,7 @@ nv05_devinit_meminit(struct nvkm_devinit *init)
 
 out:
 	/* Sequencer on */
-	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) & ~0x20);
+	nvkm_wrvgas(device, 0, 1, nvkm_rdvgas(device, 0, 1) & ~0x20);
 	fbmem_fini(fb);
 }
 

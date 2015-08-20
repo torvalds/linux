@@ -105,8 +105,8 @@ nv50_devinit_init(struct nvkm_object *object)
 	int ret, i = 0;
 
 	if (!init->base.post) {
-		if (!nv_rdvgac(init, 0, 0x00) &&
-		    !nv_rdvgac(init, 0, 0x1a)) {
+		if (!nvkm_rdvgac(device, 0, 0x00) &&
+		    !nvkm_rdvgac(device, 0, 0x1a)) {
 			nvkm_debug(subdev, "adaptor not initialised\n");
 			init->base.post = true;
 		}

@@ -214,7 +214,7 @@ static u8
 init_rdport(struct nvbios_init *init, u16 port)
 {
 	if (init_exec(init))
-		return nv_rdport(init->subdev, init->crtc, port);
+		return nvkm_rdport(init->subdev->device, init->crtc, port);
 	return 0x00;
 }
 
@@ -222,7 +222,7 @@ static void
 init_wrport(struct nvbios_init *init, u16 port, u8 value)
 {
 	if (init_exec(init))
-		nv_wrport(init->subdev, init->crtc, port, value);
+		nvkm_wrport(init->subdev->device, init->crtc, port, value);
 }
 
 static u8
@@ -231,7 +231,7 @@ init_rdvgai(struct nvbios_init *init, u16 port, u8 index)
 	struct nvkm_subdev *subdev = init->subdev;
 	if (init_exec(init)) {
 		int head = init->crtc < 0 ? 0 : init->crtc;
-		return nv_rdvgai(subdev, head, port, index);
+		return nvkm_rdvgai(subdev->device, head, port, index);
 	}
 	return 0x00;
 }
@@ -239,19 +239,21 @@ init_rdvgai(struct nvbios_init *init, u16 port, u8 index)
 static void
 init_wrvgai(struct nvbios_init *init, u16 port, u8 index, u8 value)
 {
+	struct nvkm_device *device = init->subdev->device;
+
 	/* force head 0 for updates to cr44, it only exists on first head */
-	if (nv_device(init->subdev)->card_type < NV_50) {
+	if (device->card_type < NV_50) {
 		if (port == 0x03d4 && index == 0x44)
 			init->crtc = 0;
 	}
 
 	if (init_exec(init)) {
 		int head = init->crtc < 0 ? 0 : init->crtc;
-		nv_wrvgai(init->subdev, head, port, index, value);
+		nvkm_wrvgai(device, head, port, index, value);
 	}
 
 	/* select head 1 if cr44 write selected it */
-	if (nv_device(init->subdev)->card_type < NV_50) {
+	if (device->card_type < NV_50) {
 		if (port == 0x03d4 && index == 0x44 && value == 3)
 			init->crtc = 1;
 	}
