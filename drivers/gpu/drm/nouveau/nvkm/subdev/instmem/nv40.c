@@ -49,7 +49,7 @@ nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_device *device = (void *)parent;
 	struct nv04_instmem *imem;
 	int ret, bar, vs;
 
@@ -67,7 +67,7 @@ nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	imem->iomem = ioremap(nv_device_resource_start(device, bar),
 			      nv_device_resource_len(device, bar));
 	if (!imem->iomem) {
-		nv_error(imem, "unable to map PRAMIN BAR\n");
+		nvkm_error(&imem->base.subdev, "unable to map PRAMIN BAR\n");
 		return -EFAULT;
 	}
 

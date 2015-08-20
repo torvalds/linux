@@ -207,6 +207,7 @@ gk20a_instobj_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct gk20a_instobj_dma *node;
 	struct gk20a_instmem *imem = (void *)nvkm_instmem(parent);
+	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct device *dev = nv_device_base(nv_device(parent));
 	int ret;
 
@@ -220,14 +221,15 @@ gk20a_instobj_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 					&node->handle, GFP_KERNEL,
 					&imem->attrs);
 	if (!node->cpuaddr) {
-		nv_error(imem, "cannot allocate DMA memory\n");
+		nvkm_error(subdev, "cannot allocate DMA memory\n");
 		return -ENOMEM;
 	}
 
 	/* alignment check */
 	if (unlikely(node->handle & (align - 1)))
-		nv_warn(imem, "memory not aligned as requested: %pad (0x%x)\n",
-			&node->handle, align);
+		nvkm_warn(subdev,
+			  "memory not aligned as requested: %pad (0x%x)\n",
+			  &node->handle, align);
 
 	/* present memory for being mapped using small pages */
 	node->r.type = 12;
@@ -249,6 +251,7 @@ gk20a_instobj_ctor_iommu(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct gk20a_instobj_iommu *node;
 	struct gk20a_instmem *imem = (void *)nvkm_instmem(parent);
+	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct nvkm_mm_node *r;
 	int ret;
 	int i;
@@ -277,7 +280,7 @@ gk20a_instobj_ctor_iommu(struct nvkm_object *parent, struct nvkm_object *engine,
 			   align >> imem->iommu_pgshift, &r);
 	mutex_unlock(imem->mm_mutex);
 	if (ret) {
-		nv_error(imem, "virtual space is full!\n");
+		nvkm_error(subdev, "virtual space is full!\n");
 		goto free_pages;
 	}
 
@@ -289,7 +292,7 @@ gk20a_instobj_ctor_iommu(struct nvkm_object *parent, struct nvkm_object *engine,
 		ret = iommu_map(imem->domain, offset, page_to_phys(p),
 				PAGE_SIZE, IOMMU_READ | IOMMU_WRITE);
 		if (ret < 0) {
-			nv_error(imem, "IOMMU mapping failure: %d\n", ret);
+			nvkm_error(subdev, "IOMMU mapping failure: %d\n", ret);
 
 			while (i-- > 0) {
 				offset -= PAGE_SIZE;
@@ -329,11 +332,12 @@ gk20a_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_instobj_args *args = data;
 	struct gk20a_instmem *imem = (void *)nvkm_instmem(parent);
 	struct gk20a_instobj *node;
+	struct nvkm_subdev *subdev = &imem->base.subdev;
 	u32 size, align;
 	int ret;
 
-	nv_debug(parent, "%s (%s): size: %x align: %x\n", __func__,
-		 imem->domain ? "IOMMU" : "DMA", args->size, args->align);
+	nvkm_debug(subdev, "%s (%s): size: %x align: %x\n", __func__,
+		   imem->domain ? "IOMMU" : "DMA", args->size, args->align);
 
 	/* Round size and align to page bounds */
 	size = max(roundup(args->size, PAGE_SIZE), PAGE_SIZE);
@@ -359,8 +363,8 @@ gk20a_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	node->base.addr = node->mem->offset;
 	node->base.size = size;
 
-	nv_debug(parent, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
-		 size, align, node->mem->offset);
+	nvkm_debug(subdev, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
+		   size, align, node->mem->offset);
 
 	return 0;
 }
@@ -410,7 +414,7 @@ gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		imem->iommu_pgshift = plat->gpu->iommu.pgshift;
 		imem->mm_mutex = &plat->gpu->iommu.mutex;
 
-		nv_info(imem, "using IOMMU\n");
+		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {
 		init_dma_attrs(&imem->attrs);
 		/*
@@ -422,7 +426,7 @@ gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &imem->attrs);
 		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &imem->attrs);
 
-		nv_info(imem, "using DMA API\n");
+		nvkm_info(&imem->base.subdev, "using DMA API\n");
 	}
 
 	return 0;
