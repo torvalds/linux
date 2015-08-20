@@ -50,7 +50,7 @@ struct gk20a_pmu_dvfs_dev_status {
 static int
 gk20a_pmu_dvfs_target(struct gk20a_pmu *pmu, int *state)
 {
-	struct nvkm_clk *clk = nvkm_clk(pmu);
+	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 
 	return nvkm_clk_astate(clk, *state, 0, false);
 }
@@ -58,7 +58,7 @@ gk20a_pmu_dvfs_target(struct gk20a_pmu *pmu, int *state)
 static int
 gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu *pmu, int *state)
 {
-	struct nvkm_clk *clk = nvkm_clk(pmu);
+	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 
 	*state = clk->pstate;
 	return 0;
@@ -69,7 +69,7 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu *pmu,
 				int *state, int load)
 {
 	struct gk20a_pmu_dvfs_data *data = pmu->data;
-	struct nvkm_clk *clk = nvkm_clk(pmu);
+	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 	int cur_level, level;
 
 	/* For GK20A, the performance level is directly mapped to pstate */

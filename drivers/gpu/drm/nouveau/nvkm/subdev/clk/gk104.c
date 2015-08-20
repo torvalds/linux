@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/clk.h>
+#define gk104_clk(p) container_of((p), struct gk104_clk, base)
+#include "priv.h"
 #include "pll.h"
 
 #include <subdev/timer.h>
@@ -185,9 +186,9 @@ read_clk(struct gk104_clk *clk, int idx)
 }
 
 static int
-gk104_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
+gk104_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 {
-	struct gk104_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk104_clk *clk = gk104_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 
@@ -335,9 +336,9 @@ calc_clk(struct gk104_clk *clk,
 }
 
 static int
-gk104_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
+gk104_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 {
-	struct gk104_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk104_clk *clk = gk104_clk(base);
 	int ret;
 
 	if ((ret = calc_clk(clk, cstate, 0x00, nv_clk_src_gpc)) ||
@@ -438,9 +439,9 @@ gk104_clk_prog_4_1(struct gk104_clk *clk, int idx)
 }
 
 static int
-gk104_clk_prog(struct nvkm_clk *obj)
+gk104_clk_prog(struct nvkm_clk *base)
 {
-	struct gk104_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk104_clk *clk = gk104_clk(base);
 	struct {
 		u32 mask;
 		void (*exec)(struct gk104_clk *, int);
@@ -469,55 +470,41 @@ gk104_clk_prog(struct nvkm_clk *obj)
 }
 
 static void
-gk104_clk_tidy(struct nvkm_clk *obj)
+gk104_clk_tidy(struct nvkm_clk *base)
 {
-	struct gk104_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk104_clk *clk = gk104_clk(base);
 	memset(clk->eng, 0x00, sizeof(clk->eng));
 }
 
-static struct nvkm_domain
-gk104_domain[] = {
-	{ nv_clk_src_crystal, 0xff },
-	{ nv_clk_src_href   , 0xff },
-	{ nv_clk_src_gpc    , 0x00, NVKM_CLK_DOM_FLAG_CORE, "core", 2000 },
-	{ nv_clk_src_hubk07 , 0x01, NVKM_CLK_DOM_FLAG_CORE },
-	{ nv_clk_src_rop    , 0x02, NVKM_CLK_DOM_FLAG_CORE },
-	{ nv_clk_src_mem    , 0x03, 0, "memory", 500 },
-	{ nv_clk_src_hubk06 , 0x04, NVKM_CLK_DOM_FLAG_CORE },
-	{ nv_clk_src_hubk01 , 0x05 },
-	{ nv_clk_src_vdec   , 0x06 },
-	{ nv_clk_src_daemon , 0x07 },
-	{ nv_clk_src_max }
+static const struct nvkm_clk_func
+gk104_clk = {
+	.read = gk104_clk_read,
+	.calc = gk104_clk_calc,
+	.prog = gk104_clk_prog,
+	.tidy = gk104_clk_tidy,
+	.domains = {
+		{ nv_clk_src_crystal, 0xff },
+		{ nv_clk_src_href   , 0xff },
+		{ nv_clk_src_gpc    , 0x00, NVKM_CLK_DOM_FLAG_CORE, "core", 2000 },
+		{ nv_clk_src_hubk07 , 0x01, NVKM_CLK_DOM_FLAG_CORE },
+		{ nv_clk_src_rop    , 0x02, NVKM_CLK_DOM_FLAG_CORE },
+		{ nv_clk_src_mem    , 0x03, 0, "memory", 500 },
+		{ nv_clk_src_hubk06 , 0x04, NVKM_CLK_DOM_FLAG_CORE },
+		{ nv_clk_src_hubk01 , 0x05 },
+		{ nv_clk_src_vdec   , 0x06 },
+		{ nv_clk_src_daemon , 0x07 },
+		{ nv_clk_src_max }
+	}
 };
 
-static int
-gk104_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+gk104_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
 	struct gk104_clk *clk;
-	int ret;
 
-	ret = nvkm_clk_create(parent, engine, oclass, gk104_domain,
-			      NULL, 0, true, &clk);
-	*pobject = nv_object(clk);
-	if (ret)
-		return ret;
+	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+		return -ENOMEM;
+	*pclk = &clk->base;
 
-	clk->base.read = gk104_clk_read;
-	clk->base.calc = gk104_clk_calc;
-	clk->base.prog = gk104_clk_prog;
-	clk->base.tidy = gk104_clk_tidy;
-	return 0;
+	return nvkm_clk_ctor(&gk104_clk, device, index, true, &clk->base);
 }
-
-struct nvkm_oclass
-gk104_clk_oclass = {
-	.handle = NV_SUBDEV(CLK, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_clk_ctor,
-		.dtor = _nvkm_clk_dtor,
-		.init = _nvkm_clk_init,
-		.fini = _nvkm_clk_fini,
-	},
-};

@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/clk.h>
+#include "priv.h"
+
 #include <subdev/bios.h>
 #include <subdev/bios/boost.h>
 #include <subdev/bios/cstep.h>
@@ -105,10 +106,10 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 		}
 	}
 
-	ret = clk->calc(clk, cstate);
+	ret = clk->func->calc(clk, cstate);
 	if (ret == 0) {
-		ret = clk->prog(clk);
-		clk->tidy(clk);
+		ret = clk->func->prog(clk);
+		clk->func->tidy(clk);
 	}
 
 	if (volt) {
@@ -137,7 +138,7 @@ static int
 nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 {
 	struct nvkm_bios *bios = clk->subdev.device->bios;
-	struct nvkm_domain *domain = clk->domains;
+	const struct nvkm_domain *domain = clk->domains;
 	struct nvkm_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
 	u8  ver, hdr;
@@ -249,7 +250,7 @@ nvkm_pstate_calc(struct nvkm_clk *clk, bool wait)
 static void
 nvkm_pstate_info(struct nvkm_clk *clk, struct nvkm_pstate *pstate)
 {
-	struct nvkm_domain *clock = clk->domains - 1;
+	const struct nvkm_domain *clock = clk->domains - 1;
 	struct nvkm_cstate *cstate;
 	struct nvkm_subdev *subdev = &clk->subdev;
 	char info[3][32] = { "", "", "" };
@@ -306,7 +307,7 @@ static int
 nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 {
 	struct nvkm_bios *bios = clk->subdev.device->bios;
-	struct nvkm_domain *domain = clk->domains - 1;
+	const struct nvkm_domain *domain = clk->domains - 1;
 	struct nvkm_pstate *pstate;
 	struct nvkm_cstate *cstate;
 	struct nvbios_cstepE cstepE;
@@ -475,31 +476,35 @@ nvkm_clk_pwrsrc(struct nvkm_notify *notify)
  *****************************************************************************/
 
 int
-_nvkm_clk_fini(struct nvkm_object *object, bool suspend)
+nvkm_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 {
-	struct nvkm_clk *clk = (void *)object;
-	nvkm_notify_put(&clk->pwrsrc_ntfy);
-	return nvkm_subdev_fini_old(&clk->subdev, suspend);
+	return clk->func->read(clk, src);
 }
 
-int
-_nvkm_clk_init(struct nvkm_object *object)
+static int
+nvkm_clk_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct nvkm_clk *clk = (void *)object;
-	struct nvkm_subdev *subdev = &clk->subdev;
-	struct nvkm_domain *clock = clk->domains;
-	int ret;
+	struct nvkm_clk *clk = nvkm_clk(subdev);
+	nvkm_notify_put(&clk->pwrsrc_ntfy);
+	flush_work(&clk->work);
+	if (clk->func->fini)
+		clk->func->fini(clk);
+	return 0;
+}
 
-	ret = nvkm_subdev_init_old(&clk->subdev);
-	if (ret)
-		return ret;
+static int
+nvkm_clk_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_clk *clk = nvkm_clk(subdev);
+	const struct nvkm_domain *clock = clk->domains;
+	int ret;
 
 	memset(&clk->bstate, 0x00, sizeof(clk->bstate));
 	INIT_LIST_HEAD(&clk->bstate.list);
 	clk->bstate.pstate = 0xff;
 
 	while (clock->name != nv_clk_src_max) {
-		ret = clk->read(clk, clock->name);
+		ret = nvkm_clk_read(clk, clock->name);
 		if (ret < 0) {
 			nvkm_error(subdev, "%02x freq unknown\n", clock->name);
 			return ret;
@@ -510,6 +515,9 @@ _nvkm_clk_init(struct nvkm_object *object)
 
 	nvkm_pstate_info(clk, &clk->bstate);
 
+	if (clk->func->init)
+		return clk->func->init(clk);
+
 	clk->astate = clk->state_nr - 1;
 	clk->tstate = 0;
 	clk->dstate = 0;
@@ -518,60 +526,62 @@ _nvkm_clk_init(struct nvkm_object *object)
 	return 0;
 }
 
-void
-_nvkm_clk_dtor(struct nvkm_object *object)
+static void *
+nvkm_clk_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_clk *clk = (void *)object;
+	struct nvkm_clk *clk = nvkm_clk(subdev);
 	struct nvkm_pstate *pstate, *temp;
 
 	nvkm_notify_fini(&clk->pwrsrc_ntfy);
+
+	/* Early return if the pstates have been provided statically */
+	if (clk->func->pstates)
+		return clk;
 
 	list_for_each_entry_safe(pstate, temp, &clk->states, head) {
 		nvkm_pstate_del(pstate);
 	}
 
-	nvkm_subdev_destroy(&clk->subdev);
+	return clk;
 }
 
+static const struct nvkm_subdev_func
+nvkm_clk = {
+	.dtor = nvkm_clk_dtor,
+	.init = nvkm_clk_init,
+	.fini = nvkm_clk_fini,
+};
+
 int
-nvkm_clk_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, struct nvkm_domain *clocks,
-		 struct nvkm_pstate *pstates, int nb_pstates,
-		 bool allow_reclock, int length, void **object)
+nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
+	      int index, bool allow_reclock, struct nvkm_clk *clk)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_clk *clk;
 	int ret, idx, arglen;
 	const char *mode;
 
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "CLK",
-				  "clock", length, object);
-	clk = *object;
-	if (ret)
-		return ret;
-
+	nvkm_subdev_ctor(&nvkm_clk, device, index, 0, &clk->subdev);
+	clk->func = func;
 	INIT_LIST_HEAD(&clk->states);
-	clk->domains = clocks;
+	clk->domains = func->domains;
 	clk->ustate_ac = -1;
 	clk->ustate_dc = -1;
+	clk->allow_reclock = allow_reclock;
 
 	INIT_WORK(&clk->work, nvkm_pstate_work);
 	init_waitqueue_head(&clk->wait);
 	atomic_set(&clk->waiting, 0);
 
 	/* If no pstates are provided, try and fetch them from the BIOS */
-	if (!pstates) {
+	if (!func->pstates) {
 		idx = 0;
 		do {
 			ret = nvkm_pstate_new(clk, idx++);
 		} while (ret == 0);
 	} else {
-		for (idx = 0; idx < nb_pstates; idx++)
-			list_add_tail(&pstates[idx].head, &clk->states);
-		clk->state_nr = nb_pstates;
+		for (idx = 0; idx < func->nr_pstates; idx++)
+			list_add_tail(&func->pstates[idx].head, &clk->states);
+		clk->state_nr = func->nr_pstates;
 	}
-
-	clk->allow_reclock = allow_reclock;
 
 	ret = nvkm_notify_init(NULL, &device->event, nvkm_clk_pwrsrc, true,
 			       NULL, 0, 0, &clk->pwrsrc_ntfy);
@@ -593,4 +603,13 @@ nvkm_clk_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		clk->ustate_dc = nvkm_clk_nstate(clk, mode, arglen);
 
 	return 0;
+}
+
+int
+nvkm_clk_new_(const struct nvkm_clk_func *func, struct nvkm_device *device,
+	      int index, bool allow_reclock, struct nvkm_clk **pclk)
+{
+	if (!(*pclk = kzalloc(sizeof(**pclk), GFP_KERNEL)))
+		return -ENOMEM;
+	return nvkm_clk_ctor(func, device, index, allow_reclock, *pclk);
 }

@@ -70,7 +70,7 @@ nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 		struct nvif_control_pstate_attr_v0 v0;
 	} *args = data;
 	struct nvkm_clk *clk = ctrl->device->clk;
-	struct nvkm_domain *domain;
+	const struct nvkm_domain *domain;
 	struct nvkm_pstate *pstate;
 	struct nvkm_cstate *cstate;
 	int i = 0, j = -1;
@@ -116,7 +116,7 @@ nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 
 		args->v0.state = pstate->pstate;
 	} else {
-		lo = max(clk->read(clk, domain->name), 0);
+		lo = max(nvkm_clk_read(clk, domain->name), 0);
 		hi = lo;
 	}
 

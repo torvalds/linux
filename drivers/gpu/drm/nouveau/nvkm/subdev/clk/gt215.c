@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  *          Roy Spliet
  */
+#define gt215_clk(p) container_of((p), struct gt215_clk, base)
 #include "gt215.h"
 #include "pll.h"
 
@@ -136,9 +137,9 @@ read_pll(struct gt215_clk *clk, int idx, u32 pll)
 }
 
 static int
-gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
+gt215_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 {
-	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gt215_clk *clk = gt215_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 hsrc;
@@ -180,10 +181,10 @@ gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 }
 
 int
-gt215_clk_info(struct nvkm_clk *obj, int idx, u32 khz,
+gt215_clk_info(struct nvkm_clk *base, int idx, u32 khz,
 	       struct gt215_clk_info *info)
 {
-	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gt215_clk *clk = gt215_clk(base);
 	u32 oclk, sclk, sdiv;
 	s32 diff;
 
@@ -228,10 +229,10 @@ gt215_clk_info(struct nvkm_clk *obj, int idx, u32 khz,
 }
 
 int
-gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
+gt215_pll_info(struct nvkm_clk *base, int idx, u32 pll, u32 khz,
 	       struct gt215_clk_info *info)
 {
-	struct gt215_clk *clk = (void *)clock;
+	struct gt215_clk *clk = gt215_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvbios_pll limits;
 	int P, N, M, diff;
@@ -241,7 +242,7 @@ gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
 
 	/* If we can get a within [-2, 3) MHz of a divider, we'll disable the
 	 * PLL and use the divider instead. */
-	ret = gt215_clk_info(clock, idx, khz, info);
+	ret = gt215_clk_info(&clk->base, idx, khz, info);
 	diff = khz - ret;
 	if (!pll || (diff >= -2000 && diff < 3000)) {
 		goto out;
@@ -252,7 +253,7 @@ gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
 	if (ret)
 		return ret;
 
-	ret = gt215_clk_info(clock, idx - 0x10, limits.refclk, info);
+	ret = gt215_clk_info(&clk->base, idx - 0x10, limits.refclk, info);
 	if (ret != limits.refclk)
 		return -EINVAL;
 
@@ -452,9 +453,9 @@ prog_core(struct gt215_clk *clk, int dom)
 }
 
 static int
-gt215_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
+gt215_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 {
-	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gt215_clk *clk = gt215_clk(base);
 	struct gt215_clk_info *core = &clk->eng[nv_clk_src_core];
 	int ret;
 
@@ -479,9 +480,9 @@ gt215_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 }
 
 static int
-gt215_clk_prog(struct nvkm_clk *obj)
+gt215_clk_prog(struct nvkm_clk *base)
 {
-	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gt215_clk *clk = gt215_clk(base);
 	struct gt215_clk_info *core = &clk->eng[nv_clk_src_core];
 	int ret = 0;
 	unsigned long flags;
@@ -509,51 +510,37 @@ out:
 }
 
 static void
-gt215_clk_tidy(struct nvkm_clk *obj)
+gt215_clk_tidy(struct nvkm_clk *base)
 {
 }
 
-static struct nvkm_domain
-gt215_domain[] = {
-	{ nv_clk_src_crystal  , 0xff },
-	{ nv_clk_src_core     , 0x00, 0, "core", 1000 },
-	{ nv_clk_src_shader   , 0x01, 0, "shader", 1000 },
-	{ nv_clk_src_mem      , 0x02, 0, "memory", 1000 },
-	{ nv_clk_src_vdec     , 0x03 },
-	{ nv_clk_src_disp     , 0x04 },
-	{ nv_clk_src_host     , 0x05 },
-	{ nv_clk_src_core_intm, 0x06 },
-	{ nv_clk_src_max }
+static const struct nvkm_clk_func
+gt215_clk = {
+	.read = gt215_clk_read,
+	.calc = gt215_clk_calc,
+	.prog = gt215_clk_prog,
+	.tidy = gt215_clk_tidy,
+	.domains = {
+		{ nv_clk_src_crystal  , 0xff },
+		{ nv_clk_src_core     , 0x00, 0, "core", 1000 },
+		{ nv_clk_src_shader   , 0x01, 0, "shader", 1000 },
+		{ nv_clk_src_mem      , 0x02, 0, "memory", 1000 },
+		{ nv_clk_src_vdec     , 0x03 },
+		{ nv_clk_src_disp     , 0x04 },
+		{ nv_clk_src_host     , 0x05 },
+		{ nv_clk_src_core_intm, 0x06 },
+		{ nv_clk_src_max }
+	}
 };
 
-static int
-gt215_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+gt215_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
 	struct gt215_clk *clk;
-	int ret;
 
-	ret = nvkm_clk_create(parent, engine, oclass, gt215_domain,
-			      NULL, 0, true, &clk);
-	*pobject = nv_object(clk);
-	if (ret)
-		return ret;
+	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+		return -ENOMEM;
+	*pclk = &clk->base;
 
-	clk->base.read = gt215_clk_read;
-	clk->base.calc = gt215_clk_calc;
-	clk->base.prog = gt215_clk_prog;
-	clk->base.tidy = gt215_clk_tidy;
-	return 0;
+	return nvkm_clk_ctor(&gt215_clk, device, index, true, &clk->base);
 }
-
-struct nvkm_oclass
-gt215_clk_oclass = {
-	.handle = NV_SUBDEV(CLK, 0xa3),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gt215_clk_ctor,
-		.dtor = _nvkm_clk_dtor,
-		.init = _nvkm_clk_init,
-		.fini = _nvkm_clk_fini,
-	},
-};

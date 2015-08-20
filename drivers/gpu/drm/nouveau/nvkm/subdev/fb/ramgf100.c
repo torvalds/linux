@@ -187,9 +187,9 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 
 	/* determine target mclk configuration */
 	if (!(ram_rd32(fuc, 0x137300) & 0x00000100))
-		ref = clk->read(clk, nv_clk_src_sppll0);
+		ref = nvkm_clk_read(clk, nv_clk_src_sppll0);
 	else
-		ref = clk->read(clk, nv_clk_src_sppll1);
+		ref = nvkm_clk_read(clk, nv_clk_src_sppll1);
 	div = max(min((ref * 2) / freq, (u32)65), (u32)2) - 2;
 	out = (ref * 2) / (div + 2);
 	mode = freq != out;

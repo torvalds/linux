@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/clk.h>
+#define nv40_clk(p) container_of((p), struct nv40_clk, base)
+#include "priv.h"
 #include "pll.h"
 
 #include <subdev/bios.h>
@@ -33,16 +34,6 @@ struct nv40_clk {
 	u32 npll_ctrl;
 	u32 npll_coef;
 	u32 spll;
-};
-
-static struct nvkm_domain
-nv40_domain[] = {
-	{ nv_clk_src_crystal, 0xff },
-	{ nv_clk_src_href   , 0xff },
-	{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
-	{ nv_clk_src_shader , 0xff, 0, "shader", 1000 },
-	{ nv_clk_src_mem    , 0xff, 0, "memory", 1000 },
-	{ nv_clk_src_max }
 };
 
 static u32
@@ -103,9 +94,9 @@ read_clk(struct nv40_clk *clk, u32 src)
 }
 
 static int
-nv40_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
+nv40_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 {
-	struct nv40_clk *clk = container_of(obj, typeof(*clk), base);
+	struct nv40_clk *clk = nv40_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mast = nvkm_rd32(device, 0x00c040);
@@ -152,9 +143,9 @@ nv40_clk_calc_pll(struct nv40_clk *clk, u32 reg, u32 khz,
 }
 
 static int
-nv40_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
+nv40_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 {
-	struct nv40_clk *clk = container_of(obj, typeof(*clk), base);
+	struct nv40_clk *clk = nv40_clk(base);
 	int gclk = cstate->domain[nv_clk_src_core];
 	int sclk = cstate->domain[nv_clk_src_shader];
 	int N1, M1, N2, M2, log2P;
@@ -192,9 +183,9 @@ nv40_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 }
 
 static int
-nv40_clk_prog(struct nvkm_clk *obj)
+nv40_clk_prog(struct nvkm_clk *base)
 {
-	struct nv40_clk *clk = container_of(obj, typeof(*clk), base);
+	struct nv40_clk *clk = nv40_clk(base);
 	struct nvkm_device *device = clk->base.subdev.device;
 	nvkm_mask(device, 0x00c040, 0x00000333, 0x00000000);
 	nvkm_wr32(device, 0x004004, clk->npll_coef);
@@ -210,36 +201,32 @@ nv40_clk_tidy(struct nvkm_clk *obj)
 {
 }
 
-static int
-nv40_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+static const struct nvkm_clk_func
+nv40_clk = {
+	.read = nv40_clk_read,
+	.calc = nv40_clk_calc,
+	.prog = nv40_clk_prog,
+	.tidy = nv40_clk_tidy,
+	.domains = {
+		{ nv_clk_src_crystal, 0xff },
+		{ nv_clk_src_href   , 0xff },
+		{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
+		{ nv_clk_src_shader , 0xff, 0, "shader", 1000 },
+		{ nv_clk_src_mem    , 0xff, 0, "memory", 1000 },
+		{ nv_clk_src_max }
+	}
+};
+
+int
+nv40_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
 	struct nv40_clk *clk;
-	int ret;
 
-	ret = nvkm_clk_create(parent, engine, oclass, nv40_domain,
-			      NULL, 0, true, &clk);
-	*pobject = nv_object(clk);
-	if (ret)
-		return ret;
-
+	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+		return -ENOMEM;
 	clk->base.pll_calc = nv04_clk_pll_calc;
 	clk->base.pll_prog = nv04_clk_pll_prog;
-	clk->base.read = nv40_clk_read;
-	clk->base.calc = nv40_clk_calc;
-	clk->base.prog = nv40_clk_prog;
-	clk->base.tidy = nv40_clk_tidy;
-	return 0;
-}
+	*pclk = &clk->base;
 
-struct nvkm_oclass
-nv40_clk_oclass = {
-	.handle = NV_SUBDEV(CLK, 0x40),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_clk_ctor,
-		.dtor = _nvkm_clk_dtor,
-		.init = _nvkm_clk_init,
-		.fini = _nvkm_clk_fini,
-	},
-};
+	return nvkm_clk_ctor(&nv40_clk, device, index, true, &clk->base);
+}

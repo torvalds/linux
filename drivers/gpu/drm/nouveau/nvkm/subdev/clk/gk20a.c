@@ -22,7 +22,9 @@
  * Shamelessly ripped off from ChromeOS's gk20a/clk_pllg.c
  *
  */
-#include <subdev/clk.h>
+#define gk20a_clk(p) container_of((p), struct gk20a_clk, base)
+#include "priv.h"
+
 #include <subdev/timer.h>
 
 #ifdef __KERNEL__
@@ -121,7 +123,6 @@ struct gk20a_clk {
 	u32 m, n, pl;
 	u32 parent_rate;
 };
-#define to_gk20a_clk(base) container_of(base, struct gk20a_clk, base)
 
 static void
 gk20a_pllg_read_mnp(struct gk20a_clk *clk)
@@ -467,13 +468,6 @@ gk20a_pllg_disable(struct gk20a_clk *clk)
 
 #define GK20A_CLK_GPC_MDIV 1000
 
-static struct nvkm_domain
-gk20a_domains[] = {
-	{ nv_clk_src_crystal, 0xff },
-	{ nv_clk_src_gpc, 0xff, 0, "core", GK20A_CLK_GPC_MDIV },
-	{ nv_clk_src_max }
-};
-
 static struct nvkm_pstate
 gk20a_pstates[] = {
 	{
@@ -569,9 +563,9 @@ gk20a_pstates[] = {
 };
 
 static int
-gk20a_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
+gk20a_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 {
-	struct gk20a_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk20a_clk *clk = gk20a_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 
@@ -588,53 +582,43 @@ gk20a_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 }
 
 static int
-gk20a_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
+gk20a_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 {
-	struct gk20a_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk20a_clk *clk = gk20a_clk(base);
 
 	return gk20a_pllg_calc_mnp(clk, cstate->domain[nv_clk_src_gpc] *
 					 GK20A_CLK_GPC_MDIV);
 }
 
 static int
-gk20a_clk_prog(struct nvkm_clk *obj)
+gk20a_clk_prog(struct nvkm_clk *base)
 {
-	struct gk20a_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gk20a_clk *clk = gk20a_clk(base);
 
 	return gk20a_pllg_program_mnp(clk);
 }
 
 static void
-gk20a_clk_tidy(struct nvkm_clk *obj)
+gk20a_clk_tidy(struct nvkm_clk *base)
 {
 }
 
-static int
-gk20a_clk_fini(struct nvkm_object *object, bool suspend)
+static void
+gk20a_clk_fini(struct nvkm_clk *base)
 {
-	struct gk20a_clk *clk = (void *)object;
-	int ret;
-
-	ret = nvkm_clk_fini(&clk->base, false);
-
+	struct gk20a_clk *clk = gk20a_clk(base);
 	gk20a_pllg_disable(clk);
-
-	return ret;
 }
 
 static int
-gk20a_clk_init(struct nvkm_object *object)
+gk20a_clk_init(struct nvkm_clk *base)
 {
-	struct gk20a_clk *clk = (void *)object;
+	struct gk20a_clk *clk = gk20a_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ret;
 
 	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK, GPC2CLK_OUT_INIT_VAL);
-
-	ret = nvkm_clk_init(&clk->base);
-	if (ret)
-		return ret;
 
 	ret = gk20a_clk_prog(&clk->base);
 	if (ret) {
@@ -645,15 +629,32 @@ gk20a_clk_init(struct nvkm_object *object)
 	return 0;
 }
 
-static int
-gk20a_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+static const struct nvkm_clk_func
+gk20a_clk = {
+	.init = gk20a_clk_init,
+	.fini = gk20a_clk_fini,
+	.read = gk20a_clk_read,
+	.calc = gk20a_clk_calc,
+	.prog = gk20a_clk_prog,
+	.tidy = gk20a_clk_tidy,
+	.pstates = gk20a_pstates,
+	.nr_pstates = ARRAY_SIZE(gk20a_pstates),
+	.domains = {
+		{ nv_clk_src_crystal, 0xff },
+		{ nv_clk_src_gpc, 0xff, 0, "core", GK20A_CLK_GPC_MDIV },
+		{ nv_clk_src_max }
+	}
+};
+
+int
+gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
-	struct nvkm_device *device = (void *)parent;
 	struct gk20a_clk *clk;
-	int ret;
-	int i;
+	int ret, i;
+
+	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+		return -ENOMEM;
+	*pclk = &clk->base;
 
 	/* Finish initializing the pstates */
 	for (i = 0; i < ARRAY_SIZE(gk20a_pstates); i++) {
@@ -661,33 +662,11 @@ gk20a_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		gk20a_pstates[i].pstate = i + 1;
 	}
 
-	ret = nvkm_clk_create(parent, engine, oclass, gk20a_domains,
-			      gk20a_pstates, ARRAY_SIZE(gk20a_pstates),
-			      true, &clk);
-	*pobject = nv_object(clk);
-	if (ret)
-		return ret;
-
 	clk->params = &gk20a_pllg_params;
-
 	clk->parent_rate = clk_get_rate(device->gpu->clk);
+
+	ret = nvkm_clk_ctor(&gk20a_clk, device, index, true, &clk->base);
 	nvkm_info(&clk->base.subdev, "parent clock rate: %d Mhz\n",
 		  clk->parent_rate / MHZ);
-
-	clk->base.read = gk20a_clk_read;
-	clk->base.calc = gk20a_clk_calc;
-	clk->base.prog = gk20a_clk_prog;
-	clk->base.tidy = gk20a_clk_tidy;
-	return 0;
+	return ret;
 }
-
-struct nvkm_oclass
-gk20a_clk_oclass = {
-	.handle = NV_SUBDEV(CLK, 0xea),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_clk_ctor,
-		.dtor = _nvkm_subdev_dtor,
-		.init = gk20a_clk_init,
-		.fini = gk20a_clk_fini,
-	},
-};

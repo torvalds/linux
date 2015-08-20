@@ -186,7 +186,7 @@ gt215_link_train(struct gt215_ram *ram)
 		return -ENOENT;
 	}
 
-	clk_current = clk->read(clk, nv_clk_src_mem);
+	clk_current = nvkm_clk_read(clk, nv_clk_src_mem);
 
 	ret = gt215_clk_pre(clk, f);
 	if (ret)

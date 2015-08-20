@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#define mcp77_clk(p) container_of((p), struct mcp77_clk, base)
 #include "gt215.h"
 #include "pll.h"
 
@@ -50,7 +51,7 @@ read_pll(struct mcp77_clk *clk, u32 base)
 	struct nvkm_device *device = clk->base.subdev.device;
 	u32 ctrl = nvkm_rd32(device, base + 0);
 	u32 coef = nvkm_rd32(device, base + 4);
-	u32 ref = clk->base.read(&clk->base, nv_clk_src_href);
+	u32 ref = nvkm_clk_read(&clk->base, nv_clk_src_href);
 	u32 post_div = 0;
 	u32 clock = 0;
 	int N1, M1;
@@ -77,9 +78,9 @@ read_pll(struct mcp77_clk *clk, u32 base)
 }
 
 static int
-mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
+mcp77_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 {
-	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
+	struct mcp77_clk *clk = mcp77_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mast = nvkm_rd32(device, 0x00c054);
@@ -91,38 +92,38 @@ mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 	case nv_clk_src_href:
 		return 100000; /* PCIE reference clock */
 	case nv_clk_src_hclkm4:
-		return clk->base.read(&clk->base, nv_clk_src_href) * 4;
+		return nvkm_clk_read(&clk->base, nv_clk_src_href) * 4;
 	case nv_clk_src_hclkm2d3:
-		return clk->base.read(&clk->base, nv_clk_src_href) * 2 / 3;
+		return nvkm_clk_read(&clk->base, nv_clk_src_href) * 2 / 3;
 	case nv_clk_src_host:
 		switch (mast & 0x000c0000) {
-		case 0x00000000: return clk->base.read(&clk->base, nv_clk_src_hclkm2d3);
+		case 0x00000000: return nvkm_clk_read(&clk->base, nv_clk_src_hclkm2d3);
 		case 0x00040000: break;
-		case 0x00080000: return clk->base.read(&clk->base, nv_clk_src_hclkm4);
-		case 0x000c0000: return clk->base.read(&clk->base, nv_clk_src_cclk);
+		case 0x00080000: return nvkm_clk_read(&clk->base, nv_clk_src_hclkm4);
+		case 0x000c0000: return nvkm_clk_read(&clk->base, nv_clk_src_cclk);
 		}
 		break;
 	case nv_clk_src_core:
 		P = (nvkm_rd32(device, 0x004028) & 0x00070000) >> 16;
 
 		switch (mast & 0x00000003) {
-		case 0x00000000: return clk->base.read(&clk->base, nv_clk_src_crystal) >> P;
+		case 0x00000000: return nvkm_clk_read(&clk->base, nv_clk_src_crystal) >> P;
 		case 0x00000001: return 0;
-		case 0x00000002: return clk->base.read(&clk->base, nv_clk_src_hclkm4) >> P;
+		case 0x00000002: return nvkm_clk_read(&clk->base, nv_clk_src_hclkm4) >> P;
 		case 0x00000003: return read_pll(clk, 0x004028) >> P;
 		}
 		break;
 	case nv_clk_src_cclk:
 		if ((mast & 0x03000000) != 0x03000000)
-			return clk->base.read(&clk->base, nv_clk_src_core);
+			return nvkm_clk_read(&clk->base, nv_clk_src_core);
 
 		if ((mast & 0x00000200) == 0x00000000)
-			return clk->base.read(&clk->base, nv_clk_src_core);
+			return nvkm_clk_read(&clk->base, nv_clk_src_core);
 
 		switch (mast & 0x00000c00) {
-		case 0x00000000: return clk->base.read(&clk->base, nv_clk_src_href);
-		case 0x00000400: return clk->base.read(&clk->base, nv_clk_src_hclkm4);
-		case 0x00000800: return clk->base.read(&clk->base, nv_clk_src_hclkm2d3);
+		case 0x00000000: return nvkm_clk_read(&clk->base, nv_clk_src_href);
+		case 0x00000400: return nvkm_clk_read(&clk->base, nv_clk_src_hclkm4);
+		case 0x00000800: return nvkm_clk_read(&clk->base, nv_clk_src_hclkm2d3);
 		default: return 0;
 		}
 	case nv_clk_src_shader:
@@ -130,8 +131,8 @@ mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		switch (mast & 0x00000030) {
 		case 0x00000000:
 			if (mast & 0x00000040)
-				return clk->base.read(&clk->base, nv_clk_src_href) >> P;
-			return clk->base.read(&clk->base, nv_clk_src_crystal) >> P;
+				return nvkm_clk_read(&clk->base, nv_clk_src_href) >> P;
+			return nvkm_clk_read(&clk->base, nv_clk_src_crystal) >> P;
 		case 0x00000010: break;
 		case 0x00000020: return read_pll(clk, 0x004028) >> P;
 		case 0x00000030: return read_pll(clk, 0x004020) >> P;
@@ -145,7 +146,7 @@ mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 
 		switch (mast & 0x00400000) {
 		case 0x00400000:
-			return clk->base.read(&clk->base, nv_clk_src_core) >> P;
+			return nvkm_clk_read(&clk->base, nv_clk_src_core) >> P;
 			break;
 		default:
 			return 500000 >> P;
@@ -173,7 +174,7 @@ calc_pll(struct mcp77_clk *clk, u32 reg,
 		return 0;
 
 	pll.vco2.max_freq = 0;
-	pll.refclk = clk->base.read(&clk->base, nv_clk_src_href);
+	pll.refclk = nvkm_clk_read(&clk->base, nv_clk_src_href);
 	if (!pll.refclk)
 		return 0;
 
@@ -199,9 +200,9 @@ calc_P(u32 src, u32 target, int *div)
 }
 
 static int
-mcp77_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
+mcp77_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 {
-	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
+	struct mcp77_clk *clk = mcp77_clk(base);
 	const int shader = cstate->domain[nv_clk_src_shader];
 	const int core = cstate->domain[nv_clk_src_core];
 	const int vdec = cstate->domain[nv_clk_src_vdec];
@@ -211,8 +212,8 @@ mcp77_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 	int divs = 0;
 
 	/* cclk: find suitable source, disable PLL if we can */
-	if (core < clk->base.read(&clk->base, nv_clk_src_hclkm4))
-		out = calc_P(clk->base.read(&clk->base, nv_clk_src_hclkm4), core, &divs);
+	if (core < nvkm_clk_read(&clk->base, nv_clk_src_hclkm4))
+		out = calc_P(nvkm_clk_read(&clk->base, nv_clk_src_hclkm4), core, &divs);
 
 	/* Calculate clock * 2, so shader clock can use it too */
 	clock = calc_pll(clk, 0x4028, (core << 1), &N, &M, &P1);
@@ -238,7 +239,7 @@ mcp77_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 
 	/* sclk: nvpll + divisor, href or spll */
 	out = 0;
-	if (shader == clk->base.read(&clk->base, nv_clk_src_href)) {
+	if (shader == nvkm_clk_read(&clk->base, nv_clk_src_href)) {
 		clk->ssrc = nv_clk_src_href;
 	} else {
 		clock = calc_pll(clk, 0x4020, shader, &N, &M, &P1);
@@ -295,9 +296,9 @@ mcp77_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 }
 
 static int
-mcp77_clk_prog(struct nvkm_clk *obj)
+mcp77_clk_prog(struct nvkm_clk *base)
 {
-	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
+	struct mcp77_clk *clk = mcp77_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 pllmask = 0, mast;
@@ -389,48 +390,34 @@ out:
 }
 
 static void
-mcp77_clk_tidy(struct nvkm_clk *obj)
+mcp77_clk_tidy(struct nvkm_clk *base)
 {
 }
 
-static struct nvkm_domain
-mcp77_domains[] = {
-	{ nv_clk_src_crystal, 0xff },
-	{ nv_clk_src_href   , 0xff },
-	{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
-	{ nv_clk_src_shader , 0xff, 0, "shader", 1000 },
-	{ nv_clk_src_vdec   , 0xff, 0, "vdec", 1000 },
-	{ nv_clk_src_max }
+static const struct nvkm_clk_func
+mcp77_clk = {
+	.read = mcp77_clk_read,
+	.calc = mcp77_clk_calc,
+	.prog = mcp77_clk_prog,
+	.tidy = mcp77_clk_tidy,
+	.domains = {
+		{ nv_clk_src_crystal, 0xff },
+		{ nv_clk_src_href   , 0xff },
+		{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
+		{ nv_clk_src_shader , 0xff, 0, "shader", 1000 },
+		{ nv_clk_src_vdec   , 0xff, 0, "vdec", 1000 },
+		{ nv_clk_src_max }
+	}
 };
 
-static int
-mcp77_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+mcp77_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
 	struct mcp77_clk *clk;
-	int ret;
 
-	ret = nvkm_clk_create(parent, engine, oclass, mcp77_domains,
-			      NULL, 0, true, &clk);
-	*pobject = nv_object(clk);
-	if (ret)
-		return ret;
+	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+		return -ENOMEM;
+	*pclk = &clk->base;
 
-	clk->base.read = mcp77_clk_read;
-	clk->base.calc = mcp77_clk_calc;
-	clk->base.prog = mcp77_clk_prog;
-	clk->base.tidy = mcp77_clk_tidy;
-	return 0;
+	return nvkm_clk_ctor(&mcp77_clk, device, index, true, &clk->base);
 }
-
-struct nvkm_oclass *
-mcp77_clk_oclass = &(struct nvkm_oclass) {
-	.handle = NV_SUBDEV(CLK, 0xaa),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = mcp77_clk_ctor,
-		.dtor = _nvkm_clk_dtor,
-		.init = _nvkm_clk_init,
-		.fini = _nvkm_clk_fini,
-	},
-};

@@ -31,7 +31,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLK    ] = &gk104_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gm107_devinit_oclass;
@@ -69,7 +68,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
 #if 0
 		/* looks to be some non-trivial changes */
-		device->oclass[NVDEV_SUBDEV_CLK    ] = &gk104_clk_oclass;
 		/* priv ring says no to 0x10eb14 writes */
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 #endif
@@ -106,7 +104,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
 #if 0
 		/* looks to be some non-trivial changes */
-		device->oclass[NVDEV_SUBDEV_CLK    ] = &gk104_clk_oclass;
 		/* priv ring says no to 0x10eb14 writes */
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 #endif

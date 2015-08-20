@@ -1032,7 +1032,8 @@ gk104_ram_calc(struct nvkm_ram *base, u32 freq)
 	int ret;
 
 	if (ram->base.next == NULL) {
-		ret = gk104_ram_calc_data(ram, clk->read(clk, nv_clk_src_mem),
+		ret = gk104_ram_calc_data(ram,
+					  nvkm_clk_read(clk, nv_clk_src_mem),
 					  &ram->base.former);
 		if (ret)
 			return ret;

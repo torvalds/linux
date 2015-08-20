@@ -1,6 +1,6 @@
 #ifndef __NVKM_CLK_NVA3_H__
 #define __NVKM_CLK_NVA3_H__
-#include <subdev/clk.h>
+#include "priv.h"
 
 struct gt215_clk_info {
 	u32 clk;
