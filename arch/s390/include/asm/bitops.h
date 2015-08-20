@@ -276,6 +276,28 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
 	return (*addr >> (nr & 7)) & 1;
 }
 
+static inline int test_and_set_bit_lock(unsigned long nr,
+					volatile unsigned long *ptr)
+{
+	if (test_bit(nr, ptr))
+		return 1;
+	return test_and_set_bit(nr, ptr);
+}
+
+static inline void clear_bit_unlock(unsigned long nr,
+				    volatile unsigned long *ptr)
+{
+	smp_mb__before_atomic();
+	clear_bit(nr, ptr);
+}
+
+static inline void __clear_bit_unlock(unsigned long nr,
+				      volatile unsigned long *ptr)
+{
+	smp_mb();
+	__clear_bit(nr, ptr);
+}
+
 /*
  * Functions which use MSB0 bit numbering.
  * On an s390x system the bits are numbered:
@@ -446,7 +468,6 @@ static inline int fls(int word)
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/hweight.h>
-#include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
