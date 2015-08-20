@@ -71,10 +71,6 @@
 #define SPI_CMD_FINISH_IE            BIT(16)
 #define SPI_CMD_PAUSE_IE             BIT(17)
 
-#define MTK_SPI_QUIRK_PAD_SELECT 1
-/* Must explicitly send dummy Tx bytes to do Rx only transfer */
-#define MTK_SPI_QUIRK_MUST_TX 1
-
 #define MT8173_SPI_MAX_PAD_SEL 3
 
 #define MTK_SPI_IDLE 0
@@ -84,8 +80,9 @@
 #define MTK_SPI_PACKET_SIZE 1024
 
 struct mtk_spi_compatible {
-	u32 need_pad_sel;
-	u32 must_tx;
+	bool need_pad_sel;
+	/* Must explicitly send dummy Tx bytes to do Rx only transfer */
+	bool must_tx;
 };
 
 struct mtk_spi {
@@ -100,19 +97,11 @@ struct mtk_spi {
 	const struct mtk_spi_compatible *dev_comp;
 };
 
-static const struct mtk_spi_compatible mt6589_compat = {
-	.need_pad_sel = 0,
-	.must_tx = 0,
-};
-
-static const struct mtk_spi_compatible mt8135_compat = {
-	.need_pad_sel = 0,
-	.must_tx = 0,
-};
-
+static const struct mtk_spi_compatible mt6589_compat;
+static const struct mtk_spi_compatible mt8135_compat;
 static const struct mtk_spi_compatible mt8173_compat = {
-	.need_pad_sel = MTK_SPI_QUIRK_PAD_SELECT,
-	.must_tx = MTK_SPI_QUIRK_MUST_TX,
+	.need_pad_sel = true,
+	.must_tx = true,
 };
 
 /*
