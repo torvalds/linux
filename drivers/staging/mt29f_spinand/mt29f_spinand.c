@@ -941,6 +941,7 @@ static const struct of_device_id spinand_dt[] = {
 	{ .compatible = "spinand,mt29f", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, spinand_dt);
 
 /*
  * Device name structure description
