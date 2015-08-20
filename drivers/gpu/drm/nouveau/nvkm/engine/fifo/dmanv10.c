@@ -61,9 +61,9 @@ nv10_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&nv04_fifo_dma_func, &fifo->base,
 				  0x1000, 0x1000, false, 0, args->v0.pushbuf,
-				  (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				  (1ULL << NVDEV_ENGINE_GR) |
-				  (1ULL << NVDEV_ENGINE_SW),
+				  (1ULL << NVKM_ENGINE_DMAOBJ) |
+				  (1ULL << NVKM_ENGINE_GR) |
+				  (1ULL << NVKM_ENGINE_SW),
 				  0, 0x800000, 0x10000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

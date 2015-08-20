@@ -46,14 +46,4 @@ int  nvkm_device_ctor(const struct nvkm_device_func *,
 		      struct nvkm_device *);
 int  nvkm_device_init(struct nvkm_device *);
 int  nvkm_device_fini(struct nvkm_device *, bool suspend);
-
-int nv04_identify(struct nvkm_device *);
-int nv10_identify(struct nvkm_device *);
-int nv20_identify(struct nvkm_device *);
-int nv30_identify(struct nvkm_device *);
-int nv40_identify(struct nvkm_device *);
-int nv50_identify(struct nvkm_device *);
-int gf100_identify(struct nvkm_device *);
-int gk104_identify(struct nvkm_device *);
-int gm100_identify(struct nvkm_device *);
 #endif

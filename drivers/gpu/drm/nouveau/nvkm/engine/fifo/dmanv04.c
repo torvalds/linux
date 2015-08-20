@@ -50,10 +50,10 @@ nv04_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 	int hash;
 
 	switch (object->engine->subdev.index) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW    : context |= 0x00000000; break;
-	case NVDEV_ENGINE_GR    : context |= 0x00010000; break;
-	case NVDEV_ENGINE_MPEG  : context |= 0x00020000; break;
+	case NVKM_ENGINE_DMAOBJ:
+	case NVKM_ENGINE_SW    : context |= 0x00000000; break;
+	case NVKM_ENGINE_GR    : context |= 0x00010000; break;
+	case NVKM_ENGINE_MPEG  : context |= 0x00020000; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
@@ -185,9 +185,9 @@ nv04_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&nv04_fifo_dma_func, &fifo->base,
 				  0x1000, 0x1000, false, 0, args->v0.pushbuf,
-				  (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				  (1ULL << NVDEV_ENGINE_GR) |
-				  (1ULL << NVDEV_ENGINE_SW),
+				  (1ULL << NVKM_ENGINE_DMAOBJ) |
+				  (1ULL << NVKM_ENGINE_GR) |
+				  (1ULL << NVKM_ENGINE_SW),
 				  0, 0x800000, 0x10000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

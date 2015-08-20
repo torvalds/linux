@@ -32,10 +32,10 @@ static int
 nv50_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW    : return -1;
-	case NVDEV_ENGINE_GR    : return 0x0000;
-	case NVDEV_ENGINE_MPEG  : return 0x0060;
+	case NVKM_ENGINE_DMAOBJ:
+	case NVKM_ENGINE_SW    : return -1;
+	case NVKM_ENGINE_GR    : return 0x0000;
+	case NVKM_ENGINE_MPEG  : return 0x0060;
 	default:
 		WARN_ON(1);
 		return -1;
@@ -130,11 +130,6 @@ nv50_fifo_chan_engine_dtor(struct nvkm_fifo_chan *base,
 			   struct nvkm_engine *engine)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	if (!chan->engn[engine->subdev.index] ||
-	     chan->engn[engine->subdev.index]->object.oclass) {
-		chan->engn[engine->subdev.index] = NULL;
-		return;
-	}
 	nvkm_gpuobj_del(&chan->engn[engine->subdev.index]);
 }
 
@@ -148,11 +143,6 @@ nv50_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
 
 	if (nv50_fifo_chan_engine_addr(engine) < 0)
 		return 0;
-
-	if (nv_iclass(object, NV_GPUOBJ_CLASS)) {
-		chan->engn[engn] = nv_gpuobj(object);
-		return 0;
-	}
 
 	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
 }
@@ -173,10 +163,10 @@ nv50_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	u32 context;
 
 	switch (object->engine->subdev.index) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW    : context = 0x00000000; break;
-	case NVDEV_ENGINE_GR    : context = 0x00100000; break;
-	case NVDEV_ENGINE_MPEG  : context = 0x00200000; break;
+	case NVKM_ENGINE_DMAOBJ:
+	case NVKM_ENGINE_SW    : context = 0x00000000; break;
+	case NVKM_ENGINE_GR    : context = 0x00100000; break;
+	case NVKM_ENGINE_MPEG  : context = 0x00200000; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
@@ -248,10 +238,10 @@ nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
 
 	ret = nvkm_fifo_chan_ctor(&nv50_fifo_chan_func, &fifo->base,
 				  0x10000, 0x1000, false, vm, push,
-				  (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				  (1ULL << NVDEV_ENGINE_SW) |
-				  (1ULL << NVDEV_ENGINE_GR) |
-				  (1ULL << NVDEV_ENGINE_MPEG),
+				  (1ULL << NVKM_ENGINE_DMAOBJ) |
+				  (1ULL << NVKM_ENGINE_SW) |
+				  (1ULL << NVKM_ENGINE_GR) |
+				  (1ULL << NVKM_ENGINE_MPEG),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

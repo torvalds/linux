@@ -41,15 +41,15 @@ static inline u64
 gk104_fifo_engine_subdev(int engine)
 {
 	switch (engine) {
-	case 0: return (1ULL << NVDEV_ENGINE_GR) |
-		       (1ULL << NVDEV_ENGINE_SW) |
-		       (1ULL << NVDEV_ENGINE_CE2);
-	case 1: return (1ULL << NVDEV_ENGINE_MSPDEC);
-	case 2: return (1ULL << NVDEV_ENGINE_MSPPP);
-	case 3: return (1ULL << NVDEV_ENGINE_MSVLD);
-	case 4: return (1ULL << NVDEV_ENGINE_CE0);
-	case 5: return (1ULL << NVDEV_ENGINE_CE1);
-	case 6: return (1ULL << NVDEV_ENGINE_MSENC);
+	case 0: return (1ULL << NVKM_ENGINE_GR) |
+		       (1ULL << NVKM_ENGINE_SW) |
+		       (1ULL << NVKM_ENGINE_CE2);
+	case 1: return (1ULL << NVKM_ENGINE_MSPDEC);
+	case 2: return (1ULL << NVKM_ENGINE_MSPPP);
+	case 3: return (1ULL << NVKM_ENGINE_MSVLD);
+	case 4: return (1ULL << NVKM_ENGINE_CE0);
+	case 5: return (1ULL << NVKM_ENGINE_CE1);
+	case 6: return (1ULL << NVKM_ENGINE_MSENC);
 	default:
 		WARN_ON(1);
 		return 0;
@@ -60,15 +60,15 @@ static inline int
 gk104_fifo_subdev_engine(int subdev)
 {
 	switch (subdev) {
-	case NVDEV_ENGINE_GR:
-	case NVDEV_ENGINE_SW:
-	case NVDEV_ENGINE_CE2   : return 0;
-	case NVDEV_ENGINE_MSPDEC: return 1;
-	case NVDEV_ENGINE_MSPPP : return 2;
-	case NVDEV_ENGINE_MSVLD : return 3;
-	case NVDEV_ENGINE_CE0   : return 4;
-	case NVDEV_ENGINE_CE1   : return 5;
-	case NVDEV_ENGINE_MSENC : return 6;
+	case NVKM_ENGINE_GR:
+	case NVKM_ENGINE_SW:
+	case NVKM_ENGINE_CE2   : return 0;
+	case NVKM_ENGINE_MSPDEC: return 1;
+	case NVKM_ENGINE_MSPPP : return 2;
+	case NVKM_ENGINE_MSVLD : return 3;
+	case NVKM_ENGINE_CE0   : return 4;
+	case NVKM_ENGINE_CE1   : return 5;
+	case NVKM_ENGINE_MSENC : return 6;
 	default:
 		WARN_ON(1);
 		return 0;

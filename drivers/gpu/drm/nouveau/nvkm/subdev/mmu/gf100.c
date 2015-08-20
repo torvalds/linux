@@ -167,7 +167,7 @@ gf100_vm_flush(struct nvkm_vm *vm)
 	u32 type;
 
 	type = 0x00000001; /* PAGE_ALL */
-	if (atomic_read(&vm->engref[NVDEV_SUBDEV_BAR]))
+	if (atomic_read(&vm->engref[NVKM_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 
 	mutex_lock(&mmu->subdev.mutex);

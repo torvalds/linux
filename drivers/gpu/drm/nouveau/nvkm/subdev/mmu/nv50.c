@@ -161,29 +161,29 @@ nv50_vm_flush(struct nvkm_vm *vm)
 	int i, vme;
 
 	mutex_lock(&subdev->mutex);
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 		if (!atomic_read(&vm->engref[i]))
 			continue;
 
 		/* unfortunate hw bug workaround... */
-		if (i == NVDEV_ENGINE_GR && device->gr) {
+		if (i == NVKM_ENGINE_GR && device->gr) {
 			int ret = nvkm_gr_tlb_flush(device->gr);
 			if (ret != -ENODEV)
 				continue;
 		}
 
 		switch (i) {
-		case NVDEV_ENGINE_GR    : vme = 0x00; break;
-		case NVDEV_ENGINE_VP    :
-		case NVDEV_ENGINE_MSPDEC: vme = 0x01; break;
-		case NVDEV_SUBDEV_BAR   : vme = 0x06; break;
-		case NVDEV_ENGINE_MSPPP :
-		case NVDEV_ENGINE_MPEG  : vme = 0x08; break;
-		case NVDEV_ENGINE_BSP   :
-		case NVDEV_ENGINE_MSVLD : vme = 0x09; break;
-		case NVDEV_ENGINE_CIPHER:
-		case NVDEV_ENGINE_SEC   : vme = 0x0a; break;
-		case NVDEV_ENGINE_CE0   : vme = 0x0d; break;
+		case NVKM_ENGINE_GR    : vme = 0x00; break;
+		case NVKM_ENGINE_VP    :
+		case NVKM_ENGINE_MSPDEC: vme = 0x01; break;
+		case NVKM_SUBDEV_BAR   : vme = 0x06; break;
+		case NVKM_ENGINE_MSPPP :
+		case NVKM_ENGINE_MPEG  : vme = 0x08; break;
+		case NVKM_ENGINE_BSP   :
+		case NVKM_ENGINE_MSVLD : vme = 0x09; break;
+		case NVKM_ENGINE_CIPHER:
+		case NVKM_ENGINE_SEC   : vme = 0x0a; break;
+		case NVKM_ENGINE_CE0   : vme = 0x0d; break;
 		default:
 			continue;
 		}

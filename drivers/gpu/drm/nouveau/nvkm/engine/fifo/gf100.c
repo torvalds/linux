@@ -82,12 +82,12 @@ static inline int
 gf100_fifo_engidx(struct gf100_fifo *fifo, u32 engn)
 {
 	switch (engn) {
-	case NVDEV_ENGINE_GR    : engn = 0; break;
-	case NVDEV_ENGINE_MSVLD : engn = 1; break;
-	case NVDEV_ENGINE_MSPPP : engn = 2; break;
-	case NVDEV_ENGINE_MSPDEC: engn = 3; break;
-	case NVDEV_ENGINE_CE0   : engn = 4; break;
-	case NVDEV_ENGINE_CE1   : engn = 5; break;
+	case NVKM_ENGINE_GR    : engn = 0; break;
+	case NVKM_ENGINE_MSVLD : engn = 1; break;
+	case NVKM_ENGINE_MSPPP : engn = 2; break;
+	case NVKM_ENGINE_MSPDEC: engn = 3; break;
+	case NVKM_ENGINE_CE0   : engn = 4; break;
+	case NVKM_ENGINE_CE1   : engn = 5; break;
 	default:
 		return -1;
 	}
@@ -101,12 +101,12 @@ gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 
 	switch (engn) {
-	case 0: engn = NVDEV_ENGINE_GR; break;
-	case 1: engn = NVDEV_ENGINE_MSVLD; break;
-	case 2: engn = NVDEV_ENGINE_MSPPP; break;
-	case 3: engn = NVDEV_ENGINE_MSPDEC; break;
-	case 4: engn = NVDEV_ENGINE_CE0; break;
-	case 5: engn = NVDEV_ENGINE_CE1; break;
+	case 0: engn = NVKM_ENGINE_GR; break;
+	case 1: engn = NVKM_ENGINE_MSVLD; break;
+	case 2: engn = NVKM_ENGINE_MSPPP; break;
+	case 3: engn = NVKM_ENGINE_MSPDEC; break;
+	case 4: engn = NVKM_ENGINE_CE0; break;
+	case 5: engn = NVKM_ENGINE_CE1; break;
 	default:
 		return NULL;
 	}
@@ -229,17 +229,17 @@ gf100_fifo_intr_sched(struct gf100_fifo *fifo)
 
 static const struct nvkm_enum
 gf100_fifo_fault_engine[] = {
-	{ 0x00, "PGRAPH", NULL, NVDEV_ENGINE_GR },
-	{ 0x03, "PEEPHOLE", NULL, NVDEV_ENGINE_IFB },
-	{ 0x04, "BAR1", NULL, NVDEV_SUBDEV_BAR },
-	{ 0x05, "BAR3", NULL, NVDEV_SUBDEV_INSTMEM },
-	{ 0x07, "PFIFO", NULL, NVDEV_ENGINE_FIFO },
-	{ 0x10, "PMSVLD", NULL, NVDEV_ENGINE_MSVLD },
-	{ 0x11, "PMSPPP", NULL, NVDEV_ENGINE_MSPPP },
+	{ 0x00, "PGRAPH", NULL, NVKM_ENGINE_GR },
+	{ 0x03, "PEEPHOLE", NULL, NVKM_ENGINE_IFB },
+	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
+	{ 0x05, "BAR3", NULL, NVKM_SUBDEV_INSTMEM },
+	{ 0x07, "PFIFO", NULL, NVKM_ENGINE_FIFO },
+	{ 0x10, "PMSVLD", NULL, NVKM_ENGINE_MSVLD },
+	{ 0x11, "PMSPPP", NULL, NVKM_ENGINE_MSPPP },
 	{ 0x13, "PCOUNTER" },
-	{ 0x14, "PMSPDEC", NULL, NVDEV_ENGINE_MSPDEC },
-	{ 0x15, "PCE0", NULL, NVDEV_ENGINE_CE0 },
-	{ 0x16, "PCE1", NULL, NVDEV_ENGINE_CE1 },
+	{ 0x14, "PMSPDEC", NULL, NVKM_ENGINE_MSPDEC },
+	{ 0x15, "PCE0", NULL, NVKM_ENGINE_CE0 },
+	{ 0x16, "PCE1", NULL, NVKM_ENGINE_CE1 },
 	{ 0x17, "PDAEMON" },
 	{}
 };
@@ -317,13 +317,13 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 
 	if (eu) {
 		switch (eu->data2) {
-		case NVDEV_SUBDEV_BAR:
+		case NVKM_SUBDEV_BAR:
 			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
 			break;
-		case NVDEV_SUBDEV_INSTMEM:
+		case NVKM_SUBDEV_INSTMEM:
 			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
 			break;
-		case NVDEV_ENGINE_IFB:
+		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:

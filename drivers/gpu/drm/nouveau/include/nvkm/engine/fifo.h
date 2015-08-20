@@ -26,10 +26,8 @@ struct nvkm_fifo_chan {
 	u64 addr;
 	u32 size;
 
-	struct nvkm_fifo_engn engn[NVDEV_SUBDEV_NR];
+	struct nvkm_fifo_engn engn[NVKM_SUBDEV_NR];
 };
-
-extern const struct nvkm_object_func nvkm_fifo_chan_func;
 
 struct nvkm_fifo {
 	const struct nvkm_fifo_func *func;

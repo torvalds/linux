@@ -248,22 +248,22 @@ gk104_fifo_intr_dropped_fault(struct gk104_fifo *fifo)
 
 static const struct nvkm_enum
 gk104_fifo_fault_engine[] = {
-	{ 0x00, "GR", NULL, NVDEV_ENGINE_GR },
-	{ 0x03, "IFB", NULL, NVDEV_ENGINE_IFB },
-	{ 0x04, "BAR1", NULL, NVDEV_SUBDEV_BAR },
-	{ 0x05, "BAR3", NULL, NVDEV_SUBDEV_INSTMEM },
-	{ 0x07, "PBDMA0", NULL, NVDEV_ENGINE_FIFO },
-	{ 0x08, "PBDMA1", NULL, NVDEV_ENGINE_FIFO },
-	{ 0x09, "PBDMA2", NULL, NVDEV_ENGINE_FIFO },
-	{ 0x10, "MSVLD", NULL, NVDEV_ENGINE_MSVLD },
-	{ 0x11, "MSPPP", NULL, NVDEV_ENGINE_MSPPP },
+	{ 0x00, "GR", NULL, NVKM_ENGINE_GR },
+	{ 0x03, "IFB", NULL, NVKM_ENGINE_IFB },
+	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
+	{ 0x05, "BAR3", NULL, NVKM_SUBDEV_INSTMEM },
+	{ 0x07, "PBDMA0", NULL, NVKM_ENGINE_FIFO },
+	{ 0x08, "PBDMA1", NULL, NVKM_ENGINE_FIFO },
+	{ 0x09, "PBDMA2", NULL, NVKM_ENGINE_FIFO },
+	{ 0x10, "MSVLD", NULL, NVKM_ENGINE_MSVLD },
+	{ 0x11, "MSPPP", NULL, NVKM_ENGINE_MSPPP },
 	{ 0x13, "PERF" },
-	{ 0x14, "MSPDEC", NULL, NVDEV_ENGINE_MSPDEC },
-	{ 0x15, "CE0", NULL, NVDEV_ENGINE_CE0 },
-	{ 0x16, "CE1", NULL, NVDEV_ENGINE_CE1 },
+	{ 0x14, "MSPDEC", NULL, NVKM_ENGINE_MSPDEC },
+	{ 0x15, "CE0", NULL, NVKM_ENGINE_CE0 },
+	{ 0x16, "CE1", NULL, NVKM_ENGINE_CE1 },
 	{ 0x17, "PMU" },
-	{ 0x19, "MSENC", NULL, NVDEV_ENGINE_MSENC },
-	{ 0x1b, "CE2", NULL, NVDEV_ENGINE_CE2 },
+	{ 0x19, "MSENC", NULL, NVKM_ENGINE_MSENC },
+	{ 0x1b, "CE2", NULL, NVKM_ENGINE_CE2 },
 	{}
 };
 
@@ -382,13 +382,13 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 
 	if (eu) {
 		switch (eu->data2) {
-		case NVDEV_SUBDEV_BAR:
+		case NVKM_SUBDEV_BAR:
 			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
 			break;
-		case NVDEV_SUBDEV_INSTMEM:
+		case NVKM_SUBDEV_INSTMEM:
 			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
 			break;
-		case NVDEV_ENGINE_IFB:
+		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:

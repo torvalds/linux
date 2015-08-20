@@ -1,70 +1,55 @@
 #ifndef __NVKM_DEVICE_H__
 #define __NVKM_DEVICE_H__
-#include <core/engine.h>
 #include <core/event.h>
+#include <core/object.h>
 
 enum nvkm_devidx {
-	NVDEV_SUBDEV_VBIOS,
+	NVKM_SUBDEV_VBIOS,
+	NVKM_SUBDEV_DEVINIT,
+	NVKM_SUBDEV_IBUS,
+	NVKM_SUBDEV_GPIO,
+	NVKM_SUBDEV_I2C,
+	NVKM_SUBDEV_FUSE,
+	NVKM_SUBDEV_MXM,
+	NVKM_SUBDEV_MC,
+	NVKM_SUBDEV_BUS,
+	NVKM_SUBDEV_TIMER,
+	NVKM_SUBDEV_FB,
+	NVKM_SUBDEV_LTC,
+	NVKM_SUBDEV_INSTMEM,
+	NVKM_SUBDEV_MMU,
+	NVKM_SUBDEV_BAR,
+	NVKM_SUBDEV_PMU,
+	NVKM_SUBDEV_VOLT,
+	NVKM_SUBDEV_THERM,
+	NVKM_SUBDEV_CLK,
 
-	/* All subdevs from DEVINIT to DEVINIT_LAST will be created before
-	 * *any* of them are initialised.  This subdev category is used
-	 * for any subdevs that the VBIOS init table parsing may call out
-	 * to during POST.
-	 */
-	NVDEV_SUBDEV_DEVINIT,
-	NVDEV_SUBDEV_IBUS,
-	NVDEV_SUBDEV_GPIO,
-	NVDEV_SUBDEV_I2C,
-	NVDEV_SUBDEV_DEVINIT_LAST = NVDEV_SUBDEV_I2C,
+	NVKM_ENGINE_DMAOBJ,
+	NVKM_ENGINE_IFB,
+	NVKM_ENGINE_FIFO,
+	NVKM_ENGINE_SW,
+	NVKM_ENGINE_GR,
+	NVKM_ENGINE_MPEG,
+	NVKM_ENGINE_ME,
+	NVKM_ENGINE_VP,
+	NVKM_ENGINE_CIPHER,
+	NVKM_ENGINE_BSP,
+	NVKM_ENGINE_MSPPP,
+	NVKM_ENGINE_CE0,
+	NVKM_ENGINE_CE1,
+	NVKM_ENGINE_CE2,
+	NVKM_ENGINE_VIC,
+	NVKM_ENGINE_MSENC,
+	NVKM_ENGINE_DISP,
+	NVKM_ENGINE_PM,
+	NVKM_ENGINE_MSVLD,
+	NVKM_ENGINE_SEC,
+	NVKM_ENGINE_MSPDEC,
 
-	/* This grouping of subdevs are initialised right after they've
-	 * been created, and are allowed to assume any subdevs in the
-	 * list above them exist and have been initialised.
-	 */
-	NVDEV_SUBDEV_FUSE,
-	NVDEV_SUBDEV_MXM,
-	NVDEV_SUBDEV_MC,
-	NVDEV_SUBDEV_BUS,
-	NVDEV_SUBDEV_TIMER,
-	NVDEV_SUBDEV_FB,
-	NVDEV_SUBDEV_LTC,
-	NVDEV_SUBDEV_INSTMEM,
-	NVDEV_SUBDEV_MMU,
-	NVDEV_SUBDEV_BAR,
-	NVDEV_SUBDEV_PMU,
-	NVDEV_SUBDEV_VOLT,
-	NVDEV_SUBDEV_THERM,
-	NVDEV_SUBDEV_CLK,
-
-	NVDEV_ENGINE_FIRST,
-	NVDEV_ENGINE_DMAOBJ = NVDEV_ENGINE_FIRST,
-	NVDEV_ENGINE_IFB,
-	NVDEV_ENGINE_FIFO,
-	NVDEV_ENGINE_SW,
-	NVDEV_ENGINE_GR,
-	NVDEV_ENGINE_MPEG,
-	NVDEV_ENGINE_ME,
-	NVDEV_ENGINE_VP,
-	NVDEV_ENGINE_CIPHER,
-	NVDEV_ENGINE_BSP,
-	NVDEV_ENGINE_MSPPP,
-	NVDEV_ENGINE_CE0,
-	NVDEV_ENGINE_CE1,
-	NVDEV_ENGINE_CE2,
-	NVDEV_ENGINE_VIC,
-	NVDEV_ENGINE_MSENC,
-	NVDEV_ENGINE_DISP,
-	NVDEV_ENGINE_PM,
-	NVDEV_ENGINE_MSVLD,
-	NVDEV_ENGINE_SEC,
-	NVDEV_ENGINE_MSPDEC,
-
-	NVDEV_SUBDEV_NR,
+	NVKM_SUBDEV_NR,
 };
 
 struct nvkm_device {
-	struct nvkm_engine engine;
-
 	const struct nvkm_device_func *func;
 	const struct nvkm_device_quirk *quirk;
 	struct device *dev;
@@ -85,6 +70,7 @@ struct nvkm_device {
 	struct nvkm_event event;
 
 	u64 disable_mask;
+	u32 debug;
 
 	const struct nvkm_device_chip *chip;
 	enum {
@@ -102,8 +88,6 @@ struct nvkm_device {
 	u32 chipset;
 	u8  chiprev;
 	u32 crystal;
-
-	struct nvkm_oclass *oclass[NVDEV_SUBDEV_NR];
 
 	struct {
 		struct notifier_block nb;
@@ -227,8 +211,6 @@ int nvkm_device_list(u64 *name, int size);
 	_temp;                                                                 \
 })
 
-struct nvkm_device *nv_device(void *obj);
-
 static inline bool
 nv_device_match(struct nvkm_device *device, u16 dev, u16 ven, u16 sub)
 {
@@ -285,7 +267,7 @@ extern const struct nvkm_sclass nvkm_udevice_sclass;
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \
 	struct nvkm_device *_device = (d);                                     \
-	if (_device->engine.subdev.debug >= (l))                               \
+	if (_device->debug >= (l))                                             \
 		dev_##p(_device->dev, f, ##a);                                 \
 } while(0)
 #define nvdev_printk(d,l,p,f,a...) nvdev_printk_((d), NV_DBG_##l, p, f, ##a)

@@ -1047,7 +1047,7 @@ nv04_gr_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 				  false, parent, pgpuobj);
 	if (ret == 0) {
 		nvkm_kmap(*pgpuobj);
-		nvkm_wo32(*pgpuobj, 0x00, object->oclass_name);
+		nvkm_wo32(*pgpuobj, 0x00, object->oclass);
 		nvkm_wo32(*pgpuobj, 0x04, 0x00000000);
 		nvkm_wo32(*pgpuobj, 0x08, 0x00000000);
 #ifdef __BIG_ENDIAN

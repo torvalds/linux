@@ -35,13 +35,13 @@ static u32
 gf100_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
-	case NVDEV_ENGINE_SW    : return 0;
-	case NVDEV_ENGINE_GR    : return 0x0210;
-	case NVDEV_ENGINE_CE0   : return 0x0230;
-	case NVDEV_ENGINE_CE1   : return 0x0240;
-	case NVDEV_ENGINE_MSPDEC: return 0x0250;
-	case NVDEV_ENGINE_MSPPP : return 0x0260;
-	case NVDEV_ENGINE_MSVLD : return 0x0270;
+	case NVKM_ENGINE_SW    : return 0;
+	case NVKM_ENGINE_GR    : return 0x0210;
+	case NVKM_ENGINE_CE0   : return 0x0230;
+	case NVKM_ENGINE_CE1   : return 0x0240;
+	case NVKM_ENGINE_MSPDEC: return 0x0250;
+	case NVKM_ENGINE_MSPPP : return 0x0260;
+	case NVKM_ENGINE_MSVLD : return 0x0270;
 	default:
 		WARN_ON(1);
 		return 0;
@@ -120,12 +120,6 @@ gf100_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 
 	if (!gf100_fifo_gpfifo_engine_addr(engine))
 		return 0;
-
-	if (object->oclass) {
-		return nvkm_gpuobj_map(nv_gpuobj(object), chan->vm,
-				       NV_MEM_ACCESS_RW,
-				       &chan->engn[engn].vma);
-	}
 
 	ret = nvkm_object_bind(object, NULL, 0, &chan->engn[engn].inst);
 	if (ret)
@@ -225,13 +219,13 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&gf100_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, args->v0.vm, 0,
-				  (1ULL << NVDEV_ENGINE_CE0) |
-				  (1ULL << NVDEV_ENGINE_CE1) |
-				  (1ULL << NVDEV_ENGINE_GR) |
-				  (1ULL << NVDEV_ENGINE_MSPDEC) |
-				  (1ULL << NVDEV_ENGINE_MSPPP) |
-				  (1ULL << NVDEV_ENGINE_MSVLD) |
-				  (1ULL << NVDEV_ENGINE_SW),
+				  (1ULL << NVKM_ENGINE_CE0) |
+				  (1ULL << NVKM_ENGINE_CE1) |
+				  (1ULL << NVKM_ENGINE_GR) |
+				  (1ULL << NVKM_ENGINE_MSPDEC) |
+				  (1ULL << NVKM_ENGINE_MSPPP) |
+				  (1ULL << NVKM_ENGINE_MSVLD) |
+				  (1ULL << NVKM_ENGINE_SW),
 				  1, fifo->user.bar.offset, 0x1000,
 				  oclass, &chan->base);
 	if (ret)

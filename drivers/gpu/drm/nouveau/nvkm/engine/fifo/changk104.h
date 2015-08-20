@@ -18,7 +18,7 @@ struct gk104_fifo_chan {
 	struct {
 		struct nvkm_gpuobj *inst;
 		struct nvkm_vma vma;
-	} engn[NVDEV_SUBDEV_NR];
+	} engn[NVKM_SUBDEV_NR];
 };
 
 int gk104_fifo_gpfifo_new(struct nvkm_fifo *, const struct nvkm_oclass *,

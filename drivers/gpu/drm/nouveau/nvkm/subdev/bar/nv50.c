@@ -88,7 +88,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	if (ret)
 		return ret;
 
-	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
+	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
 
 	ret = nvkm_vm_boot(vm, limit-- - start);
 	if (ret)
@@ -121,7 +121,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	if (ret)
 		return ret;
 
-	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
+	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
 
 	ret = nvkm_vm_ref(vm, &bar->bar1_vm, bar->pgd);
 	nvkm_vm_ref(NULL, &vm, NULL);

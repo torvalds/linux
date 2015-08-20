@@ -25,61 +25,55 @@
 #include <core/device.h>
 #include <core/option.h>
 
-static struct lock_class_key nvkm_subdev_lock_class[NVDEV_SUBDEV_NR];
+static struct lock_class_key nvkm_subdev_lock_class[NVKM_SUBDEV_NR];
 
 const char *
-nvkm_subdev_name[64] = {
-	[NVDEV_SUBDEV_BAR    ] = "bar",
-	[NVDEV_SUBDEV_VBIOS  ] = "bios",
-	[NVDEV_SUBDEV_BUS    ] = "bus",
-	[NVDEV_SUBDEV_CLK    ] = "clk",
-	[NVDEV_SUBDEV_DEVINIT] = "devinit",
-	[NVDEV_SUBDEV_FB     ] = "fb",
-	[NVDEV_SUBDEV_FUSE   ] = "fuse",
-	[NVDEV_SUBDEV_GPIO   ] = "gpio",
-	[NVDEV_SUBDEV_I2C    ] = "i2c",
-	[NVDEV_SUBDEV_IBUS   ] = "priv",
-	[NVDEV_SUBDEV_INSTMEM] = "imem",
-	[NVDEV_SUBDEV_LTC    ] = "ltc",
-	[NVDEV_SUBDEV_MC     ] = "mc",
-	[NVDEV_SUBDEV_MMU    ] = "mmu",
-	[NVDEV_SUBDEV_MXM    ] = "mxm",
-	[NVDEV_SUBDEV_PMU    ] = "pmu",
-	[NVDEV_SUBDEV_THERM  ] = "therm",
-	[NVDEV_SUBDEV_TIMER  ] = "tmr",
-	[NVDEV_SUBDEV_VOLT   ] = "volt",
-	[NVDEV_ENGINE_BSP    ] = "bsp",
-	[NVDEV_ENGINE_CE0    ] = "ce0",
-	[NVDEV_ENGINE_CE1    ] = "ce1",
-	[NVDEV_ENGINE_CE2    ] = "ce2",
-	[NVDEV_ENGINE_CIPHER ] = "cipher",
-	[NVDEV_ENGINE_DISP   ] = "disp",
-	[NVDEV_ENGINE_DMAOBJ ] = "dma",
-	[NVDEV_ENGINE_FIFO   ] = "fifo",
-	[NVDEV_ENGINE_GR     ] = "gr",
-	[NVDEV_ENGINE_IFB    ] = "ifb",
-	[NVDEV_ENGINE_ME     ] = "me",
-	[NVDEV_ENGINE_MPEG   ] = "mpeg",
-	[NVDEV_ENGINE_MSENC  ] = "msenc",
-	[NVDEV_ENGINE_MSPDEC ] = "mspdec",
-	[NVDEV_ENGINE_MSPPP  ] = "msppp",
-	[NVDEV_ENGINE_MSVLD  ] = "msvld",
-	[NVDEV_ENGINE_PM     ] = "pm",
-	[NVDEV_ENGINE_SEC    ] = "sec",
-	[NVDEV_ENGINE_SW     ] = "sw",
-	[NVDEV_ENGINE_VIC    ] = "vic",
-	[NVDEV_ENGINE_VP     ] = "vp",
+nvkm_subdev_name[NVKM_SUBDEV_NR] = {
+	[NVKM_SUBDEV_BAR    ] = "bar",
+	[NVKM_SUBDEV_VBIOS  ] = "bios",
+	[NVKM_SUBDEV_BUS    ] = "bus",
+	[NVKM_SUBDEV_CLK    ] = "clk",
+	[NVKM_SUBDEV_DEVINIT] = "devinit",
+	[NVKM_SUBDEV_FB     ] = "fb",
+	[NVKM_SUBDEV_FUSE   ] = "fuse",
+	[NVKM_SUBDEV_GPIO   ] = "gpio",
+	[NVKM_SUBDEV_I2C    ] = "i2c",
+	[NVKM_SUBDEV_IBUS   ] = "priv",
+	[NVKM_SUBDEV_INSTMEM] = "imem",
+	[NVKM_SUBDEV_LTC    ] = "ltc",
+	[NVKM_SUBDEV_MC     ] = "mc",
+	[NVKM_SUBDEV_MMU    ] = "mmu",
+	[NVKM_SUBDEV_MXM    ] = "mxm",
+	[NVKM_SUBDEV_PMU    ] = "pmu",
+	[NVKM_SUBDEV_THERM  ] = "therm",
+	[NVKM_SUBDEV_TIMER  ] = "tmr",
+	[NVKM_SUBDEV_VOLT   ] = "volt",
+	[NVKM_ENGINE_BSP    ] = "bsp",
+	[NVKM_ENGINE_CE0    ] = "ce0",
+	[NVKM_ENGINE_CE1    ] = "ce1",
+	[NVKM_ENGINE_CE2    ] = "ce2",
+	[NVKM_ENGINE_CIPHER ] = "cipher",
+	[NVKM_ENGINE_DISP   ] = "disp",
+	[NVKM_ENGINE_DMAOBJ ] = "dma",
+	[NVKM_ENGINE_FIFO   ] = "fifo",
+	[NVKM_ENGINE_GR     ] = "gr",
+	[NVKM_ENGINE_IFB    ] = "ifb",
+	[NVKM_ENGINE_ME     ] = "me",
+	[NVKM_ENGINE_MPEG   ] = "mpeg",
+	[NVKM_ENGINE_MSENC  ] = "msenc",
+	[NVKM_ENGINE_MSPDEC ] = "mspdec",
+	[NVKM_ENGINE_MSPPP  ] = "msppp",
+	[NVKM_ENGINE_MSVLD  ] = "msvld",
+	[NVKM_ENGINE_PM     ] = "pm",
+	[NVKM_ENGINE_SEC    ] = "sec",
+	[NVKM_ENGINE_SW     ] = "sw",
+	[NVKM_ENGINE_VIC    ] = "vic",
+	[NVKM_ENGINE_VP     ] = "vp",
 };
 
 void
 nvkm_subdev_intr(struct nvkm_subdev *subdev)
 {
-	if (subdev->object.oclass) {
-		if (subdev->intr)
-			subdev->intr(subdev);
-		return;
-	}
-
 	if (subdev->func->intr)
 		subdev->func->intr(subdev);
 }
@@ -91,17 +85,9 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 	const char *action = suspend ? "suspend" : "fini";
 	u32 pmc_enable = subdev->pmc_enable;
 	s64 time;
-	int ret;
 
 	nvkm_trace(subdev, "%s running...\n", action);
 	time = ktime_to_us(ktime_get());
-
-	if (!subdev->func) {
-		ret = subdev->object.oclass->ofuncs->fini(&subdev->object, suspend);
-		if (ret)
-			return ret;
-		goto done;
-	}
 
 	if (subdev->func->fini) {
 		int ret = subdev->func->fini(subdev, suspend);
@@ -118,7 +104,6 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		nvkm_rd32(device, 0x000200);
 	}
 
-done:
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
 	return 0;
@@ -132,7 +117,7 @@ nvkm_subdev_preinit(struct nvkm_subdev *subdev)
 	nvkm_trace(subdev, "preinit running...\n");
 	time = ktime_to_us(ktime_get());
 
-	if (!subdev->object.oclass && subdev->func->preinit) {
+	if (subdev->func->preinit) {
 		int ret = subdev->func->preinit(subdev);
 		if (ret) {
 			nvkm_error(subdev, "preinit failed, %d\n", ret);
@@ -153,13 +138,6 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 
 	nvkm_trace(subdev, "init running...\n");
 	time = ktime_to_us(ktime_get());
-
-	if (!subdev->func) {
-		ret = subdev->object.oclass->ofuncs->init(&subdev->object);
-		if (ret)
-			return ret;
-		goto done;
-	}
 
 	if (subdev->func->oneinit && !subdev->oneinit) {
 		s64 time;
@@ -184,7 +162,6 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 		}
 	}
 
-done:
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "init completed in %lldus\n", time);
 	return 0;
@@ -195,11 +172,6 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 {
 	struct nvkm_subdev *subdev = *psubdev;
 	s64 time;
-
-	if (subdev && subdev->object.oclass) {
-		subdev->object.oclass->ofuncs->dtor(&subdev->object);
-		return;
-	}
 
 	if (subdev && !WARN_ON(!subdev->func)) {
 		nvkm_trace(subdev, "destroy running...\n");
@@ -213,18 +185,12 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 	}
 }
 
-static const struct nvkm_object_func
-nvkm_subdev_func = {
-};
-
 void
 nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 		 struct nvkm_device *device, int index, u32 pmc_enable,
 		 struct nvkm_subdev *subdev)
 {
 	const char *name = nvkm_subdev_name[index];
-	struct nvkm_oclass hack = {};
-	nvkm_object_ctor(&nvkm_subdev_func, &hack, &subdev->object);
 	subdev->func = func;
 	subdev->device = device;
 	subdev->index = index;
@@ -232,107 +198,4 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 
 	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
 	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
-}
-
-struct nvkm_subdev *
-nvkm_subdev(void *obj, int idx)
-{
-	struct nvkm_object *object = nv_object(obj);
-	while (object && !nv_iclass(object, NV_SUBDEV_CLASS))
-		object = object->parent;
-	if (object == NULL || !object->parent || nv_subidx(nv_subdev(object)) != idx) {
-		struct nvkm_device *device = nv_device(obj);
-		return nvkm_device_subdev(device, idx);
-	}
-	return object ? nv_subdev(object) : NULL;
-}
-
-void
-nvkm_subdev_reset(struct nvkm_object *obj)
-{
-	struct nvkm_subdev *subdev = container_of(obj, typeof(*subdev), object);
-	nvkm_trace(subdev, "resetting...\n");
-	nvkm_object_fini(&subdev->object, false);
-	nvkm_trace(subdev, "reset\n");
-}
-
-int
-nvkm_subdev_init_old(struct nvkm_subdev *subdev)
-{
-	int ret = _nvkm_object_init(&subdev->object);
-	if (ret)
-		return ret;
-
-	nvkm_subdev_reset(&subdev->object);
-	return 0;
-}
-
-int
-_nvkm_subdev_init(struct nvkm_object *object)
-{
-	struct nvkm_subdev *subdev = (void *)object;
-	return nvkm_subdev_init_old(subdev);
-}
-
-int
-nvkm_subdev_fini_old(struct nvkm_subdev *subdev, bool suspend)
-{
-	struct nvkm_device *device = subdev->device;
-
-	if (subdev->unit) {
-		nvkm_mask(device, 0x000200, subdev->unit, 0x00000000);
-		nvkm_mask(device, 0x000200, subdev->unit, subdev->unit);
-	}
-
-	return _nvkm_object_fini(&subdev->object, suspend);
-}
-
-int
-_nvkm_subdev_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nvkm_subdev *subdev = (void *)object;
-	return nvkm_subdev_fini_old(subdev, suspend);
-}
-
-void
-nvkm_subdev_destroy(struct nvkm_subdev *subdev)
-{
-	nvkm_object_destroy(&subdev->object);
-}
-
-void
-_nvkm_subdev_dtor(struct nvkm_object *object)
-{
-	nvkm_subdev_destroy(nv_subdev(object));
-}
-
-int
-nvkm_subdev_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, u32 pclass,
-		    const char *subname, const char *sysname,
-		    int size, void **pobject)
-{
-	const int subidx = oclass->handle & 0xff;
-	const char *name = nvkm_subdev_name[subidx];
-	struct nvkm_subdev *subdev;
-	int ret;
-
-	ret = nvkm_object_create_(parent, engine, oclass, pclass |
-				  NV_SUBDEV_CLASS, size, pobject);
-	subdev = *pobject;
-	if (ret)
-		return ret;
-
-	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[subidx]);
-	subdev->index = subidx;
-
-	if (parent) {
-		struct nvkm_device *device = nv_device(parent);
-		subdev->debug = nvkm_dbgopt(device->dbgopt, name);
-		subdev->device = device;
-	} else {
-		subdev->device = nv_device(subdev);
-	}
-
-	return 0;
 }

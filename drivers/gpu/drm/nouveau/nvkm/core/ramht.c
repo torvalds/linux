@@ -67,39 +67,26 @@ nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
 	data->chid = chid;
 	data->handle = handle;
 
-	if (!object) {
-		inst = 0;
-		goto done;
-	}
-
-	if (nv_iclass(object, NV_GPUOBJ_CLASS)) {
-		struct nvkm_gpuobj *gpuobj = nv_gpuobj(object);
-		if (ramht->device->card_type >= NV_50)
-			inst = gpuobj->node->offset;
-		else
-			inst = gpuobj->addr;
-		goto done;
-	}
-
-	ret = nvkm_object_bind(object, ramht->parent, 16, &data->inst);
-	if (ret) {
-		if (ret != -ENODEV) {
-			data->chid = -1;
-			return ret;
+	if (object) {
+		ret = nvkm_object_bind(object, ramht->parent, 16, &data->inst);
+		if (ret) {
+			if (ret != -ENODEV) {
+				data->chid = -1;
+				return ret;
+			}
+			data->inst = NULL;
 		}
-		data->inst = NULL;
-	}
 
-	if (data->inst) {
-		if (ramht->device->card_type >= NV_50)
-			inst = data->inst->node->offset;
-		else
-			inst = data->inst->addr;
-	}
+		if (data->inst) {
+			if (ramht->device->card_type >= NV_50)
+				inst = data->inst->node->offset;
+			else
+				inst = data->inst->addr;
+		}
 
-done:
-	if (addr < 0) context |= inst << -addr;
-	else          context |= inst >>  addr;
+		if (addr < 0) context |= inst << -addr;
+		else          context |= inst >>  addr;
+	}
 
 	nvkm_kmap(ramht->gpuobj);
 	nvkm_wo32(ramht->gpuobj, (co << 3) + 0, handle);

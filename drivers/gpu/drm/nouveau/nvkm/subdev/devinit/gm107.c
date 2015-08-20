@@ -35,11 +35,11 @@ gm107_devinit_disable(struct nvkm_devinit *init)
 	u64 disable = 0ULL;
 
 	if (r021c00 & 0x00000001)
-		disable |= (1ULL << NVDEV_ENGINE_CE0);
+		disable |= (1ULL << NVKM_ENGINE_CE0);
 	if (r021c00 & 0x00000004)
-		disable |= (1ULL << NVDEV_ENGINE_CE2);
+		disable |= (1ULL << NVKM_ENGINE_CE2);
 	if (r021c04 & 0x00000001)
-		disable |= (1ULL << NVDEV_ENGINE_DISP);
+		disable |= (1ULL << NVKM_ENGINE_DISP);
 
 	return disable;
 }

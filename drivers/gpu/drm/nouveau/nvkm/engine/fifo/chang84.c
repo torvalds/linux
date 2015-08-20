@@ -48,16 +48,16 @@ static int
 g84_fifo_chan_engine(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
-	case NVDEV_ENGINE_GR    : return 0;
-	case NVDEV_ENGINE_MPEG  :
-	case NVDEV_ENGINE_MSPPP : return 1;
-	case NVDEV_ENGINE_CE0   : return 2;
-	case NVDEV_ENGINE_VP    :
-	case NVDEV_ENGINE_MSPDEC: return 3;
-	case NVDEV_ENGINE_CIPHER:
-	case NVDEV_ENGINE_SEC   : return 4;
-	case NVDEV_ENGINE_BSP   :
-	case NVDEV_ENGINE_MSVLD : return 5;
+	case NVKM_ENGINE_GR    : return 0;
+	case NVKM_ENGINE_MPEG  :
+	case NVKM_ENGINE_MSPPP : return 1;
+	case NVKM_ENGINE_CE0   : return 2;
+	case NVKM_ENGINE_VP    :
+	case NVKM_ENGINE_MSPDEC: return 3;
+	case NVKM_ENGINE_CIPHER:
+	case NVKM_ENGINE_SEC   : return 4;
+	case NVKM_ENGINE_BSP   :
+	case NVKM_ENGINE_MSVLD : return 5;
 	default:
 		WARN_ON(1);
 		return 0;
@@ -68,18 +68,18 @@ static int
 g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW    : return -1;
-	case NVDEV_ENGINE_GR    : return 0x0020;
-	case NVDEV_ENGINE_VP    :
-	case NVDEV_ENGINE_MSPDEC: return 0x0040;
-	case NVDEV_ENGINE_MPEG  :
-	case NVDEV_ENGINE_MSPPP : return 0x0060;
-	case NVDEV_ENGINE_BSP   :
-	case NVDEV_ENGINE_MSVLD : return 0x0080;
-	case NVDEV_ENGINE_CIPHER:
-	case NVDEV_ENGINE_SEC   : return 0x00a0;
-	case NVDEV_ENGINE_CE0   : return 0x00c0;
+	case NVKM_ENGINE_DMAOBJ:
+	case NVKM_ENGINE_SW    : return -1;
+	case NVKM_ENGINE_GR    : return 0x0020;
+	case NVKM_ENGINE_VP    :
+	case NVKM_ENGINE_MSPDEC: return 0x0040;
+	case NVKM_ENGINE_MPEG  :
+	case NVKM_ENGINE_MSPPP : return 0x0060;
+	case NVKM_ENGINE_BSP   :
+	case NVKM_ENGINE_MSVLD : return 0x0080;
+	case NVKM_ENGINE_CIPHER:
+	case NVKM_ENGINE_SEC   : return 0x00a0;
+	case NVKM_ENGINE_CE0   : return 0x00c0;
 	default:
 		WARN_ON(1);
 		return -1;
@@ -167,11 +167,6 @@ g84_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
 	if (g84_fifo_chan_engine_addr(engine) < 0)
 		return 0;
 
-	if (nv_iclass(object, NV_GPUOBJ_CLASS)) {
-		chan->engn[engn] = nv_gpuobj(object);
-		return 0;
-	}
-
 	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
 }
 
@@ -184,20 +179,20 @@ g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	u32 context;
 
 	switch (object->engine->subdev.index) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW    : context = 0x00000000; break;
-	case NVDEV_ENGINE_GR    : context = 0x00100000; break;
-	case NVDEV_ENGINE_MPEG  :
-	case NVDEV_ENGINE_MSPPP : context = 0x00200000; break;
-	case NVDEV_ENGINE_ME    :
-	case NVDEV_ENGINE_CE0   : context = 0x00300000; break;
-	case NVDEV_ENGINE_VP    :
-	case NVDEV_ENGINE_MSPDEC: context = 0x00400000; break;
-	case NVDEV_ENGINE_CIPHER:
-	case NVDEV_ENGINE_SEC   :
-	case NVDEV_ENGINE_VIC   : context = 0x00500000; break;
-	case NVDEV_ENGINE_BSP   :
-	case NVDEV_ENGINE_MSVLD : context = 0x00600000; break;
+	case NVKM_ENGINE_DMAOBJ:
+	case NVKM_ENGINE_SW    : context = 0x00000000; break;
+	case NVKM_ENGINE_GR    : context = 0x00100000; break;
+	case NVKM_ENGINE_MPEG  :
+	case NVKM_ENGINE_MSPPP : context = 0x00200000; break;
+	case NVKM_ENGINE_ME    :
+	case NVKM_ENGINE_CE0   : context = 0x00300000; break;
+	case NVKM_ENGINE_VP    :
+	case NVKM_ENGINE_MSPDEC: context = 0x00400000; break;
+	case NVKM_ENGINE_CIPHER:
+	case NVKM_ENGINE_SEC   :
+	case NVKM_ENGINE_VIC   : context = 0x00500000; break;
+	case NVKM_ENGINE_BSP   :
+	case NVKM_ENGINE_MSVLD : context = 0x00600000; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
@@ -243,20 +238,20 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
 
 	ret = nvkm_fifo_chan_ctor(&g84_fifo_chan_func, &fifo->base,
 				  0x10000, 0x1000, false, vm, push,
-				  (1ULL << NVDEV_ENGINE_BSP) |
-				  (1ULL << NVDEV_ENGINE_CE0) |
-				  (1ULL << NVDEV_ENGINE_CIPHER) |
-				  (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				  (1ULL << NVDEV_ENGINE_GR) |
-				  (1ULL << NVDEV_ENGINE_ME) |
-				  (1ULL << NVDEV_ENGINE_MPEG) |
-				  (1ULL << NVDEV_ENGINE_MSPDEC) |
-				  (1ULL << NVDEV_ENGINE_MSPPP) |
-				  (1ULL << NVDEV_ENGINE_MSVLD) |
-				  (1ULL << NVDEV_ENGINE_SEC) |
-				  (1ULL << NVDEV_ENGINE_SW) |
-				  (1ULL << NVDEV_ENGINE_VIC) |
-				  (1ULL << NVDEV_ENGINE_VP),
+				  (1ULL << NVKM_ENGINE_BSP) |
+				  (1ULL << NVKM_ENGINE_CE0) |
+				  (1ULL << NVKM_ENGINE_CIPHER) |
+				  (1ULL << NVKM_ENGINE_DMAOBJ) |
+				  (1ULL << NVKM_ENGINE_GR) |
+				  (1ULL << NVKM_ENGINE_ME) |
+				  (1ULL << NVKM_ENGINE_MPEG) |
+				  (1ULL << NVKM_ENGINE_MSPDEC) |
+				  (1ULL << NVKM_ENGINE_MSPPP) |
+				  (1ULL << NVKM_ENGINE_MSVLD) |
+				  (1ULL << NVKM_ENGINE_SEC) |
+				  (1ULL << NVKM_ENGINE_SW) |
+				  (1ULL << NVKM_ENGINE_VIC) |
+				  (1ULL << NVKM_ENGINE_VP),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

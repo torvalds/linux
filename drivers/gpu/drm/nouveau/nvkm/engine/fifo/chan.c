@@ -332,7 +332,7 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 	return data;
 }
 
-const struct nvkm_object_func
+static const struct nvkm_object_func
 nvkm_fifo_chan_func = {
 	.dtor = nvkm_fifo_chan_dtor,
 	.init = nvkm_fifo_chan_init,

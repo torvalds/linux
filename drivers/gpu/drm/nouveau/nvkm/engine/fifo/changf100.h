@@ -17,7 +17,7 @@ struct gf100_fifo_chan {
 	struct {
 		struct nvkm_gpuobj *inst;
 		struct nvkm_vma vma;
-	} engn[NVDEV_SUBDEV_NR];
+	} engn[NVKM_SUBDEV_NR];
 };
 
 extern const struct nvkm_fifo_chan_oclass gf100_fifo_gpfifo_oclass;

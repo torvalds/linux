@@ -30,7 +30,7 @@ static void
 gf100_ce_init(struct nvkm_falcon *ce)
 {
 	struct nvkm_device *device = ce->engine.subdev.device;
-	const int index = ce->engine.subdev.index - NVDEV_ENGINE_CE0;
+	const int index = ce->engine.subdev.index - NVKM_ENGINE_CE0;
 	nvkm_wr32(device, ce->addr + 0x084, index);
 }
 
@@ -68,11 +68,11 @@ int
 gf100_ce_new(struct nvkm_device *device, int index,
 	     struct nvkm_engine **pengine)
 {
-	if (index == NVDEV_ENGINE_CE0) {
+	if (index == NVKM_ENGINE_CE0) {
 		return nvkm_falcon_new_(&gf100_ce0, device, index, true,
 					0x104000, pengine);
 	} else
-	if (index == NVDEV_ENGINE_CE1) {
+	if (index == NVKM_ENGINE_CE1) {
 		return nvkm_falcon_new_(&gf100_ce1, device, index, true,
 					0x105000, pengine);
 	}

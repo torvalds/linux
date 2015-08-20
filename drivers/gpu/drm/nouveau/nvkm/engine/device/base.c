@@ -1975,36 +1975,6 @@ nv12b_chipset = {
 	.sw = gf100_sw_new,
 };
 
-#include <core/client.h>
-
-struct nvkm_device *
-nv_device(void *obj)
-{
-	struct nvkm_object *device = nv_object(obj);
-
-	if (device->engine == NULL) {
-		while (device && device->parent) {
-			if (!nv_iclass(device, NV_SUBDEV_CLASS) &&
-			    device->parent == &nvkm_client(device)->object) {
-				struct {
-					struct nvkm_object base;
-					struct nvkm_device *device;
-				} *udevice = (void *)device;
-				return udevice->device;
-			}
-			device = device->parent;
-		}
-	} else {
-		device = &nv_object(obj)->engine->subdev.object;
-		if (device && device->parent)
-			device = device->parent;
-	}
-#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	BUG_ON(!device);
-#endif
-	return (void *)device;
-}
-
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -2032,7 +2002,7 @@ nvkm_device_subdev(struct nvkm_device *device, int index)
 		return NULL;
 
 	switch (index) {
-#define _(n,p,m) case NVDEV_SUBDEV_##n: if (p) return (m); break
+#define _(n,p,m) case NVKM_SUBDEV_##n: if (p) return (m); break
 	_(BAR    , device->bar    , &device->bar->subdev);
 	_(VBIOS  , device->bios   , &device->bios->subdev);
 	_(BUS    , device->bus    , &device->bus->subdev);
@@ -2069,7 +2039,7 @@ nvkm_device_engine(struct nvkm_device *device, int index)
 		return NULL;
 
 	switch (index) {
-#define _(n,p,m) case NVDEV_ENGINE_##n: if (p) return (m); break
+#define _(n,p,m) case NVKM_ENGINE_##n: if (p) return (m); break
 	_(BSP    , device->bsp    ,  device->bsp);
 	_(CE0    , device->ce[0]  ,  device->ce[0]);
 	_(CE1    , device->ce[1]  ,  device->ce[1]);
@@ -2112,7 +2082,7 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 
 	nvkm_acpi_fini(device);
 
-	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--) {
+	for (i = NVKM_SUBDEV_NR - 1; i >= 0; i--) {
 		if ((subdev = nvkm_device_subdev(device, i))) {
 			ret = nvkm_subdev_fini(subdev, suspend);
 			if (ret && suspend)
@@ -2135,7 +2105,7 @@ fail:
 			if (rret)
 				nvkm_fatal(subdev, "failed restart, %d\n", ret);
 		}
-	} while (++i < NVDEV_SUBDEV_NR);
+	} while (++i < NVKM_SUBDEV_NR);
 
 	nvdev_trace(device, "%s failed with %d\n", action, ret);
 	return ret;
@@ -2157,7 +2127,7 @@ nvkm_device_preinit(struct nvkm_device *device)
 			goto fail;
 	}
 
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 		if ((subdev = nvkm_device_subdev(device, i))) {
 			ret = nvkm_subdev_preinit(subdev);
 			if (ret)
@@ -2182,7 +2152,7 @@ int
 nvkm_device_init(struct nvkm_device *device)
 {
 	struct nvkm_subdev *subdev;
-	int ret, i = 0, c;
+	int ret, i;
 	s64 time;
 
 	ret = nvkm_device_preinit(device);
@@ -2194,80 +2164,11 @@ nvkm_device_init(struct nvkm_device *device)
 	nvdev_trace(device, "init running...\n");
 	time = ktime_to_us(ktime_get());
 
-	for (i = 0, c = 0; i < NVDEV_SUBDEV_NR; i++) {
-#define _(s,m) case s: if (device->oclass[s] && !device->m) {          \
-		ret = nvkm_object_old(nv_object(device), NULL,                \
-				       device->oclass[s], NULL,  (s),          \
-				       (struct nvkm_object **)&device->m);     \
-		if (ret == -ENODEV) {                                          \
-			device->oclass[s] = NULL;                              \
-			continue;                                              \
-		}                                                              \
-		if (ret)                                                       \
-			goto fail;                                             \
-} break
-		switch (i) {
-		_(NVDEV_SUBDEV_BAR    ,     bar);
-		_(NVDEV_SUBDEV_VBIOS  ,    bios);
-		_(NVDEV_SUBDEV_BUS    ,     bus);
-		_(NVDEV_SUBDEV_CLK    ,     clk);
-		_(NVDEV_SUBDEV_DEVINIT, devinit);
-		_(NVDEV_SUBDEV_FB     ,      fb);
-		_(NVDEV_SUBDEV_FUSE   ,    fuse);
-		_(NVDEV_SUBDEV_GPIO   ,    gpio);
-		_(NVDEV_SUBDEV_I2C    ,     i2c);
-		_(NVDEV_SUBDEV_IBUS   ,    ibus);
-		_(NVDEV_SUBDEV_INSTMEM,    imem);
-		_(NVDEV_SUBDEV_LTC    ,     ltc);
-		_(NVDEV_SUBDEV_MC     ,      mc);
-		_(NVDEV_SUBDEV_MMU    ,     mmu);
-		_(NVDEV_SUBDEV_MXM    ,     mxm);
-		_(NVDEV_SUBDEV_PMU    ,     pmu);
-		_(NVDEV_SUBDEV_THERM  ,   therm);
-		_(NVDEV_SUBDEV_TIMER  ,   timer);
-		_(NVDEV_SUBDEV_VOLT   ,    volt);
-		_(NVDEV_ENGINE_BSP    ,     bsp);
-		_(NVDEV_ENGINE_CE0    ,   ce[0]);
-		_(NVDEV_ENGINE_CE1    ,   ce[1]);
-		_(NVDEV_ENGINE_CE2    ,   ce[2]);
-		_(NVDEV_ENGINE_CIPHER ,  cipher);
-		_(NVDEV_ENGINE_DISP   ,    disp);
-		_(NVDEV_ENGINE_DMAOBJ ,     dma);
-		_(NVDEV_ENGINE_FIFO   ,    fifo);
-		_(NVDEV_ENGINE_GR     ,      gr);
-		_(NVDEV_ENGINE_IFB    ,     ifb);
-		_(NVDEV_ENGINE_ME     ,      me);
-		_(NVDEV_ENGINE_MPEG   ,    mpeg);
-		_(NVDEV_ENGINE_MSENC  ,   msenc);
-		_(NVDEV_ENGINE_MSPDEC ,  mspdec);
-		_(NVDEV_ENGINE_MSPPP  ,   msppp);
-		_(NVDEV_ENGINE_MSVLD  ,   msvld);
-		_(NVDEV_ENGINE_PM     ,      pm);
-		_(NVDEV_ENGINE_SEC    ,     sec);
-		_(NVDEV_ENGINE_SW     ,      sw);
-		_(NVDEV_ENGINE_VIC    ,     vic);
-		_(NVDEV_ENGINE_VP     ,      vp);
-		default:
-			WARN_ON(1);
-			continue;
-		}
-#undef _
-
-		/* note: can't init *any* subdevs until devinit has been run
-		 * due to not knowing exactly what the vbios init tables will
-		 * mess with.  devinit also can't be run until all of its
-		 * dependencies have been created.
-		 *
-		 * this code delays init of any subdev until all of devinit's
-		 * dependencies have been created, and then initialises each
-		 * subdev in turn as they're created.
-		 */
-		while (i >= NVDEV_SUBDEV_DEVINIT_LAST && c <= i) {
-			if ((subdev = nvkm_device_subdev(device, c++))) {
-				ret = nvkm_subdev_init(subdev);
-				if (ret)
-					goto fail;
-			}
+	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
+		if ((subdev = nvkm_device_subdev(device, i))) {
+			ret = nvkm_subdev_init(subdev);
+			if (ret)
+				goto fail;
 		}
 	}
 
@@ -2336,7 +2237,7 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	if (device) {
 		mutex_lock(&nv_devices_mutex);
 		device->disable_mask = 0;
-		for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--) {
+		for (i = NVKM_SUBDEV_NR - 1; i >= 0; i--) {
 			struct nvkm_subdev *subdev =
 				nvkm_device_subdev(device, i);
 			nvkm_subdev_del(&subdev);
@@ -2356,10 +2257,6 @@ nvkm_device_del(struct nvkm_device **pdevice)
 		*pdevice = NULL;
 	}
 }
-
-static const struct nvkm_engine_func
-nvkm_device_func = {
-};
 
 int
 nvkm_device_ctor(const struct nvkm_device_func *func,
@@ -2397,12 +2294,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	device->dbgopt = dbg;
 	device->name = name;
 	list_add_tail(&device->head, &nv_devices);
-
-	ret = nvkm_engine_ctor(&nvkm_device_func, device, 0, 0,
-			       true, &device->engine);
-	device->engine.subdev.object.parent = NULL;
-	if (ret)
-		goto done;
+	device->debug = nvkm_dbgopt(device->dbgopt, "device");
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
 	if (ret)
@@ -2472,23 +2364,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			device->card_type = NV_04;
 		}
 
-		switch (device->card_type) {
-		case NV_04: ret = nv04_identify(device); break;
-		case NV_10:
-		case NV_11: ret = nv10_identify(device); break;
-		case NV_20: ret = nv20_identify(device); break;
-		case NV_30: ret = nv30_identify(device); break;
-		case NV_40: ret = nv40_identify(device); break;
-		case NV_50: ret = nv50_identify(device); break;
-		case NV_C0: ret = gf100_identify(device); break;
-		case NV_E0: ret = gk104_identify(device); break;
-		case GM100: ret = gm100_identify(device); break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-
-		switch (!ret * device->chipset) {
+		switch (device->chipset) {
 		case 0x004: device->chip = &nv4_chipset; break;
 		case 0x005: device->chip = &nv5_chipset; break;
 		case 0x010: device->chip = &nv10_chipset; break;
@@ -2594,16 +2470,9 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		}
 	}
 
-	/* disable subdevs that aren't required (used by tools) */
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
-		if (!(subdev_mask & (1ULL << i)))
-			device->oclass[i] = NULL;
-	}
-
-	atomic_set(&device->engine.subdev.object.usecount, 2);
 	mutex_init(&device->mutex);
 
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 #define _(s,m) case s:                                                         \
 	if (device->chip->m && (subdev_mask & (1ULL << (s)))) {                \
 		ret = device->chip->m(device, (s), &device->m);                \
@@ -2620,46 +2489,46 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	}                                                                      \
 	break
 		switch (i) {
-		_(NVDEV_SUBDEV_BAR    ,     bar);
-		_(NVDEV_SUBDEV_VBIOS  ,    bios);
-		_(NVDEV_SUBDEV_BUS    ,     bus);
-		_(NVDEV_SUBDEV_CLK    ,     clk);
-		_(NVDEV_SUBDEV_DEVINIT, devinit);
-		_(NVDEV_SUBDEV_FB     ,      fb);
-		_(NVDEV_SUBDEV_FUSE   ,    fuse);
-		_(NVDEV_SUBDEV_GPIO   ,    gpio);
-		_(NVDEV_SUBDEV_I2C    ,     i2c);
-		_(NVDEV_SUBDEV_IBUS   ,    ibus);
-		_(NVDEV_SUBDEV_INSTMEM,    imem);
-		_(NVDEV_SUBDEV_LTC    ,     ltc);
-		_(NVDEV_SUBDEV_MC     ,      mc);
-		_(NVDEV_SUBDEV_MMU    ,     mmu);
-		_(NVDEV_SUBDEV_MXM    ,     mxm);
-		_(NVDEV_SUBDEV_PMU    ,     pmu);
-		_(NVDEV_SUBDEV_THERM  ,   therm);
-		_(NVDEV_SUBDEV_TIMER  ,   timer);
-		_(NVDEV_SUBDEV_VOLT   ,    volt);
-		_(NVDEV_ENGINE_BSP    ,     bsp);
-		_(NVDEV_ENGINE_CE0    ,   ce[0]);
-		_(NVDEV_ENGINE_CE1    ,   ce[1]);
-		_(NVDEV_ENGINE_CE2    ,   ce[2]);
-		_(NVDEV_ENGINE_CIPHER ,  cipher);
-		_(NVDEV_ENGINE_DISP   ,    disp);
-		_(NVDEV_ENGINE_DMAOBJ ,     dma);
-		_(NVDEV_ENGINE_FIFO   ,    fifo);
-		_(NVDEV_ENGINE_GR     ,      gr);
-		_(NVDEV_ENGINE_IFB    ,     ifb);
-		_(NVDEV_ENGINE_ME     ,      me);
-		_(NVDEV_ENGINE_MPEG   ,    mpeg);
-		_(NVDEV_ENGINE_MSENC  ,   msenc);
-		_(NVDEV_ENGINE_MSPDEC ,  mspdec);
-		_(NVDEV_ENGINE_MSPPP  ,   msppp);
-		_(NVDEV_ENGINE_MSVLD  ,   msvld);
-		_(NVDEV_ENGINE_PM     ,      pm);
-		_(NVDEV_ENGINE_SEC    ,     sec);
-		_(NVDEV_ENGINE_SW     ,      sw);
-		_(NVDEV_ENGINE_VIC    ,     vic);
-		_(NVDEV_ENGINE_VP     ,      vp);
+		_(NVKM_SUBDEV_BAR    ,     bar);
+		_(NVKM_SUBDEV_VBIOS  ,    bios);
+		_(NVKM_SUBDEV_BUS    ,     bus);
+		_(NVKM_SUBDEV_CLK    ,     clk);
+		_(NVKM_SUBDEV_DEVINIT, devinit);
+		_(NVKM_SUBDEV_FB     ,      fb);
+		_(NVKM_SUBDEV_FUSE   ,    fuse);
+		_(NVKM_SUBDEV_GPIO   ,    gpio);
+		_(NVKM_SUBDEV_I2C    ,     i2c);
+		_(NVKM_SUBDEV_IBUS   ,    ibus);
+		_(NVKM_SUBDEV_INSTMEM,    imem);
+		_(NVKM_SUBDEV_LTC    ,     ltc);
+		_(NVKM_SUBDEV_MC     ,      mc);
+		_(NVKM_SUBDEV_MMU    ,     mmu);
+		_(NVKM_SUBDEV_MXM    ,     mxm);
+		_(NVKM_SUBDEV_PMU    ,     pmu);
+		_(NVKM_SUBDEV_THERM  ,   therm);
+		_(NVKM_SUBDEV_TIMER  ,   timer);
+		_(NVKM_SUBDEV_VOLT   ,    volt);
+		_(NVKM_ENGINE_BSP    ,     bsp);
+		_(NVKM_ENGINE_CE0    ,   ce[0]);
+		_(NVKM_ENGINE_CE1    ,   ce[1]);
+		_(NVKM_ENGINE_CE2    ,   ce[2]);
+		_(NVKM_ENGINE_CIPHER ,  cipher);
+		_(NVKM_ENGINE_DISP   ,    disp);
+		_(NVKM_ENGINE_DMAOBJ ,     dma);
+		_(NVKM_ENGINE_FIFO   ,    fifo);
+		_(NVKM_ENGINE_GR     ,      gr);
+		_(NVKM_ENGINE_IFB    ,     ifb);
+		_(NVKM_ENGINE_ME     ,      me);
+		_(NVKM_ENGINE_MPEG   ,    mpeg);
+		_(NVKM_ENGINE_MSENC  ,   msenc);
+		_(NVKM_ENGINE_MSPDEC ,  mspdec);
+		_(NVKM_ENGINE_MSPPP  ,   msppp);
+		_(NVKM_ENGINE_MSVLD  ,   msvld);
+		_(NVKM_ENGINE_PM     ,      pm);
+		_(NVKM_ENGINE_SEC    ,     sec);
+		_(NVKM_ENGINE_SW     ,      sw);
+		_(NVKM_ENGINE_VIC    ,     vic);
+		_(NVKM_ENGINE_VP     ,      vp);
 		default:
 			WARN_ON(1);
 			continue;

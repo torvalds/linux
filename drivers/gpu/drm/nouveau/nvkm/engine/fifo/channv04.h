@@ -8,7 +8,7 @@ struct nv04_fifo_chan {
 	struct nvkm_fifo_chan base;
 	struct nv04_fifo *fifo;
 	u32 ramfc;
-	struct nvkm_gpuobj *engn[NVDEV_SUBDEV_NR];
+	struct nvkm_gpuobj *engn[NVKM_SUBDEV_NR];
 };
 
 extern const struct nvkm_fifo_chan_func nv04_fifo_dma_func;

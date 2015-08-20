@@ -35,18 +35,18 @@ mcp89_devinit_disable(struct nvkm_devinit *init)
 	u64 disable = 0;
 
 	if (!(r001540 & 0x40000000)) {
-		disable |= (1ULL << NVDEV_ENGINE_MSPDEC);
-		disable |= (1ULL << NVDEV_ENGINE_MSPPP);
+		disable |= (1ULL << NVKM_ENGINE_MSPDEC);
+		disable |= (1ULL << NVKM_ENGINE_MSPPP);
 	}
 
 	if (!(r00154c & 0x00000004))
-		disable |= (1ULL << NVDEV_ENGINE_DISP);
+		disable |= (1ULL << NVKM_ENGINE_DISP);
 	if (!(r00154c & 0x00000020))
-		disable |= (1ULL << NVDEV_ENGINE_MSVLD);
+		disable |= (1ULL << NVKM_ENGINE_MSVLD);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVDEV_ENGINE_VIC);
+		disable |= (1ULL << NVKM_ENGINE_VIC);
 	if (!(r00154c & 0x00000200))
-		disable |= (1ULL << NVDEV_ENGINE_CE0);
+		disable |= (1ULL << NVKM_ENGINE_CE0);
 
 	return disable;
 }

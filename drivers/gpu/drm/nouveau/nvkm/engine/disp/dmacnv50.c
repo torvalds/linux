@@ -90,7 +90,7 @@ nv50_disp_dmac_child_get_(struct nv50_disp_chan *base, int index,
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const struct nvkm_device_oclass *oclass = NULL;
 
-	sclass->engine = nvkm_device_engine(device, NVDEV_ENGINE_DMAOBJ);
+	sclass->engine = nvkm_device_engine(device, NVKM_ENGINE_DMAOBJ);
 	if (sclass->engine && sclass->engine->func->base.sclass) {
 		sclass->engine->func->base.sclass(sclass, index, &oclass);
 		if (oclass) {

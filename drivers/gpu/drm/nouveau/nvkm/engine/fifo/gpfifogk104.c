@@ -57,14 +57,14 @@ static u32
 gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
-	case NVDEV_ENGINE_SW    :
-	case NVDEV_ENGINE_CE0   :
-	case NVDEV_ENGINE_CE1   :
-	case NVDEV_ENGINE_CE2   : return 0x0000;
-	case NVDEV_ENGINE_GR    : return 0x0210;
-	case NVDEV_ENGINE_MSPDEC: return 0x0250;
-	case NVDEV_ENGINE_MSPPP : return 0x0260;
-	case NVDEV_ENGINE_MSVLD : return 0x0270;
+	case NVKM_ENGINE_SW    :
+	case NVKM_ENGINE_CE0   :
+	case NVKM_ENGINE_CE1   :
+	case NVKM_ENGINE_CE2   : return 0x0000;
+	case NVKM_ENGINE_GR    : return 0x0210;
+	case NVKM_ENGINE_MSPDEC: return 0x0250;
+	case NVKM_ENGINE_MSPPP : return 0x0260;
+	case NVKM_ENGINE_MSVLD : return 0x0270;
 	default:
 		WARN_ON(1);
 		return 0;
@@ -133,12 +133,6 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 
 	if (!gk104_fifo_gpfifo_engine_addr(engine))
 		return 0;
-
-	if (object->oclass) {
-		return nvkm_gpuobj_map(nv_gpuobj(object), chan->vm,
-				       NV_MEM_ACCESS_RW,
-				       &chan->engn[engn].vma);
-	}
 
 	ret = nvkm_object_bind(object, NULL, 0, &chan->engn[engn].inst);
 	if (ret)

@@ -48,7 +48,11 @@ u64  nvif_device_time(struct nvif_device *);
 
 #define nvxx_device(a) ({                                                      \
 	struct nvif_device *_device = (a);                                     \
-	nv_device(_device->object.priv);                                       \
+	struct {                                                               \
+		struct nvkm_object object;                                     \
+		struct nvkm_device *device;                                    \
+	} *_udevice = _device->object.priv;                                    \
+	_udevice->device;                                                      \
 })
 #define nvxx_bios(a) nvxx_device(a)->bios
 #define nvxx_fb(a) nvxx_device(a)->fb

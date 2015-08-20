@@ -32,7 +32,7 @@ struct nvkm_vm {
 	struct kref refcount;
 
 	struct list_head pgd_list;
-	atomic_t engref[NVDEV_SUBDEV_NR];
+	atomic_t engref[NVKM_SUBDEV_NR];
 
 	struct nvkm_vm_pgt *pgt;
 	u32 fpde;

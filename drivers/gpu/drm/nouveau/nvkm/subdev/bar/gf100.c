@@ -64,7 +64,7 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 	if (ret)
 		return ret;
 
-	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
+	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
 
 	/*
 	 * Bootstrap page table lookup.

@@ -35,18 +35,18 @@ g84_devinit_disable(struct nvkm_devinit *init)
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000)) {
-		disable |= (1ULL << NVDEV_ENGINE_MPEG);
-		disable |= (1ULL << NVDEV_ENGINE_VP);
-		disable |= (1ULL << NVDEV_ENGINE_BSP);
-		disable |= (1ULL << NVDEV_ENGINE_CIPHER);
+		disable |= (1ULL << NVKM_ENGINE_MPEG);
+		disable |= (1ULL << NVKM_ENGINE_VP);
+		disable |= (1ULL << NVKM_ENGINE_BSP);
+		disable |= (1ULL << NVKM_ENGINE_CIPHER);
 	}
 
 	if (!(r00154c & 0x00000004))
-		disable |= (1ULL << NVDEV_ENGINE_DISP);
+		disable |= (1ULL << NVKM_ENGINE_DISP);
 	if (!(r00154c & 0x00000020))
-		disable |= (1ULL << NVDEV_ENGINE_BSP);
+		disable |= (1ULL << NVKM_ENGINE_BSP);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVDEV_ENGINE_CIPHER);
+		disable |= (1ULL << NVKM_ENGINE_CIPHER);
 
 	return disable;
 }
