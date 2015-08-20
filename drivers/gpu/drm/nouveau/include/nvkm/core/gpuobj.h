@@ -53,7 +53,7 @@ void nvkm_gpuobj_destroy(struct nvkm_gpuobj *);
 
 int  nvkm_gpuobj_new(struct nvkm_object *, struct nvkm_object *, u32 size,
 		     u32 align, u32 flags, struct nvkm_gpuobj **);
-int  nvkm_gpuobj_dup(struct nvkm_object *, struct nvkm_gpuobj *,
+int  nvkm_gpuobj_dup(struct nvkm_object *, struct nvkm_memory *,
 		     struct nvkm_gpuobj **);
 int  nvkm_gpuobj_map(struct nvkm_gpuobj *, u32 acc, struct nvkm_vma *);
 int  nvkm_gpuobj_map_vm(struct nvkm_gpuobj *, struct nvkm_vm *, u32 access,

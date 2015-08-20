@@ -46,7 +46,7 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 		u32 num  = r->length >> bits;
 
 		while (num) {
-			struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+			struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 
 			end = (pte + num);
 			if (unlikely(end >= max))
@@ -89,7 +89,7 @@ nvkm_vm_map_sg_table(struct nvkm_vma *vma, u64 delta, u64 length,
 	struct scatterlist *sg;
 
 	for_each_sg(mem->sg->sgl, sg, mem->sg->nents, i) {
-		struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+		struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 		sglen = sg_dma_len(sg) >> PAGE_SHIFT;
 
 		end = pte + sglen;
@@ -145,7 +145,7 @@ nvkm_vm_map_sg(struct nvkm_vma *vma, u64 delta, u64 length,
 	u32 end, len;
 
 	while (num) {
-		struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+		struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 
 		end = (pte + num);
 		if (unlikely(end >= max))
@@ -193,14 +193,14 @@ nvkm_vm_unmap_at(struct nvkm_vma *vma, u64 delta, u64 length)
 	u32 end, len;
 
 	while (num) {
-		struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+		struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 
 		end = (pte + num);
 		if (unlikely(end >= max))
 			end = max;
 		len = end - pte;
 
-		mmu->unmap(pgt, pte, len);
+		mmu->unmap(vma, pgt, pte, len);
 
 		num -= len;
 		pte += len;
@@ -225,7 +225,7 @@ nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_vm_pgd *vpgd;
 	struct nvkm_vm_pgt *vpgt;
-	struct nvkm_gpuobj *pgt;
+	struct nvkm_memory *pgt;
 	u32 pde;
 
 	for (pde = fpde; pde <= lpde; pde++) {
@@ -233,14 +233,14 @@ nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 		if (--vpgt->refcount[big])
 			continue;
 
-		pgt = vpgt->obj[big];
-		vpgt->obj[big] = NULL;
+		pgt = vpgt->mem[big];
+		vpgt->mem[big] = NULL;
 
 		list_for_each_entry(vpgd, &vm->pgd_list, head) {
-			mmu->map_pgt(vpgd->obj, pde, vpgt->obj);
+			mmu->map_pgt(vpgd->obj, pde, vpgt->mem);
 		}
 
-		nvkm_gpuobj_ref(NULL, &pgt);
+		nvkm_memory_del(&pgt);
 	}
 }
 
@@ -257,13 +257,13 @@ nvkm_vm_map_pgt(struct nvkm_vm *vm, u32 pde, u32 type)
 	pgt_size  = (1 << (mmu->pgt_bits + 12)) >> type;
 	pgt_size *= 8;
 
-	ret = nvkm_gpuobj_new(nv_object(vm->mmu), NULL, pgt_size, 0x1000,
-			      NVOBJ_FLAG_ZERO_ALLOC, &vpgt->obj[big]);
+	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
+			      pgt_size, 0x1000, true, &vpgt->mem[big]);
 	if (unlikely(ret))
 		return ret;
 
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		mmu->map_pgt(vpgd->obj, pde, vpgt->obj);
+		mmu->map_pgt(vpgd->obj, pde, vpgt->mem);
 	}
 
 	vpgt->refcount[big]++;
@@ -342,16 +342,15 @@ int
 nvkm_vm_boot(struct nvkm_vm *vm, u64 size)
 {
 	struct nvkm_mmu *mmu = vm->mmu;
-	struct nvkm_gpuobj *pgt;
+	struct nvkm_memory *pgt;
 	int ret;
 
-	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
-			      (size >> mmu->spg_shift) * 8, 0x1000,
-			      NVOBJ_FLAG_ZERO_ALLOC, &pgt);
+	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
+			      (size >> mmu->spg_shift) * 8, 0x1000, true, &pgt);
 	if (ret == 0) {
 		vm->pgt[0].refcount[0] = 1;
-		vm->pgt[0].obj[0] = pgt;
-		nvkm_memory_boot(pgt->memory, vm);
+		vm->pgt[0].mem[0] = pgt;
+		nvkm_memory_boot(pgt, vm);
 	}
 
 	return ret;
@@ -422,7 +421,7 @@ nvkm_vm_link(struct nvkm_vm *vm, struct nvkm_gpuobj *pgd)
 
 	mutex_lock(&vm->mutex);
 	for (i = vm->fpde; i <= vm->lpde; i++)
-		mmu->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
+		mmu->map_pgt(pgd, i, vm->pgt[i - vm->fpde].mem);
 	list_add(&vpgd->head, &vm->pgd_list);
 	mutex_unlock(&vm->mutex);
 	return 0;

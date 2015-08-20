@@ -308,7 +308,6 @@ static void
 nvkm_gpudup_dtor(struct nvkm_object *object)
 {
 	struct nvkm_gpuobj *gpuobj = (void *)object;
-	nvkm_object_ref(NULL, (struct nvkm_object **)&gpuobj->parent);
 	nvkm_object_destroy(&gpuobj->object);
 }
 
@@ -323,7 +322,7 @@ nvkm_gpudup_oclass = {
 };
 
 int
-nvkm_gpuobj_dup(struct nvkm_object *parent, struct nvkm_gpuobj *base,
+nvkm_gpuobj_dup(struct nvkm_object *parent, struct nvkm_memory *base,
 		struct nvkm_gpuobj **pgpuobj)
 {
 	struct nvkm_gpuobj *gpuobj;
@@ -335,8 +334,7 @@ nvkm_gpuobj_dup(struct nvkm_object *parent, struct nvkm_gpuobj *base,
 	if (ret)
 		return ret;
 
-	nvkm_object_ref(nv_object(base), (struct nvkm_object **)&gpuobj->parent);
-	gpuobj->addr = base->addr;
-	gpuobj->size = base->size;
+	gpuobj->addr = nvkm_memory_addr(base);
+	gpuobj->size = nvkm_memory_size(base);
 	return 0;
 }

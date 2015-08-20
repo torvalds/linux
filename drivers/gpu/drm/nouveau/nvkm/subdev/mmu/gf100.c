@@ -69,14 +69,14 @@ const u8 gf100_pte_storage_type_map[256] =
 
 
 static void
-gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_gpuobj *pgt[2])
+gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_memory *pgt[2])
 {
 	u32 pde[2] = { 0, 0 };
 
 	if (pgt[0])
-		pde[1] = 0x00000001 | (pgt[0]->addr >> 8);
+		pde[1] = 0x00000001 | (nvkm_memory_addr(pgt[0]) >> 8);
 	if (pgt[1])
-		pde[0] = 0x00000001 | (pgt[1]->addr >> 8);
+		pde[0] = 0x00000001 | (nvkm_memory_addr(pgt[1]) >> 8);
 
 	nvkm_kmap(pgd);
 	nvkm_wo32(pgd, (index * 8) + 0, pde[0]);
@@ -99,7 +99,7 @@ gf100_vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
 }
 
 static void
-gf100_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+gf100_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	     struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
 	u64 next = 1 << (vma->node->type - 8);
@@ -126,7 +126,7 @@ gf100_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 }
 
 static void
-gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 		struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 7 : 5;
@@ -145,7 +145,7 @@ gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 }
 
 static void
-gf100_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
+gf100_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
 	nvkm_kmap(pgt);
 	pte <<= 3;

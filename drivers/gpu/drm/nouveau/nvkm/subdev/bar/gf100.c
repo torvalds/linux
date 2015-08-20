@@ -161,7 +161,7 @@ gf100_bar_dtor(struct nvkm_object *object)
 	nvkm_gpuobj_ref(NULL, &bar->bar[1].mem);
 
 	if (bar->bar[0].vm) {
-		nvkm_gpuobj_ref(NULL, &bar->bar[0].vm->pgt[0].obj[0]);
+		nvkm_memory_del(&bar->bar[0].vm->pgt[0].mem[0]);
 		nvkm_vm_ref(NULL, &bar->bar[0].vm, bar->bar[0].pgd);
 	}
 	nvkm_gpuobj_ref(NULL, &bar->bar[0].pgd);

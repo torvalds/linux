@@ -35,7 +35,7 @@
  ******************************************************************************/
 
 static void
-nv44_vm_fill(struct nvkm_gpuobj *pgt, dma_addr_t null,
+nv44_vm_fill(struct nvkm_memory *pgt, dma_addr_t null,
 	     dma_addr_t *list, u32 pte, u32 cnt)
 {
 	u32 base = (pte << 2) & ~0x0000000f;
@@ -81,10 +81,10 @@ nv44_vm_fill(struct nvkm_gpuobj *pgt, dma_addr_t null,
 }
 
 static void
-nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
-	struct nv04_mmu *mmu = (void *)vma->vm->mmu;
+	struct nv04_mmu *mmu = nv04_mmu(vma->vm->mmu);
 	u32 tmp[4];
 	int i;
 
@@ -114,9 +114,9 @@ nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 }
 
 static void
-nv44_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
+nv44_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
-	struct nv04_mmu *mmu = (void *)nvkm_mmu(pgt);
+	struct nv04_mmu *mmu = nv04_mmu(vma->vm->mmu);
 
 	nvkm_kmap(pgt);
 	if (pte & 3) {
@@ -143,7 +143,7 @@ nv44_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv44_vm_flush(struct nvkm_vm *vm)
 {
-	struct nv04_mmu *mmu = (void *)vm->mmu;
+	struct nv04_mmu *mmu = nv04_mmu(vm->mmu);
 	struct nvkm_device *device = mmu->base.subdev.device;
 	nvkm_wr32(device, 0x100814, mmu->base.limit - NV44_GART_PAGE);
 	nvkm_wr32(device, 0x100808, 0x00000020);
@@ -200,10 +200,10 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV44_GART_SIZE / NV44_GART_PAGE) * 4,
-			      512 * 1024, NVOBJ_FLAG_ZERO_ALLOC,
-			      &mmu->vm->pgt[0].obj[0]);
+			      512 * 1024, true,
+			      &mmu->vm->pgt[0].mem[0]);
 	mmu->vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
@@ -216,7 +216,7 @@ nv44_mmu_init(struct nvkm_object *object)
 {
 	struct nv04_mmu *mmu = (void *)object;
 	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_gpuobj *gart = mmu->vm->pgt[0].obj[0];
+	struct nvkm_memory *gart = mmu->vm->pgt[0].mem[0];
 	u32 addr;
 	int ret;
 
@@ -229,7 +229,7 @@ nv44_mmu_init(struct nvkm_object *object)
 	 * of 512KiB for this to work correctly
 	 */
 	addr  = nvkm_rd32(device, 0x10020c);
-	addr -= ((gart->addr >> 19) + 1) << 19;
+	addr -= ((nvkm_memory_addr(gart) >> 19) + 1) << 19;
 
 	nvkm_wr32(device, 0x100850, 0x80000000);
 	nvkm_wr32(device, 0x100818, mmu->null);

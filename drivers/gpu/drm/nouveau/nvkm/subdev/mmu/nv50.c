@@ -29,18 +29,20 @@
 #include <core/gpuobj.h>
 
 static void
-nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_gpuobj *pgt[2])
+nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_memory *pgt[2])
 {
 	u64 phys = 0xdeadcafe00000000ULL;
 	u32 coverage = 0;
 
 	if (pgt[0]) {
-		phys = 0x00000003 | pgt[0]->addr; /* present, 4KiB pages */
-		coverage = (pgt[0]->size >> 3) << 12;
+		/* present, 4KiB pages */
+		phys = 0x00000003 | nvkm_memory_addr(pgt[0]);
+		coverage = (nvkm_memory_size(pgt[0]) >> 3) << 12;
 	} else
 	if (pgt[1]) {
-		phys = 0x00000001 | pgt[1]->addr; /* present */
-		coverage = (pgt[1]->size >> 3) << 16;
+		/* present, 64KiB pages  */
+		phys = 0x00000001 | nvkm_memory_addr(pgt[1]);
+		coverage = (nvkm_memory_size(pgt[1]) >> 3) << 16;
 	}
 
 	if (phys & 1) {
@@ -72,7 +74,7 @@ vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
 }
 
 static void
-nv50_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+nv50_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	    struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
 	u32 comp = (mem->memtype & 0x180) >> 7;
@@ -121,7 +123,7 @@ nv50_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 }
 
 static void
-nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 3 : 2;
@@ -137,7 +139,7 @@ nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 }
 
 static void
-nv50_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
+nv50_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
 	nvkm_kmap(pgt);

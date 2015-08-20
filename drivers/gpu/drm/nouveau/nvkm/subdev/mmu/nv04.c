@@ -33,7 +33,7 @@
  ******************************************************************************/
 
 static void
-nv04_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+nv04_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	pte = 0x00008 + (pte * 4);
@@ -52,7 +52,7 @@ nv04_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 }
 
 static void
-nv04_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
+nv04_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
 	pte = 0x00008 + (pte * 4);
 	nvkm_kmap(pgt);
@@ -88,8 +88,9 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv04_mmu *mmu;
-	struct nvkm_gpuobj *dma;
+	struct nvkm_memory *dma;
 	int ret;
 
 	ret = nvkm_mmu_create(parent, engine, oclass, "PCIGART",
@@ -113,11 +114,10 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 + 8,
-			      16, NVOBJ_FLAG_ZERO_ALLOC,
-			      &mmu->vm->pgt[0].obj[0]);
-	dma = mmu->vm->pgt[0].obj[0];
+			      16, true, &dma);
+	mmu->vm->pgt[0].mem[0] = dma;
 	mmu->vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
@@ -134,7 +134,7 @@ nv04_mmu_dtor(struct nvkm_object *object)
 {
 	struct nv04_mmu *mmu = (void *)object;
 	if (mmu->vm) {
-		nvkm_gpuobj_ref(NULL, &mmu->vm->pgt[0].obj[0]);
+		nvkm_memory_del(&mmu->vm->pgt[0].mem[0]);
 		nvkm_vm_ref(NULL, &mmu->vm, NULL);
 	}
 	if (mmu->nullp) {

@@ -6,7 +6,7 @@ struct nvkm_device;
 struct nvkm_mem;
 
 struct nvkm_vm_pgt {
-	struct nvkm_gpuobj *obj[2];
+	struct nvkm_memory *mem[2];
 	u32 refcount[2];
 };
 
@@ -53,13 +53,14 @@ struct nvkm_mmu {
 		       struct nvkm_vm **);
 
 	void (*map_pgt)(struct nvkm_gpuobj *pgd, u32 pde,
-			struct nvkm_gpuobj *pgt[2]);
-	void (*map)(struct nvkm_vma *, struct nvkm_gpuobj *,
+			struct nvkm_memory *pgt[2]);
+	void (*map)(struct nvkm_vma *, struct nvkm_memory *,
 		    struct nvkm_mem *, u32 pte, u32 cnt,
 		    u64 phys, u64 delta);
-	void (*map_sg)(struct nvkm_vma *, struct nvkm_gpuobj *,
+	void (*map_sg)(struct nvkm_vma *, struct nvkm_memory *,
 		       struct nvkm_mem *, u32 pte, u32 cnt, dma_addr_t *);
-	void (*unmap)(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt);
+	void (*unmap)(struct nvkm_vma *, struct nvkm_memory *pgt,
+		      u32 pte, u32 cnt);
 	void (*flush)(struct nvkm_vm *);
 };
 
