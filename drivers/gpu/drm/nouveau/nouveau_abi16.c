@@ -217,7 +217,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = gr->units ? gr->units(gr) : 0;
 		break;
 	default:
-		NV_PRINTK(debug, cli, "unknown parameter %lld\n", getparam->param);
+		NV_PRINTK(dbg, cli, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 

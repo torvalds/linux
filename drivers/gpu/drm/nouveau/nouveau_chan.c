@@ -53,7 +53,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 	}
 
 	if (ret)
-		NV_PRINTK(error, cli, "failed to idle channel 0x%08x [%s]\n",
+		NV_PRINTK(err, cli, "failed to idle channel 0x%08x [%s]\n",
 			  chan->object->handle, nvxx_client(&cli->base)->name);
 	return ret;
 }
@@ -405,17 +405,17 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 
 	ret = nouveau_channel_ind(drm, device, handle, arg0, pchan);
 	if (ret) {
-		NV_PRINTK(debug, cli, "ib channel create, %d\n", ret);
+		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, device, handle, pchan);
 		if (ret) {
-			NV_PRINTK(debug, cli, "dma channel create, %d\n", ret);
+			NV_PRINTK(dbg, cli, "dma channel create, %d\n", ret);
 			goto done;
 		}
 	}
 
 	ret = nouveau_channel_init(*pchan, arg0, arg1);
 	if (ret) {
-		NV_PRINTK(error, cli, "channel failed to initialise, %d\n", ret);
+		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
 	}
 

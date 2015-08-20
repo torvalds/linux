@@ -105,14 +105,18 @@ nouveau_name(struct drm_device *dev)
 }
 
 static int
-nouveau_cli_create(u64 name, const char *sname,
+nouveau_cli_create(struct drm_device *dev, const char *sname,
 		   int size, void **pcli)
 {
 	struct nouveau_cli *cli = *pcli = kzalloc(size, GFP_KERNEL);
+	int ret;
 	if (cli) {
-		int ret = nvif_client_init(NULL, NULL, sname, name,
-					   nouveau_config, nouveau_debug,
-					  &cli->base);
+		snprintf(cli->name, sizeof(cli->name), "%s", sname);
+		cli->dev = dev;
+
+		ret = nvif_client_init(NULL, NULL, cli->name, nouveau_name(dev),
+				       nouveau_config, nouveau_debug,
+				       &cli->base);
 		if (ret == 0) {
 			mutex_init(&cli->mutex);
 			usif_client_init(cli);
@@ -375,8 +379,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	struct nouveau_drm *drm;
 	int ret;
 
-	ret = nouveau_cli_create(nouveau_name(dev), "DRM", sizeof(*drm),
-				 (void **)&drm);
+	ret = nouveau_cli_create(dev, "DRM", sizeof(*drm), (void **)&drm);
 	if (ret)
 		return ret;
 
@@ -826,8 +829,7 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	get_task_comm(tmpname, current);
 	snprintf(name, sizeof(name), "%s[%d]", tmpname, pid_nr(fpriv->pid));
 
-	ret = nouveau_cli_create(nouveau_name(dev), name, sizeof(*cli),
-			(void **)&cli);
+	ret = nouveau_cli_create(dev, name, sizeof(*cli), (void **)&cli);
 
 	if (ret)
 		goto out_suspend;

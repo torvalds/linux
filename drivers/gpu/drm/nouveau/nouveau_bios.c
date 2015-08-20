@@ -1891,11 +1891,12 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	idx = -1;
 	while ((conn = olddcb_conn(dev, ++idx))) {
 		if (conn[0] != 0xff) {
-			NV_INFO(drm, "DCB conn %02d: ", idx);
 			if (olddcb_conntab(dev)[3] < 4)
-				pr_cont("%04x\n", ROM16(conn[0]));
+				NV_INFO(drm, "DCB conn %02d: %04x\n",
+					idx, ROM16(conn[0]));
 			else
-				pr_cont("%08x\n", ROM32(conn[0]));
+				NV_INFO(drm, "DCB conn %02d: %08x\n",
+					idx, ROM32(conn[0]));
 		}
 	}
 	dcb_fake_connectors(bios);

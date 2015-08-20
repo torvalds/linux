@@ -426,7 +426,7 @@ evo_wait(void *evoc, int nr)
 				break;
 		) < 0) {
 			mutex_unlock(&dmac->lock);
-			nv_error(nvxx_object(&dmac->base.user), "channel stalled\n");
+			printk(KERN_ERR "nouveau: evo channel stalled\n");
 			return NULL;
 		}
 
