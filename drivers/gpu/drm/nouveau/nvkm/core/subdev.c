@@ -64,9 +64,11 @@ _nvkm_subdev_init(struct nvkm_object *object)
 int
 nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 {
+	struct nvkm_device *device = subdev->device;
+
 	if (subdev->unit) {
-		nv_mask(subdev, 0x000200, subdev->unit, 0x00000000);
-		nv_mask(subdev, 0x000200, subdev->unit, subdev->unit);
+		nvkm_mask(device, 0x000200, subdev->unit, 0x00000000);
+		nvkm_mask(device, 0x000200, subdev->unit, subdev->unit);
 	}
 
 	return nvkm_object_fini(&subdev->object, suspend);
