@@ -26,6 +26,7 @@
 
 #include <core/client.h>
 #include <core/enum.h>
+#include <core/gpuobj.h>
 #include <core/handle.h>
 #include <subdev/bar.h>
 #include <engine/sw.h>
@@ -33,27 +34,18 @@
 #include <nvif/class.h>
 
 static void
-gf100_fifo_uevent_init(struct nvkm_event *event, int type, int index)
+gf100_fifo_uevent_init(struct nvkm_fifo *fifo)
 {
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), uevent);
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	nvkm_mask(device, 0x002140, 0x80000000, 0x80000000);
 }
 
 static void
-gf100_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
+gf100_fifo_uevent_fini(struct nvkm_fifo *fifo)
 {
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), uevent);
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	nvkm_mask(device, 0x002140, 0x80000000, 0x00000000);
 }
-
-static const struct nvkm_event_func
-gf100_fifo_uevent_func = {
-	.ctor = nvkm_fifo_uevent_ctor,
-	.init = gf100_fifo_uevent_init,
-	.fini = gf100_fifo_uevent_fini,
-};
 
 void
 gf100_fifo_runlist_update(struct gf100_fifo *fifo)
@@ -64,7 +56,7 @@ gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 	struct nvkm_memory *cur;
 	int nr = 0;
 
-	mutex_lock(&nv_subdev(fifo)->mutex);
+	mutex_lock(&subdev->mutex);
 	cur = fifo->runlist.mem[fifo->runlist.active];
 	fifo->runlist.active = !fifo->runlist.active;
 
@@ -83,7 +75,7 @@ gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist update timeout\n");
-	mutex_unlock(&nv_subdev(fifo)->mutex);
+	mutex_unlock(&subdev->mutex);
 }
 
 static inline int
@@ -106,6 +98,8 @@ gf100_fifo_engidx(struct gf100_fifo *fifo, u32 engn)
 static inline struct nvkm_engine *
 gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 {
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+
 	switch (engn) {
 	case 0: engn = NVDEV_ENGINE_GR; break;
 	case 1: engn = NVDEV_ENGINE_MSVLD; break;
@@ -117,7 +111,7 @@ gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 		return NULL;
 	}
 
-	return nvkm_engine(fifo, engn);
+	return nvkm_device_engine(device, engn);
 }
 
 static void
@@ -167,7 +161,7 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	fifo->mask |= 1ULL << nv_engidx(engine);
+	fifo->mask |= 1ULL << engine->subdev.index;
 	schedule_work(&fifo->fault);
 }
 
@@ -333,7 +327,7 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_engine(fifo, eu->data2);
+			engine = nvkm_device_engine(device, eu->data2);
 			break;
 		}
 	}
@@ -457,10 +451,11 @@ gf100_fifo_intr_engine(struct gf100_fifo *fifo)
 }
 
 static void
-gf100_fifo_intr(struct nvkm_subdev *subdev)
+gf100_fifo_intr(struct nvkm_fifo *base)
 {
-	struct gf100_fifo *fifo = (void *)subdev;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct gf100_fifo *fifo = gf100_fifo(base);
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 mask = nvkm_rd32(device, 0x002140);
 	u32 stat = nvkm_rd32(device, 0x002100) & mask;
 
@@ -531,16 +526,51 @@ gf100_fifo_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-gf100_fifo_init(struct nvkm_object *object)
+gf100_fifo_oneinit(struct nvkm_fifo *base)
 {
-	struct gf100_fifo *fifo = (void *)object;
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	int ret, i;
+	struct gf100_fifo *fifo = gf100_fifo(base);
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	int ret;
 
-	ret = nvkm_fifo_init(&fifo->base);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
+			      false, &fifo->runlist.mem[0]);
 	if (ret)
 		return ret;
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
+			      false, &fifo->runlist.mem[1]);
+	if (ret)
+		return ret;
+
+	init_waitqueue_head(&fifo->runlist.wait);
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
+			      0x1000, false, &fifo->user.mem);
+	if (ret)
+		return ret;
+
+	ret = nvkm_bar_umap(device->bar, 128 * 0x1000, 12, &fifo->user.bar);
+	if (ret)
+		return ret;
+
+	nvkm_memory_map(fifo->user.mem, &fifo->user.bar, 0);
+	return 0;
+}
+
+static void
+gf100_fifo_fini(struct nvkm_fifo *base)
+{
+	struct gf100_fifo *fifo = gf100_fifo(base);
+	flush_work(&fifo->fault);
+}
+
+static void
+gf100_fifo_init(struct nvkm_fifo *base)
+{
+	struct gf100_fifo *fifo = gf100_fifo(base);
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	int i;
 
 	nvkm_wr32(device, 0x000204, 0xffffffff);
 	nvkm_wr32(device, 0x002204, 0xffffffff);
@@ -571,90 +601,44 @@ gf100_fifo_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
 	nvkm_wr32(device, 0x002628, 0x00000001); /* ENGINE_INTR_EN */
-	return 0;
 }
 
-static void
-gf100_fifo_dtor(struct nvkm_object *object)
+static void *
+gf100_fifo_dtor(struct nvkm_fifo *base)
 {
-	struct gf100_fifo *fifo = (void *)object;
-
+	struct gf100_fifo *fifo = gf100_fifo(base);
 	nvkm_vm_put(&fifo->user.bar);
 	nvkm_memory_del(&fifo->user.mem);
 	nvkm_memory_del(&fifo->runlist.mem[0]);
 	nvkm_memory_del(&fifo->runlist.mem[1]);
-
-	nvkm_fifo_destroy(&fifo->base);
+	return fifo;
 }
 
 static const struct nvkm_fifo_func
-gf100_fifo_func = {
+gf100_fifo = {
+	.dtor = gf100_fifo_dtor,
+	.oneinit = gf100_fifo_oneinit,
+	.init = gf100_fifo_init,
+	.fini = gf100_fifo_fini,
+	.intr = gf100_fifo_intr,
+	.uevent_init = gf100_fifo_uevent_init,
+	.uevent_fini = gf100_fifo_uevent_fini,
 	.chan = {
 		&gf100_fifo_gpfifo_oclass,
 		NULL
 	},
 };
 
-static int
-gf100_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+gf100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nvkm_bar *bar = device->bar;
 	struct gf100_fifo *fifo;
-	int ret;
 
-	ret = nvkm_fifo_create(parent, engine, oclass, 0, 127, &fifo);
-	*pobject = nv_object(fifo);
-	if (ret)
-		return ret;
-
-	fifo->base.func = &gf100_fifo_func;
-
+	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
+		return -ENOMEM;
 	INIT_LIST_HEAD(&fifo->chan);
 	INIT_WORK(&fifo->fault, gf100_fifo_recover_work);
+	*pfifo = &fifo->base;
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[0]);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[1]);
-	if (ret)
-		return ret;
-
-	init_waitqueue_head(&fifo->runlist.wait);
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
-			      0x1000, false, &fifo->user.mem);
-	if (ret)
-		return ret;
-
-	ret = nvkm_bar_umap(bar, 128 * 0x1000, 12, &fifo->user.bar);
-	if (ret)
-		return ret;
-
-	nvkm_memory_map(fifo->user.mem, &fifo->user.bar, 0);
-
-	ret = nvkm_event_init(&gf100_fifo_uevent_func, 1, 1, &fifo->base.uevent);
-	if (ret)
-		return ret;
-
-	nv_subdev(fifo)->unit = 0x00000100;
-	nv_subdev(fifo)->intr = gf100_fifo_intr;
-	return 0;
+	return nvkm_fifo_ctor(&gf100_fifo, device, index, 128, &fifo->base);
 }
-
-
-struct nvkm_oclass *
-gf100_fifo_oclass = &(struct nvkm_oclass) {
-	.handle = NV_ENGINE(FIFO, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_fifo_ctor,
-		.dtor = gf100_fifo_dtor,
-		.init = gf100_fifo_init,
-		.fini = _nvkm_fifo_fini,
-	},
-};

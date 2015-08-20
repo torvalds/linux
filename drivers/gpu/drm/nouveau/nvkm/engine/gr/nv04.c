@@ -25,6 +25,7 @@
 #include "regs.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <engine/fifo.h>
 #include <engine/fifo/chan.h>
 #include <subdev/instmem.h>

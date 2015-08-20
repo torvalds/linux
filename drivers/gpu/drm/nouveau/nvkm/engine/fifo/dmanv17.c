@@ -25,6 +25,7 @@
 #include "regsnv04.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <subdev/instmem.h>
 
 #include <nvif/class.h>

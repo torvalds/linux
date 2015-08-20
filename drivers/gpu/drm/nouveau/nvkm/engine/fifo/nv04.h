@@ -3,7 +3,7 @@
 #define nv04_fifo(p) container_of((p), struct nv04_fifo, base)
 #include "priv.h"
 
-struct ramfc_desc {
+struct nv04_fifo_ramfc {
 	unsigned bits:6;
 	unsigned ctxs:5;
 	unsigned ctxp:8;
@@ -13,9 +13,11 @@ struct ramfc_desc {
 
 struct nv04_fifo {
 	struct nvkm_fifo base;
-	struct ramfc_desc *ramfc_desc;
+	const struct nv04_fifo_ramfc *ramfc;
 };
 
-void nv04_fifo_dtor(struct nvkm_object *);
-int  nv04_fifo_init(struct nvkm_object *);
+int nv04_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *,
+		   int index, int nr, const struct nv04_fifo_ramfc *,
+		   struct nvkm_fifo **);
+void nv04_fifo_init(struct nvkm_fifo *);
 #endif

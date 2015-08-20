@@ -1,5 +1,6 @@
 #ifndef __NVKM_FIFO_CHAN_H__
 #define __NVKM_FIFO_CHAN_H__
+#define nvkm_fifo_chan(p) container_of((p), struct nvkm_fifo_chan, object)
 #include "priv.h"
 
 struct nvkm_fifo_chan_func {

@@ -20,6 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <engine/xtensa.h>
+
+#include <core/gpuobj.h>
 #include <engine/fifo.h>
 
 static int

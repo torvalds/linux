@@ -2,6 +2,7 @@
 #include "regs.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <engine/fifo.h>
 #include <engine/fifo/chan.h>
 #include <subdev/fb.h>
@@ -152,7 +153,7 @@ nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 	unsigned long flags;
 
-	fifo->pause(fifo, &flags);
+	nvkm_fifo_pause(fifo, &flags);
 	nv04_gr_idle(&gr->base);
 
 	nvkm_wr32(device, NV20_PGRAPH_TLIMIT(i), tile->limit);
@@ -172,7 +173,7 @@ nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->zcomp);
 	}
 
-	fifo->start(fifo, &flags);
+	nvkm_fifo_start(fifo, &flags);
 }
 
 void

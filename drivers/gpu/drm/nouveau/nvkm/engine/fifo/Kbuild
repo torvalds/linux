@@ -7,8 +7,8 @@ nvkm-y += nvkm/engine/fifo/nv50.o
 nvkm-y += nvkm/engine/fifo/g84.o
 nvkm-y += nvkm/engine/fifo/gf100.o
 nvkm-y += nvkm/engine/fifo/gk104.o
-nvkm-y += nvkm/engine/fifo/gk20a.o
 nvkm-y += nvkm/engine/fifo/gk208.o
+nvkm-y += nvkm/engine/fifo/gk20a.o
 nvkm-y += nvkm/engine/fifo/gm204.o
 nvkm-y += nvkm/engine/fifo/gm20b.o
 

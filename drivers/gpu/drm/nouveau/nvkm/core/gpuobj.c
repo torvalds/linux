@@ -231,7 +231,7 @@ nvkm_gpuobj_destroy(struct nvkm_gpuobj *gpuobj)
 	nvkm_object_destroy(&gpuobj->object);
 }
 
-#include <engine/fifo.h>
+#include <engine/fifo/chan.h>
 
 int
 nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,

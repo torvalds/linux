@@ -26,22 +26,16 @@ struct gk104_fifo {
 	int spoon_nr;
 };
 
-struct gk104_fifo_impl {
-	struct nvkm_oclass base;
-	u32 channels;
-};
-
-int  gk104_fifo_ctor(struct nvkm_object *, struct nvkm_object *,
-		    struct nvkm_oclass *, void *, u32,
-		    struct nvkm_object **);
-void gk104_fifo_dtor(struct nvkm_object *);
-int  gk104_fifo_init(struct nvkm_object *);
-int  gk104_fifo_fini(struct nvkm_object *, bool);
+int gk104_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *,
+		    int index, int nr, struct nvkm_fifo **);
+void *gk104_fifo_dtor(struct nvkm_fifo *);
+int gk104_fifo_oneinit(struct nvkm_fifo *);
+void gk104_fifo_init(struct nvkm_fifo *);
+void gk104_fifo_fini(struct nvkm_fifo *);
+void gk104_fifo_intr(struct nvkm_fifo *);
+void gk104_fifo_uevent_init(struct nvkm_fifo *);
+void gk104_fifo_uevent_fini(struct nvkm_fifo *);
 void gk104_fifo_runlist_update(struct gk104_fifo *, u32 engine);
-
-int  gm204_fifo_ctor(struct nvkm_object *, struct nvkm_object *,
-		    struct nvkm_oclass *, void *, u32,
-		    struct nvkm_object **);
 
 static inline u64
 gk104_fifo_engine_subdev(int engine)

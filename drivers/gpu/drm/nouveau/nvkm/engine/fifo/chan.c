@@ -24,6 +24,7 @@
 #include "chan.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <core/oproxy.h>
 #include <subdev/mmu.h>
 #include <engine/dma.h>

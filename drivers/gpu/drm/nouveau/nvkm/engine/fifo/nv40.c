@@ -29,8 +29,8 @@
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
-static struct ramfc_desc
-nv40_ramfc[] = {
+static const struct nv04_fifo_ramfc
+nv40_fifo_ramfc[] = {
 	{ 32,  0, 0x00,  0, NV04_PFIFO_CACHE1_DMA_PUT },
 	{ 32,  0, 0x04,  0, NV04_PFIFO_CACHE1_DMA_GET },
 	{ 32,  0, 0x08,  0, NV10_PFIFO_CACHE1_REF_CNT },
@@ -56,21 +56,16 @@ nv40_ramfc[] = {
 	{}
 };
 
-static int
-nv40_fifo_init(struct nvkm_object *object)
+static void
+nv40_fifo_init(struct nvkm_fifo *base)
 {
-	struct nv04_fifo *fifo = (void *)object;
+	struct nv04_fifo *fifo = nv04_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_fb *fb = device->fb;
 	struct nvkm_instmem *imem = device->imem;
 	struct nvkm_ramht *ramht = imem->ramht;
 	struct nvkm_memory *ramro = imem->ramro;
 	struct nvkm_memory *ramfc = imem->ramfc;
-	int ret;
-
-	ret = nvkm_fifo_init(&fifo->base);
-	if (ret)
-		return ret;
 
 	nvkm_wr32(device, 0x002040, 0x000000ff);
 	nvkm_wr32(device, 0x002044, 0x2101ffff);
@@ -81,7 +76,7 @@ nv40_fifo_init(struct nvkm_object *object)
 					    (ramht->gpuobj->addr >> 8));
 	nvkm_wr32(device, NV03_PFIFO_RAMRO, nvkm_memory_addr(ramro) >> 8);
 
-	switch (nv_device(fifo)->chipset) {
+	switch (device->chipset) {
 	case 0x47:
 	case 0x49:
 	case 0x4b:
@@ -110,47 +105,23 @@ nv40_fifo_init(struct nvkm_object *object)
 	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 1);
 	nvkm_wr32(device, NV04_PFIFO_CACHE1_PULL0, 1);
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
-	return 0;
 }
 
 static const struct nvkm_fifo_func
-nv40_fifo_func = {
+nv40_fifo = {
+	.init = nv40_fifo_init,
+	.intr = nv04_fifo_intr,
+	.pause = nv04_fifo_pause,
+	.start = nv04_fifo_start,
 	.chan = {
 		&nv40_fifo_dma_oclass,
 		NULL
 	},
 };
 
-static int
-nv40_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+nv40_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	struct nv04_fifo *fifo;
-	int ret;
-
-	ret = nvkm_fifo_create(parent, engine, oclass, 0, 31, &fifo);
-	*pobject = nv_object(fifo);
-	if (ret)
-		return ret;
-
-	fifo->base.func = &nv40_fifo_func;
-
-	nv_subdev(fifo)->unit = 0x00000100;
-	nv_subdev(fifo)->intr = nv04_fifo_intr;
-	fifo->base.pause = nv04_fifo_pause;
-	fifo->base.start = nv04_fifo_start;
-	fifo->ramfc_desc = nv40_ramfc;
-	return 0;
+	return nv04_fifo_new_(&nv40_fifo, device, index, 32,
+			      nv40_fifo_ramfc, pfifo);
 }
-
-struct nvkm_oclass *
-nv40_fifo_oclass = &(struct nvkm_oclass) {
-	.handle = NV_ENGINE(FIFO, 0x40),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_fifo_ctor,
-		.dtor = nv04_fifo_dtor,
-		.init = nv40_fifo_init,
-		.fini = _nvkm_fifo_fini,
-	},
-};

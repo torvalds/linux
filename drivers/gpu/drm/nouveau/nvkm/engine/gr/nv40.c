@@ -25,6 +25,7 @@
 #include "regs.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <engine/fifo.h>
@@ -176,7 +177,7 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 	unsigned long flags;
 
-	fifo->pause(fifo, &flags);
+	nvkm_fifo_pause(fifo, &flags);
 	nv04_gr_idle(&gr->base);
 
 	switch (nv_device(gr)->chipset) {
@@ -243,7 +244,7 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 		break;
 	}
 
-	fifo->start(fifo, &flags);
+	nvkm_fifo_start(fifo, &flags);
 }
 
 static void

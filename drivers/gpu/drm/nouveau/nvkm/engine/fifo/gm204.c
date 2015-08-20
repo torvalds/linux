@@ -25,7 +25,14 @@
 #include "changk104.h"
 
 static const struct nvkm_fifo_func
-gm204_fifo_func = {
+gm204_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
 	.chan = {
 		&gm204_fifo_gpfifo_oclass,
 		NULL
@@ -33,26 +40,7 @@ gm204_fifo_func = {
 };
 
 int
-gm204_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+gm204_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	int ret = gk104_fifo_ctor(parent, engine, oclass, data, size, pobject);
-	if (ret == 0) {
-		struct gk104_fifo *fifo = (void *)*pobject;
-		fifo->base.func = &gm204_fifo_func;
-	}
-	return ret;
+	return gk104_fifo_new_(&gm204_fifo, device, index, 4096, pfifo);
 }
-
-struct nvkm_oclass *
-gm204_fifo_oclass = &(struct gk104_fifo_impl) {
-	.base.handle = NV_ENGINE(FIFO, 0x24),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm204_fifo_ctor,
-		.dtor = gk104_fifo_dtor,
-		.init = gk104_fifo_init,
-		.fini = _nvkm_fifo_fini,
-	},
-	.channels = 4096,
-}.base;

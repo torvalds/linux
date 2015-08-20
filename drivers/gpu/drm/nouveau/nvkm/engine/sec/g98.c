@@ -27,6 +27,7 @@
 
 #include <core/client.h>
 #include <core/enum.h>
+#include <core/gpuobj.h>
 
 #include <nvif/class.h>
 

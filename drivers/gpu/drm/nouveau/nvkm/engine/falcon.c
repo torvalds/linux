@@ -20,9 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <engine/falcon.h>
-#include <engine/fifo.h>
 
+#include <core/gpuobj.h>
 #include <subdev/timer.h>
+#include <engine/fifo.h>
 
 static int
 nvkm_falcon_oclass_get(struct nvkm_oclass *oclass, int index)

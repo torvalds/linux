@@ -73,7 +73,7 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 	struct nv04_fifo *fifo = chan->fifo;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_memory *fctx = device->imem->ramfc;
-	struct ramfc_desc *c;
+	const struct nv04_fifo_ramfc *c;
 	unsigned long flags;
 	u32 mask = fifo->base.nr - 1;
 	u32 data = chan->ramfc;
@@ -90,7 +90,7 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 0);
 		nvkm_mask(device, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
 
-		c = fifo->ramfc_desc;
+		c = fifo->ramfc;
 		do {
 			u32 rm = ((1ULL << c->bits) - 1) << c->regs;
 			u32 cm = ((1ULL << c->bits) - 1) << c->ctxs;
@@ -99,7 +99,7 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 			nvkm_wo32(fctx, c->ctxp + data, cv | (rv << c->ctxs));
 		} while ((++c)->bits);
 
-		c = fifo->ramfc_desc;
+		c = fifo->ramfc;
 		do {
 			nvkm_wr32(device, c->regp, 0x00000000);
 		} while ((++c)->bits);
@@ -136,7 +136,7 @@ nv04_fifo_dma_dtor(struct nvkm_fifo_chan *base)
 	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
 	struct nv04_fifo *fifo = chan->fifo;
 	struct nvkm_instmem *imem = fifo->base.engine.subdev.device->imem;
-	struct ramfc_desc *c = fifo->ramfc_desc;
+	const struct nv04_fifo_ramfc *c = fifo->ramfc;
 
 	nvkm_kmap(imem->ramfc);
 	do {

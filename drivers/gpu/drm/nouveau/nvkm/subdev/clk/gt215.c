@@ -317,7 +317,7 @@ gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 		return -EBUSY;
 
 	if (fifo)
-		fifo->pause(fifo, flags);
+		nvkm_fifo_pause(fifo, flags);
 
 	if (nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x002504) & 0x00000010)
@@ -342,7 +342,7 @@ gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags)
 	struct nvkm_fifo *fifo = device->fifo;
 
 	if (fifo && flags)
-		fifo->start(fifo, flags);
+		nvkm_fifo_start(fifo, flags);
 
 	nvkm_mask(device, 0x002504, 0x00000001, 0x00000000);
 	nvkm_mask(device, 0x020060, 0x00070000, 0x00040000);

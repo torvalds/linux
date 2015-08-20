@@ -24,6 +24,7 @@
 #include "nv31.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <engine/fifo.h>

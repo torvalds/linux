@@ -25,6 +25,7 @@
 #include "priv.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <engine/fifo.h>
 
 #include <nvif/class.h>

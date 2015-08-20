@@ -9,7 +9,11 @@ struct nv50_fifo {
 	int cur_runlist;
 };
 
-void nv50_fifo_dtor(struct nvkm_object *);
-int  nv50_fifo_init(struct nvkm_object *);
+int nv50_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *,
+		   int index, struct nvkm_fifo **);
+
+void *nv50_fifo_dtor(struct nvkm_fifo *);
+int nv50_fifo_oneinit(struct nvkm_fifo *);
+void nv50_fifo_init(struct nvkm_fifo *);
 void nv50_fifo_runlist_update(struct nv50_fifo *);
 #endif
