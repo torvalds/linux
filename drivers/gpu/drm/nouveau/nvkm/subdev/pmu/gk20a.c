@@ -98,16 +98,18 @@ static int
 gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu *pmu,
 			      struct gk20a_pmu_dvfs_dev_status *status)
 {
-	status->busy = nv_rd32(pmu, 0x10a508 + (BUSY_SLOT * 0x10));
-	status->total= nv_rd32(pmu, 0x10a508 + (CLK_SLOT * 0x10));
+	struct nvkm_device *device = pmu->base.subdev.device;
+	status->busy = nvkm_rd32(device, 0x10a508 + (BUSY_SLOT * 0x10));
+	status->total= nvkm_rd32(device, 0x10a508 + (CLK_SLOT * 0x10));
 	return 0;
 }
 
 static void
 gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu *pmu)
 {
-	nv_wr32(pmu, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
-	nv_wr32(pmu, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
+	struct nvkm_device *device = pmu->base.subdev.device;
+	nvkm_wr32(device, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
+	nvkm_wr32(device, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
 }
 
 static void
@@ -173,6 +175,7 @@ static int
 gk20a_pmu_init(struct nvkm_object *object)
 {
 	struct gk20a_pmu *pmu = (void *)object;
+	struct nvkm_device *device = pmu->base.subdev.device;
 	int ret;
 
 	ret = nvkm_subdev_init(&pmu->base.subdev);
@@ -182,9 +185,9 @@ gk20a_pmu_init(struct nvkm_object *object)
 	pmu->base.pgob = nvkm_pmu_pgob;
 
 	/* init pwr perf counter */
-	nv_wr32(pmu, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
-	nv_wr32(pmu, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
-	nv_wr32(pmu, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
+	nvkm_wr32(device, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
+	nvkm_wr32(device, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
+	nvkm_wr32(device, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
 	nvkm_timer_alarm(pmu, 2000000000, &pmu->alarm);
 	return ret;

@@ -31,6 +31,7 @@
 void
 gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
+	struct nvkm_device *device = pmu->subdev.device;
 	static const struct {
 		u32 addr;
 		u32 data;
@@ -54,28 +55,28 @@ gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	};
 	int i;
 
-	nv_mask(pmu, 0x000200, 0x00001000, 0x00000000);
-	nv_rd32(pmu, 0x000200);
-	nv_mask(pmu, 0x000200, 0x08000000, 0x08000000);
+	nvkm_mask(device, 0x000200, 0x00001000, 0x00000000);
+	nvkm_rd32(device, 0x000200);
+	nvkm_mask(device, 0x000200, 0x08000000, 0x08000000);
 	msleep(50);
 
-	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000002);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000002, 0x00000002);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(pmu, 0x0206b4, 0x00000000, 0x00000000);
+	nvkm_mask(device, 0x0206b4, 0x00000000, 0x00000000);
 	for (i = 0; i < ARRAY_SIZE(magic); i++) {
-		nv_wr32(pmu, magic[i].addr, magic[i].data);
+		nvkm_wr32(device, magic[i].addr, magic[i].data);
 		nv_wait(pmu, magic[i].addr, 0x80000000, 0x00000000);
 	}
 
-	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000000);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000002, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(pmu, 0x000200, 0x08000000, 0x00000000);
-	nv_mask(pmu, 0x000200, 0x00001000, 0x00001000);
-	nv_rd32(pmu, 0x000200);
+	nvkm_mask(device, 0x000200, 0x08000000, 0x00000000);
+	nvkm_mask(device, 0x000200, 0x00001000, 0x00001000);
+	nvkm_rd32(device, 0x000200);
 }
 
 struct nvkm_oclass *

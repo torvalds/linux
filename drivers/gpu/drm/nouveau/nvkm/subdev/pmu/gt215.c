@@ -28,8 +28,9 @@ static int
 gt215_pmu_init(struct nvkm_object *object)
 {
 	struct nvkm_pmu *pmu = (void *)object;
-	nv_mask(pmu, 0x022210, 0x00000001, 0x00000000);
-	nv_mask(pmu, 0x022210, 0x00000001, 0x00000001);
+	struct nvkm_device *device = pmu->subdev.device;
+	nvkm_mask(device, 0x022210, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x022210, 0x00000001, 0x00000001);
 	return nvkm_pmu_init(pmu);
 }
 

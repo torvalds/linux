@@ -31,49 +31,49 @@
 #include <subdev/timer.h>
 
 static void
-magic_(struct nvkm_pmu *pmu, u32 ctrl, int size)
+magic_(struct nvkm_device *device, u32 ctrl, int size)
 {
-	nv_wr32(pmu, 0x00c800, 0x00000000);
-	nv_wr32(pmu, 0x00c808, 0x00000000);
-	nv_wr32(pmu, 0x00c800, ctrl);
-	if (nv_wait(pmu, 0x00c800, 0x40000000, 0x40000000)) {
+	nvkm_wr32(device, 0x00c800, 0x00000000);
+	nvkm_wr32(device, 0x00c808, 0x00000000);
+	nvkm_wr32(device, 0x00c800, ctrl);
+	if (nv_wait(device, 0x00c800, 0x40000000, 0x40000000)) {
 		while (size--)
-			nv_wr32(pmu, 0x00c804, 0x00000000);
+			nvkm_wr32(device, 0x00c804, 0x00000000);
 	}
-	nv_wr32(pmu, 0x00c800, 0x00000000);
+	nvkm_wr32(device, 0x00c800, 0x00000000);
 }
 
 static void
-magic(struct nvkm_pmu *pmu, u32 ctrl)
+magic(struct nvkm_device *device, u32 ctrl)
 {
-	magic_(pmu, 0x8000a41f | ctrl, 6);
-	magic_(pmu, 0x80000421 | ctrl, 1);
+	magic_(device, 0x8000a41f | ctrl, 6);
+	magic_(device, 0x80000421 | ctrl, 1);
 }
 
 static void
 gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
-	struct nvkm_device *device = nv_device(pmu);
+	struct nvkm_device *device = pmu->subdev.device;
 
-	nv_mask(pmu, 0x000200, 0x00001000, 0x00000000);
-	nv_rd32(pmu, 0x000200);
-	nv_mask(pmu, 0x000200, 0x08000000, 0x08000000);
+	nvkm_mask(device, 0x000200, 0x00001000, 0x00000000);
+	nvkm_rd32(device, 0x000200);
+	nvkm_mask(device, 0x000200, 0x08000000, 0x08000000);
 	msleep(50);
 
-	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000002);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000002, 0x00000002);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(pmu, 0x020004, 0xc0000000, enable ? 0xc0000000 : 0x40000000);
+	nvkm_mask(device, 0x020004, 0xc0000000, enable ? 0xc0000000 : 0x40000000);
 	msleep(50);
 
-	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000000);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000002, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(pmu, 0x000200, 0x08000000, 0x00000000);
-	nv_mask(pmu, 0x000200, 0x00001000, 0x00001000);
-	nv_rd32(pmu, 0x000200);
+	nvkm_mask(device, 0x000200, 0x08000000, 0x00000000);
+	nvkm_mask(device, 0x000200, 0x00001000, 0x00001000);
+	nvkm_rd32(device, 0x000200);
 
 	if (nv_device_match(device, 0x11fc, 0x17aa, 0x2211) /* Lenovo W541 */
 	 || nv_device_match(device, 0x11fc, 0x17aa, 0x221e) /* Lenovo W541 */
@@ -81,18 +81,18 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 		nv_info(pmu, "hw bug workaround enabled\n");
 		switch (device->chipset) {
 		case 0xe4:
-			magic(pmu, 0x04000000);
-			magic(pmu, 0x06000000);
-			magic(pmu, 0x0c000000);
-			magic(pmu, 0x0e000000);
+			magic(device, 0x04000000);
+			magic(device, 0x06000000);
+			magic(device, 0x0c000000);
+			magic(device, 0x0e000000);
 			break;
 		case 0xe6:
-			magic(pmu, 0x02000000);
-			magic(pmu, 0x04000000);
-			magic(pmu, 0x0a000000);
+			magic(device, 0x02000000);
+			magic(device, 0x04000000);
+			magic(device, 0x0a000000);
 			break;
 		case 0xe7:
-			magic(pmu, 0x02000000);
+			magic(device, 0x02000000);
 			break;
 		default:
 			break;
