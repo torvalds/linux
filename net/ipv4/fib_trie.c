@@ -2465,7 +2465,7 @@ static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 		key = l->key + 1;
 		iter->pos++;
 
-		if (pos-- <= 0)
+		if (--pos <= 0)
 			break;
 
 		l = NULL;

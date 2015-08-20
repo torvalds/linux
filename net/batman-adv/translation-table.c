@@ -595,8 +595,11 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	/* increase the refcounter of the related vlan */
 	vlan = batadv_softif_vlan_get(bat_priv, vid);
 	if (WARN(!vlan, "adding TT local entry %pM to non-existent VLAN %d",
-		 addr, BATADV_PRINT_VID(vid)))
+		 addr, BATADV_PRINT_VID(vid))) {
+		kfree(tt_local);
+		tt_local = NULL;
 		goto out;
+	}
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Creating new local tt entry: %pM (vid: %d, ttvn: %d)\n",
