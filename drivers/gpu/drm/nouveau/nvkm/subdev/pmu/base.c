@@ -28,12 +28,11 @@
 void
 nvkm_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
-	const struct nvkm_pmu_impl *impl = (void *)nv_oclass(pmu);
-	if (impl->pgob)
-		impl->pgob(pmu, enable);
+	if (pmu->func->pgob)
+		pmu->func->pgob(pmu, enable);
 }
 
-static int
+int
 nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	      u32 process, u32 message, u32 data0, u32 data1)
 {
@@ -144,7 +143,7 @@ nvkm_pmu_recv(struct work_struct *work)
 static void
 nvkm_pmu_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_pmu *pmu = container_of(subdev, typeof(*pmu), subdev);
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 	struct nvkm_device *device = pmu->subdev.device;
 	u32 disp = nvkm_rd32(device, 0x10a01c);
 	u32 intr = nvkm_rd32(device, 0x10a008) & disp & ~(disp >> 16);
@@ -180,33 +179,23 @@ nvkm_pmu_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-int
-_nvkm_pmu_fini(struct nvkm_object *object, bool suspend)
+static int
+nvkm_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct nvkm_pmu *pmu = (void *)object;
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 	struct nvkm_device *device = pmu->subdev.device;
 
 	nvkm_wr32(device, 0x10a014, 0x00000060);
 	flush_work(&pmu->recv.work);
-
-	return nvkm_subdev_fini_old(&pmu->subdev, suspend);
+	return 0;
 }
 
-int
-_nvkm_pmu_init(struct nvkm_object *object)
+static int
+nvkm_pmu_init(struct nvkm_subdev *subdev)
 {
-	const struct nvkm_pmu_impl *impl = (void *)object->oclass;
-	struct nvkm_pmu *pmu = (void *)object;
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 	struct nvkm_device *device = pmu->subdev.device;
-	int ret, i;
-
-	ret = nvkm_subdev_init_old(&pmu->subdev);
-	if (ret)
-		return ret;
-
-	nv_subdev(pmu)->intr = nvkm_pmu_intr;
-	pmu->message = nvkm_pmu_send;
-	pmu->pgob = nvkm_pmu_pgob;
+	int i;
 
 	/* prevent previous ucode from running, wait for idle, reset */
 	nvkm_wr32(device, 0x10a014, 0x0000ffff); /* INTR_EN_CLR = ALL */
@@ -224,15 +213,15 @@ _nvkm_pmu_init(struct nvkm_object *object)
 
 	/* upload data segment */
 	nvkm_wr32(device, 0x10a1c0, 0x01000000);
-	for (i = 0; i < impl->data.size / 4; i++)
-		nvkm_wr32(device, 0x10a1c4, impl->data.data[i]);
+	for (i = 0; i < pmu->func->data.size / 4; i++)
+		nvkm_wr32(device, 0x10a1c4, pmu->func->data.data[i]);
 
 	/* upload code segment */
 	nvkm_wr32(device, 0x10a180, 0x01000000);
-	for (i = 0; i < impl->code.size / 4; i++) {
+	for (i = 0; i < pmu->func->code.size / 4; i++) {
 		if ((i & 0x3f) == 0)
 			nvkm_wr32(device, 0x10a188, i >> 6);
-		nvkm_wr32(device, 0x10a184, impl->code.data[i]);
+		nvkm_wr32(device, 0x10a184, pmu->func->code.data[i]);
 	}
 
 	/* start it running */
@@ -262,31 +251,30 @@ _nvkm_pmu_init(struct nvkm_object *object)
 	return 0;
 }
 
+static void *
+nvkm_pmu_dtor(struct nvkm_subdev *subdev)
+{
+	return nvkm_pmu(subdev);
+}
+
+static const struct nvkm_subdev_func
+nvkm_pmu = {
+	.dtor = nvkm_pmu_dtor,
+	.init = nvkm_pmu_init,
+	.fini = nvkm_pmu_fini,
+	.intr = nvkm_pmu_intr,
+};
+
 int
-nvkm_pmu_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_pmu_new_(const struct nvkm_pmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_pmu **ppmu)
 {
 	struct nvkm_pmu *pmu;
-	int ret;
-
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PMU",
-				  "pmu", length, pobject);
-	pmu = *pobject;
-	if (ret)
-		return ret;
-
+	if (!(pmu = *ppmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&nvkm_pmu, device, index, 0, &pmu->subdev);
+	pmu->func = func;
 	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
 	init_waitqueue_head(&pmu->recv.wait);
 	return 0;
-}
-
-int
-_nvkm_pmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nvkm_pmu *pmu;
-	int ret = nvkm_pmu_create(parent, engine, oclass, &pmu);
-	*pobject = nv_object(pmu);
-	return ret;
 }

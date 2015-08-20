@@ -21,10 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#define gf110_pmu_code gk104_pmu_code
-#define gf110_pmu_data gk104_pmu_data
+#define gf119_pmu_code gk104_pmu_code
+#define gf119_pmu_data gk104_pmu_data
 #include "priv.h"
-#include "fuc/gf110.fuc4.h"
+#include "fuc/gf119.fuc4.h"
 
 #include <core/device.h>
 #include <core/option.h>
@@ -103,18 +103,17 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	}
 }
 
-struct nvkm_oclass *
-gk104_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xe4),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = _nvkm_pmu_init,
-		.fini = _nvkm_pmu_fini,
-	},
+static const struct nvkm_pmu_func
+gk104_pmu = {
 	.code.data = gk104_pmu_code,
 	.code.size = sizeof(gk104_pmu_code),
 	.data.data = gk104_pmu_data,
 	.data.size = sizeof(gk104_pmu_data),
 	.pgob = gk104_pmu_pgob,
-}.base;
+};
+
+int
+gk104_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gk104_pmu, device, index, ppmu);
+}

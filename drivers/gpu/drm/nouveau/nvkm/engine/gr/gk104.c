@@ -185,15 +185,13 @@ gk104_gr_init(struct nvkm_object *object)
 	struct gf100_gr_oclass *oclass = (void *)object->oclass;
 	struct gf100_gr *gr = (void *)object;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct nvkm_pmu *pmu = device->pmu;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
 	int ret, i;
 
-	if (pmu)
-		pmu->pgob(pmu, false);
+	nvkm_pmu_pgob(device->pmu, false);
 
 	ret = nvkm_gr_init(&gr->base);
 	if (ret)
@@ -315,9 +313,8 @@ gk104_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct nvkm_pmu *pmu = nvkm_pmu(parent);
-	if (pmu)
-		pmu->pgob(pmu, false);
+	struct nvkm_device *device = (void *)parent;
+	nvkm_pmu_pgob(device->pmu, false);
 	return gf100_gr_ctor(parent, engine, oclass, data, size, pobject);
 }
 

@@ -30,7 +30,6 @@ gm100_identify(struct nvkm_device *device)
 	case 0x117:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -58,7 +57,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 #endif
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
@@ -83,7 +81,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 #endif
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif

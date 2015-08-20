@@ -47,8 +47,8 @@ nvkm_memx_init(struct nvkm_pmu *pmu, struct nvkm_memx **pmemx)
 	u32 reply[2];
 	int ret;
 
-	ret = pmu->message(pmu, reply, PROC_MEMX, MEMX_MSG_INFO,
-			   MEMX_INFO_DATA, 0);
+	ret = nvkm_pmu_send(pmu, reply, PROC_MEMX, MEMX_MSG_INFO,
+			    MEMX_INFO_DATA, 0);
 	if (ret)
 		return ret;
 
@@ -85,8 +85,8 @@ nvkm_memx_fini(struct nvkm_memx **pmemx, bool exec)
 
 	/* call MEMX process to execute the script, and wait for reply */
 	if (exec) {
-		pmu->message(pmu, reply, PROC_MEMX, MEMX_MSG_EXEC,
-			     memx->base, finish);
+		nvkm_pmu_send(pmu, reply, PROC_MEMX, MEMX_MSG_EXEC,
+			      memx->base, finish);
 	}
 
 	nvkm_debug(subdev, "Exec took %uns, PMU_IN %08x\n",
@@ -168,8 +168,8 @@ nvkm_memx_train_result(struct nvkm_pmu *pmu, u32 *res, int rsize)
 	u32 reply[2], base, size, i;
 	int ret;
 
-	ret = pmu->message(pmu, reply, PROC_MEMX, MEMX_MSG_INFO,
-			   MEMX_INFO_TRAIN, 0);
+	ret = nvkm_pmu_send(pmu, reply, PROC_MEMX, MEMX_MSG_INFO,
+			    MEMX_INFO_TRAIN, 0);
 	if (ret)
 		return ret;
 

@@ -22,19 +22,18 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
-#include "fuc/gk208.fuc5.h"
+#include "fuc/gf119.fuc4.h"
 
 static const struct nvkm_pmu_func
-gk208_pmu = {
-	.code.data = gk208_pmu_code,
-	.code.size = sizeof(gk208_pmu_code),
-	.data.data = gk208_pmu_data,
-	.data.size = sizeof(gk208_pmu_data),
-	.pgob = gk110_pmu_pgob,
+gf119_pmu = {
+	.code.data = gf119_pmu_code,
+	.code.size = sizeof(gf119_pmu_code),
+	.data.data = gf119_pmu_data,
+	.data.size = sizeof(gf119_pmu_data),
 };
 
 int
-gk208_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gf119_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gk208_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(&gf119_pmu, device, index, ppmu);
 }

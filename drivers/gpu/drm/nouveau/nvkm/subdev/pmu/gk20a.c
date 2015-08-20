@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#define gk20a_pmu(p) container_of((p), struct gk20a_pmu, base.subdev)
 #include "priv.h"
 
 #include <subdev/clk.h>
@@ -165,27 +166,24 @@ resched:
 }
 
 static int
-gk20a_pmu_fini(struct nvkm_object *object, bool suspend)
+gk20a_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct gk20a_pmu *pmu = (void *)object;
-
+	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
 	nvkm_timer_alarm_cancel(pmu, &pmu->alarm);
+	return 0;
+}
 
-	return nvkm_subdev_fini_old(&pmu->base.subdev, suspend);
+static void *
+gk20a_pmu_dtor(struct nvkm_subdev *subdev)
+{
+	return gk20a_pmu(subdev);
 }
 
 static int
-gk20a_pmu_init(struct nvkm_object *object)
+gk20a_pmu_init(struct nvkm_subdev *subdev)
 {
-	struct gk20a_pmu *pmu = (void *)object;
+	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
 	struct nvkm_device *device = pmu->base.subdev.device;
-	int ret;
-
-	ret = nvkm_subdev_init_old(&pmu->base.subdev);
-	if (ret)
-		return ret;
-
-	pmu->base.pgob = nvkm_pmu_pgob;
 
 	/* init pwr perf counter */
 	nvkm_wr32(device, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
@@ -193,7 +191,7 @@ gk20a_pmu_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
 	nvkm_timer_alarm(pmu, 2000000000, &pmu->alarm);
-	return ret;
+	return 0;
 }
 
 static struct gk20a_pmu_dvfs_data
@@ -203,32 +201,26 @@ gk20a_dvfs_data= {
 	.p_smooth = 1,
 };
 
-static int
-gk20a_pmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+static const struct nvkm_subdev_func
+gk20a_pmu = {
+	.init = gk20a_pmu_init,
+	.fini = gk20a_pmu_fini,
+	.dtor = gk20a_pmu_dtor,
+};
+
+int
+gk20a_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
+	static const struct nvkm_pmu_func func = {};
 	struct gk20a_pmu *pmu;
-	int ret;
 
-	ret = nvkm_pmu_create(parent, engine, oclass, &pmu);
-	*pobject = nv_object(pmu);
-	if (ret)
-		return ret;
+	if (!(pmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
+		return -ENOMEM;
+	pmu->base.func = &func;
+	*ppmu = &pmu->base;
 
+	nvkm_subdev_ctor(&gk20a_pmu, device, index, 0, &pmu->base.subdev);
 	pmu->data = &gk20a_dvfs_data;
-
 	nvkm_alarm_init(&pmu->alarm, gk20a_pmu_dvfs_work);
 	return 0;
 }
-
-struct nvkm_oclass *
-gk20a_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xea),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = gk20a_pmu_init,
-		.fini = gk20a_pmu_fini,
-	},
-}.base;

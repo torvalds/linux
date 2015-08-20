@@ -21,10 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#define gf110_pmu_code gk110_pmu_code
-#define gf110_pmu_data gk110_pmu_data
+#define gf119_pmu_code gk110_pmu_code
+#define gf119_pmu_data gk110_pmu_data
 #include "priv.h"
-#include "fuc/gf110.fuc4.h"
+#include "fuc/gf119.fuc4.h"
 
 #include <subdev/timer.h>
 
@@ -82,18 +82,17 @@ gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	nvkm_rd32(device, 0x000200);
 }
 
-struct nvkm_oclass *
-gk110_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xf0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = _nvkm_pmu_init,
-		.fini = _nvkm_pmu_fini,
-	},
+static const struct nvkm_pmu_func
+gk110_pmu = {
 	.code.data = gk110_pmu_code,
 	.code.size = sizeof(gk110_pmu_code),
 	.data.data = gk110_pmu_data,
 	.data.size = sizeof(gk110_pmu_data),
 	.pgob = gk110_pmu_pgob,
-}.base;
+};
+
+int
+gk110_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gk110_pmu, device, index, ppmu);
+}

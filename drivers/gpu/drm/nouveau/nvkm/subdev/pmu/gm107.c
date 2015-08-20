@@ -21,50 +21,21 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#define gk208_pmu_code gm107_pmu_code
+#define gk208_pmu_data gm107_pmu_data
+#include "fuc/gk208.fuc5.h"
 
-#define NVKM_PPWR_CHIPSET GF119
-#define HW_TICKS_PER_US 324
+static const struct nvkm_pmu_func
+gm107_pmu = {
+	.code.data = gm107_pmu_code,
+	.code.size = sizeof(gm107_pmu_code),
+	.data.data = gm107_pmu_data,
+	.data.size = sizeof(gm107_pmu_data),
+};
 
-//#define NVKM_FALCON_PC24
-#define NVKM_FALCON_UNSHIFTED_IO
-//#define NVKM_FALCON_MMIO_UAS
-//#define NVKM_FALCON_MMIO_TRAP
-
-#include "macros.fuc"
-
-.section #gf110_pmu_data
-#define INCLUDE_PROC
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_PROC
-
-#define INCLUDE_DATA
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_DATA
-.align 256
-
-.section #gf110_pmu_code
-#define INCLUDE_CODE
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_CODE
-.align 256
+int
+gm107_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gm107_pmu, device, index, ppmu);
+}
