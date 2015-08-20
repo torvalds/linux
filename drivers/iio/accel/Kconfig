@@ -140,6 +140,8 @@ config MMA9553
 config MXC4005
 	tristate "Memsic MXC4005XC 3-Axis Accelerometer Driver"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	select REGMAP_I2C
 	help
 	  Say yes here to build support for the Memsic MXC4005XC 3-axis
