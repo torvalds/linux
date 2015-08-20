@@ -82,6 +82,7 @@ static const struct spi_device_id hmc5843_id[] = {
 	{ "hmc5983", HMC5983_ID },
 	{ }
 };
+MODULE_DEVICE_TABLE(spi, hmc5843_id);
 
 static struct spi_driver hmc5843_driver = {
 		.driver = {
