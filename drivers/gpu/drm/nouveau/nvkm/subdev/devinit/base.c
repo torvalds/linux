@@ -29,47 +29,47 @@
 int
 _nvkm_devinit_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_devinit *devinit = (void *)object;
+	struct nvkm_devinit *init = (void *)object;
 
 	/* force full reinit on resume */
 	if (suspend)
-		devinit->post = true;
+		init->post = true;
 
 	/* unlock the extended vga crtc regs */
-	nv_lockvgac(devinit, false);
+	nv_lockvgac(init, false);
 
-	return nvkm_subdev_fini(&devinit->base, suspend);
+	return nvkm_subdev_fini(&init->subdev, suspend);
 }
 
 int
 _nvkm_devinit_init(struct nvkm_object *object)
 {
 	struct nvkm_devinit_impl *impl = (void *)object->oclass;
-	struct nvkm_devinit *devinit = (void *)object;
+	struct nvkm_devinit *init = (void *)object;
 	int ret;
 
-	ret = nvkm_subdev_init(&devinit->base);
+	ret = nvkm_subdev_init(&init->subdev);
 	if (ret)
 		return ret;
 
-	ret = impl->post(&devinit->base, devinit->post);
+	ret = impl->post(&init->subdev, init->post);
 	if (ret)
 		return ret;
 
 	if (impl->disable)
-		nv_device(devinit)->disable_mask |= impl->disable(devinit);
+		nv_device(init)->disable_mask |= impl->disable(init);
 	return 0;
 }
 
 void
 _nvkm_devinit_dtor(struct nvkm_object *object)
 {
-	struct nvkm_devinit *devinit = (void *)object;
+	struct nvkm_devinit *init = (void *)object;
 
 	/* lock crtc regs */
-	nv_lockvgac(devinit, true);
+	nv_lockvgac(init, true);
 
-	nvkm_subdev_destroy(&devinit->base);
+	nvkm_subdev_destroy(&init->subdev);
 }
 
 int
@@ -78,18 +78,18 @@ nvkm_devinit_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_devinit_impl *impl = (void *)oclass;
 	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_devinit *devinit;
+	struct nvkm_devinit *init;
 	int ret;
 
 	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "DEVINIT",
 				  "init", size, pobject);
-	devinit = *pobject;
+	init = *pobject;
 	if (ret)
 		return ret;
 
-	devinit->post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
-	devinit->meminit = impl->meminit;
-	devinit->pll_set = impl->pll_set;
-	devinit->mmio    = impl->mmio;
+	init->post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
+	init->meminit = impl->meminit;
+	init->pll_set = impl->pll_set;
+	init->mmio    = impl->mmio;
 	return 0;
 }

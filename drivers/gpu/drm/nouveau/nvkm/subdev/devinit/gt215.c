@@ -31,8 +31,8 @@
 int
 gt215_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nv50_devinit *init = (void *)devinit;
+	struct nvkm_bios *bios = nvkm_bios(init);
 	struct nvbios_pll info;
 	int N, fN, M, P;
 	int ret;
@@ -48,13 +48,13 @@ gt215_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 	switch (info.type) {
 	case PLL_VPLL0:
 	case PLL_VPLL1:
-		nv_wr32(priv, info.reg + 0, 0x50000610);
-		nv_mask(priv, info.reg + 4, 0x003fffff,
+		nv_wr32(init, info.reg + 0, 0x50000610);
+		nv_mask(init, info.reg + 4, 0x003fffff,
 					    (P << 16) | (M << 8) | N);
-		nv_wr32(priv, info.reg + 8, fN);
+		nv_wr32(init, info.reg + 8, fN);
 		break;
 	default:
-		nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+		nv_warn(init, "0x%08x/%dKhz unimplemented\n", type, freq);
 		ret = -EINVAL;
 		break;
 	}
@@ -65,9 +65,9 @@ gt215_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 static u64
 gt215_devinit_disable(struct nvkm_devinit *devinit)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r001540 = nv_rd32(priv, 0x001540);
-	u32 r00154c = nv_rd32(priv, 0x00154c);
+	struct nv50_devinit *init = (void *)devinit;
+	u32 r001540 = nv_rd32(init, 0x001540);
+	u32 r00154c = nv_rd32(init, 0x00154c);
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000)) {
@@ -101,7 +101,7 @@ gt215_devinit_mmio_part[] = {
 static u32
 gt215_devinit_mmio(struct nvkm_devinit *devinit, u32 addr)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
+	struct nv50_devinit *init = (void *)devinit;
 	u32 *mmio = gt215_devinit_mmio_part;
 
 	/* the init tables on some boards have INIT_RAM_RESTRICT_ZM_REG_GROUP
@@ -113,7 +113,7 @@ gt215_devinit_mmio(struct nvkm_devinit *devinit, u32 addr)
 	 *
 	 * the binary driver avoids touching these registers at all, however,
 	 * the video bios doesn't care and does what the scripts say.  it's
-	 * presumed that the io-port access to priv registers isn't effected
+	 * presumed that the io-port access to init registers isn't effected
 	 * by the screw-up bug mentioned above.
 	 *
 	 * really, a new opcode should've been invented to handle these
@@ -122,9 +122,9 @@ gt215_devinit_mmio(struct nvkm_devinit *devinit, u32 addr)
 	while (mmio[0]) {
 		if (addr >= mmio[0] && addr <= mmio[1]) {
 			u32 part = (addr / mmio[2]) & 7;
-			if (!priv->r001540)
-				priv->r001540 = nv_rd32(priv, 0x001540);
-			if (part >= hweight8((priv->r001540 >> 16) & 0xff))
+			if (!init->r001540)
+				init->r001540 = nv_rd32(init, 0x001540);
+			if (part >= hweight8((init->r001540 >> 16) & 0xff))
 				return ~0;
 			return addr;
 		}

@@ -35,8 +35,8 @@
 int
 nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nv50_devinit *init = (void *)devinit;
+	struct nvkm_bios *bios = nvkm_bios(init);
 	struct nvbios_pll info;
 	int N1, M1, N2, M2, P;
 	int ret;
@@ -56,20 +56,20 @@ nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 	switch (info.type) {
 	case PLL_VPLL0:
 	case PLL_VPLL1:
-		nv_wr32(priv, info.reg + 0, 0x10000611);
-		nv_mask(priv, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
-		nv_mask(priv, info.reg + 8, 0x7fff00ff, (P  << 28) |
+		nv_wr32(init, info.reg + 0, 0x10000611);
+		nv_mask(init, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
+		nv_mask(init, info.reg + 8, 0x7fff00ff, (P  << 28) |
 							(M2 << 16) | N2);
 		break;
 	case PLL_MEMORY:
-		nv_mask(priv, info.reg + 0, 0x01ff0000, (P << 22) |
+		nv_mask(init, info.reg + 0, 0x01ff0000, (P << 22) |
 						        (info.bias_p << 19) |
 							(P << 16));
-		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		nv_wr32(init, info.reg + 4, (N1 << 8) | M1);
 		break;
 	default:
-		nv_mask(priv, info.reg + 0, 0x00070000, (P << 16));
-		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		nv_mask(init, info.reg + 0, 0x00070000, (P << 16));
+		nv_wr32(init, info.reg + 4, (N1 << 8) | M1);
 		break;
 	}
 
@@ -79,8 +79,8 @@ nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 static u64
 nv50_devinit_disable(struct nvkm_devinit *devinit)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r001540 = nv_rd32(priv, 0x001540);
+	struct nv50_devinit *init = (void *)devinit;
+	u32 r001540 = nv_rd32(init, 0x001540);
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000))
@@ -94,28 +94,28 @@ nv50_devinit_init(struct nvkm_object *object)
 {
 	struct nvkm_bios *bios = nvkm_bios(object);
 	struct nvkm_ibus *ibus = nvkm_ibus(object);
-	struct nv50_devinit_priv *priv = (void *)object;
+	struct nv50_devinit *init = (void *)object;
 	struct nvbios_outp info;
 	struct dcb_output outp;
 	u8  ver = 0xff, hdr, cnt, len;
 	int ret, i = 0;
 
-	if (!priv->base.post) {
-		if (!nv_rdvgac(priv, 0, 0x00) &&
-		    !nv_rdvgac(priv, 0, 0x1a)) {
-			nv_info(priv, "adaptor not initialised\n");
-			priv->base.post = true;
+	if (!init->base.post) {
+		if (!nv_rdvgac(init, 0, 0x00) &&
+		    !nv_rdvgac(init, 0, 0x1a)) {
+			nv_info(init, "adaptor not initialised\n");
+			init->base.post = true;
 		}
 	}
 
-	/* some boards appear to require certain priv register timeouts
+	/* some boards appear to require certain init register timeouts
 	 * to be bumped before runing devinit scripts.  not a clue why
 	 * the vbios engineers didn't make the scripts just work...
 	 */
-	if (priv->base.post && ibus)
+	if (init->base.post && ibus)
 		nv_ofuncs(ibus)->init(nv_object(ibus));
 
-	ret = nvkm_devinit_init(&priv->base);
+	ret = nvkm_devinit_init(&init->base);
 	if (ret)
 		return ret;
 
@@ -123,11 +123,11 @@ nv50_devinit_init(struct nvkm_object *object)
 	 * pointer of each dcb entry's display encoder table in order
 	 * to properly initialise each encoder.
 	 */
-	while (priv->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
+	while (init->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
 		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
 				      &ver, &hdr, &cnt, &len, &info)) {
-			struct nvbios_init init = {
-				.subdev = nv_subdev(priv),
+			struct nvbios_init exec = {
+				.subdev = nv_subdev(init),
 				.bios = bios,
 				.offset = info.script[0],
 				.outp = &outp,
@@ -135,7 +135,7 @@ nv50_devinit_init(struct nvkm_object *object)
 				.execute = 1,
 			};
 
-			nvbios_exec(&init);
+			nvbios_exec(&exec);
 		}
 		i++;
 	}
@@ -148,11 +148,11 @@ nv50_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nv50_devinit_priv *priv;
+	struct nv50_devinit *init;
 	int ret;
 
-	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_devinit_create(parent, engine, oclass, &init);
+	*pobject = nv_object(init);
 	if (ret)
 		return ret;
 

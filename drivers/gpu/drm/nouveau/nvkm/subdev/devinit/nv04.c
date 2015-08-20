@@ -35,23 +35,23 @@
 static void
 nv04_devinit_meminit(struct nvkm_devinit *devinit)
 {
-	struct nv04_devinit_priv *priv = (void *)devinit;
+	struct nv04_devinit *init = (void *)devinit;
 	u32 patt = 0xdeadbeef;
 	struct io_mapping *fb;
 	int i;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(priv));
+	fb = fbmem_init(nv_device(init));
 	if (!fb) {
-		nv_error(priv, "failed to map fb\n");
+		nv_error(init, "failed to map fb\n");
 		return;
 	}
 
 	/* Sequencer and refresh off */
-	nv_wrvgas(priv, 0, 1, nv_rdvgas(priv, 0, 1) | 0x20);
-	nv_mask(priv, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
+	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) | 0x20);
+	nv_mask(init, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
 
-	nv_mask(priv, NV04_PFB_BOOT_0, ~0,
+	nv_mask(init, NV04_PFB_BOOT_0, ~0,
 		      NV04_PFB_BOOT_0_RAM_AMOUNT_16MB |
 		      NV04_PFB_BOOT_0_RAM_WIDTH_128 |
 		      NV04_PFB_BOOT_0_RAM_TYPE_SGRAM_16MBIT);
@@ -62,49 +62,49 @@ nv04_devinit_meminit(struct nvkm_devinit *devinit)
 	fbmem_poke(fb, 0x400000, patt + 1);
 
 	if (fbmem_peek(fb, 0) == patt + 1) {
-		nv_mask(priv, NV04_PFB_BOOT_0,
+		nv_mask(init, NV04_PFB_BOOT_0,
 			      NV04_PFB_BOOT_0_RAM_TYPE,
 			      NV04_PFB_BOOT_0_RAM_TYPE_SDRAM_16MBIT);
-		nv_mask(priv, NV04_PFB_DEBUG_0,
+		nv_mask(init, NV04_PFB_DEBUG_0,
 			      NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
 
 		for (i = 0; i < 4; i++)
 			fbmem_poke(fb, 4 * i, patt);
 
 		if ((fbmem_peek(fb, 0xc) & 0xffff) != (patt & 0xffff))
-			nv_mask(priv, NV04_PFB_BOOT_0,
+			nv_mask(init, NV04_PFB_BOOT_0,
 				      NV04_PFB_BOOT_0_RAM_WIDTH_128 |
 				      NV04_PFB_BOOT_0_RAM_AMOUNT,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
 	} else
 	if ((fbmem_peek(fb, 0xc) & 0xffff0000) != (patt & 0xffff0000)) {
-		nv_mask(priv, NV04_PFB_BOOT_0,
+		nv_mask(init, NV04_PFB_BOOT_0,
 			      NV04_PFB_BOOT_0_RAM_WIDTH_128 |
 			      NV04_PFB_BOOT_0_RAM_AMOUNT,
 			      NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
 	} else
 	if (fbmem_peek(fb, 0) != patt) {
 		if (fbmem_readback(fb, 0x800000, patt))
-			nv_mask(priv, NV04_PFB_BOOT_0,
+			nv_mask(init, NV04_PFB_BOOT_0,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
 		else
-			nv_mask(priv, NV04_PFB_BOOT_0,
+			nv_mask(init, NV04_PFB_BOOT_0,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
 
-		nv_mask(priv, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_TYPE,
+		nv_mask(init, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_TYPE,
 			      NV04_PFB_BOOT_0_RAM_TYPE_SGRAM_8MBIT);
 	} else
 	if (!fbmem_readback(fb, 0x800000, patt)) {
-		nv_mask(priv, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
+		nv_mask(init, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
 			      NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
 
 	}
 
 	/* Refresh on, sequencer on */
-	nv_mask(priv, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
-	nv_wrvgas(priv, 0, 1, nv_rdvgas(priv, 0, 1) & ~0x20);
+	nv_mask(init, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) & ~0x20);
 	fbmem_fini(fb);
 }
 
@@ -390,52 +390,52 @@ nv04_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 int
 nv04_devinit_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv04_devinit_priv *priv = (void *)object;
+	struct nv04_devinit *init = (void *)object;
 	int ret;
 
 	/* make i2c busses accessible */
-	nv_mask(priv, 0x000200, 0x00000001, 0x00000001);
+	nv_mask(init, 0x000200, 0x00000001, 0x00000001);
 
-	ret = nvkm_devinit_fini(&priv->base, suspend);
+	ret = nvkm_devinit_fini(&init->base, suspend);
 	if (ret)
 		return ret;
 
 	/* unslave crtcs */
-	if (priv->owner < 0)
-		priv->owner = nv_rdvgaowner(priv);
-	nv_wrvgaowner(priv, 0);
+	if (init->owner < 0)
+		init->owner = nv_rdvgaowner(init);
+	nv_wrvgaowner(init, 0);
 	return 0;
 }
 
 int
 nv04_devinit_init(struct nvkm_object *object)
 {
-	struct nv04_devinit_priv *priv = (void *)object;
+	struct nv04_devinit *init = (void *)object;
 
-	if (!priv->base.post) {
-		u32 htotal = nv_rdvgac(priv, 0, 0x06);
-		htotal |= (nv_rdvgac(priv, 0, 0x07) & 0x01) << 8;
-		htotal |= (nv_rdvgac(priv, 0, 0x07) & 0x20) << 4;
-		htotal |= (nv_rdvgac(priv, 0, 0x25) & 0x01) << 10;
-		htotal |= (nv_rdvgac(priv, 0, 0x41) & 0x01) << 11;
+	if (!init->base.post) {
+		u32 htotal = nv_rdvgac(init, 0, 0x06);
+		htotal |= (nv_rdvgac(init, 0, 0x07) & 0x01) << 8;
+		htotal |= (nv_rdvgac(init, 0, 0x07) & 0x20) << 4;
+		htotal |= (nv_rdvgac(init, 0, 0x25) & 0x01) << 10;
+		htotal |= (nv_rdvgac(init, 0, 0x41) & 0x01) << 11;
 		if (!htotal) {
-			nv_info(priv, "adaptor not initialised\n");
-			priv->base.post = true;
+			nv_info(init, "adaptor not initialised\n");
+			init->base.post = true;
 		}
 	}
 
-	return nvkm_devinit_init(&priv->base);
+	return nvkm_devinit_init(&init->base);
 }
 
 void
 nv04_devinit_dtor(struct nvkm_object *object)
 {
-	struct nv04_devinit_priv *priv = (void *)object;
+	struct nv04_devinit *init = (void *)object;
 
 	/* restore vga owner saved at first init */
-	nv_wrvgaowner(priv, priv->owner);
+	nv_wrvgaowner(init, init->owner);
 
-	nvkm_devinit_destroy(&priv->base);
+	nvkm_devinit_destroy(&init->base);
 }
 
 int
@@ -443,15 +443,15 @@ nv04_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nv04_devinit_priv *priv;
+	struct nv04_devinit *init;
 	int ret;
 
-	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_devinit_create(parent, engine, oclass, &init);
+	*pobject = nv_object(init);
 	if (ret)
 		return ret;
 
-	priv->owner = -1;
+	init->owner = -1;
 	return 0;
 }
 

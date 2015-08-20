@@ -2,7 +2,7 @@
 #define __NVKM_DEVINIT_NV50_H__
 #include "priv.h"
 
-struct nv50_devinit_priv {
+struct nv50_devinit {
 	struct nvkm_devinit base;
 	u32 r001540;
 };

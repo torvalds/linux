@@ -29,9 +29,9 @@
 static u64
 mcp89_devinit_disable(struct nvkm_devinit *devinit)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r001540 = nv_rd32(priv, 0x001540);
-	u32 r00154c = nv_rd32(priv, 0x00154c);
+	struct nv50_devinit *init = (void *)devinit;
+	u32 r001540 = nv_rd32(init, 0x001540);
+	u32 r00154c = nv_rd32(init, 0x00154c);
 	u64 disable = 0;
 
 	if (!(r001540 & 0x40000000)) {

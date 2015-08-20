@@ -29,9 +29,9 @@
 u64
 gm107_devinit_disable(struct nvkm_devinit *devinit)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r021c00 = nv_rd32(priv, 0x021c00);
-	u32 r021c04 = nv_rd32(priv, 0x021c04);
+	struct nv50_devinit *init = (void *)devinit;
+	u32 r021c00 = nv_rd32(init, 0x021c00);
+	u32 r021c04 = nv_rd32(init, 0x021c04);
 	u64 disable = 0ULL;
 
 	if (r021c00 & 0x00000001)

@@ -3,7 +3,7 @@
 #include "priv.h"
 struct nvkm_pll_vals;
 
-struct nv04_devinit_priv {
+struct nv04_devinit {
 	struct nvkm_devinit base;
 	int owner;
 };

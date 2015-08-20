@@ -3,7 +3,7 @@
 #include <core/subdev.h>
 
 struct nvkm_devinit {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	bool post;
 	void (*meminit)(struct nvkm_devinit *);
 	int  (*pll_set)(struct nvkm_devinit *, u32 type, u32 freq);

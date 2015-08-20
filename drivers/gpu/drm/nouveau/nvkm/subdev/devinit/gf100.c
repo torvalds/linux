@@ -31,8 +31,8 @@
 int
 gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nv50_devinit *init = (void *)devinit;
+	struct nvkm_bios *bios = nvkm_bios(init);
 	struct nvbios_pll info;
 	int N, fN, M, P;
 	int ret;
@@ -50,12 +50,12 @@ gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 	case PLL_VPLL1:
 	case PLL_VPLL2:
 	case PLL_VPLL3:
-		nv_mask(priv, info.reg + 0x0c, 0x00000000, 0x00000100);
-		nv_wr32(priv, info.reg + 0x04, (P << 16) | (N << 8) | M);
-		nv_wr32(priv, info.reg + 0x10, fN << 16);
+		nv_mask(init, info.reg + 0x0c, 0x00000000, 0x00000100);
+		nv_wr32(init, info.reg + 0x04, (P << 16) | (N << 8) | M);
+		nv_wr32(init, info.reg + 0x10, fN << 16);
 		break;
 	default:
-		nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+		nv_warn(init, "0x%08x/%dKhz unimplemented\n", type, freq);
 		ret = -EINVAL;
 		break;
 	}
@@ -66,8 +66,8 @@ gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 static u64
 gf100_devinit_disable(struct nvkm_devinit *devinit)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r022500 = nv_rd32(priv, 0x022500);
+	struct nv50_devinit *init = (void *)devinit;
+	u32 r022500 = nv_rd32(init, 0x022500);
 	u64 disable = 0ULL;
 
 	if (r022500 & 0x00000001)
@@ -96,18 +96,18 @@ gf100_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		   struct nvkm_object **pobject)
 {
 	struct nvkm_devinit_impl *impl = (void *)oclass;
-	struct nv50_devinit_priv *priv;
+	struct nv50_devinit *init;
 	u64 disable;
 	int ret;
 
-	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_devinit_create(parent, engine, oclass, &init);
+	*pobject = nv_object(init);
 	if (ret)
 		return ret;
 
-	disable = impl->disable(&priv->base);
+	disable = impl->disable(&init->base);
 	if (disable & (1ULL << NVDEV_ENGINE_DISP))
-		priv->base.post = true;
+		init->base.post = true;
 
 	return 0;
 }
