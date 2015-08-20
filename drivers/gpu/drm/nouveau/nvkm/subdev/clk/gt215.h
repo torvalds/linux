@@ -13,6 +13,6 @@ struct gt215_clk_info {
 };
 
 int  gt215_pll_info(struct nvkm_clk *, int, u32, u32, struct gt215_clk_info *);
-int  gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags);
-void gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags);
+int  gt215_clk_pre(struct nvkm_clk *, unsigned long *flags);
+void gt215_clk_post(struct nvkm_clk *, unsigned long *flags);
 #endif

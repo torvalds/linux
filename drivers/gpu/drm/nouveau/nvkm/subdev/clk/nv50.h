@@ -12,7 +12,7 @@ struct nv50_clk_hwsq {
 	struct hwsq_reg r_mast;
 };
 
-struct nv50_clk_priv {
+struct nv50_clk {
 	struct nvkm_clk base;
 	struct nv50_clk_hwsq hwsq;
 };

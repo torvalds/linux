@@ -121,7 +121,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 			nv_error(clk, "failed to lower fan speed: %d\n", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void
@@ -474,7 +474,7 @@ _nvkm_clk_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_clk *clk = (void *)object;
 	nvkm_notify_put(&clk->pwrsrc_ntfy);
-	return nvkm_subdev_fini(&clk->base, suspend);
+	return nvkm_subdev_fini(&clk->subdev, suspend);
 }
 
 int
@@ -484,7 +484,7 @@ _nvkm_clk_init(struct nvkm_object *object)
 	struct nvkm_domain *clock = clk->domains;
 	int ret;
 
-	ret = nvkm_subdev_init(&clk->base);
+	ret = nvkm_subdev_init(&clk->subdev);
 	if (ret)
 		return ret;
 
@@ -524,7 +524,7 @@ _nvkm_clk_dtor(struct nvkm_object *object)
 		nvkm_pstate_del(pstate);
 	}
 
-	nvkm_subdev_destroy(&clk->base);
+	nvkm_subdev_destroy(&clk->subdev);
 }
 
 int

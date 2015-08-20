@@ -30,47 +30,47 @@
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
 
-struct gt215_clk_priv {
+struct gt215_clk {
 	struct nvkm_clk base;
 	struct gt215_clk_info eng[nv_clk_src_max];
 };
 
-static u32 read_clk(struct gt215_clk_priv *, int, bool);
-static u32 read_pll(struct gt215_clk_priv *, int, u32);
+static u32 read_clk(struct gt215_clk *, int, bool);
+static u32 read_pll(struct gt215_clk *, int, u32);
 
 static u32
-read_vco(struct gt215_clk_priv *priv, int clk)
+read_vco(struct gt215_clk *clk, int idx)
 {
-	u32 sctl = nv_rd32(priv, 0x4120 + (clk * 4));
+	u32 sctl = nv_rd32(clk, 0x4120 + (idx * 4));
 
 	switch (sctl & 0x00000030) {
 	case 0x00000000:
-		return nv_device(priv)->crystal;
+		return nv_device(clk)->crystal;
 	case 0x00000020:
-		return read_pll(priv, 0x41, 0x00e820);
+		return read_pll(clk, 0x41, 0x00e820);
 	case 0x00000030:
-		return read_pll(priv, 0x42, 0x00e8a0);
+		return read_pll(clk, 0x42, 0x00e8a0);
 	default:
 		return 0;
 	}
 }
 
 static u32
-read_clk(struct gt215_clk_priv *priv, int clk, bool ignore_en)
+read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
 {
 	u32 sctl, sdiv, sclk;
 
 	/* refclk for the 0xe8xx plls is a fixed frequency */
-	if (clk >= 0x40) {
-		if (nv_device(priv)->chipset == 0xaf) {
+	if (idx >= 0x40) {
+		if (nv_device(clk)->chipset == 0xaf) {
 			/* no joke.. seriously.. sigh.. */
-			return nv_rd32(priv, 0x00471c) * 1000;
+			return nv_rd32(clk, 0x00471c) * 1000;
 		}
 
-		return nv_device(priv)->crystal;
+		return nv_device(clk)->crystal;
 	}
 
-	sctl = nv_rd32(priv, 0x4120 + (clk * 4));
+	sctl = nv_rd32(clk, 0x4120 + (idx * 4));
 	if (!ignore_en && !(sctl & 0x00000100))
 		return 0;
 
@@ -82,7 +82,7 @@ read_clk(struct gt215_clk_priv *priv, int clk, bool ignore_en)
 	switch (sctl & 0x00003000) {
 	case 0x00000000:
 		if (!(sctl & 0x00000200))
-			return nv_device(priv)->crystal;
+			return nv_device(clk)->crystal;
 		return 0;
 	case 0x00002000:
 		if (sctl & 0x00000040)
@@ -93,7 +93,7 @@ read_clk(struct gt215_clk_priv *priv, int clk, bool ignore_en)
 		if (!(sctl & 0x00000001))
 			return 0;
 
-		sclk = read_vco(priv, clk);
+		sclk = read_vco(clk, idx);
 		sdiv = ((sctl & 0x003f0000) >> 16) + 2;
 		return (sclk * 2) / sdiv;
 	default:
@@ -102,14 +102,14 @@ read_clk(struct gt215_clk_priv *priv, int clk, bool ignore_en)
 }
 
 static u32
-read_pll(struct gt215_clk_priv *priv, int clk, u32 pll)
+read_pll(struct gt215_clk *clk, int idx, u32 pll)
 {
-	u32 ctrl = nv_rd32(priv, pll + 0);
+	u32 ctrl = nv_rd32(clk, pll + 0);
 	u32 sclk = 0, P = 1, N = 1, M = 1;
 
 	if (!(ctrl & 0x00000008)) {
 		if (ctrl & 0x00000001) {
-			u32 coef = nv_rd32(priv, pll + 4);
+			u32 coef = nv_rd32(clk, pll + 4);
 			M = (coef & 0x000000ff) >> 0;
 			N = (coef & 0x0000ff00) >> 8;
 			P = (coef & 0x003f0000) >> 16;
@@ -120,10 +120,10 @@ read_pll(struct gt215_clk_priv *priv, int clk, u32 pll)
 			if ((pll & 0x00ff00) == 0x00e800)
 				P = 1;
 
-			sclk = read_clk(priv, 0x00 + clk, false);
+			sclk = read_clk(clk, 0x00 + idx, false);
 		}
 	} else {
-		sclk = read_clk(priv, 0x10 + clk, false);
+		sclk = read_clk(clk, 0x10 + idx, false);
 	}
 
 	if (M * P)
@@ -133,32 +133,32 @@ read_pll(struct gt215_clk_priv *priv, int clk, u32 pll)
 }
 
 static int
-gt215_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
+gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
-	struct gt215_clk_priv *priv = (void *)clk;
+	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
 	u32 hsrc;
 
 	switch (src) {
 	case nv_clk_src_crystal:
-		return nv_device(priv)->crystal;
+		return nv_device(clk)->crystal;
 	case nv_clk_src_core:
 	case nv_clk_src_core_intm:
-		return read_pll(priv, 0x00, 0x4200);
+		return read_pll(clk, 0x00, 0x4200);
 	case nv_clk_src_shader:
-		return read_pll(priv, 0x01, 0x4220);
+		return read_pll(clk, 0x01, 0x4220);
 	case nv_clk_src_mem:
-		return read_pll(priv, 0x02, 0x4000);
+		return read_pll(clk, 0x02, 0x4000);
 	case nv_clk_src_disp:
-		return read_clk(priv, 0x20, false);
+		return read_clk(clk, 0x20, false);
 	case nv_clk_src_vdec:
-		return read_clk(priv, 0x21, false);
+		return read_clk(clk, 0x21, false);
 	case nv_clk_src_daemon:
-		return read_clk(priv, 0x25, false);
+		return read_clk(clk, 0x25, false);
 	case nv_clk_src_host:
-		hsrc = (nv_rd32(priv, 0xc040) & 0x30000000) >> 28;
+		hsrc = (nv_rd32(clk, 0xc040) & 0x30000000) >> 28;
 		switch (hsrc) {
 		case 0:
-			return read_clk(priv, 0x1d, false);
+			return read_clk(clk, 0x1d, false);
 		case 2:
 		case 3:
 			return 277000;
@@ -175,10 +175,10 @@ gt215_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 }
 
 int
-gt215_clk_info(struct nvkm_clk *clock, int clk, u32 khz,
+gt215_clk_info(struct nvkm_clk *obj, int idx, u32 khz,
 	       struct gt215_clk_info *info)
 {
-	struct gt215_clk_priv *priv = (void *)clock;
+	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
 	u32 oclk, sclk, sdiv;
 	s32 diff;
 
@@ -195,7 +195,7 @@ gt215_clk_info(struct nvkm_clk *clock, int clk, u32 khz,
 		info->clk = 0x00002140;
 		return khz;
 	default:
-		sclk = read_vco(priv, clk);
+		sclk = read_vco(clk, idx);
 		sdiv = min((sclk * 2) / khz, (u32)65);
 		oclk = (sclk * 2) / sdiv;
 		diff = ((khz + 3000) - oclk);
@@ -223,11 +223,11 @@ gt215_clk_info(struct nvkm_clk *clock, int clk, u32 khz,
 }
 
 int
-gt215_pll_info(struct nvkm_clk *clock, int clk, u32 pll, u32 khz,
+gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
 	       struct gt215_clk_info *info)
 {
 	struct nvkm_bios *bios = nvkm_bios(clock);
-	struct gt215_clk_priv *priv = (void *)clock;
+	struct gt215_clk *clk = (void *)clock;
 	struct nvbios_pll limits;
 	int P, N, M, diff;
 	int ret;
@@ -236,7 +236,7 @@ gt215_pll_info(struct nvkm_clk *clock, int clk, u32 pll, u32 khz,
 
 	/* If we can get a within [-2, 3) MHz of a divider, we'll disable the
 	 * PLL and use the divider instead. */
-	ret = gt215_clk_info(clock, clk, khz, info);
+	ret = gt215_clk_info(clock, idx, khz, info);
 	diff = khz - ret;
 	if (!pll || (diff >= -2000 && diff < 3000)) {
 		goto out;
@@ -247,11 +247,11 @@ gt215_pll_info(struct nvkm_clk *clock, int clk, u32 pll, u32 khz,
 	if (ret)
 		return ret;
 
-	ret = gt215_clk_info(clock, clk - 0x10, limits.refclk, info);
+	ret = gt215_clk_info(clock, idx - 0x10, limits.refclk, info);
 	if (ret != limits.refclk)
 		return -EINVAL;
 
-	ret = gt215_pll_calc(nv_subdev(priv), &limits, khz, &N, NULL, &M, &P);
+	ret = gt215_pll_calc(nv_subdev(clk), &limits, khz, &N, NULL, &M, &P);
 	if (ret >= 0) {
 		info->pll = (P << 16) | (N << 8) | M;
 	}
@@ -262,22 +262,22 @@ out:
 }
 
 static int
-calc_clk(struct gt215_clk_priv *priv, struct nvkm_cstate *cstate,
-	 int clk, u32 pll, int idx)
+calc_clk(struct gt215_clk *clk, struct nvkm_cstate *cstate,
+	 int idx, u32 pll, int dom)
 {
-	int ret = gt215_pll_info(&priv->base, clk, pll, cstate->domain[idx],
-				 &priv->eng[idx]);
+	int ret = gt215_pll_info(&clk->base, idx, pll, cstate->domain[dom],
+				 &clk->eng[dom]);
 	if (ret >= 0)
 		return 0;
 	return ret;
 }
 
 static int
-calc_host(struct gt215_clk_priv *priv, struct nvkm_cstate *cstate)
+calc_host(struct gt215_clk *clk, struct nvkm_cstate *cstate)
 {
 	int ret = 0;
 	u32 kHz = cstate->domain[nv_clk_src_host];
-	struct gt215_clk_info *info = &priv->eng[nv_clk_src_host];
+	struct gt215_clk_info *info = &clk->eng[nv_clk_src_host];
 
 	if (kHz == 277000) {
 		info->clk = 0;
@@ -287,7 +287,7 @@ calc_host(struct gt215_clk_priv *priv, struct nvkm_cstate *cstate)
 
 	info->host_out = NVA3_HOST_CLK;
 
-	ret = gt215_clk_info(&priv->base, 0x1d, kHz, info);
+	ret = gt215_clk_info(&clk->base, 0x1d, kHz, info);
 	if (ret >= 0)
 		return 0;
 
@@ -330,76 +330,76 @@ gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags)
 }
 
 static void
-disable_clk_src(struct gt215_clk_priv *priv, u32 src)
+disable_clk_src(struct gt215_clk *clk, u32 src)
 {
-	nv_mask(priv, src, 0x00000100, 0x00000000);
-	nv_mask(priv, src, 0x00000001, 0x00000000);
+	nv_mask(clk, src, 0x00000100, 0x00000000);
+	nv_mask(clk, src, 0x00000001, 0x00000000);
 }
 
 static void
-prog_pll(struct gt215_clk_priv *priv, int clk, u32 pll, int idx)
+prog_pll(struct gt215_clk *clk, int idx, u32 pll, int dom)
 {
-	struct gt215_clk_info *info = &priv->eng[idx];
-	const u32 src0 = 0x004120 + (clk * 4);
-	const u32 src1 = 0x004160 + (clk * 4);
+	struct gt215_clk_info *info = &clk->eng[dom];
+	const u32 src0 = 0x004120 + (idx * 4);
+	const u32 src1 = 0x004160 + (idx * 4);
 	const u32 ctrl = pll + 0;
 	const u32 coef = pll + 4;
 	u32 bypass;
 
 	if (info->pll) {
 		/* Always start from a non-PLL clock */
-		bypass = nv_rd32(priv, ctrl)  & 0x00000008;
+		bypass = nv_rd32(clk, ctrl)  & 0x00000008;
 		if (!bypass) {
-			nv_mask(priv, src1, 0x00000101, 0x00000101);
-			nv_mask(priv, ctrl, 0x00000008, 0x00000008);
+			nv_mask(clk, src1, 0x00000101, 0x00000101);
+			nv_mask(clk, ctrl, 0x00000008, 0x00000008);
 			udelay(20);
 		}
 
-		nv_mask(priv, src0, 0x003f3141, 0x00000101 | info->clk);
-		nv_wr32(priv, coef, info->pll);
-		nv_mask(priv, ctrl, 0x00000015, 0x00000015);
-		nv_mask(priv, ctrl, 0x00000010, 0x00000000);
-		if (!nv_wait(priv, ctrl, 0x00020000, 0x00020000)) {
-			nv_mask(priv, ctrl, 0x00000010, 0x00000010);
-			nv_mask(priv, src0, 0x00000101, 0x00000000);
+		nv_mask(clk, src0, 0x003f3141, 0x00000101 | info->clk);
+		nv_wr32(clk, coef, info->pll);
+		nv_mask(clk, ctrl, 0x00000015, 0x00000015);
+		nv_mask(clk, ctrl, 0x00000010, 0x00000000);
+		if (!nv_wait(clk, ctrl, 0x00020000, 0x00020000)) {
+			nv_mask(clk, ctrl, 0x00000010, 0x00000010);
+			nv_mask(clk, src0, 0x00000101, 0x00000000);
 			return;
 		}
-		nv_mask(priv, ctrl, 0x00000010, 0x00000010);
-		nv_mask(priv, ctrl, 0x00000008, 0x00000000);
-		disable_clk_src(priv, src1);
+		nv_mask(clk, ctrl, 0x00000010, 0x00000010);
+		nv_mask(clk, ctrl, 0x00000008, 0x00000000);
+		disable_clk_src(clk, src1);
 	} else {
-		nv_mask(priv, src1, 0x003f3141, 0x00000101 | info->clk);
-		nv_mask(priv, ctrl, 0x00000018, 0x00000018);
+		nv_mask(clk, src1, 0x003f3141, 0x00000101 | info->clk);
+		nv_mask(clk, ctrl, 0x00000018, 0x00000018);
 		udelay(20);
-		nv_mask(priv, ctrl, 0x00000001, 0x00000000);
-		disable_clk_src(priv, src0);
+		nv_mask(clk, ctrl, 0x00000001, 0x00000000);
+		disable_clk_src(clk, src0);
 	}
 }
 
 static void
-prog_clk(struct gt215_clk_priv *priv, int clk, int idx)
+prog_clk(struct gt215_clk *clk, int idx, int dom)
 {
-	struct gt215_clk_info *info = &priv->eng[idx];
-	nv_mask(priv, 0x004120 + (clk * 4), 0x003f3141, 0x00000101 | info->clk);
+	struct gt215_clk_info *info = &clk->eng[dom];
+	nv_mask(clk, 0x004120 + (idx * 4), 0x003f3141, 0x00000101 | info->clk);
 }
 
 static void
-prog_host(struct gt215_clk_priv *priv)
+prog_host(struct gt215_clk *clk)
 {
-	struct gt215_clk_info *info = &priv->eng[nv_clk_src_host];
-	u32 hsrc = (nv_rd32(priv, 0xc040));
+	struct gt215_clk_info *info = &clk->eng[nv_clk_src_host];
+	u32 hsrc = (nv_rd32(clk, 0xc040));
 
 	switch (info->host_out) {
 	case NVA3_HOST_277:
 		if ((hsrc & 0x30000000) == 0) {
-			nv_wr32(priv, 0xc040, hsrc | 0x20000000);
-			disable_clk_src(priv, 0x4194);
+			nv_wr32(clk, 0xc040, hsrc | 0x20000000);
+			disable_clk_src(clk, 0x4194);
 		}
 		break;
 	case NVA3_HOST_CLK:
-		prog_clk(priv, 0x1d, nv_clk_src_host);
+		prog_clk(clk, 0x1d, nv_clk_src_host);
 		if ((hsrc & 0x30000000) >= 0x20000000) {
-			nv_wr32(priv, 0xc040, hsrc & ~0x30000000);
+			nv_wr32(clk, 0xc040, hsrc & ~0x30000000);
 		}
 		break;
 	default:
@@ -407,44 +407,44 @@ prog_host(struct gt215_clk_priv *priv)
 	}
 
 	/* This seems to be a clock gating factor on idle, always set to 64 */
-	nv_wr32(priv, 0xc044, 0x3e);
+	nv_wr32(clk, 0xc044, 0x3e);
 }
 
 static void
-prog_core(struct gt215_clk_priv *priv, int idx)
+prog_core(struct gt215_clk *clk, int dom)
 {
-	struct gt215_clk_info *info = &priv->eng[idx];
-	u32 fb_delay = nv_rd32(priv, 0x10002c);
+	struct gt215_clk_info *info = &clk->eng[dom];
+	u32 fb_delay = nv_rd32(clk, 0x10002c);
 
 	if (fb_delay < info->fb_delay)
-		nv_wr32(priv, 0x10002c, info->fb_delay);
+		nv_wr32(clk, 0x10002c, info->fb_delay);
 
-	prog_pll(priv, 0x00, 0x004200, idx);
+	prog_pll(clk, 0x00, 0x004200, dom);
 
 	if (fb_delay > info->fb_delay)
-		nv_wr32(priv, 0x10002c, info->fb_delay);
+		nv_wr32(clk, 0x10002c, info->fb_delay);
 }
 
 static int
-gt215_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
+gt215_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 {
-	struct gt215_clk_priv *priv = (void *)clk;
-	struct gt215_clk_info *core = &priv->eng[nv_clk_src_core];
+	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gt215_clk_info *core = &clk->eng[nv_clk_src_core];
 	int ret;
 
-	if ((ret = calc_clk(priv, cstate, 0x10, 0x4200, nv_clk_src_core)) ||
-	    (ret = calc_clk(priv, cstate, 0x11, 0x4220, nv_clk_src_shader)) ||
-	    (ret = calc_clk(priv, cstate, 0x20, 0x0000, nv_clk_src_disp)) ||
-	    (ret = calc_clk(priv, cstate, 0x21, 0x0000, nv_clk_src_vdec)) ||
-	    (ret = calc_host(priv, cstate)))
+	if ((ret = calc_clk(clk, cstate, 0x10, 0x4200, nv_clk_src_core)) ||
+	    (ret = calc_clk(clk, cstate, 0x11, 0x4220, nv_clk_src_shader)) ||
+	    (ret = calc_clk(clk, cstate, 0x20, 0x0000, nv_clk_src_disp)) ||
+	    (ret = calc_clk(clk, cstate, 0x21, 0x0000, nv_clk_src_vdec)) ||
+	    (ret = calc_host(clk, cstate)))
 		return ret;
 
 	/* XXX: Should be reading the highest bit in the VBIOS clock to decide
 	 * whether to use a PLL or not... but using a PLL defeats the purpose */
 	if (core->pll) {
-		ret = gt215_clk_info(clk, 0x10,
+		ret = gt215_clk_info(&clk->base, 0x10,
 				     cstate->domain[nv_clk_src_core_intm],
-				     &priv->eng[nv_clk_src_core_intm]);
+				     &clk->eng[nv_clk_src_core_intm]);
 		if (ret < 0)
 			return ret;
 	}
@@ -453,37 +453,37 @@ gt215_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
 }
 
 static int
-gt215_clk_prog(struct nvkm_clk *clk)
+gt215_clk_prog(struct nvkm_clk *obj)
 {
-	struct gt215_clk_priv *priv = (void *)clk;
-	struct gt215_clk_info *core = &priv->eng[nv_clk_src_core];
+	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct gt215_clk_info *core = &clk->eng[nv_clk_src_core];
 	int ret = 0;
 	unsigned long flags;
 	unsigned long *f = &flags;
 
-	ret = gt215_clk_pre(clk, f);
+	ret = gt215_clk_pre(&clk->base, f);
 	if (ret)
 		goto out;
 
 	if (core->pll)
-		prog_core(priv, nv_clk_src_core_intm);
+		prog_core(clk, nv_clk_src_core_intm);
 
-	prog_core(priv,  nv_clk_src_core);
-	prog_pll(priv, 0x01, 0x004220, nv_clk_src_shader);
-	prog_clk(priv, 0x20, nv_clk_src_disp);
-	prog_clk(priv, 0x21, nv_clk_src_vdec);
-	prog_host(priv);
+	prog_core(clk,  nv_clk_src_core);
+	prog_pll(clk, 0x01, 0x004220, nv_clk_src_shader);
+	prog_clk(clk, 0x20, nv_clk_src_disp);
+	prog_clk(clk, 0x21, nv_clk_src_vdec);
+	prog_host(clk);
 
 out:
 	if (ret == -EBUSY)
 		f = NULL;
 
-	gt215_clk_post(clk, f);
+	gt215_clk_post(&clk->base, f);
 	return ret;
 }
 
 static void
-gt215_clk_tidy(struct nvkm_clk *clk)
+gt215_clk_tidy(struct nvkm_clk *obj)
 {
 }
 
@@ -505,19 +505,19 @@ gt215_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct gt215_clk_priv *priv;
+	struct gt215_clk *clk;
 	int ret;
 
 	ret = nvkm_clk_create(parent, engine, oclass, gt215_domain,
-			      NULL, 0, true, &priv);
-	*pobject = nv_object(priv);
+			      NULL, 0, true, &clk);
+	*pobject = nv_object(clk);
 	if (ret)
 		return ret;
 
-	priv->base.read = gt215_clk_read;
-	priv->base.calc = gt215_clk_calc;
-	priv->base.prog = gt215_clk_prog;
-	priv->base.tidy = gt215_clk_tidy;
+	clk->base.read = gt215_clk_read;
+	clk->base.calc = gt215_clk_calc;
+	clk->base.prog = gt215_clk_prog;
+	clk->base.tidy = gt215_clk_tidy;
 	return 0;
 }
 

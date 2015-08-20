@@ -28,10 +28,6 @@
 #include <subdev/bios/pll.h>
 #include <subdev/devinit/nv04.h>
 
-struct nv04_clk_priv {
-	struct nvkm_clk base;
-};
-
 int
 nv04_clk_pll_calc(struct nvkm_clk *clock, struct nvbios_pll *info,
 		  int clk, struct nvkm_pll_vals *pv)
@@ -77,17 +73,17 @@ nv04_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct nv04_clk_priv *priv;
+	struct nvkm_clk *clk;
 	int ret;
 
 	ret = nvkm_clk_create(parent, engine, oclass, nv04_domain,
-			      NULL, 0, false, &priv);
-	*pobject = nv_object(priv);
+			      NULL, 0, false, &clk);
+	*pobject = nv_object(clk);
 	if (ret)
 		return ret;
 
-	priv->base.pll_calc = nv04_clk_pll_calc;
-	priv->base.pll_prog = nv04_clk_pll_prog;
+	clk->pll_calc = nv04_clk_pll_calc;
+	clk->pll_prog = nv04_clk_pll_prog;
 	return 0;
 }
 

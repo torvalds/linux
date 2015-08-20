@@ -71,7 +71,7 @@ struct nvkm_domain {
 };
 
 struct nvkm_clk {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	struct nvkm_domain *domains;
 	struct nvkm_pstate bstate;
@@ -117,16 +117,16 @@ nvkm_clk(void *obj)
 	nvkm_clk_create_((p), (e), (o), (i), (r), (s), (n), sizeof(**d),  \
 			      (void **)d)
 #define nvkm_clk_destroy(p) ({                                            \
-	struct nvkm_clk *clk = (p);                                       \
-	_nvkm_clk_dtor(nv_object(clk));                                   \
+	struct nvkm_clk *_clk = (p);                                       \
+	_nvkm_clk_dtor(nv_object(_clk));                                   \
 })
 #define nvkm_clk_init(p) ({                                               \
-	struct nvkm_clk *clk = (p);                                       \
-	_nvkm_clk_init(nv_object(clk));                                   \
+	struct nvkm_clk *_clk = (p);                                       \
+	_nvkm_clk_init(nv_object(_clk));                                   \
 })
 #define nvkm_clk_fini(p,s) ({                                             \
-	struct nvkm_clk *clk = (p);                                       \
-	_nvkm_clk_fini(nv_object(clk), (s));                              \
+	struct nvkm_clk *_clk = (p);                                       \
+	_nvkm_clk_fini(nv_object(_clk), (s));                              \
 })
 
 int  nvkm_clk_create_(struct nvkm_object *, struct nvkm_object *,
