@@ -47,8 +47,6 @@ int  nvkm_device_ctor(const struct nvkm_device_func *,
 int  nvkm_device_init(struct nvkm_device *);
 int  nvkm_device_fini(struct nvkm_device *, bool suspend);
 
-extern struct nvkm_oclass nvkm_control_oclass[];
-
 int nv04_identify(struct nvkm_device *);
 int nv10_identify(struct nvkm_device *);
 int nv20_identify(struct nvkm_device *);

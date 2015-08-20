@@ -274,6 +274,12 @@ enum nv_bus_type {
 
 void nvkm_device_del(struct nvkm_device **);
 
+struct nvkm_device_oclass {
+	int (*ctor)(struct nvkm_device *, const struct nvkm_oclass *,
+		    void *data, u32 size, struct nvkm_object **);
+	struct nvkm_sclass base;
+};
+
 extern const struct nvkm_sclass nvkm_udevice_sclass;
 
 /* device logging */

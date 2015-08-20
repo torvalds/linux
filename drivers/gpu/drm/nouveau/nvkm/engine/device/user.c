@@ -23,6 +23,7 @@
  */
 #define nvkm_udevice(p) container_of((p), struct nvkm_udevice, object)
 #include "priv.h"
+#include "ctrl.h"
 
 #include <core/client.h>
 #include <core/parent.h>
@@ -280,10 +281,8 @@ nvkm_udevice_child_new(const struct nvkm_oclass *oclass,
 		       void *data, u32 size, struct nvkm_object **pobject)
 {
 	struct nvkm_udevice *udev = nvkm_udevice(oclass->parent);
-	const struct nvkm_oclass *sclass = oclass->priv;
-	return nvkm_object_old(&udev->object, NULL,
-			       (struct nvkm_oclass *)sclass,
-			       data, size, pobject);
+	const struct nvkm_device_oclass *sclass = oclass->priv;
+	return sclass->ctor(udev->device, oclass, data, size, pobject);
 }
 
 static int
@@ -297,6 +296,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 		   (1ULL << NVDEV_ENGINE_FIFO) |
 		   (1ULL << NVDEV_ENGINE_DISP) |
 		   (1ULL << NVDEV_ENGINE_PM);
+	const struct nvkm_device_oclass *sclass;
 	int i;
 
 	for (; i = __ffs64(mask), mask; mask &= ~(1ULL << i)) {
@@ -319,16 +319,16 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 		}
 	}
 
-	if (index == 0) {
-		oclass->ctor = nvkm_udevice_child_new;
-		oclass->base.oclass = nvkm_control_oclass[0].handle;
-		oclass->base.minver = -2;
-		oclass->base.maxver = -2;
-		oclass->priv = &nvkm_control_oclass[0];
-		return 0;
+	switch (index) {
+	case 0: sclass = &nvkm_control_oclass; break;
+	default:
+		return -EINVAL;
 	}
 
-	return -EINVAL;
+	oclass->ctor = nvkm_udevice_child_new;
+	oclass->base = sclass->base;
+	oclass->priv = sclass;
+	return 0;
 }
 
 static const struct nvkm_object_func
