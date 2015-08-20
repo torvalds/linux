@@ -24,10 +24,6 @@
 #include <engine/msppp.h>
 #include <engine/falcon.h>
 
-struct g98_msppp_priv {
-	struct nvkm_falcon base;
-};
-
 /*******************************************************************************
  * MSPPP object classes
  ******************************************************************************/
@@ -63,15 +59,15 @@ g98_msppp_cclass = {
 static int
 g98_msppp_init(struct nvkm_object *object)
 {
-	struct g98_msppp_priv *priv = (void *)object;
+	struct nvkm_falcon *msppp = (void *)object;
 	int ret;
 
-	ret = nvkm_falcon_init(&priv->base);
+	ret = nvkm_falcon_init(msppp);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x086010, 0x0000ffd2);
-	nv_wr32(priv, 0x08601c, 0x0000fff2);
+	nv_wr32(msppp, 0x086010, 0x0000ffd2);
+	nv_wr32(msppp, 0x08601c, 0x0000fff2);
 	return 0;
 }
 
@@ -80,18 +76,18 @@ g98_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct g98_msppp_priv *priv;
+	struct nvkm_falcon *msppp;
 	int ret;
 
 	ret = nvkm_falcon_create(parent, engine, oclass, 0x086000, true,
-				 "PMSPPP", "msppp", &priv);
-	*pobject = nv_object(priv);
+				 "PMSPPP", "msppp", &msppp);
+	*pobject = nv_object(msppp);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00400002;
-	nv_engine(priv)->cclass = &g98_msppp_cclass;
-	nv_engine(priv)->sclass = g98_msppp_sclass;
+	nv_subdev(msppp)->unit = 0x00400002;
+	nv_engine(msppp)->cclass = &g98_msppp_cclass;
+	nv_engine(msppp)->sclass = g98_msppp_sclass;
 	return 0;
 }
 
