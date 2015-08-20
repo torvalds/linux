@@ -85,8 +85,10 @@ nv50_bar_flush(struct nvkm_bar *obj)
 	unsigned long flags;
 	spin_lock_irqsave(&bar->lock, flags);
 	nvkm_wr32(device, 0x00330c, 0x00000001);
-	if (!nv_wait(bar, 0x00330c, 0x00000002, 0x00000000))
-		nv_warn(bar, "flush timeout\n");
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x00330c) & 0x00000002))
+			break;
+	);
 	spin_unlock_irqrestore(&bar->lock, flags);
 }
 
@@ -98,8 +100,10 @@ g84_bar_flush(struct nvkm_bar *obj)
 	unsigned long flags;
 	spin_lock_irqsave(&bar->lock, flags);
 	nvkm_wr32(device, 0x070000, 0x00000001);
-	if (!nv_wait(bar, 0x070000, 0x00000002, 0x00000000))
-		nv_warn(bar, "flush timeout\n");
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x070000) & 0x00000002))
+			break;
+	);
 	spin_unlock_irqrestore(&bar->lock, flags);
 }
 
@@ -240,10 +244,11 @@ nv50_bar_init(struct nvkm_object *object)
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
 	nvkm_wr32(device, 0x100c80, 0x00060001);
-	if (!nv_wait(bar, 0x100c80, 0x00000001, 0x00000000)) {
-		nv_error(bar, "vm flush timeout\n");
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
+			break;
+	) < 0)
 		return -EBUSY;
-	}
 
 	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
 	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
