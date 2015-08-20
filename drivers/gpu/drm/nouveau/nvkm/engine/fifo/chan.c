@@ -129,67 +129,6 @@ nvkm_fifo_chan_child_func = {
 };
 
 static int
-nvkm_fifo_chan_child_old(const struct nvkm_oclass *oclass,
-			 void *data, u32 size, struct nvkm_object **pobject)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(oclass->parent);
-	struct nvkm_object *parent = &chan->object;
-	struct nvkm_engine *engine = oclass->engine;
-	struct nvkm_oclass *eclass = (void *)oclass->priv;
-	struct nvkm_object *engctx = NULL;
-	struct nvkm_fifo_chan_object *object;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
-	int ret;
-
-	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_oproxy_ctor(&nvkm_fifo_chan_child_func, oclass, &object->oproxy);
-	*pobject = &object->oproxy.base;
-	object->chan = chan;
-
-	if (!engn->refcount++) {
-		if (chan->vm)
-			atomic_inc(&chan->vm->engref[engine->subdev.index]);
-		if (engine->cclass && !engn->object) {
-			ret = nvkm_object_old(parent, &engine->subdev.object,
-					      engine->cclass, NULL, 0,
-					      &engn->object);
-			if (ret) {
-				nvkm_engine_unref(&engine);
-				return ret;
-			}
-		} else {
-			nvkm_object_ref(parent, &engn->object);
-		}
-
-		if (chan->func->engine_ctor) {
-			ret = chan->func->engine_ctor(chan, engine,
-						      engn->object);
-			if (ret)
-				return ret;
-		}
-	}
-	nvkm_object_ref(engn->object, &engctx);
-
-	ret = nvkm_object_old(engctx, &engine->subdev.object, eclass,
-			      data, size, &object->oproxy.object);
-	nvkm_object_ref(NULL, &engctx);
-	if (ret)
-		return ret;
-
-	object->oproxy.object->handle = oclass->handle;
-
-	if (chan->func->object_ctor) {
-		object->hash =
-			chan->func->object_ctor(chan, object->oproxy.object);
-		if (object->hash < 0)
-			return object->hash;
-	}
-
-	return 0;
-}
-
-static int
 nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 			 struct nvkm_object **pobject)
 {
@@ -269,26 +208,6 @@ nvkm_fifo_chan_child_get(struct nvkm_object *object, int index,
 	int ret, i, c;
 
 	for (; c = 0, i = __ffs64(mask), mask; mask &= ~(1ULL << i)) {
-		if ((engine = nvkm_device_engine(device, i)) &&
-		    !engine->func) {
-			struct nvkm_oclass *sclass = engine->sclass;
-			int c = 0;
-			while (sclass && sclass->ofuncs) {
-				if (c++ == index) {
-					oclass->base.oclass = sclass->handle;
-					oclass->base.minver = -2;
-					oclass->base.maxver = -2;
-					oclass->ctor = nvkm_fifo_chan_child_old;
-					oclass->priv = sclass;
-					oclass->engine = engine;
-					return 0;
-				}
-				sclass++;
-			}
-			index -= c;
-			continue;
-		}
-
 		if (!(engine = nvkm_device_engine(device, i)))
 			continue;
 		oclass->engine = engine;

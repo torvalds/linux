@@ -26,7 +26,6 @@
 #include "ctrl.h"
 
 #include <core/client.h>
-#include <core/parent.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
@@ -248,31 +247,6 @@ done:
 }
 
 static int
-nvkm_udevice_child_old(const struct nvkm_oclass *oclass,
-		       void *data, u32 size, struct nvkm_object **pobject)
-{
-	struct nvkm_object *parent = oclass->parent;
-	struct nvkm_engine *engine = oclass->engine;
-	struct nvkm_oclass *eclass = (void *)oclass->priv;
-	struct nvkm_object *engctx = NULL;
-	int ret;
-
-	if (engine->cclass) {
-		ret = nvkm_object_old(parent, &engine->subdev.object,
-				      engine->cclass, NULL, 0, &engctx);
-		if (ret)
-			return ret;
-	} else {
-		nvkm_object_ref(parent, &engctx);
-	}
-
-	ret = nvkm_object_old(engctx, &engine->subdev.object, eclass,
-			      data, size, pobject);
-	nvkm_object_ref(NULL, &engctx);
-	return ret;
-}
-
-static int
 nvkm_udevice_child_new(const struct nvkm_oclass *oclass,
 		       void *data, u32 size, struct nvkm_object **pobject)
 {
@@ -296,26 +270,6 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	int i;
 
 	for (; i = __ffs64(mask), mask && !sclass; mask &= ~(1ULL << i)) {
-		if ((engine = nvkm_device_engine(device, i)) &&
-		    !engine->func) {
-			struct nvkm_oclass *sclass = engine->sclass;
-			int c = 0;
-			while (sclass && sclass->ofuncs) {
-				if (c++ == index) {
-					oclass->base.oclass = sclass->handle;
-					oclass->base.minver = -2;
-					oclass->base.maxver = -2;
-					oclass->ctor = nvkm_udevice_child_old;
-					oclass->priv = sclass;
-					oclass->engine = engine;
-					return 0;
-				}
-				sclass++;
-			}
-			index -= c;
-			continue;
-		}
-
 		if (!(engine = nvkm_device_engine(device, i)) ||
 		    !(engine->func->base.sclass))
 			continue;

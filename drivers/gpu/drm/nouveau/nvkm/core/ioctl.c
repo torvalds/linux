@@ -25,7 +25,6 @@
 #include <core/client.h>
 #include <core/engine.h>
 #include <core/handle.h>
-#include <core/parent.h>
 
 #include <nvif/unpack.h>
 #include <nvif/ioctl.h>
@@ -65,17 +64,6 @@ nvkm_ioctl_sclass(struct nvkm_handle *handle, void *data, u32 size)
 		if (size != args->v0.count * sizeof(args->v0.oclass[0]))
 			return -EINVAL;
 
-		if (object->oclass) {
-			if (nv_iclass(object, NV_PARENT_CLASS)) {
-				ret = nvkm_parent_lclass(object,
-							 args->v0.oclass,
-							 args->v0.count);
-			}
-
-			args->v0.count = ret;
-			return 0;
-		}
-
 		while (object->func->sclass &&
 		       object->func->sclass(object, i, &oclass) >= 0) {
 			if (i < args->v0.count) {
@@ -93,111 +81,6 @@ nvkm_ioctl_sclass(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_new_old(struct nvkm_handle *handle, void *data, u32 size)
-{
-	union {
-		struct nvif_ioctl_new_v0 v0;
-	} *args = data;
-	struct nvkm_client *client = nvkm_client(handle->object);
-	struct nvkm_object *engctx = NULL;
-	struct nvkm_object *object = NULL;
-	struct nvkm_parent *parent;
-	struct nvkm_engine *engine;
-	struct nvkm_oclass *oclass;
-	u32 _handle, _oclass;
-	int ret;
-
-	nvif_ioctl(handle->object, "new size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
-		_handle = args->v0.handle;
-		_oclass = args->v0.oclass;
-	} else
-		return ret;
-
-	nvif_ioctl(handle->object, "new vers %d handle %08x class %08x "
-				   "route %02x token %llx object %016llx\n",
-		   args->v0.version, _handle, _oclass,
-		   args->v0.route, args->v0.token, args->v0.object);
-
-	if (!nv_iclass(handle->object, NV_PARENT_CLASS)) {
-		nvif_debug(handle->object, "cannot have children (ctor)\n");
-		ret = -ENODEV;
-		goto fail_class;
-	}
-
-	parent = nv_parent(handle->object);
-
-	/* check that parent supports the requested subclass */
-	ret = nvkm_parent_sclass(&parent->object, _oclass,
-				 (struct nvkm_object **)&engine, &oclass);
-	if (ret) {
-		nvif_debug(&parent->object, "illegal class 0x%04x\n", _oclass);
-		goto fail_class;
-	}
-
-	/* make sure engine init has been completed *before* any objects
-	 * it controls are created - the constructors may depend on
-	 * state calculated at init (ie. default context construction)
-	 */
-	if (engine) {
-		engine = nvkm_engine_ref(engine);
-		if (IS_ERR(engine)) {
-			ret = PTR_ERR(engine);
-			engine = NULL;
-			goto fail_class;
-		}
-	}
-
-	/* if engine requires it, create a context object to insert
-	 * between the parent and its children (eg. PGRAPH context)
-	 */
-	if (engine && engine->cclass) {
-		ret = nvkm_object_old(&parent->object, &engine->subdev.object,
-				      engine->cclass, data, size, &engctx);
-		if (ret)
-			goto fail_engctx;
-	} else {
-		nvkm_object_ref(&parent->object, &engctx);
-	}
-
-	/* finally, create new object and bind it to its handle */
-	ret = nvkm_object_old(engctx, &engine->subdev.object, oclass,
-			      data, size, &object);
-	if (ret)
-		goto fail_ctor;
-
-	object->handle = _handle;
-
-	ret = nvkm_object_inc(object);
-	if (ret)
-		goto fail_init;
-
-	ret = nvkm_handle_create(handle, _handle, object, &handle);
-	if (ret)
-		goto fail_handle;
-
-	ret = nvkm_handle_init(handle);
-	handle->route = args->v0.route;
-	handle->token = args->v0.token;
-	if (ret)
-		nvkm_handle_destroy(handle);
-
-	handle->handle = args->v0.object;
-	nvkm_client_insert(client, handle);
-	client->data = object;
-fail_handle:
-	nvkm_object_dec(object, false);
-fail_init:
-	nvkm_object_ref(NULL, &object);
-fail_ctor:
-	nvkm_object_ref(NULL, &engctx);
-fail_engctx:
-	nvkm_engine_unref(&engine);
-fail_class:
-	return ret;
-}
-
-static int
 nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 {
 	union {
@@ -208,9 +91,6 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	struct nvkm_object *object = NULL;
 	struct nvkm_oclass oclass;
 	int ret, i = 0;
-
-	if (parent->oclass)
-		return nvkm_ioctl_new_old(handle, data, size);
 
 	nvif_ioctl(parent, "new size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {

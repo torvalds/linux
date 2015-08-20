@@ -23,7 +23,6 @@
  */
 #include <core/handle.h>
 #include <core/client.h>
-#include <core/parent.h>
 
 #define hprintk(h,l,f,a...) do {                                               \
 	struct nvkm_handle *p = (h)->parent; u32 n = p ? p->name : ~0;         \
@@ -99,7 +98,6 @@ nvkm_handle_create(struct nvkm_handle *parent, u32 _handle,
 		   struct nvkm_object *object, struct nvkm_handle **phandle)
 {
 	struct nvkm_handle *handle;
-	int ret;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
@@ -113,21 +111,8 @@ nvkm_handle_create(struct nvkm_handle *parent, u32 _handle,
 	handle->parent = parent;
 	nvkm_object_ref(object, &handle->object);
 
-	if (parent) {
-		if (nv_iclass(parent->object, NV_PARENT_CLASS) &&
-		    nv_parent(parent->object)->object_attach) {
-			ret = nv_parent(parent->object)->
-				object_attach(parent->object, object, _handle);
-			if (ret < 0) {
-				nvkm_handle_destroy(handle);
-				return ret;
-			}
-
-			handle->priv = ret;
-		}
-
+	if (parent)
 		list_add(&handle->head, &handle->parent->tree);
-	}
 
 	hprintk(handle, TRACE, "created\n");
 	*phandle = handle;
@@ -147,11 +132,6 @@ nvkm_handle_destroy(struct nvkm_handle *handle)
 
 	nvkm_client_remove(client, handle);
 	list_del(&handle->head);
-
-	if (handle->priv != ~0) {
-		struct nvkm_object *parent = handle->parent->object;
-		nv_parent(parent)->object_detach(parent, handle->priv);
-	}
 
 	hprintk(handle, TRACE, "destroy completed\n");
 	nvkm_object_ref(NULL, &handle->object);

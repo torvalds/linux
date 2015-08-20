@@ -1977,7 +1977,6 @@ nv12b_chipset = {
 //	.sw = gf100_sw_new,
 };
 
-#include <core/parent.h>
 #include <core/client.h>
 
 struct nvkm_device *
