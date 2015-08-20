@@ -114,7 +114,6 @@ struct amd_gpu_scheduler {
 	uint32_t			granularity; /* in ms unit */
 	uint32_t			preemption;
 	wait_queue_head_t		wait_queue;
-	struct mutex			sched_lock;
 	uint32_t                        hw_submission_limit;
 };
 

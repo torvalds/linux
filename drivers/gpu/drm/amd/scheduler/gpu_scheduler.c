@@ -302,7 +302,6 @@ static int amd_sched_main(void *param)
 			continue;
 		atomic_inc(&sched->hw_rq_count);
 
-		mutex_lock(&sched->sched_lock);
 		fence = sched->ops->run_job(sched, c_entity, job);
 		if (fence) {
 			r = fence_add_callback(fence, &job->cb,
@@ -313,7 +312,6 @@ static int amd_sched_main(void *param)
 				DRM_ERROR("fence add callback failed (%d)\n", r);
 			fence_put(fence);
 		}
-		mutex_unlock(&sched->sched_lock);
 
 		if (c_entity->need_wakeup) {
 			c_entity->need_wakeup = false;
@@ -356,7 +354,6 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	sched->preemption = preemption;
 	sched->hw_submission_limit = hw_submission;
 	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
-	mutex_init(&sched->sched_lock);
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
 
