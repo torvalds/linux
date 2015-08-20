@@ -140,6 +140,28 @@
 		interrupt-parent = <&gpc>;
 		ranges;
 
+		busfreq {
+			compatible = "fsl,imx_busfreq";
+			clocks = <&clks IMX6SX_CLK_PLL2_BUS>, <&clks IMX6SX_CLK_PLL2_PFD2>,
+				<&clks IMX6SX_CLK_PLL2_198M>, <&clks IMX6SX_CLK_ARM>,
+				<&clks IMX6SX_CLK_PLL3_USB_OTG>, <&clks IMX6SX_CLK_PERIPH>,
+				<&clks IMX6SX_CLK_PERIPH_PRE>, <&clks IMX6SX_CLK_PERIPH_CLK2>,
+				<&clks IMX6SX_CLK_PERIPH_CLK2_SEL>, <&clks IMX6SX_CLK_OSC>,
+				<&clks IMX6SX_CLK_PLL1_SYS>, <&clks IMX6SX_CLK_PERIPH2>,
+				<&clks IMX6SX_CLK_AHB>, <&clks IMX6SX_CLK_OCRAM_PODF>,
+				<&clks IMX6SX_CLK_PLL1_SW>, <&clks IMX6SX_CLK_PERIPH2_PRE>,
+				<&clks IMX6SX_CLK_PERIPH2_CLK2_SEL>, <&clks IMX6SX_CLK_PERIPH2_CLK2>,
+				<&clks IMX6SX_CLK_STEP>, <&clks IMX6SX_CLK_MMDC_PODF>,
+				<&clks IMX6SX_CLK_M4>;
+			clock-names = "pll2_bus", "pll2_pfd2_396m", "pll2_198m", "arm",
+					"pll3_usb_otg", "periph", "periph_pre", "periph_clk2",
+					"periph_clk2_sel", "osc", "pll1_sys", "periph2",
+					"ahb", "ocram", "pll1_sw", "periph2_pre",
+					"periph2_clk2_sel", "periph2_clk2", "step", "mmdc",
+					"m4";
+			fsl,max_ddr_freq = <400000000>;
+		};
+
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
