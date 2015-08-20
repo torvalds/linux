@@ -40,7 +40,13 @@ g94_bus_hwsq_exec(struct nvkm_bus *bus, u32 *data, u32 size)
 	nvkm_mask(device, 0x001098, 0x00000018, 0x00000018);
 	nvkm_wr32(device, 0x00130c, 0x00000001);
 
-	return nv_wait(bus, 0x001308, 0x00000100, 0x00000000) ? 0 : -ETIMEDOUT;
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x001308) & 0x00000100))
+			break;
+	) < 0)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 struct nvkm_oclass *
