@@ -175,6 +175,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.min_timeout = DA9063_WDT_MIN_TIMEOUT;
 	wdt->wdtdev.max_timeout = DA9063_WDT_MAX_TIMEOUT;
 	wdt->wdtdev.timeout = DA9063_WDG_TIMEOUT;
+	wdt->wdtdev.parent = &pdev->dev;
 
 	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 
