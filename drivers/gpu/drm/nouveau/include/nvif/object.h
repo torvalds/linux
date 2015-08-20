@@ -6,7 +6,7 @@
 struct nvif_object {
 	struct nvif_client *client;
 	u32 handle;
-	u32 oclass;
+	s32 oclass;
 	void *priv; /*XXX: hack */
 	struct {
 		void __iomem *ptr;
@@ -14,11 +14,11 @@ struct nvif_object {
 	} map;
 };
 
-int  nvif_object_init(struct nvif_object *, u32 handle, u32 oclass, void *, u32,
+int  nvif_object_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
 		      struct nvif_object *);
 void nvif_object_fini(struct nvif_object *);
 int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
-int  nvif_object_sclass(struct nvif_object *, u32 *, int);
+int  nvif_object_sclass(struct nvif_object *, s32 *, int);
 u32  nvif_object_rd(struct nvif_object *, int, u64);
 void nvif_object_wr(struct nvif_object *, int, u64, u32);
 int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);

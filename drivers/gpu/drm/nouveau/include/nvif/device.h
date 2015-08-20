@@ -9,7 +9,7 @@ struct nvif_device {
 	struct nv_device_info_v0 info;
 };
 
-int  nvif_device_init(struct nvif_object *, u32 handle, u32 oclass, void *, u32,
+int  nvif_device_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
 		      struct nvif_device *);
 void nvif_device_fini(struct nvif_device *);
 u64  nvif_device_time(struct nvif_device *);

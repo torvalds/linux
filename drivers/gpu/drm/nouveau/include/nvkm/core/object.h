@@ -62,7 +62,7 @@ extern struct nvkm_ofuncs nvkm_object_ofuncs;
 /* Don't allocate dynamically, because lockdep needs lock_class_keys to be in
  * ".data". */
 struct nvkm_oclass {
-	u32 handle;
+	s32 handle;
 	struct nvkm_ofuncs * const ofuncs;
 	struct nvkm_omthds * const omthds;
 	struct lock_class_key lock_class_key;

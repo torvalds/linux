@@ -1104,7 +1104,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 	static const struct {
 		const char *name;
 		int engine;
-		u32 oclass;
+		s32 oclass;
 		int (*exec)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);

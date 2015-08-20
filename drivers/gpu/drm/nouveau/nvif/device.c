@@ -37,7 +37,7 @@ nvif_device_fini(struct nvif_device *device)
 }
 
 int
-nvif_device_init(struct nvif_object *parent, u32 handle, u32 oclass,
+nvif_device_init(struct nvif_object *parent, u32 handle, s32 oclass,
 		 void *data, u32 size, struct nvif_device *device)
 {
 	int ret = nvif_object_init(parent, handle, oclass, data, size,

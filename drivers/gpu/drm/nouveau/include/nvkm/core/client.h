@@ -23,19 +23,10 @@ void nvkm_client_remove(struct nvkm_client *, struct nvkm_handle *);
 struct nvkm_handle *nvkm_client_search(struct nvkm_client *, u64 handle);
 
 static inline struct nvkm_client *
-nv_client(void *obj)
-{
-#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	BUG_ON(!nv_iclass(obj, NV_CLIENT_CLASS));
-#endif
-	return obj;
-}
-
-static inline struct nvkm_client *
 nvkm_client(void *obj)
 {
 	struct nvkm_object *client = nv_object(obj);
-	while (client && !(nv_iclass(client, NV_CLIENT_CLASS)))
+	while (client && client->parent)
 		client = client->parent;
 	return (void *)client;
 }

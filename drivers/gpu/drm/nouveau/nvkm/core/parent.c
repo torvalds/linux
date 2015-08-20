@@ -26,7 +26,7 @@
 #include <core/engine.h>
 
 int
-nvkm_parent_sclass(struct nvkm_object *parent, u16 handle,
+nvkm_parent_sclass(struct nvkm_object *parent, s32 handle,
 		   struct nvkm_object **pengine,
 		   struct nvkm_oclass **poclass)
 {
@@ -66,7 +66,7 @@ nvkm_parent_sclass(struct nvkm_object *parent, u16 handle,
 }
 
 int
-nvkm_parent_lclass(struct nvkm_object *parent, u32 *lclass, int size)
+nvkm_parent_lclass(struct nvkm_object *parent, s32 *lclass, int size)
 {
 	struct nvkm_oclass *sclass, *oclass;
 	struct nvkm_engine *engine;

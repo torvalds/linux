@@ -49,7 +49,7 @@ nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)
 }
 
 int
-nvif_object_sclass(struct nvif_object *object, u32 *oclass, int count)
+nvif_object_sclass(struct nvif_object *object, s32 *oclass, int count)
 {
 	struct {
 		struct nvif_ioctl_v0 ioctl;
@@ -65,7 +65,6 @@ nvif_object_sclass(struct nvif_object *object, u32 *oclass, int count)
 	args->sclass.version = 0;
 	args->sclass.count = count;
 
-	memcpy(args->sclass.oclass, oclass, size);
 	ret = nvif_object_ioctl(object, args, sizeof(*args) + size, NULL);
 	ret = ret ? ret : args->sclass.count;
 	memcpy(oclass, args->sclass.oclass, size);
@@ -203,7 +202,7 @@ nvif_object_fini(struct nvif_object *object)
 }
 
 int
-nvif_object_init(struct nvif_object *parent, u32 handle, u32 oclass,
+nvif_object_init(struct nvif_object *parent, u32 handle, s32 oclass,
 		 void *data, u32 size, struct nvif_object *object)
 {
 	struct {

@@ -40,7 +40,7 @@ struct nvif_ioctl_sclass_v0 {
 	__u8  version;
 	__u8  count;
 	__u8  pad02[6];
-	__u32 oclass[];
+	__s32 oclass[];
 };
 
 struct nvif_ioctl_new_v0 {
@@ -52,10 +52,10 @@ struct nvif_ioctl_new_v0 {
 	__u64 object;
 	__u32 handle;
 /* these class numbers are made up by us, and not nvidia-assigned */
-#define NVIF_IOCTL_NEW_V0_PERFMON                                    0x0000ffff
-#define NVIF_IOCTL_NEW_V0_PERFDOM                                    0x0000fffe
-#define NVIF_IOCTL_NEW_V0_CONTROL                                    0x0000fffd
-	__u32 oclass;
+#define NVIF_IOCTL_NEW_V0_CONTROL                                            -1
+#define NVIF_IOCTL_NEW_V0_PERFMON                                            -2
+#define NVIF_IOCTL_NEW_V0_PERFDOM                                            -3
+	__s32 oclass;
 	__u8  data[];		/* class data (class.h) */
 };
 

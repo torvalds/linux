@@ -44,8 +44,8 @@ void _nvkm_parent_dtor(struct nvkm_object *);
 #define _nvkm_parent_init nvkm_object_init
 #define _nvkm_parent_fini nvkm_object_fini
 
-int nvkm_parent_sclass(struct nvkm_object *, u16 handle,
+int nvkm_parent_sclass(struct nvkm_object *, s32 handle,
 		       struct nvkm_object **pengine,
 		       struct nvkm_oclass **poclass);
-int nvkm_parent_lclass(struct nvkm_object *, u32 *, int);
+int nvkm_parent_lclass(struct nvkm_object *, s32 *, int);
 #endif

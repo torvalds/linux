@@ -65,11 +65,11 @@ struct nv50_chan {
 
 static int
 nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
-		 const u32 *oclass, u8 head, void *data, u32 size,
+		 const s32 *oclass, u8 head, void *data, u32 size,
 		 struct nv50_chan *chan)
 {
 	const u32 handle = (oclass[0] << 16) | head;
-	u32 sclass[8];
+	s32 sclass[8];
 	int ret, i;
 
 	chan->device = device;
@@ -117,7 +117,7 @@ nv50_pioc_destroy(struct nv50_pioc *pioc)
 
 static int
 nv50_pioc_create(struct nvif_device *device, struct nvif_object *disp,
-		 const u32 *oclass, u8 head, void *data, u32 size,
+		 const s32 *oclass, u8 head, void *data, u32 size,
 		 struct nv50_pioc *pioc)
 {
 	return nv50_chan_create(device, disp, oclass, head, data, size,
@@ -139,7 +139,7 @@ nv50_curs_create(struct nvif_device *device, struct nvif_object *disp,
 	struct nv50_disp_cursor_v0 args = {
 		.head = head,
 	};
-	static const u32 oclass[] = {
+	static const s32 oclass[] = {
 		GK104_DISP_CURSOR,
 		GF110_DISP_CURSOR,
 		GT214_DISP_CURSOR,
@@ -167,7 +167,7 @@ nv50_oimm_create(struct nvif_device *device, struct nvif_object *disp,
 	struct nv50_disp_cursor_v0 args = {
 		.head = head,
 	};
-	static const u32 oclass[] = {
+	static const s32 oclass[] = {
 		GK104_DISP_OVERLAY,
 		GF110_DISP_OVERLAY,
 		GT214_DISP_OVERLAY,
@@ -216,7 +216,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 
 static int
 nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
-		 const u32 *oclass, u8 head, void *data, u32 size, u64 syncbuf,
+		 const s32 *oclass, u8 head, void *data, u32 size, u64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
 	struct nv50_disp_core_channel_dma_v0 *args = data;
@@ -288,7 +288,7 @@ nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
 	struct nv50_disp_core_channel_dma_v0 args = {
 		.pushbuf = 0xb0007d00,
 	};
-	static const u32 oclass[] = {
+	static const s32 oclass[] = {
 		GM204_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
 		GK110_DISP_CORE_CHANNEL_DMA,
@@ -324,7 +324,7 @@ nv50_base_create(struct nvif_device *device, struct nvif_object *disp,
 		.pushbuf = 0xb0007c00 | head,
 		.head = head,
 	};
-	static const u32 oclass[] = {
+	static const s32 oclass[] = {
 		GK110_DISP_BASE_CHANNEL_DMA,
 		GK104_DISP_BASE_CHANNEL_DMA,
 		GF110_DISP_BASE_CHANNEL_DMA,
@@ -355,7 +355,7 @@ nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
 		.pushbuf = 0xb0007e00 | head,
 		.head = head,
 	};
-	static const u32 oclass[] = {
+	static const s32 oclass[] = {
 		GK104_DISP_OVERLAY_CONTROL_DMA,
 		GF110_DISP_OVERLAY_CONTROL_DMA,
 		GT214_DISP_OVERLAY_CHANNEL_DMA,

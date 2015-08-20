@@ -153,7 +153,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->device;
 	u32 arg0, arg1;
-	u32 sclass[16];
+	s32 sclass[16];
 	int ret, i;
 
 	if (nouveau_noaccel)
