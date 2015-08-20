@@ -35,7 +35,7 @@ nv50_fifo_runlist_update_locked(struct nv50_fifo *fifo)
 	fifo->cur_runlist = !fifo->cur_runlist;
 
 	nvkm_kmap(cur);
-	for (i = fifo->base.min, p = 0; i < fifo->base.max; i++) {
+	for (i = 0, p = 0; i < fifo->base.nr; i++) {
 		if (nvkm_rd32(device, 0x002600 + (i * 4)) & 0x80000000)
 			nvkm_wo32(cur, p++ * 4, i);
 	}
@@ -94,6 +94,15 @@ nv50_fifo_dtor(struct nvkm_object *object)
 	nvkm_fifo_destroy(&fifo->base);
 }
 
+static const struct nvkm_fifo_func
+nv50_fifo_func = {
+	.chan = {
+		&nv50_fifo_dma_oclass,
+		&nv50_fifo_gpfifo_oclass,
+		NULL
+	},
+};
+
 static int
 nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -108,6 +117,8 @@ nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	fifo->base.func = &nv50_fifo_func;
+
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
 			      false, &fifo->runlist[0]);
 	if (ret)
@@ -120,8 +131,6 @@ nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;
-	nv_engine(fifo)->cclass = &nv50_fifo_cclass;
-	nv_engine(fifo)->sclass = nv50_fifo_sclass;
 	fifo->base.pause = nv04_fifo_pause;
 	fifo->base.start = nv04_fifo_start;
 	return 0;

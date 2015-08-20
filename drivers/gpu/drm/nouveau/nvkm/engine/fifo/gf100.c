@@ -58,28 +58,26 @@ gf100_fifo_uevent_func = {
 void
 gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 {
+	struct gf100_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_memory *cur;
-	int i, p;
+	int nr = 0;
 
 	mutex_lock(&nv_subdev(fifo)->mutex);
 	cur = fifo->runlist.mem[fifo->runlist.active];
 	fifo->runlist.active = !fifo->runlist.active;
 
 	nvkm_kmap(cur);
-	for (i = 0, p = 0; i < 128; i++) {
-		struct gf100_fifo_chan *chan = (void *)fifo->base.channel[i];
-		if (chan && chan->state == RUNNING) {
-			nvkm_wo32(cur, p + 0, i);
-			nvkm_wo32(cur, p + 4, 0x00000004);
-			p += 8;
-		}
+	list_for_each_entry(chan, &fifo->chan, head) {
+		nvkm_wo32(cur, (nr * 8) + 0, chan->base.chid);
+		nvkm_wo32(cur, (nr * 8) + 4, 0x00000004);
+		nr++;
 	}
 	nvkm_done(cur);
 
 	nvkm_wr32(device, 0x002270, nvkm_memory_addr(cur) >> 12);
-	nvkm_wr32(device, 0x002274, 0x01f00000 | (p >> 3));
+	nvkm_wr32(device, 0x002274, 0x01f00000 | nr);
 
 	if (wait_event_timeout(fifo->runlist.wait,
 			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
@@ -166,7 +164,8 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	assert_spin_locked(&fifo->base.lock);
 
 	nvkm_mask(device, 0x003004 + (chid * 0x08), 0x00000001, 0x00000000);
-	chan->state = KILLED;
+	list_del_init(&chan->head);
+	chan->killed = true;
 
 	fifo->mask |= 1ULL << nv_engidx(engine);
 	schedule_work(&fifo->fault);
@@ -198,11 +197,15 @@ gf100_fifo_intr_sched_ctxsw(struct gf100_fifo *fifo)
 		(void)save;
 
 		if (busy && unk0 && unk1) {
-			if (!(chan = (void *)fifo->base.channel[chid]))
-				continue;
-			if (!(engine = gf100_fifo_engine(fifo, engn)))
-				continue;
-			gf100_fifo_recover(fifo, engine, chan);
+			list_for_each_entry(chan, &fifo->chan, head) {
+				if (chan->base.chid == chid) {
+					engine = gf100_fifo_engine(fifo, engn);
+					if (!engine)
+						break;
+					gf100_fifo_recover(fifo, engine, chan);
+					break;
+				}
+			}
 		}
 	}
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
@@ -343,7 +346,8 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 		   write ? "write" : "read", (u64)vahi << 32 | valo,
 		   unit, eu ? eu->name : "", client, gpcid, ec ? ec->name : "",
 		   reason, er ? er->name : "", chan ? chan->chid : -1,
-		   (u64)inst << 12,  nvkm_client_name(chan));
+		   (u64)inst << 12,
+		   chan ? chan->object.client->name : "unknown");
 
 	if (engine && chan)
 		gf100_fifo_recover(fifo, engine, (void *)chan);
@@ -369,6 +373,8 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 	u32 chid = nvkm_rd32(device, 0x040120 + (unit * 0x2000)) & 0x7f;
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00003ffc);
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
 	u32 show= stat;
 	char msg[128];
 
@@ -381,11 +387,13 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 
 	if (show) {
 		nvkm_snprintbf(msg, sizeof(msg), gf100_fifo_pbdma_intr, show);
-		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%s] subc %d "
-				   "mthd %04x data %08x\n",
-			   unit, show, msg, chid,
-			   nvkm_client_name_for_fifo_chid(&fifo->base, chid),
+		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
+		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
+				   "subc %d mthd %04x data %08x\n",
+			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
+			   chan ? chan->object.client->name : "unknown",
 			   subc, mthd, data);
+		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 	}
 
 	nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
@@ -579,6 +587,14 @@ gf100_fifo_dtor(struct nvkm_object *object)
 	nvkm_fifo_destroy(&fifo->base);
 }
 
+static const struct nvkm_fifo_func
+gf100_fifo_func = {
+	.chan = {
+		&gf100_fifo_gpfifo_oclass,
+		NULL
+	},
+};
+
 static int
 gf100_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
@@ -594,6 +610,9 @@ gf100_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	fifo->base.func = &gf100_fifo_func;
+
+	INIT_LIST_HEAD(&fifo->chan);
 	INIT_WORK(&fifo->fault, gf100_fifo_recover_work);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
@@ -625,8 +644,6 @@ gf100_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = gf100_fifo_intr;
-	nv_engine(fifo)->cclass = &gf100_fifo_cclass;
-	nv_engine(fifo)->sclass = gf100_fifo_sclass;
 	return 0;
 }
 

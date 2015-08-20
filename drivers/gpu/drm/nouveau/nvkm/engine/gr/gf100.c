@@ -1168,10 +1168,14 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	u32 data = nvkm_rd32(device, 0x400708);
 	u32 code = nvkm_rd32(device, 0x400110);
 	u32 class;
-	int chid;
+	const char *name = "unknown";
+	int chid = -1;
 
 	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
-	chid = chan ? chan->chid : -1;
+	if (chan) {
+		name = chan->object.client->name;
+		chid = chan->chid;
+	}
 
 	if (nv_device(gr)->card_type < NV_E0 || subc < 4)
 		class = nvkm_rd32(device, 0x404200 + (subc * 4));
@@ -1191,8 +1195,8 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 		if (!gf100_gr_mthd_sw(device, class, mthd, data)) {
 			nvkm_error(subdev, "ILLEGAL_MTHD ch %d [%010llx %s] "
 				   "subc %d class %04x mthd %04x data %08x\n",
-				   chid, inst << 12, nvkm_client_name(chan),
-				   subc, class, mthd, data);
+				   chid, inst << 12, name, subc,
+				   class, mthd, data);
 		}
 		nvkm_wr32(device, 0x400100, 0x00000010);
 		stat &= ~0x00000010;
@@ -1201,8 +1205,7 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	if (stat & 0x00000020) {
 		nvkm_error(subdev, "ILLEGAL_CLASS ch %d [%010llx %s] "
 			   "subc %d class %04x mthd %04x data %08x\n",
-			   chid, inst << 12, nvkm_client_name(chan), subc,
-			   class, mthd, data);
+			   chid, inst << 12, name, subc, class, mthd, data);
 		nvkm_wr32(device, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
 	}
@@ -1213,14 +1216,14 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 		nvkm_error(subdev, "DATA_ERROR %08x [%s] ch %d [%010llx %s] "
 				   "subc %d class %04x mthd %04x data %08x\n",
 			   code, en ? en->name : "", chid, inst << 12,
-			   nvkm_client_name(chan), subc, class, mthd, data);
+			   name, subc, class, mthd, data);
 		nvkm_wr32(device, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
 		nvkm_error(subdev, "TRAP ch %d [%010llx %s]\n",
-			   chid, inst << 12, nvkm_client_name(chan));
+			   chid, inst << 12, name);
 		gf100_gr_trap_intr(gr);
 		nvkm_wr32(device, 0x400100, 0x00200000);
 		stat &= ~0x00200000;

@@ -24,6 +24,7 @@
 #include "priv.h"
 
 #include <core/client.h>
+#include <engine/fifo.h>
 
 #include <nvif/class.h>
 
@@ -88,11 +89,19 @@ nvkm_dma_oclass_base = {
 	.ctor = nvkm_dma_oclass_new,
 };
 
+static int
+nvkm_dma_oclass_fifo_new(const struct nvkm_oclass *oclass, void *data, u32 size,
+			 struct nvkm_object **pobject)
+{
+	return nvkm_dma_oclass_new(oclass->engine->subdev.device,
+				   oclass, data, size, pobject);
+}
+
 static const struct nvkm_sclass
 nvkm_dma_sclass[] = {
-	{ 0, 0, NV_DMA_FROM_MEMORY },
-	{ 0, 0, NV_DMA_TO_MEMORY },
-	{ 0, 0, NV_DMA_IN_MEMORY },
+	{ 0, 0, NV_DMA_FROM_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
+	{ 0, 0, NV_DMA_TO_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
+	{ 0, 0, NV_DMA_IN_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
 };
 
 static int
@@ -110,89 +119,21 @@ nvkm_dma_oclass_base_get(struct nvkm_oclass *sclass, int index,
 	return count;
 }
 
+static int
+nvkm_dma_oclass_fifo_get(struct nvkm_oclass *oclass, int index)
+{
+	const int count = ARRAY_SIZE(nvkm_dma_sclass);
+	if (index < count) {
+		oclass->base = nvkm_dma_sclass[index];
+		return index;
+	}
+	return count;
+}
+
 static const struct nvkm_engine_func
 nvkm_dma = {
 	.base.sclass = nvkm_dma_oclass_base_get,
-};
-
-#include <core/gpuobj.h>
-
-static struct nvkm_oclass empty = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.dtor = nvkm_object_destroy,
-		.init = _nvkm_object_init,
-		.fini = _nvkm_object_fini,
-	},
-};
-
-static int
-nvkm_dmaobj_compat_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-			struct nvkm_oclass *oclass, void *data, u32 size,
-			struct nvkm_object **pobject)
-{
-	struct nvkm_oclass hack = {
-		.base.oclass = oclass->handle,
-		.client = nvkm_client(parent),
-		.parent = parent,
-		.engine = nv_engine(engine),
-	};
-	struct nvkm_dma *dma = (void *)engine;
-	struct nvkm_dma_impl *impl = (void *)dma->engine.subdev.object.oclass;
-	struct nvkm_dmaobj *dmaobj = NULL;
-	struct nvkm_gpuobj *gpuobj;
-	int ret;
-
-	ret = impl->class_new(dma, &hack, data, size, &dmaobj);
-	if (dmaobj)
-		*pobject = &dmaobj->object;
-	if (ret)
-		return ret;
-
-	gpuobj = (void *)nv_pclass(parent, NV_GPUOBJ_CLASS);
-
-	ret = dmaobj->func->bind(dmaobj, gpuobj, 16, &gpuobj);
-	nvkm_object_ref(NULL, pobject);
-	if (ret)
-		return ret;
-
-	ret = nvkm_object_create(parent, engine, &empty, 0, pobject);
-	if (ret)
-		return ret;
-
-	gpuobj->object.parent = *pobject;
-	gpuobj->object.engine = &dma->engine;
-	gpuobj->object.oclass = oclass;
-	gpuobj->object.pclass = NV_GPUOBJ_CLASS;
-#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	gpuobj->object._magic = NVKM_OBJECT_MAGIC;
-#endif
-	*pobject = &gpuobj->object;
-	return 0;
-}
-
-static void
-nvkm_dmaobj_compat_dtor(struct nvkm_object *object)
-{
-	struct nvkm_object *parent = object->parent;
-	struct nvkm_gpuobj *gpuobj = (void *)object;
-	nvkm_gpuobj_del(&gpuobj);
-	nvkm_object_ref(NULL, &parent);
-}
-
-static struct nvkm_ofuncs
-nvkm_dmaobj_compat_ofuncs = {
-	.ctor = nvkm_dmaobj_compat_ctor,
-	.dtor = nvkm_dmaobj_compat_dtor,
-	.init = _nvkm_object_init,
-	.fini = _nvkm_object_fini,
-};
-
-static struct nvkm_oclass
-nvkm_dma_compat_sclass[] = {
-	{ NV_DMA_FROM_MEMORY, &nvkm_dmaobj_compat_ofuncs },
-	{ NV_DMA_TO_MEMORY, &nvkm_dmaobj_compat_ofuncs },
-	{ NV_DMA_IN_MEMORY, &nvkm_dmaobj_compat_ofuncs },
-	{}
+	.fifo.sclass = nvkm_dma_oclass_fifo_get,
 };
 
 int
@@ -209,7 +150,6 @@ _nvkm_dma_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	dmaeng->engine.sclass = nvkm_dma_compat_sclass;
 	dmaeng->engine.func = &nvkm_dma;
 	return 0;
 }

@@ -189,12 +189,14 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 	else                     sc = NULL;
 
 	chan = nvkm_fifo_chan_inst(fifo, inst, &flags);
-	nvkm_error(subdev, "trapped %s at %02x%04x%04x on channel "
-			   "%08x [%s] engine %02x [%s] client %02x [%s] "
+	nvkm_error(subdev, "trapped %s at %02x%04x%04x on channel %d [%08x %s] "
+			   "engine %02x [%s] client %02x [%s] "
 			   "subclient %02x [%s] reason %08x [%s]\n",
 		   (trap[5] & 0x00000100) ? "read" : "write",
-		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, inst,
-		   nvkm_client_name(chan), st0, en ? en->name : "",
+		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff,
+		   chan ? chan->chid : -1, inst,
+		   chan ? chan->object.client->name : "unknown",
+		   st0, en ? en->name : "",
 		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
 		   st1, re ? re->name : "");
 	nvkm_fifo_chan_put(fifo, flags, &chan);

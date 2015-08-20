@@ -30,15 +30,14 @@
 #include <nvif/unpack.h>
 
 static int
-g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, void *data, u32 size,
-		       struct nvkm_object **pobject)
+g84_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
+		 void *data, u32 size, struct nvkm_object **pobject)
 {
+	struct nvkm_object *parent = oclass->parent;
 	union {
 		struct nv50_channel_dma_v0 v0;
 	} *args = data;
-	struct nvkm_device *device = parent->engine->subdev.device;
-	struct nv50_fifo_base *base = (void *)parent;
+	struct nv50_fifo *fifo = nv50_fifo(base);
 	struct nv50_fifo_chan *chan;
 	int ret;
 
@@ -48,80 +47,47 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 				   "pushbuf %llx offset %016llx\n",
 			   args->v0.version, args->v0.vm, args->v0.pushbuf,
 			   args->v0.offset);
-		if (args->v0.vm)
-			return -ENOENT;
+		if (!args->v0.pushbuf)
+			return -EINVAL;
 	} else
 		return ret;
 
-	ret = nvkm_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
-				       0x2000, args->v0.pushbuf,
-				       (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				       (1ULL << NVDEV_ENGINE_SW) |
-				       (1ULL << NVDEV_ENGINE_GR) |
-				       (1ULL << NVDEV_ENGINE_MPEG) |
-				       (1ULL << NVDEV_ENGINE_ME) |
-				       (1ULL << NVDEV_ENGINE_VP) |
-				       (1ULL << NVDEV_ENGINE_CIPHER) |
-				       (1ULL << NVDEV_ENGINE_SEC) |
-				       (1ULL << NVDEV_ENGINE_BSP) |
-				       (1ULL << NVDEV_ENGINE_MSVLD) |
-				       (1ULL << NVDEV_ENGINE_MSPDEC) |
-				       (1ULL << NVDEV_ENGINE_MSPPP) |
-				       (1ULL << NVDEV_ENGINE_CE0) |
-				       (1ULL << NVDEV_ENGINE_VIC), &chan);
-	*pobject = nv_object(chan);
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->base.object;
+
+	ret = g84_fifo_chan_ctor(fifo, args->v0.vm, args->v0.pushbuf,
+				 oclass, chan);
 	if (ret)
 		return ret;
 
-	chan->base.inst = base->base.gpuobj.addr;
 	args->v0.chid = chan->base.chid;
 
-	ret = nvkm_ramht_new(device, 0x8000, 16, &base->base.gpuobj,
-			     &chan->ramht);
-	if (ret)
-		return ret;
-
-	nv_parent(chan)->context_attach = g84_fifo_context_attach;
-	nv_parent(chan)->context_detach = g84_fifo_context_detach;
-	nv_parent(chan)->object_attach = g84_fifo_object_attach;
-	nv_parent(chan)->object_detach = nv50_fifo_object_detach;
-
-	nvkm_kmap(base->ramfc);
-	nvkm_wo32(base->ramfc, 0x08, lower_32_bits(args->v0.offset));
-	nvkm_wo32(base->ramfc, 0x0c, upper_32_bits(args->v0.offset));
-	nvkm_wo32(base->ramfc, 0x10, lower_32_bits(args->v0.offset));
-	nvkm_wo32(base->ramfc, 0x14, upper_32_bits(args->v0.offset));
-	nvkm_wo32(base->ramfc, 0x3c, 0x003f6078);
-	nvkm_wo32(base->ramfc, 0x44, 0x01003fff);
-	nvkm_wo32(base->ramfc, 0x48, chan->base.pushgpu->node->offset >> 4);
-	nvkm_wo32(base->ramfc, 0x4c, 0xffffffff);
-	nvkm_wo32(base->ramfc, 0x60, 0x7fffffff);
-	nvkm_wo32(base->ramfc, 0x78, 0x00000000);
-	nvkm_wo32(base->ramfc, 0x7c, 0x30000001);
-	nvkm_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
+	nvkm_kmap(chan->ramfc);
+	nvkm_wo32(chan->ramfc, 0x08, lower_32_bits(args->v0.offset));
+	nvkm_wo32(chan->ramfc, 0x0c, upper_32_bits(args->v0.offset));
+	nvkm_wo32(chan->ramfc, 0x10, lower_32_bits(args->v0.offset));
+	nvkm_wo32(chan->ramfc, 0x14, upper_32_bits(args->v0.offset));
+	nvkm_wo32(chan->ramfc, 0x3c, 0x003f6078);
+	nvkm_wo32(chan->ramfc, 0x44, 0x01003fff);
+	nvkm_wo32(chan->ramfc, 0x48, chan->base.push->node->offset >> 4);
+	nvkm_wo32(chan->ramfc, 0x4c, 0xffffffff);
+	nvkm_wo32(chan->ramfc, 0x60, 0x7fffffff);
+	nvkm_wo32(chan->ramfc, 0x78, 0x00000000);
+	nvkm_wo32(chan->ramfc, 0x7c, 0x30000001);
+	nvkm_wo32(chan->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
 				     (chan->ramht->gpuobj->node->offset >> 4));
-	nvkm_wo32(base->ramfc, 0x88, base->cache->addr >> 10);
-	nvkm_wo32(base->ramfc, 0x98, nv_gpuobj(base)->addr >> 12);
-	nvkm_done(base->ramfc);
+	nvkm_wo32(chan->ramfc, 0x88, chan->cache->addr >> 10);
+	nvkm_wo32(chan->ramfc, 0x98, chan->base.inst->addr >> 12);
+	nvkm_done(chan->ramfc);
 	return 0;
 }
 
-static struct nvkm_ofuncs
-g84_fifo_ofuncs_dma = {
-	.ctor = g84_fifo_chan_ctor_dma,
-	.dtor = nv50_fifo_chan_dtor,
-	.init = g84_fifo_chan_init,
-	.fini = nv50_fifo_chan_fini,
-	.map  = _nvkm_fifo_channel_map,
-	.rd32 = _nvkm_fifo_channel_rd32,
-	.wr32 = _nvkm_fifo_channel_wr32,
-	.ntfy = _nvkm_fifo_channel_ntfy
-};
-
-struct nvkm_oclass
-g84_fifo_sclass[] = {
-	{ G82_CHANNEL_DMA, &g84_fifo_ofuncs_dma },
-	{ G82_CHANNEL_GPFIFO, &g84_fifo_ofuncs_ind },
-	{}
+const struct nvkm_fifo_chan_oclass
+g84_fifo_dma_oclass = {
+	.base.oclass = G82_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = g84_fifo_dma_new,
 };

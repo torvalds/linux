@@ -31,36 +31,47 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
-static int
-nv40_fifo_context_detach(struct nvkm_object *parent, bool suspend,
-			 struct nvkm_object *engctx)
+static bool
+nv40_fifo_dma_engine(struct nvkm_engine *engine, u32 *reg, u32 *ctx)
 {
-	struct nv04_fifo *fifo = (void *)parent->engine;
-	struct nv04_fifo_chan *chan = (void *)parent;
+	switch (engine->subdev.index) {
+	case NVDEV_ENGINE_DMAOBJ:
+	case NVDEV_ENGINE_SW:
+		return false;
+	case NVDEV_ENGINE_GR:
+		*reg = 0x0032e0;
+		*ctx = 0x38;
+		return true;
+	case NVDEV_ENGINE_MPEG:
+		*reg = 0x00330c;
+		*ctx = 0x54;
+		return true;
+	default:
+		WARN_ON(1);
+		return false;
+	}
+}
+
+static int
+nv40_fifo_dma_engine_fini(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine, bool suspend)
+{
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	struct nv04_fifo *fifo = chan->fifo;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_instmem *imem = device->imem;
 	unsigned long flags;
 	u32 reg, ctx;
+	int chid;
 
-	switch (nv_engidx(engctx->engine)) {
-	case NVDEV_ENGINE_SW:
+	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
 		return 0;
-	case NVDEV_ENGINE_GR:
-		reg = 0x32e0;
-		ctx = 0x38;
-		break;
-	case NVDEV_ENGINE_MPEG:
-		reg = 0x330c;
-		ctx = 0x54;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000000);
 
-	if ((nvkm_rd32(device, 0x003204) & fifo->base.max) == chan->base.chid)
+	chid = nvkm_rd32(device, 0x003204) & (fifo->base.nr - 1);
+	if (chid == chan->base.chid)
 		nvkm_wr32(device, reg, 0x00000000);
 	nvkm_kmap(imem->ramfc);
 	nvkm_wo32(imem->ramfc, chan->ramfc + ctx, 0x00000000);
@@ -72,38 +83,29 @@ nv40_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 }
 
 static int
-nv40_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *engctx)
+nv40_fifo_dma_engine_init(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine)
 {
-	struct nv04_fifo *fifo = (void *)parent->engine;
-	struct nv04_fifo_chan *chan = (void *)parent;
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	struct nv04_fifo *fifo = chan->fifo;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_instmem *imem = device->imem;
 	unsigned long flags;
-	u32 reg, ctx;
+	u32 inst, reg, ctx;
+	int chid;
 
-	switch (nv_engidx(engctx->engine)) {
-	case NVDEV_ENGINE_SW:
+	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
 		return 0;
-	case NVDEV_ENGINE_GR:
-		reg = 0x32e0;
-		ctx = 0x38;
-		break;
-	case NVDEV_ENGINE_MPEG:
-		reg = 0x330c;
-		ctx = 0x54;
-		break;
-	default:
-		return -EINVAL;
-	}
+	inst = chan->engn[engine->subdev.index]->addr >> 4;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	nv_engctx(engctx)->addr = nv_gpuobj(engctx)->addr >> 4;
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000000);
 
-	if ((nvkm_rd32(device, 0x003204) & fifo->base.max) == chan->base.chid)
-		nvkm_wr32(device, reg, nv_engctx(engctx)->addr);
+	chid = nvkm_rd32(device, 0x003204) & (fifo->base.nr - 1);
+	if (chid == chan->base.chid)
+		nvkm_wr32(device, reg, inst);
 	nvkm_kmap(imem->ramfc);
-	nvkm_wo32(imem->ramfc, chan->ramfc + ctx, nv_engctx(engctx)->addr);
+	nvkm_wo32(imem->ramfc, chan->ramfc + ctx, inst);
 	nvkm_done(imem->ramfc);
 
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000001);
@@ -111,57 +113,91 @@ nv40_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *engctx)
 	return 0;
 }
 
-static int
-nv40_fifo_object_attach(struct nvkm_object *parent,
-			struct nvkm_object *object, u32 handle)
+static void
+nv40_fifo_dma_engine_dtor(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine)
 {
-	struct nv04_fifo *fifo = (void *)parent->engine;
-	struct nv04_fifo_chan *chan = (void *)parent;
-	struct nvkm_instmem *imem = fifo->base.engine.subdev.device->imem;
-	u32 context, chid = chan->base.chid;
-	int ret;
-
-	if (nv_iclass(object, NV_GPUOBJ_CLASS))
-		context = nv_gpuobj(object)->addr >> 4;
-	else
-		context = 0x00000004; /* just non-zero */
-
-	if (object->engine) {
-		switch (nv_engidx(object->engine)) {
-		case NVDEV_ENGINE_DMAOBJ:
-		case NVDEV_ENGINE_SW:
-			context |= 0x00000000;
-			break;
-		case NVDEV_ENGINE_GR:
-			context |= 0x00100000;
-			break;
-		case NVDEV_ENGINE_MPEG:
-			context |= 0x00200000;
-			break;
-		default:
-			return -EINVAL;
-		}
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	if (!chan->engn[engine->subdev.index] ||
+	     chan->engn[engine->subdev.index]->object.oclass) {
+		chan->engn[engine->subdev.index] = NULL;
+		return;
 	}
-
-	context |= chid << 23;
-
-	mutex_lock(&nv_subdev(fifo)->mutex);
-	ret = nvkm_ramht_insert(imem->ramht, NULL, chid, 0, handle, context);
-	mutex_unlock(&nv_subdev(fifo)->mutex);
-	return ret;
+	nvkm_gpuobj_del(&chan->engn[engine->subdev.index]);
 }
 
 static int
-nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
+nv40_fifo_dma_engine_ctor(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine,
+			  struct nvkm_object *object)
 {
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	const int engn = engine->subdev.index;
+	u32 reg, ctx;
+
+	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
+		return 0;
+
+	if (nv_iclass(object, NV_GPUOBJ_CLASS)) {
+		chan->engn[engn] = nv_gpuobj(object);
+		return 0;
+	}
+
+	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
+}
+
+static int
+nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
+			  struct nvkm_object *object)
+{
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	struct nvkm_instmem *imem = chan->fifo->base.engine.subdev.device->imem;
+	u32 context = chan->base.chid << 23;
+	u32 handle  = object->handle;
+	int hash;
+
+	switch (object->engine->subdev.index) {
+	case NVDEV_ENGINE_DMAOBJ:
+	case NVDEV_ENGINE_SW    : context |= 0x00000000; break;
+	case NVDEV_ENGINE_GR    : context |= 0x00100000; break;
+	case NVDEV_ENGINE_MPEG  : context |= 0x00200000; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	mutex_lock(&chan->fifo->base.engine.subdev.mutex);
+	hash = nvkm_ramht_insert(imem->ramht, object, chan->base.chid, 4,
+				 handle, context);
+	mutex_unlock(&chan->fifo->base.engine.subdev.mutex);
+	return hash;
+}
+
+static const struct nvkm_fifo_chan_func
+nv40_fifo_dma_func = {
+	.dtor = nv04_fifo_dma_dtor,
+	.init = nv04_fifo_dma_init,
+	.fini = nv04_fifo_dma_fini,
+	.engine_ctor = nv40_fifo_dma_engine_ctor,
+	.engine_dtor = nv40_fifo_dma_engine_dtor,
+	.engine_init = nv40_fifo_dma_engine_init,
+	.engine_fini = nv40_fifo_dma_engine_fini,
+	.object_ctor = nv40_fifo_dma_object_ctor,
+	.object_dtor = nv04_fifo_dma_object_dtor,
+};
+
+static int
+nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
+		  void *data, u32 size, struct nvkm_object **pobject)
+{
+	struct nvkm_object *parent = oclass->parent;
 	union {
 		struct nv03_channel_dma_v0 v0;
 	} *args = data;
-	struct nv04_fifo *fifo = (void *)engine;
-	struct nvkm_instmem *imem = fifo->base.engine.subdev.device->imem;
-	struct nv04_fifo_chan *chan;
+	struct nv04_fifo *fifo = nv04_fifo(base);
+	struct nv04_fifo_chan *chan = NULL;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_instmem *imem = device->imem;
 	int ret;
 
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
@@ -169,31 +205,33 @@ nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		nvif_ioctl(parent, "create channel dma vers %d pushbuf %llx "
 				   "offset %08x\n", args->v0.version,
 			   args->v0.pushbuf, args->v0.offset);
+		if (!args->v0.pushbuf)
+			return -EINVAL;
 	} else
 		return ret;
 
-	ret = nvkm_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
-				       0x1000, args->v0.pushbuf,
-				       (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				       (1ULL << NVDEV_ENGINE_SW) |
-				       (1ULL << NVDEV_ENGINE_GR) |
-				       (1ULL << NVDEV_ENGINE_MPEG), &chan);
-	*pobject = nv_object(chan);
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->base.object;
+
+	ret = nvkm_fifo_chan_ctor(&nv40_fifo_dma_func, &fifo->base,
+				  0x1000, 0x1000, false, 0, args->v0.pushbuf,
+				  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+				  (1ULL << NVDEV_ENGINE_GR) |
+				  (1ULL << NVDEV_ENGINE_MPEG) |
+				  (1ULL << NVDEV_ENGINE_SW),
+				  0, 0xc00000, 0x1000, oclass, &chan->base);
+	chan->fifo = fifo;
 	if (ret)
 		return ret;
 
 	args->v0.chid = chan->base.chid;
-
-	nv_parent(chan)->context_attach = nv40_fifo_context_attach;
-	nv_parent(chan)->context_detach = nv40_fifo_context_detach;
-	nv_parent(chan)->object_attach = nv40_fifo_object_attach;
-	nv_parent(chan)->object_detach = nv04_fifo_object_detach;
 	chan->ramfc = chan->base.chid * 128;
 
 	nvkm_kmap(imem->ramfc);
 	nvkm_wo32(imem->ramfc, chan->ramfc + 0x00, args->v0.offset);
 	nvkm_wo32(imem->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nvkm_wo32(imem->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x0c, chan->base.push->addr >> 4);
 	nvkm_wo32(imem->ramfc, chan->ramfc + 0x18, 0x30000000 |
 			       NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			       NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
@@ -206,20 +244,10 @@ nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	return 0;
 }
 
-static struct nvkm_ofuncs
-nv40_fifo_ofuncs = {
-	.ctor = nv40_fifo_chan_ctor,
-	.dtor = nv04_fifo_chan_dtor,
-	.init = nv04_fifo_chan_init,
-	.fini = nv04_fifo_chan_fini,
-	.map  = _nvkm_fifo_channel_map,
-	.rd32 = _nvkm_fifo_channel_rd32,
-	.wr32 = _nvkm_fifo_channel_wr32,
-	.ntfy = _nvkm_fifo_channel_ntfy
-};
-
-struct nvkm_oclass
-nv40_fifo_sclass[] = {
-	{ NV40_CHANNEL_DMA, &nv40_fifo_ofuncs },
-	{}
+const struct nvkm_fifo_chan_oclass
+nv40_fifo_dma_oclass = {
+	.base.oclass = NV40_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv40_fifo_dma_new,
 };

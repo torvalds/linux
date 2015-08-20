@@ -231,6 +231,8 @@ nvkm_gpuobj_destroy(struct nvkm_gpuobj *gpuobj)
 	nvkm_object_destroy(&gpuobj->object);
 }
 
+#include <engine/fifo.h>
+
 int
 nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		    struct nvkm_oclass *oclass, u32 pclass,
@@ -240,11 +242,19 @@ nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_device *device = nv_device(parent);
 	struct nvkm_gpuobj *pargpu = NULL;
 	struct nvkm_gpuobj *gpuobj;
+	struct nvkm_object *object = objgpu;
 	const bool zero = (flags & NVOBJ_FLAG_ZERO_ALLOC);
 	int ret;
 
 	*pobject = NULL;
 
+	while (object && object->func != &nvkm_fifo_chan_func)
+		object = object->parent;
+
+	if (object) {
+		struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+		pargpu = chan->inst;
+	} else
 	if (objgpu) {
 		while ((objgpu = nv_pclass(objgpu, NV_GPUOBJ_CLASS))) {
 			if (nv_gpuobj(objgpu)->heap.block_size)

@@ -121,9 +121,10 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 	if (stat) {
 		nvkm_snprintbf(msg, sizeof(msg), g84_cipher_intr_mask, stat);
 		nvkm_error(subdev,  "%08x [%s] ch %d [%010llx %s] "
-				    "mthd %04x data %08x\n",
-			   stat, msg, chan ? chan->chid : -1, (u64)inst << 12,
-			   nvkm_client_name(chan), mthd, data);
+				    "mthd %04x data %08x\n", stat, msg,
+			   chan ? chan->chid : -1, (u64)inst << 12,
+			   chan ? chan->object.client->name : "unknown",
+			   mthd, data);
 	}
 	nvkm_fifo_chan_put(fifo, flags, &chan);
 

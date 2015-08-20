@@ -42,6 +42,7 @@ struct nvkm_engine_func {
 		int (*sclass)(struct nvkm_oclass *, int index);
 	} fifo;
 
+	const struct nvkm_object_func *cclass;
 	struct nvkm_sclass sclass[];
 };
 

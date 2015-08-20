@@ -231,8 +231,8 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 	if (show) {
 		nvkm_error(subdev, "ch %d [%s] %08x %08x %08x %08x\n",
 			   mpeg->chan ? mpeg->chan->fifo->chid : -1,
-			   nvkm_client_name(mpeg->chan),
-			   stat, type, mthd, data);
+			   mpeg->chan ? mpeg->chan->fifo->object.client->name :
+			   "unknown", stat, type, mthd, data);
 	}
 
 	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);

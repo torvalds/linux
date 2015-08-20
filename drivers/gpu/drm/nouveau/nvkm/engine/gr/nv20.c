@@ -230,7 +230,8 @@ nv20_gr_intr(struct nvkm_subdev *subdev)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   nvkm_client_name(chan), subc, class, mthd, data);
+			   chan ? chan->object.client->name : "unknown",
+			   subc, class, mthd, data);
 	}
 
 	nvkm_fifo_chan_put(device->fifo, flags, &chan);

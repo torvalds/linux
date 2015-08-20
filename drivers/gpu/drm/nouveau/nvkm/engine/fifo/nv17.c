@@ -47,19 +47,6 @@ nv17_ramfc[] = {
 	{}
 };
 
-static struct nvkm_oclass
-nv17_fifo_cclass = {
-	.handle = NV_ENGCTX(FIFO, 0x17),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fifo_context_ctor,
-		.dtor = _nvkm_fifo_context_dtor,
-		.init = _nvkm_fifo_context_init,
-		.fini = _nvkm_fifo_context_fini,
-		.rd32 = _nvkm_fifo_context_rd32,
-		.wr32 = _nvkm_fifo_context_wr32,
-	},
-};
-
 static int
 nv17_fifo_init(struct nvkm_object *object)
 {
@@ -85,7 +72,7 @@ nv17_fifo_init(struct nvkm_object *object)
 	nvkm_wr32(device, NV03_PFIFO_RAMFC, nvkm_memory_addr(ramfc) >> 8 |
 					    0x00010000);
 
-	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.max);
+	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.nr - 1);
 
 	nvkm_wr32(device, NV03_PFIFO_INTR_0, 0xffffffff);
 	nvkm_wr32(device, NV03_PFIFO_INTR_EN_0, 0xffffffff);
@@ -95,6 +82,14 @@ nv17_fifo_init(struct nvkm_object *object)
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
 	return 0;
 }
+
+static const struct nvkm_fifo_func
+nv17_fifo_func = {
+	.chan = {
+		&nv17_fifo_dma_oclass,
+		NULL
+	},
+};
 
 static int
 nv17_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -109,10 +104,10 @@ nv17_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	fifo->base.func = &nv17_fifo_func;
+
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;
-	nv_engine(fifo)->cclass = &nv17_fifo_cclass;
-	nv_engine(fifo)->sclass = nv17_fifo_sclass;
 	fifo->base.pause = nv04_fifo_pause;
 	fifo->base.start = nv04_fifo_start;
 	fifo->ramfc_desc = nv17_ramfc;

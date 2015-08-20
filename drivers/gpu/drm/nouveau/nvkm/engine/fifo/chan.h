@@ -2,27 +2,31 @@
 #define __NVKM_FIFO_CHAN_H__
 #include "priv.h"
 
-#define nvkm_fifo_channel_create(p,e,c,b,a,s,n,m,d)                         \
-	nvkm_fifo_channel_create_((p), (e), (c), (b), (a), (s), (n),        \
-				     (m), sizeof(**d), (void **)d)
-#define nvkm_fifo_channel_init(p)                                           \
-	nvkm_namedb_init(&(p)->namedb)
-#define nvkm_fifo_channel_fini(p,s)                                         \
-	nvkm_namedb_fini(&(p)->namedb, (s))
+struct nvkm_fifo_chan_func {
+	void *(*dtor)(struct nvkm_fifo_chan *);
+	void (*init)(struct nvkm_fifo_chan *);
+	void (*fini)(struct nvkm_fifo_chan *);
+	int (*ntfy)(struct nvkm_fifo_chan *, u32 type, struct nvkm_event **);
+	int  (*engine_ctor)(struct nvkm_fifo_chan *, struct nvkm_engine *,
+			    struct nvkm_object *);
+	void (*engine_dtor)(struct nvkm_fifo_chan *, struct nvkm_engine *);
+	int  (*engine_init)(struct nvkm_fifo_chan *, struct nvkm_engine *);
+	int  (*engine_fini)(struct nvkm_fifo_chan *, struct nvkm_engine *,
+			    bool suspend);
+	int  (*object_ctor)(struct nvkm_fifo_chan *, struct nvkm_object *);
+	void (*object_dtor)(struct nvkm_fifo_chan *, int);
+};
 
-int  nvkm_fifo_channel_create_(struct nvkm_object *,
-				  struct nvkm_object *,
-				  struct nvkm_oclass *,
-				  int bar, u32 addr, u32 size, u64 push,
-				  u64 engmask, int len, void **);
-void nvkm_fifo_channel_destroy(struct nvkm_fifo_chan *);
+int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,
+			u32 size, u32 align, bool zero, u64 vm, u64 push,
+			u64 engines, int bar, u32 base, u32 user,
+			const struct nvkm_oclass *, struct nvkm_fifo_chan *);
 
-#define _nvkm_fifo_channel_init _nvkm_namedb_init
-#define _nvkm_fifo_channel_fini _nvkm_namedb_fini
+struct nvkm_fifo_chan_oclass {
+	int (*ctor)(struct nvkm_fifo *, const struct nvkm_oclass *,
+		    void *data, u32 size, struct nvkm_object **);
+	struct nvkm_sclass base;
+};
 
-void _nvkm_fifo_channel_dtor(struct nvkm_object *);
-int  _nvkm_fifo_channel_map(struct nvkm_object *, u64 *, u32 *);
-u32  _nvkm_fifo_channel_rd32(struct nvkm_object *, u64);
-void _nvkm_fifo_channel_wr32(struct nvkm_object *, u64, u32);
-int  _nvkm_fifo_channel_ntfy(struct nvkm_object *, u32, struct nvkm_event **);
+int g84_fifo_chan_ntfy(struct nvkm_fifo_chan *, u32, struct nvkm_event **);
 #endif

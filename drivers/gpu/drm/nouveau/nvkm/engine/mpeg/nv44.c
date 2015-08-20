@@ -145,13 +145,11 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	u32 mthd = nvkm_rd32(device, 0x00b234);
 	u32 data = nvkm_rd32(device, 0x00b238);
 	u32 show = stat;
-	int chid = -1;
 
 	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
 	list_for_each_entry(temp, &mpeg->chan, head) {
 		if (temp->inst >> 4 == inst) {
 			chan = temp;
-			chid = chan->fifo->chid;
 			list_del(&chan->head);
 			list_add(&chan->head, &mpeg->chan);
 			break;
@@ -176,7 +174,8 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 
 	if (show) {
 		nvkm_error(subdev, "ch %d [%08x %s] %08x %08x %08x %08x\n",
-			   chid, inst << 4, nvkm_client_name(chan),
+			   chan ? chan->fifo->chid : -1, inst << 4,
+			   chan ? chan->fifo->object.client->name : "unknown",
 			   stat, type, mthd, data);
 	}
 

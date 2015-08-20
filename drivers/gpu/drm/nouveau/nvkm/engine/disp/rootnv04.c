@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#define nv04_disp_root(p) container_of((p), struct nv04_disp_root, object);
+#define nv04_disp_root(p) container_of((p), struct nv04_disp_root, object)
 #include "priv.h"
 
 #include <core/client.h>

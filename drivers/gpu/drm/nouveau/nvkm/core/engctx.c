@@ -124,58 +124,12 @@ nvkm_engctx_destroy(struct nvkm_engctx *engctx)
 int
 nvkm_engctx_init(struct nvkm_engctx *engctx)
 {
-	struct nvkm_object *object = nv_object(engctx);
-	struct nvkm_subdev *subdev = nv_subdev(object->engine);
-	struct nvkm_object *parent;
-	struct nvkm_subdev *pardev;
-	int ret;
-
-	ret = nvkm_gpuobj_init(&engctx->gpuobj);
-	if (ret)
-		return ret;
-
-	parent = nv_pclass(object->parent, NV_PARENT_CLASS);
-	pardev = nv_subdev(parent->engine);
-	if (nv_parent(parent)->context_attach) {
-		mutex_lock(&pardev->mutex);
-		ret = nv_parent(parent)->context_attach(parent, object);
-		mutex_unlock(&pardev->mutex);
-	}
-
-	if (ret) {
-		nvkm_error(pardev, "failed to attach %s context, %d\n",
-			   nvkm_subdev_name[subdev->index], ret);
-		return ret;
-	}
-
-	nvkm_trace(pardev, "attached %s context\n", nvkm_subdev_name[subdev->index]);
-	return 0;
+	return nvkm_gpuobj_init(&engctx->gpuobj);
 }
 
 int
 nvkm_engctx_fini(struct nvkm_engctx *engctx, bool suspend)
 {
-	struct nvkm_object *object = nv_object(engctx);
-	struct nvkm_subdev *subdev = nv_subdev(object->engine);
-	struct nvkm_object *parent;
-	struct nvkm_subdev *pardev;
-	int ret = 0;
-
-	parent = nv_pclass(object->parent, NV_PARENT_CLASS);
-	pardev = nv_subdev(parent->engine);
-	if (nv_parent(parent)->context_detach) {
-		mutex_lock(&pardev->mutex);
-		ret = nv_parent(parent)->context_detach(parent, suspend, object);
-		mutex_unlock(&pardev->mutex);
-	}
-
-	if (ret) {
-		nvkm_error(pardev, "failed to detach %s context, %d\n",
-			   nvkm_subdev_name[subdev->index], ret);
-		return ret;
-	}
-
-	nvkm_trace(pardev, "detached %s context\n", nvkm_subdev_name[subdev->index]);
 	return nvkm_gpuobj_fini(&engctx->gpuobj, suspend);
 }
 
@@ -209,31 +163,4 @@ int
 _nvkm_engctx_fini(struct nvkm_object *object, bool suspend)
 {
 	return nvkm_engctx_fini(nv_engctx(object), suspend);
-}
-
-struct nvkm_object *
-nvkm_engctx_get(struct nvkm_engine *engine, u64 addr)
-{
-	struct nvkm_engctx *engctx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&engine->lock, flags);
-	list_for_each_entry(engctx, &engine->contexts, head) {
-		if (engctx->addr == addr) {
-			engctx->save = flags;
-			return nv_object(engctx);
-		}
-	}
-	spin_unlock_irqrestore(&engine->lock, flags);
-	return NULL;
-}
-
-void
-nvkm_engctx_put(struct nvkm_object *object)
-{
-	if (object) {
-		struct nvkm_engine *engine = nv_engine(object->engine);
-		struct nvkm_engctx *engctx = nv_engctx(object);
-		spin_unlock_irqrestore(&engine->lock, engctx->save);
-	}
 }

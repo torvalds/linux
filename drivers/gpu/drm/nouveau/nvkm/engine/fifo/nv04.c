@@ -25,6 +25,7 @@
 #include "channv04.h"
 #include "regsnv04.h"
 
+#include <core/client.h>
 #include <core/handle.h>
 #include <core/ramht.h>
 #include <subdev/instmem.h>
@@ -136,6 +137,8 @@ nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 {
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
 	u32 pull0 = nvkm_rd32(device, 0x003250);
 	u32 mthd, data;
 	int ptr;
@@ -157,12 +160,12 @@ nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 
 	if (!(pull0 & 0x00000100) ||
 	    !nv04_fifo_swmthd(device, chid, mthd, data)) {
-		const char *client_name =
-			nvkm_client_name_for_fifo_chid(&fifo->base, chid);
+		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
 		nvkm_error(subdev, "CACHE_ERROR - "
 			   "ch %d [%s] subc %d mthd %04x data %08x\n",
-			   chid, client_name, (mthd >> 13) & 7, mthd & 0x1ffc,
-			   data);
+			   chid, chan ? chan->object.client->name : "unknown",
+			   (mthd >> 13) & 7, mthd & 0x1ffc, data);
+		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 	}
 
 	nvkm_wr32(device, NV04_PFIFO_CACHE1_DMA_PUSH, 0);
@@ -189,10 +192,12 @@ nv04_fifo_dma_pusher(struct nv04_fifo *fifo, u32 chid)
 	u32 dma_put = nvkm_rd32(device, 0x003240);
 	u32 push = nvkm_rd32(device, 0x003220);
 	u32 state = nvkm_rd32(device, 0x003228);
-	const char *client_name;
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
+	const char *name;
 
-	client_name = nvkm_client_name_for_fifo_chid(&fifo->base, chid);
-
+	chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
+	name = chan ? chan->object.client->name : "unknown";
 	if (device->card_type == NV_50) {
 		u32 ho_get = nvkm_rd32(device, 0x003328);
 		u32 ho_put = nvkm_rd32(device, 0x003320);
@@ -202,7 +207,7 @@ nv04_fifo_dma_pusher(struct nv04_fifo *fifo, u32 chid)
 		nvkm_error(subdev, "DMA_PUSHER - "
 			   "ch %d [%s] get %02x%08x put %02x%08x ib_get %08x "
 			   "ib_put %08x state %08x (err: %s) push %08x\n",
-			   chid, client_name, ho_get, dma_get, ho_put, dma_put,
+			   chid, name, ho_get, dma_get, ho_put, dma_put,
 			   ib_get, ib_put, state, nv_dma_state_err(state),
 			   push);
 
@@ -217,12 +222,13 @@ nv04_fifo_dma_pusher(struct nv04_fifo *fifo, u32 chid)
 	} else {
 		nvkm_error(subdev, "DMA_PUSHER - ch %d [%s] get %08x put %08x "
 				   "state %08x (err: %s) push %08x\n",
-			   chid, client_name, dma_get, dma_put, state,
+			   chid, name, dma_get, dma_put, state,
 			   nv_dma_state_err(state), push);
 
 		if (dma_get != dma_put)
 			nvkm_wr32(device, 0x003244, dma_put);
 	}
+	nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 
 	nvkm_wr32(device, 0x003228, 0x00000000);
 	nvkm_wr32(device, 0x003220, 0x00000001);
@@ -241,7 +247,7 @@ nv04_fifo_intr(struct nvkm_subdev *subdev)
 	reassign = nvkm_rd32(device, NV03_PFIFO_CACHES) & 1;
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 0);
 
-	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & fifo->base.max;
+	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & (fifo->base.nr - 1);
 	get  = nvkm_rd32(device, NV03_PFIFO_CACHE1_GET);
 
 	if (stat & NV_PFIFO_INTR_CACHE_ERROR) {
@@ -311,7 +317,7 @@ nv04_fifo_init(struct nvkm_object *object)
 	nvkm_wr32(device, NV03_PFIFO_RAMRO, nvkm_memory_addr(ramro) >> 8);
 	nvkm_wr32(device, NV03_PFIFO_RAMFC, nvkm_memory_addr(ramfc) >> 8);
 
-	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.max);
+	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.nr - 1);
 
 	nvkm_wr32(device, NV03_PFIFO_INTR_0, 0xffffffff);
 	nvkm_wr32(device, NV03_PFIFO_INTR_EN_0, 0xffffffff);
@@ -329,6 +335,14 @@ nv04_fifo_dtor(struct nvkm_object *object)
 	nvkm_fifo_destroy(&fifo->base);
 }
 
+static const struct nvkm_fifo_func
+nv04_fifo_func = {
+	.chan = {
+		&nv04_fifo_dma_oclass,
+		NULL
+	},
+};
+
 static int
 nv04_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -342,10 +356,10 @@ nv04_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	fifo->base.func = &nv04_fifo_func;
+
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;
-	nv_engine(fifo)->cclass = &nv04_fifo_cclass;
-	nv_engine(fifo)->sclass = nv04_fifo_sclass;
 	fifo->base.pause = nv04_fifo_pause;
 	fifo->base.start = nv04_fifo_start;
 	fifo->ramfc_desc = nv04_ramfc;

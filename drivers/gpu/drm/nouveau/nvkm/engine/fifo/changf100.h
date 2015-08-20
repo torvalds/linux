@@ -1,23 +1,24 @@
 #ifndef __GF100_FIFO_CHAN_H__
 #define __GF100_FIFO_CHAN_H__
+#define gf100_fifo_chan(p) container_of((p), struct gf100_fifo_chan, base)
 #include "chan.h"
 #include "gf100.h"
 
-struct gf100_fifo_base {
-	struct nvkm_fifo_base base;
-	struct nvkm_gpuobj *pgd;
-	struct nvkm_vm *vm;
-};
-
 struct gf100_fifo_chan {
 	struct nvkm_fifo_chan base;
-	enum {
-		STOPPED,
-		RUNNING,
-		KILLED
-	} state;
+	struct gf100_fifo *fifo;
+
+	struct list_head head;
+	bool killed;
+
+	struct nvkm_gpuobj *pgd;
+	struct nvkm_vm *vm;
+
+	struct {
+		struct nvkm_gpuobj *inst;
+		struct nvkm_vma vma;
+	} engn[NVDEV_SUBDEV_NR];
 };
 
-extern struct nvkm_oclass gf100_fifo_cclass;
-extern struct nvkm_oclass gf100_fifo_sclass[];
+extern const struct nvkm_fifo_chan_oclass gf100_fifo_gpfifo_oclass;
 #endif

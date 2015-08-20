@@ -608,7 +608,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 
 static int
 nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
-		     int chid, u64 inst, struct nvkm_fifo_chan *chan)
+		     int chid, u64 inst, const char *name)
 {
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -648,8 +648,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   "ch %d [%010llx %s] subc %d "
 					   "class %04x mthd %04x data %08x%08x "
 					   "400808 %08x 400848 %08x\n",
-					   chid, inst, nvkm_client_name(chan),
-					   subc, class, mthd,
+					   chid, inst, name, subc, class, mthd,
 					   datah, datal, addr, r848);
 			} else
 			if (display) {
@@ -674,9 +673,8 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				nvkm_error(subdev,
 					   "ch %d [%010llx %s] subc %d "
 					   "class %04x mthd %04x data %08x "
-					   "40084c %08x\n", chid, inst,
-					   nvkm_client_name(chan), subc,
-					   class, mthd, data, addr);
+					   "40084c %08x\n", chid, inst, name,
+					   subc, class, mthd, data, addr);
 			} else
 			if (display) {
 				nvkm_error(subdev, "no stuck command?\n");
@@ -849,11 +847,15 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 	u32 show = stat, show_bitfield = stat;
 	const struct nvkm_enum *en;
 	unsigned long flags;
+	const char *name = "unknown";
 	char msg[128];
-	int chid;
+	int chid = -1;
 
 	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
-	chid = chan ? chan->chid : -1;
+	if (chan)  {
+		name = chan->object.client->name;
+		chid = chan->chid;
+	}
 
 	if (show & 0x00100000) {
 		u32 ecode = nvkm_rd32(device, 0x400110);
@@ -864,7 +866,7 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat & 0x00200000) {
-		if (!nv50_gr_trap_handler(gr, show, chid, (u64)inst << 12, chan))
+		if (!nv50_gr_trap_handler(gr, show, chid, (u64)inst << 12, name))
 			show &= ~0x00200000;
 		show_bitfield &= ~0x00200000;
 	}
@@ -877,8 +879,8 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 		nvkm_snprintbf(msg, sizeof(msg), nv50_gr_intr_name, show);
 		nvkm_error(subdev, "%08x [%s] ch %d [%010llx %s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
-			   stat, msg, chid, (u64)inst << 12,
-			   nvkm_client_name(chan), subc, class, mthd, data);
+			   stat, msg, chid, (u64)inst << 12, name,
+			   subc, class, mthd, data);
 	}
 
 	if (nvkm_rd32(device, 0x400824) & (1 << 31))

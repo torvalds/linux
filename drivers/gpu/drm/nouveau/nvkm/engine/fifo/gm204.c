@@ -24,6 +24,14 @@
 #include "gk104.h"
 #include "changk104.h"
 
+static const struct nvkm_fifo_func
+gm204_fifo_func = {
+	.chan = {
+		&gm204_fifo_gpfifo_oclass,
+		NULL
+	},
+};
+
 int
 gm204_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
@@ -32,7 +40,7 @@ gm204_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	int ret = gk104_fifo_ctor(parent, engine, oclass, data, size, pobject);
 	if (ret == 0) {
 		struct gk104_fifo *fifo = (void *)*pobject;
-		nv_engine(fifo)->sclass = gm204_fifo_sclass;
+		fifo->base.func = &gm204_fifo_func;
 	}
 	return ret;
 }

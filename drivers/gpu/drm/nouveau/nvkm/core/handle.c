@@ -23,7 +23,7 @@
  */
 #include <core/handle.h>
 #include <core/client.h>
-#include <core/namedb.h>
+#include <core/parent.h>
 
 #define hprintk(h,l,f,a...) do {                                               \
 	struct nvkm_handle *p = (h)->parent; u32 n = p ? p->name : ~0;         \
@@ -98,13 +98,8 @@ int
 nvkm_handle_create(struct nvkm_handle *parent, u32 _handle,
 		   struct nvkm_object *object, struct nvkm_handle **phandle)
 {
-	struct nvkm_object *namedb;
 	struct nvkm_handle *handle;
 	int ret;
-
-	namedb = parent ? parent->object : NULL;
-	while (namedb && !nv_iclass(namedb, NV_NAMEDB_CLASS))
-		namedb = namedb->parent;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
@@ -117,15 +112,6 @@ nvkm_handle_create(struct nvkm_handle *parent, u32 _handle,
 	RB_CLEAR_NODE(&handle->rb);
 	handle->parent = parent;
 	nvkm_object_ref(object, &handle->object);
-
-	if (namedb) {
-		ret = nvkm_namedb_insert(nv_namedb(namedb), _handle,
-					 object, handle);
-		if (ret) {
-			kfree(handle);
-			return ret;
-		}
-	}
 
 	if (parent) {
 		if (nv_iclass(parent->object, NV_PARENT_CLASS) &&
@@ -168,40 +154,6 @@ nvkm_handle_destroy(struct nvkm_handle *handle)
 	}
 
 	hprintk(handle, TRACE, "destroy completed\n");
-	nvkm_namedb_remove(handle);
+	nvkm_object_ref(NULL, &handle->object);
 	kfree(handle);
-}
-
-struct nvkm_handle *
-nvkm_handle_get_class(struct nvkm_object *engctx, u16 oclass)
-{
-	struct nvkm_namedb *namedb;
-	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
-		return nvkm_namedb_get_class(namedb, oclass);
-	return NULL;
-}
-
-struct nvkm_handle *
-nvkm_handle_get_vinst(struct nvkm_object *engctx, u64 vinst)
-{
-	struct nvkm_namedb *namedb;
-	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
-		return nvkm_namedb_get_vinst(namedb, vinst);
-	return NULL;
-}
-
-struct nvkm_handle *
-nvkm_handle_get_cinst(struct nvkm_object *engctx, u32 cinst)
-{
-	struct nvkm_namedb *namedb;
-	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
-		return nvkm_namedb_get_cinst(namedb, cinst);
-	return NULL;
-}
-
-void
-nvkm_handle_put(struct nvkm_handle *handle)
-{
-	if (handle)
-		nvkm_namedb_put(handle);
 }

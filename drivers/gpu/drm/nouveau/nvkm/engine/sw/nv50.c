@@ -24,8 +24,8 @@
 #include "nv50.h"
 
 #include <core/handle.h>
-#include <core/namedb.h>
 #include <engine/disp.h>
+#include <engine/fifo/chan.h>
 #include <subdev/bar.h>
 
 #include <nvif/event.h>
@@ -136,7 +136,7 @@ nv50_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			return ret;
 	}
 
-	chan->vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
+	chan->vblank.channel = nvkm_fifo_chan(parent)->inst->addr >> 12;
 	return 0;
 }
 

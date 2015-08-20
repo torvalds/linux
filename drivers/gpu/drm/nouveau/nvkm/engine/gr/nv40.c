@@ -353,7 +353,8 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta,
 			   chan ? chan->fifo->chid : -1, inst << 4,
-			   nvkm_client_name(chan), subc, class, mthd, data);
+			   chan ? chan->fifo->object.client->name : "unknown",
+			   subc, class, mthd, data);
 	}
 
 	spin_unlock_irqrestore(&gr->base.engine.lock, flags);

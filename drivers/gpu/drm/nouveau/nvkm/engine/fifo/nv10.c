@@ -39,16 +39,11 @@ nv10_ramfc[] = {
 	{}
 };
 
-static struct nvkm_oclass
-nv10_fifo_cclass = {
-	.handle = NV_ENGCTX(FIFO, 0x10),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fifo_context_ctor,
-		.dtor = _nvkm_fifo_context_dtor,
-		.init = _nvkm_fifo_context_init,
-		.fini = _nvkm_fifo_context_fini,
-		.rd32 = _nvkm_fifo_context_rd32,
-		.wr32 = _nvkm_fifo_context_wr32,
+static const struct nvkm_fifo_func
+nv10_fifo_func = {
+	.chan = {
+		&nv10_fifo_dma_oclass,
+		NULL
 	},
 };
 
@@ -65,10 +60,10 @@ nv10_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	fifo->base.func = &nv10_fifo_func;
+
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;
-	nv_engine(fifo)->cclass = &nv10_fifo_cclass;
-	nv_engine(fifo)->sclass = nv10_fifo_sclass;
 	fifo->base.pause = nv04_fifo_pause;
 	fifo->base.start = nv04_fifo_start;
 	fifo->ramfc_desc = nv10_ramfc;

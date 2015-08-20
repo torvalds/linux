@@ -47,6 +47,15 @@ g84_fifo_uevent_func = {
 	.fini = g84_fifo_uevent_fini,
 };
 
+static const struct nvkm_fifo_func
+g84_fifo_func = {
+	.chan = {
+		&g84_fifo_dma_oclass,
+		&g84_fifo_gpfifo_oclass,
+		NULL
+	},
+};
+
 static int
 g84_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
@@ -60,6 +69,8 @@ g84_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
+
+	fifo->base.func = &g84_fifo_func;
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
 			      false, &fifo->runlist[0]);
@@ -77,8 +88,6 @@ g84_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;
-	nv_engine(fifo)->cclass = &g84_fifo_cclass;
-	nv_engine(fifo)->sclass = g84_fifo_sclass;
 	fifo->base.pause = nv04_fifo_pause;
 	fifo->base.start = nv04_fifo_start;
 	return 0;

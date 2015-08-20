@@ -85,7 +85,8 @@ gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010llx %s] "
 			   "subc %d mthd %04x data %08x\n", ssta,
 		   en ? en->name : "", chan ? chan->chid : -1,
-		   chan ? chan->inst : 0, nvkm_client_name(chan),
+		   chan ? chan->inst->addr : 0,
+		   chan ? chan->object.client->name : "unknown",
 		   subc, mthd, data);
 }
 

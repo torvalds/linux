@@ -25,8 +25,10 @@
 
 #include <nvif/class.h>
 
-struct nvkm_oclass
-gm204_fifo_sclass[] = {
-	{ MAXWELL_CHANNEL_GPFIFO_A, &gk104_fifo_chan_ofuncs },
-	{}
+const struct nvkm_fifo_chan_oclass
+gm204_fifo_gpfifo_oclass = {
+	.base.oclass = MAXWELL_CHANNEL_GPFIFO_A,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = gk104_fifo_gpfifo_new,
 };

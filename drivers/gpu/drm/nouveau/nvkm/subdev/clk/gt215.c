@@ -338,7 +338,7 @@ void
 gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags)
 {
 	struct nvkm_device *device = clk->subdev.device;
-	struct nvkm_fifo *fifo = nvkm_fifo(clk);
+	struct nvkm_fifo *fifo = device->fifo;
 
 	if (fifo && flags)
 		fifo->start(fifo, flags);

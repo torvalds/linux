@@ -228,7 +228,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
 
-	priv->base.contexts = fifo->max + 1;
+	priv->base.contexts = fifo->nr;
 	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 

@@ -25,7 +25,7 @@
 #include <core/client.h>
 #include <core/engine.h>
 #include <core/handle.h>
-#include <core/namedb.h>
+#include <core/parent.h>
 
 #include <nvif/unpack.h>
 #include <nvif/ioctl.h>

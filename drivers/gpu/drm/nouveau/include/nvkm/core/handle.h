@@ -4,7 +4,6 @@
 struct nvkm_object;
 
 struct nvkm_handle {
-	struct nvkm_namedb *namedb;
 	struct list_head node;
 
 	struct list_head head;

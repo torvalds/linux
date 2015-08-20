@@ -25,38 +25,86 @@
 
 #include <core/client.h>
 #include <core/ramht.h>
+#include <subdev/mmu.h>
 #include <subdev/timer.h>
 
+#include <nvif/class.h>
+
 int
-g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
-			struct nvkm_object *object)
+g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
+		   struct nvkm_event **pevent)
 {
-	struct nv50_fifo *fifo = (void *)parent->engine;
-	struct nv50_fifo_base *base = (void *)parent->parent;
-	struct nv50_fifo_chan *chan = (void *)parent;
+	switch (type) {
+	case G82_CHANNEL_DMA_V0_NTFY_UEVENT:
+		*pevent = &chan->fifo->uevent;
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static int
+g84_fifo_chan_engine(struct nvkm_engine *engine)
+{
+	switch (engine->subdev.index) {
+	case NVDEV_ENGINE_GR    : return 0;
+	case NVDEV_ENGINE_MPEG  :
+	case NVDEV_ENGINE_MSPPP : return 1;
+	case NVDEV_ENGINE_CE0   : return 2;
+	case NVDEV_ENGINE_VP    :
+	case NVDEV_ENGINE_MSPDEC: return 3;
+	case NVDEV_ENGINE_CIPHER:
+	case NVDEV_ENGINE_SEC   : return 4;
+	case NVDEV_ENGINE_BSP   :
+	case NVDEV_ENGINE_MSVLD : return 5;
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
+static int
+g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
+{
+	switch (engine->subdev.index) {
+	case NVDEV_ENGINE_DMAOBJ:
+	case NVDEV_ENGINE_SW    : return -1;
+	case NVDEV_ENGINE_GR    : return 0x0020;
+	case NVDEV_ENGINE_VP    :
+	case NVDEV_ENGINE_MSPDEC: return 0x0040;
+	case NVDEV_ENGINE_MPEG  :
+	case NVDEV_ENGINE_MSPPP : return 0x0060;
+	case NVDEV_ENGINE_BSP   :
+	case NVDEV_ENGINE_MSVLD : return 0x0080;
+	case NVDEV_ENGINE_CIPHER:
+	case NVDEV_ENGINE_SEC   : return 0x00a0;
+	case NVDEV_ENGINE_CE0   : return 0x00c0;
+	default:
+		WARN_ON(1);
+		return -1;
+	}
+}
+
+static int
+g84_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine, bool suspend)
+{
+	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
+	struct nv50_fifo *fifo = chan->fifo;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 addr, save, engn;
+	u32 engn, save;
+	int offset;
 	bool done;
 
-	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW    : return 0;
-	case NVDEV_ENGINE_GR    : engn = 0; addr = 0x0020; break;
-	case NVDEV_ENGINE_VP    :
-	case NVDEV_ENGINE_MSPDEC: engn = 3; addr = 0x0040; break;
-	case NVDEV_ENGINE_MSPPP :
-	case NVDEV_ENGINE_MPEG  : engn = 1; addr = 0x0060; break;
-	case NVDEV_ENGINE_BSP   :
-	case NVDEV_ENGINE_MSVLD : engn = 5; addr = 0x0080; break;
-	case NVDEV_ENGINE_CIPHER:
-	case NVDEV_ENGINE_SEC   : engn = 4; addr = 0x00a0; break;
-	case NVDEV_ENGINE_CE0   : engn = 2; addr = 0x00c0; break;
-	default:
-		return -EINVAL;
-	}
+	offset = g84_fifo_chan_engine_addr(engine);
+	if (offset < 0)
+		return 0;
 
+	engn = g84_fifo_chan_engine(engine);
 	save = nvkm_mask(device, 0x002520, 0x0000003f, 1 << engn);
-	nvkm_wr32(device, 0x0032fc, nv_gpuobj(base)->addr >> 12);
+	nvkm_wr32(device, 0x0032fc, chan->base.inst->addr >> 12);
 	done = nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x0032fc) != 0xffffffff)
 			break;
@@ -64,168 +112,179 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	nvkm_wr32(device, 0x002520, save);
 	if (!done) {
 		nvkm_error(subdev, "channel %d [%s] unload timeout\n",
-			   chan->base.chid, nvkm_client_name(chan));
+			   chan->base.chid, chan->base.object.client->name);
 		if (suspend)
 			return -EBUSY;
 	}
 
-	nvkm_kmap(base->eng);
-	nvkm_wo32(base->eng, addr + 0x00, 0x00000000);
-	nvkm_wo32(base->eng, addr + 0x04, 0x00000000);
-	nvkm_wo32(base->eng, addr + 0x08, 0x00000000);
-	nvkm_wo32(base->eng, addr + 0x0c, 0x00000000);
-	nvkm_wo32(base->eng, addr + 0x10, 0x00000000);
-	nvkm_wo32(base->eng, addr + 0x14, 0x00000000);
-	nvkm_done(base->eng);
+	nvkm_kmap(chan->eng);
+	nvkm_wo32(chan->eng, offset + 0x00, 0x00000000);
+	nvkm_wo32(chan->eng, offset + 0x04, 0x00000000);
+	nvkm_wo32(chan->eng, offset + 0x08, 0x00000000);
+	nvkm_wo32(chan->eng, offset + 0x0c, 0x00000000);
+	nvkm_wo32(chan->eng, offset + 0x10, 0x00000000);
+	nvkm_wo32(chan->eng, offset + 0x14, 0x00000000);
+	nvkm_done(chan->eng);
 	return 0;
 }
 
 
 int
-g84_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *object)
+g84_fifo_chan_engine_init(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine)
 {
-	struct nv50_fifo_base *base = (void *)parent->parent;
-	struct nvkm_gpuobj *ectx = (void *)object;
-	u64 limit = ectx->addr + ectx->size - 1;
-	u64 start = ectx->addr;
-	u32 addr;
+	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
+	struct nvkm_gpuobj *engn = chan->engn[engine->subdev.index];
+	u64 limit, start;
+	int offset;
 
-	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW    : return 0;
-	case NVDEV_ENGINE_GR    : addr = 0x0020; break;
-	case NVDEV_ENGINE_VP    :
-	case NVDEV_ENGINE_MSPDEC: addr = 0x0040; break;
-	case NVDEV_ENGINE_MSPPP :
-	case NVDEV_ENGINE_MPEG  : addr = 0x0060; break;
-	case NVDEV_ENGINE_BSP   :
-	case NVDEV_ENGINE_MSVLD : addr = 0x0080; break;
-	case NVDEV_ENGINE_CIPHER:
-	case NVDEV_ENGINE_SEC   : addr = 0x00a0; break;
-	case NVDEV_ENGINE_CE0   : addr = 0x00c0; break;
-	default:
-		return -EINVAL;
-	}
+	offset = g84_fifo_chan_engine_addr(engine);
+	if (offset < 0)
+		return 0;
+	limit = engn->addr + engn->size - 1;
+	start = engn->addr;
 
-	nv_engctx(ectx)->addr = nv_gpuobj(base)->addr >> 12;
-	nvkm_kmap(base->eng);
-	nvkm_wo32(base->eng, addr + 0x00, 0x00190000);
-	nvkm_wo32(base->eng, addr + 0x04, lower_32_bits(limit));
-	nvkm_wo32(base->eng, addr + 0x08, lower_32_bits(start));
-	nvkm_wo32(base->eng, addr + 0x0c, upper_32_bits(limit) << 24 |
-					  upper_32_bits(start));
-	nvkm_wo32(base->eng, addr + 0x10, 0x00000000);
-	nvkm_wo32(base->eng, addr + 0x14, 0x00000000);
-	nvkm_done(base->eng);
-	return 0;
-}
-
-int
-g84_fifo_object_attach(struct nvkm_object *parent,
-		       struct nvkm_object *object, u32 handle)
-{
-	struct nv50_fifo_chan *chan = (void *)parent;
-	u32 context;
-
-	if (nv_iclass(object, NV_GPUOBJ_CLASS))
-		context = nv_gpuobj(object)->node->offset >> 4;
-	else
-		context = 0x00000004; /* just non-zero */
-
-	if (object->engine) {
-		switch (nv_engidx(object->engine)) {
-		case NVDEV_ENGINE_DMAOBJ:
-		case NVDEV_ENGINE_SW    : context |= 0x00000000; break;
-		case NVDEV_ENGINE_GR    : context |= 0x00100000; break;
-		case NVDEV_ENGINE_MPEG  :
-		case NVDEV_ENGINE_MSPPP : context |= 0x00200000; break;
-		case NVDEV_ENGINE_ME    :
-		case NVDEV_ENGINE_CE0   : context |= 0x00300000; break;
-		case NVDEV_ENGINE_VP    :
-		case NVDEV_ENGINE_MSPDEC: context |= 0x00400000; break;
-		case NVDEV_ENGINE_CIPHER:
-		case NVDEV_ENGINE_SEC   :
-		case NVDEV_ENGINE_VIC   : context |= 0x00500000; break;
-		case NVDEV_ENGINE_BSP   :
-		case NVDEV_ENGINE_MSVLD : context |= 0x00600000; break;
-		default:
-			return -EINVAL;
-		}
-	}
-
-	return nvkm_ramht_insert(chan->ramht, NULL, 0, 0, handle, context);
-}
-
-int
-g84_fifo_chan_init(struct nvkm_object *object)
-{
-	struct nv50_fifo *fifo = (void *)object->engine;
-	struct nv50_fifo_base *base = (void *)object->parent;
-	struct nv50_fifo_chan *chan = (void *)object;
-	struct nvkm_gpuobj *ramfc = base->ramfc;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u32 chid = chan->base.chid;
-	int ret;
-
-	ret = nvkm_fifo_channel_init(&chan->base);
-	if (ret)
-		return ret;
-
-	nvkm_wr32(device, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 8);
-	nv50_fifo_runlist_update(fifo);
+	nvkm_kmap(chan->eng);
+	nvkm_wo32(chan->eng, offset + 0x00, 0x00190000);
+	nvkm_wo32(chan->eng, offset + 0x04, lower_32_bits(limit));
+	nvkm_wo32(chan->eng, offset + 0x08, lower_32_bits(start));
+	nvkm_wo32(chan->eng, offset + 0x0c, upper_32_bits(limit) << 24 |
+					    upper_32_bits(start));
+	nvkm_wo32(chan->eng, offset + 0x10, 0x00000000);
+	nvkm_wo32(chan->eng, offset + 0x14, 0x00000000);
+	nvkm_done(chan->eng);
 	return 0;
 }
 
 static int
-g84_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		      struct nvkm_oclass *oclass, void *data, u32 size,
-		      struct nvkm_object **pobject)
+g84_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
+			  struct nvkm_engine *engine,
+			  struct nvkm_object *object)
 {
-	struct nvkm_device *device = nv_engine(engine)->subdev.device;
-	struct nv50_fifo_base *base;
-	int ret;
+	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
+	int engn = engine->subdev.index;
 
-	ret = nvkm_fifo_context_create(parent, engine, oclass, NULL, 0x10000,
-				       0x1000, NVOBJ_FLAG_HEAP, &base);
-	*pobject = nv_object(base);
-	if (ret)
-		return ret;
+	if (g84_fifo_chan_engine_addr(engine) < 0)
+		return 0;
 
-	ret = nvkm_gpuobj_new(device, 0x0200, 0, true, &base->base.gpuobj,
-			      &base->eng);
-	if (ret)
-		return ret;
+	if (nv_iclass(object, NV_GPUOBJ_CLASS)) {
+		chan->engn[engn] = nv_gpuobj(object);
+		return 0;
+	}
 
-	ret = nvkm_gpuobj_new(device, 0x4000, 0, false, &base->base.gpuobj,
-			      &base->pgd);
-	if (ret)
-		return ret;
-
-	ret = nvkm_vm_ref(nvkm_client(parent)->vm, &base->vm, base->pgd);
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x1000, 0x400, true, &base->base.gpuobj,
-			      &base->cache);
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x100, 0x100, true, &base->base.gpuobj,
-			      &base->ramfc);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
 }
 
-struct nvkm_oclass
-g84_fifo_cclass = {
-	.handle = NV_ENGCTX(FIFO, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_fifo_context_ctor,
-		.dtor = nv50_fifo_context_dtor,
-		.init = _nvkm_fifo_context_init,
-		.fini = _nvkm_fifo_context_fini,
-		.rd32 = _nvkm_fifo_context_rd32,
-		.wr32 = _nvkm_fifo_context_wr32,
-	},
+int
+g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
+			  struct nvkm_object *object)
+{
+	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
+	u32 handle = object->handle;
+	u32 context;
+
+	switch (object->engine->subdev.index) {
+	case NVDEV_ENGINE_DMAOBJ:
+	case NVDEV_ENGINE_SW    : context = 0x00000000; break;
+	case NVDEV_ENGINE_GR    : context = 0x00100000; break;
+	case NVDEV_ENGINE_MPEG  :
+	case NVDEV_ENGINE_MSPPP : context = 0x00200000; break;
+	case NVDEV_ENGINE_ME    :
+	case NVDEV_ENGINE_CE0   : context = 0x00300000; break;
+	case NVDEV_ENGINE_VP    :
+	case NVDEV_ENGINE_MSPDEC: context = 0x00400000; break;
+	case NVDEV_ENGINE_CIPHER:
+	case NVDEV_ENGINE_SEC   :
+	case NVDEV_ENGINE_VIC   : context = 0x00500000; break;
+	case NVDEV_ENGINE_BSP   :
+	case NVDEV_ENGINE_MSVLD : context = 0x00600000; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return nvkm_ramht_insert(chan->ramht, object, 0, 4, handle, context);
+}
+
+static void
+g84_fifo_chan_init(struct nvkm_fifo_chan *base)
+{
+	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
+	struct nv50_fifo *fifo = chan->fifo;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	u64 addr = chan->ramfc->addr >> 8;
+	u32 chid = chan->base.chid;
+
+	nvkm_wr32(device, 0x002600 + (chid * 4), 0x80000000 | addr);
+	nv50_fifo_runlist_update(fifo);
+}
+
+static const struct nvkm_fifo_chan_func
+g84_fifo_chan_func = {
+	.dtor = nv50_fifo_chan_dtor,
+	.init = g84_fifo_chan_init,
+	.fini = nv50_fifo_chan_fini,
+	.ntfy = g84_fifo_chan_ntfy,
+	.engine_ctor = g84_fifo_chan_engine_ctor,
+	.engine_dtor = nv50_fifo_chan_engine_dtor,
+	.engine_init = g84_fifo_chan_engine_init,
+	.engine_fini = g84_fifo_chan_engine_fini,
+	.object_ctor = g84_fifo_chan_object_ctor,
+	.object_dtor = nv50_fifo_chan_object_dtor,
 };
+
+int
+g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
+		   const struct nvkm_oclass *oclass,
+		   struct nv50_fifo_chan *chan)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	int ret;
+
+	ret = nvkm_fifo_chan_ctor(&g84_fifo_chan_func, &fifo->base,
+				  0x10000, 0x1000, false, vm, push,
+				  (1ULL << NVDEV_ENGINE_BSP) |
+				  (1ULL << NVDEV_ENGINE_CE0) |
+				  (1ULL << NVDEV_ENGINE_CIPHER) |
+				  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+				  (1ULL << NVDEV_ENGINE_GR) |
+				  (1ULL << NVDEV_ENGINE_ME) |
+				  (1ULL << NVDEV_ENGINE_MPEG) |
+				  (1ULL << NVDEV_ENGINE_MSPDEC) |
+				  (1ULL << NVDEV_ENGINE_MSPPP) |
+				  (1ULL << NVDEV_ENGINE_MSVLD) |
+				  (1ULL << NVDEV_ENGINE_SEC) |
+				  (1ULL << NVDEV_ENGINE_SW) |
+				  (1ULL << NVDEV_ENGINE_VIC) |
+				  (1ULL << NVDEV_ENGINE_VP),
+				  0, 0xc00000, 0x2000, oclass, &chan->base);
+	chan->fifo = fifo;
+	if (ret)
+		return ret;
+
+	ret = nvkm_gpuobj_new(device, 0x0200, 0, true, chan->base.inst,
+			      &chan->eng);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gpuobj_new(device, 0x4000, 0, false, chan->base.inst,
+			      &chan->pgd);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gpuobj_new(device, 0x1000, 0x400, true, chan->base.inst,
+			      &chan->cache);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gpuobj_new(device, 0x100, 0x100, true, chan->base.inst,
+			      &chan->ramfc);
+	if (ret)
+		return ret;
+
+	ret = nvkm_ramht_new(device, 0x8000, 16, chan->base.inst, &chan->ramht);
+	if (ret)
+		return ret;
+
+	return nvkm_vm_ref(chan->base.vm, &chan->vm, chan->pgd);
+}
