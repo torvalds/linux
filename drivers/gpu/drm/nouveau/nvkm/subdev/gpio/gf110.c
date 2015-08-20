@@ -26,7 +26,8 @@
 void
 gf110_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 {
-	struct nvkm_bios *bios = nvkm_bios(gpio);
+	struct nvkm_device *device = gpio->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	u8 ver, len;
 	u16 entry;
 	int ent = -1;
@@ -45,25 +46,27 @@ gf110_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 
 		gpio->set(gpio, 0, func, line, defs);
 
-		nv_mask(gpio, 0x00d610 + (line * 4), 0xff, unk0);
+		nvkm_mask(device, 0x00d610 + (line * 4), 0xff, unk0);
 		if (unk1--)
-			nv_mask(gpio, 0x00d740 + (unk1 * 4), 0xff, line);
+			nvkm_mask(device, 0x00d740 + (unk1 * 4), 0xff, line);
 	}
 }
 
 int
 gf110_gpio_drive(struct nvkm_gpio *gpio, int line, int dir, int out)
 {
+	struct nvkm_device *device = gpio->subdev.device;
 	u32 data = ((dir ^ 1) << 13) | (out << 12);
-	nv_mask(gpio, 0x00d610 + (line * 4), 0x00003000, data);
-	nv_mask(gpio, 0x00d604, 0x00000001, 0x00000001); /* update? */
+	nvkm_mask(device, 0x00d610 + (line * 4), 0x00003000, data);
+	nvkm_mask(device, 0x00d604, 0x00000001, 0x00000001); /* update? */
 	return 0;
 }
 
 int
 gf110_gpio_sense(struct nvkm_gpio *gpio, int line)
 {
-	return !!(nv_rd32(gpio, 0x00d610 + (line * 4)) & 0x00004000);
+	struct nvkm_device *device = gpio->subdev.device;
+	return !!(nvkm_rd32(device, 0x00d610 + (line * 4)) & 0x00004000);
 }
 
 struct nvkm_oclass *
