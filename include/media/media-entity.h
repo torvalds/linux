@@ -75,14 +75,20 @@ struct media_pipeline {
 struct media_link {
 	struct media_gobj graph_obj;
 	struct list_head list;
-	struct media_pad *source;	/* Source pad */
-	struct media_pad *sink;		/* Sink pad  */
+	union {
+		struct media_gobj *gobj0;
+		struct media_pad *source;
+	};
+	union {
+		struct media_gobj *gobj1;
+		struct media_pad *sink;
+	};
 	struct media_link *reverse;	/* Link in the reverse direction */
 	unsigned long flags;		/* Link flags (MEDIA_LNK_FL_*) */
 };
 
 struct media_pad {
-	struct media_gobj graph_obj;
+	struct media_gobj graph_obj;	/* must be first field in struct */
 	struct media_entity *entity;	/* Entity this pad belongs to */
 	u16 index;			/* Pad index in the entity pads array */
 	unsigned long flags;		/* Pad flags (MEDIA_PAD_FL_*) */
@@ -105,7 +111,7 @@ struct media_entity_operations {
 };
 
 struct media_entity {
-	struct media_gobj graph_obj;
+	struct media_gobj graph_obj;	/* must be first field in struct */
 	struct list_head list;
 	const char *name;		/* Entity name */
 	u32 type;			/* Entity type (MEDIA_ENT_T_*) */
@@ -119,7 +125,7 @@ struct media_entity {
 	u16 num_backlinks;		/* Number of backlinks */
 
 	struct media_pad *pads;		/* Pads array (num_pads objects) */
-	struct list_head links;		/* Links list */
+	struct list_head links;		/* Pad-to-pad links list */
 
 	const struct media_entity_operations *ops;	/* Entity operations */
 
