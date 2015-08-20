@@ -459,7 +459,7 @@ static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
 struct iwl_mvm_stat_data {
 	struct iwl_mvm *mvm;
 	__le32 mac_id;
-	__s8 beacon_filter_average_energy;
+	u8 beacon_filter_average_energy;
 	struct mvm_statistics_general_v8 *general;
 };
 

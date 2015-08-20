@@ -237,10 +237,10 @@ struct mvm_statistics_general_v5 {
 	__le32 num_of_sos_states;
 	__le32 beacon_filtered;
 	__le32 missed_beacons;
-	__s8 beacon_filter_average_energy;
-	__s8 beacon_filter_reason;
-	__s8 beacon_filter_current_energy;
-	__s8 beacon_filter_reserved;
+	u8 beacon_filter_average_energy;
+	u8 beacon_filter_reason;
+	u8 beacon_filter_current_energy;
+	u8 beacon_filter_reserved;
 	__le32 beacon_filter_delta_time;
 	struct mvm_statistics_bt_activity bt_activity;
 } __packed; /* STATISTICS_GENERAL_API_S_VER_5 */
@@ -263,10 +263,10 @@ struct mvm_statistics_general_v8 {
 	__le32 num_of_sos_states;
 	__le32 beacon_filtered;
 	__le32 missed_beacons;
-	__s8 beacon_filter_average_energy;
-	__s8 beacon_filter_reason;
-	__s8 beacon_filter_current_energy;
-	__s8 beacon_filter_reserved;
+	u8 beacon_filter_average_energy;
+	u8 beacon_filter_reason;
+	u8 beacon_filter_current_energy;
+	u8 beacon_filter_reserved;
 	__le32 beacon_filter_delta_time;
 	struct mvm_statistics_bt_activity bt_activity;
 	__le64 rx_time;
