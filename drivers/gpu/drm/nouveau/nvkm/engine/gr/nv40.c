@@ -155,7 +155,8 @@ nv40_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv40_gr *gr = (void *)object->engine;
 	struct nv40_gr_chan *chan = (void *)object;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 inst = 0x01000000 | nv_gpuobj(chan)->addr >> 4;
 	int ret = 0;
 
@@ -172,7 +173,7 @@ nv40_gr_context_fini(struct nvkm_object *object, bool suspend)
 					break;
 			) < 0) {
 				u32 insn = nvkm_rd32(device, 0x400308);
-				nv_warn(gr, "ctxprog timeout 0x%08x\n", insn);
+				nvkm_warn(subdev, "ctxprog timeout %08x\n", insn);
 				ret = -EBUSY;
 			}
 		}
@@ -302,6 +303,7 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 	u32 data = nvkm_rd32(device, NV04_PGRAPH_TRAPPED_DATA);
 	u32 class = nvkm_rd32(device, 0x400160 + subc * 4) & 0xffff;
 	u32 show = stat;
+	char msg[128], src[128], sta[128];
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
@@ -324,17 +326,15 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(gr, "%s", "");
-		nvkm_bitfield_print(nv10_gr_intr_name, show);
-		pr_cont(" nsource:");
-		nvkm_bitfield_print(nv04_gr_nsource, nsource);
-		pr_cont(" nstatus:");
-		nvkm_bitfield_print(nv10_gr_nstatus, nstatus);
-		pr_cont("\n");
-		nv_error(gr,
-			 "ch %d [0x%08x %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, inst << 4, nvkm_client_name(engctx), subc,
-			 class, mthd, data);
+		nvkm_snprintbf(msg, sizeof(msg), nv10_gr_intr_name, show);
+		nvkm_snprintbf(src, sizeof(src), nv04_gr_nsource, nsource);
+		nvkm_snprintbf(sta, sizeof(sta), nv10_gr_nstatus, nstatus);
+		nvkm_error(subdev, "intr %08x [%s] nsource %08x [%s] "
+				   "nstatus %08x [%s] ch %d [%08x %s] subc %d "
+				   "class %04x mthd %04x data %08x\n",
+			   show, msg, nsource, src, nstatus, sta, chid,
+			   inst << 4, nvkm_client_name(engctx), subc,
+			   class, mthd, data);
 	}
 
 	nvkm_engctx_put(engctx);

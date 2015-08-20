@@ -690,6 +690,7 @@ static void
 nv10_gr_create_pipe(struct nv10_gr_chan *chan)
 {
 	struct nv10_gr *gr = nv10_gr(chan);
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct pipe_state *pipe_state = &chan->pipe_state;
 	u32 *pipe_state_addr;
 	int i;
@@ -702,7 +703,7 @@ nv10_gr_create_pipe(struct nv10_gr_chan *chan)
 		u32 *__end_addr = pipe_state->pipe_##addr + \
 				ARRAY_SIZE(pipe_state->pipe_##addr); \
 		if (pipe_state_addr != __end_addr) \
-			nv_error(gr, "incomplete pipe init for 0x%x :  %p/%p\n", \
+			nvkm_error(subdev, "incomplete pipe init for 0x%x :  %p/%p\n", \
 				addr, pipe_state_addr, __end_addr); \
 	} while (0)
 #define NV_WRITE_PIPE_INIT(value) *(pipe_state_addr++) = value
@@ -844,24 +845,26 @@ nv10_gr_create_pipe(struct nv10_gr_chan *chan)
 static int
 nv10_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 {
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	int i;
 	for (i = 0; i < ARRAY_SIZE(nv10_gr_ctx_regs); i++) {
 		if (nv10_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nv_error(gr, "unknow offset nv10_ctx_regs %d\n", reg);
+	nvkm_error(subdev, "unknow offset nv10_ctx_regs %d\n", reg);
 	return -1;
 }
 
 static int
 nv17_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 {
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	int i;
 	for (i = 0; i < ARRAY_SIZE(nv17_gr_ctx_regs); i++) {
 		if (nv17_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nv_error(gr, "unknow offset nv17_ctx_regs %d\n", reg);
+	nvkm_error(subdev, "unknow offset nv17_ctx_regs %d\n", reg);
 	return -1;
 }
 
@@ -1177,6 +1180,7 @@ nv10_gr_intr(struct nvkm_subdev *subdev)
 	u32 data = nvkm_rd32(device, NV04_PGRAPH_TRAPPED_DATA);
 	u32 class = nvkm_rd32(device, 0x400160 + subc * 4) & 0xfff;
 	u32 show = stat;
+	char msg[128], src[128], sta[128];
 	unsigned long flags;
 
 	spin_lock_irqsave(&gr->lock, flags);
@@ -1204,17 +1208,14 @@ nv10_gr_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(gr, "%s", "");
-		nvkm_bitfield_print(nv10_gr_intr_name, show);
-		pr_cont(" nsource:");
-		nvkm_bitfield_print(nv04_gr_nsource, nsource);
-		pr_cont(" nstatus:");
-		nvkm_bitfield_print(nv10_gr_nstatus, nstatus);
-		pr_cont("\n");
-		nv_error(gr,
-			 "ch %d [%s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, nvkm_client_name(chan), subc, class, mthd,
-			 data);
+		nvkm_snprintbf(msg, sizeof(msg), nv10_gr_intr_name, show);
+		nvkm_snprintbf(src, sizeof(src), nv04_gr_nsource, nsource);
+		nvkm_snprintbf(sta, sizeof(sta), nv10_gr_nstatus, nstatus);
+		nvkm_error(subdev, "intr %08x [%s] nsource %08x [%s] "
+				   "nstatus %08x [%s] ch %d [%s] subc %d "
+				   "class %04x mthd %04x data %08x\n",
+			   show, msg, nsource, src, nstatus, sta, chid,
+			   nvkm_client_name(chan), subc, class, mthd, data);
 	}
 
 	nvkm_namedb_put(handle);

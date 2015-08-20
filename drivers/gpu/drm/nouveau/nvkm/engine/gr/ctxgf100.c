@@ -1271,7 +1271,8 @@ int
 gf100_grctx_generate(struct gf100_gr *gr)
 {
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bar *bar = device->bar;
 	struct nvkm_gpuobj *chan;
 	struct gf100_grctx info;
@@ -1283,7 +1284,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 0x80000 + gr->size,
 			      0x1000, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	if (ret) {
-		nv_error(gr, "failed to allocate channel memory, %d\n", ret);
+		nvkm_error(subdev, "failed to allocate chan memory, %d\n", ret);
 		return ret;
 	}
 

@@ -50,22 +50,6 @@ nvkm_enum_print(const struct nvkm_enum *en, u32 value)
 }
 
 void
-nvkm_bitfield_print(const struct nvkm_bitfield *bf, u32 value)
-{
-	while (bf->name) {
-		if (value & bf->mask) {
-			pr_cont(" %s", bf->name);
-			value &= ~bf->mask;
-		}
-
-		bf++;
-	}
-
-	if (value)
-		pr_cont(" (unknown bits 0x%08x)", value);
-}
-
-void
 nvkm_snprintbf(char *data, int size, const struct nvkm_bitfield *bf, u32 value)
 {
 	bool space = false;

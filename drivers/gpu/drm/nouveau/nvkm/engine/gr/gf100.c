@@ -673,7 +673,8 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 int
 gf100_gr_wait_idle(struct gf100_gr *gr)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(2000);
 	bool gr_enabled, ctxsw_active, gr_busy;
 
@@ -692,8 +693,9 @@ gf100_gr_wait_idle(struct gf100_gr *gr)
 			return 0;
 	} while (time_before(jiffies, end_jiffies));
 
-	nv_error(gr, "wait for idle timeout (en: %d, ctxsw: %d, busy: %d)\n",
-		 gr_enabled, ctxsw_active, gr_busy);
+	nvkm_error(subdev,
+		   "wait for idle timeout (en: %d, ctxsw: %d, busy: %d)\n",
+		   gr_enabled, ctxsw_active, gr_busy);
 	return -EAGAIN;
 }
 
@@ -790,55 +792,50 @@ gf100_gr_units(struct nvkm_gr *obj)
 	return cfg;
 }
 
-static const struct nvkm_enum gk104_sked_error[] = {
-	{ 7, "CONSTANT_BUFFER_SIZE" },
-	{ 9, "LOCAL_MEMORY_SIZE_POS" },
-	{ 10, "LOCAL_MEMORY_SIZE_NEG" },
-	{ 11, "WARP_CSTACK_SIZE" },
-	{ 12, "TOTAL_TEMP_SIZE" },
-	{ 13, "REGISTER_COUNT" },
-	{ 18, "TOTAL_THREADS" },
-	{ 20, "PROGRAM_OFFSET" },
-	{ 21, "SHARED_MEMORY_SIZE" },
-	{ 25, "SHARED_CONFIG_TOO_SMALL" },
-	{ 26, "TOTAL_REGISTER_COUNT" },
+static const struct nvkm_bitfield gk104_sked_error[] = {
+	{ 0x00000080, "CONSTANT_BUFFER_SIZE" },
+	{ 0x00000200, "LOCAL_MEMORY_SIZE_POS" },
+	{ 0x00000400, "LOCAL_MEMORY_SIZE_NEG" },
+	{ 0x00000800, "WARP_CSTACK_SIZE" },
+	{ 0x00001000, "TOTAL_TEMP_SIZE" },
+	{ 0x00002000, "REGISTER_COUNT" },
+	{ 0x00040000, "TOTAL_THREADS" },
+	{ 0x00100000, "PROGRAM_OFFSET" },
+	{ 0x00200000, "SHARED_MEMORY_SIZE" },
+	{ 0x02000000, "SHARED_CONFIG_TOO_SMALL" },
+	{ 0x04000000, "TOTAL_REGISTER_COUNT" },
 	{}
 };
 
-static const struct nvkm_enum gf100_gpc_rop_error[] = {
-	{ 1, "RT_PITCH_OVERRUN" },
-	{ 4, "RT_WIDTH_OVERRUN" },
-	{ 5, "RT_HEIGHT_OVERRUN" },
-	{ 7, "ZETA_STORAGE_TYPE_MISMATCH" },
-	{ 8, "RT_STORAGE_TYPE_MISMATCH" },
-	{ 10, "RT_LINEAR_MISMATCH" },
+static const struct nvkm_bitfield gf100_gpc_rop_error[] = {
+	{ 0x00000002, "RT_PITCH_OVERRUN" },
+	{ 0x00000010, "RT_WIDTH_OVERRUN" },
+	{ 0x00000020, "RT_HEIGHT_OVERRUN" },
+	{ 0x00000080, "ZETA_STORAGE_TYPE_MISMATCH" },
+	{ 0x00000100, "RT_STORAGE_TYPE_MISMATCH" },
+	{ 0x00000400, "RT_LINEAR_MISMATCH" },
 	{}
 };
 
 static void
 gf100_gr_trap_gpc_rop(struct gf100_gr *gr, int gpc)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	char error[128];
 	u32 trap[4];
-	int i;
 
-	trap[0] = nvkm_rd32(device, GPC_UNIT(gpc, 0x0420));
+	trap[0] = nvkm_rd32(device, GPC_UNIT(gpc, 0x0420)) & 0x3fffffff;
 	trap[1] = nvkm_rd32(device, GPC_UNIT(gpc, 0x0434));
 	trap[2] = nvkm_rd32(device, GPC_UNIT(gpc, 0x0438));
 	trap[3] = nvkm_rd32(device, GPC_UNIT(gpc, 0x043c));
 
-	nv_error(gr, "GPC%d/PROP trap:", gpc);
-	for (i = 0; i <= 29; ++i) {
-		if (!(trap[0] & (1 << i)))
-			continue;
-		pr_cont(" ");
-		nvkm_enum_print(gf100_gpc_rop_error, i);
-	}
-	pr_cont("\n");
+	nvkm_snprintbf(error, sizeof(error), gf100_gpc_rop_error, trap[0]);
 
-	nv_error(gr, "x = %u, y = %u, format = %x, storage type = %x\n",
-		 trap[1] & 0xffff, trap[1] >> 16, (trap[2] >> 8) & 0x3f,
-		 trap[3] & 0xff);
+	nvkm_error(subdev, "GPC%d/PROP trap: %08x [%s] x = %u, y = %u, "
+			   "format = %x, storage type = %x\n",
+		   gpc, trap[0], error, trap[1] & 0xffff, trap[1] >> 16,
+		   (trap[2] >> 8) & 0x3f, trap[3] & 0xff);
 	nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 }
 
@@ -864,17 +861,19 @@ static const struct nvkm_bitfield gf100_mp_global_error[] = {
 static void
 gf100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 werr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x648));
 	u32 gerr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x650));
+	const struct nvkm_enum *warp;
+	char glob[128];
 
-	nv_error(gr, "GPC%i/TPC%i/MP trap:", gpc, tpc);
-	nvkm_bitfield_print(gf100_mp_global_error, gerr);
-	if (werr) {
-		pr_cont(" ");
-		nvkm_enum_print(gf100_mp_warp_error, werr & 0xffff);
-	}
-	pr_cont("\n");
+	nvkm_snprintbf(glob, sizeof(glob), gf100_mp_global_error, gerr);
+	warp = nvkm_enum_find(gf100_mp_warp_error, werr & 0xffff);
+
+	nvkm_error(subdev, "GPC%i/TPC%i/MP trap: "
+			   "global %08x [%s] warp %04x [%s]\n",
+		   gpc, tpc, gerr, glob, werr, warp ? warp->name : "");
 
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x648), 0x00000000);
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x650), gerr);
@@ -883,12 +882,13 @@ gf100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
 static void
 gf100_gr_trap_tpc(struct gf100_gr *gr, int gpc, int tpc)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x0508));
 
 	if (stat & 0x00000001) {
 		u32 trap = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x0224));
-		nv_error(gr, "GPC%d/TPC%d/TEX: 0x%08x\n", gpc, tpc, trap);
+		nvkm_error(subdev, "GPC%d/TPC%d/TEX: %08x\n", gpc, tpc, trap);
 		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x0224), 0xc0000000);
 		stat &= ~0x00000001;
 	}
@@ -900,27 +900,28 @@ gf100_gr_trap_tpc(struct gf100_gr *gr, int gpc, int tpc)
 
 	if (stat & 0x00000004) {
 		u32 trap = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x0084));
-		nv_error(gr, "GPC%d/TPC%d/POLY: 0x%08x\n", gpc, tpc, trap);
+		nvkm_error(subdev, "GPC%d/TPC%d/POLY: %08x\n", gpc, tpc, trap);
 		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x0084), 0xc0000000);
 		stat &= ~0x00000004;
 	}
 
 	if (stat & 0x00000008) {
 		u32 trap = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x048c));
-		nv_error(gr, "GPC%d/TPC%d/L1C: 0x%08x\n", gpc, tpc, trap);
+		nvkm_error(subdev, "GPC%d/TPC%d/L1C: %08x\n", gpc, tpc, trap);
 		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x048c), 0xc0000000);
 		stat &= ~0x00000008;
 	}
 
 	if (stat) {
-		nv_error(gr, "GPC%d/TPC%d/0x%08x: unknown\n", gpc, tpc, stat);
+		nvkm_error(subdev, "GPC%d/TPC%d/%08x: unknown\n", gpc, tpc, stat);
 	}
 }
 
 static void
 gf100_gr_trap_gpc(struct gf100_gr *gr, int gpc)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, GPC_UNIT(gpc, 0x2c90));
 	int tpc;
 
@@ -931,21 +932,21 @@ gf100_gr_trap_gpc(struct gf100_gr *gr, int gpc)
 
 	if (stat & 0x00000002) {
 		u32 trap = nvkm_rd32(device, GPC_UNIT(gpc, 0x0900));
-		nv_error(gr, "GPC%d/ZCULL: 0x%08x\n", gpc, trap);
+		nvkm_error(subdev, "GPC%d/ZCULL: %08x\n", gpc, trap);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		stat &= ~0x00000002;
 	}
 
 	if (stat & 0x00000004) {
 		u32 trap = nvkm_rd32(device, GPC_UNIT(gpc, 0x1028));
-		nv_error(gr, "GPC%d/CCACHE: 0x%08x\n", gpc, trap);
+		nvkm_error(subdev, "GPC%d/CCACHE: %08x\n", gpc, trap);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x1028), 0xc0000000);
 		stat &= ~0x00000004;
 	}
 
 	if (stat & 0x00000008) {
 		u32 trap = nvkm_rd32(device, GPC_UNIT(gpc, 0x0824));
-		nv_error(gr, "GPC%d/ESETUP: 0x%08x\n", gpc, trap);
+		nvkm_error(subdev, "GPC%d/ESETUP: %08x\n", gpc, trap);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0824), 0xc0000000);
 		stat &= ~0x00000009;
 	}
@@ -960,20 +961,21 @@ gf100_gr_trap_gpc(struct gf100_gr *gr, int gpc)
 	}
 
 	if (stat) {
-		nv_error(gr, "GPC%d/0x%08x: unknown\n", gpc, stat);
+		nvkm_error(subdev, "GPC%d/%08x: unknown\n", gpc, stat);
 	}
 }
 
 static void
 gf100_gr_trap_intr(struct gf100_gr *gr)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 trap = nvkm_rd32(device, 0x400108);
-	int rop, gpc, i;
+	int rop, gpc;
 
 	if (trap & 0x00000001) {
 		u32 stat = nvkm_rd32(device, 0x404000);
-		nv_error(gr, "DISPATCH 0x%08x\n", stat);
+		nvkm_error(subdev, "DISPATCH %08x\n", stat);
 		nvkm_wr32(device, 0x404000, 0xc0000000);
 		nvkm_wr32(device, 0x400108, 0x00000001);
 		trap &= ~0x00000001;
@@ -981,7 +983,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 
 	if (trap & 0x00000002) {
 		u32 stat = nvkm_rd32(device, 0x404600);
-		nv_error(gr, "M2MF 0x%08x\n", stat);
+		nvkm_error(subdev, "M2MF %08x\n", stat);
 		nvkm_wr32(device, 0x404600, 0xc0000000);
 		nvkm_wr32(device, 0x400108, 0x00000002);
 		trap &= ~0x00000002;
@@ -989,7 +991,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 
 	if (trap & 0x00000008) {
 		u32 stat = nvkm_rd32(device, 0x408030);
-		nv_error(gr, "CCACHE 0x%08x\n", stat);
+		nvkm_error(subdev, "CCACHE %08x\n", stat);
 		nvkm_wr32(device, 0x408030, 0xc0000000);
 		nvkm_wr32(device, 0x400108, 0x00000008);
 		trap &= ~0x00000008;
@@ -997,7 +999,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 
 	if (trap & 0x00000010) {
 		u32 stat = nvkm_rd32(device, 0x405840);
-		nv_error(gr, "SHADER 0x%08x\n", stat);
+		nvkm_error(subdev, "SHADER %08x\n", stat);
 		nvkm_wr32(device, 0x405840, 0xc0000000);
 		nvkm_wr32(device, 0x400108, 0x00000010);
 		trap &= ~0x00000010;
@@ -1005,7 +1007,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 
 	if (trap & 0x00000040) {
 		u32 stat = nvkm_rd32(device, 0x40601c);
-		nv_error(gr, "UNK6 0x%08x\n", stat);
+		nvkm_error(subdev, "UNK6 %08x\n", stat);
 		nvkm_wr32(device, 0x40601c, 0xc0000000);
 		nvkm_wr32(device, 0x400108, 0x00000040);
 		trap &= ~0x00000040;
@@ -1013,25 +1015,20 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 
 	if (trap & 0x00000080) {
 		u32 stat = nvkm_rd32(device, 0x404490);
-		nv_error(gr, "MACRO 0x%08x\n", stat);
+		nvkm_error(subdev, "MACRO %08x\n", stat);
 		nvkm_wr32(device, 0x404490, 0xc0000000);
 		nvkm_wr32(device, 0x400108, 0x00000080);
 		trap &= ~0x00000080;
 	}
 
 	if (trap & 0x00000100) {
-		u32 stat = nvkm_rd32(device, 0x407020);
+		u32 stat = nvkm_rd32(device, 0x407020) & 0x3fffffff;
+		char sked[128];
 
-		nv_error(gr, "SKED:");
-		for (i = 0; i <= 29; ++i) {
-			if (!(stat & (1 << i)))
-				continue;
-			pr_cont(" ");
-			nvkm_enum_print(gk104_sked_error, i);
-		}
-		pr_cont("\n");
+		nvkm_snprintbf(sked, sizeof(sked), gk104_sked_error, stat);
+		nvkm_error(subdev, "SKED: %08x [%s]\n", stat, sked);
 
-		if (stat & 0x3fffffff)
+		if (stat)
 			nvkm_wr32(device, 0x407020, 0x40000000);
 		nvkm_wr32(device, 0x400108, 0x00000100);
 		trap &= ~0x00000100;
@@ -1055,7 +1052,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 		for (rop = 0; rop < gr->rop_nr; rop++) {
 			u32 statz = nvkm_rd32(device, ROP_UNIT(rop, 0x070));
 			u32 statc = nvkm_rd32(device, ROP_UNIT(rop, 0x144));
-			nv_error(gr, "ROP%d 0x%08x 0x%08x\n",
+			nvkm_error(subdev, "ROP%d %08x %08x\n",
 				 rop, statz, statc);
 			nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0xc0000000);
 			nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0xc0000000);
@@ -1065,7 +1062,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 	}
 
 	if (trap) {
-		nv_error(gr, "TRAP UNHANDLED 0x%08x\n", trap);
+		nvkm_error(subdev, "TRAP UNHANDLED %08x\n", trap);
 		nvkm_wr32(device, 0x400108, trap);
 	}
 }
@@ -1073,15 +1070,20 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 static void
 gf100_gr_ctxctl_debug_unit(struct gf100_gr *gr, u32 base)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	nv_error(gr, "%06x - done 0x%08x\n", base,
-		 nvkm_rd32(device, base + 0x400));
-	nv_error(gr, "%06x - stat 0x%08x 0x%08x 0x%08x 0x%08x\n", base,
-		 nvkm_rd32(device, base + 0x800), nvkm_rd32(device, base + 0x804),
-		 nvkm_rd32(device, base + 0x808), nvkm_rd32(device, base + 0x80c));
-	nv_error(gr, "%06x - stat 0x%08x 0x%08x 0x%08x 0x%08x\n", base,
-		 nvkm_rd32(device, base + 0x810), nvkm_rd32(device, base + 0x814),
-		 nvkm_rd32(device, base + 0x818), nvkm_rd32(device, base + 0x81c));
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	nvkm_error(subdev, "%06x - done %08x\n", base,
+		   nvkm_rd32(device, base + 0x400));
+	nvkm_error(subdev, "%06x - stat %08x %08x %08x %08x\n", base,
+		   nvkm_rd32(device, base + 0x800),
+		   nvkm_rd32(device, base + 0x804),
+		   nvkm_rd32(device, base + 0x808),
+		   nvkm_rd32(device, base + 0x80c));
+	nvkm_error(subdev, "%06x - stat %08x %08x %08x %08x\n", base,
+		   nvkm_rd32(device, base + 0x810),
+		   nvkm_rd32(device, base + 0x814),
+		   nvkm_rd32(device, base + 0x818),
+		   nvkm_rd32(device, base + 0x81c));
 }
 
 void
@@ -1099,7 +1101,8 @@ gf100_gr_ctxctl_debug(struct gf100_gr *gr)
 static void
 gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x409c18);
 
 	if (stat & 0x00000001) {
@@ -1111,26 +1114,26 @@ gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 			u32  mthd = (addr & 0x00003ffc);
 			u32  data = nvkm_rd32(device, 0x409810);
 
-			nv_error(gr, "FECS MTHD subc %d class 0x%04x "
-				       "mthd 0x%04x data 0x%08x\n",
-				 subc, class, mthd, data);
+			nvkm_error(subdev, "FECS MTHD subc %d class %04x "
+					   "mthd %04x data %08x\n",
+				   subc, class, mthd, data);
 
 			nvkm_wr32(device, 0x409c20, 0x00000001);
 			stat &= ~0x00000001;
 		} else {
-			nv_error(gr, "FECS ucode error %d\n", code);
+			nvkm_error(subdev, "FECS ucode error %d\n", code);
 		}
 	}
 
 	if (stat & 0x00080000) {
-		nv_error(gr, "FECS watchdog timeout\n");
+		nvkm_error(subdev, "FECS watchdog timeout\n");
 		gf100_gr_ctxctl_debug(gr);
 		nvkm_wr32(device, 0x409c20, 0x00080000);
 		stat &= ~0x00080000;
 	}
 
 	if (stat) {
-		nv_error(gr, "FECS 0x%08x\n", stat);
+		nvkm_error(subdev, "FECS %08x\n", stat);
 		gf100_gr_ctxctl_debug(gr);
 		nvkm_wr32(device, 0x409c20, stat);
 	}
@@ -1175,10 +1178,10 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	if (stat & 0x00000010) {
 		handle = nvkm_handle_get_class(engctx, class);
 		if (!handle || nv_call(handle->object, mthd, data)) {
-			nv_error(gr,
-				 "ILLEGAL_MTHD ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-				 chid, inst << 12, nvkm_client_name(engctx),
-				 subc, class, mthd, data);
+			nvkm_error(subdev, "ILLEGAL_MTHD ch %d [%010llx %s] "
+				   "subc %d class %04x mthd %04x data %08x\n",
+				   chid, inst << 12, nvkm_client_name(engctx),
+				   subc, class, mthd, data);
 		}
 		nvkm_handle_put(handle);
 		nvkm_wr32(device, 0x400100, 0x00000010);
@@ -1186,27 +1189,29 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat & 0x00000020) {
-		nv_error(gr,
-			 "ILLEGAL_CLASS ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, inst << 12, nvkm_client_name(engctx), subc,
-			 class, mthd, data);
+		nvkm_error(subdev, "ILLEGAL_CLASS ch %d [%010llx %s] "
+			   "subc %d class %04x mthd %04x data %08x\n",
+			   chid, inst << 12, nvkm_client_name(engctx), subc,
+			   class, mthd, data);
 		nvkm_wr32(device, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
 	}
 
 	if (stat & 0x00100000) {
-		nv_error(gr, "DATA_ERROR [");
-		nvkm_enum_print(nv50_data_error_names, code);
-		pr_cont("] ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			chid, inst << 12, nvkm_client_name(engctx), subc,
-			class, mthd, data);
+		const struct nvkm_enum *en =
+			nvkm_enum_find(nv50_data_error_names, code);
+		nvkm_error(subdev, "DATA_ERROR %08x [%s] ch %d [%010llx %s] "
+				   "subc %d class %04x mthd %04x data %08x\n",
+			   code, en ? en->name : "", chid, inst << 12,
+			   nvkm_client_name(engctx), subc, class, mthd, data);
 		nvkm_wr32(device, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
-		nv_error(gr, "TRAP ch %d [0x%010llx %s]\n", chid, inst << 12,
-			 nvkm_client_name(engctx));
+		nvkm_error(subdev, "TRAP ch %d [%010llx %s]\n",
+			   chid, inst << 12,
+			   nvkm_client_name(engctx));
 		gf100_gr_trap_intr(gr);
 		nvkm_wr32(device, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
@@ -1219,7 +1224,7 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat) {
-		nv_error(gr, "unknown stat 0x%08x\n", stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
 		nvkm_wr32(device, 0x400100, stat);
 	}
 
@@ -1295,7 +1300,8 @@ gf100_gr_init_csdata(struct gf100_gr *gr,
 int
 gf100_gr_init_ctxctl(struct gf100_gr *gr)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct gf100_gr_oclass *oclass = (void *)nv_object(gr)->oclass;
 	struct gf100_grctx_oclass *cclass = (void *)nv_engine(gr)->cclass;
 	int i;
@@ -1390,7 +1396,7 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 		if (gr->data == NULL) {
 			int ret = gf100_grctx_generate(gr);
 			if (ret) {
-				nv_error(gr, "failed to construct context\n");
+				nvkm_error(subdev, "failed to construct context\n");
 				return ret;
 			}
 		}
@@ -1448,7 +1454,7 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 	if (gr->data == NULL) {
 		int ret = gf100_grctx_generate(gr);
 		if (ret) {
-			nv_error(gr, "failed to construct context\n");
+			nvkm_error(subdev, "failed to construct context\n");
 			return ret;
 		}
 	}
@@ -1580,7 +1586,8 @@ int
 gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 		 struct gf100_gr_fuc *fuc)
 {
-	struct nvkm_device *device = nv_device(gr);
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const struct firmware *fw;
 	char f[64];
 	char cname[16];
@@ -1599,7 +1606,7 @@ gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 	snprintf(f, sizeof(f), "nvidia/%s/%s.bin", cname, fwname);
 	ret = request_firmware(&fw, f, nv_device_base(device));
 	if (ret) {
-		nv_error(gr, "failed to load %s\n", fwname);
+		nvkm_error(subdev, "failed to load %s\n", fwname);
 		return ret;
 	}
 
@@ -1633,7 +1640,7 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_object **pobject)
 {
 	struct gf100_gr_oclass *oclass = (void *)bclass;
-	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_device *device = (void *)parent;
 	struct gf100_gr *gr;
 	bool use_ext_fw, enable;
 	int ret, i, j;
@@ -1653,7 +1660,7 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	gr->base.units = gf100_gr_units;
 
 	if (use_ext_fw) {
-		nv_info(gr, "using external firmware\n");
+		nvkm_info(&gr->base.engine.subdev, "using external firmware\n");
 		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
 		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
 		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
