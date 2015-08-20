@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include <core/object.h>
+#include <core/client.h>
 #include <core/engine.h>
 
 int
@@ -109,28 +110,112 @@ nvkm_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *gpuobj,
 int
 nvkm_object_fini(struct nvkm_object *object, bool suspend)
 {
-	if (object->func->fini)
-		return object->func->fini(object, suspend);
+	const char *action = suspend ? "suspend" : "fini";
+	struct nvkm_object *child;
+	s64 time;
+	int ret;
+
+	nvif_debug(object, "%s children...\n", action);
+	time = ktime_to_us(ktime_get());
+	list_for_each_entry(child, &object->tree, head) {
+		ret = nvkm_object_fini(child, suspend);
+		if (ret && suspend)
+			goto fail_child;
+	}
+
+	nvif_debug(object, "%s running...\n", action);
+	if (object->func->fini) {
+		ret = object->func->fini(object, suspend);
+		if (ret) {
+			nvif_error(object, "%s failed with %d\n", action, ret);
+			if (suspend)
+				goto fail;
+		}
+	}
+
+	time = ktime_to_us(ktime_get()) - time;
+	nvif_debug(object, "%s completed in %lldus\n", action, time);
 	return 0;
+
+fail:
+	if (object->func->init) {
+		int rret = object->func->init(object);
+		if (rret)
+			nvif_fatal(object, "failed to restart, %d\n", rret);
+	}
+fail_child:
+	list_for_each_entry_continue_reverse(child, &object->tree, head) {
+		nvkm_object_init(child);
+	}
+	return ret;
 }
 
 int
 nvkm_object_init(struct nvkm_object *object)
 {
-	if (object->func->init)
-		return object->func->init(object);
+	struct nvkm_object *child;
+	s64 time;
+	int ret;
+
+	nvif_debug(object, "init running...\n");
+	time = ktime_to_us(ktime_get());
+	if (object->func->init) {
+		ret = object->func->init(object);
+		if (ret)
+			goto fail;
+	}
+
+	nvif_debug(object, "init children...\n");
+	list_for_each_entry(child, &object->tree, head) {
+		ret = nvkm_object_init(child);
+		if (ret)
+			goto fail_child;
+	}
+
+	time = ktime_to_us(ktime_get()) - time;
+	nvif_debug(object, "init completed in %lldus\n", time);
 	return 0;
+
+fail_child:
+	list_for_each_entry_continue_reverse(child, &object->tree, head)
+		nvkm_object_fini(child, false);
+fail:
+	nvif_error(object, "init failed with %d\n", ret);
+	if (object->func->fini)
+		object->func->fini(object, false);
+	return ret;
 }
 
-static void
+void *
+nvkm_object_dtor(struct nvkm_object *object)
+{
+	struct nvkm_object *child, *ctemp;
+	void *data = object;
+	s64 time;
+
+	nvif_debug(object, "destroy children...\n");
+	time = ktime_to_us(ktime_get());
+	list_for_each_entry_safe(child, ctemp, &object->tree, head) {
+		nvkm_object_del(&child);
+	}
+
+	nvif_debug(object, "destroy running...\n");
+	if (object->func->dtor)
+		data = object->func->dtor(object);
+	nvkm_engine_unref(&object->engine);
+	time = ktime_to_us(ktime_get()) - time;
+	nvif_debug(object, "destroy completed in %lldus...\n", time);
+	return data;
+}
+
+void
 nvkm_object_del(struct nvkm_object **pobject)
 {
 	struct nvkm_object *object = *pobject;
-
 	if (object && !WARN_ON(!object->func)) {
-		if (object->func->dtor)
-			*pobject = object->func->dtor(object);
-		nvkm_engine_unref(&object->engine);
+		*pobject = nvkm_object_dtor(object);
+		nvkm_client_remove(object->client, object);
+		list_del(&object->head);
 		kfree(*pobject);
 		*pobject = NULL;
 	}
@@ -145,9 +230,10 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	object->engine = nvkm_engine_ref(oclass->engine);
 	object->oclass = oclass->base.oclass;
 	object->handle = oclass->handle;
-	object->parent = oclass->parent;
-	atomic_set(&object->refcount, 1);
-	atomic_set(&object->usecount, 0);
+	INIT_LIST_HEAD(&object->head);
+	INIT_LIST_HEAD(&object->tree);
+	RB_CLEAR_NODE(&object->node);
+	WARN_ON(oclass->engine && !object->engine);
 }
 
 int
@@ -175,107 +261,4 @@ nvkm_object_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	const struct nvkm_object_func *func =
 		oclass->base.func ? oclass->base.func : &nvkm_object_func;
 	return nvkm_object_new_(func, oclass, data, size, pobject);
-}
-
-void
-nvkm_object_ref(struct nvkm_object *obj, struct nvkm_object **ref)
-{
-	if (obj) {
-		atomic_inc(&obj->refcount);
-	}
-
-	if (*ref) {
-		int dead = atomic_dec_and_test(&(*ref)->refcount);
-		if (dead)
-			nvkm_object_del(ref);
-	}
-
-	*ref = obj;
-}
-
-int
-nvkm_object_inc(struct nvkm_object *object)
-{
-	int ref = atomic_add_return(1, &object->usecount);
-	int ret;
-
-	if (ref != 1)
-		return 0;
-
-	if (object->parent) {
-		ret = nvkm_object_inc(object->parent);
-		if (ret)
-			goto fail_parent;
-	}
-
-	ret = nvkm_object_init(object);
-	atomic_set(&object->usecount, 1);
-	if (ret)
-		goto fail_self;
-
-	return 0;
-
-fail_self:
-	if (object->parent)
-		 nvkm_object_dec(object->parent, false);
-fail_parent:
-	atomic_dec(&object->usecount);
-	return ret;
-}
-
-static int
-nvkm_object_decf(struct nvkm_object *object)
-{
-	nvkm_object_fini(object, false);
-	atomic_set(&object->usecount, 0);
-
-	if (object->parent)
-		nvkm_object_dec(object->parent, false);
-
-	return 0;
-}
-
-static int
-nvkm_object_decs(struct nvkm_object *object)
-{
-	int ret;
-
-	ret = nvkm_object_fini(object, true);
-	atomic_set(&object->usecount, 0);
-	if (ret)
-		return ret;
-
-	if (object->parent) {
-		ret = nvkm_object_dec(object->parent, true);
-		if (ret)
-			goto fail_parent;
-	}
-
-	return 0;
-
-fail_parent:
-	nvkm_object_init(object);
-
-	return ret;
-}
-
-int
-nvkm_object_dec(struct nvkm_object *object, bool suspend)
-{
-	int ref = atomic_add_return(-1, &object->usecount);
-	int ret;
-
-	if (ref == 0) {
-		if (suspend)
-			ret = nvkm_object_decs(object);
-		else
-			ret = nvkm_object_decf(object);
-
-		if (ret) {
-			atomic_inc(&object->usecount);
-			return ret;
-		}
-	}
-
-	return 0;
 }

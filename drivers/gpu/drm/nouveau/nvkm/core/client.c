@@ -23,7 +23,6 @@
  */
 #include <core/client.h>
 #include <core/device.h>
-#include <core/handle.h>
 #include <core/notify.h>
 #include <core/option.h>
 
@@ -91,7 +90,7 @@ int
 nvkm_client_notify_new(struct nvkm_object *object,
 		       struct nvkm_event *event, void *data, u32 size)
 {
-	struct nvkm_client *client = nvkm_client(object);
+	struct nvkm_client *client = object->client;
 	struct nvkm_client_notify *notify;
 	union {
 		struct nvif_notify_req_v0 v0;
@@ -207,47 +206,47 @@ nvkm_client_object_func = {
 };
 
 void
-nvkm_client_remove(struct nvkm_client *client, struct nvkm_handle *object)
+nvkm_client_remove(struct nvkm_client *client, struct nvkm_object *object)
 {
-	if (!RB_EMPTY_NODE(&object->rb))
-		rb_erase(&object->rb, &client->objroot);
+	if (!RB_EMPTY_NODE(&object->node))
+		rb_erase(&object->node, &client->objroot);
 }
 
 bool
-nvkm_client_insert(struct nvkm_client *client, struct nvkm_handle *object)
+nvkm_client_insert(struct nvkm_client *client, struct nvkm_object *object)
 {
 	struct rb_node **ptr = &client->objroot.rb_node;
 	struct rb_node *parent = NULL;
 
 	while (*ptr) {
-		struct nvkm_handle *this =
-			container_of(*ptr, typeof(*this), rb);
+		struct nvkm_object *this =
+			container_of(*ptr, typeof(*this), node);
 		parent = *ptr;
-		if (object->handle < this->handle)
+		if (object->object < this->object)
 			ptr = &parent->rb_left;
 		else
-		if (object->handle > this->handle)
+		if (object->object > this->object)
 			ptr = &parent->rb_right;
 		else
 			return false;
 	}
 
-	rb_link_node(&object->rb, parent, ptr);
-	rb_insert_color(&object->rb, &client->objroot);
+	rb_link_node(&object->node, parent, ptr);
+	rb_insert_color(&object->node, &client->objroot);
 	return true;
 }
 
-struct nvkm_handle *
+struct nvkm_object *
 nvkm_client_search(struct nvkm_client *client, u64 handle)
 {
 	struct rb_node *node = client->objroot.rb_node;
 	while (node) {
-		struct nvkm_handle *object =
-			container_of(node, typeof(*object), rb);
-		if (handle < object->handle)
+		struct nvkm_object *object =
+			container_of(node, typeof(*object), node);
+		if (handle < object->object)
 			node = node->rb_left;
 		else
-		if (handle > object->handle)
+		if (handle > object->object)
 			node = node->rb_right;
 		else
 			return object;
@@ -260,26 +259,17 @@ nvkm_client_fini(struct nvkm_client *client, bool suspend)
 {
 	struct nvkm_object *object = &client->object;
 	const char *name[2] = { "fini", "suspend" };
-	int ret, i;
-	nvif_trace(object, "%s running\n", name[suspend]);
-	nvif_trace(object, "%s notify\n", name[suspend]);
+	int i;
+	nvif_debug(object, "%s notify\n", name[suspend]);
 	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 		nvkm_client_notify_put(client, i);
-	nvif_trace(object, "%s object\n", name[suspend]);
-	ret = nvkm_handle_fini(client->root, suspend);
-	nvif_trace(object, "%s completed with %d\n", name[suspend], ret);
-	return ret;
+	return nvkm_object_fini(&client->object, suspend);
 }
 
 int
 nvkm_client_init(struct nvkm_client *client)
 {
-	struct nvkm_object *object = &client->object;
-	int ret;
-	nvif_trace(object, "init running\n");
-	ret = nvkm_handle_init(client->root);
-	nvif_trace(object, "init completed with %d\n", ret);
-	return ret;
+	return nvkm_object_init(&client->object);
 }
 
 void
@@ -291,7 +281,7 @@ nvkm_client_del(struct nvkm_client **pclient)
 		nvkm_client_fini(client, false);
 		for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 			nvkm_client_notify_del(client, i);
-		nvkm_handle_destroy(client->root);
+		nvkm_object_dtor(&client->object);
 		kfree(*pclient);
 		*pclient = NULL;
 	}
@@ -303,7 +293,6 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 {
 	struct nvkm_oclass oclass = {};
 	struct nvkm_client *client;
-	int ret;
 
 	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))
 		return -ENOMEM;
@@ -315,9 +304,5 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
 	client->objroot = RB_ROOT;
 	client->dmaroot = RB_ROOT;
-
-	ret = nvkm_handle_create(NULL, ~0, &client->object, &client->root);
-	if (ret)
-		nvkm_client_del(pclient);
-	return ret;
+	return 0;
 }

@@ -26,7 +26,6 @@
 #include "regsnv04.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <core/ramht.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>

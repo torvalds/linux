@@ -25,7 +25,6 @@
 #include "rootnv50.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <core/oproxy.h>
 #include <core/ramht.h>
 #include <subdev/fb.h>

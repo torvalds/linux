@@ -116,7 +116,7 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 	if (!--engn->refcount) {
 		if (chan->func->engine_dtor)
 			chan->func->engine_dtor(chan, engine);
-		nvkm_object_ref(NULL, &engn->object);
+		nvkm_object_del(&engn->object);
 		if (chan->vm)
 			atomic_dec(&chan->vm->engref[engine->subdev.index]);
 	}

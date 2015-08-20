@@ -10,12 +10,15 @@ struct nvkm_object {
 	const struct nvkm_object_func *func;
 	struct nvkm_client *client;
 	struct nvkm_engine *engine;
-	u32 oclass;
+	s32 oclass;
 	u32 handle;
-	struct nvkm_object *parent;
-	u32 pclass;
-	atomic_t refcount;
-	atomic_t usecount;
+
+	struct list_head head;
+	struct list_head tree;
+	u8  route;
+	u64 token;
+	u64 object;
+	struct rb_node node;
 };
 
 struct nvkm_object_func {
@@ -43,6 +46,8 @@ int nvkm_object_new_(const struct nvkm_object_func *,
 		     struct nvkm_object **);
 int nvkm_object_new(const struct nvkm_oclass *, void *data, u32 size,
 		    struct nvkm_object **);
+void nvkm_object_del(struct nvkm_object **);
+void *nvkm_object_dtor(struct nvkm_object *);
 int nvkm_object_init(struct nvkm_object *);
 int nvkm_object_fini(struct nvkm_object *, bool suspend);
 int nvkm_object_mthd(struct nvkm_object *, u32 mthd, void *data, u32 size);
@@ -72,14 +77,12 @@ struct nvkm_oclass {
 	struct nvkm_sclass base;
 	const void *priv;
 	const void *engn;
-	s32 handle;
+	u32 handle;
+	u8  route;
+	u64 token;
 	u64 object;
 	struct nvkm_client *client;
 	struct nvkm_object *parent;
 	struct nvkm_engine *engine;
 };
-
-void nvkm_object_ref(struct nvkm_object *, struct nvkm_object **);
-int  nvkm_object_inc(struct nvkm_object *);
-int  nvkm_object_dec(struct nvkm_object *, bool suspend);
 #endif

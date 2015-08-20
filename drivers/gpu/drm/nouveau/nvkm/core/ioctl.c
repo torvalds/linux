@@ -24,15 +24,13 @@
 #include <core/ioctl.h>
 #include <core/client.h>
 #include <core/engine.h>
-#include <core/handle.h>
 
 #include <nvif/unpack.h>
 #include <nvif/ioctl.h>
 
 static int
-nvkm_ioctl_nop(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_nop(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_nop_v0 v0;
 	} *args = data;
@@ -48,9 +46,8 @@ nvkm_ioctl_nop(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_sclass(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_sclass(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_sclass_v0 v0;
 	} *args = data;
@@ -81,13 +78,12 @@ nvkm_ioctl_sclass(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_new(struct nvkm_object *parent, void *data, u32 size)
 {
 	union {
 		struct nvif_ioctl_new_v0 v0;
 	} *args = data;
-	struct nvkm_client *client = handle->object->client;
-	struct nvkm_object *parent = handle->object;
+	struct nvkm_client *client = parent->client;
 	struct nvkm_object *object = NULL;
 	struct nvkm_oclass oclass;
 	int ret, i = 0;
@@ -124,38 +120,30 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	}
 
 	ret = oclass.ctor(&oclass, data, size, &object);
-	if (ret)
-		goto fail_object;
-
-	ret = nvkm_object_inc(object);
-	if (ret)
-		goto fail_object;
-
-	ret = nvkm_handle_create(handle, args->v0.handle, object, &handle);
-	if (ret)
-		goto fail_handle;
-
-	ret = nvkm_handle_init(handle);
-	handle->route = args->v0.route;
-	handle->token = args->v0.token;
-	if (ret)
-		nvkm_handle_destroy(handle);
-
-	handle->handle = args->v0.object;
-	nvkm_client_insert(client, handle);
-	client->data = object;
-fail_handle:
-	nvkm_object_dec(object, false);
-fail_object:
-	nvkm_object_ref(NULL, &object);
 	nvkm_engine_unref(&oclass.engine);
+	if (ret == 0) {
+		ret = nvkm_object_init(object);
+		if (ret == 0) {
+			list_add(&object->head, &parent->tree);
+			object->route = args->v0.route;
+			object->token = args->v0.token;
+			object->object = args->v0.object;
+			if (nvkm_client_insert(client, object)) {
+				client->data = object;
+				return 0;
+			}
+			ret = -EEXIST;
+		}
+		nvkm_object_fini(object, false);
+	}
+
+	nvkm_object_del(&object);
 	return ret;
 }
 
 static int
-nvkm_ioctl_del(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_del(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_del none;
 	} *args = data;
@@ -164,17 +152,16 @@ nvkm_ioctl_del(struct nvkm_handle *handle, void *data, u32 size)
 	nvif_ioctl(object, "delete size %d\n", size);
 	if (nvif_unvers(args->none)) {
 		nvif_ioctl(object, "delete\n");
-		nvkm_handle_fini(handle, false);
-		nvkm_handle_destroy(handle);
+		nvkm_object_fini(object, false);
+		nvkm_object_del(&object);
 	}
 
 	return ret;
 }
 
 static int
-nvkm_ioctl_mthd(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_mthd(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_mthd_v0 v0;
 	} *args = data;
@@ -192,9 +179,8 @@ nvkm_ioctl_mthd(struct nvkm_handle *handle, void *data, u32 size)
 
 
 static int
-nvkm_ioctl_rd(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_rd(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_rd_v0 v0;
 	} *args = data;
@@ -232,9 +218,8 @@ nvkm_ioctl_rd(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_wr(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_wr(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_wr_v0 v0;
 	} *args = data;
@@ -261,9 +246,8 @@ nvkm_ioctl_wr(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_map(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_map(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_map_v0 v0;
 	} *args = data;
@@ -280,9 +264,8 @@ nvkm_ioctl_map(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_unmap(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_unmap(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_unmap none;
 	} *args = data;
@@ -297,9 +280,8 @@ nvkm_ioctl_unmap(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_ntfy_new(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_ntfy_new(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_object *object = handle->object;
 	union {
 		struct nvif_ioctl_ntfy_new_v0 v0;
 	} *args = data;
@@ -324,10 +306,9 @@ nvkm_ioctl_ntfy_new(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_ntfy_del(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_ntfy_del(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_client *client = nvkm_client(handle->object);
-	struct nvkm_object *object = handle->object;
+	struct nvkm_client *client = object->client;
 	union {
 		struct nvif_ioctl_ntfy_del_v0 v0;
 	} *args = data;
@@ -344,10 +325,9 @@ nvkm_ioctl_ntfy_del(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_ntfy_get(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_ntfy_get(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_client *client = nvkm_client(handle->object);
-	struct nvkm_object *object = handle->object;
+	struct nvkm_client *client = object->client;
 	union {
 		struct nvif_ioctl_ntfy_get_v0 v0;
 	} *args = data;
@@ -364,10 +344,9 @@ nvkm_ioctl_ntfy_get(struct nvkm_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_ntfy_put(struct nvkm_handle *handle, void *data, u32 size)
+nvkm_ioctl_ntfy_put(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nvkm_client *client = nvkm_client(handle->object);
-	struct nvkm_object *object = handle->object;
+	struct nvkm_client *client = object->client;
 	union {
 		struct nvif_ioctl_ntfy_put_v0 v0;
 	} *args = data;
@@ -385,7 +364,7 @@ nvkm_ioctl_ntfy_put(struct nvkm_handle *handle, void *data, u32 size)
 
 static struct {
 	int version;
-	int (*func)(struct nvkm_handle *, void *, u32);
+	int (*func)(struct nvkm_object *, void *, u32);
 }
 nvkm_ioctl_v0[] = {
 	{ 0x00, nvkm_ioctl_nop },
@@ -407,13 +386,13 @@ static int
 nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 		void *data, u32 size, u8 owner, u8 *route, u64 *token)
 {
-	struct nvkm_handle *object;
+	struct nvkm_object *object;
 	int ret;
 
 	if (handle)
 		object = nvkm_client_search(client, handle);
 	else
-		object = client->root;
+		object = &client->object;
 	if (unlikely(!object)) {
 		nvif_ioctl(&client->object, "object not found\n");
 		return -ENOENT;

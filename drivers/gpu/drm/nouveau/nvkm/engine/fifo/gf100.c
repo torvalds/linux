@@ -27,7 +27,6 @@
 #include <core/client.h>
 #include <core/enum.h>
 #include <core/gpuobj.h>
-#include <core/handle.h>
 #include <subdev/bar.h>
 #include <engine/sw.h>
 

@@ -43,20 +43,26 @@ module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 int
 nouveau_channel_idle(struct nouveau_channel *chan)
 {
-	struct nouveau_cli *cli = (void *)chan->user.client;
-	struct nouveau_fence *fence = NULL;
-	int ret;
+	if (likely(chan && chan->fence)) {
+		struct nouveau_cli *cli = (void *)chan->user.client;
+		struct nouveau_fence *fence = NULL;
+		int ret;
 
-	ret = nouveau_fence_new(chan, false, &fence);
-	if (!ret) {
-		ret = nouveau_fence_wait(fence, false, false);
-		nouveau_fence_unref(&fence);
+		ret = nouveau_fence_new(chan, false, &fence);
+		if (!ret) {
+			ret = nouveau_fence_wait(fence, false, false);
+			nouveau_fence_unref(&fence);
+		}
+
+		if (ret) {
+			NV_PRINTK(err, cli, "failed to idle channel "
+					    "0x%08x [%s]\n",
+				  chan->user.handle,
+				  nvxx_client(&cli->base)->name);
+			return ret;
+		}
 	}
-
-	if (ret)
-		NV_PRINTK(err, cli, "failed to idle channel 0x%08x [%s]\n",
-			  chan->user.handle, nvxx_client(&cli->base)->name);
-	return ret;
+	return 0;
 }
 
 void
@@ -64,10 +70,8 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 {
 	struct nouveau_channel *chan = *pchan;
 	if (chan) {
-		if (chan->fence) {
-			nouveau_channel_idle(chan);
+		if (chan->fence)
 			nouveau_fence(chan->drm)->context_del(chan);
-		}
 		nvif_object_fini(&chan->nvsw);
 		nvif_object_fini(&chan->gart);
 		nvif_object_fini(&chan->vram);

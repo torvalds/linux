@@ -139,13 +139,17 @@ nouveau_cli_destroy(struct nouveau_cli *cli)
 static void
 nouveau_accel_fini(struct nouveau_drm *drm)
 {
-	nvif_notify_fini(&drm->flip);
-	nouveau_channel_del(&drm->channel);
+	nouveau_channel_idle(drm->channel);
 	nvif_object_fini(&drm->ntfy);
 	nvkm_gpuobj_del(&drm->notify);
+	nvif_notify_fini(&drm->flip);
 	nvif_object_fini(&drm->nvsw);
-	nouveau_channel_del(&drm->cechan);
+	nouveau_channel_del(&drm->channel);
+
+	nouveau_channel_idle(drm->cechan);
 	nvif_object_fini(&drm->ttm.copy);
+	nouveau_channel_del(&drm->cechan);
+
 	if (drm->fence)
 		nouveau_fence(drm)->dtor(drm);
 }

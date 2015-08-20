@@ -109,9 +109,11 @@ nvkm_oproxy_fini(struct nvkm_object *object, bool suspend)
 			return ret;
 	}
 
-	ret = nvkm_object_fini(oproxy->object, suspend);
-	if (ret && suspend)
-		return ret;
+	if (oproxy->object->func->fini) {
+		ret = oproxy->object->func->fini(oproxy->object, suspend);
+		if (ret && suspend)
+			return ret;
+	}
 
 	if (oproxy->func->fini[1]) {
 		ret = oproxy->func->fini[1](oproxy, suspend);
@@ -134,9 +136,11 @@ nvkm_oproxy_init(struct nvkm_object *object)
 			return ret;
 	}
 
-	ret = nvkm_object_init(oproxy->object);
-	if (ret)
-		return ret;
+	if (oproxy->object->func->init) {
+		ret = oproxy->object->func->init(oproxy->object);
+		if (ret)
+			return ret;
+	}
 
 	if (oproxy->func->init[1]) {
 		ret = oproxy->func->init[1](oproxy);
@@ -153,7 +157,7 @@ nvkm_oproxy_dtor(struct nvkm_object *object)
 	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
 	if (oproxy->func->dtor[0])
 		oproxy->func->dtor[0](oproxy);
-	nvkm_object_ref(NULL, &oproxy->object);
+	nvkm_object_del(&oproxy->object);
 	if (oproxy->func->dtor[1])
 		oproxy->func->dtor[1](oproxy);
 	return oproxy;

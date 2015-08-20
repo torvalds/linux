@@ -134,6 +134,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
 		abi16->handles &= ~(1ULL << (chan->chan->user.handle & 0xffff));
+		nouveau_channel_idle(chan->chan);
 		nouveau_channel_del(&chan->chan);
 	}
 
