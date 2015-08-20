@@ -35,13 +35,14 @@ nvkm_ioctl_nop(struct nvkm_handle *handle, void *data, u32 size)
 {
 	struct nvkm_object *object = handle->object;
 	union {
-		struct nvif_ioctl_nop none;
+		struct nvif_ioctl_nop_v0 v0;
 	} *args = data;
 	int ret;
 
 	nvif_ioctl(object, "nop size %d\n", size);
-	if (nvif_unvers(args->none)) {
-		nvif_ioctl(object, "nop\n");
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nvif_ioctl(object, "nop vers %lld\n", args->v0.version);
+		args->v0.version = NVIF_VERSION_LATEST;
 	}
 
 	return ret;

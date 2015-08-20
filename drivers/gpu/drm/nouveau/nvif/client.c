@@ -71,6 +71,10 @@ int
 nvif_client_init(const char *driver, const char *name, u64 device,
 		 const char *cfg, const char *dbg, struct nvif_client *client)
 {
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_nop_v0 nop;
+	} args = {};
 	int ret, i;
 
 	ret = nvif_object_init(NULL, 0, 0, NULL, 0, &client->object);
@@ -89,6 +93,11 @@ nvif_client_init(const char *driver, const char *name, u64 device,
 			if (!ret || driver)
 				break;
 		}
+	}
+
+	if (ret == 0) {
+		ret = nvif_client_ioctl(client, &args, sizeof(args));
+		client->version = args.nop.version;
 	}
 
 	if (ret)

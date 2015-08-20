@@ -1,6 +1,8 @@
 #ifndef __NVIF_IOCTL_H__
 #define __NVIF_IOCTL_H__
 
+#define NVIF_VERSION_LATEST                               0x0000000000000000ULL
+
 struct nvif_ioctl_v0 {
 	__u8  version;
 #define NVIF_IOCTL_V0_NOP                                                  0x00
@@ -29,7 +31,8 @@ struct nvif_ioctl_v0 {
 	__u8  data[];		/* ioctl data (below) */
 };
 
-struct nvif_ioctl_nop {
+struct nvif_ioctl_nop_v0 {
+	__u64 version;
 };
 
 struct nvif_ioctl_sclass_v0 {
