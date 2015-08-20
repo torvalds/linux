@@ -548,6 +548,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&vdd_arm_reg>;
+};
+
 &pinctrl_1 {
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";

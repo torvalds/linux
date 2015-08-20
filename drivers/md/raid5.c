@@ -2256,7 +2256,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 static int drop_one_stripe(struct r5conf *conf)
 {
 	struct stripe_head *sh;
-	int hash = (conf->max_nr_stripes - 1) % NR_STRIPE_HASH_LOCKS;
+	int hash = (conf->max_nr_stripes - 1) & STRIPE_HASH_LOCKS_MASK;
 
 	spin_lock_irq(conf->hash_locks + hash);
 	sh = get_free_stripe(conf, hash);
@@ -6388,7 +6388,8 @@ static unsigned long raid5_cache_scan(struct shrinker *shrink,
 
 	if (mutex_trylock(&conf->cache_size_mutex)) {
 		ret= 0;
-		while (ret < sc->nr_to_scan) {
+		while (ret < sc->nr_to_scan &&
+		       conf->max_nr_stripes > conf->min_nr_stripes) {
 			if (drop_one_stripe(conf) == 0) {
 				ret = SHRINK_STOP;
 				break;

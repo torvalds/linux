@@ -1852,7 +1852,7 @@ ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 	struct nfs42_layoutstat_devinfo *devinfo;
 	int i;
 
-	for (i = 0; i <= FF_LAYOUT_MIRROR_COUNT(pls); i++) {
+	for (i = 0; i < FF_LAYOUT_MIRROR_COUNT(pls); i++) {
 		if (*dev_count >= dev_limit)
 			break;
 		mirror = FF_LAYOUT_COMP(pls, i);

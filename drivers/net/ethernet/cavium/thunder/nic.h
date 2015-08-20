@@ -125,6 +125,15 @@
  */
 #define NICPF_CLK_PER_INT_TICK		2
 
+/* Time to wait before we decide that a SQ is stuck.
+ *
+ * Since both pkt rx and tx notifications are done with same CQ,
+ * when packets are being received at very high rate (eg: L2 forwarding)
+ * then freeing transmitted skbs will be delayed and watchdog
+ * will kick in, resetting interface. Hence keeping this value high.
+ */
+#define	NICVF_TX_TIMEOUT		(50 * HZ)
+
 struct nicvf_cq_poll {
 	u8	cq_idx;		/* Completion queue index */
 	struct	napi_struct napi;
@@ -216,8 +225,9 @@ struct nicvf_drv_stats {
 	/* Tx */
 	u64 tx_frames_ok;
 	u64 tx_drops;
-	u64 tx_busy;
 	u64 tx_tso;
+	u64 txq_stop;
+	u64 txq_wake;
 };
 
 struct nicvf {

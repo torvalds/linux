@@ -1191,8 +1191,9 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	adev->ip_block_enabled = kcalloc(adev->num_ip_blocks, sizeof(bool), GFP_KERNEL);
-	if (adev->ip_block_enabled == NULL)
+	adev->ip_block_status = kcalloc(adev->num_ip_blocks,
+					sizeof(struct amdgpu_ip_block_status), GFP_KERNEL);
+	if (adev->ip_block_status == NULL)
 		return -ENOMEM;
 
 	if (adev->ip_blocks == NULL) {
@@ -1203,18 +1204,18 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
 			DRM_ERROR("disabled ip block: %d\n", i);
-			adev->ip_block_enabled[i] = false;
+			adev->ip_block_status[i].valid = false;
 		} else {
 			if (adev->ip_blocks[i].funcs->early_init) {
 				r = adev->ip_blocks[i].funcs->early_init((void *)adev);
 				if (r == -ENOENT)
-					adev->ip_block_enabled[i] = false;
+					adev->ip_block_status[i].valid = false;
 				else if (r)
 					return r;
 				else
-					adev->ip_block_enabled[i] = true;
+					adev->ip_block_status[i].valid = true;
 			} else {
-				adev->ip_block_enabled[i] = true;
+				adev->ip_block_status[i].valid = true;
 			}
 		}
 	}
@@ -1227,11 +1228,12 @@ static int amdgpu_init(struct amdgpu_device *adev)
 	int i, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].valid)
 			continue;
 		r = adev->ip_blocks[i].funcs->sw_init((void *)adev);
 		if (r)
 			return r;
+		adev->ip_block_status[i].sw = true;
 		/* need to do gmc hw init early so we can allocate gpu mem */
 		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
 			r = amdgpu_vram_scratch_init(adev);
@@ -1243,11 +1245,12 @@ static int amdgpu_init(struct amdgpu_device *adev)
 			r = amdgpu_wb_init(adev);
 			if (r)
 				return r;
+			adev->ip_block_status[i].hw = true;
 		}
 	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].sw)
 			continue;
 		/* gmc hw init is done early */
 		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC)
@@ -1255,6 +1258,7 @@ static int amdgpu_init(struct amdgpu_device *adev)
 		r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
 		if (r)
 			return r;
+		adev->ip_block_status[i].hw = true;
 	}
 
 	return 0;
@@ -1265,7 +1269,7 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 	int i = 0, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].valid)
 			continue;
 		/* enable clockgating to save power */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
@@ -1287,7 +1291,7 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 	int i, r;
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].hw)
 			continue;
 		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
 			amdgpu_wb_fini(adev);
@@ -1300,14 +1304,16 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 			return r;
 		r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
+		adev->ip_block_status[i].hw = false;
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].sw)
 			continue;
 		r = adev->ip_blocks[i].funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
-		adev->ip_block_enabled[i] = false;
+		adev->ip_block_status[i].sw = false;
+		adev->ip_block_status[i].valid = false;
 	}
 
 	return 0;
@@ -1318,7 +1324,7 @@ static int amdgpu_suspend(struct amdgpu_device *adev)
 	int i, r;
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].valid)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
@@ -1336,7 +1342,7 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 	int i, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_enabled[i])
+		if (!adev->ip_block_status[i].valid)
 			continue;
 		r = adev->ip_blocks[i].funcs->resume(adev);
 		if (r)
@@ -1582,8 +1588,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
-	kfree(adev->ip_block_enabled);
-	adev->ip_block_enabled = NULL;
+	kfree(adev->ip_block_status);
+	adev->ip_block_status = NULL;
 	adev->accel_working = false;
 	/* free i2c buses */
 	amdgpu_i2c_fini(adev);

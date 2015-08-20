@@ -1023,7 +1023,7 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 	cmd->scan_priority =
 		iwl_mvm_scan_priority(mvm, IWL_SCAN_PRIORITY_EXT_6);
 
-	if (iwl_mvm_scan_total_iterations(params) == 0)
+	if (iwl_mvm_scan_total_iterations(params) == 1)
 		cmd->ooc_priority =
 			iwl_mvm_scan_priority(mvm, IWL_SCAN_PRIORITY_EXT_6);
 	else
