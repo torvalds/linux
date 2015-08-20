@@ -9,8 +9,8 @@
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		2
-#define DRIVER_PATCHLEVEL	2
+#define DRIVER_MINOR		3
+#define DRIVER_PATCHLEVEL	0
 
 /*
  * 1.1.1:
@@ -30,6 +30,9 @@
  *      - allow concurrent access to bo's mapped read/write.
  * 1.2.2:
  *      - add NOUVEAU_GEM_DOMAIN_COHERENT flag
+ * 1.3.0:
+ *      - NVIF ABI modified, safe because only (current) users are test
+ *        programs that get directly linked with NVKM.
  */
 
 #include <nvif/client.h>
