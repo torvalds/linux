@@ -113,17 +113,18 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 	u32 mthd = nvkm_rd32(device, 0x102190);
 	u32 data = nvkm_rd32(device, 0x102194);
 	u32 inst = nvkm_rd32(device, 0x102188) & 0x7fffffff;
+	char msg[128];
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
 	chid   = fifo->chid(fifo, engctx);
 
 	if (stat) {
-		nv_error(cipher, "%s", "");
-		nvkm_bitfield_print(g84_cipher_intr_mask, stat);
-		pr_cont(" ch %d [0x%010llx %s] mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, nvkm_client_name(engctx),
-		       mthd, data);
+		nvkm_snprintbf(msg, sizeof(msg), g84_cipher_intr_mask, stat);
+		nvkm_error(subdev,  "%08x [%s] ch %d [%010llx %s] "
+				    "mthd %04x data %08x\n",
+			   stat, msg, chid, (u64)inst << 12,
+			   nvkm_client_name(engctx), mthd, data);
 	}
 
 	nvkm_wr32(device, 0x102130, stat);
