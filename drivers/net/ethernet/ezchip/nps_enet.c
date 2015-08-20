@@ -304,11 +304,8 @@ static void nps_enet_hw_enable_control(struct net_device *ndev)
 
 	/* Discard Packets bigger than max frame length */
 	max_frame_length = ETH_HLEN + ndev->mtu + ETH_FCS_LEN;
-	if (max_frame_length <= NPS_ENET_MAX_FRAME_LENGTH) {
+	if (max_frame_length <= NPS_ENET_MAX_FRAME_LENGTH)
 		ge_mac_cfg_3->max_len = max_frame_length;
-		nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_3,
-				 ge_mac_cfg_3->value);
-	}
 
 	/* Enable interrupts */
 	buf_int_enable.rx_rdy = NPS_ENET_ENABLE;
@@ -336,11 +333,14 @@ static void nps_enet_hw_enable_control(struct net_device *ndev)
 	ge_mac_cfg_0.tx_fc_en = NPS_ENET_ENABLE;
 	ge_mac_cfg_0.rx_fc_en = NPS_ENET_ENABLE;
 	ge_mac_cfg_0.tx_fc_retr = NPS_ENET_GE_MAC_CFG_0_TX_FC_RETR;
+	ge_mac_cfg_3->cf_drop = NPS_ENET_ENABLE;
 
 	/* Enable Rx and Tx */
 	ge_mac_cfg_0.rx_en = NPS_ENET_ENABLE;
 	ge_mac_cfg_0.tx_en = NPS_ENET_ENABLE;
 
+	nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_3,
+			 ge_mac_cfg_3->value);
 	nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_0,
 			 ge_mac_cfg_0.value);
 }
