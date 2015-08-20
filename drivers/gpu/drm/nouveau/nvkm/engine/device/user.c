@@ -26,6 +26,7 @@
 #include <core/client.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
+#include <subdev/timer.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
@@ -112,11 +113,31 @@ nvkm_udevice_info(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
+nvkm_udevice_time(struct nvkm_object *object, void *data, u32 size)
+{
+	struct nvkm_udevice *udev = (void *)object;
+	struct nvkm_device *device = udev->device;
+	struct nvkm_timer *tmr = device->timer;
+	union {
+		struct nv_device_time_v0 v0;
+	} *args = data;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		args->v0.time = tmr->read(tmr);
+	}
+
+	return ret;
+}
+
+static int
 nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
 	case NV_DEVICE_V0_INFO:
 		return nvkm_udevice_info(object, data, size);
+	case NV_DEVICE_V0_TIME:
+		return nvkm_udevice_time(object, data, size);
 	default:
 		break;
 	}

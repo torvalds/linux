@@ -27,7 +27,11 @@
 u64
 nvif_device_time(struct nvif_device *device)
 {
-	return nvxx_timer(device)->read(nvxx_timer(device));
+	struct nv_device_time_v0 args = {};
+	int ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_TIME,
+				   &args, sizeof(args));
+	WARN_ON_ONCE(ret != 0);
+	return args.time;
 }
 
 void
