@@ -62,20 +62,20 @@ g84_bsp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
-	struct nvkm_xtensa *priv;
+	struct nvkm_xtensa *bsp;
 	int ret;
 
 	ret = nvkm_xtensa_create(parent, engine, oclass, 0x103000, true,
-				 "PBSP", "bsp", &priv);
-	*pobject = nv_object(priv);
+				 "PBSP", "bsp", &bsp);
+	*pobject = nv_object(bsp);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x04008000;
-	nv_engine(priv)->cclass = &g84_bsp_cclass;
-	nv_engine(priv)->sclass = g84_bsp_sclass;
-	priv->fifo_val = 0x1111;
-	priv->unkd28 = 0x90044;
+	nv_subdev(bsp)->unit = 0x04008000;
+	nv_engine(bsp)->cclass = &g84_bsp_cclass;
+	nv_engine(bsp)->sclass = g84_bsp_sclass;
+	bsp->fifo_val = 0x1111;
+	bsp->unkd28 = 0x90044;
 	return 0;
 }
 
