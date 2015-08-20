@@ -84,7 +84,8 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu *pmu,
 		level = min(clk->state_nr - 1, level);
 	}
 
-	nv_trace(pmu, "cur level = %d, new level = %d\n", cur_level, level);
+	nvkm_trace(&pmu->base.subdev, "cur level = %d, new level = %d\n",
+		   cur_level, level);
 
 	*state = level;
 
@@ -119,8 +120,10 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 		container_of(alarm, struct gk20a_pmu, alarm);
 	struct gk20a_pmu_dvfs_data *data = pmu->data;
 	struct gk20a_pmu_dvfs_dev_status status;
-	struct nvkm_clk *clk = nvkm_clk(pmu);
-	struct nvkm_volt *volt = nvkm_volt(pmu);
+	struct nvkm_subdev *subdev = &pmu->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_clk *clk = device->clk;
+	struct nvkm_volt *volt = device->volt;
 	u32 utilization = 0;
 	int state, ret;
 
@@ -133,7 +136,7 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 
 	ret = gk20a_pmu_dvfs_get_dev_status(pmu, &status);
 	if (ret) {
-		nv_warn(pmu, "failed to get device status\n");
+		nvkm_warn(subdev, "failed to get device status\n");
 		goto resched;
 	}
 
@@ -142,17 +145,17 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 
 	data->avg_load = (data->p_smooth * data->avg_load) + utilization;
 	data->avg_load /= data->p_smooth + 1;
-	nv_trace(pmu, "utilization = %d %%, avg_load = %d %%\n",
-			utilization, data->avg_load);
+	nvkm_trace(subdev, "utilization = %d %%, avg_load = %d %%\n",
+		   utilization, data->avg_load);
 
 	ret = gk20a_pmu_dvfs_get_cur_state(pmu, &state);
 	if (ret) {
-		nv_warn(pmu, "failed to get current state\n");
+		nvkm_warn(subdev, "failed to get current state\n");
 		goto resched;
 	}
 
 	if (gk20a_pmu_dvfs_get_target_state(pmu, &state, data->avg_load)) {
-		nv_trace(pmu, "set new state to %d\n", state);
+		nvkm_trace(subdev, "set new state to %d\n", state);
 		gk20a_pmu_dvfs_target(pmu, &state);
 	}
 

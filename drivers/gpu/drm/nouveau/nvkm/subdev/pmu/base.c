@@ -92,7 +92,8 @@ static void
 nvkm_pmu_recv(struct work_struct *work)
 {
 	struct nvkm_pmu *pmu = container_of(work, struct nvkm_pmu, recv.work);
-	struct nvkm_device *device = pmu->subdev.device;
+	struct nvkm_subdev *subdev = &pmu->subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 process, message, data0, data1;
 
 	/* nothing to do if GET == PUT */
@@ -132,12 +133,12 @@ nvkm_pmu_recv(struct work_struct *work)
 	/* right now there's no other expected responses from the engine,
 	 * so assume that any unexpected message is an error.
 	 */
-	nv_warn(pmu, "%c%c%c%c 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		(char)((process & 0x000000ff) >>  0),
-		(char)((process & 0x0000ff00) >>  8),
-		(char)((process & 0x00ff0000) >> 16),
-		(char)((process & 0xff000000) >> 24),
-		process, message, data0, data1);
+	nvkm_warn(subdev, "%c%c%c%c %08x %08x %08x %08x\n",
+		  (char)((process & 0x000000ff) >>  0),
+		  (char)((process & 0x0000ff00) >>  8),
+		  (char)((process & 0x00ff0000) >> 16),
+		  (char)((process & 0xff000000) >> 24),
+		  process, message, data0, data1);
 }
 
 static void
@@ -151,8 +152,9 @@ nvkm_pmu_intr(struct nvkm_subdev *subdev)
 	if (intr & 0x00000020) {
 		u32 stat = nvkm_rd32(device, 0x10a16c);
 		if (stat & 0x80000000) {
-			nv_error(pmu, "UAS fault at 0x%06x addr 0x%08x\n",
-				 stat & 0x00ffffff, nvkm_rd32(device, 0x10a168));
+			nvkm_error(subdev, "UAS fault at %06x addr %08x\n",
+				   stat & 0x00ffffff,
+				   nvkm_rd32(device, 0x10a168));
 			nvkm_wr32(device, 0x10a16c, 0x00000000);
 			intr &= ~0x00000020;
 		}
@@ -165,14 +167,15 @@ nvkm_pmu_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (intr & 0x00000080) {
-		nv_info(pmu, "wr32 0x%06x 0x%08x\n", nvkm_rd32(device, 0x10a7a0),
-						     nvkm_rd32(device, 0x10a7a4));
+		nvkm_info(subdev, "wr32 %06x %08x\n",
+			  nvkm_rd32(device, 0x10a7a0),
+			  nvkm_rd32(device, 0x10a7a4));
 		nvkm_wr32(device, 0x10a004, 0x00000080);
 		intr &= ~0x00000080;
 	}
 
 	if (intr) {
-		nv_error(pmu, "intr 0x%08x\n", intr);
+		nvkm_error(subdev, "intr %08x\n", intr);
 		nvkm_wr32(device, 0x10a004, intr);
 	}
 }

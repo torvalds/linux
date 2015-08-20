@@ -81,7 +81,7 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	if (nv_device_match(device, 0x11fc, 0x17aa, 0x2211) /* Lenovo W541 */
 	 || nv_device_match(device, 0x11fc, 0x17aa, 0x221e) /* Lenovo W541 */
 	 || nvkm_boolopt(device->cfgopt, "War00C800_0", false)) {
-		nv_info(pmu, "hw bug workaround enabled\n");
+		nvkm_info(&pmu->subdev, "hw bug workaround enabled\n");
 		switch (device->chipset) {
 		case 0xe4:
 			magic(device, 0x04000000);
