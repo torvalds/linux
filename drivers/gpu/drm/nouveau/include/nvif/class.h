@@ -153,6 +153,8 @@ struct nv_device_info_v0 {
 	__u8  pad06[2];
 	__u64 ram_size;
 	__u64 ram_user;
+	char  chip[16];
+	char  name[64];
 };
 
 
