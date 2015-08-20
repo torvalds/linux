@@ -98,7 +98,7 @@ nv40_mpeg_intr(struct nvkm_subdev *subdev)
 		nv31_mpeg_intr(subdev);
 
 	if ((stat = nvkm_rd32(device, 0x00b800))) {
-		nv_error(mpeg, "PMSRCH 0x%08x\n", stat);
+		nvkm_error(subdev, "PMSRCH %08x\n", stat);
 		nvkm_wr32(device, 0x00b800, stat);
 	}
 }

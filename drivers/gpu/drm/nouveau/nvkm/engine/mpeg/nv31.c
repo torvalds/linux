@@ -229,9 +229,9 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, 0x00b230, 0x00000001);
 
 	if (show) {
-		nv_error(mpeg, "ch %d [%s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 fifo->chid(fifo, engctx),
-			 nvkm_client_name(engctx), stat, type, mthd, data);
+		nvkm_error(subdev, "ch %d [%s] %08x %08x %08x %08x\n",
+			   fifo->chid(fifo, engctx),
+			   nvkm_client_name(engctx), stat, type, mthd, data);
 	}
 
 	spin_unlock_irqrestore(&nv_engine(mpeg)->lock, flags);
@@ -263,7 +263,8 @@ nv31_mpeg_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nv31_mpeg *mpeg = (void *)object;
-	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &mpeg->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_fb *fb = device->fb;
 	int ret, i;
 
@@ -292,7 +293,8 @@ nv31_mpeg_init(struct nvkm_object *object)
 		if (!(nvkm_rd32(device, 0x00b200) & 0x00000001))
 			break;
 	) < 0) {
-		nv_error(mpeg, "timeout 0x%08x\n", nvkm_rd32(device, 0x00b200));
+		nvkm_error(subdev, "timeout %08x\n",
+			   nvkm_rd32(device, 0x00b200));
 		return -EBUSY;
 	}
 

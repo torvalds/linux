@@ -126,10 +126,10 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, 0x00b230, 0x00000001);
 
 	if (show) {
-		nv_error(mpeg,
-			 "ch %d [0x%08x %s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 chid, inst << 4, nvkm_client_name(engctx), stat,
-			 type, mthd, data);
+		nvkm_error(subdev,
+			   "ch %d [%08x %s] %08x %08x %08x %08x\n",
+			   chid, inst << 4, nvkm_client_name(engctx), stat,
+			   type, mthd, data);
 	}
 
 	nvkm_engctx_put(engctx);
@@ -146,7 +146,7 @@ nv44_mpeg_me_intr(struct nvkm_subdev *subdev)
 		nv44_mpeg_intr(subdev);
 
 	if ((stat = nvkm_rd32(device, 0x00b800))) {
-		nv_error(mpeg, "PMSRCH 0x%08x\n", stat);
+		nvkm_error(subdev, "PMSRCH %08x\n", stat);
 		nvkm_wr32(device, 0x00b800, stat);
 	}
 }

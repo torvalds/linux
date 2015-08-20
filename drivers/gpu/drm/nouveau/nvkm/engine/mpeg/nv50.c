@@ -135,8 +135,8 @@ nv50_mpeg_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (show) {
-		nv_info(mpeg, "0x%08x 0x%08x 0x%08x 0x%08x\n",
-			stat, type, mthd, data);
+		nvkm_info(subdev, "%08x %08x %08x %08x\n",
+			  stat, type, mthd, data);
 	}
 
 	nvkm_wr32(device, 0x00b100, stat);
@@ -146,15 +146,14 @@ nv50_mpeg_intr(struct nvkm_subdev *subdev)
 static void
 nv50_vpe_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_mpeg *mpeg = (void *)subdev;
-	struct nvkm_device *device = mpeg->engine.subdev.device;
+	struct nvkm_device *device = subdev->device;
 
 	if (nvkm_rd32(device, 0x00b100))
 		nv50_mpeg_intr(subdev);
 
 	if (nvkm_rd32(device, 0x00b800)) {
 		u32 stat = nvkm_rd32(device, 0x00b800);
-		nv_info(mpeg, "PMSRCH: 0x%08x\n", stat);
+		nvkm_info(subdev, "PMSRCH: %08x\n", stat);
 		nvkm_wr32(device, 0xb800, stat);
 	}
 }
@@ -183,7 +182,8 @@ int
 nv50_mpeg_init(struct nvkm_object *object)
 {
 	struct nvkm_mpeg *mpeg = (void *)object;
-	struct nvkm_device *device = mpeg->engine.subdev.device;
+	struct nvkm_subdev *subdev = &mpeg->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int ret;
 
 	ret = nvkm_mpeg_init(mpeg);
@@ -208,7 +208,8 @@ nv50_mpeg_init(struct nvkm_object *object)
 		if (!(nvkm_rd32(device, 0x00b200) & 0x00000001))
 			break;
 	) < 0) {
-		nv_error(mpeg, "timeout 0x%08x\n", nvkm_rd32(device, 0x00b200));
+		nvkm_error(subdev, "timeout %08x\n",
+			   nvkm_rd32(device, 0x00b200));
 		return -EBUSY;
 	}
 
