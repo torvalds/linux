@@ -350,7 +350,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf117_pm_oclass;
 		break;
 	default:
-		nv_fatal(device, "unknown Fermi chipset\n");
 		return -EINVAL;
 	}
 

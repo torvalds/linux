@@ -145,7 +145,6 @@ nv30_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	default:
-		nv_fatal(device, "unknown Rankine chipset\n");
 		return -EINVAL;
 	}
 

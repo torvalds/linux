@@ -318,7 +318,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		break;
 	default:
-		nv_fatal(device, "unknown Kepler chipset\n");
 		return -EINVAL;
 	}
 

@@ -470,7 +470,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	default:
-		nv_fatal(device, "unknown Tesla chipset\n");
 		return -EINVAL;
 	}
 

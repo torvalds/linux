@@ -419,7 +419,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	default:
-		nv_fatal(device, "unknown Curie chipset\n");
 		return -EINVAL;
 	}
 

@@ -414,14 +414,11 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		}
 
 		if (ret) {
-			nv_error(device, "unknown chipset, 0x%08x\n", boot0);
+			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			return ret;
 		}
 
-		nv_info(device, "BOOT0  : 0x%08x\n", boot0);
-		nv_info(device, "Chipset: %s (NV%02X)\n",
-			device->cname, device->chipset);
-		nv_info(device, "Family : NV%02X\n", device->card_type);
+		nvdev_info(device, "NVIDIA %s (%08x)\n", device->cname, boot0);
 
 		/* determine frequency of timing crystal */
 		if ( device->card_type <= NV_10 || device->chipset < 0x17 ||
@@ -436,8 +433,6 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		case 0x00400000: device->crystal = 27000; break;
 		case 0x00400040: device->crystal = 25000; break;
 		}
-
-		nv_debug(device, "crystal freq: %dKHz\n", device->crystal);
 	} else
 	if ( (args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY)) {
 		device->cname = "NULL";
@@ -447,7 +442,7 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) && !device->pri) {
 		device->pri = ioremap(mmio_base, mmio_size);
 		if (!device->pri) {
-			nv_error(device, "unable to map device registers\n");
+			nvdev_error(device, "unable to map PRI\n");
 			return -ENOMEM;
 		}
 	}

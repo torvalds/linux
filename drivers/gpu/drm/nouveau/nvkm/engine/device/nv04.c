@@ -81,7 +81,6 @@ nv04_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	default:
-		nv_fatal(device, "unknown RIVA chipset\n");
 		return -EINVAL;
 	}
 
