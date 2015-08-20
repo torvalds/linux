@@ -204,7 +204,10 @@ nv50_mpeg_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x00b100, 0xffffffff);
 	nvkm_wr32(device, 0x00b140, 0xffffffff);
 
-	if (!nv_wait(mpeg, 0x00b200, 0x00000001, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x00b200) & 0x00000001))
+			break;
+	) < 0) {
 		nv_error(mpeg, "timeout 0x%08x\n", nvkm_rd32(device, 0x00b200));
 		return -EBUSY;
 	}
