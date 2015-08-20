@@ -193,7 +193,7 @@ nv50_disp_dmac_object_attach(struct nvkm_object *parent,
 	u32 addr = nv_gpuobj(object)->node->offset;
 	u32 chid = chan->chid;
 	u32 data = (chid << 28) | (addr << 10) | chid;
-	return nvkm_ramht_insert(base->ramht, chid, name, data);
+	return nvkm_ramht_insert(base->ramht, NULL, chid, 0, name, data);
 }
 
 static void
@@ -1153,6 +1153,8 @@ nv50_disp_main_ctor(struct nvkm_object *parent,
 {
 	struct nv50_disp *disp = (void *)engine;
 	struct nv50_disp_base *base;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_gpuobj *instmem = (void *)parent;
 	int ret;
 
 	ret = nvkm_parent_create(parent, engine, oclass, 0,
@@ -1161,15 +1163,14 @@ nv50_disp_main_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	return nvkm_ramht_new(nv_object(base), nv_object(base), 0x1000, 0,
-			      &base->ramht);
+	return nvkm_ramht_new(device, 0x1000, 0, instmem, &base->ramht);
 }
 
 void
 nv50_disp_main_dtor(struct nvkm_object *object)
 {
 	struct nv50_disp_base *base = (void *)object;
-	nvkm_ramht_ref(NULL, &base->ramht);
+	nvkm_ramht_del(&base->ramht);
 	nvkm_parent_destroy(&base->base);
 }
 
@@ -1235,7 +1236,7 @@ nv50_disp_main_init(struct nvkm_object *object)
 	}
 
 	/* point at display engine memory area (hash table, objects) */
-	nvkm_wr32(device, 0x610010, (nv_gpuobj(base->ramht)->addr >> 8) | 9);
+	nvkm_wr32(device, 0x610010, (base->ramht->gpuobj->addr >> 8) | 9);
 
 	/* enable supervisor interrupts, disable everything else */
 	nvkm_wr32(device, 0x61002c, 0x00000370);

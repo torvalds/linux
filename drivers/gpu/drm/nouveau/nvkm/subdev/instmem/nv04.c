@@ -156,7 +156,7 @@ nv04_instmem_dtor(struct nvkm_object *object)
 	struct nv04_instmem *imem = (void *)object;
 	nvkm_memory_del(&imem->base.ramfc);
 	nvkm_memory_del(&imem->base.ramro);
-	nvkm_ramht_ref(NULL, &imem->base.ramht);
+	nvkm_ramht_del(&imem->base.ramht);
 	nvkm_memory_del(&imem->base.vbios);
 	nvkm_mm_fini(&imem->heap);
 	nvkm_instmem_destroy(&imem->base);
@@ -198,8 +198,7 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	/* 0x10000-0x18000: reserve for RAMHT */
-	ret = nvkm_ramht_new(nv_object(imem), NULL, 0x08000, 0,
-			     &imem->base.ramht);
+	ret = nvkm_ramht_new(device, 0x08000, 0, NULL, &imem->base.ramht);
 	if (ret)
 		return ret;
 

@@ -161,7 +161,7 @@ g84_fifo_object_attach(struct nvkm_object *parent,
 		}
 	}
 
-	return nvkm_ramht_insert(chan->ramht, 0, handle, context);
+	return nvkm_ramht_insert(chan->ramht, NULL, 0, 0, handle, context);
 }
 
 static int
@@ -172,6 +172,7 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct nv50_channel_dma_v0 v0;
 	} *args = data;
+	struct nvkm_device *device = parent->engine->subdev.device;
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	int ret;
@@ -208,7 +209,7 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	args->v0.chid = chan->base.chid;
 
-	ret = nvkm_ramht_new(nv_object(chan), nv_object(chan), 0x8000, 16,
+	ret = nvkm_ramht_new(device, 0x8000, 16, &base->base.gpuobj,
 			     &chan->ramht);
 	if (ret)
 		return ret;
@@ -232,7 +233,7 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_wo32(base->ramfc, 0x7c, 0x30000001);
 	nvkm_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
-				     (chan->ramht->gpuobj.node->offset >> 4));
+				     (chan->ramht->gpuobj->node->offset >> 4));
 	nvkm_wo32(base->ramfc, 0x88, base->cache->addr >> 10);
 	nvkm_wo32(base->ramfc, 0x98, nv_gpuobj(base)->addr >> 12);
 	nvkm_done(base->ramfc);
@@ -247,6 +248,7 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct nv50_channel_gpfifo_v0 v0;
 	} *args = data;
+	struct nvkm_device *device = parent->engine->subdev.device;
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	u64 ioffset, ilength;
@@ -285,7 +287,7 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	args->v0.chid = chan->base.chid;
 
-	ret = nvkm_ramht_new(nv_object(chan), nv_object(chan), 0x8000, 16,
+	ret = nvkm_ramht_new(device, 0x8000, 16, &base->base.gpuobj,
 			     &chan->ramht);
 	if (ret)
 		return ret;
@@ -309,7 +311,7 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_wo32(base->ramfc, 0x7c, 0x30000001);
 	nvkm_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
-				     (chan->ramht->gpuobj.node->offset >> 4));
+				     (chan->ramht->gpuobj->node->offset >> 4));
 	nvkm_wo32(base->ramfc, 0x88, base->cache->addr >> 10);
 	nvkm_wo32(base->ramfc, 0x98, nv_gpuobj(base)->addr >> 12);
 	nvkm_done(base->ramfc);

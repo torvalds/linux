@@ -80,7 +80,7 @@ gf110_disp_dmac_object_attach(struct nvkm_object *parent,
 	struct nv50_disp_chan *chan = (void *)parent;
 	u32 addr = nv_gpuobj(object)->node->offset;
 	u32 data = (chan->chid << 27) | (addr << 9) | 0x00000001;
-	return nvkm_ramht_insert(base->ramht, chan->chid, name, data);
+	return nvkm_ramht_insert(base->ramht, NULL, chan->chid, 0, name, data);
 }
 
 static void

@@ -191,7 +191,7 @@ nv17_fifo_init(struct nvkm_object *object)
 
 	nvkm_wr32(device, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
 					    ((ramht->bits - 9) << 16) |
-					    (ramht->gpuobj.addr >> 8));
+					    (ramht->gpuobj->addr >> 8));
 	nvkm_wr32(device, NV03_PFIFO_RAMRO, nvkm_memory_addr(ramro) >> 8);
 	nvkm_wr32(device, NV03_PFIFO_RAMFC, nvkm_memory_addr(ramfc) >> 8 |
 					    0x00010000);
