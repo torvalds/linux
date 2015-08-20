@@ -413,6 +413,7 @@ static u32 *
 evo_wait(void *evoc, int nr)
 {
 	struct nv50_dmac *dmac = evoc;
+	struct nvif_device *device = nvif_device(&dmac->base.user);
 	u32 put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
 
 	mutex_lock(&dmac->lock);
@@ -420,7 +421,10 @@ evo_wait(void *evoc, int nr)
 		dmac->ptr[put] = 0x20000000;
 
 		nvif_wr32(&dmac->base.user, 0x0000, 0x00000000);
-		if (!nvxx_wait(&dmac->base.user, 0x0004, ~0, 0x00000000)) {
+		if (nvif_msec(device, 2000,
+			if (!nvif_rd32(&dmac->base.user, 0x0004))
+				break;
+		) < 0) {
 			mutex_unlock(&dmac->lock);
 			nv_error(nvxx_object(&dmac->base.user), "channel stalled\n");
 			return NULL;
@@ -480,7 +484,10 @@ evo_sync(struct drm_device *dev)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, mast);
-		if (nv_wait_cb(nvxx_device(device), evo_sync_wait, disp->sync))
+		if (nvif_msec(device, 2000,
+			if (evo_sync_wait(disp->sync))
+				break;
+		) >= 0)
 			return 0;
 	}
 
@@ -535,7 +542,10 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		evo_kick(push, flip.chan);
 	}
 
-	nv_wait_cb(nvxx_device(device), nv50_display_flip_wait, &flip);
+	nvif_msec(device, 2000,
+		if (nv50_display_flip_wait(&flip))
+			break;
+	);
 }
 
 int

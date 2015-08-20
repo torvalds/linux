@@ -51,36 +51,6 @@ void nvkm_timer_alarm_cancel(void *, struct nvkm_alarm *);
 #define nvkm_usec(d,u,cond...) nvkm_nsec((d), (u) * 1000, ##cond)
 #define nvkm_msec(d,m,cond...) nvkm_usec((d), (m) * 1000, ##cond)
 
-#define nvkm_timer_wait_eq(o,n,a,m,v) ({                                       \
-	struct nvkm_device *__device = nv_device(o);                           \
-	nvkm_nsec(__device, (n),                                               \
-		if ((nvkm_rd32(__device, (a)) & (m)) == (v))                   \
-			break;                                                 \
-	) >= 0;                                                                \
-})
-#define nvkm_timer_wait_ne(o,n,a,m,v) ({                                       \
-	struct nvkm_device *__device = nv_device(o);                           \
-	nvkm_nsec(__device, (n),                                               \
-		if ((nvkm_rd32(__device, (a)) & (m)) != (v))                   \
-			break;                                                 \
-	) >= 0;                                                                \
-})
-#define nvkm_timer_wait_cb(o,n,c,d) ({                                         \
-	struct nvkm_device *__device = nv_device(o);                           \
-	nvkm_nsec(__device, (n),                                               \
-		if (c(d))                                                      \
-			break;                                                 \
-	) >= 0;                                                                \
-})
-
-#define NV_WAIT_DEFAULT 2000000000ULL
-#define nv_wait(o,a,m,v)                                                       \
-	nvkm_timer_wait_eq((o), NV_WAIT_DEFAULT, (a), (m), (v))
-#define nv_wait_ne(o,a,m,v)                                                    \
-	nvkm_timer_wait_ne((o), NV_WAIT_DEFAULT, (a), (m), (v))
-#define nv_wait_cb(o,c,d)                                                      \
-	nvkm_timer_wait_cb((o), NV_WAIT_DEFAULT, (c), (d))
-
 struct nvkm_timer {
 	struct nvkm_subdev subdev;
 	u64  (*read)(struct nvkm_timer *);

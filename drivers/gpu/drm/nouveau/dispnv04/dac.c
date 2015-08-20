@@ -66,7 +66,6 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
 	struct nvif_device *device = &nouveau_drm(dev)->device;
-	struct nvkm_timer *tmr = nvxx_timer(device);
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -80,17 +79,22 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		 * use a 10ms timeout (guards against crtc being inactive, in
 		 * which case blank state would never change)
 		 */
-		if (!nvkm_timer_wait_eq(tmr, 10000000,
-					NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000000))
+		if (nvif_msec(device, 10,
+			if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
+				break;
+		) < 0)
 			return -EBUSY;
-		if (!nvkm_timer_wait_eq(tmr, 10000000,
-					NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000001))
+
+		if (nvif_msec(device, 10,
+			if ( (nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
+				break;
+		) < 0)
 			return -EBUSY;
-		if (!nvkm_timer_wait_eq(tmr, 10000000,
-					NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000000))
+
+		if (nvif_msec(device, 10,
+			if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
+				break;
+		) < 0)
 			return -EBUSY;
 
 		udelay(100);

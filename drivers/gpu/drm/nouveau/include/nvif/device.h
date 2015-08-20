@@ -68,8 +68,6 @@ u64  nvif_device_time(struct nvif_device *);
 #define nvxx_clk(a) nvkm_clk(nvxx_device(a))
 #define nvxx_i2c(a) nvkm_i2c(nvxx_device(a))
 #define nvxx_timer(a) nvkm_timer(nvxx_device(a))
-#define nvxx_wait(a,b,c,d) nv_wait(nvxx_timer(a), (b), (c), (d))
-#define nvxx_wait_cb(a,b,c) nv_wait_cb(nvxx_timer(a), (b), (c))
 #define nvxx_therm(a) nvkm_therm(nvxx_device(a))
 
 #include <core/device.h>
