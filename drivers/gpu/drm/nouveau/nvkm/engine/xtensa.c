@@ -20,22 +20,36 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <engine/xtensa.h>
+#include <engine/fifo.h>
 
-#include <core/engctx.h>
-
-int
-_nvkm_xtensa_engctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-			 struct nvkm_oclass *oclass, void *data, u32 size,
-			 struct nvkm_object **pobject)
+static int
+nvkm_xtensa_oclass_get(struct nvkm_oclass *oclass, int index)
 {
-	struct nvkm_engctx *engctx;
-	int ret;
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(oclass->engine);
+	int c = 0;
 
-	ret = nvkm_engctx_create(parent, engine, oclass, NULL, 0x10000, 0x1000,
-				 NVOBJ_FLAG_ZERO_ALLOC, &engctx);
-	*pobject = nv_object(engctx);
-	return ret;
+	while (xtensa->func->sclass[c].oclass) {
+		if (c++ == index) {
+			oclass->base = xtensa->func->sclass[index];
+			return index;
+		}
+	}
+
+	return c;
 }
+
+static int
+nvkm_xtensa_cclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+			int align, struct nvkm_gpuobj **pgpuobj)
+{
+	return nvkm_gpuobj_new(object->engine->subdev.device, 0x10000, align,
+			       true, parent, pgpuobj);
+}
+
+static const struct nvkm_object_func
+nvkm_xtensa_cclass = {
+	.bind = nvkm_xtensa_cclass_bind,
+};
 
 void
 _nvkm_xtensa_intr(struct nvkm_subdev *subdev)
@@ -58,6 +72,12 @@ _nvkm_xtensa_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_engine_func
+nvkm_xtensa = {
+	.fifo.sclass = nvkm_xtensa_oclass_get,
+	.cclass = &nvkm_xtensa_cclass,
+};
+
 int
 nvkm_xtensa_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		    struct nvkm_oclass *oclass, u32 addr, bool enable,
@@ -73,7 +93,8 @@ nvkm_xtensa_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_subdev(xtensa)->intr = _nvkm_xtensa_intr;
+	xtensa->engine.subdev.intr = _nvkm_xtensa_intr;
+	xtensa->engine.func = &nvkm_xtensa;
 	xtensa->addr = addr;
 	return 0;
 }

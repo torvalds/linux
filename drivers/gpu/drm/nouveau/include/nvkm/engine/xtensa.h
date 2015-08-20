@@ -1,9 +1,11 @@
 #ifndef __NVKM_XTENSA_H__
 #define __NVKM_XTENSA_H__
+#define nvkm_xtensa(p) container_of((p), struct nvkm_xtensa, engine)
 #include <core/engine.h>
 
 struct nvkm_xtensa {
 	struct nvkm_engine engine;
+	const struct nvkm_xtensa_func *func;
 
 	u32 addr;
 	struct nvkm_memory *gpu_fw;
@@ -11,16 +13,15 @@ struct nvkm_xtensa {
 	u32 unkd28;
 };
 
+struct nvkm_xtensa_func {
+	void (*init)(struct nvkm_xtensa *);
+	struct nvkm_sclass sclass[];
+};
+
 #define nvkm_xtensa_create(p,e,c,b,d,i,f,r)				\
 	nvkm_xtensa_create_((p), (e), (c), (b), (d), (i), (f),	\
 			       sizeof(**r),(void **)r)
 
-int _nvkm_xtensa_engctx_ctor(struct nvkm_object *,
-				struct nvkm_object *,
-				struct nvkm_oclass *, void *, u32,
-				struct nvkm_object **);
-
-void _nvkm_xtensa_intr(struct nvkm_subdev *);
 int nvkm_xtensa_create_(struct nvkm_object *,
 			   struct nvkm_object *,
 			   struct nvkm_oclass *, u32, bool,

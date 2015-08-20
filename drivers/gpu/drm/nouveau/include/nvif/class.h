@@ -45,6 +45,8 @@
 #define GM107_DISP                                                   0x00009470
 #define GM204_DISP                                                   0x00009570
 
+#define NV74_VP2                                                     0x00007476
+
 #define NV50_DISP_CURSOR                                             0x0000507a
 #define G82_DISP_CURSOR                                              0x0000827a
 #define GT214_DISP_CURSOR                                            0x0000857a
@@ -93,6 +95,8 @@
 
 #define MAXWELL_A                                                    0x0000b097
 #define MAXWELL_B                                                    0x0000b197
+
+#define NV74_BSP                                                     0x000074b0
 
 #define GT212_MSVLD                                                  0x000085b1
 #define IGT21A_MSVLD                                                 0x000086b1
