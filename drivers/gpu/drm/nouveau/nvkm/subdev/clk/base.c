@@ -99,7 +99,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	}
 
 	if (volt) {
-		ret = volt->set_id(volt, cstate->voltage, +1);
+		ret = nvkm_volt_set_id(volt, cstate->voltage, +1);
 		if (ret && ret != -ENODEV) {
 			nvkm_error(subdev, "failed to raise voltage: %d\n", ret);
 			return ret;
@@ -113,7 +113,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	}
 
 	if (volt) {
-		ret = volt->set_id(volt, cstate->voltage, -1);
+		ret = nvkm_volt_set_id(volt, cstate->voltage, -1);
 		if (ret && ret != -ENODEV)
 			nvkm_error(subdev, "failed to lower voltage: %d\n", ret);
 	}

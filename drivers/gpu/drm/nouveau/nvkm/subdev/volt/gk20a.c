@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <subdev/volt.h>
+#define gk20a_volt(p) container_of((p), struct gk20a_volt, base)
+#include "priv.h"
+
 #ifdef __KERNEL__
 #include <nouveau_platform.h>
 #endif
@@ -101,9 +103,9 @@ gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 }
 
 static int
-gk20a_volt_vid_get(struct nvkm_volt *obj)
+gk20a_volt_vid_get(struct nvkm_volt *base)
 {
-	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
+	struct gk20a_volt *volt = gk20a_volt(base);
 	int i, uv;
 
 	uv = regulator_get_voltage(volt->vdd);
@@ -116,9 +118,9 @@ gk20a_volt_vid_get(struct nvkm_volt *obj)
 }
 
 static int
-gk20a_volt_vid_set(struct nvkm_volt *obj, u8 vid)
+gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 {
-	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
+	struct gk20a_volt *volt = gk20a_volt(base);
 	struct nvkm_subdev *subdev = &volt->base.subdev;
 
 	nvkm_debug(subdev, "set voltage as %duv\n", volt->base.vid[vid].uv);
@@ -126,9 +128,9 @@ gk20a_volt_vid_set(struct nvkm_volt *obj, u8 vid)
 }
 
 static int
-gk20a_volt_set_id(struct nvkm_volt *obj, u8 id, int condition)
+gk20a_volt_set_id(struct nvkm_volt *base, u8 id, int condition)
 {
-	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
+	struct gk20a_volt *volt = gk20a_volt(base);
 	struct nvkm_subdev *subdev = &volt->base.subdev;
 	int prev_uv = regulator_get_voltage(volt->vdd);
 	int target_uv = volt->base.vid[id].uv;
@@ -147,27 +149,29 @@ gk20a_volt_set_id(struct nvkm_volt *obj, u8 id, int condition)
 	return ret;
 }
 
-static int
-gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
-{
-	struct nvkm_device *device = (void *)parent;
-	struct gk20a_volt *volt;
-	int i, ret, uv;
+static const struct nvkm_volt_func
+gk20a_volt = {
+	.vid_get = gk20a_volt_vid_get,
+	.vid_set = gk20a_volt_vid_set,
+	.set_id = gk20a_volt_set_id,
+};
 
-	ret = nvkm_volt_create(parent, engine, oclass, &volt);
-	*pobject = nv_object(volt);
-	if (ret)
-		return ret;
+int
+gk20a_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
+{
+	struct gk20a_volt *volt;
+	int i, uv;
+
+	if (!(volt = kzalloc(sizeof(*volt), GFP_KERNEL)))
+		return -ENOMEM;
+
+	nvkm_volt_ctor(&gk20a_volt, device, index, &volt->base);
+	*pvolt = &volt->base;
 
 	uv = regulator_get_voltage(device->gpu->vdd);
 	nvkm_info(&volt->base.subdev, "The default voltage is %duV\n", uv);
 
 	volt->vdd = device->gpu->vdd;
-	volt->base.vid_get = gk20a_volt_vid_get;
-	volt->base.vid_set = gk20a_volt_vid_set;
-	volt->base.set_id = gk20a_volt_set_id;
 
 	volt->base.vid_nr = ARRAY_SIZE(gk20a_cvb_coef);
 	nvkm_debug(&volt->base.subdev, "%s - vid_nr = %d\n", __func__,
@@ -183,14 +187,3 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	return 0;
 }
-
-struct nvkm_oclass
-gk20a_volt_oclass = {
-	.handle = NV_SUBDEV(VOLT, 0xea),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_volt_ctor,
-		.dtor = _nvkm_volt_dtor,
-		.init = _nvkm_volt_init,
-		.fini = _nvkm_volt_fini,
-	},
-};

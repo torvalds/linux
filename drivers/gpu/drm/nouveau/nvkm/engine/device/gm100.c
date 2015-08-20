@@ -30,7 +30,6 @@ gm100_identify(struct nvkm_device *device)
 	case 0x117:
 
 #if 0
-		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
@@ -54,7 +53,6 @@ gm100_identify(struct nvkm_device *device)
 		/* priv ring says no to 0x10eb14 writes */
 #endif
 #if 0
-		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
@@ -76,7 +74,6 @@ gm100_identify(struct nvkm_device *device)
 		/* priv ring says no to 0x10eb14 writes */
 #endif
 #if 0
-		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
