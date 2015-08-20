@@ -41,7 +41,7 @@ static void
 nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_gpuobj *cur;
+	struct nvkm_memory *cur;
 	int i, p;
 
 	cur = fifo->playlist[fifo->cur_playlist];
@@ -54,7 +54,7 @@ nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 	}
 	nvkm_done(cur);
 
-	nvkm_wr32(device, 0x0032f4, cur->addr >> 12);
+	nvkm_wr32(device, 0x0032f4, nvkm_memory_addr(cur) >> 12);
 	nvkm_wr32(device, 0x0032ec, p);
 	nvkm_wr32(device, 0x002500, 0x00000101);
 }
@@ -467,6 +467,7 @@ nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv50_fifo *fifo;
 	int ret;
 
@@ -475,13 +476,13 @@ nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
-			      &fifo->playlist[0]);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
+			      false, &fifo->playlist[0]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
-			      &fifo->playlist[1]);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
+			      false, &fifo->playlist[1]);
 	if (ret)
 		return ret;
 
@@ -499,8 +500,8 @@ nv50_fifo_dtor(struct nvkm_object *object)
 {
 	struct nv50_fifo *fifo = (void *)object;
 
-	nvkm_gpuobj_ref(NULL, &fifo->playlist[1]);
-	nvkm_gpuobj_ref(NULL, &fifo->playlist[0]);
+	nvkm_memory_del(&fifo->playlist[1]);
+	nvkm_memory_del(&fifo->playlist[0]);
 
 	nvkm_fifo_destroy(&fifo->base);
 }

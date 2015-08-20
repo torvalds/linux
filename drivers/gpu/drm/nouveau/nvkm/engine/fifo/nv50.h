@@ -4,7 +4,7 @@
 
 struct nv50_fifo {
 	struct nvkm_fifo base;
-	struct nvkm_gpuobj *playlist[2];
+	struct nvkm_memory *playlist[2];
 	int cur_playlist;
 };
 

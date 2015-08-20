@@ -264,22 +264,6 @@ nvkm_gpuobj_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
 }
 
 int
-nvkm_gpuobj_map(struct nvkm_gpuobj *gpuobj, u32 access, struct nvkm_vma *vma)
-{
-	struct nvkm_memory *memory = gpuobj->memory;
-	struct nvkm_bar *bar = nvkm_bar(gpuobj);
-	int ret = -EINVAL;
-
-	if (bar && bar->umap) {
-		ret = bar->umap(bar, gpuobj->size, 12, vma);
-		if (ret == 0)
-			nvkm_memory_map(memory, vma, 0);
-	}
-
-	return ret;
-}
-
-int
 nvkm_gpuobj_map_vm(struct nvkm_gpuobj *gpuobj, struct nvkm_vm *vm,
 		   u32 access, struct nvkm_vma *vma)
 {

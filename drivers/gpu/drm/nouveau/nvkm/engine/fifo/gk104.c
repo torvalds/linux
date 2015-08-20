@@ -27,6 +27,7 @@
 #include <core/engctx.h>
 #include <core/enum.h>
 #include <core/handle.h>
+#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
@@ -53,7 +54,7 @@ static const struct {
 #define FIFO_ENGINE_NR ARRAY_SIZE(fifo_engine)
 
 struct gk104_fifo_engn {
-	struct nvkm_gpuobj *runlist[2];
+	struct nvkm_memory *runlist[2];
 	int cur_runlist;
 	wait_queue_head_t wait;
 };
@@ -66,7 +67,7 @@ struct gk104_fifo {
 
 	struct gk104_fifo_engn engine[FIFO_ENGINE_NR];
 	struct {
-		struct nvkm_gpuobj *mem;
+		struct nvkm_memory *mem;
 		struct nvkm_vma bar;
 	} user;
 	int spoon_nr;
@@ -98,7 +99,7 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 	struct gk104_fifo_engn *engn = &fifo->engine[engine];
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_gpuobj *cur;
+	struct nvkm_memory *cur;
 	int i, p;
 
 	mutex_lock(&nv_subdev(fifo)->mutex);
@@ -116,7 +117,7 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 	}
 	nvkm_done(cur);
 
-	nvkm_wr32(device, 0x002270, cur->addr >> 12);
+	nvkm_wr32(device, 0x002270, nvkm_memory_addr(cur) >> 12);
 	nvkm_wr32(device, 0x002274, (engine << 20) | (p >> 3));
 
 	if (wait_event_timeout(engn->wait, !(nvkm_rd32(device, 0x002284 +
@@ -296,10 +297,11 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	for (i = 0; i < 0x200; i += 4)
 		nvkm_wo32(fifo->user.mem, usermem + i, 0x00000000);
 	nvkm_done(fifo->user.mem);
+	usermem = nvkm_memory_addr(fifo->user.mem) + usermem;
 
 	nvkm_kmap(ramfc);
-	nvkm_wo32(ramfc, 0x08, lower_32_bits(fifo->user.mem->addr + usermem));
-	nvkm_wo32(ramfc, 0x0c, upper_32_bits(fifo->user.mem->addr + usermem));
+	nvkm_wo32(ramfc, 0x08, lower_32_bits(usermem));
+	nvkm_wo32(ramfc, 0x0c, upper_32_bits(usermem));
 	nvkm_wo32(ramfc, 0x10, 0x0000face);
 	nvkm_wo32(ramfc, 0x30, 0xfffff902);
 	nvkm_wo32(ramfc, 0x48, lower_32_bits(ioffset));
@@ -1107,12 +1109,12 @@ gk104_fifo_dtor(struct nvkm_object *object)
 	struct gk104_fifo *fifo = (void *)object;
 	int i;
 
-	nvkm_gpuobj_unmap(&fifo->user.bar);
-	nvkm_gpuobj_ref(NULL, &fifo->user.mem);
+	nvkm_vm_put(&fifo->user.bar);
+	nvkm_memory_del(&fifo->user.mem);
 
 	for (i = 0; i < FIFO_ENGINE_NR; i++) {
-		nvkm_gpuobj_ref(NULL, &fifo->engine[i].runlist[1]);
-		nvkm_gpuobj_ref(NULL, &fifo->engine[i].runlist[0]);
+		nvkm_memory_del(&fifo->engine[i].runlist[1]);
+		nvkm_memory_del(&fifo->engine[i].runlist[0]);
 	}
 
 	nvkm_fifo_destroy(&fifo->base);
@@ -1123,6 +1125,8 @@ gk104_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
+	struct nvkm_bar *bar = device->bar;
 	struct gk104_fifo_impl *impl = (void *)oclass;
 	struct gk104_fifo *fifo;
 	int ret, i;
@@ -1136,28 +1140,32 @@ gk104_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	INIT_WORK(&fifo->fault, gk104_fifo_recover_work);
 
 	for (i = 0; i < FIFO_ENGINE_NR; i++) {
-		ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 0x8000, 0x1000,
-				      0, &fifo->engine[i].runlist[0]);
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      0x8000, 0x1000, false,
+				      &fifo->engine[i].runlist[0]);
 		if (ret)
 			return ret;
 
-		ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 0x8000, 0x1000,
-				      0, &fifo->engine[i].runlist[1]);
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      0x8000, 0x1000, false,
+				      &fifo->engine[i].runlist[1]);
 		if (ret)
 			return ret;
 
 		init_waitqueue_head(&fifo->engine[i].wait);
 	}
 
-	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, impl->channels * 0x200,
-			      0x1000, NVOBJ_FLAG_ZERO_ALLOC, &fifo->user.mem);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+			      impl->channels * 0x200, 0x1000,
+			      true, &fifo->user.mem);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_map(fifo->user.mem, NV_MEM_ACCESS_RW,
-			      &fifo->user.bar);
+	ret = bar->umap(bar, impl->channels * 0x200, 12, &fifo->user.bar);
 	if (ret)
 		return ret;
+
+	nvkm_memory_map(fifo->user.mem, &fifo->user.bar, 0);
 
 	ret = nvkm_event_init(&gk104_fifo_uevent_func, 1, 1, &fifo->base.uevent);
 	if (ret)

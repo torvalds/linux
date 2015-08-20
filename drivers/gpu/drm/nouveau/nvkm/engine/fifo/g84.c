@@ -455,6 +455,7 @@ g84_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv50_fifo *fifo;
 	int ret;
 
@@ -463,13 +464,13 @@ g84_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
-			      &fifo->playlist[0]);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
+			      false, &fifo->playlist[0]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
-			      &fifo->playlist[1]);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
+			      false, &fifo->playlist[1]);
 	if (ret)
 		return ret;
 
