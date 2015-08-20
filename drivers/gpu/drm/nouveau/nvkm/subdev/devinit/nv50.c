@@ -91,19 +91,27 @@ nv50_devinit_disable(struct nvkm_devinit *init)
 	return disable;
 }
 
-int
-nv50_devinit_init(struct nvkm_object *object)
+void
+nv50_devinit_preinit(struct nvkm_devinit *base)
 {
-	struct nv50_devinit *init = (void *)object;
+	struct nv50_devinit *init = nv50_devinit(base);
 	struct nvkm_subdev *subdev = &init->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_bios *bios = device->bios;
 	struct nvkm_subdev *ibus = device->ibus;
-	struct nvbios_outp info;
-	struct dcb_output outp;
-	u8  ver = 0xff, hdr, cnt, len;
-	int ret, i = 0;
 
+	/* our heuristics can't detect whether the board has had its
+	 * devinit scripts executed or not if the display engine is
+	 * missing, assume it's a secondary gpu which requires post
+	 */
+	if (!init->base.post) {
+		u64 disable = nvkm_devinit_disable(&init->base);
+		if (disable & (1ULL << NVDEV_ENGINE_DISP))
+			init->base.post = true;
+	}
+
+	/* magic to detect whether or not x86 vbios code has executed
+	 * the devinit scripts to initialise the board
+	 */
 	if (!init->base.post) {
 		if (!nvkm_rdvgac(device, 0, 0x00) &&
 		    !nvkm_rdvgac(device, 0, 0x1a)) {
@@ -118,10 +126,19 @@ nv50_devinit_init(struct nvkm_object *object)
 	 */
 	if (init->base.post && ibus)
 		nvkm_object_init(&ibus->object);
+}
 
-	ret = nvkm_devinit_init(&init->base);
-	if (ret)
-		return ret;
+void
+nv50_devinit_init(struct nvkm_devinit *base)
+{
+	struct nv50_devinit *init = nv50_devinit(base);
+	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
+	struct nvbios_outp info;
+	struct dcb_output outp;
+	u8  ver = 0xff, hdr, cnt, len;
+	int i = 0;
 
 	/* if we ran the init tables, we have to execute the first script
 	 * pointer of each dcb entry's display encoder table in order
@@ -131,7 +148,7 @@ nv50_devinit_init(struct nvkm_object *object)
 		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
 				      &ver, &hdr, &cnt, &len, &info)) {
 			struct nvbios_init exec = {
-				.subdev = nv_subdev(init),
+				.subdev = subdev,
 				.bios = bios,
 				.offset = info.script[0],
 				.outp = &outp,
@@ -143,36 +160,35 @@ nv50_devinit_init(struct nvkm_object *object)
 		}
 		i++;
 	}
-
-	return 0;
 }
 
 int
-nv50_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+nv50_devinit_new_(const struct nvkm_devinit_func *func,
+		  struct nvkm_device *device, int index,
+		  struct nvkm_devinit **pinit)
 {
 	struct nv50_devinit *init;
-	int ret;
 
-	ret = nvkm_devinit_create(parent, engine, oclass, &init);
-	*pobject = nv_object(init);
-	if (ret)
-		return ret;
+	if (!(init = kzalloc(sizeof(*init), GFP_KERNEL)))
+		return -ENOMEM;
+	*pinit = &init->base;
 
+	nvkm_devinit_ctor(func, device, index, &init->base);
 	return 0;
 }
 
-struct nvkm_oclass *
-nv50_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv50_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
 	.pll_set = nv50_devinit_pll_set,
 	.disable = nv50_devinit_disable,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv50_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&nv50_devinit, device, index, pinit);
+}

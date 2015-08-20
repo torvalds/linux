@@ -90,38 +90,18 @@ gf100_devinit_disable(struct nvkm_devinit *init)
 	return disable;
 }
 
-int
-gf100_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		   struct nvkm_oclass *oclass, void *data, u32 size,
-		   struct nvkm_object **pobject)
-{
-	struct nvkm_devinit_impl *impl = (void *)oclass;
-	struct nv50_devinit *init;
-	u64 disable;
-	int ret;
-
-	ret = nvkm_devinit_create(parent, engine, oclass, &init);
-	*pobject = nv_object(init);
-	if (ret)
-		return ret;
-
-	disable = impl->disable(&init->base);
-	if (disable & (1ULL << NVDEV_ENGINE_DISP))
-		init->base.post = true;
-
-	return 0;
-}
-
-struct nvkm_oclass *
-gf100_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+gf100_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
 	.pll_set = gf100_devinit_pll_set,
 	.disable = gf100_devinit_disable,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+gf100_devinit_new(struct nvkm_device *device, int index,
+		struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&gf100_devinit, device, index, pinit);
+}

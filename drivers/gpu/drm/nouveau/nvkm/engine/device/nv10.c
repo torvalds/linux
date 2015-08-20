@@ -30,7 +30,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x10:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;
@@ -43,7 +42,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x15:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;
@@ -58,7 +56,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x16:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;
@@ -73,7 +70,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x1a:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv1a_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv1a_fb_oclass;
@@ -88,7 +84,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x11:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;
@@ -103,7 +98,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x17:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;
@@ -118,7 +112,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x1f:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv1a_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv1a_fb_oclass;
@@ -133,7 +126,6 @@ nv10_identify(struct nvkm_device *device)
 	case 0x18:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;

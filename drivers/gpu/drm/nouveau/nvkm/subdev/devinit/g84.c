@@ -51,16 +51,18 @@ g84_devinit_disable(struct nvkm_devinit *init)
 	return disable;
 }
 
-struct nvkm_oclass *
-g84_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x84),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+g84_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
 	.pll_set = nv50_devinit_pll_set,
 	.disable = g84_devinit_disable,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+g84_devinit_new(struct nvkm_device *device, int index,
+		struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&g84_devinit, device, index, pinit);
+}

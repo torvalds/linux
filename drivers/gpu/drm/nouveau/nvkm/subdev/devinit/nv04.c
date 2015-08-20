@@ -391,32 +391,25 @@ nv04_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 }
 
 int
-nv04_devinit_fini(struct nvkm_object *object, bool suspend)
+nv04_devinit_post(struct nvkm_devinit *init, bool execute)
 {
-	struct nv04_devinit *init = (void *)object;
-	struct nvkm_device *device = init->base.subdev.device;
-	int ret;
+	return nvbios_init(&init->subdev, execute);
+}
+
+void
+nv04_devinit_preinit(struct nvkm_devinit *base)
+{
+	struct nv04_devinit *init = nv04_devinit(base);
+	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_device *device = subdev->device;
 
 	/* make i2c busses accessible */
 	nvkm_mask(device, 0x000200, 0x00000001, 0x00000001);
-
-	ret = nvkm_devinit_fini(&init->base, suspend);
-	if (ret)
-		return ret;
 
 	/* unslave crtcs */
 	if (init->owner < 0)
 		init->owner = nvkm_rdvgaowner(device);
 	nvkm_wrvgaowner(device, 0);
-	return 0;
-}
-
-int
-nv04_devinit_init(struct nvkm_object *object)
-{
-	struct nv04_devinit *init = (void *)object;
-	struct nvkm_subdev *subdev = &init->base.subdev;
-	struct nvkm_device *device = subdev->device;
 
 	if (!init->base.post) {
 		u32 htotal = nvkm_rdvgac(device, 0, 0x06);
@@ -429,48 +422,45 @@ nv04_devinit_init(struct nvkm_object *object)
 			init->base.post = true;
 		}
 	}
-
-	return nvkm_devinit_init(&init->base);
 }
 
-void
-nv04_devinit_dtor(struct nvkm_object *object)
+void *
+nv04_devinit_dtor(struct nvkm_devinit *base)
 {
-	struct nv04_devinit *init = (void *)object;
-
+	struct nv04_devinit *init = nv04_devinit(base);
 	/* restore vga owner saved at first init */
 	nvkm_wrvgaowner(init->base.subdev.device, init->owner);
-
-	nvkm_devinit_destroy(&init->base);
+	return init;
 }
 
 int
-nv04_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+nv04_devinit_new_(const struct nvkm_devinit_func *func,
+		  struct nvkm_device *device, int index,
+		  struct nvkm_devinit **pinit)
 {
 	struct nv04_devinit *init;
-	int ret;
 
-	ret = nvkm_devinit_create(parent, engine, oclass, &init);
-	*pobject = nv_object(init);
-	if (ret)
-		return ret;
+	if (!(init = kzalloc(sizeof(*init), GFP_KERNEL)))
+		return -ENOMEM;
+	*pinit = &init->base;
 
+	nvkm_devinit_ctor(func, device, index, &init->base);
 	init->owner = -1;
 	return 0;
 }
 
-struct nvkm_oclass *
-nv04_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_devinit_ctor,
-		.dtor = nv04_devinit_dtor,
-		.init = nv04_devinit_init,
-		.fini = nv04_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv04_devinit = {
+	.dtor = nv04_devinit_dtor,
+	.preinit = nv04_devinit_preinit,
+	.post = nv04_devinit_post,
 	.meminit = nv04_devinit_meminit,
 	.pll_set = nv04_devinit_pll_set,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv04_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv04_devinit_new_(&nv04_devinit, device, index, pinit);
+}

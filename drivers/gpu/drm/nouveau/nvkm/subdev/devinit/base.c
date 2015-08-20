@@ -26,70 +26,104 @@
 #include <core/option.h>
 #include <subdev/vga.h>
 
-int
-_nvkm_devinit_fini(struct nvkm_object *object, bool suspend)
+u32
+nvkm_devinit_mmio(struct nvkm_devinit *init, u32 addr)
 {
-	struct nvkm_devinit *init = (void *)object;
-
-	/* force full reinit on resume */
-	if (suspend)
-		init->post = true;
-
-	/* unlock the extended vga crtc regs */
-	nvkm_lockvgac(init->subdev.device, false);
-
-	return nvkm_subdev_fini_old(&init->subdev, suspend);
+	if (init->func->mmio)
+		addr = init->func->mmio(init, addr);
+	return addr;
 }
 
 int
-_nvkm_devinit_init(struct nvkm_object *object)
+nvkm_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 khz)
 {
-	struct nvkm_devinit_impl *impl = (void *)object->oclass;
-	struct nvkm_devinit *init = (void *)object;
-	int ret;
-
-	ret = nvkm_subdev_init_old(&init->subdev);
-	if (ret)
-		return ret;
-
-	ret = impl->post(&init->subdev, init->post);
-	if (ret)
-		return ret;
-
-	if (impl->disable)
-		nv_device(init)->disable_mask |= impl->disable(init);
-	return 0;
+	return init->func->pll_set(init, type, khz);
 }
 
 void
-_nvkm_devinit_dtor(struct nvkm_object *object)
+nvkm_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nvkm_devinit *init = (void *)object;
-
-	/* lock crtc regs */
-	nvkm_lockvgac(init->subdev.device, true);
-
-	nvkm_subdev_destroy(&init->subdev);
+	if (init->func->meminit)
+		init->func->meminit(init);
 }
 
-int
-nvkm_devinit_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, int size, void **pobject)
+u64
+nvkm_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nvkm_devinit_impl *impl = (void *)oclass;
-	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_devinit *init;
+	if (init->func->disable)
+		return init->func->disable(init);
+	return 0;
+}
+
+static int
+nvkm_devinit_fini(struct nvkm_subdev *subdev, bool suspend)
+{
+	struct nvkm_devinit *init = nvkm_devinit(subdev);
+	/* force full reinit on resume */
+	if (suspend)
+		init->post = true;
+	return 0;
+}
+
+static int
+nvkm_devinit_preinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_devinit *init = nvkm_devinit(subdev);
+
+	if (init->func->preinit)
+		init->func->preinit(init);
+
+	/* unlock the extended vga crtc regs */
+	nvkm_lockvgac(subdev->device, false);
+	return 0;
+}
+
+static int
+nvkm_devinit_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_devinit *init = nvkm_devinit(subdev);
 	int ret;
 
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "DEVINIT",
-				  "init", size, pobject);
-	init = *pobject;
+	ret = init->func->post(init, init->post);
 	if (ret)
 		return ret;
 
-	init->post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
-	init->meminit = impl->meminit;
-	init->pll_set = impl->pll_set;
-	init->mmio    = impl->mmio;
+	if (init->func->init)
+		init->func->init(init);
+
+	if (init->func->disable)
+		subdev->device->disable_mask |= init->func->disable(init);
 	return 0;
+}
+
+static void *
+nvkm_devinit_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_devinit *init = nvkm_devinit(subdev);
+	void *data = init;
+
+	if (init->func->dtor)
+		data = init->func->dtor(init);
+
+	/* lock crtc regs */
+	nvkm_lockvgac(subdev->device, true);
+	return data;
+}
+
+static const struct nvkm_subdev_func
+nvkm_devinit = {
+	.dtor = nvkm_devinit_dtor,
+	.preinit = nvkm_devinit_preinit,
+	.init = nvkm_devinit_init,
+	.fini = nvkm_devinit_fini,
+};
+
+void
+nvkm_devinit_ctor(const struct nvkm_devinit_func *func,
+		  struct nvkm_device *device, int index,
+		  struct nvkm_devinit *init)
+{
+	nvkm_subdev_ctor(&nvkm_devinit, device, index, 0, &init->subdev);
+	init->func = func;
+	init->post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
 }

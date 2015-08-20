@@ -236,7 +236,7 @@ gf119_disp_intr_unk2_1(struct nv50_disp *disp, int head)
 	struct nvkm_devinit *devinit = device->devinit;
 	u32 pclk = nvkm_rd32(device, 0x660450 + (head * 0x300)) / 1000;
 	if (pclk)
-		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
+		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
 	nvkm_wr32(device, 0x612200 + (head * 0x800), 0x00000000);
 }
 

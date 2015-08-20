@@ -107,9 +107,10 @@ pmu_load(struct nv50_devinit *init, u8 type, bool post,
 }
 
 static int
-gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
+gm204_devinit_post(struct nvkm_devinit *base, bool post)
 {
-	struct nv50_devinit *init = (void *)nvkm_devinit(subdev);
+	struct nv50_devinit *init = nv50_devinit(base);
+	struct nvkm_subdev *subdev = &init->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct bit_entry bit_I;
@@ -163,16 +164,18 @@ gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 	return pmu_load(init, 0x01, post, NULL, NULL);
 }
 
-struct nvkm_oclass *
-gm204_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x07),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+gm204_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = gm204_devinit_post,
 	.pll_set = gf100_devinit_pll_set,
 	.disable = gm107_devinit_disable,
-	.post = gm204_devinit_post,
-}.base;
+};
+
+int
+gm204_devinit_new(struct nvkm_device *device, int index,
+		struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&gm204_devinit, device, index, pinit);
+}

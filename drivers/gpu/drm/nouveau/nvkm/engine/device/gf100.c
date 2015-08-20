@@ -33,7 +33,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -61,7 +60,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -89,7 +87,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -116,7 +113,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -144,7 +140,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -171,7 +166,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -198,7 +192,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -226,7 +219,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
@@ -253,7 +245,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gf100_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;

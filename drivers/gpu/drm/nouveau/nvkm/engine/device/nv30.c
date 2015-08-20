@@ -30,7 +30,6 @@ nv30_identify(struct nvkm_device *device)
 	case 0x30:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv30_fb_oclass;
@@ -45,7 +44,6 @@ nv30_identify(struct nvkm_device *device)
 	case 0x35:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv35_fb_oclass;
@@ -60,7 +58,6 @@ nv30_identify(struct nvkm_device *device)
 	case 0x31:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv30_fb_oclass;
@@ -76,7 +73,6 @@ nv30_identify(struct nvkm_device *device)
 	case 0x36:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv36_fb_oclass;
@@ -92,7 +88,6 @@ nv30_identify(struct nvkm_device *device)
 	case 0x34:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv10_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv10_fb_oclass;

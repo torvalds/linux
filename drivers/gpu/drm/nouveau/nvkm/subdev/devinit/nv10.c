@@ -96,16 +96,18 @@ amount_found:
 	fbmem_fini(fb);
 }
 
-struct nvkm_oclass *
-nv10_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x10),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_devinit_ctor,
-		.dtor = nv04_devinit_dtor,
-		.init = nv04_devinit_init,
-		.fini = nv04_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv10_devinit = {
+	.dtor = nv04_devinit_dtor,
+	.preinit = nv04_devinit_preinit,
+	.post = nv04_devinit_post,
 	.meminit = nv10_devinit_meminit,
 	.pll_set = nv04_devinit_pll_set,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv10_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv04_devinit_new_(&nv10_devinit, device, index, pinit);
+}

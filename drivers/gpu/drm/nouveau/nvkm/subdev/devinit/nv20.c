@@ -39,7 +39,7 @@ nv20_devinit_meminit(struct nvkm_devinit *init)
 	struct io_mapping *fb;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(init));
+	fb = fbmem_init(device);
 	if (!fb) {
 		nvkm_error(subdev, "failed to map fb\n");
 		return;
@@ -62,16 +62,18 @@ nv20_devinit_meminit(struct nvkm_devinit *init)
 	fbmem_fini(fb);
 }
 
-struct nvkm_oclass *
-nv20_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x20),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_devinit_ctor,
-		.dtor = nv04_devinit_dtor,
-		.init = nv04_devinit_init,
-		.fini = nv04_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv20_devinit = {
+	.dtor = nv04_devinit_dtor,
+	.preinit = nv04_devinit_preinit,
+	.post = nv04_devinit_post,
 	.meminit = nv20_devinit_meminit,
 	.pll_set = nv04_devinit_pll_set,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv20_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv04_devinit_new_(&nv20_devinit, device, index, pinit);
+}

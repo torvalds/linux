@@ -358,7 +358,7 @@ nv50_disp_intr_unk20_1(struct nv50_disp *disp, int head)
 	struct nvkm_devinit *devinit = device->devinit;
 	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 	if (pclk)
-		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
+		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
 }
 
 static void

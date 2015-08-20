@@ -173,9 +173,7 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 	if (reg & ~0x00fffffc)
 		warn("unknown bits in register 0x%08x\n", reg);
 
-	if (devinit->mmio)
-		reg = devinit->mmio(devinit, reg);
-	return reg;
+	return nvkm_devinit_mmio(devinit, reg);
 }
 
 static u32
@@ -338,8 +336,8 @@ static void
 init_prog_pll(struct nvbios_init *init, u32 id, u32 freq)
 {
 	struct nvkm_devinit *devinit = init->bios->subdev.device->devinit;
-	if (devinit->pll_set && init_exec(init)) {
-		int ret = devinit->pll_set(devinit, id, freq);
+	if (init_exec(init)) {
+		int ret = nvkm_devinit_pll_set(devinit, id, freq);
 		if (ret)
 			warn("failed to prog pll 0x%08x to %dkHz\n", id, freq);
 	}
@@ -1453,8 +1451,8 @@ init_compute_mem(struct nvbios_init *init)
 	init->offset += 1;
 
 	init_exec_force(init, true);
-	if (init_exec(init) && devinit->meminit)
-		devinit->meminit(devinit);
+	if (init_exec(init))
+		nvkm_devinit_meminit(devinit);
 	init_exec_force(init, false);
 }
 

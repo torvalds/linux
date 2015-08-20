@@ -99,9 +99,9 @@ gt215_devinit_mmio_part[] = {
 };
 
 static u32
-gt215_devinit_mmio(struct nvkm_devinit *obj, u32 addr)
+gt215_devinit_mmio(struct nvkm_devinit *base, u32 addr)
 {
-	struct nv50_devinit *init = container_of(obj, typeof(*init), base);
+	struct nv50_devinit *init = nv50_devinit(base);
 	struct nvkm_device *device = init->base.subdev.device;
 	u32 *mmio = gt215_devinit_mmio_part;
 
@@ -135,17 +135,19 @@ gt215_devinit_mmio(struct nvkm_devinit *obj, u32 addr)
 	return addr;
 }
 
-struct nvkm_oclass *
-gt215_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0xa3),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+gt215_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
+	.mmio = gt215_devinit_mmio,
 	.pll_set = gt215_devinit_pll_set,
 	.disable = gt215_devinit_disable,
-	.mmio    = gt215_devinit_mmio,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+gt215_devinit_new(struct nvkm_device *device, int index,
+		struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&gt215_devinit, device, index, pinit);
+}
