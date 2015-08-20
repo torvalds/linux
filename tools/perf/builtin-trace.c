@@ -1315,7 +1315,10 @@ struct thread_trace {
 	double		  runtime_ms;
         struct {
 		unsigned long ptr;
-		int           entry_str_pos;
+		short int     entry_str_pos;
+		bool	      pending_open;
+		unsigned int  namelen;
+		char	      *name;
 	} filename;
 	struct {
 		int	  max;
@@ -1391,7 +1394,6 @@ struct trace {
 		size_t		nr;
 		int		*entries;
 	}			ev_qualifier_ids;
-	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
 	struct {
@@ -1966,8 +1968,11 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
 		}
-	} else
+	} else {
 		ttrace->entry_pending = true;
+		/* See trace__vfs_getname & trace__sys_exit */
+		ttrace->filename.pending_open = false;
+	}
 
 	if (trace->current != thread) {
 		thread__put(trace->current);
@@ -2003,9 +2008,9 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
-	if (id == trace->audit.open_id && ret >= 0 && trace->last_vfs_getname) {
-		trace__set_fd_pathname(thread, ret, trace->last_vfs_getname);
-		trace->last_vfs_getname = NULL;
+	if (id == trace->audit.open_id && ret >= 0 && ttrace->filename.pending_open) {
+		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
+		ttrace->filename.pending_open = false;
 		++trace->stats.vfs_getname;
 	}
 
@@ -2065,9 +2070,7 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 	size_t filename_len, entry_str_len, to_move;
 	ssize_t remaining_space;
 	char *pos;
-	const char *filename;
-
-	trace->last_vfs_getname = perf_evsel__rawptr(evsel, sample, "pathname");
+	const char *filename = perf_evsel__rawptr(evsel, sample, "pathname");
 
 	if (!thread)
 		goto out;
@@ -2075,6 +2078,21 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 	ttrace = thread__priv(thread);
 	if (!ttrace)
 		goto out;
+
+	filename_len = strlen(filename);
+
+	if (ttrace->filename.namelen < filename_len) {
+		char *f = realloc(ttrace->filename.name, filename_len + 1);
+
+		if (f == NULL)
+				goto out;
+
+		ttrace->filename.namelen = filename_len;
+		ttrace->filename.name = f;
+	}
+
+	strcpy(ttrace->filename.name, filename);
+	ttrace->filename.pending_open = true;
 
 	if (!ttrace->filename.ptr)
 		goto out;
@@ -2084,8 +2102,6 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 	if (remaining_space <= 0)
 		goto out;
 
-	filename = trace->last_vfs_getname;
-	filename_len = strlen(filename);
 	if (filename_len > (size_t)remaining_space) {
 		filename += filename_len - remaining_space;
 		filename_len = remaining_space;

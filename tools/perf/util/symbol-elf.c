@@ -875,6 +875,17 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		}
 	}
 
+	/*
+	 * Handle any relocation of vdso necessary because older kernels
+	 * attempted to prelink vdso to its virtual address.
+	 */
+	if (dso__is_vdso(dso)) {
+		GElf_Shdr tshdr;
+
+		if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
+			map->reloc = map->start - tshdr.sh_addr + tshdr.sh_offset;
+	}
+
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
 	 * Initial kernel and module mappings do not map to the dso.  For

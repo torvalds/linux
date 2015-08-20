@@ -57,6 +57,8 @@ quiet_cmd_cc_i_c = CPP      $@
 quiet_cmd_cc_s_c = AS       $@
       cmd_cc_s_c = $(CC) $(c_flags) -S -o $@ $<
 
+quiet_cmd_gen = GEN      $@
+
 # Link agregate command
 # If there's nothing to link, create empty $@ object.
 quiet_cmd_ld_multi = LD       $@

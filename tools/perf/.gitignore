@@ -29,3 +29,4 @@ config.mak.autogen
 *.pyc
 *.pyo
 .config-detected
+util/intel-pt-decoder/inat-tables.c
