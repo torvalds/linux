@@ -18,6 +18,7 @@
 #include <linux/bootmem.h>
 #include <linux/ctype.h>
 #include <linux/ioport.h>
+#include <asm/diag.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/ebcdic.h>
@@ -112,6 +113,7 @@ dcss_set_subcodes(void)
 	ry = DCSS_FINDSEGX;
 
 	strcpy(name, "dummy");
+	diag_stat_inc(DIAG_STAT_X064);
 	asm volatile(
 		"	diag	%0,%1,0x64\n"
 		"0:	ipm	%2\n"
@@ -205,6 +207,7 @@ dcss_diag(int *func, void *parameter,
 	ry = (unsigned long) *func;
 
 	/* 64-bit Diag x'64' new subcode, keep in 64-bit addressing mode */
+	diag_stat_inc(DIAG_STAT_X064);
 	if (*func > DCSS_SEGEXT)
 		asm volatile(
 			"	diag	%0,%1,0x64\n"
