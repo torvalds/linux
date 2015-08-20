@@ -98,7 +98,7 @@ dp_set_link_config(struct dp_state *dp)
 	if (outp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
 
-	return nv_wraux(outp->base.edid, DPCD_LC00_LINK_BW_SET, sink, 2);
+	return nvkm_wraux(outp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
 }
 
 static void
@@ -111,10 +111,10 @@ dp_set_training_pattern(struct dp_state *dp, u8 pattern)
 	DBG("training pattern %d\n", pattern);
 	impl->pattern(outp, pattern);
 
-	nv_rdaux(outp->base.edid, DPCD_LC02, &sink_tp, 1);
+	nvkm_rdaux(outp->aux, DPCD_LC02, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;
 	sink_tp |= pattern;
-	nv_wraux(outp->base.edid, DPCD_LC02, &sink_tp, 1);
+	nvkm_wraux(outp->aux, DPCD_LC02, &sink_tp, 1);
 }
 
 static int
@@ -150,12 +150,12 @@ dp_link_train_commit(struct dp_state *dp, bool pc)
 		impl->drv_ctl(outp, i, lvsw & 3, lpre & 3, lpc2 & 3);
 	}
 
-	ret = nv_wraux(outp->base.edid, DPCD_LC03(0), dp->conf, 4);
+	ret = nvkm_wraux(outp->aux, DPCD_LC03(0), dp->conf, 4);
 	if (ret)
 		return ret;
 
 	if (pc) {
-		ret = nv_wraux(outp->base.edid, DPCD_LC0F, dp->pc2conf, 2);
+		ret = nvkm_wraux(outp->aux, DPCD_LC0F, dp->pc2conf, 2);
 		if (ret)
 			return ret;
 	}
@@ -174,12 +174,12 @@ dp_link_train_update(struct dp_state *dp, bool pc, u32 delay)
 	else
 		udelay(delay);
 
-	ret = nv_rdaux(outp->base.edid, DPCD_LS02, dp->stat, 6);
+	ret = nvkm_rdaux(outp->aux, DPCD_LS02, dp->stat, 6);
 	if (ret)
 		return ret;
 
 	if (pc) {
-		ret = nv_rdaux(outp->base.edid, DPCD_LS0C, &dp->pc2stat, 1);
+		ret = nvkm_rdaux(outp->aux, DPCD_LS0C, &dp->pc2stat, 1);
 		if (ret)
 			dp->pc2stat = 0x00;
 		DBG("status %6ph pc2 %02x\n", dp->stat, dp->pc2stat);

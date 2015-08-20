@@ -148,7 +148,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 				break;
 		} else
 		if (nv_encoder->i2c) {
-			if (nv_probe_i2c(nv_encoder->i2c, 0x50))
+			if (nvkm_probe_i2c(nv_encoder->i2c, 0x50))
 				break;
 		}
 	}
@@ -241,7 +241,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct nouveau_encoder *nv_partner;
-	struct nvkm_i2c_port *i2c;
+	struct i2c_adapter *i2c;
 	int type;
 	int ret;
 	enum drm_connector_status conn_status = connector_status_disconnected;
@@ -259,7 +259,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 	nv_encoder = nouveau_connector_ddc_detect(connector);
 	if (nv_encoder && (i2c = nv_encoder->i2c) != NULL) {
-		nv_connector->edid = drm_get_edid(connector, &i2c->adapter);
+		nv_connector->edid = drm_get_edid(connector, i2c);
 		drm_mode_connector_update_edid_property(connector,
 							nv_connector->edid);
 		if (!nv_connector->edid) {
@@ -930,11 +930,11 @@ nouveau_connector_dp_dpms(struct drm_connector *connector, int mode)
 	    nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		if (mode == DRM_MODE_DPMS_ON) {
 			u8 data = DP_SET_POWER_D0;
-			nv_wraux(nv_encoder->i2c, DP_SET_POWER, &data, 1);
+			nvkm_wraux(nv_encoder->aux, DP_SET_POWER, &data, 1);
 			usleep_range(1000, 2000);
 		} else {
 			u8 data = DP_SET_POWER_D3;
-			nv_wraux(nv_encoder->i2c, DP_SET_POWER, &data, 1);
+			nvkm_wraux(nv_encoder->aux, DP_SET_POWER, &data, 1);
 		}
 	}
 
@@ -980,29 +980,29 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 }
 
 static ssize_t
-nouveau_connector_aux_xfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+nouveau_connector_aux_xfer(struct drm_dp_aux *obj, struct drm_dp_aux_msg *msg)
 {
 	struct nouveau_connector *nv_connector =
-		container_of(aux, typeof(*nv_connector), aux);
+		container_of(obj, typeof(*nv_connector), aux);
 	struct nouveau_encoder *nv_encoder;
-	struct nvkm_i2c_port *port;
+	struct nvkm_i2c_aux *aux;
 	int ret;
 
 	nv_encoder = find_encoder(&nv_connector->base, DCB_OUTPUT_DP);
-	if (!nv_encoder || !(port = nv_encoder->i2c))
+	if (!nv_encoder || !(aux = nv_encoder->aux))
 		return -ENODEV;
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 	if (msg->size == 0)
 		return msg->size;
 
-	ret = nvkm_i2c(port)->acquire(port, 0);
+	ret = nvkm_i2c_aux_acquire(aux);
 	if (ret)
 		return ret;
 
-	ret = port->func->aux(port, false, msg->request, msg->address,
-			      msg->buffer, msg->size);
-	nvkm_i2c(port)->release(port);
+	ret = nvkm_i2c_aux_xfer(aux, false, msg->request, msg->address,
+				msg->buffer, msg->size);
+	nvkm_i2c_aux_release(aux);
 	if (ret >= 0) {
 		msg->reply = ret;
 		return msg->size;

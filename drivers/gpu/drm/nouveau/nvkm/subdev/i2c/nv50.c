@@ -21,108 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
-
-void
-nv50_i2c_drive_scl(struct nvkm_i2c_port *base, int state)
-{
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
-	struct nvkm_device *device = i2c->subdev.device;
-	struct nv50_i2c_port *port = (void *)base;
-	if (state) port->state |= 0x01;
-	else	   port->state &= 0xfe;
-	nvkm_wr32(device, port->addr, port->state);
-}
-
-void
-nv50_i2c_drive_sda(struct nvkm_i2c_port *base, int state)
-{
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
-	struct nvkm_device *device = i2c->subdev.device;
-	struct nv50_i2c_port *port = (void *)base;
-	if (state) port->state |= 0x02;
-	else	   port->state &= 0xfd;
-	nvkm_wr32(device, port->addr, port->state);
-}
-
-int
-nv50_i2c_sense_scl(struct nvkm_i2c_port *base)
-{
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
-	struct nvkm_device *device = i2c->subdev.device;
-	struct nv50_i2c_port *port = (void *)base;
-	return !!(nvkm_rd32(device, port->addr) & 0x00000001);
-}
-
-int
-nv50_i2c_sense_sda(struct nvkm_i2c_port *base)
-{
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
-	struct nvkm_device *device = i2c->subdev.device;
-	struct nv50_i2c_port *port = (void *)base;
-	return !!(nvkm_rd32(device, port->addr) & 0x00000002);
-}
-
-static const struct nvkm_i2c_func
-nv50_i2c_func = {
-	.drive_scl = nv50_i2c_drive_scl,
-	.drive_sda = nv50_i2c_drive_sda,
-	.sense_scl = nv50_i2c_sense_scl,
-	.sense_sda = nv50_i2c_sense_sda,
-};
-
-const u32 nv50_i2c_addr[] = {
-	0x00e138, 0x00e150, 0x00e168, 0x00e180,
-	0x00e254, 0x00e274, 0x00e764, 0x00e780,
-	0x00e79c, 0x00e7b8
-};
-const int nv50_i2c_addr_nr = ARRAY_SIZE(nv50_i2c_addr);
-
-static int
-nv50_i2c_port_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		   struct nvkm_oclass *oclass, void *data, u32 index,
-		   struct nvkm_object **pobject)
-{
-	struct dcb_i2c_entry *info = data;
-	struct nv50_i2c_port *port;
-	int ret;
-
-	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
-				   &nvkm_i2c_bit_algo, &nv50_i2c_func, &port);
-	*pobject = nv_object(port);
-	if (ret)
-		return ret;
-
-	if (info->drive >= nv50_i2c_addr_nr)
-		return -EINVAL;
-
-	port->state = 0x00000007;
-	port->addr = nv50_i2c_addr[info->drive];
-	return 0;
-}
-
-int
-nv50_i2c_port_init(struct nvkm_object *object)
-{
-	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
-	struct nvkm_device *device = i2c->subdev.device;
-	struct nv50_i2c_port *port = (void *)object;
-	nvkm_wr32(device, port->addr, port->state);
-	return nvkm_i2c_port_init(&port->base);
-}
-
-static struct nvkm_oclass
-nv50_i2c_sclass[] = {
-	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
-	  .ofuncs = &(struct nvkm_ofuncs) {
-		  .ctor = nv50_i2c_port_ctor,
-		  .dtor = _nvkm_i2c_port_dtor,
-		  .init = nv50_i2c_port_init,
-		  .fini = _nvkm_i2c_port_fini,
-	  },
-	},
-	{}
-};
+#include "priv.h"
+#include "pad.h"
 
 struct nvkm_oclass *
 nv50_i2c_oclass = &(struct nvkm_i2c_impl) {
@@ -133,6 +33,5 @@ nv50_i2c_oclass = &(struct nvkm_i2c_impl) {
 		.init = _nvkm_i2c_init,
 		.fini = _nvkm_i2c_fini,
 	},
-	.sclass = nv50_i2c_sclass,
-	.pad_x = &nv04_i2c_pad_oclass,
+	.pad_x_new = nv50_i2c_pad_new,
 }.base;

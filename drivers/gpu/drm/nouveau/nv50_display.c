@@ -1688,6 +1688,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c_bus *bus;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type = DRM_MODE_ENCODER_DAC;
@@ -1697,7 +1698,10 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
 	nv_encoder->or = ffs(dcbe->or) - 1;
-	nv_encoder->i2c = i2c->find(i2c, dcbe->i2c_index);
+
+	bus = nvkm_i2c_bus_find(i2c, dcbe->i2c_index);
+	if (bus)
+		nv_encoder->i2c = &bus->i2c;
 
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
@@ -2091,8 +2095,21 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
 	nv_encoder->or = ffs(dcbe->or) - 1;
-	nv_encoder->i2c = i2c->find(i2c, dcbe->i2c_index);
 	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
+
+	if (dcbe->type == DCB_OUTPUT_DP) {
+		struct nvkm_i2c_aux *aux =
+			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
+		if (aux) {
+			nv_encoder->i2c = &aux->i2c;
+			nv_encoder->aux = aux;
+		}
+	} else {
+		struct nvkm_i2c_bus *bus =
+			nvkm_i2c_bus_find(i2c, dcbe->i2c_index);
+		if (bus)
+			nv_encoder->i2c = &bus->i2c;
+	}
 
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
@@ -2244,18 +2261,22 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
-	struct nvkm_i2c_port *ddc = NULL;
+	struct nvkm_i2c_bus *bus = NULL;
+	struct nvkm_i2c_aux *aux = NULL;
+	struct i2c_adapter *ddc;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type;
 
 	switch (dcbe->type) {
 	case DCB_OUTPUT_TMDS:
-		ddc  = i2c->find_type(i2c, NV_I2C_TYPE_EXTDDC(dcbe->extdev));
+		bus  = nvkm_i2c_bus_find(i2c, NVKM_I2C_BUS_EXT(dcbe->extdev));
+		ddc  = bus ? &bus->i2c : NULL;
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	case DCB_OUTPUT_DP:
-		ddc  = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(dcbe->extdev));
+		aux  = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbe->extdev));
+		ddc  = aux ? &aux->i2c : NULL;
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	default:
@@ -2268,6 +2289,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	nv_encoder->dcb = dcbe;
 	nv_encoder->or = ffs(dcbe->or) - 1;
 	nv_encoder->i2c = ddc;
+	nv_encoder->aux = aux;
 
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;

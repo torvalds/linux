@@ -101,7 +101,9 @@ nv04_display_create(struct drm_device *dev)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-		nv_encoder->i2c = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+		struct nvkm_i2c_bus *bus =
+			nvkm_i2c_bus_find(i2c, nv_encoder->dcb->i2c_index);
+		nv_encoder->i2c = bus ? &bus->i2c : NULL;
 	}
 
 	/* Save previous state */

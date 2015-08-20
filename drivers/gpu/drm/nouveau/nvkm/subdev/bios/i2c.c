@@ -76,8 +76,8 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 	if (ent) {
 		if (ver >= 0x41) {
 			u32 ent_value = nvbios_rd32(bios, ent);
-			u8 i2c_port = (ent_value >> 27) & 0x1f;
-			u8 dpaux_port = (ent_value >> 22) & 0x1f;
+			u8 i2c_port = (ent_value >> 0) & 0x1f;
+			u8 dpaux_port = (ent_value >> 5) & 0x1f;
 			/* value 0x1f means unused according to DCB 4.x spec */
 			if (i2c_port == 0x1f && dpaux_port == 0x1f)
 				info->type = DCB_I2C_UNUSED;

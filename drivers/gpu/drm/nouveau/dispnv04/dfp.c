@@ -624,8 +624,8 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
-	struct nvkm_i2c_port *port = i2c->find(i2c, 2);
-	struct nvkm_i2c_board_info info[] = {
+	struct nvkm_i2c_bus *bus = nvkm_i2c_bus_find(i2c, NVKM_I2C_BUS_PRI);
+	struct nvkm_i2c_bus_probe info[] = {
 		{
 		    {
 		        .type = "sil164",
@@ -639,16 +639,15 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	};
 	int type;
 
-	if (!nv_gf4_disp_arch(dev) || !port ||
-	    get_tmds_slave(encoder))
+	if (!nv_gf4_disp_arch(dev) || !bus || get_tmds_slave(encoder))
 		return;
 
-	type = i2c->identify(i2c, 2, "TMDS transmitter", info, NULL, NULL);
+	type = nvkm_i2c_bus_probe(bus, "TMDS transmitter", info, NULL, NULL);
 	if (type < 0)
 		return;
 
 	drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
-			     &port->adapter, &info[type].dev);
+			     &bus->i2c, &info[type].dev);
 }
 
 static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {

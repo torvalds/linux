@@ -259,62 +259,60 @@ init_wrvgai(struct nvbios_init *init, u16 port, u8 index, u8 value)
 	}
 }
 
-static struct nvkm_i2c_port *
+static struct i2c_adapter *
 init_i2c(struct nvbios_init *init, int index)
 {
-	struct nvkm_i2c *i2c = nvkm_i2c(init->bios);
+	struct nvkm_i2c *i2c = init->bios->subdev.device->i2c;
+	struct nvkm_i2c_bus *bus;
 
 	if (index == 0xff) {
-		index = NV_I2C_DEFAULT(0);
+		index = NVKM_I2C_BUS_PRI;
 		if (init->outp && init->outp->i2c_upper_default)
-			index = NV_I2C_DEFAULT(1);
-	} else
-	if (index < 0) {
-		if (!init->outp) {
-			if (init_exec(init))
-				error("script needs output for i2c\n");
-			return NULL;
-		}
-
-		if (index == -2 && init->outp->location) {
-			index = NV_I2C_TYPE_EXTAUX(init->outp->extdev);
-			return i2c->find_type(i2c, index);
-		}
-
-		index = init->outp->i2c_index;
-		if (init->outp->type == DCB_OUTPUT_DP)
-			index += NV_I2C_AUX(0);
+			index = NVKM_I2C_BUS_SEC;
 	}
 
-	return i2c->find(i2c, index);
+	bus = nvkm_i2c_bus_find(i2c, index);
+	return bus ? &bus->i2c : NULL;
 }
 
 static int
 init_rdi2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg)
 {
-	struct nvkm_i2c_port *port = init_i2c(init, index);
-	if (port && init_exec(init))
-		return nv_rdi2cr(port, addr, reg);
+	struct i2c_adapter *adap = init_i2c(init, index);
+	if (adap && init_exec(init))
+		return nvkm_rdi2cr(adap, addr, reg);
 	return -ENODEV;
 }
 
 static int
 init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 {
-	struct nvkm_i2c_port *port = init_i2c(init, index);
-	if (port && init_exec(init))
-		return nv_wri2cr(port, addr, reg, val);
+	struct i2c_adapter *adap = init_i2c(init, index);
+	if (adap && init_exec(init))
+		return nvkm_wri2cr(adap, addr, reg, val);
 	return -ENODEV;
+}
+
+static struct nvkm_i2c_aux *
+init_aux(struct nvbios_init *init)
+{
+	struct nvkm_i2c *i2c = init->bios->subdev.device->i2c;
+	if (!init->outp) {
+		if (init_exec(init))
+			error("script needs output for aux\n");
+		return NULL;
+	}
+	return nvkm_i2c_aux_find(i2c, init->outp->i2c_index);
 }
 
 static u8
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
-	struct nvkm_i2c_port *port = init_i2c(init, -2);
+	struct nvkm_i2c_aux *aux = init_aux(init);
 	u8 data;
 
-	if (port && init_exec(init)) {
-		int ret = nv_rdaux(port, addr, &data, 1);
+	if (aux && init_exec(init)) {
+		int ret = nvkm_rdaux(aux, addr, &data, 1);
 		if (ret == 0)
 			return data;
 		trace("auxch read failed with %d\n", ret);
@@ -326,9 +324,9 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
-	struct nvkm_i2c_port *port = init_i2c(init, -2);
-	if (port && init_exec(init)) {
-		int ret = nv_wraux(port, addr, &data, 1);
+	struct nvkm_i2c_aux *aux = init_aux(init);
+	if (aux && init_exec(init)) {
+		int ret = nvkm_wraux(aux, addr, &data, 1);
 		if (ret)
 			trace("auxch write failed with %d\n", ret);
 		return ret;
@@ -1065,13 +1063,13 @@ init_zm_i2c(struct nvbios_init *init)
 	}
 
 	if (init_exec(init)) {
-		struct nvkm_i2c_port *port = init_i2c(init, index);
+		struct i2c_adapter *adap = init_i2c(init, index);
 		struct i2c_msg msg = {
 			.addr = addr, .flags = 0, .len = count, .buf = data,
 		};
 		int ret;
 
-		if (port && (ret = i2c_transfer(&port->adapter, &msg, 1)) != 1)
+		if (adap && (ret = i2c_transfer(adap, &msg, 1)) != 1)
 			warn("i2c wr failed, %d\n", ret);
 	}
 }
@@ -2127,15 +2125,15 @@ init_i2c_long_if(struct nvbios_init *init)
 	u8 reghi = nvbios_rd08(bios, init->offset + 4);
 	u8  mask = nvbios_rd08(bios, init->offset + 5);
 	u8  data = nvbios_rd08(bios, init->offset + 6);
-	struct nvkm_i2c_port *port;
+	struct i2c_adapter *adap;
 
 	trace("I2C_LONG_IF\t"
 	      "I2C[0x%02x][0x%02x][0x%02x%02x] & 0x%02x == 0x%02x\n",
 	      index, addr, reglo, reghi, mask, data);
 	init->offset += 7;
 
-	port = init_i2c(init, index);
-	if (port) {
+	adap = init_i2c(init, index);
+	if (adap) {
 		u8 i[2] = { reghi, reglo };
 		u8 o[1] = {};
 		struct i2c_msg msg[] = {
@@ -2144,7 +2142,7 @@ init_i2c_long_if(struct nvbios_init *init)
 		};
 		int ret;
 
-		ret = i2c_transfer(&port->adapter, msg, 2);
+		ret = i2c_transfer(adap, msg, 2);
 		if (ret == 2 && ((o[0] & mask) == data))
 			return;
 	}

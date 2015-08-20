@@ -40,7 +40,7 @@ nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
 	int ret, i;
 
 	/* check that the link is trained at a high enough rate */
-	ret = nv_rdaux(outp->base.edid, DPCD_LC00_LINK_BW_SET, link, 2);
+	ret = nvkm_rdaux(outp->aux, DPCD_LC00_LINK_BW_SET, link, 2);
 	if (ret) {
 		DBG("failed to read link config, assuming no sink\n");
 		goto done;
@@ -55,7 +55,7 @@ nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
 	}
 
 	/* check that link is still trained */
-	ret = nv_rdaux(outp->base.edid, DPCD_LS02, stat, 3);
+	ret = nvkm_rdaux(outp->aux, DPCD_LS02, stat, 3);
 	if (ret) {
 		DBG("failed to read link status, assuming no sink\n");
 		goto done;
@@ -102,37 +102,31 @@ done:
 }
 
 static void
-nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool present)
+nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool enable)
 {
-	struct nvkm_i2c_port *port = outp->base.edid;
-	if (present) {
+	struct nvkm_i2c_aux *aux = outp->aux;
+
+	if (enable) {
 		if (!outp->present) {
-			nvkm_i2c(port)->acquire_pad(port, 0);
 			DBG("aux power -> always\n");
+			nvkm_i2c_aux_monitor(aux, true);
 			outp->present = true;
 		}
-		nvkm_output_dp_train(&outp->base, 0, true);
-	} else {
-		if (outp->present) {
-			nvkm_i2c(port)->release_pad(port);
-			DBG("aux power -> demand\n");
-			outp->present = false;
-		}
-		atomic_set(&outp->lt.done, 0);
-	}
-}
 
-static void
-nvkm_output_dp_detect(struct nvkm_output_dp *outp)
-{
-	struct nvkm_i2c_port *port = outp->base.edid;
-	int ret = nvkm_i2c(port)->acquire_pad(port, 0);
-	if (ret == 0) {
-		ret = nv_rdaux(outp->base.edid, DPCD_RC00_DPCD_REV,
-			       outp->dpcd, sizeof(outp->dpcd));
-		nvkm_output_dp_enable(outp, ret == 0);
-		nvkm_i2c(port)->release_pad(port);
+		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, outp->dpcd,
+				sizeof(outp->dpcd))) {
+			nvkm_output_dp_train(&outp->base, 0, true);
+			return;
+		}
 	}
+
+	if (outp->present) {
+		DBG("aux power -> demand\n");
+		nvkm_i2c_aux_monitor(aux, false);
+		outp->present = false;
+	}
+
+	atomic_set(&outp->lt.done, 0);
 }
 
 static int
@@ -148,7 +142,7 @@ nvkm_output_dp_hpd(struct nvkm_notify *notify)
 		if (outp->base.conn == conn &&
 		    outp->info.type == DCB_OUTPUT_DP) {
 			DBG("HPD: %d\n", line->mask);
-			nvkm_output_dp_detect(outp);
+			nvkm_output_dp_enable(outp, true);
 
 			if (line->mask & NVKM_I2C_UNPLUG)
 				rep.mask |= NVIF_NOTIFY_CONN_V0_UNPLUG;
@@ -196,7 +190,7 @@ int
 _nvkm_output_dp_init(struct nvkm_object *object)
 {
 	struct nvkm_output_dp *outp = (void *)object;
-	nvkm_output_dp_detect(outp);
+	nvkm_output_dp_enable(outp, true);
 	return nvkm_output_init(&outp->base);
 }
 
@@ -231,7 +225,9 @@ nvkm_output_dp_create_(struct nvkm_object *parent,
 	nvkm_notify_fini(&outp->base.conn->hpd);
 
 	/* access to the aux channel is not optional... */
-	if (!outp->base.edid) {
+	//XXX: breaks anx support
+	outp->aux = nvkm_i2c_aux_find(i2c, outp->base.info.i2c_index);
+	if (!outp->aux) {
 		ERR("aux channel not found\n");
 		return -ENODEV;
 	}
@@ -256,7 +252,7 @@ nvkm_output_dp_create_(struct nvkm_object *parent,
 	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_output_dp_irq, true,
 			       &(struct nvkm_i2c_ntfy_req) {
 				.mask = NVKM_I2C_IRQ,
-				.port = outp->base.edid->index,
+				.port = outp->aux->id,
 			       },
 			       sizeof(struct nvkm_i2c_ntfy_req),
 			       sizeof(struct nvkm_i2c_ntfy_rep),
@@ -270,7 +266,7 @@ nvkm_output_dp_create_(struct nvkm_object *parent,
 	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_output_dp_hpd, true,
 			       &(struct nvkm_i2c_ntfy_req) {
 				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG,
-				.port = outp->base.edid->index,
+				.port = outp->aux->id,
 			       },
 			       sizeof(struct nvkm_i2c_ntfy_req),
 			       sizeof(struct nvkm_i2c_ntfy_rep),

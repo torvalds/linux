@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
+#include "pad.h"
 
 void
 gk104_aux_stat(struct nvkm_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
@@ -64,9 +65,8 @@ gk104_i2c_oclass = &(struct nvkm_i2c_impl) {
 		.init = _nvkm_i2c_init,
 		.fini = _nvkm_i2c_fini,
 	},
-	.sclass = gf110_i2c_sclass,
-	.pad_x = &nv04_i2c_pad_oclass,
-	.pad_s = &g94_i2c_pad_oclass,
+	.pad_x_new = gf119_i2c_pad_x_new,
+	.pad_s_new = gf119_i2c_pad_s_new,
 	.aux = 4,
 	.aux_stat = gk104_aux_stat,
 	.aux_mask = gk104_aux_mask,

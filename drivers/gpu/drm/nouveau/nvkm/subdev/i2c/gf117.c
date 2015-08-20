@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
+#include "pad.h"
 
 struct nvkm_oclass *
 gf117_i2c_oclass = &(struct nvkm_i2c_impl) {
@@ -32,7 +33,5 @@ gf117_i2c_oclass = &(struct nvkm_i2c_impl) {
 		.init = _nvkm_i2c_init,
 		.fini = _nvkm_i2c_fini,
 	},
-	.sclass = gf110_i2c_sclass,
-	.pad_x = &nv04_i2c_pad_oclass,
-	.pad_s = &nv04_i2c_pad_oclass,
+	.pad_x_new = gf119_i2c_pad_x_new,
 }.base;

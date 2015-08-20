@@ -12,6 +12,8 @@ struct nvkm_output_dp {
 	struct nvbios_dpout info;
 	u8 version;
 
+	struct nvkm_i2c_aux *aux;
+
 	struct nvkm_notify irq;
 	bool present;
 	u8 dpcd[16];

@@ -13,8 +13,8 @@ struct nvkm_output {
 	int index;
 	int or;
 
-	struct nvkm_i2c_port *port;
-	struct nvkm_i2c_port *edid;
+	// whatever (if anything) is pointed at by the dcb device entry
+	struct nvkm_i2c_bus *i2c;
 
 	struct nvkm_connector *conn;
 };

@@ -41,7 +41,6 @@ nv50_pior_tmds_ctor(struct nvkm_object *parent,
 		    struct nvkm_oclass *oclass, void *info, u32 index,
 		    struct nvkm_object **pobject)
 {
-	struct nvkm_i2c *i2c = nvkm_i2c(parent);
 	struct nvkm_output *outp;
 	int ret;
 
@@ -50,7 +49,6 @@ nv50_pior_tmds_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	outp->edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTDDC(outp->info.extdev));
 	return 0;
 }
 
@@ -72,10 +70,7 @@ nv50_pior_tmds_impl = {
 static int
 nv50_pior_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nvkm_i2c_port *port = outp->base.edid;
-	if (port && port->func->pattern)
-		return port->func->pattern(port, pattern);
-	return port ? 0 : -ENODEV;
+	return -ENODEV;
 }
 
 static int
@@ -87,19 +82,13 @@ nv50_pior_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 static int
 nv50_pior_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
-	struct nvkm_i2c_port *port = outp->base.edid;
-	if (port && port->func->lnk_ctl)
-		return port->func->lnk_ctl(port, nr, bw, ef);
-	return port ? 0 : -ENODEV;
+	return nvkm_i2c_aux_lnk_ctl(outp->aux, nr, bw, ef);
 }
 
 static int
 nv50_pior_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 {
-	struct nvkm_i2c_port *port = outp->base.edid;
-	if (port && port->func->drv_ctl)
-		return port->func->drv_ctl(port, ln, vs, pe);
-	return port ? 0 : -ENODEV;
+	return -ENODEV;
 }
 
 static int
@@ -117,8 +106,7 @@ nv50_pior_dp_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	outp->base.edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(
-					 outp->base.info.extdev));
+	outp->aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(outp->base.info.extdev));
 	return 0;
 }
 

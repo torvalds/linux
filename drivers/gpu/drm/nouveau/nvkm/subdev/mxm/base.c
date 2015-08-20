@@ -29,7 +29,7 @@
 #include <subdev/i2c.h>
 
 static bool
-mxm_shadow_rom_fetch(struct nvkm_i2c_port *i2c, u8 addr,
+mxm_shadow_rom_fetch(struct nvkm_i2c_bus *bus, u8 addr,
 		     u8 offset, u8 size, u8 *data)
 {
 	struct i2c_msg msgs[] = {
@@ -37,7 +37,7 @@ mxm_shadow_rom_fetch(struct nvkm_i2c_port *i2c, u8 addr,
 		{ .addr = addr, .flags = I2C_M_RD, .len = size, .buf = data, },
 	};
 
-	return i2c_transfer(&i2c->adapter, msgs, 2) == 2;
+	return i2c_transfer(&bus->i2c, msgs, 2) == 2;
 }
 
 static bool
@@ -45,19 +45,19 @@ mxm_shadow_rom(struct nvkm_mxm *mxm, u8 version)
 {
 	struct nvkm_bios *bios = nvkm_bios(mxm);
 	struct nvkm_i2c *i2c = nvkm_i2c(mxm);
-	struct nvkm_i2c_port *port = NULL;
+	struct nvkm_i2c_bus *bus = NULL;
 	u8 i2cidx, mxms[6], addr, size;
 
 	i2cidx = mxm_ddc_map(bios, 1 /* LVDS_DDC */) & 0x0f;
 	if (i2cidx < 0x0f)
-		port = i2c->find(i2c, i2cidx);
-	if (!port)
+		bus = nvkm_i2c_bus_find(i2c, i2cidx);
+	if (!bus)
 		return false;
 
 	addr = 0x54;
-	if (!mxm_shadow_rom_fetch(port, addr, 0, 6, mxms)) {
+	if (!mxm_shadow_rom_fetch(bus, addr, 0, 6, mxms)) {
 		addr = 0x56;
-		if (!mxm_shadow_rom_fetch(port, addr, 0, 6, mxms))
+		if (!mxm_shadow_rom_fetch(bus, addr, 0, 6, mxms))
 			return false;
 	}
 
@@ -66,7 +66,7 @@ mxm_shadow_rom(struct nvkm_mxm *mxm, u8 version)
 	mxm->mxms = kmalloc(size, GFP_KERNEL);
 
 	if (mxm->mxms &&
-	    mxm_shadow_rom_fetch(port, addr, 0, size, mxm->mxms))
+	    mxm_shadow_rom_fetch(bus, addr, 0, size, mxm->mxms))
 		return true;
 
 	kfree(mxm->mxms);
