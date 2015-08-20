@@ -460,16 +460,6 @@ config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 config LRU_CACHE
 	tristate
 
-config AVERAGE
-	bool "Averaging functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require averaging functions, but a module built outside
-	  the kernel tree does. Such modules that use library averaging
-	  functions require Y here.
-
-	  If unsure, say N.
-
 config CLZ_TAB
 	bool
 
