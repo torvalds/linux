@@ -147,6 +147,20 @@ struct nvkm_device {
 struct nvkm_device *nvkm_device_find(u64 name);
 int nvkm_device_list(u64 *name, int size);
 
+/* privileged register interface accessor macros */
+#define nvkm_rd08(d,a) ioread8((d)->engine.subdev.mmio + (a))
+#define nvkm_rd16(d,a) ioread16_native((d)->engine.subdev.mmio + (a))
+#define nvkm_rd32(d,a) ioread32_native((d)->engine.subdev.mmio + (a))
+#define nvkm_wr08(d,a,v) iowrite8((v), (d)->engine.subdev.mmio + (a))
+#define nvkm_wr16(d,a,v) iowrite16_native((v), (d)->engine.subdev.mmio + (a))
+#define nvkm_wr32(d,a,v) iowrite32_native((v), (d)->engine.subdev.mmio + (a))
+#define nvkm_mask(d,a,m,v) ({                                                  \
+	struct nvkm_device *_device = (d);                                     \
+	u32 _addr = (a), _temp = nvkm_rd32(_device, _addr);                    \
+	nvkm_wr32(_device, _addr, (_temp & ~(m)) | (v));                       \
+	_temp;                                                                 \
+})
+
 struct nvkm_device *nv_device(void *obj);
 
 static inline bool
