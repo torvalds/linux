@@ -38,10 +38,16 @@ gm107_ltc_cbc_clear(struct nvkm_ltc_priv *ltc, u32 start, u32 limit)
 static void
 gm107_ltc_cbc_wait(struct nvkm_ltc_priv *ltc)
 {
+	struct nvkm_device *device = ltc->base.subdev.device;
 	int c, s;
 	for (c = 0; c < ltc->ltc_nr; c++) {
-		for (s = 0; s < ltc->lts_nr; s++)
-			nv_wait(ltc, 0x14046c + c * 0x2000 + s * 0x200, ~0, 0);
+		for (s = 0; s < ltc->lts_nr; s++) {
+			const u32 addr = 0x14046c + (c * 0x2000) + (s * 0x200);
+			nvkm_msec(device, 2000,
+				if (!nvkm_rd32(device, addr))
+					break;
+			);
+		}
 	}
 }
 
