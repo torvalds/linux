@@ -226,22 +226,22 @@ mxm_shadow(struct nvkm_mxm *mxm, u8 version)
 	return -ENOENT;
 }
 
+static const struct nvkm_subdev_func
+nvkm_mxm = {
+};
+
 int
-nvkm_mxm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 {
-	struct nvkm_device *device = (void *)parent;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_mxm *mxm;
 	u8  ver, len;
 	u16 data;
-	int ret;
 
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "MXM", "mxm",
-				  length, pobject);
-	mxm = *pobject;
-	if (ret)
-		return ret;
+	if (!(mxm = *pmxm = kzalloc(sizeof(*mxm), GFP_KERNEL)))
+		return -ENOMEM;
+
+	nvkm_subdev_ctor(&nvkm_mxm, device, index, 0, &mxm->subdev);
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nvbios_rd08(bios, data))) {

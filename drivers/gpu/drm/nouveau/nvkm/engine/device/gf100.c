@@ -29,7 +29,6 @@ gf100_identify(struct nvkm_device *device)
 	switch (device->chipset) {
 	case 0xc0:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -47,7 +46,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xc4:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -65,7 +63,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xc3:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -82,7 +79,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xce:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -100,7 +96,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xcf:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -117,7 +112,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xc1:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -134,7 +128,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xc8:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf100_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -152,7 +145,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xd9:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -169,7 +161,6 @@ gf100_identify(struct nvkm_device *device)
 		break;
 	case 0xd7:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gf100_fifo_oclass;

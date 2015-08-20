@@ -199,31 +199,20 @@ mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 	mxms_foreach(mxm, 0x01, mxm_show_unmatched, NULL);
 }
 
-static int
-nv50_mxm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+int
+nv50_mxm_new(struct nvkm_device *device, int index, struct nvkm_subdev **pmxm)
 {
 	struct nvkm_mxm *mxm;
 	int ret;
 
-	ret = nvkm_mxm_create(parent, engine, oclass, &mxm);
-	*pobject = nv_object(mxm);
+	ret = nvkm_mxm_new_(device, index, &mxm);
+	if (mxm)
+		*pmxm = &mxm->subdev;
 	if (ret)
 		return ret;
 
 	if (mxm->action & MXM_SANITISE_DCB)
 		mxm_dcb_sanitise(mxm);
+
 	return 0;
 }
-
-struct nvkm_oclass
-nv50_mxm_oclass = {
-	.handle = NV_SUBDEV(MXM, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_mxm_ctor,
-		.dtor = _nvkm_mxm_dtor,
-		.init = _nvkm_mxm_init,
-		.fini = _nvkm_mxm_fini,
-	},
-};

@@ -29,7 +29,6 @@ gk104_identify(struct nvkm_device *device)
 	switch (device->chipset) {
 	case 0xe4:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk104_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -48,7 +47,6 @@ gk104_identify(struct nvkm_device *device)
 		break;
 	case 0xe7:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -67,7 +65,6 @@ gk104_identify(struct nvkm_device *device)
 		break;
 	case 0xe6:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk104_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -97,7 +94,6 @@ gk104_identify(struct nvkm_device *device)
 		break;
 	case 0xf0:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -116,7 +112,6 @@ gk104_identify(struct nvkm_device *device)
 		break;
 	case 0xf1:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -135,7 +130,6 @@ gk104_identify(struct nvkm_device *device)
 		break;
 	case 0x106:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -153,7 +147,6 @@ gk104_identify(struct nvkm_device *device)
 		break;
 	case 0x108:
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
-		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
