@@ -6,7 +6,7 @@ struct nvkm_mm_node;
 #define NVKM_LTC_MAX_ZBC_CNT 16
 
 struct nvkm_ltc {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	int  (*tags_alloc)(struct nvkm_ltc *, u32 count,
 			   struct nvkm_mm_node **);

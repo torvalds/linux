@@ -27,81 +27,81 @@
 #include <subdev/timer.h>
 
 static void
-gm107_ltc_cbc_clear(struct nvkm_ltc_priv *priv, u32 start, u32 limit)
+gm107_ltc_cbc_clear(struct nvkm_ltc_priv *ltc, u32 start, u32 limit)
 {
-	nv_wr32(priv, 0x17e270, start);
-	nv_wr32(priv, 0x17e274, limit);
-	nv_wr32(priv, 0x17e26c, 0x00000004);
+	nv_wr32(ltc, 0x17e270, start);
+	nv_wr32(ltc, 0x17e274, limit);
+	nv_wr32(ltc, 0x17e26c, 0x00000004);
 }
 
 static void
-gm107_ltc_cbc_wait(struct nvkm_ltc_priv *priv)
+gm107_ltc_cbc_wait(struct nvkm_ltc_priv *ltc)
 {
 	int c, s;
-	for (c = 0; c < priv->ltc_nr; c++) {
-		for (s = 0; s < priv->lts_nr; s++)
-			nv_wait(priv, 0x14046c + c * 0x2000 + s * 0x200, ~0, 0);
+	for (c = 0; c < ltc->ltc_nr; c++) {
+		for (s = 0; s < ltc->lts_nr; s++)
+			nv_wait(ltc, 0x14046c + c * 0x2000 + s * 0x200, ~0, 0);
 	}
 }
 
 static void
-gm107_ltc_zbc_clear_color(struct nvkm_ltc_priv *priv, int i, const u32 color[4])
+gm107_ltc_zbc_clear_color(struct nvkm_ltc_priv *ltc, int i, const u32 color[4])
 {
-	nv_mask(priv, 0x17e338, 0x0000000f, i);
-	nv_wr32(priv, 0x17e33c, color[0]);
-	nv_wr32(priv, 0x17e340, color[1]);
-	nv_wr32(priv, 0x17e344, color[2]);
-	nv_wr32(priv, 0x17e348, color[3]);
+	nv_mask(ltc, 0x17e338, 0x0000000f, i);
+	nv_wr32(ltc, 0x17e33c, color[0]);
+	nv_wr32(ltc, 0x17e340, color[1]);
+	nv_wr32(ltc, 0x17e344, color[2]);
+	nv_wr32(ltc, 0x17e348, color[3]);
 }
 
 static void
-gm107_ltc_zbc_clear_depth(struct nvkm_ltc_priv *priv, int i, const u32 depth)
+gm107_ltc_zbc_clear_depth(struct nvkm_ltc_priv *ltc, int i, const u32 depth)
 {
-	nv_mask(priv, 0x17e338, 0x0000000f, i);
-	nv_wr32(priv, 0x17e34c, depth);
+	nv_mask(ltc, 0x17e338, 0x0000000f, i);
+	nv_wr32(ltc, 0x17e34c, depth);
 }
 
 static void
-gm107_ltc_lts_isr(struct nvkm_ltc_priv *priv, int ltc, int lts)
+gm107_ltc_lts_isr(struct nvkm_ltc_priv *ltc, int c, int s)
 {
-	u32 base = 0x140000 + (ltc * 0x2000) + (lts * 0x400);
-	u32 stat = nv_rd32(priv, base + 0x00c);
+	u32 base = 0x140000 + (c * 0x2000) + (s * 0x400);
+	u32 stat = nv_rd32(ltc, base + 0x00c);
 
 	if (stat) {
-		nv_info(priv, "LTC%d_LTS%d: 0x%08x\n", ltc, lts, stat);
-		nv_wr32(priv, base + 0x00c, stat);
+		nv_info(ltc, "LTC%d_LTS%d: 0x%08x\n", c, s, stat);
+		nv_wr32(ltc, base + 0x00c, stat);
 	}
 }
 
 static void
 gm107_ltc_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_ltc_priv *priv = (void *)subdev;
+	struct nvkm_ltc_priv *ltc = (void *)subdev;
 	u32 mask;
 
-	mask = nv_rd32(priv, 0x00017c);
+	mask = nv_rd32(ltc, 0x00017c);
 	while (mask) {
-		u32 lts, ltc = __ffs(mask);
-		for (lts = 0; lts < priv->lts_nr; lts++)
-			gm107_ltc_lts_isr(priv, ltc, lts);
-		mask &= ~(1 << ltc);
+		u32 s, c = __ffs(mask);
+		for (s = 0; s < ltc->lts_nr; s++)
+			gm107_ltc_lts_isr(ltc, c, s);
+		mask &= ~(1 << c);
 	}
 }
 
 static int
 gm107_ltc_init(struct nvkm_object *object)
 {
-	struct nvkm_ltc_priv *priv = (void *)object;
-	u32 lpg128 = !(nv_rd32(priv, 0x100c80) & 0x00000001);
+	struct nvkm_ltc_priv *ltc = (void *)object;
+	u32 lpg128 = !(nv_rd32(ltc, 0x100c80) & 0x00000001);
 	int ret;
 
-	ret = nvkm_ltc_init(priv);
+	ret = nvkm_ltc_init(ltc);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x17e27c, priv->ltc_nr);
-	nv_wr32(priv, 0x17e278, priv->tag_base);
-	nv_mask(priv, 0x17e264, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
+	nv_wr32(ltc, 0x17e27c, ltc->ltc_nr);
+	nv_wr32(ltc, 0x17e278, ltc->tag_base);
+	nv_mask(ltc, 0x17e264, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
 	return 0;
 }
 
@@ -111,24 +111,24 @@ gm107_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_ltc_priv *priv;
+	struct nvkm_ltc_priv *ltc;
 	u32 parts, mask;
 	int ret, i;
 
-	ret = nvkm_ltc_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_ltc_create(parent, engine, oclass, &ltc);
+	*pobject = nv_object(ltc);
 	if (ret)
 		return ret;
 
-	parts = nv_rd32(priv, 0x022438);
-	mask = nv_rd32(priv, 0x021c14);
+	parts = nv_rd32(ltc, 0x022438);
+	mask = nv_rd32(ltc, 0x021c14);
 	for (i = 0; i < parts; i++) {
 		if (!(mask & (1 << i)))
-			priv->ltc_nr++;
+			ltc->ltc_nr++;
 	}
-	priv->lts_nr = nv_rd32(priv, 0x17e280) >> 28;
+	ltc->lts_nr = nv_rd32(ltc, 0x17e280) >> 28;
 
-	ret = gf100_ltc_init_tag_ram(fb, priv);
+	ret = gf100_ltc_init_tag_ram(fb, ltc);
 	if (ret)
 		return ret;
 
