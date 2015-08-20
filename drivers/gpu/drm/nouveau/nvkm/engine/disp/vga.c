@@ -29,19 +29,19 @@ nv_rdport(void *obj, int head, u16 port)
 	struct nvkm_device *device = nv_device(obj);
 
 	if (device->card_type >= NV_50)
-		return nv_rd08(obj, 0x601000 + port);
+		return nvkm_rd08(device, 0x601000 + port);
 
 	if (port == 0x03c0 || port == 0x03c1 ||	/* AR */
 	    port == 0x03c2 || port == 0x03da ||	/* INP0 */
 	    port == 0x03d4 || port == 0x03d5)	/* CR */
-		return nv_rd08(obj, 0x601000 + (head * 0x2000) + port);
+		return nvkm_rd08(device, 0x601000 + (head * 0x2000) + port);
 
 	if (port == 0x03c2 || port == 0x03cc ||	/* MISC */
 	    port == 0x03c4 || port == 0x03c5 ||	/* SR */
 	    port == 0x03ce || port == 0x03cf) {	/* GR */
 		if (device->card_type < NV_40)
 			head = 0; /* CR44 selects head */
-		return nv_rd08(obj, 0x0c0000 + (head * 0x2000) + port);
+		return nvkm_rd08(device, 0x0c0000 + (head * 0x2000) + port);
 	}
 
 	nv_error(obj, "unknown vga port 0x%04x\n", port);
@@ -54,19 +54,19 @@ nv_wrport(void *obj, int head, u16 port, u8 data)
 	struct nvkm_device *device = nv_device(obj);
 
 	if (device->card_type >= NV_50)
-		nv_wr08(obj, 0x601000 + port, data);
+		nvkm_wr08(device, 0x601000 + port, data);
 	else
 	if (port == 0x03c0 || port == 0x03c1 ||	/* AR */
 	    port == 0x03c2 || port == 0x03da ||	/* INP0 */
 	    port == 0x03d4 || port == 0x03d5)	/* CR */
-		nv_wr08(obj, 0x601000 + (head * 0x2000) + port, data);
+		nvkm_wr08(device, 0x601000 + (head * 0x2000) + port, data);
 	else
 	if (port == 0x03c2 || port == 0x03cc ||	/* MISC */
 	    port == 0x03c4 || port == 0x03c5 ||	/* SR */
 	    port == 0x03ce || port == 0x03cf) {	/* GR */
 		if (device->card_type < NV_40)
 			head = 0; /* CR44 selects head */
-		nv_wr08(obj, 0x0c0000 + (head * 0x2000) + port, data);
+		nvkm_wr08(device, 0x0c0000 + (head * 0x2000) + port, data);
 	} else
 		nv_error(obj, "unknown vga port 0x%04x\n", port);
 }
@@ -135,16 +135,16 @@ nv_wrvgai(void *obj, int head, u16 port, u8 index, u8 value)
 bool
 nv_lockvgac(void *obj, bool lock)
 {
-	struct nvkm_device *dev = nv_device(obj);
+	struct nvkm_device *device = nv_device(obj);
 
 	bool locked = !nv_rdvgac(obj, 0, 0x1f);
 	u8 data = lock ? 0x99 : 0x57;
-	if (dev->card_type < NV_50)
+	if (device->card_type < NV_50)
 		nv_wrvgac(obj, 0, 0x1f, data);
 	else
 		nv_wrvgac(obj, 0, 0x3f, data);
-	if (dev->chipset == 0x11) {
-		if (!(nv_rd32(obj, 0x001084) & 0x10000000))
+	if (device->chipset == 0x11) {
+		if (!(nvkm_rd32(device, 0x001084) & 0x10000000))
 			nv_wrvgac(obj, 1, 0x1f, data);
 	}
 	return locked;
@@ -171,9 +171,10 @@ nv_lockvgac(void *obj, bool lock)
 u8
 nv_rdvgaowner(void *obj)
 {
-	if (nv_device(obj)->card_type < NV_50) {
+	struct nvkm_device *device = nv_device(obj);
+	if (device->card_type < NV_50) {
 		if (nv_device(obj)->chipset == 0x11) {
-			u32 tied = nv_rd32(obj, 0x001084) & 0x10000000;
+			u32 tied = nvkm_rd32(device, 0x001084) & 0x10000000;
 			if (tied == 0) {
 				u8 slA = nv_rdvgac(obj, 0, 0x28) & 0x80;
 				u8 tvA = nv_rdvgac(obj, 0, 0x33) & 0x01;

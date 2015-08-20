@@ -32,6 +32,7 @@ static int
 nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
 		     void *data, u32 size, int head)
 {
+	struct nvkm_device *device = disp->engine.subdev.device;
 	const u32 hoff = head * 0x2000;
 	union {
 		struct nv04_disp_scanoutpos_v0 v0;
@@ -42,12 +43,12 @@ nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
 	nv_ioctl(object, "disp scanoutpos size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nv_ioctl(object, "disp scanoutpos vers %d\n", args->v0.version);
-		args->v0.vblanks = nv_rd32(disp, 0x680800 + hoff) & 0xffff;
-		args->v0.vtotal  = nv_rd32(disp, 0x680804 + hoff) & 0xffff;
+		args->v0.vblanks = nvkm_rd32(device, 0x680800 + hoff) & 0xffff;
+		args->v0.vtotal  = nvkm_rd32(device, 0x680804 + hoff) & 0xffff;
 		args->v0.vblanke = args->v0.vtotal - 1;
 
-		args->v0.hblanks = nv_rd32(disp, 0x680820 + hoff) & 0xffff;
-		args->v0.htotal  = nv_rd32(disp, 0x680824 + hoff) & 0xffff;
+		args->v0.hblanks = nvkm_rd32(device, 0x680820 + hoff) & 0xffff;
+		args->v0.htotal  = nvkm_rd32(device, 0x680824 + hoff) & 0xffff;
 		args->v0.hblanke = args->v0.htotal - 1;
 
 		/*
@@ -59,7 +60,7 @@ nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
 			return -ENOTSUPP;
 
 		args->v0.time[0] = ktime_to_ns(ktime_get());
-		line = nv_rd32(disp, 0x600868 + hoff);
+		line = nvkm_rd32(device, 0x600868 + hoff);
 		args->v0.time[1] = ktime_to_ns(ktime_get());
 		args->v0.hline = (line & 0xffff0000) >> 16;
 		args->v0.vline = (line & 0x0000ffff);
@@ -124,14 +125,16 @@ static void
 nv04_disp_vblank_init(struct nvkm_event *event, int type, int head)
 {
 	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
-	nv_wr32(disp, 0x600140 + (head * 0x2000) , 0x00000001);
+	struct nvkm_device *device = disp->engine.subdev.device;
+	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000001);
 }
 
 static void
 nv04_disp_vblank_fini(struct nvkm_event *event, int type, int head)
 {
 	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
-	nv_wr32(disp, 0x600140 + (head * 0x2000) , 0x00000000);
+	struct nvkm_device *device = disp->engine.subdev.device;
+	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000000);
 }
 
 static const struct nvkm_event_func
@@ -145,26 +148,27 @@ static void
 nv04_disp_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_disp *disp = (void *)subdev;
-	u32 crtc0 = nv_rd32(disp, 0x600100);
-	u32 crtc1 = nv_rd32(disp, 0x602100);
+	struct nvkm_device *device = disp->engine.subdev.device;
+	u32 crtc0 = nvkm_rd32(device, 0x600100);
+	u32 crtc1 = nvkm_rd32(device, 0x602100);
 	u32 pvideo;
 
 	if (crtc0 & 0x00000001) {
 		nvkm_disp_vblank(disp, 0);
-		nv_wr32(disp, 0x600100, 0x00000001);
+		nvkm_wr32(device, 0x600100, 0x00000001);
 	}
 
 	if (crtc1 & 0x00000001) {
 		nvkm_disp_vblank(disp, 1);
-		nv_wr32(disp, 0x602100, 0x00000001);
+		nvkm_wr32(device, 0x602100, 0x00000001);
 	}
 
 	if (nv_device(disp)->chipset >= 0x10 &&
 	    nv_device(disp)->chipset <= 0x40) {
-		pvideo = nv_rd32(disp, 0x8100);
+		pvideo = nvkm_rd32(device, 0x8100);
 		if (pvideo & ~0x11)
 			nv_info(disp, "PVIDEO intr: %08x\n", pvideo);
-		nv_wr32(disp, 0x8100, pvideo);
+		nvkm_wr32(device, 0x8100, pvideo);
 	}
 }
 

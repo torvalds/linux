@@ -54,8 +54,9 @@ gk110_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv50_disp *disp;
-	int heads = nv_rd32(parent, 0x022448);
+	int heads = nvkm_rd32(device, 0x022448);
 	int ret;
 
 	ret = nvkm_disp_create(parent, engine, oclass, heads,

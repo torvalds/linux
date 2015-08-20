@@ -55,8 +55,9 @@ static int
 g94_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 loff = g94_sor_loff(outp);
-	nv_mask(disp, 0x61c10c + loff, 0x0f000000, pattern << 24);
+	nvkm_mask(device, 0x61c10c + loff, 0x0f000000, pattern << 24);
 	return 0;
 }
 
@@ -64,6 +65,7 @@ int
 g94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 soff = g94_sor_soff(outp);
 	const u32 loff = g94_sor_loff(outp);
 	u32 mask = 0, i;
@@ -71,8 +73,8 @@ g94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 	for (i = 0; i < nr; i++)
 		mask |= 1 << (g94_sor_dp_lane_map(disp, i) >> 3);
 
-	nv_mask(disp, 0x61c130 + loff, 0x0000000f, mask);
-	nv_mask(disp, 0x61c034 + soff, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
+	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
 	nv_wait(disp, 0x61c034 + soff, 0x80000000, 0x00000000);
 	return 0;
 }
@@ -81,6 +83,7 @@ static int
 g94_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 soff = g94_sor_soff(outp);
 	const u32 loff = g94_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
@@ -92,8 +95,8 @@ g94_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 	if (bw > 0x06)
 		clksor |= 0x00040000;
 
-	nv_mask(disp, 0x614300 + soff, 0x000c0000, clksor);
-	nv_mask(disp, 0x61c10c + loff, 0x001f4000, dpctrl);
+	nvkm_mask(device, 0x614300 + soff, 0x000c0000, clksor);
+	nvkm_mask(device, 0x61c10c + loff, 0x001f4000, dpctrl);
 	return 0;
 }
 
@@ -101,7 +104,8 @@ static int
 g94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_bios *bios = nvkm_bios(disp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	const u32 shift = g94_sor_dp_lane_map(disp, ln);
 	const u32 loff = g94_sor_loff(outp);
 	u32 addr, data[3];
@@ -120,14 +124,14 @@ g94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 	if (!addr)
 		return -EINVAL;
 
-	data[0] = nv_rd32(disp, 0x61c118 + loff) & ~(0x000000ff << shift);
-	data[1] = nv_rd32(disp, 0x61c120 + loff) & ~(0x000000ff << shift);
-	data[2] = nv_rd32(disp, 0x61c130 + loff);
+	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
+	data[1] = nvkm_rd32(device, 0x61c120 + loff) & ~(0x000000ff << shift);
+	data[2] = nvkm_rd32(device, 0x61c130 + loff);
 	if ((data[2] & 0x0000ff00) < (ocfg.tx_pu << 8) || ln == 0)
 		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
-	nv_wr32(disp, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
-	nv_wr32(disp, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
-	nv_wr32(disp, 0x61c130 + loff, data[2]);
+	nvkm_wr32(device, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
+	nvkm_wr32(device, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
+	nvkm_wr32(device, 0x61c130 + loff, data[2]);
 	return 0;
 }
 

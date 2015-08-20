@@ -144,6 +144,7 @@ nv50_pior_dp_impl = {
 int
 nv50_pior_power(NV50_DISP_MTHD_V1)
 {
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 soff = outp->or * 0x800;
 	union {
 		struct nv50_disp_pior_pwr_v0 v0;
@@ -163,7 +164,7 @@ nv50_pior_power(NV50_DISP_MTHD_V1)
 		return ret;
 
 	nv_wait(disp, 0x61e004 + soff, 0x80000000, 0x00000000);
-	nv_mask(disp, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
+	nvkm_mask(device, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
 	nv_wait(disp, 0x61e004 + soff, 0x80000000, 0x00000000);
 	disp->pior.type[outp->or] = type;
 	return 0;

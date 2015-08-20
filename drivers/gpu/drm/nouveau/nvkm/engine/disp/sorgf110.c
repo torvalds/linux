@@ -40,8 +40,9 @@ static int
 gf110_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 loff = gf110_sor_loff(outp);
-	nv_mask(disp, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
+	nvkm_mask(device, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
 	return 0;
 }
 
@@ -49,6 +50,7 @@ int
 gf110_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 soff = gf110_sor_soff(outp);
 	const u32 loff = gf110_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
@@ -59,8 +61,8 @@ gf110_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 	if (ef)
 		dpctrl |= 0x00004000;
 
-	nv_mask(disp, 0x612300 + soff, 0x007c0000, clksor);
-	nv_mask(disp, 0x61c10c + loff, 0x001f4000, dpctrl);
+	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
+	nvkm_mask(device, 0x61c10c + loff, 0x001f4000, dpctrl);
 	return 0;
 }
 
@@ -69,7 +71,8 @@ gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 		     int ln, int vs, int pe, int pc)
 {
 	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_bios *bios = nvkm_bios(disp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	const u32 shift = g94_sor_dp_lane_map(disp, ln);
 	const u32 loff = gf110_sor_loff(outp);
 	u32 addr, data[4];
@@ -88,16 +91,16 @@ gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	if (!addr)
 		return -EINVAL;
 
-	data[0] = nv_rd32(disp, 0x61c118 + loff) & ~(0x000000ff << shift);
-	data[1] = nv_rd32(disp, 0x61c120 + loff) & ~(0x000000ff << shift);
-	data[2] = nv_rd32(disp, 0x61c130 + loff);
+	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
+	data[1] = nvkm_rd32(device, 0x61c120 + loff) & ~(0x000000ff << shift);
+	data[2] = nvkm_rd32(device, 0x61c130 + loff);
 	if ((data[2] & 0x0000ff00) < (ocfg.tx_pu << 8) || ln == 0)
 		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
-	nv_wr32(disp, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
-	nv_wr32(disp, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
-	nv_wr32(disp, 0x61c130 + loff, data[2]);
-	data[3] = nv_rd32(disp, 0x61c13c + loff) & ~(0x000000ff << shift);
-	nv_wr32(disp, 0x61c13c + loff, data[3] | (ocfg.pc << shift));
+	nvkm_wr32(device, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
+	nvkm_wr32(device, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
+	nvkm_wr32(device, 0x61c130 + loff, data[2]);
+	data[3] = nvkm_rd32(device, 0x61c13c + loff) & ~(0x000000ff << shift);
+	nvkm_wr32(device, 0x61c13c + loff, data[3] | (ocfg.pc << shift));
 	return 0;
 }
 

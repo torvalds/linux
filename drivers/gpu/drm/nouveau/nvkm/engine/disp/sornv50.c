@@ -33,6 +33,7 @@
 int
 nv50_sor_power(NV50_DISP_MTHD_V1)
 {
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	union {
 		struct nv50_disp_sor_pwr_v0 v0;
 	} *args = data;
@@ -49,7 +50,7 @@ nv50_sor_power(NV50_DISP_MTHD_V1)
 		return ret;
 
 	nv_wait(disp, 0x61c004 + soff, 0x80000000, 0x00000000);
-	nv_mask(disp, 0x61c004 + soff, 0x80000001, 0x80000000 | stat);
+	nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000000 | stat);
 	nv_wait(disp, 0x61c004 + soff, 0x80000000, 0x00000000);
 	nv_wait(disp, 0x61c030 + soff, 0x10000000, 0x00000000);
 	return 0;

@@ -33,6 +33,7 @@
 int
 nv50_dac_power(NV50_DISP_MTHD_V1)
 {
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 doff = outp->or * 0x800;
 	union {
 		struct nv50_disp_dac_pwr_v0 v0;
@@ -54,7 +55,7 @@ nv50_dac_power(NV50_DISP_MTHD_V1)
 		return ret;
 
 	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
-	nv_mask(disp, 0x61a004 + doff, 0xc000007f, 0x80000000 | stat);
+	nvkm_mask(device, 0x61a004 + doff, 0xc000007f, 0x80000000 | stat);
 	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
 	return 0;
 }
@@ -62,6 +63,7 @@ nv50_dac_power(NV50_DISP_MTHD_V1)
 int
 nv50_dac_sense(NV50_DISP_MTHD_V1)
 {
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	union {
 		struct nv50_disp_dac_load_v0 v0;
 	} *args = data;
@@ -79,15 +81,15 @@ nv50_dac_sense(NV50_DISP_MTHD_V1)
 	} else
 		return ret;
 
-	nv_mask(disp, 0x61a004 + doff, 0x807f0000, 0x80150000);
+	nvkm_mask(device, 0x61a004 + doff, 0x807f0000, 0x80150000);
 	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
 
-	nv_wr32(disp, 0x61a00c + doff, 0x00100000 | loadval);
+	nvkm_wr32(device, 0x61a00c + doff, 0x00100000 | loadval);
 	mdelay(9);
 	udelay(500);
-	loadval = nv_mask(disp, 0x61a00c + doff, 0xffffffff, 0x00000000);
+	loadval = nvkm_mask(device, 0x61a00c + doff, 0xffffffff, 0x00000000);
 
-	nv_mask(disp, 0x61a004 + doff, 0x807f0000, 0x80550000);
+	nvkm_mask(device, 0x61a004 + doff, 0x807f0000, 0x80550000);
 	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
 
 	nv_debug(disp, "DAC%d sense: 0x%08x\n", outp->or, loadval);
