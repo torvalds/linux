@@ -367,15 +367,14 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	init_waitqueue_head(&sched->wait_queue);
 	atomic_set(&sched->hw_rq_count, 0);
 	/* Each scheduler will run on a seperate kernel thread */
-	sched->thread = kthread_create(amd_sched_main, sched, name);
-	if (sched->thread) {
-		wake_up_process(sched->thread);
-		return sched;
+	sched->thread = kthread_run(amd_sched_main, sched, name);
+	if (IS_ERR(sched->thread)) {
+		DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
+		kfree(sched);
+		return NULL;
 	}
 
-	DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
-	kfree(sched);
-	return NULL;
+	return sched;
 }
 
 /**
