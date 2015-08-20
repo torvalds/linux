@@ -1136,6 +1136,7 @@ TRACE_EVENT(nfs4_layoutget,
 
 DEFINE_NFS4_INODE_EVENT(nfs4_layoutcommit);
 DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn);
+DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn_on_close);
 
 #endif /* CONFIG_NFS_V4_1 */
 

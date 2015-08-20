@@ -1144,6 +1144,7 @@ void pnfs_roc_set_barrier(struct inode *ino, u32 barrier)
 	if (pnfs_seqid_is_newer(barrier, lo->plh_barrier))
 		lo->plh_barrier = barrier;
 	spin_unlock(&ino->i_lock);
+	trace_nfs4_layoutreturn_on_close(ino, 0);
 }
 
 void pnfs_roc_get_barrier(struct inode *ino, u32 *barrier)
