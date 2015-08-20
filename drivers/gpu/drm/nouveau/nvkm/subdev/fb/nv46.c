@@ -24,6 +24,7 @@
  *
  */
 #include "nv04.h"
+#include "ram.h"
 
 void
 nv46_fb_tile_init(struct nvkm_fb *fb, int i, u32 addr, u32 size, u32 pitch,
@@ -49,7 +50,7 @@ nv46_fb_oclass = &(struct nv04_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv44_ram_oclass,
+	.base.ram_new = nv44_ram_new,
 	.tile.regions = 15,
 	.tile.init = nv46_fb_tile_init,
 	.tile.fini = nv20_fb_tile_fini,

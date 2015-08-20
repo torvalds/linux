@@ -84,8 +84,8 @@ static void
 nv50_instobj_dtor(struct nvkm_object *object)
 {
 	struct nv50_instobj *node = (void *)object;
-	struct nvkm_fb *fb = nvkm_fb(object);
-	fb->ram->put(fb, &node->mem);
+	struct nvkm_ram *ram = nvkm_fb(object)->ram;
+	ram->func->put(ram, &node->mem);
 	nvkm_instobj_destroy(&node->base);
 }
 
@@ -94,7 +94,7 @@ nv50_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_ram *ram = nvkm_fb(parent)->ram;
 	struct nvkm_instobj_args *args = data;
 	struct nv50_instobj *node;
 	int ret;
@@ -107,7 +107,8 @@ nv50_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = fb->ram->get(fb, args->size, args->align, 0, 0x800, &node->mem);
+	ret = ram->func->get(ram, args->size, args->align, 0, 0x800,
+			     &node->mem);
 	if (ret)
 		return ret;
 

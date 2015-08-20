@@ -145,12 +145,12 @@ gf100_ltc_init(struct nvkm_object *object)
 void
 gf100_ltc_dtor(struct nvkm_object *object)
 {
-	struct nvkm_fb *fb = nvkm_fb(object);
 	struct nvkm_ltc_priv *ltc = (void *)object;
+	struct nvkm_ram *ram = ltc->base.subdev.device->fb->ram;
 
 	nvkm_mm_fini(&ltc->tags);
-	if (fb->ram)
-		nvkm_mm_free(&fb->vram, &ltc->tag_ram);
+	if (ram)
+		nvkm_mm_free(&ram->vram, &ltc->tag_ram);
 
 	nvkm_ltc_destroy(ltc);
 }
@@ -158,19 +158,20 @@ gf100_ltc_dtor(struct nvkm_object *object)
 /* TODO: Figure out tag memory details and drop the over-cautious allocation.
  */
 int
-gf100_ltc_init_tag_ram(struct nvkm_fb *fb, struct nvkm_ltc_priv *ltc)
+gf100_ltc_init_tag_ram(struct nvkm_ltc_priv *ltc)
 {
+	struct nvkm_ram *ram = ltc->base.subdev.device->fb->ram;
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
 	/* No VRAM, no tags for now. */
-	if (!fb->ram) {
+	if (!ram) {
 		ltc->num_tags = 0;
 		goto mm_init;
 	}
 
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
-	ltc->num_tags = (fb->ram->size >> 17) / 4;
+	ltc->num_tags = (ram->size >> 17) / 4;
 	if (ltc->num_tags > (1 << 17))
 		ltc->num_tags = 1 << 17; /* we have 17 bits in PTE */
 	ltc->num_tags = (ltc->num_tags + 63) & ~63; /* round up to 64 */
@@ -190,7 +191,7 @@ gf100_ltc_init_tag_ram(struct nvkm_fb *fb, struct nvkm_ltc_priv *ltc)
 	tag_size += tag_align;
 	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nvkm_mm_tail(&fb->vram, 1, 1, tag_size, tag_size, 1,
+	ret = nvkm_mm_tail(&ram->vram, 1, 1, tag_size, tag_size, 1,
 			   &ltc->tag_ram);
 	if (ret) {
 		ltc->num_tags = 0;
@@ -214,7 +215,6 @@ gf100_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nvkm_device *device = (void *)parent;
-	struct nvkm_fb *fb = device->fb;
 	struct nvkm_ltc_priv *ltc;
 	u32 parts, mask;
 	int ret, i;
@@ -232,7 +232,7 @@ gf100_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 	ltc->lts_nr = nvkm_rd32(device, 0x17e8dc) >> 28;
 
-	ret = gf100_ltc_init_tag_ram(fb, ltc);
+	ret = gf100_ltc_init_tag_ram(ltc);
 	if (ret)
 		return ret;
 

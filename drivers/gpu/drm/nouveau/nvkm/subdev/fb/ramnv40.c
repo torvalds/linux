@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv40.h"
+#include "ramnv40.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
@@ -30,12 +30,12 @@
 #include <subdev/clk/pll.h>
 #include <subdev/timer.h>
 
-int
-nv40_ram_calc(struct nvkm_fb *fb, u32 freq)
+static int
+nv40_ram_calc(struct nvkm_ram *base, u32 freq)
 {
-	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nv40_ram *ram = nv40_ram(base);
+	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
-	struct nv40_ram *ram = (void *)fb->ram;
 	struct nvbios_pll pll;
 	int N1, M1, N2, M2;
 	int log2P, ret;
@@ -46,8 +46,7 @@ nv40_ram_calc(struct nvkm_fb *fb, u32 freq)
 		return ret;
 	}
 
-	ret = nv04_pll_calc(nv_subdev(fb), &pll, freq,
-			    &N1, &M1, &N2, &M2, &log2P);
+	ret = nv04_pll_calc(subdev, &pll, freq, &N1, &M1, &N2, &M2, &log2P);
 	if (ret < 0)
 		return ret;
 
@@ -64,12 +63,13 @@ nv40_ram_calc(struct nvkm_fb *fb, u32 freq)
 	return 0;
 }
 
-int
-nv40_ram_prog(struct nvkm_fb *fb)
+static int
+nv40_ram_prog(struct nvkm_ram *base)
 {
-	struct nvkm_device *device = fb->subdev.device;
+	struct nv40_ram *ram = nv40_ram(base);
+	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
-	struct nv40_ram *ram = (void *)fb->ram;
 	struct bit_entry M;
 	u32 crtc_mask = 0;
 	u8  sr1[2];
@@ -152,7 +152,7 @@ nv40_ram_prog(struct nvkm_fb *fb)
 	/* execute memory reset script from vbios */
 	if (!bit_entry(bios, 'M', &M)) {
 		struct nvbios_init init = {
-			.subdev = nv_subdev(fb),
+			.subdev = subdev,
 			.bios = bios,
 			.offset = nvbios_rd16(bios, M.offset + 0x00),
 			.execute = 1,
@@ -181,51 +181,50 @@ nv40_ram_prog(struct nvkm_fb *fb)
 	return 0;
 }
 
-void
-nv40_ram_tidy(struct nvkm_fb *fb)
+static void
+nv40_ram_tidy(struct nvkm_ram *base)
 {
 }
 
-static int
-nv40_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+static const struct nvkm_ram_func
+nv40_ram_func = {
+	.calc = nv40_ram_calc,
+	.prog = nv40_ram_prog,
+	.tidy = nv40_ram_tidy,
+};
+
+int
+nv40_ram_new_(struct nvkm_fb *fb, enum nvkm_ram_type type, u64 size,
+	      u32 tags, struct nvkm_ram **pram)
 {
-	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nv40_ram *ram;
+	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+		return -ENOMEM;
+	*pram = &ram->base;
+	return nvkm_ram_ctor(&nv40_ram_func, fb, type, size, tags, &ram->base);
+}
+
+int
+nv40_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+{
 	struct nvkm_device *device = fb->subdev.device;
 	u32 pbus1218 = nvkm_rd32(device, 0x001218);
+	u32     size = nvkm_rd32(device, 0x10020c) & 0xff000000;
+	u32     tags = nvkm_rd32(device, 0x100320);
+	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
-	ret = nvkm_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
+	switch (pbus1218 & 0x00000300) {
+	case 0x00000000: type = NVKM_RAM_TYPE_SDRAM; break;
+	case 0x00000100: type = NVKM_RAM_TYPE_DDR1 ; break;
+	case 0x00000200: type = NVKM_RAM_TYPE_GDDR3; break;
+	case 0x00000300: type = NVKM_RAM_TYPE_DDR2 ; break;
+	}
+
+	ret = nv40_ram_new_(fb, type, size, tags, pram);
 	if (ret)
 		return ret;
 
-	switch (pbus1218 & 0x00000300) {
-	case 0x00000000: ram->base.type = NV_MEM_TYPE_SDRAM; break;
-	case 0x00000100: ram->base.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000200: ram->base.type = NV_MEM_TYPE_GDDR3; break;
-	case 0x00000300: ram->base.type = NV_MEM_TYPE_DDR2; break;
-	}
-
-	ram->base.size  =  nvkm_rd32(device, 0x10020c) & 0xff000000;
-	ram->base.parts = (nvkm_rd32(device, 0x100200) & 0x00000003) + 1;
-	ram->base.tags  =  nvkm_rd32(device, 0x100320);
-	ram->base.calc = nv40_ram_calc;
-	ram->base.prog = nv40_ram_prog;
-	ram->base.tidy = nv40_ram_tidy;
+	(*pram)->parts = (nvkm_rd32(device, 0x100200) & 0x00000003) + 1;
 	return 0;
 }
-
-
-struct nvkm_oclass
-nv40_ram_oclass = {
-	.handle = 0,
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_ram_create,
-		.dtor = _nvkm_ram_dtor,
-		.init = _nvkm_ram_init,
-		.fini = _nvkm_ram_fini,
-	}
-};

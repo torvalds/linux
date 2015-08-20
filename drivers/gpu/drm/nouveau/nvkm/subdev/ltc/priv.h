@@ -45,7 +45,7 @@ int  gf100_ltc_ctor(struct nvkm_object *, struct nvkm_object *,
 		    struct nvkm_oclass *, void *, u32,
 		    struct nvkm_object **);
 void gf100_ltc_dtor(struct nvkm_object *);
-int  gf100_ltc_init_tag_ram(struct nvkm_fb *, struct nvkm_ltc_priv *);
+int  gf100_ltc_init_tag_ram(struct nvkm_ltc_priv *);
 int  gf100_ltc_tags_alloc(struct nvkm_ltc *, u32, struct nvkm_mm_node **);
 void gf100_ltc_tags_free(struct nvkm_ltc *, struct nvkm_mm_node **);
 

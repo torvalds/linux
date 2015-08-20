@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "ram.h"
 
 #include <core/client.h>
 #include <core/engctx.h>
@@ -299,6 +300,6 @@ nv50_fb_oclass = &(struct nv50_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram = &nv50_ram_oclass,
+	.base.ram_new = nv50_ram_new,
 	.trap = 0x000707ff,
 }.base.base;

@@ -18,7 +18,7 @@
 #define NV_MEM_TARGET_VM          3
 #define NV_MEM_TARGET_GART        4
 
-#define NV_MEM_TYPE_VM 0x7f
+#define NVKM_RAM_TYPE_VM 0x7f
 #define NV_MEM_COMP_VM 0x03
 
 struct nvkm_mem {
@@ -51,9 +51,6 @@ struct nvkm_fb {
 	bool (*memtype_valid)(struct nvkm_fb *, u32 memtype);
 
 	struct nvkm_ram *ram;
-
-	struct nvkm_mm vram;
-	struct nvkm_mm tags;
 
 	struct {
 		struct nvkm_fb_tile region[16];
@@ -112,36 +109,35 @@ struct nvkm_ram_data {
 	u32 freq;
 };
 
+enum nvkm_ram_type {
+	NVKM_RAM_TYPE_UNKNOWN = 0,
+	NVKM_RAM_TYPE_STOLEN,
+	NVKM_RAM_TYPE_SGRAM,
+	NVKM_RAM_TYPE_SDRAM,
+	NVKM_RAM_TYPE_DDR1,
+	NVKM_RAM_TYPE_DDR2,
+	NVKM_RAM_TYPE_DDR3,
+	NVKM_RAM_TYPE_GDDR2,
+	NVKM_RAM_TYPE_GDDR3,
+	NVKM_RAM_TYPE_GDDR4,
+	NVKM_RAM_TYPE_GDDR5
+};
+
 struct nvkm_ram {
-	struct nvkm_object base;
-	enum {
-		NV_MEM_TYPE_UNKNOWN = 0,
-		NV_MEM_TYPE_STOLEN,
-		NV_MEM_TYPE_SGRAM,
-		NV_MEM_TYPE_SDRAM,
-		NV_MEM_TYPE_DDR1,
-		NV_MEM_TYPE_DDR2,
-		NV_MEM_TYPE_DDR3,
-		NV_MEM_TYPE_GDDR2,
-		NV_MEM_TYPE_GDDR3,
-		NV_MEM_TYPE_GDDR4,
-		NV_MEM_TYPE_GDDR5
-	} type;
-	u64 stolen;
+	const struct nvkm_ram_func *func;
+	struct nvkm_fb *fb;
+	enum nvkm_ram_type type;
 	u64 size;
-	u32 tags;
+
+#define NVKM_RAM_MM_SHIFT 12
+	struct nvkm_mm vram;
+	struct nvkm_mm tags;
+	u64 stolen;
 
 	int ranks;
 	int parts;
 	int part_mask;
 
-	int  (*get)(struct nvkm_fb *, u64 size, u32 align, u32 size_nc,
-		    u32 type, struct nvkm_mem **);
-	void (*put)(struct nvkm_fb *, struct nvkm_mem **);
-
-	int  (*calc)(struct nvkm_fb *, u32 freq);
-	int  (*prog)(struct nvkm_fb *);
-	void (*tidy)(struct nvkm_fb *);
 	u32 freq;
 	u32 mr[16];
 	u32 mr1_nuts;
@@ -150,5 +146,18 @@ struct nvkm_ram {
 	struct nvkm_ram_data former;
 	struct nvkm_ram_data xition;
 	struct nvkm_ram_data target;
+};
+
+struct nvkm_ram_func {
+	void *(*dtor)(struct nvkm_ram *);
+	int (*init)(struct nvkm_ram *);
+
+	int (*get)(struct nvkm_ram *, u64 size, u32 align, u32 size_nc,
+		   u32 type, struct nvkm_mem **);
+	void (*put)(struct nvkm_ram *, struct nvkm_mem **);
+
+	int (*calc)(struct nvkm_ram *, u32 freq);
+	int (*prog)(struct nvkm_ram *);
+	void (*tidy)(struct nvkm_ram *);
 };
 #endif

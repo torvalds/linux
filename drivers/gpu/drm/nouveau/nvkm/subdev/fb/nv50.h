@@ -19,13 +19,5 @@ struct nv50_fb_impl {
 	u32 trap;
 };
 
-#define nv50_ram_create(p,e,o,d)                                               \
-	nv50_ram_create_((p), (e), (o), sizeof(**d), (void **)d)
-int  nv50_ram_create_(struct nvkm_object *, struct nvkm_object *,
-		      struct nvkm_oclass *, int, void **);
-int  nv50_ram_get(struct nvkm_fb *, u64 size, u32 align, u32 ncmin,
-		  u32 memtype, struct nvkm_mem **);
-void nv50_ram_put(struct nvkm_fb *, struct nvkm_mem **);
-void __nv50_ram_put(struct nvkm_fb *, struct nvkm_mem *);
 extern int nv50_fb_memtype[0x80];
 #endif

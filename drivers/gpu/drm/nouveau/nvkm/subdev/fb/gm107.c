@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "gf100.h"
+#include "ram.h"
 
 struct nvkm_oclass *
 gm107_fb_oclass = &(struct nvkm_fb_impl) {
@@ -33,5 +34,5 @@ gm107_fb_oclass = &(struct nvkm_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.memtype = gf100_fb_memtype_valid,
-	.ram = &gm107_ram_oclass,
+	.ram_new = gm107_ram_new,
 }.base;

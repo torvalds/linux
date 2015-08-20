@@ -24,6 +24,7 @@
  *
  */
 #include "nv04.h"
+#include "ram.h"
 
 void
 nv41_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
@@ -61,7 +62,7 @@ nv41_fb_oclass = &(struct nv04_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv41_ram_oclass,
+	.base.ram_new = nv41_ram_new,
 	.tile.regions = 12,
 	.tile.init = nv30_fb_tile_init,
 	.tile.comp = nv40_fb_tile_comp,

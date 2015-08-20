@@ -569,7 +569,7 @@ nv50_gr_construct_mmio(struct nvkm_grctx *ctx)
 		else if (device->chipset < 0xa0)
 			gr_def(ctx, 0x407d08, 0x00390040);
 		else {
-			if (nvkm_fb(device)->ram->type != NV_MEM_TYPE_GDDR5)
+			if (nvkm_fb(device)->ram->type != NVKM_RAM_TYPE_GDDR5)
 				gr_def(ctx, 0x407d08, 0x003d0040);
 			else
 				gr_def(ctx, 0x407d08, 0x003c0040);

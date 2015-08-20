@@ -24,6 +24,7 @@
  *
  */
 #include "nv04.h"
+#include "ram.h"
 
 struct nvkm_oclass *
 nv47_fb_oclass = &(struct nv04_fb_impl) {
@@ -35,7 +36,7 @@ nv47_fb_oclass = &(struct nv04_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv41_ram_oclass,
+	.base.ram_new = nv41_ram_new,
 	.tile.regions = 15,
 	.tile.init = nv30_fb_tile_init,
 	.tile.comp = nv40_fb_tile_comp,

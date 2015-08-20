@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv04.h"
+#include "ram.h"
 #include "regsnv04.h"
 
 bool
@@ -84,5 +85,5 @@ nv04_fb_oclass = &(struct nv04_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv04_ram_oclass,
+	.base.ram_new = nv04_ram_new,
 }.base.base;

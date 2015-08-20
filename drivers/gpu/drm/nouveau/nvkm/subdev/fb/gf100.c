@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "gf100.h"
+#include "ram.h"
 
 extern const u8 gf100_pte_storage_type_map[256];
 
@@ -113,5 +114,5 @@ gf100_fb_oclass = &(struct nvkm_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.memtype = gf100_fb_memtype_valid,
-	.ram = &gf100_ram_oclass,
+	.ram_new = gf100_ram_new,
 }.base;

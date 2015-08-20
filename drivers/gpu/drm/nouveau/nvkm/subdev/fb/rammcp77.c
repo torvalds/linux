@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#define mcp77_ram(p) container_of((p), struct mcp77_ram, base)
+#include "ram.h"
 
 struct mcp77_ram {
 	struct nvkm_ram base;
@@ -29,56 +30,13 @@ struct mcp77_ram {
 };
 
 static int
-mcp77_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 datasize,
-	       struct nvkm_object **pobject)
+mcp77_ram_init(struct nvkm_ram *base)
 {
-	u32 rsvd_head = ( 256 * 1024); /* vga memory */
-	u32 rsvd_tail = (1024 * 1024); /* vbios etc */
-	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_device *device = fb->subdev.device;
-	struct mcp77_ram *ram;
-	int ret;
-
-	ret = nvkm_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(fb);
-	if (ret)
-		return ret;
-
-	ram->base.type   = NV_MEM_TYPE_STOLEN;
-	ram->base.stolen = (u64)nvkm_rd32(device, 0x100e10) << 12;
-	ram->base.size   = (u64)nvkm_rd32(device, 0x100e14) << 12;
-
-	rsvd_tail += 0x1000;
-	ram->poller_base = ram->base.size - rsvd_tail;
-
-	ret = nvkm_mm_init(&fb->vram, rsvd_head >> 12,
-			   (ram->base.size  - (rsvd_head + rsvd_tail)) >> 12,
-			   1);
-	if (ret)
-		return ret;
-
-	ram->base.get = nv50_ram_get;
-	ram->base.put = nv50_ram_put;
-	return 0;
-}
-
-static int
-mcp77_ram_init(struct nvkm_object *object)
-{
-	struct nvkm_fb *fb = nvkm_fb(object);
-	struct nvkm_device *device = fb->subdev.device;
-	struct mcp77_ram *ram = (void *)object;
-	int ret;
-	u64 dniso, hostnb, flush;
-
-	ret = nvkm_ram_init(&ram->base);
-	if (ret)
-		return ret;
-
-	dniso  = ((ram->base.size - (ram->poller_base + 0x00)) >> 5) - 1;
-	hostnb = ((ram->base.size - (ram->poller_base + 0x20)) >> 5) - 1;
-	flush  = ((ram->base.size - (ram->poller_base + 0x40)) >> 5) - 1;
+	struct mcp77_ram *ram = mcp77_ram(base);
+	struct nvkm_device *device = ram->base.fb->subdev.device;
+	u32 dniso  = ((ram->base.size - (ram->poller_base + 0x00)) >> 5) - 1;
+	u32 hostnb = ((ram->base.size - (ram->poller_base + 0x20)) >> 5) - 1;
+	u32 flush  = ((ram->base.size - (ram->poller_base + 0x40)) >> 5) - 1;
 
 	/* Enable NISO poller for various clients and set their associated
 	 * read address, only for MCP77/78 and MCP79/7A. (fd#25701)
@@ -92,12 +50,38 @@ mcp77_ram_init(struct nvkm_object *object)
 	return 0;
 }
 
-struct nvkm_oclass
-mcp77_ram_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = mcp77_ram_ctor,
-		.dtor = _nvkm_ram_dtor,
-		.init = mcp77_ram_init,
-		.fini = _nvkm_ram_fini,
-	},
+static const struct nvkm_ram_func
+mcp77_ram_func = {
+	.init = mcp77_ram_init,
+	.get = nv50_ram_get,
+	.put = nv50_ram_put,
 };
+
+int
+mcp77_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	u32 rsvd_head = ( 256 * 1024); /* vga memory */
+	u32 rsvd_tail = (1024 * 1024) + 0x1000; /* vbios etc + poller mem */
+	u64 base = (u64)nvkm_rd32(device, 0x100e10) << 12;
+	u64 size = (u64)nvkm_rd32(device, 0x100e14) << 12;
+	struct mcp77_ram *ram;
+	int ret;
+
+	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+		return -ENOMEM;
+	*pram = &ram->base;
+
+	ret = nvkm_ram_ctor(&mcp77_ram_func, fb, NVKM_RAM_TYPE_STOLEN,
+			    size, 0, &ram->base);
+	if (ret)
+		return ret;
+
+	ram->poller_base = size - rsvd_tail;
+	ram->base.stolen = base;
+	nvkm_mm_fini(&ram->base.vram);
+
+	return nvkm_mm_init(&ram->base.vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+			    (size - rsvd_head - rsvd_tail) >>
+			    NVKM_RAM_MM_SHIFT, 1);
+}

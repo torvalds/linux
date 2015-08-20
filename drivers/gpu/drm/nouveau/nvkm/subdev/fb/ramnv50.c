@@ -21,8 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#define nv50_ram(p) container_of((p), struct nv50_ram, base)
+#include "ram.h"
 #include "ramseq.h"
+#include "nv50.h"
 
 #include <core/option.h>
 #include <subdev/bios.h>
@@ -66,11 +68,10 @@ struct nv50_ram {
 
 #define T(t) cfg->timing_10_##t
 static int
-nv50_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
+nv50_ram_timing_calc(struct nv50_ram *ram, u32 *timing)
 {
-	struct nv50_ram *ram = (void *)fb->ram;
 	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
-	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 cur2, cur4, cur7, cur8;
 	u8 unkt3b;
@@ -81,16 +82,16 @@ nv50_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 	cur8 = nvkm_rd32(device, 0x100240);
 
 	switch ((!T(CWL)) * ram->base.type) {
-	case NV_MEM_TYPE_DDR2:
+	case NVKM_RAM_TYPE_DDR2:
 		T(CWL) = T(CL) - 1;
 		break;
-	case NV_MEM_TYPE_GDDR3:
+	case NVKM_RAM_TYPE_GDDR3:
 		T(CWL) = ((cur2 & 0xff000000) >> 24) + 1;
 		break;
 	}
 
 	/* XXX: N=1 is not proper statistics */
-	if (nv_device(fb)->chipset == 0xa0) {
+	if (device->chipset == 0xa0) {
 		unkt3b = 0x19 + ram->base.next->bios.rammap_00_16_40;
 		timing[6] = (0x2d + T(CL) - T(CWL) +
 				ram->base.next->bios.rammap_00_16_40) << 16 |
@@ -127,10 +128,11 @@ nv50_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 	timing[8] = (cur8 & 0xffffff00);
 
 	/* XXX: P.version == 1 only has DDR2 and GDDR3? */
-	if (fb->ram->type == NV_MEM_TYPE_DDR2) {
+	if (ram->base.type == NVKM_RAM_TYPE_DDR2) {
 		timing[5] |= (T(CL) + 3) << 8;
 		timing[8] |= (T(CL) - 4);
-	} else if (fb->ram->type == NV_MEM_TYPE_GDDR3) {
+	} else
+	if (ram->base.type == NVKM_RAM_TYPE_GDDR3) {
 		timing[5] |= (T(CL) + 2) << 8;
 		timing[8] |= (T(CL) - 2);
 	}
@@ -153,11 +155,11 @@ nvkm_sddr2_dll_reset(struct nv50_ramseq *hwsq)
 }
 
 static int
-nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
+nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 {
-	struct nv50_ram *ram = (void *)fb->ram;
+	struct nv50_ram *ram = nv50_ram(base);
 	struct nv50_ramseq *hwsq = &ram->hwsq;
-	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvbios_perfE perfE;
 	struct nvbios_pll mpll;
@@ -177,7 +179,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 	i = 0;
 	do {
 		data = nvbios_perfEp(bios, i++, &ver, &hdr, &cnt,
-					    &size, &perfE);
+				     &size, &perfE);
 		if (!data || (ver < 0x25 || ver >= 0x40) ||
 		    (size < 2)) {
 			nvkm_error(subdev, "invalid/missing perftab entry\n");
@@ -188,7 +190,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 	nvbios_rammapEp_from_perf(bios, data, hdr, &next->bios);
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(nv_subdev(fb));
+	strap = nvbios_ramcfg_index(subdev);
 	if (strap >= cnt) {
 		nvkm_error(subdev, "invalid ramcfg strap\n");
 		return -EINVAL;
@@ -213,9 +215,9 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 		}
 	}
 
-	nv50_ram_timing_calc(fb, timing);
+	nv50_ram_timing_calc(ram, timing);
 
-	ret = ram_init(hwsq, nv_subdev(fb));
+	ret = ram_init(hwsq, subdev);
 	if (ret)
 		return ret;
 
@@ -225,7 +227,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 	ram->base.mr[2] = ram_rd32(hwsq, mr[2]);
 
 	switch (ram->base.type) {
-	case NV_MEM_TYPE_GDDR3:
+	case NVKM_RAM_TYPE_GDDR3:
 		ret = nvkm_gddr3_calc(&ram->base);
 		break;
 	default:
@@ -257,7 +259,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 	ret = nvbios_pll_parse(bios, 0x004008, &mpll);
 	mpll.vco2.max_freq = 0;
 	if (ret >= 0) {
-		ret = nv04_pll_calc(nv_subdev(fb), &mpll, freq,
+		ret = nv04_pll_calc(subdev, &mpll, freq,
 				    &N1, &M1, &N2, &M2, &P);
 		if (ret <= 0)
 			ret = -EINVAL;
@@ -284,7 +286,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 			next->bios.rammap_00_16_40 << 14);
 	ram_mask(hwsq, 0x00400c, 0x0000ffff, (N1 << 8) | M1);
 	ram_mask(hwsq, 0x004008, 0x91ff0000, r004008);
-	if (nv_device(fb)->chipset >= 0x96)
+	if (subdev->device->chipset >= 0x96)
 		ram_wr32(hwsq, 0x100da0, r100da0);
 	ram_nsec(hwsq, 64000); /*XXX*/
 	ram_nsec(hwsq, 32000); /*XXX*/
@@ -298,11 +300,11 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 	ram_nsec(hwsq, 12000);
 
 	switch (ram->base.type) {
-	case NV_MEM_TYPE_DDR2:
+	case NVKM_RAM_TYPE_DDR2:
 		ram_nuke(hwsq, mr[0]); /* force update */
 		ram_mask(hwsq, mr[0], 0x000, 0x000);
 		break;
-	case NV_MEM_TYPE_GDDR3:
+	case NVKM_RAM_TYPE_GDDR3:
 		ram_nuke(hwsq, mr[1]); /* force update */
 		ram_wr32(hwsq, mr[1], ram->base.mr[1]);
 		ram_nuke(hwsq, mr[0]); /* force update */
@@ -382,26 +384,23 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 }
 
 static int
-nv50_ram_prog(struct nvkm_fb *fb)
+nv50_ram_prog(struct nvkm_ram *base)
 {
-	struct nvkm_device *device = nv_device(fb);
-	struct nv50_ram *ram = (void *)fb->ram;
-	struct nv50_ramseq *hwsq = &ram->hwsq;
-
-	ram_exec(hwsq, nvkm_boolopt(device->cfgopt, "NvMemExec", true));
+	struct nv50_ram *ram = nv50_ram(base);
+	struct nvkm_device *device = ram->base.fb->subdev.device;
+	ram_exec(&ram->hwsq, nvkm_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 
 static void
-nv50_ram_tidy(struct nvkm_fb *fb)
+nv50_ram_tidy(struct nvkm_ram *base)
 {
-	struct nv50_ram *ram = (void *)fb->ram;
-	struct nv50_ramseq *hwsq = &ram->hwsq;
-	ram_exec(hwsq, false);
+	struct nv50_ram *ram = nv50_ram(base);
+	ram_exec(&ram->hwsq, false);
 }
 
 void
-__nv50_ram_put(struct nvkm_fb *fb, struct nvkm_mem *mem)
+__nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem *mem)
 {
 	struct nvkm_mm_node *this;
 
@@ -409,14 +408,14 @@ __nv50_ram_put(struct nvkm_fb *fb, struct nvkm_mem *mem)
 		this = list_first_entry(&mem->regions, typeof(*this), rl_entry);
 
 		list_del(&this->rl_entry);
-		nvkm_mm_free(&fb->vram, &this);
+		nvkm_mm_free(&ram->vram, &this);
 	}
 
-	nvkm_mm_free(&fb->tags, &mem->tag);
+	nvkm_mm_free(&ram->tags, &mem->tag);
 }
 
 void
-nv50_ram_put(struct nvkm_fb *fb, struct nvkm_mem **pmem)
+nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 {
 	struct nvkm_mem *mem = *pmem;
 
@@ -424,19 +423,19 @@ nv50_ram_put(struct nvkm_fb *fb, struct nvkm_mem **pmem)
 	if (unlikely(mem == NULL))
 		return;
 
-	mutex_lock(&fb->subdev.mutex);
-	__nv50_ram_put(fb, mem);
-	mutex_unlock(&fb->subdev.mutex);
+	mutex_lock(&ram->fb->subdev.mutex);
+	__nv50_ram_put(ram, mem);
+	mutex_unlock(&ram->fb->subdev.mutex);
 
 	kfree(mem);
 }
 
 int
-nv50_ram_get(struct nvkm_fb *fb, u64 size, u32 align, u32 ncmin,
+nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	     u32 memtype, struct nvkm_mem **pmem)
 {
-	struct nvkm_mm *heap = &fb->vram;
-	struct nvkm_mm *tags = &fb->tags;
+	struct nvkm_mm *heap = &ram->vram;
+	struct nvkm_mm *tags = &ram->tags;
 	struct nvkm_mm_node *r;
 	struct nvkm_mem *mem;
 	int comp = (memtype & 0x300) >> 8;
@@ -444,17 +443,17 @@ nv50_ram_get(struct nvkm_fb *fb, u64 size, u32 align, u32 ncmin,
 	int back = (memtype & 0x800);
 	int min, max, ret;
 
-	max = (size >> 12);
-	min = ncmin ? (ncmin >> 12) : max;
-	align >>= 12;
+	max = (size >> NVKM_RAM_MM_SHIFT);
+	min = ncmin ? (ncmin >> NVKM_RAM_MM_SHIFT) : max;
+	align >>= NVKM_RAM_MM_SHIFT;
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
-	mutex_lock(&fb->subdev.mutex);
+	mutex_lock(&ram->fb->subdev.mutex);
 	if (comp) {
-		if (align == 16) {
+		if (align == (1 << (16 - NVKM_RAM_MM_SHIFT))) {
 			int n = (max >> 4) * comp;
 
 			ret = nvkm_mm_head(tags, 0, 1, n, n, 1, &mem->tag);
@@ -477,26 +476,35 @@ nv50_ram_get(struct nvkm_fb *fb, u64 size, u32 align, u32 ncmin,
 		else
 			ret = nvkm_mm_head(heap, 0, type, max, min, align, &r);
 		if (ret) {
-			mutex_unlock(&fb->subdev.mutex);
-			fb->ram->put(fb, &mem);
+			mutex_unlock(&ram->fb->subdev.mutex);
+			ram->func->put(ram, &mem);
 			return ret;
 		}
 
 		list_add_tail(&r->rl_entry, &mem->regions);
 		max -= r->length;
 	} while (max);
-	mutex_unlock(&fb->subdev.mutex);
+	mutex_unlock(&ram->fb->subdev.mutex);
 
 	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
-	mem->offset = (u64)r->offset << 12;
+	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;
 	*pmem = mem;
 	return 0;
 }
 
+static const struct nvkm_ram_func
+nv50_ram_func = {
+	.get = nv50_ram_get,
+	.put = nv50_ram_put,
+	.calc = nv50_ram_calc,
+	.prog = nv50_ram_prog,
+	.tidy = nv50_ram_tidy,
+};
+
 static u32
-nv50_fb_vram_rblock(struct nvkm_fb *fb, struct nvkm_ram *ram)
+nv50_fb_vram_rblock(struct nvkm_ram *ram)
 {
-	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_subdev *subdev = &ram->fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	int colbits, rowbitsa, rowbitsb, banks;
 	u64 rowsize, predicted;
@@ -532,82 +540,62 @@ nv50_fb_vram_rblock(struct nvkm_fb *fb, struct nvkm_ram *ram)
 }
 
 int
-nv50_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+nv50_ram_ctor(const struct nvkm_ram_func *func,
+	      struct nvkm_fb *fb, struct nvkm_ram *ram)
 {
-	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
-	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_device *device = fb->subdev.device;
 	struct nvkm_bios *bios = device->bios;
-	struct nvkm_ram *ram;
+	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
+	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
+	u64 size = nvkm_rd32(device, 0x10020c);
+	u32 tags = nvkm_rd32(device, 0x100320);
+	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
-	ret = nvkm_ram_create_(parent, engine, oclass, length, pobject);
-	ram = *pobject;
+	switch (nvkm_rd32(device, 0x100714) & 0x00000007) {
+	case 0: type = NVKM_RAM_TYPE_DDR1; break;
+	case 1:
+		if (nvkm_fb_bios_memtype(bios) == NVKM_RAM_TYPE_DDR3)
+			type = NVKM_RAM_TYPE_DDR3;
+		else
+			type = NVKM_RAM_TYPE_DDR2;
+		break;
+	case 2: type = NVKM_RAM_TYPE_GDDR3; break;
+	case 3: type = NVKM_RAM_TYPE_GDDR4; break;
+	case 4: type = NVKM_RAM_TYPE_GDDR5; break;
+	default:
+		break;
+	}
+
+	size = (size & 0x000000ff) << 32 | (size & 0xffffff00);
+
+	ret = nvkm_ram_ctor(func, fb, type, size, tags, ram);
 	if (ret)
 		return ret;
-
-	ram->size = nvkm_rd32(device, 0x10020c);
-	ram->size = (ram->size & 0xffffff00) | ((ram->size & 0x000000ff) << 32);
 
 	ram->part_mask = (nvkm_rd32(device, 0x001540) & 0x00ff0000) >> 16;
 	ram->parts = hweight8(ram->part_mask);
-
-	switch (nvkm_rd32(device, 0x100714) & 0x00000007) {
-	case 0: ram->type = NV_MEM_TYPE_DDR1; break;
-	case 1:
-		if (nvkm_fb_bios_memtype(bios) == NV_MEM_TYPE_DDR3)
-			ram->type = NV_MEM_TYPE_DDR3;
-		else
-			ram->type = NV_MEM_TYPE_DDR2;
-		break;
-	case 2: ram->type = NV_MEM_TYPE_GDDR3; break;
-	case 3: ram->type = NV_MEM_TYPE_GDDR4; break;
-	case 4: ram->type = NV_MEM_TYPE_GDDR5; break;
-	default:
-		break;
-	}
-
-	ret = nvkm_mm_init(&fb->vram, rsvd_head, (ram->size >> 12) -
-			   (rsvd_head + rsvd_tail),
-			   nv50_fb_vram_rblock(fb, ram) >> 12);
-	if (ret)
-		return ret;
-
 	ram->ranks = (nvkm_rd32(device, 0x100200) & 0x4) ? 2 : 1;
-	ram->tags  =  nvkm_rd32(device, 0x100320);
-	ram->get = nv50_ram_get;
-	ram->put = nv50_ram_put;
-	return 0;
+	nvkm_mm_fini(&ram->vram);
+
+	return nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+			    (size - rsvd_head - rsvd_tail) >> NVKM_RAM_MM_SHIFT,
+			    nv50_fb_vram_rblock(ram) >> NVKM_RAM_MM_SHIFT);
 }
 
-static int
-nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 datasize,
-	      struct nvkm_object **pobject)
+int
+nv50_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
-	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nv50_ram *ram;
 	int ret, i;
 
-	ret = nv50_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
+	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+		return -ENOMEM;
+	*pram = &ram->base;
+
+	ret = nv50_ram_ctor(&nv50_ram_func, fb, &ram->base);
 	if (ret)
 		return ret;
-
-	switch (ram->base.type) {
-	case NV_MEM_TYPE_GDDR3:
-		ram->base.calc = nv50_ram_calc;
-		ram->base.prog = nv50_ram_prog;
-		ram->base.tidy = nv50_ram_tidy;
-		break;
-	case NV_MEM_TYPE_DDR2:
-	default:
-		nvkm_warn(subdev, "reclocking of this ram type unsupported\n");
-		return 0;
-	}
 
 	ram->hwsq.r_0x002504 = hwsq_reg(0x002504);
 	ram->hwsq.r_0x00c040 = hwsq_reg(0x00c040);
@@ -648,13 +636,3 @@ nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	return 0;
 }
-
-struct nvkm_oclass
-nv50_ram_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_ram_ctor,
-		.dtor = _nvkm_ram_dtor,
-		.init = _nvkm_ram_init,
-		.fini = _nvkm_ram_fini,
-	}
-};

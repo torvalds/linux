@@ -64,9 +64,9 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *fb = nvxx_fb(&drm->device);
+	struct nvkm_ram *ram = nvxx_fb(&drm->device)->ram;
 	nvkm_mem_node_cleanup(mem->mm_node);
-	fb->ram->put(fb, (struct nvkm_mem **)&mem->mm_node);
+	ram->func->put(ram, (struct nvkm_mem **)&mem->mm_node);
 }
 
 static int
@@ -76,7 +76,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *fb = nvxx_fb(&drm->device);
+	struct nvkm_ram *ram = nvxx_fb(&drm->device)->ram;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvkm_mem *node;
 	u32 size_nc = 0;
@@ -88,9 +88,9 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->page_shift;
 
-	ret = fb->ram->get(fb, mem->num_pages << PAGE_SHIFT,
-			   mem->page_alignment << PAGE_SHIFT, size_nc,
-			   (nvbo->tile_flags >> 8) & 0x3ff, &node);
+	ret = ram->func->get(ram, mem->num_pages << PAGE_SHIFT,
+			     mem->page_alignment << PAGE_SHIFT, size_nc,
+			     (nvbo->tile_flags >> 8) & 0x3ff, &node);
 	if (ret) {
 		mem->mm_node = NULL;
 		return (ret == -ENOSPC) ? 0 : ret;
@@ -103,38 +103,11 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-static void
-nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
-{
-	struct nvkm_fb *fb = man->priv;
-	struct nvkm_mm *mm = &fb->vram;
-	struct nvkm_mm_node *r;
-	u32 total = 0, free = 0;
-
-	mutex_lock(&nv_subdev(fb)->mutex);
-	list_for_each_entry(r, &mm->nodes, nl_entry) {
-		printk(KERN_DEBUG "%s %d: 0x%010llx 0x%010llx\n",
-		       prefix, r->type, ((u64)r->offset << 12),
-		       (((u64)r->offset + r->length) << 12));
-
-		total += r->length;
-		if (!r->type)
-			free += r->length;
-	}
-	mutex_unlock(&nv_subdev(fb)->mutex);
-
-	printk(KERN_DEBUG "%s  total: 0x%010llx free: 0x%010llx\n",
-	       prefix, (u64)total << 12, (u64)free << 12);
-	printk(KERN_DEBUG "%s  block: 0x%08x\n",
-	       prefix, mm->block_size << 12);
-}
-
 const struct ttm_mem_type_manager_func nouveau_vram_manager = {
 	nouveau_vram_manager_init,
 	nouveau_vram_manager_fini,
 	nouveau_vram_manager_new,
 	nouveau_vram_manager_del,
-	nouveau_vram_manager_debug
 };
 
 static int

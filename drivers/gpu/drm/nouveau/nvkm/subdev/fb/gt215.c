@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "ram.h"
 
 struct nvkm_oclass *
 gt215_fb_oclass = &(struct nv50_fb_impl) {
@@ -33,6 +34,6 @@ gt215_fb_oclass = &(struct nv50_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram = &gt215_ram_oclass,
+	.base.ram_new = gt215_ram_new,
 	.trap = 0x000d0fff,
 }.base.base;

@@ -24,6 +24,7 @@
  *
  */
 #include "nv04.h"
+#include "ram.h"
 
 static void
 nv25_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
@@ -31,7 +32,7 @@ nv25_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x40);
 	u32 tags  = round_up(tiles / fb->ram->parts, 0x40);
-	if (!nvkm_mm_head(&fb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
+	if (!nvkm_mm_head(&fb->ram->tags, 0, 1, tags, tags, 1, &tile->tag)) {
 		if (!(flags & 2)) tile->zcomp = 0x00100000; /* Z16 */
 		else              tile->zcomp = 0x00200000; /* Z24S8 */
 		tile->zcomp |= tile->tag->offset;
@@ -51,7 +52,7 @@ nv25_fb_oclass = &(struct nv04_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv20_ram_oclass,
+	.base.ram_new = nv20_ram_new,
 	.tile.regions = 8,
 	.tile.init = nv20_fb_tile_init,
 	.tile.comp = nv25_fb_tile_comp,
