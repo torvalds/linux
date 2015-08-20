@@ -121,7 +121,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	entity->fence_context = fence_context_alloc(1);
 	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
 	memcpy(entity->name, name, 20);
-	entity->need_wakeup = false;
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
 		       GFP_KERNEL))
@@ -182,7 +181,7 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 
 	if (!amd_sched_entity_is_initialized(sched, entity))
 		return 0;
-	entity->need_wakeup = true;
+
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs
@@ -201,38 +200,55 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 }
 
 /**
- * Submit a normal job to the job queue
+ * Helper to submit a job to the job queue
  *
- * @sched	The pointer to the scheduler
- * @c_entity    The pointer to amd_sched_entity
  * @job		The pointer to job required to submit
- * return 0 if succeed. -1 if failed.
- *        -2 indicate queue is full for this client, client should wait untill
- *	     scheduler consum some queued command.
- *	  -1 other fail.
-*/
-int amd_sched_push_job(struct amd_sched_job *sched_job)
+ *
+ * Returns true if we could submit the job.
+ */
+static bool amd_sched_entity_in(struct amd_sched_job *job)
 {
-	struct amd_sched_fence 	*fence =
-		amd_sched_fence_create(sched_job->s_entity);
+	struct amd_sched_entity *entity = job->s_entity;
+	bool added, first = false;
+
+	spin_lock(&entity->queue_lock);
+	added = kfifo_in(&entity->job_queue, &job, sizeof(job)) == sizeof(job);
+
+	if (added && kfifo_len(&entity->job_queue) == sizeof(job))
+		first = true;
+
+	spin_unlock(&entity->queue_lock);
+
+	/* first job wakes up scheduler */
+	if (first)
+		wake_up_interruptible(&job->sched->wait_queue);
+
+	return added;
+}
+
+/**
+ * Submit a job to the job queue
+ *
+ * @job		The pointer to job required to submit
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
+{
+	struct amd_sched_entity *entity = sched_job->s_entity;
+	struct amd_sched_fence *fence = amd_sched_fence_create(entity);
+	int r;
+
 	if (!fence)
-		return -EINVAL;
+		return -ENOMEM;
+
 	fence_get(&fence->base);
 	sched_job->s_fence = fence;
-	while (kfifo_in_spinlocked(&sched_job->s_entity->job_queue,
-				   &sched_job, sizeof(void *),
-				   &sched_job->s_entity->queue_lock) !=
-	       sizeof(void *)) {
-		/**
-		 * Current context used up all its IB slots
-		 * wait here, or need to check whether GPU is hung
-		*/
-		schedule();
-	}
-	/* first job wake up scheduler */
-	if ((kfifo_len(&sched_job->s_entity->job_queue) / sizeof(void *)) == 1)
-		wake_up_interruptible(&sched_job->sched->wait_queue);
-	return 0;
+
+	r = wait_event_interruptible(entity->wait_queue,
+				     amd_sched_entity_in(sched_job));
+
+	return r;
 }
 
 /**
@@ -313,11 +329,7 @@ static int amd_sched_main(void *param)
 			fence_put(fence);
 		}
 
-		if (c_entity->need_wakeup) {
-			c_entity->need_wakeup = false;
-			wake_up(&c_entity->wait_queue);
-		}
-
+		wake_up(&c_entity->wait_queue);
 	}
 	return 0;
 }

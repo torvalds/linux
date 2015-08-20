@@ -49,7 +49,6 @@ struct amd_sched_entity {
 	wait_queue_head_t		wait_queue;
 	uint64_t                        fence_context;
 	char                            name[20];
-	bool                            need_wakeup;
 };
 
 /**
@@ -119,14 +118,13 @@ amd_sched_create(struct amd_sched_backend_ops *ops,
 		 uint32_t ring, uint32_t hw_submission);
 int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 
-int amd_sched_push_job(struct amd_sched_job *sched_job);
-
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
 			  struct amd_sched_rq *rq,
 			  uint32_t jobs);
 int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity);
+int amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity);

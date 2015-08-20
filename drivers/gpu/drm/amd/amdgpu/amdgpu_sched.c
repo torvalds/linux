@@ -105,7 +105,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 		mutex_init(&job->job_lock);
 		job->free_job = free_job;
 		mutex_lock(&job->job_lock);
-		r = amd_sched_push_job((struct amd_sched_job *)job);
+		r = amd_sched_entity_push_job((struct amd_sched_job *)job);
 		if (r) {
 			mutex_unlock(&job->job_lock);
 			kfree(job);
