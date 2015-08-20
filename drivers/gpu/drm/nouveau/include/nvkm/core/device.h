@@ -41,6 +41,46 @@ struct nvkm_device {
 	struct {
 		struct notifier_block nb;
 	} acpi;
+
+	struct nvkm_bar *bar;
+	struct nvkm_bios *bios;
+	struct nvkm_bus *bus;
+	struct nvkm_clk *clk;
+	struct nvkm_devinit *devinit;
+	struct nvkm_fb *fb;
+	struct nvkm_fuse *fuse;
+	struct nvkm_gpio *gpio;
+	struct nvkm_i2c *i2c;
+	struct nvkm_subdev *ibus;
+	struct nvkm_instmem *imem;
+	struct nvkm_ltc *ltc;
+	struct nvkm_mc *mc;
+	struct nvkm_mmu *mmu;
+	struct nvkm_subdev *mxm;
+	struct nvkm_pmu *pmu;
+	struct nvkm_therm *therm;
+	struct nvkm_timer *timer;
+	struct nvkm_volt *volt;
+
+	struct nvkm_engine *bsp;
+	struct nvkm_engine *ce[3];
+	struct nvkm_engine *cipher;
+	struct nvkm_disp *disp;
+	struct nvkm_dmaeng *dma;
+	struct nvkm_fifo *fifo;
+	struct nvkm_gr *gr;
+	struct nvkm_engine *ifb;
+	struct nvkm_engine *me;
+	struct nvkm_engine *mpeg;
+	struct nvkm_engine *msenc;
+	struct nvkm_engine *mspdec;
+	struct nvkm_engine *msppp;
+	struct nvkm_engine *msvld;
+	struct nvkm_pm *pm;
+	struct nvkm_engine *sec;
+	struct nvkm_sw *sw;
+	struct nvkm_engine *vic;
+	struct nvkm_engine *vp;
 };
 
 struct nvkm_device *nvkm_device_find(u64 name);

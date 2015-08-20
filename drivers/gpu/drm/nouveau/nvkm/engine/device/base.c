@@ -463,14 +463,63 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			continue;
 		}
 
-		ret = nvkm_object_ctor(nv_object(device), NULL, oclass,
-				       NULL, i, &devobj->subdev[i]);
-		if (ret == -ENODEV)
-			continue;
-		if (ret)
-			return ret;
+#define _(s,m) case s:                                                         \
+		ret = nvkm_object_ctor(nv_object(device), NULL, oclass, NULL,  \
+				       (s), (struct nvkm_object **)&device->m);\
+		if (ret == -ENODEV)                                            \
+			continue;                                              \
+		if (ret)                                                       \
+			return ret;                                            \
+		devobj->subdev[s] = (struct nvkm_object *)device->m;           \
+		device->subdev[s] = devobj->subdev[s];                         \
+		break
 
-		device->subdev[i] = devobj->subdev[i];
+		switch (i) {
+		_(NVDEV_SUBDEV_BAR    ,     bar);
+		_(NVDEV_SUBDEV_VBIOS  ,    bios);
+		_(NVDEV_SUBDEV_BUS    ,     bus);
+		_(NVDEV_SUBDEV_CLK    ,     clk);
+		_(NVDEV_SUBDEV_DEVINIT, devinit);
+		_(NVDEV_SUBDEV_FB     ,      fb);
+		_(NVDEV_SUBDEV_FUSE   ,    fuse);
+		_(NVDEV_SUBDEV_GPIO   ,    gpio);
+		_(NVDEV_SUBDEV_I2C    ,     i2c);
+		_(NVDEV_SUBDEV_IBUS   ,    ibus);
+		_(NVDEV_SUBDEV_INSTMEM,    imem);
+		_(NVDEV_SUBDEV_LTC    ,     ltc);
+		_(NVDEV_SUBDEV_MC     ,      mc);
+		_(NVDEV_SUBDEV_MMU    ,     mmu);
+		_(NVDEV_SUBDEV_MXM    ,     mxm);
+		_(NVDEV_SUBDEV_PMU    ,     pmu);
+		_(NVDEV_SUBDEV_THERM  ,   therm);
+		_(NVDEV_SUBDEV_TIMER  ,   timer);
+		_(NVDEV_SUBDEV_VOLT   ,    volt);
+		_(NVDEV_ENGINE_BSP    ,     bsp);
+		_(NVDEV_ENGINE_CE0    ,   ce[0]);
+		_(NVDEV_ENGINE_CE1    ,   ce[1]);
+		_(NVDEV_ENGINE_CE2    ,   ce[2]);
+		_(NVDEV_ENGINE_CIPHER ,  cipher);
+		_(NVDEV_ENGINE_DISP   ,    disp);
+		_(NVDEV_ENGINE_DMAOBJ ,     dma);
+		_(NVDEV_ENGINE_FIFO   ,    fifo);
+		_(NVDEV_ENGINE_GR     ,      gr);
+		_(NVDEV_ENGINE_IFB    ,     ifb);
+		_(NVDEV_ENGINE_ME     ,      me);
+		_(NVDEV_ENGINE_MPEG   ,    mpeg);
+		_(NVDEV_ENGINE_MSENC  ,   msenc);
+		_(NVDEV_ENGINE_MSPDEC ,  mspdec);
+		_(NVDEV_ENGINE_MSPPP  ,   msppp);
+		_(NVDEV_ENGINE_MSVLD  ,   msvld);
+		_(NVDEV_ENGINE_PM     ,      pm);
+		_(NVDEV_ENGINE_SEC    ,     sec);
+		_(NVDEV_ENGINE_SW     ,      sw);
+		_(NVDEV_ENGINE_VIC    ,     vic);
+		_(NVDEV_ENGINE_VP     ,      vp);
+		default:
+			WARN_ON(1);
+			continue;
+		}
+#undef _
 
 		/* note: can't init *any* subdevs until devinit has been run
 		 * due to not knowing exactly what the vbios init tables will
