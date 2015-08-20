@@ -15,6 +15,7 @@
 #include <linux/linkage.h>
 #include "hardware.h"
 
+#define DDRC_MSTR		0x0
 #define DDRC_STAT		0x4
 #define DDRC_PWRCTL		0x30
 #define DDRC_DBG1		0x304
@@ -36,6 +37,7 @@
 #define DDRPHY_OFFSETW_CON0	0x30
 #define DDRPHY_OFFSETW_CON1	0x34
 #define DDRPHY_OFFSETW_CON2	0x38
+#define DDRPHY_RFSHTMG		0x64
 #define DDRPHY_CA_DSKEW_CON0	0x7c
 #define DDRPHY_CA_DSKEW_CON1	0x80
 #define DDRPHY_CA_DSKEW_CON2	0x84
@@ -118,8 +120,22 @@
 
 	.macro	switch_to_below_100m
 
+	/* LPDDR2 and LPDDR3 has different setting */
+	ldr	r8, [r4, #DDRC_MSTR]
+	ands	r8, r8, #0x4
+	bne	9f
+
+	/* LPDDR3 */
+	ldr	r7, =0x00000100
+	str	r7, [r5, #DDRPHY_PHY_CON1]
+	b	10f
+9:
+	/* LPDDR2 */
 	ldr	r7, =0x10010100
 	str	r7, [r5, #DDRPHY_PHY_CON1]
+10:
+	ldr	r7, =0x00020038
+	str	r7, [r5, #DDRPHY_RFSHTMG]
 
 	ldr	r6, =24000000
 	cmp	r0, r6
@@ -179,6 +195,9 @@
 
 	ldr	r7, =0x10210100
 	str	r7, [r5, #DDRPHY_PHY_CON1]
+
+	ldr	r7, =0x00200038
+	str	r7, [r5, #DDRPHY_RFSHTMG]
 
 	/* dram root set to from dram main, div by 2 */
 	ldr	r7, =0x10000001
