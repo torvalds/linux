@@ -27,21 +27,6 @@
 #include <nvif/class.h>
 
 /*******************************************************************************
- * Graphics object classes
- ******************************************************************************/
-
-struct nvkm_oclass
-gf110_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ FERMI_MEMORY_TO_MEMORY_FORMAT_A, &nvkm_object_ofuncs },
-	{ FERMI_A, &gf100_fermi_ofuncs },
-	{ FERMI_B, &gf100_fermi_ofuncs },
-	{ FERMI_C, &gf100_fermi_ofuncs },
-	{ FERMI_COMPUTE_A, &nvkm_object_ofuncs },
-	{}
-};
-
-/*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
@@ -99,6 +84,20 @@ gf110_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static const struct gf100_gr_func
+gf110_gr = {
+	.grctx = &gf110_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },
+		{ -1, -1, FERMI_A, &gf100_fermi },
+		{ -1, -1, FERMI_B, &gf100_fermi },
+		{ -1, -1, FERMI_C, &gf100_fermi },
+		{ -1, -1, FERMI_COMPUTE_A },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gf110_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xc8),
@@ -108,8 +107,7 @@ gf110_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gf100_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gf110_grctx_oclass,
-	.sclass = gf110_gr_sclass,
+	.func = &gf110_gr,
 	.mmio = gf110_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

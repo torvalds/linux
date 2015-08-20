@@ -22,17 +22,9 @@
 #include "gk20a.h"
 #include "ctxgf100.h"
 
-#include <nvif/class.h>
 #include <subdev/timer.h>
 
-static struct nvkm_oclass
-gm20b_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
-	{ MAXWELL_B, &gf100_fermi_ofuncs },
-	{ MAXWELL_COMPUTE_B, &nvkm_object_ofuncs },
-	{}
-};
+#include <nvif/class.h>
 
 static void
 gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
@@ -67,6 +59,18 @@ gm20b_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x419e4c, 0x5);
 }
 
+static const struct gf100_gr_func
+gm20b_gr = {
+	.grctx = &gm20b_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+		{ -1, -1, MAXWELL_B, &gf100_fermi },
+		{ -1, -1, MAXWELL_COMPUTE_B },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gm20b_gr_oclass = &(struct gk20a_gr_oclass) {
 	.gf100 = {
@@ -77,8 +81,7 @@ gm20b_gr_oclass = &(struct gk20a_gr_oclass) {
 			.init = gk20a_gr_init,
 			.fini = _nvkm_gr_fini,
 		},
-		.cclass = &gm20b_grctx_oclass,
-		.sclass = gm20b_gr_sclass,
+		.func = &gm20b_gr,
 		.ppc_nr = 1,
 	},
 	.init_gpc_mmu = gm20b_gr_init_gpc_mmu,

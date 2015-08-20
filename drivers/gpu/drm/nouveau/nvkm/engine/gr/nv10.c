@@ -21,7 +21,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <engine/gr.h>
+#include "priv.h"
 #include "regs.h"
 
 #include <core/client.h>
@@ -385,14 +385,19 @@ static int nv17_gr_ctx_regs[] = {
 	0x00400a04,
 };
 
+#define nv10_gr(p) container_of((p), struct nv10_gr, base)
+
 struct nv10_gr {
 	struct nvkm_gr base;
 	struct nv10_gr_chan *chan[32];
 	spinlock_t lock;
 };
 
+#define nv10_gr_chan(p) container_of((p), struct nv10_gr_chan, object)
+
 struct nv10_gr_chan {
-	struct nvkm_object base;
+	struct nvkm_object object;
+	struct nv10_gr *gr;
 	int chid;
 	int nv10[ARRAY_SIZE(nv10_gr_ctx_regs)];
 	int nv17[ARRAY_SIZE(nv17_gr_ctx_regs)];
@@ -400,12 +405,6 @@ struct nv10_gr_chan {
 	u32 lma_window[4];
 };
 
-
-static inline struct nv10_gr *
-nv10_gr(struct nv10_gr_chan *chan)
-{
-	return (void *)nv_object(chan)->engine;
-}
 
 /*******************************************************************************
  * Graphics object classes
@@ -427,57 +426,11 @@ nv10_gr(struct nv10_gr_chan *chan)
 			nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, state[__i]); \
 	} while (0)
 
-static struct nvkm_oclass
-nv10_gr_sclass[] = {
-	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
-	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
-	{ 0x0030, &nv04_gr_ofuncs }, /* null */
-	{ 0x0039, &nv04_gr_ofuncs }, /* m2mf */
-	{ 0x0043, &nv04_gr_ofuncs }, /* rop */
-	{ 0x0044, &nv04_gr_ofuncs }, /* pattern */
-	{ 0x004a, &nv04_gr_ofuncs }, /* gdi */
-	{ 0x0052, &nv04_gr_ofuncs }, /* swzsurf */
-	{ 0x005f, &nv04_gr_ofuncs }, /* blit */
-	{ 0x0062, &nv04_gr_ofuncs }, /* surf2d */
-	{ 0x0072, &nv04_gr_ofuncs }, /* beta4 */
-	{ 0x0089, &nv04_gr_ofuncs }, /* sifm */
-	{ 0x008a, &nv04_gr_ofuncs }, /* ifc */
-	{ 0x009f, &nv04_gr_ofuncs }, /* blit */
-	{ 0x0093, &nv04_gr_ofuncs }, /* surf3d */
-	{ 0x0094, &nv04_gr_ofuncs }, /* ttri */
-	{ 0x0095, &nv04_gr_ofuncs }, /* mtri */
-	{ 0x0056, &nv04_gr_ofuncs }, /* celcius */
-	{},
-};
-
-static struct nvkm_oclass
-nv15_gr_sclass[] = {
-	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
-	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
-	{ 0x0030, &nv04_gr_ofuncs }, /* null */
-	{ 0x0039, &nv04_gr_ofuncs }, /* m2mf */
-	{ 0x0043, &nv04_gr_ofuncs }, /* rop */
-	{ 0x0044, &nv04_gr_ofuncs }, /* pattern */
-	{ 0x004a, &nv04_gr_ofuncs }, /* gdi */
-	{ 0x0052, &nv04_gr_ofuncs }, /* swzsurf */
-	{ 0x005f, &nv04_gr_ofuncs }, /* blit */
-	{ 0x0062, &nv04_gr_ofuncs }, /* surf2d */
-	{ 0x0072, &nv04_gr_ofuncs }, /* beta4 */
-	{ 0x0089, &nv04_gr_ofuncs }, /* sifm */
-	{ 0x008a, &nv04_gr_ofuncs }, /* ifc */
-	{ 0x009f, &nv04_gr_ofuncs }, /* blit */
-	{ 0x0093, &nv04_gr_ofuncs }, /* surf3d */
-	{ 0x0094, &nv04_gr_ofuncs }, /* ttri */
-	{ 0x0095, &nv04_gr_ofuncs }, /* mtri */
-	{ 0x0096, &nv04_gr_ofuncs }, /* celcius */
-	{},
-};
-
 static void
 nv17_gr_mthd_lma_window(struct nv10_gr_chan *chan, u32 mthd, u32 data)
 {
-	struct nvkm_device *device = chan->base.engine->subdev.device;
-	struct nvkm_gr *gr = nvkm_gr(chan);
+	struct nvkm_device *device = chan->object.engine->subdev.device;
+	struct nvkm_gr *gr = &chan->gr->base;
 	struct pipe_state *pipe = &chan->pipe_state;
 	u32 pipe_0x0040[1], pipe_0x64c0[8], pipe_0x6a80[3], pipe_0x6ab0[3];
 	u32 xfmode0, xfmode1;
@@ -549,8 +502,8 @@ nv17_gr_mthd_lma_window(struct nv10_gr_chan *chan, u32 mthd, u32 data)
 static void
 nv17_gr_mthd_lma_enable(struct nv10_gr_chan *chan, u32 mthd, u32 data)
 {
-	struct nvkm_device *device = chan->base.engine->subdev.device;
-	struct nvkm_gr *gr = nvkm_gr(chan);
+	struct nvkm_device *device = chan->object.engine->subdev.device;
+	struct nvkm_gr *gr = &chan->gr->base;
 
 	nv04_gr_idle(gr);
 
@@ -585,29 +538,6 @@ nv10_gr_mthd(struct nv10_gr_chan *chan, u8 class, u32 mthd, u32 data)
 	return func(chan, mthd, data);
 }
 
-static struct nvkm_oclass
-nv17_gr_sclass[] = {
-	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
-	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
-	{ 0x0030, &nv04_gr_ofuncs }, /* null */
-	{ 0x0039, &nv04_gr_ofuncs }, /* m2mf */
-	{ 0x0043, &nv04_gr_ofuncs }, /* rop */
-	{ 0x0044, &nv04_gr_ofuncs }, /* pattern */
-	{ 0x004a, &nv04_gr_ofuncs }, /* gdi */
-	{ 0x0052, &nv04_gr_ofuncs }, /* swzsurf */
-	{ 0x005f, &nv04_gr_ofuncs }, /* blit */
-	{ 0x0062, &nv04_gr_ofuncs }, /* surf2d */
-	{ 0x0072, &nv04_gr_ofuncs }, /* beta4 */
-	{ 0x0089, &nv04_gr_ofuncs }, /* sifm */
-	{ 0x008a, &nv04_gr_ofuncs }, /* ifc */
-	{ 0x009f, &nv04_gr_ofuncs }, /* blit */
-	{ 0x0093, &nv04_gr_ofuncs }, /* surf3d */
-	{ 0x0094, &nv04_gr_ofuncs }, /* ttri */
-	{ 0x0095, &nv04_gr_ofuncs }, /* mtri */
-	{ 0x0099, &nv04_gr_ofuncs },
-	{},
-};
-
 /*******************************************************************************
  * PGRAPH context
  ******************************************************************************/
@@ -628,7 +558,7 @@ nv10_gr_channel(struct nv10_gr *gr)
 static void
 nv10_gr_save_pipe(struct nv10_gr_chan *chan)
 {
-	struct nv10_gr *gr = nv10_gr(chan);
+	struct nv10_gr *gr = chan->gr;
 	struct pipe_state *pipe = &chan->pipe_state;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 
@@ -647,13 +577,13 @@ nv10_gr_save_pipe(struct nv10_gr_chan *chan)
 static void
 nv10_gr_load_pipe(struct nv10_gr_chan *chan)
 {
-	struct nv10_gr *gr = nv10_gr(chan);
+	struct nv10_gr *gr = chan->gr;
 	struct pipe_state *pipe = &chan->pipe_state;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 xfmode0, xfmode1;
 	int i;
 
-	nv04_gr_idle(gr);
+	nv04_gr_idle(&gr->base);
 	/* XXX check haiku comments */
 	xfmode0 = nvkm_rd32(device, NV10_PGRAPH_XFMODE0);
 	xfmode1 = nvkm_rd32(device, NV10_PGRAPH_XFMODE1);
@@ -678,7 +608,7 @@ nv10_gr_load_pipe(struct nv10_gr_chan *chan)
 
 
 	PIPE_RESTORE(gr, pipe->pipe_0x0200, 0x0200);
-	nv04_gr_idle(gr);
+	nv04_gr_idle(&gr->base);
 
 	/* restore XFMODE */
 	nvkm_wr32(device, NV10_PGRAPH_XFMODE0, xfmode0);
@@ -692,13 +622,13 @@ nv10_gr_load_pipe(struct nv10_gr_chan *chan)
 	PIPE_RESTORE(gr, pipe->pipe_0x4400, 0x4400);
 	PIPE_RESTORE(gr, pipe->pipe_0x0000, 0x0000);
 	PIPE_RESTORE(gr, pipe->pipe_0x0040, 0x0040);
-	nv04_gr_idle(gr);
+	nv04_gr_idle(&gr->base);
 }
 
 static void
 nv10_gr_create_pipe(struct nv10_gr_chan *chan)
 {
-	struct nv10_gr *gr = nv10_gr(chan);
+	struct nv10_gr *gr = chan->gr;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct pipe_state *pipe_state = &chan->pipe_state;
 	u32 *pipe_state_addr;
@@ -880,7 +810,7 @@ nv17_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 static void
 nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 {
-	struct nv10_gr *gr = nv10_gr(chan);
+	struct nv10_gr *gr = chan->gr;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 st2, st2_dl, st2_dh, fifo_ptr, fifo[0x60/4];
 	u32 ctx_user, ctx_switch[5];
@@ -951,7 +881,7 @@ nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 static int
 nv10_gr_load_context(struct nv10_gr_chan *chan, int chid)
 {
-	struct nv10_gr *gr = nv10_gr(chan);
+	struct nv10_gr *gr = chan->gr;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 inst;
 	int i;
@@ -979,7 +909,7 @@ nv10_gr_load_context(struct nv10_gr_chan *chan, int chid)
 static int
 nv10_gr_unload_context(struct nv10_gr_chan *chan)
 {
-	struct nv10_gr *gr = nv10_gr(chan);
+	struct nv10_gr *gr = chan->gr;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int i;
 
@@ -1007,7 +937,7 @@ nv10_gr_context_switch(struct nv10_gr *gr)
 	struct nv10_gr_chan *next = NULL;
 	int chid;
 
-	nv04_gr_idle(gr);
+	nv04_gr_idle(&gr->base);
 
 	/* If previous context is valid, we need to save it */
 	prev = nv10_gr_channel(gr);
@@ -1020,6 +950,42 @@ nv10_gr_context_switch(struct nv10_gr *gr)
 	if (next)
 		nv10_gr_load_context(next, chid);
 }
+
+static int
+nv10_gr_chan_fini(struct nvkm_object *object, bool suspend)
+{
+	struct nv10_gr_chan *chan = nv10_gr_chan(object);
+	struct nv10_gr *gr = chan->gr;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gr->lock, flags);
+	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
+	if (nv10_gr_channel(gr) == chan)
+		nv10_gr_unload_context(chan);
+	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
+	spin_unlock_irqrestore(&gr->lock, flags);
+	return 0;
+}
+
+static void *
+nv10_gr_chan_dtor(struct nvkm_object *object)
+{
+	struct nv10_gr_chan *chan = nv10_gr_chan(object);
+	struct nv10_gr *gr = chan->gr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gr->lock, flags);
+	gr->chan[chan->chid] = NULL;
+	spin_unlock_irqrestore(&gr->lock, flags);
+	return chan;
+}
+
+static const struct nvkm_object_func
+nv10_gr_chan = {
+	.dtor = nv10_gr_chan_dtor,
+	.fini = nv10_gr_chan_fini,
+};
 
 #define NV_WRITE_CTX(reg, val) do { \
 	int offset = nv10_gr_ctx_regs_find_offset(gr, reg); \
@@ -1034,30 +1000,20 @@ nv10_gr_context_switch(struct nv10_gr *gr)
 	} while (0)
 
 static int
-nv10_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, void *data, u32 size,
-		     struct nvkm_object **pobject)
+nv10_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
+		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
-	struct nvkm_fifo_chan *fifo = (void *)parent;
-	struct nv10_gr *gr = (void *)engine;
+	struct nv10_gr *gr = nv10_gr(base);
 	struct nv10_gr_chan *chan;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	unsigned long flags;
-	int ret;
 
-	ret = nvkm_object_create(parent, engine, oclass, 0, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
-	spin_lock_irqsave(&gr->lock, flags);
-	if (gr->chan[fifo->chid]) {
-		*pobject = nv_object(gr->chan[fifo->chid]);
-		atomic_inc(&(*pobject)->refcount);
-		spin_unlock_irqrestore(&gr->lock, flags);
-		nvkm_object_destroy(&chan->base);
-		return 1;
-	}
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_object_ctor(&nv10_gr_chan, oclass, &chan->object);
+	chan->gr = gr;
+	chan->chid = fifoch->chid;
+	*pobject = &chan->object;
 
 	NV_WRITE_CTX(0x00400e88, 0x08000000);
 	NV_WRITE_CTX(0x00400e9c, 0x4b7fffff);
@@ -1066,11 +1022,10 @@ nv10_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	NV_WRITE_CTX(0x00400e14, 0x00001000);
 	NV_WRITE_CTX(0x00400e30, 0x00080008);
 	NV_WRITE_CTX(0x00400e34, 0x00080008);
-	if (nv_device(gr)->card_type >= NV_11 &&
-	    nv_device(gr)->chipset >= 0x17) {
+	if (device->card_type >= NV_11 && device->chipset >= 0x17) {
 		/* is it really needed ??? */
 		NV17_WRITE_CTX(NV10_PGRAPH_DEBUG_4,
-					nvkm_rd32(device, NV10_PGRAPH_DEBUG_4));
+			       nvkm_rd32(device, NV10_PGRAPH_DEBUG_4));
 		NV17_WRITE_CTX(0x004006b0, nvkm_rd32(device, 0x004006b0));
 		NV17_WRITE_CTX(0x00400eac, 0x0fff0000);
 		NV17_WRITE_CTX(0x00400eb0, 0x0fff0000);
@@ -1081,54 +1036,11 @@ nv10_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv10_gr_create_pipe(chan);
 
-	gr->chan[fifo->chid] = chan;
-	chan->chid = fifo->chid;
+	spin_lock_irqsave(&gr->lock, flags);
+	gr->chan[chan->chid] = chan;
 	spin_unlock_irqrestore(&gr->lock, flags);
 	return 0;
 }
-
-static void
-nv10_gr_context_dtor(struct nvkm_object *object)
-{
-	struct nv10_gr *gr = (void *)object->engine;
-	struct nv10_gr_chan *chan = (void *)object;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gr->lock, flags);
-	gr->chan[chan->chid] = NULL;
-	spin_unlock_irqrestore(&gr->lock, flags);
-
-	nvkm_object_destroy(&chan->base);
-}
-
-static int
-nv10_gr_context_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nv10_gr *gr = (void *)object->engine;
-	struct nv10_gr_chan *chan = (void *)object;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gr->lock, flags);
-	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
-	if (nv10_gr_channel(gr) == chan)
-		nv10_gr_unload_context(chan);
-	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
-	spin_unlock_irqrestore(&gr->lock, flags);
-
-	return _nvkm_object_fini(&chan->base, suspend);
-}
-
-static struct nvkm_oclass
-nv10_gr_cclass = {
-	.handle = NV_ENGCTX(GR, 0x10),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv10_gr_context_ctor,
-		.dtor = nv10_gr_context_dtor,
-		.init = _nvkm_object_init,
-		.fini = nv10_gr_context_fini,
-	},
-};
 
 /*******************************************************************************
  * PGRAPH engine/subdev functions
@@ -1144,7 +1056,7 @@ nv10_gr_tile_prog(struct nvkm_engine *engine, int i)
 	unsigned long flags;
 
 	fifo->pause(fifo, &flags);
-	nv04_gr_idle(gr);
+	nv04_gr_idle(&gr->base);
 
 	nvkm_wr32(device, NV10_PGRAPH_TLIMIT(i), tile->limit);
 	nvkm_wr32(device, NV10_PGRAPH_TSIZE(i), tile->pitch);
@@ -1214,11 +1126,91 @@ nv10_gr_intr(struct nvkm_subdev *subdev)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   nvkm_client_name(chan), subc, class, mthd, data);
+			   chan ? chan->object.client->name : "unknown",
+			   subc, class, mthd, data);
 	}
 
 	spin_unlock_irqrestore(&gr->lock, flags);
 }
+
+static const struct nvkm_gr_func
+nv10_gr = {
+	.chan_new = nv10_gr_chan_new,
+	.sclass = {
+		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
+		{ -1, -1, 0x0019, &nv04_gr_object }, /* clip */
+		{ -1, -1, 0x0030, &nv04_gr_object }, /* null */
+		{ -1, -1, 0x0039, &nv04_gr_object }, /* m2mf */
+		{ -1, -1, 0x0043, &nv04_gr_object }, /* rop */
+		{ -1, -1, 0x0044, &nv04_gr_object }, /* pattern */
+		{ -1, -1, 0x004a, &nv04_gr_object }, /* gdi */
+		{ -1, -1, 0x0052, &nv04_gr_object }, /* swzsurf */
+		{ -1, -1, 0x005f, &nv04_gr_object }, /* blit */
+		{ -1, -1, 0x0062, &nv04_gr_object }, /* surf2d */
+		{ -1, -1, 0x0072, &nv04_gr_object }, /* beta4 */
+		{ -1, -1, 0x0089, &nv04_gr_object }, /* sifm */
+		{ -1, -1, 0x008a, &nv04_gr_object }, /* ifc */
+		{ -1, -1, 0x009f, &nv04_gr_object }, /* blit */
+		{ -1, -1, 0x0093, &nv04_gr_object }, /* surf3d */
+		{ -1, -1, 0x0094, &nv04_gr_object }, /* ttri */
+		{ -1, -1, 0x0095, &nv04_gr_object }, /* mtri */
+		{ -1, -1, 0x0056, &nv04_gr_object }, /* celcius */
+		{}
+	}
+};
+
+static const struct nvkm_gr_func
+nv15_gr = {
+	.chan_new = nv10_gr_chan_new,
+	.sclass = {
+		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
+		{ -1, -1, 0x0019, &nv04_gr_object }, /* clip */
+		{ -1, -1, 0x0030, &nv04_gr_object }, /* null */
+		{ -1, -1, 0x0039, &nv04_gr_object }, /* m2mf */
+		{ -1, -1, 0x0043, &nv04_gr_object }, /* rop */
+		{ -1, -1, 0x0044, &nv04_gr_object }, /* pattern */
+		{ -1, -1, 0x004a, &nv04_gr_object }, /* gdi */
+		{ -1, -1, 0x0052, &nv04_gr_object }, /* swzsurf */
+		{ -1, -1, 0x005f, &nv04_gr_object }, /* blit */
+		{ -1, -1, 0x0062, &nv04_gr_object }, /* surf2d */
+		{ -1, -1, 0x0072, &nv04_gr_object }, /* beta4 */
+		{ -1, -1, 0x0089, &nv04_gr_object }, /* sifm */
+		{ -1, -1, 0x008a, &nv04_gr_object }, /* ifc */
+		{ -1, -1, 0x009f, &nv04_gr_object }, /* blit */
+		{ -1, -1, 0x0093, &nv04_gr_object }, /* surf3d */
+		{ -1, -1, 0x0094, &nv04_gr_object }, /* ttri */
+		{ -1, -1, 0x0095, &nv04_gr_object }, /* mtri */
+		{ -1, -1, 0x0096, &nv04_gr_object }, /* celcius */
+		{}
+	}
+};
+
+
+static const struct nvkm_gr_func
+nv17_gr = {
+	.chan_new = nv10_gr_chan_new,
+	.sclass = {
+		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
+		{ -1, -1, 0x0019, &nv04_gr_object }, /* clip */
+		{ -1, -1, 0x0030, &nv04_gr_object }, /* null */
+		{ -1, -1, 0x0039, &nv04_gr_object }, /* m2mf */
+		{ -1, -1, 0x0043, &nv04_gr_object }, /* rop */
+		{ -1, -1, 0x0044, &nv04_gr_object }, /* pattern */
+		{ -1, -1, 0x004a, &nv04_gr_object }, /* gdi */
+		{ -1, -1, 0x0052, &nv04_gr_object }, /* swzsurf */
+		{ -1, -1, 0x005f, &nv04_gr_object }, /* blit */
+		{ -1, -1, 0x0062, &nv04_gr_object }, /* surf2d */
+		{ -1, -1, 0x0072, &nv04_gr_object }, /* beta4 */
+		{ -1, -1, 0x0089, &nv04_gr_object }, /* sifm */
+		{ -1, -1, 0x008a, &nv04_gr_object }, /* ifc */
+		{ -1, -1, 0x009f, &nv04_gr_object }, /* blit */
+		{ -1, -1, 0x0093, &nv04_gr_object }, /* surf3d */
+		{ -1, -1, 0x0094, &nv04_gr_object }, /* ttri */
+		{ -1, -1, 0x0095, &nv04_gr_object }, /* mtri */
+		{ -1, -1, 0x0099, &nv04_gr_object },
+		{}
+	}
+};
 
 static int
 nv10_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -1235,16 +1227,15 @@ nv10_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_subdev(gr)->unit = 0x00001000;
 	nv_subdev(gr)->intr = nv10_gr_intr;
-	nv_engine(gr)->cclass = &nv10_gr_cclass;
 
 	if (nv_device(gr)->chipset <= 0x10)
-		nv_engine(gr)->sclass = nv10_gr_sclass;
+		gr->base.func = &nv10_gr;
 	else
 	if (nv_device(gr)->chipset <  0x17 ||
 	    nv_device(gr)->card_type < NV_11)
-		nv_engine(gr)->sclass = nv15_gr_sclass;
+		gr->base.func = &nv15_gr;
 	else
-		nv_engine(gr)->sclass = nv17_gr_sclass;
+		gr->base.func = &nv17_gr;
 
 	nv_engine(gr)->tile_prog = nv10_gr_tile_prog;
 	spin_lock_init(&gr->lock);

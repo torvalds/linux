@@ -580,7 +580,6 @@ nv40_gr_construct_shader(struct nvkm_grctx *ctx)
 	if (ctx->mode != NVKM_GRCTX_VALS)
 		return;
 
-	nvkm_kmap(obj);
 	offset += 0x0280/4;
 	for (i = 0; i < 16; i++, offset += 2)
 		nvkm_wo32(obj, offset * 4, 0x3f800000);
@@ -591,7 +590,6 @@ nv40_gr_construct_shader(struct nvkm_grctx *ctx)
 		for (i = 0; i < vs_nr_b1 * 4; i += 4)
 			nvkm_wo32(obj, (offset + b1_offset + i) * 4, 0x3f800000);
 	}
-	nvkm_done(obj);
 }
 
 static void

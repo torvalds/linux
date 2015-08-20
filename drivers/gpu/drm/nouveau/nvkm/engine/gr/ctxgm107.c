@@ -863,27 +863,27 @@ gm107_grctx_pack_ppc[] = {
 void
 gm107_grctx_generate_bundle(struct gf100_grctx *info)
 {
-	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->gr);
-	const u32 state_limit = min(impl->bundle_min_gpm_fifo_depth,
-				    impl->bundle_size / 0x20);
-	const u32 token_limit = impl->bundle_token_limit;
+	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
+	const u32 state_limit = min(grctx->bundle_min_gpm_fifo_depth,
+				    grctx->bundle_size / 0x20);
+	const u32 token_limit = grctx->bundle_token_limit;
 	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, impl->bundle_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), access);
 	mmio_refn(info, 0x408004, 0x00000000, s, b);
-	mmio_wr32(info, 0x408008, 0x80000000 | (impl->bundle_size >> s));
+	mmio_wr32(info, 0x408008, 0x80000000 | (grctx->bundle_size >> s));
 	mmio_refn(info, 0x418e24, 0x00000000, s, b);
-	mmio_wr32(info, 0x418e28, 0x80000000 | (impl->bundle_size >> s));
+	mmio_wr32(info, 0x418e28, 0x80000000 | (grctx->bundle_size >> s));
 	mmio_wr32(info, 0x4064c8, (state_limit << 16) | token_limit);
 }
 
 void
 gm107_grctx_generate_pagepool(struct gf100_grctx *info)
 {
-	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->gr);
+	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
 	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, impl->pagepool_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), access);
 	mmio_refn(info, 0x40800c, 0x00000000, s, b);
 	mmio_wr32(info, 0x408010, 0x80000000);
 	mmio_refn(info, 0x419004, 0x00000000, s, b);
@@ -896,16 +896,16 @@ void
 gm107_grctx_generate_attrib(struct gf100_grctx *info)
 {
 	struct gf100_gr *gr = info->gr;
-	const struct gf100_grctx_oclass *impl = (void *)gf100_grctx_impl(gr);
-	const u32  alpha = impl->alpha_nr;
-	const u32 attrib = impl->attrib_nr;
-	const u32   size = 0x20 * (impl->attrib_nr_max + impl->alpha_nr_max);
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
+	const u32  alpha = grctx->alpha_nr;
+	const u32 attrib = grctx->attrib_nr;
+	const u32   size = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
 	const u32 access = NV_MEM_ACCESS_RW;
 	const int s = 12;
 	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), access);
 	const int max_batches = 0xffff;
 	u32 bo = 0;
-	u32 ao = bo + impl->attrib_nr_max * gr->tpc_total;
+	u32 ao = bo + grctx->attrib_nr_max * gr->tpc_total;
 	int gpc, ppc, n = 0;
 
 	mmio_refn(info, 0x418810, 0x80000000, s, b);
@@ -922,10 +922,10 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 			const u32 o = PPC_UNIT(gpc, ppc, 0);
 			mmio_wr32(info, o + 0xc0, bs);
 			mmio_wr32(info, o + 0xf4, bo);
-			bo += impl->attrib_nr_max * gr->ppc_tpc_nr[gpc][ppc];
+			bo += grctx->attrib_nr_max * gr->ppc_tpc_nr[gpc][ppc];
 			mmio_wr32(info, o + 0xe4, as);
 			mmio_wr32(info, o + 0xf8, ao);
-			ao += impl->alpha_nr_max * gr->ppc_tpc_nr[gpc][ppc];
+			ao += grctx->alpha_nr_max * gr->ppc_tpc_nr[gpc][ppc];
 			mmio_wr32(info, u, ((bs / 3 /*XXX*/) << 16) | bs);
 		}
 	}
@@ -956,21 +956,21 @@ static void
 gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	int i;
 
-	gf100_gr_mmio(gr, oclass->hub);
-	gf100_gr_mmio(gr, oclass->gpc);
-	gf100_gr_mmio(gr, oclass->zcull);
-	gf100_gr_mmio(gr, oclass->tpc);
-	gf100_gr_mmio(gr, oclass->ppc);
+	gf100_gr_mmio(gr, grctx->hub);
+	gf100_gr_mmio(gr, grctx->gpc);
+	gf100_gr_mmio(gr, grctx->zcull);
+	gf100_gr_mmio(gr, grctx->tpc);
+	gf100_gr_mmio(gr, grctx->ppc);
 
 	nvkm_wr32(device, 0x404154, 0x00000000);
 
-	oclass->bundle(info);
-	oclass->pagepool(info);
-	oclass->attrib(info);
-	oclass->unkn(gr);
+	grctx->bundle(info);
+	grctx->pagepool(info);
+	grctx->attrib(info);
+	grctx->unkn(gr);
 
 	gm107_grctx_generate_tpcid(gr);
 	gf100_grctx_generate_r406028(gr);
@@ -986,9 +986,9 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gk104_grctx_generate_rop_active_fbps(gr);
 
-	gf100_gr_icmd(gr, oclass->icmd);
+	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, 0x00000400);
-	gf100_gr_mthd(gr, oclass->mthd);
+	gf100_gr_mthd(gr, grctx->mthd);
 
 	nvkm_mask(device, 0x419e00, 0x00808080, 0x00808080);
 	nvkm_mask(device, 0x419ccc, 0x80000000, 0x80000000);
@@ -996,17 +996,8 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	nvkm_mask(device, 0x419f88, 0x80000000, 0x80000000);
 }
 
-struct nvkm_oclass *
-gm107_grctx_oclass = &(struct gf100_grctx_oclass) {
-	.base.handle = NV_ENGCTX(GR, 0x08),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_context_ctor,
-		.dtor = gf100_gr_context_dtor,
-		.init = _nvkm_gr_context_init,
-		.fini = _nvkm_gr_context_fini,
-		.rd32 = _nvkm_gr_context_rd32,
-		.wr32 = _nvkm_gr_context_wr32,
-	},
+const struct gf100_grctx_func
+gm107_grctx = {
 	.main  = gm107_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gm107_grctx_pack_hub,
@@ -1027,4 +1018,4 @@ gm107_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.attrib_nr = 0xaa0,
 	.alpha_nr_max = 0x1800,
 	.alpha_nr = 0x1000,
-}.base;
+};

@@ -1,8 +1,23 @@
 #ifndef __NV40_GR_H__
 #define __NV40_GR_H__
-#include <engine/gr.h>
+#define nv40_gr(p) container_of((p), struct nv40_gr, base)
+#include "priv.h"
 
-struct nvkm_gpuobj;
+struct nv40_gr {
+	struct nvkm_gr base;
+	u32 size;
+	struct list_head chan;
+};
+
+#define nv40_gr_chan(p) container_of((p), struct nv40_gr_chan, object)
+
+struct nv40_gr_chan {
+	struct nvkm_object object;
+	struct nv40_gr *gr;
+	struct nvkm_fifo_chan *fifo;
+	u32 inst;
+	struct list_head head;
+};
 
 /* returns 1 if device is one of the nv4x using the 0x4497 object class,
  * helpful to determine a number of other hardware features

@@ -24,6 +24,20 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <nvif/class.h>
+
+static const struct gf100_gr_func
+gm206_gr = {
+	.grctx = &gm206_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+		{ -1, -1, MAXWELL_B, &gf100_fermi },
+		{ -1, -1, MAXWELL_COMPUTE_B },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gm206_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0x26),
@@ -33,8 +47,7 @@ gm206_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gm204_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gm206_grctx_oclass,
-	.sclass =  gm204_gr_sclass,
+	.func = &gm206_gr,
 	.mmio = gm204_gr_pack_mmio,
 	.ppc_nr = 2,
 }.base;

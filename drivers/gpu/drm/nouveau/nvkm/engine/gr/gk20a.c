@@ -22,17 +22,9 @@
 #include "gk20a.h"
 #include "ctxgf100.h"
 
-#include <nvif/class.h>
 #include <subdev/timer.h>
 
-static struct nvkm_oclass
-gk20a_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_A, &nvkm_object_ofuncs },
-	{ KEPLER_C, &gf100_fermi_ofuncs },
-	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs },
-	{}
-};
+#include <nvif/class.h>
 
 static void
 gk20a_gr_init_dtor(struct gf100_gr_pack *pack)
@@ -350,6 +342,18 @@ gk20a_gr_init(struct nvkm_object *object)
 	return gf100_gr_init_ctxctl(gr);
 }
 
+static const struct gf100_gr_func
+gk20a_gr = {
+	.grctx = &gk20a_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },
+		{ -1, -1, KEPLER_C, &gf100_fermi },
+		{ -1, -1, KEPLER_COMPUTE_A },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gk20a_gr_oclass = &(struct gk20a_gr_oclass) {
 	.gf100 = {
@@ -360,8 +364,7 @@ gk20a_gr_oclass = &(struct gk20a_gr_oclass) {
 			.init = gk20a_gr_init,
 			.fini = _nvkm_gr_fini,
 		},
-		.cclass = &gk20a_grctx_oclass,
-		.sclass = gk20a_gr_sclass,
+		.func = &gk20a_gr,
 		.ppc_nr = 1,
 	},
 	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,

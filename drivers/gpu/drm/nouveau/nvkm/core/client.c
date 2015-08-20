@@ -321,13 +321,3 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 		nvkm_client_del(pclient);
 	return ret;
 }
-
-const char *
-nvkm_client_name(void *obj)
-{
-	const char *client_name = "unknown";
-	struct nvkm_client *client = nvkm_client(obj);
-	if (client)
-		client_name = client->name;
-	return client_name;
-}

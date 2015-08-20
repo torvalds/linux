@@ -30,7 +30,6 @@ int  nvkm_client_new(const char *name, u64 device, const char *cfg,
 void nvkm_client_del(struct nvkm_client **);
 int  nvkm_client_init(struct nvkm_client *);
 int  nvkm_client_fini(struct nvkm_client *, bool suspend);
-const char *nvkm_client_name(void *obj);
 
 static inline struct nvkm_client *
 nvkm_client(struct nvkm_object *object)

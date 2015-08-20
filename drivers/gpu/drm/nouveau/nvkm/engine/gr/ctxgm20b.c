@@ -39,7 +39,7 @@ static void
 gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	int idle_timeout_save;
 	int i, tmp;
 
@@ -50,9 +50,9 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	idle_timeout_save = nvkm_rd32(device, 0x404154);
 	nvkm_wr32(device, 0x404154, 0x00000000);
 
-	oclass->attrib(info);
+	grctx->attrib(info);
 
-	oclass->unkn(gr);
+	grctx->unkn(gr);
 
 	gm204_grctx_generate_tpcid(gr);
 	gm20b_grctx_generate_r406028(gr);
@@ -81,21 +81,12 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_wait_idle(gr);
 
 	gf100_gr_icmd(gr, gr->fuc_bundle);
-	oclass->pagepool(info);
-	oclass->bundle(info);
+	grctx->pagepool(info);
+	grctx->bundle(info);
 }
 
-struct nvkm_oclass *
-gm20b_grctx_oclass = &(struct gf100_grctx_oclass) {
-	.base.handle = NV_ENGCTX(GR, 0x2b),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_context_ctor,
-		.dtor = gf100_gr_context_dtor,
-		.init = _nvkm_gr_context_init,
-		.fini = _nvkm_gr_context_fini,
-		.rd32 = _nvkm_gr_context_rd32,
-		.wr32 = _nvkm_gr_context_wr32,
-	},
+const struct gf100_grctx_func
+gm20b_grctx = {
 	.main  = gm20b_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.bundle = gm107_grctx_generate_bundle,
@@ -109,4 +100,4 @@ gm20b_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.attrib_nr = 0x400,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
-}.base;
+};

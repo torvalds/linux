@@ -125,8 +125,6 @@ gr_def(struct nvkm_grctx *ctx, u32 reg, u32 val)
 	reg = (reg - 0x00400000) / 4;
 	reg = (reg - ctx->ctxprog_reg) + ctx->ctxvals_base;
 
-	nvkm_kmap(ctx->data);
 	nvkm_wo32(ctx->data, reg * 4, val);
-	nvkm_done(ctx->data);
 }
 #endif

@@ -23,9 +23,12 @@
  */
 #ifndef __NVC0_GR_H__
 #define __NVC0_GR_H__
-#include <engine/gr.h>
+#define gf100_gr(p) container_of((p), struct gf100_gr, base)
+#include "priv.h"
 
+#include <core/gpuobj.h>
 #include <subdev/ltc.h>
+#include <subdev/mmu.h>
 
 #define GPC_MAX 32
 #define TPC_MAX (GPC_MAX * 8)
@@ -69,6 +72,7 @@ struct gf100_gr_zbc_depth {
 
 struct gf100_gr {
 	struct nvkm_gr base;
+	const struct gf100_gr_func *func;
 
 	struct gf100_gr_fuc fuc409c;
 	struct gf100_gr_fuc fuc409d;
@@ -106,22 +110,26 @@ struct gf100_gr {
 	u8 magic_not_rop_nr;
 };
 
+struct gf100_gr_func {
+	const struct gf100_grctx_func *grctx;
+	struct nvkm_sclass sclass[];
+};
+
+#define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
+
 struct gf100_gr_chan {
-	struct nvkm_gr_chan base;
+	struct nvkm_object object;
+	struct gf100_gr *gr;
 
 	struct nvkm_memory *mmio;
 	struct nvkm_vma mmio_vma;
 	int mmio_nr;
+
 	struct {
 		struct nvkm_memory *mem;
 		struct nvkm_vma vma;
 	} data[4];
 };
-
-int  gf100_gr_context_ctor(struct nvkm_object *, struct nvkm_object *,
-			     struct nvkm_oclass *, void *, u32,
-			     struct nvkm_object **);
-void gf100_gr_context_dtor(struct nvkm_object *);
 
 void gf100_gr_ctxctl_debug(struct gf100_gr *);
 
@@ -149,7 +157,7 @@ int  gk20a_gr_init(struct nvkm_object *);
 
 int  gm204_gr_init(struct nvkm_object *);
 
-extern struct nvkm_ofuncs gf100_fermi_ofuncs;
+extern const struct nvkm_object_func gf100_fermi;
 
 extern struct nvkm_oclass gf100_gr_sclass[];
 extern struct nvkm_oclass gf110_gr_sclass[];
@@ -185,8 +193,7 @@ extern struct gf100_gr_ucode gk110_gr_gpccs_ucode;
 
 struct gf100_gr_oclass {
 	struct nvkm_oclass base;
-	struct nvkm_oclass **cclass;
-	struct nvkm_oclass *sclass;
+	const struct gf100_gr_func *func;
 	const struct gf100_gr_pack *mmio;
 	struct {
 		struct gf100_gr_ucode *ucode;

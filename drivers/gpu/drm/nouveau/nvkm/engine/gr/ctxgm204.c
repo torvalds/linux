@@ -981,22 +981,22 @@ void
 gm204_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	u32 tmp;
 	int i;
 
-	gf100_gr_mmio(gr, oclass->hub);
-	gf100_gr_mmio(gr, oclass->gpc);
-	gf100_gr_mmio(gr, oclass->zcull);
-	gf100_gr_mmio(gr, oclass->tpc);
-	gf100_gr_mmio(gr, oclass->ppc);
+	gf100_gr_mmio(gr, grctx->hub);
+	gf100_gr_mmio(gr, grctx->gpc);
+	gf100_gr_mmio(gr, grctx->zcull);
+	gf100_gr_mmio(gr, grctx->tpc);
+	gf100_gr_mmio(gr, grctx->ppc);
 
 	nvkm_wr32(device, 0x404154, 0x00000000);
 
-	oclass->bundle(info);
-	oclass->pagepool(info);
-	oclass->attrib(info);
-	oclass->unkn(gr);
+	grctx->bundle(info);
+	grctx->pagepool(info);
+	grctx->attrib(info);
+	grctx->unkn(gr);
 
 	gm204_grctx_generate_tpcid(gr);
 	gf100_grctx_generate_r406028(gr);
@@ -1016,25 +1016,16 @@ gm204_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gm204_grctx_generate_405b60(gr);
 
-	gf100_gr_icmd(gr, oclass->icmd);
+	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, 0x00000800);
-	gf100_gr_mthd(gr, oclass->mthd);
+	gf100_gr_mthd(gr, grctx->mthd);
 
 	nvkm_mask(device, 0x418e94, 0xffffffff, 0xc4230000);
 	nvkm_mask(device, 0x418e4c, 0xffffffff, 0x70000000);
 }
 
-struct nvkm_oclass *
-gm204_grctx_oclass = &(struct gf100_grctx_oclass) {
-	.base.handle = NV_ENGCTX(GR, 0x24),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_context_ctor,
-		.dtor = gf100_gr_context_dtor,
-		.init = _nvkm_gr_context_init,
-		.fini = _nvkm_gr_context_fini,
-		.rd32 = _nvkm_gr_context_rd32,
-		.wr32 = _nvkm_gr_context_wr32,
-	},
+const struct gf100_grctx_func
+gm204_grctx = {
 	.main  = gm204_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gm204_grctx_pack_hub,
@@ -1055,4 +1046,4 @@ gm204_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.attrib_nr = 0x400,
 	.alpha_nr_max = 0x1800,
 	.alpha_nr = 0x1000,
-}.base;
+};

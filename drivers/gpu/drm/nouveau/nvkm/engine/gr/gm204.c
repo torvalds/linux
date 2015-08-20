@@ -27,19 +27,6 @@
 #include <nvif/class.h>
 
 /*******************************************************************************
- * Graphics object classes
- ******************************************************************************/
-
-struct nvkm_oclass
-gm204_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
-	{ MAXWELL_B, &gf100_fermi_ofuncs },
-	{ MAXWELL_COMPUTE_B, &nvkm_object_ofuncs },
-	{}
-};
-
-/*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
@@ -371,6 +358,18 @@ gm204_gr_init(struct nvkm_object *object)
 	return gm204_gr_init_ctxctl(gr);
 }
 
+static const struct gf100_gr_func
+gm204_gr = {
+	.grctx = &gm204_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+		{ -1, -1, MAXWELL_B, &gf100_fermi },
+		{ -1, -1, MAXWELL_COMPUTE_B },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gm204_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0x24),
@@ -380,8 +379,7 @@ gm204_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gm204_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gm204_grctx_oclass,
-	.sclass =  gm204_gr_sclass,
+	.func = &gm204_gr,
 	.mmio = gm204_gr_pack_mmio,
 	.ppc_nr = 2,
 }.base;

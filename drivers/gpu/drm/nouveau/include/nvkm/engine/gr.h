@@ -1,44 +1,22 @@
 #ifndef __NVKM_GR_H__
 #define __NVKM_GR_H__
-#include <core/engctx.h>
-
-struct nvkm_gr_chan {
-	struct nvkm_engctx base;
-};
-
-#define nvkm_gr_context_create(p,e,c,g,s,a,f,d)                          \
-	nvkm_engctx_create((p), (e), (c), (g), (s), (a), (f), (d))
-#define nvkm_gr_context_destroy(d)                                       \
-	nvkm_engctx_destroy(&(d)->base)
-#define nvkm_gr_context_init(d)                                          \
-	nvkm_engctx_init(&(d)->base)
-#define nvkm_gr_context_fini(d,s)                                        \
-	nvkm_engctx_fini(&(d)->base, (s))
-
-#define _nvkm_gr_context_dtor _nvkm_engctx_dtor
-#define _nvkm_gr_context_init _nvkm_engctx_init
-#define _nvkm_gr_context_fini _nvkm_engctx_fini
-#define _nvkm_gr_context_rd32 _nvkm_engctx_rd32
-#define _nvkm_gr_context_wr32 _nvkm_engctx_wr32
-
 #include <core/engine.h>
 
 struct nvkm_gr {
 	struct nvkm_engine engine;
+	const struct nvkm_gr_func *func;
 
 	/* Returns chipset-specific counts of units packed into an u64.
 	 */
 	u64 (*units)(struct nvkm_gr *);
 };
 
-static inline struct nvkm_gr *
-nvkm_gr(void *obj)
-{
-	return (void *)nvkm_engine(obj, NVDEV_ENGINE_GR);
-}
-
 #define nvkm_gr_create(p,e,c,y,d)                                        \
-	nvkm_engine_create((p), (e), (c), (y), "PGRAPH", "graphics", (d))
+	nvkm_gr_create_((p), (e), (c), (y), sizeof(**d), (void **)(d))
+int
+nvkm_gr_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, bool enable,
+		int length, void **pobject);
 #define nvkm_gr_destroy(d)                                               \
 	nvkm_engine_destroy(&(d)->engine)
 #define nvkm_gr_init(d)                                                  \
@@ -79,8 +57,7 @@ extern struct nvkm_oclass *gm20b_gr_oclass;
 #include <core/enum.h>
 
 extern const struct nvkm_bitfield nv04_gr_nsource[];
-extern struct nvkm_ofuncs nv04_gr_ofuncs;
-bool nv04_gr_idle(void *obj);
+bool nv04_gr_idle(struct nvkm_gr *);
 
 extern const struct nvkm_bitfield nv10_gr_intr_name[];
 extern const struct nvkm_bitfield nv10_gr_nstatus[];

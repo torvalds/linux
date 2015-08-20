@@ -223,12 +223,8 @@ gf100_fermi_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-struct nvkm_ofuncs
-gf100_fermi_ofuncs = {
-	.ctor = _nvkm_object_ctor,
-	.dtor = nvkm_object_destroy,
-	.init = _nvkm_object_init,
-	.fini = _nvkm_object_fini,
+const struct nvkm_object_func
+gf100_fermi = {
 	.mthd = gf100_fermi_mthd,
 };
 
@@ -259,40 +255,106 @@ gf100_gr_mthd_sw(struct nvkm_device *device, u16 class, u32 mthd, u32 data)
 	return false;
 }
 
-struct nvkm_oclass
-gf100_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ FERMI_MEMORY_TO_MEMORY_FORMAT_A, &nvkm_object_ofuncs },
-	{ FERMI_A, &gf100_fermi_ofuncs },
-	{ FERMI_COMPUTE_A, &nvkm_object_ofuncs },
-	{}
-};
+static int
+gf100_gr_object_get(struct nvkm_gr *base, int index, struct nvkm_sclass *sclass)
+{
+	struct gf100_gr *gr = gf100_gr(base);
+	int c = 0;
+
+	while (gr->func->sclass[c].oclass) {
+		if (c++ == index) {
+			*sclass = gr->func->sclass[index];
+			return index;
+		}
+	}
+
+	return c;
+}
 
 /*******************************************************************************
  * PGRAPH context
  ******************************************************************************/
 
-int
-gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		      struct nvkm_oclass *oclass, void *args, u32 size,
-		      struct nvkm_object **pobject)
+static int
+gf100_gr_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+		   int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct nvkm_vm *vm = nvkm_client(parent)->vm;
-	struct gf100_gr *gr = (void *)engine;
+	struct gf100_gr_chan *chan = gf100_gr_chan(object);
+	struct gf100_gr *gr = chan->gr;
+	int ret, i;
+
+	ret = nvkm_gpuobj_new(gr->base.engine.subdev.device, gr->size,
+			      align, false, parent, pgpuobj);
+	if (ret)
+		return ret;
+
+	nvkm_kmap(*pgpuobj);
+	for (i = 0; i < gr->size; i += 4)
+		nvkm_wo32(*pgpuobj, i, gr->data[i / 4]);
+
+	if (!gr->firmware) {
+		nvkm_wo32(*pgpuobj, 0x00, chan->mmio_nr / 2);
+		nvkm_wo32(*pgpuobj, 0x04, chan->mmio_vma.offset >> 8);
+	} else {
+		nvkm_wo32(*pgpuobj, 0xf4, 0);
+		nvkm_wo32(*pgpuobj, 0xf8, 0);
+		nvkm_wo32(*pgpuobj, 0x10, chan->mmio_nr / 2);
+		nvkm_wo32(*pgpuobj, 0x14, lower_32_bits(chan->mmio_vma.offset));
+		nvkm_wo32(*pgpuobj, 0x18, upper_32_bits(chan->mmio_vma.offset));
+		nvkm_wo32(*pgpuobj, 0x1c, 1);
+		nvkm_wo32(*pgpuobj, 0x20, 0);
+		nvkm_wo32(*pgpuobj, 0x28, 0);
+		nvkm_wo32(*pgpuobj, 0x2c, 0);
+	}
+	nvkm_done(*pgpuobj);
+	return 0;
+}
+
+static void *
+gf100_gr_chan_dtor(struct nvkm_object *object)
+{
+	struct gf100_gr_chan *chan = gf100_gr_chan(object);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(chan->data); i++) {
+		if (chan->data[i].vma.node) {
+			nvkm_vm_unmap(&chan->data[i].vma);
+			nvkm_vm_put(&chan->data[i].vma);
+		}
+		nvkm_memory_del(&chan->data[i].mem);
+	}
+
+	if (chan->mmio_vma.node) {
+		nvkm_vm_unmap(&chan->mmio_vma);
+		nvkm_vm_put(&chan->mmio_vma);
+	}
+	nvkm_memory_del(&chan->mmio);
+	return chan;
+}
+
+static const struct nvkm_object_func
+gf100_gr_chan = {
+	.dtor = gf100_gr_chan_dtor,
+	.bind = gf100_gr_chan_bind,
+};
+
+static int
+gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
+		  const struct nvkm_oclass *oclass,
+		  struct nvkm_object **pobject)
+{
+	struct gf100_gr *gr = gf100_gr(base);
 	struct gf100_gr_data *data = gr->mmio_data;
 	struct gf100_gr_mmio *mmio = gr->mmio_list;
 	struct gf100_gr_chan *chan;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct nvkm_gpuobj *image;
 	int ret, i;
 
-	/* allocate memory for context, and fill with default values */
-	ret = nvkm_gr_context_create(parent, engine, oclass, NULL,
-				     gr->size, 0x100,
-				     NVOBJ_FLAG_ZERO_ALLOC, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_object_ctor(&gf100_gr_chan, oclass, &chan->object);
+	chan->gr = gr;
+	*pobject = &chan->object;
 
 	/* allocate memory for a "mmio list" buffer that's used by the HUB
 	 * fuc to modify some per-context register settings on first load
@@ -303,7 +365,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(vm, 0x1000, 12, NV_MEM_ACCESS_RW |
+	ret = nvkm_vm_get(fifoch->vm, 0x1000, 12, NV_MEM_ACCESS_RW |
 			  NV_MEM_ACCESS_SYS, &chan->mmio_vma);
 	if (ret)
 		return ret;
@@ -318,8 +380,9 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		if (ret)
 			return ret;
 
-		ret = nvkm_vm_get(vm, nvkm_memory_size(chan->data[i].mem),
-				  12, data->access, &chan->data[i].vma);
+		ret = nvkm_vm_get(fifoch->vm,
+				  nvkm_memory_size(chan->data[i].mem), 12,
+				  data->access, &chan->data[i].vma);
 		if (ret)
 			return ret;
 
@@ -343,51 +406,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		mmio++;
 	}
 	nvkm_done(chan->mmio);
-
-	image = &chan->base.base.gpuobj;
-	nvkm_kmap(image);
-	for (i = 0; i < gr->size; i += 4)
-		nvkm_wo32(image, i, gr->data[i / 4]);
-
-	if (!gr->firmware) {
-		nvkm_wo32(image, 0x00, chan->mmio_nr / 2);
-		nvkm_wo32(image, 0x04, chan->mmio_vma.offset >> 8);
-	} else {
-		nvkm_wo32(image, 0xf4, 0);
-		nvkm_wo32(image, 0xf8, 0);
-		nvkm_wo32(image, 0x10, chan->mmio_nr / 2);
-		nvkm_wo32(image, 0x14, lower_32_bits(chan->mmio_vma.offset));
-		nvkm_wo32(image, 0x18, upper_32_bits(chan->mmio_vma.offset));
-		nvkm_wo32(image, 0x1c, 1);
-		nvkm_wo32(image, 0x20, 0);
-		nvkm_wo32(image, 0x28, 0);
-		nvkm_wo32(image, 0x2c, 0);
-	}
-	nvkm_done(image);
 	return 0;
-}
-
-void
-gf100_gr_context_dtor(struct nvkm_object *object)
-{
-	struct gf100_gr_chan *chan = (void *)object;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(chan->data); i++) {
-		if (chan->data[i].vma.node) {
-			nvkm_vm_unmap(&chan->data[i].vma);
-			nvkm_vm_put(&chan->data[i].vma);
-		}
-		nvkm_memory_del(&chan->data[i].mem);
-	}
-
-	if (chan->mmio_vma.node) {
-		nvkm_vm_unmap(&chan->mmio_vma);
-		nvkm_vm_put(&chan->mmio_vma);
-	}
-	nvkm_memory_del(&chan->mmio);
-
-	nvkm_gr_context_destroy(&chan->base);
 }
 
 /*******************************************************************************
@@ -1312,10 +1331,10 @@ gf100_gr_init_csdata(struct gf100_gr *gr,
 int
 gf100_gr_init_ctxctl(struct gf100_gr *gr)
 {
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct gf100_gr_oclass *oclass = (void *)nv_object(gr)->oclass;
-	struct gf100_grctx_oclass *cclass = (void *)nv_engine(gr)->cclass;
 	int i;
 
 	if (gr->firmware) {
@@ -1446,10 +1465,10 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 	nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
 
 	/* load register lists */
-	gf100_gr_init_csdata(gr, cclass->hub, 0x409000, 0x000, 0x000000);
-	gf100_gr_init_csdata(gr, cclass->gpc, 0x41a000, 0x000, 0x418000);
-	gf100_gr_init_csdata(gr, cclass->tpc, 0x41a000, 0x004, 0x419800);
-	gf100_gr_init_csdata(gr, cclass->ppc, 0x41a000, 0x008, 0x41be00);
+	gf100_gr_init_csdata(gr, grctx->hub, 0x409000, 0x000, 0x000000);
+	gf100_gr_init_csdata(gr, grctx->gpc, 0x41a000, 0x000, 0x418000);
+	gf100_gr_init_csdata(gr, grctx->tpc, 0x41a000, 0x004, 0x419800);
+	gf100_gr_init_csdata(gr, grctx->ppc, 0x41a000, 0x008, 0x41be00);
 
 	/* start HUB ucode running, it'll init the GPCs */
 	nvkm_wr32(device, 0x40910c, 0x00000000);
@@ -1646,6 +1665,12 @@ gf100_gr_dtor(struct nvkm_object *object)
 	nvkm_gr_destroy(&gr->base);
 }
 
+static const struct nvkm_gr_func
+gf100_gr_ = {
+	.chan_new = gf100_gr_chan_new,
+	.object_get = gf100_gr_object_get,
+};
+
 int
 gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *bclass, void *data, u32 size,
@@ -1666,6 +1691,8 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	gr->func = oclass->func;
+	gr->base.func = &gf100_gr_;
 	nv_subdev(gr)->unit = 0x08001000;
 	nv_subdev(gr)->intr = gf100_gr_intr;
 
@@ -1752,8 +1779,6 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		break;
 	}
 
-	nv_engine(gr)->cclass = *oclass->cclass;
-	nv_engine(gr)->sclass =  oclass->sclass;
 	return 0;
 }
 
@@ -1777,6 +1802,18 @@ gf100_gr_gpccs_ucode = {
 	.data.size = sizeof(gf100_grgpc_data),
 };
 
+static const struct gf100_gr_func
+gf100_gr = {
+	.grctx = &gf100_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },
+		{ -1, -1, FERMI_A, &gf100_fermi },
+		{ -1, -1, FERMI_COMPUTE_A },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gf100_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xc0),
@@ -1786,8 +1823,7 @@ gf100_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gf100_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gf100_grctx_oclass,
-	.sclass =  gf100_gr_sclass,
+	.func = &gf100_gr,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,

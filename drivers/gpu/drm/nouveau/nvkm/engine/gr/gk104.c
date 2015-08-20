@@ -29,19 +29,6 @@
 #include <nvif/class.h>
 
 /*******************************************************************************
- * Graphics object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_A, &nvkm_object_ofuncs },
-	{ KEPLER_A, &gf100_fermi_ofuncs },
-	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs },
-	{}
-};
-
-/*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
@@ -311,6 +298,18 @@ gk104_gr_init(struct nvkm_object *object)
 	return gf100_gr_init_ctxctl(gr);
 }
 
+static const struct gf100_gr_func
+gk104_gr = {
+	.grctx = &gk104_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },
+		{ -1, -1, KEPLER_A, &gf100_fermi },
+		{ -1, -1, KEPLER_COMPUTE_A },
+		{}
+	}
+};
+
 int
 gk104_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
@@ -351,8 +350,7 @@ gk104_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gk104_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gk104_grctx_oclass,
-	.sclass = gk104_gr_sclass,
+	.func = &gk104_gr,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,
 	.gpccs.ucode = &gk104_gr_gpccs_ucode,

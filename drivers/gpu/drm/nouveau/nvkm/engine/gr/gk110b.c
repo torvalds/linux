@@ -24,6 +24,8 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <nvif/class.h>
+
 /*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
@@ -98,6 +100,18 @@ gk110b_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static const struct gf100_gr_func
+gk110b_gr = {
+	.grctx = &gk110b_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+		{ -1, -1, KEPLER_B, &gf100_fermi },
+		{ -1, -1, KEPLER_COMPUTE_B },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gk110b_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xf1),
@@ -107,8 +121,7 @@ gk110b_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gk104_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gk110b_grctx_oclass,
-	.sclass =  gk110_gr_sclass,
+	.func = &gk110b_gr,
 	.mmio = gk110b_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,
 	.gpccs.ucode = &gk110_gr_gpccs_ucode,

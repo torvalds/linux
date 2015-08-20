@@ -784,10 +784,8 @@ static void
 dd_emit(struct nvkm_grctx *ctx, int num, u32 val) {
 	int i;
 	if (val && ctx->mode == NVKM_GRCTX_VALS) {
-		nvkm_kmap(ctx->data);
 		for (i = 0; i < num; i++)
 			nvkm_wo32(ctx->data, 4 * (ctx->ctxvals_pos + i), val);
-		nvkm_done(ctx->data);
 	}
 	ctx->ctxvals_pos += num;
 }
@@ -1159,10 +1157,8 @@ static void
 xf_emit(struct nvkm_grctx *ctx, int num, u32 val) {
 	int i;
 	if (val && ctx->mode == NVKM_GRCTX_VALS) {
-		nvkm_kmap(ctx->data);
 		for (i = 0; i < num; i++)
 			nvkm_wo32(ctx->data, 4 * (ctx->ctxvals_pos + (i << 3)), val);
-		nvkm_done(ctx->data);
 	}
 	ctx->ctxvals_pos += num << 3;
 }

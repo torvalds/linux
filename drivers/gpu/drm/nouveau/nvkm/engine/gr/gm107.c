@@ -30,19 +30,6 @@
 #include <nvif/class.h>
 
 /*******************************************************************************
- * Graphics object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gm107_gr_sclass[] = {
-	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
-	{ MAXWELL_A, &gf100_fermi_ofuncs },
-	{ MAXWELL_COMPUTE_A, &nvkm_object_ofuncs },
-	{}
-};
-
-/*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
@@ -454,6 +441,18 @@ gm107_gr_gpccs_ucode = {
 	.data.size = sizeof(gm107_grgpc_data),
 };
 
+static const struct gf100_gr_func
+gm107_gr = {
+	.grctx = &gm107_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+		{ -1, -1, MAXWELL_A, &gf100_fermi },
+		{ -1, -1, MAXWELL_COMPUTE_A },
+		{}
+	}
+};
+
 struct nvkm_oclass *
 gm107_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0x07),
@@ -463,8 +462,7 @@ gm107_gr_oclass = &(struct gf100_gr_oclass) {
 		.init = gm107_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gm107_grctx_oclass,
-	.sclass =  gm107_gr_sclass,
+	.func = &gm107_gr,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,
