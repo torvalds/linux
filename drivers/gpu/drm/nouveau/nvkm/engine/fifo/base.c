@@ -57,10 +57,11 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			  int bar, u32 addr, u32 size, u32 pushbuf,
 			  u64 engmask, int len, void **ptr)
 {
-	struct nvkm_device *device = nv_device(engine);
 	struct nvkm_fifo *fifo = (void *)engine;
 	struct nvkm_fifo_chan *chan;
 	struct nvkm_dmaeng *dmaeng;
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	unsigned long flags;
 	int ret;
 
@@ -100,7 +101,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	if (chan->chid == fifo->max) {
-		nv_error(fifo, "no free channels\n");
+		nvkm_error(subdev, "no free channels\n");
 		return -ENOSPC;
 	}
 

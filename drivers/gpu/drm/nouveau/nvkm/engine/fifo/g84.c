@@ -83,7 +83,8 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	struct nv50_fifo *fifo = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bar *bar = device->bar;
 	u32 addr, save, engn;
 	bool done;
@@ -112,8 +113,8 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	) >= 0;
 	nvkm_wr32(device, 0x002520, save);
 	if (!done) {
-		nv_error(fifo, "channel %d [%s] unload timeout\n",
-			 chan->base.chid, nvkm_client_name(chan));
+		nvkm_error(subdev, "channel %d [%s] unload timeout\n",
+			   chan->base.chid, nvkm_client_name(chan));
 		if (suspend)
 			return -EBUSY;
 	}

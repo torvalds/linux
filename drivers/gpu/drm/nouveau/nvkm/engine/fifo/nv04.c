@@ -412,9 +412,10 @@ out:
 }
 
 static void
-nv04_fifo_cache_error(struct nvkm_device *device,
-		      struct nv04_fifo *fifo, u32 chid, u32 get)
+nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 {
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 mthd, data;
 	int ptr;
 
@@ -436,10 +437,10 @@ nv04_fifo_cache_error(struct nvkm_device *device,
 	if (!nv04_fifo_swmthd(fifo, chid, mthd, data)) {
 		const char *client_name =
 			nvkm_client_name_for_fifo_chid(&fifo->base, chid);
-		nv_error(fifo,
-			 "CACHE_ERROR - ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
-			 chid, client_name, (mthd >> 13) & 7, mthd & 0x1ffc,
-			 data);
+		nvkm_error(subdev, "CACHE_ERROR - "
+			   "ch %d [%s] subc %d mthd %04x data %08x\n",
+			   chid, client_name, (mthd >> 13) & 7, mthd & 0x1ffc,
+			   data);
 	}
 
 	nvkm_wr32(device, NV04_PFIFO_CACHE1_DMA_PUSH, 0);
@@ -458,14 +459,15 @@ nv04_fifo_cache_error(struct nvkm_device *device,
 }
 
 static void
-nv04_fifo_dma_pusher(struct nvkm_device *device,
-		     struct nv04_fifo *fifo, u32 chid)
+nv04_fifo_dma_pusher(struct nv04_fifo *fifo, u32 chid)
 {
-	const char *client_name;
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 dma_get = nvkm_rd32(device, 0x003244);
 	u32 dma_put = nvkm_rd32(device, 0x003240);
 	u32 push = nvkm_rd32(device, 0x003220);
 	u32 state = nvkm_rd32(device, 0x003228);
+	const char *client_name;
 
 	client_name = nvkm_client_name_for_fifo_chid(&fifo->base, chid);
 
@@ -475,10 +477,12 @@ nv04_fifo_dma_pusher(struct nvkm_device *device,
 		u32 ib_get = nvkm_rd32(device, 0x003334);
 		u32 ib_put = nvkm_rd32(device, 0x003330);
 
-		nv_error(fifo,
-			 "DMA_PUSHER - ch %d [%s] get 0x%02x%08x put 0x%02x%08x ib_get 0x%08x ib_put 0x%08x state 0x%08x (err: %s) push 0x%08x\n",
-			 chid, client_name, ho_get, dma_get, ho_put, dma_put,
-			 ib_get, ib_put, state, nv_dma_state_err(state), push);
+		nvkm_error(subdev, "DMA_PUSHER - "
+			   "ch %d [%s] get %02x%08x put %02x%08x ib_get %08x "
+			   "ib_put %08x state %08x (err: %s) push %08x\n",
+			   chid, client_name, ho_get, dma_get, ho_put, dma_put,
+			   ib_get, ib_put, state, nv_dma_state_err(state),
+			   push);
 
 		/* METHOD_COUNT, in DMA_STATE on earlier chipsets */
 		nvkm_wr32(device, 0x003364, 0x00000000);
@@ -489,10 +493,10 @@ nv04_fifo_dma_pusher(struct nvkm_device *device,
 		if (ib_get != ib_put)
 			nvkm_wr32(device, 0x003334, ib_put);
 	} else {
-		nv_error(fifo,
-			 "DMA_PUSHER - ch %d [%s] get 0x%08x put 0x%08x state 0x%08x (err: %s) push 0x%08x\n",
-			 chid, client_name, dma_get, dma_put, state,
-			 nv_dma_state_err(state), push);
+		nvkm_error(subdev, "DMA_PUSHER - ch %d [%s] get %08x put %08x "
+				   "state %08x (err: %s) push %08x\n",
+			   chid, client_name, dma_get, dma_put, state,
+			   nv_dma_state_err(state), push);
 
 		if (dma_get != dma_put)
 			nvkm_wr32(device, 0x003244, dma_put);
@@ -506,7 +510,7 @@ nv04_fifo_dma_pusher(struct nvkm_device *device,
 void
 nv04_fifo_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_device *device = nv_device(subdev);
+	struct nvkm_device *device = subdev->device;
 	struct nv04_fifo *fifo = (void *)subdev;
 	u32 mask = nvkm_rd32(device, NV03_PFIFO_INTR_EN_0);
 	u32 stat = nvkm_rd32(device, NV03_PFIFO_INTR_0) & mask;
@@ -519,12 +523,12 @@ nv04_fifo_intr(struct nvkm_subdev *subdev)
 	get  = nvkm_rd32(device, NV03_PFIFO_CACHE1_GET);
 
 	if (stat & NV_PFIFO_INTR_CACHE_ERROR) {
-		nv04_fifo_cache_error(device, fifo, chid, get);
+		nv04_fifo_cache_error(fifo, chid, get);
 		stat &= ~NV_PFIFO_INTR_CACHE_ERROR;
 	}
 
 	if (stat & NV_PFIFO_INTR_DMA_PUSHER) {
-		nv04_fifo_dma_pusher(device, fifo, chid);
+		nv04_fifo_dma_pusher(fifo, chid);
 		stat &= ~NV_PFIFO_INTR_DMA_PUSHER;
 	}
 
@@ -553,7 +557,7 @@ nv04_fifo_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat) {
-		nv_warn(fifo, "unknown intr 0x%08x\n", stat);
+		nvkm_warn(subdev, "intr %08x\n", stat);
 		nvkm_mask(device, NV03_PFIFO_INTR_EN_0, stat, 0x00000000);
 		nvkm_wr32(device, NV03_PFIFO_INTR_0, stat);
 	}
