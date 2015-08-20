@@ -65,19 +65,21 @@ nv04_fifo_object_attach(struct nvkm_object *parent,
 	else
 		context = 0x00000004; /* just non-zero */
 
-	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW:
-		context |= 0x00000000;
-		break;
-	case NVDEV_ENGINE_GR:
-		context |= 0x00010000;
-		break;
-	case NVDEV_ENGINE_MPEG:
-		context |= 0x00020000;
-		break;
-	default:
-		return -EINVAL;
+	if (object->engine) {
+		switch (nv_engidx(object->engine)) {
+		case NVDEV_ENGINE_DMAOBJ:
+		case NVDEV_ENGINE_SW:
+			context |= 0x00000000;
+			break;
+		case NVDEV_ENGINE_GR:
+			context |= 0x00010000;
+			break;
+		case NVDEV_ENGINE_MPEG:
+			context |= 0x00020000;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	context |= 0x80000000; /* valid */

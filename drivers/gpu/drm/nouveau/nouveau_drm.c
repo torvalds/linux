@@ -141,7 +141,7 @@ nouveau_accel_fini(struct nouveau_drm *drm)
 {
 	nouveau_channel_del(&drm->channel);
 	nvif_object_fini(&drm->ntfy);
-	nvkm_gpuobj_ref(NULL, &drm->notify);
+	nvkm_gpuobj_del(&drm->notify);
 	nvif_object_fini(&drm->nvsw);
 	nouveau_channel_del(&drm->cechan);
 	nvif_object_fini(&drm->ttm.copy);
@@ -264,8 +264,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		ret = nvkm_gpuobj_new(nvxx_object(&drm->device.object), NULL, 32,
-				      0, 0, &drm->notify);
+		ret = nvkm_gpuobj_new(nvxx_device(&drm->device), 32, 0, false,
+				      NULL, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
 			nouveau_accel_fini(drm);

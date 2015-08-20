@@ -24,32 +24,74 @@
 #include "priv.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
+struct hack {
+	struct nvkm_gpuobj object;
+	struct nvkm_gpuobj *parent;
+};
+
+static void
+dtor(struct nvkm_object *object)
+{
+	struct hack *hack = (void *)object;
+	nvkm_gpuobj_del(&hack->parent);
+	nvkm_object_destroy(&hack->object.object);
+}
+
+static struct nvkm_oclass
+hack = {
+	.handle = NV_GPUOBJ_CLASS,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.dtor = dtor,
+		.init = _nvkm_object_init,
+		.fini = _nvkm_object_fini,
+	},
+};
+
 static int
-nvkm_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+nvkm_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_gpuobj *pargpu,
 		 struct nvkm_gpuobj **pgpuobj)
 {
 	const struct nvkm_dmaeng_impl *impl = (void *)
 		nv_oclass(nv_object(dmaobj)->engine);
 	int ret = 0;
 
-	if (nv_object(dmaobj) == parent) { /* ctor bind */
+	if (&dmaobj->base == &pargpu->object) { /* ctor bind */
+		struct nvkm_object *parent = (void *)pargpu;
+		struct hack *object;
+
 		if (nv_mclass(parent->parent) == NV_DEVICE) {
 			/* delayed, or no, binding */
 			return 0;
 		}
-		ret = impl->bind(dmaobj, parent, pgpuobj);
-		if (ret == 0)
+
+		pargpu = (void *)nv_pclass((void *)pargpu, NV_GPUOBJ_CLASS);
+
+		ret = nvkm_object_create(parent, NULL, &hack, NV_GPUOBJ_CLASS, &object);
+		if (ret == 0) {
 			nvkm_object_ref(NULL, &parent);
+			*pgpuobj = &object->object;
+
+			ret = impl->bind(dmaobj, pargpu, &object->parent);
+			if (ret)
+				return ret;
+
+			object->object.node = object->parent->node;
+			object->object.addr = object->parent->addr;
+			object->object.size = object->parent->size;
+			return 0;
+		}
+
 		return ret;
 	}
 
-	return impl->bind(dmaobj, parent, pgpuobj);
+	return impl->bind(dmaobj, pargpu, pgpuobj);
 }
 
 int

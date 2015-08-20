@@ -420,7 +420,7 @@ nvkm_vm_link(struct nvkm_vm *vm, struct nvkm_gpuobj *pgd)
 	if (!vpgd)
 		return -ENOMEM;
 
-	nvkm_gpuobj_ref(pgd, &vpgd->obj);
+	vpgd->obj = pgd;
 
 	mutex_lock(&vm->mutex);
 	for (i = vm->fpde; i <= vm->lpde; i++)
@@ -434,7 +434,6 @@ static void
 nvkm_vm_unlink(struct nvkm_vm *vm, struct nvkm_gpuobj *mpgd)
 {
 	struct nvkm_vm_pgd *vpgd, *tmp;
-	struct nvkm_gpuobj *pgd = NULL;
 
 	if (!mpgd)
 		return;
@@ -442,15 +441,12 @@ nvkm_vm_unlink(struct nvkm_vm *vm, struct nvkm_gpuobj *mpgd)
 	mutex_lock(&vm->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		if (vpgd->obj == mpgd) {
-			pgd = vpgd->obj;
 			list_del(&vpgd->head);
 			kfree(vpgd);
 			break;
 		}
 	}
 	mutex_unlock(&vm->mutex);
-
-	nvkm_gpuobj_ref(NULL, &pgd);
 }
 
 static void

@@ -99,7 +99,6 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	static struct lock_class_key bar1_lock;
 	static struct lock_class_key bar3_lock;
 	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_object *heap;
 	struct nvkm_vm *vm;
 	struct nv50_bar *bar;
 	u64 start, limit;
@@ -110,19 +109,17 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), NULL, 0x20000, 0,
-			      NVOBJ_FLAG_HEAP, &bar->mem);
-	heap = nv_object(bar->mem);
+	ret = nvkm_gpuobj_new(device, 0x20000, 0, false, NULL, &bar->mem);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), heap,
-			      (device->chipset == 0x50) ? 0x1400 : 0x0200,
-			      0, 0, &bar->pad);
+	ret = nvkm_gpuobj_new(device, (device->chipset == 0x50) ?
+			      0x1400 : 0x200, 0, false, bar->mem,
+			      &bar->pad);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), heap, 0x4000, 0, 0, &bar->pgd);
+	ret = nvkm_gpuobj_new(device, 0x4000, 0, false, bar->mem, &bar->pgd);
 	if (ret)
 		return ret;
 
@@ -145,7 +142,7 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), heap, 24, 16, 0, &bar->bar3);
+	ret = nvkm_gpuobj_new(device, 24, 16, false, bar->mem, &bar->bar3);
 	if (ret)
 		return ret;
 
@@ -174,7 +171,7 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), heap, 24, 16, 0, &bar->bar1);
+	ret = nvkm_gpuobj_new(device, 24, 16, false, bar->mem, &bar->bar1);
 	if (ret)
 		return ret;
 
@@ -203,16 +200,16 @@ static void
 nv50_bar_dtor(struct nvkm_object *object)
 {
 	struct nv50_bar *bar = (void *)object;
-	nvkm_gpuobj_ref(NULL, &bar->bar1);
+	nvkm_gpuobj_del(&bar->bar1);
 	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->pgd);
-	nvkm_gpuobj_ref(NULL, &bar->bar3);
+	nvkm_gpuobj_del(&bar->bar3);
 	if (bar->bar3_vm) {
 		nvkm_memory_del(&bar->bar3_vm->pgt[0].mem[0]);
 		nvkm_vm_ref(NULL, &bar->bar3_vm, bar->pgd);
 	}
-	nvkm_gpuobj_ref(NULL, &bar->pgd);
-	nvkm_gpuobj_ref(NULL, &bar->pad);
-	nvkm_gpuobj_ref(NULL, &bar->mem);
+	nvkm_gpuobj_del(&bar->pgd);
+	nvkm_gpuobj_del(&bar->pad);
+	nvkm_gpuobj_del(&bar->mem);
 	nvkm_bar_destroy(&bar->base);
 }
 

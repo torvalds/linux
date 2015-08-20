@@ -22,7 +22,7 @@ int _nvkm_dmaeng_ctor(struct nvkm_object *, struct nvkm_object *,
 struct nvkm_dmaeng_impl {
 	struct nvkm_oclass base;
 	struct nvkm_oclass *sclass;
-	int (*bind)(struct nvkm_dmaobj *, struct nvkm_object *,
+	int (*bind)(struct nvkm_dmaobj *, struct nvkm_gpuobj *,
 		    struct nvkm_gpuobj **);
 };
 #endif

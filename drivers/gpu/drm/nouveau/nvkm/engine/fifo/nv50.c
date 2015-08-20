@@ -171,13 +171,15 @@ nv50_fifo_object_attach(struct nvkm_object *parent,
 	else
 		context = 0x00000004; /* just non-zero */
 
-	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_DMAOBJ:
-	case NVDEV_ENGINE_SW    : context |= 0x00000000; break;
-	case NVDEV_ENGINE_GR    : context |= 0x00100000; break;
-	case NVDEV_ENGINE_MPEG  : context |= 0x00200000; break;
-	default:
-		return -EINVAL;
+	if (object->engine) {
+		switch (nv_engidx(object->engine)) {
+		case NVDEV_ENGINE_DMAOBJ:
+		case NVDEV_ENGINE_SW    : context |= 0x00000000; break;
+		case NVDEV_ENGINE_GR    : context |= 0x00100000; break;
+		case NVDEV_ENGINE_MPEG  : context |= 0x00200000; break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	return nvkm_ramht_insert(chan->ramht, 0, handle, context);
@@ -402,6 +404,7 @@ nv50_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		       struct nvkm_oclass *oclass, void *data, u32 size,
 		       struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = nv_engine(engine)->subdev.device;
 	struct nv50_fifo_base *base;
 	int ret;
 
@@ -411,17 +414,17 @@ nv50_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(base), nv_object(base), 0x0200,
-			      0x1000, NVOBJ_FLAG_ZERO_ALLOC, &base->ramfc);
+	ret = nvkm_gpuobj_new(device, 0x0200, 0x1000, true, &base->base.gpuobj,
+			      &base->ramfc);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(base), nv_object(base), 0x1200, 0,
-			      NVOBJ_FLAG_ZERO_ALLOC, &base->eng);
+	ret = nvkm_gpuobj_new(device, 0x1200, 0, true, &base->base.gpuobj,
+			      &base->eng);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(base), nv_object(base), 0x4000, 0, 0,
+	ret = nvkm_gpuobj_new(device, 0x4000, 0, false, &base->base.gpuobj,
 			      &base->pgd);
 	if (ret)
 		return ret;
@@ -438,10 +441,10 @@ nv50_fifo_context_dtor(struct nvkm_object *object)
 {
 	struct nv50_fifo_base *base = (void *)object;
 	nvkm_vm_ref(NULL, &base->vm, base->pgd);
-	nvkm_gpuobj_ref(NULL, &base->pgd);
-	nvkm_gpuobj_ref(NULL, &base->eng);
-	nvkm_gpuobj_ref(NULL, &base->ramfc);
-	nvkm_gpuobj_ref(NULL, &base->cache);
+	nvkm_gpuobj_del(&base->pgd);
+	nvkm_gpuobj_del(&base->eng);
+	nvkm_gpuobj_del(&base->ramfc);
+	nvkm_gpuobj_del(&base->cache);
 	nvkm_fifo_context_destroy(&base->base);
 }
 

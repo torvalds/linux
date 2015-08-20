@@ -37,41 +37,28 @@ struct nv04_dmaobj {
 };
 
 static int
-nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
+nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 		 struct nvkm_gpuobj **pgpuobj)
 {
 	struct nv04_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
-	struct nvkm_gpuobj *gpuobj;
+	struct nvkm_device *device = dmaobj->base.base.engine->subdev.device;
 	u64 offset = dmaobj->base.start & 0xfffff000;
 	u64 adjust = dmaobj->base.start & 0x00000fff;
 	u32 length = dmaobj->base.limit - dmaobj->base.start;
 	int ret;
 
-	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
-		switch (nv_mclass(parent->parent)) {
-		case NV03_CHANNEL_DMA:
-		case NV10_CHANNEL_DMA:
-		case NV17_CHANNEL_DMA:
-		case NV40_CHANNEL_DMA:
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-
 	if (dmaobj->clone) {
 		struct nv04_mmu *mmu = nv04_mmu(dmaobj);
 		struct nvkm_memory *pgt = mmu->vm->pgt[0].mem[0];
 		if (!dmaobj->base.start)
-			return nvkm_gpuobj_dup(parent, pgt, pgpuobj);
+			return nvkm_gpuobj_wrap(pgt, pgpuobj);
 		nvkm_kmap(pgt);
 		offset  = nvkm_ro32(pgt, 8 + (offset >> 10));
 		offset &= 0xfffff000;
 		nvkm_done(pgt);
 	}
 
-	ret = nvkm_gpuobj_new(parent, parent, 16, 16, 0, &gpuobj);
-	*pgpuobj = gpuobj;
+	ret = nvkm_gpuobj_new(device, 16, 16, false, parent, pgpuobj);
 	if (ret == 0) {
 		nvkm_kmap(*pgpuobj);
 		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0 | (adjust << 20));
@@ -134,7 +121,7 @@ nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return -EINVAL;
 	}
 
-	return dmaeng->bind(&dmaobj->base, nv_object(dmaobj), (void *)pobject);
+	return dmaeng->bind(&dmaobj->base, (void *)dmaobj, (void *)pobject);
 }
 
 static struct nvkm_ofuncs

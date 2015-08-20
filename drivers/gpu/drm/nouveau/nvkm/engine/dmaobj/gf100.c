@@ -37,25 +37,14 @@ struct gf100_dmaobj {
 };
 
 static int
-gf100_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
+gf100_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 		  struct nvkm_gpuobj **pgpuobj)
 {
 	struct gf100_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
+	struct nvkm_device *device = dmaobj->base.base.engine->subdev.device;
 	int ret;
 
-	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
-		switch (nv_mclass(parent->parent)) {
-		case GT214_DISP_CORE_CHANNEL_DMA:
-		case GT214_DISP_BASE_CHANNEL_DMA:
-		case GT214_DISP_OVERLAY_CHANNEL_DMA:
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else
-		return 0;
-
-	ret = nvkm_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
+	ret = nvkm_gpuobj_new(device, 24, 32, false, parent, pgpuobj);
 	if (ret == 0) {
 		nvkm_kmap(*pgpuobj);
 		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0 | nv_mclass(dmaobj));
@@ -146,7 +135,7 @@ gf100_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		break;
 	}
 
-	return dmaeng->bind(&dmaobj->base, nv_object(dmaobj), (void *)pobject);
+	return dmaeng->bind(&dmaobj->base, (void *)dmaobj, (void *)pobject);
 }
 
 static struct nvkm_ofuncs

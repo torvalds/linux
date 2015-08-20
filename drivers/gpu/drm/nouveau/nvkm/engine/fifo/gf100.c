@@ -130,8 +130,8 @@ gf100_fifo_context_attach(struct nvkm_object *parent,
 	}
 
 	if (!ectx->vma.node) {
-		ret = nvkm_gpuobj_map_vm(nv_gpuobj(ectx), base->vm,
-					 NV_MEM_ACCESS_RW, &ectx->vma);
+		ret = nvkm_gpuobj_map(nv_gpuobj(ectx), base->vm,
+				      NV_MEM_ACCESS_RW, &ectx->vma);
 		if (ret)
 			return ret;
 
@@ -334,6 +334,7 @@ gf100_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			struct nvkm_oclass *oclass, void *data, u32 size,
 			struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = nv_engine(engine)->subdev.device;
 	struct gf100_fifo_base *base;
 	int ret;
 
@@ -344,8 +345,7 @@ gf100_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(base), NULL, 0x10000, 0x1000, 0,
-			      &base->pgd);
+	ret = nvkm_gpuobj_new(device, 0x10000, 0x1000, false, NULL, &base->pgd);
 	if (ret)
 		return ret;
 
@@ -368,7 +368,7 @@ gf100_fifo_context_dtor(struct nvkm_object *object)
 {
 	struct gf100_fifo_base *base = (void *)object;
 	nvkm_vm_ref(NULL, &base->vm, base->pgd);
-	nvkm_gpuobj_ref(NULL, &base->pgd);
+	nvkm_gpuobj_del(&base->pgd);
 	nvkm_fifo_context_destroy(&base->base);
 }
 

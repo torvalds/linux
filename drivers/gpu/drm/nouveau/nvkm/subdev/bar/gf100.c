@@ -75,8 +75,7 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), NULL, 0x8000, 0, 0,
-			      &bar_vm->pgd);
+	ret = nvkm_gpuobj_new(device, 0x8000, 0, false, NULL, &bar_vm->pgd);
 	if (ret)
 		return ret;
 
@@ -157,14 +156,14 @@ gf100_bar_dtor(struct nvkm_object *object)
 	struct gf100_bar *bar = (void *)object;
 
 	nvkm_vm_ref(NULL, &bar->bar[1].vm, bar->bar[1].pgd);
-	nvkm_gpuobj_ref(NULL, &bar->bar[1].pgd);
+	nvkm_gpuobj_del(&bar->bar[1].pgd);
 	nvkm_memory_del(&bar->bar[1].mem);
 
 	if (bar->bar[0].vm) {
 		nvkm_memory_del(&bar->bar[0].vm->pgt[0].mem[0]);
 		nvkm_vm_ref(NULL, &bar->bar[0].vm, bar->bar[0].pgd);
 	}
-	nvkm_gpuobj_ref(NULL, &bar->bar[0].pgd);
+	nvkm_gpuobj_del(&bar->bar[0].pgd);
 	nvkm_memory_del(&bar->bar[0].mem);
 
 	nvkm_bar_destroy(&bar->base);

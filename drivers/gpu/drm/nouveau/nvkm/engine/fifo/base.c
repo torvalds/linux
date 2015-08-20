@@ -61,6 +61,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 	struct nvkm_handle *handle;
 	struct nvkm_dmaobj *dmaobj;
 	struct nvkm_fifo *fifo = (void *)engine;
+	struct nvkm_fifo_base *base = (void *)parent;
 	struct nvkm_fifo_chan *chan;
 	struct nvkm_dmaeng *dmaeng;
 	struct nvkm_subdev *subdev = &fifo->engine.subdev;
@@ -91,7 +92,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			return -EINVAL;
 		}
 
-		ret = dmaeng->bind(dmaobj, parent, &chan->pushgpu);
+		ret = dmaeng->bind(dmaobj, &base->gpuobj, &chan->pushgpu);
 		if (ret)
 			return ret;
 	}
@@ -131,7 +132,7 @@ nvkm_fifo_channel_destroy(struct nvkm_fifo_chan *chan)
 	fifo->channel[chan->chid] = NULL;
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
-	nvkm_gpuobj_ref(NULL, &chan->pushgpu);
+	nvkm_gpuobj_del(&chan->pushgpu);
 	nvkm_namedb_destroy(&chan->namedb);
 }
 
