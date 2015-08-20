@@ -36,7 +36,7 @@ struct ip_tunnel_key {
 	__u8			ipv4_ttl;
 	__be16			tp_src;
 	__be16			tp_dst;
-} __packed __aligned(4); /* Minimize padding. */
+};
 
 /* Indicates whether the tunnel info structure represents receive
  * or transmit tunnel parameters.
