@@ -219,13 +219,6 @@ struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id)
 	return ctx;
 }
 
-struct amdgpu_ctx *amdgpu_ctx_get_ref(struct amdgpu_ctx *ctx)
-{
-	if (ctx)
-		kref_get(&ctx->refcount);
-	return ctx;
-}
-
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 {
 	if (ctx == NULL)

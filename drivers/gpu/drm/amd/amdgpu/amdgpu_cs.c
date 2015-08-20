@@ -775,7 +775,6 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 static int amdgpu_cs_free_job(struct amdgpu_job *sched_job)
 {
 	int i;
-	amdgpu_ctx_put(sched_job->ctx);
 	if (sched_job->ibs)
 		for (i = 0; i < sched_job->num_ibs; i++)
 			amdgpu_ib_free(sched_job->adev, &sched_job->ibs[i]);
@@ -849,7 +848,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		job->ibs = parser->ibs;
 		job->num_ibs = parser->num_ibs;
 		job->owner = parser->filp;
-		job->ctx = amdgpu_ctx_get_ref(parser->ctx);
 		mutex_init(&job->job_lock);
 		if (job->ibs[job->num_ibs - 1].user) {
 			memcpy(&job->uf,  &parser->uf,
@@ -867,7 +865,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			goto out;
 		}
 		cs->out.handle =
-			amdgpu_ctx_add_fence(job->ctx, ring,
+			amdgpu_ctx_add_fence(parser->ctx, ring,
 					     &job->base.s_fence->base);
 		parser->ibs[parser->num_ibs - 1].sequence = cs->out.handle;
 
