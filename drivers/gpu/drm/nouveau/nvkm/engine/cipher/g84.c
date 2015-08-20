@@ -25,73 +25,46 @@
 #include <engine/fifo.h>
 
 #include <core/client.h>
-#include <core/engctx.h>
 #include <core/enum.h>
+#include <core/gpuobj.h>
 
-/*******************************************************************************
- * Crypt object classes
- ******************************************************************************/
+#include <nvif/class.h>
 
 static int
-g84_cipher_object_ctor(struct nvkm_object *parent,
-		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, void *data, u32 size,
-		       struct nvkm_object **pobject)
+g84_cipher_oclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+		       int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct nvkm_gpuobj *obj;
-	int ret;
-
-	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
-				 16, 16, 0, &obj);
-	*pobject = nv_object(obj);
-	if (ret)
-		return ret;
-
-	nvkm_kmap(obj);
-	nvkm_wo32(obj, 0x00, nv_mclass(obj));
-	nvkm_wo32(obj, 0x04, 0x00000000);
-	nvkm_wo32(obj, 0x08, 0x00000000);
-	nvkm_wo32(obj, 0x0c, 0x00000000);
-	nvkm_done(obj);
-	return 0;
+	int ret = nvkm_gpuobj_new(object->engine->subdev.device, 16,
+				  align, false, parent, pgpuobj);
+	if (ret == 0) {
+		nvkm_kmap(*pgpuobj);
+		nvkm_wo32(*pgpuobj, 0x00, object->oclass_name);
+		nvkm_wo32(*pgpuobj, 0x04, 0x00000000);
+		nvkm_wo32(*pgpuobj, 0x08, 0x00000000);
+		nvkm_wo32(*pgpuobj, 0x0c, 0x00000000);
+		nvkm_done(*pgpuobj);
+	}
+	return ret;
 }
 
-static struct nvkm_ofuncs
-g84_cipher_ofuncs = {
-	.ctor = g84_cipher_object_ctor,
-	.dtor = _nvkm_gpuobj_dtor,
-	.init = _nvkm_gpuobj_init,
-	.fini = _nvkm_gpuobj_fini,
-	.rd32 = _nvkm_gpuobj_rd32,
-	.wr32 = _nvkm_gpuobj_wr32,
+static const struct nvkm_object_func
+g84_cipher_oclass_func = {
+	.bind = g84_cipher_oclass_bind,
 };
 
-static struct nvkm_oclass
-g84_cipher_sclass[] = {
-	{ 0x74c1, &g84_cipher_ofuncs },
-	{}
-};
+static int
+g84_cipher_cclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+		       int align, struct nvkm_gpuobj **pgpuobj)
+{
+	return nvkm_gpuobj_new(object->engine->subdev.device, 256,
+			       align, true, parent, pgpuobj);
 
-/*******************************************************************************
- * PCIPHER context
- ******************************************************************************/
+}
 
-static struct nvkm_oclass
+static const struct nvkm_object_func
 g84_cipher_cclass = {
-	.handle = NV_ENGCTX(CIPHER, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_engctx_ctor,
-		.dtor = _nvkm_engctx_dtor,
-		.init = _nvkm_engctx_init,
-		.fini = _nvkm_engctx_fini,
-		.rd32 = _nvkm_engctx_rd32,
-		.wr32 = _nvkm_engctx_wr32,
-	},
+	.bind = g84_cipher_cclass_bind,
 };
-
-/*******************************************************************************
- * PCIPHER engine/subdev functions
- ******************************************************************************/
 
 static const struct nvkm_bitfield
 g84_cipher_intr_mask[] = {
@@ -132,6 +105,15 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, 0x10200c, 0x10);
 }
 
+static const struct nvkm_engine_func
+g84_cipher = {
+	.cclass = &g84_cipher_cclass,
+	.sclass = {
+		{ -1, -1, NV74_CIPHER, &g84_cipher_oclass_func },
+		{}
+	}
+};
+
 static int
 g84_cipher_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
@@ -146,10 +128,9 @@ g84_cipher_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	cipher->func = &g84_cipher,
 	nv_subdev(cipher)->unit = 0x00004000;
 	nv_subdev(cipher)->intr = g84_cipher_intr;
-	nv_engine(cipher)->cclass = &g84_cipher_cclass;
-	nv_engine(cipher)->sclass = g84_cipher_sclass;
 	return 0;
 }
 
