@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 const struct nvkm_mc_intr
 gf100_mc_intr[] = {
@@ -60,16 +60,16 @@ gf100_mc_unk260(struct nvkm_mc *mc, u32 data)
 	nvkm_wr32(mc->subdev.device, 0x000260, data);
 }
 
-struct nvkm_oclass *
-gf100_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv50_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
+static const struct nvkm_mc_func
+gf100_mc = {
+	.init = nv50_mc_init,
 	.intr = gf100_mc_intr,
 	.msi_rearm = gf100_mc_msi_rearm,
 	.unk260 = gf100_mc_unk260,
-}.base;
+};
+
+int
+gf100_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&gf100_mc, device, index, pmc);
+}

@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 const struct nvkm_mc_intr
 nv04_mc_intr[] = {
@@ -38,42 +38,22 @@ nv04_mc_intr[] = {
 	{}
 };
 
-int
-nv04_mc_init(struct nvkm_object *object)
+void
+nv04_mc_init(struct nvkm_mc *mc)
 {
-	struct nvkm_mc *mc = (void *)object;
 	struct nvkm_device *device = mc->subdev.device;
-
 	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything enabled */
 	nvkm_wr32(device, 0x001850, 0x00000001); /* disable rom access */
-
-	return nvkm_mc_init(mc);
 }
+
+static const struct nvkm_mc_func
+nv04_mc = {
+	.init = nv04_mc_init,
+	.intr = nv04_mc_intr,
+};
 
 int
-nv04_mc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+nv04_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
 {
-	struct nvkm_mc *mc;
-	int ret;
-
-	ret = nvkm_mc_create(parent, engine, oclass, &mc);
-	*pobject = nv_object(mc);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvkm_mc_new_(&nv04_mc, device, index, pmc);
 }
-
-struct nvkm_oclass *
-nv04_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv04_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
-	.intr = nv04_mc_intr,
-}.base;

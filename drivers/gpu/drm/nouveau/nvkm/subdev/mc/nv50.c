@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 const struct nvkm_mc_intr
 nv50_mc_intr[] = {
@@ -48,24 +48,22 @@ nv50_mc_msi_rearm(struct nvkm_mc *mc)
 	pci_write_config_byte(device->pdev, 0x68, 0xff);
 }
 
-int
-nv50_mc_init(struct nvkm_object *object)
+void
+nv50_mc_init(struct nvkm_mc *mc)
 {
-	struct nvkm_mc *mc = (void *)object;
 	struct nvkm_device *device = mc->subdev.device;
 	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything on */
-	return nvkm_mc_init(mc);
 }
 
-struct nvkm_oclass *
-nv50_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv50_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
+static const struct nvkm_mc_func
+nv50_mc = {
+	.init = nv50_mc_init,
 	.intr = nv50_mc_intr,
 	.msi_rearm = nv50_mc_msi_rearm,
-}.base;
+};
+
+int
+nv50_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&nv50_mc, device, index, pmc);
+}

@@ -1239,7 +1239,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 
-	nvkm_mc(gr)->unk260(nvkm_mc(gr), 0);
+	nvkm_mc_unk260(device->mc, 0);
 
 	gf100_gr_mmio(gr, grctx->hub);
 	gf100_gr_mmio(gr, grctx->gpc);
@@ -1263,7 +1263,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, 0x00000400);
 	gf100_gr_mthd(gr, grctx->mthd);
-	nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
+	nvkm_mc_unk260(device->mc, 1);
 }
 
 int

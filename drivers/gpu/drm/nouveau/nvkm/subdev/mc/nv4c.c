@@ -21,16 +21,16 @@
  *
  * Authors: Ilia Mirkin
  */
-#include "nv04.h"
+#include "priv.h"
 
-struct nvkm_oclass *
-nv4c_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x4c),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv44_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
+static const struct nvkm_mc_func
+nv4c_mc = {
+	.init = nv44_mc_init,
 	.intr = nv04_mc_intr,
-}.base;
+};
+
+int
+nv4c_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&nv4c_mc, device, index, pmc);
+}

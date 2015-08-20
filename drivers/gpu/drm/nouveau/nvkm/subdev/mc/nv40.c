@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 void
 nv40_mc_msi_rearm(struct nvkm_mc *mc)
@@ -29,15 +29,15 @@ nv40_mc_msi_rearm(struct nvkm_mc *mc)
 	nvkm_wr08(mc->subdev.device, 0x088068, 0xff);
 }
 
-struct nvkm_oclass *
-nv40_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x40),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv04_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
+static const struct nvkm_mc_func
+nv40_mc = {
+	.init = nv04_mc_init,
 	.intr = nv04_mc_intr,
 	.msi_rearm = nv40_mc_msi_rearm,
-}.base;
+};
+
+int
+nv40_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&nv40_mc, device, index, pmc);
+}
