@@ -642,7 +642,7 @@ static int au0828_enable_analog_tuner(struct au0828_dev *dev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev = dev->media_dev;
-	struct media_entity  *entity, *source;
+	struct media_entity *source;
 	struct media_link *link, *found_link = NULL;
 	int i, ret, active_links = 0;
 
@@ -677,7 +677,7 @@ static int au0828_enable_analog_tuner(struct au0828_dev *dev)
 		link = &source->links[i];
 		sink = link->sink->entity;
 
-		if (sink == entity)
+		if (sink == dev->decoder)
 			flags = MEDIA_LNK_FL_ENABLED;
 
 		ret = media_entity_setup_link(link, flags);
