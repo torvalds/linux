@@ -27,17 +27,18 @@ static int
 gk104_ltc_init(struct nvkm_object *object)
 {
 	struct nvkm_ltc_priv *ltc = (void *)object;
-	u32 lpg128 = !(nv_rd32(ltc, 0x100c80) & 0x00000001);
+	struct nvkm_device *device = ltc->base.subdev.device;
+	u32 lpg128 = !(nvkm_rd32(device, 0x100c80) & 0x00000001);
 	int ret;
 
 	ret = nvkm_ltc_init(ltc);
 	if (ret)
 		return ret;
 
-	nv_wr32(ltc, 0x17e8d8, ltc->ltc_nr);
-	nv_wr32(ltc, 0x17e000, ltc->ltc_nr);
-	nv_wr32(ltc, 0x17e8d4, ltc->tag_base);
-	nv_mask(ltc, 0x17e8c0, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
+	nvkm_wr32(device, 0x17e8d8, ltc->ltc_nr);
+	nvkm_wr32(device, 0x17e000, ltc->ltc_nr);
+	nvkm_wr32(device, 0x17e8d4, ltc->tag_base);
+	nvkm_mask(device, 0x17e8c0, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
 	return 0;
 }
 
