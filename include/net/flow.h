@@ -130,6 +130,7 @@ struct flowi6 {
 #define flowi6_proto		__fl_common.flowic_proto
 #define flowi6_flags		__fl_common.flowic_flags
 #define flowi6_secid		__fl_common.flowic_secid
+#define flowi6_tun_key		__fl_common.flowic_tun_key
 	struct in6_addr		daddr;
 	struct in6_addr		saddr;
 	__be32			flowlabel;
