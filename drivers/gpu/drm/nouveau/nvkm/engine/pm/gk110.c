@@ -28,16 +28,16 @@ gk110_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct gf100_pm_priv *priv;
+	struct nvkm_pm *pm;
 	int ret;
 
-	ret = nvkm_pm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_pm_create(parent, engine, oclass, &pm);
+	*pobject = nv_object(pm);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nvkm_pm_cclass;
-	nv_engine(priv)->sclass =  nvkm_pm_sclass;
+	nv_engine(pm)->cclass = &nvkm_pm_cclass;
+	nv_engine(pm)->sclass =  nvkm_pm_sclass;
 	return 0;
 }
 

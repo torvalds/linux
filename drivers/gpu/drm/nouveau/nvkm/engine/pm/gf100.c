@@ -125,10 +125,9 @@ gf100_pm_part[] = {
 };
 
 static void
-gf100_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+gf100_perfctr_init(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		   struct nvkm_perfctr *ctr)
 {
-	struct gf100_pm_priv *priv = (void *)ppm;
 	struct gf100_pm_cntr *cntr = (void *)ctr;
 	u32 log = ctr->logic_op;
 	u32 src = 0x00000000;
@@ -137,34 +136,32 @@ gf100_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	for (i = 0; i < 4; i++)
 		src |= ctr->signal[i] << (i * 8);
 
-	nv_wr32(priv, dom->addr + 0x09c, 0x00040002 | (dom->mode << 3));
-	nv_wr32(priv, dom->addr + 0x100, 0x00000000);
-	nv_wr32(priv, dom->addr + 0x040 + (cntr->base.slot * 0x08), src);
-	nv_wr32(priv, dom->addr + 0x044 + (cntr->base.slot * 0x08), log);
+	nv_wr32(pm, dom->addr + 0x09c, 0x00040002 | (dom->mode << 3));
+	nv_wr32(pm, dom->addr + 0x100, 0x00000000);
+	nv_wr32(pm, dom->addr + 0x040 + (cntr->base.slot * 0x08), src);
+	nv_wr32(pm, dom->addr + 0x044 + (cntr->base.slot * 0x08), log);
 }
 
 static void
-gf100_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+gf100_perfctr_read(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		   struct nvkm_perfctr *ctr)
 {
-	struct gf100_pm_priv *priv = (void *)ppm;
 	struct gf100_pm_cntr *cntr = (void *)ctr;
 
 	switch (cntr->base.slot) {
-	case 0: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x08c); break;
-	case 1: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x088); break;
-	case 2: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x080); break;
-	case 3: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x090); break;
+	case 0: cntr->base.ctr = nv_rd32(pm, dom->addr + 0x08c); break;
+	case 1: cntr->base.ctr = nv_rd32(pm, dom->addr + 0x088); break;
+	case 2: cntr->base.ctr = nv_rd32(pm, dom->addr + 0x080); break;
+	case 3: cntr->base.ctr = nv_rd32(pm, dom->addr + 0x090); break;
 	}
-	dom->clk = nv_rd32(priv, dom->addr + 0x070);
+	dom->clk = nv_rd32(pm, dom->addr + 0x070);
 }
 
 static void
-gf100_perfctr_next(struct nvkm_pm *ppm, struct nvkm_perfdom *dom)
+gf100_perfctr_next(struct nvkm_pm *pm, struct nvkm_perfdom *dom)
 {
-	struct gf100_pm_priv *priv = (void *)ppm;
-	nv_wr32(priv, dom->addr + 0x06c, dom->signal_nr - 0x40 + 0x27);
-	nv_wr32(priv, dom->addr + 0x0ec, 0x00000011);
+	nv_wr32(pm, dom->addr + 0x06c, dom->signal_nr - 0x40 + 0x27);
+	nv_wr32(pm, dom->addr + 0x0ec, 0x00000011);
 }
 
 const struct nvkm_funcdom
@@ -177,10 +174,10 @@ gf100_perfctr_func = {
 int
 gf100_pm_fini(struct nvkm_object *object, bool suspend)
 {
-	struct gf100_pm_priv *priv = (void *)object;
-	nv_mask(priv, 0x000200, 0x10000000, 0x00000000);
-	nv_mask(priv, 0x000200, 0x10000000, 0x10000000);
-	return nvkm_pm_fini(&priv->base, suspend);
+	struct nvkm_pm *pm = (void *)object;
+	nv_mask(pm, 0x000200, 0x10000000, 0x00000000);
+	nv_mask(pm, 0x000200, 0x10000000, 0x10000000);
+	return nvkm_pm_fini(pm, suspend);
 }
 
 int
@@ -189,43 +186,43 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_object **pobject)
 {
 	struct gf100_pm_oclass *mclass = (void *)oclass;
-	struct gf100_pm_priv *priv;
+	struct nvkm_pm *pm;
 	u32 mask;
 	int ret;
 
-	ret = nvkm_pm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_pm_create(parent, engine, oclass, &pm);
+	*pobject = nv_object(pm);
 	if (ret)
 		return ret;
 
 	/* HUB */
-	ret = nvkm_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
+	ret = nvkm_perfdom_new(pm, "hub", 0, 0x1b0000, 0, 0x200,
 			       mclass->doms_hub);
 	if (ret)
 		return ret;
 
 	/* GPC */
-	mask  = (1 << nv_rd32(priv, 0x022430)) - 1;
-	mask &= ~nv_rd32(priv, 0x022504);
-	mask &= ~nv_rd32(priv, 0x022584);
+	mask  = (1 << nv_rd32(pm, 0x022430)) - 1;
+	mask &= ~nv_rd32(pm, 0x022504);
+	mask &= ~nv_rd32(pm, 0x022584);
 
-	ret = nvkm_perfdom_new(&priv->base, "gpc", mask, 0x180000,
+	ret = nvkm_perfdom_new(pm, "gpc", mask, 0x180000,
 			       0x1000, 0x200, mclass->doms_gpc);
 	if (ret)
 		return ret;
 
 	/* PART */
-	mask  = (1 << nv_rd32(priv, 0x022438)) - 1;
-	mask &= ~nv_rd32(priv, 0x022548);
-	mask &= ~nv_rd32(priv, 0x0225c8);
+	mask  = (1 << nv_rd32(pm, 0x022438)) - 1;
+	mask &= ~nv_rd32(pm, 0x022548);
+	mask &= ~nv_rd32(pm, 0x0225c8);
 
-	ret = nvkm_perfdom_new(&priv->base, "part", mask, 0x1a0000,
+	ret = nvkm_perfdom_new(pm, "part", mask, 0x1a0000,
 			       0x1000, 0x200, mclass->doms_part);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nvkm_pm_cclass;
-	nv_engine(priv)->sclass =  nvkm_pm_sclass;
+	nv_engine(pm)->cclass = &nvkm_pm_cclass;
+	nv_engine(pm)->sclass =  nvkm_pm_sclass;
 	return 0;
 }
 

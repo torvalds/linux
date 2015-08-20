@@ -7,7 +7,7 @@ struct nv40_pm_oclass {
 	const struct nvkm_specdom *doms;
 };
 
-struct nv40_pm_priv {
+struct nv40_pm {
 	struct nvkm_pm base;
 	u32 sequence;
 };

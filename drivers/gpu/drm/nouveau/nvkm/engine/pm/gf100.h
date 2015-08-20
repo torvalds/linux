@@ -9,10 +9,6 @@ struct gf100_pm_oclass {
 	const struct nvkm_specdom *doms_part;
 };
 
-struct gf100_pm_priv {
-	struct nvkm_pm base;
-};
-
 int gf100_pm_ctor(struct nvkm_object *, struct nvkm_object *,
 		  struct nvkm_oclass *, void *data, u32 size,
 		  struct nvkm_object **pobject);

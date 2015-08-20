@@ -31,12 +31,12 @@
 #include <nvif/unpack.h>
 
 static u8
-nvkm_pm_count_perfdom(struct nvkm_pm *ppm)
+nvkm_pm_count_perfdom(struct nvkm_pm *pm)
 {
 	struct nvkm_perfdom *dom;
 	u8 domain_nr = 0;
 
-	list_for_each_entry(dom, &ppm->domains, head)
+	list_for_each_entry(dom, &pm->domains, head)
 		domain_nr++;
 	return domain_nr;
 }
@@ -57,12 +57,12 @@ nvkm_perfdom_count_perfsig(struct nvkm_perfdom *dom)
 }
 
 static struct nvkm_perfdom *
-nvkm_perfdom_find(struct nvkm_pm *ppm, int di)
+nvkm_perfdom_find(struct nvkm_pm *pm, int di)
 {
 	struct nvkm_perfdom *dom;
 	int tmp = 0;
 
-	list_for_each_entry(dom, &ppm->domains, head) {
+	list_for_each_entry(dom, &pm->domains, head) {
 		if (tmp++ == di)
 			return dom;
 	}
@@ -70,13 +70,12 @@ nvkm_perfdom_find(struct nvkm_pm *ppm, int di)
 }
 
 struct nvkm_perfsig *
-nvkm_perfsig_find(struct nvkm_pm *ppm, uint8_t di, uint8_t si,
-		  struct nvkm_perfdom **pdom)
+nvkm_perfsig_find(struct nvkm_pm *pm, u8 di, u8 si, struct nvkm_perfdom **pdom)
 {
 	struct nvkm_perfdom *dom = *pdom;
 
 	if (dom == NULL) {
-		dom = nvkm_perfdom_find(ppm, di);
+		dom = nvkm_perfdom_find(pm, di);
 		if (dom == NULL)
 			return NULL;
 		*pdom = dom;
@@ -100,7 +99,7 @@ nvkm_perfsig_count_perfsrc(struct nvkm_perfsig *sig)
 }
 
 static struct nvkm_perfsrc *
-nvkm_perfsrc_find(struct nvkm_pm *ppm, struct nvkm_perfsig *sig, int si)
+nvkm_perfsrc_find(struct nvkm_pm *pm, struct nvkm_perfsig *sig, int si)
 {
 	struct nvkm_perfsrc *src;
 	bool found = false;
@@ -115,7 +114,7 @@ nvkm_perfsrc_find(struct nvkm_pm *ppm, struct nvkm_perfsig *sig, int si)
 	}
 
 	if (found) {
-		list_for_each_entry(src, &ppm->sources, head) {
+		list_for_each_entry(src, &pm->sources, head) {
 			if (tmp++ == si)
 				return src;
 		}
@@ -125,7 +124,7 @@ nvkm_perfsrc_find(struct nvkm_pm *ppm, struct nvkm_perfsig *sig, int si)
 }
 
 static int
-nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
+nvkm_perfsrc_enable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 {
 	struct nvkm_perfdom *dom = NULL;
 	struct nvkm_perfsig *sig;
@@ -135,12 +134,12 @@ nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 8 && ctr->source[i][j]; j++) {
-			sig = nvkm_perfsig_find(ppm, ctr->domain,
+			sig = nvkm_perfsig_find(pm, ctr->domain,
 						ctr->signal[i], &dom);
 			if (!sig)
 				return -EINVAL;
 
-			src = nvkm_perfsrc_find(ppm, sig, ctr->source[i][j]);
+			src = nvkm_perfsrc_find(pm, sig, ctr->source[i][j]);
 			if (!src)
 				return -EINVAL;
 
@@ -152,8 +151,8 @@ nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 			value |= ((ctr->source[i][j] >> 32) << src->shift);
 
 			/* enable the source */
-			nv_mask(ppm, src->addr, mask, value);
-			nv_debug(ppm, "enabled source 0x%08x 0x%08x 0x%08x\n",
+			nv_mask(pm, src->addr, mask, value);
+			nv_debug(pm, "enabled source 0x%08x 0x%08x 0x%08x\n",
 				 src->addr, mask, value);
 		}
 	}
@@ -161,7 +160,7 @@ nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 }
 
 static int
-nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
+nvkm_perfsrc_disable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 {
 	struct nvkm_perfdom *dom = NULL;
 	struct nvkm_perfsig *sig;
@@ -171,12 +170,12 @@ nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 8 && ctr->source[i][j]; j++) {
-			sig = nvkm_perfsig_find(ppm, ctr->domain,
+			sig = nvkm_perfsig_find(pm, ctr->domain,
 						ctr->signal[i], &dom);
 			if (!sig)
 				return -EINVAL;
 
-			src = nvkm_perfsrc_find(ppm, sig, ctr->source[i][j]);
+			src = nvkm_perfsrc_find(pm, sig, ctr->source[i][j]);
 			if (!src)
 				return -EINVAL;
 
@@ -187,8 +186,8 @@ nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 			mask |= (src->mask << src->shift);
 
 			/* disable the source */
-			nv_mask(ppm, src->addr, mask, 0);
-			nv_debug(ppm, "disabled source 0x%08x 0x%08x\n",
+			nv_mask(pm, src->addr, mask, 0);
+			nv_debug(pm, "disabled source 0x%08x 0x%08x\n",
 				 src->addr, mask);
 		}
 	}
@@ -204,7 +203,7 @@ nvkm_perfdom_init(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_perfdom_init none;
 	} *args = data;
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom = (void *)object;
 	int ret, i;
 
@@ -216,15 +215,15 @@ nvkm_perfdom_init(struct nvkm_object *object, void *data, u32 size)
 
 	for (i = 0; i < 4; i++) {
 		if (dom->ctr[i]) {
-			dom->func->init(ppm, dom, dom->ctr[i]);
+			dom->func->init(pm, dom, dom->ctr[i]);
 
 			/* enable sources */
-			nvkm_perfsrc_enable(ppm, dom->ctr[i]);
+			nvkm_perfsrc_enable(pm, dom->ctr[i]);
 		}
 	}
 
 	/* start next batch of counters for sampling */
-	dom->func->next(ppm, dom);
+	dom->func->next(pm, dom);
 	return 0;
 }
 
@@ -234,7 +233,7 @@ nvkm_perfdom_sample(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_perfdom_sample none;
 	} *args = data;
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom;
 	int ret;
 
@@ -243,11 +242,11 @@ nvkm_perfdom_sample(struct nvkm_object *object, void *data, u32 size)
 		nv_ioctl(object, "perfdom sample\n");
 	} else
 		return ret;
-	ppm->sequence++;
+	pm->sequence++;
 
 	/* sample previous batch of counters */
-	list_for_each_entry(dom, &ppm->domains, head)
-		dom->func->next(ppm, dom);
+	list_for_each_entry(dom, &pm->domains, head)
+		dom->func->next(pm, dom);
 
 	return 0;
 }
@@ -258,7 +257,7 @@ nvkm_perfdom_read(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_perfdom_read_v0 v0;
 	} *args = data;
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom = (void *)object;
 	int ret, i;
 
@@ -270,7 +269,7 @@ nvkm_perfdom_read(struct nvkm_object *object, void *data, u32 size)
 
 	for (i = 0; i < 4; i++) {
 		if (dom->ctr[i])
-			dom->func->read(ppm, dom, dom->ctr[i]);
+			dom->func->read(pm, dom, dom->ctr[i]);
 	}
 
 	if (!dom->clk)
@@ -302,14 +301,14 @@ nvkm_perfdom_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 static void
 nvkm_perfdom_dtor(struct nvkm_object *object)
 {
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom = (void *)object;
 	int i;
 
 	for (i = 0; i < 4; i++) {
 		struct nvkm_perfctr *ctr = dom->ctr[i];
 		if (ctr) {
-			nvkm_perfsrc_disable(ppm, ctr);
+			nvkm_perfsrc_disable(pm, ctr);
 			if (ctr->head.next)
 				list_del(&ctr->head);
 		}
@@ -319,9 +318,9 @@ nvkm_perfdom_dtor(struct nvkm_object *object)
 }
 
 static int
-nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot, uint8_t domain,
-		 struct nvkm_perfsig *signal[4], uint64_t source[4][8],
-		 uint16_t logic_op, struct nvkm_perfctr **pctr)
+nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot, u8 domain,
+		 struct nvkm_perfsig *signal[4], u64 source[4][8],
+		 u16 logic_op, struct nvkm_perfctr **pctr)
 {
 	struct nvkm_perfctr *ctr;
 	int i, j;
@@ -356,7 +355,7 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct nvif_perfdom_v0 v0;
 	} *args = data;
-	struct nvkm_pm *ppm = (void *)engine;
+	struct nvkm_pm *pm = (void *)engine;
 	struct nvkm_perfdom *sdom = NULL;
 	struct nvkm_perfctr *ctr[4] = {};
 	struct nvkm_perfdom *dom;
@@ -375,7 +374,7 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		u64 src[4][8] = {};
 
 		for (s = 0; s < ARRAY_SIZE(args->v0.ctr[c].signal); s++) {
-			sig[s] = nvkm_perfsig_find(ppm, args->v0.domain,
+			sig[s] = nvkm_perfsig_find(pm, args->v0.domain,
 						   args->v0.ctr[c].signal[s],
 						   &sdom);
 			if (args->v0.ctr[c].signal[s] && !sig[s])
@@ -383,7 +382,7 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 			for (m = 0; m < 8; m++) {
 				src[s][m] = args->v0.ctr[c].source[s][m];
-				if (src[s][m] && !nvkm_perfsrc_find(ppm, sig[s],
+				if (src[s][m] && !nvkm_perfsrc_find(pm, sig[s],
 							            src[s][m]))
 					return -EINVAL;
 			}
@@ -429,7 +428,7 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_perfmon_query_domain_v0 v0;
 	} *args = data;
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom;
 	u8 domain_nr;
 	int di, ret;
@@ -442,12 +441,12 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_object *object, void *data, u32 size)
 	} else
 		return ret;
 
-	domain_nr = nvkm_pm_count_perfdom(ppm);
+	domain_nr = nvkm_pm_count_perfdom(pm);
 	if (di >= (int)domain_nr)
 		return -EINVAL;
 
 	if (di >= 0) {
-		dom = nvkm_perfdom_find(ppm, di);
+		dom = nvkm_perfdom_find(pm, di);
 		if (dom == NULL)
 			return -EINVAL;
 
@@ -476,7 +475,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 		struct nvif_perfmon_query_signal_v0 v0;
 	} *args = data;
 	struct nvkm_device *device = nv_device(object);
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom;
 	struct nvkm_perfsig *sig;
 	const bool all = nvkm_boolopt(device->cfgopt, "NvPmShowAll", false);
@@ -492,7 +491,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 	} else
 		return ret;
 
-	dom = nvkm_perfdom_find(ppm, args->v0.domain);
+	dom = nvkm_perfdom_find(pm, args->v0.domain);
 	if (dom == NULL || si >= (int)dom->signal_nr)
 		return -EINVAL;
 
@@ -527,7 +526,7 @@ nvkm_perfmon_mthd_query_source(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_perfmon_query_source_v0 v0;
 	} *args = data;
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfdom *dom = NULL;
 	struct nvkm_perfsig *sig;
 	struct nvkm_perfsrc *src;
@@ -544,7 +543,7 @@ nvkm_perfmon_mthd_query_source(struct nvkm_object *object, void *data, u32 size)
 	} else
 		return ret;
 
-	sig = nvkm_perfsig_find(ppm, args->v0.domain, args->v0.signal, &dom);
+	sig = nvkm_perfsig_find(pm, args->v0.domain, args->v0.signal, &dom);
 	if (!sig)
 		return -EINVAL;
 
@@ -553,7 +552,7 @@ nvkm_perfmon_mthd_query_source(struct nvkm_object *object, void *data, u32 size)
 		return -EINVAL;
 
 	if (si >= 0) {
-		src = nvkm_perfsrc_find(ppm, sig, sig->source[si]);
+		src = nvkm_perfsrc_find(pm, sig, sig->source[si]);
 		if (!src)
 			return -EINVAL;
 
@@ -631,14 +630,14 @@ nvkm_pm_sclass[] = {
 static void
 nvkm_perfctx_dtor(struct nvkm_object *object)
 {
-	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfctx *ctx = (void *)object;
 
-	mutex_lock(&nv_subdev(ppm)->mutex);
+	mutex_lock(&nv_subdev(pm)->mutex);
 	nvkm_engctx_destroy(&ctx->base);
-	if (ppm->context == ctx)
-		ppm->context = NULL;
-	mutex_unlock(&nv_subdev(ppm)->mutex);
+	if (pm->context == ctx)
+		pm->context = NULL;
+	mutex_unlock(&nv_subdev(pm)->mutex);
 }
 
 static int
@@ -646,7 +645,7 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nvkm_pm *ppm = (void *)engine;
+	struct nvkm_pm *pm = (void *)engine;
 	struct nvkm_perfctx *ctx;
 	int ret;
 
@@ -662,12 +661,12 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	mutex_lock(&nv_subdev(ppm)->mutex);
-	if (ppm->context == NULL)
-		ppm->context = ctx;
-	if (ctx != ppm->context)
+	mutex_lock(&nv_subdev(pm)->mutex);
+	if (pm->context == NULL)
+		pm->context = ctx;
+	if (ctx != pm->context)
 		ret = -EBUSY;
-	mutex_unlock(&nv_subdev(ppm)->mutex);
+	mutex_unlock(&nv_subdev(pm)->mutex);
 
 	return ret;
 }
@@ -687,7 +686,7 @@ nvkm_pm_cclass = {
  * PPM engine/subdev functions
  ******************************************************************************/
 int
-nvkm_perfsrc_new(struct nvkm_pm *ppm, struct nvkm_perfsig *sig,
+nvkm_perfsrc_new(struct nvkm_pm *pm, struct nvkm_perfsig *sig,
 		 const struct nvkm_specsrc *spec)
 {
 	const struct nvkm_specsrc *ssrc;
@@ -708,7 +707,7 @@ nvkm_perfsrc_new(struct nvkm_pm *ppm, struct nvkm_perfsig *sig,
 			u8 source_id = 0;
 			u32 len;
 
-			list_for_each_entry(src, &ppm->sources, head) {
+			list_for_each_entry(src, &pm->sources, head) {
 				if (src->addr == ssrc->addr &&
 				    src->shift == smux->shift) {
 					found = true;
@@ -730,12 +729,14 @@ nvkm_perfsrc_new(struct nvkm_pm *ppm, struct nvkm_perfsig *sig,
 				len = strlen(ssrc->name) +
 				      strlen(smux->name) + 2;
 				src->name = kzalloc(len, GFP_KERNEL);
-				if (!src->name)
+				if (!src->name) {
+					kfree(src);
 					return -ENOMEM;
+				}
 				snprintf(src->name, len, "%s_%s", ssrc->name,
 					 smux->name);
 
-				list_add_tail(&src->head, &ppm->sources);
+				list_add_tail(&src->head, &pm->sources);
 			}
 
 			sig->source[source_nr++] = source_id + 1;
@@ -748,7 +749,7 @@ nvkm_perfsrc_new(struct nvkm_pm *ppm, struct nvkm_perfsig *sig,
 }
 
 int
-nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
+nvkm_perfdom_new(struct nvkm_pm *pm, const char *name, u32 mask,
 		 u32 base, u32 size_unit, u32 size_domain,
 		 const struct nvkm_specdom *spec)
 {
@@ -778,7 +779,7 @@ nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
 					 "%s/%02x", name, (int)(sdom - spec));
 			}
 
-			list_add_tail(&dom->head, &ppm->domains);
+			list_add_tail(&dom->head, &pm->domains);
 			INIT_LIST_HEAD(&dom->list);
 			dom->func = sdom->func;
 			dom->addr = addr;
@@ -789,7 +790,7 @@ nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
 				struct nvkm_perfsig *sig =
 					&dom->signal[ssig->signal];
 				sig->name = ssig->name;
-				ret = nvkm_perfsrc_new(ppm, sig, ssig->source);
+				ret = nvkm_perfsrc_new(pm, sig, ssig->source);
 				if (ret)
 					return ret;
 				ssig++;
@@ -807,52 +808,52 @@ nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
 int
 _nvkm_pm_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_pm *ppm = (void *)object;
-	return nvkm_engine_fini(&ppm->base, suspend);
+	struct nvkm_pm *pm = (void *)object;
+	return nvkm_engine_fini(&pm->engine, suspend);
 }
 
 int
 _nvkm_pm_init(struct nvkm_object *object)
 {
-	struct nvkm_pm *ppm = (void *)object;
-	return nvkm_engine_init(&ppm->base);
+	struct nvkm_pm *pm = (void *)object;
+	return nvkm_engine_init(&pm->engine);
 }
 
 void
 _nvkm_pm_dtor(struct nvkm_object *object)
 {
-	struct nvkm_pm *ppm = (void *)object;
+	struct nvkm_pm *pm = (void *)object;
 	struct nvkm_perfdom *dom, *next_dom;
 	struct nvkm_perfsrc *src, *next_src;
 
-	list_for_each_entry_safe(dom, next_dom, &ppm->domains, head) {
+	list_for_each_entry_safe(dom, next_dom, &pm->domains, head) {
 		list_del(&dom->head);
 		kfree(dom);
 	}
 
-	list_for_each_entry_safe(src, next_src, &ppm->sources, head) {
+	list_for_each_entry_safe(src, next_src, &pm->sources, head) {
 		list_del(&src->head);
 		kfree(src->name);
 		kfree(src);
 	}
 
-	nvkm_engine_destroy(&ppm->base);
+	nvkm_engine_destroy(&pm->engine);
 }
 
 int
 nvkm_pm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nvkm_pm *ppm;
+	struct nvkm_pm *pm;
 	int ret;
 
 	ret = nvkm_engine_create_(parent, engine, oclass, true, "PPM",
 				  "pm", length, pobject);
-	ppm = *pobject;
+	pm = *pobject;
 	if (ret)
 		return ret;
 
-	INIT_LIST_HEAD(&ppm->domains);
-	INIT_LIST_HEAD(&ppm->sources);
+	INIT_LIST_HEAD(&pm->domains);
+	INIT_LIST_HEAD(&pm->sources);
 	return 0;
 }

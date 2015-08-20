@@ -5,7 +5,7 @@
 struct nvkm_perfdom;
 struct nvkm_perfctr;
 struct nvkm_pm {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 
 	struct nvkm_perfctx *context;
 	void *profile_data;
