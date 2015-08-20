@@ -2025,7 +2025,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		struct dst_entry *ndst;
 		struct flowi6 fl6;
-		u32 flags;
+		u32 rt6i_flags;
 
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_oif = rdst ? rdst->remote_ifindex : 0;
@@ -2050,9 +2050,9 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		/* Bypass encapsulation if the destination is local */
-		flags = ((struct rt6_info *)ndst)->rt6i_flags;
-		if (flags & RTF_LOCAL &&
-		    !(flags & (RTCF_BROADCAST | RTCF_MULTICAST))) {
+		rt6i_flags = ((struct rt6_info *)ndst)->rt6i_flags;
+		if (rt6i_flags & RTF_LOCAL &&
+		    !(rt6i_flags & (RTCF_BROADCAST | RTCF_MULTICAST))) {
 			struct vxlan_dev *dst_vxlan;
 
 			dst_release(ndst);
