@@ -63,6 +63,7 @@
 #define WILC_SUPP_MCS_SET_SIZE	16
 #define WILC_ADD_STA_LENGTH	40 /* Not including the rates field cause it has variable length*/
 #define SCAN_EVENT_DONE_ABORTED
+#define NUM_CONCURRENT_IFC 2
 /*****************************************************************************/
 /* Data Types                                                                */
 /*****************************************************************************/

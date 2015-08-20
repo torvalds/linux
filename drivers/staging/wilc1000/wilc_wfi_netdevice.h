@@ -172,7 +172,6 @@ typedef struct {
 
 } struct_frame_reg;
 
-#define NUM_CONCURRENT_IFC 2
 typedef struct {
 	uint8_t aSrcAddress[ETH_ALEN];
 	uint8_t aBSSID[ETH_ALEN];
