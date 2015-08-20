@@ -80,10 +80,11 @@ static int
 g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			struct nvkm_object *object)
 {
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo *fifo = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_bar *bar = device->bar;
 	u32 addr, save, engn;
 	bool done;
 
@@ -103,10 +104,10 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
-	save = nv_mask(fifo, 0x002520, 0x0000003f, 1 << engn);
-	nv_wr32(fifo, 0x0032fc, nv_gpuobj(base)->addr >> 12);
+	save = nvkm_mask(device, 0x002520, 0x0000003f, 1 << engn);
+	nvkm_wr32(device, 0x0032fc, nv_gpuobj(base)->addr >> 12);
 	done = nv_wait_ne(fifo, 0x0032fc, 0xffffffff, 0xffffffff);
-	nv_wr32(fifo, 0x002520, save);
+	nvkm_wr32(device, 0x002520, save);
 	if (!done) {
 		nv_error(fifo, "channel %d [%s] unload timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
@@ -313,6 +314,7 @@ g84_fifo_chan_init(struct nvkm_object *object)
 	struct nv50_fifo_base *base = (void *)object->parent;
 	struct nv50_fifo_chan *chan = (void *)object;
 	struct nvkm_gpuobj *ramfc = base->ramfc;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	u32 chid = chan->base.chid;
 	int ret;
 
@@ -320,7 +322,7 @@ g84_fifo_chan_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(fifo, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 8);
+	nvkm_wr32(device, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 8);
 	nv50_fifo_playlist_update(fifo);
 	return 0;
 }
@@ -422,14 +424,16 @@ static void
 g84_fifo_uevent_init(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), uevent);
-	nv_mask(fifo, 0x002140, 0x40000000, 0x40000000);
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	nvkm_mask(device, 0x002140, 0x40000000, 0x40000000);
 }
 
 static void
 g84_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), uevent);
-	nv_mask(fifo, 0x002140, 0x40000000, 0x00000000);
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	nvkm_mask(device, 0x002140, 0x40000000, 0x00000000);
 }
 
 static const struct nvkm_event_func

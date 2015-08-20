@@ -177,29 +177,30 @@ static int
 nv17_fifo_init(struct nvkm_object *object)
 {
 	struct nv04_fifo *fifo = (void *)object;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int ret;
 
 	ret = nvkm_fifo_init(&fifo->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(fifo, NV04_PFIFO_DELAY_0, 0x000000ff);
-	nv_wr32(fifo, NV04_PFIFO_DMA_TIMESLICE, 0x0101ffff);
+	nvkm_wr32(device, NV04_PFIFO_DELAY_0, 0x000000ff);
+	nvkm_wr32(device, NV04_PFIFO_DMA_TIMESLICE, 0x0101ffff);
 
-	nv_wr32(fifo, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
+	nvkm_wr32(device, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
 				       ((fifo->ramht->bits - 9) << 16) |
 				        (fifo->ramht->gpuobj.addr >> 8));
-	nv_wr32(fifo, NV03_PFIFO_RAMRO, fifo->ramro->addr >> 8);
-	nv_wr32(fifo, NV03_PFIFO_RAMFC, fifo->ramfc->addr >> 8 | 0x00010000);
+	nvkm_wr32(device, NV03_PFIFO_RAMRO, fifo->ramro->addr >> 8);
+	nvkm_wr32(device, NV03_PFIFO_RAMFC, fifo->ramfc->addr >> 8 | 0x00010000);
 
-	nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH1, fifo->base.max);
+	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.max);
 
-	nv_wr32(fifo, NV03_PFIFO_INTR_0, 0xffffffff);
-	nv_wr32(fifo, NV03_PFIFO_INTR_EN_0, 0xffffffff);
+	nvkm_wr32(device, NV03_PFIFO_INTR_0, 0xffffffff);
+	nvkm_wr32(device, NV03_PFIFO_INTR_EN_0, 0xffffffff);
 
-	nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH0, 1);
-	nv_wr32(fifo, NV04_PFIFO_CACHE1_PULL0, 1);
-	nv_wr32(fifo, NV03_PFIFO_CACHES, 1);
+	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 1);
+	nvkm_wr32(device, NV04_PFIFO_CACHE1_PULL0, 1);
+	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
 	return 0;
 }
 

@@ -41,7 +41,8 @@
 static void
 nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 {
-	struct nvkm_bar *bar = nvkm_bar(fifo);
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_bar *bar = device->bar;
 	struct nvkm_gpuobj *cur;
 	int i, p;
 
@@ -49,15 +50,15 @@ nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 	fifo->cur_playlist = !fifo->cur_playlist;
 
 	for (i = fifo->base.min, p = 0; i < fifo->base.max; i++) {
-		if (nv_rd32(fifo, 0x002600 + (i * 4)) & 0x80000000)
+		if (nvkm_rd32(device, 0x002600 + (i * 4)) & 0x80000000)
 			nv_wo32(cur, p++ * 4, i);
 	}
 
 	bar->flush(bar);
 
-	nv_wr32(fifo, 0x0032f4, cur->addr >> 12);
-	nv_wr32(fifo, 0x0032ec, p);
-	nv_wr32(fifo, 0x002500, 0x00000101);
+	nvkm_wr32(device, 0x0032f4, cur->addr >> 12);
+	nvkm_wr32(device, 0x0032ec, p);
+	nvkm_wr32(device, 0x002500, 0x00000101);
 }
 
 void
@@ -102,10 +103,11 @@ static int
 nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			 struct nvkm_object *object)
 {
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo *fifo = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_bar *bar = device->bar;
 	u32 addr, me;
 	int ret = 0;
 
@@ -129,17 +131,17 @@ nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	 * there's also a "ignore these engines" bitmask reg we can use
 	 * if we hit the issue there..
 	 */
-	me = nv_mask(fifo, 0x00b860, 0x00000001, 0x00000001);
+	me = nvkm_mask(device, 0x00b860, 0x00000001, 0x00000001);
 
 	/* do the kickoff... */
-	nv_wr32(fifo, 0x0032fc, nv_gpuobj(base)->addr >> 12);
+	nvkm_wr32(device, 0x0032fc, nv_gpuobj(base)->addr >> 12);
 	if (!nv_wait_ne(fifo, 0x0032fc, 0xffffffff, 0xffffffff)) {
 		nv_error(fifo, "channel %d [%s] unload timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
 		if (suspend)
 			ret = -EBUSY;
 	}
-	nv_wr32(fifo, 0x00b860, me);
+	nvkm_wr32(device, 0x00b860, me);
 
 	if (ret == 0) {
 		nv_wo32(base->eng, addr + 0x00, 0x00000000);
@@ -324,6 +326,7 @@ nv50_fifo_chan_init(struct nvkm_object *object)
 	struct nv50_fifo_base *base = (void *)object->parent;
 	struct nv50_fifo_chan *chan = (void *)object;
 	struct nvkm_gpuobj *ramfc = base->ramfc;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	u32 chid = chan->base.chid;
 	int ret;
 
@@ -331,7 +334,7 @@ nv50_fifo_chan_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(fifo, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 12);
+	nvkm_wr32(device, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 12);
 	nv50_fifo_playlist_update(fifo);
 	return 0;
 }
@@ -341,12 +344,13 @@ nv50_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_fifo *fifo = (void *)object->engine;
 	struct nv50_fifo_chan *chan = (void *)object;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	u32 chid = chan->base.chid;
 
 	/* remove channel from playlist, fifo will unload context */
-	nv_mask(fifo, 0x002600 + (chid * 4), 0x80000000, 0x00000000);
+	nvkm_mask(device, 0x002600 + (chid * 4), 0x80000000, 0x00000000);
 	nv50_fifo_playlist_update(fifo);
-	nv_wr32(fifo, 0x002600 + (chid * 4), 0x00000000);
+	nvkm_wr32(device, 0x002600 + (chid * 4), 0x00000000);
 
 	return nvkm_fifo_channel_fini(&chan->base, suspend);
 }
@@ -498,27 +502,28 @@ int
 nv50_fifo_init(struct nvkm_object *object)
 {
 	struct nv50_fifo *fifo = (void *)object;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int ret, i;
 
 	ret = nvkm_fifo_init(&fifo->base);
 	if (ret)
 		return ret;
 
-	nv_mask(fifo, 0x000200, 0x00000100, 0x00000000);
-	nv_mask(fifo, 0x000200, 0x00000100, 0x00000100);
-	nv_wr32(fifo, 0x00250c, 0x6f3cfc34);
-	nv_wr32(fifo, 0x002044, 0x01003fff);
+	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
+	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
+	nvkm_wr32(device, 0x00250c, 0x6f3cfc34);
+	nvkm_wr32(device, 0x002044, 0x01003fff);
 
-	nv_wr32(fifo, 0x002100, 0xffffffff);
-	nv_wr32(fifo, 0x002140, 0xbfffffff);
+	nvkm_wr32(device, 0x002100, 0xffffffff);
+	nvkm_wr32(device, 0x002140, 0xbfffffff);
 
 	for (i = 0; i < 128; i++)
-		nv_wr32(fifo, 0x002600 + (i * 4), 0x00000000);
+		nvkm_wr32(device, 0x002600 + (i * 4), 0x00000000);
 	nv50_fifo_playlist_update_locked(fifo);
 
-	nv_wr32(fifo, 0x003200, 0x00000001);
-	nv_wr32(fifo, 0x003250, 0x00000001);
-	nv_wr32(fifo, 0x002500, 0x00000001);
+	nvkm_wr32(device, 0x003200, 0x00000001);
+	nvkm_wr32(device, 0x003250, 0x00000001);
+	nvkm_wr32(device, 0x002500, 0x00000001);
 	return 0;
 }
 
