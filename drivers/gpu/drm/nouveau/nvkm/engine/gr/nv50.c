@@ -237,7 +237,7 @@ nvkm_pgr_vstatus_print(struct nv50_gr_priv *priv, int r,
 static int
 g84_gr_tlb_flush(struct nvkm_engine *engine)
 {
-	struct nvkm_timer *ptimer = nvkm_timer(engine);
+	struct nvkm_timer *tmr = nvkm_timer(engine);
 	struct nv50_gr_priv *priv = (void *)engine;
 	bool idle, timeout = false;
 	unsigned long flags;
@@ -247,7 +247,7 @@ g84_gr_tlb_flush(struct nvkm_engine *engine)
 	spin_lock_irqsave(&priv->lock, flags);
 	nv_mask(priv, 0x400500, 0x00000001, 0x00000000);
 
-	start = ptimer->read(ptimer);
+	start = tmr->read(tmr);
 	do {
 		idle = true;
 
@@ -266,7 +266,7 @@ g84_gr_tlb_flush(struct nvkm_engine *engine)
 				idle = false;
 		}
 	} while (!idle &&
-		 !(timeout = ptimer->read(ptimer) - start > 2000000000));
+		 !(timeout = tmr->read(tmr) - start > 2000000000));
 
 	if (timeout) {
 		nv_error(priv, "PGRAPH TLB flush idle timeout fail\n");

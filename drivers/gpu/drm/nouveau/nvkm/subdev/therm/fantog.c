@@ -39,7 +39,7 @@ static void
 nvkm_fantog_update(struct nvkm_fantog *fan, int percent)
 {
 	struct nvkm_therm_priv *therm = (void *)fan->base.parent;
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	unsigned long flags;
 	int duty;
@@ -56,7 +56,7 @@ nvkm_fantog_update(struct nvkm_fantog *fan, int percent)
 		u64 next_change = (percent * fan->period_us) / 100;
 		if (!duty)
 			next_change = fan->period_us - next_change;
-		ptimer->alarm(ptimer, next_change * 1000, &fan->alarm);
+		tmr->alarm(tmr, next_change * 1000, &fan->alarm);
 	}
 	spin_unlock_irqrestore(&fan->lock, flags);
 }

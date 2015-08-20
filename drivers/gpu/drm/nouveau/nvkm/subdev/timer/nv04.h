@@ -10,7 +10,7 @@
 #define NV04_PTIMER_TIME_1      0x009410
 #define NV04_PTIMER_ALARM_0     0x009420
 
-struct nv04_timer_priv {
+struct nv04_timer {
 	struct nvkm_timer base;
 	struct list_head alarms;
 	spinlock_t lock;

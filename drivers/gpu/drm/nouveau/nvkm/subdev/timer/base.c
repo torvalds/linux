@@ -81,13 +81,13 @@ nvkm_timer_wait_cb(void *obj, u64 nsec, bool (*func)(void *), void *data)
 void
 nvkm_timer_alarm(void *obj, u32 nsec, struct nvkm_alarm *alarm)
 {
-	struct nvkm_timer *ptimer = nvkm_timer(obj);
-	ptimer->alarm(ptimer, nsec, alarm);
+	struct nvkm_timer *tmr = nvkm_timer(obj);
+	tmr->alarm(tmr, nsec, alarm);
 }
 
 void
 nvkm_timer_alarm_cancel(void *obj, struct nvkm_alarm *alarm)
 {
-	struct nvkm_timer *ptimer = nvkm_timer(obj);
-	ptimer->alarm_cancel(ptimer, alarm);
+	struct nvkm_timer *tmr = nvkm_timer(obj);
+	tmr->alarm_cancel(tmr, alarm);
 }

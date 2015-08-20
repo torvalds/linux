@@ -83,7 +83,7 @@ static void
 nvkm_therm_update(struct nvkm_therm *obj, int mode)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 	unsigned long flags;
 	bool immd = true;
 	bool poll = true;
@@ -96,7 +96,7 @@ nvkm_therm_update(struct nvkm_therm *obj, int mode)
 
 	switch (mode) {
 	case NVKM_THERM_CTRL_MANUAL:
-		ptimer->alarm_cancel(ptimer, &therm->alarm);
+		tmr->alarm_cancel(tmr, &therm->alarm);
 		duty = nvkm_therm_fan_get(&therm->base);
 		if (duty < 0)
 			duty = 100;
@@ -120,12 +120,12 @@ nvkm_therm_update(struct nvkm_therm *obj, int mode)
 		break;
 	case NVKM_THERM_CTRL_NONE:
 	default:
-		ptimer->alarm_cancel(ptimer, &therm->alarm);
+		tmr->alarm_cancel(tmr, &therm->alarm);
 		poll = false;
 	}
 
 	if (list_empty(&therm->alarm.head) && poll)
-		ptimer->alarm(ptimer, 1000000000ULL, &therm->alarm);
+		tmr->alarm(tmr, 1000000000ULL, &therm->alarm);
 	spin_unlock_irqrestore(&therm->lock, flags);
 
 	if (duty >= 0) {

@@ -661,7 +661,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nvkm_timer *ptimer = nvxx_timer(device);
+	struct nvkm_timer *tmr = nvxx_timer(device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t reg900;
 	int i;
@@ -741,8 +741,8 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		if (drm->device.info.family < NV_DEVICE_INFO_V0_KELVIN) {
 			/* Not waiting for vertical retrace before modifying
 			   CRE_53/CRE_54 causes lockups. */
-			nvkm_timer_wait_eq(ptimer, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x8);
-			nvkm_timer_wait_eq(ptimer, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x0);
+			nvkm_timer_wait_eq(tmr, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x8);
+			nvkm_timer_wait_eq(tmr, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x0);
 		}
 
 		wr_cio_state(dev, head, regp, NV_CIO_CRE_42);

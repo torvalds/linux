@@ -32,7 +32,7 @@ static int
 nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 {
 	struct nvkm_therm_priv *therm = (void *)fan->parent;
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 	unsigned long flags;
 	int ret = 0;
 	int duty;
@@ -94,7 +94,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		else
 			delay = bump_period;
 
-		ptimer->alarm(ptimer, delay * 1000 * 1000, &fan->alarm);
+		tmr->alarm(tmr, delay * 1000 * 1000, &fan->alarm);
 	}
 
 	return ret;
@@ -125,7 +125,7 @@ int
 nvkm_therm_fan_sense(struct nvkm_therm *obj)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	u32 cycles, cur, prev;
 	u64 start, end, tach;
@@ -137,7 +137,7 @@ nvkm_therm_fan_sense(struct nvkm_therm *obj)
 	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
 	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
-	start = ptimer->read(ptimer);
+	start = tmr->read(tmr);
 	prev = gpio->get(gpio, 0, therm->fan->tach.func, therm->fan->tach.line);
 	cycles = 0;
 	do {
@@ -146,12 +146,12 @@ nvkm_therm_fan_sense(struct nvkm_therm *obj)
 		cur = gpio->get(gpio, 0, therm->fan->tach.func, therm->fan->tach.line);
 		if (prev != cur) {
 			if (!start)
-				start = ptimer->read(ptimer);
+				start = tmr->read(tmr);
 			cycles++;
 			prev = cur;
 		}
-	} while (cycles < 5 && ptimer->read(ptimer) - start < 250000000);
-	end = ptimer->read(ptimer);
+	} while (cycles < 5 && tmr->read(tmr) - start < 250000000);
+	end = tmr->read(tmr);
 
 	if (cycles == 5) {
 		tach = (u64)60000000000ULL;
@@ -217,10 +217,10 @@ int
 nvkm_therm_fan_fini(struct nvkm_therm *obj, bool suspend)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 
 	if (suspend)
-		ptimer->alarm_cancel(ptimer, &therm->fan->alarm);
+		tmr->alarm_cancel(tmr, &therm->fan->alarm);
 	return 0;
 }
 

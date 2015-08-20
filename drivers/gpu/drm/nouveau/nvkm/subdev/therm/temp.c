@@ -169,7 +169,7 @@ alarm_timer_callback(struct nvkm_alarm *alarm)
 	struct nvkm_therm_priv *therm =
 	container_of(alarm, struct nvkm_therm_priv, sensor.therm_poll_alarm);
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 	unsigned long flags;
 
 	spin_lock_irqsave(&therm->sensor.alarm_program_lock, flags);
@@ -191,7 +191,7 @@ alarm_timer_callback(struct nvkm_alarm *alarm)
 
 	/* schedule the next poll in one second */
 	if (therm->base.temp_get(&therm->base) >= 0 && list_empty(&alarm->head))
-		ptimer->alarm(ptimer, 1000000000ULL, alarm);
+		tmr->alarm(tmr, 1000000000ULL, alarm);
 }
 
 void
@@ -223,10 +223,10 @@ int
 nvkm_therm_sensor_fini(struct nvkm_therm *obj, bool suspend)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_timer *tmr = nvkm_timer(therm);
 
 	if (suspend)
-		ptimer->alarm_cancel(ptimer, &therm->sensor.therm_poll_alarm);
+		tmr->alarm_cancel(tmr, &therm->sensor.therm_poll_alarm);
 	return 0;
 }
 

@@ -31,7 +31,7 @@ void nvkm_timer_alarm_cancel(void *, struct nvkm_alarm *);
 	nvkm_timer_wait_cb((o), NV_WAIT_DEFAULT, (c), (d))
 
 struct nvkm_timer {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	u64  (*read)(struct nvkm_timer *);
 	void (*alarm)(struct nvkm_timer *, u64 time, struct nvkm_alarm *);
 	void (*alarm_cancel)(struct nvkm_timer *, struct nvkm_alarm *);
@@ -47,11 +47,11 @@ nvkm_timer(void *obj)
 	nvkm_subdev_create_((p), (e), (o), 0, "PTIMER", "timer",            \
 			       sizeof(**d), (void **)d)
 #define nvkm_timer_destroy(p)                                               \
-	nvkm_subdev_destroy(&(p)->base)
+	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_timer_init(p)                                                  \
-	nvkm_subdev_init(&(p)->base)
+	nvkm_subdev_init(&(p)->subdev)
 #define nvkm_timer_fini(p,s)                                                \
-	nvkm_subdev_fini(&(p)->base, (s))
+	nvkm_subdev_fini(&(p)->subdev, (s))
 
 int nvkm_timer_create_(struct nvkm_object *, struct nvkm_engine *,
 			  struct nvkm_oclass *, int size, void **);
