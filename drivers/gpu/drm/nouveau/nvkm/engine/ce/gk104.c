@@ -22,42 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include <engine/ce.h>
+#include <engine/fifo.h>
 
-#include <core/engctx.h>
-
-/*******************************************************************************
- * Copy object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_ce_sclass[] = {
-	{ 0xa0b5, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PCE context
- ******************************************************************************/
-
-static struct nvkm_ofuncs
-gk104_ce_context_ofuncs = {
-	.ctor = _nvkm_engctx_ctor,
-	.dtor = _nvkm_engctx_dtor,
-	.init = _nvkm_engctx_init,
-	.fini = _nvkm_engctx_fini,
-	.rd32 = _nvkm_engctx_rd32,
-	.wr32 = _nvkm_engctx_wr32,
-};
-
-static struct nvkm_oclass
-gk104_ce_cclass = {
-	.handle = NV_ENGCTX(CE0, 0xc0),
-	.ofuncs = &gk104_ce_context_ofuncs,
-};
-
-/*******************************************************************************
- * PCE engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static void
 gk104_ce_intr(struct nvkm_subdev *subdev)
@@ -71,6 +38,14 @@ gk104_ce_intr(struct nvkm_subdev *subdev)
 		nvkm_wr32(device, 0x104908 + (idx * 0x1000), stat);
 	}
 }
+
+static const struct nvkm_engine_func
+gk104_ce = {
+	.sclass = {
+		{ -1, -1, KEPLER_DMA_COPY_A },
+		{}
+	}
+};
 
 static int
 gk104_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -86,10 +61,9 @@ gk104_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	ce->func = &gk104_ce;
 	nv_subdev(ce)->unit = 0x00000040;
 	nv_subdev(ce)->intr = gk104_ce_intr;
-	nv_engine(ce)->cclass = &gk104_ce_cclass;
-	nv_engine(ce)->sclass = gk104_ce_sclass;
 	return 0;
 }
 
@@ -107,10 +81,9 @@ gk104_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	ce->func = &gk104_ce;
 	nv_subdev(ce)->unit = 0x00000080;
 	nv_subdev(ce)->intr = gk104_ce_intr;
-	nv_engine(ce)->cclass = &gk104_ce_cclass;
-	nv_engine(ce)->sclass = gk104_ce_sclass;
 	return 0;
 }
 
@@ -128,10 +101,9 @@ gk104_ce2_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	ce->func = &gk104_ce;
 	nv_subdev(ce)->unit = 0x00200000;
 	nv_subdev(ce)->intr = gk104_ce_intr;
-	nv_engine(ce)->cclass = &gk104_ce_cclass;
-	nv_engine(ce)->sclass = gk104_ce_sclass;
 	return 0;
 }
 

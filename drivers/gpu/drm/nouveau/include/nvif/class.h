@@ -117,6 +117,8 @@
 
 #define GT212_DMA                                                    0x000085b5
 #define FERMI_DMA                                                    0x000090b5
+#define KEPLER_DMA_COPY_A                                            0x0000a0b5
+#define MAXWELL_DMA_COPY_A                                           0x0000b0b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 
