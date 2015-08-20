@@ -521,7 +521,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	__be16 df, flags;
 	int err;
 
-	tun_info = skb_tunnel_info(skb, AF_INET);
+	tun_info = skb_tunnel_info(skb);
 	if (unlikely(!tun_info || tun_info->mode != IP_TUNNEL_INFO_TX))
 		goto err_free_skb;
 

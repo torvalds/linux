@@ -1909,7 +1909,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	u32 flags = vxlan->flags;
 
 	/* FIXME: Support IPv6 */
-	info = skb_tunnel_info(skb, AF_INET);
+	info = skb_tunnel_info(skb);
 
 	if (rdst) {
 		dst_port = rdst->remote_port ? rdst->remote_port : vxlan->cfg.dst_port;
@@ -2105,7 +2105,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vxlan_fdb *f;
 
 	/* FIXME: Support IPv6 */
-	info = skb_tunnel_info(skb, AF_INET);
+	info = skb_tunnel_info(skb);
 
 	skb_reset_mac_header(skb);
 	eth = eth_hdr(skb);

@@ -57,7 +57,7 @@ static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 	skb_push(skb, ETH_HLEN);
 	ovs_skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
 
-	ovs_vport_receive(vport, skb, skb_tunnel_info(skb, AF_INET));
+	ovs_vport_receive(vport, skb, skb_tunnel_info(skb));
 	return;
 
 error:

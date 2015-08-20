@@ -178,7 +178,6 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 static void rt6_release(struct rt6_info *rt)
 {
 	if (atomic_dec_and_test(&rt->rt6i_ref)) {
-		lwtstate_put(rt->rt6i_lwtstate);
 		rt6_free_pcpu(rt);
 		dst_free(&rt->dst);
 	}

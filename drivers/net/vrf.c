@@ -295,7 +295,6 @@ static struct rtable *vrf_rtable_create(struct net_device *dev)
 		rth->rt_uses_gateway = 0;
 		INIT_LIST_HEAD(&rth->rt_uncached);
 		rth->rt_uncached_list = NULL;
-		rth->rt_lwtstate = NULL;
 	}
 
 	return rth;

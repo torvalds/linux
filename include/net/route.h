@@ -66,7 +66,6 @@ struct rtable {
 
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
-	struct lwtunnel_state   *rt_lwtstate;
 };
 
 static inline bool rt_is_input_route(const struct rtable *rt)
