@@ -28,8 +28,9 @@
 int
 gt215_therm_fan_sense(struct nvkm_therm *therm)
 {
-	u32 tach = nv_rd32(therm, 0x00e728) & 0x0000ffff;
-	u32 ctrl = nv_rd32(therm, 0x00e720);
+	struct nvkm_device *device = therm->subdev.device;
+	u32 tach = nvkm_rd32(device, 0x00e728) & 0x0000ffff;
+	u32 ctrl = nvkm_rd32(device, 0x00e720);
 	if (ctrl & 0x00000001)
 		return tach * 60 / 2;
 	return -ENODEV;
@@ -39,6 +40,7 @@ static int
 gt215_therm_init(struct nvkm_object *object)
 {
 	struct nvkm_therm_priv *therm = (void *)object;
+	struct nvkm_device *device = therm->base.subdev.device;
 	struct dcb_gpio_func *tach = &therm->fan->tach;
 	int ret;
 
@@ -49,13 +51,13 @@ gt215_therm_init(struct nvkm_object *object)
 	g84_sensor_setup(&therm->base);
 
 	/* enable fan tach, count revolutions per-second */
-	nv_mask(therm, 0x00e720, 0x00000003, 0x00000002);
+	nvkm_mask(device, 0x00e720, 0x00000003, 0x00000002);
 	if (tach->func != DCB_GPIO_UNUSED) {
-		nv_wr32(therm, 0x00e724, nv_device(therm)->crystal * 1000);
-		nv_mask(therm, 0x00e720, 0x001f0000, tach->line << 16);
-		nv_mask(therm, 0x00e720, 0x00000001, 0x00000001);
+		nvkm_wr32(device, 0x00e724, nv_device(therm)->crystal * 1000);
+		nvkm_mask(device, 0x00e720, 0x001f0000, tach->line << 16);
+		nvkm_mask(device, 0x00e720, 0x00000001, 0x00000001);
 	}
-	nv_mask(therm, 0x00e720, 0x00000002, 0x00000000);
+	nvkm_mask(device, 0x00e720, 0x00000002, 0x00000000);
 
 	return 0;
 }

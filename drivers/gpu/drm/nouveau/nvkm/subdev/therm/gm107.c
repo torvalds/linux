@@ -33,23 +33,25 @@ gm107_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 static int
 gm107_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 {
-	*divs = nv_rd32(therm, 0x10eb20) & 0x1fff;
-	*duty = nv_rd32(therm, 0x10eb24) & 0x1fff;
+	struct nvkm_device *device = therm->subdev.device;
+	*divs = nvkm_rd32(device, 0x10eb20) & 0x1fff;
+	*duty = nvkm_rd32(device, 0x10eb24) & 0x1fff;
 	return 0;
 }
 
 static int
 gm107_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 {
-	nv_mask(therm, 0x10eb10, 0x1fff, divs); /* keep the high bits */
-	nv_wr32(therm, 0x10eb14, duty | 0x80000000);
+	struct nvkm_device *device = therm->subdev.device;
+	nvkm_mask(device, 0x10eb10, 0x1fff, divs); /* keep the high bits */
+	nvkm_wr32(device, 0x10eb14, duty | 0x80000000);
 	return 0;
 }
 
 static int
 gm107_fan_pwm_clock(struct nvkm_therm *therm, int line)
 {
-	return nv_device(therm)->crystal * 1000;
+	return therm->subdev.device->crystal * 1000;
 }
 
 static int
