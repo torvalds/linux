@@ -27,10 +27,6 @@
 #include <core/handle.h>
 #include <engine/fifo.h>
 
-struct nv44_mpeg_priv {
-	struct nvkm_mpeg base;
-};
-
 struct nv44_mpeg_chan {
 	struct nvkm_mpeg_chan base;
 };
@@ -62,14 +58,14 @@ static int
 nv44_mpeg_context_fini(struct nvkm_object *object, bool suspend)
 {
 
-	struct nv44_mpeg_priv *priv = (void *)object->engine;
+	struct nvkm_mpeg *mpeg = (void *)object->engine;
 	struct nv44_mpeg_chan *chan = (void *)object;
 	u32 inst = 0x80000000 | nv_gpuobj(chan)->addr >> 4;
 
-	nv_mask(priv, 0x00b32c, 0x00000001, 0x00000000);
-	if (nv_rd32(priv, 0x00b318) == inst)
-		nv_mask(priv, 0x00b318, 0x80000000, 0x00000000);
-	nv_mask(priv, 0x00b32c, 0x00000001, 0x00000001);
+	nv_mask(mpeg, 0x00b32c, 0x00000001, 0x00000000);
+	if (nv_rd32(mpeg, 0x00b318) == inst)
+		nv_mask(mpeg, 0x00b318, 0x80000000, 0x00000000);
+	nv_mask(mpeg, 0x00b32c, 0x00000001, 0x00000001);
 	return 0;
 }
 
@@ -97,12 +93,12 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle;
-	struct nv44_mpeg_priv *priv = (void *)subdev;
-	u32 inst = nv_rd32(priv, 0x00b318) & 0x000fffff;
-	u32 stat = nv_rd32(priv, 0x00b100);
-	u32 type = nv_rd32(priv, 0x00b230);
-	u32 mthd = nv_rd32(priv, 0x00b234);
-	u32 data = nv_rd32(priv, 0x00b238);
+	struct nvkm_mpeg *mpeg = (void *)subdev;
+	u32 inst = nv_rd32(mpeg, 0x00b318) & 0x000fffff;
+	u32 stat = nv_rd32(mpeg, 0x00b100);
+	u32 type = nv_rd32(mpeg, 0x00b230);
+	u32 mthd = nv_rd32(mpeg, 0x00b234);
+	u32 data = nv_rd32(mpeg, 0x00b238);
 	u32 show = stat;
 	int chid;
 
@@ -112,7 +108,7 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
 		if (type == 0x00000020 && mthd == 0x0000) {
-			nv_mask(priv, 0x00b308, 0x00000000, 0x00000000);
+			nv_mask(mpeg, 0x00b308, 0x00000000, 0x00000000);
 			show &= ~0x01000000;
 		}
 
@@ -124,11 +120,11 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 		}
 	}
 
-	nv_wr32(priv, 0x00b100, stat);
-	nv_wr32(priv, 0x00b230, 0x00000001);
+	nv_wr32(mpeg, 0x00b100, stat);
+	nv_wr32(mpeg, 0x00b230, 0x00000001);
 
 	if (show) {
-		nv_error(priv,
+		nv_error(mpeg,
 			 "ch %d [0x%08x %s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 chid, inst << 4, nvkm_client_name(engctx), stat,
 			 type, mthd, data);
@@ -140,15 +136,15 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 static void
 nv44_mpeg_me_intr(struct nvkm_subdev *subdev)
 {
-	struct nv44_mpeg_priv *priv = (void *)subdev;
+	struct nvkm_mpeg *mpeg = (void *)subdev;
 	u32 stat;
 
-	if ((stat = nv_rd32(priv, 0x00b100)))
+	if ((stat = nv_rd32(mpeg, 0x00b100)))
 		nv44_mpeg_intr(subdev);
 
-	if ((stat = nv_rd32(priv, 0x00b800))) {
-		nv_error(priv, "PMSRCH 0x%08x\n", stat);
-		nv_wr32(priv, 0x00b800, stat);
+	if ((stat = nv_rd32(mpeg, 0x00b800))) {
+		nv_error(mpeg, "PMSRCH 0x%08x\n", stat);
+		nv_wr32(mpeg, 0x00b800, stat);
 	}
 }
 
@@ -157,19 +153,19 @@ nv44_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv44_mpeg_priv *priv;
+	struct nvkm_mpeg *mpeg;
 	int ret;
 
-	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
+	*pobject = nv_object(mpeg);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nv44_mpeg_me_intr;
-	nv_engine(priv)->cclass = &nv44_mpeg_cclass;
-	nv_engine(priv)->sclass = nv40_mpeg_sclass;
-	nv_engine(priv)->tile_prog = nv31_mpeg_tile_prog;
+	nv_subdev(mpeg)->unit = 0x00000002;
+	nv_subdev(mpeg)->intr = nv44_mpeg_me_intr;
+	nv_engine(mpeg)->cclass = &nv44_mpeg_cclass;
+	nv_engine(mpeg)->sclass = nv40_mpeg_sclass;
+	nv_engine(mpeg)->tile_prog = nv31_mpeg_tile_prog;
 	return 0;
 }
 

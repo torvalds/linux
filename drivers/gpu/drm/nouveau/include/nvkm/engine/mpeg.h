@@ -24,17 +24,17 @@ struct nvkm_mpeg_chan {
 #include <core/engine.h>
 
 struct nvkm_mpeg {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 };
 
 #define nvkm_mpeg_create(p,e,c,d)                                           \
 	nvkm_engine_create((p), (e), (c), true, "PMPEG", "mpeg", (d))
 #define nvkm_mpeg_destroy(d)                                                \
-	nvkm_engine_destroy(&(d)->base)
+	nvkm_engine_destroy(&(d)->engine)
 #define nvkm_mpeg_init(d)                                                   \
-	nvkm_engine_init(&(d)->base)
+	nvkm_engine_init(&(d)->engine)
 #define nvkm_mpeg_fini(d,s)                                                 \
-	nvkm_engine_fini(&(d)->base, (s))
+	nvkm_engine_fini(&(d)->engine, (s))
 
 #define _nvkm_mpeg_dtor _nvkm_engine_dtor
 #define _nvkm_mpeg_init _nvkm_engine_init

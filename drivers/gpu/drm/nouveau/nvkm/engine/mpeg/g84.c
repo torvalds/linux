@@ -23,10 +23,6 @@
  */
 #include <engine/mpeg.h>
 
-struct g84_mpeg_priv {
-	struct nvkm_mpeg base;
-};
-
 struct g84_mpeg_chan {
 	struct nvkm_mpeg_chan base;
 };
@@ -67,18 +63,18 @@ g84_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct g84_mpeg_priv *priv;
+	struct nvkm_mpeg *mpeg;
 	int ret;
 
-	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
+	*pobject = nv_object(mpeg);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nv50_mpeg_intr;
-	nv_engine(priv)->cclass = &g84_mpeg_cclass;
-	nv_engine(priv)->sclass = g84_mpeg_sclass;
+	nv_subdev(mpeg)->unit = 0x00000002;
+	nv_subdev(mpeg)->intr = nv50_mpeg_intr;
+	nv_engine(mpeg)->cclass = &g84_mpeg_cclass;
+	nv_engine(mpeg)->sclass = g84_mpeg_sclass;
 	return 0;
 }
 

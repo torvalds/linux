@@ -33,7 +33,7 @@ static int
 nv40_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 {
 	struct nvkm_instmem *imem = nvkm_instmem(object);
-	struct nv31_mpeg_priv *priv = (void *)object->engine;
+	struct nv31_mpeg *mpeg = (void *)object->engine;
 	u32 inst = *(u32 *)arg << 4;
 	u32 dma0 = nv_ro32(imem, inst + 0);
 	u32 dma1 = nv_ro32(imem, inst + 4);
@@ -47,22 +47,22 @@ nv40_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nv_mask(priv, 0x00b300, 0x00030000, (dma0 & 0x00030000));
-		nv_wr32(priv, 0x00b334, base);
-		nv_wr32(priv, 0x00b324, size);
+		nv_mask(mpeg, 0x00b300, 0x00030000, (dma0 & 0x00030000));
+		nv_wr32(mpeg, 0x00b334, base);
+		nv_wr32(mpeg, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nv_mask(priv, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
-		nv_wr32(priv, 0x00b360, base);
-		nv_wr32(priv, 0x00b364, size);
+		nv_mask(mpeg, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
+		nv_wr32(mpeg, 0x00b360, base);
+		nv_wr32(mpeg, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
 		if (dma0 & 0x00030000)
 			return -EINVAL;
 
-		nv_wr32(priv, 0x00b370, base);
-		nv_wr32(priv, 0x00b374, size);
+		nv_wr32(mpeg, 0x00b370, base);
+		nv_wr32(mpeg, 0x00b374, size);
 	}
 
 	return 0;
@@ -89,15 +89,15 @@ nv40_mpeg_sclass[] = {
 static void
 nv40_mpeg_intr(struct nvkm_subdev *subdev)
 {
-	struct nv31_mpeg_priv *priv = (void *)subdev;
+	struct nv31_mpeg *mpeg = (void *)subdev;
 	u32 stat;
 
-	if ((stat = nv_rd32(priv, 0x00b100)))
+	if ((stat = nv_rd32(mpeg, 0x00b100)))
 		nv31_mpeg_intr(subdev);
 
-	if ((stat = nv_rd32(priv, 0x00b800))) {
-		nv_error(priv, "PMSRCH 0x%08x\n", stat);
-		nv_wr32(priv, 0x00b800, stat);
+	if ((stat = nv_rd32(mpeg, 0x00b800))) {
+		nv_error(mpeg, "PMSRCH 0x%08x\n", stat);
+		nv_wr32(mpeg, 0x00b800, stat);
 	}
 }
 
@@ -106,19 +106,19 @@ nv40_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv31_mpeg_priv *priv;
+	struct nv31_mpeg *mpeg;
 	int ret;
 
-	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
+	*pobject = nv_object(mpeg);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nv40_mpeg_intr;
-	nv_engine(priv)->cclass = &nv31_mpeg_cclass;
-	nv_engine(priv)->sclass = nv40_mpeg_sclass;
-	nv_engine(priv)->tile_prog = nv31_mpeg_tile_prog;
+	nv_subdev(mpeg)->unit = 0x00000002;
+	nv_subdev(mpeg)->intr = nv40_mpeg_intr;
+	nv_engine(mpeg)->cclass = &nv31_mpeg_cclass;
+	nv_engine(mpeg)->sclass = nv40_mpeg_sclass;
+	nv_engine(mpeg)->tile_prog = nv31_mpeg_tile_prog;
 	return 0;
 }
 
