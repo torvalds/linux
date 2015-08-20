@@ -91,9 +91,8 @@ nvkm_i2c_intr_fini(struct nvkm_event *event, int type, int id)
 {
 	struct nvkm_i2c *i2c = container_of(event, typeof(*i2c), event);
 	struct nvkm_i2c_aux *aux = nvkm_i2c_aux_find(i2c, id);
-	const struct nvkm_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
 	if (aux)
-		impl->aux_mask(i2c, type, aux->intr, 0);
+		i2c->func->aux_mask(i2c, type, aux->intr, 0);
 }
 
 static void
@@ -101,9 +100,8 @@ nvkm_i2c_intr_init(struct nvkm_event *event, int type, int id)
 {
 	struct nvkm_i2c *i2c = container_of(event, typeof(*i2c), event);
 	struct nvkm_i2c_aux *aux = nvkm_i2c_aux_find(i2c, id);
-	const struct nvkm_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
 	if (aux)
-		impl->aux_mask(i2c, type, aux->intr, aux->intr);
+		i2c->func->aux_mask(i2c, type, aux->intr, aux->intr);
 }
 
 static int
@@ -120,18 +118,24 @@ nvkm_i2c_intr_ctor(struct nvkm_object *object, void *data, u32 size,
 	return -EINVAL;
 }
 
+static const struct nvkm_event_func
+nvkm_i2c_intr_func = {
+	.ctor = nvkm_i2c_intr_ctor,
+	.init = nvkm_i2c_intr_init,
+	.fini = nvkm_i2c_intr_fini,
+};
+
 static void
-nvkm_i2c_intr(struct nvkm_subdev *obj)
+nvkm_i2c_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_i2c *i2c = container_of(obj, typeof(*i2c), subdev);
-	struct nvkm_i2c_impl *impl = (void *)i2c->subdev.object.oclass;
+	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 	struct nvkm_i2c_aux *aux;
 	u32 hi, lo, rq, tx;
 
-	if (!impl->aux_stat)
+	if (!i2c->func->aux_stat)
 		return;
 
-	impl->aux_stat(i2c, &hi, &lo, &rq, &tx);
+	i2c->func->aux_stat(i2c, &hi, &lo, &rq, &tx);
 	if (!hi && !lo && !rq && !tx)
 		return;
 
@@ -151,44 +155,31 @@ nvkm_i2c_intr(struct nvkm_subdev *obj)
 	}
 }
 
-static const struct nvkm_event_func
-nvkm_i2c_intr_func = {
-	.ctor = nvkm_i2c_intr_ctor,
-	.init = nvkm_i2c_intr_init,
-	.fini = nvkm_i2c_intr_fini,
-};
-
-int
-_nvkm_i2c_fini(struct nvkm_object *object, bool suspend)
+static int
+nvkm_i2c_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct nvkm_i2c_impl *impl = (void *)nv_oclass(object);
-	struct nvkm_i2c *i2c = (void *)object;
+	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 	struct nvkm_i2c_pad *pad;
 	u32 mask;
 
-	if ((mask = (1 << impl->aux) - 1), impl->aux_stat) {
-		impl->aux_mask(i2c, NVKM_I2C_ANY, mask, 0);
-		impl->aux_stat(i2c, &mask, &mask, &mask, &mask);
+	if ((mask = (1 << i2c->func->aux) - 1), i2c->func->aux_stat) {
+		i2c->func->aux_mask(i2c, NVKM_I2C_ANY, mask, 0);
+		i2c->func->aux_stat(i2c, &mask, &mask, &mask, &mask);
 	}
 
 	list_for_each_entry(pad, &i2c->pad, head) {
 		nvkm_i2c_pad_fini(pad);
 	}
 
-	return nvkm_subdev_fini_old(&i2c->subdev, suspend);
+	return 0;
 }
 
-int
-_nvkm_i2c_init(struct nvkm_object *object)
+static int
+nvkm_i2c_init(struct nvkm_subdev *subdev)
 {
-	struct nvkm_i2c *i2c = (void *)object;
+	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 	struct nvkm_i2c_bus *bus;
 	struct nvkm_i2c_pad *pad;
-	int ret;
-
-	ret = nvkm_subdev_init_old(&i2c->subdev);
-	if (ret)
-		return ret;
 
 	list_for_each_entry(pad, &i2c->pad, head) {
 		nvkm_i2c_pad_init(pad);
@@ -201,10 +192,10 @@ _nvkm_i2c_init(struct nvkm_object *object)
 	return 0;
 }
 
-void
-_nvkm_i2c_dtor(struct nvkm_object *object)
+static void *
+nvkm_i2c_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_i2c *i2c = (void *)object;
+	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 
 	nvkm_event_fini(&i2c->event);
 
@@ -226,8 +217,16 @@ _nvkm_i2c_dtor(struct nvkm_object *object)
 		nvkm_i2c_pad_del(&pad);
 	}
 
-	nvkm_subdev_destroy(&i2c->subdev);
+	return i2c;
 }
+
+static const struct nvkm_subdev_func
+nvkm_i2c = {
+	.dtor = nvkm_i2c_dtor,
+	.init = nvkm_i2c_init,
+	.fini = nvkm_i2c_fini,
+	.intr = nvkm_i2c_intr,
+};
 
 static const struct nvkm_i2c_drv {
 	u8 bios;
@@ -242,11 +241,9 @@ nvkm_i2c_drv[] = {
 };
 
 int
-nvkm_i2c_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_i2c **pi2c)
 {
-	struct nvkm_i2c_impl *impl = (void *)oclass;
-	struct nvkm_device *device = (void *)parent;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_i2c *i2c;
 	struct dcb_i2c_entry ccbE;
@@ -254,16 +251,14 @@ nvkm_i2c_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	u8 ver, hdr;
 	int ret, i;
 
-	ret = nvkm_subdev_create(parent, engine, oclass, 0, "I2C", "i2c", &i2c);
-	*pobject = nv_object(i2c);
-	if (ret)
-		return ret;
+	if (!(i2c = *pi2c = kzalloc(sizeof(*i2c), GFP_KERNEL)))
+		return -ENOMEM;
 
+	nvkm_subdev_ctor(&nvkm_i2c, device, index, 0, &i2c->subdev);
+	i2c->func = func;
 	INIT_LIST_HEAD(&i2c->pad);
 	INIT_LIST_HEAD(&i2c->bus);
 	INIT_LIST_HEAD(&i2c->aux);
-
-	nv_subdev(i2c)->intr = nvkm_i2c_intr;
 
 	i = -1;
 	while (!dcb_i2c_parse(bios, ++i, &ccbE)) {
@@ -278,11 +273,11 @@ nvkm_i2c_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		if (ccbE.share != DCB_I2C_UNUSED) {
 			const int id = NVKM_I2C_PAD_HYBRID(ccbE.share);
 			if (!(pad = nvkm_i2c_pad_find(i2c, id)))
-				ret = impl->pad_s_new(i2c, id, &pad);
+				ret = func->pad_s_new(i2c, id, &pad);
 			else
 				ret = 0;
 		} else {
-			ret = impl->pad_x_new(i2c, NVKM_I2C_PAD_CCB(i), &pad);
+			ret = func->pad_x_new(i2c, NVKM_I2C_PAD_CCB(i), &pad);
 		}
 
 		if (ret) {
@@ -397,25 +392,5 @@ nvkm_i2c_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		}
 	}
 
-	ret = nvkm_event_init(&nvkm_i2c_intr_func, 4, i, &i2c->event);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-int
-_nvkm_i2c_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nvkm_i2c *i2c;
-	int ret;
-
-	ret = nvkm_i2c_create(parent, engine, oclass, &i2c);
-	*pobject = nv_object(i2c);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvkm_event_init(&nvkm_i2c_intr_func, 4, i, &i2c->event);
 }

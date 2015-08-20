@@ -69,31 +69,27 @@ int nvkm_i2c_aux_lnk_ctl(struct nvkm_i2c_aux *, int link_nr, int link_bw,
 			 bool enhanced_framing);
 
 struct nvkm_i2c {
+	const struct nvkm_i2c_func *func;
 	struct nvkm_subdev subdev;
-	struct nvkm_event event;
 
 	struct list_head pad;
 	struct list_head bus;
 	struct list_head aux;
+
+	struct nvkm_event event;
 };
 
 struct nvkm_i2c_bus *nvkm_i2c_bus_find(struct nvkm_i2c *, int);
 struct nvkm_i2c_aux *nvkm_i2c_aux_find(struct nvkm_i2c *, int);
 
-static inline struct nvkm_i2c *
-nvkm_i2c(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_I2C);
-}
-
-extern struct nvkm_oclass *nv04_i2c_oclass;
-extern struct nvkm_oclass *nv4e_i2c_oclass;
-extern struct nvkm_oclass *nv50_i2c_oclass;
-extern struct nvkm_oclass *g94_i2c_oclass;
-extern struct nvkm_oclass *gf110_i2c_oclass;
-extern struct nvkm_oclass *gf117_i2c_oclass;
-extern struct nvkm_oclass *gk104_i2c_oclass;
-extern struct nvkm_oclass *gm204_i2c_oclass;
+int nv04_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int nv4e_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int nv50_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int g94_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int gf117_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int gf119_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int gk104_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int gm204_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 
 static inline int
 nvkm_rdi2cr(struct i2c_adapter *adap, u8 addr, u8 reg)

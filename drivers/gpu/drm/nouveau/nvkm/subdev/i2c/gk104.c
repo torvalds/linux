@@ -56,18 +56,17 @@ gk104_aux_mask(struct nvkm_i2c *i2c, u32 type, u32 mask, u32 data)
 	nvkm_wr32(device, 0x00dc68, temp);
 }
 
-struct nvkm_oclass *
-gk104_i2c_oclass = &(struct nvkm_i2c_impl) {
-	.base.handle = NV_SUBDEV(I2C, 0xe0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_i2c_ctor,
-		.dtor = _nvkm_i2c_dtor,
-		.init = _nvkm_i2c_init,
-		.fini = _nvkm_i2c_fini,
-	},
+static const struct nvkm_i2c_func
+gk104_i2c = {
 	.pad_x_new = gf119_i2c_pad_x_new,
 	.pad_s_new = gf119_i2c_pad_s_new,
 	.aux = 4,
 	.aux_stat = gk104_aux_stat,
 	.aux_mask = gk104_aux_mask,
-}.base;
+};
+
+int
+gk104_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
+{
+	return nvkm_i2c_new_(&gk104_i2c, device, index, pi2c);
+}
