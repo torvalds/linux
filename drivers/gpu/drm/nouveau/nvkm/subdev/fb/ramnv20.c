@@ -30,7 +30,8 @@ nv20_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_ram *ram;
-	u32 pbus1218 = nv_rd32(fb, 0x001218);
+	struct nvkm_device *device = fb->subdev.device;
+	u32 pbus1218 = nvkm_rd32(device, 0x001218);
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);
@@ -44,9 +45,9 @@ nv20_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 	case 0x00000200: ram->type = NV_MEM_TYPE_GDDR3; break;
 	case 0x00000300: ram->type = NV_MEM_TYPE_GDDR2; break;
 	}
-	ram->size  = (nv_rd32(fb, 0x10020c) & 0xff000000);
-	ram->parts = (nv_rd32(fb, 0x100200) & 0x00000003) + 1;
-	ram->tags  = nv_rd32(fb, 0x100320);
+	ram->size  = (nvkm_rd32(device, 0x10020c) & 0xff000000);
+	ram->parts = (nvkm_rd32(device, 0x100200) & 0x00000003) + 1;
+	ram->tags  = nvkm_rd32(device, 0x100320);
 	return 0;
 }
 

@@ -28,24 +28,26 @@
 void
 nv41_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
 {
-	nv_wr32(fb, 0x100604 + (i * 0x10), tile->limit);
-	nv_wr32(fb, 0x100608 + (i * 0x10), tile->pitch);
-	nv_wr32(fb, 0x100600 + (i * 0x10), tile->addr);
-	nv_rd32(fb, 0x100600 + (i * 0x10));
-	nv_wr32(fb, 0x100700 + (i * 0x04), tile->zcomp);
+	struct nvkm_device *device = fb->subdev.device;
+	nvkm_wr32(device, 0x100604 + (i * 0x10), tile->limit);
+	nvkm_wr32(device, 0x100608 + (i * 0x10), tile->pitch);
+	nvkm_wr32(device, 0x100600 + (i * 0x10), tile->addr);
+	nvkm_rd32(device, 0x100600 + (i * 0x10));
+	nvkm_wr32(device, 0x100700 + (i * 0x04), tile->zcomp);
 }
 
 int
 nv41_fb_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = (void *)object;
+	struct nvkm_device *device = fb->subdev.device;
 	int ret;
 
 	ret = nvkm_fb_init(fb);
 	if (ret)
 		return ret;
 
-	nv_wr32(fb, 0x100800, 0x00000001);
+	nvkm_wr32(device, 0x100800, 0x00000001);
 	return 0;
 }
 

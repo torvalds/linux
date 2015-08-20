@@ -25,13 +25,14 @@ static int
 gk20a_fb_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = (void *)object;
+	struct nvkm_device *device = fb->subdev.device;
 	int ret;
 
 	ret = nvkm_fb_init(fb);
 	if (ret)
 		return ret;
 
-	nv_mask(fb, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
+	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 	return 0;
 }
 

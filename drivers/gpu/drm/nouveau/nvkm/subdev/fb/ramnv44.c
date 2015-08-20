@@ -30,7 +30,8 @@ nv44_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nv40_ram *ram;
-	u32 fb474 = nv_rd32(fb, 0x100474);
+	struct nvkm_device *device = fb->subdev.device;
+	u32 fb474 = nvkm_rd32(device, 0x100474);
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);
@@ -45,7 +46,7 @@ nv44_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (fb474 & 0x00000001)
 		ram->base.type = NV_MEM_TYPE_DDR1;
 
-	ram->base.size = nv_rd32(fb, 0x10020c) & 0xff000000;
+	ram->base.size = nvkm_rd32(device, 0x10020c) & 0xff000000;
 	ram->base.calc = nv40_ram_calc;
 	ram->base.prog = nv40_ram_prog;
 	ram->base.tidy = nv40_ram_tidy;

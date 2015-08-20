@@ -36,6 +36,7 @@ mcp77_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	u32 rsvd_tail = (1024 * 1024); /* vbios etc */
 	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_device *device = fb->subdev.device;
 	struct mcp77_ram *ram;
 	int ret;
 
@@ -45,8 +46,8 @@ mcp77_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	ram->base.type   = NV_MEM_TYPE_STOLEN;
-	ram->base.stolen = (u64)nv_rd32(fb, 0x100e10) << 12;
-	ram->base.size   = (u64)nv_rd32(fb, 0x100e14) << 12;
+	ram->base.stolen = (u64)nvkm_rd32(device, 0x100e10) << 12;
+	ram->base.size   = (u64)nvkm_rd32(device, 0x100e14) << 12;
 
 	rsvd_tail += 0x1000;
 	ram->poller_base = ram->base.size - rsvd_tail;
@@ -66,6 +67,7 @@ static int
 mcp77_ram_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = nvkm_fb(object);
+	struct nvkm_device *device = fb->subdev.device;
 	struct mcp77_ram *ram = (void *)object;
 	int ret;
 	u64 dniso, hostnb, flush;
@@ -81,12 +83,12 @@ mcp77_ram_init(struct nvkm_object *object)
 	/* Enable NISO poller for various clients and set their associated
 	 * read address, only for MCP77/78 and MCP79/7A. (fd#25701)
 	 */
-	nv_wr32(fb, 0x100c18, dniso);
-	nv_mask(fb, 0x100c14, 0x00000000, 0x00000001);
-	nv_wr32(fb, 0x100c1c, hostnb);
-	nv_mask(fb, 0x100c14, 0x00000000, 0x00000002);
-	nv_wr32(fb, 0x100c24, flush);
-	nv_mask(fb, 0x100c14, 0x00000000, 0x00010000);
+	nvkm_wr32(device, 0x100c18, dniso);
+	nvkm_mask(device, 0x100c14, 0x00000000, 0x00000001);
+	nvkm_wr32(device, 0x100c1c, hostnb);
+	nvkm_mask(device, 0x100c14, 0x00000000, 0x00000002);
+	nvkm_wr32(device, 0x100c24, flush);
+	nvkm_mask(device, 0x100c14, 0x00000000, 0x00010000);
 	return 0;
 }
 

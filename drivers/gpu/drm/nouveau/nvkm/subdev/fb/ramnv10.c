@@ -30,7 +30,8 @@ nv10_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_ram *ram;
-	u32 cfg0 = nv_rd32(fb, 0x100200);
+	struct nvkm_device *device = fb->subdev.device;
+	u32 cfg0 = nvkm_rd32(device, 0x100200);
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);
@@ -43,7 +44,7 @@ nv10_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 	else
 		ram->type = NV_MEM_TYPE_SDRAM;
 
-	ram->size = nv_rd32(fb, 0x10020c) & 0xff000000;
+	ram->size = nvkm_rd32(device, 0x10020c) & 0xff000000;
 	return 0;
 }
 

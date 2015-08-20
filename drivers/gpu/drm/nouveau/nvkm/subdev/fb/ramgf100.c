@@ -108,8 +108,9 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 {
 	struct gf100_ram *ram = container_of(fuc, typeof(*ram), fuc);
 	struct nvkm_fb *fb = nvkm_fb(ram);
-	u32 part = nv_rd32(fb, 0x022438), i;
-	u32 mask = nv_rd32(fb, 0x022554);
+	struct nvkm_device *device = fb->subdev.device;
+	u32 part = nvkm_rd32(device, 0x022438), i;
+	u32 mask = nvkm_rd32(device, 0x022554);
 	u32 addr = 0x110974;
 
 	ram_wr32(fuc, 0x10f910, magic);
@@ -507,13 +508,14 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  void **pobject)
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_ram *ram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	u32 parts = nv_rd32(fb, 0x022438);
-	u32 pmask = nv_rd32(fb, maskaddr);
-	u32 bsize = nv_rd32(fb, 0x10f20c);
+	u32 parts = nvkm_rd32(device, 0x022438);
+	u32 pmask = nvkm_rd32(device, maskaddr);
+	u32 bsize = nvkm_rd32(device, 0x10f20c);
 	u32 offset, length;
 	bool uniform = true;
 	int ret, part;
@@ -523,24 +525,24 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_debug(fb, "0x100800: 0x%08x\n", nv_rd32(fb, 0x100800));
+	nv_debug(fb, "0x100800: 0x%08x\n", nvkm_rd32(device, 0x100800));
 	nv_debug(fb, "parts 0x%08x mask 0x%08x\n", parts, pmask);
 
 	ram->type = nvkm_fb_bios_memtype(bios);
-	ram->ranks = (nv_rd32(fb, 0x10f200) & 0x00000004) ? 2 : 1;
+	ram->ranks = (nvkm_rd32(device, 0x10f200) & 0x00000004) ? 2 : 1;
 
 	/* read amount of vram attached to each memory controller */
 	for (part = 0; part < parts; part++) {
 		if (!(pmask & (1 << part))) {
-			u32 psize = nv_rd32(fb, 0x11020c + (part * 0x1000));
-			if (psize != bsize) {
-				if (psize < bsize)
-					bsize = psize;
+			u32 size = nvkm_rd32(device, 0x11020c + (part * 0x1000));
+			if (size != bsize) {
+				if (size < bsize)
+					bsize = size;
 				uniform = false;
 			}
 
-			nv_debug(fb, "%d: mem_amount 0x%08x\n", part, psize);
-			ram->size += (u64)psize << 20;
+			nv_debug(fb, "%d: mem_amount 0x%08x\n", part, size);
+			ram->size += (u64)size << 20;
 		}
 	}
 
@@ -577,6 +579,7 @@ static int
 gf100_ram_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = (void *)object->parent;
+	struct nvkm_device *device = fb->subdev.device;
 	struct gf100_ram *ram = (void *)object;
 	int ret, i;
 
@@ -601,16 +604,16 @@ gf100_ram_init(struct nvkm_object *object)
 		};
 
 		for (i = 0; i < 0x30; i++) {
-			nv_wr32(fb, 0x10f968, 0x00000000 | (i << 8));
-			nv_wr32(fb, 0x10f96c, 0x00000000 | (i << 8));
-			nv_wr32(fb, 0x10f920, 0x00000100 | train0[i % 12]);
-			nv_wr32(fb, 0x10f924, 0x00000100 | train0[i % 12]);
-			nv_wr32(fb, 0x10f918,              train1[i % 12]);
-			nv_wr32(fb, 0x10f91c,              train1[i % 12]);
-			nv_wr32(fb, 0x10f920, 0x00000000 | train0[i % 12]);
-			nv_wr32(fb, 0x10f924, 0x00000000 | train0[i % 12]);
-			nv_wr32(fb, 0x10f918,              train1[i % 12]);
-			nv_wr32(fb, 0x10f91c,              train1[i % 12]);
+			nvkm_wr32(device, 0x10f968, 0x00000000 | (i << 8));
+			nvkm_wr32(device, 0x10f96c, 0x00000000 | (i << 8));
+			nvkm_wr32(device, 0x10f920, 0x00000100 | train0[i % 12]);
+			nvkm_wr32(device, 0x10f924, 0x00000100 | train0[i % 12]);
+			nvkm_wr32(device, 0x10f918,              train1[i % 12]);
+			nvkm_wr32(device, 0x10f91c,              train1[i % 12]);
+			nvkm_wr32(device, 0x10f920, 0x00000000 | train0[i % 12]);
+			nvkm_wr32(device, 0x10f924, 0x00000000 | train0[i % 12]);
+			nvkm_wr32(device, 0x10f918,              train1[i % 12]);
+			nvkm_wr32(device, 0x10f91c,              train1[i % 12]);
 		}
 	}	break;
 	default:

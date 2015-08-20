@@ -228,8 +228,9 @@ static void
 gk104_ram_nuts(struct gk104_ram *ram, struct ramfuc_reg *reg,
 	       u32 _mask, u32 _data, u32 _copy)
 {
-	struct gk104_fb *fb = (void *)nvkm_fb(ram);
+	struct nvkm_fb *fb = nvkm_fb(ram);
 	struct ramfuc *fuc = &ram->fuc.base;
+	struct nvkm_device *device = fb->subdev.device;
 	u32 addr = 0x110000 + (reg->addr & 0xfff);
 	u32 mask = _mask | _copy;
 	u32 data = (_data & _mask) | (reg->data & _copy);
@@ -237,7 +238,7 @@ gk104_ram_nuts(struct gk104_ram *ram, struct ramfuc_reg *reg,
 
 	for (i = 0; i < 16; i++, addr += 0x1000) {
 		if (ram->pnuts & (1 << i)) {
-			u32 prev = nv_rd32(fb, addr);
+			u32 prev = nvkm_rd32(device, addr);
 			u32 next = (prev & ~mask) | data;
 			nvkm_memx_wr32(fuc->memx, addr, next);
 		}
@@ -1067,6 +1068,7 @@ gk104_ram_calc(struct nvkm_fb *fb, u32 freq)
 static void
 gk104_ram_prog_0(struct nvkm_fb *fb, u32 freq)
 {
+	struct nvkm_device *device = fb->subdev.device;
 	struct gk104_ram *ram = (void *)fb->ram;
 	struct nvkm_ram_data *cfg;
 	u32 mhz = freq / 1000;
@@ -1089,31 +1091,31 @@ gk104_ram_prog_0(struct nvkm_fb *fb, u32 freq)
 		data |= cfg->bios.rammap_11_09_01ff;
 		mask |= 0x000001ff;
 	}
-	nv_mask(fb, 0x10f468, mask, data);
+	nvkm_mask(device, 0x10f468, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0400) {
 		data |= cfg->bios.rammap_11_0a_0400;
 		mask |= 0x00000001;
 	}
-	nv_mask(fb, 0x10f420, mask, data);
+	nvkm_mask(device, 0x10f420, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0800) {
 		data |= cfg->bios.rammap_11_0a_0800;
 		mask |= 0x00000001;
 	}
-	nv_mask(fb, 0x10f430, mask, data);
+	nvkm_mask(device, 0x10f430, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0b_01f0) {
 		data |= cfg->bios.rammap_11_0b_01f0;
 		mask |= 0x0000001f;
 	}
-	nv_mask(fb, 0x10f400, mask, data);
+	nvkm_mask(device, 0x10f400, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0b_0200) {
 		data |= cfg->bios.rammap_11_0b_0200 << 9;
 		mask |= 0x00000200;
 	}
-	nv_mask(fb, 0x10f410, mask, data);
+	nvkm_mask(device, 0x10f410, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0d) {
 		data |= cfg->bios.rammap_11_0d << 16;
@@ -1123,7 +1125,7 @@ gk104_ram_prog_0(struct nvkm_fb *fb, u32 freq)
 		data |= cfg->bios.rammap_11_0f << 8;
 		mask |= 0x0000ff00;
 	}
-	nv_mask(fb, 0x10f440, mask, data);
+	nvkm_mask(device, 0x10f440, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0e) {
 		data |= cfg->bios.rammap_11_0e << 8;
@@ -1137,7 +1139,7 @@ gk104_ram_prog_0(struct nvkm_fb *fb, u32 freq)
 		data |= cfg->bios.rammap_11_0b_0400 << 5;
 		mask |= 0x00000020;
 	}
-	nv_mask(fb, 0x10f444, mask, data);
+	nvkm_mask(device, 0x10f444, mask, data);
 }
 
 static int
@@ -1245,6 +1247,7 @@ gk104_ram_train_type(struct nvkm_fb *fb, int i, u8 ramcfg,
 static int
 gk104_ram_train_init_0(struct nvkm_fb *fb, struct gk104_ram_train *train)
 {
+	struct nvkm_device *device = fb->subdev.device;
 	int i, j;
 
 	if ((train->mask & 0x03d3) != 0x03d3) {
@@ -1254,22 +1257,22 @@ gk104_ram_train_init_0(struct nvkm_fb *fb, struct gk104_ram_train *train)
 
 	for (i = 0; i < 0x30; i++) {
 		for (j = 0; j < 8; j += 4) {
-			nv_wr32(fb, 0x10f968 + j, 0x00000000 | (i << 8));
-			nv_wr32(fb, 0x10f920 + j, 0x00000000 |
+			nvkm_wr32(device, 0x10f968 + j, 0x00000000 | (i << 8));
+			nvkm_wr32(device, 0x10f920 + j, 0x00000000 |
 						   train->type08.data[i] << 4 |
 						   train->type06.data[i]);
-			nv_wr32(fb, 0x10f918 + j, train->type00.data[i]);
-			nv_wr32(fb, 0x10f920 + j, 0x00000100 |
+			nvkm_wr32(device, 0x10f918 + j, train->type00.data[i]);
+			nvkm_wr32(device, 0x10f920 + j, 0x00000100 |
 						   train->type09.data[i] << 4 |
 						   train->type07.data[i]);
-			nv_wr32(fb, 0x10f918 + j, train->type01.data[i]);
+			nvkm_wr32(device, 0x10f918 + j, train->type01.data[i]);
 		}
 	}
 
 	for (j = 0; j < 8; j += 4) {
 		for (i = 0; i < 0x100; i++) {
-			nv_wr32(fb, 0x10f968 + j, i);
-			nv_wr32(fb, 0x10f900 + j, train->type04.data[i]);
+			nvkm_wr32(device, 0x10f968 + j, i);
+			nvkm_wr32(device, 0x10f900 + j, train->type04.data[i]);
 		}
 	}
 
@@ -1310,7 +1313,8 @@ gk104_ram_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = (void *)object->parent;
 	struct gk104_ram *ram   = (void *)object;
-	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	u8  ver, hdr, cnt, len, snr, ssz;
 	u32 data, save;
 	int ret, i;
@@ -1336,10 +1340,10 @@ gk104_ram_init(struct nvkm_object *object)
 
 	cnt  = nv_ro08(bios, data + 0x14); /* guess at count */
 	data = nv_ro32(bios, data + 0x10); /* guess u32... */
-	save = nv_rd32(fb, 0x10f65c) & 0x000000f0;
+	save = nvkm_rd32(device, 0x10f65c) & 0x000000f0;
 	for (i = 0; i < cnt; i++, data += 4) {
 		if (i != save >> 4) {
-			nv_mask(fb, 0x10f65c, 0x000000f0, i << 4);
+			nvkm_mask(device, 0x10f65c, 0x000000f0, i << 4);
 			nvbios_exec(&(struct nvbios_init) {
 					.subdev = nv_subdev(fb),
 					.bios = bios,
@@ -1348,10 +1352,10 @@ gk104_ram_init(struct nvkm_object *object)
 				    });
 		}
 	}
-	nv_mask(fb, 0x10f65c, 0x000000f0, save);
-	nv_mask(fb, 0x10f584, 0x11000000, 0x00000000);
-	nv_wr32(fb, 0x10ecc0, 0xffffffff);
-	nv_mask(fb, 0x10f160, 0x00000010, 0x00000010);
+	nvkm_mask(device, 0x10f65c, 0x000000f0, save);
+	nvkm_mask(device, 0x10f584, 0x11000000, 0x00000000);
+	nvkm_wr32(device, 0x10ecc0, 0xffffffff);
+	nvkm_mask(device, 0x10f160, 0x00000010, 0x00000010);
 
 	return gk104_ram_train_init(fb);
 }
@@ -1445,8 +1449,9 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_bios *bios = nvkm_bios(fb);
-	struct nvkm_gpio *gpio = nvkm_gpio(fb);
+	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
+	struct nvkm_gpio *gpio = device->gpio;
 	struct dcb_gpio_func func;
 	struct gk104_ram *ram;
 	int ret, i;
@@ -1477,12 +1482,12 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	 * already without having to treat some of them differently to
 	 * the others....
 	 */
-	ram->parts = nv_rd32(fb, 0x022438);
-	ram->pmask = nv_rd32(fb, 0x022554);
+	ram->parts = nvkm_rd32(device, 0x022438);
+	ram->pmask = nvkm_rd32(device, 0x022554);
 	ram->pnuts = 0;
 	for (i = 0, tmp = 0; i < ram->parts; i++) {
 		if (!(ram->pmask & (1 << i))) {
-			u32 cfg1 = nv_rd32(fb, 0x110204 + (i * 0x1000));
+			u32 cfg1 = nvkm_rd32(device, 0x110204 + (i * 0x1000));
 			if (tmp && tmp != cfg1) {
 				ram->pnuts |= (1 << i);
 				continue;

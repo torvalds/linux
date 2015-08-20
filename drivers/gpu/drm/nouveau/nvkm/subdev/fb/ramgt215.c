@@ -198,12 +198,12 @@ gt215_link_train(struct nvkm_fb *fb)
 		goto out;
 
 	/* Do this *after* calc, eliminates write in script */
-	nv_wr32(fb, 0x111400, 0x00000000);
+	nvkm_wr32(device, 0x111400, 0x00000000);
 	/* XXX: Magic writes that improve train reliability? */
-	nv_mask(fb, 0x100674, 0x0000ffff, 0x00000000);
-	nv_mask(fb, 0x1005e4, 0x0000ffff, 0x00000000);
-	nv_mask(fb, 0x100b0c, 0x000000ff, 0x00000000);
-	nv_wr32(fb, 0x100c04, 0x00000400);
+	nvkm_mask(device, 0x100674, 0x0000ffff, 0x00000000);
+	nvkm_mask(device, 0x1005e4, 0x0000ffff, 0x00000000);
+	nvkm_mask(device, 0x100b0c, 0x000000ff, 0x00000000);
+	nvkm_wr32(device, 0x100c04, 0x00000400);
 
 	/* Now the training script */
 	r1700 = ram_rd32(fuc, 0x001700);
@@ -240,8 +240,8 @@ gt215_link_train(struct nvkm_fb *fb)
 	ram_exec(fuc, true);
 
 	/* Post-processing, avoids flicker */
-	nv_mask(fb, 0x616308, 0x10, 0x10);
-	nv_mask(fb, 0x616b08, 0x10, 0x10);
+	nvkm_mask(device, 0x616308, 0x10, 0x10);
+	nvkm_mask(device, 0x616b08, 0x10, 0x10);
 
 	gt215_clk_post(clk, f);
 
@@ -279,7 +279,8 @@ gt215_link_train_init(struct nvkm_fb *fb)
 		0x33333333, 0x55555555, 0x77777777, 0x66666666,
 		0x99999999, 0x88888888, 0xeeeeeeee, 0xbbbbbbbb,
 	};
-	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct gt215_ram *ram = (void *)fb->ram;
 	struct gt215_ltrain *train = &ram->ltrain;
 	struct nvkm_mem *mem;
@@ -306,32 +307,32 @@ gt215_link_train_init(struct nvkm_fb *fb)
 
 	mem = ram->ltrain.mem;
 
-	nv_wr32(fb, 0x100538, 0x10000000 | (mem->offset >> 16));
-	nv_wr32(fb, 0x1005a8, 0x0000ffff);
-	nv_mask(fb, 0x10f800, 0x00000001, 0x00000001);
+	nvkm_wr32(device, 0x100538, 0x10000000 | (mem->offset >> 16));
+	nvkm_wr32(device, 0x1005a8, 0x0000ffff);
+	nvkm_mask(device, 0x10f800, 0x00000001, 0x00000001);
 
 	for (i = 0; i < 0x30; i++) {
-		nv_wr32(fb, 0x10f8c0, (i << 8) | i);
-		nv_wr32(fb, 0x10f900, pattern[i % 16]);
+		nvkm_wr32(device, 0x10f8c0, (i << 8) | i);
+		nvkm_wr32(device, 0x10f900, pattern[i % 16]);
 	}
 
 	for (i = 0; i < 0x30; i++) {
-		nv_wr32(fb, 0x10f8e0, (i << 8) | i);
-		nv_wr32(fb, 0x10f920, pattern[i % 16]);
+		nvkm_wr32(device, 0x10f8e0, (i << 8) | i);
+		nvkm_wr32(device, 0x10f920, pattern[i % 16]);
 	}
 
 	/* And upload the pattern */
-	r001700 = nv_rd32(fb, 0x1700);
-	nv_wr32(fb, 0x1700, mem->offset >> 16);
+	r001700 = nvkm_rd32(device, 0x1700);
+	nvkm_wr32(device, 0x1700, mem->offset >> 16);
 	for (i = 0; i < 16; i++)
-		nv_wr32(fb, 0x700000 + (i << 2), pattern[i]);
+		nvkm_wr32(device, 0x700000 + (i << 2), pattern[i]);
 	for (i = 0; i < 16; i++)
-		nv_wr32(fb, 0x700100 + (i << 2), pattern[i]);
-	nv_wr32(fb, 0x1700, r001700);
+		nvkm_wr32(device, 0x700100 + (i << 2), pattern[i]);
+	nvkm_wr32(device, 0x1700, r001700);
 
-	train->r_100720 = nv_rd32(fb, 0x100720);
-	train->r_1111e0 = nv_rd32(fb, 0x1111e0);
-	train->r_111400 = nv_rd32(fb, 0x111400);
+	train->r_100720 = nvkm_rd32(device, 0x100720);
+	train->r_1111e0 = nvkm_rd32(device, 0x1111e0);
+	train->r_111400 = nvkm_rd32(device, 0x111400);
 	return 0;
 }
 
@@ -351,15 +352,16 @@ gt215_link_train_fini(struct nvkm_fb *fb)
 static int
 gt215_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 {
+	struct nvkm_device *device = fb->subdev.device;
 	struct gt215_ram *ram = (void *)fb->ram;
 	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
 	int tUNK_base, tUNK_40_0, prevCL;
 	u32 cur2, cur3, cur7, cur8;
 
-	cur2 = nv_rd32(fb, 0x100228);
-	cur3 = nv_rd32(fb, 0x10022c);
-	cur7 = nv_rd32(fb, 0x10023c);
-	cur8 = nv_rd32(fb, 0x100240);
+	cur2 = nvkm_rd32(device, 0x100228);
+	cur3 = nvkm_rd32(device, 0x10022c);
+	cur7 = nvkm_rd32(device, 0x10023c);
+	cur8 = nvkm_rd32(device, 0x100240);
 
 
 	switch ((!T(CWL)) * ram->base.type) {
@@ -864,16 +866,16 @@ gt215_ram_prog(struct nvkm_fb *fb)
 	bool exec = nvkm_boolopt(device->cfgopt, "NvMemExec", true);
 
 	if (exec) {
-		nv_mask(fb, 0x001534, 0x2, 0x2);
+		nvkm_mask(device, 0x001534, 0x2, 0x2);
 
 		ram_exec(fuc, true);
 
 		/* Post-processing, avoids flicker */
-		nv_mask(fb, 0x002504, 0x1, 0x0);
-		nv_mask(fb, 0x001534, 0x2, 0x0);
+		nvkm_mask(device, 0x002504, 0x1, 0x0);
+		nvkm_mask(device, 0x001534, 0x2, 0x0);
 
-		nv_mask(fb, 0x616308, 0x10, 0x10);
-		nv_mask(fb, 0x616b08, 0x10, 0x10);
+		nvkm_mask(device, 0x616308, 0x10, 0x10);
+		nvkm_mask(device, 0x616b08, 0x10, 0x10);
 	} else {
 		ram_exec(fuc, false);
 	}

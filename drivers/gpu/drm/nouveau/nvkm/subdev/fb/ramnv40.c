@@ -66,7 +66,8 @@ nv40_ram_calc(struct nvkm_fb *fb, u32 freq)
 int
 nv40_ram_prog(struct nvkm_fb *fb)
 {
-	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct nv40_ram *ram = (void *)fb->ram;
 	struct bit_entry M;
 	u32 crtc_mask = 0;
@@ -75,12 +76,12 @@ nv40_ram_prog(struct nvkm_fb *fb)
 
 	/* determine which CRTCs are active, fetch VGA_SR1 for each */
 	for (i = 0; i < 2; i++) {
-		u32 vbl = nv_rd32(fb, 0x600808 + (i * 0x2000));
+		u32 vbl = nvkm_rd32(device, 0x600808 + (i * 0x2000));
 		u32 cnt = 0;
 		do {
-			if (vbl != nv_rd32(fb, 0x600808 + (i * 0x2000))) {
-				nv_wr08(fb, 0x0c03c4 + (i * 0x2000), 0x01);
-				sr1[i] = nv_rd08(fb, 0x0c03c5 + (i * 0x2000));
+			if (vbl != nvkm_rd32(device, 0x600808 + (i * 0x2000))) {
+				nvkm_wr08(device, 0x0c03c4 + (i * 0x2000), 0x01);
+				sr1[i] = nvkm_rd08(device, 0x0c03c5 + (i * 0x2000));
 				if (!(sr1[i] & 0x20))
 					crtc_mask |= (1 << i);
 				break;
@@ -95,45 +96,45 @@ nv40_ram_prog(struct nvkm_fb *fb)
 			continue;
 		nv_wait(fb, 0x600808 + (i * 0x2000), 0x00010000, 0x00000000);
 		nv_wait(fb, 0x600808 + (i * 0x2000), 0x00010000, 0x00010000);
-		nv_wr08(fb, 0x0c03c4 + (i * 0x2000), 0x01);
-		nv_wr08(fb, 0x0c03c5 + (i * 0x2000), sr1[i] | 0x20);
+		nvkm_wr08(device, 0x0c03c4 + (i * 0x2000), 0x01);
+		nvkm_wr08(device, 0x0c03c5 + (i * 0x2000), sr1[i] | 0x20);
 	}
 
 	/* prepare ram for reclocking */
-	nv_wr32(fb, 0x1002d4, 0x00000001); /* precharge */
-	nv_wr32(fb, 0x1002d0, 0x00000001); /* refresh */
-	nv_wr32(fb, 0x1002d0, 0x00000001); /* refresh */
-	nv_mask(fb, 0x100210, 0x80000000, 0x00000000); /* no auto refresh */
-	nv_wr32(fb, 0x1002dc, 0x00000001); /* enable self-refresh */
+	nvkm_wr32(device, 0x1002d4, 0x00000001); /* precharge */
+	nvkm_wr32(device, 0x1002d0, 0x00000001); /* refresh */
+	nvkm_wr32(device, 0x1002d0, 0x00000001); /* refresh */
+	nvkm_mask(device, 0x100210, 0x80000000, 0x00000000); /* no auto refresh */
+	nvkm_wr32(device, 0x1002dc, 0x00000001); /* enable self-refresh */
 
 	/* change the PLL of each memory partition */
-	nv_mask(fb, 0x00c040, 0x0000c000, 0x00000000);
-	switch (nv_device(fb)->chipset) {
+	nvkm_mask(device, 0x00c040, 0x0000c000, 0x00000000);
+	switch (device->chipset) {
 	case 0x40:
 	case 0x45:
 	case 0x41:
 	case 0x42:
 	case 0x47:
-		nv_mask(fb, 0x004044, 0xc0771100, ram->ctrl);
-		nv_mask(fb, 0x00402c, 0xc0771100, ram->ctrl);
-		nv_wr32(fb, 0x004048, ram->coef);
-		nv_wr32(fb, 0x004030, ram->coef);
+		nvkm_mask(device, 0x004044, 0xc0771100, ram->ctrl);
+		nvkm_mask(device, 0x00402c, 0xc0771100, ram->ctrl);
+		nvkm_wr32(device, 0x004048, ram->coef);
+		nvkm_wr32(device, 0x004030, ram->coef);
 	case 0x43:
 	case 0x49:
 	case 0x4b:
-		nv_mask(fb, 0x004038, 0xc0771100, ram->ctrl);
-		nv_wr32(fb, 0x00403c, ram->coef);
+		nvkm_mask(device, 0x004038, 0xc0771100, ram->ctrl);
+		nvkm_wr32(device, 0x00403c, ram->coef);
 	default:
-		nv_mask(fb, 0x004020, 0xc0771100, ram->ctrl);
-		nv_wr32(fb, 0x004024, ram->coef);
+		nvkm_mask(device, 0x004020, 0xc0771100, ram->ctrl);
+		nvkm_wr32(device, 0x004024, ram->coef);
 		break;
 	}
 	udelay(100);
-	nv_mask(fb, 0x00c040, 0x0000c000, 0x0000c000);
+	nvkm_mask(device, 0x00c040, 0x0000c000, 0x0000c000);
 
 	/* re-enable normal operation of memory controller */
-	nv_wr32(fb, 0x1002dc, 0x00000000);
-	nv_mask(fb, 0x100210, 0x80000000, 0x80000000);
+	nvkm_wr32(device, 0x1002dc, 0x00000000);
+	nvkm_mask(device, 0x100210, 0x80000000, 0x80000000);
 	udelay(100);
 
 	/* execute memory reset script from vbios */
@@ -155,8 +156,8 @@ nv40_ram_prog(struct nvkm_fb *fb)
 		if (!(crtc_mask & (1 << i)))
 			continue;
 		nv_wait(fb, 0x600808 + (i * 0x2000), 0x00010000, 0x00010000);
-		nv_wr08(fb, 0x0c03c4 + (i * 0x2000), 0x01);
-		nv_wr08(fb, 0x0c03c5 + (i * 0x2000), sr1[i]);
+		nvkm_wr08(device, 0x0c03c4 + (i * 0x2000), 0x01);
+		nvkm_wr08(device, 0x0c03c5 + (i * 0x2000), sr1[i]);
 	}
 
 	return 0;
@@ -174,7 +175,8 @@ nv40_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nv40_ram *ram;
-	u32 pbus1218 = nv_rd32(fb, 0x001218);
+	struct nvkm_device *device = fb->subdev.device;
+	u32 pbus1218 = nvkm_rd32(device, 0x001218);
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);
@@ -189,9 +191,9 @@ nv40_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 	case 0x00000300: ram->base.type = NV_MEM_TYPE_DDR2; break;
 	}
 
-	ram->base.size  =  nv_rd32(fb, 0x10020c) & 0xff000000;
-	ram->base.parts = (nv_rd32(fb, 0x100200) & 0x00000003) + 1;
-	ram->base.tags  =  nv_rd32(fb, 0x100320);
+	ram->base.size  =  nvkm_rd32(device, 0x10020c) & 0xff000000;
+	ram->base.parts = (nvkm_rd32(device, 0x100200) & 0x00000003) + 1;
+	ram->base.tags  =  nvkm_rd32(device, 0x100320);
 	ram->base.calc = nv40_ram_calc;
 	ram->base.prog = nv40_ram_prog;
 	ram->base.tidy = nv40_ram_tidy;

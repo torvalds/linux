@@ -68,15 +68,16 @@ struct nv50_ram {
 static int
 nv50_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 {
+	struct nvkm_device *device = fb->subdev.device;
 	struct nv50_ram *ram = (void *)fb->ram;
 	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
 	u32 cur2, cur4, cur7, cur8;
 	u8 unkt3b;
 
-	cur2 = nv_rd32(fb, 0x100228);
-	cur4 = nv_rd32(fb, 0x100230);
-	cur7 = nv_rd32(fb, 0x10023c);
-	cur8 = nv_rd32(fb, 0x100240);
+	cur2 = nvkm_rd32(device, 0x100228);
+	cur4 = nvkm_rd32(device, 0x100230);
+	cur7 = nvkm_rd32(device, 0x10023c);
+	cur8 = nvkm_rd32(device, 0x100240);
 
 	switch ((!T(CWL)) * ram->base.type) {
 	case NV_MEM_TYPE_DDR2:
@@ -493,15 +494,16 @@ nv50_ram_get(struct nvkm_fb *fb, u64 size, u32 align, u32 ncmin,
 static u32
 nv50_fb_vram_rblock(struct nvkm_fb *fb, struct nvkm_ram *ram)
 {
+	struct nvkm_device *device = fb->subdev.device;
 	int colbits, rowbitsa, rowbitsb, banks;
 	u64 rowsize, predicted;
 	u32 r0, r4, rt, rblock_size;
 
-	r0 = nv_rd32(fb, 0x100200);
-	r4 = nv_rd32(fb, 0x100204);
-	rt = nv_rd32(fb, 0x100250);
+	r0 = nvkm_rd32(device, 0x100200);
+	r4 = nvkm_rd32(device, 0x100204);
+	rt = nvkm_rd32(device, 0x100250);
 	nv_debug(fb, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		 r0, r4, rt, nv_rd32(fb, 0x001540));
+		 r0, r4, rt, nvkm_rd32(device, 0x001540));
 
 	colbits  =  (r4 & 0x0000f000) >> 12;
 	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
@@ -532,8 +534,9 @@ nv50_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	struct nvkm_bios *bios = nvkm_bios(parent);
 	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_ram *ram;
 	int ret;
 
@@ -542,13 +545,13 @@ nv50_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ram->size = nv_rd32(fb, 0x10020c);
+	ram->size = nvkm_rd32(device, 0x10020c);
 	ram->size = (ram->size & 0xffffff00) | ((ram->size & 0x000000ff) << 32);
 
-	ram->part_mask = (nv_rd32(fb, 0x001540) & 0x00ff0000) >> 16;
+	ram->part_mask = (nvkm_rd32(device, 0x001540) & 0x00ff0000) >> 16;
 	ram->parts = hweight8(ram->part_mask);
 
-	switch (nv_rd32(fb, 0x100714) & 0x00000007) {
+	switch (nvkm_rd32(device, 0x100714) & 0x00000007) {
 	case 0: ram->type = NV_MEM_TYPE_DDR1; break;
 	case 1:
 		if (nvkm_fb_bios_memtype(bios) == NV_MEM_TYPE_DDR3)
@@ -569,8 +572,8 @@ nv50_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ram->ranks = (nv_rd32(fb, 0x100200) & 0x4) ? 2 : 1;
-	ram->tags  =  nv_rd32(fb, 0x100320);
+	ram->ranks = (nvkm_rd32(device, 0x100200) & 0x4) ? 2 : 1;
+	ram->tags  =  nvkm_rd32(device, 0x100320);
 	ram->get = nv50_ram_get;
 	ram->put = nv50_ram_put;
 	return 0;

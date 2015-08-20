@@ -30,6 +30,7 @@ nv4e_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_ram *ram;
+	struct nvkm_device *device = fb->subdev.device;
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);
@@ -37,7 +38,7 @@ nv4e_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ram->size = nv_rd32(fb, 0x10020c) & 0xff000000;
+	ram->size = nvkm_rd32(device, 0x10020c) & 0xff000000;
 	ram->type = NV_MEM_TYPE_STOLEN;
 	return 0;
 }

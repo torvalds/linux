@@ -1,5 +1,6 @@
 #ifndef __NVKM_FBRAM_FUC_H__
 #define __NVKM_FBRAM_FUC_H__
+#include <subdev/fb.h>
 #include <subdev/pmu.h>
 
 struct ramfuc {
@@ -82,8 +83,9 @@ ramfuc_exec(struct ramfuc *ram, bool exec)
 static inline u32
 ramfuc_rd32(struct ramfuc *ram, struct ramfuc_reg *reg)
 {
+	struct nvkm_device *device = ram->fb->subdev.device;
 	if (reg->sequence != ram->sequence)
-		reg->data = nv_rd32(ram->fb, reg->addr);
+		reg->data = nvkm_rd32(device, reg->addr);
 	return reg->data;
 }
 

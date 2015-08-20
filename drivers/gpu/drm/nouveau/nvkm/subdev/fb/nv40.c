@@ -46,13 +46,14 @@ static int
 nv40_fb_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = (void *)object;
+	struct nvkm_device *device = fb->subdev.device;
 	int ret;
 
 	ret = nvkm_fb_init(fb);
 	if (ret)
 		return ret;
 
-	nv_mask(fb, 0x10033c, 0x00008000, 0x00000000);
+	nvkm_mask(device, 0x10033c, 0x00008000, 0x00000000);
 	return 0;
 }
 

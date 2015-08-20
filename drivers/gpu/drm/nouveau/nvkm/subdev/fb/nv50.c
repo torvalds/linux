@@ -153,16 +153,16 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 	u8 st0, st1, st2, st3;
 	int i;
 
-	idx = nv_rd32(fb, 0x100c90);
+	idx = nvkm_rd32(device, 0x100c90);
 	if (!(idx & 0x80000000))
 		return;
 	idx &= 0x00ffffff;
 
 	for (i = 0; i < 6; i++) {
-		nv_wr32(fb, 0x100c90, idx | i << 24);
-		trap[i] = nv_rd32(fb, 0x100c94);
+		nvkm_wr32(device, 0x100c90, idx | i << 24);
+		trap[i] = nvkm_rd32(device, 0x100c94);
 	}
-	nv_wr32(fb, 0x100c90, idx | 0x80000000);
+	nvkm_wr32(device, 0x100c90, idx | 0x80000000);
 
 	/* decode status bits into something more useful */
 	if (device->chipset  < 0xa3 ||
@@ -286,6 +286,7 @@ nv50_fb_init(struct nvkm_object *object)
 {
 	struct nv50_fb_impl *impl = (void *)object->oclass;
 	struct nv50_fb *fb = (void *)object;
+	struct nvkm_device *device = fb->base.subdev.device;
 	int ret;
 
 	ret = nvkm_fb_init(&fb->base);
@@ -296,11 +297,11 @@ nv50_fb_init(struct nvkm_object *object)
 	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
 	 * cause IOMMU "read from address 0" errors (rh#561267)
 	 */
-	nv_wr32(fb, 0x100c08, fb->r100c08 >> 8);
+	nvkm_wr32(device, 0x100c08, fb->r100c08 >> 8);
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
-	nv_wr32(fb, 0x100c90, impl->trap);
+	nvkm_wr32(device, 0x100c90, impl->trap);
 	return 0;
 }
 

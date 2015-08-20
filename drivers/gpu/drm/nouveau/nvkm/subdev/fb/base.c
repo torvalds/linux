@@ -29,7 +29,8 @@
 int
 nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 {
-	const u8 ramcfg = (nv_rd32(bios, 0x101000) & 0x0000003c) >> 2;
+	struct nvkm_device *device = bios->subdev.device;
+	const u8 ramcfg = (nvkm_rd32(device, 0x101000) & 0x0000003c) >> 2;
 	struct nvbios_M0203E M0203E;
 	u8 ver, hdr;
 

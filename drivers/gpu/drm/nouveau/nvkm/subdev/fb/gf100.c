@@ -35,8 +35,9 @@ gf100_fb_memtype_valid(struct nvkm_fb *fb, u32 tile_flags)
 static void
 gf100_fb_intr(struct nvkm_subdev *subdev)
 {
+	struct nvkm_device *device = subdev->device;
 	struct gf100_fb *fb = (void *)subdev;
-	u32 intr = nv_rd32(fb, 0x000100);
+	u32 intr = nvkm_rd32(device, 0x000100);
 	if (intr & 0x08000000)
 		nv_debug(fb, "PFFB intr\n");
 	if (intr & 0x00002000)
@@ -47,6 +48,7 @@ int
 gf100_fb_init(struct nvkm_object *object)
 {
 	struct gf100_fb *fb = (void *)object;
+	struct nvkm_device *device = fb->base.subdev.device;
 	int ret;
 
 	ret = nvkm_fb_init(&fb->base);
@@ -54,9 +56,9 @@ gf100_fb_init(struct nvkm_object *object)
 		return ret;
 
 	if (fb->r100c10_page)
-		nv_wr32(fb, 0x100c10, fb->r100c10 >> 8);
+		nvkm_wr32(device, 0x100c10, fb->r100c10 >> 8);
 
-	nv_mask(fb, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
+	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 	return 0;
 }
 

@@ -37,6 +37,7 @@ static int
 nv04_fb_init(struct nvkm_object *object)
 {
 	struct nvkm_fb *fb = (void *)object;
+	struct nvkm_device *device = fb->subdev.device;
 	int ret;
 
 	ret = nvkm_fb_init(fb);
@@ -47,7 +48,7 @@ nv04_fb_init(struct nvkm_object *object)
 	 * nvidia reading PFB_CFG_0, then writing back its original value.
 	 * (which was 0x701114 in this case)
 	 */
-	nv_wr32(fb, NV04_PFB_CFG0, 0x1114);
+	nvkm_wr32(device, NV04_PFB_CFG0, 0x1114);
 	return 0;
 }
 
