@@ -94,8 +94,19 @@ nv40_ram_prog(struct nvkm_fb *fb)
 	for (i = 0; i < 2; i++) {
 		if (!(crtc_mask & (1 << i)))
 			continue;
-		nv_wait(fb, 0x600808 + (i * 0x2000), 0x00010000, 0x00000000);
-		nv_wait(fb, 0x600808 + (i * 0x2000), 0x00010000, 0x00010000);
+
+		nvkm_msec(device, 2000,
+			u32 tmp = nvkm_rd32(device, 0x600808 + (i * 0x2000));
+			if (!(tmp & 0x00010000))
+				break;
+		);
+
+		nvkm_msec(device, 2000,
+			u32 tmp = nvkm_rd32(device, 0x600808 + (i * 0x2000));
+			if ( (tmp & 0x00010000))
+				break;
+		);
+
 		nvkm_wr08(device, 0x0c03c4 + (i * 0x2000), 0x01);
 		nvkm_wr08(device, 0x0c03c5 + (i * 0x2000), sr1[i] | 0x20);
 	}
@@ -155,7 +166,13 @@ nv40_ram_prog(struct nvkm_fb *fb)
 	for (i = 0; i < 2; i++) {
 		if (!(crtc_mask & (1 << i)))
 			continue;
-		nv_wait(fb, 0x600808 + (i * 0x2000), 0x00010000, 0x00010000);
+
+		nvkm_msec(device, 2000,
+			u32 tmp = nvkm_rd32(device, 0x600808 + (i * 0x2000));
+			if ( (tmp & 0x00010000))
+				break;
+		);
+
 		nvkm_wr08(device, 0x0c03c4 + (i * 0x2000), 0x01);
 		nvkm_wr08(device, 0x0c03c5 + (i * 0x2000), sr1[i]);
 	}
