@@ -32,8 +32,9 @@ static int
 g94_i2c_pad_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct g94_i2c_pad *pad = (void *)object;
-	nv_mask(i2c, 0x00e50c + pad->addr, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x00e50c + pad->addr, 0x00000001, 0x00000001);
 	return nvkm_i2c_pad_fini(&pad->base, suspend);
 }
 
@@ -41,19 +42,20 @@ static int
 g94_i2c_pad_init(struct nvkm_object *object)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct g94_i2c_pad *pad = (void *)object;
 
 	switch (nv_oclass(pad->base.next)->handle) {
 	case NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX):
-		nv_mask(i2c, 0x00e500 + pad->addr, 0x0000c003, 0x00000002);
+		nvkm_mask(device, 0x00e500 + pad->addr, 0x0000c003, 0x00000002);
 		break;
 	case NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT):
 	default:
-		nv_mask(i2c, 0x00e500 + pad->addr, 0x0000c003, 0x0000c001);
+		nvkm_mask(device, 0x00e500 + pad->addr, 0x0000c003, 0x0000c001);
 		break;
 	}
 
-	nv_mask(i2c, 0x00e50c + pad->addr, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x00e50c + pad->addr, 0x00000001, 0x00000000);
 	return nvkm_i2c_pad_init(&pad->base);
 }
 

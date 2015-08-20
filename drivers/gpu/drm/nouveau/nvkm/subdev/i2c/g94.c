@@ -26,21 +26,23 @@
 void
 g94_aux_stat(struct nvkm_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
 {
-	u32 intr = nv_rd32(i2c, 0x00e06c);
-	u32 stat = nv_rd32(i2c, 0x00e068) & intr, i;
+	struct nvkm_device *device = i2c->subdev.device;
+	u32 intr = nvkm_rd32(device, 0x00e06c);
+	u32 stat = nvkm_rd32(device, 0x00e068) & intr, i;
 	for (i = 0, *hi = *lo = *rq = *tx = 0; i < 8; i++) {
 		if ((stat & (1 << (i * 4)))) *hi |= 1 << i;
 		if ((stat & (2 << (i * 4)))) *lo |= 1 << i;
 		if ((stat & (4 << (i * 4)))) *rq |= 1 << i;
 		if ((stat & (8 << (i * 4)))) *tx |= 1 << i;
 	}
-	nv_wr32(i2c, 0x00e06c, intr);
+	nvkm_wr32(device, 0x00e06c, intr);
 }
 
 void
 g94_aux_mask(struct nvkm_i2c *i2c, u32 type, u32 mask, u32 data)
 {
-	u32 temp = nv_rd32(i2c, 0x00e068), i;
+	struct nvkm_device *device = i2c->subdev.device;
+	u32 temp = nvkm_rd32(device, 0x00e068), i;
 	for (i = 0; i < 8; i++) {
 		if (mask & (1 << i)) {
 			if (!(data & (1 << i))) {
@@ -50,21 +52,23 @@ g94_aux_mask(struct nvkm_i2c *i2c, u32 type, u32 mask, u32 data)
 			temp |= type << (i * 4);
 		}
 	}
-	nv_wr32(i2c, 0x00e068, temp);
+	nvkm_wr32(device, 0x00e068, temp);
 }
 
-#define AUX_DBG(fmt, args...) nv_debug(aux, "AUXCH(%d): " fmt, ch, ##args)
-#define AUX_ERR(fmt, args...) nv_error(aux, "AUXCH(%d): " fmt, ch, ##args)
+#define AUX_DBG(fmt, args...) nv_debug(i2c, "AUXCH(%d): " fmt, ch, ##args)
+#define AUX_ERR(fmt, args...) nv_error(i2c, "AUXCH(%d): " fmt, ch, ##args)
 
 static void
-auxch_fini(struct nvkm_i2c *aux, int ch)
+auxch_fini(struct nvkm_i2c *i2c, int ch)
 {
-	nv_mask(aux, 0x00e4e4 + (ch * 0x50), 0x00310000, 0x00000000);
+	struct nvkm_device *device = i2c->subdev.device;
+	nvkm_mask(device, 0x00e4e4 + (ch * 0x50), 0x00310000, 0x00000000);
 }
 
 static int
-auxch_init(struct nvkm_i2c *aux, int ch)
+auxch_init(struct nvkm_i2c *i2c, int ch)
 {
+	struct nvkm_device *device = i2c->subdev.device;
 	const u32 unksel = 1; /* nfi which to use, or if it matters.. */
 	const u32 ureq = unksel ? 0x00100000 : 0x00200000;
 	const u32 urep = unksel ? 0x01000000 : 0x02000000;
@@ -73,7 +77,7 @@ auxch_init(struct nvkm_i2c *aux, int ch)
 	/* wait up to 1ms for any previous transaction to be done... */
 	timeout = 1000;
 	do {
-		ctrl = nv_rd32(aux, 0x00e4e4 + (ch * 0x50));
+		ctrl = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 		udelay(1);
 		if (!timeout--) {
 			AUX_ERR("begin idle timeout 0x%08x\n", ctrl);
@@ -82,14 +86,14 @@ auxch_init(struct nvkm_i2c *aux, int ch)
 	} while (ctrl & 0x03010000);
 
 	/* set some magic, and wait up to 1ms for it to appear */
-	nv_mask(aux, 0x00e4e4 + (ch * 0x50), 0x00300000, ureq);
+	nvkm_mask(device, 0x00e4e4 + (ch * 0x50), 0x00300000, ureq);
 	timeout = 1000;
 	do {
-		ctrl = nv_rd32(aux, 0x00e4e4 + (ch * 0x50));
+		ctrl = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 		udelay(1);
 		if (!timeout--) {
 			AUX_ERR("magic wait 0x%08x\n", ctrl);
-			auxch_fini(aux, ch);
+			auxch_fini(i2c, ch);
 			return -EBUSY;
 		}
 	} while ((ctrl & 0x03000000) != urep);
@@ -101,7 +105,8 @@ int
 g94_aux(struct nvkm_i2c_port *base, bool retry,
 	 u8 type, u32 addr, u8 *data, u8 size)
 {
-	struct nvkm_i2c *aux = nvkm_i2c(base);
+	struct nvkm_i2c *i2c = nvkm_i2c(base);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct nv50_i2c_port *port = (void *)base;
 	u32 ctrl, stat, timeout, retries;
 	u32 xbuf[4] = {};
@@ -110,11 +115,11 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 
 	AUX_DBG("%d: 0x%08x %d\n", type, addr, size);
 
-	ret = auxch_init(aux, ch);
+	ret = auxch_init(i2c, ch);
 	if (ret < 0)
 		goto out;
 
-	stat = nv_rd32(aux, 0x00e4e8 + (ch * 0x50));
+	stat = nvkm_rd32(device, 0x00e4e8 + (ch * 0x50));
 	if (!(stat & 0x10000000)) {
 		AUX_DBG("sink not detected\n");
 		ret = -ENXIO;
@@ -125,30 +130,30 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 		memcpy(xbuf, data, size);
 		for (i = 0; i < 16; i += 4) {
 			AUX_DBG("wr 0x%08x\n", xbuf[i / 4]);
-			nv_wr32(aux, 0x00e4c0 + (ch * 0x50) + i, xbuf[i / 4]);
+			nvkm_wr32(device, 0x00e4c0 + (ch * 0x50) + i, xbuf[i / 4]);
 		}
 	}
 
-	ctrl  = nv_rd32(aux, 0x00e4e4 + (ch * 0x50));
+	ctrl  = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 	ctrl &= ~0x0001f0ff;
 	ctrl |= type << 12;
 	ctrl |= size - 1;
-	nv_wr32(aux, 0x00e4e0 + (ch * 0x50), addr);
+	nvkm_wr32(device, 0x00e4e0 + (ch * 0x50), addr);
 
 	/* (maybe) retry transaction a number of times on failure... */
 	for (retries = 0; !ret && retries < 32; retries++) {
 		/* reset, and delay a while if this is a retry */
-		nv_wr32(aux, 0x00e4e4 + (ch * 0x50), 0x80000000 | ctrl);
-		nv_wr32(aux, 0x00e4e4 + (ch * 0x50), 0x00000000 | ctrl);
+		nvkm_wr32(device, 0x00e4e4 + (ch * 0x50), 0x80000000 | ctrl);
+		nvkm_wr32(device, 0x00e4e4 + (ch * 0x50), 0x00000000 | ctrl);
 		if (retries)
 			udelay(400);
 
 		/* transaction request, wait up to 1ms for it to complete */
-		nv_wr32(aux, 0x00e4e4 + (ch * 0x50), 0x00010000 | ctrl);
+		nvkm_wr32(device, 0x00e4e4 + (ch * 0x50), 0x00010000 | ctrl);
 
 		timeout = 1000;
 		do {
-			ctrl = nv_rd32(aux, 0x00e4e4 + (ch * 0x50));
+			ctrl = nvkm_rd32(device, 0x00e4e4 + (ch * 0x50));
 			udelay(1);
 			if (!timeout--) {
 				AUX_ERR("tx req timeout 0x%08x\n", ctrl);
@@ -159,7 +164,7 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 		ret = 1;
 
 		/* read status, and check if transaction completed ok */
-		stat = nv_mask(aux, 0x00e4e8 + (ch * 0x50), 0, 0);
+		stat = nvkm_mask(device, 0x00e4e8 + (ch * 0x50), 0, 0);
 		if ((stat & 0x000f0000) == 0x00080000 ||
 		    (stat & 0x000f0000) == 0x00020000)
 			ret = retry ? 0 : 1;
@@ -173,14 +178,14 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 
 	if (type & 1) {
 		for (i = 0; i < 16; i += 4) {
-			xbuf[i / 4] = nv_rd32(aux, 0x00e4d0 + (ch * 0x50) + i);
+			xbuf[i / 4] = nvkm_rd32(device, 0x00e4d0 + (ch * 0x50) + i);
 			AUX_DBG("rd 0x%08x\n", xbuf[i / 4]);
 		}
 		memcpy(data, xbuf, size);
 	}
 
 out:
-	auxch_fini(aux, ch);
+	auxch_fini(i2c, ch);
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 

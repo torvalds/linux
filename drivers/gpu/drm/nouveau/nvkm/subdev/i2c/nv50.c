@@ -27,36 +27,40 @@ void
 nv50_i2c_drive_scl(struct nvkm_i2c_port *base, int state)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct nv50_i2c_port *port = (void *)base;
 	if (state) port->state |= 0x01;
 	else	   port->state &= 0xfe;
-	nv_wr32(i2c, port->addr, port->state);
+	nvkm_wr32(device, port->addr, port->state);
 }
 
 void
 nv50_i2c_drive_sda(struct nvkm_i2c_port *base, int state)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct nv50_i2c_port *port = (void *)base;
 	if (state) port->state |= 0x02;
 	else	   port->state &= 0xfd;
-	nv_wr32(i2c, port->addr, port->state);
+	nvkm_wr32(device, port->addr, port->state);
 }
 
 int
 nv50_i2c_sense_scl(struct nvkm_i2c_port *base)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct nv50_i2c_port *port = (void *)base;
-	return !!(nv_rd32(i2c, port->addr) & 0x00000001);
+	return !!(nvkm_rd32(device, port->addr) & 0x00000001);
 }
 
 int
 nv50_i2c_sense_sda(struct nvkm_i2c_port *base)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct nv50_i2c_port *port = (void *)base;
-	return !!(nv_rd32(i2c, port->addr) & 0x00000002);
+	return !!(nvkm_rd32(device, port->addr) & 0x00000002);
 }
 
 static const struct nvkm_i2c_func
@@ -101,8 +105,9 @@ int
 nv50_i2c_port_init(struct nvkm_object *object)
 {
 	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
+	struct nvkm_device *device = i2c->subdev.device;
 	struct nv50_i2c_port *port = (void *)object;
-	nv_wr32(i2c, port->addr, port->state);
+	nvkm_wr32(device, port->addr, port->state);
 	return nvkm_i2c_port_init(&port->base);
 }
 
