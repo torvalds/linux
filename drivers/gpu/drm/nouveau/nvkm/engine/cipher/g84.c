@@ -108,10 +108,11 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_engine *cipher = (void *)subdev;
-	u32 stat = nv_rd32(cipher, 0x102130);
-	u32 mthd = nv_rd32(cipher, 0x102190);
-	u32 data = nv_rd32(cipher, 0x102194);
-	u32 inst = nv_rd32(cipher, 0x102188) & 0x7fffffff;
+	struct nvkm_device *device = cipher->subdev.device;
+	u32 stat = nvkm_rd32(device, 0x102130);
+	u32 mthd = nvkm_rd32(device, 0x102190);
+	u32 data = nvkm_rd32(device, 0x102194);
+	u32 inst = nvkm_rd32(device, 0x102188) & 0x7fffffff;
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
@@ -125,8 +126,8 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 		       mthd, data);
 	}
 
-	nv_wr32(cipher, 0x102130, stat);
-	nv_wr32(cipher, 0x10200c, 0x10);
+	nvkm_wr32(device, 0x102130, stat);
+	nvkm_wr32(device, 0x10200c, 0x10);
 
 	nvkm_engctx_put(engctx);
 }
@@ -156,15 +157,16 @@ static int
 g84_cipher_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *cipher = (void *)object;
+	struct nvkm_device *device = cipher->subdev.device;
 	int ret;
 
 	ret = nvkm_engine_init(cipher);
 	if (ret)
 		return ret;
 
-	nv_wr32(cipher, 0x102130, 0xffffffff);
-	nv_wr32(cipher, 0x102140, 0xffffffbf);
-	nv_wr32(cipher, 0x10200c, 0x00000010);
+	nvkm_wr32(device, 0x102130, 0xffffffff);
+	nvkm_wr32(device, 0x102140, 0xffffffbf);
+	nvkm_wr32(device, 0x10200c, 0x00000010);
 	return 0;
 }
 
