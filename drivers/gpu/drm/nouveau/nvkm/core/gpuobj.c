@@ -34,8 +34,10 @@ nvkm_gpuobj_destroy(struct nvkm_gpuobj *gpuobj)
 	int i;
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_FREE) {
+		nvkm_kmap(gpuobj);
 		for (i = 0; i < gpuobj->size; i += 4)
-			nv_wo32(gpuobj, i, 0x00000000);
+			nvkm_wo32(gpuobj, i, 0x00000000);
+		nvkm_done(gpuobj);
 	}
 
 	if (gpuobj->node)
@@ -123,8 +125,10 @@ nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 
 	if (flags & NVOBJ_FLAG_ZERO_ALLOC) {
+		nvkm_kmap(gpuobj);
 		for (i = 0; i < gpuobj->size; i += 4)
-			nv_wo32(gpuobj, i, 0x00000000);
+			nvkm_wo32(gpuobj, i, 0x00000000);
+		nvkm_done(gpuobj);
 	}
 
 	return ret;
