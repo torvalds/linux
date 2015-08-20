@@ -1304,8 +1304,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	case YUV422_A:
 		is_pic_yuv = 1;
 		stride = stride_32bit_1;
-		uv_stride = stride_32bit_1 >> 1;
-		uv_x_off = xoffset >> 1;
+		uv_stride = stride_32bit_1;
+		uv_x_off = xoffset;
 		uv_y_off = yoffset;
 		fix->line_length = stride;
 		uv_y_act = win->area[0].yact >> 1;
@@ -2283,8 +2283,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	case YUV422_A:
 		is_pic_yuv = 1;
 		stride = stride_32bit_1;
-		uv_stride = stride_32bit_1 >> 1;
-		uv_x_off = xoffset >> 1;
+		uv_stride = stride_32bit_1;
+		uv_x_off = xoffset;
 		uv_y_off = yoffset;
 		fix->line_length = stride;
 		uv_y_act = win_par->area_par[0].yact >> 1;
@@ -3129,8 +3129,8 @@ static int rk_fb_set_par(struct fb_info *info)
 	case YUV422_A:
 		is_pic_yuv = 1;
 		stride = stride_32bit_1;
-		uv_stride = stride_32bit_1 >> 1;
-		uv_x_off = xoffset >> 1;
+		uv_stride = stride_32bit_1;
+		uv_x_off = xoffset;
 		uv_y_off = yoffset;
 		fix->line_length = stride;
 		cblen = crlen = (xvir * yvir) >> 1;
