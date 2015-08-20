@@ -3,7 +3,7 @@
 #include <core/subdev.h>
 
 struct nvkm_mc {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	bool use_msi;
 	unsigned int irq;
 	void (*unk260)(struct nvkm_mc *, u32);

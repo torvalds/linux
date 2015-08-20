@@ -26,17 +26,17 @@
 #include <core/option.h>
 
 static inline void
-nvkm_mc_unk260(struct nvkm_mc *pmc, u32 data)
+nvkm_mc_unk260(struct nvkm_mc *mc, u32 data)
 {
-	const struct nvkm_mc_oclass *impl = (void *)nv_oclass(pmc);
+	const struct nvkm_mc_oclass *impl = (void *)nv_oclass(mc);
 	if (impl->unk260)
-		impl->unk260(pmc, data);
+		impl->unk260(mc, data);
 }
 
 static inline u32
-nvkm_mc_intr_mask(struct nvkm_mc *pmc)
+nvkm_mc_intr_mask(struct nvkm_mc *mc)
 {
-	u32 intr = nv_rd32(pmc, 0x000100);
+	u32 intr = nv_rd32(mc, 0x000100);
 	if (intr == 0xffffffff) /* likely fallen off the bus */
 		intr = 0x00000000;
 	return intr;
@@ -45,23 +45,23 @@ nvkm_mc_intr_mask(struct nvkm_mc *pmc)
 static irqreturn_t
 nvkm_mc_intr(int irq, void *arg)
 {
-	struct nvkm_mc *pmc = arg;
-	const struct nvkm_mc_oclass *oclass = (void *)nv_object(pmc)->oclass;
+	struct nvkm_mc *mc = arg;
+	const struct nvkm_mc_oclass *oclass = (void *)nv_object(mc)->oclass;
 	const struct nvkm_mc_intr *map = oclass->intr;
 	struct nvkm_subdev *unit;
 	u32 intr;
 
-	nv_wr32(pmc, 0x000140, 0x00000000);
-	nv_rd32(pmc, 0x000140);
-	intr = nvkm_mc_intr_mask(pmc);
-	if (pmc->use_msi)
-		oclass->msi_rearm(pmc);
+	nv_wr32(mc, 0x000140, 0x00000000);
+	nv_rd32(mc, 0x000140);
+	intr = nvkm_mc_intr_mask(mc);
+	if (mc->use_msi)
+		oclass->msi_rearm(mc);
 
 	if (intr) {
-		u32 stat = intr = nvkm_mc_intr_mask(pmc);
+		u32 stat = intr = nvkm_mc_intr_mask(mc);
 		while (map->stat) {
 			if (intr & map->stat) {
-				unit = nvkm_subdev(pmc, map->unit);
+				unit = nvkm_subdev(mc, map->unit);
 				if (unit && unit->intr)
 					unit->intr(unit);
 				stat &= ~map->stat;
@@ -70,29 +70,29 @@ nvkm_mc_intr(int irq, void *arg)
 		}
 
 		if (stat)
-			nv_error(pmc, "unknown intr 0x%08x\n", stat);
+			nv_error(mc, "unknown intr 0x%08x\n", stat);
 	}
 
-	nv_wr32(pmc, 0x000140, 0x00000001);
+	nv_wr32(mc, 0x000140, 0x00000001);
 	return intr ? IRQ_HANDLED : IRQ_NONE;
 }
 
 int
 _nvkm_mc_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_mc *pmc = (void *)object;
-	nv_wr32(pmc, 0x000140, 0x00000000);
-	return nvkm_subdev_fini(&pmc->base, suspend);
+	struct nvkm_mc *mc = (void *)object;
+	nv_wr32(mc, 0x000140, 0x00000000);
+	return nvkm_subdev_fini(&mc->subdev, suspend);
 }
 
 int
 _nvkm_mc_init(struct nvkm_object *object)
 {
-	struct nvkm_mc *pmc = (void *)object;
-	int ret = nvkm_subdev_init(&pmc->base);
+	struct nvkm_mc *mc = (void *)object;
+	int ret = nvkm_subdev_init(&mc->subdev);
 	if (ret)
 		return ret;
-	nv_wr32(pmc, 0x000140, 0x00000001);
+	nv_wr32(mc, 0x000140, 0x00000001);
 	return 0;
 }
 
@@ -100,11 +100,11 @@ void
 _nvkm_mc_dtor(struct nvkm_object *object)
 {
 	struct nvkm_device *device = nv_device(object);
-	struct nvkm_mc *pmc = (void *)object;
-	free_irq(pmc->irq, pmc);
-	if (pmc->use_msi)
+	struct nvkm_mc *mc = (void *)object;
+	free_irq(mc->irq, mc);
+	if (mc->use_msi)
 		pci_disable_msi(device->pdev);
-	nvkm_subdev_destroy(&pmc->base);
+	nvkm_subdev_destroy(&mc->subdev);
 }
 
 int
@@ -113,16 +113,16 @@ nvkm_mc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	const struct nvkm_mc_oclass *oclass = (void *)bclass;
 	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_mc *pmc;
+	struct nvkm_mc *mc;
 	int ret;
 
 	ret = nvkm_subdev_create_(parent, engine, bclass, 0, "PMC",
 				  "master", length, pobject);
-	pmc = *pobject;
+	mc = *pobject;
 	if (ret)
 		return ret;
 
-	pmc->unk260 = nvkm_mc_unk260;
+	mc->unk260 = nvkm_mc_unk260;
 
 	if (nv_device_is_pci(device)) {
 		switch (device->pdev->device & 0x0ff0) {
@@ -136,31 +136,31 @@ nvkm_mc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 				/* reported broken, nv also disable it */
 				break;
 			default:
-				pmc->use_msi = true;
+				mc->use_msi = true;
 				break;
 			}
 		}
 
-		pmc->use_msi = nvkm_boolopt(device->cfgopt, "NvMSI",
-					    pmc->use_msi);
+		mc->use_msi = nvkm_boolopt(device->cfgopt, "NvMSI",
+					    mc->use_msi);
 
-		if (pmc->use_msi && oclass->msi_rearm) {
-			pmc->use_msi = pci_enable_msi(device->pdev) == 0;
-			if (pmc->use_msi) {
-				nv_info(pmc, "MSI interrupts enabled\n");
-				oclass->msi_rearm(pmc);
+		if (mc->use_msi && oclass->msi_rearm) {
+			mc->use_msi = pci_enable_msi(device->pdev) == 0;
+			if (mc->use_msi) {
+				nv_info(mc, "MSI interrupts enabled\n");
+				oclass->msi_rearm(mc);
 			}
 		} else {
-			pmc->use_msi = false;
+			mc->use_msi = false;
 		}
 	}
 
 	ret = nv_device_get_irq(device, true);
 	if (ret < 0)
 		return ret;
-	pmc->irq = ret;
+	mc->irq = ret;
 
-	ret = request_irq(pmc->irq, nvkm_mc_intr, IRQF_SHARED, "nvkm", pmc);
+	ret = request_irq(mc->irq, nvkm_mc_intr, IRQF_SHARED, "nvkm", mc);
 	if (ret < 0)
 		return ret;
 

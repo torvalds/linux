@@ -41,12 +41,12 @@ nv04_mc_intr[] = {
 int
 nv04_mc_init(struct nvkm_object *object)
 {
-	struct nv04_mc_priv *priv = (void *)object;
+	struct nvkm_mc *mc = (void *)object;
 
-	nv_wr32(priv, 0x000200, 0xffffffff); /* everything enabled */
-	nv_wr32(priv, 0x001850, 0x00000001); /* disable rom access */
+	nv_wr32(mc, 0x000200, 0xffffffff); /* everything enabled */
+	nv_wr32(mc, 0x001850, 0x00000001); /* disable rom access */
 
-	return nvkm_mc_init(&priv->base);
+	return nvkm_mc_init(mc);
 }
 
 int
@@ -54,11 +54,11 @@ nv04_mc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
-	struct nv04_mc_priv *priv;
+	struct nvkm_mc *mc;
 	int ret;
 
-	ret = nvkm_mc_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_mc_create(parent, engine, oclass, &mc);
+	*pobject = nv_object(mc);
 	if (ret)
 		return ret;
 

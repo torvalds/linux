@@ -24,10 +24,9 @@
 #include "nv04.h"
 
 void
-nv40_mc_msi_rearm(struct nvkm_mc *pmc)
+nv40_mc_msi_rearm(struct nvkm_mc *mc)
 {
-	struct nv04_mc_priv *priv = (void *)pmc;
-	nv_wr08(priv, 0x088068, 0xff);
+	nv_wr08(mc, 0x088068, 0xff);
 }
 
 struct nvkm_oclass *

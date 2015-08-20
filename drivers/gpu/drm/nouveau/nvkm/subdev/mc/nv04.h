@@ -2,10 +2,6 @@
 #define __NVKM_MC_NV04_H__
 #include "priv.h"
 
-struct nv04_mc_priv {
-	struct nvkm_mc base;
-};
-
 int  nv04_mc_ctor(struct nvkm_object *, struct nvkm_object *,
 		  struct nvkm_oclass *, void *, u32,
 		  struct nvkm_object **);

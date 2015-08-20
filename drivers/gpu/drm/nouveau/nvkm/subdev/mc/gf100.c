@@ -49,16 +49,15 @@ gf100_mc_intr[] = {
 };
 
 static void
-gf100_mc_msi_rearm(struct nvkm_mc *pmc)
+gf100_mc_msi_rearm(struct nvkm_mc *mc)
 {
-	struct nv04_mc_priv *priv = (void *)pmc;
-	nv_wr32(priv, 0x088704, 0x00000000);
+	nv_wr32(mc, 0x088704, 0x00000000);
 }
 
 void
-gf100_mc_unk260(struct nvkm_mc *pmc, u32 data)
+gf100_mc_unk260(struct nvkm_mc *mc, u32 data)
 {
-	nv_wr32(pmc, 0x000260, data);
+	nv_wr32(mc, 0x000260, data);
 }
 
 struct nvkm_oclass *
