@@ -83,7 +83,8 @@ static void
 nvkm_therm_update(struct nvkm_therm *obj, int mode)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *tmr = nvkm_timer(therm);
+	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_timer *tmr = subdev->device->timer;
 	unsigned long flags;
 	bool immd = true;
 	bool poll = true;
@@ -129,7 +130,7 @@ nvkm_therm_update(struct nvkm_therm *obj, int mode)
 	spin_unlock_irqrestore(&therm->lock, flags);
 
 	if (duty >= 0) {
-		nv_debug(therm, "FAN target request: %d%%\n", duty);
+		nvkm_debug(subdev, "FAN target request: %d%%\n", duty);
 		nvkm_therm_fan_set(&therm->base, immd, duty);
 	}
 }
@@ -138,9 +139,10 @@ int
 nvkm_therm_cstate(struct nvkm_therm *obj, int fan, int dir)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
+	struct nvkm_subdev *subdev = &therm->base.subdev;
 	if (!dir || (dir < 0 && fan < therm->cstate) ||
 		    (dir > 0 && fan > therm->cstate)) {
-		nv_debug(therm, "default fan speed -> %d%%\n", fan);
+		nvkm_debug(subdev, "default fan speed -> %d%%\n", fan);
 		therm->cstate = fan;
 		nvkm_therm_update(&therm->base, -1);
 	}
@@ -159,7 +161,8 @@ int
 nvkm_therm_fan_mode(struct nvkm_therm *obj, int mode)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_device *device = nv_device(therm);
+	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	static const char *name[] = {
 		"disabled",
 		"manual",
@@ -181,7 +184,7 @@ nvkm_therm_fan_mode(struct nvkm_therm *obj, int mode)
 	if (therm->mode == mode)
 		return 0;
 
-	nv_info(therm, "fan management: %s\n", name[mode]);
+	nvkm_debug(subdev, "fan management: %s\n", name[mode]);
 	nvkm_therm_update(&therm->base, mode);
 	return 0;
 }

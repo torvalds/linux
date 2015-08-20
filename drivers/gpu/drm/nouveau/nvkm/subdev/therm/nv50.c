@@ -27,6 +27,8 @@
 static int
 pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 {
+	struct nvkm_subdev *subdev = &therm->subdev;
+
 	if (*line == 0x04) {
 		*ctrl = 0x00e100;
 		*line = 4;
@@ -42,7 +44,7 @@ pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 		*line = 0;
 		*indx = 0;
 	} else {
-		nv_error(therm, "unknown pwm ctrl for gpio %d\n", *line);
+		nvkm_error(subdev, "unknown pwm ctrl for gpio %d\n", *line);
 		return -ENODEV;
 	}
 

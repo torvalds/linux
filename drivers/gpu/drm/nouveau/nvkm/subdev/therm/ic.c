@@ -46,10 +46,10 @@ probe_monitoring_device(struct nvkm_i2c_port *i2c,
 		return false;
 	}
 
-	nv_info(therm,
-		"Found an %s at address 0x%x (controlled by lm_sensors, "
-		"temp offset %+i C)\n",
-		info->type, info->addr, sensor->offset_constant);
+	nvkm_debug(&therm->base.subdev,
+		   "Found an %s at address 0x%x (controlled by lm_sensors, "
+		   "temp offset %+i C)\n",
+		   info->type, info->addr, sensor->offset_constant);
 	therm->ic = client;
 	return true;
 }

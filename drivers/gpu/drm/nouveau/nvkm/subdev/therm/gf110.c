@@ -26,7 +26,8 @@
 static int
 pwm_info(struct nvkm_therm *therm, int line)
 {
-	struct nvkm_device *device = therm->subdev.device;
+	struct nvkm_subdev *subdev = &therm->subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 gpio = nvkm_rd32(device, 0x00d610 + (line * 0x04));
 
 	switch (gpio & 0x000000c0) {
@@ -44,7 +45,7 @@ pwm_info(struct nvkm_therm *therm, int line)
 		break;
 	}
 
-	nv_error(therm, "GPIO %d unknown PWM: 0x%08x\n", line, gpio);
+	nvkm_error(subdev, "GPIO %d unknown PWM: %08x\n", line, gpio);
 	return -ENODEV;
 }
 

@@ -56,8 +56,9 @@ static void
 g84_therm_program_alarms(struct nvkm_therm *obj)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_device *device = therm->base.subdev.device;
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
+	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	unsigned long flags;
 
 	spin_lock_irqsave(&therm->sensor.alarm_program_lock, flags);
@@ -79,13 +80,16 @@ g84_therm_program_alarms(struct nvkm_therm *obj)
 	nvkm_wr32(device, 0x20414, sensor->thrs_down_clock.temp);
 	spin_unlock_irqrestore(&therm->sensor.alarm_program_lock, flags);
 
-	nv_debug(therm,
-		 "Programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
-		 sensor->thrs_fan_boost.temp, sensor->thrs_fan_boost.hysteresis,
-		 sensor->thrs_down_clock.temp,
-		 sensor->thrs_down_clock.hysteresis,
-		 sensor->thrs_critical.temp, sensor->thrs_critical.hysteresis,
-		 sensor->thrs_shutdown.temp, sensor->thrs_shutdown.hysteresis);
+	nvkm_debug(subdev,
+		   "Programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
+		   sensor->thrs_fan_boost.temp,
+		   sensor->thrs_fan_boost.hysteresis,
+		   sensor->thrs_down_clock.temp,
+		   sensor->thrs_down_clock.hysteresis,
+		   sensor->thrs_critical.temp,
+		   sensor->thrs_critical.hysteresis,
+		   sensor->thrs_shutdown.temp,
+		   sensor->thrs_shutdown.hysteresis);
 
 }
 
@@ -180,7 +184,7 @@ g84_therm_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (intr)
-		nv_error(therm, "unhandled intr 0x%08x\n", intr);
+		nvkm_error(subdev, "intr %08x\n", intr);
 
 	/* ACK everything */
 	nvkm_wr32(device, 0x20100, 0xffffffff);

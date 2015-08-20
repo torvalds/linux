@@ -32,7 +32,8 @@ static int
 nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 {
 	struct nvkm_therm_priv *therm = (void *)fan->parent;
-	struct nvkm_timer *tmr = nvkm_timer(therm);
+	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_timer *tmr = subdev->device->timer;
 	unsigned long flags;
 	int ret = 0;
 	int duty;
@@ -44,7 +45,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	target = max_t(u8, target, fan->bios.min_duty);
 	target = min_t(u8, target, fan->bios.max_duty);
 	if (fan->percent != target) {
-		nv_debug(therm, "FAN target: %d\n", target);
+		nvkm_debug(subdev, "FAN target: %d\n", target);
 		fan->percent = target;
 	}
 
@@ -69,7 +70,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		duty = target;
 	}
 
-	nv_debug(therm, "FAN update: %d\n", duty);
+	nvkm_debug(subdev, "FAN update: %d\n", duty);
 	ret = fan->set(&therm->base, duty);
 	if (ret) {
 		spin_unlock_irqrestore(&fan->lock, flags);
@@ -228,8 +229,10 @@ int
 nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_gpio *gpio = nvkm_gpio(therm);
-	struct nvkm_bios *bios = nvkm_bios(therm);
+	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_gpio *gpio = device->gpio;
+	struct nvkm_bios *bios = device->bios;
 	struct dcb_gpio_func func;
 	int ret;
 
@@ -238,7 +241,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 	if (ret == 0) {
 		/* FIXME: is this really the place to perform such checks ? */
 		if (func.line != 16 && func.log[0] & DCB_GPIO_LOG_DIR_IN) {
-			nv_debug(therm, "GPIO_FAN is in input mode\n");
+			nvkm_debug(subdev, "GPIO_FAN is in input mode\n");
 			ret = -EINVAL;
 		} else {
 			ret = nvkm_fanpwm_create(&therm->base, &func);
@@ -254,7 +257,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 			return ret;
 	}
 
-	nv_info(therm, "FAN control: %s\n", therm->fan->type);
+	nvkm_debug(subdev, "FAN control: %s\n", therm->fan->type);
 
 	/* read the current speed, it is useful when resuming */
 	therm->fan->percent = nvkm_therm_fan_get(&therm->base);
@@ -273,9 +276,9 @@ nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 	nvkm_therm_fan_set_defaults(&therm->base);
 	nvbios_perf_fan_parse(bios, &therm->fan->perf);
 	if (!nvbios_fan_parse(bios, &therm->fan->bios)) {
-		nv_debug(therm, "parsing the fan table failed\n");
+		nvkm_debug(subdev, "parsing the fan table failed\n");
 		if (nvbios_therm_fan_parse(bios, &therm->fan->bios))
-			nv_error(therm, "parsing both fan tables failed\n");
+			nvkm_error(subdev, "parsing both fan tables failed\n");
 	}
 	nvkm_therm_fan_safety_checks(&therm->base);
 	return 0;
