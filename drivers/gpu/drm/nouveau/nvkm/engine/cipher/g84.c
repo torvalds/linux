@@ -28,10 +28,6 @@
 #include <core/engctx.h>
 #include <core/enum.h>
 
-struct g84_cipher_priv {
-	struct nvkm_engine base;
-};
-
 /*******************************************************************************
  * Crypt object classes
  ******************************************************************************/
@@ -111,26 +107,26 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
-	struct g84_cipher_priv *priv = (void *)subdev;
-	u32 stat = nv_rd32(priv, 0x102130);
-	u32 mthd = nv_rd32(priv, 0x102190);
-	u32 data = nv_rd32(priv, 0x102194);
-	u32 inst = nv_rd32(priv, 0x102188) & 0x7fffffff;
+	struct nvkm_engine *cipher = (void *)subdev;
+	u32 stat = nv_rd32(cipher, 0x102130);
+	u32 mthd = nv_rd32(cipher, 0x102190);
+	u32 data = nv_rd32(cipher, 0x102194);
+	u32 inst = nv_rd32(cipher, 0x102188) & 0x7fffffff;
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat) {
-		nv_error(priv, "%s", "");
+		nv_error(cipher, "%s", "");
 		nvkm_bitfield_print(g84_cipher_intr_mask, stat);
 		pr_cont(" ch %d [0x%010llx %s] mthd 0x%04x data 0x%08x\n",
 		       chid, (u64)inst << 12, nvkm_client_name(engctx),
 		       mthd, data);
 	}
 
-	nv_wr32(priv, 0x102130, stat);
-	nv_wr32(priv, 0x10200c, 0x10);
+	nv_wr32(cipher, 0x102130, stat);
+	nv_wr32(cipher, 0x10200c, 0x10);
 
 	nvkm_engctx_put(engctx);
 }
@@ -140,35 +136,35 @@ g84_cipher_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct g84_cipher_priv *priv;
+	struct nvkm_engine *cipher;
 	int ret;
 
 	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCIPHER", "cipher", &priv);
-	*pobject = nv_object(priv);
+				 "PCIPHER", "cipher", &cipher);
+	*pobject = nv_object(cipher);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00004000;
-	nv_subdev(priv)->intr = g84_cipher_intr;
-	nv_engine(priv)->cclass = &g84_cipher_cclass;
-	nv_engine(priv)->sclass = g84_cipher_sclass;
+	nv_subdev(cipher)->unit = 0x00004000;
+	nv_subdev(cipher)->intr = g84_cipher_intr;
+	nv_engine(cipher)->cclass = &g84_cipher_cclass;
+	nv_engine(cipher)->sclass = g84_cipher_sclass;
 	return 0;
 }
 
 static int
 g84_cipher_init(struct nvkm_object *object)
 {
-	struct g84_cipher_priv *priv = (void *)object;
+	struct nvkm_engine *cipher = (void *)object;
 	int ret;
 
-	ret = nvkm_engine_init(&priv->base);
+	ret = nvkm_engine_init(cipher);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x102130, 0xffffffff);
-	nv_wr32(priv, 0x102140, 0xffffffbf);
-	nv_wr32(priv, 0x10200c, 0x00000010);
+	nv_wr32(cipher, 0x102130, 0xffffffff);
+	nv_wr32(cipher, 0x102140, 0xffffffbf);
+	nv_wr32(cipher, 0x10200c, 0x00000010);
 	return 0;
 }
 
