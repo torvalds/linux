@@ -283,6 +283,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct gf100_gr_data *data = gr->mmio_data;
 	struct gf100_gr_mmio *mmio = gr->mmio_list;
 	struct gf100_gr_chan *chan;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nvkm_gpuobj *image;
 	int ret, i;
 
@@ -298,29 +299,32 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	 * fuc to modify some per-context register settings on first load
 	 * of the context.
 	 */
-	ret = nvkm_gpuobj_new(nv_object(chan), NULL, 0x1000, 0x100, 0,
-			      &chan->mmio);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x100,
+			      false, &chan->mmio);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_map_vm(nv_gpuobj(chan->mmio), vm,
-				 NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
-				 &chan->mmio_vma);
+	ret = nvkm_vm_get(vm, 0x1000, 12, NV_MEM_ACCESS_RW |
+			  NV_MEM_ACCESS_SYS, &chan->mmio_vma);
 	if (ret)
 		return ret;
+
+	nvkm_memory_map(chan->mmio, &chan->mmio_vma, 0);
 
 	/* allocate buffers referenced by mmio list */
 	for (i = 0; data->size && i < ARRAY_SIZE(gr->mmio_data); i++) {
-		ret = nvkm_gpuobj_new(nv_object(chan), NULL, data->size,
-				      data->align, 0, &chan->data[i].mem);
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      data->size, data->align, false,
+				      &chan->data[i].mem);
 		if (ret)
 			return ret;
 
-		ret = nvkm_gpuobj_map_vm(chan->data[i].mem, vm, data->access,
-					 &chan->data[i].vma);
+		ret = nvkm_vm_get(vm, nvkm_memory_size(chan->data[i].mem),
+				  12, data->access, &chan->data[i].vma);
 		if (ret)
 			return ret;
 
+		nvkm_memory_map(chan->data[i].mem, &chan->data[i].vma, 0);
 		data++;
 	}
 
@@ -372,12 +376,18 @@ gf100_gr_context_dtor(struct nvkm_object *object)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chan->data); i++) {
-		nvkm_gpuobj_unmap(&chan->data[i].vma);
-		nvkm_gpuobj_ref(NULL, &chan->data[i].mem);
+		if (chan->data[i].vma.node) {
+			nvkm_vm_unmap(&chan->data[i].vma);
+			nvkm_vm_put(&chan->data[i].vma);
+		}
+		nvkm_memory_del(&chan->data[i].mem);
 	}
 
-	nvkm_gpuobj_unmap(&chan->mmio_vma);
-	nvkm_gpuobj_ref(NULL, &chan->mmio);
+	if (chan->mmio_vma.node) {
+		nvkm_vm_unmap(&chan->mmio_vma);
+		nvkm_vm_put(&chan->mmio_vma);
+	}
+	nvkm_memory_del(&chan->mmio);
 
 	nvkm_gr_context_destroy(&chan->base);
 }
@@ -1490,8 +1500,8 @@ gf100_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, GPC_BCAST(0x088c), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
-	nvkm_wr32(device, GPC_BCAST(0x08b4), gr->unk4188b4->addr >> 8);
-	nvkm_wr32(device, GPC_BCAST(0x08b8), gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
 
 	gf100_gr_mmio(gr, oclass->mmio);
 
@@ -1634,8 +1644,8 @@ gf100_gr_dtor(struct nvkm_object *object)
 	gf100_gr_dtor_fw(&gr->fuc41ac);
 	gf100_gr_dtor_fw(&gr->fuc41ad);
 
-	nvkm_gpuobj_ref(NULL, &gr->unk4188b8);
-	nvkm_gpuobj_ref(NULL, &gr->unk4188b4);
+	nvkm_memory_del(&gr->unk4188b8);
+	nvkm_memory_del(&gr->unk4188b4);
 
 	nvkm_gr_destroy(&gr->base);
 }
@@ -1675,12 +1685,12 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		gr->firmware = true;
 	}
 
-	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 0x1000, 256, 0,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 256, false,
 			      &gr->unk4188b4);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 0x1000, 256, 0,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 256, false,
 			      &gr->unk4188b8);
 	if (ret)
 		return ret;

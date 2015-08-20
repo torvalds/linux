@@ -130,6 +130,7 @@ nv34_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv20_gr *gr;
 	int ret;
 
@@ -138,8 +139,8 @@ nv34_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 32 * 4, 16,
-			      NVOBJ_FLAG_ZERO_ALLOC, &gr->ctxtab);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 32 * 4, 16, true,
+			      &gr->ctxtab);
 	if (ret)
 		return ret;
 

@@ -4,7 +4,7 @@
 
 struct nv20_gr {
 	struct nvkm_gr base;
-	struct nvkm_gpuobj *ctxtab;
+	struct nvkm_memory *ctxtab;
 };
 
 struct nv20_gr_chan {

@@ -280,8 +280,8 @@ gk20a_gr_init(struct nvkm_object *object)
 		return ret;
 
 	/* MMU debug buffer */
-	nvkm_wr32(device, 0x100cc8, gr->unk4188b4->addr >> 8);
-	nvkm_wr32(device, 0x100ccc, gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(gr->unk4188b4) >> 8);
+	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
 
 	if (oclass->init_gpc_mmu)
 		oclass->init_gpc_mmu(gr);

@@ -269,13 +269,13 @@ gm204_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x418880, 0x00001000 | (tmp & 0x00000fff));
 	nvkm_wr32(device, 0x418890, 0x00000000);
 	nvkm_wr32(device, 0x418894, 0x00000000);
-	nvkm_wr32(device, 0x4188b4, gr->unk4188b4->addr >> 8);
-	nvkm_wr32(device, 0x4188b8, gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, 0x4188b4, nvkm_memory_addr(gr->unk4188b4) >> 8);
+	nvkm_wr32(device, 0x4188b8, nvkm_memory_addr(gr->unk4188b8) >> 8);
 	nvkm_mask(device, 0x4188b0, 0x00040000, 0x00040000);
 
 	/*XXX: belongs in fb */
-	nvkm_wr32(device, 0x100cc8, gr->unk4188b4->addr >> 8);
-	nvkm_wr32(device, 0x100ccc, gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(gr->unk4188b4) >> 8);
+	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
 	nvkm_mask(device, 0x100cc4, 0x00040000, 0x00040000);
 
 	gf100_gr_mmio(gr, oclass->mmio);

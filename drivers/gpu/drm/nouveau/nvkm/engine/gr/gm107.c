@@ -339,8 +339,8 @@ gm107_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, GPC_BCAST(0x0880), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
-	nvkm_wr32(device, GPC_BCAST(0x08b4), gr->unk4188b4->addr >> 8);
-	nvkm_wr32(device, GPC_BCAST(0x08b8), gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
 
 	gf100_gr_mmio(gr, oclass->mmio);
 

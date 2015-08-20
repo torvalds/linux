@@ -1272,34 +1272,37 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_gpuobj *chan;
+	struct nvkm_memory *chan;
 	struct gf100_grctx info;
 	int ret, i;
+	u64 addr;
 
 	/* allocate memory to for a "channel", which we'll use to generate
 	 * the default context values
 	 */
-	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 0x80000 + gr->size,
-			      0x1000, NVOBJ_FLAG_ZERO_ALLOC, &chan);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x80000 + gr->size,
+			      0x1000, true, &chan);
 	if (ret) {
 		nvkm_error(subdev, "failed to allocate chan memory, %d\n", ret);
 		return ret;
 	}
 
+	addr = nvkm_memory_addr(chan);
+
 	/* PGD pointer */
 	nvkm_kmap(chan);
-	nvkm_wo32(chan, 0x0200, lower_32_bits(chan->addr + 0x1000));
-	nvkm_wo32(chan, 0x0204, upper_32_bits(chan->addr + 0x1000));
+	nvkm_wo32(chan, 0x0200, lower_32_bits(addr + 0x1000));
+	nvkm_wo32(chan, 0x0204, upper_32_bits(addr + 0x1000));
 	nvkm_wo32(chan, 0x0208, 0xffffffff);
 	nvkm_wo32(chan, 0x020c, 0x000000ff);
 
 	/* PGT[0] pointer */
 	nvkm_wo32(chan, 0x1000, 0x00000000);
-	nvkm_wo32(chan, 0x1004, 0x00000001 | (chan->addr + 0x2000) >> 8);
+	nvkm_wo32(chan, 0x1004, 0x00000001 | (addr + 0x2000) >> 8);
 
 	/* identity-map the whole "channel" into its own vm */
-	for (i = 0; i < chan->size / 4096; i++) {
-		u64 addr = ((chan->addr + (i * 4096)) >> 8) | 1;
+	for (i = 0; i < nvkm_memory_size(chan) / 4096; i++) {
+		u64 addr = ((nvkm_memory_addr(chan) + (i * 4096)) >> 8) | 1;
 		nvkm_wo32(chan, 0x2000 + (i * 8), lower_32_bits(addr));
 		nvkm_wo32(chan, 0x2004 + (i * 8), upper_32_bits(addr));
 	}
@@ -1309,7 +1312,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	nvkm_wo32(chan, 0x0214, 0x00000000);
 	nvkm_done(chan);
 
-	nvkm_wr32(device, 0x100cb8, (chan->addr + 0x1000) >> 8);
+	nvkm_wr32(device, 0x100cb8, (addr + 0x1000) >> 8);
 	nvkm_wr32(device, 0x100cbc, 0x80000001);
 	nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x100c80) & 0x00008000)
@@ -1326,7 +1329,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	/* make channel current */
 	if (gr->firmware) {
 		nvkm_wr32(device, 0x409840, 0x00000030);
-		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
+		nvkm_wr32(device, 0x409500, 0x80000000 | addr >> 12);
 		nvkm_wr32(device, 0x409504, 0x00000003);
 		nvkm_msec(device, 2000,
 			if (nvkm_rd32(device, 0x409800) & 0x00000010)
@@ -1341,7 +1344,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 		nvkm_done(chan);
 	} else {
 		nvkm_wr32(device, 0x409840, 0x80000000);
-		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
+		nvkm_wr32(device, 0x409500, 0x80000000 | addr >> 12);
 		nvkm_wr32(device, 0x409504, 0x00000001);
 		nvkm_msec(device, 2000,
 			if (nvkm_rd32(device, 0x409800) & 0x80000000)
@@ -1376,7 +1379,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	}
 
 done:
-	nvkm_gpuobj_ref(NULL, &chan);
+	nvkm_memory_del(&chan);
 	return ret;
 }
 

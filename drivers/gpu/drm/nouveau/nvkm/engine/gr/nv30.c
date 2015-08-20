@@ -131,6 +131,7 @@ nv30_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv20_gr *gr;
 	int ret;
 
@@ -139,8 +140,8 @@ nv30_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 32 * 4, 16,
-			      NVOBJ_FLAG_ZERO_ALLOC, &gr->ctxtab);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 32 * 4, 16, true,
+			      &gr->ctxtab);
 	if (ret)
 		return ret;
 
@@ -165,7 +166,8 @@ nv30_gr_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nvkm_wr32(device, NV20_PGRAPH_CHANNEL_CTX_TABLE, gr->ctxtab->addr >> 4);
+	nvkm_wr32(device, NV20_PGRAPH_CHANNEL_CTX_TABLE,
+			  nvkm_memory_addr(gr->ctxtab) >> 4);
 
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);

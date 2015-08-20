@@ -95,8 +95,8 @@ struct gf100_gr {
 	u8 ppc_nr[GPC_MAX];
 	u8 ppc_tpc_nr[GPC_MAX][4];
 
-	struct nvkm_gpuobj *unk4188b4;
-	struct nvkm_gpuobj *unk4188b8;
+	struct nvkm_memory *unk4188b4;
+	struct nvkm_memory *unk4188b8;
 
 	struct gf100_gr_data mmio_data[4];
 	struct gf100_gr_mmio mmio_list[4096/8];
@@ -109,11 +109,11 @@ struct gf100_gr {
 struct gf100_gr_chan {
 	struct nvkm_gr_chan base;
 
-	struct nvkm_gpuobj *mmio;
+	struct nvkm_memory *mmio;
 	struct nvkm_vma mmio_vma;
 	int mmio_nr;
 	struct {
-		struct nvkm_gpuobj *mem;
+		struct nvkm_memory *mem;
 		struct nvkm_vma vma;
 	} data[4];
 };

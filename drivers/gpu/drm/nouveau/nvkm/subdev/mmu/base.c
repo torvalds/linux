@@ -321,12 +321,15 @@ nvkm_vm_get(struct nvkm_vm *vm, u64 size, u32 page_shift, u32 access,
 void
 nvkm_vm_put(struct nvkm_vma *vma)
 {
-	struct nvkm_vm *vm = vma->vm;
-	struct nvkm_mmu *mmu = vm->mmu;
+	struct nvkm_mmu *mmu;
+	struct nvkm_vm *vm;
 	u32 fpde, lpde;
 
 	if (unlikely(vma->node == NULL))
 		return;
+	vm = vma->vm;
+	mmu = vm->mmu;
+
 	fpde = (vma->node->offset >> mmu->pgt_bits);
 	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->pgt_bits;
 
