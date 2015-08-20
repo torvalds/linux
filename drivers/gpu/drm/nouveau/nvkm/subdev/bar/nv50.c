@@ -166,13 +166,15 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_wo32(bar->bar3, 0x00, 0x7fc00000);
-	nv_wo32(bar->bar3, 0x04, lower_32_bits(limit));
-	nv_wo32(bar->bar3, 0x08, lower_32_bits(start));
-	nv_wo32(bar->bar3, 0x0c, upper_32_bits(limit) << 24 |
-				  upper_32_bits(start));
-	nv_wo32(bar->bar3, 0x10, 0x00000000);
-	nv_wo32(bar->bar3, 0x14, 0x00000000);
+	nvkm_kmap(bar->bar3);
+	nvkm_wo32(bar->bar3, 0x00, 0x7fc00000);
+	nvkm_wo32(bar->bar3, 0x04, lower_32_bits(limit));
+	nvkm_wo32(bar->bar3, 0x08, lower_32_bits(start));
+	nvkm_wo32(bar->bar3, 0x0c, upper_32_bits(limit) << 24 |
+				   upper_32_bits(start));
+	nvkm_wo32(bar->bar3, 0x10, 0x00000000);
+	nvkm_wo32(bar->bar3, 0x14, 0x00000000);
+	nvkm_done(bar->bar3);
 
 	/* BAR1 */
 	start = 0x0000000000ULL;
@@ -193,13 +195,15 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_wo32(bar->bar1, 0x00, 0x7fc00000);
-	nv_wo32(bar->bar1, 0x04, lower_32_bits(limit));
-	nv_wo32(bar->bar1, 0x08, lower_32_bits(start));
-	nv_wo32(bar->bar1, 0x0c, upper_32_bits(limit) << 24 |
-				  upper_32_bits(start));
-	nv_wo32(bar->bar1, 0x10, 0x00000000);
-	nv_wo32(bar->bar1, 0x14, 0x00000000);
+	nvkm_kmap(bar->bar1);
+	nvkm_wo32(bar->bar1, 0x00, 0x7fc00000);
+	nvkm_wo32(bar->bar1, 0x04, lower_32_bits(limit));
+	nvkm_wo32(bar->bar1, 0x08, lower_32_bits(start));
+	nvkm_wo32(bar->bar1, 0x0c, upper_32_bits(limit) << 24 |
+				   upper_32_bits(start));
+	nvkm_wo32(bar->bar1, 0x10, 0x00000000);
+	nvkm_wo32(bar->bar1, 0x14, 0x00000000);
+	nvkm_done(bar->bar1);
 
 	bar->base.alloc = nvkm_bar_alloc;
 	bar->base.kmap = nv50_bar_kmap;

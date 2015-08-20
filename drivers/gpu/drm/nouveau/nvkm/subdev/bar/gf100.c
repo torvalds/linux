@@ -122,10 +122,12 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 	if (ret)
 		return ret;
 
-	nv_wo32(bar_vm->mem, 0x0200, lower_32_bits(bar_vm->pgd->addr));
-	nv_wo32(bar_vm->mem, 0x0204, upper_32_bits(bar_vm->pgd->addr));
-	nv_wo32(bar_vm->mem, 0x0208, lower_32_bits(bar_len - 1));
-	nv_wo32(bar_vm->mem, 0x020c, upper_32_bits(bar_len - 1));
+	nvkm_kmap(bar_vm->mem);
+	nvkm_wo32(bar_vm->mem, 0x0200, lower_32_bits(bar_vm->pgd->addr));
+	nvkm_wo32(bar_vm->mem, 0x0204, upper_32_bits(bar_vm->pgd->addr));
+	nvkm_wo32(bar_vm->mem, 0x0208, lower_32_bits(bar_len - 1));
+	nvkm_wo32(bar_vm->mem, 0x020c, upper_32_bits(bar_len - 1));
+	nvkm_done(bar_vm->mem);
 	return 0;
 }
 
