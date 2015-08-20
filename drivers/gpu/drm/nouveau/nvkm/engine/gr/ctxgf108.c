@@ -767,12 +767,13 @@ gf108_grctx_generate_attrib(struct gf100_grctx *info)
 void
 gf108_grctx_generate_unkn(struct gf100_gr *gr)
 {
-	nv_mask(gr, 0x418c6c, 0x00000001, 0x00000001);
-	nv_mask(gr, 0x41980c, 0x00000010, 0x00000010);
-	nv_mask(gr, 0x419814, 0x00000004, 0x00000004);
-	nv_mask(gr, 0x4064c0, 0x80000000, 0x80000000);
-	nv_mask(gr, 0x405800, 0x08000000, 0x08000000);
-	nv_mask(gr, 0x419c00, 0x00000008, 0x00000008);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x418c6c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x41980c, 0x00000010, 0x00000010);
+	nvkm_mask(device, 0x419814, 0x00000004, 0x00000004);
+	nvkm_mask(device, 0x4064c0, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x405800, 0x08000000, 0x08000000);
+	nvkm_mask(device, 0x419c00, 0x00000008, 0x00000008);
 }
 
 struct nvkm_oclass *

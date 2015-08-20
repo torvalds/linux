@@ -219,6 +219,7 @@ gf117_grctx_generate_attrib(struct gf100_grctx *info)
 void
 gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
 	int i;
 
@@ -230,7 +231,7 @@ gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_mmio(gr, oclass->tpc);
 	gf100_gr_mmio(gr, oclass->ppc);
 
-	nv_wr32(gr, 0x404154, 0x00000000);
+	nvkm_wr32(device, 0x404154, 0x00000000);
 
 	oclass->bundle(info);
 	oclass->pagepool(info);
@@ -244,10 +245,10 @@ gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_grctx_generate_r406800(gr);
 
 	for (i = 0; i < 8; i++)
-		nv_wr32(gr, 0x4064d0 + (i * 0x04), 0x00000000);
+		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
 
 	gf100_gr_icmd(gr, oclass->icmd);
-	nv_wr32(gr, 0x404154, 0x00000400);
+	nvkm_wr32(device, 0x404154, 0x00000400);
 	gf100_gr_mthd(gr, oclass->mthd);
 	nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
 }

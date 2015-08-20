@@ -118,19 +118,20 @@ nv20_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv20_gr *gr = (void *)object->engine;
 	struct nv20_gr_chan *chan = (void *)object;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int chid = -1;
 
-	nv_mask(gr, 0x400720, 0x00000001, 0x00000000);
-	if (nv_rd32(gr, 0x400144) & 0x00010000)
-		chid = (nv_rd32(gr, 0x400148) & 0x1f000000) >> 24;
+	nvkm_mask(device, 0x400720, 0x00000001, 0x00000000);
+	if (nvkm_rd32(device, 0x400144) & 0x00010000)
+		chid = (nvkm_rd32(device, 0x400148) & 0x1f000000) >> 24;
 	if (chan->chid == chid) {
-		nv_wr32(gr, 0x400784, nv_gpuobj(chan)->addr >> 4);
-		nv_wr32(gr, 0x400788, 0x00000002);
+		nvkm_wr32(device, 0x400784, nv_gpuobj(chan)->addr >> 4);
+		nvkm_wr32(device, 0x400788, 0x00000002);
 		nv_wait(gr, 0x400700, 0xffffffff, 0x00000000);
-		nv_wr32(gr, 0x400144, 0x10000000);
-		nv_mask(gr, 0x400148, 0xff000000, 0x1f000000);
+		nvkm_wr32(device, 0x400144, 0x10000000);
+		nvkm_mask(device, 0x400148, 0xff000000, 0x1f000000);
 	}
-	nv_mask(gr, 0x400720, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x400720, 0x00000001, 0x00000001);
 
 	nv_wo32(gr->ctxtab, chan->chid * 4, 0x00000000);
 	return nvkm_gr_context_fini(&chan->base, suspend);
@@ -156,29 +157,30 @@ nv20_gr_cclass = {
 void
 nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
-	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
-	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nv20_gr *gr = (void *)engine;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
+	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 	unsigned long flags;
 
 	fifo->pause(fifo, &flags);
 	nv04_gr_idle(gr);
 
-	nv_wr32(gr, NV20_PGRAPH_TLIMIT(i), tile->limit);
-	nv_wr32(gr, NV20_PGRAPH_TSIZE(i), tile->pitch);
-	nv_wr32(gr, NV20_PGRAPH_TILE(i), tile->addr);
+	nvkm_wr32(device, NV20_PGRAPH_TLIMIT(i), tile->limit);
+	nvkm_wr32(device, NV20_PGRAPH_TSIZE(i), tile->pitch);
+	nvkm_wr32(device, NV20_PGRAPH_TILE(i), tile->addr);
 
-	nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0030 + 4 * i);
-	nv_wr32(gr, NV10_PGRAPH_RDI_DATA, tile->limit);
-	nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0050 + 4 * i);
-	nv_wr32(gr, NV10_PGRAPH_RDI_DATA, tile->pitch);
-	nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
-	nv_wr32(gr, NV10_PGRAPH_RDI_DATA, tile->addr);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0030 + 4 * i);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->limit);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0050 + 4 * i);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->pitch);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->addr);
 
 	if (nv_device(engine)->chipset != 0x34) {
-		nv_wr32(gr, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00ea0090 + 4 * i);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA, tile->zcomp);
+		nvkm_wr32(device, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00ea0090 + 4 * i);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->zcomp);
 	}
 
 	fifo->start(fifo, &flags);
@@ -191,15 +193,16 @@ nv20_gr_intr(struct nvkm_subdev *subdev)
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle;
 	struct nv20_gr *gr = (void *)subdev;
-	u32 stat = nv_rd32(gr, NV03_PGRAPH_INTR);
-	u32 nsource = nv_rd32(gr, NV03_PGRAPH_NSOURCE);
-	u32 nstatus = nv_rd32(gr, NV03_PGRAPH_NSTATUS);
-	u32 addr = nv_rd32(gr, NV04_PGRAPH_TRAPPED_ADDR);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
+	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
+	u32 nstatus = nvkm_rd32(device, NV03_PGRAPH_NSTATUS);
+	u32 addr = nvkm_rd32(device, NV04_PGRAPH_TRAPPED_ADDR);
 	u32 chid = (addr & 0x01f00000) >> 20;
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00001ffc);
-	u32 data = nv_rd32(gr, NV04_PGRAPH_TRAPPED_DATA);
-	u32 class = nv_rd32(gr, 0x400160 + subc * 4) & 0xfff;
+	u32 data = nvkm_rd32(device, NV04_PGRAPH_TRAPPED_DATA);
+	u32 class = nvkm_rd32(device, 0x400160 + subc * 4) & 0xfff;
 	u32 show = stat;
 
 	engctx = nvkm_engctx_get(engine, chid);
@@ -212,8 +215,8 @@ nv20_gr_intr(struct nvkm_subdev *subdev)
 		}
 	}
 
-	nv_wr32(gr, NV03_PGRAPH_INTR, stat);
-	nv_wr32(gr, NV04_PGRAPH_FIFO, 0x00000001);
+	nvkm_wr32(device, NV03_PGRAPH_INTR, stat);
+	nvkm_wr32(device, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
 		nv_error(gr, "%s", "");
@@ -271,7 +274,8 @@ nv20_gr_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nv20_gr *gr = (void *)engine;
-	struct nvkm_fb *fb = nvkm_fb(object);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	u32 tmp, vramsz;
 	int ret, i;
 
@@ -279,87 +283,87 @@ nv20_gr_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(gr, NV20_PGRAPH_CHANNEL_CTX_TABLE, gr->ctxtab->addr >> 4);
+	nvkm_wr32(device, NV20_PGRAPH_CHANNEL_CTX_TABLE, gr->ctxtab->addr >> 4);
 
 	if (nv_device(gr)->chipset == 0x20) {
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x003d0000);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x003d0000);
 		for (i = 0; i < 15; i++)
-			nv_wr32(gr, NV10_PGRAPH_RDI_DATA, 0x00000000);
+			nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, 0x00000000);
 		nv_wait(gr, 0x400700, 0xffffffff, 0x00000000);
 	} else {
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x02c80000);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x02c80000);
 		for (i = 0; i < 32; i++)
-			nv_wr32(gr, NV10_PGRAPH_RDI_DATA, 0x00000000);
+			nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, 0x00000000);
 		nv_wait(gr, 0x400700, 0xffffffff, 0x00000000);
 	}
 
-	nv_wr32(gr, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
-	nv_wr32(gr, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_1, 0x00118700);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_3, 0xF3CE0475); /* 0x4 = auto ctx switch */
-	nv_wr32(gr, NV10_PGRAPH_DEBUG_4, 0x00000000);
-	nv_wr32(gr, 0x40009C           , 0x00000040);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x00118700);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xF3CE0475); /* 0x4 = auto ctx switch */
+	nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00000000);
+	nvkm_wr32(device, 0x40009C           , 0x00000040);
 
 	if (nv_device(gr)->chipset >= 0x25) {
-		nv_wr32(gr, 0x400890, 0x00a8cfff);
-		nv_wr32(gr, 0x400610, 0x304B1FB6);
-		nv_wr32(gr, 0x400B80, 0x1cbd3883);
-		nv_wr32(gr, 0x400B84, 0x44000000);
-		nv_wr32(gr, 0x400098, 0x40000080);
-		nv_wr32(gr, 0x400B88, 0x000000ff);
+		nvkm_wr32(device, 0x400890, 0x00a8cfff);
+		nvkm_wr32(device, 0x400610, 0x304B1FB6);
+		nvkm_wr32(device, 0x400B80, 0x1cbd3883);
+		nvkm_wr32(device, 0x400B84, 0x44000000);
+		nvkm_wr32(device, 0x400098, 0x40000080);
+		nvkm_wr32(device, 0x400B88, 0x000000ff);
 
 	} else {
-		nv_wr32(gr, 0x400880, 0x0008c7df);
-		nv_wr32(gr, 0x400094, 0x00000005);
-		nv_wr32(gr, 0x400B80, 0x45eae20e);
-		nv_wr32(gr, 0x400B84, 0x24000000);
-		nv_wr32(gr, 0x400098, 0x00000040);
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00E00038);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA , 0x00000030);
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00E10038);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA , 0x00000030);
+		nvkm_wr32(device, 0x400880, 0x0008c7df);
+		nvkm_wr32(device, 0x400094, 0x00000005);
+		nvkm_wr32(device, 0x400B80, 0x45eae20e);
+		nvkm_wr32(device, 0x400B84, 0x24000000);
+		nvkm_wr32(device, 0x400098, 0x00000040);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00E00038);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00000030);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00E10038);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00000030);
 	}
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
-	nv_wr32(gr, 0x4009a0, nv_rd32(gr, 0x100324));
-	nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA000C);
-	nv_wr32(gr, NV10_PGRAPH_RDI_DATA, nv_rd32(gr, 0x100324));
+	nvkm_wr32(device, 0x4009a0, nvkm_rd32(device, 0x100324));
+	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA000C);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, nvkm_rd32(device, 0x100324));
 
-	nv_wr32(gr, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
-	nv_wr32(gr, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
+	nvkm_wr32(device, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
 
-	tmp = nv_rd32(gr, NV10_PGRAPH_SURFACE) & 0x0007ff00;
-	nv_wr32(gr, NV10_PGRAPH_SURFACE, tmp);
-	tmp = nv_rd32(gr, NV10_PGRAPH_SURFACE) | 0x00020100;
-	nv_wr32(gr, NV10_PGRAPH_SURFACE, tmp);
+	tmp = nvkm_rd32(device, NV10_PGRAPH_SURFACE) & 0x0007ff00;
+	nvkm_wr32(device, NV10_PGRAPH_SURFACE, tmp);
+	tmp = nvkm_rd32(device, NV10_PGRAPH_SURFACE) | 0x00020100;
+	nvkm_wr32(device, NV10_PGRAPH_SURFACE, tmp);
 
 	/* begin RAM config */
 	vramsz = nv_device_resource_len(nv_device(gr), 1) - 1;
-	nv_wr32(gr, 0x4009A4, nv_rd32(gr, 0x100200));
-	nv_wr32(gr, 0x4009A8, nv_rd32(gr, 0x100204));
-	nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);
-	nv_wr32(gr, NV10_PGRAPH_RDI_DATA , nv_rd32(gr, 0x100200));
-	nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0004);
-	nv_wr32(gr, NV10_PGRAPH_RDI_DATA , nv_rd32(gr, 0x100204));
-	nv_wr32(gr, 0x400820, 0);
-	nv_wr32(gr, 0x400824, 0);
-	nv_wr32(gr, 0x400864, vramsz - 1);
-	nv_wr32(gr, 0x400868, vramsz - 1);
+	nvkm_wr32(device, 0x4009A4, nvkm_rd32(device, 0x100200));
+	nvkm_wr32(device, 0x4009A8, nvkm_rd32(device, 0x100204));
+	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , nvkm_rd32(device, 0x100200));
+	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0004);
+	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , nvkm_rd32(device, 0x100204));
+	nvkm_wr32(device, 0x400820, 0);
+	nvkm_wr32(device, 0x400824, 0);
+	nvkm_wr32(device, 0x400864, vramsz - 1);
+	nvkm_wr32(device, 0x400868, vramsz - 1);
 
 	/* interesting.. the below overwrites some of the tile setup above.. */
-	nv_wr32(gr, 0x400B20, 0x00000000);
-	nv_wr32(gr, 0x400B04, 0xFFFFFFFF);
+	nvkm_wr32(device, 0x400B20, 0x00000000);
+	nvkm_wr32(device, 0x400B04, 0xFFFFFFFF);
 
-	nv_wr32(gr, NV03_PGRAPH_ABS_UCLIP_XMIN, 0);
-	nv_wr32(gr, NV03_PGRAPH_ABS_UCLIP_YMIN, 0);
-	nv_wr32(gr, NV03_PGRAPH_ABS_UCLIP_XMAX, 0x7fff);
-	nv_wr32(gr, NV03_PGRAPH_ABS_UCLIP_YMAX, 0x7fff);
+	nvkm_wr32(device, NV03_PGRAPH_ABS_UCLIP_XMIN, 0);
+	nvkm_wr32(device, NV03_PGRAPH_ABS_UCLIP_YMIN, 0);
+	nvkm_wr32(device, NV03_PGRAPH_ABS_UCLIP_XMAX, 0x7fff);
+	nvkm_wr32(device, NV03_PGRAPH_ABS_UCLIP_YMAX, 0x7fff);
 	return 0;
 }
 

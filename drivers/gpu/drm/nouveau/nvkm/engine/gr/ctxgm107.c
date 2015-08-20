@@ -934,19 +934,20 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 void
 gm107_grctx_generate_tpcid(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int gpc, tpc, id;
 
 	for (tpc = 0, id = 0; tpc < 4; tpc++) {
 		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 			if (tpc < gr->tpc_nr[gpc]) {
-				nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x698), id);
-				nv_wr32(gr, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
-				nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x088), id);
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
+				nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), id);
 				id++;
 			}
 
-			nv_wr32(gr, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
-			nv_wr32(gr, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
+			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
+			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
 		}
 	}
 }
@@ -954,6 +955,7 @@ gm107_grctx_generate_tpcid(struct gf100_gr *gr)
 static void
 gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
 	int i;
 
@@ -963,7 +965,7 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_mmio(gr, oclass->tpc);
 	gf100_gr_mmio(gr, oclass->ppc);
 
-	nv_wr32(gr, 0x404154, 0x00000000);
+	nvkm_wr32(device, 0x404154, 0x00000000);
 
 	oclass->bundle(info);
 	oclass->pagepool(info);
@@ -975,23 +977,23 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gk104_grctx_generate_r418bb8(gr);
 	gf100_grctx_generate_r406800(gr);
 
-	nv_wr32(gr, 0x4064d0, 0x00000001);
+	nvkm_wr32(device, 0x4064d0, 0x00000001);
 	for (i = 1; i < 8; i++)
-		nv_wr32(gr, 0x4064d0 + (i * 0x04), 0x00000000);
-	nv_wr32(gr, 0x406500, 0x00000001);
+		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
+	nvkm_wr32(device, 0x406500, 0x00000001);
 
-	nv_wr32(gr, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
+	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 
 	gk104_grctx_generate_rop_active_fbps(gr);
 
 	gf100_gr_icmd(gr, oclass->icmd);
-	nv_wr32(gr, 0x404154, 0x00000400);
+	nvkm_wr32(device, 0x404154, 0x00000400);
 	gf100_gr_mthd(gr, oclass->mthd);
 
-	nv_mask(gr, 0x419e00, 0x00808080, 0x00808080);
-	nv_mask(gr, 0x419ccc, 0x80000000, 0x80000000);
-	nv_mask(gr, 0x419f80, 0x80000000, 0x80000000);
-	nv_mask(gr, 0x419f88, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x419e00, 0x00808080, 0x00808080);
+	nvkm_mask(device, 0x419ccc, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x419f80, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x419f88, 0x80000000, 0x80000000);
 }
 
 struct nvkm_oclass *

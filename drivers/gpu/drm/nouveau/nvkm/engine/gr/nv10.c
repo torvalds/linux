@@ -414,17 +414,17 @@ nv10_gr(struct nv10_gr_chan *chan)
 #define PIPE_SAVE(gr, state, addr)					\
 	do {								\
 		int __i;						\
-		nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, addr);		\
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, addr);		\
 		for (__i = 0; __i < ARRAY_SIZE(state); __i++)		\
-			state[__i] = nv_rd32(gr, NV10_PGRAPH_PIPE_DATA); \
+			state[__i] = nvkm_rd32(device, NV10_PGRAPH_PIPE_DATA); \
 	} while (0)
 
 #define PIPE_RESTORE(gr, state, addr)					\
 	do {								\
 		int __i;						\
-		nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, addr);		\
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, addr);		\
 		for (__i = 0; __i < ARRAY_SIZE(state); __i++)		\
-			nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, state[__i]); \
+			nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, state[__i]); \
 	} while (0)
 
 static struct nvkm_oclass
@@ -480,6 +480,7 @@ nv17_gr_mthd_lma_window(struct nvkm_object *object, u32 mthd,
 	struct nv10_gr_chan *chan = (void *)object->parent;
 	struct nv10_gr *gr = nv10_gr(chan);
 	struct pipe_state *pipe = &chan->pipe_state;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 pipe_0x0040[1], pipe_0x64c0[8], pipe_0x6a80[3], pipe_0x6ab0[3];
 	u32 xfmode0, xfmode1;
 	u32 data = *(u32 *)args;
@@ -499,8 +500,8 @@ nv17_gr_mthd_lma_window(struct nvkm_object *object, u32 mthd,
 
 	nv04_gr_idle(gr);
 
-	xfmode0 = nv_rd32(gr, NV10_PGRAPH_XFMODE0);
-	xfmode1 = nv_rd32(gr, NV10_PGRAPH_XFMODE1);
+	xfmode0 = nvkm_rd32(device, NV10_PGRAPH_XFMODE0);
+	xfmode1 = nvkm_rd32(device, NV10_PGRAPH_XFMODE1);
 
 	PIPE_SAVE(gr, pipe->pipe_0x4400, 0x4400);
 	PIPE_SAVE(gr, pipe_0x64c0, 0x64c0);
@@ -509,24 +510,24 @@ nv17_gr_mthd_lma_window(struct nvkm_object *object, u32 mthd,
 
 	nv04_gr_idle(gr);
 
-	nv_wr32(gr, NV10_PGRAPH_XFMODE0, 0x10000000);
-	nv_wr32(gr, NV10_PGRAPH_XFMODE1, 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x000064c0);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE0, 0x10000000);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE1, 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x000064c0);
 	for (i = 0; i < 4; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
 	for (i = 0; i < 4; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000000);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x00006ab0);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x00006ab0);
 	for (i = 0; i < 3; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x00006a80);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x00006a80);
 	for (i = 0; i < 3; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000000);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x00000040);
-	nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000008);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x00000040);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000008);
 
 	PIPE_RESTORE(gr, pipe->pipe_0x0200, 0x0200);
 
@@ -534,16 +535,16 @@ nv17_gr_mthd_lma_window(struct nvkm_object *object, u32 mthd,
 
 	PIPE_RESTORE(gr, pipe_0x0040, 0x0040);
 
-	nv_wr32(gr, NV10_PGRAPH_XFMODE0, xfmode0);
-	nv_wr32(gr, NV10_PGRAPH_XFMODE1, xfmode1);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE0, xfmode0);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE1, xfmode1);
 
 	PIPE_RESTORE(gr, pipe_0x64c0, 0x64c0);
 	PIPE_RESTORE(gr, pipe_0x6ab0, 0x6ab0);
 	PIPE_RESTORE(gr, pipe_0x6a80, 0x6a80);
 	PIPE_RESTORE(gr, pipe->pipe_0x4400, 0x4400);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x000000c0);
-	nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x000000c0);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000000);
 
 	nv04_gr_idle(gr);
 
@@ -556,11 +557,12 @@ nv17_gr_mthd_lma_enable(struct nvkm_object *object, u32 mthd,
 {
 	struct nv10_gr_chan *chan = (void *)object->parent;
 	struct nv10_gr *gr = nv10_gr(chan);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 
 	nv04_gr_idle(gr);
 
-	nv_mask(gr, NV10_PGRAPH_DEBUG_4, 0x00000100, 0x00000100);
-	nv_mask(gr, 0x4006b0, 0x08000000, 0x08000000);
+	nvkm_mask(device, NV10_PGRAPH_DEBUG_4, 0x00000100, 0x00000100);
+	nvkm_mask(device, 0x4006b0, 0x08000000, 0x08000000);
 	return 0;
 }
 
@@ -604,9 +606,10 @@ nv17_gr_sclass[] = {
 static struct nv10_gr_chan *
 nv10_gr_channel(struct nv10_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nv10_gr_chan *chan = NULL;
-	if (nv_rd32(gr, 0x400144) & 0x00010000) {
-		int chid = nv_rd32(gr, 0x400148) >> 24;
+	if (nvkm_rd32(device, 0x400144) & 0x00010000) {
+		int chid = nvkm_rd32(device, 0x400148) >> 24;
 		if (chid < ARRAY_SIZE(gr->chan))
 			chan = gr->chan[chid];
 	}
@@ -618,6 +621,7 @@ nv10_gr_save_pipe(struct nv10_gr_chan *chan)
 {
 	struct nv10_gr *gr = nv10_gr(chan);
 	struct pipe_state *pipe = &chan->pipe_state;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 
 	PIPE_SAVE(gr, pipe->pipe_0x4400, 0x4400);
 	PIPE_SAVE(gr, pipe->pipe_0x0200, 0x0200);
@@ -636,39 +640,40 @@ nv10_gr_load_pipe(struct nv10_gr_chan *chan)
 {
 	struct nv10_gr *gr = nv10_gr(chan);
 	struct pipe_state *pipe = &chan->pipe_state;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 xfmode0, xfmode1;
 	int i;
 
 	nv04_gr_idle(gr);
 	/* XXX check haiku comments */
-	xfmode0 = nv_rd32(gr, NV10_PGRAPH_XFMODE0);
-	xfmode1 = nv_rd32(gr, NV10_PGRAPH_XFMODE1);
-	nv_wr32(gr, NV10_PGRAPH_XFMODE0, 0x10000000);
-	nv_wr32(gr, NV10_PGRAPH_XFMODE1, 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x000064c0);
+	xfmode0 = nvkm_rd32(device, NV10_PGRAPH_XFMODE0);
+	xfmode1 = nvkm_rd32(device, NV10_PGRAPH_XFMODE1);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE0, 0x10000000);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE1, 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x000064c0);
 	for (i = 0; i < 4; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
 	for (i = 0; i < 4; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000000);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x00006ab0);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x00006ab0);
 	for (i = 0; i < 3; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x3f800000);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x00006a80);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x00006a80);
 	for (i = 0; i < 3; i++)
-		nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000000);
+		nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000000);
 
-	nv_wr32(gr, NV10_PGRAPH_PIPE_ADDRESS, 0x00000040);
-	nv_wr32(gr, NV10_PGRAPH_PIPE_DATA, 0x00000008);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_ADDRESS, 0x00000040);
+	nvkm_wr32(device, NV10_PGRAPH_PIPE_DATA, 0x00000008);
 
 
 	PIPE_RESTORE(gr, pipe->pipe_0x0200, 0x0200);
 	nv04_gr_idle(gr);
 
 	/* restore XFMODE */
-	nv_wr32(gr, NV10_PGRAPH_XFMODE0, xfmode0);
-	nv_wr32(gr, NV10_PGRAPH_XFMODE1, xfmode1);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE0, xfmode0);
+	nvkm_wr32(device, NV10_PGRAPH_XFMODE1, xfmode1);
 	PIPE_RESTORE(gr, pipe->pipe_0x6400, 0x6400);
 	PIPE_RESTORE(gr, pipe->pipe_0x6800, 0x6800);
 	PIPE_RESTORE(gr, pipe->pipe_0x6c00, 0x6c00);
@@ -864,6 +869,7 @@ static void
 nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 {
 	struct nv10_gr *gr = nv10_gr(chan);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 st2, st2_dl, st2_dh, fifo_ptr, fifo[0x60/4];
 	u32 ctx_user, ctx_switch[5];
 	int i, subchan = -1;
@@ -875,7 +881,7 @@ nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 
 	/* Look for a celsius object */
 	for (i = 0; i < 8; i++) {
-		int class = nv_rd32(gr, NV10_PGRAPH_CTX_CACHE(i, 0)) & 0xfff;
+		int class = nvkm_rd32(device, NV10_PGRAPH_CTX_CACHE(i, 0)) & 0xfff;
 
 		if (class == 0x56 || class == 0x96 || class == 0x99) {
 			subchan = i;
@@ -887,73 +893,74 @@ nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 		return;
 
 	/* Save the current ctx object */
-	ctx_user = nv_rd32(gr, NV10_PGRAPH_CTX_USER);
+	ctx_user = nvkm_rd32(device, NV10_PGRAPH_CTX_USER);
 	for (i = 0; i < 5; i++)
-		ctx_switch[i] = nv_rd32(gr, NV10_PGRAPH_CTX_SWITCH(i));
+		ctx_switch[i] = nvkm_rd32(device, NV10_PGRAPH_CTX_SWITCH(i));
 
 	/* Save the FIFO state */
-	st2 = nv_rd32(gr, NV10_PGRAPH_FFINTFC_ST2);
-	st2_dl = nv_rd32(gr, NV10_PGRAPH_FFINTFC_ST2_DL);
-	st2_dh = nv_rd32(gr, NV10_PGRAPH_FFINTFC_ST2_DH);
-	fifo_ptr = nv_rd32(gr, NV10_PGRAPH_FFINTFC_FIFO_PTR);
+	st2 = nvkm_rd32(device, NV10_PGRAPH_FFINTFC_ST2);
+	st2_dl = nvkm_rd32(device, NV10_PGRAPH_FFINTFC_ST2_DL);
+	st2_dh = nvkm_rd32(device, NV10_PGRAPH_FFINTFC_ST2_DH);
+	fifo_ptr = nvkm_rd32(device, NV10_PGRAPH_FFINTFC_FIFO_PTR);
 
 	for (i = 0; i < ARRAY_SIZE(fifo); i++)
-		fifo[i] = nv_rd32(gr, 0x4007a0 + 4 * i);
+		fifo[i] = nvkm_rd32(device, 0x4007a0 + 4 * i);
 
 	/* Switch to the celsius subchannel */
 	for (i = 0; i < 5; i++)
-		nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(i),
-			nv_rd32(gr, NV10_PGRAPH_CTX_CACHE(subchan, i)));
-	nv_mask(gr, NV10_PGRAPH_CTX_USER, 0xe000, subchan << 13);
+		nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(i),
+			nvkm_rd32(device, NV10_PGRAPH_CTX_CACHE(subchan, i)));
+	nvkm_mask(device, NV10_PGRAPH_CTX_USER, 0xe000, subchan << 13);
 
 	/* Inject NV10TCL_DMA_VTXBUF */
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_FIFO_PTR, 0);
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_ST2,
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_FIFO_PTR, 0);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_ST2,
 		0x2c000000 | chid << 20 | subchan << 16 | 0x18c);
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_ST2_DL, inst);
-	nv_mask(gr, NV10_PGRAPH_CTX_CONTROL, 0, 0x10000);
-	nv_mask(gr, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
-	nv_mask(gr, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_ST2_DL, inst);
+	nvkm_mask(device, NV10_PGRAPH_CTX_CONTROL, 0, 0x10000);
+	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
+	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
 
 	/* Restore the FIFO state */
 	for (i = 0; i < ARRAY_SIZE(fifo); i++)
-		nv_wr32(gr, 0x4007a0 + 4 * i, fifo[i]);
+		nvkm_wr32(device, 0x4007a0 + 4 * i, fifo[i]);
 
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_FIFO_PTR, fifo_ptr);
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_ST2, st2);
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_ST2_DL, st2_dl);
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_ST2_DH, st2_dh);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_FIFO_PTR, fifo_ptr);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_ST2, st2);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_ST2_DL, st2_dl);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_ST2_DH, st2_dh);
 
 	/* Restore the current ctx object */
 	for (i = 0; i < 5; i++)
-		nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(i), ctx_switch[i]);
-	nv_wr32(gr, NV10_PGRAPH_CTX_USER, ctx_user);
+		nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(i), ctx_switch[i]);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_USER, ctx_user);
 }
 
 static int
 nv10_gr_load_context(struct nv10_gr_chan *chan, int chid)
 {
 	struct nv10_gr *gr = nv10_gr(chan);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 inst;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nv10_gr_ctx_regs); i++)
-		nv_wr32(gr, nv10_gr_ctx_regs[i], chan->nv10[i]);
+		nvkm_wr32(device, nv10_gr_ctx_regs[i], chan->nv10[i]);
 
 	if (nv_device(gr)->card_type >= NV_11 &&
 	    nv_device(gr)->chipset >= 0x17) {
 		for (i = 0; i < ARRAY_SIZE(nv17_gr_ctx_regs); i++)
-			nv_wr32(gr, nv17_gr_ctx_regs[i], chan->nv17[i]);
+			nvkm_wr32(device, nv17_gr_ctx_regs[i], chan->nv17[i]);
 	}
 
 	nv10_gr_load_pipe(chan);
 
-	inst = nv_rd32(gr, NV10_PGRAPH_GLOBALSTATE1) & 0xffff;
+	inst = nvkm_rd32(device, NV10_PGRAPH_GLOBALSTATE1) & 0xffff;
 	nv10_gr_load_dma_vtxbuf(chan, chid, inst);
 
-	nv_wr32(gr, NV10_PGRAPH_CTX_CONTROL, 0x10010100);
-	nv_mask(gr, NV10_PGRAPH_CTX_USER, 0xff000000, chid << 24);
-	nv_mask(gr, NV10_PGRAPH_FFINTFC_ST2, 0x30000000, 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_CONTROL, 0x10010100);
+	nvkm_mask(device, NV10_PGRAPH_CTX_USER, 0xff000000, chid << 24);
+	nvkm_mask(device, NV10_PGRAPH_FFINTFC_ST2, 0x30000000, 0x00000000);
 	return 0;
 }
 
@@ -961,27 +968,29 @@ static int
 nv10_gr_unload_context(struct nv10_gr_chan *chan)
 {
 	struct nv10_gr *gr = nv10_gr(chan);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nv10_gr_ctx_regs); i++)
-		chan->nv10[i] = nv_rd32(gr, nv10_gr_ctx_regs[i]);
+		chan->nv10[i] = nvkm_rd32(device, nv10_gr_ctx_regs[i]);
 
 	if (nv_device(gr)->card_type >= NV_11 &&
 	    nv_device(gr)->chipset >= 0x17) {
 		for (i = 0; i < ARRAY_SIZE(nv17_gr_ctx_regs); i++)
-			chan->nv17[i] = nv_rd32(gr, nv17_gr_ctx_regs[i]);
+			chan->nv17[i] = nvkm_rd32(device, nv17_gr_ctx_regs[i]);
 	}
 
 	nv10_gr_save_pipe(chan);
 
-	nv_wr32(gr, NV10_PGRAPH_CTX_CONTROL, 0x10000000);
-	nv_mask(gr, NV10_PGRAPH_CTX_USER, 0xff000000, 0x1f000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_CONTROL, 0x10000000);
+	nvkm_mask(device, NV10_PGRAPH_CTX_USER, 0xff000000, 0x1f000000);
 	return 0;
 }
 
 static void
 nv10_gr_context_switch(struct nv10_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nv10_gr_chan *prev = NULL;
 	struct nv10_gr_chan *next = NULL;
 	unsigned long flags;
@@ -996,7 +1005,7 @@ nv10_gr_context_switch(struct nv10_gr *gr)
 		nv10_gr_unload_context(prev);
 
 	/* load context for next channel */
-	chid = (nv_rd32(gr, NV04_PGRAPH_TRAPPED_ADDR) >> 20) & 0x1f;
+	chid = (nvkm_rd32(device, NV04_PGRAPH_TRAPPED_ADDR) >> 20) & 0x1f;
 	next = gr->chan[chid];
 	if (next)
 		nv10_gr_load_context(next, chid);
@@ -1024,6 +1033,7 @@ nv10_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_fifo_chan *fifo = (void *)parent;
 	struct nv10_gr *gr = (void *)engine;
 	struct nv10_gr_chan *chan;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	unsigned long flags;
 	int ret;
 
@@ -1052,8 +1062,8 @@ nv10_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	    nv_device(gr)->chipset >= 0x17) {
 		/* is it really needed ??? */
 		NV17_WRITE_CTX(NV10_PGRAPH_DEBUG_4,
-					nv_rd32(gr, NV10_PGRAPH_DEBUG_4));
-		NV17_WRITE_CTX(0x004006b0, nv_rd32(gr, 0x004006b0));
+					nvkm_rd32(device, NV10_PGRAPH_DEBUG_4));
+		NV17_WRITE_CTX(0x004006b0, nvkm_rd32(device, 0x004006b0));
 		NV17_WRITE_CTX(0x00400eac, 0x0fff0000);
 		NV17_WRITE_CTX(0x00400eb0, 0x0fff0000);
 		NV17_WRITE_CTX(0x00400ec0, 0x00000080);
@@ -1088,13 +1098,14 @@ nv10_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv10_gr *gr = (void *)object->engine;
 	struct nv10_gr_chan *chan = (void *)object;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gr->lock, flags);
-	nv_mask(gr, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
+	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
 	if (nv10_gr_channel(gr) == chan)
 		nv10_gr_unload_context(chan);
-	nv_mask(gr, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
+	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&gr->lock, flags);
 
 	return nvkm_object_fini(&chan->base, suspend);
@@ -1118,17 +1129,18 @@ nv10_gr_cclass = {
 static void
 nv10_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
-	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
-	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nv10_gr *gr = (void *)engine;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
+	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 	unsigned long flags;
 
 	fifo->pause(fifo, &flags);
 	nv04_gr_idle(gr);
 
-	nv_wr32(gr, NV10_PGRAPH_TLIMIT(i), tile->limit);
-	nv_wr32(gr, NV10_PGRAPH_TSIZE(i), tile->pitch);
-	nv_wr32(gr, NV10_PGRAPH_TILE(i), tile->addr);
+	nvkm_wr32(device, NV10_PGRAPH_TLIMIT(i), tile->limit);
+	nvkm_wr32(device, NV10_PGRAPH_TSIZE(i), tile->pitch);
+	nvkm_wr32(device, NV10_PGRAPH_TILE(i), tile->addr);
 
 	fifo->start(fifo, &flags);
 }
@@ -1154,15 +1166,16 @@ nv10_gr_intr(struct nvkm_subdev *subdev)
 	struct nv10_gr_chan *chan = NULL;
 	struct nvkm_namedb *namedb = NULL;
 	struct nvkm_handle *handle = NULL;
-	u32 stat = nv_rd32(gr, NV03_PGRAPH_INTR);
-	u32 nsource = nv_rd32(gr, NV03_PGRAPH_NSOURCE);
-	u32 nstatus = nv_rd32(gr, NV03_PGRAPH_NSTATUS);
-	u32 addr = nv_rd32(gr, NV04_PGRAPH_TRAPPED_ADDR);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
+	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
+	u32 nstatus = nvkm_rd32(device, NV03_PGRAPH_NSTATUS);
+	u32 addr = nvkm_rd32(device, NV04_PGRAPH_TRAPPED_ADDR);
 	u32 chid = (addr & 0x01f00000) >> 20;
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00001ffc);
-	u32 data = nv_rd32(gr, NV04_PGRAPH_TRAPPED_DATA);
-	u32 class = nv_rd32(gr, 0x400160 + subc * 4) & 0xfff;
+	u32 data = nvkm_rd32(device, NV04_PGRAPH_TRAPPED_DATA);
+	u32 class = nvkm_rd32(device, 0x400160 + subc * 4) & 0xfff;
 	u32 show = stat;
 	unsigned long flags;
 
@@ -1181,14 +1194,14 @@ nv10_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
-		nv_wr32(gr, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
+		nvkm_wr32(device, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
 		stat &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
 		show &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
 		nv10_gr_context_switch(gr);
 	}
 
-	nv_wr32(gr, NV03_PGRAPH_INTR, stat);
-	nv_wr32(gr, NV04_PGRAPH_FIFO, 0x00000001);
+	nvkm_wr32(device, NV03_PGRAPH_INTR, stat);
+	nvkm_wr32(device, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
 		nv_error(gr, "%s", "");
@@ -1249,49 +1262,50 @@ static int
 nv10_gr_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
-	struct nvkm_fb *fb = nvkm_fb(object);
 	struct nv10_gr *gr = (void *)engine;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	int ret, i;
 
 	ret = nvkm_gr_init(&gr->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(gr, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
-	nv_wr32(gr, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_1, 0x00118700);
-	/* nv_wr32(gr, NV04_PGRAPH_DEBUG_2, 0x24E00810); */ /* 0x25f92ad9 */
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_2, 0x25f92ad9);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_3, 0x55DE0830 | (1 << 29) | (1 << 31));
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x00118700);
+	/* nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x24E00810); */ /* 0x25f92ad9 */
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x25f92ad9);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0x55DE0830 | (1 << 29) | (1 << 31));
 
 	if (nv_device(gr)->card_type >= NV_11 &&
 	    nv_device(gr)->chipset >= 0x17) {
-		nv_wr32(gr, NV10_PGRAPH_DEBUG_4, 0x1f000000);
-		nv_wr32(gr, 0x400a10, 0x03ff3fb6);
-		nv_wr32(gr, 0x400838, 0x002f8684);
-		nv_wr32(gr, 0x40083c, 0x00115f3f);
-		nv_wr32(gr, 0x4006b0, 0x40000020);
+		nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x1f000000);
+		nvkm_wr32(device, 0x400a10, 0x03ff3fb6);
+		nvkm_wr32(device, 0x400838, 0x002f8684);
+		nvkm_wr32(device, 0x40083c, 0x00115f3f);
+		nvkm_wr32(device, 0x4006b0, 0x40000020);
 	} else {
-		nv_wr32(gr, NV10_PGRAPH_DEBUG_4, 0x00000000);
+		nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00000000);
 	}
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
-	nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(0), 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(1), 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(2), 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(3), 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_CTX_SWITCH(4), 0x00000000);
-	nv_wr32(gr, NV10_PGRAPH_STATE, 0xFFFFFFFF);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(0), 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(1), 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(2), 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(3), 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(4), 0x00000000);
+	nvkm_wr32(device, NV10_PGRAPH_STATE, 0xFFFFFFFF);
 
-	nv_mask(gr, NV10_PGRAPH_CTX_USER, 0xff000000, 0x1f000000);
-	nv_wr32(gr, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
-	nv_wr32(gr, NV10_PGRAPH_FFINTFC_ST2, 0x08000000);
+	nvkm_mask(device, NV10_PGRAPH_CTX_USER, 0xff000000, 0x1f000000);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
+	nvkm_wr32(device, NV10_PGRAPH_FFINTFC_ST2, 0x08000000);
 	return 0;
 }
 

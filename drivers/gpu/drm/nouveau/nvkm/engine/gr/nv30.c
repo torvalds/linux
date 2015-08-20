@@ -153,67 +153,68 @@ nv30_gr_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nv20_gr *gr = (void *)engine;
-	struct nvkm_fb *fb = nvkm_fb(object);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	int ret, i;
 
 	ret = nvkm_gr_init(&gr->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(gr, NV20_PGRAPH_CHANNEL_CTX_TABLE, gr->ctxtab->addr >> 4);
+	nvkm_wr32(device, NV20_PGRAPH_CHANNEL_CTX_TABLE, gr->ctxtab->addr >> 4);
 
-	nv_wr32(gr, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
-	nv_wr32(gr, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_1, 0x401287c0);
-	nv_wr32(gr, 0x400890, 0x01b463ff);
-	nv_wr32(gr, NV04_PGRAPH_DEBUG_3, 0xf2de0475);
-	nv_wr32(gr, NV10_PGRAPH_DEBUG_4, 0x00008000);
-	nv_wr32(gr, NV04_PGRAPH_LIMIT_VIOL_PIX, 0xf04bdff6);
-	nv_wr32(gr, 0x400B80, 0x1003d888);
-	nv_wr32(gr, 0x400B84, 0x0c000000);
-	nv_wr32(gr, 0x400098, 0x00000000);
-	nv_wr32(gr, 0x40009C, 0x0005ad00);
-	nv_wr32(gr, 0x400B88, 0x62ff00ff); /* suspiciously like PGRAPH_DEBUG_2 */
-	nv_wr32(gr, 0x4000a0, 0x00000000);
-	nv_wr32(gr, 0x4000a4, 0x00000008);
-	nv_wr32(gr, 0x4008a8, 0xb784a400);
-	nv_wr32(gr, 0x400ba0, 0x002f8685);
-	nv_wr32(gr, 0x400ba4, 0x00231f3f);
-	nv_wr32(gr, 0x4008a4, 0x40000020);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x401287c0);
+	nvkm_wr32(device, 0x400890, 0x01b463ff);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xf2de0475);
+	nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00008000);
+	nvkm_wr32(device, NV04_PGRAPH_LIMIT_VIOL_PIX, 0xf04bdff6);
+	nvkm_wr32(device, 0x400B80, 0x1003d888);
+	nvkm_wr32(device, 0x400B84, 0x0c000000);
+	nvkm_wr32(device, 0x400098, 0x00000000);
+	nvkm_wr32(device, 0x40009C, 0x0005ad00);
+	nvkm_wr32(device, 0x400B88, 0x62ff00ff); /* suspiciously like PGRAPH_DEBUG_2 */
+	nvkm_wr32(device, 0x4000a0, 0x00000000);
+	nvkm_wr32(device, 0x4000a4, 0x00000008);
+	nvkm_wr32(device, 0x4008a8, 0xb784a400);
+	nvkm_wr32(device, 0x400ba0, 0x002f8685);
+	nvkm_wr32(device, 0x400ba4, 0x00231f3f);
+	nvkm_wr32(device, 0x4008a4, 0x40000020);
 
 	if (nv_device(gr)->chipset == 0x34) {
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0004);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA , 0x00200201);
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0008);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA , 0x00000008);
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA , 0x00000032);
-		nv_wr32(gr, NV10_PGRAPH_RDI_INDEX, 0x00E00004);
-		nv_wr32(gr, NV10_PGRAPH_RDI_DATA , 0x00000002);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0004);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00200201);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0008);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00000008);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00000032);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00E00004);
+		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00000002);
 	}
 
-	nv_wr32(gr, 0x4000c0, 0x00000016);
+	nvkm_wr32(device, 0x4000c0, 0x00000016);
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
-	nv_wr32(gr, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
-	nv_wr32(gr, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
-	nv_wr32(gr, 0x0040075c             , 0x00000001);
+	nvkm_wr32(device, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
+	nvkm_wr32(device, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
+	nvkm_wr32(device, 0x0040075c             , 0x00000001);
 
 	/* begin RAM config */
 	/* vramsz = pci_resource_len(gr->dev->pdev, 1) - 1; */
-	nv_wr32(gr, 0x4009A4, nv_rd32(gr, 0x100200));
-	nv_wr32(gr, 0x4009A8, nv_rd32(gr, 0x100204));
+	nvkm_wr32(device, 0x4009A4, nvkm_rd32(device, 0x100200));
+	nvkm_wr32(device, 0x4009A8, nvkm_rd32(device, 0x100204));
 	if (nv_device(gr)->chipset != 0x34) {
-		nv_wr32(gr, 0x400750, 0x00EA0000);
-		nv_wr32(gr, 0x400754, nv_rd32(gr, 0x100200));
-		nv_wr32(gr, 0x400750, 0x00EA0004);
-		nv_wr32(gr, 0x400754, nv_rd32(gr, 0x100204));
+		nvkm_wr32(device, 0x400750, 0x00EA0000);
+		nvkm_wr32(device, 0x400754, nvkm_rd32(device, 0x100200));
+		nvkm_wr32(device, 0x400750, 0x00EA0004);
+		nvkm_wr32(device, 0x400754, nvkm_rd32(device, 0x100204));
 	}
 	return 0;
 }

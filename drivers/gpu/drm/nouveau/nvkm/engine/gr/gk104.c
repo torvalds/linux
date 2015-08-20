@@ -197,7 +197,8 @@ gk104_gr_init(struct nvkm_object *object)
 {
 	struct gf100_gr_oclass *oclass = (void *)object->oclass;
 	struct gf100_gr *gr = (void *)object;
-	struct nvkm_pmu *pmu = nvkm_pmu(gr);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_pmu *pmu = device->pmu;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
@@ -211,18 +212,18 @@ gk104_gr_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(gr, GPC_BCAST(0x0880), 0x00000000);
-	nv_wr32(gr, GPC_BCAST(0x08a4), 0x00000000);
-	nv_wr32(gr, GPC_BCAST(0x0888), 0x00000000);
-	nv_wr32(gr, GPC_BCAST(0x088c), 0x00000000);
-	nv_wr32(gr, GPC_BCAST(0x0890), 0x00000000);
-	nv_wr32(gr, GPC_BCAST(0x0894), 0x00000000);
-	nv_wr32(gr, GPC_BCAST(0x08b4), gr->unk4188b4->addr >> 8);
-	nv_wr32(gr, GPC_BCAST(0x08b8), gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x0880), 0x00000000);
+	nvkm_wr32(device, GPC_BCAST(0x08a4), 0x00000000);
+	nvkm_wr32(device, GPC_BCAST(0x0888), 0x00000000);
+	nvkm_wr32(device, GPC_BCAST(0x088c), 0x00000000);
+	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
+	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), gr->unk4188b4->addr >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), gr->unk4188b8->addr >> 8);
 
 	gf100_gr_mmio(gr, oclass->mmio);
 
-	nv_wr32(gr, GPC_UNIT(0, 0x3018), 0x00000001);
+	nvkm_wr32(device, GPC_UNIT(0, 0x3018), 0x00000001);
 
 	memset(data, 0x00, sizeof(data));
 	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
@@ -235,75 +236,75 @@ gk104_gr_init(struct nvkm_object *object)
 		data[i / 8] |= tpc << ((i % 8) * 4);
 	}
 
-	nv_wr32(gr, GPC_BCAST(0x0980), data[0]);
-	nv_wr32(gr, GPC_BCAST(0x0984), data[1]);
-	nv_wr32(gr, GPC_BCAST(0x0988), data[2]);
-	nv_wr32(gr, GPC_BCAST(0x098c), data[3]);
+	nvkm_wr32(device, GPC_BCAST(0x0980), data[0]);
+	nvkm_wr32(device, GPC_BCAST(0x0984), data[1]);
+	nvkm_wr32(device, GPC_BCAST(0x0988), data[2]);
+	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0914),
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
 			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0910), 0x00040000 |
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
 			gr->tpc_total);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0918), magicgpc918);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	nv_wr32(gr, GPC_BCAST(0x3fd4), magicgpc918);
-	nv_wr32(gr, GPC_BCAST(0x08ac), nv_rd32(gr, 0x100800));
+	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
+	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
 
-	nv_wr32(gr, 0x400500, 0x00010001);
+	nvkm_wr32(device, 0x400500, 0x00010001);
 
-	nv_wr32(gr, 0x400100, 0xffffffff);
-	nv_wr32(gr, 0x40013c, 0xffffffff);
+	nvkm_wr32(device, 0x400100, 0xffffffff);
+	nvkm_wr32(device, 0x40013c, 0xffffffff);
 
-	nv_wr32(gr, 0x409ffc, 0x00000000);
-	nv_wr32(gr, 0x409c14, 0x00003e3e);
-	nv_wr32(gr, 0x409c24, 0x000f0001);
-	nv_wr32(gr, 0x404000, 0xc0000000);
-	nv_wr32(gr, 0x404600, 0xc0000000);
-	nv_wr32(gr, 0x408030, 0xc0000000);
-	nv_wr32(gr, 0x404490, 0xc0000000);
-	nv_wr32(gr, 0x406018, 0xc0000000);
-	nv_wr32(gr, 0x407020, 0x40000000);
-	nv_wr32(gr, 0x405840, 0xc0000000);
-	nv_wr32(gr, 0x405844, 0x00ffffff);
-	nv_mask(gr, 0x419cc0, 0x00000008, 0x00000008);
-	nv_mask(gr, 0x419eb4, 0x00001000, 0x00001000);
+	nvkm_wr32(device, 0x409ffc, 0x00000000);
+	nvkm_wr32(device, 0x409c14, 0x00003e3e);
+	nvkm_wr32(device, 0x409c24, 0x000f0001);
+	nvkm_wr32(device, 0x404000, 0xc0000000);
+	nvkm_wr32(device, 0x404600, 0xc0000000);
+	nvkm_wr32(device, 0x408030, 0xc0000000);
+	nvkm_wr32(device, 0x404490, 0xc0000000);
+	nvkm_wr32(device, 0x406018, 0xc0000000);
+	nvkm_wr32(device, 0x407020, 0x40000000);
+	nvkm_wr32(device, 0x405840, 0xc0000000);
+	nvkm_wr32(device, 0x405844, 0x00ffffff);
+	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
+	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00001000);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nv_wr32(gr, GPC_UNIT(gpc, 0x3038), 0xc0000000);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0420), 0xc0000000);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0900), 0xc0000000);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x1028), 0xc0000000);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0824), 0xc0000000);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x3038), 0xc0000000);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0900), 0xc0000000);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x1028), 0xc0000000);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0824), 0xc0000000);
 		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
-			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
 		}
-		nv_wr32(gr, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
 	}
 
 	for (rop = 0; rop < gr->rop_nr; rop++) {
-		nv_wr32(gr, ROP_UNIT(rop, 0x144), 0xc0000000);
-		nv_wr32(gr, ROP_UNIT(rop, 0x070), 0xc0000000);
-		nv_wr32(gr, ROP_UNIT(rop, 0x204), 0xffffffff);
-		nv_wr32(gr, ROP_UNIT(rop, 0x208), 0xffffffff);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0xc0000000);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0xc0000000);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x204), 0xffffffff);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x208), 0xffffffff);
 	}
 
-	nv_wr32(gr, 0x400108, 0xffffffff);
-	nv_wr32(gr, 0x400138, 0xffffffff);
-	nv_wr32(gr, 0x400118, 0xffffffff);
-	nv_wr32(gr, 0x400130, 0xffffffff);
-	nv_wr32(gr, 0x40011c, 0xffffffff);
-	nv_wr32(gr, 0x400134, 0xffffffff);
+	nvkm_wr32(device, 0x400108, 0xffffffff);
+	nvkm_wr32(device, 0x400138, 0xffffffff);
+	nvkm_wr32(device, 0x400118, 0xffffffff);
+	nvkm_wr32(device, 0x400130, 0xffffffff);
+	nvkm_wr32(device, 0x40011c, 0xffffffff);
+	nvkm_wr32(device, 0x400134, 0xffffffff);
 
-	nv_wr32(gr, 0x400054, 0x34ce3464);
+	nvkm_wr32(device, 0x400054, 0x34ce3464);
 
 	gf100_gr_zbc_init(gr);
 

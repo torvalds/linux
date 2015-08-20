@@ -1005,6 +1005,7 @@ void
 gf100_grctx_mmio_item(struct gf100_grctx *info, u32 addr, u32 data,
 		      int shift, int buffer)
 {
+	struct nvkm_device *device = info->gr->base.engine.subdev.device;
 	if (info->data) {
 		if (shift >= 0) {
 			info->mmio->addr = addr;
@@ -1021,7 +1022,7 @@ gf100_grctx_mmio_item(struct gf100_grctx *info, u32 addr, u32 data,
 			return;
 	}
 
-	nv_wr32(info->gr, addr, data);
+	nvkm_wr32(device, addr, data);
 }
 
 void
@@ -1085,20 +1086,21 @@ gf100_grctx_generate_unkn(struct gf100_gr *gr)
 void
 gf100_grctx_generate_tpcid(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int gpc, tpc, id;
 
 	for (tpc = 0, id = 0; tpc < 4; tpc++) {
 		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 			if (tpc < gr->tpc_nr[gpc]) {
-				nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x698), id);
-				nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x4e8), id);
-				nv_wr32(gr, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
-				nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x088), id);
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x4e8), id);
+				nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), id);
 				id++;
 			}
 
-			nv_wr32(gr, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
-			nv_wr32(gr, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
+			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c08), gr->tpc_nr[gpc]);
+			nvkm_wr32(device, GPC_UNIT(gpc, 0x0c8c), gr->tpc_nr[gpc]);
 		}
 	}
 }
@@ -1106,18 +1108,20 @@ gf100_grctx_generate_tpcid(struct gf100_gr *gr)
 void
 gf100_grctx_generate_r406028(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 tmp[GPC_MAX / 8] = {}, i = 0;
 	for (i = 0; i < gr->gpc_nr; i++)
 		tmp[i / 8] |= gr->tpc_nr[i] << ((i % 8) * 4);
 	for (i = 0; i < 4; i++) {
-		nv_wr32(gr, 0x406028 + (i * 4), tmp[i]);
-		nv_wr32(gr, 0x405870 + (i * 4), tmp[i]);
+		nvkm_wr32(device, 0x406028 + (i * 4), tmp[i]);
+		nvkm_wr32(device, 0x405870 + (i * 4), tmp[i]);
 	}
 }
 
 void
 gf100_grctx_generate_r4060a8(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u8  tpcnr[GPC_MAX], data[TPC_MAX];
 	int gpc, tpc, i;
 
@@ -1134,12 +1138,13 @@ gf100_grctx_generate_r4060a8(struct gf100_gr *gr)
 	}
 
 	for (i = 0; i < 4; i++)
-		nv_wr32(gr, 0x4060a8 + (i * 4), ((u32 *)data)[i]);
+		nvkm_wr32(device, 0x4060a8 + (i * 4), ((u32 *)data)[i]);
 }
 
 void
 gf100_grctx_generate_r418bb8(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 data[6] = {}, data2[2] = {};
 	u8  tpcnr[GPC_MAX];
 	u8  shift, ntpcv;
@@ -1176,28 +1181,29 @@ gf100_grctx_generate_r418bb8(struct gf100_gr *gr)
 		data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
 
 	/* GPC_BROADCAST */
-	nv_wr32(gr, 0x418bb8, (gr->tpc_total << 8) |
+	nvkm_wr32(device, 0x418bb8, (gr->tpc_total << 8) |
 				 gr->magic_not_rop_nr);
 	for (i = 0; i < 6; i++)
-		nv_wr32(gr, 0x418b08 + (i * 4), data[i]);
+		nvkm_wr32(device, 0x418b08 + (i * 4), data[i]);
 
 	/* GPC_BROADCAST.TP_BROADCAST */
-	nv_wr32(gr, 0x419bd0, (gr->tpc_total << 8) |
+	nvkm_wr32(device, 0x419bd0, (gr->tpc_total << 8) |
 				 gr->magic_not_rop_nr | data2[0]);
-	nv_wr32(gr, 0x419be4, data2[1]);
+	nvkm_wr32(device, 0x419be4, data2[1]);
 	for (i = 0; i < 6; i++)
-		nv_wr32(gr, 0x419b00 + (i * 4), data[i]);
+		nvkm_wr32(device, 0x419b00 + (i * 4), data[i]);
 
 	/* UNK78xx */
-	nv_wr32(gr, 0x4078bc, (gr->tpc_total << 8) |
+	nvkm_wr32(device, 0x4078bc, (gr->tpc_total << 8) |
 				 gr->magic_not_rop_nr);
 	for (i = 0; i < 6; i++)
-		nv_wr32(gr, 0x40780c + (i * 4), data[i]);
+		nvkm_wr32(device, 0x40780c + (i * 4), data[i]);
 }
 
 void
 gf100_grctx_generate_r406800(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u64 tpc_mask = 0, tpc_set = 0;
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc;
@@ -1219,11 +1225,11 @@ gf100_grctx_generate_r406800(struct gf100_gr *gr)
 			tpc_set |= 1ULL << ((gpc * 8) + tpc);
 		}
 
-		nv_wr32(gr, 0x406800 + (i * 0x20), lower_32_bits(tpc_set));
-		nv_wr32(gr, 0x406c00 + (i * 0x20), lower_32_bits(tpc_set ^ tpc_mask));
+		nvkm_wr32(device, 0x406800 + (i * 0x20), lower_32_bits(tpc_set));
+		nvkm_wr32(device, 0x406c00 + (i * 0x20), lower_32_bits(tpc_set ^ tpc_mask));
 		if (gr->gpc_nr > 4) {
-			nv_wr32(gr, 0x406804 + (i * 0x20), upper_32_bits(tpc_set));
-			nv_wr32(gr, 0x406c04 + (i * 0x20), upper_32_bits(tpc_set ^ tpc_mask));
+			nvkm_wr32(device, 0x406804 + (i * 0x20), upper_32_bits(tpc_set));
+			nvkm_wr32(device, 0x406c04 + (i * 0x20), upper_32_bits(tpc_set ^ tpc_mask));
 		}
 	}
 }
@@ -1231,6 +1237,7 @@ gf100_grctx_generate_r406800(struct gf100_gr *gr)
 void
 gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
 
 	nvkm_mc(gr)->unk260(nvkm_mc(gr), 0);
@@ -1241,7 +1248,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_mmio(gr, oclass->tpc);
 	gf100_gr_mmio(gr, oclass->ppc);
 
-	nv_wr32(gr, 0x404154, 0x00000000);
+	nvkm_wr32(device, 0x404154, 0x00000000);
 
 	oclass->bundle(info);
 	oclass->pagepool(info);
@@ -1255,7 +1262,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_grctx_generate_r406800(gr);
 
 	gf100_gr_icmd(gr, oclass->icmd);
-	nv_wr32(gr, 0x404154, 0x00000400);
+	nvkm_wr32(device, 0x404154, 0x00000400);
 	gf100_gr_mthd(gr, oclass->mthd);
 	nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
 }
@@ -1264,7 +1271,8 @@ int
 gf100_grctx_generate(struct gf100_gr *gr)
 {
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
-	struct nvkm_bar *bar = nvkm_bar(gr);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_bar *bar = device->bar;
 	struct nvkm_gpuobj *chan;
 	struct gf100_grctx info;
 	int ret, i;
@@ -1302,8 +1310,8 @@ gf100_grctx_generate(struct gf100_gr *gr)
 
 	bar->flush(bar);
 
-	nv_wr32(gr, 0x100cb8, (chan->addr + 0x1000) >> 8);
-	nv_wr32(gr, 0x100cbc, 0x80000001);
+	nvkm_wr32(device, 0x100cb8, (chan->addr + 0x1000) >> 8);
+	nvkm_wr32(device, 0x100cbc, 0x80000001);
 	nv_wait(gr, 0x100c80, 0x00008000, 0x00008000);
 
 	/* setup default state for mmio list construction */
@@ -1315,9 +1323,9 @@ gf100_grctx_generate(struct gf100_gr *gr)
 
 	/* make channel current */
 	if (gr->firmware) {
-		nv_wr32(gr, 0x409840, 0x00000030);
-		nv_wr32(gr, 0x409500, 0x80000000 | chan->addr >> 12);
-		nv_wr32(gr, 0x409504, 0x00000003);
+		nvkm_wr32(device, 0x409840, 0x00000030);
+		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
+		nvkm_wr32(device, 0x409504, 0x00000003);
 		if (!nv_wait(gr, 0x409800, 0x00000010, 0x00000010))
 			nv_error(gr, "load_ctx timeout\n");
 
@@ -1327,9 +1335,9 @@ gf100_grctx_generate(struct gf100_gr *gr)
 		nv_wo32(chan, 0x8002c, 0);
 		bar->flush(bar);
 	} else {
-		nv_wr32(gr, 0x409840, 0x80000000);
-		nv_wr32(gr, 0x409500, 0x80000000 | chan->addr >> 12);
-		nv_wr32(gr, 0x409504, 0x00000001);
+		nvkm_wr32(device, 0x409840, 0x80000000);
+		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
+		nvkm_wr32(device, 0x409504, 0x00000001);
 		if (!nv_wait(gr, 0x409800, 0x80000000, 0x80000000))
 			nv_error(gr, "HUB_SET_CHAN timeout\n");
 	}
@@ -1339,8 +1347,8 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	/* trigger a context unload by unsetting the "next channel valid" bit
 	 * and faking a context switch interrupt
 	 */
-	nv_mask(gr, 0x409b04, 0x80000000, 0x00000000);
-	nv_wr32(gr, 0x409000, 0x00000100);
+	nvkm_mask(device, 0x409b04, 0x80000000, 0x00000000);
+	nvkm_wr32(device, 0x409000, 0x00000100);
 	if (!nv_wait(gr, 0x409b00, 0x80000000, 0x00000000)) {
 		nv_error(gr, "grctx template channel unload timeout\n");
 		ret = -EBUSY;

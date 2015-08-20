@@ -236,8 +236,9 @@ gk20a_gr_wait_mem_scrubbing(struct gf100_gr *gr)
 static void
 gk20a_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 {
-	nv_wr32(gr, 0x419e44, 0x1ffffe);
-	nv_wr32(gr, 0x419e4c, 0x7f);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_wr32(device, 0x419e44, 0x1ffffe);
+	nvkm_wr32(device, 0x419e4c, 0x7f);
 }
 
 int
@@ -245,6 +246,7 @@ gk20a_gr_init(struct nvkm_object *object)
 {
 	struct gk20a_gr_oclass *oclass = (void *)object->oclass;
 	struct gf100_gr *gr = (void *)object;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
@@ -256,7 +258,7 @@ gk20a_gr_init(struct nvkm_object *object)
 		return ret;
 
 	/* Clear SCC RAM */
-	nv_wr32(gr, 0x40802c, 0x1);
+	nvkm_wr32(device, 0x40802c, 0x1);
 
 	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
 
@@ -269,14 +271,14 @@ gk20a_gr_init(struct nvkm_object *object)
 		return ret;
 
 	/* MMU debug buffer */
-	nv_wr32(gr, 0x100cc8, gr->unk4188b4->addr >> 8);
-	nv_wr32(gr, 0x100ccc, gr->unk4188b8->addr >> 8);
+	nvkm_wr32(device, 0x100cc8, gr->unk4188b4->addr >> 8);
+	nvkm_wr32(device, 0x100ccc, gr->unk4188b8->addr >> 8);
 
 	if (oclass->init_gpc_mmu)
 		oclass->init_gpc_mmu(gr);
 
 	/* Set the PE as stream master */
-	nv_mask(gr, 0x503018, 0x1, 0x1);
+	nvkm_mask(device, 0x503018, 0x1, 0x1);
 
 	/* Zcull init */
 	memset(data, 0x00, sizeof(data));
@@ -290,49 +292,49 @@ gk20a_gr_init(struct nvkm_object *object)
 		data[i / 8] |= tpc << ((i % 8) * 4);
 	}
 
-	nv_wr32(gr, GPC_BCAST(0x0980), data[0]);
-	nv_wr32(gr, GPC_BCAST(0x0984), data[1]);
-	nv_wr32(gr, GPC_BCAST(0x0988), data[2]);
-	nv_wr32(gr, GPC_BCAST(0x098c), data[3]);
+	nvkm_wr32(device, GPC_BCAST(0x0980), data[0]);
+	nvkm_wr32(device, GPC_BCAST(0x0984), data[1]);
+	nvkm_wr32(device, GPC_BCAST(0x0988), data[2]);
+	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0914),
-			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			gr->tpc_total);
-		nv_wr32(gr, GPC_UNIT(gpc, 0x0918), magicgpc918);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
+			  gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
+			  gr->tpc_total);
+		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	nv_wr32(gr, GPC_BCAST(0x3fd4), magicgpc918);
+	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 
 	/* Enable FIFO access */
-	nv_wr32(gr, 0x400500, 0x00010001);
+	nvkm_wr32(device, 0x400500, 0x00010001);
 
 	/* Enable interrupts */
-	nv_wr32(gr, 0x400100, 0xffffffff);
-	nv_wr32(gr, 0x40013c, 0xffffffff);
+	nvkm_wr32(device, 0x400100, 0xffffffff);
+	nvkm_wr32(device, 0x40013c, 0xffffffff);
 
 	/* Enable FECS error interrupts */
-	nv_wr32(gr, 0x409c24, 0x000f0000);
+	nvkm_wr32(device, 0x409c24, 0x000f0000);
 
 	/* Enable hardware warning exceptions */
-	nv_wr32(gr, 0x404000, 0xc0000000);
-	nv_wr32(gr, 0x404600, 0xc0000000);
+	nvkm_wr32(device, 0x404000, 0xc0000000);
+	nvkm_wr32(device, 0x404600, 0xc0000000);
 
 	if (oclass->set_hww_esr_report_mask)
 		oclass->set_hww_esr_report_mask(gr);
 
 	/* Enable TPC exceptions per GPC */
-	nv_wr32(gr, 0x419d0c, 0x2);
-	nv_wr32(gr, 0x41ac94, (((1 << gr->tpc_total) - 1) & 0xff) << 16);
+	nvkm_wr32(device, 0x419d0c, 0x2);
+	nvkm_wr32(device, 0x41ac94, (((1 << gr->tpc_total) - 1) & 0xff) << 16);
 
 	/* Reset and enable all exceptions */
-	nv_wr32(gr, 0x400108, 0xffffffff);
-	nv_wr32(gr, 0x400138, 0xffffffff);
-	nv_wr32(gr, 0x400118, 0xffffffff);
-	nv_wr32(gr, 0x400130, 0xffffffff);
-	nv_wr32(gr, 0x40011c, 0xffffffff);
-	nv_wr32(gr, 0x400134, 0xffffffff);
+	nvkm_wr32(device, 0x400108, 0xffffffff);
+	nvkm_wr32(device, 0x400138, 0xffffffff);
+	nvkm_wr32(device, 0x400118, 0xffffffff);
+	nvkm_wr32(device, 0x400130, 0xffffffff);
+	nvkm_wr32(device, 0x40011c, 0xffffffff);
+	nvkm_wr32(device, 0x400134, 0xffffffff);
 
 	gf100_gr_zbc_init(gr);
 

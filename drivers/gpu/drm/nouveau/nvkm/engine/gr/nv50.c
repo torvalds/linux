@@ -41,7 +41,7 @@ struct nv50_gr_chan {
 static u64
 nv50_gr_units(struct nvkm_gr *gr)
 {
-	return nv_rd32(gr, 0x1540);
+	return nvkm_rd32(gr->engine.subdev.device, 0x1540);
 }
 
 /*******************************************************************************
@@ -235,31 +235,32 @@ nvkm_gr_vstatus_print(struct nv50_gr *gr, int r,
 static int
 g84_gr_tlb_flush(struct nvkm_engine *engine)
 {
-	struct nvkm_timer *tmr = nvkm_timer(engine);
 	struct nv50_gr *gr = (void *)engine;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_timer *tmr = device->timer;
 	bool idle, timeout = false;
 	unsigned long flags;
 	u64 start;
 	u32 tmp;
 
 	spin_lock_irqsave(&gr->lock, flags);
-	nv_mask(gr, 0x400500, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x400500, 0x00000001, 0x00000000);
 
 	start = tmr->read(tmr);
 	do {
 		idle = true;
 
-		for (tmp = nv_rd32(gr, 0x400380); tmp && idle; tmp >>= 3) {
+		for (tmp = nvkm_rd32(device, 0x400380); tmp && idle; tmp >>= 3) {
 			if ((tmp & 7) == 1)
 				idle = false;
 		}
 
-		for (tmp = nv_rd32(gr, 0x400384); tmp && idle; tmp >>= 3) {
+		for (tmp = nvkm_rd32(device, 0x400384); tmp && idle; tmp >>= 3) {
 			if ((tmp & 7) == 1)
 				idle = false;
 		}
 
-		for (tmp = nv_rd32(gr, 0x400388); tmp && idle; tmp >>= 3) {
+		for (tmp = nvkm_rd32(device, 0x400388); tmp && idle; tmp >>= 3) {
 			if ((tmp & 7) == 1)
 				idle = false;
 		}
@@ -269,24 +270,24 @@ g84_gr_tlb_flush(struct nvkm_engine *engine)
 	if (timeout) {
 		nv_error(gr, "PGRAPH TLB flush idle timeout fail\n");
 
-		tmp = nv_rd32(gr, 0x400700);
+		tmp = nvkm_rd32(device, 0x400700);
 		nv_error(gr, "PGRAPH_STATUS  : 0x%08x", tmp);
 		nvkm_bitfield_print(nv50_gr_status, tmp);
 		pr_cont("\n");
 
 		nvkm_gr_vstatus_print(gr, 0, nv50_gr_vstatus_0,
-				       nv_rd32(gr, 0x400380));
+				       nvkm_rd32(device, 0x400380));
 		nvkm_gr_vstatus_print(gr, 1, nv50_gr_vstatus_1,
-				       nv_rd32(gr, 0x400384));
+				       nvkm_rd32(device, 0x400384));
 		nvkm_gr_vstatus_print(gr, 2, nv50_gr_vstatus_2,
-				       nv_rd32(gr, 0x400388));
+				       nvkm_rd32(device, 0x400388));
 	}
 
 
-	nv_wr32(gr, 0x100c80, 0x00000001);
+	nvkm_wr32(device, 0x100c80, 0x00000001);
 	if (!nv_wait(gr, 0x100c80, 0x00000001, 0x00000000))
 		nv_error(gr, "vm flush timeout\n");
-	nv_mask(gr, 0x400500, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x400500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&gr->lock, flags);
 	return timeout ? -EBUSY : 0;
 }
@@ -427,13 +428,14 @@ static void
 nv50_gr_prop_trap(struct nv50_gr *gr,
 		    u32 ustatus_addr, u32 ustatus, u32 tp)
 {
-	u32 e0c = nv_rd32(gr, ustatus_addr + 0x04);
-	u32 e10 = nv_rd32(gr, ustatus_addr + 0x08);
-	u32 e14 = nv_rd32(gr, ustatus_addr + 0x0c);
-	u32 e18 = nv_rd32(gr, ustatus_addr + 0x10);
-	u32 e1c = nv_rd32(gr, ustatus_addr + 0x14);
-	u32 e20 = nv_rd32(gr, ustatus_addr + 0x18);
-	u32 e24 = nv_rd32(gr, ustatus_addr + 0x1c);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 e0c = nvkm_rd32(device, ustatus_addr + 0x04);
+	u32 e10 = nvkm_rd32(device, ustatus_addr + 0x08);
+	u32 e14 = nvkm_rd32(device, ustatus_addr + 0x0c);
+	u32 e18 = nvkm_rd32(device, ustatus_addr + 0x10);
+	u32 e1c = nvkm_rd32(device, ustatus_addr + 0x14);
+	u32 e20 = nvkm_rd32(device, ustatus_addr + 0x18);
+	u32 e24 = nvkm_rd32(device, ustatus_addr + 0x1c);
 
 	/* CUDA memory: l[], g[] or stack. */
 	if (ustatus & 0x00000080) {
@@ -465,7 +467,8 @@ nv50_gr_prop_trap(struct nv50_gr *gr,
 static void
 nv50_gr_mp_trap(struct nv50_gr *gr, int tpid, int display)
 {
-	u32 units = nv_rd32(gr, 0x1540);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 units = nvkm_rd32(device, 0x1540);
 	u32 addr, mp10, status, pc, oplow, ophigh;
 	int i;
 	int mps = 0;
@@ -476,15 +479,15 @@ nv50_gr_mp_trap(struct nv50_gr *gr, int tpid, int display)
 			addr = 0x408200 + (tpid << 12) + (i << 7);
 		else
 			addr = 0x408100 + (tpid << 11) + (i << 7);
-		mp10 = nv_rd32(gr, addr + 0x10);
-		status = nv_rd32(gr, addr + 0x14);
+		mp10 = nvkm_rd32(device, addr + 0x10);
+		status = nvkm_rd32(device, addr + 0x14);
 		if (!status)
 			continue;
 		if (display) {
-			nv_rd32(gr, addr + 0x20);
-			pc = nv_rd32(gr, addr + 0x24);
-			oplow = nv_rd32(gr, addr + 0x70);
-			ophigh = nv_rd32(gr, addr + 0x74);
+			nvkm_rd32(device, addr + 0x20);
+			pc = nvkm_rd32(device, addr + 0x24);
+			oplow = nvkm_rd32(device, addr + 0x70);
+			ophigh = nvkm_rd32(device, addr + 0x74);
 			nv_error(gr, "TRAP_MP_EXEC - "
 					"TP %d MP %d:", tpid, i);
 			nvkm_bitfield_print(nv50_mp_exec_errors, status);
@@ -492,8 +495,8 @@ nv50_gr_mp_trap(struct nv50_gr *gr, int tpid, int display)
 					pc&0xffffff, pc >> 24,
 					oplow, ophigh);
 		}
-		nv_wr32(gr, addr + 0x10, mp10);
-		nv_wr32(gr, addr + 0x14, 0);
+		nvkm_wr32(device, addr + 0x10, mp10);
+		nvkm_wr32(device, addr + 0x14, 0);
 		mps++;
 	}
 	if (!mps && display)
@@ -505,8 +508,9 @@ static void
 nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 		  u32 ustatus_new, int display, const char *name)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 units = nvkm_rd32(device, 0x1540);
 	int tps = 0;
-	u32 units = nv_rd32(gr, 0x1540);
 	int i, r;
 	u32 ustatus_addr, ustatus;
 	for (i = 0; i < 16; i++) {
@@ -516,7 +520,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 			ustatus_addr = ustatus_old + (i << 12);
 		else
 			ustatus_addr = ustatus_new + (i << 11);
-		ustatus = nv_rd32(gr, ustatus_addr) & 0x7fffffff;
+		ustatus = nvkm_rd32(device, ustatus_addr) & 0x7fffffff;
 		if (!ustatus)
 			continue;
 		tps++;
@@ -526,7 +530,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 				nv_error(gr, "magic set %d:\n", i);
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
 					nv_error(gr, "\t0x%08x: 0x%08x\n", r,
-						nv_rd32(gr, r));
+						nvkm_rd32(device, r));
 				if (ustatus) {
 					nv_error(gr, "%s - TP%d:", name, i);
 					nvkm_bitfield_print(nv50_tex_traps,
@@ -559,7 +563,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 			if (display)
 				nv_error(gr, "%s - TP%d: Unhandled ustatus 0x%08x\n", name, i, ustatus);
 		}
-		nv_wr32(gr, ustatus_addr, 0xc0000000);
+		nvkm_wr32(device, ustatus_addr, 0xc0000000);
 	}
 
 	if (!tps && display)
@@ -570,7 +574,8 @@ static int
 nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 		     int chid, u64 inst, struct nvkm_object *engctx)
 {
-	u32 status = nv_rd32(gr, 0x400108);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	u32 status = nvkm_rd32(device, 0x400108);
 	u32 ustatus;
 
 	if (!status && display) {
@@ -582,22 +587,22 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	 * COND, QUERY. If you get a trap from it, the command is still stuck
 	 * in DISPATCH and you need to do something about it. */
 	if (status & 0x001) {
-		ustatus = nv_rd32(gr, 0x400804) & 0x7fffffff;
+		ustatus = nvkm_rd32(device, 0x400804) & 0x7fffffff;
 		if (!ustatus && display) {
 			nv_error(gr, "TRAP_DISPATCH - no ustatus?\n");
 		}
 
-		nv_wr32(gr, 0x400500, 0x00000000);
+		nvkm_wr32(device, 0x400500, 0x00000000);
 
 		/* Known to be triggered by screwed up NOTIFY and COND... */
 		if (ustatus & 0x00000001) {
-			u32 addr = nv_rd32(gr, 0x400808);
+			u32 addr = nvkm_rd32(device, 0x400808);
 			u32 subc = (addr & 0x00070000) >> 16;
 			u32 mthd = (addr & 0x00001ffc);
-			u32 datal = nv_rd32(gr, 0x40080c);
-			u32 datah = nv_rd32(gr, 0x400810);
-			u32 class = nv_rd32(gr, 0x400814);
-			u32 r848 = nv_rd32(gr, 0x400848);
+			u32 datal = nvkm_rd32(device, 0x40080c);
+			u32 datah = nvkm_rd32(device, 0x400810);
+			u32 class = nvkm_rd32(device, 0x400814);
+			u32 r848 = nvkm_rd32(device, 0x400848);
 
 			nv_error(gr, "TRAP DISPATCH_FAULT\n");
 			if (display && (addr & 0x80000000)) {
@@ -611,18 +616,18 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				nv_error(gr, "no stuck command?\n");
 			}
 
-			nv_wr32(gr, 0x400808, 0);
-			nv_wr32(gr, 0x4008e8, nv_rd32(gr, 0x4008e8) & 3);
-			nv_wr32(gr, 0x400848, 0);
+			nvkm_wr32(device, 0x400808, 0);
+			nvkm_wr32(device, 0x4008e8, nvkm_rd32(device, 0x4008e8) & 3);
+			nvkm_wr32(device, 0x400848, 0);
 			ustatus &= ~0x00000001;
 		}
 
 		if (ustatus & 0x00000002) {
-			u32 addr = nv_rd32(gr, 0x40084c);
+			u32 addr = nvkm_rd32(device, 0x40084c);
 			u32 subc = (addr & 0x00070000) >> 16;
 			u32 mthd = (addr & 0x00001ffc);
-			u32 data = nv_rd32(gr, 0x40085c);
-			u32 class = nv_rd32(gr, 0x400814);
+			u32 data = nvkm_rd32(device, 0x40085c);
+			u32 class = nvkm_rd32(device, 0x400814);
 
 			nv_error(gr, "TRAP DISPATCH_QUERY\n");
 			if (display && (addr & 0x80000000)) {
@@ -636,7 +641,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				nv_error(gr, "no stuck command?\n");
 			}
 
-			nv_wr32(gr, 0x40084c, 0);
+			nvkm_wr32(device, 0x40084c, 0);
 			ustatus &= ~0x00000002;
 		}
 
@@ -645,8 +650,8 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				      "0x%08x)\n", ustatus);
 		}
 
-		nv_wr32(gr, 0x400804, 0xc0000000);
-		nv_wr32(gr, 0x400108, 0x001);
+		nvkm_wr32(device, 0x400804, 0xc0000000);
+		nvkm_wr32(device, 0x400108, 0x001);
 		status &= ~0x001;
 		if (!status)
 			return 0;
@@ -654,81 +659,81 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 
 	/* M2MF: Memory to memory copy engine. */
 	if (status & 0x002) {
-		u32 ustatus = nv_rd32(gr, 0x406800) & 0x7fffffff;
+		u32 ustatus = nvkm_rd32(device, 0x406800) & 0x7fffffff;
 		if (display) {
 			nv_error(gr, "TRAP_M2MF");
 			nvkm_bitfield_print(nv50_gr_trap_m2mf, ustatus);
 			pr_cont("\n");
 			nv_error(gr, "TRAP_M2MF %08x %08x %08x %08x\n",
-				nv_rd32(gr, 0x406804), nv_rd32(gr, 0x406808),
-				nv_rd32(gr, 0x40680c), nv_rd32(gr, 0x406810));
+				nvkm_rd32(device, 0x406804), nvkm_rd32(device, 0x406808),
+				nvkm_rd32(device, 0x40680c), nvkm_rd32(device, 0x406810));
 
 		}
 
 		/* No sane way found yet -- just reset the bugger. */
-		nv_wr32(gr, 0x400040, 2);
-		nv_wr32(gr, 0x400040, 0);
-		nv_wr32(gr, 0x406800, 0xc0000000);
-		nv_wr32(gr, 0x400108, 0x002);
+		nvkm_wr32(device, 0x400040, 2);
+		nvkm_wr32(device, 0x400040, 0);
+		nvkm_wr32(device, 0x406800, 0xc0000000);
+		nvkm_wr32(device, 0x400108, 0x002);
 		status &= ~0x002;
 	}
 
 	/* VFETCH: Fetches data from vertex buffers. */
 	if (status & 0x004) {
-		u32 ustatus = nv_rd32(gr, 0x400c04) & 0x7fffffff;
+		u32 ustatus = nvkm_rd32(device, 0x400c04) & 0x7fffffff;
 		if (display) {
 			nv_error(gr, "TRAP_VFETCH");
 			nvkm_bitfield_print(nv50_gr_trap_vfetch, ustatus);
 			pr_cont("\n");
 			nv_error(gr, "TRAP_VFETCH %08x %08x %08x %08x\n",
-				nv_rd32(gr, 0x400c00), nv_rd32(gr, 0x400c08),
-				nv_rd32(gr, 0x400c0c), nv_rd32(gr, 0x400c10));
+				nvkm_rd32(device, 0x400c00), nvkm_rd32(device, 0x400c08),
+				nvkm_rd32(device, 0x400c0c), nvkm_rd32(device, 0x400c10));
 		}
 
-		nv_wr32(gr, 0x400c04, 0xc0000000);
-		nv_wr32(gr, 0x400108, 0x004);
+		nvkm_wr32(device, 0x400c04, 0xc0000000);
+		nvkm_wr32(device, 0x400108, 0x004);
 		status &= ~0x004;
 	}
 
 	/* STRMOUT: DirectX streamout / OpenGL transform feedback. */
 	if (status & 0x008) {
-		ustatus = nv_rd32(gr, 0x401800) & 0x7fffffff;
+		ustatus = nvkm_rd32(device, 0x401800) & 0x7fffffff;
 		if (display) {
 			nv_error(gr, "TRAP_STRMOUT");
 			nvkm_bitfield_print(nv50_gr_trap_strmout, ustatus);
 			pr_cont("\n");
 			nv_error(gr, "TRAP_STRMOUT %08x %08x %08x %08x\n",
-				nv_rd32(gr, 0x401804), nv_rd32(gr, 0x401808),
-				nv_rd32(gr, 0x40180c), nv_rd32(gr, 0x401810));
+				nvkm_rd32(device, 0x401804), nvkm_rd32(device, 0x401808),
+				nvkm_rd32(device, 0x40180c), nvkm_rd32(device, 0x401810));
 
 		}
 
 		/* No sane way found yet -- just reset the bugger. */
-		nv_wr32(gr, 0x400040, 0x80);
-		nv_wr32(gr, 0x400040, 0);
-		nv_wr32(gr, 0x401800, 0xc0000000);
-		nv_wr32(gr, 0x400108, 0x008);
+		nvkm_wr32(device, 0x400040, 0x80);
+		nvkm_wr32(device, 0x400040, 0);
+		nvkm_wr32(device, 0x401800, 0xc0000000);
+		nvkm_wr32(device, 0x400108, 0x008);
 		status &= ~0x008;
 	}
 
 	/* CCACHE: Handles code and c[] caches and fills them. */
 	if (status & 0x010) {
-		ustatus = nv_rd32(gr, 0x405018) & 0x7fffffff;
+		ustatus = nvkm_rd32(device, 0x405018) & 0x7fffffff;
 		if (display) {
 			nv_error(gr, "TRAP_CCACHE");
 			nvkm_bitfield_print(nv50_gr_trap_ccache, ustatus);
 			pr_cont("\n");
 			nv_error(gr, "TRAP_CCACHE %08x %08x %08x %08x"
 				     " %08x %08x %08x\n",
-				nv_rd32(gr, 0x405000), nv_rd32(gr, 0x405004),
-				nv_rd32(gr, 0x405008), nv_rd32(gr, 0x40500c),
-				nv_rd32(gr, 0x405010), nv_rd32(gr, 0x405014),
-				nv_rd32(gr, 0x40501c));
+				nvkm_rd32(device, 0x405000), nvkm_rd32(device, 0x405004),
+				nvkm_rd32(device, 0x405008), nvkm_rd32(device, 0x40500c),
+				nvkm_rd32(device, 0x405010), nvkm_rd32(device, 0x405014),
+				nvkm_rd32(device, 0x40501c));
 
 		}
 
-		nv_wr32(gr, 0x405018, 0xc0000000);
-		nv_wr32(gr, 0x400108, 0x010);
+		nvkm_wr32(device, 0x405018, 0xc0000000);
+		nvkm_wr32(device, 0x400108, 0x010);
 		status &= ~0x010;
 	}
 
@@ -736,10 +741,10 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	 * remaining, so try to handle it anyway. Perhaps related to that
 	 * unknown DMA slot on tesla? */
 	if (status & 0x20) {
-		ustatus = nv_rd32(gr, 0x402000) & 0x7fffffff;
+		ustatus = nvkm_rd32(device, 0x402000) & 0x7fffffff;
 		if (display)
 			nv_error(gr, "TRAP_UNKC04 0x%08x\n", ustatus);
-		nv_wr32(gr, 0x402000, 0xc0000000);
+		nvkm_wr32(device, 0x402000, 0xc0000000);
 		/* no status modifiction on purpose */
 	}
 
@@ -747,7 +752,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	if (status & 0x040) {
 		nv50_gr_tp_trap(gr, 6, 0x408900, 0x408600, display,
 				    "TRAP_TEXTURE");
-		nv_wr32(gr, 0x400108, 0x040);
+		nvkm_wr32(device, 0x400108, 0x040);
 		status &= ~0x040;
 	}
 
@@ -755,7 +760,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	if (status & 0x080) {
 		nv50_gr_tp_trap(gr, 7, 0x408314, 0x40831c, display,
 				    "TRAP_MP");
-		nv_wr32(gr, 0x400108, 0x080);
+		nvkm_wr32(device, 0x400108, 0x080);
 		status &= ~0x080;
 	}
 
@@ -764,14 +769,14 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	if (status & 0x100) {
 		nv50_gr_tp_trap(gr, 8, 0x408e08, 0x408708, display,
 				    "TRAP_PROP");
-		nv_wr32(gr, 0x400108, 0x100);
+		nvkm_wr32(device, 0x400108, 0x100);
 		status &= ~0x100;
 	}
 
 	if (status) {
 		if (display)
 			nv_error(gr, "TRAP: unknown 0x%08x\n", status);
-		nv_wr32(gr, 0x400108, status);
+		nvkm_wr32(device, 0x400108, status);
 	}
 
 	return 1;
@@ -780,18 +785,19 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 static void
 nv50_gr_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
+	struct nv50_gr *gr = (void *)subdev;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle = NULL;
-	struct nv50_gr *gr = (void *)subdev;
-	u32 stat = nv_rd32(gr, 0x400100);
-	u32 inst = nv_rd32(gr, 0x40032c) & 0x0fffffff;
-	u32 addr = nv_rd32(gr, 0x400704);
+	u32 stat = nvkm_rd32(device, 0x400100);
+	u32 inst = nvkm_rd32(device, 0x40032c) & 0x0fffffff;
+	u32 addr = nvkm_rd32(device, 0x400704);
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00001ffc);
-	u32 data = nv_rd32(gr, 0x400708);
-	u32 class = nv_rd32(gr, 0x400814);
+	u32 data = nvkm_rd32(device, 0x400708);
+	u32 class = nvkm_rd32(device, 0x400814);
 	u32 show = stat, show_bitfield = stat;
 	int chid;
 
@@ -806,7 +812,7 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (show & 0x00100000) {
-		u32 ecode = nv_rd32(gr, 0x400110);
+		u32 ecode = nvkm_rd32(device, 0x400110);
 		nv_error(gr, "DATA_ERROR ");
 		nvkm_enum_print(nv50_data_error_names, ecode);
 		pr_cont("\n");
@@ -820,8 +826,8 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 		show_bitfield &= ~0x00200000;
 	}
 
-	nv_wr32(gr, 0x400100, stat);
-	nv_wr32(gr, 0x400500, 0x00010001);
+	nvkm_wr32(device, 0x400100, stat);
+	nvkm_wr32(device, 0x400500, 0x00010001);
 
 	if (show) {
 		show &= show_bitfield;
@@ -836,8 +842,8 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 			 subc, class, mthd, data);
 	}
 
-	if (nv_rd32(gr, 0x400824) & (1 << 31))
-		nv_wr32(gr, 0x400824, nv_rd32(gr, 0x400824) & ~(1 << 31));
+	if (nvkm_rd32(device, 0x400824) & (1 << 31))
+		nvkm_wr32(device, 0x400824, nvkm_rd32(device, 0x400824) & ~(1 << 31));
 
 	nvkm_engctx_put(engctx);
 }
@@ -902,6 +908,7 @@ static int
 nv50_gr_init(struct nvkm_object *object)
 {
 	struct nv50_gr *gr = (void *)object;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int ret, units, i;
 
 	ret = nvkm_gr_init(&gr->base);
@@ -909,66 +916,66 @@ nv50_gr_init(struct nvkm_object *object)
 		return ret;
 
 	/* NV_PGRAPH_DEBUG_3_HW_CTX_SWITCH_ENABLED */
-	nv_wr32(gr, 0x40008c, 0x00000004);
+	nvkm_wr32(device, 0x40008c, 0x00000004);
 
 	/* reset/enable traps and interrupts */
-	nv_wr32(gr, 0x400804, 0xc0000000);
-	nv_wr32(gr, 0x406800, 0xc0000000);
-	nv_wr32(gr, 0x400c04, 0xc0000000);
-	nv_wr32(gr, 0x401800, 0xc0000000);
-	nv_wr32(gr, 0x405018, 0xc0000000);
-	nv_wr32(gr, 0x402000, 0xc0000000);
+	nvkm_wr32(device, 0x400804, 0xc0000000);
+	nvkm_wr32(device, 0x406800, 0xc0000000);
+	nvkm_wr32(device, 0x400c04, 0xc0000000);
+	nvkm_wr32(device, 0x401800, 0xc0000000);
+	nvkm_wr32(device, 0x405018, 0xc0000000);
+	nvkm_wr32(device, 0x402000, 0xc0000000);
 
-	units = nv_rd32(gr, 0x001540);
+	units = nvkm_rd32(device, 0x001540);
 	for (i = 0; i < 16; i++) {
 		if (!(units & (1 << i)))
 			continue;
 
 		if (nv_device(gr)->chipset < 0xa0) {
-			nv_wr32(gr, 0x408900 + (i << 12), 0xc0000000);
-			nv_wr32(gr, 0x408e08 + (i << 12), 0xc0000000);
-			nv_wr32(gr, 0x408314 + (i << 12), 0xc0000000);
+			nvkm_wr32(device, 0x408900 + (i << 12), 0xc0000000);
+			nvkm_wr32(device, 0x408e08 + (i << 12), 0xc0000000);
+			nvkm_wr32(device, 0x408314 + (i << 12), 0xc0000000);
 		} else {
-			nv_wr32(gr, 0x408600 + (i << 11), 0xc0000000);
-			nv_wr32(gr, 0x408708 + (i << 11), 0xc0000000);
-			nv_wr32(gr, 0x40831c + (i << 11), 0xc0000000);
+			nvkm_wr32(device, 0x408600 + (i << 11), 0xc0000000);
+			nvkm_wr32(device, 0x408708 + (i << 11), 0xc0000000);
+			nvkm_wr32(device, 0x40831c + (i << 11), 0xc0000000);
 		}
 	}
 
-	nv_wr32(gr, 0x400108, 0xffffffff);
-	nv_wr32(gr, 0x400138, 0xffffffff);
-	nv_wr32(gr, 0x400100, 0xffffffff);
-	nv_wr32(gr, 0x40013c, 0xffffffff);
-	nv_wr32(gr, 0x400500, 0x00010001);
+	nvkm_wr32(device, 0x400108, 0xffffffff);
+	nvkm_wr32(device, 0x400138, 0xffffffff);
+	nvkm_wr32(device, 0x400100, 0xffffffff);
+	nvkm_wr32(device, 0x40013c, 0xffffffff);
+	nvkm_wr32(device, 0x400500, 0x00010001);
 
 	/* upload context program, initialise ctxctl defaults */
 	ret = nv50_grctx_init(nv_device(gr), &gr->size);
 	if (ret)
 		return ret;
 
-	nv_wr32(gr, 0x400824, 0x00000000);
-	nv_wr32(gr, 0x400828, 0x00000000);
-	nv_wr32(gr, 0x40082c, 0x00000000);
-	nv_wr32(gr, 0x400830, 0x00000000);
-	nv_wr32(gr, 0x40032c, 0x00000000);
-	nv_wr32(gr, 0x400330, 0x00000000);
+	nvkm_wr32(device, 0x400824, 0x00000000);
+	nvkm_wr32(device, 0x400828, 0x00000000);
+	nvkm_wr32(device, 0x40082c, 0x00000000);
+	nvkm_wr32(device, 0x400830, 0x00000000);
+	nvkm_wr32(device, 0x40032c, 0x00000000);
+	nvkm_wr32(device, 0x400330, 0x00000000);
 
 	/* some unknown zcull magic */
 	switch (nv_device(gr)->chipset & 0xf0) {
 	case 0x50:
 	case 0x80:
 	case 0x90:
-		nv_wr32(gr, 0x402ca8, 0x00000800);
+		nvkm_wr32(device, 0x402ca8, 0x00000800);
 		break;
 	case 0xa0:
 	default:
 		if (nv_device(gr)->chipset == 0xa0 ||
 		    nv_device(gr)->chipset == 0xaa ||
 		    nv_device(gr)->chipset == 0xac) {
-			nv_wr32(gr, 0x402ca8, 0x00000802);
+			nvkm_wr32(device, 0x402ca8, 0x00000802);
 		} else {
-			nv_wr32(gr, 0x402cc0, 0x00000000);
-			nv_wr32(gr, 0x402ca8, 0x00000002);
+			nvkm_wr32(device, 0x402cc0, 0x00000000);
+			nvkm_wr32(device, 0x402ca8, 0x00000002);
 		}
 
 		break;
@@ -976,10 +983,10 @@ nv50_gr_init(struct nvkm_object *object)
 
 	/* zero out zcull regions */
 	for (i = 0; i < 8; i++) {
-		nv_wr32(gr, 0x402c20 + (i * 0x10), 0x00000000);
-		nv_wr32(gr, 0x402c24 + (i * 0x10), 0x00000000);
-		nv_wr32(gr, 0x402c28 + (i * 0x10), 0x00000000);
-		nv_wr32(gr, 0x402c2c + (i * 0x10), 0x00000000);
+		nvkm_wr32(device, 0x402c20 + (i * 0x10), 0x00000000);
+		nvkm_wr32(device, 0x402c24 + (i * 0x10), 0x00000000);
+		nvkm_wr32(device, 0x402c28 + (i * 0x10), 0x00000000);
+		nvkm_wr32(device, 0x402c2c + (i * 0x10), 0x00000000);
 	}
 	return 0;
 }

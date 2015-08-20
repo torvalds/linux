@@ -276,9 +276,9 @@ nv50_grctx_init(struct nvkm_device *device, u32 *size)
 		return -ENOMEM;
 	nv50_grctx_generate(&ctx);
 
-	nv_wr32(device, 0x400324, 0);
+	nvkm_wr32(device, 0x400324, 0);
 	for (i = 0; i < ctx.ctxprog_len; i++)
-		nv_wr32(device, 0x400328, ctxprog[i]);
+		nvkm_wr32(device, 0x400328, ctxprog[i]);
 	*size = ctx.ctxvals_pos * 4;
 	kfree(ctxprog);
 	return 0;
@@ -298,7 +298,7 @@ nv50_gr_construct_mmio(struct nvkm_grctx *ctx)
 	struct nvkm_device *device = ctx->device;
 	int i, j;
 	int offset, base;
-	u32 units = nv_rd32 (ctx->device, 0x1540);
+	u32 units = nvkm_rd32(device, 0x1540);
 
 	/* 0800: DISPATCH */
 	cp_ctx(ctx, 0x400808, 7);
@@ -1189,7 +1189,7 @@ nv50_gr_construct_xfer1(struct nvkm_grctx *ctx)
 	int i;
 	int offset;
 	int size = 0;
-	u32 units = nv_rd32 (ctx->device, 0x1540);
+	u32 units = nvkm_rd32(device, 0x1540);
 
 	offset = (ctx->ctxvals_pos+0x3f)&~0x3f;
 	ctx->ctxvals_base = offset;
@@ -3272,7 +3272,7 @@ nv50_gr_construct_xfer2(struct nvkm_grctx *ctx)
 	struct nvkm_device *device = ctx->device;
 	int i;
 	u32 offset;
-	u32 units = nv_rd32 (ctx->device, 0x1540);
+	u32 units = nvkm_rd32(device, 0x1540);
 	int size = 0;
 
 	offset = (ctx->ctxvals_pos+0x3f)&~0x3f;
