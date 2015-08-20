@@ -1079,7 +1079,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	u16 exp_pkts = msg_msgcnt(hdr);
 	u16 rcv_nxt, syncpt, dlv_nxt;
 	int state = n->state;
-	struct tipc_link *l, *pl = NULL;
+	struct tipc_link *l, *tnl, *pl = NULL;
 	struct tipc_media_addr *maddr;
 	int i, pb_id;
 
@@ -1164,12 +1164,20 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 
 	/* Open tunnel link when parallel link reaches synch point */
 	if ((n->state == NODE_SYNCHING) && tipc_link_is_synching(l)) {
+		if (tipc_link_is_synching(l)) {
+			tnl = l;
+		} else {
+			tnl = pl;
+			pl = l;
+		}
 		dlv_nxt = pl->rcv_nxt - mod(skb_queue_len(pl->inputq));
 		if (more(dlv_nxt, n->sync_point)) {
-			tipc_link_fsm_evt(l, LINK_SYNCH_END_EVT);
+			tipc_link_fsm_evt(tnl, LINK_SYNCH_END_EVT);
 			tipc_node_fsm_evt(n, NODE_SYNCH_END_EVT);
 			return true;
 		}
+		if (l == pl)
+			return true;
 		if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG))
 			return true;
 		if (usr == LINK_PROTOCOL)

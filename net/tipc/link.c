@@ -1330,6 +1330,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 	u16 peers_snd_nxt =  msg_next_sent(hdr);
 	u16 peers_tol = msg_link_tolerance(hdr);
 	u16 peers_prio = msg_linkprio(hdr);
+	u16 rcv_nxt = l->rcv_nxt;
 	char *if_name;
 	int rc = 0;
 
@@ -1393,7 +1394,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			break;
 
 		/* Send NACK if peer has sent pkts we haven't received yet */
-		if (more(peers_snd_nxt, l->rcv_nxt))
+		if (more(peers_snd_nxt, rcv_nxt) && !tipc_link_is_synching(l))
 			rcvgap = peers_snd_nxt - l->rcv_nxt;
 		if (rcvgap || (msg_probe(hdr)))
 			tipc_link_build_proto_msg(l, STATE_MSG, 0, rcvgap,
