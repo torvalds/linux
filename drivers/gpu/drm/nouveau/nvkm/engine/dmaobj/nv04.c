@@ -64,17 +64,21 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
 		struct nvkm_gpuobj *pgt = mmu->vm->pgt[0].obj[0];
 		if (!dmaobj->base.start)
 			return nvkm_gpuobj_dup(parent, pgt, pgpuobj);
-		offset  = nv_ro32(pgt, 8 + (offset >> 10));
+		nvkm_kmap(pgt);
+		offset  = nvkm_ro32(pgt, 8 + (offset >> 10));
 		offset &= 0xfffff000;
+		nvkm_done(pgt);
 	}
 
 	ret = nvkm_gpuobj_new(parent, parent, 16, 16, 0, &gpuobj);
 	*pgpuobj = gpuobj;
 	if (ret == 0) {
-		nv_wo32(*pgpuobj, 0x00, dmaobj->flags0 | (adjust << 20));
-		nv_wo32(*pgpuobj, 0x04, length);
-		nv_wo32(*pgpuobj, 0x08, dmaobj->flags2 | offset);
-		nv_wo32(*pgpuobj, 0x0c, dmaobj->flags2 | offset);
+		nvkm_kmap(*pgpuobj);
+		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0 | (adjust << 20));
+		nvkm_wo32(*pgpuobj, 0x04, length);
+		nvkm_wo32(*pgpuobj, 0x08, dmaobj->flags2 | offset);
+		nvkm_wo32(*pgpuobj, 0x0c, dmaobj->flags2 | offset);
+		nvkm_done(*pgpuobj);
 	}
 
 	return ret;

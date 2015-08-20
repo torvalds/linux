@@ -63,12 +63,14 @@ gf110_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
 
 	ret = nvkm_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
 	if (ret == 0) {
-		nv_wo32(*pgpuobj, 0x00, dmaobj->flags0);
-		nv_wo32(*pgpuobj, 0x04, dmaobj->base.start >> 8);
-		nv_wo32(*pgpuobj, 0x08, dmaobj->base.limit >> 8);
-		nv_wo32(*pgpuobj, 0x0c, 0x00000000);
-		nv_wo32(*pgpuobj, 0x10, 0x00000000);
-		nv_wo32(*pgpuobj, 0x14, 0x00000000);
+		nvkm_kmap(*pgpuobj);
+		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0);
+		nvkm_wo32(*pgpuobj, 0x04, dmaobj->base.start >> 8);
+		nvkm_wo32(*pgpuobj, 0x08, dmaobj->base.limit >> 8);
+		nvkm_wo32(*pgpuobj, 0x0c, 0x00000000);
+		nvkm_wo32(*pgpuobj, 0x10, 0x00000000);
+		nvkm_wo32(*pgpuobj, 0x14, 0x00000000);
+		nvkm_done(*pgpuobj);
 	}
 
 	return ret;

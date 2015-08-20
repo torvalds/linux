@@ -57,13 +57,15 @@ gf100_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
 
 	ret = nvkm_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
 	if (ret == 0) {
-		nv_wo32(*pgpuobj, 0x00, dmaobj->flags0 | nv_mclass(dmaobj));
-		nv_wo32(*pgpuobj, 0x04, lower_32_bits(dmaobj->base.limit));
-		nv_wo32(*pgpuobj, 0x08, lower_32_bits(dmaobj->base.start));
-		nv_wo32(*pgpuobj, 0x0c, upper_32_bits(dmaobj->base.limit) << 24 |
-					upper_32_bits(dmaobj->base.start));
-		nv_wo32(*pgpuobj, 0x10, 0x00000000);
-		nv_wo32(*pgpuobj, 0x14, dmaobj->flags5);
+		nvkm_kmap(*pgpuobj);
+		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0 | nv_mclass(dmaobj));
+		nvkm_wo32(*pgpuobj, 0x04, lower_32_bits(dmaobj->base.limit));
+		nvkm_wo32(*pgpuobj, 0x08, lower_32_bits(dmaobj->base.start));
+		nvkm_wo32(*pgpuobj, 0x0c, upper_32_bits(dmaobj->base.limit) << 24 |
+					  upper_32_bits(dmaobj->base.start));
+		nvkm_wo32(*pgpuobj, 0x10, 0x00000000);
+		nvkm_wo32(*pgpuobj, 0x14, dmaobj->flags5);
+		nvkm_done(*pgpuobj);
 	}
 
 	return ret;
