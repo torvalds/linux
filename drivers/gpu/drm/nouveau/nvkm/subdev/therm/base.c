@@ -288,7 +288,7 @@ _nvkm_therm_init(struct nvkm_object *object)
 	struct nvkm_therm_priv *therm = (void *)object;
 	int ret;
 
-	ret = nvkm_subdev_init(&therm->base.subdev);
+	ret = nvkm_subdev_init_old(&therm->base.subdev);
 	if (ret)
 		return ret;
 
@@ -316,7 +316,7 @@ _nvkm_therm_fini(struct nvkm_object *object, bool suspend)
 		therm->mode = NVKM_THERM_CTRL_NONE;
 	}
 
-	return nvkm_subdev_fini(&therm->base.subdev, suspend);
+	return nvkm_subdev_fini_old(&therm->base.subdev, suspend);
 }
 
 int

@@ -44,8 +44,8 @@ int  nvkm_subdev_create_(struct nvkm_object *, struct nvkm_object *,
 			    const char *sname, const char *fname,
 			    int size, void **);
 void nvkm_subdev_destroy(struct nvkm_subdev *);
-int  nvkm_subdev_init(struct nvkm_subdev *);
-int  nvkm_subdev_fini(struct nvkm_subdev *, bool suspend);
+int  nvkm_subdev_init_old(struct nvkm_subdev *);
+int  nvkm_subdev_fini_old(struct nvkm_subdev *, bool suspend);
 void nvkm_subdev_reset(struct nvkm_object *);
 
 void _nvkm_subdev_dtor(struct nvkm_object *);

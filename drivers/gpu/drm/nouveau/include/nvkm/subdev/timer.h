@@ -70,9 +70,9 @@ nvkm_timer(void *obj)
 #define nvkm_timer_destroy(p)                                               \
 	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_timer_init(p)                                                  \
-	nvkm_subdev_init(&(p)->subdev)
+	nvkm_subdev_init_old(&(p)->subdev)
 #define nvkm_timer_fini(p,s)                                                \
-	nvkm_subdev_fini(&(p)->subdev, (s))
+	nvkm_subdev_fini_old(&(p)->subdev, (s))
 
 int nvkm_timer_create_(struct nvkm_object *, struct nvkm_engine *,
 			  struct nvkm_oclass *, int size, void **);

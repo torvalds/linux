@@ -168,7 +168,7 @@ _nvkm_gpio_fini(struct nvkm_object *object, bool suspend)
 	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
 	impl->intr_stat(gpio, &mask, &mask);
 
-	return nvkm_subdev_fini(&gpio->subdev, suspend);
+	return nvkm_subdev_fini_old(&gpio->subdev, suspend);
 }
 
 static struct dmi_system_id gpio_reset_ids[] = {
@@ -188,7 +188,7 @@ _nvkm_gpio_init(struct nvkm_object *object)
 	struct nvkm_gpio *gpio = nvkm_gpio(object);
 	int ret;
 
-	ret = nvkm_subdev_init(&gpio->subdev);
+	ret = nvkm_subdev_init_old(&gpio->subdev);
 	if (ret)
 		return ret;
 

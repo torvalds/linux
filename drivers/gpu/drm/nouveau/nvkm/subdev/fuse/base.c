@@ -27,7 +27,7 @@ int
 _nvkm_fuse_init(struct nvkm_object *object)
 {
 	struct nvkm_fuse *fuse = (void *)object;
-	return nvkm_subdev_init(&fuse->subdev);
+	return nvkm_subdev_init_old(&fuse->subdev);
 }
 
 void

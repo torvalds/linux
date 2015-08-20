@@ -479,7 +479,7 @@ _nvkm_clk_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_clk *clk = (void *)object;
 	nvkm_notify_put(&clk->pwrsrc_ntfy);
-	return nvkm_subdev_fini(&clk->subdev, suspend);
+	return nvkm_subdev_fini_old(&clk->subdev, suspend);
 }
 
 int
@@ -490,7 +490,7 @@ _nvkm_clk_init(struct nvkm_object *object)
 	struct nvkm_domain *clock = clk->domains;
 	int ret;
 
-	ret = nvkm_subdev_init(&clk->subdev);
+	ret = nvkm_subdev_init_old(&clk->subdev);
 	if (ret)
 		return ret;
 

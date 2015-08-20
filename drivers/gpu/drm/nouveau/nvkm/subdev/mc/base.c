@@ -86,7 +86,7 @@ _nvkm_mc_fini(struct nvkm_object *object, bool suspend)
 	struct nvkm_mc *mc = (void *)object;
 	struct nvkm_device *device = mc->subdev.device;
 	nvkm_wr32(device, 0x000140, 0x00000000);
-	return nvkm_subdev_fini(&mc->subdev, suspend);
+	return nvkm_subdev_fini_old(&mc->subdev, suspend);
 }
 
 int
@@ -94,7 +94,7 @@ _nvkm_mc_init(struct nvkm_object *object)
 {
 	struct nvkm_mc *mc = (void *)object;
 	struct nvkm_device *device = mc->subdev.device;
-	int ret = nvkm_subdev_init(&mc->subdev);
+	int ret = nvkm_subdev_init_old(&mc->subdev);
 	if (ret)
 		return ret;
 	nvkm_wr32(device, 0x000140, 0x00000001);

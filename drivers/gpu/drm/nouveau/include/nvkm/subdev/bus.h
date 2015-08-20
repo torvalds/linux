@@ -25,9 +25,9 @@ nvkm_bus(void *obj)
 #define nvkm_bus_destroy(p)                                                 \
 	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_bus_init(p)                                                    \
-	nvkm_subdev_init(&(p)->subdev)
+	nvkm_subdev_init_old(&(p)->subdev)
 #define nvkm_bus_fini(p, s)                                                 \
-	nvkm_subdev_fini(&(p)->subdev, (s))
+	nvkm_subdev_fini_old(&(p)->subdev, (s))
 
 #define _nvkm_bus_dtor _nvkm_subdev_dtor
 #define _nvkm_bus_init _nvkm_subdev_init

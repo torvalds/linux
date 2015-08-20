@@ -102,7 +102,7 @@ _nvkm_instmem_fini(struct nvkm_object *object, bool suspend)
 			return ret;
 	}
 
-	return nvkm_subdev_fini(&imem->subdev, suspend);
+	return nvkm_subdev_fini_old(&imem->subdev, suspend);
 }
 
 int
@@ -112,7 +112,7 @@ _nvkm_instmem_init(struct nvkm_object *object)
 	struct nvkm_instobj *iobj;
 	int ret, i;
 
-	ret = nvkm_subdev_init(&imem->subdev);
+	ret = nvkm_subdev_init_old(&imem->subdev);
 	if (ret)
 		return ret;
 

@@ -46,7 +46,7 @@ nvkm_subdev_reset(struct nvkm_object *obj)
 }
 
 int
-nvkm_subdev_init(struct nvkm_subdev *subdev)
+nvkm_subdev_init_old(struct nvkm_subdev *subdev)
 {
 	int ret = _nvkm_object_init(&subdev->object);
 	if (ret)
@@ -59,11 +59,12 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 int
 _nvkm_subdev_init(struct nvkm_object *object)
 {
-	return nvkm_subdev_init(nv_subdev(object));
+	struct nvkm_subdev *subdev = (void *)object;
+	return nvkm_subdev_init_old(subdev);
 }
 
 int
-nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_subdev_fini_old(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_device *device = subdev->device;
 
@@ -78,7 +79,8 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 int
 _nvkm_subdev_fini(struct nvkm_object *object, bool suspend)
 {
-	return nvkm_subdev_fini(nv_subdev(object), suspend);
+	struct nvkm_subdev *subdev = (void *)object;
+	return nvkm_subdev_fini_old(subdev, suspend);
 }
 
 void

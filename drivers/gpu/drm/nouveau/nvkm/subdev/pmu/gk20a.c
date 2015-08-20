@@ -171,7 +171,7 @@ gk20a_pmu_fini(struct nvkm_object *object, bool suspend)
 
 	nvkm_timer_alarm_cancel(pmu, &pmu->alarm);
 
-	return nvkm_subdev_fini(&pmu->base.subdev, suspend);
+	return nvkm_subdev_fini_old(&pmu->base.subdev, suspend);
 }
 
 static int
@@ -181,7 +181,7 @@ gk20a_pmu_init(struct nvkm_object *object)
 	struct nvkm_device *device = pmu->base.subdev.device;
 	int ret;
 
-	ret = nvkm_subdev_init(&pmu->base.subdev);
+	ret = nvkm_subdev_init_old(&pmu->base.subdev);
 	if (ret)
 		return ret;
 

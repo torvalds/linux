@@ -41,7 +41,7 @@ nvkm_volt(void *obj)
 	_nvkm_volt_init(nv_object(v));                                      \
 })
 #define nvkm_volt_fini(p,s)                                                 \
-	nvkm_subdev_fini((p), (s))
+	nvkm_subdev_fini_old((p), (s))
 
 int  nvkm_volt_create_(struct nvkm_object *, struct nvkm_object *,
 			  struct nvkm_oclass *, int, void **);

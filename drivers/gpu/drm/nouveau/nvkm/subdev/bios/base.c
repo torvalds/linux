@@ -149,14 +149,14 @@ static int
 nvkm_bios_init(struct nvkm_object *object)
 {
 	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_init(&bios->subdev);
+	return nvkm_subdev_init_old(&bios->subdev);
 }
 
 static int
 nvkm_bios_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_fini(&bios->subdev, suspend);
+	return nvkm_subdev_fini_old(&bios->subdev, suspend);
 }
 
 struct nvkm_oclass

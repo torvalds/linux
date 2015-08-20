@@ -175,7 +175,7 @@ _nvkm_i2c_fini(struct nvkm_object *object, bool suspend)
 		nvkm_i2c_pad_fini(pad);
 	}
 
-	return nvkm_subdev_fini(&i2c->subdev, suspend);
+	return nvkm_subdev_fini_old(&i2c->subdev, suspend);
 }
 
 int
@@ -186,7 +186,7 @@ _nvkm_i2c_init(struct nvkm_object *object)
 	struct nvkm_i2c_pad *pad;
 	int ret;
 
-	ret = nvkm_subdev_init(&i2c->subdev);
+	ret = nvkm_subdev_init_old(&i2c->subdev);
 	if (ret)
 		return ret;
 

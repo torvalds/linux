@@ -189,7 +189,7 @@ _nvkm_pmu_fini(struct nvkm_object *object, bool suspend)
 	nvkm_wr32(device, 0x10a014, 0x00000060);
 	flush_work(&pmu->recv.work);
 
-	return nvkm_subdev_fini(&pmu->subdev, suspend);
+	return nvkm_subdev_fini_old(&pmu->subdev, suspend);
 }
 
 int
@@ -200,7 +200,7 @@ _nvkm_pmu_init(struct nvkm_object *object)
 	struct nvkm_device *device = pmu->subdev.device;
 	int ret, i;
 
-	ret = nvkm_subdev_init(&pmu->subdev);
+	ret = nvkm_subdev_init_old(&pmu->subdev);
 	if (ret)
 		return ret;
 

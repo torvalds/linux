@@ -56,7 +56,7 @@ int
 _nvkm_fb_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_fb *fb = (void *)object;
-	return nvkm_subdev_fini(&fb->subdev, suspend);
+	return nvkm_subdev_fini_old(&fb->subdev, suspend);
 }
 
 int
@@ -65,7 +65,7 @@ _nvkm_fb_init(struct nvkm_object *object)
 	struct nvkm_fb *fb = (void *)object;
 	int ret, i;
 
-	ret = nvkm_subdev_init(&fb->subdev);
+	ret = nvkm_subdev_init_old(&fb->subdev);
 	if (ret)
 		return ret;
 

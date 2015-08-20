@@ -83,7 +83,7 @@ _nvkm_ltc_init(struct nvkm_object *object)
 	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(object);
 	int ret, i;
 
-	ret = nvkm_subdev_init(&ltc->base.subdev);
+	ret = nvkm_subdev_init_old(&ltc->base.subdev);
 	if (ret)
 		return ret;
 
