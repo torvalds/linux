@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "gk20a.h"
+#include "gf100.h"
 #include "ctxgf100.h"
 
 #include <subdev/timer.h>
@@ -61,6 +61,11 @@ gm20b_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 
 static const struct gf100_gr_func
 gm20b_gr = {
+	.dtor = gk20a_gr_dtor,
+	.init = gk20a_gr_init,
+	.init_gpc_mmu = gm20b_gr_init_gpc_mmu,
+	.set_hww_esr_report_mask = gm20b_gr_set_hww_esr_report_mask,
+	.ppc_nr = 1,
 	.grctx = &gm20b_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
@@ -71,19 +76,8 @@ gm20b_gr = {
 	}
 };
 
-struct nvkm_oclass *
-gm20b_gr_oclass = &(struct gk20a_gr_oclass) {
-	.gf100 = {
-		.base.handle = NV_ENGINE(GR, 0x2b),
-		.base.ofuncs = &(struct nvkm_ofuncs) {
-			.ctor = gk20a_gr_ctor,
-			.dtor = gf100_gr_dtor,
-			.init = gk20a_gr_init,
-			.fini = _nvkm_gr_fini,
-		},
-		.func = &gm20b_gr,
-		.ppc_nr = 1,
-	},
-	.init_gpc_mmu = gm20b_gr_init_gpc_mmu,
-	.set_hww_esr_report_mask = gm20b_gr_set_hww_esr_report_mask,
-}.gf100.base;
+int
+gm20b_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gk20a_gr_new_(&gm20b_gr, device, index, pgr);
+}

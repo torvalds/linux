@@ -21,27 +21,28 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "nv50.h"
+
+static const struct nvkm_gr_func
+mcp89_gr = {
+	.init = nv50_gr_init,
+	.intr = nv50_gr_intr,
+	.chan_new = nv50_gr_chan_new,
+	.tlb_flush = g84_gr_tlb_flush,
+	.units = nv50_gr_units,
+	.sclass = {
+		{ -1, -1, 0x0030, &nv50_gr_object },
+		{ -1, -1, 0x502d, &nv50_gr_object },
+		{ -1, -1, 0x5039, &nv50_gr_object },
+		{ -1, -1, 0x50c0, &nv50_gr_object },
+		{ -1, -1, 0x85c0, &nv50_gr_object },
+		{ -1, -1, 0x8697, &nv50_gr_object },
+		{}
+	}
+};
 
 int
-nv20_identify(struct nvkm_device *device)
+mcp89_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	switch (device->chipset) {
-	case 0x20:
-		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
-		break;
-	case 0x25:
-		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
-		break;
-	case 0x28:
-		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
-		break;
-	case 0x2a:
-		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return nv50_gr_new_(&mcp89_gr, device, index, pgr);
 }

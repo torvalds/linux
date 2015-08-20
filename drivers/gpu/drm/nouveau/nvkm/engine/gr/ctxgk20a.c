@@ -19,9 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 #include "ctxgf100.h"
-#include "gk20a.h"
+#include "gf100.h"
 
 #include <subdev/mc.h>
 

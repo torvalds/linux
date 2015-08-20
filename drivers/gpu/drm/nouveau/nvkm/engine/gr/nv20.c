@@ -145,12 +145,11 @@ nv20_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
  ******************************************************************************/
 
 void
-nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
+nv20_gr_tile(struct nvkm_gr *base, int i, struct nvkm_fb_tile *tile)
 {
-	struct nv20_gr *gr = (void *)engine;
+	struct nv20_gr *gr = nv20_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 	unsigned long flags;
 
 	nvkm_fifo_pause(fifo, &flags);
@@ -167,7 +166,7 @@ nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
 	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->addr);
 
-	if (nv_device(engine)->chipset != 0x34) {
+	if (device->chipset != 0x34) {
 		nvkm_wr32(device, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
 		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00ea0090 + 4 * i);
 		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, tile->zcomp);
@@ -177,10 +176,11 @@ nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 }
 
 void
-nv20_gr_intr(struct nvkm_subdev *subdev)
+nv20_gr_intr(struct nvkm_gr *base)
 {
-	struct nv20_gr *gr = (void *)subdev;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nv20_gr *gr = nv20_gr(base);
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_fifo_chan *chan;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
@@ -215,82 +215,27 @@ nv20_gr_intr(struct nvkm_subdev *subdev)
 	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
-static const struct nvkm_gr_func
-nv20_gr = {
-	.chan_new = nv20_gr_chan_new,
-	.sclass = {
-		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
-		{ -1, -1, 0x0019, &nv04_gr_object }, /* clip */
-		{ -1, -1, 0x0030, &nv04_gr_object }, /* null */
-		{ -1, -1, 0x0039, &nv04_gr_object }, /* m2mf */
-		{ -1, -1, 0x0043, &nv04_gr_object }, /* rop */
-		{ -1, -1, 0x0044, &nv04_gr_object }, /* patt */
-		{ -1, -1, 0x004a, &nv04_gr_object }, /* gdi */
-		{ -1, -1, 0x0062, &nv04_gr_object }, /* surf2d */
-		{ -1, -1, 0x0072, &nv04_gr_object }, /* beta4 */
-		{ -1, -1, 0x0089, &nv04_gr_object }, /* sifm */
-		{ -1, -1, 0x008a, &nv04_gr_object }, /* ifc */
-		{ -1, -1, 0x0096, &nv04_gr_object }, /* celcius */
-		{ -1, -1, 0x0097, &nv04_gr_object }, /* kelvin */
-		{ -1, -1, 0x009e, &nv04_gr_object }, /* swzsurf */
-		{ -1, -1, 0x009f, &nv04_gr_object }, /* imageblit */
-		{}
-	}
-};
-
-static int
-nv20_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv20_gr_oneinit(struct nvkm_gr *base)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv20_gr *gr;
-	int ret;
-
-	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
-	*pobject = nv_object(gr);
-	if (ret)
-		return ret;
-
-	gr->base.func = &nv20_gr;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 32 * 4, 16, true,
-			      &gr->ctxtab);
-	if (ret)
-		return ret;
-
-	nv_subdev(gr)->unit = 0x00001000;
-	nv_subdev(gr)->intr = nv20_gr_intr;
-	nv_engine(gr)->tile_prog = nv20_gr_tile_prog;
-	return 0;
-}
-
-void
-nv20_gr_dtor(struct nvkm_object *object)
-{
-	struct nv20_gr *gr = (void *)object;
-	nvkm_memory_del(&gr->ctxtab);
-	nvkm_gr_destroy(&gr->base);
+	struct nv20_gr *gr = nv20_gr(base);
+	return nvkm_memory_new(gr->base.engine.subdev.device,
+			       NVKM_MEM_TARGET_INST, 32 * 4, 16,
+			       true, &gr->ctxtab);
 }
 
 int
-nv20_gr_init(struct nvkm_object *object)
+nv20_gr_init(struct nvkm_gr *base)
 {
-	struct nvkm_engine *engine = nv_engine(object);
-	struct nv20_gr *gr = (void *)engine;
+	struct nv20_gr *gr = nv20_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct nvkm_fb *fb = device->fb;
 	u32 tmp, vramsz;
-	int ret, i;
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
+	int i;
 
 	nvkm_wr32(device, NV20_PGRAPH_CHANNEL_CTX_TABLE,
 			  nvkm_memory_addr(gr->ctxtab) >> 4);
 
-	if (nv_device(gr)->chipset == 0x20) {
+	if (device->chipset == 0x20) {
 		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x003d0000);
 		for (i = 0; i < 15; i++)
 			nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, 0x00000000);
@@ -318,7 +263,7 @@ nv20_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00000000);
 	nvkm_wr32(device, 0x40009C           , 0x00000040);
 
-	if (nv_device(gr)->chipset >= 0x25) {
+	if (device->chipset >= 0x25) {
 		nvkm_wr32(device, 0x400890, 0x00a8cfff);
 		nvkm_wr32(device, 0x400610, 0x304B1FB6);
 		nvkm_wr32(device, 0x400B80, 0x1cbd3883);
@@ -338,10 +283,6 @@ nv20_gr_init(struct nvkm_object *object)
 		nvkm_wr32(device, NV10_PGRAPH_RDI_DATA , 0x00000030);
 	}
 
-	/* Turn all the tiling regions off. */
-	for (i = 0; i < fb->tile.regions; i++)
-		engine->tile_prog(engine, i);
-
 	nvkm_wr32(device, 0x4009a0, nvkm_rd32(device, 0x100324));
 	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA000C);
 	nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, nvkm_rd32(device, 0x100324));
@@ -355,7 +296,7 @@ nv20_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, NV10_PGRAPH_SURFACE, tmp);
 
 	/* begin RAM config */
-	vramsz = nv_device_resource_len(nv_device(gr), 1) - 1;
+	vramsz = nv_device_resource_len(device, 1) - 1;
 	nvkm_wr32(device, 0x4009A4, nvkm_rd32(device, 0x100200));
 	nvkm_wr32(device, 0x4009A8, nvkm_rd32(device, 0x100204));
 	nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);
@@ -378,13 +319,57 @@ nv20_gr_init(struct nvkm_object *object)
 	return 0;
 }
 
-struct nvkm_oclass
-nv20_gr_oclass = {
-	.handle = NV_ENGINE(GR, 0x20),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv20_gr_ctor,
-		.dtor = nv20_gr_dtor,
-		.init = nv20_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
+void *
+nv20_gr_dtor(struct nvkm_gr *base)
+{
+	struct nv20_gr *gr = nv20_gr(base);
+	nvkm_memory_del(&gr->ctxtab);
+	return gr;
+}
+
+int
+nv20_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_gr **pgr)
+{
+	struct nv20_gr *gr;
+
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
+	*pgr = &gr->base;
+
+	return nvkm_gr_ctor(func, device, index, 0x00001000, true, &gr->base);
+}
+
+static const struct nvkm_gr_func
+nv20_gr = {
+	.dtor = nv20_gr_dtor,
+	.oneinit = nv20_gr_oneinit,
+	.init = nv20_gr_init,
+	.intr = nv20_gr_intr,
+	.tile = nv20_gr_tile,
+	.chan_new = nv20_gr_chan_new,
+	.sclass = {
+		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
+		{ -1, -1, 0x0019, &nv04_gr_object }, /* clip */
+		{ -1, -1, 0x0030, &nv04_gr_object }, /* null */
+		{ -1, -1, 0x0039, &nv04_gr_object }, /* m2mf */
+		{ -1, -1, 0x0043, &nv04_gr_object }, /* rop */
+		{ -1, -1, 0x0044, &nv04_gr_object }, /* patt */
+		{ -1, -1, 0x004a, &nv04_gr_object }, /* gdi */
+		{ -1, -1, 0x0062, &nv04_gr_object }, /* surf2d */
+		{ -1, -1, 0x0072, &nv04_gr_object }, /* beta4 */
+		{ -1, -1, 0x0089, &nv04_gr_object }, /* sifm */
+		{ -1, -1, 0x008a, &nv04_gr_object }, /* ifc */
+		{ -1, -1, 0x0096, &nv04_gr_object }, /* celcius */
+		{ -1, -1, 0x0097, &nv04_gr_object }, /* kelvin */
+		{ -1, -1, 0x009e, &nv04_gr_object }, /* swzsurf */
+		{ -1, -1, 0x009f, &nv04_gr_object }, /* imageblit */
+		{}
+	}
 };
+
+int
+nv20_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return nv20_gr_new_(&nv20_gr, device, index, pgr);
+}

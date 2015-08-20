@@ -25,6 +25,8 @@
 #include <core/device.h>
 #include <core/option.h>
 
+#include <subdev/fb.h>
+
 void
 nvkm_engine_unref(struct nvkm_engine **pengine)
 {
@@ -56,6 +58,14 @@ nvkm_engine_ref(struct nvkm_engine *engine)
 	return engine;
 }
 
+void
+nvkm_engine_tile(struct nvkm_engine *engine, int region)
+{
+	struct nvkm_fb *fb = engine->subdev.device->fb;
+	if (engine->func->tile)
+		engine->func->tile(engine, region, &fb->tile.region[region]);
+}
+
 static void
 nvkm_engine_intr(struct nvkm_subdev *obj)
 {
@@ -80,7 +90,8 @@ nvkm_engine_init(struct nvkm_subdev *obj)
 {
 	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
 	struct nvkm_subdev *subdev = &engine->subdev;
-	int ret = 0;
+	struct nvkm_fb *fb = subdev->device->fb;
+	int ret = 0, i;
 	s64 time;
 
 	if (!engine->usecount) {
@@ -108,6 +119,8 @@ nvkm_engine_init(struct nvkm_subdev *obj)
 	if (engine->func->init)
 		ret = engine->func->init(engine);
 
+	for (i = 0; fb && i < fb->tile.regions; i++)
+		nvkm_engine_tile(engine, i);
 	return ret;
 }
 

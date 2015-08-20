@@ -1269,11 +1269,11 @@ nv04_gr_nsource[] = {
 };
 
 static void
-nv04_gr_intr(struct nvkm_subdev *subdev)
+nv04_gr_intr(struct nvkm_gr *base)
 {
-	struct nv04_gr *gr = (void *)subdev;
-	struct nv04_gr_chan *chan = NULL;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nv04_gr *gr = nv04_gr(base);
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nvkm_rd32(device, NV03_PGRAPH_NSTATUS);
@@ -1286,6 +1286,7 @@ nv04_gr_intr(struct nvkm_subdev *subdev)
 	u32 inst = (nvkm_rd32(device, 0x40016c) & 0xffff) << 4;
 	u32 show = stat;
 	char msg[128], src[128], sta[128];
+	struct nv04_gr_chan *chan;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gr->lock, flags);
@@ -1323,8 +1324,47 @@ nv04_gr_intr(struct nvkm_subdev *subdev)
 	spin_unlock_irqrestore(&gr->lock, flags);
 }
 
+static int
+nv04_gr_init(struct nvkm_gr *base)
+{
+	struct nv04_gr *gr = nv04_gr(base);
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	/* Enable PGRAPH interrupts */
+	nvkm_wr32(device, NV03_PGRAPH_INTR, 0xFFFFFFFF);
+	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
+
+	nvkm_wr32(device, NV04_PGRAPH_VALID1, 0);
+	nvkm_wr32(device, NV04_PGRAPH_VALID2, 0);
+	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x000001FF);
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x001FFFFF);*/
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x1231c000);
+	/*1231C000 blob, 001 haiku*/
+	/*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x72111100);
+	/*0x72111100 blob , 01 haiku*/
+	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x11d5f870);*/
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x11d5f071);
+	/*haiku same*/
+
+	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xfad4ff31);*/
+	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xf0d4ff31);
+	/*haiku and blob 10d4*/
+
+	nvkm_wr32(device, NV04_PGRAPH_STATE        , 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_CTX_CONTROL  , 0x10000100);
+	nvkm_mask(device, NV04_PGRAPH_CTX_USER, 0xff000000, 0x0f000000);
+
+	/* These don't belong here, they're part of a per-channel context */
+	nvkm_wr32(device, NV04_PGRAPH_PATTERN_SHAPE, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_BETA_AND     , 0xFFFFFFFF);
+	return 0;
+}
+
 static const struct nvkm_gr_func
 nv04_gr = {
+	.init = nv04_gr_init,
+	.intr = nv04_gr_intr,
 	.chan_new = nv04_gr_chan_new,
 	.sclass = {
 		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
@@ -1372,76 +1412,16 @@ nv04_gr = {
 	}
 };
 
-static int
-nv04_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv04_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
 	struct nv04_gr *gr;
-	int ret;
 
-	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
-	*pobject = nv_object(gr);
-	if (ret)
-		return ret;
-
-	gr->base.func = &nv04_gr;
-	nv_subdev(gr)->unit = 0x00001000;
-	nv_subdev(gr)->intr = nv04_gr_intr;
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
 	spin_lock_init(&gr->lock);
-	return 0;
+	*pgr = &gr->base;
+
+	return nvkm_gr_ctor(&nv04_gr, device, index, 0x00001000,
+			    true, &gr->base);
 }
-
-static int
-nv04_gr_init(struct nvkm_object *object)
-{
-	struct nvkm_engine *engine = nv_engine(object);
-	struct nv04_gr *gr = (void *)engine;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int ret;
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
-
-	/* Enable PGRAPH interrupts */
-	nvkm_wr32(device, NV03_PGRAPH_INTR, 0xFFFFFFFF);
-	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
-
-	nvkm_wr32(device, NV04_PGRAPH_VALID1, 0);
-	nvkm_wr32(device, NV04_PGRAPH_VALID2, 0);
-	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x000001FF);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x001FFFFF);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x1231c000);
-	/*1231C000 blob, 001 haiku*/
-	/*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x72111100);
-	/*0x72111100 blob , 01 haiku*/
-	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x11d5f870);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x11d5f071);
-	/*haiku same*/
-
-	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xfad4ff31);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xf0d4ff31);
-	/*haiku and blob 10d4*/
-
-	nvkm_wr32(device, NV04_PGRAPH_STATE        , 0xFFFFFFFF);
-	nvkm_wr32(device, NV04_PGRAPH_CTX_CONTROL  , 0x10000100);
-	nvkm_mask(device, NV04_PGRAPH_CTX_USER, 0xff000000, 0x0f000000);
-
-	/* These don't belong here, they're part of a per-channel context */
-	nvkm_wr32(device, NV04_PGRAPH_PATTERN_SHAPE, 0x00000000);
-	nvkm_wr32(device, NV04_PGRAPH_BETA_AND     , 0xFFFFFFFF);
-	return 0;
-}
-
-struct nvkm_oclass
-nv04_gr_oclass = {
-	.handle = NV_ENGINE(GR, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_gr_ctor,
-		.dtor = _nvkm_gr_dtor,
-		.init = nv04_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-};

@@ -28,6 +28,9 @@
 
 static const struct gf100_gr_func
 gm206_gr = {
+	.init = gm204_gr_init,
+	.mmio = gm204_gr_pack_mmio,
+	.ppc_nr = 2,
 	.grctx = &gm206_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
@@ -38,16 +41,8 @@ gm206_gr = {
 	}
 };
 
-struct nvkm_oclass *
-gm206_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0x26),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gm204_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.func = &gm206_gr,
-	.mmio = gm204_gr_pack_mmio,
-	.ppc_nr = 2,
-}.base;
+int
+gm206_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gm206_gr, device, index, pgr);
+}

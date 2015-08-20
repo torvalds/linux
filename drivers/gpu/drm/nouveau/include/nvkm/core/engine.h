@@ -3,6 +3,7 @@
 #include <core/subdev.h>
 struct nvkm_device_oclass; /*XXX: DEV!ENG */
 struct nvkm_fifo_chan;
+struct nvkm_fb_tile;
 
 #define NV_ENGINE_(eng,var) (((var) << 8) | (eng))
 #define NV_ENGINE(name,var)  NV_ENGINE_(NVDEV_ENGINE_##name, (var))
@@ -20,7 +21,6 @@ struct nvkm_engine {
 	spinlock_t lock;
 
 	void (*tile_prog)(struct nvkm_engine *, int region);
-	int  (*tlb_flush)(struct nvkm_engine *);
 };
 
 struct nvkm_engine_func {
@@ -29,6 +29,7 @@ struct nvkm_engine_func {
 	int (*init)(struct nvkm_engine *);
 	int (*fini)(struct nvkm_engine *, bool suspend);
 	void (*intr)(struct nvkm_engine *);
+	void (*tile)(struct nvkm_engine *, int region, struct nvkm_fb_tile *);
 
 	struct {
 		int (*sclass)(struct nvkm_oclass *, int index,
@@ -54,6 +55,7 @@ int nvkm_engine_new_(const struct nvkm_engine_func *, struct nvkm_device *,
 		     struct nvkm_engine **);
 struct nvkm_engine *nvkm_engine_ref(struct nvkm_engine *);
 void nvkm_engine_unref(struct nvkm_engine **);
+void nvkm_engine_tile(struct nvkm_engine *, int region);
 
 static inline struct nvkm_engine *
 nv_engine(void *obj)

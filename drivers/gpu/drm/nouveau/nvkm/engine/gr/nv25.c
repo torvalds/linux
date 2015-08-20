@@ -101,6 +101,11 @@ nv25_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 
 static const struct nvkm_gr_func
 nv25_gr = {
+	.dtor = nv20_gr_dtor,
+	.oneinit = nv20_gr_oneinit,
+	.init = nv20_gr_init,
+	.intr = nv20_gr_intr,
+	.tile = nv20_gr_tile,
 	.chan_new = nv25_gr_chan_new,
 	.sclass = {
 		{ -1, -1, 0x0012, &nv04_gr_object }, /* beta1 */
@@ -122,40 +127,8 @@ nv25_gr = {
 	}
 };
 
-static int
-nv25_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv25_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv20_gr *gr;
-	int ret;
-
-	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
-	*pobject = nv_object(gr);
-	if (ret)
-		return ret;
-
-	gr->base.func = &nv25_gr;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 32 * 4, 16, true,
-			      &gr->ctxtab);
-	if (ret)
-		return ret;
-
-	nv_subdev(gr)->unit = 0x00001000;
-	nv_subdev(gr)->intr = nv20_gr_intr;
-	nv_engine(gr)->tile_prog = nv20_gr_tile_prog;
-	return 0;
+	return nv20_gr_new_(&nv25_gr, device, index, pgr);
 }
-
-struct nvkm_oclass
-nv25_gr_oclass = {
-	.handle = NV_ENGINE(GR, 0x25),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv25_gr_ctor,
-		.dtor = nv20_gr_dtor,
-		.init = nv20_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-};

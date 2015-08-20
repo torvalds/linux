@@ -29,11 +29,9 @@ nv04_identify(struct nvkm_device *device)
 	switch (device->chipset) {
 	case 0x04:
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
 		break;
 	case 0x05:
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
 		break;
 	default:
 		return -EINVAL;

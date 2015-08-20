@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "gk20a.h"
+#include "gf100.h"
 #include "ctxgf100.h"
 
 #include <subdev/timer.h>
@@ -146,69 +146,6 @@ gk20a_gr_av_to_method(struct gf100_gr_fuc *fuc)
 	return pack;
 }
 
-int
-gk20a_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
-	int err;
-	struct gf100_gr *gr;
-	struct gf100_gr_fuc fuc;
-
-	err = gf100_gr_ctor(parent, engine, oclass, data, size, pobject);
-	if (err)
-		return err;
-
-	gr = (void *)*pobject;
-
-	err = gf100_gr_ctor_fw(gr, "sw_nonctx", &fuc);
-	if (err)
-		return err;
-	gr->fuc_sw_nonctx = gk20a_gr_av_to_init(&fuc);
-	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(gr->fuc_sw_nonctx))
-		return PTR_ERR(gr->fuc_sw_nonctx);
-
-	err = gf100_gr_ctor_fw(gr, "sw_ctx", &fuc);
-	if (err)
-		return err;
-	gr->fuc_sw_ctx = gk20a_gr_aiv_to_init(&fuc);
-	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(gr->fuc_sw_ctx))
-		return PTR_ERR(gr->fuc_sw_ctx);
-
-	err = gf100_gr_ctor_fw(gr, "sw_bundle_init", &fuc);
-	if (err)
-		return err;
-	gr->fuc_bundle = gk20a_gr_av_to_init(&fuc);
-	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(gr->fuc_bundle))
-		return PTR_ERR(gr->fuc_bundle);
-
-	err = gf100_gr_ctor_fw(gr, "sw_method_init", &fuc);
-	if (err)
-		return err;
-	gr->fuc_method = gk20a_gr_av_to_method(&fuc);
-	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(gr->fuc_method))
-		return PTR_ERR(gr->fuc_method);
-
-	return 0;
-}
-
-void
-gk20a_gr_dtor(struct nvkm_object *object)
-{
-	struct gf100_gr *gr = (void *)object;
-
-	gk20a_gr_init_dtor(gr->fuc_method);
-	gk20a_gr_init_dtor(gr->fuc_bundle);
-	gk20a_gr_init_dtor(gr->fuc_sw_ctx);
-	gk20a_gr_init_dtor(gr->fuc_sw_nonctx);
-
-	gf100_gr_dtor(object);
-}
-
 static int
 gk20a_gr_wait_mem_scrubbing(struct gf100_gr *gr)
 {
@@ -243,20 +180,14 @@ gk20a_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 }
 
 int
-gk20a_gr_init(struct nvkm_object *object)
+gk20a_gr_init(struct gf100_gr *gr)
 {
-	struct gk20a_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr *gr = (void *)object;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc;
 	int ret, i;
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
 
 	/* Clear SCC RAM */
 	nvkm_wr32(device, 0x40802c, 0x1);
@@ -275,8 +206,8 @@ gk20a_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(gr->unk4188b4) >> 8);
 	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
 
-	if (oclass->init_gpc_mmu)
-		oclass->init_gpc_mmu(gr);
+	if (gr->func->init_gpc_mmu)
+		gr->func->init_gpc_mmu(gr);
 
 	/* Set the PE as stream master */
 	nvkm_mask(device, 0x503018, 0x1, 0x1);
@@ -322,8 +253,8 @@ gk20a_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x404000, 0xc0000000);
 	nvkm_wr32(device, 0x404600, 0xc0000000);
 
-	if (oclass->set_hww_esr_report_mask)
-		oclass->set_hww_esr_report_mask(gr);
+	if (gr->func->set_hww_esr_report_mask)
+		gr->func->set_hww_esr_report_mask(gr);
 
 	/* Enable TPC exceptions per GPC */
 	nvkm_wr32(device, 0x419d0c, 0x2);
@@ -342,8 +273,72 @@ gk20a_gr_init(struct nvkm_object *object)
 	return gf100_gr_init_ctxctl(gr);
 }
 
+void
+gk20a_gr_dtor(struct gf100_gr *gr)
+{
+	gk20a_gr_init_dtor(gr->fuc_method);
+	gk20a_gr_init_dtor(gr->fuc_bundle);
+	gk20a_gr_init_dtor(gr->fuc_sw_ctx);
+	gk20a_gr_init_dtor(gr->fuc_sw_nonctx);
+}
+
+int
+gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_gr **pgr)
+{
+	struct gf100_gr_fuc fuc;
+	struct gf100_gr *gr;
+	int ret;
+
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
+	*pgr = &gr->base;
+
+	ret = gf100_gr_ctor(func, device, index, gr);
+	if (ret)
+		return ret;
+
+	ret = gf100_gr_ctor_fw(gr, "sw_nonctx", &fuc);
+	if (ret)
+		return ret;
+	gr->fuc_sw_nonctx = gk20a_gr_av_to_init(&fuc);
+	gf100_gr_dtor_fw(&fuc);
+	if (IS_ERR(gr->fuc_sw_nonctx))
+		return PTR_ERR(gr->fuc_sw_nonctx);
+
+	ret = gf100_gr_ctor_fw(gr, "sw_ctx", &fuc);
+	if (ret)
+		return ret;
+	gr->fuc_sw_ctx = gk20a_gr_aiv_to_init(&fuc);
+	gf100_gr_dtor_fw(&fuc);
+	if (IS_ERR(gr->fuc_sw_ctx))
+		return PTR_ERR(gr->fuc_sw_ctx);
+
+	ret = gf100_gr_ctor_fw(gr, "sw_bundle_init", &fuc);
+	if (ret)
+		return ret;
+	gr->fuc_bundle = gk20a_gr_av_to_init(&fuc);
+	gf100_gr_dtor_fw(&fuc);
+	if (IS_ERR(gr->fuc_bundle))
+		return PTR_ERR(gr->fuc_bundle);
+
+	ret = gf100_gr_ctor_fw(gr, "sw_method_init", &fuc);
+	if (ret)
+		return ret;
+	gr->fuc_method = gk20a_gr_av_to_method(&fuc);
+	gf100_gr_dtor_fw(&fuc);
+	if (IS_ERR(gr->fuc_method))
+		return PTR_ERR(gr->fuc_method);
+
+	return 0;
+}
+
 static const struct gf100_gr_func
 gk20a_gr = {
+	.dtor = gk20a_gr_dtor,
+	.init = gk20a_gr_init,
+	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
+	.ppc_nr = 1,
 	.grctx = &gk20a_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
@@ -354,18 +349,8 @@ gk20a_gr = {
 	}
 };
 
-struct nvkm_oclass *
-gk20a_gr_oclass = &(struct gk20a_gr_oclass) {
-	.gf100 = {
-		.base.handle = NV_ENGINE(GR, 0xea),
-		.base.ofuncs = &(struct nvkm_ofuncs) {
-			.ctor = gk20a_gr_ctor,
-			.dtor = gk20a_gr_dtor,
-			.init = gk20a_gr_init,
-			.fini = _nvkm_gr_fini,
-		},
-		.func = &gk20a_gr,
-		.ppc_nr = 1,
-	},
-	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
-}.gf100.base;
+int
+gk20a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gk20a_gr_new_(&gk20a_gr, device, index, pgr);
+}

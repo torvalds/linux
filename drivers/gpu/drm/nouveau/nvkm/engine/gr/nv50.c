@@ -25,10 +25,9 @@
 
 #include <core/client.h>
 #include <core/gpuobj.h>
-#include <subdev/timer.h>
 #include <engine/fifo.h>
 
-static u64
+u64
 nv50_gr_units(struct nvkm_gr *gr)
 {
 	return nvkm_rd32(gr->engine.subdev.device, 0x1540);
@@ -55,26 +54,10 @@ nv50_gr_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 	return ret;
 }
 
-static const struct nvkm_object_func
+const struct nvkm_object_func
 nv50_gr_object = {
 	.bind = nv50_gr_object_bind,
 };
-
-static int
-nv50_gr_object_get(struct nvkm_gr *base, int index, struct nvkm_sclass *sclass)
-{
-	struct nv50_gr *gr = nv50_gr(base);
-	int c = 0;
-
-	while (gr->func->sclass[c].oclass) {
-		if (c++ == index) {
-			*sclass = gr->func->sclass[index];
-			return index;
-		}
-	}
-
-	return c;
-}
 
 /*******************************************************************************
  * PGRAPH context
@@ -100,7 +83,7 @@ nv50_gr_chan = {
 	.bind = nv50_gr_chan_bind,
 };
 
-static int
+int
 nv50_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
@@ -118,153 +101,6 @@ nv50_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
-
-static const struct nvkm_bitfield nv50_gr_status[] = {
-	{ 0x00000001, "BUSY" }, /* set when any bit is set */
-	{ 0x00000002, "DISPATCH" },
-	{ 0x00000004, "UNK2" },
-	{ 0x00000008, "UNK3" },
-	{ 0x00000010, "UNK4" },
-	{ 0x00000020, "UNK5" },
-	{ 0x00000040, "M2MF" },
-	{ 0x00000080, "UNK7" },
-	{ 0x00000100, "CTXPROG" },
-	{ 0x00000200, "VFETCH" },
-	{ 0x00000400, "CCACHE_PREGEOM" },
-	{ 0x00000800, "STRMOUT_VATTR_POSTGEOM" },
-	{ 0x00001000, "VCLIP" },
-	{ 0x00002000, "RATTR_APLANE" },
-	{ 0x00004000, "TRAST" },
-	{ 0x00008000, "CLIPID" },
-	{ 0x00010000, "ZCULL" },
-	{ 0x00020000, "ENG2D" },
-	{ 0x00040000, "RMASK" },
-	{ 0x00080000, "TPC_RAST" },
-	{ 0x00100000, "TPC_PROP" },
-	{ 0x00200000, "TPC_TEX" },
-	{ 0x00400000, "TPC_GEOM" },
-	{ 0x00800000, "TPC_MP" },
-	{ 0x01000000, "ROP" },
-	{}
-};
-
-static const struct nvkm_bitfield
-nv50_gr_vstatus_0[] = {
-	{ 0x01, "VFETCH" },
-	{ 0x02, "CCACHE" },
-	{ 0x04, "PREGEOM" },
-	{ 0x08, "POSTGEOM" },
-	{ 0x10, "VATTR" },
-	{ 0x20, "STRMOUT" },
-	{ 0x40, "VCLIP" },
-	{}
-};
-
-static const struct nvkm_bitfield
-nv50_gr_vstatus_1[] = {
-	{ 0x01, "TPC_RAST" },
-	{ 0x02, "TPC_PROP" },
-	{ 0x04, "TPC_TEX" },
-	{ 0x08, "TPC_GEOM" },
-	{ 0x10, "TPC_MP" },
-	{}
-};
-
-static const struct nvkm_bitfield
-nv50_gr_vstatus_2[] = {
-	{ 0x01, "RATTR" },
-	{ 0x02, "APLANE" },
-	{ 0x04, "TRAST" },
-	{ 0x08, "CLIPID" },
-	{ 0x10, "ZCULL" },
-	{ 0x20, "ENG2D" },
-	{ 0x40, "RMASK" },
-	{ 0x80, "ROP" },
-	{}
-};
-
-static void
-nvkm_gr_vstatus_print(struct nv50_gr *gr, int r,
-		      const struct nvkm_bitfield *units, u32 status)
-{
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	u32 stat = status;
-	u8  mask = 0x00;
-	char msg[64];
-	int i;
-
-	for (i = 0; units[i].name && status; i++) {
-		if ((status & 7) == 1)
-			mask |= (1 << i);
-		status >>= 3;
-	}
-
-	nvkm_snprintbf(msg, sizeof(msg), units, mask);
-	nvkm_error(subdev, "PGRAPH_VSTATUS%d: %08x [%s]\n", r, stat, msg);
-}
-
-static int
-g84_gr_tlb_flush(struct nvkm_engine *engine)
-{
-	struct nv50_gr *gr = (void *)engine;
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_timer *tmr = device->timer;
-	bool idle, timeout = false;
-	unsigned long flags;
-	char status[128];
-	u64 start;
-	u32 tmp;
-
-	spin_lock_irqsave(&gr->lock, flags);
-	nvkm_mask(device, 0x400500, 0x00000001, 0x00000000);
-
-	start = nvkm_timer_read(tmr);
-	do {
-		idle = true;
-
-		for (tmp = nvkm_rd32(device, 0x400380); tmp && idle; tmp >>= 3) {
-			if ((tmp & 7) == 1)
-				idle = false;
-		}
-
-		for (tmp = nvkm_rd32(device, 0x400384); tmp && idle; tmp >>= 3) {
-			if ((tmp & 7) == 1)
-				idle = false;
-		}
-
-		for (tmp = nvkm_rd32(device, 0x400388); tmp && idle; tmp >>= 3) {
-			if ((tmp & 7) == 1)
-				idle = false;
-		}
-	} while (!idle &&
-		 !(timeout = nvkm_timer_read(tmr) - start > 2000000000));
-
-	if (timeout) {
-		nvkm_error(subdev, "PGRAPH TLB flush idle timeout fail\n");
-
-		tmp = nvkm_rd32(device, 0x400700);
-		nvkm_snprintbf(status, sizeof(status), nv50_gr_status, tmp);
-		nvkm_error(subdev, "PGRAPH_STATUS %08x [%s]\n", tmp, status);
-
-		nvkm_gr_vstatus_print(gr, 0, nv50_gr_vstatus_0,
-				       nvkm_rd32(device, 0x400380));
-		nvkm_gr_vstatus_print(gr, 1, nv50_gr_vstatus_1,
-				       nvkm_rd32(device, 0x400384));
-		nvkm_gr_vstatus_print(gr, 2, nv50_gr_vstatus_2,
-				       nvkm_rd32(device, 0x400388));
-	}
-
-
-	nvkm_wr32(device, 0x100c80, 0x00000001);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
-			break;
-	);
-	nvkm_mask(device, 0x400500, 0x00000001, 0x00000001);
-	spin_unlock_irqrestore(&gr->lock, flags);
-	return timeout ? -EBUSY : 0;
-}
 
 static const struct nvkm_bitfield nv50_mp_exec_errors[] = {
 	{ 0x01, "STACK_UNDERFLOW" },
@@ -453,7 +289,7 @@ nv50_gr_mp_trap(struct nv50_gr *gr, int tpid, int display)
 	for (i = 0; i < 4; i++) {
 		if (!(units & 1 << (i+24)))
 			continue;
-		if (nv_device(gr)->chipset < 0xa0)
+		if (device->chipset < 0xa0)
 			addr = 0x408200 + (tpid << 12) + (i << 7);
 		else
 			addr = 0x408100 + (tpid << 11) + (i << 7);
@@ -497,7 +333,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 	for (i = 0; i < 16; i++) {
 		if (!(units & (1 << i)))
 			continue;
-		if (nv_device(gr)->chipset < 0xa0)
+		if (device->chipset < 0xa0)
 			ustatus_addr = ustatus_old + (i << 12);
 		else
 			ustatus_addr = ustatus_new + (i << 11);
@@ -778,11 +614,12 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	return 1;
 }
 
-static void
-nv50_gr_intr(struct nvkm_subdev *subdev)
+void
+nv50_gr_intr(struct nvkm_gr *base)
 {
-	struct nv50_gr *gr = (void *)subdev;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nv50_gr *gr = nv50_gr(base);
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_fifo_chan *chan;
 	u32 stat = nvkm_rd32(device, 0x400100);
 	u32 inst = nvkm_rd32(device, 0x40032c) & 0x0fffffff;
@@ -836,139 +673,12 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
-static const struct nv50_gr_func
-nv50_gr = {
-	.sclass = {
-		{ -1, -1, 0x0030, &nv50_gr_object },
-		{ -1, -1, 0x502d, &nv50_gr_object },
-		{ -1, -1, 0x5039, &nv50_gr_object },
-		{ -1, -1, 0x5097, &nv50_gr_object },
-		{ -1, -1, 0x50c0, &nv50_gr_object },
-		{}
-	}
-};
-
-static const struct nv50_gr_func
-g84_gr = {
-	.sclass = {
-		{ -1, -1, 0x0030, &nv50_gr_object },
-		{ -1, -1, 0x502d, &nv50_gr_object },
-		{ -1, -1, 0x5039, &nv50_gr_object },
-		{ -1, -1, 0x50c0, &nv50_gr_object },
-		{ -1, -1, 0x8297, &nv50_gr_object },
-		{}
-	}
-};
-
-static const struct nv50_gr_func
-gt200_gr = {
-	.sclass = {
-		{ -1, -1, 0x0030, &nv50_gr_object },
-		{ -1, -1, 0x502d, &nv50_gr_object },
-		{ -1, -1, 0x5039, &nv50_gr_object },
-		{ -1, -1, 0x50c0, &nv50_gr_object },
-		{ -1, -1, 0x8397, &nv50_gr_object },
-		{}
-	}
-};
-
-static const struct nv50_gr_func
-gt215_gr = {
-	.sclass = {
-		{ -1, -1, 0x0030, &nv50_gr_object },
-		{ -1, -1, 0x502d, &nv50_gr_object },
-		{ -1, -1, 0x5039, &nv50_gr_object },
-		{ -1, -1, 0x50c0, &nv50_gr_object },
-		{ -1, -1, 0x8597, &nv50_gr_object },
-		{ -1, -1, 0x85c0, &nv50_gr_object },
-		{}
-	}
-};
-
-static const struct nv50_gr_func
-mcp89_gr = {
-	.sclass = {
-		{ -1, -1, 0x0030, &nv50_gr_object },
-		{ -1, -1, 0x502d, &nv50_gr_object },
-		{ -1, -1, 0x5039, &nv50_gr_object },
-		{ -1, -1, 0x50c0, &nv50_gr_object },
-		{ -1, -1, 0x85c0, &nv50_gr_object },
-		{ -1, -1, 0x8697, &nv50_gr_object },
-		{}
-	}
-};
-
-static const struct nvkm_gr_func
-nv50_gr_ = {
-	.chan_new = nv50_gr_chan_new,
-	.object_get = nv50_gr_object_get,
-};
-
-static int
-nv50_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv50_gr_init(struct nvkm_gr *base)
 {
-	struct nv50_gr *gr;
-	int ret;
-
-	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
-	*pobject = nv_object(gr);
-	if (ret)
-		return ret;
-
-	nv_subdev(gr)->unit = 0x00201000;
-	nv_subdev(gr)->intr = nv50_gr_intr;
-
-	gr->base.func = &nv50_gr_;
-	gr->base.units = nv50_gr_units;
-
-	switch (nv_device(gr)->chipset) {
-	case 0x50:
-		gr->func = &nv50_gr;
-		break;
-	case 0x84:
-	case 0x86:
-	case 0x92:
-	case 0x94:
-	case 0x96:
-	case 0x98:
-		gr->func = &g84_gr;
-		break;
-	case 0xa0:
-	case 0xaa:
-	case 0xac:
-		gr->func = &gt200_gr;
-		break;
-	case 0xa3:
-	case 0xa5:
-	case 0xa8:
-		gr->func = &gt215_gr;
-		break;
-	case 0xaf:
-		gr->func = &mcp89_gr;
-		break;
-	}
-
-	/* unfortunate hw bug workaround... */
-	if (nv_device(gr)->chipset != 0x50 &&
-	    nv_device(gr)->chipset != 0xac)
-		nv_engine(gr)->tlb_flush = g84_gr_tlb_flush;
-
-	spin_lock_init(&gr->lock);
-	return 0;
-}
-
-static int
-nv50_gr_init(struct nvkm_object *object)
-{
-	struct nv50_gr *gr = (void *)object;
+	struct nv50_gr *gr = nv50_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int ret, units, i;
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
 
 	/* NV_PGRAPH_DEBUG_3_HW_CTX_SWITCH_ENABLED */
 	nvkm_wr32(device, 0x40008c, 0x00000004);
@@ -986,7 +696,7 @@ nv50_gr_init(struct nvkm_object *object)
 		if (!(units & (1 << i)))
 			continue;
 
-		if (nv_device(gr)->chipset < 0xa0) {
+		if (device->chipset < 0xa0) {
 			nvkm_wr32(device, 0x408900 + (i << 12), 0xc0000000);
 			nvkm_wr32(device, 0x408e08 + (i << 12), 0xc0000000);
 			nvkm_wr32(device, 0x408314 + (i << 12), 0xc0000000);
@@ -1004,7 +714,7 @@ nv50_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
 	/* upload context program, initialise ctxctl defaults */
-	ret = nv50_grctx_init(nv_device(gr), &gr->size);
+	ret = nv50_grctx_init(device, &gr->size);
 	if (ret)
 		return ret;
 
@@ -1016,7 +726,7 @@ nv50_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x400330, 0x00000000);
 
 	/* some unknown zcull magic */
-	switch (nv_device(gr)->chipset & 0xf0) {
+	switch (device->chipset & 0xf0) {
 	case 0x50:
 	case 0x80:
 	case 0x90:
@@ -1024,9 +734,9 @@ nv50_gr_init(struct nvkm_object *object)
 		break;
 	case 0xa0:
 	default:
-		if (nv_device(gr)->chipset == 0xa0 ||
-		    nv_device(gr)->chipset == 0xaa ||
-		    nv_device(gr)->chipset == 0xac) {
+		if (device->chipset == 0xa0 ||
+		    device->chipset == 0xaa ||
+		    device->chipset == 0xac) {
 			nvkm_wr32(device, 0x402ca8, 0x00000802);
 		} else {
 			nvkm_wr32(device, 0x402cc0, 0x00000000);
@@ -1043,16 +753,42 @@ nv50_gr_init(struct nvkm_object *object)
 		nvkm_wr32(device, 0x402c28 + (i * 0x10), 0x00000000);
 		nvkm_wr32(device, 0x402c2c + (i * 0x10), 0x00000000);
 	}
+
 	return 0;
 }
 
-struct nvkm_oclass
-nv50_gr_oclass = {
-	.handle = NV_ENGINE(GR, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_gr_ctor,
-		.dtor = _nvkm_gr_dtor,
-		.init = nv50_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
+int
+nv50_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_gr **pgr)
+{
+	struct nv50_gr *gr;
+
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
+	spin_lock_init(&gr->lock);
+	*pgr = &gr->base;
+
+	return nvkm_gr_ctor(func, device, index, 0x00201000, true, &gr->base);
+}
+
+static const struct nvkm_gr_func
+nv50_gr = {
+	.init = nv50_gr_init,
+	.intr = nv50_gr_intr,
+	.chan_new = nv50_gr_chan_new,
+	.units = nv50_gr_units,
+	.sclass = {
+		{ -1, -1, 0x0030, &nv50_gr_object },
+		{ -1, -1, 0x502d, &nv50_gr_object },
+		{ -1, -1, 0x5039, &nv50_gr_object },
+		{ -1, -1, 0x5097, &nv50_gr_object },
+		{ -1, -1, 0x50c0, &nv50_gr_object },
+		{}
+	}
 };
+
+int
+nv50_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return nv50_gr_new_(&nv50_gr, device, index, pgr);
+}

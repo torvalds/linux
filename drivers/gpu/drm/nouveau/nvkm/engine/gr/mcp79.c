@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -14,22 +14,33 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
  */
+#include "nv50.h"
 
-#ifndef __GK20A_GR_H__
-#define __GK20A_GR_H__
-
-#include "gf100.h"
-
-struct gk20a_gr_oclass {
-	struct gf100_gr_oclass gf100;
-
-	void (*init_gpc_mmu)(struct gf100_gr *);
-	void (*set_hww_esr_report_mask)(struct gf100_gr *);
+static const struct nvkm_gr_func
+mcp79_gr = {
+	.init = nv50_gr_init,
+	.intr = nv50_gr_intr,
+	.chan_new = nv50_gr_chan_new,
+	.units = nv50_gr_units,
+	.sclass = {
+		{ -1, -1, 0x0030, &nv50_gr_object },
+		{ -1, -1, 0x502d, &nv50_gr_object },
+		{ -1, -1, 0x5039, &nv50_gr_object },
+		{ -1, -1, 0x50c0, &nv50_gr_object },
+		{ -1, -1, 0x8397, &nv50_gr_object },
+		{}
+	}
 };
 
-#endif
+int
+mcp79_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return nv50_gr_new_(&mcp79_gr, device, index, pgr);
+}

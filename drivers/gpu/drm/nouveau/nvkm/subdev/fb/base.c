@@ -52,11 +52,13 @@ void
 nvkm_fb_tile_prog(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 {
 	struct nvkm_device *device = fb->subdev.device;
-	fb->func->tile.prog(fb, region, tile);
-	if (likely(device->gr))
-		device->gr->engine.tile_prog(&device->gr->engine, region);
-	if (likely(device->mpeg))
-		device->mpeg->tile_prog(device->mpeg, region);
+	if (fb->func->tile.prog) {
+		fb->func->tile.prog(fb, region, tile);
+		if (device->gr)
+			nvkm_engine_tile(&device->gr->engine, region);
+		if (likely(device->mpeg))
+			device->mpeg->tile_prog(device->mpeg, region);
+	}
 }
 
 int

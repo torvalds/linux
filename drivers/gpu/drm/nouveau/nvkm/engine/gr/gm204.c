@@ -236,21 +236,14 @@ gm204_gr_init_ctxctl(struct gf100_gr *gr)
 }
 
 int
-gm204_gr_init(struct nvkm_object *object)
+gm204_gr_init(struct gf100_gr *gr)
 {
-	struct gf100_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr *gr = (void *)object;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	u32 data[TPC_MAX / 8] = {};
+	u32 data[TPC_MAX / 8] = {}, tmp;
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, ppc, rop;
-	int ret, i;
-	u32 tmp;
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
+	int i;
 
 	tmp = nvkm_rd32(device, 0x100c80); /*XXX: mask? */
 	nvkm_wr32(device, 0x418880, 0x00001000 | (tmp & 0x00000fff));
@@ -265,7 +258,7 @@ gm204_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
 	nvkm_mask(device, 0x100cc4, 0x00040000, 0x00040000);
 
-	gf100_gr_mmio(gr, oclass->mmio);
+	gf100_gr_mmio(gr, gr->func->mmio);
 
 	gm107_gr_init_bios(gr);
 
@@ -360,6 +353,9 @@ gm204_gr_init(struct nvkm_object *object)
 
 static const struct gf100_gr_func
 gm204_gr = {
+	.init = gm204_gr_init,
+	.mmio = gm204_gr_pack_mmio,
+	.ppc_nr = 2,
 	.grctx = &gm204_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
@@ -370,16 +366,8 @@ gm204_gr = {
 	}
 };
 
-struct nvkm_oclass *
-gm204_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0x24),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gm204_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.func = &gm204_gr,
-	.mmio = gm204_gr_pack_mmio,
-	.ppc_nr = 2,
-}.base;
+int
+gm204_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gm204_gr, device, index, pgr);
+}

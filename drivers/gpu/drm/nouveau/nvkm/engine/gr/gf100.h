@@ -21,8 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#ifndef __NVC0_GR_H__
-#define __NVC0_GR_H__
+#ifndef __GF100_GR_H__
+#define __GF100_GR_H__
 #define gf100_gr(p) container_of((p), struct gf100_gr, base)
 #include "priv.h"
 
@@ -71,8 +71,8 @@ struct gf100_gr_zbc_depth {
 };
 
 struct gf100_gr {
-	struct nvkm_gr base;
 	const struct gf100_gr_func *func;
+	struct nvkm_gr base;
 
 	struct gf100_gr_fuc fuc409c;
 	struct gf100_gr_fuc fuc409d;
@@ -110,10 +110,39 @@ struct gf100_gr {
 	u8 magic_not_rop_nr;
 };
 
+int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
+		  int, struct gf100_gr *);
+int gf100_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
+		  int, struct nvkm_gr **);
+void *gf100_gr_dtor(struct nvkm_gr *);
+
 struct gf100_gr_func {
+	void (*dtor)(struct gf100_gr *);
+	int (*init)(struct gf100_gr *);
+	void (*init_gpc_mmu)(struct gf100_gr *);
+	void (*set_hww_esr_report_mask)(struct gf100_gr *);
+	const struct gf100_gr_pack *mmio;
+	struct {
+		struct gf100_gr_ucode *ucode;
+	} fecs;
+	struct {
+		struct gf100_gr_ucode *ucode;
+	} gpccs;
+	int ppc_nr;
 	const struct gf100_grctx_func *grctx;
 	struct nvkm_sclass sclass[];
 };
+
+int gf100_gr_init(struct gf100_gr *);
+
+int gk104_gr_init(struct gf100_gr *);
+
+int gk20a_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
+		  int, struct nvkm_gr **);
+void gk20a_gr_dtor(struct gf100_gr *);
+int gk20a_gr_init(struct gf100_gr *);
+
+int gm204_gr_init(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 
@@ -137,32 +166,9 @@ void gf100_gr_dtor_fw(struct gf100_gr_fuc *);
 int  gf100_gr_ctor_fw(struct gf100_gr *, const char *,
 		      struct gf100_gr_fuc *);
 u64  gf100_gr_units(struct nvkm_gr *);
-int  gf100_gr_ctor(struct nvkm_object *, struct nvkm_object *,
-		     struct nvkm_oclass *, void *data, u32 size,
-		     struct nvkm_object **);
-void gf100_gr_dtor(struct nvkm_object *);
-int  gf100_gr_init(struct nvkm_object *);
 void gf100_gr_zbc_init(struct gf100_gr *);
 
-int  gk104_gr_ctor(struct nvkm_object *, struct nvkm_object *,
-		     struct nvkm_oclass *, void *data, u32 size,
-		     struct nvkm_object **);
-int  gk104_gr_init(struct nvkm_object *);
-
-int  gk20a_gr_ctor(struct nvkm_object *, struct nvkm_object *,
-		     struct nvkm_oclass *, void *data, u32 size,
-		     struct nvkm_object **);
-void gk20a_gr_dtor(struct nvkm_object *);
-int  gk20a_gr_init(struct nvkm_object *);
-
-int  gm204_gr_init(struct nvkm_object *);
-
 extern const struct nvkm_object_func gf100_fermi;
-
-extern struct nvkm_oclass gf100_gr_sclass[];
-extern struct nvkm_oclass gf110_gr_sclass[];
-extern struct nvkm_oclass gk110_gr_sclass[];
-extern struct nvkm_oclass gm204_gr_sclass[];
 
 struct gf100_gr_init {
 	u32 addr;
@@ -190,19 +196,6 @@ extern struct gf100_gr_ucode gf100_gr_gpccs_ucode;
 
 extern struct gf100_gr_ucode gk110_gr_fecs_ucode;
 extern struct gf100_gr_ucode gk110_gr_gpccs_ucode;
-
-struct gf100_gr_oclass {
-	struct nvkm_oclass base;
-	const struct gf100_gr_func *func;
-	const struct gf100_gr_pack *mmio;
-	struct {
-		struct gf100_gr_ucode *ucode;
-	} fecs;
-	struct {
-		struct gf100_gr_ucode *ucode;
-	} gpccs;
-	int ppc_nr;
-};
 
 int  gf100_gr_wait_idle(struct gf100_gr *);
 void gf100_gr_mmio(struct gf100_gr *, const struct gf100_gr_pack *);

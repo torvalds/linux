@@ -308,20 +308,14 @@ gm107_gr_init_bios(struct gf100_gr *gr)
 }
 
 int
-gm107_gr_init(struct nvkm_object *object)
+gm107_gr_init(struct gf100_gr *gr)
 {
-	struct gf100_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr *gr = (void *)object;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, ppc, rop;
-	int ret, i;
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
+	int i;
 
 	nvkm_wr32(device, GPC_BCAST(0x0880), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
@@ -329,7 +323,7 @@ gm107_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
 	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
 
-	gf100_gr_mmio(gr, oclass->mmio);
+	gf100_gr_mmio(gr, gr->func->mmio);
 
 	gm107_gr_init_bios(gr);
 
@@ -443,6 +437,11 @@ gm107_gr_gpccs_ucode = {
 
 static const struct gf100_gr_func
 gm107_gr = {
+	.init = gm107_gr_init,
+	.mmio = gm107_gr_pack_mmio,
+	.fecs.ucode = &gm107_gr_fecs_ucode,
+	.gpccs.ucode = &gm107_gr_gpccs_ucode,
+	.ppc_nr = 2,
 	.grctx = &gm107_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
@@ -453,18 +452,8 @@ gm107_gr = {
 	}
 };
 
-struct nvkm_oclass *
-gm107_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0x07),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gm107_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.func = &gm107_gr,
-	.mmio = gm107_gr_pack_mmio,
-	.fecs.ucode = &gm107_gr_fecs_ucode,
-	.gpccs.ucode = &gm107_gr_gpccs_ucode,
-	.ppc_nr = 2,
-}.base;
+int
+gm107_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gm107_gr, device, index, pgr);
+}

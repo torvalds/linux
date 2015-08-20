@@ -3,64 +3,44 @@
 #include <core/engine.h>
 
 struct nvkm_gr {
-	struct nvkm_engine engine;
 	const struct nvkm_gr_func *func;
-
-	/* Returns chipset-specific counts of units packed into an u64.
-	 */
-	u64 (*units)(struct nvkm_gr *);
+	struct nvkm_engine engine;
 };
 
-#define nvkm_gr_create(p,e,c,y,d)                                        \
-	nvkm_gr_create_((p), (e), (c), (y), sizeof(**d), (void **)(d))
-int
-nvkm_gr_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, bool enable,
-		int length, void **pobject);
-#define nvkm_gr_destroy(d)                                               \
-	nvkm_engine_destroy(&(d)->engine)
-#define nvkm_gr_init(d)                                                  \
-	nvkm_engine_init_old(&(d)->engine)
-#define nvkm_gr_fini(d,s)                                                \
-	nvkm_engine_fini_old(&(d)->engine, (s))
+u64 nvkm_gr_units(struct nvkm_gr *);
+int nvkm_gr_tlb_flush(struct nvkm_gr *);
 
-#define _nvkm_gr_dtor _nvkm_engine_dtor
-#define _nvkm_gr_init _nvkm_engine_init
-#define _nvkm_gr_fini _nvkm_engine_fini
-
-extern struct nvkm_oclass nv04_gr_oclass;
-extern struct nvkm_oclass nv10_gr_oclass;
-extern struct nvkm_oclass nv20_gr_oclass;
-extern struct nvkm_oclass nv25_gr_oclass;
-extern struct nvkm_oclass nv2a_gr_oclass;
-extern struct nvkm_oclass nv30_gr_oclass;
-extern struct nvkm_oclass nv34_gr_oclass;
-extern struct nvkm_oclass nv35_gr_oclass;
-extern struct nvkm_oclass nv40_gr_oclass;
-extern struct nvkm_oclass nv50_gr_oclass;
-extern struct nvkm_oclass *gf100_gr_oclass;
-extern struct nvkm_oclass *gf108_gr_oclass;
-extern struct nvkm_oclass *gf104_gr_oclass;
-extern struct nvkm_oclass *gf110_gr_oclass;
-extern struct nvkm_oclass *gf117_gr_oclass;
-extern struct nvkm_oclass *gf119_gr_oclass;
-extern struct nvkm_oclass *gk104_gr_oclass;
-extern struct nvkm_oclass *gk20a_gr_oclass;
-extern struct nvkm_oclass *gk110_gr_oclass;
-extern struct nvkm_oclass *gk110b_gr_oclass;
-extern struct nvkm_oclass *gk208_gr_oclass;
-extern struct nvkm_oclass *gm107_gr_oclass;
-extern struct nvkm_oclass *gm204_gr_oclass;
-extern struct nvkm_oclass *gm206_gr_oclass;
-extern struct nvkm_oclass *gm20b_gr_oclass;
-
-#include <core/enum.h>
-
-extern const struct nvkm_bitfield nv04_gr_nsource[];
-bool nv04_gr_idle(struct nvkm_gr *);
-
-extern const struct nvkm_bitfield nv10_gr_intr_name[];
-extern const struct nvkm_bitfield nv10_gr_nstatus[];
-
-extern const struct nvkm_enum nv50_data_error_names[];
+int nv04_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv10_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv15_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv17_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv20_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv25_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv2a_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv30_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv34_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv35_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv40_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv44_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int nv50_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int g84_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gt200_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int mcp79_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gt215_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int mcp89_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gf100_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gf104_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gf108_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gf110_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gf117_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gf119_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gk104_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gk110_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gk110b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gk208_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gk20a_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gm107_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gm204_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gm206_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gm20b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 #endif

@@ -23,11 +23,10 @@
  */
 #include "priv.h"
 
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
-
-#include <core/engine.h>
-#include <core/gpuobj.h>
+#include <engine/gr.h>
 
 static void
 nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_memory *pgt[2])
@@ -167,13 +166,10 @@ nv50_vm_flush(struct nvkm_vm *vm)
 			continue;
 
 		/* unfortunate hw bug workaround... */
-		if (i == NVDEV_ENGINE_GR) {
-			struct nvkm_engine *engine =
-				nvkm_device_engine(device, i);
-			if (engine && engine->tlb_flush) {
-				engine->tlb_flush(engine);
+		if (i == NVDEV_ENGINE_GR && device->gr) {
+			int ret = nvkm_gr_tlb_flush(device->gr);
+			if (ret != -ENODEV)
 				continue;
-			}
 		}
 
 		switch (i) {

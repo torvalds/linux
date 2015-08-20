@@ -30,7 +30,7 @@
 #include <subdev/timer.h>
 #include <engine/fifo.h>
 
-static u64
+u64
 nv40_gr_units(struct nvkm_gr *gr)
 {
 	return nvkm_rd32(gr->engine.subdev.device, 0x1540);
@@ -61,7 +61,7 @@ nv40_gr_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 	return ret;
 }
 
-static const struct nvkm_object_func
+const struct nvkm_object_func
 nv40_gr_object = {
 	.bind = nv40_gr_object_bind,
 };
@@ -144,7 +144,7 @@ nv40_gr_chan = {
 	.bind = nv40_gr_chan_bind,
 };
 
-static int
+int
 nv40_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
@@ -169,31 +169,29 @@ nv40_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
  ******************************************************************************/
 
 static void
-nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
+nv40_gr_tile(struct nvkm_gr *base, int i, struct nvkm_fb_tile *tile)
 {
-	struct nv40_gr *gr = (void *)engine;
+	struct nv40_gr *gr = nv40_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 	unsigned long flags;
 
 	nvkm_fifo_pause(fifo, &flags);
 	nv04_gr_idle(&gr->base);
 
-	switch (nv_device(gr)->chipset) {
+	switch (device->chipset) {
 	case 0x40:
 	case 0x41:
 	case 0x42:
 	case 0x43:
 	case 0x45:
-	case 0x4e:
 		nvkm_wr32(device, NV20_PGRAPH_TSIZE(i), tile->pitch);
 		nvkm_wr32(device, NV20_PGRAPH_TLIMIT(i), tile->limit);
 		nvkm_wr32(device, NV20_PGRAPH_TILE(i), tile->addr);
 		nvkm_wr32(device, NV40_PGRAPH_TSIZE1(i), tile->pitch);
 		nvkm_wr32(device, NV40_PGRAPH_TLIMIT1(i), tile->limit);
 		nvkm_wr32(device, NV40_PGRAPH_TILE1(i), tile->addr);
-		switch (nv_device(gr)->chipset) {
+		switch (device->chipset) {
 		case 0x40:
 		case 0x45:
 			nvkm_wr32(device, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
@@ -209,50 +207,33 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 			break;
 		}
 		break;
-	case 0x44:
-	case 0x4a:
-		nvkm_wr32(device, NV20_PGRAPH_TSIZE(i), tile->pitch);
-		nvkm_wr32(device, NV20_PGRAPH_TLIMIT(i), tile->limit);
-		nvkm_wr32(device, NV20_PGRAPH_TILE(i), tile->addr);
-		break;
-	case 0x46:
-	case 0x4c:
 	case 0x47:
 	case 0x49:
 	case 0x4b:
-	case 0x63:
-	case 0x67:
-	case 0x68:
 		nvkm_wr32(device, NV47_PGRAPH_TSIZE(i), tile->pitch);
 		nvkm_wr32(device, NV47_PGRAPH_TLIMIT(i), tile->limit);
 		nvkm_wr32(device, NV47_PGRAPH_TILE(i), tile->addr);
 		nvkm_wr32(device, NV40_PGRAPH_TSIZE1(i), tile->pitch);
 		nvkm_wr32(device, NV40_PGRAPH_TLIMIT1(i), tile->limit);
 		nvkm_wr32(device, NV40_PGRAPH_TILE1(i), tile->addr);
-		switch (nv_device(gr)->chipset) {
-		case 0x47:
-		case 0x49:
-		case 0x4b:
-			nvkm_wr32(device, NV47_PGRAPH_ZCOMP0(i), tile->zcomp);
-			nvkm_wr32(device, NV47_PGRAPH_ZCOMP1(i), tile->zcomp);
-			break;
-		default:
-			break;
-		}
+		nvkm_wr32(device, NV47_PGRAPH_ZCOMP0(i), tile->zcomp);
+		nvkm_wr32(device, NV47_PGRAPH_ZCOMP1(i), tile->zcomp);
 		break;
 	default:
+		WARN_ON(1);
 		break;
 	}
 
 	nvkm_fifo_start(fifo, &flags);
 }
 
-static void
-nv40_gr_intr(struct nvkm_subdev *subdev)
+void
+nv40_gr_intr(struct nvkm_gr *base)
 {
-	struct nv40_gr *gr = (void *)subdev;
+	struct nv40_gr *gr = nv40_gr(base);
 	struct nv40_gr_chan *temp, *chan = NULL;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nvkm_rd32(device, NV03_PGRAPH_NSTATUS);
@@ -301,98 +282,16 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 	spin_unlock_irqrestore(&gr->base.engine.lock, flags);
 }
 
-static const struct nvkm_gr_func
-nv40_gr = {
-	.chan_new = nv40_gr_chan_new,
-	.sclass = {
-		{ -1, -1, 0x0012, &nv40_gr_object }, /* beta1 */
-		{ -1, -1, 0x0019, &nv40_gr_object }, /* clip */
-		{ -1, -1, 0x0030, &nv40_gr_object }, /* null */
-		{ -1, -1, 0x0039, &nv40_gr_object }, /* m2mf */
-		{ -1, -1, 0x0043, &nv40_gr_object }, /* rop */
-		{ -1, -1, 0x0044, &nv40_gr_object }, /* patt */
-		{ -1, -1, 0x004a, &nv40_gr_object }, /* gdi */
-		{ -1, -1, 0x0062, &nv40_gr_object }, /* surf2d */
-		{ -1, -1, 0x0072, &nv40_gr_object }, /* beta4 */
-		{ -1, -1, 0x0089, &nv40_gr_object }, /* sifm */
-		{ -1, -1, 0x008a, &nv40_gr_object }, /* ifc */
-		{ -1, -1, 0x009f, &nv40_gr_object }, /* imageblit */
-		{ -1, -1, 0x3062, &nv40_gr_object }, /* surf2d (nv40) */
-		{ -1, -1, 0x3089, &nv40_gr_object }, /* sifm (nv40) */
-		{ -1, -1, 0x309e, &nv40_gr_object }, /* swzsurf (nv40) */
-		{ -1, -1, 0x4097, &nv40_gr_object }, /* curie */
-		{}
-	}
-};
-
-static const struct nvkm_gr_func
-nv44_gr = {
-	.chan_new = nv40_gr_chan_new,
-	.sclass = {
-		{ -1, -1, 0x0012, &nv40_gr_object }, /* beta1 */
-		{ -1, -1, 0x0019, &nv40_gr_object }, /* clip */
-		{ -1, -1, 0x0030, &nv40_gr_object }, /* null */
-		{ -1, -1, 0x0039, &nv40_gr_object }, /* m2mf */
-		{ -1, -1, 0x0043, &nv40_gr_object }, /* rop */
-		{ -1, -1, 0x0044, &nv40_gr_object }, /* patt */
-		{ -1, -1, 0x004a, &nv40_gr_object }, /* gdi */
-		{ -1, -1, 0x0062, &nv40_gr_object }, /* surf2d */
-		{ -1, -1, 0x0072, &nv40_gr_object }, /* beta4 */
-		{ -1, -1, 0x0089, &nv40_gr_object }, /* sifm */
-		{ -1, -1, 0x008a, &nv40_gr_object }, /* ifc */
-		{ -1, -1, 0x009f, &nv40_gr_object }, /* imageblit */
-		{ -1, -1, 0x3062, &nv40_gr_object }, /* surf2d (nv40) */
-		{ -1, -1, 0x3089, &nv40_gr_object }, /* sifm (nv40) */
-		{ -1, -1, 0x309e, &nv40_gr_object }, /* swzsurf (nv40) */
-		{ -1, -1, 0x4497, &nv40_gr_object }, /* curie */
-	{}
-	}
-};
-
-static int
-nv40_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+nv40_gr_init(struct nvkm_gr *base)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv40_gr *gr;
-	int ret;
-
-	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
-	*pobject = nv_object(gr);
-	if (ret)
-		return ret;
-
-	INIT_LIST_HEAD(&gr->chan);
-
-	nv_subdev(gr)->unit = 0x00001000;
-	nv_subdev(gr)->intr = nv40_gr_intr;
-	if (nv44_gr_class(device))
-		gr->base.func = &nv44_gr;
-	else
-		gr->base.func = &nv40_gr;
-	nv_engine(gr)->tile_prog = nv40_gr_tile_prog;
-
-	gr->base.units = nv40_gr_units;
-	return 0;
-}
-
-static int
-nv40_gr_init(struct nvkm_object *object)
-{
-	struct nvkm_engine *engine = nv_engine(object);
-	struct nv40_gr *gr = (void *)engine;
+	struct nv40_gr *gr = nv40_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct nvkm_fb *fb = device->fb;
 	int ret, i, j;
 	u32 vramsz;
 
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
-
 	/* generate and upload context program */
-	ret = nv40_grctx_init(nv_device(gr), &gr->size);
+	ret = nv40_grctx_init(device, &gr->size);
 	if (ret)
 		return ret;
 
@@ -419,7 +318,7 @@ nv40_gr_init(struct nvkm_object *object)
 		nvkm_wr32(device, 0x405000, i);
 	}
 
-	if (nv_device(gr)->chipset == 0x40) {
+	if (device->chipset == 0x40) {
 		nvkm_wr32(device, 0x4009b0, 0x83280fff);
 		nvkm_wr32(device, 0x4009b4, 0x000000a0);
 	} else {
@@ -427,7 +326,7 @@ nv40_gr_init(struct nvkm_object *object)
 		nvkm_wr32(device, 0x400824, 0x000000a0);
 	}
 
-	switch (nv_device(gr)->chipset) {
+	switch (device->chipset) {
 	case 0x40:
 	case 0x45:
 		nvkm_wr32(device, 0x4009b8, 0x0078e366);
@@ -465,7 +364,7 @@ nv40_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x400b3c, 0x00006000);
 
 	/* Tiling related stuff. */
-	switch (nv_device(gr)->chipset) {
+	switch (device->chipset) {
 	case 0x44:
 	case 0x4a:
 		nvkm_wr32(device, 0x400bc4, 0x1003d888);
@@ -485,13 +384,9 @@ nv40_gr_init(struct nvkm_object *object)
 		break;
 	}
 
-	/* Turn all the tiling regions off. */
-	for (i = 0; i < fb->tile.regions; i++)
-		engine->tile_prog(engine, i);
-
 	/* begin RAM config */
-	vramsz = nv_device_resource_len(nv_device(gr), 1) - 1;
-	switch (nv_device(gr)->chipset) {
+	vramsz = nv_device_resource_len(device, 1) - 1;
+	switch (device->chipset) {
 	case 0x40:
 		nvkm_wr32(device, 0x4009A4, nvkm_rd32(device, 0x100200));
 		nvkm_wr32(device, 0x4009A8, nvkm_rd32(device, 0x100204));
@@ -503,7 +398,7 @@ nv40_gr_init(struct nvkm_object *object)
 		nvkm_wr32(device, 0x400868, vramsz);
 		break;
 	default:
-		switch (nv_device(gr)->chipset) {
+		switch (device->chipset) {
 		case 0x41:
 		case 0x42:
 		case 0x43:
@@ -531,13 +426,50 @@ nv40_gr_init(struct nvkm_object *object)
 	return 0;
 }
 
-struct nvkm_oclass
-nv40_gr_oclass = {
-	.handle = NV_ENGINE(GR, 0x40),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_gr_ctor,
-		.dtor = _nvkm_gr_dtor,
-		.init = nv40_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
+int
+nv40_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_gr **pgr)
+{
+	struct nv40_gr *gr;
+
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
+	*pgr = &gr->base;
+	INIT_LIST_HEAD(&gr->chan);
+
+	return nvkm_gr_ctor(func, device, index, 0x00001000, true, &gr->base);
+}
+
+static const struct nvkm_gr_func
+nv40_gr = {
+	.init = nv40_gr_init,
+	.intr = nv40_gr_intr,
+	.tile = nv40_gr_tile,
+	.units = nv40_gr_units,
+	.chan_new = nv40_gr_chan_new,
+	.sclass = {
+		{ -1, -1, 0x0012, &nv40_gr_object }, /* beta1 */
+		{ -1, -1, 0x0019, &nv40_gr_object }, /* clip */
+		{ -1, -1, 0x0030, &nv40_gr_object }, /* null */
+		{ -1, -1, 0x0039, &nv40_gr_object }, /* m2mf */
+		{ -1, -1, 0x0043, &nv40_gr_object }, /* rop */
+		{ -1, -1, 0x0044, &nv40_gr_object }, /* patt */
+		{ -1, -1, 0x004a, &nv40_gr_object }, /* gdi */
+		{ -1, -1, 0x0062, &nv40_gr_object }, /* surf2d */
+		{ -1, -1, 0x0072, &nv40_gr_object }, /* beta4 */
+		{ -1, -1, 0x0089, &nv40_gr_object }, /* sifm */
+		{ -1, -1, 0x008a, &nv40_gr_object }, /* ifc */
+		{ -1, -1, 0x009f, &nv40_gr_object }, /* imageblit */
+		{ -1, -1, 0x3062, &nv40_gr_object }, /* surf2d (nv40) */
+		{ -1, -1, 0x3089, &nv40_gr_object }, /* sifm (nv40) */
+		{ -1, -1, 0x309e, &nv40_gr_object }, /* swzsurf (nv40) */
+		{ -1, -1, 0x4097, &nv40_gr_object }, /* curie */
+		{}
+	}
 };
+
+int
+nv40_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return nv40_gr_new_(&nv40_gr, device, index, pgr);
+}

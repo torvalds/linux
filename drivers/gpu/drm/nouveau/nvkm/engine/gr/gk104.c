@@ -24,8 +24,6 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
-#include <subdev/pmu.h>
-
 #include <nvif/class.h>
 
 /*******************************************************************************
@@ -180,22 +178,14 @@ gk104_gr_pack_mmio[] = {
  ******************************************************************************/
 
 int
-gk104_gr_init(struct nvkm_object *object)
+gk104_gr_init(struct gf100_gr *gr)
 {
-	struct gf100_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr *gr = (void *)object;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
-	int ret, i;
-
-	nvkm_pmu_pgob(device->pmu, false);
-
-	ret = nvkm_gr_init(&gr->base);
-	if (ret)
-		return ret;
+	int i;
 
 	nvkm_wr32(device, GPC_BCAST(0x0880), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x08a4), 0x00000000);
@@ -206,7 +196,7 @@ gk104_gr_init(struct nvkm_object *object)
 	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
 	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
 
-	gf100_gr_mmio(gr, oclass->mmio);
+	gf100_gr_mmio(gr, gr->func->mmio);
 
 	nvkm_wr32(device, GPC_UNIT(0, 0x3018), 0x00000001);
 
@@ -296,28 +286,6 @@ gk104_gr_init(struct nvkm_object *object)
 	return gf100_gr_init_ctxctl(gr);
 }
 
-static const struct gf100_gr_func
-gk104_gr = {
-	.grctx = &gk104_grctx,
-	.sclass = {
-		{ -1, -1, FERMI_TWOD_A },
-		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },
-		{ -1, -1, KEPLER_A, &gf100_fermi },
-		{ -1, -1, KEPLER_COMPUTE_A },
-		{}
-	}
-};
-
-int
-gk104_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
-	struct nvkm_device *device = (void *)parent;
-	nvkm_pmu_pgob(device->pmu, false);
-	return gf100_gr_ctor(parent, engine, oclass, data, size, pobject);
-}
-
 #include "fuc/hubgk104.fuc3.h"
 
 static struct gf100_gr_ucode
@@ -338,18 +306,25 @@ gk104_gr_gpccs_ucode = {
 	.data.size = sizeof(gk104_grgpc_data),
 };
 
-struct nvkm_oclass *
-gk104_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0xe4),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gk104_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.func = &gk104_gr,
+static const struct gf100_gr_func
+gk104_gr = {
+	.init = gk104_gr_init,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,
 	.gpccs.ucode = &gk104_gr_gpccs_ucode,
 	.ppc_nr = 1,
-}.base;
+	.grctx = &gk104_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },
+		{ -1, -1, KEPLER_A, &gf100_fermi },
+		{ -1, -1, KEPLER_COMPUTE_A },
+		{}
+	}
+};
+
+int
+gk104_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gk104_gr, device, index, pgr);
+}

@@ -114,6 +114,10 @@ gf104_gr_pack_mmio[] = {
 
 static const struct gf100_gr_func
 gf104_gr = {
+	.init = gf100_gr_init,
+	.mmio = gf104_gr_pack_mmio,
+	.fecs.ucode = &gf100_gr_fecs_ucode,
+	.gpccs.ucode = &gf100_gr_gpccs_ucode,
 	.grctx = &gf104_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
@@ -124,17 +128,8 @@ gf104_gr = {
 	}
 };
 
-struct nvkm_oclass *
-gf104_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0xc3),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gf100_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.func = &gf104_gr,
-	.mmio = gf104_gr_pack_mmio,
-	.fecs.ucode = &gf100_gr_fecs_ucode,
-	.gpccs.ucode = &gf100_gr_gpccs_ucode,
-}.base;
+int
+gf104_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gf104_gr, device, index, pgr);
+}

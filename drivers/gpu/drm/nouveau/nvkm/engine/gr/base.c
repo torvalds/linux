@@ -25,6 +25,30 @@
 
 #include <engine/fifo.h>
 
+static void
+nvkm_gr_tile(struct nvkm_engine *engine, int region, struct nvkm_fb_tile *tile)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+	if (gr->func->tile)
+		gr->func->tile(gr, region, tile);
+}
+
+u64
+nvkm_gr_units(struct nvkm_gr *gr)
+{
+	if (gr->func->units)
+		return gr->func->units(gr);
+	return 0;
+}
+
+int
+nvkm_gr_tlb_flush(struct nvkm_gr *gr)
+{
+	if (gr->func->tlb_flush)
+		return gr->func->tlb_flush(gr);
+	return -ENODEV;
+}
+
 static int
 nvkm_gr_oclass_get(struct nvkm_oclass *oclass, int index)
 {
@@ -59,26 +83,54 @@ nvkm_gr_cclass_new(struct nvkm_fifo_chan *chan,
 	return 0;
 }
 
-struct nvkm_engine_func
+static void
+nvkm_gr_intr(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+	gr->func->intr(gr);
+}
+
+static int
+nvkm_gr_oneinit(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+	if (gr->func->oneinit)
+		return gr->func->oneinit(gr);
+	return 0;
+}
+
+static int
+nvkm_gr_init(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+	return gr->func->init(gr);
+}
+
+static void *
+nvkm_gr_dtor(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+	if (gr->func->dtor)
+		return gr->func->dtor(gr);
+	return gr;
+}
+
+static const struct nvkm_engine_func
 nvkm_gr = {
+	.dtor = nvkm_gr_dtor,
+	.oneinit = nvkm_gr_oneinit,
+	.init = nvkm_gr_init,
+	.intr = nvkm_gr_intr,
+	.tile = nvkm_gr_tile,
 	.fifo.cclass = nvkm_gr_cclass_new,
 	.fifo.sclass = nvkm_gr_oclass_get,
 };
 
 int
-nvkm_gr_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, bool enable,
-		int length, void **pobject)
+nvkm_gr_ctor(const struct nvkm_gr_func *func, struct nvkm_device *device,
+	     int index, u32 pmc_enable, bool enable, struct nvkm_gr *gr)
 {
-	struct nvkm_gr *gr;
-	int ret;
-
-	ret = nvkm_engine_create_(parent, engine, oclass, enable,
-				  "gr", "gr", length, pobject);
-	gr = *pobject;
-	if (ret)
-		return ret;
-
-	gr->engine.func = &nvkm_gr;
-	return 0;
+	gr->func = func;
+	return nvkm_engine_ctor(&nvkm_gr, device, index, pmc_enable,
+				enable, &gr->engine);
 }
