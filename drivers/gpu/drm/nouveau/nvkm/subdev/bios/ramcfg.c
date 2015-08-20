@@ -39,9 +39,9 @@ nvbios_ramcfg_count(struct nvkm_bios *bios)
 
 	if (!bit_entry(bios, 'M', &bit_M)) {
 		if (bit_M.version == 1 && bit_M.length >= 5)
-			return nv_ro08(bios, bit_M.offset + 2);
+			return nvbios_rd08(bios, bit_M.offset + 2);
 		if (bit_M.version == 2 && bit_M.length >= 3)
-			return nv_ro08(bios, bit_M.offset + 0);
+			return nvbios_rd08(bios, bit_M.offset + 0);
 	}
 
 	return 0x00;
@@ -59,7 +59,7 @@ nvbios_ramcfg_index(struct nvkm_subdev *subdev)
 
 	if (!bit_entry(bios, 'M', &bit_M)) {
 		if (bit_M.version == 1 && bit_M.length >= 5)
-			xlat = nv_ro16(bios, bit_M.offset + 3);
+			xlat = nvbios_rd16(bios, bit_M.offset + 3);
 		if (bit_M.version == 2 && bit_M.length >= 3) {
 			/*XXX: is M ever shorter than this?
 			 *     if not - what is xlat used for now?
@@ -68,11 +68,11 @@ nvbios_ramcfg_index(struct nvkm_subdev *subdev)
 			if (bit_M.length >= 7 &&
 			    nvbios_M0203Em(bios, strap, &ver, &hdr, &M0203E))
 				return M0203E.group;
-			xlat = nv_ro16(bios, bit_M.offset + 1);
+			xlat = nvbios_rd16(bios, bit_M.offset + 1);
 		}
 	}
 
 	if (xlat)
-		strap = nv_ro08(bios, xlat + strap);
+		strap = nvbios_rd08(bios, xlat + strap);
 	return strap;
 }

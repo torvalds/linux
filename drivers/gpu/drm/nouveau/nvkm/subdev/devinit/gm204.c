@@ -38,7 +38,7 @@ pmu_code(struct nv50_devinit *init, u32 pmu, u32 img, u32 len, bool sec)
 	for (i = 0; i < len; i += 4) {
 		if ((i & 0xff) == 0)
 			nvkm_wr32(device, 0x10a188, (pmu + i) >> 8);
-		nvkm_wr32(device, 0x10a184, nv_ro32(bios, img + i));
+		nvkm_wr32(device, 0x10a184, nvbios_rd32(bios, img + i));
 	}
 
 	while (i & 0xff) {
@@ -56,7 +56,7 @@ pmu_data(struct nv50_devinit *init, u32 pmu, u32 img, u32 len)
 
 	nvkm_wr32(device, 0x10a1c0, 0x01000000 | pmu);
 	for (i = 0; i < len; i += 4)
-		nvkm_wr32(device, 0x10a1c4, nv_ro32(bios, img + i));
+		nvkm_wr32(device, 0x10a1c4, nvbios_rd32(bios, img + i));
 }
 
 static u32
@@ -138,16 +138,16 @@ gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 	/* upload first chunk of init data */
 	if (post) {
 		u32 pmu = pmu_args(init, args + 0x08, 0x08);
-		u32 img = nv_ro16(bios, bit_I.offset + 0x14);
-		u32 len = nv_ro16(bios, bit_I.offset + 0x16);
+		u32 img = nvbios_rd16(bios, bit_I.offset + 0x14);
+		u32 len = nvbios_rd16(bios, bit_I.offset + 0x16);
 		pmu_data(init, pmu, img, len);
 	}
 
 	/* upload second chunk of init data */
 	if (post) {
 		u32 pmu = pmu_args(init, args + 0x08, 0x10);
-		u32 img = nv_ro16(bios, bit_I.offset + 0x18);
-		u32 len = nv_ro16(bios, bit_I.offset + 0x1a);
+		u32 img = nvbios_rd16(bios, bit_I.offset + 0x18);
+		u32 len = nvbios_rd16(bios, bit_I.offset + 0x1a);
 		pmu_data(init, pmu, img, len);
 	}
 

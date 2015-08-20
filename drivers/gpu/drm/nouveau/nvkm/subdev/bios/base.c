@@ -53,6 +53,20 @@ nvbios_findstr(const u8 *data, int size, const char *str, int len)
 }
 
 int
+nvbios_memcmp(struct nvkm_bios *bios, u32 addr, const char *str, u32 len)
+{
+	unsigned char c1, c2;
+
+	while (len--) {
+		c1 = nvbios_rd08(bios, addr++);
+		c2 = *(str++);
+		if (c1 != c2)
+			return c1 - c2;
+	}
+	return 0;
+}
+
+int
 nvbios_extend(struct nvkm_bios *bios, u32 length)
 {
 	if (bios->size < length) {
@@ -67,48 +81,6 @@ nvbios_extend(struct nvkm_bios *bios, u32 length)
 		return 1;
 	}
 	return 0;
-}
-
-static u8
-nvkm_bios_rd08(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return bios->data[addr];
-}
-
-static u16
-nvkm_bios_rd16(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return get_unaligned_le16(&bios->data[addr]);
-}
-
-static u32
-nvkm_bios_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return get_unaligned_le32(&bios->data[addr]);
-}
-
-static void
-nvkm_bios_wr08(struct nvkm_object *object, u64 addr, u8 data)
-{
-	struct nvkm_bios *bios = (void *)object;
-	bios->data[addr] = data;
-}
-
-static void
-nvkm_bios_wr16(struct nvkm_object *object, u64 addr, u16 data)
-{
-	struct nvkm_bios *bios = (void *)object;
-	put_unaligned_le16(data, &bios->data[addr]);
-}
-
-static void
-nvkm_bios_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_bios *bios = (void *)object;
-	put_unaligned_le32(data, &bios->data[addr]);
 }
 
 static int
@@ -146,17 +118,17 @@ nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	/* determine the vbios version number */
 	if (!bit_entry(bios, 'i', &bit_i) && bit_i.length >= 4) {
-		bios->version.major = nv_ro08(bios, bit_i.offset + 3);
-		bios->version.chip  = nv_ro08(bios, bit_i.offset + 2);
-		bios->version.minor = nv_ro08(bios, bit_i.offset + 1);
-		bios->version.micro = nv_ro08(bios, bit_i.offset + 0);
-		bios->version.patch = nv_ro08(bios, bit_i.offset + 4);
+		bios->version.major = nvbios_rd08(bios, bit_i.offset + 3);
+		bios->version.chip  = nvbios_rd08(bios, bit_i.offset + 2);
+		bios->version.minor = nvbios_rd08(bios, bit_i.offset + 1);
+		bios->version.micro = nvbios_rd08(bios, bit_i.offset + 0);
+		bios->version.patch = nvbios_rd08(bios, bit_i.offset + 4);
 	} else
 	if (bmp_version(bios)) {
-		bios->version.major = nv_ro08(bios, bios->bmp_offset + 13);
-		bios->version.chip  = nv_ro08(bios, bios->bmp_offset + 12);
-		bios->version.minor = nv_ro08(bios, bios->bmp_offset + 11);
-		bios->version.micro = nv_ro08(bios, bios->bmp_offset + 10);
+		bios->version.major = nvbios_rd08(bios, bios->bmp_offset + 13);
+		bios->version.chip  = nvbios_rd08(bios, bios->bmp_offset + 12);
+		bios->version.minor = nvbios_rd08(bios, bios->bmp_offset + 11);
+		bios->version.micro = nvbios_rd08(bios, bios->bmp_offset + 10);
 	}
 
 	nvkm_info(&bios->subdev, "version %02x.%02x.%02x.%02x.%02x\n",
@@ -195,11 +167,5 @@ nvkm_bios_oclass = {
 		.dtor = nvkm_bios_dtor,
 		.init = nvkm_bios_init,
 		.fini = nvkm_bios_fini,
-		.rd08 = nvkm_bios_rd08,
-		.rd16 = nvkm_bios_rd16,
-		.rd32 = nvkm_bios_rd32,
-		.wr08 = nvkm_bios_wr08,
-		.wr16 = nvkm_bios_wr16,
-		.wr32 = nvkm_bios_wr32,
 	},
 };

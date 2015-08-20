@@ -69,13 +69,13 @@ dp_set_link_config(struct dp_state *dp)
 	/* set desired link configuration on the source */
 	if ((lnkcmp = dp->outp->info.lnkcmp)) {
 		if (outp->version < 0x30) {
-			while ((dp->link_bw / 10) < nv_ro16(bios, lnkcmp))
+			while ((dp->link_bw / 10) < nvbios_rd16(bios, lnkcmp))
 				lnkcmp += 4;
-			init.offset = nv_ro16(bios, lnkcmp + 2);
+			init.offset = nvbios_rd16(bios, lnkcmp + 2);
 		} else {
-			while ((dp->link_bw / 27000) < nv_ro08(bios, lnkcmp))
+			while ((dp->link_bw / 27000) < nvbios_rd08(bios, lnkcmp))
 				lnkcmp += 3;
-			init.offset = nv_ro16(bios, lnkcmp + 1);
+			init.offset = nvbios_rd16(bios, lnkcmp + 1);
 		}
 
 		nvbios_exec(&init);

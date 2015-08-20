@@ -36,7 +36,7 @@ nvbios_imagen(struct nvkm_bios *bios, struct nvbios_image *image)
 	u16 hdr;
 	u32 data;
 
-	switch ((data = nv_ro16(bios, image->base + 0x00))) {
+	switch ((data = nvbios_rd16(bios, image->base + 0x00))) {
 	case 0xaa55:
 	case 0xbb77:
 	case 0x4e56: /* NV */

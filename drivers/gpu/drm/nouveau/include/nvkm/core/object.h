@@ -178,18 +178,4 @@ nv_mo32(void *obj, u64 addr, u32 mask, u32 data)
 	nv_wo32(obj, addr, (temp & ~mask) | data);
 	return temp;
 }
-
-static inline int
-nv_memcmp(void *obj, u32 addr, const char *str, u32 len)
-{
-	unsigned char c1, c2;
-
-	while (len--) {
-		c1 = nv_ro08(obj, addr++);
-		c2 = *(str++);
-		if (c1 != c2)
-			return c1 - c2;
-	}
-	return 0;
-}
 #endif

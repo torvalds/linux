@@ -27,6 +27,11 @@ nvkm_bios(void *obj)
 
 u8  nvbios_checksum(const u8 *data, int size);
 u16 nvbios_findstr(const u8 *data, int size, const char *str, int len);
+int nvbios_memcmp(struct nvkm_bios *, u32 addr, const char *, u32 len);
+
+#define nvbios_rd08(b,o) (b)->data[(o)]
+#define nvbios_rd16(b,o) get_unaligned_le16(&(b)->data[(o)])
+#define nvbios_rd32(b,o) get_unaligned_le32(&(b)->data[(o)])
 
 extern struct nvkm_oclass nvkm_bios_oclass;
 #endif

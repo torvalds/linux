@@ -176,7 +176,7 @@ nvkm_i2c_find(struct nvkm_i2c *i2c, u8 index)
 		u8  ver, hdr, cnt, len;
 		u16 i2c = dcb_i2c_table(bios, &ver, &hdr, &cnt, &len);
 		if (i2c && ver >= 0x30) {
-			u8 auxidx = nv_ro08(bios, i2c + 4);
+			u8 auxidx = nvbios_rd08(bios, i2c + 4);
 			if (index == NV_I2C_DEFAULT(0))
 				index = (auxidx & 0x0f) >> 0;
 			else

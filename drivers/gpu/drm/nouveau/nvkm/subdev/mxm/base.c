@@ -243,7 +243,7 @@ nvkm_mxm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	data = mxm_table(bios, &ver, &len);
-	if (!data || !(ver = nv_ro08(bios, data))) {
+	if (!data || !(ver = nvbios_rd08(bios, data))) {
 		nvkm_debug(&mxm->subdev, "no VBIOS data, nothing to do\n");
 		return 0;
 	}

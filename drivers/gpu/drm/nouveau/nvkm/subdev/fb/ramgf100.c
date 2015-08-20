@@ -165,7 +165,7 @@ gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 	}
 
 	/* lookup memory timings, if bios says they're present */
-	strap = nv_ro08(bios, ramcfg.data + 0x01);
+	strap = nvbios_rd08(bios, ramcfg.data + 0x01);
 	if (strap != 0xff) {
 		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
 					      &cnt, &len);

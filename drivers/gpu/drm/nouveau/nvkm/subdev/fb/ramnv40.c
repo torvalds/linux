@@ -154,7 +154,7 @@ nv40_ram_prog(struct nvkm_fb *fb)
 		struct nvbios_init init = {
 			.subdev = nv_subdev(fb),
 			.bios = bios,
-			.offset = nv_ro16(bios, M.offset + 0x00),
+			.offset = nvbios_rd16(bios, M.offset + 0x00),
 			.execute = 1,
 		};
 

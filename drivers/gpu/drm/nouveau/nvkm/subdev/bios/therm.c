@@ -33,9 +33,9 @@ therm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 1)
-			therm = nv_ro16(bios, bit_P.offset + 12);
+			therm = nvbios_rd16(bios, bit_P.offset + 12);
 		else if (bit_P.version == 2)
-			therm = nv_ro16(bios, bit_P.offset + 16);
+			therm = nvbios_rd16(bios, bit_P.offset + 16);
 		else
 			nvkm_error(&bios->subdev,
 				   "unknown offset for thermal in BIT P %d\n",
@@ -46,11 +46,11 @@ therm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 	if (!therm)
 		return 0x0000;
 
-	*ver = nv_ro08(bios, therm + 0);
-	*hdr = nv_ro08(bios, therm + 1);
-	*len = nv_ro08(bios, therm + 2);
-	*cnt = nv_ro08(bios, therm + 3);
-	return therm + nv_ro08(bios, therm + 1);
+	*ver = nvbios_rd08(bios, therm + 0);
+	*hdr = nvbios_rd08(bios, therm + 1);
+	*len = nvbios_rd08(bios, therm + 2);
+	*cnt = nvbios_rd08(bios, therm + 3);
+	return therm + nvbios_rd08(bios, therm + 1);
 }
 
 static u16
@@ -81,9 +81,9 @@ nvbios_therm_sensor_parse(struct nvkm_bios *bios,
 	sensor_section = -1;
 	i = 0;
 	while ((entry = nvbios_therm_entry(bios, i++, &ver, &len))) {
-		s16 value = nv_ro16(bios, entry + 1);
+		s16 value = nvbios_rd16(bios, entry + 1);
 
-		switch (nv_ro08(bios, entry + 0)) {
+		switch (nvbios_rd08(bios, entry + 0)) {
 		case 0x0:
 			thrs_section = value;
 			if (value > 0)
@@ -92,7 +92,7 @@ nvbios_therm_sensor_parse(struct nvkm_bios *bios,
 		case 0x01:
 			sensor_section++;
 			if (sensor_section == 0) {
-				offset = ((s8) nv_ro08(bios, entry + 2)) / 2;
+				offset = ((s8) nvbios_rd08(bios, entry + 2)) / 2;
 				sensor->offset_constant = offset;
 			}
 			break;
@@ -163,9 +163,9 @@ nvbios_therm_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 	fan->nr_fan_trip = 0;
 	fan->fan_mode = NVBIOS_THERM_FAN_OTHER;
 	while ((entry = nvbios_therm_entry(bios, i++, &ver, &len))) {
-		s16 value = nv_ro16(bios, entry + 1);
+		s16 value = nvbios_rd16(bios, entry + 1);
 
-		switch (nv_ro08(bios, entry + 0)) {
+		switch (nvbios_rd08(bios, entry + 0)) {
 		case 0x22:
 			fan->min_duty = value & 0xff;
 			fan->max_duty = (value & 0xff00) >> 8;
@@ -196,8 +196,8 @@ nvbios_therm_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 		case 0x46:
 			if (fan->fan_mode > NVBIOS_THERM_FAN_LINEAR)
 				fan->fan_mode = NVBIOS_THERM_FAN_LINEAR;
-			fan->linear_min_temp = nv_ro08(bios, entry + 1);
-			fan->linear_max_temp = nv_ro08(bios, entry + 2);
+			fan->linear_min_temp = nvbios_rd08(bios, entry + 1);
+			fan->linear_max_temp = nvbios_rd08(bios, entry + 2);
 			break;
 		}
 	}

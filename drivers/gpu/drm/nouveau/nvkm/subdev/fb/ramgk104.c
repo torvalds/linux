@@ -1340,8 +1340,8 @@ gk104_ram_init(struct nvkm_object *object)
 	if (!data || hdr < 0x15)
 		return -EINVAL;
 
-	cnt  = nv_ro08(bios, data + 0x14); /* guess at count */
-	data = nv_ro32(bios, data + 0x10); /* guess u32... */
+	cnt  = nvbios_rd08(bios, data + 0x14); /* guess at count */
+	data = nvbios_rd32(bios, data + 0x10); /* guess u32... */
 	save = nvkm_rd32(device, 0x10f65c) & 0x000000f0;
 	for (i = 0; i < cnt; i++, data += 4) {
 		if (i != save >> 4) {
@@ -1349,7 +1349,7 @@ gk104_ram_init(struct nvkm_object *object)
 			nvbios_exec(&(struct nvbios_init) {
 					.subdev = nv_subdev(fb),
 					.bios = bios,
-					.offset = nv_ro32(bios, data),
+					.offset = nvbios_rd32(bios, data),
 					.execute = 1,
 				    });
 		}
