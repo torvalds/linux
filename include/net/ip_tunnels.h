@@ -23,9 +23,7 @@
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
 /* Used to memset ip_tunnel padding. */
-#define IP_TUNNEL_KEY_SIZE					\
-	(offsetof(struct ip_tunnel_key, tp_dst) +		\
-	 FIELD_SIZEOF(struct ip_tunnel_key, tp_dst))
+#define IP_TUNNEL_KEY_SIZE	offsetofend(struct ip_tunnel_key, tp_dst)
 
 struct ip_tunnel_key {
 	__be64			tun_id;
