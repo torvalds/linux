@@ -22,7 +22,7 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 #include <subdev/therm.h>
 #include <subdev/timer.h>
@@ -50,8 +50,9 @@ nv50_bus_hwsq_exec(struct nvkm_bus *bus, u32 *data, u32 size)
 }
 
 void
-nv50_bus_intr(struct nvkm_subdev *subdev)
+nv50_bus_intr(struct nvkm_bus *bus)
 {
+	struct nvkm_subdev *subdev = &bus->subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
@@ -81,32 +82,24 @@ nv50_bus_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-int
-nv50_bus_init(struct nvkm_object *object)
+void
+nv50_bus_init(struct nvkm_bus *bus)
 {
-	struct nvkm_bus *bus = (void *)object;
 	struct nvkm_device *device = bus->subdev.device;
-	int ret;
-
-	ret = nvkm_bus_init(bus);
-	if (ret)
-		return ret;
-
 	nvkm_wr32(device, 0x001100, 0xffffffff);
 	nvkm_wr32(device, 0x001140, 0x00010008);
-	return 0;
 }
 
-struct nvkm_oclass *
-nv50_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = nv50_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
+static const struct nvkm_bus_func
+nv50_bus = {
+	.init = nv50_bus_init,
 	.intr = nv50_bus_intr,
 	.hwsq_exec = nv50_bus_hwsq_exec,
 	.hwsq_size = 64,
-}.base;
+};
+
+int
+nv50_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+{
+	return nvkm_bus_new_(&nv50_bus, device, index, pbus);
+}

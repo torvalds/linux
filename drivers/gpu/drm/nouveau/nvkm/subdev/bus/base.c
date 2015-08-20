@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Nouveau Community
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,46 +19,46 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Martin Peres <martin.peres@labri.fr>
- *          Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "priv.h"
 
-#include <subdev/timer.h>
+static void
+nvkm_bus_intr(struct nvkm_subdev *subdev)
+{
+	struct nvkm_bus *bus = nvkm_bus(subdev);
+	bus->func->intr(bus);
+}
 
 static int
-g94_bus_hwsq_exec(struct nvkm_bus *bus, u32 *data, u32 size)
+nvkm_bus_init(struct nvkm_subdev *subdev)
 {
-	struct nvkm_device *device = bus->subdev.device;
-	int i;
-
-	nvkm_mask(device, 0x001098, 0x00000008, 0x00000000);
-	nvkm_wr32(device, 0x001304, 0x00000000);
-	nvkm_wr32(device, 0x001318, 0x00000000);
-	for (i = 0; i < size; i++)
-		nvkm_wr32(device, 0x080000 + (i * 4), data[i]);
-	nvkm_mask(device, 0x001098, 0x00000018, 0x00000018);
-	nvkm_wr32(device, 0x00130c, 0x00000001);
-
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x001308) & 0x00000100))
-			break;
-	) < 0)
-		return -ETIMEDOUT;
-
+	struct nvkm_bus *bus = nvkm_bus(subdev);
+	bus->func->init(bus);
 	return 0;
 }
 
-static const struct nvkm_bus_func
-g94_bus = {
-	.init = nv50_bus_init,
-	.intr = nv50_bus_intr,
-	.hwsq_exec = g94_bus_hwsq_exec,
-	.hwsq_size = 128,
+static void *
+nvkm_bus_dtor(struct nvkm_subdev *subdev)
+{
+	return nvkm_bus(subdev);
+}
+
+static const struct nvkm_subdev_func
+nvkm_bus = {
+	.dtor = nvkm_bus_dtor,
+	.init = nvkm_bus_init,
+	.intr = nvkm_bus_intr,
 };
 
 int
-g94_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+nvkm_bus_new_(const struct nvkm_bus_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_bus **pbus)
 {
-	return nvkm_bus_new_(&g94_bus, device, index, pbus);
+	struct nvkm_bus *bus;
+	if (!(bus = *pbus = kzalloc(sizeof(*bus), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&nvkm_bus, device, index, 0, &bus->subdev);
+	bus->func = func;
+	return 0;
 }

@@ -22,11 +22,12 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 static void
-gf100_bus_intr(struct nvkm_subdev *subdev)
+gf100_bus_intr(struct nvkm_bus *bus)
 {
+	struct nvkm_subdev *subdev = &bus->subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
@@ -53,30 +54,22 @@ gf100_bus_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-static int
-gf100_bus_init(struct nvkm_object *object)
+static void
+gf100_bus_init(struct nvkm_bus *bus)
 {
-	struct nvkm_bus *bus = (void *)object;
 	struct nvkm_device *device = bus->subdev.device;
-	int ret;
-
-	ret = nvkm_bus_init(bus);
-	if (ret)
-		return ret;
-
 	nvkm_wr32(device, 0x001100, 0xffffffff);
 	nvkm_wr32(device, 0x001140, 0x0000000e);
-	return 0;
 }
 
-struct nvkm_oclass *
-gf100_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = gf100_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
+static const struct nvkm_bus_func
+gf100_bus = {
+	.init = gf100_bus_init,
 	.intr = gf100_bus_intr,
-}.base;
+};
+
+int
+gf100_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+{
+	return nvkm_bus_new_(&gf100_bus, device, index, pbus);
+}

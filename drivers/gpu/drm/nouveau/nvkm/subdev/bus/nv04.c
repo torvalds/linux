@@ -22,13 +22,16 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
+
+#include <subdev/gpio.h>
 
 #include <subdev/gpio.h>
 
 static void
-nv04_bus_intr(struct nvkm_subdev *subdev)
+nv04_bus_intr(struct nvkm_bus *bus)
 {
+	struct nvkm_subdev *subdev = &bus->subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
@@ -52,46 +55,22 @@ nv04_bus_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-static int
-nv04_bus_init(struct nvkm_object *object)
+static void
+nv04_bus_init(struct nvkm_bus *bus)
 {
-	struct nvkm_bus *bus = (void *)object;
 	struct nvkm_device *device = bus->subdev.device;
-
 	nvkm_wr32(device, 0x001100, 0xffffffff);
 	nvkm_wr32(device, 0x001140, 0x00000111);
-
-	return nvkm_bus_init(bus);
 }
+
+static const struct nvkm_bus_func
+nv04_bus = {
+	.init = nv04_bus_init,
+	.intr = nv04_bus_intr,
+};
 
 int
-nv04_bus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+nv04_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
 {
-	struct nv04_bus_impl *impl = (void *)oclass;
-	struct nvkm_bus *bus;
-	int ret;
-
-	ret = nvkm_bus_create(parent, engine, oclass, &bus);
-	*pobject = nv_object(bus);
-	if (ret)
-		return ret;
-
-	nv_subdev(bus)->intr = impl->intr;
-	bus->hwsq_exec = impl->hwsq_exec;
-	bus->hwsq_size = impl->hwsq_size;
-	return 0;
+	return nvkm_bus_new_(&nv04_bus, device, index, pbus);
 }
-
-struct nvkm_oclass *
-nv04_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = nv04_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
-	.intr = nv04_bus_intr,
-}.base;
