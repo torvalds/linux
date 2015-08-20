@@ -1252,13 +1252,10 @@ static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
 						gfp_t flags)
 {
 	void *entry;
-retry:
-	entry = kmem_cache_alloc(cachep, flags);
-	if (!entry) {
-		cond_resched();
-		goto retry;
-	}
 
+	entry = kmem_cache_alloc(cachep, flags);
+	if (!entry)
+		entry = kmem_cache_alloc(cachep, flags | __GFP_NOFAIL);
 	return entry;
 }
 
@@ -1267,12 +1264,9 @@ static inline struct bio *f2fs_bio_alloc(int npages)
 	struct bio *bio;
 
 	/* No failure on bio allocation */
-retry:
 	bio = bio_alloc(GFP_NOIO, npages);
-	if (!bio) {
-		cond_resched();
-		goto retry;
-	}
+	if (!bio)
+		bio = bio_alloc(GFP_NOIO | __GFP_NOFAIL, npages);
 	return bio;
 }
 

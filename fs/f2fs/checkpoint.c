@@ -336,26 +336,18 @@ const struct address_space_operations f2fs_meta_aops = {
 static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 {
 	struct inode_management *im = &sbi->im[type];
-	struct ino_entry *e;
+	struct ino_entry *e, *tmp;
+
+	tmp = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_NOFS);
 retry:
-	if (radix_tree_preload(GFP_NOFS)) {
-		cond_resched();
-		goto retry;
-	}
+	radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
 
 	spin_lock(&im->ino_lock);
-
 	e = radix_tree_lookup(&im->ino_root, ino);
 	if (!e) {
-		e = kmem_cache_alloc(ino_entry_slab, GFP_ATOMIC);
-		if (!e) {
-			spin_unlock(&im->ino_lock);
-			radix_tree_preload_end();
-			goto retry;
-		}
+		e = tmp;
 		if (radix_tree_insert(&im->ino_root, ino, e)) {
 			spin_unlock(&im->ino_lock);
-			kmem_cache_free(ino_entry_slab, e);
 			radix_tree_preload_end();
 			goto retry;
 		}
@@ -368,6 +360,9 @@ retry:
 	}
 	spin_unlock(&im->ino_lock);
 	radix_tree_preload_end();
+
+	if (e != tmp)
+		kmem_cache_free(ino_entry_slab, tmp);
 }
 
 static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
