@@ -23,34 +23,31 @@
  */
 #include "priv.h"
 
-static void
-nv04_disp_vblank_init(struct nvkm_event *event, int type, int head)
+static const struct nvkm_disp_oclass *
+nv04_disp_root(struct nvkm_disp *disp)
 {
-	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
+	return &nv04_disp_root_oclass;
+}
+
+static void
+nv04_disp_vblank_init(struct nvkm_disp *disp, int head)
+{
 	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000001);
 }
 
 static void
-nv04_disp_vblank_fini(struct nvkm_event *event, int type, int head)
+nv04_disp_vblank_fini(struct nvkm_disp *disp, int head)
 {
-	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
 	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000000);
 }
 
-static const struct nvkm_event_func
-nv04_disp_vblank_func = {
-	.ctor = nvkm_disp_vblank_ctor,
-	.init = nv04_disp_vblank_init,
-	.fini = nv04_disp_vblank_fini,
-};
-
 static void
-nv04_disp_intr(struct nvkm_subdev *subdev)
+nv04_disp_intr(struct nvkm_disp *disp)
 {
-	struct nvkm_disp *disp = (void *)subdev;
-	struct nvkm_device *device = disp->engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 crtc0 = nvkm_rd32(device, 0x600100);
 	u32 crtc1 = nvkm_rd32(device, 0x602100);
 	u32 pvideo;
@@ -65,8 +62,7 @@ nv04_disp_intr(struct nvkm_subdev *subdev)
 		nvkm_wr32(device, 0x602100, 0x00000001);
 	}
 
-	if (nv_device(disp)->chipset >= 0x10 &&
-	    nv_device(disp)->chipset <= 0x40) {
+	if (device->chipset >= 0x10 && device->chipset <= 0x40) {
 		pvideo = nvkm_rd32(device, 0x8100);
 		if (pvideo & ~0x11)
 			nvkm_info(subdev, "PVIDEO intr: %08x\n", pvideo);
@@ -76,37 +72,14 @@ nv04_disp_intr(struct nvkm_subdev *subdev)
 
 static const struct nvkm_disp_func
 nv04_disp = {
-	.root = &nv04_disp_root_oclass,
+	.intr = nv04_disp_intr,
+	.root = nv04_disp_root,
+	.head.vblank_init = nv04_disp_vblank_init,
+	.head.vblank_fini = nv04_disp_vblank_fini,
 };
 
-static int
-nv04_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+nv04_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	struct nvkm_disp *disp;
-	int ret;
-
-	ret = nvkm_disp_create(parent, engine, oclass, 2, "DISPLAY",
-			       "display", &disp);
-	*pobject = nv_object(disp);
-	if (ret)
-		return ret;
-
-	disp->func = &nv04_disp;
-
-	nv_subdev(disp)->intr = nv04_disp_intr;
-	return 0;
+	return nvkm_disp_new_(&nv04_disp, device, index, 2, pdisp);
 }
-
-struct nvkm_oclass *
-nv04_disp_oclass = &(struct nvkm_disp_impl) {
-	.base.handle = NV_ENGINE(DISP, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_disp_ctor,
-		.dtor = _nvkm_disp_dtor,
-		.init = _nvkm_disp_init,
-		.fini = _nvkm_disp_fini,
-	},
-	.vblank = &nv04_disp_vblank_func,
-}.base;

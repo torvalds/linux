@@ -32,7 +32,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv50_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv50_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv50_pm_oclass;
 		break;
 	case 0x84:
@@ -40,7 +39,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g84_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x86:
@@ -48,7 +46,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g84_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x92:
@@ -56,7 +53,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g84_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x94:
@@ -64,7 +60,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x96:
@@ -72,14 +67,12 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x98:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  g84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0xa0:
@@ -87,21 +80,18 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gt200_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt200_pm_oclass;
 		break;
 	case 0xaa:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  g84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0xac:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  g84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0xa3:
@@ -109,28 +99,24 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gt215_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	case 0xa5:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  g84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gt215_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	case 0xa8:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  g84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gt215_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	case 0xaf:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  g84_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gt215_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	default:

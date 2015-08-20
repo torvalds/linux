@@ -30,28 +30,19 @@
 #include <subdev/bios/pll.h>
 #include <subdev/devinit.h>
 
-static void
-gf119_disp_vblank_init(struct nvkm_event *event, int type, int head)
+void
+gf119_disp_vblank_init(struct nv50_disp *disp, int head)
 {
-	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
-	struct nvkm_device *device = disp->engine.subdev.device;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	nvkm_mask(device, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000001);
 }
 
-static void
-gf119_disp_vblank_fini(struct nvkm_event *event, int type, int head)
+void
+gf119_disp_vblank_fini(struct nv50_disp *disp, int head)
 {
-	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
-	struct nvkm_device *device = disp->engine.subdev.device;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
 	nvkm_mask(device, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000000);
 }
-
-const struct nvkm_event_func
-gf119_disp_vblank_func = {
-	.ctor = nvkm_disp_vblank_ctor,
-	.init = gf119_disp_vblank_init,
-	.fini = gf119_disp_vblank_fini,
-};
 
 static struct nvkm_output *
 exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
@@ -103,7 +94,8 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 static struct nvkm_output *
 exec_script(struct nv50_disp *disp, int head, int id)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_output *outp;
 	struct nvbios_outp info;
@@ -123,7 +115,7 @@ exec_script(struct nv50_disp *disp, int head, int id)
 	outp = exec_lookup(disp, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
 	if (outp) {
 		struct nvbios_init init = {
-			.subdev = nv_subdev(disp),
+			.subdev = subdev,
 			.bios = bios,
 			.offset = info.script[id],
 			.outp = &outp->info,
@@ -140,7 +132,8 @@ exec_script(struct nv50_disp *disp, int head, int id)
 static struct nvkm_output *
 exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_output *outp;
 	struct nvbios_outp info1;
@@ -185,7 +178,7 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
 			struct nvbios_init init = {
-				.subdev = nv_subdev(disp),
+				.subdev = subdev,
 				.bios = bios,
 				.offset = data,
 				.outp = &outp->info,
@@ -329,8 +322,8 @@ gf119_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 		if (nvkm_output_dp_train(outp, pclk, true))
 			OUTP_ERR(outp, "link not trained before attach");
 	} else {
-		if (disp->sor.magic)
-			disp->sor.magic(outp);
+		if (disp->func->sor.magic)
+			disp->func->sor.magic(outp);
 	}
 
 	exec_clkcmp(disp, head, 0, pclk, &conf);
@@ -377,14 +370,14 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 	int head;
 
 	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super));
-	for (head = 0; head < disp->head.nr; head++) {
+	for (head = 0; head < disp->base.head.nr; head++) {
 		mask[head] = nvkm_rd32(device, 0x6101d4 + (head * 0x800));
 		nvkm_debug(subdev, "head %d: %08x\n", head, mask[head]);
 	}
 
 	if (disp->super & 0x00000001) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
-		for (head = 0; head < disp->head.nr; head++) {
+		for (head = 0; head < disp->base.head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
 			nvkm_debug(subdev, "supervisor 1.0 - head %d\n", head);
@@ -392,19 +385,19 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 		}
 	} else
 	if (disp->super & 0x00000002) {
-		for (head = 0; head < disp->head.nr; head++) {
+		for (head = 0; head < disp->base.head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
 			nvkm_debug(subdev, "supervisor 2.0 - head %d\n", head);
 			gf119_disp_intr_unk2_0(disp, head);
 		}
-		for (head = 0; head < disp->head.nr; head++) {
+		for (head = 0; head < disp->base.head.nr; head++) {
 			if (!(mask[head] & 0x00010000))
 				continue;
 			nvkm_debug(subdev, "supervisor 2.1 - head %d\n", head);
 			gf119_disp_intr_unk2_1(disp, head);
 		}
-		for (head = 0; head < disp->head.nr; head++) {
+		for (head = 0; head < disp->base.head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
 			nvkm_debug(subdev, "supervisor 2.2 - head %d\n", head);
@@ -412,7 +405,7 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 		}
 	} else
 	if (disp->super & 0x00000004) {
-		for (head = 0; head < disp->head.nr; head++) {
+		for (head = 0; head < disp->base.head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
 			nvkm_debug(subdev, "supervisor 3.0 - head %d\n", head);
@@ -420,7 +413,7 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 		}
 	}
 
-	for (head = 0; head < disp->head.nr; head++)
+	for (head = 0; head < disp->base.head.nr; head++)
 		nvkm_wr32(device, 0x6101d4 + (head * 0x800), 0x00000000);
 	nvkm_wr32(device, 0x6101d0, 0x80000000);
 }
@@ -452,9 +445,9 @@ gf119_disp_intr_error(struct nv50_disp *disp, int chid)
 }
 
 void
-gf119_disp_intr(struct nvkm_subdev *subdev)
+gf119_disp_intr(struct nv50_disp *disp)
 {
-	struct nv50_disp *disp = (void *)subdev;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 intr = nvkm_rd32(device, 0x610088);
 	int i;
@@ -494,7 +487,7 @@ gf119_disp_intr(struct nvkm_subdev *subdev)
 		intr &= ~0x00100000;
 	}
 
-	for (i = 0; i < disp->head.nr; i++) {
+	for (i = 0; i < disp->base.head.nr; i++) {
 		u32 mask = 0x01000000 << i;
 		if (mask & intr) {
 			u32 stat = nvkm_rd32(device, 0x6100bc + (i * 0x800));
@@ -506,59 +499,38 @@ gf119_disp_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-static const struct nvkm_disp_func
-gf119_disp = {
-	.root = &gf119_disp_root_oclass,
-};
-
-static int
-gf119_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+gf119_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
+		int index, struct nvkm_disp **pdisp)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv50_disp *disp;
-	int heads = nvkm_rd32(device, 0x022448);
-	int ret;
-
-	ret = nvkm_disp_create(parent, engine, oclass, heads,
-			       "PDISP", "display", &disp);
-	*pobject = nv_object(disp);
-	if (ret)
-		return ret;
-
-	disp->base.func = &gf119_disp;
-
-	ret = nvkm_event_init(&gf119_disp_chan_uevent, 1, 17, &disp->uevent);
-	if (ret)
-		return ret;
-
-	nv_subdev(disp)->intr = gf119_disp_intr;
-	INIT_WORK(&disp->supervisor, gf119_disp_intr_supervisor);
-	disp->head.nr = heads;
-	disp->dac.nr = 3;
-	disp->sor.nr = 4;
-	disp->dac.power = nv50_dac_power;
-	disp->dac.sense = nv50_dac_sense;
-	disp->sor.power = nv50_sor_power;
-	disp->sor.hda_eld = gf119_hda_eld;
-	disp->sor.hdmi = gf119_hdmi_ctrl;
-	return 0;
+	u32 heads = nvkm_rd32(device, 0x022448);
+	return nv50_disp_new_(func, device, index, heads, pdisp);
 }
 
-struct nvkm_oclass *
-gf110_disp_oclass = &(struct nv50_disp_impl) {
-	.base.base.handle = NV_ENGINE(DISP, 0x90),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf119_disp_ctor,
-		.dtor = _nvkm_disp_dtor,
-		.init = _nvkm_disp_init,
-		.fini = _nvkm_disp_fini,
-	},
-	.base.outp.internal.crt = nv50_dac_output_new,
-	.base.outp.internal.tmds = nv50_sor_output_new,
-	.base.outp.internal.lvds = nv50_sor_output_new,
-	.base.outp.internal.dp = gf119_sor_dp_new,
-	.base.vblank = &gf119_disp_vblank_func,
+static const struct nv50_disp_func
+gf119_disp = {
+	.intr = gf119_disp_intr,
+	.uevent = &gf119_disp_chan_uevent,
+	.super = gf119_disp_intr_supervisor,
+	.root = &gf119_disp_root_oclass,
+	.head.vblank_init = gf119_disp_vblank_init,
+	.head.vblank_fini = gf119_disp_vblank_fini,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,
-}.base.base;
+	.outp.internal.crt = nv50_dac_output_new,
+	.outp.internal.tmds = nv50_sor_output_new,
+	.outp.internal.lvds = nv50_sor_output_new,
+	.outp.internal.dp = gf119_sor_dp_new,
+	.dac.nr = 3,
+	.dac.power = nv50_dac_power,
+	.dac.sense = nv50_dac_sense,
+	.sor.nr = 4,
+	.sor.power = nv50_sor_power,
+	.sor.hda_eld = gf119_hda_eld,
+	.sor.hdmi = gf119_hdmi_ctrl,
+};
+
+int
+gf119_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+{
+	return gf119_disp_new_(&gf119_disp, device, index, pdisp);
+}

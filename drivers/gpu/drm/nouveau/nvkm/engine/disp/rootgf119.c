@@ -87,7 +87,7 @@ gf119_disp_root_init(struct nv50_disp_root *root)
 	 */
 
 	/* ... CRTC caps */
-	for (i = 0; i < disp->head.nr; i++) {
+	for (i = 0; i < disp->base.head.nr; i++) {
 		tmp = nvkm_rd32(device, 0x616104 + (i * 0x800));
 		nvkm_wr32(device, 0x6101b4 + (i * 0x800), tmp);
 		tmp = nvkm_rd32(device, 0x616108 + (i * 0x800));
@@ -97,13 +97,13 @@ gf119_disp_root_init(struct nv50_disp_root *root)
 	}
 
 	/* ... DAC caps */
-	for (i = 0; i < disp->dac.nr; i++) {
+	for (i = 0; i < disp->func->dac.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61a000 + (i * 0x800));
 		nvkm_wr32(device, 0x6101c0 + (i * 0x800), tmp);
 	}
 
 	/* ... SOR caps */
-	for (i = 0; i < disp->sor.nr; i++) {
+	for (i = 0; i < disp->func->sor.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61c000 + (i * 0x800));
 		nvkm_wr32(device, 0x6301c4 + (i * 0x800), tmp);
 	}
@@ -133,7 +133,7 @@ gf119_disp_root_init(struct nv50_disp_root *root)
 	 *
 	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
 	 */
-	for (i = 0; i < disp->head.nr; i++)
+	for (i = 0; i < disp->base.head.nr; i++)
 		nvkm_mask(device, 0x616308 + (i * 0x800), 0x00000111, 0x00000010);
 
 	return 0;

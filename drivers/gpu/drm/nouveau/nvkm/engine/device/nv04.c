@@ -31,13 +31,11 @@ nv04_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x05:
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	default:
 		return -EINVAL;

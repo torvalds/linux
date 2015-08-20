@@ -49,7 +49,7 @@ nv50_disp_base_new(const struct nv50_disp_dmac_func *func,
 		nvif_ioctl(parent, "create disp base channel dma vers %d "
 				   "pushbuf %016llx head %d\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.head);
-		if (args->v0.head > disp->head.nr)
+		if (args->v0.head > disp->base.head.nr)
 			return -EINVAL;
 		push = args->v0.pushbuf;
 		head = args->v0.head;

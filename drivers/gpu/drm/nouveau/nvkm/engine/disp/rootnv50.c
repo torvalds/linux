@@ -74,7 +74,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} *args = data;
 	struct nv50_disp_root *root = nv50_disp_root(object);
 	struct nv50_disp *disp = root->disp;
-	const struct nv50_disp_impl *impl = (void *)nv_oclass(object->engine);
+	const struct nv50_disp_func *func = disp->func;
 	struct nvkm_output *outp = NULL;
 	struct nvkm_output *temp;
 	u16 type, mask = 0;
@@ -102,7 +102,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} else
 		return ret;
 
-	if (head < 0 || head >= disp->head.nr)
+	if (head < 0 || head >= disp->base.head.nr)
 		return -ENXIO;
 
 	if (mask) {
@@ -119,26 +119,26 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 
 	switch (mthd) {
 	case NV50_DISP_SCANOUTPOS:
-		return impl->head.scanoutpos(object, disp, data, size, head);
+		return func->head.scanoutpos(object, disp, data, size, head);
 	default:
 		break;
 	}
 
 	switch (mthd * !!outp) {
 	case NV50_DISP_MTHD_V1_DAC_PWR:
-		return disp->dac.power(object, disp, data, size, head, outp);
+		return func->dac.power(object, disp, data, size, head, outp);
 	case NV50_DISP_MTHD_V1_DAC_LOAD:
-		return disp->dac.sense(object, disp, data, size, head, outp);
+		return func->dac.sense(object, disp, data, size, head, outp);
 	case NV50_DISP_MTHD_V1_SOR_PWR:
-		return disp->sor.power(object, disp, data, size, head, outp);
+		return func->sor.power(object, disp, data, size, head, outp);
 	case NV50_DISP_MTHD_V1_SOR_HDA_ELD:
-		if (!disp->sor.hda_eld)
+		if (!func->sor.hda_eld)
 			return -ENODEV;
-		return disp->sor.hda_eld(object, disp, data, size, head, outp);
+		return func->sor.hda_eld(object, disp, data, size, head, outp);
 	case NV50_DISP_MTHD_V1_SOR_HDMI_PWR:
-		if (!disp->sor.hdmi)
+		if (!func->sor.hdmi)
 			return -ENODEV;
-		return disp->sor.hdmi(object, disp, data, size, head, outp);
+		return func->sor.hdmi(object, disp, data, size, head, outp);
 	case NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT: {
 		union {
 			struct nv50_disp_sor_lvds_script_v0 v0;
@@ -178,9 +178,9 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 		break;
 	case NV50_DISP_MTHD_V1_PIOR_PWR:
-		if (!disp->pior.power)
+		if (!func->pior.power)
 			return -ENODEV;
-		return disp->pior.power(object, disp, data, size, head, outp);
+		return func->pior.power(object, disp, data, size, head, outp);
 	default:
 		break;
 	}
@@ -318,7 +318,7 @@ nv50_disp_root_init(struct nv50_disp_root *root)
 	nvkm_wr32(device, 0x610184, tmp);
 
 	/* ... CRTC caps */
-	for (i = 0; i < disp->head.nr; i++) {
+	for (i = 0; i < disp->base.head.nr; i++) {
 		tmp = nvkm_rd32(device, 0x616100 + (i * 0x800));
 		nvkm_wr32(device, 0x610190 + (i * 0x10), tmp);
 		tmp = nvkm_rd32(device, 0x616104 + (i * 0x800));
@@ -330,19 +330,19 @@ nv50_disp_root_init(struct nv50_disp_root *root)
 	}
 
 	/* ... DAC caps */
-	for (i = 0; i < disp->dac.nr; i++) {
+	for (i = 0; i < disp->func->dac.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61a000 + (i * 0x800));
 		nvkm_wr32(device, 0x6101d0 + (i * 0x04), tmp);
 	}
 
 	/* ... SOR caps */
-	for (i = 0; i < disp->sor.nr; i++) {
+	for (i = 0; i < disp->func->sor.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61c000 + (i * 0x800));
 		nvkm_wr32(device, 0x6101e0 + (i * 0x04), tmp);
 	}
 
 	/* ... PIOR caps */
-	for (i = 0; i < disp->pior.nr; i++) {
+	for (i = 0; i < disp->func->pior.nr; i++) {
 		tmp = nvkm_rd32(device, 0x61e000 + (i * 0x800));
 		nvkm_wr32(device, 0x6101f0 + (i * 0x04), tmp);
 	}

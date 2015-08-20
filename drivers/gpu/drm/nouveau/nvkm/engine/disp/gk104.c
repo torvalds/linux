@@ -24,59 +24,30 @@
 #include "nv50.h"
 #include "rootnv50.h"
 
-static const struct nvkm_disp_func
+static const struct nv50_disp_func
 gk104_disp = {
+	.intr = gf119_disp_intr,
+	.uevent = &gf119_disp_chan_uevent,
+	.super = gf119_disp_intr_supervisor,
 	.root = &gk104_disp_root_oclass,
+	.head.vblank_init = gf119_disp_vblank_init,
+	.head.vblank_fini = gf119_disp_vblank_fini,
+	.head.scanoutpos = gf119_disp_root_scanoutpos,
+	.outp.internal.crt = nv50_dac_output_new,
+	.outp.internal.tmds = nv50_sor_output_new,
+	.outp.internal.lvds = nv50_sor_output_new,
+	.outp.internal.dp = gf119_sor_dp_new,
+	.dac.nr = 3,
+	.dac.power = nv50_dac_power,
+	.dac.sense = nv50_dac_sense,
+	.sor.nr = 4,
+	.sor.power = nv50_sor_power,
+	.sor.hda_eld = gf119_hda_eld,
+	.sor.hdmi = gk104_hdmi_ctrl,
 };
 
-static int
-gk104_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+gk104_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv50_disp *disp;
-	int heads = nvkm_rd32(device, 0x022448);
-	int ret;
-
-	ret = nvkm_disp_create(parent, engine, oclass, heads,
-			       "PDISP", "display", &disp);
-	*pobject = nv_object(disp);
-	if (ret)
-		return ret;
-
-	disp->base.func = &gk104_disp;
-
-	ret = nvkm_event_init(&gf119_disp_chan_uevent, 1, 17, &disp->uevent);
-	if (ret)
-		return ret;
-
-	nv_subdev(disp)->intr = gf119_disp_intr;
-	INIT_WORK(&disp->supervisor, gf119_disp_intr_supervisor);
-	disp->head.nr = heads;
-	disp->dac.nr = 3;
-	disp->sor.nr = 4;
-	disp->dac.power = nv50_dac_power;
-	disp->dac.sense = nv50_dac_sense;
-	disp->sor.power = nv50_sor_power;
-	disp->sor.hda_eld = gf119_hda_eld;
-	disp->sor.hdmi = gk104_hdmi_ctrl;
-	return 0;
+	return gf119_disp_new_(&gk104_disp, device, index, pdisp);
 }
-
-struct nvkm_oclass *
-gk104_disp_oclass = &(struct nv50_disp_impl) {
-	.base.base.handle = NV_ENGINE(DISP, 0x91),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_disp_ctor,
-		.dtor = _nvkm_disp_dtor,
-		.init = _nvkm_disp_init,
-		.fini = _nvkm_disp_fini,
-	},
-	.base.outp.internal.crt = nv50_dac_output_new,
-	.base.outp.internal.tmds = nv50_sor_output_new,
-	.base.outp.internal.lvds = nv50_sor_output_new,
-	.base.outp.internal.dp = gf119_sor_dp_new,
-	.base.vblank = &gf119_disp_vblank_func,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
-}.base.base;

@@ -322,7 +322,7 @@ void
 nvkm_dp_train(struct work_struct *w)
 {
 	struct nvkm_output_dp *outp = container_of(w, typeof(*outp), lt.work);
-	struct nv50_disp *disp = (void *)outp->base.disp;
+	struct nv50_disp *disp = nv50_disp(outp->base.disp);
 	const struct dp_rates *cfg = nvkm_dp_rates;
 	struct dp_state _dp = {
 		.outp = outp,
@@ -330,8 +330,8 @@ nvkm_dp_train(struct work_struct *w)
 	u32 datarate = 0;
 	int ret;
 
-	if (!outp->base.info.location && disp->sor.magic)
-		disp->sor.magic(&outp->base);
+	if (!outp->base.info.location && disp->func->sor.magic)
+		disp->func->sor.magic(&outp->base);
 
 	/* bring capabilities within encoder limits */
 	if (disp->base.engine.subdev.device->chipset < 0xd0)

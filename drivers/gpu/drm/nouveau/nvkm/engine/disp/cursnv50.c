@@ -47,7 +47,7 @@ nv50_disp_curs_new(const struct nv50_disp_chan_func *func,
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent, "create disp cursor vers %d head %d\n",
 			   args->v0.version, args->v0.head);
-		if (args->v0.head > disp->head.nr)
+		if (args->v0.head > disp->base.head.nr)
 			return -EINVAL;
 		head = args->v0.head;
 	} else

@@ -34,7 +34,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gm107_disp_oclass;
 #if 0
 #endif
 #if 0
@@ -50,7 +49,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm204_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
 #if 0
 #endif
 		break;
@@ -64,7 +62,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm206_gr_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
 #if 0
 #endif
 		break;

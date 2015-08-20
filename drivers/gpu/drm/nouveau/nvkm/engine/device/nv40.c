@@ -32,7 +32,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x41:
@@ -40,7 +39,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x42:
@@ -48,7 +46,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x43:
@@ -56,7 +53,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x45:
@@ -64,7 +60,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x47:
@@ -72,7 +67,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x49:
@@ -80,7 +74,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4b:
@@ -88,7 +81,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x44:
@@ -96,7 +88,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x46:
@@ -104,7 +95,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4a:
@@ -112,7 +102,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4c:
@@ -120,7 +109,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4e:
@@ -128,7 +116,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x63:
@@ -136,7 +123,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x67:
@@ -144,7 +130,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x68:
@@ -152,7 +137,6 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	default:
