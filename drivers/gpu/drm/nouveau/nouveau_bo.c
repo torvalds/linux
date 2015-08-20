@@ -1392,8 +1392,8 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			if (drm->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 				page_shift = node->page_shift;
 
-			ret = bar->umap(bar, node->size << 12, page_shift,
-					&node->bar_vma);
+			ret = nvkm_bar_umap(bar, node->size << 12, page_shift,
+					    &node->bar_vma);
 			if (ret)
 				return ret;
 
@@ -1410,14 +1410,13 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
-	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct nvkm_bar *bar = nvxx_bar(&drm->device);
 	struct nvkm_mem *node = mem->mm_node;
 
 	if (!node->bar_vma.node)
 		return;
 
-	bar->unmap(bar, &node->bar_vma);
+	nvkm_vm_unmap(&node->bar_vma);
+	nvkm_vm_put(&node->bar_vma);
 }
 
 static int

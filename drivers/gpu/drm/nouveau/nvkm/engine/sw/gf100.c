@@ -41,11 +41,10 @@ gf100_sw_chan_vblsem_release(struct nvkm_notify *notify)
 		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
 	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
-	struct nvkm_bar *bar = device->bar;
 	u32 inst = chan->base.fifo->inst->addr >> 12;
 
 	nvkm_wr32(device, 0x001718, 0x80000000 | inst);
-	bar->flush(bar);
+	nvkm_bar_flush(device->bar);
 	nvkm_wr32(device, 0x06000c, upper_32_bits(chan->vblank.offset));
 	nvkm_wr32(device, 0x060010, lower_32_bits(chan->vblank.offset));
 	nvkm_wr32(device, 0x060014, chan->vblank.value);

@@ -111,7 +111,7 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	struct nvkm_vm *vm;
 	unsigned long flags;
 
-	if (!iobj->map && bar && bar->kmap && (vm = bar->kmap(bar)))
+	if (!iobj->map && (vm = nvkm_bar_kmap(bar)))
 		nvkm_memory_boot(memory, vm);
 	if (!IS_ERR_OR_NULL(iobj->map))
 		return iobj->map;

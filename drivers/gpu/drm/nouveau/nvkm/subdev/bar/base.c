@@ -23,23 +23,61 @@
  */
 #include "priv.h"
 
+void
+nvkm_bar_flush(struct nvkm_bar *bar)
+{
+	if (bar && bar->func->flush)
+		bar->func->flush(bar);
+}
+
+struct nvkm_vm *
+nvkm_bar_kmap(struct nvkm_bar *bar)
+{
+	/* disallow kmap() until after vm has been bootstrapped */
+	if (bar && bar->func->kmap && bar->subdev.oneinit)
+		return bar->func->kmap(bar);
+	return NULL;
+}
+
 int
-nvkm_bar_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_bar_umap(struct nvkm_bar *bar, u64 size, int type, struct nvkm_vma *vma)
 {
-	return nvkm_subdev_create_(parent, engine, oclass, 0, "BARCTL",
-				   "bar", length, pobject);
+	return bar->func->umap(bar, size, type, vma);
 }
 
-void
-nvkm_bar_destroy(struct nvkm_bar *bar)
+static int
+nvkm_bar_oneinit(struct nvkm_subdev *subdev)
 {
-	nvkm_subdev_destroy(&bar->subdev);
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->oneinit(bar);
 }
 
-void
-_nvkm_bar_dtor(struct nvkm_object *object)
+static int
+nvkm_bar_init(struct nvkm_subdev *subdev)
 {
-	struct nvkm_bar *bar = (void *)object;
-	nvkm_bar_destroy(bar);
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->init(bar);
+}
+
+static void *
+nvkm_bar_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->dtor(bar);
+}
+
+static const struct nvkm_subdev_func
+nvkm_bar = {
+	.dtor = nvkm_bar_dtor,
+	.oneinit = nvkm_bar_oneinit,
+	.init = nvkm_bar_init,
+};
+
+void
+nvkm_bar_ctor(const struct nvkm_bar_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_bar *bar)
+{
+	nvkm_subdev_ctor(&nvkm_bar, device, index, 0, &bar->subdev);
+	bar->func = func;
+	spin_lock_init(&bar->lock);
 }

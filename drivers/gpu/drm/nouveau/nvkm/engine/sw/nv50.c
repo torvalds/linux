@@ -42,11 +42,10 @@ nv50_sw_chan_vblsem_release(struct nvkm_notify *notify)
 		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
 	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
-	struct nvkm_bar *bar = device->bar;
 
 	nvkm_wr32(device, 0x001704, chan->base.fifo->inst->addr >> 12);
 	nvkm_wr32(device, 0x001710, 0x80000000 | chan->vblank.ctxdma);
-	bar->flush(bar);
+	nvkm_bar_flush(device->bar);
 
 	if (nv_device(sw)->chipset == 0x50) {
 		nvkm_wr32(device, 0x001570, chan->vblank.offset);

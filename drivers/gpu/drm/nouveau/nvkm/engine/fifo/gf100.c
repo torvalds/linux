@@ -632,7 +632,7 @@ gf100_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = bar->umap(bar, 128 * 0x1000, 12, &fifo->user.bar);
+	ret = nvkm_bar_umap(bar, 128 * 0x1000, 12, &fifo->user.bar);
 	if (ret)
 		return ret;
 

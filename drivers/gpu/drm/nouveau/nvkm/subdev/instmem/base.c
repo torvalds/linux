@@ -65,9 +65,7 @@ static void
 nvkm_instobj_release(struct nvkm_memory *memory)
 {
 	struct nvkm_instobj *iobj = nvkm_instobj(memory);
-	struct nvkm_bar *bar = iobj->imem->subdev.device->bar;
-	if (bar && bar->flush)
-		bar->flush(bar);
+	nvkm_bar_flush(iobj->imem->subdev.device->bar);
 }
 
 static void __iomem *

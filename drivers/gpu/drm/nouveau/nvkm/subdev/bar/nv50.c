@@ -21,100 +21,57 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "nv50.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
 
-struct nv50_bar {
-	struct nvkm_bar base;
-	spinlock_t lock;
-	struct nvkm_gpuobj *mem;
-	struct nvkm_gpuobj *pad;
-	struct nvkm_gpuobj *pgd;
-	struct nvkm_vm *bar1_vm;
-	struct nvkm_gpuobj *bar1;
-	struct nvkm_vm *bar3_vm;
-	struct nvkm_gpuobj *bar3;
-};
-
-static struct nvkm_vm *
-nv50_bar_kmap(struct nvkm_bar *obj)
+struct nvkm_vm *
+nv50_bar_kmap(struct nvkm_bar *base)
 {
-	struct nv50_bar *bar = container_of(obj, typeof(*bar), base);
-	return bar->bar3_vm;
+	return nv50_bar(base)->bar3_vm;
 }
 
-static int
-nv50_bar_umap(struct nvkm_bar *obj, u64 size, int type, struct nvkm_vma *vma)
+int
+nv50_bar_umap(struct nvkm_bar *base, u64 size, int type, struct nvkm_vma *vma)
 {
-	struct nv50_bar *bar = container_of(obj, typeof(*bar), base);
+	struct nv50_bar *bar = nv50_bar(base);
 	return nvkm_vm_get(bar->bar1_vm, size, type, NV_MEM_ACCESS_RW, vma);
 }
 
 static void
-nv50_bar_unmap(struct nvkm_bar *bar, struct nvkm_vma *vma)
+nv50_bar_flush(struct nvkm_bar *base)
 {
-	nvkm_vm_unmap(vma);
-	nvkm_vm_put(vma);
-}
-
-static void
-nv50_bar_flush(struct nvkm_bar *obj)
-{
-	struct nv50_bar *bar = container_of(obj, typeof(*bar), base);
+	struct nv50_bar *bar = nv50_bar(base);
 	struct nvkm_device *device = bar->base.subdev.device;
 	unsigned long flags;
-	spin_lock_irqsave(&bar->lock, flags);
+	spin_lock_irqsave(&bar->base.lock, flags);
 	nvkm_wr32(device, 0x00330c, 0x00000001);
 	nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x00330c) & 0x00000002))
 			break;
 	);
-	spin_unlock_irqrestore(&bar->lock, flags);
+	spin_unlock_irqrestore(&bar->base.lock, flags);
 }
 
-void
-g84_bar_flush(struct nvkm_bar *obj)
+int
+nv50_bar_oneinit(struct nvkm_bar *base)
 {
-	struct nv50_bar *bar = container_of(obj, typeof(*bar), base);
+	struct nv50_bar *bar = nv50_bar(base);
 	struct nvkm_device *device = bar->base.subdev.device;
-	unsigned long flags;
-	spin_lock_irqsave(&bar->lock, flags);
-	nvkm_wr32(device, 0x070000, 0x00000001);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x070000) & 0x00000002))
-			break;
-	);
-	spin_unlock_irqrestore(&bar->lock, flags);
-}
-
-static int
-nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
 	static struct lock_class_key bar1_lock;
 	static struct lock_class_key bar3_lock;
-	struct nvkm_device *device = nv_device(parent);
 	struct nvkm_vm *vm;
-	struct nv50_bar *bar;
 	u64 start, limit;
 	int ret;
-
-	ret = nvkm_bar_create(parent, engine, oclass, &bar);
-	*pobject = nv_object(bar);
-	if (ret)
-		return ret;
 
 	ret = nvkm_gpuobj_new(device, 0x20000, 0, false, NULL, &bar->mem);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(device, (device->chipset == 0x50) ?
-			      0x1400 : 0x200, 0, false, bar->mem,
+	ret = nvkm_gpuobj_new(device, bar->pgd_addr, 0, false, bar->mem,
 			      &bar->pad);
 	if (ret)
 		return ret;
@@ -184,45 +141,15 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_wo32(bar->bar1, 0x10, 0x00000000);
 	nvkm_wo32(bar->bar1, 0x14, 0x00000000);
 	nvkm_done(bar->bar1);
-
-	bar->base.kmap = nv50_bar_kmap;
-	bar->base.umap = nv50_bar_umap;
-	bar->base.unmap = nv50_bar_unmap;
-	if (device->chipset == 0x50)
-		bar->base.flush = nv50_bar_flush;
-	else
-		bar->base.flush = g84_bar_flush;
-	spin_lock_init(&bar->lock);
 	return 0;
 }
 
-static void
-nv50_bar_dtor(struct nvkm_object *object)
+int
+nv50_bar_init(struct nvkm_bar *base)
 {
-	struct nv50_bar *bar = (void *)object;
-	nvkm_gpuobj_del(&bar->bar1);
-	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->pgd);
-	nvkm_gpuobj_del(&bar->bar3);
-	if (bar->bar3_vm) {
-		nvkm_memory_del(&bar->bar3_vm->pgt[0].mem[0]);
-		nvkm_vm_ref(NULL, &bar->bar3_vm, bar->pgd);
-	}
-	nvkm_gpuobj_del(&bar->pgd);
-	nvkm_gpuobj_del(&bar->pad);
-	nvkm_gpuobj_del(&bar->mem);
-	nvkm_bar_destroy(&bar->base);
-}
-
-static int
-nv50_bar_init(struct nvkm_object *object)
-{
-	struct nv50_bar *bar = (void *)object;
+	struct nv50_bar *bar = nv50_bar(base);
 	struct nvkm_device *device = bar->base.subdev.device;
-	int ret, i;
-
-	ret = nvkm_bar_init(&bar->base);
-	if (ret)
-		return ret;
+	int i;
 
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
@@ -242,20 +169,48 @@ nv50_bar_init(struct nvkm_object *object)
 	return 0;
 }
 
-static int
-nv50_bar_fini(struct nvkm_object *object, bool suspend)
+void *
+nv50_bar_dtor(struct nvkm_bar *base)
 {
-	struct nv50_bar *bar = (void *)object;
-	return nvkm_bar_fini(&bar->base, suspend);
+	struct nv50_bar *bar = nv50_bar(base);
+	nvkm_gpuobj_del(&bar->bar1);
+	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->pgd);
+	nvkm_gpuobj_del(&bar->bar3);
+	if (bar->bar3_vm) {
+		nvkm_memory_del(&bar->bar3_vm->pgt[0].mem[0]);
+		nvkm_vm_ref(NULL, &bar->bar3_vm, bar->pgd);
+	}
+	nvkm_gpuobj_del(&bar->pgd);
+	nvkm_gpuobj_del(&bar->pad);
+	nvkm_gpuobj_del(&bar->mem);
+	return bar;
 }
 
-struct nvkm_oclass
-nv50_bar_oclass = {
-	.handle = NV_SUBDEV(BAR, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_bar_ctor,
-		.dtor = nv50_bar_dtor,
-		.init = nv50_bar_init,
-		.fini = nv50_bar_fini,
-	},
+int
+nv50_bar_new_(const struct nvkm_bar_func *func, struct nvkm_device *device,
+	      int index, u32 pgd_addr, struct nvkm_bar **pbar)
+{
+	struct nv50_bar *bar;
+	if (!(bar = kzalloc(sizeof(*bar), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_bar_ctor(func, device, index, &bar->base);
+	bar->pgd_addr = pgd_addr;
+	*pbar = &bar->base;
+	return 0;
+}
+
+static const struct nvkm_bar_func
+nv50_bar_func = {
+	.dtor = nv50_bar_dtor,
+	.oneinit = nv50_bar_oneinit,
+	.init = nv50_bar_init,
+	.kmap = nv50_bar_kmap,
+	.umap = nv50_bar_umap,
+	.flush = nv50_bar_flush,
 };
+
+int
+nv50_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
+{
+	return nv50_bar_new_(&nv50_bar_func, device, index, 0x1400, pbar);
+}
