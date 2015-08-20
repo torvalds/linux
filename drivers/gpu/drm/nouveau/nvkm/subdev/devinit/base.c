@@ -50,9 +50,19 @@ nvkm_devinit_meminit(struct nvkm_devinit *init)
 u64
 nvkm_devinit_disable(struct nvkm_devinit *init)
 {
-	if (init->func->disable)
+	if (init && init->func->disable)
 		return init->func->disable(init);
 	return 0;
+}
+
+int
+nvkm_devinit_post(struct nvkm_devinit *init, u64 *disable)
+{
+	int ret = 0;
+	if (init && init->func->post)
+		ret = init->func->post(init, init->post);
+	*disable = nvkm_devinit_disable(init);
+	return ret;
 }
 
 static int
@@ -82,17 +92,8 @@ static int
 nvkm_devinit_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_devinit *init = nvkm_devinit(subdev);
-	int ret;
-
-	ret = init->func->post(init, init->post);
-	if (ret)
-		return ret;
-
 	if (init->func->init)
 		init->func->init(init);
-
-	if (init->func->disable)
-		subdev->device->disable_mask |= init->func->disable(init);
 	return 0;
 }
 

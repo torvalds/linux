@@ -2167,7 +2167,9 @@ nvkm_device_preinit(struct nvkm_device *device)
 		}
 	}
 
-	/*XXX: devinit */
+	ret = nvkm_devinit_post(device->devinit, &device->disable_mask);
+	if (ret)
+		goto fail;
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvdev_trace(device, "preinit completed in %lldus\n", time);
