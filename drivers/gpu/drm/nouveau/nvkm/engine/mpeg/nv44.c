@@ -60,12 +60,13 @@ nv44_mpeg_context_fini(struct nvkm_object *object, bool suspend)
 
 	struct nvkm_mpeg *mpeg = (void *)object->engine;
 	struct nv44_mpeg_chan *chan = (void *)object;
+	struct nvkm_device *device = mpeg->engine.subdev.device;
 	u32 inst = 0x80000000 | nv_gpuobj(chan)->addr >> 4;
 
-	nv_mask(mpeg, 0x00b32c, 0x00000001, 0x00000000);
-	if (nv_rd32(mpeg, 0x00b318) == inst)
-		nv_mask(mpeg, 0x00b318, 0x80000000, 0x00000000);
-	nv_mask(mpeg, 0x00b32c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x00b32c, 0x00000001, 0x00000000);
+	if (nvkm_rd32(device, 0x00b318) == inst)
+		nvkm_mask(device, 0x00b318, 0x80000000, 0x00000000);
+	nvkm_mask(device, 0x00b32c, 0x00000001, 0x00000001);
 	return 0;
 }
 
@@ -89,16 +90,17 @@ nv44_mpeg_cclass = {
 static void
 nv44_mpeg_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
+	struct nvkm_mpeg *mpeg = (void *)subdev;
+	struct nvkm_device *device = mpeg->engine.subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle;
-	struct nvkm_mpeg *mpeg = (void *)subdev;
-	u32 inst = nv_rd32(mpeg, 0x00b318) & 0x000fffff;
-	u32 stat = nv_rd32(mpeg, 0x00b100);
-	u32 type = nv_rd32(mpeg, 0x00b230);
-	u32 mthd = nv_rd32(mpeg, 0x00b234);
-	u32 data = nv_rd32(mpeg, 0x00b238);
+	u32 inst = nvkm_rd32(device, 0x00b318) & 0x000fffff;
+	u32 stat = nvkm_rd32(device, 0x00b100);
+	u32 type = nvkm_rd32(device, 0x00b230);
+	u32 mthd = nvkm_rd32(device, 0x00b234);
+	u32 data = nvkm_rd32(device, 0x00b238);
 	u32 show = stat;
 	int chid;
 
@@ -108,7 +110,7 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
 		if (type == 0x00000020 && mthd == 0x0000) {
-			nv_mask(mpeg, 0x00b308, 0x00000000, 0x00000000);
+			nvkm_mask(device, 0x00b308, 0x00000000, 0x00000000);
 			show &= ~0x01000000;
 		}
 
@@ -120,8 +122,8 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 		}
 	}
 
-	nv_wr32(mpeg, 0x00b100, stat);
-	nv_wr32(mpeg, 0x00b230, 0x00000001);
+	nvkm_wr32(device, 0x00b100, stat);
+	nvkm_wr32(device, 0x00b230, 0x00000001);
 
 	if (show) {
 		nv_error(mpeg,
@@ -137,14 +139,15 @@ static void
 nv44_mpeg_me_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mpeg *mpeg = (void *)subdev;
+	struct nvkm_device *device = mpeg->engine.subdev.device;
 	u32 stat;
 
-	if ((stat = nv_rd32(mpeg, 0x00b100)))
+	if ((stat = nvkm_rd32(device, 0x00b100)))
 		nv44_mpeg_intr(subdev);
 
-	if ((stat = nv_rd32(mpeg, 0x00b800))) {
+	if ((stat = nvkm_rd32(device, 0x00b800))) {
 		nv_error(mpeg, "PMSRCH 0x%08x\n", stat);
-		nv_wr32(mpeg, 0x00b800, stat);
+		nvkm_wr32(device, 0x00b800, stat);
 	}
 }
 

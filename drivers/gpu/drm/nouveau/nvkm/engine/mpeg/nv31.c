@@ -59,8 +59,9 @@ nv31_mpeg_object_ctor(struct nvkm_object *parent,
 static int
 nv31_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(object);
 	struct nv31_mpeg *mpeg = (void *)object->engine;
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_instmem *imem = device->imem;
 	u32 inst = *(u32 *)arg << 4;
 	u32 dma0 = nv_ro32(imem, inst + 0);
 	u32 dma1 = nv_ro32(imem, inst + 4);
@@ -74,22 +75,22 @@ nv31_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nv_mask(mpeg, 0x00b300, 0x00010000, (dma0 & 0x00030000) ? 0x00010000 : 0);
-		nv_wr32(mpeg, 0x00b334, base);
-		nv_wr32(mpeg, 0x00b324, size);
+		nvkm_mask(device, 0x00b300, 0x00010000, (dma0 & 0x00030000) ? 0x00010000 : 0);
+		nvkm_wr32(device, 0x00b334, base);
+		nvkm_wr32(device, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nv_mask(mpeg, 0x00b300, 0x00020000, (dma0 & 0x00030000) ? 0x00020000 : 0);
-		nv_wr32(mpeg, 0x00b360, base);
-		nv_wr32(mpeg, 0x00b364, size);
+		nvkm_mask(device, 0x00b300, 0x00020000, (dma0 & 0x00030000) ? 0x00020000 : 0);
+		nvkm_wr32(device, 0x00b360, base);
+		nvkm_wr32(device, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
 		if (dma0 & 0x00030000)
 			return -EINVAL;
 
-		nv_wr32(mpeg, 0x00b370, base);
-		nv_wr32(mpeg, 0x00b374, size);
+		nvkm_wr32(device, 0x00b370, base);
+		nvkm_wr32(device, 0x00b374, size);
 	}
 
 	return 0;
@@ -182,25 +183,27 @@ nv31_mpeg_cclass = {
 void
 nv31_mpeg_tile_prog(struct nvkm_engine *engine, int i)
 {
-	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
 	struct nv31_mpeg *mpeg = (void *)engine;
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
 
-	nv_wr32(mpeg, 0x00b008 + (i * 0x10), tile->pitch);
-	nv_wr32(mpeg, 0x00b004 + (i * 0x10), tile->limit);
-	nv_wr32(mpeg, 0x00b000 + (i * 0x10), tile->addr);
+	nvkm_wr32(device, 0x00b008 + (i * 0x10), tile->pitch);
+	nvkm_wr32(device, 0x00b004 + (i * 0x10), tile->limit);
+	nvkm_wr32(device, 0x00b000 + (i * 0x10), tile->addr);
 }
 
 void
 nv31_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nv31_mpeg *mpeg = (void *)subdev;
-	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_handle *handle;
 	struct nvkm_object *engctx;
-	u32 stat = nv_rd32(mpeg, 0x00b100);
-	u32 type = nv_rd32(mpeg, 0x00b230);
-	u32 mthd = nv_rd32(mpeg, 0x00b234);
-	u32 data = nv_rd32(mpeg, 0x00b238);
+	u32 stat = nvkm_rd32(device, 0x00b100);
+	u32 type = nvkm_rd32(device, 0x00b230);
+	u32 mthd = nvkm_rd32(device, 0x00b234);
+	u32 data = nvkm_rd32(device, 0x00b238);
 	u32 show = stat;
 	unsigned long flags;
 
@@ -210,7 +213,7 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
 		if (type == 0x00000020 && mthd == 0x0000) {
-			nv_mask(mpeg, 0x00b308, 0x00000000, 0x00000000);
+			nvkm_mask(device, 0x00b308, 0x00000000, 0x00000000);
 			show &= ~0x01000000;
 		}
 
@@ -222,8 +225,8 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 		}
 	}
 
-	nv_wr32(mpeg, 0x00b100, stat);
-	nv_wr32(mpeg, 0x00b230, 0x00000001);
+	nvkm_wr32(device, 0x00b100, stat);
+	nvkm_wr32(device, 0x00b230, 0x00000001);
 
 	if (show) {
 		nv_error(mpeg, "ch %d [%s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
@@ -260,7 +263,8 @@ nv31_mpeg_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nv31_mpeg *mpeg = (void *)object;
-	struct nvkm_fb *fb = nvkm_fb(object);
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	int ret, i;
 
 	ret = nvkm_mpeg_init(&mpeg->base);
@@ -268,24 +272,24 @@ nv31_mpeg_init(struct nvkm_object *object)
 		return ret;
 
 	/* VPE init */
-	nv_wr32(mpeg, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
-	nv_wr32(mpeg, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
+	nvkm_wr32(device, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
+	nvkm_wr32(device, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
 
 	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
 	/* PMPEG init */
-	nv_wr32(mpeg, 0x00b32c, 0x00000000);
-	nv_wr32(mpeg, 0x00b314, 0x00000100);
-	nv_wr32(mpeg, 0x00b220, 0x00000031);
-	nv_wr32(mpeg, 0x00b300, 0x02001ec1);
-	nv_mask(mpeg, 0x00b32c, 0x00000001, 0x00000001);
+	nvkm_wr32(device, 0x00b32c, 0x00000000);
+	nvkm_wr32(device, 0x00b314, 0x00000100);
+	nvkm_wr32(device, 0x00b220, 0x00000031);
+	nvkm_wr32(device, 0x00b300, 0x02001ec1);
+	nvkm_mask(device, 0x00b32c, 0x00000001, 0x00000001);
 
-	nv_wr32(mpeg, 0x00b100, 0xffffffff);
-	nv_wr32(mpeg, 0x00b140, 0xffffffff);
+	nvkm_wr32(device, 0x00b100, 0xffffffff);
+	nvkm_wr32(device, 0x00b140, 0xffffffff);
 
 	if (!nv_wait(mpeg, 0x00b200, 0x00000001, 0x00000000)) {
-		nv_error(mpeg, "timeout 0x%08x\n", nv_rd32(mpeg, 0x00b200));
+		nv_error(mpeg, "timeout 0x%08x\n", nvkm_rd32(device, 0x00b200));
 		return -EBUSY;
 	}
 

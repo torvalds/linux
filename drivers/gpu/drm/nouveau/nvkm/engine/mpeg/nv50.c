@@ -119,16 +119,17 @@ void
 nv50_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mpeg *mpeg = (void *)subdev;
-	u32 stat = nv_rd32(mpeg, 0x00b100);
-	u32 type = nv_rd32(mpeg, 0x00b230);
-	u32 mthd = nv_rd32(mpeg, 0x00b234);
-	u32 data = nv_rd32(mpeg, 0x00b238);
+	struct nvkm_device *device = mpeg->engine.subdev.device;
+	u32 stat = nvkm_rd32(device, 0x00b100);
+	u32 type = nvkm_rd32(device, 0x00b230);
+	u32 mthd = nvkm_rd32(device, 0x00b234);
+	u32 data = nvkm_rd32(device, 0x00b238);
 	u32 show = stat;
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
 		if (type == 0x00000020 && mthd == 0x0000) {
-			nv_wr32(mpeg, 0x00b308, 0x00000100);
+			nvkm_wr32(device, 0x00b308, 0x00000100);
 			show &= ~0x01000000;
 		}
 	}
@@ -138,22 +139,23 @@ nv50_mpeg_intr(struct nvkm_subdev *subdev)
 			stat, type, mthd, data);
 	}
 
-	nv_wr32(mpeg, 0x00b100, stat);
-	nv_wr32(mpeg, 0x00b230, 0x00000001);
+	nvkm_wr32(device, 0x00b100, stat);
+	nvkm_wr32(device, 0x00b230, 0x00000001);
 }
 
 static void
 nv50_vpe_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mpeg *mpeg = (void *)subdev;
+	struct nvkm_device *device = mpeg->engine.subdev.device;
 
-	if (nv_rd32(mpeg, 0x00b100))
+	if (nvkm_rd32(device, 0x00b100))
 		nv50_mpeg_intr(subdev);
 
-	if (nv_rd32(mpeg, 0x00b800)) {
-		u32 stat = nv_rd32(mpeg, 0x00b800);
+	if (nvkm_rd32(device, 0x00b800)) {
+		u32 stat = nvkm_rd32(device, 0x00b800);
 		nv_info(mpeg, "PMSRCH: 0x%08x\n", stat);
-		nv_wr32(mpeg, 0xb800, stat);
+		nvkm_wr32(device, 0xb800, stat);
 	}
 }
 
@@ -181,28 +183,29 @@ int
 nv50_mpeg_init(struct nvkm_object *object)
 {
 	struct nvkm_mpeg *mpeg = (void *)object;
+	struct nvkm_device *device = mpeg->engine.subdev.device;
 	int ret;
 
 	ret = nvkm_mpeg_init(mpeg);
 	if (ret)
 		return ret;
 
-	nv_wr32(mpeg, 0x00b32c, 0x00000000);
-	nv_wr32(mpeg, 0x00b314, 0x00000100);
-	nv_wr32(mpeg, 0x00b0e0, 0x0000001a);
+	nvkm_wr32(device, 0x00b32c, 0x00000000);
+	nvkm_wr32(device, 0x00b314, 0x00000100);
+	nvkm_wr32(device, 0x00b0e0, 0x0000001a);
 
-	nv_wr32(mpeg, 0x00b220, 0x00000044);
-	nv_wr32(mpeg, 0x00b300, 0x00801ec1);
-	nv_wr32(mpeg, 0x00b390, 0x00000000);
-	nv_wr32(mpeg, 0x00b394, 0x00000000);
-	nv_wr32(mpeg, 0x00b398, 0x00000000);
-	nv_mask(mpeg, 0x00b32c, 0x00000001, 0x00000001);
+	nvkm_wr32(device, 0x00b220, 0x00000044);
+	nvkm_wr32(device, 0x00b300, 0x00801ec1);
+	nvkm_wr32(device, 0x00b390, 0x00000000);
+	nvkm_wr32(device, 0x00b394, 0x00000000);
+	nvkm_wr32(device, 0x00b398, 0x00000000);
+	nvkm_mask(device, 0x00b32c, 0x00000001, 0x00000001);
 
-	nv_wr32(mpeg, 0x00b100, 0xffffffff);
-	nv_wr32(mpeg, 0x00b140, 0xffffffff);
+	nvkm_wr32(device, 0x00b100, 0xffffffff);
+	nvkm_wr32(device, 0x00b140, 0xffffffff);
 
 	if (!nv_wait(mpeg, 0x00b200, 0x00000001, 0x00000000)) {
-		nv_error(mpeg, "timeout 0x%08x\n", nv_rd32(mpeg, 0x00b200));
+		nv_error(mpeg, "timeout 0x%08x\n", nvkm_rd32(device, 0x00b200));
 		return -EBUSY;
 	}
 

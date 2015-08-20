@@ -32,8 +32,9 @@
 static int
 nv40_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(object);
 	struct nv31_mpeg *mpeg = (void *)object->engine;
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_instmem *imem = device->imem;
 	u32 inst = *(u32 *)arg << 4;
 	u32 dma0 = nv_ro32(imem, inst + 0);
 	u32 dma1 = nv_ro32(imem, inst + 4);
@@ -47,22 +48,22 @@ nv40_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nv_mask(mpeg, 0x00b300, 0x00030000, (dma0 & 0x00030000));
-		nv_wr32(mpeg, 0x00b334, base);
-		nv_wr32(mpeg, 0x00b324, size);
+		nvkm_mask(device, 0x00b300, 0x00030000, (dma0 & 0x00030000));
+		nvkm_wr32(device, 0x00b334, base);
+		nvkm_wr32(device, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nv_mask(mpeg, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
-		nv_wr32(mpeg, 0x00b360, base);
-		nv_wr32(mpeg, 0x00b364, size);
+		nvkm_mask(device, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
+		nvkm_wr32(device, 0x00b360, base);
+		nvkm_wr32(device, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
 		if (dma0 & 0x00030000)
 			return -EINVAL;
 
-		nv_wr32(mpeg, 0x00b370, base);
-		nv_wr32(mpeg, 0x00b374, size);
+		nvkm_wr32(device, 0x00b370, base);
+		nvkm_wr32(device, 0x00b374, size);
 	}
 
 	return 0;
@@ -90,14 +91,15 @@ static void
 nv40_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nv31_mpeg *mpeg = (void *)subdev;
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
 	u32 stat;
 
-	if ((stat = nv_rd32(mpeg, 0x00b100)))
+	if ((stat = nvkm_rd32(device, 0x00b100)))
 		nv31_mpeg_intr(subdev);
 
-	if ((stat = nv_rd32(mpeg, 0x00b800))) {
+	if ((stat = nvkm_rd32(device, 0x00b800))) {
 		nv_error(mpeg, "PMSRCH 0x%08x\n", stat);
-		nv_wr32(mpeg, 0x00b800, stat);
+		nvkm_wr32(device, 0x00b800, stat);
 	}
 }
 
