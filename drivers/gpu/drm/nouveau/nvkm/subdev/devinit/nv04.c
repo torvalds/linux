@@ -33,15 +33,15 @@
 #include <subdev/vga.h>
 
 static void
-nv04_devinit_meminit(struct nvkm_devinit *devinit)
+nv04_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nv04_devinit *init = (void *)devinit;
+	struct nvkm_device *device = init->subdev.device;
 	u32 patt = 0xdeadbeef;
 	struct io_mapping *fb;
 	int i;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(init));
+	fb = fbmem_init(device);
 	if (!fb) {
 		nv_error(init, "failed to map fb\n");
 		return;
@@ -49,9 +49,9 @@ nv04_devinit_meminit(struct nvkm_devinit *devinit)
 
 	/* Sequencer and refresh off */
 	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) | 0x20);
-	nv_mask(init, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
+	nvkm_mask(device, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
 
-	nv_mask(init, NV04_PFB_BOOT_0, ~0,
+	nvkm_mask(device, NV04_PFB_BOOT_0, ~0,
 		      NV04_PFB_BOOT_0_RAM_AMOUNT_16MB |
 		      NV04_PFB_BOOT_0_RAM_WIDTH_128 |
 		      NV04_PFB_BOOT_0_RAM_TYPE_SGRAM_16MBIT);
@@ -62,48 +62,48 @@ nv04_devinit_meminit(struct nvkm_devinit *devinit)
 	fbmem_poke(fb, 0x400000, patt + 1);
 
 	if (fbmem_peek(fb, 0) == patt + 1) {
-		nv_mask(init, NV04_PFB_BOOT_0,
+		nvkm_mask(device, NV04_PFB_BOOT_0,
 			      NV04_PFB_BOOT_0_RAM_TYPE,
 			      NV04_PFB_BOOT_0_RAM_TYPE_SDRAM_16MBIT);
-		nv_mask(init, NV04_PFB_DEBUG_0,
+		nvkm_mask(device, NV04_PFB_DEBUG_0,
 			      NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
 
 		for (i = 0; i < 4; i++)
 			fbmem_poke(fb, 4 * i, patt);
 
 		if ((fbmem_peek(fb, 0xc) & 0xffff) != (patt & 0xffff))
-			nv_mask(init, NV04_PFB_BOOT_0,
+			nvkm_mask(device, NV04_PFB_BOOT_0,
 				      NV04_PFB_BOOT_0_RAM_WIDTH_128 |
 				      NV04_PFB_BOOT_0_RAM_AMOUNT,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
 	} else
 	if ((fbmem_peek(fb, 0xc) & 0xffff0000) != (patt & 0xffff0000)) {
-		nv_mask(init, NV04_PFB_BOOT_0,
+		nvkm_mask(device, NV04_PFB_BOOT_0,
 			      NV04_PFB_BOOT_0_RAM_WIDTH_128 |
 			      NV04_PFB_BOOT_0_RAM_AMOUNT,
 			      NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
 	} else
 	if (fbmem_peek(fb, 0) != patt) {
 		if (fbmem_readback(fb, 0x800000, patt))
-			nv_mask(init, NV04_PFB_BOOT_0,
+			nvkm_mask(device, NV04_PFB_BOOT_0,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
 		else
-			nv_mask(init, NV04_PFB_BOOT_0,
+			nvkm_mask(device, NV04_PFB_BOOT_0,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT,
 				      NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
 
-		nv_mask(init, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_TYPE,
+		nvkm_mask(device, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_TYPE,
 			      NV04_PFB_BOOT_0_RAM_TYPE_SGRAM_8MBIT);
 	} else
 	if (!fbmem_readback(fb, 0x800000, patt)) {
-		nv_mask(init, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
+		nvkm_mask(device, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
 			      NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
 
 	}
 
 	/* Refresh on, sequencer on */
-	nv_mask(init, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+	nvkm_mask(device, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
 	nv_wrvgas(init, 0, 1, nv_rdvgas(init, 0, 1) & ~0x20);
 	fbmem_fini(fb);
 }
@@ -139,11 +139,12 @@ powerctrl_1_shift(int chip_version, int reg)
 }
 
 void
-setPLL_single(struct nvkm_devinit *devinit, u32 reg,
+setPLL_single(struct nvkm_devinit *init, u32 reg,
 	      struct nvkm_pll_vals *pv)
 {
-	int chip_version = nvkm_bios(devinit)->version.chip;
-	uint32_t oldpll = nv_rd32(devinit, reg);
+	struct nvkm_device *device = init->subdev.device;
+	int chip_version = device->bios->version.chip;
+	uint32_t oldpll = nvkm_rd32(device, reg);
 	int oldN = (oldpll >> 8) & 0xff, oldM = oldpll & 0xff;
 	uint32_t pll = (oldpll & 0xfff80000) | pv->log2P << 16 | pv->NM1;
 	uint32_t saved_powerctrl_1 = 0;
@@ -153,30 +154,30 @@ setPLL_single(struct nvkm_devinit *devinit, u32 reg,
 		return;	/* already set */
 
 	if (shift_powerctrl_1 >= 0) {
-		saved_powerctrl_1 = nv_rd32(devinit, 0x001584);
-		nv_wr32(devinit, 0x001584,
+		saved_powerctrl_1 = nvkm_rd32(device, 0x001584);
+		nvkm_wr32(device, 0x001584,
 			(saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) |
 			1 << shift_powerctrl_1);
 	}
 
 	if (oldM && pv->M1 && (oldN / oldM < pv->N1 / pv->M1))
 		/* upclock -- write new post divider first */
-		nv_wr32(devinit, reg, pv->log2P << 16 | (oldpll & 0xffff));
+		nvkm_wr32(device, reg, pv->log2P << 16 | (oldpll & 0xffff));
 	else
 		/* downclock -- write new NM first */
-		nv_wr32(devinit, reg, (oldpll & 0xffff0000) | pv->NM1);
+		nvkm_wr32(device, reg, (oldpll & 0xffff0000) | pv->NM1);
 
 	if ((chip_version < 0x17 || chip_version == 0x1a) &&
 	    chip_version != 0x11)
 		/* wait a bit on older chips */
 		msleep(64);
-	nv_rd32(devinit, reg);
+	nvkm_rd32(device, reg);
 
 	/* then write the other half as well */
-	nv_wr32(devinit, reg, pll);
+	nvkm_wr32(device, reg, pll);
 
 	if (shift_powerctrl_1 >= 0)
-		nv_wr32(devinit, 0x001584, saved_powerctrl_1);
+		nvkm_wr32(device, 0x001584, saved_powerctrl_1);
 }
 
 static uint32_t
@@ -193,14 +194,15 @@ new_ramdac580(uint32_t reg1, bool ss, uint32_t ramdac580)
 }
 
 void
-setPLL_double_highregs(struct nvkm_devinit *devinit, u32 reg1,
+setPLL_double_highregs(struct nvkm_devinit *init, u32 reg1,
 		       struct nvkm_pll_vals *pv)
 {
-	int chip_version = nvkm_bios(devinit)->version.chip;
+	struct nvkm_device *device = init->subdev.device;
+	int chip_version = device->bios->version.chip;
 	bool nv3035 = chip_version == 0x30 || chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == 0x680520) ? 0x5c : 0x70);
-	uint32_t oldpll1 = nv_rd32(devinit, reg1);
-	uint32_t oldpll2 = !nv3035 ? nv_rd32(devinit, reg2) : 0;
+	uint32_t oldpll1 = nvkm_rd32(device, reg1);
+	uint32_t oldpll2 = !nv3035 ? nvkm_rd32(device, reg2) : 0;
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | pv->log2P << 16 | pv->NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | pv->NM2;
 	uint32_t oldramdac580 = 0, ramdac580 = 0;
@@ -215,7 +217,7 @@ setPLL_double_highregs(struct nvkm_devinit *devinit, u32 reg1,
 		pll2 = 0;
 	}
 	if (chip_version > 0x40 && reg1 >= 0x680508) { /* !nv40 */
-		oldramdac580 = nv_rd32(devinit, 0x680580);
+		oldramdac580 = nvkm_rd32(device, 0x680580);
 		ramdac580 = new_ramdac580(reg1, single_stage, oldramdac580);
 		if (oldramdac580 != ramdac580)
 			oldpll1 = ~0;	/* force mismatch */
@@ -231,8 +233,8 @@ setPLL_double_highregs(struct nvkm_devinit *devinit, u32 reg1,
 		return;	/* already set */
 
 	if (shift_powerctrl_1 >= 0) {
-		saved_powerctrl_1 = nv_rd32(devinit, 0x001584);
-		nv_wr32(devinit, 0x001584,
+		saved_powerctrl_1 = nvkm_rd32(device, 0x001584);
+		nvkm_wr32(device, 0x001584,
 			(saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) |
 			1 << shift_powerctrl_1);
 	}
@@ -251,26 +253,26 @@ setPLL_double_highregs(struct nvkm_devinit *devinit, u32 reg1,
 			shift_c040 += 2;
 		}
 
-		savedc040 = nv_rd32(devinit, 0xc040);
+		savedc040 = nvkm_rd32(device, 0xc040);
 		if (shift_c040 != 14)
-			nv_wr32(devinit, 0xc040, savedc040 & ~(3 << shift_c040));
+			nvkm_wr32(device, 0xc040, savedc040 & ~(3 << shift_c040));
 	}
 
 	if (oldramdac580 != ramdac580)
-		nv_wr32(devinit, 0x680580, ramdac580);
+		nvkm_wr32(device, 0x680580, ramdac580);
 
 	if (!nv3035)
-		nv_wr32(devinit, reg2, pll2);
-	nv_wr32(devinit, reg1, pll1);
+		nvkm_wr32(device, reg2, pll2);
+	nvkm_wr32(device, reg1, pll1);
 
 	if (shift_powerctrl_1 >= 0)
-		nv_wr32(devinit, 0x001584, saved_powerctrl_1);
+		nvkm_wr32(device, 0x001584, saved_powerctrl_1);
 	if (chip_version >= 0x40)
-		nv_wr32(devinit, 0xc040, savedc040);
+		nvkm_wr32(device, 0xc040, savedc040);
 }
 
 void
-setPLL_double_lowregs(struct nvkm_devinit *devinit, u32 NMNMreg,
+setPLL_double_lowregs(struct nvkm_devinit *init, u32 NMNMreg,
 		      struct nvkm_pll_vals *pv)
 {
 	/* When setting PLLs, there is a merry game of disabling and enabling
@@ -280,10 +282,10 @@ setPLL_double_lowregs(struct nvkm_devinit *devinit, u32 NMNMreg,
 	 * combined herein. Without luck it deviates from each card's formula
 	 * so as to not work on any :)
 	 */
-
+	struct nvkm_device *device = init->subdev.device;
 	uint32_t Preg = NMNMreg - 4;
 	bool mpll = Preg == 0x4020;
-	uint32_t oldPval = nv_rd32(devinit, Preg);
+	uint32_t oldPval = nvkm_rd32(device, Preg);
 	uint32_t NMNM = pv->NM2 << 16 | pv->NM1;
 	uint32_t Pval = (oldPval & (mpll ? ~(0x77 << 16) : ~(7 << 16))) |
 			0xc << 28 | pv->log2P << 16;
@@ -292,7 +294,7 @@ setPLL_double_lowregs(struct nvkm_devinit *devinit, u32 NMNMreg,
 	uint32_t maskc040 = ~(3 << 14), savedc040;
 	bool single_stage = !pv->NM2 || pv->N2 == pv->M2;
 
-	if (nv_rd32(devinit, NMNMreg) == NMNM && (oldPval & 0xc0070000) == Pval)
+	if (nvkm_rd32(device, NMNMreg) == NMNM && (oldPval & 0xc0070000) == Pval)
 		return;
 
 	if (Preg == 0x4000)
@@ -304,7 +306,7 @@ setPLL_double_lowregs(struct nvkm_devinit *devinit, u32 NMNMreg,
 		struct nvbios_pll info;
 		uint8_t Pval2;
 
-		if (nvbios_pll_parse(nvkm_bios(devinit), Preg, &info))
+		if (nvbios_pll_parse(device->bios, Preg, &info))
 			return;
 
 		Pval2 = pv->log2P + info.bias_p;
@@ -312,40 +314,40 @@ setPLL_double_lowregs(struct nvkm_devinit *devinit, u32 NMNMreg,
 			Pval2 = info.max_p;
 		Pval |= 1 << 28 | Pval2 << 20;
 
-		saved4600 = nv_rd32(devinit, 0x4600);
-		nv_wr32(devinit, 0x4600, saved4600 | 8 << 28);
+		saved4600 = nvkm_rd32(device, 0x4600);
+		nvkm_wr32(device, 0x4600, saved4600 | 8 << 28);
 	}
 	if (single_stage)
 		Pval |= mpll ? 1 << 12 : 1 << 8;
 
-	nv_wr32(devinit, Preg, oldPval | 1 << 28);
-	nv_wr32(devinit, Preg, Pval & ~(4 << 28));
+	nvkm_wr32(device, Preg, oldPval | 1 << 28);
+	nvkm_wr32(device, Preg, Pval & ~(4 << 28));
 	if (mpll) {
 		Pval |= 8 << 20;
-		nv_wr32(devinit, 0x4020, Pval & ~(0xc << 28));
-		nv_wr32(devinit, 0x4038, Pval & ~(0xc << 28));
+		nvkm_wr32(device, 0x4020, Pval & ~(0xc << 28));
+		nvkm_wr32(device, 0x4038, Pval & ~(0xc << 28));
 	}
 
-	savedc040 = nv_rd32(devinit, 0xc040);
-	nv_wr32(devinit, 0xc040, savedc040 & maskc040);
+	savedc040 = nvkm_rd32(device, 0xc040);
+	nvkm_wr32(device, 0xc040, savedc040 & maskc040);
 
-	nv_wr32(devinit, NMNMreg, NMNM);
+	nvkm_wr32(device, NMNMreg, NMNM);
 	if (NMNMreg == 0x4024)
-		nv_wr32(devinit, 0x403c, NMNM);
+		nvkm_wr32(device, 0x403c, NMNM);
 
-	nv_wr32(devinit, Preg, Pval);
+	nvkm_wr32(device, Preg, Pval);
 	if (mpll) {
 		Pval &= ~(8 << 20);
-		nv_wr32(devinit, 0x4020, Pval);
-		nv_wr32(devinit, 0x4038, Pval);
-		nv_wr32(devinit, 0x4600, saved4600);
+		nvkm_wr32(device, 0x4020, Pval);
+		nvkm_wr32(device, 0x4038, Pval);
+		nvkm_wr32(device, 0x4600, saved4600);
 	}
 
-	nv_wr32(devinit, 0xc040, savedc040);
+	nvkm_wr32(device, 0xc040, savedc040);
 
 	if (mpll) {
-		nv_wr32(devinit, 0x4020, Pval & ~(1 << 28));
-		nv_wr32(devinit, 0x4038, Pval & ~(1 << 28));
+		nvkm_wr32(device, 0x4020, Pval & ~(1 << 28));
+		nvkm_wr32(device, 0x4038, Pval & ~(1 << 28));
 	}
 }
 
@@ -391,10 +393,11 @@ int
 nv04_devinit_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv04_devinit *init = (void *)object;
+	struct nvkm_device *device = init->base.subdev.device;
 	int ret;
 
 	/* make i2c busses accessible */
-	nv_mask(init, 0x000200, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x000200, 0x00000001, 0x00000001);
 
 	ret = nvkm_devinit_fini(&init->base, suspend);
 	if (ret)

@@ -30,33 +30,32 @@
 #include <subdev/bios/init.h>
 
 static void
-nv10_devinit_meminit(struct nvkm_devinit *devinit)
+nv10_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nv04_devinit *init = (void *)devinit;
+	struct nvkm_device *device = init->subdev.device;
 	static const int mem_width[] = { 0x10, 0x00, 0x20 };
 	int mem_width_count;
 	uint32_t patt = 0xdeadbeef;
 	struct io_mapping *fb;
 	int i, j, k;
 
-	if (nv_device(init)->card_type >= NV_11 &&
-	    nv_device(init)->chipset >= 0x17)
+	if (device->card_type >= NV_11 && device->chipset >= 0x17)
 		mem_width_count = 3;
 	else
 		mem_width_count = 2;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(init));
+	fb = fbmem_init(device);
 	if (!fb) {
 		nv_error(init, "failed to map fb\n");
 		return;
 	}
 
-	nv_wr32(init, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
+	nvkm_wr32(device, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
 
 	/* Probe memory bus width */
 	for (i = 0; i < mem_width_count; i++) {
-		nv_mask(init, NV04_PFB_CFG0, 0x30, mem_width[i]);
+		nvkm_mask(device, NV04_PFB_CFG0, 0x30, mem_width[i]);
 
 		for (j = 0; j < 4; j++) {
 			for (k = 0; k < 4; k++)
@@ -75,7 +74,7 @@ mem_width_found:
 
 	/* Probe amount of installed memory */
 	for (i = 0; i < 4; i++) {
-		int off = nv_rd32(init, 0x10020c) - 0x100000;
+		int off = nvkm_rd32(device, 0x10020c) - 0x100000;
 
 		fbmem_poke(fb, off, patt);
 		fbmem_poke(fb, 0, 0);
@@ -90,7 +89,7 @@ mem_width_found:
 	}
 
 	/* IC missing - disable the upper half memory space. */
-	nv_mask(init, NV04_PFB_CFG0, 0x1000, 0);
+	nvkm_mask(device, NV04_PFB_CFG0, 0x1000, 0);
 
 amount_found:
 	fbmem_fini(fb);

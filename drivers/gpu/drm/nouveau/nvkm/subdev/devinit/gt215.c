@@ -29,29 +29,29 @@
 #include <subdev/clk/pll.h>
 
 int
-gt215_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
+gt215_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvbios_pll info;
 	int N, fN, M, P;
 	int ret;
 
-	ret = nvbios_pll_parse(bios, type, &info);
+	ret = nvbios_pll_parse(device->bios, type, &info);
 	if (ret)
 		return ret;
 
-	ret = gt215_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
+	ret = gt215_pll_calc(subdev, &info, freq, &N, &fN, &M, &P);
 	if (ret < 0)
 		return ret;
 
 	switch (info.type) {
 	case PLL_VPLL0:
 	case PLL_VPLL1:
-		nv_wr32(init, info.reg + 0, 0x50000610);
-		nv_mask(init, info.reg + 4, 0x003fffff,
-					    (P << 16) | (M << 8) | N);
-		nv_wr32(init, info.reg + 8, fN);
+		nvkm_wr32(device, info.reg + 0, 0x50000610);
+		nvkm_mask(device, info.reg + 4, 0x003fffff,
+						(P << 16) | (M << 8) | N);
+		nvkm_wr32(device, info.reg + 8, fN);
 		break;
 	default:
 		nv_warn(init, "0x%08x/%dKhz unimplemented\n", type, freq);
@@ -63,11 +63,11 @@ gt215_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-gt215_devinit_disable(struct nvkm_devinit *devinit)
+gt215_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	u32 r001540 = nv_rd32(init, 0x001540);
-	u32 r00154c = nv_rd32(init, 0x00154c);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r001540 = nvkm_rd32(device, 0x001540);
+	u32 r00154c = nvkm_rd32(device, 0x00154c);
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000)) {
@@ -99,9 +99,10 @@ gt215_devinit_mmio_part[] = {
 };
 
 static u32
-gt215_devinit_mmio(struct nvkm_devinit *devinit, u32 addr)
+gt215_devinit_mmio(struct nvkm_devinit *obj, u32 addr)
 {
-	struct nv50_devinit *init = (void *)devinit;
+	struct nv50_devinit *init = container_of(obj, typeof(*init), base);
+	struct nvkm_device *device = init->base.subdev.device;
 	u32 *mmio = gt215_devinit_mmio_part;
 
 	/* the init tables on some boards have INIT_RAM_RESTRICT_ZM_REG_GROUP
@@ -123,7 +124,7 @@ gt215_devinit_mmio(struct nvkm_devinit *devinit, u32 addr)
 		if (addr >= mmio[0] && addr <= mmio[1]) {
 			u32 part = (addr / mmio[2]) & 7;
 			if (!init->r001540)
-				init->r001540 = nv_rd32(init, 0x001540);
+				init->r001540 = nvkm_rd32(device, 0x001540);
 			if (part >= hweight8((init->r001540 >> 16) & 0xff))
 				return ~0;
 			return addr;

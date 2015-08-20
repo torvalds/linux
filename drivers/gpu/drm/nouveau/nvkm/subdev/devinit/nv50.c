@@ -33,43 +33,45 @@
 #include <subdev/vga.h>
 
 int
-nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
+nv50_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvbios_pll info;
 	int N1, M1, N2, M2, P;
 	int ret;
 
 	ret = nvbios_pll_parse(bios, type, &info);
 	if (ret) {
-		nv_error(devinit, "failed to retrieve pll data, %d\n", ret);
+		nv_error(subdev, "failed to retrieve pll data, %d\n", ret);
 		return ret;
 	}
 
-	ret = nv04_pll_calc(nv_subdev(devinit), &info, freq, &N1, &M1, &N2, &M2, &P);
+	ret = nv04_pll_calc(subdev, &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret) {
-		nv_error(devinit, "failed pll calculation\n");
+		nv_error(subdev, "failed pll calculation\n");
 		return ret;
 	}
 
 	switch (info.type) {
 	case PLL_VPLL0:
 	case PLL_VPLL1:
-		nv_wr32(init, info.reg + 0, 0x10000611);
-		nv_mask(init, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
-		nv_mask(init, info.reg + 8, 0x7fff00ff, (P  << 28) |
-							(M2 << 16) | N2);
+		nvkm_wr32(device, info.reg + 0, 0x10000611);
+		nvkm_mask(device, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
+		nvkm_mask(device, info.reg + 8, 0x7fff00ff, (P  << 28) |
+							    (M2 << 16) | N2);
 		break;
 	case PLL_MEMORY:
-		nv_mask(init, info.reg + 0, 0x01ff0000, (P << 22) |
-						        (info.bias_p << 19) |
-							(P << 16));
-		nv_wr32(init, info.reg + 4, (N1 << 8) | M1);
+		nvkm_mask(device, info.reg + 0, 0x01ff0000,
+					        (P << 22) |
+						(info.bias_p << 19) |
+						(P << 16));
+		nvkm_wr32(device, info.reg + 4, (N1 << 8) | M1);
 		break;
 	default:
-		nv_mask(init, info.reg + 0, 0x00070000, (P << 16));
-		nv_wr32(init, info.reg + 4, (N1 << 8) | M1);
+		nvkm_mask(device, info.reg + 0, 0x00070000, (P << 16));
+		nvkm_wr32(device, info.reg + 4, (N1 << 8) | M1);
 		break;
 	}
 
@@ -77,10 +79,10 @@ nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-nv50_devinit_disable(struct nvkm_devinit *devinit)
+nv50_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	u32 r001540 = nv_rd32(init, 0x001540);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r001540 = nvkm_rd32(device, 0x001540);
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000))

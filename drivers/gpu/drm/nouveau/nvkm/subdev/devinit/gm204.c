@@ -30,18 +30,19 @@
 static void
 pmu_code(struct nv50_devinit *init, u32 pmu, u32 img, u32 len, bool sec)
 {
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_device *device = init->base.subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	int i;
 
-	nv_wr32(init, 0x10a180, 0x01000000 | (sec ? 0x10000000 : 0) | pmu);
+	nvkm_wr32(device, 0x10a180, 0x01000000 | (sec ? 0x10000000 : 0) | pmu);
 	for (i = 0; i < len; i += 4) {
 		if ((i & 0xff) == 0)
-			nv_wr32(init, 0x10a188, (pmu + i) >> 8);
-		nv_wr32(init, 0x10a184, nv_ro32(bios, img + i));
+			nvkm_wr32(device, 0x10a188, (pmu + i) >> 8);
+		nvkm_wr32(device, 0x10a184, nv_ro32(bios, img + i));
 	}
 
 	while (i & 0xff) {
-		nv_wr32(init, 0x10a184, 0x00000000);
+		nvkm_wr32(device, 0x10a184, 0x00000000);
 		i += 4;
 	}
 }
@@ -49,28 +50,31 @@ pmu_code(struct nv50_devinit *init, u32 pmu, u32 img, u32 len, bool sec)
 static void
 pmu_data(struct nv50_devinit *init, u32 pmu, u32 img, u32 len)
 {
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_device *device = init->base.subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	int i;
 
-	nv_wr32(init, 0x10a1c0, 0x01000000 | pmu);
+	nvkm_wr32(device, 0x10a1c0, 0x01000000 | pmu);
 	for (i = 0; i < len; i += 4)
-		nv_wr32(init, 0x10a1c4, nv_ro32(bios, img + i));
+		nvkm_wr32(device, 0x10a1c4, nv_ro32(bios, img + i));
 }
 
 static u32
 pmu_args(struct nv50_devinit *init, u32 argp, u32 argi)
 {
-	nv_wr32(init, 0x10a1c0, argp);
-	nv_wr32(init, 0x10a1c0, nv_rd32(init, 0x10a1c4) + argi);
-	return nv_rd32(init, 0x10a1c4);
+	struct nvkm_device *device = init->base.subdev.device;
+	nvkm_wr32(device, 0x10a1c0, argp);
+	nvkm_wr32(device, 0x10a1c0, nvkm_rd32(device, 0x10a1c4) + argi);
+	return nvkm_rd32(device, 0x10a1c4);
 }
 
 static void
 pmu_exec(struct nv50_devinit *init, u32 init_addr)
 {
-	nv_wr32(init, 0x10a104, init_addr);
-	nv_wr32(init, 0x10a10c, 0x00000000);
-	nv_wr32(init, 0x10a100, 0x00000002);
+	struct nvkm_device *device = init->base.subdev.device;
+	nvkm_wr32(device, 0x10a104, init_addr);
+	nvkm_wr32(device, 0x10a10c, 0x00000000);
+	nvkm_wr32(device, 0x10a100, 0x00000002);
 }
 
 static int
@@ -105,7 +109,8 @@ static int
 gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 {
 	struct nv50_devinit *init = (void *)nvkm_devinit(subdev);
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_device *device = init->base.subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct bit_entry bit_I;
 	u32 exec, args;
 	int ret;
@@ -118,10 +123,10 @@ gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 
 	/* reset PMU and load init table parser ucode */
 	if (post) {
-		nv_mask(init, 0x000200, 0x00002000, 0x00000000);
-		nv_mask(init, 0x000200, 0x00002000, 0x00002000);
-		nv_rd32(init, 0x000200);
-		while (nv_rd32(init, 0x10a10c) & 0x00000006) {
+		nvkm_mask(device, 0x000200, 0x00002000, 0x00000000);
+		nvkm_mask(device, 0x000200, 0x00002000, 0x00002000);
+		nvkm_rd32(device, 0x000200);
+		while (nvkm_rd32(device, 0x10a10c) & 0x00000006) {
 		}
 	}
 
@@ -147,9 +152,9 @@ gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 
 	/* execute init tables */
 	if (post) {
-		nv_wr32(init, 0x10a040, 0x00005000);
+		nvkm_wr32(device, 0x10a040, 0x00005000);
 		pmu_exec(init, exec);
-		while (!(nv_rd32(init, 0x10a040) & 0x00002000)) {
+		while (!(nvkm_rd32(device, 0x10a040) & 0x00002000)) {
 		}
 	}
 

@@ -29,19 +29,19 @@
 #include <subdev/clk/pll.h>
 
 int
-gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
+gf100_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(init);
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvbios_pll info;
 	int N, fN, M, P;
 	int ret;
 
-	ret = nvbios_pll_parse(bios, type, &info);
+	ret = nvbios_pll_parse(device->bios, type, &info);
 	if (ret)
 		return ret;
 
-	ret = gt215_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
+	ret = gt215_pll_calc(subdev, &info, freq, &N, &fN, &M, &P);
 	if (ret < 0)
 		return ret;
 
@@ -50,9 +50,9 @@ gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 	case PLL_VPLL1:
 	case PLL_VPLL2:
 	case PLL_VPLL3:
-		nv_mask(init, info.reg + 0x0c, 0x00000000, 0x00000100);
-		nv_wr32(init, info.reg + 0x04, (P << 16) | (N << 8) | M);
-		nv_wr32(init, info.reg + 0x10, fN << 16);
+		nvkm_mask(device, info.reg + 0x0c, 0x00000000, 0x00000100);
+		nvkm_wr32(device, info.reg + 0x04, (P << 16) | (N << 8) | M);
+		nvkm_wr32(device, info.reg + 0x10, fN << 16);
 		break;
 	default:
 		nv_warn(init, "0x%08x/%dKhz unimplemented\n", type, freq);
@@ -64,10 +64,10 @@ gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-gf100_devinit_disable(struct nvkm_devinit *devinit)
+gf100_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	u32 r022500 = nv_rd32(init, 0x022500);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r022500 = nvkm_rd32(device, 0x022500);
 	u64 disable = 0ULL;
 
 	if (r022500 & 0x00000001)

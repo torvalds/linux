@@ -27,11 +27,11 @@
 #include <subdev/bios/init.h>
 
 static u64
-mcp89_devinit_disable(struct nvkm_devinit *devinit)
+mcp89_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	u32 r001540 = nv_rd32(init, 0x001540);
-	u32 r00154c = nv_rd32(init, 0x00154c);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r001540 = nvkm_rd32(device, 0x001540);
+	u32 r00154c = nvkm_rd32(device, 0x00154c);
 	u64 disable = 0;
 
 	if (!(r001540 & 0x40000000)) {

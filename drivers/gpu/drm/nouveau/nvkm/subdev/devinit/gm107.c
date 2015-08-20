@@ -27,11 +27,11 @@
 #include <subdev/bios/init.h>
 
 u64
-gm107_devinit_disable(struct nvkm_devinit *devinit)
+gm107_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit *init = (void *)devinit;
-	u32 r021c00 = nv_rd32(init, 0x021c00);
-	u32 r021c04 = nv_rd32(init, 0x021c04);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r021c00 = nvkm_rd32(device, 0x021c00);
+	u32 r021c04 = nvkm_rd32(device, 0x021c04);
 	u64 disable = 0ULL;
 
 	if (r021c00 & 0x00000001)
