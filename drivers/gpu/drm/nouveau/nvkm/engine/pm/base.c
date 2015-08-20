@@ -813,14 +813,14 @@ int
 _nvkm_pm_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_pm *pm = (void *)object;
-	return nvkm_engine_fini(&pm->engine, suspend);
+	return nvkm_engine_fini_old(&pm->engine, suspend);
 }
 
 int
 _nvkm_pm_init(struct nvkm_object *object)
 {
 	struct nvkm_pm *pm = (void *)object;
-	return nvkm_engine_init(&pm->engine);
+	return nvkm_engine_init_old(&pm->engine);
 }
 
 void

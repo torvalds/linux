@@ -32,9 +32,9 @@ struct nvkm_mpeg {
 #define nvkm_mpeg_destroy(d)                                                \
 	nvkm_engine_destroy(&(d)->engine)
 #define nvkm_mpeg_init(d)                                                   \
-	nvkm_engine_init(&(d)->engine)
+	nvkm_engine_init_old(&(d)->engine)
 #define nvkm_mpeg_fini(d,s)                                                 \
-	nvkm_engine_fini(&(d)->engine, (s))
+	nvkm_engine_fini_old(&(d)->engine, (s))
 
 #define _nvkm_mpeg_dtor _nvkm_engine_dtor
 #define _nvkm_mpeg_init _nvkm_engine_init

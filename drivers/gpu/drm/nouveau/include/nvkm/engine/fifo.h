@@ -91,9 +91,9 @@ nvkm_fifo(void *obj)
 #define nvkm_fifo_create(o,e,c,fc,lc,d)                                     \
 	nvkm_fifo_create_((o), (e), (c), (fc), (lc), sizeof(**d), (void **)d)
 #define nvkm_fifo_init(p)                                                   \
-	nvkm_engine_init(&(p)->engine)
+	nvkm_engine_init_old(&(p)->engine)
 #define nvkm_fifo_fini(p,s)                                                 \
-	nvkm_engine_fini(&(p)->engine, (s))
+	nvkm_engine_fini_old(&(p)->engine, (s))
 
 int nvkm_fifo_create_(struct nvkm_object *, struct nvkm_object *,
 			 struct nvkm_oclass *, int min, int max,

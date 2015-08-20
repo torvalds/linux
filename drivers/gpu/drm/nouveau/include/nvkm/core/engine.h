@@ -40,9 +40,9 @@ struct nvkm_engine *nvkm_engine(void *obj, int idx);
 
 #define nvkm_engine_destroy(p)                                              \
 	nvkm_subdev_destroy(&(p)->subdev)
-#define nvkm_engine_init(p)                                                 \
+#define nvkm_engine_init_old(p)                                                \
 	nvkm_subdev_init_old(&(p)->subdev)
-#define nvkm_engine_fini(p,s)                                               \
+#define nvkm_engine_fini_old(p,s)                                              \
 	nvkm_subdev_fini_old(&(p)->subdev, (s))
 
 int nvkm_engine_create_(struct nvkm_object *, struct nvkm_object *,

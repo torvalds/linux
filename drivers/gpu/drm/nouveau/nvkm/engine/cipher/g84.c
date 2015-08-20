@@ -163,7 +163,7 @@ g84_cipher_init(struct nvkm_object *object)
 	struct nvkm_device *device = cipher->subdev.device;
 	int ret;
 
-	ret = nvkm_engine_init(cipher);
+	ret = nvkm_engine_init_old(cipher);
 	if (ret)
 		return ret;
 

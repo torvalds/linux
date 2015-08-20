@@ -129,7 +129,7 @@ _nvkm_disp_fini(struct nvkm_object *object, bool suspend)
 		nvkm_connector_fini(conn);
 	}
 
-	return nvkm_engine_fini(&disp->engine, suspend);
+	return nvkm_engine_fini_old(&disp->engine, suspend);
 }
 
 int
@@ -140,7 +140,7 @@ _nvkm_disp_init(struct nvkm_object *object)
 	struct nvkm_output *outp;
 	int ret;
 
-	ret = nvkm_engine_init(&disp->engine);
+	ret = nvkm_engine_init_old(&disp->engine);
 	if (ret)
 		return ret;
 
