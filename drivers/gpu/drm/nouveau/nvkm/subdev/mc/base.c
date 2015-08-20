@@ -47,7 +47,8 @@ static irqreturn_t
 nvkm_mc_intr(int irq, void *arg)
 {
 	struct nvkm_mc *mc = arg;
-	struct nvkm_device *device = mc->subdev.device;
+	struct nvkm_subdev *subdev = &mc->subdev;
+	struct nvkm_device *device = subdev->device;
 	const struct nvkm_mc_oclass *oclass = (void *)nv_object(mc)->oclass;
 	const struct nvkm_mc_intr *map = oclass->intr;
 	struct nvkm_subdev *unit;
@@ -72,7 +73,7 @@ nvkm_mc_intr(int irq, void *arg)
 		}
 
 		if (stat)
-			nv_error(mc, "unknown intr 0x%08x\n", stat);
+			nvkm_error(subdev, "unknown intr %08x\n", stat);
 	}
 
 	nvkm_wr32(device, 0x000140, 0x00000001);
@@ -151,7 +152,7 @@ nvkm_mc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		if (mc->use_msi && oclass->msi_rearm) {
 			mc->use_msi = pci_enable_msi(device->pdev) == 0;
 			if (mc->use_msi) {
-				nv_info(mc, "MSI interrupts enabled\n");
+				nvkm_debug(&mc->subdev, "MSI enabled\n");
 				oclass->msi_rearm(mc);
 			}
 		} else {
