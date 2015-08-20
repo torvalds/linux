@@ -366,7 +366,10 @@ gk104_clk_prog_1_0(struct gk104_clk *clk, int idx)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	nvkm_mask(device, 0x137100, (1 << idx), 0x00000000);
-	nv_wait(clk, 0x137100, (1 << idx), 0x00000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x137100) & (1 << idx)))
+			break;
+	);
 }
 
 static void
@@ -387,7 +390,10 @@ gk104_clk_prog_2(struct gk104_clk *clk, int idx)
 	if (info->coef) {
 		nvkm_wr32(device, addr + 0x04, info->coef);
 		nvkm_mask(device, addr + 0x00, 0x00000001, 0x00000001);
-		nv_wait(clk, addr + 0x00, 0x00020000, 0x00020000);
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, addr + 0x00) & 0x00020000)
+				break;
+		);
 		nvkm_mask(device, addr + 0x00, 0x00020004, 0x00000004);
 	}
 }
@@ -410,7 +416,11 @@ gk104_clk_prog_4_0(struct gk104_clk *clk, int idx)
 	struct nvkm_device *device = clk->base.subdev.device;
 	if (info->ssel) {
 		nvkm_mask(device, 0x137100, (1 << idx), info->ssel);
-		nv_wait(clk, 0x137100, (1 << idx), info->ssel);
+		nvkm_msec(device, 2000,
+			u32 tmp = nvkm_rd32(device, 0x137100) & (1 << idx);
+			if (tmp == info->ssel)
+				break;
+		);
 	}
 }
 

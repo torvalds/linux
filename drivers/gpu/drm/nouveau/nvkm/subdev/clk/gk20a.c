@@ -405,11 +405,11 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 		nvkm_wr32(device, GPCPLL_CFG, val);
 	}
 
-	if (!nvkm_timer_wait_eq(clk, 300000, GPCPLL_CFG, GPCPLL_CFG_LOCK,
-				GPCPLL_CFG_LOCK)) {
-		nv_error(clk, "%s: timeout waiting for pllg lock\n", __func__);
+	if (nvkm_usec(device, 300,
+		if (nvkm_rd32(device, GPCPLL_CFG) & GPCPLL_CFG_LOCK)
+			break;
+	) < 0)
 		return -ETIMEDOUT;
-	}
 
 	/* switch to VCO mode */
 	nvkm_mask(device, SEL_VCO, 0, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));

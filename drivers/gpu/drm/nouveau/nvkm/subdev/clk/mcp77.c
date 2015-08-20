@@ -349,10 +349,12 @@ mcp77_clk_prog(struct nvkm_clk *obj)
 		goto resume;
 	}
 
-	if (!nv_wait(clk, 0x004080, pllmask, pllmask)) {
-		nv_warn(clk,"Reclocking failed: unstable PLLs\n");
+	if (nvkm_msec(device, 2000,
+		u32 tmp = nvkm_rd32(device, 0x004080) & pllmask;
+		if (tmp == pllmask)
+			break;
+	) < 0)
 		goto resume;
-	}
 
 	switch (clk->vsrc) {
 	case nv_clk_src_cclk:
