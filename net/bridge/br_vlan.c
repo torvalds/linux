@@ -468,21 +468,27 @@ void br_recalculate_fwd_mask(struct net_bridge *br)
 					      ~(1u << br->group_addr[5]);
 }
 
-int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
-	if (!rtnl_trylock())
-		return restart_syscall();
-
 	if (br->vlan_enabled == val)
-		goto unlock;
+		return 0;
 
 	br->vlan_enabled = val;
 	br_manage_promisc(br);
 	recalculate_group_addr(br);
 	br_recalculate_fwd_mask(br);
 
-unlock:
+	return 0;
+}
+
+int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+{
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	__br_vlan_filter_toggle(br, val);
 	rtnl_unlock();
+
 	return 0;
 }
 

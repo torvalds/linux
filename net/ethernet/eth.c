@@ -114,7 +114,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 EXPORT_SYMBOL(eth_header);
 
 /**
- * eth_get_headlen - determine the the length of header for an ethernet frame
+ * eth_get_headlen - determine the length of header for an ethernet frame
  * @data: pointer to start of frame
  * @len: total length of frame
  *

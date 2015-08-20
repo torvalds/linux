@@ -101,6 +101,8 @@ struct i40e_vsi {
 #define MAX_RX_QUEUES 8
 #define MAX_TX_QUEUES MAX_RX_QUEUES
 
+#define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
+
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
  */
@@ -115,6 +117,7 @@ struct i40e_q_vector {
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 	int v_idx;	  /* vector index in list */
 	char name[IFNAMSIZ + 9];
+	bool arm_wb_state;
 	cpumask_var_t affinity_mask;
 };
 
@@ -218,11 +221,15 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_PF_COMMS_FAILED              BIT(8)
 #define I40EVF_FLAG_RESET_PENDING                BIT(9)
 #define I40EVF_FLAG_RESET_NEEDED                 BIT(10)
-/* duplcates for common code */
+#define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
+#define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
+/* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
 #define I40E_FLAG_IN_NETPOLL			 I40EVF_FLAG_IN_NETPOLL
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
+#define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
+#define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 	/* flags for admin queue service task */
 	u32 aq_required;
 #define I40EVF_FLAG_AQ_ENABLE_QUEUES		BIT(0)
@@ -234,6 +241,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		BIT(6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		BIT(7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		BIT(8)
+#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9)
 #define I40EVF_FLAG_AQ_GET_CONFIG		BIT(10)
 
 	/* OS defined structs */

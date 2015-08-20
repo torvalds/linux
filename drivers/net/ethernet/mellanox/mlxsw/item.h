@@ -62,7 +62,7 @@ __mlxsw_item_offset(struct mlxsw_item *item, unsigned short index,
 	if (item->offset % typesize != 0 ||
 	    item->step % typesize != 0 ||
 	    item->in_step_offset % typesize != 0) {
-		pr_err("mlxsw: item bug (name=%s,offset=%x,step=%x,in_step_offset=%x,typesize=%lx)\n",
+		pr_err("mlxsw: item bug (name=%s,offset=%x,step=%x,in_step_offset=%x,typesize=%zx)\n",
 		       item->name, item->offset, item->step,
 		       item->in_step_offset, typesize);
 		BUG();

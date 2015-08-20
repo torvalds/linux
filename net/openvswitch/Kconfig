@@ -34,7 +34,7 @@ config OPENVSWITCH
 config OPENVSWITCH_GRE
 	tristate "Open vSwitch GRE tunneling support"
 	depends on OPENVSWITCH
-	depends on NET_IPGRE_DEMUX
+	depends on NET_IPGRE
 	default OPENVSWITCH
 	---help---
 	  If you say Y here, then the Open vSwitch will be able create GRE

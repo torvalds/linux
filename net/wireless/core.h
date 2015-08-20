@@ -59,6 +59,10 @@ struct cfg80211_registered_device {
 	struct list_head beacon_registrations;
 	spinlock_t beacon_registrations_lock;
 
+	struct list_head mlme_unreg;
+	spinlock_t mlme_unreg_lock;
+	struct work_struct mlme_unreg_wk;
+
 	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
@@ -348,6 +352,7 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 				u16 frame_type, const u8 *match_data,
 				int match_len);
+void cfg80211_mlme_unreg_wk(struct work_struct *wk);
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,

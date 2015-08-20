@@ -158,6 +158,35 @@ const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
 	return &bpf_trace_printk_proto;
 }
 
+static u64 bpf_perf_event_read(u64 r1, u64 index, u64 r3, u64 r4, u64 r5)
+{
+	struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	struct perf_event *event;
+
+	if (unlikely(index >= array->map.max_entries))
+		return -E2BIG;
+
+	event = (struct perf_event *)array->ptrs[index];
+	if (!event)
+		return -ENOENT;
+
+	/*
+	 * we don't know if the function is run successfully by the
+	 * return value. It can be judged in other places, such as
+	 * eBPF programs.
+	 */
+	return perf_event_read_local(event);
+}
+
+const struct bpf_func_proto bpf_perf_event_read_proto = {
+	.func		= bpf_perf_event_read,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -183,6 +212,8 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return bpf_get_trace_printk_proto();
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
+	case BPF_FUNC_perf_event_read:
+		return &bpf_perf_event_read_proto;
 	default:
 		return NULL;
 	}

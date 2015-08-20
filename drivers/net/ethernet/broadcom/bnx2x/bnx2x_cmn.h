@@ -967,6 +967,8 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
 
+	start_params->vxlan_dst_port = bp->vxlan_dst_port;
+
 	start_params->inner_rss = 1;
 
 	if (IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {

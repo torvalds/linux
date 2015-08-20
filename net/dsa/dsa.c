@@ -554,6 +554,31 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 	return 0;
 }
 
+static int dsa_of_probe_links(struct dsa_platform_data *pd,
+			      struct dsa_chip_data *cd,
+			      int chip_index, int port_index,
+			      struct device_node *port,
+			      const char *port_name)
+{
+	struct device_node *link;
+	int link_index;
+	int ret;
+
+	for (link_index = 0;; link_index++) {
+		link = of_parse_phandle(port, "link", link_index);
+		if (!link)
+			break;
+
+		if (!strcmp(port_name, "dsa") && pd->nr_chips > 1) {
+			ret = dsa_of_setup_routing_table(pd, cd, chip_index,
+							 port_index, link);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
 static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 {
 	int i;
@@ -573,8 +598,8 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 static int dsa_of_probe(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
-	struct device_node *child, *mdio, *ethernet, *port, *link;
-	struct mii_bus *mdio_bus;
+	struct device_node *child, *mdio, *ethernet, *port;
+	struct mii_bus *mdio_bus, *mdio_bus_switch;
 	struct net_device *ethernet_dev;
 	struct dsa_platform_data *pd;
 	struct dsa_chip_data *cd;
@@ -636,6 +661,16 @@ static int dsa_of_probe(struct device *dev)
 		if (!of_property_read_u32(child, "eeprom-length", &eeprom_len))
 			cd->eeprom_len = eeprom_len;
 
+		mdio = of_parse_phandle(child, "mii-bus", 0);
+		if (mdio) {
+			mdio_bus_switch = of_mdio_find_bus(mdio);
+			if (!mdio_bus_switch) {
+				ret = -EPROBE_DEFER;
+				goto out_free_chip;
+			}
+			cd->host_dev = &mdio_bus_switch->dev;
+		}
+
 		for_each_available_child_of_node(child, port) {
 			port_reg = of_get_property(port, "reg", NULL);
 			if (!port_reg)
@@ -658,15 +693,10 @@ static int dsa_of_probe(struct device *dev)
 				goto out_free_chip;
 			}
 
-			link = of_parse_phandle(port, "link", 0);
-
-			if (!strcmp(port_name, "dsa") && link &&
-					pd->nr_chips > 1) {
-				ret = dsa_of_setup_routing_table(pd, cd,
-						chip_index, port_index, link);
-				if (ret)
-					goto out_free_chip;
-			}
+			ret = dsa_of_probe_links(pd, cd, chip_index,
+						 port_index, port, port_name);
+			if (ret)
+				goto out_free_chip;
 
 		}
 	}

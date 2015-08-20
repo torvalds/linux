@@ -162,10 +162,11 @@ static void mv_chan_set_mode(struct mv_xor_chan *chan,
 	config &= ~0x7;
 	config |= op_mode;
 
-	if (IS_ENABLED(__BIG_ENDIAN))
-		config |= XOR_DESCRIPTOR_SWAP;
-	else
-		config &= ~XOR_DESCRIPTOR_SWAP;
+#if defined(__BIG_ENDIAN)
+	config |= XOR_DESCRIPTOR_SWAP;
+#else
+	config &= ~XOR_DESCRIPTOR_SWAP;
+#endif
 
 	writel_relaxed(config, XOR_CONFIG(chan));
 	chan->current_type = type;

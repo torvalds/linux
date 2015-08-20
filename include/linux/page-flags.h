@@ -631,15 +631,19 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
 	 1 << PG_private | 1 << PG_private_2 | \
 	 1 << PG_writeback | 1 << PG_reserved | \
 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
-	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+	 1 << PG_unevictable | __PG_MLOCKED | \
 	 __PG_COMPOUND_LOCK)
 
 /*
  * Flags checked when a page is prepped for return by the page allocator.
- * Pages being prepped should not have any flags set.  It they are set,
+ * Pages being prepped should not have these flags set.  It they are set,
  * there has been a kernel bug or struct page corruption.
+ *
+ * __PG_HWPOISON is exceptional because it needs to be kept beyond page's
+ * alloc-free cycle to prevent from reusing the page.
  */
-#define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
+#define PAGE_FLAGS_CHECK_AT_PREP	\
+	(((1 << NR_PAGEFLAGS) - 1) & ~__PG_HWPOISON)
 
 #define PAGE_FLAGS_PRIVATE				\
 	(1 << PG_private | 1 << PG_private_2)

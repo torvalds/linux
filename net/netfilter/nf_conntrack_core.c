@@ -294,7 +294,7 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 {
 	struct nf_conn *tmpl;
 
-	tmpl = kzalloc(sizeof(struct nf_conn), GFP_KERNEL);
+	tmpl = kzalloc(sizeof(*tmpl), flags);
 	if (tmpl == NULL)
 		return NULL;
 
@@ -1547,10 +1547,8 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 	sz = nr_slots * sizeof(struct hlist_nulls_head);
 	hash = (void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO,
 					get_order(sz));
-	if (!hash) {
-		printk(KERN_WARNING "nf_conntrack: falling back to vmalloc.\n");
+	if (!hash)
 		hash = vzalloc(sz);
-	}
 
 	if (hash && nulls)
 		for (i = 0; i < nr_slots; i++)

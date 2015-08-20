@@ -30,6 +30,7 @@
 
 #define DATA_LEN			100
 #define DATA_CHAR			'a'
+#define DATA_CHAR_1			'b'
 
 #define PORT_BASE			8000
 
@@ -37,27 +38,34 @@
 # define __maybe_unused		__attribute__ ((__unused__))
 #endif
 
-static __maybe_unused void pair_udp_setfilter(int fd)
+static __maybe_unused void sock_setfilter(int fd, int lvl, int optnum)
 {
 	struct sock_filter bpf_filter[] = {
 		{ 0x80, 0, 0, 0x00000000 },  /* LD  pktlen		      */
-		{ 0x35, 0, 5, DATA_LEN   },  /* JGE DATA_LEN  [f goto nomatch]*/
+		{ 0x35, 0, 4, DATA_LEN   },  /* JGE DATA_LEN  [f goto nomatch]*/
 		{ 0x30, 0, 0, 0x00000050 },  /* LD  ip[80]		      */
-		{ 0x15, 0, 3, DATA_CHAR  },  /* JEQ DATA_CHAR [f goto nomatch]*/
-		{ 0x30, 0, 0, 0x00000051 },  /* LD  ip[81]		      */
-		{ 0x15, 0, 1, DATA_CHAR  },  /* JEQ DATA_CHAR [f goto nomatch]*/
+		{ 0x15, 1, 0, DATA_CHAR  },  /* JEQ DATA_CHAR   [t goto match]*/
+		{ 0x15, 0, 1, DATA_CHAR_1},  /* JEQ DATA_CHAR_1 [t goto match]*/
 		{ 0x06, 0, 0, 0x00000060 },  /* RET match	              */
 		{ 0x06, 0, 0, 0x00000000 },  /* RET no match		      */
 	};
 	struct sock_fprog bpf_prog;
 
+	if (lvl == SOL_PACKET && optnum == PACKET_FANOUT_DATA)
+		bpf_filter[5].code = 0x16;   /* RET A			      */
+
 	bpf_prog.filter = bpf_filter;
 	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
-	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_prog,
+	if (setsockopt(fd, lvl, optnum, &bpf_prog,
 		       sizeof(bpf_prog))) {
 		perror("setsockopt SO_ATTACH_FILTER");
 		exit(1);
 	}
+}
+
+static __maybe_unused void pair_udp_setfilter(int fd)
+{
+	sock_setfilter(fd, SOL_SOCKET, SO_ATTACH_FILTER);
 }
 
 static __maybe_unused void pair_udp_open(int fds[], uint16_t port)
@@ -96,11 +104,11 @@ static __maybe_unused void pair_udp_open(int fds[], uint16_t port)
 	}
 }
 
-static __maybe_unused void pair_udp_send(int fds[], int num)
+static __maybe_unused void pair_udp_send_char(int fds[], int num, char payload)
 {
 	char buf[DATA_LEN], rbuf[DATA_LEN];
 
-	memset(buf, DATA_CHAR, sizeof(buf));
+	memset(buf, payload, sizeof(buf));
 	while (num--) {
 		/* Should really handle EINTR and EAGAIN */
 		if (write(fds[0], buf, sizeof(buf)) != sizeof(buf)) {
@@ -116,6 +124,11 @@ static __maybe_unused void pair_udp_send(int fds[], int num)
 			exit(1);
 		}
 	}
+}
+
+static __maybe_unused void pair_udp_send(int fds[], int num)
+{
+	return pair_udp_send_char(fds, num, DATA_CHAR);
 }
 
 static __maybe_unused void pair_udp_close(int fds[])

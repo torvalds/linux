@@ -666,6 +666,7 @@ struct mwifiex_private {
 	struct mwifiex_11h_intf_state state_11h;
 	struct mwifiex_ds_mem_rw mem_rw;
 	struct sk_buff_head bypass_txq;
+	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 };
 
 
@@ -986,6 +987,7 @@ struct mwifiex_adapter {
 	u8 coex_tx_win_size;
 	u8 coex_rx_win_size;
 	bool drcs_enabled;
+	u8 active_scan_triggered;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);

@@ -123,8 +123,9 @@ static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)
 
 	mutex_lock(&ps->eeprom_mutex);
 
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x14,
-				  0xc000 | (addr & 0xff));
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
+				  GLOBAL2_EEPROM_OP_READ |
+				  (addr & GLOBAL2_EEPROM_OP_ADDR_MASK));
 	if (ret < 0)
 		goto error;
 
@@ -132,7 +133,7 @@ static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)
 	if (ret < 0)
 		goto error;
 
-	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, 0x15);
+	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, GLOBAL2_EEPROM_DATA);
 error:
 	mutex_unlock(&ps->eeprom_mutex);
 	return ret;
@@ -205,11 +206,11 @@ static int mv88e6352_eeprom_is_readonly(struct dsa_switch *ds)
 {
 	int ret;
 
-	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, 0x14);
+	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, GLOBAL2_EEPROM_OP);
 	if (ret < 0)
 		return ret;
 
-	if (!(ret & 0x0400))
+	if (!(ret & GLOBAL2_EEPROM_OP_WRITE_EN))
 		return -EROFS;
 
 	return 0;
@@ -223,12 +224,13 @@ static int mv88e6352_write_eeprom_word(struct dsa_switch *ds, int addr,
 
 	mutex_lock(&ps->eeprom_mutex);
 
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x15, data);
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
 	if (ret < 0)
 		goto error;
 
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x14,
-				  0xb000 | (addr & 0xff));
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
+				  GLOBAL2_EEPROM_OP_WRITE |
+				  (addr & GLOBAL2_EEPROM_OP_ADDR_MASK));
 	if (ret < 0)
 		goto error;
 
@@ -341,9 +343,14 @@ struct dsa_switch_driver mv88e6352_switch_driver = {
 	.port_join_bridge	= mv88e6xxx_join_bridge,
 	.port_leave_bridge	= mv88e6xxx_leave_bridge,
 	.port_stp_update	= mv88e6xxx_port_stp_update,
-	.fdb_add		= mv88e6xxx_port_fdb_add,
-	.fdb_del		= mv88e6xxx_port_fdb_del,
-	.fdb_getnext		= mv88e6xxx_port_fdb_getnext,
+	.port_pvid_get		= mv88e6xxx_port_pvid_get,
+	.port_pvid_set		= mv88e6xxx_port_pvid_set,
+	.port_vlan_add		= mv88e6xxx_port_vlan_add,
+	.port_vlan_del		= mv88e6xxx_port_vlan_del,
+	.vlan_getnext		= mv88e6xxx_vlan_getnext,
+	.port_fdb_add		= mv88e6xxx_port_fdb_add,
+	.port_fdb_del		= mv88e6xxx_port_fdb_del,
+	.port_fdb_getnext	= mv88e6xxx_port_fdb_getnext,
 };
 
 MODULE_ALIAS("platform:mv88e6172");

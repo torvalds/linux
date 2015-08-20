@@ -533,13 +533,13 @@ errout:
 
 #endif
 
-int fib_encap_match(struct net *net, u16 encap_type,
-		    struct nlattr *encap,
-		    int oif, const struct fib_nh *nh)
+static int fib_encap_match(struct net *net, u16 encap_type,
+			   struct nlattr *encap,
+			   int oif, const struct fib_nh *nh)
 {
 	struct lwtunnel_state *lwtstate;
 	struct net_device *dev = NULL;
-	int ret;
+	int ret, result = 0;
 
 	if (encap_type == LWTUNNEL_ENCAP_NONE)
 		return 0;
@@ -548,10 +548,12 @@ int fib_encap_match(struct net *net, u16 encap_type,
 		dev = __dev_get_by_index(net, oif);
 	ret = lwtunnel_build_state(dev, encap_type,
 				   encap, &lwtstate);
-	if (!ret)
-		return lwtunnel_cmp_encap(lwtstate, nh->nh_lwtstate);
+	if (!ret) {
+		result = lwtunnel_cmp_encap(lwtstate, nh->nh_lwtstate);
+		lwtstate_free(lwtstate);
+	}
 
-	return 0;
+	return result;
 }
 
 int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
@@ -670,16 +672,18 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		struct fib_result res;
 
 		if (nh->nh_flags & RTNH_F_ONLINK) {
+			unsigned int addr_type;
 
 			if (cfg->fc_scope >= RT_SCOPE_LINK)
-				return -EINVAL;
-			if (inet_addr_type(net, nh->nh_gw) != RTN_UNICAST)
 				return -EINVAL;
 			dev = __dev_get_by_index(net, nh->nh_oif);
 			if (!dev)
 				return -ENODEV;
 			if (!(dev->flags & IFF_UP))
 				return -ENETDOWN;
+			addr_type = inet_addr_type_dev_table(net, dev, nh->nh_gw);
+			if (addr_type != RTN_UNICAST)
+				return -EINVAL;
 			if (!netif_carrier_ok(dev))
 				nh->nh_flags |= RTNH_F_LINKDOWN;
 			nh->nh_dev = dev;
@@ -689,6 +693,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		}
 		rcu_read_lock();
 		{
+			struct fib_table *tbl = NULL;
 			struct flowi4 fl4 = {
 				.daddr = nh->nh_gw,
 				.flowi4_scope = cfg->fc_scope + 1,
@@ -699,8 +704,24 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			/* It is not necessary, but requires a bit of thinking */
 			if (fl4.flowi4_scope < RT_SCOPE_LINK)
 				fl4.flowi4_scope = RT_SCOPE_LINK;
-			err = fib_lookup(net, &fl4, &res,
-					 FIB_LOOKUP_IGNORE_LINKSTATE);
+
+			if (cfg->fc_table)
+				tbl = fib_get_table(net, cfg->fc_table);
+
+			if (tbl)
+				err = fib_table_lookup(tbl, &fl4, &res,
+						       FIB_LOOKUP_IGNORE_LINKSTATE |
+						       FIB_LOOKUP_NOREF);
+
+			/* on error or if no table given do full lookup. This
+			 * is needed for example when nexthops are in the local
+			 * table rather than the given table
+			 */
+			if (!tbl || err) {
+				err = fib_lookup(net, &fl4, &res,
+						 FIB_LOOKUP_IGNORE_LINKSTATE);
+			}
+
 			if (err) {
 				rcu_read_unlock();
 				return err;
@@ -834,6 +855,23 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh)
 	nh->nh_saddr_genid = atomic_read(&net->ipv4.dev_addr_genid);
 
 	return nh->nh_saddr;
+}
+
+static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
+{
+	if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
+	    fib_prefsrc != cfg->fc_dst) {
+		int tb_id = cfg->fc_table;
+
+		if (tb_id == RT_TABLE_MAIN)
+			tb_id = RT_TABLE_LOCAL;
+
+		if (inet_addr_type_table(cfg->fc_nlinfo.nl_net,
+					 fib_prefsrc, tb_id) != RTN_LOCAL) {
+			return false;
+		}
+	}
+	return true;
 }
 
 struct fib_info *fib_create_info(struct fib_config *cfg)
@@ -1031,12 +1069,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			fi->fib_flags |= RTNH_F_LINKDOWN;
 	}
 
-	if (fi->fib_prefsrc) {
-		if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
-		    fi->fib_prefsrc != cfg->fc_dst)
-			if (inet_addr_type(net, fi->fib_prefsrc) != RTN_LOCAL)
-				goto err_inval;
-	}
+	if (fi->fib_prefsrc && !fib_valid_prefsrc(cfg, fi->fib_prefsrc))
+		goto err_inval;
 
 	change_nexthops(fi) {
 		fib_info_update_nh_saddr(net, nexthop_nh);

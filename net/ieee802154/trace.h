@@ -275,6 +275,25 @@ TRACE_EVENT(802154_rdev_set_lbt_mode,
 		WPAN_DEV_PR_ARG, BOOL_TO_STR(__entry->mode))
 );
 
+TRACE_EVENT(802154_rdev_set_ackreq_default,
+	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+		 bool ackreq),
+	TP_ARGS(wpan_phy, wpan_dev, ackreq),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		WPAN_DEV_ENTRY
+		__field(bool, ackreq)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		WPAN_DEV_ASSIGN;
+		__entry->ackreq = ackreq;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT
+		", ackreq default: %s", WPAN_PHY_PR_ARG,
+		WPAN_DEV_PR_ARG, BOOL_TO_STR(__entry->ackreq))
+);
+
 TRACE_EVENT(802154_rdev_return_int,
 	TP_PROTO(struct wpan_phy *wpan_phy, int ret),
 	TP_ARGS(wpan_phy, ret),

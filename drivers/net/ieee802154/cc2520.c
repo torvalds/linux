@@ -833,6 +833,7 @@ static int cc2520_get_platform_data(struct spi_device *spi,
 		if (!spi_pdata)
 			return -ENOENT;
 		*pdata = *spi_pdata;
+		priv->fifo_pin = pdata->fifo;
 		return 0;
 	}
 

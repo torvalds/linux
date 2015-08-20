@@ -1392,6 +1392,8 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
+	BNX2X_SP_RTNL_ADD_VXLAN_PORT,
+	BNX2X_SP_RTNL_DEL_VXLAN_PORT,
 };
 
 enum bnx2x_iov_flag {
@@ -2571,6 +2573,10 @@ void bnx2x_notify_link_changed(struct bnx2x *bp);
 			(IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp) ||	\
 			 IS_MF_SI_STORAGE_PERSONALITY_ONLY(bp))
 
+/* Determines whether BW configuration arrives in 100Mb units or in
+ * percentages from actual physical link speed.
+ */
+#define IS_MF_PERCENT_BW(bp) (IS_MF_SI(bp) || IS_MF_UFP(bp) || IS_MF_BD(bp))
 
 #define SET_FLAG(value, mask, flag) \
 	do {\

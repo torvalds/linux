@@ -114,6 +114,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_HASH,
 	BPF_MAP_TYPE_ARRAY,
 	BPF_MAP_TYPE_PROG_ARRAY,
+	BPF_MAP_TYPE_PERF_EVENT_ARRAY,
 };
 
 enum bpf_prog_type {
@@ -270,6 +271,7 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_skb_get_tunnel_key,
 	BPF_FUNC_skb_set_tunnel_key,
+	BPF_FUNC_perf_event_read,	/* u64 bpf_perf_event_read(&map, index) */
 	__BPF_FUNC_MAX_ID,
 };
 

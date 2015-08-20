@@ -2494,7 +2494,7 @@ static void bnx2x_calc_vn_max(struct bnx2x *bp, int vn,
 	else {
 		u32 maxCfg = bnx2x_extract_max_cfg(bp, vn_cfg);
 
-		if (IS_MF_SI(bp)) {
+		if (IS_MF_PERCENT_BW(bp)) {
 			/* maxCfg in percents of linkspeed */
 			vn_max_rate = (bp->link_vars.line_speed * maxCfg) / 100;
 		} else /* SD modes */
@@ -10075,6 +10075,81 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 	}
 }
 
+#ifdef CONFIG_BNX2X_VXLAN
+static int bnx2x_vxlan_port_update(struct bnx2x *bp, u16 port)
+{
+	struct bnx2x_func_switch_update_params *switch_update_params;
+	struct bnx2x_func_state_params func_params = {NULL};
+	int rc;
+
+	switch_update_params = &func_params.params.switch_update;
+
+	/* Prepare parameters for function state transitions */
+	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	__set_bit(RAMROD_RETRY, &func_params.ramrod_flags);
+
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_SWITCH_UPDATE;
+
+	/* Function parameters */
+	__set_bit(BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
+		  &switch_update_params->changes);
+	switch_update_params->vxlan_dst_port = port;
+	rc = bnx2x_func_state_change(bp, &func_params);
+	if (rc)
+		BNX2X_ERR("failed to change vxlan dst port to %d (rc = 0x%x)\n",
+			  port, rc);
+	return rc;
+}
+
+static void __bnx2x_add_vxlan_port(struct bnx2x *bp, u16 port)
+{
+	if (!netif_running(bp->dev))
+		return;
+
+	if (bp->vxlan_dst_port || !IS_PF(bp)) {
+		DP(BNX2X_MSG_SP, "Vxlan destination port limit reached\n");
+		return;
+	}
+
+	bp->vxlan_dst_port = port;
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_ADD_VXLAN_PORT, 0);
+}
+
+static void bnx2x_add_vxlan_port(struct net_device *netdev,
+				 sa_family_t sa_family, __be16 port)
+{
+	struct bnx2x *bp = netdev_priv(netdev);
+	u16 t_port = ntohs(port);
+
+	__bnx2x_add_vxlan_port(bp, t_port);
+}
+
+static void __bnx2x_del_vxlan_port(struct bnx2x *bp, u16 port)
+{
+	if (!bp->vxlan_dst_port || bp->vxlan_dst_port != port || !IS_PF(bp)) {
+		DP(BNX2X_MSG_SP, "Invalid vxlan port\n");
+		return;
+	}
+
+	if (netif_running(bp->dev)) {
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_DEL_VXLAN_PORT, 0);
+	} else {
+		bp->vxlan_dst_port = 0;
+		netdev_info(bp->dev, "Deleted vxlan dest port %d", port);
+	}
+}
+
+static void bnx2x_del_vxlan_port(struct net_device *netdev,
+				 sa_family_t sa_family, __be16 port)
+{
+	struct bnx2x *bp = netdev_priv(netdev);
+	u16 t_port = ntohs(port);
+
+	__bnx2x_del_vxlan_port(bp, t_port);
+}
+#endif
+
 static int bnx2x_close(struct net_device *dev);
 
 /* bnx2x_nic_unload() flushes the bnx2x_wq, thus reset task is
@@ -10083,6 +10158,9 @@ static int bnx2x_close(struct net_device *dev);
 static void bnx2x_sp_rtnl_task(struct work_struct *work)
 {
 	struct bnx2x *bp = container_of(work, struct bnx2x, sp_rtnl_task.work);
+#ifdef CONFIG_BNX2X_VXLAN
+	u16 port;
+#endif
 
 	rtnl_lock();
 
@@ -10180,6 +10258,27 @@ sp_rtnl_not_reset:
 	if (test_and_clear_bit(BNX2X_SP_RTNL_GET_DRV_VERSION,
 			       &bp->sp_rtnl_state))
 		bnx2x_update_mng_version(bp);
+
+#ifdef CONFIG_BNX2X_VXLAN
+	port = bp->vxlan_dst_port;
+	if (test_and_clear_bit(BNX2X_SP_RTNL_ADD_VXLAN_PORT,
+			       &bp->sp_rtnl_state)) {
+		if (!bnx2x_vxlan_port_update(bp, port))
+			netdev_info(bp->dev, "Added vxlan dest port %d", port);
+		else
+			bp->vxlan_dst_port = 0;
+	}
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_DEL_VXLAN_PORT,
+			       &bp->sp_rtnl_state)) {
+		if (!bnx2x_vxlan_port_update(bp, 0)) {
+			netdev_info(bp->dev,
+				    "Deleted vxlan dest port %d", port);
+			bp->vxlan_dst_port = 0;
+			vxlan_get_rx_port(bp->dev);
+		}
+	}
+#endif
 
 	/* work which needs rtnl lock not-taken (as it takes the lock itself and
 	 * can be called from other contexts as well)
@@ -12379,6 +12478,12 @@ static int bnx2x_open(struct net_device *dev)
 	rc = bnx2x_nic_load(bp, LOAD_OPEN);
 	if (rc)
 		return rc;
+
+#ifdef CONFIG_BNX2X_VXLAN
+	if (IS_PF(bp))
+		vxlan_get_rx_port(dev);
+#endif
+
 	return 0;
 }
 
@@ -12894,6 +12999,10 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
 	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
 	.ndo_features_check	= bnx2x_features_check,
+#ifdef CONFIG_BNX2X_VXLAN
+	.ndo_add_vxlan_port	= bnx2x_add_vxlan_port,
+	.ndo_del_vxlan_port	= bnx2x_del_vxlan_port,
+#endif
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)

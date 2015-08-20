@@ -1124,6 +1124,7 @@ int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
 	*pfp = fp;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_create_from_user);
 
 void bpf_prog_destroy(struct bpf_prog *fp)
 {
@@ -1348,7 +1349,7 @@ const struct bpf_func_proto bpf_l3_csum_replace_proto = {
 static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
-	u32 is_pseudo = BPF_IS_PSEUDO_HEADER(flags);
+	bool is_pseudo = !!BPF_IS_PSEUDO_HEADER(flags);
 	int offset = (int) r2;
 	__sum16 sum, *ptr;
 

@@ -665,6 +665,12 @@ static struct rt6_info *find_match(struct rt6_info *rt, int oif, int strict,
 {
 	int m;
 	bool match_do_rr = false;
+	struct inet6_dev *idev = rt->rt6i_idev;
+	struct net_device *dev = rt->dst.dev;
+
+	if (dev && !netif_carrier_ok(dev) &&
+	    idev->cnf.ignore_routes_with_linkdown)
+		goto out;
 
 	if (rt6_check_expired(rt))
 		goto out;
@@ -1779,8 +1785,14 @@ int ip6_route_add(struct fib6_config *cfg)
 		if (err)
 			goto out;
 		rt->rt6i_lwtstate = lwtstate_get(lwtstate);
-		if (lwtunnel_output_redirect(rt->rt6i_lwtstate))
+		if (lwtunnel_output_redirect(rt->rt6i_lwtstate)) {
+			rt->rt6i_lwtstate->orig_output = rt->dst.output;
 			rt->dst.output = lwtunnel_output6;
+		}
+		if (lwtunnel_input_redirect(rt->rt6i_lwtstate)) {
+			rt->rt6i_lwtstate->orig_input = rt->dst.input;
+			rt->dst.input = lwtunnel_input6;
+		}
 	}
 
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
@@ -1844,6 +1856,7 @@ int ip6_route_add(struct fib6_config *cfg)
 		int gwa_type;
 
 		gw_addr = &cfg->fc_gateway;
+		gwa_type = ipv6_addr_type(gw_addr);
 
 		/* if gw_addr is local we will fail to detect this in case
 		 * address is still TENTATIVE (DAD in progress). rt6_lookup()
@@ -1851,11 +1864,12 @@ int ip6_route_add(struct fib6_config *cfg)
 		 * prefix route was assigned to, which might be non-loopback.
 		 */
 		err = -EINVAL;
-		if (ipv6_chk_addr_and_flags(net, gw_addr, NULL, 0, 0))
+		if (ipv6_chk_addr_and_flags(net, gw_addr,
+					    gwa_type & IPV6_ADDR_LINKLOCAL ?
+					    dev : NULL, 0, 0))
 			goto out;
 
 		rt->rt6i_gateway = *gw_addr;
-		gwa_type = ipv6_addr_type(gw_addr);
 
 		if (gwa_type != (IPV6_ADDR_LINKLOCAL|IPV6_ADDR_UNICAST)) {
 			struct rt6_info *grt;
@@ -2885,6 +2899,11 @@ static int rt6_fill_node(struct net *net,
 	else
 		rtm->rtm_type = RTN_UNICAST;
 	rtm->rtm_flags = 0;
+	if (!netif_carrier_ok(rt->dst.dev)) {
+		rtm->rtm_flags |= RTNH_F_LINKDOWN;
+		if (rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
+			rtm->rtm_flags |= RTNH_F_DEAD;
+	}
 	rtm->rtm_scope = RT_SCOPE_UNIVERSE;
 	rtm->rtm_protocol = rt->rt6i_protocol;
 	if (rt->rt6i_flags & RTF_DYNAMIC)

@@ -227,7 +227,7 @@ unsigned int synproxy_tstamp_adjust(struct sk_buff *skb,
 						     synproxy->tsoff);
 				}
 				inet_proto_csum_replace4(&th->check, skb,
-							 old, *ptr, 0);
+							 old, *ptr, false);
 				return 1;
 			}
 			optoff += op[1];
@@ -355,10 +355,8 @@ static int __net_init synproxy_net_init(struct net *net)
 	int err = -ENOMEM;
 
 	ct = nf_ct_tmpl_alloc(net, &nf_ct_zone_dflt, GFP_KERNEL);
-	if (IS_ERR(ct)) {
-		err = PTR_ERR(ct);
+	if (!ct)
 		goto err1;
-	}
 
 	if (!nfct_seqadj_ext_add(ct))
 		goto err2;

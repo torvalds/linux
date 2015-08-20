@@ -925,12 +925,10 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 			return err;
 
 		if (attrs[XFRMA_ADDRESS_FILTER]) {
-			filter = kmalloc(sizeof(*filter), GFP_KERNEL);
+			filter = kmemdup(nla_data(attrs[XFRMA_ADDRESS_FILTER]),
+					 sizeof(*filter), GFP_KERNEL);
 			if (filter == NULL)
 				return -ENOMEM;
-
-			memcpy(filter, nla_data(attrs[XFRMA_ADDRESS_FILTER]),
-			       sizeof(*filter));
 		}
 
 		if (attrs[XFRMA_PROTO])

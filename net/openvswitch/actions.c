@@ -273,28 +273,36 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static void set_ip_addr(struct sk_buff *skb, struct iphdr *nh,
-			__be32 *addr, __be32 new_addr)
+static void update_ip_l4_checksum(struct sk_buff *skb, struct iphdr *nh,
+				  __be32 addr, __be32 new_addr)
 {
 	int transport_len = skb->len - skb_transport_offset(skb);
+
+	if (nh->frag_off & htons(IP_OFFSET))
+		return;
 
 	if (nh->protocol == IPPROTO_TCP) {
 		if (likely(transport_len >= sizeof(struct tcphdr)))
 			inet_proto_csum_replace4(&tcp_hdr(skb)->check, skb,
-						 *addr, new_addr, 1);
+						 addr, new_addr, true);
 	} else if (nh->protocol == IPPROTO_UDP) {
 		if (likely(transport_len >= sizeof(struct udphdr))) {
 			struct udphdr *uh = udp_hdr(skb);
 
 			if (uh->check || skb->ip_summed == CHECKSUM_PARTIAL) {
 				inet_proto_csum_replace4(&uh->check, skb,
-							 *addr, new_addr, 1);
+							 addr, new_addr, true);
 				if (!uh->check)
 					uh->check = CSUM_MANGLED_0;
 			}
 		}
 	}
+}
 
+static void set_ip_addr(struct sk_buff *skb, struct iphdr *nh,
+			__be32 *addr, __be32 new_addr)
+{
+	update_ip_l4_checksum(skb, nh, *addr, new_addr);
 	csum_replace4(&nh->check, *addr, new_addr);
 	skb_clear_hash(skb);
 	*addr = new_addr;
@@ -308,14 +316,14 @@ static void update_ipv6_checksum(struct sk_buff *skb, u8 l4_proto,
 	if (l4_proto == NEXTHDR_TCP) {
 		if (likely(transport_len >= sizeof(struct tcphdr)))
 			inet_proto_csum_replace16(&tcp_hdr(skb)->check, skb,
-						  addr, new_addr, 1);
+						  addr, new_addr, true);
 	} else if (l4_proto == NEXTHDR_UDP) {
 		if (likely(transport_len >= sizeof(struct udphdr))) {
 			struct udphdr *uh = udp_hdr(skb);
 
 			if (uh->check || skb->ip_summed == CHECKSUM_PARTIAL) {
 				inet_proto_csum_replace16(&uh->check, skb,
-							  addr, new_addr, 1);
+							  addr, new_addr, true);
 				if (!uh->check)
 					uh->check = CSUM_MANGLED_0;
 			}
@@ -323,7 +331,7 @@ static void update_ipv6_checksum(struct sk_buff *skb, u8 l4_proto,
 	} else if (l4_proto == NEXTHDR_ICMP) {
 		if (likely(transport_len >= sizeof(struct icmp6hdr)))
 			inet_proto_csum_replace16(&icmp6_hdr(skb)->icmp6_cksum,
-						  skb, addr, new_addr, 1);
+						  skb, addr, new_addr, true);
 	}
 }
 
@@ -490,7 +498,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 static void set_tp_port(struct sk_buff *skb, __be16 *port,
 			__be16 new_port, __sum16 *check)
 {
-	inet_proto_csum_replace2(check, skb, *port, new_port, 0);
+	inet_proto_csum_replace2(check, skb, *port, new_port, false);
 	*port = new_port;
 }
 
@@ -669,9 +677,12 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
 		 a = nla_next(a, &rem)) {
+		u32 probability;
+
 		switch (nla_type(a)) {
 		case OVS_SAMPLE_ATTR_PROBABILITY:
-			if (prandom_u32() >= nla_get_u32(a))
+			probability = nla_get_u32(a);
+			if (!probability || prandom_u32() > probability)
 				return 0;
 			break;
 

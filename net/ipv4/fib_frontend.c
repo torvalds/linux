@@ -45,6 +45,7 @@
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
+#include <net/vrf.h>
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
@@ -211,12 +212,12 @@ void fib_flush_external(struct net *net)
  */
 static inline unsigned int __inet_dev_addr_type(struct net *net,
 						const struct net_device *dev,
-						__be32 addr)
+						__be32 addr, int tb_id)
 {
 	struct flowi4		fl4 = { .daddr = addr };
 	struct fib_result	res;
 	unsigned int ret = RTN_BROADCAST;
-	struct fib_table *local_table;
+	struct fib_table *table;
 
 	if (ipv4_is_zeronet(addr) || ipv4_is_lbcast(addr))
 		return RTN_BROADCAST;
@@ -225,10 +226,10 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 
 	rcu_read_lock();
 
-	local_table = fib_get_table(net, RT_TABLE_LOCAL);
-	if (local_table) {
+	table = fib_get_table(net, tb_id);
+	if (table) {
 		ret = RTN_UNICAST;
-		if (!fib_table_lookup(local_table, &fl4, &res, FIB_LOOKUP_NOREF)) {
+		if (!fib_table_lookup(table, &fl4, &res, FIB_LOOKUP_NOREF)) {
 			if (!dev || dev == res.fi->fib_dev)
 				ret = res.type;
 		}
@@ -238,18 +239,39 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	return ret;
 }
 
+unsigned int inet_addr_type_table(struct net *net, __be32 addr, int tb_id)
+{
+	return __inet_dev_addr_type(net, NULL, addr, tb_id);
+}
+EXPORT_SYMBOL(inet_addr_type_table);
+
 unsigned int inet_addr_type(struct net *net, __be32 addr)
 {
-	return __inet_dev_addr_type(net, NULL, addr);
+	return __inet_dev_addr_type(net, NULL, addr, RT_TABLE_LOCAL);
 }
 EXPORT_SYMBOL(inet_addr_type);
 
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
-	return __inet_dev_addr_type(net, dev, addr);
+	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+
+	return __inet_dev_addr_type(net, dev, addr, rt_table);
 }
 EXPORT_SYMBOL(inet_dev_addr_type);
+
+/* inet_addr_type with dev == NULL but using the table from a dev
+ * if one is associated
+ */
+unsigned int inet_addr_type_dev_table(struct net *net,
+				      const struct net_device *dev,
+				      __be32 addr)
+{
+	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+
+	return __inet_dev_addr_type(net, NULL, addr, rt_table);
+}
+EXPORT_SYMBOL(inet_addr_type_dev_table);
 
 __be32 fib_compute_spec_dst(struct sk_buff *skb)
 {
@@ -309,7 +331,9 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
-	fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
+	fl4.flowi4_iif = vrf_master_ifindex_rcu(dev);
+	if (!fl4.flowi4_iif)
+		fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
 	fl4.saddr = dst;
 	fl4.flowi4_tos = tos;
@@ -337,6 +361,9 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		struct fib_nh *nh = &res.fi->fib_nh[ret];
 
 		if (nh->nh_dev == dev) {
+			dev_match = true;
+			break;
+		} else if (vrf_master_ifindex_rcu(nh->nh_dev) == dev->ifindex) {
 			dev_match = true;
 			break;
 		}
@@ -496,9 +523,12 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
 
 	addr = sk_extract_addr(&rt->rt_gateway);
 	if (rt->rt_gateway.sa_family == AF_INET && addr) {
+		unsigned int addr_type;
+
 		cfg->fc_gw = addr;
+		addr_type = inet_addr_type_table(net, addr, cfg->fc_table);
 		if (rt->rt_flags & RTF_GATEWAY &&
-		    inet_addr_type(net, addr) == RTN_UNICAST)
+		    addr_type == RTN_UNICAST)
 			cfg->fc_scope = RT_SCOPE_UNIVERSE;
 	}
 
@@ -770,6 +800,7 @@ out:
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct net *net = dev_net(ifa->ifa_dev->dev);
+	int tb_id = vrf_dev_table_rtnl(ifa->ifa_dev->dev);
 	struct fib_table *tb;
 	struct fib_config cfg = {
 		.fc_protocol = RTPROT_KERNEL,
@@ -784,11 +815,10 @@ static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifad
 		},
 	};
 
-	if (type == RTN_UNICAST)
-		tb = fib_new_table(net, RT_TABLE_MAIN);
-	else
-		tb = fib_new_table(net, RT_TABLE_LOCAL);
+	if (!tb_id)
+		tb_id = (type == RTN_UNICAST) ? RT_TABLE_MAIN : RT_TABLE_LOCAL;
 
+	tb = fib_new_table(net, tb_id);
 	if (!tb)
 		return;
 
@@ -970,11 +1000,14 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 			fib_magic(RTM_DELROUTE, RTN_BROADCAST, any, 32, prim);
 	}
 	if (!(ok & LOCAL_OK)) {
+		unsigned int addr_type;
+
 		fib_magic(RTM_DELROUTE, RTN_LOCAL, ifa->ifa_local, 32, prim);
 
 		/* Check, that this local address finally disappeared. */
-		if (gone &&
-		    inet_addr_type(dev_net(dev), ifa->ifa_local) != RTN_LOCAL) {
+		addr_type = inet_addr_type_dev_table(dev_net(dev), dev,
+						     ifa->ifa_local);
+		if (gone && addr_type != RTN_LOCAL) {
 			/* And the last, but not the least thing.
 			 * We must flush stray FIB entries.
 			 *

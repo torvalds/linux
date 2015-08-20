@@ -195,4 +195,17 @@ rdev_set_lbt_mode(struct cfg802154_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_set_ackreq_default(struct cfg802154_registered_device *rdev,
+			struct wpan_dev *wpan_dev, bool ackreq)
+{
+	int ret;
+
+	trace_802154_rdev_set_ackreq_default(&rdev->wpan_phy, wpan_dev,
+					     ackreq);
+	ret = rdev->ops->set_ackreq_default(&rdev->wpan_phy, wpan_dev, ackreq);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
 #endif /* __CFG802154_RDEV_OPS */

@@ -47,6 +47,11 @@
 #define I40E_DEV_ID_20G_KR2		0x1587
 #define I40E_DEV_ID_VF			0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
+#define I40E_DEV_ID_SFP_X722		0x37D0
+#define I40E_DEV_ID_1G_BASE_T_X722	0x37D1
+#define I40E_DEV_ID_10G_BASE_T_X722	0x37D2
+#define I40E_DEV_ID_X722_VF		0x37CD
+#define I40E_DEV_ID_X722_VF_HV		0x37D9
 
 #define i40e_is_40G_device(d)		((d) == I40E_DEV_ID_QSFP_A  || \
 					 (d) == I40E_DEV_ID_QSFP_B  || \
@@ -120,6 +125,8 @@ enum i40e_mac_type {
 	I40E_MAC_X710,
 	I40E_MAC_XL710,
 	I40E_MAC_VF,
+	I40E_MAC_X722,
+	I40E_MAC_X722_VF,
 	I40E_MAC_GENERIC,
 };
 
@@ -496,7 +503,8 @@ struct i40e_hw {
 
 static inline bool i40e_is_vf(struct i40e_hw *hw)
 {
-	return hw->mac.type == I40E_MAC_VF;
+	return (hw->mac.type == I40E_MAC_VF ||
+		hw->mac.type == I40E_MAC_X722_VF);
 }
 
 struct i40e_driver_version {
@@ -593,14 +601,18 @@ enum i40e_rx_desc_status_bits {
 	I40E_RX_DESC_STATUS_CRCP_SHIFT		= 4,
 	I40E_RX_DESC_STATUS_TSYNINDX_SHIFT	= 5, /* 2 BITS */
 	I40E_RX_DESC_STATUS_TSYNVALID_SHIFT	= 7,
-	I40E_RX_DESC_STATUS_PIF_SHIFT		= 8,
+	/* Note: Bit 8 is reserved in X710 and XL710 */
+	I40E_RX_DESC_STATUS_EXT_UDP_0_SHIFT	= 8,
 	I40E_RX_DESC_STATUS_UMBCAST_SHIFT	= 9, /* 2 BITS */
 	I40E_RX_DESC_STATUS_FLM_SHIFT		= 11,
 	I40E_RX_DESC_STATUS_FLTSTAT_SHIFT	= 12, /* 2 BITS */
 	I40E_RX_DESC_STATUS_LPBK_SHIFT		= 14,
 	I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
 	I40E_RX_DESC_STATUS_RESERVED_SHIFT	= 16, /* 2 BITS */
-	I40E_RX_DESC_STATUS_UDP_0_SHIFT		= 18,
+	/* Note: For non-tunnel packets INT_UDP_0 is the right status for
+	 * UDP header
+	 */
+	I40E_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
 	I40E_RX_DESC_STATUS_LAST /* this entry must be last!!! */
 };
 
@@ -941,6 +953,8 @@ enum i40e_tx_ctx_desc_eipt_offload {
 #define I40E_TXD_CTX_QW0_DECTTL_MASK	(0xFULL << \
 					 I40E_TXD_CTX_QW0_DECTTL_SHIFT)
 
+#define I40E_TXD_CTX_QW0_L4T_CS_SHIFT	23
+#define I40E_TXD_CTX_QW0_L4T_CS_MASK	BIT_ULL(I40E_TXD_CTX_QW0_L4T_CS_SHIFT)
 struct i40e_filter_program_desc {
 	__le32 qindex_flex_ptype_vsi;
 	__le32 rsvd;
@@ -959,15 +973,24 @@ struct i40e_filter_program_desc {
 
 /* Packet Classifier Types for filters */
 enum i40e_filter_pctype {
-	/* Note: Values 0-30 are reserved for future use */
+	/* Note: Values 0-28 are reserved for future use.
+	 * Value 29, 30, 32 are not supported on XL710 and X710.
+	 */
+	I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP	= 29,
+	I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP	= 30,
 	I40E_FILTER_PCTYPE_NONF_IPV4_UDP		= 31,
-	/* Note: Value 32 is reserved for future use */
+	I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK	= 32,
 	I40E_FILTER_PCTYPE_NONF_IPV4_TCP		= 33,
 	I40E_FILTER_PCTYPE_NONF_IPV4_SCTP		= 34,
 	I40E_FILTER_PCTYPE_NONF_IPV4_OTHER		= 35,
 	I40E_FILTER_PCTYPE_FRAG_IPV4			= 36,
-	/* Note: Values 37-40 are reserved for future use */
+	/* Note: Values 37-38 are reserved for future use.
+	 * Value 39, 40, 42 are not supported on XL710 and X710.
+	 */
+	I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP	= 39,
+	I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP	= 40,
 	I40E_FILTER_PCTYPE_NONF_IPV6_UDP		= 41,
+	I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK	= 42,
 	I40E_FILTER_PCTYPE_NONF_IPV6_TCP		= 43,
 	I40E_FILTER_PCTYPE_NONF_IPV6_SCTP		= 44,
 	I40E_FILTER_PCTYPE_NONF_IPV6_OTHER		= 45,

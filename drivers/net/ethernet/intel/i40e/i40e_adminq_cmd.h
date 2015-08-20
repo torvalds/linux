@@ -257,6 +257,10 @@ enum i40e_admin_queue_opc {
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
 	i40e_aqc_opc_del_udp_tunnel	= 0x0B01,
+	i40e_aqc_opc_set_rss_key	= 0x0B02,
+	i40e_aqc_opc_set_rss_lut	= 0x0B03,
+	i40e_aqc_opc_get_rss_key	= 0x0B04,
+	i40e_aqc_opc_get_rss_lut	= 0x0B05,
 
 	/* Async Events */
 	i40e_aqc_opc_event_lan_overflow		= 0x1001,
@@ -821,8 +825,12 @@ struct i40e_aqc_vsi_properties_data {
 					 I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
 	/* queueing option section */
 	u8	queueing_opt_flags;
+#define I40E_AQ_VSI_QUE_OPT_MULTICAST_UDP_ENA	0x04
+#define I40E_AQ_VSI_QUE_OPT_UNICAST_UDP_ENA	0x08
 #define I40E_AQ_VSI_QUE_OPT_TCP_ENA	0x10
 #define I40E_AQ_VSI_QUE_OPT_FCOE_ENA	0x20
+#define I40E_AQ_VSI_QUE_OPT_RSS_LUT_PF	0x00
+#define I40E_AQ_VSI_QUE_OPT_RSS_LUT_VSI	0x40
 	u8	queueing_opt_reserved[3];
 	/* scheduler section */
 	u8	up_enable_bits;
@@ -2178,6 +2186,46 @@ struct i40e_aqc_del_udp_tunnel_completion {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_del_udp_tunnel_completion);
+
+struct i40e_aqc_get_set_rss_key {
+#define I40E_AQC_SET_RSS_KEY_VSI_VALID		(0x1 << 15)
+#define I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT	0
+#define I40E_AQC_SET_RSS_KEY_VSI_ID_MASK	(0x3FF << \
+					I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT)
+	__le16	vsi_id;
+	u8	reserved[6];
+	__le32	addr_high;
+	__le32	addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_get_set_rss_key);
+
+struct i40e_aqc_get_set_rss_key_data {
+	u8 standard_rss_key[0x28];
+	u8 extended_hash_key[0xc];
+};
+
+I40E_CHECK_STRUCT_LEN(0x34, i40e_aqc_get_set_rss_key_data);
+
+struct  i40e_aqc_get_set_rss_lut {
+#define I40E_AQC_SET_RSS_LUT_VSI_VALID		(0x1 << 15)
+#define I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT	0
+#define I40E_AQC_SET_RSS_LUT_VSI_ID_MASK	(0x3FF << \
+					I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT)
+	__le16	vsi_id;
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT	0
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK	(0x1 << \
+					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT)
+
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI	0
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF	1
+	__le16	flags;
+	u8	reserved[4];
+	__le32	addr_high;
+	__le32	addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_get_set_rss_lut);
 
 /* tunnel key structure 0x0B10 */
 

@@ -1424,18 +1424,17 @@ static void restart_ctrlq(unsigned long data)
 		struct fw_wr_hdr *wr;
 		unsigned int ndesc = skb->priority;     /* previously saved */
 
-		/*
-		 * Write descriptors and free skbs outside the lock to limit
+		written += ndesc;
+		/* Write descriptors and free skbs outside the lock to limit
 		 * wait times.  q->full is still set so new skbs will be queued.
 		 */
+		wr = (struct fw_wr_hdr *)&q->q.desc[q->q.pidx];
+		txq_advance(&q->q, ndesc);
 		spin_unlock(&q->sendq.lock);
 
-		wr = (struct fw_wr_hdr *)&q->q.desc[q->q.pidx];
 		inline_tx_skb(skb, &q->q, wr);
 		kfree_skb(skb);
 
-		written += ndesc;
-		txq_advance(&q->q, ndesc);
 		if (unlikely(txq_avail(&q->q) < TXQ_STOP_THRES)) {
 			unsigned long old = q->q.stops;
 

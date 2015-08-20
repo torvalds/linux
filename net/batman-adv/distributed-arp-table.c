@@ -19,6 +19,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -453,7 +454,7 @@ static bool batadv_is_orig_node_eligible(struct batadv_dat_candidate *res,
 	int j;
 
 	/* check if orig node candidate is running DAT */
-	if (!(candidate->capabilities & BATADV_ORIG_CAPA_HAS_DAT))
+	if (!test_bit(BATADV_ORIG_CAPA_HAS_DAT, &candidate->capabilities))
 		goto out;
 
 	/* Check if this node has already been selected... */
@@ -713,9 +714,9 @@ static void batadv_dat_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					   uint16_t tvlv_value_len)
 {
 	if (flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND)
-		orig->capabilities &= ~BATADV_ORIG_CAPA_HAS_DAT;
+		clear_bit(BATADV_ORIG_CAPA_HAS_DAT, &orig->capabilities);
 	else
-		orig->capabilities |= BATADV_ORIG_CAPA_HAS_DAT;
+		set_bit(BATADV_ORIG_CAPA_HAS_DAT, &orig->capabilities);
 }
 
 /**
@@ -1138,6 +1139,9 @@ void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
  * @hdr_size: size of the encapsulation header
+ *
+ * Returns true if the packet was snooped and consumed by DAT. False if the
+ * packet has to be delivered to the interface
  */
 bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb, int hdr_size)
@@ -1145,7 +1149,7 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	uint16_t type;
 	__be32 ip_src, ip_dst;
 	uint8_t *hw_src, *hw_dst;
-	bool ret = false;
+	bool dropped = false;
 	unsigned short vid;
 
 	if (!atomic_read(&bat_priv->distributed_arp_table))
@@ -1174,12 +1178,17 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	/* if this REPLY is directed to a client of mine, let's deliver the
 	 * packet to the interface
 	 */
-	ret = !batadv_is_my_client(bat_priv, hw_dst, vid);
+	dropped = !batadv_is_my_client(bat_priv, hw_dst, vid);
+
+	/* if this REPLY is sent on behalf of a client of mine, let's drop the
+	 * packet because the client will reply by itself
+	 */
+	dropped |= batadv_is_my_client(bat_priv, hw_src, vid);
 out:
-	if (ret)
+	if (dropped)
 		kfree_skb(skb);
-	/* if ret == false -> packet has to be delivered to the interface */
-	return ret;
+	/* if dropped == false -> deliver to the interface */
+	return dropped;
 }
 
 /**

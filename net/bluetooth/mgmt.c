@@ -3564,9 +3564,10 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		 */
 		hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
 
-		conn = hci_connect_le(hdev, &cp->addr.bdaddr, addr_type,
-				      sec_level, HCI_LE_CONN_TIMEOUT,
-				      HCI_ROLE_MASTER);
+		conn = hci_connect_le_scan(hdev, &cp->addr.bdaddr,
+					   addr_type, sec_level,
+					   HCI_LE_CONN_TIMEOUT,
+					   HCI_ROLE_MASTER);
 	}
 
 	if (IS_ERR(conn)) {
@@ -4210,7 +4211,7 @@ static bool trigger_le_scan(struct hci_request *req, u16 interval, u8 *status)
 		/* Don't let discovery abort an outgoing connection attempt
 		 * that's using directed advertising.
 		 */
-		if (hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
+		if (hci_lookup_le_connect(hdev)) {
 			*status = MGMT_STATUS_REJECTED;
 			return false;
 		}
@@ -6107,6 +6108,12 @@ static int hci_conn_params_set(struct hci_request *req, bdaddr_t *addr,
 	switch (auto_connect) {
 	case HCI_AUTO_CONN_DISABLED:
 	case HCI_AUTO_CONN_LINK_LOSS:
+		/* If auto connect is being disabled when we're trying to
+		 * connect to device, keep connecting.
+		 */
+		if (params->explicit_connect)
+			list_add(&params->action, &hdev->pend_le_conns);
+
 		__hci_update_background_scan(req);
 		break;
 	case HCI_AUTO_CONN_REPORT:
@@ -7843,7 +7850,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 	/* Make sure we copy only the significant bytes based on the
 	 * encryption key size, and set the rest of the value to zeroes.
 	 */
-	memcpy(ev.key.val, key->val, sizeof(key->enc_size));
+	memcpy(ev.key.val, key->val, key->enc_size);
 	memset(ev.key.val + key->enc_size, 0,
 	       sizeof(ev.key.val) - key->enc_size);
 

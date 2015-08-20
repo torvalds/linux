@@ -63,6 +63,8 @@ struct cfg802154_ops {
 					 s8 max_frame_retries);
 	int	(*set_lbt_mode)(struct wpan_phy *wpan_phy,
 				struct wpan_dev *wpan_dev, bool mode);
+	int	(*set_ackreq_default)(struct wpan_phy *wpan_phy,
+				      struct wpan_dev *wpan_dev, bool ackreq);
 };
 
 static inline bool
@@ -173,6 +175,9 @@ struct wpan_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
+	/* lowpan interface, set when the wpan_dev belongs to one lowpan_dev */
+	struct net_device *lowpan_dev;
+
 	u32 identifier;
 
 	/* MAC PIB */
@@ -193,6 +198,9 @@ struct wpan_dev {
 	bool lbt;
 
 	bool promiscuous_mode;
+
+	/* fallback for acknowledgment bit setting */
+	bool ackreq;
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)

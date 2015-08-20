@@ -147,7 +147,7 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 	return ovs_netdev_link(vport, parms->name);
 }
 
-void ovs_vport_free_rcu(struct rcu_head *rcu)
+static void vport_netdev_free(struct rcu_head *rcu)
 {
 	struct vport *vport = container_of(rcu, struct vport, rcu);
 
@@ -155,7 +155,6 @@ void ovs_vport_free_rcu(struct rcu_head *rcu)
 		dev_put(vport->dev);
 	ovs_vport_free(vport);
 }
-EXPORT_SYMBOL_GPL(ovs_vport_free_rcu);
 
 void ovs_netdev_detach_dev(struct vport *vport)
 {
@@ -175,8 +174,24 @@ static void netdev_destroy(struct vport *vport)
 		ovs_netdev_detach_dev(vport);
 	rtnl_unlock();
 
-	call_rcu(&vport->rcu, ovs_vport_free_rcu);
+	call_rcu(&vport->rcu, vport_netdev_free);
 }
+
+void ovs_netdev_tunnel_destroy(struct vport *vport)
+{
+	rtnl_lock();
+	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
+		ovs_netdev_detach_dev(vport);
+
+	/* Early release so we can unregister the device */
+	dev_put(vport->dev);
+	rtnl_delete_link(vport->dev);
+	vport->dev = NULL;
+	rtnl_unlock();
+
+	call_rcu(&vport->rcu, vport_netdev_free);
+}
+EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 
 static unsigned int packet_length(const struct sk_buff *skb)
 {
