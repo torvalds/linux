@@ -76,6 +76,7 @@ gt215_ce_intr(struct nvkm_subdev *subdev)
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_falcon *falcon = (void *)subdev;
 	struct nvkm_object *engctx;
+	const struct nvkm_enum *en;
 	u32 dispatch = nv_ro32(falcon, 0x01c);
 	u32 stat = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
 	u64 inst = nv_ro32(falcon, 0x050) & 0x3fffffff;
@@ -90,17 +91,18 @@ gt215_ce_intr(struct nvkm_subdev *subdev)
 	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & 0x00000040) {
-		nv_error(falcon, "DISPATCH_ERROR [");
-		nvkm_enum_print(gt215_ce_isr_error_name, ssta);
-		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, inst << 12, nvkm_client_name(engctx), subc,
-		       mthd, data);
+		en = nvkm_enum_find(gt215_ce_isr_error_name, ssta);
+		nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] "
+				   "ch %d [%010llx %s] subc %d "
+				   "mthd %04x data %08x\n",
+			   ssta, en ? en->name : "", chid, inst << 12,
+			   nvkm_client_name(engctx), subc, mthd, data);
 		nv_wo32(falcon, 0x004, 0x00000040);
 		stat &= ~0x00000040;
 	}
 
 	if (stat) {
-		nv_error(falcon, "unhandled intr 0x%08x\n", stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
 		nv_wo32(falcon, 0x004, stat);
 	}
 

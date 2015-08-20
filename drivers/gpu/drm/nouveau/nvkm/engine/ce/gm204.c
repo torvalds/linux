@@ -64,11 +64,10 @@ gm204_ce_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_device *device = subdev->device;
 	const int idx = nv_subidx(subdev) - NVDEV_ENGINE_CE0;
-	struct nvkm_engine *ce = (void *)subdev;
 	u32 stat = nvkm_rd32(device, 0x104908 + (idx * 0x1000));
 
 	if (stat) {
-		nv_warn(ce, "unhandled intr 0x%08x\n", stat);
+		nvkm_warn(subdev, "intr %08x\n", stat);
 		nvkm_wr32(device, 0x104908 + (idx * 0x1000), stat);
 	}
 }
