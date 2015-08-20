@@ -30,6 +30,20 @@ nvkm_device_pci(struct nvkm_device *device)
 	return container_of(device, struct nvkm_device_pci, device);
 }
 
+static resource_size_t
+nvkm_device_pci_resource_addr(struct nvkm_device *device, unsigned bar)
+{
+	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
+	return pci_resource_start(pdev->pdev, bar);
+}
+
+static resource_size_t
+nvkm_device_pci_resource_size(struct nvkm_device *device, unsigned bar)
+{
+	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
+	return pci_resource_len(pdev->pdev, bar);
+}
+
 static void
 nvkm_device_pci_fini(struct nvkm_device *device, bool suspend)
 {
@@ -68,6 +82,8 @@ nvkm_device_pci_func = {
 	.dtor = nvkm_device_pci_dtor,
 	.preinit = nvkm_device_pci_preinit,
 	.fini = nvkm_device_pci_fini,
+	.resource_addr = nvkm_device_pci_resource_addr,
+	.resource_size = nvkm_device_pci_resource_size,
 };
 
 int

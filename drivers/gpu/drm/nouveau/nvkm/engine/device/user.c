@@ -198,8 +198,8 @@ nvkm_udevice_map(struct nvkm_object *object, u64 *addr, u32 *size)
 {
 	struct nvkm_udevice *udev = nvkm_udevice(object);
 	struct nvkm_device *device = udev->device;
-	*addr = nv_device_resource_start(device, 0);
-	*size = nv_device_resource_len(device, 0);
+	*addr = device->func->resource_addr(device, 0);
+	*size = device->func->resource_size(device, 0);
 	return 0;
 }
 

@@ -148,6 +148,8 @@ struct nvkm_device_func {
 	int (*preinit)(struct nvkm_device *);
 	int (*init)(struct nvkm_device *);
 	void (*fini)(struct nvkm_device *, bool suspend);
+	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
+	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
 };
 
 struct nvkm_device_quirk {
@@ -241,12 +243,6 @@ nv_device_base(struct nvkm_device *device)
 	return nv_device_is_pci(device) ? &device->pdev->dev :
 					  &device->platformdev->dev;
 }
-
-resource_size_t
-nv_device_resource_start(struct nvkm_device *device, unsigned int bar);
-
-resource_size_t
-nv_device_resource_len(struct nvkm_device *device, unsigned int bar);
 
 struct platform_device;
 

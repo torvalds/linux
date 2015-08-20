@@ -81,7 +81,7 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vm *vm)
 
 	ret = nvkm_vm_get(vm, size, 12, NV_MEM_ACCESS_RW, &iobj->bar);
 	if (ret == 0) {
-		map = ioremap(nv_device_resource_start(device, 3) +
+		map = ioremap(device->func->resource_addr(device, 3) +
 			      (u32)iobj->bar.offset, size);
 		if (map) {
 			nvkm_memory_map(memory, &iobj->bar, 0);

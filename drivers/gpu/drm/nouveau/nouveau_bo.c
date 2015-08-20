@@ -1351,6 +1351,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct nvkm_mem *node = mem->mm_node;
 	int ret;
 
@@ -1379,7 +1380,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = nv_device_resource_start(nvxx_device(&drm->device), 1);
+		mem->bus.base = device->func->resource_addr(device, 1);
 		mem->bus.is_iomem = true;
 		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			struct nvkm_bar *bar = nvxx_bar(&drm->device);
@@ -1419,8 +1420,8 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvif_device *device = &drm->device;
-	u32 mappable = nv_device_resource_len(nvxx_device(device), 1) >> PAGE_SHIFT;
+	struct nvkm_device *device = nvxx_device(&drm->device);
+	u32 mappable = device->func->resource_size(device, 1) >> PAGE_SHIFT;
 	int i, ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got

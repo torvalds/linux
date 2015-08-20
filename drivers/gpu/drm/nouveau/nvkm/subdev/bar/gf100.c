@@ -58,7 +58,7 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 	if (ret)
 		return ret;
 
-	bar_len = nv_device_resource_len(device, bar_nr);
+	bar_len = device->func->resource_size(device, bar_nr);
 
 	ret = nvkm_vm_new(device, 0, bar_len, 0, key, &vm);
 	if (ret)

@@ -2262,36 +2262,6 @@ fail:
 	return ret;
 }
 
-resource_size_t
-nv_device_resource_start(struct nvkm_device *device, unsigned int bar)
-{
-	if (nv_device_is_pci(device)) {
-		return pci_resource_start(device->pdev, bar);
-	} else {
-		struct resource *res;
-		res = platform_get_resource(device->platformdev,
-					    IORESOURCE_MEM, bar);
-		if (!res)
-			return 0;
-		return res->start;
-	}
-}
-
-resource_size_t
-nv_device_resource_len(struct nvkm_device *device, unsigned int bar)
-{
-	if (nv_device_is_pci(device)) {
-		return pci_resource_len(device->pdev, bar);
-	} else {
-		struct resource *res;
-		res = platform_get_resource(device->platformdev,
-					    IORESOURCE_MEM, bar);
-		if (!res)
-			return 0;
-		return resource_size(res);
-	}
-}
-
 void
 nvkm_device_del(struct nvkm_device **pdevice)
 {
@@ -2363,8 +2333,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	if (ret)
 		goto done;
 
-	mmio_base = nv_device_resource_start(device, 0);
-	mmio_size = nv_device_resource_len(device, 0);
+	mmio_base = device->func->resource_addr(device, 0);
+	mmio_size = device->func->resource_size(device, 0);
 
 	/* identify the chipset, and determine classes of subdev/engines */
 	if (detect) {

@@ -26,9 +26,30 @@
 #include "priv.h"
 
 static struct nvkm_device_tegra *
-nvkm_device_tegra(struct nvkm_device *obj)
+nvkm_device_tegra(struct nvkm_device *device)
 {
-	return container_of(obj, struct nvkm_device_tegra, device);
+	return container_of(device, struct nvkm_device_tegra, device);
+}
+
+static struct resource *
+nvkm_device_tegra_resource(struct nvkm_device *device, unsigned bar)
+{
+	struct nvkm_device_tegra *tdev = nvkm_device_tegra(device);
+	return platform_get_resource(tdev->pdev, IORESOURCE_MEM, bar);
+}
+
+static resource_size_t
+nvkm_device_tegra_resource_addr(struct nvkm_device *device, unsigned bar)
+{
+	struct resource *res = nvkm_device_tegra_resource(device, bar);
+	return res ? res->start : 0;
+}
+
+static resource_size_t
+nvkm_device_tegra_resource_size(struct nvkm_device *device, unsigned bar)
+{
+	struct resource *res = nvkm_device_tegra_resource(device, bar);
+	return res ? resource_size(res) : 0;
 }
 
 static irqreturn_t
@@ -79,6 +100,8 @@ nvkm_device_tegra_func = {
 	.tegra = nvkm_device_tegra,
 	.init = nvkm_device_tegra_init,
 	.fini = nvkm_device_tegra_fini,
+	.resource_addr = nvkm_device_tegra_resource_addr,
+	.resource_size = nvkm_device_tegra_resource_size,
 };
 
 int

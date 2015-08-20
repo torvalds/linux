@@ -195,7 +195,7 @@ nv50_disp_chan_map(struct nvkm_object *object, u64 *addr, u32 *size)
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
 	struct nv50_disp *disp = chan->root->disp;
 	struct nvkm_device *device = disp->base.engine.subdev.device;
-	*addr = nv_device_resource_start(device, 0) +
+	*addr = device->func->resource_addr(device, 0) +
 		0x640000 + (chan->chid * 0x1000);
 	*size = 0x001000;
 	return 0;

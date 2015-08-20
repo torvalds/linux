@@ -406,7 +406,7 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	/* determine address of this channel's user registers */
-	chan->addr = nv_device_resource_start(device, bar) +
+	chan->addr = device->func->resource_addr(device, bar) +
 		     base + user * chan->chid;
 	chan->size = user;
 

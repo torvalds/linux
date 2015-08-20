@@ -385,7 +385,7 @@ nv40_gr_init(struct nvkm_gr *base)
 	}
 
 	/* begin RAM config */
-	vramsz = nv_device_resource_len(device, 1) - 1;
+	vramsz = device->func->resource_size(device, 1) - 1;
 	switch (device->chipset) {
 	case 0x40:
 		nvkm_wr32(device, 0x4009A4, nvkm_rd32(device, 0x100200));

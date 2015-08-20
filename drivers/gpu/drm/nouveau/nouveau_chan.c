@@ -150,7 +150,8 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			 */
 			args.target = NV_DMA_V0_TARGET_PCI;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
-			args.start = nv_device_resource_start(nvxx_device(device), 1);
+			args.start = nvxx_device(device)->func->
+				resource_addr(nvxx_device(device), 1);
 			args.limit = args.start + device->info.ram_user - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;

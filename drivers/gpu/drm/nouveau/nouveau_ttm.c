@@ -335,6 +335,7 @@ nouveau_ttm_global_release(struct nouveau_drm *drm)
 int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
+	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct drm_device *dev = drm->dev;
 	u32 bits;
 	int ret;
@@ -381,8 +382,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	drm->ttm.mtrr = arch_phys_wc_add(nv_device_resource_start(nvxx_device(&drm->device), 1),
-					 nv_device_resource_len(nvxx_device(&drm->device), 1));
+	drm->ttm.mtrr = arch_phys_wc_add(device->func->resource_addr(device, 1),
+					 device->func->resource_size(device, 1));
 
 	/* GART init */
 	if (drm->agp.stat != ENABLED) {
