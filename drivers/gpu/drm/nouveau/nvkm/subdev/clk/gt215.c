@@ -41,11 +41,12 @@ static u32 read_pll(struct gt215_clk *, int, u32);
 static u32
 read_vco(struct gt215_clk *clk, int idx)
 {
-	u32 sctl = nv_rd32(clk, 0x4120 + (idx * 4));
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 sctl = nvkm_rd32(device, 0x4120 + (idx * 4));
 
 	switch (sctl & 0x00000030) {
 	case 0x00000000:
-		return nv_device(clk)->crystal;
+		return device->crystal;
 	case 0x00000020:
 		return read_pll(clk, 0x41, 0x00e820);
 	case 0x00000030:
@@ -58,19 +59,20 @@ read_vco(struct gt215_clk *clk, int idx)
 static u32
 read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
 {
+	struct nvkm_device *device = clk->base.subdev.device;
 	u32 sctl, sdiv, sclk;
 
 	/* refclk for the 0xe8xx plls is a fixed frequency */
 	if (idx >= 0x40) {
-		if (nv_device(clk)->chipset == 0xaf) {
+		if (device->chipset == 0xaf) {
 			/* no joke.. seriously.. sigh.. */
-			return nv_rd32(clk, 0x00471c) * 1000;
+			return nvkm_rd32(device, 0x00471c) * 1000;
 		}
 
-		return nv_device(clk)->crystal;
+		return device->crystal;
 	}
 
-	sctl = nv_rd32(clk, 0x4120 + (idx * 4));
+	sctl = nvkm_rd32(device, 0x4120 + (idx * 4));
 	if (!ignore_en && !(sctl & 0x00000100))
 		return 0;
 
@@ -82,7 +84,7 @@ read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
 	switch (sctl & 0x00003000) {
 	case 0x00000000:
 		if (!(sctl & 0x00000200))
-			return nv_device(clk)->crystal;
+			return device->crystal;
 		return 0;
 	case 0x00002000:
 		if (sctl & 0x00000040)
@@ -104,12 +106,13 @@ read_clk(struct gt215_clk *clk, int idx, bool ignore_en)
 static u32
 read_pll(struct gt215_clk *clk, int idx, u32 pll)
 {
-	u32 ctrl = nv_rd32(clk, pll + 0);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ctrl = nvkm_rd32(device, pll + 0);
 	u32 sclk = 0, P = 1, N = 1, M = 1;
 
 	if (!(ctrl & 0x00000008)) {
 		if (ctrl & 0x00000001) {
-			u32 coef = nv_rd32(clk, pll + 4);
+			u32 coef = nvkm_rd32(device, pll + 4);
 			M = (coef & 0x000000ff) >> 0;
 			N = (coef & 0x0000ff00) >> 8;
 			P = (coef & 0x003f0000) >> 16;
@@ -136,11 +139,12 @@ static int
 gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
+	struct nvkm_device *device = clk->base.subdev.device;
 	u32 hsrc;
 
 	switch (src) {
 	case nv_clk_src_crystal:
-		return nv_device(clk)->crystal;
+		return device->crystal;
 	case nv_clk_src_core:
 	case nv_clk_src_core_intm:
 		return read_pll(clk, 0x00, 0x4200);
@@ -155,7 +159,7 @@ gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 	case nv_clk_src_daemon:
 		return read_clk(clk, 0x25, false);
 	case nv_clk_src_host:
-		hsrc = (nv_rd32(clk, 0xc040) & 0x30000000) >> 28;
+		hsrc = (nvkm_rd32(device, 0xc040) & 0x30000000) >> 28;
 		switch (hsrc) {
 		case 0:
 			return read_clk(clk, 0x1d, false);
@@ -297,11 +301,12 @@ calc_host(struct gt215_clk *clk, struct nvkm_cstate *cstate)
 int
 gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 {
+	struct nvkm_device *device = clk->subdev.device;
 	struct nvkm_fifo *fifo = nvkm_fifo(clk);
 
 	/* halt and idle execution engines */
-	nv_mask(clk, 0x020060, 0x00070000, 0x00000000);
-	nv_mask(clk, 0x002504, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x020060, 0x00070000, 0x00000000);
+	nvkm_mask(device, 0x002504, 0x00000001, 0x00000001);
 	/* Wait until the interrupt handler is finished */
 	if (!nv_wait(clk, 0x000100, 0xffffffff, 0x00000000))
 		return -EBUSY;
@@ -320,26 +325,29 @@ gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 void
 gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags)
 {
+	struct nvkm_device *device = clk->subdev.device;
 	struct nvkm_fifo *fifo = nvkm_fifo(clk);
 
 	if (fifo && flags)
 		fifo->start(fifo, flags);
 
-	nv_mask(clk, 0x002504, 0x00000001, 0x00000000);
-	nv_mask(clk, 0x020060, 0x00070000, 0x00040000);
+	nvkm_mask(device, 0x002504, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x020060, 0x00070000, 0x00040000);
 }
 
 static void
 disable_clk_src(struct gt215_clk *clk, u32 src)
 {
-	nv_mask(clk, src, 0x00000100, 0x00000000);
-	nv_mask(clk, src, 0x00000001, 0x00000000);
+	struct nvkm_device *device = clk->base.subdev.device;
+	nvkm_mask(device, src, 0x00000100, 0x00000000);
+	nvkm_mask(device, src, 0x00000001, 0x00000000);
 }
 
 static void
 prog_pll(struct gt215_clk *clk, int idx, u32 pll, int dom)
 {
 	struct gt215_clk_info *info = &clk->eng[dom];
+	struct nvkm_device *device = clk->base.subdev.device;
 	const u32 src0 = 0x004120 + (idx * 4);
 	const u32 src1 = 0x004160 + (idx * 4);
 	const u32 ctrl = pll + 0;
@@ -348,30 +356,30 @@ prog_pll(struct gt215_clk *clk, int idx, u32 pll, int dom)
 
 	if (info->pll) {
 		/* Always start from a non-PLL clock */
-		bypass = nv_rd32(clk, ctrl)  & 0x00000008;
+		bypass = nvkm_rd32(device, ctrl)  & 0x00000008;
 		if (!bypass) {
-			nv_mask(clk, src1, 0x00000101, 0x00000101);
-			nv_mask(clk, ctrl, 0x00000008, 0x00000008);
+			nvkm_mask(device, src1, 0x00000101, 0x00000101);
+			nvkm_mask(device, ctrl, 0x00000008, 0x00000008);
 			udelay(20);
 		}
 
-		nv_mask(clk, src0, 0x003f3141, 0x00000101 | info->clk);
-		nv_wr32(clk, coef, info->pll);
-		nv_mask(clk, ctrl, 0x00000015, 0x00000015);
-		nv_mask(clk, ctrl, 0x00000010, 0x00000000);
+		nvkm_mask(device, src0, 0x003f3141, 0x00000101 | info->clk);
+		nvkm_wr32(device, coef, info->pll);
+		nvkm_mask(device, ctrl, 0x00000015, 0x00000015);
+		nvkm_mask(device, ctrl, 0x00000010, 0x00000000);
 		if (!nv_wait(clk, ctrl, 0x00020000, 0x00020000)) {
-			nv_mask(clk, ctrl, 0x00000010, 0x00000010);
-			nv_mask(clk, src0, 0x00000101, 0x00000000);
+			nvkm_mask(device, ctrl, 0x00000010, 0x00000010);
+			nvkm_mask(device, src0, 0x00000101, 0x00000000);
 			return;
 		}
-		nv_mask(clk, ctrl, 0x00000010, 0x00000010);
-		nv_mask(clk, ctrl, 0x00000008, 0x00000000);
+		nvkm_mask(device, ctrl, 0x00000010, 0x00000010);
+		nvkm_mask(device, ctrl, 0x00000008, 0x00000000);
 		disable_clk_src(clk, src1);
 	} else {
-		nv_mask(clk, src1, 0x003f3141, 0x00000101 | info->clk);
-		nv_mask(clk, ctrl, 0x00000018, 0x00000018);
+		nvkm_mask(device, src1, 0x003f3141, 0x00000101 | info->clk);
+		nvkm_mask(device, ctrl, 0x00000018, 0x00000018);
 		udelay(20);
-		nv_mask(clk, ctrl, 0x00000001, 0x00000000);
+		nvkm_mask(device, ctrl, 0x00000001, 0x00000000);
 		disable_clk_src(clk, src0);
 	}
 }
@@ -380,26 +388,28 @@ static void
 prog_clk(struct gt215_clk *clk, int idx, int dom)
 {
 	struct gt215_clk_info *info = &clk->eng[dom];
-	nv_mask(clk, 0x004120 + (idx * 4), 0x003f3141, 0x00000101 | info->clk);
+	struct nvkm_device *device = clk->base.subdev.device;
+	nvkm_mask(device, 0x004120 + (idx * 4), 0x003f3141, 0x00000101 | info->clk);
 }
 
 static void
 prog_host(struct gt215_clk *clk)
 {
 	struct gt215_clk_info *info = &clk->eng[nv_clk_src_host];
-	u32 hsrc = (nv_rd32(clk, 0xc040));
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 hsrc = (nvkm_rd32(device, 0xc040));
 
 	switch (info->host_out) {
 	case NVA3_HOST_277:
 		if ((hsrc & 0x30000000) == 0) {
-			nv_wr32(clk, 0xc040, hsrc | 0x20000000);
+			nvkm_wr32(device, 0xc040, hsrc | 0x20000000);
 			disable_clk_src(clk, 0x4194);
 		}
 		break;
 	case NVA3_HOST_CLK:
 		prog_clk(clk, 0x1d, nv_clk_src_host);
 		if ((hsrc & 0x30000000) >= 0x20000000) {
-			nv_wr32(clk, 0xc040, hsrc & ~0x30000000);
+			nvkm_wr32(device, 0xc040, hsrc & ~0x30000000);
 		}
 		break;
 	default:
@@ -407,22 +417,23 @@ prog_host(struct gt215_clk *clk)
 	}
 
 	/* This seems to be a clock gating factor on idle, always set to 64 */
-	nv_wr32(clk, 0xc044, 0x3e);
+	nvkm_wr32(device, 0xc044, 0x3e);
 }
 
 static void
 prog_core(struct gt215_clk *clk, int dom)
 {
 	struct gt215_clk_info *info = &clk->eng[dom];
-	u32 fb_delay = nv_rd32(clk, 0x10002c);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 fb_delay = nvkm_rd32(device, 0x10002c);
 
 	if (fb_delay < info->fb_delay)
-		nv_wr32(clk, 0x10002c, info->fb_delay);
+		nvkm_wr32(device, 0x10002c, info->fb_delay);
 
 	prog_pll(clk, 0x00, 0x004200, dom);
 
 	if (fb_delay > info->fb_delay)
-		nv_wr32(clk, 0x10002c, info->fb_delay);
+		nvkm_wr32(device, 0x10002c, info->fb_delay);
 }
 
 static int

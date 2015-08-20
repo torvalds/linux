@@ -48,7 +48,8 @@ nv40_domain[] = {
 static u32
 read_pll_1(struct nv40_clk *clk, u32 reg)
 {
-	u32 ctrl = nv_rd32(clk, reg + 0x00);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ctrl = nvkm_rd32(device, reg + 0x00);
 	int P = (ctrl & 0x00070000) >> 16;
 	int N = (ctrl & 0x0000ff00) >> 8;
 	int M = (ctrl & 0x000000ff) >> 0;
@@ -63,8 +64,9 @@ read_pll_1(struct nv40_clk *clk, u32 reg)
 static u32
 read_pll_2(struct nv40_clk *clk, u32 reg)
 {
-	u32 ctrl = nv_rd32(clk, reg + 0x00);
-	u32 coef = nv_rd32(clk, reg + 0x04);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ctrl = nvkm_rd32(device, reg + 0x00);
+	u32 coef = nvkm_rd32(device, reg + 0x04);
 	int N2 = (coef & 0xff000000) >> 24;
 	int M2 = (coef & 0x00ff0000) >> 16;
 	int N1 = (coef & 0x0000ff00) >> 8;
@@ -104,11 +106,12 @@ static int
 nv40_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct nv40_clk *clk = container_of(obj, typeof(*clk), base);
-	u32 mast = nv_rd32(clk, 0x00c040);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 mast = nvkm_rd32(device, 0x00c040);
 
 	switch (src) {
 	case nv_clk_src_crystal:
-		return nv_device(clk)->crystal;
+		return device->crystal;
 	case nv_clk_src_href:
 		return 100000; /*XXX: PCIE/AGP differ*/
 	case nv_clk_src_core:
@@ -191,12 +194,13 @@ static int
 nv40_clk_prog(struct nvkm_clk *obj)
 {
 	struct nv40_clk *clk = container_of(obj, typeof(*clk), base);
-	nv_mask(clk, 0x00c040, 0x00000333, 0x00000000);
-	nv_wr32(clk, 0x004004, clk->npll_coef);
-	nv_mask(clk, 0x004000, 0xc0070100, clk->npll_ctrl);
-	nv_mask(clk, 0x004008, 0xc007ffff, clk->spll);
+	struct nvkm_device *device = clk->base.subdev.device;
+	nvkm_mask(device, 0x00c040, 0x00000333, 0x00000000);
+	nvkm_wr32(device, 0x004004, clk->npll_coef);
+	nvkm_mask(device, 0x004000, 0xc0070100, clk->npll_ctrl);
+	nvkm_mask(device, 0x004008, 0xc007ffff, clk->spll);
 	mdelay(5);
-	nv_mask(clk, 0x00c040, 0x00000333, clk->ctrl);
+	nvkm_mask(device, 0x00c040, 0x00000333, clk->ctrl);
 	return 0;
 }
 

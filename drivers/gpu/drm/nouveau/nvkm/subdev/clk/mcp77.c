@@ -40,14 +40,16 @@ struct mcp77_clk {
 static u32
 read_div(struct mcp77_clk *clk)
 {
-	return nv_rd32(clk, 0x004600);
+	struct nvkm_device *device = clk->base.subdev.device;
+	return nvkm_rd32(device, 0x004600);
 }
 
 static u32
 read_pll(struct mcp77_clk *clk, u32 base)
 {
-	u32 ctrl = nv_rd32(clk, base + 0);
-	u32 coef = nv_rd32(clk, base + 4);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ctrl = nvkm_rd32(device, base + 0);
+	u32 coef = nvkm_rd32(device, base + 4);
 	u32 ref = clk->base.read(&clk->base, nv_clk_src_href);
 	u32 post_div = 0;
 	u32 clock = 0;
@@ -55,10 +57,10 @@ read_pll(struct mcp77_clk *clk, u32 base)
 
 	switch (base){
 	case 0x4020:
-		post_div = 1 << ((nv_rd32(clk, 0x4070) & 0x000f0000) >> 16);
+		post_div = 1 << ((nvkm_rd32(device, 0x4070) & 0x000f0000) >> 16);
 		break;
 	case 0x4028:
-		post_div = (nv_rd32(clk, 0x4040) & 0x000f0000) >> 16;
+		post_div = (nvkm_rd32(device, 0x4040) & 0x000f0000) >> 16;
 		break;
 	default:
 		break;
@@ -78,12 +80,13 @@ static int
 mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
-	u32 mast = nv_rd32(clk, 0x00c054);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 mast = nvkm_rd32(device, 0x00c054);
 	u32 P = 0;
 
 	switch (src) {
 	case nv_clk_src_crystal:
-		return nv_device(clk)->crystal;
+		return device->crystal;
 	case nv_clk_src_href:
 		return 100000; /* PCIE reference clock */
 	case nv_clk_src_hclkm4:
@@ -99,7 +102,7 @@ mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		}
 		break;
 	case nv_clk_src_core:
-		P = (nv_rd32(clk, 0x004028) & 0x00070000) >> 16;
+		P = (nvkm_rd32(device, 0x004028) & 0x00070000) >> 16;
 
 		switch (mast & 0x00000003) {
 		case 0x00000000: return clk->base.read(&clk->base, nv_clk_src_crystal) >> P;
@@ -122,7 +125,7 @@ mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		default: return 0;
 		}
 	case nv_clk_src_shader:
-		P = (nv_rd32(clk, 0x004020) & 0x00070000) >> 16;
+		P = (nvkm_rd32(device, 0x004020) & 0x00070000) >> 16;
 		switch (mast & 0x00000030) {
 		case 0x00000000:
 			if (mast & 0x00000040)
@@ -293,6 +296,7 @@ static int
 mcp77_clk_prog(struct nvkm_clk *obj)
 {
 	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
+	struct nvkm_device *device = clk->base.subdev.device;
 	u32 pllmask = 0, mast;
 	unsigned long flags;
 	unsigned long *f = &flags;
@@ -303,19 +307,19 @@ mcp77_clk_prog(struct nvkm_clk *obj)
 		goto out;
 
 	/* First switch to safe clocks: href */
-	mast = nv_mask(clk, 0xc054, 0x03400e70, 0x03400640);
+	mast = nvkm_mask(device, 0xc054, 0x03400e70, 0x03400640);
 	mast &= ~0x00400e73;
 	mast |= 0x03000000;
 
 	switch (clk->csrc) {
 	case nv_clk_src_hclkm4:
-		nv_mask(clk, 0x4028, 0x00070000, clk->cctrl);
+		nvkm_mask(device, 0x4028, 0x00070000, clk->cctrl);
 		mast |= 0x00000002;
 		break;
 	case nv_clk_src_core:
-		nv_wr32(clk, 0x402c, clk->ccoef);
-		nv_wr32(clk, 0x4028, 0x80000000 | clk->cctrl);
-		nv_wr32(clk, 0x4040, clk->cpost);
+		nvkm_wr32(device, 0x402c, clk->ccoef);
+		nvkm_wr32(device, 0x4028, 0x80000000 | clk->cctrl);
+		nvkm_wr32(device, 0x4040, clk->cpost);
 		pllmask |= (0x3 << 8);
 		mast |= 0x00000003;
 		break;
@@ -326,17 +330,17 @@ mcp77_clk_prog(struct nvkm_clk *obj)
 
 	switch (clk->ssrc) {
 	case nv_clk_src_href:
-		nv_mask(clk, 0x4020, 0x00070000, 0x00000000);
+		nvkm_mask(device, 0x4020, 0x00070000, 0x00000000);
 		/* mast |= 0x00000000; */
 		break;
 	case nv_clk_src_core:
-		nv_mask(clk, 0x4020, 0x00070000, clk->sctrl);
+		nvkm_mask(device, 0x4020, 0x00070000, clk->sctrl);
 		mast |= 0x00000020;
 		break;
 	case nv_clk_src_shader:
-		nv_wr32(clk, 0x4024, clk->scoef);
-		nv_wr32(clk, 0x4020, 0x80000000 | clk->sctrl);
-		nv_wr32(clk, 0x4070, clk->spost);
+		nvkm_wr32(device, 0x4024, clk->scoef);
+		nvkm_wr32(device, 0x4020, 0x80000000 | clk->sctrl);
+		nvkm_wr32(device, 0x4070, clk->spost);
 		pllmask |= (0x3 << 12);
 		mast |= 0x00000030;
 		break;
@@ -354,21 +358,21 @@ mcp77_clk_prog(struct nvkm_clk *obj)
 	case nv_clk_src_cclk:
 		mast |= 0x00400000;
 	default:
-		nv_wr32(clk, 0x4600, clk->vdiv);
+		nvkm_wr32(device, 0x4600, clk->vdiv);
 	}
 
-	nv_wr32(clk, 0xc054, mast);
+	nvkm_wr32(device, 0xc054, mast);
 
 resume:
 	/* Disable some PLLs and dividers when unused */
 	if (clk->csrc != nv_clk_src_core) {
-		nv_wr32(clk, 0x4040, 0x00000000);
-		nv_mask(clk, 0x4028, 0x80000000, 0x00000000);
+		nvkm_wr32(device, 0x4040, 0x00000000);
+		nvkm_mask(device, 0x4028, 0x80000000, 0x00000000);
 	}
 
 	if (clk->ssrc != nv_clk_src_shader) {
-		nv_wr32(clk, 0x4070, 0x00000000);
-		nv_mask(clk, 0x4020, 0x80000000, 0x00000000);
+		nvkm_wr32(device, 0x4070, 0x00000000);
+		nvkm_mask(device, 0x4020, 0x80000000, 0x00000000);
 	}
 
 out:

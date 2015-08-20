@@ -31,17 +31,18 @@
 static u32
 read_div(struct nv50_clk *clk)
 {
-	switch (nv_device(clk)->chipset) {
+	struct nvkm_device *device = clk->base.subdev.device;
+	switch (device->chipset) {
 	case 0x50: /* it exists, but only has bit 31, not the dividers.. */
 	case 0x84:
 	case 0x86:
 	case 0x98:
 	case 0xa0:
-		return nv_rd32(clk, 0x004700);
+		return nvkm_rd32(device, 0x004700);
 	case 0x92:
 	case 0x94:
 	case 0x96:
-		return nv_rd32(clk, 0x004800);
+		return nvkm_rd32(device, 0x004800);
 	default:
 		return 0x00000000;
 	}
@@ -50,11 +51,12 @@ read_div(struct nv50_clk *clk)
 static u32
 read_pll_src(struct nv50_clk *clk, u32 base)
 {
+	struct nvkm_device *device = clk->base.subdev.device;
 	u32 coef, ref = clk->base.read(&clk->base, nv_clk_src_crystal);
-	u32 rsel = nv_rd32(clk, 0x00e18c);
+	u32 rsel = nvkm_rd32(device, 0x00e18c);
 	int P, N, M, id;
 
-	switch (nv_device(clk)->chipset) {
+	switch (device->chipset) {
 	case 0x50:
 	case 0xa0:
 		switch (base) {
@@ -67,7 +69,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 			return 0;
 		}
 
-		coef = nv_rd32(clk, 0x00e81c + (id * 0x0c));
+		coef = nvkm_rd32(device, 0x00e81c + (id * 0x0c));
 		ref *=  (coef & 0x01000000) ? 2 : 4;
 		P    =  (coef & 0x00070000) >> 16;
 		N    = ((coef & 0x0000ff00) >> 8) + 1;
@@ -76,7 +78,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 	case 0x84:
 	case 0x86:
 	case 0x92:
-		coef = nv_rd32(clk, 0x00e81c);
+		coef = nvkm_rd32(device, 0x00e81c);
 		P    = (coef & 0x00070000) >> 16;
 		N    = (coef & 0x0000ff00) >> 8;
 		M    = (coef & 0x000000ff) >> 0;
@@ -84,7 +86,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 	case 0x94:
 	case 0x96:
 	case 0x98:
-		rsel = nv_rd32(clk, 0x00c050);
+		rsel = nvkm_rd32(device, 0x00c050);
 		switch (base) {
 		case 0x4020: rsel = (rsel & 0x00000003) >> 0; break;
 		case 0x4008: rsel = (rsel & 0x0000000c) >> 2; break;
@@ -102,8 +104,8 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 		case 3: id = 0; break;
 		}
 
-		coef =  nv_rd32(clk, 0x00e81c + (id * 0x28));
-		P    = (nv_rd32(clk, 0x00e824 + (id * 0x28)) >> 16) & 7;
+		coef =  nvkm_rd32(device, 0x00e81c + (id * 0x28));
+		P    = (nvkm_rd32(device, 0x00e824 + (id * 0x28)) >> 16) & 7;
 		P   += (coef & 0x00070000) >> 16;
 		N    = (coef & 0x0000ff00) >> 8;
 		M    = (coef & 0x000000ff) >> 0;
@@ -121,7 +123,8 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 static u32
 read_pll_ref(struct nv50_clk *clk, u32 base)
 {
-	u32 src, mast = nv_rd32(clk, 0x00c040);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 src, mast = nvkm_rd32(device, 0x00c040);
 
 	switch (base) {
 	case 0x004028:
@@ -152,16 +155,17 @@ read_pll_ref(struct nv50_clk *clk, u32 base)
 static u32
 read_pll(struct nv50_clk *clk, u32 base)
 {
-	u32 mast = nv_rd32(clk, 0x00c040);
-	u32 ctrl = nv_rd32(clk, base + 0);
-	u32 coef = nv_rd32(clk, base + 4);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 mast = nvkm_rd32(device, 0x00c040);
+	u32 ctrl = nvkm_rd32(device, base + 0);
+	u32 coef = nvkm_rd32(device, base + 4);
 	u32 ref = read_pll_ref(clk, base);
 	u32 freq = 0;
 	int N1, N2, M1, M2;
 
 	if (base == 0x004028 && (mast & 0x00100000)) {
 		/* wtf, appears to only disable post-divider on gt200 */
-		if (nv_device(clk)->chipset != 0xa0)
+		if (device->chipset != 0xa0)
 			return clk->base.read(&clk->base, nv_clk_src_dom6);
 	}
 
@@ -186,12 +190,13 @@ static int
 nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct nv50_clk *clk = container_of(obj, typeof(*clk), base);
-	u32 mast = nv_rd32(clk, 0x00c040);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 mast = nvkm_rd32(device, 0x00c040);
 	u32 P = 0;
 
 	switch (src) {
 	case nv_clk_src_crystal:
-		return nv_device(clk)->crystal;
+		return device->crystal;
 	case nv_clk_src_href:
 		return 100000; /* PCIE reference clock */
 	case nv_clk_src_hclk:
@@ -210,7 +215,7 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		break;
 	case nv_clk_src_core:
 		if (!(mast & 0x00100000))
-			P = (nv_rd32(clk, 0x004028) & 0x00070000) >> 16;
+			P = (nvkm_rd32(device, 0x004028) & 0x00070000) >> 16;
 		switch (mast & 0x00000003) {
 		case 0x00000000: return clk->base.read(&clk->base, nv_clk_src_crystal) >> P;
 		case 0x00000001: return clk->base.read(&clk->base, nv_clk_src_dom6);
@@ -219,7 +224,7 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		}
 		break;
 	case nv_clk_src_shader:
-		P = (nv_rd32(clk, 0x004020) & 0x00070000) >> 16;
+		P = (nvkm_rd32(device, 0x004020) & 0x00070000) >> 16;
 		switch (mast & 0x00000030) {
 		case 0x00000000:
 			if (mast & 0x00000080)
@@ -231,8 +236,8 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		}
 		break;
 	case nv_clk_src_mem:
-		P = (nv_rd32(clk, 0x004008) & 0x00070000) >> 16;
-		if (nv_rd32(clk, 0x004008) & 0x00000200) {
+		P = (nvkm_rd32(device, 0x004008) & 0x00070000) >> 16;
+		if (nvkm_rd32(device, 0x004008) & 0x00000200) {
 			switch (mast & 0x0000c000) {
 			case 0x00000000:
 				return clk->base.read(&clk->base, nv_clk_src_crystal) >> P;
@@ -246,7 +251,7 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		break;
 	case nv_clk_src_vdec:
 		P = (read_div(clk) & 0x00000700) >> 8;
-		switch (nv_device(clk)->chipset) {
+		switch (device->chipset) {
 		case 0x84:
 		case 0x86:
 		case 0x92:
@@ -255,7 +260,7 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		case 0xa0:
 			switch (mast & 0x00000c00) {
 			case 0x00000000:
-				if (nv_device(clk)->chipset == 0xa0) /* wtf?? */
+				if (device->chipset == 0xa0) /* wtf?? */
 					return clk->base.read(&clk->base, nv_clk_src_core) >> P;
 				return clk->base.read(&clk->base, nv_clk_src_crystal) >> P;
 			case 0x00000400:
@@ -283,7 +288,7 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		}
 		break;
 	case nv_clk_src_dom6:
-		switch (nv_device(clk)->chipset) {
+		switch (device->chipset) {
 		case 0x50:
 		case 0xa0:
 			return read_pll(clk, 0x00e810) >> 2;

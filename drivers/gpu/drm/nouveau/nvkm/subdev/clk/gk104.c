@@ -48,7 +48,8 @@ static u32 read_pll(struct gk104_clk *, u32);
 static u32
 read_vco(struct gk104_clk *clk, u32 dsrc)
 {
-	u32 ssrc = nv_rd32(clk, dsrc);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ssrc = nvkm_rd32(device, dsrc);
 	if (!(ssrc & 0x00000100))
 		return read_pll(clk, 0x00e800);
 	return read_pll(clk, 0x00e820);
@@ -57,8 +58,9 @@ read_vco(struct gk104_clk *clk, u32 dsrc)
 static u32
 read_pll(struct gk104_clk *clk, u32 pll)
 {
-	u32 ctrl = nv_rd32(clk, pll + 0x00);
-	u32 coef = nv_rd32(clk, pll + 0x04);
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ctrl = nvkm_rd32(device, pll + 0x00);
+	u32 coef = nvkm_rd32(device, pll + 0x04);
 	u32 P = (coef & 0x003f0000) >> 16;
 	u32 N = (coef & 0x0000ff00) >> 8;
 	u32 M = (coef & 0x000000ff) >> 0;
@@ -71,7 +73,7 @@ read_pll(struct gk104_clk *clk, u32 pll)
 	switch (pll) {
 	case 0x00e800:
 	case 0x00e820:
-		sclk = nv_device(clk)->crystal;
+		sclk = device->crystal;
 		P = 1;
 		break;
 	case 0x132000:
@@ -80,7 +82,7 @@ read_pll(struct gk104_clk *clk, u32 pll)
 		break;
 	case 0x132020:
 		sclk = read_div(clk, 0, 0x137320, 0x137330);
-		fN   = nv_rd32(clk, pll + 0x10) >> 16;
+		fN   = nvkm_rd32(device, pll + 0x10) >> 16;
 		break;
 	case 0x137000:
 	case 0x137020:
@@ -102,13 +104,14 @@ read_pll(struct gk104_clk *clk, u32 pll)
 static u32
 read_div(struct gk104_clk *clk, int doff, u32 dsrc, u32 dctl)
 {
-	u32 ssrc = nv_rd32(clk, dsrc + (doff * 4));
-	u32 sctl = nv_rd32(clk, dctl + (doff * 4));
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 ssrc = nvkm_rd32(device, dsrc + (doff * 4));
+	u32 sctl = nvkm_rd32(device, dctl + (doff * 4));
 
 	switch (ssrc & 0x00000003) {
 	case 0:
 		if ((ssrc & 0x00030000) != 0x00030000)
-			return nv_device(clk)->crystal;
+			return device->crystal;
 		return 108000;
 	case 2:
 		return 100000;
@@ -128,7 +131,8 @@ read_div(struct gk104_clk *clk, int doff, u32 dsrc, u32 dctl)
 static u32
 read_mem(struct gk104_clk *clk)
 {
-	switch (nv_rd32(clk, 0x1373f4) & 0x0000000f) {
+	struct nvkm_device *device = clk->base.subdev.device;
+	switch (nvkm_rd32(device, 0x1373f4) & 0x0000000f) {
 	case 1: return read_pll(clk, 0x132020);
 	case 2: return read_pll(clk, 0x132000);
 	default:
@@ -139,11 +143,12 @@ read_mem(struct gk104_clk *clk)
 static u32
 read_clk(struct gk104_clk *clk, int idx)
 {
-	u32 sctl = nv_rd32(clk, 0x137250 + (idx * 4));
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 sctl = nvkm_rd32(device, 0x137250 + (idx * 4));
 	u32 sclk, sdiv;
 
 	if (idx < 7) {
-		u32 ssel = nv_rd32(clk, 0x137100);
+		u32 ssel = nvkm_rd32(device, 0x137100);
 		if (ssel & (1 << idx)) {
 			sclk = read_pll(clk, 0x137000 + (idx * 0x20));
 			sdiv = 1;
@@ -152,7 +157,7 @@ read_clk(struct gk104_clk *clk, int idx)
 			sdiv = 0;
 		}
 	} else {
-		u32 ssrc = nv_rd32(clk, 0x137160 + (idx * 0x04));
+		u32 ssrc = nvkm_rd32(device, 0x137160 + (idx * 0x04));
 		if ((ssrc & 0x00000003) == 0x00000003) {
 			sclk = read_div(clk, idx, 0x137160, 0x1371d0);
 			if (ssrc & 0x00000100) {
@@ -183,7 +188,7 @@ static int
 gk104_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct gk104_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = nv_device(clk);
+	struct nvkm_device *device = clk->base.subdev.device;
 
 	switch (src) {
 	case nv_clk_src_crystal:
@@ -349,37 +354,41 @@ static void
 gk104_clk_prog_0(struct gk104_clk *clk, int idx)
 {
 	struct gk104_clk_info *info = &clk->eng[idx];
+	struct nvkm_device *device = clk->base.subdev.device;
 	if (!info->ssel) {
-		nv_mask(clk, 0x1371d0 + (idx * 0x04), 0x8000003f, info->ddiv);
-		nv_wr32(clk, 0x137160 + (idx * 0x04), info->dsrc);
+		nvkm_mask(device, 0x1371d0 + (idx * 0x04), 0x8000003f, info->ddiv);
+		nvkm_wr32(device, 0x137160 + (idx * 0x04), info->dsrc);
 	}
 }
 
 static void
 gk104_clk_prog_1_0(struct gk104_clk *clk, int idx)
 {
-	nv_mask(clk, 0x137100, (1 << idx), 0x00000000);
+	struct nvkm_device *device = clk->base.subdev.device;
+	nvkm_mask(device, 0x137100, (1 << idx), 0x00000000);
 	nv_wait(clk, 0x137100, (1 << idx), 0x00000000);
 }
 
 static void
 gk104_clk_prog_1_1(struct gk104_clk *clk, int idx)
 {
-	nv_mask(clk, 0x137160 + (idx * 0x04), 0x00000100, 0x00000000);
+	struct nvkm_device *device = clk->base.subdev.device;
+	nvkm_mask(device, 0x137160 + (idx * 0x04), 0x00000100, 0x00000000);
 }
 
 static void
 gk104_clk_prog_2(struct gk104_clk *clk, int idx)
 {
 	struct gk104_clk_info *info = &clk->eng[idx];
+	struct nvkm_device *device = clk->base.subdev.device;
 	const u32 addr = 0x137000 + (idx * 0x20);
-	nv_mask(clk, addr + 0x00, 0x00000004, 0x00000000);
-	nv_mask(clk, addr + 0x00, 0x00000001, 0x00000000);
+	nvkm_mask(device, addr + 0x00, 0x00000004, 0x00000000);
+	nvkm_mask(device, addr + 0x00, 0x00000001, 0x00000000);
 	if (info->coef) {
-		nv_wr32(clk, addr + 0x04, info->coef);
-		nv_mask(clk, addr + 0x00, 0x00000001, 0x00000001);
+		nvkm_wr32(device, addr + 0x04, info->coef);
+		nvkm_mask(device, addr + 0x00, 0x00000001, 0x00000001);
 		nv_wait(clk, addr + 0x00, 0x00020000, 0x00020000);
-		nv_mask(clk, addr + 0x00, 0x00020004, 0x00000004);
+		nvkm_mask(device, addr + 0x00, 0x00020004, 0x00000004);
 	}
 }
 
@@ -387,18 +396,20 @@ static void
 gk104_clk_prog_3(struct gk104_clk *clk, int idx)
 {
 	struct gk104_clk_info *info = &clk->eng[idx];
+	struct nvkm_device *device = clk->base.subdev.device;
 	if (info->ssel)
-		nv_mask(clk, 0x137250 + (idx * 0x04), 0x00003f00, info->mdiv);
+		nvkm_mask(device, 0x137250 + (idx * 0x04), 0x00003f00, info->mdiv);
 	else
-		nv_mask(clk, 0x137250 + (idx * 0x04), 0x0000003f, info->mdiv);
+		nvkm_mask(device, 0x137250 + (idx * 0x04), 0x0000003f, info->mdiv);
 }
 
 static void
 gk104_clk_prog_4_0(struct gk104_clk *clk, int idx)
 {
 	struct gk104_clk_info *info = &clk->eng[idx];
+	struct nvkm_device *device = clk->base.subdev.device;
 	if (info->ssel) {
-		nv_mask(clk, 0x137100, (1 << idx), info->ssel);
+		nvkm_mask(device, 0x137100, (1 << idx), info->ssel);
 		nv_wait(clk, 0x137100, (1 << idx), info->ssel);
 	}
 }
@@ -407,9 +418,10 @@ static void
 gk104_clk_prog_4_1(struct gk104_clk *clk, int idx)
 {
 	struct gk104_clk_info *info = &clk->eng[idx];
+	struct nvkm_device *device = clk->base.subdev.device;
 	if (info->ssel) {
-		nv_mask(clk, 0x137160 + (idx * 0x04), 0x40000000, 0x40000000);
-		nv_mask(clk, 0x137160 + (idx * 0x04), 0x00000100, 0x00000100);
+		nvkm_mask(device, 0x137160 + (idx * 0x04), 0x40000000, 0x40000000);
+		nvkm_mask(device, 0x137160 + (idx * 0x04), 0x00000100, 0x00000100);
 	}
 }
 
