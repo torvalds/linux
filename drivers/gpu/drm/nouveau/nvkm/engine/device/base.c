@@ -164,37 +164,37 @@ nvkm_devobj_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 static u8
 nvkm_devobj_rd08(struct nvkm_object *object, u64 addr)
 {
-	return nv_rd08(object->engine, addr);
+	return nvkm_rd08(object->engine->subdev.device, addr);
 }
 
 static u16
 nvkm_devobj_rd16(struct nvkm_object *object, u64 addr)
 {
-	return nv_rd16(object->engine, addr);
+	return nvkm_rd16(object->engine->subdev.device, addr);
 }
 
 static u32
 nvkm_devobj_rd32(struct nvkm_object *object, u64 addr)
 {
-	return nv_rd32(object->engine, addr);
+	return nvkm_rd32(object->engine->subdev.device, addr);
 }
 
 static void
 nvkm_devobj_wr08(struct nvkm_object *object, u64 addr, u8 data)
 {
-	nv_wr08(object->engine, addr, data);
+	nvkm_wr08(object->engine->subdev.device, addr, data);
 }
 
 static void
 nvkm_devobj_wr16(struct nvkm_object *object, u64 addr, u16 data)
 {
-	nv_wr16(object->engine, addr, data);
+	nvkm_wr16(object->engine->subdev.device, addr, data);
 }
 
 static void
 nvkm_devobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	nv_wr32(object->engine, addr, data);
+	nvkm_wr32(object->engine->subdev.device, addr, data);
 }
 
 static int
