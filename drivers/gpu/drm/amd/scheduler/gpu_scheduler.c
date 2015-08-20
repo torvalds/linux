@@ -143,8 +143,8 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
  *
  * return true if entity is initialized, false otherwise
 */
-static bool is_context_entity_initialized(struct amd_gpu_scheduler *sched,
-					  struct amd_sched_entity *entity)
+static bool amd_sched_entity_is_initialized(struct amd_gpu_scheduler *sched,
+					    struct amd_sched_entity *entity)
 {
 	return entity->scheduler == sched &&
 		entity->belongto_rq != NULL;
@@ -180,7 +180,7 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 	struct amd_sched_rq *rq = entity->belongto_rq;
 	long r;
 
-	if (!is_context_entity_initialized(sched, entity))
+	if (!amd_sched_entity_is_initialized(sched, entity))
 		return 0;
 	entity->need_wakeup = true;
 	/**
