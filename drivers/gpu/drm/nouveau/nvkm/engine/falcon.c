@@ -102,10 +102,17 @@ _nvkm_falcon_init(struct nvkm_object *object)
 
 	/* wait for 'uc halted' to be signalled before continuing */
 	if (falcon->secret && falcon->version < 4) {
-		if (!falcon->version)
-			nv_wait(falcon, 0x008, 0x00000010, 0x00000010);
-		else
-			nv_wait(falcon, 0x180, 0x80000000, 0);
+		if (!falcon->version) {
+			nvkm_msec(device, 2000,
+				if (nv_ro32(falcon, 0x008) & 0x00000010)
+					break;
+			);
+		} else {
+			nvkm_msec(device, 2000,
+				if (!(nv_ro32(falcon, 0x180) & 0x80000000))
+					break;
+			);
+		}
 		nv_wo32(falcon, 0x004, 0x00000010);
 	}
 
