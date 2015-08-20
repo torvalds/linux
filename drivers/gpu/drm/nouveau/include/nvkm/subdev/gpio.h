@@ -19,7 +19,7 @@ struct nvkm_gpio_ntfy_rep {
 };
 
 struct nvkm_gpio {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	struct nvkm_event event;
 

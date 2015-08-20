@@ -43,7 +43,7 @@ static int
 nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
 	       struct dcb_gpio_func *func)
 {
-	struct nvkm_device *device = gpio->base.device;
+	struct nvkm_device *device = gpio->subdev.device;
 	struct nvkm_bios *bios = nvkm_bios(gpio);
 	u8  ver, len;
 	u16 data;
@@ -168,7 +168,7 @@ _nvkm_gpio_fini(struct nvkm_object *object, bool suspend)
 	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
 	impl->intr_stat(gpio, &mask, &mask);
 
-	return nvkm_subdev_fini(&gpio->base, suspend);
+	return nvkm_subdev_fini(&gpio->subdev, suspend);
 }
 
 static struct dmi_system_id gpio_reset_ids[] = {
@@ -188,7 +188,7 @@ _nvkm_gpio_init(struct nvkm_object *object)
 	struct nvkm_gpio *gpio = nvkm_gpio(object);
 	int ret;
 
-	ret = nvkm_subdev_init(&gpio->base);
+	ret = nvkm_subdev_init(&gpio->subdev);
 	if (ret)
 		return ret;
 
@@ -203,7 +203,7 @@ _nvkm_gpio_dtor(struct nvkm_object *object)
 {
 	struct nvkm_gpio *gpio = (void *)object;
 	nvkm_event_fini(&gpio->event);
-	nvkm_subdev_destroy(&gpio->base);
+	nvkm_subdev_destroy(&gpio->subdev);
 }
 
 int
