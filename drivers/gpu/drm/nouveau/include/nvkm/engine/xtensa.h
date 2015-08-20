@@ -30,6 +30,4 @@ int nvkm_xtensa_create_(struct nvkm_object *,
 #define _nvkm_xtensa_dtor _nvkm_engine_dtor
 int _nvkm_xtensa_init(struct nvkm_object *);
 int _nvkm_xtensa_fini(struct nvkm_object *, bool);
-u32  _nvkm_xtensa_rd32(struct nvkm_object *, u64);
-void _nvkm_xtensa_wr32(struct nvkm_object *, u64, u32);
 #endif

@@ -23,20 +23,6 @@
 
 #include <core/engctx.h>
 
-u32
-_nvkm_xtensa_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_xtensa *xtensa = (void *)object;
-	return nvkm_rd32(xtensa->engine.subdev.device, xtensa->addr + addr);
-}
-
-void
-_nvkm_xtensa_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_xtensa *xtensa = (void *)object;
-	nvkm_wr32(xtensa->engine.subdev.device, xtensa->addr + addr, data);
-}
-
 int
 _nvkm_xtensa_engctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			 struct nvkm_oclass *oclass, void *data, u32 size,
@@ -56,15 +42,16 @@ _nvkm_xtensa_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_xtensa *xtensa = (void *)subdev;
 	struct nvkm_device *device = xtensa->engine.subdev.device;
-	u32 unk104 = nv_ro32(xtensa, 0xd04);
-	u32 intr = nv_ro32(xtensa, 0xc20);
-	u32 chan = nv_ro32(xtensa, 0xc28);
-	u32 unk10c = nv_ro32(xtensa, 0xd0c);
+	const u32 base = xtensa->addr;
+	u32 unk104 = nvkm_rd32(device, base + 0xd04);
+	u32 intr = nvkm_rd32(device, base + 0xc20);
+	u32 chan = nvkm_rd32(device, base + 0xc28);
+	u32 unk10c = nvkm_rd32(device, base + 0xd0c);
 
 	if (intr & 0x10)
 		nvkm_warn(subdev, "Watchdog interrupt, engine hung.\n");
-	nv_wo32(xtensa, 0xc20, intr);
-	intr = nv_ro32(xtensa, 0xc20);
+	nvkm_wr32(device, base + 0xc20, intr);
+	intr = nvkm_rd32(device, base + 0xc20);
 	if (unk104 == 0x10001 && unk10c == 0x200 && chan && !intr) {
 		nvkm_debug(subdev, "Enabling FIFO_CTRL\n");
 		nvkm_mask(device, xtensa->addr + 0xd94, 0, xtensa->fifo_val);
@@ -97,6 +84,7 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	struct nvkm_xtensa *xtensa = (void *)object;
 	struct nvkm_subdev *subdev = &xtensa->engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	const u32 base = xtensa->addr;
 	const struct firmware *fw;
 	char name[32];
 	int i, ret;
@@ -137,24 +125,24 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 		release_firmware(fw);
 	}
 
-	nv_wo32(xtensa, 0xd10, 0x1fffffff); /* ?? */
-	nv_wo32(xtensa, 0xd08, 0x0fffffff); /* ?? */
+	nvkm_wr32(device, base + 0xd10, 0x1fffffff); /* ?? */
+	nvkm_wr32(device, base + 0xd08, 0x0fffffff); /* ?? */
 
-	nv_wo32(xtensa, 0xd28, xtensa->unkd28); /* ?? */
-	nv_wo32(xtensa, 0xc20, 0x3f); /* INTR */
-	nv_wo32(xtensa, 0xd84, 0x3f); /* INTR_EN */
+	nvkm_wr32(device, base + 0xd28, xtensa->unkd28); /* ?? */
+	nvkm_wr32(device, base + 0xc20, 0x3f); /* INTR */
+	nvkm_wr32(device, base + 0xd84, 0x3f); /* INTR_EN */
 
-	nv_wo32(xtensa, 0xcc0, xtensa->gpu_fw->addr >> 8); /* XT_REGION_BASE */
-	nv_wo32(xtensa, 0xcc4, 0x1c); /* XT_REGION_SETUP */
-	nv_wo32(xtensa, 0xcc8, xtensa->gpu_fw->size >> 8); /* XT_REGION_LIMIT */
+	nvkm_wr32(device, base + 0xcc0, xtensa->gpu_fw->addr >> 8); /* XT_REGION_BASE */
+	nvkm_wr32(device, base + 0xcc4, 0x1c); /* XT_REGION_SETUP */
+	nvkm_wr32(device, base + 0xcc8, xtensa->gpu_fw->size >> 8); /* XT_REGION_LIMIT */
 
 	tmp = nvkm_rd32(device, 0x0);
-	nv_wo32(xtensa, 0xde0, tmp); /* SCRATCH_H2X */
+	nvkm_wr32(device, base + 0xde0, tmp); /* SCRATCH_H2X */
 
-	nv_wo32(xtensa, 0xce8, 0xf); /* XT_REGION_SETUP */
+	nvkm_wr32(device, base + 0xce8, 0xf); /* XT_REGION_SETUP */
 
-	nv_wo32(xtensa, 0xc20, 0x3f); /* INTR */
-	nv_wo32(xtensa, 0xd84, 0x3f); /* INTR_EN */
+	nvkm_wr32(device, base + 0xc20, 0x3f); /* INTR */
+	nvkm_wr32(device, base + 0xd84, 0x3f); /* INTR_EN */
 	return 0;
 }
 
@@ -162,9 +150,11 @@ int
 _nvkm_xtensa_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_xtensa *xtensa = (void *)object;
+	struct nvkm_device *device = xtensa->engine.subdev.device;
+	const u32 base = xtensa->addr;
 
-	nv_wo32(xtensa, 0xd84, 0); /* INTR_EN */
-	nv_wo32(xtensa, 0xd94, 0); /* FIFO_CTRL */
+	nvkm_wr32(device, base + 0xd84, 0); /* INTR_EN */
+	nvkm_wr32(device, base + 0xd94, 0); /* FIFO_CTRL */
 
 	if (!suspend)
 		nvkm_gpuobj_ref(NULL, &xtensa->gpu_fw);

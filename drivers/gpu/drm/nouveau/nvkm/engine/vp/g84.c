@@ -87,7 +87,5 @@ g84_vp_oclass = {
 		.dtor = _nvkm_xtensa_dtor,
 		.init = _nvkm_xtensa_init,
 		.fini = _nvkm_xtensa_fini,
-		.rd32 = _nvkm_xtensa_rd32,
-		.wr32 = _nvkm_xtensa_wr32,
 	},
 };
