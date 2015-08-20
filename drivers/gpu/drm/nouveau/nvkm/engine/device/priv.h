@@ -13,4 +13,6 @@ int nv50_identify(struct nvkm_device *);
 int gf100_identify(struct nvkm_device *);
 int gk104_identify(struct nvkm_device *);
 int gm100_identify(struct nvkm_device *);
+
+extern struct nvkm_ofuncs nvkm_udevice_ofuncs;
 #endif
