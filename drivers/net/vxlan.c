@@ -1278,8 +1278,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		info = &tun_dst->u.tun_info;
 		info->key.u.ipv4.src = iph->saddr;
 		info->key.u.ipv4.dst = iph->daddr;
-		info->key.ipv4_tos = iph->tos;
-		info->key.ipv4_ttl = iph->ttl;
+		info->key.tos = iph->tos;
+		info->key.ttl = iph->ttl;
 		info->key.tp_src = udp_hdr(skb)->source;
 		info->key.tp_dst = udp_hdr(skb)->dest;
 
@@ -1960,8 +1960,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			else
 				flags &= ~VXLAN_F_UDP_CSUM;
 
-			ttl = info->key.ipv4_ttl;
-			tos = info->key.ipv4_tos;
+			ttl = info->key.ttl;
+			tos = info->key.tos;
 
 			if (info->options_len)
 				md = ip_tunnel_info_opts(info, sizeof(*md));

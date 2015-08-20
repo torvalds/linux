@@ -44,8 +44,8 @@ struct ip_tunnel_key {
 		} ipv6;
 	} u;
 	__be16			tun_flags;
-	u8			ipv4_tos;
-	u8			ipv4_ttl;
+	u8			tos;		/* TOS for IPv4, TC for IPv6 */
+	u8			ttl;		/* TTL for IPv4, HL for IPv6 */
 	__be16			tp_src;
 	__be16			tp_dst;
 };
@@ -195,8 +195,8 @@ static inline void __ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
 	tun_info->key.u.ipv4.dst = daddr;
 	memset((unsigned char *)&tun_info->key + IP_TUNNEL_KEY_IPV4_PAD,
 	       0, IP_TUNNEL_KEY_IPV4_PAD_LEN);
-	tun_info->key.ipv4_tos = tos;
-	tun_info->key.ipv4_ttl = ttl;
+	tun_info->key.tos = tos;
+	tun_info->key.ttl = ttl;
 	tun_info->key.tun_flags = tun_flags;
 
 	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of

@@ -542,11 +542,11 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 					nla_get_in_addr(a), is_mask);
 			break;
 		case OVS_TUNNEL_KEY_ATTR_TOS:
-			SW_FLOW_KEY_PUT(match, tun_key.ipv4_tos,
+			SW_FLOW_KEY_PUT(match, tun_key.tos,
 					nla_get_u8(a), is_mask);
 			break;
 		case OVS_TUNNEL_KEY_ATTR_TTL:
-			SW_FLOW_KEY_PUT(match, tun_key.ipv4_ttl,
+			SW_FLOW_KEY_PUT(match, tun_key.ttl,
 					nla_get_u8(a), is_mask);
 			ttl = true;
 			break;
@@ -655,10 +655,10 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 	    nla_put_in_addr(skb, OVS_TUNNEL_KEY_ATTR_IPV4_DST,
 			    output->u.ipv4.dst))
 		return -EMSGSIZE;
-	if (output->ipv4_tos &&
-	    nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->ipv4_tos))
+	if (output->tos &&
+	    nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->tos))
 		return -EMSGSIZE;
-	if (nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TTL, output->ipv4_ttl))
+	if (nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TTL, output->ttl))
 		return -EMSGSIZE;
 	if ((output->tun_flags & TUNNEL_DONT_FRAGMENT) &&
 	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT))

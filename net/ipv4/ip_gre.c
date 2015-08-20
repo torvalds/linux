@@ -409,8 +409,8 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 			info = &tun_dst->u.tun_info;
 			info->key.u.ipv4.src = iph->saddr;
 			info->key.u.ipv4.dst = iph->daddr;
-			info->key.ipv4_tos = iph->tos;
-			info->key.ipv4_ttl = iph->ttl;
+			info->key.tos = iph->tos;
+			info->key.ttl = iph->ttl;
 
 			info->mode = IP_TUNNEL_INFO_RX;
 			info->key.tun_flags = tpi->flags &
@@ -529,7 +529,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(&fl, 0, sizeof(fl));
 	fl.daddr = key->u.ipv4.dst;
 	fl.saddr = key->u.ipv4.src;
-	fl.flowi4_tos = RT_TOS(key->ipv4_tos);
+	fl.flowi4_tos = RT_TOS(key->tos);
 	fl.flowi4_mark = skb->mark;
 	fl.flowi4_proto = IPPROTO_GRE;
 
@@ -565,7 +565,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ?  htons(IP_DF) : 0;
 	err = iptunnel_xmit(skb->sk, rt, skb, fl.saddr,
 			    key->u.ipv4.dst, IPPROTO_GRE,
-			    key->ipv4_tos, key->ipv4_ttl, df, false);
+			    key->tos, key->ttl, df, false);
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return;
 
