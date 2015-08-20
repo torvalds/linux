@@ -75,7 +75,7 @@ nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	 * to fit graphics contexts for every channel, the magics come
 	 * from engine/gr/nv40.c
 	 */
-	vs = hweight8((nv_rd32(imem, 0x001540) & 0x0000ff00) >> 8);
+	vs = hweight8((nvkm_rd32(device, 0x001540) & 0x0000ff00) >> 8);
 	if      (device->chipset == 0x40) imem->base.reserved = 0x6aa0 * vs;
 	else if (device->chipset  < 0x43) imem->base.reserved = 0x4f00 * vs;
 	else if (nv44_gr_class(imem))  imem->base.reserved = 0x4980 * vs;

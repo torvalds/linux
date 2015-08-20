@@ -105,13 +105,15 @@ nv04_instobj_oclass = {
 static u32
 nv04_instmem_rd32(struct nvkm_object *object, u64 addr)
 {
-	return nv_rd32(object, 0x700000 + addr);
+	struct nvkm_instmem *imem = (void *)object;
+	return nvkm_rd32(imem->subdev.device, 0x700000 + addr);
 }
 
 static void
 nv04_instmem_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	return nv_wr32(object, 0x700000 + addr, data);
+	struct nvkm_instmem *imem = (void *)object;
+	nvkm_wr32(imem->subdev.device, 0x700000 + addr, data);
 }
 
 void

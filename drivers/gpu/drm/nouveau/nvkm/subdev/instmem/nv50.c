@@ -45,6 +45,7 @@ nv50_instobj_rd32(struct nvkm_object *object, u64 offset)
 {
 	struct nv50_instmem *imem = (void *)nvkm_instmem(object);
 	struct nv50_instobj *node = (void *)object;
+	struct nvkm_device *device = imem->base.subdev.device;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
 	u64 addr = (node->mem->offset + offset) & 0x000000fffffULL;
@@ -52,10 +53,10 @@ nv50_instobj_rd32(struct nvkm_object *object, u64 offset)
 
 	spin_lock_irqsave(&imem->lock, flags);
 	if (unlikely(imem->addr != base)) {
-		nv_wr32(imem, 0x001700, base >> 16);
+		nvkm_wr32(device, 0x001700, base >> 16);
 		imem->addr = base;
 	}
-	data = nv_rd32(imem, 0x700000 + addr);
+	data = nvkm_rd32(device, 0x700000 + addr);
 	spin_unlock_irqrestore(&imem->lock, flags);
 	return data;
 }
@@ -65,16 +66,17 @@ nv50_instobj_wr32(struct nvkm_object *object, u64 offset, u32 data)
 {
 	struct nv50_instmem *imem = (void *)nvkm_instmem(object);
 	struct nv50_instobj *node = (void *)object;
+	struct nvkm_device *device = imem->base.subdev.device;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
 	u64 addr = (node->mem->offset + offset) & 0x000000fffffULL;
 
 	spin_lock_irqsave(&imem->lock, flags);
 	if (unlikely(imem->addr != base)) {
-		nv_wr32(imem, 0x001700, base >> 16);
+		nvkm_wr32(device, 0x001700, base >> 16);
 		imem->addr = base;
 	}
-	nv_wr32(imem, 0x700000 + addr, data);
+	nvkm_wr32(device, 0x700000 + addr, data);
 	spin_unlock_irqrestore(&imem->lock, flags);
 }
 
