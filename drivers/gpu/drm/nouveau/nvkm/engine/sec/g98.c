@@ -84,23 +84,25 @@ g98_sec_intr(struct nvkm_subdev *subdev)
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
 	u32 data = nvkm_rd32(device, 0x087044);
+	const struct nvkm_enum *en;
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
 	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & 0x00000040) {
-		nv_error(sec, "DISPATCH_ERROR [");
-		nvkm_enum_print(g98_sec_isr_error_name, ssta);
-		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, nvkm_client_name(engctx),
-		       subc, mthd, data);
+		en = nvkm_enum_find(g98_sec_isr_error_name, ssta);
+		nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] "
+				   "ch %d [%010llx %s] subc %d "
+				   "mthd %04x data %08x\n", ssta,
+			   en ? en->name : "", chid, (u64)inst << 12,
+			   nvkm_client_name(engctx), subc, mthd, data);
 		nvkm_wr32(device, 0x087004, 0x00000040);
 		stat &= ~0x00000040;
 	}
 
 	if (stat) {
-		nv_error(sec, "unhandled intr 0x%08x\n", stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
 		nvkm_wr32(device, 0x087004, stat);
 	}
 
