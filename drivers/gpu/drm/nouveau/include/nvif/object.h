@@ -3,6 +3,12 @@
 
 #include <nvif/os.h>
 
+struct nvif_sclass {
+	s32 oclass;
+	int minver;
+	int maxver;
+};
+
 struct nvif_object {
 	struct nvif_client *client;
 	u32 handle;
@@ -18,7 +24,8 @@ int  nvif_object_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
 		      struct nvif_object *);
 void nvif_object_fini(struct nvif_object *);
 int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
-int  nvif_object_sclass(struct nvif_object *, s32 *, int);
+int  nvif_object_sclass_get(struct nvif_object *, struct nvif_sclass **);
+void nvif_object_sclass_put(struct nvif_sclass **);
 u32  nvif_object_rd(struct nvif_object *, int, u64);
 void nvif_object_wr(struct nvif_object *, int, u64, u32);
 int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);

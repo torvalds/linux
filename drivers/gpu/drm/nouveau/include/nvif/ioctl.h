@@ -40,7 +40,11 @@ struct nvif_ioctl_sclass_v0 {
 	__u8  version;
 	__u8  count;
 	__u8  pad02[6];
-	__s32 oclass[];
+	struct nvif_ioctl_sclass_oclass_v0 {
+		__s32 oclass;
+		__s16 minver;
+		__s16 maxver;
+	} oclass[];
 };
 
 struct nvif_ioctl_new_v0 {

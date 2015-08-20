@@ -25,6 +25,8 @@
 #include <core/client.h>
 #include <core/engine.h>
 
+#include <nvif/ioctl.h>
+
 int
 nvkm_parent_sclass(struct nvkm_object *parent, s32 handle,
 		   struct nvkm_object **pengine,
@@ -66,8 +68,9 @@ nvkm_parent_sclass(struct nvkm_object *parent, s32 handle,
 }
 
 int
-nvkm_parent_lclass(struct nvkm_object *parent, s32 *lclass, int size)
+nvkm_parent_lclass(struct nvkm_object *parent, void *data, int size)
 {
+	struct nvif_ioctl_sclass_oclass_v0 *lclass = data;
 	struct nvkm_oclass *sclass, *oclass;
 	struct nvkm_engine *engine;
 	int nr = -1, i;
@@ -75,8 +78,11 @@ nvkm_parent_lclass(struct nvkm_object *parent, s32 *lclass, int size)
 
 	sclass = nv_parent(parent)->sclass;
 	while ((oclass = sclass++) && oclass->ofuncs) {
-		if (++nr < size)
-			lclass[nr] = oclass->handle;
+		if (++nr < size) {
+			lclass[nr].oclass = oclass->handle;
+			lclass[nr].minver = -2;
+			lclass[nr].maxver = -2;
+		}
 	}
 
 	mask = nv_parent(parent)->engine;
@@ -84,8 +90,11 @@ nvkm_parent_lclass(struct nvkm_object *parent, s32 *lclass, int size)
 		engine = nvkm_engine(parent, i);
 		if (engine && (oclass = engine->sclass)) {
 			while (oclass->ofuncs) {
-				if (++nr < size)
-					lclass[nr] = oclass->handle;
+				if (++nr < size) {
+					lclass[nr].oclass = oclass->handle;
+					lclass[nr].minver = -2;
+					lclass[nr].maxver = -2;
+				}
 				oclass++;
 			}
 		}

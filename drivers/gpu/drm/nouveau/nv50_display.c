@@ -69,29 +69,30 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 		 struct nv50_chan *chan)
 {
 	const u32 handle = (oclass[0] << 16) | head;
-	s32 sclass[8];
-	int ret, i;
+	struct nvif_sclass *sclass;
+	int ret, i, n;
 
 	chan->device = device;
 
-	ret = nvif_object_sclass(disp, sclass, ARRAY_SIZE(sclass));
-	WARN_ON(ret > ARRAY_SIZE(sclass));
+	ret = n = nvif_object_sclass_get(disp, &sclass);
 	if (ret < 0)
 		return ret;
 
 	while (oclass[0]) {
-		for (i = 0; i < ARRAY_SIZE(sclass); i++) {
-			if (sclass[i] == oclass[0]) {
+		for (i = 0; i < n; i++) {
+			if (sclass[i].oclass == oclass[0]) {
 				ret = nvif_object_init(disp, handle, oclass[0],
 						       data, size, &chan->user);
 				if (ret == 0)
 					nvif_object_map(&chan->user);
+				nvif_object_sclass_put(&sclass);
 				return ret;
 			}
 		}
 		oclass++;
 	}
 
+	nvif_object_sclass_put(&sclass);
 	return -ENOSYS;
 }
 

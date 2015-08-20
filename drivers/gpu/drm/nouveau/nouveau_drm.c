@@ -152,9 +152,9 @@ static void
 nouveau_accel_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->device;
+	struct nvif_sclass *sclass;
 	u32 arg0, arg1;
-	s32 sclass[16];
-	int ret, i;
+	int ret, i, n;
 
 	if (nouveau_noaccel)
 		return;
@@ -163,12 +163,12 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	/*XXX: this is crap, but the fence/channel stuff is a little
 	 *     backwards in some places.  this will be fixed.
 	 */
-	ret = nvif_object_sclass(&device->object, sclass, ARRAY_SIZE(sclass));
+	ret = n = nvif_object_sclass_get(&device->object, &sclass);
 	if (ret < 0)
 		return;
 
-	for (ret = -ENOSYS, i = 0; ret && i < ARRAY_SIZE(sclass); i++) {
-		switch (sclass[i]) {
+	for (ret = -ENOSYS, i = 0; i < n; i++) {
+		switch (sclass[i].oclass) {
 		case NV03_CHANNEL_DMA:
 			ret = nv04_fence_create(drm);
 			break;
@@ -195,6 +195,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		}
 	}
 
+	nvif_object_sclass_put(&sclass);
 	if (ret) {
 		NV_ERROR(drm, "failed to initialise sync subsystem, %d\n", ret);
 		nouveau_accel_fini(drm);

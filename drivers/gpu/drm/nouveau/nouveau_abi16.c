@@ -369,7 +369,7 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nvif_client *client;
-	u32 sclass[32];
+	struct nvif_sclass *sclass;
 	s32 oclass = 0;
 	int ret, i;
 
@@ -384,19 +384,19 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOENT);
 
-	ret = nvif_object_sclass(&chan->chan->user, sclass, ARRAY_SIZE(sclass));
+	ret = nvif_object_sclass_get(&chan->chan->user, &sclass);
 	if (ret < 0)
 		return nouveau_abi16_put(abi16, ret);
 
 	if ((init->class & 0x00ff) == 0x006e) {
 		/* nvsw: compatibility with older 0x*6e class identifier */
 		for (i = 0; !oclass && i < ret; i++) {
-			switch (sclass[i]) {
+			switch (sclass[i].oclass) {
 			case NVIF_IOCTL_NEW_V0_SW_NV04:
 			case NVIF_IOCTL_NEW_V0_SW_NV10:
 			case NVIF_IOCTL_NEW_V0_SW_NV50:
 			case NVIF_IOCTL_NEW_V0_SW_GF100:
-				oclass = sclass[i];
+				oclass = sclass[i].oclass;
 				break;
 			default:
 				break;
@@ -406,8 +406,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	if ((init->class & 0x00ff) == 0x00b1) {
 		/* msvld: compatibility with incorrect version exposure */
 		for (i = 0; i < ret; i++) {
-			if ((sclass[i] & 0x00ff) == 0x00b1) {
-				oclass = sclass[i];
+			if ((sclass[i].oclass & 0x00ff) == 0x00b1) {
+				oclass = sclass[i].oclass;
 				break;
 			}
 		}
@@ -415,8 +415,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	if ((init->class & 0x00ff) == 0x00b2) { /* mspdec */
 		/* mspdec: compatibility with incorrect version exposure */
 		for (i = 0; i < ret; i++) {
-			if ((sclass[i] & 0x00ff) == 0x00b2) {
-				oclass = sclass[i];
+			if ((sclass[i].oclass & 0x00ff) == 0x00b2) {
+				oclass = sclass[i].oclass;
 				break;
 			}
 		}
@@ -424,8 +424,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	if ((init->class & 0x00ff) == 0x00b3) { /* msppp */
 		/* msppp: compatibility with incorrect version exposure */
 		for (i = 0; i < ret; i++) {
-			if ((sclass[i] & 0x00ff) == 0x00b3) {
-				oclass = sclass[i];
+			if ((sclass[i].oclass & 0x00ff) == 0x00b3) {
+				oclass = sclass[i].oclass;
 				break;
 			}
 		}
@@ -433,6 +433,7 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 		oclass = init->class;
 	}
 
+	nvif_object_sclass_put(&sclass);
 	if (!oclass)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
