@@ -36,9 +36,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe7:
@@ -50,9 +47,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe6:
@@ -64,9 +58,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xea:
@@ -86,9 +77,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &gk110_pm_oclass;
 		break;
 	case 0xf1:
@@ -100,9 +88,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &gk110_pm_oclass;
 		break;
 	case 0x106:
@@ -114,9 +99,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		break;
 	case 0x108:
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
@@ -127,9 +109,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
-		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		break;
 	default:
 		return -EINVAL;

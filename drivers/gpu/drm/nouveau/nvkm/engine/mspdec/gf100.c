@@ -21,60 +21,31 @@
  *
  * Authors: Maarten Lankhorst
  */
-#include <engine/mspdec.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
 #include <nvif/class.h>
 
-static int
-gf100_mspdec_init(struct nvkm_object *object)
+void
+gf100_mspdec_init(struct nvkm_falcon *mspdec)
 {
-	struct nvkm_falcon *mspdec = (void *)object;
 	struct nvkm_device *device = mspdec->engine.subdev.device;
-	int ret;
-
-	ret = nvkm_falcon_init(mspdec);
-	if (ret)
-		return ret;
-
 	nvkm_wr32(device, 0x085010, 0x0000fff2);
 	nvkm_wr32(device, 0x08501c, 0x0000fff2);
-	return 0;
 }
 
 static const struct nvkm_falcon_func
-gf100_mspdec_func = {
+gf100_mspdec = {
+	.pmc_enable = 0x00020000,
+	.init = gf100_mspdec_init,
 	.sclass = {
 		{ -1, -1, GF100_MSPDEC },
 		{}
 	}
 };
 
-static int
-gf100_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+int
+gf100_mspdec_new(struct nvkm_device *device, int index,
+		 struct nvkm_engine **pengine)
 {
-	struct nvkm_falcon *mspdec;
-	int ret;
-
-	ret = nvkm_falcon_create(&gf100_mspdec_func, parent, engine, oclass,
-				 0x085000, true, "PMSPDEC", "mspdec", &mspdec);
-	*pobject = nv_object(mspdec);
-	if (ret)
-		return ret;
-
-	nv_subdev(mspdec)->unit = 0x00020000;
-	return 0;
+	return nvkm_mspdec_new_(&gf100_mspdec, device, index, pengine);
 }
-
-struct nvkm_oclass
-gf100_mspdec_oclass = {
-	.handle = NV_ENGINE(MSPDEC, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_mspdec_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = gf100_mspdec_init,
-		.fini = _nvkm_falcon_fini,
-	},
-};

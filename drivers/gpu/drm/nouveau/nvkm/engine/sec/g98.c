@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include <engine/sec.h>
-#include <engine/falcon.h>
 #include <engine/fifo.h>
 #include "fuc/g98.fuc0s.h"
 
@@ -61,7 +60,12 @@ g98_sec_intr(struct nvkm_falcon *sec, struct nvkm_fifo_chan *chan)
 }
 
 static const struct nvkm_falcon_func
-g98_sec_func = {
+g98_sec = {
+	.code.data = g98_sec_code,
+	.code.size = sizeof(g98_sec_code),
+	.data.data = g98_sec_data,
+	.data.size = sizeof(g98_sec_data),
+	.pmc_enable = 0x00004000,
 	.intr = g98_sec_intr,
 	.sclass = {
 		{ -1, -1, G98_SEC },
@@ -69,35 +73,10 @@ g98_sec_func = {
 	}
 };
 
-static int
-g98_sec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+g98_sec_new(struct nvkm_device *device, int index,
+	    struct nvkm_engine **pengine)
 {
-	struct nvkm_falcon *sec;
-	int ret;
-
-	ret = nvkm_falcon_create(&g98_sec_func, parent, engine, oclass,
-				 0x087000, true, "PSEC", "sec", &sec);
-	*pobject = nv_object(sec);
-	if (ret)
-		return ret;
-
-	nv_subdev(sec)->unit = 0x00004000;
-	nv_falcon(sec)->code.data = g98_sec_code;
-	nv_falcon(sec)->code.size = sizeof(g98_sec_code);
-	nv_falcon(sec)->data.data = g98_sec_data;
-	nv_falcon(sec)->data.size = sizeof(g98_sec_data);
-	return 0;
+	return nvkm_falcon_new_(&g98_sec, device, index,
+				true, 0x087000, pengine);
 }
-
-struct nvkm_oclass
-g98_sec_oclass = {
-	.handle = NV_ENGINE(SEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g98_sec_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = _nvkm_falcon_init,
-		.fini = _nvkm_falcon_fini,
-	},
-};

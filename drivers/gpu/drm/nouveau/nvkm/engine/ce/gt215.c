@@ -61,7 +61,12 @@ gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 }
 
 static const struct nvkm_falcon_func
-gt215_ce_func = {
+gt215_ce = {
+	.code.data = gt215_ce_code,
+	.code.size = sizeof(gt215_ce_code),
+	.data.data = gt215_ce_data,
+	.data.size = sizeof(gt215_ce_data),
+	.pmc_enable = 0x00802000,
 	.intr = gt215_ce_intr,
 	.sclass = {
 		{ -1, -1, GT212_DMA },
@@ -69,36 +74,10 @@ gt215_ce_func = {
 	}
 };
 
-static int
-gt215_ce_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+int
+gt215_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
 {
-	bool enable = (nv_device(parent)->chipset != 0xaf);
-	struct nvkm_falcon *ce;
-	int ret;
-
-	ret = nvkm_falcon_create(&gt215_ce_func, parent, engine, oclass,
-				 0x104000, enable, "PCE0", "ce0", &ce);
-	*pobject = nv_object(ce);
-	if (ret)
-		return ret;
-
-	nv_subdev(ce)->unit = 0x00802000;
-	nv_falcon(ce)->code.data = gt215_ce_code;
-	nv_falcon(ce)->code.size = sizeof(gt215_ce_code);
-	nv_falcon(ce)->data.data = gt215_ce_data;
-	nv_falcon(ce)->data.size = sizeof(gt215_ce_data);
-	return 0;
+	return nvkm_falcon_new_(&gt215_ce, device, index,
+				(device->chipset != 0xaf), 0x104000, pengine);
 }
-
-struct nvkm_oclass
-gt215_ce_oclass = {
-	.handle = NV_ENGINE(CE0, 0xa3),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gt215_ce_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = _nvkm_falcon_init,
-		.fini = _nvkm_falcon_fini,
-	},
-};

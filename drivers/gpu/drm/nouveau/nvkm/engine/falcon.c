@@ -54,10 +54,11 @@ nvkm_falcon_cclass = {
 };
 
 static void
-nvkm_falcon_intr(struct nvkm_subdev *subdev)
+nvkm_falcon_intr(struct nvkm_engine *engine)
 {
-	struct nvkm_falcon *falcon = (void *)subdev;
-	struct nvkm_device *device = falcon->engine.subdev.device;
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_subdev *subdev = &falcon->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const u32 base = falcon->addr;
 	u32 dest = nvkm_rd32(device, base + 0x01c);
 	u32 intr = nvkm_rd32(device, base + 0x008) & dest & ~(dest >> 16);
@@ -89,6 +90,27 @@ nvkm_falcon_intr(struct nvkm_subdev *subdev)
 	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
+static int
+nvkm_falcon_fini(struct nvkm_engine *engine, bool suspend)
+{
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_device *device = falcon->engine.subdev.device;
+	const u32 base = falcon->addr;
+
+	if (!suspend) {
+		nvkm_memory_del(&falcon->core);
+		if (falcon->external) {
+			vfree(falcon->data.data);
+			vfree(falcon->code.data);
+			falcon->code.data = NULL;
+		}
+	}
+
+	nvkm_mask(device, base + 0x048, 0x00000003, 0x00000000);
+	nvkm_wr32(device, base + 0x014, 0xffffffff);
+	return 0;
+}
+
 static void *
 vmemdup(const void *src, size_t len)
 {
@@ -99,23 +121,16 @@ vmemdup(const void *src, size_t len)
 	return p;
 }
 
-int
-_nvkm_falcon_init(struct nvkm_object *object)
+static int
+nvkm_falcon_oneinit(struct nvkm_engine *engine)
 {
-	struct nvkm_falcon *falcon = (void *)object;
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
 	struct nvkm_subdev *subdev = &falcon->engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	const struct firmware *fw;
-	char name[32] = "internal";
 	const u32 base = falcon->addr;
-	int ret, i;
 	u32 caps;
 
-	/* enable engine, and determine its capabilities */
-	ret = nvkm_engine_init_old(&falcon->engine);
-	if (ret)
-		return ret;
-
+	/* determine falcon capabilities */
 	if (device->chipset <  0xa3 ||
 	    device->chipset == 0xaa || device->chipset == 0xac) {
 		falcon->version = 0;
@@ -134,6 +149,19 @@ _nvkm_falcon_init(struct nvkm_object *object)
 	nvkm_debug(subdev, "secret level: %d\n", falcon->secret);
 	nvkm_debug(subdev, "code limit: %d\n", falcon->code.limit);
 	nvkm_debug(subdev, "data limit: %d\n", falcon->data.limit);
+	return 0;
+}
+
+static int
+nvkm_falcon_init(struct nvkm_engine *engine)
+{
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_subdev *subdev = &falcon->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const struct firmware *fw;
+	char name[32] = "internal";
+	const u32 base = falcon->addr;
+	int ret, i;
 
 	/* wait for 'uc halted' to be signalled before continuing */
 	if (falcon->secret && falcon->version < 4) {
@@ -279,56 +307,46 @@ _nvkm_falcon_init(struct nvkm_object *object)
 	nvkm_wr32(device, base + 0x104, 0x00000000); /* ENTRY */
 	nvkm_wr32(device, base + 0x100, 0x00000002); /* TRIGGER */
 	nvkm_wr32(device, base + 0x048, 0x00000003); /* FIFO | CHSW */
+
+	if (falcon->func->init)
+		falcon->func->init(falcon);
 	return 0;
 }
 
-int
-_nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
+static void *
+nvkm_falcon_dtor(struct nvkm_engine *engine)
 {
-	struct nvkm_falcon *falcon = (void *)object;
-	struct nvkm_device *device = falcon->engine.subdev.device;
-	const u32 base = falcon->addr;
-
-	if (!suspend) {
-		nvkm_memory_del(&falcon->core);
-		if (falcon->external) {
-			vfree(falcon->data.data);
-			vfree(falcon->code.data);
-			falcon->code.data = NULL;
-		}
-	}
-
-	nvkm_mask(device, base + 0x048, 0x00000003, 0x00000000);
-	nvkm_wr32(device, base + 0x014, 0xffffffff);
-
-	return nvkm_engine_fini_old(&falcon->engine, suspend);
+	return nvkm_falcon(engine);
 }
 
 static const struct nvkm_engine_func
 nvkm_falcon = {
+	.dtor = nvkm_falcon_dtor,
+	.oneinit = nvkm_falcon_oneinit,
+	.init = nvkm_falcon_init,
+	.fini = nvkm_falcon_fini,
+	.intr = nvkm_falcon_intr,
 	.fifo.sclass = nvkm_falcon_oclass_get,
 	.cclass = &nvkm_falcon_cclass,
 };
 
 int
-nvkm_falcon_create_(const struct nvkm_falcon_func *func,
-		    struct nvkm_object *parent, struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, u32 addr, bool enable,
-		    const char *iname, const char *fname,
-		    int length, void **pobject)
+nvkm_falcon_new_(const struct nvkm_falcon_func *func,
+		 struct nvkm_device *device, int index, bool enable,
+		 u32 addr, struct nvkm_engine **pengine)
 {
 	struct nvkm_falcon *falcon;
-	int ret;
 
-	ret = nvkm_engine_create_(parent, engine, oclass, enable, iname,
-				  fname, length, pobject);
-	falcon = *pobject;
-	if (ret)
-		return ret;
-
-	falcon->engine.subdev.intr = nvkm_falcon_intr;
-	falcon->engine.func = &nvkm_falcon;
+	if (!(falcon = kzalloc(sizeof(*falcon), GFP_KERNEL)))
+		return -ENOMEM;
 	falcon->func = func;
 	falcon->addr = addr;
-	return 0;
+	falcon->code.data = func->code.data;
+	falcon->code.size = func->code.size;
+	falcon->data.data = func->data.data;
+	falcon->data.size = func->data.size;
+	*pengine = &falcon->engine;
+
+	return nvkm_engine_ctor(&nvkm_falcon, device, index, func->pmc_enable,
+				enable, &falcon->engine);
 }

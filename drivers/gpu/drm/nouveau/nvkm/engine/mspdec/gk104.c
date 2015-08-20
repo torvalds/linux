@@ -21,60 +21,23 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/mspdec.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
 #include <nvif/class.h>
 
-static int
-gk104_mspdec_init(struct nvkm_object *object)
-{
-	struct nvkm_falcon *mspdec = (void *)object;
-	struct nvkm_device *device = mspdec->engine.subdev.device;
-	int ret;
-
-	ret = nvkm_falcon_init(mspdec);
-	if (ret)
-		return ret;
-
-	nvkm_wr32(device, 0x085010, 0x0000fff2);
-	nvkm_wr32(device, 0x08501c, 0x0000fff2);
-	return 0;
-}
-
 static const struct nvkm_falcon_func
-gk104_mspdec_func = {
+gk104_mspdec = {
+	.pmc_enable = 0x00020000,
+	.init = gf100_mspdec_init,
 	.sclass = {
 		{ -1, -1, GK104_MSPDEC },
 		{}
 	}
 };
 
-static int
-gk104_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+int
+gk104_mspdec_new(struct nvkm_device *device, int index,
+		 struct nvkm_engine **pengine)
 {
-	struct nvkm_falcon *falcon;
-	int ret;
-
-	ret = nvkm_falcon_create(&gk104_mspdec_func, parent, engine, oclass,
-				 0x085000, true, "PMSPDEC", "mspdec", &falcon);
-	*pobject = nv_object(falcon);
-	if (ret)
-		return ret;
-
-	nv_subdev(falcon)->unit = 0x00020000;
-	return 0;
+	return nvkm_mspdec_new_(&gk104_mspdec, device, index, pengine);
 }
-
-struct nvkm_oclass
-gk104_mspdec_oclass = {
-	.handle = NV_ENGINE(MSPDEC, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_mspdec_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = gk104_mspdec_init,
-		.fini = _nvkm_falcon_fini,
-	},
-};

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Maarten Lankhorst
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,33 +19,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Maarten Lankhorst
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "priv.h"
 
-#include <nvif/class.h>
-
-void
-gf100_msvld_init(struct nvkm_falcon *msvld)
-{
-	struct nvkm_device *device = msvld->engine.subdev.device;
-	nvkm_wr32(device, 0x084010, 0x0000fff2);
-	nvkm_wr32(device, 0x08401c, 0x0000fff2);
-}
-
-static const struct nvkm_falcon_func
-gf100_msvld = {
-	.pmc_enable = 0x00008000,
-	.init = gf100_msvld_init,
-	.sclass = {
-		{ -1, -1, GF100_MSVLD },
-		{}
-	}
-};
-
 int
-gf100_msvld_new(struct nvkm_device *device, int index,
-		struct nvkm_engine **pengine)
+nvkm_mspdec_new_(const struct nvkm_falcon_func *func,
+		 struct nvkm_device *device, int index,
+		 struct nvkm_engine **pengine)
 {
-	return nvkm_msvld_new_(&gf100_msvld, device, index, pengine);
+	return nvkm_falcon_new_(func, device, index, true, 0x085000, pengine);
 }

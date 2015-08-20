@@ -21,61 +21,31 @@
  *
  * Authors: Ben Skeggs, Maarten Lankhorst, Ilia Mirkin
  */
-#include <engine/msppp.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
 #include <nvif/class.h>
 
-static int
-g98_msppp_init(struct nvkm_object *object)
+void
+g98_msppp_init(struct nvkm_falcon *msppp)
 {
-	struct nvkm_falcon *msppp = (void *)object;
 	struct nvkm_device *device = msppp->engine.subdev.device;
-	int ret;
-
-	ret = nvkm_falcon_init(msppp);
-	if (ret)
-		return ret;
-
 	nvkm_wr32(device, 0x086010, 0x0000ffd2);
 	nvkm_wr32(device, 0x08601c, 0x0000fff2);
-	return 0;
 }
 
 static const struct nvkm_falcon_func
-g98_msppp_func = {
+g98_msppp = {
+	.pmc_enable = 0x00400002,
+	.init = g98_msppp_init,
 	.sclass = {
 		{ -1, -1, G98_MSPPP },
-		{ -1, -1, GT212_MSPPP },
 		{}
 	}
 };
 
-static int
-g98_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+g98_msppp_new(struct nvkm_device *device, int index,
+	      struct nvkm_engine **pengine)
 {
-	struct nvkm_falcon *msppp;
-	int ret;
-
-	ret = nvkm_falcon_create(&g98_msppp_func, parent, engine, oclass,
-				 0x086000, true, "PMSPPP", "msppp", &msppp);
-	*pobject = nv_object(msppp);
-	if (ret)
-		return ret;
-
-	nv_subdev(msppp)->unit = 0x00400002;
-	return 0;
+	return nvkm_msppp_new_(&g98_msppp, device, index, pengine);
 }
-
-struct nvkm_oclass
-g98_msppp_oclass = {
-	.handle = NV_ENGINE(MSPPP, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g98_msppp_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = g98_msppp_init,
-		.fini = _nvkm_falcon_fini,
-	},
-};

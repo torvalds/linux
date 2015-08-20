@@ -1,6 +1,7 @@
 #ifndef __NVKM_MSPPP_H__
 #define __NVKM_MSPPP_H__
-#include <core/engine.h>
-extern struct nvkm_oclass g98_msppp_oclass;
-extern struct nvkm_oclass gf100_msppp_oclass;
+#include <engine/falcon.h>
+int g98_msppp_new(struct nvkm_device *, int, struct nvkm_engine **);
+int gt215_msppp_new(struct nvkm_device *, int, struct nvkm_engine **);
+int gf100_msppp_new(struct nvkm_device *, int, struct nvkm_engine **);
 #endif
