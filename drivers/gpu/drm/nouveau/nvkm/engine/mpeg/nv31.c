@@ -24,9 +24,6 @@
 #include "nv31.h"
 
 #include <core/client.h>
-#include <core/handle.h>
-#include <engine/fifo.h>
-#include <subdev/instmem.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -58,44 +55,58 @@ nv31_mpeg_object_ctor(struct nvkm_object *parent,
 	return 0;
 }
 
-static int
-nv31_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
+static bool
+nv31_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 {
-	struct nv31_mpeg *mpeg = (void *)object->engine;
-	struct nvkm_device *device = mpeg->base.engine.subdev.device;
-	struct nvkm_instmem *imem = device->imem;
-	u32 inst = *(u32 *)arg << 4;
-	u32 dma0 = imem->func->rd32(imem, inst + 0);
-	u32 dma1 = imem->func->rd32(imem, inst + 4);
-	u32 dma2 = imem->func->rd32(imem, inst + 8);
+	u32 inst = data << 4;
+	u32 dma0 = nvkm_rd32(device, 0x700000 + inst);
+	u32 dma1 = nvkm_rd32(device, 0x700004 + inst);
+	u32 dma2 = nvkm_rd32(device, 0x700008 + inst);
 	u32 base = (dma2 & 0xfffff000) | (dma0 >> 20);
 	u32 size = dma1 + 1;
 
 	/* only allow linear DMA objects */
 	if (!(dma0 & 0x00002000))
-		return -EINVAL;
+		return false;
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nvkm_mask(device, 0x00b300, 0x00010000, (dma0 & 0x00030000) ? 0x00010000 : 0);
+		nvkm_mask(device, 0x00b300, 0x00010000,
+				  (dma0 & 0x00030000) ? 0x00010000 : 0);
 		nvkm_wr32(device, 0x00b334, base);
 		nvkm_wr32(device, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nvkm_mask(device, 0x00b300, 0x00020000, (dma0 & 0x00030000) ? 0x00020000 : 0);
+		nvkm_mask(device, 0x00b300, 0x00020000,
+				  (dma0 & 0x00030000) ? 0x00020000 : 0);
 		nvkm_wr32(device, 0x00b360, base);
 		nvkm_wr32(device, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
 		if (dma0 & 0x00030000)
-			return -EINVAL;
+			return false;
 
 		nvkm_wr32(device, 0x00b370, base);
 		nvkm_wr32(device, 0x00b374, size);
 	}
 
-	return 0;
+	return true;
+}
+
+static bool
+nv31_mpeg_mthd(struct nv31_mpeg *mpeg, u32 mthd, u32 data)
+{
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	switch (mthd) {
+	case 0x190:
+	case 0x1a0:
+	case 0x1b0:
+		return mpeg->mthd_dma(device, mthd, data);
+	default:
+		break;
+	}
+	return false;
 }
 
 struct nvkm_ofuncs
@@ -108,17 +119,9 @@ nv31_mpeg_ofuncs = {
 	.wr32 = _nvkm_gpuobj_wr32,
 };
 
-static struct nvkm_omthds
-nv31_mpeg_omthds[] = {
-	{ 0x0190, 0x0190, nv31_mpeg_mthd_dma },
-	{ 0x01a0, 0x01a0, nv31_mpeg_mthd_dma },
-	{ 0x01b0, 0x01b0, nv31_mpeg_mthd_dma },
-	{}
-};
-
 struct nvkm_oclass
 nv31_mpeg_sclass[] = {
-	{ 0x3174, &nv31_mpeg_ofuncs, nv31_mpeg_omthds },
+	{ 0x3174, &nv31_mpeg_ofuncs },
 	{}
 };
 
@@ -149,6 +152,7 @@ nv31_mpeg_context_ctor(struct nvkm_object *parent,
 		*pobject = NULL;
 		return -EBUSY;
 	}
+	chan->fifo = nvkm_fifo_chan(parent);
 	mpeg->chan = chan;
 	spin_unlock_irqrestore(&nv_engine(mpeg)->lock, flags);
 	return 0;
@@ -199,9 +203,6 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nv31_mpeg *mpeg = (void *)subdev;
 	struct nvkm_device *device = mpeg->base.engine.subdev.device;
-	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_handle *handle;
-	struct nvkm_object *engctx;
 	u32 stat = nvkm_rd32(device, 0x00b100);
 	u32 type = nvkm_rd32(device, 0x00b230);
 	u32 mthd = nvkm_rd32(device, 0x00b234);
@@ -209,8 +210,7 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 	u32 show = stat;
 	unsigned long flags;
 
-	spin_lock_irqsave(&nv_engine(mpeg)->lock, flags);
-	engctx = nv_object(mpeg->chan);
+	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
@@ -219,11 +219,9 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 			show &= ~0x01000000;
 		}
 
-		if (type == 0x00000010 && engctx) {
-			handle = nvkm_handle_get_class(engctx, 0x3174);
-			if (handle && !nv_call(handle->object, mthd, data))
+		if (type == 0x00000010) {
+			if (!nv31_mpeg_mthd(mpeg, mthd, data))
 				show &= ~0x01000000;
-			nvkm_handle_put(handle);
 		}
 	}
 
@@ -232,11 +230,12 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 
 	if (show) {
 		nvkm_error(subdev, "ch %d [%s] %08x %08x %08x %08x\n",
-			   fifo->chid(fifo, engctx),
-			   nvkm_client_name(engctx), stat, type, mthd, data);
+			   mpeg->chan ? mpeg->chan->fifo->chid : -1,
+			   nvkm_client_name(mpeg->chan),
+			   stat, type, mthd, data);
 	}
 
-	spin_unlock_irqrestore(&nv_engine(mpeg)->lock, flags);
+	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
 }
 
 static int
@@ -252,6 +251,7 @@ nv31_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	mpeg->mthd_dma = nv31_mpeg_mthd_dma;
 	nv_subdev(mpeg)->unit = 0x00000002;
 	nv_subdev(mpeg)->intr = nv31_mpeg_intr;
 	nv_engine(mpeg)->cclass = &nv31_mpeg_cclass;
