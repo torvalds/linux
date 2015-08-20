@@ -27,6 +27,7 @@ static void
 nv40_perfctr_init(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		  struct nvkm_perfctr *ctr)
 {
+	struct nvkm_device *device = pm->engine.subdev.device;
 	struct nv40_pm_cntr *cntr = (void *)ctr;
 	u32 log = ctr->logic_op;
 	u32 src = 0x00000000;
@@ -35,31 +36,33 @@ nv40_perfctr_init(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 	for (i = 0; i < 4; i++)
 		src |= ctr->signal[i] << (i * 8);
 
-	nv_wr32(pm, 0x00a7c0 + dom->addr, 0x00000001 | (dom->mode << 4));
-	nv_wr32(pm, 0x00a400 + dom->addr + (cntr->base.slot * 0x40), src);
-	nv_wr32(pm, 0x00a420 + dom->addr + (cntr->base.slot * 0x40), log);
+	nvkm_wr32(device, 0x00a7c0 + dom->addr, 0x00000001 | (dom->mode << 4));
+	nvkm_wr32(device, 0x00a400 + dom->addr + (cntr->base.slot * 0x40), src);
+	nvkm_wr32(device, 0x00a420 + dom->addr + (cntr->base.slot * 0x40), log);
 }
 
 static void
 nv40_perfctr_read(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		  struct nvkm_perfctr *ctr)
 {
+	struct nvkm_device *device = pm->engine.subdev.device;
 	struct nv40_pm_cntr *cntr = (void *)ctr;
 
 	switch (cntr->base.slot) {
-	case 0: cntr->base.ctr = nv_rd32(pm, 0x00a700 + dom->addr); break;
-	case 1: cntr->base.ctr = nv_rd32(pm, 0x00a6c0 + dom->addr); break;
-	case 2: cntr->base.ctr = nv_rd32(pm, 0x00a680 + dom->addr); break;
-	case 3: cntr->base.ctr = nv_rd32(pm, 0x00a740 + dom->addr); break;
+	case 0: cntr->base.ctr = nvkm_rd32(device, 0x00a700 + dom->addr); break;
+	case 1: cntr->base.ctr = nvkm_rd32(device, 0x00a6c0 + dom->addr); break;
+	case 2: cntr->base.ctr = nvkm_rd32(device, 0x00a680 + dom->addr); break;
+	case 3: cntr->base.ctr = nvkm_rd32(device, 0x00a740 + dom->addr); break;
 	}
-	dom->clk = nv_rd32(pm, 0x00a600 + dom->addr);
+	dom->clk = nvkm_rd32(device, 0x00a600 + dom->addr);
 }
 
 static void
 nv40_perfctr_next(struct nvkm_pm *pm, struct nvkm_perfdom *dom)
 {
+	struct nvkm_device *device = pm->engine.subdev.device;
 	if (pm->sequence != pm->sequence) {
-		nv_wr32(pm, 0x400084, 0x00000020);
+		nvkm_wr32(device, 0x400084, 0x00000020);
 		pm->sequence = pm->sequence;
 	}
 }

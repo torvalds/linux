@@ -126,6 +126,7 @@ nvkm_perfsrc_find(struct nvkm_pm *pm, struct nvkm_perfsig *sig, int si)
 static int
 nvkm_perfsrc_enable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 {
+	struct nvkm_device *device = pm->engine.subdev.device;
 	struct nvkm_perfdom *dom = NULL;
 	struct nvkm_perfsig *sig;
 	struct nvkm_perfsrc *src;
@@ -151,7 +152,7 @@ nvkm_perfsrc_enable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 			value |= ((ctr->source[i][j] >> 32) << src->shift);
 
 			/* enable the source */
-			nv_mask(pm, src->addr, mask, value);
+			nvkm_mask(device, src->addr, mask, value);
 			nv_debug(pm, "enabled source 0x%08x 0x%08x 0x%08x\n",
 				 src->addr, mask, value);
 		}
@@ -162,6 +163,7 @@ nvkm_perfsrc_enable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 static int
 nvkm_perfsrc_disable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 {
+	struct nvkm_device *device = pm->engine.subdev.device;
 	struct nvkm_perfdom *dom = NULL;
 	struct nvkm_perfsig *sig;
 	struct nvkm_perfsrc *src;
@@ -186,7 +188,7 @@ nvkm_perfsrc_disable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 			mask |= (src->mask << src->shift);
 
 			/* disable the source */
-			nv_mask(pm, src->addr, mask, 0);
+			nvkm_mask(device, src->addr, mask, 0);
 			nv_debug(pm, "disabled source 0x%08x 0x%08x\n",
 				 src->addr, mask);
 		}
