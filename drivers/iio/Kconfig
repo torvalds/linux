@@ -38,6 +38,12 @@ config IIO_CONSUMERS_PER_TRIGGER
 	This value controls the maximum number of consumers that a
 	given trigger may handle. Default is 2.
 
+config IIO_TRIGGERED_EVENT
+	tristate
+	select IIO_TRIGGER
+	help
+	  Provides helper functions for setting up triggered events.
+
 source "drivers/iio/accel/Kconfig"
 source "drivers/iio/adc/Kconfig"
 source "drivers/iio/amplifiers/Kconfig"

@@ -7,6 +7,8 @@ industrialio-y := industrialio-core.o industrialio-event.o inkern.o
 industrialio-$(CONFIG_IIO_BUFFER) += industrialio-buffer.o
 industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 
+obj-$(CONFIG_IIO_TRIGGERED_EVENT) += industrialio-triggered-event.o
+
 obj-y += accel/
 obj-y += adc/
 obj-y += amplifiers/
