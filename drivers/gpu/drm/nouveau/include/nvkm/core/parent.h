@@ -2,16 +2,10 @@
 #define __NVKM_PARENT_H__
 #include <core/object.h>
 
-struct nvkm_sclass {
-	struct nvkm_sclass *sclass;
-	struct nvkm_engine *engine;
-	struct nvkm_oclass *oclass;
-};
-
 struct nvkm_parent {
 	struct nvkm_object object;
 
-	struct nvkm_sclass *sclass;
+	struct nvkm_oclass *sclass;
 	u64 engine;
 
 	int  (*context_attach)(struct nvkm_object *, struct nvkm_object *);
