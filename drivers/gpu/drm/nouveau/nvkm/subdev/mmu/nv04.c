@@ -37,26 +37,30 @@ nv04_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	pte = 0x00008 + (pte * 4);
+	nvkm_kmap(pgt);
 	while (cnt) {
 		u32 page = PAGE_SIZE / NV04_PDMA_PAGE;
 		u32 phys = (u32)*list++;
 		while (cnt && page--) {
-			nv_wo32(pgt, pte, phys | 3);
+			nvkm_wo32(pgt, pte, phys | 3);
 			phys += NV04_PDMA_PAGE;
 			pte += 4;
 			cnt -= 1;
 		}
 	}
+	nvkm_done(pgt);
 }
 
 static void
 nv04_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte = 0x00008 + (pte * 4);
+	nvkm_kmap(pgt);
 	while (cnt--) {
-		nv_wo32(pgt, pte, 0x00000000);
+		nvkm_wo32(pgt, pte, 0x00000000);
 		pte += 4;
 	}
+	nvkm_done(pgt);
 }
 
 static void
@@ -118,8 +122,10 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_wo32(dma, 0x00000, 0x0002103d); /* PCI, RW, PT, !LN */
-	nv_wo32(dma, 0x00004, NV04_PDMA_SIZE - 1);
+	nvkm_kmap(dma);
+	nvkm_wo32(dma, 0x00000, 0x0002103d); /* PCI, RW, PT, !LN */
+	nvkm_wo32(dma, 0x00004, NV04_PDMA_SIZE - 1);
+	nvkm_done(dma);
 	return 0;
 }
 

@@ -79,8 +79,10 @@ gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_gpuobj *pgt[2])
 	if (pgt[1])
 		pde[0] = 0x00000001 | (pgt[1]->addr >> 8);
 
-	nv_wo32(pgd, (index * 8) + 0, pde[0]);
-	nv_wo32(pgd, (index * 8) + 4, pde[1]);
+	nvkm_kmap(pgd);
+	nvkm_wo32(pgd, (index * 8) + 0, pde[0]);
+	nvkm_wo32(pgd, (index * 8) + 4, pde[1]);
+	nvkm_done(pgd);
 }
 
 static inline u64
@@ -114,12 +116,14 @@ gf100_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 		ltc->tags_clear(ltc, tag, cnt);
 	}
 
+	nvkm_kmap(pgt);
 	while (cnt--) {
-		nv_wo32(pgt, pte + 0, lower_32_bits(phys));
-		nv_wo32(pgt, pte + 4, upper_32_bits(phys));
+		nvkm_wo32(pgt, pte + 0, lower_32_bits(phys));
+		nvkm_wo32(pgt, pte + 4, upper_32_bits(phys));
 		phys += next;
 		pte  += 8;
 	}
+	nvkm_done(pgt);
 }
 
 static void
@@ -130,24 +134,28 @@ gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 	/* compressed storage types are invalid for system memory */
 	u32 memtype = gf100_pte_storage_type_map[mem->memtype & 0xff];
 
+	nvkm_kmap(pgt);
 	pte <<= 3;
 	while (cnt--) {
 		u64 phys = gf100_vm_addr(vma, *list++, memtype, target);
-		nv_wo32(pgt, pte + 0, lower_32_bits(phys));
-		nv_wo32(pgt, pte + 4, upper_32_bits(phys));
+		nvkm_wo32(pgt, pte + 0, lower_32_bits(phys));
+		nvkm_wo32(pgt, pte + 4, upper_32_bits(phys));
 		pte += 8;
 	}
+	nvkm_done(pgt);
 }
 
 static void
 gf100_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
+	nvkm_kmap(pgt);
 	pte <<= 3;
 	while (cnt--) {
-		nv_wo32(pgt, pte + 0, 0x00000000);
-		nv_wo32(pgt, pte + 4, 0x00000000);
+		nvkm_wo32(pgt, pte + 0, 0x00000000);
+		nvkm_wo32(pgt, pte + 4, 0x00000000);
 		pte += 8;
 	}
+	nvkm_done(pgt);
 }
 
 static void

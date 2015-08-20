@@ -53,8 +53,10 @@ nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_gpuobj *pgt[2])
 			phys |= 0x20;
 	}
 
-	nv_wo32(pgd, (pde * 8) + 0, lower_32_bits(phys));
-	nv_wo32(pgd, (pde * 8) + 4, upper_32_bits(phys));
+	nvkm_kmap(pgd);
+	nvkm_wo32(pgd, (pde * 8) + 0, lower_32_bits(phys));
+	nvkm_wo32(pgd, (pde * 8) + 4, upper_32_bits(phys));
+	nvkm_done(pgd);
 }
 
 static inline u64
@@ -89,6 +91,7 @@ nv50_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 	pte <<= 3;
 	cnt <<= 3;
 
+	nvkm_kmap(pgt);
 	while (cnt) {
 		u32 offset_h = upper_32_bits(phys);
 		u32 offset_l = lower_32_bits(phys);
@@ -109,12 +112,13 @@ nv50_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 		}
 
 		while (block) {
-			nv_wo32(pgt, pte + 0, offset_l);
-			nv_wo32(pgt, pte + 4, offset_h);
+			nvkm_wo32(pgt, pte + 0, offset_l);
+			nvkm_wo32(pgt, pte + 4, offset_h);
 			pte += 8;
 			block -= 8;
 		}
 	}
+	nvkm_done(pgt);
 }
 
 static void
@@ -123,23 +127,27 @@ nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 {
 	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 3 : 2;
 	pte <<= 3;
+	nvkm_kmap(pgt);
 	while (cnt--) {
 		u64 phys = vm_addr(vma, (u64)*list++, mem->memtype, target);
-		nv_wo32(pgt, pte + 0, lower_32_bits(phys));
-		nv_wo32(pgt, pte + 4, upper_32_bits(phys));
+		nvkm_wo32(pgt, pte + 0, lower_32_bits(phys));
+		nvkm_wo32(pgt, pte + 4, upper_32_bits(phys));
 		pte += 8;
 	}
+	nvkm_done(pgt);
 }
 
 static void
 nv50_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
+	nvkm_kmap(pgt);
 	while (cnt--) {
-		nv_wo32(pgt, pte + 0, 0x00000000);
-		nv_wo32(pgt, pte + 4, 0x00000000);
+		nvkm_wo32(pgt, pte + 0, 0x00000000);
+		nvkm_wo32(pgt, pte + 4, 0x00000000);
 		pte += 8;
 	}
+	nvkm_done(pgt);
 }
 
 static void
