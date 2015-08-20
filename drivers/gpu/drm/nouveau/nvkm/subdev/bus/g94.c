@@ -29,15 +29,16 @@
 static int
 g94_bus_hwsq_exec(struct nvkm_bus *bus, u32 *data, u32 size)
 {
+	struct nvkm_device *device = bus->subdev.device;
 	int i;
 
-	nv_mask(bus, 0x001098, 0x00000008, 0x00000000);
-	nv_wr32(bus, 0x001304, 0x00000000);
-	nv_wr32(bus, 0x001318, 0x00000000);
+	nvkm_mask(device, 0x001098, 0x00000008, 0x00000000);
+	nvkm_wr32(device, 0x001304, 0x00000000);
+	nvkm_wr32(device, 0x001318, 0x00000000);
 	for (i = 0; i < size; i++)
-		nv_wr32(bus, 0x080000 + (i * 4), data[i]);
-	nv_mask(bus, 0x001098, 0x00000018, 0x00000018);
-	nv_wr32(bus, 0x00130c, 0x00000001);
+		nvkm_wr32(device, 0x080000 + (i * 4), data[i]);
+	nvkm_mask(device, 0x001098, 0x00000018, 0x00000018);
+	nvkm_wr32(device, 0x00130c, 0x00000001);
 
 	return nv_wait(bus, 0x001308, 0x00000100, 0x00000000) ? 0 : -ETIMEDOUT;
 }

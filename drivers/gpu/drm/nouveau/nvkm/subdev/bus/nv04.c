@@ -28,12 +28,13 @@ static void
 nv04_bus_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bus *bus = nvkm_bus(subdev);
-	u32 stat = nv_rd32(bus, 0x001100) & nv_rd32(bus, 0x001140);
+	struct nvkm_device *device = bus->subdev.device;
+	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
 	if (stat & 0x00000001) {
 		nv_error(bus, "BUS ERROR\n");
 		stat &= ~0x00000001;
-		nv_wr32(bus, 0x001100, 0x00000001);
+		nvkm_wr32(device, 0x001100, 0x00000001);
 	}
 
 	if (stat & 0x00000110) {
@@ -41,12 +42,12 @@ nv04_bus_intr(struct nvkm_subdev *subdev)
 		if (subdev && subdev->intr)
 			subdev->intr(subdev);
 		stat &= ~0x00000110;
-		nv_wr32(bus, 0x001100, 0x00000110);
+		nvkm_wr32(device, 0x001100, 0x00000110);
 	}
 
 	if (stat) {
 		nv_error(bus, "unknown intr 0x%08x\n", stat);
-		nv_mask(bus, 0x001140, stat, 0x00000000);
+		nvkm_mask(device, 0x001140, stat, 0x00000000);
 	}
 }
 
@@ -54,9 +55,10 @@ static int
 nv04_bus_init(struct nvkm_object *object)
 {
 	struct nvkm_bus *bus = (void *)object;
+	struct nvkm_device *device = bus->subdev.device;
 
-	nv_wr32(bus, 0x001100, 0xffffffff);
-	nv_wr32(bus, 0x001140, 0x00000111);
+	nvkm_wr32(device, 0x001100, 0xffffffff);
+	nvkm_wr32(device, 0x001140, 0x00000111);
 
 	return nvkm_bus_init(bus);
 }

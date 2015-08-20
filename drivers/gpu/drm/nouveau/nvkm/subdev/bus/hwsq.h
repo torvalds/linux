@@ -85,8 +85,9 @@ hwsq_exec(struct hwsq *ram, bool exec)
 static inline u32
 hwsq_rd32(struct hwsq *ram, struct hwsq_reg *reg)
 {
+	struct nvkm_device *device = ram->subdev->device;
 	if (reg->sequence != ram->sequence)
-		reg->data = nv_rd32(ram->subdev, reg->addr);
+		reg->data = nvkm_rd32(device, reg->addr);
 	return reg->data;
 }
 
