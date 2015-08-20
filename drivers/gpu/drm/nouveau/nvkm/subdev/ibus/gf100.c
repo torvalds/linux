@@ -24,46 +24,42 @@
 #include <subdev/ibus.h>
 
 static void
-gf100_ibus_intr_hub(struct nvkm_ibus *ibus, int i)
+gf100_ibus_intr_hub(struct nvkm_subdev *ibus, int i)
 {
-	struct nvkm_subdev *subdev = &ibus->subdev;
-	struct nvkm_device *device = subdev->device;
+	struct nvkm_device *device = ibus->device;
 	u32 addr = nvkm_rd32(device, 0x122120 + (i * 0x0400));
 	u32 data = nvkm_rd32(device, 0x122124 + (i * 0x0400));
 	u32 stat = nvkm_rd32(device, 0x122128 + (i * 0x0400));
-	nvkm_error(subdev, "HUB%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_error(ibus, "HUB%d: %06x %08x (%08x)\n", i, addr, data, stat);
 	nvkm_mask(device, 0x122128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
 static void
-gf100_ibus_intr_rop(struct nvkm_ibus *ibus, int i)
+gf100_ibus_intr_rop(struct nvkm_subdev *ibus, int i)
 {
-	struct nvkm_subdev *subdev = &ibus->subdev;
-	struct nvkm_device *device = subdev->device;
+	struct nvkm_device *device = ibus->device;
 	u32 addr = nvkm_rd32(device, 0x124120 + (i * 0x0400));
 	u32 data = nvkm_rd32(device, 0x124124 + (i * 0x0400));
 	u32 stat = nvkm_rd32(device, 0x124128 + (i * 0x0400));
-	nvkm_error(subdev, "ROP%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_error(ibus, "ROP%d: %06x %08x (%08x)\n", i, addr, data, stat);
 	nvkm_mask(device, 0x124128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
 static void
-gf100_ibus_intr_gpc(struct nvkm_ibus *ibus, int i)
+gf100_ibus_intr_gpc(struct nvkm_subdev *ibus, int i)
 {
-	struct nvkm_subdev *subdev = &ibus->subdev;
-	struct nvkm_device *device = subdev->device;
+	struct nvkm_device *device = ibus->device;
 	u32 addr = nvkm_rd32(device, 0x128120 + (i * 0x0400));
 	u32 data = nvkm_rd32(device, 0x128124 + (i * 0x0400));
 	u32 stat = nvkm_rd32(device, 0x128128 + (i * 0x0400));
-	nvkm_error(subdev, "GPC%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_error(ibus, "GPC%d: %06x %08x (%08x)\n", i, addr, data, stat);
 	nvkm_mask(device, 0x128128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
 static void
-gf100_ibus_intr(struct nvkm_subdev *subdev)
+gf100_ibus_intr(struct nvkm_subdev *ibus)
 {
-	struct nvkm_ibus *ibus = (void *)subdev;
-	struct nvkm_device *device = ibus->subdev.device;
+	struct nvkm_device *device = ibus->device;
 	u32 intr0 = nvkm_rd32(device, 0x121c58);
 	u32 intr1 = nvkm_rd32(device, 0x121c5c);
 	u32 hubnr = nvkm_rd32(device, 0x121c70);
@@ -96,30 +92,18 @@ gf100_ibus_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-static int
-gf100_ibus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+static const struct nvkm_subdev_func
+gf100_ibus = {
+	.intr = gf100_ibus_intr,
+};
+
+int
+gf100_ibus_new(struct nvkm_device *device, int index,
+	       struct nvkm_subdev **pibus)
 {
-	struct nvkm_ibus *ibus;
-	int ret;
-
-	ret = nvkm_ibus_create(parent, engine, oclass, &ibus);
-	*pobject = nv_object(ibus);
-	if (ret)
-		return ret;
-
-	nv_subdev(ibus)->intr = gf100_ibus_intr;
+	struct nvkm_subdev *ibus;
+	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&gf100_ibus, device, index, 0, ibus);
 	return 0;
 }
-
-struct nvkm_oclass
-gf100_ibus_oclass = {
-	.handle = NV_SUBDEV(IBUS, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_ibus_ctor,
-		.dtor = _nvkm_ibus_dtor,
-		.init = _nvkm_ibus_init,
-		.fini = _nvkm_ibus_fini,
-	},
-};

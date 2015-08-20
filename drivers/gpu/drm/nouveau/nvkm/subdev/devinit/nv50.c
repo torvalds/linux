@@ -29,7 +29,6 @@
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
 #include <subdev/clk/pll.h>
-#include <subdev/ibus.h>
 #include <subdev/vga.h>
 
 int
@@ -97,7 +96,6 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 	struct nv50_devinit *init = nv50_devinit(base);
 	struct nvkm_subdev *subdev = &init->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_subdev *ibus = device->ibus;
 
 	/* our heuristics can't detect whether the board has had its
 	 * devinit scripts executed or not if the display engine is
@@ -119,13 +117,6 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 			init->base.post = true;
 		}
 	}
-
-	/* some boards appear to require certain init register timeouts
-	 * to be bumped before runing devinit scripts.  not a clue why
-	 * the vbios engineers didn't make the scripts just work...
-	 */
-	if (init->base.post && ibus)
-		nvkm_object_init(&ibus->object);
 }
 
 void
