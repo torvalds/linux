@@ -4691,9 +4691,12 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 		intel_dp_probe_oui(intel_dp);
 
-		if (!intel_dp_probe_mst(intel_dp))
+		if (!intel_dp_probe_mst(intel_dp)) {
+			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+			intel_dp_check_link_status(intel_dp);
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 			goto mst_fail;
-
+		}
 	} else {
 		if (intel_dp->is_mst) {
 			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
@@ -4701,10 +4704,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		}
 
 		if (!intel_dp->is_mst) {
-			/*
-			 * we'll check the link status via the normal hot plug path later -
-			 * but for short hpds we should check it now
-			 */
 			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 			intel_dp_check_link_status(intel_dp);
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
