@@ -705,7 +705,7 @@ struct amdgpu_sync {
 	struct amdgpu_semaphore *semaphores[AMDGPU_NUM_SYNCS];
 	struct amdgpu_fence	*sync_to[AMDGPU_MAX_RINGS];
 	DECLARE_HASHTABLE(fences, 4);
-	struct amdgpu_fence	*last_vm_update;
+	struct fence	        *last_vm_update;
 };
 
 void amdgpu_sync_create(struct amdgpu_sync *sync);
@@ -963,7 +963,7 @@ struct amdgpu_vm_id {
 	unsigned		id;
 	uint64_t		pd_gpu_addr;
 	/* last flushed PD/PT update */
-	struct amdgpu_fence	*flushed_updates;
+	struct fence	        *flushed_updates;
 	/* last use of vmid */
 	struct amdgpu_fence	*last_id_use;
 };
@@ -2349,7 +2349,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct amdgpu_vm *vm,
-		     struct amdgpu_fence *updates);
+		     struct fence *updates);
 void amdgpu_vm_fence(struct amdgpu_device *adev,
 		     struct amdgpu_vm *vm,
 		     struct amdgpu_fence *fence);

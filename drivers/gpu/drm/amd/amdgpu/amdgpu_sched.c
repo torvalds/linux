@@ -119,5 +119,6 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			return r;
 		*f = fence_get(&ibs[num_ibs - 1].fence->base);
 	}
+
 	return 0;
 }

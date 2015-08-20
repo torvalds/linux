@@ -58,6 +58,29 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 	sync->last_vm_update = NULL;
 }
 
+static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
+{
+	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
+	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+
+	if (a_fence)
+		return a_fence->ring->adev == adev;
+	if (s_fence)
+		return (struct amdgpu_device *)s_fence->scheduler->priv == adev;
+	return false;
+}
+
+static bool amdgpu_sync_test_owner(struct fence *f, void *owner)
+{
+	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
+	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+	if (s_fence)
+		return s_fence->owner == owner;
+	if (a_fence)
+		return a_fence->owner == owner;
+	return false;
+}
+
 /**
  * amdgpu_sync_fence - remember to sync to this fence
  *
@@ -71,9 +94,22 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	struct amdgpu_sync_entry *e;
 	struct amdgpu_fence *fence;
 	struct amdgpu_fence *other;
+	struct fence *tmp, *later;
 
 	if (!f)
 		return 0;
+
+	if (amdgpu_sync_same_dev(adev, f) &&
+	    amdgpu_sync_test_owner(f, AMDGPU_FENCE_OWNER_VM)) {
+		if (sync->last_vm_update) {
+			tmp = sync->last_vm_update;
+			BUG_ON(f->context != tmp->context);
+			later = (f->seqno - tmp->seqno <= INT_MAX) ? f : tmp;
+			sync->last_vm_update = fence_get(later);
+			fence_put(tmp);
+		} else
+			sync->last_vm_update = fence_get(f);
+	}
 
 	fence = to_amdgpu_fence(f);
 	if (!fence || fence->ring->adev != adev) {
@@ -102,13 +138,6 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	sync->sync_to[fence->ring->idx] = amdgpu_fence_ref(
 		amdgpu_fence_later(fence, other));
 	amdgpu_fence_unref(&other);
-
-	if (fence->owner == AMDGPU_FENCE_OWNER_VM) {
-		other = sync->last_vm_update;
-		sync->last_vm_update = amdgpu_fence_ref(
-			amdgpu_fence_later(fence, other));
-		amdgpu_fence_unref(&other);
-	}
 
 	return 0;
 }
@@ -296,5 +325,5 @@ void amdgpu_sync_free(struct amdgpu_device *adev,
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		amdgpu_fence_unref(&sync->sync_to[i]);
 
-	amdgpu_fence_unref(&sync->last_vm_update);
+	fence_put(sync->last_vm_update);
 }
