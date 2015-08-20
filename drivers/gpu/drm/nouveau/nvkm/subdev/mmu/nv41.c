@@ -133,7 +133,7 @@ nv41_mmu = {
 int
 nv41_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
+	if (device->type == NVKM_DEVICE_AGP ||
 	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true))
 		return nv04_mmu_new(device, index, pmmu);
 

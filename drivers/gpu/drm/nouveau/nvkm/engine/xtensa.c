@@ -107,7 +107,7 @@ nvkm_xtensa_init(struct nvkm_engine *engine)
 		snprintf(name, sizeof(name), "nouveau/nv84_xuc%03x",
 			 xtensa->addr >> 12);
 
-		ret = request_firmware(&fw, name, nv_device_base(device));
+		ret = request_firmware(&fw, name, device->dev);
 		if (ret) {
 			nvkm_warn(subdev, "unable to load firmware %s\n", name);
 			return ret;

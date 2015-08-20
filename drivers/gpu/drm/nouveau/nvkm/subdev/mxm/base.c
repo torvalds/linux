@@ -95,7 +95,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 	acpi_handle handle;
 	int rev;
 
-	handle = ACPI_HANDLE(nv_device_base(device));
+	handle = ACPI_HANDLE(device->dev);
 	if (!handle)
 		return false;
 

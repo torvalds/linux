@@ -186,7 +186,7 @@ gk20a_instobj_dtor_dma(struct gk20a_instobj *_node)
 {
 	struct gk20a_instobj_dma *node = (void *)_node;
 	struct gk20a_instmem *imem = _node->imem;
-	struct device *dev = nv_device_base(imem->base.subdev.device);
+	struct device *dev = imem->base.subdev.device->dev;
 
 	if (unlikely(!node->cpuaddr))
 		return;

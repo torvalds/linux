@@ -341,7 +341,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	int ret;
 
 	bits = nvxx_mmu(&drm->device)->dma_bits;
-	if (nv_device_is_pci(nvxx_device(&drm->device))) {
+	if (nvxx_device(&drm->device)->func->pci) {
 		if (drm->agp.stat == ENABLED ||
 		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
 			bits = 32;

@@ -234,7 +234,7 @@ nv50_fb_dtor(struct nvkm_fb *base)
 	struct nvkm_device *device = fb->base.subdev.device;
 
 	if (fb->r100c08_page) {
-		dma_unmap_page(nv_device_base(device), fb->r100c08, PAGE_SIZE,
+		dma_unmap_page(device->dev, fb->r100c08, PAGE_SIZE,
 			       DMA_BIDIRECTIONAL);
 		__free_page(fb->r100c08_page);
 	}
@@ -265,10 +265,9 @@ nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
 
 	fb->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (fb->r100c08_page) {
-		fb->r100c08 = dma_map_page(nv_device_base(device),
-					     fb->r100c08_page, 0, PAGE_SIZE,
-					     DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(nv_device_base(device), fb->r100c08))
+		fb->r100c08 = dma_map_page(device->dev, fb->r100c08_page, 0,
+					   PAGE_SIZE, DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(device->dev, fb->r100c08))
 			return -EFAULT;
 	} else {
 		nvkm_warn(&fb->base.subdev, "failed 100c08 page alloc\n");

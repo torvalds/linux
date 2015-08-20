@@ -47,13 +47,21 @@ enum nvkm_devidx {
 	NVKM_ENGINE_SEC,
 	NVKM_ENGINE_MSPDEC,
 
-	NVKM_SUBDEV_NR,
+	NVKM_SUBDEV_NR
+};
+
+enum nvkm_device_type {
+	NVKM_DEVICE_PCI,
+	NVKM_DEVICE_AGP,
+	NVKM_DEVICE_PCIE,
+	NVKM_DEVICE_TEGRA,
 };
 
 struct nvkm_device {
 	const struct nvkm_device_func *func;
 	const struct nvkm_device_quirk *quirk;
 	struct device *dev;
+	enum nvkm_device_type type;
 	u64 handle;
 	const char *name;
 	const char *cfgopt;
@@ -62,9 +70,6 @@ struct nvkm_device {
 	struct list_head head;
 	struct mutex mutex;
 	int refcount;
-
-	struct pci_dev *pdev;
-	struct platform_device *platformdev;
 
 	void __iomem *pri;
 
@@ -150,6 +155,7 @@ struct nvkm_device_func {
 	void (*fini)(struct nvkm_device *, bool suspend);
 	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
 	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
+	bool cpu_coherent;
 };
 
 struct nvkm_device_quirk {
@@ -219,32 +225,6 @@ int nvkm_device_list(u64 *name, int size);
 	nvkm_wr32(_device, _addr, (_temp & ~(m)) | (v));                       \
 	_temp;                                                                 \
 })
-
-static inline bool
-nv_device_is_pci(struct nvkm_device *device)
-{
-	return device->pdev != NULL;
-}
-
-static inline bool
-nv_device_is_cpu_coherent(struct nvkm_device *device)
-{
-	return (!IS_ENABLED(CONFIG_ARM) && nv_device_is_pci(device));
-}
-
-static inline struct device *
-nv_device_base(struct nvkm_device *device)
-{
-	return nv_device_is_pci(device) ? &device->pdev->dev :
-					  &device->platformdev->dev;
-}
-
-struct platform_device;
-
-enum nv_bus_type {
-	NVKM_BUS_PCI,
-	NVKM_BUS_PLATFORM,
-};
 
 void nvkm_device_del(struct nvkm_device **);
 

@@ -70,16 +70,22 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 		args->v0.platform = NV_DEVICE_INFO_V0_IGP;
 		break;
 	default:
-		if (device->pdev) {
-			if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP))
-				args->v0.platform = NV_DEVICE_INFO_V0_AGP;
-			else
-			if (pci_is_pcie(device->pdev))
-				args->v0.platform = NV_DEVICE_INFO_V0_PCIE;
-			else
-				args->v0.platform = NV_DEVICE_INFO_V0_PCI;
-		} else {
+		switch (device->type) {
+		case NVKM_DEVICE_PCI:
+			args->v0.platform = NV_DEVICE_INFO_V0_PCI;
+			break;
+		case NVKM_DEVICE_AGP:
+			args->v0.platform = NV_DEVICE_INFO_V0_AGP;
+			break;
+		case NVKM_DEVICE_PCIE:
+			args->v0.platform = NV_DEVICE_INFO_V0_PCIE;
+			break;
+		case NVKM_DEVICE_TEGRA:
 			args->v0.platform = NV_DEVICE_INFO_V0_SOC;
+			break;
+		default:
+			WARN_ON(1);
+			break;
 		}
 		break;
 	}

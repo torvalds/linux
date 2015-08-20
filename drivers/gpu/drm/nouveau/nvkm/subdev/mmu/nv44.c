@@ -165,7 +165,8 @@ nv44_mmu_oneinit(struct nvkm_mmu *base)
 	struct nvkm_device *device = mmu->base.subdev.device;
 	int ret;
 
-	mmu->nullp = pci_alloc_consistent(device->pdev, 16 * 1024, &mmu->null);
+	mmu->nullp = dma_alloc_coherent(device->dev, 16 * 1024,
+					&mmu->null, GFP_KERNEL);
 	if (!mmu->nullp) {
 		nvkm_warn(&mmu->base.subdev, "unable to allocate dummy pages\n");
 		mmu->null = 0;
@@ -227,7 +228,7 @@ nv44_mmu = {
 int
 nv44_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
+	if (device->type == NVKM_DEVICE_AGP ||
 	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true))
 		return nv04_mmu_new(device, index, pmmu);
 

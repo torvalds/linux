@@ -4,6 +4,8 @@
 #include "nouveau_agp.h"
 #include "nouveau_reg.h"
 
+#include <core/pci.h>
+
 #if __OS_HAS_AGP
 MODULE_PARM_DESC(agpmode, "AGP mode (0 to disable AGP)");
 static int nouveau_agpmode = -1;
@@ -28,6 +30,7 @@ static unsigned long
 get_agp_mode(struct nouveau_drm *drm, const struct drm_agp_info *info)
 {
 	struct nvif_device *device = &drm->device;
+	struct pci_dev *pdev = nvxx_device(device)->func->pci(nvxx_device(device))->pdev;
 	struct nouveau_agpmode_quirk *quirk = nouveau_agpmode_quirk_list;
 	int agpmode = nouveau_agpmode;
 	unsigned long mode = info->mode;
@@ -45,8 +48,8 @@ get_agp_mode(struct nouveau_drm *drm, const struct drm_agp_info *info)
 	while (agpmode == -1 && quirk->hostbridge_vendor) {
 		if (info->id_vendor == quirk->hostbridge_vendor &&
 		    info->id_device == quirk->hostbridge_device &&
-		    nvxx_device(device)->pdev->vendor == quirk->chip_vendor &&
-		    nvxx_device(device)->pdev->device == quirk->chip_device) {
+		    pdev->vendor == quirk->chip_vendor &&
+		    pdev->device == quirk->chip_device) {
 			agpmode = quirk->mode;
 			NV_INFO(drm, "Forcing agp mode to %dX. Use agpmode to override.\n",
 				agpmode);

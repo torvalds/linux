@@ -1621,6 +1621,7 @@ nvkm_device_pci_func = {
 	.fini = nvkm_device_pci_fini,
 	.resource_addr = nvkm_device_pci_resource_addr,
 	.resource_size = nvkm_device_pci_resource_size,
+	.cpu_coherent = !IS_ENABLED(CONFIG_ARM),
 };
 
 int
@@ -1671,8 +1672,10 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	*pdevice = &pdev->device;
 	pdev->pdev = pci_dev;
 
-	return nvkm_device_ctor(&nvkm_device_pci_func, quirk,
-				pci_dev, NVKM_BUS_PCI,
+	return nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
+				pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :
+				pci_find_capability(pci_dev, PCI_CAP_ID_AGP) ?
+				NVKM_DEVICE_AGP : NVKM_DEVICE_PCI,
 				(u64)pci_domain_nr(pci_dev->bus) << 32 |
 				     pci_dev->bus->number << 16 |
 				     PCI_SLOT(pci_dev->devfn) << 8 |

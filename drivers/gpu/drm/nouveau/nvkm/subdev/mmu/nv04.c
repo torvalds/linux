@@ -110,8 +110,8 @@ nv04_mmu_dtor(struct nvkm_mmu *base)
 		nvkm_vm_ref(NULL, &mmu->vm, NULL);
 	}
 	if (mmu->nullp) {
-		pci_free_consistent(device->pdev, 16 * 1024,
-				    mmu->nullp, mmu->null);
+		dma_free_coherent(device->dev, 16 * 1024,
+				  mmu->nullp, mmu->null);
 	}
 	return mmu;
 }

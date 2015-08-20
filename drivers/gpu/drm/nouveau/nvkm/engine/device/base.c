@@ -2294,7 +2294,7 @@ nvkm_device_del(struct nvkm_device **pdevice)
 int
 nvkm_device_ctor(const struct nvkm_device_func *func,
 		 const struct nvkm_device_quirk *quirk,
-		 void *dev, enum nv_bus_type type, u64 handle,
+		 struct device *dev, enum nvkm_device_type type, u64 handle,
 		 const char *name, const char *cfg, const char *dbg,
 		 bool detect, bool mmio, u64 subdev_mask,
 		 struct nvkm_device *device)
@@ -2312,16 +2312,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 
 	device->func = func;
 	device->quirk = quirk;
-	switch (type) {
-	case NVKM_BUS_PCI:
-		device->pdev = dev;
-		device->dev = &device->pdev->dev;
-		break;
-	case NVKM_BUS_PLATFORM:
-		device->platformdev = dev;
-		device->dev = &device->platformdev->dev;
-		break;
-	}
+	device->dev = dev;
+	device->type = type;
 	device->handle = handle;
 	device->cfgopt = cfg;
 	device->dbgopt = dbg;

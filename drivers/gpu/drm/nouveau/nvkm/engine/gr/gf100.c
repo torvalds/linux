@@ -1642,7 +1642,7 @@ gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 	}
 
 	snprintf(f, sizeof(f), "nvidia/%s/%s.bin", cname, fwname);
-	ret = request_firmware(&fw, f, nv_device_base(device));
+	ret = request_firmware(&fw, f, device->dev);
 	if (ret) {
 		nvkm_error(subdev, "failed to load %s\n", fwname);
 		return ret;

@@ -210,8 +210,8 @@ nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 	nv50_chan_destroy(&dmac->base);
 
 	if (dmac->ptr) {
-		struct pci_dev *pdev = nvxx_device(device)->pdev;
-		pci_free_consistent(pdev, PAGE_SIZE, dmac->ptr, dmac->handle);
+		struct device *dev = nvxx_device(device)->dev;
+		dma_free_coherent(dev, PAGE_SIZE, dmac->ptr, dmac->handle);
 	}
 }
 
@@ -226,8 +226,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 
 	mutex_init(&dmac->lock);
 
-	dmac->ptr = pci_alloc_consistent(nvxx_device(device)->pdev,
-					 PAGE_SIZE, &dmac->handle);
+	dmac->ptr = dma_alloc_coherent(nvxx_device(device)->dev, PAGE_SIZE,
+				       &dmac->handle, GFP_KERNEL);
 	if (!dmac->ptr)
 		return -ENOMEM;
 

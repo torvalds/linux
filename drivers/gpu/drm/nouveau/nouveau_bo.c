@@ -209,7 +209,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
-	if (!nv_device_is_cpu_coherent(nvxx_device(&drm->device)))
+	if (!nvxx_device(&drm->device)->func->cpu_coherent)
 		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
 
 	nvbo->page_shift = 12;
@@ -466,8 +466,8 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
-		dma_sync_single_for_device(nv_device_base(device),
-			ttm_dma->dma_address[i], PAGE_SIZE, DMA_TO_DEVICE);
+		dma_sync_single_for_device(device->dev, ttm_dma->dma_address[i],
+					   PAGE_SIZE, DMA_TO_DEVICE);
 }
 
 void
@@ -486,8 +486,8 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
-		dma_sync_single_for_cpu(nv_device_base(device),
-			ttm_dma->dma_address[i], PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(device->dev, ttm_dma->dma_address[i],
+					PAGE_SIZE, DMA_FROM_DEVICE);
 }
 
 int
@@ -1487,13 +1487,13 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	drm = nouveau_bdev(ttm->bdev);
 	device = nvxx_device(&drm->device);
 	dev = drm->dev;
-	pdev = nv_device_base(device);
+	pdev = device->dev;
 
 	/*
 	 * Objects matching this condition have been marked as force_coherent,
 	 * so use the DMA API for them.
 	 */
-	if (!nv_device_is_cpu_coherent(device) &&
+	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
 	    ttm->caching_state == tt_uncached)
 		return ttm_dma_populate(ttm_dma, dev->dev);
 
@@ -1552,13 +1552,13 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	drm = nouveau_bdev(ttm->bdev);
 	device = nvxx_device(&drm->device);
 	dev = drm->dev;
-	pdev = nv_device_base(device);
+	pdev = device->dev;
 
 	/*
 	 * Objects matching this condition have been marked as force_coherent,
 	 * so use the DMA API for them.
 	 */
-	if (!nv_device_is_cpu_coherent(device) &&
+	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
 	    ttm->caching_state == tt_uncached) {
 		ttm_dma_unpopulate(ttm_dma, dev->dev);
 		return;

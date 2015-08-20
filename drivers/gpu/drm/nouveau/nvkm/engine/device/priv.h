@@ -41,7 +41,7 @@
 
 int  nvkm_device_ctor(const struct nvkm_device_func *,
 		      const struct nvkm_device_quirk *,
-		      void *, enum nv_bus_type type, u64 handle,
+		      struct device *, enum nvkm_device_type, u64 handle,
 		      const char *name, const char *cfg, const char *dbg,
 		      bool detect, bool mmio, u64 subdev_mask,
 		      struct nvkm_device *);

@@ -134,7 +134,7 @@ shadow_fw_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 static void *
 shadow_fw_init(struct nvkm_bios *bios, const char *name)
 {
-	struct device *dev = &bios->subdev.device->pdev->dev;
+	struct device *dev = bios->subdev.device->dev;
 	const struct firmware *fw;
 	int ret = request_firmware(&fw, name, dev);
 	if (ret)

@@ -102,6 +102,7 @@ nvkm_device_tegra_func = {
 	.fini = nvkm_device_tegra_fini,
 	.resource_addr = nvkm_device_tegra_resource_addr,
 	.resource_size = nvkm_device_tegra_resource_size,
+	.cpu_coherent = false,
 };
 
 int
@@ -118,8 +119,8 @@ nvkm_device_tegra_new(struct platform_device *pdev,
 	tdev->pdev = pdev;
 	tdev->irq = -1;
 
-	return nvkm_device_ctor(&nvkm_device_tegra_func, NULL, pdev,
-				NVKM_BUS_PLATFORM, pdev->id, NULL,
+	return nvkm_device_ctor(&nvkm_device_tegra_func, NULL, &pdev->dev,
+				NVKM_DEVICE_TEGRA, pdev->id, NULL,
 				cfg, dbg, detect, mmio, subdev_mask,
 				&tdev->device);
 }
