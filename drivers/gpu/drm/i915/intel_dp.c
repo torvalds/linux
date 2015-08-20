@@ -4576,6 +4576,29 @@ static bool vlv_digital_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
+static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	u32 bit;
+
+	switch (port->port) {
+	case PORT_A:
+		bit = BXT_DE_PORT_HP_DDIA;
+		break;
+	case PORT_B:
+		bit = BXT_DE_PORT_HP_DDIB;
+		break;
+	case PORT_C:
+		bit = BXT_DE_PORT_HP_DDIC;
+		break;
+	default:
+		MISSING_CASE(port->port);
+		return false;
+	}
+
+	return I915_READ(GEN8_DE_PORT_ISR) & bit;
+}
+
 /*
  * intel_digital_port_connected - is the specified port connected?
  * @dev_priv: i915 private structure
@@ -4590,6 +4613,8 @@ static bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 		return ibx_digital_port_connected(dev_priv, port);
 	if (HAS_PCH_SPLIT(dev_priv))
 		return cpt_digital_port_connected(dev_priv, port);
+	else if (IS_BROXTON(dev_priv))
+		return bxt_digital_port_connected(dev_priv, port);
 	else if (IS_VALLEYVIEW(dev_priv))
 		return vlv_digital_port_connected(dev_priv, port);
 	else
