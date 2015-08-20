@@ -157,11 +157,11 @@ void
 nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
 	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
-	struct nvkm_fifo *pfifo = nvkm_fifo(engine);
+	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nv20_gr_priv *priv = (void *)engine;
 	unsigned long flags;
 
-	pfifo->pause(pfifo, &flags);
+	fifo->pause(fifo, &flags);
 	nv04_gr_idle(priv);
 
 	nv_wr32(priv, NV20_PGRAPH_TLIMIT(i), tile->limit);
@@ -181,7 +181,7 @@ nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 		nv_wr32(priv, NV10_PGRAPH_RDI_DATA, tile->zcomp);
 	}
 
-	pfifo->start(pfifo, &flags);
+	fifo->start(fifo, &flags);
 }
 
 void

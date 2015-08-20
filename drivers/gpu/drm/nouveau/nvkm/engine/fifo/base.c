@@ -58,7 +58,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			  u64 engmask, int len, void **ptr)
 {
 	struct nvkm_device *device = nv_device(engine);
-	struct nvkm_fifo *priv = (void *)engine;
+	struct nvkm_fifo *fifo = (void *)engine;
 	struct nvkm_fifo_chan *chan;
 	struct nvkm_dmaeng *dmaeng;
 	unsigned long flags;
@@ -90,39 +90,39 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 		return ret;
 
 	/* find a free fifo channel */
-	spin_lock_irqsave(&priv->lock, flags);
-	for (chan->chid = priv->min; chan->chid < priv->max; chan->chid++) {
-		if (!priv->channel[chan->chid]) {
-			priv->channel[chan->chid] = nv_object(chan);
+	spin_lock_irqsave(&fifo->lock, flags);
+	for (chan->chid = fifo->min; chan->chid < fifo->max; chan->chid++) {
+		if (!fifo->channel[chan->chid]) {
+			fifo->channel[chan->chid] = nv_object(chan);
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&fifo->lock, flags);
 
-	if (chan->chid == priv->max) {
-		nv_error(priv, "no free channels\n");
+	if (chan->chid == fifo->max) {
+		nv_error(fifo, "no free channels\n");
 		return -ENOSPC;
 	}
 
 	chan->addr = nv_device_resource_start(device, bar) +
 		     addr + size * chan->chid;
 	chan->size = size;
-	nvkm_event_send(&priv->cevent, 1, 0, NULL, 0);
+	nvkm_event_send(&fifo->cevent, 1, 0, NULL, 0);
 	return 0;
 }
 
 void
 nvkm_fifo_channel_destroy(struct nvkm_fifo_chan *chan)
 {
-	struct nvkm_fifo *priv = (void *)nv_object(chan)->engine;
+	struct nvkm_fifo *fifo = (void *)nv_object(chan)->engine;
 	unsigned long flags;
 
 	if (chan->user)
 		iounmap(chan->user);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->channel[chan->chid] = NULL;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_lock_irqsave(&fifo->lock, flags);
+	fifo->channel[chan->chid] = NULL;
+	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	nvkm_gpuobj_ref(NULL, &chan->pushgpu);
 	nvkm_object_ref(NULL, (struct nvkm_object **)&chan->pushdma);
@@ -214,9 +214,9 @@ _nvkm_fifo_channel_ntfy(struct nvkm_object *object, u32 type,
 }
 
 static int
-nvkm_fifo_chid(struct nvkm_fifo *priv, struct nvkm_object *object)
+nvkm_fifo_chid(struct nvkm_fifo *fifo, struct nvkm_object *object)
 {
-	int engidx = nv_hclass(priv) & 0xff;
+	int engidx = nv_hclass(fifo) & 0xff;
 
 	while (object && object->parent) {
 		if ( nv_iclass(object->parent, NV_ENGCTX_CLASS) &&
@@ -243,12 +243,12 @@ nvkm_client_name_for_fifo_chid(struct nvkm_fifo *fifo, u32 chid)
 }
 
 void
-nvkm_fifo_destroy(struct nvkm_fifo *priv)
+nvkm_fifo_destroy(struct nvkm_fifo *fifo)
 {
-	kfree(priv->channel);
-	nvkm_event_fini(&priv->uevent);
-	nvkm_event_fini(&priv->cevent);
-	nvkm_engine_destroy(&priv->base);
+	kfree(fifo->channel);
+	nvkm_event_fini(&fifo->uevent);
+	nvkm_event_fini(&fifo->cevent);
+	nvkm_engine_destroy(&fifo->engine);
 }
 
 int
@@ -256,26 +256,26 @@ nvkm_fifo_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass,
 		  int min, int max, int length, void **pobject)
 {
-	struct nvkm_fifo *priv;
+	struct nvkm_fifo *fifo;
 	int ret;
 
 	ret = nvkm_engine_create_(parent, engine, oclass, true, "PFIFO",
 				  "fifo", length, pobject);
-	priv = *pobject;
+	fifo = *pobject;
 	if (ret)
 		return ret;
 
-	priv->min = min;
-	priv->max = max;
-	priv->channel = kzalloc(sizeof(*priv->channel) * (max + 1), GFP_KERNEL);
-	if (!priv->channel)
+	fifo->min = min;
+	fifo->max = max;
+	fifo->channel = kzalloc(sizeof(*fifo->channel) * (max + 1), GFP_KERNEL);
+	if (!fifo->channel)
 		return -ENOMEM;
 
-	ret = nvkm_event_init(&nvkm_fifo_event_func, 1, 1, &priv->cevent);
+	ret = nvkm_event_init(&nvkm_fifo_event_func, 1, 1, &fifo->cevent);
 	if (ret)
 		return ret;
 
-	priv->chid = nvkm_fifo_chid;
-	spin_lock_init(&priv->lock);
+	fifo->chid = nvkm_fifo_chid;
+	spin_lock_init(&fifo->lock);
 	return 0;
 }

@@ -72,7 +72,7 @@ gt215_ce_isr_error_name[] = {
 void
 gt215_ce_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_falcon *falcon = (void *)subdev;
 	struct nvkm_object *engctx;
@@ -87,7 +87,7 @@ gt215_ce_intr(struct nvkm_subdev *subdev)
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
+	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(falcon, "DISPATCH_ERROR [");

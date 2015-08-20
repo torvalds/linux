@@ -213,7 +213,7 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nvkm_fifo *pfifo = nvxx_fifo(&drm->device);
+	struct nvkm_fifo *fifo = nvxx_fifo(&drm->device);
 	struct nv84_fence_priv *priv;
 	u32 domain;
 	int ret;
@@ -228,7 +228,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
 
-	priv->base.contexts = pfifo->max + 1;
+	priv->base.contexts = fifo->max + 1;
 	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 

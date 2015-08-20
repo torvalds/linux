@@ -194,7 +194,7 @@ void
 nv31_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nv31_mpeg_priv *priv = (void *)subdev;
-	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
 	struct nvkm_handle *handle;
 	struct nvkm_object *engctx;
 	u32 stat = nv_rd32(priv, 0x00b100);
@@ -227,7 +227,7 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 
 	if (show) {
 		nv_error(priv, "ch %d [%s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 pfifo->chid(pfifo, engctx),
+			 fifo->chid(fifo, engctx),
 			 nvkm_client_name(engctx), stat, type, mthd, data);
 	}
 

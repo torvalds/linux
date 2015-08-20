@@ -206,11 +206,11 @@ static void
 nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
 	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
-	struct nvkm_fifo *pfifo = nvkm_fifo(engine);
+	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nv40_gr_priv *priv = (void *)engine;
 	unsigned long flags;
 
-	pfifo->pause(pfifo, &flags);
+	fifo->pause(fifo, &flags);
 	nv04_gr_idle(priv);
 
 	switch (nv_device(priv)->chipset) {
@@ -277,13 +277,13 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 		break;
 	}
 
-	pfifo->start(pfifo, &flags);
+	fifo->start(fifo, &flags);
 }
 
 static void
 nv40_gr_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle = NULL;
@@ -301,7 +301,7 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
+	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & NV_PGRAPH_INTR_ERROR) {
 		if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {

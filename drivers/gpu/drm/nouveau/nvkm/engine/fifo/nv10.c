@@ -58,7 +58,7 @@ nv10_fifo_chan_ctor(struct nvkm_object *parent,
 	union {
 		struct nv03_channel_dma_v0 v0;
 	} *args = data;
-	struct nv04_fifo_priv *priv = (void *)engine;
+	struct nv04_fifo *fifo = (void *)engine;
 	struct nv04_fifo_chan *chan;
 	int ret;
 
@@ -86,10 +86,10 @@ nv10_fifo_chan_ctor(struct nvkm_object *parent,
 	nv_parent(chan)->context_attach = nv04_fifo_context_attach;
 	chan->ramfc = chan->base.chid * 32;
 
-	nv_wo32(priv->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x14,
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x14,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
@@ -144,25 +144,25 @@ nv10_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nv04_instmem *imem = nv04_instmem(parent);
-	struct nv04_fifo_priv *priv;
+	struct nv04_fifo *fifo;
 	int ret;
 
-	ret = nvkm_fifo_create(parent, engine, oclass, 0, 31, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fifo_create(parent, engine, oclass, 0, 31, &fifo);
+	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
 
-	nvkm_ramht_ref(imem->ramht, &priv->ramht);
-	nvkm_gpuobj_ref(imem->ramro, &priv->ramro);
-	nvkm_gpuobj_ref(imem->ramfc, &priv->ramfc);
+	nvkm_ramht_ref(imem->ramht, &fifo->ramht);
+	nvkm_gpuobj_ref(imem->ramro, &fifo->ramro);
+	nvkm_gpuobj_ref(imem->ramfc, &fifo->ramfc);
 
-	nv_subdev(priv)->unit = 0x00000100;
-	nv_subdev(priv)->intr = nv04_fifo_intr;
-	nv_engine(priv)->cclass = &nv10_fifo_cclass;
-	nv_engine(priv)->sclass = nv10_fifo_sclass;
-	priv->base.pause = nv04_fifo_pause;
-	priv->base.start = nv04_fifo_start;
-	priv->ramfc_desc = nv10_ramfc;
+	nv_subdev(fifo)->unit = 0x00000100;
+	nv_subdev(fifo)->intr = nv04_fifo_intr;
+	nv_engine(fifo)->cclass = &nv10_fifo_cclass;
+	nv_engine(fifo)->sclass = nv10_fifo_sclass;
+	fifo->base.pause = nv04_fifo_pause;
+	fifo->base.start = nv04_fifo_start;
+	fifo->ramfc_desc = nv10_ramfc;
 	return 0;
 }
 

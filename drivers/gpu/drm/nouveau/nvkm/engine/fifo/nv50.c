@@ -39,33 +39,33 @@
  ******************************************************************************/
 
 static void
-nv50_fifo_playlist_update_locked(struct nv50_fifo_priv *priv)
+nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 {
-	struct nvkm_bar *bar = nvkm_bar(priv);
+	struct nvkm_bar *bar = nvkm_bar(fifo);
 	struct nvkm_gpuobj *cur;
 	int i, p;
 
-	cur = priv->playlist[priv->cur_playlist];
-	priv->cur_playlist = !priv->cur_playlist;
+	cur = fifo->playlist[fifo->cur_playlist];
+	fifo->cur_playlist = !fifo->cur_playlist;
 
-	for (i = priv->base.min, p = 0; i < priv->base.max; i++) {
-		if (nv_rd32(priv, 0x002600 + (i * 4)) & 0x80000000)
+	for (i = fifo->base.min, p = 0; i < fifo->base.max; i++) {
+		if (nv_rd32(fifo, 0x002600 + (i * 4)) & 0x80000000)
 			nv_wo32(cur, p++ * 4, i);
 	}
 
 	bar->flush(bar);
 
-	nv_wr32(priv, 0x0032f4, cur->addr >> 12);
-	nv_wr32(priv, 0x0032ec, p);
-	nv_wr32(priv, 0x002500, 0x00000101);
+	nv_wr32(fifo, 0x0032f4, cur->addr >> 12);
+	nv_wr32(fifo, 0x0032ec, p);
+	nv_wr32(fifo, 0x002500, 0x00000101);
 }
 
 void
-nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
+nv50_fifo_playlist_update(struct nv50_fifo *fifo)
 {
-	mutex_lock(&nv_subdev(priv)->mutex);
-	nv50_fifo_playlist_update_locked(priv);
-	mutex_unlock(&nv_subdev(priv)->mutex);
+	mutex_lock(&nv_subdev(fifo)->mutex);
+	nv50_fifo_playlist_update_locked(fifo);
+	mutex_unlock(&nv_subdev(fifo)->mutex);
 }
 
 static int
@@ -103,7 +103,7 @@ nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			 struct nvkm_object *object)
 {
 	struct nvkm_bar *bar = nvkm_bar(parent);
-	struct nv50_fifo_priv *priv = (void *)parent->engine;
+	struct nv50_fifo *fifo = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
 	u32 addr, me;
@@ -129,17 +129,17 @@ nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	 * there's also a "ignore these engines" bitmask reg we can use
 	 * if we hit the issue there..
 	 */
-	me = nv_mask(priv, 0x00b860, 0x00000001, 0x00000001);
+	me = nv_mask(fifo, 0x00b860, 0x00000001, 0x00000001);
 
 	/* do the kickoff... */
-	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
-	if (!nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff)) {
-		nv_error(priv, "channel %d [%s] unload timeout\n",
+	nv_wr32(fifo, 0x0032fc, nv_gpuobj(base)->addr >> 12);
+	if (!nv_wait_ne(fifo, 0x0032fc, 0xffffffff, 0xffffffff)) {
+		nv_error(fifo, "channel %d [%s] unload timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
 		if (suspend)
 			ret = -EBUSY;
 	}
-	nv_wr32(priv, 0x00b860, me);
+	nv_wr32(fifo, 0x00b860, me);
 
 	if (ret == 0) {
 		nv_wo32(base->eng, addr + 0x00, 0x00000000);
@@ -320,7 +320,7 @@ nv50_fifo_chan_dtor(struct nvkm_object *object)
 static int
 nv50_fifo_chan_init(struct nvkm_object *object)
 {
-	struct nv50_fifo_priv *priv = (void *)object->engine;
+	struct nv50_fifo *fifo = (void *)object->engine;
 	struct nv50_fifo_base *base = (void *)object->parent;
 	struct nv50_fifo_chan *chan = (void *)object;
 	struct nvkm_gpuobj *ramfc = base->ramfc;
@@ -331,22 +331,22 @@ nv50_fifo_chan_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 12);
-	nv50_fifo_playlist_update(priv);
+	nv_wr32(fifo, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 12);
+	nv50_fifo_playlist_update(fifo);
 	return 0;
 }
 
 int
 nv50_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv50_fifo_priv *priv = (void *)object->engine;
+	struct nv50_fifo *fifo = (void *)object->engine;
 	struct nv50_fifo_chan *chan = (void *)object;
 	u32 chid = chan->base.chid;
 
 	/* remove channel from playlist, fifo will unload context */
-	nv_mask(priv, 0x002600 + (chid * 4), 0x80000000, 0x00000000);
-	nv50_fifo_playlist_update(priv);
-	nv_wr32(priv, 0x002600 + (chid * 4), 0x00000000);
+	nv_mask(fifo, 0x002600 + (chid * 4), 0x80000000, 0x00000000);
+	nv50_fifo_playlist_update(fifo);
+	nv_wr32(fifo, 0x002600 + (chid * 4), 0x00000000);
 
 	return nvkm_fifo_channel_fini(&chan->base, suspend);
 }
@@ -456,69 +456,69 @@ nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv50_fifo_priv *priv;
+	struct nv50_fifo *fifo;
 	int ret;
 
-	ret = nvkm_fifo_create(parent, engine, oclass, 1, 127, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fifo_create(parent, engine, oclass, 1, 127, &fifo);
+	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
-			      &priv->playlist[0]);
+	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
+			      &fifo->playlist[0]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
-			      &priv->playlist[1]);
+	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
+			      &fifo->playlist[1]);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000100;
-	nv_subdev(priv)->intr = nv04_fifo_intr;
-	nv_engine(priv)->cclass = &nv50_fifo_cclass;
-	nv_engine(priv)->sclass = nv50_fifo_sclass;
-	priv->base.pause = nv04_fifo_pause;
-	priv->base.start = nv04_fifo_start;
+	nv_subdev(fifo)->unit = 0x00000100;
+	nv_subdev(fifo)->intr = nv04_fifo_intr;
+	nv_engine(fifo)->cclass = &nv50_fifo_cclass;
+	nv_engine(fifo)->sclass = nv50_fifo_sclass;
+	fifo->base.pause = nv04_fifo_pause;
+	fifo->base.start = nv04_fifo_start;
 	return 0;
 }
 
 void
 nv50_fifo_dtor(struct nvkm_object *object)
 {
-	struct nv50_fifo_priv *priv = (void *)object;
+	struct nv50_fifo *fifo = (void *)object;
 
-	nvkm_gpuobj_ref(NULL, &priv->playlist[1]);
-	nvkm_gpuobj_ref(NULL, &priv->playlist[0]);
+	nvkm_gpuobj_ref(NULL, &fifo->playlist[1]);
+	nvkm_gpuobj_ref(NULL, &fifo->playlist[0]);
 
-	nvkm_fifo_destroy(&priv->base);
+	nvkm_fifo_destroy(&fifo->base);
 }
 
 int
 nv50_fifo_init(struct nvkm_object *object)
 {
-	struct nv50_fifo_priv *priv = (void *)object;
+	struct nv50_fifo *fifo = (void *)object;
 	int ret, i;
 
-	ret = nvkm_fifo_init(&priv->base);
+	ret = nvkm_fifo_init(&fifo->base);
 	if (ret)
 		return ret;
 
-	nv_mask(priv, 0x000200, 0x00000100, 0x00000000);
-	nv_mask(priv, 0x000200, 0x00000100, 0x00000100);
-	nv_wr32(priv, 0x00250c, 0x6f3cfc34);
-	nv_wr32(priv, 0x002044, 0x01003fff);
+	nv_mask(fifo, 0x000200, 0x00000100, 0x00000000);
+	nv_mask(fifo, 0x000200, 0x00000100, 0x00000100);
+	nv_wr32(fifo, 0x00250c, 0x6f3cfc34);
+	nv_wr32(fifo, 0x002044, 0x01003fff);
 
-	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0xbfffffff);
+	nv_wr32(fifo, 0x002100, 0xffffffff);
+	nv_wr32(fifo, 0x002140, 0xbfffffff);
 
 	for (i = 0; i < 128; i++)
-		nv_wr32(priv, 0x002600 + (i * 4), 0x00000000);
-	nv50_fifo_playlist_update_locked(priv);
+		nv_wr32(fifo, 0x002600 + (i * 4), 0x00000000);
+	nv50_fifo_playlist_update_locked(fifo);
 
-	nv_wr32(priv, 0x003200, 0x00000001);
-	nv_wr32(priv, 0x003250, 0x00000001);
-	nv_wr32(priv, 0x002500, 0x00000001);
+	nv_wr32(fifo, 0x003200, 0x00000001);
+	nv_wr32(fifo, 0x003250, 0x00000001);
+	nv_wr32(fifo, 0x002500, 0x00000001);
 	return 0;
 }
 

@@ -139,7 +139,7 @@ struct ramfc_desc {
 	unsigned regp;
 };
 
-struct nv04_fifo_priv {
+struct nv04_fifo {
 	struct nvkm_fifo base;
 	struct ramfc_desc *ramfc_desc;
 	struct nvkm_ramht  *ramht;

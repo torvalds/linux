@@ -2,7 +2,7 @@
 #define __NV50_FIFO_H__
 #include <engine/fifo.h>
 
-struct nv50_fifo_priv {
+struct nv50_fifo {
 	struct nvkm_fifo base;
 	struct nvkm_gpuobj *playlist[2];
 	int cur_playlist;
@@ -23,7 +23,7 @@ struct nv50_fifo_chan {
 	struct nvkm_ramht *ramht;
 };
 
-void nv50_fifo_playlist_update(struct nv50_fifo_priv *);
+void nv50_fifo_playlist_update(struct nv50_fifo *);
 
 void nv50_fifo_object_detach(struct nvkm_object *, int);
 void nv50_fifo_chan_dtor(struct nvkm_object *);

@@ -38,8 +38,8 @@ gm204_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	int ret = gk104_fifo_ctor(parent, engine, oclass, data, size, pobject);
 	if (ret == 0) {
-		struct gk104_fifo_priv *priv = (void *)*pobject;
-		nv_engine(priv)->sclass = gm204_fifo_sclass;
+		struct gk104_fifo *fifo = (void *)*pobject;
+		nv_engine(fifo)->sclass = gm204_fifo_sclass;
 	}
 	return ret;
 }

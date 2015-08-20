@@ -54,7 +54,7 @@ int
 nv04_fifo_object_attach(struct nvkm_object *parent,
 			struct nvkm_object *object, u32 handle)
 {
-	struct nv04_fifo_priv *priv = (void *)parent->engine;
+	struct nv04_fifo *fifo = (void *)parent->engine;
 	struct nv04_fifo_chan *chan = (void *)parent;
 	u32 context, chid = chan->base.chid;
 	int ret;
@@ -82,19 +82,19 @@ nv04_fifo_object_attach(struct nvkm_object *parent,
 	context |= 0x80000000; /* valid */
 	context |= chid << 24;
 
-	mutex_lock(&nv_subdev(priv)->mutex);
-	ret = nvkm_ramht_insert(priv->ramht, chid, handle, context);
-	mutex_unlock(&nv_subdev(priv)->mutex);
+	mutex_lock(&nv_subdev(fifo)->mutex);
+	ret = nvkm_ramht_insert(fifo->ramht, chid, handle, context);
+	mutex_unlock(&nv_subdev(fifo)->mutex);
 	return ret;
 }
 
 void
 nv04_fifo_object_detach(struct nvkm_object *parent, int cookie)
 {
-	struct nv04_fifo_priv *priv = (void *)parent->engine;
-	mutex_lock(&nv_subdev(priv)->mutex);
-	nvkm_ramht_remove(priv->ramht, cookie);
-	mutex_unlock(&nv_subdev(priv)->mutex);
+	struct nv04_fifo *fifo = (void *)parent->engine;
+	mutex_lock(&nv_subdev(fifo)->mutex);
+	nvkm_ramht_remove(fifo->ramht, cookie);
+	mutex_unlock(&nv_subdev(fifo)->mutex);
 }
 
 int
@@ -114,7 +114,7 @@ nv04_fifo_chan_ctor(struct nvkm_object *parent,
 	union {
 		struct nv03_channel_dma_v0 v0;
 	} *args = data;
-	struct nv04_fifo_priv *priv = (void *)engine;
+	struct nv04_fifo *fifo = (void *)engine;
 	struct nv04_fifo_chan *chan;
 	int ret;
 
@@ -142,10 +142,10 @@ nv04_fifo_chan_ctor(struct nvkm_object *parent,
 	nv_parent(chan)->context_attach = nv04_fifo_context_attach;
 	chan->ramfc = chan->base.chid * 32;
 
-	nv_wo32(priv->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x08, chan->base.pushgpu->addr >> 4);
-	nv_wo32(priv->ramfc, chan->ramfc + 0x10,
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x08, chan->base.pushgpu->addr >> 4);
+	nv_wo32(fifo->ramfc, chan->ramfc + 0x10,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
@@ -158,12 +158,12 @@ nv04_fifo_chan_ctor(struct nvkm_object *parent,
 void
 nv04_fifo_chan_dtor(struct nvkm_object *object)
 {
-	struct nv04_fifo_priv *priv = (void *)object->engine;
+	struct nv04_fifo *fifo = (void *)object->engine;
 	struct nv04_fifo_chan *chan = (void *)object;
-	struct ramfc_desc *c = priv->ramfc_desc;
+	struct ramfc_desc *c = fifo->ramfc_desc;
 
 	do {
-		nv_wo32(priv->ramfc, chan->ramfc + c->ctxp, 0x00000000);
+		nv_wo32(fifo->ramfc, chan->ramfc + c->ctxp, 0x00000000);
 	} while ((++c)->bits);
 
 	nvkm_fifo_channel_destroy(&chan->base);
@@ -172,7 +172,7 @@ nv04_fifo_chan_dtor(struct nvkm_object *object)
 int
 nv04_fifo_chan_init(struct nvkm_object *object)
 {
-	struct nv04_fifo_priv *priv = (void *)object->engine;
+	struct nv04_fifo *fifo = (void *)object->engine;
 	struct nv04_fifo_chan *chan = (void *)object;
 	u32 mask = 1 << chan->base.chid;
 	unsigned long flags;
@@ -182,59 +182,59 @@ nv04_fifo_chan_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->base.lock, flags);
-	nv_mask(priv, NV04_PFIFO_MODE, mask, mask);
-	spin_unlock_irqrestore(&priv->base.lock, flags);
+	spin_lock_irqsave(&fifo->base.lock, flags);
+	nv_mask(fifo, NV04_PFIFO_MODE, mask, mask);
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
 	return 0;
 }
 
 int
 nv04_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv04_fifo_priv *priv = (void *)object->engine;
+	struct nv04_fifo *fifo = (void *)object->engine;
 	struct nv04_fifo_chan *chan = (void *)object;
-	struct nvkm_gpuobj *fctx = priv->ramfc;
+	struct nvkm_gpuobj *fctx = fifo->ramfc;
 	struct ramfc_desc *c;
 	unsigned long flags;
 	u32 data = chan->ramfc;
 	u32 chid;
 
 	/* prevent fifo context switches */
-	spin_lock_irqsave(&priv->base.lock, flags);
-	nv_wr32(priv, NV03_PFIFO_CACHES, 0);
+	spin_lock_irqsave(&fifo->base.lock, flags);
+	nv_wr32(fifo, NV03_PFIFO_CACHES, 0);
 
 	/* if this channel is active, replace it with a null context */
-	chid = nv_rd32(priv, NV03_PFIFO_CACHE1_PUSH1) & priv->base.max;
+	chid = nv_rd32(fifo, NV03_PFIFO_CACHE1_PUSH1) & fifo->base.max;
 	if (chid == chan->base.chid) {
-		nv_mask(priv, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
-		nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH0, 0);
-		nv_mask(priv, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
+		nv_mask(fifo, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
+		nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH0, 0);
+		nv_mask(fifo, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
 
-		c = priv->ramfc_desc;
+		c = fifo->ramfc_desc;
 		do {
 			u32 rm = ((1ULL << c->bits) - 1) << c->regs;
 			u32 cm = ((1ULL << c->bits) - 1) << c->ctxs;
-			u32 rv = (nv_rd32(priv, c->regp) &  rm) >> c->regs;
+			u32 rv = (nv_rd32(fifo, c->regp) &  rm) >> c->regs;
 			u32 cv = (nv_ro32(fctx, c->ctxp + data) & ~cm);
 			nv_wo32(fctx, c->ctxp + data, cv | (rv << c->ctxs));
 		} while ((++c)->bits);
 
-		c = priv->ramfc_desc;
+		c = fifo->ramfc_desc;
 		do {
-			nv_wr32(priv, c->regp, 0x00000000);
+			nv_wr32(fifo, c->regp, 0x00000000);
 		} while ((++c)->bits);
 
-		nv_wr32(priv, NV03_PFIFO_CACHE1_GET, 0);
-		nv_wr32(priv, NV03_PFIFO_CACHE1_PUT, 0);
-		nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH1, priv->base.max);
-		nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH0, 1);
-		nv_wr32(priv, NV04_PFIFO_CACHE1_PULL0, 1);
+		nv_wr32(fifo, NV03_PFIFO_CACHE1_GET, 0);
+		nv_wr32(fifo, NV03_PFIFO_CACHE1_PUT, 0);
+		nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH1, fifo->base.max);
+		nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH0, 1);
+		nv_wr32(fifo, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
 
 	/* restore normal operation, after disabling dma mode */
-	nv_mask(priv, NV04_PFIFO_MODE, 1 << chan->base.chid, 0);
-	nv_wr32(priv, NV03_PFIFO_CACHES, 1);
-	spin_unlock_irqrestore(&priv->base.lock, flags);
+	nv_mask(fifo, NV04_PFIFO_MODE, 1 << chan->base.chid, 0);
+	nv_wr32(fifo, NV03_PFIFO_CACHES, 1);
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
 	return nvkm_fifo_channel_fini(&chan->base, suspend);
 }
@@ -297,17 +297,17 @@ nv04_fifo_cclass = {
  ******************************************************************************/
 
 void
-nv04_fifo_pause(struct nvkm_fifo *pfifo, unsigned long *pflags)
-__acquires(priv->base.lock)
+nv04_fifo_pause(struct nvkm_fifo *obj, unsigned long *pflags)
+__acquires(fifo->base.lock)
 {
-	struct nv04_fifo_priv *priv = (void *)pfifo;
+	struct nv04_fifo *fifo = container_of(obj, typeof(*fifo), base);
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->base.lock, flags);
+	spin_lock_irqsave(&fifo->base.lock, flags);
 	*pflags = flags;
 
-	nv_wr32(priv, NV03_PFIFO_CACHES, 0x00000000);
-	nv_mask(priv, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0x00000000);
+	nv_wr32(fifo, NV03_PFIFO_CACHES, 0x00000000);
+	nv_mask(fifo, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0x00000000);
 
 	/* in some cases the puller may be left in an inconsistent state
 	 * if you try to stop it while it's busy translating handles.
@@ -318,28 +318,28 @@ __acquires(priv->base.lock)
 	 * to avoid this, we invalidate the most recently calculated
 	 * instance.
 	 */
-	if (!nv_wait(priv, NV04_PFIFO_CACHE1_PULL0,
+	if (!nv_wait(fifo, NV04_PFIFO_CACHE1_PULL0,
 			   NV04_PFIFO_CACHE1_PULL0_HASH_BUSY, 0x00000000))
-		nv_warn(priv, "timeout idling puller\n");
+		nv_warn(fifo, "timeout idling puller\n");
 
-	if (nv_rd32(priv, NV04_PFIFO_CACHE1_PULL0) &
+	if (nv_rd32(fifo, NV04_PFIFO_CACHE1_PULL0) &
 			  NV04_PFIFO_CACHE1_PULL0_HASH_FAILED)
-		nv_wr32(priv, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_CACHE_ERROR);
+		nv_wr32(fifo, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_CACHE_ERROR);
 
-	nv_wr32(priv, NV04_PFIFO_CACHE1_HASH, 0x00000000);
+	nv_wr32(fifo, NV04_PFIFO_CACHE1_HASH, 0x00000000);
 }
 
 void
-nv04_fifo_start(struct nvkm_fifo *pfifo, unsigned long *pflags)
-__releases(priv->base.lock)
+nv04_fifo_start(struct nvkm_fifo *obj, unsigned long *pflags)
+__releases(fifo->base.lock)
 {
-	struct nv04_fifo_priv *priv = (void *)pfifo;
+	struct nv04_fifo *fifo = container_of(obj, typeof(*fifo), base);
 	unsigned long flags = *pflags;
 
-	nv_mask(priv, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0x00000001);
-	nv_wr32(priv, NV03_PFIFO_CACHES, 0x00000001);
+	nv_mask(fifo, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0x00000001);
+	nv_wr32(fifo, NV03_PFIFO_CACHES, 0x00000001);
 
-	spin_unlock_irqrestore(&priv->base.lock, flags);
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
 static const char *
@@ -353,7 +353,7 @@ nv_dma_state_err(u32 state)
 }
 
 static bool
-nv04_fifo_swmthd(struct nv04_fifo_priv *priv, u32 chid, u32 addr, u32 data)
+nv04_fifo_swmthd(struct nv04_fifo *fifo, u32 chid, u32 addr, u32 data)
 {
 	struct nv04_fifo_chan *chan = NULL;
 	struct nvkm_handle *bind;
@@ -363,9 +363,9 @@ nv04_fifo_swmthd(struct nv04_fifo_priv *priv, u32 chid, u32 addr, u32 data)
 	unsigned long flags;
 	u32 engine;
 
-	spin_lock_irqsave(&priv->base.lock, flags);
-	if (likely(chid >= priv->base.min && chid <= priv->base.max))
-		chan = (void *)priv->base.channel[chid];
+	spin_lock_irqsave(&fifo->base.lock, flags);
+	if (likely(chid >= fifo->base.min && chid <= fifo->base.max))
+		chan = (void *)fifo->base.channel[chid];
 	if (unlikely(!chan))
 		goto out;
 
@@ -380,13 +380,13 @@ nv04_fifo_swmthd(struct nv04_fifo_priv *priv, u32 chid, u32 addr, u32 data)
 			chan->subc[subc] = data;
 			handled = true;
 
-			nv_mask(priv, NV04_PFIFO_CACHE1_ENGINE, engine, 0);
+			nv_mask(fifo, NV04_PFIFO_CACHE1_ENGINE, engine, 0);
 		}
 
 		nvkm_namedb_put(bind);
 		break;
 	default:
-		engine = nv_rd32(priv, NV04_PFIFO_CACHE1_ENGINE);
+		engine = nv_rd32(fifo, NV04_PFIFO_CACHE1_ENGINE);
 		if (unlikely(((engine >> (subc * 4)) & 0xf) != 0))
 			break;
 
@@ -400,13 +400,13 @@ nv04_fifo_swmthd(struct nv04_fifo_priv *priv, u32 chid, u32 addr, u32 data)
 	}
 
 out:
-	spin_unlock_irqrestore(&priv->base.lock, flags);
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
 	return handled;
 }
 
 static void
 nv04_fifo_cache_error(struct nvkm_device *device,
-		      struct nv04_fifo_priv *priv, u32 chid, u32 get)
+		      struct nv04_fifo *fifo, u32 chid, u32 get)
 {
 	u32 mthd, data;
 	int ptr;
@@ -419,139 +419,139 @@ nv04_fifo_cache_error(struct nvkm_device *device,
 	ptr = (get & 0x7ff) >> 2;
 
 	if (device->card_type < NV_40) {
-		mthd = nv_rd32(priv, NV04_PFIFO_CACHE1_METHOD(ptr));
-		data = nv_rd32(priv, NV04_PFIFO_CACHE1_DATA(ptr));
+		mthd = nv_rd32(fifo, NV04_PFIFO_CACHE1_METHOD(ptr));
+		data = nv_rd32(fifo, NV04_PFIFO_CACHE1_DATA(ptr));
 	} else {
-		mthd = nv_rd32(priv, NV40_PFIFO_CACHE1_METHOD(ptr));
-		data = nv_rd32(priv, NV40_PFIFO_CACHE1_DATA(ptr));
+		mthd = nv_rd32(fifo, NV40_PFIFO_CACHE1_METHOD(ptr));
+		data = nv_rd32(fifo, NV40_PFIFO_CACHE1_DATA(ptr));
 	}
 
-	if (!nv04_fifo_swmthd(priv, chid, mthd, data)) {
+	if (!nv04_fifo_swmthd(fifo, chid, mthd, data)) {
 		const char *client_name =
-			nvkm_client_name_for_fifo_chid(&priv->base, chid);
-		nv_error(priv,
+			nvkm_client_name_for_fifo_chid(&fifo->base, chid);
+		nv_error(fifo,
 			 "CACHE_ERROR - ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
 			 chid, client_name, (mthd >> 13) & 7, mthd & 0x1ffc,
 			 data);
 	}
 
-	nv_wr32(priv, NV04_PFIFO_CACHE1_DMA_PUSH, 0);
-	nv_wr32(priv, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_CACHE_ERROR);
+	nv_wr32(fifo, NV04_PFIFO_CACHE1_DMA_PUSH, 0);
+	nv_wr32(fifo, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_CACHE_ERROR);
 
-	nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH0,
-		nv_rd32(priv, NV03_PFIFO_CACHE1_PUSH0) & ~1);
-	nv_wr32(priv, NV03_PFIFO_CACHE1_GET, get + 4);
-	nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH0,
-		nv_rd32(priv, NV03_PFIFO_CACHE1_PUSH0) | 1);
-	nv_wr32(priv, NV04_PFIFO_CACHE1_HASH, 0);
+	nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH0,
+		nv_rd32(fifo, NV03_PFIFO_CACHE1_PUSH0) & ~1);
+	nv_wr32(fifo, NV03_PFIFO_CACHE1_GET, get + 4);
+	nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH0,
+		nv_rd32(fifo, NV03_PFIFO_CACHE1_PUSH0) | 1);
+	nv_wr32(fifo, NV04_PFIFO_CACHE1_HASH, 0);
 
-	nv_wr32(priv, NV04_PFIFO_CACHE1_DMA_PUSH,
-		nv_rd32(priv, NV04_PFIFO_CACHE1_DMA_PUSH) | 1);
-	nv_wr32(priv, NV04_PFIFO_CACHE1_PULL0, 1);
+	nv_wr32(fifo, NV04_PFIFO_CACHE1_DMA_PUSH,
+		nv_rd32(fifo, NV04_PFIFO_CACHE1_DMA_PUSH) | 1);
+	nv_wr32(fifo, NV04_PFIFO_CACHE1_PULL0, 1);
 }
 
 static void
 nv04_fifo_dma_pusher(struct nvkm_device *device,
-		     struct nv04_fifo_priv *priv, u32 chid)
+		     struct nv04_fifo *fifo, u32 chid)
 {
 	const char *client_name;
-	u32 dma_get = nv_rd32(priv, 0x003244);
-	u32 dma_put = nv_rd32(priv, 0x003240);
-	u32 push = nv_rd32(priv, 0x003220);
-	u32 state = nv_rd32(priv, 0x003228);
+	u32 dma_get = nv_rd32(fifo, 0x003244);
+	u32 dma_put = nv_rd32(fifo, 0x003240);
+	u32 push = nv_rd32(fifo, 0x003220);
+	u32 state = nv_rd32(fifo, 0x003228);
 
-	client_name = nvkm_client_name_for_fifo_chid(&priv->base, chid);
+	client_name = nvkm_client_name_for_fifo_chid(&fifo->base, chid);
 
 	if (device->card_type == NV_50) {
-		u32 ho_get = nv_rd32(priv, 0x003328);
-		u32 ho_put = nv_rd32(priv, 0x003320);
-		u32 ib_get = nv_rd32(priv, 0x003334);
-		u32 ib_put = nv_rd32(priv, 0x003330);
+		u32 ho_get = nv_rd32(fifo, 0x003328);
+		u32 ho_put = nv_rd32(fifo, 0x003320);
+		u32 ib_get = nv_rd32(fifo, 0x003334);
+		u32 ib_put = nv_rd32(fifo, 0x003330);
 
-		nv_error(priv,
+		nv_error(fifo,
 			 "DMA_PUSHER - ch %d [%s] get 0x%02x%08x put 0x%02x%08x ib_get 0x%08x ib_put 0x%08x state 0x%08x (err: %s) push 0x%08x\n",
 			 chid, client_name, ho_get, dma_get, ho_put, dma_put,
 			 ib_get, ib_put, state, nv_dma_state_err(state), push);
 
 		/* METHOD_COUNT, in DMA_STATE on earlier chipsets */
-		nv_wr32(priv, 0x003364, 0x00000000);
+		nv_wr32(fifo, 0x003364, 0x00000000);
 		if (dma_get != dma_put || ho_get != ho_put) {
-			nv_wr32(priv, 0x003244, dma_put);
-			nv_wr32(priv, 0x003328, ho_put);
+			nv_wr32(fifo, 0x003244, dma_put);
+			nv_wr32(fifo, 0x003328, ho_put);
 		} else
 		if (ib_get != ib_put)
-			nv_wr32(priv, 0x003334, ib_put);
+			nv_wr32(fifo, 0x003334, ib_put);
 	} else {
-		nv_error(priv,
+		nv_error(fifo,
 			 "DMA_PUSHER - ch %d [%s] get 0x%08x put 0x%08x state 0x%08x (err: %s) push 0x%08x\n",
 			 chid, client_name, dma_get, dma_put, state,
 			 nv_dma_state_err(state), push);
 
 		if (dma_get != dma_put)
-			nv_wr32(priv, 0x003244, dma_put);
+			nv_wr32(fifo, 0x003244, dma_put);
 	}
 
-	nv_wr32(priv, 0x003228, 0x00000000);
-	nv_wr32(priv, 0x003220, 0x00000001);
-	nv_wr32(priv, 0x002100, NV_PFIFO_INTR_DMA_PUSHER);
+	nv_wr32(fifo, 0x003228, 0x00000000);
+	nv_wr32(fifo, 0x003220, 0x00000001);
+	nv_wr32(fifo, 0x002100, NV_PFIFO_INTR_DMA_PUSHER);
 }
 
 void
 nv04_fifo_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_device *device = nv_device(subdev);
-	struct nv04_fifo_priv *priv = (void *)subdev;
-	u32 mask = nv_rd32(priv, NV03_PFIFO_INTR_EN_0);
-	u32 stat = nv_rd32(priv, NV03_PFIFO_INTR_0) & mask;
+	struct nv04_fifo *fifo = (void *)subdev;
+	u32 mask = nv_rd32(fifo, NV03_PFIFO_INTR_EN_0);
+	u32 stat = nv_rd32(fifo, NV03_PFIFO_INTR_0) & mask;
 	u32 reassign, chid, get, sem;
 
-	reassign = nv_rd32(priv, NV03_PFIFO_CACHES) & 1;
-	nv_wr32(priv, NV03_PFIFO_CACHES, 0);
+	reassign = nv_rd32(fifo, NV03_PFIFO_CACHES) & 1;
+	nv_wr32(fifo, NV03_PFIFO_CACHES, 0);
 
-	chid = nv_rd32(priv, NV03_PFIFO_CACHE1_PUSH1) & priv->base.max;
-	get  = nv_rd32(priv, NV03_PFIFO_CACHE1_GET);
+	chid = nv_rd32(fifo, NV03_PFIFO_CACHE1_PUSH1) & fifo->base.max;
+	get  = nv_rd32(fifo, NV03_PFIFO_CACHE1_GET);
 
 	if (stat & NV_PFIFO_INTR_CACHE_ERROR) {
-		nv04_fifo_cache_error(device, priv, chid, get);
+		nv04_fifo_cache_error(device, fifo, chid, get);
 		stat &= ~NV_PFIFO_INTR_CACHE_ERROR;
 	}
 
 	if (stat & NV_PFIFO_INTR_DMA_PUSHER) {
-		nv04_fifo_dma_pusher(device, priv, chid);
+		nv04_fifo_dma_pusher(device, fifo, chid);
 		stat &= ~NV_PFIFO_INTR_DMA_PUSHER;
 	}
 
 	if (stat & NV_PFIFO_INTR_SEMAPHORE) {
 		stat &= ~NV_PFIFO_INTR_SEMAPHORE;
-		nv_wr32(priv, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_SEMAPHORE);
+		nv_wr32(fifo, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_SEMAPHORE);
 
-		sem = nv_rd32(priv, NV10_PFIFO_CACHE1_SEMAPHORE);
-		nv_wr32(priv, NV10_PFIFO_CACHE1_SEMAPHORE, sem | 0x1);
+		sem = nv_rd32(fifo, NV10_PFIFO_CACHE1_SEMAPHORE);
+		nv_wr32(fifo, NV10_PFIFO_CACHE1_SEMAPHORE, sem | 0x1);
 
-		nv_wr32(priv, NV03_PFIFO_CACHE1_GET, get + 4);
-		nv_wr32(priv, NV04_PFIFO_CACHE1_PULL0, 1);
+		nv_wr32(fifo, NV03_PFIFO_CACHE1_GET, get + 4);
+		nv_wr32(fifo, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
 
 	if (device->card_type == NV_50) {
 		if (stat & 0x00000010) {
 			stat &= ~0x00000010;
-			nv_wr32(priv, 0x002100, 0x00000010);
+			nv_wr32(fifo, 0x002100, 0x00000010);
 		}
 
 		if (stat & 0x40000000) {
-			nv_wr32(priv, 0x002100, 0x40000000);
-			nvkm_fifo_uevent(&priv->base);
+			nv_wr32(fifo, 0x002100, 0x40000000);
+			nvkm_fifo_uevent(&fifo->base);
 			stat &= ~0x40000000;
 		}
 	}
 
 	if (stat) {
-		nv_warn(priv, "unknown intr 0x%08x\n", stat);
-		nv_mask(priv, NV03_PFIFO_INTR_EN_0, stat, 0x00000000);
-		nv_wr32(priv, NV03_PFIFO_INTR_0, stat);
+		nv_warn(fifo, "unknown intr 0x%08x\n", stat);
+		nv_mask(fifo, NV03_PFIFO_INTR_EN_0, stat, 0x00000000);
+		nv_wr32(fifo, NV03_PFIFO_INTR_0, stat);
 	}
 
-	nv_wr32(priv, NV03_PFIFO_CACHES, reassign);
+	nv_wr32(fifo, NV03_PFIFO_CACHES, reassign);
 }
 
 static int
@@ -560,65 +560,65 @@ nv04_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nv04_instmem *imem = nv04_instmem(parent);
-	struct nv04_fifo_priv *priv;
+	struct nv04_fifo *fifo;
 	int ret;
 
-	ret = nvkm_fifo_create(parent, engine, oclass, 0, 15, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fifo_create(parent, engine, oclass, 0, 15, &fifo);
+	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
 
-	nvkm_ramht_ref(imem->ramht, &priv->ramht);
-	nvkm_gpuobj_ref(imem->ramro, &priv->ramro);
-	nvkm_gpuobj_ref(imem->ramfc, &priv->ramfc);
+	nvkm_ramht_ref(imem->ramht, &fifo->ramht);
+	nvkm_gpuobj_ref(imem->ramro, &fifo->ramro);
+	nvkm_gpuobj_ref(imem->ramfc, &fifo->ramfc);
 
-	nv_subdev(priv)->unit = 0x00000100;
-	nv_subdev(priv)->intr = nv04_fifo_intr;
-	nv_engine(priv)->cclass = &nv04_fifo_cclass;
-	nv_engine(priv)->sclass = nv04_fifo_sclass;
-	priv->base.pause = nv04_fifo_pause;
-	priv->base.start = nv04_fifo_start;
-	priv->ramfc_desc = nv04_ramfc;
+	nv_subdev(fifo)->unit = 0x00000100;
+	nv_subdev(fifo)->intr = nv04_fifo_intr;
+	nv_engine(fifo)->cclass = &nv04_fifo_cclass;
+	nv_engine(fifo)->sclass = nv04_fifo_sclass;
+	fifo->base.pause = nv04_fifo_pause;
+	fifo->base.start = nv04_fifo_start;
+	fifo->ramfc_desc = nv04_ramfc;
 	return 0;
 }
 
 void
 nv04_fifo_dtor(struct nvkm_object *object)
 {
-	struct nv04_fifo_priv *priv = (void *)object;
-	nvkm_gpuobj_ref(NULL, &priv->ramfc);
-	nvkm_gpuobj_ref(NULL, &priv->ramro);
-	nvkm_ramht_ref(NULL, &priv->ramht);
-	nvkm_fifo_destroy(&priv->base);
+	struct nv04_fifo *fifo = (void *)object;
+	nvkm_gpuobj_ref(NULL, &fifo->ramfc);
+	nvkm_gpuobj_ref(NULL, &fifo->ramro);
+	nvkm_ramht_ref(NULL, &fifo->ramht);
+	nvkm_fifo_destroy(&fifo->base);
 }
 
 int
 nv04_fifo_init(struct nvkm_object *object)
 {
-	struct nv04_fifo_priv *priv = (void *)object;
+	struct nv04_fifo *fifo = (void *)object;
 	int ret;
 
-	ret = nvkm_fifo_init(&priv->base);
+	ret = nvkm_fifo_init(&fifo->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, NV04_PFIFO_DELAY_0, 0x000000ff);
-	nv_wr32(priv, NV04_PFIFO_DMA_TIMESLICE, 0x0101ffff);
+	nv_wr32(fifo, NV04_PFIFO_DELAY_0, 0x000000ff);
+	nv_wr32(fifo, NV04_PFIFO_DMA_TIMESLICE, 0x0101ffff);
 
-	nv_wr32(priv, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
-				       ((priv->ramht->bits - 9) << 16) |
-				        (priv->ramht->gpuobj.addr >> 8));
-	nv_wr32(priv, NV03_PFIFO_RAMRO, priv->ramro->addr >> 8);
-	nv_wr32(priv, NV03_PFIFO_RAMFC, priv->ramfc->addr >> 8);
+	nv_wr32(fifo, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
+				       ((fifo->ramht->bits - 9) << 16) |
+				        (fifo->ramht->gpuobj.addr >> 8));
+	nv_wr32(fifo, NV03_PFIFO_RAMRO, fifo->ramro->addr >> 8);
+	nv_wr32(fifo, NV03_PFIFO_RAMFC, fifo->ramfc->addr >> 8);
 
-	nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH1, priv->base.max);
+	nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH1, fifo->base.max);
 
-	nv_wr32(priv, NV03_PFIFO_INTR_0, 0xffffffff);
-	nv_wr32(priv, NV03_PFIFO_INTR_EN_0, 0xffffffff);
+	nv_wr32(fifo, NV03_PFIFO_INTR_0, 0xffffffff);
+	nv_wr32(fifo, NV03_PFIFO_INTR_EN_0, 0xffffffff);
 
-	nv_wr32(priv, NV03_PFIFO_CACHE1_PUSH0, 1);
-	nv_wr32(priv, NV04_PFIFO_CACHE1_PULL0, 1);
-	nv_wr32(priv, NV03_PFIFO_CACHES, 1);
+	nv_wr32(fifo, NV03_PFIFO_CACHE1_PUSH0, 1);
+	nv_wr32(fifo, NV04_PFIFO_CACHE1_PULL0, 1);
+	nv_wr32(fifo, NV03_PFIFO_CACHES, 1);
 	return 0;
 }
 

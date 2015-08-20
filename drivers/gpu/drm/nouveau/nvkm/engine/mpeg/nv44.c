@@ -93,7 +93,7 @@ nv44_mpeg_cclass = {
 static void
 nv44_mpeg_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle;
@@ -107,7 +107,7 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
+	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */

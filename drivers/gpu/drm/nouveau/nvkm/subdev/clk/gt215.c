@@ -297,7 +297,7 @@ calc_host(struct gt215_clk *clk, struct nvkm_cstate *cstate)
 int
 gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(clk);
+	struct nvkm_fifo *fifo = nvkm_fifo(clk);
 
 	/* halt and idle execution engines */
 	nv_mask(clk, 0x020060, 0x00070000, 0x00000000);
@@ -306,8 +306,8 @@ gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 	if (!nv_wait(clk, 0x000100, 0xffffffff, 0x00000000))
 		return -EBUSY;
 
-	if (pfifo)
-		pfifo->pause(pfifo, flags);
+	if (fifo)
+		fifo->pause(fifo, flags);
 
 	if (!nv_wait(clk, 0x002504, 0x00000010, 0x00000010))
 		return -EIO;
@@ -320,10 +320,10 @@ gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 void
 gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(clk);
+	struct nvkm_fifo *fifo = nvkm_fifo(clk);
 
-	if (pfifo && flags)
-		pfifo->start(pfifo, flags);
+	if (fifo && flags)
+		fifo->start(fifo, flags);
 
 	nv_mask(clk, 0x002504, 0x00000001, 0x00000000);
 	nv_mask(clk, 0x020060, 0x00070000, 0x00040000);

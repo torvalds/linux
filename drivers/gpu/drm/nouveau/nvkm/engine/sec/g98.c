@@ -75,7 +75,7 @@ static const struct nvkm_enum g98_sec_isr_error_name[] = {
 static void
 g98_sec_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct g98_sec_priv *priv = (void *)subdev;
@@ -90,7 +90,7 @@ g98_sec_intr(struct nvkm_subdev *subdev)
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
+	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");

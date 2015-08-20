@@ -1119,18 +1119,18 @@ static void
 nv10_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
 	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
-	struct nvkm_fifo *pfifo = nvkm_fifo(engine);
+	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nv10_gr_priv *priv = (void *)engine;
 	unsigned long flags;
 
-	pfifo->pause(pfifo, &flags);
+	fifo->pause(fifo, &flags);
 	nv04_gr_idle(priv);
 
 	nv_wr32(priv, NV10_PGRAPH_TLIMIT(i), tile->limit);
 	nv_wr32(priv, NV10_PGRAPH_TSIZE(i), tile->pitch);
 	nv_wr32(priv, NV10_PGRAPH_TILE(i), tile->addr);
 
-	pfifo->start(pfifo, &flags);
+	fifo->start(fifo, &flags);
 }
 
 const struct nvkm_bitfield nv10_gr_intr_name[] = {

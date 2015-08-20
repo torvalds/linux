@@ -81,7 +81,7 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			struct nvkm_object *object)
 {
 	struct nvkm_bar *bar = nvkm_bar(parent);
-	struct nv50_fifo_priv *priv = (void *)parent->engine;
+	struct nv50_fifo *fifo = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
 	u32 addr, save, engn;
@@ -103,12 +103,12 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
-	save = nv_mask(priv, 0x002520, 0x0000003f, 1 << engn);
-	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
-	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
-	nv_wr32(priv, 0x002520, save);
+	save = nv_mask(fifo, 0x002520, 0x0000003f, 1 << engn);
+	nv_wr32(fifo, 0x0032fc, nv_gpuobj(base)->addr >> 12);
+	done = nv_wait_ne(fifo, 0x0032fc, 0xffffffff, 0xffffffff);
+	nv_wr32(fifo, 0x002520, save);
 	if (!done) {
-		nv_error(priv, "channel %d [%s] unload timeout\n",
+		nv_error(fifo, "channel %d [%s] unload timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
 		if (suspend)
 			return -EBUSY;
@@ -309,7 +309,7 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 static int
 g84_fifo_chan_init(struct nvkm_object *object)
 {
-	struct nv50_fifo_priv *priv = (void *)object->engine;
+	struct nv50_fifo *fifo = (void *)object->engine;
 	struct nv50_fifo_base *base = (void *)object->parent;
 	struct nv50_fifo_chan *chan = (void *)object;
 	struct nvkm_gpuobj *ramfc = base->ramfc;
@@ -320,8 +320,8 @@ g84_fifo_chan_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 8);
-	nv50_fifo_playlist_update(priv);
+	nv_wr32(fifo, 0x002600 + (chid * 4), 0x80000000 | ramfc->addr >> 8);
+	nv50_fifo_playlist_update(fifo);
 	return 0;
 }
 
@@ -444,34 +444,34 @@ g84_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct nv50_fifo_priv *priv;
+	struct nv50_fifo *fifo;
 	int ret;
 
-	ret = nvkm_fifo_create(parent, engine, oclass, 1, 127, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fifo_create(parent, engine, oclass, 1, 127, &fifo);
+	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
-			      &priv->playlist[0]);
+	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
+			      &fifo->playlist[0]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
-			      &priv->playlist[1]);
+	ret = nvkm_gpuobj_new(nv_object(fifo), NULL, 128 * 4, 0x1000, 0,
+			      &fifo->playlist[1]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&g84_fifo_uevent_func, 1, 1, &priv->base.uevent);
+	ret = nvkm_event_init(&g84_fifo_uevent_func, 1, 1, &fifo->base.uevent);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000100;
-	nv_subdev(priv)->intr = nv04_fifo_intr;
-	nv_engine(priv)->cclass = &g84_fifo_cclass;
-	nv_engine(priv)->sclass = g84_fifo_sclass;
-	priv->base.pause = nv04_fifo_pause;
-	priv->base.start = nv04_fifo_start;
+	nv_subdev(fifo)->unit = 0x00000100;
+	nv_subdev(fifo)->intr = nv04_fifo_intr;
+	nv_engine(fifo)->cclass = &g84_fifo_cclass;
+	nv_engine(fifo)->sclass = g84_fifo_sclass;
+	fifo->base.pause = nv04_fifo_pause;
+	fifo->base.start = nv04_fifo_start;
 	return 0;
 }
 
