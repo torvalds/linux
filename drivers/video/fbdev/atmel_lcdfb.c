@@ -999,7 +999,7 @@ static const char *atmel_lcdfb_wiring_modes[] = {
 	[ATMEL_LCDC_WIRING_RGB]	= "RGB",
 };
 
-const int atmel_lcdfb_get_of_wiring_modes(struct device_node *np)
+static int atmel_lcdfb_get_of_wiring_modes(struct device_node *np)
 {
 	const char *mode;
 	int err, i;
