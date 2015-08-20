@@ -9,8 +9,8 @@ int nvkm_dmaobj_create_(struct nvkm_object *, struct nvkm_object *,
 			struct nvkm_oclass *, void **, u32 *,
 			int, void **);
 #define _nvkm_dmaobj_dtor nvkm_object_destroy
-#define _nvkm_dmaobj_init nvkm_object_init
-#define _nvkm_dmaobj_fini nvkm_object_fini
+#define _nvkm_dmaobj_init _nvkm_object_init
+#define _nvkm_dmaobj_fini _nvkm_object_fini
 
 int _nvkm_dmaeng_ctor(struct nvkm_object *, struct nvkm_object *,
 		      struct nvkm_oclass *, void *, u32,

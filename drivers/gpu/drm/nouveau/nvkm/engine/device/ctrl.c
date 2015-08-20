@@ -185,8 +185,8 @@ static struct nvkm_ofuncs
 nvkm_control_ofuncs = {
 	.ctor = _nvkm_object_ctor,
 	.dtor = nvkm_object_destroy,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
 	.mthd = nvkm_control_mthd,
 };
 

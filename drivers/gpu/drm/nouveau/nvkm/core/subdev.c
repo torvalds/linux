@@ -48,7 +48,7 @@ nvkm_subdev_reset(struct nvkm_object *obj)
 int
 nvkm_subdev_init(struct nvkm_subdev *subdev)
 {
-	int ret = nvkm_object_init(&subdev->object);
+	int ret = _nvkm_object_init(&subdev->object);
 	if (ret)
 		return ret;
 
@@ -72,7 +72,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		nvkm_mask(device, 0x000200, subdev->unit, subdev->unit);
 	}
 
-	return nvkm_object_fini(&subdev->object, suspend);
+	return _nvkm_object_fini(&subdev->object, suspend);
 }
 
 int

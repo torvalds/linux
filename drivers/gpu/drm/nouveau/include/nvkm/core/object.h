@@ -50,8 +50,8 @@ nv_object(void *obj)
 int  nvkm_object_create_(struct nvkm_object *, struct nvkm_object *,
 			    struct nvkm_oclass *, u32, int size, void **);
 void nvkm_object_destroy(struct nvkm_object *);
-int  nvkm_object_init(struct nvkm_object *);
-int  nvkm_object_fini(struct nvkm_object *, bool suspend);
+int  _nvkm_object_init(struct nvkm_object *);
+int  _nvkm_object_fini(struct nvkm_object *, bool suspend);
 
 int _nvkm_object_ctor(struct nvkm_object *, struct nvkm_object *,
 			 struct nvkm_oclass *, void *, u32,
@@ -112,7 +112,7 @@ nv_ofuncs(void *obj)
 	return nv_oclass(obj)->ofuncs;
 }
 
-int  nvkm_object_ctor(struct nvkm_object *, struct nvkm_object *,
+int  nvkm_object_old(struct nvkm_object *, struct nvkm_object *,
 		      struct nvkm_oclass *, void *, u32,
 		      struct nvkm_object **);
 void nvkm_object_ref(struct nvkm_object *, struct nvkm_object **);

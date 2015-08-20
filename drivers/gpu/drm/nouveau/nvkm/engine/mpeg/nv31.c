@@ -173,8 +173,8 @@ nv31_mpeg_cclass = {
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv31_mpeg_context_ctor,
 		.dtor = nv31_mpeg_context_dtor,
-		.init = nvkm_object_init,
-		.fini = nvkm_object_fini,
+		.init = _nvkm_object_init,
+		.fini = _nvkm_object_fini,
 	},
 };
 

@@ -137,7 +137,7 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	 * between the parent and its children (eg. PGRAPH context)
 	 */
 	if (engine && nv_engine(engine)->cclass) {
-		ret = nvkm_object_ctor(&parent->object, engine,
+		ret = nvkm_object_old(&parent->object, engine,
 				       nv_engine(engine)->cclass,
 				       data, size, &engctx);
 		if (ret)
@@ -147,7 +147,7 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	}
 
 	/* finally, create new object and bind it to its handle */
-	ret = nvkm_object_ctor(engctx, engine, oclass, data, size, &object);
+	ret = nvkm_object_old(engctx, engine, oclass, data, size, &object);
 	client->data = object;
 	if (ret)
 		goto fail_ctor;

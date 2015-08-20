@@ -228,8 +228,8 @@ struct nvkm_ofuncs
 gf100_fermi_ofuncs = {
 	.ctor = _nvkm_object_ctor,
 	.dtor = nvkm_object_destroy,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
 	.mthd = gf100_fermi_mthd,
 };
 

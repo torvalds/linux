@@ -136,13 +136,13 @@ nvkm_object_destroy(struct nvkm_object *object)
 }
 
 int
-nvkm_object_init(struct nvkm_object *object)
+_nvkm_object_init(struct nvkm_object *object)
 {
 	return 0;
 }
 
 int
-nvkm_object_fini(struct nvkm_object *object, bool suspend)
+_nvkm_object_fini(struct nvkm_object *object, bool suspend)
 {
 	return 0;
 }
@@ -151,12 +151,12 @@ struct nvkm_ofuncs
 nvkm_object_ofuncs = {
 	.ctor = _nvkm_object_ctor,
 	.dtor = nvkm_object_destroy,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
 };
 
 int
-nvkm_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+nvkm_object_old(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, void *data, u32 size,
 		 struct nvkm_object **pobject)
 {

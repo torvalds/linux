@@ -272,7 +272,7 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			.ofuncs = &nvkm_object_ofuncs,
 		};
 		args->v0.engine = engines;
-		return nvkm_object_ctor(parent, engine, &oclass, NULL, 0, pobject);
+		return nvkm_object_old(parent, engine, &oclass, NULL, 0, pobject);
 	}
 
 	engines &= args->v0.engine;

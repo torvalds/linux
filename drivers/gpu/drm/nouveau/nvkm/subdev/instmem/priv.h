@@ -18,15 +18,15 @@ struct nvkm_instobj_args {
 	_nvkm_instobj_dtor(nv_object(iobj));                                \
 })
 #define nvkm_instobj_init(p)                                                \
-	nvkm_object_init(&(p)->base)
+	_nvkm_object_init(&(p)->base)
 #define nvkm_instobj_fini(p,s)                                              \
-	nvkm_object_fini(&(p)->base, (s))
+	_nvkm_object_fini(&(p)->base, (s))
 
 int  nvkm_instobj_create_(struct nvkm_object *, struct nvkm_object *,
 			     struct nvkm_oclass *, int, void **);
 void _nvkm_instobj_dtor(struct nvkm_object *);
-#define _nvkm_instobj_init nvkm_object_init
-#define _nvkm_instobj_fini nvkm_object_fini
+#define _nvkm_instobj_init _nvkm_object_init
+#define _nvkm_instobj_fini _nvkm_object_fini
 
 struct nvkm_instmem_impl {
 	struct nvkm_oclass base;

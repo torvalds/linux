@@ -32,8 +32,8 @@ nv_gpuobj(void *obj)
 #define nvkm_gpuobj_create(p,e,c,v,g,s,a,f,d)                               \
 	nvkm_gpuobj_create_((p), (e), (c), (v), (g), (s), (a), (f),         \
 			       sizeof(**d), (void **)d)
-#define nvkm_gpuobj_init(p) nvkm_object_init(&(p)->object)
-#define nvkm_gpuobj_fini(p,s) nvkm_object_fini(&(p)->object, (s))
+#define nvkm_gpuobj_init(p) _nvkm_object_init(&(p)->object)
+#define nvkm_gpuobj_fini(p,s) _nvkm_object_fini(&(p)->object, (s))
 int  nvkm_gpuobj_create_(struct nvkm_object *, struct nvkm_object *,
 			    struct nvkm_oclass *, u32 pclass,
 			    struct nvkm_object *, u32 size, u32 align,

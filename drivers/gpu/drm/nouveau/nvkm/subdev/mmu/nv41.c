@@ -96,7 +96,7 @@ nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
 	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true)) {
-		return nvkm_object_ctor(parent, engine, &nv04_mmu_oclass,
+		return nvkm_object_old(parent, engine, &nv04_mmu_oclass,
 					data, size, pobject);
 	}
 

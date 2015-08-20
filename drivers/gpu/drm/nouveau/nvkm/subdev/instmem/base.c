@@ -72,7 +72,7 @@ nvkm_instmem_alloc(struct nvkm_instmem *imem, struct nvkm_object *parent,
 {
 	struct nvkm_instmem_impl *impl = (void *)imem->subdev.object.oclass;
 	struct nvkm_instobj_args args = { .size = size, .align = align };
-	return nvkm_object_ctor(parent, &parent->engine->subdev.object,
+	return nvkm_object_old(parent, &parent->engine->subdev.object,
 				impl->instobj, &args, sizeof(args), pobject);
 }
 

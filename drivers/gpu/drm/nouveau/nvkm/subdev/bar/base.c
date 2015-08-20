@@ -94,8 +94,8 @@ nvkm_barobj_oclass = {
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nvkm_barobj_ctor,
 		.dtor = nvkm_barobj_dtor,
-		.init = nvkm_object_init,
-		.fini = nvkm_object_fini,
+		.init = _nvkm_object_init,
+		.fini = _nvkm_object_fini,
 		.rd32 = nvkm_barobj_rd32,
 		.wr32 = nvkm_barobj_wr32,
 	},
@@ -106,7 +106,7 @@ nvkm_bar_alloc(struct nvkm_bar *bar, struct nvkm_object *parent,
 	       struct nvkm_mem *mem, struct nvkm_object **pobject)
 {
 	struct nvkm_object *gpuobj;
-	int ret = nvkm_object_ctor(parent, &parent->engine->subdev.object,
+	int ret = nvkm_object_old(parent, &parent->engine->subdev.object,
 				   &nvkm_barobj_oclass, mem, 0, &gpuobj);
 	if (ret == 0)
 		*pobject = gpuobj;

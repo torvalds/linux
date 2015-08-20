@@ -1187,7 +1187,7 @@ nv04_gr_context_fini(struct nvkm_object *object, bool suspend)
 	nvkm_mask(device, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&gr->lock, flags);
 
-	return nvkm_object_fini(&chan->base, suspend);
+	return _nvkm_object_fini(&chan->base, suspend);
 }
 
 static struct nvkm_oclass
@@ -1196,7 +1196,7 @@ nv04_gr_cclass = {
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_gr_context_ctor,
 		.dtor = nv04_gr_context_dtor,
-		.init = nvkm_object_init,
+		.init = _nvkm_object_init,
 		.fini = nv04_gr_context_fini,
 	},
 };

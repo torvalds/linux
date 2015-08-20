@@ -106,8 +106,8 @@ static struct nvkm_ofuncs
 nv04_disp_ofuncs = {
 	.ctor = _nvkm_object_ctor,
 	.dtor = nvkm_object_destroy,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
 	.mthd = nv04_disp_mthd,
 	.ntfy = nvkm_disp_ntfy,
 };

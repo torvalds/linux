@@ -223,9 +223,9 @@ nvkm_gpuobj_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
 		.flags = flags,
 	};
 
-	return nvkm_object_ctor(parent, &parent->engine->subdev.object,
-				&_nvkm_gpuobj_oclass, &args, sizeof(args),
-				(struct nvkm_object **)pgpuobj);
+	return nvkm_object_old(parent, &parent->engine->subdev.object,
+			       &_nvkm_gpuobj_oclass, &args, sizeof(args),
+			       (struct nvkm_object **)pgpuobj);
 }
 
 int
@@ -288,8 +288,8 @@ nvkm_gpudup_oclass = {
 	.handle = NV_GPUOBJ_CLASS,
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.dtor = nvkm_gpudup_dtor,
-		.init = nvkm_object_init,
-		.fini = nvkm_object_fini,
+		.init = _nvkm_object_init,
+		.fini = _nvkm_object_fini,
 	},
 };
 

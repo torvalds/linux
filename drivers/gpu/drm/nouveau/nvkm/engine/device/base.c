@@ -152,7 +152,7 @@ nvkm_device_init(struct nvkm_device *device)
 
 	for (i = 0, c = 0; i < NVDEV_SUBDEV_NR; i++) {
 #define _(s,m) case s: if (device->oclass[s] && !device->subdev[s]) {          \
-		ret = nvkm_object_ctor(nv_object(device), NULL,                \
+		ret = nvkm_object_old(nv_object(device), NULL,                \
 				       device->oclass[s], NULL,  (s),          \
 				       (struct nvkm_object **)&device->m);     \
 		if (ret == -ENODEV) {                                          \

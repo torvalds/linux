@@ -30,9 +30,9 @@ nv_parent(void *obj)
 	nvkm_parent_create_((p), (e), (c), (v), (s), (m),                   \
 			       sizeof(**d), (void **)d)
 #define nvkm_parent_init(p)                                                 \
-	nvkm_object_init(&(p)->object)
+	_nvkm_object_init(&(p)->object)
 #define nvkm_parent_fini(p,s)                                               \
-	nvkm_object_fini(&(p)->object, (s))
+	_nvkm_object_fini(&(p)->object, (s))
 
 int  nvkm_parent_create_(struct nvkm_object *, struct nvkm_object *,
 			    struct nvkm_oclass *, u32 pclass,
@@ -41,8 +41,8 @@ int  nvkm_parent_create_(struct nvkm_object *, struct nvkm_object *,
 void nvkm_parent_destroy(struct nvkm_parent *);
 
 void _nvkm_parent_dtor(struct nvkm_object *);
-#define _nvkm_parent_init nvkm_object_init
-#define _nvkm_parent_fini nvkm_object_fini
+#define _nvkm_parent_init _nvkm_object_init
+#define _nvkm_parent_fini _nvkm_object_fini
 
 int nvkm_parent_sclass(struct nvkm_object *, s32 handle,
 		       struct nvkm_object **pengine,

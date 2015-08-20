@@ -419,8 +419,8 @@ static struct nvkm_ofuncs
 nvkm_perfdom_ofuncs = {
 	.ctor = nvkm_perfdom_ctor,
 	.dtor = nvkm_perfdom_dtor,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
 	.mthd = nvkm_perfdom_mthd,
 };
 
