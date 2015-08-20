@@ -59,12 +59,12 @@ struct nvkm_falcon {
 #define nvkm_falcon_destroy(p)                                              \
 	nvkm_engine_destroy(&(p)->engine)
 #define nvkm_falcon_init(p) ({                                              \
-	struct nvkm_falcon *falcon = (p);                                   \
-	_nvkm_falcon_init(nv_object(falcon));                               \
+	struct nvkm_falcon *_falcon = (p);                                   \
+	_nvkm_falcon_init(nv_object(_falcon));                               \
 })
 #define nvkm_falcon_fini(p,s) ({                                            \
-	struct nvkm_falcon *falcon = (p);                                   \
-	_nvkm_falcon_fini(nv_object(falcon), (s));                          \
+	struct nvkm_falcon *_falcon = (p);                                   \
+	_nvkm_falcon_fini(nv_object(_falcon), (s));                          \
 })
 
 int nvkm_falcon_create_(struct nvkm_object *, struct nvkm_object *,

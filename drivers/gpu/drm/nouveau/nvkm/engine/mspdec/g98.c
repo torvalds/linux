@@ -24,10 +24,6 @@
 #include <engine/mspdec.h>
 #include <engine/falcon.h>
 
-struct g98_mspdec_priv {
-	struct nvkm_falcon base;
-};
-
 /*******************************************************************************
  * MSPDEC object classes
  ******************************************************************************/
@@ -63,15 +59,15 @@ g98_mspdec_cclass = {
 static int
 g98_mspdec_init(struct nvkm_object *object)
 {
-	struct g98_mspdec_priv *priv = (void *)object;
+	struct nvkm_falcon *mspdec = (void *)object;
 	int ret;
 
-	ret = nvkm_falcon_init(&priv->base);
+	ret = nvkm_falcon_init(mspdec);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x085010, 0x0000ffd2);
-	nv_wr32(priv, 0x08501c, 0x0000fff2);
+	nv_wr32(mspdec, 0x085010, 0x0000ffd2);
+	nv_wr32(mspdec, 0x08501c, 0x0000fff2);
 	return 0;
 }
 
@@ -80,18 +76,18 @@ g98_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct g98_mspdec_priv *priv;
+	struct nvkm_falcon *mspdec;
 	int ret;
 
 	ret = nvkm_falcon_create(parent, engine, oclass, 0x085000, true,
-				 "PMSPDEC", "mspdec", &priv);
-	*pobject = nv_object(priv);
+				 "PMSPDEC", "mspdec", &mspdec);
+	*pobject = nv_object(mspdec);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x01020000;
-	nv_engine(priv)->cclass = &g98_mspdec_cclass;
-	nv_engine(priv)->sclass = g98_mspdec_sclass;
+	nv_subdev(mspdec)->unit = 0x01020000;
+	nv_engine(mspdec)->cclass = &g98_mspdec_cclass;
+	nv_engine(mspdec)->sclass = g98_mspdec_sclass;
 	return 0;
 }
 
