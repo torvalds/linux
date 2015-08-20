@@ -186,11 +186,11 @@ nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nv04_fifo_chan *chan;
 	int ret;
 
-	nv_ioctl(parent, "create channel dma size %d\n", size);
+	nvif_ioctl(parent, "create channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create channel dma vers %d pushbuf %08x "
-				 "offset %016llx\n", args->v0.version,
-			 args->v0.pushbuf, args->v0.offset);
+		nvif_ioctl(parent, "create channel dma vers %d pushbuf %08x "
+				   "offset %016llx\n", args->v0.version,
+			   args->v0.pushbuf, args->v0.offset);
 	} else
 		return ret;
 

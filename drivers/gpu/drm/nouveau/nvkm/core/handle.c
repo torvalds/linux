@@ -25,9 +25,8 @@
 #include <core/client.h>
 
 #define hprintk(h,l,f,a...) do {                                               \
-	struct nvkm_client *c = nvkm_client((h)->object);                      \
 	struct nvkm_handle *p = (h)->parent; u32 n = p ? p->name : ~0;         \
-	nv_printk((c), l, "0x%08x:0x%08x "f, n, (h)->name, ##a);               \
+	nvif_printk((h)->object, l, INFO, "0x%08x:0x%08x "f, n, (h)->name, ##a);\
 } while(0)
 
 int

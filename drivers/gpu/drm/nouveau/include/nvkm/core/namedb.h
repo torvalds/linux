@@ -13,8 +13,7 @@ static inline struct nvkm_namedb *
 nv_namedb(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_NAMEDB_CLASS)))
-		nv_assert("BAD CAST -> NvNameDB, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_NAMEDB_CLASS));
 #endif
 	return obj;
 }

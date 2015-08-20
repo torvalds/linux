@@ -41,10 +41,10 @@ nv50_sor_power(NV50_DISP_MTHD_V1)
 	u32 stat;
 	int ret;
 
-	nv_ioctl(object, "disp sor pwr size %d\n", size);
+	nvif_ioctl(object, "disp sor pwr size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "disp sor pwr vers %d state %d\n",
-			 args->v0.version, args->v0.state);
+		nvif_ioctl(object, "disp sor pwr vers %d state %d\n",
+			   args->v0.version, args->v0.state);
 		stat = !!args->v0.state;
 	} else
 		return ret;

@@ -69,10 +69,8 @@ nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 			pargpu = pargpu->parent;
 		}
 
-		if (unlikely(pargpu == NULL)) {
-			nv_error(parent, "no gpuobj heap\n");
+		if (WARN_ON(pargpu == NULL))
 			return -EINVAL;
-		}
 
 		addr =  nv_gpuobj(pargpu)->addr;
 		heap = &nv_gpuobj(pargpu)->heap;

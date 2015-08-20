@@ -19,8 +19,7 @@ static inline struct nvkm_engctx *
 nv_engctx(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_ENGCTX_CLASS)))
-		nv_assert("BAD CAST -> NvEngCtx, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_ENGCTX_CLASS));
 #endif
 	return obj;
 }

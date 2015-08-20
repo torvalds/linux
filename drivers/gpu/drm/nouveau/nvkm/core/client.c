@@ -111,11 +111,11 @@ nvkm_client_notify_new(struct nvkm_object *object,
 	if (!notify)
 		return -ENOMEM;
 
-	nv_ioctl(client, "notify new size %d\n", size);
+	nvif_ioctl(object, "notify new size %d\n", size);
 	if (nvif_unpack(req->v0, 0, 0, true)) {
-		nv_ioctl(client, "notify new vers %d reply %d route %02x "
-				 "token %llx\n", req->v0.version,
-			 req->v0.reply, req->v0.route, req->v0.token);
+		nvif_ioctl(object, "notify new vers %d reply %d route %02x "
+				   "token %llx\n", req->v0.version,
+			   req->v0.reply, req->v0.route, req->v0.token);
 		notify->version = req->v0.version;
 		notify->size = sizeof(notify->rep.v0);
 		notify->rep.v0.version = req->v0.version;
@@ -146,10 +146,10 @@ nvkm_client_mthd_devlist(struct nvkm_object *object, void *data, u32 size)
 	} *args = data;
 	int ret;
 
-	nv_ioctl(object, "client devlist size %d\n", size);
+	nvif_ioctl(object, "client devlist size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
-		nv_ioctl(object, "client devlist vers %d count %d\n",
-			 args->v0.version, args->v0.count);
+		nvif_ioctl(object, "client devlist vers %d count %d\n",
+			   args->v0.version, args->v0.count);
 		if (size == sizeof(args->v0.device[0]) * args->v0.count) {
 			ret = nvkm_device_list(args->v0.device, args->v0.count);
 			if (ret >= 0) {
@@ -233,25 +233,27 @@ nvkm_client_create_(const char *name, u64 devname, const char *cfg,
 int
 nvkm_client_init(struct nvkm_client *client)
 {
+	struct nvkm_object *object = &client->namedb.parent.object;
 	int ret;
-	nv_debug(client, "init running\n");
+	nvif_trace(object, "init running\n");
 	ret = nvkm_handle_init(client->root);
-	nv_debug(client, "init completed with %d\n", ret);
+	nvif_trace(object, "init completed with %d\n", ret);
 	return ret;
 }
 
 int
 nvkm_client_fini(struct nvkm_client *client, bool suspend)
 {
+	struct nvkm_object *object = &client->namedb.parent.object;
 	const char *name[2] = { "fini", "suspend" };
 	int ret, i;
-	nv_debug(client, "%s running\n", name[suspend]);
-	nv_debug(client, "%s notify\n", name[suspend]);
+	nvif_trace(object, "%s running\n", name[suspend]);
+	nvif_trace(object, "%s notify\n", name[suspend]);
 	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 		nvkm_client_notify_put(client, i);
-	nv_debug(client, "%s object\n", name[suspend]);
+	nvif_trace(object, "%s object\n", name[suspend]);
 	ret = nvkm_handle_fini(client->root, suspend);
-	nv_debug(client, "%s completed with %d\n", name[suspend], ret);
+	nvif_trace(object, "%s completed with %d\n", name[suspend], ret);
 	return ret;
 }
 

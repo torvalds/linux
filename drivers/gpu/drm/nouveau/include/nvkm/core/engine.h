@@ -21,8 +21,7 @@ static inline struct nvkm_engine *
 nv_engine(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_ENGINE_CLASS)))
-		nv_assert("BAD CAST -> NvEngine, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_ENGINE_CLASS));
 #endif
 	return obj;
 }

@@ -212,9 +212,9 @@ nvkm_perfdom_init(struct nvkm_object *object, void *data, u32 size)
 	struct nvkm_perfdom *dom = (void *)object;
 	int ret, i;
 
-	nv_ioctl(object, "perfdom init size %d\n", size);
+	nvif_ioctl(object, "perfdom init size %d\n", size);
 	if (nvif_unvers(args->none)) {
-		nv_ioctl(object, "perfdom init\n");
+		nvif_ioctl(object, "perfdom init\n");
 	} else
 		return ret;
 
@@ -242,9 +242,9 @@ nvkm_perfdom_sample(struct nvkm_object *object, void *data, u32 size)
 	struct nvkm_perfdom *dom;
 	int ret;
 
-	nv_ioctl(object, "perfdom sample size %d\n", size);
+	nvif_ioctl(object, "perfdom sample size %d\n", size);
 	if (nvif_unvers(args->none)) {
-		nv_ioctl(object, "perfdom sample\n");
+		nvif_ioctl(object, "perfdom sample\n");
 	} else
 		return ret;
 	pm->sequence++;
@@ -266,9 +266,9 @@ nvkm_perfdom_read(struct nvkm_object *object, void *data, u32 size)
 	struct nvkm_perfdom *dom = (void *)object;
 	int ret, i;
 
-	nv_ioctl(object, "perfdom read size %d\n", size);
+	nvif_ioctl(object, "perfdom read size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "perfdom read vers %d\n", args->v0.version);
+		nvif_ioctl(object, "perfdom read vers %d\n", args->v0.version);
 	} else
 		return ret;
 
@@ -367,10 +367,10 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	int c, s, m;
 	int ret;
 
-	nv_ioctl(parent, "create perfdom size %d\n", size);
+	nvif_ioctl(parent, "create perfdom size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create perfdom vers %d dom %d mode %02x\n",
-			 args->v0.version, args->v0.domain, args->v0.mode);
+		nvif_ioctl(parent, "create perfdom vers %d dom %d mode %02x\n",
+			   args->v0.version, args->v0.domain, args->v0.mode);
 	} else
 		return ret;
 
@@ -438,10 +438,10 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_object *object, void *data, u32 size)
 	u8 domain_nr;
 	int di, ret;
 
-	nv_ioctl(object, "perfmon query domain size %d\n", size);
+	nvif_ioctl(object, "perfmon query domain size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "perfmon domain vers %d iter %02x\n",
-			 args->v0.version, args->v0.iter);
+		nvif_ioctl(object, "perfmon domain vers %d iter %02x\n",
+			   args->v0.version, args->v0.iter);
 		di = (args->v0.iter & 0xff) - 1;
 	} else
 		return ret;
@@ -487,11 +487,11 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 	const bool raw = nvkm_boolopt(device->cfgopt, "NvPmUnnamed", all);
 	int ret, si;
 
-	nv_ioctl(object, "perfmon query signal size %d\n", size);
+	nvif_ioctl(object, "perfmon query signal size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object,
-			 "perfmon query signal vers %d dom %d iter %04x\n",
-			 args->v0.version, args->v0.domain, args->v0.iter);
+		nvif_ioctl(object,
+			   "perfmon query signal vers %d dom %d iter %04x\n",
+			   args->v0.version, args->v0.domain, args->v0.iter);
 		si = (args->v0.iter & 0xffff) - 1;
 	} else
 		return ret;
@@ -538,12 +538,12 @@ nvkm_perfmon_mthd_query_source(struct nvkm_object *object, void *data, u32 size)
 	u8 source_nr = 0;
 	int si, ret;
 
-	nv_ioctl(object, "perfmon query source size %d\n", size);
+	nvif_ioctl(object, "perfmon query source size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object,
-			 "perfmon source vers %d dom %d sig %02x iter %02x\n",
-			 args->v0.version, args->v0.domain, args->v0.signal,
-			 args->v0.iter);
+		nvif_ioctl(object,
+			   "perfmon source vers %d dom %d sig %02x iter %02x\n",
+			   args->v0.version, args->v0.domain, args->v0.signal,
+			   args->v0.iter);
 		si = (args->v0.iter & 0xff) - 1;
 	} else
 		return ret;

@@ -40,12 +40,12 @@ gt215_hdmi_ctrl(NV50_DISP_MTHD_V1)
 	u32 ctrl;
 	int ret;
 
-	nv_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
+	nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
-				 "max_ac_packet %d rekey %d\n",
-			 args->v0.version, args->v0.state,
-			 args->v0.max_ac_packet, args->v0.rekey);
+		nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
+				   "max_ac_packet %d rekey %d\n",
+			   args->v0.version, args->v0.state,
+			   args->v0.max_ac_packet, args->v0.rekey);
 		if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
 			return -EINVAL;
 		ctrl  = 0x40000000 * !!args->v0.state;

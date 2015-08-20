@@ -12,6 +12,5 @@ nvkm-y += nvkm/core/notify.o
 nvkm-y += nvkm/core/object.o
 nvkm-y += nvkm/core/option.o
 nvkm-y += nvkm/core/parent.o
-nvkm-y += nvkm/core/printk.o
 nvkm-y += nvkm/core/ramht.o
 nvkm-y += nvkm/core/subdev.o

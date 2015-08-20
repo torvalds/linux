@@ -152,10 +152,10 @@ nv50_pior_power(NV50_DISP_MTHD_V1)
 	u32 ctrl, type;
 	int ret;
 
-	nv_ioctl(object, "disp pior pwr size %d\n", size);
+	nvif_ioctl(object, "disp pior pwr size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "disp pior pwr vers %d state %d type %x\n",
-			 args->v0.version, args->v0.state, args->v0.type);
+		nvif_ioctl(object, "disp pior pwr vers %d state %d type %x\n",
+			   args->v0.version, args->v0.state, args->v0.type);
 		if (args->v0.type > 0x0f)
 			return -EINVAL;
 		ctrl = !!args->v0.state;

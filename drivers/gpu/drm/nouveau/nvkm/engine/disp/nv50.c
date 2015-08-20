@@ -510,11 +510,11 @@ nv50_disp_core_ctor(struct nvkm_object *parent,
 	struct nv50_disp_dmac *mast;
 	int ret;
 
-	nv_ioctl(parent, "create disp core channel dma size %d\n", size);
+	nvif_ioctl(parent, "create disp core channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create disp core channel dma vers %d "
-				 "pushbuf %08x\n",
-			 args->v0.version, args->v0.pushbuf);
+		nvif_ioctl(parent, "create disp core channel dma vers %d "
+				   "pushbuf %08x\n",
+			   args->v0.version, args->v0.pushbuf);
 	} else
 		return ret;
 
@@ -679,11 +679,11 @@ nv50_disp_base_ctor(struct nvkm_object *parent,
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	nv_ioctl(parent, "create disp base channel dma size %d\n", size);
+	nvif_ioctl(parent, "create disp base channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create disp base channel dma vers %d "
-				 "pushbuf %08x head %d\n",
-			 args->v0.version, args->v0.pushbuf, args->v0.head);
+		nvif_ioctl(parent, "create disp base channel dma vers %d "
+				   "pushbuf %08x head %d\n",
+			   args->v0.version, args->v0.pushbuf, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;
 	} else
@@ -769,11 +769,11 @@ nv50_disp_ovly_ctor(struct nvkm_object *parent,
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	nv_ioctl(parent, "create disp overlay channel dma size %d\n", size);
+	nvif_ioctl(parent, "create disp overlay channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create disp overlay channel dma vers %d "
-				 "pushbuf %08x head %d\n",
-			 args->v0.version, args->v0.pushbuf, args->v0.head);
+		nvif_ioctl(parent, "create disp overlay channel dma vers %d "
+				   "pushbuf %08x head %d\n",
+			   args->v0.version, args->v0.pushbuf, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;
 	} else
@@ -903,10 +903,10 @@ nv50_disp_oimm_ctor(struct nvkm_object *parent,
 	struct nv50_disp_pioc *pioc;
 	int ret;
 
-	nv_ioctl(parent, "create disp overlay size %d\n", size);
+	nvif_ioctl(parent, "create disp overlay size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create disp overlay vers %d head %d\n",
-			 args->v0.version, args->v0.head);
+		nvif_ioctl(parent, "create disp overlay vers %d head %d\n",
+			   args->v0.version, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;
 	} else
@@ -951,10 +951,10 @@ nv50_disp_curs_ctor(struct nvkm_object *parent,
 	struct nv50_disp_pioc *pioc;
 	int ret;
 
-	nv_ioctl(parent, "create disp cursor size %d\n", size);
+	nvif_ioctl(parent, "create disp cursor size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create disp cursor vers %d head %d\n",
-			 args->v0.version, args->v0.head);
+		nvif_ioctl(parent, "create disp cursor vers %d head %d\n",
+			   args->v0.version, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;
 	} else
@@ -998,9 +998,10 @@ nv50_disp_main_scanoutpos(NV50_DISP_MTHD_V0)
 	} *args = data;
 	int ret;
 
-	nv_ioctl(object, "disp scanoutpos size %d\n", size);
+	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "disp scanoutpos vers %d\n", args->v0.version);
+		nvif_ioctl(object, "disp scanoutpos vers %d\n",
+			   args->v0.version);
 		args->v0.vblanke = (blanke & 0xffff0000) >> 16;
 		args->v0.hblanke = (blanke & 0x0000ffff);
 		args->v0.vblanks = (blanks & 0xffff0000) >> 16;
@@ -1036,18 +1037,18 @@ nv50_disp_main_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	if (mthd != NV50_DISP_MTHD)
 		return -EINVAL;
 
-	nv_ioctl(object, "disp mthd size %d\n", size);
+	nvif_ioctl(object, "disp mthd size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
-		nv_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
-			 args->v0.version, args->v0.method, args->v0.head);
+		nvif_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
+			   args->v0.version, args->v0.method, args->v0.head);
 		mthd = args->v0.method;
 		head = args->v0.head;
 	} else
 	if (nvif_unpack(args->v1, 1, 1, true)) {
-		nv_ioctl(object, "disp mthd vers %d mthd %02x "
-				 "type %04x mask %04x\n",
-			 args->v1.version, args->v1.method,
-			 args->v1.hasht, args->v1.hashm);
+		nvif_ioctl(object, "disp mthd vers %d mthd %02x "
+				   "type %04x mask %04x\n",
+			   args->v1.version, args->v1.method,
+			   args->v1.hasht, args->v1.hashm);
 		mthd = args->v1.method;
 		type = args->v1.hasht;
 		mask = args->v1.hashm;
@@ -1096,11 +1097,11 @@ nv50_disp_main_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		union {
 			struct nv50_disp_sor_lvds_script_v0 v0;
 		} *args = data;
-		nv_ioctl(object, "disp sor lvds script size %d\n", size);
+		nvif_ioctl(object, "disp sor lvds script size %d\n", size);
 		if (nvif_unpack(args->v0, 0, 0, false)) {
-			nv_ioctl(object, "disp sor lvds script "
-					 "vers %d name %04x\n",
-				 args->v0.version, args->v0.script);
+			nvif_ioctl(object, "disp sor lvds script "
+					   "vers %d name %04x\n",
+				   args->v0.version, args->v0.script);
 			disp->sor.lvdsconf = args->v0.script;
 			return 0;
 		} else
@@ -1112,10 +1113,10 @@ nv50_disp_main_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		union {
 			struct nv50_disp_sor_dp_pwr_v0 v0;
 		} *args = data;
-		nv_ioctl(object, "disp sor dp pwr size %d\n", size);
+		nvif_ioctl(object, "disp sor dp pwr size %d\n", size);
 		if (nvif_unpack(args->v0, 0, 0, false)) {
-			nv_ioctl(object, "disp sor dp pwr vers %d state %d\n",
-				 args->v0.version, args->v0.state);
+			nvif_ioctl(object, "disp sor dp pwr vers %d state %d\n",
+				   args->v0.version, args->v0.state);
 			if (args->v0.state == 0) {
 				nvkm_notify_put(&outpdp->irq);
 				((struct nvkm_output_dp_impl *)nv_oclass(outp))

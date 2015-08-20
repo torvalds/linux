@@ -176,11 +176,11 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nv50_fifo_chan *chan;
 	int ret;
 
-	nv_ioctl(parent, "create channel dma size %d\n", size);
+	nvif_ioctl(parent, "create channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create channel dma vers %d pushbuf %08x "
-				 "offset %016llx\n", args->v0.version,
-			 args->v0.pushbuf, args->v0.offset);
+		nvif_ioctl(parent, "create channel dma vers %d pushbuf %08x "
+				   "offset %016llx\n", args->v0.version,
+			   args->v0.pushbuf, args->v0.offset);
 	} else
 		return ret;
 
@@ -250,12 +250,12 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 	u64 ioffset, ilength;
 	int ret;
 
-	nv_ioctl(parent, "create channel gpfifo size %d\n", size);
+	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create channel gpfifo vers %d pushbuf %08x "
-				 "ioffset %016llx ilength %08x\n",
-			 args->v0.version, args->v0.pushbuf, args->v0.ioffset,
-			 args->v0.ilength);
+		nvif_ioctl(parent, "create channel gpfifo vers %d pushbuf %08x "
+				   "ioffset %016llx ilength %08x\n",
+			   args->v0.version, args->v0.pushbuf, args->v0.ioffset,
+			   args->v0.ilength);
 	} else
 		return ret;
 

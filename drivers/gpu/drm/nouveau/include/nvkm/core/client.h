@@ -20,8 +20,7 @@ static inline struct nvkm_client *
 nv_client(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_CLIENT_CLASS)))
-		nv_assert("BAD CAST -> NvClient, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_CLIENT_CLASS));
 #endif
 	return obj;
 }

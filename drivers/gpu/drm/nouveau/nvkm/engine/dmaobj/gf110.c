@@ -93,10 +93,11 @@ gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 	args = data;
 
-	nv_ioctl(parent, "create gf110 dma size %d\n", size);
+	nvif_ioctl(parent, "create gf110 dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create gf100 dma vers %d page %d kind %02x\n",
-			 args->v0.version, args->v0.page, args->v0.kind);
+		nvif_ioctl(parent,
+			   "create gf100 dma vers %d page %d kind %02x\n",
+			   args->v0.version, args->v0.page, args->v0.kind);
 		kind = args->v0.kind;
 		page = args->v0.page;
 	} else

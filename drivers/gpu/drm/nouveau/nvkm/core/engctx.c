@@ -143,12 +143,12 @@ nvkm_engctx_init(struct nvkm_engctx *engctx)
 	}
 
 	if (ret) {
-		nv_error(parent, "failed to attach %s context, %d\n",
-			 subdev->name, ret);
+		nvkm_error(pardev, "failed to attach %s context, %d\n",
+			   subdev->name, ret);
 		return ret;
 	}
 
-	nv_debug(parent, "attached %s context\n", subdev->name);
+	nvkm_trace(pardev, "attached %s context\n", subdev->name);
 	return 0;
 }
 
@@ -170,12 +170,12 @@ nvkm_engctx_fini(struct nvkm_engctx *engctx, bool suspend)
 	}
 
 	if (ret) {
-		nv_error(parent, "failed to detach %s context, %d\n",
-			 subdev->name, ret);
+		nvkm_error(pardev, "failed to detach %s context, %d\n",
+			   subdev->name, ret);
 		return ret;
 	}
 
-	nv_debug(parent, "detached %s context\n", subdev->name);
+	nvkm_trace(pardev, "detached %s context\n", subdev->name);
 	return nvkm_gpuobj_fini(&engctx->gpuobj, suspend);
 }
 

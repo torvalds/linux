@@ -55,16 +55,19 @@ nvkm_engine_create_(struct nvkm_object *parent, struct nvkm_object *engobj,
 
 		if (device->disable_mask & (1ULL << engidx)) {
 			if (!nvkm_boolopt(device->cfgopt, iname, false)) {
-				nv_debug(engine, "engine disabled by hw/fw\n");
+				nvkm_debug(&engine->subdev,
+					   "engine disabled by hw/fw\n");
 				return -ENODEV;
 			}
 
-			nv_warn(engine, "ignoring hw/fw engine disable\n");
+			nvkm_warn(&engine->subdev,
+				  "ignoring hw/fw engine disable\n");
 		}
 
 		if (!nvkm_boolopt(device->cfgopt, iname, enable)) {
 			if (!enable)
-				nv_warn(engine, "disabled, %s=1 to enable\n", iname);
+				nvkm_warn(&engine->subdev,
+					  "disabled, %s=1 to enable\n", iname);
 			return -ENODEV;
 		}
 	}

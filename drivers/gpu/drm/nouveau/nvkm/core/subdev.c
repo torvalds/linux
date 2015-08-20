@@ -37,11 +37,12 @@ nvkm_subdev(void *obj, int idx)
 }
 
 void
-nvkm_subdev_reset(struct nvkm_object *subdev)
+nvkm_subdev_reset(struct nvkm_object *obj)
 {
-	nv_trace(subdev, "resetting...\n");
-	nv_ofuncs(subdev)->fini(subdev, false);
-	nv_debug(subdev, "reset\n");
+	struct nvkm_subdev *subdev = container_of(obj, typeof(*subdev), object);
+	nvkm_trace(subdev, "resetting...\n");
+	nv_ofuncs(subdev)->fini(&subdev->object, false);
+	nvkm_trace(subdev, "reset\n");
 }
 
 int

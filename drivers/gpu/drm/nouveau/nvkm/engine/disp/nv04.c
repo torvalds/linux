@@ -40,9 +40,10 @@ nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
 	u32 line;
 	int ret;
 
-	nv_ioctl(object, "disp scanoutpos size %d\n", size);
+	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "disp scanoutpos vers %d\n", args->v0.version);
+		nvif_ioctl(object, "disp scanoutpos vers %d\n",
+			   args->v0.version);
 		args->v0.vblanks = nvkm_rd32(device, 0x680800 + hoff) & 0xffff;
 		args->v0.vtotal  = nvkm_rd32(device, 0x680804 + hoff) & 0xffff;
 		args->v0.vblanke = args->v0.vtotal - 1;
@@ -79,10 +80,10 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	struct nvkm_disp *disp = (void *)object->engine;
 	int head, ret;
 
-	nv_ioctl(object, "disp mthd size %d\n", size);
+	nvif_ioctl(object, "disp mthd size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
-		nv_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
-			 args->v0.version, args->v0.method, args->v0.head);
+		nvif_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
+			   args->v0.version, args->v0.method, args->v0.head);
 		mthd = args->v0.method;
 		head = args->v0.head;
 	} else

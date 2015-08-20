@@ -100,12 +100,12 @@ nv50_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 	args = data;
 
-	nv_ioctl(parent, "create nv50 dma size %d\n", size);
+	nvif_ioctl(parent, "create nv50 dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create nv50 dma vers %d priv %d part %d "
-				 "comp %d kind %02x\n", args->v0.version,
-			 args->v0.priv, args->v0.part, args->v0.comp,
-			 args->v0.kind);
+		nvif_ioctl(parent, "create nv50 dma vers %d priv %d part %d "
+				   "comp %d kind %02x\n", args->v0.version,
+			   args->v0.priv, args->v0.part, args->v0.comp,
+			   args->v0.kind);
 		user = args->v0.priv;
 		part = args->v0.part;
 		comp = args->v0.comp;

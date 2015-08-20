@@ -538,7 +538,6 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	drm_put_dev(dev);
 
 	nvkm_object_ref(NULL, &device);
-	nvkm_object_debug();
 }
 
 static void
@@ -731,7 +730,6 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 		return -EBUSY;
 	}
 
-	nv_debug_level(SILENT);
 	drm_kms_helper_poll_disable(drm_dev);
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 	nouveau_switcheroo_optimus_dsm();
@@ -768,7 +766,6 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	nvif_mask(device, 0x88488, (1 << 25), (1 << 25));
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
-	nv_debug_level(NORMAL);
 	return ret;
 }
 

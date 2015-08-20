@@ -22,8 +22,7 @@ static inline struct nvkm_subdev *
 nv_subdev(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_SUBDEV_CLASS)))
-		nv_assert("BAD CAST -> NvSubDev, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_SUBDEV_CLASS));
 #endif
 	return obj;
 }

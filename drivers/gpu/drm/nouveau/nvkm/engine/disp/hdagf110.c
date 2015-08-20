@@ -43,9 +43,10 @@ gf110_hda_eld(NV50_DISP_MTHD_V1)
 	const u32 hoff = head * 0x800;
 	int ret, i;
 
-	nv_ioctl(object, "disp sor hda eld size %d\n", size);
+	nvif_ioctl(object, "disp sor hda eld size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
-		nv_ioctl(object, "disp sor hda eld vers %d\n", args->v0.version);
+		nvif_ioctl(object, "disp sor hda eld vers %d\n",
+			   args->v0.version);
 		if (size > 0x60)
 			return -E2BIG;
 	} else

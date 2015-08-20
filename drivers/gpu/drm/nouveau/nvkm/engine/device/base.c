@@ -87,9 +87,9 @@ nvkm_devobj_info(struct nvkm_object *object, void *data, u32 size)
 	} *args = data;
 	int ret;
 
-	nv_ioctl(object, "device info size %d\n", size);
+	nvif_ioctl(object, "device info size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "device info vers %d\n", args->v0.version);
+		nvif_ioctl(object, "device info vers %d\n", args->v0.version);
 	} else
 		return ret;
 
@@ -294,12 +294,12 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	void __iomem *map;
 	int ret, i, c;
 
-	nv_ioctl(parent, "create device size %d\n", size);
+	nvif_ioctl(parent, "create device size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(parent, "create device v%d device %016llx "
-				 "disable %016llx debug0 %016llx\n",
-			 args->v0.version, args->v0.device,
-			 args->v0.disable, args->v0.debug0);
+		nvif_ioctl(parent, "create device v%d device %016llx "
+				   "disable %016llx debug0 %016llx\n",
+			   args->v0.version, args->v0.device,
+			   args->v0.disable, args->v0.debug0);
 	} else
 		return ret;
 
@@ -567,8 +567,7 @@ nv_device(void *obj)
 			device = device->parent;
 	}
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!device))
-		nv_assert("BAD CAST -> NvDevice, 0x%08x\n", nv_hclass(obj));
+	BUG_ON(!device);
 #endif
 	return (void *)device;
 }

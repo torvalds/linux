@@ -14,8 +14,7 @@ static inline struct nvkm_instobj *
 nv_memobj(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_MEMOBJ_CLASS)))
-		nv_assert("BAD CAST -> NvMemObj, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_MEMOBJ_CLASS));
 #endif
 	return obj;
 }

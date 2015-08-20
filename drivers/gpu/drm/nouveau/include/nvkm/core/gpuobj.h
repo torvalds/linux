@@ -24,8 +24,7 @@ static inline struct nvkm_gpuobj *
 nv_gpuobj(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(obj, NV_GPUOBJ_CLASS)))
-		nv_assert("BAD CAST -> NvGpuObj, %08x", nv_hclass(obj));
+	BUG_ON(!nv_iclass(obj, NV_GPUOBJ_CLASS));
 #endif
 	return obj;
 }

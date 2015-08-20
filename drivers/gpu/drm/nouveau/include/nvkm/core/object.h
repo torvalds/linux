@@ -1,7 +1,7 @@
 #ifndef __NVKM_OBJECT_H__
 #define __NVKM_OBJECT_H__
 #include <core/os.h>
-#include <core/printk.h>
+#include <core/debug.h>
 
 #define NV_PARENT_CLASS 0x80000000
 #define NV_NAMEDB_CLASS 0x40000000
@@ -32,8 +32,7 @@ nv_object(void *obj)
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
 	if (likely(obj)) {
 		struct nvkm_object *object = obj;
-		if (unlikely(object->_magic != NVKM_OBJECT_MAGIC))
-			nv_assert("BAD CAST -> NvObject, invalid magic");
+		BUG_ON(object->_magic != NVKM_OBJECT_MAGIC);
 	}
 #endif
 	return obj;
@@ -112,7 +111,6 @@ int  nvkm_object_ctor(struct nvkm_object *, struct nvkm_object *,
 void nvkm_object_ref(struct nvkm_object *, struct nvkm_object **);
 int  nvkm_object_inc(struct nvkm_object *);
 int  nvkm_object_dec(struct nvkm_object *, bool suspend);
-void nvkm_object_debug(void);
 
 static inline int
 nv_exec(void *obj, u32 mthd, void *data, u32 size)
@@ -138,7 +136,6 @@ static inline u8
 nv_ro08(void *obj, u64 addr)
 {
 	u8 data = nv_ofuncs(obj)->rd08(obj, addr);
-	nv_spam(obj, "nv_ro08 0x%08llx 0x%02x\n", addr, data);
 	return data;
 }
 
@@ -146,7 +143,6 @@ static inline u16
 nv_ro16(void *obj, u64 addr)
 {
 	u16 data = nv_ofuncs(obj)->rd16(obj, addr);
-	nv_spam(obj, "nv_ro16 0x%08llx 0x%04x\n", addr, data);
 	return data;
 }
 
@@ -154,28 +150,24 @@ static inline u32
 nv_ro32(void *obj, u64 addr)
 {
 	u32 data = nv_ofuncs(obj)->rd32(obj, addr);
-	nv_spam(obj, "nv_ro32 0x%08llx 0x%08x\n", addr, data);
 	return data;
 }
 
 static inline void
 nv_wo08(void *obj, u64 addr, u8 data)
 {
-	nv_spam(obj, "nv_wo08 0x%08llx 0x%02x\n", addr, data);
 	nv_ofuncs(obj)->wr08(obj, addr, data);
 }
 
 static inline void
 nv_wo16(void *obj, u64 addr, u16 data)
 {
-	nv_spam(obj, "nv_wo16 0x%08llx 0x%04x\n", addr, data);
 	nv_ofuncs(obj)->wr16(obj, addr, data);
 }
 
 static inline void
 nv_wo32(void *obj, u64 addr, u32 data)
 {
-	nv_spam(obj, "nv_wo32 0x%08llx 0x%08x\n", addr, data);
 	nv_ofuncs(obj)->wr32(obj, addr, data);
 }
 

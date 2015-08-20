@@ -39,10 +39,10 @@ nvkm_control_mthd_pstate_info(struct nvkm_object *object, void *data, u32 size)
 	struct nvkm_clk *clk = nvkm_clk(object);
 	int ret;
 
-	nv_ioctl(object, "control pstate info size %d\n", size);
+	nvif_ioctl(object, "control pstate info size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "control pstate info vers %d\n",
-			 args->v0.version);
+		nvif_ioctl(object, "control pstate info vers %d\n",
+			   args->v0.version);
 	} else
 		return ret;
 
@@ -77,11 +77,11 @@ nvkm_control_mthd_pstate_attr(struct nvkm_object *object, void *data, u32 size)
 	u32 lo, hi;
 	int ret;
 
-	nv_ioctl(object, "control pstate attr size %d\n", size);
+	nvif_ioctl(object, "control pstate attr size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "control pstate attr vers %d state %d "
-				 "index %d\n",
-			 args->v0.version, args->v0.state, args->v0.index);
+		nvif_ioctl(object, "control pstate attr vers %d state %d "
+				   "index %d\n",
+			   args->v0.version, args->v0.state, args->v0.index);
 		if (!clk)
 			return -ENODEV;
 		if (args->v0.state < NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT)
@@ -145,11 +145,11 @@ nvkm_control_mthd_pstate_user(struct nvkm_object *object, void *data, u32 size)
 	struct nvkm_clk *clk = nvkm_clk(object);
 	int ret;
 
-	nv_ioctl(object, "control pstate user size %d\n", size);
+	nvif_ioctl(object, "control pstate user size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "control pstate user vers %d ustate %d "
-				 "pwrsrc %d\n", args->v0.version,
-			 args->v0.ustate, args->v0.pwrsrc);
+		nvif_ioctl(object, "control pstate user vers %d ustate %d "
+				   "pwrsrc %d\n", args->v0.version,
+			   args->v0.ustate, args->v0.pwrsrc);
 		if (!clk)
 			return -ENODEV;
 	} else
