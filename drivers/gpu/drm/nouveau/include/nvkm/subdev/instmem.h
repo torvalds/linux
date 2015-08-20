@@ -26,6 +26,13 @@ struct nvkm_instmem {
 	u32 reserved;
 	int (*alloc)(struct nvkm_instmem *, struct nvkm_object *,
 		     u32 size, u32 align, struct nvkm_object **);
+
+	const struct nvkm_instmem_func *func;
+};
+
+struct nvkm_instmem_func {
+	u32  (*rd32)(struct nvkm_instmem *, u32 addr);
+	void (*wr32)(struct nvkm_instmem *, u32 addr, u32 data);
 };
 
 static inline struct nvkm_instmem *

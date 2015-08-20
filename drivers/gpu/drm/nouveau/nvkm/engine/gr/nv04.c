@@ -573,7 +573,7 @@ nv04_gr_mthd_bind_class(struct nvkm_object *object, u32 *args, u32 size)
 {
 	struct nvkm_instmem *imem = nvkm_instmem(object);
 	u32 inst = *(u32 *)args << 4;
-	return nv_ro32(imem, inst);
+	return imem->func->rd32(imem, inst);
 }
 
 static int

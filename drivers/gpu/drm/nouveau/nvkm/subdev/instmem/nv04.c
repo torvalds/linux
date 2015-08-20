@@ -32,17 +32,17 @@
 static u32
 nv04_instobj_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct nv04_instmem *imem = (void *)nvkm_instmem(object);
+	struct nvkm_instmem *imem = nvkm_instmem(object);
 	struct nv04_instobj *node = (void *)object;
-	return nv_ro32(imem, node->mem->offset + addr);
+	return imem->func->rd32(imem, node->mem->offset + addr);
 }
 
 static void
 nv04_instobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	struct nv04_instmem *imem = (void *)nvkm_instmem(object);
+	struct nvkm_instmem *imem = nvkm_instmem(object);
 	struct nv04_instobj *node = (void *)object;
-	nv_wo32(imem, node->mem->offset + addr, data);
+	imem->func->wr32(imem, node->mem->offset + addr, data);
 }
 
 static void
@@ -103,16 +103,14 @@ nv04_instobj_oclass = {
  *****************************************************************************/
 
 static u32
-nv04_instmem_rd32(struct nvkm_object *object, u64 addr)
+nv04_instmem_rd32(struct nvkm_instmem *imem, u32 addr)
 {
-	struct nvkm_instmem *imem = (void *)object;
 	return nvkm_rd32(imem->subdev.device, 0x700000 + addr);
 }
 
 static void
-nv04_instmem_wr32(struct nvkm_object *object, u64 addr, u32 data)
+nv04_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 {
-	struct nvkm_instmem *imem = (void *)object;
 	nvkm_wr32(imem->subdev.device, 0x700000 + addr, data);
 }
 
@@ -130,6 +128,12 @@ nv04_instmem_dtor(struct nvkm_object *object)
 	nvkm_instmem_destroy(&imem->base);
 }
 
+static const struct nvkm_instmem_func
+nv04_instmem_func = {
+	.rd32 = nv04_instmem_rd32,
+	.wr32 = nv04_instmem_wr32,
+};
+
 static int
 nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
@@ -142,6 +146,8 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	*pobject = nv_object(imem);
 	if (ret)
 		return ret;
+
+	imem->base.func = &nv04_instmem_func;
 
 	/* PRAMIN aperture maps over the end of VRAM, reserve it */
 	imem->base.reserved = 512 * 1024;
@@ -184,8 +190,6 @@ nv04_instmem_oclass = &(struct nvkm_instmem_impl) {
 		.dtor = nv04_instmem_dtor,
 		.init = _nvkm_instmem_init,
 		.fini = _nvkm_instmem_fini,
-		.rd32 = nv04_instmem_rd32,
-		.wr32 = nv04_instmem_wr32,
 	},
 	.instobj = &nv04_instobj_oclass.base,
 }.base;

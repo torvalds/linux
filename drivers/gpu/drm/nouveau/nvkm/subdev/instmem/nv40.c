@@ -31,18 +31,24 @@
  *****************************************************************************/
 
 static u32
-nv40_instmem_rd32(struct nvkm_object *object, u64 addr)
+nv40_instmem_rd32(struct nvkm_instmem *obj, u32 addr)
 {
-	struct nv04_instmem *imem = (void *)object;
+	struct nv04_instmem *imem = container_of(obj, typeof(*imem), base);
 	return ioread32_native(imem->iomem + addr);
 }
 
 static void
-nv40_instmem_wr32(struct nvkm_object *object, u64 addr, u32 data)
+nv40_instmem_wr32(struct nvkm_instmem *obj, u32 addr, u32 data)
 {
-	struct nv04_instmem *imem = (void *)object;
+	struct nv04_instmem *imem = container_of(obj, typeof(*imem), base);
 	iowrite32_native(data, imem->iomem + addr);
 }
+
+static const struct nvkm_instmem_func
+nv40_instmem_func = {
+	.rd32 = nv40_instmem_rd32,
+	.wr32 = nv40_instmem_wr32,
+};
 
 static int
 nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -57,6 +63,8 @@ nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	*pobject = nv_object(imem);
 	if (ret)
 		return ret;
+
+	imem->base.func = &nv40_instmem_func;
 
 	/* map bar */
 	if (nv_device_resource_len(device, 2))
@@ -129,8 +137,6 @@ nv40_instmem_oclass = &(struct nvkm_instmem_impl) {
 		.dtor = nv04_instmem_dtor,
 		.init = _nvkm_instmem_init,
 		.fini = _nvkm_instmem_fini,
-		.rd32 = nv40_instmem_rd32,
-		.wr32 = nv40_instmem_wr32,
 	},
 	.instobj = &nv04_instobj_oclass.base,
 }.base;
