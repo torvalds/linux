@@ -120,8 +120,10 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 		nvkm_debug(subdev, "Loading firmware to address: %010llx\n",
 			   xtensa->gpu_fw->addr);
 
+		nvkm_kmap(xtensa->gpu_fw);
 		for (i = 0; i < fw->size / 4; i++)
-			nv_wo32(xtensa->gpu_fw, i * 4, *((u32 *)fw->data + i));
+			nvkm_wo32(xtensa->gpu_fw, i * 4, *((u32 *)fw->data + i));
+		nvkm_done(xtensa->gpu_fw);
 		release_firmware(fw);
 	}
 
