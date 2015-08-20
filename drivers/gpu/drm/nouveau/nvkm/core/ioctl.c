@@ -224,10 +224,14 @@ static int
 nvkm_ioctl_rd(struct nvkm_handle *handle, void *data, u32 size)
 {
 	struct nvkm_object *object = handle->object;
-	struct nvkm_ofuncs *ofuncs = object->oclass->ofuncs;
 	union {
 		struct nvif_ioctl_rd_v0 v0;
 	} *args = data;
+	union {
+		u8  b08;
+		u16 b16;
+		u32 b32;
+	} v;
 	int ret;
 
 	nvif_ioctl(object, "rd size %d\n", size);
@@ -236,22 +240,16 @@ nvkm_ioctl_rd(struct nvkm_handle *handle, void *data, u32 size)
 			   args->v0.version, args->v0.size, args->v0.addr);
 		switch (args->v0.size) {
 		case 1:
-			if (ret = -ENODEV, ofuncs->rd08) {
-				args->v0.data = nv_ro08(object, args->v0.addr);
-				ret = 0;
-			}
+			ret = nvkm_object_rd08(object, args->v0.addr, &v.b08);
+			args->v0.data = v.b08;
 			break;
 		case 2:
-			if (ret = -ENODEV, ofuncs->rd16) {
-				args->v0.data = nv_ro16(object, args->v0.addr);
-				ret = 0;
-			}
+			ret = nvkm_object_rd16(object, args->v0.addr, &v.b16);
+			args->v0.data = v.b16;
 			break;
 		case 4:
-			if (ret = -ENODEV, ofuncs->rd32) {
-				args->v0.data = nv_ro32(object, args->v0.addr);
-				ret = 0;
-			}
+			ret = nvkm_object_rd32(object, args->v0.addr, &v.b32);
+			args->v0.data = v.b32;
 			break;
 		default:
 			ret = -EINVAL;
@@ -266,7 +264,6 @@ static int
 nvkm_ioctl_wr(struct nvkm_handle *handle, void *data, u32 size)
 {
 	struct nvkm_object *object = handle->object;
-	struct nvkm_ofuncs *ofuncs = object->oclass->ofuncs;
 	union {
 		struct nvif_ioctl_wr_v0 v0;
 	} *args = data;
@@ -278,32 +275,18 @@ nvkm_ioctl_wr(struct nvkm_handle *handle, void *data, u32 size)
 			   "wr vers %d size %d addr %016llx data %08x\n",
 			   args->v0.version, args->v0.size, args->v0.addr,
 			   args->v0.data);
-		switch (args->v0.size) {
-		case 1:
-			if (ret = -ENODEV, ofuncs->wr08) {
-				nv_wo08(object, args->v0.addr, args->v0.data);
-				ret = 0;
-			}
-			break;
-		case 2:
-			if (ret = -ENODEV, ofuncs->wr16) {
-				nv_wo16(object, args->v0.addr, args->v0.data);
-				ret = 0;
-			}
-			break;
-		case 4:
-			if (ret = -ENODEV, ofuncs->wr32) {
-				nv_wo32(object, args->v0.addr, args->v0.data);
-				ret = 0;
-			}
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+	} else
+		return ret;
+
+	switch (args->v0.size) {
+	case 1: return nvkm_object_wr08(object, args->v0.addr, args->v0.data);
+	case 2: return nvkm_object_wr16(object, args->v0.addr, args->v0.data);
+	case 4: return nvkm_object_wr32(object, args->v0.addr, args->v0.data);
+	default:
+		break;
 	}
 
-	return ret;
+	return -EINVAL;
 }
 
 static int

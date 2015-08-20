@@ -25,6 +25,75 @@
 #include <core/engine.h>
 
 int
+nvkm_object_rd08(struct nvkm_object *object, u64 addr, u8 *data)
+{
+	const struct nvkm_oclass *oclass = object->oclass;
+	if (oclass->ofuncs && oclass->ofuncs->rd08) {
+		*data = oclass->ofuncs->rd08(object, addr);
+		return 0;
+	}
+	*data = 0x00;
+	return -ENODEV;
+}
+
+int
+nvkm_object_rd16(struct nvkm_object *object, u64 addr, u16 *data)
+{
+	const struct nvkm_oclass *oclass = object->oclass;
+	if (oclass->ofuncs && oclass->ofuncs->rd16) {
+		*data = oclass->ofuncs->rd16(object, addr);
+		return 0;
+	}
+	*data = 0x0000;
+	return -ENODEV;
+}
+
+int
+nvkm_object_rd32(struct nvkm_object *object, u64 addr, u32 *data)
+{
+	const struct nvkm_oclass *oclass = object->oclass;
+	if (oclass->ofuncs && oclass->ofuncs->rd32) {
+		*data = oclass->ofuncs->rd32(object, addr);
+		return 0;
+	}
+	*data = 0x0000;
+	return -ENODEV;
+}
+
+int
+nvkm_object_wr08(struct nvkm_object *object, u64 addr, u8 data)
+{
+	const struct nvkm_oclass *oclass = object->oclass;
+	if (oclass->ofuncs && oclass->ofuncs->wr08) {
+		oclass->ofuncs->wr08(object, addr, data);
+		return 0;
+	}
+	return -ENODEV;
+}
+
+int
+nvkm_object_wr16(struct nvkm_object *object, u64 addr, u16 data)
+{
+	const struct nvkm_oclass *oclass = object->oclass;
+	if (oclass->ofuncs && oclass->ofuncs->wr16) {
+		oclass->ofuncs->wr16(object, addr, data);
+		return 0;
+	}
+	return -ENODEV;
+}
+
+int
+nvkm_object_wr32(struct nvkm_object *object, u64 addr, u32 data)
+{
+	const struct nvkm_oclass *oclass = object->oclass;
+	if (oclass->ofuncs && oclass->ofuncs->wr32) {
+		oclass->ofuncs->wr32(object, addr, data);
+		return 0;
+	}
+	return -ENODEV;
+}
+
+int
 nvkm_object_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		    struct nvkm_oclass *oclass, u32 pclass,
 		    int size, void **pobject)

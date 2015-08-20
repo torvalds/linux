@@ -26,6 +26,13 @@ struct nvkm_object {
 #endif
 };
 
+int nvkm_object_rd08(struct nvkm_object *, u64 addr, u8  *data);
+int nvkm_object_rd16(struct nvkm_object *, u64 addr, u16 *data);
+int nvkm_object_rd32(struct nvkm_object *, u64 addr, u32 *data);
+int nvkm_object_wr08(struct nvkm_object *, u64 addr, u8   data);
+int nvkm_object_wr16(struct nvkm_object *, u64 addr, u16  data);
+int nvkm_object_wr32(struct nvkm_object *, u64 addr, u32  data);
+
 static inline struct nvkm_object *
 nv_object(void *obj)
 {
