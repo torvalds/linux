@@ -97,7 +97,7 @@ nv04_sw_cclass = {
 void
 nv04_sw_intr(struct nvkm_subdev *subdev)
 {
-	nv_mask(subdev, 0x000100, 0x80000000, 0x00000000);
+	nvkm_mask(subdev->device, 0x000100, 0x80000000, 0x00000000);
 }
 
 static int

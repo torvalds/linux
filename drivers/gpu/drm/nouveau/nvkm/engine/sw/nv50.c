@@ -122,18 +122,19 @@ nv50_sw_vblsem_release(struct nvkm_notify *notify)
 	struct nv50_sw_chan *chan =
 		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
 	struct nvkm_sw *sw = (void *)nv_object(chan)->engine;
-	struct nvkm_bar *bar = nvkm_bar(sw);
+	struct nvkm_device *device = sw->engine.subdev.device;
+	struct nvkm_bar *bar = device->bar;
 
-	nv_wr32(sw, 0x001704, chan->vblank.channel);
-	nv_wr32(sw, 0x001710, 0x80000000 | chan->vblank.ctxdma);
+	nvkm_wr32(device, 0x001704, chan->vblank.channel);
+	nvkm_wr32(device, 0x001710, 0x80000000 | chan->vblank.ctxdma);
 	bar->flush(bar);
 
 	if (nv_device(sw)->chipset == 0x50) {
-		nv_wr32(sw, 0x001570, chan->vblank.offset);
-		nv_wr32(sw, 0x001574, chan->vblank.value);
+		nvkm_wr32(device, 0x001570, chan->vblank.offset);
+		nvkm_wr32(device, 0x001574, chan->vblank.value);
 	} else {
-		nv_wr32(sw, 0x060010, chan->vblank.offset);
-		nv_wr32(sw, 0x060014, chan->vblank.value);
+		nvkm_wr32(device, 0x060010, chan->vblank.offset);
+		nvkm_wr32(device, 0x060014, chan->vblank.value);
 	}
 
 	return NVKM_NOTIFY_DROP;
