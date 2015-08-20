@@ -870,7 +870,8 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 				&timings, false);
 	}
 
-	v4l2_subdev_notify_event(sd, &tc358743_ev_fmt);
+	if (sd->devnode)
+		v4l2_subdev_notify_event(sd, &tc358743_ev_fmt);
 }
 
 static void tc358743_init_interrupts(struct v4l2_subdev *sd)
