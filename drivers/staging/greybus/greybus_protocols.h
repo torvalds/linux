@@ -1031,8 +1031,8 @@ struct gb_sdio_command_request {
 	__u8	cmd_type;
 #define GB_SDIO_CMD_AC		0x00
 #define GB_SDIO_CMD_ADTC	0x01
-#define GB_SDIO_CMD_BCR		0x02
-#define GB_SDIO_CMD_BC		0x03
+#define GB_SDIO_CMD_BC		0x02
+#define GB_SDIO_CMD_BCR		0x03
 
 	__le32	cmd_arg;
 } __packed;
