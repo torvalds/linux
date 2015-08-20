@@ -275,7 +275,7 @@ __sys_trace_return:
 	b	ret_slow_syscall
 
 __sys_trace_return_nosave:
-	asm_trace_hardirqs_off save=0
+	enable_irq_notrace
 	mov	r0, sp
 	bl	syscall_trace_exit
 	b	ret_slow_syscall
