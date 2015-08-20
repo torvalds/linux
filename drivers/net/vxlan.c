@@ -519,10 +519,10 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 					  u32 data, struct gro_remcsum *grc,
 					  bool nopartial)
 {
-	size_t start, offset, plen;
+	size_t start, offset;
 
 	if (skb->remcsum_offload)
-		return NULL;
+		return vh;
 
 	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
@@ -532,17 +532,8 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 			  offsetof(struct udphdr, check) :
 			  offsetof(struct tcphdr, check));
 
-	plen = hdrlen + offset + sizeof(u16);
-
-	/* Pull checksum that will be written */
-	if (skb_gro_header_hard(skb, off + plen)) {
-		vh = skb_gro_header_slow(skb, off + plen, off);
-		if (!vh)
-			return NULL;
-	}
-
-	skb_gro_remcsum_process(skb, (void *)vh + hdrlen,
-				start, offset, grc, nopartial);
+	vh = skb_gro_remcsum_process(skb, (void *)vh, off, hdrlen,
+				     start, offset, grc, nopartial);
 
 	skb->remcsum_offload = 1;
 
@@ -573,7 +564,6 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 			goto out;
 	}
 
-	skb_gro_pull(skb, sizeof(struct vxlanhdr)); /* pull vxlan header */
 	skb_gro_postpull_rcsum(skb, vh, sizeof(struct vxlanhdr));
 
 	flags = ntohl(vh->vx_flags);
@@ -587,6 +577,8 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 		if (!vh)
 			goto out;
 	}
+
+	skb_gro_pull(skb, sizeof(struct vxlanhdr)); /* pull vxlan header */
 
 	flush = 0;
 
@@ -1109,6 +1101,9 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 				      size_t hdrlen, u32 data, bool nopartial)
 {
 	size_t start, offset, plen;
+
+	if (skb->remcsum_offload)
+		return vh;
 
 	start = (data & VXLAN_RCO_MASK) << VXLAN_RCO_SHIFT;
 	offset = start + ((data & VXLAN_RCO_UDP) ?
