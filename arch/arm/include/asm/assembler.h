@@ -116,7 +116,7 @@
 #endif
 	.endm
 
-	.macro asm_trace_hardirqs_on_cond, cond
+	.macro asm_trace_hardirqs_on, cond=al
 #if defined(CONFIG_TRACE_IRQFLAGS)
 	/*
 	 * actually the registers should be pushed and pop'd conditionally, but
@@ -126,10 +126,6 @@
 	bl\cond	trace_hardirqs_on
 	ldmia	sp!, {r0-r3, ip, lr}
 #endif
-	.endm
-
-	.macro asm_trace_hardirqs_on
-	asm_trace_hardirqs_on_cond al
 	.endm
 
 	.macro disable_irq
@@ -173,7 +169,7 @@
 
 	.macro restore_irqs, oldcpsr
 	tst	\oldcpsr, #PSR_I_BIT
-	asm_trace_hardirqs_on_cond eq
+	asm_trace_hardirqs_on cond=eq
 	restore_irqs_notrace \oldcpsr
 	.endm
 
