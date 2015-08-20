@@ -1061,51 +1061,6 @@ static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
 	}
 }
 
-/*
- * ibx_digital_port_connected - is the specified port connected?
- * @dev_priv: i915 private structure
- * @port: the port to test
- *
- * Returns true if @port is connected, false otherwise.
- */
-bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
-				struct intel_digital_port *port)
-{
-	u32 bit;
-
-	if (HAS_PCH_IBX(dev_priv->dev)) {
-		switch (port->port) {
-		case PORT_B:
-			bit = SDE_PORTB_HOTPLUG;
-			break;
-		case PORT_C:
-			bit = SDE_PORTC_HOTPLUG;
-			break;
-		case PORT_D:
-			bit = SDE_PORTD_HOTPLUG;
-			break;
-		default:
-			return true;
-		}
-	} else {
-		switch (port->port) {
-		case PORT_B:
-			bit = SDE_PORTB_HOTPLUG_CPT;
-			break;
-		case PORT_C:
-			bit = SDE_PORTC_HOTPLUG_CPT;
-			break;
-		case PORT_D:
-			bit = SDE_PORTD_HOTPLUG_CPT;
-			break;
-		default:
-			return true;
-		}
-	}
-
-	return I915_READ(SDEISR) & bit;
-}
-
 static const char *state_string(bool enabled)
 {
 	return enabled ? "on" : "off";

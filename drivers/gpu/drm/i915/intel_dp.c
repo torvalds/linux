@@ -4480,17 +4480,49 @@ edp_detect(struct intel_dp *intel_dp)
 	return status;
 }
 
-static enum drm_connector_status
-ironlake_dp_detect(struct intel_dp *intel_dp)
+/*
+ * ibx_digital_port_connected - is the specified port connected?
+ * @dev_priv: i915 private structure
+ * @port: the port to test
+ *
+ * Returns true if @port is connected, false otherwise.
+ */
+static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	u32 bit;
 
-	if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
-		return connector_status_disconnected;
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		switch (port->port) {
+		case PORT_B:
+			bit = SDE_PORTB_HOTPLUG;
+			break;
+		case PORT_C:
+			bit = SDE_PORTC_HOTPLUG;
+			break;
+		case PORT_D:
+			bit = SDE_PORTD_HOTPLUG;
+			break;
+		default:
+			return true;
+		}
+	} else {
+		switch (port->port) {
+		case PORT_B:
+			bit = SDE_PORTB_HOTPLUG_CPT;
+			break;
+		case PORT_C:
+			bit = SDE_PORTC_HOTPLUG_CPT;
+			break;
+		case PORT_D:
+			bit = SDE_PORTD_HOTPLUG_CPT;
+			break;
+		default:
+			return true;
+		}
+	}
 
-	return intel_dp_detect_dpcd(intel_dp);
+	return I915_READ(SDEISR) & bit;
 }
 
 static int g4x_digital_port_connected(struct drm_device *dev,
@@ -4532,6 +4564,19 @@ static int g4x_digital_port_connected(struct drm_device *dev,
 	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) == 0)
 		return 0;
 	return 1;
+}
+
+static enum drm_connector_status
+ironlake_dp_detect(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+
+	if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+		return connector_status_disconnected;
+
+	return intel_dp_detect_dpcd(intel_dp);
 }
 
 static enum drm_connector_status
