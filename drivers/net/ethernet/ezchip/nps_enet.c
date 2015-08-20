@@ -150,6 +150,9 @@ static void nps_enet_tx_handler(struct net_device *ndev)
 	if (!priv->tx_packet_sent || tx_ctrl.ct)
 		return;
 
+	/* Ack Tx ctrl register */
+	nps_enet_reg_set(priv, NPS_ENET_REG_TX_CTL, 0);
+
 	/* Check Tx transmit error */
 	if (unlikely(tx_ctrl.et)) {
 		ndev->stats.tx_errors++;
