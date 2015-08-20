@@ -5,7 +5,7 @@
 #define MXM_SANITISE_DCB 0x00000001
 
 struct nvkm_mxm {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	u32 action;
 	u8 *mxms;
 };
@@ -19,9 +19,9 @@ nvkm_mxm(void *obj)
 #define nvkm_mxm_create(p,e,o,d)                                            \
 	nvkm_mxm_create_((p), (e), (o), sizeof(**d), (void **)d)
 #define nvkm_mxm_init(p)                                                    \
-	nvkm_subdev_init(&(p)->base)
+	nvkm_subdev_init(&(p)->subdev)
 #define nvkm_mxm_fini(p,s)                                                  \
-	nvkm_subdev_fini(&(p)->base, (s))
+	nvkm_subdev_fini(&(p)->subdev, (s))
 int  nvkm_mxm_create_(struct nvkm_object *, struct nvkm_object *,
 			 struct nvkm_oclass *, int, void **);
 void nvkm_mxm_destroy(struct nvkm_mxm *);
