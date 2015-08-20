@@ -117,7 +117,7 @@ nv50_devinit_init(struct nvkm_object *object)
 	 * the vbios engineers didn't make the scripts just work...
 	 */
 	if (init->base.post && ibus)
-		nv_ofuncs(ibus)->init(nv_object(ibus));
+		nvkm_object_init(&ibus->object);
 
 	ret = nvkm_devinit_init(&init->base);
 	if (ret)

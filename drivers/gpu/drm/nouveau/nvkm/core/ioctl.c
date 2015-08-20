@@ -152,6 +152,8 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	if (ret)
 		goto fail_ctor;
 
+	object->handle = _handle;
+
 	ret = nvkm_object_inc(object);
 	if (ret)
 		goto fail_init;
@@ -205,7 +207,6 @@ static int
 nvkm_ioctl_mthd(struct nvkm_handle *handle, void *data, u32 size)
 {
 	struct nvkm_object *object = handle->object;
-	struct nvkm_ofuncs *ofuncs = object->oclass->ofuncs;
 	union {
 		struct nvif_ioctl_mthd_v0 v0;
 	} *args = data;
@@ -215,8 +216,7 @@ nvkm_ioctl_mthd(struct nvkm_handle *handle, void *data, u32 size)
 	if (nvif_unpack(args->v0, 0, 0, true)) {
 		nvif_ioctl(object, "mthd vers %d mthd %02x\n",
 			   args->v0.version, args->v0.method);
-		if (ret = -ENODEV, ofuncs->mthd)
-			ret = ofuncs->mthd(object, args->v0.method, data, size);
+		ret = nvkm_object_mthd(object, args->v0.method, data, size);
 	}
 
 	return ret;
@@ -296,7 +296,6 @@ static int
 nvkm_ioctl_map(struct nvkm_handle *handle, void *data, u32 size)
 {
 	struct nvkm_object *object = handle->object;
-	struct nvkm_ofuncs *ofuncs = object->oclass->ofuncs;
 	union {
 		struct nvif_ioctl_map_v0 v0;
 	} *args = data;
@@ -305,10 +304,8 @@ nvkm_ioctl_map(struct nvkm_handle *handle, void *data, u32 size)
 	nvif_ioctl(object, "map size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(object, "map vers %d\n", args->v0.version);
-		if (ret = -ENODEV, ofuncs->map) {
-			ret = ofuncs->map(object, &args->v0.handle,
-						  &args->v0.length);
-		}
+		ret = nvkm_object_map(object, &args->v0.handle,
+					      &args->v0.length);
 	}
 
 	return ret;
@@ -335,7 +332,6 @@ static int
 nvkm_ioctl_ntfy_new(struct nvkm_handle *handle, void *data, u32 size)
 {
 	struct nvkm_object *object = handle->object;
-	struct nvkm_ofuncs *ofuncs = object->oclass->ofuncs;
 	union {
 		struct nvif_ioctl_ntfy_new_v0 v0;
 	} *args = data;
@@ -346,8 +342,7 @@ nvkm_ioctl_ntfy_new(struct nvkm_handle *handle, void *data, u32 size)
 	if (nvif_unpack(args->v0, 0, 0, true)) {
 		nvif_ioctl(object, "ntfy new vers %d event %02x\n",
 			   args->v0.version, args->v0.event);
-		if (ret = -ENODEV, ofuncs->ntfy)
-			ret = ofuncs->ntfy(object, args->v0.event, &event);
+		ret = nvkm_object_ntfy(object, args->v0.event, &event);
 		if (ret == 0) {
 			ret = nvkm_client_notify_new(object, event, data, size);
 			if (ret >= 0) {

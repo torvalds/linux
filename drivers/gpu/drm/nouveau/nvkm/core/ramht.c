@@ -102,7 +102,7 @@ nvkm_ramht_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
 	int ret;
 
 	ret = nvkm_gpuobj_create(parent, parent->engine ?
-				 &parent->engine->subdev.object : parent, /* <nv50 ramht */
+				 &parent->engine->subdev.object : NULL, /* <nv50 ramht */
 				 &nvkm_ramht_oclass, 0, pargpu, size,
 				 align, NVOBJ_FLAG_ZERO_ALLOC, &ramht);
 	*pramht = ramht;

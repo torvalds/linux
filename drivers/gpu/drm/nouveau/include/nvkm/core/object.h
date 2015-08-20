@@ -2,6 +2,8 @@
 #define __NVKM_OBJECT_H__
 #include <core/os.h>
 #include <core/debug.h>
+struct nvkm_event;
+struct nvkm_gpuobj;
 
 #define NV_PARENT_CLASS 0x80000000
 #define NV_NAMEDB_CLASS 0x40000000
@@ -13,10 +15,14 @@
 #define NV_ENGCTX_CLASS 0x01000000
 
 struct nvkm_object {
+	const struct nvkm_object_func *func;
+	struct nvkm_client *client;
+	struct nvkm_engine *engine;
+	u32 oclass_name;
+	u32 handle;
+	struct nvkm_object *parent;
 	struct nvkm_oclass *oclass;
 	u32 pclass;
-	struct nvkm_object *parent;
-	struct nvkm_engine *engine;
 	atomic_t refcount;
 	atomic_t usecount;
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
@@ -26,12 +32,44 @@ struct nvkm_object {
 #endif
 };
 
+struct nvkm_object_func {
+	void *(*dtor)(struct nvkm_object *);
+	int (*init)(struct nvkm_object *);
+	int (*fini)(struct nvkm_object *, bool suspend);
+	int (*mthd)(struct nvkm_object *, u32 mthd, void *data, u32 size);
+	int (*ntfy)(struct nvkm_object *, u32 mthd, struct nvkm_event **);
+	int (*map)(struct nvkm_object *, u64 *addr, u32 *size);
+	int (*rd08)(struct nvkm_object *, u64 addr, u8 *data);
+	int (*rd16)(struct nvkm_object *, u64 addr, u16 *data);
+	int (*rd32)(struct nvkm_object *, u64 addr, u32 *data);
+	int (*wr08)(struct nvkm_object *, u64 addr, u8 data);
+	int (*wr16)(struct nvkm_object *, u64 addr, u16 data);
+	int (*wr32)(struct nvkm_object *, u64 addr, u32 data);
+	int (*bind)(struct nvkm_object *, struct nvkm_gpuobj *, int align,
+		    struct nvkm_gpuobj **);
+	int (*sclass)(struct nvkm_object *, int index, struct nvkm_oclass *);
+};
+
+void nvkm_object_ctor(const struct nvkm_object_func *,
+		      const struct nvkm_oclass *, struct nvkm_object *);
+int nvkm_object_new_(const struct nvkm_object_func *,
+		     const struct nvkm_oclass *, void *data, u32 size,
+		     struct nvkm_object **);
+int nvkm_object_new(const struct nvkm_oclass *, void *data, u32 size,
+		    struct nvkm_object **);
+int nvkm_object_init(struct nvkm_object *);
+int nvkm_object_fini(struct nvkm_object *, bool suspend);
+int nvkm_object_mthd(struct nvkm_object *, u32 mthd, void *data, u32 size);
+int nvkm_object_ntfy(struct nvkm_object *, u32 mthd, struct nvkm_event **);
+int nvkm_object_map(struct nvkm_object *, u64 *addr, u32 *size);
 int nvkm_object_rd08(struct nvkm_object *, u64 addr, u8  *data);
 int nvkm_object_rd16(struct nvkm_object *, u64 addr, u16 *data);
 int nvkm_object_rd32(struct nvkm_object *, u64 addr, u32 *data);
 int nvkm_object_wr08(struct nvkm_object *, u64 addr, u8   data);
 int nvkm_object_wr16(struct nvkm_object *, u64 addr, u16  data);
 int nvkm_object_wr32(struct nvkm_object *, u64 addr, u32  data);
+int nvkm_object_bind(struct nvkm_object *, struct nvkm_gpuobj *, int align,
+		     struct nvkm_gpuobj **);
 
 static inline struct nvkm_object *
 nv_object(void *obj)
@@ -59,6 +97,15 @@ int _nvkm_object_ctor(struct nvkm_object *, struct nvkm_object *,
 
 extern struct nvkm_ofuncs nvkm_object_ofuncs;
 
+struct nvkm_sclass {
+	int minver;
+	int maxver;
+	s32 oclass;
+	const struct nvkm_object_func *func;
+	int (*ctor)(const struct nvkm_oclass *, void *data, u32 size,
+		    struct nvkm_object **);
+};
+
 /* Don't allocate dynamically, because lockdep needs lock_class_keys to be in
  * ".data". */
 struct nvkm_oclass {
@@ -66,6 +113,16 @@ struct nvkm_oclass {
 	struct nvkm_ofuncs * const ofuncs;
 	struct nvkm_omthds * const omthds;
 	struct lock_class_key lock_class_key;
+
+	int (*ctor)(const struct nvkm_oclass *, void *data, u32 size,
+		    struct nvkm_object **);
+	struct nvkm_sclass base;
+	const void *priv;
+	const void *engn;
+	u64 object;
+	struct nvkm_client *client;
+	struct nvkm_object *parent;
+	struct nvkm_engine *engine;
 };
 
 #define nv_oclass(o)    nv_object(o)->oclass
@@ -87,7 +144,6 @@ struct nvkm_omthds {
 	int (*call)(struct nvkm_object *, u32, void *, u32);
 };
 
-struct nvkm_event;
 struct nvkm_ofuncs {
 	int  (*ctor)(struct nvkm_object *, struct nvkm_object *,
 		     struct nvkm_oclass *, void *data, u32 size,

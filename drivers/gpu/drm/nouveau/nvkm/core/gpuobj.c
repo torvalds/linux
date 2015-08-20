@@ -182,20 +182,20 @@ u32
 _nvkm_gpuobj_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct nvkm_gpuobj *gpuobj = nv_gpuobj(object);
-	struct nvkm_ofuncs *pfuncs = nv_ofuncs(gpuobj->parent);
+	u32 data;
 	if (gpuobj->node)
 		addr += gpuobj->node->offset;
-	return pfuncs->rd32(gpuobj->parent, addr);
+	nvkm_object_rd32(gpuobj->parent, addr, &data);
+	return data;
 }
 
 void
 _nvkm_gpuobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nvkm_gpuobj *gpuobj = nv_gpuobj(object);
-	struct nvkm_ofuncs *pfuncs = nv_ofuncs(gpuobj->parent);
 	if (gpuobj->node)
 		addr += gpuobj->node->offset;
-	pfuncs->wr32(gpuobj->parent, addr, data);
+	nvkm_object_wr32(gpuobj->parent, addr, data);
 }
 
 static struct nvkm_oclass

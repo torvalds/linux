@@ -451,8 +451,8 @@ gf100_fifo_recover_work(struct work_struct *work)
 
 	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn)) {
 		if ((engine = (void *)nvkm_engine(fifo, engn))) {
-			nv_ofuncs(engine)->fini(engine, false);
-			WARN_ON(nv_ofuncs(engine)->init(engine));
+			nvkm_object_fini(engine, false);
+			WARN_ON(nvkm_object_init(engine));
 		}
 	}
 

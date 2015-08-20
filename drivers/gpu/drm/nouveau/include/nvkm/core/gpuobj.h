@@ -68,8 +68,12 @@ void _nvkm_gpuobj_wr32(struct nvkm_object *, u64, u32);
 	struct nvkm_gpuobj *_gpuobj = (o);                                     \
 	(void)_gpuobj;                                                         \
 } while(0)
-#define nvkm_ro32(o,a)   nv_ofuncs(o)->rd32(&(o)->object, (a))
-#define nvkm_wo32(o,a,d) nv_ofuncs(o)->wr32(&(o)->object, (a), (d))
+#define nvkm_ro32(o,a) ({                                                      \
+	u32 _data;                                                             \
+	nvkm_object_rd32(&(o)->object, (a), &_data);                           \
+	_data;                                                                 \
+})
+#define nvkm_wo32(o,a,d) nvkm_object_wr32(&(o)->object, (a), (d))
 #define nvkm_mo32(o,a,m,d) ({                                                  \
 	u32 _addr = (a), _data = nvkm_ro32((o), _addr);                        \
 	nvkm_wo32((o), _addr, (_data & ~(m)) | (d));                           \
