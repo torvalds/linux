@@ -25,13 +25,13 @@
 
 #include <subdev/fb.h>
 
-struct nv50_instmem_priv {
+struct nv50_instmem {
 	struct nvkm_instmem base;
 	spinlock_t lock;
 	u64 addr;
 };
 
-struct nv50_instobj_priv {
+struct nv50_instobj {
 	struct nvkm_instobj base;
 	struct nvkm_mem *mem;
 };
@@ -43,45 +43,45 @@ struct nv50_instobj_priv {
 static u32
 nv50_instobj_rd32(struct nvkm_object *object, u64 offset)
 {
-	struct nv50_instmem_priv *priv = (void *)nvkm_instmem(object);
-	struct nv50_instobj_priv *node = (void *)object;
+	struct nv50_instmem *imem = (void *)nvkm_instmem(object);
+	struct nv50_instobj *node = (void *)object;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
 	u64 addr = (node->mem->offset + offset) & 0x000000fffffULL;
 	u32 data;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (unlikely(priv->addr != base)) {
-		nv_wr32(priv, 0x001700, base >> 16);
-		priv->addr = base;
+	spin_lock_irqsave(&imem->lock, flags);
+	if (unlikely(imem->addr != base)) {
+		nv_wr32(imem, 0x001700, base >> 16);
+		imem->addr = base;
 	}
-	data = nv_rd32(priv, 0x700000 + addr);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	data = nv_rd32(imem, 0x700000 + addr);
+	spin_unlock_irqrestore(&imem->lock, flags);
 	return data;
 }
 
 static void
 nv50_instobj_wr32(struct nvkm_object *object, u64 offset, u32 data)
 {
-	struct nv50_instmem_priv *priv = (void *)nvkm_instmem(object);
-	struct nv50_instobj_priv *node = (void *)object;
+	struct nv50_instmem *imem = (void *)nvkm_instmem(object);
+	struct nv50_instobj *node = (void *)object;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
 	u64 addr = (node->mem->offset + offset) & 0x000000fffffULL;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (unlikely(priv->addr != base)) {
-		nv_wr32(priv, 0x001700, base >> 16);
-		priv->addr = base;
+	spin_lock_irqsave(&imem->lock, flags);
+	if (unlikely(imem->addr != base)) {
+		nv_wr32(imem, 0x001700, base >> 16);
+		imem->addr = base;
 	}
-	nv_wr32(priv, 0x700000 + addr, data);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	nv_wr32(imem, 0x700000 + addr, data);
+	spin_unlock_irqrestore(&imem->lock, flags);
 }
 
 static void
 nv50_instobj_dtor(struct nvkm_object *object)
 {
-	struct nv50_instobj_priv *node = (void *)object;
+	struct nv50_instobj *node = (void *)object;
 	struct nvkm_fb *fb = nvkm_fb(object);
 	fb->ram->put(fb, &node->mem);
 	nvkm_instobj_destroy(&node->base);
@@ -94,7 +94,7 @@ nv50_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_instobj_args *args = data;
-	struct nv50_instobj_priv *node;
+	struct nv50_instobj *node;
 	int ret;
 
 	args->size  = max((args->size  + 4095) & ~4095, (u32)4096);
@@ -134,9 +134,9 @@ nv50_instobj_oclass = {
 static int
 nv50_instmem_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv50_instmem_priv *priv = (void *)object;
-	priv->addr = ~0ULL;
-	return nvkm_instmem_fini(&priv->base, suspend);
+	struct nv50_instmem *imem = (void *)object;
+	imem->addr = ~0ULL;
+	return nvkm_instmem_fini(&imem->base, suspend);
 }
 
 static int
@@ -144,15 +144,15 @@ nv50_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nv50_instmem_priv *priv;
+	struct nv50_instmem *imem;
 	int ret;
 
-	ret = nvkm_instmem_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
+	*pobject = nv_object(imem);
 	if (ret)
 		return ret;
 
-	spin_lock_init(&priv->lock);
+	spin_lock_init(&imem->lock);
 	return 0;
 }
 

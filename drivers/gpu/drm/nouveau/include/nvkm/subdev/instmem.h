@@ -21,7 +21,7 @@ nv_memobj(void *obj)
 }
 
 struct nvkm_instmem {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	struct list_head list;
 
 	u32 reserved;

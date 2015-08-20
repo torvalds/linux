@@ -150,7 +150,7 @@ nv17_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv04_instmem_priv *imem = nv04_instmem(parent);
+	struct nv04_instmem *imem = nv04_instmem(parent);
 	struct nv04_fifo_priv *priv;
 	int ret;
 

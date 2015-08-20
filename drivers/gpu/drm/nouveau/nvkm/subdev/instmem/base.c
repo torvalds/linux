@@ -56,9 +56,9 @@ nvkm_instobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	mutex_lock(&imem->base.mutex);
+	mutex_lock(&imem->subdev.mutex);
 	list_add(&iobj->head, &imem->list);
-	mutex_unlock(&imem->base.mutex);
+	mutex_unlock(&imem->subdev.mutex);
 	return 0;
 }
 
@@ -70,7 +70,7 @@ static int
 nvkm_instmem_alloc(struct nvkm_instmem *imem, struct nvkm_object *parent,
 		   u32 size, u32 align, struct nvkm_object **pobject)
 {
-	struct nvkm_instmem_impl *impl = (void *)imem->base.object.oclass;
+	struct nvkm_instmem_impl *impl = (void *)imem->subdev.object.oclass;
 	struct nvkm_instobj_args args = { .size = size, .align = align };
 	return nvkm_object_ctor(parent, &parent->engine->subdev.object,
 				impl->instobj, &args, sizeof(args), pobject);
@@ -84,7 +84,7 @@ _nvkm_instmem_fini(struct nvkm_object *object, bool suspend)
 	int i, ret = 0;
 
 	if (suspend) {
-		mutex_lock(&imem->base.mutex);
+		mutex_lock(&imem->subdev.mutex);
 		list_for_each_entry(iobj, &imem->list, head) {
 			iobj->suspend = vmalloc(iobj->size);
 			if (!iobj->suspend) {
@@ -95,12 +95,12 @@ _nvkm_instmem_fini(struct nvkm_object *object, bool suspend)
 			for (i = 0; i < iobj->size; i += 4)
 				iobj->suspend[i / 4] = nv_ro32(iobj, i);
 		}
-		mutex_unlock(&imem->base.mutex);
+		mutex_unlock(&imem->subdev.mutex);
 		if (ret)
 			return ret;
 	}
 
-	return nvkm_subdev_fini(&imem->base, suspend);
+	return nvkm_subdev_fini(&imem->subdev, suspend);
 }
 
 int
@@ -110,11 +110,11 @@ _nvkm_instmem_init(struct nvkm_object *object)
 	struct nvkm_instobj *iobj;
 	int ret, i;
 
-	ret = nvkm_subdev_init(&imem->base);
+	ret = nvkm_subdev_init(&imem->subdev);
 	if (ret)
 		return ret;
 
-	mutex_lock(&imem->base.mutex);
+	mutex_lock(&imem->subdev.mutex);
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend) {
 			for (i = 0; i < iobj->size; i += 4)
@@ -123,7 +123,7 @@ _nvkm_instmem_init(struct nvkm_object *object)
 			iobj->suspend = NULL;
 		}
 	}
-	mutex_unlock(&imem->base.mutex);
+	mutex_unlock(&imem->subdev.mutex);
 	return 0;
 }
 

@@ -32,30 +32,27 @@
 static u32
 nv04_instobj_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct nv04_instmem_priv *priv = (void *)nvkm_instmem(object);
-	struct nv04_instobj_priv *node = (void *)object;
-	return nv_ro32(priv, node->mem->offset + addr);
+	struct nv04_instmem *imem = (void *)nvkm_instmem(object);
+	struct nv04_instobj *node = (void *)object;
+	return nv_ro32(imem, node->mem->offset + addr);
 }
 
 static void
 nv04_instobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	struct nv04_instmem_priv *priv = (void *)nvkm_instmem(object);
-	struct nv04_instobj_priv *node = (void *)object;
-	nv_wo32(priv, node->mem->offset + addr, data);
+	struct nv04_instmem *imem = (void *)nvkm_instmem(object);
+	struct nv04_instobj *node = (void *)object;
+	nv_wo32(imem, node->mem->offset + addr, data);
 }
 
 static void
 nv04_instobj_dtor(struct nvkm_object *object)
 {
-	struct nv04_instmem_priv *priv = (void *)nvkm_instmem(object);
-	struct nv04_instobj_priv *node = (void *)object;
-	struct nvkm_subdev *subdev = (void *)priv;
-
-	mutex_lock(&subdev->mutex);
-	nvkm_mm_free(&priv->heap, &node->mem);
-	mutex_unlock(&subdev->mutex);
-
+	struct nv04_instmem *imem = (void *)nvkm_instmem(object);
+	struct nv04_instobj *node = (void *)object;
+	mutex_lock(&imem->base.subdev.mutex);
+	nvkm_mm_free(&imem->heap, &node->mem);
+	mutex_unlock(&imem->base.subdev.mutex);
 	nvkm_instobj_destroy(&node->base);
 }
 
@@ -64,10 +61,9 @@ nv04_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nv04_instmem_priv *priv = (void *)nvkm_instmem(parent);
-	struct nv04_instobj_priv *node;
+	struct nv04_instmem *imem = (void *)nvkm_instmem(parent);
+	struct nv04_instobj *node;
 	struct nvkm_instobj_args *args = data;
-	struct nvkm_subdev *subdev = (void *)priv;
 	int ret;
 
 	if (!args->align)
@@ -78,10 +74,10 @@ nv04_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	mutex_lock(&subdev->mutex);
-	ret = nvkm_mm_head(&priv->heap, 0, 1, args->size, args->size,
+	mutex_lock(&imem->base.subdev.mutex);
+	ret = nvkm_mm_head(&imem->heap, 0, 1, args->size, args->size,
 			   args->align, &node->mem);
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&imem->base.subdev.mutex);
 	if (ret)
 		return ret;
 
@@ -121,15 +117,15 @@ nv04_instmem_wr32(struct nvkm_object *object, u64 addr, u32 data)
 void
 nv04_instmem_dtor(struct nvkm_object *object)
 {
-	struct nv04_instmem_priv *priv = (void *)object;
-	nvkm_gpuobj_ref(NULL, &priv->ramfc);
-	nvkm_gpuobj_ref(NULL, &priv->ramro);
-	nvkm_ramht_ref(NULL, &priv->ramht);
-	nvkm_gpuobj_ref(NULL, &priv->vbios);
-	nvkm_mm_fini(&priv->heap);
-	if (priv->iomem)
-		iounmap(priv->iomem);
-	nvkm_instmem_destroy(&priv->base);
+	struct nv04_instmem *imem = (void *)object;
+	nvkm_gpuobj_ref(NULL, &imem->ramfc);
+	nvkm_gpuobj_ref(NULL, &imem->ramro);
+	nvkm_ramht_ref(NULL, &imem->ramht);
+	nvkm_gpuobj_ref(NULL, &imem->vbios);
+	nvkm_mm_fini(&imem->heap);
+	if (imem->iomem)
+		iounmap(imem->iomem);
+	nvkm_instmem_destroy(&imem->base);
 }
 
 static int
@@ -137,41 +133,41 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nv04_instmem_priv *priv;
+	struct nv04_instmem *imem;
 	int ret;
 
-	ret = nvkm_instmem_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
+	*pobject = nv_object(imem);
 	if (ret)
 		return ret;
 
 	/* PRAMIN aperture maps over the end of VRAM, reserve it */
-	priv->base.reserved = 512 * 1024;
+	imem->base.reserved = 512 * 1024;
 
-	ret = nvkm_mm_init(&priv->heap, 0, priv->base.reserved, 1);
+	ret = nvkm_mm_init(&imem->heap, 0, imem->base.reserved, 1);
 	if (ret)
 		return ret;
 
 	/* 0x00000-0x10000: reserve for probable vbios image */
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x10000, 0, 0,
-			      &priv->vbios);
+	ret = nvkm_gpuobj_new(nv_object(imem), NULL, 0x10000, 0, 0,
+			      &imem->vbios);
 	if (ret)
 		return ret;
 
 	/* 0x10000-0x18000: reserve for RAMHT */
-	ret = nvkm_ramht_new(nv_object(priv), NULL, 0x08000, 0, &priv->ramht);
+	ret = nvkm_ramht_new(nv_object(imem), NULL, 0x08000, 0, &imem->ramht);
 	if (ret)
 		return ret;
 
 	/* 0x18000-0x18800: reserve for RAMFC (enough for 32 nv30 channels) */
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x00800, 0,
-			      NVOBJ_FLAG_ZERO_ALLOC, &priv->ramfc);
+	ret = nvkm_gpuobj_new(nv_object(imem), NULL, 0x00800, 0,
+			      NVOBJ_FLAG_ZERO_ALLOC, &imem->ramfc);
 	if (ret)
 		return ret;
 
 	/* 0x18800-0x18a00: reserve for RAMRO */
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x00200, 0, 0,
-			      &priv->ramro);
+	ret = nvkm_gpuobj_new(nv_object(imem), NULL, 0x00200, 0, 0,
+			      &imem->ramro);
 	if (ret)
 		return ret;
 

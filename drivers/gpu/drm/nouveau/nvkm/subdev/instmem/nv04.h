@@ -6,7 +6,7 @@
 
 extern struct nvkm_instobj_impl nv04_instobj_oclass;
 
-struct nv04_instmem_priv {
+struct nv04_instmem {
 	struct nvkm_instmem base;
 
 	void __iomem *iomem;
@@ -18,13 +18,13 @@ struct nv04_instmem_priv {
 	struct nvkm_gpuobj *ramfc;
 };
 
-static inline struct nv04_instmem_priv *
+static inline struct nv04_instmem *
 nv04_instmem(void *obj)
 {
 	return (void *)nvkm_instmem(obj);
 }
 
-struct nv04_instobj_priv {
+struct nv04_instobj {
 	struct nvkm_instobj base;
 	struct nvkm_mm_node *mem;
 };

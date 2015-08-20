@@ -36,14 +36,14 @@ struct nvkm_instmem_impl {
 #define nvkm_instmem_create(p,e,o,d)                                        \
 	nvkm_instmem_create_((p), (e), (o), sizeof(**d), (void **)d)
 #define nvkm_instmem_destroy(p)                                             \
-	nvkm_subdev_destroy(&(p)->base)
+	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_instmem_init(p) ({                                             \
-	struct nvkm_instmem *imem = (p);                                    \
-	_nvkm_instmem_init(nv_object(imem));                                \
+	struct nvkm_instmem *_imem = (p);                                    \
+	_nvkm_instmem_init(nv_object(_imem));                                \
 })
 #define nvkm_instmem_fini(p,s) ({                                           \
-	struct nvkm_instmem *imem = (p);                                    \
-	_nvkm_instmem_fini(nv_object(imem), (s));                           \
+	struct nvkm_instmem *_imem = (p);                                    \
+	_nvkm_instmem_fini(nv_object(_imem), (s));                           \
 })
 
 int nvkm_instmem_create_(struct nvkm_object *, struct nvkm_object *,
