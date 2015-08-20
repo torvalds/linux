@@ -1150,7 +1150,6 @@ void pnfs_roc_get_barrier(struct inode *ino, u32 *barrier)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
 	struct pnfs_layout_hdr *lo;
-	nfs4_stateid stateid;
 	u32 current_seqid;
 
 	spin_lock(&ino->i_lock);
@@ -1161,7 +1160,6 @@ void pnfs_roc_get_barrier(struct inode *ino, u32 *barrier)
 	 * a barrier, we choose the worst-case barrier.
 	 */
 	*barrier = current_seqid + atomic_read(&lo->plh_outstanding);
-	stateid = lo->plh_stateid;
 	spin_unlock(&ino->i_lock);
 }
 
