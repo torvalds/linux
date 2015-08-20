@@ -51,11 +51,12 @@ nvkm_xtensa_cclass = {
 	.bind = nvkm_xtensa_cclass_bind,
 };
 
-void
-_nvkm_xtensa_intr(struct nvkm_subdev *subdev)
+static void
+nvkm_xtensa_intr(struct nvkm_engine *engine)
 {
-	struct nvkm_xtensa *xtensa = (void *)subdev;
-	struct nvkm_device *device = xtensa->engine.subdev.device;
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(engine);
+	struct nvkm_subdev *subdev = &xtensa->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const u32 base = xtensa->addr;
 	u32 unk104 = nvkm_rd32(device, base + 0xd04);
 	u32 intr = nvkm_rd32(device, base + 0xc20);
@@ -68,41 +69,29 @@ _nvkm_xtensa_intr(struct nvkm_subdev *subdev)
 	intr = nvkm_rd32(device, base + 0xc20);
 	if (unk104 == 0x10001 && unk10c == 0x200 && chan && !intr) {
 		nvkm_debug(subdev, "Enabling FIFO_CTRL\n");
-		nvkm_mask(device, xtensa->addr + 0xd94, 0, xtensa->fifo_val);
+		nvkm_mask(device, xtensa->addr + 0xd94, 0, xtensa->func->fifo_val);
 	}
 }
 
-static const struct nvkm_engine_func
-nvkm_xtensa = {
-	.fifo.sclass = nvkm_xtensa_oclass_get,
-	.cclass = &nvkm_xtensa_cclass,
-};
-
-int
-nvkm_xtensa_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, u32 addr, bool enable,
-		    const char *iname, const char *fname,
-		    int length, void **pobject)
+static int
+nvkm_xtensa_fini(struct nvkm_engine *engine, bool suspend)
 {
-	struct nvkm_xtensa *xtensa;
-	int ret;
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(engine);
+	struct nvkm_device *device = xtensa->engine.subdev.device;
+	const u32 base = xtensa->addr;
 
-	ret = nvkm_engine_create_(parent, engine, oclass, enable, iname,
-				  fname, length, pobject);
-	xtensa = *pobject;
-	if (ret)
-		return ret;
+	nvkm_wr32(device, base + 0xd84, 0); /* INTR_EN */
+	nvkm_wr32(device, base + 0xd94, 0); /* FIFO_CTRL */
 
-	xtensa->engine.subdev.intr = _nvkm_xtensa_intr;
-	xtensa->engine.func = &nvkm_xtensa;
-	xtensa->addr = addr;
+	if (!suspend)
+		nvkm_memory_del(&xtensa->gpu_fw);
 	return 0;
 }
 
-int
-_nvkm_xtensa_init(struct nvkm_object *object)
+static int
+nvkm_xtensa_init(struct nvkm_engine *engine)
 {
-	struct nvkm_xtensa *xtensa = (void *)object;
+	struct nvkm_xtensa *xtensa = nvkm_xtensa(engine);
 	struct nvkm_subdev *subdev = &xtensa->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	const u32 base = xtensa->addr;
@@ -111,10 +100,6 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	int i, ret;
 	u64 addr, size;
 	u32 tmp;
-
-	ret = nvkm_engine_init_old(&xtensa->engine);
-	if (ret)
-		return ret;
 
 	if (!xtensa->gpu_fw) {
 		snprintf(name, sizeof(name), "nouveau/nv84_xuc%03x",
@@ -153,7 +138,7 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	nvkm_wr32(device, base + 0xd10, 0x1fffffff); /* ?? */
 	nvkm_wr32(device, base + 0xd08, 0x0fffffff); /* ?? */
 
-	nvkm_wr32(device, base + 0xd28, xtensa->unkd28); /* ?? */
+	nvkm_wr32(device, base + 0xd28, xtensa->func->unkd28); /* ?? */
 	nvkm_wr32(device, base + 0xc20, 0x3f); /* INTR */
 	nvkm_wr32(device, base + 0xd84, 0x3f); /* INTR_EN */
 
@@ -171,18 +156,35 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	return 0;
 }
 
-int
-_nvkm_xtensa_fini(struct nvkm_object *object, bool suspend)
+static void *
+nvkm_xtensa_dtor(struct nvkm_engine *engine)
 {
-	struct nvkm_xtensa *xtensa = (void *)object;
-	struct nvkm_device *device = xtensa->engine.subdev.device;
-	const u32 base = xtensa->addr;
+	return nvkm_xtensa(engine);
+}
 
-	nvkm_wr32(device, base + 0xd84, 0); /* INTR_EN */
-	nvkm_wr32(device, base + 0xd94, 0); /* FIFO_CTRL */
+static const struct nvkm_engine_func
+nvkm_xtensa = {
+	.dtor = nvkm_xtensa_dtor,
+	.init = nvkm_xtensa_init,
+	.fini = nvkm_xtensa_fini,
+	.intr = nvkm_xtensa_intr,
+	.fifo.sclass = nvkm_xtensa_oclass_get,
+	.cclass = &nvkm_xtensa_cclass,
+};
 
-	if (!suspend)
-		nvkm_memory_del(&xtensa->gpu_fw);
+int
+nvkm_xtensa_new_(const struct nvkm_xtensa_func *func,
+		 struct nvkm_device *device, int index, bool enable,
+		 u32 addr, struct nvkm_engine **pengine)
+{
+	struct nvkm_xtensa *xtensa;
 
-	return nvkm_engine_fini_old(&xtensa->engine, suspend);
+	if (!(xtensa = kzalloc(sizeof(*xtensa), GFP_KERNEL)))
+		return -ENOMEM;
+	xtensa->func = func;
+	xtensa->addr = addr;
+	*pengine = &xtensa->engine;
+
+	return nvkm_engine_ctor(&nvkm_xtensa, device, index, func->pmc_enable,
+				enable, &xtensa->engine);
 }

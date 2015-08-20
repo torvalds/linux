@@ -1,5 +1,5 @@
 #ifndef __NVKM_VP_H__
 #define __NVKM_VP_H__
 #include <engine/xtensa.h>
-extern struct nvkm_oclass g84_vp_oclass;
+int g84_vp_new(struct nvkm_device *, int, struct nvkm_engine **);
 #endif

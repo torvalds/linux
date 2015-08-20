@@ -897,7 +897,7 @@ nv84_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-//	.bsp = g84_bsp_new,
+	.bsp = g84_bsp_new,
 //	.cipher = g84_cipher_new,
 //	.disp = g84_disp_new,
 //	.dma = nv50_dma_new,
@@ -906,7 +906,7 @@ nv84_chipset = {
 //	.mpeg = g84_mpeg_new,
 //	.pm = g84_pm_new,
 //	.sw = nv50_sw_new,
-//	.vp = g84_vp_new,
+	.vp = g84_vp_new,
 };
 
 static const struct nvkm_device_chip
@@ -928,7 +928,7 @@ nv86_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-//	.bsp = g84_bsp_new,
+	.bsp = g84_bsp_new,
 //	.cipher = g84_cipher_new,
 //	.disp = g84_disp_new,
 //	.dma = nv50_dma_new,
@@ -937,7 +937,7 @@ nv86_chipset = {
 //	.mpeg = g84_mpeg_new,
 //	.pm = g84_pm_new,
 //	.sw = nv50_sw_new,
-//	.vp = g84_vp_new,
+	.vp = g84_vp_new,
 };
 
 static const struct nvkm_device_chip
@@ -959,7 +959,7 @@ nv92_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-//	.bsp = g84_bsp_new,
+	.bsp = g84_bsp_new,
 //	.cipher = g84_cipher_new,
 //	.disp = g84_disp_new,
 //	.dma = nv50_dma_new,
@@ -968,7 +968,7 @@ nv92_chipset = {
 //	.mpeg = g84_mpeg_new,
 //	.pm = g84_pm_new,
 //	.sw = nv50_sw_new,
-//	.vp = g84_vp_new,
+	.vp = g84_vp_new,
 };
 
 static const struct nvkm_device_chip
@@ -990,7 +990,7 @@ nv94_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-//	.bsp = g84_bsp_new,
+	.bsp = g84_bsp_new,
 //	.cipher = g84_cipher_new,
 //	.disp = g94_disp_new,
 //	.dma = nv50_dma_new,
@@ -999,7 +999,7 @@ nv94_chipset = {
 //	.mpeg = g84_mpeg_new,
 //	.pm = g84_pm_new,
 //	.sw = nv50_sw_new,
-//	.vp = g84_vp_new,
+	.vp = g84_vp_new,
 };
 
 static const struct nvkm_device_chip
@@ -1026,9 +1026,9 @@ nv96_chipset = {
 //	.sw = nv50_sw_new,
 //	.gr = nv50_gr_new,
 //	.mpeg = g84_mpeg_new,
-//	.vp = g84_vp_new,
+	.vp = g84_vp_new,
 //	.cipher = g84_cipher_new,
-//	.bsp = g84_bsp_new,
+	.bsp = g84_bsp_new,
 //	.disp = g94_disp_new,
 //	.pm = g84_pm_new,
 };
@@ -1083,7 +1083,7 @@ nva0_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-//	.bsp = g84_bsp_new,
+	.bsp = g84_bsp_new,
 //	.cipher = g84_cipher_new,
 //	.disp = gt200_disp_new,
 //	.dma = nv50_dma_new,
@@ -1092,7 +1092,7 @@ nva0_chipset = {
 //	.mpeg = g84_mpeg_new,
 //	.pm = gt200_pm_new,
 //	.sw = nv50_sw_new,
-//	.vp = g84_vp_new,
+	.vp = g84_vp_new,
 };
 
 static const struct nvkm_device_chip

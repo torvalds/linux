@@ -26,41 +26,19 @@
 #include <nvif/class.h>
 
 static const struct nvkm_xtensa_func
-g84_bsp_func = {
+g84_bsp = {
+	.pmc_enable = 0x04008000,
+	.fifo_val = 0x1111,
+	.unkd28 = 0x90044,
 	.sclass = {
 		{ -1, -1, NV74_BSP },
 		{}
 	}
 };
 
-static int
-g84_bsp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+g84_bsp_new(struct nvkm_device *device, int index, struct nvkm_engine **pengine)
 {
-	struct nvkm_xtensa *bsp;
-	int ret;
-
-	ret = nvkm_xtensa_create(parent, engine, oclass, 0x103000, true,
-				 "PBSP", "bsp", &bsp);
-	*pobject = nv_object(bsp);
-	if (ret)
-		return ret;
-
-	bsp->func = &g84_bsp_func;
-	nv_subdev(bsp)->unit = 0x04008000;
-	bsp->fifo_val = 0x1111;
-	bsp->unkd28 = 0x90044;
-	return 0;
+	return nvkm_xtensa_new_(&g84_bsp, device, index,
+				true, 0x103000, pengine);
 }
-
-struct nvkm_oclass
-g84_bsp_oclass = {
-	.handle = NV_ENGINE(BSP, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_bsp_ctor,
-		.dtor = _nvkm_xtensa_dtor,
-		.init = _nvkm_xtensa_init,
-		.fini = _nvkm_xtensa_fini,
-	},
-};

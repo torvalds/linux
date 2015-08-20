@@ -26,41 +26,19 @@
 #include <nvif/class.h>
 
 static const struct nvkm_xtensa_func
-g84_vp_func = {
+g84_vp = {
+	.pmc_enable = 0x01020000,
+	.fifo_val = 0x111,
+	.unkd28 = 0x9c544,
 	.sclass = {
 		{ -1, -1, NV74_VP2 },
 		{}
 	}
 };
 
-static int
-g84_vp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	    struct nvkm_oclass *oclass, void *data, u32 size,
-	    struct nvkm_object **pobject)
+int
+g84_vp_new(struct nvkm_device *device, int index, struct nvkm_engine **pengine)
 {
-	struct nvkm_xtensa *vp;
-	int ret;
-
-	ret = nvkm_xtensa_create(parent, engine, oclass, 0xf000, true,
-				 "PVP", "vp", &vp);
-	*pobject = nv_object(vp);
-	if (ret)
-		return ret;
-
-	vp->func = &g84_vp_func;
-	nv_subdev(vp)->unit = 0x01020000;
-	vp->fifo_val = 0x111;
-	vp->unkd28 = 0x9c544;
-	return 0;
+	return nvkm_xtensa_new_(&g84_vp, device, index,
+				true, 0x00f000, pengine);
 }
-
-struct nvkm_oclass
-g84_vp_oclass = {
-	.handle = NV_ENGINE(VP, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_vp_ctor,
-		.dtor = _nvkm_xtensa_dtor,
-		.init = _nvkm_xtensa_init,
-		.fini = _nvkm_xtensa_fini,
-	},
-};
