@@ -568,7 +568,7 @@ EXPORT_SYMBOL_GPL(media_entity_put);
  * Links management
  */
 
-static struct media_link *media_entity_add_link(struct media_entity *entity)
+static struct media_link *media_add_link(struct list_head *head)
 {
 	struct media_link *link;
 
@@ -576,7 +576,7 @@ static struct media_link *media_entity_add_link(struct media_entity *entity)
 	if (link == NULL)
 		return NULL;
 
-	list_add_tail(&link->list, &entity->links);
+	list_add_tail(&link->list, head);
 
 	return link;
 }
@@ -595,7 +595,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	BUG_ON(source_pad >= source->num_pads);
 	BUG_ON(sink_pad >= sink->num_pads);
 
-	link = media_entity_add_link(source);
+	link = media_add_link(&source->links);
 	if (link == NULL)
 		return -ENOMEM;
 
@@ -610,7 +610,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	/* Create the backlink. Backlinks are used to help graph traversal and
 	 * are not reported to userspace.
 	 */
-	backlink = media_entity_add_link(sink);
+	backlink = media_add_link(&sink->links);
 	if (backlink == NULL) {
 		__media_entity_remove_link(source, link);
 		return -ENOMEM;
