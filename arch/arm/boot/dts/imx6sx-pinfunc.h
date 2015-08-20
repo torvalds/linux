@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -70,6 +70,7 @@
 #define MX6SX_PAD_GPIO1_IO06__ENET2_MDC                           0x002C 0x0374 0x0000 0x2 0x0
 #define MX6SX_PAD_GPIO1_IO06__CSI1_MCLK                           0x002C 0x0374 0x0000 0x3 0x0
 #define MX6SX_PAD_GPIO1_IO06__UART1_RTS_B                         0x002C 0x0374 0x082C 0x4 0x0
+#define MX6SX_PAD_GPIO1_IO06__UART1_CTS_B                         0x002C 0x0374 0x0000 0x4 0x0
 #define MX6SX_PAD_GPIO1_IO06__GPIO1_IO_6                          0x002C 0x0374 0x0000 0x5 0x0
 #define MX6SX_PAD_GPIO1_IO06__SRC_ANY_PU_RESET                    0x002C 0x0374 0x0000 0x6 0x0
 #define MX6SX_PAD_GPIO1_IO06__OCOTP_CTRL_WRAPPER_FUSE_LATCHED     0x002C 0x0374 0x0000 0x7 0x0
@@ -79,6 +80,7 @@
 #define MX6SX_PAD_GPIO1_IO07__ENET2_MDIO                          0x0030 0x0378 0x0770 0x2 0x0
 #define MX6SX_PAD_GPIO1_IO07__AUDMUX_MCLK                         0x0030 0x0378 0x0000 0x3 0x0
 #define MX6SX_PAD_GPIO1_IO07__UART1_CTS_B                         0x0030 0x0378 0x0000 0x4 0x0
+#define MX6SX_PAD_GPIO1_IO07__UART1_RTS_B                         0x0030 0x0378 0x082C 0x4 0x1
 #define MX6SX_PAD_GPIO1_IO07__GPIO1_IO_7                          0x0030 0x0378 0x0000 0x5 0x0
 #define MX6SX_PAD_GPIO1_IO07__SRC_EARLY_RESET                     0x0030 0x0378 0x0000 0x6 0x0
 #define MX6SX_PAD_GPIO1_IO07__DCIC2_OUT                           0x0030 0x0378 0x0000 0x7 0x0
@@ -88,6 +90,7 @@
 #define MX6SX_PAD_GPIO1_IO08__SDMA_EXT_EVENT_0                    0x0034 0x037C 0x081C 0x2 0x0
 #define MX6SX_PAD_GPIO1_IO08__CCM_PMIC_RDY                        0x0034 0x037C 0x069C 0x3 0x1
 #define MX6SX_PAD_GPIO1_IO08__UART2_RTS_B                         0x0034 0x037C 0x0834 0x4 0x0
+#define MX6SX_PAD_GPIO1_IO08__UART2_CTS_B                         0x0034 0x037C 0x0000 0x4 0x0
 #define MX6SX_PAD_GPIO1_IO08__GPIO1_IO_8                          0x0034 0x037C 0x0000 0x5 0x0
 #define MX6SX_PAD_GPIO1_IO08__SRC_SYSTEM_RESET                    0x0034 0x037C 0x0000 0x6 0x0
 #define MX6SX_PAD_GPIO1_IO08__DCIC1_OUT                           0x0034 0x037C 0x0000 0x7 0x0
@@ -97,6 +100,7 @@
 #define MX6SX_PAD_GPIO1_IO09__SDMA_EXT_EVENT_1                    0x0038 0x0380 0x0820 0x2 0x0
 #define MX6SX_PAD_GPIO1_IO09__CCM_OUT0                            0x0038 0x0380 0x0000 0x3 0x0
 #define MX6SX_PAD_GPIO1_IO09__UART2_CTS_B                         0x0038 0x0380 0x0000 0x4 0x0
+#define MX6SX_PAD_GPIO1_IO09__UART2_RTS_B                         0x0038 0x0380 0x0834 0x4 0x1
 #define MX6SX_PAD_GPIO1_IO09__GPIO1_IO_9                          0x0038 0x0380 0x0000 0x5 0x0
 #define MX6SX_PAD_GPIO1_IO09__SRC_INT_BOOT                        0x0038 0x0380 0x0000 0x6 0x0
 #define MX6SX_PAD_GPIO1_IO09__OBSERVE_MUX_OUT_4                   0x0038 0x0380 0x0000 0x7 0x0
@@ -204,6 +208,7 @@
 #define MX6SX_PAD_CSI_DATA06__I2C4_SCL                            0x0064 0x03AC 0x07C0 0x2 0x2
 #define MX6SX_PAD_CSI_DATA06__KPP_COL_7                           0x0064 0x03AC 0x07D0 0x3 0x0
 #define MX6SX_PAD_CSI_DATA06__UART6_RTS_B                         0x0064 0x03AC 0x0854 0x4 0x0
+#define MX6SX_PAD_CSI_DATA06__UART6_CTS_B                         0x0064 0x03AC 0x0000 0x4 0x0
 #define MX6SX_PAD_CSI_DATA06__GPIO1_IO_20                         0x0064 0x03AC 0x0000 0x5 0x0
 #define MX6SX_PAD_CSI_DATA06__WEIM_DATA_17                        0x0064 0x03AC 0x0000 0x6 0x0
 #define MX6SX_PAD_CSI_DATA06__DCIC2_OUT                           0x0064 0x03AC 0x0000 0x7 0x0
@@ -214,6 +219,7 @@
 #define MX6SX_PAD_CSI_DATA07__I2C4_SDA                            0x0068 0x03B0 0x07C4 0x2 0x2
 #define MX6SX_PAD_CSI_DATA07__KPP_ROW_7                           0x0068 0x03B0 0x07DC 0x3 0x0
 #define MX6SX_PAD_CSI_DATA07__UART6_CTS_B                         0x0068 0x03B0 0x0000 0x4 0x0
+#define MX6SX_PAD_CSI_DATA07__UART6_RTS_B                         0x0068 0x03B0 0x0854 0x4 0x1
 #define MX6SX_PAD_CSI_DATA07__GPIO1_IO_21                         0x0068 0x03B0 0x0000 0x5 0x0
 #define MX6SX_PAD_CSI_DATA07__WEIM_DATA_16                        0x0068 0x03B0 0x0000 0x6 0x0
 #define MX6SX_PAD_CSI_DATA07__DCIC1_OUT                           0x0068 0x03B0 0x0000 0x7 0x0
@@ -223,6 +229,7 @@
 #define MX6SX_PAD_CSI_HSYNC__ESAI_TX0                             0x006C 0x03B4 0x0790 0x1 0x1
 #define MX6SX_PAD_CSI_HSYNC__AUDMUX_AUD6_TXD                      0x006C 0x03B4 0x0678 0x2 0x1
 #define MX6SX_PAD_CSI_HSYNC__UART4_RTS_B                          0x006C 0x03B4 0x0844 0x3 0x2
+#define MX6SX_PAD_CSI_HSYNC__UART4_CTS_B                          0x006C 0x03B4 0x0000 0x3 0x0
 #define MX6SX_PAD_CSI_HSYNC__MQS_LEFT                             0x006C 0x03B4 0x0000 0x4 0x0
 #define MX6SX_PAD_CSI_HSYNC__GPIO1_IO_22                          0x006C 0x03B4 0x0000 0x5 0x0
 #define MX6SX_PAD_CSI_HSYNC__WEIM_DATA_25                         0x006C 0x03B4 0x0000 0x6 0x0
@@ -255,6 +262,7 @@
 #define MX6SX_PAD_CSI_VSYNC__ESAI_TX5_RX0                         0x0078 0x03C0 0x07A4 0x1 0x1
 #define MX6SX_PAD_CSI_VSYNC__AUDMUX_AUD6_RXD                      0x0078 0x03C0 0x0674 0x2 0x1
 #define MX6SX_PAD_CSI_VSYNC__UART4_CTS_B                          0x0078 0x03C0 0x0000 0x3 0x0
+#define MX6SX_PAD_CSI_VSYNC__UART4_RTS_B                          0x0078 0x03C0 0x0844 0x3 0x3
 #define MX6SX_PAD_CSI_VSYNC__MQS_RIGHT                            0x0078 0x03C0 0x0000 0x4 0x0
 #define MX6SX_PAD_CSI_VSYNC__GPIO1_IO_25                          0x0078 0x03C0 0x0000 0x5 0x0
 #define MX6SX_PAD_CSI_VSYNC__WEIM_DATA_24                         0x0078 0x03C0 0x0000 0x6 0x0
@@ -343,6 +351,7 @@
 #define MX6SX_PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M                 0x009C 0x03E4 0x0000 0x1 0x0
 #define MX6SX_PAD_ENET2_RX_CLK__I2C3_SCL                          0x009C 0x03E4 0x07B8 0x2 0x1
 #define MX6SX_PAD_ENET2_RX_CLK__UART1_RTS_B                       0x009C 0x03E4 0x082C 0x3 0x2
+#define MX6SX_PAD_ENET2_RX_CLK__UART1_CTS_B                       0x009C 0x03E4 0x0000 0x3 0x0
 #define MX6SX_PAD_ENET2_RX_CLK__MLB_DATA                          0x009C 0x03E4 0x07EC 0x4 0x1
 #define MX6SX_PAD_ENET2_RX_CLK__GPIO2_IO_8                        0x009C 0x03E4 0x0000 0x5 0x0
 #define MX6SX_PAD_ENET2_RX_CLK__USB_OTG2_OC                       0x009C 0x03E4 0x085C 0x6 0x1
@@ -353,6 +362,7 @@
 #define MX6SX_PAD_ENET2_TX_CLK__ENET2_REF_CLK2                    0x00A0 0x03E8 0x076C 0x1 0x1
 #define MX6SX_PAD_ENET2_TX_CLK__I2C3_SDA                          0x00A0 0x03E8 0x07BC 0x2 0x1
 #define MX6SX_PAD_ENET2_TX_CLK__UART1_CTS_B                       0x00A0 0x03E8 0x0000 0x3 0x0
+#define MX6SX_PAD_ENET2_TX_CLK__UART1_RTS_B                       0x00A0 0x03E8 0x082C 0x3 0x3
 #define MX6SX_PAD_ENET2_TX_CLK__MLB_CLK                           0x00A0 0x03E8 0x07E8 0x4 0x1
 #define MX6SX_PAD_ENET2_TX_CLK__GPIO2_IO_9                        0x00A0 0x03E8 0x0000 0x5 0x0
 #define MX6SX_PAD_ENET2_TX_CLK__USB_OTG2_PWR                      0x00A0 0x03E8 0x0000 0x6 0x0
@@ -362,6 +372,7 @@
 #define MX6SX_PAD_KEY_COL0__KPP_COL_0                             0x00A4 0x03EC 0x0000 0x0 0x0
 #define MX6SX_PAD_KEY_COL0__USDHC3_CD_B                           0x00A4 0x03EC 0x0000 0x1 0x0
 #define MX6SX_PAD_KEY_COL0__UART6_RTS_B                           0x00A4 0x03EC 0x0854 0x2 0x2
+#define MX6SX_PAD_KEY_COL0__UART6_CTS_B                           0x00A4 0x03EC 0x0000 0x2 0x0
 #define MX6SX_PAD_KEY_COL0__ECSPI1_SCLK                           0x00A4 0x03EC 0x0710 0x3 0x0
 #define MX6SX_PAD_KEY_COL0__AUDMUX_AUD5_TXC                       0x00A4 0x03EC 0x066C 0x4 0x0
 #define MX6SX_PAD_KEY_COL0__GPIO2_IO_10                           0x00A4 0x03EC 0x0000 0x5 0x0
@@ -380,6 +391,7 @@
 #define MX6SX_PAD_KEY_COL2__KPP_COL_2                             0x00AC 0x03F4 0x0000 0x0 0x0
 #define MX6SX_PAD_KEY_COL2__USDHC4_CD_B                           0x00AC 0x03F4 0x0874 0x1 0x1
 #define MX6SX_PAD_KEY_COL2__UART5_RTS_B                           0x00AC 0x03F4 0x084C 0x2 0x2
+#define MX6SX_PAD_KEY_COL2__UART5_CTS_B                           0x00AC 0x03F4 0x0000 0x2 0x0
 #define MX6SX_PAD_KEY_COL2__CAN1_TX                               0x00AC 0x03F4 0x0000 0x3 0x0
 #define MX6SX_PAD_KEY_COL2__CANFD_TX1                             0x00AC 0x03F4 0x0000 0x4 0x0
 #define MX6SX_PAD_KEY_COL2__GPIO2_IO_12                           0x00AC 0x03F4 0x0000 0x5 0x0
@@ -405,6 +417,7 @@
 #define MX6SX_PAD_KEY_ROW0__KPP_ROW_0                             0x00B8 0x0400 0x0000 0x0 0x0
 #define MX6SX_PAD_KEY_ROW0__USDHC3_WP                             0x00B8 0x0400 0x0000 0x1 0x0
 #define MX6SX_PAD_KEY_ROW0__UART6_CTS_B                           0x00B8 0x0400 0x0000 0x2 0x0
+#define MX6SX_PAD_KEY_ROW0__UART6_RTS_B                           0x00B8 0x0400 0x0854 0x2 0x3
 #define MX6SX_PAD_KEY_ROW0__ECSPI1_MOSI                           0x00B8 0x0400 0x0718 0x3 0x0
 #define MX6SX_PAD_KEY_ROW0__AUDMUX_AUD5_TXD                       0x00B8 0x0400 0x0660 0x4 0x0
 #define MX6SX_PAD_KEY_ROW0__GPIO2_IO_15                           0x00B8 0x0400 0x0000 0x5 0x0
@@ -424,6 +437,7 @@
 #define MX6SX_PAD_KEY_ROW2__KPP_ROW_2                             0x00C0 0x0408 0x0000 0x0 0x0
 #define MX6SX_PAD_KEY_ROW2__USDHC4_WP                             0x00C0 0x0408 0x0878 0x1 0x1
 #define MX6SX_PAD_KEY_ROW2__UART5_CTS_B                           0x00C0 0x0408 0x0000 0x2 0x0
+#define MX6SX_PAD_KEY_ROW2__UART5_RTS_B                           0x00C0 0x0408 0x084C 0x2 0x3
 #define MX6SX_PAD_KEY_ROW2__CAN1_RX                               0x00C0 0x0408 0x068C 0x3 0x1
 #define MX6SX_PAD_KEY_ROW2__CANFD_RX1                             0x00C0 0x0408 0x0694 0x4 0x1
 #define MX6SX_PAD_KEY_ROW2__GPIO2_IO_17                           0x00C0 0x0408 0x0000 0x5 0x0
@@ -806,6 +820,7 @@
 #define MX6SX_PAD_NAND_DATA04__USDHC2_DATA4                       0x0160 0x04A8 0x0000 0x1 0x0
 #define MX6SX_PAD_NAND_DATA04__QSPI2_B_SS1_B                      0x0160 0x04A8 0x0000 0x2 0x0
 #define MX6SX_PAD_NAND_DATA04__UART3_RTS_B                        0x0160 0x04A8 0x083C 0x3 0x0
+#define MX6SX_PAD_NAND_DATA04__UART3_CTS_B                        0x0160 0x04A8 0x0000 0x3 0x0
 #define MX6SX_PAD_NAND_DATA04__AUDMUX_AUD4_RXFS                   0x0160 0x04A8 0x0650 0x4 0x0
 #define MX6SX_PAD_NAND_DATA04__GPIO4_IO_8                         0x0160 0x04A8 0x0000 0x5 0x0
 #define MX6SX_PAD_NAND_DATA04__WEIM_AD_4                          0x0160 0x04A8 0x0000 0x6 0x0
@@ -816,6 +831,7 @@
 #define MX6SX_PAD_NAND_DATA05__USDHC2_DATA5                       0x0164 0x04AC 0x0000 0x1 0x0
 #define MX6SX_PAD_NAND_DATA05__QSPI2_B_DQS                        0x0164 0x04AC 0x0000 0x2 0x0
 #define MX6SX_PAD_NAND_DATA05__UART3_CTS_B                        0x0164 0x04AC 0x0000 0x3 0x0
+#define MX6SX_PAD_NAND_DATA05__UART3_RTS_B                        0x0164 0x04AC 0x083C 0x3 0x1
 #define MX6SX_PAD_NAND_DATA05__AUDMUX_AUD4_RXC                    0x0164 0x04AC 0x064C 0x4 0x0
 #define MX6SX_PAD_NAND_DATA05__GPIO4_IO_9                         0x0164 0x04AC 0x0000 0x5 0x0
 #define MX6SX_PAD_NAND_DATA05__WEIM_AD_5                          0x0164 0x04AC 0x0000 0x6 0x0
@@ -958,6 +974,7 @@
 #define MX6SX_PAD_QSPI1A_SS1_B__SDMA_DEBUG_PC_3                   0x019C 0x04E4 0x0000 0x9 0x0
 #define MX6SX_PAD_QSPI1B_DATA0__QSPI1_B_DATA_0                    0x01A0 0x04E8 0x0000 0x0 0x0
 #define MX6SX_PAD_QSPI1B_DATA0__UART3_CTS_B                       0x01A0 0x04E8 0x0000 0x1 0x0
+#define MX6SX_PAD_QSPI1B_DATA0__UART3_RTS_B                       0x01A0 0x04E8 0x083C 0x1 0x4
 #define MX6SX_PAD_QSPI1B_DATA0__ECSPI3_MOSI                       0x01A0 0x04E8 0x0738 0x2 0x1
 #define MX6SX_PAD_QSPI1B_DATA0__ESAI_RX_FS                        0x01A0 0x04E8 0x0778 0x3 0x2
 #define MX6SX_PAD_QSPI1B_DATA0__CSI1_DATA_22                      0x01A0 0x04E8 0x06F4 0x4 0x1
@@ -966,6 +983,7 @@
 #define MX6SX_PAD_QSPI1B_DATA0__SIM_M_HADDR_9                     0x01A0 0x04E8 0x0000 0x7 0x0
 #define MX6SX_PAD_QSPI1B_DATA1__QSPI1_B_DATA_1                    0x01A4 0x04EC 0x0000 0x0 0x0
 #define MX6SX_PAD_QSPI1B_DATA1__UART3_RTS_B                       0x01A4 0x04EC 0x083C 0x1 0x5
+#define MX6SX_PAD_QSPI1B_DATA1__UART3_CTS_B                       0x01A4 0x04EC 0x0000 0x1 0x0
 #define MX6SX_PAD_QSPI1B_DATA1__ECSPI3_MISO                       0x01A4 0x04EC 0x0734 0x2 0x1
 #define MX6SX_PAD_QSPI1B_DATA1__ESAI_RX_CLK                       0x01A4 0x04EC 0x0788 0x3 0x2
 #define MX6SX_PAD_QSPI1B_DATA1__CSI1_DATA_21                      0x01A4 0x04EC 0x06F0 0x4 0x1
@@ -1237,6 +1255,7 @@
 #define MX6SX_PAD_SD1_DATA2__PWM3_OUT                             0x0230 0x0578 0x0000 0x2 0x0
 #define MX6SX_PAD_SD1_DATA2__GPT_COMPARE2                         0x0230 0x0578 0x0000 0x3 0x0
 #define MX6SX_PAD_SD1_DATA2__UART2_CTS_B                          0x0230 0x0578 0x0000 0x4 0x0
+#define MX6SX_PAD_SD1_DATA2__UART2_RTS_B                          0x0230 0x0578 0x0834 0x4 0x2
 #define MX6SX_PAD_SD1_DATA2__GPIO6_IO_4                           0x0230 0x0578 0x0000 0x5 0x0
 #define MX6SX_PAD_SD1_DATA2__ECSPI4_RDY                           0x0230 0x0578 0x0000 0x6 0x0
 #define MX6SX_PAD_SD1_DATA2__CCM_OUT0                             0x0230 0x0578 0x0000 0x7 0x0
@@ -1246,6 +1265,7 @@
 #define MX6SX_PAD_SD1_DATA3__AUDMUX_AUD5_RXD                      0x0234 0x057C 0x065C 0x2 0x2
 #define MX6SX_PAD_SD1_DATA3__GPT_COMPARE3                         0x0234 0x057C 0x0000 0x3 0x0
 #define MX6SX_PAD_SD1_DATA3__UART2_RTS_B                          0x0234 0x057C 0x0834 0x4 0x3
+#define MX6SX_PAD_SD1_DATA3__UART2_CTS_B                          0x0234 0x057C 0x0000 0x4 0x0
 #define MX6SX_PAD_SD1_DATA3__GPIO6_IO_5                           0x0234 0x057C 0x0000 0x5 0x0
 #define MX6SX_PAD_SD1_DATA3__ECSPI4_SS1                           0x0234 0x057C 0x0000 0x6 0x0
 #define MX6SX_PAD_SD1_DATA3__CCM_PMIC_RDY                         0x0234 0x057C 0x069C 0x7 0x2
@@ -1316,6 +1336,7 @@
 #define MX6SX_PAD_SD2_DATA3__MMDC_DEBUG_31                        0x024C 0x0594 0x0000 0x9 0x0
 #define MX6SX_PAD_SD3_CLK__USDHC3_CLK                             0x0250 0x0598 0x0000 0x0 0x0
 #define MX6SX_PAD_SD3_CLK__UART4_CTS_B                            0x0250 0x0598 0x0000 0x1 0x0
+#define MX6SX_PAD_SD3_CLK__UART4_RTS_B                            0x0250 0x0598 0x0844 0x1 0x0
 #define MX6SX_PAD_SD3_CLK__ECSPI4_SCLK                            0x0250 0x0598 0x0740 0x2 0x0
 #define MX6SX_PAD_SD3_CLK__AUDMUX_AUD6_RXFS                       0x0250 0x0598 0x0680 0x3 0x0
 #define MX6SX_PAD_SD3_CLK__LCDIF2_VSYNC                           0x0250 0x0598 0x0000 0x4 0x0
@@ -1355,6 +1376,7 @@
 #define MX6SX_PAD_SD3_DATA1__SDMA_DEBUG_EVT_CHN_LINES_1           0x025C 0x05A4 0x0000 0x9 0x0
 #define MX6SX_PAD_SD3_DATA2__USDHC3_DATA2                         0x0260 0x05A8 0x0000 0x0 0x0
 #define MX6SX_PAD_SD3_DATA2__UART4_RTS_B                          0x0260 0x05A8 0x0844 0x1 0x1
+#define MX6SX_PAD_SD3_DATA2__UART4_CTS_B                          0x0260 0x05A8 0x0000 0x1 0x0
 #define MX6SX_PAD_SD3_DATA2__ECSPI4_SS0                           0x0260 0x05A8 0x074C 0x2 0x0
 #define MX6SX_PAD_SD3_DATA2__AUDMUX_AUD6_TXFS                     0x0260 0x05A8 0x0688 0x3 0x0
 #define MX6SX_PAD_SD3_DATA2__LCDIF2_CLK                           0x0260 0x05A8 0x0000 0x4 0x0
@@ -1400,6 +1422,7 @@
 #define MX6SX_PAD_SD3_DATA6__CAN2_TX                              0x0270 0x05B8 0x0000 0x1 0x0
 #define MX6SX_PAD_SD3_DATA6__CANFD_TX2                            0x0270 0x05B8 0x0000 0x2 0x0
 #define MX6SX_PAD_SD3_DATA6__UART3_RTS_B                          0x0270 0x05B8 0x083C 0x3 0x2
+#define MX6SX_PAD_SD3_DATA6__UART3_CTS_B                          0x0270 0x05B8 0x0000 0x3 0x0
 #define MX6SX_PAD_SD3_DATA6__LCDIF2_DATA_4                        0x0270 0x05B8 0x0000 0x4 0x0
 #define MX6SX_PAD_SD3_DATA6__GPIO7_IO_8                           0x0270 0x05B8 0x0000 0x5 0x0
 #define MX6SX_PAD_SD3_DATA6__ENET1_1588_EVENT0_OUT                0x0270 0x05B8 0x0000 0x6 0x0
@@ -1410,6 +1433,7 @@
 #define MX6SX_PAD_SD3_DATA7__CAN1_RX                              0x0274 0x05BC 0x068C 0x1 0x0
 #define MX6SX_PAD_SD3_DATA7__CANFD_RX1                            0x0274 0x05BC 0x0694 0x2 0x0
 #define MX6SX_PAD_SD3_DATA7__UART3_CTS_B                          0x0274 0x05BC 0x0000 0x3 0x0
+#define MX6SX_PAD_SD3_DATA7__UART3_RTS_B                          0x0274 0x05BC 0x083C 0x3 0x3
 #define MX6SX_PAD_SD3_DATA7__LCDIF2_DATA_5                        0x0274 0x05BC 0x0000 0x4 0x0
 #define MX6SX_PAD_SD3_DATA7__GPIO7_IO_9                           0x0274 0x05BC 0x0000 0x5 0x0
 #define MX6SX_PAD_SD3_DATA7__ENET1_1588_EVENT0_IN                 0x0274 0x05BC 0x0000 0x6 0x0
@@ -1501,6 +1525,7 @@
 #define MX6SX_PAD_SD4_DATA6__USDHC4_DATA6                         0x0298 0x05E0 0x0000 0x0 0x0
 #define MX6SX_PAD_SD4_DATA6__RAWNAND_CE3_B                        0x0298 0x05E0 0x0000 0x1 0x0
 #define MX6SX_PAD_SD4_DATA6__UART5_RTS_B                          0x0298 0x05E0 0x084C 0x2 0x0
+#define MX6SX_PAD_SD4_DATA6__UART5_CTS_B                          0x0298 0x05E0 0x0000 0x2 0x0
 #define MX6SX_PAD_SD4_DATA6__ECSPI3_MISO                          0x0298 0x05E0 0x0734 0x3 0x0
 #define MX6SX_PAD_SD4_DATA6__LCDIF2_DATA_6                        0x0298 0x05E0 0x0000 0x4 0x0
 #define MX6SX_PAD_SD4_DATA6__GPIO6_IO_20                          0x0298 0x05E0 0x0000 0x5 0x0
@@ -1511,6 +1536,7 @@
 #define MX6SX_PAD_SD4_DATA7__USDHC4_DATA7                         0x029C 0x05E4 0x0000 0x0 0x0
 #define MX6SX_PAD_SD4_DATA7__RAWNAND_DATA08                       0x029C 0x05E4 0x0000 0x1 0x0
 #define MX6SX_PAD_SD4_DATA7__UART5_CTS_B                          0x029C 0x05E4 0x0000 0x2 0x0
+#define MX6SX_PAD_SD4_DATA7__UART5_RTS_B                          0x029C 0x05E4 0x084C 0x2 0x1
 #define MX6SX_PAD_SD4_DATA7__ECSPI3_SS0                           0x029C 0x05E4 0x073C 0x3 0x0
 #define MX6SX_PAD_SD4_DATA7__LCDIF2_DATA_15                       0x029C 0x05E4 0x0000 0x4 0x0
 #define MX6SX_PAD_SD4_DATA7__GPIO6_IO_21                          0x029C 0x05E4 0x0000 0x5 0x0
