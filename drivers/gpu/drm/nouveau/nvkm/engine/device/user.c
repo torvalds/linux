@@ -173,13 +173,55 @@ nvkm_udevice_map(struct nvkm_object *object, u64 *addr, u32 *size)
 	return 0;
 }
 
+static int
+nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
+{
+	struct nvkm_udevice *udev = (void *)object;
+	struct nvkm_device *device = udev->device;
+	int ret = 0;
+
+	mutex_lock(&device->mutex);
+	if (!--device->refcount) {
+		ret = nvkm_device_fini(device, suspend);
+		if (ret && suspend) {
+			device->refcount++;
+			goto done;
+		}
+	}
+
+done:
+	mutex_unlock(&device->mutex);
+	return ret;
+}
+
+static int
+nvkm_udevice_init(struct nvkm_object *object)
+{
+	struct nvkm_udevice *udev = (void *)object;
+	struct nvkm_device *device = udev->device;
+	int ret = 0;
+
+	mutex_lock(&device->mutex);
+	if (!device->refcount++) {
+		ret = nvkm_device_init(device);
+		if (ret) {
+			device->refcount--;
+			goto done;
+		}
+	}
+
+done:
+	mutex_unlock(&device->mutex);
+	return ret;
+}
+
 static struct nvkm_oclass
 nvkm_udevice_oclass_super = {
 	.handle = NV_DEVICE,
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.dtor = _nvkm_parent_dtor,
-		.init = _nvkm_parent_init,
-		.fini = _nvkm_parent_fini,
+		.init = nvkm_udevice_init,
+		.fini = nvkm_udevice_fini,
 		.mthd = nvkm_udevice_mthd,
 		.map  = nvkm_udevice_map,
 		.rd08 = nvkm_udevice_rd08,
@@ -223,8 +265,7 @@ nvkm_udevice_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			return -ENODEV;
 	}
 
-	ret = nvkm_parent_create(parent, nv_object(device), oclass, 0,
-				 nvkm_control_oclass,
+	ret = nvkm_parent_create(parent, NULL, oclass, 0, nvkm_control_oclass,
 				 (1ULL << NVDEV_ENGINE_DMAOBJ) |
 				 (1ULL << NVDEV_ENGINE_FIFO) |
 				 (1ULL << NVDEV_ENGINE_DISP) |
@@ -241,7 +282,7 @@ struct nvkm_ofuncs
 nvkm_udevice_ofuncs = {
 	.ctor = nvkm_udevice_ctor,
 	.dtor = _nvkm_parent_dtor,
-	.init = _nvkm_parent_init,
-	.fini = _nvkm_parent_fini,
+	.init = nvkm_udevice_init,
+	.fini = nvkm_udevice_fini,
 	.mthd = nvkm_udevice_mthd,
 };

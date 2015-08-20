@@ -14,10 +14,10 @@ struct nvkm_perfctr {
 
 extern struct nvkm_oclass nvkm_pm_sclass[];
 
-#include <core/engctx.h>
+#include <core/gpuobj.h>
 
 struct nvkm_perfctx {
-	struct nvkm_engctx base;
+	struct nvkm_gpuobj base;
 };
 
 extern struct nvkm_oclass nvkm_pm_cclass;

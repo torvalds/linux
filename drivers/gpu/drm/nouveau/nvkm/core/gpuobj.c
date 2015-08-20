@@ -216,7 +216,6 @@ nvkm_gpuobj_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
 		u32 size, u32 align, u32 flags,
 		struct nvkm_gpuobj **pgpuobj)
 {
-	struct nvkm_object *engine = parent;
 	struct nvkm_gpuobj_class args = {
 		.pargpu = pargpu,
 		.size = size,
@@ -224,12 +223,8 @@ nvkm_gpuobj_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
 		.flags = flags,
 	};
 
-	if (!nv_iclass(engine, NV_SUBDEV_CLASS))
-		engine = &engine->engine->subdev.object;
-	BUG_ON(engine == NULL);
-
-	return nvkm_object_ctor(parent, engine, &_nvkm_gpuobj_oclass,
-				&args, sizeof(args),
+	return nvkm_object_ctor(parent, &parent->engine->subdev.object,
+				&_nvkm_gpuobj_oclass, &args, sizeof(args),
 				(struct nvkm_object **)pgpuobj);
 }
 

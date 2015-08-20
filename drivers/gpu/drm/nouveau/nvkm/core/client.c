@@ -226,6 +226,12 @@ nvkm_client_del(struct nvkm_client **pclient)
 	}
 }
 
+static struct nvkm_oclass
+nvkm_client_sclass[] = {
+	{ NV_DEVICE, &nvkm_udevice_ofuncs },
+	{}
+};
+
 int
 nvkm_client_new(const char *name, u64 devname, const char *cfg,
 		const char *dbg, struct nvkm_client **pclient)
@@ -239,9 +245,8 @@ nvkm_client_new(const char *name, u64 devname, const char *cfg,
 		return -ENODEV;
 
 	ret = nvkm_namedb_create(NULL, NULL, &nvkm_client_oclass,
-				 NV_CLIENT_CLASS, NULL,
-				 (1ULL << NVDEV_ENGINE_DEVICE),
-				 &client);
+				 NV_CLIENT_CLASS, nvkm_client_sclass,
+				 0, &client);
 	*pclient = client;
 	if (ret)
 		return ret;

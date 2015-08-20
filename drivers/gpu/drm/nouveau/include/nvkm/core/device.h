@@ -4,7 +4,6 @@
 #include <core/event.h>
 
 enum nvkm_devidx {
-	NVDEV_ENGINE_DEVICE,
 	NVDEV_SUBDEV_VBIOS,
 
 	/* All subdevs from DEVINIT to DEVINIT_LAST will be created before
@@ -65,7 +64,10 @@ enum nvkm_devidx {
 
 struct nvkm_device {
 	struct nvkm_engine engine;
+
 	struct list_head head;
+	struct mutex mutex;
+	int refcount;
 
 	struct pci_dev *pdev;
 	struct platform_device *platformdev;
@@ -210,11 +212,15 @@ enum nv_bus_type {
 	NVKM_BUS_PLATFORM,
 };
 
+extern struct nvkm_ofuncs nvkm_udevice_ofuncs;
+
 int  nvkm_device_new(void *, enum nv_bus_type type, u64 name,
 		     const char *sname, const char *cfg, const char *dbg,
 		     bool detect, bool mmio, u64 subdev_mask,
 		     struct nvkm_device **);
 void nvkm_device_del(struct nvkm_device **);
+int  nvkm_device_init(struct nvkm_device *);
+int  nvkm_device_fini(struct nvkm_device *, bool suspend);
 
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \

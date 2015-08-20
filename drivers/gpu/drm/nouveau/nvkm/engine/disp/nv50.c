@@ -26,7 +26,7 @@
 #include "outpdp.h"
 
 #include <core/client.h>
-#include <core/engctx.h>
+#include <core/gpuobj.h>
 #include <core/enum.h>
 #include <core/handle.h>
 #include <core/ramht.h>
@@ -1292,8 +1292,8 @@ nv50_disp_data_ctor(struct nvkm_object *parent,
 		    struct nvkm_object **pobject)
 {
 	struct nv50_disp *disp = (void *)engine;
-	struct nvkm_engctx *ectx;
-	int ret = -EBUSY;
+	struct nvkm_gpuobj *gpuobj;
+	int ret;
 
 	/* no context needed for channel objects... */
 	if (nv_mclass(parent) != NV_DEVICE) {
@@ -1303,26 +1303,26 @@ nv50_disp_data_ctor(struct nvkm_object *parent,
 	}
 
 	/* allocate display hardware to client */
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, NULL,
+				 0x10000, 0x10000, NVOBJ_FLAG_HEAP,
+				 &gpuobj);
+	*pobject = nv_object(gpuobj);
 	mutex_lock(&nv_subdev(disp)->mutex);
-	if (list_empty(&nv_engine(disp)->contexts)) {
-		ret = nvkm_engctx_create(parent, engine, oclass, NULL, 0x10000,
-					 0x10000, NVOBJ_FLAG_HEAP, &ectx);
-		*pobject = nv_object(ectx);
-	}
+	if (!list_empty(&nv_engine(disp)->contexts))
+		ret = -EBUSY;
 	mutex_unlock(&nv_subdev(disp)->mutex);
 	return ret;
 }
 
 struct nvkm_oclass
 nv50_disp_cclass = {
-	.handle = NV_ENGCTX(DISP, 0x50),
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_disp_data_ctor,
-		.dtor = _nvkm_engctx_dtor,
-		.init = _nvkm_engctx_init,
-		.fini = _nvkm_engctx_fini,
-		.rd32 = _nvkm_engctx_rd32,
-		.wr32 = _nvkm_engctx_wr32,
+		.dtor = _nvkm_gpuobj_dtor,
+		.init = _nvkm_gpuobj_init,
+		.fini = _nvkm_gpuobj_fini,
+		.rd32 = _nvkm_gpuobj_rd32,
+		.wr32 = _nvkm_gpuobj_wr32,
 	},
 };
 

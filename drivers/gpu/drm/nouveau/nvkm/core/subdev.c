@@ -31,7 +31,7 @@ nvkm_subdev(void *obj, int idx)
 	struct nvkm_object *object = nv_object(obj);
 	while (object && !nv_iclass(object, NV_SUBDEV_CLASS))
 		object = object->parent;
-	if (object == NULL || nv_subidx(nv_subdev(object)) != idx)
+	if (object == NULL || !object->parent || nv_subidx(nv_subdev(object)) != idx)
 		object = nv_device(obj)->subdev[idx];
 	return object ? nv_subdev(object) : NULL;
 }

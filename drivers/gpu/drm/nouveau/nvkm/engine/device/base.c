@@ -61,13 +61,24 @@ nvkm_device_list(u64 *name, int size)
 	return nr;
 }
 
+#include <core/parent.h>
+
 struct nvkm_device *
 nv_device(void *obj)
 {
 	struct nvkm_object *device = nv_object(obj);
+
 	if (device->engine == NULL) {
-		while (device && device->parent)
+		while (device && device->parent) {
+			if (nv_mclass(device) == 0x0080) {
+				struct {
+					struct nvkm_parent base;
+					struct nvkm_device *device;
+				} *udevice = (void *)device;
+				return udevice->device;
+			}
 			device = device->parent;
+		}
 	} else {
 		device = &nv_object(obj)->engine->subdev.object;
 		if (device && device->parent)
@@ -78,12 +89,6 @@ nv_device(void *obj)
 #endif
 	return (void *)device;
 }
-
-static struct nvkm_oclass
-nvkm_device_sclass[] = {
-	{ 0x0080, &nvkm_udevice_ofuncs },
-	{}
-};
 
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
@@ -103,10 +108,9 @@ nvkm_device_event_func = {
 	.ctor = nvkm_device_event_ctor,
 };
 
-static int
-nvkm_device_fini(struct nvkm_object *object, bool suspend)
+int
+nvkm_device_fini(struct nvkm_device *device, bool suspend)
 {
-	struct nvkm_device *device = (void *)object;
 	struct nvkm_object *subdev;
 	int ret, i;
 
@@ -136,10 +140,9 @@ fail:
 	return ret;
 }
 
-static int
-nvkm_device_init(struct nvkm_object *object)
+int
+nvkm_device_init(struct nvkm_device *device)
 {
-	struct nvkm_device *device = (void *)object;
 	struct nvkm_object *subdev;
 	int ret, i = 0, c;
 
@@ -147,7 +150,7 @@ nvkm_device_init(struct nvkm_object *object)
 	if (ret)
 		goto fail;
 
-	for (i = 1, c = 1; i < NVDEV_SUBDEV_NR; i++) {
+	for (i = 0, c = 0; i < NVDEV_SUBDEV_NR; i++) {
 #define _(s,m) case s: if (device->oclass[s] && !device->subdev[s]) {          \
 		ret = nvkm_object_ctor(nv_object(device), NULL,                \
 				       device->oclass[s], NULL,  (s),          \
@@ -286,10 +289,7 @@ nv_device_get_irq(struct nvkm_device *device, bool stall)
 
 static struct nvkm_oclass
 nvkm_device_oclass = {
-	.handle = NV_ENGINE(DEVICE, 0x00),
 	.ofuncs = &(struct nvkm_ofuncs) {
-		.init = nvkm_device_init,
-		.fini = nvkm_device_fini,
 	},
 };
 
@@ -356,7 +356,6 @@ nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
 	device->name = sname;
 
 	nv_subdev(device)->debug = nvkm_dbgopt(device->dbgopt, "DEVICE");
-	nv_engine(device)->sclass = nvkm_device_sclass;
 	list_add_tail(&device->head, &nv_devices);
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
@@ -482,6 +481,8 @@ nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
 			device->oclass[i] = NULL;
 	}
 
+	atomic_set(&device->engine.subdev.object.usecount, 2);
+	mutex_init(&device->mutex);
 done:
 	mutex_unlock(&nv_devices_mutex);
 	return ret;

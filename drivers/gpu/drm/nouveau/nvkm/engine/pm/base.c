@@ -639,7 +639,7 @@ nvkm_perfctx_dtor(struct nvkm_object *object)
 	struct nvkm_perfctx *ctx = (void *)object;
 
 	mutex_lock(&nv_subdev(pm)->mutex);
-	nvkm_engctx_destroy(&ctx->base);
+	nvkm_gpuobj_destroy(&ctx->base);
 	if (pm->context == ctx)
 		pm->context = NULL;
 	mutex_unlock(&nv_subdev(pm)->mutex);
@@ -661,7 +661,7 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return 1;
 	}
 
-	ret = nvkm_engctx_create(parent, engine, oclass, NULL, 0, 0, 0, &ctx);
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, NULL, 0, 0, 0, &ctx);
 	*pobject = nv_object(ctx);
 	if (ret)
 		return ret;
@@ -678,12 +678,11 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 struct nvkm_oclass
 nvkm_pm_cclass = {
-	.handle = NV_ENGCTX(PM, 0x00),
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nvkm_perfctx_ctor,
 		.dtor = nvkm_perfctx_dtor,
-		.init = _nvkm_engctx_init,
-		.fini = _nvkm_engctx_fini,
+		.init = _nvkm_gpuobj_init,
+		.fini = _nvkm_gpuobj_fini,
 	},
 };
 
