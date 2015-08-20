@@ -94,34 +94,6 @@ amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 }
 
 /**
- * Return ture if we can push more jobs to the hw.
- */
-static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
-{
-	return atomic_read(&sched->hw_rq_count) <
-		sched->hw_submission_limit;
-}
-
-/**
- * Select next entity containing real IB submissions
-*/
-static struct amd_sched_entity *
-amd_sched_select_context(struct amd_gpu_scheduler *sched)
-{
-	struct amd_sched_entity *tmp;
-
-	if (!amd_sched_ready(sched))
-		return NULL;
-
-	/* Kernel run queue has higher priority than normal run queue*/
-	tmp = amd_sched_rq_select_entity(&sched->kernel_rq);
-	if (tmp == NULL)
-		tmp = amd_sched_rq_select_entity(&sched->sched_rq);
-
-	return tmp;
-}
-
-/**
  * Init a context entity used by scheduler when submit to HW ring.
  *
  * @sched	The pointer to the scheduler
@@ -261,6 +233,34 @@ int amd_sched_push_job(struct amd_sched_job *sched_job)
 	if ((kfifo_len(&sched_job->s_entity->job_queue) / sizeof(void *)) == 1)
 		wake_up_interruptible(&sched_job->sched->wait_queue);
 	return 0;
+}
+
+/**
+ * Return ture if we can push more jobs to the hw.
+ */
+static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
+{
+	return atomic_read(&sched->hw_rq_count) <
+		sched->hw_submission_limit;
+}
+
+/**
+ * Select next entity containing real IB submissions
+*/
+static struct amd_sched_entity *
+amd_sched_select_context(struct amd_gpu_scheduler *sched)
+{
+	struct amd_sched_entity *tmp;
+
+	if (!amd_sched_ready(sched))
+		return NULL;
+
+	/* Kernel run queue has higher priority than normal run queue*/
+	tmp = amd_sched_rq_select_entity(&sched->kernel_rq);
+	if (tmp == NULL)
+		tmp = amd_sched_rq_select_entity(&sched->sched_rq);
+
+	return tmp;
 }
 
 static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
