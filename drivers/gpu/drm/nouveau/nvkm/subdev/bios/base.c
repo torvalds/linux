@@ -171,21 +171,21 @@ nvkm_bios_dtor(struct nvkm_object *object)
 {
 	struct nvkm_bios *bios = (void *)object;
 	kfree(bios->data);
-	nvkm_subdev_destroy(&bios->base);
+	nvkm_subdev_destroy(&bios->subdev);
 }
 
 static int
 nvkm_bios_init(struct nvkm_object *object)
 {
 	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_init(&bios->base);
+	return nvkm_subdev_init(&bios->subdev);
 }
 
 static int
 nvkm_bios_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_fini(&bios->base, suspend);
+	return nvkm_subdev_fini(&bios->subdev, suspend);
 }
 
 struct nvkm_oclass

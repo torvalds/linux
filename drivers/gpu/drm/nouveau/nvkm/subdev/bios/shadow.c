@@ -206,7 +206,7 @@ nvbios_shadow(struct nvkm_bios *bios)
 		{ shadow_class, 1, &nvbios_pcirom },
 		{ shadow_class, 1, &nvbios_platform },
 		{ shadow_class }
-	}, *mthd = mthds, *best = NULL;
+	}, *mthd, *best = NULL;
 	const char *optarg;
 	char *source;
 	int optlen;

@@ -3,7 +3,7 @@
 #include <core/subdev.h>
 
 struct nvkm_bios {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	u32 size;
 	u8 *data;
 
