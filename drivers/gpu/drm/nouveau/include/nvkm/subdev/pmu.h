@@ -3,7 +3,7 @@
 #include <core/subdev.h>
 
 struct nvkm_pmu {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	struct {
 		u32 base;

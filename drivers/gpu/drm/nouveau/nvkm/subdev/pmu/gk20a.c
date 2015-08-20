@@ -35,7 +35,7 @@ struct gk20a_pmu_dvfs_data {
 	unsigned int avg_load;
 };
 
-struct gk20a_pmu_priv {
+struct gk20a_pmu {
 	struct nvkm_pmu base;
 	struct nvkm_alarm alarm;
 	struct gk20a_pmu_dvfs_data *data;
@@ -48,28 +48,28 @@ struct gk20a_pmu_dvfs_dev_status {
 };
 
 static int
-gk20a_pmu_dvfs_target(struct gk20a_pmu_priv *priv, int *state)
+gk20a_pmu_dvfs_target(struct gk20a_pmu *pmu, int *state)
 {
-	struct nvkm_clk *clk = nvkm_clk(priv);
+	struct nvkm_clk *clk = nvkm_clk(pmu);
 
 	return nvkm_clk_astate(clk, *state, 0, false);
 }
 
 static int
-gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu_priv *priv, int *state)
+gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu *pmu, int *state)
 {
-	struct nvkm_clk *clk = nvkm_clk(priv);
+	struct nvkm_clk *clk = nvkm_clk(pmu);
 
 	*state = clk->pstate;
 	return 0;
 }
 
 static int
-gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
+gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu *pmu,
 				int *state, int load)
 {
-	struct gk20a_pmu_dvfs_data *data = priv->data;
-	struct nvkm_clk *clk = nvkm_clk(priv);
+	struct gk20a_pmu_dvfs_data *data = pmu->data;
+	struct nvkm_clk *clk = nvkm_clk(pmu);
 	int cur_level, level;
 
 	/* For GK20A, the performance level is directly mapped to pstate */
@@ -84,7 +84,7 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
 		level = min(clk->state_nr - 1, level);
 	}
 
-	nv_trace(priv, "cur level = %d, new level = %d\n", cur_level, level);
+	nv_trace(pmu, "cur level = %d, new level = %d\n", cur_level, level);
 
 	*state = level;
 
@@ -95,30 +95,30 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
 }
 
 static int
-gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu_priv *priv,
+gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu *pmu,
 			      struct gk20a_pmu_dvfs_dev_status *status)
 {
-	status->busy = nv_rd32(priv, 0x10a508 + (BUSY_SLOT * 0x10));
-	status->total= nv_rd32(priv, 0x10a508 + (CLK_SLOT * 0x10));
+	status->busy = nv_rd32(pmu, 0x10a508 + (BUSY_SLOT * 0x10));
+	status->total= nv_rd32(pmu, 0x10a508 + (CLK_SLOT * 0x10));
 	return 0;
 }
 
 static void
-gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu_priv *priv)
+gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu *pmu)
 {
-	nv_wr32(priv, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
-	nv_wr32(priv, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
+	nv_wr32(pmu, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
+	nv_wr32(pmu, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
 }
 
 static void
 gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 {
-	struct gk20a_pmu_priv *priv =
-		container_of(alarm, struct gk20a_pmu_priv, alarm);
-	struct gk20a_pmu_dvfs_data *data = priv->data;
+	struct gk20a_pmu *pmu =
+		container_of(alarm, struct gk20a_pmu, alarm);
+	struct gk20a_pmu_dvfs_data *data = pmu->data;
 	struct gk20a_pmu_dvfs_dev_status status;
-	struct nvkm_clk *clk = nvkm_clk(priv);
-	struct nvkm_volt *volt = nvkm_volt(priv);
+	struct nvkm_clk *clk = nvkm_clk(pmu);
+	struct nvkm_volt *volt = nvkm_volt(pmu);
 	u32 utilization = 0;
 	int state, ret;
 
@@ -129,9 +129,9 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 	if (!clk || !volt)
 		goto resched;
 
-	ret = gk20a_pmu_dvfs_get_dev_status(priv, &status);
+	ret = gk20a_pmu_dvfs_get_dev_status(pmu, &status);
 	if (ret) {
-		nv_warn(priv, "failed to get device status\n");
+		nv_warn(pmu, "failed to get device status\n");
 		goto resched;
 	}
 
@@ -140,55 +140,53 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 
 	data->avg_load = (data->p_smooth * data->avg_load) + utilization;
 	data->avg_load /= data->p_smooth + 1;
-	nv_trace(priv, "utilization = %d %%, avg_load = %d %%\n",
+	nv_trace(pmu, "utilization = %d %%, avg_load = %d %%\n",
 			utilization, data->avg_load);
 
-	ret = gk20a_pmu_dvfs_get_cur_state(priv, &state);
+	ret = gk20a_pmu_dvfs_get_cur_state(pmu, &state);
 	if (ret) {
-		nv_warn(priv, "failed to get current state\n");
+		nv_warn(pmu, "failed to get current state\n");
 		goto resched;
 	}
 
-	if (gk20a_pmu_dvfs_get_target_state(priv, &state, data->avg_load)) {
-		nv_trace(priv, "set new state to %d\n", state);
-		gk20a_pmu_dvfs_target(priv, &state);
+	if (gk20a_pmu_dvfs_get_target_state(pmu, &state, data->avg_load)) {
+		nv_trace(pmu, "set new state to %d\n", state);
+		gk20a_pmu_dvfs_target(pmu, &state);
 	}
 
 resched:
-	gk20a_pmu_dvfs_reset_dev_status(priv);
-	nvkm_timer_alarm(priv, 100000000, alarm);
+	gk20a_pmu_dvfs_reset_dev_status(pmu);
+	nvkm_timer_alarm(pmu, 100000000, alarm);
 }
 
 static int
 gk20a_pmu_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_pmu *pmu = (void *)object;
-	struct gk20a_pmu_priv *priv = (void *)pmu;
+	struct gk20a_pmu *pmu = (void *)object;
 
-	nvkm_timer_alarm_cancel(priv, &priv->alarm);
+	nvkm_timer_alarm_cancel(pmu, &pmu->alarm);
 
-	return nvkm_subdev_fini(&pmu->base, suspend);
+	return nvkm_subdev_fini(&pmu->base.subdev, suspend);
 }
 
 static int
 gk20a_pmu_init(struct nvkm_object *object)
 {
-	struct nvkm_pmu *pmu = (void *)object;
-	struct gk20a_pmu_priv *priv = (void *)pmu;
+	struct gk20a_pmu *pmu = (void *)object;
 	int ret;
 
-	ret = nvkm_subdev_init(&pmu->base);
+	ret = nvkm_subdev_init(&pmu->base.subdev);
 	if (ret)
 		return ret;
 
-	pmu->pgob = nvkm_pmu_pgob;
+	pmu->base.pgob = nvkm_pmu_pgob;
 
 	/* init pwr perf counter */
 	nv_wr32(pmu, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
 	nv_wr32(pmu, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
 	nv_wr32(pmu, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
-	nvkm_timer_alarm(pmu, 2000000000, &priv->alarm);
+	nvkm_timer_alarm(pmu, 2000000000, &pmu->alarm);
 	return ret;
 }
 
@@ -204,17 +202,17 @@ gk20a_pmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct gk20a_pmu_priv *priv;
+	struct gk20a_pmu *pmu;
 	int ret;
 
-	ret = nvkm_pmu_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_pmu_create(parent, engine, oclass, &pmu);
+	*pobject = nv_object(pmu);
 	if (ret)
 		return ret;
 
-	priv->data = &gk20a_dvfs_data;
+	pmu->data = &gk20a_dvfs_data;
 
-	nvkm_alarm_init(&priv->alarm, gk20a_pmu_dvfs_work);
+	nvkm_alarm_init(&pmu->alarm, gk20a_pmu_dvfs_work);
 	return 0;
 }
 
