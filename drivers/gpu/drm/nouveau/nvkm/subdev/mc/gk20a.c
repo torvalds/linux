@@ -30,7 +30,6 @@ gk20a_mc = {
 	.intr_unarm = gf100_mc_intr_unarm,
 	.intr_rearm = gf100_mc_intr_rearm,
 	.intr_mask = gf100_mc_intr_mask,
-	.msi_rearm = nv40_mc_msi_rearm,
 };
 
 int

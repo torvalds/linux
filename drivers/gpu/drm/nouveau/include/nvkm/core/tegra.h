@@ -5,6 +5,7 @@
 struct nvkm_device_tegra {
 	struct nvkm_device device;
 	struct platform_device *pdev;
+	int irq;
 };
 
 int nvkm_device_tegra_new(struct platform_device *,

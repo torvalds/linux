@@ -479,7 +479,7 @@ nv40_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv04_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -505,7 +505,7 @@ nv41_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv41_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -531,7 +531,7 @@ nv42_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv41_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -557,7 +557,7 @@ nv43_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv41_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -609,7 +609,7 @@ nv45_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv04_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -661,7 +661,7 @@ nv47_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv41_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -687,7 +687,7 @@ nv49_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv41_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -739,7 +739,7 @@ nv4b_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv40_mc_new,
+	.mc = nv04_mc_new,
 	.mmu = nv41_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
@@ -765,7 +765,7 @@ nv4c_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv4c_mc_new,
+	.mc = nv44_mc_new,
 	.mmu = nv44_mmu_new,
 	.pci = nv4c_pci_new,
 	.therm = nv40_therm_new,
@@ -791,7 +791,7 @@ nv4e_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv4e_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv4c_mc_new,
+	.mc = nv44_mc_new,
 	.mmu = nv44_mmu_new,
 	.pci = nv4c_pci_new,
 	.therm = nv40_therm_new,
@@ -846,7 +846,7 @@ nv63_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv4c_mc_new,
+	.mc = nv44_mc_new,
 	.mmu = nv44_mmu_new,
 	.pci = nv4c_pci_new,
 	.therm = nv40_therm_new,
@@ -872,7 +872,7 @@ nv67_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv4c_mc_new,
+	.mc = nv44_mc_new,
 	.mmu = nv44_mmu_new,
 	.pci = nv4c_pci_new,
 	.therm = nv40_therm_new,
@@ -898,7 +898,7 @@ nv68_chipset = {
 	.gpio = nv10_gpio_new,
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
-	.mc = nv4c_mc_new,
+	.mc = nv44_mc_new,
 	.mmu = nv44_mmu_new,
 	.pci = nv4c_pci_new,
 	.therm = nv40_therm_new,
@@ -1022,7 +1022,7 @@ nv94_chipset = {
 	.gpio = g94_gpio_new,
 	.i2c = g94_i2c_new,
 	.imem = nv50_instmem_new,
-	.mc = g94_mc_new,
+	.mc = nv50_mc_new,
 	.mmu = nv50_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1054,7 +1054,7 @@ nv96_chipset = {
 	.gpio = g94_gpio_new,
 	.i2c = g94_i2c_new,
 	.imem = nv50_instmem_new,
-	.mc = g94_mc_new,
+	.mc = nv50_mc_new,
 	.mmu = nv50_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1385,7 +1385,7 @@ nvc1_chipset = {
 	.ibus = gf100_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gf100_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1420,7 +1420,7 @@ nvc3_chipset = {
 	.ibus = gf100_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gf100_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1563,7 +1563,7 @@ nvcf_chipset = {
 	.ibus = gf100_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gf100_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1598,7 +1598,7 @@ nvd7_chipset = {
 	.ibus = gf100_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gf100_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1631,7 +1631,7 @@ nvd9_chipset = {
 	.ibus = gf100_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gf100_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1666,7 +1666,7 @@ nve4_chipset = {
 	.ibus = gk104_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gk104_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1703,7 +1703,7 @@ nve6_chipset = {
 	.ibus = gk104_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gk104_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1740,7 +1740,7 @@ nve7_chipset = {
 	.ibus = gk104_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gk104_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1801,7 +1801,7 @@ nvf0_chipset = {
 	.ibus = gk104_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gk104_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -1837,7 +1837,7 @@ nvf1_chipset = {
 	.ibus = gk104_ibus_new,
 	.imem = nv50_instmem_new,
 	.ltc = gk104_ltc_new,
-	.mc = gf106_mc_new,
+	.mc = gf100_mc_new,
 	.mmu = gf100_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = nv40_pci_new,
@@ -2231,11 +2231,17 @@ nvkm_device_init(struct nvkm_device *device)
 	nvdev_trace(device, "init running...\n");
 	time = ktime_to_us(ktime_get());
 
+	if (device->func->init) {
+		ret = device->func->init(device);
+		if (ret)
+			goto fail;
+	}
+
 	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 		if ((subdev = nvkm_device_subdev(device, i))) {
 			ret = nvkm_subdev_init(subdev);
 			if (ret)
-				goto fail;
+				goto fail_subdev;
 		}
 	}
 
@@ -2245,12 +2251,13 @@ nvkm_device_init(struct nvkm_device *device)
 	nvdev_trace(device, "init completed in %lldus\n", time);
 	return 0;
 
-fail:
+fail_subdev:
 	do {
 		if ((subdev = nvkm_device_subdev(device, i)))
 			nvkm_subdev_fini(subdev, false);
 	} while (--i >= 0);
 
+fail:
 	nvdev_error(device, "init failed with %d\n", ret);
 	return ret;
 }
@@ -2282,17 +2289,6 @@ nv_device_resource_len(struct nvkm_device *device, unsigned int bar)
 		if (!res)
 			return 0;
 		return resource_size(res);
-	}
-}
-
-int
-nv_device_get_irq(struct nvkm_device *device, bool stall)
-{
-	if (nv_device_is_pci(device)) {
-		return device->pdev->irq;
-	} else {
-		return platform_get_irq_byname(device->platformdev,
-					       stall ? "stall" : "nonstall");
 	}
 }
 

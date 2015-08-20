@@ -5,13 +5,15 @@
 struct nvkm_pci {
 	const struct nvkm_pci_func *func;
 	struct nvkm_subdev subdev;
+	struct pci_dev *pdev;
+	int irq;
+	bool msi;
 };
 
 u32 nvkm_pci_rd32(struct nvkm_pci *, u16 addr);
 void nvkm_pci_wr08(struct nvkm_pci *, u16 addr, u8 data);
 void nvkm_pci_wr32(struct nvkm_pci *, u16 addr, u32 data);
 void nvkm_pci_rom_shadow(struct nvkm_pci *, bool shadow);
-void nvkm_pci_msi_rearm(struct nvkm_pci *);
 
 int nv04_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int nv40_pci_new(struct nvkm_device *, int, struct nvkm_pci **);

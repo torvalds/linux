@@ -146,6 +146,7 @@ struct nvkm_device_func {
 	struct nvkm_device_tegra *(*tegra)(struct nvkm_device *);
 	void *(*dtor)(struct nvkm_device *);
 	int (*preinit)(struct nvkm_device *);
+	int (*init)(struct nvkm_device *);
 	void (*fini)(struct nvkm_device *, bool suspend);
 };
 
@@ -246,9 +247,6 @@ nv_device_resource_start(struct nvkm_device *device, unsigned int bar);
 
 resource_size_t
 nv_device_resource_len(struct nvkm_device *device, unsigned int bar);
-
-int
-nv_device_get_irq(struct nvkm_device *device, bool stall);
 
 struct platform_device;
 

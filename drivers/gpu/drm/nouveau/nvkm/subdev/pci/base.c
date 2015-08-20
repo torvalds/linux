@@ -23,6 +23,10 @@
  */
 #include "priv.h"
 
+#include <core/option.h>
+#include <core/pci.h>
+#include <subdev/mc.h>
+
 u32
 nvkm_pci_rd32(struct nvkm_pci *pci, u16 addr)
 {
@@ -52,21 +56,62 @@ nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 	nvkm_pci_wr32(pci, 0x0050, data);
 }
 
-void
-nvkm_pci_msi_rearm(struct nvkm_pci *pci)
+static irqreturn_t
+nvkm_pci_intr(int irq, void *arg)
 {
-	pci->func->msi_rearm(pci);
+	struct nvkm_pci *pci = arg;
+	struct nvkm_mc *mc = pci->subdev.device->mc;
+	bool handled = false;
+	if (likely(mc)) {
+		nvkm_mc_intr_unarm(mc);
+		if (pci->msi)
+			pci->func->msi_rearm(pci);
+		nvkm_mc_intr(mc, &handled);
+		nvkm_mc_intr_rearm(mc);
+	}
+	return handled ? IRQ_HANDLED : IRQ_NONE;
+}
+
+static int
+nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
+{
+	struct nvkm_pci *pci = nvkm_pci(subdev);
+	if (pci->irq >= 0) {
+		free_irq(pci->irq, pci);
+		pci->irq = -1;
+	};
+	return 0;
+}
+
+static int
+nvkm_pci_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_pci *pci = nvkm_pci(subdev);
+	struct pci_dev *pdev = pci->pdev;
+	int ret;
+
+	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
+	if (ret)
+		return ret;
+
+	pci->irq = pdev->irq;
+	return ret;
 }
 
 static void *
 nvkm_pci_dtor(struct nvkm_subdev *subdev)
 {
+	struct nvkm_pci *pci = nvkm_pci(subdev);
+	if (pci->msi)
+		pci_disable_msi(pci->pdev);
 	return nvkm_pci(subdev);
 }
 
 static const struct nvkm_subdev_func
 nvkm_pci_func = {
 	.dtor = nvkm_pci_dtor,
+	.init = nvkm_pci_init,
+	.fini = nvkm_pci_fini,
 };
 
 int
@@ -74,9 +119,38 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_pci **ppci)
 {
 	struct nvkm_pci *pci;
+
 	if (!(pci = *ppci = kzalloc(sizeof(**ppci), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_pci_func, device, index, 0, &pci->subdev);
 	pci->func = func;
+	pci->pdev = device->func->pci(device)->pdev;
+	pci->irq = -1;
+
+	switch (pci->pdev->device & 0x0ff0) {
+	case 0x00f0:
+	case 0x02e0:
+		/* BR02? NFI how these would be handled yet exactly */
+		break;
+	default:
+		switch (device->chipset) {
+		case 0xaa:
+			/* reported broken, nv also disable it */
+			break;
+		default:
+			pci->msi = true;
+			break;
+		}
+	}
+
+	pci->msi = nvkm_boolopt(device->cfgopt, "NvMSI", pci->msi);
+	if (pci->msi && func->msi_rearm) {
+		pci->msi = pci_enable_msi(pci->pdev) == 0;
+		if (pci->msi)
+			nvkm_debug(&pci->subdev, "MSI enabled\n");
+	} else {
+		pci->msi = false;
+	}
+
 	return 0;
 }

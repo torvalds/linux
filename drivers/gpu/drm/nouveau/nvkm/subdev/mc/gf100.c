@@ -74,12 +74,6 @@ gf100_mc_intr_mask(struct nvkm_mc *mc)
 	return intr0 | intr1;
 }
 
-static void
-gf100_mc_msi_rearm(struct nvkm_mc *mc)
-{
-	nvkm_wr32(mc->subdev.device, 0x088704, 0x00000000);
-}
-
 void
 gf100_mc_unk260(struct nvkm_mc *mc, u32 data)
 {
@@ -93,7 +87,6 @@ gf100_mc = {
 	.intr_unarm = gf100_mc_intr_unarm,
 	.intr_rearm = gf100_mc_intr_rearm,
 	.intr_mask = gf100_mc_intr_mask,
-	.msi_rearm = gf100_mc_msi_rearm,
 	.unk260 = gf100_mc_unk260,
 };
 
