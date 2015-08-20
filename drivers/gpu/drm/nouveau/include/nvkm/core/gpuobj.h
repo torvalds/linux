@@ -60,4 +60,20 @@ int  _nvkm_gpuobj_init(struct nvkm_object *);
 int  _nvkm_gpuobj_fini(struct nvkm_object *, bool);
 u32  _nvkm_gpuobj_rd32(struct nvkm_object *, u64);
 void _nvkm_gpuobj_wr32(struct nvkm_object *, u64, u32);
+
+/* accessor macros - kmap()/done() must bracket use of the other accessor
+ * macros to guarantee correct behaviour across all chipsets
+ */
+#define nvkm_kmap(o) do {                                                      \
+	struct nvkm_gpuobj *_gpuobj = (o);                                     \
+	(void)_gpuobj;                                                         \
+} while(0)
+#define nvkm_ro32(o,a)   nv_ofuncs(o)->rd32(&(o)->object, (a))
+#define nvkm_wo32(o,a,d) nv_ofuncs(o)->wr32(&(o)->object, (a), (d))
+#define nvkm_mo32(o,a,m,d) ({                                                  \
+	u32 _addr = (a), _data = nvkm_ro32((o), _addr);                        \
+	nvkm_wo32((o), _addr, (_data & ~(m)) | (d));                           \
+	_data;                                                                 \
+})
+#define nvkm_done(o) nvkm_kmap(o)
 #endif
