@@ -87,41 +87,6 @@ struct iwl_ssid_ie {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 } __packed; /* SCAN_DIRECT_SSID_IE_API_S_VER_1 */
 
-/* How many statistics are gathered for each channel */
-#define SCAN_RESULTS_STATISTICS 1
-
-/**
- * enum iwl_scan_complete_status - status codes for scan complete notifications
- * @SCAN_COMP_STATUS_OK:  scan completed successfully
- * @SCAN_COMP_STATUS_ABORT: scan was aborted by user
- * @SCAN_COMP_STATUS_ERR_SLEEP: sending null sleep packet failed
- * @SCAN_COMP_STATUS_ERR_CHAN_TIMEOUT: timeout before channel is ready
- * @SCAN_COMP_STATUS_ERR_PROBE: sending probe request failed
- * @SCAN_COMP_STATUS_ERR_WAKEUP: sending null wakeup packet failed
- * @SCAN_COMP_STATUS_ERR_ANTENNAS: invalid antennas chosen at scan command
- * @SCAN_COMP_STATUS_ERR_INTERNAL: internal error caused scan abort
- * @SCAN_COMP_STATUS_ERR_COEX: medium was lost ot WiMax
- * @SCAN_COMP_STATUS_P2P_ACTION_OK: P2P public action frame TX was successful
- *	(not an error!)
- * @SCAN_COMP_STATUS_ITERATION_END: indicates end of one repetition the driver
- *	asked for
- * @SCAN_COMP_STATUS_ERR_ALLOC_TE: scan could not allocate time events
-*/
-enum iwl_scan_complete_status {
-	SCAN_COMP_STATUS_OK = 0x1,
-	SCAN_COMP_STATUS_ABORT = 0x2,
-	SCAN_COMP_STATUS_ERR_SLEEP = 0x3,
-	SCAN_COMP_STATUS_ERR_CHAN_TIMEOUT = 0x4,
-	SCAN_COMP_STATUS_ERR_PROBE = 0x5,
-	SCAN_COMP_STATUS_ERR_WAKEUP = 0x6,
-	SCAN_COMP_STATUS_ERR_ANTENNAS = 0x7,
-	SCAN_COMP_STATUS_ERR_INTERNAL = 0x8,
-	SCAN_COMP_STATUS_ERR_COEX = 0x9,
-	SCAN_COMP_STATUS_P2P_ACTION_OK = 0xA,
-	SCAN_COMP_STATUS_ITERATION_END = 0x0B,
-	SCAN_COMP_STATUS_ERR_ALLOC_TE = 0x0C,
-};
-
 /* scan offload */
 #define IWL_SCAN_MAX_BLACKLIST_LEN	64
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
@@ -142,71 +107,6 @@ enum scan_framework_client {
 	SCAN_CLIENT_NETDETECT		= BIT(1),
 	SCAN_CLIENT_ASSET_TRACKING	= BIT(2),
 };
-
-/**
- * struct iwl_scan_offload_cmd - SCAN_REQUEST_FIXED_PART_API_S_VER_6
- * @scan_flags:		see enum iwl_scan_flags
- * @channel_count:	channels in channel list
- * @quiet_time:		dwell time, in milliseconds, on quiet channel
- * @quiet_plcp_th:	quiet channel num of packets threshold
- * @good_CRC_th:	passive to active promotion threshold
- * @rx_chain:		RXON rx chain.
- * @max_out_time:	max TUs to be out of associated channel
- * @suspend_time:	pause scan this TUs when returning to service channel
- * @flags:		RXON flags
- * @filter_flags:	RXONfilter
- * @tx_cmd:		tx command for active scan; for 2GHz and for 5GHz.
- * @direct_scan:	list of SSIDs for directed active scan
- * @scan_type:		see enum iwl_scan_type.
- * @rep_count:		repetition count for each scheduled scan iteration.
- */
-struct iwl_scan_offload_cmd {
-	__le16 len;
-	u8 scan_flags;
-	u8 channel_count;
-	__le16 quiet_time;
-	__le16 quiet_plcp_th;
-	__le16 good_CRC_th;
-	__le16 rx_chain;
-	__le32 max_out_time;
-	__le32 suspend_time;
-	/* RX_ON_FLAGS_API_S_VER_1 */
-	__le32 flags;
-	__le32 filter_flags;
-	struct iwl_tx_cmd tx_cmd[2];
-	/* SCAN_DIRECT_SSID_IE_API_S_VER_1 */
-	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
-	__le32 scan_type;
-	__le32 rep_count;
-} __packed;
-
-enum iwl_scan_offload_channel_flags {
-	IWL_SCAN_OFFLOAD_CHANNEL_ACTIVE		= BIT(0),
-	IWL_SCAN_OFFLOAD_CHANNEL_NARROW		= BIT(22),
-	IWL_SCAN_OFFLOAD_CHANNEL_FULL		= BIT(24),
-	IWL_SCAN_OFFLOAD_CHANNEL_PARTIAL	= BIT(25),
-};
-
-/* channel configuration for struct iwl_scan_offload_cfg. Each channels needs:
- * __le32 type:	bitmap; bits 1-20 are for directed scan to i'th ssid and
- *	see enum iwl_scan_offload_channel_flags.
- * __le16 channel_number: channel number 1-13 etc.
- * __le16 iter_count: repetition count for the channel.
- * __le32 iter_interval: interval between two iterations on one channel.
- * u8 active_dwell.
- * u8 passive_dwell.
- */
-#define IWL_SCAN_CHAN_SIZE 14
-
-/**
- * iwl_scan_offload_cfg - SCAN_OFFLOAD_CONFIG_API_S
- * @scan_cmd:		scan command fixed part
- * @data:		scan channel configuration and probe request frames
- */
-struct iwl_scan_offload_cfg {
-	struct iwl_scan_offload_cmd scan_cmd;
-	u8 data[0];
-} __packed;
 
 /**
  * iwl_scan_offload_blacklist - SCAN_OFFLOAD_BLACKLIST_S
@@ -296,35 +196,6 @@ enum iwl_scan_ebs_status {
 	IWL_SCAN_EBS_CHAN_NOT_FOUND,
 	IWL_SCAN_EBS_INACTIVE,
 };
-
-/**
- * iwl_scan_offload_complete - SCAN_OFFLOAD_COMPLETE_NTF_API_S_VER_1
- * @last_schedule_line:		last schedule line executed (fast or regular)
- * @last_schedule_iteration:	last scan iteration executed before scan abort
- * @status:			enum iwl_scan_offload_compleate_status
- * @ebs_status: last EBS status, see IWL_SCAN_EBS_*
- */
-struct iwl_scan_offload_complete {
-	u8 last_schedule_line;
-	u8 last_schedule_iteration;
-	u8 status;
-	u8 ebs_status;
-} __packed;
-
-/**
- * iwl_sched_scan_results - SCAN_OFFLOAD_MATCH_FOUND_NTF_API_S_VER_1
- * @ssid_bitmap:	SSIDs indexes found in this iteration
- * @client_bitmap:	clients that are active and wait for this notification
- */
-struct iwl_sched_scan_results {
-	__le16 ssid_bitmap;
-	u8 client_bitmap;
-	u8 reserved;
-};
-
-/* Unified LMAC scan API */
-
-#define IWL_MVM_BASIC_PASSIVE_DWELL 110
 
 /**
  * iwl_scan_req_tx_cmd - SCAN_REQ_TX_CMD_API_S
@@ -550,18 +421,6 @@ struct iwl_periodic_scan_complete {
 
 /* UMAC Scan API */
 
-/**
- * struct iwl_mvm_umac_cmd_hdr - Command header for UMAC commands
- * @size:	size of the command (not including header)
- * @reserved0:	for future use and alignment
- * @ver:	API version number
- */
-struct iwl_mvm_umac_cmd_hdr {
-	__le16 size;
-	u8 reserved0;
-	u8 ver;
-} __packed;
-
 /* The maximum of either of these cannot exceed 8, because we use an
  * 8-bit mask (see IWL_MVM_SCAN_MASK in mvm.h).
  */
@@ -621,7 +480,6 @@ enum iwl_channel_flags {
 
 /**
  * struct iwl_scan_config
- * @hdr: umac command header
  * @flags:			enum scan_config_flags
  * @tx_chains:			valid_tx antenna - ANT_* definitions
  * @rx_chains:			valid_rx antenna - ANT_* definitions
@@ -639,7 +497,6 @@ enum iwl_channel_flags {
  * @channel_array:		default supported channels
  */
 struct iwl_scan_config {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -735,7 +592,6 @@ struct iwl_scan_req_umac_tail {
 
 /**
  * struct iwl_scan_req_umac
- * @hdr: umac command header
  * @flags: &enum iwl_umac_scan_flags
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
@@ -754,7 +610,6 @@ struct iwl_scan_req_umac_tail {
  *	&struct iwl_scan_req_umac_tail
  */
 struct iwl_scan_req_umac {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 flags;
 	__le32 uid;
 	__le32 ooc_priority;
@@ -776,12 +631,10 @@ struct iwl_scan_req_umac {
 
 /**
  * struct iwl_umac_scan_abort
- * @hdr: umac command header
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @flags: reserved
  */
 struct iwl_umac_scan_abort {
-	struct iwl_mvm_umac_cmd_hdr hdr;
 	__le32 uid;
 	__le32 flags;
 } __packed; /* SCAN_ABORT_CMD_UMAC_API_S_VER_1 */

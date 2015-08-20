@@ -1459,13 +1459,18 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   u64 multicast)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_chanctx *ctx;
 	u32 rfilt;
 
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
 	spin_lock_bh(&sc->chan_lock);
-	sc->cur_chan->rxfilter = *total_flags;
+	ath_for_each_chanctx(sc, ctx)
+		ctx->rxfilter = *total_flags;
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+	sc->offchannel.chan.rxfilter = *total_flags;
+#endif
 	spin_unlock_bh(&sc->chan_lock);
 
 	ath9k_ps_wakeup(sc);
@@ -2246,7 +2251,7 @@ static void ath9k_cancel_pending_offchannel(struct ath_softc *sc)
 
 		del_timer_sync(&sc->offchannel.timer);
 		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
-			ath_roc_complete(sc, true);
+			ath_roc_complete(sc, ATH_ROC_COMPLETE_ABORT);
 	}
 
 	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
@@ -2355,7 +2360,7 @@ static int ath9k_cancel_remain_on_channel(struct ieee80211_hw *hw)
 
 	if (sc->offchannel.roc_vif) {
 		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
-			ath_roc_complete(sc, true);
+			ath_roc_complete(sc, ATH_ROC_COMPLETE_CANCEL);
 	}
 
 	mutex_unlock(&sc->mutex);

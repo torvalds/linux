@@ -2029,18 +2029,6 @@ static bool iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	return false;
 }
 
-static void iwl_napi_add(struct iwl_op_mode *op_mode,
-			 struct napi_struct *napi,
-			 struct net_device *napi_dev,
-			 int (*poll)(struct napi_struct *, int),
-			 int weight)
-{
-	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-
-	netif_napi_add(napi_dev, napi, poll, weight);
-	priv->napi = napi;
-}
-
 static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
@@ -2053,7 +2041,6 @@ static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.cmd_queue_full = iwl_cmd_queue_full,
 	.nic_config = iwl_nic_config,
 	.wimax_active = iwl_wimax_active,
-	.napi_add = iwl_napi_add,
 };
 
 /*****************************************************************************
