@@ -9,7 +9,6 @@ struct nvkm_fifo_chan {
 	u64 addr;
 	u32 size;
 	u16 chid;
-	atomic_t refcnt; /* NV04_NVSW_SET_REF */
 };
 
 static inline struct nvkm_fifo_chan *

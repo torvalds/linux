@@ -65,6 +65,5 @@ u64  nvif_device_time(struct nvif_device *);
 #include <engine/sw.h>
 
 #define nvxx_fifo(a) nvkm_fifo(nvxx_device(a))
-#define nvxx_fifo_chan(a) ((struct nvkm_fifo_chan *)nvxx_object(a))
 #define nvxx_gr(a) nvkm_gr(nvxx_device(a))
 #endif

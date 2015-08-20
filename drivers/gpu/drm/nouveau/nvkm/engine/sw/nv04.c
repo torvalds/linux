@@ -22,9 +22,15 @@
  * Authors: Ben Skeggs
  */
 #include <engine/sw.h>
-#include <engine/fifo.h>
 
+#include <nvif/class.h>
 #include <nvif/ioctl.h>
+#include <nvif/unpack.h>
+
+struct nv04_sw_chan {
+	struct nvkm_sw_chan base;
+	atomic_t ref;
+};
 
 /*******************************************************************************
  * software object classes
@@ -33,9 +39,8 @@
 static int
 nv04_sw_set_ref(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	struct nvkm_object *channel = (void *)nv_engctx(object->parent);
-	struct nvkm_fifo_chan *fifo = (void *)channel->parent;
-	atomic_set(&fifo->refcnt, *(u32*)data);
+	struct nv04_sw_chan *chan = (void *)nv_engctx(object->parent);
+	atomic_set(&chan->ref, *(u32*)data);
 	return 0;
 }
 
@@ -55,9 +60,46 @@ nv04_sw_omthds[] = {
 	{}
 };
 
+static int
+nv04_sw_mthd_get_ref(struct nvkm_object *object, void *data, u32 size)
+{
+	struct nv04_sw_chan *chan = (void *)object->parent;
+	union {
+		struct nv04_nvsw_get_ref_v0 v0;
+	} *args = data;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		args->v0.ref = atomic_read(&chan->ref);
+	}
+
+	return ret;
+}
+
+static int
+nv04_sw_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
+{
+	switch (mthd) {
+	case NV04_NVSW_GET_REF:
+		return nv04_sw_mthd_get_ref(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static struct nvkm_ofuncs
+nv04_sw_ofuncs = {
+	.ctor = _nvkm_object_ctor,
+	.dtor = nvkm_object_destroy,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
+	.mthd = nv04_sw_mthd,
+};
+
 static struct nvkm_oclass
 nv04_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV04, &nvkm_object_ofuncs, nv04_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV04, &nv04_sw_ofuncs, nv04_sw_omthds },
 	{}
 };
 
@@ -70,7 +112,7 @@ nv04_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_oclass *oclass, void *data, u32 size,
 		     struct nvkm_object **pobject)
 {
-	struct nvkm_sw_chan *chan;
+	struct nv04_sw_chan *chan;
 	int ret;
 
 	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
@@ -78,6 +120,7 @@ nv04_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	atomic_set(&chan->ref, 0);
 	return 0;
 }
 
