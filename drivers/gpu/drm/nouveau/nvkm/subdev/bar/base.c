@@ -55,7 +55,7 @@ nvkm_barobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	barobj->iomem = ioremap(nv_device_resource_start(device, 3) +
 				(u32)barobj->vma.offset, mem->size << 12);
 	if (!barobj->iomem) {
-		nv_warn(bar, "PRAMIN ioremap failed\n");
+		nvkm_warn(&bar->subdev, "PRAMIN ioremap failed\n");
 		return -ENOMEM;
 	}
 
