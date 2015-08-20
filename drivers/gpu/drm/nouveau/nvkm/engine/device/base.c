@@ -32,19 +32,25 @@
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
 
-struct nvkm_device *
-nvkm_device_find(u64 name)
+static struct nvkm_device *
+nvkm_device_find_locked(u64 handle)
 {
-	struct nvkm_device *device, *match = NULL;
-	mutex_lock(&nv_devices_mutex);
+	struct nvkm_device *device;
 	list_for_each_entry(device, &nv_devices, head) {
-		if (device->handle == name) {
-			match = device;
-			break;
-		}
+		if (device->handle == handle)
+			return device;
 	}
+	return NULL;
+}
+
+struct nvkm_device *
+nvkm_device_find(u64 handle)
+{
+	struct nvkm_device *device;
+	mutex_lock(&nv_devices_mutex);
+	device = nvkm_device_find_locked(handle);
 	mutex_unlock(&nv_devices_mutex);
-	return match;
+	return device;
 }
 
 int
@@ -62,6 +68,7 @@ nvkm_device_list(u64 *name, int size)
 }
 
 #include <core/parent.h>
+#include <core/client.h>
 
 struct nvkm_device *
 nv_device(void *obj)
@@ -70,7 +77,8 @@ nv_device(void *obj)
 
 	if (device->engine == NULL) {
 		while (device && device->parent) {
-			if (nv_mclass(device) == 0x0080) {
+			if (!nv_iclass(device, NV_SUBDEV_CLASS) &&
+			    device->parent == &nvkm_client(device)->namedb.parent.object) {
 				struct {
 					struct nvkm_parent base;
 					struct nvkm_device *device;
@@ -125,6 +133,9 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 	}
 
 	ret = nvkm_acpi_fini(device, suspend);
+
+	if (device->func->fini)
+		device->func->fini(device, suspend);
 fail:
 	for (; ret && i < NVDEV_SUBDEV_NR; i++) {
 		if ((subdev = device->subdev[i])) {
@@ -141,10 +152,38 @@ fail:
 }
 
 int
+nvkm_device_preinit(struct nvkm_device *device)
+{
+	int ret;
+	s64 time;
+
+	nvdev_trace(device, "preinit running...\n");
+	time = ktime_to_us(ktime_get());
+
+	if (device->func->preinit) {
+		ret = device->func->preinit(device);
+		if (ret)
+			goto fail;
+	}
+
+	time = ktime_to_us(ktime_get()) - time;
+	nvdev_trace(device, "preinit completed in %lldus\n", time);
+	return 0;
+
+fail:
+	nvdev_error(device, "preinit failed with %d\n", ret);
+	return ret;
+}
+
+int
 nvkm_device_init(struct nvkm_device *device)
 {
 	struct nvkm_object *subdev;
 	int ret, i = 0, c;
+
+	ret = nvkm_device_preinit(device);
+	if (ret)
+		return ret;
 
 	ret = nvkm_acpi_init(device);
 	if (ret)
@@ -287,12 +326,6 @@ nv_device_get_irq(struct nvkm_device *device, bool stall)
 	}
 }
 
-static struct nvkm_oclass
-nvkm_device_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-	},
-};
-
 void
 nvkm_device_del(struct nvkm_device **pdevice)
 {
@@ -308,20 +341,28 @@ nvkm_device_del(struct nvkm_device **pdevice)
 		if (device->pri)
 			iounmap(device->pri);
 		list_del(&device->head);
+
+		if (device->func->dtor)
+			*pdevice = device->func->dtor(device);
 		mutex_unlock(&nv_devices_mutex);
 
-		nvkm_engine_destroy(&device->engine);
+		kfree(*pdevice);
 		*pdevice = NULL;
 	}
 }
 
+static const struct nvkm_engine_func
+nvkm_device_func = {
+};
+
 int
-nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
-		const char *sname, const char *cfg, const char *dbg,
-		bool detect, bool mmio, u64 subdev_mask,
-		struct nvkm_device **pdevice)
+nvkm_device_ctor(const struct nvkm_device_func *func,
+		 const struct nvkm_device_quirk *quirk,
+		 void *dev, enum nv_bus_type type, u64 handle,
+		 const char *name, const char *cfg, const char *dbg,
+		 bool detect, bool mmio, u64 subdev_mask,
+		 struct nvkm_device *device)
 {
-	struct nvkm_device *device;
 	u64 mmio_base, mmio_size;
 	u32 boot0, strap;
 	void __iomem *map;
@@ -329,17 +370,17 @@ nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
 	int i;
 
 	mutex_lock(&nv_devices_mutex);
-	list_for_each_entry(device, &nv_devices, head) {
-		if (device->handle == name)
-			goto done;
-	}
+	if (nvkm_device_find_locked(handle))
+		goto done;
 
-	ret = nvkm_engine_create(NULL, NULL, &nvkm_device_oclass, true,
-				 "DEVICE", "device", &device);
-	*pdevice = device;
+	ret = nvkm_engine_ctor(&nvkm_device_func, device, 0, 0,
+			       true, &device->engine);
+	device->engine.subdev.object.parent = NULL;
+	device->func = func;
 	if (ret)
 		goto done;
 
+	device->quirk = quirk;
 	switch (type) {
 	case NVKM_BUS_PCI:
 		device->pdev = dev;
@@ -350,12 +391,11 @@ nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
 		device->dev = &device->platformdev->dev;
 		break;
 	}
-	device->handle = name;
+	device->handle = handle;
 	device->cfgopt = cfg;
 	device->dbgopt = dbg;
-	device->name = sname;
+	device->name = name;
 
-	nv_subdev(device)->debug = nvkm_dbgopt(device->dbgopt, "DEVICE");
 	list_add_tail(&device->head, &nv_devices);
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);

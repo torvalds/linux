@@ -65,22 +65,25 @@ enum nvkm_devidx {
 struct nvkm_device {
 	struct nvkm_engine engine;
 
+	const struct nvkm_device_func *func;
+	const struct nvkm_device_quirk *quirk;
+	struct device *dev;
+	u64 handle;
+	const char *name;
+	const char *cfgopt;
+	const char *dbgopt;
+
 	struct list_head head;
 	struct mutex mutex;
 	int refcount;
 
 	struct pci_dev *pdev;
 	struct platform_device *platformdev;
-	struct device *dev;
-	u64 handle;
 
 	void __iomem *pri;
 
 	struct nvkm_event event;
 
-	const char *cfgopt;
-	const char *dbgopt;
-	const char *name;
 	const char *cname;
 	u64 disable_mask;
 
@@ -150,6 +153,17 @@ struct nvkm_device {
 	struct nouveau_platform_gpu *gpu;
 };
 
+struct nvkm_device_func {
+	struct nvkm_device_pci *(*pci)(struct nvkm_device *);
+	struct nvkm_device_tegra *(*tegra)(struct nvkm_device *);
+	void *(*dtor)(struct nvkm_device *);
+	int (*preinit)(struct nvkm_device *);
+	void (*fini)(struct nvkm_device *, bool suspend);
+};
+
+struct nvkm_device_quirk {
+};
+
 struct nvkm_device *nvkm_device_find(u64 name);
 int nvkm_device_list(u64 *name, int size);
 
@@ -214,13 +228,7 @@ enum nv_bus_type {
 
 extern struct nvkm_ofuncs nvkm_udevice_ofuncs;
 
-int  nvkm_device_new(void *, enum nv_bus_type type, u64 name,
-		     const char *sname, const char *cfg, const char *dbg,
-		     bool detect, bool mmio, u64 subdev_mask,
-		     struct nvkm_device **);
 void nvkm_device_del(struct nvkm_device **);
-int  nvkm_device_init(struct nvkm_device *);
-int  nvkm_device_fini(struct nvkm_device *, bool suspend);
 
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \

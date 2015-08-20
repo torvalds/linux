@@ -28,7 +28,9 @@ nvkm_client(void *obj)
 	struct nvkm_object *client = nv_object(obj);
 	while (client && client->parent)
 		client = client->parent;
-	return (void *)client;
+	if (client && nv_iclass(client, NV_CLIENT_CLASS))
+		return (void *)client;
+	return NULL;
 }
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,

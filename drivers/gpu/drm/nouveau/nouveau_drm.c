@@ -32,9 +32,10 @@
 #include "drmP.h"
 #include "drm_crtc_helper.h"
 
-#include <core/device.h>
 #include <core/gpuobj.h>
 #include <core/option.h>
+#include <core/pci.h>
+#include <core/tegra.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -326,9 +327,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		remove_conflicting_framebuffers(aper, "nouveaufb", boot);
 	kfree(aper);
 
-	ret = nvkm_device_new(pdev, NVKM_BUS_PCI, nouveau_pci_name(pdev),
-			      pci_name(pdev), nouveau_config, nouveau_debug,
-			      true, true, ~0ULL, &device);
+	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_debug,
+				  true, true, ~0ULL, &device);
 	if (ret)
 		return ret;
 
@@ -1036,11 +1036,8 @@ nouveau_platform_device_create(struct platform_device *pdev,
 	struct drm_device *drm;
 	int err;
 
-	err = nvkm_device_new(pdev, NVKM_BUS_PLATFORM,
-			      nouveau_platform_name(pdev),
-			      dev_name(&pdev->dev), nouveau_config,
-			      nouveau_debug, true, true, ~0ULL,
-			      pdevice);
+	err = nvkm_device_tegra_new(pdev, nouveau_config, nouveau_debug,
+				    true, true, ~0ULL, pdevice);
 	if (err)
 		goto err_free;
 
