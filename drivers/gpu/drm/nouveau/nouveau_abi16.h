@@ -13,9 +13,9 @@ int nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
 
 struct nouveau_abi16_ntfy {
+	struct nvif_object object;
 	struct list_head head;
 	struct nvkm_mm_node *node;
-	u32 handle;
 };
 
 struct nouveau_abi16_chan {

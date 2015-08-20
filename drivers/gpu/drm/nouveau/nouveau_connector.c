@@ -1256,8 +1256,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	ret = nvif_notify_init(&disp->disp, NULL, nouveau_connector_hotplug,
-				true, NV04_DISP_NTFY_CONN,
+	ret = nvif_notify_init(&disp->disp, nouveau_connector_hotplug, true,
+			       NV04_DISP_NTFY_CONN,
 			       &(struct nvif_notify_conn_req_v0) {
 				.mask = NVIF_NOTIFY_CONN_V0_ANY,
 				.conn = index,

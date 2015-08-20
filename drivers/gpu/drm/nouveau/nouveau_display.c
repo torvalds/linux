@@ -185,7 +185,7 @@ nouveau_display_vblank_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		ret = nvif_notify_init(&disp->disp, NULL,
+		ret = nvif_notify_init(&disp->disp,
 				       nouveau_display_vblank_handler, false,
 				       NV04_DISP_NTFY_VBLANK,
 				       &(struct nvif_notify_head_req_v0) {
@@ -494,7 +494,7 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(nvif_object(&drm->device), NULL,
+			ret = nvif_object_init(&drm->device.object,
 					       NVDRM_DISPLAY, oclass[i],
 					       NULL, 0, &disp->disp);
 		}
@@ -711,7 +711,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	chan = drm->channel;
 	if (!chan)
 		return -ENODEV;
-	cli = (void *)nvif_client(&chan->device->base);
+	cli = (void *)chan->user.client;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)

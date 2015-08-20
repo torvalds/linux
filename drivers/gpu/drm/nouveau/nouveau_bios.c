@@ -215,7 +215,7 @@ int call_lvds_script(struct drm_device *dev, struct dcb_output *dcbent, int head
 	 */
 
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_object *device = &drm->device.object;
 	struct nvbios *bios = &drm->vbios;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 	uint32_t sel_clk_binding, sel_clk;
@@ -318,7 +318,8 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 static int
 get_fp_strap(struct drm_device *dev, struct nvbios *bios)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_object *device = &drm->device.object;
 
 	/*
 	 * The fp strap is normally dictated by the "User Strap" in
@@ -332,7 +333,7 @@ get_fp_strap(struct drm_device *dev, struct nvbios *bios)
 	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
 		return NVReadVgaCrtc5758(dev, 0, 0xf) & 0xf;
 
-	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA)
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		return (nvif_rd32(device, NV_PEXTDEV_BOOT_0) >> 24) & 0xf;
 	else
 		return (nvif_rd32(device, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
@@ -634,7 +635,7 @@ int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, 
 	 */
 
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_object *device = &drm->device.object;
 	struct nvbios *bios = &drm->vbios;
 	int cv = bios->chip_version;
 	uint16_t clktable = 0, scriptptr;
@@ -1914,7 +1915,7 @@ static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bio
 	 */
 
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_object *device = &drm->device.object;
 	uint8_t bytes_to_write;
 	uint16_t hwsq_entry_offset;
 	int i;

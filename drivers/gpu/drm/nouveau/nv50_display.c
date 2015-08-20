@@ -60,15 +60,19 @@
 
 struct nv50_chan {
 	struct nvif_object user;
+	struct nvif_device *device;
 };
 
 static int
-nv50_chan_create(struct nvif_object *disp, const u32 *oclass, u8 head,
-		 void *data, u32 size, struct nv50_chan *chan)
+nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
+		 const u32 *oclass, u8 head, void *data, u32 size,
+		 struct nv50_chan *chan)
 {
 	const u32 handle = (oclass[0] << 16) | head;
 	u32 sclass[8];
 	int ret, i;
+
+	chan->device = device;
 
 	ret = nvif_object_sclass(disp, sclass, ARRAY_SIZE(sclass));
 	WARN_ON(ret > ARRAY_SIZE(sclass));
@@ -78,9 +82,8 @@ nv50_chan_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 	while (oclass[0]) {
 		for (i = 0; i < ARRAY_SIZE(sclass); i++) {
 			if (sclass[i] == oclass[0]) {
-				ret = nvif_object_init(disp, NULL, handle,
-						       oclass[0], data, size,
-						       &chan->user);
+				ret = nvif_object_init(disp, handle, oclass[0],
+						       data, size, &chan->user);
 				if (ret == 0)
 					nvif_object_map(&chan->user);
 				return ret;
@@ -113,10 +116,12 @@ nv50_pioc_destroy(struct nv50_pioc *pioc)
 }
 
 static int
-nv50_pioc_create(struct nvif_object *disp, const u32 *oclass, u8 head,
-		 void *data, u32 size, struct nv50_pioc *pioc)
+nv50_pioc_create(struct nvif_device *device, struct nvif_object *disp,
+		 const u32 *oclass, u8 head, void *data, u32 size,
+		 struct nv50_pioc *pioc)
 {
-	return nv50_chan_create(disp, oclass, head, data, size, &pioc->base);
+	return nv50_chan_create(device, disp, oclass, head, data, size,
+				&pioc->base);
 }
 
 /******************************************************************************
@@ -128,7 +133,8 @@ struct nv50_curs {
 };
 
 static int
-nv50_curs_create(struct nvif_object *disp, int head, struct nv50_curs *curs)
+nv50_curs_create(struct nvif_device *device, struct nvif_object *disp,
+		 int head, struct nv50_curs *curs)
 {
 	struct nv50_disp_cursor_v0 args = {
 		.head = head,
@@ -142,8 +148,8 @@ nv50_curs_create(struct nvif_object *disp, int head, struct nv50_curs *curs)
 		0
 	};
 
-	return nv50_pioc_create(disp, oclass, head, &args, sizeof(args),
-			       &curs->base);
+	return nv50_pioc_create(device, disp, oclass, head, &args, sizeof(args),
+				&curs->base);
 }
 
 /******************************************************************************
@@ -155,7 +161,8 @@ struct nv50_oimm {
 };
 
 static int
-nv50_oimm_create(struct nvif_object *disp, int head, struct nv50_oimm *oimm)
+nv50_oimm_create(struct nvif_device *device, struct nvif_object *disp,
+		 int head, struct nv50_oimm *oimm)
 {
 	struct nv50_disp_cursor_v0 args = {
 		.head = head,
@@ -169,8 +176,8 @@ nv50_oimm_create(struct nvif_object *disp, int head, struct nv50_oimm *oimm)
 		0
 	};
 
-	return nv50_pioc_create(disp, oclass, head, &args, sizeof(args),
-			       &oimm->base);
+	return nv50_pioc_create(device, disp, oclass, head, &args, sizeof(args),
+				&oimm->base);
 }
 
 /******************************************************************************
@@ -194,23 +201,24 @@ struct nv50_dmac {
 static void
 nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 {
+	struct nvif_device *device = dmac->base.device;
+
 	nvif_object_fini(&dmac->vram);
 	nvif_object_fini(&dmac->sync);
 
 	nv50_chan_destroy(&dmac->base);
 
 	if (dmac->ptr) {
-		struct pci_dev *pdev = nvxx_device(nvif_device(disp))->pdev;
+		struct pci_dev *pdev = nvxx_device(device)->pdev;
 		pci_free_consistent(pdev, PAGE_SIZE, dmac->ptr, dmac->handle);
 	}
 }
 
 static int
-nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
-		 void *data, u32 size, u64 syncbuf,
+nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
+		 const u32 *oclass, u8 head, void *data, u32 size, u64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
-	struct nvif_device *device = nvif_device(disp);
 	struct nv50_disp_core_channel_dma_v0 *args = data;
 	struct nvif_object pushbuf;
 	int ret;
@@ -222,9 +230,8 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 	if (!dmac->ptr)
 		return -ENOMEM;
 
-	ret = nvif_object_init(nvif_object(device), NULL,
-			       args->pushbuf, NV_DMA_FROM_MEMORY,
-			       &(struct nv_dma_v0) {
+	ret = nvif_object_init(&device->object, args->pushbuf,
+			       NV_DMA_FROM_MEMORY, &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_PCI_US,
 					.access = NV_DMA_V0_ACCESS_RD,
 					.start = dmac->handle + 0x0000,
@@ -233,13 +240,13 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 	if (ret)
 		return ret;
 
-	ret = nv50_chan_create(disp, oclass, head, data, size, &dmac->base);
+	ret = nv50_chan_create(device, disp, oclass, head, data, size,
+			       &dmac->base);
 	nvif_object_fini(&pushbuf);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000000,
-			       NV_DMA_IN_MEMORY,
+	ret = nvif_object_init(&dmac->base.user, 0xf0000000, NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -250,8 +257,7 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000001,
-			       NV_DMA_IN_MEMORY,
+	ret = nvif_object_init(&dmac->base.user, 0xf0000001, NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -274,7 +280,8 @@ struct nv50_mast {
 };
 
 static int
-nv50_core_create(struct nvif_object *disp, u64 syncbuf, struct nv50_mast *core)
+nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
+		 u64 syncbuf, struct nv50_mast *core)
 {
 	struct nv50_disp_core_channel_dma_v0 args = {
 		.pushbuf = 0xb0007d00,
@@ -293,8 +300,8 @@ nv50_core_create(struct nvif_object *disp, u64 syncbuf, struct nv50_mast *core)
 		0
 	};
 
-	return nv50_dmac_create(disp, oclass, 0, &args, sizeof(args), syncbuf,
-			       &core->base);
+	return nv50_dmac_create(device, disp, oclass, 0, &args, sizeof(args),
+				syncbuf, &core->base);
 }
 
 /******************************************************************************
@@ -308,8 +315,8 @@ struct nv50_sync {
 };
 
 static int
-nv50_base_create(struct nvif_object *disp, int head, u64 syncbuf,
-		 struct nv50_sync *base)
+nv50_base_create(struct nvif_device *device, struct nvif_object *disp,
+		 int head, u64 syncbuf, struct nv50_sync *base)
 {
 	struct nv50_disp_base_channel_dma_v0 args = {
 		.pushbuf = 0xb0007c00 | head,
@@ -326,7 +333,7 @@ nv50_base_create(struct nvif_object *disp, int head, u64 syncbuf,
 		0
 	};
 
-	return nv50_dmac_create(disp, oclass, head, &args, sizeof(args),
+	return nv50_dmac_create(device, disp, oclass, head, &args, sizeof(args),
 				syncbuf, &base->base);
 }
 
@@ -339,8 +346,8 @@ struct nv50_ovly {
 };
 
 static int
-nv50_ovly_create(struct nvif_object *disp, int head, u64 syncbuf,
-		 struct nv50_ovly *ovly)
+nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
+		 int head, u64 syncbuf, struct nv50_ovly *ovly)
 {
 	struct nv50_disp_overlay_channel_dma_v0 args = {
 		.pushbuf = 0xb0007e00 | head,
@@ -356,7 +363,7 @@ nv50_ovly_create(struct nvif_object *disp, int head, u64 syncbuf,
 		0
 	};
 
-	return nv50_dmac_create(disp, oclass, head, &args, sizeof(args),
+	return nv50_dmac_create(device, disp, oclass, head, &args, sizeof(args),
 				syncbuf, &ovly->base);
 }
 
@@ -413,7 +420,7 @@ static u32 *
 evo_wait(void *evoc, int nr)
 {
 	struct nv50_dmac *dmac = evoc;
-	struct nvif_device *device = nvif_device(&dmac->base.user);
+	struct nvif_device *device = dmac->base.device;
 	u32 put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
 
 	mutex_lock(&dmac->lock);
@@ -573,7 +580,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (unlikely(push == NULL))
 		return -EBUSY;
 
-	if (chan && chan->object->oclass < G82_CHANNEL_GPFIFO) {
+	if (chan && chan->user.oclass < G82_CHANNEL_GPFIFO) {
 		ret = RING_SPACE(chan, 8);
 		if (ret)
 			return ret;
@@ -587,7 +594,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		OUT_RING  (chan, sync->addr);
 		OUT_RING  (chan, sync->data);
 	} else
-	if (chan && chan->object->oclass < FERMI_CHANNEL_GPFIFO) {
+	if (chan && chan->user.oclass < FERMI_CHANNEL_GPFIFO) {
 		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + sync->addr;
 		ret = RING_SPACE(chan, 12);
 		if (ret)
@@ -1418,6 +1425,8 @@ static const struct drm_crtc_funcs nv50_crtc_func = {
 static int
 nv50_crtc_create(struct drm_device *dev, int index)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_device *device = &drm->device;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct drm_crtc *crtc;
@@ -1462,13 +1471,13 @@ nv50_crtc_create(struct drm_device *dev, int index)
 		goto out;
 
 	/* allocate cursor resources */
-	ret = nv50_curs_create(disp->disp, index, &head->curs);
+	ret = nv50_curs_create(device, disp->disp, index, &head->curs);
 	if (ret)
 		goto out;
 
 	/* allocate page flip / sync resources */
-	ret = nv50_base_create(disp->disp, index, disp->sync->bo.offset,
-			      &head->sync);
+	ret = nv50_base_create(device, disp->disp, index, disp->sync->bo.offset,
+			       &head->sync);
 	if (ret)
 		goto out;
 
@@ -1476,12 +1485,12 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	head->sync.data = 0x00000000;
 
 	/* allocate overlay resources */
-	ret = nv50_oimm_create(disp->disp, index, &head->oimm);
+	ret = nv50_oimm_create(device, disp->disp, index, &head->oimm);
 	if (ret)
 		goto out;
 
-	ret = nv50_ovly_create(disp->disp, index, disp->sync->bo.offset,
-			      &head->ovly);
+	ret = nv50_ovly_create(device, disp->disp, index, disp->sync->bo.offset,
+			       &head->ovly);
 	if (ret)
 		goto out;
 
@@ -2370,8 +2379,8 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nv50_head *head = nv50_head(crtc);
-		int ret = nvif_object_init(&head->sync.base.base.user, NULL,
-					    name, NV_DMA_IN_MEMORY, &args, size,
+		int ret = nvif_object_init(&head->sync.base.base.user, name,
+					   NV_DMA_IN_MEMORY, &args, size,
 					   &fbdma->base[head->base.index]);
 		if (ret) {
 			nv50_fbdma_fini(fbdma);
@@ -2379,9 +2388,8 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 		}
 	}
 
-	ret = nvif_object_init(&mast->base.base.user, NULL, name,
-				NV_DMA_IN_MEMORY, &args, size,
-			       &fbdma->core);
+	ret = nvif_object_init(&mast->base.base.user, name, NV_DMA_IN_MEMORY,
+			       &args, size, &fbdma->core);
 	if (ret) {
 		nv50_fbdma_fini(fbdma);
 		return ret;
@@ -2534,14 +2542,14 @@ nv50_display_create(struct drm_device *dev)
 		goto out;
 
 	/* allocate master evo channel */
-	ret = nv50_core_create(disp->disp, disp->sync->bo.offset,
+	ret = nv50_core_create(device, disp->disp, disp->sync->bo.offset,
 			      &disp->mast);
 	if (ret)
 		goto out;
 
 	/* create crtc objects to represent the hw heads */
 	if (disp->disp->oclass >= GF110_DISP)
-		crtcs = nvif_rd32(device, 0x022448);
+		crtcs = nvif_rd32(&device->object, 0x022448);
 	else
 		crtcs = 2;
 

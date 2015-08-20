@@ -102,7 +102,7 @@ void
 nouveau_agp_reset(struct nouveau_drm *drm)
 {
 #if __OS_HAS_AGP
-	struct nvif_device *device = &drm->device;
+	struct nvif_object *device = &drm->device.object;
 	struct drm_device *dev = drm->dev;
 	u32 save[2];
 	int ret;

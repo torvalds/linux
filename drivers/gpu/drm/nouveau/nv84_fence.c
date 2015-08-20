@@ -131,7 +131,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
+	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
 	int ret, i;

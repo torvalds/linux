@@ -114,7 +114,7 @@ nouveau_cli_create(struct drm_device *dev, const char *sname,
 		snprintf(cli->name, sizeof(cli->name), "%s", sname);
 		cli->dev = dev;
 
-		ret = nvif_client_init(NULL, NULL, cli->name, nouveau_name(dev),
+		ret = nvif_client_init(NULL, cli->name, nouveau_name(dev),
 				       nouveau_config, nouveau_debug,
 				       &cli->base);
 		if (ret == 0) {
@@ -163,7 +163,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	/*XXX: this is crap, but the fence/channel stuff is a little
 	 *     backwards in some places.  this will be fixed.
 	 */
-	ret = nvif_object_sclass(&device->base, sclass, ARRAY_SIZE(sclass));
+	ret = nvif_object_sclass(&device->object, sclass, ARRAY_SIZE(sclass));
 	if (ret < 0)
 		return;
 
@@ -235,7 +235,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		return;
 	}
 
-	ret = nvif_object_init(drm->channel->object, NULL, NVDRM_NVSW,
+	ret = nvif_object_init(&drm->channel->user, NVDRM_NVSW,
 			       nouveau_abi16_swclass(drm), NULL, 0, &drm->nvsw);
 	if (ret == 0) {
 		struct nvkm_sw_chan *swch;
@@ -262,7 +262,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		ret = nvkm_gpuobj_new(nvxx_object(&drm->device), NULL, 32,
+		ret = nvkm_gpuobj_new(nvxx_object(&drm->device.object), NULL, 32,
 				      0, 0, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
@@ -270,7 +270,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 			return;
 		}
 
-		ret = nvif_object_init(drm->channel->object, NULL, NvNotify0,
+		ret = nvif_object_init(&drm->channel->user, NvNotify0,
 				       NV_DMA_IN_MEMORY,
 				       &(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,
@@ -392,8 +392,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	nouveau_get_hdmi_dev(drm);
 
-	ret = nvif_device_init(&drm->client.base.base, NULL, NVDRM_DEVICE,
-			       NV_DEVICE,
+	ret = nvif_device_init(&drm->client.base.object,
+			       NVDRM_DEVICE, NV_DEVICE,
 			       &(struct nv_device_v0) {
 					.device = ~0,
 			       }, sizeof(struct nv_device_v0),
@@ -408,7 +408,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	 * better fix is found - assuming there is one...
 	 */
 	if (drm->device.info.chipset == 0xc1)
-		nvif_mask(&drm->device, 0x00088080, 0x00000800, 0x00000000);
+		nvif_mask(&drm->device.object, 0x00088080, 0x00000800, 0x00000000);
 
 	nouveau_vga_init(drm);
 	nouveau_agp_init(drm);
@@ -736,7 +736,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	ret = nouveau_do_resume(drm_dev, true);
 	drm_kms_helper_poll_enable(drm_dev);
 	/* do magic */
-	nvif_mask(device, 0x88488, (1 << 25), (1 << 25));
+	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	return ret;

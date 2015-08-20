@@ -5,26 +5,13 @@
 #include <nvif/class.h>
 
 struct nvif_device {
-	struct nvif_object base;
-	struct nvif_object *object; /*XXX: hack for nvif_object() */
+	struct nvif_object object;
 	struct nv_device_info_v0 info;
 };
 
-static inline struct nvif_device *
-nvif_device(struct nvif_object *object)
-{
-	while (object && object->oclass != 0x0080 /*XXX: NV_DEVICE_CLASS*/ )
-		object = object->parent;
-	return (void *)object;
-}
-
-int  nvif_device_init(struct nvif_object *, void (*dtor)(struct nvif_device *),
-		      u32 handle, u32 oclass, void *, u32,
+int  nvif_device_init(struct nvif_object *, u32 handle, u32 oclass, void *, u32,
 		      struct nvif_device *);
 void nvif_device_fini(struct nvif_device *);
-int  nvif_device_new(struct nvif_object *, u32 handle, u32 oclass,
-		     void *, u32, struct nvif_device **);
-void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 u64  nvif_device_time(struct nvif_device *);
 
 /* Delay based on GPU time (ie. PTIMER).
@@ -59,7 +46,10 @@ u64  nvif_device_time(struct nvif_device *);
 #include <subdev/timer.h>
 #include <subdev/therm.h>
 
-#define nvxx_device(a) nv_device(nvxx_object((a)))
+#define nvxx_device(a) ({                                                      \
+	struct nvif_device *_device = (a);                                     \
+	nv_device(_device->object.priv);                                       \
+})
 #define nvxx_bios(a) nvkm_bios(nvxx_device(a))
 #define nvxx_fb(a) nvkm_fb(nvxx_device(a))
 #define nvxx_mmu(a) nvkm_mmu(nvxx_device(a))
@@ -77,5 +67,5 @@ u64  nvif_device_time(struct nvif_device *);
 
 #define nvxx_fifo(a) nvkm_fifo(nvxx_device(a))
 #define nvxx_fifo_chan(a) ((struct nvkm_fifo_chan *)nvxx_object(a))
-#define nvxx_gr(a) ((struct nvkm_gr *)nvkm_engine(nvxx_object(a), NVDEV_ENGINE_GR))
+#define nvxx_gr(a) nvkm_gr(nvxx_device(a))
 #endif

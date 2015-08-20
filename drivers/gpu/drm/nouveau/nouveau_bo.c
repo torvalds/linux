@@ -1064,7 +1064,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_channel *chan = drm->ttm.chan;
-	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
+	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nouveau_fence *fence;
 	int ret;
 
@@ -1137,7 +1137,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		if (chan == NULL)
 			continue;
 
-		ret = nvif_object_init(chan->object, NULL,
+		ret = nvif_object_init(&chan->user,
 				       mthd->oclass | (mthd->engine << 16),
 				       mthd->oclass, NULL, 0,
 				       &drm->ttm.copy);

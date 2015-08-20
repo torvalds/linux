@@ -188,9 +188,9 @@ nouveau_sysfs_init(struct drm_device *dev)
 	if (!sysfs)
 		return -ENOMEM;
 
-	ret = nvif_object_init(nvif_object(device), NULL, NVDRM_CONTROL,
+	ret = nvif_object_init(&device->object, NVDRM_CONTROL,
 			       NVIF_IOCTL_NEW_V0_CONTROL, NULL, 0,
-			      &sysfs->ctrl);
+			       &sysfs->ctrl);
 	if (ret == 0)
 		device_create_file(nv_device_base(nvxx_device(device)), &dev_attr_pstate);
 
