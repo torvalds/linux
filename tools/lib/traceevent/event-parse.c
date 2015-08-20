@@ -1745,6 +1745,9 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 	type = process_arg(event, left, &token);
 
  again:
+	if (type == EVENT_ERROR)
+		goto out_free;
+
 	/* Handle other operations in the arguments */
 	if (type == EVENT_OP && strcmp(token, ":") != 0) {
 		type = process_op(event, left, &token);
@@ -2004,6 +2007,12 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			goto out_warn_free;
 
 		type = process_arg_token(event, right, tok, type);
+		if (type == EVENT_ERROR) {
+			free_arg(right);
+			/* token was freed in process_arg_token() via *tok */
+			token = NULL;
+			goto out_free;
+		}
 
 		if (right->type == PRINT_OP &&
 		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
