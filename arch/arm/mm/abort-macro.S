@@ -13,6 +13,7 @@
 	tst	\psr, #PSR_T_BIT
 	beq	not_thumb
 	ldrh	\tmp, [\pc]			@ Read aborted Thumb instruction
+	uaccess_disable ip			@ disable userspace access
 	and	\tmp, \tmp, # 0xfe00		@ Mask opcode field
 	cmp	\tmp, # 0x5600			@ Is it ldrsb?
 	orreq	\tmp, \tmp, #1 << 11		@ Set L-bit if yes

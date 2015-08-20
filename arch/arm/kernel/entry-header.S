@@ -215,6 +215,7 @@
 	blne	trace_hardirqs_off
 #endif
 	.endif
+	uaccess_restore
 
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode SVC restore
@@ -258,6 +259,7 @@
 	@ on the stack remains correct).
 	@
 	.macro  svc_exit_via_fiq
+	uaccess_restore
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode restore
 	mov	r0, sp
@@ -287,6 +289,7 @@
 
 
 	.macro	restore_user_regs, fast = 0, offset = 0
+	uaccess_enable r1, isb=0
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode restore
 	mov	r2, sp
