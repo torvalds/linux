@@ -168,8 +168,9 @@ _nvkm_falcon_init(struct nvkm_object *object)
 
 	/* ensure any "self-bootstrapping" firmware image is in vram */
 	if (!falcon->data.data && !falcon->core) {
-		ret = nvkm_gpuobj_new(object->parent, NULL, falcon->code.size,
-				      256, 0, &falcon->core);
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      falcon->code.size, 256, false,
+				      &falcon->core);
 		if (ret) {
 			nvkm_error(subdev, "core allocation failed, %d\n", ret);
 			return ret;
@@ -183,12 +184,13 @@ _nvkm_falcon_init(struct nvkm_object *object)
 
 	/* upload firmware bootloader (or the full code segments) */
 	if (falcon->core) {
+		u64 addr = nvkm_memory_addr(falcon->core);
 		if (device->card_type < NV_C0)
 			nvkm_wr32(device, base + 0x618, 0x04000000);
 		else
 			nvkm_wr32(device, base + 0x618, 0x00000114);
 		nvkm_wr32(device, base + 0x11c, 0);
-		nvkm_wr32(device, base + 0x110, falcon->core->addr >> 8);
+		nvkm_wr32(device, base + 0x110, addr >> 8);
 		nvkm_wr32(device, base + 0x114, 0);
 		nvkm_wr32(device, base + 0x118, 0x00006610);
 	} else {
@@ -243,7 +245,7 @@ _nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
 	const u32 base = falcon->addr;
 
 	if (!suspend) {
-		nvkm_gpuobj_ref(NULL, &falcon->core);
+		nvkm_memory_del(&falcon->core);
 		if (falcon->external) {
 			vfree(falcon->data.data);
 			vfree(falcon->code.data);

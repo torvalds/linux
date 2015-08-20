@@ -35,7 +35,7 @@ struct nvkm_falcon {
 	u8  version;
 	u8  secret;
 
-	struct nvkm_gpuobj *core;
+	struct nvkm_memory *core;
 	bool external;
 
 	struct {
