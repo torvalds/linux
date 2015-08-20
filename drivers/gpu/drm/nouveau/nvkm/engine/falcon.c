@@ -46,14 +46,14 @@ u32
 _nvkm_falcon_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct nvkm_falcon *falcon = (void *)object;
-	return nv_rd32(falcon, falcon->addr + addr);
+	return nvkm_rd32(falcon->engine.subdev.device, falcon->addr + addr);
 }
 
 void
 _nvkm_falcon_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nvkm_falcon *falcon = (void *)object;
-	nv_wr32(falcon, falcon->addr + addr, data);
+	nvkm_wr32(falcon->engine.subdev.device, falcon->addr + addr, data);
 }
 
 static void *
