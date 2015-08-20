@@ -39,8 +39,9 @@ static void
 nvkm_fantog_update(struct nvkm_fantog *fan, int percent)
 {
 	struct nvkm_therm_priv *therm = (void *)fan->base.parent;
-	struct nvkm_timer *tmr = nvkm_timer(therm);
-	struct nvkm_gpio *gpio = nvkm_gpio(therm);
+	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_timer *tmr = device->timer;
+	struct nvkm_gpio *gpio = device->gpio;
 	unsigned long flags;
 	int duty;
 
@@ -49,8 +50,8 @@ nvkm_fantog_update(struct nvkm_fantog *fan, int percent)
 		percent = fan->percent;
 	fan->percent = percent;
 
-	duty = !gpio->get(gpio, 0, DCB_GPIO_FAN, 0xff);
-	gpio->set(gpio, 0, DCB_GPIO_FAN, 0xff, duty);
+	duty = !nvkm_gpio_get(gpio, 0, DCB_GPIO_FAN, 0xff);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_FAN, 0xff, duty);
 
 	if (list_empty(&fan->alarm.head) && percent != (duty * 100)) {
 		u64 next_change = (percent * fan->period_us) / 100;

@@ -54,7 +54,7 @@ u64  nvif_device_time(struct nvif_device *);
 #define nvxx_fb(a) nvxx_device(a)->fb
 #define nvxx_mmu(a) nvkm_mmu(nvxx_device(a))
 #define nvxx_bar(a) nvxx_device(a)->bar
-#define nvxx_gpio(a) nvkm_gpio(nvxx_device(a))
+#define nvxx_gpio(a) nvxx_device(a)->gpio
 #define nvxx_clk(a) nvxx_device(a)->clk
 #define nvxx_i2c(a) nvkm_i2c(nvxx_device(a))
 #define nvxx_therm(a) nvkm_therm(nvxx_device(a))

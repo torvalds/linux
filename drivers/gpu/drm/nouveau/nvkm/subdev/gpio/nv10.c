@@ -102,18 +102,17 @@ nv10_gpio_intr_mask(struct nvkm_gpio *gpio, u32 type, u32 mask, u32 data)
 	nvkm_wr32(device, 0x001144, inte);
 }
 
-struct nvkm_oclass *
-nv10_gpio_oclass = &(struct nvkm_gpio_impl) {
-	.base.handle = NV_SUBDEV(GPIO, 0x10),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_gpio_ctor,
-		.dtor = _nvkm_gpio_dtor,
-		.init = _nvkm_gpio_init,
-		.fini = _nvkm_gpio_fini,
-	},
+static const struct nvkm_gpio_func
+nv10_gpio = {
 	.lines = 16,
 	.intr_stat = nv10_gpio_intr_stat,
 	.intr_mask = nv10_gpio_intr_mask,
 	.drive = nv10_gpio_drive,
 	.sense = nv10_gpio_sense,
-}.base;
+};
+
+int
+nv10_gpio_new(struct nvkm_device *device, int index, struct nvkm_gpio **pgpio)
+{
+	return nvkm_gpio_new_(&nv10_gpio, device, index, pgpio);
+}

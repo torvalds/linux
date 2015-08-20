@@ -57,19 +57,18 @@ g94_gpio_intr_mask(struct nvkm_gpio *gpio, u32 type, u32 mask, u32 data)
 	nvkm_wr32(device, 0x00e070, inte1);
 }
 
-struct nvkm_oclass *
-g94_gpio_oclass = &(struct nvkm_gpio_impl) {
-	.base.handle = NV_SUBDEV(GPIO, 0x94),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_gpio_ctor,
-		.dtor = _nvkm_gpio_dtor,
-		.init = _nvkm_gpio_init,
-		.fini = _nvkm_gpio_fini,
-	},
+static const struct nvkm_gpio_func
+g94_gpio = {
 	.lines = 32,
 	.intr_stat = g94_gpio_intr_stat,
 	.intr_mask = g94_gpio_intr_mask,
 	.drive = nv50_gpio_drive,
 	.sense = nv50_gpio_sense,
 	.reset = nv50_gpio_reset,
-}.base;
+};
+
+int
+g94_gpio_new(struct nvkm_device *device, int index, struct nvkm_gpio **pgpio)
+{
+	return nvkm_gpio_new_(&g94_gpio, device, index, pgpio);
+}

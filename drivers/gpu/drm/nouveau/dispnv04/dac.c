@@ -270,10 +270,10 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	}
 
 	if (gpio) {
-		saved_gpio1 = gpio->get(gpio, 0, DCB_GPIO_TVDAC1, 0xff);
-		saved_gpio0 = gpio->get(gpio, 0, DCB_GPIO_TVDAC0, 0xff);
-		gpio->set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, dcb->type == DCB_OUTPUT_TV);
-		gpio->set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, dcb->type == DCB_OUTPUT_TV);
+		saved_gpio1 = nvkm_gpio_get(gpio, 0, DCB_GPIO_TVDAC1, 0xff);
+		saved_gpio0 = nvkm_gpio_get(gpio, 0, DCB_GPIO_TVDAC0, 0xff);
+		nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, dcb->type == DCB_OUTPUT_TV);
+		nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, dcb->type == DCB_OUTPUT_TV);
 	}
 
 	msleep(4);
@@ -325,8 +325,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	nvif_wr32(device, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
 	if (gpio) {
-		gpio->set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, saved_gpio1);
-		gpio->set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, saved_gpio0);
+		nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, saved_gpio1);
+		nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, saved_gpio0);
 	}
 
 	return sample;

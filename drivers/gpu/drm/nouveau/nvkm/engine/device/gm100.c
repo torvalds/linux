@@ -28,7 +28,6 @@ gm100_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x117:
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
@@ -60,7 +59,6 @@ gm100_identify(struct nvkm_device *device)
 #endif
 		break;
 	case 0x124:
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gm204_i2c_oclass;
 #if 0
 		/* looks to be some non-trivial changes */
@@ -93,7 +91,6 @@ gm100_identify(struct nvkm_device *device)
 #endif
 		break;
 	case 0x126:
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gm204_i2c_oclass;
 #if 0
 		/* looks to be some non-trivial changes */

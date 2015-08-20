@@ -39,8 +39,9 @@ nvkm_fanpwm_get(struct nvkm_therm *obj)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_fanpwm *fan = (void *)therm->fan;
-	struct nvkm_gpio *gpio = nvkm_gpio(therm);
-	int card_type = nv_device(therm)->card_type;
+	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_gpio *gpio = device->gpio;
+	int card_type = device->card_type;
 	u32 divs, duty;
 	int ret;
 
@@ -52,7 +53,7 @@ nvkm_fanpwm_get(struct nvkm_therm *obj)
 		return (duty * 100) / divs;
 	}
 
-	return gpio->get(gpio, 0, fan->func.func, fan->func.line) * 100;
+	return nvkm_gpio_get(gpio, 0, fan->func.func, fan->func.line) * 100;
 }
 
 static int

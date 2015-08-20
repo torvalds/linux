@@ -126,8 +126,9 @@ int
 nvkm_therm_fan_sense(struct nvkm_therm *obj)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *tmr = nvkm_timer(therm);
-	struct nvkm_gpio *gpio = nvkm_gpio(therm);
+	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_timer *tmr = device->timer;
+	struct nvkm_gpio *gpio = device->gpio;
 	u32 cycles, cur, prev;
 	u64 start, end, tach;
 
@@ -139,12 +140,14 @@ nvkm_therm_fan_sense(struct nvkm_therm *obj)
 	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
 	start = tmr->read(tmr);
-	prev = gpio->get(gpio, 0, therm->fan->tach.func, therm->fan->tach.line);
+	prev = nvkm_gpio_get(gpio, 0, therm->fan->tach.func,
+				      therm->fan->tach.line);
 	cycles = 0;
 	do {
 		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
 
-		cur = gpio->get(gpio, 0, therm->fan->tach.func, therm->fan->tach.line);
+		cur = nvkm_gpio_get(gpio, 0, therm->fan->tach.func,
+					     therm->fan->tach.line);
 		if (prev != cur) {
 			if (!start)
 				start = tmr->read(tmr);
@@ -237,7 +240,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 	int ret;
 
 	/* attempt to locate a drivable fan, and determine control method */
-	ret = gpio->find(gpio, 0, DCB_GPIO_FAN, 0xff, &func);
+	ret = nvkm_gpio_find(gpio, 0, DCB_GPIO_FAN, 0xff, &func);
 	if (ret == 0) {
 		/* FIXME: is this really the place to perform such checks ? */
 		if (func.line != 16 && func.log[0] & DCB_GPIO_LOG_DIR_IN) {
@@ -263,7 +266,8 @@ nvkm_therm_fan_ctor(struct nvkm_therm *obj)
 	therm->fan->percent = nvkm_therm_fan_get(&therm->base);
 
 	/* attempt to detect a tachometer connection */
-	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &therm->fan->tach);
+	ret = nvkm_gpio_find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff,
+			     &therm->fan->tach);
 	if (ret)
 		therm->fan->tach.func = DCB_GPIO_UNUSED;
 

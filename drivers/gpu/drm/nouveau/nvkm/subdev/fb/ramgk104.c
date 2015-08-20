@@ -1522,14 +1522,14 @@ gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	}
 
 	/* lookup memory voltage gpios */
-	ret = gpio->find(gpio, 0, 0x18, DCB_GPIO_UNUSED, &func);
+	ret = nvkm_gpio_find(gpio, 0, 0x18, DCB_GPIO_UNUSED, &func);
 	if (ret == 0) {
 		ram->fuc.r_gpioMV = ramfuc_reg(0x00d610 + (func.line * 0x04));
 		ram->fuc.r_funcMV[0] = (func.log[0] ^ 2) << 12;
 		ram->fuc.r_funcMV[1] = (func.log[1] ^ 2) << 12;
 	}
 
-	ret = gpio->find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
+	ret = nvkm_gpio_find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
 	if (ret == 0) {
 		ram->fuc.r_gpio2E = ramfuc_reg(0x00d610 + (func.line * 0x04));
 		ram->fuc.r_func2E[0] = (func.log[0] ^ 2) << 12;

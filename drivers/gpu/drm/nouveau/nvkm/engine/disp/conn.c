@@ -41,7 +41,7 @@ nvkm_connector_hpd(struct nvkm_notify *notify)
 
 	CONN_DBG(conn, "HPD: %d", line->mask);
 
-	if (!gpio->get(gpio, 0, DCB_GPIO_UNUSED, conn->hpd.index))
+	if (!nvkm_gpio_get(gpio, 0, DCB_GPIO_UNUSED, conn->hpd.index))
 		rep.mask = NVIF_NOTIFY_CONN_V0_UNPLUG;
 	else
 		rep.mask = NVIF_NOTIFY_CONN_V0_PLUG;
@@ -98,7 +98,7 @@ nvkm_connector_ctor(struct nvkm_disp *disp, int index,
 		}
 		info->hpd = hpd[info->hpd];
 
-		ret = gpio->find(gpio, 0, info->hpd, DCB_GPIO_UNUSED, &func);
+		ret = nvkm_gpio_find(gpio, 0, info->hpd, DCB_GPIO_UNUSED, &func);
 		if (ret) {
 			CONN_ERR(conn, "func %02x lookup failed, %d",
 				 info->hpd, ret);

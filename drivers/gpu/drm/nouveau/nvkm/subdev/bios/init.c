@@ -1933,8 +1933,8 @@ init_gpio(struct nvbios_init *init)
 	trace("GPIO\n");
 	init->offset += 1;
 
-	if (init_exec(init) && gpio && gpio->reset)
-		gpio->reset(gpio, DCB_GPIO_UNUSED);
+	if (init_exec(init))
+		nvkm_gpio_reset(gpio, DCB_GPIO_UNUSED);
 }
 
 /**
@@ -2179,8 +2179,8 @@ init_gpio_ne(struct nvbios_init *init)
 			trace("\tFUNC[0x%02x]", func.func);
 			if (i == (init->offset + count)) {
 				cont(" *");
-				if (init_exec(init) && gpio && gpio->reset)
-					gpio->reset(gpio, func.func);
+				if (init_exec(init))
+					nvkm_gpio_reset(gpio, func.func);
 			}
 			cont("\n");
 		}

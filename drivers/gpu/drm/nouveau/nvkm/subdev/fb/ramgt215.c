@@ -468,13 +468,13 @@ gt215_ram_lock_pll(struct gt215_ramfuc *fuc, struct gt215_clk_info *mclk)
 static void
 gt215_ram_fbvref(struct gt215_ramfuc *fuc, u32 val)
 {
-	struct nvkm_gpio *gpio = nvkm_gpio(fuc->base.fb);
+	struct nvkm_gpio *gpio = fuc->base.fb->subdev.device->gpio;
 	struct dcb_gpio_func func;
 	u32 reg, sh, gpio_val;
 	int ret;
 
-	if (gpio->get(gpio, 0, 0x2e, DCB_GPIO_UNUSED) != val) {
-		ret = gpio->find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
+	if (nvkm_gpio_get(gpio, 0, 0x2e, DCB_GPIO_UNUSED) != val) {
+		ret = nvkm_gpio_find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
 		if (ret)
 			return;
 
@@ -982,7 +982,7 @@ gt215_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		ram->fuc.r_mr[3] = ramfuc_reg(0x1002e4);
 	}
 
-	ret = gpio->find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
+	ret = nvkm_gpio_find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
 	if (ret == 0) {
 		nv50_gpio_location(func.line, &reg, &shift);
 		ram->fuc.r_gpioFBVREF = ramfuc_reg(reg);

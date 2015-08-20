@@ -24,7 +24,7 @@
 #include "priv.h"
 
 void
-gf110_gpio_reset(struct nvkm_gpio *gpio, u8 match)
+gf119_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 {
 	struct nvkm_device *device = gpio->subdev.device;
 	struct nvkm_bios *bios = device->bios;
@@ -44,7 +44,7 @@ gf110_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 		    (match != DCB_GPIO_UNUSED && match != func))
 			continue;
 
-		gpio->set(gpio, 0, func, line, defs);
+		nvkm_gpio_set(gpio, 0, func, line, defs);
 
 		nvkm_mask(device, 0x00d610 + (line * 4), 0xff, unk0);
 		if (unk1--)
@@ -53,7 +53,7 @@ gf110_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 }
 
 int
-gf110_gpio_drive(struct nvkm_gpio *gpio, int line, int dir, int out)
+gf119_gpio_drive(struct nvkm_gpio *gpio, int line, int dir, int out)
 {
 	struct nvkm_device *device = gpio->subdev.device;
 	u32 data = ((dir ^ 1) << 13) | (out << 12);
@@ -63,25 +63,24 @@ gf110_gpio_drive(struct nvkm_gpio *gpio, int line, int dir, int out)
 }
 
 int
-gf110_gpio_sense(struct nvkm_gpio *gpio, int line)
+gf119_gpio_sense(struct nvkm_gpio *gpio, int line)
 {
 	struct nvkm_device *device = gpio->subdev.device;
 	return !!(nvkm_rd32(device, 0x00d610 + (line * 4)) & 0x00004000);
 }
 
-struct nvkm_oclass *
-gf110_gpio_oclass = &(struct nvkm_gpio_impl) {
-	.base.handle = NV_SUBDEV(GPIO, 0xd0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_gpio_ctor,
-		.dtor = _nvkm_gpio_dtor,
-		.init = _nvkm_gpio_init,
-		.fini = _nvkm_gpio_fini,
-	},
+static const struct nvkm_gpio_func
+gf119_gpio = {
 	.lines = 32,
 	.intr_stat = g94_gpio_intr_stat,
 	.intr_mask = g94_gpio_intr_mask,
-	.drive = gf110_gpio_drive,
-	.sense = gf110_gpio_sense,
-	.reset = gf110_gpio_reset,
-}.base;
+	.drive = gf119_gpio_drive,
+	.sense = gf119_gpio_sense,
+	.reset = gf119_gpio_reset,
+};
+
+int
+gf119_gpio_new(struct nvkm_device *device, int index, struct nvkm_gpio **pgpio)
+{
+	return nvkm_gpio_new_(&gf119_gpio, device, index, pgpio);
+}
