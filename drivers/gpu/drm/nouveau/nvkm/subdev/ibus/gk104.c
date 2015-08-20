@@ -23,55 +23,51 @@
  */
 #include <subdev/ibus.h>
 
-struct gk104_ibus_priv {
-	struct nvkm_ibus base;
-};
-
 static void
-gk104_ibus_intr_hub(struct gk104_ibus_priv *priv, int i)
+gk104_ibus_intr_hub(struct nvkm_ibus *ibus, int i)
 {
-	u32 addr = nv_rd32(priv, 0x122120 + (i * 0x0800));
-	u32 data = nv_rd32(priv, 0x122124 + (i * 0x0800));
-	u32 stat = nv_rd32(priv, 0x122128 + (i * 0x0800));
-	nv_error(priv, "HUB%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
-	nv_mask(priv, 0x122128 + (i * 0x0800), 0x00000200, 0x00000000);
+	u32 addr = nv_rd32(ibus, 0x122120 + (i * 0x0800));
+	u32 data = nv_rd32(ibus, 0x122124 + (i * 0x0800));
+	u32 stat = nv_rd32(ibus, 0x122128 + (i * 0x0800));
+	nv_error(ibus, "HUB%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
+	nv_mask(ibus, 0x122128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
 static void
-gk104_ibus_intr_rop(struct gk104_ibus_priv *priv, int i)
+gk104_ibus_intr_rop(struct nvkm_ibus *ibus, int i)
 {
-	u32 addr = nv_rd32(priv, 0x124120 + (i * 0x0800));
-	u32 data = nv_rd32(priv, 0x124124 + (i * 0x0800));
-	u32 stat = nv_rd32(priv, 0x124128 + (i * 0x0800));
-	nv_error(priv, "ROP%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
-	nv_mask(priv, 0x124128 + (i * 0x0800), 0x00000200, 0x00000000);
+	u32 addr = nv_rd32(ibus, 0x124120 + (i * 0x0800));
+	u32 data = nv_rd32(ibus, 0x124124 + (i * 0x0800));
+	u32 stat = nv_rd32(ibus, 0x124128 + (i * 0x0800));
+	nv_error(ibus, "ROP%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
+	nv_mask(ibus, 0x124128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
 static void
-gk104_ibus_intr_gpc(struct gk104_ibus_priv *priv, int i)
+gk104_ibus_intr_gpc(struct nvkm_ibus *ibus, int i)
 {
-	u32 addr = nv_rd32(priv, 0x128120 + (i * 0x0800));
-	u32 data = nv_rd32(priv, 0x128124 + (i * 0x0800));
-	u32 stat = nv_rd32(priv, 0x128128 + (i * 0x0800));
-	nv_error(priv, "GPC%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
-	nv_mask(priv, 0x128128 + (i * 0x0800), 0x00000200, 0x00000000);
+	u32 addr = nv_rd32(ibus, 0x128120 + (i * 0x0800));
+	u32 data = nv_rd32(ibus, 0x128124 + (i * 0x0800));
+	u32 stat = nv_rd32(ibus, 0x128128 + (i * 0x0800));
+	nv_error(ibus, "GPC%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
+	nv_mask(ibus, 0x128128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
 static void
 gk104_ibus_intr(struct nvkm_subdev *subdev)
 {
-	struct gk104_ibus_priv *priv = (void *)subdev;
-	u32 intr0 = nv_rd32(priv, 0x120058);
-	u32 intr1 = nv_rd32(priv, 0x12005c);
-	u32 hubnr = nv_rd32(priv, 0x120070);
-	u32 ropnr = nv_rd32(priv, 0x120074);
-	u32 gpcnr = nv_rd32(priv, 0x120078);
+	struct nvkm_ibus *ibus = (void *)subdev;
+	u32 intr0 = nv_rd32(ibus, 0x120058);
+	u32 intr1 = nv_rd32(ibus, 0x12005c);
+	u32 hubnr = nv_rd32(ibus, 0x120070);
+	u32 ropnr = nv_rd32(ibus, 0x120074);
+	u32 gpcnr = nv_rd32(ibus, 0x120078);
 	u32 i;
 
 	for (i = 0; (intr0 & 0x0000ff00) && i < hubnr; i++) {
 		u32 stat = 0x00000100 << i;
 		if (intr0 & stat) {
-			gk104_ibus_intr_hub(priv, i);
+			gk104_ibus_intr_hub(ibus, i);
 			intr0 &= ~stat;
 		}
 	}
@@ -79,7 +75,7 @@ gk104_ibus_intr(struct nvkm_subdev *subdev)
 	for (i = 0; (intr0 & 0xffff0000) && i < ropnr; i++) {
 		u32 stat = 0x00010000 << i;
 		if (intr0 & stat) {
-			gk104_ibus_intr_rop(priv, i);
+			gk104_ibus_intr_rop(ibus, i);
 			intr0 &= ~stat;
 		}
 	}
@@ -87,7 +83,7 @@ gk104_ibus_intr(struct nvkm_subdev *subdev)
 	for (i = 0; intr1 && i < gpcnr; i++) {
 		u32 stat = 0x00000001 << i;
 		if (intr1 & stat) {
-			gk104_ibus_intr_gpc(priv, i);
+			gk104_ibus_intr_gpc(ibus, i);
 			intr1 &= ~stat;
 		}
 	}
@@ -96,16 +92,16 @@ gk104_ibus_intr(struct nvkm_subdev *subdev)
 static int
 gk104_ibus_init(struct nvkm_object *object)
 {
-	struct gk104_ibus_priv *priv = (void *)object;
-	int ret = nvkm_ibus_init(&priv->base);
+	struct nvkm_ibus *ibus = (void *)object;
+	int ret = nvkm_ibus_init(ibus);
 	if (ret == 0) {
-		nv_mask(priv, 0x122318, 0x0003ffff, 0x00001000);
-		nv_mask(priv, 0x12231c, 0x0003ffff, 0x00000200);
-		nv_mask(priv, 0x122310, 0x0003ffff, 0x00000800);
-		nv_mask(priv, 0x122348, 0x0003ffff, 0x00000100);
-		nv_mask(priv, 0x1223b0, 0x0003ffff, 0x00000fff);
-		nv_mask(priv, 0x122348, 0x0003ffff, 0x00000200);
-		nv_mask(priv, 0x122358, 0x0003ffff, 0x00002880);
+		nv_mask(ibus, 0x122318, 0x0003ffff, 0x00001000);
+		nv_mask(ibus, 0x12231c, 0x0003ffff, 0x00000200);
+		nv_mask(ibus, 0x122310, 0x0003ffff, 0x00000800);
+		nv_mask(ibus, 0x122348, 0x0003ffff, 0x00000100);
+		nv_mask(ibus, 0x1223b0, 0x0003ffff, 0x00000fff);
+		nv_mask(ibus, 0x122348, 0x0003ffff, 0x00000200);
+		nv_mask(ibus, 0x122358, 0x0003ffff, 0x00002880);
 	}
 	return ret;
 }
@@ -115,15 +111,15 @@ gk104_ibus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct gk104_ibus_priv *priv;
+	struct nvkm_ibus *ibus;
 	int ret;
 
-	ret = nvkm_ibus_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_ibus_create(parent, engine, oclass, &ibus);
+	*pobject = nv_object(ibus);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->intr = gk104_ibus_intr;
+	nv_subdev(ibus)->intr = gk104_ibus_intr;
 	return 0;
 }
 

@@ -3,7 +3,7 @@
 #include <core/subdev.h>
 
 struct nvkm_ibus {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 };
 
 static inline struct nvkm_ibus *
@@ -16,11 +16,11 @@ nvkm_ibus(void *obj)
 	nvkm_subdev_create_((p), (e), (o), 0, "PIBUS", "ibus",              \
 			       sizeof(**d), (void **)d)
 #define nvkm_ibus_destroy(p)                                                \
-	nvkm_subdev_destroy(&(p)->base)
+	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_ibus_init(p)                                                   \
-	nvkm_subdev_init(&(p)->base)
+	nvkm_subdev_init(&(p)->subdev)
 #define nvkm_ibus_fini(p,s)                                                 \
-	nvkm_subdev_fini(&(p)->base, (s))
+	nvkm_subdev_fini(&(p)->subdev, (s))
 
 #define _nvkm_ibus_dtor _nvkm_subdev_dtor
 #define _nvkm_ibus_init _nvkm_subdev_init
