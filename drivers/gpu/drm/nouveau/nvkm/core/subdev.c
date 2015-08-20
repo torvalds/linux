@@ -74,6 +74,12 @@ nvkm_subdev_name[64] = {
 void
 nvkm_subdev_intr(struct nvkm_subdev *subdev)
 {
+	if (subdev->object.oclass) {
+		if (subdev->intr)
+			subdev->intr(subdev);
+		return;
+	}
+
 	if (subdev->func->intr)
 		subdev->func->intr(subdev);
 }
@@ -85,9 +91,17 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 	const char *action = suspend ? "suspend" : "fini";
 	u32 pmc_enable = subdev->pmc_enable;
 	s64 time;
+	int ret;
 
 	nvkm_trace(subdev, "%s running...\n", action);
 	time = ktime_to_us(ktime_get());
+
+	if (!subdev->func) {
+		ret = subdev->object.oclass->ofuncs->fini(&subdev->object, suspend);
+		if (ret)
+			return ret;
+		goto done;
+	}
 
 	if (subdev->func->fini) {
 		int ret = subdev->func->fini(subdev, suspend);
@@ -104,6 +118,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		nvkm_rd32(device, 0x000200);
 	}
 
+done:
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
 	return 0;
@@ -117,7 +132,7 @@ nvkm_subdev_preinit(struct nvkm_subdev *subdev)
 	nvkm_trace(subdev, "preinit running...\n");
 	time = ktime_to_us(ktime_get());
 
-	if (subdev->func->preinit) {
+	if (!subdev->object.oclass && subdev->func->preinit) {
 		int ret = subdev->func->preinit(subdev);
 		if (ret) {
 			nvkm_error(subdev, "preinit failed, %d\n", ret);
@@ -138,6 +153,13 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 
 	nvkm_trace(subdev, "init running...\n");
 	time = ktime_to_us(ktime_get());
+
+	if (!subdev->func) {
+		ret = subdev->object.oclass->ofuncs->init(&subdev->object);
+		if (ret)
+			return ret;
+		goto done;
+	}
 
 	if (subdev->func->oneinit && !subdev->oneinit) {
 		s64 time;
@@ -162,6 +184,7 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 		}
 	}
 
+done:
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "init completed in %lldus\n", time);
 	return 0;
@@ -172,6 +195,12 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 {
 	struct nvkm_subdev *subdev = *psubdev;
 	s64 time;
+
+	if (subdev && subdev->object.oclass) {
+		subdev->object.oclass->ofuncs->dtor(&subdev->object);
+		return;
+	}
+
 	if (subdev && !WARN_ON(!subdev->func)) {
 		nvkm_trace(subdev, "destroy running...\n");
 		time = ktime_to_us(ktime_get());
@@ -211,8 +240,10 @@ nvkm_subdev(void *obj, int idx)
 	struct nvkm_object *object = nv_object(obj);
 	while (object && !nv_iclass(object, NV_SUBDEV_CLASS))
 		object = object->parent;
-	if (object == NULL || !object->parent || nv_subidx(nv_subdev(object)) != idx)
-		object = nv_device(obj)->subdev[idx];
+	if (object == NULL || !object->parent || nv_subidx(nv_subdev(object)) != idx) {
+		struct nvkm_device *device = nv_device(obj);
+		return nvkm_device_subdev(device, idx);
+	}
 	return object ? nv_subdev(object) : NULL;
 }
 
@@ -266,8 +297,6 @@ _nvkm_subdev_fini(struct nvkm_object *object, bool suspend)
 void
 nvkm_subdev_destroy(struct nvkm_subdev *subdev)
 {
-	int subidx = nv_hclass(subdev) & 0xff;
-	nv_device(subdev)->subdev[subidx] = NULL;
 	nvkm_object_destroy(&subdev->object);
 }
 

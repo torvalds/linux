@@ -23,44 +23,11 @@
  */
 #include "priv.h"
 
-#include <subdev/bios.h>
-#include <subdev/bus.h>
-#include <subdev/gpio.h>
-#include <subdev/i2c.h>
-#include <subdev/fuse.h>
-#include <subdev/clk.h>
-#include <subdev/therm.h>
-#include <subdev/mxm.h>
-#include <subdev/devinit.h>
-#include <subdev/mc.h>
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/ltc.h>
-#include <subdev/ibus.h>
-#include <subdev/instmem.h>
-#include <subdev/mmu.h>
-#include <subdev/bar.h>
-#include <subdev/pmu.h>
-#include <subdev/volt.h>
-
-#include <engine/dmaobj.h>
-#include <engine/fifo.h>
-#include <engine/sw.h>
-#include <engine/gr.h>
-#include <engine/disp.h>
-#include <engine/ce.h>
-#include <engine/bsp.h>
-#include <engine/msvld.h>
-#include <engine/mspdec.h>
-#include <engine/msppp.h>
-#include <engine/pm.h>
-
 int
 gm100_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x117:
-		device->cname = "GM107";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
@@ -100,7 +67,6 @@ gm100_identify(struct nvkm_device *device)
 #endif
 		break;
 	case 0x124:
-		device->cname = "GM204";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gm204_i2c_oclass;
@@ -141,7 +107,6 @@ gm100_identify(struct nvkm_device *device)
 #endif
 		break;
 	case 0x126:
-		device->cname = "GM206";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gm204_i2c_oclass;
@@ -182,7 +147,6 @@ gm100_identify(struct nvkm_device *device)
 #endif
 		break;
 	case 0x12b:
-		device->cname = "GM20B";
 
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;

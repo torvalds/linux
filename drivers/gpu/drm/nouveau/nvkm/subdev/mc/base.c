@@ -65,8 +65,8 @@ nvkm_mc_intr(int irq, void *arg)
 		while (map->stat) {
 			if (intr & map->stat) {
 				unit = nvkm_subdev(mc, map->unit);
-				if (unit && unit->intr)
-					unit->intr(unit);
+				if (unit)
+					nvkm_subdev_intr(unit);
 				stat &= ~map->stat;
 			}
 			map++;

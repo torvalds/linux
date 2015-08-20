@@ -638,8 +638,8 @@ nvkm_perfctx_dtor(struct nvkm_object *object)
 	struct nvkm_pm *pm = (void *)object->engine;
 	struct nvkm_perfctx *ctx = (void *)object;
 
-	mutex_lock(&nv_subdev(pm)->mutex);
 	nvkm_gpuobj_destroy(&ctx->base);
+	mutex_lock(&nv_subdev(pm)->mutex);
 	if (pm->context == ctx)
 		pm->context = NULL;
 	mutex_unlock(&nv_subdev(pm)->mutex);

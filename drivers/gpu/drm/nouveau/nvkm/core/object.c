@@ -201,6 +201,7 @@ nvkm_object_del(struct nvkm_object **pobject)
 	if (object && !WARN_ON(!object->func)) {
 		if (object->func->dtor)
 			*pobject = object->func->dtor(object);
+		nvkm_engine_unref(&object->engine);
 		kfree(*pobject);
 		*pobject = NULL;
 	}
@@ -212,7 +213,7 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 {
 	object->func = func;
 	object->client = oclass->client;
-	object->engine = oclass->engine;
+	object->engine = nvkm_engine_ref(oclass->engine);
 	object->oclass_name = oclass->base.oclass;
 	object->handle = oclass->handle;
 	object->parent = oclass->parent;
@@ -251,10 +252,11 @@ nvkm_object_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 }
 
 int
-nvkm_object_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+nvkm_object_create_(struct nvkm_object *parent, struct nvkm_object *engobj,
 		    struct nvkm_oclass *oclass, u32 pclass,
 		    int size, void **pobject)
 {
+	struct nvkm_engine *engine = engobj ? nv_engine(engobj) : NULL;
 	struct nvkm_object *object;
 
 	object = *pobject = kzalloc(size, GFP_KERNEL);
@@ -262,7 +264,7 @@ nvkm_object_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		return -ENOMEM;
 
 	nvkm_object_ref(parent, &object->parent);
-	nvkm_object_ref(engine, (struct nvkm_object **)&object->engine);
+	object->engine = nvkm_engine_ref(engine);
 	object->oclass = oclass;
 	object->pclass = pclass;
 	atomic_set(&object->refcount, 1);
@@ -287,7 +289,7 @@ _nvkm_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 void
 nvkm_object_destroy(struct nvkm_object *object)
 {
-	nvkm_object_ref(NULL, (struct nvkm_object **)&object->engine);
+	nvkm_engine_unref(&object->engine);
 	nvkm_object_ref(NULL, &object->parent);
 	kfree(object);
 }
@@ -333,7 +335,8 @@ nvkm_object_old(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 
 	if (ret == 0) {
-		atomic_set(&object->refcount, 1);
+		if (!nv_iclass(object, NV_SUBDEV_CLASS))
+			atomic_set(&object->refcount, 1);
 	}
 
 	return 0;
@@ -370,14 +373,6 @@ nvkm_object_inc(struct nvkm_object *object)
 			goto fail_parent;
 	}
 
-	if (object->engine) {
-		mutex_lock(&nv_subdev(object->engine)->mutex);
-		ret = nvkm_object_inc(&object->engine->subdev.object);
-		mutex_unlock(&nv_subdev(object->engine)->mutex);
-		if (ret)
-			goto fail_engine;
-	}
-
 	ret = nvkm_object_init(object);
 	atomic_set(&object->usecount, 1);
 	if (ret)
@@ -386,12 +381,6 @@ nvkm_object_inc(struct nvkm_object *object)
 	return 0;
 
 fail_self:
-	if (object->engine) {
-		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nvkm_object_dec(&object->engine->subdev.object, false);
-		mutex_unlock(&nv_subdev(object->engine)->mutex);
-	}
-fail_engine:
 	if (object->parent)
 		 nvkm_object_dec(object->parent, false);
 fail_parent:
@@ -404,12 +393,6 @@ nvkm_object_decf(struct nvkm_object *object)
 {
 	nvkm_object_fini(object, false);
 	atomic_set(&object->usecount, 0);
-
-	if (object->engine) {
-		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nvkm_object_dec(&object->engine->subdev.object, false);
-		mutex_unlock(&nv_subdev(object->engine)->mutex);
-	}
 
 	if (object->parent)
 		nvkm_object_dec(object->parent, false);
@@ -427,14 +410,6 @@ nvkm_object_decs(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	if (object->engine) {
-		mutex_lock(&nv_subdev(object->engine)->mutex);
-		ret = nvkm_object_dec(&object->engine->subdev.object, true);
-		mutex_unlock(&nv_subdev(object->engine)->mutex);
-		if (ret)
-			goto fail_engine;
-	}
-
 	if (object->parent) {
 		ret = nvkm_object_dec(object->parent, true);
 		if (ret)
@@ -444,13 +419,6 @@ nvkm_object_decs(struct nvkm_object *object)
 	return 0;
 
 fail_parent:
-	if (object->engine) {
-		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nvkm_object_inc(&object->engine->subdev.object);
-		mutex_unlock(&nv_subdev(object->engine)->mutex);
-	}
-
-fail_engine:
 	nvkm_object_init(object);
 
 	return ret;

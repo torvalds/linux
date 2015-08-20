@@ -23,31 +23,11 @@
  */
 #include "priv.h"
 
-#include <subdev/bios.h>
-#include <subdev/bus.h>
-#include <subdev/gpio.h>
-#include <subdev/i2c.h>
-#include <subdev/clk.h>
-#include <subdev/devinit.h>
-#include <subdev/mc.h>
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/instmem.h>
-#include <subdev/mmu.h>
-
-#include <engine/dmaobj.h>
-#include <engine/fifo.h>
-#include <engine/sw.h>
-#include <engine/gr.h>
-#include <engine/mpeg.h>
-#include <engine/disp.h>
-
 int
 nv30_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x30:
-		device->cname = "NV30";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
@@ -66,7 +46,6 @@ nv30_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x35:
-		device->cname = "NV35";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
@@ -85,7 +64,6 @@ nv30_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x31:
-		device->cname = "NV31";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
@@ -105,7 +83,6 @@ nv30_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x36:
-		device->cname = "NV36";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
@@ -125,7 +102,6 @@ nv30_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x34:
-		device->cname = "NV34";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;

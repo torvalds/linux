@@ -138,7 +138,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
 			nvkm_error(subdev, "unable to load firmware data\n");
-			return ret;
+			return -ENODEV;
 		}
 
 		falcon->data.data = vmemdup(fw->data, fw->size);
@@ -153,7 +153,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
 			nvkm_error(subdev, "unable to load firmware code\n");
-			return ret;
+			return -ENODEV;
 		}
 
 		falcon->code.data = vmemdup(fw->data, fw->size);

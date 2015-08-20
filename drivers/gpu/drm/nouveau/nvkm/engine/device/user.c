@@ -107,8 +107,8 @@ nvkm_udevice_info(struct nvkm_object *object, void *data, u32 size)
 	if (imem && args->v0.ram_size > 0)
 		args->v0.ram_user = args->v0.ram_user - imem->reserved;
 
-	strncpy(args->v0.chip, device->cname, sizeof(args->v0.chip));
-	strncpy(args->v0.name, device->cname, sizeof(args->v0.name));
+	strncpy(args->v0.chip, device->chip->name, sizeof(args->v0.chip));
+	strncpy(args->v0.name, device->name, sizeof(args->v0.name));
 	return 0;
 }
 

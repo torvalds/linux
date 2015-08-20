@@ -435,7 +435,7 @@ gf100_fifo_recover_work(struct work_struct *work)
 {
 	struct gf100_fifo *fifo = container_of(work, typeof(*fifo), fault);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_object *engine;
+	struct nvkm_engine *engine;
 	unsigned long flags;
 	u32 engn, engm = 0;
 	u64 mask, todo;
@@ -450,9 +450,9 @@ gf100_fifo_recover_work(struct work_struct *work)
 	nvkm_mask(device, 0x002630, engm, engm);
 
 	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn)) {
-		if ((engine = (void *)nvkm_engine(fifo, engn))) {
-			nvkm_object_fini(engine, false);
-			WARN_ON(nvkm_object_init(engine));
+		if ((engine = nvkm_device_engine(device, engn))) {
+			nvkm_subdev_fini(&engine->subdev, false);
+			WARN_ON(nvkm_subdev_init(&engine->subdev));
 		}
 	}
 

@@ -23,44 +23,11 @@
  */
 #include "priv.h"
 
-#include <subdev/bios.h>
-#include <subdev/bus.h>
-#include <subdev/gpio.h>
-#include <subdev/i2c.h>
-#include <subdev/fuse.h>
-#include <subdev/clk.h>
-#include <subdev/therm.h>
-#include <subdev/mxm.h>
-#include <subdev/devinit.h>
-#include <subdev/mc.h>
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/ltc.h>
-#include <subdev/ibus.h>
-#include <subdev/instmem.h>
-#include <subdev/mmu.h>
-#include <subdev/bar.h>
-#include <subdev/pmu.h>
-#include <subdev/volt.h>
-
-#include <engine/dmaobj.h>
-#include <engine/fifo.h>
-#include <engine/sw.h>
-#include <engine/gr.h>
-#include <engine/disp.h>
-#include <engine/ce.h>
-#include <engine/bsp.h>
-#include <engine/msvld.h>
-#include <engine/mspdec.h>
-#include <engine/msppp.h>
-#include <engine/pm.h>
-
 int
 gk104_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0xe4:
-		device->cname = "GK104";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gk104_i2c_oclass;
@@ -94,7 +61,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe7:
-		device->cname = "GK107";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gk104_i2c_oclass;
@@ -128,7 +94,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe6:
-		device->cname = "GK106";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gk104_i2c_oclass;
@@ -162,7 +127,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xea:
-		device->cname = "GK20A";
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gk20a_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
@@ -184,7 +148,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk20a_pmu_oclass;
 		break;
 	case 0xf0:
-		device->cname = "GK110";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gk104_i2c_oclass;
@@ -218,7 +181,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = &gk110_pm_oclass;
 		break;
 	case 0xf1:
-		device->cname = "GK110B";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
@@ -252,7 +214,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = &gk110_pm_oclass;
 		break;
 	case 0x106:
-		device->cname = "GK208B";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gk104_i2c_oclass;
@@ -285,7 +246,6 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		break;
 	case 0x108:
-		device->cname = "GK208";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gk104_i2c_oclass;

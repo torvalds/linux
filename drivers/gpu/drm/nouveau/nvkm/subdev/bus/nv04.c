@@ -40,8 +40,8 @@ nv04_bus_intr(struct nvkm_subdev *subdev)
 
 	if (stat & 0x00000110) {
 		struct nvkm_gpio *gpio = device->gpio;
-		if (gpio && gpio->subdev.intr)
-			gpio->subdev.intr(&gpio->subdev);
+		if (gpio)
+			nvkm_subdev_intr(&gpio->subdev);
 		stat &= ~0x00000110;
 		nvkm_wr32(device, 0x001100, 0x00000110);
 	}

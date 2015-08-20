@@ -36,8 +36,8 @@ nv31_bus_intr(struct nvkm_subdev *subdev)
 
 	if (gpio) {
 		struct nvkm_gpio *gpio = device->gpio;
-		if (gpio && gpio->subdev.intr)
-			gpio->subdev.intr(&gpio->subdev);
+		if (gpio)
+			nvkm_subdev_intr(&gpio->subdev);
 	}
 
 	if (stat & 0x00000008) {  /* NV41- */
@@ -54,8 +54,8 @@ nv31_bus_intr(struct nvkm_subdev *subdev)
 
 	if (stat & 0x00070000) {
 		struct nvkm_therm *therm = device->therm;
-		if (therm && therm->subdev.intr)
-			therm->subdev.intr(&therm->subdev);
+		if (therm)
+			nvkm_subdev_intr(&therm->subdev);
 		stat &= ~0x00070000;
 		nvkm_wr32(device, 0x001100, 0x00070000);
 	}

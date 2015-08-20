@@ -68,6 +68,8 @@ static int
 nvkm_engine_fini(struct nvkm_subdev *obj, bool suspend)
 {
 	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
+	if (engine->subdev.object.oclass)
+		return engine->subdev.object.oclass->ofuncs->fini(&engine->subdev.object, suspend);
 	if (engine->func->fini)
 		return engine->func->fini(engine, suspend);
 	return 0;
@@ -85,6 +87,9 @@ nvkm_engine_init(struct nvkm_subdev *obj)
 		nvkm_trace(subdev, "init skipped, engine has no users\n");
 		return ret;
 	}
+
+	if (engine->subdev.object.oclass)
+		return engine->subdev.object.oclass->ofuncs->init(&engine->subdev.object);
 
 	if (engine->func->oneinit && !engine->subdev.oneinit) {
 		nvkm_trace(subdev, "one-time init running...\n");
@@ -110,6 +115,10 @@ static void *
 nvkm_engine_dtor(struct nvkm_subdev *obj)
 {
 	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
+	if (engine->subdev.object.oclass) {
+		engine->subdev.object.oclass->ofuncs->dtor(&engine->subdev.object);
+		return NULL;
+	}
 	if (engine->func->dtor)
 		return engine->func->dtor(engine);
 	return engine;
@@ -201,5 +210,6 @@ nvkm_engine_create_(struct nvkm_object *parent, struct nvkm_object *engobj,
 
 	INIT_LIST_HEAD(&engine->contexts);
 	spin_lock_init(&engine->lock);
+	engine->subdev.func = &nvkm_engine_func;
 	return 0;
 }

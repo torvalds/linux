@@ -1601,7 +1601,7 @@ gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 	int i;
 
 	/* Convert device name to lowercase */
-	strncpy(cname, device->cname, sizeof(cname));
+	strncpy(cname, device->chip->name, sizeof(cname));
 	cname[sizeof(cname) - 1] = '\0';
 	i = strlen(cname);
 	while (i) {

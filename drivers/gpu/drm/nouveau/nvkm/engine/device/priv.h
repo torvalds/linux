@@ -2,6 +2,42 @@
 #define __NVKM_DEVICE_PRIV_H__
 #include <core/device.h>
 
+#include <subdev/bar.h>
+#include <subdev/bios.h>
+#include <subdev/bus.h>
+#include <subdev/clk.h>
+#include <subdev/devinit.h>
+#include <subdev/fb.h>
+#include <subdev/fuse.h>
+#include <subdev/gpio.h>
+#include <subdev/i2c.h>
+#include <subdev/ibus.h>
+#include <subdev/instmem.h>
+#include <subdev/ltc.h>
+#include <subdev/mc.h>
+#include <subdev/mmu.h>
+#include <subdev/mxm.h>
+#include <subdev/pmu.h>
+#include <subdev/therm.h>
+#include <subdev/timer.h>
+#include <subdev/volt.h>
+
+#include <engine/bsp.h>
+#include <engine/ce.h>
+#include <engine/cipher.h>
+#include <engine/disp.h>
+#include <engine/dmaobj.h>
+#include <engine/fifo.h>
+#include <engine/gr.h>
+#include <engine/mpeg.h>
+#include <engine/mspdec.h>
+#include <engine/msppp.h>
+#include <engine/msvld.h>
+#include <engine/pm.h>
+#include <engine/sec.h>
+#include <engine/sw.h>
+#include <engine/vp.h>
+
 int  nvkm_device_ctor(const struct nvkm_device_func *,
 		      const struct nvkm_device_quirk *,
 		      void *, enum nv_bus_type type, u64 handle,

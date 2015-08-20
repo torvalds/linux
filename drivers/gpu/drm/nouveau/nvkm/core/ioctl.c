@@ -91,7 +91,7 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	struct nvkm_object *engctx = NULL;
 	struct nvkm_object *object = NULL;
 	struct nvkm_parent *parent;
-	struct nvkm_object *engine;
+	struct nvkm_engine *engine;
 	struct nvkm_oclass *oclass;
 	u32 _handle, _oclass;
 	int ret;
@@ -117,7 +117,8 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	parent = nv_parent(handle->object);
 
 	/* check that parent supports the requested subclass */
-	ret = nvkm_parent_sclass(&parent->object, _oclass, &engine, &oclass);
+	ret = nvkm_parent_sclass(&parent->object, _oclass,
+				 (struct nvkm_object **)&engine, &oclass);
 	if (ret) {
 		nvif_debug(&parent->object, "illegal class 0x%04x\n", _oclass);
 		goto fail_class;
@@ -128,18 +129,20 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	 * state calculated at init (ie. default context construction)
 	 */
 	if (engine) {
-		ret = nvkm_object_inc(engine);
-		if (ret)
+		engine = nvkm_engine_ref(engine);
+		if (IS_ERR(engine)) {
+			ret = PTR_ERR(engine);
+			engine = NULL;
 			goto fail_class;
+		}
 	}
 
 	/* if engine requires it, create a context object to insert
 	 * between the parent and its children (eg. PGRAPH context)
 	 */
-	if (engine && nv_engine(engine)->cclass) {
-		ret = nvkm_object_old(&parent->object, engine,
-				       nv_engine(engine)->cclass,
-				       data, size, &engctx);
+	if (engine && engine->cclass) {
+		ret = nvkm_object_old(&parent->object, &engine->subdev.object,
+				      engine->cclass, data, size, &engctx);
 		if (ret)
 			goto fail_engctx;
 	} else {
@@ -147,7 +150,8 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	}
 
 	/* finally, create new object and bind it to its handle */
-	ret = nvkm_object_old(engctx, engine, oclass, data, size, &object);
+	ret = nvkm_object_old(engctx, &engine->subdev.object, oclass,
+			      data, size, &object);
 	client->data = object;
 	if (ret)
 		goto fail_ctor;
@@ -178,8 +182,7 @@ fail_init:
 fail_ctor:
 	nvkm_object_ref(NULL, &engctx);
 fail_engctx:
-	if (engine)
-		nvkm_object_dec(engine, false);
+	nvkm_engine_unref(&engine);
 fail_class:
 	return ret;
 }
