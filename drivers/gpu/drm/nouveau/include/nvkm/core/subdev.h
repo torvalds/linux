@@ -11,7 +11,7 @@ struct nvkm_subdev {
 	struct nvkm_device *device;
 
 	struct mutex mutex;
-	const char *name;
+	const char *name, *sname;
 	u32 debug;
 	u32 unit;
 
@@ -53,11 +53,20 @@ void _nvkm_subdev_dtor(struct nvkm_object *);
 int  _nvkm_subdev_init(struct nvkm_object *);
 int  _nvkm_subdev_fini(struct nvkm_object *, bool suspend);
 
-#define s_printk(s,l,f,a...) do {                                              \
-	if ((s)->debug >= OS_DBG_##l) {                                        \
-		nv_printk((s)->base.parent, (s)->name, l, f, ##a);             \
-	}                                                                      \
+/* subdev logging */
+#define nvkm_printk_(s,l,p,f,a...) do {                                        \
+	struct nvkm_subdev *_subdev = (s);                                     \
+	if (_subdev->debug >= (l))                                             \
+		dev_##p(_subdev->device->dev, "%s: "f, _subdev->sname, ##a);   \
 } while(0)
+#define nvkm_printk(s,l,p,f,a...) nvkm_printk_((s), NV_DBG_##l, p, f, ##a)
+#define nvkm_fatal(s,f,a...) nvkm_printk((s), FATAL,   crit, f, ##a)
+#define nvkm_error(s,f,a...) nvkm_printk((s), ERROR,    err, f, ##a)
+#define nvkm_warn(s,f,a...)  nvkm_printk((s),  WARN, notice, f, ##a)
+#define nvkm_info(s,f,a...)  nvkm_printk((s),  INFO,   info, f, ##a)
+#define nvkm_debug(s,f,a...) nvkm_printk((s), DEBUG,   info, f, ##a)
+#define nvkm_trace(s,f,a...) nvkm_printk((s), TRACE,   info, f, ##a)
+#define nvkm_spam(s,f,a...)  nvkm_printk((s),  SPAM,    dbg, f, ##a)
 
 #include <core/engine.h>
 #endif

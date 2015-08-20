@@ -64,3 +64,20 @@ nvkm_bitfield_print(const struct nvkm_bitfield *bf, u32 value)
 	if (value)
 		pr_cont(" (unknown bits 0x%08x)", value);
 }
+
+void
+nvkm_snprintbf(char *data, int size, const struct nvkm_bitfield *bf, u32 value)
+{
+	bool space = false;
+	while (size >= 1 && bf->name) {
+		if (value & bf->mask) {
+			int this = snprintf(data, size, "%s%s",
+					    space ? " " : "", bf->name);
+			size -= this;
+			data += this;
+			space = true;
+		}
+		bf++;
+	}
+	data[0] = '\0';
+}

@@ -52,4 +52,16 @@ int nvkm_client_notify_new(struct nvkm_object *, struct nvkm_event *,
 int nvkm_client_notify_del(struct nvkm_client *, int index);
 int nvkm_client_notify_get(struct nvkm_client *, int index);
 int nvkm_client_notify_put(struct nvkm_client *, int index);
+
+/* logging for client-facing objects */
+#define nvif_printk(o,l,p,f,a...) do {                                         \
+	struct nvkm_object *_object = (o);                                     \
+	struct nvkm_client *_client = nvkm_client(_object);                    \
+	if (_client->debug >= NV_DBG_##l)                                      \
+		printk(KERN_##p "nouveau: %s: "f, _client->name, ##a);         \
+} while(0)
+#define nvif_error(o,f,a...) nvif_printk((o), ERROR,  ERR, f, ##a)
+#define nvif_debug(o,f,a...) nvif_printk((o), DEBUG, INFO, f, ##a)
+#define nvif_trace(o,f,a...) nvif_printk((o), TRACE, INFO, f, ##a)
+#define nvif_ioctl(o,f,a...) nvif_trace((o), "ioctl: "f, ##a)
 #endif

@@ -18,4 +18,5 @@ struct nvkm_bitfield {
 };
 
 void nvkm_bitfield_print(const struct nvkm_bitfield *, u32 value);
+void nvkm_snprintbf(char *, int, const struct nvkm_bitfield *, u32 value);
 #endif

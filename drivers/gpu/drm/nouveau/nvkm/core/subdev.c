@@ -111,6 +111,7 @@ nvkm_subdev_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	__mutex_init(&subdev->mutex, subname, &oclass->lock_class_key);
 	subdev->name = subname;
+	subdev->sname = sysname;
 
 	if (parent) {
 		struct nvkm_device *device = nv_device(parent);

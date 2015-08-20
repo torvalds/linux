@@ -214,4 +214,19 @@ enum nv_bus_type {
 int  nvkm_device_create_(void *, enum nv_bus_type type, u64 name,
 			    const char *sname, const char *cfg, const char *dbg,
 			    int, void **);
+
+/* device logging */
+#define nvdev_printk_(d,l,p,f,a...) do {                                       \
+	struct nvkm_device *_device = (d);                                     \
+	if (_device->engine.subdev.debug >= (l))                               \
+		dev_##p(_device->dev, f, ##a);                                 \
+} while(0)
+#define nvdev_printk(d,l,p,f,a...) nvdev_printk_((d), NV_DBG_##l, p, f, ##a)
+#define nvdev_fatal(d,f,a...) nvdev_printk((d), FATAL,   crit, f, ##a)
+#define nvdev_error(d,f,a...) nvdev_printk((d), ERROR,    err, f, ##a)
+#define nvdev_warn(d,f,a...)  nvdev_printk((d),  WARN, notice, f, ##a)
+#define nvdev_info(d,f,a...)  nvdev_printk((d),  INFO,   info, f, ##a)
+#define nvdev_debug(d,f,a...) nvdev_printk((d), DEBUG,   info, f, ##a)
+#define nvdev_trace(d,f,a...) nvdev_printk((d), TRACE,   info, f, ##a)
+#define nvdev_spam(d,f,a...)  nvdev_printk((d),  SPAM,    dbg, f, ##a)
 #endif
