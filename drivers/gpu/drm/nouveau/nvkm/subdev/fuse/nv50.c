@@ -30,9 +30,9 @@ struct nv50_fuse {
 };
 
 static u32
-nv50_fuse_rd32(struct nvkm_object *object, u64 addr)
+nv50_fuse_read(struct nvkm_fuse *obj, u32 addr)
 {
-	struct nv50_fuse *fuse = (void *)object;
+	struct nv50_fuse *fuse = container_of(obj, typeof(*fuse), base);
 	struct nvkm_device *device = fuse->base.subdev.device;
 	unsigned long flags;
 	u32 fuse_enable, val;
@@ -46,6 +46,10 @@ nv50_fuse_rd32(struct nvkm_object *object, u64 addr)
 	return val;
 }
 
+static const struct nvkm_fuse_func
+nv50_fuse_func = {
+	.read = &nv50_fuse_read,
+};
 
 static int
 nv50_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -61,6 +65,7 @@ nv50_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	spin_lock_init(&fuse->fuse_enable_lock);
+	fuse->base.func = &nv50_fuse_func;
 	return 0;
 }
 
@@ -72,6 +77,5 @@ nv50_fuse_oclass = {
 		.dtor = _nvkm_fuse_dtor,
 		.init = _nvkm_fuse_init,
 		.fini = _nvkm_fuse_fini,
-		.rd32 = nv50_fuse_rd32,
 	},
 };

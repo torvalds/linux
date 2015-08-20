@@ -24,13 +24,16 @@
 #include "priv.h"
 
 static u32
-gm107_fuse_rd32(struct nvkm_object *object, u64 addr)
+gm107_fuse_read(struct nvkm_fuse *fuse, u32 addr)
 {
-	struct nvkm_fuse *fuse = (void *)object;
 	struct nvkm_device *device = fuse->subdev.device;
 	return nvkm_rd32(device, 0x21100 + addr);
 }
 
+static const struct nvkm_fuse_func
+gm107_fuse_func = {
+	.read = gm107_fuse_read,
+};
 
 static int
 gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -43,6 +46,7 @@ gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	ret = nvkm_fuse_create(parent, engine, oclass, &fuse);
 	*pobject = nv_object(fuse);
 
+	fuse->func = &gm107_fuse_func;
 	return ret;
 }
 
@@ -54,6 +58,5 @@ gm107_fuse_oclass = {
 		.dtor = _nvkm_fuse_dtor,
 		.init = _nvkm_fuse_init,
 		.fini = _nvkm_fuse_fini,
-		.rd32 = gm107_fuse_rd32,
 	},
 };

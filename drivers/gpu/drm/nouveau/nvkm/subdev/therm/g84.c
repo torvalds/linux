@@ -32,7 +32,7 @@ g84_temp_get(struct nvkm_therm *therm)
 	struct nvkm_device *device = therm->subdev.device;
 	struct nvkm_fuse *fuse = nvkm_fuse(therm);
 
-	if (nv_ro32(fuse, 0x1a8) == 1)
+	if (fuse->func->read(fuse, 0x1a8) == 1)
 		return nvkm_rd32(device, 0x20400);
 	else
 		return -ENODEV;
@@ -45,7 +45,7 @@ g84_sensor_setup(struct nvkm_therm *therm)
 	struct nvkm_fuse *fuse = nvkm_fuse(therm);
 
 	/* enable temperature reading for cards with insane defaults */
-	if (nv_ro32(fuse, 0x1a8) == 1) {
+	if (fuse->func->read(fuse, 0x1a8) == 1) {
 		nvkm_mask(device, 0x20008, 0x80008000, 0x80000000);
 		nvkm_mask(device, 0x2000c, 0x80000003, 0x00000000);
 		mdelay(20); /* wait for the temperature to stabilize */

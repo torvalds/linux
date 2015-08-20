@@ -30,9 +30,9 @@ struct gf100_fuse {
 };
 
 static u32
-gf100_fuse_rd32(struct nvkm_object *object, u64 addr)
+gf100_fuse_read(struct nvkm_fuse *obj, u32 addr)
 {
-	struct gf100_fuse *fuse = (void *)object;
+	struct gf100_fuse *fuse = container_of(obj, typeof(*fuse), base);
 	struct nvkm_device *device = fuse->base.subdev.device;
 	unsigned long flags;
 	u32 fuse_enable, unk, val;
@@ -48,6 +48,10 @@ gf100_fuse_rd32(struct nvkm_object *object, u64 addr)
 	return val;
 }
 
+static const struct nvkm_fuse_func
+gf100_fuse_func = {
+	.read = gf100_fuse_read,
+};
 
 static int
 gf100_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -63,6 +67,7 @@ gf100_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	spin_lock_init(&fuse->fuse_enable_lock);
+	fuse->base.func = &gf100_fuse_func;
 	return 0;
 }
 
@@ -74,6 +79,5 @@ gf100_fuse_oclass = {
 		.dtor = _nvkm_fuse_dtor,
 		.init = _nvkm_fuse_init,
 		.fini = _nvkm_fuse_fini,
-		.rd32 = gf100_fuse_rd32,
 	},
 };

@@ -5,6 +5,11 @@
 
 struct nvkm_fuse {
 	struct nvkm_subdev subdev;
+	const struct nvkm_fuse_func *func;
+};
+
+struct nvkm_fuse_func {
+	u32 (*read)(struct nvkm_fuse *, u32 addr);
 };
 
 static inline struct nvkm_fuse *
