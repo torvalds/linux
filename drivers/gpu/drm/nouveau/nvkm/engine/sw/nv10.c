@@ -21,7 +21,9 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/sw.h>
+#include "priv.h"
+#include "chan.h"
+#include "nvsw.h"
 
 #include <nvif/ioctl.h>
 
@@ -33,9 +35,8 @@ static int
 nv10_sw_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
 {
 	struct nvkm_sw_chan *chan = (void *)nv_engctx(object->parent);
-	if (chan->flip)
-		return chan->flip(chan->flip_data);
-	return -EINVAL;
+	nvkm_event_send(&chan->event, 1, 0, NULL, 0);
+	return 0;
 }
 
 static struct nvkm_omthds
@@ -46,7 +47,7 @@ nv10_sw_omthds[] = {
 
 static struct nvkm_oclass
 nv10_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV10, &nvkm_object_ofuncs, nv10_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV10, &nvkm_nvsw_ofuncs, nv10_sw_omthds },
 	{}
 };
 

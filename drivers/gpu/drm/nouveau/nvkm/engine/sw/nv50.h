@@ -1,6 +1,8 @@
 #ifndef __NVKM_SW_NV50_H__
 #define __NVKM_SW_NV50_H__
-#include <engine/sw.h>
+#include "priv.h"
+#include "chan.h"
+#include "nvsw.h"
 #include <core/notify.h>
 
 struct nv50_sw_oclass {

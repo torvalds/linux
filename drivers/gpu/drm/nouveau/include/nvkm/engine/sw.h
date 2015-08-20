@@ -1,27 +1,5 @@
 #ifndef __NVKM_SW_H__
 #define __NVKM_SW_H__
-#include <core/engctx.h>
-
-struct nvkm_sw_chan {
-	struct nvkm_engctx base;
-
-	int (*flip)(void *);
-	void *flip_data;
-};
-
-#define nvkm_sw_context_create(p,e,c,d)                               \
-	nvkm_engctx_create((p), (e), (c), (p), 0, 0, 0, (d))
-#define nvkm_sw_context_destroy(d)                                    \
-	nvkm_engctx_destroy(&(d)->base)
-#define nvkm_sw_context_init(d)                                       \
-	nvkm_engctx_init(&(d)->base)
-#define nvkm_sw_context_fini(d,s)                                     \
-	nvkm_engctx_fini(&(d)->base, (s))
-
-#define _nvkm_sw_context_dtor _nvkm_engctx_dtor
-#define _nvkm_sw_context_init _nvkm_engctx_init
-#define _nvkm_sw_context_fini _nvkm_engctx_fini
-
 #include <core/engine.h>
 
 struct nvkm_sw {

@@ -358,6 +358,7 @@ int
 nouveau_display_init(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
 	int ret;
 
@@ -374,6 +375,8 @@ nouveau_display_init(struct drm_device *dev)
 		nvif_notify_get(&conn->hpd);
 	}
 
+	/* enable flip completion events */
+	nvif_notify_get(&drm->flip);
 	return ret;
 }
 
@@ -381,12 +384,16 @@ void
 nouveau_display_fini(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
 	int head;
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
 	for (head = 0; head < dev->mode_config.num_crtc; head++)
 		drm_vblank_off(dev, head);
+
+	/* disable flip completion events */
+	nvif_notify_put(&drm->flip);
 
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -847,10 +854,10 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 }
 
 int
-nouveau_flip_complete(void *data)
+nouveau_flip_complete(struct nvif_notify *notify)
 {
-	struct nouveau_channel *chan = data;
-	struct nouveau_drm *drm = chan->drm;
+	struct nouveau_drm *drm = container_of(notify, typeof(*drm), flip);
+	struct nouveau_channel *chan = drm->channel;
 	struct nouveau_page_flip_state state;
 
 	if (!nouveau_finish_page_flip(chan, &state)) {
@@ -861,7 +868,7 @@ nouveau_flip_complete(void *data)
 		}
 	}
 
-	return 0;
+	return NVIF_NOTIFY_KEEP;
 }
 
 int

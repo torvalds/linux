@@ -293,7 +293,6 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nvif_device *device = chan->device;
 	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nvkm_mmu *mmu = nvxx_mmu(device);
-	struct nvkm_sw_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
@@ -381,10 +380,6 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 				       NULL, 0, &chan->nvsw);
 		if (ret)
 			return ret;
-
-		swch = (void *)nvxx_object(&chan->nvsw)->parent;
-		swch->flip = nouveau_flip_complete;
-		swch->flip_data = chan;
 
 		ret = RING_SPACE(chan, 2);
 		if (ret)

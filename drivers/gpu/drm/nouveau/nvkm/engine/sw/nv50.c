@@ -92,9 +92,8 @@ int
 nv50_sw_mthd_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
 {
 	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
-	if (chan->base.flip)
-		return chan->base.flip(chan->base.flip_data);
-	return -EINVAL;
+	nvkm_event_send(&chan->base.event, 1, 0, NULL, 0);
+	return 0;
 }
 
 static struct nvkm_omthds
@@ -109,7 +108,7 @@ nv50_sw_omthds[] = {
 
 static struct nvkm_oclass
 nv50_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV50, &nvkm_object_ofuncs, nv50_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV50, &nvkm_nvsw_ofuncs, nv50_sw_omthds },
 	{}
 };
 
@@ -150,7 +149,7 @@ nv50_sw_context_dtor(struct nvkm_object *object)
 	for (i = 0; i < ARRAY_SIZE(chan->vblank.notify); i++)
 		nvkm_notify_fini(&chan->vblank.notify[i]);
 
-	nvkm_sw_context_destroy(&chan->base);
+	nvkm_sw_chan_dtor(&chan->base.base.gpuobj.object);
 }
 
 int

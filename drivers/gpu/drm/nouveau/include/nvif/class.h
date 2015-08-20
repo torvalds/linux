@@ -584,6 +584,8 @@ struct nv50_disp_overlay_v0 {
  * software
  ******************************************************************************/
 
+#define NVSW_NTFY_UEVENT                                                   0x00
+
 #define NV04_NVSW_GET_REF                                                  0x00
 
 struct nv04_nvsw_get_ref_v0 {

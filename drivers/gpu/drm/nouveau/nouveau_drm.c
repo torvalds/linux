@@ -139,6 +139,7 @@ nouveau_cli_destroy(struct nouveau_cli *cli)
 static void
 nouveau_accel_fini(struct nouveau_drm *drm)
 {
+	nvif_notify_fini(&drm->flip);
 	nouveau_channel_del(&drm->channel);
 	nvif_object_fini(&drm->ntfy);
 	nvkm_gpuobj_del(&drm->notify);
@@ -240,7 +241,6 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	ret = nvif_object_init(&drm->channel->user, NVDRM_NVSW,
 			       nouveau_abi16_swclass(drm), NULL, 0, &drm->nvsw);
 	if (ret == 0) {
-		struct nvkm_sw_chan *swch;
 		ret = RING_SPACE(drm->channel, 2);
 		if (ret == 0) {
 			if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
@@ -252,9 +252,16 @@ nouveau_accel_init(struct nouveau_drm *drm)
 				OUT_RING  (drm->channel, 0x001f0000);
 			}
 		}
-		swch = (void *)nvxx_object(&drm->nvsw)->parent;
-		swch->flip = nouveau_flip_complete;
-		swch->flip_data = drm->channel;
+
+		ret = nvif_notify_init(&drm->nvsw, nouveau_flip_complete,
+				       false, NVSW_NTFY_UEVENT, NULL, 0, 0,
+				       &drm->flip);
+		if (ret == 0)
+			ret = nvif_notify_get(&drm->flip);
+		if (ret) {
+			nouveau_accel_fini(drm);
+			return;
+		}
 	}
 
 	if (ret) {
