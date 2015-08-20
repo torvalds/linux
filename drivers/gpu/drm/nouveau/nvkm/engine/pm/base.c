@@ -656,7 +656,7 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	int ret;
 
 	/* no context needed for perfdom objects... */
-	if (nv_mclass(parent) != NV_DEVICE) {
+	if (parent->parent != &nvkm_client(parent)->object) {
 		atomic_inc(&parent->refcount);
 		*pobject = parent;
 		return 1;

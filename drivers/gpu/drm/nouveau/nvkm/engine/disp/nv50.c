@@ -1300,7 +1300,7 @@ nv50_disp_data_ctor(struct nvkm_object *parent,
 	int ret;
 
 	/* no context needed for channel objects... */
-	if (nv_mclass(parent) != NV_DEVICE) {
+	if (parent->parent != &nvkm_client(parent)->object) {
 		atomic_inc(&parent->refcount);
 		*pobject = parent;
 		return 1;

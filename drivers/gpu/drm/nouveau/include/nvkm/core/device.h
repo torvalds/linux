@@ -272,9 +272,9 @@ enum nv_bus_type {
 	NVKM_BUS_PLATFORM,
 };
 
-extern struct nvkm_ofuncs nvkm_udevice_ofuncs;
-
 void nvkm_device_del(struct nvkm_device **);
+
+extern const struct nvkm_sclass nvkm_udevice_sclass;
 
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \

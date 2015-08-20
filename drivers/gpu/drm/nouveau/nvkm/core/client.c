@@ -180,25 +180,24 @@ static int
 nvkm_client_child_new(const struct nvkm_oclass *oclass,
 		      void *data, u32 size, struct nvkm_object **pobject)
 {
-	static struct nvkm_oclass devobj = {
-		.handle = NV_DEVICE,
-		.ofuncs = &nvkm_udevice_ofuncs,
-	};
-	return nvkm_object_old(oclass->parent, NULL, &devobj, data, size, pobject);
+	return oclass->base.ctor(oclass, data, size, pobject);
 }
 
 static int
 nvkm_client_child_get(struct nvkm_object *object, int index,
 		      struct nvkm_oclass *oclass)
 {
-	if (index == 0) {
-		oclass->base.oclass = NV_DEVICE;
-		oclass->base.minver = 0;
-		oclass->base.maxver = 0;
-		oclass->ctor = nvkm_client_child_new;
-		return 0;
+	const struct nvkm_sclass *sclass;
+
+	switch (index) {
+	case 0: sclass = &nvkm_udevice_sclass; break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	oclass->ctor = nvkm_client_child_new;
+	oclass->base = *sclass;
+	return 0;
 }
 
 static const struct nvkm_object_func

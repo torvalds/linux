@@ -1990,7 +1990,7 @@ nv_device(void *obj)
 			if (!nv_iclass(device, NV_SUBDEV_CLASS) &&
 			    device->parent == &nvkm_client(device)->object) {
 				struct {
-					struct nvkm_parent base;
+					struct nvkm_object base;
 					struct nvkm_device *device;
 				} *udevice = (void *)device;
 				return udevice->device;

@@ -66,7 +66,7 @@ nvkm_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_gpuobj *pargpu,
 		struct nvkm_object *parent = (void *)pargpu;
 		struct hack *object;
 
-		if (nv_mclass(parent->parent) == NV_DEVICE) {
+		if (parent->parent->parent == &nvkm_client(parent)->object) {
 			/* delayed, or no, binding */
 			return 0;
 		}
