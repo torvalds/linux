@@ -150,14 +150,8 @@ gt200_pm[] = {
 	{}
 };
 
-struct nvkm_oclass *
-gt200_pm_oclass = &(struct nv40_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0xa0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_pm_ctor,
-		.dtor = _nvkm_pm_dtor,
-		.init = _nvkm_pm_init,
-		.fini = _nvkm_pm_fini,
-	},
-	.doms = gt200_pm,
-}.base;
+int
+gt200_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+{
+	return nv40_pm_new_(gt200_pm, device, index, ppm);
+}

@@ -170,16 +170,15 @@ gk104_pm_part[] = {
 	{}
 };
 
-struct nvkm_oclass *
-gk104_pm_oclass = &(struct gf100_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0xe0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_pm_ctor,
-		.dtor = _nvkm_pm_dtor,
-		.init = _nvkm_pm_init,
-		.fini = gf100_pm_fini,
-	},
-	.doms_gpc  = gk104_pm_gpc,
-	.doms_hub  = gk104_pm_hub,
+static const struct gf100_pm_func
+gk104_pm = {
+	.doms_gpc = gk104_pm_gpc,
+	.doms_hub = gk104_pm_hub,
 	.doms_part = gk104_pm_part,
-}.base;
+};
+
+int
+gk104_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+{
+	return gf100_pm_new_(&gk104_pm, device, index, ppm);
+}

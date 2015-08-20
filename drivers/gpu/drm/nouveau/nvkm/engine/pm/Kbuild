@@ -8,4 +8,3 @@ nvkm-y += nvkm/engine/pm/gf100.o
 nvkm-y += nvkm/engine/pm/gf108.o
 nvkm-y += nvkm/engine/pm/gf117.o
 nvkm-y += nvkm/engine/pm/gk104.o
-nvkm-y += nvkm/engine/pm/gk110.o

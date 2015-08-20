@@ -129,7 +129,6 @@ gf100_perfctr_init(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		   struct nvkm_perfctr *ctr)
 {
 	struct nvkm_device *device = pm->engine.subdev.device;
-	struct gf100_pm_cntr *cntr = (void *)ctr;
 	u32 log = ctr->logic_op;
 	u32 src = 0x00000000;
 	int i;
@@ -139,8 +138,8 @@ gf100_perfctr_init(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 
 	nvkm_wr32(device, dom->addr + 0x09c, 0x00040002 | (dom->mode << 3));
 	nvkm_wr32(device, dom->addr + 0x100, 0x00000000);
-	nvkm_wr32(device, dom->addr + 0x040 + (cntr->base.slot * 0x08), src);
-	nvkm_wr32(device, dom->addr + 0x044 + (cntr->base.slot * 0x08), log);
+	nvkm_wr32(device, dom->addr + 0x040 + (ctr->slot * 0x08), src);
+	nvkm_wr32(device, dom->addr + 0x044 + (ctr->slot * 0x08), log);
 }
 
 static void
@@ -148,13 +147,12 @@ gf100_perfctr_read(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		   struct nvkm_perfctr *ctr)
 {
 	struct nvkm_device *device = pm->engine.subdev.device;
-	struct gf100_pm_cntr *cntr = (void *)ctr;
 
-	switch (cntr->base.slot) {
-	case 0: cntr->base.ctr = nvkm_rd32(device, dom->addr + 0x08c); break;
-	case 1: cntr->base.ctr = nvkm_rd32(device, dom->addr + 0x088); break;
-	case 2: cntr->base.ctr = nvkm_rd32(device, dom->addr + 0x080); break;
-	case 3: cntr->base.ctr = nvkm_rd32(device, dom->addr + 0x090); break;
+	switch (ctr->slot) {
+	case 0: ctr->ctr = nvkm_rd32(device, dom->addr + 0x08c); break;
+	case 1: ctr->ctr = nvkm_rd32(device, dom->addr + 0x088); break;
+	case 2: ctr->ctr = nvkm_rd32(device, dom->addr + 0x080); break;
+	case 3: ctr->ctr = nvkm_rd32(device, dom->addr + 0x090); break;
 	}
 	dom->clk = nvkm_rd32(device, dom->addr + 0x070);
 }
@@ -174,35 +172,37 @@ gf100_perfctr_func = {
 	.next = gf100_perfctr_next,
 };
 
-int
-gf100_pm_fini(struct nvkm_object *object, bool suspend)
+static void
+gf100_pm_fini(struct nvkm_pm *pm)
 {
-	struct nvkm_pm *pm = (void *)object;
 	struct nvkm_device *device = pm->engine.subdev.device;
 	nvkm_mask(device, 0x000200, 0x10000000, 0x00000000);
 	nvkm_mask(device, 0x000200, 0x10000000, 0x10000000);
-	return nvkm_pm_fini(pm, suspend);
 }
 
+static const struct nvkm_pm_func
+gf100_pm_ = {
+	.fini = gf100_pm_fini,
+};
+
 int
-gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+gf100_pm_new_(const struct gf100_pm_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_pm **ppm)
 {
-	struct gf100_pm_oclass *mclass = (void *)oclass;
-	struct nvkm_device *device = (void *)parent;
 	struct nvkm_pm *pm;
 	u32 mask;
 	int ret;
 
-	ret = nvkm_pm_create(parent, engine, oclass, &pm);
-	*pobject = nv_object(pm);
+	if (!(pm = *ppm = kzalloc(sizeof(*pm), GFP_KERNEL)))
+		return -ENOMEM;
+
+	ret = nvkm_pm_ctor(&gf100_pm_, device, index, pm);
 	if (ret)
 		return ret;
 
 	/* HUB */
 	ret = nvkm_perfdom_new(pm, "hub", 0, 0x1b0000, 0, 0x200,
-			       mclass->doms_hub);
+			       func->doms_hub);
 	if (ret)
 		return ret;
 
@@ -212,7 +212,7 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mask &= ~nvkm_rd32(device, 0x022584);
 
 	ret = nvkm_perfdom_new(pm, "gpc", mask, 0x180000,
-			       0x1000, 0x200, mclass->doms_gpc);
+			       0x1000, 0x200, func->doms_gpc);
 	if (ret)
 		return ret;
 
@@ -222,23 +222,22 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mask &= ~nvkm_rd32(device, 0x0225c8);
 
 	ret = nvkm_perfdom_new(pm, "part", mask, 0x1a0000,
-			       0x1000, 0x200, mclass->doms_part);
+			       0x1000, 0x200, func->doms_part);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-struct nvkm_oclass *
-gf100_pm_oclass = &(struct gf100_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_pm_ctor,
-		.dtor = _nvkm_pm_dtor,
-		.init = _nvkm_pm_init,
-		.fini = gf100_pm_fini,
-	},
-	.doms_gpc  = gf100_pm_gpc,
-	.doms_hub  = gf100_pm_hub,
+static const struct gf100_pm_func
+gf100_pm = {
+	.doms_gpc = gf100_pm_gpc,
+	.doms_hub = gf100_pm_hub,
 	.doms_part = gf100_pm_part,
-}.base;
+};
+
+int
+gf100_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+{
+	return gf100_pm_new_(&gf100_pm, device, index, ppm);
+}

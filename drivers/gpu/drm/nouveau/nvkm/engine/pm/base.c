@@ -203,13 +203,13 @@ nvkm_perfsrc_disable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
  * Perfdom object classes
  ******************************************************************************/
 static int
-nvkm_perfdom_init(struct nvkm_object *object, void *data, u32 size)
+nvkm_perfdom_init(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
 		struct nvif_perfdom_init none;
 	} *args = data;
-	struct nvkm_pm *pm = (void *)object->engine;
-	struct nvkm_perfdom *dom = (void *)object;
+	struct nvkm_object *object = &dom->object;
+	struct nvkm_pm *pm = dom->perfmon->pm;
 	int ret, i;
 
 	nvif_ioctl(object, "perfdom init size %d\n", size);
@@ -233,13 +233,13 @@ nvkm_perfdom_init(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
-nvkm_perfdom_sample(struct nvkm_object *object, void *data, u32 size)
+nvkm_perfdom_sample(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
 		struct nvif_perfdom_sample none;
 	} *args = data;
-	struct nvkm_pm *pm = (void *)object->engine;
-	struct nvkm_perfdom *dom;
+	struct nvkm_object *object = &dom->object;
+	struct nvkm_pm *pm = dom->perfmon->pm;
 	int ret;
 
 	nvif_ioctl(object, "perfdom sample size %d\n", size);
@@ -257,13 +257,13 @@ nvkm_perfdom_sample(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
-nvkm_perfdom_read(struct nvkm_object *object, void *data, u32 size)
+nvkm_perfdom_read(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
 		struct nvif_perfdom_read_v0 v0;
 	} *args = data;
-	struct nvkm_pm *pm = (void *)object->engine;
-	struct nvkm_perfdom *dom = (void *)object;
+	struct nvkm_object *object = &dom->object;
+	struct nvkm_pm *pm = dom->perfmon->pm;
 	int ret, i;
 
 	nvif_ioctl(object, "perfdom read size %d\n", size);
@@ -290,13 +290,14 @@ nvkm_perfdom_read(struct nvkm_object *object, void *data, u32 size)
 static int
 nvkm_perfdom_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
+	struct nvkm_perfdom *dom = nvkm_perfdom(object);
 	switch (mthd) {
 	case NVIF_PERFDOM_V0_INIT:
-		return nvkm_perfdom_init(object, data, size);
+		return nvkm_perfdom_init(dom, data, size);
 	case NVIF_PERFDOM_V0_SAMPLE:
-		return nvkm_perfdom_sample(object, data, size);
+		return nvkm_perfdom_sample(dom, data, size);
 	case NVIF_PERFDOM_V0_READ:
-		return nvkm_perfdom_read(object, data, size);
+		return nvkm_perfdom_read(dom, data, size);
 	default:
 		break;
 	}
@@ -304,9 +305,9 @@ nvkm_perfdom_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 }
 
 static void *
-nvkm_perfdom_dtor(struct nvkm_object *base)
+nvkm_perfdom_dtor(struct nvkm_object *object)
 {
-	struct nvkm_perfdom *dom = nvkm_perfdom(base);
+	struct nvkm_perfdom *dom = nvkm_perfdom(object);
 	struct nvkm_pm *pm = dom->perfmon->pm;
 	int i;
 
@@ -607,7 +608,7 @@ nvkm_perfmon_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 }
 
 static int
-nvkm_perfmon_child_get(struct nvkm_object *base, int index,
+nvkm_perfmon_child_get(struct nvkm_object *object, int index,
 		       struct nvkm_oclass *oclass)
 {
 	if (index == 0) {
@@ -621,9 +622,9 @@ nvkm_perfmon_child_get(struct nvkm_object *base, int index,
 }
 
 static void *
-nvkm_perfmon_dtor(struct nvkm_object *base)
+nvkm_perfmon_dtor(struct nvkm_object *object)
 {
-	struct nvkm_perfmon *perfmon = nvkm_perfmon(base);
+	struct nvkm_perfmon *perfmon = nvkm_perfmon(object);
 	struct nvkm_pm *pm = perfmon->pm;
 	mutex_lock(&pm->engine.subdev.mutex);
 	if (pm->perfmon == &perfmon->object)
@@ -816,24 +817,19 @@ nvkm_perfdom_new(struct nvkm_pm *pm, const char *name, u32 mask,
 	return 0;
 }
 
-int
-_nvkm_pm_fini(struct nvkm_object *object, bool suspend)
+static int
+nvkm_pm_fini(struct nvkm_engine *engine, bool suspend)
 {
-	struct nvkm_pm *pm = (void *)object;
-	return nvkm_engine_fini_old(&pm->engine, suspend);
+	struct nvkm_pm *pm = nvkm_pm(engine);
+	if (pm->func->fini)
+		pm->func->fini(pm);
+	return 0;
 }
 
-int
-_nvkm_pm_init(struct nvkm_object *object)
+static void *
+nvkm_pm_dtor(struct nvkm_engine *engine)
 {
-	struct nvkm_pm *pm = (void *)object;
-	return nvkm_engine_init_old(&pm->engine);
-}
-
-void
-_nvkm_pm_dtor(struct nvkm_object *object)
-{
-	struct nvkm_pm *pm = (void *)object;
+	struct nvkm_pm *pm = nvkm_pm(engine);
 	struct nvkm_perfdom *dom, *next_dom;
 	struct nvkm_perfsrc *src, *next_src;
 
@@ -848,30 +844,22 @@ _nvkm_pm_dtor(struct nvkm_object *object)
 		kfree(src);
 	}
 
-	nvkm_engine_destroy(&pm->engine);
+	return pm;
 }
 
 static const struct nvkm_engine_func
 nvkm_pm = {
+	.dtor = nvkm_pm_dtor,
+	.fini = nvkm_pm_fini,
 	.base.sclass = nvkm_pm_oclass_get,
 };
 
 int
-nvkm_pm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_pm_ctor(const struct nvkm_pm_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_pm *pm)
 {
-	struct nvkm_pm *pm;
-	int ret;
-
-	ret = nvkm_engine_create_(parent, engine, oclass, true, "PPM",
-				  "pm", length, pobject);
-	pm = *pobject;
-	if (ret)
-		return ret;
-
-	pm->engine.func = &nvkm_pm;
-
+	pm->func = func;
 	INIT_LIST_HEAD(&pm->domains);
 	INIT_LIST_HEAD(&pm->sources);
-	return 0;
+	return nvkm_engine_ctor(&nvkm_pm, device, index, 0, true, &pm->engine);
 }

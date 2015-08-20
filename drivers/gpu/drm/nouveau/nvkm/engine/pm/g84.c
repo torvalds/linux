@@ -158,14 +158,8 @@ g84_pm[] = {
 	{}
 };
 
-struct nvkm_oclass *
-g84_pm_oclass = &(struct nv40_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0x84),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_pm_ctor,
-		.dtor = _nvkm_pm_dtor,
-		.init = _nvkm_pm_init,
-		.fini = _nvkm_pm_fini,
-	},
-	.doms = g84_pm,
-}.base;
+int
+g84_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+{
+	return nv40_pm_new_(g84_pm, device, index, ppm);
+}

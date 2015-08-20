@@ -1,6 +1,14 @@
 #ifndef __NVKM_PM_PRIV_H__
 #define __NVKM_PM_PRIV_H__
+#define nvkm_pm(p) container_of((p), struct nvkm_pm, engine)
 #include <engine/pm.h>
+
+int nvkm_pm_ctor(const struct nvkm_pm_func *, struct nvkm_device *,
+		 int index, struct nvkm_pm *);
+
+struct nvkm_pm_func {
+	void (*fini)(struct nvkm_pm *);
+};
 
 struct nvkm_perfctr {
 	struct list_head head;
@@ -92,25 +100,4 @@ struct nvkm_perfmon {
 	struct nvkm_object object;
 	struct nvkm_pm *pm;
 };
-
-#define nvkm_pm_create(p,e,o,d)                                        \
-	nvkm_pm_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nvkm_pm_dtor(p) ({                                             \
-	struct nvkm_pm *c = (p);                                       \
-	_nvkm_pm_dtor(nv_object(c));                                   \
-})
-#define nvkm_pm_init(p) ({                                             \
-	struct nvkm_pm *c = (p);                                       \
-	_nvkm_pm_init(nv_object(c));                                   \
-})
-#define nvkm_pm_fini(p,s) ({                                           \
-	struct nvkm_pm *c = (p);                                       \
-	_nvkm_pm_fini(nv_object(c), (s));                              \
-})
-
-int nvkm_pm_create_(struct nvkm_object *, struct nvkm_object *,
-			    struct nvkm_oclass *, int, void **);
-void _nvkm_pm_dtor(struct nvkm_object *);
-int  _nvkm_pm_init(struct nvkm_object *);
-int  _nvkm_pm_fini(struct nvkm_object *, bool);
 #endif
