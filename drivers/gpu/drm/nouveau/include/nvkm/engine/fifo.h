@@ -50,7 +50,7 @@ struct nvkm_fifo_base {
 };
 
 #define nvkm_fifo_context_create(p,e,c,g,s,a,f,d)                           \
-	nvkm_gpuobj_create((p), (e), (c), 0, (g), (s), (a), (f), (d))
+	nvkm_gpuobj_create((p), (e), (c), NV_ENGCTX_CLASS, (g), (s), (a), (f), (d))
 #define nvkm_fifo_context_destroy(p)                                        \
 	nvkm_gpuobj_destroy(&(p)->gpuobj)
 #define nvkm_fifo_context_init(p)                                           \

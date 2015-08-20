@@ -2,7 +2,7 @@
 #define __NVKM_ENGINE_H__
 #include <core/subdev.h>
 
-#define NV_ENGINE_(eng,var) (NV_ENGINE_CLASS | ((var) << 8) | (eng))
+#define NV_ENGINE_(eng,var) (((var) << 8) | (eng))
 #define NV_ENGINE(name,var)  NV_ENGINE_(NVDEV_ENGINE_##name, (var))
 
 struct nvkm_engine {

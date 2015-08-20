@@ -4,7 +4,7 @@
 
 #include <subdev/mmu.h>
 
-#define NV_ENGCTX_(eng,var) (NV_ENGCTX_CLASS | ((var) << 8) | (eng))
+#define NV_ENGCTX_(eng,var) (((var) << 8) | (eng))
 #define NV_ENGCTX(name,var)  NV_ENGCTX_(NVDEV_ENGINE_##name, (var))
 
 struct nvkm_engctx {

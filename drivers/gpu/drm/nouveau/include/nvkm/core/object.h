@@ -11,10 +11,10 @@
 #define NV_MEMOBJ_CLASS 0x04000000
 #define NV_GPUOBJ_CLASS 0x02000000
 #define NV_ENGCTX_CLASS 0x01000000
-#define NV_OBJECT_CLASS 0x0000ffff
 
 struct nvkm_object {
 	struct nvkm_oclass *oclass;
+	u32 pclass;
 	struct nvkm_object *parent;
 	struct nvkm_engine *engine;
 	atomic_t refcount;
@@ -70,8 +70,8 @@ struct nvkm_oclass {
 
 #define nv_oclass(o)    nv_object(o)->oclass
 #define nv_hclass(o)    nv_oclass(o)->handle
-#define nv_iclass(o,i) (nv_hclass(o) & (i))
-#define nv_mclass(o)    nv_iclass(o, NV_OBJECT_CLASS)
+#define nv_iclass(o,i) (nv_object(o)->pclass & (i))
+#define nv_mclass(o)    nv_oclass(o)->handle
 
 static inline struct nvkm_object *
 nv_pclass(struct nvkm_object *parent, u32 oclass)

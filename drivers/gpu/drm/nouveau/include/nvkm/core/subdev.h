@@ -2,7 +2,7 @@
 #define __NVKM_SUBDEV_H__
 #include <core/object.h>
 
-#define NV_SUBDEV_(sub,var) (NV_SUBDEV_CLASS | ((var) << 8) | (sub))
+#define NV_SUBDEV_(sub,var) (((var) << 8) | (sub))
 #define NV_SUBDEV(name,var)  NV_SUBDEV_(NVDEV_SUBDEV_##name, (var))
 
 struct nvkm_subdev {

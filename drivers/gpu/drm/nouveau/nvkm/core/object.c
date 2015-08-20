@@ -107,7 +107,7 @@ nvkm_object_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_object_ref(parent, &object->parent);
 	nvkm_object_ref(engine, (struct nvkm_object **)&object->engine);
 	object->oclass = oclass;
-	object->oclass->handle |= pclass;
+	object->pclass = pclass;
 	atomic_set(&object->refcount, 1);
 	atomic_set(&object->usecount, 0);
 
