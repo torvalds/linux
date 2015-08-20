@@ -119,8 +119,9 @@ static int
 gk20a_volt_vid_set(struct nvkm_volt *obj, u8 vid)
 {
 	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
+	struct nvkm_subdev *subdev = &volt->base.subdev;
 
-	nv_debug(volt, "set voltage as %duv\n", volt->base.vid[vid].uv);
+	nvkm_debug(subdev, "set voltage as %duv\n", volt->base.vid[vid].uv);
 	return regulator_set_voltage(volt->vdd, volt->base.vid[vid].uv, 1200000);
 }
 
@@ -128,12 +129,13 @@ static int
 gk20a_volt_set_id(struct nvkm_volt *obj, u8 id, int condition)
 {
 	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
+	struct nvkm_subdev *subdev = &volt->base.subdev;
 	int prev_uv = regulator_get_voltage(volt->vdd);
 	int target_uv = volt->base.vid[id].uv;
 	int ret;
 
-	nv_debug(volt, "prev=%d, target=%d, condition=%d\n",
-			prev_uv, target_uv, condition);
+	nvkm_debug(subdev, "prev=%d, target=%d, condition=%d\n",
+		   prev_uv, target_uv, condition);
 	if (!condition ||
 		(condition < 0 && target_uv < prev_uv) ||
 		(condition > 0 && target_uv > prev_uv)) {
@@ -162,7 +164,7 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	plat = nv_device_to_platform(nv_device(parent));
 
 	uv = regulator_get_voltage(plat->gpu->vdd);
-	nv_info(volt, "The default voltage is %duV\n", uv);
+	nvkm_info(&volt->base.subdev, "The default voltage is %duV\n", uv);
 
 	volt->vdd = plat->gpu->vdd;
 	volt->base.vid_get = gk20a_volt_vid_get;
@@ -170,14 +172,15 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	volt->base.set_id = gk20a_volt_set_id;
 
 	volt->base.vid_nr = ARRAY_SIZE(gk20a_cvb_coef);
-	nv_debug(volt, "%s - vid_nr = %d\n", __func__, volt->base.vid_nr);
+	nvkm_debug(&volt->base.subdev, "%s - vid_nr = %d\n", __func__,
+		   volt->base.vid_nr);
 	for (i = 0; i < volt->base.vid_nr; i++) {
 		volt->base.vid[i].vid = i;
 		volt->base.vid[i].uv =
 			gk20a_volt_calc_voltage(&gk20a_cvb_coef[i],
 						plat->gpu_speedo);
-		nv_debug(volt, "%2d: vid=%d, uv=%d\n", i,
-			 volt->base.vid[i].vid, volt->base.vid[i].uv);
+		nvkm_debug(&volt->base.subdev, "%2d: vid=%d, uv=%d\n", i,
+			   volt->base.vid[i].vid, volt->base.vid[i].uv);
 	}
 
 	return 0;

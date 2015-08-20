@@ -70,7 +70,8 @@ nvkm_voltgpio_set(struct nvkm_volt *volt, u8 vid)
 int
 nvkm_voltgpio_init(struct nvkm_volt *volt)
 {
-	struct nvkm_gpio *gpio = nvkm_gpio(volt);
+	struct nvkm_subdev *subdev = &volt->subdev;
+	struct nvkm_gpio *gpio = subdev->device->gpio;
 	struct dcb_gpio_func func;
 	int i;
 
@@ -86,7 +87,7 @@ nvkm_voltgpio_init(struct nvkm_volt *volt)
 			if (ret) {
 				if (ret != -ENOENT)
 					return ret;
-				nv_debug(volt, "VID bit %d has no GPIO\n", i);
+				nvkm_debug(subdev, "VID bit %d has no GPIO\n", i);
 				volt->vid_mask &= ~(1 << i);
 			}
 		}

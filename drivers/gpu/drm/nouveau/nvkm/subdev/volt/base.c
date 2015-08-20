@@ -46,12 +46,13 @@ nvkm_volt_get(struct nvkm_volt *volt)
 static int
 nvkm_volt_set(struct nvkm_volt *volt, u32 uv)
 {
+	struct nvkm_subdev *subdev = &volt->subdev;
 	if (volt->vid_set) {
 		int i, ret = -EINVAL;
 		for (i = 0; i < volt->vid_nr; i++) {
 			if (volt->vid[i].uv == uv) {
 				ret = volt->vid_set(volt, volt->vid[i].vid);
-				nv_debug(volt, "set %duv: %d\n", uv, ret);
+				nvkm_debug(subdev, "set %duv: %d\n", uv, ret);
 				break;
 			}
 		}
@@ -138,6 +139,7 @@ int
 _nvkm_volt_init(struct nvkm_object *object)
 {
 	struct nvkm_volt *volt = (void *)object;
+	struct nvkm_subdev *subdev = &volt->subdev;
 	int ret;
 
 	ret = nvkm_subdev_init(&volt->subdev);
@@ -147,11 +149,11 @@ _nvkm_volt_init(struct nvkm_object *object)
 	ret = volt->get(volt);
 	if (ret < 0) {
 		if (ret != -ENODEV)
-			nv_debug(volt, "current voltage unknown\n");
+			nvkm_debug(subdev, "current voltage unknown\n");
 		return 0;
 	}
 
-	nv_info(volt, "GPU voltage: %duv\n", ret);
+	nvkm_debug(subdev, "current voltage: %duv\n", ret);
 	return 0;
 }
 
@@ -166,7 +168,8 @@ int
 nvkm_volt_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_device *device = (void *)parent;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_volt *volt;
 	int ret, i;
 
@@ -186,8 +189,8 @@ nvkm_volt_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	if (volt->vid_nr) {
 		for (i = 0; i < volt->vid_nr; i++) {
-			nv_debug(volt, "VID %02x: %duv\n",
-				 volt->vid[i].vid, volt->vid[i].uv);
+			nvkm_debug(&volt->subdev, "VID %02x: %duv\n",
+				   volt->vid[i].vid, volt->vid[i].uv);
 		}
 
 		/*XXX: this is an assumption.. there probably exists boards
