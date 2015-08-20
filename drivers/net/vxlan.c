@@ -1276,8 +1276,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			goto drop;
 
 		info = &tun_dst->u.tun_info;
-		info->key.ipv4_src = iph->saddr;
-		info->key.ipv4_dst = iph->daddr;
+		info->key.u.ipv4.src = iph->saddr;
+		info->key.u.ipv4.dst = iph->daddr;
 		info->key.ipv4_tos = iph->tos;
 		info->key.ipv4_ttl = iph->ttl;
 		info->key.tp_src = udp_hdr(skb)->source;
@@ -1925,7 +1925,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		dst_port = info->key.tp_dst ? : vxlan->cfg.dst_port;
 		vni = be64_to_cpu(info->key.tun_id);
 		remote_ip.sin.sin_family = AF_INET;
-		remote_ip.sin.sin_addr.s_addr = info->key.ipv4_dst;
+		remote_ip.sin.sin_addr.s_addr = info->key.u.ipv4.dst;
 		dst = &remote_ip;
 	}
 

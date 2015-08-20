@@ -203,7 +203,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	}
 
 	err = geneve_xmit_skb(geneve_port->gs, rt, skb, fl.saddr,
-			      tun_key->ipv4_dst, tun_key->ipv4_tos,
+			      tun_key->u.ipv4.dst, tun_key->ipv4_tos,
 			      tun_key->ipv4_ttl, df, sport, dport,
 			      tun_key->tun_flags, vni, opts_len, opts,
 			      !!(tun_key->tun_flags & TUNNEL_CSUM), false);

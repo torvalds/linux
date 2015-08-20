@@ -227,10 +227,10 @@ static int ip_tun_build_state(struct net_device *dev, struct nlattr *attr,
 		tun_info->key.tun_id = nla_get_u64(tb[LWTUNNEL_IP_ID]);
 
 	if (tb[LWTUNNEL_IP_DST])
-		tun_info->key.ipv4_dst = nla_get_be32(tb[LWTUNNEL_IP_DST]);
+		tun_info->key.u.ipv4.dst = nla_get_be32(tb[LWTUNNEL_IP_DST]);
 
 	if (tb[LWTUNNEL_IP_SRC])
-		tun_info->key.ipv4_src = nla_get_be32(tb[LWTUNNEL_IP_SRC]);
+		tun_info->key.u.ipv4.src = nla_get_be32(tb[LWTUNNEL_IP_SRC]);
 
 	if (tb[LWTUNNEL_IP_TTL])
 		tun_info->key.ipv4_ttl = nla_get_u8(tb[LWTUNNEL_IP_TTL]);
@@ -262,8 +262,8 @@ static int ip_tun_fill_encap_info(struct sk_buff *skb,
 	struct ip_tunnel_info *tun_info = lwt_tun_info(lwtstate);
 
 	if (nla_put_u64(skb, LWTUNNEL_IP_ID, tun_info->key.tun_id) ||
-	    nla_put_be32(skb, LWTUNNEL_IP_DST, tun_info->key.ipv4_dst) ||
-	    nla_put_be32(skb, LWTUNNEL_IP_SRC, tun_info->key.ipv4_src) ||
+	    nla_put_be32(skb, LWTUNNEL_IP_DST, tun_info->key.u.ipv4.dst) ||
+	    nla_put_be32(skb, LWTUNNEL_IP_SRC, tun_info->key.u.ipv4.src) ||
 	    nla_put_u8(skb, LWTUNNEL_IP_TOS, tun_info->key.ipv4_tos) ||
 	    nla_put_u8(skb, LWTUNNEL_IP_TTL, tun_info->key.ipv4_ttl) ||
 	    nla_put_u16(skb, LWTUNNEL_IP_SPORT, tun_info->key.tp_src) ||

@@ -25,10 +25,24 @@
 /* Used to memset ip_tunnel padding. */
 #define IP_TUNNEL_KEY_SIZE	offsetofend(struct ip_tunnel_key, tp_dst)
 
+/* Used to memset ipv4 address padding. */
+#define IP_TUNNEL_KEY_IPV4_PAD	offsetofend(struct ip_tunnel_key, u.ipv4.dst)
+#define IP_TUNNEL_KEY_IPV4_PAD_LEN				\
+	(FIELD_SIZEOF(struct ip_tunnel_key, u) -		\
+	 FIELD_SIZEOF(struct ip_tunnel_key, u.ipv4))
+
 struct ip_tunnel_key {
 	__be64			tun_id;
-	__be32			ipv4_src;
-	__be32			ipv4_dst;
+	union {
+		struct {
+			__be32	src;
+			__be32	dst;
+		} ipv4;
+		struct {
+			struct in6_addr src;
+			struct in6_addr dst;
+		} ipv6;
+	} u;
 	__be16			tun_flags;
 	u8			ipv4_tos;
 	u8			ipv4_ttl;
@@ -177,8 +191,10 @@ static inline void __ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
 					 const void *opts, u8 opts_len)
 {
 	tun_info->key.tun_id = tun_id;
-	tun_info->key.ipv4_src = saddr;
-	tun_info->key.ipv4_dst = daddr;
+	tun_info->key.u.ipv4.src = saddr;
+	tun_info->key.u.ipv4.dst = daddr;
+	memset((unsigned char *)&tun_info->key + IP_TUNNEL_KEY_IPV4_PAD,
+	       0, IP_TUNNEL_KEY_IPV4_PAD_LEN);
 	tun_info->key.ipv4_tos = tos;
 	tun_info->key.ipv4_ttl = ttl;
 	tun_info->key.tun_flags = tun_flags;
