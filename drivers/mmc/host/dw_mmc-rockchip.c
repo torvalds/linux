@@ -274,7 +274,7 @@ dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	}
 
 	/* Try each phase and extract good ranges */
-	for (i = 0; i < NUM_PHASES - 6; i++) {
+	for (i = 0; i < NUM_PHASES - 8; i++) {
 		rockchip_mmc_set_phase(TUNING_ITERATION_TO_PHASE(i), host);
 		v = !dw_mci_tuning_test(slot, opcode, tuning_data, blk_test);
 
