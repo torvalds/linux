@@ -59,9 +59,10 @@ gk20a_ibus_intr(struct nvkm_subdev *subdev)
 
 	/* Acknowledge interrupt */
 	nvkm_mask(device, 0x12004c, 0x2, 0x2);
-
-	if (!nv_wait(subdev, 0x12004c, 0x3f, 0x00))
-		nv_warn(ibus, "timeout waiting for ringmaster ack\n");
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x12004c) & 0x0000003f))
+			break;
+	);
 }
 
 static int
