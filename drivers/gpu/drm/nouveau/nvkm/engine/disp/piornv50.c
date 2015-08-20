@@ -163,9 +163,15 @@ nv50_pior_power(NV50_DISP_MTHD_V1)
 	} else
 		return ret;
 
-	nv_wait(disp, 0x61e004 + soff, 0x80000000, 0x00000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x61e004 + soff) & 0x80000000))
+			break;
+	);
 	nvkm_mask(device, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
-	nv_wait(disp, 0x61e004 + soff, 0x80000000, 0x00000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x61e004 + soff) & 0x80000000))
+			break;
+	);
 	disp->pior.type[outp->or] = type;
 	return 0;
 }

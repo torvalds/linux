@@ -75,7 +75,10 @@ g94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 
 	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
 	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
-	nv_wait(disp, 0x61c034 + soff, 0x80000000, 0x00000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
+			break;
+	);
 	return 0;
 }
 

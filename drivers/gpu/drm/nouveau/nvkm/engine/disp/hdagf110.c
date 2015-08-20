@@ -54,7 +54,11 @@ gf110_hda_eld(NV50_DISP_MTHD_V1)
 	if (size && args->v0.data[0]) {
 		if (outp->info.type == DCB_OUTPUT_DP) {
 			nvkm_mask(device, 0x616618 + hoff, 0x8000000c, 0x80000001);
-			nv_wait(disp, 0x616618 + hoff, 0x80000000, 0x00000000);
+			nvkm_msec(device, 2000,
+				u32 tmp = nvkm_rd32(device, 0x616618 + hoff);
+				if (!(tmp & 0x80000000))
+					break;
+			);
 		}
 		nvkm_mask(device, 0x616548 + hoff, 0x00000070, 0x00000000);
 		for (i = 0; i < size; i++)
@@ -65,7 +69,11 @@ gf110_hda_eld(NV50_DISP_MTHD_V1)
 	} else {
 		if (outp->info.type == DCB_OUTPUT_DP) {
 			nvkm_mask(device, 0x616618 + hoff, 0x80000001, 0x80000000);
-			nv_wait(disp, 0x616618 + hoff, 0x80000000, 0x00000000);
+			nvkm_msec(device, 2000,
+				u32 tmp = nvkm_rd32(device, 0x616618 + hoff);
+				if (!(tmp & 0x80000000))
+					break;
+			);
 		}
 		nvkm_mask(device, 0x10ec10 + soff, 0x80000003, 0x80000000 | !!size);
 	}

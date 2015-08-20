@@ -279,7 +279,10 @@ nv50_disp_dmac_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x610200 + (chid * 0x0010), 0x00000013);
 
 	/* wait for it to go inactive */
-	if (!nv_wait(disp, 0x610200 + (chid * 0x10), 0x80000000, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x80000000))
+			break;
+	) < 0) {
 		nv_error(dmac, "init timeout, 0x%08x\n",
 			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		return -EBUSY;
@@ -299,7 +302,10 @@ nv50_disp_dmac_fini(struct nvkm_object *object, bool suspend)
 	/* deactivate channel */
 	nvkm_mask(device, 0x610200 + (chid * 0x0010), 0x00001010, 0x00001000);
 	nvkm_mask(device, 0x610200 + (chid * 0x0010), 0x00000003, 0x00000000);
-	if (!nv_wait(disp, 0x610200 + (chid * 0x10), 0x001e0000, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x001e0000))
+			break;
+	) < 0) {
 		nv_error(dmac, "fini timeout, 0x%08x\n",
 			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		if (suspend)
@@ -547,7 +553,10 @@ nv50_disp_core_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x610200, 0x01000013);
 
 	/* wait for it to go inactive */
-	if (!nv_wait(disp, 0x610200, 0x80000000, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x610200) & 0x80000000))
+			break;
+	) < 0) {
 		nv_error(mast, "init: 0x%08x\n", nvkm_rd32(device, 0x610200));
 		return -EBUSY;
 	}
@@ -565,7 +574,10 @@ nv50_disp_core_fini(struct nvkm_object *object, bool suspend)
 	/* deactivate channel */
 	nvkm_mask(device, 0x610200, 0x00000010, 0x00000000);
 	nvkm_mask(device, 0x610200, 0x00000003, 0x00000000);
-	if (!nv_wait(disp, 0x610200, 0x001e0000, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x610200) & 0x001e0000))
+			break;
+	) < 0) {
 		nv_error(mast, "fini: 0x%08x\n", nvkm_rd32(device, 0x610200));
 		if (suspend)
 			return -EBUSY;
@@ -819,14 +831,21 @@ nv50_disp_pioc_init(struct nvkm_object *object)
 		return ret;
 
 	nvkm_wr32(device, 0x610200 + (chid * 0x10), 0x00002000);
-	if (!nv_wait(disp, 0x610200 + (chid * 0x10), 0x00000000, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x00030000))
+			break;
+	) < 0) {
 		nv_error(pioc, "timeout0: 0x%08x\n",
 			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		return -EBUSY;
 	}
 
 	nvkm_wr32(device, 0x610200 + (chid * 0x10), 0x00000001);
-	if (!nv_wait(disp, 0x610200 + (chid * 0x10), 0x00030000, 0x00010000)) {
+	if (nvkm_msec(device, 2000,
+		u32 tmp = nvkm_rd32(device, 0x610200 + (chid * 0x10));
+		if ((tmp & 0x00030000) == 0x00010000)
+			break;
+	) < 0) {
 		nv_error(pioc, "timeout1: 0x%08x\n",
 			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		return -EBUSY;
@@ -844,7 +863,10 @@ nv50_disp_pioc_fini(struct nvkm_object *object, bool suspend)
 	int chid = pioc->base.chid;
 
 	nvkm_mask(device, 0x610200 + (chid * 0x10), 0x00000001, 0x00000000);
-	if (!nv_wait(disp, 0x610200 + (chid * 0x10), 0x00030000, 0x00000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x00030000))
+			break;
+	) < 0) {
 		nv_error(pioc, "timeout: 0x%08x\n",
 			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		if (suspend)
@@ -1192,10 +1214,11 @@ nv50_disp_main_init(struct nvkm_object *object)
 	if (nvkm_rd32(device, 0x610024) & 0x00000100) {
 		nvkm_wr32(device, 0x610024, 0x00000100);
 		nvkm_mask(device, 0x6194e8, 0x00000001, 0x00000000);
-		if (!nv_wait(disp, 0x6194e8, 0x00000002, 0x00000000)) {
-			nv_error(disp, "timeout acquiring display\n");
+		if (nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x6194e8) & 0x00000002))
+				break;
+		) < 0)
 			return -EBUSY;
-		}
 	}
 
 	/* point at display engine memory area (hash table, objects) */
