@@ -1008,16 +1008,15 @@ out:
 
 static int ioat3_dma_self_test(struct ioatdma_device *ioat_dma)
 {
-	int rc = ioat_dma_self_test(ioat_dma);
+	int rc;
 
+	rc = ioat_dma_self_test(ioat_dma);
 	if (rc)
 		return rc;
 
 	rc = ioat_xor_val_self_test(ioat_dma);
-	if (rc)
-		return rc;
 
-	return 0;
+	return rc;
 }
 
 static void ioat_intr_quirk(struct ioatdma_device *ioat_dma)
