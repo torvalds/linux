@@ -4485,40 +4485,46 @@ static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	if (HAS_PCH_IBX(dev_priv->dev)) {
-		switch (port->port) {
-		case PORT_A:
-			return true;
-		case PORT_B:
-			bit = SDE_PORTB_HOTPLUG;
-			break;
-		case PORT_C:
-			bit = SDE_PORTC_HOTPLUG;
-			break;
-		case PORT_D:
-			bit = SDE_PORTD_HOTPLUG;
-			break;
-		default:
-			MISSING_CASE(port->port);
-			return false;
-		}
-	} else {
-		switch (port->port) {
-		case PORT_A:
-			return true;
-		case PORT_B:
-			bit = SDE_PORTB_HOTPLUG_CPT;
-			break;
-		case PORT_C:
-			bit = SDE_PORTC_HOTPLUG_CPT;
-			break;
-		case PORT_D:
-			bit = SDE_PORTD_HOTPLUG_CPT;
-			break;
-		default:
-			MISSING_CASE(port->port);
-			return false;
-		}
+	switch (port->port) {
+	case PORT_A:
+		return true;
+	case PORT_B:
+		bit = SDE_PORTB_HOTPLUG;
+		break;
+	case PORT_C:
+		bit = SDE_PORTC_HOTPLUG;
+		break;
+	case PORT_D:
+		bit = SDE_PORTD_HOTPLUG;
+		break;
+	default:
+		MISSING_CASE(port->port);
+		return false;
+	}
+
+	return I915_READ(SDEISR) & bit;
+}
+
+static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	u32 bit;
+
+	switch (port->port) {
+	case PORT_A:
+		return true;
+	case PORT_B:
+		bit = SDE_PORTB_HOTPLUG_CPT;
+		break;
+	case PORT_C:
+		bit = SDE_PORTC_HOTPLUG_CPT;
+		break;
+	case PORT_D:
+		bit = SDE_PORTD_HOTPLUG_CPT;
+		break;
+	default:
+		MISSING_CASE(port->port);
+		return false;
 	}
 
 	return I915_READ(SDEISR) & bit;
@@ -4574,8 +4580,10 @@ static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
 static bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 					 struct intel_digital_port *port)
 {
-	if (HAS_PCH_SPLIT(dev_priv))
+	if (HAS_PCH_IBX(dev_priv))
 		return ibx_digital_port_connected(dev_priv, port);
+	if (HAS_PCH_SPLIT(dev_priv))
+		return cpt_digital_port_connected(dev_priv, port);
 	else
 		return g4x_digital_port_connected(dev_priv, port);
 }
