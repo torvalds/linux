@@ -133,18 +133,18 @@ static int
 nv40_clk_calc_pll(struct nv40_clk *clk, u32 reg, u32 khz,
 		  int *N1, int *M1, int *N2, int *M2, int *log2P)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvbios_pll pll;
 	int ret;
 
-	ret = nvbios_pll_parse(bios, reg, &pll);
+	ret = nvbios_pll_parse(subdev->device->bios, reg, &pll);
 	if (ret)
 		return ret;
 
 	if (khz < pll.vco1.max_freq)
 		pll.vco2.max_freq = 0;
 
-	ret = nv04_pll_calc(nv_subdev(clk), &pll, khz, N1, M1, N2, M2, log2P);
+	ret = nv04_pll_calc(subdev, &pll, khz, N1, M1, N2, M2, log2P);
 	if (ret == 0)
 		return -ERANGE;
 

@@ -231,8 +231,8 @@ int
 gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
 	       struct gt215_clk_info *info)
 {
-	struct nvkm_bios *bios = nvkm_bios(clock);
 	struct gt215_clk *clk = (void *)clock;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvbios_pll limits;
 	int P, N, M, diff;
 	int ret;
@@ -248,7 +248,7 @@ gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
 	}
 
 	/* Try with PLL */
-	ret = nvbios_pll_parse(bios, pll, &limits);
+	ret = nvbios_pll_parse(subdev->device->bios, pll, &limits);
 	if (ret)
 		return ret;
 
@@ -256,7 +256,7 @@ gt215_pll_info(struct nvkm_clk *clock, int idx, u32 pll, u32 khz,
 	if (ret != limits.refclk)
 		return -EINVAL;
 
-	ret = gt215_pll_calc(nv_subdev(clk), &limits, khz, &N, NULL, &M, &P);
+	ret = gt215_pll_calc(subdev, &limits, khz, &N, NULL, &M, &P);
 	if (ret >= 0) {
 		info->pll = (P << 16) | (N << 8) | M;
 	}

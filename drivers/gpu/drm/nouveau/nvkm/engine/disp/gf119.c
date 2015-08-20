@@ -209,14 +209,15 @@ gf119_disp_intr_unk1_0(struct nv50_disp *disp, int head)
 static void
 gf119_disp_intr_unk2_0(struct nv50_disp *disp, int head)
 {
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_output *outp = exec_script(disp, head, 2);
 
 	/* see note in nv50_disp_intr_unk20_0() */
 	if (outp && outp->info.type == DCB_OUTPUT_DP) {
 		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
 		struct nvbios_init init = {
-			.subdev = nv_subdev(disp),
-			.bios = nvkm_bios(disp),
+			.subdev = subdev,
+			.bios = subdev->device->bios,
 			.outp = &outp->info,
 			.crtc = head,
 			.offset = outpdp->info.script[4],

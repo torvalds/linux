@@ -28,7 +28,6 @@ nv04_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x04:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv04_devinit_oclass;
@@ -45,7 +44,6 @@ nv04_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x05:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv05_devinit_oclass;

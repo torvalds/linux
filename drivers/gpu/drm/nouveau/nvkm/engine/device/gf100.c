@@ -28,7 +28,6 @@ gf100_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0xc0:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -59,7 +58,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
 		break;
 	case 0xc4:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -90,7 +88,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
 		break;
 	case 0xc3:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -120,7 +117,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
 		break;
 	case 0xce:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -151,7 +147,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
 		break;
 	case 0xcf:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -181,7 +176,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
 		break;
 	case 0xc1:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -211,7 +205,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf108_pm_oclass;
 		break;
 	case 0xc8:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -242,7 +235,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
 		break;
 	case 0xd9:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gf110_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
@@ -272,7 +264,6 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] = gf117_pm_oclass;
 		break;
 	case 0xd7:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gf110_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf117_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;

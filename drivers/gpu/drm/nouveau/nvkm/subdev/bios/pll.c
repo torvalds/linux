@@ -111,7 +111,8 @@ pll_limits_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 static struct pll_mapping *
 pll_map(struct nvkm_bios *bios)
 {
-	switch (nv_device(bios)->card_type) {
+	struct nvkm_device *device = bios->subdev.device;
+	switch (device->card_type) {
 	case NV_04:
 	case NV_10:
 	case NV_11:
@@ -122,12 +123,12 @@ pll_map(struct nvkm_bios *bios)
 	case NV_40:
 		return nv40_pll_mapping;
 	case NV_50:
-		if (nv_device(bios)->chipset == 0x50)
+		if (device->chipset == 0x50)
 			return nv50_pll_mapping;
 		else
-		if (nv_device(bios)->chipset <  0xa3 ||
-		    nv_device(bios)->chipset == 0xaa ||
-		    nv_device(bios)->chipset == 0xac)
+		if (device->chipset <  0xa3 ||
+		    device->chipset == 0xaa ||
+		    device->chipset == 0xac)
 			return g84_pll_mapping;
 	default:
 		return NULL;

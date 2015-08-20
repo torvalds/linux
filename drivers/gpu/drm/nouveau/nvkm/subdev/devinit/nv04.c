@@ -355,7 +355,8 @@ setPLL_double_lowregs(struct nvkm_devinit *init, u32 NMNMreg,
 int
 nv04_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
-	struct nvkm_bios *bios = nvkm_bios(devinit);
+	struct nvkm_subdev *subdev = &devinit->subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvkm_pll_vals pv;
 	struct nvbios_pll info;
 	int cv = bios->version.chip;
@@ -366,8 +367,7 @@ nv04_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 	if (ret)
 		return ret;
 
-	ret = nv04_pll_calc(nv_subdev(devinit), &info, freq,
-			    &N1, &M1, &N2, &M2, &P);
+	ret = nv04_pll_calc(subdev, &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret)
 		return -EINVAL;
 

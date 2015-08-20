@@ -83,20 +83,29 @@ nvbios_extend(struct nvkm_bios *bios, u32 length)
 	return 0;
 }
 
-static int
-nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+static void *
+nvkm_bios_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_bios *bios = nvkm_bios(subdev);
+	kfree(bios->data);
+	return bios;
+}
+
+static const struct nvkm_subdev_func
+nvkm_bios = {
+	.dtor = nvkm_bios_dtor,
+};
+
+int
+nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 {
 	struct nvkm_bios *bios;
 	struct bit_entry bit_i;
 	int ret;
 
-	ret = nvkm_subdev_create(parent, engine, oclass, 0,
-				 "VBIOS", "bios", &bios);
-	*pobject = nv_object(bios);
-	if (ret)
-		return ret;
+	if (!(bios = *pbios = kzalloc(sizeof(*bios), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&nvkm_bios, device, index, 0, &bios->subdev);
 
 	ret = nvbios_shadow(bios);
 	if (ret)
@@ -136,36 +145,3 @@ nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  bios->version.minor, bios->version.micro, bios->version.patch);
 	return 0;
 }
-
-static void
-nvkm_bios_dtor(struct nvkm_object *object)
-{
-	struct nvkm_bios *bios = (void *)object;
-	kfree(bios->data);
-	nvkm_subdev_destroy(&bios->subdev);
-}
-
-static int
-nvkm_bios_init(struct nvkm_object *object)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_init_old(&bios->subdev);
-}
-
-static int
-nvkm_bios_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_fini_old(&bios->subdev, suspend);
-}
-
-struct nvkm_oclass
-nvkm_bios_oclass = {
-	.handle = NV_SUBDEV(VBIOS, 0x00),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nvkm_bios_ctor,
-		.dtor = nvkm_bios_dtor,
-		.init = nvkm_bios_init,
-		.fini = nvkm_bios_fini,
-	},
-};

@@ -87,8 +87,8 @@ int
 nvkm_fanpwm_create(struct nvkm_therm *obj, struct dcb_gpio_func *func)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_device *device = nv_device(therm);
-	struct nvkm_bios *bios = nvkm_bios(therm);
+	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_fanpwm *fan;
 	struct nvbios_therm_fan info;
 	u32 divs, duty;

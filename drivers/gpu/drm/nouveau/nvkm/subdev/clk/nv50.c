@@ -324,11 +324,11 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 static u32
 calc_pll(struct nv50_clk *clk, u32 reg, u32 idx, int *N, int *M, int *P)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvbios_pll pll;
 	int ret;
 
-	ret = nvbios_pll_parse(bios, reg, &pll);
+	ret = nvbios_pll_parse(subdev->device->bios, reg, &pll);
 	if (ret)
 		return 0;
 
@@ -337,7 +337,7 @@ calc_pll(struct nv50_clk *clk, u32 reg, u32 idx, int *N, int *M, int *P)
 	if (!pll.refclk)
 		return 0;
 
-	return nv04_pll_calc(nv_subdev(clk), &pll, idx, N, M, NULL, NULL, P);
+	return nv04_pll_calc(subdev, &pll, idx, N, M, NULL, NULL, P);
 }
 
 static inline u32

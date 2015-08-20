@@ -50,7 +50,7 @@ nvbios_ramcfg_count(struct nvkm_bios *bios)
 u8
 nvbios_ramcfg_index(struct nvkm_subdev *subdev)
 {
-	struct nvkm_bios *bios = nvkm_bios(subdev);
+	struct nvkm_bios *bios = subdev->device->bios;
 	u8 strap = nvbios_ramcfg_strap(subdev);
 	u32 xlat = 0x00000000;
 	struct bit_entry bit_M;

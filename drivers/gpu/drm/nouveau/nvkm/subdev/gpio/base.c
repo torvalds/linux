@@ -44,7 +44,7 @@ nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
 	       struct dcb_gpio_func *func)
 {
 	struct nvkm_device *device = gpio->subdev.device;
-	struct nvkm_bios *bios = nvkm_bios(gpio);
+	struct nvkm_bios *bios = device->bios;
 	u8  ver, len;
 	u16 data;
 

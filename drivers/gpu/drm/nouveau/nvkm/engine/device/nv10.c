@@ -28,7 +28,6 @@ nv10_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x10:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -44,7 +43,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x15:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -62,7 +60,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x16:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -80,7 +77,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x1a:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -98,7 +94,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x11:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -116,7 +111,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x17:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -134,7 +128,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x1f:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -152,7 +145,6 @@ nv10_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x18:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;

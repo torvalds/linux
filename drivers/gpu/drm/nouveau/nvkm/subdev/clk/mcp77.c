@@ -164,11 +164,11 @@ static u32
 calc_pll(struct mcp77_clk *clk, u32 reg,
 	 u32 clock, int *N, int *M, int *P)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvbios_pll pll;
 	int ret;
 
-	ret = nvbios_pll_parse(bios, reg, &pll);
+	ret = nvbios_pll_parse(subdev->device->bios, reg, &pll);
 	if (ret)
 		return 0;
 
@@ -177,7 +177,7 @@ calc_pll(struct mcp77_clk *clk, u32 reg,
 	if (!pll.refclk)
 		return 0;
 
-	return nv04_pll_calc(nv_subdev(clk), &pll, clock, N, M, NULL, NULL, P);
+	return nv04_pll_calc(subdev, &pll, clock, N, M, NULL, NULL, P);
 }
 
 static inline u32

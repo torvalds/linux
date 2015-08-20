@@ -50,7 +50,7 @@ u64  nvif_device_time(struct nvif_device *);
 	struct nvif_device *_device = (a);                                     \
 	nv_device(_device->object.priv);                                       \
 })
-#define nvxx_bios(a) nvkm_bios(nvxx_device(a))
+#define nvxx_bios(a) nvxx_device(a)->bios
 #define nvxx_fb(a) nvkm_fb(nvxx_device(a))
 #define nvxx_mmu(a) nvkm_mmu(nvxx_device(a))
 #define nvxx_bar(a) nvxx_device(a)->bar

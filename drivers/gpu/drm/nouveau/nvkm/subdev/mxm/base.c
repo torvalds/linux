@@ -43,8 +43,9 @@ mxm_shadow_rom_fetch(struct nvkm_i2c_bus *bus, u8 addr,
 static bool
 mxm_shadow_rom(struct nvkm_mxm *mxm, u8 version)
 {
-	struct nvkm_bios *bios = nvkm_bios(mxm);
-	struct nvkm_i2c *i2c = nvkm_i2c(mxm);
+	struct nvkm_device *device = mxm->subdev.device;
+	struct nvkm_bios *bios = device->bios;
+	struct nvkm_i2c *i2c = device->i2c;
 	struct nvkm_i2c_bus *bus = NULL;
 	u8 i2cidx, mxms[6], addr, size;
 
@@ -229,8 +230,8 @@ int
 nvkm_mxm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_bios *bios = nvkm_bios(device);
+	struct nvkm_device *device = (void *)parent;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_mxm *mxm;
 	u8  ver, len;
 	u16 data;

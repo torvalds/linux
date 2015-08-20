@@ -19,12 +19,6 @@ struct nvkm_bios {
 	} version;
 };
 
-static inline struct nvkm_bios *
-nvkm_bios(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_VBIOS);
-}
-
 u8  nvbios_checksum(const u8 *data, int size);
 u16 nvbios_findstr(const u8 *data, int size, const char *str, int len);
 int nvbios_memcmp(struct nvkm_bios *, u32 addr, const char *, u32 len);
@@ -33,5 +27,5 @@ int nvbios_memcmp(struct nvkm_bios *, u32 addr, const char *, u32 len);
 #define nvbios_rd16(b,o) get_unaligned_le16(&(b)->data[(o)])
 #define nvbios_rd32(b,o) get_unaligned_le32(&(b)->data[(o)])
 
-extern struct nvkm_oclass nvkm_bios_oclass;
+int nvkm_bios_new(struct nvkm_device *, int, struct nvkm_bios **);
 #endif

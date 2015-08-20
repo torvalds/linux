@@ -141,7 +141,7 @@ init_conn(struct nvbios_init *init)
 static inline u32
 init_nvreg(struct nvbios_init *init, u32 reg)
 {
-	struct nvkm_devinit *devinit = nvkm_devinit(init->bios);
+	struct nvkm_devinit *devinit = init->bios->subdev.device->devinit;
 
 	/* C51 (at least) sometimes has the lower bits set which the VBIOS
 	 * interprets to mean that access needs to go through certain IO
@@ -154,7 +154,7 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 	/* GF8+ display scripts need register addresses mangled a bit to
 	 * select a specific CRTC/OR
 	 */
-	if (nv_device(init->bios)->card_type >= NV_50) {
+	if (init->bios->subdev.device->card_type >= NV_50) {
 		if (reg & 0x80000000) {
 			reg += init_crtc(init) * 0x800;
 			reg &= ~0x80000000;
@@ -337,7 +337,7 @@ init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 static void
 init_prog_pll(struct nvbios_init *init, u32 id, u32 freq)
 {
-	struct nvkm_devinit *devinit = nvkm_devinit(init->bios);
+	struct nvkm_devinit *devinit = init->bios->subdev.device->devinit;
 	if (devinit->pll_set && init_exec(init)) {
 		int ret = devinit->pll_set(devinit, id, freq);
 		if (ret)
@@ -1447,7 +1447,7 @@ init_zm_index_io(struct nvbios_init *init)
 static void
 init_compute_mem(struct nvbios_init *init)
 {
-	struct nvkm_devinit *devinit = nvkm_devinit(init->bios);
+	struct nvkm_devinit *devinit = init->bios->subdev.device->devinit;
 
 	trace("COMPUTE_MEM\n");
 	init->offset += 1;
@@ -1624,7 +1624,7 @@ init_io(struct nvbios_init *init)
 	 * needed some day..  it's almost certainly wrong, but, it also
 	 * somehow makes things work...
 	 */
-	if (nv_device(init->bios)->card_type >= NV_50 &&
+	if (bios->subdev.device->card_type >= NV_50 &&
 	    port == 0x03c3 && data == 0x01) {
 		init_mask(init, 0x614100, 0xf0800000, 0x00800000);
 		init_mask(init, 0x00e18c, 0x00020000, 0x00020000);
@@ -1930,7 +1930,7 @@ init_ram_restrict_pll(struct nvbios_init *init)
 static void
 init_gpio(struct nvbios_init *init)
 {
-	struct nvkm_gpio *gpio = nvkm_gpio(init->bios);
+	struct nvkm_gpio *gpio = init->bios->subdev.device->gpio;
 
 	trace("GPIO\n");
 	init->offset += 1;
@@ -2158,7 +2158,7 @@ static void
 init_gpio_ne(struct nvbios_init *init)
 {
 	struct nvkm_bios *bios = init->bios;
-	struct nvkm_gpio *gpio = nvkm_gpio(bios);
+	struct nvkm_gpio *gpio = bios->subdev.device->gpio;
 	struct dcb_gpio_func func;
 	u8 count = nvbios_rd08(bios, init->offset + 1);
 	u8 idx = 0, ver, len;
@@ -2287,7 +2287,7 @@ nvbios_exec(struct nvbios_init *init)
 int
 nvbios_init(struct nvkm_subdev *subdev, bool execute)
 {
-	struct nvkm_bios *bios = nvkm_bios(subdev);
+	struct nvkm_bios *bios = subdev->device->bios;
 	int ret = 0;
 	int i = -1;
 	u16 data;

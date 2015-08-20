@@ -39,7 +39,7 @@ static u32
 nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 		u8 pstate, u8 domain, u32 input)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_bios *bios = clk->subdev.device->bios;
 	struct nvbios_boostE boostE;
 	u8  ver, hdr, cnt, len;
 	u16 data;
@@ -136,7 +136,7 @@ nvkm_cstate_del(struct nvkm_cstate *cstate)
 static int
 nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_bios *bios = clk->subdev.device->bios;
 	struct nvkm_domain *domain = clk->domains;
 	struct nvkm_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
@@ -305,7 +305,7 @@ nvkm_pstate_del(struct nvkm_pstate *pstate)
 static int
 nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_bios *bios = clk->subdev.device->bios;
 	struct nvkm_domain *domain = clk->domains - 1;
 	struct nvkm_pstate *pstate;
 	struct nvkm_cstate *cstate;

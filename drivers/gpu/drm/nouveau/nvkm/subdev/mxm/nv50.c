@@ -49,7 +49,7 @@ mxm_match_tmds_partner(struct nvkm_mxm *mxm, u8 *data, void *info)
 static bool
 mxm_match_dcb(struct nvkm_mxm *mxm, u8 *data, void *info)
 {
-	struct nvkm_bios *bios = nvkm_bios(mxm);
+	struct nvkm_bios *bios = mxm->subdev.device->bios;
 	struct context *ctx = info;
 	u64 desc = *(u64 *)data;
 

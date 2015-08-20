@@ -88,7 +88,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 static void *
 acpi_init(struct nvkm_bios *bios, const char *name)
 {
-	if (!nouveau_acpi_rom_supported(nv_device(bios)->pdev))
+	if (!nouveau_acpi_rom_supported(bios->subdev.device->pdev))
 		return ERR_PTR(-ENODEV);
 	return NULL;
 }

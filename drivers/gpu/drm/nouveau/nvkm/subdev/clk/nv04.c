@@ -48,8 +48,9 @@ nv04_clk_pll_calc(struct nvkm_clk *clock, struct nvbios_pll *info,
 int
 nv04_clk_pll_prog(struct nvkm_clk *clk, u32 reg1, struct nvkm_pll_vals *pv)
 {
-	struct nvkm_devinit *devinit = nvkm_devinit(clk);
-	int cv = nvkm_bios(clk)->version.chip;
+	struct nvkm_device *device = clk->subdev.device;
+	struct nvkm_devinit *devinit = device->devinit;
+	int cv = device->bios->version.chip;
 
 	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
 	    cv >= 0x40) {

@@ -240,7 +240,8 @@ calc_src(struct gf100_clk *clk, int idx, u32 freq, u32 *dsrc, u32 *ddiv)
 static u32
 calc_pll(struct gf100_clk *clk, int idx, u32 freq, u32 *coef)
 {
-	struct nvkm_bios *bios = nvkm_bios(clk);
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvbios_pll limits;
 	int N, M, P, ret;
 
@@ -252,7 +253,7 @@ calc_pll(struct gf100_clk *clk, int idx, u32 freq, u32 *coef)
 	if (!limits.refclk)
 		return 0;
 
-	ret = gt215_pll_calc(nv_subdev(clk), &limits, freq, &N, NULL, &M, &P);
+	ret = gt215_pll_calc(subdev, &limits, freq, &N, NULL, &M, &P);
 	if (ret <= 0)
 		return 0;
 

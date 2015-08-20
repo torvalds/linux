@@ -51,7 +51,7 @@ pcirom_fini(void *data)
 static void *
 pcirom_init(struct nvkm_bios *bios, const char *name)
 {
-	struct pci_dev *pdev = nv_device(bios)->pdev;
+	struct pci_dev *pdev = bios->subdev.device->pdev;
 	struct priv *priv = NULL;
 	int ret;
 
@@ -83,7 +83,7 @@ nvbios_pcirom = {
 static void *
 platform_init(struct nvkm_bios *bios, const char *name)
 {
-	struct pci_dev *pdev = nv_device(bios)->pdev;
+	struct pci_dev *pdev = bios->subdev.device->pdev;
 	struct priv *priv;
 	int ret = -ENOMEM;
 

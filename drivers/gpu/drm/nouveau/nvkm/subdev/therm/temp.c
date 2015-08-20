@@ -251,7 +251,7 @@ nvkm_therm_sensor_ctor(struct nvkm_therm *obj)
 {
 	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_subdev *subdev = &therm->base.subdev;
-	struct nvkm_bios *bios = nvkm_bios(therm);
+	struct nvkm_bios *bios = subdev->device->bios;
 
 	nvkm_alarm_init(&therm->sensor.therm_poll_alarm, alarm_timer_callback);
 

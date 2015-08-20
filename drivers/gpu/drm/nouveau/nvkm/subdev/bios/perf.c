@@ -115,7 +115,7 @@ nvbios_perfEp(struct nvkm_bios *bios, int idx,
 		info->shader   = nvbios_rd16(bios, perf + 0x06) * 1000;
 		info->core     = info->shader + (signed char)
 				 nvbios_rd08(bios, perf + 0x08) * 1000;
-		switch (nv_device(bios)->chipset) {
+		switch (bios->subdev.device->chipset) {
 		case 0x49:
 		case 0x4b:
 			info->memory = nvbios_rd16(bios, perf + 0x0b) * 1000;

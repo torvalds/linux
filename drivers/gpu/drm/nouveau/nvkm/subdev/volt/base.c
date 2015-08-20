@@ -64,7 +64,7 @@ nvkm_volt_set(struct nvkm_volt *volt, u32 uv)
 static int
 nvkm_volt_map(struct nvkm_volt *volt, u8 id)
 {
-	struct nvkm_bios *bios = nvkm_bios(volt);
+	struct nvkm_bios *bios = volt->subdev.device->bios;
 	struct nvbios_vmap_entry info;
 	u8  ver, len;
 	u16 vmap;

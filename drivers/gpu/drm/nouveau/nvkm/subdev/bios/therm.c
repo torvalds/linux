@@ -203,7 +203,7 @@ nvbios_therm_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 	}
 
 	/* starting from fermi, fan management is always linear */
-	if (nv_device(bios)->card_type >= NV_C0 &&
+	if (bios->subdev.device->card_type >= NV_C0 &&
 		fan->fan_mode == NVBIOS_THERM_FAN_OTHER) {
 		fan->fan_mode = NVBIOS_THERM_FAN_LINEAR;
 	}
