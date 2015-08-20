@@ -81,7 +81,7 @@ int
 nv04_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		void *data, u32 size, struct nvkm_dmaobj **pdmaobj)
 {
-	struct nv04_mmu *mmu = nv04_mmu(dma);
+	struct nvkm_device *device = dma->engine.subdev.device;
 	struct nv04_dmaobj *dmaobj;
 	int ret;
 
@@ -95,7 +95,7 @@ nv04_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		return ret;
 
 	if (dmaobj->base.target == NV_MEM_TARGET_VM) {
-		if (nv_object(mmu)->oclass == &nv04_mmu_oclass)
+		if (device->mmu->func == &nv04_mmu)
 			dmaobj->clone = true;
 		dmaobj->base.target = NV_MEM_TARGET_PCI;
 		dmaobj->base.access = NV_MEM_ACCESS_RW;

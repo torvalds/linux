@@ -71,14 +71,14 @@ nv41_vm_flush(struct nvkm_vm *vm)
 	struct nv04_mmu *mmu = nv04_mmu(vm->mmu);
 	struct nvkm_device *device = mmu->base.subdev.device;
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	mutex_lock(&mmu->base.subdev.mutex);
 	nvkm_wr32(device, 0x100810, 0x00000022);
 	nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x100810) & 0x00000020)
 			break;
 	);
 	nvkm_wr32(device, 0x100810, 0x00000000);
-	mutex_unlock(&nv_subdev(mmu)->mutex);
+	mutex_unlock(&mmu->base.subdev.mutex);
 }
 
 /*******************************************************************************
@@ -86,35 +86,11 @@ nv41_vm_flush(struct nvkm_vm *vm)
  ******************************************************************************/
 
 static int
-nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+nv41_mmu_oneinit(struct nvkm_mmu *base)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nv04_mmu *mmu;
+	struct nv04_mmu *mmu = nv04_mmu(base);
+	struct nvkm_device *device = mmu->base.subdev.device;
 	int ret;
-
-	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
-	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true)) {
-		return nvkm_object_old(parent, engine, &nv04_mmu_oclass,
-					data, size, pobject);
-	}
-
-	ret = nvkm_mmu_create(parent, engine, oclass, "PCIEGART",
-			      "mmu", &mmu);
-	*pobject = nv_object(mmu);
-	if (ret)
-		return ret;
-
-	mmu->base.create = nv04_vm_create;
-	mmu->base.limit = NV41_GART_SIZE;
-	mmu->base.dma_bits = 39;
-	mmu->base.pgt_bits = 32 - 12;
-	mmu->base.spg_shift = 12;
-	mmu->base.lpg_shift = 12;
-	mmu->base.map_sg = nv41_vm_map_sg;
-	mmu->base.unmap = nv41_vm_unmap;
-	mmu->base.flush = nv41_vm_flush;
 
 	ret = nvkm_vm_create(&mmu->base, 0, NV41_GART_SIZE, 0, 4096, NULL,
 			     &mmu->vm);
@@ -125,37 +101,41 @@ nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			      (NV41_GART_SIZE / NV41_GART_PAGE) * 4, 16, true,
 			      &mmu->vm->pgt[0].mem[0]);
 	mmu->vm->pgt[0].refcount[0] = 1;
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
-static int
-nv41_mmu_init(struct nvkm_object *object)
+static void
+nv41_mmu_init(struct nvkm_mmu *base)
 {
-	struct nv04_mmu *mmu = (void *)object;
+	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
 	struct nvkm_memory *dma = mmu->vm->pgt[0].mem[0];
-	int ret;
-
-	ret = nvkm_mmu_init(&mmu->base);
-	if (ret)
-		return ret;
-
 	nvkm_wr32(device, 0x100800, 0x00000002 | nvkm_memory_addr(dma));
 	nvkm_mask(device, 0x10008c, 0x00000100, 0x00000100);
 	nvkm_wr32(device, 0x100820, 0x00000000);
-	return 0;
 }
 
-struct nvkm_oclass
-nv41_mmu_oclass = {
-	.handle = NV_SUBDEV(MMU, 0x41),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv41_mmu_ctor,
-		.dtor = nv04_mmu_dtor,
-		.init = nv41_mmu_init,
-		.fini = _nvkm_mmu_fini,
-	},
+static const struct nvkm_mmu_func
+nv41_mmu = {
+	.dtor = nv04_mmu_dtor,
+	.oneinit = nv41_mmu_oneinit,
+	.init = nv41_mmu_init,
+	.limit = NV41_GART_SIZE,
+	.dma_bits = 39,
+	.pgt_bits = 32 - 12,
+	.spg_shift = 12,
+	.lpg_shift = 12,
+	.map_sg = nv41_vm_map_sg,
+	.unmap = nv41_vm_unmap,
+	.flush = nv41_vm_flush,
 };
+
+int
+nv41_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+{
+	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
+	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true))
+		return nv04_mmu_new(device, index, pmmu);
+
+	return nv04_mmu_new_(&nv41_mmu, device, index, pmmu);
+}

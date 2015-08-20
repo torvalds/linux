@@ -159,35 +159,11 @@ nv44_vm_flush(struct nvkm_vm *vm)
  ******************************************************************************/
 
 static int
-nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+nv44_mmu_oneinit(struct nvkm_mmu *base)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nv04_mmu *mmu;
+	struct nv04_mmu *mmu = nv04_mmu(base);
+	struct nvkm_device *device = mmu->base.subdev.device;
 	int ret;
-
-	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
-	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true)) {
-		return nvkm_object_old(parent, engine, &nv04_mmu_oclass,
-					data, size, pobject);
-	}
-
-	ret = nvkm_mmu_create(parent, engine, oclass, "PCIEGART",
-			      "mmu", &mmu);
-	*pobject = nv_object(mmu);
-	if (ret)
-		return ret;
-
-	mmu->base.create = nv04_vm_create;
-	mmu->base.limit = NV44_GART_SIZE;
-	mmu->base.dma_bits = 39;
-	mmu->base.pgt_bits = 32 - 12;
-	mmu->base.spg_shift = 12;
-	mmu->base.lpg_shift = 12;
-	mmu->base.map_sg = nv44_vm_map_sg;
-	mmu->base.unmap = nv44_vm_unmap;
-	mmu->base.flush = nv44_vm_flush;
 
 	mmu->nullp = pci_alloc_consistent(device->pdev, 16 * 1024, &mmu->null);
 	if (!mmu->nullp) {
@@ -205,24 +181,16 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			      512 * 1024, true,
 			      &mmu->vm->pgt[0].mem[0]);
 	mmu->vm->pgt[0].refcount[0] = 1;
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
-static int
-nv44_mmu_init(struct nvkm_object *object)
+static void
+nv44_mmu_init(struct nvkm_mmu *base)
 {
-	struct nv04_mmu *mmu = (void *)object;
+	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
 	struct nvkm_memory *gart = mmu->vm->pgt[0].mem[0];
 	u32 addr;
-	int ret;
-
-	ret = nvkm_mmu_init(&mmu->base);
-	if (ret)
-		return ret;
 
 	/* calculate vram address of this PRAMIN block, object must be
 	 * allocated on 512KiB alignment, and not exceed a total size
@@ -239,16 +207,29 @@ nv44_mmu_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x100820, 0x00000000);
 	nvkm_wr32(device, 0x10082c, 0x00000001);
 	nvkm_wr32(device, 0x100800, addr | 0x00000010);
-	return 0;
 }
 
-struct nvkm_oclass
-nv44_mmu_oclass = {
-	.handle = NV_SUBDEV(MMU, 0x44),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv44_mmu_ctor,
-		.dtor = nv04_mmu_dtor,
-		.init = nv44_mmu_init,
-		.fini = _nvkm_mmu_fini,
-	},
+static const struct nvkm_mmu_func
+nv44_mmu = {
+	.dtor = nv04_mmu_dtor,
+	.oneinit = nv44_mmu_oneinit,
+	.init = nv44_mmu_init,
+	.limit = NV44_GART_SIZE,
+	.dma_bits = 39,
+	.pgt_bits = 32 - 12,
+	.spg_shift = 12,
+	.lpg_shift = 12,
+	.map_sg = nv44_vm_map_sg,
+	.unmap = nv44_vm_unmap,
+	.flush = nv44_vm_flush,
 };
+
+int
+nv44_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+{
+	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
+	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true))
+		return nv04_mmu_new(device, index, pmmu);
+
+	return nv04_mmu_new_(&nv44_mmu, device, index, pmmu);
+}

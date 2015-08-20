@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/mmu.h>
+#include "priv.h"
+
 #include <subdev/fb.h>
 #include <subdev/ltc.h>
 #include <subdev/timer.h>
@@ -160,7 +161,7 @@ gf100_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 static void
 gf100_vm_flush(struct nvkm_vm *vm)
 {
-	struct nvkm_mmu *mmu = (void *)vm->mmu;
+	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_device *device = mmu->subdev.device;
 	struct nvkm_vm_pgd *vpgd;
 	u32 type;
@@ -169,7 +170,7 @@ gf100_vm_flush(struct nvkm_vm *vm)
 	if (atomic_read(&vm->engref[NVDEV_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	mutex_lock(&mmu->subdev.mutex);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
 		/* looks like maybe a "free flush slots" counter, the
 		 * faster you write to 0x100cbc to more it decreases
@@ -188,7 +189,7 @@ gf100_vm_flush(struct nvkm_vm *vm)
 				break;
 		);
 	}
-	mutex_unlock(&nv_subdev(mmu)->mutex);
+	mutex_unlock(&mmu->subdev.mutex);
 }
 
 static int
@@ -198,40 +199,23 @@ gf100_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	return nvkm_vm_create(mmu, offset, length, mm_offset, 4096, key, pvm);
 }
 
-static int
-gf100_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nvkm_mmu *mmu;
-	int ret;
-
-	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "mmu", &mmu);
-	*pobject = nv_object(mmu);
-	if (ret)
-		return ret;
-
-	mmu->limit = 1ULL << 40;
-	mmu->dma_bits = 40;
-	mmu->pgt_bits  = 27 - 12;
-	mmu->spg_shift = 12;
-	mmu->lpg_shift = 17;
-	mmu->create = gf100_vm_create;
-	mmu->map_pgt = gf100_vm_map_pgt;
-	mmu->map = gf100_vm_map;
-	mmu->map_sg = gf100_vm_map_sg;
-	mmu->unmap = gf100_vm_unmap;
-	mmu->flush = gf100_vm_flush;
-	return 0;
-}
-
-struct nvkm_oclass
-gf100_mmu_oclass = {
-	.handle = NV_SUBDEV(MMU, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_mmu_ctor,
-		.dtor = _nvkm_mmu_dtor,
-		.init = _nvkm_mmu_init,
-		.fini = _nvkm_mmu_fini,
-	},
+static const struct nvkm_mmu_func
+gf100_mmu = {
+	.limit = (1ULL << 40),
+	.dma_bits = 40,
+	.pgt_bits  = 27 - 12,
+	.spg_shift = 12,
+	.lpg_shift = 17,
+	.create = gf100_vm_create,
+	.map_pgt = gf100_vm_map_pgt,
+	.map = gf100_vm_map,
+	.map_sg = gf100_vm_map_sg,
+	.unmap = gf100_vm_unmap,
+	.flush = gf100_vm_flush,
 };
+
+int
+gf100_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+{
+	return nvkm_mmu_new_(&gf100_mmu, device, index, pmmu);
+}

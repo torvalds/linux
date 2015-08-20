@@ -29,7 +29,6 @@ nv04_identify(struct nvkm_device *device)
 	switch (device->chipset) {
 	case 0x04:
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_MMU    ] = &nv04_mmu_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
@@ -38,7 +37,6 @@ nv04_identify(struct nvkm_device *device)
 		break;
 	case 0x05:
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_MMU    ] = &nv04_mmu_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;

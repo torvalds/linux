@@ -21,7 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/mmu.h>
+#include "priv.h"
+
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -155,10 +156,9 @@ nv50_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 static void
 nv50_vm_flush(struct nvkm_vm *vm)
 {
-	struct nvkm_mmu *mmu = (void *)vm->mmu;
+	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_subdev *subdev = &mmu->subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_engine *engine;
 	int i, vme;
 
 	mutex_lock(&subdev->mutex);
@@ -167,10 +167,13 @@ nv50_vm_flush(struct nvkm_vm *vm)
 			continue;
 
 		/* unfortunate hw bug workaround... */
-		engine = nvkm_engine(mmu, i);
-		if (engine && engine->tlb_flush) {
-			engine->tlb_flush(engine);
-			continue;
+		if (i == NVDEV_ENGINE_GR) {
+			struct nvkm_engine *engine =
+				nvkm_device_engine(device, i);
+			if (engine && engine->tlb_flush) {
+				engine->tlb_flush(engine);
+				continue;
+			}
 		}
 
 		switch (i) {
@@ -203,47 +206,30 @@ static int
 nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	       struct lock_class_key *key, struct nvkm_vm **pvm)
 {
-	u32 block = (1 << (mmu->pgt_bits + 12));
+	u32 block = (1 << (mmu->func->pgt_bits + 12));
 	if (block > length)
 		block = length;
 
 	return nvkm_vm_create(mmu, offset, length, mm_offset, block, key, pvm);
 }
 
-static int
-nv50_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
-	struct nvkm_mmu *mmu;
-	int ret;
-
-	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "mmu", &mmu);
-	*pobject = nv_object(mmu);
-	if (ret)
-		return ret;
-
-	mmu->limit = 1ULL << 40;
-	mmu->dma_bits = 40;
-	mmu->pgt_bits  = 29 - 12;
-	mmu->spg_shift = 12;
-	mmu->lpg_shift = 16;
-	mmu->create = nv50_vm_create;
-	mmu->map_pgt = nv50_vm_map_pgt;
-	mmu->map = nv50_vm_map;
-	mmu->map_sg = nv50_vm_map_sg;
-	mmu->unmap = nv50_vm_unmap;
-	mmu->flush = nv50_vm_flush;
-	return 0;
-}
-
-struct nvkm_oclass
-nv50_mmu_oclass = {
-	.handle = NV_SUBDEV(MMU, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_mmu_ctor,
-		.dtor = _nvkm_mmu_dtor,
-		.init = _nvkm_mmu_init,
-		.fini = _nvkm_mmu_fini,
-	},
+static const struct nvkm_mmu_func
+nv50_mmu = {
+	.limit = (1ULL << 40),
+	.dma_bits = 40,
+	.pgt_bits  = 29 - 12,
+	.spg_shift = 12,
+	.lpg_shift = 16,
+	.create = nv50_vm_create,
+	.map_pgt = nv50_vm_map_pgt,
+	.map = nv50_vm_map,
+	.map_sg = nv50_vm_map_sg,
+	.unmap = nv50_vm_unmap,
+	.flush = nv50_vm_flush,
 };
+
+int
+nv50_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+{
+	return nvkm_mmu_new_(&nv50_mmu, device, index, pmmu);
+}

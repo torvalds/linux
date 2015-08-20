@@ -69,45 +69,16 @@ nv04_vm_flush(struct nvkm_vm *vm)
 }
 
 /*******************************************************************************
- * VM object
- ******************************************************************************/
-
-int
-nv04_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mmstart,
-	       struct lock_class_key *key, struct nvkm_vm **pvm)
-{
-	return -EINVAL;
-}
-
-/*******************************************************************************
  * MMU subdev
  ******************************************************************************/
 
 static int
-nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+nv04_mmu_oneinit(struct nvkm_mmu *base)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv04_mmu *mmu;
+	struct nv04_mmu *mmu = nv04_mmu(base);
+	struct nvkm_device *device = mmu->base.subdev.device;
 	struct nvkm_memory *dma;
 	int ret;
-
-	ret = nvkm_mmu_create(parent, engine, oclass, "PCIGART",
-			      "mmu", &mmu);
-	*pobject = nv_object(mmu);
-	if (ret)
-		return ret;
-
-	mmu->base.create = nv04_vm_create;
-	mmu->base.limit = NV04_PDMA_SIZE;
-	mmu->base.dma_bits = 32;
-	mmu->base.pgt_bits = 32 - 12;
-	mmu->base.spg_shift = 12;
-	mmu->base.lpg_shift = 12;
-	mmu->base.map_sg = nv04_vm_map_sg;
-	mmu->base.unmap = nv04_vm_unmap;
-	mmu->base.flush = nv04_vm_flush;
 
 	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096, NULL,
 			     &mmu->vm);
@@ -129,28 +100,50 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	return 0;
 }
 
-void
-nv04_mmu_dtor(struct nvkm_object *object)
+void *
+nv04_mmu_dtor(struct nvkm_mmu *base)
 {
-	struct nv04_mmu *mmu = (void *)object;
+	struct nv04_mmu *mmu = nv04_mmu(base);
+	struct nvkm_device *device = mmu->base.subdev.device;
 	if (mmu->vm) {
 		nvkm_memory_del(&mmu->vm->pgt[0].mem[0]);
 		nvkm_vm_ref(NULL, &mmu->vm, NULL);
 	}
 	if (mmu->nullp) {
-		pci_free_consistent(nv_device(mmu)->pdev, 16 * 1024,
+		pci_free_consistent(device->pdev, 16 * 1024,
 				    mmu->nullp, mmu->null);
 	}
-	nvkm_mmu_destroy(&mmu->base);
+	return mmu;
 }
 
-struct nvkm_oclass
-nv04_mmu_oclass = {
-	.handle = NV_SUBDEV(MMU, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mmu_ctor,
-		.dtor = nv04_mmu_dtor,
-		.init = _nvkm_mmu_init,
-		.fini = _nvkm_mmu_fini,
-	},
+int
+nv04_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_mmu **pmmu)
+{
+	struct nv04_mmu *mmu;
+	if (!(mmu = kzalloc(sizeof(*mmu), GFP_KERNEL)))
+		return -ENOMEM;
+	*pmmu = &mmu->base;
+	nvkm_mmu_ctor(func, device, index, &mmu->base);
+	return 0;
+}
+
+const struct nvkm_mmu_func
+nv04_mmu = {
+	.oneinit = nv04_mmu_oneinit,
+	.dtor = nv04_mmu_dtor,
+	.limit = NV04_PDMA_SIZE,
+	.dma_bits = 32,
+	.pgt_bits = 32 - 12,
+	.spg_shift = 12,
+	.lpg_shift = 12,
+	.map_sg = nv04_vm_map_sg,
+	.unmap = nv04_vm_unmap,
+	.flush = nv04_vm_flush,
 };
+
+int
+nv04_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+{
+	return nv04_mmu_new_(&nv04_mmu, device, index, pmmu);
+}
