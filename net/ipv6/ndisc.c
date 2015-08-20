@@ -553,7 +553,8 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 
 void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		   const struct in6_addr *solicit,
-		   const struct in6_addr *daddr, const struct in6_addr *saddr)
+		   const struct in6_addr *daddr, const struct in6_addr *saddr,
+		   struct sk_buff *oskb)
 {
 	struct sk_buff *skb;
 	struct in6_addr addr_buf;
@@ -588,6 +589,9 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	if (inc_opt)
 		ndisc_fill_addr_option(skb, ND_OPT_SOURCE_LL_ADDR,
 				       dev->dev_addr);
+
+	if (!(dev->priv_flags & IFF_XMIT_DST_RELEASE) && oskb)
+		skb_dst_copy(skb, oskb);
 
 	ndisc_send_skb(skb, daddr, saddr);
 }
@@ -675,12 +679,12 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				  __func__, target);
 		}
-		ndisc_send_ns(dev, neigh, target, target, saddr);
+		ndisc_send_ns(dev, neigh, target, target, saddr, skb);
 	} else if ((probes -= NEIGH_VAR(neigh->parms, APP_PROBES)) < 0) {
 		neigh_app_ns(neigh);
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
-		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr);
+		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr, skb);
 	}
 }
 
