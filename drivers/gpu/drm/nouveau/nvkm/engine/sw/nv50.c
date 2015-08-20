@@ -29,6 +29,7 @@
 #include <subdev/bar.h>
 
 #include <nvif/event.h>
+#include <nvif/ioctl.h>
 
 /*******************************************************************************
  * software object classes
@@ -108,7 +109,7 @@ nv50_sw_omthds[] = {
 
 static struct nvkm_oclass
 nv50_sw_sclass[] = {
-	{ 0x506e, &nvkm_object_ofuncs, nv50_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV50, &nvkm_object_ofuncs, nv50_sw_omthds },
 	{}
 };
 

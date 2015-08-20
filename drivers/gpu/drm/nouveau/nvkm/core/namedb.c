@@ -39,7 +39,7 @@ nvkm_namedb_lookup(struct nvkm_namedb *namedb, u32 name)
 }
 
 static struct nvkm_handle *
-nvkm_namedb_lookup_class(struct nvkm_namedb *namedb, u16 oclass)
+nvkm_namedb_lookup_class(struct nvkm_namedb *namedb, s32 oclass)
 {
 	struct nvkm_handle *handle;
 
@@ -122,7 +122,7 @@ nvkm_namedb_get(struct nvkm_namedb *namedb, u32 name)
 }
 
 struct nvkm_handle *
-nvkm_namedb_get_class(struct nvkm_namedb *namedb, u16 oclass)
+nvkm_namedb_get_class(struct nvkm_namedb *namedb, s32 oclass)
 {
 	struct nvkm_handle *handle;
 	read_lock(&namedb->lock);

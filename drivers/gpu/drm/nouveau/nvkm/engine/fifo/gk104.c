@@ -33,6 +33,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/ioctl.h>
 #include <nvif/unpack.h>
 
 #define _(a,b) { (a), ((1ULL << (a)) | (b)) }
@@ -533,7 +534,7 @@ gk104_fifo_swmthd(struct gk104_fifo *fifo, u32 chid, u32 mthd, u32 data)
 	if (unlikely(!chan))
 		goto out;
 
-	bind = nvkm_namedb_get_class(nv_namedb(chan), 0x906e);
+	bind = nvkm_namedb_get_class(nv_namedb(chan), NVIF_IOCTL_NEW_V0_SW_GF100);
 	if (likely(bind)) {
 		if (!mthd || !nv_call(bind->object, mthd, data))
 			ret = 0;

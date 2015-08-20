@@ -24,6 +24,8 @@
 #include <engine/sw.h>
 #include <engine/fifo.h>
 
+#include <nvif/ioctl.h>
+
 /*******************************************************************************
  * software object classes
  ******************************************************************************/
@@ -55,7 +57,7 @@ nv04_sw_omthds[] = {
 
 static struct nvkm_oclass
 nv04_sw_sclass[] = {
-	{ 0x006e, &nvkm_object_ofuncs, nv04_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV04, &nvkm_object_ofuncs, nv04_sw_omthds },
 	{}
 };
 

@@ -45,7 +45,7 @@ int  nvkm_namedb_insert(struct nvkm_namedb *, u32 name, struct nvkm_object *,
 void nvkm_namedb_remove(struct nvkm_handle *);
 
 struct nvkm_handle *nvkm_namedb_get(struct nvkm_namedb *, u32);
-struct nvkm_handle *nvkm_namedb_get_class(struct nvkm_namedb *, u16);
+struct nvkm_handle *nvkm_namedb_get_class(struct nvkm_namedb *, s32);
 struct nvkm_handle *nvkm_namedb_get_vinst(struct nvkm_namedb *, u64);
 struct nvkm_handle *nvkm_namedb_get_cinst(struct nvkm_namedb *, u32);
 void nvkm_namedb_put(struct nvkm_handle *);

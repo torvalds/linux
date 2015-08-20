@@ -25,6 +25,8 @@
 
 #include <subdev/bar.h>
 
+#include <nvif/ioctl.h>
+
 /*******************************************************************************
  * software object classes
  ******************************************************************************/
@@ -87,7 +89,7 @@ gf100_sw_omthds[] = {
 
 static struct nvkm_oclass
 gf100_sw_sclass[] = {
-	{ 0x906e, &nvkm_object_ofuncs, gf100_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_GF100, &nvkm_object_ofuncs, gf100_sw_omthds },
 	{}
 };
 

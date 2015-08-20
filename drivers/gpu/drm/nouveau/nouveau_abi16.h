@@ -37,7 +37,7 @@ struct nouveau_drm;
 struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *, struct drm_device *);
 int  nouveau_abi16_put(struct nouveau_abi16 *, int);
 void nouveau_abi16_fini(struct nouveau_abi16 *);
-u16  nouveau_abi16_swclass(struct nouveau_drm *);
+s32  nouveau_abi16_swclass(struct nouveau_drm *);
 
 #define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
 #define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)

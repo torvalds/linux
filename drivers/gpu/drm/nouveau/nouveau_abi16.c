@@ -74,23 +74,23 @@ nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
 	return ret;
 }
 
-u16
+s32
 nouveau_abi16_swclass(struct nouveau_drm *drm)
 {
 	switch (drm->device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
-		return 0x006e;
+		return NVIF_IOCTL_NEW_V0_SW_NV04;
 	case NV_DEVICE_INFO_V0_CELSIUS:
 	case NV_DEVICE_INFO_V0_KELVIN:
 	case NV_DEVICE_INFO_V0_RANKINE:
 	case NV_DEVICE_INFO_V0_CURIE:
-		return 0x016e;
+		return NVIF_IOCTL_NEW_V0_SW_NV10;
 	case NV_DEVICE_INFO_V0_TESLA:
-		return 0x506e;
+		return NVIF_IOCTL_NEW_V0_SW_NV50;
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
-		return 0x906e;
+		return NVIF_IOCTL_NEW_V0_SW_GF100;
 	}
 
 	return 0x0000;
@@ -368,9 +368,10 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_client *client;
-	int ret;
+	u32 sclass[32];
+	s32 oclass = 0;
+	int ret, i;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
@@ -379,16 +380,61 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -EINVAL);
 	client = abi16->device.object.client;
 
-	/* compatibility with userspace that assumes 506e for all chipsets */
-	if (init->class == 0x506e) {
-		init->class = nouveau_abi16_swclass(drm);
-		if (init->class == 0x906e)
-			return nouveau_abi16_put(abi16, 0);
-	}
-
 	chan = nouveau_abi16_chan(abi16, init->channel);
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOENT);
+
+	ret = nvif_object_sclass(&chan->chan->user, sclass, ARRAY_SIZE(sclass));
+	if (ret < 0)
+		return nouveau_abi16_put(abi16, ret);
+
+	if ((init->class & 0x00ff) == 0x006e) {
+		/* nvsw: compatibility with older 0x*6e class identifier */
+		for (i = 0; !oclass && i < ret; i++) {
+			switch (sclass[i]) {
+			case NVIF_IOCTL_NEW_V0_SW_NV04:
+			case NVIF_IOCTL_NEW_V0_SW_NV10:
+			case NVIF_IOCTL_NEW_V0_SW_NV50:
+			case NVIF_IOCTL_NEW_V0_SW_GF100:
+				oclass = sclass[i];
+				break;
+			default:
+				break;
+			}
+		}
+	} else
+	if ((init->class & 0x00ff) == 0x00b1) {
+		/* msvld: compatibility with incorrect version exposure */
+		for (i = 0; i < ret; i++) {
+			if ((sclass[i] & 0x00ff) == 0x00b1) {
+				oclass = sclass[i];
+				break;
+			}
+		}
+	} else
+	if ((init->class & 0x00ff) == 0x00b2) { /* mspdec */
+		/* mspdec: compatibility with incorrect version exposure */
+		for (i = 0; i < ret; i++) {
+			if ((sclass[i] & 0x00ff) == 0x00b2) {
+				oclass = sclass[i];
+				break;
+			}
+		}
+	} else
+	if ((init->class & 0x00ff) == 0x00b3) { /* msppp */
+		/* msppp: compatibility with incorrect version exposure */
+		for (i = 0; i < ret; i++) {
+			if ((sclass[i] & 0x00ff) == 0x00b3) {
+				oclass = sclass[i];
+				break;
+			}
+		}
+	} else {
+		oclass = init->class;
+	}
+
+	if (!oclass)
+		return nouveau_abi16_put(abi16, -EINVAL);
 
 	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
 	if (!ntfy)
@@ -397,7 +443,7 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 
 	client->route = NVDRM_OBJECT_ABI16;
-	ret = nvif_object_init(&chan->chan->user, init->handle, init->class,
+	ret = nvif_object_init(&chan->chan->user, init->handle, oclass,
 			       NULL, 0, &ntfy->object);
 	client->route = NVDRM_OBJECT_NVIF;
 
