@@ -30,7 +30,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xc0:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
@@ -56,7 +55,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xc4:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
@@ -82,7 +80,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xc3:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
@@ -107,7 +104,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xce:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
@@ -133,7 +129,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xcf:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
@@ -158,7 +153,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xc1:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
@@ -183,7 +177,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xc8:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  g94_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf100_mc_oclass;
@@ -209,7 +202,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xd9:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gf110_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;
@@ -234,7 +226,6 @@ gf100_identify(struct nvkm_device *device)
 	case 0xd7:
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gf110_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf117_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gf110_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gf106_mc_oclass;

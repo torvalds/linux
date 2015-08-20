@@ -27,36 +27,16 @@ static u32
 gm107_fuse_read(struct nvkm_fuse *fuse, u32 addr)
 {
 	struct nvkm_device *device = fuse->subdev.device;
-	return nvkm_rd32(device, 0x21100 + addr);
+	return nvkm_rd32(device, 0x021100 + addr);
 }
 
 static const struct nvkm_fuse_func
-gm107_fuse_func = {
+gm107_fuse = {
 	.read = gm107_fuse_read,
 };
 
-static int
-gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+gm107_fuse_new(struct nvkm_device *device, int index, struct nvkm_fuse **pfuse)
 {
-	struct nvkm_fuse *fuse;
-	int ret;
-
-	ret = nvkm_fuse_create(parent, engine, oclass, &fuse);
-	*pobject = nv_object(fuse);
-
-	fuse->func = &gm107_fuse_func;
-	return ret;
+	return nvkm_fuse_new_(&gm107_fuse, device, index, pfuse);
 }
-
-struct nvkm_oclass
-gm107_fuse_oclass = {
-	.handle = NV_SUBDEV(FUSE, 0x117),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm107_fuse_ctor,
-		.dtor = _nvkm_fuse_dtor,
-		.init = _nvkm_fuse_init,
-		.fini = _nvkm_fuse_fini,
-	},
-};
