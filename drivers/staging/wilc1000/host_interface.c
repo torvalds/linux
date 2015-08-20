@@ -1493,8 +1493,7 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	PRINT_D(GENERIC_DBG, "Handling connect request\n");
 
 	#ifndef CONNECT_DIRECT
-	memset(gapu8RcvdSurveyResults[0], 0, MAX_SURVEY_RESULT_FRAG_SIZE);
-	memset(gapu8RcvdSurveyResults[1], 0, MAX_SURVEY_RESULT_FRAG_SIZE);
+	memset(gapu8RcvdSurveyResults, 0, sizeof(gapu8RcvdSurveyResults));
 
 
 	PRINT_D(HOSTINF_DBG, "Getting site survey results\n");
