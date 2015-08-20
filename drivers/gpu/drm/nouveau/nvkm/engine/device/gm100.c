@@ -36,11 +36,8 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm107_disp_oclass;
-		device->oclass[NVDEV_ENGINE_CE0    ] = &gk104_ce0_oclass;
 #if 0
-		device->oclass[NVDEV_ENGINE_CE1    ] = &gk104_ce1_oclass;
 #endif
-		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
 #if 0
 #endif
 		break;
@@ -56,9 +53,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm204_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
-		device->oclass[NVDEV_ENGINE_CE0    ] = &gm204_ce0_oclass;
-		device->oclass[NVDEV_ENGINE_CE1    ] = &gm204_ce1_oclass;
-		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
 #if 0
 #endif
 		break;
@@ -74,9 +68,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm206_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
-		device->oclass[NVDEV_ENGINE_CE0    ] = &gm204_ce0_oclass;
-		device->oclass[NVDEV_ENGINE_CE1    ] = &gm204_ce1_oclass;
-		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
 #if 0
 #endif
 		break;
@@ -86,7 +77,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm20b_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm20b_gr_oclass;
-		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
 		break;
 	default:
 		return -EINVAL;

@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/ce.h>
+#include "priv.h"
 #include "fuc/gf100.fuc3.h"
 
 #include <nvif/class.h>
