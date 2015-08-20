@@ -471,7 +471,7 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	unsigned long flags;
 
 	nvkm_error(subdev, "%s engine fault on channel %d, recovering...\n",
-		   engine->subdev.name, chid);
+		   nvkm_subdev_name[engine->subdev.index], chid);
 
 	nvkm_mask(device, 0x003004 + (chid * 0x08), 0x00000001, 0x00000000);
 	chan->state = KILLED;

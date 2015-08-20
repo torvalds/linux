@@ -7,16 +7,36 @@
 
 struct nvkm_subdev {
 	struct nvkm_object object;
-
+	const struct nvkm_subdev_func *func;
 	struct nvkm_device *device;
+	int index;
+	u32 pmc_enable;
 
 	struct mutex mutex;
-	const char *name, *sname;
 	u32 debug;
-	u32 unit;
+	bool oneinit;
 
 	void (*intr)(struct nvkm_subdev *);
+	u32 unit;
 };
+
+struct nvkm_subdev_func {
+	void *(*dtor)(struct nvkm_subdev *);
+	int (*preinit)(struct nvkm_subdev *);
+	int (*oneinit)(struct nvkm_subdev *);
+	int (*init)(struct nvkm_subdev *);
+	int (*fini)(struct nvkm_subdev *, bool suspend);
+	void (*intr)(struct nvkm_subdev *);
+};
+
+extern const char *nvkm_subdev_name[64];
+void nvkm_subdev_ctor(const struct nvkm_subdev_func *, struct nvkm_device *,
+		      int index, u32 pmc_enable, struct nvkm_subdev *);
+void nvkm_subdev_del(struct nvkm_subdev **);
+int  nvkm_subdev_preinit(struct nvkm_subdev *);
+int  nvkm_subdev_init(struct nvkm_subdev *);
+int  nvkm_subdev_fini(struct nvkm_subdev *, bool suspend);
+void nvkm_subdev_intr(struct nvkm_subdev *);
 
 static inline struct nvkm_subdev *
 nv_subdev(void *obj)
@@ -55,8 +75,10 @@ int  _nvkm_subdev_fini(struct nvkm_object *, bool suspend);
 /* subdev logging */
 #define nvkm_printk_(s,l,p,f,a...) do {                                        \
 	struct nvkm_subdev *_subdev = (s);                                     \
-	if (_subdev->debug >= (l))                                             \
-		dev_##p(_subdev->device->dev, "%s: "f, _subdev->sname, ##a);   \
+	if (_subdev->debug >= (l)) {                                           \
+		dev_##p(_subdev->device->dev, "%s: "f,                         \
+			nvkm_subdev_name[_subdev->index], ##a);                \
+	}                                                                      \
 } while(0)
 #define nvkm_printk(s,l,p,f,a...) nvkm_printk_((s), NV_DBG_##l, p, f, ##a)
 #define nvkm_fatal(s,f,a...) nvkm_printk((s), FATAL,   crit, f, ##a)

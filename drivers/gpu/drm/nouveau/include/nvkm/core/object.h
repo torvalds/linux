@@ -106,13 +106,10 @@ struct nvkm_sclass {
 		    struct nvkm_object **);
 };
 
-/* Don't allocate dynamically, because lockdep needs lock_class_keys to be in
- * ".data". */
 struct nvkm_oclass {
 	s32 handle;
 	struct nvkm_ofuncs * const ofuncs;
 	struct nvkm_omthds * const omthds;
-	struct lock_class_key lock_class_key;
 
 	int (*ctor)(const struct nvkm_oclass *, void *data, u32 size,
 		    struct nvkm_object **);
