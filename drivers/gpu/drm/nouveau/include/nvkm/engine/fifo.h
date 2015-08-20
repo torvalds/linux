@@ -9,6 +9,7 @@ struct nvkm_fifo_chan {
 	u64 addr;
 	u32 size;
 	u16 chid;
+	u64 inst;
 };
 
 static inline struct nvkm_fifo_chan *
@@ -80,6 +81,13 @@ struct nvkm_fifo {
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 };
+
+void nvkm_fifo_chan_put(struct nvkm_fifo *, unsigned long flags,
+			struct nvkm_fifo_chan **);
+struct nvkm_fifo_chan *
+nvkm_fifo_chan_inst(struct nvkm_fifo *, u64 inst, unsigned long *flags);
+struct nvkm_fifo_chan *
+nvkm_fifo_chan_chid(struct nvkm_fifo *, int chid, unsigned long *flags);
 
 static inline struct nvkm_fifo *
 nvkm_fifo(void *obj)

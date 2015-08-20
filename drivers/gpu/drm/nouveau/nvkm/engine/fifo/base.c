@@ -32,6 +32,47 @@
 #include <nvif/event.h>
 #include <nvif/unpack.h>
 
+void
+nvkm_fifo_chan_put(struct nvkm_fifo *fifo, unsigned long flags,
+		   struct nvkm_fifo_chan **pchan)
+{
+	struct nvkm_fifo_chan *chan = *pchan;
+	if (likely(chan)) {
+		*pchan = NULL;
+		spin_unlock_irqrestore(&fifo->lock, flags);
+	}
+}
+
+struct nvkm_fifo_chan *
+nvkm_fifo_chan_inst(struct nvkm_fifo *fifo, u64 inst, unsigned long *rflags)
+{
+	unsigned long flags;
+	int i;
+	spin_lock_irqsave(&fifo->lock, flags);
+	for (i = fifo->min; i < fifo->max; i++) {
+		struct nvkm_fifo_chan *chan = (void *)fifo->channel[i];
+		if (chan && chan->inst == inst) {
+			*rflags = flags;
+			return chan;
+		}
+	}
+	spin_unlock_irqrestore(&fifo->lock, flags);
+	return NULL;
+}
+
+struct nvkm_fifo_chan *
+nvkm_fifo_chan_chid(struct nvkm_fifo *fifo, int chid, unsigned long *rflags)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&fifo->lock, flags);
+	if (fifo->channel[chid]) {
+		*rflags = flags;
+		return (void *)fifo->channel[chid];
+	}
+	spin_unlock_irqrestore(&fifo->lock, flags);
+	return NULL;
+}
+
 static int
 nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		     struct nvkm_notify *notify)

@@ -25,8 +25,8 @@
 #include "ram.h"
 
 #include <core/client.h>
-#include <core/engctx.h>
 #include <core/enum.h>
+#include <engine/fifo.h>
 
 int
 nv50_fb_memtype[0x80] = {
@@ -47,98 +47,98 @@ nv50_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
 }
 
 static const struct nvkm_enum vm_dispatch_subclients[] = {
-	{ 0x00000000, "GRCTX", NULL },
-	{ 0x00000001, "NOTIFY", NULL },
-	{ 0x00000002, "QUERY", NULL },
-	{ 0x00000003, "COND", NULL },
-	{ 0x00000004, "M2M_IN", NULL },
-	{ 0x00000005, "M2M_OUT", NULL },
-	{ 0x00000006, "M2M_NOTIFY", NULL },
+	{ 0x00000000, "GRCTX" },
+	{ 0x00000001, "NOTIFY" },
+	{ 0x00000002, "QUERY" },
+	{ 0x00000003, "COND" },
+	{ 0x00000004, "M2M_IN" },
+	{ 0x00000005, "M2M_OUT" },
+	{ 0x00000006, "M2M_NOTIFY" },
 	{}
 };
 
 static const struct nvkm_enum vm_ccache_subclients[] = {
-	{ 0x00000000, "CB", NULL },
-	{ 0x00000001, "TIC", NULL },
-	{ 0x00000002, "TSC", NULL },
+	{ 0x00000000, "CB" },
+	{ 0x00000001, "TIC" },
+	{ 0x00000002, "TSC" },
 	{}
 };
 
 static const struct nvkm_enum vm_prop_subclients[] = {
-	{ 0x00000000, "RT0", NULL },
-	{ 0x00000001, "RT1", NULL },
-	{ 0x00000002, "RT2", NULL },
-	{ 0x00000003, "RT3", NULL },
-	{ 0x00000004, "RT4", NULL },
-	{ 0x00000005, "RT5", NULL },
-	{ 0x00000006, "RT6", NULL },
-	{ 0x00000007, "RT7", NULL },
-	{ 0x00000008, "ZETA", NULL },
-	{ 0x00000009, "LOCAL", NULL },
-	{ 0x0000000a, "GLOBAL", NULL },
-	{ 0x0000000b, "STACK", NULL },
-	{ 0x0000000c, "DST2D", NULL },
+	{ 0x00000000, "RT0" },
+	{ 0x00000001, "RT1" },
+	{ 0x00000002, "RT2" },
+	{ 0x00000003, "RT3" },
+	{ 0x00000004, "RT4" },
+	{ 0x00000005, "RT5" },
+	{ 0x00000006, "RT6" },
+	{ 0x00000007, "RT7" },
+	{ 0x00000008, "ZETA" },
+	{ 0x00000009, "LOCAL" },
+	{ 0x0000000a, "GLOBAL" },
+	{ 0x0000000b, "STACK" },
+	{ 0x0000000c, "DST2D" },
 	{}
 };
 
 static const struct nvkm_enum vm_pfifo_subclients[] = {
-	{ 0x00000000, "PUSHBUF", NULL },
-	{ 0x00000001, "SEMAPHORE", NULL },
+	{ 0x00000000, "PUSHBUF" },
+	{ 0x00000001, "SEMAPHORE" },
 	{}
 };
 
 static const struct nvkm_enum vm_bar_subclients[] = {
-	{ 0x00000000, "FB", NULL },
-	{ 0x00000001, "IN", NULL },
+	{ 0x00000000, "FB" },
+	{ 0x00000001, "IN" },
 	{}
 };
 
 static const struct nvkm_enum vm_client[] = {
-	{ 0x00000000, "STRMOUT", NULL },
+	{ 0x00000000, "STRMOUT" },
 	{ 0x00000003, "DISPATCH", vm_dispatch_subclients },
-	{ 0x00000004, "PFIFO_WRITE", NULL },
+	{ 0x00000004, "PFIFO_WRITE" },
 	{ 0x00000005, "CCACHE", vm_ccache_subclients },
-	{ 0x00000006, "PMSPPP", NULL },
-	{ 0x00000007, "CLIPID", NULL },
-	{ 0x00000008, "PFIFO_READ", NULL },
-	{ 0x00000009, "VFETCH", NULL },
-	{ 0x0000000a, "TEXTURE", NULL },
+	{ 0x00000006, "PMSPPP" },
+	{ 0x00000007, "CLIPID" },
+	{ 0x00000008, "PFIFO_READ" },
+	{ 0x00000009, "VFETCH" },
+	{ 0x0000000a, "TEXTURE" },
 	{ 0x0000000b, "PROP", vm_prop_subclients },
-	{ 0x0000000c, "PVP", NULL },
-	{ 0x0000000d, "PBSP", NULL },
-	{ 0x0000000e, "PCRYPT", NULL },
-	{ 0x0000000f, "PCOUNTER", NULL },
-	{ 0x00000011, "PDAEMON", NULL },
+	{ 0x0000000c, "PVP" },
+	{ 0x0000000d, "PBSP" },
+	{ 0x0000000e, "PCRYPT" },
+	{ 0x0000000f, "PCOUNTER" },
+	{ 0x00000011, "PDAEMON" },
 	{}
 };
 
 static const struct nvkm_enum vm_engine[] = {
-	{ 0x00000000, "PGRAPH", NULL, NVDEV_ENGINE_GR },
-	{ 0x00000001, "PVP", NULL, NVDEV_ENGINE_VP },
-	{ 0x00000004, "PEEPHOLE", NULL },
-	{ 0x00000005, "PFIFO", vm_pfifo_subclients, NVDEV_ENGINE_FIFO },
+	{ 0x00000000, "PGRAPH" },
+	{ 0x00000001, "PVP" },
+	{ 0x00000004, "PEEPHOLE" },
+	{ 0x00000005, "PFIFO", vm_pfifo_subclients },
 	{ 0x00000006, "BAR", vm_bar_subclients },
-	{ 0x00000008, "PMSPPP", NULL, NVDEV_ENGINE_MSPPP },
-	{ 0x00000008, "PMPEG", NULL, NVDEV_ENGINE_MPEG },
-	{ 0x00000009, "PBSP", NULL, NVDEV_ENGINE_BSP },
-	{ 0x0000000a, "PCRYPT", NULL, NVDEV_ENGINE_CIPHER },
-	{ 0x0000000b, "PCOUNTER", NULL },
-	{ 0x0000000c, "SEMAPHORE_BG", NULL },
-	{ 0x0000000d, "PCE0", NULL, NVDEV_ENGINE_CE0 },
-	{ 0x0000000e, "PDAEMON", NULL },
+	{ 0x00000008, "PMSPPP" },
+	{ 0x00000008, "PMPEG" },
+	{ 0x00000009, "PBSP" },
+	{ 0x0000000a, "PCRYPT" },
+	{ 0x0000000b, "PCOUNTER" },
+	{ 0x0000000c, "SEMAPHORE_BG" },
+	{ 0x0000000d, "PCE0" },
+	{ 0x0000000e, "PDAEMON" },
 	{}
 };
 
 static const struct nvkm_enum vm_fault[] = {
-	{ 0x00000000, "PT_NOT_PRESENT", NULL },
-	{ 0x00000001, "PT_TOO_SHORT", NULL },
-	{ 0x00000002, "PAGE_NOT_PRESENT", NULL },
-	{ 0x00000003, "PAGE_SYSTEM_ONLY", NULL },
-	{ 0x00000004, "PAGE_READ_ONLY", NULL },
-	{ 0x00000006, "NULL_DMAOBJ", NULL },
-	{ 0x00000007, "WRONG_MEMTYPE", NULL },
-	{ 0x0000000b, "VRAM_LIMIT", NULL },
-	{ 0x0000000f, "DMAOBJ_LIMIT", NULL },
+	{ 0x00000000, "PT_NOT_PRESENT" },
+	{ 0x00000001, "PT_TOO_SHORT" },
+	{ 0x00000002, "PAGE_NOT_PRESENT" },
+	{ 0x00000003, "PAGE_SYSTEM_ONLY" },
+	{ 0x00000004, "PAGE_READ_ONLY" },
+	{ 0x00000006, "NULL_DMAOBJ" },
+	{ 0x00000007, "WRONG_MEMTYPE" },
+	{ 0x0000000b, "VRAM_LIMIT" },
+	{ 0x0000000f, "DMAOBJ_LIMIT" },
 	{}
 };
 
@@ -147,11 +147,12 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 {
 	struct nv50_fb *fb = (void *)subdev;
 	struct nvkm_device *device = fb->base.subdev.device;
-	struct nvkm_engine *engine;
+	struct nvkm_fifo *fifo = device->fifo;
+	struct nvkm_fifo_chan *chan;
 	const struct nvkm_enum *en, *re, *cl, *sc;
-	struct nvkm_object *engctx = NULL;
-	u32 trap[6], idx, chan;
+	u32 trap[6], idx, inst;
 	u8 st0, st1, st2, st3;
+	unsigned long flags;
 	int i;
 
 	idx = nvkm_rd32(device, 0x100c90);
@@ -178,48 +179,25 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 		st2 = (trap[0] & 0x00ff0000) >> 16;
 		st3 = (trap[0] & 0xff000000) >> 24;
 	}
-	chan = (trap[2] << 16) | trap[1];
+	inst = ((trap[2] << 16) | trap[1]) << 12;
 
 	en = nvkm_enum_find(vm_engine, st0);
-
-	if (en && en->data2) {
-		const struct nvkm_enum *orig_en = en;
-		while (en->name && en->value == st0 && en->data2) {
-			engine = nvkm_engine(subdev, en->data2);
-			/*XXX: clean this up */
-			if (!engine && en->data2 == NVDEV_ENGINE_BSP)
-				engine = nvkm_engine(subdev, NVDEV_ENGINE_MSVLD);
-			if (!engine && en->data2 == NVDEV_ENGINE_CIPHER)
-				engine = nvkm_engine(subdev, NVDEV_ENGINE_SEC);
-			if (!engine && en->data2 == NVDEV_ENGINE_VP)
-				engine = nvkm_engine(subdev, NVDEV_ENGINE_MSPDEC);
-			if (engine) {
-				engctx = nvkm_engctx_get(engine, chan);
-				if (engctx)
-					break;
-			}
-			en++;
-		}
-		if (!engctx)
-			en = orig_en;
-	}
-
 	re = nvkm_enum_find(vm_fault , st1);
 	cl = nvkm_enum_find(vm_client, st2);
 	if      (cl && cl->data) sc = nvkm_enum_find(cl->data, st3);
 	else if (en && en->data) sc = nvkm_enum_find(en->data, st3);
 	else                     sc = NULL;
 
+	chan = nvkm_fifo_chan_inst(fifo, inst, &flags);
 	nvkm_error(subdev, "trapped %s at %02x%04x%04x on channel "
 			   "%08x [%s] engine %02x [%s] client %02x [%s] "
 			   "subclient %02x [%s] reason %08x [%s]\n",
 		   (trap[5] & 0x00000100) ? "read" : "write",
-		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
-		   nvkm_client_name(engctx), st0, en ? en->name : "",
+		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, inst,
+		   nvkm_client_name(chan), st0, en ? en->name : "",
 		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
 		   st1, re ? re->name : "");
-
-	nvkm_engctx_put(engctx);
+	nvkm_fifo_chan_put(fifo, flags, &chan);
 }
 
 int

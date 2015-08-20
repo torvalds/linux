@@ -226,6 +226,7 @@ gf100_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	chan->base.inst = base->base.gpuobj.addr;
 	args->v0.chid = chan->base.chid;
 
 	nv_parent(chan)->context_attach = gf100_fifo_context_attach;

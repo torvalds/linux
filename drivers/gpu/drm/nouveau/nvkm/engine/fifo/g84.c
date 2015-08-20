@@ -207,6 +207,7 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	chan->base.inst = base->base.gpuobj.addr;
 	args->v0.chid = chan->base.chid;
 
 	ret = nvkm_ramht_new(device, 0x8000, 16, &base->base.gpuobj,
@@ -285,6 +286,7 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	chan->base.inst = base->base.gpuobj.addr;
 	args->v0.chid = chan->base.chid;
 
 	ret = nvkm_ramht_new(device, 0x8000, 16, &base->base.gpuobj,
