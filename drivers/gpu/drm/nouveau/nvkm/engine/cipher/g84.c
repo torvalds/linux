@@ -77,10 +77,10 @@ g84_cipher_intr_mask[] = {
 };
 
 static void
-g84_cipher_intr(struct nvkm_subdev *subdev)
+g84_cipher_intr(struct nvkm_engine *cipher)
 {
-	struct nvkm_engine *cipher = (void *)subdev;
-	struct nvkm_device *device = cipher->subdev.device;
+	struct nvkm_subdev *subdev = &cipher->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_fifo_chan *chan;
 	u32 stat = nvkm_rd32(device, 0x102130);
@@ -105,8 +105,20 @@ g84_cipher_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, 0x10200c, 0x10);
 }
 
+static int
+g84_cipher_init(struct nvkm_engine *cipher)
+{
+	struct nvkm_device *device = cipher->subdev.device;
+	nvkm_wr32(device, 0x102130, 0xffffffff);
+	nvkm_wr32(device, 0x102140, 0xffffffbf);
+	nvkm_wr32(device, 0x10200c, 0x00000010);
+	return 0;
+}
+
 static const struct nvkm_engine_func
 g84_cipher = {
+	.init = g84_cipher_init,
+	.intr = g84_cipher_intr,
 	.cclass = &g84_cipher_cclass,
 	.sclass = {
 		{ -1, -1, NV74_CIPHER, &g84_cipher_oclass_func },
@@ -114,50 +126,10 @@ g84_cipher = {
 	}
 };
 
-static int
-g84_cipher_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+g84_cipher_new(struct nvkm_device *device, int index,
+	       struct nvkm_engine **pengine)
 {
-	struct nvkm_engine *cipher;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCIPHER", "cipher", &cipher);
-	*pobject = nv_object(cipher);
-	if (ret)
-		return ret;
-
-	cipher->func = &g84_cipher,
-	nv_subdev(cipher)->unit = 0x00004000;
-	nv_subdev(cipher)->intr = g84_cipher_intr;
-	return 0;
+	return nvkm_engine_new_(&g84_cipher, device, index,
+				0x00004000, true, pengine);
 }
-
-static int
-g84_cipher_init(struct nvkm_object *object)
-{
-	struct nvkm_engine *cipher = (void *)object;
-	struct nvkm_device *device = cipher->subdev.device;
-	int ret;
-
-	ret = nvkm_engine_init_old(cipher);
-	if (ret)
-		return ret;
-
-	nvkm_wr32(device, 0x102130, 0xffffffff);
-	nvkm_wr32(device, 0x102140, 0xffffffbf);
-	nvkm_wr32(device, 0x10200c, 0x00000010);
-	return 0;
-}
-
-struct nvkm_oclass
-g84_cipher_oclass = {
-	.handle = NV_ENGINE(CIPHER, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_cipher_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = g84_cipher_init,
-		.fini = _nvkm_engine_fini,
-	},
-};

@@ -42,7 +42,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  g84_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
@@ -52,7 +51,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  g84_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
@@ -62,7 +60,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  g84_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
@@ -72,7 +69,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
@@ -82,7 +78,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  g94_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
@@ -100,7 +95,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv50_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &g84_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gt200_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt200_pm_oclass;
 		break;
