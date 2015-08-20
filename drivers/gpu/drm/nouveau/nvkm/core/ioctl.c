@@ -57,18 +57,18 @@ nvkm_ioctl_sclass(struct nvkm_handle *handle, void *data, u32 size)
 	} *args = data;
 	int ret;
 
-	if (!nv_iclass(object, NV_PARENT_CLASS)) {
-		nvif_debug(object, "cannot have children (sclass)\n");
-		return -ENODEV;
-	}
-
 	nvif_ioctl(object, "sclass size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
 		nvif_ioctl(object, "sclass vers %d count %d\n",
 			   args->v0.version, args->v0.count);
 		if (size == args->v0.count * sizeof(args->v0.oclass[0])) {
-			ret = nvkm_parent_lclass(object, args->v0.oclass,
+			if (nv_iclass(object, NV_PARENT_CLASS)) {
+				ret = nvkm_parent_lclass(object,
+							 args->v0.oclass,
 							 args->v0.count);
+			} else {
+				ret = 0;
+			}
 			if (ret >= 0) {
 				args->v0.count = ret;
 				ret = 0;
