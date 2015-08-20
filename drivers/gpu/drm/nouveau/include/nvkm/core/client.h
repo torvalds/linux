@@ -5,7 +5,7 @@
 struct nvkm_client {
 	struct nvkm_namedb namedb;
 	struct nvkm_handle *root;
-	struct nvkm_object *device;
+	struct nvkm_device *device;
 	char name[32];
 	u32 debug;
 	struct nvkm_vm *vm;
@@ -34,14 +34,9 @@ nvkm_client(void *obj)
 	return (void *)client;
 }
 
-#define nvkm_client_create(n,c,oc,od,d)                                     \
-	nvkm_client_create_((n), (c), (oc), (od), sizeof(**d), (void **)d)
-
-int  nvkm_client_create_(const char *name, u64 device, const char *cfg,
-			    const char *dbg, int, void **);
-#define nvkm_client_destroy(p)                                              \
-	nvkm_namedb_destroy(&(p)->base)
-
+int  nvkm_client_new(const char *name, u64 device, const char *cfg,
+		     const char *dbg, struct nvkm_client **);
+void nvkm_client_del(struct nvkm_client **);
 int  nvkm_client_init(struct nvkm_client *);
 int  nvkm_client_fini(struct nvkm_client *, bool suspend);
 const char *nvkm_client_name(void *obj);

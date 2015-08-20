@@ -176,70 +176,12 @@ nvkm_client_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-static void
-nvkm_client_dtor(struct nvkm_object *object)
-{
-	struct nvkm_client *client = (void *)object;
-	int i;
-	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
-		nvkm_client_notify_del(client, i);
-	nvkm_object_ref(NULL, &client->device);
-	nvkm_handle_destroy(client->root);
-	nvkm_namedb_destroy(&client->namedb);
-}
-
 static struct nvkm_oclass
 nvkm_client_oclass = {
 	.ofuncs = &(struct nvkm_ofuncs) {
-		.dtor = nvkm_client_dtor,
 		.mthd = nvkm_client_mthd,
 	},
 };
-
-int
-nvkm_client_create_(const char *name, u64 devname, const char *cfg,
-		    const char *dbg, int length, void **pobject)
-{
-	struct nvkm_object *device;
-	struct nvkm_client *client;
-	int ret;
-
-	device = (void *)nvkm_device_find(devname);
-	if (!device)
-		return -ENODEV;
-
-	ret = nvkm_namedb_create_(NULL, NULL, &nvkm_client_oclass,
-				  NV_CLIENT_CLASS, NULL,
-				  (1ULL << NVDEV_ENGINE_DEVICE),
-				  length, pobject);
-	client = *pobject;
-	if (ret)
-		return ret;
-
-	ret = nvkm_handle_create(nv_object(client), ~0, ~0, nv_object(client),
-				 &client->root);
-	if (ret)
-		return ret;
-
-	/* prevent init/fini being called, os in in charge of this */
-	atomic_set(&nv_object(client)->usecount, 2);
-
-	nvkm_object_ref(device, &client->device);
-	snprintf(client->name, sizeof(client->name), "%s", name);
-	client->debug = nvkm_dbgopt(dbg, "CLIENT");
-	return 0;
-}
-
-int
-nvkm_client_init(struct nvkm_client *client)
-{
-	struct nvkm_object *object = &client->namedb.parent.object;
-	int ret;
-	nvif_trace(object, "init running\n");
-	ret = nvkm_handle_init(client->root);
-	nvif_trace(object, "init completed with %d\n", ret);
-	return ret;
-}
 
 int
 nvkm_client_fini(struct nvkm_client *client, bool suspend)
@@ -255,6 +197,68 @@ nvkm_client_fini(struct nvkm_client *client, bool suspend)
 	ret = nvkm_handle_fini(client->root, suspend);
 	nvif_trace(object, "%s completed with %d\n", name[suspend], ret);
 	return ret;
+}
+
+int
+nvkm_client_init(struct nvkm_client *client)
+{
+	struct nvkm_object *object = &client->namedb.parent.object;
+	int ret;
+	nvif_trace(object, "init running\n");
+	ret = nvkm_handle_init(client->root);
+	nvif_trace(object, "init completed with %d\n", ret);
+	return ret;
+}
+
+void
+nvkm_client_del(struct nvkm_client **pclient)
+{
+	struct nvkm_client *client = *pclient;
+	int i;
+	if (client) {
+		nvkm_client_fini(client, false);
+		for (i = 0; i < ARRAY_SIZE(client->notify); i++)
+			nvkm_client_notify_del(client, i);
+		nvkm_object_ref(NULL, (struct nvkm_object **)&client->device);
+		nvkm_handle_destroy(client->root);
+		nvkm_namedb_destroy(&client->namedb);
+		*pclient = NULL;
+	}
+}
+
+int
+nvkm_client_new(const char *name, u64 devname, const char *cfg,
+		const char *dbg, struct nvkm_client **pclient)
+{
+	struct nvkm_device *device;
+	struct nvkm_client *client;
+	int ret;
+
+	device = nvkm_device_find(devname);
+	if (!device)
+		return -ENODEV;
+
+	ret = nvkm_namedb_create(NULL, NULL, &nvkm_client_oclass,
+				 NV_CLIENT_CLASS, NULL,
+				 (1ULL << NVDEV_ENGINE_DEVICE),
+				 &client);
+	*pclient = client;
+	if (ret)
+		return ret;
+
+	ret = nvkm_handle_create(nv_object(client), ~0, ~0, nv_object(client),
+				 &client->root);
+	if (ret)
+		return ret;
+
+	/* prevent init/fini being called, os in in charge of this */
+	atomic_set(&nv_object(client)->usecount, 2);
+
+	nvkm_object_ref(&device->engine.subdev.object,
+			(struct nvkm_object **)&client->device);
+	snprintf(client->name, sizeof(client->name), "%s", name);
+	client->debug = nvkm_dbgopt(dbg, "CLIENT");
+	return 0;
 }
 
 const char *

@@ -308,7 +308,7 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		oclass = &nvkm_devobj_oclass_super;
 
 	/* find the device subdev that matches what the client requested */
-	device = nv_device(client->device);
+	device = client->device;
 	if (args->v0.device != ~0) {
 		device = nvkm_device_find(args->v0.device);
 		if (!device)

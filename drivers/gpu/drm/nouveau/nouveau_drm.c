@@ -530,14 +530,14 @@ nouveau_drm_device_remove(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_client *client;
-	struct nvkm_object *device;
+	struct nvkm_device *device;
 
 	dev->irq_enabled = false;
 	client = nvxx_client(&drm->client.base);
 	device = client->device;
 	drm_put_dev(dev);
 
-	nvkm_object_ref(NULL, &device);
+	nvkm_object_ref(NULL, (struct nvkm_object **)&device);
 }
 
 static void
