@@ -1150,16 +1150,25 @@ out:
 	return ret;
 }
 
-static int can_open_delegated(struct nfs_delegation *delegation, fmode_t fmode)
+static int can_open_delegated(struct nfs_delegation *delegation, fmode_t fmode,
+		enum open_claim_type4 claim)
 {
 	if (delegation == NULL)
 		return 0;
 	if ((delegation->type & fmode) != fmode)
 		return 0;
-	if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
-		return 0;
 	if (test_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
 		return 0;
+	switch (claim) {
+	case NFS4_OPEN_CLAIM_NULL:
+	case NFS4_OPEN_CLAIM_FH:
+		break;
+	case NFS4_OPEN_CLAIM_PREVIOUS:
+		if (!test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
+			break;
+	default:
+		return 0;
+	}
 	nfs_mark_delegation_referenced(delegation);
 	return 1;
 }
@@ -1378,6 +1387,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 	struct nfs_delegation *delegation;
 	int open_mode = opendata->o_arg.open_flags;
 	fmode_t fmode = opendata->o_arg.fmode;
+	enum open_claim_type4 claim = opendata->o_arg.claim;
 	nfs4_stateid stateid;
 	int ret = -EAGAIN;
 
@@ -1391,7 +1401,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		spin_unlock(&state->owner->so_lock);
 		rcu_read_lock();
 		delegation = rcu_dereference(nfsi->delegation);
-		if (!can_open_delegated(delegation, fmode)) {
+		if (!can_open_delegated(delegation, fmode, claim)) {
 			rcu_read_unlock();
 			break;
 		}
@@ -1854,6 +1864,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	struct nfs4_opendata *data = calldata;
 	struct nfs4_state_owner *sp = data->owner;
 	struct nfs_client *clp = sp->so_server->nfs_client;
+	enum open_claim_type4 claim = data->o_arg.claim;
 
 	if (nfs_wait_on_sequence(data->o_arg.seqid, task) != 0)
 		goto out_wait;
@@ -1868,15 +1879,15 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 			goto out_no_action;
 		rcu_read_lock();
 		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
-		if (data->o_arg.claim != NFS4_OPEN_CLAIM_DELEGATE_CUR &&
-		    data->o_arg.claim != NFS4_OPEN_CLAIM_DELEG_CUR_FH &&
-		    can_open_delegated(delegation, data->o_arg.fmode))
+		if (can_open_delegated(delegation, data->o_arg.fmode, claim))
 			goto unlock_no_action;
 		rcu_read_unlock();
 	}
 	/* Update client id. */
 	data->o_arg.clientid = clp->cl_clientid;
-	switch (data->o_arg.claim) {
+	switch (claim) {
+	default:
+		break;
 	case NFS4_OPEN_CLAIM_PREVIOUS:
 	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:

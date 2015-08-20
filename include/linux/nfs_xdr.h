@@ -389,7 +389,7 @@ struct nfs_openargs {
 	const struct nfs_server *server;	 /* Needed for ID mapping */
 	const u32 *		bitmask;
 	const u32 *		open_bitmap;
-	__u32			claim;
+	enum open_claim_type4	claim;
 	enum createmode4	createmode;
 	const struct nfs4_label *label;
 };
