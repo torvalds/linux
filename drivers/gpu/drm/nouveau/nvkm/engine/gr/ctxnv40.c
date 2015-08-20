@@ -111,7 +111,6 @@
 
 #include "ctxnv40.h"
 #include "nv40.h"
-#include <core/device.h>
 
 /* TODO:
  *  - get vs count from 0x1540

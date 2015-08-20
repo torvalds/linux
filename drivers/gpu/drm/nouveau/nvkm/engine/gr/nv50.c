@@ -24,7 +24,6 @@
 #include "nv50.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/handle.h>
 #include <engine/fifo.h>
 #include <subdev/timer.h>

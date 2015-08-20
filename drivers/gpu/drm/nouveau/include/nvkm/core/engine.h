@@ -53,4 +53,6 @@ int nvkm_engine_create_(struct nvkm_object *, struct nvkm_object *,
 #define _nvkm_engine_dtor _nvkm_subdev_dtor
 #define _nvkm_engine_init _nvkm_subdev_init
 #define _nvkm_engine_fini _nvkm_subdev_fini
+
+#include <core/device.h>
 #endif

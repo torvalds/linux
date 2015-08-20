@@ -40,7 +40,6 @@
 
 #include <subdev/fb.h>
 #include <core/mm.h>
-#include <core/device.h>
 
 #ifdef __KERNEL__
 #include <linux/dma-attrs.h>

@@ -25,7 +25,6 @@
 #include "regs.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/handle.h>
 #include <engine/fifo.h>
 #include <subdev/instmem.h>

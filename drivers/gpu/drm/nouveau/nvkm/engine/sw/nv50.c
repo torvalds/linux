@@ -23,7 +23,6 @@
  */
 #include "nv50.h"
 
-#include <core/device.h>
 #include <core/handle.h>
 #include <core/namedb.h>
 #include <engine/disp.h>

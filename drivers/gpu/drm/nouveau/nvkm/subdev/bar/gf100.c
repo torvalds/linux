@@ -23,7 +23,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>

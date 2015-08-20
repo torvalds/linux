@@ -22,8 +22,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-
 struct priv {
 	struct nvkm_bios *bios;
 	u32 bar0;

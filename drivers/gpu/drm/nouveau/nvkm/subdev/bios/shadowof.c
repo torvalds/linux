@@ -22,7 +22,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
 
 #if defined(__powerpc__)
 struct priv {

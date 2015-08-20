@@ -25,8 +25,6 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/perf.h>
 
-#include <core/device.h>
-
 u16
 nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		  u8 *cnt, u8 *len, u8 *snr, u8 *ssz)

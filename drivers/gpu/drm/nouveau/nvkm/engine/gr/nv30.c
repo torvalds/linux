@@ -1,7 +1,6 @@
 #include "nv20.h"
 #include "regs.h"
 
-#include <core/device.h>
 #include <engine/fifo.h>
 #include <subdev/fb.h>
 

@@ -26,7 +26,6 @@
 #include "outpdp.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/engctx.h>
 #include <core/enum.h>
 #include <core/handle.h>

@@ -2,8 +2,6 @@
 #define __NVKM_PMU_MEMX_H__
 #include "priv.h"
 
-#include <core/device.h>
-
 struct nvkm_memx {
 	struct nvkm_pmu *pmu;
 	u32 base;

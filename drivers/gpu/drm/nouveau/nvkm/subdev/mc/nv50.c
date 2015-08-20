@@ -23,8 +23,6 @@
  */
 #include "nv04.h"
 
-#include <core/device.h>
-
 const struct nvkm_mc_intr
 nv50_mc_intr[] = {
 	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP before FIFO, so pageflip-timestamping works! */

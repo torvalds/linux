@@ -31,7 +31,6 @@
 #include <subdev/bios/init.h>
 #include <subdev/bios/ramcfg.h>
 
-#include <core/device.h>
 #include <subdev/devinit.h>
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>

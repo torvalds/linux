@@ -23,8 +23,6 @@
  */
 #include "nv04.h"
 
-#include <core/device.h>
-
 static u64
 nv04_timer_read(struct nvkm_timer *ptimer)
 {

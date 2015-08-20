@@ -23,7 +23,6 @@
  */
 #include "nv04.h"
 
-#include <core/device.h>
 #include <core/gpuobj.h>
 #include <core/option.h>
 #include <subdev/timer.h>

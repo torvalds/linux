@@ -24,8 +24,6 @@
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 
-#include <core/device.h>
-
 u16
 dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {

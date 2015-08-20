@@ -21,7 +21,6 @@
  */
 #include <engine/falcon.h>
 
-#include <core/device.h>
 #include <subdev/timer.h>
 
 void

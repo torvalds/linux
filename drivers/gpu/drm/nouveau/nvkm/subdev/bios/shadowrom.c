@@ -22,8 +22,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-
 static u32
 prom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {

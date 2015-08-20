@@ -24,7 +24,6 @@
 #include "priv.h"
 #include "pad.h"
 
-#include <core/device.h>
 #include <core/notify.h>
 #include <core/option.h>
 #include <subdev/bios.h>

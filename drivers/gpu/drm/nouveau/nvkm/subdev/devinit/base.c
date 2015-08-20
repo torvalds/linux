@@ -23,7 +23,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
 #include <core/option.h>
 #include <subdev/vga.h>
 

@@ -23,7 +23,6 @@
  */
 #include "nv04.h"
 
-#include <core/device.h>
 #include <core/gpuobj.h>
 
 #define NV04_PDMA_SIZE (128 * 1024 * 1024)

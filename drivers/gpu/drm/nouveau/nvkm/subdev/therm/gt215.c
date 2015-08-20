@@ -23,7 +23,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
 #include <subdev/gpio.h>
 
 struct gt215_therm_priv {

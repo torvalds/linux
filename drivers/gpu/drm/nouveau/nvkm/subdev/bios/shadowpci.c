@@ -22,8 +22,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-
 struct priv {
 	struct pci_dev *pdev;
 	void __iomem *rom;

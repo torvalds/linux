@@ -24,7 +24,6 @@
 #include "nv50.h"
 #include "outpdp.h"
 
-#include <core/device.h>
 #include <subdev/timer.h>
 
 static inline u32

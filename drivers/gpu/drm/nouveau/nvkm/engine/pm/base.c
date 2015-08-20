@@ -24,7 +24,6 @@
 #include "priv.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/option.h>
 
 #include <nvif/class.h>

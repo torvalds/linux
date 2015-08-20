@@ -24,7 +24,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
 #include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/fan.h>

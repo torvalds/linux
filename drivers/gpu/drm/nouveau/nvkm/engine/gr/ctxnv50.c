@@ -107,7 +107,6 @@
 
 #include "ctxnv40.h"
 
-#include <core/device.h>
 #include <subdev/fb.h>
 
 #define IS_NVA3F(x) (((x) > 0xa0 && (x) < 0xaa) || (x) == 0xaf)

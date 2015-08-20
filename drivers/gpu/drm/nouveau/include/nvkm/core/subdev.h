@@ -1,7 +1,6 @@
 #ifndef __NVKM_SUBDEV_H__
 #define __NVKM_SUBDEV_H__
 #include <core/object.h>
-#include <core/devidx.h>
 
 #define NV_SUBDEV_(sub,var) (NV_SUBDEV_CLASS | ((var) << 8) | (sub))
 #define NV_SUBDEV(name,var)  NV_SUBDEV_(NVDEV_SUBDEV_##name, (var))
@@ -119,4 +118,6 @@ nv_mask(void *obj, u32 addr, u32 mask, u32 data)
 	nv_wr32(obj, addr, (temp & ~mask) | data);
 	return temp;
 }
+
+#include <core/engine.h>
 #endif

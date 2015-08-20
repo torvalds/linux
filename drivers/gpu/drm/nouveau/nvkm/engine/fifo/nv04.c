@@ -24,7 +24,6 @@
 #include "nv04.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/engctx.h>
 #include <core/handle.h>
 #include <core/ramht.h>

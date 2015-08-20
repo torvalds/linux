@@ -26,7 +26,6 @@
 #include "ramfuc.h"
 #include "nv50.h"
 
-#include <core/device.h>
 #include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/M0205.h>

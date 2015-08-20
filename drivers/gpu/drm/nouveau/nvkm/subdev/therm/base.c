@@ -23,8 +23,6 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-
 static int
 nvkm_therm_update_trip(struct nvkm_therm *therm)
 {

@@ -1,7 +1,6 @@
 #ifndef __NOUVEAU_VGA_H__
 #define __NOUVEAU_VGA_H__
-
-#include <core/os.h>
+#include <core/subdev.h>
 
 /* access to various legacy io ports */
 u8   nv_rdport(void *obj, int head, u16 port);
@@ -26,5 +25,4 @@ void nv_wrvgai(void *obj, int head, u16 port, u8 index, u8 value);
 bool nv_lockvgac(void *obj, bool lock);
 u8   nv_rdvgaowner(void *obj);
 void nv_wrvgaowner(void *obj, u8);
-
 #endif

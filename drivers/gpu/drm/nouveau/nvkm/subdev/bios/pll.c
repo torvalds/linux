@@ -27,7 +27,6 @@
 #include <subdev/bios/pll.h>
 #include <subdev/vga.h>
 
-#include <core/device.h>
 
 struct pll_mapping {
 	u8  type;

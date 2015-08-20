@@ -24,7 +24,6 @@
 #include "ramfuc.h"
 #include "gf100.h"
 
-#include <core/device.h>
 #include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>

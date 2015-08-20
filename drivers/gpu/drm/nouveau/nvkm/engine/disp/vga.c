@@ -23,8 +23,6 @@
  */
 #include <subdev/vga.h>
 
-#include <core/device.h>
-
 u8
 nv_rdport(void *obj, int head, u16 port)
 {

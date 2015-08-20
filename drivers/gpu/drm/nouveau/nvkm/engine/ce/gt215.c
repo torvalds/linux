@@ -27,7 +27,6 @@
 #include "fuc/gt215.fuc3.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/enum.h>
 
 struct gt215_ce_priv {

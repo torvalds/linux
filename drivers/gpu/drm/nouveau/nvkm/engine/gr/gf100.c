@@ -26,7 +26,6 @@
 #include "fuc/os.h"
 
 #include <core/client.h>
-#include <core/device.h>
 #include <core/handle.h>
 #include <core/option.h>
 #include <engine/fifo.h>

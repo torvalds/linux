@@ -25,8 +25,6 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/therm.h>
 
-#include <core/device.h>
-
 static u16
 therm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 {
