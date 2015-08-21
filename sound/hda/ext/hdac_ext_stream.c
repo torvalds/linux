@@ -291,16 +291,11 @@ hdac_ext_host_stream_assign(struct hdac_ext_bus *ebus,
 	struct hdac_ext_stream *res = NULL;
 	struct hdac_stream *stream = NULL;
 	struct hdac_bus *hbus = &ebus->bus;
-	int key;
 
 	if (!ebus->ppcap) {
 		dev_err(hbus->dev, "stream type not supported\n");
 		return NULL;
 	}
-
-	/* make a non-zero unique key for the substream */
-	key = (substream->pcm->device << 16) | (substream->number << 2) |
-			(substream->stream + 1);
 
 	list_for_each_entry(stream, &hbus->stream_list, list) {
 		struct hdac_ext_stream *hstream = container_of(stream,
@@ -320,7 +315,6 @@ hdac_ext_host_stream_assign(struct hdac_ext_bus *ebus,
 		spin_lock_irq(&hbus->reg_lock);
 		res->hstream.opened = 1;
 		res->hstream.running = 0;
-		res->hstream.assigned_key = key;
 		res->hstream.substream = substream;
 		spin_unlock_irq(&hbus->reg_lock);
 	}
