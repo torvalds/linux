@@ -283,6 +283,7 @@ struct fjes_hw {
 	unsigned long txrx_stop_req_bit;
 	unsigned long epstop_req_bit;
 	struct work_struct update_zone_task;
+	struct work_struct epstop_task;
 
 	int my_epid;
 	int max_epid;

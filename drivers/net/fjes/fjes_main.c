@@ -316,6 +316,7 @@ static int fjes_close(struct net_device *netdev)
 	cancel_work_sync(&adapter->tx_stall_task);
 
 	cancel_work_sync(&hw->update_zone_task);
+	cancel_work_sync(&hw->epstop_task);
 
 	fjes_hw_wait_epstop(hw);
 

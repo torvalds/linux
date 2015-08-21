@@ -23,6 +23,7 @@
 #include "fjes.h"
 
 static void fjes_hw_update_zone_task(struct work_struct *);
+static void fjes_hw_epstop_task(struct work_struct *);
 
 /* supported MTU list */
 const u32 fjes_support_mtu[] = {
@@ -325,6 +326,7 @@ int fjes_hw_init(struct fjes_hw *hw)
 	fjes_hw_set_irqmask(hw, REG_ICTL_MASK_ALL, true);
 
 	INIT_WORK(&hw->update_zone_task, fjes_hw_update_zone_task);
+	INIT_WORK(&hw->epstop_task, fjes_hw_epstop_task);
 
 	mutex_init(&hw->hw_info.lock);
 
@@ -355,6 +357,7 @@ void fjes_hw_exit(struct fjes_hw *hw)
 	fjes_hw_cleanup(hw);
 
 	cancel_work_sync(&hw->update_zone_task);
+	cancel_work_sync(&hw->epstop_task);
 }
 
 static enum fjes_dev_command_response_e
@@ -1090,5 +1093,33 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 		if (!work_pending(&adapter->unshare_watch_task))
 			queue_work(adapter->control_wq,
 				   &adapter->unshare_watch_task);
+	}
+}
+
+static void fjes_hw_epstop_task(struct work_struct *work)
+{
+	struct fjes_hw *hw = container_of(work, struct fjes_hw, epstop_task);
+	struct fjes_adapter *adapter = (struct fjes_adapter *)hw->back;
+
+	ulong remain_bit;
+	int epid_bit;
+
+	while ((remain_bit = hw->epstop_req_bit)) {
+		for (epid_bit = 0; remain_bit; remain_bit >>= 1, epid_bit++) {
+			if (remain_bit & 1) {
+				hw->ep_shm_info[epid_bit].
+					tx.info->v1i.rx_status |=
+						FJES_RX_STOP_REQ_DONE;
+
+				clear_bit(epid_bit, &hw->epstop_req_bit);
+				set_bit(epid_bit,
+					&adapter->unshare_watch_bitmask);
+
+				if (!work_pending(&adapter->unshare_watch_task))
+					queue_work(
+						adapter->control_wq,
+						&adapter->unshare_watch_task);
+			}
+		}
 	}
 }
