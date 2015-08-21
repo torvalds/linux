@@ -279,7 +279,7 @@ static int record__open(struct record *rec)
 
 	evlist__for_each(evlist, pos) {
 try_again:
-		if (perf_evsel__open(pos, evlist->cpus, evlist->threads) < 0) {
+		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
 				if (verbose)
 					ui__warning("%s\n", msg);
