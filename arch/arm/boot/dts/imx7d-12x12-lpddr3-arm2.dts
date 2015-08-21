@@ -69,6 +69,13 @@
 			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		reg_mipi_dsi_pwr_on: mipi_dsi_pwr_on {
+			compatible = "regulator-fixed";
+			regulator-name = "mipi_dsi_pwr_on";
+			gpio = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+                };
 	};
 
 	memory {
@@ -326,6 +333,9 @@
 				MX7D_PAD_SD2_WP__GPIO5_IO10       0x17059
 				MX7D_PAD_SD2_RESET_B__GPIO5_IO11  0x17059
 				MX7D_PAD_GPIO1_IO12__SD2_VSELECT  0x17059
+
+                                MX7D_PAD_ECSPI1_SCLK__GPIO4_IO16  0x59
+                                MX7D_PAD_ECSPI1_MOSI__GPIO4_IO17  0x59
 			>;
 		};
 
