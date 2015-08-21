@@ -993,6 +993,7 @@ static irqreturn_t sci_tx_interrupt(int irq, void *ptr)
 static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
+	struct sci_port *s = to_sci_port(port);
 
 	/* Handle errors */
 	if (port->type == PORT_SCI) {
@@ -1003,7 +1004,8 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 		}
 	} else {
 		sci_handle_fifo_overrun(port);
-		sci_rx_interrupt(irq, ptr);
+		if (!s->chan_rx)
+			sci_receive_chars(ptr);
 	}
 
 	sci_clear_SCxSR(port, SCxSR_ERROR_CLEAR(port));
