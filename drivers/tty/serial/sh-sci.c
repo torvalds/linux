@@ -1078,8 +1078,10 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 		ret = sci_br_interrupt(irq, ptr);
 
 	/* Overrun Interrupt */
-	if (orer_status & s->overrun_mask)
+	if (orer_status & s->overrun_mask) {
 		sci_handle_fifo_overrun(port);
+		ret = IRQ_HANDLED;
+	}
 
 	return ret;
 }
