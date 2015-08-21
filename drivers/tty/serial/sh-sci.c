@@ -1371,9 +1371,8 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 	s->chan_rx = NULL;
 	s->cookie_rx[0] = s->cookie_rx[1] = -EINVAL;
 	dma_release_channel(chan);
-	if (sg_dma_address(&s->sg_rx[0]))
-		dma_free_coherent(port->dev, s->buf_len_rx * 2,
-				  sg_virt(&s->sg_rx[0]), sg_dma_address(&s->sg_rx[0]));
+	dma_free_coherent(port->dev, s->buf_len_rx * 2,
+			  sg_virt(&s->sg_rx[0]), sg_dma_address(&s->sg_rx[0]));
 	if (enable_pio)
 		sci_start_rx(port);
 }
@@ -1709,7 +1708,8 @@ static void sci_request_dma(struct uart_port *port)
 		nent = dma_map_sg(port->dev, &s->sg_tx, 1, DMA_TO_DEVICE);
 		if (!nent) {
 			dev_warn(port->dev, "Failed mapping Tx DMA descriptor\n");
-			sci_tx_dma_release(s, false);
+			dma_release_channel(chan);
+			s->chan_tx = NULL;
 		} else {
 			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n",
 				__func__,
@@ -1743,7 +1743,9 @@ static void sci_request_dma(struct uart_port *port)
 		if (!buf[0]) {
 			dev_warn(port->dev,
 				 "Failed to allocate Rx dma buffer, using PIO\n");
-			sci_rx_dma_release(s, true);
+			dma_release_channel(chan);
+			s->chan_rx = NULL;
+			sci_start_rx(port);
 			return;
 		}
 
