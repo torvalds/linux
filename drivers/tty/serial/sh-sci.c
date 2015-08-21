@@ -104,7 +104,6 @@ struct sci_port {
 	struct dma_chan			*chan_rx;
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-	struct dma_async_tx_descriptor	*desc_rx[2];
 	dma_cookie_t			cookie_tx;
 	dma_cookie_t			cookie_rx[2];
 	dma_cookie_t			active_rx;
@@ -1397,11 +1396,11 @@ static void sci_submit_rx(struct sci_port *s)
 		struct dma_async_tx_descriptor *desc;
 
 		desc = dmaengine_prep_slave_sg(chan,
-			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+			sg, 1, DMA_DEV_TO_MEM,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc)
 			goto fail;
 
-		s->desc_rx[i] = desc;
 		desc->callback = sci_dma_rx_complete;
 		desc->callback_param = s;
 		s->cookie_rx[i] = dmaengine_submit(desc);
@@ -1420,10 +1419,8 @@ static void sci_submit_rx(struct sci_port *s)
 fail:
 	if (i)
 		dmaengine_terminate_all(chan);
-	for (i = 0; i < 2; i++) {
-		s->desc_rx[i] = NULL;
+	for (i = 0; i < 2; i++)
 		s->cookie_rx[i] = -EINVAL;
-	}
 	s->active_rx = -EINVAL;
 	dev_warn(s->port.dev, "Failed to re-start Rx DMA, using PIO\n");
 	sci_rx_dma_release(s, true);
@@ -1447,7 +1444,6 @@ static void work_fn_rx(struct work_struct *work)
 			s->active_rx);
 		return;
 	}
-	desc = s->desc_rx[new];
 
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
 	if (status != DMA_COMPLETE) {
@@ -1474,17 +1470,27 @@ static void work_fn_rx(struct work_struct *work)
 		return;
 	}
 
+	desc = dmaengine_prep_slave_sg(s->chan_rx, &s->sg_rx[new], 1,
+				       DMA_DEV_TO_MEM,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc)
+		goto fail;
+
+	desc->callback = sci_dma_rx_complete;
+	desc->callback_param = s;
 	s->cookie_rx[new] = dmaengine_submit(desc);
-	if (dma_submit_error(s->cookie_rx[new])) {
-		dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
-		sci_rx_dma_release(s, true);
-		return;
-	}
+	if (dma_submit_error(s->cookie_rx[new]))
+		goto fail;
 
 	s->active_rx = s->cookie_rx[!new];
 
 	dev_dbg(port->dev, "%s: cookie %d #%d, new active cookie %d\n",
 		__func__, s->cookie_rx[new], new, s->active_rx);
+	return;
+
+fail:
+	dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
+	sci_rx_dma_release(s, true);
 }
 
 static void work_fn_tx(struct work_struct *work)
