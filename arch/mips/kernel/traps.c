@@ -192,6 +192,7 @@ static void show_stacktrace(struct task_struct *task,
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
 	struct pt_regs regs;
+	mm_segment_t old_fs = get_fs();
 	if (sp) {
 		regs.regs[29] = (unsigned long)sp;
 		regs.regs[31] = 0;
@@ -210,7 +211,13 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 			prepare_frametrace(&regs);
 		}
 	}
+	/*
+	 * show_stack() deals exclusively with kernel mode, so be sure to access
+	 * the stack in the kernel (not user) address space.
+	 */
+	set_fs(KERNEL_DS);
 	show_stacktrace(task, &regs);
+	set_fs(old_fs);
 }
 
 static void show_code(unsigned int __user *pc)
@@ -1519,6 +1526,7 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	const int field = 2 * sizeof(unsigned long);
 	int multi_match = regs->cp0_status & ST0_TS;
 	enum ctx_state prev_state;
+	mm_segment_t old_fs = get_fs();
 
 	prev_state = exception_enter();
 	show_regs(regs);
@@ -1540,7 +1548,12 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 		dump_tlb_all();
 	}
 
+	if (!user_mode(regs))
+		set_fs(KERNEL_DS);
+
 	show_code((unsigned int __user *) regs->cp0_epc);
+
+	set_fs(old_fs);
 
 	/*
 	 * Some chips may have other causes of machine check (e.g. SB1
@@ -2130,10 +2143,10 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
-		/* Boot CPU's cache setup in setup_arch(). */
-		if (!is_boot_cpu)
-			cpu_cache_init();
-		tlb_init();
+	/* Boot CPU's cache setup in setup_arch(). */
+	if (!is_boot_cpu)
+		cpu_cache_init();
+	tlb_init();
 	TLBMISS_HANDLER_SETUP();
 }
 

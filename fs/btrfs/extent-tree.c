@@ -2296,8 +2296,21 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 static inline struct btrfs_delayed_ref_node *
 select_delayed_ref(struct btrfs_delayed_ref_head *head)
 {
+	struct btrfs_delayed_ref_node *ref;
+
 	if (list_empty(&head->ref_list))
 		return NULL;
+
+	/*
+	 * Select a delayed ref of type BTRFS_ADD_DELAYED_REF first.
+	 * This is to prevent a ref count from going down to zero, which deletes
+	 * the extent item from the extent tree, when there still are references
+	 * to add, which would fail because they would not find the extent item.
+	 */
+	list_for_each_entry(ref, &head->ref_list, list) {
+		if (ref->action == BTRFS_ADD_DELAYED_REF)
+			return ref;
+	}
 
 	return list_entry(head->ref_list.next, struct btrfs_delayed_ref_node,
 			  list);
@@ -4214,6 +4227,24 @@ out:
 	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
 	mutex_unlock(&fs_info->chunk_mutex);
+	/*
+	 * When we allocate a new chunk we reserve space in the chunk block
+	 * reserve to make sure we can COW nodes/leafs in the chunk tree or
+	 * add new nodes/leafs to it if we end up needing to do it when
+	 * inserting the chunk item and updating device items as part of the
+	 * second phase of chunk allocation, performed by
+	 * btrfs_finish_chunk_alloc(). So make sure we don't accumulate a
+	 * large number of new block groups to create in our transaction
+	 * handle's new_bgs list to avoid exhausting the chunk block reserve
+	 * in extreme cases - like having a single transaction create many new
+	 * block groups when starting to write out the free space caches of all
+	 * the block groups that were made dirty during the lifetime of the
+	 * transaction.
+	 */
+	if (trans->chunk_bytes_reserved >= (2 * 1024 * 1024ull)) {
+		btrfs_create_pending_block_groups(trans, trans->root);
+		btrfs_trans_release_chunk_metadata(trans);
+	}
 	return ret;
 }
 
@@ -9889,6 +9920,8 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		}
 		spin_unlock(&fs_info->unused_bgs_lock);
 
+		mutex_lock(&root->fs_info->delete_unused_bgs_mutex);
+
 		/* Don't want to race with allocators so take the groups_sem */
 		down_write(&space_info->groups_sem);
 		spin_lock(&block_group->lock);
@@ -9983,6 +10016,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 end_trans:
 		btrfs_end_transaction(trans, root);
 next:
+		mutex_unlock(&root->fs_info->delete_unused_bgs_mutex);
 		btrfs_put_block_group(block_group);
 		spin_lock(&fs_info->unused_bgs_lock);
 	}

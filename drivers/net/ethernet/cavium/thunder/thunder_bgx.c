@@ -673,7 +673,10 @@ static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cmrx_cfg);
 	bgx_flush_dmac_addrs(bgx, lmacid);
 
-	if (lmac->phydev)
+	if ((bgx->lmac_type != BGX_MODE_XFI) &&
+	    (bgx->lmac_type != BGX_MODE_XLAUI) &&
+	    (bgx->lmac_type != BGX_MODE_40G_KR) &&
+	    (bgx->lmac_type != BGX_MODE_10G_KR) && lmac->phydev)
 		phy_disconnect(lmac->phydev);
 
 	lmac->phydev = NULL;

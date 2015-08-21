@@ -147,6 +147,11 @@ static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
 	return kvm_register_write(vcpu, reg, val);
 }
 
+static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
+{
+	return !(kvm->arch.disabled_quirks & quirk);
+}
+
 void kvm_before_handle_nmi(struct kvm_vcpu *vcpu);
 void kvm_after_handle_nmi(struct kvm_vcpu *vcpu);
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu);

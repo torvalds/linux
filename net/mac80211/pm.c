@@ -76,6 +76,22 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				continue;
 			ieee80211_mgd_quiesce(sdata);
+			/* If suspended during TX in progress, and wowlan
+			 * is enabled (connection will be active) there
+			 * can be a race where the driver is put out
+			 * of power-save due to TX and during suspend
+			 * dynamic_ps_timer is cancelled and TX packet
+			 * is flushed, leaving the driver in ACTIVE even
+			 * after resuming until dynamic_ps_timer puts
+			 * driver back in DOZE.
+			 */
+			if (sdata->u.mgd.associated &&
+			    sdata->u.mgd.powersave &&
+			     !(local->hw.conf.flags & IEEE80211_CONF_PS)) {
+				local->hw.conf.flags |= IEEE80211_CONF_PS;
+				ieee80211_hw_config(local,
+						    IEEE80211_CONF_CHANGE_PS);
+			}
 		}
 
 		err = drv_suspend(local, wowlan);

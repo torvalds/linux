@@ -1508,16 +1508,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	__raw_writeq(reg, port);
 	port = s->sbm_base + R_MAC_ETHERNET_ADDR;
 
-#ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
-	/*
-	 * Pass1 SOCs do not receive packets addressed to the
-	 * destination address in the R_MAC_ETHERNET_ADDR register.
-	 * Set the value to zero.
-	 */
-	__raw_writeq(0, port);
-#else
 	__raw_writeq(reg, port);
-#endif
 
 	/*
 	 * Set the receive filter for no packets, and write values

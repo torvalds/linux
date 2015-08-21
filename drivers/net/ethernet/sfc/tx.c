@@ -617,7 +617,8 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	EFX_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
 
 	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
-	netdev_tx_completed_queue(tx_queue->core_txq, pkts_compl, bytes_compl);
+	tx_queue->pkts_compl += pkts_compl;
+	tx_queue->bytes_compl += bytes_compl;
 
 	if (pkts_compl > 1)
 		++tx_queue->merge_events;

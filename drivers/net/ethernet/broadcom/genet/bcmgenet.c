@@ -1230,7 +1230,6 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 		new_skb = skb_realloc_headroom(skb, sizeof(*status));
 		dev_kfree_skb(skb);
 		if (!new_skb) {
-			dev->stats.tx_errors++;
 			dev->stats.tx_dropped++;
 			return NULL;
 		}
@@ -1465,7 +1464,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 
 		if (unlikely(!skb)) {
 			dev->stats.rx_dropped++;
-			dev->stats.rx_errors++;
 			goto next;
 		}
 
@@ -1493,7 +1491,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		if (unlikely(!(dma_flag & DMA_EOP) || !(dma_flag & DMA_SOP))) {
 			netif_err(priv, rx_status, dev,
 				  "dropping fragmented packet!\n");
-			dev->stats.rx_dropped++;
 			dev->stats.rx_errors++;
 			dev_kfree_skb_any(skb);
 			goto next;
@@ -1515,7 +1512,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 				dev->stats.rx_frame_errors++;
 			if (dma_flag & DMA_RX_LG)
 				dev->stats.rx_length_errors++;
-			dev->stats.rx_dropped++;
 			dev->stats.rx_errors++;
 			dev_kfree_skb_any(skb);
 			goto next;

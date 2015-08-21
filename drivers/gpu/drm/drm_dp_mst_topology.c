@@ -1294,7 +1294,6 @@ retry:
 				goto retry;
 			}
 			DRM_DEBUG_KMS("failed to dpcd write %d %d\n", tosend, ret);
-			WARN(1, "fail\n");
 
 			return -EIO;
 		}

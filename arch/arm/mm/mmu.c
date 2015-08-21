@@ -1072,6 +1072,7 @@ void __init sanity_check_meminfo(void)
 	int highmem = 0;
 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
 	struct memblock_region *reg;
+	bool should_use_highmem = false;
 
 	for_each_memblock(memory, reg) {
 		phys_addr_t block_start = reg->base;
@@ -1090,6 +1091,7 @@ void __init sanity_check_meminfo(void)
 				pr_notice("Ignoring RAM at %pa-%pa (!CONFIG_HIGHMEM)\n",
 					  &block_start, &block_end);
 				memblock_remove(reg->base, reg->size);
+				should_use_highmem = true;
 				continue;
 			}
 
@@ -1100,6 +1102,7 @@ void __init sanity_check_meminfo(void)
 					  &block_start, &block_end, &vmalloc_limit);
 				memblock_remove(vmalloc_limit, overlap_size);
 				block_end = vmalloc_limit;
+				should_use_highmem = true;
 			}
 		}
 
@@ -1133,6 +1136,9 @@ void __init sanity_check_meminfo(void)
 
 		}
 	}
+
+	if (should_use_highmem)
+		pr_notice("Consider using a HIGHMEM enabled kernel.\n");
 
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
@@ -1494,6 +1500,7 @@ void __init paging_init(const struct machine_desc *mdesc)
 	build_mem_type_table();
 	prepare_page_table();
 	map_lowmem();
+	memblock_set_current_limit(arm_lowmem_limit);
 	dma_contiguous_remap();
 	devicemaps_init(mdesc);
 	kmap_init();

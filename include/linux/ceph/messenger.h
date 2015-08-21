@@ -8,6 +8,7 @@
 #include <linux/radix-tree.h>
 #include <linux/uio.h>
 #include <linux/workqueue.h>
+#include <net/net_namespace.h>
 
 #include <linux/ceph/types.h>
 #include <linux/ceph/buffer.h>
@@ -56,6 +57,7 @@ struct ceph_messenger {
 	struct ceph_entity_addr my_enc_addr;
 
 	atomic_t stopping;
+	possible_net_t net;
 	bool nocrc;
 	bool tcp_nodelay;
 
@@ -267,6 +269,7 @@ extern void ceph_messenger_init(struct ceph_messenger *msgr,
 			u64 required_features,
 			bool nocrc,
 			bool tcp_nodelay);
+extern void ceph_messenger_fini(struct ceph_messenger *msgr);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,
 			const struct ceph_connection_operations *ops,

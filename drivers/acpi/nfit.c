@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/acpi.h>
 #include <linux/sort.h>
+#include <linux/pmem.h>
 #include <linux/io.h>
 #include "nfit.h"
 
@@ -305,6 +306,23 @@ static bool add_idt(struct acpi_nfit_desc *acpi_desc,
 	return true;
 }
 
+static bool add_flush(struct acpi_nfit_desc *acpi_desc,
+		struct acpi_nfit_flush_address *flush)
+{
+	struct device *dev = acpi_desc->dev;
+	struct nfit_flush *nfit_flush = devm_kzalloc(dev, sizeof(*nfit_flush),
+			GFP_KERNEL);
+
+	if (!nfit_flush)
+		return false;
+	INIT_LIST_HEAD(&nfit_flush->list);
+	nfit_flush->flush = flush;
+	list_add_tail(&nfit_flush->list, &acpi_desc->flushes);
+	dev_dbg(dev, "%s: nfit_flush handle: %d hint_count: %d\n", __func__,
+			flush->device_handle, flush->hint_count);
+	return true;
+}
+
 static void *add_table(struct acpi_nfit_desc *acpi_desc, void *table,
 		const void *end)
 {
@@ -338,7 +356,8 @@ static void *add_table(struct acpi_nfit_desc *acpi_desc, void *table,
 			return err;
 		break;
 	case ACPI_NFIT_TYPE_FLUSH_ADDRESS:
-		dev_dbg(dev, "%s: flush\n", __func__);
+		if (!add_flush(acpi_desc, table))
+			return err;
 		break;
 	case ACPI_NFIT_TYPE_SMBIOS:
 		dev_dbg(dev, "%s: smbios\n", __func__);
@@ -389,6 +408,7 @@ static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 {
 	u16 dcr = __to_nfit_memdev(nfit_mem)->region_index;
 	struct nfit_memdev *nfit_memdev;
+	struct nfit_flush *nfit_flush;
 	struct nfit_dcr *nfit_dcr;
 	struct nfit_bdw *nfit_bdw;
 	struct nfit_idt *nfit_idt;
@@ -440,6 +460,14 @@ static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 			if (nfit_idt->idt->interleave_index != idt_idx)
 				continue;
 			nfit_mem->idt_bdw = nfit_idt->idt;
+			break;
+		}
+
+		list_for_each_entry(nfit_flush, &acpi_desc->flushes, list) {
+			if (nfit_flush->flush->device_handle !=
+					nfit_memdev->memdev->device_handle)
+				continue;
+			nfit_mem->nfit_flush = nfit_flush;
 			break;
 		}
 		break;
@@ -978,6 +1006,24 @@ static u64 to_interleave_offset(u64 offset, struct nfit_blk_mmio *mmio)
 	return mmio->base_offset + line_offset + table_offset + sub_line_offset;
 }
 
+static void wmb_blk(struct nfit_blk *nfit_blk)
+{
+
+	if (nfit_blk->nvdimm_flush) {
+		/*
+		 * The first wmb() is needed to 'sfence' all previous writes
+		 * such that they are architecturally visible for the platform
+		 * buffer flush.  Note that we've already arranged for pmem
+		 * writes to avoid the cache via arch_memcpy_to_pmem().  The
+		 * final wmb() ensures ordering for the NVDIMM flush write.
+		 */
+		wmb();
+		writeq(1, nfit_blk->nvdimm_flush);
+		wmb();
+	} else
+		wmb_pmem();
+}
+
 static u64 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 {
 	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[DCR];
@@ -1012,7 +1058,10 @@ static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
 		offset = to_interleave_offset(offset, mmio);
 
 	writeq(cmd, mmio->base + offset);
-	/* FIXME: conditionally perform read-back if mandated by firmware */
+	wmb_blk(nfit_blk);
+
+	if (nfit_blk->dimm_flags & ND_BLK_DCR_LATCH)
+		readq(mmio->base + offset);
 }
 
 static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
@@ -1026,7 +1075,6 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 
 	base_offset = nfit_blk->bdw_offset + dpa % L1_CACHE_BYTES
 		+ lane * mmio->size;
-	/* TODO: non-temporal access, flush hints, cache management etc... */
 	write_blk_ctl(nfit_blk, lane, dpa, len, rw);
 	while (len) {
 		unsigned int c;
@@ -1045,13 +1093,19 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 		}
 
 		if (rw)
-			memcpy(mmio->aperture + offset, iobuf + copied, c);
+			memcpy_to_pmem(mmio->aperture + offset,
+					iobuf + copied, c);
 		else
-			memcpy(iobuf + copied, mmio->aperture + offset, c);
+			memcpy_from_pmem(iobuf + copied,
+					mmio->aperture + offset, c);
 
 		copied += c;
 		len -= c;
 	}
+
+	if (rw)
+		wmb_blk(nfit_blk);
+
 	rc = read_blk_stat(nfit_blk, lane) ? -EIO : 0;
 	return rc;
 }
@@ -1124,7 +1178,7 @@ static void nfit_spa_unmap(struct acpi_nfit_desc *acpi_desc,
 }
 
 static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
-		struct acpi_nfit_system_address *spa)
+		struct acpi_nfit_system_address *spa, enum spa_map_type type)
 {
 	resource_size_t start = spa->address;
 	resource_size_t n = spa->length;
@@ -1152,8 +1206,15 @@ static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
 	if (!res)
 		goto err_mem;
 
-	/* TODO: cacheability based on the spa type */
-	spa_map->iomem = ioremap_nocache(start, n);
+	if (type == SPA_MAP_APERTURE) {
+		/*
+		 * TODO: memremap_pmem() support, but that requires cache
+		 * flushing when the aperture is moved.
+		 */
+		spa_map->iomem = ioremap_wc(start, n);
+	} else
+		spa_map->iomem = ioremap_nocache(start, n);
+
 	if (!spa_map->iomem)
 		goto err_map;
 
@@ -1171,6 +1232,7 @@ static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
  * nfit_spa_map - interleave-aware managed-mappings of acpi_nfit_system_address ranges
  * @nvdimm_bus: NFIT-bus that provided the spa table entry
  * @nfit_spa: spa table to map
+ * @type: aperture or control region
  *
  * In the case where block-data-window apertures and
  * dimm-control-regions are interleaved they will end up sharing a
@@ -1180,12 +1242,12 @@ static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
  * unbound.
  */
 static void __iomem *nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
-		struct acpi_nfit_system_address *spa)
+		struct acpi_nfit_system_address *spa, enum spa_map_type type)
 {
 	void __iomem *iomem;
 
 	mutex_lock(&acpi_desc->spa_map_mutex);
-	iomem = __nfit_spa_map(acpi_desc, spa);
+	iomem = __nfit_spa_map(acpi_desc, spa, type);
 	mutex_unlock(&acpi_desc->spa_map_mutex);
 
 	return iomem;
@@ -1206,12 +1268,35 @@ static int nfit_blk_init_interleave(struct nfit_blk_mmio *mmio,
 	return 0;
 }
 
+static int acpi_nfit_blk_get_flags(struct nvdimm_bus_descriptor *nd_desc,
+		struct nvdimm *nvdimm, struct nfit_blk *nfit_blk)
+{
+	struct nd_cmd_dimm_flags flags;
+	int rc;
+
+	memset(&flags, 0, sizeof(flags));
+	rc = nd_desc->ndctl(nd_desc, nvdimm, ND_CMD_DIMM_FLAGS, &flags,
+			sizeof(flags));
+
+	if (rc >= 0 && flags.status == 0)
+		nfit_blk->dimm_flags = flags.flags;
+	else if (rc == -ENOTTY) {
+		/* fall back to a conservative default */
+		nfit_blk->dimm_flags = ND_BLK_DCR_LATCH;
+		rc = 0;
+	} else
+		rc = -ENXIO;
+
+	return rc;
+}
+
 static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 		struct device *dev)
 {
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 	struct nd_blk_region *ndbr = to_nd_blk_region(dev);
+	struct nfit_flush *nfit_flush;
 	struct nfit_blk_mmio *mmio;
 	struct nfit_blk *nfit_blk;
 	struct nfit_mem *nfit_mem;
@@ -1223,8 +1308,8 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	if (!nfit_mem || !nfit_mem->dcr || !nfit_mem->bdw) {
 		dev_dbg(dev, "%s: missing%s%s%s\n", __func__,
 				nfit_mem ? "" : " nfit_mem",
-				nfit_mem->dcr ? "" : " dcr",
-				nfit_mem->bdw ? "" : " bdw");
+				(nfit_mem && nfit_mem->dcr) ? "" : " dcr",
+				(nfit_mem && nfit_mem->bdw) ? "" : " bdw");
 		return -ENXIO;
 	}
 
@@ -1237,7 +1322,8 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	/* map block aperture memory */
 	nfit_blk->bdw_offset = nfit_mem->bdw->offset;
 	mmio = &nfit_blk->mmio[BDW];
-	mmio->base = nfit_spa_map(acpi_desc, nfit_mem->spa_bdw);
+	mmio->base = nfit_spa_map(acpi_desc, nfit_mem->spa_bdw,
+			SPA_MAP_APERTURE);
 	if (!mmio->base) {
 		dev_dbg(dev, "%s: %s failed to map bdw\n", __func__,
 				nvdimm_name(nvdimm));
@@ -1259,7 +1345,8 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	nfit_blk->cmd_offset = nfit_mem->dcr->command_offset;
 	nfit_blk->stat_offset = nfit_mem->dcr->status_offset;
 	mmio = &nfit_blk->mmio[DCR];
-	mmio->base = nfit_spa_map(acpi_desc, nfit_mem->spa_dcr);
+	mmio->base = nfit_spa_map(acpi_desc, nfit_mem->spa_dcr,
+			SPA_MAP_CONTROL);
 	if (!mmio->base) {
 		dev_dbg(dev, "%s: %s failed to map dcr\n", __func__,
 				nvdimm_name(nvdimm));
@@ -1276,6 +1363,24 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 				__func__, nvdimm_name(nvdimm));
 		return rc;
 	}
+
+	rc = acpi_nfit_blk_get_flags(nd_desc, nvdimm, nfit_blk);
+	if (rc < 0) {
+		dev_dbg(dev, "%s: %s failed get DIMM flags\n",
+				__func__, nvdimm_name(nvdimm));
+		return rc;
+	}
+
+	nfit_flush = nfit_mem->nfit_flush;
+	if (nfit_flush && nfit_flush->flush->hint_count != 0) {
+		nfit_blk->nvdimm_flush = devm_ioremap_nocache(dev,
+				nfit_flush->flush->hint_address[0], 8);
+		if (!nfit_blk->nvdimm_flush)
+			return -ENOMEM;
+	}
+
+	if (!arch_has_pmem_api() && !nfit_blk->nvdimm_flush)
+		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
 	if (mmio->line_size == 0)
 		return 0;
@@ -1459,6 +1564,7 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 	INIT_LIST_HEAD(&acpi_desc->dcrs);
 	INIT_LIST_HEAD(&acpi_desc->bdws);
 	INIT_LIST_HEAD(&acpi_desc->idts);
+	INIT_LIST_HEAD(&acpi_desc->flushes);
 	INIT_LIST_HEAD(&acpi_desc->memdevs);
 	INIT_LIST_HEAD(&acpi_desc->dimms);
 	mutex_init(&acpi_desc->spa_map_mutex);

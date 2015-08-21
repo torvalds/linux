@@ -245,10 +245,16 @@ static int efx_check_disabled(struct efx_nic *efx)
  */
 static int efx_process_channel(struct efx_channel *channel, int budget)
 {
+	struct efx_tx_queue *tx_queue;
 	int spent;
 
 	if (unlikely(!channel->enabled))
 		return 0;
+
+	efx_for_each_channel_tx_queue(tx_queue, channel) {
+		tx_queue->pkts_compl = 0;
+		tx_queue->bytes_compl = 0;
+	}
 
 	spent = efx_nic_process_eventq(channel, budget);
 	if (spent && efx_channel_has_rx_queue(channel)) {
@@ -257,6 +263,14 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 
 		efx_rx_flush_packet(channel);
 		efx_fast_push_rx_descriptors(rx_queue, true);
+	}
+
+	/* Update BQL */
+	efx_for_each_channel_tx_queue(tx_queue, channel) {
+		if (tx_queue->bytes_compl) {
+			netdev_tx_completed_queue(tx_queue->core_txq,
+				tx_queue->pkts_compl, tx_queue->bytes_compl);
+		}
 	}
 
 	return spent;

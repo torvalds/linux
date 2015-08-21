@@ -135,7 +135,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
 	if (fbdev->ywrap_enabled) {
 		/* need to align pitch to page size if using DMM scrolling */
-		mode_cmd.pitches[0] = ALIGN(mode_cmd.pitches[0], PAGE_SIZE);
+		mode_cmd.pitches[0] = PAGE_ALIGN(mode_cmd.pitches[0]);
 	}
 
 	/* allocate backing bo */

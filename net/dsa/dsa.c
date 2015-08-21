@@ -630,7 +630,7 @@ static int dsa_of_probe(struct device *dev)
 			continue;
 
 		cd->sw_addr = be32_to_cpup(sw_addr);
-		if (cd->sw_addr > PHY_MAX_ADDR)
+		if (cd->sw_addr >= PHY_MAX_ADDR)
 			continue;
 
 		if (!of_property_read_u32(child, "eeprom-length", &eeprom_len))
@@ -642,6 +642,8 @@ static int dsa_of_probe(struct device *dev)
 				continue;
 
 			port_index = be32_to_cpup(port_reg);
+			if (port_index >= DSA_MAX_PORTS)
+				break;
 
 			port_name = of_get_property(port, "label", NULL);
 			if (!port_name)
@@ -666,8 +668,6 @@ static int dsa_of_probe(struct device *dev)
 					goto out_free_chip;
 			}
 
-			if (port_index == DSA_MAX_PORTS)
-				break;
 		}
 	}
 

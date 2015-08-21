@@ -1828,7 +1828,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 	else
 		vi->hdr_len = sizeof(struct virtio_net_hdr);
 
-	if (virtio_has_feature(vdev, VIRTIO_F_ANY_LAYOUT))
+	if (virtio_has_feature(vdev, VIRTIO_F_ANY_LAYOUT) ||
+	    virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
 		vi->any_header_sg = true;
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ))

@@ -309,8 +309,8 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 
 		if (s < 0 && nr_center < -s) {
 			/* not enough in central node */
-			shift(left, center, nr_center);
-			s = nr_center - target;
+			shift(left, center, -nr_center);
+			s += nr_center;
 			shift(left, right, s);
 			nr_right += s;
 		} else
@@ -323,7 +323,7 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 		if (s > 0 && nr_center < s) {
 			/* not enough in central node */
 			shift(center, right, nr_center);
-			s = target - nr_center;
+			s -= nr_center;
 			shift(left, right, s);
 			nr_left -= s;
 		} else
@@ -689,6 +689,7 @@ static int remove_one(struct dm_btree_info *info, dm_block_t root,
 					     value_ptr(n, index));
 
 		delete_at(n, index);
+		keys[last_level] = k + 1ull;
 
 	} else
 		r = -ENODATA;

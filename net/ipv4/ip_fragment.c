@@ -202,7 +202,7 @@ static void ip_expire(unsigned long arg)
 	ipq_kill(qp);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 
-	if (!(qp->q.flags & INET_FRAG_EVICTED)) {
+	if (!inet_frag_evicting(&qp->q)) {
 		struct sk_buff *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;
@@ -309,7 +309,7 @@ static int ip_frag_reinit(struct ipq *qp)
 		kfree_skb(fp);
 		fp = xp;
 	} while (fp);
-	sub_frag_mem_limit(&qp->q, sum_truesize);
+	sub_frag_mem_limit(qp->q.net, sum_truesize);
 
 	qp->q.flags = 0;
 	qp->q.len = 0;
@@ -351,7 +351,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	ihl = ip_hdrlen(skb);
 
 	/* Determine the position of this fragment. */
-	end = offset + skb->len - ihl;
+	end = offset + skb->len - skb_network_offset(skb) - ihl;
 	err = -EINVAL;
 
 	/* Is this the final fragment? */
@@ -381,7 +381,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		goto err;
 
 	err = -ENOMEM;
-	if (!pskb_pull(skb, ihl))
+	if (!pskb_pull(skb, skb_network_offset(skb) + ihl))
 		goto err;
 
 	err = pskb_trim_rcsum(skb, end - offset);
@@ -455,7 +455,7 @@ found:
 				qp->q.fragments = next;
 
 			qp->q.meat -= free_it->len;
-			sub_frag_mem_limit(&qp->q, free_it->truesize);
+			sub_frag_mem_limit(qp->q.net, free_it->truesize);
 			kfree_skb(free_it);
 		}
 	}
@@ -479,7 +479,7 @@ found:
 	qp->q.stamp = skb->tstamp;
 	qp->q.meat += skb->len;
 	qp->ecn |= ecn;
-	add_frag_mem_limit(&qp->q, skb->truesize);
+	add_frag_mem_limit(qp->q.net, skb->truesize);
 	if (offset == 0)
 		qp->q.flags |= INET_FRAG_FIRST_IN;
 
@@ -587,7 +587,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		head->len -= clone->len;
 		clone->csum = 0;
 		clone->ip_summed = head->ip_summed;
-		add_frag_mem_limit(&qp->q, clone->truesize);
+		add_frag_mem_limit(qp->q.net, clone->truesize);
 	}
 
 	skb_push(head, head->data - skb_network_header(head));
@@ -615,7 +615,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		}
 		fp = next;
 	}
-	sub_frag_mem_limit(&qp->q, sum_truesize);
+	sub_frag_mem_limit(qp->q.net, sum_truesize);
 
 	head->next = NULL;
 	head->dev = dev;
@@ -640,6 +640,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	} else {
 		iph->frag_off = 0;
 	}
+
+	ip_send_check(iph);
 
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;

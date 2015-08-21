@@ -35,6 +35,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 #include "gca/gfx_8_0_d.h"
+#include "smu/smu_7_1_2_d.h"
+#include "smu/smu_7_1_2_sh_mask.h"
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
@@ -112,6 +114,10 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (idx = 0; idx < 2; ++idx) {
+
+		if (adev->vce.harvest_config & (1 << idx))
+			continue;
+
 		if(idx == 0)
 			WREG32_P(mmGRBM_GFX_INDEX, 0,
 				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
@@ -190,9 +196,51 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	return 0;
 }
 
+#define ixVCE_HARVEST_FUSE_MACRO__ADDRESS     0xC0014074
+#define VCE_HARVEST_FUSE_MACRO__SHIFT       27
+#define VCE_HARVEST_FUSE_MACRO__MASK        0x18000000
+
+static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
+{
+	u32 tmp;
+	unsigned ret;
+
+	if (adev->flags & AMDGPU_IS_APU)
+		tmp = (RREG32_SMC(ixVCE_HARVEST_FUSE_MACRO__ADDRESS) &
+		       VCE_HARVEST_FUSE_MACRO__MASK) >>
+			VCE_HARVEST_FUSE_MACRO__SHIFT;
+	else
+		tmp = (RREG32_SMC(ixCC_HARVEST_FUSES) &
+		       CC_HARVEST_FUSES__VCE_DISABLE_MASK) >>
+			CC_HARVEST_FUSES__VCE_DISABLE__SHIFT;
+
+	switch (tmp) {
+	case 1:
+		ret = AMDGPU_VCE_HARVEST_VCE0;
+		break;
+	case 2:
+		ret = AMDGPU_VCE_HARVEST_VCE1;
+		break;
+	case 3:
+		ret = AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
+		break;
+	default:
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int vce_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->vce.harvest_config = vce_v3_0_get_harvest_config(adev);
+
+	if ((adev->vce.harvest_config &
+	     (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1)) ==
+	    (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
+		return -ENOENT;
 
 	vce_v3_0_set_ring_funcs(adev);
 	vce_v3_0_set_irq_funcs(adev);

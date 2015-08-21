@@ -352,7 +352,7 @@ unsigned long amdgpu_gem_timeout(uint64_t timeout_ns)
 	if (((int64_t)timeout_ns) < 0)
 		return MAX_SCHEDULE_TIMEOUT;
 
-	timeout = ktime_sub_ns(ktime_get(), timeout_ns);
+	timeout = ktime_sub(ns_to_ktime(timeout_ns), ktime_get());
 	if (ktime_to_ns(timeout) < 0)
 		return 0;
 
@@ -449,7 +449,7 @@ out:
  * vital here, so they are not reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
-				    struct amdgpu_bo_va *bo_va)
+				    struct amdgpu_bo_va *bo_va, uint32_t operation)
 {
 	struct ttm_validate_buffer tv, *entry;
 	struct amdgpu_bo_list_entry *vm_bos;
@@ -485,7 +485,9 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	if (r)
 		goto error_unlock;
 
-	r = amdgpu_vm_bo_update(adev, bo_va, &bo_va->bo->tbo.mem);
+
+	if (operation == AMDGPU_VA_OP_MAP)
+		r = amdgpu_vm_bo_update(adev, bo_va, &bo_va->bo->tbo.mem);
 
 error_unlock:
 	mutex_unlock(&bo_va->vm->mutex);
@@ -580,7 +582,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE))
-		amdgpu_gem_va_update_vm(adev, bo_va);
+		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
 
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;

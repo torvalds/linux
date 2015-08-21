@@ -1255,10 +1255,15 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 
 			if ((RBIOS16(tmp) == lvds->native_mode.hdisplay) &&
 			    (RBIOS16(tmp + 2) == lvds->native_mode.vdisplay)) {
+				u32 hss = (RBIOS16(tmp + 21) - RBIOS16(tmp + 19) - 1) * 8;
+
+				if (hss > lvds->native_mode.hdisplay)
+					hss = (10 - 1) * 8;
+
 				lvds->native_mode.htotal = lvds->native_mode.hdisplay +
 					(RBIOS16(tmp + 17) - RBIOS16(tmp + 19)) * 8;
 				lvds->native_mode.hsync_start = lvds->native_mode.hdisplay +
-					(RBIOS16(tmp + 21) - RBIOS16(tmp + 19) - 1) * 8;
+					hss;
 				lvds->native_mode.hsync_end = lvds->native_mode.hsync_start +
 					(RBIOS8(tmp + 23) * 8);
 

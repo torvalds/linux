@@ -809,7 +809,7 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
 		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
 		default:
 			nv_error(priv, "unknown SOR mc 0x%08x\n", ctrl);
-			return 0x0000;
+			return NULL;
 		}
 	}
 

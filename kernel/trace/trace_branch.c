@@ -36,8 +36,11 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	struct trace_branch *entry;
 	struct ring_buffer *buffer;
 	unsigned long flags;
-	int cpu, pc;
+	int pc;
 	const char *p;
+
+	if (current->trace_recursion & TRACE_BRANCH_BIT)
+		return;
 
 	/*
 	 * I would love to save just the ftrace_likely_data pointer, but
@@ -49,10 +52,10 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (unlikely(!tr))
 		return;
 
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
-	if (atomic_inc_return(&data->disabled) != 1)
+	raw_local_irq_save(flags);
+	current->trace_recursion |= TRACE_BRANCH_BIT;
+	data = this_cpu_ptr(tr->trace_buffer.data);
+	if (atomic_read(&data->disabled))
 		goto out;
 
 	pc = preempt_count();
@@ -81,8 +84,8 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 		__buffer_unlock_commit(buffer, event);
 
  out:
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
+	current->trace_recursion &= ~TRACE_BRANCH_BIT;
+	raw_local_irq_restore(flags);
 }
 
 static inline

@@ -1163,7 +1163,7 @@ int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 
 	newfid = __ffs(ps->fid_mask);
 	ps->fid[port] = newfid;
-	ps->fid_mask &= (1 << newfid);
+	ps->fid_mask &= ~(1 << newfid);
 	ps->bridge_mask[fid] &= ~(1 << port);
 	ps->bridge_mask[newfid] = 1 << port;
 

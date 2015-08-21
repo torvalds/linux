@@ -1751,6 +1751,7 @@ static int cleaner_kthread(void *arg)
 {
 	struct btrfs_root *root = arg;
 	int again;
+	struct btrfs_trans_handle *trans;
 
 	do {
 		again = 0;
@@ -1772,7 +1773,6 @@ static int cleaner_kthread(void *arg)
 		}
 
 		btrfs_run_delayed_iputs(root);
-		btrfs_delete_unused_bgs(root->fs_info);
 		again = btrfs_clean_one_deleted_snapshot(root);
 		mutex_unlock(&root->fs_info->cleaner_mutex);
 
@@ -1781,6 +1781,16 @@ static int cleaner_kthread(void *arg)
 		 * needn't do anything special here.
 		 */
 		btrfs_run_defrag_inodes(root->fs_info);
+
+		/*
+		 * Acquires fs_info->delete_unused_bgs_mutex to avoid racing
+		 * with relocation (btrfs_relocate_chunk) and relocation
+		 * acquires fs_info->cleaner_mutex (btrfs_relocate_block_group)
+		 * after acquiring fs_info->delete_unused_bgs_mutex. So we
+		 * can't hold, nor need to, fs_info->cleaner_mutex when deleting
+		 * unused block groups.
+		 */
+		btrfs_delete_unused_bgs(root->fs_info);
 sleep:
 		if (!try_to_freeze() && !again) {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -1789,6 +1799,34 @@ sleep:
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
+
+	/*
+	 * Transaction kthread is stopped before us and wakes us up.
+	 * However we might have started a new transaction and COWed some
+	 * tree blocks when deleting unused block groups for example. So
+	 * make sure we commit the transaction we started to have a clean
+	 * shutdown when evicting the btree inode - if it has dirty pages
+	 * when we do the final iput() on it, eviction will trigger a
+	 * writeback for it which will fail with null pointer dereferences
+	 * since work queues and other resources were already released and
+	 * destroyed by the time the iput/eviction/writeback is made.
+	 */
+	trans = btrfs_attach_transaction(root);
+	if (IS_ERR(trans)) {
+		if (PTR_ERR(trans) != -ENOENT)
+			btrfs_err(root->fs_info,
+				  "cleaner transaction attach returned %ld",
+				  PTR_ERR(trans));
+	} else {
+		int ret;
+
+		ret = btrfs_commit_transaction(trans, root);
+		if (ret)
+			btrfs_err(root->fs_info,
+				  "cleaner open transaction commit returned %d",
+				  ret);
+	}
+
 	return 0;
 }
 
@@ -2492,6 +2530,7 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->unused_bgs_lock);
 	rwlock_init(&fs_info->tree_mod_log_lock);
 	mutex_init(&fs_info->unused_bg_unpin_mutex);
+	mutex_init(&fs_info->delete_unused_bgs_mutex);
 	mutex_init(&fs_info->reloc_mutex);
 	mutex_init(&fs_info->delalloc_root_mutex);
 	seqlock_init(&fs_info->profiles_lock);
@@ -2803,6 +2842,7 @@ int open_ctree(struct super_block *sb,
 	    !extent_buffer_uptodate(chunk_root->node)) {
 		printk(KERN_ERR "BTRFS: failed to read chunk root on %s\n",
 		       sb->s_id);
+		chunk_root->node = NULL;
 		goto fail_tree_roots;
 	}
 	btrfs_set_root_node(&chunk_root->root_item, chunk_root->node);
@@ -2840,7 +2880,7 @@ retry_root_backup:
 	    !extent_buffer_uptodate(tree_root->node)) {
 		printk(KERN_WARNING "BTRFS: failed to read tree root on %s\n",
 		       sb->s_id);
-
+		tree_root->node = NULL;
 		goto recovery_tree_root;
 	}
 

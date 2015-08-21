@@ -461,10 +461,9 @@ static void usb_8dev_rx_err_msg(struct usb_8dev_priv *priv,
 	priv->bec.txerr = txerr;
 	priv->bec.rxerr = rxerr;
 
-	netif_rx(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 }
 
 /* Read data and status frames */
@@ -494,10 +493,9 @@ static void usb_8dev_rx_can_msg(struct usb_8dev_priv *priv,
 		else
 			memcpy(cf->data, msg->data, cf->can_dlc);
 
-		netif_rx(skb);
-
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_rx(skb);
 
 		can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	} else {

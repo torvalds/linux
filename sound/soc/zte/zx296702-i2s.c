@@ -393,9 +393,9 @@ static int zx_i2s_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	zx_i2s->mapbase = res->start;
 	zx_i2s->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!zx_i2s->reg_base) {
+	if (IS_ERR(zx_i2s->reg_base)) {
 		dev_err(&pdev->dev, "ioremap failed!\n");
-		return -EIO;
+		return PTR_ERR(zx_i2s->reg_base);
 	}
 
 	writel_relaxed(0, zx_i2s->reg_base + ZX_I2S_FIFO_CTRL);

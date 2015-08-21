@@ -255,6 +255,12 @@ static void evtchn_fifo_unmask(unsigned port)
 	}
 }
 
+static bool evtchn_fifo_is_linked(unsigned port)
+{
+	event_word_t *word = event_word_from_port(port);
+	return sync_test_bit(EVTCHN_FIFO_BIT(LINKED, word), BM(word));
+}
+
 static uint32_t clear_linked(volatile event_word_t *word)
 {
 	event_word_t new, old, w;
@@ -281,7 +287,8 @@ static void handle_irq_for_port(unsigned port)
 
 static void consume_one_event(unsigned cpu,
 			      struct evtchn_fifo_control_block *control_block,
-			      unsigned priority, unsigned long *ready)
+			      unsigned priority, unsigned long *ready,
+			      bool drop)
 {
 	struct evtchn_fifo_queue *q = &per_cpu(cpu_queue, cpu);
 	uint32_t head;
@@ -313,13 +320,15 @@ static void consume_one_event(unsigned cpu,
 	if (head == 0)
 		clear_bit(priority, ready);
 
-	if (evtchn_fifo_is_pending(port) && !evtchn_fifo_is_masked(port))
-		handle_irq_for_port(port);
+	if (evtchn_fifo_is_pending(port) && !evtchn_fifo_is_masked(port)) {
+		if (likely(!drop))
+			handle_irq_for_port(port);
+	}
 
 	q->head[priority] = head;
 }
 
-static void evtchn_fifo_handle_events(unsigned cpu)
+static void __evtchn_fifo_handle_events(unsigned cpu, bool drop)
 {
 	struct evtchn_fifo_control_block *control_block;
 	unsigned long ready;
@@ -331,9 +340,14 @@ static void evtchn_fifo_handle_events(unsigned cpu)
 
 	while (ready) {
 		q = find_first_bit(&ready, EVTCHN_FIFO_MAX_QUEUES);
-		consume_one_event(cpu, control_block, q, &ready);
+		consume_one_event(cpu, control_block, q, &ready, drop);
 		ready |= xchg(&control_block->ready, 0);
 	}
+}
+
+static void evtchn_fifo_handle_events(unsigned cpu)
+{
+	__evtchn_fifo_handle_events(cpu, false);
 }
 
 static void evtchn_fifo_resume(void)
@@ -371,6 +385,26 @@ static void evtchn_fifo_resume(void)
 	event_array_pages = 0;
 }
 
+static void evtchn_fifo_close(unsigned port, unsigned int cpu)
+{
+	if (cpu == NR_CPUS)
+		return;
+
+	get_online_cpus();
+	if (cpu_online(cpu)) {
+		if (WARN_ON(irqs_disabled()))
+			goto out;
+
+		while (evtchn_fifo_is_linked(port))
+			cpu_relax();
+	} else {
+		__evtchn_fifo_handle_events(cpu, true);
+	}
+
+out:
+	put_online_cpus();
+}
+
 static const struct evtchn_ops evtchn_ops_fifo = {
 	.max_channels      = evtchn_fifo_max_channels,
 	.nr_channels       = evtchn_fifo_nr_channels,
@@ -384,6 +418,7 @@ static const struct evtchn_ops evtchn_ops_fifo = {
 	.unmask            = evtchn_fifo_unmask,
 	.handle_events     = evtchn_fifo_handle_events,
 	.resume            = evtchn_fifo_resume,
+	.close             = evtchn_fifo_close,
 };
 
 static int evtchn_fifo_alloc_control_block(unsigned cpu)

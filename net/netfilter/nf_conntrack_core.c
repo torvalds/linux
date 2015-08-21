@@ -287,6 +287,46 @@ static void nf_ct_del_from_dying_or_unconfirmed_list(struct nf_conn *ct)
 	spin_unlock(&pcpu->lock);
 }
 
+/* Released via destroy_conntrack() */
+struct nf_conn *nf_ct_tmpl_alloc(struct net *net, u16 zone, gfp_t flags)
+{
+	struct nf_conn *tmpl;
+
+	tmpl = kzalloc(sizeof(struct nf_conn), GFP_KERNEL);
+	if (tmpl == NULL)
+		return NULL;
+
+	tmpl->status = IPS_TEMPLATE;
+	write_pnet(&tmpl->ct_net, net);
+
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	if (zone) {
+		struct nf_conntrack_zone *nf_ct_zone;
+
+		nf_ct_zone = nf_ct_ext_add(tmpl, NF_CT_EXT_ZONE, GFP_ATOMIC);
+		if (!nf_ct_zone)
+			goto out_free;
+		nf_ct_zone->id = zone;
+	}
+#endif
+	atomic_set(&tmpl->ct_general.use, 0);
+
+	return tmpl;
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+out_free:
+	kfree(tmpl);
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(nf_ct_tmpl_alloc);
+
+static void nf_ct_tmpl_free(struct nf_conn *tmpl)
+{
+	nf_ct_ext_destroy(tmpl);
+	nf_ct_ext_free(tmpl);
+	kfree(tmpl);
+}
+
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
 {
@@ -298,6 +338,10 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
 	NF_CT_ASSERT(!timer_pending(&ct->timeout));
 
+	if (unlikely(nf_ct_is_template(ct))) {
+		nf_ct_tmpl_free(ct);
+		return;
+	}
 	rcu_read_lock();
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (l4proto && l4proto->destroy)
@@ -539,28 +583,6 @@ out:
 	return -EEXIST;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
-
-/* deletion from this larval template list happens via nf_ct_put() */
-void nf_conntrack_tmpl_insert(struct net *net, struct nf_conn *tmpl)
-{
-	struct ct_pcpu *pcpu;
-
-	__set_bit(IPS_TEMPLATE_BIT, &tmpl->status);
-	__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
-	nf_conntrack_get(&tmpl->ct_general);
-
-	/* add this conntrack to the (per cpu) tmpl list */
-	local_bh_disable();
-	tmpl->cpu = smp_processor_id();
-	pcpu = per_cpu_ptr(nf_ct_net(tmpl)->ct.pcpu_lists, tmpl->cpu);
-
-	spin_lock(&pcpu->lock);
-	/* Overload tuple linked list to put us in template list. */
-	hlist_nulls_add_head_rcu(&tmpl->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-				 &pcpu->tmpl);
-	spin_unlock_bh(&pcpu->lock);
-}
-EXPORT_SYMBOL_GPL(nf_conntrack_tmpl_insert);
 
 /* Confirm a connection given skb; places it in hash table */
 int
@@ -1751,7 +1773,6 @@ int nf_conntrack_init_net(struct net *net)
 		spin_lock_init(&pcpu->lock);
 		INIT_HLIST_NULLS_HEAD(&pcpu->unconfirmed, UNCONFIRMED_NULLS_VAL);
 		INIT_HLIST_NULLS_HEAD(&pcpu->dying, DYING_NULLS_VAL);
-		INIT_HLIST_NULLS_HEAD(&pcpu->tmpl, TEMPLATE_NULLS_VAL);
 	}
 
 	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);

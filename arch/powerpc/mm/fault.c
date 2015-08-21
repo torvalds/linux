@@ -529,6 +529,10 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 		printk(KERN_ALERT "Unable to handle kernel paging request for "
 			"instruction fetch\n");
 		break;
+	case 0x600:
+		printk(KERN_ALERT "Unable to handle kernel paging request for "
+			"unaligned access at address 0x%08lx\n", regs->dar);
+		break;
 	default:
 		printk(KERN_ALERT "Unable to handle kernel paging request for "
 			"unknown fault\n");

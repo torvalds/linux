@@ -109,6 +109,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name);
+static void _regulator_put(struct regulator *regulator);
 
 static const char *rdev_get_name(struct regulator_dev *rdev)
 {
@@ -1105,6 +1106,9 @@ static int set_supply(struct regulator_dev *rdev,
 
 	rdev_info(rdev, "supplied by %s\n", rdev_get_name(supply_rdev));
 
+	if (!try_module_get(supply_rdev->owner))
+		return -ENODEV;
+
 	rdev->supply = create_regulator(supply_rdev, &rdev->dev, "SUPPLY");
 	if (rdev->supply == NULL) {
 		err = -ENOMEM;
@@ -1381,9 +1385,13 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	}
 
 	if (!r) {
-		dev_err(dev, "Failed to resolve %s-supply for %s\n",
-			rdev->supply_name, rdev->desc->name);
-		return -EPROBE_DEFER;
+		if (have_full_constraints()) {
+			r = dummy_regulator_rdev;
+		} else {
+			dev_err(dev, "Failed to resolve %s-supply for %s\n",
+				rdev->supply_name, rdev->desc->name);
+			return -EPROBE_DEFER;
+		}
 	}
 
 	/* Recursively resolve the supply of the supply */
@@ -1398,8 +1406,11 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	/* Cascade always-on state to supply */
 	if (_regulator_is_enabled(rdev)) {
 		ret = regulator_enable(rdev->supply);
-		if (ret < 0)
+		if (ret < 0) {
+			if (rdev->supply)
+				_regulator_put(rdev->supply);
 			return ret;
+		}
 	}
 
 	return 0;

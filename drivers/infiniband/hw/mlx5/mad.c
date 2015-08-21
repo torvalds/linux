@@ -68,8 +68,9 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	const struct ib_mad *in_mad = (const struct ib_mad *)in;
 	struct ib_mad *out_mad = (struct ib_mad *)out;
 
-	BUG_ON(in_mad_size != sizeof(*in_mad) ||
-	       *out_mad_size != sizeof(*out_mad));
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 

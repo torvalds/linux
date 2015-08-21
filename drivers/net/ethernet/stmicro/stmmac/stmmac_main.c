@@ -2843,7 +2843,7 @@ int stmmac_dvr_probe(struct device *device,
 	if (res->mac)
 		memcpy(priv->dev->dev_addr, res->mac, ETH_ALEN);
 
-	dev_set_drvdata(device, priv);
+	dev_set_drvdata(device, priv->dev);
 
 	/* Verify driver arguments */
 	stmmac_verify_args();
