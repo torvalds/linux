@@ -195,23 +195,23 @@
 	    <entry>ALSA card</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_FE</constant></entry>
+	    <entry><constant>MEDIA_ENT_T_DVB_DEMOD</constant></entry>
 	    <entry>DVB frontend devnode</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_DEMUX</constant></entry>
+	    <entry><constant>MEDIA_ENT_T_DVB_DEMUX</constant></entry>
 	    <entry>DVB demux devnode</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_DVR</constant></entry>
+	    <entry><constant>MEDIA_ENT_T_DVB_TSOUT</constant></entry>
 	    <entry>DVB DVR devnode</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_CA</constant></entry>
+	    <entry><constant>MEDIA_ENT_T_DVB_CA</constant></entry>
 	    <entry>DVB CAM devnode</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_NET</constant></entry>
+	    <entry><constant>MEDIA_ENT_T_DVB_DEMOD_NET_DECAP</constant></entry>
 	    <entry>DVB network devnode</entry>
 	  </row>
 	  <row>
