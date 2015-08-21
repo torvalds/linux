@@ -35,11 +35,13 @@ struct fjes_hw;
 
 #define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3) /* sec */
 #define FJES_COMMAND_REQ_TIMEOUT  (5 + 1) /* sec */
+#define FJES_COMMAND_REQ_BUFF_TIMEOUT	(8 * 3) /* sec */
 
 #define FJES_CMD_REQ_ERR_INFO_PARAM  (0x0001)
 #define FJES_CMD_REQ_ERR_INFO_STATUS (0x0002)
 
 #define FJES_CMD_REQ_RES_CODE_NORMAL (0)
+#define FJES_CMD_REQ_RES_CODE_BUSY   (1)
 
 #define EP_BUFFER_SIZE \
 	(((sizeof(union ep_buffer_info) + (128 * (64 * 1024))) \
@@ -60,6 +62,9 @@ struct fjes_hw;
 #define FJES_DEV_COMMAND_INFO_RES_LEN(epnum) (8 + 2 * (epnum))
 #define FJES_DEV_COMMAND_SHARE_BUFFER_REQ_LEN(txb, rxb) \
 	(24 + (8 * ((txb) / EP_BUFFER_INFO_SIZE + (rxb) / EP_BUFFER_INFO_SIZE)))
+#define FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN	(8)
+#define FJES_DEV_COMMAND_UNSHARE_BUFFER_REQ_LEN	(8)
+#define FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN	(8)
 
 #define FJES_DEV_REQ_BUF_SIZE(maxep) \
 	FJES_DEV_COMMAND_SHARE_BUFFER_REQ_LEN(EP_BUFFER_SIZE, EP_BUFFER_SIZE)
@@ -267,7 +272,9 @@ int fjes_hw_init(struct fjes_hw *);
 void fjes_hw_exit(struct fjes_hw *);
 int fjes_hw_reset(struct fjes_hw *);
 int fjes_hw_request_info(struct fjes_hw *);
-
+int fjes_hw_register_buff_addr(struct fjes_hw *, int,
+			       struct ep_share_mem_info *);
+int fjes_hw_unregister_buff_addr(struct fjes_hw *, int);
 void fjes_hw_init_command_registers(struct fjes_hw *,
 				    struct fjes_device_command_param *);
 void fjes_hw_setup_epbuf(struct epbuf_handler *, u8 *, u32);

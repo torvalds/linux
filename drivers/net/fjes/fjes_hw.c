@@ -452,6 +452,192 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 	return result;
 }
 
+int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
+			       struct ep_share_mem_info *buf_pair)
+{
+	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
+	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
+	enum fjes_dev_command_response_e ret;
+	int page_count;
+	int timeout;
+	int i, idx;
+	void *addr;
+	int result;
+
+	if (test_bit(dest_epid, &hw->hw_info.buffer_share_bit))
+		return 0;
+
+	memset(req_buf, 0, hw->hw_info.req_buf_size);
+	memset(res_buf, 0, hw->hw_info.res_buf_size);
+
+	req_buf->share_buffer.length = FJES_DEV_COMMAND_SHARE_BUFFER_REQ_LEN(
+						buf_pair->tx.size,
+						buf_pair->rx.size);
+	req_buf->share_buffer.epid = dest_epid;
+
+	idx = 0;
+	req_buf->share_buffer.buffer[idx++] = buf_pair->tx.size;
+	page_count = buf_pair->tx.size / EP_BUFFER_INFO_SIZE;
+	for (i = 0; i < page_count; i++) {
+		addr = ((u8 *)(buf_pair->tx.buffer)) +
+				(i * EP_BUFFER_INFO_SIZE);
+		req_buf->share_buffer.buffer[idx++] =
+				(__le64)(page_to_phys(vmalloc_to_page(addr)) +
+						offset_in_page(addr));
+	}
+
+	req_buf->share_buffer.buffer[idx++] = buf_pair->rx.size;
+	page_count = buf_pair->rx.size / EP_BUFFER_INFO_SIZE;
+	for (i = 0; i < page_count; i++) {
+		addr = ((u8 *)(buf_pair->rx.buffer)) +
+				(i * EP_BUFFER_INFO_SIZE);
+		req_buf->share_buffer.buffer[idx++] =
+				(__le64)(page_to_phys(vmalloc_to_page(addr)) +
+						offset_in_page(addr));
+	}
+
+	res_buf->share_buffer.length = 0;
+	res_buf->share_buffer.code = 0;
+
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_SHARE_BUFFER);
+
+	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
+	while ((ret == FJES_CMD_STATUS_NORMAL) &&
+	       (res_buf->share_buffer.length ==
+		FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN) &&
+	       (res_buf->share_buffer.code == FJES_CMD_REQ_RES_CODE_BUSY) &&
+	       (timeout > 0)) {
+			msleep(200 + hw->my_epid * 20);
+			timeout -= (200 + hw->my_epid * 20);
+
+			res_buf->share_buffer.length = 0;
+			res_buf->share_buffer.code = 0;
+
+			ret = fjes_hw_issue_request_command(
+					hw, FJES_CMD_REQ_SHARE_BUFFER);
+	}
+
+	result = 0;
+
+	if (res_buf->share_buffer.length !=
+			FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN)
+		result = -ENOMSG;
+	else if (ret == FJES_CMD_STATUS_NORMAL) {
+		switch (res_buf->share_buffer.code) {
+		case FJES_CMD_REQ_RES_CODE_NORMAL:
+			result = 0;
+			set_bit(dest_epid, &hw->hw_info.buffer_share_bit);
+			break;
+		case FJES_CMD_REQ_RES_CODE_BUSY:
+			result = -EBUSY;
+			break;
+		default:
+			result = -EPERM;
+			break;
+		}
+	} else {
+		switch (ret) {
+		case FJES_CMD_STATUS_UNKNOWN:
+			result = -EPERM;
+			break;
+		case FJES_CMD_STATUS_TIMEOUT:
+			result = -EBUSY;
+			break;
+		case FJES_CMD_STATUS_ERROR_PARAM:
+		case FJES_CMD_STATUS_ERROR_STATUS:
+		default:
+			result = -EPERM;
+			break;
+		}
+	}
+
+	return result;
+}
+
+int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
+{
+	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
+	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
+	struct fjes_device_shared_info *share = hw->hw_info.share;
+	enum fjes_dev_command_response_e ret;
+	int timeout;
+	int result;
+
+	if (!hw->base)
+		return -EPERM;
+
+	if (!req_buf || !res_buf || !share)
+		return -EPERM;
+
+	if (!test_bit(dest_epid, &hw->hw_info.buffer_share_bit))
+		return 0;
+
+	memset(req_buf, 0, hw->hw_info.req_buf_size);
+	memset(res_buf, 0, hw->hw_info.res_buf_size);
+
+	req_buf->unshare_buffer.length =
+			FJES_DEV_COMMAND_UNSHARE_BUFFER_REQ_LEN;
+	req_buf->unshare_buffer.epid = dest_epid;
+
+	res_buf->unshare_buffer.length = 0;
+	res_buf->unshare_buffer.code = 0;
+
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_UNSHARE_BUFFER);
+
+	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
+	while ((ret == FJES_CMD_STATUS_NORMAL) &&
+	       (res_buf->unshare_buffer.length ==
+		FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN) &&
+	       (res_buf->unshare_buffer.code ==
+		FJES_CMD_REQ_RES_CODE_BUSY) &&
+	       (timeout > 0)) {
+		msleep(200 + hw->my_epid * 20);
+			timeout -= (200 + hw->my_epid * 20);
+
+		res_buf->unshare_buffer.length = 0;
+		res_buf->unshare_buffer.code = 0;
+
+		ret =
+		fjes_hw_issue_request_command(hw, FJES_CMD_REQ_UNSHARE_BUFFER);
+	}
+
+	result = 0;
+
+	if (res_buf->unshare_buffer.length !=
+			FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN) {
+		result = -ENOMSG;
+	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		switch (res_buf->unshare_buffer.code) {
+		case FJES_CMD_REQ_RES_CODE_NORMAL:
+			result = 0;
+			clear_bit(dest_epid, &hw->hw_info.buffer_share_bit);
+			break;
+		case FJES_CMD_REQ_RES_CODE_BUSY:
+			result = -EBUSY;
+			break;
+		default:
+			result = -EPERM;
+			break;
+		}
+	} else {
+		switch (ret) {
+		case FJES_CMD_STATUS_UNKNOWN:
+			result = -EPERM;
+			break;
+		case FJES_CMD_STATUS_TIMEOUT:
+			result = -EBUSY;
+			break;
+		case FJES_CMD_STATUS_ERROR_PARAM:
+		case FJES_CMD_STATUS_ERROR_STATUS:
+		default:
+			result = -EPERM;
+			break;
+		}
+	}
+
+	return result;
+}
+
 void fjes_hw_set_irqmask(struct fjes_hw *hw,
 			 enum REG_ICTL_MASK intr_mask, bool mask)
 {
