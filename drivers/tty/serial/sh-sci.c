@@ -2205,7 +2205,6 @@ static int sci_init_single(struct platform_device *dev,
 {
 	struct uart_port *port = &sci_port->port;
 	const struct resource *res;
-	unsigned int sampling_rate;
 	unsigned int i;
 	int ret;
 
@@ -2250,37 +2249,37 @@ static int sci_init_single(struct platform_device *dev,
 		port->fifosize = 256;
 		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCIFA_ORER;
-		sampling_rate = 16;
+		sci_port->sampling_rate = 16;
 		break;
 	case PORT_HSCIF:
 		port->fifosize = 128;
-		sampling_rate = 0;
 		sci_port->overrun_reg = SCLSR;
 		sci_port->overrun_mask = SCLSR_ORER;
+		sci_port->sampling_rate = 0;
 		break;
 	case PORT_SCIFA:
 		port->fifosize = 64;
 		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCIFA_ORER;
-		sampling_rate = 16;
+		sci_port->sampling_rate = 16;
 		break;
 	case PORT_SCIF:
 		port->fifosize = 16;
 		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE) {
 			sci_port->overrun_reg = SCxSR;
 			sci_port->overrun_mask = SCIFA_ORER;
-			sampling_rate = 16;
+			sci_port->sampling_rate = 16;
 		} else {
 			sci_port->overrun_reg = SCLSR;
 			sci_port->overrun_mask = SCLSR_ORER;
-			sampling_rate = 32;
+			sci_port->sampling_rate = 32;
 		}
 		break;
 	default:
 		port->fifosize = 1;
 		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCI_ORER;
-		sampling_rate = 32;
+		sci_port->sampling_rate = 32;
 		break;
 	}
 
@@ -2288,8 +2287,8 @@ static int sci_init_single(struct platform_device *dev,
 	 * match the SoC datasheet, this should be investigated. Let platform
 	 * data override the sampling rate for now.
 	 */
-	sci_port->sampling_rate = p->sampling_rate ? p->sampling_rate
-				: sampling_rate;
+	if (p->sampling_rate)
+		sci_port->sampling_rate = p->sampling_rate;
 
 	if (!early) {
 		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
