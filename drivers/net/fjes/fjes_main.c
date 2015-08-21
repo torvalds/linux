@@ -51,6 +51,7 @@ static int fjes_open(struct net_device *);
 static int fjes_close(struct net_device *);
 static int fjes_setup_resources(struct fjes_adapter *);
 static void fjes_free_resources(struct fjes_adapter *);
+static netdev_tx_t fjes_xmit_frame(struct sk_buff *, struct net_device *);
 static irqreturn_t fjes_intr(int, void*);
 
 static int fjes_acpi_add(struct acpi_device *);
@@ -212,6 +213,7 @@ static void fjes_free_irq(struct fjes_adapter *adapter)
 static const struct net_device_ops fjes_netdev_ops = {
 	.ndo_open		= fjes_open,
 	.ndo_stop		= fjes_close,
+	.ndo_start_xmit		= fjes_xmit_frame,
 };
 
 /* fjes_open - Called when a network interface is made active */
@@ -400,6 +402,181 @@ static void fjes_free_resources(struct fjes_adapter *adapter)
 
 		fjes_hw_init_command_registers(hw, &param);
 	}
+}
+
+static int fjes_tx_send(struct fjes_adapter *adapter, int dest,
+			void *data, size_t len)
+{
+	int retval;
+
+	retval = fjes_hw_epbuf_tx_pkt_send(&adapter->hw.ep_shm_info[dest].tx,
+					   data, len);
+	if (retval)
+		return retval;
+
+	adapter->hw.ep_shm_info[dest].tx.info->v1i.tx_status =
+		FJES_TX_DELAY_SEND_PENDING;
+
+	retval = 0;
+	return retval;
+}
+
+static netdev_tx_t
+fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+
+	int max_epid, my_epid, dest_epid;
+	enum ep_partner_status pstatus;
+	struct netdev_queue *cur_queue;
+	char shortpkt[VLAN_ETH_HLEN];
+	bool is_multi, vlan;
+	struct ethhdr *eth;
+	u16 queue_no = 0;
+	u16 vlan_id = 0;
+	netdev_tx_t ret;
+	char *data;
+	int len;
+
+	ret = NETDEV_TX_OK;
+	is_multi = false;
+	cur_queue = netdev_get_tx_queue(netdev, queue_no);
+
+	eth = (struct ethhdr *)skb->data;
+	my_epid = hw->my_epid;
+
+	vlan = (vlan_get_tag(skb, &vlan_id) == 0) ? true : false;
+
+	data = skb->data;
+	len = skb->len;
+
+	if (is_multicast_ether_addr(eth->h_dest)) {
+		dest_epid = 0;
+		max_epid = hw->max_epid;
+		is_multi = true;
+	} else if (is_local_ether_addr(eth->h_dest)) {
+		dest_epid = eth->h_dest[ETH_ALEN - 1];
+		max_epid = dest_epid + 1;
+
+		if ((eth->h_dest[0] == 0x02) &&
+		    (0x00 == (eth->h_dest[1] | eth->h_dest[2] |
+			      eth->h_dest[3] | eth->h_dest[4])) &&
+		    (dest_epid < hw->max_epid)) {
+			;
+		} else {
+			dest_epid = 0;
+			max_epid = 0;
+			ret = NETDEV_TX_OK;
+
+			adapter->stats64.tx_packets += 1;
+			hw->ep_shm_info[my_epid].net_stats.tx_packets += 1;
+			adapter->stats64.tx_bytes += len;
+			hw->ep_shm_info[my_epid].net_stats.tx_bytes += len;
+		}
+	} else {
+		dest_epid = 0;
+		max_epid = 0;
+		ret = NETDEV_TX_OK;
+
+		adapter->stats64.tx_packets += 1;
+		hw->ep_shm_info[my_epid].net_stats.tx_packets += 1;
+		adapter->stats64.tx_bytes += len;
+		hw->ep_shm_info[my_epid].net_stats.tx_bytes += len;
+	}
+
+	for (; dest_epid < max_epid; dest_epid++) {
+		if (my_epid == dest_epid)
+			continue;
+
+		pstatus = fjes_hw_get_partner_ep_status(hw, dest_epid);
+		if (pstatus != EP_PARTNER_SHARED) {
+			ret = NETDEV_TX_OK;
+		} else if (!fjes_hw_check_epbuf_version(
+				&adapter->hw.ep_shm_info[dest_epid].rx, 0)) {
+			/* version is NOT 0 */
+			adapter->stats64.tx_carrier_errors += 1;
+			hw->ep_shm_info[my_epid].net_stats
+						.tx_carrier_errors += 1;
+
+			ret = NETDEV_TX_OK;
+		} else if (!fjes_hw_check_mtu(
+				&adapter->hw.ep_shm_info[dest_epid].rx,
+				netdev->mtu)) {
+			adapter->stats64.tx_dropped += 1;
+			hw->ep_shm_info[my_epid].net_stats.tx_dropped += 1;
+			adapter->stats64.tx_errors += 1;
+			hw->ep_shm_info[my_epid].net_stats.tx_errors += 1;
+
+			ret = NETDEV_TX_OK;
+		} else if (vlan &&
+			   !fjes_hw_check_vlan_id(
+				&adapter->hw.ep_shm_info[dest_epid].rx,
+				vlan_id)) {
+			ret = NETDEV_TX_OK;
+		} else {
+			if (len < VLAN_ETH_HLEN) {
+				memset(shortpkt, 0, VLAN_ETH_HLEN);
+				memcpy(shortpkt, skb->data, skb->len);
+				len = VLAN_ETH_HLEN;
+				data = shortpkt;
+			}
+
+			if (adapter->tx_retry_count == 0) {
+				adapter->tx_start_jiffies = jiffies;
+				adapter->tx_retry_count = 1;
+			} else {
+				adapter->tx_retry_count++;
+			}
+
+			if (fjes_tx_send(adapter, dest_epid, data, len)) {
+				if (is_multi) {
+					ret = NETDEV_TX_OK;
+				} else if (
+					   ((long)jiffies -
+					    (long)adapter->tx_start_jiffies) >=
+					    FJES_TX_RETRY_TIMEOUT) {
+					adapter->stats64.tx_fifo_errors += 1;
+					hw->ep_shm_info[my_epid].net_stats
+								.tx_fifo_errors += 1;
+					adapter->stats64.tx_errors += 1;
+					hw->ep_shm_info[my_epid].net_stats
+								.tx_errors += 1;
+
+					ret = NETDEV_TX_OK;
+				} else {
+					netdev->trans_start = jiffies;
+					netif_tx_stop_queue(cur_queue);
+
+					ret = NETDEV_TX_BUSY;
+				}
+			} else {
+				if (!is_multi) {
+					adapter->stats64.tx_packets += 1;
+					hw->ep_shm_info[my_epid].net_stats
+								.tx_packets += 1;
+					adapter->stats64.tx_bytes += len;
+					hw->ep_shm_info[my_epid].net_stats
+								.tx_bytes += len;
+				}
+
+				adapter->tx_retry_count = 0;
+				ret = NETDEV_TX_OK;
+			}
+		}
+	}
+
+	if (ret == NETDEV_TX_OK) {
+		dev_kfree_skb(skb);
+		if (is_multi) {
+			adapter->stats64.tx_packets += 1;
+			hw->ep_shm_info[my_epid].net_stats.tx_packets += 1;
+			adapter->stats64.tx_bytes += 1;
+			hw->ep_shm_info[my_epid].net_stats.tx_bytes += len;
+		}
+	}
+
+	return ret;
 }
 
 static irqreturn_t fjes_intr(int irq, void *data)

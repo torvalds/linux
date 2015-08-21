@@ -791,3 +791,58 @@ int fjes_hw_wait_epstop(struct fjes_hw *hw)
 	return (wait_time < FJES_COMMAND_EPSTOP_WAIT_TIMEOUT * 1000)
 			? 0 : -EBUSY;
 }
+
+bool fjes_hw_check_epbuf_version(struct epbuf_handler *epbh, u32 version)
+{
+	union ep_buffer_info *info = epbh->info;
+
+	return (info->common.version == version);
+}
+
+bool fjes_hw_check_mtu(struct epbuf_handler *epbh, u32 mtu)
+{
+	union ep_buffer_info *info = epbh->info;
+
+	return (info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu));
+}
+
+bool fjes_hw_check_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
+{
+	union ep_buffer_info *info = epbh->info;
+	bool ret = false;
+	int i;
+
+	if (vlan_id == 0) {
+		ret = true;
+	} else {
+		for (i = 0; i < EP_BUFFER_SUPPORT_VLAN_MAX; i++) {
+			if (vlan_id == info->v1i.vlan_id[i]) {
+				ret = true;
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *epbh,
+			      void *frame, size_t size)
+{
+	union ep_buffer_info *info = epbh->info;
+	struct esmem_frame *ring_frame;
+
+	if (EP_RING_FULL(info->v1i.head, info->v1i.tail, info->v1i.count_max))
+		return -ENOBUFS;
+
+	ring_frame = (struct esmem_frame *)&(epbh->ring[EP_RING_INDEX
+					     (info->v1i.tail - 1,
+					      info->v1i.count_max) *
+					     info->v1i.frame_max]);
+
+	ring_frame->frame_size = size;
+	memcpy((void *)(ring_frame->frame_data), (void *)frame, size);
+
+	EP_RING_INDEX_INC(epbh->info->v1i.tail, info->v1i.count_max);
+
+	return 0;
+}

@@ -50,6 +50,9 @@ struct fjes_hw;
 
 #define FJES_ZONING_ZONE_TYPE_NONE (0xFF)
 
+#define FJES_TX_DELAY_SEND_NONE		(0)
+#define FJES_TX_DELAY_SEND_PENDING	(1)
+
 #define FJES_RX_STOP_REQ_NONE		(0x0)
 #define FJES_RX_STOP_REQ_DONE		(0x1)
 #define FJES_RX_STOP_REQ_REQUEST	(0x2)
@@ -61,6 +64,11 @@ struct fjes_hw;
 
 #define EP_RING_NUM(buffer_size, frame_size) \
 		(u32)((buffer_size) / (frame_size))
+#define EP_RING_INDEX(_num, _max) (((_num) + (_max)) % (_max))
+#define EP_RING_INDEX_INC(_num, _max) \
+	((_num) = EP_RING_INDEX((_num) + 1, (_max)))
+#define EP_RING_FULL(_head, _tail, _max)				\
+	(0 == EP_RING_INDEX(((_tail) - (_head)), (_max)))
 
 #define FJES_MTU_TO_BUFFER_SIZE(mtu) \
 	(ETH_HLEN + VLAN_HLEN + (mtu) + ETH_FCS_LEN)
@@ -309,5 +317,9 @@ enum ep_partner_status
 
 bool fjes_hw_epid_is_same_zone(struct fjes_hw *, int);
 int fjes_hw_epid_is_shared(struct fjes_device_shared_info *, int);
+bool fjes_hw_check_epbuf_version(struct epbuf_handler *, u32);
+bool fjes_hw_check_mtu(struct epbuf_handler *, u32);
+bool fjes_hw_check_vlan_id(struct epbuf_handler *, u16);
+int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *, void *, size_t);
 
 #endif /* FJES_HW_H_ */
