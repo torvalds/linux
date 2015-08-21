@@ -104,7 +104,6 @@ struct sci_port {
 	struct dma_chan			*chan_rx;
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx[2];
 	dma_cookie_t			cookie_tx;
 	dma_cookie_t			cookie_rx[2];
@@ -1285,9 +1284,6 @@ static void sci_dma_tx_complete(void *arg)
 
 	port->icount.tx += s->tx_dma_len;
 
-	async_tx_ack(s->desc_tx);
-	s->desc_tx = NULL;
-
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
@@ -1528,7 +1524,6 @@ static void work_fn_tx(struct work_struct *work)
 				   DMA_TO_DEVICE);
 
 	spin_lock_irq(&port->lock);
-	s->desc_tx = desc;
 	desc->callback = sci_dma_tx_complete;
 	desc->callback_param = s;
 	spin_unlock_irq(&port->lock);
