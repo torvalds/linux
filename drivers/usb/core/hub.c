@@ -1070,7 +1070,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 		 * for HUB_POST_RESET, but it's easier not to.
 		 */
 		if (type == HUB_INIT) {
-			unsigned delay = hub_power_on_good_delay(hub);
+			delay = hub_power_on_good_delay(hub);
 
 			hub_power_on(hub, false);
 			INIT_DELAYED_WORK(&hub->init_work, hub_init_func2);
@@ -1404,7 +1404,6 @@ static int hub_configure(struct usb_hub *hub,
 	/* FIXME for USB 3.0, skip for now */
 	if ((wHubCharacteristics & HUB_CHAR_COMPOUND) &&
 			!(hub_is_superspeed(hdev))) {
-		int	i;
 		char	portstr[USB_MAXCHILDREN + 1];
 
 		for (i = 0; i < maxchild; i++)
