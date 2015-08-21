@@ -492,7 +492,7 @@ int scpi_sys_set_mcu_state_resume(void)
 }
 EXPORT_SYMBOL_GPL(scpi_sys_set_mcu_state_resume);
 
-int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type)
+int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type, u32 addr_mcu_el3)
 {
 	struct scpi_data_buf sdata;
 	struct rockchip_mbox_msg mdata;
@@ -500,6 +500,7 @@ int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type)
 		u32 dram_speed_bin;
 		u32 freq;
 		u32 lcdc_type;
+		u32 addr_mcu_el3;
 	} tx_buf;
 	struct __packed2 {
 		u32 status;
@@ -508,7 +509,7 @@ int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type)
 	tx_buf.dram_speed_bin = (u32)dram_speed_bin;
 	tx_buf.freq = (u32)freq;
 	tx_buf.lcdc_type = (u32)lcdc_type;
-
+	tx_buf.addr_mcu_el3 = addr_mcu_el3;
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_DDR,
 			SCPI_DDR_INIT, tx_buf, rx_buf);
 	return scpi_execute_cmd(&sdata);

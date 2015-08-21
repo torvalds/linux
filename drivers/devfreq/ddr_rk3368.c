@@ -42,10 +42,19 @@
 #include <linux/rockchip/pmu.h>
 #include <linux/rk_fb.h>
 #include <linux/scpi_protocol.h>
+#include <asm/compiler.h>
 
 #define GRF_DDRC0_CON0    0x600
 #define GRF_SOC_STATUS5  0x494
 #define DDR_PCTL_TOGCNT_1U  0xc0
+
+#define PSCI_SIP_RKTF_VER		(0x82000001)
+#define FIQ_CPU_TGT_BOOT		0x0 /* to booting cpu */
+#define RKSIP_EL3FIQ_CFG		(0x82000006)
+#define FIQ_NUM_FOR_DCF		(143)  /*NA irq map to fiq for dcf*/
+
+
+#define DDR_VERSION			"V1.01 20150819"
 
 enum ddr_bandwidth_id {
 	ddrbw_wr_num = 0,
@@ -63,6 +72,24 @@ struct rockchip_ddr {
 };
 
 static struct rockchip_ddr *ddr_data = NULL;
+
+static noinline int __invoke_reg_dcf_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					    u64 arg2)
+{
+	asm volatile(
+			__asmeq("%0", "x0")
+			__asmeq("%1", "x1")
+			__asmeq("%2", "x2")
+			__asmeq("%3", "x3")
+			"smc	#0\n"
+		: "+r" (function_id)
+		: "r" (arg0), "r" (arg1), "r" (arg2));
+
+	return function_id;
+}
+
+static int (*invoke_reg_dcf_fn_smc)(u64, u64 , u64, u64) =
+	    __invoke_reg_dcf_fn_smc;
 
 static int _ddr_recalc_rate(void)
 {
@@ -254,11 +281,15 @@ end:
 	ddr_monitor_start();
 }
 
-static void ddr_init(u32 dram_speed_bin, u32 freq)
+static void ddr_init(u32 dram_speed_bin, u32 freq, u32 addr_mcu_el3)
 {
 	int lcdc_type;
+	static u32 addr = 0;
 
 	struct rk_lcdc_driver *lcdc_dev = NULL;
+
+	if (addr == 0)
+		addr = addr_mcu_el3;
 
 	lcdc_dev = rk_get_lcdc_drv("lcdc0");
 	if (lcdc_dev == NULL)
@@ -267,7 +298,7 @@ static void ddr_init(u32 dram_speed_bin, u32 freq)
 		lcdc_type = (u32)lcdc_dev->cur_screen->type;
 	printk(KERN_DEBUG pr_fmt("In Func:%s,dram_speed_bin:%d,freq:%d,lcdc_type:%d\n"),
 	       __func__, dram_speed_bin, freq, lcdc_type);
-	if (scpi_ddr_init(dram_speed_bin, freq, lcdc_type))
+	if (scpi_ddr_init(dram_speed_bin, freq, lcdc_type, addr))
 		pr_info("ddr init error\n");
 	else
 		printk(KERN_DEBUG pr_fmt("%s out\n"), __func__);
@@ -275,14 +306,43 @@ static void ddr_init(u32 dram_speed_bin, u32 freq)
 
 static int ddr_init_resume(struct platform_device *pdev)
 {
-	ddr_init(DDR3_DEFAULT, 0);
+	ddr_init(DDR3_DEFAULT, 0, 0);
+	return 0;
+}
+#define RKTF_VER_MAJOR(ver) (((ver) >> 16) & 0xffff)
+#define RKTF_VER_MINOR(ver) ((ver) & 0xffff)
+/* valid ver */
+#define RKTF_VLDVER_MAJOR (1)
+#define RKTF_VLDVER_MINOR (5)
+
+static int __init rockchip_tf_ver_check(void)
+{
+	u32 version;
+
+	version = invoke_reg_dcf_fn_smc(PSCI_SIP_RKTF_VER, 0, 0, 0);
+
+	if ((RKTF_VER_MAJOR(version) >= RKTF_VLDVER_MAJOR) &&
+	    (RKTF_VER_MINOR(version) >= RKTF_VLDVER_MINOR))
+		return 0;
+
+	pr_err("read tf version 0x%x!\n", version);
+
+	do {
+		mdelay(1000);
+		pr_err("trusted firmware need to update to(%d.%d) or is invaild!\n",
+		       RKTF_VLDVER_MAJOR, RKTF_VLDVER_MINOR);
+	} while (1);
+
 	return 0;
 }
 
+
 static int __init rockchip_ddr_probe(struct platform_device *pdev)
 {
+	u32 addr_mcu_el3;
 	struct device_node *np;
 
+	pr_info("Rockchip DDR Initialize, verision: "DDR_VERSION"\n");
 	np = pdev->dev.of_node;
 	ddr_data =
 	    devm_kzalloc(&pdev->dev, sizeof(struct rockchip_ddr), GFP_KERNEL);
@@ -322,7 +382,12 @@ static int __init rockchip_ddr_probe(struct platform_device *pdev)
 	ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
 	ddr_bandwidth_get = _ddr_bandwidth_get;
 	ddr_recalc_rate = _ddr_recalc_rate;
-	ddr_init(DDR3_DEFAULT, 0);
+	rockchip_tf_ver_check();
+	addr_mcu_el3 = invoke_reg_dcf_fn_smc(RKSIP_EL3FIQ_CFG, FIQ_NUM_FOR_DCF,
+					     FIQ_CPU_TGT_BOOT, 0);
+	if ((addr_mcu_el3 == 0) || (addr_mcu_el3 > 0x80000))
+		pr_info("Trust version error, pls check trust version\n");
+	ddr_init(DDR3_DEFAULT, 0, addr_mcu_el3);
 	pr_info("%s: success\n", __func__);
 	return 0;
 }
