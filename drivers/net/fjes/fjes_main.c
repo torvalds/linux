@@ -315,6 +315,8 @@ static int fjes_close(struct net_device *netdev)
 	cancel_work_sync(&adapter->raise_intr_rxdata_task);
 	cancel_work_sync(&adapter->tx_stall_task);
 
+	cancel_work_sync(&hw->update_zone_task);
+
 	fjes_hw_wait_epstop(hw);
 
 	fjes_free_resources(adapter);
@@ -817,6 +819,15 @@ static int fjes_vlan_rx_kill_vid(struct net_device *netdev,
 	return 0;
 }
 
+static void fjes_update_zone_irq(struct fjes_adapter *adapter,
+				 int src_epid)
+{
+	struct fjes_hw *hw = &adapter->hw;
+
+	if (!work_pending(&hw->update_zone_task))
+		queue_work(adapter->control_wq, &hw->update_zone_task);
+}
+
 static irqreturn_t fjes_intr(int irq, void *data)
 {
 	struct fjes_adapter *adapter = data;
@@ -829,6 +840,9 @@ static irqreturn_t fjes_intr(int irq, void *data)
 	if (icr & REG_IS_MASK_IS_ASSERT) {
 		if (icr & REG_ICTL_MASK_RX_DATA)
 			fjes_rx_irq(adapter, icr & REG_IS_MASK_EPID);
+
+		if (icr & REG_ICTL_MASK_INFO_UPDATE)
+			fjes_update_zone_irq(adapter, icr & REG_IS_MASK_EPID);
 
 		ret = IRQ_HANDLED;
 	} else {

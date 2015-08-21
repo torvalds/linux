@@ -22,6 +22,8 @@
 #include "fjes_hw.h"
 #include "fjes.h"
 
+static void fjes_hw_update_zone_task(struct work_struct *);
+
 /* supported MTU list */
 const u32 fjes_support_mtu[] = {
 	FJES_MTU_DEFINE(8 * 1024),
@@ -322,6 +324,8 @@ int fjes_hw_init(struct fjes_hw *hw)
 
 	fjes_hw_set_irqmask(hw, REG_ICTL_MASK_ALL, true);
 
+	INIT_WORK(&hw->update_zone_task, fjes_hw_update_zone_task);
+
 	mutex_init(&hw->hw_info.lock);
 
 	hw->max_epid = fjes_hw_get_max_epid(hw);
@@ -349,6 +353,8 @@ void fjes_hw_exit(struct fjes_hw *hw)
 	}
 
 	fjes_hw_cleanup(hw);
+
+	cancel_work_sync(&hw->update_zone_task);
 }
 
 static enum fjes_dev_command_response_e
@@ -912,4 +918,177 @@ int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *epbh,
 	EP_RING_INDEX_INC(epbh->info->v1i.tail, info->v1i.count_max);
 
 	return 0;
+}
+
+static void fjes_hw_update_zone_task(struct work_struct *work)
+{
+	struct fjes_hw *hw = container_of(work,
+			struct fjes_hw, update_zone_task);
+
+	struct my_s {u8 es_status; u8 zone; } *info;
+	union fjes_device_command_res *res_buf;
+	enum ep_partner_status pstatus;
+
+	struct fjes_adapter *adapter;
+	struct net_device *netdev;
+
+	ulong unshare_bit = 0;
+	ulong share_bit = 0;
+	ulong irq_bit = 0;
+
+	int epidx;
+	int ret;
+
+	adapter = (struct fjes_adapter *)hw->back;
+	netdev = adapter->netdev;
+	res_buf = hw->hw_info.res_buf;
+	info = (struct my_s *)&res_buf->info.info;
+
+	mutex_lock(&hw->hw_info.lock);
+
+	ret = fjes_hw_request_info(hw);
+	switch (ret) {
+	case -ENOMSG:
+	case -EBUSY:
+	default:
+		if (!work_pending(&adapter->force_close_task)) {
+			adapter->force_reset = true;
+			schedule_work(&adapter->force_close_task);
+		}
+		break;
+
+	case 0:
+
+		for (epidx = 0; epidx < hw->max_epid; epidx++) {
+			if (epidx == hw->my_epid) {
+				hw->ep_shm_info[epidx].es_status =
+					info[epidx].es_status;
+				hw->ep_shm_info[epidx].zone =
+					info[epidx].zone;
+				continue;
+			}
+
+			pstatus = fjes_hw_get_partner_ep_status(hw, epidx);
+			switch (pstatus) {
+			case EP_PARTNER_UNSHARE:
+			default:
+				if ((info[epidx].zone !=
+					FJES_ZONING_ZONE_TYPE_NONE) &&
+				    (info[epidx].es_status ==
+					FJES_ZONING_STATUS_ENABLE) &&
+				    (info[epidx].zone ==
+					info[hw->my_epid].zone))
+					set_bit(epidx, &share_bit);
+				else
+					set_bit(epidx, &unshare_bit);
+				break;
+
+			case EP_PARTNER_COMPLETE:
+			case EP_PARTNER_WAITING:
+				if ((info[epidx].zone ==
+					FJES_ZONING_ZONE_TYPE_NONE) ||
+				    (info[epidx].es_status !=
+					FJES_ZONING_STATUS_ENABLE) ||
+				    (info[epidx].zone !=
+					info[hw->my_epid].zone)) {
+					set_bit(epidx,
+						&adapter->unshare_watch_bitmask);
+					set_bit(epidx,
+						&hw->hw_info.buffer_unshare_reserve_bit);
+				}
+				break;
+
+			case EP_PARTNER_SHARED:
+				if ((info[epidx].zone ==
+					FJES_ZONING_ZONE_TYPE_NONE) ||
+				    (info[epidx].es_status !=
+					FJES_ZONING_STATUS_ENABLE) ||
+				    (info[epidx].zone !=
+					info[hw->my_epid].zone))
+					set_bit(epidx, &irq_bit);
+				break;
+			}
+		}
+
+		hw->ep_shm_info[epidx].es_status = info[epidx].es_status;
+		hw->ep_shm_info[epidx].zone = info[epidx].zone;
+
+		break;
+	}
+
+	mutex_unlock(&hw->hw_info.lock);
+
+	for (epidx = 0; epidx < hw->max_epid; epidx++) {
+		if (epidx == hw->my_epid)
+			continue;
+
+		if (test_bit(epidx, &share_bit)) {
+			fjes_hw_setup_epbuf(&hw->ep_shm_info[epidx].tx,
+					    netdev->dev_addr, netdev->mtu);
+
+			mutex_lock(&hw->hw_info.lock);
+
+			ret = fjes_hw_register_buff_addr(
+				hw, epidx, &hw->ep_shm_info[epidx]);
+
+			switch (ret) {
+			case 0:
+				break;
+			case -ENOMSG:
+			case -EBUSY:
+			default:
+				if (!work_pending(&adapter->force_close_task)) {
+					adapter->force_reset = true;
+					schedule_work(
+					  &adapter->force_close_task);
+				}
+				break;
+			}
+			mutex_unlock(&hw->hw_info.lock);
+		}
+
+		if (test_bit(epidx, &unshare_bit)) {
+			mutex_lock(&hw->hw_info.lock);
+
+			ret = fjes_hw_unregister_buff_addr(hw, epidx);
+
+			switch (ret) {
+			case 0:
+				break;
+			case -ENOMSG:
+			case -EBUSY:
+			default:
+				if (!work_pending(&adapter->force_close_task)) {
+					adapter->force_reset = true;
+					schedule_work(
+					  &adapter->force_close_task);
+				}
+				break;
+			}
+
+			mutex_unlock(&hw->hw_info.lock);
+
+			if (ret == 0)
+				fjes_hw_setup_epbuf(
+					&hw->ep_shm_info[epidx].tx,
+					netdev->dev_addr, netdev->mtu);
+		}
+
+		if (test_bit(epidx, &irq_bit)) {
+			fjes_hw_raise_interrupt(hw, epidx,
+						REG_ICTL_MASK_TXRX_STOP_REQ);
+
+			set_bit(epidx, &hw->txrx_stop_req_bit);
+			hw->ep_shm_info[epidx].tx.
+				info->v1i.rx_status |=
+					FJES_RX_STOP_REQ_REQUEST;
+			set_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
+		}
+	}
+
+	if (irq_bit || adapter->unshare_watch_bitmask) {
+		if (!work_pending(&adapter->unshare_watch_task))
+			queue_work(adapter->control_wq,
+				   &adapter->unshare_watch_task);
+	}
 }
