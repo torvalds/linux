@@ -288,7 +288,7 @@ static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
 	if (trip == IMX_TRIP_CRITICAL)
 		return -EPERM;
 
-	if (temp > IMX_TEMP_PASSIVE)
+	if (temp < 0 || temp > IMX_TEMP_PASSIVE)
 		return -EINVAL;
 
 	data->temp_passive = temp;
