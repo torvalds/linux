@@ -65,7 +65,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	 *   -For coherent data, Read/Write to buffers terminate early in cache
 	 *   (vs. always going to memory - thus are faster)
 	 */
-	if (ioc_exists)
+	if (is_isa_arcv2() && ioc_exists)
 		return dma_alloc_noncoherent(dev, size, dma_handle, gfp);
 
 	/* This is linear addr (0x8000_0000 based) */
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
 		       dma_addr_t dma_handle)
 {
-	if (ioc_exists)
+	if (is_isa_arcv2() && ioc_exists)
 		return dma_free_noncoherent(dev, size, kvaddr, dma_handle);
 
 	iounmap((void __force __iomem *)kvaddr);

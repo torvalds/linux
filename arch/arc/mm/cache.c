@@ -52,6 +52,9 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
+	if (!is_isa_arcv2())
+                return buf;
+
 	p = &cpuinfo_arc700[c].slc;
 	if (p->ver)
 		n += scnprintf(buf + n, len - n,
@@ -70,18 +73,9 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
  * the cpuinfo structure for later use.
  * No Validation done here, simply read/convert the BCRs
  */
-void read_decode_cache_bcr(void)
+static void read_decode_cache_bcr_arcv2(int cpu)
 {
-	struct cpuinfo_arc_cache *p_ic, *p_dc, *p_slc;
-	unsigned int cpu = smp_processor_id();
-	struct bcr_cache {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
-#else
-		unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
-#endif
-	} ibcr, dbcr;
-
+	struct cpuinfo_arc_cache *p_slc = &cpuinfo_arc700[cpu].slc;
 	struct bcr_generic sbcr;
 
 	struct bcr_slc_cfg {
@@ -99,6 +93,31 @@ void read_decode_cache_bcr(void)
 		unsigned int ver:8, num_cores:8, num_entries:8, c:1, pad:7;
 #endif
 	} cbcr;
+
+	READ_BCR(ARC_REG_SLC_BCR, sbcr);
+	if (sbcr.ver) {
+		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
+		p_slc->ver = sbcr.ver;
+		p_slc->sz_k = 128 << slc_cfg.sz;
+		l2_line_sz = p_slc->line_len = (slc_cfg.lsz == 0) ? 128 : 64;
+	}
+
+	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
+	if (cbcr.c && ioc_enable)
+		ioc_exists = 1;
+}
+
+void read_decode_cache_bcr(void)
+{
+	struct cpuinfo_arc_cache *p_ic, *p_dc;
+	unsigned int cpu = smp_processor_id();
+	struct bcr_cache {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
+#else
+		unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
+	} ibcr, dbcr;
 
 	p_ic = &cpuinfo_arc700[cpu].icache;
 	READ_BCR(ARC_REG_IC_BCR, ibcr);
@@ -142,21 +161,8 @@ dc_chk:
 	p_dc->ver = dbcr.ver;
 
 slc_chk:
-	if (!is_isa_arcv2())
-		return;
-
-	p_slc = &cpuinfo_arc700[cpu].slc;
-	READ_BCR(ARC_REG_SLC_BCR, sbcr);
-	if (sbcr.ver) {
-		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
-		p_slc->ver = sbcr.ver;
-		p_slc->sz_k = 128 << slc_cfg.sz;
-		l2_line_sz = p_slc->line_len = (slc_cfg.lsz == 0) ? 128 : 64;
-	}
-
-	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
-	if (cbcr.c && ioc_enable)
-		ioc_exists = 1;
+	if (is_isa_arcv2())
+                read_decode_cache_bcr_arcv2(cpu);
 }
 
 /*
