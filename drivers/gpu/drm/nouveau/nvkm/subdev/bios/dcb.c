@@ -156,20 +156,19 @@ dcb_outp_parse(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len,
 					break;
 				}
 
-				outp->dpconf.link_nr = (conf & 0x0f000000) >> 24;
-				if (*ver < 0x41) {
-					switch (outp->dpconf.link_nr) {
-					case 0x0f:
-						outp->dpconf.link_nr = 4;
-						break;
-					case 0x03:
-						outp->dpconf.link_nr = 2;
-						break;
-					case 0x01:
-					default:
-						outp->dpconf.link_nr = 1;
-						break;
-					}
+				switch ((conf & 0x0f000000) >> 24) {
+				case 0xf:
+				case 0x4:
+					outp->dpconf.link_nr = 4;
+					break;
+				case 0x3:
+				case 0x2:
+					outp->dpconf.link_nr = 2;
+					break;
+				case 0x1:
+				default:
+					outp->dpconf.link_nr = 1;
+					break;
 				}
 
 				/* fall-through... */

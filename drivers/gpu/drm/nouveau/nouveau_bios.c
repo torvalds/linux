@@ -1481,19 +1481,18 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			entry->dpconf.link_bw = 540000;
 			break;
 		}
-		entry->dpconf.link_nr = (conf & 0x0f000000) >> 24;
-		if (dcb->version < 0x41) {
-			switch (entry->dpconf.link_nr) {
-			case 0xf:
-				entry->dpconf.link_nr = 4;
-				break;
-			case 0x3:
-				entry->dpconf.link_nr = 2;
-				break;
-			default:
-				entry->dpconf.link_nr = 1;
-				break;
-			}
+		switch ((conf & 0x0f000000) >> 24) {
+		case 0xf:
+		case 0x4:
+			entry->dpconf.link_nr = 4;
+			break;
+		case 0x3:
+		case 0x2:
+			entry->dpconf.link_nr = 2;
+			break;
+		default:
+			entry->dpconf.link_nr = 1;
+			break;
 		}
 		link = entry->dpconf.sor.link;
 		entry->i2c_index += NV_I2C_AUX(0);
