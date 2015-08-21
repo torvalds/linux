@@ -941,6 +941,7 @@ DECLARE_EVENT_CLASS(nfs4_inode_callback_event,
 			), \
 			TP_ARGS(clp, fhandle, inode, error))
 DEFINE_NFS4_INODE_CALLBACK_EVENT(nfs4_cb_getattr);
+DEFINE_NFS4_INODE_CALLBACK_EVENT(nfs4_cb_layoutrecall_inode);
 
 
 DECLARE_EVENT_CLASS(nfs4_idmap_event,

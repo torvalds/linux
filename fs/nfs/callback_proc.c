@@ -41,7 +41,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
 	if (inode == NULL) {
-		trace_nfs4_cb_getattr(cps->clp, &args->fh, inode,
+		trace_nfs4_cb_getattr(cps->clp, &args->fh, NULL,
 				-ntohl(res->status));
 		goto out;
 	}
@@ -198,6 +198,7 @@ unlock:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
 	pnfs_put_layout_hdr(lo);
+	trace_nfs4_cb_layoutrecall_inode(clp, &args->cbl_fh, ino, -rv);
 	iput(ino);
 out:
 	return rv;
