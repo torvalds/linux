@@ -424,8 +424,7 @@ static int caam_probe(struct platform_device *pdev)
 	int pg_size;
 	int BLOCK_OFFSET = 0;
 
-	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(struct caam_drv_private),
-				GFP_KERNEL);
+	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(*ctrlpriv), GFP_KERNEL);
 	if (!ctrlpriv)
 		return -ENOMEM;
 
@@ -583,9 +582,8 @@ static int caam_probe(struct platform_device *pdev)
 		    of_device_is_compatible(np, "fsl,sec4.0-job-ring"))
 			rspec++;
 
-	ctrlpriv->jrpdev = devm_kzalloc(&pdev->dev,
-					sizeof(struct platform_device *) * rspec,
-					GFP_KERNEL);
+	ctrlpriv->jrpdev = devm_kcalloc(&pdev->dev, rspec,
+					sizeof(*ctrlpriv->jrpdev), GFP_KERNEL);
 	if (ctrlpriv->jrpdev == NULL) {
 		ret = -ENOMEM;
 		goto iounmap_ctrl;

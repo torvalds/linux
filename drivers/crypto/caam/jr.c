@@ -410,18 +410,17 @@ static int caam_jr_init(struct device *dev)
 		goto out_free_irq;
 
 	error = -ENOMEM;
-	jrp->inpring = dma_alloc_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
-					  &inpbusaddr, GFP_KERNEL);
+	jrp->inpring = dma_alloc_coherent(dev, sizeof(*jrp->inpring) *
+					  JOBR_DEPTH, &inpbusaddr, GFP_KERNEL);
 	if (!jrp->inpring)
 		goto out_free_irq;
 
-	jrp->outring = dma_alloc_coherent(dev, sizeof(struct jr_outentry) *
+	jrp->outring = dma_alloc_coherent(dev, sizeof(*jrp->outring) *
 					  JOBR_DEPTH, &outbusaddr, GFP_KERNEL);
 	if (!jrp->outring)
 		goto out_free_inpring;
 
-	jrp->entinfo = kzalloc(sizeof(struct caam_jrentry_info) * JOBR_DEPTH,
-			       GFP_KERNEL);
+	jrp->entinfo = kcalloc(JOBR_DEPTH, sizeof(*jrp->entinfo), GFP_KERNEL);
 	if (!jrp->entinfo)
 		goto out_free_outring;
 
@@ -479,8 +478,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	int error;
 
 	jrdev = &pdev->dev;
-	jrpriv = devm_kmalloc(jrdev, sizeof(struct caam_drv_private_jr),
-			      GFP_KERNEL);
+	jrpriv = devm_kmalloc(jrdev, sizeof(*jrpriv), GFP_KERNEL);
 	if (!jrpriv)
 		return -ENOMEM;
 

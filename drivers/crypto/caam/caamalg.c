@@ -4314,7 +4314,7 @@ static struct caam_crypto_alg *caam_alg_alloc(struct caam_alg_template
 	struct caam_crypto_alg *t_alg;
 	struct crypto_alg *alg;
 
-	t_alg = kzalloc(sizeof(struct caam_crypto_alg), GFP_KERNEL);
+	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg) {
 		pr_err("failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);

@@ -1841,7 +1841,7 @@ caam_hash_alloc(struct caam_hash_template *template,
 	struct ahash_alg *halg;
 	struct crypto_alg *alg;
 
-	t_alg = kzalloc(sizeof(struct caam_hash_alg), GFP_KERNEL);
+	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg) {
 		pr_err("failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);
