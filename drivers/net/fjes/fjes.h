@@ -59,6 +59,9 @@ struct fjes_adapter {
 	struct work_struct tx_stall_task;
 	struct work_struct raise_intr_rxdata_task;
 
+	struct work_struct unshare_watch_task;
+	unsigned long unshare_watch_bitmask;
+
 	struct delayed_work interrupt_watch_task;
 	bool interrupt_watch_enable;
 

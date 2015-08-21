@@ -73,6 +73,7 @@ static int fjes_remove(struct platform_device *);
 static int fjes_sw_init(struct fjes_adapter *);
 static void fjes_netdev_setup(struct net_device *);
 static void fjes_irq_watch_task(struct work_struct *);
+static void fjes_watch_unshare_task(struct work_struct *);
 static void fjes_rx_irq(struct fjes_adapter *, int);
 static int fjes_poll(struct napi_struct *, int);
 
@@ -309,6 +310,8 @@ static int fjes_close(struct net_device *netdev)
 	fjes_free_irq(adapter);
 
 	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
+	cancel_work_sync(&adapter->unshare_watch_task);
+	adapter->unshare_watch_bitmask = 0;
 	cancel_work_sync(&adapter->raise_intr_rxdata_task);
 	cancel_work_sync(&adapter->tx_stall_task);
 
@@ -1025,6 +1028,8 @@ static int fjes_probe(struct platform_device *plat_dev)
 	INIT_WORK(&adapter->tx_stall_task, fjes_tx_stall_task);
 	INIT_WORK(&adapter->raise_intr_rxdata_task,
 		  fjes_raise_intr_rxdata_task);
+	INIT_WORK(&adapter->unshare_watch_task, fjes_watch_unshare_task);
+	adapter->unshare_watch_bitmask = 0;
 
 	INIT_DELAYED_WORK(&adapter->interrupt_watch_task, fjes_irq_watch_task);
 	adapter->interrupt_watch_enable = false;
@@ -1069,6 +1074,7 @@ static int fjes_remove(struct platform_device *plat_dev)
 	struct fjes_hw *hw = &adapter->hw;
 
 	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
+	cancel_work_sync(&adapter->unshare_watch_task);
 	cancel_work_sync(&adapter->raise_intr_rxdata_task);
 	cancel_work_sync(&adapter->tx_stall_task);
 	if (adapter->control_wq)
@@ -1125,6 +1131,126 @@ static void fjes_irq_watch_task(struct work_struct *work)
 			queue_delayed_work(adapter->control_wq,
 					   &adapter->interrupt_watch_task,
 					   FJES_IRQ_WATCH_DELAY);
+	}
+}
+
+static void fjes_watch_unshare_task(struct work_struct *work)
+{
+	struct fjes_adapter *adapter =
+	container_of(work, struct fjes_adapter, unshare_watch_task);
+
+	struct net_device *netdev = adapter->netdev;
+	struct fjes_hw *hw = &adapter->hw;
+
+	int unshare_watch, unshare_reserve;
+	int max_epid, my_epid, epidx;
+	int stop_req, stop_req_done;
+	ulong unshare_watch_bitmask;
+	int wait_time = 0;
+	int is_shared;
+	int ret;
+
+	my_epid = hw->my_epid;
+	max_epid = hw->max_epid;
+
+	unshare_watch_bitmask = adapter->unshare_watch_bitmask;
+	adapter->unshare_watch_bitmask = 0;
+
+	while ((unshare_watch_bitmask || hw->txrx_stop_req_bit) &&
+	       (wait_time < 3000)) {
+		for (epidx = 0; epidx < hw->max_epid; epidx++) {
+			if (epidx == hw->my_epid)
+				continue;
+
+			is_shared = fjes_hw_epid_is_shared(hw->hw_info.share,
+							   epidx);
+
+			stop_req = test_bit(epidx, &hw->txrx_stop_req_bit);
+
+			stop_req_done = hw->ep_shm_info[epidx].rx.info->v1i.rx_status &
+					FJES_RX_STOP_REQ_DONE;
+
+			unshare_watch = test_bit(epidx, &unshare_watch_bitmask);
+
+			unshare_reserve = test_bit(epidx,
+						   &hw->hw_info.buffer_unshare_reserve_bit);
+
+			if ((!stop_req ||
+			     (is_shared && (!is_shared || !stop_req_done))) &&
+			    (is_shared || !unshare_watch || !unshare_reserve))
+				continue;
+
+			mutex_lock(&hw->hw_info.lock);
+			ret = fjes_hw_unregister_buff_addr(hw, epidx);
+			switch (ret) {
+			case 0:
+				break;
+			case -ENOMSG:
+			case -EBUSY:
+			default:
+				if (!work_pending(
+					&adapter->force_close_task)) {
+					adapter->force_reset = true;
+					schedule_work(
+						&adapter->force_close_task);
+				}
+				break;
+			}
+			mutex_unlock(&hw->hw_info.lock);
+
+			fjes_hw_setup_epbuf(&hw->ep_shm_info[epidx].tx,
+					    netdev->dev_addr, netdev->mtu);
+
+			clear_bit(epidx, &hw->txrx_stop_req_bit);
+			clear_bit(epidx, &unshare_watch_bitmask);
+			clear_bit(epidx,
+				  &hw->hw_info.buffer_unshare_reserve_bit);
+		}
+
+		msleep(100);
+		wait_time += 100;
+	}
+
+	if (hw->hw_info.buffer_unshare_reserve_bit) {
+		for (epidx = 0; epidx < hw->max_epid; epidx++) {
+			if (epidx == hw->my_epid)
+				continue;
+
+			if (test_bit(epidx,
+				     &hw->hw_info.buffer_unshare_reserve_bit)) {
+				mutex_lock(&hw->hw_info.lock);
+
+				ret = fjes_hw_unregister_buff_addr(hw, epidx);
+				switch (ret) {
+				case 0:
+					break;
+				case -ENOMSG:
+				case -EBUSY:
+				default:
+					if (!work_pending(
+						&adapter->force_close_task)) {
+						adapter->force_reset = true;
+						schedule_work(
+							&adapter->force_close_task);
+					}
+					break;
+				}
+				mutex_unlock(&hw->hw_info.lock);
+
+				fjes_hw_setup_epbuf(
+					&hw->ep_shm_info[epidx].tx,
+					netdev->dev_addr, netdev->mtu);
+
+				clear_bit(epidx, &hw->txrx_stop_req_bit);
+				clear_bit(epidx, &unshare_watch_bitmask);
+				clear_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
+			}
+
+			if (test_bit(epidx, &unshare_watch_bitmask)) {
+				hw->ep_shm_info[epidx].tx.info->v1i.rx_status &=
+						~FJES_RX_STOP_REQ_DONE;
+			}
+		}
 	}
 }
 
