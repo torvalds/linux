@@ -478,8 +478,7 @@ static int virtblk_get_cache_mode(struct virtio_device *vdev)
 				   struct virtio_blk_config, wce,
 				   &writeback);
 	if (err)
-		writeback = virtio_has_feature(vdev, VIRTIO_BLK_F_WCE) ||
-		            virtio_has_feature(vdev, VIRTIO_F_VERSION_1);
+		writeback = virtio_has_feature(vdev, VIRTIO_BLK_F_WCE);
 
 	return writeback;
 }
@@ -840,7 +839,7 @@ static unsigned int features_legacy[] = {
 static unsigned int features[] = {
 	VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX, VIRTIO_BLK_F_GEOMETRY,
 	VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
-	VIRTIO_BLK_F_TOPOLOGY,
+	VIRTIO_BLK_F_WCE, VIRTIO_BLK_F_TOPOLOGY, VIRTIO_BLK_F_CONFIG_WCE,
 	VIRTIO_BLK_F_MQ,
 };
 
