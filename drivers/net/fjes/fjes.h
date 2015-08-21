@@ -50,6 +50,10 @@ struct fjes_adapter {
 
 	bool irq_registered;
 
+	struct workqueue_struct *txrx_wq;
+
+	struct work_struct raise_intr_rxdata_task;
+
 	struct fjes_hw hw;
 };
 
