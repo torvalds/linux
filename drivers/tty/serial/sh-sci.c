@@ -1011,7 +1011,8 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 	sci_clear_SCxSR(port, SCxSR_ERROR_CLEAR(port));
 
 	/* Kick the transmission */
-	sci_tx_interrupt(irq, ptr);
+	if (!s->chan_tx)
+		sci_tx_interrupt(irq, ptr);
 
 	return IRQ_HANDLED;
 }
