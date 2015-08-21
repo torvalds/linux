@@ -489,6 +489,22 @@ static void sci_port_disable(struct sci_port *sci_port)
 	pm_runtime_put_sync(sci_port->port.dev);
 }
 
+static void sci_clear_SCxSR(struct uart_port *port, unsigned int mask)
+{
+	if (port->type == PORT_SCI) {
+		/* Just store the mask */
+		serial_port_out(port, SCxSR, mask);
+	} else if (to_sci_port(port)->overrun_mask == SCIFA_ORER) {
+		/* SCIFA/SCIFB and SCIF on SH7705/SH7720/SH7721 */
+		/* Only clear the status bits we want to clear */
+		serial_port_out(port, SCxSR,
+				serial_port_in(port, SCxSR) & mask);
+	} else {
+		/* Store the mask, clear parity/framing errors */
+		serial_port_out(port, SCxSR, mask & ~(SCIF_FERC | SCIF_PERC));
+	}
+}
+
 #if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -500,7 +516,7 @@ static int sci_poll_get_char(struct uart_port *port)
 	do {
 		status = serial_port_in(port, SCxSR);
 		if (status & SCxSR_ERRORS(port)) {
-			serial_port_out(port, SCxSR, SCxSR_ERROR_CLEAR(port));
+			sci_clear_SCxSR(port, SCxSR_ERROR_CLEAR(port));
 			continue;
 		}
 		break;
@@ -513,7 +529,7 @@ static int sci_poll_get_char(struct uart_port *port)
 
 	/* Dummy read */
 	serial_port_in(port, SCxSR);
-	serial_port_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
+	sci_clear_SCxSR(port, SCxSR_RDxF_CLEAR(port));
 
 	return c;
 }
@@ -528,7 +544,7 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 	} while (!(status & SCxSR_TDxE(port)));
 
 	serial_port_out(port, SCxTDR, c);
-	serial_port_out(port, SCxSR, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
+	sci_clear_SCxSR(port, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
 }
 #endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
 
@@ -655,7 +671,7 @@ static void sci_transmit_chars(struct uart_port *port)
 		port->icount.tx++;
 	} while (--count > 0);
 
-	serial_port_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
+	sci_clear_SCxSR(port, SCxSR_TDxE_CLEAR(port));
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -666,7 +682,7 @@ static void sci_transmit_chars(struct uart_port *port)
 
 		if (port->type != PORT_SCI) {
 			serial_port_in(port, SCxSR); /* Dummy read */
-			serial_port_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
+			sci_clear_SCxSR(port, SCxSR_TDxE_CLEAR(port));
 		}
 
 		ctrl |= SCSCR_TIE;
@@ -750,7 +766,7 @@ static void sci_receive_chars(struct uart_port *port)
 		}
 
 		serial_port_in(port, SCxSR); /* dummy read */
-		serial_port_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
+		sci_clear_SCxSR(port, SCxSR_RDxF_CLEAR(port));
 
 		copied += count;
 		port->icount.rx += count;
@@ -761,7 +777,7 @@ static void sci_receive_chars(struct uart_port *port)
 		tty_flip_buffer_push(tport);
 	} else {
 		serial_port_in(port, SCxSR); /* dummy read */
-		serial_port_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
+		sci_clear_SCxSR(port, SCxSR_RDxF_CLEAR(port));
 	}
 }
 
@@ -982,14 +998,14 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 		if (sci_handle_errors(port)) {
 			/* discard character in rx buffer */
 			serial_port_in(port, SCxSR);
-			serial_port_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
+			sci_clear_SCxSR(port, SCxSR_RDxF_CLEAR(port));
 		}
 	} else {
 		sci_handle_fifo_overrun(port);
 		sci_rx_interrupt(irq, ptr);
 	}
 
-	serial_port_out(port, SCxSR, SCxSR_ERROR_CLEAR(port));
+	sci_clear_SCxSR(port, SCxSR_ERROR_CLEAR(port));
 
 	/* Kick the transmission */
 	sci_tx_interrupt(irq, ptr);
@@ -1003,7 +1019,7 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 	/* Handle BREAKs */
 	sci_handle_breaks(port);
-	serial_port_out(port, SCxSR, SCxSR_BREAK_CLEAR(port));
+	sci_clear_SCxSR(port, SCxSR_BREAK_CLEAR(port));
 
 	return IRQ_HANDLED;
 }

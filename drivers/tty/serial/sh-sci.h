@@ -119,28 +119,11 @@ enum {
 
 #define SCxSR_ERRORS(port)	(to_sci_port(port)->error_mask)
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
-    defined(CONFIG_ARCH_SH73A0) || \
-    defined(CONFIG_ARCH_R8A7740)
-
-# define SCxSR_RDxF_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_RDxF_CLEAR)
-# define SCxSR_ERROR_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_ERROR_CLEAR)
-# define SCxSR_TDxE_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_TDxE_CLEAR)
-# define SCxSR_BREAK_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_BREAK_CLEAR)
-#else
-# define SCxSR_RDxF_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_RDxF_CLEAR : SCIF_RDxF_CLEAR) & 0xff)
-# define SCxSR_ERROR_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_ERROR_CLEAR : SCIF_ERROR_CLEAR) & 0xff)
-# define SCxSR_TDxE_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_TDxE_CLEAR : SCIF_TDxE_CLEAR) & 0xff)
-# define SCxSR_BREAK_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_BREAK_CLEAR : SCIF_BREAK_CLEAR) & 0xff)
-#endif
-
+#define SCxSR_RDxF_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_RDxF_CLEAR : SCIF_RDxF_CLEAR)
+#define SCxSR_ERROR_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_ERROR_CLEAR : SCIF_ERROR_CLEAR)
+#define SCxSR_TDxE_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_TDxE_CLEAR : SCIF_TDxE_CLEAR)
+#define SCxSR_BREAK_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_BREAK_CLEAR : SCIF_BREAK_CLEAR)
