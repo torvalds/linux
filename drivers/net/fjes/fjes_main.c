@@ -71,7 +71,7 @@ static int fjes_remove(struct platform_device *);
 
 static int fjes_sw_init(struct fjes_adapter *);
 static void fjes_netdev_setup(struct net_device *);
-
+static void fjes_irq_watch_task(struct work_struct *);
 static void fjes_rx_irq(struct fjes_adapter *, int);
 static int fjes_poll(struct napi_struct *, int);
 
@@ -197,6 +197,13 @@ static int fjes_request_irq(struct fjes_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	int result = -1;
 
+	adapter->interrupt_watch_enable = true;
+	if (!delayed_work_pending(&adapter->interrupt_watch_task)) {
+		queue_delayed_work(adapter->control_wq,
+				   &adapter->interrupt_watch_task,
+				   FJES_IRQ_WATCH_DELAY);
+	}
+
 	if (!adapter->irq_registered) {
 		result = request_irq(adapter->hw.hw_res.irq, fjes_intr,
 				     IRQF_SHARED, netdev->name, adapter);
@@ -212,6 +219,9 @@ static int fjes_request_irq(struct fjes_adapter *adapter)
 static void fjes_free_irq(struct fjes_adapter *adapter)
 {
 	struct fjes_hw *hw = &adapter->hw;
+
+	adapter->interrupt_watch_enable = false;
+	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
 
 	fjes_hw_set_irqmask(hw, REG_ICTL_MASK_ALL, true);
 
@@ -297,6 +307,7 @@ static int fjes_close(struct net_device *netdev)
 
 	fjes_free_irq(adapter);
 
+	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
 	cancel_work_sync(&adapter->raise_intr_rxdata_task);
 	cancel_work_sync(&adapter->tx_stall_task);
 
@@ -996,10 +1007,14 @@ static int fjes_probe(struct platform_device *plat_dev)
 	adapter->open_guard = false;
 
 	adapter->txrx_wq = create_workqueue(DRV_NAME "/txrx");
+	adapter->control_wq = create_workqueue(DRV_NAME "/control");
 
 	INIT_WORK(&adapter->tx_stall_task, fjes_tx_stall_task);
 	INIT_WORK(&adapter->raise_intr_rxdata_task,
 		  fjes_raise_intr_rxdata_task);
+
+	INIT_DELAYED_WORK(&adapter->interrupt_watch_task, fjes_irq_watch_task);
+	adapter->interrupt_watch_enable = false;
 
 	res = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
 	hw->hw_res.start = res->start;
@@ -1040,8 +1055,11 @@ static int fjes_remove(struct platform_device *plat_dev)
 	struct fjes_adapter *adapter = netdev_priv(netdev);
 	struct fjes_hw *hw = &adapter->hw;
 
+	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
 	cancel_work_sync(&adapter->raise_intr_rxdata_task);
 	cancel_work_sync(&adapter->tx_stall_task);
+	if (adapter->control_wq)
+		destroy_workqueue(adapter->control_wq);
 	if (adapter->txrx_wq)
 		destroy_workqueue(adapter->txrx_wq);
 
@@ -1075,6 +1093,26 @@ static void fjes_netdev_setup(struct net_device *netdev)
 	netdev->mtu = fjes_support_mtu[0];
 	netdev->flags |= IFF_BROADCAST;
 	netdev->features |= NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_FILTER;
+}
+
+static void fjes_irq_watch_task(struct work_struct *work)
+{
+	struct fjes_adapter *adapter = container_of(to_delayed_work(work),
+			struct fjes_adapter, interrupt_watch_task);
+
+	local_irq_disable();
+	fjes_intr(adapter->hw.hw_res.irq, adapter);
+	local_irq_enable();
+
+	if (fjes_rxframe_search_exist(adapter, 0) >= 0)
+		napi_schedule(&adapter->napi);
+
+	if (adapter->interrupt_watch_enable) {
+		if (!delayed_work_pending(&adapter->interrupt_watch_task))
+			queue_delayed_work(adapter->control_wq,
+					   &adapter->interrupt_watch_task,
+					   FJES_IRQ_WATCH_DELAY);
+	}
 }
 
 /* fjes_init_module - Driver Registration Routine */
