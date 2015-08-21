@@ -1051,17 +1051,39 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	const union child_device_config *p_child;
 	union child_device_config *child_dev_ptr;
 	int i, child_device_num, count;
-	u16	block_size;
+	u8 expected_size;
+	u16 block_size;
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
 		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
-	if (p_defs->child_dev_size < sizeof(*p_child)) {
-		DRM_ERROR("General definiton block child device size is too small.\n");
+	if (bdb->version < 195) {
+		expected_size = sizeof(struct old_child_dev_config);
+	} else if (bdb->version == 195) {
+		expected_size = 37;
+	} else if (bdb->version <= 197) {
+		expected_size = 38;
+	} else {
+		expected_size = 38;
+		BUILD_BUG_ON(sizeof(*p_child) < 38);
+		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
+				 bdb->version, expected_size);
+	}
+
+	/* The legacy sized child device config is the minimum we need. */
+	if (p_defs->child_dev_size < sizeof(struct old_child_dev_config)) {
+		DRM_ERROR("Child device config size %u is too small.\n",
+			  p_defs->child_dev_size);
 		return;
 	}
+
+	/* Flag an error for unexpected size, but continue anyway. */
+	if (p_defs->child_dev_size != expected_size)
+		DRM_ERROR("Unexpected child device config size %u (expected %u for VBT version %u)\n",
+			  p_defs->child_dev_size, expected_size, bdb->version);
+
 	/* get the block size of general definitions */
 	block_size = get_blocksize(p_defs);
 	/* get the number of child device */
@@ -1106,7 +1128,14 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 
 		child_dev_ptr = dev_priv->vbt.child_dev + count;
 		count++;
-		memcpy(child_dev_ptr, p_child, sizeof(*p_child));
+
+		/*
+		 * Copy as much as we know (sizeof) and is available
+		 * (child_dev_size) of the child device. Accessing the data must
+		 * depend on VBT version.
+		 */
+		memcpy(child_dev_ptr, p_child,
+		       min_t(size_t, p_defs->child_dev_size, sizeof(*p_child)));
 	}
 	return;
 }
