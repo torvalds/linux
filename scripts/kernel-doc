@@ -288,6 +288,7 @@ my $use_markdown = 0;
 my $verbose = 0;
 my $output_mode = "man";
 my $output_preformatted = 0;
+my $output_markdown_nopara = 0;
 my $no_doc_sections = 0;
 my @highlights = @highlights_man;
 my $blankline = $blankline_man;
@@ -538,8 +539,11 @@ sub markdown_to_docbook {
 	close(CHLD_OUT);
 	close(CHLD_ERR);
 
-	# pandoc insists in adding Main <para></para>, we should remove them.
-	$content =~ s:\A\s*<para>\s*\n(.*)\n</para>\Z$:$1:egsm;
+	if ($output_markdown_nopara) {
+		# pandoc insists in adding Main <para></para>, sometimes we
+		# want to remove them.
+		$content =~ s:\A\s*<para>\s*\n(.*)\n</para>\Z$:$1:egsm;
+	}
 
 	return $content;
 }
@@ -614,7 +618,7 @@ sub output_highlight {
 	    $line =~ s/^\s*//;
 	}
 	if ($line eq ""){
-	    if (! $output_preformatted) {
+	    if (! $output_preformatted && ! $use_markdown) {
 		print $lineprefix, local_unescape($blankline);
 	    }
 	} else {
@@ -1035,7 +1039,7 @@ sub output_section_xml(%) {
 	    # programlisting is already included by pandoc
 	    print "<programlisting>\n" unless $use_markdown;
 	    $output_preformatted = 1;
-	} else {
+	} elsif (! $use_markdown) {
 	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
@@ -1043,7 +1047,7 @@ sub output_section_xml(%) {
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</programlisting>\n" unless $use_markdown;
 	    print "</informalexample>\n";
-	} else {
+	} elsif (! $use_markdown) {
 	    print "</para>\n";
 	}
 	print "</refsect1>\n";
@@ -1075,7 +1079,9 @@ sub output_function_xml(%) {
     print " <refname>" . $args{'function'} . "</refname>\n";
     print " <refpurpose>\n";
     print "  ";
+    $output_markdown_nopara = 1;
     output_highlight ($args{'purpose'});
+    $output_markdown_nopara = 0;
     print " </refpurpose>\n";
     print "</refnamediv>\n";
 
@@ -1113,10 +1119,12 @@ sub output_function_xml(%) {
 	    $parameter_name =~ s/\[.*//;
 
 	    print "  <varlistentry>\n   <term><parameter>$parameter</parameter></term>\n";
-	    print "   <listitem>\n    <para>\n";
+	    print "   <listitem>\n";
+	    print "    <para>\n" unless $use_markdown;
 	    $lineprefix="     ";
 	    output_highlight($args{'parameterdescs'}{$parameter_name});
-	    print "    </para>\n   </listitem>\n  </varlistentry>\n";
+	    print "    </para>\n" unless $use_markdown;
+	    print "   </listitem>\n  </varlistentry>\n";
 	}
 	print " </variablelist>\n";
     } else {
@@ -1152,7 +1160,9 @@ sub output_struct_xml(%) {
     print " <refname>" . $args{'type'} . " " . $args{'struct'} . "</refname>\n";
     print " <refpurpose>\n";
     print "  ";
+    $output_markdown_nopara = 1;
     output_highlight ($args{'purpose'});
+    $output_markdown_nopara = 0;
     print " </refpurpose>\n";
     print "</refnamediv>\n";
 
@@ -1205,9 +1215,11 @@ sub output_struct_xml(%) {
       ($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
       print "    <varlistentry>";
       print "      <term>$parameter</term>\n";
-      print "      <listitem><para>\n";
+      print "      <listitem>\n";
+      print "         <para>\n" unless $use_markdown;
       output_highlight($args{'parameterdescs'}{$parameter_name});
-      print "      </para></listitem>\n";
+      print "         </para>\n" unless $use_markdown;
+      print "      </listitem>\n";
       print "    </varlistentry>\n";
     }
     print "  </variablelist>\n";
@@ -1246,7 +1258,9 @@ sub output_enum_xml(%) {
     print " <refname>enum " . $args{'enum'} . "</refname>\n";
     print " <refpurpose>\n";
     print "  ";
+    $output_markdown_nopara = 1;
     output_highlight ($args{'purpose'});
+    $output_markdown_nopara = 0;
     print " </refpurpose>\n";
     print "</refnamediv>\n";
 
@@ -1276,9 +1290,11 @@ sub output_enum_xml(%) {
 
       print "    <varlistentry>";
       print "      <term>$parameter</term>\n";
-      print "      <listitem><para>\n";
+      print "      <listitem>\n";
+      print "         <para>\n" unless $use_markdown;
       output_highlight($args{'parameterdescs'}{$parameter_name});
-      print "      </para></listitem>\n";
+      print "         </para>\n" unless $use_markdown;
+      print "      </listitem>\n";
       print "    </varlistentry>\n";
     }
     print "  </variablelist>\n";
@@ -1344,14 +1360,14 @@ sub output_blockhead_xml(%) {
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<example><para>\n";
 	    $output_preformatted = 1;
-	} else {
+	} elsif (! $use_markdown) {
 	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
 	$output_preformatted = 0;
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</para></example>\n";
-	} else {
+	} elsif (! $use_markdown) {
 	    print "</para>";
 	}
 	if (!$args{'content-only'}) {
@@ -2721,7 +2737,11 @@ sub process_file($) {
 		{
 			if ( $1 eq "" )
 			{
-				$contents .= $blankline;
+				if ($use_markdown) {
+					$contents .= "\n";
+				} else {
+					$contents .= $blankline;
+				}
 			}
 			else
 			{
