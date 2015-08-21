@@ -63,6 +63,8 @@ enum hdac_ext_stream_type {
  * @hstream: hdac_stream
  * @pphc_addr: processing pipe host stream pointer
  * @pplc_addr: processing pipe link stream pointer
+ * @spib_addr: software position in buffers stream pointer
+ * @fifo_addr: software position Max fifos stream pointer
  * @decoupled: stream host and link is decoupled
  * @link_locked: link is locked
  * @link_prepared: link is prepared
@@ -73,6 +75,9 @@ struct hdac_ext_stream {
 
 	void __iomem *pphc_addr;
 	void __iomem *pplc_addr;
+
+	void __iomem *spib_addr;
+	void __iomem *fifo_addr;
 
 	bool decoupled:1;
 	bool link_locked:1;
@@ -99,6 +104,11 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *azx_dev, int type);
 void snd_hdac_ext_stream_decouple(struct hdac_ext_bus *bus,
 				struct hdac_ext_stream *azx_dev, bool decouple);
 void snd_hdac_ext_stop_streams(struct hdac_ext_bus *sbus);
+
+int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream, u32 value);
+int snd_hdac_ext_stream_set_spbmaxfifo(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream);
 
 void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hstream);
 void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hstream);

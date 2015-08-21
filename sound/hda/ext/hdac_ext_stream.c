@@ -49,6 +49,16 @@ void snd_hdac_ext_stream_init(struct hdac_ext_bus *ebus,
 				AZX_PPLC_INTERVAL * idx;
 	}
 
+	if (ebus->spbcap) {
+		stream->spib_addr = ebus->spbcap + AZX_SPB_BASE +
+					AZX_SPB_INTERVAL * idx +
+					AZX_SPB_SPIB;
+
+		stream->fifo_addr = ebus->spbcap + AZX_SPB_BASE +
+					AZX_SPB_INTERVAL * idx +
+					AZX_SPB_MAXFIFO;
+	}
+
 	stream->decoupled = false;
 	snd_hdac_stream_init(bus, &stream->hstream, idx, direction, tag);
 }
@@ -433,6 +443,50 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_ext_bus *ebus,
 		snd_hdac_updatel(ebus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, 0);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_spbcap_enable);
+
+/**
+ * snd_hdac_ext_stream_set_spib - sets the spib value of a stream
+ * @ebus: HD-audio ext core bus
+ * @stream: hdac_ext_stream
+ * @value: spib value to set
+ */
+int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream, u32 value)
+{
+	struct hdac_bus *bus = &ebus->bus;
+
+	if (!ebus->spbcap) {
+		dev_err(bus->dev, "Address of SPB capability is NULL");
+		return -EINVAL;
+	}
+
+	writel(value, stream->spib_addr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_spib);
+
+/**
+ * snd_hdac_ext_stream_set_spbmaxfifo - sets the spib value of a stream
+ * @ebus: HD-audio ext core bus
+ * @stream: hdac_ext_stream
+ *
+ * Return maxfifo for the stream
+ */
+int snd_hdac_ext_stream_set_spbmaxfifo(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream)
+{
+	struct hdac_bus *bus = &ebus->bus;
+
+	if (!ebus->spbcap) {
+		dev_err(bus->dev, "Address of SPB capability is NULL");
+		return -EINVAL;
+	}
+
+	return readl(stream->fifo_addr);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_spbmaxfifo);
+
 
 /**
  * snd_hdac_ext_stop_streams - stop all stream if running
