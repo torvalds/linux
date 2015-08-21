@@ -1407,10 +1407,10 @@ static void sci_submit_rx(struct sci_port *s)
 			s->desc_rx[i] = desc;
 			desc->callback = sci_dma_rx_complete;
 			desc->callback_param = s;
-			s->cookie_rx[i] = desc->tx_submit(desc);
+			s->cookie_rx[i] = dmaengine_submit(desc);
 		}
 
-		if (!desc || s->cookie_rx[i] < 0) {
+		if (!desc || dma_submit_error(s->cookie_rx[i])) {
 			if (i) {
 				async_tx_ack(s->desc_rx[0]);
 				s->cookie_rx[0] = -EINVAL;
@@ -1476,8 +1476,8 @@ static void work_fn_rx(struct work_struct *work)
 		return;
 	}
 
-	s->cookie_rx[new] = desc->tx_submit(desc);
-	if (s->cookie_rx[new] < 0) {
+	s->cookie_rx[new] = dmaengine_submit(desc);
+	if (dma_submit_error(s->cookie_rx[new])) {
 		dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 		sci_rx_dma_release(s, true);
 		return;
@@ -1530,8 +1530,8 @@ static void work_fn_tx(struct work_struct *work)
 	desc->callback = sci_dma_tx_complete;
 	desc->callback_param = s;
 	spin_unlock_irq(&port->lock);
-	s->cookie_tx = desc->tx_submit(desc);
-	if (s->cookie_tx < 0) {
+	s->cookie_tx = dmaengine_submit(desc);
+	if (dma_submit_error(s->cookie_tx)) {
 		dev_warn(port->dev, "Failed submitting Tx DMA descriptor\n");
 		/* switch to PIO */
 		sci_tx_dma_release(s, true);
@@ -1562,7 +1562,7 @@ static void sci_start_tx(struct uart_port *port)
 	}
 
 	if (s->chan_tx && !uart_circ_empty(&s->port.state->xmit) &&
-	    s->cookie_tx < 0) {
+	    dma_submit_error(s->cookie_tx)) {
 		s->cookie_tx = 0;
 		schedule_work(&s->work_tx);
 	}
