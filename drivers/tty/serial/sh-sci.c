@@ -1110,7 +1110,7 @@ static int sci_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct sci_irq_desc {
+static const struct sci_irq_desc {
 	const char	*desc;
 	irq_handler_t	handler;
 } sci_irq_desc[] = {
@@ -1152,7 +1152,7 @@ static int sci_request_irq(struct sci_port *port)
 	int i, j, ret = 0;
 
 	for (i = j = 0; i < SCIx_NR_IRQS; i++, j++) {
-		struct sci_irq_desc *desc;
+		const struct sci_irq_desc *desc;
 		int irq;
 
 		if (SCIx_IRQ_IS_MUXED(port)) {
