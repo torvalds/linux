@@ -28,5 +28,6 @@
 
 extern char fjes_driver_name[];
 extern char fjes_driver_version[];
+extern const u32 fjes_support_mtu[];
 
 #endif /* FJES_H_ */
