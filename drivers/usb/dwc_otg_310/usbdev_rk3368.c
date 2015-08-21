@@ -79,7 +79,16 @@ static void usb20otg_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 		reset_control_deassert(rst_otg_c);
 		reset_control_deassert(rst_otg_h);
 		break;
-
+	case RST_CHN_HALT:
+		/* PHY reset */
+		uoc_write(UOC_HIWORD_UPDATE(0x1, 0x3, 0), 0x700);
+		reset_control_assert(rst_otg_p);
+		udelay(15);
+		uoc_write(UOC_HIWORD_UPDATE(0x2, 0x3, 0), 0x700);
+		udelay(1500);
+		reset_control_deassert(rst_otg_p);
+		udelay(2);
+		break;
 	default:
 		break;
 	}
