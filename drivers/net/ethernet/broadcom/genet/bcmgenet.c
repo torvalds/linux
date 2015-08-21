@@ -2820,8 +2820,6 @@ static void bcmgenet_timeout(struct net_device *dev)
 
 	netif_dbg(priv, tx_err, dev, "bcmgenet_timeout\n");
 
-	bcmgenet_disable_tx_napi(priv);
-
 	for (q = 0; q < priv->hw_params->tx_queues; q++)
 		bcmgenet_dump_tx_queue(&priv->tx_rings[q]);
 	bcmgenet_dump_tx_queue(&priv->tx_rings[DESC_INDEX]);
@@ -2836,8 +2834,6 @@ static void bcmgenet_timeout(struct net_device *dev)
 	/* Re-enable TX interrupts if disabled */
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
-
-	bcmgenet_enable_tx_napi(priv);
 
 	dev->trans_start = jiffies;
 
