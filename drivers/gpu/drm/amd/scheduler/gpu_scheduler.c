@@ -109,8 +109,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_rq *rq,
 			  uint32_t jobs)
 {
-	char name[20];
-
 	if (!(sched && entity && rq))
 		return -EINVAL;
 
@@ -119,8 +117,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	entity->scheduler = sched;
 	init_waitqueue_head(&entity->wait_queue);
 	entity->fence_context = fence_context_alloc(1);
-	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
-	memcpy(entity->name, name, 20);
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
 		       GFP_KERNEL))
@@ -347,7 +343,6 @@ struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
 					   unsigned ring, unsigned hw_submission)
 {
 	struct amd_gpu_scheduler *sched;
-	char name[20];
 
 	sched = kzalloc(sizeof(struct amd_gpu_scheduler), GFP_KERNEL);
 	if (!sched)
@@ -356,14 +351,14 @@ struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
 	sched->ops = ops;
 	sched->ring_id = ring;
 	sched->hw_submission_limit = hw_submission;
-	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
+	snprintf(sched->name, sizeof(sched->name), "amdgpu[%d]", ring);
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
 
 	init_waitqueue_head(&sched->wait_queue);
 	atomic_set(&sched->hw_rq_count, 0);
 	/* Each scheduler will run on a seperate kernel thread */
-	sched->thread = kthread_run(amd_sched_main, sched, name);
+	sched->thread = kthread_run(amd_sched_main, sched, sched->name);
 	if (IS_ERR(sched->thread)) {
 		DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
 		kfree(sched);

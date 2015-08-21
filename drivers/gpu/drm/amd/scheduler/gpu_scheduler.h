@@ -48,7 +48,6 @@ struct amd_sched_entity {
 	struct amd_gpu_scheduler	*scheduler;
 	wait_queue_head_t		wait_queue;
 	uint64_t                        fence_context;
-	char                            name[20];
 };
 
 /**
@@ -64,8 +63,7 @@ struct amd_sched_rq {
 
 struct amd_sched_fence {
 	struct fence                    base;
-	struct fence_cb                 cb;
-	struct amd_sched_entity	        *entity;
+	struct amd_gpu_scheduler	*scheduler;
 	spinlock_t			lock;
 };
 
@@ -111,6 +109,7 @@ struct amd_gpu_scheduler {
 	uint32_t			ring_id;
 	wait_queue_head_t		wait_queue;
 	uint32_t                        hw_submission_limit;
+	char                            name[20];
 };
 
 struct amd_gpu_scheduler *
