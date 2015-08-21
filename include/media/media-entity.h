@@ -220,6 +220,40 @@ static inline u32 media_gobj_gen_id(enum media_gobj_type type, u32 local_id)
 	return id;
 }
 
+static inline bool is_media_entity_v4l2_io(struct media_entity *entity)
+{
+	if (!entity)
+		return false;
+
+	switch (entity->type) {
+	case MEDIA_ENT_T_V4L2_VIDEO:
+	case MEDIA_ENT_T_V4L2_VBI:
+	case MEDIA_ENT_T_V4L2_SWRADIO:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
+{
+	if (!entity)
+		return false;
+
+	switch (entity->type) {
+	case MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN:
+	case MEDIA_ENT_T_V4L2_SUBDEV_SENSOR:
+	case MEDIA_ENT_T_V4L2_SUBDEV_FLASH:
+	case MEDIA_ENT_T_V4L2_SUBDEV_LENS:
+	case MEDIA_ENT_T_V4L2_SUBDEV_DECODER:
+	case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
 #define MEDIA_ENTITY_ENUM_MAX_ID	64
 
