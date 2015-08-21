@@ -372,6 +372,34 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_refresh_widgets);
 
+/**
+ * snd_hdac_refresh_widget_sysfs - Reset the codec widgets and reinit the
+ * codec sysfs
+ * @codec: the codec object
+ *
+ * first we need to remove sysfs, then refresh widgets and lastly
+ * recreate it
+ */
+int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec)
+{
+	int ret;
+
+	hda_widget_sysfs_exit(codec);
+	ret = snd_hdac_refresh_widgets(codec);
+	if (ret) {
+		dev_err(&codec->dev, "failed to refresh widget: %d\n", ret);
+		return ret;
+	}
+	ret = hda_widget_sysfs_init(codec);
+	if (ret) {
+		dev_err(&codec->dev, "failed to init sysfs: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_refresh_widget_sysfs);
+
 /* return CONNLIST_LEN parameter of the given widget */
 static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)
 {
