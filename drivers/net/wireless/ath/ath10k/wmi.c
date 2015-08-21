@@ -3564,7 +3564,7 @@ int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar,
 	int i;
 
 	if (left_len < sizeof(*phyerr)) {
-		ath10k_warn(ar, "wrong phyerr event head len %d (need: >=%d)\n",
+		ath10k_warn(ar, "wrong phyerr event head len %d (need: >=%zd)\n",
 			    left_len, sizeof(*phyerr));
 		return -EINVAL;
 	}
@@ -3609,7 +3609,7 @@ static int ath10k_wmi_10_4_op_pull_phyerr_ev(struct ath10k *ar,
 	int i;
 
 	if (left_len < sizeof(*phyerr)) {
-		ath10k_warn(ar, "wrong phyerr event head len %d (need: >=%d)\n",
+		ath10k_warn(ar, "wrong phyerr event head len %d (need: >=%zd)\n",
 			    left_len, sizeof(*phyerr));
 		return -EINVAL;
 	}
