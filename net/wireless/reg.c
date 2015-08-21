@@ -1040,8 +1040,8 @@ freq_reg_info_regd(struct wiphy *wiphy, u32 center_freq,
 	return ERR_PTR(-EINVAL);
 }
 
-const struct ieee80211_reg_rule *__freq_reg_info(struct wiphy *wiphy,
-						 u32 center_freq, u32 min_bw)
+static const struct ieee80211_reg_rule *
+__freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 min_bw)
 {
 	const struct ieee80211_regdomain *regd = reg_get_regdomain(wiphy);
 	const struct ieee80211_reg_rule *reg_rule = NULL;
