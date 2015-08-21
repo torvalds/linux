@@ -578,7 +578,7 @@ struct regmap *regmap_init(struct device *dev,
 		map->reg_stride = 1;
 	map->use_single_read = config->use_single_rw || !bus || !bus->read;
 	map->use_single_write = config->use_single_rw || !bus || !bus->write;
-	map->can_multi_write = config->can_multi_write;
+	map->can_multi_write = config->can_multi_write && bus && bus->write;
 	map->dev = dev;
 	map->bus = bus;
 	map->bus_context = bus_context;
