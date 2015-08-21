@@ -59,7 +59,7 @@
 #define domain_val(dom,type)	((type) << (2 * (dom)))
 
 #define DACR_INIT \
-	(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
+	(domain_val(DOMAIN_USER, DOMAIN_CLIENT) | \
 	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
 	 domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
 	 domain_val(DOMAIN_IO, DOMAIN_CLIENT))
