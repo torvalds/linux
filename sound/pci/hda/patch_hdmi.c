@@ -2331,6 +2331,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	if (is_haswell_plus(codec)) {
 		intel_haswell_enable_all_pins(codec, true);
 		intel_haswell_fixup_enable_dp12(codec);
+		snd_hdac_refresh_widget_sysfs(&codec->core);
 	}
 
 	/* For Valleyview/Cherryview, only the display codec is in the display
