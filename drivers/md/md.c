@@ -8924,25 +8924,118 @@ err_wq:
 	return ret;
 }
 
-void md_reload_sb(struct mddev *mddev)
+static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 {
-	struct md_rdev *rdev, *tmp;
+	struct mdp_superblock_1 *sb = page_address(rdev->sb_page);
+	struct md_rdev *rdev2;
+	int role, ret;
+	char b[BDEVNAME_SIZE];
 
-	rdev_for_each_safe(rdev, tmp, mddev) {
-		rdev->sb_loaded = 0;
-		ClearPageUptodate(rdev->sb_page);
-	}
-	mddev->raid_disks = 0;
-	analyze_sbs(mddev);
-	rdev_for_each_safe(rdev, tmp, mddev) {
-		struct mdp_superblock_1 *sb = page_address(rdev->sb_page);
-		/* since we don't write to faulty devices, we figure out if the
-		 *  disk is faulty by comparing events
-		 */
-		if (mddev->events > sb->events)
-			set_bit(Faulty, &rdev->flags);
+	/* Check for change of roles in the active devices */
+	rdev_for_each(rdev2, mddev) {
+		if (test_bit(Faulty, &rdev2->flags))
+			continue;
+
+		/* Check if the roles changed */
+		role = le16_to_cpu(sb->dev_roles[rdev2->desc_nr]);
+		if (role != rdev2->raid_disk) {
+			/* got activated */
+			if (rdev2->raid_disk == -1 && role != 0xffff) {
+				rdev2->saved_raid_disk = role;
+				ret = remove_and_add_spares(mddev, rdev2);
+				pr_info("Activated spare: %s\n",
+						bdevname(rdev2->bdev,b));
+				continue;
+			}
+			/* device faulty
+			 * We just want to do the minimum to mark the disk
+			 * as faulty. The recovery is performed by the
+			 * one who initiated the error.
+			 */
+			if ((role == 0xfffe) || (role == 0xfffd)) {
+				md_error(mddev, rdev2);
+				clear_bit(Blocked, &rdev2->flags);
+			}
+		}
 	}
 
+	/* recovery_cp changed */
+	if (le64_to_cpu(sb->resync_offset) != mddev->recovery_cp)
+		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
+
+	/* Finally set the event to be up to date */
+	mddev->events = le64_to_cpu(sb->events);
+}
+
+static int read_rdev(struct mddev *mddev, struct md_rdev *rdev)
+{
+	int err;
+	struct page *swapout = rdev->sb_page;
+	struct mdp_superblock_1 *sb;
+
+	/* Store the sb page of the rdev in the swapout temporary
+	 * variable in case we err in the future
+	 */
+	rdev->sb_page = NULL;
+	alloc_disk_sb(rdev);
+	ClearPageUptodate(rdev->sb_page);
+	rdev->sb_loaded = 0;
+	err = super_types[mddev->major_version].load_super(rdev, NULL, mddev->minor_version);
+
+	if (err < 0) {
+		pr_warn("%s: %d Could not reload rdev(%d) err: %d. Restoring old values\n",
+				__func__, __LINE__, rdev->desc_nr, err);
+		put_page(rdev->sb_page);
+		rdev->sb_page = swapout;
+		rdev->sb_loaded = 1;
+		return err;
+	}
+
+	sb = page_address(rdev->sb_page);
+	/* Read the offset unconditionally, even if MD_FEATURE_RECOVERY_OFFSET
+	 * is not set
+	 */
+
+	if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_RECOVERY_OFFSET))
+		rdev->recovery_offset = le64_to_cpu(sb->recovery_offset);
+
+	/* The other node finished recovery, call spare_active to set
+	 * device In_sync and mddev->degraded
+	 */
+	if (rdev->recovery_offset == MaxSector &&
+	    !test_bit(In_sync, &rdev->flags) &&
+	    mddev->pers->spare_active(mddev))
+		sysfs_notify(&mddev->kobj, NULL, "degraded");
+
+	put_page(swapout);
+	return 0;
+}
+
+void md_reload_sb(struct mddev *mddev, int nr)
+{
+	struct md_rdev *rdev;
+	int err;
+
+	/* Find the rdev */
+	rdev_for_each_rcu(rdev, mddev) {
+		if (rdev->desc_nr == nr)
+			break;
+	}
+
+	if (!rdev || rdev->desc_nr != nr) {
+		pr_warn("%s: %d Could not find rdev with nr %d\n", __func__, __LINE__, nr);
+		return;
+	}
+
+	err = read_rdev(mddev, rdev);
+	if (err < 0)
+		return;
+
+	check_sb_changes(mddev, rdev);
+
+	/* Read all rdev's to update recovery_offset */
+	rdev_for_each_rcu(rdev, mddev)
+		read_rdev(mddev, rdev);
 }
 EXPORT_SYMBOL(md_reload_sb);
 

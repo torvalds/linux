@@ -427,8 +427,7 @@ static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-
-	md_reload_sb(mddev);
+	md_reload_sb(mddev, le32_to_cpu(msg->raid_slot));
 	dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
 }
 
@@ -834,11 +833,23 @@ static int metadata_update_finish(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	struct cluster_msg cmsg;
-	int ret;
+	struct md_rdev *rdev;
+	int ret = 0;
 
 	memset(&cmsg, 0, sizeof(cmsg));
 	cmsg.type = cpu_to_le32(METADATA_UPDATED);
-	ret = __sendmsg(cinfo, &cmsg);
+	cmsg.raid_slot = -1;
+	/* Pick up a good active device number to send.
+	 */
+	rdev_for_each(rdev, mddev)
+		if (rdev->raid_disk > -1 && !test_bit(Faulty, &rdev->flags)) {
+			cmsg.raid_slot = cpu_to_le32(rdev->desc_nr);
+			break;
+		}
+	if (cmsg.raid_slot >= 0)
+		ret = __sendmsg(cinfo, &cmsg);
+	else
+		pr_warn("md-cluster: No good device id found to send\n");
 	unlock_comm(cinfo);
 	return ret;
 }
@@ -922,15 +933,9 @@ static int add_new_disk_start(struct mddev *mddev, struct md_rdev *rdev)
 
 static int add_new_disk_finish(struct mddev *mddev)
 {
-	struct cluster_msg cmsg;
-	struct md_cluster_info *cinfo = mddev->cluster_info;
-	int ret;
 	/* Write sb and inform others */
 	md_update_sb(mddev, 1);
-	cmsg.type = METADATA_UPDATED;
-	ret = __sendmsg(cinfo, &cmsg);
-	unlock_comm(cinfo);
-	return ret;
+	return metadata_update_finish(mddev);
 }
 
 static int new_disk_ack(struct mddev *mddev, bool ack)
