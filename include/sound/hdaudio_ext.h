@@ -34,6 +34,7 @@ int snd_hdac_ext_bus_init(struct hdac_ext_bus *sbus, struct device *dev,
 void snd_hdac_ext_bus_exit(struct hdac_ext_bus *sbus);
 int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *sbus, int addr);
 void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev);
+void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus);
 
 #define ebus_to_hbus(ebus)	(&(ebus)->bus)
 #define hbus_to_ebus(_bus) \

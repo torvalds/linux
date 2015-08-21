@@ -172,3 +172,22 @@ void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev)
 	kfree(hdev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_exit);
+
+/**
+ * snd_hdac_ext_bus_device_remove - remove HD-audio extended codec base devices
+ *
+ * @ebus: HD-audio extended bus
+ */
+void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus)
+{
+	struct hdac_device *codec, *__codec;
+	/*
+	 * we need to remove all the codec devices objects created in the
+	 * snd_hdac_ext_bus_device_init
+	 */
+	list_for_each_entry_safe(codec, __codec, &ebus->bus.codec_list, list) {
+		snd_hdac_device_unregister(codec);
+		put_device(&codec->dev);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_remove);
