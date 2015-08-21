@@ -351,6 +351,107 @@ void fjes_hw_exit(struct fjes_hw *hw)
 	fjes_hw_cleanup(hw);
 }
 
+static enum fjes_dev_command_response_e
+fjes_hw_issue_request_command(struct fjes_hw *hw,
+			      enum fjes_dev_command_request_type type)
+{
+	enum fjes_dev_command_response_e ret = FJES_CMD_STATUS_UNKNOWN;
+	union REG_CR cr;
+	union REG_CS cs;
+	int timeout;
+
+	cr.reg = 0;
+	cr.bits.req_start = 1;
+	cr.bits.req_code = type;
+	wr32(XSCT_CR, cr.reg);
+	cr.reg = rd32(XSCT_CR);
+
+	if (cr.bits.error == 0) {
+		timeout = FJES_COMMAND_REQ_TIMEOUT * 1000;
+		cs.reg = rd32(XSCT_CS);
+
+		while ((cs.bits.complete != 1) && timeout > 0) {
+			msleep(1000);
+			cs.reg = rd32(XSCT_CS);
+			timeout -= 1000;
+		}
+
+		if (cs.bits.complete == 1)
+			ret = FJES_CMD_STATUS_NORMAL;
+		else if (timeout <= 0)
+			ret = FJES_CMD_STATUS_TIMEOUT;
+
+	} else {
+		switch (cr.bits.err_info) {
+		case FJES_CMD_REQ_ERR_INFO_PARAM:
+			ret = FJES_CMD_STATUS_ERROR_PARAM;
+			break;
+		case FJES_CMD_REQ_ERR_INFO_STATUS:
+			ret = FJES_CMD_STATUS_ERROR_STATUS;
+			break;
+		default:
+			ret = FJES_CMD_STATUS_UNKNOWN;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+int fjes_hw_request_info(struct fjes_hw *hw)
+{
+	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
+	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
+	enum fjes_dev_command_response_e ret;
+	int result;
+
+	memset(req_buf, 0, hw->hw_info.req_buf_size);
+	memset(res_buf, 0, hw->hw_info.res_buf_size);
+
+	req_buf->info.length = FJES_DEV_COMMAND_INFO_REQ_LEN;
+
+	res_buf->info.length = 0;
+	res_buf->info.code = 0;
+
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_INFO);
+
+	result = 0;
+
+	if (FJES_DEV_COMMAND_INFO_RES_LEN((*hw->hw_info.max_epid)) !=
+		res_buf->info.length) {
+		result = -ENOMSG;
+	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		switch (res_buf->info.code) {
+		case FJES_CMD_REQ_RES_CODE_NORMAL:
+			result = 0;
+			break;
+		default:
+			result = -EPERM;
+			break;
+		}
+	} else {
+		switch (ret) {
+		case FJES_CMD_STATUS_UNKNOWN:
+			result = -EPERM;
+			break;
+		case FJES_CMD_STATUS_TIMEOUT:
+			result = -EBUSY;
+			break;
+		case FJES_CMD_STATUS_ERROR_PARAM:
+			result = -EPERM;
+			break;
+		case FJES_CMD_STATUS_ERROR_STATUS:
+			result = -EPERM;
+			break;
+		default:
+			result = -EPERM;
+			break;
+		}
+	}
+
+	return result;
+}
+
 void fjes_hw_set_irqmask(struct fjes_hw *hw,
 			 enum REG_ICTL_MASK intr_mask, bool mask)
 {

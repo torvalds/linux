@@ -35,6 +35,8 @@
 #define XSCT_DCTL           0x0010  /* Device Control */
 
 /* Command Control registers */
+#define XSCT_CR             0x0020  /* Command request */
+#define XSCT_CS             0x0024  /* Command status */
 #define XSCT_SHSTSAL        0x0028  /* Share status address Low */
 #define XSCT_SHSTSAH        0x002C  /* Share status address High */
 
@@ -74,6 +76,27 @@ union REG_DCTL {
 		__le32 reset:1;
 		__le32 rsv0:15;
 		__le32 rsv1:16;
+	} bits;
+	__le32 reg;
+};
+
+/* Command Control registers */
+union REG_CR {
+	struct {
+		__le32 req_code:16;
+		__le32 err_info:14;
+		__le32 error:1;
+		__le32 req_start:1;
+	} bits;
+	__le32 reg;
+};
+
+union REG_CS {
+	struct {
+		__le32 req_code:16;
+		__le32 rsv0:14;
+		__le32 busy:1;
+		__le32 complete:1;
 	} bits;
 	__le32 reg;
 };
