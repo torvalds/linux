@@ -139,7 +139,7 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 		flags |= DECO_JQCR_FOUR;
 
 	/* Instruct the DECO to execute it */
-	wr_reg32(&deco->jr_ctl_hi, flags);
+	setbits32(&deco->jr_ctl_hi, flags);
 
 	timeout = 10000000;
 	do {
