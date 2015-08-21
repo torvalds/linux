@@ -2014,7 +2014,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
 	 * Calculate delay for 2 DMA buffers (4 FIFO).
-	 * See drivers/serial/serial_core.c::uart_update_timeout(). With 10
+	 * See serial_core.c::uart_update_timeout(). With 10
 	 * bits (CS8), 250Hz, 115200 baud and 64 bytes FIFO, the above function
 	 * calculates 1 jiffie for the data plus 5 jiffies for the "slop(e)."
 	 * Then below we calculate 5 jiffies (20ms) for 2 DMA buffers (4 FIFO
