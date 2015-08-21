@@ -34,12 +34,10 @@
  */
 #ifndef CONFIG_IO_36
 #define DOMAIN_KERNEL	0
-#define DOMAIN_TABLE	0
 #define DOMAIN_USER	1
 #define DOMAIN_IO	2
 #else
 #define DOMAIN_KERNEL	2
-#define DOMAIN_TABLE	2
 #define DOMAIN_USER	1
 #define DOMAIN_IO	0
 #endif
@@ -62,7 +60,6 @@
 #define DACR_INIT \
 	(domain_val(DOMAIN_USER, DOMAIN_CLIENT) | \
 	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
-	 domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
 	 domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
 	 domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT))
 
