@@ -20,7 +20,7 @@
 
 #include "event.h"
 
-#include <asm/insn.h>
+#include "insn.h"
 
 #include "inat.c"
 #include "insn.c"
