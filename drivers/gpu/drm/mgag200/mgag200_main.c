@@ -82,12 +82,19 @@ static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 	int orig;
 	int test1, test2;
 	int orig1, orig2;
+	unsigned int vram_size;
 
 	/* Probe */
 	orig = ioread16(mem);
 	iowrite16(0, mem);
 
-	for (offset = 0x100000; offset < mdev->mc.vram_window; offset += 0x4000) {
+	vram_size = mdev->mc.vram_window;
+
+	if ((mdev->type == G200_EW3) && (vram_size >= 0x1000000)) {
+		vram_size = vram_size - 0x400000;
+	}
+
+	for (offset = 0x100000; offset < vram_size; offset += 0x4000) {
 		orig1 = ioread8(mem + offset);
 		orig2 = ioread8(mem + offset + 0x100);
 
