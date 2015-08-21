@@ -4075,11 +4075,11 @@ bail:
 }
 
 static int hfi1_process_opa_mad(struct ib_device *ibdev, int mad_flags,
-			        u8 port, const struct ib_wc *in_wc,
-			        const struct ib_grh *in_grh,
-			        const struct opa_mad *in_mad,
-			        struct opa_mad *out_mad, size_t *out_mad_size,
-			        u16 *out_mad_pkey_index)
+				u8 port, const struct ib_wc *in_wc,
+				const struct ib_grh *in_grh,
+				const struct opa_mad *in_mad,
+				struct opa_mad *out_mad, size_t *out_mad_size,
+				u16 *out_mad_pkey_index)
 {
 	int ret;
 	int pkey_idx;
