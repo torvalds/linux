@@ -23,21 +23,33 @@
 #include <linux/rcu_sync.h>
 #include <linux/sched.h>
 
+#ifdef CONFIG_PROVE_RCU
+#define __INIT_HELD(func)	.held = func,
+#else
+#define __INIT_HELD(func)
+#endif
+
 static const struct {
 	void (*sync)(void);
 	void (*call)(struct rcu_head *, void (*)(struct rcu_head *));
+#ifdef CONFIG_PROVE_RCU
+	int  (*held)(void);
+#endif
 } gp_ops[] = {
 	[RCU_SYNC] = {
 		.sync = synchronize_rcu,
 		.call = call_rcu,
+		__INIT_HELD(rcu_read_lock_held)
 	},
 	[RCU_SCHED_SYNC] = {
 		.sync = synchronize_sched,
 		.call = call_rcu_sched,
+		__INIT_HELD(rcu_read_lock_sched_held)
 	},
 	[RCU_BH_SYNC] = {
 		.sync = synchronize_rcu_bh,
 		.call = call_rcu_bh,
+		__INIT_HELD(rcu_read_lock_bh_held)
 	},
 };
 
@@ -45,6 +57,14 @@ enum { GP_IDLE = 0, GP_PENDING, GP_PASSED };
 enum { CB_IDLE = 0, CB_PENDING, CB_REPLAY };
 
 #define	rss_lock	gp_wait.lock
+
+#ifdef CONFIG_PROVE_RCU
+bool __rcu_sync_is_idle(struct rcu_sync *rsp)
+{
+	WARN_ON(!gp_ops[rsp->gp_type].held());
+	return rsp->gp_state == GP_IDLE;
+}
+#endif
 
 /**
  * rcu_sync_init() - Initialize an rcu_sync structure
