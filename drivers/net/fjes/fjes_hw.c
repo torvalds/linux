@@ -56,6 +56,12 @@ static u8 *fjes_hw_iomap(struct fjes_hw *hw)
 	return base;
 }
 
+static void fjes_hw_iounmap(struct fjes_hw *hw)
+{
+	iounmap(hw->base);
+	release_mem_region(hw->hw_res.start, hw->hw_res.size);
+}
+
 int fjes_hw_reset(struct fjes_hw *hw)
 {
 	union REG_DCTL dctl;
@@ -109,6 +115,12 @@ static int fjes_hw_alloc_shared_status_region(struct fjes_hw *hw)
 	return 0;
 }
 
+static void fjes_hw_free_shared_status_region(struct fjes_hw *hw)
+{
+	kfree(hw->hw_info.share);
+	hw->hw_info.share = NULL;
+}
+
 static int fjes_hw_alloc_epbuf(struct epbuf_handler *epbh)
 {
 	void *mem;
@@ -124,6 +136,18 @@ static int fjes_hw_alloc_epbuf(struct epbuf_handler *epbh)
 	epbh->ring = (u8 *)(mem + sizeof(union ep_buffer_info));
 
 	return 0;
+}
+
+static void fjes_hw_free_epbuf(struct epbuf_handler *epbh)
+{
+	if (epbh->buffer)
+		vfree(epbh->buffer);
+
+	epbh->buffer = NULL;
+	epbh->size = 0;
+
+	epbh->info = NULL;
+	epbh->ring = NULL;
 }
 
 void fjes_hw_setup_epbuf(struct epbuf_handler *epbh, u8 *mac_addr, u32 mtu)
@@ -258,6 +282,32 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 	return 0;
 }
 
+static void fjes_hw_cleanup(struct fjes_hw *hw)
+{
+	int epidx;
+
+	if (!hw->ep_shm_info)
+		return;
+
+	fjes_hw_free_shared_status_region(hw);
+
+	kfree(hw->hw_info.req_buf);
+	hw->hw_info.req_buf = NULL;
+
+	kfree(hw->hw_info.res_buf);
+	hw->hw_info.res_buf = NULL;
+
+	for (epidx = 0; epidx < hw->max_epid ; epidx++) {
+		if (epidx == hw->my_epid)
+			continue;
+		fjes_hw_free_epbuf(&hw->ep_shm_info[epidx].tx);
+		fjes_hw_free_epbuf(&hw->ep_shm_info[epidx].rx);
+	}
+
+	kfree(hw->ep_shm_info);
+	hw->ep_shm_info = NULL;
+}
+
 int fjes_hw_init(struct fjes_hw *hw)
 {
 	int ret;
@@ -283,6 +333,22 @@ int fjes_hw_init(struct fjes_hw *hw)
 	ret = fjes_hw_setup(hw);
 
 	return ret;
+}
+
+void fjes_hw_exit(struct fjes_hw *hw)
+{
+	int ret;
+
+	if (hw->base) {
+		ret = fjes_hw_reset(hw);
+		if (ret)
+			pr_err("%s: reset error", __func__);
+
+		fjes_hw_iounmap(hw);
+		hw->base = NULL;
+	}
+
+	fjes_hw_cleanup(hw);
 }
 
 void fjes_hw_set_irqmask(struct fjes_hw *hw,

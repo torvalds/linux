@@ -241,6 +241,7 @@ struct fjes_hw {
 };
 
 int fjes_hw_init(struct fjes_hw *);
+void fjes_hw_exit(struct fjes_hw *);
 int fjes_hw_reset(struct fjes_hw *);
 
 void fjes_hw_init_command_registers(struct fjes_hw *,
