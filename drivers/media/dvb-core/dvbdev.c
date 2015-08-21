@@ -441,6 +441,7 @@ void dvb_create_media_graph(struct dvb_adapter *adap)
 	struct media_device *mdev = adap->mdev;
 	struct media_entity *entity, *tuner = NULL, *fe = NULL;
 	struct media_entity *demux = NULL, *dvr = NULL, *ca = NULL;
+	struct media_interface *intf;
 
 	if (!mdev)
 		return;
@@ -476,6 +477,16 @@ void dvb_create_media_graph(struct dvb_adapter *adap)
 
 	if (demux && ca)
 		media_create_pad_link(demux, 1, ca, 0, MEDIA_LNK_FL_ENABLED);
+
+	/* Create indirect interface links for FE->tuner, DVR->demux and CA->ca */
+	list_for_each_entry(intf, &mdev->interfaces, list) {
+		if (intf->type == MEDIA_INTF_T_DVB_CA && ca)
+			media_create_intf_link(ca, intf, 0);
+		if (intf->type == MEDIA_INTF_T_DVB_FE && tuner)
+			media_create_intf_link(tuner, intf, 0);
+		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux)
+			media_create_intf_link(demux, intf, 0);
+	}
 }
 EXPORT_SYMBOL_GPL(dvb_create_media_graph);
 #endif
