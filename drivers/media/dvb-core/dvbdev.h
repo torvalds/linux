@@ -149,6 +149,7 @@ struct dvb_device {
 
 	/* Allocated and filled inside dvbdev.c */
 	struct media_entity *entity;
+	struct media_intf_devnode *intf_devnode;
 	struct media_pad *pads;
 #endif
 
