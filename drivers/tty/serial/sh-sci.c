@@ -1734,18 +1734,16 @@ static void sci_request_dma(struct uart_port *port)
 	chan = dma_request_channel(mask, filter, param);
 	dev_dbg(port->dev, "%s: RX: got channel %p\n", __func__, chan);
 	if (chan) {
-		dma_addr_t dma[2];
-		void *buf[2];
-		int i;
+		unsigned int i;
+		dma_addr_t dma;
+		void *buf;
 
 		s->chan_rx = chan;
 
 		s->buf_len_rx = 2 * max_t(size_t, 16, port->fifosize);
-		buf[0] = dma_alloc_coherent(chan->device->dev,
-					    s->buf_len_rx * 2, &dma[0],
-					    GFP_KERNEL);
-
-		if (!buf[0]) {
+		buf = dma_alloc_coherent(chan->device->dev, s->buf_len_rx * 2,
+					 &dma, GFP_KERNEL);
+		if (!buf) {
 			dev_warn(port->dev,
 				 "Failed to allocate Rx dma buffer, using PIO\n");
 			dma_release_channel(chan);
@@ -1754,16 +1752,16 @@ static void sci_request_dma(struct uart_port *port)
 			return;
 		}
 
-		buf[1] = buf[0] + s->buf_len_rx;
-		dma[1] = dma[0] + s->buf_len_rx;
-
 		for (i = 0; i < 2; i++) {
 			struct scatterlist *sg = &s->sg_rx[i];
 
 			sg_init_table(sg, 1);
-			sg_set_page(sg, virt_to_page(buf[i]), s->buf_len_rx,
-				    (uintptr_t)buf[i] & ~PAGE_MASK);
-			sg_dma_address(sg) = dma[i];
+			sg_set_page(sg, virt_to_page(buf), s->buf_len_rx,
+				    (uintptr_t)buf & ~PAGE_MASK);
+			sg_dma_address(sg) = dma;
+
+			buf += s->buf_len_rx;
+			dma += s->buf_len_rx;
 		}
 
 		INIT_WORK(&s->work_rx, work_fn_rx);
