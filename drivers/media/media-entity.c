@@ -109,8 +109,11 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 		struct media_pad *pad = gobj_to_pad(gobj);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s: id 0x%08x pad#%d: '%s':%d\n",
-			event_name, gobj->id, media_localid(gobj),
+			"%s: id 0x%08x %s%spad#%d: '%s':%d\n",
+			event_name, gobj->id,
+			pad->flags & MEDIA_PAD_FL_SINK   ? "  sink " : "",
+			pad->flags & MEDIA_PAD_FL_SOURCE ? "source " : "",
+			media_localid(gobj),
 			pad->entity->name, pad->index);
 		break;
 	}
