@@ -94,16 +94,14 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 		struct media_link *link = gobj_to_link(gobj);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s: id 0x%08x link#%d: '%s' %s#%d ==> '%s' %s#%d\n",
+			"%s: id 0x%08x link#%d: %s#%d ==> %s#%d\n",
 			event_name, gobj->id, media_localid(gobj),
 
-			link->source->entity->name,
-			gobj_type(media_type(&link->source->graph_obj)),
-			media_localid(&link->source->graph_obj),
+			gobj_type(media_type(link->gobj0)),
+			media_localid(link->gobj0),
 
-			link->sink->entity->name,
-			gobj_type(media_type(&link->sink->graph_obj)),
-			media_localid(&link->sink->graph_obj));
+			gobj_type(media_type(link->gobj1)),
+			media_localid(link->gobj1));
 		break;
 	}
 	case MEDIA_GRAPH_PAD:
