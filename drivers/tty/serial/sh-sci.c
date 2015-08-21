@@ -110,6 +110,7 @@ struct sci_port {
 	dma_addr_t			tx_dma_addr;
 	unsigned int			tx_dma_len;
 	struct scatterlist		sg_rx[2];
+	void				*rx_buf[2];
 	size_t				buf_len_rx;
 	struct sh_dmae_slave		param_tx;
 	struct sh_dmae_slave		param_rx;
@@ -1301,14 +1302,13 @@ static void sci_dma_tx_complete(void *arg)
 }
 
 /* Locking: called with port lock held */
-static int sci_dma_rx_push(struct sci_port *s, struct scatterlist *sg,
-			   size_t count)
+static int sci_dma_rx_push(struct sci_port *s, void *buf, size_t count)
 {
 	struct uart_port *port = &s->port;
 	struct tty_port *tport = &port->state->port;
 	int copied;
 
-	copied = tty_insert_flip_string(tport, sg_virt(sg), count);
+	copied = tty_insert_flip_string(tport, buf, count);
 	if (copied < count) {
 		dev_warn(port->dev, "Rx overrun: dropping %zu bytes\n",
 			 count - copied);
@@ -1347,7 +1347,7 @@ static void sci_dma_rx_complete(void *arg)
 
 	active = sci_dma_rx_find_active(s);
 	if (active >= 0)
-		count = sci_dma_rx_push(s, &s->sg_rx[active], s->buf_len_rx);
+		count = sci_dma_rx_push(s, s->rx_buf[active], s->buf_len_rx);
 
 	mod_timer(&s->rx_timer, jiffies + s->rx_timeout);
 
@@ -1370,8 +1370,8 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 	s->cookie_rx[0] = s->cookie_rx[1] = -EINVAL;
 	spin_unlock_irqrestore(&port->lock, flags);
 	dmaengine_terminate_all(chan);
-	dma_free_coherent(chan->device->dev, s->buf_len_rx * 2,
-			  sg_virt(&s->sg_rx[0]), sg_dma_address(&s->sg_rx[0]));
+	dma_free_coherent(chan->device->dev, s->buf_len_rx * 2, s->rx_buf[0],
+			  sg_dma_address(&s->sg_rx[0]));
 	dma_release_channel(chan);
 	if (enable_pio)
 		sci_start_rx(port);
@@ -1464,7 +1464,7 @@ static void work_fn_rx(struct work_struct *work)
 		dev_dbg(port->dev, "Read %u bytes with cookie %d\n", read,
 			s->active_rx);
 
-		count = sci_dma_rx_push(s, &s->sg_rx[new], read);
+		count = sci_dma_rx_push(s, s->rx_buf[new], read);
 
 		if (count)
 			tty_flip_buffer_push(&port->state->port);
@@ -1756,9 +1756,9 @@ static void sci_request_dma(struct uart_port *port)
 			struct scatterlist *sg = &s->sg_rx[i];
 
 			sg_init_table(sg, 1);
-			sg_set_page(sg, virt_to_page(buf), s->buf_len_rx,
-				    (uintptr_t)buf & ~PAGE_MASK);
+			s->rx_buf[i] = buf;
 			sg_dma_address(sg) = dma;
+			sg->length = s->buf_len_rx;
 
 			buf += s->buf_len_rx;
 			dma += s->buf_len_rx;
