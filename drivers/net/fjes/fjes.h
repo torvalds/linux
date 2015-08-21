@@ -30,6 +30,7 @@
 #define FJES_MAX_QUEUES		1
 #define FJES_TX_RETRY_INTERVAL	(20 * HZ)
 #define FJES_TX_RETRY_TIMEOUT	(100)
+#define FJES_TX_TX_STALL_TIMEOUT	(FJES_TX_RETRY_INTERVAL / 2)
 #define FJES_OPEN_ZONE_UPDATE_WAIT	(300) /* msec */
 
 /* board specific private data structure */
@@ -52,6 +53,7 @@ struct fjes_adapter {
 
 	struct workqueue_struct *txrx_wq;
 
+	struct work_struct tx_stall_task;
 	struct work_struct raise_intr_rxdata_task;
 
 	struct fjes_hw hw;
