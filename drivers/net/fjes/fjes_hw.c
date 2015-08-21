@@ -825,6 +825,46 @@ bool fjes_hw_check_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
 	return ret;
 }
 
+bool fjes_hw_epbuf_rx_is_empty(struct epbuf_handler *epbh)
+{
+	union ep_buffer_info *info = epbh->info;
+
+	if (info->v1i.count_max == 0)
+		return true;
+
+	return EP_RING_EMPTY(info->v1i.head, info->v1i.tail,
+			     info->v1i.count_max);
+}
+
+void *fjes_hw_epbuf_rx_curpkt_get_addr(struct epbuf_handler *epbh,
+				       size_t *psize)
+{
+	union ep_buffer_info *info = epbh->info;
+	struct esmem_frame *ring_frame;
+	void *frame;
+
+	ring_frame = (struct esmem_frame *)&(epbh->ring[EP_RING_INDEX
+					     (info->v1i.head,
+					      info->v1i.count_max) *
+					     info->v1i.frame_max]);
+
+	*psize = (size_t)ring_frame->frame_size;
+
+	frame = ring_frame->frame_data;
+
+	return frame;
+}
+
+void fjes_hw_epbuf_rx_curpkt_drop(struct epbuf_handler *epbh)
+{
+	union ep_buffer_info *info = epbh->info;
+
+	if (fjes_hw_epbuf_rx_is_empty(epbh))
+		return;
+
+	EP_RING_INDEX_INC(epbh->info->v1i.head, info->v1i.count_max);
+}
+
 int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *epbh,
 			      void *frame, size_t size)
 {

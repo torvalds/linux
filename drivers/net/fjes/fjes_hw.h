@@ -69,6 +69,8 @@ struct fjes_hw;
 	((_num) = EP_RING_INDEX((_num) + 1, (_max)))
 #define EP_RING_FULL(_head, _tail, _max)				\
 	(0 == EP_RING_INDEX(((_tail) - (_head)), (_max)))
+#define EP_RING_EMPTY(_head, _tail, _max) \
+	(1 == EP_RING_INDEX(((_tail) - (_head)), (_max)))
 
 #define FJES_MTU_TO_BUFFER_SIZE(mtu) \
 	(ETH_HLEN + VLAN_HLEN + (mtu) + ETH_FCS_LEN)
@@ -320,6 +322,9 @@ int fjes_hw_epid_is_shared(struct fjes_device_shared_info *, int);
 bool fjes_hw_check_epbuf_version(struct epbuf_handler *, u32);
 bool fjes_hw_check_mtu(struct epbuf_handler *, u32);
 bool fjes_hw_check_vlan_id(struct epbuf_handler *, u16);
+bool fjes_hw_epbuf_rx_is_empty(struct epbuf_handler *);
+void *fjes_hw_epbuf_rx_curpkt_get_addr(struct epbuf_handler *, size_t *);
+void fjes_hw_epbuf_rx_curpkt_drop(struct epbuf_handler *);
 int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *, void *, size_t);
 
 #endif /* FJES_HW_H_ */
