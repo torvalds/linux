@@ -440,7 +440,7 @@ static int caam_probe(struct platform_device *pdev)
 		ret = PTR_ERR(clk);
 		dev_err(&pdev->dev,
 			"can't identify CAAM ipg clk: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 	ctrlpriv->caam_ipg = clk;
 
@@ -449,7 +449,7 @@ static int caam_probe(struct platform_device *pdev)
 		ret = PTR_ERR(clk);
 		dev_err(&pdev->dev,
 			"can't identify CAAM mem clk: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 	ctrlpriv->caam_mem = clk;
 
@@ -458,7 +458,7 @@ static int caam_probe(struct platform_device *pdev)
 		ret = PTR_ERR(clk);
 		dev_err(&pdev->dev,
 			"can't identify CAAM aclk clk: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 	ctrlpriv->caam_aclk = clk;
 
@@ -467,7 +467,7 @@ static int caam_probe(struct platform_device *pdev)
 		ret = PTR_ERR(clk);
 		dev_err(&pdev->dev,
 			"can't identify CAAM emi_slow clk: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 	ctrlpriv->caam_emi_slow = clk;
 
