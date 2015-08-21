@@ -72,4 +72,6 @@ extern char fjes_driver_name[];
 extern char fjes_driver_version[];
 extern const u32 fjes_support_mtu[];
 
+void fjes_set_ethtool_ops(struct net_device *);
+
 #endif /* FJES_H_ */
