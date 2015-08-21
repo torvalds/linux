@@ -57,6 +57,7 @@ static void fjes_tx_stall_task(struct work_struct *);
 static irqreturn_t fjes_intr(int, void*);
 static struct rtnl_link_stats64 *
 fjes_get_stats64(struct net_device *, struct rtnl_link_stats64 *);
+static int fjes_change_mtu(struct net_device *, int);
 
 static int fjes_acpi_add(struct acpi_device *);
 static int fjes_acpi_remove(struct acpi_device *);
@@ -222,6 +223,7 @@ static const struct net_device_ops fjes_netdev_ops = {
 	.ndo_stop		= fjes_close,
 	.ndo_start_xmit		= fjes_xmit_frame,
 	.ndo_get_stats64	= fjes_get_stats64,
+	.ndo_change_mtu		= fjes_change_mtu,
 };
 
 /* fjes_open - Called when a network interface is made active */
@@ -711,6 +713,33 @@ fjes_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	memcpy(stats, &adapter->stats64, sizeof(struct rtnl_link_stats64));
 
 	return stats;
+}
+
+static int fjes_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	bool running = netif_running(netdev);
+	int ret = 0;
+	int idx;
+
+	for (idx = 0; fjes_support_mtu[idx] != 0; idx++) {
+		if (new_mtu <= fjes_support_mtu[idx]) {
+			new_mtu = fjes_support_mtu[idx];
+			if (new_mtu == netdev->mtu)
+				return 0;
+
+			if (running)
+				fjes_close(netdev);
+
+			netdev->mtu = new_mtu;
+
+			if (running)
+				ret = fjes_open(netdev);
+
+			return ret;
+		}
+	}
+
+	return -EINVAL;
 }
 
 static irqreturn_t fjes_intr(int irq, void *data)
