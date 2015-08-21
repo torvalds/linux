@@ -32,6 +32,7 @@
 static const struct {
 	void (*sync)(void);
 	void (*call)(struct rcu_head *, void (*)(struct rcu_head *));
+	void (*wait)(void);
 #ifdef CONFIG_PROVE_RCU
 	int  (*held)(void);
 #endif
@@ -39,16 +40,19 @@ static const struct {
 	[RCU_SYNC] = {
 		.sync = synchronize_rcu,
 		.call = call_rcu,
+		.wait = rcu_barrier,
 		__INIT_HELD(rcu_read_lock_held)
 	},
 	[RCU_SCHED_SYNC] = {
 		.sync = synchronize_sched,
 		.call = call_rcu_sched,
+		.wait = rcu_barrier_sched,
 		__INIT_HELD(rcu_read_lock_sched_held)
 	},
 	[RCU_BH_SYNC] = {
 		.sync = synchronize_rcu_bh,
 		.call = call_rcu_bh,
+		.wait = rcu_barrier_bh,
 		__INIT_HELD(rcu_read_lock_bh_held)
 	},
 };
@@ -194,4 +198,26 @@ void rcu_sync_exit(struct rcu_sync *rsp)
 		}
 	}
 	spin_unlock_irq(&rsp->rss_lock);
+}
+
+/**
+ * rcu_sync_dtor() - Clean up an rcu_sync structure
+ * @rsp: Pointer to rcu_sync structure to be cleaned up
+ */
+void rcu_sync_dtor(struct rcu_sync *rsp)
+{
+	int cb_state;
+
+	BUG_ON(rsp->gp_count);
+
+	spin_lock_irq(&rsp->rss_lock);
+	if (rsp->cb_state == CB_REPLAY)
+		rsp->cb_state = CB_PENDING;
+	cb_state = rsp->cb_state;
+	spin_unlock_irq(&rsp->rss_lock);
+
+	if (cb_state != CB_IDLE) {
+		gp_ops[rsp->gp_type].wait();
+		BUG_ON(rsp->cb_state != CB_IDLE);
+	}
 }

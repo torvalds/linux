@@ -62,6 +62,7 @@ static inline bool rcu_sync_is_idle(struct rcu_sync *rsp)
 extern void rcu_sync_init(struct rcu_sync *, enum rcu_sync_type);
 extern void rcu_sync_enter(struct rcu_sync *);
 extern void rcu_sync_exit(struct rcu_sync *);
+extern void rcu_sync_dtor(struct rcu_sync *);
 
 #define __RCU_SYNC_INITIALIZER(name, type) {				\
 		.gp_state = 0,						\
