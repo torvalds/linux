@@ -108,6 +108,7 @@ static u32 gpcv2_saved_imrs[IMR_NUM];
 static u32 gpcv2_mf_irqs[IMR_NUM];
 static u32 gpcv2_mf_request_on[IMR_NUM];
 static DEFINE_SPINLOCK(gpcv2_lock);
+static struct notifier_block nb_mipi;
 
 static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 {
@@ -577,6 +578,37 @@ static struct irq_domain_ops imx_gpcv2_domain_ops = {
 	.free	= irq_domain_free_irqs_common,
 };
 
+static int imx_mipi_regulator_notify(struct notifier_block *nb,
+					unsigned long event,
+					void *ignored)
+{
+	u32 val = 0;
+
+	switch (event) {
+	case REGULATOR_EVENT_PRE_DO_ENABLE:
+		val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
+		writel_relaxed(val | BIT(2), gpc_base + GPC_PGC_CPU_MAPPING);
+
+		val = readl_relaxed(gpc_base + GPC_PU_PGC_SW_PUP_REQ);
+		writel_relaxed(val | BIT(0), gpc_base + GPC_PU_PGC_SW_PUP_REQ);
+		break;
+	case REGULATOR_EVENT_PRE_DO_DISABLE:
+		val = readl_relaxed(gpc_base + GPC_PU_PGC_SW_PDN_REQ);
+		writel_relaxed(val | BIT(0), gpc_base + GPC_PU_PGC_SW_PDN_REQ);
+
+		val = readl_relaxed(gpc_base + GPC_PGC_MIPI_PHY);
+		writel_relaxed(val | BIT(0), gpc_base + GPC_PGC_MIPI_PHY);
+
+		val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
+		writel_relaxed(val & ~BIT(2), gpc_base + GPC_PGC_CPU_MAPPING);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int __init imx_gpcv2_init(struct device_node *node,
 			       struct device_node *parent)
 {
@@ -687,6 +719,26 @@ void __init imx_gpcv2_check_dt(void)
 
 static int imx_gpcv2_probe(struct platform_device *pdev)
 {
+	int ret;
+	struct regulator *mipi_reg;
+
+	if (cpu_is_imx7d()) {
+		mipi_reg = devm_regulator_get(&pdev->dev, "mipi-phy");
+		if (IS_ERR(mipi_reg)) {
+			ret = PTR_ERR(mipi_reg);
+			dev_info(&pdev->dev, "mipi regulator not ready.\n");
+			return ret;
+		}
+		nb_mipi.notifier_call = &imx_mipi_regulator_notify;
+
+		ret = regulator_register_notifier(mipi_reg, &nb_mipi);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"mipi regulator notifier request failed.\n");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
