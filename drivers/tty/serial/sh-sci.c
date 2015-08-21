@@ -1306,22 +1306,18 @@ static int sci_dma_rx_push(struct sci_port *s, struct scatterlist *sg,
 {
 	struct uart_port *port = &s->port;
 	struct tty_port *tport = &port->state->port;
-	int i, room;
+	int copied;
 
-	room = tty_buffer_request_room(tport, count);
-
-	if (room < count)
+	copied = tty_insert_flip_string(tport, sg_virt(sg), count);
+	if (copied < count) {
 		dev_warn(port->dev, "Rx overrun: dropping %zu bytes\n",
-			 count - room);
-	if (!room)
-		return room;
+			 count - copied);
+		port->icount.buf_overrun++;
+	}
 
-	for (i = 0; i < room; i++)
-		tty_insert_flip_char(tport, ((u8 *)sg_virt(sg))[i], TTY_NORMAL);
+	port->icount.rx += copied;
 
-	port->icount.rx += room;
-
-	return room;
+	return copied;
 }
 
 static int sci_dma_rx_find_active(struct sci_port *s)
