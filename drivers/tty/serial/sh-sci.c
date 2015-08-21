@@ -1969,7 +1969,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_reset(port);
 
-	smr_val |= serial_port_in(port, SCSMR) & 3;
+	smr_val |= serial_port_in(port, SCSMR) & SCSMR_CKS;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
