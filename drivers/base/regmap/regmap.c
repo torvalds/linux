@@ -576,7 +576,8 @@ struct regmap *regmap_init(struct device *dev,
 		map->reg_stride = config->reg_stride;
 	else
 		map->reg_stride = 1;
-	map->use_single_rw = config->use_single_rw;
+	map->use_single_read = config->use_single_rw || !bus || !bus->read;
+	map->use_single_write = config->use_single_rw || !bus || !bus->write;
 	map->can_multi_write = config->can_multi_write;
 	map->dev = dev;
 	map->bus = bus;
@@ -766,7 +767,7 @@ struct regmap *regmap_init(struct device *dev,
 		if ((reg_endian != REGMAP_ENDIAN_BIG) ||
 		    (val_endian != REGMAP_ENDIAN_BIG))
 			goto err_map;
-		map->use_single_rw = true;
+		map->use_single_write = true;
 	}
 
 	if (!map->format.format_write &&
@@ -1720,7 +1721,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		}
 out:
 		map->unlock(map->lock_arg);
-	} else if (map->use_single_rw) {
+	} else if (map->use_single_write) {
 		map->lock(map->lock_arg);
 		for (i = 0; i < val_count; i++) {
 			ret = _regmap_raw_write(map,
@@ -2312,7 +2313,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		 * Some devices does not support bulk read, for
 		 * them we have a series of single read operations.
 		 */
-		if (map->use_single_rw) {
+		if (map->use_single_read) {
 			for (i = 0; i < val_count; i++) {
 				ret = regmap_raw_read(map,
 						reg + (i * map->reg_stride),
