@@ -26,7 +26,7 @@ static void nft_dup_ipv4_eval(const struct nft_expr *expr,
 {
 	struct nft_dup_ipv4 *priv = nft_expr_priv(expr);
 	struct in_addr gw = {
-		.s_addr = regs->data[priv->sreg_addr],
+		.s_addr = (__force __be32)regs->data[priv->sreg_addr],
 	};
 	int oif = regs->data[priv->sreg_dev];
 
