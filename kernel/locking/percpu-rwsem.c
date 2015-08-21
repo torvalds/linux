@@ -70,14 +70,14 @@ static bool update_fast_ctr(struct percpu_rw_semaphore *brw, unsigned int val)
 void percpu_down_read(struct percpu_rw_semaphore *brw)
 {
 	might_sleep();
-	if (likely(update_fast_ctr(brw, +1))) {
-		rwsem_acquire_read(&brw->rw_sem.dep_map, 0, 0, _RET_IP_);
-		return;
-	}
+	rwsem_acquire_read(&brw->rw_sem.dep_map, 0, 0, _RET_IP_);
 
-	down_read(&brw->rw_sem);
+	if (likely(update_fast_ctr(brw, +1)))
+		return;
+
+	/* Avoid rwsem_acquire_read() and rwsem_release() */
+	__down_read(&brw->rw_sem);
 	atomic_inc(&brw->slow_read_ctr);
-	/* avoid up_read()->rwsem_release() */
 	__up_read(&brw->rw_sem);
 }
 EXPORT_SYMBOL_GPL(percpu_down_read);
