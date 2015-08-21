@@ -39,27 +39,12 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *brw)
 }
 
 /*
- * This is the fast-path for down_read/up_read, it only needs to ensure
- * there is no pending writer (atomic_read(write_ctr) == 0) and inc/dec the
- * fast per-cpu counter. The writer uses synchronize_sched_expedited() to
- * serialize with the preempt-disabled section below.
- *
- * The nontrivial part is that we should guarantee acquire/release semantics
- * in case when
- *
- *	R_W: down_write() comes after up_read(), the writer should see all
- *	     changes done by the reader
- * or
- *	W_R: down_read() comes after up_write(), the reader should see all
- *	     changes done by the writer
+ * This is the fast-path for down_read/up_read. If it succeeds we rely
+ * on the barriers provided by rcu_sync_enter/exit; see the comments in
+ * percpu_down_write() and percpu_up_write().
  *
  * If this helper fails the callers rely on the normal rw_semaphore and
  * atomic_dec_and_test(), so in this case we have the necessary barriers.
- *
- * But if it succeeds we do not have any barriers, atomic_read(write_ctr) or
- * __this_cpu_add() below can be reordered with any LOAD/STORE done by the
- * reader inside the critical section. See the comments in down_write and
- * up_write below.
  */
 static bool update_fast_ctr(struct percpu_rw_semaphore *brw, unsigned int val)
 {
@@ -136,29 +121,15 @@ static int clear_fast_ctr(struct percpu_rw_semaphore *brw)
 	return sum;
 }
 
-/*
- * A writer increments ->write_ctr to force the readers to switch to the
- * slow mode, note the atomic_read() check in update_fast_ctr().
- *
- * After that the readers can only inc/dec the slow ->slow_read_ctr counter,
- * ->fast_read_ctr is stable. Once the writer moves its sum into the slow
- * counter it represents the number of active readers.
- *
- * Finally the writer takes ->rw_sem for writing and blocks the new readers,
- * then waits until the slow counter becomes zero.
- */
 void percpu_down_write(struct percpu_rw_semaphore *brw)
 {
 	/*
-	 * 1. Ensures that write_ctr != 0 is visible to any down_read/up_read
-	 *    so that update_fast_ctr() can't succeed.
+	 * Make rcu_sync_is_idle() == F and thus disable the fast-path in
+	 * percpu_down_read() and percpu_up_read(), and wait for gp pass.
 	 *
-	 * 2. Ensures we see the result of every previous this_cpu_add() in
-	 *    update_fast_ctr().
-	 *
-	 * 3. Ensures that if any reader has exited its critical section via
-	 *    fast-path, it executes a full memory barrier before we return.
-	 *    See R_W case in the comment above update_fast_ctr().
+	 * The latter synchronises us with the preceding readers which used
+	 * the fast-past, so we can not miss the result of __this_cpu_add()
+	 * or anything else inside their criticial sections.
 	 */
 	rcu_sync_enter(&brw->rss);
 
@@ -178,8 +149,9 @@ void percpu_up_write(struct percpu_rw_semaphore *brw)
 	/* release the lock, but the readers can't use the fast-path */
 	up_write(&brw->rw_sem);
 	/*
-	 * Insert the barrier before the next fast-path in down_read,
-	 * see W_R case in the comment above update_fast_ctr().
+	 * Enable the fast-path in percpu_down_read() and percpu_up_read()
+	 * but only after another gp pass; this adds the necessary barrier
+	 * to ensure the reader can't miss the changes done by us.
 	 */
 	rcu_sync_exit(&brw->rss);
 }
