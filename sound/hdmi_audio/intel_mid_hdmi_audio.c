@@ -1550,6 +1550,8 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 {
 	struct snd_intelhad *intelhaddata;
 	u32 bytes_rendered = 0;
+	u32 t;
+	int buf_id;
 
 	/* pr_debug("snd_intelhad_pcm_pointer called\n"); */
 
@@ -1560,6 +1562,14 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 		return SNDRV_PCM_POS_XRUN;
 	}
 
+	buf_id = intelhaddata->curr_buf % 4;
+	had_read_register(AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH), &t);
+	if (t == 0) {
+		pr_debug("discovered buffer done for buf %d\n", buf_id);
+		/* had_process_buffer_done(intelhaddata); */
+	}
+	t = intelhaddata->buf_info[buf_id].buf_size - t;
+
 	if (intelhaddata->stream_info.buffer_rendered)
 		div_u64_rem(intelhaddata->stream_info.buffer_rendered,
 			intelhaddata->stream_info.ring_buf_size,
@@ -1567,7 +1577,7 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 
 	intelhaddata->stream_info.buffer_ptr = bytes_to_frames(
 						substream->runtime,
-						bytes_rendered);
+						bytes_rendered + t);
 	return intelhaddata->stream_info.buffer_ptr;
 }
 
