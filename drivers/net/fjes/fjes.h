@@ -24,7 +24,32 @@
 
 #include <linux/acpi.h>
 
+#include "fjes_hw.h"
+
 #define FJES_ACPI_SYMBOL	"Extended Socket"
+#define FJES_MAX_QUEUES		1
+#define FJES_TX_RETRY_INTERVAL	(20 * HZ)
+
+/* board specific private data structure */
+struct fjes_adapter {
+	struct net_device *netdev;
+	struct platform_device *plat_dev;
+
+	struct napi_struct napi;
+	struct rtnl_link_stats64 stats64;
+
+	unsigned int tx_retry_count;
+	unsigned long tx_start_jiffies;
+	unsigned long rx_last_jiffies;
+	bool unset_rx_last;
+
+	bool force_reset;
+	bool open_guard;
+
+	bool irq_registered;
+
+	struct fjes_hw hw;
+};
 
 extern char fjes_driver_name[];
 extern char fjes_driver_version[];

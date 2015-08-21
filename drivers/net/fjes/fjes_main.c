@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/nls.h>
 #include <linux/platform_device.h>
+#include <linux/netdevice.h>
 
 #include "fjes.h"
 
@@ -48,6 +49,9 @@ static acpi_status fjes_get_acpi_resource(struct acpi_resource *, void*);
 
 static int fjes_probe(struct platform_device *);
 static int fjes_remove(struct platform_device *);
+
+static int fjes_sw_init(struct fjes_adapter *);
+static void fjes_netdev_setup(struct net_device *);
 
 static const struct acpi_device_id fjes_acpi_ids[] = {
 	{"PNP0C02", 0},
@@ -166,16 +170,106 @@ fjes_get_acpi_resource(struct acpi_resource *acpi_res, void *data)
 	return AE_OK;
 }
 
+static const struct net_device_ops fjes_netdev_ops = {
+};
+
 /* fjes_probe - Device Initialization Routine */
 static int fjes_probe(struct platform_device *plat_dev)
 {
+	struct fjes_adapter *adapter;
+	struct net_device *netdev;
+	struct resource *res;
+	struct fjes_hw *hw;
+	int err;
+
+	err = -ENOMEM;
+	netdev = alloc_netdev_mq(sizeof(struct fjes_adapter), "es%d",
+				 NET_NAME_UNKNOWN, fjes_netdev_setup,
+				 FJES_MAX_QUEUES);
+
+	if (!netdev)
+		goto err_out;
+
+	SET_NETDEV_DEV(netdev, &plat_dev->dev);
+
+	dev_set_drvdata(&plat_dev->dev, netdev);
+	adapter = netdev_priv(netdev);
+	adapter->netdev = netdev;
+	adapter->plat_dev = plat_dev;
+	hw = &adapter->hw;
+	hw->back = adapter;
+
+	/* setup the private structure */
+	err = fjes_sw_init(adapter);
+	if (err)
+		goto err_free_netdev;
+
+	adapter->force_reset = false;
+	adapter->open_guard = false;
+
+	res = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
+	hw->hw_res.start = res->start;
+	hw->hw_res.size = res->end - res->start + 1;
+	hw->hw_res.irq = platform_get_irq(plat_dev, 0);
+	err = fjes_hw_init(&adapter->hw);
+	if (err)
+		goto err_free_netdev;
+
+	/* setup MAC address (02:00:00:00:00:[epid])*/
+	netdev->dev_addr[0] = 2;
+	netdev->dev_addr[1] = 0;
+	netdev->dev_addr[2] = 0;
+	netdev->dev_addr[3] = 0;
+	netdev->dev_addr[4] = 0;
+	netdev->dev_addr[5] = hw->my_epid; /* EPID */
+
+	err = register_netdev(netdev);
+	if (err)
+		goto err_hw_exit;
+
+	netif_carrier_off(netdev);
+
 	return 0;
+
+err_hw_exit:
+	fjes_hw_exit(&adapter->hw);
+err_free_netdev:
+	free_netdev(netdev);
+err_out:
+	return err;
 }
 
 /* fjes_remove - Device Removal Routine */
 static int fjes_remove(struct platform_device *plat_dev)
 {
+	struct net_device *netdev = dev_get_drvdata(&plat_dev->dev);
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+
+	unregister_netdev(netdev);
+
+	fjes_hw_exit(hw);
+
+	free_netdev(netdev);
+
 	return 0;
+}
+
+static int fjes_sw_init(struct fjes_adapter *adapter)
+{
+	return 0;
+}
+
+/* fjes_netdev_setup - netdevice initialization routine */
+static void fjes_netdev_setup(struct net_device *netdev)
+{
+	ether_setup(netdev);
+
+	netdev->watchdog_timeo = FJES_TX_RETRY_INTERVAL;
+	netdev->netdev_ops = &fjes_netdev_ops;
+	netdev->mtu = fjes_support_mtu[0];
+	netdev->flags |= IFF_BROADCAST;
+	netdev->features |= NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 
 /* fjes_init_module - Driver Registration Routine */
