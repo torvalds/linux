@@ -68,7 +68,7 @@
 
 #define MX6Q_SUSPEND_OCRAM_SIZE		0x1000
 #define MX6_MAX_MMDC_IO_NUM		33
-#define MX6_MAX_MMDC_NUM		34
+#define MX6_MAX_MMDC_NUM		36
 
 #define ROMC_ROMPATCH0D			0xf0
 #define ROMC_ROMPATCHCNTL		0xf4
@@ -166,6 +166,27 @@ static const u32 imx6sl_mmdc_io_offset[] __initconst = {
 	0x330, 0x334, 0x320,        /* SDCKE0, SDCKE1, RESET */
 };
 
+static const u32 imx6sx_mmdc_io_lpddr2_offset[] __initconst = {
+	0x2ec, 0x2f0, 0x2f4, 0x2f8, /* DQM0 ~ DQM3 */
+	0x300, 0x2fc, 0x32c, 0x5f4, /* CAS, RAS, SDCLK_0, GPR_ADDS */
+	0x60c, 0x610, 0x61c, 0x620, /* GPR_B0DS ~ GPR_B3DS */
+	0x310, 0x314, 0x5f8, 0x608, /* SODT0, SODT1, MODE_CTL, MODE */
+	0x330, 0x334, 0x338, 0x33c, /* SDQS0 ~ SDQS3 */
+	0x324, 0x328, 0x340,	    /* DRAM_SDCKE0 ~ 1, DRAM_RESET */
+};
+
+static const u32 imx6sx_mmdc_lpddr2_offset[] __initconst = {
+	0x01c, 0x85c, 0x800, 0x890,
+	0x8b8, 0x81c, 0x820, 0x824,
+	0x828, 0x82c, 0x830, 0x834,
+	0x838, 0x848, 0x850, 0x8c0,
+	0x83c, 0x840, 0x8b8, 0x00c,
+	0x004, 0x010, 0x014, 0x018,
+	0x02c, 0x030, 0x038, 0x008,
+	0x040, 0x000, 0x020, 0x818,
+	0x800, 0x004, 0x01c,
+};
+
 static const u32 imx6sx_mmdc_io_offset[] __initconst = {
 	0x2ec, 0x2f0, 0x2f4, 0x2f8, /* DQM0 ~ DQM3 */
 	0x60c, 0x610, 0x61c, 0x620, /* GPR_B0DS ~ GPR_B3DS */
@@ -243,6 +264,17 @@ static const struct imx6_pm_socdata imx6sx_pm_data __initconst = {
 	.mmdc_io_offset = imx6sx_mmdc_io_offset,
 	.mmdc_num = ARRAY_SIZE(imx6sx_mmdc_offset),
 	.mmdc_offset = imx6sx_mmdc_offset,
+};
+
+static const struct imx6_pm_socdata imx6sx_lpddr2_pm_data __initconst = {
+	.mmdc_compat = "fsl,imx6sx-mmdc",
+	.src_compat = "fsl,imx6sx-src",
+	.iomuxc_compat = "fsl,imx6sx-iomuxc",
+	.gpc_compat = "fsl,imx6sx-gpc",
+	.mmdc_io_num = ARRAY_SIZE(imx6sx_mmdc_io_lpddr2_offset),
+	.mmdc_io_offset = imx6sx_mmdc_io_lpddr2_offset,
+	.mmdc_num = ARRAY_SIZE(imx6sx_mmdc_lpddr2_offset),
+	.mmdc_offset = imx6sx_mmdc_lpddr2_offset,
 };
 
 static const struct imx6_pm_socdata imx6ul_pm_data __initconst = {
@@ -800,6 +832,18 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		pm_info->mmdc_val[23][1] = 0x8033;
 	}
 
+	if (cpu_is_imx6sx() &&
+		pm_info->ddr_type == IMX_DDR_TYPE_LPDDR2) {
+		pm_info->mmdc_val[0][1] = 0x8000;
+		pm_info->mmdc_val[2][1] = 0xa1390003;
+		pm_info->mmdc_val[3][1] = 0x380000;
+		pm_info->mmdc_val[4][1] = 0x800;
+		pm_info->mmdc_val[18][1] = 0x800;
+		pm_info->mmdc_val[20][1] = 0x20024;
+		pm_info->mmdc_val[23][1] = 0x1748;
+		pm_info->mmdc_val[32][1] = 0xa1310003;
+	}
+
 	imx6_suspend_in_ocram_fn = fncpy(
 		suspend_ocram_base + sizeof(*pm_info),
 		&imx6_suspend,
@@ -861,8 +905,10 @@ void __init imx6sx_pm_init(void)
 	struct device_node *np;
 	struct resource res;
 
-	imx6_pm_common_init(&imx6sx_pm_data);
-
+	if (imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
+		imx6_pm_common_init(&imx6sx_lpddr2_pm_data);
+	else
+		imx6_pm_common_init(&imx6sx_pm_data);
 	if (imx_get_soc_revision() < IMX_CHIP_REVISION_1_2) {
 	/*
 	 * As there is a 16K OCRAM(start from 0x8f8000)
