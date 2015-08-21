@@ -44,6 +44,43 @@ static int aquantia_aneg_done(struct phy_device *phydev)
 	return (reg < 0) ? reg : (reg & BMSR_ANEGCOMPLETE);
 }
 
+static int aquantia_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = phy_write_mmd(phydev, MDIO_MMD_AN, 0xd401, 1);
+		if (err < 0)
+			return err;
+
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff00, 1);
+		if (err < 0)
+			return err;
+
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff01, 0x1001);
+	} else {
+		err = phy_write_mmd(phydev, MDIO_MMD_AN, 0xd401, 0);
+		if (err < 0)
+			return err;
+
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff00, 0);
+		if (err < 0)
+			return err;
+
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff01, 0);
+	}
+
+	return err;
+}
+
+static int aquantia_ack_interrupt(struct phy_device *phydev)
+{
+	int reg;
+
+	reg = phy_read_mmd(phydev, MDIO_MMD_AN, 0xcc01);
+	return (reg < 0) ? reg : 0;
+}
+
 static int aquantia_read_status(struct phy_device *phydev)
 {
 	int reg;
@@ -85,8 +122,11 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQ1202",
 	.features	= PHY_AQUANTIA_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
 	.aneg_done	= aquantia_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
+	.config_intr	= aquantia_config_intr,
+	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
 	.driver		= { .owner = THIS_MODULE,},
 },
@@ -95,8 +135,11 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQ2104",
 	.features	= PHY_AQUANTIA_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
 	.aneg_done	= aquantia_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
+	.config_intr	= aquantia_config_intr,
+	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
 	.driver		= { .owner = THIS_MODULE,},
 },
@@ -105,8 +148,11 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQR105",
 	.features	= PHY_AQUANTIA_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
 	.aneg_done	= aquantia_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
+	.config_intr	= aquantia_config_intr,
+	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
 	.driver		= { .owner = THIS_MODULE,},
 },
@@ -115,8 +161,11 @@ static struct phy_driver aquantia_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Aquantia AQR405",
 	.features	= PHY_AQUANTIA_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
 	.aneg_done	= aquantia_aneg_done,
 	.config_aneg    = aquantia_config_aneg,
+	.config_intr	= aquantia_config_intr,
+	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
 	.driver		= { .owner = THIS_MODULE,},
 },
