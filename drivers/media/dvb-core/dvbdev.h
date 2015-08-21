@@ -148,9 +148,11 @@ struct dvb_device {
 	const char *name;
 
 	/* Allocated and filled inside dvbdev.c */
-	struct media_entity *entity;
 	struct media_intf_devnode *intf_devnode;
-	struct media_pad *pads;
+
+	unsigned tsout_num_entities;
+	struct media_entity *entity, *tsout_entity;
+	struct media_pad *pads, *tsout_pads;
 #endif
 
 	void *priv;
@@ -193,7 +195,8 @@ int dvb_register_device(struct dvb_adapter *adap,
 			struct dvb_device **pdvbdev,
 			const struct dvb_device *template,
 			void *priv,
-			int type);
+			int type,
+			int demux_sink_pads);
 
 /**
  * dvb_unregister_device - Unregisters a DVB device
