@@ -58,6 +58,8 @@ static irqreturn_t fjes_intr(int, void*);
 static struct rtnl_link_stats64 *
 fjes_get_stats64(struct net_device *, struct rtnl_link_stats64 *);
 static int fjes_change_mtu(struct net_device *, int);
+static int fjes_vlan_rx_add_vid(struct net_device *, __be16 proto, u16);
+static int fjes_vlan_rx_kill_vid(struct net_device *, __be16 proto, u16);
 static void fjes_tx_retry(struct net_device *);
 
 static int fjes_acpi_add(struct acpi_device *);
@@ -226,6 +228,8 @@ static const struct net_device_ops fjes_netdev_ops = {
 	.ndo_get_stats64	= fjes_get_stats64,
 	.ndo_change_mtu		= fjes_change_mtu,
 	.ndo_tx_timeout		= fjes_tx_retry,
+	.ndo_vlan_rx_add_vid	= fjes_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = fjes_vlan_rx_kill_vid,
 };
 
 /* fjes_open - Called when a network interface is made active */
@@ -749,6 +753,42 @@ static int fjes_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	return -EINVAL;
+}
+
+static int fjes_vlan_rx_add_vid(struct net_device *netdev,
+				__be16 proto, u16 vid)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	bool ret = true;
+	int epid;
+
+	for (epid = 0; epid < adapter->hw.max_epid; epid++) {
+		if (epid == adapter->hw.my_epid)
+			continue;
+
+		if (!fjes_hw_check_vlan_id(
+			&adapter->hw.ep_shm_info[epid].tx, vid))
+			ret = fjes_hw_set_vlan_id(
+				&adapter->hw.ep_shm_info[epid].tx, vid);
+	}
+
+	return ret ? 0 : -ENOSPC;
+}
+
+static int fjes_vlan_rx_kill_vid(struct net_device *netdev,
+				 __be16 proto, u16 vid)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	int epid;
+
+	for (epid = 0; epid < adapter->hw.max_epid; epid++) {
+		if (epid == adapter->hw.my_epid)
+			continue;
+
+		fjes_hw_del_vlan_id(&adapter->hw.ep_shm_info[epid].tx, vid);
+	}
+
+	return 0;
 }
 
 static irqreturn_t fjes_intr(int irq, void *data)
