@@ -119,6 +119,7 @@ int snd_hdac_device_register(struct hdac_device *codec);
 void snd_hdac_device_unregister(struct hdac_device *codec);
 
 int snd_hdac_refresh_widgets(struct hdac_device *codec);
+int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec);
 
 unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
 			       unsigned int verb, unsigned int parm);
