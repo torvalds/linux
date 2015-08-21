@@ -1507,7 +1507,8 @@ static void work_fn_tx(struct work_struct *work)
 	sg->offset = xmit->tail & (UART_XMIT_SIZE - 1);
 	sg_dma_address(sg) = (sg_dma_address(sg) & ~(UART_XMIT_SIZE - 1)) +
 		sg->offset;
-	sg_dma_len(sg) = min((int)CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE),
+	sg_dma_len(sg) = min_t(unsigned int,
+		CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE),
 		CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE));
 	spin_unlock_irq(&port->lock);
 
@@ -1737,7 +1738,7 @@ static void sci_request_dma(struct uart_port *port)
 
 		s->chan_rx = chan;
 
-		s->buf_len_rx = 2 * max(16, (int)port->fifosize);
+		s->buf_len_rx = 2 * max_t(size_t, 16, port->fifosize);
 		buf[0] = dma_alloc_coherent(chan->device->dev,
 					    s->buf_len_rx * 2, &dma[0],
 					    GFP_KERNEL);
