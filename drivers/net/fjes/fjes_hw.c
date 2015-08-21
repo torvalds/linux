@@ -638,6 +638,25 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 	return result;
 }
 
+int fjes_hw_raise_interrupt(struct fjes_hw *hw, int dest_epid,
+			    enum REG_ICTL_MASK  mask)
+{
+	u32 ig = mask | dest_epid;
+
+	wr32(XSCT_IG, cpu_to_le32(ig));
+
+	return 0;
+}
+
+u32 fjes_hw_capture_interrupt_status(struct fjes_hw *hw)
+{
+	u32 cur_is;
+
+	cur_is = rd32(XSCT_IS);
+
+	return cur_is;
+}
+
 void fjes_hw_set_irqmask(struct fjes_hw *hw,
 			 enum REG_ICTL_MASK intr_mask, bool mask)
 {
@@ -645,4 +664,130 @@ void fjes_hw_set_irqmask(struct fjes_hw *hw,
 		wr32(XSCT_IMS, intr_mask);
 	else
 		wr32(XSCT_IMC, intr_mask);
+}
+
+bool fjes_hw_epid_is_same_zone(struct fjes_hw *hw, int epid)
+{
+	if (epid >= hw->max_epid)
+		return false;
+
+	if ((hw->ep_shm_info[epid].es_status !=
+			FJES_ZONING_STATUS_ENABLE) ||
+		(hw->ep_shm_info[hw->my_epid].zone ==
+			FJES_ZONING_ZONE_TYPE_NONE))
+		return false;
+	else
+		return (hw->ep_shm_info[epid].zone ==
+				hw->ep_shm_info[hw->my_epid].zone);
+}
+
+int fjes_hw_epid_is_shared(struct fjes_device_shared_info *share,
+			   int dest_epid)
+{
+	int value = false;
+
+	if (dest_epid < share->epnum)
+		value = share->ep_status[dest_epid];
+
+	return value;
+}
+
+static bool fjes_hw_epid_is_stop_requested(struct fjes_hw *hw, int src_epid)
+{
+	return test_bit(src_epid, &hw->txrx_stop_req_bit);
+}
+
+static bool fjes_hw_epid_is_stop_process_done(struct fjes_hw *hw, int src_epid)
+{
+	return (hw->ep_shm_info[src_epid].tx.info->v1i.rx_status &
+			FJES_RX_STOP_REQ_DONE);
+}
+
+enum ep_partner_status
+fjes_hw_get_partner_ep_status(struct fjes_hw *hw, int epid)
+{
+	enum ep_partner_status status;
+
+	if (fjes_hw_epid_is_shared(hw->hw_info.share, epid)) {
+		if (fjes_hw_epid_is_stop_requested(hw, epid)) {
+			status = EP_PARTNER_WAITING;
+		} else {
+			if (fjes_hw_epid_is_stop_process_done(hw, epid))
+				status = EP_PARTNER_COMPLETE;
+			else
+				status = EP_PARTNER_SHARED;
+		}
+	} else {
+		status = EP_PARTNER_UNSHARE;
+	}
+
+	return status;
+}
+
+void fjes_hw_raise_epstop(struct fjes_hw *hw)
+{
+	enum ep_partner_status status;
+	int epidx;
+
+	for (epidx = 0; epidx < hw->max_epid; epidx++) {
+		if (epidx == hw->my_epid)
+			continue;
+
+		status = fjes_hw_get_partner_ep_status(hw, epidx);
+		switch (status) {
+		case EP_PARTNER_SHARED:
+			fjes_hw_raise_interrupt(hw, epidx,
+						REG_ICTL_MASK_TXRX_STOP_REQ);
+			break;
+		default:
+			break;
+		}
+
+		set_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
+		set_bit(epidx, &hw->txrx_stop_req_bit);
+
+		hw->ep_shm_info[epidx].tx.info->v1i.rx_status |=
+				FJES_RX_STOP_REQ_REQUEST;
+	}
+}
+
+int fjes_hw_wait_epstop(struct fjes_hw *hw)
+{
+	enum ep_partner_status status;
+	union ep_buffer_info *info;
+	int wait_time = 0;
+	int epidx;
+
+	while (hw->hw_info.buffer_unshare_reserve_bit &&
+	       (wait_time < FJES_COMMAND_EPSTOP_WAIT_TIMEOUT * 1000)) {
+		for (epidx = 0; epidx < hw->max_epid; epidx++) {
+			if (epidx == hw->my_epid)
+				continue;
+			status = fjes_hw_epid_is_shared(hw->hw_info.share,
+							epidx);
+			info = hw->ep_shm_info[epidx].rx.info;
+			if ((!status ||
+			     (info->v1i.rx_status &
+			      FJES_RX_STOP_REQ_DONE)) &&
+			    test_bit(epidx,
+				     &hw->hw_info.buffer_unshare_reserve_bit)) {
+				clear_bit(epidx,
+					  &hw->hw_info.buffer_unshare_reserve_bit);
+			}
+		}
+
+		msleep(100);
+		wait_time += 100;
+	}
+
+	for (epidx = 0; epidx < hw->max_epid; epidx++) {
+		if (epidx == hw->my_epid)
+			continue;
+		if (test_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit))
+			clear_bit(epidx,
+				  &hw->hw_info.buffer_unshare_reserve_bit);
+	}
+
+	return (wait_time < FJES_COMMAND_EPSTOP_WAIT_TIMEOUT * 1000)
+			? 0 : -EBUSY;
 }

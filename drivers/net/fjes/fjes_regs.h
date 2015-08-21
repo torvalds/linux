@@ -49,8 +49,11 @@
 #define XSCT_RESPBAH        0x004C  /* Response Buffer Address High */
 
 /* Interrupt Control registers */
+#define XSCT_IS             0x0080  /* Interrupt status */
 #define XSCT_IMS            0x0084  /* Interrupt mask set */
 #define XSCT_IMC            0x0088  /* Interrupt mask clear */
+#define XSCT_IG             0x008C  /* Interrupt generator */
+#define XSCT_ICTL           0x0090  /* Interrupt control */
 
 /* register structure */
 /* Information registers */
@@ -101,6 +104,15 @@ union REG_CS {
 	__le32 reg;
 };
 
+/* Interrupt Control registers */
+union REG_ICTL {
+	struct {
+		__le32 automak:1;
+		__le32 rsv0:31;
+	} bits;
+	__le32 reg;
+};
+
 enum REG_ICTL_MASK {
 	REG_ICTL_MASK_INFO_UPDATE     = 1 << 20,
 	REG_ICTL_MASK_DEV_STOP_REQ    = 1 << 19,
@@ -108,6 +120,11 @@ enum REG_ICTL_MASK {
 	REG_ICTL_MASK_TXRX_STOP_DONE  = 1 << 17,
 	REG_ICTL_MASK_RX_DATA         = 1 << 16,
 	REG_ICTL_MASK_ALL             = GENMASK(20, 16),
+};
+
+enum REG_IS_MASK {
+	REG_IS_MASK_IS_ASSERT	= 1 << 31,
+	REG_IS_MASK_EPID	= GENMASK(15, 0),
 };
 
 struct fjes_hw;

@@ -29,6 +29,7 @@
 #define FJES_ACPI_SYMBOL	"Extended Socket"
 #define FJES_MAX_QUEUES		1
 #define FJES_TX_RETRY_INTERVAL	(20 * HZ)
+#define FJES_OPEN_ZONE_UPDATE_WAIT	(300) /* msec */
 
 /* board specific private data structure */
 struct fjes_adapter {

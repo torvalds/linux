@@ -36,12 +36,24 @@ struct fjes_hw;
 #define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3) /* sec */
 #define FJES_COMMAND_REQ_TIMEOUT  (5 + 1) /* sec */
 #define FJES_COMMAND_REQ_BUFF_TIMEOUT	(8 * 3) /* sec */
+#define FJES_COMMAND_EPSTOP_WAIT_TIMEOUT	(1) /* sec */
 
 #define FJES_CMD_REQ_ERR_INFO_PARAM  (0x0001)
 #define FJES_CMD_REQ_ERR_INFO_STATUS (0x0002)
 
 #define FJES_CMD_REQ_RES_CODE_NORMAL (0)
 #define FJES_CMD_REQ_RES_CODE_BUSY   (1)
+
+#define FJES_ZONING_STATUS_DISABLE	(0x00)
+#define FJES_ZONING_STATUS_ENABLE	(0x01)
+#define FJES_ZONING_STATUS_INVALID	(0xFF)
+
+#define FJES_ZONING_ZONE_TYPE_NONE (0xFF)
+
+#define FJES_RX_STOP_REQ_NONE		(0x0)
+#define FJES_RX_STOP_REQ_DONE		(0x1)
+#define FJES_RX_STOP_REQ_REQUEST	(0x2)
+#define FJES_RX_POLL_WORK		(0x4)
 
 #define EP_BUFFER_SIZE \
 	(((sizeof(union ep_buffer_info) + (128 * (64 * 1024))) \
@@ -75,6 +87,15 @@ struct fjes_hw;
 struct esmem_frame {
 	__le32 frame_size;
 	u8 frame_data[];
+};
+
+/* EP partner status */
+enum ep_partner_status {
+	EP_PARTNER_UNSHARE,
+	EP_PARTNER_SHARED,
+	EP_PARTNER_WAITING,
+	EP_PARTNER_COMPLETE,
+	EP_PARTNER_STATUS_MAX,
 };
 
 /* shared status region */
@@ -278,6 +299,15 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *, int);
 void fjes_hw_init_command_registers(struct fjes_hw *,
 				    struct fjes_device_command_param *);
 void fjes_hw_setup_epbuf(struct epbuf_handler *, u8 *, u32);
+int fjes_hw_raise_interrupt(struct fjes_hw *, int, enum REG_ICTL_MASK);
 void fjes_hw_set_irqmask(struct fjes_hw *, enum REG_ICTL_MASK, bool);
+u32 fjes_hw_capture_interrupt_status(struct fjes_hw *);
+void fjes_hw_raise_epstop(struct fjes_hw *);
+int fjes_hw_wait_epstop(struct fjes_hw *);
+enum ep_partner_status
+	fjes_hw_get_partner_ep_status(struct fjes_hw *, int);
+
+bool fjes_hw_epid_is_same_zone(struct fjes_hw *, int);
+int fjes_hw_epid_is_shared(struct fjes_device_shared_info *, int);
 
 #endif /* FJES_HW_H_ */
