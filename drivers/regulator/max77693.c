@@ -300,7 +300,17 @@ static struct platform_driver max77693_pmic_driver = {
 	.id_table = max77693_pmic_id,
 };
 
-module_platform_driver(max77693_pmic_driver);
+static int __init max77693_pmic_init(void)
+{
+	return platform_driver_register(&max77693_pmic_driver);
+}
+subsys_initcall(max77693_pmic_init);
+
+static void __exit max77693_pmic_cleanup(void)
+{
+	platform_driver_unregister(&max77693_pmic_driver);
+}
+module_exit(max77693_pmic_cleanup);
 
 MODULE_DESCRIPTION("MAXIM 77693/77843 regulator driver");
 MODULE_AUTHOR("Jonghwa Lee <jonghwa3.lee@samsung.com>");
