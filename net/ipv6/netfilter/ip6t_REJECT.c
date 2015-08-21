@@ -63,6 +63,12 @@ reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	case IP6T_TCP_RESET:
 		nf_send_reset6(net, skb, par->hooknum);
 		break;
+	case IP6T_ICMP6_POLICY_FAIL:
+		nf_send_unreach6(net, skb, ICMPV6_POLICY_FAIL, par->hooknum);
+		break;
+	case IP6T_ICMP6_REJECT_ROUTE:
+		nf_send_unreach6(net, skb, ICMPV6_REJECT_ROUTE, par->hooknum);
+		break;
 	}
 
 	return NF_DROP;
