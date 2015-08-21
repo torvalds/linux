@@ -1467,10 +1467,11 @@ static void work_fn_rx(struct work_struct *work)
 		dev_dbg(port->dev, "Read %u bytes with cookie %d\n", read,
 			s->active_rx);
 
-		count = sci_dma_rx_push(s, s->rx_buf[new], read);
-
-		if (count)
-			tty_flip_buffer_push(&port->state->port);
+		if (read) {
+			count = sci_dma_rx_push(s, s->rx_buf[new], read);
+			if (count)
+				tty_flip_buffer_push(&port->state->port);
+		}
 
 		spin_unlock_irqrestore(&port->lock, flags);
 
