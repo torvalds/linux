@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2015 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,53 +11,11 @@
 
 #include <asm/cacheflush.h>
 
-#include <dt-bindings/memory/tegra124-mc.h>
+#include <dt-bindings/memory/tegra210-mc.h>
 
 #include "mc.h"
 
-#define MC_EMEM_ARB_CFG				0x90
-#define MC_EMEM_ARB_OUTSTANDING_REQ		0x94
-#define MC_EMEM_ARB_TIMING_RCD			0x98
-#define MC_EMEM_ARB_TIMING_RP			0x9c
-#define MC_EMEM_ARB_TIMING_RC			0xa0
-#define MC_EMEM_ARB_TIMING_RAS			0xa4
-#define MC_EMEM_ARB_TIMING_FAW			0xa8
-#define MC_EMEM_ARB_TIMING_RRD			0xac
-#define MC_EMEM_ARB_TIMING_RAP2PRE		0xb0
-#define MC_EMEM_ARB_TIMING_WAP2PRE		0xb4
-#define MC_EMEM_ARB_TIMING_R2R			0xb8
-#define MC_EMEM_ARB_TIMING_W2W			0xbc
-#define MC_EMEM_ARB_TIMING_R2W			0xc0
-#define MC_EMEM_ARB_TIMING_W2R			0xc4
-#define MC_EMEM_ARB_DA_TURNS			0xd0
-#define MC_EMEM_ARB_DA_COVERS			0xd4
-#define MC_EMEM_ARB_MISC0			0xd8
-#define MC_EMEM_ARB_MISC1			0xdc
-#define MC_EMEM_ARB_RING1_THROTTLE		0xe0
-
-static const unsigned long tegra124_mc_emem_regs[] = {
-	MC_EMEM_ARB_CFG,
-	MC_EMEM_ARB_OUTSTANDING_REQ,
-	MC_EMEM_ARB_TIMING_RCD,
-	MC_EMEM_ARB_TIMING_RP,
-	MC_EMEM_ARB_TIMING_RC,
-	MC_EMEM_ARB_TIMING_RAS,
-	MC_EMEM_ARB_TIMING_FAW,
-	MC_EMEM_ARB_TIMING_RRD,
-	MC_EMEM_ARB_TIMING_RAP2PRE,
-	MC_EMEM_ARB_TIMING_WAP2PRE,
-	MC_EMEM_ARB_TIMING_R2R,
-	MC_EMEM_ARB_TIMING_W2W,
-	MC_EMEM_ARB_TIMING_R2W,
-	MC_EMEM_ARB_TIMING_W2R,
-	MC_EMEM_ARB_DA_TURNS,
-	MC_EMEM_ARB_DA_COVERS,
-	MC_EMEM_ARB_MISC0,
-	MC_EMEM_ARB_MISC1,
-	MC_EMEM_ARB_RING1_THROTTLE
-};
-
-static const struct tegra_mc_client tegra124_mc_clients[] = {
+static const struct tegra_mc_client tegra210_mc_clients[] = {
 	{
 		.id = 0x00,
 		.name = "ptcr",
@@ -246,8 +204,8 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 		},
 	}, {
 		.id = 0x1c,
-		.name = "msencsrd",
-		.swgroup = TEGRA_SWGROUP_MSENC,
+		.name = "nvencsrd",
+		.swgroup = TEGRA_SWGROUP_NVENC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 28,
@@ -301,72 +259,6 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 			.def = 0x65,
 		},
 	}, {
-		.id = 0x22,
-		.name = "vdebsevr",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x22c,
-			.bit = 2,
-		},
-		.la = {
-			.reg = 0x354,
-			.shift = 0,
-			.mask = 0xff,
-			.def = 0x4f,
-		},
-	}, {
-		.id = 0x23,
-		.name = "vdember",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x22c,
-			.bit = 3,
-		},
-		.la = {
-			.reg = 0x354,
-			.shift = 16,
-			.mask = 0xff,
-			.def = 0x3d,
-		},
-	}, {
-		.id = 0x24,
-		.name = "vdemcer",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x22c,
-			.bit = 4,
-		},
-		.la = {
-			.reg = 0x358,
-			.shift = 0,
-			.mask = 0xff,
-			.def = 0x66,
-		},
-	}, {
-		.id = 0x25,
-		.name = "vdetper",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x22c,
-			.bit = 5,
-		},
-		.la = {
-			.reg = 0x358,
-			.shift = 16,
-			.mask = 0xff,
-			.def = 0xa5,
-		},
-	}, {
-		.id = 0x26,
-		.name = "mpcorelpr",
-		.swgroup = TEGRA_SWGROUP_MPCORELP,
-		.la = {
-			.reg = 0x324,
-			.shift = 0,
-			.mask = 0xff,
-			.def = 0x04,
-		},
-	}, {
 		.id = 0x27,
 		.name = "mpcorer",
 		.swgroup = TEGRA_SWGROUP_MPCORE,
@@ -378,8 +270,8 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 		},
 	}, {
 		.id = 0x2b,
-		.name = "msencswr",
-		.swgroup = TEGRA_SWGROUP_MSENC,
+		.name = "nvencswr",
+		.swgroup = TEGRA_SWGROUP_NVENC,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 11,
@@ -447,16 +339,6 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 			.def = 0x80,
 		},
 	}, {
-		.id = 0x38,
-		.name = "mpcorelpw",
-		.swgroup = TEGRA_SWGROUP_MPCORELP,
-		.la = {
-			.reg = 0x324,
-			.shift = 16,
-			.mask = 0xff,
-			.def = 0x80,
-		},
-	}, {
 		.id = 0x39,
 		.name = "mpcorew",
 		.swgroup = TEGRA_SWGROUP_MPCORE,
@@ -507,62 +389,6 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 			.shift = 16,
 			.mask = 0xff,
 			.def = 0x65,
-		},
-	}, {
-		.id = 0x3e,
-		.name = "vdebsevw",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x22c,
-			.bit = 30,
-		},
-		.la = {
-			.reg = 0x35c,
-			.shift = 0,
-			.mask = 0xff,
-			.def = 0x80,
-		},
-	}, {
-		.id = 0x3f,
-		.name = "vdedbgw",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x22c,
-			.bit = 31,
-		},
-		.la = {
-			.reg = 0x35c,
-			.shift = 16,
-			.mask = 0xff,
-			.def = 0x80,
-		},
-	}, {
-		.id = 0x40,
-		.name = "vdembew",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x230,
-			.bit = 0,
-		},
-		.la = {
-			.reg = 0x360,
-			.shift = 0,
-			.mask = 0xff,
-			.def = 0x80,
-		},
-	}, {
-		.id = 0x41,
-		.name = "vdetpmw",
-		.swgroup = TEGRA_SWGROUP_VDE,
-		.smmu = {
-			.reg = 0x230,
-			.bit = 1,
-		},
-		.la = {
-			.reg = 0x360,
-			.shift = 16,
-			.mask = 0xff,
-			.def = 0x80,
 		},
 	}, {
 		.id = 0x44,
@@ -972,20 +798,245 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 			.mask = 0xff,
 			.def = 0x50,
 		},
+	}, {
+		.id = 0x78,
+		.name = "nvdecsrd",
+		.swgroup = TEGRA_SWGROUP_NVDEC,
+		.smmu = {
+			.reg = 0x234,
+			.bit = 24,
+		},
+		.la = {
+			.reg = 0x3d8,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x23,
+		},
+	}, {
+		.id = 0x79,
+		.name = "nvdecswr",
+		.swgroup = TEGRA_SWGROUP_NVDEC,
+		.smmu = {
+			.reg = 0x234,
+			.bit = 25,
+		},
+		.la = {
+			.reg = 0x3d8,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0x80,
+		},
+	}, {
+		.id = 0x7a,
+		.name = "aper",
+		.swgroup = TEGRA_SWGROUP_APE,
+		.smmu = {
+			.reg = 0x234,
+			.bit = 26,
+		},
+		.la = {
+			.reg = 0x3dc,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0xff,
+		},
+	}, {
+		.id = 0x7b,
+		.name = "apew",
+		.swgroup = TEGRA_SWGROUP_APE,
+		.smmu = {
+			.reg = 0x234,
+			.bit = 27,
+		},
+		.la = {
+			.reg = 0x3dc,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x80,
+		},
+	}, {
+		.id = 0x7e,
+		.name = "nvjpgsrd",
+		.swgroup = TEGRA_SWGROUP_NVJPG,
+		.smmu = {
+			.reg = 0x234,
+			.bit = 30,
+		},
+		.la = {
+			.reg = 0x3e4,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x23,
+		},
+	}, {
+		.id = 0x7f,
+		.name = "nvjpgswr",
+		.swgroup = TEGRA_SWGROUP_NVJPG,
+		.smmu = {
+			.reg = 0x234,
+			.bit = 31,
+		},
+		.la = {
+			.reg = 0x3e4,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0x80,
+		},
+	}, {
+		.id = 0x80,
+		.name = "sesrd",
+		.swgroup = TEGRA_SWGROUP_SE,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 0,
+		},
+		.la = {
+			.reg = 0x3e0,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x2e,
+		},
+	}, {
+		.id = 0x81,
+		.name = "seswr",
+		.swgroup = TEGRA_SWGROUP_SE,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 1,
+		},
+		.la = {
+			.reg = 0xb98,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0x80,
+		},
+	}, {
+		.id = 0x82,
+		.name = "axiapr",
+		.swgroup = TEGRA_SWGROUP_AXIAP,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 2,
+		},
+		.la = {
+			.reg = 0x3a0,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0xff,
+		},
+	}, {
+		.id = 0x83,
+		.name = "axiapw",
+		.swgroup = TEGRA_SWGROUP_AXIAP,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 3,
+		},
+		.la = {
+			.reg = 0x3a0,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0x80,
+		},
+	}, {
+		.id = 0x84,
+		.name = "etrr",
+		.swgroup = TEGRA_SWGROUP_ETR,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 4,
+		},
+		.la = {
+			.reg = 0x3ec,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0xff,
+		},
+	}, {
+		.id = 0x85,
+		.name = "etrw",
+		.swgroup = TEGRA_SWGROUP_ETR,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 5,
+		},
+		.la = {
+			.reg = 0x3ec,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0xff,
+		},
+	}, {
+		.id = 0x86,
+		.name = "tsecsrdb",
+		.swgroup = TEGRA_SWGROUP_TSECB,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 6,
+		},
+		.la = {
+			.reg = 0x3f0,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x9b,
+		},
+	}, {
+		.id = 0x87,
+		.name = "tsecswrb",
+		.swgroup = TEGRA_SWGROUP_TSECB,
+		.smmu = {
+			.reg = 0xb98,
+			.bit = 7,
+		},
+		.la = {
+			.reg = 0x3f0,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0x80,
+		},
+	}, {
+		.id = 0x88,
+		.name = "gpusrd2",
+		.swgroup = TEGRA_SWGROUP_GPU,
+		.smmu = {
+			/* read-only */
+			.reg = 0xb98,
+			.bit = 8,
+		},
+		.la = {
+			.reg = 0x3e8,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x1a,
+		},
+	}, {
+		.id = 0x89,
+		.name = "gpuswr2",
+		.swgroup = TEGRA_SWGROUP_GPU,
+		.smmu = {
+			/* read-only */
+			.reg = 0xb98,
+			.bit = 9,
+		},
+		.la = {
+			.reg = 0x3e8,
+			.shift = 16,
+			.mask = 0xff,
+			.def = 0x80,
+		},
 	},
 };
 
-static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
+static const struct tegra_smmu_swgroup tegra210_swgroups[] = {
 	{ .name = "dc",        .swgroup = TEGRA_SWGROUP_DC,        .reg = 0x240 },
 	{ .name = "dcb",       .swgroup = TEGRA_SWGROUP_DCB,       .reg = 0x244 },
 	{ .name = "afi",       .swgroup = TEGRA_SWGROUP_AFI,       .reg = 0x238 },
 	{ .name = "avpc",      .swgroup = TEGRA_SWGROUP_AVPC,      .reg = 0x23c },
 	{ .name = "hda",       .swgroup = TEGRA_SWGROUP_HDA,       .reg = 0x254 },
 	{ .name = "hc",        .swgroup = TEGRA_SWGROUP_HC,        .reg = 0x250 },
-	{ .name = "msenc",     .swgroup = TEGRA_SWGROUP_MSENC,     .reg = 0x264 },
+	{ .name = "nvenc",     .swgroup = TEGRA_SWGROUP_NVENC,     .reg = 0x264 },
 	{ .name = "ppcs",      .swgroup = TEGRA_SWGROUP_PPCS,      .reg = 0x270 },
 	{ .name = "sata",      .swgroup = TEGRA_SWGROUP_SATA,      .reg = 0x274 },
-	{ .name = "vde",       .swgroup = TEGRA_SWGROUP_VDE,       .reg = 0x27c },
 	{ .name = "isp2",      .swgroup = TEGRA_SWGROUP_ISP2,      .reg = 0x258 },
 	{ .name = "xusb_host", .swgroup = TEGRA_SWGROUP_XUSB_HOST, .reg = 0x288 },
 	{ .name = "xusb_dev",  .swgroup = TEGRA_SWGROUP_XUSB_DEV,  .reg = 0x28c },
@@ -999,76 +1050,31 @@ static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
 	{ .name = "sdmmc4a",   .swgroup = TEGRA_SWGROUP_SDMMC4A,   .reg = 0xaa0 },
 	{ .name = "vic",       .swgroup = TEGRA_SWGROUP_VIC,       .reg = 0x284 },
 	{ .name = "vi",        .swgroup = TEGRA_SWGROUP_VI,        .reg = 0x280 },
+	{ .name = "nvdec",     .swgroup = TEGRA_SWGROUP_NVDEC,     .reg = 0xab4 },
+	{ .name = "ape",       .swgroup = TEGRA_SWGROUP_APE,       .reg = 0xab8 },
+	{ .name = "nvjpg",     .swgroup = TEGRA_SWGROUP_NVJPG,     .reg = 0xac0 },
+	{ .name = "se",        .swgroup = TEGRA_SWGROUP_SE,        .reg = 0xabc },
+	{ .name = "axiap",     .swgroup = TEGRA_SWGROUP_AXIAP,     .reg = 0xacc },
+	{ .name = "etr",       .swgroup = TEGRA_SWGROUP_ETR,       .reg = 0xad0 },
+	{ .name = "tsecb",     .swgroup = TEGRA_SWGROUP_TSECB,     .reg = 0xad4 },
 };
 
-#ifdef CONFIG_ARCH_TEGRA_124_SOC
-static void tegra124_flush_dcache(struct page *page, unsigned long offset,
-				  size_t size)
-{
-	phys_addr_t phys = page_to_phys(page) + offset;
-	void *virt = page_address(page) + offset;
-
-	__cpuc_flush_dcache_area(virt, size);
-	outer_flush_range(phys, phys + size);
-}
-
-static const struct tegra_smmu_ops tegra124_smmu_ops = {
-	.flush_dcache = tegra124_flush_dcache,
-};
-
-static const struct tegra_smmu_soc tegra124_smmu_soc = {
-	.clients = tegra124_mc_clients,
-	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
-	.swgroups = tegra124_swgroups,
-	.num_swgroups = ARRAY_SIZE(tegra124_swgroups),
+static const struct tegra_smmu_soc tegra210_smmu_soc = {
+	.clients = tegra210_mc_clients,
+	.num_clients = ARRAY_SIZE(tegra210_mc_clients),
+	.swgroups = tegra210_swgroups,
+	.num_swgroups = ARRAY_SIZE(tegra210_swgroups),
 	.supports_round_robin_arbitration = true,
 	.supports_request_limit = true,
+	.num_tlb_lines = 32,
 	.num_asids = 128,
-	.ops = &tegra124_smmu_ops,
 };
 
-const struct tegra_mc_soc tegra124_mc_soc = {
-	.clients = tegra124_mc_clients,
-	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
+const struct tegra_mc_soc tegra210_mc_soc = {
+	.clients = tegra210_mc_clients,
+	.num_clients = ARRAY_SIZE(tegra210_mc_clients),
 	.num_address_bits = 34,
-	.atom_size = 32,
-	.client_id_mask = 0x7f,
-	.smmu = &tegra124_smmu_soc,
-	.emem_regs = tegra124_mc_emem_regs,
-	.num_emem_regs = ARRAY_SIZE(tegra124_mc_emem_regs),
+	.atom_size = 64,
+	.client_id_mask = 0xff,
+	.smmu = &tegra210_smmu_soc,
 };
-#endif /* CONFIG_ARCH_TEGRA_124_SOC */
-
-#ifdef CONFIG_ARCH_TEGRA_132_SOC
-static void tegra132_flush_dcache(struct page *page, unsigned long offset,
-				  size_t size)
-{
-	void *virt = page_address(page) + offset;
-
-	__flush_dcache_area(virt, size);
-}
-
-static const struct tegra_smmu_ops tegra132_smmu_ops = {
-	.flush_dcache = tegra132_flush_dcache,
-};
-
-static const struct tegra_smmu_soc tegra132_smmu_soc = {
-	.clients = tegra124_mc_clients,
-	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
-	.swgroups = tegra124_swgroups,
-	.num_swgroups = ARRAY_SIZE(tegra124_swgroups),
-	.supports_round_robin_arbitration = true,
-	.supports_request_limit = true,
-	.num_asids = 128,
-	.ops = &tegra132_smmu_ops,
-};
-
-const struct tegra_mc_soc tegra132_mc_soc = {
-	.clients = tegra124_mc_clients,
-	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
-	.num_address_bits = 34,
-	.atom_size = 32,
-	.client_id_mask = 0x7f,
-	.smmu = &tegra132_smmu_soc,
-};
-#endif /* CONFIG_ARCH_TEGRA_132_SOC */

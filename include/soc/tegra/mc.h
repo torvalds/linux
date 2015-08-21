@@ -102,6 +102,8 @@ struct tegra_mc_soc {
 	unsigned int num_address_bits;
 	unsigned int atom_size;
 
+	u8 client_id_mask;
+
 	const struct tegra_smmu_soc *smmu;
 };
 
