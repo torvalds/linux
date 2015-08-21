@@ -44,7 +44,6 @@ struct dst_entry {
 #else
 	void			*__pad1;
 #endif
-	struct lwtunnel_state   *lwtstate;
 	int			(*input)(struct sk_buff *);
 	int			(*output)(struct sock *sk, struct sk_buff *skb);
 
@@ -85,11 +84,12 @@ struct dst_entry {
 	__u32			__pad2;
 #endif
 
+#ifdef CONFIG_64BIT
+	struct lwtunnel_state   *lwtstate;
 	/*
 	 * Align __refcnt to a 64 bytes alignment
 	 * (L1_CACHE_SIZE would be too much)
 	 */
-#ifdef CONFIG_64BIT
 	long			__pad_to_align_refcnt[1];
 #endif
 	/*
@@ -99,6 +99,9 @@ struct dst_entry {
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	unsigned long		lastuse;
+#ifndef CONFIG_64BIT
+	struct lwtunnel_state   *lwtstate;
+#endif
 	union {
 		struct dst_entry	*next;
 		struct rtable __rcu	*rt_next;
