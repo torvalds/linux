@@ -17,7 +17,7 @@ int __percpu_init_rwsem(struct percpu_rw_semaphore *brw,
 
 	/* ->rw_sem represents the whole percpu_rw_semaphore for lockdep */
 	__init_rwsem(&brw->rw_sem, name, rwsem_key);
-	atomic_set(&brw->write_ctr, 0);
+	rcu_sync_init(&brw->rss, RCU_SCHED_SYNC);
 	atomic_set(&brw->slow_read_ctr, 0);
 	init_waitqueue_head(&brw->write_waitq);
 	return 0;
@@ -33,6 +33,7 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *brw)
 	if (!brw->fast_read_ctr)
 		return;
 
+	rcu_sync_dtor(&brw->rss);
 	free_percpu(brw->fast_read_ctr);
 	brw->fast_read_ctr = NULL; /* catch use after free bugs */
 }
@@ -62,13 +63,12 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *brw)
  */
 static bool update_fast_ctr(struct percpu_rw_semaphore *brw, unsigned int val)
 {
-	bool success = false;
+	bool success;
 
 	preempt_disable();
-	if (likely(!atomic_read(&brw->write_ctr))) {
+	success = rcu_sync_is_idle(&brw->rss);
+	if (likely(success))
 		__this_cpu_add(*brw->fast_read_ctr, val);
-		success = true;
-	}
 	preempt_enable();
 
 	return success;
@@ -149,8 +149,6 @@ static int clear_fast_ctr(struct percpu_rw_semaphore *brw)
  */
 void percpu_down_write(struct percpu_rw_semaphore *brw)
 {
-	/* tell update_fast_ctr() there is a pending writer */
-	atomic_inc(&brw->write_ctr);
 	/*
 	 * 1. Ensures that write_ctr != 0 is visible to any down_read/up_read
 	 *    so that update_fast_ctr() can't succeed.
@@ -162,7 +160,7 @@ void percpu_down_write(struct percpu_rw_semaphore *brw)
 	 *    fast-path, it executes a full memory barrier before we return.
 	 *    See R_W case in the comment above update_fast_ctr().
 	 */
-	synchronize_sched_expedited();
+	rcu_sync_enter(&brw->rss);
 
 	/* exclude other writers, and block the new readers completely */
 	down_write(&brw->rw_sem);
@@ -183,8 +181,6 @@ void percpu_up_write(struct percpu_rw_semaphore *brw)
 	 * Insert the barrier before the next fast-path in down_read,
 	 * see W_R case in the comment above update_fast_ctr().
 	 */
-	synchronize_sched_expedited();
-	/* the last writer unblocks update_fast_ctr() */
-	atomic_dec(&brw->write_ctr);
+	rcu_sync_exit(&brw->rss);
 }
 EXPORT_SYMBOL_GPL(percpu_up_write);
