@@ -27,9 +27,9 @@ struct led_type_map {
 	const char	*desc;
 };
 static const struct led_type_map led_type_map[] = {
-	{OPAL_SLOT_LED_TYPE_ID,		POWERNV_LED_TYPE_IDENTIFY},
-	{OPAL_SLOT_LED_TYPE_FAULT,	POWERNV_LED_TYPE_FAULT},
-	{OPAL_SLOT_LED_TYPE_ATTN,	POWERNV_LED_TYPE_ATTENTION},
+	{OPAL_SLOT_LED_TYPE_ID,		"identify"},
+	{OPAL_SLOT_LED_TYPE_FAULT,	"fault"},
+	{OPAL_SLOT_LED_TYPE_ATTN,	"attention"},
 	{-1,				NULL},
 };
 
