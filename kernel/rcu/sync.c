@@ -23,6 +23,24 @@
 #include <linux/rcu_sync.h>
 #include <linux/sched.h>
 
+static const struct {
+	void (*sync)(void);
+	void (*call)(struct rcu_head *, void (*)(struct rcu_head *));
+} gp_ops[] = {
+	[RCU_SYNC] = {
+		.sync = synchronize_rcu,
+		.call = call_rcu,
+	},
+	[RCU_SCHED_SYNC] = {
+		.sync = synchronize_sched,
+		.call = call_rcu_sched,
+	},
+	[RCU_BH_SYNC] = {
+		.sync = synchronize_rcu_bh,
+		.call = call_rcu_bh,
+	},
+};
+
 enum { GP_IDLE = 0, GP_PENDING, GP_PASSED };
 enum { CB_IDLE = 0, CB_PENDING, CB_REPLAY };
 
@@ -37,23 +55,7 @@ void rcu_sync_init(struct rcu_sync *rsp, enum rcu_sync_type type)
 {
 	memset(rsp, 0, sizeof(*rsp));
 	init_waitqueue_head(&rsp->gp_wait);
-
-	switch (type) {
-	case RCU_SYNC:
-		rsp->sync = synchronize_rcu;
-		rsp->call = call_rcu;
-		break;
-
-	case RCU_SCHED_SYNC:
-		rsp->sync = synchronize_sched;
-		rsp->call = call_rcu_sched;
-		break;
-
-	case RCU_BH_SYNC:
-		rsp->sync = synchronize_rcu_bh;
-		rsp->call = call_rcu_bh;
-		break;
-	}
+	rsp->gp_type = type;
 }
 
 /**
@@ -85,7 +87,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 	BUG_ON(need_wait && need_sync);
 
 	if (need_sync) {
-		rsp->sync();
+		gp_ops[rsp->gp_type].sync();
 		rsp->gp_state = GP_PASSED;
 		wake_up_all(&rsp->gp_wait);
 	} else if (need_wait) {
@@ -138,7 +140,7 @@ static void rcu_sync_func(struct rcu_head *rcu)
 		 * to catch a later GP.
 		 */
 		rsp->cb_state = CB_PENDING;
-		rsp->call(&rsp->cb_head, rcu_sync_func);
+		gp_ops[rsp->gp_type].call(&rsp->cb_head, rcu_sync_func);
 	} else {
 		/*
 		 * We're at least a GP after rcu_sync_exit(); eveybody will now
@@ -166,7 +168,7 @@ void rcu_sync_exit(struct rcu_sync *rsp)
 	if (!--rsp->gp_count) {
 		if (rsp->cb_state == CB_IDLE) {
 			rsp->cb_state = CB_PENDING;
-			rsp->call(&rsp->cb_head, rcu_sync_func);
+			gp_ops[rsp->gp_type].call(&rsp->cb_head, rcu_sync_func);
 		} else if (rsp->cb_state == CB_PENDING) {
 			rsp->cb_state = CB_REPLAY;
 		}
