@@ -1172,11 +1172,8 @@ static int sci_request_irq(struct sci_port *port)
 		desc = sci_irq_desc + i;
 		port->irqstr[j] = kasprintf(GFP_KERNEL, "%s:%s",
 					    dev_name(up->dev), desc->desc);
-		if (!port->irqstr[j]) {
-			dev_err(up->dev, "Failed to allocate %s IRQ string\n",
-				desc->desc);
+		if (!port->irqstr[j])
 			goto out_nomem;
-		}
 
 		ret = request_irq(irq, desc->handler, up->irqflags,
 				  port->irqstr[j], port);
@@ -2588,10 +2585,8 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	info = match->data;
 
 	p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port), GFP_KERNEL);
-	if (!p) {
-		dev_err(&pdev->dev, "failed to allocate DT config data\n");
+	if (!p)
 		return NULL;
-	}
 
 	/* Get the line number for the aliases node. */
 	id = of_alias_get_id(np, "serial");
