@@ -104,6 +104,8 @@ static bool mga_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+#define P_ARRAY_SIZE 9
+
 static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 {
 	unsigned int vcomax, vcomin, pllreffreq;
@@ -111,37 +113,97 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	unsigned int testp, testm, testn;
 	unsigned int p, m, n;
 	unsigned int computed;
+	unsigned int pvalues_e4[P_ARRAY_SIZE] = {16, 14, 12, 10, 8, 6, 4, 2, 1};
+	unsigned int fvv;
+	unsigned int i;
 
-	m = n = p = 0;
-	vcomax = 320000;
-	vcomin = 160000;
-	pllreffreq = 25000;
+	if (mdev->unique_rev_id <= 0x03) {
 
-	delta = 0xffffffff;
-	permitteddelta = clock * 5 / 1000;
+		m = n = p = 0;
+		vcomax = 320000;
+		vcomin = 160000;
+		pllreffreq = 25000;
 
-	for (testp = 8; testp > 0; testp /= 2) {
-		if (clock * testp > vcomax)
-			continue;
-		if (clock * testp < vcomin)
-			continue;
+		delta = 0xffffffff;
+		permitteddelta = clock * 5 / 1000;
 
-		for (testn = 17; testn < 256; testn++) {
-			for (testm = 1; testm < 32; testm++) {
-				computed = (pllreffreq * testn) /
-					(testm * testp);
-				if (computed > clock)
-					tmpdelta = computed - clock;
-				else
-					tmpdelta = clock - computed;
-				if (tmpdelta < delta) {
-					delta = tmpdelta;
-					m = testm - 1;
-					n = testn - 1;
-					p = testp - 1;
+		for (testp = 8; testp > 0; testp /= 2) {
+			if (clock * testp > vcomax)
+				continue;
+			if (clock * testp < vcomin)
+				continue;
+
+			for (testn = 17; testn < 256; testn++) {
+				for (testm = 1; testm < 32; testm++) {
+					computed = (pllreffreq * testn) /
+						(testm * testp);
+					if (computed > clock)
+						tmpdelta = computed - clock;
+					else
+						tmpdelta = clock - computed;
+					if (tmpdelta < delta) {
+						delta = tmpdelta;
+						m = testm - 1;
+						n = testn - 1;
+						p = testp - 1;
+					}
 				}
 			}
 		}
+	} else {
+
+
+		m = n = p = 0;
+		vcomax        = 1600000;
+		vcomin        = 800000;
+		pllreffreq    = 25000;
+
+		if (clock < 25000)
+			clock = 25000;
+
+		clock = clock * 2;
+
+		delta = 0xFFFFFFFF;
+		/* Permited delta is 0.5% as VESA Specification */
+		permitteddelta = clock * 5 / 1000;
+
+		for (i = 0 ; i < P_ARRAY_SIZE ; i++) {
+			testp = pvalues_e4[i];
+
+			if ((clock * testp) > vcomax)
+				continue;
+			if ((clock * testp) < vcomin)
+				continue;
+
+			for (testn = 50; testn <= 256; testn++) {
+				for (testm = 1; testm <= 32; testm++) {
+					computed = (pllreffreq * testn) /
+						(testm * testp);
+					if (computed > clock)
+						tmpdelta = computed - clock;
+					else
+						tmpdelta = clock - computed;
+
+					if (tmpdelta < delta) {
+						delta = tmpdelta;
+						m = testm - 1;
+						n = testn - 1;
+						p = testp - 1;
+					}
+				}
+			}
+		}
+
+		fvv = pllreffreq * testn / testm;
+		fvv = (fvv - 800000) / 50000;
+
+		if (fvv > 15)
+			fvv = 15;
+
+		p |= (fvv << 4);
+		m |= 0x80;
+
+		clock = clock / 2;
 	}
 
 	if (delta > permitteddelta) {
@@ -1540,7 +1602,7 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
 				> (24400 * 1024))
 				return MODE_BANDWIDTH;
-		} else if (mdev->unique_rev_id >= 0x02) {
+		} else if (mdev->unique_rev_id == 0x02) {
 			if (mode->hdisplay > 1920)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)
