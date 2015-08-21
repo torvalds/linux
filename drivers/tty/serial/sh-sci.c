@@ -1438,6 +1438,8 @@ static void work_fn_rx(struct work_struct *work)
 	struct sci_port *s = container_of(work, struct sci_port, work_rx);
 	struct uart_port *port = &s->port;
 	struct dma_async_tx_descriptor *desc;
+	struct dma_tx_state state;
+	enum dma_status status;
 	int new;
 
 	if (s->active_rx == s->cookie_rx[0]) {
@@ -1451,21 +1453,21 @@ static void work_fn_rx(struct work_struct *work)
 	}
 	desc = s->desc_rx[new];
 
-	if (dma_async_is_tx_complete(s->chan_rx, s->active_rx, NULL, NULL) !=
-	    DMA_COMPLETE) {
+	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
+	if (status != DMA_COMPLETE) {
 		/* Handle incomplete DMA receive */
 		struct dma_chan *chan = s->chan_rx;
-		struct shdma_desc *sh_desc = container_of(desc,
-					struct shdma_desc, async_tx);
 		unsigned long flags;
+		unsigned int read;
 		int count;
 
 		dmaengine_terminate_all(chan);
-		dev_dbg(port->dev, "Read %zu bytes with cookie %d\n",
-			sh_desc->partial, sh_desc->cookie);
+		read = sg_dma_len(&s->sg_rx[new]) - state.residue;
+		dev_dbg(port->dev, "Read %u bytes with cookie %d\n", read,
+			s->active_rx);
 
 		spin_lock_irqsave(&port->lock, flags);
-		count = sci_dma_rx_push(s, sh_desc->partial);
+		count = sci_dma_rx_push(s, read);
 		spin_unlock_irqrestore(&port->lock, flags);
 
 		if (count)
