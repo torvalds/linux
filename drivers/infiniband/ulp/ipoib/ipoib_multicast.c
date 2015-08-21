@@ -393,8 +393,13 @@ static int ipoib_mcast_join_complete(int status,
 			goto out_locked;
 		}
 	} else {
-		if (mcast->logcount++ < 20) {
-			if (status == -ETIMEDOUT || status == -EAGAIN) {
+		bool silent_fail =
+		    test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags) &&
+		    status == -EINVAL;
+
+		if (mcast->logcount < 20) {
+			if (status == -ETIMEDOUT || status == -EAGAIN ||
+			    silent_fail) {
 				ipoib_dbg_mcast(priv, "%smulticast join failed for %pI6, status %d\n",
 						test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags) ? "sendonly " : "",
 						mcast->mcmember.mgid.raw, status);
@@ -403,6 +408,9 @@ static int ipoib_mcast_join_complete(int status,
 						test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags) ? "sendonly " : "",
 					   mcast->mcmember.mgid.raw, status);
 			}
+
+			if (!silent_fail)
+				mcast->logcount++;
 		}
 
 		if (test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags) &&
