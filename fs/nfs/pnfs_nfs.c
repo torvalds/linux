@@ -239,7 +239,7 @@ void pnfs_fetch_commit_bucket_list(struct list_head *pages,
 
 	bucket = &cinfo->ds->buckets[data->ds_commit_index];
 	spin_lock(cinfo->lock);
-	list_splice_init(pages, &bucket->committing);
+	list_splice_init(&bucket->committing, pages);
 	data->lseg = bucket->clseg;
 	bucket->clseg = NULL;
 	spin_unlock(cinfo->lock);
