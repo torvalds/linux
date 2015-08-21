@@ -46,6 +46,7 @@ struct device;
  * @link_id:	Unique ID used on the last link registered
  * @intf_devnode_id: Unique ID used on the last interface devnode registered
  * @entities:	List of registered entities
+ * @interfaces:	List of registered interfaces
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
  * @link_notify: Link state change notification callback
@@ -77,6 +78,7 @@ struct media_device {
 	u32 intf_devnode_id;
 
 	struct list_head entities;
+	struct list_head interfaces;
 
 	/* Protects the entities list */
 	spinlock_t lock;

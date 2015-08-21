@@ -156,6 +156,8 @@ struct media_entity {
  * struct media_intf_devnode - Define a Kernel API interface
  *
  * @graph_obj:		embedded graph object
+ * @list:		Linked list used to find other interfaces that belong
+ *			to the same media controller
  * @links:		List of links pointing to graph entities
  * @type:		Type of the interface as defined at the
  *			uapi/media/media.h header, e. g.
@@ -164,6 +166,7 @@ struct media_entity {
  */
 struct media_interface {
 	struct media_gobj		graph_obj;
+	struct list_head		list;
 	struct list_head		links;
 	u32				type;
 	u32				flags;
