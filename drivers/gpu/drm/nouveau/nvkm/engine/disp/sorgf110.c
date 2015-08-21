@@ -36,13 +36,6 @@ gf110_sor_loff(struct nvkm_output_dp *outp)
 	return gf110_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
 }
 
-static inline u32
-gf110_sor_dp_lane_map(struct nv50_disp_priv *priv, u8 lane)
-{
-	static const u8 gf110[] = { 16, 8, 0, 24 };
-	return gf110[lane];
-}
-
 static int
 gf110_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
@@ -77,7 +70,7 @@ gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 {
 	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
 	struct nvkm_bios *bios = nvkm_bios(priv);
-	const u32 shift = gf110_sor_dp_lane_map(priv, ln);
+	const u32 shift = g94_sor_dp_lane_map(priv, ln);
 	const u32 loff = gf110_sor_loff(outp);
 	u32 addr, data[4];
 	u8  ver, hdr, cnt, len;

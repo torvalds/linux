@@ -39,11 +39,14 @@ g94_sor_loff(struct nvkm_output_dp *outp)
 	return g94_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
 }
 
-static inline u32
+u32
 g94_sor_dp_lane_map(struct nv50_disp_priv *priv, u8 lane)
 {
+	static const u8 gm100[] = { 0, 8, 16, 24 };
 	static const u8 mcp89[] = { 24, 16, 8, 0 }; /* thanks, apple.. */
-	static const u8 g94[] = { 16, 8, 0, 24 };
+	static const u8   g94[] = { 16, 8, 0, 24 };
+	if (nv_device(priv)->chipset >= 0x110)
+		return gm100[lane];
 	if (nv_device(priv)->chipset == 0xaf)
 		return mcp89[lane];
 	return g94[lane];
