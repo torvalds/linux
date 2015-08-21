@@ -125,7 +125,7 @@ static void default_release(struct device *dev)
 }
 
 /**
- * snd_hdac_ext_device_init - initialize the HDA extended codec base device
+ * snd_hdac_ext_bus_device_init - initialize the HDA extended codec base device
  * @ebus: hdac extended bus to attach to
  * @addr: codec address
  *
@@ -133,14 +133,16 @@ static void default_release(struct device *dev)
  */
 int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *ebus, int addr)
 {
+	struct hdac_ext_device *edev;
 	struct hdac_device *hdev = NULL;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	char name[15];
 	int ret;
 
-	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
-	if (!hdev)
+	edev = kzalloc(sizeof(*hdev), GFP_KERNEL);
+	if (!edev)
 		return -ENOMEM;
+	hdev = &edev->hdac;
 
 	snprintf(name, sizeof(name), "ehdaudio%dD%d", ebus->idx, addr);
 
@@ -158,6 +160,7 @@ int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *ebus, int addr)
 		snd_hdac_ext_bus_device_exit(hdev);
 		return ret;
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_init);
@@ -168,8 +171,10 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_init);
  */
 void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev)
 {
+	struct hdac_ext_device *edev = to_ehdac_device(hdev);
+
 	snd_hdac_device_exit(hdev);
-	kfree(hdev);
+	kfree(edev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_exit);
 

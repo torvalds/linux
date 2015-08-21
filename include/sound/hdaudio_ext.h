@@ -130,4 +130,48 @@ void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
 	writew(((readw(addr + reg) & ~(mask)) | (val)), \
 		addr + reg)
 
+
+struct hdac_ext_device;
+
+/* ops common to all codec drivers */
+struct hdac_ext_codec_ops {
+	int (*build_controls)(struct hdac_ext_device *dev);
+	int (*init)(struct hdac_ext_device *dev);
+	void (*free)(struct hdac_ext_device *dev);
+};
+
+struct hda_dai_map {
+	char *dai_name;
+	hda_nid_t nid;
+	u32	maxbps;
+};
+
+#define HDA_MAX_NIDS 16
+
+/**
+ * struct hdac_ext_device - HDAC Ext device
+ *
+ * @hdac: hdac core device
+ * @nid_list - the dai map which matches the dai-name with the nid
+ * @map_cur_idx - the idx in use in dai_map
+ * @ops - the hda codec ops common to all codec drivers
+ * @pvt_data - private data, for asoc contains asoc codec object
+ */
+struct hdac_ext_device {
+	struct hdac_device hdac;
+	struct hdac_ext_bus *ebus;
+
+	/* soc-dai to nid map */
+	struct hda_dai_map nid_list[HDA_MAX_NIDS];
+	unsigned int map_cur_idx;
+
+	/* codec ops */
+	struct hdac_ext_codec_ops ops;
+
+	void *private_data;
+};
+
+#define to_ehdac_device(dev) (container_of((dev), \
+				 struct hdac_ext_device, hdac))
+
 #endif /* __SOUND_HDAUDIO_EXT_H */
