@@ -55,6 +55,8 @@ static netdev_tx_t fjes_xmit_frame(struct sk_buff *, struct net_device *);
 static void fjes_raise_intr_rxdata_task(struct work_struct *);
 static void fjes_tx_stall_task(struct work_struct *);
 static irqreturn_t fjes_intr(int, void*);
+static struct rtnl_link_stats64 *
+fjes_get_stats64(struct net_device *, struct rtnl_link_stats64 *);
 
 static int fjes_acpi_add(struct acpi_device *);
 static int fjes_acpi_remove(struct acpi_device *);
@@ -219,6 +221,7 @@ static const struct net_device_ops fjes_netdev_ops = {
 	.ndo_open		= fjes_open,
 	.ndo_stop		= fjes_close,
 	.ndo_start_xmit		= fjes_xmit_frame,
+	.ndo_get_stats64	= fjes_get_stats64,
 };
 
 /* fjes_open - Called when a network interface is made active */
@@ -698,6 +701,16 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	return ret;
+}
+
+static struct rtnl_link_stats64 *
+fjes_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+
+	memcpy(stats, &adapter->stats64, sizeof(struct rtnl_link_stats64));
+
+	return stats;
 }
 
 static irqreturn_t fjes_intr(int irq, void *data)
