@@ -2126,6 +2126,8 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	int ret = 0;
 	int timeout = 0;
 	u32 reg;
+	u32 dma_ctrl;
+	int i;
 
 	/* Disable TDMA to stop add more frames in TX DMA */
 	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
@@ -2168,6 +2170,20 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 		netdev_warn(priv->dev, "Timed out while disabling RX DMA\n");
 		ret = -ETIMEDOUT;
 	}
+
+	dma_ctrl = 0;
+	for (i = 0; i < priv->hw_params->rx_queues; i++)
+		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
+	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
+	reg &= ~dma_ctrl;
+	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
+
+	dma_ctrl = 0;
+	for (i = 0; i < priv->hw_params->tx_queues; i++)
+		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
+	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
+	reg &= ~dma_ctrl;
+	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 
 	return ret;
 }
