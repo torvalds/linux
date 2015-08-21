@@ -13,7 +13,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -1126,7 +1125,6 @@ static const struct of_device_id mv_xor_dt_ids[] = {
 	{ .compatible = "marvell,armada-380-xor", .data = (void *)XOR_MODE_IN_DESC },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mv_xor_dt_ids);
 
 static unsigned int mv_xor_engine_count;
 
@@ -1281,27 +1279,8 @@ err_channel_add:
 	return ret;
 }
 
-static int mv_xor_remove(struct platform_device *pdev)
-{
-	struct mv_xor_device *xordev = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
-		if (xordev->channels[i])
-			mv_xor_channel_remove(xordev->channels[i]);
-	}
-
-	if (!IS_ERR(xordev->clk)) {
-		clk_disable_unprepare(xordev->clk);
-		clk_put(xordev->clk);
-	}
-
-	return 0;
-}
-
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
-	.remove		= mv_xor_remove,
 	.driver		= {
 		.name	        = MV_XOR_NAME,
 		.of_match_table = of_match_ptr(mv_xor_dt_ids),
@@ -1313,19 +1292,10 @@ static int __init mv_xor_init(void)
 {
 	return platform_driver_register(&mv_xor_driver);
 }
-module_init(mv_xor_init);
+device_initcall(mv_xor_init);
 
-/* it's currently unsafe to unload this module */
-#if 0
-static void __exit mv_xor_exit(void)
-{
-	platform_driver_unregister(&mv_xor_driver);
-	return;
-}
-
-module_exit(mv_xor_exit);
-#endif
-
+/*
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");
 MODULE_DESCRIPTION("DMA engine driver for Marvell's XOR engine");
 MODULE_LICENSE("GPL");
+*/
