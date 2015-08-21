@@ -84,6 +84,7 @@ struct sci_port {
 	unsigned int		overrun_reg;
 	unsigned int		overrun_mask;
 	unsigned int		error_mask;
+	unsigned int		error_clear;
 	unsigned int		sampling_rate;
 	resource_size_t		reg_size;
 
@@ -2319,15 +2320,22 @@ static int sci_init_single(struct platform_device *dev,
 	/*
 	 * Establish some sensible defaults for the error detection.
 	 */
-	sci_port->error_mask = (p->type == PORT_SCI) ?
-			SCI_DEFAULT_ERROR_MASK : SCIF_DEFAULT_ERROR_MASK;
+	if (p->type == PORT_SCI) {
+		sci_port->error_mask = SCI_DEFAULT_ERROR_MASK;
+		sci_port->error_clear = SCI_ERROR_CLEAR;
+	} else {
+		sci_port->error_mask = SCIF_DEFAULT_ERROR_MASK;
+		sci_port->error_clear = SCIF_ERROR_CLEAR;
+	}
 
 	/*
 	 * Make the error mask inclusive of overrun detection, if
 	 * supported.
 	 */
-	if (sci_port->overrun_reg == SCxSR)
+	if (sci_port->overrun_reg == SCxSR) {
 		sci_port->error_mask |= sci_port->overrun_mask;
+		sci_port->error_clear &= ~sci_port->overrun_mask;
+	}
 
 	port->type		= p->type;
 	port->flags		= UPF_FIXED_PORT | p->flags;
