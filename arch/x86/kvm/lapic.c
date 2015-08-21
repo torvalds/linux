@@ -1595,7 +1595,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	for (i = 0; i < APIC_LVT_NUM; i++)
 		apic_set_reg(apic, APIC_LVTT + 0x10 * i, APIC_LVT_MASKED);
 	apic_update_lvtt(apic);
-	if (!(vcpu->kvm->arch.disabled_quirks & KVM_QUIRK_LINT0_REENABLED))
+	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_LINT0_REENABLED))
 		apic_set_reg(apic, APIC_LVT0,
 			     SET_APIC_DELIVERY_MODE(0, APIC_MODE_EXTINT));
 	apic_manage_nmi_watchdog(apic, kvm_apic_get_reg(apic, APIC_LVT0));

@@ -1804,10 +1804,13 @@ static int do_setlink(const struct sk_buff *skb,
 			goto errout;
 
 		nla_for_each_nested(attr, tb[IFLA_VF_PORTS], rem) {
-			if (nla_type(attr) != IFLA_VF_PORT)
-				continue;
-			err = nla_parse_nested(port, IFLA_PORT_MAX,
-				attr, ifla_port_policy);
+			if (nla_type(attr) != IFLA_VF_PORT ||
+			    nla_len(attr) < NLA_HDRLEN) {
+				err = -EINVAL;
+				goto errout;
+			}
+			err = nla_parse_nested(port, IFLA_PORT_MAX, attr,
+					       ifla_port_policy);
 			if (err < 0)
 				goto errout;
 			if (!port[IFLA_PORT_VF]) {

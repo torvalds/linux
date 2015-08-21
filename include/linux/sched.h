@@ -1522,8 +1522,6 @@ struct task_struct {
 /* hung task detection */
 	unsigned long last_switch_count;
 #endif
-/* CPU-specific state of this task */
-	struct thread_struct thread;
 /* filesystem information */
 	struct fs_struct *fs;
 /* open file information */
@@ -1778,7 +1776,21 @@ struct task_struct {
 	unsigned long	task_state_change;
 #endif
 	int pagefault_disabled;
+/* CPU-specific state of this task */
+	struct thread_struct thread;
+/*
+ * WARNING: on x86, 'thread_struct' contains a variable-sized
+ * structure.  It *MUST* be at the end of 'task_struct'.
+ *
+ * Do not put anything below here!
+ */
 };
+
+#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
+extern int arch_task_struct_size __read_mostly;
+#else
+# define arch_task_struct_size (sizeof(struct task_struct))
+#endif
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
 #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)

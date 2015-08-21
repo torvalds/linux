@@ -2310,8 +2310,8 @@ static int pl011_setup_port(struct device *dev, struct uart_amba_port *uap,
 	void __iomem *base;
 
 	base = devm_ioremap_resource(dev, mmiobase);
-	if (!base)
-		return -ENOMEM;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	index = pl011_probe_dt_alias(index, dev);
 

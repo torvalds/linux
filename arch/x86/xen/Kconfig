@@ -8,7 +8,7 @@ config XEN
 	select PARAVIRT_CLOCK
 	select XEN_HAVE_PVMMU
 	depends on X86_64 || (X86_32 && X86_PAE)
-	depends on X86_TSC
+	depends on X86_LOCAL_APIC && X86_TSC
 	help
 	  This is the Linux Xen port.  Enabling this will allow the
 	  kernel to boot in a paravirtualized environment under the
@@ -17,7 +17,7 @@ config XEN
 config XEN_DOM0
 	def_bool y
 	depends on XEN && PCI_XEN && SWIOTLB_XEN
-	depends on X86_LOCAL_APIC && X86_IO_APIC && ACPI && PCI
+	depends on X86_IO_APIC && ACPI && PCI
 
 config XEN_PVHVM
 	def_bool y

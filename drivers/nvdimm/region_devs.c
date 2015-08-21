@@ -458,10 +458,15 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_btt(dev) && probe) {
+		struct nd_btt *nd_btt = to_nd_btt(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->btt_seed == dev)
 			nd_region_create_btt_seed(nd_region);
+		if (nd_region->ns_seed == &nd_btt->ndns->dev &&
+				is_nd_blk(dev->parent))
+			nd_region_create_blk_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 }

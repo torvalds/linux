@@ -183,18 +183,8 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		if (IS_GEN4(dev)) {
 			uint32_t ddc2 = I915_READ(DCC2);
 
-			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE)) {
-				/* Since the swizzling may vary within an
-				 * object, we have no idea what the swizzling
-				 * is for any page in particular. Thus we
-				 * cannot migrate tiled pages using the GPU,
-				 * nor can we tell userspace what the exact
-				 * swizzling is for any object.
-				 */
+			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE))
 				dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
-				swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-				swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
-			}
 		}
 
 		if (dcc == 0xffffffff) {
@@ -474,7 +464,10 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	}
 
 	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
-	args->phys_swizzle_mode = args->swizzle_mode;
+	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+		args->phys_swizzle_mode = I915_BIT_6_SWIZZLE_UNKNOWN;
+	else
+		args->phys_swizzle_mode = args->swizzle_mode;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_17)
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)

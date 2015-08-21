@@ -812,12 +812,8 @@ static void mcast_add_one(struct ib_device *device)
 	if (!dev)
 		return;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH)
-		dev->start_port = dev->end_port = 0;
-	else {
-		dev->start_port = 1;
-		dev->end_port = device->phys_port_cnt;
-	}
+	dev->start_port = rdma_start_port(device);
+	dev->end_port = rdma_end_port(device);
 
 	for (i = 0; i <= dev->end_port - dev->start_port; i++) {
 		if (!rdma_cap_ib_mcast(device, dev->start_port + i))

@@ -174,6 +174,11 @@ static inline void _writel(unsigned long l, unsigned long addr)
 #define iowrite16 writew
 #define iowrite32 writel
 
+#define ioread16be(addr)	be16_to_cpu(readw(addr))
+#define ioread32be(addr)	be32_to_cpu(readl(addr))
+#define iowrite16be(v, addr)	writew(cpu_to_be16(v), (addr))
+#define iowrite32be(v, addr)	writel(cpu_to_be32(v), (addr))
+
 #define mmiowb()
 
 #define flush_write_buffers() do { } while (0)  /* M32R_FIXME */

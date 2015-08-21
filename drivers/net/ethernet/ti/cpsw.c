@@ -793,9 +793,7 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 static int cpsw_poll(struct napi_struct *napi, int budget)
 {
 	struct cpsw_priv	*priv = napi_to_priv(napi);
-	int			num_tx, num_rx;
-
-	num_tx = cpdma_chan_process(priv->txch, 128);
+	int			num_rx;
 
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 	if (num_rx < budget) {
@@ -810,9 +808,8 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	if (num_rx || num_tx)
-		cpsw_dbg(priv, intr, "poll %d rx, %d tx pkts\n",
-			 num_rx, num_tx);
+	if (num_rx)
+		cpsw_dbg(priv, intr, "poll %d rx pkts\n", num_rx);
 
 	return num_rx;
 }

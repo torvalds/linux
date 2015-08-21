@@ -175,15 +175,24 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	node->page_shift = 12;
 
 	switch (drm->device.info.family) {
+	case NV_DEVICE_INFO_V0_TNT:
+	case NV_DEVICE_INFO_V0_CELSIUS:
+	case NV_DEVICE_INFO_V0_KELVIN:
+	case NV_DEVICE_INFO_V0_RANKINE:
+	case NV_DEVICE_INFO_V0_CURIE:
+		break;
 	case NV_DEVICE_INFO_V0_TESLA:
 		if (drm->device.info.chipset != 0x50)
 			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
 		break;
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
+	case NV_DEVICE_INFO_V0_MAXWELL:
 		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
 		break;
 	default:
+		NV_WARN(drm, "%s: unhandled family type %x\n", __func__,
+			drm->device.info.family);
 		break;
 	}
 
