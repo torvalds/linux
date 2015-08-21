@@ -47,6 +47,7 @@ struct fjes_adapter {
 	unsigned long rx_last_jiffies;
 	bool unset_rx_last;
 
+	struct work_struct force_close_task;
 	bool force_reset;
 	bool open_guard;
 

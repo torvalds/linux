@@ -54,6 +54,7 @@ static void fjes_free_resources(struct fjes_adapter *);
 static netdev_tx_t fjes_xmit_frame(struct sk_buff *, struct net_device *);
 static void fjes_raise_intr_rxdata_task(struct work_struct *);
 static void fjes_tx_stall_task(struct work_struct *);
+static void fjes_force_close_task(struct work_struct *);
 static irqreturn_t fjes_intr(int, void*);
 static struct rtnl_link_stats64 *
 fjes_get_stats64(struct net_device *, struct rtnl_link_stats64 *);
@@ -490,6 +491,17 @@ static void fjes_tx_stall_task(struct work_struct *work)
 	usleep_range(50, 100);
 
 	queue_work(adapter->txrx_wq, &adapter->tx_stall_task);
+}
+
+static void fjes_force_close_task(struct work_struct *work)
+{
+	struct fjes_adapter *adapter = container_of(work,
+			struct fjes_adapter, force_close_task);
+	struct net_device *netdev = adapter->netdev;
+
+	rtnl_lock();
+	dev_close(netdev);
+	rtnl_unlock();
 }
 
 static void fjes_raise_intr_rxdata_task(struct work_struct *work)
@@ -1003,6 +1015,7 @@ static int fjes_probe(struct platform_device *plat_dev)
 	if (err)
 		goto err_free_netdev;
 
+	INIT_WORK(&adapter->force_close_task, fjes_force_close_task);
 	adapter->force_reset = false;
 	adapter->open_guard = false;
 
