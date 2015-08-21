@@ -147,6 +147,7 @@ static struct snd_soc_dai_link rk_dailink = {
 
 static struct snd_soc_card snd_soc_card_rk = {
 	.name = "ROCKCHIP-I2S",
+	.owner = THIS_MODULE,
 	.dai_link = &rk_dailink,
 	.num_links = 1,
 	.aux_dev = &rk_98090_headset_dev,

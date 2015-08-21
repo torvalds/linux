@@ -71,6 +71,7 @@ static struct snd_soc_dai_link arndale_rt5631_dai[] = {
 
 static struct snd_soc_card arndale_rt5631 = {
 	.name = "Arndale RT5631",
+	.owner = THIS_MODULE,
 	.dai_link = arndale_rt5631_dai,
 	.num_links = ARRAY_SIZE(arndale_rt5631_dai),
 };

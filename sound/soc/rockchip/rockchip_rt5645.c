@@ -146,6 +146,7 @@ static struct snd_soc_dai_link rk_dailink = {
 
 static struct snd_soc_card snd_soc_card_rk = {
 	.name = "I2S-RT5650",
+	.owner = THIS_MODULE,
 	.dai_link = &rk_dailink,
 	.num_links = 1,
 	.dapm_widgets = rk_dapm_widgets,
