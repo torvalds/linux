@@ -109,15 +109,16 @@ gm204_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 				  &ver, &hdr, &cnt, &len, &ocfg);
 	if (!addr)
 		return -EINVAL;
+	ocfg.tx_pu &= 0x0f;
 
 	data[0] = nv_rd32(priv, 0x61c118 + loff) & ~(0x000000ff << shift);
 	data[1] = nv_rd32(priv, 0x61c120 + loff) & ~(0x000000ff << shift);
 	data[2] = nv_rd32(priv, 0x61c130 + loff);
-	if ((data[2] & 0x0000ff00) < (ocfg.tx_pu << 8) || ln == 0)
-		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
+	if ((data[2] & 0x00000f00) < (ocfg.tx_pu << 8) || ln == 0)
+		data[2] = (data[2] & ~0x00000f00) | (ocfg.tx_pu << 8);
 	nv_wr32(priv, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
 	nv_wr32(priv, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
-	nv_wr32(priv, 0x61c130 + loff, data[2] | (ocfg.tx_pu << 8));
+	nv_wr32(priv, 0x61c130 + loff, data[2]);
 	data[3] = nv_rd32(priv, 0x61c13c + loff) & ~(0x000000ff << shift);
 	nv_wr32(priv, 0x61c13c + loff, data[3] | (ocfg.pc << shift));
 	return 0;

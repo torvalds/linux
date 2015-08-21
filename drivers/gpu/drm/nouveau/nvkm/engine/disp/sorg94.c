@@ -125,7 +125,7 @@ g94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
 	nv_wr32(priv, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
 	nv_wr32(priv, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
-	nv_wr32(priv, 0x61c130 + loff, data[2] | (ocfg.tx_pu << 8));
+	nv_wr32(priv, 0x61c130 + loff, data[2]);
 	return 0;
 }
 

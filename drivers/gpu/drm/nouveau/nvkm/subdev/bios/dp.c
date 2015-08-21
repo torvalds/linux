@@ -178,7 +178,7 @@ nvbios_dpcfg_parse(struct nvkm_bios *bios, u16 outp, u8 idx,
 			info->pc    = nv_ro08(bios, data + 0x00);
 			info->dc    = nv_ro08(bios, data + 0x01);
 			info->pe    = nv_ro08(bios, data + 0x02);
-			info->tx_pu = nv_ro08(bios, data + 0x03) & 0x0f;
+			info->tx_pu = nv_ro08(bios, data + 0x03);
 			break;
 		default:
 			data = 0x0000;
