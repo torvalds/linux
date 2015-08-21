@@ -173,5 +173,20 @@ struct hdac_ext_device {
 
 #define to_ehdac_device(dev) (container_of((dev), \
 				 struct hdac_ext_device, hdac))
+/*
+ * HD-audio codec base driver
+ */
+struct hdac_ext_driver {
+	struct hdac_driver hdac;
+
+	int	(*probe)(struct hdac_ext_device *dev);
+	int	(*remove)(struct hdac_ext_device *dev);
+	void	(*shutdown)(struct hdac_ext_device *dev);
+};
+
+int snd_hda_ext_driver_register(struct hdac_ext_driver *drv);
+void snd_hda_ext_driver_unregister(struct hdac_ext_driver *drv);
+
+#define to_ehdac_driver(_drv) container_of(_drv, struct hdac_ext_driver, hdac)
 
 #endif /* __SOUND_HDAUDIO_EXT_H */

@@ -196,3 +196,69 @@ void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus)
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_remove);
+#define dev_to_hdac(dev) (container_of((dev), \
+			struct hdac_device, dev))
+
+static inline struct hdac_ext_driver *get_edrv(struct device *dev)
+{
+	struct hdac_driver *hdrv = drv_to_hdac_driver(dev->driver);
+	struct hdac_ext_driver *edrv = to_ehdac_driver(hdrv);
+
+	return edrv;
+}
+
+static inline struct hdac_ext_device *get_edev(struct device *dev)
+{
+	struct hdac_device *hdev = dev_to_hdac_dev(dev);
+	struct hdac_ext_device *edev = to_ehdac_device(hdev);
+
+	return edev;
+}
+
+static int hda_ext_drv_probe(struct device *dev)
+{
+	return (get_edrv(dev))->probe(get_edev(dev));
+}
+
+static int hdac_ext_drv_remove(struct device *dev)
+{
+	return (get_edrv(dev))->remove(get_edev(dev));
+}
+
+static void hdac_ext_drv_shutdown(struct device *dev)
+{
+	return (get_edrv(dev))->shutdown(get_edev(dev));
+}
+
+/**
+ * snd_hda_ext_driver_register - register a driver for ext hda devices
+ *
+ * @drv: ext hda driver structure
+ */
+int snd_hda_ext_driver_register(struct hdac_ext_driver *drv)
+{
+	drv->hdac.type = HDA_DEV_ASOC;
+	drv->hdac.driver.bus = &snd_hda_bus_type;
+	/* we use default match */
+
+	if (drv->probe)
+		drv->hdac.driver.probe = hda_ext_drv_probe;
+	if (drv->remove)
+		drv->hdac.driver.remove = hdac_ext_drv_remove;
+	if (drv->shutdown)
+		drv->hdac.driver.shutdown = hdac_ext_drv_shutdown;
+
+	return driver_register(&drv->hdac.driver);
+}
+EXPORT_SYMBOL_GPL(snd_hda_ext_driver_register);
+
+/**
+ * snd_hda_ext_driver_unregister - unregister a driver for ext hda devices
+ *
+ * @drv: ext hda driver structure
+ */
+void snd_hda_ext_driver_unregister(struct hdac_ext_driver *drv)
+{
+	driver_unregister(&drv->hdac.driver);
+}
+EXPORT_SYMBOL_GPL(snd_hda_ext_driver_unregister);
