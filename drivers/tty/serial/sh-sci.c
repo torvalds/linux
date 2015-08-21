@@ -1398,28 +1398,16 @@ static void sci_submit_rx(struct sci_port *s)
 
 		desc = dmaengine_prep_slave_sg(chan,
 			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+		if (!desc)
+			goto fail;
 
-		if (desc) {
-			s->desc_rx[i] = desc;
-			desc->callback = sci_dma_rx_complete;
-			desc->callback_param = s;
-			s->cookie_rx[i] = dmaengine_submit(desc);
-		}
+		s->desc_rx[i] = desc;
+		desc->callback = sci_dma_rx_complete;
+		desc->callback_param = s;
+		s->cookie_rx[i] = dmaengine_submit(desc);
+		if (dma_submit_error(s->cookie_rx[i]))
+			goto fail;
 
-		if (!desc || dma_submit_error(s->cookie_rx[i])) {
-			if (i) {
-				async_tx_ack(s->desc_rx[0]);
-				s->cookie_rx[0] = -EINVAL;
-			}
-			if (desc) {
-				async_tx_ack(desc);
-				s->cookie_rx[i] = -EINVAL;
-			}
-			dev_warn(s->port.dev,
-				 "Failed to re-start Rx DMA, using PIO\n");
-			sci_rx_dma_release(s, true);
-			return;
-		}
 		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n", __func__,
 			s->cookie_rx[i], i);
 	}
@@ -1427,6 +1415,18 @@ static void sci_submit_rx(struct sci_port *s)
 	s->active_rx = s->cookie_rx[0];
 
 	dma_async_issue_pending(chan);
+	return;
+
+fail:
+	if (i)
+		dmaengine_terminate_all(chan);
+	for (i = 0; i < 2; i++) {
+		s->desc_rx[i] = NULL;
+		s->cookie_rx[i] = -EINVAL;
+	}
+	s->active_rx = -EINVAL;
+	dev_warn(s->port.dev, "Failed to re-start Rx DMA, using PIO\n");
+	sci_rx_dma_release(s, true);
 }
 
 static void work_fn_rx(struct work_struct *work)
