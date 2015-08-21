@@ -1362,9 +1362,13 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 {
 	struct dma_chan *chan = s->chan_rx;
 	struct uart_port *port = &s->port;
+	unsigned long flags;
 
+	spin_lock_irqsave(&port->lock, flags);
 	s->chan_rx = NULL;
 	s->cookie_rx[0] = s->cookie_rx[1] = -EINVAL;
+	spin_unlock_irqrestore(&port->lock, flags);
+	dmaengine_terminate_all(chan);
 	dma_free_coherent(chan->device->dev, s->buf_len_rx * 2,
 			  sg_virt(&s->sg_rx[0]), sg_dma_address(&s->sg_rx[0]));
 	dma_release_channel(chan);
@@ -1376,9 +1380,13 @@ static void sci_tx_dma_release(struct sci_port *s, bool enable_pio)
 {
 	struct dma_chan *chan = s->chan_tx;
 	struct uart_port *port = &s->port;
+	unsigned long flags;
 
+	spin_lock_irqsave(&port->lock, flags);
 	s->chan_tx = NULL;
 	s->cookie_tx = -EINVAL;
+	spin_unlock_irqrestore(&port->lock, flags);
+	dmaengine_terminate_all(chan);
 	dma_unmap_single(chan->device->dev, s->tx_dma_addr, UART_XMIT_SIZE,
 			 DMA_TO_DEVICE);
 	dma_release_channel(chan);
@@ -1444,7 +1452,8 @@ static void work_fn_rx(struct work_struct *work)
 	} else {
 		dev_err(port->dev, "%s: Rx cookie %d not found!\n", __func__,
 			s->active_rx);
-		goto out;
+		spin_unlock_irqrestore(&port->lock, flags);
+		return;
 	}
 
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
@@ -1464,9 +1473,10 @@ static void work_fn_rx(struct work_struct *work)
 		if (count)
 			tty_flip_buffer_push(&port->state->port);
 
-		sci_submit_rx(s);
+		spin_unlock_irqrestore(&port->lock, flags);
 
-		goto out;
+		sci_submit_rx(s);
+		return;
 	}
 
 	desc = dmaengine_prep_slave_sg(s->chan_rx, &s->sg_rx[new], 1,
@@ -1485,14 +1495,13 @@ static void work_fn_rx(struct work_struct *work)
 
 	dev_dbg(port->dev, "%s: cookie %d #%d, new active cookie %d\n",
 		__func__, s->cookie_rx[new], new, s->active_rx);
-out:
 	spin_unlock_irqrestore(&port->lock, flags);
 	return;
 
 fail:
+	spin_unlock_irqrestore(&port->lock, flags);
 	dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 	sci_rx_dma_release(s, true);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void work_fn_tx(struct work_struct *work)
