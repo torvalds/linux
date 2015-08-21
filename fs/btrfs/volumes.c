@@ -5955,6 +5955,7 @@ again:
 	if (!bio)
 		return -ENOMEM;
 
+#ifdef CONFIG_BLK_CGROUP
 	if (first_bio->bi_ioc) {
 		get_io_context_active(first_bio->bi_ioc);
 		bio->bi_ioc = first_bio->bi_ioc;
@@ -5963,6 +5964,7 @@ again:
 		css_get(first_bio->bi_css);
 		bio->bi_css = first_bio->bi_css;
 	}
+#endif
 	while (bvec <= (first_bio->bi_io_vec + first_bio->bi_vcnt - 1)) {
 		if (bio_add_page(bio, bvec->bv_page, bvec->bv_len,
 				 bvec->bv_offset) < bvec->bv_len) {
