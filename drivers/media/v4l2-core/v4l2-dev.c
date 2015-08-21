@@ -922,7 +922,7 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	/* Part 5: Register the entity. */
 	if (vdev->v4l2_dev->mdev &&
 	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
-		vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
+		vdev->entity.type = MEDIA_ENT_T_V4L2_VIDEO;
 		vdev->entity.name = vdev->name;
 		vdev->entity.info.dev.major = VIDEO_MAJOR;
 		vdev->entity.info.dev.minor = vdev->minor;

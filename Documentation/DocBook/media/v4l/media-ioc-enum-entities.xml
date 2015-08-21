@@ -183,7 +183,7 @@
 	    <entry>Unknown device node</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_V4L</constant></entry>
+	    <entry><constant>MEDIA_ENT_T_V4L2_VIDEO</constant></entry>
 	    <entry>V4L video, radio or vbi device node</entry>
 	  </row>
 	  <row>
