@@ -167,32 +167,24 @@ static bool amd_sched_entity_is_idle(struct amd_sched_entity *entity)
  * @sched       Pointer to scheduler instance
  * @entity	The pointer to a valid scheduler entity
  *
- * return 0 if succeed. negative error code on failure
+ * Cleanup and free the allocated resources.
  */
-int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
-			    struct amd_sched_entity *entity)
+void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
+			   struct amd_sched_entity *entity)
 {
 	struct amd_sched_rq *rq = entity->belongto_rq;
-	long r;
 
 	if (!amd_sched_entity_is_initialized(sched, entity))
-		return 0;
+		return;
 
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs
 	*/
-	r = wait_event_timeout(entity->wait_queue,
-		amd_sched_entity_is_idle(entity),
-		msecs_to_jiffies(AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS));
-
-	if (r <= 0)
-		DRM_INFO("Entity %p is in waiting state during fini\n",
-			 entity);
+	wait_event(entity->wait_queue, amd_sched_entity_is_idle(entity));
 
 	amd_sched_rq_remove_entity(rq, entity);
 	kfifo_free(&entity->job_queue);
-	return r;
 }
 
 /**

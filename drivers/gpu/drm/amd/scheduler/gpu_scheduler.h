@@ -27,8 +27,6 @@
 #include <linux/kfifo.h>
 #include <linux/fence.h>
 
-#define AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS		3000
-
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
 
@@ -124,8 +122,8 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
 			  struct amd_sched_rq *rq,
 			  uint32_t jobs);
-int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
-			  struct amd_sched_entity *entity);
+void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
+			   struct amd_sched_entity *entity);
 int amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 
 struct amd_sched_fence *amd_sched_fence_create(
