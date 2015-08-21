@@ -1068,8 +1068,7 @@ bool pnfs_roc(struct inode *ino)
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
-	if (!lo || !test_and_clear_bit(NFS_LAYOUT_ROC, &lo->plh_flags) ||
-	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
+	if (!lo || test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
 		goto out_noroc;
 
 	/* no roc if we hold a delegation */
@@ -1617,10 +1616,8 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	pnfs_get_lseg(lseg);
 	pnfs_layout_insert_lseg(lo, lseg);
 
-	if (res->return_on_close) {
+	if (res->return_on_close)
 		set_bit(NFS_LSEG_ROC, &lseg->pls_flags);
-		set_bit(NFS_LAYOUT_ROC, &lo->plh_flags);
-	}
 
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me);
