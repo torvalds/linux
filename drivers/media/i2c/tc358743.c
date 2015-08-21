@@ -1969,7 +1969,6 @@ MODULE_DEVICE_TABLE(i2c, tc358743_id);
 
 static struct i2c_driver tc358743_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "tc358743",
 	},
 	.probe = tc358743_probe,
