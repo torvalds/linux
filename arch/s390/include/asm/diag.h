@@ -33,16 +33,8 @@ enum diag_stat_enum {
 	NR_DIAG_STAT
 };
 
-struct diag_stat {
-	unsigned int counter[NR_DIAG_STAT];
-};
-
-DECLARE_PER_CPU(struct diag_stat, diag_stat);
-
-static inline void diag_stat_inc(enum diag_stat_enum nr)
-{
-	this_cpu_inc(diag_stat.counter[nr]);
-}
+void diag_stat_inc(enum diag_stat_enum nr);
+void diag_stat_inc_norecursion(enum diag_stat_enum nr);
 
 /*
  * Diagnose 10: Release page range

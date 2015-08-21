@@ -377,11 +377,11 @@ int smp_vcpu_scheduled(int cpu)
 void smp_yield_cpu(int cpu)
 {
 	if (MACHINE_HAS_DIAG9C) {
-		diag_stat_inc(DIAG_STAT_X09C);
+		diag_stat_inc_norecursion(DIAG_STAT_X09C);
 		asm volatile("diag %0,0,0x9c"
 			     : : "d" (pcpu_devices[cpu].address));
 	} else if (MACHINE_HAS_DIAG44) {
-		diag_stat_inc(DIAG_STAT_X044);
+		diag_stat_inc_norecursion(DIAG_STAT_X044);
 		asm volatile("diag 0,0,0x44");
 	}
 }

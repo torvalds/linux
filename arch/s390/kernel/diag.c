@@ -10,9 +10,13 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <asm/diag.h>
+#include <asm/trace/diag.h>
 
-DEFINE_PER_CPU(struct diag_stat, diag_stat);
-EXPORT_PER_CPU_SYMBOL(diag_stat);
+struct diag_stat {
+	unsigned int counter[NR_DIAG_STAT];
+};
+
+static DEFINE_PER_CPU(struct diag_stat, diag_stat);
 
 struct diag_desc {
 	int code;
@@ -113,6 +117,20 @@ static int __init show_diag_stat_init(void)
 }
 
 device_initcall(show_diag_stat_init);
+
+void diag_stat_inc(enum diag_stat_enum nr)
+{
+	this_cpu_inc(diag_stat.counter[nr]);
+	trace_diagnose(diag_map[nr].code);
+}
+EXPORT_SYMBOL(diag_stat_inc);
+
+void diag_stat_inc_norecursion(enum diag_stat_enum nr)
+{
+	this_cpu_inc(diag_stat.counter[nr]);
+	trace_diagnose_norecursion(diag_map[nr].code);
+}
+EXPORT_SYMBOL(diag_stat_inc_norecursion);
 
 /*
  * Diagnose 14: Input spool file manipulation
