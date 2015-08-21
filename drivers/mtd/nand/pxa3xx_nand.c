@@ -252,6 +252,30 @@ static bool use_dma = 1;
 module_param(use_dma, bool, 0444);
 MODULE_PARM_DESC(use_dma, "enable DMA for data transferring to/from NAND HW");
 
+struct pxa3xx_nand_timing {
+	unsigned int	tCH;  /* Enable signal hold time */
+	unsigned int	tCS;  /* Enable signal setup time */
+	unsigned int	tWH;  /* ND_nWE high duration */
+	unsigned int	tWP;  /* ND_nWE pulse time */
+	unsigned int	tRH;  /* ND_nRE high duration */
+	unsigned int	tRP;  /* ND_nRE pulse width */
+	unsigned int	tR;   /* ND_nWE high to ND_nRE low for read */
+	unsigned int	tWHR; /* ND_nWE high to ND_nRE low for status read */
+	unsigned int	tAR;  /* ND_ALE low to ND_nRE low delay */
+};
+
+struct pxa3xx_nand_flash {
+	char		*name;
+	uint32_t	chip_id;
+	unsigned int	page_per_block; /* Pages per block (PG_PER_BLK) */
+	unsigned int	page_size;	/* Page size in bytes (PAGE_SZ) */
+	unsigned int	flash_width;	/* Width of Flash memory (DWIDTH_M) */
+	unsigned int	dfc_width;	/* Width of flash controller(DWIDTH_C) */
+	unsigned int	num_blocks;	/* Number of physical blocks in Flash */
+
+	struct pxa3xx_nand_timing *timing;	/* NAND Flash timing */
+};
+
 static struct pxa3xx_nand_timing timing[] = {
 	{ 40, 80, 60, 100, 80, 100, 90000, 400, 40, },
 	{ 10,  0, 20,  40, 30,  40, 11123, 110, 10, },
@@ -1491,19 +1515,16 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 		return -EINVAL;
 	}
 
-	num = ARRAY_SIZE(builtin_flash_types) + pdata->num_flash - 1;
+	num = ARRAY_SIZE(builtin_flash_types) - 1;
 	for (i = 0; i < num; i++) {
-		if (i < pdata->num_flash)
-			f = pdata->flash + i;
-		else
-			f = &builtin_flash_types[i - pdata->num_flash + 1];
+		f = &builtin_flash_types[i + 1];
 
 		/* find the chip in default list */
 		if (f->chip_id == id)
 			break;
 	}
 
-	if (i >= (ARRAY_SIZE(builtin_flash_types) + pdata->num_flash - 1)) {
+	if (i >= (ARRAY_SIZE(builtin_flash_types) - 1)) {
 		dev_err(&info->pdev->dev, "ERROR!! flash not defined!!!\n");
 
 		return -EINVAL;
