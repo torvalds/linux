@@ -2446,7 +2446,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc guc;
-	struct i915_guc_client client = { .client_obj = 0 };
+	struct i915_guc_client client = {};
 	struct intel_engine_cs *ring;
 	enum intel_ring_id i;
 	u64 total = 0;
@@ -4948,7 +4948,7 @@ static void cherryview_sseu_device_status(struct drm_device *dev,
 					  struct sseu_dev_status *stat)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const int ss_max = 2;
+	int ss_max = 2;
 	int ss;
 	u32 sig1[ss_max], sig2[ss_max];
 
