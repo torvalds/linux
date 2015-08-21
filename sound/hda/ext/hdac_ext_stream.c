@@ -423,7 +423,7 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_ext_bus *ebus,
 
 	mask |= (1 << index);
 
-	register_mask = snd_hdac_chip_readl(bus, SPB_SPBFCCTL);
+	register_mask = readl(ebus->spbcap + AZX_REG_SPB_SPBFCCTL);
 
 	mask |= register_mask;
 
