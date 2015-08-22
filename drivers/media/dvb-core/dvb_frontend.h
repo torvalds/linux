@@ -48,6 +48,15 @@
  */
 #define MAX_DELSYS	8
 
+/**
+ * struct dvb_frontend_tune_settings - parameters to adjust frontend tuning
+ *
+ * @min_delay_ms:	minimum delay for tuning, in ms
+ * @step_size:		step size between two consecutive frequencies
+ * @max_drift:		maximum drift
+ *
+ * NOTE: step_size is in Hz, for terrestrial/cable or kHz for satellite
+ */
 struct dvb_frontend_tune_settings {
 	int min_delay_ms;
 	int step_size;
