@@ -318,11 +318,17 @@ struct v4l2_mbus_frame_desc {
  *	regarding clock frequency dividers, etc. If not used, then set flags
  *	to 0. If the frequency is not supported, then -EINVAL is returned.
  *
+ * @g_std: callback for VIDIOC_G_STD ioctl handler code.
+ *
+ * @s_std: callback for VIDIOC_S_STD ioctl handler code.
+ *
  * @s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
  *	video input devices.
  *
  * @g_std_output: get current standard for video OUTPUT devices. This is ignored
  *	by video input devices.
+ *
+ * @querystd: callback for VIDIOC_QUERYSTD ioctl handler code.
  *
  * @g_tvnorms: get v4l2_std_id with all standards supported by the video
  *	CAPTURE device. This is ignored by video output devices.
@@ -333,11 +339,27 @@ struct v4l2_mbus_frame_desc {
  * @g_input_status: get input status. Same as the status field in the v4l2_input
  *	struct.
  *
- * @s_dv_timings(): Set custom dv timings in the sub device. This is used
+ * @cropcap: callback for VIDIOC_CROPCAP ioctl handler code.
+ *
+ * @g_crop: callback for VIDIOC_G_CROP ioctl handler code.
+ *
+ * @s_crop: callback for VIDIOC_S_CROP ioctl handler code.
+ *
+ * @g_parm: callback for VIDIOC_G_PARM ioctl handler code.
+ *
+ * @s_parm: callback for VIDIOC_S_PARM ioctl handler code.
+ *
+ * @g_frame_interval: callback for VIDIOC_G_FRAMEINTERVAL ioctl handler code.
+ *
+ * @s_frame_interval: callback for VIDIOC_S_FRAMEINTERVAL ioctl handler code.
+ *
+ * @s_dv_timings: Set custom dv timings in the sub device. This is used
  *	when sub device is capable of setting detailed timing information
  *	in the hardware to generate/detect the video signal.
  *
- * @g_dv_timings(): Get custom dv timings in the sub device.
+ * @g_dv_timings: Get custom dv timings in the sub device.
+ *
+ * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS ioctl handler code.
  *
  * @g_mbus_config: get supported mediabus configurations
  *
