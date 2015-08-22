@@ -119,7 +119,9 @@ struct v4l2_subdev_io_pin_config {
 };
 
 /**
- * struct v4l2_subdev_core_ops - Define ops callbacks for subdevs
+ * struct v4l2_subdev_core_ops - Define core ops callbacks for subdevs
+ *
+ * @log_status: callback for VIDIOC_LOG_STATUS ioctl handler code.
  *
  * @s_io_pin_config: configure one or more chip I/O pins for chips that
  *	multiplex different internal signal pads out to IO pins.  This function
@@ -140,6 +142,24 @@ struct v4l2_subdev_io_pin_config {
  *
  * @s_gpio: set GPIO pins. Very simple right now, might need to be extended with
  *	a direction argument if needed.
+ *
+ * @queryctrl: callback for VIDIOC_QUERYCTL ioctl handler code.
+ *
+ * @g_ctrl: callback for VIDIOC_G_CTRL ioctl handler code.
+ *
+ * @s_ctrl: callback for VIDIOC_S_CTRL ioctl handler code.
+ *
+ * @g_ext_ctrls: callback for VIDIOC_G_EXT_CTRLS ioctl handler code.
+ *
+ * @s_ext_ctrls: callback for VIDIOC_S_EXT_CTRLS ioctl handler code.
+ *
+ * @try_ext_ctrls: callback for VIDIOC_TRY_EXT_CTRLS ioctl handler code.
+ *
+ * @querymenu: callback for VIDIOC_QUERYMENU ioctl handler code.
+ *
+ * @g_register: callback for VIDIOC_G_REGISTER ioctl handler code.
+ *
+ * @s_register: callback for VIDIOC_G_REGISTER ioctl handler code.
  *
  * @s_power: puts subdevice in power saving mode (on == 0) or normal operation
  *	mode (on == 1).
