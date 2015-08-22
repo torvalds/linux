@@ -282,26 +282,34 @@ restart:
 		/* The transport either sends the whole rdma or none of it */
 		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
 			rm->m_final_op = &rm->rdma;
+			/* The transport owns the mapped memory for now.
+			 * You can't unmap it while it's on the send queue
+			 */
+			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
 			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
-			if (ret)
+			if (ret) {
+				clear_bit(RDS_MSG_MAPPED, &rm->m_flags);
+				wake_up_interruptible(&rm->m_flush_wait);
 				break;
+			}
 			conn->c_xmit_rdma_sent = 1;
 
-			/* The transport owns the mapped memory for now.
-			 * You can't unmap it while it's on the send queue */
-			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
 		}
 
 		if (rm->atomic.op_active && !conn->c_xmit_atomic_sent) {
 			rm->m_final_op = &rm->atomic;
+			/* The transport owns the mapped memory for now.
+			 * You can't unmap it while it's on the send queue
+			 */
+			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
 			ret = conn->c_trans->xmit_atomic(conn, &rm->atomic);
-			if (ret)
+			if (ret) {
+				clear_bit(RDS_MSG_MAPPED, &rm->m_flags);
+				wake_up_interruptible(&rm->m_flush_wait);
 				break;
+			}
 			conn->c_xmit_atomic_sent = 1;
 
-			/* The transport owns the mapped memory for now.
-			 * You can't unmap it while it's on the send queue */
-			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
 		}
 
 		/*
