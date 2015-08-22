@@ -647,6 +647,25 @@ struct dtv_frontend_properties {
 #define DVB_FE_DEVICE_REMOVED   2
 #define DVB_FE_DEVICE_RESUME    3
 
+/**
+ * struct dvb_frontend - Frontend structure to be used on drivers.
+ *
+ * @ops:		embedded struct dvb_frontend_ops
+ * @dvb:		pointer to struct dvb_adapter
+ * @demodulator_priv:	demod private data
+ * @tuner_priv:		tuner private data
+ * @frontend_priv:	frontend private data
+ * @sec_priv:		SEC private data
+ * @analog_demod_priv:	Analog demod private data
+ * @dtv_property_cache:	embedded struct dtv_frontend_properties
+ * @callback:		callback function used on some drivers to call
+ *			either the tuner or the demodulator.
+ * @id:			Frontend ID
+ * @exit:		Used to inform the DVB core that the frontend
+ *			thread should exit (usually, means that the hardware
+ *			got disconnected.
+ */
+
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
