@@ -157,6 +157,12 @@ struct v4l2_subdev_io_pin_config {
  *
  * @querymenu: callback for VIDIOC_QUERYMENU ioctl handler code.
  *
+ * @ioctl: called at the end of ioctl() syscall handler at the V4L2 core.
+ *	   used to provide support for private ioctls used on the driver.
+ *
+ * @compat_ioctl32: called when a 32 bits application uses a 64 bits Kernel,
+ *		    in order to fix data passed from/to userspace.
+ *
  * @g_register: callback for VIDIOC_G_REGISTER ioctl handler code.
  *
  * @s_register: callback for VIDIOC_G_REGISTER ioctl handler code.
@@ -168,6 +174,11 @@ struct v4l2_subdev_io_pin_config {
  *	handler, when an interrupt status has be raised due to this subdev,
  *	so that this subdev can handle the details.  It may schedule work to be
  *	performed later.  It must not sleep.  *Called from an IRQ context*.
+ *
+ * @subscribe_event: used by the drivers to request the control framework that
+ *		     for it to be warned when the value of a control changes.
+ *
+ * @unsubscribe_event: remove event subscription from the control framework.
  */
 struct v4l2_subdev_core_ops {
 	int (*log_status)(struct v4l2_subdev *sd);
@@ -264,6 +275,9 @@ struct v4l2_subdev_tuner_ops {
  *	board or platform it might be connected to something else entirely.
  *	The calling driver is responsible for mapping a user-level input to
  *	the right pins on the i2c device.
+ *
+ * @s_stream: used to notify the audio code that stream will start or has
+ *	stopped.
  */
 struct v4l2_subdev_audio_ops {
 	int (*s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
@@ -338,6 +352,9 @@ struct v4l2_mbus_frame_desc {
  *
  * @g_input_status: get input status. Same as the status field in the v4l2_input
  *	struct.
+ *
+ * @s_stream: used to notify the driver that a video stream will start or has
+ *	stopped.
  *
  * @cropcap: callback for VIDIOC_CROPCAP ioctl handler code.
  *
@@ -578,9 +595,12 @@ struct v4l2_subdev_pad_config {
  * @enum_dv_timings: callback for VIDIOC_SUBDEV_ENUM_DV_TIMINGS ioctl handler
  *		     code.
  *
+ * @link_validate: used by the media controller code to check if the links
+ *		   that belongs to a pipeline can be used for stream.
+ *
  * @get_frame_desc: get the current low level media bus frame parameters.
  *
- * @get_frame_desc: set the low level media bus frame parameters, @fd array
+ * @set_frame_desc: set the low level media bus frame parameters, @fd array
  *                  may be adjusted by the subdev driver to device capabilities.
  */
 struct v4l2_subdev_pad_ops {
