@@ -108,7 +108,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	case HW_VAR_MEDIA_STATUS:
 	{
 		enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
-		enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 		u8 btMsr = rtl92e_readb(dev, MSR);
 
 		btMsr &= 0xfc;
@@ -116,7 +115,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		switch (OpMode) {
 		case RT_OP_MODE_INFRASTRUCTURE:
 			btMsr |= MSR_INFRA;
-			LedAction = LED_CTL_LINK;
 			break;
 
 		case RT_OP_MODE_IBSS:
@@ -125,7 +123,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 		case RT_OP_MODE_AP:
 			btMsr |= MSR_AP;
-			LedAction = LED_CTL_LINK;
 			break;
 
 		default:
