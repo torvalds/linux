@@ -206,7 +206,8 @@ struct lprocfs_stats {
 #define OPC_RANGE(seg) (seg ## _LAST_OPC - seg ## _FIRST_OPC)
 
 /* Pack all opcodes down into a single monotonically increasing index */
-static inline int opcode_offset(__u32 opc) {
+static inline int opcode_offset(__u32 opc)
+{
 	if (opc < OST_LAST_OPC) {
 		 /* OST opcode */
 		return (opc - OST_FIRST_OPC);

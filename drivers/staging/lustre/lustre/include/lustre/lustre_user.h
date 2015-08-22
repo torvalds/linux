@@ -658,7 +658,8 @@ enum changelog_rec_type {
 	CL_LAST
 };
 
-static inline const char *changelog_type2str(int type) {
+static inline const char *changelog_type2str(int type)
+{
 	static const char *changelog_str[] = {
 		"MARK",  "CREAT", "MKDIR", "HLINK", "SLINK", "MKNOD", "UNLNK",
 		"RMDIR", "RENME", "RNMTO", "OPEN",  "CLOSE", "LYOUT", "TRUNC",

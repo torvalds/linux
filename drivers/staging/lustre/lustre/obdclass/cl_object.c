@@ -653,7 +653,8 @@ static inline void cl_env_do_detach(struct cl_env *cle)
 	cle->ce_owner = NULL;
 }
 
-static int cl_env_store_init(void) {
+static int cl_env_store_init(void)
+{
 	cl_env_hash = cfs_hash_create("cl_env",
 				      HASH_CL_ENV_BITS, HASH_CL_ENV_BITS,
 				      HASH_CL_ENV_BKT_BITS, 0,
