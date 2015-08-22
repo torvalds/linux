@@ -658,6 +658,8 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		ret = rds_pin_pages(iov->addr, nr, pages, !op->op_write);
 		if (ret < 0)
 			goto out;
+		else
+			ret = 0;
 
 		rdsdebug("RDS: nr_bytes %u nr %u iov->bytes %llu iov->addr %llx\n",
 			 nr_bytes, nr, iov->bytes, iov->addr);
