@@ -1664,11 +1664,9 @@ int try_to_free_nids(struct f2fs_sb_info *sbi, int nr_shrink)
 		if (i->state == NID_ALLOC)
 			continue;
 		__del_from_free_nid_list(nm_i, i);
-		nm_i->fcnt--;
-		spin_unlock(&nm_i->free_nid_list_lock);
 		kmem_cache_free(free_nid_slab, i);
+		nm_i->fcnt--;
 		nr_shrink--;
-		spin_lock(&nm_i->free_nid_list_lock);
 	}
 	spin_unlock(&nm_i->free_nid_list_lock);
 	mutex_unlock(&nm_i->build_lock);
