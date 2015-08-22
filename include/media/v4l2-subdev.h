@@ -432,6 +432,8 @@ struct v4l2_subdev_video_ops {
  *	member (to determine whether CC data from the first or second field
  *	should be obtained).
  *
+ * @g_sliced_vbi_cap: callback for VIDIOC_SLICED_VBI_CAP ioctl handler code.
+ *
  * @s_raw_fmt: setup the video encoder/decoder for raw VBI.
  *
  * @g_sliced_fmt: retrieve the current sliced VBI settings.
@@ -549,7 +551,35 @@ struct v4l2_subdev_pad_config {
 
 /**
  * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
+ *
+ * @enum_mbus_code: callback for VIDIOC_SUBDEV_ENUM_MBUS_CODE ioctl handler
+ *		    code.
+ * @enum_frame_size: callback for VIDIOC_SUBDEV_ENUM_FRAME_SIZE ioctl handler
+ *		     code.
+ *
+ * @enum_frame_interval: callback for VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL ioctl
+ *			 handler code.
+ *
+ * @get_fmt: callback for VIDIOC_SUBDEV_G_FMT ioctl handler code.
+ *
+ * @set_fmt: callback for VIDIOC_SUBDEV_S_FMT ioctl handler code.
+ *
+ * @get_selection: callback for VIDIOC_SUBDEV_G_SELECTION ioctl handler code.
+ *
+ * @set_selection: callback for VIDIOC_SUBDEV_S_SELECTION ioctl handler code.
+ *
+ * @get_edid: callback for VIDIOC_SUBDEV_G_EDID ioctl handler code.
+ *
+ * @set_edid: callback for VIDIOC_SUBDEV_S_EDID ioctl handler code.
+ *
+ * @dv_timings_cap: callback for VIDIOC_SUBDEV_DV_TIMINGS_CAP ioctl handler
+ *		    code.
+ *
+ * @enum_dv_timings: callback for VIDIOC_SUBDEV_ENUM_DV_TIMINGS ioctl handler
+ *		     code.
+ *
  * @get_frame_desc: get the current low level media bus frame parameters.
+ *
  * @get_frame_desc: set the low level media bus frame parameters, @fd array
  *                  may be adjusted by the subdev driver to device capabilities.
  */
