@@ -348,9 +348,18 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name,
 	return dso__find_symbol_by_name(map->dso, map->type, name);
 }
 
-struct map *map__clone(struct map *map)
+struct map *map__clone(struct map *from)
 {
-	return memdup(map, sizeof(*map));
+	struct map *map = memdup(from, sizeof(*map));
+
+	if (map != NULL) {
+		atomic_set(&map->refcnt, 1);
+		RB_CLEAR_NODE(&map->rb_node);
+		dso__get(map->dso);
+		map->groups = NULL;
+	}
+
+	return map;
 }
 
 int map__overlap(struct map *l, struct map *r)

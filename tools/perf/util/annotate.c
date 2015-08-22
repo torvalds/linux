@@ -1126,6 +1126,7 @@ fallback:
 		dso->annotate_warned = 1;
 		pr_err("Can't annotate %s:\n\n"
 		       "No vmlinux file%s\nwas found in the path.\n\n"
+		       "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
 		       "Please use:\n\n"
 		       "  perf buildid-cache -vu vmlinux\n\n"
 		       "or:\n\n"

@@ -705,9 +705,10 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	}
 	/* Error path : ntevs < 0 */
 	pr_debug("An error occurred in debuginfo analysis (%d).\n", ntevs);
-	if (ntevs == -EBADF) {
-		pr_warning("Warning: No dwarf info found in the vmlinux - "
-			"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
+	if (ntevs < 0) {
+		if (ntevs == -EBADF)
+			pr_warning("Warning: No dwarf info found in the vmlinux - "
+				"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
 		if (!need_dwarf) {
 			pr_debug("Trying to use symbols.\n");
 			return 0;

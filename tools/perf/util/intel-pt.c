@@ -1450,7 +1450,7 @@ static int intel_pt_process_event(struct perf_session *session,
 		return -EINVAL;
 	}
 
-	if (sample->time)
+	if (sample->time && sample->time != (u64)-1)
 		timestamp = perf_time_to_tsc(sample->time, &pt->tc);
 	else
 		timestamp = 0;
