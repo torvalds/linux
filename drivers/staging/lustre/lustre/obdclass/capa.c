@@ -58,7 +58,7 @@
 #define NR_CAPAHASH 32
 #define CAPA_HASH_SIZE 3000	      /* for MDS & OSS */
 
-struct kmem_cache *capa_cachep = NULL;
+struct kmem_cache *capa_cachep;
 
 /* lock for capa hash/capa_list/fo_capa_keys */
 DEFINE_SPINLOCK(capa_lock);

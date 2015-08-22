@@ -1689,8 +1689,8 @@ EXPORT_SYMBOL(lu_context_refill);
  * predefined when the lu_device type are registered, during the module probe
  * phase.
  */
-__u32 lu_context_tags_default = 0;
-__u32 lu_session_tags_default = 0;
+__u32 lu_context_tags_default;
+__u32 lu_session_tags_default;
 
 void lu_context_tags_update(__u32 tags)
 {

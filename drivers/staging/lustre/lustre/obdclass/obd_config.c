@@ -931,8 +931,8 @@ static int class_set_global(char *ptr, int val, struct lustre_cfg *lcfg)
 
 /* We can't call ll_process_config or lquota_process_config directly because
  * it lives in a module that must be loaded after this one. */
-static int (*client_process_config)(struct lustre_cfg *lcfg) = NULL;
-static int (*quota_process_config)(struct lustre_cfg *lcfg) = NULL;
+static int (*client_process_config)(struct lustre_cfg *lcfg);
+static int (*quota_process_config)(struct lustre_cfg *lcfg);
 
 void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg))
 {

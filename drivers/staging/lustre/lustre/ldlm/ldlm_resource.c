@@ -47,8 +47,8 @@
 
 struct kmem_cache *ldlm_resource_slab, *ldlm_lock_slab;
 
-int ldlm_srv_namespace_nr = 0;
-int ldlm_cli_namespace_nr = 0;
+int ldlm_srv_namespace_nr;
+int ldlm_cli_namespace_nr;
 
 struct mutex ldlm_srv_namespace_lock;
 LIST_HEAD(ldlm_srv_namespace_list);

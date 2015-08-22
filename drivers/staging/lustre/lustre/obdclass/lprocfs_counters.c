@@ -41,7 +41,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/obd_support.h"
 
-struct lprocfs_stats *obd_memory = NULL;
+struct lprocfs_stats *obd_memory;
 EXPORT_SYMBOL(obd_memory);
 
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)

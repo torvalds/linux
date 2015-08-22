@@ -53,9 +53,9 @@ EXPORT_SYMBOL(obd_devs);
 struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
-__u64 obd_max_pages = 0;
+__u64 obd_max_pages;
 EXPORT_SYMBOL(obd_max_pages);
-__u64 obd_max_alloc = 0;
+__u64 obd_max_alloc;
 EXPORT_SYMBOL(obd_max_alloc);
 __u64 obd_alloc;
 EXPORT_SYMBOL(obd_alloc);
@@ -64,7 +64,7 @@ EXPORT_SYMBOL(obd_pages);
 static DEFINE_SPINLOCK(obd_updatemax_lock);
 
 /* The following are visible and mutable through /proc/sys/lustre/. */
-unsigned int obd_alloc_fail_rate = 0;
+unsigned int obd_alloc_fail_rate;
 EXPORT_SYMBOL(obd_alloc_fail_rate);
 unsigned int obd_debug_peer_on_timeout;
 EXPORT_SYMBOL(obd_debug_peer_on_timeout);
@@ -81,7 +81,7 @@ EXPORT_SYMBOL(obd_timeout);
 unsigned int obd_timeout_set;
 EXPORT_SYMBOL(obd_timeout_set);
 /* Adaptive timeout defs here instead of ptlrpc module for /proc/sys/ access */
-unsigned int at_min = 0;
+unsigned int at_min;
 EXPORT_SYMBOL(at_min);
 unsigned int at_max = 600;
 EXPORT_SYMBOL(at_max);
