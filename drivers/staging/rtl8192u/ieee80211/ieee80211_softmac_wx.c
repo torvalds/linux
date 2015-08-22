@@ -308,7 +308,6 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	HT_EXTCHNL_OFFSET chan_offset=0;
 	HT_CHANNEL_WIDTH bandwidth=0;
 	int b40M = 0;
-	static int count;
 	chan = ieee->current_network.channel;
 	netif_carrier_off(ieee->dev);
 
@@ -357,7 +356,6 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 		ieee80211_start_send_beacons(ieee);
 
 	netif_carrier_on(ieee->dev);
-	count = 0;
 	up(&ieee->wx_sem);
 
 }
