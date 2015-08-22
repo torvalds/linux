@@ -121,30 +121,28 @@ enum tuner_param {
 	DVBFE_TUNER_DUMMY		= (1 << 31)
 };
 
-/*
- * ALGO_HW: (Hardware Algorithm)
- * ----------------------------------------------------------------
- * Devices that support this algorithm do everything in hardware
- * and no software support is needed to handle them.
- * Requesting these devices to LOCK is the only thing required,
- * device is supposed to do everything in the hardware.
+/**
+ * enum dvbfe_algo - defines the algorithm used to tune into a channel
  *
- * ALGO_SW: (Software Algorithm)
- * ----------------------------------------------------------------
+ * @DVBFE_ALGO_HW: (Hardware Algorithm)
+ *	Devices that support this algorithm do everything in hardware
+ *	and no software support is needed to handle them.
+ *	Requesting these devices to LOCK is the only thing required,
+ *	device is supposed to do everything in the hardware.
+ *
+ * @DVBFE_ALGO_SW: (Software Algorithm)
  * These are dumb devices, that require software to do everything
  *
- * ALGO_CUSTOM: (Customizable Agorithm)
- * ----------------------------------------------------------------
- * Devices having this algorithm can be customized to have specific
- * algorithms in the frontend driver, rather than simply doing a
- * software zig-zag. In this case the zigzag maybe hardware assisted
- * or it maybe completely done in hardware. In all cases, usage of
- * this algorithm, in conjunction with the search and track
- * callbacks, utilizes the driver specific algorithm.
+ * @DVBFE_ALGO_CUSTOM: (Customizable Agorithm)
+ *	Devices having this algorithm can be customized to have specific
+ *	algorithms in the frontend driver, rather than simply doing a
+ *	software zig-zag. In this case the zigzag maybe hardware assisted
+ *	or it maybe completely done in hardware. In all cases, usage of
+ *	this algorithm, in conjunction with the search and track
+ *	callbacks, utilizes the driver specific algorithm.
  *
- * ALGO_RECOVERY: (Recovery Algorithm)
- * ----------------------------------------------------------------
- * These devices have AUTO recovery capabilities from LOCK failure
+ * @DVBFE_ALGO_RECOVERY: (Recovery Algorithm)
+ *	These devices have AUTO recovery capabilities from LOCK failure
  */
 enum dvbfe_algo {
 	DVBFE_ALGO_HW			= (1 <<  0),
@@ -162,27 +160,27 @@ struct tuner_state {
 	u32 refclock;
 };
 
-/*
- * search callback possible return status
+/**
+ * enum dvbfe_search - search callback possible return status
  *
- * DVBFE_ALGO_SEARCH_SUCCESS
- * The frontend search algorithm completed and returned successfully
+ * @DVBFE_ALGO_SEARCH_SUCCESS:
+ *	The frontend search algorithm completed and returned successfully
  *
- * DVBFE_ALGO_SEARCH_ASLEEP
- * The frontend search algorithm is sleeping
+ * @DVBFE_ALGO_SEARCH_ASLEEP:
+ *	The frontend search algorithm is sleeping
  *
- * DVBFE_ALGO_SEARCH_FAILED
- * The frontend search for a signal failed
+ * @DVBFE_ALGO_SEARCH_FAILED:
+ *	The frontend search for a signal failed
  *
- * DVBFE_ALGO_SEARCH_INVALID
- * The frontend search algorith was probably supplied with invalid
- * parameters and the search is an invalid one
+ * @DVBFE_ALGO_SEARCH_INVALID:
+ *	The frontend search algorith was probably supplied with invalid
+ *	parameters and the search is an invalid one
  *
- * DVBFE_ALGO_SEARCH_ERROR
- * The frontend search algorithm failed due to some error
+ * @DVBFE_ALGO_SEARCH_ERROR:
+ *	The frontend search algorithm failed due to some error
  *
- * DVBFE_ALGO_SEARCH_AGAIN
- * The frontend search algorithm was requested to search again
+ * @DVBFE_ALGO_SEARCH_AGAIN:
+ *	The frontend search algorithm was requested to search again
  */
 enum dvbfe_search {
 	DVBFE_ALGO_SEARCH_SUCCESS	= (1 <<  0),
