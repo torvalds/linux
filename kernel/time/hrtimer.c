@@ -695,6 +695,7 @@ static void hrtimer_switch_to_hres(void)
 	if (tick_init_highres()) {
 		printk(KERN_WARNING "Could not switch to high resolution "
 				    "mode on CPU %d\n", base->cpu);
+		return;
 	}
 	base->hres_active = 1;
 	hrtimer_resolution = HIGH_RES_NSEC;
