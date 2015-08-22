@@ -778,8 +778,22 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	while (!list_empty(&list)) {
 		rm = list_entry(list.next, struct rds_message, m_sock_item);
 		list_del_init(&rm->m_sock_item);
-
 		rds_message_wait(rm);
+
+		/* just in case the code above skipped this message
+		 * because RDS_MSG_ON_CONN wasn't set, run it again here
+		 * taking m_rs_lock is the only thing that keeps us
+		 * from racing with ack processing.
+		 */
+		spin_lock_irqsave(&rm->m_rs_lock, flags);
+
+		spin_lock(&rs->rs_lock);
+		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
+		spin_unlock(&rs->rs_lock);
+
+		rm->m_rs = NULL;
+		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
+
 		rds_message_put(rm);
 	}
 }
