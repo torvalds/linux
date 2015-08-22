@@ -468,10 +468,18 @@ static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 noinline void slc_op(unsigned long paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
+	/*
+	 * SLC is shared between all cores and concurrent aux operations from
+	 * multiple cores need to be serialized using a spinlock
+	 * A concurrent operation can be silently ignored and/or the old/new
+	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
+	 * below)
+	 */
+	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 	unsigned int ctrl;
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&lock, flags);
 
 	/*
 	 * The Region Flush operation is specified by CTRL.RGN_OP[11..9]
@@ -504,7 +512,7 @@ noinline void slc_op(unsigned long paddr, unsigned long sz, const int op)
 
 	while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
 
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&lock, flags);
 #endif
 }
 

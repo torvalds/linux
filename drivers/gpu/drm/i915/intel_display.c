@@ -6315,9 +6315,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_connector *connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* crtc should still be enabled when we disable it. */
-	WARN_ON(!crtc->state->enable);
-
 	intel_crtc_disable_planes(crtc);
 	dev_priv->display.crtc_disable(crtc);
 	dev_priv->display.off(crtc);
@@ -12591,7 +12588,8 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 			continue;
 
 		if (!crtc_state->enable) {
-			intel_crtc_disable(crtc);
+			if (crtc->state->enable)
+				intel_crtc_disable(crtc);
 		} else if (crtc->state->enable) {
 			intel_crtc_disable_planes(crtc);
 			dev_priv->display.crtc_disable(crtc);
@@ -13276,7 +13274,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	if (intel_crtc->active) {
+	if (crtc_state ? crtc_state->base.active : intel_crtc->active) {
 		struct intel_plane_state *old_state =
 			to_intel_plane_state(plane->state);
 

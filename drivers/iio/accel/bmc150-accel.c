@@ -1464,7 +1464,7 @@ static void bmc150_accel_unregister_triggers(struct bmc150_accel_data *data,
 {
 	int i;
 
-	for (i = from; i >= 0; i++) {
+	for (i = from; i >= 0; i--) {
 		if (data->triggers[i].indio_trig) {
 			iio_trigger_unregister(data->triggers[i].indio_trig);
 			data->triggers[i].indio_trig = NULL;

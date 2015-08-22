@@ -971,7 +971,7 @@
 			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
-		uart@80120000 {
+		ux500_serial0: uart@80120000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80120000 0x1000>;
 			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -986,7 +986,7 @@
 			status = "disabled";
 		};
 
-		uart@80121000 {
+		ux500_serial1: uart@80121000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80121000 0x1000>;
 			interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -1001,7 +1001,7 @@
 			status = "disabled";
 		};
 
-		uart@80007000 {
+		ux500_serial2: uart@80007000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80007000 0x1000>;
 			interrupts = <0 26 IRQ_TYPE_LEVEL_HIGH>;

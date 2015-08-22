@@ -343,7 +343,7 @@ static int read_counter(struct perf_evsel *counter)
 	return 0;
 }
 
-static void read_counters(bool close)
+static void read_counters(bool close_counters)
 {
 	struct perf_evsel *counter;
 
@@ -354,7 +354,7 @@ static void read_counters(bool close)
 		if (process_counter(counter))
 			pr_warning("failed to process counter %s\n", counter->name);
 
-		if (close) {
+		if (close_counters) {
 			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
 					     thread_map__nr(evsel_list->threads));
 		}

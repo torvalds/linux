@@ -23,7 +23,7 @@ extern struct static_key rdpmc_always_available;
 
 static inline void load_mm_cr4(struct mm_struct *mm)
 {
-	if (static_key_true(&rdpmc_always_available) ||
+	if (static_key_false(&rdpmc_always_available) ||
 	    atomic_read(&mm->context.perf_rdpmc_allowed))
 		cr4_set_bits(X86_CR4_PCE);
 	else

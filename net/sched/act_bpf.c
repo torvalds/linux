@@ -339,6 +339,9 @@ static void tcf_bpf_cleanup(struct tc_action *act, int bind)
 		bpf_prog_put(prog->filter);
 	else
 		bpf_prog_destroy(prog->filter);
+
+	kfree(prog->bpf_ops);
+	kfree(prog->bpf_name);
 }
 
 static struct tc_action_ops act_bpf_ops __read_mostly = {

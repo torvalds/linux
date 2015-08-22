@@ -58,6 +58,10 @@
 #define IWPM_PID_UNDEFINED     -1
 #define IWPM_PID_UNAVAILABLE   -2
 
+#define IWPM_REG_UNDEF          0x01
+#define IWPM_REG_VALID          0x02
+#define IWPM_REG_INCOMPL        0x04
+
 struct iwpm_nlmsg_request {
 	struct list_head    inprocess_list;
 	__u32               nlmsg_seq;
@@ -88,7 +92,7 @@ struct iwpm_admin_data {
 	atomic_t refcount;
 	atomic_t nlmsg_seq;
 	int      client_list[RDMA_NL_NUM_CLIENTS];
-	int      reg_list[RDMA_NL_NUM_CLIENTS];
+	u32      reg_list[RDMA_NL_NUM_CLIENTS];
 };
 
 /**
@@ -159,19 +163,31 @@ int iwpm_valid_client(u8 nl_client);
 void iwpm_set_valid(u8 nl_client, int valid);
 
 /**
- * iwpm_registered_client - Check if the port mapper client is registered
+ * iwpm_check_registration - Check if the client registration
+ *			      matches the given one
  * @nl_client: The index of the netlink client
+ * @reg: The given registration type to compare with
  *
  * Call iwpm_register_pid() to register a client
+ * Returns true if the client registration matches reg,
+ * otherwise returns false
  */
-int iwpm_registered_client(u8 nl_client);
+u32 iwpm_check_registration(u8 nl_client, u32 reg);
 
 /**
- * iwpm_set_registered - Set the port mapper client to registered or not
+ * iwpm_set_registration - Set the client registration
  * @nl_client: The index of the netlink client
- * @reg: 1 if registered or 0 if not
+ * @reg: Registration type to set
  */
-void iwpm_set_registered(u8 nl_client, int reg);
+void iwpm_set_registration(u8 nl_client, u32 reg);
+
+/**
+ * iwpm_get_registration
+ * @nl_client: The index of the netlink client
+ *
+ * Returns the client registration type
+ */
+u32 iwpm_get_registration(u8 nl_client);
 
 /**
  * iwpm_send_mapinfo - Send local and mapped IPv4/IPv6 address info of
