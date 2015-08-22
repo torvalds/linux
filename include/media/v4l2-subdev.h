@@ -205,13 +205,28 @@ struct v4l2_subdev_core_ops {
 /**
  * struct s_radio - Callbacks used when v4l device was opened in radio mode.
  *
- * @g_frequency: freq->type must be filled in. Normally done by video_ioctl2
- *	or the bridge driver.
- * @g_tuner:
- * @s_tuner: vt->type must be filled in. Normally done by video_ioctl2 or the
+ * @s_radio: callback for VIDIOC_S_RADIO ioctl handler code.
+ *
+ * @s_frequency: callback for VIDIOC_S_FREQUENCY ioctl handler code.
+ *
+ * @g_frequency: callback for VIDIOC_G_FREQUENCY ioctl handler code.
+ *		 freq->type must be filled in. Normally done by video_ioctl2
+ *		or the bridge driver.
+ *
+ * @enum_freq_bands: callback for VIDIOC_ENUM_FREQ_BANDS ioctl handler code.
+ *
+ * @g_tuner: callback for VIDIOC_G_TUNER ioctl handler code.
+ *
+ * @s_tuner: callback for VIDIOC_S_TUNER ioctl handler code. vt->type must be
+ *	     filled in. Normally done by video_ioctl2 or the
  *	bridge driver.
  *
+ * @g_modulator: callback for VIDIOC_G_MODULATOR ioctl handler code.
+ *
+ * @s_modulator: callback for VIDIOC_S_MODULATOR ioctl handler code.
+ *
  * @s_type_addr: sets tuner type and its I2C addr.
+ *
  * @s_config: sets tda9887 specific stuff, like port1, port2 and qss
  */
 struct v4l2_subdev_tuner_ops {
