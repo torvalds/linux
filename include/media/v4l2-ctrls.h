@@ -159,12 +159,17 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @flags:	The control's flags.
  * @cur:	The control's current value.
  * @val:	The control's new s32 value.
- * @val64:	The control's new s64 value.
  * @priv:	The control's private pointer. For use by the driver. It is
  *		untouched by the control framework. Note that this pointer is
  *		not freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
+ * @p_cur:	The control's current value represented via an union with
+ *		provides a standard way of accessing control types
+ *		through a pointer.
+ * @p_new:	The control's new value represented via an union with provides
+ *		a standard way of accessing control types
+ *		through a pointer.
  */
 struct v4l2_ctrl {
 	/* Administrative fields */
@@ -291,6 +296,8 @@ struct v4l2_ctrl_handler {
  *		empty strings ("") correspond to non-existing menu items (this
  *		is in addition to the menu_skip_mask above). The last entry
  *		must be NULL.
+ * @qmenu_int:	A const s64 integer array for all menu items of the type
+ * 		V4L2_CTRL_TYPE_INTEGER_MENU.
  * @is_private: If set, then this control is private to its handler and it
  *		will not be added to any other handlers.
  */
