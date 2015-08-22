@@ -586,6 +586,21 @@ tcp_min_tso_segs - INTEGER
 	if available window is too small.
 	Default: 2
 
+tcp_pacing_ss_ratio - INTEGER
+	sk->sk_pacing_rate is set by TCP stack using a ratio applied
+	to current rate. (current_rate = cwnd * mss / srtt)
+	If TCP is in slow start, tcp_pacing_ss_ratio is applied
+	to let TCP probe for bigger speeds, assuming cwnd can be
+	doubled every other RTT.
+	Default: 200
+
+tcp_pacing_ca_ratio - INTEGER
+	sk->sk_pacing_rate is set by TCP stack using a ratio applied
+	to current rate. (current_rate = cwnd * mss / srtt)
+	If TCP is in congestion avoidance phase, tcp_pacing_ca_ratio
+	is applied to conservatively probe for bigger throughput.
+	Default: 120
+
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
 	can be consumed by a single TSO frame.
