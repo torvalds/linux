@@ -462,6 +462,7 @@ void __init mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type)
 	BUG_ON(!imxtm->base);
 
 	imxtm->type = type;
+	imxtm->irq = irq;
 
 	_mxc_timer_init(imxtm);
 }
