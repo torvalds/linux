@@ -626,7 +626,7 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 	list_for_each (tmp, &peer->ksnp_conns) {
 		ksock_conn_t *c  = list_entry(tmp, ksock_conn_t, ksnc_list);
 		int nob = atomic_read(&c->ksnc_tx_nob) +
-                                      c->ksnc_sock->sk->sk_wmem_queued;
+			c->ksnc_sock->sk->sk_wmem_queued;
 		int rc;
 
 		LASSERT(!c->ksnc_closing);
