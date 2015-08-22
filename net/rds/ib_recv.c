@@ -982,10 +982,17 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 		}
 
 		/*
-		 * It's very important that we only free this ring entry if we've truly
-		 * freed the resources allocated to the entry.  The refilling path can
-		 * leak if we don't.
+		 * rds_ib_process_recv() doesn't always consume the frag, and
+		 * we might not have called it at all if the wc didn't indicate
+		 * success. We already unmapped the frag's pages, though, and
+		 * the following rds_ib_ring_free() call tells the refill path
+		 * that it will not find an allocated frag here. Make sure we
+		 * keep that promise by freeing a frag that's still on the ring.
 		 */
+		if (recv->r_frag) {
+			rds_ib_frag_free(ic, recv->r_frag);
+			recv->r_frag = NULL;
+		}
 		rds_ib_ring_free(&ic->i_recv_ring, 1);
 	}
 }
