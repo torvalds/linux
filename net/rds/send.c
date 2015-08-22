@@ -1015,6 +1015,11 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
+	if (payload_len > rds_sk_sndbuf(rs)) {
+		ret = -EMSGSIZE;
+		goto out;
+	}
+
 	/* size of rm including all sgs */
 	ret = rds_rm_size(msg, payload_len);
 	if (ret < 0)
@@ -1087,11 +1092,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	while (!rds_send_queue_rm(rs, conn, rm, rs->rs_bound_port,
 				  dport, &queued)) {
 		rds_stats_inc(s_send_queue_full);
-		/* XXX make sure this is reasonable */
-		if (payload_len > rds_sk_sndbuf(rs)) {
-			ret = -EMSGSIZE;
-			goto out;
-		}
+
 		if (nonblock) {
 			ret = -EAGAIN;
 			goto out;
