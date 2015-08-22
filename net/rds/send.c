@@ -411,7 +411,8 @@ over_batch:
 	 */
 	if (ret == 0) {
 		smp_mb();
-		if (!list_empty(&conn->c_send_queue) &&
+		if ((test_bit(0, &conn->c_map_queued) ||
+		     !list_empty(&conn->c_send_queue)) &&
 		    send_gen == conn->c_send_gen) {
 			rds_stats_inc(s_send_lock_queue_raced);
 			goto restart;
