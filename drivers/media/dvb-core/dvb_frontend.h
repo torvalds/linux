@@ -282,10 +282,37 @@ struct dvb_tuner_ops {
 	int (*get_state)(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state);
 };
 
+/**
+ * struct analog_demod_info - Information struct for analog TV part of the demod
+ *
+ * @name:	Name of the analog TV demodulator
+ */
 struct analog_demod_info {
 	char *name;
 };
 
+/**
+ * struct analog_demod_ops  - Demodulation information and callbacks for
+ *			      analog TV and radio
+ *
+ * @info:		pointer to struct analog_demod_info
+ * @set_params:		callback function used to inform the demod to set the
+ *			demodulator parameters needed to decode an analog or
+ *			radio channel. The properties are passed via
+ *			struct @analog_params;.
+ * @has_signal:		returns 0xffff if has signal, or 0 if it doesn't.
+ * @get_afc:		Used only by analog TV core. Reports the frequency
+ *			drift due to AFC.
+ * @tuner_status:	callback function that returns tuner status bits, e. g.
+ *			TUNER_STATUS_LOCKED and TUNER_STATUS_STEREO.
+ * @standby:		set the tuner to standby mode.
+ * @release:		callback function called when frontend is dettached.
+ *			drivers should free any allocated memory.
+ * @i2c_gate_ctrl:	controls the I2C gate. Newer drivers should use I2C
+ *			mux support instead.
+ * @set_config:		callback function used to send some tuner-specific
+ *			parameters.
+ */
 struct analog_demod_ops {
 
 	struct analog_demod_info info;
