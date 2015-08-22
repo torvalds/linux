@@ -313,7 +313,7 @@ struct v4l2_ctrl_config {
 	unsigned int is_private:1;
 };
 
-/**
+/*
  * v4l2_ctrl_fill() - Fill in the control fields based on the control ID.
  *
  * This works for all standard V4L2 controls.
