@@ -65,6 +65,20 @@ struct dvb_frontend_tune_settings {
 
 struct dvb_frontend;
 
+/**
+ * struct dvb_tuner_info - Frontend name and min/max ranges/bandwidths
+ *
+ * @name:		name of the Frontend
+ * @frequency_min:	minimal frequency supported
+ * @frequency_max:	maximum frequency supported
+ * @frequency_step:	frequency step
+ * @bandwidth_min:	minimal frontend bandwidth supported
+ * @bandwidth_max:	maximum frontend bandwidth supported
+ * @bandwidth_step:	frontend bandwidth step
+ *
+ * NOTE: frequency parameters are in Hz, for terrestrial/cable or kHz for
+ * satellite.
+ */
 struct dvb_tuner_info {
 	char name[128];
 
