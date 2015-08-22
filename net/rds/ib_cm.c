@@ -647,7 +647,6 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 			ib_destroy_cq(ic->i_send_cq);
 		if (ic->i_recv_cq)
 			ib_destroy_cq(ic->i_recv_cq);
-		rdma_destroy_id(ic->i_cm_id);
 
 		/* then free the resources that ib callbacks use */
 		if (ic->i_send_hdrs)
@@ -672,6 +671,8 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 			rds_ib_send_clear_ring(ic);
 		if (ic->i_recvs)
 			rds_ib_recv_clear_ring(ic);
+
+		rdma_destroy_id(ic->i_cm_id);
 
 		/*
 		 * Move connection back to the nodev list.
