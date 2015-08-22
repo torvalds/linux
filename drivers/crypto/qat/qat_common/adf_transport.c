@@ -264,6 +264,10 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 		dev_err(&GET_DEV(accel_dev), "Can't get ring number\n");
 		return -EFAULT;
 	}
+	if (ring_num >= ADF_ETR_MAX_RINGS_PER_BANK) {
+		dev_err(&GET_DEV(accel_dev), "Invalid ring number\n");
+		return -EFAULT;
+	}
 
 	bank = &transport_data->banks[bank_num];
 	if (adf_reserve_ring(bank, ring_num)) {
