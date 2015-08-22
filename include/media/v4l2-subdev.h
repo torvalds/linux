@@ -309,6 +309,15 @@ struct v4l2_mbus_frame_desc {
 /**
  * struct v4l2_subdev_video_ops - Callbacks used when v4l device was opened
  * 				  in video mode.
+ *
+ * @s_routing: see s_routing in audio_ops, except this version is for video
+ *	devices.
+ *
+ * @s_crystal_freq: sets the frequency of the crystal used to generate the
+ *	clocks in Hz. An extra flags field allows device specific configuration
+ *	regarding clock frequency dividers, etc. If not used, then set flags
+ *	to 0. If the frequency is not supported, then -EINVAL is returned.
+ *
  * @s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
  *	video input devices.
  *
@@ -321,22 +330,15 @@ struct v4l2_mbus_frame_desc {
  * @g_tvnorms_output: get v4l2_std_id with all standards supported by the video
  *	OUTPUT device. This is ignored by video capture devices.
  *
- * @s_crystal_freq: sets the frequency of the crystal used to generate the
- *	clocks in Hz. An extra flags field allows device specific configuration
- *	regarding clock frequency dividers, etc. If not used, then set flags
- *	to 0. If the frequency is not supported, then -EINVAL is returned.
- *
  * @g_input_status: get input status. Same as the status field in the v4l2_input
  *	struct.
- *
- * @s_routing: see s_routing in audio_ops, except this version is for video
- *	devices.
  *
  * @s_dv_timings(): Set custom dv timings in the sub device. This is used
  *	when sub device is capable of setting detailed timing information
  *	in the hardware to generate/detect the video signal.
  *
  * @g_dv_timings(): Get custom dv timings in the sub device.
+ *
  * @g_mbus_config: get supported mediabus configurations
  *
  * @s_mbus_config: set a certain mediabus configuration. This operation is added
