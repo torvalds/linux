@@ -1131,7 +1131,6 @@ static enum reset_type rtl819x_TxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	QueueID;
-	u8	ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
 	bool	bCheckFwTxCnt = false;
 	struct rtl8192_tx_ring  *ring = NULL;
 	struct sk_buff *skb = NULL;
@@ -1140,13 +1139,10 @@ static enum reset_type rtl819x_TxCheckStuck(struct net_device *dev)
 
 	switch (priv->rtllib->ps) {
 	case RTLLIB_PS_DISABLED:
-		ResetThreshold = NIC_SEND_HANG_THRESHOLD_NORMAL;
 		break;
 	case (RTLLIB_PS_MBCAST|RTLLIB_PS_UNICAST):
-		ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
 		break;
 	default:
-		ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
 		break;
 	}
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
