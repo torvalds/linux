@@ -80,6 +80,7 @@ enum {
 #define RDS_LL_SEND_FULL	0
 #define RDS_RECONNECT_PENDING	1
 #define RDS_IN_XMIT		2
+#define RDS_RECV_REFILL		3
 
 struct rds_connection {
 	struct hlist_node	c_hash_node;

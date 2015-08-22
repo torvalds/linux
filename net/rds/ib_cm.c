@@ -135,7 +135,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	rds_ib_recv_init_ring(ic);
 	/* Post receive buffers - as a side effect, this will update
 	 * the posted credit count. */
-	rds_ib_recv_refill(conn, 1);
+	rds_ib_recv_refill(conn, 1, GFP_KERNEL);
 
 	/* Tune RNR behavior */
 	rds_ib_tune_rnr(ic, &qp_attr);

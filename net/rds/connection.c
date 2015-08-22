@@ -301,6 +301,8 @@ void rds_conn_shutdown(struct rds_connection *conn)
 
 		wait_event(conn->c_waitq,
 			   !test_bit(RDS_IN_XMIT, &conn->c_flags));
+		wait_event(conn->c_waitq,
+			   !test_bit(RDS_RECV_REFILL, &conn->c_flags));
 
 		conn->c_trans->conn_shutdown(conn);
 		rds_conn_reset(conn);
