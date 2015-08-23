@@ -107,7 +107,7 @@ void snd_hdac_ext_stop_streams(struct hdac_ext_bus *sbus);
 
 int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
 				 struct hdac_ext_stream *stream, u32 value);
-int snd_hdac_ext_stream_set_spbmaxfifo(struct hdac_ext_bus *ebus,
+int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
 				 struct hdac_ext_stream *stream);
 
 void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hstream);
