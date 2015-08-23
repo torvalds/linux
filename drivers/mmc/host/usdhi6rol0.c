@@ -1737,8 +1737,10 @@ static int usdhi6_probe(struct platform_device *pdev)
 	}
 
 	host->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(host->clk))
+	if (IS_ERR(host->clk)) {
+		ret = PTR_ERR(host->clk);
 		goto e_free_mmc;
+	}
 
 	host->imclk = clk_get_rate(host->clk);
 
