@@ -725,6 +725,19 @@ struct iwl_fw_dbg_trigger_ba {
 } __packed;
 
 /**
+ * struct iwl_fw_dbg_trigger_tdls - configures trigger for TDLS events.
+ * @action_bitmap: the TDLS action to trigger the collection upon
+ * @peer_mode: trigger on specific peer or all
+ * @peer: the TDLS peer to trigger the collection on
+ */
+struct iwl_fw_dbg_trigger_tdls {
+	u8 action_bitmap;
+	u8 peer_mode;
+	u8 peer[ETH_ALEN];
+	u8 reserved[4];
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used

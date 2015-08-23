@@ -2699,6 +2699,34 @@ static void iwl_mvm_check_uapsd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 }
 
+static void
+iwl_mvm_tdls_check_trigger(struct iwl_mvm *mvm,
+			   struct ieee80211_vif *vif, u8 *peer_addr,
+			   enum nl80211_tdls_operation action)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_tdls *tdls_trig;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TDLS))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TDLS);
+	tdls_trig = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		return;
+
+	if (!(tdls_trig->action_bitmap & BIT(action)))
+		return;
+
+	if (tdls_trig->peer_mode &&
+	    memcmp(tdls_trig->peer, peer_addr, ETH_ALEN) != 0)
+		return;
+
+	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+				    "TDLS event occurred, peer %pM, action %d",
+				    peer_addr, action);
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -2749,8 +2777,11 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		}
 
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
-		if (sta->tdls && ret == 0)
+		if (sta->tdls && ret == 0) {
 			iwl_mvm_recalc_tdls_state(mvm, vif, true);
+			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
+						   NL80211_TDLS_SETUP);
+		}
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
 		/*
@@ -2774,6 +2805,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (iwl_mvm_phy_ctx_count(mvm) > 1)
 			iwl_mvm_teardown_tdls_peers(mvm);
 
+		if (sta->tdls)
+			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
+						   NL80211_TDLS_ENABLE_LINK);
+
 		/* enable beacon filtering */
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 		ret = 0;
@@ -2791,8 +2826,11 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_NOTEXIST) {
 		ret = iwl_mvm_rm_sta(mvm, vif, sta);
-		if (sta->tdls)
+		if (sta->tdls) {
 			iwl_mvm_recalc_tdls_state(mvm, vif, false);
+			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
+						   NL80211_TDLS_DISABLE_LINK);
+		}
 	} else {
 		ret = -EIO;
 	}
