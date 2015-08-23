@@ -1420,8 +1420,10 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	host->reg_shift = (mmc_omap7xx() ? 1 : 2);
 
 	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
-	if (!host->mmc_omap_wq)
+	if (!host->mmc_omap_wq) {
+		ret = -ENOMEM;
 		goto err_plat_cleanup;
+	}
 
 	for (i = 0; i < pdata->nr_slots; i++) {
 		ret = mmc_omap_new_slot(host, i);
