@@ -358,8 +358,6 @@ err_pm_disable:
 
 static int tegra20_spdif_platform_remove(struct platform_device *pdev)
 {
-	struct tegra20_spdif *spdif = dev_get_drvdata(&pdev->dev);
-
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra20_spdif_runtime_suspend(&pdev->dev);
