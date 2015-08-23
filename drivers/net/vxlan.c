@@ -519,10 +519,10 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 					  u32 data, struct gro_remcsum *grc,
 					  bool nopartial)
 {
-	size_t start, offset, plen;
+	size_t start, offset;
 
 	if (skb->remcsum_offload)
-		return NULL;
+		return vh;
 
 	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
@@ -532,17 +532,8 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 			  offsetof(struct udphdr, check) :
 			  offsetof(struct tcphdr, check));
 
-	plen = hdrlen + offset + sizeof(u16);
-
-	/* Pull checksum that will be written */
-	if (skb_gro_header_hard(skb, off + plen)) {
-		vh = skb_gro_header_slow(skb, off + plen, off);
-		if (!vh)
-			return NULL;
-	}
-
-	skb_gro_remcsum_process(skb, (void *)vh + hdrlen,
-				start, offset, grc, nopartial);
+	vh = skb_gro_remcsum_process(skb, (void *)vh, off, hdrlen,
+				     start, offset, grc, nopartial);
 
 	skb->remcsum_offload = 1;
 
@@ -573,7 +564,6 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 			goto out;
 	}
 
-	skb_gro_pull(skb, sizeof(struct vxlanhdr)); /* pull vxlan header */
 	skb_gro_postpull_rcsum(skb, vh, sizeof(struct vxlanhdr));
 
 	flags = ntohl(vh->vx_flags);
@@ -587,6 +577,8 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 		if (!vh)
 			goto out;
 	}
+
+	skb_gro_pull(skb, sizeof(struct vxlanhdr)); /* pull vxlan header */
 
 	flush = 0;
 
@@ -1110,6 +1102,9 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 {
 	size_t start, offset, plen;
 
+	if (skb->remcsum_offload)
+		return vh;
+
 	start = (data & VXLAN_RCO_MASK) << VXLAN_RCO_SHIFT;
 	offset = start + ((data & VXLAN_RCO_UDP) ?
 			  offsetof(struct udphdr, check) :
@@ -1213,7 +1208,7 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 	stats->rx_bytes += skb->len;
 	u64_stats_update_end(&stats->syncp);
 
-	netif_rx(skb);
+	gro_cells_receive(&vxlan->gro_cells, skb);
 
 	return;
 drop:
@@ -2451,6 +2446,8 @@ static void vxlan_setup(struct net_device *dev)
 
 	vxlan->dev = dev;
 
+	gro_cells_init(&vxlan->gro_cells, dev);
+
 	for (h = 0; h < FDB_HASH_SIZE; ++h)
 		INIT_HLIST_HEAD(&vxlan->fdb_head[h]);
 }
@@ -2890,6 +2887,7 @@ static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 		hlist_del_rcu(&vxlan->hlist);
 	spin_unlock(&vn->sock_lock);
 
+	gro_cells_destroy(&vxlan->gro_cells);
 	list_del(&vxlan->next);
 	unregister_netdevice_queue(dev, head);
 }
@@ -3098,8 +3096,10 @@ static void __net_exit vxlan_exit_net(struct net *net)
 		/* If vxlan->dev is in the same netns, it has already been added
 		 * to the list by the previous loop.
 		 */
-		if (!net_eq(dev_net(vxlan->dev), net))
+		if (!net_eq(dev_net(vxlan->dev), net)) {
+			gro_cells_destroy(&vxlan->gro_cells);
 			unregister_netdevice_queue(vxlan->dev, &list);
+		}
 	}
 
 	unregister_netdevice_many(&list);
