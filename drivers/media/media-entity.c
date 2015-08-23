@@ -173,6 +173,9 @@ void media_gobj_init(struct media_device *mdev,
 		list_add_tail(&gobj->list, &mdev->interfaces);
 		break;
 	}
+
+	mdev->topology_version++;
+
 	dev_dbg_obj(__func__, gobj);
 }
 
@@ -186,6 +189,8 @@ void media_gobj_init(struct media_device *mdev,
 void media_gobj_remove(struct media_gobj *gobj)
 {
 	dev_dbg_obj(__func__, gobj);
+
+	gobj->mdev->topology_version++;
 
 	/* Remove the object from mdev list */
 	list_del(&gobj->list);

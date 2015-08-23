@@ -41,6 +41,8 @@ struct device;
  * @bus_info:	Unique and stable device location identifier
  * @hw_revision: Hardware device revision
  * @driver_version: Device driver version
+ * @topology_version: Monotonic counter for storing the version of the graph
+ *		topology. Should be incremented each time the topology changes.
  * @entity_id:	Unique ID used on the last entity registered
  * @pad_id:	Unique ID used on the last pad registered
  * @link_id:	Unique ID used on the last link registered
@@ -73,6 +75,8 @@ struct media_device {
 	char bus_info[32];
 	u32 hw_revision;
 	u32 driver_version;
+
+	u32 topology_version;
 
 	u32 entity_id;
 	u32 pad_id;
