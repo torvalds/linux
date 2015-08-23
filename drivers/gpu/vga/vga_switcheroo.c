@@ -347,13 +347,18 @@ find_active_client(struct list_head *head)
 int vga_switcheroo_get_client_state(struct pci_dev *pdev)
 {
 	struct vga_switcheroo_client *client;
+	enum vga_switcheroo_state ret;
 
+	mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (!client)
-		return VGA_SWITCHEROO_NOT_FOUND;
-	if (!vgasr_priv.active)
-		return VGA_SWITCHEROO_INIT;
-	return client->pwr_state;
+		ret = VGA_SWITCHEROO_NOT_FOUND;
+	else if (!vgasr_priv.active)
+		ret = VGA_SWITCHEROO_INIT;
+	else
+		ret = client->pwr_state;
+	mutex_unlock(&vgasr_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(vga_switcheroo_get_client_state);
 
@@ -845,15 +850,16 @@ void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev,
 {
 	struct vga_switcheroo_client *client;
 
+	mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
-	if (!client)
+	if (!client || !client->driver_power_control) {
+		mutex_unlock(&vgasr_mutex);
 		return;
-
-	if (!client->driver_power_control)
-		return;
+	}
 
 	client->pwr_state = dynamic;
 	set_audio_state(client->id, dynamic);
+	mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_set_dynamic_switch);
 
@@ -866,9 +872,11 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 	ret = dev->bus->pm->runtime_suspend(dev);
 	if (ret)
 		return ret;
+	mutex_lock(&vgasr_mutex);
 	if (vgasr_priv.handler->switchto)
 		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_OFF);
+	mutex_unlock(&vgasr_mutex);
 	return 0;
 }
 
@@ -877,7 +885,9 @@ static int vga_switcheroo_runtime_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
 
+	mutex_lock(&vgasr_mutex);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_ON);
+	mutex_unlock(&vgasr_mutex);
 	ret = dev->bus->pm->runtime_resume(dev);
 	if (ret)
 		return ret;
@@ -923,29 +933,33 @@ EXPORT_SYMBOL(vga_switcheroo_fini_domain_pm_ops);
 static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct vga_switcheroo_client *client;
+	struct device *video_dev = NULL;
 	int ret;
-	struct vga_switcheroo_client *client, *found = NULL;
 
 	/* we need to check if we have to switch back on the video
 	   device so the audio device can come back */
+	mutex_lock(&vgasr_mutex);
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		if (PCI_SLOT(client->pdev->devfn) == PCI_SLOT(pdev->devfn) &&
 		    client_is_vga(client)) {
-			found = client;
-			ret = pm_runtime_get_sync(&client->pdev->dev);
-			if (ret) {
-				if (ret != 1)
-					return ret;
-			}
+			video_dev = &client->pdev->dev;
 			break;
 		}
+	}
+	mutex_unlock(&vgasr_mutex);
+
+	if (video_dev) {
+		ret = pm_runtime_get_sync(video_dev);
+		if (ret && ret != 1)
+			return ret;
 	}
 	ret = dev->bus->pm->runtime_resume(dev);
 
 	/* put the reference for the gpu */
-	if (found) {
-		pm_runtime_mark_last_busy(&found->pdev->dev);
-		pm_runtime_put_autosuspend(&found->pdev->dev);
+	if (video_dev) {
+		pm_runtime_mark_last_busy(video_dev);
+		pm_runtime_put_autosuspend(video_dev);
 	}
 	return ret;
 }
