@@ -265,7 +265,7 @@ static const struct regmap_config tegra20_spdif_regmap_config = {
 static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 {
 	struct tegra20_spdif *spdif;
-	struct resource *mem, *memregion, *dmareq;
+	struct resource *mem, *dmareq;
 	void __iomem *regs;
 	int ret;
 
@@ -285,28 +285,14 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "No memory resource\n");
-		return -ENODEV;
-	}
+	regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	dmareq = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmareq) {
 		dev_err(&pdev->dev, "No DMA resource\n");
 		return -ENODEV;
-	}
-
-	memregion = devm_request_mem_region(&pdev->dev, mem->start,
-					    resource_size(mem), DRV_NAME);
-	if (!memregion) {
-		dev_err(&pdev->dev, "Memory region already claimed\n");
-		return -EBUSY;
-	}
-
-	regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!regs) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
 	}
 
 	spdif->regmap = devm_regmap_init_mmio(&pdev->dev, regs,

@@ -521,7 +521,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	const struct tegra30_ahub_soc_data *soc_data;
 	struct reset_control *rst;
 	int i;
-	struct resource *res0, *res1, *region;
+	struct resource *res0, *res1;
 	void __iomem *regs_apbif, *regs_ahub;
 	int ret = 0;
 
@@ -584,25 +584,11 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res0) {
-		dev_err(&pdev->dev, "No apbif memory resource\n");
-		return -ENODEV;
-	}
+	regs_apbif = devm_ioremap_resource(&pdev->dev, res0);
+	if (IS_ERR(regs_apbif))
+		return PTR_ERR(regs_apbif);
 
-	region = devm_request_mem_region(&pdev->dev, res0->start,
-					 resource_size(res0), DRV_NAME);
-	if (!region) {
-		dev_err(&pdev->dev, "request region apbif failed\n");
-		return -EBUSY;
-	}
 	ahub->apbif_addr = res0->start;
-
-	regs_apbif = devm_ioremap(&pdev->dev, res0->start,
-				  resource_size(res0));
-	if (!regs_apbif) {
-		dev_err(&pdev->dev, "ioremap apbif failed\n");
-		return -ENOMEM;
-	}
 
 	ahub->regmap_apbif = devm_regmap_init_mmio(&pdev->dev, regs_apbif,
 					&tegra30_ahub_apbif_regmap_config);
@@ -614,24 +600,9 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	regcache_cache_only(ahub->regmap_apbif, true);
 
 	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res1) {
-		dev_err(&pdev->dev, "No ahub memory resource\n");
-		return -ENODEV;
-	}
-
-	region = devm_request_mem_region(&pdev->dev, res1->start,
-					 resource_size(res1), DRV_NAME);
-	if (!region) {
-		dev_err(&pdev->dev, "request region ahub failed\n");
-		return -EBUSY;
-	}
-
-	regs_ahub = devm_ioremap(&pdev->dev, res1->start,
-				 resource_size(res1));
-	if (!regs_ahub) {
-		dev_err(&pdev->dev, "ioremap ahub failed\n");
-		return -ENOMEM;
-	}
+	regs_ahub = devm_ioremap_resource(&pdev->dev, res1);
+	if (IS_ERR(regs_ahub))
+		return PTR_ERR(regs_ahub);
 
 	ahub->regmap_ahub = devm_regmap_init_mmio(&pdev->dev, regs_ahub,
 					&tegra30_ahub_ahub_regmap_config);
