@@ -405,7 +405,6 @@ struct mlx5e_channel {
 	__be32                     mkey_be;
 	u8                         num_tc;
 	unsigned long              flags;
-	int                        tc_to_txq_map[MLX5E_MAX_NUM_TC];
 
 	/* control */
 	struct mlx5e_priv         *priv;
@@ -475,6 +474,7 @@ struct mlx5e_priv {
 	/* priv data path fields - start */
 	int                        default_vlan_prio;
 	struct mlx5e_sq            **txq_to_sq_map;
+	int channeltc_to_txq_map[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
 	/* priv data path fields - end */
 
 	unsigned long              state;

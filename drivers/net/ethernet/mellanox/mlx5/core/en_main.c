@@ -949,13 +949,13 @@ static void mlx5e_close_sqs(struct mlx5e_channel *c)
 		mlx5e_close_sq(&c->sq[tc]);
 }
 
-static void mlx5e_build_tc_to_txq_map(struct mlx5e_channel *c,
-				      int num_channels)
+static void mlx5e_build_channeltc_to_txq_map(struct mlx5e_priv *priv, int ix)
 {
 	int i;
 
 	for (i = 0; i < MLX5E_MAX_NUM_TC; i++)
-		c->tc_to_txq_map[i] = c->ix + i * num_channels;
+		priv->channeltc_to_txq_map[ix][i] =
+			ix + i * priv->params.num_channels;
 }
 
 static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
@@ -979,7 +979,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->mkey_be  = cpu_to_be32(priv->mr.key);
 	c->num_tc   = priv->params.num_tc;
 
-	mlx5e_build_tc_to_txq_map(c, priv->params.num_channels);
+	mlx5e_build_channeltc_to_txq_map(priv, ix);
 
 	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
 

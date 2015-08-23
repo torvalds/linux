@@ -106,7 +106,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		 priv->default_vlan_prio;
 	int tc = netdev_get_prio_tc_map(dev, up);
 
-	return priv->channel[channel_ix]->tc_to_txq_map[tc];
+	return priv->channeltc_to_txq_map[channel_ix][tc];
 }
 
 static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
