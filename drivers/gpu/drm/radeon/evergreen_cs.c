@@ -34,6 +34,8 @@
 #define MAX(a,b)                   (((a)>(b))?(a):(b))
 #define MIN(a,b)                   (((a)<(b))?(a):(b))
 
+#define REG_SAFE_BM_SIZE ARRAY_SIZE(evergreen_reg_safe_bm)
+
 int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 			   struct radeon_bo_list **cs_reloc);
 struct evergreen_cs_track {
@@ -84,6 +86,7 @@ struct evergreen_cs_track {
 	u32			htile_surface;
 	struct radeon_bo	*htile_bo;
 	unsigned long		indirect_draw_buffer_size;
+	const unsigned		*reg_safe_bm;
 };
 
 static u32 evergreen_cs_get_aray_mode(u32 tiling_flags)
@@ -1096,28 +1099,17 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
 	struct evergreen_cs_track *track = (struct evergreen_cs_track *)p->track;
 	struct radeon_bo_list *reloc;
-	u32 last_reg;
 	u32 m, i, tmp, *ib;
 	int r;
 
-	if (p->rdev->family >= CHIP_CAYMAN)
-		last_reg = ARRAY_SIZE(cayman_reg_safe_bm);
-	else
-		last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
-
 	i = (reg >> 7);
-	if (i >= last_reg) {
+	if (unlikely(i >= REG_SAFE_BM_SIZE)) {
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return -EINVAL;
 	}
 	m = 1 << ((reg >> 2) & 31);
-	if (p->rdev->family >= CHIP_CAYMAN) {
-		if (!(cayman_reg_safe_bm[i] & m))
-			return 0;
-	} else {
-		if (!(evergreen_reg_safe_bm[i] & m))
-			return 0;
-	}
+	if (!(track->reg_safe_bm[i] & m))
+		return 0;
 	ib = p->ib.ptr;
 	switch (reg) {
 	/* force following reg to 0 in an attempt to disable out buffer
@@ -1766,26 +1758,17 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 
 static bool evergreen_is_safe_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
-	u32 last_reg, m, i;
-
-	if (p->rdev->family >= CHIP_CAYMAN)
-		last_reg = ARRAY_SIZE(cayman_reg_safe_bm);
-	else
-		last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
+	struct evergreen_cs_track *track = p->track;
+	u32 m, i;
 
 	i = (reg >> 7);
-	if (i >= last_reg) {
+	if (unlikely(i >= REG_SAFE_BM_SIZE)) {
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return false;
 	}
 	m = 1 << ((reg >> 2) & 31);
-	if (p->rdev->family >= CHIP_CAYMAN) {
-		if (!(cayman_reg_safe_bm[i] & m))
-			return true;
-	} else {
-		if (!(evergreen_reg_safe_bm[i] & m))
-			return true;
-	}
+	if (!(track->reg_safe_bm[i] & m))
+		return true;
 	dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 	return false;
 }
@@ -2644,11 +2627,15 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 		if (track == NULL)
 			return -ENOMEM;
 		evergreen_cs_track_init(track);
-		if (p->rdev->family >= CHIP_CAYMAN)
+		if (p->rdev->family >= CHIP_CAYMAN) {
 			tmp = p->rdev->config.cayman.tile_config;
-		else
+			track->reg_safe_bm = cayman_reg_safe_bm;
+		} else {
 			tmp = p->rdev->config.evergreen.tile_config;
-
+			track->reg_safe_bm = evergreen_reg_safe_bm;
+		}
+		BUILD_BUG_ON(ARRAY_SIZE(cayman_reg_safe_bm) != REG_SAFE_BM_SIZE);
+		BUILD_BUG_ON(ARRAY_SIZE(evergreen_reg_safe_bm) != REG_SAFE_BM_SIZE);
 		switch (tmp & 0xf) {
 		case 0:
 			track->npipes = 1;
