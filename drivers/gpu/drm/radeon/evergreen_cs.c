@@ -2299,11 +2299,10 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad PACKET3_SET_CONFIG_REG\n");
 			return -EINVAL;
 		}
-		for (i = 0; i < pkt->count; i++) {
-			reg = start_reg + (4 * i);
+		for (reg = start_reg, idx++; reg <= end_reg; reg += 4, idx++) {
 			if (evergreen_is_safe_reg(p, reg))
 				continue;
-			r = evergreen_cs_handle_reg(p, reg, idx + 1 + i);
+			r = evergreen_cs_handle_reg(p, reg, idx);
 			if (r)
 				return r;
 		}
@@ -2317,11 +2316,10 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad PACKET3_SET_CONTEXT_REG\n");
 			return -EINVAL;
 		}
-		for (i = 0; i < pkt->count; i++) {
-			reg = start_reg + (4 * i);
+		for (reg = start_reg, idx++; reg <= end_reg; reg += 4, idx++) {
 			if (evergreen_is_safe_reg(p, reg))
 				continue;
-			r = evergreen_cs_handle_reg(p, reg, idx + 1 + i);
+			r = evergreen_cs_handle_reg(p, reg, idx);
 			if (r)
 				return r;
 		}
