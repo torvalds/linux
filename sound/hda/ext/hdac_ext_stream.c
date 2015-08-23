@@ -461,13 +461,13 @@ int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_spib);
 
 /**
- * snd_hdac_ext_stream_set_spbmaxfifo - sets the spib value of a stream
+ * snd_hdac_ext_stream_get_spbmaxfifo - gets the spib value of a stream
  * @ebus: HD-audio ext core bus
  * @stream: hdac_ext_stream
  *
  * Return maxfifo for the stream
  */
-int snd_hdac_ext_stream_set_spbmaxfifo(struct hdac_ext_bus *ebus,
+int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
 				 struct hdac_ext_stream *stream)
 {
 	struct hdac_bus *bus = &ebus->bus;
@@ -479,7 +479,7 @@ int snd_hdac_ext_stream_set_spbmaxfifo(struct hdac_ext_bus *ebus,
 
 	return readl(stream->fifo_addr);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_spbmaxfifo);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_get_spbmaxfifo);
 
 
 /**

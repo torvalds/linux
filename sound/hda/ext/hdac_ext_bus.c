@@ -139,7 +139,7 @@ int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *ebus, int addr)
 	char name[15];
 	int ret;
 
-	edev = kzalloc(sizeof(*hdev), GFP_KERNEL);
+	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev)
 		return -ENOMEM;
 	hdev = &edev->hdac;
