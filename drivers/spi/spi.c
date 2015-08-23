@@ -1740,6 +1740,20 @@ EXPORT_SYMBOL_GPL(spi_busnum_to_master);
  * other core methods are currently defined as inline functions.
  */
 
+static int __spi_validate_bits_per_word(struct spi_master *master, u8 bits_per_word)
+{
+	if (master->bits_per_word_mask) {
+		/* Only 32 bits fit in the mask */
+		if (bits_per_word > 32)
+			return -EINVAL;
+		if (!(master->bits_per_word_mask &
+				SPI_BPW_MASK(bits_per_word)))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * spi_setup - setup SPI mode and clock rate
  * @spi: the device whose settings are being modified
@@ -1797,6 +1811,9 @@ int spi_setup(struct spi_device *spi)
 
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
+
+	if (__spi_validate_bits_per_word(spi->master, spi->bits_per_word))
+		return -EINVAL;
 
 	if (!spi->max_speed_hz)
 		spi->max_speed_hz = spi->master->max_speed_hz;
@@ -1867,14 +1884,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		    xfer->speed_hz > master->max_speed_hz)
 			xfer->speed_hz = master->max_speed_hz;
 
-		if (master->bits_per_word_mask) {
-			/* Only 32 bits fit in the mask */
-			if (xfer->bits_per_word > 32)
-				return -EINVAL;
-			if (!(master->bits_per_word_mask &
-					BIT(xfer->bits_per_word - 1)))
-				return -EINVAL;
-		}
+		if (__spi_validate_bits_per_word(master, xfer->bits_per_word))
+			return -EINVAL;
 
 		/*
 		 * SPI transfer length should be multiple of SPI word size
