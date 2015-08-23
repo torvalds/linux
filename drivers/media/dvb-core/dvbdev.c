@@ -578,9 +578,10 @@ void dvb_create_media_graph(struct dvb_adapter *adap)
 	}
 
 	/* Create indirect interface links for FE->tuner, DVR->demux and CA->ca */
-	list_for_each_entry(intf, &mdev->interfaces, list) {
+	media_device_for_each_intf(intf, mdev) {
 		if (intf->type == MEDIA_INTF_T_DVB_CA && ca)
 			media_create_intf_link(ca, intf, 0);
+
 		if (intf->type == MEDIA_INTF_T_DVB_FE && tuner)
 			media_create_intf_link(tuner, intf, 0);
 

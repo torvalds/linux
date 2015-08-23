@@ -113,6 +113,11 @@ struct media_device *media_device_find_devres(struct device *dev);
 #define media_device_for_each_entity(entity, mdev)			\
 	list_for_each_entry(entity, &(mdev)->entities, list)
 
+/* Iterate over all interfaces. */
+#define media_device_for_each_intf(intf, mdev)			\
+	list_for_each_entry(intf, &(mdev)->interfaces, list)
+
+
 #else
 static inline int media_device_register(struct media_device *mdev)
 {
