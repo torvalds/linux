@@ -1086,30 +1086,18 @@ static int evergreen_cs_parse_packet0(struct radeon_cs_parser *p,
 }
 
 /**
- * evergreen_cs_check_reg() - check if register is authorized or not
+ * evergreen_cs_handle_reg() - process registers that need special handling.
  * @parser: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
- *
- * This function will test against evergreen_reg_safe_bm and return 0
- * if register is safe. If register is not flag as safe this function
- * will test it against a list of register needind special handling.
  */
-static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+static int evergreen_cs_handle_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
 	struct evergreen_cs_track *track = (struct evergreen_cs_track *)p->track;
 	struct radeon_bo_list *reloc;
-	u32 m, i, tmp, *ib;
+	u32 tmp, *ib;
 	int r;
 
-	i = (reg >> 7);
-	if (unlikely(i >= REG_SAFE_BM_SIZE)) {
-		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
-		return -EINVAL;
-	}
-	m = 1 << ((reg >> 2) & 31);
-	if (!(track->reg_safe_bm[i] & m))
-		return 0;
 	ib = p->ib.ptr;
 	switch (reg) {
 	/* force following reg to 0 in an attempt to disable out buffer
@@ -1756,20 +1744,27 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	return 0;
 }
 
-static bool evergreen_is_safe_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+/**
+ * evergreen_is_safe_reg() - check if register is authorized or not
+ * @parser: parser structure holding parsing context
+ * @reg: register we are testing
+ *
+ * This function will test against reg_safe_bm and return true
+ * if register is safe or false otherwise.
+ */
+static inline bool evergreen_is_safe_reg(struct radeon_cs_parser *p, u32 reg)
 {
 	struct evergreen_cs_track *track = p->track;
 	u32 m, i;
 
 	i = (reg >> 7);
 	if (unlikely(i >= REG_SAFE_BM_SIZE)) {
-		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return false;
 	}
 	m = 1 << ((reg >> 2) & 31);
 	if (!(track->reg_safe_bm[i] & m))
 		return true;
-	dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+
 	return false;
 }
 
@@ -2306,7 +2301,9 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		}
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
-			r = evergreen_cs_check_reg(p, reg, idx+1+i);
+			if (evergreen_is_safe_reg(p, reg))
+				continue;
+			r = evergreen_cs_handle_reg(p, reg, idx + 1 + i);
 			if (r)
 				return r;
 		}
@@ -2322,7 +2319,9 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		}
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
-			r = evergreen_cs_check_reg(p, reg, idx+1+i);
+			if (evergreen_is_safe_reg(p, reg))
+				continue;
+			r = evergreen_cs_handle_reg(p, reg, idx + 1 + i);
 			if (r)
 				return r;
 		}
@@ -2577,8 +2576,11 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		} else {
 			/* SRC is a reg. */
 			reg = radeon_get_ib_value(p, idx+1) << 2;
-			if (!evergreen_is_safe_reg(p, reg, idx+1))
+			if (!evergreen_is_safe_reg(p, reg)) {
+				dev_warn(p->dev, "forbidden register 0x%08x at %d\n",
+					 reg, idx + 1);
 				return -EINVAL;
+			}
 		}
 		if (idx_value & 0x2) {
 			u64 offset;
@@ -2601,8 +2603,11 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		} else {
 			/* DST is a reg. */
 			reg = radeon_get_ib_value(p, idx+3) << 2;
-			if (!evergreen_is_safe_reg(p, reg, idx+3))
+			if (!evergreen_is_safe_reg(p, reg)) {
+				dev_warn(p->dev, "forbidden register 0x%08x at %d\n",
+					 reg, idx + 3);
 				return -EINVAL;
+			}
 		}
 		break;
 	case PACKET3_NOP:
