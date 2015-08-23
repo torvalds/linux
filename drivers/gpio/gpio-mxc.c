@@ -339,13 +339,15 @@ static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 	return 0;
 }
 
-static void mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
+static int mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 
 	gc = irq_alloc_generic_chip("gpio-mxc", 1, irq_base,
 				    port->base, handle_level_irq);
+	if (!gc)
+		return -ENOMEM;
 	gc->private = port;
 
 	ct = gc->chip_types;
@@ -360,6 +362,8 @@ static void mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 
 	irq_setup_generic_chip(gc, IRQ_MSK(32), IRQ_GC_INIT_NESTED_LOCK,
 			       IRQ_NOREQUEST, 0);
+
+	return 0;
 }
 
 static void mxc_gpio_get_hw(struct platform_device *pdev)
@@ -477,12 +481,16 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* gpio-mxc can be a generic irq chip */
-	mxc_gpio_init_gc(port, irq_base);
+	err = mxc_gpio_init_gc(port, irq_base);
+	if (err < 0)
+		goto out_irqdomain_remove;
 
 	list_add_tail(&port->node, &mxc_gpio_ports);
 
 	return 0;
 
+out_irqdomain_remove:
+	irq_domain_remove(port->domain);
 out_irqdesc_free:
 	irq_free_descs(irq_base, 32);
 out_gpiochip_remove:
