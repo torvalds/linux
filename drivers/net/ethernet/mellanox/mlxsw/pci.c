@@ -1726,6 +1726,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 						mlxsw_pci_dbg_root);
 	if (!mlxsw_pci->dbg_dir) {
 		dev_err(&pdev->dev, "Failed to create debugfs dir\n");
+		err = -ENOMEM;
 		goto err_dbg_create_dir;
 	}
 
