@@ -47,6 +47,8 @@ struct device;
  * @intf_devnode_id: Unique ID used on the last interface devnode registered
  * @entities:	List of registered entities
  * @interfaces:	List of registered interfaces
+ * @pads:	List of registered pads
+ * @links:	List of registered links
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
  * @link_notify: Link state change notification callback
@@ -79,6 +81,8 @@ struct media_device {
 
 	struct list_head entities;
 	struct list_head interfaces;
+	struct list_head pads;
+	struct list_head links;
 
 	/* Protects the entities list */
 	spinlock_t lock;
@@ -116,6 +120,14 @@ struct media_device *media_device_find_devres(struct device *dev);
 /* Iterate over all interfaces. */
 #define media_device_for_each_intf(intf, mdev)			\
 	list_for_each_entry(intf, &(mdev)->interfaces, graph_obj.list)
+
+/* Iterate over all pads. */
+#define media_device_for_each_pad(pad, mdev)			\
+	list_for_each_entry(pad, &(mdev)->pads, graph_obj.list)
+
+/* Iterate over all links. */
+#define media_device_for_each_link(link, mdev)			\
+	list_for_each_entry(link, &(mdev)->links, graph_obj.list)
 
 
 #else

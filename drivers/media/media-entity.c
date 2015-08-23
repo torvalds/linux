@@ -162,13 +162,15 @@ void media_gobj_init(struct media_device *mdev,
 		break;
 	case MEDIA_GRAPH_PAD:
 		gobj->id = media_gobj_gen_id(type, ++mdev->pad_id);
+		list_add_tail(&gobj->list, &mdev->pads);
 		break;
 	case MEDIA_GRAPH_LINK:
 		gobj->id = media_gobj_gen_id(type, ++mdev->link_id);
+		list_add_tail(&gobj->list, &mdev->links);
 		break;
 	case MEDIA_GRAPH_INTF_DEVNODE:
-		list_add_tail(&gobj->list, &mdev->interfaces);
 		gobj->id = media_gobj_gen_id(type, ++mdev->intf_devnode_id);
+		list_add_tail(&gobj->list, &mdev->interfaces);
 		break;
 	}
 	dev_dbg_obj(__func__, gobj);
@@ -183,17 +185,10 @@ void media_gobj_init(struct media_device *mdev,
  */
 void media_gobj_remove(struct media_gobj *gobj)
 {
-	/* Remove the object from mdev list */
-	switch (media_type(gobj)) {
-	case MEDIA_GRAPH_ENTITY:
-	case MEDIA_GRAPH_INTF_DEVNODE:
-		list_del(&gobj->list);
-		break;
-	default:
-		break;
-	}
-
 	dev_dbg_obj(__func__, gobj);
+
+	/* Remove the object from mdev list */
+	list_del(&gobj->list);
 }
 
 /**
