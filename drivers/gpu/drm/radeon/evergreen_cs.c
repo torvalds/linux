@@ -447,7 +447,7 @@ static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, unsigned i
 		 * command stream.
 		 */
 		if (!surf.mode) {
-			volatile u32 *ib = p->ib.ptr;
+			uint32_t *ib = p->ib.ptr;
 			unsigned long tmp, nby, bsize, size, min = 0;
 
 			/* find the height the ddx wants */
@@ -1773,7 +1773,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 {
 	struct radeon_bo_list *reloc;
 	struct evergreen_cs_track *track;
-	volatile u32 *ib;
+	uint32_t *ib;
 	unsigned idx;
 	unsigned i;
 	unsigned start_reg, end_reg, reg;
@@ -2747,7 +2747,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 	struct radeon_cs_chunk *ib_chunk = p->chunk_ib;
 	struct radeon_bo_list *src_reloc, *dst_reloc, *dst2_reloc;
 	u32 header, cmd, count, sub_cmd;
-	volatile u32 *ib = p->ib.ptr;
+	uint32_t *ib = p->ib.ptr;
 	u32 idx;
 	u64 src_offset, dst_offset, dst2_offset;
 	int r;
