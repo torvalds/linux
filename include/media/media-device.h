@@ -111,11 +111,11 @@ struct media_device *media_device_find_devres(struct device *dev);
 
 /* Iterate over all entities. */
 #define media_device_for_each_entity(entity, mdev)			\
-	list_for_each_entry(entity, &(mdev)->entities, list)
+	list_for_each_entry(entity, &(mdev)->entities, graph_obj.list)
 
 /* Iterate over all interfaces. */
 #define media_device_for_each_intf(intf, mdev)			\
-	list_for_each_entry(intf, &(mdev)->interfaces, list)
+	list_for_each_entry(intf, &(mdev)->interfaces, graph_obj.list)
 
 
 #else

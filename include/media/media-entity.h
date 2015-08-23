@@ -66,6 +66,7 @@ enum media_gobj_type {
 struct media_gobj {
 	struct media_device	*mdev;
 	u32			id;
+	struct list_head	list;
 };
 
 
@@ -114,7 +115,6 @@ struct media_entity_operations {
 
 struct media_entity {
 	struct media_gobj graph_obj;	/* must be first field in struct */
-	struct list_head list;
 	const char *name;		/* Entity name */
 	u32 type;			/* Entity type (MEDIA_ENT_T_*) */
 	u32 revision;			/* Entity revision, driver specific */
@@ -166,7 +166,6 @@ struct media_entity {
  */
 struct media_interface {
 	struct media_gobj		graph_obj;
-	struct list_head		list;
 	struct list_head		links;
 	u32				type;
 	u32				flags;

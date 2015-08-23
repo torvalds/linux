@@ -158,6 +158,7 @@ void media_gobj_init(struct media_device *mdev,
 	switch (type) {
 	case MEDIA_GRAPH_ENTITY:
 		gobj->id = media_gobj_gen_id(type, ++mdev->entity_id);
+		list_add_tail(&gobj->list, &mdev->entities);
 		break;
 	case MEDIA_GRAPH_PAD:
 		gobj->id = media_gobj_gen_id(type, ++mdev->pad_id);
@@ -166,6 +167,7 @@ void media_gobj_init(struct media_device *mdev,
 		gobj->id = media_gobj_gen_id(type, ++mdev->link_id);
 		break;
 	case MEDIA_GRAPH_INTF_DEVNODE:
+		list_add_tail(&gobj->list, &mdev->interfaces);
 		gobj->id = media_gobj_gen_id(type, ++mdev->intf_devnode_id);
 		break;
 	}
@@ -181,6 +183,16 @@ void media_gobj_init(struct media_device *mdev,
  */
 void media_gobj_remove(struct media_gobj *gobj)
 {
+	/* Remove the object from mdev list */
+	switch (media_type(gobj)) {
+	case MEDIA_GRAPH_ENTITY:
+	case MEDIA_GRAPH_INTF_DEVNODE:
+		list_del(&gobj->list);
+		break;
+	default:
+		break;
+	}
+
 	dev_dbg_obj(__func__, gobj);
 }
 
@@ -852,8 +864,6 @@ static void media_interface_init(struct media_device *mdev,
 	INIT_LIST_HEAD(&intf->links);
 
 	media_gobj_init(mdev, gobj_type, &intf->graph_obj);
-
-	list_add_tail(&intf->list, &mdev->interfaces);
 }
 
 /* Functions related to the media interface via device nodes */
@@ -882,7 +892,6 @@ EXPORT_SYMBOL_GPL(media_devnode_create);
 void media_devnode_remove(struct media_intf_devnode *devnode)
 {
 	media_gobj_remove(&devnode->intf.graph_obj);
-	list_del(&devnode->intf.list);
 	kfree(devnode);
 }
 EXPORT_SYMBOL_GPL(media_devnode_remove);

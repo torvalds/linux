@@ -415,7 +415,7 @@ void media_device_unregister(struct media_device *mdev)
 	struct media_entity *entity;
 	struct media_entity *next;
 
-	list_for_each_entry_safe(entity, next, &mdev->entities, list)
+	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
 		media_device_unregister_entity(entity);
 
 	device_remove_file(&mdev->devnode.dev, &dev_attr_model);
@@ -449,7 +449,6 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	spin_lock(&mdev->lock);
 	/* Initialize media_gobj embedded at the entity */
 	media_gobj_init(mdev, MEDIA_GRAPH_ENTITY, &entity->graph_obj);
-	list_add_tail(&entity->list, &mdev->entities);
 
 	/* Initialize objects at the pads */
 	for (i = 0; i < entity->num_pads; i++)
@@ -487,7 +486,6 @@ void media_device_unregister_entity(struct media_entity *entity)
 	for (i = 0; i < entity->num_pads; i++)
 		media_gobj_remove(&entity->pads[i].graph_obj);
 	media_gobj_remove(&entity->graph_obj);
-	list_del(&entity->list);
 	spin_unlock(&mdev->lock);
 	entity->graph_obj.mdev = NULL;
 }
