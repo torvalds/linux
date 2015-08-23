@@ -181,6 +181,8 @@ struct media_interface {
  */
 struct media_intf_devnode {
 	struct media_interface		intf;
+
+	/* Should match the fields at media_v2_intf_devnode */
 	u32				major;
 	u32				minor;
 };
