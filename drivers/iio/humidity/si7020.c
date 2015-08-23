@@ -57,8 +57,12 @@ static int si7020_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 		*val = ret >> 2;
+		/*
+		 * Humidity values can slightly exceed the 0-100%RH
+		 * range and should be corrected by software
+		 */
 		if (chan->type == IIO_HUMIDITYRELATIVE)
-			*val &= GENMASK(11, 0);
+			*val = clamp_val(*val, 786, 13893);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_TEMP)
