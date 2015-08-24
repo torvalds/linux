@@ -72,7 +72,8 @@ int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *ops,
 EXPORT_SYMBOL(lwtunnel_encap_del_ops);
 
 int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
-			 struct nlattr *encap, struct lwtunnel_state **lws)
+			 struct nlattr *encap, unsigned int family,
+			 const void *cfg, struct lwtunnel_state **lws)
 {
 	const struct lwtunnel_encap_ops *ops;
 	int ret = -EINVAL;
@@ -85,7 +86,7 @@ int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[encap_type]);
 	if (likely(ops && ops->build_state))
-		ret = ops->build_state(dev, encap, lws);
+		ret = ops->build_state(dev, encap, family, cfg, lws);
 	rcu_read_unlock();
 
 	return ret;

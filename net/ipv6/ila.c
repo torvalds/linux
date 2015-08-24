@@ -123,6 +123,7 @@ static struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 };
 
 static int ila_build_state(struct net_device *dev, struct nlattr *nla,
+			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts)
 {
 	struct ila_params *p;
