@@ -1495,6 +1495,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	sblock->no_io_error_seen = 1;
 	sblock->header_error = 0;
 	sblock->checksum_error = 0;
+	sblock->generation_error = 0;
 
 	for (page_num = 0; page_num < sblock->page_count; page_num++) {
 		struct bio *bio;
@@ -2203,6 +2204,9 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 	logical = sblock->pagev[0]->logical;
 	dev = sblock->pagev[0]->dev;
 
+	sblock->header_error = 0;
+	sblock->checksum_error = 0;
+	sblock->generation_error = 0;
 	if (sblock->no_io_error_seen) {
 		scrub_recheck_block_checksum(fs_info, sblock, is_metadata,
 					     have_csum, csum, generation,
