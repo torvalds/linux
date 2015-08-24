@@ -141,7 +141,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 	int slot;
 	unsigned long ptr;
-	int old_len;
+	u32 old_len;
 
 	path = btrfs_alloc_path();
 	if (!path)
