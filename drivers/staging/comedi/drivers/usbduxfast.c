@@ -865,7 +865,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 	s->do_cmdtest	= usbduxfast_ai_cmdtest;
 	s->do_cmd	= usbduxfast_ai_cmd;
 	s->cancel	= usbduxfast_ai_cancel;
-	s->maxdata	= 0x1000;
+	s->maxdata	= 0x1000;	/* 12-bit + 1 overflow bit */
 	s->range_table	= &range_usbduxfast_ai_range;
 
 	up(&devpriv->sem);
