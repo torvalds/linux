@@ -394,6 +394,7 @@ static bool rt5645_readable_register(struct device *dev, unsigned int reg)
 	case RT5645_DEPOP_M1:
 	case RT5645_DEPOP_M2:
 	case RT5645_DEPOP_M3:
+	case RT5645_CHARGE_PUMP:
 	case RT5645_MICBIAS:
 	case RT5645_A_JD_CTRL1:
 	case RT5645_VAD_CTRL4:
