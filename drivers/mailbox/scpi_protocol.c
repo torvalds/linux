@@ -48,7 +48,7 @@
 #define DVFS_LATENCY(hdr)	((hdr) >> 16)
 #define DVFS_OPP_COUNT(hdr)	(((hdr) >> 8) & 0xff)
 
-int max_chan_num = 0;
+static int max_chan_num = 0;
 static DECLARE_BITMAP(bm_mbox_chans, 4);
 static DEFINE_MUTEX(scpi_mtx);
 
