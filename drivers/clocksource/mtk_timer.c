@@ -141,14 +141,6 @@ static irqreturn_t mtk_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void mtk_timer_global_reset(struct mtk_clock_event_device *evt)
-{
-	/* Disable all interrupts */
-	writel(0x0, evt->gpt_base + GPT_IRQ_EN_REG);
-	/* Acknowledge all interrupts */
-	writel(0x3f, evt->gpt_base + GPT_IRQ_ACK_REG);
-}
-
 static void
 mtk_timer_setup(struct mtk_clock_event_device *evt, u8 timer, u8 option)
 {
@@ -167,6 +159,12 @@ mtk_timer_setup(struct mtk_clock_event_device *evt, u8 timer, u8 option)
 static void mtk_timer_enable_irq(struct mtk_clock_event_device *evt, u8 timer)
 {
 	u32 val;
+
+	/* Disable all interrupts */
+	writel(0x0, evt->gpt_base + GPT_IRQ_EN_REG);
+
+	/* Acknowledge all spurious pending interrupts */
+	writel(0x3f, evt->gpt_base + GPT_IRQ_ACK_REG);
 
 	val = readl(evt->gpt_base + GPT_IRQ_EN_REG);
 	writel(val | GPT_IRQ_ENABLE(timer),
@@ -219,8 +217,6 @@ static void __init mtk_timer_init(struct device_node *node)
 		goto err_clk_put;
 	}
 	rate = clk_get_rate(clk);
-
-	mtk_timer_global_reset(evt);
 
 	if (request_irq(evt->dev.irq, mtk_timer_interrupt,
 			IRQF_TIMER | IRQF_IRQPOLL, "mtk_timer", evt)) {
