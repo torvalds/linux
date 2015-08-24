@@ -223,9 +223,6 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
 	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
-	if (!devpriv)
-		return -EFAULT;
-
 	down(&devpriv->sem);
 	ret = usbduxfast_ai_stop(dev, 1);
 	up(&devpriv->sem);
@@ -316,9 +313,6 @@ static int usbduxfast_submit_urb(struct comedi_device *dev)
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
-
-	if (!devpriv)
-		return -EFAULT;
 
 	usb_fill_bulk_urb(devpriv->urb, usb, usb_rcvbulkpipe(usb, BULKINEP),
 			  devpriv->inbuf, SIZEINBUF,
@@ -466,9 +460,6 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 
-	if (!devpriv)
-		return -EFAULT;
-
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
@@ -500,9 +491,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	int j, ret;
 	int result;
 	long steps, steps_tmp;
-
-	if (!devpriv)
-		return -EFAULT;
 
 	down(&devpriv->sem);
 	if (devpriv->ai_cmd_running) {
