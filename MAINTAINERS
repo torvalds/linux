@@ -9904,8 +9904,8 @@ F:	drivers/staging/media/lirc/
 STAGING - LUSTRE PARALLEL FILESYSTEM
 M:	Oleg Drokin <oleg.drokin@intel.com>
 M:	Andreas Dilger <andreas.dilger@intel.com>
-L:	HPDD-discuss@lists.01.org (moderated for non-subscribers)
-W:	http://lustre.opensfs.org/
+L:	lustre-devel@lists.lustre.org (moderated for non-subscribers)
+W:	http://wiki.lustre.org/
 S:	Maintained
 F:	drivers/staging/lustre
 
