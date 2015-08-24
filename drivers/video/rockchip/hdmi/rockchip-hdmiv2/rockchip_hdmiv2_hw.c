@@ -570,7 +570,7 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 		tmdsclk = mode->pixclock;
 	}
 
-	if ((tmdsclk > 340000000 && hdmi_dev->tmdsclk < 340000000) ||
+	if ((tmdsclk > 340000000) ||
 	    (tmdsclk < 340000000 && hdmi_dev->tmdsclk > 340000000))
 		hdmi_dev->tmdsclk_ratio_change = true;
 	else
@@ -609,6 +609,9 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 			rockchip_hdmiv2_scrambling_enable(hdmi_dev, 0);
 			mutex_unlock(&hdmi_dev->ddc_lock);
 		}
+	} else {
+		hdmi_msk_reg(hdmi_dev, FC_SCRAMBLER_CTRL,
+			     m_FC_SCRAMBLE_EN, v_FC_SCRAMBLE_EN(0));
 	}
 
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
@@ -1596,7 +1599,6 @@ static int hdmi_dev_control_output(struct hdmi *hdmi, int enable)
 			if (hdmi->ops->hdcp_power_off_cb)
 				hdmi->ops->hdcp_power_off_cb(hdmi);
 			rockchip_hdmiv2_powerdown(hdmi_dev);
-			hdmi_dev->tmdsclk = 0;
 /*
 			hdmi_msk_reg(hdmi_dev, PHY_CONF0,
 				     m_PDDQ_SIG | m_TXPWRON_SIG,
