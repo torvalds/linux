@@ -34,6 +34,9 @@
 #define ARC_REG_PCT_INT_CTRL	0x25E
 #define ARC_REG_PCT_INT_ACT	0x25F
 
+#define ARC_REG_PCT_CONFIG_USER	(1 << 18)	/* count in user mode */
+#define ARC_REG_PCT_CONFIG_KERN	(1 << 19)	/* count in kernel mode */
+
 #define ARC_REG_PCT_CONTROL_CC	(1 << 16)	/* clear counts */
 #define ARC_REG_PCT_CONTROL_SN	(1 << 17)	/* snapshot */
 

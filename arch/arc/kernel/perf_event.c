@@ -147,13 +147,25 @@ static int arc_pmu_event_init(struct perf_event *event)
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
+	hwc->config = 0;
+
+	if (is_isa_arcv2()) {
+		/* "exclude user" means "count only kernel" */
+		if (event->attr.exclude_user)
+			hwc->config |= ARC_REG_PCT_CONFIG_KERN;
+
+		/* "exclude kernel" means "count only user" */
+		if (event->attr.exclude_kernel)
+			hwc->config |= ARC_REG_PCT_CONFIG_USER;
+	}
+
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		if (event->attr.config >= PERF_COUNT_HW_MAX)
 			return -ENOENT;
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
-		hwc->config = arc_pmu->ev_hw_idx[event->attr.config];
+		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
 		pr_debug("init event %d with h/w %d \'%s\'\n",
 			 (int) event->attr.config, (int) hwc->config,
 			 arc_pmu_ev_hw_map[event->attr.config]);
@@ -163,7 +175,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 		ret = arc_pmu_cache_event(event->attr.config);
 		if (ret < 0)
 			return ret;
-		hwc->config = arc_pmu->ev_hw_idx[ret];
+		hwc->config |= arc_pmu->ev_hw_idx[ret];
 		return 0;
 	default:
 		return -ENOENT;
