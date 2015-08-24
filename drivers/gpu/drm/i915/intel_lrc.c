@@ -1003,6 +1003,8 @@ static int intel_lr_context_pin(struct drm_i915_gem_request *rq)
 		ret = intel_pin_and_map_ringbuffer_obj(ring->dev, ringbuf);
 		if (ret)
 			goto unpin_ctx_obj;
+
+		ctx_obj->dirty = true;
 	}
 
 	return ret;

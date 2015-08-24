@@ -40,7 +40,12 @@ static void fpu__init_cpu_generic(void)
 	write_cr0(cr0);
 
 	/* Flush out any pending x87 state: */
-	asm volatile ("fninit");
+#ifdef CONFIG_MATH_EMULATION
+	if (!cpu_has_fpu)
+		fpstate_init_soft(&current->thread.fpu.state.soft);
+	else
+#endif
+		asm volatile ("fninit");
 }
 
 /*
