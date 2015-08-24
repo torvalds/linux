@@ -884,8 +884,7 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
 
-	if (!enable)
-		path->active = false;
+	path->active = enable;
 
 	/* make sure the widget is powered up */
 	if (enable && (spec->power_down_unused || codec->power_save_node))
@@ -903,9 +902,6 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		if (has_amp_out(codec, path, i))
 			activate_amp_out(codec, path, i, enable);
 	}
-
-	if (enable)
-		path->active = true;
 }
 EXPORT_SYMBOL_GPL(snd_hda_activate_path);
 
