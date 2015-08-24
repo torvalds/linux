@@ -173,7 +173,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 			    channel->wq,
 			    (mbo = most_get_mbo(channel->iface,
 						channel->channel_id)) ||
-			    (channel->dev == NULL)))
+			    (!channel->dev)))
 			return -ERESTARTSYS;
 	}
 
@@ -229,12 +229,12 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 		goto start_copy;
 	}
 	while ((0 == kfifo_out(&channel->fifo, &mbo, 1))
-	       && (channel->dev != NULL)) {
+	       && (channel->dev)) {
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(channel->wq,
 					     (!kfifo_is_empty(&channel->fifo) ||
-					      (channel->dev == NULL))))
+					      (!channel->dev))))
 			return -ERESTARTSYS;
 	}
 
@@ -299,7 +299,7 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 	}
 
 	channel = get_channel(iface, channel_id);
-	if (channel == NULL)
+	if (!channel)
 		return -ENXIO;
 
 	mutex_lock(&channel->io_mutex);
@@ -336,7 +336,7 @@ static int aim_rx_completion(struct mbo *mbo)
 		return -EINVAL;
 
 	channel = get_channel(mbo->ifp, mbo->hdm_channel_id);
-	if (channel == NULL)
+	if (!channel)
 		return -ENXIO;
 
 	kfifo_in(&channel->fifo, &mbo, 1);
@@ -369,7 +369,7 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
 	}
 
 	channel = get_channel(iface, channel_id);
-	if (channel == NULL)
+	if (!channel)
 		return -ENXIO;
 	wake_up_interruptible(&channel->wq);
 	return 0;
