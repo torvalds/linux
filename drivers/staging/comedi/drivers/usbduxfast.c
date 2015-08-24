@@ -159,8 +159,7 @@ struct usbduxfast_private {
 	u8 *duxbuf;
 	s8 *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
-	int ignore;		/* counter which ignores the first
-				   buffers */
+	int ignore;		/* counter which ignores the first buffers */
 	struct semaphore sem;
 };
 
