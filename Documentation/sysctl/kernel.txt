@@ -197,8 +197,8 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%P	global pid (init PID namespace)
 	%i	tid
 	%I	global tid (init PID namespace)
-	%u	uid
-	%g	gid
+	%u	uid (in initial user namespace)
+	%g	gid (in initial user namespace)
 	%d	dump mode, matches PR_SET_DUMPABLE and
 		/proc/sys/fs/suid_dumpable
 	%s	signal number
@@ -920,6 +920,27 @@ If the watchdog parameter is read, for example by executing
 
 the output of this command (0 or 1) shows the logical OR of soft_watchdog
 and nmi_watchdog.
+
+==============================================================
+
+watchdog_cpumask:
+
+This value can be used to control on which cpus the watchdog may run.
+The default cpumask is all possible cores, but if NO_HZ_FULL is
+enabled in the kernel config, and cores are specified with the
+nohz_full= boot argument, those cores are excluded by default.
+Offline cores can be included in this mask, and if the core is later
+brought online, the watchdog will be started based on the mask value.
+
+Typically this value would only be touched in the nohz_full case
+to re-enable cores that by default were not running the watchdog,
+if a kernel lockup was suspected on those cores.
+
+The argument value is the standard cpulist format for cpumasks,
+so for example to enable the watchdog on cores 0, 2, 3, and 4 you
+might say:
+
+  echo 0,2-4 > /proc/sys/kernel/watchdog_cpumask
 
 ==============================================================
 

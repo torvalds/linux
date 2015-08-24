@@ -198,7 +198,7 @@ static int pcc_send_data(struct mbox_chan *chan, void *data)
 	return 0;
 }
 
-static struct mbox_chan_ops pcc_chan_ops = {
+static const struct mbox_chan_ops pcc_chan_ops = {
 	.send_data = pcc_send_data,
 };
 

@@ -1508,7 +1508,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 		np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 		if (!np) {
 			dev_err(&pdev->dev, "missing phy-handle\n");
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_netdev;
 		}
 		of_property_read_u32(np, "reg", &pep->phy_addr);
 		pep->phy_intf = of_get_phy_mode(pdev->dev.of_node);
@@ -1526,7 +1527,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	pep->smi_bus = mdiobus_alloc();
 	if (pep->smi_bus == NULL) {
 		err = -ENOMEM;
-		goto err_base;
+		goto err_netdev;
 	}
 	pep->smi_bus->priv = pep;
 	pep->smi_bus->name = "pxa168_eth smi";
@@ -1551,13 +1552,10 @@ err_mdiobus:
 	mdiobus_unregister(pep->smi_bus);
 err_free_mdio:
 	mdiobus_free(pep->smi_bus);
-err_base:
-	iounmap(pep->base);
 err_netdev:
 	free_netdev(dev);
 err_clk:
-	clk_disable(clk);
-	clk_put(clk);
+	clk_disable_unprepare(clk);
 	return err;
 }
 
@@ -1574,13 +1572,9 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	if (pep->phy)
 		phy_disconnect(pep->phy);
 	if (pep->clk) {
-		clk_disable(pep->clk);
-		clk_put(pep->clk);
-		pep->clk = NULL;
+		clk_disable_unprepare(pep->clk);
 	}
 
-	iounmap(pep->base);
-	pep->base = NULL;
 	mdiobus_unregister(pep->smi_bus);
 	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);

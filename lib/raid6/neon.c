@@ -42,6 +42,7 @@
 	}								\
 	struct raid6_calls const raid6_neonx ## _n = {			\
 		raid6_neon ## _n ## _gen_syndrome,			\
+		NULL,		/* XOR not yet implemented */		\
 		raid6_have_neon,					\
 		"neonx" #_n,						\
 		0							\

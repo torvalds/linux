@@ -96,6 +96,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 			goto out;
 
 		thread__set_comm(thread, fake_threads[i].comm, 0);
+		thread__put(thread);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {
@@ -120,8 +121,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 		size_t k;
 		struct dso *dso;
 
-		dso = __dsos__findnew(&machine->user_dsos,
-				      fake_symbols[i].dso_name);
+		dso = machine__findnew_dso(machine, fake_symbols[i].dso_name);
 		if (dso == NULL)
 			goto out;
 
@@ -134,11 +134,15 @@ struct machine *setup_fake_machine(struct machines *machines)
 
 			sym = symbol__new(fsym->start, fsym->length,
 					  STB_GLOBAL, fsym->name);
-			if (sym == NULL)
+			if (sym == NULL) {
+				dso__put(dso);
 				goto out;
+			}
 
 			symbols__insert(&dso->symbols[MAP__FUNCTION], sym);
 		}
+
+		dso__put(dso);
 	}
 
 	return machine;

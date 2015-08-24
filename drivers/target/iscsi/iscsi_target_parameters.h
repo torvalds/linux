@@ -138,8 +138,8 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIAL_SESSIONTYPE			NORMAL
 #define INITIAL_IFMARKER			NO
 #define INITIAL_OFMARKER			NO
-#define INITIAL_IFMARKINT			"2048~65535"
-#define INITIAL_OFMARKINT			"2048~65535"
+#define INITIAL_IFMARKINT			REJECT
+#define INITIAL_OFMARKINT			REJECT
 
 /*
  * Initial values for iSER parameters following RFC-5046 Section 6
@@ -239,10 +239,9 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define TYPERANGE_AUTH			0x0200
 #define TYPERANGE_DIGEST		0x0400
 #define TYPERANGE_ISCSINAME		0x0800
-#define TYPERANGE_MARKINT		0x1000
-#define TYPERANGE_SESSIONTYPE		0x2000
-#define TYPERANGE_TARGETADDRESS		0x4000
-#define TYPERANGE_UTF8			0x8000
+#define TYPERANGE_SESSIONTYPE		0x1000
+#define TYPERANGE_TARGETADDRESS		0x2000
+#define TYPERANGE_UTF8			0x4000
 
 #define IS_TYPERANGE_0_TO_2(p)		((p)->type_range & TYPERANGE_0_TO_2)
 #define IS_TYPERANGE_0_TO_3600(p)	((p)->type_range & TYPERANGE_0_TO_3600)

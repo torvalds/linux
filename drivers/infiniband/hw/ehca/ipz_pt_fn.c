@@ -245,10 +245,7 @@ int ipz_queue_ctor(struct ehca_pd *pd, struct ipz_queue *queue,
 ipz_queue_ctor_exit0:
 	ehca_gen_err("Couldn't alloc pages queue=%p "
 		 "nr_of_pages=%x",  queue, nr_of_pages);
-	if (is_vmalloc_addr(queue->queue_pages))
-		vfree(queue->queue_pages);
-	else
-		kfree(queue->queue_pages);
+	kvfree(queue->queue_pages);
 
 	return 0;
 }
@@ -270,10 +267,7 @@ int ipz_queue_dtor(struct ehca_pd *pd, struct ipz_queue *queue)
 			free_page((unsigned long)queue->queue_pages[i]);
 	}
 
-	if (is_vmalloc_addr(queue->queue_pages))
-		vfree(queue->queue_pages);
-	else
-		kfree(queue->queue_pages);
+	kvfree(queue->queue_pages);
 
 	return 1;
 }

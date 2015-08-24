@@ -129,8 +129,8 @@ int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 /* lowlevel accessor with caching; use carefully */
 #define snd_hda_codec_amp_read(codec, nid, ch, dir, idx) \
 	snd_hdac_regmap_get_amp(&(codec)->core, nid, ch, dir, idx)
-#define snd_hda_codec_amp_update(codec, nid, ch, dir, idx, mask, val) \
-	snd_hdac_regmap_update_amp(&(codec)->core, nid, ch, dir, idx, mask, val)
+int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid,
+			     int ch, int dir, int idx, int mask, int val);
 int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 			     int dir, int idx, int mask, int val);
 int snd_hda_codec_amp_init(struct hda_codec *codec, hda_nid_t nid, int ch,
@@ -330,7 +330,7 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 /*
  * generic proc interface
  */
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 int snd_hda_codec_proc_new(struct hda_codec *codec);
 #else
 static inline int snd_hda_codec_proc_new(struct hda_codec *codec) { return 0; }
@@ -777,7 +777,7 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 			 unsigned char *buf, int *eld_size,
 			 bool rev3_or_later);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 			     struct snd_info_buffer *buffer);
 void snd_hdmi_write_eld_info(struct hdmi_eld *eld,

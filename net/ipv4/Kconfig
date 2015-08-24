@@ -331,8 +331,8 @@ config NET_FOU_IP_TUNNELS
 	  When this option is enabled IP tunnels can be configured to use
 	  FOU or GUE encapsulation.
 
-config GENEVE
-	tristate "Generic Network Virtualization Encapsulation (Geneve)"
+config GENEVE_CORE
+	tristate "Generic Network Virtualization Encapsulation library"
 	depends on INET
 	select NET_UDP_TUNNEL
 	---help---
@@ -615,6 +615,22 @@ config TCP_CONG_DCTCP
 	For further details see:
 	  http://simula.stanford.edu/~alizade/Site/DCTCP_files/dctcp-final.pdf
 
+config TCP_CONG_CDG
+	tristate "CAIA Delay-Gradient (CDG)"
+	default n
+	---help---
+	CAIA Delay-Gradient (CDG) is a TCP congestion control that modifies
+	the TCP sender in order to:
+
+	  o Use the delay gradient as a congestion signal.
+	  o Back off with an average probability that is independent of the RTT.
+	  o Coexist with flows that use loss-based congestion control.
+	  o Tolerate packet loss unrelated to congestion.
+
+	For further details see:
+	  D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
+	  delay gradients." In Networking 2011. Preprint: http://goo.gl/No3vdg
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
@@ -646,6 +662,9 @@ choice
 	config DEFAULT_DCTCP
 		bool "DCTCP" if TCP_CONG_DCTCP=y
 
+	config DEFAULT_CDG
+		bool "CDG" if TCP_CONG_CDG=y
+
 	config DEFAULT_RENO
 		bool "Reno"
 endchoice
@@ -668,6 +687,7 @@ config DEFAULT_TCP_CONG
 	default "veno" if DEFAULT_VENO
 	default "reno" if DEFAULT_RENO
 	default "dctcp" if DEFAULT_DCTCP
+	default "cdg" if DEFAULT_CDG
 	default "cubic"
 
 config TCP_MD5SIG

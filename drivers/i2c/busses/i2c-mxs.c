@@ -784,7 +784,7 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	return 0;
 }
 
-static struct platform_device_id mxs_i2c_devtype[] = {
+static const struct platform_device_id mxs_i2c_devtype[] = {
 	{
 		.name = "imx23-i2c",
 		.driver_data = MXS_I2C_V1,
@@ -913,7 +913,7 @@ static void __exit mxs_i2c_exit(void)
 module_exit(mxs_i2c_exit);
 
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("MXS I2C Bus Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

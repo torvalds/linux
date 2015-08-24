@@ -59,8 +59,6 @@ enum {
 	BFA_MFG_TYPE_INVALID = 0,	 /*!< Invalid card type		*/
 };
 
-#pragma pack(1)
-
 /* Check if Mezz card */
 #define bfa_mfg_is_mezz(type) (( \
 	(type) == BFA_MFG_TYPE_JAYHAWK || \
@@ -77,7 +75,7 @@ enum {
 	CB_GPIO_FC4P2   = (4),		/*!< 4G 2port FC card		*/
 	CB_GPIO_FC4P1   = (5),		/*!< 4G 1port FC card		*/
 	CB_GPIO_DFLY    = (6),		/*!< 8G 2port FC mezzanine card	*/
-	CB_GPIO_PROTO   = (1 << 7)	/*!< 8G 2port FC prototypes	*/
+	CB_GPIO_PROTO   = BIT(7)	/*!< 8G 2port FC prototypes	*/
 };
 
 #define bfa_mfg_adapter_prop_init_gpio(gpio, card_type, prop)	\
@@ -86,7 +84,7 @@ do {								\
 		(prop) |= BFI_ADAPTER_PROTO;			\
 		(gpio) &= ~CB_GPIO_PROTO;			\
 	}							\
-	switch ((gpio)) {					\
+	switch (gpio) {						\
 	case CB_GPIO_TTV:					\
 		(prop) |= BFI_ADAPTER_TTV;			\
 	case CB_GPIO_DFLY:					\
@@ -148,8 +146,6 @@ struct bfa_mfg_vpd {
 	u8	len;		/*!< vpd data length excluding header */
 	u8	rsv;
 	u8		data[BFA_MFG_VPD_LEN];	/*!< vpd data */
-};
-
-#pragma pack()
+} __packed;
 
 #endif /* __BFA_DEFS_MFG_H__ */

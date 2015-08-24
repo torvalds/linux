@@ -1041,7 +1041,7 @@ static int s6e8aa0_remove(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static struct of_device_id s6e8aa0_of_match[] = {
+static const struct of_device_id s6e8aa0_of_match[] = {
 	{ .compatible = "samsung,s6e8aa0" },
 	{ }
 };

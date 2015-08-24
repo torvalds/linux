@@ -85,19 +85,6 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 #define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
 
 
-#ifdef CONFIG_SERIAL_8250_DETECT_IRQ
-#define CONFIG_SERIAL_DETECT_IRQ 1
-#endif
-#ifdef CONFIG_SERIAL_8250_MANY_PORTS
-#define CONFIG_SERIAL_MANY_PORTS 1
-#endif
-
-/*
- * HUB6 is always on.  This will be removed once the header
- * files have been cleaned.
- */
-#define CONFIG_HUB6 1
-
 #include <asm/serial.h>
 /*
  * SERIAL_PORT_DFNS tells us about built-in ports that have no
@@ -450,6 +437,18 @@ static unsigned int mem32_serial_in(struct uart_port *p, int offset)
 	return readl(p->membase + offset);
 }
 
+static void mem32be_serial_out(struct uart_port *p, int offset, int value)
+{
+	offset = offset << p->regshift;
+	iowrite32be(value, p->membase + offset);
+}
+
+static unsigned int mem32be_serial_in(struct uart_port *p, int offset)
+{
+	offset = offset << p->regshift;
+	return ioread32be(p->membase + offset);
+}
+
 static unsigned int io_serial_in(struct uart_port *p, int offset)
 {
 	offset = offset << p->regshift;
@@ -488,6 +487,11 @@ static void set_io_from_upio(struct uart_port *p)
 		p->serial_out = mem32_serial_out;
 		break;
 
+	case UPIO_MEM32BE:
+		p->serial_in = mem32be_serial_in;
+		p->serial_out = mem32be_serial_out;
+		break;
+
 #if defined(CONFIG_MIPS_ALCHEMY) || defined(CONFIG_SERIAL_8250_RT288X)
 	case UPIO_AU:
 		p->serial_in = au_serial_in;
@@ -513,6 +517,7 @@ serial_port_out_sync(struct uart_port *p, int offset, int value)
 	switch (p->iotype) {
 	case UPIO_MEM:
 	case UPIO_MEM32:
+	case UPIO_MEM32BE:
 	case UPIO_AU:
 		p->serial_out(p, offset, value);
 		p->serial_in(p, UART_LCR);	/* safe, no side-effects */
@@ -2001,8 +2006,9 @@ EXPORT_SYMBOL_GPL(serial8250_do_set_mctrl);
 static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	if (port->set_mctrl)
-		return port->set_mctrl(port, mctrl);
-	return serial8250_do_set_mctrl(port, mctrl);
+		port->set_mctrl(port, mctrl);
+	else
+		serial8250_do_set_mctrl(port, mctrl);
 }
 
 static void serial8250_break_ctl(struct uart_port *port, int break_state)
@@ -2748,6 +2754,7 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 	case UPIO_AU:
 	case UPIO_TSI:
 	case UPIO_MEM32:
+	case UPIO_MEM32BE:
 	case UPIO_MEM:
 		if (!port->mapbase)
 			break;
@@ -2784,6 +2791,7 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	case UPIO_AU:
 	case UPIO_TSI:
 	case UPIO_MEM32:
+	case UPIO_MEM32BE:
 	case UPIO_MEM:
 		if (!port->mapbase)
 			break;
@@ -3528,6 +3536,9 @@ static struct console univ8250_console = {
 
 static int __init univ8250_console_init(void)
 {
+	if (nr_uarts == 0)
+		return -ENODEV;
+
 	serial8250_isa_init_ports();
 	register_console(&univ8250_console);
 	return 0;
@@ -3558,7 +3569,7 @@ int __init early_serial_setup(struct uart_port *port)
 {
 	struct uart_port *p;
 
-	if (port->line >= ARRAY_SIZE(serial8250_ports))
+	if (port->line >= ARRAY_SIZE(serial8250_ports) || nr_uarts == 0)
 		return -ENODEV;
 
 	serial8250_isa_init_ports();
@@ -3830,7 +3841,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.mapbase      = up->port.mapbase;
 		uart->port.mapsize      = up->port.mapsize;
 		uart->port.private_data = up->port.private_data;
-		uart->port.fifosize	= up->port.fifosize;
 		uart->tx_loadsz		= up->tx_loadsz;
 		uart->capabilities	= up->capabilities;
 		uart->port.throttle	= up->port.throttle;
@@ -3924,6 +3934,9 @@ EXPORT_SYMBOL(serial8250_unregister_port);
 static int __init serial8250_init(void)
 {
 	int ret;
+
+	if (nr_uarts == 0)
+		return -ENODEV;
 
 	serial8250_isa_init_ports();
 

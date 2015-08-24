@@ -948,7 +948,7 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(
 						ARRAY_SIZE(sgtl5000->supplies),
 						sgtl5000->supplies);
@@ -979,7 +979,6 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1092,6 +1091,19 @@ static bool sgtl5000_readable(struct device *dev, unsigned int reg)
 }
 
 /*
+ * This precalculated table contains all (vag_val * 100 / lo_calcntrl) results
+ * to select an appropriate lo_vol_* in SGTL5000_CHIP_LINE_OUT_VOL
+ * The calculatation was done for all possible register values which
+ * is the array index and the following formula: 10^((idx−15)/40) * 100
+ */
+static const u8 vol_quot_table[] = {
+	42, 45, 47, 50, 53, 56, 60, 63,
+	67, 71, 75, 79, 84, 89, 94, 100,
+	106, 112, 119, 126, 133, 141, 150, 158,
+	168, 178, 188, 200, 211, 224, 237, 251
+};
+
+/*
  * sgtl5000 has 3 internal power supplies:
  * 1. VAG, normally set to vdda/2
  * 2. charge pump, set to different value
@@ -1111,6 +1123,10 @@ static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 	u16 ana_pwr;
 	u16 lreg_ctrl;
 	int vag;
+	int lo_vag;
+	int vol_quot;
+	int lo_vol;
+	size_t i;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
 
 	vdda  = regulator_get_voltage(sgtl5000->supplies[VDDA].consumer);
@@ -1198,22 +1214,44 @@ static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 			SGTL5000_ANA_GND_MASK, vag << SGTL5000_ANA_GND_SHIFT);
 
 	/* set line out VAG to vddio / 2, in range (0.8v, 1.675v) */
-	vag = vddio / 2;
-	if (vag <= SGTL5000_LINE_OUT_GND_BASE)
-		vag = 0;
-	else if (vag >= SGTL5000_LINE_OUT_GND_BASE +
+	lo_vag = vddio / 2;
+	if (lo_vag <= SGTL5000_LINE_OUT_GND_BASE)
+		lo_vag = 0;
+	else if (lo_vag >= SGTL5000_LINE_OUT_GND_BASE +
 		SGTL5000_LINE_OUT_GND_STP * SGTL5000_LINE_OUT_GND_MAX)
-		vag = SGTL5000_LINE_OUT_GND_MAX;
+		lo_vag = SGTL5000_LINE_OUT_GND_MAX;
 	else
-		vag = (vag - SGTL5000_LINE_OUT_GND_BASE) /
+		lo_vag = (lo_vag - SGTL5000_LINE_OUT_GND_BASE) /
 		    SGTL5000_LINE_OUT_GND_STP;
 
 	snd_soc_update_bits(codec, SGTL5000_CHIP_LINE_OUT_CTRL,
 			SGTL5000_LINE_OUT_CURRENT_MASK |
 			SGTL5000_LINE_OUT_GND_MASK,
-			vag << SGTL5000_LINE_OUT_GND_SHIFT |
+			lo_vag << SGTL5000_LINE_OUT_GND_SHIFT |
 			SGTL5000_LINE_OUT_CURRENT_360u <<
 				SGTL5000_LINE_OUT_CURRENT_SHIFT);
+
+	/*
+	 * Set lineout output level in range (0..31)
+	 * the same value is used for right and left channel
+	 *
+	 * Searching for a suitable index solving this formula:
+	 * idx = 40 * log10(vag_val / lo_cagcntrl) + 15
+	 */
+	vol_quot = (vag * 100) / lo_vag;
+	lo_vol = 0;
+	for (i = 0; i < ARRAY_SIZE(vol_quot_table); i++) {
+		if (vol_quot >= vol_quot_table[i])
+			lo_vol = i;
+		else
+			break;
+	}
+
+	snd_soc_update_bits(codec, SGTL5000_CHIP_LINE_OUT_VOL,
+		SGTL5000_LINE_OUT_VOL_RIGHT_MASK |
+		SGTL5000_LINE_OUT_VOL_LEFT_MASK,
+		lo_vol << SGTL5000_LINE_OUT_VOL_RIGHT_SHIFT |
+		lo_vol << SGTL5000_LINE_OUT_VOL_LEFT_SHIFT);
 
 	return 0;
 }

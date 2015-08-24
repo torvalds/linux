@@ -557,11 +557,11 @@ static int vio_dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 	struct vio_dev *viodev = to_vio_dev(dev);
 	struct iommu_table *tbl;
 	struct scatterlist *sgl;
-	int ret, count = 0;
+	int ret, count;
 	size_t alloc_size = 0;
 
 	tbl = get_iommu_table_base(dev);
-	for (sgl = sglist; count < nelems; count++, sgl++)
+	for_each_sg(sglist, sgl, nelems, count)
 		alloc_size += roundup(sgl->length, IOMMU_PAGE_SIZE(tbl));
 
 	if (vio_cmo_alloc(viodev, alloc_size)) {
@@ -577,7 +577,7 @@ static int vio_dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 		return ret;
 	}
 
-	for (sgl = sglist, count = 0; count < ret; count++, sgl++)
+	for_each_sg(sglist, sgl, ret, count)
 		alloc_size -= roundup(sgl->dma_length, IOMMU_PAGE_SIZE(tbl));
 	if (alloc_size)
 		vio_cmo_dealloc(viodev, alloc_size);
@@ -594,10 +594,10 @@ static void vio_dma_iommu_unmap_sg(struct device *dev,
 	struct iommu_table *tbl;
 	struct scatterlist *sgl;
 	size_t alloc_size = 0;
-	int count = 0;
+	int count;
 
 	tbl = get_iommu_table_base(dev);
-	for (sgl = sglist; count < nelems; count++, sgl++)
+	for_each_sg(sglist, sgl, nelems, count)
 		alloc_size += roundup(sgl->dma_length, IOMMU_PAGE_SIZE(tbl));
 
 	dma_iommu_ops.unmap_sg(dev, sglist, nelems, direction, attrs);
@@ -1195,6 +1195,11 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	tbl->it_busno = 0;
 	tbl->it_type = TCE_VB;
 	tbl->it_blocksize = 16;
+
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		tbl->it_ops = &iommu_table_lpar_multi_ops;
+	else
+		tbl->it_ops = &iommu_table_pseries_ops;
 
 	return iommu_init_table(tbl, -1);
 }

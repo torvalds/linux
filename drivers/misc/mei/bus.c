@@ -35,18 +35,30 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 	struct mei_cl_device *device = to_mei_cl_device(dev);
 	struct mei_cl_driver *driver = to_mei_cl_driver(drv);
 	const struct mei_cl_device_id *id;
+	const uuid_le *uuid;
+	const char *name;
 
 	if (!device)
 		return 0;
+
+	uuid = mei_me_cl_uuid(device->me_cl);
+	name = device->name;
 
 	if (!driver || !driver->id_table)
 		return 0;
 
 	id = driver->id_table;
 
-	while (id->name[0]) {
-		if (!strncmp(dev_name(dev), id->name, sizeof(id->name)))
-			return 1;
+	while (uuid_le_cmp(NULL_UUID_LE, id->uuid)) {
+
+		if (!uuid_le_cmp(*uuid, id->uuid)) {
+			if (id->name[0]) {
+				if (!strncmp(name, id->name, sizeof(id->name)))
+					return 1;
+			} else {
+				return 1;
+			}
+		}
 
 		id++;
 	}
@@ -69,7 +81,7 @@ static int mei_cl_device_probe(struct device *dev)
 
 	dev_dbg(dev, "Device probe\n");
 
-	strlcpy(id.name, dev_name(dev), sizeof(id.name));
+	strlcpy(id.name, device->name, sizeof(id.name));
 
 	return driver->probe(device, &id);
 }
@@ -97,18 +109,48 @@ static int mei_cl_device_remove(struct device *dev)
 	return driver->remove(device);
 }
 
+static ssize_t name_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	size_t len;
+
+	len = snprintf(buf, PAGE_SIZE, "%s", device->name);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+static DEVICE_ATTR_RO(name);
+
+static ssize_t uuid_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+	size_t len;
+
+	len = snprintf(buf, PAGE_SIZE, "%pUl", uuid);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+static DEVICE_ATTR_RO(uuid);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 			     char *buf)
 {
-	int len;
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "mei:%s\n", dev_name(dev));
+	len = snprintf(buf, PAGE_SIZE, "mei:%s:" MEI_CL_UUID_FMT ":",
+		device->name, MEI_CL_UUID_ARGS(uuid->b));
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
 static DEVICE_ATTR_RO(modalias);
 
 static struct attribute *mei_cl_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_uuid.attr,
 	&dev_attr_modalias.attr,
 	NULL,
 };
@@ -116,7 +158,17 @@ ATTRIBUTE_GROUPS(mei_cl_dev);
 
 static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	if (add_uevent_var(env, "MODALIAS=mei:%s", dev_name(dev)))
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+
+	if (add_uevent_var(env, "MEI_CL_UUID=%pUl", uuid))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "MEI_CL_NAME=%s", device->name))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "MODALIAS=mei:%s:" MEI_CL_UUID_FMT ":",
+		device->name, MEI_CL_UUID_ARGS(uuid->b)))
 		return -ENOMEM;
 
 	return 0;
@@ -133,7 +185,13 @@ static struct bus_type mei_cl_bus_type = {
 
 static void mei_cl_dev_release(struct device *dev)
 {
-	kfree(to_mei_cl_device(dev));
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+
+	if (!device)
+		return;
+
+	mei_me_cl_put(device->me_cl);
+	kfree(device);
 }
 
 static struct device_type mei_cl_device_type = {
@@ -141,45 +199,50 @@ static struct device_type mei_cl_device_type = {
 };
 
 struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev,
-						uuid_le uuid)
+					 uuid_le uuid)
 {
 	struct mei_cl *cl;
 
 	list_for_each_entry(cl, &dev->device_list, device_link) {
-		if (!uuid_le_cmp(uuid, cl->cl_uuid))
+		if (cl->device && cl->device->me_cl &&
+		    !uuid_le_cmp(uuid, *mei_me_cl_uuid(cl->device->me_cl)))
 			return cl;
 	}
 
 	return NULL;
 }
+
 struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
-					uuid_le uuid, char *name,
-					struct mei_cl_ops *ops)
+					struct mei_me_client *me_cl,
+					struct mei_cl *cl,
+					char *name)
 {
 	struct mei_cl_device *device;
-	struct mei_cl *cl;
 	int status;
-
-	cl = mei_cl_bus_find_cl_by_uuid(dev, uuid);
-	if (cl == NULL)
-		return NULL;
 
 	device = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
 	if (!device)
 		return NULL;
 
-	device->cl = cl;
-	device->ops = ops;
+	device->me_cl = mei_me_cl_get(me_cl);
+	if (!device->me_cl) {
+		kfree(device);
+		return NULL;
+	}
 
+	device->cl = cl;
 	device->dev.parent = dev->dev;
 	device->dev.bus = &mei_cl_bus_type;
 	device->dev.type = &mei_cl_device_type;
 
-	dev_set_name(&device->dev, "%s", name);
+	strlcpy(device->name, name, sizeof(device->name));
+
+	dev_set_name(&device->dev, "mei:%s:%pUl", name, mei_me_cl_uuid(me_cl));
 
 	status = device_register(&device->dev);
 	if (status) {
 		dev_err(dev->dev, "Failed to register MEI device\n");
+		mei_me_cl_put(device->me_cl);
 		kfree(device);
 		return NULL;
 	}
@@ -224,11 +287,10 @@ void mei_cl_driver_unregister(struct mei_cl_driver *driver)
 }
 EXPORT_SYMBOL_GPL(mei_cl_driver_unregister);
 
-static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
+ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
-	struct mei_me_client *me_cl = NULL;
 	struct mei_cl_cb *cb = NULL;
 	ssize_t rets;
 
@@ -244,13 +306,12 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	}
 
 	/* Check if we have an ME client device */
-	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
-	if (!me_cl) {
+	if (!mei_me_cl_is_active(cl->me_cl)) {
 		rets = -ENOTTY;
 		goto out;
 	}
 
-	if (length > me_cl->props.max_msg_length) {
+	if (length > mei_cl_mtu(cl)) {
 		rets = -EFBIG;
 		goto out;
 	}
@@ -266,7 +327,6 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	rets = mei_cl_write(cl, cb, blocking);
 
 out:
-	mei_me_cl_put(me_cl);
 	mutex_unlock(&dev->device_lock);
 	if (rets < 0)
 		mei_io_cb_free(cb);
@@ -341,16 +401,6 @@ out:
 	return rets;
 }
 
-inline ssize_t __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length)
-{
-	return ___mei_cl_send(cl, buf, length, 0);
-}
-
-inline ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
-{
-	return ___mei_cl_send(cl, buf, length, 1);
-}
-
 ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = device->cl;
@@ -358,22 +408,16 @@ ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
 	if (cl == NULL)
 		return -ENODEV;
 
-	if (device->ops && device->ops->send)
-		return device->ops->send(device, buf, length);
-
-	return __mei_cl_send(cl, buf, length);
+	return __mei_cl_send(cl, buf, length, 1);
 }
 EXPORT_SYMBOL_GPL(mei_cl_send);
 
 ssize_t mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length)
 {
-	struct mei_cl *cl =  device->cl;
+	struct mei_cl *cl = device->cl;
 
 	if (cl == NULL)
 		return -ENODEV;
-
-	if (device->ops && device->ops->recv)
-		return device->ops->recv(device, buf, length);
 
 	return __mei_cl_recv(cl, buf, length);
 }
@@ -436,7 +480,13 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 
 	mutex_lock(&dev->device_lock);
 
-	err = mei_cl_connect(cl, NULL);
+	if (mei_cl_is_connected(cl)) {
+		mutex_unlock(&dev->device_lock);
+		dev_warn(dev->dev, "Already connected");
+		return -EBUSY;
+	}
+
+	err = mei_cl_connect(cl, device->me_cl, NULL);
 	if (err < 0) {
 		mutex_unlock(&dev->device_lock);
 		dev_err(dev->dev, "Could not connect to the ME client");
@@ -449,10 +499,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 	if (device->event_cb)
 		mei_cl_read_start(device->cl, 0, NULL);
 
-	if (!device->ops || !device->ops->enable)
-		return 0;
-
-	return device->ops->enable(device);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mei_cl_enable_device);
 
@@ -467,9 +514,6 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 
 	dev = cl->dev;
 
-	if (device->ops && device->ops->disable)
-		device->ops->disable(device);
-
 	device->event_cb = NULL;
 
 	mutex_lock(&dev->device_lock);
@@ -479,8 +523,6 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 		err = 0;
 		goto out;
 	}
-
-	cl->state = MEI_FILE_DISCONNECTING;
 
 	err = mei_cl_disconnect(cl);
 	if (err < 0) {
@@ -508,22 +550,6 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
 	set_bit(MEI_CL_EVENT_RX, &device->events);
 
 	schedule_work(&device->event_work);
-}
-
-void mei_cl_bus_remove_devices(struct mei_device *dev)
-{
-	struct mei_cl *cl, *next;
-
-	mutex_lock(&dev->device_lock);
-	list_for_each_entry_safe(cl, next, &dev->device_list, device_link) {
-		if (cl->device)
-			mei_cl_remove_device(cl->device);
-
-		list_del(&cl->device_link);
-		mei_cl_unlink(cl);
-		kfree(cl);
-	}
-	mutex_unlock(&dev->device_lock);
 }
 
 int __init mei_cl_bus_init(void)

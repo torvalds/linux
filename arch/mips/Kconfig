@@ -21,11 +21,12 @@ config MIPS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_SYSCALL_TRACEPOINTS
 	select ARCH_HAS_ELF_RANDOMIZE
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
-	select RTC_LIB if !MACH_LOONGSON
+	select RTC_LIB if !MACH_LOONGSON64
 	select GENERIC_ATOMIC64 if !64BIT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_DMA_ATTRS
@@ -70,7 +71,7 @@ config MIPS_ALCHEMY
 	select ARCH_PHYS_ADDR_T_64BIT
 	select CEVT_R4K
 	select CSRC_R4K
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select DMA_MAYBE_COHERENT	# Au1000,1500,1100 aren't, rest is
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -85,7 +86,7 @@ config AR7
 	select DMA_NONCOHERENT
 	select CEVT_R4K
 	select CSRC_R4K
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select NO_EXCEPT_FILL
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
@@ -106,7 +107,7 @@ config ATH25
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select IRQ_DOMAIN
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -123,14 +124,17 @@ config ATH79
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HAVE_CLK
+	select COMMON_CLK
 	select CLKDEV_LOOKUP
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select MIPS_MACHINE
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_ZBOOT
+	select USE_OF
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
 
@@ -146,8 +150,7 @@ config BMIPS_GENERIC
 	select BCM7038_L1_IRQ
 	select BCM7120_L2_IRQ
 	select BRCMSTB_L2_IRQ
-	select IRQ_CPU
-	select RAW_IRQ_ACCESSORS
+	select IRQ_MIPS_CPU
 	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -176,7 +179,7 @@ config BCM47XX
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_MIPS32_R1
 	select NO_EXCEPT_FILL
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -186,6 +189,7 @@ config BCM47XX
 	select USE_GENERIC_EARLY_PRINTK_8250
 	select GPIOLIB
 	select LEDS_GPIO_REGISTER
+	select BCM47XX_NVRAM
 	help
 	 Support for BCM47XX based boards
 
@@ -196,7 +200,7 @@ config BCM63XX
 	select CSRC_R4K
 	select SYNC_R4K
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
@@ -216,7 +220,7 @@ config MIPS_COBALT
 	select HW_HAS_PCI
 	select I8253
 	select I8259
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select IRQ_GT641XX
 	select PCI_GT64XXX_PCI0
 	select PCI
@@ -239,7 +243,7 @@ config MACH_DECSTATION
 	select CPU_R4400_WORKAROUNDS if 64BIT
 	select DMA_NONCOHERENT
 	select NO_IOPORT_MAP
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_R3000
 	select SYS_HAS_CPU_R4X00
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -274,7 +278,7 @@ config MACH_JAZZ
 	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select I8253
 	select I8259
 	select ISA
@@ -288,23 +292,24 @@ config MACH_JAZZ
 	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
 	 Olivetti M700-10 workstations.
 
-config MACH_JZ4740
-	bool "Ingenic JZ4740 based machines"
-	select SYS_HAS_CPU_MIPS32_R1
+config MACH_INGENIC
+	bool "Ingenic SoC based machines"
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select ARCH_REQUIRE_GPIOLIB
-	select SYS_HAS_EARLY_PRINTK
-	select HAVE_CLK
+	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
+	select BUILTIN_DTB
+	select USE_OF
+	select LIBFDT
 
 config LANTIQ
 	bool "Lantiq based platforms"
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select CEVT_R4K
 	select CSRC_R4K
 	select SYS_HAS_CPU_MIPS32_R1
@@ -333,7 +338,7 @@ config LASAT
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select PCI_GT64XXX_PCI0
 	select MIPS_NILE4
 	select R5000_CPU_SCACHE
@@ -342,26 +347,28 @@ config LASAT
 	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config MACH_LOONGSON
-	bool "Loongson family of machines"
+config MACH_LOONGSON32
+	bool "Loongson-1 family of machines"
 	select SYS_SUPPORTS_ZBOOT
 	help
-	  This enables the support of Loongson family of machines.
+	  This enables support for the Loongson-1 family of machines.
 
-	  Loongson is a family of general-purpose MIPS-compatible CPUs.
-	  developed at Institute of Computing Technology (ICT),
-	  Chinese Academy of Sciences (CAS) in the People's Republic
-	  of China. The chief architect is Professor Weiwu Hu.
+	  Loongson-1 is a family of 32-bit MIPS-compatible SoCs developed by
+	  the Institute of Computing Technology (ICT), Chinese Academy of
+	  Sciences (CAS).
 
-config MACH_LOONGSON1
-	bool "Loongson 1 family of machines"
+config MACH_LOONGSON64
+	bool "Loongson-2/3 family of machines"
 	select SYS_SUPPORTS_ZBOOT
 	help
-	  This enables support for the Loongson 1 based machines.
+	  This enables the support of Loongson-2/3 family of machines.
 
-	  Loongson 1 is a family of 32-bit MIPS-compatible SoCs developed by
-	  the ICT (Institute of Computing Technology) and the Chinese Academy
-	  of Sciences.
+	  Loongson-2 is a family of single-core CPUs and Loongson-3 is a
+	  family of multi-core CPUs. They are both 64-bit general-purpose
+	  MIPS-compatible CPUs. Loongson-2/3 are developed by the Institute
+	  of Computing Technology (ICT), Chinese Academy of Sciences (CAS)
+	  in the People's Republic of China. The chief architect is Professor
+	  Weiwu Hu.
 
 config MACH_PISTACHIO
 	bool "IMG Pistachio SoC based boards"
@@ -373,7 +380,7 @@ config MACH_PISTACHIO
 	select COMMON_CLK
 	select CSRC_R4K
 	select DMA_MAYBE_COHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select LIBFDT
 	select MFD_SYSCON
 	select MIPS_CPU_SCACHE
@@ -386,6 +393,8 @@ config MACH_PISTACHIO
 	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
 	select USE_OF
 	help
 	  This enables support for the IMG Pistachio SoC platform.
@@ -395,13 +404,14 @@ config MIPS_MALTA
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select BOOT_RAW
+	select BUILTIN_DTB
 	select CEVT_R4K
 	select CSRC_R4K
 	select CLKSRC_MIPS_GIC
 	select DMA_MAYBE_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select MIPS_GIC
 	select HW_HAS_PCI
 	select I8253
@@ -434,6 +444,8 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_ZBOOT
+	select USE_OF
+	select ZONE_DMA32 if 64BIT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
@@ -449,7 +461,7 @@ config MIPS_SEAD3
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select MIPS_GIC
 	select LIBFDT
 	select MIPS_MSC
@@ -512,7 +524,7 @@ config PMC_MSP
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_MIPS16
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SERIAL_8250
 	select SERIAL_8250_CONSOLE
 	select USB_EHCI_BIG_ENDIAN_MMIO
@@ -529,7 +541,7 @@ config RALINK
 	select CSRC_R4K
 	select BOOT_RAW
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select USE_OF
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
@@ -555,7 +567,7 @@ config SGI_IP22
 	select I8253
 	select I8259
 	select IP22_CPU_SCACHE
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
@@ -614,7 +626,7 @@ config SGI_IP28
 	select DEFAULT_SGI_PARTITION
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select HW_HAS_EISA
 	select I8253
 	select I8259
@@ -650,7 +662,7 @@ config SGI_IP32
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select R5000_CPU_SCACHE
 	select RM7000_CPU_SCACHE
 	select SYS_HAS_CPU_R5000
@@ -766,7 +778,7 @@ config SNI_RM
 	select HAVE_PCSPKR_PLATFORM
 	select HW_HAS_EISA
 	select HW_HAS_PCI
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select I8253
 	select I8259
 	select ISA
@@ -799,7 +811,7 @@ config MIKROTIK_RB532
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -819,6 +831,7 @@ config CAVIUM_OCTEON_SOC
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select EDAC_SUPPORT
+	select EDAC_ATOMIC_SCRUB
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HOTPLUG_CPU if CPU_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
@@ -865,7 +878,7 @@ config NLM_XLR_BOARD
 	select NR_CPUS_DEFAULT_32
 	select CEVT_R4K
 	select CSRC_R4K
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select ZONE_DMA32 if 64BIT
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
@@ -892,7 +905,7 @@ config NLM_XLP_BOARD
 	select NR_CPUS_DEFAULT_32
 	select CEVT_R4K
 	select CSRC_R4K
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select ZONE_DMA32 if 64BIT
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
@@ -941,8 +954,8 @@ source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 source "arch/mips/cavium-octeon/Kconfig"
-source "arch/mips/loongson/Kconfig"
-source "arch/mips/loongson1/Kconfig"
+source "arch/mips/loongson32/Kconfig"
+source "arch/mips/loongson64/Kconfig"
 source "arch/mips/netlogic/Kconfig"
 source "arch/mips/paravirt/Kconfig"
 
@@ -1141,10 +1154,6 @@ config SYS_SUPPORTS_HUGETLBFS
 config MIPS_HUGE_TLB_SUPPORT
 	def_bool HUGETLB_PAGE || TRANSPARENT_HUGEPAGE
 
-config IRQ_CPU
-	bool
-	select IRQ_DOMAIN
-
 config IRQ_CPU_RM7K
 	bool
 
@@ -1171,7 +1180,7 @@ config SOC_EMMA2RH
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R5500
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -1182,7 +1191,7 @@ config SOC_PNX833X
 	bool
 	select CEVT_R4K
 	select CSRC_R4K
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select DMA_NONCOHERENT
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -1417,6 +1426,7 @@ config CPU_MIPS64_R6
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
 	select GENERIC_CSUM
+	select MIPS_O32_FP64_SUPPORT if MIPS32_O32
 	help
 	  Choose this option to build a kernel for release 6 or later of the
 	  MIPS64 architecture.  New MIPS processors, starting with the Warrior
@@ -1568,7 +1578,8 @@ config CPU_CAVIUM_OCTEON
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
-	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  The Cavium Octeon processor is a highly integrated chip containing
@@ -1586,7 +1597,7 @@ config CPU_BMIPS
 	select CPU_BMIPS5000 if SYS_HAS_CPU_BMIPS5000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select DMA_NONCOHERENT
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SWAP_IO_SPACE
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
@@ -2220,7 +2231,7 @@ config MIPS_CMP
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
-	depends on SYS_SUPPORTS_MIPS_CPS && !64BIT
+	depends on SYS_SUPPORTS_MIPS_CPS
 	select MIPS_CM
 	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
@@ -2250,11 +2261,6 @@ config MIPS_CM
 
 config MIPS_CPC
 	bool
-
-config SB1_PASS_1_WORKAROUNDS
-	bool
-	depends on CPU_SB1_PASS_1
-	default y
 
 config SB1_PASS_2_WORKAROUNDS
 	bool
@@ -2670,6 +2676,51 @@ config USE_OF
 
 config BUILTIN_DTB
 	bool
+
+choice
+	prompt "Kernel appended dtb support" if OF
+	default MIPS_NO_APPENDED_DTB
+
+	config MIPS_NO_APPENDED_DTB
+		bool "None"
+		help
+		  Do not enable appended dtb support.
+
+	config MIPS_RAW_APPENDED_DTB
+		bool "vmlinux.bin"
+		help
+		  With this option, the boot code will look for a device tree binary
+		  DTB) appended to raw vmlinux.bin (without decompressor).
+		  (e.g. cat vmlinux.bin <filename>.dtb > vmlinux_w_dtb).
+
+		  This is meant as a backward compatibility convenience for those
+		  systems with a bootloader that can't be upgraded to accommodate
+		  the documented boot protocol using a device tree.
+
+		  Beware that there is very little in terms of protection against
+		  this option being confused by leftover garbage in memory that might
+		  look like a DTB header after a reboot if no actual DTB is appended
+		  to vmlinux.bin.  Do not leave this option active in a production kernel
+		  if you don't intend to always append a DTB.
+
+	config MIPS_ZBOOT_APPENDED_DTB
+		bool "vmlinuz.bin"
+		depends on SYS_SUPPORTS_ZBOOT
+		help
+		  With this option, the boot code will look for a device tree binary
+		  DTB) appended to raw vmlinuz.bin (with decompressor).
+		  (e.g. cat vmlinuz.bin <filename>.dtb > vmlinuz_w_dtb).
+
+		  This is meant as a backward compatibility convenience for those
+		  systems with a bootloader that can't be upgraded to accommodate
+		  the documented boot protocol using a device tree.
+
+		  Beware that there is very little in terms of protection against
+		  this option being confused by leftover garbage in memory that might
+		  look like a DTB header after a reboot if no actual DTB is appended
+		  to vmlinuz.bin.  Do not leave this option active in a production kernel
+		  if you don't intend to always append a DTB.
+endchoice
 
 endmenu
 

@@ -528,7 +528,7 @@ static const struct comedi_lrange pci230_ao_range = {
 
 static unsigned short pci230_ai_read(struct comedi_device *dev)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	unsigned short data;
 
@@ -543,21 +543,21 @@ static unsigned short pci230_ai_read(struct comedi_device *dev)
 	 */
 	if (devpriv->ai_bipolar)
 		data ^= 0x8000;
-	data >>= (16 - thisboard->ai_bits);
+	data >>= (16 - board->ai_bits);
 	return data;
 }
 
 static unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 					     unsigned short datum)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 
 	/*
 	 * PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion).  PCI230+ is also 12 bit AO.
 	 */
-	datum <<= (16 - thisboard->ao_bits);
+	datum <<= (16 - board->ao_bits);
 	/*
 	 * If a bipolar range was specified, mangle it
 	 * (straight binary->twos complement).
@@ -877,7 +877,7 @@ static int pci230_ao_check_chanlist(struct comedi_device *dev,
 static int pci230_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
@@ -887,14 +887,14 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
 
 	tmp = TRIG_TIMER | TRIG_INT;
-	if (thisboard->min_hwver > 0 && devpriv->hwver >= 2) {
+	if (board->min_hwver > 0 && devpriv->hwver >= 2) {
 		/*
 		 * For PCI230+ hardware version 2 onwards, allow external
 		 * trigger from EXTTRIG/EXTCONVCLK input (PCI230+ pin 25).
 		 *
 		 * FIXME: The permitted scan_begin_src values shouldn't depend
 		 * on devpriv->hwver (the detected card's actual hardware
-		 * version).  They should only depend on thisboard->min_hwver
+		 * version).  They should only depend on board->min_hwver
 		 * (the static capabilities of the configured card).  To fix
 		 * it, a new card model, e.g. "pci230+2" would have to be
 		 * defined with min_hwver set to 2.  It doesn't seem worth it
@@ -1500,7 +1500,7 @@ static int pci230_ai_check_chanlist(struct comedi_device *dev,
 static int pci230_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pci230_board *thisboard = dev->board_ptr;
+	const struct pci230_board *board = dev->board_ptr;
 	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
@@ -1510,7 +1510,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
 	tmp = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
-	if (thisboard->have_dio || thisboard->min_hwver > 0) {
+	if (board->have_dio || board->min_hwver > 0) {
 		/*
 		 * Unfortunately, we cannot trigger a scan off an external
 		 * source on the PCI260 board, since it uses the PPIC0 (DIO)
@@ -2011,17 +2011,17 @@ static void pci230_handle_ai(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status_fifo;
 	unsigned int i;
-	unsigned int todo;
+	unsigned int nsamples;
 	unsigned int fifoamount;
 	unsigned short val;
 
 	/* Determine number of samples to read. */
-	todo = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
-	if (todo == 0)
+	nsamples = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
+	if (nsamples == 0)
 		return;
 
 	fifoamount = 0;
-	for (i = 0; i < todo; i++) {
+	for (i = 0; i < nsamples; i++) {
 		if (fifoamount == 0) {
 			/* Read FIFO state. */
 			status_fifo = inw(devpriv->daqio + PCI230_ADCCON);
@@ -2364,7 +2364,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
-	const struct pci230_board *thisboard;
+	const struct pci230_board *board;
 	struct pci230_private *devpriv;
 	struct comedi_subdevice *s;
 	int rc;
@@ -2381,14 +2381,14 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	spin_lock_init(&devpriv->ai_stop_spinlock);
 	spin_lock_init(&devpriv->ao_stop_spinlock);
 
-	dev->board_ptr = pci230_find_pci_board(pci_dev);
-	if (!dev->board_ptr) {
+	board = pci230_find_pci_board(pci_dev);
+	if (!board) {
 		dev_err(dev->class_dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	thisboard = dev->board_ptr;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	rc = comedi_pci_enable(dev);
 	if (rc)
@@ -2414,15 +2414,15 @@ static int pci230_auto_attach(struct comedi_device *dev,
 		unsigned short extfunc = 0;
 
 		devpriv->hwver = inw(devpriv->daqio + PCI230P_HWVER);
-		if (devpriv->hwver < thisboard->min_hwver) {
+		if (devpriv->hwver < board->min_hwver) {
 			dev_err(dev->class_dev,
 				"%s - bad hardware version - got %u, need %u\n",
 				dev->board_name, devpriv->hwver,
-				thisboard->min_hwver);
+				board->min_hwver);
 			return -EIO;
 		}
 		if (devpriv->hwver > 0) {
-			if (!thisboard->have_dio) {
+			if (!board->have_dio) {
 				/*
 				 * No DIO ports.  Route counters' external gates
 				 * to the EXTTRIG signal (PCI260+ pin 17).
@@ -2432,7 +2432,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 				 */
 				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
 			}
-			if (thisboard->ao_bits && devpriv->hwver >= 2) {
+			if (board->ao_bits && devpriv->hwver >= 2) {
 				/* Enable DAC FIFO functionality. */
 				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
 			}
@@ -2484,7 +2484,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
 	s->n_chan = 16;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->maxdata = (1 << board->ai_bits) - 1;
 	s->range_table = &pci230_ai_range;
 	s->insn_read = pci230_ai_insn_read;
 	s->len_chanlist = 256;	/* but there are restrictions. */
@@ -2498,11 +2498,11 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (thisboard->ao_bits) {
+	if (board->ao_bits) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = 2;
-		s->maxdata = (1 << thisboard->ao_bits) - 1;
+		s->maxdata = (1 << board->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = pci230_ao_insn_write;
 		s->len_chanlist = 2;
@@ -2523,7 +2523,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	if (thisboard->have_dio) {
+	if (board->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL, PCI230_PPI_X_BASE);
 		if (rc)
 			return rc;

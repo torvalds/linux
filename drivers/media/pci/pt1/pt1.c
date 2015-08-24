@@ -101,11 +101,11 @@ struct pt1_adapter {
 	struct dmxdev dmxdev;
 	struct dvb_frontend *fe;
 	int (*orig_set_voltage)(struct dvb_frontend *fe,
-				fe_sec_voltage_t voltage);
+				enum fe_sec_voltage voltage);
 	int (*orig_sleep)(struct dvb_frontend *fe);
 	int (*orig_init)(struct dvb_frontend *fe);
 
-	fe_sec_voltage_t voltage;
+	enum fe_sec_voltage voltage;
 	int sleep;
 };
 
@@ -575,7 +575,7 @@ pt1_update_power(struct pt1 *pt1)
 	mutex_unlock(&pt1->lock);
 }
 
-static int pt1_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int pt1_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
 	struct pt1_adapter *adap;
 

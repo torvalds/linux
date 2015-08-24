@@ -613,7 +613,7 @@ struct dma_chan *mmp_tdma_xlate(struct of_phandle_args *dma_spec,
 	return dma_request_channel(mask, mmp_tdma_filter_fn, &param);
 }
 
-static struct of_device_id mmp_tdma_dt_ids[] = {
+static const struct of_device_id mmp_tdma_dt_ids[] = {
 	{ .compatible = "marvell,adma-1.0", .data = (void *)MMP_AUD_TDMA},
 	{ .compatible = "marvell,pxa910-squ", .data = (void *)PXA910_SQU},
 	{}
@@ -657,7 +657,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&tdev->device.channels);
 
 	if (pdev->dev.of_node)
-		pool = of_get_named_gen_pool(pdev->dev.of_node, "asram", 0);
+		pool = of_gen_pool_get(pdev->dev.of_node, "asram", 0);
 	else
 		pool = sram_get_gpool("asram");
 	if (!pool) {

@@ -173,7 +173,7 @@ static int vt8500_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops vt8500_irq_domain_ops = {
+static const struct irq_domain_ops vt8500_irq_domain_ops = {
 	.map = vt8500_irq_map,
 	.xlate = irq_domain_xlate_onecell,
 };

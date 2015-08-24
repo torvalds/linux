@@ -32,7 +32,7 @@ static struct acpi_table_madt *get_madt_table(void)
 }
 
 static int map_lapic_id(struct acpi_subtable_header *entry,
-		 u32 acpi_id, int *apic_id)
+		 u32 acpi_id, phys_cpuid_t *apic_id)
 {
 	struct acpi_madt_local_apic *lapic =
 		container_of(entry, struct acpi_madt_local_apic, header);
@@ -48,7 +48,7 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 }
 
 static int map_x2apic_id(struct acpi_subtable_header *entry,
-			 int device_declaration, u32 acpi_id, int *apic_id)
+		int device_declaration, u32 acpi_id, phys_cpuid_t *apic_id)
 {
 	struct acpi_madt_local_x2apic *apic =
 		container_of(entry, struct acpi_madt_local_x2apic, header);
@@ -65,7 +65,7 @@ static int map_x2apic_id(struct acpi_subtable_header *entry,
 }
 
 static int map_lsapic_id(struct acpi_subtable_header *entry,
-		int device_declaration, u32 acpi_id, int *apic_id)
+		int device_declaration, u32 acpi_id, phys_cpuid_t *apic_id)
 {
 	struct acpi_madt_local_sapic *lsapic =
 		container_of(entry, struct acpi_madt_local_sapic, header);
@@ -83,10 +83,35 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 	return 0;
 }
 
-static int map_madt_entry(int type, u32 acpi_id)
+/*
+ * Retrieve the ARM CPU physical identifier (MPIDR)
+ */
+static int map_gicc_mpidr(struct acpi_subtable_header *entry,
+		int device_declaration, u32 acpi_id, phys_cpuid_t *mpidr)
+{
+	struct acpi_madt_generic_interrupt *gicc =
+	    container_of(entry, struct acpi_madt_generic_interrupt, header);
+
+	if (!(gicc->flags & ACPI_MADT_ENABLED))
+		return -ENODEV;
+
+	/* device_declaration means Device object in DSDT, in the
+	 * GIC interrupt model, logical processors are required to
+	 * have a Processor Device object in the DSDT, so we should
+	 * check device_declaration here
+	 */
+	if (device_declaration && (gicc->uid == acpi_id)) {
+		*mpidr = gicc->arm_mpidr;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
 {
 	unsigned long madt_end, entry;
-	int phys_id = -1;	/* CPU hardware ID */
+	phys_cpuid_t phys_id = PHYS_CPUID_INVALID;	/* CPU hardware ID */
 	struct acpi_table_madt *madt;
 
 	madt = get_madt_table();
@@ -111,18 +136,21 @@ static int map_madt_entry(int type, u32 acpi_id)
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
 			if (!map_lsapic_id(header, type, acpi_id, &phys_id))
 				break;
+		} else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT) {
+			if (!map_gicc_mpidr(header, type, acpi_id, &phys_id))
+				break;
 		}
 		entry += header->length;
 	}
 	return phys_id;
 }
 
-static int map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
+static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	struct acpi_subtable_header *header;
-	int phys_id = -1;
+	phys_cpuid_t phys_id = PHYS_CPUID_INVALID;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
 		goto exit;
@@ -143,33 +171,35 @@ static int map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
 		map_lsapic_id(header, type, acpi_id, &phys_id);
 	else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC)
 		map_x2apic_id(header, type, acpi_id, &phys_id);
+	else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT)
+		map_gicc_mpidr(header, type, acpi_id, &phys_id);
 
 exit:
 	kfree(buffer.pointer);
 	return phys_id;
 }
 
-int acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
+phys_cpuid_t acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
 {
-	int phys_id;
+	phys_cpuid_t phys_id;
 
 	phys_id = map_mat_entry(handle, type, acpi_id);
-	if (phys_id == -1)
+	if (invalid_phys_cpuid(phys_id))
 		phys_id = map_madt_entry(type, acpi_id);
 
 	return phys_id;
 }
 
-int acpi_map_cpuid(int phys_id, u32 acpi_id)
+int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 {
 #ifdef CONFIG_SMP
 	int i;
 #endif
 
-	if (phys_id == -1) {
+	if (invalid_phys_cpuid(phys_id)) {
 		/*
 		 * On UP processor, there is no _MAT or MADT table.
-		 * So above phys_id is always set to -1.
+		 * So above phys_id is always set to PHYS_CPUID_INVALID.
 		 *
 		 * BIOS may define multiple CPU handles even for UP processor.
 		 * For example,
@@ -185,12 +215,12 @@ int acpi_map_cpuid(int phys_id, u32 acpi_id)
 		 * Ignores phys_id and always returns 0 for the processor
 		 * handle with acpi id 0 if nr_cpu_ids is 1.
 		 * This should be the case if SMP tables are not found.
-		 * Return -1 for other CPU's handle.
+		 * Return -EINVAL for other CPU's handle.
 		 */
 		if (nr_cpu_ids <= 1 && acpi_id == 0)
 			return acpi_id;
 		else
-			return phys_id;
+			return -EINVAL;
 	}
 
 #ifdef CONFIG_SMP
@@ -203,12 +233,12 @@ int acpi_map_cpuid(int phys_id, u32 acpi_id)
 	if (phys_id == 0)
 		return phys_id;
 #endif
-	return -1;
+	return -ENODEV;
 }
 
 int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 {
-	int phys_id;
+	phys_cpuid_t phys_id;
 
 	phys_id = acpi_get_phys_id(handle, type, acpi_id);
 

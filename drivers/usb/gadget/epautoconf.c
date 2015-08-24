@@ -258,15 +258,25 @@ struct usb_ep *usb_ep_autoconfig_ss(
 	/* First, apply chip-specific "best usage" knowledge.
 	 * This might make a good usb_gadget_ops hook ...
 	 */
-	if (gadget_is_net2280 (gadget) && type == USB_ENDPOINT_XFER_INT) {
-		/* ep-e, ep-f are PIO with only 64 byte fifos */
-		ep = find_ep (gadget, "ep-e");
-		if (ep && ep_matches(gadget, ep, desc, ep_comp))
-			goto found_ep;
-		ep = find_ep (gadget, "ep-f");
-		if (ep && ep_matches(gadget, ep, desc, ep_comp))
-			goto found_ep;
+	if (gadget_is_net2280(gadget)) {
+		char name[8];
 
+		if (type == USB_ENDPOINT_XFER_INT) {
+			/* ep-e, ep-f are PIO with only 64 byte fifos */
+			ep = find_ep(gadget, "ep-e");
+			if (ep && ep_matches(gadget, ep, desc, ep_comp))
+				goto found_ep;
+			ep = find_ep(gadget, "ep-f");
+			if (ep && ep_matches(gadget, ep, desc, ep_comp))
+				goto found_ep;
+		}
+
+		/* USB3380: use same address for usb and hardware endpoints */
+		snprintf(name, sizeof(name), "ep%d%s", usb_endpoint_num(desc),
+				usb_endpoint_dir_in(desc) ? "in" : "out");
+		ep = find_ep(gadget, name);
+		if (ep && ep_matches(gadget, ep, desc, ep_comp))
+			goto found_ep;
 	} else if (gadget_is_goku (gadget)) {
 		if (USB_ENDPOINT_XFER_INT == type) {
 			/* single buffering is enough */

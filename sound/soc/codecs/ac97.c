@@ -44,10 +44,6 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 	return snd_ac97_set_rate(ac97, reg, substream->runtime->rate);
 }
 
-#define STD_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000)
-
 static const struct snd_soc_dai_ops ac97_dai_ops = {
 	.prepare	= ac97_prepare,
 };
@@ -58,13 +54,13 @@ static struct snd_soc_dai_driver ac97_dai = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = STD_AC97_RATES,
+		.rates = SNDRV_PCM_RATE_KNOT,
 		.formats = SND_SOC_STD_AC97_FMTS,},
 	.capture = {
 		.stream_name = "AC97 Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = STD_AC97_RATES,
+		.rates = SNDRV_PCM_RATE_KNOT,
 		.formats = SND_SOC_STD_AC97_FMTS,},
 	.ops = &ac97_dai_ops,
 };

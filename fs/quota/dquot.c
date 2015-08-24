@@ -2328,7 +2328,7 @@ int dquot_quota_on(struct super_block *sb, int type, int format_id,
 	if (path->dentry->d_sb != sb)
 		error = -EXDEV;
 	else
-		error = vfs_load_quota_inode(path->dentry->d_inode, type,
+		error = vfs_load_quota_inode(d_inode(path->dentry), type,
 					     format_id, DQUOT_USAGE_ENABLED |
 					     DQUOT_LIMITS_ENABLED);
 	return error;
@@ -2392,20 +2392,20 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 	struct dentry *dentry;
 	int error;
 
-	mutex_lock(&sb->s_root->d_inode->i_mutex);
+	mutex_lock(&d_inode(sb->s_root)->i_mutex);
 	dentry = lookup_one_len(qf_name, sb->s_root, strlen(qf_name));
-	mutex_unlock(&sb->s_root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(sb->s_root)->i_mutex);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	if (!dentry->d_inode) {
+	if (d_really_is_negative(dentry)) {
 		error = -ENOENT;
 		goto out;
 	}
 
 	error = security_quota_on(dentry);
 	if (!error)
-		error = vfs_load_quota_inode(dentry->d_inode, type, format_id,
+		error = vfs_load_quota_inode(d_inode(dentry), type, format_id,
 				DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 
 out:

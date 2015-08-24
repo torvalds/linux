@@ -23,9 +23,10 @@ int test__vmlinux_matches_kallsyms(void)
 	int err = -1;
 	struct rb_node *nd;
 	struct symbol *sym;
-	struct map *kallsyms_map, *vmlinux_map;
+	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
 	enum map_type type = MAP__FUNCTION;
+	struct maps *maps = &vmlinux.kmaps.maps[type];
 	u64 mem_start, mem_end;
 
 	/*
@@ -184,8 +185,8 @@ detour:
 
 	pr_info("Maps only in vmlinux:\n");
 
-	for (nd = rb_first(&vmlinux.kmaps.maps[type]); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node), *pair;
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		struct map *
 		/*
 		 * If it is the kernel, kallsyms is always "[kernel.kallsyms]", while
 		 * the kernel will have the path for the vmlinux file being used,
@@ -193,22 +194,22 @@ detour:
 		 * both cases.
 		 */
 		pair = map_groups__find_by_name(&kallsyms.kmaps, type,
-						(pos->dso->kernel ?
-							pos->dso->short_name :
-							pos->dso->name));
+						(map->dso->kernel ?
+							map->dso->short_name :
+							map->dso->name));
 		if (pair)
 			pair->priv = 1;
 		else
-			map__fprintf(pos, stderr);
+			map__fprintf(map, stderr);
 	}
 
 	pr_info("Maps in vmlinux with a different name in kallsyms:\n");
 
-	for (nd = rb_first(&vmlinux.kmaps.maps[type]); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node), *pair;
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		struct map *pair;
 
-		mem_start = vmlinux_map->unmap_ip(vmlinux_map, pos->start);
-		mem_end = vmlinux_map->unmap_ip(vmlinux_map, pos->end);
+		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
+		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
 
 		pair = map_groups__find(&kallsyms.kmaps, type, mem_start);
 		if (pair == NULL || pair->priv)
@@ -217,7 +218,7 @@ detour:
 		if (pair->start == mem_start) {
 			pair->priv = 1;
 			pr_info(" %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
-				pos->start, pos->end, pos->pgoff, pos->dso->name);
+				map->start, map->end, map->pgoff, map->dso->name);
 			if (mem_end != pair->end)
 				pr_info(":\n*%" PRIx64 "-%" PRIx64 " %" PRIx64,
 					pair->start, pair->end, pair->pgoff);
@@ -228,12 +229,11 @@ detour:
 
 	pr_info("Maps only in kallsyms:\n");
 
-	for (nd = rb_first(&kallsyms.kmaps.maps[type]);
-	     nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
+	maps = &kallsyms.kmaps.maps[type];
 
-		if (!pos->priv)
-			map__fprintf(pos, stderr);
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		if (!map->priv)
+			map__fprintf(map, stderr);
 	}
 out:
 	machine__exit(&kallsyms);

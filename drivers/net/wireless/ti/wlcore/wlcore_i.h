@@ -201,8 +201,12 @@ struct wl1271_if_operations {
 };
 
 struct wlcore_platdev_data {
-	struct wl12xx_platform_data *pdata;
 	struct wl1271_if_operations *if_ops;
+
+	bool ref_clock_xtal;	/* specify whether the clock is XTAL or not */
+	u32 ref_clock_freq;	/* in Hertz */
+	u32 tcxo_clock_freq;	/* in Hertz, tcxo is always XTAL */
+	bool pwr_in_suspend;
 };
 
 #define MAX_NUM_KEYS 14

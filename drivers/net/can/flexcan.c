@@ -93,13 +93,13 @@
 	(FLEXCAN_CTRL_ERR_BUS | FLEXCAN_CTRL_ERR_STATE)
 
 /* FLEXCAN control register 2 (CTRL2) bits */
-#define FLEXCAN_CRL2_ECRWRE		BIT(29)
-#define FLEXCAN_CRL2_WRMFRZ		BIT(28)
-#define FLEXCAN_CRL2_RFFN(x)		(((x) & 0x0f) << 24)
-#define FLEXCAN_CRL2_TASD(x)		(((x) & 0x1f) << 19)
-#define FLEXCAN_CRL2_MRP		BIT(18)
-#define FLEXCAN_CRL2_RRS		BIT(17)
-#define FLEXCAN_CRL2_EACEN		BIT(16)
+#define FLEXCAN_CTRL2_ECRWRE		BIT(29)
+#define FLEXCAN_CTRL2_WRMFRZ		BIT(28)
+#define FLEXCAN_CTRL2_RFFN(x)		(((x) & 0x0f) << 24)
+#define FLEXCAN_CTRL2_TASD(x)		(((x) & 0x1f) << 19)
+#define FLEXCAN_CTRL2_MRP		BIT(18)
+#define FLEXCAN_CTRL2_RRS		BIT(17)
+#define FLEXCAN_CTRL2_EACEN		BIT(16)
 
 /* FLEXCAN memory error control register (MECR) bits */
 #define FLEXCAN_MECR_ECRWRDIS		BIT(31)
@@ -158,7 +158,6 @@
 	 FLEXCAN_IFLAG_BUF(FLEXCAN_TX_BUF_ID))
 
 /* FLEXCAN message buffers */
-#define FLEXCAN_MB_CNT_CODE(x)		(((x) & 0xf) << 24)
 #define FLEXCAN_MB_CODE_RX_INACTIVE	(0x0 << 24)
 #define FLEXCAN_MB_CODE_RX_EMPTY	(0x4 << 24)
 #define FLEXCAN_MB_CODE_RX_FULL		(0x2 << 24)
@@ -184,14 +183,14 @@
  * FLEXCAN hardware feature flags
  *
  * Below is some version info we got:
- *    SOC   Version   IP-Version  Glitch-  [TR]WRN_INT  Memory err
- *                                Filter?   connected?  detection
- *   MX25  FlexCAN2  03.00.00.00     no         no         no
- *   MX28  FlexCAN2  03.00.04.00    yes        yes         no
- *   MX35  FlexCAN2  03.00.00.00     no         no         no
- *   MX53  FlexCAN2  03.00.00.00    yes         no         no
- *   MX6s  FlexCAN3  10.00.12.00    yes        yes         no
- *   VF610 FlexCAN3  ?               no        yes        yes
+ *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT Memory err RTR re-
+ *                                Filter? connected?  detection  ception in MB
+ *   MX25  FlexCAN2  03.00.00.00     no        no         no        no
+ *   MX28  FlexCAN2  03.00.04.00    yes       yes         no        no
+ *   MX35  FlexCAN2  03.00.00.00     no        no         no        no
+ *   MX53  FlexCAN2  03.00.00.00    yes        no         no        no
+ *   MX6s  FlexCAN3  10.00.12.00    yes       yes         no       yes
+ *   VF610 FlexCAN3  ?               no       yes        yes       yes?
  *
  * Some SOCs do not have the RX_WARN & TX_WARN interrupt line connected.
  */
@@ -221,7 +220,7 @@ struct flexcan_regs {
 	u32 imask1;		/* 0x28 */
 	u32 iflag2;		/* 0x2c */
 	u32 iflag1;		/* 0x30 */
-	u32 crl2;		/* 0x34 */
+	u32 ctrl2;		/* 0x34 */
 	u32 esr2;		/* 0x38 */
 	u32 imeur;		/* 0x3c */
 	u32 lrfr;		/* 0x40 */
@@ -230,6 +229,16 @@ struct flexcan_regs {
 	u32 rxfir;		/* 0x4c */
 	u32 _reserved3[12];	/* 0x50 */
 	struct flexcan_mb cantxfg[64];	/* 0x80 */
+	/* FIFO-mode:
+	 *			MB
+	 * 0x080...0x08f	0	RX message buffer
+	 * 0x090...0x0df	1-5	reserverd
+	 * 0x0e0...0x0ff	6-7	8 entry ID table
+	 *				(mx25, mx28, mx35, mx53)
+	 * 0x0e0...0x2df	6-7..37	8..128 entry ID table
+	 *			  	size conf'ed via ctrl2::RFFN
+	 *				(mx6, vf610)
+	 */
 	u32 _reserved4[408];
 	u32 mecr;		/* 0xae0 */
 	u32 erriar;		/* 0xae4 */
@@ -468,7 +477,7 @@ static int flexcan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct flexcan_regs __iomem *regs = priv->base;
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	u32 can_id;
-	u32 ctrl = FLEXCAN_MB_CNT_CODE(0xc) | (cf->can_dlc << 16);
+	u32 ctrl = FLEXCAN_MB_CODE_TX_DATA | (cf->can_dlc << 16);
 
 	if (can_dropped_invalid_skb(dev, skb))
 		return NETDEV_TX_OK;
@@ -568,10 +577,10 @@ static int flexcan_poll_bus_err(struct net_device *dev, u32 reg_esr)
 		return 0;
 
 	do_bus_err(dev, cf, reg_esr);
-	netif_receive_skb(skb);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	return 1;
 }
@@ -613,10 +622,9 @@ static int flexcan_poll_state(struct net_device *dev, u32 reg_esr)
 	if (unlikely(new_state == CAN_STATE_BUS_OFF))
 		can_bus_off(dev);
 
-	netif_receive_skb(skb);
-
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	return 1;
 }
@@ -661,10 +669,10 @@ static int flexcan_read_frame(struct net_device *dev)
 	}
 
 	flexcan_read_fifo(dev, cf);
-	netif_receive_skb(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	can_led_event(dev, CAN_LED_EVENT_RX);
 
@@ -815,7 +823,7 @@ static int flexcan_chip_start(struct net_device *dev)
 {
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->base;
-	u32 reg_mcr, reg_ctrl, reg_crl2, reg_mecr;
+	u32 reg_mcr, reg_ctrl, reg_ctrl2, reg_mecr;
 	int err, i;
 
 	/* enable module */
@@ -918,9 +926,9 @@ static int flexcan_chip_start(struct net_device *dev)
 		 * and Correction of Memory Errors" to write to
 		 * MECR register
 		 */
-		reg_crl2 = flexcan_read(&regs->crl2);
-		reg_crl2 |= FLEXCAN_CRL2_ECRWRE;
-		flexcan_write(reg_crl2, &regs->crl2);
+		reg_ctrl2 = flexcan_read(&regs->ctrl2);
+		reg_ctrl2 |= FLEXCAN_CTRL2_ECRWRE;
+		flexcan_write(reg_ctrl2, &regs->ctrl2);
 
 		reg_mecr = flexcan_read(&regs->mecr);
 		reg_mecr &= ~FLEXCAN_MECR_ECRWRDIS;

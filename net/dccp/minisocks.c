@@ -186,8 +186,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (child == NULL)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_unlink(sk, req);
-	inet_csk_reqsk_queue_removed(sk, req);
+	inet_csk_reqsk_queue_drop(sk, req);
 	inet_csk_reqsk_queue_add(sk, req, child);
 out:
 	return child;

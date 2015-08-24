@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
@@ -46,6 +47,7 @@
 #include <linux/efi.h>
 #include <linux/personality.h>
 
+#include <asm/acpi.h>
 #include <asm/fixmap.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
@@ -62,6 +64,7 @@
 #include <asm/psci.h>
 #include <asm/efi.h>
 #include <asm/virt.h>
+#include <asm/xen/hypervisor.h>
 
 unsigned long elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
@@ -102,18 +105,6 @@ static struct resource mem_res[] = {
 
 #define kernel_code mem_res[0]
 #define kernel_data mem_res[1]
-
-void __init early_print(const char *str, ...)
-{
-	char buf[256];
-	va_list ap;
-
-	va_start(ap, str);
-	vsnprintf(buf, sizeof(buf), str, ap);
-	va_end(ap);
-
-	printk("%s", buf);
-}
 
 /*
  * The recorded values of x0 .. x3 upon kernel entry.
@@ -324,12 +315,14 @@ static void __init setup_processor(void)
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
-	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys))) {
-		early_print("\n"
-			"Error: invalid device tree blob at physical address 0x%p (virtual address 0x%p)\n"
-			"The dtb must be 8-byte aligned and passed in the first 512MB of memory\n"
-			"\nPlease check your bootloader.\n",
-			dt_phys, phys_to_virt(dt_phys));
+	void *dt_virt = fixmap_remap_fdt(dt_phys);
+
+	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
+		pr_crit("\n"
+			"Error: invalid device tree blob at physical address %pa (virtual address 0x%p)\n"
+			"The dtb must be 8-byte aligned and must not exceed 2 MB in size\n"
+			"\nPlease check your bootloader.",
+			&dt_phys, dt_virt);
 
 		while (true)
 			cpu_relax();
@@ -372,8 +365,6 @@ void __init setup_arch(char **cmdline_p)
 {
 	setup_processor();
 
-	setup_machine_fdt(__fdt_pointer);
-
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
 	init_mm.end_data   = (unsigned long) _edata;
@@ -383,6 +374,8 @@ void __init setup_arch(char **cmdline_p)
 
 	early_fixmap_init();
 	early_ioremap_init();
+
+	setup_machine_fdt(__fdt_pointer);
 
 	parse_early_param();
 
@@ -395,14 +388,21 @@ void __init setup_arch(char **cmdline_p)
 	efi_init();
 	arm64_memblock_init();
 
+	/* Parse the ACPI tables for possible boot-time configuration */
+	acpi_boot_table_init();
+
 	paging_init();
 	request_standard_resources();
 
 	early_ioremap_reset();
 
-	unflatten_device_tree();
-
-	psci_init();
+	if (acpi_disabled) {
+		unflatten_device_tree();
+		psci_dt_init();
+	} else {
+		psci_acpi_init();
+	}
+	xen_early_init();
 
 	cpu_read_bootcpu_ops();
 #ifdef CONFIG_SMP

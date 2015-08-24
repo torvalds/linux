@@ -1,0 +1,17 @@
+* Texas Instruments - drv2665 Haptics driver
+
+Required properties:
+	- compatible - "ti,drv2665" - DRV2665
+	- reg -  I2C slave address
+	- vbat-supply - Required supply regulator
+
+Example:
+
+haptics: haptics@59 {
+	compatible = "ti,drv2665";
+	reg = <0x59>;
+	vbat-supply = <&vbat>;
+};
+
+For more product information please see the link below:
+http://www.ti.com/product/drv2665

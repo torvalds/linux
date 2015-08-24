@@ -373,7 +373,7 @@ static int serial2002_setup_subdevice(struct comedi_subdevice *s,
 		if (cfg[j].kind == kind) {
 			if (mapping)
 				mapping[chan] = j;
-			if (range) {
+			if (range && range_table_list) {
 				range[j].length = 1;
 				range[j].range.min = cfg[j].min;
 				range[j].range.max = cfg[j].max;

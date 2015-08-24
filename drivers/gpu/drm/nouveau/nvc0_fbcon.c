@@ -188,7 +188,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = RING_SPACE(chan, 60);
+	ret = RING_SPACE(chan, 58);
 	if (ret) {
 		WARN_ON(1);
 		nouveau_fbcon_gpu_lockup(info);

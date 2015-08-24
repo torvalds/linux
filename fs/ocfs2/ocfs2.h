@@ -717,6 +717,16 @@ static inline u64 ocfs2_clusters_to_blocks(struct super_block *sb,
 	return (u64)clusters << c_to_b_bits;
 }
 
+static inline u32 ocfs2_clusters_for_blocks(struct super_block *sb,
+		u64 blocks)
+{
+	int b_to_c_bits = OCFS2_SB(sb)->s_clustersize_bits -
+			sb->s_blocksize_bits;
+
+	blocks += (1 << b_to_c_bits) - 1;
+	return (u32)(blocks >> b_to_c_bits);
+}
+
 static inline u32 ocfs2_blocks_to_clusters(struct super_block *sb,
 					   u64 blocks)
 {

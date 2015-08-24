@@ -2525,7 +2525,7 @@ err_kfree:
 /* Driver removal function
  * Free resources and finish pending transactions
  */
-static int __exit fsl_udc_remove(struct platform_device *pdev)
+static int fsl_udc_remove(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -2663,7 +2663,7 @@ static const struct platform_device_id fsl_udc_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, fsl_udc_devtype);
 static struct platform_driver udc_driver = {
-	.remove		= __exit_p(fsl_udc_remove),
+	.remove		= fsl_udc_remove,
 	/* Just for FSL i.mx SoC currently */
 	.id_table	= fsl_udc_devtype,
 	/* these suspend and resume are not usb suspend and resume */

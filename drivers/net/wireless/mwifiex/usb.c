@@ -60,7 +60,6 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size);
 static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 			    struct sk_buff *skb, u8 ep)
 {
-	struct device *dev = adapter->dev;
 	u32 recv_type;
 	__le32 tmp;
 	int ret;
@@ -69,13 +68,15 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 		mwifiex_process_hs_config(adapter);
 
 	if (skb->len < INTF_HEADER_LEN) {
-		dev_err(dev, "%s: invalid skb->len\n", __func__);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: invalid skb->len\n", __func__);
 		return -1;
 	}
 
 	switch (ep) {
 	case MWIFIEX_USB_EP_CMD_EVENT:
-		dev_dbg(dev, "%s: EP_CMD_EVENT\n", __func__);
+		mwifiex_dbg(adapter, EVENT,
+			    "%s: EP_CMD_EVENT\n", __func__);
 		skb_copy_from_linear_data(skb, &tmp, INTF_HEADER_LEN);
 		recv_type = le32_to_cpu(tmp);
 		skb_pull(skb, INTF_HEADER_LEN);
@@ -83,11 +84,12 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 		switch (recv_type) {
 		case MWIFIEX_USB_TYPE_CMD:
 			if (skb->len > MWIFIEX_SIZE_OF_CMD_BUFFER) {
-				dev_err(dev, "CMD: skb->len too large\n");
+				mwifiex_dbg(adapter, ERROR,
+					    "CMD: skb->len too large\n");
 				ret = -1;
 				goto exit_restore_skb;
 			} else if (!adapter->curr_cmd) {
-				dev_dbg(dev, "CMD: no curr_cmd\n");
+				mwifiex_dbg(adapter, WARN, "CMD: no curr_cmd\n");
 				if (adapter->ps_state == PS_STATE_SLEEP_CFM) {
 					mwifiex_process_sleep_confirm_resp(
 							adapter, skb->data,
@@ -104,16 +106,19 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 			break;
 		case MWIFIEX_USB_TYPE_EVENT:
 			if (skb->len < sizeof(u32)) {
-				dev_err(dev, "EVENT: skb->len too small\n");
+				mwifiex_dbg(adapter, ERROR,
+					    "EVENT: skb->len too small\n");
 				ret = -1;
 				goto exit_restore_skb;
 			}
 			skb_copy_from_linear_data(skb, &tmp, sizeof(u32));
 			adapter->event_cause = le32_to_cpu(tmp);
-			dev_dbg(dev, "event_cause %#x\n", adapter->event_cause);
+			mwifiex_dbg(adapter, EVENT,
+				    "event_cause %#x\n", adapter->event_cause);
 
 			if (skb->len > MAX_EVENT_SIZE) {
-				dev_err(dev, "EVENT: event body too large\n");
+				mwifiex_dbg(adapter, ERROR,
+					    "EVENT: event body too large\n");
 				ret = -1;
 				goto exit_restore_skb;
 			}
@@ -125,14 +130,16 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 			adapter->event_skb = skb;
 			break;
 		default:
-			dev_err(dev, "unknown recv_type %#x\n", recv_type);
+			mwifiex_dbg(adapter, ERROR,
+				    "unknown recv_type %#x\n", recv_type);
 			return -1;
 		}
 		break;
 	case MWIFIEX_USB_EP_DATA:
-		dev_dbg(dev, "%s: EP_DATA\n", __func__);
+		mwifiex_dbg(adapter, DATA, "%s: EP_DATA\n", __func__);
 		if (skb->len > MWIFIEX_RX_DATA_BUF_SIZE) {
-			dev_err(dev, "DATA: skb->len too large\n");
+			mwifiex_dbg(adapter, ERROR,
+				    "DATA: skb->len too large\n");
 			return -1;
 		}
 
@@ -141,7 +148,8 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 		atomic_inc(&adapter->rx_pending);
 		break;
 	default:
-		dev_err(dev, "%s: unknown endport %#x\n", __func__, ep);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: unknown endport %#x\n", __func__, ep);
 		return -1;
 	}
 
@@ -176,8 +184,8 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 
 	if (recv_length) {
 		if (urb->status || (adapter->surprise_removed)) {
-			dev_err(adapter->dev,
-				"URB status is failed: %d\n", urb->status);
+			mwifiex_dbg(adapter, ERROR,
+				    "URB status is failed: %d\n", urb->status);
 			/* Do not free skb in case of command ep */
 			if (card->rx_cmd_ep != context->ep)
 				dev_kfree_skb_any(skb);
@@ -190,8 +198,9 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 
 		status = mwifiex_usb_recv(adapter, skb, context->ep);
 
-		dev_dbg(adapter->dev, "info: recv_length=%d, status=%d\n",
-			recv_length, status);
+		mwifiex_dbg(adapter, INFO,
+			    "info: recv_length=%d, status=%d\n",
+			    recv_length, status);
 		if (status == -EINPROGRESS) {
 			mwifiex_queue_main_work(adapter);
 
@@ -203,8 +212,8 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 				return;
 		} else {
 			if (status == -1)
-				dev_err(adapter->dev,
-					"received data processing failed!\n");
+				mwifiex_dbg(adapter, ERROR,
+					    "received data processing failed!\n");
 
 			/* Do not free skb in case of command ep */
 			if (card->rx_cmd_ep != context->ep)
@@ -212,8 +221,8 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		}
 	} else if (urb->status) {
 		if (!adapter->is_suspended) {
-			dev_warn(adapter->dev,
-				 "Card is removed: %d\n", urb->status);
+			mwifiex_dbg(adapter, FATAL,
+				    "Card is removed: %d\n", urb->status);
 			adapter->surprise_removed = true;
 		}
 		dev_kfree_skb_any(skb);
@@ -249,14 +258,17 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	struct mwifiex_adapter *adapter = context->adapter;
 	struct usb_card_rec *card = adapter->card;
 
-	dev_dbg(adapter->dev, "%s: status: %d\n", __func__, urb->status);
+	mwifiex_dbg(adapter, INFO,
+		    "%s: status: %d\n", __func__, urb->status);
 
 	if (context->ep == card->tx_cmd_ep) {
-		dev_dbg(adapter->dev, "%s: CMD\n", __func__);
+		mwifiex_dbg(adapter, CMD,
+			    "%s: CMD\n", __func__);
 		atomic_dec(&card->tx_cmd_urb_pending);
 		adapter->cmd_sent = false;
 	} else {
-		dev_dbg(adapter->dev, "%s: DATA\n", __func__);
+		mwifiex_dbg(adapter, DATA,
+			    "%s: DATA\n", __func__);
 		atomic_dec(&card->tx_data_urb_pending);
 		mwifiex_write_data_complete(adapter, context->skb, 0,
 					    urb->status ? -1 : 0);
@@ -275,8 +287,8 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 	if (card->rx_cmd_ep != ctx->ep) {
 		ctx->skb = dev_alloc_skb(size);
 		if (!ctx->skb) {
-			dev_err(adapter->dev,
-				"%s: dev_alloc_skb failed\n", __func__);
+			mwifiex_dbg(adapter, ERROR,
+				    "%s: dev_alloc_skb failed\n", __func__);
 			return -ENOMEM;
 		}
 	}
@@ -291,7 +303,7 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 		atomic_inc(&card->rx_data_urb_pending);
 
 	if (usb_submit_urb(ctx->urb, GFP_ATOMIC)) {
-		dev_err(adapter->dev, "usb_submit_urb failed\n");
+		mwifiex_dbg(adapter, ERROR, "usb_submit_urb failed\n");
 		dev_kfree_skb_any(ctx->skb);
 		ctx->skb = NULL;
 
@@ -468,7 +480,8 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	adapter = card->adapter;
 
 	if (unlikely(adapter->is_suspended))
-		dev_warn(adapter->dev, "Device already suspended\n");
+		mwifiex_dbg(adapter, WARN,
+			    "Device already suspended\n");
 
 	mwifiex_enable_hs(adapter);
 
@@ -519,7 +532,8 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	adapter = card->adapter;
 
 	if (unlikely(!adapter->is_suspended)) {
-		dev_warn(adapter->dev, "Device already resumed\n");
+		mwifiex_dbg(adapter, WARN,
+			    "Device already resumed\n");
 		return 0;
 	}
 
@@ -578,7 +592,8 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 
 	mwifiex_usb_free(card);
 
-	dev_dbg(adapter->dev, "%s: removing card\n", __func__);
+	mwifiex_dbg(adapter, FATAL,
+		    "%s: removing card\n", __func__);
 	mwifiex_remove_card(adapter, &add_remove_card_sem);
 
 	usb_set_intfdata(intf, NULL);
@@ -608,7 +623,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 
 	card->tx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!card->tx_cmd.urb) {
-		dev_err(adapter->dev, "tx_cmd.urb allocation failed\n");
+		mwifiex_dbg(adapter, ERROR,
+			    "tx_cmd.urb allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -620,8 +636,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 
 		card->tx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!card->tx_data_list[i].urb) {
-			dev_err(adapter->dev,
-				"tx_data_list[] urb allocation failed\n");
+			mwifiex_dbg(adapter, ERROR,
+				    "tx_data_list[] urb allocation failed\n");
 			return -ENOMEM;
 		}
 	}
@@ -639,15 +655,13 @@ static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
 
 	card->rx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!card->rx_cmd.urb) {
-		dev_err(adapter->dev, "rx_cmd.urb allocation failed\n");
+		mwifiex_dbg(adapter, ERROR, "rx_cmd.urb allocation failed\n");
 		return -ENOMEM;
 	}
 
 	card->rx_cmd.skb = dev_alloc_skb(MWIFIEX_RX_CMD_BUF_SIZE);
-	if (!card->rx_cmd.skb) {
-		dev_err(adapter->dev, "rx_cmd.skb allocation failed\n");
+	if (!card->rx_cmd.skb)
 		return -ENOMEM;
-	}
 
 	if (mwifiex_usb_submit_rx_urb(&card->rx_cmd, MWIFIEX_RX_CMD_BUF_SIZE))
 		return -1;
@@ -658,8 +672,8 @@ static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
 
 		card->rx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!card->rx_data_list[i].urb) {
-			dev_err(adapter->dev,
-				"rx_data_list[] urb allocation failed\n");
+			mwifiex_dbg(adapter, ERROR,
+				    "rx_data_list[] urb allocation failed\n");
 			return -1;
 		}
 		if (mwifiex_usb_submit_rx_urb(&card->rx_data_list[i],
@@ -683,7 +697,8 @@ static int mwifiex_write_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 	ret = usb_bulk_msg(card->udev, usb_sndbulkpipe(card->udev, ep), pbuf,
 			   *len, &actual_length, timeout);
 	if (ret) {
-		dev_err(adapter->dev, "usb_bulk_msg for tx failed: %d\n", ret);
+		mwifiex_dbg(adapter, ERROR,
+			    "usb_bulk_msg for tx failed: %d\n", ret);
 		return ret;
 	}
 
@@ -702,7 +717,8 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 	ret = usb_bulk_msg(card->udev, usb_rcvbulkpipe(card->udev, ep), pbuf,
 			   *len, &actual_length, timeout);
 	if (ret) {
-		dev_err(adapter->dev, "usb_bulk_msg for rx failed: %d\n", ret);
+		mwifiex_dbg(adapter, ERROR,
+			    "usb_bulk_msg for rx failed: %d\n", ret);
 		return ret;
 	}
 
@@ -722,13 +738,13 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct urb *tx_urb;
 
 	if (adapter->is_suspended) {
-		dev_err(adapter->dev,
-			"%s: not allowed while suspended\n", __func__);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: not allowed while suspended\n", __func__);
 		return -1;
 	}
 
 	if (adapter->surprise_removed) {
-		dev_err(adapter->dev, "%s: device removed\n", __func__);
+		mwifiex_dbg(adapter, ERROR, "%s: device removed\n", __func__);
 		return -1;
 	}
 
@@ -737,7 +753,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		return -EBUSY;
 	}
 
-	dev_dbg(adapter->dev, "%s: ep=%d\n", __func__, ep);
+	mwifiex_dbg(adapter, INFO, "%s: ep=%d\n", __func__, ep);
 
 	if (ep == card->tx_cmd_ep) {
 		context = &card->tx_cmd;
@@ -764,7 +780,8 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		atomic_inc(&card->tx_data_urb_pending);
 
 	if (usb_submit_urb(tx_urb, GFP_ATOMIC)) {
-		dev_err(adapter->dev, "%s: usb_submit_urb failed\n", __func__);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: usb_submit_urb failed\n", __func__);
 		if (ep == card->tx_cmd_ep) {
 			atomic_dec(&card->tx_cmd_urb_pending);
 		} else {
@@ -843,8 +860,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	u8 check_winner = 1;
 
 	if (!firmware) {
-		dev_err(adapter->dev,
-			"No firmware image found! Terminating download\n");
+		mwifiex_dbg(adapter, ERROR,
+			    "No firmware image found! Terminating download\n");
 		ret = -1;
 		goto fw_exit;
 	}
@@ -889,8 +906,9 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 						MWIFIEX_USB_EP_CMD_EVENT,
 						MWIFIEX_USB_TIMEOUT);
 			if (ret) {
-				dev_err(adapter->dev,
-					"write_data_sync: failed: %d\n", ret);
+				mwifiex_dbg(adapter, ERROR,
+					    "write_data_sync: failed: %d\n",
+					    ret);
 				continue;
 			}
 
@@ -902,8 +920,9 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 						MWIFIEX_USB_EP_CMD_EVENT,
 						MWIFIEX_USB_TIMEOUT);
 			if (ret) {
-				dev_err(adapter->dev,
-					"read_data_sync: failed: %d\n", ret);
+				mwifiex_dbg(adapter, ERROR,
+					    "read_data_sync: failed: %d\n",
+					    ret);
 				continue;
 			}
 
@@ -913,17 +932,17 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			/* check 1st firmware block resp for highest bit set */
 			if (check_winner) {
 				if (le32_to_cpu(sync_fw.cmd) & 0x80000000) {
-					dev_warn(adapter->dev,
-						 "USB is not the winner %#x\n",
-						 sync_fw.cmd);
+					mwifiex_dbg(adapter, WARN,
+						    "USB is not the winner %#x\n",
+						    sync_fw.cmd);
 
 					/* returning success */
 					ret = 0;
 					goto cleanup;
 				}
 
-				dev_dbg(adapter->dev,
-					"USB is the winner, start to download FW\n");
+				mwifiex_dbg(adapter, MSG,
+					    "start to download FW...\n");
 
 				check_winner = 0;
 				break;
@@ -931,9 +950,9 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 			/* check the firmware block response for CRC errors */
 			if (sync_fw.cmd) {
-				dev_err(adapter->dev,
-					"FW received block with CRC %#x\n",
-					sync_fw.cmd);
+				mwifiex_dbg(adapter, ERROR,
+					    "FW received block with CRC %#x\n",
+					    sync_fw.cmd);
 				ret = -1;
 				continue;
 			}
@@ -945,8 +964,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	} while ((dnld_cmd != FW_HAS_LAST_BLOCK) && retries);
 
 cleanup:
-	dev_notice(adapter->dev,
-		   "info: FW download over, size %d bytes\n", tlen);
+	mwifiex_dbg(adapter, MSG,
+		    "info: FW download over, size %d bytes\n", tlen);
 
 	kfree(recv_buff);
 	kfree(fwdata);

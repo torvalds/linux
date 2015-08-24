@@ -2999,6 +2999,7 @@ struct inode *ext3_iget(struct super_block *sb, unsigned long ino)
 			inode->i_op = &ext3_fast_symlink_inode_operations;
 			nd_terminate_link(ei->i_data, inode->i_size,
 				sizeof(ei->i_data) - 1);
+			inode->i_link = (char *)ei->i_data;
 		} else {
 			inode->i_op = &ext3_symlink_inode_operations;
 			ext3_set_aops(inode);
@@ -3240,7 +3241,7 @@ int ext3_write_inode(struct inode *inode, struct writeback_control *wbc)
  */
 int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error, rc = 0;
 	const unsigned int ia_valid = attr->ia_valid;
 

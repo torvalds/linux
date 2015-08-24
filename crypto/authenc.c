@@ -10,7 +10,7 @@
  *
  */
 
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/authenc.h>
@@ -570,13 +570,14 @@ static int crypto_authenc_init_tfm(struct crypto_tfm *tfm)
 			    crypto_ahash_alignmask(auth) + 1) +
 		      crypto_ablkcipher_ivsize(enc);
 
-	tfm->crt_aead.reqsize = sizeof(struct authenc_request_ctx) +
-				ctx->reqoff +
-				max_t(unsigned int,
-				crypto_ahash_reqsize(auth) +
-				sizeof(struct ahash_request),
-				sizeof(struct skcipher_givcrypt_request) +
-				crypto_ablkcipher_reqsize(enc));
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct authenc_request_ctx) +
+		ctx->reqoff +
+		max_t(unsigned int,
+			crypto_ahash_reqsize(auth) +
+			sizeof(struct ahash_request),
+			sizeof(struct skcipher_givcrypt_request) +
+			crypto_ablkcipher_reqsize(enc)));
 
 	return 0;
 

@@ -23,7 +23,7 @@
 
 #ifdef __KERNEL__ /* Real code */
 
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 #else /* Dummy code for user space testing */
 

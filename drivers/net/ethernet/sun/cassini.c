@@ -3058,7 +3058,6 @@ static void cas_init_mac(struct cas *cp)
 	/* setup core arbitration weight register */
 	writel(CAWR_RR_DIS, cp->regs + REG_CAWR);
 
-	/* XXX Use pci_dma_burst_advice() */
 #if !defined(CONFIG_SPARC64) && !defined(CONFIG_ALPHA)
 	/* set the infinite burst register for chips that don't have
 	 * pci issues.

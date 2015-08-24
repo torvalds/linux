@@ -478,6 +478,11 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
+	if (sig == 0) {
+		IWL_DEBUG_RX(mvm, "RSSI is 0 - skip signal based decision\n");
+		return;
+	}
+
 	mvmvif->bf_data.ave_beacon_signal = sig;
 
 	/* BT Coex */
@@ -565,7 +570,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	};
 	u32 temperature;
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_STATS_V10) {
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STATS_V10)) {
 		struct iwl_notif_statistics_v10 *stats = (void *)&pkt->data;
 
 		if (iwl_rx_packet_payload_len(pkt) != v10_len)
@@ -605,7 +610,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	/* Only handle rx statistics temperature changes if async temp
 	 * notifications are not supported
 	 */
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_ASYNC_DTM))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_ASYNC_DTM))
 		iwl_mvm_tt_temp_changed(mvm, temperature);
 
 	ieee80211_iterate_active_interfaces(mvm->hw,

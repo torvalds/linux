@@ -503,9 +503,9 @@ static int hci_sock_release(struct socket *sock)
 
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
-			mgmt_index_added(hdev);
-			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
 			hci_dev_close(hdev->id);
+			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
+			mgmt_index_added(hdev);
 		}
 
 		atomic_dec(&hdev->promisc);
@@ -741,10 +741,11 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		if (test_bit(HCI_UP, &hdev->flags) ||
-		    test_bit(HCI_INIT, &hdev->flags) ||
+		if (test_bit(HCI_INIT, &hdev->flags) ||
 		    hci_dev_test_flag(hdev, HCI_SETUP) ||
-		    hci_dev_test_flag(hdev, HCI_CONFIG)) {
+		    hci_dev_test_flag(hdev, HCI_CONFIG) ||
+		    (!hci_dev_test_flag(hdev, HCI_AUTO_OFF) &&
+		     test_bit(HCI_UP, &hdev->flags))) {
 			err = -EBUSY;
 			hci_dev_put(hdev);
 			goto done;
@@ -760,10 +761,21 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 
 		err = hci_dev_open(hdev->id);
 		if (err) {
-			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
-			mgmt_index_added(hdev);
-			hci_dev_put(hdev);
-			goto done;
+			if (err == -EALREADY) {
+				/* In case the transport is already up and
+				 * running, clear the error here.
+				 *
+				 * This can happen when opening an user
+				 * channel and HCI_AUTO_OFF grace period
+				 * is still active.
+				 */
+				err = 0;
+			} else {
+				hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
+				mgmt_index_added(hdev);
+				hci_dev_put(hdev);
+				goto done;
+			}
 		}
 
 		atomic_inc(&hdev->promisc);
@@ -1377,7 +1389,7 @@ static int hci_sock_create(struct net *net, struct socket *sock, int protocol,
 
 	sock->ops = &hci_sock_ops;
 
-	sk = sk_alloc(net, PF_BLUETOOTH, GFP_ATOMIC, &hci_sk_proto);
+	sk = sk_alloc(net, PF_BLUETOOTH, GFP_ATOMIC, &hci_sk_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 

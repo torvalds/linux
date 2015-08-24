@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -322,7 +322,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON_ONCE(mvm->init_ucode_complete || mvm->calibrating))
+	if (WARN_ON_ONCE(mvm->calibrating))
 		return 0;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
@@ -396,8 +396,6 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	 */
 	ret = iwl_wait_notification(&mvm->notif_wait, &calib_wait,
 			MVM_UCODE_CALIB_TIMEOUT);
-	if (!ret)
-		mvm->init_ucode_complete = true;
 
 	if (ret && iwl_mvm_is_radio_killed(mvm)) {
 		IWL_DEBUG_RF_KILL(mvm, "RFKILL while calibrating.\n");
@@ -493,15 +491,6 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 		 le32_to_cpu(desc->trig_desc.type));
 
 	mvm->fw_dump_desc = desc;
-
-	/* stop recording */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
-	} else {
-		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 0);
-		/* wait before we collect the data till the DBGC stop */
-		udelay(100);
-	}
 
 	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
 
@@ -634,7 +623,7 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 	if (!mvm->trans->ltr_enabled)
 		return 0;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_HDC_PHASE_0))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_HDC_PHASE_0))
 		return iwl_mvm_config_ltr_v1(mvm);
 
 	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
@@ -658,25 +647,24 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	 * module loading, load init ucode now
 	 * (for example, if we were in RFKILL)
 	 */
-	if (!mvm->init_ucode_complete) {
-		ret = iwl_run_init_mvm_ucode(mvm, false);
-		if (ret && !iwlmvm_mod_params.init_dbg) {
-			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
-			/* this can't happen */
-			if (WARN_ON(ret > 0))
-				ret = -ERFKILL;
+	ret = iwl_run_init_mvm_ucode(mvm, false);
+	if (ret && !iwlmvm_mod_params.init_dbg) {
+		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+		/* this can't happen */
+		if (WARN_ON(ret > 0))
+			ret = -ERFKILL;
+		goto error;
+	}
+	if (!iwlmvm_mod_params.init_dbg) {
+		/*
+		 * Stop and start the transport without entering low power
+		 * mode. This will save the state of other components on the
+		 * device that are triggered by the INIT firwmare (MFUART).
+		 */
+		_iwl_trans_stop_device(mvm->trans, false);
+		ret = _iwl_trans_start_hw(mvm->trans, false);
+		if (ret)
 			goto error;
-		}
-		if (!iwlmvm_mod_params.init_dbg) {
-			/*
-			 * should stop and start HW since that INIT
-			 * image just loaded
-			 */
-			iwl_trans_stop_device(mvm->trans);
-			ret = iwl_trans_start_hw(mvm->trans);
-			if (ret)
-				return ret;
-		}
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -766,7 +754,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		ret = iwl_mvm_config_scan(mvm);
 		if (ret)
 			goto error;
@@ -841,21 +829,6 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  (flags & CT_KILL_CARD_DISABLED) ?
 			  "Reached" : "Not reached");
 
-	return 0;
-}
-
-int iwl_mvm_rx_radio_ver(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			 struct iwl_device_cmd *cmd)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_radio_version_notif *radio_version = (void *)pkt->data;
-
-	/* TODO: what to do with that? */
-	IWL_DEBUG_INFO(mvm,
-		       "Radio version: flavor: 0x%08x, step 0x%08x, dash 0x%08x\n",
-		       le32_to_cpu(radio_version->radio_flavor),
-		       le32_to_cpu(radio_version->radio_step),
-		       le32_to_cpu(radio_version->radio_dash));
 	return 0;
 }
 

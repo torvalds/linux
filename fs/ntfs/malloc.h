@@ -85,12 +85,7 @@ static inline void *ntfs_malloc_nofs_nofail(unsigned long size)
 
 static inline void ntfs_free(void *addr)
 {
-	if (!is_vmalloc_addr(addr)) {
-		kfree(addr);
-		/* free_page((unsigned long)addr); */
-		return;
-	}
-	vfree(addr);
+	kvfree(addr);
 }
 
 #endif /* _LINUX_NTFS_MALLOC_H */

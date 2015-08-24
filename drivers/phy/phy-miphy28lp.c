@@ -367,7 +367,7 @@ static struct miphy28lp_pll_gen pcie_pll_gen[] = {
 
 static inline void miphy28lp_set_reset(struct miphy28lp_phy *miphy_phy)
 {
-	void *base = miphy_phy->base;
+	void __iomem *base = miphy_phy->base;
 	u8 val;
 
 	/* Putting Macro in reset */
@@ -391,7 +391,7 @@ static inline void miphy28lp_set_reset(struct miphy28lp_phy *miphy_phy)
 static inline void miphy28lp_pll_calibration(struct miphy28lp_phy *miphy_phy,
 		struct pll_ratio *pll_ratio)
 {
-	void *base = miphy_phy->base;
+	void __iomem *base = miphy_phy->base;
 	u8 val;
 
 	/* Applying PLL Settings */
@@ -1106,11 +1106,6 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 	struct miphy28lp_phy *miphy_phy = NULL;
 	struct device_node *phynode = args->np;
 	int ret, index = 0;
-
-	if (!of_device_is_available(phynode)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
 
 	if (args->args_count != 1) {
 		dev_err(dev, "Invalid number of cells in 'phy' property\n");

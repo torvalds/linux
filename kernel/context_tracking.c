@@ -30,12 +30,23 @@ EXPORT_SYMBOL_GPL(context_tracking_enabled);
 DEFINE_PER_CPU(struct context_tracking, context_tracking);
 EXPORT_SYMBOL_GPL(context_tracking);
 
-void context_tracking_cpu_set(int cpu)
+static bool context_tracking_recursion_enter(void)
 {
-	if (!per_cpu(context_tracking.active, cpu)) {
-		per_cpu(context_tracking.active, cpu) = true;
-		static_key_slow_inc(&context_tracking_enabled);
-	}
+	int recursion;
+
+	recursion = __this_cpu_inc_return(context_tracking.recursion);
+	if (recursion == 1)
+		return true;
+
+	WARN_ONCE((recursion < 1), "Invalid context tracking recursion value %d\n", recursion);
+	__this_cpu_dec(context_tracking.recursion);
+
+	return false;
+}
+
+static void context_tracking_recursion_exit(void)
+{
+	__this_cpu_dec(context_tracking.recursion);
 }
 
 /**
@@ -75,6 +86,9 @@ void context_tracking_enter(enum ctx_state state)
 	WARN_ON_ONCE(!current->mm);
 
 	local_irq_save(flags);
+	if (!context_tracking_recursion_enter())
+		goto out_irq_restore;
+
 	if ( __this_cpu_read(context_tracking.state) != state) {
 		if (__this_cpu_read(context_tracking.active)) {
 			/*
@@ -105,6 +119,8 @@ void context_tracking_enter(enum ctx_state state)
 		 */
 		__this_cpu_write(context_tracking.state, state);
 	}
+	context_tracking_recursion_exit();
+out_irq_restore:
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(context_tracking_enter);
@@ -139,6 +155,9 @@ void context_tracking_exit(enum ctx_state state)
 		return;
 
 	local_irq_save(flags);
+	if (!context_tracking_recursion_enter())
+		goto out_irq_restore;
+
 	if (__this_cpu_read(context_tracking.state) == state) {
 		if (__this_cpu_read(context_tracking.active)) {
 			/*
@@ -153,6 +172,8 @@ void context_tracking_exit(enum ctx_state state)
 		}
 		__this_cpu_write(context_tracking.state, CONTEXT_KERNEL);
 	}
+	context_tracking_recursion_exit();
+out_irq_restore:
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(context_tracking_exit);
@@ -164,24 +185,26 @@ void context_tracking_user_exit(void)
 }
 NOKPROBE_SYMBOL(context_tracking_user_exit);
 
-/**
- * __context_tracking_task_switch - context switch the syscall callbacks
- * @prev: the task that is being switched out
- * @next: the task that is being switched in
- *
- * The context tracking uses the syscall slow path to implement its user-kernel
- * boundaries probes on syscalls. This way it doesn't impact the syscall fast
- * path on CPUs that don't do context tracking.
- *
- * But we need to clear the flag on the previous task because it may later
- * migrate to some CPU that doesn't do the context tracking. As such the TIF
- * flag may not be desired there.
- */
-void __context_tracking_task_switch(struct task_struct *prev,
-				    struct task_struct *next)
+void __init context_tracking_cpu_set(int cpu)
 {
-	clear_tsk_thread_flag(prev, TIF_NOHZ);
-	set_tsk_thread_flag(next, TIF_NOHZ);
+	static __initdata bool initialized = false;
+
+	if (!per_cpu(context_tracking.active, cpu)) {
+		per_cpu(context_tracking.active, cpu) = true;
+		static_key_slow_inc(&context_tracking_enabled);
+	}
+
+	if (initialized)
+		return;
+
+	/*
+	 * Set TIF_NOHZ to init/0 and let it propagate to all tasks through fork
+	 * This assumes that init is the only task at this early boot stage.
+	 */
+	set_tsk_thread_flag(&init_task, TIF_NOHZ);
+	WARN_ON_ONCE(!tasklist_empty());
+
+	initialized = true;
 }
 
 #ifdef CONFIG_CONTEXT_TRACKING_FORCE

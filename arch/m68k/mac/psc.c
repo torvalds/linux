@@ -148,14 +148,10 @@ static void psc_irq(unsigned int irq, struct irq_desc *desc)
 
 void __init psc_register_interrupts(void)
 {
-	irq_set_chained_handler(IRQ_AUTO_3, psc_irq);
-	irq_set_handler_data(IRQ_AUTO_3, (void *)0x30);
-	irq_set_chained_handler(IRQ_AUTO_4, psc_irq);
-	irq_set_handler_data(IRQ_AUTO_4, (void *)0x40);
-	irq_set_chained_handler(IRQ_AUTO_5, psc_irq);
-	irq_set_handler_data(IRQ_AUTO_5, (void *)0x50);
-	irq_set_chained_handler(IRQ_AUTO_6, psc_irq);
-	irq_set_handler_data(IRQ_AUTO_6, (void *)0x60);
+	irq_set_chained_handler_and_data(IRQ_AUTO_3, psc_irq, (void *)0x30);
+	irq_set_chained_handler_and_data(IRQ_AUTO_4, psc_irq, (void *)0x40);
+	irq_set_chained_handler_and_data(IRQ_AUTO_5, psc_irq, (void *)0x50);
+	irq_set_chained_handler_and_data(IRQ_AUTO_6, psc_irq, (void *)0x60);
 }
 
 void psc_irq_enable(int irq) {

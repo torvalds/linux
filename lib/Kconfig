@@ -212,6 +212,12 @@ config RANDOM32_SELFTEST
 #
 # compression support is select'ed if needed
 #
+config 842_COMPRESS
+	tristate
+
+config 842_DECOMPRESS
+	tristate
+
 config ZLIB_INFLATE
 	tristate
 
@@ -521,5 +527,8 @@ source "lib/fonts/Kconfig"
 
 config ARCH_HAS_SG_CHAIN
 	def_bool n
+
+config ARCH_HAS_PMEM_API
+	bool
 
 endmenu

@@ -195,7 +195,7 @@ abort:
 }
 
 static int nct7802_write_voltage(struct nct7802_data *data, int nr, int index,
-				 unsigned int voltage)
+				 unsigned long voltage)
 {
 	int shift = 8 - REG_VOLTAGE_LIMIT_MSB_SHIFT[index - 1][nr];
 	int err;
@@ -547,7 +547,7 @@ static umode_t nct7802_temp_is_visible(struct kobject *kobj,
 	if (index >= 9 && index < 18 &&
 	    (reg & 0x0c) != 0x04 && (reg & 0x0c) != 0x08)	/* RD2 */
 		return 0;
-	if (index >= 18 && index < 27 && (reg & 0x30) != 0x10)	/* RD3 */
+	if (index >= 18 && index < 27 && (reg & 0x30) != 0x20)	/* RD3 */
 		return 0;
 	if (index >= 27 && index < 35)				/* local */
 		return attr->mode;

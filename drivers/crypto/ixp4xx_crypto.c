@@ -25,7 +25,7 @@
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/algapi.h>
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 
@@ -575,7 +575,8 @@ static int init_tfm_ablk(struct crypto_tfm *tfm)
 
 static int init_tfm_aead(struct crypto_tfm *tfm)
 {
-	tfm->crt_aead.reqsize = sizeof(struct aead_ctx);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct aead_ctx));
 	return init_tfm(tfm);
 }
 
@@ -904,7 +905,6 @@ static int ablk_perform(struct ablkcipher_request *req, int encrypt)
 		crypt->mode |= NPE_OP_NOT_IN_PLACE;
 		/* This was never tested by Intel
 		 * for more than one dst buffer, I think. */
-		BUG_ON(req->dst->length < nbytes);
 		req_ctx->dst = NULL;
 		if (!chainup_buffers(dev, req->dst, nbytes, &dst_hook,
 					flags, DMA_FROM_DEVICE))
@@ -1096,7 +1096,7 @@ static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
 	u32 *flags = &tfm->base.crt_flags;
-	unsigned digest_len = crypto_aead_alg(tfm)->maxauthsize;
+	unsigned digest_len = crypto_aead_maxauthsize(tfm);
 	int ret;
 
 	if (!ctx->enckey_len && !ctx->authkey_len)
@@ -1138,7 +1138,7 @@ out:
 
 static int aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
-	int max = crypto_aead_alg(tfm)->maxauthsize >> 2;
+	int max = crypto_aead_maxauthsize(tfm) >> 2;
 
 	if ((authsize>>2) < 1 || (authsize>>2) > max || (authsize & 3))
 		return -EINVAL;

@@ -942,8 +942,7 @@ static void sender(void                *send_info,
 		 * If we are running to completion, start it and run
 		 * transactions until everything is clear.
 		 */
-		smi_info->curr_msg = msg;
-		smi_info->waiting_msg = NULL;
+		smi_info->waiting_msg = msg;
 
 		/*
 		 * Run to completion means we are single-threaded, no
@@ -2244,7 +2243,7 @@ static int ipmi_pnp_probe(struct pnp_dev *dev,
 	acpi_handle handle;
 	acpi_status status;
 	unsigned long long tmp;
-	int rv;
+	int rv = -EINVAL;
 
 	acpi_dev = pnp_acpi_device(dev);
 	if (!acpi_dev)
@@ -2262,8 +2261,10 @@ static int ipmi_pnp_probe(struct pnp_dev *dev,
 
 	/* _IFT tells us the interface type: KCS, BT, etc */
 	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+		dev_err(&dev->dev, "Could not find ACPI IPMI interface type\n");
 		goto err_free;
+	}
 
 	switch (tmp) {
 	case 1:
@@ -2276,6 +2277,7 @@ static int ipmi_pnp_probe(struct pnp_dev *dev,
 		info->si_type = SI_BT;
 		break;
 	case 4: /* SSIF, just ignore */
+		rv = -ENODEV;
 		goto err_free;
 	default:
 		dev_info(&dev->dev, "unknown IPMI type %lld\n", tmp);
@@ -2336,7 +2338,7 @@ static int ipmi_pnp_probe(struct pnp_dev *dev,
 
 err_free:
 	kfree(info);
-	return -EINVAL;
+	return rv;
 }
 
 static void ipmi_pnp_remove(struct pnp_dev *dev)
@@ -3080,7 +3082,7 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%s\n", si_to_str[smi->si_type]);
 
-	return seq_has_overflowed(m);
+	return 0;
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)
@@ -3153,7 +3155,7 @@ static int smi_params_proc_show(struct seq_file *m, void *v)
 		   smi->irq,
 		   smi->slave_addr);
 
-	return seq_has_overflowed(m);
+	return 0;
 }
 
 static int smi_params_proc_open(struct inode *inode, struct file *file)

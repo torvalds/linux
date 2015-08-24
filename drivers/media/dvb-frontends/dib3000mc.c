@@ -131,7 +131,7 @@ static int dib3000mc_set_timing(struct dib3000mc_state *state, s16 nfft, u32 bw,
 static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
 {
 	u16 reg_51, reg_52 = state->cfg->agc->setup & 0xfefb;
-    if (state->cfg->pwm3_inversion) {
+	if (state->cfg->pwm3_inversion) {
 		reg_51 =  (2 << 14) | (0 << 10) | (7 << 6) | (2 << 2) | (2 << 0);
 		reg_52 |= (1 << 2);
 	} else {
@@ -141,12 +141,12 @@ static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
 	dib3000mc_write_word(state, 51, reg_51);
 	dib3000mc_write_word(state, 52, reg_52);
 
-    if (state->cfg->use_pwm3)
+	if (state->cfg->use_pwm3)
 		dib3000mc_write_word(state, 245, (1 << 3) | (1 << 0));
 	else
 		dib3000mc_write_word(state, 245, 0);
 
-    dib3000mc_write_word(state, 1040, 0x3);
+	dib3000mc_write_word(state, 1040, 0x3);
 	return 0;
 }
 
@@ -417,7 +417,7 @@ static int dib3000mc_sleep(struct dvb_frontend *demod)
 	dib3000mc_write_word(state, 1032, 0xFFFF);
 	dib3000mc_write_word(state, 1033, 0xFFF0);
 
-    return 0;
+	return 0;
 }
 
 static void dib3000mc_set_adp_cfg(struct dib3000mc_state *state, s16 qam)
@@ -447,10 +447,14 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state,
 	dib3000mc_set_bandwidth(state, bw);
 	dib3000mc_set_timing(state, ch->transmission_mode, bw, 0);
 
-//	if (boost)
-//		dib3000mc_write_word(state, 100, (11 << 6) + 6);
-//	else
+#if 1
+	dib3000mc_write_word(state, 100, (16 << 6) + 9);
+#else
+	if (boost)
+		dib3000mc_write_word(state, 100, (11 << 6) + 6);
+	else
 		dib3000mc_write_word(state, 100, (16 << 6) + 9);
+#endif
 
 	dib3000mc_write_word(state, 1027, 0x0800);
 	dib3000mc_write_word(state, 1027, 0x0000);
@@ -732,7 +736,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib3000mc_read_status(struct dvb_frontend *fe, fe_status_t *stat)
+static int dib3000mc_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 lock = dib3000mc_read_word(state, 509);

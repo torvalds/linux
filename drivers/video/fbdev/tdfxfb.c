@@ -78,24 +78,6 @@
 
 #define DPRINTK(a, b...) pr_debug("fb: %s: " a, __func__ , ## b)
 
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#else
-/* duplicate asm/mtrr.h defines to work on archs without mtrr */
-#define MTRR_TYPE_WRCOMB     1
-
-static inline int mtrr_add(unsigned long base, unsigned long size,
-				unsigned int type, char increment)
-{
-    return -ENODEV;
-}
-static inline int mtrr_del(int reg, unsigned long base,
-				unsigned long size)
-{
-    return -ENODEV;
-}
-#endif
-
 #define BANSHEE_MAX_PIXCLOCK 270000
 #define VOODOO3_MAX_PIXCLOCK 300000
 #define VOODOO5_MAX_PIXCLOCK 350000
@@ -167,7 +149,6 @@ static int nopan;
 static int nowrap = 1;      /* not implemented (yet) */
 static int hwcursor = 1;
 static char *mode_option;
-/* mtrr option */
 static bool nomtrr;
 
 /* -------------------------------------------------------------------------
@@ -1454,8 +1435,8 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_err_regbase;
 	}
 
-	info->screen_base = ioremap_nocache(info->fix.smem_start,
-					    info->fix.smem_len);
+	info->screen_base = ioremap_wc(info->fix.smem_start,
+				       info->fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "fb: Can't remap %s framebuffer.\n",
 				info->fix.id);
@@ -1473,11 +1454,9 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	printk(KERN_INFO "fb: %s memory = %dK\n", info->fix.id,
 			info->fix.smem_len >> 10);
 
-	default_par->mtrr_handle = -1;
 	if (!nomtrr)
-		default_par->mtrr_handle =
-			mtrr_add(info->fix.smem_start, info->fix.smem_len,
-				 MTRR_TYPE_WRCOMB, 1);
+		default_par->wc_cookie= arch_phys_wc_add(info->fix.smem_start,
+							 info->fix.smem_len);
 
 	info->fix.ypanstep	= nopan ? 0 : 1;
 	info->fix.ywrapstep	= nowrap ? 0 : 1;
@@ -1566,9 +1545,7 @@ out_err_iobase:
 #ifdef CONFIG_FB_3DFX_I2C
 	tdfxfb_delete_i2c_busses(default_par);
 #endif
-	if (default_par->mtrr_handle >= 0)
-		mtrr_del(default_par->mtrr_handle, info->fix.smem_start,
-			 info->fix.smem_len);
+	arch_phys_wc_del(default_par->wc_cookie);
 	release_region(pci_resource_start(pdev, 2),
 		       pci_resource_len(pdev, 2));
 out_err_screenbase:
@@ -1604,10 +1581,8 @@ static void __init tdfxfb_setup(char *options)
 			nowrap = 1;
 		} else if (!strncmp(this_opt, "hwcursor=", 9)) {
 			hwcursor = simple_strtoul(this_opt + 9, NULL, 0);
-#ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
-#endif
 		} else {
 			mode_option = this_opt;
 		}
@@ -1633,9 +1608,7 @@ static void tdfxfb_remove(struct pci_dev *pdev)
 #ifdef CONFIG_FB_3DFX_I2C
 	tdfxfb_delete_i2c_busses(par);
 #endif
-	if (par->mtrr_handle >= 0)
-		mtrr_del(par->mtrr_handle, info->fix.smem_start,
-			 info->fix.smem_len);
+	arch_phys_wc_del(par->wc_cookie);
 	iounmap(par->regbase_virt);
 	iounmap(info->screen_base);
 
@@ -1677,10 +1650,8 @@ MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disable MTRR support (default: enabled)");
-#endif
 
 module_init(tdfxfb_init);
 module_exit(tdfxfb_exit);

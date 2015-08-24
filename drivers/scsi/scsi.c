@@ -98,52 +98,6 @@ EXPORT_SYMBOL(scsi_sd_probe_domain);
 ASYNC_DOMAIN_EXCLUSIVE(scsi_sd_pm_domain);
 EXPORT_SYMBOL(scsi_sd_pm_domain);
 
-/* NB: These are exposed through /proc/scsi/scsi and form part of the ABI.
- * You may not alter any existing entry (although adding new ones is
- * encouraged once assigned by ANSI/INCITS T10
- */
-static const char *const scsi_device_types[] = {
-	"Direct-Access    ",
-	"Sequential-Access",
-	"Printer          ",
-	"Processor        ",
-	"WORM             ",
-	"CD-ROM           ",
-	"Scanner          ",
-	"Optical Device   ",
-	"Medium Changer   ",
-	"Communications   ",
-	"ASC IT8          ",
-	"ASC IT8          ",
-	"RAID             ",
-	"Enclosure        ",
-	"Direct-Access-RBC",
-	"Optical card     ",
-	"Bridge controller",
-	"Object storage   ",
-	"Automation/Drive ",
-	"Security Manager ",
-	"Direct-Access-ZBC",
-};
-
-/**
- * scsi_device_type - Return 17 char string indicating device type.
- * @type: type number to look up
- */
-
-const char * scsi_device_type(unsigned type)
-{
-	if (type == 0x1e)
-		return "Well-known LUN   ";
-	if (type == 0x1f)
-		return "No Device        ";
-	if (type >= ARRAY_SIZE(scsi_device_types))
-		return "Unknown          ";
-	return scsi_device_types[type];
-}
-
-EXPORT_SYMBOL(scsi_device_type);
-
 struct scsi_host_cmd_pool {
 	struct kmem_cache	*cmd_slab;
 	struct kmem_cache	*sense_slab;

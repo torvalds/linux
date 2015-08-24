@@ -519,7 +519,7 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 /**
  * pseries_eeh_wait_state - Wait for PE state
  * @pe: EEH PE
- * @max_wait: maximal period in microsecond
+ * @max_wait: maximal period in millisecond
  *
  * Wait for the state of associated PE. It might take some time
  * to retrieve the PE's state.

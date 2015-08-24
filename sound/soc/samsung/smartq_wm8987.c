@@ -137,8 +137,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 	int err = 0;
 
 	/* set endpoints to not connected */
@@ -146,9 +145,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "RINPUT1");
 	snd_soc_dapm_nc_pin(dapm, "OUT3");
 	snd_soc_dapm_nc_pin(dapm, "ROUT1");
-
-	/* set endpoints to default off mode */
-	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
 
 	/* Headphone jack detection */
 	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",

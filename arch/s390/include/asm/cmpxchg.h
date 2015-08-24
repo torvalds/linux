@@ -32,8 +32,6 @@
 	__old;								\
 })
 
-#define __HAVE_ARCH_CMPXCHG
-
 #define __cmpxchg_double_op(p1, p2, o1, o2, n1, n2, insn)		\
 ({									\
 	register __typeof__(*(p1)) __old1 asm("2") = (o1);		\

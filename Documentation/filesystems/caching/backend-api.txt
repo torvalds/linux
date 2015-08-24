@@ -676,6 +676,29 @@ FS-Cache provides some utilities that a cache backend may make use of:
      as possible.
 
 
+ (*) Indicate that a stale object was found and discarded:
+
+	void fscache_object_retrying_stale(struct fscache_object *object);
+
+     This is called to indicate that the lookup procedure found an object in
+     the cache that the netfs decided was stale.  The object has been
+     discarded from the cache and the lookup will be performed again.
+
+
+ (*) Indicate that the caching backend killed an object:
+
+	void fscache_object_mark_killed(struct fscache_object *object,
+					enum fscache_why_object_killed why);
+
+     This is called to indicate that the cache backend preemptively killed an
+     object.  The why parameter should be set to indicate the reason:
+
+	FSCACHE_OBJECT_IS_STALE - the object was stale and needs discarding.
+	FSCACHE_OBJECT_NO_SPACE - there was insufficient cache space
+	FSCACHE_OBJECT_WAS_RETIRED - the object was retired when relinquished.
+	FSCACHE_OBJECT_WAS_CULLED - the object was culled to make space.
+
+
  (*) Get and release references on a retrieval record:
 
 	void fscache_get_retrieval(struct fscache_retrieval *op);

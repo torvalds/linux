@@ -144,7 +144,6 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
  * Compare and exchange - if *p == old, set it to new,
  * and return the old value of *p.
  */
-#define __HAVE_ARCH_CMPXCHG	1
 
 static __always_inline unsigned long
 __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)

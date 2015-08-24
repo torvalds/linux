@@ -37,7 +37,7 @@
 #include <linux/cdrom.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
-#include <linux/time.h>
+#include <linux/time64.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -47,9 +47,6 @@
 #include <scsi/scsi_host.h>
 
 #define CR_DRIVER_NAME		"rts5208"
-
-#define pci_get_bus_and_slot(bus, devfn)	\
-	pci_get_domain_bus_and_slot(0, (bus), (devfn))
 
 /*
  * macros for easy use
@@ -148,21 +145,24 @@ static inline struct rtsx_dev *host_to_rtsx(struct Scsi_Host *host)
 
 static inline void get_current_time(u8 *timeval_buf, int buf_len)
 {
-	struct timeval tv;
+	struct timespec64 ts64;
+	u32 tv_usec;
 
 	if (!timeval_buf || (buf_len < 8))
 		return;
 
-	do_gettimeofday(&tv);
+	getnstimeofday64(&ts64);
 
-	timeval_buf[0] = (u8)(tv.tv_sec >> 24);
-	timeval_buf[1] = (u8)(tv.tv_sec >> 16);
-	timeval_buf[2] = (u8)(tv.tv_sec >> 8);
-	timeval_buf[3] = (u8)(tv.tv_sec);
-	timeval_buf[4] = (u8)(tv.tv_usec >> 24);
-	timeval_buf[5] = (u8)(tv.tv_usec >> 16);
-	timeval_buf[6] = (u8)(tv.tv_usec >> 8);
-	timeval_buf[7] = (u8)(tv.tv_usec);
+	tv_usec = ts64.tv_nsec/NSEC_PER_USEC;
+
+	timeval_buf[0] = (u8)(ts64.tv_sec >> 24);
+	timeval_buf[1] = (u8)(ts64.tv_sec >> 16);
+	timeval_buf[2] = (u8)(ts64.tv_sec >> 8);
+	timeval_buf[3] = (u8)(ts64.tv_sec);
+	timeval_buf[4] = (u8)(tv_usec >> 24);
+	timeval_buf[5] = (u8)(tv_usec >> 16);
+	timeval_buf[6] = (u8)(tv_usec >> 8);
+	timeval_buf[7] = (u8)(tv_usec);
 }
 
 /* The scsi_lock() and scsi_unlock() macros protect the sm_state and the

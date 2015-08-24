@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -65,7 +65,8 @@ enum mcc_base_status {
 enum mcc_addl_status {
 	MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES = 0x16,
 	MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH = 0x4d,
-	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a
+	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a,
+	MCC_ADDL_STATUS_INSUFFICIENT_VLANS = 0xab
 };
 
 #define CQE_BASE_STATUS_MASK		0xFFFF
@@ -104,6 +105,7 @@ struct be_mcc_compl {
 #define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
 #define ASYNC_EVENT_CODE_SLIPORT	0x11
 #define ASYNC_EVENT_PORT_MISCONFIG	0x9
+#define ASYNC_EVENT_FW_CONTROL		0x5
 
 enum {
 	LINK_DOWN	= 0x0,
@@ -178,6 +180,22 @@ struct be_async_event_misconfig_port {
 	u32 event_data_word2;
 	u32 rsvd0;
 	u32 flags;
+} __packed;
+
+#define BMC_FILT_BROADCAST_ARP				BIT(0)
+#define BMC_FILT_BROADCAST_DHCP_CLIENT			BIT(1)
+#define BMC_FILT_BROADCAST_DHCP_SERVER			BIT(2)
+#define BMC_FILT_BROADCAST_NET_BIOS			BIT(3)
+#define BMC_FILT_BROADCAST				BIT(7)
+#define BMC_FILT_MULTICAST_IPV6_NEIGH_ADVER		BIT(8)
+#define BMC_FILT_MULTICAST_IPV6_RA			BIT(9)
+#define BMC_FILT_MULTICAST_IPV6_RAS			BIT(10)
+#define BMC_FILT_MULTICAST				BIT(15)
+struct be_async_fw_control {
+	u32 event_data_word1;
+	u32 event_data_word2;
+	u32 evt_tag;
+	u32 event_data_word4;
 } __packed;
 
 struct be_mcc_mailbox {
@@ -601,6 +619,11 @@ enum be_if_flags {
 #define BE_IF_FLAGS_ALL_PROMISCUOUS	(BE_IF_FLAGS_PROMISCUOUS | \
 					 BE_IF_FLAGS_VLAN_PROMISCUOUS |\
 					 BE_IF_FLAGS_MCAST_PROMISCUOUS)
+
+#define BE_IF_EN_FLAGS	(BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_PASS_L3L4_ERRORS |\
+			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_UNTAGGED)
+
+#define BE_IF_ALL_FILT_FLAGS	(BE_IF_EN_FLAGS | BE_IF_FLAGS_ALL_PROMISCUOUS)
 
 /* An RX interface is an object with one or more MAC addresses and
  * filtering capabilities. */
@@ -1108,10 +1131,6 @@ struct be_cmd_req_query_fw_cfg {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd[31];
 };
-
-/* ASIC revisions */
-#define ASIC_REV_B0		0x10
-#define ASIC_REV_P2		0x11
 
 struct be_cmd_resp_query_fw_cfg {
 	struct be_cmd_resp_hdr hdr;
@@ -1745,18 +1764,24 @@ struct be_cmd_req_set_mac_list {
 #define PORT_FWD_TYPE_VEPA		0x3
 #define PORT_FWD_TYPE_VEB		0x2
 
+#define ENABLE_MAC_SPOOFCHK		0x2
+#define DISABLE_MAC_SPOOFCHK		0x3
+
 struct amap_set_hsw_context {
 	u8 interface_id[16];
-	u8 rsvd0[14];
+	u8 rsvd0[8];
+	u8 mac_spoofchk[2];
+	u8 rsvd1[4];
 	u8 pvid_valid;
 	u8 pport;
-	u8 rsvd1[6];
+	u8 rsvd2[6];
 	u8 port_fwd_type[3];
-	u8 rsvd2[7];
+	u8 rsvd3[5];
+	u8 vlan_spoofchk[2];
 	u8 pvid[16];
-	u8 rsvd3[32];
 	u8 rsvd4[32];
 	u8 rsvd5[32];
+	u8 rsvd6[32];
 } __packed;
 
 struct be_cmd_req_set_hsw_config {
@@ -1774,11 +1799,13 @@ struct amap_get_hsw_req_context {
 struct amap_get_hsw_resp_context {
 	u8 rsvd0[6];
 	u8 port_fwd_type[3];
-	u8 rsvd1[7];
+	u8 rsvd1[5];
+	u8 spoofchk;
+	u8 rsvd2;
 	u8 pvid[16];
-	u8 rsvd2[32];
 	u8 rsvd3[32];
 	u8 rsvd4[32];
+	u8 rsvd5[32];
 } __packed;
 
 struct be_cmd_req_get_hsw_config {
@@ -2334,9 +2361,9 @@ int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array, u8 mac_count,
 			u32 domain);
 int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom);
 int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid, u32 domain,
-			  u16 intf_id, u16 hsw_mode);
+			  u16 intf_id, u16 hsw_mode, u8 spoofchk);
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid, u32 domain,
-			  u16 intf_id, u8 *mode);
+			  u16 intf_id, u8 *mode, bool *spoofchk);
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
 int be_cmd_set_fw_log_level(struct be_adapter *adapter, u32 level);
 int be_cmd_get_fw_log_level(struct be_adapter *adapter);

@@ -30,17 +30,12 @@
 #include <linux/hash.h>
 #include <linux/percpu_ida.h>
 #include <asm/unaligned.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
 #include "tcm_fc.h"
@@ -245,15 +240,6 @@ int ft_write_pending(struct se_cmd *se_cmd)
 	}
 	lport->tt.seq_send(lport, cmd->seq, fp);
 	return 0;
-}
-
-u32 ft_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
-
-	if (cmd->aborted)
-		return ~0;
-	return fc_seq_exch(cmd->seq)->rxid;
 }
 
 int ft_get_cmd_state(struct se_cmd *se_cmd)
@@ -568,6 +554,7 @@ static void ft_send_work(struct work_struct *work)
 	}
 
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
+	cmd->se_cmd.tag = fc_seq_exch(cmd->seq)->rxid;
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
 	 * directly from ft_check_stop_free callback in response path.

@@ -21,6 +21,7 @@
 #include "xattr.h"
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/quotaops.h>
@@ -588,8 +589,7 @@ static struct kmem_cache *reiserfs_inode_cachep;
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
 	struct reiserfs_inode_info *ei;
-	ei = (struct reiserfs_inode_info *)
-	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	atomic_set(&ei->openers, 0);
@@ -1687,7 +1687,7 @@ static __u32 find_hash_out(struct super_block *s)
 	__u32 hash = DEFAULT_HASH;
 	__u32 deh_hashval, teahash, r5hash, yurahash;
 
-	inode = s->s_root->d_inode;
+	inode = d_inode(s->s_root);
 
 	make_cpu_key(&key, inode, ~0, TYPE_DIRENTRY, 3);
 	retval = search_by_entry_key(s, &key, &path, &de);
@@ -2347,7 +2347,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		err = -EXDEV;
 		goto out;
 	}
-	inode = path->dentry->d_inode;
+	inode = d_inode(path->dentry);
 	/*
 	 * We must not pack tails for quota files on reiserfs for quota
 	 * IO to work

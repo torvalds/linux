@@ -242,7 +242,7 @@ config MTD_L440GX
 
 config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
-	depends on 8xx && MTD_CFI
+	depends on PPC_8xx && MTD_CFI
 	help
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.
@@ -326,7 +326,7 @@ config MTD_BFIN_ASYNC
 
 config MTD_GPIO_ADDR
 	tristate "GPIO-assisted Flash Chip Support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	depends on MTD_COMPLEX_MAPPINGS
 	help
 	  Map driver which allows flashes to be partially physically addressed

@@ -69,15 +69,15 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pcie->resources = &res;
+	pcie->map_irq = of_irq_parse_and_map_pci;
 
-	ret = iproc_pcie_setup(pcie);
-	if (ret) {
+	ret = iproc_pcie_setup(pcie, &res);
+	if (ret)
 		dev_err(pcie->dev, "PCIe controller setup failed\n");
-		return ret;
-	}
 
-	return 0;
+	pci_free_resource_list(&res);
+
+	return ret;
 }
 
 static int iproc_pcie_pltfm_remove(struct platform_device *pdev)

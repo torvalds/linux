@@ -4,6 +4,10 @@ dts-dirs += arm
 dts-dirs += cavium
 dts-dirs += exynos
 dts-dirs += freescale
+dts-dirs += hisilicon
 dts-dirs += mediatek
+dts-dirs += qcom
+dts-dirs += sprd
+dts-dirs += xilinx
 
 subdir-y	:= $(dts-dirs)

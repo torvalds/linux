@@ -12,14 +12,6 @@
 #include <linux/sunrpc/debug.h>
 
 /*
- * Enable debugging for nfsd.
- * Requires RPC_DEBUG.
- */
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define NFSD_DEBUG		1
-#endif
-
-/*
  * knfsd debug flags
  */
 #define NFSDDBG_SOCK		0x0001

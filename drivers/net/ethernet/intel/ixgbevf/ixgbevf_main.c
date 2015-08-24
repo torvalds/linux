@@ -765,7 +765,7 @@ static void ixgbevf_reuse_rx_page(struct ixgbevf_ring *rx_ring,
 
 static inline bool ixgbevf_page_is_reserved(struct page *page)
 {
-	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
+	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
 /**
@@ -3612,7 +3612,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	u8 *dst_mac = skb_header_pointer(skb, 0, 0, NULL);
 
 	if (!dst_mac || is_link_local_ether_addr(dst_mac)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

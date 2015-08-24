@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -31,6 +32,7 @@
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_atomic_helper.h"
 
 /* Brightness scale on the Parade chip */
 #define PS8622_MAX_BRIGHTNESS 0xff
@@ -498,10 +500,13 @@ static void ps8622_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs ps8622_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ps8622_detect,
 	.destroy = ps8622_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int ps8622_attach(struct drm_bridge *bridge)
@@ -581,31 +586,21 @@ static int ps8622_probe(struct i2c_client *client,
 		ps8622->v12 = NULL;
 	}
 
-	ps8622->gpio_slp = devm_gpiod_get(dev, "sleep");
+	ps8622->gpio_slp = devm_gpiod_get(dev, "sleep", GPIOD_OUT_HIGH);
 	if (IS_ERR(ps8622->gpio_slp)) {
 		ret = PTR_ERR(ps8622->gpio_slp);
 		dev_err(dev, "cannot get gpio_slp %d\n", ret);
 		return ret;
 	}
-	ret = gpiod_direction_output(ps8622->gpio_slp, 1);
-	if (ret) {
-		dev_err(dev, "cannot configure gpio_slp\n");
-		return ret;
-	}
 
-	ps8622->gpio_rst = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(ps8622->gpio_rst)) {
-		ret = PTR_ERR(ps8622->gpio_rst);
-		dev_err(dev, "cannot get gpio_rst %d\n", ret);
-		return ret;
-	}
 	/*
 	 * Assert the reset pin high to avoid the bridge being
 	 * initialized prematurely
 	 */
-	ret = gpiod_direction_output(ps8622->gpio_rst, 1);
-	if (ret) {
-		dev_err(dev, "cannot configure gpio_rst\n");
+	ps8622->gpio_rst = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ps8622->gpio_rst)) {
+		ret = PTR_ERR(ps8622->gpio_rst);
+		dev_err(dev, "cannot get gpio_rst %d\n", ret);
 		return ret;
 	}
 

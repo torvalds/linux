@@ -86,7 +86,7 @@ $(simple-targets): $(obj)/conf
 PHONY += oldnoconfig savedefconfig defconfig
 
 # oldnoconfig is an alias of olddefconfig, because people already are dependent
-# on its behavior(sets new symbols to their default value but not 'n') with the
+# on its behavior (sets new symbols to their default value but not 'n') with the
 # counter-intuitive name.
 oldnoconfig: olddefconfig
 
@@ -115,6 +115,10 @@ PHONY += kvmconfig
 kvmconfig: kvm_guest.config
 	@:
 
+PHONY += xenconfig
+xenconfig: xen.config
+	@:
+
 PHONY += tinyconfig
 tinyconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile allnoconfig tiny.config
@@ -122,10 +126,11 @@ tinyconfig:
 # Help text used by make help
 help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
-	@echo  '  nconfig         - Update current config utilising a ncurses menu based program'
+	@echo  '  nconfig         - Update current config utilising a ncurses menu based'
+	@echo  '                    program'
 	@echo  '  menuconfig	  - Update current config utilising a menu based program'
-	@echo  '  xconfig	  - Update current config utilising a QT based front-end'
-	@echo  '  gconfig	  - Update current config utilising a GTK based front-end'
+	@echo  '  xconfig	  - Update current config utilising a Qt based front-end'
+	@echo  '  gconfig	  - Update current config utilising a GTK+ based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
@@ -138,8 +143,10 @@ help:
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  listnewconfig   - List new options'
-	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their default value'
-	@echo  '  kvmconfig	  - Enable additional options for guest kernel support'
+	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their'
+	@echo  '                    default value'
+	@echo  '  kvmconfig	  - Enable additional options for kvm guest kernel support'
+	@echo  '  xenconfig       - Enable additional options for xen dom0 and guest kernel support'
 	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
 
 # lxdialog stuff
@@ -158,9 +165,9 @@ HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags) \
 # mconf:  Used for the menuconfig target
 #         Utilizes the lxdialog package
 # qconf:  Used for the xconfig target
-#         Based on QT which needs to be installed to compile it
+#         Based on Qt which needs to be installed to compile it
 # gconf:  Used for the gconfig target
-#         Based on GTK which needs to be installed to compile it
+#         Based on GTK+ which needs to be installed to compile it
 # object files used by all kconfig flavours
 
 lxdialog := lxdialog/checklist.o lxdialog/util.o lxdialog/inputbox.o
@@ -217,11 +224,11 @@ ifeq ($(MAKECMDGOALS),xconfig)
 $(obj)/.tmp_qtcheck: $(src)/Makefile
 -include $(obj)/.tmp_qtcheck
 
-# QT needs some extra effort...
+# Qt needs some extra effort...
 $(obj)/.tmp_qtcheck:
 	@set -e; $(kecho) "  CHECK   qt"; dir=""; pkg=""; \
 	if ! pkg-config --exists QtCore 2> /dev/null; then \
-	    echo "* Unable to find the QT4 tool qmake. Trying to use QT3"; \
+	    echo "* Unable to find the Qt4 tool qmake. Trying to use Qt3"; \
 	    pkg-config --exists qt 2> /dev/null && pkg=qt; \
 	    pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
 	    if [ -n "$$pkg" ]; then \
@@ -235,8 +242,8 @@ $(obj)/.tmp_qtcheck:
 	      done; \
 	      if [ -z "$$dir" ]; then \
 	        echo >&2 "*"; \
-	        echo >&2 "* Unable to find any QT installation. Please make sure that"; \
-	        echo >&2 "* the QT4 or QT3 development package is correctly installed and"; \
+	        echo >&2 "* Unable to find any Qt installation. Please make sure that"; \
+	        echo >&2 "* the Qt4 or Qt3 development package is correctly installed and"; \
 	        echo >&2 "* either qmake can be found or install pkg-config or set"; \
 	        echo >&2 "* the QTDIR environment variable to the correct location."; \
 	        echo >&2 "*"; \
@@ -273,7 +280,7 @@ $(obj)/gconf.o: $(obj)/.tmp_gtkcheck
 ifeq ($(MAKECMDGOALS),gconfig)
 -include $(obj)/.tmp_gtkcheck
 
-# GTK needs some extra effort, too...
+# GTK+ needs some extra effort, too...
 $(obj)/.tmp_gtkcheck:
 	@if `pkg-config --exists gtk+-2.0 gmodule-2.0 libglade-2.0`; then		\
 		if `pkg-config --atleast-version=2.0.0 gtk+-2.0`; then			\
@@ -304,7 +311,7 @@ quiet_cmd_moc = MOC     $@
 $(obj)/%.moc: $(src)/%.h $(obj)/.tmp_qtcheck
 	$(call cmd,moc)
 
-# Extract gconf menu items for I18N support
+# Extract gconf menu items for i18n support
 $(obj)/gconf.glade.h: $(obj)/gconf.glade
 	$(Q)intltool-extract --type=gettext/glade --srcdir=$(srctree) \
 	$(obj)/gconf.glade

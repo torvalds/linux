@@ -72,3 +72,7 @@
 &uart0 {
 	status = "okay";
 };
+
+&i2c {
+	status = "okay";
+};

@@ -112,7 +112,7 @@ BEFS_SB(const struct super_block *super)
 static inline struct befs_inode_info *
 BEFS_I(const struct inode *inode)
 {
-	return list_entry(inode, struct befs_inode_info, vfs_inode);
+	return container_of(inode, struct befs_inode_info, vfs_inode);
 }
 
 static inline befs_blocknr_t

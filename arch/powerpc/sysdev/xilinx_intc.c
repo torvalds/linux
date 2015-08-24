@@ -179,7 +179,7 @@ static int xilinx_intc_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops xilinx_intc_ops = {
+static const struct irq_domain_ops xilinx_intc_ops = {
 	.map = xilinx_intc_map,
 	.xlate = xilinx_intc_xlate,
 };

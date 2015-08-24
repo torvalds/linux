@@ -177,7 +177,7 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 	if (!cl)
 		goto out;
 
-	clk = __clk_create_clk(__clk_get_hw(cl->clk), dev_id, con_id);
+	clk = __clk_create_clk(cl->clk_hw, dev_id, con_id);
 	if (IS_ERR(clk))
 		goto out;
 
@@ -215,18 +215,26 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_put);
 
-void clkdev_add(struct clk_lookup *cl)
+static void __clkdev_add(struct clk_lookup *cl)
 {
 	mutex_lock(&clocks_mutex);
 	list_add_tail(&cl->node, &clocks);
 	mutex_unlock(&clocks_mutex);
 }
+
+void clkdev_add(struct clk_lookup *cl)
+{
+	if (!cl->clk_hw)
+		cl->clk_hw = __clk_get_hw(cl->clk);
+	__clkdev_add(cl);
+}
 EXPORT_SYMBOL(clkdev_add);
 
-void __init clkdev_add_table(struct clk_lookup *cl, size_t num)
+void clkdev_add_table(struct clk_lookup *cl, size_t num)
 {
 	mutex_lock(&clocks_mutex);
 	while (num--) {
+		cl->clk_hw = __clk_get_hw(cl->clk);
 		list_add_tail(&cl->node, &clocks);
 		cl++;
 	}
@@ -243,7 +251,7 @@ struct clk_lookup_alloc {
 };
 
 static struct clk_lookup * __init_refok
-vclkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt,
+vclkdev_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	va_list ap)
 {
 	struct clk_lookup_alloc *cla;
@@ -252,7 +260,7 @@ vclkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt,
 	if (!cla)
 		return NULL;
 
-	cla->cl.clk = clk;
+	cla->cl.clk_hw = hw;
 	if (con_id) {
 		strlcpy(cla->con_id, con_id, sizeof(cla->con_id));
 		cla->cl.con_id = cla->con_id;
@@ -266,6 +274,19 @@ vclkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt,
 	return &cla->cl;
 }
 
+static struct clk_lookup *
+vclkdev_create(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
+	va_list ap)
+{
+	struct clk_lookup *cl;
+
+	cl = vclkdev_alloc(hw, con_id, dev_fmt, ap);
+	if (cl)
+		__clkdev_add(cl);
+
+	return cl;
+}
+
 struct clk_lookup * __init_refok
 clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 {
@@ -273,28 +294,49 @@ clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 	va_list ap;
 
 	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(clk, con_id, dev_fmt, ap);
+	cl = vclkdev_alloc(__clk_get_hw(clk), con_id, dev_fmt, ap);
 	va_end(ap);
 
 	return cl;
 }
 EXPORT_SYMBOL(clkdev_alloc);
 
-int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
-	struct device *dev)
+/**
+ * clkdev_create - allocate and add a clkdev lookup structure
+ * @clk: struct clk to associate with all clk_lookups
+ * @con_id: connection ID string on device
+ * @dev_fmt: format string describing device name
+ *
+ * Returns a clk_lookup structure, which can be later unregistered and
+ * freed.
+ */
+struct clk_lookup *clkdev_create(struct clk *clk, const char *con_id,
+	const char *dev_fmt, ...)
 {
-	struct clk *r = clk_get(dev, id);
+	struct clk_lookup *cl;
+	va_list ap;
+
+	va_start(ap, dev_fmt);
+	cl = vclkdev_create(__clk_get_hw(clk), con_id, dev_fmt, ap);
+	va_end(ap);
+
+	return cl;
+}
+EXPORT_SYMBOL_GPL(clkdev_create);
+
+int clk_add_alias(const char *alias, const char *alias_dev_name,
+	const char *con_id, struct device *dev)
+{
+	struct clk *r = clk_get(dev, con_id);
 	struct clk_lookup *l;
 
 	if (IS_ERR(r))
 		return PTR_ERR(r);
 
-	l = clkdev_alloc(r, alias, alias_dev_name);
+	l = clkdev_create(r, alias, "%s", alias_dev_name);
 	clk_put(r);
-	if (!l)
-		return -ENODEV;
-	clkdev_add(l);
-	return 0;
+
+	return l ? 0 : -ENODEV;
 }
 EXPORT_SYMBOL(clk_add_alias);
 
@@ -334,15 +376,10 @@ int clk_register_clkdev(struct clk *clk, const char *con_id,
 		return PTR_ERR(clk);
 
 	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(clk, con_id, dev_fmt, ap);
+	cl = vclkdev_create(__clk_get_hw(clk), con_id, dev_fmt, ap);
 	va_end(ap);
 
-	if (!cl)
-		return -ENOMEM;
-
-	clkdev_add(cl);
-
-	return 0;
+	return cl ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(clk_register_clkdev);
 
@@ -365,8 +402,8 @@ int clk_register_clkdevs(struct clk *clk, struct clk_lookup *cl, size_t num)
 		return PTR_ERR(clk);
 
 	for (i = 0; i < num; i++, cl++) {
-		cl->clk = clk;
-		clkdev_add(cl);
+		cl->clk_hw = __clk_get_hw(clk);
+		__clkdev_add(cl);
 	}
 
 	return 0;

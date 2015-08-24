@@ -22,7 +22,7 @@ KASAN_SANITIZE_dumpstack_$(BITS).o := n
 
 CFLAGS_irq.o := -I$(src)/../include/asm/trace
 
-obj-y			:= process_$(BITS).o signal.o entry_$(BITS).o
+obj-y			:= process_$(BITS).o signal.o
 obj-y			+= traps.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
 obj-y			+= time.o ioport.o ldt.o dumpstack.o nmi.o
 obj-y			+= setup.o x86_init.o i8259.o irqinit.o jump_label.o
@@ -31,9 +31,6 @@ obj-y			+= probe_roms.o
 obj-$(CONFIG_X86_32)	+= i386_ksyms_32.o
 obj-$(CONFIG_X86_64)	+= sys_x86_64.o x8664_ksyms_64.o
 obj-$(CONFIG_X86_64)	+= mcount_64.o
-obj-y			+= syscall_$(BITS).o vsyscall_gtod.o
-obj-$(CONFIG_IA32_EMULATION)	+= syscall_32.o
-obj-$(CONFIG_X86_VSYSCALL_EMULATION)	+= vsyscall_64.o vsyscall_emu_64.o
 obj-$(CONFIG_X86_ESPFIX64)	+= espfix_64.o
 obj-$(CONFIG_SYSFS)	+= ksysfs.o
 obj-y			+= bootflag.o e820.o
@@ -44,7 +41,7 @@ obj-y			+= pci-iommu_table.o
 obj-y			+= resource.o
 
 obj-y				+= process.o
-obj-y				+= i387.o xsave.o
+obj-y				+= fpu/
 obj-y				+= ptrace.o
 obj-$(CONFIG_X86_32)		+= tls.o
 obj-$(CONFIG_IA32_EMULATION)	+= tls.o

@@ -14,6 +14,7 @@ typedef struct {
 #endif
 #ifdef CONFIG_HAVE_KVM
 	unsigned int kvm_posted_intr_ipis;
+	unsigned int kvm_posted_intr_wakeup_ipis;
 #endif
 	unsigned int x86_platform_ipis;	/* arch dependent */
 	unsigned int apic_perf_irqs;
@@ -32,6 +33,9 @@ typedef struct {
 #endif
 #ifdef CONFIG_X86_MCE_THRESHOLD
 	unsigned int irq_threshold_count;
+#endif
+#ifdef CONFIG_X86_MCE_AMD
+	unsigned int irq_deferred_error_count;
 #endif
 #if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
 	unsigned int irq_hv_callback_count;

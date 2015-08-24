@@ -180,7 +180,7 @@ void gfs2_set_inode_flags(struct inode *inode)
 
 	flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_NOSEC);
 	if ((ip->i_eattr == 0) && !is_sxid(inode->i_mode))
-		inode->i_flags |= S_NOSEC;
+		flags |= S_NOSEC;
 	if (ip->i_diskflags & GFS2_DIF_IMMUTABLE)
 		flags |= S_IMMUTABLE;
 	if (ip->i_diskflags & GFS2_DIF_APPENDONLY)
@@ -917,7 +917,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	struct gfs2_holder gh;
 	int ret;
 
-	if (mode & ~FALLOC_FL_KEEP_SIZE)
+	if ((mode & ~FALLOC_FL_KEEP_SIZE) || gfs2_is_jdata(ip))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&inode->i_mutex);

@@ -29,6 +29,8 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/numa.h>
+#include <linux/nodemask.h>
+#include <linux/topology.h>
 
 #define PREFIX "ACPI: "
 
@@ -70,7 +72,12 @@ static void __acpi_map_pxm_to_node(int pxm, int node)
 
 int acpi_map_pxm_to_node(int pxm)
 {
-	int node = pxm_to_node_map[pxm];
+	int node;
+
+	if (pxm < 0 || pxm >= MAX_PXM_DOMAINS)
+		return NUMA_NO_NODE;
+
+	node = pxm_to_node_map[pxm];
 
 	if (node == NUMA_NO_NODE) {
 		if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
@@ -82,6 +89,45 @@ int acpi_map_pxm_to_node(int pxm)
 
 	return node;
 }
+
+/**
+ * acpi_map_pxm_to_online_node - Map proximity ID to online node
+ * @pxm: ACPI proximity ID
+ *
+ * This is similar to acpi_map_pxm_to_node(), but always returns an online
+ * node.  When the mapped node from a given proximity ID is offline, it
+ * looks up the node distance table and returns the nearest online node.
+ *
+ * ACPI device drivers, which are called after the NUMA initialization has
+ * completed in the kernel, can call this interface to obtain their device
+ * NUMA topology from ACPI tables.  Such drivers do not have to deal with
+ * offline nodes.  A node may be offline when a device proximity ID is
+ * unique, SRAT memory entry does not exist, or NUMA is disabled, ex.
+ * "numa=off" on x86.
+ */
+int acpi_map_pxm_to_online_node(int pxm)
+{
+	int node, n, dist, min_dist;
+
+	node = acpi_map_pxm_to_node(pxm);
+
+	if (node == NUMA_NO_NODE)
+		node = 0;
+
+	if (!node_online(node)) {
+		min_dist = INT_MAX;
+		for_each_online_node(n) {
+			dist = node_distance(node, n);
+			if (dist < min_dist) {
+				min_dist = dist;
+				node = n;
+			}
+		}
+	}
+
+	return node;
+}
+EXPORT_SYMBOL(acpi_map_pxm_to_online_node);
 
 static void __init
 acpi_table_print_srat_entry(struct acpi_subtable_header *header)
@@ -328,8 +374,6 @@ int acpi_get_node(acpi_handle handle)
 	int pxm;
 
 	pxm = acpi_get_pxm(handle);
-	if (pxm < 0 || pxm >= MAX_PXM_DOMAINS)
-		return NUMA_NO_NODE;
 
 	return acpi_map_pxm_to_node(pxm);
 }

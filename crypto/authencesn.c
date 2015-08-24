@@ -12,7 +12,7 @@
  *
  */
 
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/authenc.h>
@@ -393,8 +393,6 @@ static int crypto_authenc_esn_genicv(struct aead_request *req, u8 *iv,
 	struct scatterlist *cipher = areq_ctx->cipher;
 	struct scatterlist *hsg = areq_ctx->hsg;
 	struct scatterlist *tsg = areq_ctx->tsg;
-	struct scatterlist *assoc1;
-	struct scatterlist *assoc2;
 	unsigned int ivsize = crypto_aead_ivsize(authenc_esn);
 	unsigned int cryptlen = req->cryptlen;
 	struct page *dstp;
@@ -412,27 +410,19 @@ static int crypto_authenc_esn_genicv(struct aead_request *req, u8 *iv,
 		cryptlen += ivsize;
 	}
 
-	if (sg_is_last(assoc))
-		return -EINVAL;
-
-	assoc1 = assoc + 1;
-	if (sg_is_last(assoc1))
-		return -EINVAL;
-
-	assoc2 = assoc + 2;
-	if (!sg_is_last(assoc2))
+	if (assoc->length < 12)
 		return -EINVAL;
 
 	sg_init_table(hsg, 2);
-	sg_set_page(hsg, sg_page(assoc), assoc->length, assoc->offset);
-	sg_set_page(hsg + 1, sg_page(assoc2), assoc2->length, assoc2->offset);
+	sg_set_page(hsg, sg_page(assoc), 4, assoc->offset);
+	sg_set_page(hsg + 1, sg_page(assoc), 4, assoc->offset + 8);
 
 	sg_init_table(tsg, 1);
-	sg_set_page(tsg, sg_page(assoc1), assoc1->length, assoc1->offset);
+	sg_set_page(tsg, sg_page(assoc), 4, assoc->offset + 4);
 
 	areq_ctx->cryptlen = cryptlen;
-	areq_ctx->headlen = assoc->length + assoc2->length;
-	areq_ctx->trailen = assoc1->length;
+	areq_ctx->headlen = 8;
+	areq_ctx->trailen = 4;
 	areq_ctx->sg = dst;
 
 	areq_ctx->complete = authenc_esn_geniv_ahash_done;
@@ -563,8 +553,6 @@ static int crypto_authenc_esn_iverify(struct aead_request *req, u8 *iv,
 	struct scatterlist *cipher = areq_ctx->cipher;
 	struct scatterlist *hsg = areq_ctx->hsg;
 	struct scatterlist *tsg = areq_ctx->tsg;
-	struct scatterlist *assoc1;
-	struct scatterlist *assoc2;
 	unsigned int ivsize = crypto_aead_ivsize(authenc_esn);
 	struct page *srcp;
 	u8 *vsrc;
@@ -580,27 +568,19 @@ static int crypto_authenc_esn_iverify(struct aead_request *req, u8 *iv,
 		cryptlen += ivsize;
 	}
 
-	if (sg_is_last(assoc))
-		return -EINVAL;
-
-	assoc1 = assoc + 1;
-	if (sg_is_last(assoc1))
-		return -EINVAL;
-
-	assoc2 = assoc + 2;
-	if (!sg_is_last(assoc2))
+	if (assoc->length < 12)
 		return -EINVAL;
 
 	sg_init_table(hsg, 2);
-	sg_set_page(hsg, sg_page(assoc), assoc->length, assoc->offset);
-	sg_set_page(hsg + 1, sg_page(assoc2), assoc2->length, assoc2->offset);
+	sg_set_page(hsg, sg_page(assoc), 4, assoc->offset);
+	sg_set_page(hsg + 1, sg_page(assoc), 4, assoc->offset + 8);
 
 	sg_init_table(tsg, 1);
-	sg_set_page(tsg, sg_page(assoc1), assoc1->length, assoc1->offset);
+	sg_set_page(tsg, sg_page(assoc), 4, assoc->offset + 4);
 
 	areq_ctx->cryptlen = cryptlen;
-	areq_ctx->headlen = assoc->length + assoc2->length;
-	areq_ctx->trailen = assoc1->length;
+	areq_ctx->headlen = 8;
+	areq_ctx->trailen = 4;
 	areq_ctx->sg = src;
 
 	areq_ctx->complete = authenc_esn_verify_ahash_done;
@@ -662,13 +642,14 @@ static int crypto_authenc_esn_init_tfm(struct crypto_tfm *tfm)
 			    crypto_ahash_alignmask(auth) + 1) +
 		      crypto_ablkcipher_ivsize(enc);
 
-	tfm->crt_aead.reqsize = sizeof(struct authenc_esn_request_ctx) +
-				ctx->reqoff +
-				max_t(unsigned int,
-				crypto_ahash_reqsize(auth) +
-				sizeof(struct ahash_request),
-				sizeof(struct skcipher_givcrypt_request) +
-				crypto_ablkcipher_reqsize(enc));
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct authenc_esn_request_ctx) +
+		ctx->reqoff +
+		max_t(unsigned int,
+			crypto_ahash_reqsize(auth) +
+			sizeof(struct ahash_request),
+			sizeof(struct skcipher_givcrypt_request) +
+			crypto_ablkcipher_reqsize(enc)));
 
 	return 0;
 

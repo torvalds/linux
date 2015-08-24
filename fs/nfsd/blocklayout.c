@@ -181,6 +181,17 @@ nfsd4_block_proc_layoutcommit(struct inode *inode,
 }
 
 const struct nfsd4_layout_ops bl_layout_ops = {
+	/*
+	 * Pretend that we send notification to the client.  This is a blatant
+	 * lie to force recent Linux clients to cache our device IDs.
+	 * We rarely ever change the device ID, so the harm of leaking deviceids
+	 * for a while isn't too bad.  Unfortunately RFC5661 is a complete mess
+	 * in this regard, but I filed errata 4119 for this a while ago, and
+	 * hopefully the Linux client will eventually start caching deviceids
+	 * without this again.
+	 */
+	.notify_types		=
+			NOTIFY_DEVICEID4_DELETE | NOTIFY_DEVICEID4_CHANGE,
 	.proc_getdeviceinfo	= nfsd4_block_proc_getdeviceinfo,
 	.encode_getdeviceinfo	= nfsd4_block_encode_getdeviceinfo,
 	.proc_layoutget		= nfsd4_block_proc_layoutget,

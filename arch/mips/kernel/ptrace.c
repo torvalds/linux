@@ -176,7 +176,7 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 
 	__get_user(value, data + 64);
 	fcr31 = child->thread.fpu.fcr31;
-	mask = current_cpu_data.fpu_msk31;
+	mask = boot_cpu_data.fpu_msk31;
 	child->thread.fpu.fcr31 = (value & ~mask) | (fcr31 & mask);
 
 	/* FIR may not be written.  */

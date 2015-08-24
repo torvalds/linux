@@ -516,6 +516,15 @@ static struct net_device_stats *gfar_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
+static int gfar_set_mac_addr(struct net_device *dev, void *p)
+{
+	eth_mac_addr(dev, p);
+
+	gfar_set_mac_for_addr(dev, 0, dev->dev_addr);
+
+	return 0;
+}
+
 static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_open = gfar_enet_open,
 	.ndo_start_xmit = gfar_start_xmit,
@@ -526,7 +535,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_get_stats = gfar_get_stats,
-	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_set_mac_address = gfar_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gfar_netpoll,
@@ -554,22 +563,6 @@ static void gfar_ints_enable(struct gfar_private *priv)
 		/* Unmask the interrupts we look for */
 		gfar_write(&regs->imask, IMASK_DEFAULT);
 	}
-}
-
-static void lock_tx_qs(struct gfar_private *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_tx_queues; i++)
-		spin_lock(&priv->tx_queue[i]->txlock);
-}
-
-static void unlock_tx_qs(struct gfar_private *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_tx_queues; i++)
-		spin_unlock(&priv->tx_queue[i]->txlock);
 }
 
 static int gfar_alloc_tx_queues(struct gfar_private *priv)
@@ -1367,7 +1360,6 @@ static int gfar_probe(struct platform_device *ofdev)
 	priv->dev = &ofdev->dev;
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 
-	spin_lock_init(&priv->bflock);
 	INIT_WORK(&priv->reset_task, gfar_reset_task);
 
 	platform_set_drvdata(ofdev, priv);
@@ -1410,6 +1402,8 @@ static int gfar_probe(struct platform_device *ofdev)
 				    NETIF_F_HW_VLAN_CTAG_RX;
 		dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 	}
+
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	gfar_init_addr_hash_table(priv);
 
@@ -1459,9 +1453,8 @@ static int gfar_probe(struct platform_device *ofdev)
 		goto register_fail;
 	}
 
-	device_init_wakeup(&dev->dev,
-			   priv->device_flags &
-			   FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+	device_set_wakeup_capable(&dev->dev, priv->device_flags &
+				  FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
 	/* fill out IRQ number and name fields */
 	for (i = 0; i < priv->num_grps; i++) {
@@ -1529,48 +1522,37 @@ static int gfar_suspend(struct device *dev)
 	struct gfar_private *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->ndev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	unsigned long flags;
 	u32 tempval;
-
 	int magic_packet = priv->wol_en &&
 			   (priv->device_flags &
 			    FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
+	if (!netif_running(ndev))
+		return 0;
+
+	disable_napi(priv);
+	netif_tx_lock(ndev);
 	netif_device_detach(ndev);
+	netif_tx_unlock(ndev);
 
-	if (netif_running(ndev)) {
+	gfar_halt(priv);
 
-		local_irq_save(flags);
-		lock_tx_qs(priv);
+	if (magic_packet) {
+		/* Enable interrupt on Magic Packet */
+		gfar_write(&regs->imask, IMASK_MAG);
 
-		gfar_halt_nodisable(priv);
+		/* Enable Magic Packet mode */
+		tempval = gfar_read(&regs->maccfg2);
+		tempval |= MACCFG2_MPEN;
+		gfar_write(&regs->maccfg2, tempval);
 
-		/* Disable Tx, and Rx if wake-on-LAN is disabled. */
+		/* re-enable the Rx block */
 		tempval = gfar_read(&regs->maccfg1);
-
-		tempval &= ~MACCFG1_TX_EN;
-
-		if (!magic_packet)
-			tempval &= ~MACCFG1_RX_EN;
-
+		tempval |= MACCFG1_RX_EN;
 		gfar_write(&regs->maccfg1, tempval);
 
-		unlock_tx_qs(priv);
-		local_irq_restore(flags);
-
-		disable_napi(priv);
-
-		if (magic_packet) {
-			/* Enable interrupt on Magic Packet */
-			gfar_write(&regs->imask, IMASK_MAG);
-
-			/* Enable Magic Packet mode */
-			tempval = gfar_read(&regs->maccfg2);
-			tempval |= MACCFG2_MPEN;
-			gfar_write(&regs->maccfg2, tempval);
-		} else {
-			phy_stop(priv->phydev);
-		}
+	} else {
+		phy_stop(priv->phydev);
 	}
 
 	return 0;
@@ -1581,37 +1563,26 @@ static int gfar_resume(struct device *dev)
 	struct gfar_private *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->ndev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	unsigned long flags;
 	u32 tempval;
 	int magic_packet = priv->wol_en &&
 			   (priv->device_flags &
 			    FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
-	if (!netif_running(ndev)) {
-		netif_device_attach(ndev);
+	if (!netif_running(ndev))
 		return 0;
-	}
 
-	if (!magic_packet && priv->phydev)
+	if (magic_packet) {
+		/* Disable Magic Packet mode */
+		tempval = gfar_read(&regs->maccfg2);
+		tempval &= ~MACCFG2_MPEN;
+		gfar_write(&regs->maccfg2, tempval);
+	} else {
 		phy_start(priv->phydev);
-
-	/* Disable Magic Packet mode, in case something
-	 * else woke us up.
-	 */
-	local_irq_save(flags);
-	lock_tx_qs(priv);
-
-	tempval = gfar_read(&regs->maccfg2);
-	tempval &= ~MACCFG2_MPEN;
-	gfar_write(&regs->maccfg2, tempval);
+	}
 
 	gfar_start(priv);
 
-	unlock_tx_qs(priv);
-	local_irq_restore(flags);
-
 	netif_device_attach(ndev);
-
 	enable_napi(priv);
 
 	return 0;
@@ -2034,7 +2005,8 @@ static int register_grp_irqs(struct gfar_priv_grp *grp)
 		/* Install our interrupt handlers for Error,
 		 * Transmit, and Receive
 		 */
-		err = request_irq(gfar_irq(grp, ER)->irq, gfar_error, 0,
+		err = request_irq(gfar_irq(grp, ER)->irq, gfar_error,
+				  IRQF_NO_SUSPEND,
 				  gfar_irq(grp, ER)->name, grp);
 		if (err < 0) {
 			netif_err(priv, intr, dev, "Can't get IRQ %d\n",
@@ -2057,7 +2029,8 @@ static int register_grp_irqs(struct gfar_priv_grp *grp)
 			goto rx_irq_fail;
 		}
 	} else {
-		err = request_irq(gfar_irq(grp, TX)->irq, gfar_interrupt, 0,
+		err = request_irq(gfar_irq(grp, TX)->irq, gfar_interrupt,
+				  IRQF_NO_SUSPEND,
 				  gfar_irq(grp, TX)->name, grp);
 		if (err < 0) {
 			netif_err(priv, intr, dev, "Can't get IRQ %d\n",
@@ -2129,6 +2102,11 @@ int startup_gfar(struct net_device *ndev)
 	/* Start Rx/Tx DMA and enable the interrupts */
 	gfar_start(priv);
 
+	/* force link state update after mac reset */
+	priv->oldlink = 0;
+	priv->oldspeed = 0;
+	priv->oldduplex = -1;
+
 	phy_start(priv->phydev);
 
 	enable_napi(priv);
@@ -2157,8 +2135,6 @@ static int gfar_enet_open(struct net_device *dev)
 	err = startup_gfar(dev);
 	if (err)
 		return err;
-
-	device_set_wakeup_enable(&dev->dev, priv->wol_en);
 
 	return err;
 }
@@ -2254,7 +2230,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, rq = 0;
 	int do_tstamp, do_csum, do_vlan;
 	u32 bufaddr;
-	unsigned long flags;
 	unsigned int nr_frags, nr_txbds, bytes_sent, fcb_len = 0;
 
 	rq = skb->queue_mapping;
@@ -2434,19 +2409,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_tx_sent_queue(txq, bytes_sent);
 
-	/* We can work in parallel with gfar_clean_tx_ring(), except
-	 * when modifying num_txbdfree. Note that we didn't grab the lock
-	 * when we were reading the num_txbdfree and checking for available
-	 * space, that's because outside of this function it can only grow,
-	 * and once we've got needed space, it cannot suddenly disappear.
-	 *
-	 * The lock also protects us from gfar_error(), which can modify
-	 * regs->tstat and thus retrigger the transfers, which is why we
-	 * also must grab the lock before setting ready bit for the first
-	 * to be transmitted BD.
-	 */
-	spin_lock_irqsave(&tx_queue->txlock, flags);
-
 	gfar_wmb();
 
 	txbdp_start->lstatus = cpu_to_be32(lstatus);
@@ -2463,8 +2425,15 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_queue->cur_tx = next_txbd(txbdp, base, tx_queue->tx_ring_size);
 
+	/* We can work in parallel with gfar_clean_tx_ring(), except
+	 * when modifying num_txbdfree. Note that we didn't grab the lock
+	 * when we were reading the num_txbdfree and checking for available
+	 * space, that's because outside of this function it can only grow.
+	 */
+	spin_lock_bh(&tx_queue->txlock);
 	/* reduce TxBD free count */
 	tx_queue->num_txbdfree -= (nr_txbds);
+	spin_unlock_bh(&tx_queue->txlock);
 
 	/* If the next BD still needs to be cleaned up, then the bds
 	 * are full.  We need to tell the kernel to stop sending us stuff.
@@ -2477,9 +2446,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Tell the DMA to go go go */
 	gfar_write(&regs->tstat, TSTAT_CLEAR_THALT >> tx_queue->qindex);
-
-	/* Unlock priv */
-	spin_unlock_irqrestore(&tx_queue->txlock, flags);
 
 	return NETDEV_TX_OK;
 
@@ -2622,7 +2588,6 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	skb_dirtytx = tx_queue->skb_dirtytx;
 
 	while ((skb = tx_queue->tx_skbuff[skb_dirtytx])) {
-		unsigned long flags;
 
 		frags = skb_shinfo(skb)->nr_frags;
 
@@ -2686,9 +2651,9 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			      TX_RING_MOD_MASK(tx_ring_size);
 
 		howmany++;
-		spin_lock_irqsave(&tx_queue->txlock, flags);
+		spin_lock(&tx_queue->txlock);
 		tx_queue->num_txbdfree += nr_txbds;
-		spin_unlock_irqrestore(&tx_queue->txlock, flags);
+		spin_unlock(&tx_queue->txlock);
 	}
 
 	/* If we freed a buffer, we can restart transmission, if necessary */
@@ -3411,21 +3376,12 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 		if (events & IEVENT_CRL)
 			dev->stats.tx_aborted_errors++;
 		if (events & IEVENT_XFUN) {
-			unsigned long flags;
-
 			netif_dbg(priv, tx_err, dev,
 				  "TX FIFO underrun, packet dropped\n");
 			dev->stats.tx_dropped++;
 			atomic64_inc(&priv->extra_stats.tx_underrun);
 
-			local_irq_save(flags);
-			lock_tx_qs(priv);
-
-			/* Reactivate the Tx Queues */
-			gfar_write(&regs->tstat, gfargrp->tstat);
-
-			unlock_tx_qs(priv);
-			local_irq_restore(flags);
+			schedule_work(&priv->reset_task);
 		}
 		netif_dbg(priv, tx_err, dev, "Transmit Error\n");
 	}

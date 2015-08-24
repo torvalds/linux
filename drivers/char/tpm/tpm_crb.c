@@ -233,6 +233,14 @@ static int crb_acpi_add(struct acpi_device *device)
 		return -ENODEV;
 	}
 
+	/* At least some versions of AMI BIOS have a bug that TPM2 table has
+	 * zero address for the control area and therefore we must fail.
+	*/
+	if (!buf->control_area_pa) {
+		dev_err(dev, "TPM2 ACPI table has a zero address for the control area\n");
+		return -EINVAL;
+	}
+
 	if (buf->hdr.length < sizeof(struct acpi_tpm2)) {
 		dev_err(dev, "TPM2 ACPI table has wrong size");
 		return -EINVAL;
@@ -267,7 +275,7 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	memcpy_fromio(&pa, &priv->cca->cmd_pa, 8);
 	pa = le64_to_cpu(pa);
-	priv->cmd = devm_ioremap_nocache(dev, le64_to_cpu(pa),
+	priv->cmd = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->cmd_size));
 	if (!priv->cmd) {
 		dev_err(dev, "ioremap of the command buffer failed\n");
@@ -276,7 +284,7 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
 	pa = le64_to_cpu(pa);
-	priv->rsp = devm_ioremap_nocache(dev, le64_to_cpu(pa),
+	priv->rsp = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->rsp_size));
 	if (!priv->rsp) {
 		dev_err(dev, "ioremap of the response buffer failed\n");

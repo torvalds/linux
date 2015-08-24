@@ -72,7 +72,7 @@ struct budget {
 
 	struct dvb_adapter dvb_adapter;
 	struct dvb_frontend *dvb_frontend;
-	int (*read_fe_status)(struct dvb_frontend *fe, fe_status_t *status);
+	int (*read_fe_status)(struct dvb_frontend *fe, enum fe_status *status);
 	int fe_synced;
 
 	void *priv;

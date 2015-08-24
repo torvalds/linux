@@ -126,7 +126,7 @@ static struct usb_configuration printer_cfg_driver = {
 	.bmAttributes		= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int __init printer_do_config(struct usb_configuration *c)
+static int printer_do_config(struct usb_configuration *c)
 {
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			status = 0;
@@ -152,7 +152,7 @@ static int __init printer_do_config(struct usb_configuration *c)
 	return status;
 }
 
-static int __init printer_bind(struct usb_composite_dev *cdev)
+static int printer_bind(struct usb_composite_dev *cdev)
 {
 	struct f_printer_opts *opts;
 	int ret, len;
@@ -191,7 +191,7 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 	return ret;
 }
 
-static int __exit printer_unbind(struct usb_composite_dev *cdev)
+static int printer_unbind(struct usb_composite_dev *cdev)
 {
 	usb_put_function(f_printer);
 	usb_put_function_instance(fi_printer);
@@ -199,7 +199,7 @@ static int __exit printer_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static __refdata struct usb_composite_driver printer_driver = {
+static struct usb_composite_driver printer_driver = {
 	.name           = shortname,
 	.dev            = &device_desc,
 	.strings        = dev_strings,

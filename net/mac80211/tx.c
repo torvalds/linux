@@ -37,6 +37,16 @@
 
 /* misc utils */
 
+static inline void ieee80211_tx_stats(struct net_device *dev, u32 len)
+{
+	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
+
+	u64_stats_update_begin(&tstats->syncp);
+	tstats->tx_packets++;
+	tstats->tx_bytes += len;
+	u64_stats_update_end(&tstats->syncp);
+}
+
 static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 				 struct sk_buff *skb, int group_addr,
 				 int next_frag_len)
@@ -201,11 +211,11 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	struct ieee80211_if_managed *ifmgd;
 
 	/* driver doesn't support power save */
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+	if (!ieee80211_hw_check(&local->hw, SUPPORTS_PS))
 		return TX_CONTINUE;
 
 	/* hardware does dynamic power save */
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
 		return TX_CONTINUE;
 
 	/* dynamic power save disabled */
@@ -421,7 +431,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (ieee80211_is_probe_req(hdr->frame_control))
 		return TX_CONTINUE;
 
-	if (tx->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+	if (ieee80211_hw_check(&tx->local->hw, QUEUE_CONTROL))
 		info->hw_queue = tx->sdata->vif.cab_queue;
 
 	/* no stations in PS mode */
@@ -431,7 +441,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
 
 	/* device releases frame after DTIM beacon */
-	if (!(tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING))
+	if (!ieee80211_hw_check(&tx->local->hw, HOST_BROADCAST_PS_BUFFERING))
 		return TX_CONTINUE;
 
 	/* buffered in mac80211 */
@@ -987,7 +997,6 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 
 	skb_queue_walk(&tx->skbs, skb) {
 		ac = skb_get_queue_mapping(skb);
-		tx->sta->tx_fragments++;
 		tx->sta->tx_bytes[ac] += skb->len;
 	}
 	if (ac >= 0)
@@ -1108,7 +1117,9 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 			queued = true;
 			info->control.vif = &tx->sdata->vif;
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-			info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
+			info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS |
+					IEEE80211_TX_CTL_NO_PS_BUFFER |
+					IEEE80211_TX_STATUS_EOSP;
 			__skb_queue_tail(&tid_tx->pending, skb);
 			if (skb_queue_len(&tid_tx->pending) > STA_MAX_TX_BUFFER)
 				purge_skb = __skb_dequeue(&tid_tx->pending);
@@ -1176,8 +1187,8 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
 	    !ieee80211_is_qos_nullfunc(hdr->frame_control) &&
-	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) &&
-	    !(local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)) {
+	    ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION) &&
+	    !ieee80211_hw_check(&local->hw, TX_AMPDU_SETUP_IN_HW)) {
 		struct tid_ampdu_tx *tid_tx;
 
 		qc = ieee80211_get_qos_ctl(hdr);
@@ -1420,7 +1431,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 			vif = &sdata->vif;
 			info->hw_queue =
 				vif->hw_queue[skb_get_queue_mapping(skb)];
-		} else if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL) {
+		} else if (ieee80211_hw_check(&local->hw, QUEUE_CONTROL)) {
 			dev_kfree_skb(skb);
 			return true;
 		} else
@@ -1466,7 +1477,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_ps_buf);
 	CALL_TXH(ieee80211_tx_h_check_control_port_protocol);
 	CALL_TXH(ieee80211_tx_h_select_key);
-	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
+	if (!ieee80211_hw_check(&tx->local->hw, HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
 
 	if (unlikely(info->flags & IEEE80211_TX_INTFL_RETRANSMISSION)) {
@@ -1481,7 +1492,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	/* handlers after fragment must be aware of tx info fragmentation! */
 	CALL_TXH(ieee80211_tx_h_stats);
 	CALL_TXH(ieee80211_tx_h_encrypt);
-	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
+	if (!ieee80211_hw_check(&tx->local->hw, HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_calculate_duration);
 #undef CALL_TXH
 
@@ -1571,7 +1582,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 
 	/* set up hw_queue value early */
 	if (!(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) ||
-	    !(local->hw.flags & IEEE80211_HW_QUEUE_CONTROL))
+	    !ieee80211_hw_check(&local->hw, QUEUE_CONTROL))
 		info->hw_queue =
 			sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
@@ -1598,9 +1609,9 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (skb_cloned(skb) &&
-	    (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CLONED_SKBS) ||
+	    (!ieee80211_hw_check(&local->hw, SUPPORTS_CLONED_SKBS) ||
 	     !skb_clone_writable(skb, ETH_HLEN) ||
-	     sdata->crypto_tx_tailroom_needed_cnt))
+	     (may_encrypt && sdata->crypto_tx_tailroom_needed_cnt)))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);
@@ -2387,12 +2398,455 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	return ERR_PTR(ret);
 }
 
+/*
+ * fast-xmit overview
+ *
+ * The core idea of this fast-xmit is to remove per-packet checks by checking
+ * them out of band. ieee80211_check_fast_xmit() implements the out-of-band
+ * checks that are needed to get the sta->fast_tx pointer assigned, after which
+ * much less work can be done per packet. For example, fragmentation must be
+ * disabled or the fast_tx pointer will not be set. All the conditions are seen
+ * in the code here.
+ *
+ * Once assigned, the fast_tx data structure also caches the per-packet 802.11
+ * header and other data to aid packet processing in ieee80211_xmit_fast().
+ *
+ * The most difficult part of this is that when any of these assumptions
+ * change, an external trigger (i.e. a call to ieee80211_clear_fast_xmit(),
+ * ieee80211_check_fast_xmit() or friends) is required to reset the data,
+ * since the per-packet code no longer checks the conditions. This is reflected
+ * by the calls to these functions throughout the rest of the code, and must be
+ * maintained if any of the TX path checks change.
+ */
+
+void ieee80211_check_fast_xmit(struct sta_info *sta)
+{
+	struct ieee80211_fast_tx build = {}, *fast_tx = NULL, *old;
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_hdr *hdr = (void *)build.hdr;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	__le16 fc;
+
+	if (!ieee80211_hw_check(&local->hw, SUPPORT_FAST_XMIT))
+		return;
+
+	/* Locking here protects both the pointer itself, and against concurrent
+	 * invocations winning data access races to, e.g., the key pointer that
+	 * is used.
+	 * Without it, the invocation of this function right after the key
+	 * pointer changes wouldn't be sufficient, as another CPU could access
+	 * the pointer, then stall, and then do the cache update after the CPU
+	 * that invalidated the key.
+	 * With the locking, such scenarios cannot happen as the check for the
+	 * key and the fast-tx assignment are done atomically, so the CPU that
+	 * modifies the key will either wait or other one will see the key
+	 * cleared/changed already.
+	 */
+	spin_lock_bh(&sta->lock);
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_PS) &&
+	    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS) &&
+	    sdata->vif.type == NL80211_IFTYPE_STATION)
+		goto out;
+
+	if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+		goto out;
+
+	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DELIVER))
+		goto out;
+
+	if (sdata->noack_map)
+		goto out;
+
+	/* fast-xmit doesn't handle fragmentation at all */
+	if (local->hw.wiphy->frag_threshold != (u32)-1 &&
+	    !local->ops->set_frag_threshold)
+		goto out;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (!chanctx_conf) {
+		rcu_read_unlock();
+		goto out;
+	}
+	build.band = chanctx_conf->def.chan->band;
+	rcu_read_unlock();
+
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_ADHOC:
+		/* DA SA BSSID */
+		build.da_offs = offsetof(struct ieee80211_hdr, addr1);
+		build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+		memcpy(hdr->addr3, sdata->u.ibss.bssid, ETH_ALEN);
+		build.hdr_len = 24;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+			/* DA SA BSSID */
+			build.da_offs = offsetof(struct ieee80211_hdr, addr1);
+			build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+			memcpy(hdr->addr3, sdata->u.mgd.bssid, ETH_ALEN);
+			build.hdr_len = 24;
+			break;
+		}
+
+		if (sdata->u.mgd.use_4addr) {
+			/* non-regular ethertype cannot use the fastpath */
+			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
+					  IEEE80211_FCTL_TODS);
+			/* RA TA DA SA */
+			memcpy(hdr->addr1, sdata->u.mgd.bssid, ETH_ALEN);
+			memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+			build.da_offs = offsetof(struct ieee80211_hdr, addr3);
+			build.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+			build.hdr_len = 30;
+			break;
+		}
+		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
+		/* BSSID SA DA */
+		memcpy(hdr->addr1, sdata->u.mgd.bssid, ETH_ALEN);
+		build.da_offs = offsetof(struct ieee80211_hdr, addr3);
+		build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+		build.hdr_len = 24;
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		if (sdata->wdev.use_4addr) {
+			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
+					  IEEE80211_FCTL_TODS);
+			/* RA TA DA SA */
+			memcpy(hdr->addr1, sta->sta.addr, ETH_ALEN);
+			memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+			build.da_offs = offsetof(struct ieee80211_hdr, addr3);
+			build.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+			build.hdr_len = 30;
+			break;
+		}
+		/* fall through */
+	case NL80211_IFTYPE_AP:
+		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
+		/* DA BSSID SA */
+		build.da_offs = offsetof(struct ieee80211_hdr, addr1);
+		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		build.sa_offs = offsetof(struct ieee80211_hdr, addr3);
+		build.hdr_len = 24;
+		break;
+	default:
+		/* not handled on fast-xmit */
+		goto out;
+	}
+
+	if (sta->sta.wme) {
+		build.hdr_len += 2;
+		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+	}
+
+	/* We store the key here so there's no point in using rcu_dereference()
+	 * but that's fine because the code that changes the pointers will call
+	 * this function after doing so. For a single CPU that would be enough,
+	 * for multiple see the comment above.
+	 */
+	build.key = rcu_access_pointer(sta->ptk[sta->ptk_idx]);
+	if (!build.key)
+		build.key = rcu_access_pointer(sdata->default_unicast_key);
+	if (build.key) {
+		bool gen_iv, iv_spc, mmic;
+
+		gen_iv = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV;
+		iv_spc = build.key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		mmic = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC;
+
+		/* don't handle software crypto */
+		if (!(build.key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+			goto out;
+
+		switch (build.key->conf.cipher) {
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+			/* add fixed key ID */
+			if (gen_iv) {
+				(build.hdr + build.hdr_len)[3] =
+					0x20 | (build.key->conf.keyidx << 6);
+				build.pn_offs = build.hdr_len;
+			}
+			if (gen_iv || iv_spc)
+				build.hdr_len += IEEE80211_CCMP_HDR_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			/* add fixed key ID */
+			if (gen_iv) {
+				(build.hdr + build.hdr_len)[3] =
+					0x20 | (build.key->conf.keyidx << 6);
+				build.pn_offs = build.hdr_len;
+			}
+			if (gen_iv || iv_spc)
+				build.hdr_len += IEEE80211_GCMP_HDR_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			/* cannot handle MMIC or IV generation in xmit-fast */
+			if (mmic || gen_iv)
+				goto out;
+			if (iv_spc)
+				build.hdr_len += IEEE80211_TKIP_IV_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			/* cannot handle IV generation in fast-xmit */
+			if (gen_iv)
+				goto out;
+			if (iv_spc)
+				build.hdr_len += IEEE80211_WEP_IV_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+			WARN(1,
+			     "management cipher suite 0x%x enabled for data\n",
+			     build.key->conf.cipher);
+			goto out;
+		default:
+			/* we don't know how to generate IVs for this at all */
+			if (WARN_ON(gen_iv))
+				goto out;
+			/* pure hardware keys are OK, of course */
+			if (!(build.key->flags & KEY_FLAG_CIPHER_SCHEME))
+				break;
+			/* cipher scheme might require space allocation */
+			if (iv_spc &&
+			    build.key->conf.iv_len > IEEE80211_FAST_XMIT_MAX_IV)
+				goto out;
+			if (iv_spc)
+				build.hdr_len += build.key->conf.iv_len;
+		}
+
+		fc |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	}
+
+	hdr->frame_control = fc;
+
+	memcpy(build.hdr + build.hdr_len,
+	       rfc1042_header,  sizeof(rfc1042_header));
+	build.hdr_len += sizeof(rfc1042_header);
+
+	fast_tx = kmemdup(&build, sizeof(build), GFP_ATOMIC);
+	/* if the kmemdup fails, continue w/o fast_tx */
+	if (!fast_tx)
+		goto out;
+
+ out:
+	/* we might have raced against another call to this function */
+	old = rcu_dereference_protected(sta->fast_tx,
+					lockdep_is_held(&sta->lock));
+	rcu_assign_pointer(sta->fast_tx, fast_tx);
+	if (old)
+		kfree_rcu(old, rcu_head);
+	spin_unlock_bh(&sta->lock);
+}
+
+void ieee80211_check_fast_xmit_all(struct ieee80211_local *local)
+{
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list)
+		ieee80211_check_fast_xmit(sta);
+	rcu_read_unlock();
+}
+
+void ieee80211_check_fast_xmit_iface(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata &&
+		    (!sta->sdata->bss || sta->sdata->bss != sdata->bss))
+			continue;
+		ieee80211_check_fast_xmit(sta);
+	}
+
+	rcu_read_unlock();
+}
+
+void ieee80211_clear_fast_xmit(struct sta_info *sta)
+{
+	struct ieee80211_fast_tx *fast_tx;
+
+	spin_lock_bh(&sta->lock);
+	fast_tx = rcu_dereference_protected(sta->fast_tx,
+					    lockdep_is_held(&sta->lock));
+	RCU_INIT_POINTER(sta->fast_tx, NULL);
+	spin_unlock_bh(&sta->lock);
+
+	if (fast_tx)
+		kfree_rcu(fast_tx, rcu_head);
+}
+
+static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
+				struct net_device *dev, struct sta_info *sta,
+				struct ieee80211_fast_tx *fast_tx,
+				struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	u16 ethertype = (skb->data[12] << 8) | skb->data[13];
+	int extra_head = fast_tx->hdr_len - (ETH_HLEN - 2);
+	int hw_headroom = sdata->local->hw.extra_tx_headroom;
+	struct ethhdr eth;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)fast_tx->hdr;
+	struct ieee80211_tx_data tx;
+	ieee80211_tx_result r;
+	struct tid_ampdu_tx *tid_tx = NULL;
+	u8 tid = IEEE80211_NUM_TIDS;
+
+	/* control port protocol needs a lot of special handling */
+	if (cpu_to_be16(ethertype) == sdata->control_port_protocol)
+		return false;
+
+	/* only RFC 1042 SNAP */
+	if (ethertype < ETH_P_802_3_MIN)
+		return false;
+
+	/* don't handle TX status request here either */
+	if (skb->sk && skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)
+		return false;
+
+	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
+		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+		if (tid_tx) {
+			if (!test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state))
+				return false;
+			if (tid_tx->timeout)
+				tid_tx->last_tx = jiffies;
+		}
+	}
+
+	/* after this point (skb is modified) we cannot return false */
+
+	if (skb_shared(skb)) {
+		struct sk_buff *tmp_skb = skb;
+
+		skb = skb_clone(skb, GFP_ATOMIC);
+		kfree_skb(tmp_skb);
+
+		if (!skb)
+			return true;
+	}
+
+	ieee80211_tx_stats(dev, skb->len + extra_head);
+
+	/* will not be crypto-handled beyond what we do here, so use false
+	 * as the may-encrypt argument for the resize to not account for
+	 * more room than we already have in 'extra_head'
+	 */
+	if (unlikely(ieee80211_skb_resize(sdata, skb,
+					  max_t(int, extra_head + hw_headroom -
+						     skb_headroom(skb), 0),
+					  false))) {
+		kfree_skb(skb);
+		return true;
+	}
+
+	memcpy(&eth, skb->data, ETH_HLEN - 2);
+	hdr = (void *)skb_push(skb, extra_head);
+	memcpy(skb->data, fast_tx->hdr, fast_tx->hdr_len);
+	memcpy(skb->data + fast_tx->da_offs, eth.h_dest, ETH_ALEN);
+	memcpy(skb->data + fast_tx->sa_offs, eth.h_source, ETH_ALEN);
+
+	memset(info, 0, sizeof(*info));
+	info->band = fast_tx->band;
+	info->control.vif = &sdata->vif;
+	info->flags = IEEE80211_TX_CTL_FIRST_FRAGMENT |
+		      IEEE80211_TX_CTL_DONTFRAG |
+		      (tid_tx ? IEEE80211_TX_CTL_AMPDU : 0);
+
+	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
+		*ieee80211_get_qos_ctl(hdr) = tid;
+		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, tid);
+	} else {
+		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
+		hdr->seq_ctrl = cpu_to_le16(sdata->sequence_number);
+		sdata->sequence_number += 0x10;
+	}
+
+	sta->tx_msdu[tid]++;
+
+	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
+
+	__skb_queue_head_init(&tx.skbs);
+
+	tx.flags = IEEE80211_TX_UNICAST;
+	tx.local = local;
+	tx.sdata = sdata;
+	tx.sta = sta;
+	tx.key = fast_tx->key;
+
+	if (fast_tx->key)
+		info->control.hw_key = &fast_tx->key->conf;
+
+	if (!ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
+		tx.skb = skb;
+		r = ieee80211_tx_h_rate_ctrl(&tx);
+		skb = tx.skb;
+		tx.skb = NULL;
+
+		if (r != TX_CONTINUE) {
+			if (r != TX_QUEUED)
+				kfree_skb(skb);
+			return true;
+		}
+	}
+
+	/* statistics normally done by ieee80211_tx_h_stats (but that
+	 * has to consider fragmentation, so is more complex)
+	 */
+	sta->tx_bytes[skb_get_queue_mapping(skb)] += skb->len;
+	sta->tx_packets[skb_get_queue_mapping(skb)]++;
+
+	if (fast_tx->pn_offs) {
+		u64 pn;
+		u8 *crypto_hdr = skb->data + fast_tx->pn_offs;
+
+		switch (fast_tx->key->conf.cipher) {
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			pn = atomic64_inc_return(&fast_tx->key->conf.tx_pn);
+			crypto_hdr[0] = pn;
+			crypto_hdr[1] = pn >> 8;
+			crypto_hdr[4] = pn >> 16;
+			crypto_hdr[5] = pn >> 24;
+			crypto_hdr[6] = pn >> 32;
+			crypto_hdr[7] = pn >> 40;
+			break;
+		}
+	}
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss,
+				     struct ieee80211_sub_if_data, u.ap);
+
+	__skb_queue_tail(&tx.skbs, skb);
+	ieee80211_tx_frags(local, &sdata->vif, &sta->sta, &tx.skbs, false);
+	return true;
+}
+
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
 				  u32 info_flags)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
+	struct sk_buff *next;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		kfree_skb(skb);
@@ -2401,20 +2855,67 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	rcu_read_lock();
 
-	if (ieee80211_lookup_ra_sta(sdata, skb, &sta)) {
-		kfree_skb(skb);
-		goto out;
+	if (ieee80211_lookup_ra_sta(sdata, skb, &sta))
+		goto out_free;
+
+	if (!IS_ERR_OR_NULL(sta)) {
+		struct ieee80211_fast_tx *fast_tx;
+
+		fast_tx = rcu_dereference(sta->fast_tx);
+
+		if (fast_tx &&
+		    ieee80211_xmit_fast(sdata, dev, sta, fast_tx, skb))
+			goto out;
 	}
 
-	skb = ieee80211_build_hdr(sdata, skb, info_flags, sta);
-	if (IS_ERR(skb))
-		goto out;
+	if (skb_is_gso(skb)) {
+		struct sk_buff *segs;
 
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
+		segs = skb_gso_segment(skb, 0);
+		if (IS_ERR(segs)) {
+			goto out_free;
+		} else if (segs) {
+			consume_skb(skb);
+			skb = segs;
+		}
+	} else {
+		/* we cannot process non-linear frames on this path */
+		if (skb_linearize(skb)) {
+			kfree_skb(skb);
+			goto out;
+		}
 
-	ieee80211_xmit(sdata, sta, skb);
+		/* the frame could be fragmented, software-encrypted, and other
+		 * things so we cannot really handle checksum offload with it -
+		 * fix it up in software before we handle anything else.
+		 */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			skb_set_transport_header(skb,
+						 skb_checksum_start_offset(skb));
+			if (skb_checksum_help(skb))
+				goto out_free;
+		}
+	}
+
+	next = skb;
+	while (next) {
+		skb = next;
+		next = skb->next;
+
+		skb->prev = NULL;
+		skb->next = NULL;
+
+		skb = ieee80211_build_hdr(sdata, skb, info_flags, sta);
+		if (IS_ERR(skb))
+			goto out;
+
+		ieee80211_tx_stats(dev, skb->len);
+
+		ieee80211_xmit(sdata, sta, skb);
+	}
+	goto out;
+ out_free:
+	kfree_skb(skb);
  out:
 	rcu_read_unlock();
 }
@@ -3308,7 +3809,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	synchronize_net();
 
 	/* Tear down BA sessions so we stop aggregating on this TID */
-	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+	if (ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION)) {
 		set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 		__ieee80211_stop_tx_ba_session(sta, tid,
 					       AGG_STOP_LOCAL_REQUEST);
@@ -3322,7 +3823,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	ieee80211_wake_vif_queues(local, sdata,
 				  IEEE80211_QUEUE_STOP_REASON_RESERVE_TID);
 
-	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)
+	if (ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION))
 		clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	ret = 0;

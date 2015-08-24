@@ -417,7 +417,7 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };

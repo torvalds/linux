@@ -166,19 +166,34 @@ static inline bool ktime_before(const ktime_t cmp1, const ktime_t cmp2)
 }
 
 #if BITS_PER_LONG < 64
-extern u64 __ktime_divns(const ktime_t kt, s64 div);
-static inline u64 ktime_divns(const ktime_t kt, s64 div)
+extern s64 __ktime_divns(const ktime_t kt, s64 div);
+static inline s64 ktime_divns(const ktime_t kt, s64 div)
 {
+	/*
+	 * Negative divisors could cause an inf loop,
+	 * so bug out here.
+	 */
+	BUG_ON(div < 0);
 	if (__builtin_constant_p(div) && !(div >> 32)) {
-		u64 ns = kt.tv64;
-		do_div(ns, div);
-		return ns;
+		s64 ns = kt.tv64;
+		u64 tmp = ns < 0 ? -ns : ns;
+
+		do_div(tmp, div);
+		return ns < 0 ? -tmp : tmp;
 	} else {
 		return __ktime_divns(kt, div);
 	}
 }
 #else /* BITS_PER_LONG < 64 */
-# define ktime_divns(kt, div)		(u64)((kt).tv64 / (div))
+static inline s64 ktime_divns(const ktime_t kt, s64 div)
+{
+	/*
+	 * 32-bit implementation cannot handle negative divisors,
+	 * so catch them on 64bit as well.
+	 */
+	WARN_ON(div < 0);
+	return kt.tv64 / div;
+}
 #endif
 
 static inline s64 ktime_to_us(const ktime_t kt)

@@ -76,7 +76,7 @@ static int db8500_cdev_bind(struct thermal_zone_device *thermal,
 		upper = lower = i > max_state ? max_state : i;
 
 		ret = thermal_zone_bind_cooling_device(thermal, i, cdev,
-			upper, lower);
+			upper, lower, THERMAL_WEIGHT_DEFAULT);
 
 		dev_info(&cdev->device, "%s bind to %d: %d-%s\n", cdev->type,
 			i, ret, ret ? "fail" : "succeed");

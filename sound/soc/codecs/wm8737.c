@@ -469,7 +469,7 @@ static int wm8737_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8737->supplies),
 						    wm8737->supplies);
 			if (ret != 0) {
@@ -483,7 +483,8 @@ static int wm8737_set_bias_level(struct snd_soc_codec *codec,
 
 			/* Fast VMID ramp at 2*2.5k */
 			snd_soc_update_bits(codec, WM8737_MISC_BIAS_CONTROL,
-					    WM8737_VMIDSEL_MASK, 0x4);
+					    WM8737_VMIDSEL_MASK,
+					    2 << WM8737_VMIDSEL_SHIFT);
 
 			/* Bring VMID up */
 			snd_soc_update_bits(codec, WM8737_POWER_MANAGEMENT,
@@ -497,7 +498,8 @@ static int wm8737_set_bias_level(struct snd_soc_codec *codec,
 
 		/* VMID at 2*300k */
 		snd_soc_update_bits(codec, WM8737_MISC_BIAS_CONTROL,
-				    WM8737_VMIDSEL_MASK, 2);
+				    WM8737_VMIDSEL_MASK,
+				    1 << WM8737_VMIDSEL_SHIFT);
 
 		break;
 
@@ -510,7 +512,6 @@ static int wm8737_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -560,7 +561,7 @@ static int wm8737_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8737_RIGHT_PGA_VOLUME, WM8737_RVU,
 			    WM8737_RVU);
 
-	wm8737_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(wm8737->supplies), wm8737->supplies);

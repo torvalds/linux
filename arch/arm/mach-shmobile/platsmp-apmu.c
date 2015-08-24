@@ -133,7 +133,7 @@ void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
 int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	/* For this particular CPU register boot vector */
-	shmobile_smp_hook(cpu, virt_to_phys(shmobile_invalidate_start), 0);
+	shmobile_smp_hook(cpu, virt_to_phys(secondary_startup), 0);
 
 	return apmu_wrap(cpu, apmu_power_on);
 }

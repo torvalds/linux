@@ -163,16 +163,14 @@ drm_encoder_disable(struct drm_encoder *encoder)
 {
 	const struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 
-	if (encoder->bridge)
-		encoder->bridge->funcs->disable(encoder->bridge);
+	drm_bridge_disable(encoder->bridge);
 
 	if (encoder_funcs->disable)
 		(*encoder_funcs->disable)(encoder);
 	else
 		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
 
-	if (encoder->bridge)
-		encoder->bridge->funcs->post_disable(encoder->bridge);
+	drm_bridge_post_disable(encoder->bridge);
 }
 
 static void __drm_helper_disable_unused_functions(struct drm_device *dev)
@@ -312,13 +310,11 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		if (encoder->bridge && encoder->bridge->funcs->mode_fixup) {
-			ret = encoder->bridge->funcs->mode_fixup(
-					encoder->bridge, mode, adjusted_mode);
-			if (!ret) {
-				DRM_DEBUG_KMS("Bridge fixup failed\n");
-				goto done;
-			}
+		ret = drm_bridge_mode_fixup(encoder->bridge,
+			mode, adjusted_mode);
+		if (!ret) {
+			DRM_DEBUG_KMS("Bridge fixup failed\n");
+			goto done;
 		}
 
 		encoder_funcs = encoder->helper_private;
@@ -343,15 +339,13 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		if (encoder->bridge)
-			encoder->bridge->funcs->disable(encoder->bridge);
+		drm_bridge_disable(encoder->bridge);
 
 		encoder_funcs = encoder->helper_private;
 		/* Disable the encoders as the first thing we do. */
 		encoder_funcs->prepare(encoder);
 
-		if (encoder->bridge)
-			encoder->bridge->funcs->post_disable(encoder->bridge);
+		drm_bridge_post_disable(encoder->bridge);
 	}
 
 	drm_crtc_prepare_encoders(dev);
@@ -376,9 +370,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		encoder_funcs = encoder->helper_private;
 		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
 
-		if (encoder->bridge && encoder->bridge->funcs->mode_set)
-			encoder->bridge->funcs->mode_set(encoder->bridge, mode,
-					adjusted_mode);
+		drm_bridge_mode_set(encoder->bridge, mode, adjusted_mode);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -389,14 +381,12 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		if (encoder->bridge)
-			encoder->bridge->funcs->pre_enable(encoder->bridge);
+		drm_bridge_pre_enable(encoder->bridge);
 
 		encoder_funcs = encoder->helper_private;
 		encoder_funcs->commit(encoder);
 
-		if (encoder->bridge)
-			encoder->bridge->funcs->enable(encoder->bridge);
+		drm_bridge_enable(encoder->bridge);
 	}
 
 	/* Calculate and store various constants which
@@ -735,23 +725,19 @@ static void drm_helper_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_bridge *bridge = encoder->bridge;
 	const struct drm_encoder_helper_funcs *encoder_funcs;
 
-	if (bridge) {
-		if (mode == DRM_MODE_DPMS_ON)
-			bridge->funcs->pre_enable(bridge);
-		else
-			bridge->funcs->disable(bridge);
-	}
+	if (mode == DRM_MODE_DPMS_ON)
+		drm_bridge_pre_enable(bridge);
+	else
+		drm_bridge_disable(bridge);
 
 	encoder_funcs = encoder->helper_private;
 	if (encoder_funcs->dpms)
 		encoder_funcs->dpms(encoder, mode);
 
-	if (bridge) {
-		if (mode == DRM_MODE_DPMS_ON)
-			bridge->funcs->enable(bridge);
-		else
-			bridge->funcs->post_disable(bridge);
-	}
+	if (mode == DRM_MODE_DPMS_ON)
+		drm_bridge_enable(bridge);
+	else
+		drm_bridge_post_disable(bridge);
 }
 
 static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
@@ -941,42 +927,44 @@ int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mod
 
 	if (crtc->funcs->atomic_duplicate_state)
 		crtc_state = crtc->funcs->atomic_duplicate_state(crtc);
-	else if (crtc->state)
-		crtc_state = kmemdup(crtc->state, sizeof(*crtc_state),
-				     GFP_KERNEL);
-	else
+	else {
 		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
-	if (!crtc_state)
-		return -ENOMEM;
-	crtc_state->crtc = crtc;
+		if (!crtc_state)
+			return -ENOMEM;
+		if (crtc->state)
+			__drm_atomic_helper_crtc_duplicate_state(crtc, crtc_state);
+		else
+			crtc_state->crtc = crtc;
+	}
 
-	crtc_state->enable = true;
 	crtc_state->planes_changed = true;
 	crtc_state->mode_changed = true;
-	drm_mode_copy(&crtc_state->mode, mode);
+	ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
+	if (ret)
+		goto out;
 	drm_mode_copy(&crtc_state->adjusted_mode, adjusted_mode);
 
 	if (crtc_funcs->atomic_check) {
 		ret = crtc_funcs->atomic_check(crtc, crtc_state);
-		if (ret) {
-			kfree(crtc_state);
-
-			return ret;
-		}
+		if (ret)
+			goto out;
 	}
 
 	swap(crtc->state, crtc_state);
 
 	crtc_funcs->mode_set_nofb(crtc);
 
-	if (crtc_state) {
-		if (crtc->funcs->atomic_destroy_state)
-			crtc->funcs->atomic_destroy_state(crtc, crtc_state);
-		else
-			kfree(crtc_state);
+	ret = drm_helper_crtc_mode_set_base(crtc, x, y, old_fb);
+
+out:
+	if (crtc->funcs->atomic_destroy_state)
+		crtc->funcs->atomic_destroy_state(crtc, crtc_state);
+	else {
+		__drm_atomic_helper_crtc_destroy_state(crtc, crtc_state);
+		kfree(crtc_state);
 	}
 
-	return drm_helper_crtc_mode_set_base(crtc, x, y, old_fb);
+	return ret;
 }
 EXPORT_SYMBOL(drm_helper_crtc_mode_set);
 

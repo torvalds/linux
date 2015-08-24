@@ -613,6 +613,19 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 {
 	int retval, code;
 
+	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHRONOUS) {
+		pr_err("%s: drivers registered with %s can not be probed asynchronously\n",
+			 drv->driver.name, __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * We have to run our probes synchronously because we check if
+	 * we find any devices to bind to and exit with error if there
+	 * are any.
+	 */
+	drv->driver.probe_type = PROBE_FORCE_SYNCHRONOUS;
+
 	/*
 	 * Prevent driver from requesting probe deferral to avoid further
 	 * futile probe attempts.

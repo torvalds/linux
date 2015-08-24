@@ -473,6 +473,8 @@ static void bcm2835_gpio_irq_disable(struct irq_data *data)
 
 	spin_lock_irqsave(&pc->irq_lock[bank], flags);
 	bcm2835_gpio_irq_config(pc, gpio, false);
+	/* Clear events that were latched prior to clearing event sources */
+	bcm2835_gpio_set_bit(pc, GPEDS0, gpio);
 	clear_bit(offset, &pc->enabled_irq_map[bank]);
 	spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 }
@@ -1036,9 +1038,9 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	pc->pctl_dev = pinctrl_register(&bcm2835_pinctrl_desc, dev, pc);
-	if (!pc->pctl_dev) {
+	if (IS_ERR(pc->pctl_dev)) {
 		gpiochip_remove(&pc->gpio_chip);
-		return -EINVAL;
+		return PTR_ERR(pc->pctl_dev);
 	}
 
 	pc->gpio_range = bcm2835_pinctrl_gpio_range;

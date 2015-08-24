@@ -196,7 +196,8 @@ xfs_filestream_pick_ag(
 			goto next_ag;
 		}
 
-		longest = xfs_alloc_longest_free_extent(mp, pag);
+		longest = xfs_alloc_longest_free_extent(mp, pag,
+					xfs_alloc_min_freelist(mp, pag));
 		if (((minlen && longest >= minlen) ||
 		     (!minlen && pag->pagf_freeblks >= minfree)) &&
 		    (!pag->pagf_metadata || !(flags & XFS_PICK_USERDATA) ||
@@ -294,7 +295,7 @@ xfs_filestream_get_parent(
 	if (!parent)
 		goto out_dput;
 
-	dir = igrab(parent->d_inode);
+	dir = igrab(d_inode(parent));
 	dput(parent);
 
 out_dput:
@@ -322,7 +323,7 @@ xfs_filestream_lookup_ag(
 
 	pip = xfs_filestream_get_parent(ip);
 	if (!pip)
-		goto out;
+		return NULLAGNUMBER;
 
 	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
 	if (mru) {

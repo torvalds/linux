@@ -18,7 +18,9 @@
 #define PXA910_CLK_PLL1_13_1_5		18
 #define PXA910_CLK_PLL1_2_1_5		19
 #define PXA910_CLK_PLL1_3_16		20
+#define PXA910_CLK_PLL1_192		21
 #define PXA910_CLK_UART_PLL		27
+#define PXA910_CLK_USB_PLL		28
 
 /* apb periphrals */
 #define PXA910_CLK_TWSI0		60
@@ -37,6 +39,8 @@
 #define PXA910_CLK_UART2		73
 #define PXA910_CLK_SSP0			74
 #define PXA910_CLK_SSP1			75
+#define PXA910_CLK_TIMER0		76
+#define PXA910_CLK_TIMER1		77
 
 /* axi periphrals */
 #define PXA910_CLK_DFC			100

@@ -71,6 +71,8 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_raw
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -80,6 +82,11 @@ Description:
 		versions may be used. The number must always be specified and
 		unique to allow association with event codes. Units after
 		application of scale and offset are millivolts.
+
+		Channels with 'i' and 'q' modifiers always exist in pairs and both
+		channels refer to the same signal. The 'i' channel contains the in-phase
+		component of the signal while the 'q' channel contains the quadrature
+		component.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY-voltageZ_raw
 KernelVersion:	2.6.35
@@ -246,8 +253,16 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_current_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_i_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_q_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_q_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_i_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
@@ -273,14 +288,22 @@ Description:
 		to the _raw output.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_current_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_i_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_q_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_i_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_q_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_peak_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_scale
@@ -328,6 +351,10 @@ Description:
 
 What		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibscale
@@ -417,6 +444,16 @@ KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If a known or controllable low pass filter is applied
+		to the underlying data channel, then this parameter
+		gives the 3dB frequency of the filter in Hz.
+
+What:		/sys/.../in_accel_filter_high_pass_3db_frequency
+What:		/sys/.../in_anglvel_filter_high_pass_3db_frequency
+What:		/sys/.../in_magn_filter_high_pass_3db_frequency
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If a known or controllable high pass filter is applied
 		to the underlying data channel, then this parameter
 		gives the 3dB frequency of the filter in Hz.
 
@@ -880,6 +917,26 @@ Description:
 		met before an event is generated. If direction is not
 		specified then this period applies to both directions.
 
+What:		/sys/.../events/in_accel_thresh_rising_low_pass_filter_3db
+What:		/sys/.../events/in_anglvel_thresh_rising_low_pass_filter_3db
+What:		/sys/.../events/in_magn_thresh_rising_low_pass_filter_3db
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If a low pass filter can be applied to the event generation
+		this property gives its 3db frequency in Hz.
+		A value of zero disables the filter.
+
+What:		/sys/.../events/in_accel_thresh_rising_high_pass_filter_3db
+What:		/sys/.../events/in_anglvel_thresh_rising_high_pass_filter_3db
+What:		/sys/.../events/in_magn_thresh_rising_high_pass_filter_3db
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If a high pass filter can be applied to the event generation
+		this property gives its 3db frequency in Hz.
+		A value of zero disables the filter.
+
 What:		/sys/.../events/in_activity_still_thresh_rising_en
 What:		/sys/.../events/in_activity_still_thresh_falling_en
 What:		/sys/.../events/in_activity_walking_thresh_rising_en
@@ -1016,6 +1073,10 @@ What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_en
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_en
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_en
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY-voltageZ_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_i_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_q_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_i_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_q_en
 What:		/sys/.../iio:deviceX/scan_elements/in_incli_x_en
 What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_en
 What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_en
@@ -1034,6 +1095,10 @@ What:		/sys/.../iio:deviceX/scan_elements/in_incli_type
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_type
 What:		/sys/.../iio:deviceX/scan_elements/in_voltage_type
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_i_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_q_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_i_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_q_type
 What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_type
 What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_type
 What:		/sys/.../iio:deviceX/scan_elements/in_pressure_type
@@ -1071,6 +1136,10 @@ Description:
 
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_index
 What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_i_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_q_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_i_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_q_index
 What:		/sys/.../iio:deviceX/scan_elements/in_accel_x_index
 What:		/sys/.../iio:deviceX/scan_elements/in_accel_y_index
 What:		/sys/.../iio:deviceX/scan_elements/in_accel_z_index
@@ -1165,10 +1234,8 @@ Description:
 		object is near the sensor, usually be observing
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
-		to SI units is not possible.  Where it is, the units should
-		be meters.  If such a conversion is not possible, the reported
-		values should behave in the same way as a distance, i.e. lower
-		values indicate something is closer to the sensor.
+		to SI units is not possible. Higher proximity measurements
+		indicate closer objects, and vice versa.
 
 What:		/sys/.../iio:deviceX/in_illuminance_input
 What:		/sys/.../iio:deviceX/in_illuminance_raw
@@ -1230,6 +1297,8 @@ Description:
 		or without compensation from tilt sensors.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_i_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_q_raw
 KernelVersion:	3.18
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1237,6 +1306,11 @@ Description:
 		after application of scale and offset. If no offset or scale is
 		present, output should be considered as processed with the
 		unit in milliamps.
+
+		Channels with 'i' and 'q' modifiers always exist in pairs and both
+		channels refer to the same signal. The 'i' channel contains the in-phase
+		component of the signal while the 'q' channel contains the quadrature
+		component.
 
 What:		/sys/.../iio:deviceX/in_energy_en
 What:		/sys/.../iio:deviceX/in_distance_en
@@ -1364,3 +1438,26 @@ Description:
 		hwfifo_watermak_min but not equal to any of the values in this
 		list, the driver will chose an appropriate value for the
 		hardware fifo watermark level.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_object_calibemissivity
+KernelVersion:	4.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The emissivity ratio of the surface in the field of view of the
+		contactless temperature sensor.  Emissivity varies from 0 to 1,
+		with 1 being the emissivity of a black body.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_oversampling_ratio
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_oversampling_ratio
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_oversampling_ratio
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware applied number of measurements for acquiring one
+		data point. The HW will do <type>[_name]_oversampling_ratio
+		measurements and return the average value as output data. Each
+		value resulted from <type>[_name]_oversampling_ratio measurements
+		is considered as one sample for <type>[_name]_sampling_frequency.

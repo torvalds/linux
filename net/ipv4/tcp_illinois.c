@@ -300,24 +300,25 @@ static u32 tcp_illinois_ssthresh(struct sock *sk)
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-static int tcp_illinois_info(struct sock *sk, u32 ext, struct sk_buff *skb)
+static size_t tcp_illinois_info(struct sock *sk, u32 ext, int *attr,
+				union tcp_cc_info *info)
 {
 	const struct illinois *ca = inet_csk_ca(sk);
 
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		struct tcpvegas_info info = {
-			.tcpv_enabled = 1,
-			.tcpv_rttcnt = ca->cnt_rtt,
-			.tcpv_minrtt = ca->base_rtt,
-		};
+		info->vegas.tcpv_enabled = 1;
+		info->vegas.tcpv_rttcnt = ca->cnt_rtt;
+		info->vegas.tcpv_minrtt = ca->base_rtt;
+		info->vegas.tcpv_rtt = 0;
 
-		if (info.tcpv_rttcnt > 0) {
+		if (info->vegas.tcpv_rttcnt > 0) {
 			u64 t = ca->sum_rtt;
 
-			do_div(t, info.tcpv_rttcnt);
-			info.tcpv_rtt = t;
+			do_div(t, info->vegas.tcpv_rttcnt);
+			info->vegas.tcpv_rtt = t;
 		}
-		return nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
+		*attr = INET_DIAG_VEGASINFO;
+		return sizeof(struct tcpvegas_info);
 	}
 	return 0;
 }

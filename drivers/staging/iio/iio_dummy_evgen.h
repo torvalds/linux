@@ -8,6 +8,6 @@ struct iio_dummy_regs {
 
 struct iio_dummy_regs *iio_dummy_evgen_get_regs(int irq);
 int iio_dummy_evgen_get_irq(void);
-int iio_dummy_evgen_release_irq(int irq);
+void iio_dummy_evgen_release_irq(int irq);
 
 #endif /* _IIO_DUMMY_EVGEN_H_ */

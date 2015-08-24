@@ -376,7 +376,7 @@ static void twl6030_irq_unmap(struct irq_domain *d, unsigned int virq)
 	irq_set_chip_data(virq, NULL);
 }
 
-static struct irq_domain_ops twl6030_irq_domain_ops = {
+static const struct irq_domain_ops twl6030_irq_domain_ops = {
 	.map	= twl6030_irq_map,
 	.unmap	= twl6030_irq_unmap,
 	.xlate	= irq_domain_xlate_onetwocell,

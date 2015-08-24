@@ -30,8 +30,6 @@
 			    AUX_SW_RX_HPD_DISCON |	     \
 			    AUX_SW_RX_PARTIAL_BYTE |	     \
 			    AUX_SW_NON_AUX_MODE |	     \
-			    AUX_SW_RX_MIN_COUNT_VIOL |	     \
-			    AUX_SW_RX_INVALID_STOP |	     \
 			    AUX_SW_RX_SYNC_INVALID_L |	     \
 			    AUX_SW_RX_SYNC_INVALID_H |	     \
 			    AUX_SW_RX_INVALID_START |	     \

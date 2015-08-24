@@ -29,14 +29,14 @@
 struct iproc_pcie {
 	struct device *dev;
 	void __iomem *base;
-	struct list_head *resources;
 	struct pci_sys_data sysdata;
 	struct pci_bus *root_bus;
 	struct phy *phy;
 	int irqs[IPROC_PCIE_MAX_NUM_IRQS];
+	int (*map_irq)(const struct pci_dev *, u8, u8);
 };
 
-int iproc_pcie_setup(struct iproc_pcie *pcie);
+int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res);
 int iproc_pcie_remove(struct iproc_pcie *pcie);
 
 #endif /* _PCIE_IPROC_H */

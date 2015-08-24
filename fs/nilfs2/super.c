@@ -610,7 +610,7 @@ static int nilfs_unfreeze(struct super_block *sb)
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	struct nilfs_root *root = NILFS_I(dentry->d_inode)->i_root;
+	struct nilfs_root *root = NILFS_I(d_inode(dentry))->i_root;
 	struct the_nilfs *nilfs = root->nilfs;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 	unsigned long long blocks;
@@ -681,7 +681,7 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct nilfs_root *root = NILFS_I(dentry->d_inode)->i_root;
+	struct nilfs_root *root = NILFS_I(d_inode(dentry))->i_root;
 
 	if (!nilfs_test_opt(nilfs, BARRIER))
 		seq_puts(seq, ",nobarrier");
@@ -1190,7 +1190,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 		sb->s_flags &= ~MS_RDONLY;
 
-		root = NILFS_I(sb->s_root->d_inode)->i_root;
+		root = NILFS_I(d_inode(sb->s_root))->i_root;
 		err = nilfs_attach_log_writer(sb, root);
 		if (err)
 			goto restore_opts;

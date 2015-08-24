@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
  * attached I2C devices, so we can simplify the virtual i2c mechansms
  * and keep the -i2c.c implementation clean.
  */
+#define REGLEN_0bit	0
 #define REGLEN_8bit	1
 #define REGLEN_16bit	2
 
@@ -499,6 +500,144 @@ struct saa7164_board saa7164_boards[] = {
 			.i2c_reg_len	= REGLEN_8bit,
 		} },
 	},
+	[SAA7164_BOARD_HAUPPAUGE_HVR2255proto] = {
+		.name		= "Hauppauge WinTV-HVR2255(proto)",
+		.porta		= SAA7164_MPEG_DVB,
+		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
+		.chiprev	= SAA7164_CHIP_REV3,
+		.unit		= {{
+			.id		= 0x27,
+			.type		= SAA7164_UNIT_EEPROM,
+			.name		= "4K EEPROM",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xa0 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x04,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "SI2157-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x06,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "LGDT3306",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0xb2 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x24,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "SI2157-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_1,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x26,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "LGDT3306-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0x1c >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		} },
+	},
+	[SAA7164_BOARD_HAUPPAUGE_HVR2255] = {
+		.name		= "Hauppauge WinTV-HVR2255",
+		.porta		= SAA7164_MPEG_DVB,
+		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
+		.chiprev	= SAA7164_CHIP_REV3,
+		.unit		= {{
+			.id		= 0x28,
+			.type		= SAA7164_UNIT_EEPROM,
+			.name		= "4K EEPROM",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xa0 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x04,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "SI2157-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x06,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "LGDT3306-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0xb2 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x25,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "SI2157-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_1,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x27,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "LGDT3306-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0x1c >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		} },
+	},
+	[SAA7164_BOARD_HAUPPAUGE_HVR2205] = {
+		.name		= "Hauppauge WinTV-HVR2205",
+		.porta		= SAA7164_MPEG_DVB,
+		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
+		.chiprev	= SAA7164_CHIP_REV3,
+		.unit		= {{
+			.id		= 0x28,
+			.type		= SAA7164_UNIT_EEPROM,
+			.name		= "4K EEPROM",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xa0 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x04,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "SI2157-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x06,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "SI2168-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0xc8 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x25,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "SI2157-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_1,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		}, {
+			.id		= 0x27,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "SI2168-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0xcc >> 1,
+			.i2c_reg_len	= REGLEN_0bit,
+		} },
+	},
 };
 const unsigned int saa7164_bcount = ARRAY_SIZE(saa7164_boards);
 
@@ -546,6 +685,21 @@ struct saa7164_subid saa7164_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x8953,
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2200_5,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0xf111,
+		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2255,
+		/* Prototype card left here for documenation purposes.
+		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2255proto,
+		*/
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0xf123,
+		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2205,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0xf120,
+		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2205,
 	},
 };
 const unsigned int saa7164_idcount = ARRAY_SIZE(saa7164_subids);
@@ -594,10 +748,24 @@ void saa7164_gpio_setup(struct saa7164_dev *dev)
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_3:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2255proto:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2255:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2205:
 		/*
+		HVR2200 / HVR2250
 		GPIO 2: s5h1411 / tda10048-1 demod reset
 		GPIO 3: s5h1411 / tda10048-2 demod reset
 		GPIO 7: IRBlaster Zilog reset
+		 */
+
+		/* HVR2255
+		 * GPIO 2: lgdg3306-1 demod reset
+		 * GPIO 3: lgdt3306-2 demod reset
+		 */
+
+		/* HVR2205
+		 * GPIO 2: si2168-1 demod reset
+		 * GPIO 3: si2168-2 demod reset
 		 */
 
 		/* Reset parts by going in and out of reset */
@@ -647,6 +815,21 @@ static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)
 		/* WinTV-HVR2200 (PCIe, Retail, half-height)
 		 * DVB-T (TDA18271/TDA10048) and basic analog, no IR */
 		break;
+	case 151009:
+		/* First production board rev B2I6 */
+		/* WinTV-HVR2205 (PCIe, Retail, full-height bracket)
+		 * DVB-T/T2/C (SI2157/SI2168) and basic analog, FM */
+		break;
+	case 151609:
+		/* First production board rev B2I6 */
+		/* WinTV-HVR2205 (PCIe, Retail, half-height bracket)
+		 * DVB-T/T2/C (SI2157/SI2168) and basic analog, FM */
+		break;
+	case 151061:
+		/* First production board rev B1I6 */
+		/* WinTV-HVR2255 (PCIe, Retail, full-height bracket)
+		 * ATSC/QAM (SI2157/LGDT3306) and basic analog, FM */
+		break;
 	default:
 		printk(KERN_ERR "%s: Warning: Unknown Hauppauge model #%d\n",
 			dev->name, tv.model);
@@ -676,6 +859,9 @@ void saa7164_card_setup(struct saa7164_dev *dev)
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_3:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2255proto:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2255:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2205:
 		hauppauge_eeprom(dev, &eeprom[0]);
 		break;
 	}

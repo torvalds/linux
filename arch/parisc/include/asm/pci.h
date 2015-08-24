@@ -1,7 +1,7 @@
 #ifndef __ASM_PARISC_PCI_H
 #define __ASM_PARISC_PCI_H
 
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 
 
@@ -195,25 +195,6 @@ static inline void pcibios_register_hba(struct pci_hba_data *x)
 
 /* export the pci_ DMA API in terms of the dma_ one */
 #include <asm-generic/pci-dma-compat.h>
-
-#ifdef CONFIG_PCI
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	unsigned long cacheline_size;
-	u8 byte;
-
-	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
-	if (byte == 0)
-		cacheline_size = 1024;
-	else
-		cacheline_size = (int) byte * 4;
-
-	*strat = PCI_DMA_BURST_MULTIPLE;
-	*strategy_parameter = cacheline_size;
-}
-#endif
 
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {

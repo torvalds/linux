@@ -98,7 +98,7 @@ __v7m_setup:
 	str	r5, [r0, V7M_SCB_SHPR3]	@ set PendSV priority
 
 	@ SVC to run the kernel in this mode
-	adr	r1, BSYM(1f)
+	badr	r1, 1f
 	ldr	r5, [r12, #11 * 4]	@ read the SVC vector entry
 	str	r1, [r12, #11 * 4]	@ write the temporary SVC vector entry
 	mov	r6, lr			@ save LR

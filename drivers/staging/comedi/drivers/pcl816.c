@@ -323,7 +323,7 @@ static int check_channel_list(struct comedi_device *dev,
 
 		/*  check whole chanlist */
 		for (i = 0, segpos = 0; i < chanlen; i++) {
-			    if (chanlist[i] != chansegment[i % seglen]) {
+			if (chanlist[i] != chansegment[i % seglen]) {
 				dev_dbg(dev->class_dev,
 					"bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
 					i, CR_CHAN(chansegment[i]),

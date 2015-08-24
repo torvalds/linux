@@ -218,7 +218,7 @@ err:
 	return ret;
 }
 
-static int mn88472_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88472_dev *dev = i2c_get_clientdata(client);
@@ -344,12 +344,12 @@ static int mn88472_init(struct dvb_frontend *fe)
 	if (ret) {
 		dev_err(&client->dev,
 				"parity reg read failed=%d\n", ret);
-		goto err;
+		goto firmware_release;
 	}
 	if (tmp & 0x10) {
 		dev_err(&client->dev,
 				"firmware parity check failed=0x%x\n", tmp);
-		goto err;
+		goto firmware_release;
 	}
 	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", tmp);
 

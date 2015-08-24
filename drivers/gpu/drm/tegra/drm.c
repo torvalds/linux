@@ -124,14 +124,22 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		return -ENOMEM;
 
 	if (iommu_present(&platform_bus_type)) {
+		struct iommu_domain_geometry *geometry;
+		u64 start, end;
+
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tegra->domain) {
 			err = -ENOMEM;
 			goto free;
 		}
 
-		DRM_DEBUG("IOMMU context initialized\n");
-		drm_mm_init(&tegra->mm, 0, SZ_2G);
+		geometry = &tegra->domain->geometry;
+		start = geometry->aperture_start;
+		end = geometry->aperture_end;
+
+		DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
+			  start, end);
+		drm_mm_init(&tegra->mm, start, end - start + 1);
 	}
 
 	mutex_init(&tegra->clients_lock);
@@ -173,7 +181,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	drm->irq_enabled = true;
 
 	/* syncpoints are used for full 32-bit hardware VBLANK counters */
-	drm->vblank_disable_immediate = true;
 	drm->max_vblank_count = 0xffffffff;
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);

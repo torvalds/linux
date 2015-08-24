@@ -162,11 +162,7 @@ extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 /*
  * Select the right DMA implementation.
  */
-#if defined(CONFIG_SPI_PXA2XX_PXADMA)
-#define SPI_PXA2XX_USE_DMA	1
-#define MAX_DMA_LEN		8191
-#define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TINTE)
-#elif defined(CONFIG_SPI_PXA2XX_DMA)
+#if defined(CONFIG_SPI_PXA2XX_DMA)
 #define SPI_PXA2XX_USE_DMA	1
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)

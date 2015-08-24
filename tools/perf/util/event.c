@@ -23,12 +23,18 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_FORK]			= "FORK",
 	[PERF_RECORD_READ]			= "READ",
 	[PERF_RECORD_SAMPLE]			= "SAMPLE",
+	[PERF_RECORD_AUX]			= "AUX",
+	[PERF_RECORD_ITRACE_START]		= "ITRACE_START",
+	[PERF_RECORD_LOST_SAMPLES]		= "LOST_SAMPLES",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
 	[PERF_RECORD_HEADER_BUILD_ID]		= "BUILD_ID",
 	[PERF_RECORD_FINISHED_ROUND]		= "FINISHED_ROUND",
 	[PERF_RECORD_ID_INDEX]			= "ID_INDEX",
+	[PERF_RECORD_AUXTRACE_INFO]		= "AUXTRACE_INFO",
+	[PERF_RECORD_AUXTRACE]			= "AUXTRACE",
+	[PERF_RECORD_AUXTRACE_ERROR]		= "AUXTRACE_ERROR",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -212,10 +218,14 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       pid_t pid, pid_t tgid,
 				       perf_event__handler_t process,
 				       struct machine *machine,
-				       bool mmap_data)
+				       bool mmap_data,
+				       unsigned int proc_map_timeout)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
+	unsigned long long t;
+	bool truncation = false;
+	unsigned long long timeout = proc_map_timeout * 1000000ULL;
 	int rc = 0;
 
 	if (machine__is_default_guest(machine))
@@ -234,6 +244,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	}
 
 	event->header.type = PERF_RECORD_MMAP2;
+	t = rdclock();
 
 	while (1) {
 		char bf[BUFSIZ];
@@ -246,6 +257,15 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 
 		if (fgets(bf, sizeof(bf), fp) == NULL)
 			break;
+
+		if ((rdclock() - t) > timeout) {
+			pr_warning("Reading %s time out. "
+				   "You may want to increase "
+				   "the time limit by --proc-map-timeout\n",
+				   filename);
+			truncation = true;
+			goto out;
+		}
 
 		/* ensure null termination since stack will be reused. */
 		strcpy(execname, "");
@@ -295,6 +315,10 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			event->header.misc |= PERF_RECORD_MISC_MMAP_DATA;
 		}
 
+out:
+		if (truncation)
+			event->header.misc |= PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT;
+
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
 
@@ -313,6 +337,9 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			rc = -1;
 			break;
 		}
+
+		if (truncation)
+			break;
 	}
 
 	fclose(fp);
@@ -324,8 +351,9 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 				   struct machine *machine)
 {
 	int rc = 0;
-	struct rb_node *nd;
+	struct map *pos;
 	struct map_groups *kmaps = &machine->kmaps;
+	struct maps *maps = &kmaps->maps[MAP__FUNCTION];
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {
@@ -345,10 +373,8 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 	else
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 
-	for (nd = rb_first(&kmaps->maps[MAP__FUNCTION]);
-	     nd; nd = rb_next(nd)) {
+	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
 		size_t size;
-		struct map *pos = rb_entry(nd, struct map, rb_node);
 
 		if (pos->dso->kernel)
 			continue;
@@ -381,7 +407,9 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 				      pid_t pid, int full,
 					  perf_event__handler_t process,
 				      struct perf_tool *tool,
-				      struct machine *machine, bool mmap_data)
+				      struct machine *machine,
+				      bool mmap_data,
+				      unsigned int proc_map_timeout)
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
@@ -398,7 +426,8 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 			return -1;
 
 		return perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-							  process, machine, mmap_data);
+							  process, machine, mmap_data,
+							  proc_map_timeout);
 	}
 
 	if (machine__is_default_guest(machine))
@@ -439,7 +468,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (_pid == pid) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-						process, machine, mmap_data);
+						process, machine, mmap_data, proc_map_timeout);
 			if (rc)
 				break;
 		}
@@ -453,7 +482,8 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine,
-				      bool mmap_data)
+				      bool mmap_data,
+				      unsigned int proc_map_timeout)
 {
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1, thread, j;
@@ -474,9 +504,9 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 	for (thread = 0; thread < threads->nr; ++thread) {
 		if (__event__synthesize_thread(comm_event, mmap_event,
 					       fork_event,
-					       threads->map[thread], 0,
+					       thread_map__pid(threads, thread), 0,
 					       process, tool, machine,
-					       mmap_data)) {
+					       mmap_data, proc_map_timeout)) {
 			err = -1;
 			break;
 		}
@@ -485,12 +515,12 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 		 * comm.pid is set to thread group id by
 		 * perf_event__synthesize_comm
 		 */
-		if ((int) comm_event->comm.pid != threads->map[thread]) {
+		if ((int) comm_event->comm.pid != thread_map__pid(threads, thread)) {
 			bool need_leader = true;
 
 			/* is thread group leader in thread_map? */
 			for (j = 0; j < threads->nr; ++j) {
-				if ((int) comm_event->comm.pid == threads->map[j]) {
+				if ((int) comm_event->comm.pid == thread_map__pid(threads, j)) {
 					need_leader = false;
 					break;
 				}
@@ -502,7 +532,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 						       fork_event,
 						       comm_event->comm.pid, 0,
 						       process, tool, machine,
-						       mmap_data)) {
+						       mmap_data, proc_map_timeout)) {
 				err = -1;
 				break;
 			}
@@ -519,7 +549,9 @@ out:
 
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
-				   struct machine *machine, bool mmap_data)
+				   struct machine *machine,
+				   bool mmap_data,
+				   unsigned int proc_map_timeout)
 {
 	DIR *proc;
 	char proc_path[PATH_MAX];
@@ -559,7 +591,8 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
  		 * one thread couldn't be synthesized.
  		 */
 		__event__synthesize_thread(comm_event, mmap_event, fork_event, pid,
-					   1, process, tool, machine, mmap_data);
+					   1, process, tool, machine, mmap_data,
+					   proc_map_timeout);
 	}
 
 	err = 0;
@@ -692,6 +725,30 @@ int perf_event__process_lost(struct perf_tool *tool __maybe_unused,
 	return machine__process_lost_event(machine, event, sample);
 }
 
+int perf_event__process_aux(struct perf_tool *tool __maybe_unused,
+			    union perf_event *event,
+			    struct perf_sample *sample __maybe_unused,
+			    struct machine *machine)
+{
+	return machine__process_aux_event(machine, event);
+}
+
+int perf_event__process_itrace_start(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample __maybe_unused,
+				     struct machine *machine)
+{
+	return machine__process_itrace_start_event(machine, event);
+}
+
+int perf_event__process_lost_samples(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample,
+				     struct machine *machine)
+{
+	return machine__process_lost_samples_event(machine, event, sample);
+}
+
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
 {
 	return fprintf(fp, " %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %c %s\n",
@@ -755,6 +812,21 @@ int perf_event__process_exit(struct perf_tool *tool __maybe_unused,
 	return machine__process_exit_event(machine, event, sample);
 }
 
+size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " offset: %#"PRIx64" size: %#"PRIx64" flags: %#"PRIx64" [%s%s]\n",
+		       event->aux.aux_offset, event->aux.aux_size,
+		       event->aux.flags,
+		       event->aux.flags & PERF_AUX_FLAG_TRUNCATED ? "T" : "",
+		       event->aux.flags & PERF_AUX_FLAG_OVERWRITE ? "O" : "");
+}
+
+size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " pid: %u tid: %u\n",
+		       event->itrace_start.pid, event->itrace_start.tid);
+}
+
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
@@ -773,6 +845,12 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_MMAP2:
 		ret += perf_event__fprintf_mmap2(event, fp);
+		break;
+	case PERF_RECORD_AUX:
+		ret += perf_event__fprintf_aux(event, fp);
+		break;
+	case PERF_RECORD_ITRACE_START:
+		ret += perf_event__fprintf_itrace_start(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");
@@ -877,6 +955,10 @@ void thread__find_addr_location(struct thread *thread,
 		al->sym = NULL;
 }
 
+/*
+ * Callers need to drop the reference to al->thread, obtained in
+ * machine__findnew_thread()
+ */
 int perf_event__preprocess_sample(const union perf_event *event,
 				  struct machine *machine,
 				  struct addr_location *al,
@@ -935,6 +1017,17 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	}
 
 	return 0;
+}
+
+/*
+ * The preprocess_sample method will return with reference counts for the
+ * in it, when done using (and perhaps getting ref counts if needing to
+ * keep a pointer to one of those entries) it must be paired with
+ * addr_location__put(), so that the refcounts can be decremented.
+ */
+void addr_location__put(struct addr_location *al)
+{
+	thread__zput(al->thread);
 }
 
 bool is_bts_event(struct perf_event_attr *attr)

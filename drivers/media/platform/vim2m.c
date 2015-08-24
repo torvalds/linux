@@ -80,7 +80,6 @@ static struct platform_device vim2m_pdev = {
 };
 
 struct vim2m_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	/* Types the format can be used for */
@@ -89,14 +88,12 @@ struct vim2m_fmt {
 
 static struct vim2m_fmt formats[] = {
 	{
-		.name	= "RGB565 (BE)",
 		.fourcc	= V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
 		.depth	= 16,
 		/* Both capture and output format */
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	},
 	{
-		.name	= "4:2:2, packed, YUYV",
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.depth	= 16,
 		/* Output-only format */
@@ -458,7 +455,6 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 	if (i < NUM_FORMATS) {
 		/* Format found */
 		fmt = &formats[i];
-		strncpy(f->description, fmt->name, sizeof(f->description) - 1);
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}
@@ -697,6 +693,8 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
 	.vidioc_qbuf		= v4l2_m2m_ioctl_qbuf,
 	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
+	.vidioc_prepare_buf	= v4l2_m2m_ioctl_prepare_buf,
+	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
 
 	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
@@ -723,6 +721,12 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 	q_data = get_q_data(ctx, vq->type);
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
+
+	if (fmt) {
+		if (fmt->fmt.pix.sizeimage < size)
+			return -EINVAL;
+		size = fmt->fmt.pix.sizeimage;
+	}
 
 	while (size * count > MEM2MEM_VID_MEM_LIMIT)
 		(count)--;

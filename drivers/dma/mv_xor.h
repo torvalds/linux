@@ -9,10 +9,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef MV_XOR_H
@@ -23,7 +19,7 @@
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 
-#define MV_XOR_POOL_SIZE		PAGE_SIZE
+#define MV_XOR_POOL_SIZE		(MV_XOR_SLOT_SIZE * 3072)
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
 #define MV_XOR_MAX_CHANNELS             2
@@ -34,7 +30,13 @@
 /* Values for the XOR_CONFIG register */
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
+#define XOR_OPERATION_MODE_IN_DESC      7
 #define XOR_DESCRIPTOR_SWAP		BIT(14)
+#define XOR_DESC_SUCCESS		0x40000000
+
+#define XOR_DESC_OPERATION_XOR          (0 << 24)
+#define XOR_DESC_OPERATION_CRC32C       (1 << 24)
+#define XOR_DESC_OPERATION_MEMCPY       (2 << 24)
 
 #define XOR_DESC_DMA_OWNED		BIT(31)
 #define XOR_DESC_EOD_INT_EN		BIT(31)
@@ -92,13 +94,14 @@ struct mv_xor_device {
  * @mmr_base: memory mapped register base
  * @idx: the index of the xor channel
  * @chain: device chain view of the descriptors
+ * @free_slots: free slots usable by the channel
+ * @allocated_slots: slots allocated by the driver
  * @completed_slots: slots completed by HW but still need to be acked
  * @device: parent device
  * @common: common dmaengine channel object members
- * @last_used: place holder for allocation to continue from where it left off
- * @all_slots: complete domain of slots usable by the channel
  * @slots_allocated: records the actual size of the descriptor slot pool
  * @irq_tasklet: bottom half where mv_xor_slot_cleanup runs
+ * @op_in_desc: new mode of driver, each op is writen to descriptor.
  */
 struct mv_xor_chan {
 	int			pending;
@@ -109,16 +112,17 @@ struct mv_xor_chan {
 	int                     irq;
 	enum dma_transaction_type	current_type;
 	struct list_head	chain;
+	struct list_head	free_slots;
+	struct list_head	allocated_slots;
 	struct list_head	completed_slots;
 	dma_addr_t		dma_desc_pool;
 	void			*dma_desc_pool_virt;
 	size_t                  pool_size;
 	struct dma_device	dmadev;
 	struct dma_chan		dmachan;
-	struct mv_xor_desc_slot	*last_used;
-	struct list_head	all_slots;
 	int			slots_allocated;
 	struct tasklet_struct	irq_tasklet;
+	int                     op_in_desc;
 	char			dummy_src[MV_XOR_MIN_BYTE_COUNT];
 	char			dummy_dst[MV_XOR_MIN_BYTE_COUNT];
 	dma_addr_t		dummy_src_addr, dummy_dst_addr;
@@ -126,9 +130,7 @@ struct mv_xor_chan {
 
 /**
  * struct mv_xor_desc_slot - software descriptor
- * @slot_node: node on the mv_xor_chan.all_slots list
- * @chain_node: node on the mv_xor_chan.chain list
- * @completed_node: node on the mv_xor_chan.completed_slots list
+ * @node: node on the mv_xor_chan lists
  * @hw_desc: virtual address of the hardware descriptor chain
  * @phys: hardware address of the hardware descriptor chain
  * @slot_used: slot in use or not
@@ -137,12 +139,9 @@ struct mv_xor_chan {
  * @async_tx: support for the async_tx api
  */
 struct mv_xor_desc_slot {
-	struct list_head	slot_node;
-	struct list_head	chain_node;
-	struct list_head	completed_node;
+	struct list_head	node;
 	enum dma_transaction_type	type;
 	void			*hw_desc;
-	u16			slot_used;
 	u16			idx;
 	struct dma_async_tx_descriptor	async_tx;
 };

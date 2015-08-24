@@ -304,6 +304,8 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNPb006"},
 	/* cs423x-pnpbios */
 	{"CSC0100"},
+	{"CSC0103"},
+	{"CSC0110"},
 	{"CSC0000"},
 	{"GIM0100"},		/* Guillemot Turtlebeach something appears to be cs4232 compatible */
 	/* es18xx-pnpbios */

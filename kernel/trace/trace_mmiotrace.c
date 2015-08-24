@@ -298,7 +298,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 				struct trace_array_cpu *data,
 				struct mmiotrace_rw *rw)
 {
-	struct ftrace_event_call *call = &event_mmiotrace_rw;
+	struct trace_event_call *call = &event_mmiotrace_rw;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_rw *entry;
@@ -328,7 +328,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 				struct trace_array_cpu *data,
 				struct mmiotrace_map *map)
 {
-	struct ftrace_event_call *call = &event_mmiotrace_map;
+	struct trace_event_call *call = &event_mmiotrace_map;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_map *entry;

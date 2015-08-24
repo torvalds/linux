@@ -61,7 +61,6 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/proc_fs.h>
 #include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>

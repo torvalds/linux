@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS = -Wall -g -D_GNU_SOURCE
+CC = $(CROSS_COMPILE)gcc
+CFLAGS += -Wall -g -D_GNU_SOURCE
 
 all: iio_event_monitor lsiio generic_buffer
 

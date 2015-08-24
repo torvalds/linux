@@ -14,7 +14,8 @@
 	compatible = "atmel,at91sam9n12ek", "atmel,at91sam9n12", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
+		bootargs = "root=/dev/mtdblock1 rw rootfstype=jffs2";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -108,6 +109,13 @@
 							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 				};
+
+				usb1 {
+					pinctrl_usb1_vbus_sense: usb1_vbus_sense {
+						atmel,pins =
+							<AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;	/* PB16 gpio usb vbus sense, no pull up and deglitch */
+					};
+				};
 			};
 
 			spi0: spi@f0000000 {
@@ -120,7 +128,18 @@
 				};
 			};
 
+			usb1: gadget@f803c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usb1_vbus_sense>;
+				atmel,vbus-gpio = <&pioB 16 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
 			watchdog@fffffe40 {
+				status = "okay";
+			};
+
+			rtc@fffffeb0 {
 				status = "okay";
 			};
 		};

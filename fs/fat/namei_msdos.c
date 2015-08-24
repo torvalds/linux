@@ -308,7 +308,7 @@ out:
 static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct fat_slot_info sinfo;
 	int err;
 
@@ -402,7 +402,7 @@ out:
 /***** Unlink a file */
 static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
@@ -440,8 +440,8 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	int err, old_attrs, is_dir, update_dotdot, corrupt = 0;
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
-	old_inode = old_dentry->d_inode;
-	new_inode = new_dentry->d_inode;
+	old_inode = d_inode(old_dentry);
+	new_inode = d_inode(new_dentry);
 
 	err = fat_scan(old_dir, old_name, &old_sinfo);
 	if (err) {

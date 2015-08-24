@@ -18,7 +18,7 @@
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 #include <net/red.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 
 /*
    CHOKe stateless AQM for fair bandwidth allocation
@@ -133,16 +133,10 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx)
 	--sch->q.qlen;
 }
 
-/* private part of skb->cb[] that a qdisc is allowed to use
- * is limited to QDISC_CB_PRIV_LEN bytes.
- * As a flow key might be too large, we store a part of it only.
- */
-#define CHOKE_K_LEN min_t(u32, sizeof(struct flow_keys), QDISC_CB_PRIV_LEN - 3)
-
 struct choke_skb_cb {
 	u16			classid;
 	u8			keys_valid;
-	u8			keys[QDISC_CB_PRIV_LEN - 3];
+	struct			flow_keys_digest keys;
 };
 
 static inline struct choke_skb_cb *choke_skb_cb(const struct sk_buff *skb)
@@ -176,19 +170,19 @@ static bool choke_match_flow(struct sk_buff *skb1,
 
 	if (!choke_skb_cb(skb1)->keys_valid) {
 		choke_skb_cb(skb1)->keys_valid = 1;
-		skb_flow_dissect(skb1, &temp);
-		memcpy(&choke_skb_cb(skb1)->keys, &temp, CHOKE_K_LEN);
+		skb_flow_dissect_flow_keys(skb1, &temp);
+		make_flow_keys_digest(&choke_skb_cb(skb1)->keys, &temp);
 	}
 
 	if (!choke_skb_cb(skb2)->keys_valid) {
 		choke_skb_cb(skb2)->keys_valid = 1;
-		skb_flow_dissect(skb2, &temp);
-		memcpy(&choke_skb_cb(skb2)->keys, &temp, CHOKE_K_LEN);
+		skb_flow_dissect_flow_keys(skb2, &temp);
+		make_flow_keys_digest(&choke_skb_cb(skb2)->keys, &temp);
 	}
 
 	return !memcmp(&choke_skb_cb(skb1)->keys,
 		       &choke_skb_cb(skb2)->keys,
-		       CHOKE_K_LEN);
+		       sizeof(choke_skb_cb(skb1)->keys));
 }
 
 /*
@@ -391,6 +385,19 @@ static void choke_reset(struct Qdisc *sch)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
 
+	while (q->head != q->tail) {
+		struct sk_buff *skb = q->tab[q->head];
+
+		q->head = (q->head + 1) & q->tab_mask;
+		if (!skb)
+			continue;
+		qdisc_qstats_backlog_dec(sch, skb);
+		--sch->q.qlen;
+		qdisc_drop(skb, sch);
+	}
+
+	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
+	q->head = q->tail = 0;
 	red_restart(&q->vars);
 }
 

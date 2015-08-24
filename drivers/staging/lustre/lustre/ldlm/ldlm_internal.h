@@ -197,8 +197,7 @@ void ldlm_destroy_flock_export(struct obd_export *exp);
 void l_check_ns_lock(struct ldlm_namespace *ns);
 void l_check_no_ns_lock(struct ldlm_namespace *ns);
 
-extern struct proc_dir_entry *ldlm_svc_proc_dir;
-extern struct proc_dir_entry *ldlm_type_proc_dir;
+extern struct dentry *ldlm_svc_debugfs_dir;
 
 struct ldlm_state {
 	struct ptlrpc_service *ldlm_cb_service;
@@ -238,40 +237,85 @@ enum ldlm_policy_res {
 
 typedef enum ldlm_policy_res ldlm_policy_res_t;
 
-#define LDLM_POOL_PROC_READER_SEQ_SHOW(var, type)			    \
-	static int lprocfs_##var##_seq_show(struct seq_file *m, void *v) \
+#define LDLM_POOL_SYSFS_PRINT_int(v) sprintf(buf, "%d\n", v)
+#define LDLM_POOL_SYSFS_SET_int(a, b) { a = b; }
+#define LDLM_POOL_SYSFS_PRINT_u64(v) sprintf(buf, "%lld\n", v)
+#define LDLM_POOL_SYSFS_SET_u64(a, b) { a = b; }
+#define LDLM_POOL_SYSFS_PRINT_atomic(v) sprintf(buf, "%d\n", atomic_read(&v))
+#define LDLM_POOL_SYSFS_SET_atomic(a, b) atomic_set(&a, b)
+
+#define LDLM_POOL_SYSFS_READER_SHOW(var, type)				    \
+	static ssize_t var##_show(struct kobject *kobj,			    \
+				  struct attribute *attr,		    \
+				  char *buf)				    \
 	{								    \
-		struct ldlm_pool *pl = m->private;			    \
+		struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool, \
+						    pl_kobj);		    \
 		type tmp;						    \
 									    \
 		spin_lock(&pl->pl_lock);				    \
 		tmp = pl->pl_##var;					    \
 		spin_unlock(&pl->pl_lock);				    \
 									    \
-		return lprocfs_rd_uint(m, &tmp);			    \
+		return LDLM_POOL_SYSFS_PRINT_##type(tmp);		    \
 	}								    \
 	struct __##var##__dummy_read {; } /* semicolon catcher */
 
-#define LDLM_POOL_PROC_WRITER(var, type)				    \
-	static int lprocfs_wr_##var(struct file *file,			    \
-				const char __user *buffer,		    \
-				unsigned long count, void *data)	    \
+#define LDLM_POOL_SYSFS_WRITER_STORE(var, type)				    \
+	static ssize_t var##_store(struct kobject *kobj,		    \
+				     struct attribute *attr,		    \
+				     const char *buffer,		    \
+				     size_t count)			    \
 	{								    \
-		struct ldlm_pool *pl = data;				    \
-		type tmp;						    \
+		struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool, \
+						    pl_kobj);		    \
+		unsigned long tmp;					    \
 		int rc;							    \
 									    \
-		rc = lprocfs_wr_uint(file, buffer, count, &tmp);	    \
+		rc = kstrtoul(buffer, 10, &tmp);			    \
 		if (rc < 0) {						    \
-			CERROR("Can't parse user input, rc = %d\n", rc);    \
 			return rc;					    \
 		}							    \
 									    \
 		spin_lock(&pl->pl_lock);				    \
-		pl->pl_##var = tmp;					    \
+		LDLM_POOL_SYSFS_SET_##type(pl->pl_##var, tmp);		    \
 		spin_unlock(&pl->pl_lock);				    \
 									    \
-		return rc;						    \
+		return count;						    \
+	}								    \
+	struct __##var##__dummy_write {; } /* semicolon catcher */
+
+#define LDLM_POOL_SYSFS_READER_NOLOCK_SHOW(var, type)			    \
+	static ssize_t var##_show(struct kobject *kobj,		    \
+				    struct attribute *attr,		    \
+				    char *buf)				    \
+	{								    \
+		struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool, \
+						    pl_kobj);		    \
+									    \
+		return LDLM_POOL_SYSFS_PRINT_##type(pl->pl_##var);	    \
+	}								    \
+	struct __##var##__dummy_read {; } /* semicolon catcher */
+
+#define LDLM_POOL_SYSFS_WRITER_NOLOCK_STORE(var, type)			    \
+	static ssize_t var##_store(struct kobject *kobj,		    \
+				     struct attribute *attr,		    \
+				     const char *buffer,		    \
+				     size_t count)			    \
+	{								    \
+		struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool, \
+						    pl_kobj);		    \
+		unsigned long tmp;					    \
+		int rc;							    \
+									    \
+		rc = kstrtoul(buffer, 10, &tmp);			    \
+		if (rc < 0) {						    \
+			return rc;					    \
+		}							    \
+									    \
+		LDLM_POOL_SYSFS_SET_##type(pl->pl_##var, tmp);		    \
+									    \
+		return count;						    \
 	}								    \
 	struct __##var##__dummy_write {; } /* semicolon catcher */
 

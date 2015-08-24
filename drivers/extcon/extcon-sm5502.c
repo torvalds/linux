@@ -92,19 +92,11 @@ static struct reg_data sm5502_reg_data[] = {
 };
 
 /* List of detectable cables */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-
-	EXTCON_CABLE_END,
-};
-
-static const char *sm5502_extcon_cable[] = {
-	[EXTCON_CABLE_USB]	= "USB",
-	[EXTCON_CABLE_USB_HOST]	= "USB-Host",
-	[EXTCON_CABLE_TA]	= "TA",
-	NULL,
+static const unsigned int sm5502_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_TA,
+	EXTCON_NONE,
 };
 
 /* Define supported accessory type */
@@ -377,15 +369,11 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 				     bool attached)
 {
 	static unsigned int prev_cable_type = SM5502_MUIC_ADC_GROUND;
-	const char **cable_names = info->edev->supported_cable;
 	unsigned int cable_type = SM5502_MUIC_ADC_GROUND;
 	unsigned int con_sw = DM_DP_SWITCH_OPEN;
 	unsigned int vbus_sw = VBUSIN_SWITCH_OPEN;
-	unsigned int idx = 0;
+	unsigned int id;
 	int ret;
-
-	if (!cable_names)
-		return 0;
 
 	/* Get the type of attached or detached cable */
 	if (attached)
@@ -396,17 +384,17 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 
 	switch (cable_type) {
 	case SM5502_MUIC_ADC_OPEN_USB:
-		idx	= EXTCON_CABLE_USB;
+		id	= EXTCON_USB;
 		con_sw	= DM_DP_SWITCH_USB;
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT_WITH_USB;
 		break;
 	case SM5502_MUIC_ADC_OPEN_TA:
-		idx	= EXTCON_CABLE_TA;
+		id	= EXTCON_TA;
 		con_sw	= DM_DP_SWITCH_OPEN;
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT;
 		break;
 	case SM5502_MUIC_ADC_OPEN_USB_OTG:
-		idx	= EXTCON_CABLE_USB_HOST;
+		id	= EXTCON_USB_HOST;
 		con_sw	= DM_DP_SWITCH_USB;
 		vbus_sw	= VBUSIN_SWITCH_OPEN;
 		break;
@@ -422,7 +410,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state(info->edev, cable_names[idx], attached);
+	extcon_set_cable_state_(info->edev, id, attached);
 
 	return 0;
 }
@@ -623,7 +611,6 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-	info->edev->name = np->name;
 
 	/* Register extcon device */
 	ret = devm_extcon_dev_register(info->dev, info->edev);

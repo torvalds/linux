@@ -33,6 +33,7 @@
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/module.h>
+#include <linux/acpi.h>
 #include <net/cfg80211.h>
 
 #include <defs.h>
@@ -987,6 +988,7 @@ static void brcmf_sdiod_freezer_detach(struct brcmf_sdio_dev *sdiodev)
 
 static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 {
+	sdiodev->state = BRCMF_SDIOD_DOWN;
 	if (sdiodev->bus) {
 		brcmf_sdio_remove(sdiodev->bus);
 		sdiodev->bus = NULL;
@@ -1009,6 +1011,14 @@ static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 
 	pm_runtime_allow(sdiodev->func[1]->card->host->parent);
 	return 0;
+}
+
+static void brcmf_sdiod_host_fixup(struct mmc_host *host)
+{
+	/* runtime-pm powers off the device */
+	pm_runtime_forbid(host->parent);
+	/* avoid removal detection upon resume */
+	host->caps |= MMC_CAP_NONREMOVABLE;
 }
 
 static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
@@ -1076,7 +1086,7 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 		ret = -ENODEV;
 		goto out;
 	}
-	pm_runtime_forbid(host->parent);
+	brcmf_sdiod_host_fixup(host);
 out:
 	if (ret)
 		brcmf_sdiod_remove(sdiodev);
@@ -1108,18 +1118,35 @@ MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 static struct brcmfmac_sdio_platform_data *brcmfmac_sdio_pdata;
 
 
+static void brcmf_sdiod_acpi_set_power_manageable(struct device *dev,
+						  int val)
+{
+#if IS_ENABLED(CONFIG_ACPI)
+	struct acpi_device *adev;
+
+	adev = ACPI_COMPANION(dev);
+	if (adev)
+		adev->flags.power_manageable = 0;
+#endif
+}
+
 static int brcmf_ops_sdio_probe(struct sdio_func *func,
 				const struct sdio_device_id *id)
 {
 	int err;
 	struct brcmf_sdio_dev *sdiodev;
 	struct brcmf_bus *bus_if;
+	struct device *dev;
 
 	brcmf_dbg(SDIO, "Enter\n");
 	brcmf_dbg(SDIO, "Class=%x\n", func->class);
 	brcmf_dbg(SDIO, "sdio vendor ID: 0x%04x\n", func->vendor);
 	brcmf_dbg(SDIO, "sdio device ID: 0x%04x\n", func->device);
 	brcmf_dbg(SDIO, "Function#: %d\n", func->num);
+
+	dev = &func->dev;
+	/* prohibit ACPI power management for this device */
+	brcmf_sdiod_acpi_set_power_manageable(dev, 0);
 
 	/* Consume func num 1 but dont do anything with it. */
 	if (func->num == 1)
@@ -1246,15 +1273,15 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 	brcmf_sdiod_freezer_on(sdiodev);
 	brcmf_sdio_wd_timer(sdiodev->bus, 0);
 
+	sdio_flags = MMC_PM_KEEP_POWER;
 	if (sdiodev->wowl_enabled) {
-		sdio_flags = MMC_PM_KEEP_POWER;
 		if (sdiodev->pdata->oob_irq_supported)
 			enable_irq_wake(sdiodev->pdata->oob_irq_nr);
 		else
-			sdio_flags = MMC_PM_WAKE_SDIO_IRQ;
-		if (sdio_set_host_pm_flags(sdiodev->func[1], sdio_flags))
-			brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
+			sdio_flags |= MMC_PM_WAKE_SDIO_IRQ;
 	}
+	if (sdio_set_host_pm_flags(sdiodev->func[1], sdio_flags))
+		brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
 	return 0;
 }
 

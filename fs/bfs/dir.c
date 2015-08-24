@@ -153,7 +153,7 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 static int bfs_link(struct dentry *old, struct inode *dir,
 						struct dentry *new)
 {
-	struct inode *inode = old->d_inode;
+	struct inode *inode = d_inode(old);
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 	int err;
 
@@ -176,7 +176,7 @@ static int bfs_link(struct dentry *old, struct inode *dir,
 static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error = -ENOENT;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
@@ -216,7 +216,7 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int error = -ENOENT;
 
 	old_bh = new_bh = NULL;
-	old_inode = old_dentry->d_inode;
+	old_inode = d_inode(old_dentry);
 	if (S_ISDIR(old_inode->i_mode))
 		return -EINVAL;
 
@@ -231,7 +231,7 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto end_rename;
 
 	error = -EPERM;
-	new_inode = new_dentry->d_inode;
+	new_inode = d_inode(new_dentry);
 	new_bh = bfs_find_entry(new_dir, 
 				new_dentry->d_name.name, 
 				new_dentry->d_name.len, &new_de);

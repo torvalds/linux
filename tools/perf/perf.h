@@ -54,16 +54,22 @@ struct record_opts {
 	bool	     period;
 	bool	     sample_intr_regs;
 	bool	     running_time;
+	bool	     full_auxtrace;
+	bool	     auxtrace_snapshot_mode;
 	unsigned int freq;
 	unsigned int mmap_pages;
+	unsigned int auxtrace_mmap_pages;
 	unsigned int user_freq;
 	u64          branch_stack;
 	u64	     default_interval;
 	u64	     user_interval;
+	size_t	     auxtrace_snapshot_size;
+	const char   *auxtrace_snapshot_opts;
 	bool	     sample_transaction;
 	unsigned     initial_delay;
 	bool         use_clockid;
 	clockid_t    clockid;
+	unsigned int proc_map_timeout;
 };
 
 struct option;

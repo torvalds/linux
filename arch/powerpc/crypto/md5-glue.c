@@ -37,10 +37,10 @@ static int ppc_md5_init(struct shash_desc *desc)
 {
 	struct md5_state *sctx = shash_desc_ctx(desc);
 
-	sctx->hash[0] = 0x67452301;
-	sctx->hash[1] = 0xefcdab89;
-	sctx->hash[2] = 0x98badcfe;
-	sctx->hash[3] =	0x10325476;
+	sctx->hash[0] = MD5_H0;
+	sctx->hash[1] = MD5_H1;
+	sctx->hash[2] = MD5_H2;
+	sctx->hash[3] =	MD5_H3;
 	sctx->byte_count = 0;
 
 	return 0;

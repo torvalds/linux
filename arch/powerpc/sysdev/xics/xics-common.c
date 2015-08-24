@@ -227,7 +227,7 @@ void xics_migrate_irqs_away(void)
 
 		/* Locate interrupt server */
 		server = -1;
-		ics = irq_get_chip_data(virq);
+		ics = irq_desc_get_chip_data(desc);
 		if (ics)
 			server = ics->get_server(ics, irq);
 		if (server < 0) {
@@ -360,7 +360,7 @@ static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops xics_host_ops = {
+static const struct irq_domain_ops xics_host_ops = {
 	.match = xics_host_match,
 	.map = xics_host_map,
 	.xlate = xics_host_xlate,

@@ -38,7 +38,7 @@ static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
 /* not ironically named at all.. no, really.. */
 static void bs_init(struct mdp4_dtv_encoder *mdp4_dtv_encoder)

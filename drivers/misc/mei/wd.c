@@ -50,15 +50,15 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  * mei_wd_host_init - connect to the watchdog client
  *
  * @dev: the device structure
+ * @me_cl: me client
  *
  * Return: -ENOTTY if wd client cannot be found
  *         -EIO if write has failed
  *         0 on success
  */
-int mei_wd_host_init(struct mei_device *dev)
+int mei_wd_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 {
 	struct mei_cl *cl = &dev->wd_cl;
-	struct mei_me_client *me_cl;
 	int ret;
 
 	mei_cl_init(cl, dev);
@@ -66,27 +66,13 @@ int mei_wd_host_init(struct mei_device *dev)
 	dev->wd_timeout = MEI_WD_DEFAULT_TIMEOUT;
 	dev->wd_state = MEI_WD_IDLE;
 
-
-	/* check for valid client id */
-	me_cl = mei_me_cl_by_uuid(dev, &mei_wd_guid);
-	if (!me_cl) {
-		dev_info(dev->dev, "wd: failed to find the client\n");
-		return -ENOTTY;
-	}
-
-	cl->me_client_id = me_cl->client_id;
-	cl->cl_uuid = me_cl->props.protocol_name;
-	mei_me_cl_put(me_cl);
-
 	ret = mei_cl_link(cl, MEI_WD_HOST_CLIENT_ID);
-
 	if (ret < 0) {
 		dev_info(dev->dev, "wd: failed link client\n");
 		return ret;
 	}
 
-	ret = mei_cl_connect(cl, NULL);
-
+	ret = mei_cl_connect(cl, me_cl, NULL);
 	if (ret) {
 		dev_err(dev->dev, "wd: failed to connect = %d\n", ret);
 		mei_cl_unlink(cl);
@@ -118,7 +104,7 @@ int mei_wd_send(struct mei_device *dev)
 	int ret;
 
 	hdr.host_addr = cl->host_client_id;
-	hdr.me_addr = cl->me_client_id;
+	hdr.me_addr = mei_cl_me_id(cl);
 	hdr.msg_complete = 1;
 	hdr.reserved = 0;
 	hdr.internal = 0;

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
+#include <linux/dma-mapping.h>
 
 #include "internal.h"
 
@@ -167,6 +168,7 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 	struct list_head *physnode_list;
 	unsigned int node_id;
 	int retval = -EINVAL;
+	bool coherent;
 
 	if (has_acpi_companion(dev)) {
 		if (acpi_dev) {
@@ -222,6 +224,9 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 
 	if (!has_acpi_companion(dev))
 		ACPI_COMPANION_SET(dev, acpi_dev);
+
+	if (acpi_check_dma(acpi_dev, &coherent))
+		arch_setup_dma_ops(dev, 0, 0, NULL, coherent);
 
 	acpi_physnode_link_name(physical_node_name, node_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,

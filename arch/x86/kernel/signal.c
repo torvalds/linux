@@ -26,8 +26,8 @@
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
 #include <asm/vdso.h>
 #include <asm/mce.h>
 #include <asm/sighandling.h>
@@ -93,8 +93,15 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		COPY(r15);
 #endif /* CONFIG_X86_64 */
 
+#ifdef CONFIG_X86_32
 		COPY_SEG_CPL3(cs);
 		COPY_SEG_CPL3(ss);
+#else /* !CONFIG_X86_32 */
+		/* Kernel saves and restores only the CS segment register on signals,
+		 * which is the bare minimum needed to allow mixed 32/64-bit code.
+		 * App's signal handler can save/restore other segments if needed. */
+		COPY_SEG_CPL3(cs);
+#endif /* CONFIG_X86_32 */
 
 		get_user_ex(tmpflags, &sc->flags);
 		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
@@ -103,7 +110,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		get_user_ex(buf, &sc->fpstate);
 	} get_user_catch(err);
 
-	err |= restore_xstate_sig(buf, config_enabled(CONFIG_X86_32));
+	err |= fpu__restore_sig(buf, config_enabled(CONFIG_X86_32));
 
 	force_iret();
 
@@ -154,9 +161,8 @@ int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 #else /* !CONFIG_X86_32 */
 		put_user_ex(regs->flags, &sc->flags);
 		put_user_ex(regs->cs, &sc->cs);
-		put_user_ex(0, &sc->__pad2);
-		put_user_ex(0, &sc->__pad1);
-		put_user_ex(regs->ss, &sc->ss);
+		put_user_ex(0, &sc->gs);
+		put_user_ex(0, &sc->fs);
 #endif /* CONFIG_X86_32 */
 
 		put_user_ex(fpstate, &sc->fpstate);
@@ -199,6 +205,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	unsigned long sp = regs->sp;
 	unsigned long buf_fx = 0;
 	int onsigstack = on_sig_stack(sp);
+	struct fpu *fpu = &current->thread.fpu;
 
 	/* redzone */
 	if (config_enabled(CONFIG_X86_64))
@@ -218,9 +225,9 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		}
 	}
 
-	if (used_math()) {
-		sp = alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
-				     &buf_fx, &math_size);
+	if (fpu->fpstate_active) {
+		sp = fpu__alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
+					  &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
 	}
 
@@ -234,8 +241,8 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		return (void __user *)-1L;
 
 	/* save i387 and extended state */
-	if (used_math() &&
-	    save_xstate_sig(*fpstate, (void __user *)buf_fx, math_size) < 0)
+	if (fpu->fpstate_active &&
+	    copy_fpstate_to_sigframe(*fpstate, (void __user *)buf_fx, math_size) < 0)
 		return (void __user *)-1L;
 
 	return (void __user *)sp;
@@ -450,19 +457,9 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 
 	regs->sp = (unsigned long)frame;
 
-	/*
-	 * Set up the CS and SS registers to run signal handlers in
-	 * 64-bit mode, even if the handler happens to be interrupting
-	 * 32-bit or 16-bit code.
-	 *
-	 * SS is subtle.  In 64-bit mode, we don't need any particular
-	 * SS descriptor, but we do need SS to be valid.  It's possible
-	 * that the old SS is entirely bogus -- this can happen if the
-	 * signal we're trying to deliver is #GP or #SS caused by a bad
-	 * SS value.
-	 */
+	/* Set up the CS register to run signal handlers in 64-bit mode,
+	   even if the handler happens to be interrupting 32-bit code. */
 	regs->cs = __USER_CS;
-	regs->ss = __USER_DS;
 
 	return 0;
 }
@@ -593,6 +590,22 @@ badframe:
 	return 0;
 }
 
+static inline int is_ia32_compat_frame(void)
+{
+	return config_enabled(CONFIG_IA32_EMULATION) &&
+	       test_thread_flag(TIF_IA32);
+}
+
+static inline int is_ia32_frame(void)
+{
+	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
+}
+
+static inline int is_x32_frame(void)
+{
+	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
+}
+
 static int
 setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
@@ -617,6 +630,7 @@ static void
 handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	bool stepping, failed;
+	struct fpu *fpu = &current->thread.fpu;
 
 	/* Are we from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
@@ -665,8 +679,8 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/*
 		 * Ensure the signal handler starts with the new fpu state.
 		 */
-		if (used_math())
-			fpu_reset_state(current);
+		if (fpu->fpstate_active)
+			fpu__clear(fpu);
 	}
 	signal_setup_done(failed, ksig, stepping);
 }

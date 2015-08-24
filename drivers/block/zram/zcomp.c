@@ -274,7 +274,7 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	int i = 0;
 
 	while (backends[i]) {
-		if (sysfs_streq(comp, backends[i]->name))
+		if (!strcmp(comp, backends[i]->name))
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
 					"[%s] ", backends[i]->name);
 		else
@@ -284,6 +284,11 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	}
 	sz += scnprintf(buf + sz, PAGE_SIZE - sz, "\n");
 	return sz;
+}
+
+bool zcomp_available_algorithm(const char *comp)
+{
+	return find_backend(comp) != NULL;
 }
 
 bool zcomp_set_max_streams(struct zcomp *comp, int num_strm)

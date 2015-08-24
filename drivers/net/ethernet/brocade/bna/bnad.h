@@ -344,7 +344,7 @@ struct bnad {
 	struct bnad_completion bnad_completions;
 
 	/* Burnt in MAC address */
-	mac_t			perm_addr;
+	u8			perm_addr[ETH_ALEN];
 
 	struct workqueue_struct *work_q;
 
@@ -385,7 +385,7 @@ u32 *cna_get_firmware_buf(struct pci_dev *pdev);
 /* Netdev entry point prototypes */
 void bnad_set_rx_mode(struct net_device *netdev);
 struct net_device_stats *bnad_get_netdev_stats(struct net_device *netdev);
-int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
+int bnad_mac_addr_set_locked(struct bnad *bnad, const u8 *mac_addr);
 int bnad_enable_default_bcast(struct bnad *bnad);
 void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
 void bnad_set_ethtool_ops(struct net_device *netdev);

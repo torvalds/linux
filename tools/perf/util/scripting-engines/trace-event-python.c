@@ -44,10 +44,10 @@
 
 PyMODINIT_FUNC initperf_trace_context(void);
 
-#define FTRACE_MAX_EVENT				\
+#define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, FTRACE_MAX_EVENT);
+static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
 #define MAX_FIELDS	64
 #define N_COMMON_FIELDS	7

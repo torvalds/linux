@@ -1478,7 +1478,6 @@ out:
 	if (full_bio) {
 		full_bio->bi_end_io = pe->full_bio_end_io;
 		full_bio->bi_private = pe->full_bio_private;
-		atomic_inc(&full_bio->bi_remaining);
 	}
 	increment_pending_exceptions_done_count();
 

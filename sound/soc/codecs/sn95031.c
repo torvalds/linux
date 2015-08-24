@@ -194,7 +194,7 @@ static int sn95031_set_vaud_bias(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY) {
 			pr_debug("vaud_bias powering up pll\n");
 			/* power up the pll */
 			snd_soc_write(codec, SN95031_AUDPLLCTRL, BIT(5));
@@ -205,17 +205,22 @@ static int sn95031_set_vaud_bias(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		switch (snd_soc_codec_get_bias_level(codec)) {
+		case SND_SOC_BIAS_OFF:
 			pr_debug("vaud_bias power up rail\n");
 			/* power up the rail */
 			snd_soc_write(codec, SN95031_VAUD,
 					BIT(2)|BIT(1)|BIT(0));
 			msleep(1);
-		} else if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE) {
+			break;
+		case SND_SOC_BIAS_PREPARE:
 			/* turn off pcm */
 			pr_debug("vaud_bias power dn pcm\n");
 			snd_soc_update_bits(codec, SN95031_PCM2C2, BIT(0), 0);
 			snd_soc_write(codec, SN95031_AUDPLLCTRL, 0);
+			break;
+		default:
+			break;
 		}
 		break;
 
@@ -226,7 +231,6 @@ static int sn95031_set_vaud_bias(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

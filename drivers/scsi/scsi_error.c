@@ -26,7 +26,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
-#include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -944,7 +943,7 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 			    scmd->sdb.length);
 		scmd->sdb.table.sgl = &ses->sense_sgl;
 		scmd->sc_data_direction = DMA_FROM_DEVICE;
-		scmd->sdb.table.nents = 1;
+		scmd->sdb.table.nents = scmd->sdb.table.orig_nents = 1;
 		scmd->cmnd[0] = REQUEST_SENSE;
 		scmd->cmnd[4] = scmd->sdb.length;
 		scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
@@ -2399,70 +2398,6 @@ out_put_autopm_host:
 }
 EXPORT_SYMBOL(scsi_ioctl_reset);
 
-/**
- * scsi_normalize_sense - normalize main elements from either fixed or
- *			descriptor sense data format into a common format.
- *
- * @sense_buffer:	byte array containing sense data returned by device
- * @sb_len:		number of valid bytes in sense_buffer
- * @sshdr:		pointer to instance of structure that common
- *			elements are written to.
- *
- * Notes:
- *	The "main elements" from sense data are: response_code, sense_key,
- *	asc, ascq and additional_length (only for descriptor format).
- *
- *	Typically this function can be called after a device has
- *	responded to a SCSI command with the CHECK_CONDITION status.
- *
- * Return value:
- *	true if valid sense data information found, else false;
- */
-bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
-			  struct scsi_sense_hdr *sshdr)
-{
-	if (!sense_buffer || !sb_len)
-		return false;
-
-	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
-
-	sshdr->response_code = (sense_buffer[0] & 0x7f);
-
-	if (!scsi_sense_valid(sshdr))
-		return false;
-
-	if (sshdr->response_code >= 0x72) {
-		/*
-		 * descriptor format
-		 */
-		if (sb_len > 1)
-			sshdr->sense_key = (sense_buffer[1] & 0xf);
-		if (sb_len > 2)
-			sshdr->asc = sense_buffer[2];
-		if (sb_len > 3)
-			sshdr->ascq = sense_buffer[3];
-		if (sb_len > 7)
-			sshdr->additional_length = sense_buffer[7];
-	} else {
-		/*
-		 * fixed format
-		 */
-		if (sb_len > 2)
-			sshdr->sense_key = (sense_buffer[2] & 0xf);
-		if (sb_len > 7) {
-			sb_len = (sb_len < (sense_buffer[7] + 8)) ?
-					 sb_len : (sense_buffer[7] + 8);
-			if (sb_len > 12)
-				sshdr->asc = sense_buffer[12];
-			if (sb_len > 13)
-				sshdr->ascq = sense_buffer[13];
-		}
-	}
-
-	return true;
-}
-EXPORT_SYMBOL(scsi_normalize_sense);
-
 bool scsi_command_normalize_sense(const struct scsi_cmnd *cmd,
 				  struct scsi_sense_hdr *sshdr)
 {
@@ -2587,33 +2522,3 @@ void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq)
 	}
 }
 EXPORT_SYMBOL(scsi_build_sense_buffer);
-
-/**
- * scsi_set_sense_information - set the information field in a
- *		formatted sense data buffer
- * @buf:	Where to build sense data
- * @info:	64-bit information value to be set
- *
- **/
-void scsi_set_sense_information(u8 *buf, u64 info)
-{
-	if ((buf[0] & 0x7f) == 0x72) {
-		u8 *ucp, len;
-
-		len = buf[7];
-		ucp = (char *)scsi_sense_desc_find(buf, len + 8, 0);
-		if (!ucp) {
-			buf[7] = len + 0xa;
-			ucp = buf + 8 + len;
-		}
-		ucp[0] = 0;
-		ucp[1] = 0xa;
-		ucp[2] = 0x80; /* Valid bit */
-		ucp[3] = 0;
-		put_unaligned_be64(info, &ucp[4]);
-	} else if ((buf[0] & 0x7f) == 0x70) {
-		buf[0] |= 0x80;
-		put_unaligned_be64(info, &buf[3]);
-	}
-}
-EXPORT_SYMBOL(scsi_set_sense_information);

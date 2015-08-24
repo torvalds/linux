@@ -43,7 +43,7 @@
 #include <asm/time.h>
 #include <asm/setup.h>
 
-volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
+cpumask_t cpu_callin_map;		/* Bitmask of started secondaries */
 
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 EXPORT_SYMBOL(__cpu_number_map);
@@ -62,6 +62,13 @@ EXPORT_SYMBOL(cpu_sibling_map);
 /* representing the core map of multi-core chips of each logical CPU */
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
+
+/*
+ * A logcal cpu mask containing only one VPE per core to
+ * reduce the number of IPIs on large MT systems.
+ */
+cpumask_t cpu_foreign_map __read_mostly;
+EXPORT_SYMBOL(cpu_foreign_map);
 
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
@@ -101,6 +108,29 @@ static inline void set_cpu_core_map(int cpu)
 			cpumask_set_cpu(cpu, &cpu_core_map[i]);
 		}
 	}
+}
+
+/*
+ * Calculate a new cpu_foreign_map mask whenever a
+ * new cpu appears or disappears.
+ */
+static inline void calculate_cpu_foreign_map(void)
+{
+	int i, k, core_present;
+	cpumask_t temp_foreign_map;
+
+	/* Re-calculate the mask */
+	for_each_online_cpu(i) {
+		core_present = 0;
+		for_each_cpu(k, &temp_foreign_map)
+			if (cpu_data[i].package == cpu_data[k].package &&
+			    cpu_data[i].core == cpu_data[k].core)
+				core_present = 1;
+		if (!core_present)
+			cpumask_set_cpu(i, &temp_foreign_map);
+	}
+
+	cpumask_copy(&cpu_foreign_map, &temp_foreign_map);
 }
 
 struct plat_smp_ops *mp_ops;
@@ -146,6 +176,8 @@ asmlinkage void start_secondary(void)
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
 
+	calculate_cpu_foreign_map();
+
 	cpumask_set_cpu(cpu, &cpu_callin_map);
 
 	synchronise_count_slave(cpu);
@@ -160,22 +192,21 @@ asmlinkage void start_secondary(void)
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
-/*
- * Call into both interrupt handlers, as we share the IPI for them
- */
-void __irq_entry smp_call_function_interrupt(void)
-{
-	irq_enter();
-	generic_smp_call_function_interrupt();
-	irq_exit();
-}
-
 static void stop_this_cpu(void *dummy)
 {
 	/*
-	 * Remove this CPU:
+	 * Remove this CPU. Be a bit slow here and
+	 * set the bits for every online CPU so we don't miss
+	 * any IPI whilst taking this VPE down.
 	 */
+
+	cpumask_copy(&cpu_foreign_map, cpu_online_mask);
+
+	/* Make it visible to every other CPU */
+	smp_mb();
+
 	set_cpu_online(smp_processor_id(), false);
+	calculate_cpu_foreign_map();
 	local_irq_disable();
 	while (1);
 }
@@ -197,6 +228,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	mp_ops->prepare_cpus(max_cpus);
 	set_cpu_sibling_map(0);
 	set_cpu_core_map(0);
+	calculate_cpu_foreign_map();
 #ifndef CONFIG_HOTPLUG_CPU
 	init_cpu_present(cpu_possible_mask);
 #endif
@@ -218,8 +250,10 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	/*
 	 * Trust is futile.  We should really have timeouts ...
 	 */
-	while (!cpumask_test_cpu(cpu, &cpu_callin_map))
+	while (!cpumask_test_cpu(cpu, &cpu_callin_map)) {
 		udelay(100);
+		schedule();
+	}
 
 	synchronise_count_master(cpu);
 	return 0;

@@ -128,7 +128,6 @@ struct ndis_tcp_ip_checksum_info;
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
 	u32 status;
-	bool part_of_skb;
 
 	bool is_data_pkt;
 	bool xmit_more; /* from skb */
@@ -162,6 +161,7 @@ struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
 	bool link_state;	/* 0 - link up, 1 - link down */
 	int  ring_size;
+	u32  max_num_vrss_chns;
 };
 
 enum rndis_device_state {
@@ -612,6 +612,24 @@ struct multi_send_data {
 	u32 count; /* counter of batched packets */
 };
 
+struct netvsc_stats {
+	u64 packets;
+	u64 bytes;
+	struct u64_stats_sync syncp;
+};
+
+/* The context of the netvsc device  */
+struct net_device_context {
+	/* point back to our device context */
+	struct hv_device *device_ctx;
+	struct delayed_work dwork;
+	struct work_struct work;
+	u32 msg_enable; /* debug level */
+
+	struct netvsc_stats __percpu *tx_stats;
+	struct netvsc_stats __percpu *rx_stats;
+};
+
 /* Per netvsc device */
 struct netvsc_device {
 	struct hv_device *dev;
@@ -667,6 +685,9 @@ struct netvsc_device {
 	struct multi_send_data msd[NR_CPUS];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
+
+	/* The net device context */
+	struct net_device_context *nd_ctx;
 };
 
 /* NdisInitialize message */

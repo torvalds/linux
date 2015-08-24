@@ -554,4 +554,4 @@ module_platform_driver(hix5hd2_i2c_driver);
 MODULE_DESCRIPTION("Hix5hd2 I2C Bus driver");
 MODULE_AUTHOR("Wei Yan <sledge.yanwei@huawei.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:i2c-hix5hd2");
+MODULE_ALIAS("platform:hix5hd2-i2c");

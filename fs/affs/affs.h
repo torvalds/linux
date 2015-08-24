@@ -64,7 +64,7 @@ struct affs_inode_info {
 /* short cut to get to the affs specific inode data */
 static inline struct affs_inode_info *AFFS_I(struct inode *inode)
 {
-	return list_entry(inode, struct affs_inode_info, vfs_inode);
+	return container_of(inode, struct affs_inode_info, vfs_inode);
 }
 
 /*

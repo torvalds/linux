@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 #include <as-layout.h>
 #include <init.h>
 #include <kern.h>
@@ -54,8 +55,6 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 		      "err = %d\n", virt, fd, offset, len, r, w, x, err);
 	}
 }
-
-extern int __syscall_stub_start;
 
 /**
  * setup_physmem() - Setup physical memory for UML
@@ -110,8 +109,8 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	 * Special kludge - This page will be mapped in to userspace processes
 	 * from physmem_fd, so it needs to be written out there.
 	 */
-	os_seek_file(physmem_fd, __pa(&__syscall_stub_start));
-	os_write_file(physmem_fd, &__syscall_stub_start, PAGE_SIZE);
+	os_seek_file(physmem_fd, __pa(__syscall_stub_start));
+	os_write_file(physmem_fd, __syscall_stub_start, PAGE_SIZE);
 	os_fsync_file(physmem_fd);
 
 	bootmap_size = init_bootmem(pfn, pfn + delta);

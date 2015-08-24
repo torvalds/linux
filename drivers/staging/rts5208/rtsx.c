@@ -230,7 +230,6 @@ static struct scsi_host_template rtsx_host_template = {
 
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
-	.cmd_per_lun =			1,
 
 	/* unknown initiator id */
 	.this_id =			-1,
@@ -537,7 +536,7 @@ static int rtsx_polling_thread(void *__dev)
 	for (;;) {
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(POLLING_INTERVAL);
+		schedule_timeout(msecs_to_jiffies(POLLING_INTERVAL));
 
 		/* lock the device pointers */
 		mutex_lock(&(dev->dev_mutex));

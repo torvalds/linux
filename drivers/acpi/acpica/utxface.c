@@ -234,8 +234,8 @@ acpi_status acpi_get_statistics(struct acpi_statistics *stats)
 	stats->sci_count = acpi_sci_count;
 	stats->gpe_count = acpi_gpe_count;
 
-	ACPI_MEMCPY(stats->fixed_event_count, acpi_fixed_event_count,
-		    sizeof(acpi_fixed_event_count));
+	memcpy(stats->fixed_event_count, acpi_fixed_event_count,
+	       sizeof(acpi_fixed_event_count));
 
 	/* Other counters */
 
@@ -322,7 +322,7 @@ acpi_status acpi_install_interface(acpi_string interface_name)
 
 	/* Parameter validation */
 
-	if (!interface_name || (ACPI_STRLEN(interface_name) == 0)) {
+	if (!interface_name || (strlen(interface_name) == 0)) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -374,7 +374,7 @@ acpi_status acpi_remove_interface(acpi_string interface_name)
 
 	/* Parameter validation */
 
-	if (!interface_name || (ACPI_STRLEN(interface_name) == 0)) {
+	if (!interface_name || (strlen(interface_name) == 0)) {
 		return (AE_BAD_PARAMETER);
 	}
 

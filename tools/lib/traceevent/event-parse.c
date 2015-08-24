@@ -1387,7 +1387,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 			do_warning_event(event, "%s: no type found", __func__);
 			goto fail;
 		}
-		field->name = last_token;
+		field->name = field->alias = last_token;
 
 		if (test_type(type, EVENT_OP))
 			goto fail;
@@ -1469,7 +1469,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				size_dynamic = type_size(field->name);
 				free_token(field->name);
 				strcat(field->type, brackets);
-				field->name = token;
+				field->name = field->alias = token;
 				type = read_token(&token);
 			} else {
 				char *new_type;
@@ -3865,7 +3865,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			} else if (el_size == 4) {
 				trace_seq_printf(s, "%u", *(uint32_t *)num);
 			} else if (el_size == 8) {
-				trace_seq_printf(s, "%lu", *(uint64_t *)num);
+				trace_seq_printf(s, "%"PRIu64, *(uint64_t *)num);
 			} else {
 				trace_seq_printf(s, "BAD SIZE:%d 0x%x",
 						 el_size, *(uint8_t *)num);
@@ -6444,6 +6444,8 @@ void pevent_ref(struct pevent *pevent)
 void pevent_free_format_field(struct format_field *field)
 {
 	free(field->type);
+	if (field->alias != field->name)
+		free(field->alias);
 	free(field->name);
 	free(field);
 }

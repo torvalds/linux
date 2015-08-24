@@ -169,6 +169,9 @@ int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		       struct mlx5_query_cq_mbox_out *out);
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			struct mlx5_modify_cq_mbox_in *in, int in_sz);
+int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
+				   struct mlx5_core_cq *cq, u16 cq_period,
+				   u16 cq_max_count);
 int mlx5_debug_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 

@@ -809,12 +809,12 @@ static struct usb_feature_control_info audio_feature_info[] = {
 	{ "Tone Control - Treble",	USB_MIXER_S8 },
 	{ "Graphic Equalizer",		USB_MIXER_S8 }, /* FIXME: not implemeted yet */
 	{ "Auto Gain Control",		USB_MIXER_BOOLEAN },
-	{ "Delay Control",		USB_MIXER_U16 },
+	{ "Delay Control",		USB_MIXER_U16 }, /* FIXME: U32 in UAC2 */
 	{ "Bass Boost",			USB_MIXER_BOOLEAN },
 	{ "Loudness",			USB_MIXER_BOOLEAN },
 	/* UAC2 specific */
-	{ "Input Gain Control",		USB_MIXER_U16 },
-	{ "Input Gain Pad Control",	USB_MIXER_BOOLEAN },
+	{ "Input Gain Control",		USB_MIXER_S16 },
+	{ "Input Gain Pad Control",	USB_MIXER_S16 },
 	{ "Phase Inverter Control",	USB_MIXER_BOOLEAN },
 };
 
@@ -918,6 +918,7 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 	case USB_ID(0x046d, 0x081d): /* HD Webcam c510 */
 	case USB_ID(0x046d, 0x0825): /* HD Webcam c270 */
 	case USB_ID(0x046d, 0x0826): /* HD Webcam c525 */
+	case USB_ID(0x046d, 0x08ca): /* Logitech Quickcam Fusion */
 	case USB_ID(0x046d, 0x0991):
 	/* Most audio usb devices lie about volume resolution.
 	 * Most Logitech webcams have res = 384.
@@ -1582,18 +1583,15 @@ static int parse_audio_mixer_unit(struct mixer_build *state, int unitid,
 			      unitid);
 		return -EINVAL;
 	}
-	/* no bmControls field (e.g. Maya44) -> ignore */
-	if (desc->bLength <= 10 + input_pins) {
-		usb_audio_dbg(state->chip, "MU %d has no bmControls field\n",
-			      unitid);
-		return 0;
-	}
 
 	num_ins = 0;
 	ich = 0;
 	for (pin = 0; pin < input_pins; pin++) {
 		err = parse_audio_unit(state, desc->baSourceID[pin]);
 		if (err < 0)
+			continue;
+		/* no bmControls field (e.g. Maya44) -> ignore */
+		if (desc->bLength <= 10 + input_pins)
 			continue;
 		err = check_input_term(state, desc->baSourceID[pin], &iterm);
 		if (err < 0)

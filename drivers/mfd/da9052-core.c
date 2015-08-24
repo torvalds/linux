@@ -433,6 +433,10 @@ EXPORT_SYMBOL_GPL(da9052_adc_read_temp);
 static const struct mfd_cell da9052_subdev_info[] = {
 	{
 		.name = "da9052-regulator",
+		.id = 0,
+	},
+	{
+		.name = "da9052-regulator",
 		.id = 1,
 	},
 	{
@@ -482,10 +486,6 @@ static const struct mfd_cell da9052_subdev_info[] = {
 	{
 		.name = "da9052-regulator",
 		.id = 13,
-	},
-	{
-		.name = "da9052-regulator",
-		.id = 14,
 	},
 	{
 		.name = "da9052-onkey",

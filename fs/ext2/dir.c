@@ -70,11 +70,6 @@ static inline void ext2_put_page(struct page *page)
 	page_cache_release(page);
 }
 
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
-}
-
 /*
  * Return the offset into page `page_nr' of the last valid
  * byte in that page, plus one.
@@ -486,7 +481,7 @@ void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
  */
 int ext2_add_link (struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	unsigned chunk_size = ext2_chunk_size(dir);

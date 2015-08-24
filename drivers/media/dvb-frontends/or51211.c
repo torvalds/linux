@@ -237,7 +237,7 @@ static int or51211_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int or51211_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int or51211_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct or51211_state* state = fe->demodulator_priv;
 	unsigned char rec_buf[2];

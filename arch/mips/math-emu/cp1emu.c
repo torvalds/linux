@@ -451,7 +451,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			/* Fall through */
 		case jr_op:
 			/* For R6, JR already emulated in jalr_op */
-			if (NO_R6EMU && insn.r_format.opcode == jr_op)
+			if (NO_R6EMU && insn.r_format.func == jr_op)
 				break;
 			*contpc = regs->regs[insn.r_format.rs];
 			return 1;
@@ -551,7 +551,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.next_pc_inc;
 		return 1;
 	case blezl_op:
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			break;
 	case blez_op:
 
@@ -588,7 +588,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.next_pc_inc;
 		return 1;
 	case bgtzl_op:
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			break;
 	case bgtz_op:
 		/*
@@ -889,7 +889,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		break;
 
 	case FPCREG_RID:
-		value = current_cpu_data.fpu_id;
+		value = boot_cpu_data.fpu_id;
 		break;
 
 	default:
@@ -921,7 +921,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 
 		/* Preserve read-only bits.  */
-		mask = current_cpu_data.fpu_msk31;
+		mask = boot_cpu_data.fpu_msk31;
 		fcr31 = (value & ~mask) | (fcr31 & mask);
 		break;
 

@@ -1763,16 +1763,9 @@ vortex_open(struct net_device *dev)
 			vp->rx_ring[i].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, PKT_BUF_SZ, PCI_DMA_FROMDEVICE));
 		}
 		if (i != RX_RING_SIZE) {
-			int j;
 			pr_emerg("%s: no memory for rx ring\n", dev->name);
-			for (j = 0; j < i; j++) {
-				if (vp->rx_skbuff[j]) {
-					dev_kfree_skb(vp->rx_skbuff[j]);
-					vp->rx_skbuff[j] = NULL;
-				}
-			}
 			retval = -ENOMEM;
-			goto err_free_irq;
+			goto err_free_skb;
 		}
 		/* Wrap the ring. */
 		vp->rx_ring[i-1].next = cpu_to_le32(vp->rx_ring_dma);
@@ -1782,7 +1775,13 @@ vortex_open(struct net_device *dev)
 	if (!retval)
 		goto out;
 
-err_free_irq:
+err_free_skb:
+	for (i = 0; i < RX_RING_SIZE; i++) {
+		if (vp->rx_skbuff[i]) {
+			dev_kfree_skb(vp->rx_skbuff[i]);
+			vp->rx_skbuff[i] = NULL;
+		}
+	}
 	free_irq(dev->irq, dev);
 err:
 	if (vortex_debug > 1)
@@ -2382,6 +2381,7 @@ boomerang_interrupt(int irq, void *dev_id)
 	void __iomem *ioaddr;
 	int status;
 	int work_done = max_interrupt_work;
+	int handled = 0;
 
 	ioaddr = vp->ioaddr;
 
@@ -2400,6 +2400,7 @@ boomerang_interrupt(int irq, void *dev_id)
 
 	if ((status & IntLatch) == 0)
 		goto handler_exit;		/* No interrupt: shared IRQs can cause this */
+	handled = 1;
 
 	if (status == 0xffff) {		/* h/w no longer present (hotplug)? */
 		if (vortex_debug > 1)
@@ -2501,7 +2502,7 @@ boomerang_interrupt(int irq, void *dev_id)
 handler_exit:
 	vp->handling_irq = 0;
 	spin_unlock(&vp->lock);
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(handled);
 }
 
 static int vortex_rx(struct net_device *dev)

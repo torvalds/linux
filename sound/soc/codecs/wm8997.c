@@ -40,7 +40,7 @@ struct wm8997_priv {
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, 0, 600, 0);
+static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 static const struct reg_default wm8997_sysclk_reva_patch[] = {
@@ -106,11 +106,13 @@ static int wm8997_sysclk_ev(struct snd_soc_dapm_widget *w,
 				regmap_write_async(regmap, patch[i].reg,
 						   patch[i].def);
 		break;
-	default:
+	case SND_SOC_DAPM_PRE_PMD:
 		break;
+	default:
+		return 0;
 	}
 
-	return 0;
+	return arizona_dvfs_sysclk_ev(w, kcontrol, event);
 }
 
 static const char *wm8997_osr_text[] = {
@@ -409,7 +411,8 @@ static const struct snd_kcontrol_new wm8997_aec_loopback_mux =
 
 static const struct snd_soc_dapm_widget wm8997_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
-		    0, wm8997_sysclk_ev, SND_SOC_DAPM_POST_PMU),
+		    0, wm8997_sysclk_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
@@ -1055,13 +1058,14 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 
 static int wm8997_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	arizona_init_spk(codec);
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
+	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 
-	priv->core.arizona->dapm = &codec->dapm;
+	priv->core.arizona->dapm = dapm;
 
 	return 0;
 }
@@ -1125,6 +1129,8 @@ static int wm8997_probe(struct platform_device *pdev)
 
 	wm8997->core.arizona = arizona;
 	wm8997->core.num_inputs = 4;
+
+	arizona_init_dvfs(&wm8997->core);
 
 	for (i = 0; i < ARRAY_SIZE(wm8997->fll); i++)
 		wm8997->fll[i].vco_mult = 1;

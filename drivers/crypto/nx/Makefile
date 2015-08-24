@@ -10,5 +10,12 @@ nx-crypto-objs := nx.o \
 		  nx-sha256.o \
 		  nx-sha512.o
 
-obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS) += nx-compress.o
+obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS) += nx-compress.o nx-compress-platform.o
+obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS_PSERIES) += nx-compress-pseries.o
+obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS_POWERNV) += nx-compress-powernv.o
+obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS_CRYPTO) += nx-compress-crypto.o
 nx-compress-objs := nx-842.o
+nx-compress-platform-objs := nx-842-platform.o
+nx-compress-pseries-objs := nx-842-pseries.o
+nx-compress-powernv-objs := nx-842-powernv.o
+nx-compress-crypto-objs := nx-842-crypto.o

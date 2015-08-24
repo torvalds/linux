@@ -55,7 +55,7 @@ static void bch_bio_submit_split_done(struct closure *cl)
 
 	s->bio->bi_end_io = s->bi_end_io;
 	s->bio->bi_private = s->bi_private;
-	bio_endio_nodec(s->bio, 0);
+	bio_endio(s->bio, 0);
 
 	closure_debug_destroy(&s->cl);
 	mempool_free(s, s->p->bio_split_hook);
@@ -105,6 +105,7 @@ void bch_generic_make_request(struct bio *bio, struct bio_split_pool *p)
 	} while (n != bio);
 
 	continue_at(&s->cl, bch_bio_submit_split_done, NULL);
+	return;
 submit:
 	generic_make_request(bio);
 }

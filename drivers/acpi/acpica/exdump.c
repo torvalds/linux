@@ -224,7 +224,7 @@ static struct acpi_exdump_info acpi_ex_dump_index_field[5] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(index_field.data_obj), "Data Object"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_reference[8] = {
+static struct acpi_exdump_info acpi_ex_dump_reference[9] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_reference), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(reference.class), "Class"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(reference.target_type), "Target Type"},
@@ -232,6 +232,8 @@ static struct acpi_exdump_info acpi_ex_dump_reference[8] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.object), "Object Desc"},
 	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(reference.node), "Node"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.where), "Where"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.index_pointer),
+	 "Index Pointer"},
 	{ACPI_EXD_REFERENCE, 0, NULL}
 };
 
@@ -1005,14 +1007,13 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 	} else if (obj_desc->reference.object) {
 		if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) ==
 		    ACPI_DESC_TYPE_OPERAND) {
-			acpi_os_printf(" Target: %p",
+			acpi_os_printf("%22s %p", "Target :",
 				       obj_desc->reference.object);
 			if (obj_desc->reference.class == ACPI_REFCLASS_TABLE) {
 				acpi_os_printf(" Table Index: %X\n",
 					       obj_desc->reference.value);
 			} else {
-				acpi_os_printf(" Target: %p [%s]\n",
-					       obj_desc->reference.object,
+				acpi_os_printf(" [%s]\n",
 					       acpi_ut_get_type_name(((union
 								       acpi_operand_object
 								       *)

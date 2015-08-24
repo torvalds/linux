@@ -18,6 +18,11 @@ config EFI_VARS
 	  Subsequent efibootmgr releases may be found at:
 	  <http://github.com/vathpela/efibootmgr>
 
+config EFI_ESRT
+	bool
+	depends on EFI && !IA64
+	default y
+
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
 	depends on EFI_VARS && PSTORE

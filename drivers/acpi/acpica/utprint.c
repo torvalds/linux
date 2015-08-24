@@ -180,7 +180,7 @@ const char *acpi_ut_scan_number(const char *string, u64 *number_ptr)
 {
 	u64 number = 0;
 
-	while (ACPI_IS_DIGIT(*string)) {
+	while (isdigit((int)*string)) {
 		number *= 10;
 		number += *(string++) - '0';
 	}
@@ -405,7 +405,7 @@ acpi_ut_vsnprintf(char *string,
 		/* Process width */
 
 		width = -1;
-		if (ACPI_IS_DIGIT(*format)) {
+		if (isdigit((int)*format)) {
 			format = acpi_ut_scan_number(format, &number);
 			width = (s32) number;
 		} else if (*format == '*') {
@@ -422,7 +422,7 @@ acpi_ut_vsnprintf(char *string,
 		precision = -1;
 		if (*format == '.') {
 			++format;
-			if (ACPI_IS_DIGIT(*format)) {
+			if (isdigit((int)*format)) {
 				format = acpi_ut_scan_number(format, &number);
 				precision = (s32) number;
 			} else if (*format == '*') {

@@ -329,10 +329,10 @@ static const struct clk_ops rockchip_rk3066_pll_clk_ops = {
  */
 
 struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
-		const char *name, const char **parent_names, u8 num_parents,
-		void __iomem *base, int con_offset, int grf_lock_offset,
-		int lock_shift, int mode_offset, int mode_shift,
-		struct rockchip_pll_rate_table *rate_table,
+		const char *name, const char *const *parent_names,
+		u8 num_parents, void __iomem *base, int con_offset,
+		int grf_lock_offset, int lock_shift, int mode_offset,
+		int mode_shift, struct rockchip_pll_rate_table *rate_table,
 		u8 clk_pll_flags, spinlock_t *lock)
 {
 	const char *pll_parents[3];

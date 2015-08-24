@@ -241,7 +241,7 @@ int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 static int logfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int err = 0;
 
 	err = inode_change_ok(inode, attr);

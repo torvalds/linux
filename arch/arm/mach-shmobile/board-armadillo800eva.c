@@ -754,12 +754,12 @@ static struct platform_device vcc_sdhi1 = {
 };
 
 /* SDHI0 */
-static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static struct tmio_mmc_data sdhi0_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
 	.cd_gpio	= 167,
 };
 
@@ -796,12 +796,12 @@ static struct platform_device sdhi0_device = {
 };
 
 /* SDHI1 */
-static struct sh_mobile_sdhi_info sdhi1_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static struct tmio_mmc_data sdhi1_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI1_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
 	/* Port72 cannot generate IRQs, will be used in polling mode. */
 	.cd_gpio	= 72,
 };

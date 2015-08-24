@@ -1039,22 +1039,16 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 		iwl_trans_pcie_ref(trans);
 	}
 
-	if (trans_pcie->cmd_in_flight)
-		return 0;
-
-	trans_pcie->cmd_in_flight = true;
-
 	/*
 	 * wake up the NIC to make sure that the firmware will see the host
 	 * command - we will let the NIC sleep once all the host commands
 	 * returned. This needs to be done only on NICs that have
 	 * apmg_wake_up_wa set.
 	 */
-	if (trans->cfg->base_params->apmg_wake_up_wa) {
+	if (trans->cfg->base_params->apmg_wake_up_wa &&
+	    !trans_pcie->cmd_hold_nic_awake) {
 		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-			udelay(2);
 
 		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
 				   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
@@ -1064,10 +1058,10 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 		if (ret < 0) {
 			__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			trans_pcie->cmd_in_flight = false;
 			IWL_ERR(trans, "Failed to wake NIC for hcmd\n");
 			return -EIO;
 		}
+		trans_pcie->cmd_hold_nic_awake = true;
 	}
 
 	return 0;
@@ -1085,15 +1079,14 @@ static int iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 		iwl_trans_pcie_unref(trans);
 	}
 
-	if (WARN_ON(!trans_pcie->cmd_in_flight))
-		return 0;
+	if (trans->cfg->base_params->apmg_wake_up_wa) {
+		if (WARN_ON(!trans_pcie->cmd_hold_nic_awake))
+			return 0;
 
-	trans_pcie->cmd_in_flight = false;
-
-	if (trans->cfg->base_params->apmg_wake_up_wa)
+		trans_pcie->cmd_hold_nic_awake = false;
 		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
+					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	}
 	return 0;
 }
 
@@ -1882,8 +1875,19 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr) {
-		if (txq->wd_timeout)
-			mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
+		if (txq->wd_timeout) {
+			/*
+			 * If the TXQ is active, then set the timer, if not,
+			 * set the timer in remainder so that the timer will
+			 * be armed with the right value when the station will
+			 * wake up.
+			 */
+			if (!txq->frozen)
+				mod_timer(&txq->stuck_timer,
+					  jiffies + txq->wd_timeout);
+			else
+				txq->frozen_expiry_remainder = txq->wd_timeout;
+		}
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", q->id);
 		iwl_trans_pcie_ref(trans);
 	}

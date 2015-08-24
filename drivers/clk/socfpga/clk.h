@@ -26,14 +26,22 @@
 #define CLKMGR_L4SRC		0x70
 #define CLKMGR_PERPLL_SRC	0xAC
 
-#define SOCFPGA_MAX_PARENTS		3
+#define SOCFPGA_MAX_PARENTS		5
 #define div_mask(width) ((1 << (width)) - 1)
 
+#define streq(a, b) (strcmp((a), (b)) == 0)
+#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
+	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
+
 extern void __iomem *clk_mgr_base_addr;
+extern void __iomem *clk_mgr_a10_base_addr;
 
 void __init socfpga_pll_init(struct device_node *node);
 void __init socfpga_periph_init(struct device_node *node);
 void __init socfpga_gate_init(struct device_node *node);
+void socfpga_a10_pll_init(struct device_node *node);
+void socfpga_a10_periph_init(struct device_node *node);
+void socfpga_a10_gate_init(struct device_node *node);
 
 struct socfpga_pll {
 	struct clk_gate	hw;
@@ -44,6 +52,7 @@ struct socfpga_gate_clk {
 	char *parent_name;
 	u32 fixed_div;
 	void __iomem *div_reg;
+	struct regmap *sys_mgr_base_addr;
 	u32 width;	/* only valid if div_reg != 0 */
 	u32 shift;	/* only valid if div_reg != 0 */
 	u32 clk_phase[2];

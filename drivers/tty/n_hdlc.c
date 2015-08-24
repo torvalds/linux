@@ -600,7 +600,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 	add_wait_queue(&tty->read_wait, &wait);
 
 	for (;;) {
-		if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
+		if (test_bit(TTY_OTHER_DONE, &tty->flags)) {
 			ret = -EIO;
 			break;
 		}
@@ -828,7 +828,7 @@ static unsigned int n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 		/* set bits for operations that won't block */
 		if (n_hdlc->rx_buf_list.head)
 			mask |= POLLIN | POLLRDNORM;	/* readable */
-		if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
+		if (test_bit(TTY_OTHER_DONE, &tty->flags))
 			mask |= POLLHUP;
 		if (tty_hung_up_p(filp))
 			mask |= POLLHUP;

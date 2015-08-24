@@ -86,6 +86,8 @@
  *	for this event is the application ID (AID).
  * @NFC_CMD_GET_SE: Dump all discovered secure elements from an NFC controller.
  * @NFC_CMD_SE_IO: Send/Receive APDUs to/from the selected secure element.
+ * @NFC_CMD_VENDOR: Vendor specific command, to be implemented directly
+ *	from the driver in order to support hardware specific operations.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -117,6 +119,7 @@ enum nfc_commands {
 	NFC_CMD_GET_SE,
 	NFC_CMD_SE_IO,
 	NFC_CMD_ACTIVATE_TARGET,
+	NFC_CMD_VENDOR,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -153,6 +156,10 @@ enum nfc_commands {
  * @NFC_ATTR_APDU: Secure element APDU
  * @NFC_ATTR_TARGET_ISO15693_DSFID: ISO 15693 Data Storage Format Identifier
  * @NFC_ATTR_TARGET_ISO15693_UID: ISO 15693 Unique Identifier
+ * @NFC_ATTR_VENDOR_ID: NFC manufacturer unique ID, typically an OUI
+ * @NFC_ATTR_VENDOR_SUBCMD: Vendor specific sub command
+ * @NFC_ATTR_VENDOR_DATA: Vendor specific data, to be optionally passed
+ *	to a vendor specific command implementation
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -184,6 +191,9 @@ enum nfc_attrs {
 	NFC_ATTR_TARGET_ISO15693_DSFID,
 	NFC_ATTR_TARGET_ISO15693_UID,
 	NFC_ATTR_SE_PARAMS,
+	NFC_ATTR_VENDOR_ID,
+	NFC_ATTR_VENDOR_SUBCMD,
+	NFC_ATTR_VENDOR_DATA,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

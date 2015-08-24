@@ -51,7 +51,8 @@ int tile_console_write(const char *buf, int count)
 			      _SIM_CONTROL_OPERATOR_BITS));
 		return 0;
 	} else {
-		return hv_console_write((HV_VirtAddr)buf, count);
+		/* Translate 0 bytes written to EAGAIN for hvc_console_print. */
+		return hv_console_write((HV_VirtAddr)buf, count) ?: -EAGAIN;
 	}
 }
 

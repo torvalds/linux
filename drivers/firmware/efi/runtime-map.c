@@ -120,7 +120,8 @@ add_sysfs_runtime_map_entry(struct kobject *kobj, int nr)
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		kset_unregister(map_kset);
-		return entry;
+		map_kset = NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	memcpy(&entry->md, efi_runtime_map + nr * efi_memdesc_size,
@@ -132,6 +133,7 @@ add_sysfs_runtime_map_entry(struct kobject *kobj, int nr)
 	if (ret) {
 		kobject_put(&entry->kobj);
 		kset_unregister(map_kset);
+		map_kset = NULL;
 		return ERR_PTR(ret);
 	}
 
@@ -195,8 +197,6 @@ out_add_entry:
 		entry = *(map_entries + j);
 		kobject_put(&entry->kobj);
 	}
-	if (map_kset)
-		kset_unregister(map_kset);
 out:
 	return ret;
 }

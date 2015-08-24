@@ -355,7 +355,6 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 		}
 	}
 
-	kfree(brd->flipbuf);
 
 	dgnc_Board[brd->boardnum] = NULL;
 
@@ -580,14 +579,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	kfree(brd->msgbuf_head);
 	brd->msgbuf_head = NULL;
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
-
-	/*
-	 * allocate flip buffer for board.
-	 *
-	 * Okay to malloc with GFP_KERNEL, we are not at interrupt
-	 * context, and there are no locks held.
-	 */
-	brd->flipbuf = kzalloc(MYFLIPLEN, GFP_KERNEL);
 
 	wake_up_interruptible(&brd->state_wait);
 

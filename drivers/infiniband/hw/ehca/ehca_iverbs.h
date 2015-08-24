@@ -44,10 +44,14 @@
 
 #include "ehca_classes.h"
 
-int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props);
+int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+		      struct ib_udata *uhw);
 
 int ehca_query_port(struct ib_device *ibdev, u8 port,
 		    struct ib_port_attr *props);
+
+enum rdma_protocol_type
+ehca_query_protocol(struct ib_device *device, u8 port_num);
 
 int ehca_query_sma_attr(struct ehca_shca *shca, u8 port,
 			struct ehca_sma_attr *attr);
@@ -126,7 +130,8 @@ int ehca_destroy_eq(struct ehca_shca *shca, struct ehca_eq *eq);
 void *ehca_poll_eq(struct ehca_shca *shca, struct ehca_eq *eq);
 
 
-struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
+struct ib_cq *ehca_create_cq(struct ib_device *device,
+			     const struct ib_cq_init_attr *attr,
 			     struct ib_ucontext *context,
 			     struct ib_udata *udata);
 
@@ -188,9 +193,10 @@ int ehca_dealloc_ucontext(struct ib_ucontext *context);
 int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 int ehca_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		     struct ib_wc *in_wc, struct ib_grh *in_grh,
-		     struct ib_mad *in_mad,
-		     struct ib_mad *out_mad);
+		     const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		     const struct ib_mad_hdr *in, size_t in_mad_size,
+		     struct ib_mad_hdr *out, size_t *out_mad_size,
+		     u16 *out_mad_pkey_index);
 
 void ehca_poll_eqs(unsigned long data);
 

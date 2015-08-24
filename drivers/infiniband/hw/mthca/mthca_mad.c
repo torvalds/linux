@@ -104,7 +104,7 @@ static void update_sm_ah(struct mthca_dev *dev,
  */
 static void smp_snoop(struct ib_device *ibdev,
 		      u8 port_num,
-		      struct ib_mad *mad,
+		      const struct ib_mad *mad,
 		      u16 prev_lid)
 {
 	struct ib_event event;
@@ -160,7 +160,7 @@ static void node_desc_override(struct ib_device *dev,
 
 static void forward_trap(struct mthca_dev *dev,
 			 u8 port_num,
-			 struct ib_mad *mad)
+			 const struct ib_mad *mad)
 {
 	int qpn = mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	struct ib_mad_send_buf *send_buf;
@@ -170,7 +170,8 @@ static void forward_trap(struct mthca_dev *dev,
 
 	if (agent) {
 		send_buf = ib_create_send_mad(agent, qpn, 0, 0, IB_MGMT_MAD_HDR,
-					      IB_MGMT_MAD_DATA, GFP_ATOMIC);
+					      IB_MGMT_MAD_DATA, GFP_ATOMIC,
+					      IB_MGMT_BASE_VERSION);
 		if (IS_ERR(send_buf))
 			return;
 		/*
@@ -195,15 +196,22 @@ static void forward_trap(struct mthca_dev *dev,
 int mthca_process_mad(struct ib_device *ibdev,
 		      int mad_flags,
 		      u8 port_num,
-		      struct ib_wc *in_wc,
-		      struct ib_grh *in_grh,
-		      struct ib_mad *in_mad,
-		      struct ib_mad *out_mad)
+		      const struct ib_wc *in_wc,
+		      const struct ib_grh *in_grh,
+		      const struct ib_mad_hdr *in, size_t in_mad_size,
+		      struct ib_mad_hdr *out, size_t *out_mad_size,
+		      u16 *out_mad_pkey_index)
 {
 	int err;
 	u16 slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 	u16 prev_lid = 0;
 	struct ib_port_attr pattr;
+	const struct ib_mad *in_mad = (const struct ib_mad *)in;
+	struct ib_mad *out_mad = (struct ib_mad *)out;
+
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	/* Forward locally generated traps to the SM */
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP &&

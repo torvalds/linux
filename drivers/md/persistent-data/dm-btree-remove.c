@@ -309,8 +309,8 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 
 		if (s < 0 && nr_center < -s) {
 			/* not enough in central node */
-			shift(left, center, nr_center);
-			s = nr_center - target;
+			shift(left, center, -nr_center);
+			s += nr_center;
 			shift(left, right, s);
 			nr_right += s;
 		} else
@@ -323,7 +323,7 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 		if (s > 0 && nr_center < s) {
 			/* not enough in central node */
 			shift(center, right, nr_center);
-			s = target - nr_center;
+			s -= nr_center;
 			shift(left, right, s);
 			nr_left -= s;
 		} else
@@ -544,14 +544,6 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 	return r;
 }
 
-static struct dm_btree_value_type le64_type = {
-	.context = NULL,
-	.size = sizeof(__le64),
-	.inc = NULL,
-	.dec = NULL,
-	.equal = NULL
-};
-
 int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, dm_block_t *new_root)
 {
@@ -559,12 +551,14 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 	int index = 0, r = 0;
 	struct shadow_spine spine;
 	struct btree_node *n;
+	struct dm_btree_value_type le64_vt;
 
+	init_le64_type(info->tm, &le64_vt);
 	init_shadow_spine(&spine, info);
 	for (level = 0; level < info->levels; level++) {
 		r = remove_raw(&spine, info,
 			       (level == last_level ?
-				&info->value_type : &le64_type),
+				&info->value_type : &le64_vt),
 			       root, keys[level], (unsigned *)&index);
 		if (r < 0)
 			break;
@@ -590,3 +584,133 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 	return r;
 }
 EXPORT_SYMBOL_GPL(dm_btree_remove);
+
+/*----------------------------------------------------------------*/
+
+static int remove_nearest(struct shadow_spine *s, struct dm_btree_info *info,
+			  struct dm_btree_value_type *vt, dm_block_t root,
+			  uint64_t key, int *index)
+{
+	int i = *index, r;
+	struct btree_node *n;
+
+	for (;;) {
+		r = shadow_step(s, root, vt);
+		if (r < 0)
+			break;
+
+		/*
+		 * We have to patch up the parent node, ugly, but I don't
+		 * see a way to do this automatically as part of the spine
+		 * op.
+		 */
+		if (shadow_has_parent(s)) {
+			__le64 location = cpu_to_le64(dm_block_location(shadow_current(s)));
+			memcpy(value_ptr(dm_block_data(shadow_parent(s)), i),
+			       &location, sizeof(__le64));
+		}
+
+		n = dm_block_data(shadow_current(s));
+
+		if (le32_to_cpu(n->header.flags) & LEAF_NODE) {
+			*index = lower_bound(n, key);
+			return 0;
+		}
+
+		r = rebalance_children(s, info, vt, key);
+		if (r)
+			break;
+
+		n = dm_block_data(shadow_current(s));
+		if (le32_to_cpu(n->header.flags) & LEAF_NODE) {
+			*index = lower_bound(n, key);
+			return 0;
+		}
+
+		i = lower_bound(n, key);
+
+		/*
+		 * We know the key is present, or else
+		 * rebalance_children would have returned
+		 * -ENODATA
+		 */
+		root = value64(n, i);
+	}
+
+	return r;
+}
+
+static int remove_one(struct dm_btree_info *info, dm_block_t root,
+		      uint64_t *keys, uint64_t end_key,
+		      dm_block_t *new_root, unsigned *nr_removed)
+{
+	unsigned level, last_level = info->levels - 1;
+	int index = 0, r = 0;
+	struct shadow_spine spine;
+	struct btree_node *n;
+	struct dm_btree_value_type le64_vt;
+	uint64_t k;
+
+	init_le64_type(info->tm, &le64_vt);
+	init_shadow_spine(&spine, info);
+	for (level = 0; level < last_level; level++) {
+		r = remove_raw(&spine, info, &le64_vt,
+			       root, keys[level], (unsigned *) &index);
+		if (r < 0)
+			goto out;
+
+		n = dm_block_data(shadow_current(&spine));
+		root = value64(n, index);
+	}
+
+	r = remove_nearest(&spine, info, &info->value_type,
+			   root, keys[last_level], &index);
+	if (r < 0)
+		goto out;
+
+	n = dm_block_data(shadow_current(&spine));
+
+	if (index < 0)
+		index = 0;
+
+	if (index >= le32_to_cpu(n->header.nr_entries)) {
+		r = -ENODATA;
+		goto out;
+	}
+
+	k = le64_to_cpu(n->keys[index]);
+	if (k >= keys[last_level] && k < end_key) {
+		if (info->value_type.dec)
+			info->value_type.dec(info->value_type.context,
+					     value_ptr(n, index));
+
+		delete_at(n, index);
+		keys[last_level] = k + 1ull;
+
+	} else
+		r = -ENODATA;
+
+out:
+	*new_root = shadow_root(&spine);
+	exit_shadow_spine(&spine);
+
+	return r;
+}
+
+int dm_btree_remove_leaves(struct dm_btree_info *info, dm_block_t root,
+			   uint64_t *first_key, uint64_t end_key,
+			   dm_block_t *new_root, unsigned *nr_removed)
+{
+	int r;
+
+	*nr_removed = 0;
+	do {
+		r = remove_one(info, root, first_key, end_key, &root, nr_removed);
+		if (!r)
+			(*nr_removed)++;
+	} while (!r);
+
+	*new_root = root;
+	return r == -ENODATA ? 0 : r;
+}
+EXPORT_SYMBOL_GPL(dm_btree_remove_leaves);

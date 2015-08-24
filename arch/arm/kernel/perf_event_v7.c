@@ -19,8 +19,14 @@
 #ifdef CONFIG_CPU_V7
 
 #include <asm/cp15.h>
+#include <asm/cputype.h>
+#include <asm/irq_regs.h>
+#include <asm/pmu.h>
 #include <asm/vfp.h>
 #include "../vfp/vfpinstr.h"
+
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 /*
  * Common ARMv7 event types
@@ -1056,15 +1062,22 @@ static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
-static u32 armv7_read_num_pmnc_events(void)
+static void armv7_read_num_pmnc_events(void *info)
 {
-	u32 nb_cnt;
+	int *nb_cnt = info;
 
 	/* Read the nb of CNTx counters supported from PMNC */
-	nb_cnt = (armv7_pmnc_read() >> ARMV7_PMNC_N_SHIFT) & ARMV7_PMNC_N_MASK;
+	*nb_cnt = (armv7_pmnc_read() >> ARMV7_PMNC_N_SHIFT) & ARMV7_PMNC_N_MASK;
 
-	/* Add the CPU cycles counter and return */
-	return nb_cnt + 1;
+	/* Add the CPU cycles counter */
+	*nb_cnt += 1;
+}
+
+static int armv7_probe_num_events(struct arm_pmu *arm_pmu)
+{
+	return smp_call_function_any(&arm_pmu->supported_cpus,
+				     armv7_read_num_pmnc_events,
+				     &arm_pmu->num_events, 1);
 }
 
 static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1072,8 +1085,7 @@ static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_cortex_a8";
 	cpu_pmu->map_event	= armv7_a8_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1081,8 +1093,7 @@ static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_cortex_a9";
 	cpu_pmu->map_event	= armv7_a9_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1090,8 +1101,7 @@ static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_cortex_a5";
 	cpu_pmu->map_event	= armv7_a5_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1099,9 +1109,8 @@ static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_cortex_a15";
 	cpu_pmu->map_event	= armv7_a15_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1109,9 +1118,8 @@ static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_cortex_a7";
 	cpu_pmu->map_event	= armv7_a7_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1119,16 +1127,15 @@ static int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_cortex_a12";
 	cpu_pmu->map_event	= armv7_a12_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv7_a12_pmu_init(cpu_pmu);
+	int ret = armv7_a12_pmu_init(cpu_pmu);
 	cpu_pmu->name = "armv7_cortex_a17";
-	return 0;
+	return ret;
 }
 
 /*
@@ -1508,14 +1515,13 @@ static int krait_pmu_init(struct arm_pmu *cpu_pmu)
 		cpu_pmu->map_event = krait_map_event_no_branch;
 	else
 		cpu_pmu->map_event = krait_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
 	cpu_pmu->reset		= krait_pmu_reset;
 	cpu_pmu->enable		= krait_pmu_enable_event;
 	cpu_pmu->disable	= krait_pmu_disable_event;
 	cpu_pmu->get_event_idx	= krait_pmu_get_event_idx;
 	cpu_pmu->clear_event_idx = krait_pmu_clear_event_idx;
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 /*
@@ -1833,13 +1839,12 @@ static int scorpion_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_scorpion";
 	cpu_pmu->map_event	= scorpion_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->reset		= scorpion_pmu_reset;
 	cpu_pmu->enable		= scorpion_pmu_enable_event;
 	cpu_pmu->disable	= scorpion_pmu_disable_event;
 	cpu_pmu->get_event_idx	= scorpion_pmu_get_event_idx;
 	cpu_pmu->clear_event_idx = scorpion_pmu_clear_event_idx;
-	return 0;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
 static int scorpion_mp_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1847,62 +1852,52 @@ static int scorpion_mp_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_scorpion_mp";
 	cpu_pmu->map_event	= scorpion_map_event;
-	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->reset		= scorpion_pmu_reset;
 	cpu_pmu->enable		= scorpion_pmu_enable_event;
 	cpu_pmu->disable	= scorpion_pmu_disable_event;
 	cpu_pmu->get_event_idx	= scorpion_pmu_get_event_idx;
 	cpu_pmu->clear_event_idx = scorpion_pmu_clear_event_idx;
-	return 0;
-}
-#else
-static inline int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
+	return armv7_probe_num_events(cpu_pmu);
 }
 
-static inline int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
+static const struct of_device_id armv7_pmu_of_device_ids[] = {
+	{.compatible = "arm,cortex-a17-pmu",	.data = armv7_a17_pmu_init},
+	{.compatible = "arm,cortex-a15-pmu",	.data = armv7_a15_pmu_init},
+	{.compatible = "arm,cortex-a12-pmu",	.data = armv7_a12_pmu_init},
+	{.compatible = "arm,cortex-a9-pmu",	.data = armv7_a9_pmu_init},
+	{.compatible = "arm,cortex-a8-pmu",	.data = armv7_a8_pmu_init},
+	{.compatible = "arm,cortex-a7-pmu",	.data = armv7_a7_pmu_init},
+	{.compatible = "arm,cortex-a5-pmu",	.data = armv7_a5_pmu_init},
+	{.compatible = "qcom,krait-pmu",	.data = krait_pmu_init},
+	{.compatible = "qcom,scorpion-pmu",	.data = scorpion_pmu_init},
+	{.compatible = "qcom,scorpion-mp-pmu",	.data = scorpion_mp_pmu_init},
+	{},
+};
+
+static const struct pmu_probe_info armv7_pmu_probe_table[] = {
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
+	{ /* sentinel value */ }
+};
+
+
+static int armv7_pmu_device_probe(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return arm_pmu_device_probe(pdev, armv7_pmu_of_device_ids,
+				    armv7_pmu_probe_table);
 }
 
-static inline int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
+static struct platform_driver armv7_pmu_driver = {
+	.driver		= {
+		.name	= "armv7-pmu",
+		.of_match_table = armv7_pmu_of_device_ids,
+	},
+	.probe		= armv7_pmu_device_probe,
+};
 
-static inline int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
+static int __init register_armv7_pmu_driver(void)
 {
-	return -ENODEV;
+	return platform_driver_register(&armv7_pmu_driver);
 }
-
-static inline int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
-
-static inline int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
-
-static inline int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
-
-static inline int krait_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
-
-static inline int scorpion_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
-
-static inline int scorpion_mp_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
+device_initcall(register_armv7_pmu_driver);
 #endif	/* CONFIG_CPU_V7 */

@@ -85,6 +85,18 @@ static struct lockdep_map console_lock_dep_map = {
 #endif
 
 /*
+ * Number of registered extended console drivers.
+ *
+ * If extended consoles are present, in-kernel cont reassembly is disabled
+ * and each fragment is stored as a separate log entry with proper
+ * continuation flag so that every emitted message has full metadata.  This
+ * doesn't change the result for regular consoles or /proc/kmsg.  For
+ * /dev/kmsg, as long as the reader concatenates messages according to
+ * consecutive continuation flags, the end result should be the same too.
+ */
+static int nr_ext_console_drivers;
+
+/*
  * Helper macros to handle lockdep when locking/unlocking console_sem. We use
  * macros instead of functions so that _RET_IP_ contains useful information.
  */
@@ -195,14 +207,14 @@ static int console_may_schedule;
  * need to be changed in the future, when the requirements change.
  *
  * /dev/kmsg exports the structured data in the following line format:
- *   "level,sequnum,timestamp;<message text>\n"
+ *   "<level>,<sequnum>,<timestamp>,<contflag>[,additional_values, ... ];<message text>\n"
+ *
+ * Users of the export format should ignore possible additional values
+ * separated by ',', and find the message after the ';' character.
  *
  * The optional key/value pairs are attached as continuation lines starting
  * with a space character and terminated by a newline. All possible
  * non-prinatable characters are escaped in the "\xff" notation.
- *
- * Users of the export format should ignore possible additional values
- * separated by ',', and find the message after the ';' character.
  */
 
 enum log_flags {
@@ -477,18 +489,18 @@ static int syslog_action_restricted(int type)
 	       type != SYSLOG_ACTION_SIZE_BUFFER;
 }
 
-int check_syslog_permissions(int type, bool from_file)
+int check_syslog_permissions(int type, int source)
 {
 	/*
 	 * If this is from /proc/kmsg and we've already opened it, then we've
 	 * already done the capabilities checks at open time.
 	 */
-	if (from_file && type != SYSLOG_ACTION_OPEN)
-		return 0;
+	if (source == SYSLOG_FROM_PROC && type != SYSLOG_ACTION_OPEN)
+		goto ok;
 
 	if (syslog_action_restricted(type)) {
 		if (capable(CAP_SYSLOG))
-			return 0;
+			goto ok;
 		/*
 		 * For historical reasons, accept CAP_SYS_ADMIN too, with
 		 * a warning.
@@ -498,13 +510,94 @@ int check_syslog_permissions(int type, bool from_file)
 				     "CAP_SYS_ADMIN but no CAP_SYSLOG "
 				     "(deprecated).\n",
 				 current->comm, task_pid_nr(current));
-			return 0;
+			goto ok;
 		}
 		return -EPERM;
 	}
+ok:
 	return security_syslog(type);
 }
 
+static void append_char(char **pp, char *e, char c)
+{
+	if (*pp < e)
+		*(*pp)++ = c;
+}
+
+static ssize_t msg_print_ext_header(char *buf, size_t size,
+				    struct printk_log *msg, u64 seq,
+				    enum log_flags prev_flags)
+{
+	u64 ts_usec = msg->ts_nsec;
+	char cont = '-';
+
+	do_div(ts_usec, 1000);
+
+	/*
+	 * If we couldn't merge continuation line fragments during the print,
+	 * export the stored flags to allow an optional external merge of the
+	 * records. Merging the records isn't always neccessarily correct, like
+	 * when we hit a race during printing. In most cases though, it produces
+	 * better readable output. 'c' in the record flags mark the first
+	 * fragment of a line, '+' the following.
+	 */
+	if (msg->flags & LOG_CONT && !(prev_flags & LOG_CONT))
+		cont = 'c';
+	else if ((msg->flags & LOG_CONT) ||
+		 ((prev_flags & LOG_CONT) && !(msg->flags & LOG_PREFIX)))
+		cont = '+';
+
+	return scnprintf(buf, size, "%u,%llu,%llu,%c;",
+		       (msg->facility << 3) | msg->level, seq, ts_usec, cont);
+}
+
+static ssize_t msg_print_ext_body(char *buf, size_t size,
+				  char *dict, size_t dict_len,
+				  char *text, size_t text_len)
+{
+	char *p = buf, *e = buf + size;
+	size_t i;
+
+	/* escape non-printable characters */
+	for (i = 0; i < text_len; i++) {
+		unsigned char c = text[i];
+
+		if (c < ' ' || c >= 127 || c == '\\')
+			p += scnprintf(p, e - p, "\\x%02x", c);
+		else
+			append_char(&p, e, c);
+	}
+	append_char(&p, e, '\n');
+
+	if (dict_len) {
+		bool line = true;
+
+		for (i = 0; i < dict_len; i++) {
+			unsigned char c = dict[i];
+
+			if (line) {
+				append_char(&p, e, ' ');
+				line = false;
+			}
+
+			if (c == '\0') {
+				append_char(&p, e, '\n');
+				line = true;
+				continue;
+			}
+
+			if (c < ' ' || c >= 127 || c == '\\') {
+				p += scnprintf(p, e - p, "\\x%02x", c);
+				continue;
+			}
+
+			append_char(&p, e, c);
+		}
+		append_char(&p, e, '\n');
+	}
+
+	return p - buf;
+}
 
 /* /dev/kmsg - userspace message inject/listen interface */
 struct devkmsg_user {
@@ -512,7 +605,7 @@ struct devkmsg_user {
 	u32 idx;
 	enum log_flags prev;
 	struct mutex lock;
-	char buf[8192];
+	char buf[CONSOLE_EXT_LOG_MAX];
 };
 
 static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
@@ -570,9 +663,6 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 {
 	struct devkmsg_user *user = file->private_data;
 	struct printk_log *msg;
-	u64 ts_usec;
-	size_t i;
-	char cont = '-';
 	size_t len;
 	ssize_t ret;
 
@@ -608,66 +698,13 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	}
 
 	msg = log_from_idx(user->idx);
-	ts_usec = msg->ts_nsec;
-	do_div(ts_usec, 1000);
+	len = msg_print_ext_header(user->buf, sizeof(user->buf),
+				   msg, user->seq, user->prev);
+	len += msg_print_ext_body(user->buf + len, sizeof(user->buf) - len,
+				  log_dict(msg), msg->dict_len,
+				  log_text(msg), msg->text_len);
 
-	/*
-	 * If we couldn't merge continuation line fragments during the print,
-	 * export the stored flags to allow an optional external merge of the
-	 * records. Merging the records isn't always neccessarily correct, like
-	 * when we hit a race during printing. In most cases though, it produces
-	 * better readable output. 'c' in the record flags mark the first
-	 * fragment of a line, '+' the following.
-	 */
-	if (msg->flags & LOG_CONT && !(user->prev & LOG_CONT))
-		cont = 'c';
-	else if ((msg->flags & LOG_CONT) ||
-		 ((user->prev & LOG_CONT) && !(msg->flags & LOG_PREFIX)))
-		cont = '+';
-
-	len = sprintf(user->buf, "%u,%llu,%llu,%c;",
-		      (msg->facility << 3) | msg->level,
-		      user->seq, ts_usec, cont);
 	user->prev = msg->flags;
-
-	/* escape non-printable characters */
-	for (i = 0; i < msg->text_len; i++) {
-		unsigned char c = log_text(msg)[i];
-
-		if (c < ' ' || c >= 127 || c == '\\')
-			len += sprintf(user->buf + len, "\\x%02x", c);
-		else
-			user->buf[len++] = c;
-	}
-	user->buf[len++] = '\n';
-
-	if (msg->dict_len) {
-		bool line = true;
-
-		for (i = 0; i < msg->dict_len; i++) {
-			unsigned char c = log_dict(msg)[i];
-
-			if (line) {
-				user->buf[len++] = ' ';
-				line = false;
-			}
-
-			if (c == '\0') {
-				user->buf[len++] = '\n';
-				line = true;
-				continue;
-			}
-
-			if (c < ' ' || c >= 127 || c == '\\') {
-				len += sprintf(user->buf + len, "\\x%02x", c);
-				continue;
-			}
-
-			user->buf[len++] = c;
-		}
-		user->buf[len++] = '\n';
-	}
-
 	user->idx = log_next(user->idx);
 	user->seq++;
 	raw_spin_unlock_irq(&logbuf_lock);
@@ -1253,19 +1290,15 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	return len;
 }
 
-int do_syslog(int type, char __user *buf, int len, bool from_file)
+int do_syslog(int type, char __user *buf, int len, int source)
 {
 	bool clear = false;
 	static int saved_console_loglevel = LOGLEVEL_DEFAULT;
 	int error;
 
-	error = check_syslog_permissions(type, from_file);
+	error = check_syslog_permissions(type, source);
 	if (error)
 		goto out;
-
-	error = security_syslog(type);
-	if (error)
-		return error;
 
 	switch (type) {
 	case SYSLOG_ACTION_CLOSE:	/* Close log */
@@ -1346,7 +1379,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			syslog_prev = 0;
 			syslog_partial = 0;
 		}
-		if (from_file) {
+		if (source == SYSLOG_FROM_PROC) {
 			/*
 			 * Short-cut for poll(/"proc/kmsg") which simply checks
 			 * for pending data, not the size; return the count of
@@ -1393,7 +1426,9 @@ SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
  * log_buf[start] to log_buf[end - 1].
  * The console_lock must be held.
  */
-static void call_console_drivers(int level, const char *text, size_t len)
+static void call_console_drivers(int level,
+				 const char *ext_text, size_t ext_len,
+				 const char *text, size_t len)
 {
 	struct console *con;
 
@@ -1414,7 +1449,10 @@ static void call_console_drivers(int level, const char *text, size_t len)
 		if (!cpu_online(smp_processor_id()) &&
 		    !(con->flags & CON_ANYTIME))
 			continue;
-		con->write(con, text, len);
+		if (con->flags & CON_EXTENDED)
+			con->write(con, ext_text, ext_len);
+		else
+			con->write(con, text, len);
 	}
 }
 
@@ -1557,8 +1595,12 @@ static bool cont_add(int facility, int level, const char *text, size_t len)
 	if (cont.len && cont.flushed)
 		return false;
 
-	if (cont.len + len > sizeof(cont.buf)) {
-		/* the line gets too long, split it up in separate records */
+	/*
+	 * If ext consoles are present, flush and skip in-kernel
+	 * continuation.  See nr_ext_console_drivers definition.  Also, if
+	 * the line gets too long, split it up in separate records.
+	 */
+	if (nr_ext_console_drivers || cont.len + len > sizeof(cont.buf)) {
 		cont_flush(LOG_CONT);
 		return false;
 	}
@@ -1893,9 +1935,19 @@ static struct cont {
 	u8 level;
 	bool flushed:1;
 } cont;
+static char *log_text(const struct printk_log *msg) { return NULL; }
+static char *log_dict(const struct printk_log *msg) { return NULL; }
 static struct printk_log *log_from_idx(u32 idx) { return NULL; }
 static u32 log_next(u32 idx) { return 0; }
-static void call_console_drivers(int level, const char *text, size_t len) {}
+static ssize_t msg_print_ext_header(char *buf, size_t size,
+				    struct printk_log *msg, u64 seq,
+				    enum log_flags prev_flags) { return 0; }
+static ssize_t msg_print_ext_body(char *buf, size_t size,
+				  char *dict, size_t dict_len,
+				  char *text, size_t text_len) { return 0; }
+static void call_console_drivers(int level,
+				 const char *ext_text, size_t ext_len,
+				 const char *text, size_t len) {}
 static size_t msg_print_text(const struct printk_log *msg, enum log_flags prev,
 			     bool syslog, char *buf, size_t size) { return 0; }
 static size_t cont_print_text(char *text, size_t size) { return 0; }
@@ -2148,7 +2200,7 @@ static void console_cont_flush(char *text, size_t size)
 	len = cont_print_text(text, size);
 	raw_spin_unlock(&logbuf_lock);
 	stop_critical_timings();
-	call_console_drivers(cont.level, text, len);
+	call_console_drivers(cont.level, NULL, 0, text, len);
 	start_critical_timings();
 	local_irq_restore(flags);
 	return;
@@ -2172,6 +2224,7 @@ out:
  */
 void console_unlock(void)
 {
+	static char ext_text[CONSOLE_EXT_LOG_MAX];
 	static char text[LOG_LINE_MAX + PREFIX_MAX];
 	static u64 seen_seq;
 	unsigned long flags;
@@ -2190,6 +2243,7 @@ void console_unlock(void)
 again:
 	for (;;) {
 		struct printk_log *msg;
+		size_t ext_len = 0;
 		size_t len;
 		int level;
 
@@ -2235,13 +2289,22 @@ skip:
 		level = msg->level;
 		len += msg_print_text(msg, console_prev, false,
 				      text + len, sizeof(text) - len);
+		if (nr_ext_console_drivers) {
+			ext_len = msg_print_ext_header(ext_text,
+						sizeof(ext_text),
+						msg, console_seq, console_prev);
+			ext_len += msg_print_ext_body(ext_text + ext_len,
+						sizeof(ext_text) - ext_len,
+						log_dict(msg), msg->dict_len,
+						log_text(msg), msg->text_len);
+		}
 		console_idx = log_next(console_idx);
 		console_seq++;
 		console_prev = msg->flags;
 		raw_spin_unlock(&logbuf_lock);
 
 		stop_critical_timings();	/* don't trace print latency */
-		call_console_drivers(level, text, len);
+		call_console_drivers(level, ext_text, ext_len, text, len);
 		start_critical_timings();
 		local_irq_restore(flags);
 	}
@@ -2497,6 +2560,11 @@ void register_console(struct console *newcon)
 		newcon->next = console_drivers->next;
 		console_drivers->next = newcon;
 	}
+
+	if (newcon->flags & CON_EXTENDED)
+		if (!nr_ext_console_drivers++)
+			pr_info("printk: continuation disabled due to ext consoles, expect more fragments in /dev/kmsg\n");
+
 	if (newcon->flags & CON_PRINTBUFFER) {
 		/*
 		 * console_unlock(); will print out the buffered messages
@@ -2568,6 +2636,9 @@ int unregister_console(struct console *console)
 			}
 		}
 	}
+
+	if (!res && (console->flags & CON_EXTENDED))
+		nr_ext_console_drivers--;
 
 	/*
 	 * If this isn't the last console and it has CON_CONSDEV set, we

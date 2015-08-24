@@ -4,14 +4,9 @@
 #include <linux/types.h>
 #include <asm/pgtable_types.h>
 
-#ifdef CONFIG_X86_PAT
-extern int pat_enabled;
-#else
-static const int pat_enabled;
-#endif
-
+bool pat_enabled(void);
 extern void pat_init(void);
-void pat_init_cache_modes(void);
+void pat_init_cache_modes(u64);
 
 extern int reserve_memtype(u64 start, u64 end,
 		enum page_cache_mode req_pcm, enum page_cache_mode *ret_pcm);

@@ -769,9 +769,12 @@ ep_config (struct ep_data *data, const char *buf, size_t len)
 	if (data->dev->state == STATE_DEV_UNBOUND) {
 		value = -ENOENT;
 		goto gone;
-	} else if ((ep = data->ep) == NULL) {
-		value = -ENODEV;
-		goto gone;
+	} else {
+		ep = data->ep;
+		if (ep == NULL) {
+			value = -ENODEV;
+			goto gone;
+		}
 	}
 	switch (data->dev->gadget->speed) {
 	case USB_SPEED_LOW:
@@ -1505,7 +1508,7 @@ static void destroy_ep_files (struct dev_data *dev)
 		list_del_init (&ep->epfiles);
 		dentry = ep->dentry;
 		ep->dentry = NULL;
-		parent = dentry->d_parent->d_inode;
+		parent = d_inode(dentry->d_parent);
 
 		/* break link to controller */
 		if (ep->state == STATE_EP_ENABLED)

@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
-#include <net/flow_keys.h>
 #include <net/pkt_sched.h>
 #include <net/sock.h>
 
@@ -176,22 +175,6 @@ static u32 hhf_time_stamp(void)
 	return jiffies;
 }
 
-static unsigned int skb_hash(const struct hhf_sched_data *q,
-			     const struct sk_buff *skb)
-{
-	struct flow_keys keys;
-	unsigned int hash;
-
-	if (skb->sk && skb->sk->sk_hash)
-		return skb->sk->sk_hash;
-
-	skb_flow_dissect(skb, &keys);
-	hash = jhash_3words((__force u32)keys.dst,
-			    (__force u32)keys.src ^ keys.ip_proto,
-			    (__force u32)keys.ports, q->perturbation);
-	return hash;
-}
-
 /* Looks up a heavy-hitter flow in a chaining list of table T. */
 static struct hh_flow_state *seek_list(const u32 hash,
 				       struct list_head *head,
@@ -280,7 +263,7 @@ static enum wdrr_bucket_idx hhf_classify(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	/* Get hashed flow-id of the skb. */
-	hash = skb_hash(q, skb);
+	hash = skb_get_hash_perturb(skb, q->perturbation);
 
 	/* Check if this packet belongs to an already established HH flow. */
 	flow_pos = hash & HHF_BIT_MASK;

@@ -34,35 +34,32 @@
 #define _PAGE_SPECIAL	0x0008	/* SW entry, forced to 0 by the TLB miss */
 #define _PAGE_DIRTY	0x0100	/* C: page changed */
 
-/* These 4 software bits must be masked out when the entry is loaded
- * into the TLB, 1 SW bit left(0x0080).
+/* These 4 software bits must be masked out when the L2 entry is loaded
+ * into the TLB.
  */
-#define _PAGE_GUARDED	0x0010	/* software: guarded access */
-#define _PAGE_ACCESSED	0x0020	/* software: page referenced */
-#define _PAGE_WRITETHRU	0x0040	/* software: caching is write through */
+#define _PAGE_GUARDED	0x0010	/* Copied to L1 G entry in DTLB */
+#define _PAGE_USER	0x0020	/* Copied to L1 APG lsb */
+#define _PAGE_EXEC	0x0040	/* Copied to L1 APG */
+#define _PAGE_WRITETHRU	0x0080	/* software: caching is write through */
+#define _PAGE_ACCESSED	0x0800	/* software: page referenced */
 
-/* Setting any bits in the nibble with the follow two controls will
- * require a TLB exception handler change.  It is assumed unused bits
- * are always zero.
- */
-#define _PAGE_RO	0x0400	/* lsb PP bits */
-#define _PAGE_USER	0x0800	/* msb PP bits */
-/* set when _PAGE_USER is unset and _PAGE_RO is set */
-#define _PAGE_KNLRO	0x0200
+#define _PAGE_RO	0x0600	/* Supervisor RO, User no access */
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_BAD	0x0ff0
 #define _PMD_PAGE_MASK	0x000c
 #define _PMD_PAGE_8M	0x000c
 
-#define _PTE_NONE_MASK _PAGE_KNLRO
-
 /* Until my rework is finished, 8xx still needs atomic PTE updates */
 #define PTE_ATOMIC_UPDATES	1
 
 /* We need to add _PAGE_SHARED to kernel pages */
-#define _PAGE_KERNEL_RO	(_PAGE_SHARED | _PAGE_RO | _PAGE_KNLRO)
-#define _PAGE_KERNEL_ROX	(_PAGE_EXEC | _PAGE_RO | _PAGE_KNLRO)
+#define _PAGE_KERNEL_RO		(_PAGE_SHARED | _PAGE_RO)
+#define _PAGE_KERNEL_ROX	(_PAGE_SHARED | _PAGE_RO | _PAGE_EXEC)
+#define _PAGE_KERNEL_RW		(_PAGE_SHARED | _PAGE_DIRTY | _PAGE_RW | \
+				 _PAGE_HWWRITE)
+#define _PAGE_KERNEL_RWX	(_PAGE_SHARED | _PAGE_DIRTY | _PAGE_RW | \
+				 _PAGE_HWWRITE | _PAGE_EXEC)
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_PTE_8xx_H */

@@ -278,9 +278,7 @@ extern long long virt_phys_offset;
 
 #ifndef __ASSEMBLY__
 
-#undef STRICT_MM_TYPECHECKS
-
-#ifdef STRICT_MM_TYPECHECKS
+#ifdef CONFIG_STRICT_MM_TYPECHECKS
 /* These are used to make use of C type-checking. */
 
 /* PTE level */

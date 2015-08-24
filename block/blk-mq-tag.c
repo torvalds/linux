@@ -438,6 +438,39 @@ static void bt_for_each(struct blk_mq_hw_ctx *hctx,
 	}
 }
 
+static void bt_tags_for_each(struct blk_mq_tags *tags,
+		struct blk_mq_bitmap_tags *bt, unsigned int off,
+		busy_tag_iter_fn *fn, void *data, bool reserved)
+{
+	struct request *rq;
+	int bit, i;
+
+	if (!tags->rqs)
+		return;
+	for (i = 0; i < bt->map_nr; i++) {
+		struct blk_align_bitmap *bm = &bt->map[i];
+
+		for (bit = find_first_bit(&bm->word, bm->depth);
+		     bit < bm->depth;
+		     bit = find_next_bit(&bm->word, bm->depth, bit + 1)) {
+			rq = blk_mq_tag_to_rq(tags, off + bit);
+			fn(rq, data, reserved);
+		}
+
+		off += (1 << bt->bits_per_word);
+	}
+}
+
+void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
+		void *priv)
+{
+	if (tags->nr_reserved_tags)
+		bt_tags_for_each(tags, &tags->breserved_tags, 0, fn, priv, true);
+	bt_tags_for_each(tags, &tags->bitmap_tags, tags->nr_reserved_tags, fn, priv,
+			false);
+}
+EXPORT_SYMBOL(blk_mq_all_tag_busy_iter);
+
 void blk_mq_tag_busy_iter(struct blk_mq_hw_ctx *hctx, busy_iter_fn *fn,
 		void *priv)
 {
@@ -579,6 +612,11 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	tags = kzalloc_node(sizeof(*tags), GFP_KERNEL, node);
 	if (!tags)
 		return NULL;
+
+	if (!zalloc_cpumask_var(&tags->cpumask, GFP_KERNEL)) {
+		kfree(tags);
+		return NULL;
+	}
 
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;

@@ -182,6 +182,7 @@ struct i40e_lump_tracking {
 enum i40e_fd_stat_idx {
 	I40E_FD_STAT_ATR,
 	I40E_FD_STAT_SB,
+	I40E_FD_STAT_ATR_TUNNEL,
 	I40E_FD_STAT_PF_COUNT
 };
 #define I40E_FD_STAT_PF_IDX(pf_id) ((pf_id) * I40E_FD_STAT_PF_COUNT)
@@ -189,6 +190,8 @@ enum i40e_fd_stat_idx {
 			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR)
 #define I40E_FD_SB_STAT_IDX(pf_id)  \
 			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_SB)
+#define I40E_FD_ATR_TUNNEL_STAT_IDX(pf_id) \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR_TUNNEL)
 
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
@@ -263,8 +266,6 @@ struct i40e_pf {
 
 	struct hlist_head fdir_filter_list;
 	u16 fdir_pf_active_filters;
-	u16 fd_sb_cnt_idx;
-	u16 fd_atr_cnt_idx;
 	unsigned long fd_flush_timestamp;
 	u32 fd_flush_cnt;
 	u32 fd_add_err;
@@ -317,6 +318,7 @@ struct i40e_pf {
 #endif
 #define I40E_FLAG_PORT_ID_VALID                (u64)(1 << 28)
 #define I40E_FLAG_DCB_CAPABLE                  (u64)(1 << 29)
+#define I40E_FLAG_VEB_MODE_ENABLED		BIT_ULL(40)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;

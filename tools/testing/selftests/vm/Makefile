@@ -1,7 +1,12 @@
 # Makefile for vm selftests
 
 CFLAGS = -Wall
-BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
+BINARIES = compaction_test
+BINARIES += hugepage-mmap
+BINARIES += hugepage-shm
+BINARIES += hugetlbfstest
+BINARIES += map_hugetlb
+BINARIES += thuge-gen
 BINARIES += transhuge-stress
 
 all: $(BINARIES)

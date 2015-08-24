@@ -522,7 +522,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	priv->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
-	if (vnt_alloc_bufs(priv) == false) {
+	if (!vnt_alloc_bufs(priv)) {
 		dev_dbg(&priv->usb->dev, "vnt_alloc_bufs fail...\n");
 		return -ENOMEM;
 	}
@@ -701,7 +701,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	priv->current_aid = conf->aid;
 
-	if (changed & BSS_CHANGED_BSSID)
+	if (changed & BSS_CHANGED_BSSID && conf->bssid)
 		vnt_mac_set_bssid_addr(priv, (u8 *)conf->bssid);
 
 
@@ -785,8 +785,7 @@ static void vnt_configure(struct ieee80211_hw *hw,
 	u8 rx_mode = 0;
 	int rc;
 
-	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_PROMISC_IN_BSS |
-		FIF_BCN_PRBRESP_PROMISC;
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC;
 
 	rc = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_RCR,
 		MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
@@ -795,14 +794,6 @@ static void vnt_configure(struct ieee80211_hw *hw,
 		rx_mode = RCR_MULTICAST | RCR_BROADCAST;
 
 	dev_dbg(&priv->usb->dev, "rx mode in = %x\n", rx_mode);
-
-	if (changed_flags & FIF_PROMISC_IN_BSS) {
-		/* unconditionally log net taps */
-		if (*total_flags & FIF_PROMISC_IN_BSS)
-			rx_mode |= RCR_UNICAST;
-		else
-			rx_mode &= ~RCR_UNICAST;
-	}
 
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*total_flags & FIF_ALLMULTI) {
@@ -987,10 +978,10 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
 
-	priv->hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_TIMING_BEACON_ONLY;
+	ieee80211_hw_set(priv->hw, TIMING_BEACON_ONLY);
+	ieee80211_hw_set(priv->hw, SIGNAL_DBM);
+	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(priv->hw, REPORTS_TX_ACK_STATUS);
 
 	priv->hw->max_signal = 100;
 

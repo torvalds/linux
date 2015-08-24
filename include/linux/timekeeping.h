@@ -145,7 +145,6 @@ static inline void getboottime(struct timespec *ts)
 }
 #endif
 
-#define do_posix_clock_monotonic_gettime(ts) ktime_get_ts(ts)
 #define ktime_get_real_ts64(ts)	getnstimeofday64(ts)
 
 /*
@@ -163,6 +162,7 @@ extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
 extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
 extern ktime_t ktime_get_raw(void);
+extern u32 ktime_get_resolution_ns(void);
 
 /**
  * ktime_get_real - get the real (wall-) time in ktime_t format
@@ -266,7 +266,6 @@ extern int persistent_clock_is_local;
 
 extern void read_persistent_clock(struct timespec *ts);
 extern void read_persistent_clock64(struct timespec64 *ts);
-extern void read_boot_clock(struct timespec *ts);
 extern void read_boot_clock64(struct timespec64 *ts);
 extern int update_persistent_clock(struct timespec now);
 extern int update_persistent_clock64(struct timespec64 now);

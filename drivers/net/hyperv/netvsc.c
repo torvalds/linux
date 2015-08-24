@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
+#include <linux/vmalloc.h>
 #include <asm/sync_bitops.h>
 
 #include "hyperv_net.h"
@@ -227,13 +228,18 @@ static int netvsc_init_buf(struct hv_device *device)
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 	struct net_device *ndev;
+	int node;
 
 	net_device = get_outbound_net_device(device);
 	if (!net_device)
 		return -ENODEV;
 	ndev = net_device->ndev;
 
-	net_device->recv_buf = vzalloc(net_device->recv_buf_size);
+	node = cpu_to_node(device->channel->target_cpu);
+	net_device->recv_buf = vzalloc_node(net_device->recv_buf_size, node);
+	if (!net_device->recv_buf)
+		net_device->recv_buf = vzalloc(net_device->recv_buf_size);
+
 	if (!net_device->recv_buf) {
 		netdev_err(ndev, "unable to allocate receive "
 			"buffer of size %d\n", net_device->recv_buf_size);
@@ -321,7 +327,9 @@ static int netvsc_init_buf(struct hv_device *device)
 
 	/* Now setup the send buffer.
 	 */
-	net_device->send_buf = vzalloc(net_device->send_buf_size);
+	net_device->send_buf = vzalloc_node(net_device->send_buf_size, node);
+	if (!net_device->send_buf)
+		net_device->send_buf = vzalloc(net_device->send_buf_size);
 	if (!net_device->send_buf) {
 		netdev_err(ndev, "unable to allocate send "
 			   "buffer of size %d\n", net_device->send_buf_size);
@@ -743,6 +751,7 @@ static inline int netvsc_send_pkt(
 	u64 req_id;
 	int ret;
 	struct hv_page_buffer *pgbuf;
+	u32 ring_avail = hv_ringbuf_avail_percent(&out_channel->outbound);
 
 	nvmsg.hdr.msg_type = NVSP_MSG1_TYPE_SEND_RNDIS_PKT;
 	if (packet->is_data_pkt) {
@@ -769,32 +778,42 @@ static inline int netvsc_send_pkt(
 	if (out_channel->rescind)
 		return -ENODEV;
 
+	/*
+	 * It is possible that once we successfully place this packet
+	 * on the ringbuffer, we may stop the queue. In that case, we want
+	 * to notify the host independent of the xmit_more flag. We don't
+	 * need to be precise here; in the worst case we may signal the host
+	 * unnecessarily.
+	 */
+	if (ring_avail < (RING_AVAIL_PERCENT_LOWATER + 1))
+		packet->xmit_more = false;
+
 	if (packet->page_buf_cnt) {
 		pgbuf = packet->cp_partial ? packet->page_buf +
 			packet->rmsg_pgcnt : packet->page_buf;
-		ret = vmbus_sendpacket_pagebuffer(out_channel,
-						  pgbuf,
-						  packet->page_buf_cnt,
-						  &nvmsg,
-						  sizeof(struct nvsp_message),
-						  req_id);
+		ret = vmbus_sendpacket_pagebuffer_ctl(out_channel,
+						      pgbuf,
+						      packet->page_buf_cnt,
+						      &nvmsg,
+						      sizeof(struct nvsp_message),
+						      req_id,
+						      VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED,
+						      !packet->xmit_more);
 	} else {
-		ret = vmbus_sendpacket(
-				out_channel, &nvmsg,
-				sizeof(struct nvsp_message),
-				req_id,
-				VM_PKT_DATA_INBAND,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket_ctl(out_channel, &nvmsg,
+					   sizeof(struct nvsp_message),
+					   req_id,
+					   VM_PKT_DATA_INBAND,
+					   VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED,
+					   !packet->xmit_more);
 	}
 
 	if (ret == 0) {
 		atomic_inc(&net_device->num_outstanding_sends);
 		atomic_inc(&net_device->queue_sends[q_idx]);
 
-		if (hv_ringbuf_avail_percent(&out_channel->outbound) <
-			RING_AVAIL_PERCENT_LOWATER) {
-			netif_tx_stop_queue(netdev_get_tx_queue(
-					    ndev, q_idx));
+		if (ring_avail < RING_AVAIL_PERCENT_LOWATER) {
+			netif_tx_stop_queue(netdev_get_tx_queue(ndev, q_idx));
 
 			if (atomic_read(&net_device->
 				queue_sends[q_idx]) < 1)
@@ -826,7 +845,6 @@ int netvsc_send(struct hv_device *device,
 	u16 q_idx = packet->q_idx;
 	u32 pktlen = packet->total_data_buflen, msd_len = 0;
 	unsigned int section_index = NETVSC_INVALID_INDEX;
-	struct sk_buff *skb = NULL;
 	unsigned long flag;
 	struct multi_send_data *msdp;
 	struct hv_netvsc_packet *msd_send = NULL, *cur_send = NULL;
@@ -889,11 +907,6 @@ int netvsc_send(struct hv_device *device,
 		} else {
 			packet->page_buf_cnt = 0;
 			packet->total_data_buflen += msd_len;
-			if (!packet->part_of_skb) {
-				skb = (struct sk_buff *)(unsigned long)packet->
-				       send_completion_tid;
-				packet->send_completion_tid = 0;
-			}
 		}
 
 		if (msdp->pkt)
@@ -929,12 +942,8 @@ int netvsc_send(struct hv_device *device,
 	if (cur_send)
 		ret = netvsc_send_pkt(cur_send, net_device);
 
-	if (ret != 0) {
-		if (section_index != NETVSC_INVALID_INDEX)
-			netvsc_free_send_slot(net_device, section_index);
-	} else if (skb) {
-		dev_kfree_skb_any(skb);
-	}
+	if (ret != 0 && section_index != NETVSC_INVALID_INDEX)
+		netvsc_free_send_slot(net_device, section_index);
 
 	return ret;
 }
@@ -1196,6 +1205,9 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	 * in struct netvsc_device *.
 	 */
 	ndev = net_device->ndev;
+
+	/* Add netvsc_device context to netvsc_device */
+	net_device->nd_ctx = netdev_priv(ndev);
 
 	/* Initialize the NetVSC channel extension */
 	init_completion(&net_device->channel_init_wait);

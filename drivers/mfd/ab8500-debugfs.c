@@ -2885,7 +2885,7 @@ static ssize_t ab8500_subscribe_write(struct file *file,
 	}
 
 	err = request_threaded_irq(user_val, NULL, ab8500_debug_handler,
-				   IRQF_SHARED | IRQF_NO_SUSPEND,
+				   IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 				   "ab8500-debug", &dev->kobj);
 	if (err < 0) {
 		pr_info("request_threaded_irq failed %d, %lu\n",

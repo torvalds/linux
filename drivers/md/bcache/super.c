@@ -760,14 +760,8 @@ static void bcache_device_free(struct bcache_device *d)
 	bio_split_pool_free(&d->bio_split_hook);
 	if (d->bio_split)
 		bioset_free(d->bio_split);
-	if (is_vmalloc_addr(d->full_dirty_stripes))
-		vfree(d->full_dirty_stripes);
-	else
-		kfree(d->full_dirty_stripes);
-	if (is_vmalloc_addr(d->stripe_sectors_dirty))
-		vfree(d->stripe_sectors_dirty);
-	else
-		kfree(d->stripe_sectors_dirty);
+	kvfree(d->full_dirty_stripes);
+	kvfree(d->stripe_sectors_dirty);
 
 	closure_debug_destroy(&d->cl);
 }

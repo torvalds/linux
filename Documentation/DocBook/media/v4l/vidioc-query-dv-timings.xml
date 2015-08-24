@@ -6,6 +6,7 @@
 
   <refnamediv>
     <refname>VIDIOC_QUERY_DV_TIMINGS</refname>
+    <refname>VIDIOC_SUBDEV_QUERY_DV_TIMINGS</refname>
     <refpurpose>Sense the DV preset received by the current
 input</refpurpose>
   </refnamediv>
@@ -34,7 +35,7 @@ input</refpurpose>
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>VIDIOC_QUERY_DV_TIMINGS</para>
+	  <para>VIDIOC_QUERY_DV_TIMINGS, VIDIOC_SUBDEV_QUERY_DV_TIMINGS</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

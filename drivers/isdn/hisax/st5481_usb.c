@@ -267,8 +267,8 @@ int st5481_setup_usb(struct st5481_adapter *adapter)
 	}
 
 	// The descriptor is wrong for some early samples of the ST5481 chip
-	altsetting->endpoint[3].desc.wMaxPacketSize = __constant_cpu_to_le16(32);
-	altsetting->endpoint[4].desc.wMaxPacketSize = __constant_cpu_to_le16(32);
+	altsetting->endpoint[3].desc.wMaxPacketSize = cpu_to_le16(32);
+	altsetting->endpoint[4].desc.wMaxPacketSize = cpu_to_le16(32);
 
 	// Use alternative setting 3 on interface 0 to have 2B+D
 	if ((status = usb_set_interface(dev, 0, 3)) < 0) {

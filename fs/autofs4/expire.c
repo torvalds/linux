@@ -374,7 +374,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 		return NULL;
 	}
 
-	if (dentry->d_inode && d_is_symlink(dentry)) {
+	if (d_really_is_positive(dentry) && d_is_symlink(dentry)) {
 		DPRINTK("checking symlink %p %pd", dentry, dentry);
 		/*
 		 * A symlink can't be "busy" in the usual sense so

@@ -108,7 +108,7 @@ struct rockchip_pll_rate_table {
 struct rockchip_pll_clock {
 	unsigned int		id;
 	const char		*name;
-	const char		**parent_names;
+	const char		*const *parent_names;
 	u8			num_parents;
 	unsigned long		flags;
 	int			con_offset;
@@ -140,10 +140,10 @@ struct rockchip_pll_clock {
 	}
 
 struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
-		const char *name, const char **parent_names, u8 num_parents,
-		void __iomem *base, int con_offset, int grf_lock_offset,
-		int lock_shift, int reg_mode, int mode_shift,
-		struct rockchip_pll_rate_table *rate_table,
+		const char *name, const char *const *parent_names,
+		u8 num_parents, void __iomem *base, int con_offset,
+		int grf_lock_offset, int lock_shift, int reg_mode,
+		int mode_shift, struct rockchip_pll_rate_table *rate_table,
 		u8 clk_pll_flags, spinlock_t *lock);
 
 struct rockchip_cpuclk_clksel {
@@ -173,16 +173,16 @@ struct rockchip_cpuclk_reg_data {
 };
 
 struct clk *rockchip_clk_register_cpuclk(const char *name,
-			const char **parent_names, u8 num_parents,
+			const char *const *parent_names, u8 num_parents,
 			const struct rockchip_cpuclk_reg_data *reg_data,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates, void __iomem *reg_base, spinlock_t *lock);
 
 struct clk *rockchip_clk_register_mmc(const char *name,
-				const char **parent_names, u8 num_parents,
+				const char *const *parent_names, u8 num_parents,
 				void __iomem *reg, int shift);
 
-#define PNAME(x) static const char *x[] __initdata
+#define PNAME(x) static const char *const x[] __initconst
 
 enum rockchip_clk_branch_type {
 	branch_composite,
@@ -197,7 +197,7 @@ struct rockchip_clk_branch {
 	unsigned int			id;
 	enum rockchip_clk_branch_type	branch_type;
 	const char			*name;
-	const char			**parent_names;
+	const char			*const *parent_names;
 	u8				num_parents;
 	unsigned long			flags;
 	int				muxdiv_offset;
@@ -403,7 +403,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_branch *clk_list,
 void rockchip_clk_register_plls(struct rockchip_pll_clock *pll_list,
 				unsigned int nr_pll, int grf_lock_offset);
 void rockchip_clk_register_armclk(unsigned int lookup_id, const char *name,
-			const char **parent_names, u8 num_parents,
+			const char *const *parent_names, u8 num_parents,
 			const struct rockchip_cpuclk_reg_data *reg_data,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);

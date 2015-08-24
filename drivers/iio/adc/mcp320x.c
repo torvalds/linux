@@ -60,12 +60,12 @@ struct mcp320x {
 	struct spi_message msg;
 	struct spi_transfer transfer[2];
 
-	u8 tx_buf;
-	u8 rx_buf[2];
-
 	struct regulator *reg;
 	struct mutex lock;
 	const struct mcp320x_chip_info *chip_info;
+
+	u8 tx_buf ____cacheline_aligned;
+	u8 rx_buf[2];
 };
 
 static int mcp320x_channel_to_tx_data(int device_index,
@@ -298,6 +298,8 @@ static int mcp320x_probe(struct spi_device *spi)
 	chip_info = &mcp320x_chip_infos[spi_get_device_id(spi)->driver_data];
 	indio_dev->channels = chip_info->channels;
 	indio_dev->num_channels = chip_info->num_channels;
+
+	adc->chip_info = chip_info;
 
 	adc->transfer[0].tx_buf = &adc->tx_buf;
 	adc->transfer[0].len = sizeof(adc->tx_buf);

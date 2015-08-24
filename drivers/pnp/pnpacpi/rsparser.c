@@ -28,8 +28,8 @@
 #include "../base.h"
 #include "pnpacpi.h"
 
-static void decode_irq_flags(struct pnp_dev *dev, int flags, int *triggering,
-			     int *polarity, int *shareable)
+static void decode_irq_flags(struct pnp_dev *dev, int flags, u8 *triggering,
+			     u8 *polarity, u8 *shareable)
 {
 	switch (flags & (IORESOURCE_IRQ_LOWLEVEL | IORESOURCE_IRQ_HIGHLEVEL |
 			 IORESOURCE_IRQ_LOWEDGE  | IORESOURCE_IRQ_HIGHEDGE)) {
@@ -654,7 +654,7 @@ static void pnpacpi_encode_irq(struct pnp_dev *dev,
 			       struct resource *p)
 {
 	struct acpi_resource_irq *irq = &resource->data.irq;
-	int triggering, polarity, shareable;
+	u8 triggering, polarity, shareable;
 
 	if (!pnp_resource_enabled(p)) {
 		irq->interrupt_count = 0;
@@ -683,7 +683,7 @@ static void pnpacpi_encode_ext_irq(struct pnp_dev *dev,
 				   struct resource *p)
 {
 	struct acpi_resource_extended_irq *extended_irq = &resource->data.extended_irq;
-	int triggering, polarity, shareable;
+	u8 triggering, polarity, shareable;
 
 	if (!pnp_resource_enabled(p)) {
 		extended_irq->interrupt_count = 0;
@@ -873,7 +873,7 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 	/* pnpacpi_build_resource_template allocates extra mem */
 	int res_cnt = (buffer->length - 1) / sizeof(struct acpi_resource) - 1;
 	struct acpi_resource *resource = buffer->pointer;
-	int port = 0, irq = 0, dma = 0, mem = 0;
+	unsigned int port = 0, irq = 0, dma = 0, mem = 0;
 
 	pnp_dbg(&dev->dev, "encode %d resources\n", res_cnt);
 	while (i < res_cnt) {

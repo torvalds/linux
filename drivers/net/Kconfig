@@ -179,6 +179,20 @@ config VXLAN
 	  To compile this driver as a module, choose M here: the module
 	  will be called vxlan.
 
+config GENEVE
+       tristate "Generic Network Virtualization Encapsulation netdev"
+       depends on INET && GENEVE_CORE
+       select NET_IP_TUNNEL
+       ---help---
+	  This allows one to create geneve virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  For more information see:
+	    http://tools.ietf.org/html/draft-gross-geneve-02
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called geneve.
+
 config NETCONSOLE
 	tristate "Network console logging support"
 	---help---
@@ -203,8 +217,8 @@ config NET_POLL_CONTROLLER
 	def_bool NETPOLL
 
 config NTB_NETDEV
-	tristate "Virtual Ethernet over NTB"
-	depends on NTB
+	tristate "Virtual Ethernet over NTB Transport"
+	depends on NTB_TRANSPORT
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
@@ -243,6 +257,20 @@ config TUN
 	  will be called tun.
 
 	  If you don't know what to use this for, you don't need it.
+
+config TUN_VNET_CROSS_LE
+	bool "Support for cross-endian vnet headers on little-endian kernels"
+	default n
+	---help---
+	  This option allows TUN/TAP and MACVTAP device drivers in a
+	  little-endian kernel to parse vnet headers that come from a
+	  big-endian legacy virtio device.
+
+	  Userspace programs can control the feature using the TUNSETVNETBE
+	  and TUNGETVNETBE ioctls.
+
+	  Unless you have a little-endian system hosting a big-endian virtual
+	  machine with a legacy virtio NIC, you should say N.
 
 config VETH
 	tristate "Virtual ethernet pair device"

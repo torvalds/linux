@@ -111,6 +111,8 @@ struct dma_chan;
  * data for the MMC controller
  */
 struct tmio_mmc_data {
+	void				*chan_priv_tx;
+	void				*chan_priv_rx;
 	unsigned int			hclk;
 	unsigned long			capabilities;
 	unsigned long			capabilities2;

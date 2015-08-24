@@ -482,7 +482,6 @@ static int ak4642_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

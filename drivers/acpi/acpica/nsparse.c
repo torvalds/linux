@@ -117,6 +117,13 @@ acpi_ns_one_complete_parse(u32 pass_number,
 					       (u8) pass_number);
 	}
 
+	/* Found OSDT table, enable the namespace override feature */
+
+	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT) &&
+	    pass_number == ACPI_IMODE_LOAD_PASS1) {
+		walk_state->namespace_override = TRUE;
+	}
+
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
 		goto cleanup;

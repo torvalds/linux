@@ -112,7 +112,7 @@ static int dsa_slave_open(struct net_device *dev)
 
 clear_promisc:
 	if (dev->flags & IFF_PROMISC)
-		dev_set_promiscuity(master, 0);
+		dev_set_promiscuity(master, -1);
 clear_allmulti:
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(master, -1);
@@ -345,6 +345,24 @@ static int dsa_slave_stp_update(struct net_device *dev, u8 state)
 	return ret;
 }
 
+static int dsa_slave_port_attr_set(struct net_device *dev,
+				   struct switchdev_attr *attr)
+{
+	int ret = 0;
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_STP_STATE:
+		if (attr->trans == SWITCHDEV_TRANS_COMMIT)
+			ret = dsa_slave_stp_update(dev, attr->u.stp_state);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
 static int dsa_slave_bridge_port_join(struct net_device *dev,
 				      struct net_device *br)
 {
@@ -382,14 +400,20 @@ static int dsa_slave_bridge_port_leave(struct net_device *dev)
 	return ret;
 }
 
-static int dsa_slave_parent_id_get(struct net_device *dev,
-				   struct netdev_phys_item_id *psid)
+static int dsa_slave_port_attr_get(struct net_device *dev,
+				   struct switchdev_attr *attr)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	psid->id_len = sizeof(ds->index);
-	memcpy(&psid->id, &ds->index, psid->id_len);
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_PARENT_ID:
+		attr->u.ppid.id_len = sizeof(ds->index);
+		memcpy(&attr->u.ppid.id, &ds->index, attr->u.ppid.id_len);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -675,9 +699,9 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_get_iflink		= dsa_slave_get_iflink,
 };
 
-static const struct swdev_ops dsa_slave_swdev_ops = {
-	.swdev_parent_id_get = dsa_slave_parent_id_get,
-	.swdev_port_stp_update = dsa_slave_stp_update,
+static const struct switchdev_ops dsa_slave_switchdev_ops = {
+	.switchdev_port_attr_get	= dsa_slave_port_attr_get,
+	.switchdev_port_attr_set	= dsa_slave_port_attr_set,
 };
 
 static void dsa_slave_adjust_link(struct net_device *dev)
@@ -732,7 +756,8 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 		return -ENODEV;
 
 	/* Use already configured phy mode */
-	p->phy_interface = p->phy->interface;
+	if (p->phy_interface == PHY_INTERFACE_MODE_NA)
+		p->phy_interface = p->phy->interface;
 	phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
 			   p->phy_interface);
 
@@ -810,11 +835,18 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	return 0;
 }
 
+static struct lock_class_key dsa_slave_netdev_xmit_lock_key;
+static void dsa_slave_set_lockdep_class_one(struct net_device *dev,
+					    struct netdev_queue *txq,
+					    void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock,
+			  &dsa_slave_netdev_xmit_lock_key);
+}
+
 int dsa_slave_suspend(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
-
-	netif_device_detach(slave_dev);
 
 	if (p->phy) {
 		phy_stop(p->phy);
@@ -859,7 +891,10 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->tx_queue_len = 0;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
-	slave_dev->swdev_ops = &dsa_slave_swdev_ops;
+	slave_dev->switchdev_ops = &dsa_slave_switchdev_ops;
+
+	netdev_for_each_tx_queue(slave_dev, dsa_slave_set_lockdep_class_one,
+				 NULL);
 
 	SET_NETDEV_DEV(slave_dev, parent);
 	slave_dev->dev.of_node = ds->pd->port_dn[port];

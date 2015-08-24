@@ -138,19 +138,6 @@ do {								\
 #define CPSW_CMINTMAX_INTVL	(1000 / CPSW_CMINTMIN_CNT)
 #define CPSW_CMINTMIN_INTVL	((1000 / CPSW_CMINTMAX_CNT) + 1)
 
-#define cpsw_enable_irq(priv)	\
-	do {			\
-		u32 i;		\
-		for (i = 0; i < priv->num_irqs; i++) \
-			enable_irq(priv->irqs_table[i]); \
-	} while (0)
-#define cpsw_disable_irq(priv)	\
-	do {			\
-		u32 i;		\
-		for (i = 0; i < priv->num_irqs; i++) \
-			disable_irq_nosync(priv->irqs_table[i]); \
-	} while (0)
-
 #define cpsw_slave_index(priv)				\
 		((priv->data.dual_emac) ? priv->emac_port :	\
 		priv->data.active_slave)
@@ -509,9 +496,11 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 				(func)(slave++, ##arg);			\
 	} while (0)
 #define cpsw_get_slave_ndev(priv, __slave_no__)				\
-	(priv->slaves[__slave_no__].ndev)
+	((__slave_no__ < priv->data.slaves) ?				\
+		priv->slaves[__slave_no__].ndev : NULL)
 #define cpsw_get_slave_priv(priv, __slave_no__)				\
-	((priv->slaves[__slave_no__].ndev) ?				\
+	(((__slave_no__ < priv->data.slaves) &&				\
+		(priv->slaves[__slave_no__].ndev)) ?			\
 		netdev_priv(priv->slaves[__slave_no__].ndev) : NULL)	\
 
 #define cpsw_dual_emac_src_port_detect(status, priv, ndev, skb)		\
@@ -781,7 +770,7 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 
 	cpsw_intr_disable(priv);
 	if (priv->irq_enabled == true) {
-		cpsw_disable_irq(priv);
+		disable_irq_nosync(priv->irqs_table[0]);
 		priv->irq_enabled = false;
 	}
 
@@ -804,9 +793,7 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 static int cpsw_poll(struct napi_struct *napi, int budget)
 {
 	struct cpsw_priv	*priv = napi_to_priv(napi);
-	int			num_tx, num_rx;
-
-	num_tx = cpdma_chan_process(priv->txch, 128);
+	int			num_rx;
 
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 	if (num_rx < budget) {
@@ -817,13 +804,12 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 		prim_cpsw = cpsw_get_slave_priv(priv, 0);
 		if (prim_cpsw->irq_enabled == false) {
 			prim_cpsw->irq_enabled = true;
-			cpsw_enable_irq(priv);
+			enable_irq(priv->irqs_table[0]);
 		}
 	}
 
-	if (num_rx || num_tx)
-		cpsw_dbg(priv, intr, "poll %d rx, %d tx pkts\n",
-			 num_rx, num_tx);
+	if (num_rx)
+		cpsw_dbg(priv, intr, "poll %d rx pkts\n", num_rx);
 
 	return num_rx;
 }
@@ -1333,7 +1319,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (prim_cpsw->irq_enabled == false) {
 		if ((priv == prim_cpsw) || !netif_running(prim_cpsw->ndev)) {
 			prim_cpsw->irq_enabled = true;
-			cpsw_enable_irq(prim_cpsw);
+			enable_irq(prim_cpsw->irqs_table[0]);
 		}
 	}
 
@@ -1361,7 +1347,6 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	if (cpsw_common_res_usage_state(priv) <= 1) {
 		cpts_unregister(priv->cpts);
 		cpsw_intr_disable(priv);
-		cpdma_ctlr_int_ctrl(priv->dma, false);
 		cpdma_ctlr_stop(priv->dma);
 		cpsw_ale_stop(priv->ale);
 	}
@@ -1456,7 +1441,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 		if (priv->cpts->rx_enable)
 			ctrl |= CTRL_V2_RX_TS_BITS;
-	break;
+		break;
 	case CPSW_VERSION_3:
 	default:
 		ctrl &= ~CTRL_V3_ALL_TS_MASK;
@@ -1466,7 +1451,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 		if (priv->cpts->rx_enable)
 			ctrl |= CTRL_V3_RX_TS_BITS;
-	break;
+		break;
 	}
 
 	mtype = (30 << TS_SEQ_ID_OFFSET_SHIFT) | EVENT_MSG_BITS;
@@ -1589,10 +1574,8 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	cpsw_err(priv, tx_err, "transmit timeout, restarting dma\n");
 	ndev->stats.tx_errors++;
 	cpsw_intr_disable(priv);
-	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpdma_chan_stop(priv->txch);
 	cpdma_chan_start(priv->txch);
-	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
 
@@ -1629,10 +1612,8 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
 	cpsw_intr_disable(priv);
-	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpsw_rx_interrupt(priv->irqs_table[0], priv);
 	cpsw_tx_interrupt(priv->irqs_table[1], priv);
-	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
 #endif

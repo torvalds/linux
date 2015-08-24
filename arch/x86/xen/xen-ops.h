@@ -101,16 +101,14 @@ struct dom0_vga_console_info;
 
 #ifdef CONFIG_XEN_DOM0
 void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size);
-void __init xen_init_apic(void);
 #else
 static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
 				       size_t size)
 {
 }
-static inline void __init xen_init_apic(void)
-{
-}
 #endif
+
+void __init xen_init_apic(void);
 
 #ifdef CONFIG_XEN_EFI
 extern void xen_efi_init(void);
@@ -134,7 +132,9 @@ DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 
 /* These are not functions, and cannot be called normally */
 __visible void xen_iret(void);
+#ifdef CONFIG_X86_32
 __visible void xen_sysexit(void);
+#endif
 __visible void xen_sysret32(void);
 __visible void xen_sysret64(void);
 __visible void xen_adjust_exception_frame(void);

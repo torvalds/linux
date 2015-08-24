@@ -549,7 +549,7 @@ also have
    sync_speed_max
      This are similar to /proc/sys/dev/raid/speed_limit_{min,max}
      however they only apply to the particular array.
-     If no value has been written to these, of if the word 'system'
+     If no value has been written to these, or if the word 'system'
      is written, then the system-wide value is used.  If a value,
      in kibibytes-per-second is written, then it is used.
      When the files are read, they show the currently active value

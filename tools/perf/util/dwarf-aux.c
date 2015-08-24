@@ -139,8 +139,24 @@ int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 {
 	const char *name;
+
 	name = dwarf_diename(dw_die);
 	return name ? (strcmp(tname, name) == 0) : false;
+}
+
+/**
+ * die_match_name - Match diename and glob
+ * @dw_die: a DIE
+ * @glob: a string of target glob pattern
+ *
+ * Glob matching the name of @dw_die and @glob. Return false if matching fail.
+ */
+bool die_match_name(Dwarf_Die *dw_die, const char *glob)
+{
+	const char *name;
+
+	name = dwarf_diename(dw_die);
+	return name ? strglobmatch(name, glob) : false;
 }
 
 /**
@@ -416,6 +432,43 @@ struct __addr_die_search_param {
 	Dwarf_Addr	addr;
 	Dwarf_Die	*die_mem;
 };
+
+static int __die_search_func_tail_cb(Dwarf_Die *fn_die, void *data)
+{
+	struct __addr_die_search_param *ad = data;
+	Dwarf_Addr addr = 0;
+
+	if (dwarf_tag(fn_die) == DW_TAG_subprogram &&
+	    !dwarf_highpc(fn_die, &addr) &&
+	    addr == ad->addr) {
+		memcpy(ad->die_mem, fn_die, sizeof(Dwarf_Die));
+		return DWARF_CB_ABORT;
+	}
+	return DWARF_CB_OK;
+}
+
+/**
+ * die_find_tailfunc - Search for a non-inlined function with tail call at
+ * given address
+ * @cu_die: a CU DIE which including @addr
+ * @addr: target address
+ * @die_mem: a buffer for result DIE
+ *
+ * Search for a non-inlined function DIE with tail call at @addr. Stores the
+ * DIE to @die_mem and returns it if found. Returns NULL if failed.
+ */
+Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
+				    Dwarf_Die *die_mem)
+{
+	struct __addr_die_search_param ad;
+	ad.addr = addr;
+	ad.die_mem = die_mem;
+	/* dwarf_getscopes can't find subprogram. */
+	if (!dwarf_getfuncs(cu_die, __die_search_func_tail_cb, &ad, 0))
+		return NULL;
+	else
+		return die_mem;
+}
 
 /* die_find callback for non-inlined function search */
 static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
@@ -832,19 +885,17 @@ Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
 /**
  * die_get_typename - Get the name of given variable DIE
  * @vr_die: a variable DIE
- * @buf: a buffer for result type name
- * @len: a max-length of @buf
+ * @buf: a strbuf for result type name
  *
- * Get the name of @vr_die and stores it to @buf. Return the actual length
- * of type name if succeeded. Return -E2BIG if @len is not enough long, and
- * Return -ENOENT if failed to find type name.
+ * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
+ * and Return -ENOENT if failed to find type name.
  * Note that the result will stores typedef name if possible, and stores
  * "*(function_type)" if the type is a function pointer.
  */
-int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
+int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 {
 	Dwarf_Die type;
-	int tag, ret, ret2;
+	int tag, ret;
 	const char *tmp = "";
 
 	if (__die_get_real_type(vr_die, &type) == NULL)
@@ -855,8 +906,8 @@ int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
 		tmp = "*";
 	else if (tag == DW_TAG_subroutine_type) {
 		/* Function pointer */
-		ret = snprintf(buf, len, "(function_type)");
-		return (ret >= len) ? -E2BIG : ret;
+		strbuf_addf(buf, "(function_type)");
+		return 0;
 	} else {
 		if (!dwarf_diename(&type))
 			return -ENOENT;
@@ -867,39 +918,156 @@ int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
 		else if (tag == DW_TAG_enumeration_type)
 			tmp = "enum ";
 		/* Write a base name */
-		ret = snprintf(buf, len, "%s%s", tmp, dwarf_diename(&type));
-		return (ret >= len) ? -E2BIG : ret;
+		strbuf_addf(buf, "%s%s", tmp, dwarf_diename(&type));
+		return 0;
 	}
-	ret = die_get_typename(&type, buf, len);
-	if (ret > 0) {
-		ret2 = snprintf(buf + ret, len - ret, "%s", tmp);
-		ret = (ret2 >= len - ret) ? -E2BIG : ret2 + ret;
-	}
+	ret = die_get_typename(&type, buf);
+	if (ret == 0)
+		strbuf_addf(buf, "%s", tmp);
+
 	return ret;
 }
 
 /**
  * die_get_varname - Get the name and type of given variable DIE
  * @vr_die: a variable DIE
- * @buf: a buffer for type and variable name
- * @len: the max-length of @buf
+ * @buf: a strbuf for type and variable name
  *
  * Get the name and type of @vr_die and stores it in @buf as "type\tname".
  */
-int die_get_varname(Dwarf_Die *vr_die, char *buf, int len)
+int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 {
-	int ret, ret2;
+	int ret;
 
-	ret = die_get_typename(vr_die, buf, len);
+	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
 		pr_debug("Failed to get type, make it unknown.\n");
-		ret = snprintf(buf, len, "(unknown_type)");
+		strbuf_addf(buf, "(unknown_type)");
 	}
-	if (ret > 0) {
-		ret2 = snprintf(buf + ret, len - ret, "\t%s",
-				dwarf_diename(vr_die));
-		ret = (ret2 >= len - ret) ? -E2BIG : ret2 + ret;
+
+	strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));
+
+	return 0;
+}
+
+/**
+ * die_get_var_innermost_scope - Get innermost scope range of given variable DIE
+ * @sp_die: a subprogram DIE
+ * @vr_die: a variable DIE
+ * @buf: a strbuf for variable byte offset range
+ *
+ * Get the innermost scope range of @vr_die and stores it in @buf as
+ * "@<function_name+[NN-NN,NN-NN]>".
+ */
+static int die_get_var_innermost_scope(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
+				struct strbuf *buf)
+{
+	Dwarf_Die *scopes;
+	int count;
+	size_t offset = 0;
+	Dwarf_Addr base;
+	Dwarf_Addr start, end;
+	Dwarf_Addr entry;
+	int ret;
+	bool first = true;
+	const char *name;
+
+	ret = dwarf_entrypc(sp_die, &entry);
+	if (ret)
+		return ret;
+
+	name = dwarf_diename(sp_die);
+	if (!name)
+		return -ENOENT;
+
+	count = dwarf_getscopes_die(vr_die, &scopes);
+
+	/* (*SCOPES)[1] is the DIE for the scope containing that scope */
+	if (count <= 1) {
+		ret = -EINVAL;
+		goto out;
 	}
+
+	while ((offset = dwarf_ranges(&scopes[1], offset, &base,
+				&start, &end)) > 0) {
+		start -= entry;
+		end -= entry;
+
+		if (first) {
+			strbuf_addf(buf, "@<%s+[%" PRIu64 "-%" PRIu64,
+				name, start, end);
+			first = false;
+		} else {
+			strbuf_addf(buf, ",%" PRIu64 "-%" PRIu64,
+				start, end);
+		}
+	}
+
+	if (!first)
+		strbuf_addf(buf, "]>");
+
+out:
+	free(scopes);
 	return ret;
 }
 
+/**
+ * die_get_var_range - Get byte offset range of given variable DIE
+ * @sp_die: a subprogram DIE
+ * @vr_die: a variable DIE
+ * @buf: a strbuf for type and variable name and byte offset range
+ *
+ * Get the byte offset range of @vr_die and stores it in @buf as
+ * "@<function_name+[NN-NN,NN-NN]>".
+ */
+int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
+{
+	int ret = 0;
+	Dwarf_Addr base;
+	Dwarf_Addr start, end;
+	Dwarf_Addr entry;
+	Dwarf_Op *op;
+	size_t nops;
+	size_t offset = 0;
+	Dwarf_Attribute attr;
+	bool first = true;
+	const char *name;
+
+	ret = dwarf_entrypc(sp_die, &entry);
+	if (ret)
+		return ret;
+
+	name = dwarf_diename(sp_die);
+	if (!name)
+		return -ENOENT;
+
+	if (dwarf_attr(vr_die, DW_AT_location, &attr) == NULL)
+		return -EINVAL;
+
+	while ((offset = dwarf_getlocations(
+				&attr, offset, &base,
+				&start, &end, &op, &nops)) > 0) {
+		if (start == 0) {
+			/* Single Location Descriptions */
+			ret = die_get_var_innermost_scope(sp_die, vr_die, buf);
+			return ret;
+		}
+
+		/* Location Lists */
+		start -= entry;
+		end -= entry;
+		if (first) {
+			strbuf_addf(buf, "@<%s+[%" PRIu64 "-%" PRIu64,
+				name, start, end);
+			first = false;
+		} else {
+			strbuf_addf(buf, ",%" PRIu64 "-%" PRIu64,
+				start, end);
+		}
+	}
+
+	if (!first)
+		strbuf_addf(buf, "]>");
+
+	return ret;
+}

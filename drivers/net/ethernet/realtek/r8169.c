@@ -4875,10 +4875,12 @@ static void rtl_init_rxcfg(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_46:
 	case RTL_GIGA_MAC_VER_47:
 	case RTL_GIGA_MAC_VER_48:
+		RTL_W32(RxConfig, RX128_INT_EN | RX_DMA_BURST | RX_EARLY_OFF);
+		break;
 	case RTL_GIGA_MAC_VER_49:
 	case RTL_GIGA_MAC_VER_50:
 	case RTL_GIGA_MAC_VER_51:
-		RTL_W32(RxConfig, RX128_INT_EN | RX_DMA_BURST | RX_EARLY_OFF);
+		RTL_W32(RxConfig, RX128_INT_EN | RX_MULTI_EN | RX_DMA_BURST | RX_EARLY_OFF);
 		break;
 	default:
 		RTL_W32(RxConfig, RX128_INT_EN | RX_DMA_BURST);
@@ -6884,7 +6886,7 @@ static void r8169_csum_workaround(struct rtl8169_private *tp,
 			rtl8169_start_xmit(nskb, tp->dev);
 		} while (segs);
 
-		dev_kfree_skb(skb);
+		dev_consume_skb_any(skb);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb_checksum_help(skb) < 0)
 			goto drop;
@@ -6896,7 +6898,7 @@ static void r8169_csum_workaround(struct rtl8169_private *tp,
 drop:
 		stats = &tp->dev->stats;
 		stats->tx_dropped++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	}
 }
 

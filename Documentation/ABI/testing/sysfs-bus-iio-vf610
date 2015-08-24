@@ -1,0 +1,7 @@
+What:		/sys/bus/iio/devices/iio:deviceX/conversion_mode
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the hardware conversion mode used. The three
+		available modes are "normal", "high-speed" and "low-power",
+		where the last is the default mode.

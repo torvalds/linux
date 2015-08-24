@@ -36,6 +36,8 @@
 /* Two-stage IOMMU */
 #define VFIO_TYPE1_NESTING_IOMMU	6	/* Implies v2 */
 
+#define VFIO_SPAPR_TCE_v2_IOMMU		7
+
 /*
  * The IOCTL interface is designed for extensibility by embedding the
  * structure length (argsz) and flags into structures passed between
@@ -443,6 +445,23 @@ struct vfio_iommu_type1_dma_unmap {
 /* -------- Additional API for SPAPR TCE (Server POWERPC) IOMMU -------- */
 
 /*
+ * The SPAPR TCE DDW info struct provides the information about
+ * the details of Dynamic DMA window capability.
+ *
+ * @pgsizes contains a page size bitmask, 4K/64K/16M are supported.
+ * @max_dynamic_windows_supported tells the maximum number of windows
+ * which the platform can create.
+ * @levels tells the maximum number of levels in multi-level IOMMU tables;
+ * this allows splitting a table into smaller chunks which reduces
+ * the amount of physically contiguous memory required for the table.
+ */
+struct vfio_iommu_spapr_tce_ddw_info {
+	__u64 pgsizes;			/* Bitmap of supported page sizes */
+	__u32 max_dynamic_windows_supported;
+	__u32 levels;
+};
+
+/*
  * The SPAPR TCE info struct provides the information about the PCI bus
  * address ranges available for DMA, these values are programmed into
  * the hardware so the guest has to know that information.
@@ -452,14 +471,17 @@ struct vfio_iommu_type1_dma_unmap {
  * addresses too so the window works as a filter rather than an offset
  * for IOVA addresses.
  *
- * A flag will need to be added if other page sizes are supported,
- * so as defined here, it is always 4k.
+ * Flags supported:
+ * - VFIO_IOMMU_SPAPR_INFO_DDW: informs the userspace that dynamic DMA windows
+ *   (DDW) support is present. @ddw is only supported when DDW is present.
  */
 struct vfio_iommu_spapr_tce_info {
 	__u32 argsz;
-	__u32 flags;			/* reserved for future use */
+	__u32 flags;
+#define VFIO_IOMMU_SPAPR_INFO_DDW	(1 << 0)	/* DDW supported */
 	__u32 dma32_window_start;	/* 32 bit window start (bytes) */
 	__u32 dma32_window_size;	/* 32 bit window size (bytes) */
+	struct vfio_iommu_spapr_tce_ddw_info ddw;
 };
 
 #define VFIO_IOMMU_SPAPR_TCE_GET_INFO	_IO(VFIO_TYPE, VFIO_BASE + 12)
@@ -470,12 +492,23 @@ struct vfio_iommu_spapr_tce_info {
  * - unfreeze IO/DMA for frozen PE;
  * - read PE state;
  * - reset PE;
- * - configure PE.
+ * - configure PE;
+ * - inject EEH error.
  */
+struct vfio_eeh_pe_err {
+	__u32 type;
+	__u32 func;
+	__u64 addr;
+	__u64 mask;
+};
+
 struct vfio_eeh_pe_op {
 	__u32 argsz;
 	__u32 flags;
 	__u32 op;
+	union {
+		struct vfio_eeh_pe_err err;
+	};
 };
 
 #define VFIO_EEH_PE_DISABLE		0	/* Disable EEH functionality */
@@ -492,8 +525,69 @@ struct vfio_eeh_pe_op {
 #define VFIO_EEH_PE_RESET_HOT		6	/* Assert hot reset          */
 #define VFIO_EEH_PE_RESET_FUNDAMENTAL	7	/* Assert fundamental reset  */
 #define VFIO_EEH_PE_CONFIGURE		8	/* PE configuration          */
+#define VFIO_EEH_PE_INJECT_ERR		9	/* Inject EEH error          */
 
 #define VFIO_EEH_PE_OP			_IO(VFIO_TYPE, VFIO_BASE + 21)
+
+/**
+ * VFIO_IOMMU_SPAPR_REGISTER_MEMORY - _IOW(VFIO_TYPE, VFIO_BASE + 17, struct vfio_iommu_spapr_register_memory)
+ *
+ * Registers user space memory where DMA is allowed. It pins
+ * user pages and does the locked memory accounting so
+ * subsequent VFIO_IOMMU_MAP_DMA/VFIO_IOMMU_UNMAP_DMA calls
+ * get faster.
+ */
+struct vfio_iommu_spapr_register_memory {
+	__u32	argsz;
+	__u32	flags;
+	__u64	vaddr;				/* Process virtual address */
+	__u64	size;				/* Size of mapping (bytes) */
+};
+#define VFIO_IOMMU_SPAPR_REGISTER_MEMORY	_IO(VFIO_TYPE, VFIO_BASE + 17)
+
+/**
+ * VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY - _IOW(VFIO_TYPE, VFIO_BASE + 18, struct vfio_iommu_spapr_register_memory)
+ *
+ * Unregisters user space memory registered with
+ * VFIO_IOMMU_SPAPR_REGISTER_MEMORY.
+ * Uses vfio_iommu_spapr_register_memory for parameters.
+ */
+#define VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY	_IO(VFIO_TYPE, VFIO_BASE + 18)
+
+/**
+ * VFIO_IOMMU_SPAPR_TCE_CREATE - _IOWR(VFIO_TYPE, VFIO_BASE + 19, struct vfio_iommu_spapr_tce_create)
+ *
+ * Creates an additional TCE table and programs it (sets a new DMA window)
+ * to every IOMMU group in the container. It receives page shift, window
+ * size and number of levels in the TCE table being created.
+ *
+ * It allocates and returns an offset on a PCI bus of the new DMA window.
+ */
+struct vfio_iommu_spapr_tce_create {
+	__u32 argsz;
+	__u32 flags;
+	/* in */
+	__u32 page_shift;
+	__u64 window_size;
+	__u32 levels;
+	/* out */
+	__u64 start_addr;
+};
+#define VFIO_IOMMU_SPAPR_TCE_CREATE	_IO(VFIO_TYPE, VFIO_BASE + 19)
+
+/**
+ * VFIO_IOMMU_SPAPR_TCE_REMOVE - _IOW(VFIO_TYPE, VFIO_BASE + 20, struct vfio_iommu_spapr_tce_remove)
+ *
+ * Unprograms a TCE table from all groups in the container and destroys it.
+ * It receives a PCI bus offset as a window id.
+ */
+struct vfio_iommu_spapr_tce_remove {
+	__u32 argsz;
+	__u32 flags;
+	/* in */
+	__u64 start_addr;
+};
+#define VFIO_IOMMU_SPAPR_TCE_REMOVE	_IO(VFIO_TYPE, VFIO_BASE + 20)
 
 /* ***************************************************************** */
 

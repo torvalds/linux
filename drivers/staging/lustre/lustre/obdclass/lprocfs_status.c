@@ -221,8 +221,6 @@ int lprocfs_write_frac_helper(const char __user *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_frac_helper);
 
-#if defined (CONFIG_PROC_FS)
-
 static int lprocfs_no_percpu_stats;
 module_param(lprocfs_no_percpu_stats, int, 0644);
 MODULE_PARM_DESC(lprocfs_no_percpu_stats, "Do not alloc percpu data for lprocfs stats");
@@ -243,11 +241,11 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 /* lprocfs API calls */
 
-struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
-				     char *name, void *data,
-				     struct file_operations *fops)
+struct dentry *ldebugfs_add_simple(struct dentry *root,
+				   char *name, void *data,
+				   struct file_operations *fops)
 {
-	struct proc_dir_entry *proc;
+	struct dentry *entry;
 	umode_t mode = 0;
 
 	if (root == NULL || name == NULL || fops == NULL)
@@ -257,26 +255,26 @@ struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 		mode = 0444;
 	if (fops->write)
 		mode |= 0200;
-	proc = proc_create_data(name, mode, root, fops, data);
-	if (!proc) {
-		CERROR("LprocFS: No memory to create /proc entry %s", name);
-		return ERR_PTR(-ENOMEM);
+	entry = debugfs_create_file(name, mode, root, data, fops);
+	if (IS_ERR_OR_NULL(entry)) {
+		CERROR("LprocFS: No memory to create <debugfs> entry %s", name);
+		return entry ?: ERR_PTR(-ENOMEM);
 	}
-	return proc;
+	return entry;
 }
-EXPORT_SYMBOL(lprocfs_add_simple);
+EXPORT_SYMBOL(ldebugfs_add_simple);
 
-struct proc_dir_entry *lprocfs_add_symlink(const char *name,
-			struct proc_dir_entry *parent, const char *format, ...)
+struct dentry *ldebugfs_add_symlink(const char *name, struct dentry *parent,
+				    const char *format, ...)
 {
-	struct proc_dir_entry *entry;
+	struct dentry *entry;
 	char *dest;
 	va_list ap;
 
 	if (parent == NULL || format == NULL)
 		return NULL;
 
-	OBD_ALLOC_WAIT(dest, MAX_STRING_SIZE + 1);
+	dest = kzalloc(MAX_STRING_SIZE + 1, GFP_KERNEL);
 	if (dest == NULL)
 		return NULL;
 
@@ -284,37 +282,29 @@ struct proc_dir_entry *lprocfs_add_symlink(const char *name,
 	vsnprintf(dest, MAX_STRING_SIZE, format, ap);
 	va_end(ap);
 
-	entry = proc_symlink(name, parent, dest);
-	if (entry == NULL)
-		CERROR("LprocFS: Could not create symbolic link from %s to %s",
+	entry = debugfs_create_symlink(name, parent, dest);
+	if (IS_ERR_OR_NULL(entry)) {
+		CERROR("LdebugFS: Could not create symbolic link from %s to %s",
 			name, dest);
+		entry = NULL;
+	}
 
-	OBD_FREE(dest, MAX_STRING_SIZE + 1);
+	kfree(dest);
 	return entry;
 }
-EXPORT_SYMBOL(lprocfs_add_symlink);
+EXPORT_SYMBOL(ldebugfs_add_symlink);
 
 static struct file_operations lprocfs_generic_fops = { };
 
-/**
- * Add /proc entries.
- *
- * \param root [in]  The parent proc entry on which new entry will be added.
- * \param list [in]  Array of proc entries to be added.
- * \param data [in]  The argument to be passed when entries read/write routines
- *		   are called through /proc file.
- *
- * \retval 0   on success
- *	 < 0 on error
- */
-int lprocfs_add_vars(struct proc_dir_entry *root, struct lprocfs_vars *list,
-		     void *data)
+int ldebugfs_add_vars(struct dentry *parent,
+		      struct lprocfs_vars *list,
+		      void *data)
 {
-	if (root == NULL || list == NULL)
+	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(list))
 		return -EINVAL;
 
 	while (list->name != NULL) {
-		struct proc_dir_entry *proc;
+		struct dentry *entry;
 		umode_t mode = 0;
 
 		if (list->proc_mode != 0000) {
@@ -325,54 +315,50 @@ int lprocfs_add_vars(struct proc_dir_entry *root, struct lprocfs_vars *list,
 			if (list->fops->write)
 				mode |= 0200;
 		}
-		proc = proc_create_data(list->name, mode, root,
-					list->fops ?: &lprocfs_generic_fops,
-					list->data ?: data);
-		if (proc == NULL)
-			return -ENOMEM;
+		entry = debugfs_create_file(list->name, mode, parent,
+					    list->data ?: data,
+					    list->fops ?: &lprocfs_generic_fops
+					   );
+		if (IS_ERR_OR_NULL(entry))
+			return entry ? PTR_ERR(entry) : -ENOMEM;
 		list++;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(lprocfs_add_vars);
+EXPORT_SYMBOL(ldebugfs_add_vars);
 
-void lprocfs_remove(struct proc_dir_entry **rooth)
+void ldebugfs_remove(struct dentry **entryp)
 {
-	proc_remove(*rooth);
-	*rooth = NULL;
+	debugfs_remove(*entryp);
+	*entryp = NULL;
 }
-EXPORT_SYMBOL(lprocfs_remove);
+EXPORT_SYMBOL(ldebugfs_remove);
 
-void lprocfs_remove_proc_entry(const char *name, struct proc_dir_entry *parent)
+struct dentry *ldebugfs_register(const char *name,
+				 struct dentry *parent,
+				 struct lprocfs_vars *list, void *data)
 {
-	LASSERT(parent != NULL);
-	remove_proc_entry(name, parent);
-}
-EXPORT_SYMBOL(lprocfs_remove_proc_entry);
+	struct dentry *entry;
 
-struct proc_dir_entry *lprocfs_register(const char *name,
-					struct proc_dir_entry *parent,
-					struct lprocfs_vars *list, void *data)
-{
-	struct proc_dir_entry *entry;
-
-	entry = proc_mkdir(name, parent);
-	if (entry == NULL) {
-		entry = ERR_PTR(-ENOMEM);
+	entry = debugfs_create_dir(name, parent);
+	if (IS_ERR_OR_NULL(entry)) {
+		entry = entry ?: ERR_PTR(-ENOMEM);
 		goto out;
 	}
 
-	if (list != NULL) {
-		int rc = lprocfs_add_vars(entry, list, data);
+	if (!IS_ERR_OR_NULL(list)) {
+		int rc;
+
+		rc = ldebugfs_add_vars(entry, list, data);
 		if (rc != 0) {
-			lprocfs_remove(&entry);
+			debugfs_remove(entry);
 			entry = ERR_PTR(rc);
 		}
 	}
 out:
 	return entry;
 }
-EXPORT_SYMBOL(lprocfs_register);
+EXPORT_SYMBOL(ldebugfs_register);
 
 /* Generic callbacks */
 int lprocfs_rd_uint(struct seq_file *m, void *data)
@@ -437,15 +423,15 @@ int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
 }
 EXPORT_SYMBOL(lprocfs_wr_atomic);
 
-int lprocfs_rd_uuid(struct seq_file *m, void *data)
+static ssize_t uuid_show(struct kobject *kobj, struct attribute *attr,
+			 char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 
-	LASSERT(obd != NULL);
-	seq_printf(m, "%s\n", obd->obd_uuid.uuid);
-	return 0;
+	return sprintf(buf, "%s\n", obd->obd_uuid.uuid);
 }
-EXPORT_SYMBOL(lprocfs_rd_uuid);
+LUSTRE_RO_ATTR(uuid);
 
 int lprocfs_rd_name(struct seq_file *m, void *data)
 {
@@ -457,23 +443,27 @@ int lprocfs_rd_name(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_rd_name);
 
-int lprocfs_rd_blksize(struct seq_file *m, void *data)
+static ssize_t blocksize_show(struct kobject *kobj, struct attribute *attr,
+			      char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct obd_statfs  osfs;
 	int rc = obd_statfs(NULL, obd->obd_self_export, &osfs,
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		seq_printf(m, "%u\n", osfs.os_bsize);
+		return sprintf(buf, "%u\n", osfs.os_bsize);
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_rd_blksize);
+LUSTRE_RO_ATTR(blocksize);
 
-int lprocfs_rd_kbytestotal(struct seq_file *m, void *data)
+static ssize_t kbytestotal_show(struct kobject *kobj, struct attribute *attr,
+				char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct obd_statfs  osfs;
 	int rc = obd_statfs(NULL, obd->obd_self_export, &osfs,
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
@@ -485,16 +475,18 @@ int lprocfs_rd_kbytestotal(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		seq_printf(m, "%llu\n", result);
+		return sprintf(buf, "%llu\n", result);
 	}
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_rd_kbytestotal);
+LUSTRE_RO_ATTR(kbytestotal);
 
-int lprocfs_rd_kbytesfree(struct seq_file *m, void *data)
+static ssize_t kbytesfree_show(struct kobject *kobj, struct attribute *attr,
+			       char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct obd_statfs  osfs;
 	int rc = obd_statfs(NULL, obd->obd_self_export, &osfs,
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
@@ -506,16 +498,18 @@ int lprocfs_rd_kbytesfree(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		seq_printf(m, "%llu\n", result);
+		return sprintf(buf, "%llu\n", result);
 	}
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_rd_kbytesfree);
+LUSTRE_RO_ATTR(kbytesfree);
 
-int lprocfs_rd_kbytesavail(struct seq_file *m, void *data)
+static ssize_t kbytesavail_show(struct kobject *kobj, struct attribute *attr,
+				char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct obd_statfs  osfs;
 	int rc = obd_statfs(NULL, obd->obd_self_export, &osfs,
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
@@ -527,40 +521,44 @@ int lprocfs_rd_kbytesavail(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		seq_printf(m, "%llu\n", result);
+		return sprintf(buf, "%llu\n", result);
 	}
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_rd_kbytesavail);
+LUSTRE_RO_ATTR(kbytesavail);
 
-int lprocfs_rd_filestotal(struct seq_file *m, void *data)
+static ssize_t filestotal_show(struct kobject *kobj, struct attribute *attr,
+			       char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct obd_statfs  osfs;
 	int rc = obd_statfs(NULL, obd->obd_self_export, &osfs,
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		seq_printf(m, "%llu\n", osfs.os_files);
+		return sprintf(buf, "%llu\n", osfs.os_files);
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_rd_filestotal);
+LUSTRE_RO_ATTR(filestotal);
 
-int lprocfs_rd_filesfree(struct seq_file *m, void *data)
+static ssize_t filesfree_show(struct kobject *kobj, struct attribute *attr,
+			      char *buf)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct obd_statfs  osfs;
 	int rc = obd_statfs(NULL, obd->obd_self_export, &osfs,
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		seq_printf(m, "%llu\n", osfs.os_ffree);
+		return sprintf(buf, "%llu\n", osfs.os_ffree);
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_rd_filesfree);
+LUSTRE_RO_ATTR(filesfree);
 
 int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 {
@@ -930,43 +928,62 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_rd_connect_flags);
 
-int lprocfs_rd_num_exports(struct seq_file *m, void *data)
+static struct attribute *obd_def_attrs[] = {
+	&lustre_attr_blocksize.attr,
+	&lustre_attr_kbytestotal.attr,
+	&lustre_attr_kbytesfree.attr,
+	&lustre_attr_kbytesavail.attr,
+	&lustre_attr_filestotal.attr,
+	&lustre_attr_filesfree.attr,
+	&lustre_attr_uuid.attr,
+	NULL,
+};
+
+static void obd_sysfs_release(struct kobject *kobj)
 {
-	struct obd_device *obd = data;
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
 
-	LASSERT(obd != NULL);
-	seq_printf(m, "%u\n", obd->obd_num_exports);
-	return 0;
+	complete(&obd->obd_kobj_unregister);
 }
-EXPORT_SYMBOL(lprocfs_rd_num_exports);
 
-int lprocfs_rd_numrefs(struct seq_file *m, void *data)
-{
-	struct obd_type *class = (struct obd_type *) data;
+static struct kobj_type obd_ktype = {
+	.default_attrs	= obd_def_attrs,
+	.sysfs_ops	= &lustre_sysfs_ops,
+	.release	= obd_sysfs_release,
+};
 
-	LASSERT(class != NULL);
-	seq_printf(m, "%d\n", class->typ_refcnt);
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_numrefs);
-
-int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list)
+int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
+		      struct attribute_group *attrs)
 {
 	int rc = 0;
 
-	LASSERT(obd != NULL);
-	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
-	LASSERT(obd->obd_type->typ_procroot != NULL);
+	init_completion(&obd->obd_kobj_unregister);
+	rc = kobject_init_and_add(&obd->obd_kobj, &obd_ktype,
+				  obd->obd_type->typ_kobj,
+				  "%s", obd->obd_name);
+	if (rc)
+		return rc;
 
-	obd->obd_proc_entry = lprocfs_register(obd->obd_name,
-					       obd->obd_type->typ_procroot,
-					       list, obd);
-	if (IS_ERR(obd->obd_proc_entry)) {
-		rc = PTR_ERR(obd->obd_proc_entry);
+	if (attrs) {
+		rc = sysfs_create_group(&obd->obd_kobj, attrs);
+		if (rc) {
+			kobject_put(&obd->obd_kobj);
+			return rc;
+		}
+	}
+
+	obd->obd_debugfs_entry = ldebugfs_register(obd->obd_name,
+						   obd->obd_type->typ_debugfs_entry,
+						   list, obd);
+	if (IS_ERR_OR_NULL(obd->obd_debugfs_entry)) {
+		rc = obd->obd_debugfs_entry ? PTR_ERR(obd->obd_debugfs_entry)
+					    : -ENOMEM;
 		CERROR("error %d setting up lprocfs for %s\n",
 		       rc, obd->obd_name);
-		obd->obd_proc_entry = NULL;
+		obd->obd_debugfs_entry = NULL;
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_obd_setup);
@@ -975,58 +992,16 @@ int lprocfs_obd_cleanup(struct obd_device *obd)
 {
 	if (!obd)
 		return -EINVAL;
-	if (obd->obd_proc_exports_entry) {
-		/* Should be no exports left */
-		lprocfs_remove(&obd->obd_proc_exports_entry);
-		obd->obd_proc_exports_entry = NULL;
-	}
-	if (obd->obd_proc_entry) {
-		lprocfs_remove(&obd->obd_proc_entry);
-		obd->obd_proc_entry = NULL;
-	}
+
+	if (!IS_ERR_OR_NULL(obd->obd_debugfs_entry))
+		ldebugfs_remove(&obd->obd_debugfs_entry);
+
+	kobject_put(&obd->obd_kobj);
+	wait_for_completion(&obd->obd_kobj_unregister);
+
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_obd_cleanup);
-
-static void lprocfs_free_client_stats(struct nid_stat *client_stat)
-{
-	CDEBUG(D_CONFIG, "stat %p - data %p/%p\n", client_stat,
-	       client_stat->nid_proc, client_stat->nid_stats);
-
-	LASSERTF(atomic_read(&client_stat->nid_exp_ref_count) == 0,
-		 "nid %s:count %d\n", libcfs_nid2str(client_stat->nid),
-		 atomic_read(&client_stat->nid_exp_ref_count));
-
-	if (client_stat->nid_proc)
-		lprocfs_remove(&client_stat->nid_proc);
-
-	if (client_stat->nid_stats)
-		lprocfs_free_stats(&client_stat->nid_stats);
-
-	if (client_stat->nid_ldlm_stats)
-		lprocfs_free_stats(&client_stat->nid_ldlm_stats);
-
-	OBD_FREE_PTR(client_stat);
-	return;
-
-}
-
-void lprocfs_free_per_client_stats(struct obd_device *obd)
-{
-	struct cfs_hash *hash = obd->obd_nid_stats_hash;
-	struct nid_stat *stat;
-
-	/* we need extra list - because hash_exit called to early */
-	/* not need locking because all clients is died */
-	while (!list_empty(&obd->obd_nid_stats)) {
-		stat = list_entry(obd->obd_nid_stats.next,
-				      struct nid_stat, nid_list);
-		list_del_init(&stat->nid_list);
-		cfs_hash_del(hash, &stat->nid, &stat->nid_hash);
-		lprocfs_free_client_stats(stat);
-	}
-}
-EXPORT_SYMBOL(lprocfs_free_per_client_stats);
 
 int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 {
@@ -1257,8 +1232,10 @@ static int lprocfs_stats_seq_open(struct inode *inode, struct file *file)
 	rc = seq_open(file, &lprocfs_stats_seq_sops);
 	if (rc)
 		return rc;
+
 	seq = file->private_data;
-	seq->private = PDE_DATA(inode);
+	seq->private = inode->i_private;
+
 	return 0;
 }
 
@@ -1271,20 +1248,21 @@ struct file_operations lprocfs_stats_seq_fops = {
 	.release = lprocfs_seq_release,
 };
 
-int lprocfs_register_stats(struct proc_dir_entry *root, const char *name,
+int ldebugfs_register_stats(struct dentry *parent, const char *name,
 			   struct lprocfs_stats *stats)
 {
-	struct proc_dir_entry *entry;
-	LASSERT(root != NULL);
+	struct dentry *entry;
 
-	entry = proc_create_data(name, 0644, root,
-				 &lprocfs_stats_seq_fops, stats);
-	if (entry == NULL)
-		return -ENOMEM;
+	LASSERT(!IS_ERR_OR_NULL(parent));
+
+	entry = debugfs_create_file(name, 0644, parent, stats,
+				    &lprocfs_stats_seq_fops);
+	if (IS_ERR_OR_NULL(entry))
+		return entry ? PTR_ERR(entry) : -ENOMEM;
 
 	return 0;
 }
-EXPORT_SYMBOL(lprocfs_register_stats);
+EXPORT_SYMBOL(ldebugfs_register_stats);
 
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 			  unsigned conf, const char *name, const char *units)
@@ -1388,7 +1366,7 @@ int lprocfs_alloc_obd_stats(struct obd_device *obd, unsigned num_private_stats)
 	int rc, i;
 
 	LASSERT(obd->obd_stats == NULL);
-	LASSERT(obd->obd_proc_entry != NULL);
+	LASSERT(obd->obd_debugfs_entry != NULL);
 	LASSERT(obd->obd_cntr_base == 0);
 
 	num_stats = ((int)sizeof(*obd->obd_type->typ_dt_ops) / sizeof(void *)) +
@@ -1409,7 +1387,7 @@ int lprocfs_alloc_obd_stats(struct obd_device *obd, unsigned num_private_stats)
 			 "Missing obd_stat initializer obd_op operation at offset %d.\n",
 			 i - num_private_stats);
 	}
-	rc = lprocfs_register_stats(obd->obd_proc_entry, "stats", stats);
+	rc = ldebugfs_register_stats(obd->obd_debugfs_entry, "stats", stats);
 	if (rc < 0) {
 		lprocfs_free_stats(&stats);
 	} else {
@@ -1479,7 +1457,7 @@ int lprocfs_alloc_md_stats(struct obd_device *obd,
 	int rc, i;
 
 	LASSERT(obd->md_stats == NULL);
-	LASSERT(obd->obd_proc_entry != NULL);
+	LASSERT(obd->obd_debugfs_entry != NULL);
 	LASSERT(obd->md_cntr_base == 0);
 
 	num_stats = 1 + MD_COUNTER_OFFSET(revalidate_lock) +
@@ -1497,7 +1475,7 @@ int lprocfs_alloc_md_stats(struct obd_device *obd,
 			LBUG();
 		}
 	}
-	rc = lprocfs_register_stats(obd->obd_proc_entry, "md_stats", stats);
+	rc = ldebugfs_register_stats(obd->obd_debugfs_entry, "md_stats", stats);
 	if (rc < 0) {
 		lprocfs_free_stats(&stats);
 	} else {
@@ -1543,241 +1521,8 @@ void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats)
 }
 EXPORT_SYMBOL(lprocfs_init_ldlm_stats);
 
-int lprocfs_exp_print_uuid(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			   struct hlist_node *hnode, void *data)
-
-{
-	struct obd_export *exp = cfs_hash_object(hs, hnode);
-	struct seq_file *m = (struct seq_file *)data;
-
-	if (exp->exp_nid_stats)
-		seq_printf(m, "%s\n", obd_uuid2str(&exp->exp_client_uuid));
-
-	return 0;
-}
-
-static int
-lproc_exp_uuid_seq_show(struct seq_file *m, void *unused)
-{
-	struct nid_stat *stats = (struct nid_stat *)m->private;
-	struct obd_device *obd = stats->nid_obd;
-
-	cfs_hash_for_each_key(obd->obd_nid_hash, &stats->nid,
-			      lprocfs_exp_print_uuid, m);
-	return 0;
-}
-
-LPROC_SEQ_FOPS_RO(lproc_exp_uuid);
-
-struct exp_hash_cb_data {
-	struct seq_file *m;
-	bool		first;
-};
-
-int lprocfs_exp_print_hash(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			   struct hlist_node *hnode, void *cb_data)
-
-{
-	struct exp_hash_cb_data *data = (struct exp_hash_cb_data *)cb_data;
-	struct obd_export       *exp = cfs_hash_object(hs, hnode);
-
-	if (exp->exp_lock_hash != NULL) {
-		if (data->first) {
-			cfs_hash_debug_header(data->m);
-			data->first = false;
-		}
-		cfs_hash_debug_str(hs, data->m);
-	}
-
-	return 0;
-}
-
-static int
-lproc_exp_hash_seq_show(struct seq_file *m, void *unused)
-{
-	struct nid_stat *stats = (struct nid_stat *)m->private;
-	struct obd_device *obd = stats->nid_obd;
-	struct exp_hash_cb_data cb_data = {
-		.m = m,
-		.first = true
-	};
-
-	cfs_hash_for_each_key(obd->obd_nid_hash, &stats->nid,
-			      lprocfs_exp_print_hash, &cb_data);
-	return 0;
-}
-
-LPROC_SEQ_FOPS_RO(lproc_exp_hash);
-
-int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
-{
-	seq_printf(m, "%s\n",
-		   "Write into this file to clear all nid stats and stale nid entries");
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_nid_stats_clear_read);
-
-static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
-{
-	struct nid_stat *stat = obj;
-
-	CDEBUG(D_INFO, "refcnt %d\n", atomic_read(&stat->nid_exp_ref_count));
-	if (atomic_read(&stat->nid_exp_ref_count) == 1) {
-		/* object has only hash references. */
-		spin_lock(&stat->nid_obd->obd_nid_lock);
-		list_move(&stat->nid_list, data);
-		spin_unlock(&stat->nid_obd->obd_nid_lock);
-		return 1;
-	}
-	/* we has reference to object - only clear data*/
-	if (stat->nid_stats)
-		lprocfs_clear_stats(stat->nid_stats);
-
-	return 0;
-}
-
-int lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
-				  unsigned long count, void *data)
-{
-	struct obd_device *obd = (struct obd_device *)data;
-	struct nid_stat *client_stat;
-	LIST_HEAD(free_list);
-
-	cfs_hash_cond_del(obd->obd_nid_stats_hash,
-			  lprocfs_nid_stats_clear_write_cb, &free_list);
-
-	while (!list_empty(&free_list)) {
-		client_stat = list_entry(free_list.next, struct nid_stat,
-					     nid_list);
-		list_del_init(&client_stat->nid_list);
-		lprocfs_free_client_stats(client_stat);
-	}
-
-	return count;
-}
-EXPORT_SYMBOL(lprocfs_nid_stats_clear_write);
-
-int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
-{
-	struct nid_stat *new_stat, *old_stat;
-	struct obd_device *obd = NULL;
-	struct proc_dir_entry *entry;
-	char *buffer = NULL;
-	int rc = 0;
-
-	*newnid = 0;
-
-	if (!exp || !exp->exp_obd || !exp->exp_obd->obd_proc_exports_entry ||
-	    !exp->exp_obd->obd_nid_stats_hash)
-		return -EINVAL;
-
-	/* not test against zero because eric say:
-	 * You may only test nid against another nid, or LNET_NID_ANY.
-	 * Anything else is nonsense.*/
-	if (!nid || *nid == LNET_NID_ANY)
-		return 0;
-
-	obd = exp->exp_obd;
-
-	CDEBUG(D_CONFIG, "using hash %p\n", obd->obd_nid_stats_hash);
-
-	OBD_ALLOC_PTR(new_stat);
-	if (new_stat == NULL)
-		return -ENOMEM;
-
-	new_stat->nid	       = *nid;
-	new_stat->nid_obd	   = exp->exp_obd;
-	/* we need set default refcount to 1 to balance obd_disconnect */
-	atomic_set(&new_stat->nid_exp_ref_count, 1);
-
-	old_stat = cfs_hash_findadd_unique(obd->obd_nid_stats_hash,
-					   nid, &new_stat->nid_hash);
-	CDEBUG(D_INFO, "Found stats %p for nid %s - ref %d\n",
-	       old_stat, libcfs_nid2str(*nid),
-	       atomic_read(&new_stat->nid_exp_ref_count));
-
-	/* We need to release old stats because lprocfs_exp_cleanup() hasn't
-	 * been and will never be called. */
-	if (exp->exp_nid_stats) {
-		nidstat_putref(exp->exp_nid_stats);
-		exp->exp_nid_stats = NULL;
-	}
-
-	/* Return -EALREADY here so that we know that the /proc
-	 * entry already has been created */
-	if (old_stat != new_stat) {
-		exp->exp_nid_stats = old_stat;
-		rc = -EALREADY;
-		goto destroy_new;
-	}
-	/* not found - create */
-	OBD_ALLOC(buffer, LNET_NIDSTR_SIZE);
-	if (buffer == NULL) {
-		rc = -ENOMEM;
-		goto destroy_new;
-	}
-
-	memcpy(buffer, libcfs_nid2str(*nid), LNET_NIDSTR_SIZE);
-	new_stat->nid_proc = lprocfs_register(buffer,
-					      obd->obd_proc_exports_entry,
-					      NULL, NULL);
-	OBD_FREE(buffer, LNET_NIDSTR_SIZE);
-
-	if (IS_ERR(new_stat->nid_proc)) {
-		CERROR("Error making export directory for nid %s\n",
-		       libcfs_nid2str(*nid));
-		rc = PTR_ERR(new_stat->nid_proc);
-		new_stat->nid_proc = NULL;
-		goto destroy_new_ns;
-	}
-
-	entry = lprocfs_add_simple(new_stat->nid_proc, "uuid",
-				   new_stat, &lproc_exp_uuid_fops);
-	if (IS_ERR(entry)) {
-		CWARN("Error adding the NID stats file\n");
-		rc = PTR_ERR(entry);
-		goto destroy_new_ns;
-	}
-
-	entry = lprocfs_add_simple(new_stat->nid_proc, "hash",
-				   new_stat, &lproc_exp_hash_fops);
-	if (IS_ERR(entry)) {
-		CWARN("Error adding the hash file\n");
-		rc = PTR_ERR(entry);
-		goto destroy_new_ns;
-	}
-
-	exp->exp_nid_stats = new_stat;
-	*newnid = 1;
-	/* protect competitive add to list, not need locking on destroy */
-	spin_lock(&obd->obd_nid_lock);
-	list_add(&new_stat->nid_list, &obd->obd_nid_stats);
-	spin_unlock(&obd->obd_nid_lock);
-
-	return rc;
-
-destroy_new_ns:
-	if (new_stat->nid_proc != NULL)
-		lprocfs_remove(&new_stat->nid_proc);
-	cfs_hash_del(obd->obd_nid_stats_hash, nid, &new_stat->nid_hash);
-
-destroy_new:
-	nidstat_putref(new_stat);
-	OBD_FREE_PTR(new_stat);
-	return rc;
-}
-EXPORT_SYMBOL(lprocfs_exp_setup);
-
 int lprocfs_exp_cleanup(struct obd_export *exp)
 {
-	struct nid_stat *stat = exp->exp_nid_stats;
-
-	if (!stat || !exp->exp_obd)
-		return 0;
-
-	nidstat_putref(exp->exp_nid_stats);
-	exp->exp_nid_stats = NULL;
-
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_exp_cleanup);
@@ -1972,35 +1717,35 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
 
-int lprocfs_seq_create(struct proc_dir_entry *parent,
+int ldebugfs_seq_create(struct dentry *parent,
 		       const char *name,
 		       umode_t mode,
 		       const struct file_operations *seq_fops,
 		       void *data)
 {
-	struct proc_dir_entry *entry;
+	struct dentry *entry;
 
 	/* Disallow secretly (un)writable entries. */
 	LASSERT((seq_fops->write == NULL) == ((mode & 0222) == 0));
-	entry = proc_create_data(name, mode, parent, seq_fops, data);
 
-	if (entry == NULL)
-		return -ENOMEM;
+	entry = debugfs_create_file(name, mode, parent, data, seq_fops);
+	if (IS_ERR_OR_NULL(entry))
+		return entry ? PTR_ERR(entry) : -ENOMEM;
 
 	return 0;
 }
-EXPORT_SYMBOL(lprocfs_seq_create);
+EXPORT_SYMBOL(ldebugfs_seq_create);
 
-int lprocfs_obd_seq_create(struct obd_device *dev,
-			   const char *name,
-			   umode_t mode,
-			   const struct file_operations *seq_fops,
-			   void *data)
+int ldebugfs_obd_seq_create(struct obd_device *dev,
+			    const char *name,
+			    umode_t mode,
+			    const struct file_operations *seq_fops,
+			    void *data)
 {
-	return lprocfs_seq_create(dev->obd_proc_entry, name,
-				  mode, seq_fops, data);
+	return ldebugfs_seq_create(dev->obd_debugfs_entry, name,
+				   mode, seq_fops, data);
 }
-EXPORT_SYMBOL(lprocfs_obd_seq_create);
+EXPORT_SYMBOL(ldebugfs_obd_seq_create);
 
 void lprocfs_oh_tally(struct obd_histogram *oh, unsigned int value)
 {
@@ -2056,4 +1801,26 @@ int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_obd_rd_max_pages_per_rpc);
 
-#endif
+ssize_t lustre_attr_show(struct kobject *kobj,
+			 struct attribute *attr, char *buf)
+{
+	struct lustre_attr *a = container_of(attr, struct lustre_attr, attr);
+
+	return a->show ? a->show(kobj, attr, buf) : 0;
+}
+EXPORT_SYMBOL_GPL(lustre_attr_show);
+
+ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
+			  const char *buf, size_t len)
+{
+	struct lustre_attr *a = container_of(attr, struct lustre_attr, attr);
+
+	return a->store ? a->store(kobj, attr, buf, len) : len;
+}
+EXPORT_SYMBOL_GPL(lustre_attr_store);
+
+const struct sysfs_ops lustre_sysfs_ops = {
+	.show  = lustre_attr_show,
+	.store = lustre_attr_store,
+};
+EXPORT_SYMBOL_GPL(lustre_sysfs_ops);

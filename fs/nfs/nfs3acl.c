@@ -279,7 +279,7 @@ nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 ssize_t
 nfs3_listxattr(struct dentry *dentry, char *data, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	ssize_t result = 0;
 	int error;
 

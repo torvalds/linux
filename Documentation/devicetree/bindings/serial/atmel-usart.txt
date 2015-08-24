@@ -1,9 +1,10 @@
 * Atmel Universal Synchronous Asynchronous Receiver/Transmitter (USART)
 
 Required properties:
-- compatible: Should be "atmel,<chip>-usart"
+- compatible: Should be "atmel,<chip>-usart" or "atmel,<chip>-dbgu"
   The compatible <chip> indicated will be the first SoC to support an
   additional mode or an USART new feature.
+  For the dbgu UART, use "atmel,<chip>-dbgu", "atmel,<chip>-usart"
 - reg: Should contain registers location and length
 - interrupts: Should contain interrupt
 - clock-names: tuple listing input clock names.

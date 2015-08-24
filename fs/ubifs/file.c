@@ -51,7 +51,6 @@
 
 #include "ubifs.h"
 #include <linux/mount.h>
-#include <linux/namei.h>
 #include <linux/slab.h>
 
 static int read_block(struct inode *inode, void *addr, unsigned int block,
@@ -1257,7 +1256,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
@@ -1298,14 +1297,6 @@ static void ubifs_invalidatepage(struct page *page, unsigned int offset,
 	atomic_long_dec(&c->dirty_pg_cnt);
 	ClearPagePrivate(page);
 	ClearPageChecked(page);
-}
-
-static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct ubifs_inode *ui = ubifs_inode(dentry->d_inode);
-
-	nd_set_link(nd, ui->data);
-	return NULL;
 }
 
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
@@ -1570,7 +1561,7 @@ const struct inode_operations ubifs_file_inode_operations = {
 
 const struct inode_operations ubifs_symlink_inode_operations = {
 	.readlink    = generic_readlink,
-	.follow_link = ubifs_follow_link,
+	.follow_link = simple_follow_link,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 	.setxattr    = ubifs_setxattr,

@@ -272,10 +272,9 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		struct dp_upcall_info upcall;
 		int error;
 
+		memset(&upcall, 0, sizeof(upcall));
 		upcall.cmd = OVS_PACKET_CMD_MISS;
-		upcall.userdata = NULL;
 		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
-		upcall.egress_tun_info = NULL;
 		error = ovs_dp_upcall(dp, skb, key, &upcall);
 		if (unlikely(error))
 			kfree_skb(skb);
@@ -397,6 +396,10 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 	if (upcall_info->egress_tun_info)
 		size += nla_total_size(ovs_tun_key_attr_size());
 
+	/* OVS_PACKET_ATTR_ACTIONS */
+	if (upcall_info->actions_len)
+		size += nla_total_size(upcall_info->actions_len);
+
 	return size;
 }
 
@@ -478,6 +481,17 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		nla_nest_end(user_skb, nla);
 	}
 
+	if (upcall_info->actions_len) {
+		nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_ACTIONS);
+		err = ovs_nla_put_actions(upcall_info->actions,
+					  upcall_info->actions_len,
+					  user_skb);
+		if (!err)
+			nla_nest_end(user_skb, nla);
+		else
+			nla_nest_cancel(user_skb, nla);
+	}
+
 	/* Only reserve room for attribute header, packet data is added
 	 * in skb_zerocopy() */
 	if (!(nla = nla_reserve(user_skb, OVS_PACKET_ATTR_PACKET, 0))) {
@@ -545,7 +559,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	/* Normally, setting the skb 'protocol' field would be handled by a
 	 * call to eth_type_trans(), but it assumes there's a sending
 	 * device, which we may not have. */
-	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
+	if (eth_proto_is_802_3(eth->h_proto))
 		packet->protocol = eth->h_proto;
 	else
 		packet->protocol = htons(ETH_P_802_2);

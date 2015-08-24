@@ -23,6 +23,7 @@
 #include "common.h"
 #include "platsmp-apmu.h"
 #include "pm-rcar.h"
+#include "rcar-gen2.h"
 #include "r8a7790.h"
 
 static struct rcar_sysc_ch r8a7790_ca15_scu = {
@@ -37,11 +38,11 @@ static struct rcar_sysc_ch r8a7790_ca7_scu = {
 
 static struct rcar_apmu_config r8a7790_apmu_config[] = {
 	{
-		.iomem = DEFINE_RES_MEM(0xe6152000, 0x88),
+		.iomem = DEFINE_RES_MEM(0xe6152000, 0x188),
 		.cpus = { 0, 1, 2, 3 },
 	},
 	{
-		.iomem = DEFINE_RES_MEM(0xe6151000, 0x88),
+		.iomem = DEFINE_RES_MEM(0xe6151000, 0x188),
 		.cpus = { 0x100, 0x0101, 0x102, 0x103 },
 	}
 };
@@ -54,7 +55,7 @@ static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 				       ARRAY_SIZE(r8a7790_apmu_config));
 
 	/* turn on power to SCU */
-	r8a7790_pm_init();
+	rcar_gen2_pm_init();
 	rcar_sysc_power_up(&r8a7790_ca15_scu);
 	rcar_sysc_power_up(&r8a7790_ca7_scu);
 }

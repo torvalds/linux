@@ -453,9 +453,9 @@ static int crypto_ccm_init_tfm(struct crypto_tfm *tfm)
 
 	align = crypto_tfm_alg_alignmask(tfm);
 	align &= ~(crypto_tfm_ctx_alignment() - 1);
-	tfm->crt_aead.reqsize = align +
-				sizeof(struct crypto_ccm_req_priv_ctx) +
-				crypto_ablkcipher_reqsize(ctr);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		align + sizeof(struct crypto_ccm_req_priv_ctx) +
+		crypto_ablkcipher_reqsize(ctr));
 
 	return 0;
 
@@ -729,10 +729,10 @@ static int crypto_rfc4309_init_tfm(struct crypto_tfm *tfm)
 
 	align = crypto_aead_alignmask(aead);
 	align &= ~(crypto_tfm_ctx_alignment() - 1);
-	tfm->crt_aead.reqsize = sizeof(struct aead_request) +
-				ALIGN(crypto_aead_reqsize(aead),
-				      crypto_tfm_ctx_alignment()) +
-				align + 16;
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct aead_request) +
+		ALIGN(crypto_aead_reqsize(aead), crypto_tfm_ctx_alignment()) +
+		align + 16);
 
 	return 0;
 }

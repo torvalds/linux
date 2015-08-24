@@ -312,7 +312,7 @@ static const struct super_operations sockfs_ops = {
 static char *sockfs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	return dynamic_dname(dentry, buffer, buflen, "socket:[%lu]",
-				dentry->d_inode->i_ino);
+				d_inode(dentry)->i_ino);
 }
 
 static const struct dentry_operations sockfs_dentry_operations = {
@@ -375,7 +375,7 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 		  &socket_file_ops);
 	if (unlikely(IS_ERR(file))) {
 		/* drop dentry, keep inode */
-		ihold(path.dentry->d_inode);
+		ihold(d_inode(path.dentry));
 		path_put(&path);
 		return file;
 	}
@@ -497,7 +497,7 @@ static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
 	ssize_t len;
 	ssize_t used = 0;
 
-	len = security_inode_listsecurity(dentry->d_inode, buffer, size);
+	len = security_inode_listsecurity(d_inode(dentry), buffer, size);
 	if (len < 0)
 		return len;
 	used += len;
@@ -575,9 +575,6 @@ void sock_release(struct socket *sock)
 
 	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
-
-	if (test_bit(SOCK_EXTERNALLY_ALLOCATED, &sock->flags))
-		return;
 
 	this_cpu_sub(sockets_in_use, 1);
 	if (!sock->file) {
@@ -1213,9 +1210,9 @@ int sock_create(int family, int type, int protocol, struct socket **res)
 }
 EXPORT_SYMBOL(sock_create);
 
-int sock_create_kern(int family, int type, int protocol, struct socket **res)
+int sock_create_kern(struct net *net, int family, int type, int protocol, struct socket **res)
 {
-	return __sock_create(&init_net, family, type, protocol, res, 1);
+	return __sock_create(net, family, type, protocol, res, 1);
 }
 EXPORT_SYMBOL(sock_create_kern);
 

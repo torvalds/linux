@@ -88,8 +88,12 @@ static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
 	char buf[32];
 	int ret;
 
-	if (copy_from_user(buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+	count = min_t(size_t, sizeof(buf) - 1, count);
+	if (copy_from_user(buf, ubuf, count))
 		return -EFAULT;
+
+	/* sscanf requires a zero terminated string */
+	buf[count] = '\0';
 
 	if (sscanf(buf, "%u", &mode) != 1)
 		return -EINVAL;

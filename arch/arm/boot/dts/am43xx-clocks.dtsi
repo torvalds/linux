@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-&scrm_clocks {
+&scm_clocks {
 	sys_clkin_ck: sys_clkin_ck {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";

@@ -237,17 +237,23 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	/* Enable the following for a flash based bad block table */
 	this->bbt_options = NAND_BBT_USE_FLASH;
 
-	/* Scan to find existence of the device */
-	if (nand_scan(new_mtd, 1)) {
-		err = -ENXIO;
+	new_mtd->name = kasprintf(GFP_KERNEL, "cs553x_nand_cs%d", cs);
+	if (!new_mtd->name) {
+		err = -ENOMEM;
 		goto out_ior;
 	}
 
-	new_mtd->name = kasprintf(GFP_KERNEL, "cs553x_nand_cs%d", cs);
+	/* Scan to find existence of the device */
+	if (nand_scan(new_mtd, 1)) {
+		err = -ENXIO;
+		goto out_free;
+	}
 
 	cs553x_mtd[cs] = new_mtd;
 	goto out;
 
+out_free:
+	kfree(new_mtd->name);
 out_ior:
 	iounmap(this->IO_ADDR_R);
 out_mtd:

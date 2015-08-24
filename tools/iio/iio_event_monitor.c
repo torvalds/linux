@@ -213,23 +213,19 @@ static void print_event(struct iio_event_data *event)
 		return;
 	}
 
-	printf("Event: time: %lld, ", event->timestamp);
+	printf("Event: time: %lld, type: %s", event->timestamp,
+	       iio_chan_type_name_spec[type]);
 
-	if (mod != IIO_NO_MOD) {
-		printf("type: %s(%s), ",
-			iio_chan_type_name_spec[type],
-			iio_modifier_names[mod]);
-	} else {
-		printf("type: %s, ",
-			iio_chan_type_name_spec[type]);
+	if (mod != IIO_NO_MOD)
+		printf("(%s)", iio_modifier_names[mod]);
+
+	if (chan >= 0) {
+		printf(", channel: %d", chan);
+		if (diff && chan2 >= 0)
+			printf("-%d", chan2);
 	}
 
-	if (diff && chan >= 0 && chan2 >= 0)
-		printf("channel: %d-%d, ", chan, chan2);
-	else if (chan >= 0)
-		printf("channel: %d, ", chan);
-
-	printf("evtype: %s", iio_ev_type_text[ev_type]);
+	printf(", evtype: %s", iio_ev_type_text[ev_type]);
 
 	if (dir != IIO_EV_DIR_NONE)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
@@ -258,28 +254,34 @@ int main(int argc, char **argv)
 			device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
 		if (ret < 0) {
-			ret = -ENOMEM;
-			goto error_ret;
+			return -ENOMEM;
 		}
 	} else {
 		/* If we can't find a IIO device by name assume device_name is a
 		   IIO chrdev */
 		chrdev_name = strdup(device_name);
+		if (!chrdev_name)
+			return -ENOMEM;
 	}
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		fprintf(stdout, "Failed to open %s\n", chrdev_name);
 		ret = -errno;
+		fprintf(stdout, "Failed to open %s\n", chrdev_name);
 		goto error_free_chrdev_name;
 	}
 
 	ret = ioctl(fd, IIO_GET_EVENT_FD_IOCTL, &event_fd);
-
-	close(fd);
-
 	if (ret == -1 || event_fd == -1) {
+		ret = -errno;
 		fprintf(stdout, "Failed to retrieve event fd\n");
+		if (close(fd) == -1)
+			perror("Failed to close character device file");
+
+		goto error_free_chrdev_name;
+	}
+
+	if (close(fd) == -1)  {
 		ret = -errno;
 		goto error_free_chrdev_name;
 	}
@@ -291,8 +293,8 @@ int main(int argc, char **argv)
 				printf("nothing available\n");
 				continue;
 			} else {
-				perror("Failed to read event from device");
 				ret = -errno;
+				perror("Failed to read event from device");
 				break;
 			}
 		}
@@ -300,9 +302,11 @@ int main(int argc, char **argv)
 		print_event(&event);
 	}
 
-	close(event_fd);
+	if (close(event_fd) == -1)
+		perror("Failed to close event file");
+
 error_free_chrdev_name:
 	free(chrdev_name);
-error_ret:
+
 	return ret;
 }

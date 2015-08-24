@@ -170,6 +170,46 @@ struct strfilter *strfilter__new(const char *rules, const char **err)
 	return filter;
 }
 
+static int strfilter__append(struct strfilter *filter, bool _or,
+			     const char *rules, const char **err)
+{
+	struct strfilter_node *right, *root;
+	const char *ep = NULL;
+
+	if (!filter || !rules)
+		return -EINVAL;
+
+	right = strfilter_node__new(rules, &ep);
+	if (!right || *ep != '\0') {
+		if (err)
+			*err = ep;
+		goto error;
+	}
+	root = strfilter_node__alloc(_or ? OP_or : OP_and, filter->root, right);
+	if (!root) {
+		ep = NULL;
+		goto error;
+	}
+
+	filter->root = root;
+	return 0;
+
+error:
+	strfilter_node__delete(right);
+	return ep ? -EINVAL : -ENOMEM;
+}
+
+int strfilter__or(struct strfilter *filter, const char *rules, const char **err)
+{
+	return strfilter__append(filter, true, rules, err);
+}
+
+int strfilter__and(struct strfilter *filter, const char *rules,
+		   const char **err)
+{
+	return strfilter__append(filter, false, rules, err);
+}
+
 static bool strfilter_node__compare(struct strfilter_node *node,
 				    const char *str)
 {
@@ -196,4 +236,71 @@ bool strfilter__compare(struct strfilter *filter, const char *str)
 	if (!filter)
 		return false;
 	return strfilter_node__compare(filter->root, str);
+}
+
+static int strfilter_node__sprint(struct strfilter_node *node, char *buf);
+
+/* sprint node in parenthesis if needed */
+static int strfilter_node__sprint_pt(struct strfilter_node *node, char *buf)
+{
+	int len;
+	int pt = node->r ? 2 : 0;	/* don't need to check node->l */
+
+	if (buf && pt)
+		*buf++ = '(';
+	len = strfilter_node__sprint(node, buf);
+	if (len < 0)
+		return len;
+	if (buf && pt)
+		*(buf + len) = ')';
+	return len + pt;
+}
+
+static int strfilter_node__sprint(struct strfilter_node *node, char *buf)
+{
+	int len = 0, rlen;
+
+	if (!node || !node->p)
+		return -EINVAL;
+
+	switch (*node->p) {
+	case '|':
+	case '&':
+		len = strfilter_node__sprint_pt(node->l, buf);
+		if (len < 0)
+			return len;
+	case '!':
+		if (buf) {
+			*(buf + len++) = *node->p;
+			buf += len;
+		} else
+			len++;
+		rlen = strfilter_node__sprint_pt(node->r, buf);
+		if (rlen < 0)
+			return rlen;
+		len += rlen;
+		break;
+	default:
+		len = strlen(node->p);
+		if (buf)
+			strcpy(buf, node->p);
+	}
+
+	return len;
+}
+
+char *strfilter__string(struct strfilter *filter)
+{
+	int len;
+	char *ret = NULL;
+
+	len = strfilter_node__sprint(filter->root, NULL);
+	if (len < 0)
+		return NULL;
+
+	ret = malloc(len + 1);
+	if (ret)
+		strfilter_node__sprint(filter->root, ret);
+
+	return ret;
 }

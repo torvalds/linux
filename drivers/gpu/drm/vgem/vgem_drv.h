@@ -43,15 +43,4 @@ struct drm_vgem_gem_object {
 extern void vgem_gem_put_pages(struct drm_vgem_gem_object *obj);
 extern int vgem_gem_get_pages(struct drm_vgem_gem_object *obj);
 
-/* vgem_dma_buf.c */
-extern struct sg_table *vgem_gem_prime_get_sg_table(
-			struct drm_gem_object *gobj);
-extern int vgem_gem_prime_pin(struct drm_gem_object *gobj);
-extern void vgem_gem_prime_unpin(struct drm_gem_object *gobj);
-extern void *vgem_gem_prime_vmap(struct drm_gem_object *gobj);
-extern void vgem_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
-extern struct drm_gem_object *vgem_gem_prime_import(struct drm_device *dev,
-						    struct dma_buf *dma_buf);
-
-
 #endif

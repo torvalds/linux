@@ -109,7 +109,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 		"	 subu	%[ticket], %[my_ticket], %[ticket]	\n"
 		"2:							\n"
 		"	.subsection 2					\n"
-		"4:	andi	%[ticket], %[ticket], 0x1fff		\n"
+		"4:	andi	%[ticket], %[ticket], 0xffff		\n"
 		"	sll	%[ticket], 5				\n"
 		"							\n"
 		"6:	bnez	%[ticket], 6b				\n"
@@ -317,7 +317,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
-	smp_mb();
+	smp_mb__before_llsc();
 
 	__asm__ __volatile__(
 	"				# arch_write_unlock	\n"

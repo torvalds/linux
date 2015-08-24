@@ -122,14 +122,14 @@ void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
 
 	if (i == CLK_MAX_MEMMAPS) {
 		pr_err("clk-provider not found for %s!\n", node->name);
-		return ERR_PTR(-ENOENT);
+		return IOMEM_ERR_PTR(-ENOENT);
 	}
 
 	reg->index = i;
 
 	if (of_property_read_u32_index(node, "reg", index, &val)) {
 		pr_err("%s must have reg[%d]!\n", node->name, index);
-		return ERR_PTR(-EINVAL);
+		return IOMEM_ERR_PTR(-EINVAL);
 	}
 
 	reg->offset = val;

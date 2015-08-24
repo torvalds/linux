@@ -20,7 +20,6 @@
 #include <linux/stat.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <linux/namei.h>
 
 /* Symlink caching in the page cache is even more simplistic
  * and straight-forward than readdir caching.
@@ -43,27 +42,21 @@ error:
 	return -EIO;
 }
 
-static void *nfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *nfs_follow_link(struct dentry *dentry, void **cookie)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct page *page;
 	void *err;
 
 	err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
 	if (err)
-		goto read_failed;
+		return err;
 	page = read_cache_page(&inode->i_data, 0,
 				(filler_t *)nfs_symlink_filler, inode);
-	if (IS_ERR(page)) {
-		err = page;
-		goto read_failed;
-	}
-	nd_set_link(nd, kmap(page));
-	return page;
-
-read_failed:
-	nd_set_link(nd, err);
-	return NULL;
+	if (IS_ERR(page))
+		return ERR_CAST(page);
+	*cookie = page;
+	return kmap(page);
 }
 
 /*

@@ -158,7 +158,7 @@ static int up_to_host(struct mux_rx *r)
 	unsigned int start_flag;
 	unsigned int payload_size;
 	unsigned short packet_type;
-	int dummy_cnt;
+	int total_len;
 	u32 packet_size_sum = r->offset;
 	int index;
 	int ret = TO_HOST_INVALID_PACKET;
@@ -176,10 +176,10 @@ static int up_to_host(struct mux_rx *r)
 			break;
 		}
 
-		dummy_cnt = ALIGN(MUX_HEADER_SIZE + payload_size, 4);
+		total_len = ALIGN(MUX_HEADER_SIZE + payload_size, 4);
 
 		if (len - packet_size_sum <
-			MUX_HEADER_SIZE + payload_size + dummy_cnt) {
+			total_len) {
 			pr_err("invalid payload : %d %d %04x\n",
 			       payload_size, len, packet_type);
 			break;
@@ -202,7 +202,7 @@ static int up_to_host(struct mux_rx *r)
 			break;
 		}
 
-		packet_size_sum += MUX_HEADER_SIZE + payload_size + dummy_cnt;
+		packet_size_sum += total_len;
 		if (len - packet_size_sum <= MUX_HEADER_SIZE + 2) {
 			ret = r->callback(NULL,
 					0,
@@ -361,7 +361,6 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	struct mux_pkt_header *mux_header;
 	struct mux_tx *t = NULL;
 	static u32 seq_num = 1;
-	int dummy_cnt;
 	int total_len;
 	int ret;
 	unsigned long flags;
@@ -374,9 +373,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 
 	spin_lock_irqsave(&mux_dev->write_lock, flags);
 
-	dummy_cnt = ALIGN(MUX_HEADER_SIZE + len, 4);
-
-	total_len = len + MUX_HEADER_SIZE + dummy_cnt;
+	total_len = ALIGN(MUX_HEADER_SIZE + len, 4);
 
 	t = alloc_mux_tx(total_len);
 	if (!t) {
@@ -392,7 +389,8 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	mux_header->packet_type = __cpu_to_le16(packet_type[tty_index]);
 
 	memcpy(t->buf+MUX_HEADER_SIZE, data, len);
-	memset(t->buf+MUX_HEADER_SIZE+len, 0, dummy_cnt);
+	memset(t->buf+MUX_HEADER_SIZE+len, 0, total_len - MUX_HEADER_SIZE -
+	       len);
 
 	t->len = total_len;
 	t->callback = cb;

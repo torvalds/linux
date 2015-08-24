@@ -83,34 +83,34 @@
 #endif
 #endif
 
+/*
+ * The only users of these wr/rd_reg64 functions is the Job Ring (JR).
+ * The DMA address registers in the JR are a pair of 32-bit registers.
+ * The layout is:
+ *
+ *    base + 0x0000 : most-significant 32 bits
+ *    base + 0x0004 : least-significant 32 bits
+ *
+ * The 32-bit version of this core therefore has to write to base + 0x0004
+ * to set the 32-bit wide DMA address. This seems to be independent of the
+ * endianness of the written/read data.
+ */
+
 #ifndef CONFIG_64BIT
-#ifdef __BIG_ENDIAN
+#define REG64_MS32(reg) ((u32 __iomem *)(reg))
+#define REG64_LS32(reg) ((u32 __iomem *)(reg) + 1)
+
 static inline void wr_reg64(u64 __iomem *reg, u64 data)
 {
-	wr_reg32((u32 __iomem *)reg, (data & 0xffffffff00000000ull) >> 32);
-	wr_reg32((u32 __iomem *)reg + 1, data & 0x00000000ffffffffull);
+	wr_reg32(REG64_MS32(reg), data >> 32);
+	wr_reg32(REG64_LS32(reg), data);
 }
 
 static inline u64 rd_reg64(u64 __iomem *reg)
 {
-	return (((u64)rd_reg32((u32 __iomem *)reg)) << 32) |
-		((u64)rd_reg32((u32 __iomem *)reg + 1));
+	return ((u64)rd_reg32(REG64_MS32(reg)) << 32 |
+		(u64)rd_reg32(REG64_LS32(reg)));
 }
-#else
-#ifdef __LITTLE_ENDIAN
-static inline void wr_reg64(u64 __iomem *reg, u64 data)
-{
-	wr_reg32((u32 __iomem *)reg + 1, (data & 0xffffffff00000000ull) >> 32);
-	wr_reg32((u32 __iomem *)reg, data & 0x00000000ffffffffull);
-}
-
-static inline u64 rd_reg64(u64 __iomem *reg)
-{
-	return (((u64)rd_reg32((u32 __iomem *)reg + 1)) << 32) |
-		((u64)rd_reg32((u32 __iomem *)reg));
-}
-#endif
-#endif
 #endif
 
 /*

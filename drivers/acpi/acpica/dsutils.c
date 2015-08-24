@@ -572,8 +572,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 					obj_desc =
 					    acpi_ut_create_string_object((acpi_size) name_length);
 
-					ACPI_STRNCPY(obj_desc->string.pointer,
-						     name_string, name_length);
+					strncpy(obj_desc->string.pointer,
+						name_string, name_length);
 					status = AE_OK;
 				} else {
 					/*

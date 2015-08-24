@@ -9,8 +9,22 @@
 
 /dts-v1/;
 
-#include "omap34xx-hs.dtsi"
+#include "omap34xx.dtsi"
 #include <dt-bindings/input/input.h>
+
+/*
+ * Default secure signed bootloader (Nokia X-Loader) does not enable L3 firewall
+ * for omap AES HW crypto support. When linux kernel try to access memory of AES
+ * blocks then kernel receive "Unhandled fault: external abort on non-linefetch"
+ * and crash. Until somebody fix omap-aes.c and omap_hwmod_3xxx_data.c code (no
+ * crash anymore) omap AES support will be disabled for all Nokia N900 devices.
+ * There is "unofficial" version of bootloader which enables AES in L3 firewall
+ * but it is not widely used and to prevent kernel crash rather AES is disabled.
+ * There is also no runtime detection code if AES is disabled in L3 firewall...
+ */
+&aes {
+	status = "disabled";
+};
 
 / {
 	model = "Nokia N900";
@@ -484,6 +498,8 @@
 		DRVDD-supply = <&vmmc2>;
 		IOVDD-supply = <&vio>;
 		DVDD-supply = <&vio>;
+
+		ai3x-micbias-vg = <1>;
 	};
 
 	tlv320aic3x_aux: tlv320aic3x@19 {
@@ -495,6 +511,8 @@
 		DRVDD-supply = <&vmmc2>;
 		IOVDD-supply = <&vio>;
 		DVDD-supply = <&vio>;
+
+		ai3x-micbias-vg = <2>;
 	};
 
 	tsl2563: tsl2563@29 {
@@ -814,8 +832,8 @@
 		touchscreen-fuzz-x = <4>;
 		touchscreen-fuzz-y = <7>;
 		touchscreen-fuzz-pressure = <2>;
-		touchscreen-max-x = <4096>;
-		touchscreen-max-y = <4096>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
 		touchscreen-max-pressure = <2048>;
 
 		ti,x-plate-ohms = <280>;

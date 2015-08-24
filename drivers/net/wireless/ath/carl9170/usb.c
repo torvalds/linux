@@ -651,6 +651,7 @@ int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 	unsigned int plen, void *payload, unsigned int outlen, void *out)
 {
 	int err = -ENOMEM;
+	unsigned long time_left;
 
 	if (!IS_ACCEPTING_CMD(ar))
 		return -EIO;
@@ -672,8 +673,8 @@ int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 	err = __carl9170_exec_cmd(ar, &ar->cmd, false);
 
 	if (!(cmd & CARL9170_CMD_ASYNC_FLAG)) {
-		err = wait_for_completion_timeout(&ar->cmd_wait, HZ);
-		if (err == 0) {
+		time_left = wait_for_completion_timeout(&ar->cmd_wait, HZ);
+		if (time_left == 0) {
 			err = -ETIMEDOUT;
 			goto err_unbuf;
 		}

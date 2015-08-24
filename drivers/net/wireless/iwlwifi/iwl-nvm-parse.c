@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,10 +116,11 @@ enum family_8000_nvm_offsets {
 
 /* SKU Capabilities (actual values from NVM definition) */
 enum nvm_sku_bits {
-	NVM_SKU_CAP_BAND_24GHZ	= BIT(0),
-	NVM_SKU_CAP_BAND_52GHZ	= BIT(1),
-	NVM_SKU_CAP_11N_ENABLE	= BIT(2),
-	NVM_SKU_CAP_11AC_ENABLE	= BIT(3),
+	NVM_SKU_CAP_BAND_24GHZ		= BIT(0),
+	NVM_SKU_CAP_BAND_52GHZ		= BIT(1),
+	NVM_SKU_CAP_11N_ENABLE		= BIT(2),
+	NVM_SKU_CAP_11AC_ENABLE		= BIT(3),
+	NVM_SKU_CAP_MIMO_DISABLE	= BIT(5),
 };
 
 /*
@@ -248,7 +249,7 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
 	 */
 	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
 	    (flags & IEEE80211_CHAN_NO_IR))
-		flags |= IEEE80211_CHAN_GO_CONCURRENT;
+		flags |= IEEE80211_CHAN_IR_CONCURRENT;
 
 	return flags;
 }
@@ -368,6 +369,11 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 	if (cfg->ht_params->ldpc)
 		vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC;
 
+	if (data->sku_cap_mimo_disabled) {
+		num_rx_ants = 1;
+		num_tx_ants = 1;
+	}
+
 	if (num_tx_ants > 1)
 		vht_cap->cap |= IEEE80211_VHT_CAP_TXSTBC;
 	else
@@ -465,7 +471,7 @@ static int iwl_get_radio_cfg(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + RADIO_CFG);
 
-	return le32_to_cpup((__le32 *)(nvm_sw + RADIO_CFG_FAMILY_8000));
+	return le32_to_cpup((__le32 *)(phy_sku + RADIO_CFG_FAMILY_8000));
 
 }
 
@@ -527,18 +533,25 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 	const u8 *hw_addr;
 
 	if (mac_override) {
+		static const u8 reserved_mac[] = {
+			0x02, 0xcc, 0xaa, 0xff, 0xee, 0x00
+		};
+
 		hw_addr = (const u8 *)(mac_override +
 				 MAC_ADDRESS_OVERRIDE_FAMILY_8000);
 
-		/* The byte order is little endian 16 bit, meaning 214365 */
-		data->hw_addr[0] = hw_addr[1];
-		data->hw_addr[1] = hw_addr[0];
-		data->hw_addr[2] = hw_addr[3];
-		data->hw_addr[3] = hw_addr[2];
-		data->hw_addr[4] = hw_addr[5];
-		data->hw_addr[5] = hw_addr[4];
+		/*
+		 * Store the MAC address from MAO section.
+		 * No byte swapping is required in MAO section
+		 */
+		memcpy(data->hw_addr, hw_addr, ETH_ALEN);
 
-		if (is_valid_ether_addr(data->hw_addr))
+		/*
+		 * Force the use of the OTP MAC address in case of reserved MAC
+		 * address in the NVM, or if address is given but invalid.
+		 */
+		if (is_valid_ether_addr(data->hw_addr) &&
+		    memcmp(reserved_mac, hw_addr, ETH_ALEN) != 0)
 			return;
 
 		IWL_ERR_DEV(dev,
@@ -610,6 +623,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		data->sku_cap_11n_enable = false;
 	data->sku_cap_11ac_enable = data->sku_cap_11n_enable &&
 				    (sku & NVM_SKU_CAP_11AC_ENABLE);
+	data->sku_cap_mimo_disabled = sku & NVM_SKU_CAP_MIMO_DISABLE;
 
 	data->n_hw_addrs = iwl_get_n_hw_addrs(cfg, nvm_sw);
 

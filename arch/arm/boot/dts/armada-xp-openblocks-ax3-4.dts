@@ -54,7 +54,7 @@
 	compatible = "plathome,openblocks-ax3-4", "marvell,armadaxp-mv78260", "marvell,armadaxp", "marvell,armada-370-xp";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -105,6 +105,10 @@
 		};
 
 		internal-regs {
+			rtc@10300 {
+				/* No crystal connected to the internal RTC */
+				status = "disabled";
+			};
 			serial@12000 {
 				status = "okay";
 			};

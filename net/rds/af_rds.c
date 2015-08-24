@@ -40,15 +40,6 @@
 
 #include "rds.h"
 
-char *rds_str_array(char **array, size_t elements, size_t index)
-{
-	if ((index < elements) && array[index])
-		return array[index];
-	else
-		return "unknown";
-}
-EXPORT_SYMBOL(rds_str_array);
-
 /* this is just used for stats gathering :/ */
 static DEFINE_SPINLOCK(rds_sock_lock);
 static unsigned long rds_sock_count;
@@ -270,6 +261,28 @@ static int rds_cong_monitor(struct rds_sock *rs, char __user *optval,
 	return ret;
 }
 
+static int rds_set_transport(struct rds_sock *rs, char __user *optval,
+			     int optlen)
+{
+	int t_type;
+
+	if (rs->rs_transport)
+		return -EOPNOTSUPP; /* previously attached to transport */
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+
+	if (copy_from_user(&t_type, (int __user *)optval, sizeof(t_type)))
+		return -EFAULT;
+
+	if (t_type < 0 || t_type >= RDS_TRANS_COUNT)
+		return -EINVAL;
+
+	rs->rs_transport = rds_trans_get(t_type);
+
+	return rs->rs_transport ? 0 : -ENOPROTOOPT;
+}
+
 static int rds_setsockopt(struct socket *sock, int level, int optname,
 			  char __user *optval, unsigned int optlen)
 {
@@ -300,6 +313,11 @@ static int rds_setsockopt(struct socket *sock, int level, int optname,
 	case RDS_CONG_MONITOR:
 		ret = rds_cong_monitor(rs, optval, optlen);
 		break;
+	case SO_RDS_TRANSPORT:
+		lock_sock(sock->sk);
+		ret = rds_set_transport(rs, optval, optlen);
+		release_sock(sock->sk);
+		break;
 	default:
 		ret = -ENOPROTOOPT;
 	}
@@ -312,6 +330,7 @@ static int rds_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
 	int ret = -ENOPROTOOPT, len;
+	int trans;
 
 	if (level != SOL_RDS)
 		goto out;
@@ -332,6 +351,19 @@ static int rds_getsockopt(struct socket *sock, int level, int optname,
 			ret = -EINVAL;
 		else
 		if (put_user(rs->rs_recverr, (int __user *) optval) ||
+		    put_user(sizeof(int), optlen))
+			ret = -EFAULT;
+		else
+			ret = 0;
+		break;
+	case SO_RDS_TRANSPORT:
+		if (len < sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		trans = (rs->rs_transport ? rs->rs_transport->t_type :
+			 RDS_TRANS_NONE); /* unbound */
+		if (put_user(trans, (int __user *)optval) ||
 		    put_user(sizeof(int), optlen))
 			ret = -EFAULT;
 		else
@@ -440,7 +472,7 @@ static int rds_create(struct net *net, struct socket *sock, int protocol,
 	if (sock->type != SOCK_SEQPACKET || protocol)
 		return -ESOCKTNOSUPPORT;
 
-	sk = sk_alloc(net, AF_RDS, GFP_ATOMIC, &rds_proto);
+	sk = sk_alloc(net, AF_RDS, GFP_ATOMIC, &rds_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 

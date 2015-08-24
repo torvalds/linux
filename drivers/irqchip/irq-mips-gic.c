@@ -257,21 +257,11 @@ int gic_get_c0_fdc_int(void)
 		return MIPS_CPU_IRQ_BASE + cp0_fdc_irq;
 	}
 
-	/*
-	 * Some cores claim the FDC is routable but it doesn't actually seem to
-	 * be connected.
-	 */
-	switch (current_cpu_type()) {
-	case CPU_INTERAPTIV:
-	case CPU_PROAPTIV:
-		return -1;
-	}
-
 	return irq_create_mapping(gic_irq_domain,
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_FDC));
 }
 
-static void gic_handle_shared_int(void)
+static void gic_handle_shared_int(bool chained)
 {
 	unsigned int i, intr, virq;
 	unsigned long *pcpu_mask;
@@ -299,7 +289,10 @@ static void gic_handle_shared_int(void)
 	while (intr != gic_shared_intrs) {
 		virq = irq_linear_revmap(gic_irq_domain,
 					 GIC_SHARED_TO_HWIRQ(intr));
-		do_IRQ(virq);
+		if (chained)
+			generic_handle_irq(virq);
+		else
+			do_IRQ(virq);
 
 		/* go to next pending bit */
 		bitmap_clear(pending, intr, 1);
@@ -431,7 +424,7 @@ static struct irq_chip gic_edge_irq_controller = {
 #endif
 };
 
-static void gic_handle_local_int(void)
+static void gic_handle_local_int(bool chained)
 {
 	unsigned long pending, masked;
 	unsigned int intr, virq;
@@ -445,7 +438,10 @@ static void gic_handle_local_int(void)
 	while (intr != GIC_NUM_LOCAL_INTRS) {
 		virq = irq_linear_revmap(gic_irq_domain,
 					 GIC_LOCAL_TO_HWIRQ(intr));
-		do_IRQ(virq);
+		if (chained)
+			generic_handle_irq(virq);
+		else
+			do_IRQ(virq);
 
 		/* go to next pending bit */
 		bitmap_clear(&pending, intr, 1);
@@ -509,13 +505,14 @@ static struct irq_chip gic_all_vpes_local_irq_controller = {
 
 static void __gic_irq_dispatch(void)
 {
-	gic_handle_local_int();
-	gic_handle_shared_int();
+	gic_handle_local_int(false);
+	gic_handle_shared_int(false);
 }
 
 static void gic_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 {
-	__gic_irq_dispatch();
+	gic_handle_local_int(true);
+	gic_handle_shared_int(true);
 }
 
 #ifdef CONFIG_MIPS_GIC_IPI
@@ -541,7 +538,7 @@ static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 
 static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 {
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 
 	return IRQ_HANDLED;
 }
@@ -739,7 +736,7 @@ static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
 	return 0;
 }
 
-static struct irq_domain_ops gic_irq_domain_ops = {
+static const struct irq_domain_ops gic_irq_domain_ops = {
 	.map = gic_irq_domain_map,
 	.xlate = gic_irq_domain_xlate,
 };

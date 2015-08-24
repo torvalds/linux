@@ -313,12 +313,12 @@ static inline void msg_set_lookup_scope(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 19, 0x3, n);
 }
 
-static inline u32 msg_bcast_ack(struct tipc_msg *m)
+static inline u16 msg_bcast_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 0, 0xffff);
 }
 
-static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n)
+static inline void msg_set_bcast_ack(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 1, 0, 0xffff, n);
 }
@@ -327,22 +327,22 @@ static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n)
 /*
  * Word 2
  */
-static inline u32 msg_ack(struct tipc_msg *m)
+static inline u16 msg_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 2, 16, 0xffff);
 }
 
-static inline void msg_set_ack(struct tipc_msg *m, u32 n)
+static inline void msg_set_ack(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 2, 16, 0xffff, n);
 }
 
-static inline u32 msg_seqno(struct tipc_msg *m)
+static inline u16 msg_seqno(struct tipc_msg *m)
 {
 	return msg_bits(m, 2, 0, 0xffff);
 }
 
-static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
+static inline void msg_set_seqno(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 2, 0, 0xffff, n);
 }
@@ -352,18 +352,22 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
  */
 static inline u32 msg_importance(struct tipc_msg *m)
 {
-	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+	int usr = msg_user(m);
+
+	if (likely((usr <= TIPC_CRITICAL_IMPORTANCE) && !msg_errcode(m)))
+		return usr;
+	if ((usr == MSG_FRAGMENTER) || (usr == MSG_BUNDLER))
 		return msg_bits(m, 5, 13, 0x7);
-	if (likely(msg_isdata(m) && !msg_errcode(m)))
-		return msg_user(m);
 	return TIPC_SYSTEM_IMPORTANCE;
 }
 
 static inline void msg_set_importance(struct tipc_msg *m, u32 i)
 {
-	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+	int usr = msg_user(m);
+
+	if (likely((usr == MSG_FRAGMENTER) || (usr == MSG_BUNDLER)))
 		msg_set_bits(m, 5, 13, 0x7, i);
-	else if (likely(i < TIPC_SYSTEM_IMPORTANCE))
+	else if (i < TIPC_SYSTEM_IMPORTANCE)
 		msg_set_user(m, i);
 	else
 		pr_warn("Trying to set illegal importance in message\n");
@@ -772,15 +776,20 @@ struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
 				uint data_sz, u32 dnode, u32 onode,
 				u32 dport, u32 oport, int errcode);
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
-bool tipc_msg_bundle(struct sk_buff *bskb, struct sk_buff *skb, u32 mtu);
-
-bool tipc_msg_make_bundle(struct sk_buff **skb, u32 mtu, u32 dnode);
+bool tipc_msg_bundle(struct sk_buff *skb, struct tipc_msg *msg, u32 mtu);
+bool tipc_msg_make_bundle(struct sk_buff **skb, struct tipc_msg *msg,
+			  u32 mtu, u32 dnode);
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, u32 *dnode,
 			  int *err);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
+
+static inline u16 buf_seqno(struct sk_buff *skb)
+{
+	return msg_seqno(buf_msg(skb));
+}
 
 /* tipc_skb_peek(): peek and reserve first buffer in list
  * @list: list to be peeked in

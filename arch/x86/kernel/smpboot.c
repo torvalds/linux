@@ -68,8 +68,7 @@
 #include <asm/mwait.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
@@ -172,11 +171,6 @@ static void smp_callin(void)
 	apic_ap_setup();
 
 	/*
-	 * Need to setup vector mappings before we enable interrupts.
-	 */
-	setup_vector_irq(smp_processor_id());
-
-	/*
 	 * Save our processor parameters. Note: this information
 	 * is needed for clock calibration.
 	 */
@@ -240,18 +234,13 @@ static void notrace start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	/*
-	 * Enable the espfix hack for this CPU
-	 */
-#ifdef CONFIG_X86_ESPFIX64
-	init_espfix_ap();
-#endif
-
-	/*
-	 * We need to hold vector_lock so there the set of online cpus
-	 * does not change while we are assigning vectors to cpus.  Holding
-	 * this lock ensures we don't half assign or remove an irq from a cpu.
+	 * Lock vector_lock and initialize the vectors on this cpu
+	 * before setting the cpu online. We must set it online with
+	 * vector_lock held to prevent a concurrent setup/teardown
+	 * from seeing a half valid vector space.
 	 */
 	lock_vector_lock();
+	setup_vector_irq(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
 	cpu_set_state_online(smp_processor_id());
@@ -314,10 +303,10 @@ topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 		cpu1, name, cpu2, cpu_to_node(cpu1), cpu_to_node(cpu2));
 }
 
-#define link_mask(_m, c1, c2)						\
+#define link_mask(mfunc, c1, c2)					\
 do {									\
-	cpumask_set_cpu((c1), cpu_##_m##_mask(c2));			\
-	cpumask_set_cpu((c2), cpu_##_m##_mask(c1));			\
+	cpumask_set_cpu((c1), mfunc(c2));				\
+	cpumask_set_cpu((c2), mfunc(c1));				\
 } while (0)
 
 static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
@@ -398,9 +387,9 @@ void set_cpu_sibling_map(int cpu)
 	cpumask_set_cpu(cpu, cpu_sibling_setup_mask);
 
 	if (!has_mp) {
-		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
+		cpumask_set_cpu(cpu, topology_sibling_cpumask(cpu));
 		cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
-		cpumask_set_cpu(cpu, cpu_core_mask(cpu));
+		cpumask_set_cpu(cpu, topology_core_cpumask(cpu));
 		c->booted_cores = 1;
 		return;
 	}
@@ -409,32 +398,34 @@ void set_cpu_sibling_map(int cpu)
 		o = &cpu_data(i);
 
 		if ((i == cpu) || (has_smt && match_smt(c, o)))
-			link_mask(sibling, cpu, i);
+			link_mask(topology_sibling_cpumask, cpu, i);
 
 		if ((i == cpu) || (has_mp && match_llc(c, o)))
-			link_mask(llc_shared, cpu, i);
+			link_mask(cpu_llc_shared_mask, cpu, i);
 
 	}
 
 	/*
 	 * This needs a separate iteration over the cpus because we rely on all
-	 * cpu_sibling_mask links to be set-up.
+	 * topology_sibling_cpumask links to be set-up.
 	 */
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		o = &cpu_data(i);
 
 		if ((i == cpu) || (has_mp && match_die(c, o))) {
-			link_mask(core, cpu, i);
+			link_mask(topology_core_cpumask, cpu, i);
 
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
-			if (cpumask_weight(cpu_sibling_mask(cpu)) == 1) {
+			if (cpumask_weight(
+			    topology_sibling_cpumask(cpu)) == 1) {
 				/*
 				 * for each core in package, increment
 				 * the booted_cores for this new cpu
 				 */
-				if (cpumask_first(cpu_sibling_mask(i)) == i)
+				if (cpumask_first(
+				    topology_sibling_cpumask(i)) == i)
 					c->booted_cores++;
 				/*
 				 * increment the core count for all
@@ -514,6 +505,40 @@ void __inquire_remote_apic(int apicid)
 }
 
 /*
+ * The Multiprocessor Specification 1.4 (1997) example code suggests
+ * that there should be a 10ms delay between the BSP asserting INIT
+ * and de-asserting INIT, when starting a remote processor.
+ * But that slows boot and resume on modern processors, which include
+ * many cores and don't require that delay.
+ *
+ * Cmdline "init_cpu_udelay=" is available to over-ride this delay.
+ * Modern processor families are quirked to remove the delay entirely.
+ */
+#define UDELAY_10MS_DEFAULT 10000
+
+static unsigned int init_udelay = UDELAY_10MS_DEFAULT;
+
+static int __init cpu_init_udelay(char *str)
+{
+	get_option(&str, &init_udelay);
+
+	return 0;
+}
+early_param("cpu_init_udelay", cpu_init_udelay);
+
+static void __init smp_quirk_init_udelay(void)
+{
+	/* if cmdline changed it from default, leave it alone */
+	if (init_udelay != UDELAY_10MS_DEFAULT)
+		return;
+
+	/* if modern processor, use no delay */
+	if (((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 == 6)) ||
+	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF)))
+		init_udelay = 0;
+}
+
+/*
  * Poke the other CPU in the eye via NMI to wake it up. Remember that the normal
  * INIT, INIT, STARTUP sequence will reset the chip hard for us, and this
  * won't ... remember to clear down the APIC, etc later.
@@ -555,7 +580,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 static int
 wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
-	unsigned long send_status, accept_status = 0;
+	unsigned long send_status = 0, accept_status = 0;
 	int maxlvt, num_starts, j;
 
 	maxlvt = lapic_get_maxlvt();
@@ -583,7 +608,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
-	mdelay(10);
+	udelay(init_udelay);
 
 	pr_debug("Deasserting INIT\n");
 
@@ -651,6 +676,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		 * Give the other CPU some time to accept the IPI.
 		 */
 		udelay(200);
+
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
@@ -792,8 +818,6 @@ void common_cpu_up(unsigned int cpu, struct task_struct *idle)
 	clear_tsk_thread_flag(idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
 #endif
-	per_cpu(kernel_stack, cpu) =
-		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
 }
 
 /*
@@ -819,6 +843,13 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
+
+	/*
+	 * Enable the espfix hack for this CPU
+	*/
+#ifdef CONFIG_X86_ESPFIX64
+	init_espfix_ap(cpu);
+#endif
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
@@ -961,8 +992,17 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	common_cpu_up(cpu, tidle);
 
+	/*
+	 * We have to walk the irq descriptors to setup the vector
+	 * space for the cpu which comes online.  Prevent irq
+	 * alloc/free across the bringup.
+	 */
+	irq_lock_sparse();
+
 	err = do_boot_cpu(apicid, cpu, tidle);
+
 	if (err) {
+		irq_unlock_sparse();
 		pr_err("do_boot_cpu failed(%d) to wakeup CPU#%u\n", err, cpu);
 		return -EIO;
 	}
@@ -979,6 +1019,8 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		cpu_relax();
 		touch_nmi_watchdog();
 	}
+
+	irq_unlock_sparse();
 
 	return 0;
 }
@@ -1009,8 +1051,8 @@ static __init void disable_smp(void)
 		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	else
 		physid_set_mask_of_physid(0, &phys_cpu_present_map);
-	cpumask_set_cpu(0, cpu_sibling_mask(0));
-	cpumask_set_cpu(0, cpu_core_mask(0));
+	cpumask_set_cpu(0, topology_sibling_cpumask(0));
+	cpumask_set_cpu(0, topology_core_cpumask(0));
 }
 
 enum {
@@ -1176,6 +1218,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		uv_system_init();
 
 	set_mtrr_aps_delayed_init();
+
+	smp_quirk_init_udelay();
 }
 
 void arch_enable_nonboot_cpus_begin(void)
@@ -1293,22 +1337,22 @@ static void remove_siblinginfo(int cpu)
 	int sibling;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	for_each_cpu(sibling, cpu_core_mask(cpu)) {
-		cpumask_clear_cpu(cpu, cpu_core_mask(sibling));
+	for_each_cpu(sibling, topology_core_cpumask(cpu)) {
+		cpumask_clear_cpu(cpu, topology_core_cpumask(sibling));
 		/*/
 		 * last thread sibling in this cpu core going down
 		 */
-		if (cpumask_weight(cpu_sibling_mask(cpu)) == 1)
+		if (cpumask_weight(topology_sibling_cpumask(cpu)) == 1)
 			cpu_data(sibling).booted_cores--;
 	}
 
-	for_each_cpu(sibling, cpu_sibling_mask(cpu))
-		cpumask_clear_cpu(cpu, cpu_sibling_mask(sibling));
+	for_each_cpu(sibling, topology_sibling_cpumask(cpu))
+		cpumask_clear_cpu(cpu, topology_sibling_cpumask(sibling));
 	for_each_cpu(sibling, cpu_llc_shared_mask(cpu))
 		cpumask_clear_cpu(cpu, cpu_llc_shared_mask(sibling));
 	cpumask_clear(cpu_llc_shared_mask(cpu));
-	cpumask_clear(cpu_sibling_mask(cpu));
-	cpumask_clear(cpu_core_mask(cpu));
+	cpumask_clear(topology_sibling_cpumask(cpu));
+	cpumask_clear(topology_core_cpumask(cpu));
 	c->phys_proc_id = 0;
 	c->cpu_core_id = 0;
 	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);

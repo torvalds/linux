@@ -116,7 +116,7 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"%2d|%2d|%4d|%5d|%2d|%2d|\n",
-			i, cl->me_client_id, cl->host_client_id, cl->state,
+			i, mei_cl_me_id(cl), cl->host_client_id, cl->state,
 			!list_empty(&cl->rd_completed), cl->writing_state);
 		i++;
 	}
@@ -149,6 +149,13 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 			mei_dev_state_str(dev->dev_state));
 	pos += scnprintf(buf + pos, bufsz - pos, "hbm: %s\n",
 			mei_hbm_state_str(dev->hbm_state));
+
+	if (dev->hbm_state == MEI_HBM_STARTED) {
+		pos += scnprintf(buf + pos, bufsz - pos, "hbm features:\n");
+		pos += scnprintf(buf + pos, bufsz - pos, "\tPG: %01d\n",
+				 dev->hbm_f_pg_supported);
+	}
+
 	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",
 			mei_pg_is_enabled(dev) ? "ENABLED" : "DISABLED",
 			mei_pg_state_str(mei_pg_state(dev)));
@@ -207,6 +214,12 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 				dev, &mei_dbgfs_fops_devstate);
 	if (!f) {
 		dev_err(dev->dev, "devstate: registration failed\n");
+		goto err;
+	}
+	f = debugfs_create_bool("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
+				&dev->allow_fixed_address);
+	if (!f) {
+		dev_err(dev->dev, "allow_fixed_address: registration failed\n");
 		goto err;
 	}
 	dev->dbgfs_dir = dir;

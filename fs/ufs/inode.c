@@ -572,9 +572,10 @@ static void ufs_set_inode_ops(struct inode *inode)
 		inode->i_fop = &ufs_dir_operations;
 		inode->i_mapping->a_ops = &ufs_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
-		if (!inode->i_blocks)
+		if (!inode->i_blocks) {
 			inode->i_op = &ufs_fast_symlink_inode_operations;
-		else {
+			inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
+		} else {
 			inode->i_op = &ufs_symlink_inode_operations;
 			inode->i_mapping->a_ops = &ufs_aops;
 		}
@@ -902,6 +903,9 @@ void ufs_evict_inode(struct inode * inode)
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
 
-	if (want_delete)
+	if (want_delete) {
+		lock_ufs(inode->i_sb);
 		ufs_free_inode(inode);
+		unlock_ufs(inode->i_sb);
+	}
 }

@@ -10,6 +10,9 @@ Required properties:
         "wlf,wm5110"
         "wlf,wm8280"
         "wlf,wm8997"
+        "wlf,wm8998"
+        "wlf,wm1814"
+
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
 
@@ -31,10 +34,10 @@ Required properties:
     as covered in Documentation/devicetree/bindings/regulator/regulator.txt
 
   - DBVDD2-supply, DBVDD3-supply : Additional databus power supplies (wm5102,
-    wm5110, wm8280)
+    wm5110, wm8280, wm8998, wm1814)
 
   - SPKVDDL-supply, SPKVDDR-supply : Speaker driver power supplies (wm5102,
-    wm5110, wm8280)
+    wm5110, wm8280, wm8998, wm1814)
 
   - SPKVDD-supply : Speaker driver power supply (wm8997)
 
@@ -53,14 +56,22 @@ Optional properties:
     of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
     2 (Digital Microphone). If absent, INn_MODE registers set to 0 by default.
     If present, values must be specified less than or equal to the number of
-    input singals. If values less than the number of input signals, elements
-    that has not been specifed are set to 0 by default.
+    input signals. If values less than the number of input signals, elements
+    that have not been specified are set to 0 by default. Entries are:
+    <IN1, IN2, IN3, IN4> (wm5102, wm5110, wm8280, wm8997)
+    <IN1A, IN2A, IN1B, IN2B> (wm8998, wm1814)
 
   - wlf,dmic-ref : DMIC reference voltage source for each input, can be
     selected from either MICVDD or one of the MICBIAS's, defines
     (ARIZONA_DMIC_xxxx) are provided in <dt-bindings/mfd/arizona.txt>. If
     present, the number of values should be less than or equal to the
     number of inputs, unspecified inputs will use the chip default.
+
+  - wlf,hpdet-channel : Headphone detection channel.
+    ARIZONA_ACCDET_MODE_HPL or 1 - Headphone detect mode is set to HPDETL
+    ARIZONA_ACCDET_MODE_HPR or 2 - Headphone detect mode is set to HPDETR
+    If this node is not mentioned or if the value is unknown, then
+    headphone detection mode is set to HPDETL.
 
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in

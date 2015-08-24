@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
+#include <linux/interrupt.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
@@ -46,10 +47,6 @@
 #include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
-
-#define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "3.0"
-#define DRIVER_RELDATE  "January 2015"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
@@ -208,24 +205,28 @@ static void release_bar(struct pci_dev *pdev)
 
 static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 {
-	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	int num_eqs = 1 << dev->caps.gen.log_max_eq;
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_eq_table *table = &priv->eq_table;
+	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int nvec;
 	int i;
 
-	nvec = dev->caps.gen.num_ports * num_online_cpus() + MLX5_EQ_VEC_COMP_BASE;
+	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
+	       MLX5_EQ_VEC_COMP_BASE;
 	nvec = min_t(int, nvec, num_eqs);
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
 
-	table->msix_arr = kzalloc(nvec * sizeof(*table->msix_arr), GFP_KERNEL);
-	if (!table->msix_arr)
-		return -ENOMEM;
+	priv->msix_arr = kcalloc(nvec, sizeof(*priv->msix_arr), GFP_KERNEL);
+
+	priv->irq_info = kcalloc(nvec, sizeof(*priv->irq_info), GFP_KERNEL);
+	if (!priv->msix_arr || !priv->irq_info)
+		goto err_free_msix;
 
 	for (i = 0; i < nvec; i++)
-		table->msix_arr[i].entry = i;
+		priv->msix_arr[i].entry = i;
 
-	nvec = pci_enable_msix_range(dev->pdev, table->msix_arr,
+	nvec = pci_enable_msix_range(dev->pdev, priv->msix_arr,
 				     MLX5_EQ_VEC_COMP_BASE + 1, nvec);
 	if (nvec < 0)
 		return nvec;
@@ -233,14 +234,20 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
 
 	return 0;
+
+err_free_msix:
+	kfree(priv->irq_info);
+	kfree(priv->msix_arr);
+	return -ENOMEM;
 }
 
 static void mlx5_disable_msix(struct mlx5_core_dev *dev)
 {
-	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_priv *priv = &dev->priv;
 
 	pci_disable_msix(dev->pdev);
-	kfree(table->msix_arr);
+	kfree(priv->irq_info);
+	kfree(priv->msix_arr);
 }
 
 struct mlx5_reg_host_endianess {
@@ -277,98 +284,20 @@ static u16 to_fw_pkey_sz(u32 size)
 	}
 }
 
-/* selectively copy writable fields clearing any reserved area
- */
-static void copy_rw_fields(void *to, struct mlx5_caps *from)
-{
-	__be64 *flags_off = (__be64 *)MLX5_ADDR_OF(cmd_hca_cap, to, reserved_22);
-	u64 v64;
-
-	MLX5_SET(cmd_hca_cap, to, log_max_qp, from->gen.log_max_qp);
-	MLX5_SET(cmd_hca_cap, to, log_max_ra_req_qp, from->gen.log_max_ra_req_qp);
-	MLX5_SET(cmd_hca_cap, to, log_max_ra_res_qp, from->gen.log_max_ra_res_qp);
-	MLX5_SET(cmd_hca_cap, to, pkey_table_size, from->gen.pkey_table_size);
-	MLX5_SET(cmd_hca_cap, to, pkey_table_size, to_fw_pkey_sz(from->gen.pkey_table_size));
-	MLX5_SET(cmd_hca_cap, to, log_uar_page_sz, PAGE_SHIFT - 12);
-	v64 = from->gen.flags & MLX5_CAP_BITS_RW_MASK;
-	*flags_off = cpu_to_be64(v64);
-}
-
-static u16 get_pkey_table_size(int pkey)
-{
-	if (pkey > MLX5_MAX_LOG_PKEY_TABLE)
-		return 0;
-
-	return MLX5_MIN_PKEY_TABLE_SIZE << pkey;
-}
-
-static void fw2drv_caps(struct mlx5_caps *caps, void *out)
-{
-	struct mlx5_general_caps *gen = &caps->gen;
-
-	gen->max_srq_wqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_srq_sz);
-	gen->max_wqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_qp_sz);
-	gen->log_max_qp = MLX5_GET_PR(cmd_hca_cap, out, log_max_qp);
-	gen->log_max_strq = MLX5_GET_PR(cmd_hca_cap, out, log_max_strq_sz);
-	gen->log_max_srq = MLX5_GET_PR(cmd_hca_cap, out, log_max_srqs);
-	gen->max_cqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_cq_sz);
-	gen->log_max_cq = MLX5_GET_PR(cmd_hca_cap, out, log_max_cq);
-	gen->max_eqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_eq_sz);
-	gen->log_max_mkey = MLX5_GET_PR(cmd_hca_cap, out, log_max_mkey);
-	gen->log_max_eq = MLX5_GET_PR(cmd_hca_cap, out, log_max_eq);
-	gen->max_indirection = MLX5_GET_PR(cmd_hca_cap, out, max_indirection);
-	gen->log_max_mrw_sz = MLX5_GET_PR(cmd_hca_cap, out, log_max_mrw_sz);
-	gen->log_max_bsf_list_size = MLX5_GET_PR(cmd_hca_cap, out, log_max_bsf_list_size);
-	gen->log_max_klm_list_size = MLX5_GET_PR(cmd_hca_cap, out, log_max_klm_list_size);
-	gen->log_max_ra_req_dc = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_req_dc);
-	gen->log_max_ra_res_dc = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_res_dc);
-	gen->log_max_ra_req_qp = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_req_qp);
-	gen->log_max_ra_res_qp = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_res_qp);
-	gen->max_qp_counters = MLX5_GET_PR(cmd_hca_cap, out, max_qp_cnt);
-	gen->pkey_table_size = get_pkey_table_size(MLX5_GET_PR(cmd_hca_cap, out, pkey_table_size));
-	gen->local_ca_ack_delay = MLX5_GET_PR(cmd_hca_cap, out, local_ca_ack_delay);
-	gen->num_ports = MLX5_GET_PR(cmd_hca_cap, out, num_ports);
-	gen->log_max_msg = MLX5_GET_PR(cmd_hca_cap, out, log_max_msg);
-	gen->stat_rate_support = MLX5_GET_PR(cmd_hca_cap, out, stat_rate_support);
-	gen->flags = be64_to_cpu(*(__be64 *)MLX5_ADDR_OF(cmd_hca_cap, out, reserved_22));
-	pr_debug("flags = 0x%llx\n", gen->flags);
-	gen->uar_sz = MLX5_GET_PR(cmd_hca_cap, out, uar_sz);
-	gen->min_log_pg_sz = MLX5_GET_PR(cmd_hca_cap, out, log_pg_sz);
-	gen->bf_reg_size = MLX5_GET_PR(cmd_hca_cap, out, bf);
-	gen->bf_reg_size = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_bf_reg_size);
-	gen->max_sq_desc_sz = MLX5_GET_PR(cmd_hca_cap, out, max_wqe_sz_sq);
-	gen->max_rq_desc_sz = MLX5_GET_PR(cmd_hca_cap, out, max_wqe_sz_rq);
-	gen->max_dc_sq_desc_sz = MLX5_GET_PR(cmd_hca_cap, out, max_wqe_sz_sq_dc);
-	gen->max_qp_mcg = MLX5_GET_PR(cmd_hca_cap, out, max_qp_mcg);
-	gen->log_max_pd = MLX5_GET_PR(cmd_hca_cap, out, log_max_pd);
-	gen->log_max_xrcd = MLX5_GET_PR(cmd_hca_cap, out, log_max_xrcd);
-	gen->log_uar_page_sz = MLX5_GET_PR(cmd_hca_cap, out, log_uar_page_sz);
-}
-
-static const char *caps_opmod_str(u16 opmod)
-{
-	switch (opmod) {
-	case HCA_CAP_OPMOD_GET_MAX:
-		return "GET_MAX";
-	case HCA_CAP_OPMOD_GET_CUR:
-		return "GET_CUR";
-	default:
-		return "Invalid";
-	}
-}
-
-int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
-		       u16 opmod)
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+		       enum mlx5_cap_mode cap_mode)
 {
 	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)];
 	int out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	void *out;
+	void *out, *hca_caps;
+	u16 opmod = (cap_type << 1) | (cap_mode & 0x01);
 	int err;
 
 	memset(in, 0, sizeof(in));
 	out = kzalloc(out_sz, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
+
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
@@ -377,12 +306,30 @@ int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
 
 	err = mlx5_cmd_status_to_err_v2(out);
 	if (err) {
-		mlx5_core_warn(dev, "query max hca cap failed, %d\n", err);
+		mlx5_core_warn(dev,
+			       "QUERY_HCA_CAP : type(%x) opmode(%x) Failed(%d)\n",
+			       cap_type, cap_mode, err);
 		goto query_ex;
 	}
-	mlx5_core_dbg(dev, "%s\n", caps_opmod_str(opmod));
-	fw2drv_caps(caps, MLX5_ADDR_OF(query_hca_cap_out, out, capability_struct));
 
+	hca_caps =  MLX5_ADDR_OF(query_hca_cap_out, out, capability);
+
+	switch (cap_mode) {
+	case HCA_CAP_OPMOD_GET_MAX:
+		memcpy(dev->hca_caps_max[cap_type], hca_caps,
+		       MLX5_UN_SZ_BYTES(hca_cap_union));
+		break;
+	case HCA_CAP_OPMOD_GET_CUR:
+		memcpy(dev->hca_caps_cur[cap_type], hca_caps,
+		       MLX5_UN_SZ_BYTES(hca_cap_union));
+		break;
+	default:
+		mlx5_core_warn(dev,
+			       "Tried to query dev cap type(%x) with wrong opmode(%x)\n",
+			       cap_type, cap_mode);
+		err = -EINVAL;
+		break;
+	}
 query_ex:
 	kfree(out);
 	return err;
@@ -409,49 +356,47 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 {
 	void *set_ctx = NULL;
 	struct mlx5_profile *prof = dev->profile;
-	struct mlx5_caps *cur_caps = NULL;
-	struct mlx5_caps *max_caps = NULL;
 	int err = -ENOMEM;
 	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	void *set_hca_cap;
 
 	set_ctx = kzalloc(set_sz, GFP_KERNEL);
 	if (!set_ctx)
 		goto query_ex;
 
-	max_caps = kzalloc(sizeof(*max_caps), GFP_KERNEL);
-	if (!max_caps)
-		goto query_ex;
-
-	cur_caps = kzalloc(sizeof(*cur_caps), GFP_KERNEL);
-	if (!cur_caps)
-		goto query_ex;
-
-	err = mlx5_core_get_caps(dev, max_caps, HCA_CAP_OPMOD_GET_MAX);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_MAX);
 	if (err)
 		goto query_ex;
 
-	err = mlx5_core_get_caps(dev, cur_caps, HCA_CAP_OPMOD_GET_CUR);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_CUR);
 	if (err)
 		goto query_ex;
 
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx,
+				   capability);
+	memcpy(set_hca_cap, dev->hca_caps_cur[MLX5_CAP_GENERAL],
+	       MLX5_ST_SZ_BYTES(cmd_hca_cap));
+
+	mlx5_core_dbg(dev, "Current Pkey table size %d Setting new size %d\n",
+		      mlx5_to_sw_pkey_sz(MLX5_CAP_GEN(dev, pkey_table_size)),
+		      128);
 	/* we limit the size of the pkey table to 128 entries for now */
-	cur_caps->gen.pkey_table_size = 128;
+	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
+		 to_fw_pkey_sz(128));
 
 	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
-		cur_caps->gen.log_max_qp = prof->log_max_qp;
+		MLX5_SET(cmd_hca_cap, set_hca_cap, log_max_qp,
+			 prof->log_max_qp);
 
-	/* disable checksum */
-	cur_caps->gen.flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
+	/* disable cmdif checksum */
+	MLX5_SET(cmd_hca_cap, set_hca_cap, cmdif_checksum, 0);
 
-	copy_rw_fields(MLX5_ADDR_OF(set_hca_cap_in, set_ctx, hca_capability_struct),
-		       cur_caps);
+	MLX5_SET(cmd_hca_cap, set_hca_cap, log_uar_page_sz, PAGE_SHIFT - 12);
+
 	err = set_caps(dev, set_ctx, set_sz);
 
 query_ex:
-	kfree(cur_caps);
-	kfree(max_caps);
 	kfree(set_ctx);
-
 	return err;
 }
 
@@ -507,6 +452,74 @@ static int mlx5_core_disable_hca(struct mlx5_core_dev *dev)
 	return 0;
 }
 
+static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
+{
+	struct mlx5_priv *priv  = &mdev->priv;
+	struct msix_entry *msix = priv->msix_arr;
+	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
+	int numa_node           = dev_to_node(&mdev->pdev->dev);
+	int err;
+
+	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
+		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
+		return -ENOMEM;
+	}
+
+	cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+			priv->irq_info[i].mask);
+
+	err = irq_set_affinity_hint(irq, priv->irq_info[i].mask);
+	if (err) {
+		mlx5_core_warn(mdev, "irq_set_affinity_hint failed,irq 0x%.4x",
+			       irq);
+		goto err_clear_mask;
+	}
+
+	return 0;
+
+err_clear_mask:
+	free_cpumask_var(priv->irq_info[i].mask);
+	return err;
+}
+
+static void mlx5_irq_clear_affinity_hint(struct mlx5_core_dev *mdev, int i)
+{
+	struct mlx5_priv *priv  = &mdev->priv;
+	struct msix_entry *msix = priv->msix_arr;
+	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
+
+	irq_set_affinity_hint(irq, NULL);
+	free_cpumask_var(priv->irq_info[i].mask);
+}
+
+static int mlx5_irq_set_affinity_hints(struct mlx5_core_dev *mdev)
+{
+	int err;
+	int i;
+
+	for (i = 0; i < mdev->priv.eq_table.num_comp_vectors; i++) {
+		err = mlx5_irq_set_affinity_hint(mdev, i);
+		if (err)
+			goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	for (i--; i >= 0; i--)
+		mlx5_irq_clear_affinity_hint(mdev, i);
+
+	return err;
+}
+
+static void mlx5_irq_clear_affinity_hints(struct mlx5_core_dev *mdev)
+{
+	int i;
+
+	for (i = 0; i < mdev->priv.eq_table.num_comp_vectors; i++)
+		mlx5_irq_clear_affinity_hint(mdev, i);
+}
+
 int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
@@ -549,7 +562,7 @@ static void free_comp_eqs(struct mlx5_core_dev *dev)
 static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	char name[MLX5_MAX_EQ_NAME];
+	char name[MLX5_MAX_IRQ_NAME];
 	struct mlx5_eq *eq;
 	int ncomp_vec;
 	int nent;
@@ -566,7 +579,7 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 			goto clean;
 		}
 
-		snprintf(name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
 					 name, &dev->priv.uuari.uars[0]);
@@ -587,6 +600,61 @@ clean:
 	free_comp_eqs(dev);
 	return err;
 }
+
+#ifdef CONFIG_MLX5_CORE_EN
+static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
+{
+	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)];
+	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)];
+	u32 set_in[MLX5_ST_SZ_DW(set_issi_in)];
+	u32 set_out[MLX5_ST_SZ_DW(set_issi_out)];
+	int err;
+	u32 sup_issi;
+
+	memset(query_in, 0, sizeof(query_in));
+	memset(query_out, 0, sizeof(query_out));
+
+	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
+
+	err = mlx5_cmd_exec_check_status(dev, query_in, sizeof(query_in),
+					 query_out, sizeof(query_out));
+	if (err) {
+		if (((struct mlx5_outbox_hdr *)query_out)->status ==
+		    MLX5_CMD_STAT_BAD_OP_ERR) {
+			pr_debug("Only ISSI 0 is supported\n");
+			return 0;
+		}
+
+		pr_err("failed to query ISSI\n");
+		return err;
+	}
+
+	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
+
+	if (sup_issi & (1 << 1)) {
+		memset(set_in, 0, sizeof(set_in));
+		memset(set_out, 0, sizeof(set_out));
+
+		MLX5_SET(set_issi_in, set_in, opcode, MLX5_CMD_OP_SET_ISSI);
+		MLX5_SET(set_issi_in, set_in, current_issi, 1);
+
+		err = mlx5_cmd_exec_check_status(dev, set_in, sizeof(set_in),
+						 set_out, sizeof(set_out));
+		if (err) {
+			pr_err("failed to set ISSI=1\n");
+			return err;
+		}
+
+		dev->issi = 1;
+
+		return 0;
+	} else if (sup_issi & (1 << 0) || !sup_issi) {
+		return 0;
+	}
+
+	return -ENOTSUPP;
+}
+#endif
 
 static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 {
@@ -650,6 +718,14 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_pagealloc_cleanup;
 	}
 
+#ifdef CONFIG_MLX5_CORE_EN
+	err = mlx5_core_set_issi(dev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to set issi\n");
+		goto err_disable_hca;
+	}
+#endif
+
 	err = mlx5_satisfy_startup_pages(dev, 1);
 	if (err) {
 		dev_err(&pdev->dev, "failed to allocate boot pages\n");
@@ -688,15 +764,15 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 
 	mlx5_start_health_poll(dev);
 
-	err = mlx5_cmd_query_hca_cap(dev, &dev->caps);
+	err = mlx5_query_hca_caps(dev);
 	if (err) {
 		dev_err(&pdev->dev, "query hca failed\n");
 		goto err_stop_poll;
 	}
 
-	err = mlx5_cmd_query_adapter(dev);
+	err = mlx5_query_board_id(dev);
 	if (err) {
-		dev_err(&pdev->dev, "query adapter failed\n");
+		dev_err(&pdev->dev, "query board id failed\n");
 		goto err_stop_poll;
 	}
 
@@ -730,6 +806,12 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_stop_eqs;
 	}
 
+	err = mlx5_irq_set_affinity_hints(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to alloc affinity hint cpumask\n");
+		goto err_free_comp_eqs;
+	}
+
 	MLX5_INIT_DOORBELL_LOCK(&priv->cq_uar_lock);
 
 	mlx5_init_cq_table(dev);
@@ -738,6 +820,9 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	mlx5_init_mr_table(dev);
 
 	return 0;
+
+err_free_comp_eqs:
+	free_comp_eqs(dev);
 
 err_stop_eqs:
 	mlx5_stop_eqs(dev);
@@ -793,6 +878,7 @@ static void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cleanup_cq_table(dev);
+	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_free_uuars(dev, &priv->uuari);
@@ -1048,6 +1134,10 @@ static int __init init(void)
 	if (err)
 		goto err_health;
 
+#ifdef CONFIG_MLX5_CORE_EN
+	mlx5e_init();
+#endif
+
 	return 0;
 
 err_health:
@@ -1060,6 +1150,9 @@ err_debug:
 
 static void __exit cleanup(void)
 {
+#ifdef CONFIG_MLX5_CORE_EN
+	mlx5e_cleanup();
+#endif
 	pci_unregister_driver(&mlx5_core_driver);
 	mlx5_health_cleanup();
 	destroy_workqueue(mlx5_core_wq);
