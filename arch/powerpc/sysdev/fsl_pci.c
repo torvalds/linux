@@ -1002,7 +1002,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 			ret = probe_kernel_address(regs->nip, inst);
 		}
 
-		if (mcheck_handle_load(regs, inst)) {
+		if (!ret && mcheck_handle_load(regs, inst)) {
 			regs->nip += 4;
 			return 1;
 		}
