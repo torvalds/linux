@@ -125,7 +125,7 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 
 	pmem->phys_addr = res->start;
 	pmem->size = resource_size(res);
-	if (!arch_has_pmem_api())
+	if (!arch_has_wmb_pmem())
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
 	if (!devm_request_mem_region(dev, pmem->phys_addr, pmem->size,

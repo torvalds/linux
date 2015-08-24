@@ -17,16 +17,23 @@
 #include <linux/uio.h>
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
 #include <asm/pmem.h>
 #else
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WT
+/*
+ * These are simply here to enable compilation, all call sites gate
+ * calling these symbols with arch_has_pmem_api() and redirect to the
+ * implementation in asm/pmem.h.
+ */
+static inline bool __arch_has_wmb_pmem(void)
+{
+	return false;
+}
+
 static inline void arch_wmb_pmem(void)
 {
 	BUG();
-}
-
-static inline bool arch_has_wmb_pmem(void)
-{
-	return false;
 }
 
 static inline void arch_memcpy_to_pmem(void __pmem *dst, const void *src,
@@ -53,7 +60,6 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
  * implementations for arch_memcpy_to_pmem(), arch_wmb_pmem(),
  * arch_copy_from_iter_pmem(), arch_clear_pmem() and arch_has_wmb_pmem().
  */
-
 static inline void memcpy_from_pmem(void *dst, void __pmem const *src, size_t size)
 {
 	memcpy(dst, (void __force const *) src, size);
@@ -64,8 +70,13 @@ static inline void memunmap_pmem(struct device *dev, void __pmem *addr)
 	devm_memunmap(dev, (void __force *) addr);
 }
 
+static inline bool arch_has_pmem_api(void)
+{
+	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API);
+}
+
 /**
- * arch_has_pmem_api - true if wmb_pmem() ensures durability
+ * arch_has_wmb_pmem - true if wmb_pmem() ensures durability
  *
  * For a given cpu implementation within an architecture it is possible
  * that wmb_pmem() resolves to a nop.  In the case this returns
@@ -73,9 +84,9 @@ static inline void memunmap_pmem(struct device *dev, void __pmem *addr)
  * fall back to a different data consistency model, or otherwise notify
  * the user.
  */
-static inline bool arch_has_pmem_api(void)
+static inline bool arch_has_wmb_pmem(void)
 {
-	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API) && arch_has_wmb_pmem();
+	return arch_has_pmem_api() && __arch_has_wmb_pmem();
 }
 
 /*
@@ -120,13 +131,8 @@ static inline void default_clear_pmem(void __pmem *addr, size_t size)
 static inline void __pmem *memremap_pmem(struct device *dev,
 		resource_size_t offset, unsigned long size)
 {
-#ifdef ARCH_MEMREMAP_PMEM
 	return (void __pmem *) devm_memremap(dev, offset, size,
 			ARCH_MEMREMAP_PMEM);
-#else
-	return (void __pmem *) devm_memremap(dev, offset, size,
-			MEMREMAP_WT);
-#endif
 }
 
 /**
@@ -158,8 +164,10 @@ static inline void memcpy_to_pmem(void __pmem *dst, const void *src, size_t n)
  */
 static inline void wmb_pmem(void)
 {
-	if (arch_has_pmem_api())
+	if (arch_has_wmb_pmem())
 		arch_wmb_pmem();
+	else
+		wmb();
 }
 
 /**

@@ -18,8 +18,6 @@
 #include <asm/cpufeature.h>
 #include <asm/special_insns.h>
 
-#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
-
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 /**
  * arch_memcpy_to_pmem - copy data to persistent memory
@@ -143,18 +141,13 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
 	__arch_wb_cache_pmem(vaddr, size);
 }
 
-static inline bool arch_has_wmb_pmem(void)
+static inline bool __arch_has_wmb_pmem(void)
 {
-#ifdef CONFIG_X86_64
 	/*
 	 * We require that wmb() be an 'sfence', that is only guaranteed on
 	 * 64-bit builds
 	 */
 	return static_cpu_has(X86_FEATURE_PCOMMIT);
-#else
-	return false;
-#endif
 }
 #endif /* CONFIG_ARCH_HAS_PMEM_API */
-
 #endif /* __ASM_X86_PMEM_H__ */
