@@ -324,6 +324,8 @@ struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
 struct dso *dsos__findnew(struct dsos *dsos, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 
+void dso__reset_find_symbol_cache(struct dso *dso);
+
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 			       bool (skip)(struct dso *dso, int parm), int parm);
 size_t __dsos__fprintf(struct list_head *head, FILE *fp);

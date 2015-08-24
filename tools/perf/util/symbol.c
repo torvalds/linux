@@ -441,6 +441,16 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 	return &s->sym;
 }
 
+void dso__reset_find_symbol_cache(struct dso *dso)
+{
+	enum map_type type;
+
+	for (type = MAP__FUNCTION; type <= MAP__VARIABLE; ++type) {
+		dso->last_find_result[type].addr   = 0;
+		dso->last_find_result[type].symbol = NULL;
+	}
+}
+
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
