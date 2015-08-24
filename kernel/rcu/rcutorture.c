@@ -695,7 +695,7 @@ static bool __maybe_unused torturing_tasks(void)
 
 #define RCUTORTURE_TASKS_OPS
 
-static bool torturing_tasks(void)
+static bool __maybe_unused torturing_tasks(void)
 {
 	return false;
 }
