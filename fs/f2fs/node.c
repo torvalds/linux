@@ -902,17 +902,20 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
  * Caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
  */
-void remove_inode_page(struct inode *inode)
+int remove_inode_page(struct inode *inode)
 {
 	struct dnode_of_data dn;
+	int err;
 
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
-	if (get_dnode_of_data(&dn, 0, LOOKUP_NODE))
-		return;
+	err = get_dnode_of_data(&dn, 0, LOOKUP_NODE);
+	if (err)
+		return err;
 
-	if (truncate_xattr_node(inode, dn.inode_page)) {
+	err = truncate_xattr_node(inode, dn.inode_page);
+	if (err) {
 		f2fs_put_dnode(&dn);
-		return;
+		return err;
 	}
 
 	/* remove potential inline_data blocks */
@@ -926,6 +929,7 @@ void remove_inode_page(struct inode *inode)
 
 	/* will put inode & node pages */
 	truncate_node(&dn);
+	return 0;
 }
 
 struct page *new_inode_page(struct inode *inode)

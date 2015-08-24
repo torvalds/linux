@@ -317,6 +317,7 @@ void f2fs_evict_inode(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	nid_t xnid = fi->i_xattr_nid;
+	int err = 0;
 
 	/* some remained atomic pages should discarded */
 	if (f2fs_is_atomic_file(inode))
@@ -342,11 +343,13 @@ void f2fs_evict_inode(struct inode *inode)
 	i_size_write(inode, 0);
 
 	if (F2FS_HAS_BLOCKS(inode))
-		f2fs_truncate(inode, true);
+		err = f2fs_truncate(inode, true);
 
-	f2fs_lock_op(sbi);
-	remove_inode_page(inode);
-	f2fs_unlock_op(sbi);
+	if (!err) {
+		f2fs_lock_op(sbi);
+		err = remove_inode_page(inode);
+		f2fs_unlock_op(sbi);
+	}
 
 	sb_end_intwrite(inode->i_sb);
 no_delete:
@@ -362,8 +365,25 @@ no_delete:
 	if (is_inode_flag_set(fi, FI_UPDATE_WRITE))
 		add_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
 	if (is_inode_flag_set(fi, FI_FREE_NID)) {
-		alloc_nid_failed(sbi, inode->i_ino);
+		if (err && err != -ENOENT)
+			alloc_nid_done(sbi, inode->i_ino);
+		else
+			alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(fi, FI_FREE_NID);
+	}
+
+	if (err && err != -ENOENT) {
+		if (!exist_written_data(sbi, inode->i_ino, ORPHAN_INO)) {
+			/*
+			 * get here because we failed to release resource
+			 * of inode previously, reminder our user to run fsck
+			 * for fixing.
+			 */
+			set_sbi_flag(sbi, SBI_NEED_FSCK);
+			f2fs_msg(sbi->sb, KERN_WARNING,
+				"inode (ino:%lu) resource leak, run fsck "
+				"to fix this issue!", inode->i_ino);
+		}
 	}
 out_clear:
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
@@ -377,6 +397,7 @@ out_clear:
 void handle_failed_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	int err = 0;
 
 	clear_nlink(inode);
 	make_bad_inode(inode);
@@ -384,9 +405,27 @@ void handle_failed_inode(struct inode *inode)
 
 	i_size_write(inode, 0);
 	if (F2FS_HAS_BLOCKS(inode))
-		f2fs_truncate(inode, false);
+		err = f2fs_truncate(inode, false);
 
-	remove_inode_page(inode);
+	if (!err)
+		err = remove_inode_page(inode);
+
+	/*
+	 * if we skip truncate_node in remove_inode_page bacause we failed
+	 * before, it's better to find another way to release resource of
+	 * this inode (e.g. valid block count, node block or nid). Here we
+	 * choose to add this inode to orphan list, so that we can call iput
+	 * for releasing in orphan recovery flow.
+	 *
+	 * Note: we should add inode to orphan list before f2fs_unlock_op()
+	 * so we can prevent losing this orphan when encoutering checkpoint
+	 * and following suddenly power-off.
+	 */
+	if (err && err != -ENOENT) {
+		err = acquire_orphan_inode(sbi);
+		if (!err)
+			add_orphan_inode(sbi, inode->i_ino);
+	}
 
 	set_inode_flag(F2FS_I(inode), FI_FREE_NID);
 	f2fs_unlock_op(sbi);
