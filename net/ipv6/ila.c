@@ -14,6 +14,8 @@
 
 struct ila_params {
 	__be64 locator;
+	__be64 locator_match;
+	__wsum csum_diff;
 };
 
 static inline struct ila_params *ila_params_lwtunnel(
@@ -33,6 +35,9 @@ static inline __wsum compute_csum_diff8(const __be32 *from, const __be32 *to)
 
 static inline __wsum get_csum_diff(struct ipv6hdr *ip6h, struct ila_params *p)
 {
+	if (*(__be64 *)&ip6h->daddr == p->locator_match)
+		return p->csum_diff;
+	else
 		return compute_csum_diff8((__be32 *)&ip6h->daddr,
 					  (__be32 *)&p->locator);
 }
@@ -130,7 +135,11 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	struct nlattr *tb[ILA_ATTR_MAX + 1];
 	size_t encap_len = sizeof(*p);
 	struct lwtunnel_state *newts;
+	const struct fib6_config *cfg6 = cfg;
 	int ret;
+
+	if (family != AF_INET6)
+		return -EINVAL;
 
 	ret = nla_parse_nested(tb, ILA_ATTR_MAX, nla,
 			       ila_nl_policy);
@@ -148,6 +157,15 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	p = ila_params_lwtunnel(newts);
 
 	p->locator = (__force __be64)nla_get_u64(tb[ILA_ATTR_LOCATOR]);
+
+	if (cfg6->fc_dst_len > sizeof(__be64)) {
+		/* Precompute checksum difference for translation since we
+		 * know both the old locator and the new one.
+		 */
+		p->locator_match = *(__be64 *)&cfg6->fc_dst;
+		p->csum_diff = compute_csum_diff8(
+			(__be32 *)&p->locator_match, (__be32 *)&p->locator);
+	}
 
 	newts->type = LWTUNNEL_ENCAP_ILA;
 	newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT |
