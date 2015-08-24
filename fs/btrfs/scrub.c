@@ -251,11 +251,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 				struct scrub_block *sblock, int is_metadata,
 				int have_csum, u8 *csum, u64 generation,
 				u16 csum_size, int retry_failed_mirror);
-static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
-					 struct scrub_block *sblock,
-					 int is_metadata, int have_csum,
-					 const u8 *csum, u64 generation,
-					 u16 csum_size);
+static void scrub_recheck_block_checksum(struct scrub_block *sblock);
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
 					     struct scrub_block *sblock_good);
 static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
@@ -1493,9 +1489,6 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	int page_num;
 
 	sblock->no_io_error_seen = 1;
-	sblock->header_error = 0;
-	sblock->checksum_error = 0;
-	sblock->generation_error = 0;
 
 	for (page_num = 0; page_num < sblock->page_count; page_num++) {
 		struct bio *bio;
@@ -1531,9 +1524,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	}
 
 	if (sblock->no_io_error_seen)
-		scrub_recheck_block_checksum(fs_info, sblock, is_metadata,
-					     have_csum, csum, generation,
-					     csum_size);
+		scrub_recheck_block_checksum(sblock);
 
 	return;
 }
@@ -1548,61 +1539,16 @@ static inline int scrub_check_fsid(u8 fsid[],
 	return !ret;
 }
 
-static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
-					 struct scrub_block *sblock,
-					 int is_metadata, int have_csum,
-					 const u8 *csum, u64 generation,
-					 u16 csum_size)
+static void scrub_recheck_block_checksum(struct scrub_block *sblock)
 {
-	int page_num;
-	u8 calculated_csum[BTRFS_CSUM_SIZE];
-	u32 crc = ~(u32)0;
-	void *mapped_buffer;
+	sblock->header_error = 0;
+	sblock->checksum_error = 0;
+	sblock->generation_error = 0;
 
-	WARN_ON(!sblock->pagev[0]->page);
-	if (is_metadata) {
-		struct btrfs_header *h;
-
-		mapped_buffer = kmap_atomic(sblock->pagev[0]->page);
-		h = (struct btrfs_header *)mapped_buffer;
-
-		if (sblock->pagev[0]->logical != btrfs_stack_header_bytenr(h) ||
-		    !scrub_check_fsid(h->fsid, sblock->pagev[0]) ||
-		    memcmp(h->chunk_tree_uuid, fs_info->chunk_tree_uuid,
-			   BTRFS_UUID_SIZE)) {
-			sblock->header_error = 1;
-		} else if (generation != btrfs_stack_header_generation(h)) {
-			sblock->header_error = 1;
-			sblock->generation_error = 1;
-		}
-		csum = h->csum;
-	} else {
-		if (!have_csum)
-			return;
-
-		mapped_buffer = kmap_atomic(sblock->pagev[0]->page);
-	}
-
-	for (page_num = 0;;) {
-		if (page_num == 0 && is_metadata)
-			crc = btrfs_csum_data(
-				((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE,
-				crc, PAGE_SIZE - BTRFS_CSUM_SIZE);
-		else
-			crc = btrfs_csum_data(mapped_buffer, crc, PAGE_SIZE);
-
-		kunmap_atomic(mapped_buffer);
-		page_num++;
-		if (page_num >= sblock->page_count)
-			break;
-		WARN_ON(!sblock->pagev[page_num]->page);
-
-		mapped_buffer = kmap_atomic(sblock->pagev[page_num]->page);
-	}
-
-	btrfs_csum_final(crc, calculated_csum);
-	if (memcmp(calculated_csum, csum, csum_size))
-		sblock->checksum_error = 1;
+	if (sblock->pagev[0]->flags & BTRFS_EXTENT_FLAG_DATA)
+		scrub_checksum_data(sblock);
+	else
+		scrub_checksum_tree_block(sblock);
 }
 
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
@@ -1846,6 +1792,18 @@ static int scrub_checksum(struct scrub_block *sblock)
 	u64 flags;
 	int ret;
 
+	/*
+	 * No need to initialize these stats currently,
+	 * because this function only use return value
+	 * instead of these stats value.
+	 *
+	 * Todo:
+	 * always use stats
+	 */
+	sblock->header_error = 0;
+	sblock->generation_error = 0;
+	sblock->checksum_error = 0;
+
 	WARN_ON(sblock->page_count < 1);
 	flags = sblock->pagev[0]->flags;
 	ret = 0;
@@ -1871,7 +1829,6 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	struct page *page;
 	void *buffer;
 	u32 crc = ~(u32)0;
-	int fail = 0;
 	u64 len;
 	int index;
 
@@ -1902,9 +1859,9 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 
 	btrfs_csum_final(crc, csum);
 	if (memcmp(csum, on_disk_csum, sctx->csum_size))
-		fail = 1;
+		sblock->checksum_error = 1;
 
-	return fail;
+	return sblock->checksum_error;
 }
 
 static int scrub_checksum_tree_block(struct scrub_block *sblock)
@@ -1920,8 +1877,6 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	u64 mapped_size;
 	void *p;
 	u32 crc = ~(u32)0;
-	int fail = 0;
-	int crc_fail = 0;
 	u64 len;
 	int index;
 
@@ -1936,19 +1891,20 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	 * a) don't have an extent buffer and
 	 * b) the page is already kmapped
 	 */
-
 	if (sblock->pagev[0]->logical != btrfs_stack_header_bytenr(h))
-		++fail;
+		sblock->header_error = 1;
 
-	if (sblock->pagev[0]->generation != btrfs_stack_header_generation(h))
-		++fail;
+	if (sblock->pagev[0]->generation != btrfs_stack_header_generation(h)) {
+		sblock->header_error = 1;
+		sblock->generation_error = 1;
+	}
 
 	if (!scrub_check_fsid(h->fsid, sblock->pagev[0]))
-		++fail;
+		sblock->header_error = 1;
 
 	if (memcmp(h->chunk_tree_uuid, fs_info->chunk_tree_uuid,
 		   BTRFS_UUID_SIZE))
-		++fail;
+		sblock->header_error = 1;
 
 	len = sctx->nodesize - BTRFS_CSUM_SIZE;
 	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
@@ -1973,9 +1929,9 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 
 	btrfs_csum_final(crc, calculated_csum);
 	if (memcmp(calculated_csum, on_disk_csum, sctx->csum_size))
-		++crc_fail;
+		sblock->checksum_error = 1;
 
-	return fail || crc_fail;
+	return sblock->header_error || sblock->checksum_error;
 }
 
 static int scrub_checksum_super(struct scrub_block *sblock)
@@ -2189,42 +2145,28 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 {
 	struct scrub_block *sblock = container_of(work, struct scrub_block, work);
 	struct scrub_ctx *sctx = sblock->sctx;
-	struct btrfs_fs_info *fs_info = sctx->dev_root->fs_info;
-	unsigned int is_metadata;
-	unsigned int have_csum;
-	u8 *csum;
-	u64 generation;
 	u64 logical;
 	struct btrfs_device *dev;
 
-	is_metadata = !(sblock->pagev[0]->flags & BTRFS_EXTENT_FLAG_DATA);
-	have_csum = sblock->pagev[0]->have_csum;
-	csum = sblock->pagev[0]->csum;
-	generation = sblock->pagev[0]->generation;
 	logical = sblock->pagev[0]->logical;
 	dev = sblock->pagev[0]->dev;
 
-	sblock->header_error = 0;
-	sblock->checksum_error = 0;
-	sblock->generation_error = 0;
 	if (sblock->no_io_error_seen) {
-		scrub_recheck_block_checksum(fs_info, sblock, is_metadata,
-					     have_csum, csum, generation,
-					     sctx->csum_size);
+		scrub_recheck_block_checksum(sblock);
 	}
 
 	if (!sblock->no_io_error_seen) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors++;
 		spin_unlock(&sctx->stat_lock);
-		btrfs_err_rl_in_rcu(fs_info,
+		btrfs_err_rl_in_rcu(sctx->dev_root->fs_info,
 			"IO error rebuilding logical %llu for dev %s",
 			logical, rcu_str_deref(dev->name));
 	} else if (sblock->header_error || sblock->checksum_error) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.uncorrectable_errors++;
 		spin_unlock(&sctx->stat_lock);
-		btrfs_err_rl_in_rcu(fs_info,
+		btrfs_err_rl_in_rcu(sctx->dev_root->fs_info,
 			"failed to rebuild valid logical %llu for dev %s",
 			logical, rcu_str_deref(dev->name));
 	} else {
