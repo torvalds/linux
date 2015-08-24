@@ -528,8 +528,7 @@ struct iscsi_conn {
 	u32			exp_statsn;
 	/* Per connection status sequence number */
 	u32			stat_sn;
-#define IPV6_ADDRESS_SPACE				48
-	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
+	struct __kernel_sockaddr_storage login_sockaddr;
 	struct __kernel_sockaddr_storage local_sockaddr;
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;

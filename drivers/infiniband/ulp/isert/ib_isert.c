@@ -3206,28 +3206,11 @@ isert_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
 {
 	struct rdma_cm_id *cm_id = isert_conn->cm_id;
 	struct rdma_route *cm_route = &cm_id->route;
-	struct sockaddr_in *sock_in;
-	struct sockaddr_in6 *sock_in6;
 
 	conn->login_family = np->np_sockaddr.ss_family;
 
-	if (np->np_sockaddr.ss_family == AF_INET6) {
-		sock_in6 = (struct sockaddr_in6 *)&cm_route->addr.dst_addr;
-		snprintf(conn->login_ip, sizeof(conn->login_ip), "%pI6c",
-			 &sock_in6->sin6_addr.in6_u);
-		conn->login_port = ntohs(sock_in6->sin6_port);
-
-		sock_in6 = (struct sockaddr_in6 *)&cm_route->addr.src_addr;
-		memcpy(&conn->local_sockaddr , &sock_in6, sizeof(sock_in6));
-	} else {
-		sock_in = (struct sockaddr_in *)&cm_route->addr.dst_addr;
-		sprintf(conn->login_ip, "%pI4",
-			&sock_in->sin_addr.s_addr);
-		conn->login_port = ntohs(sock_in->sin_port);
-
-		sock_in = (struct sockaddr_in *)&cm_route->addr.src_addr;
-		memcpy(&conn->local_sockaddr , &sock_in, sizeof(sock_in));
-	}
+	conn->login_sockaddr = cm_route->addr.dst_addr;
+	conn->local_sockaddr = cm_route->addr.src_addr;
 }
 
 static int
