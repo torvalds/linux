@@ -31,6 +31,13 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
 
+- Google Jaq (Haier Chromebook 11 and more):
+    Required root node properties:
+      - compatible = "google,veyron-jaq-rev5", "google,veyron-jaq-rev4",
+		     "google,veyron-jaq-rev3", "google,veyron-jaq-rev2",
+		     "google,veyron-jaq-rev1", "google,veyron-jaq",
+		     "google,veyron", "rockchip,rk3288";
+
 - Google Jerry (Hisense Chromebook C11 and more):
     Required root node properties:
       - compatible = "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
