@@ -12,7 +12,6 @@
 #include <linux/f2fs_fs.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
-#include <linux/bitops.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -34,8 +33,8 @@ void f2fs_set_inode_flags(struct inode *inode)
 		new_fl |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
 		new_fl |= S_DIRSYNC;
-	set_mask_bits(&inode->i_flags,
-			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC, new_fl);
+	inode_set_flags(inode, new_fl,
+			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
 }
 
 static void __get_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
