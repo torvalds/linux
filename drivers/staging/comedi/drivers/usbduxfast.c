@@ -97,7 +97,7 @@
 /*
  * size of one A/D value
  */
-#define SIZEADIN	(sizeof(int16_t))
+#define SIZEADIN	(sizeof(s16))
 
 /*
  * size of the input-buffer IN BYTES
@@ -156,8 +156,8 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  */
 struct usbduxfast_private {
 	struct urb *urb;	/* BULK-transfer handling: urb */
-	uint8_t *duxbuf;
-	int8_t *inbuf;
+	u8 *duxbuf;
+	s8 *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
 	int ignore;		/* counter which ignores the first
 				   buffers */
@@ -190,8 +190,7 @@ static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
 }
 
 static void usbduxfast_cmd_data(struct comedi_device *dev, int index,
-				uint8_t len, uint8_t op, uint8_t out,
-				uint8_t log)
+				u8 len, u8 op, u8 out, u8 log)
 {
 	struct usbduxfast_private *devpriv = dev->private;
 
@@ -812,7 +811,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	struct usbduxfast_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	uint8_t rngmask = range ? (0xff - 0x04) : 0xff;
+	u8 rngmask = range ? (0xff - 0x04) : 0xff;
 	int i, j, n, actual_length;
 	int ret;
 
@@ -867,14 +866,14 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 			up(&devpriv->sem);
 			return ret;
 		}
-		n = actual_length / sizeof(uint16_t);
+		n = actual_length / sizeof(u16);
 		if ((n % 16) != 0) {
 			dev_err(dev->class_dev, "insn data packet corrupted\n");
 			up(&devpriv->sem);
 			return -EINVAL;
 		}
 		for (j = chan; (j < n) && (i < insn->n); j = j + 16) {
-			data[i] = ((uint16_t *) (devpriv->inbuf))[j];
+			data[i] = ((u16 *)(devpriv->inbuf))[j];
 			i++;
 		}
 	}
@@ -922,7 +921,7 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 				      unsigned long context)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
-	uint8_t *buf;
+	u8 *buf;
 	unsigned char *tmp;
 	int ret;
 
