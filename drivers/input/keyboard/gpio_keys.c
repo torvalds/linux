@@ -239,6 +239,11 @@ static ssize_t gpio_keys_attr_store_helper(struct gpio_keys_drvdata *ddata,
 		}
 	}
 
+	if (i == ddata->pdata->nbuttons) {
+		error = -EINVAL;
+		goto out;
+	}
+
 	mutex_lock(&ddata->disable_lock);
 
 	for (i = 0; i < ddata->pdata->nbuttons; i++) {
