@@ -470,14 +470,12 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int rngmask = 0xff;
 	int j, ret;
-	int result;
 	long steps, steps_tmp;
 
 	down(&devpriv->sem);
 	if (devpriv->ai_cmd_running) {
-		dev_err(dev->class_dev, "ai_cmd not possible\n");
-		up(&devpriv->sem);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto cmd_exit;
 	}
 
 	/*
@@ -734,11 +732,9 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	}
 
 	/* 0 means that the AD commands are sent */
-	result = usbduxfast_send_cmd(dev, SENDADCOMMANDS);
-	if (result < 0) {
-		up(&devpriv->sem);
-		return result;
-	}
+	ret = usbduxfast_send_cmd(dev, SENDADCOMMANDS);
+	if (ret < 0)
+		goto cmd_exit;
 
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
@@ -747,16 +743,17 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		if (ret < 0) {
 			devpriv->ai_cmd_running = 0;
 			/* fixme: unlink here?? */
-			up(&devpriv->sem);
-			return ret;
+			goto cmd_exit;
 		}
 		s->async->inttrig = NULL;
 	} else {	/* TRIG_INT */
 		s->async->inttrig = usbduxfast_ai_inttrig;
 	}
+
+cmd_exit:
 	up(&devpriv->sem);
 
-	return 0;
+	return ret;
 }
 
 /*
