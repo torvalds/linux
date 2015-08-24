@@ -326,6 +326,9 @@ struct media_link *media_create_intf_link(struct media_entity *entity,
 					    struct media_interface *intf,
 					    u32 flags);
 void media_remove_intf_link(struct media_link *link);
+void __media_remove_intf_links(struct media_interface *intf);
+void media_remove_intf_links(struct media_interface *intf);
+
 
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\

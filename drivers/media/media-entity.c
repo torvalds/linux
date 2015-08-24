@@ -891,6 +891,7 @@ EXPORT_SYMBOL_GPL(media_devnode_create);
 
 void media_devnode_remove(struct media_intf_devnode *devnode)
 {
+	media_remove_intf_links(&devnode->intf);
 	media_gobj_remove(&devnode->intf.graph_obj);
 	kfree(devnode);
 }
@@ -932,3 +933,25 @@ void media_remove_intf_link(struct media_link *link)
 	mutex_unlock(&link->graph_obj.mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_link);
+
+void __media_remove_intf_links(struct media_interface *intf)
+{
+	struct media_link *link, *tmp;
+
+	list_for_each_entry_safe(link, tmp, &intf->links, list)
+		__media_remove_intf_link(link);
+
+}
+EXPORT_SYMBOL_GPL(__media_remove_intf_links);
+
+void media_remove_intf_links(struct media_interface *intf)
+{
+	/* Do nothing if the intf is not registered. */
+	if (intf->graph_obj.mdev == NULL)
+		return;
+
+	mutex_lock(&intf->graph_obj.mdev->graph_mutex);
+	__media_remove_intf_links(intf);
+	mutex_unlock(&intf->graph_obj.mdev->graph_mutex);
+}
+EXPORT_SYMBOL_GPL(media_remove_intf_links);
