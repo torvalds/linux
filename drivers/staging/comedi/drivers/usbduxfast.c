@@ -332,6 +332,31 @@ static int usbduxfast_submit_urb(struct comedi_device *dev)
 	return 0;
 }
 
+static int usbduxfast_ai_check_chanlist(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_cmd *cmd)
+{
+	unsigned int gain0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; ++i) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int gain = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan != i) {
+			dev_err(dev->class_dev,
+				"channels are not consecutive\n");
+			return -EINVAL;
+		}
+		if (gain != gain0 && cmd->chanlist_len > 3) {
+			dev_err(dev->class_dev,
+				"gain must be the same for all channels\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
@@ -417,7 +442,13 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
+	/* Step 4: fix up any arguments */
+
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= usbduxfast_ai_check_chanlist(dev, s, cmd);
+	if (err)
+		return 5;
 
 	return 0;
 }
@@ -460,8 +491,8 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 {
 	struct usbduxfast_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int chan, gain, rngmask = 0xff;
-	int i, j, ret;
+	unsigned int rngmask = 0xff;
+	int j, ret;
 	int result;
 	long steps, steps_tmp;
 
@@ -481,27 +512,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	 */
 	devpriv->ignore = PACKETS_TO_IGNORE;
 
-	gain = CR_RANGE(cmd->chanlist[0]);
-	for (i = 0; i < cmd->chanlist_len; ++i) {
-		chan = CR_CHAN(cmd->chanlist[i]);
-		if (chan != i) {
-			dev_err(dev->class_dev,
-				"channels are not consecutive\n");
-			up(&devpriv->sem);
-			return -EINVAL;
-		}
-		if ((gain != CR_RANGE(cmd->chanlist[i]))
-			&& (cmd->chanlist_len > 3)) {
-			dev_err(dev->class_dev,
-				"gain must be the same for all channels\n");
-			up(&devpriv->sem);
-			return -EINVAL;
-		}
-		if (i >= NUMCHANNELS) {
-			dev_err(dev->class_dev, "chanlist too long\n");
-			break;
-		}
-	}
 	steps = 0;
 	if (cmd->convert_src == TRIG_TIMER)
 		steps = (cmd->convert_arg * 30) / 1000;
