@@ -579,24 +579,30 @@ out:
 	return err;
 }
 
-void f2fs_truncate(struct inode *inode, bool lock)
+int f2fs_truncate(struct inode *inode, bool lock)
 {
+	int err;
+
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 				S_ISLNK(inode->i_mode)))
-		return;
+		return 0;
 
 	trace_f2fs_truncate(inode);
 
 	/* we should check inline_data size */
 	if (f2fs_has_inline_data(inode) && !f2fs_may_inline_data(inode)) {
-		if (f2fs_convert_inline_inode(inode))
-			return;
+		err = f2fs_convert_inline_inode(inode);
+		if (err)
+			return err;
 	}
 
-	if (!truncate_blocks(inode, i_size_read(inode), lock)) {
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		mark_inode_dirty(inode);
-	}
+	err = truncate_blocks(inode, i_size_read(inode), lock);
+	if (err)
+		return err;
+
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 int f2fs_getattr(struct vfsmount *mnt,
@@ -656,7 +662,9 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 
 		if (attr->ia_size <= i_size_read(inode)) {
 			truncate_setsize(inode, attr->ia_size);
-			f2fs_truncate(inode, true);
+			err = f2fs_truncate(inode, true);
+			if (err)
+				return err;
 			f2fs_balance_fs(F2FS_I_SB(inode));
 		} else {
 			/*
