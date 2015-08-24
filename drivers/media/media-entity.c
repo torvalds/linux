@@ -242,13 +242,6 @@ EXPORT_SYMBOL_GPL(media_entity_init);
 void
 media_entity_cleanup(struct media_entity *entity)
 {
-	struct media_link *link, *tmp;
-
-	list_for_each_entry_safe(link, tmp, &entity->links, list) {
-		media_gobj_remove(&link->graph_obj);
-		list_del(&link->list);
-		kfree(link);
-	}
 }
 EXPORT_SYMBOL_GPL(media_entity_cleanup);
 
