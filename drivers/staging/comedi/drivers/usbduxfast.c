@@ -842,17 +842,12 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 
 static int usbduxfast_attach_common(struct comedi_device *dev)
 {
-	struct usbduxfast_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
 
-	down(&devpriv->sem);
-
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret) {
-		up(&devpriv->sem);
+	if (ret)
 		return ret;
-	}
 
 	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
@@ -867,8 +862,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 	s->cancel	= usbduxfast_ai_cancel;
 	s->maxdata	= 0x1000;	/* 12-bit + 1 overflow bit */
 	s->range_table	= &range_usbduxfast_ai_range;
-
-	up(&devpriv->sem);
 
 	return 0;
 }
