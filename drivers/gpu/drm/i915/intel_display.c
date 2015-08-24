@@ -11627,7 +11627,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		intel_crtc->atomic.update_wm_pre = true;
 	}
 
-	if (visible)
+	if (visible || was_visible)
 		intel_crtc->atomic.fb_bits |=
 			to_intel_plane(plane)->frontbuffer_bit;
 
