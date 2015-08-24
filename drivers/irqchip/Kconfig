@@ -181,3 +181,9 @@ config RENESAS_H8300H_INTC
 config RENESAS_H8S_INTC
         bool
 	select IRQ_DOMAIN
+
+config IMX_GPCV2
+	bool
+	select IRQ_DOMAIN
+	help
+	  Enables the wakeup IRQs for IMX platforms with GPCv2 block
