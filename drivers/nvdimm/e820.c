@@ -49,6 +49,7 @@ static int e820_pmem_probe(struct platform_device *pdev)
 		ndr_desc.res = p;
 		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
 		ndr_desc.numa_node = NUMA_NO_NODE;
+		set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
 			goto err;
 	}

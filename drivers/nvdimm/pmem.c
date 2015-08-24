@@ -148,9 +148,18 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 		return ERR_PTR(-EBUSY);
 	}
 
-	pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr, pmem->size);
-	if (!pmem->virt_addr)
-		return ERR_PTR(-ENXIO);
+	if (pmem_should_map_pages(dev)) {
+		void *addr = devm_memremap_pages(dev, res);
+
+		if (IS_ERR(addr))
+			return addr;
+		pmem->virt_addr = (void __pmem *) addr;
+	} else {
+		pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr,
+				pmem->size);
+		if (!pmem->virt_addr)
+			return ERR_PTR(-ENXIO);
+	}
 
 	return pmem;
 }
