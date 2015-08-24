@@ -359,8 +359,8 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 				 struct comedi_cmd *cmd)
 {
 	int err = 0;
-	long int steps, tmp;
-	int min_sample_period;
+	unsigned int steps;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -399,21 +399,20 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
 
-	if (cmd->chanlist_len == 1)
-		min_sample_period = 1;
-	else
-		min_sample_period = MIN_SAMPLING_PERIOD;
-
-	steps = cmd->convert_arg * 30;
-	if (steps < (min_sample_period * 1000))
-		steps = min_sample_period * 1000;
-
-	if (steps > (MAX_SAMPLING_PERIOD * 1000))
-		steps = MAX_SAMPLING_PERIOD * 1000;
-
-	/* calc arg again */
-	tmp = steps / 30;
-	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
+	/*
+	 * Validate the conversion timing:
+	 * for 1 channel the timing in 30MHz "steps" is:
+	 *	steps <= MAX_SAMPLING_PERIOD
+	 * for all other chanlist_len it is:
+	 *	MIN_SAMPLING_PERIOD <= steps <= MAX_SAMPLING_PERIOD
+	 */
+	steps = (cmd->convert_arg * 30) / 1000;
+	if (cmd->chanlist_len !=  1)
+		err |= comedi_check_trigger_arg_min(&steps,
+						    MIN_SAMPLING_PERIOD);
+	err |= comedi_check_trigger_arg_max(&steps, MAX_SAMPLING_PERIOD);
+	arg = (steps * 1000) / 30;
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
@@ -488,19 +487,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	devpriv->ignore = PACKETS_TO_IGNORE;
 
 	steps = (cmd->convert_arg * 30) / 1000;
-
-	if ((steps < MIN_SAMPLING_PERIOD) && (cmd->chanlist_len != 1)) {
-		dev_err(dev->class_dev,
-			"steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n",
-			steps, cmd->scan_begin_arg);
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
-	if (steps > MAX_SAMPLING_PERIOD) {
-		dev_err(dev->class_dev, "sampling rate too low\n");
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
 
 	switch (cmd->chanlist_len) {
 	case 1:
