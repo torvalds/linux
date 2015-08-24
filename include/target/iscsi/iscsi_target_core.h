@@ -787,7 +787,6 @@ struct iscsi_np {
 	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;
-	unsigned char		np_ip[IPV6_ADDRESS_SPACE];
 	u16			np_port;
 	spinlock_t		np_thread_lock;
 	struct completion	np_restart_comp;
