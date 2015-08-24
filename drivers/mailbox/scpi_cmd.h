@@ -16,7 +16,7 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define SCPI_VERSION		0x01000000	/* version: 1.0.0.0 */
+#define SCPI_VERSION		0x01000001	/* version: 1.0.0.0 */
 
 enum scpi_error_codes {
 	SCPI_SUCCESS = 0, /* Success */
