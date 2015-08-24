@@ -672,12 +672,6 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
 		.tid = cfg->tid,
 	};
 
-	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
-		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, cfg,
-					 wdg_timeout);
-		return;
-	}
-
 	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL, wdg_timeout);
 	WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd),
 	     "Failed to configure queue %d on FIFO %d\n", queue, cfg->fifo);
@@ -690,11 +684,6 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags)
 		.enable = 0,
 	};
 	int ret;
-
-	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
-		iwl_trans_txq_disable(mvm->trans, queue, true);
-		return;
-	}
 
 	iwl_trans_txq_disable(mvm->trans, queue, false);
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, flags,
