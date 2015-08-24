@@ -248,9 +248,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check);
 static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 				     struct scrub_block *sblocks_for_recheck);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
-				struct scrub_block *sblock, int is_metadata,
-				int have_csum, u8 *csum, u64 generation,
-				u16 csum_size, int retry_failed_mirror);
+				struct scrub_block *sblock,
+				int retry_failed_mirror);
 static void scrub_recheck_block_checksum(struct scrub_block *sblock);
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
 					     struct scrub_block *sblock_good);
@@ -885,11 +884,9 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	struct btrfs_fs_info *fs_info;
 	u64 length;
 	u64 logical;
-	u64 generation;
 	unsigned int failed_mirror_index;
 	unsigned int is_metadata;
 	unsigned int have_csum;
-	u8 *csum;
 	struct scrub_block *sblocks_for_recheck; /* holds one for each mirror */
 	struct scrub_block *sblock_bad;
 	int ret;
@@ -914,13 +911,11 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	}
 	length = sblock_to_check->page_count * PAGE_SIZE;
 	logical = sblock_to_check->pagev[0]->logical;
-	generation = sblock_to_check->pagev[0]->generation;
 	BUG_ON(sblock_to_check->pagev[0]->mirror_num < 1);
 	failed_mirror_index = sblock_to_check->pagev[0]->mirror_num - 1;
 	is_metadata = !(sblock_to_check->pagev[0]->flags &
 			BTRFS_EXTENT_FLAG_DATA);
 	have_csum = sblock_to_check->pagev[0]->have_csum;
-	csum = sblock_to_check->pagev[0]->csum;
 	dev = sblock_to_check->pagev[0]->dev;
 
 	if (sctx->is_dev_replace && !is_metadata && !have_csum) {
@@ -983,8 +978,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	sblock_bad = sblocks_for_recheck + failed_mirror_index;
 
 	/* build and submit the bios for the failed mirror, check checksums */
-	scrub_recheck_block(fs_info, sblock_bad, is_metadata, have_csum,
-			    csum, generation, sctx->csum_size, 1);
+	scrub_recheck_block(fs_info, sblock_bad, 1);
 
 	if (!sblock_bad->header_error && !sblock_bad->checksum_error &&
 	    sblock_bad->no_io_error_seen) {
@@ -1097,9 +1091,7 @@ nodatasum_case:
 		sblock_other = sblocks_for_recheck + mirror_index;
 
 		/* build and submit the bios, check checksums */
-		scrub_recheck_block(fs_info, sblock_other, is_metadata,
-				    have_csum, csum, generation,
-				    sctx->csum_size, 0);
+		scrub_recheck_block(fs_info, sblock_other, 0);
 
 		if (!sblock_other->header_error &&
 		    !sblock_other->checksum_error &&
@@ -1211,9 +1203,7 @@ nodatasum_case:
 			 * is verified, but most likely the data comes out
 			 * of the page cache.
 			 */
-			scrub_recheck_block(fs_info, sblock_bad,
-					    is_metadata, have_csum, csum,
-					    generation, sctx->csum_size, 1);
+			scrub_recheck_block(fs_info, sblock_bad, 1);
 			if (!sblock_bad->header_error &&
 			    !sblock_bad->checksum_error &&
 			    sblock_bad->no_io_error_seen)
@@ -1482,9 +1472,8 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
  * the pages that are errored in the just handled mirror can be repaired.
  */
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
-				struct scrub_block *sblock, int is_metadata,
-				int have_csum, u8 *csum, u64 generation,
-				u16 csum_size, int retry_failed_mirror)
+				struct scrub_block *sblock,
+				int retry_failed_mirror)
 {
 	int page_num;
 
@@ -2151,9 +2140,8 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 	logical = sblock->pagev[0]->logical;
 	dev = sblock->pagev[0]->dev;
 
-	if (sblock->no_io_error_seen) {
+	if (sblock->no_io_error_seen)
 		scrub_recheck_block_checksum(sblock);
-	}
 
 	if (!sblock->no_io_error_seen) {
 		spin_lock(&sctx->stat_lock);
