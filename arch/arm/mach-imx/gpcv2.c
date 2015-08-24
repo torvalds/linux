@@ -584,27 +584,31 @@ static int imx_mipi_regulator_notify(struct notifier_block *nb,
 {
 	u32 val = 0;
 
+	val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
+	writel_relaxed(val | BIT(2), gpc_base + GPC_PGC_CPU_MAPPING);
+
 	switch (event) {
 	case REGULATOR_EVENT_PRE_DO_ENABLE:
-		val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
-		writel_relaxed(val | BIT(2), gpc_base + GPC_PGC_CPU_MAPPING);
-
 		val = readl_relaxed(gpc_base + GPC_PU_PGC_SW_PUP_REQ);
 		writel_relaxed(val | BIT(0), gpc_base + GPC_PU_PGC_SW_PUP_REQ);
+		while (readl_relaxed(gpc_base + GPC_PU_PGC_SW_PUP_REQ) & BIT(0))
+			;
 		break;
 	case REGULATOR_EVENT_PRE_DO_DISABLE:
+		/* only disable phy need to set PGC bit, enable does NOT need */
+		imx_gpcv2_set_m_core_pgc(true, GPC_PGC_MIPI_PHY);
 		val = readl_relaxed(gpc_base + GPC_PU_PGC_SW_PDN_REQ);
 		writel_relaxed(val | BIT(0), gpc_base + GPC_PU_PGC_SW_PDN_REQ);
-
-		val = readl_relaxed(gpc_base + GPC_PGC_MIPI_PHY);
-		writel_relaxed(val | BIT(0), gpc_base + GPC_PGC_MIPI_PHY);
-
-		val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
-		writel_relaxed(val & ~BIT(2), gpc_base + GPC_PGC_CPU_MAPPING);
+		while (readl_relaxed(gpc_base + GPC_PU_PGC_SW_PDN_REQ) & BIT(0))
+			;
+		imx_gpcv2_set_m_core_pgc(false, GPC_PGC_MIPI_PHY);
 		break;
 	default:
 		break;
 	}
+
+	val = readl_relaxed(gpc_base + GPC_PGC_CPU_MAPPING);
+	writel_relaxed(val & ~BIT(2), gpc_base + GPC_PGC_CPU_MAPPING);
 
 	return NOTIFY_OK;
 }
