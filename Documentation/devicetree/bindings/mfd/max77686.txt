@@ -48,7 +48,7 @@ to get matched with their hardware counterparts as follow:
 
 Example:
 
-	max77686@09 {
+	max77686: pmic@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&wakeup_eint>;
 		interrupts = <26 0>;
