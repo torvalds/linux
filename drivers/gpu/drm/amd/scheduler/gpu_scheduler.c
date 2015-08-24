@@ -289,7 +289,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	amd_sched_fence_signal(sched_job->s_fence);
 	atomic_dec(&sched->hw_rq_count);
 	fence_put(&sched_job->s_fence->base);
-	sched->ops->process_job(sched, sched_job);
+	sched->ops->process_job(sched_job);
 	wake_up_interruptible(&sched->wait_queue);
 }
 
@@ -318,7 +318,7 @@ static int amd_sched_main(void *param)
 			continue;
 		atomic_inc(&sched->hw_rq_count);
 
-		fence = sched->ops->run_job(sched, c_entity, job);
+		fence = sched->ops->run_job(job);
 		if (fence) {
 			r = fence_add_callback(fence, &job->cb,
 					       amd_sched_process_job);

@@ -27,13 +27,11 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-static struct fence *amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
-					  struct amd_sched_entity *entity,
-					  struct amd_sched_job *job)
+static struct fence *amdgpu_sched_run_job(struct amd_sched_job *job)
 {
-	int r = 0;
 	struct amdgpu_job *sched_job;
 	struct amdgpu_fence *fence;
+	int r;
 
 	if (!job) {
 		DRM_ERROR("job is null\n");
@@ -58,12 +56,11 @@ static struct fence *amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 err:
 	DRM_ERROR("Run job error\n");
 	mutex_unlock(&sched_job->job_lock);
-	sched->ops->process_job(sched, (struct amd_sched_job *)sched_job);
+	job->sched->ops->process_job(job);
 	return NULL;
 }
 
-static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched,
-				     struct amd_sched_job *job)
+static void amdgpu_sched_process_job(struct amd_sched_job *job)
 {
 	struct amdgpu_job *sched_job;
 
