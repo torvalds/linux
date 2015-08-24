@@ -256,6 +256,108 @@ int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 }
 EXPORT_SYMBOL_GPL(adf_iov_putmsg);
 
+void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
+{
+	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	int bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
+	u32 msg, resp = 0, vf_nr = vf_info->vf_nr;
+
+	/* Read message from the VF */
+	msg = ADF_CSR_RD(pmisc_addr, hw_data->get_pf2vf_offset(vf_nr));
+
+	/* To ACK, clear the VF2PFINT bit */
+	msg &= ~ADF_VF2PF_INT;
+	ADF_CSR_WR(pmisc_addr, hw_data->get_pf2vf_offset(vf_nr), msg);
+
+	if (!(msg & ADF_VF2PF_MSGORIGIN_SYSTEM))
+		/* Ignore legacy non-system (non-kernel) VF2PF messages */
+		goto err;
+
+	switch ((msg & ADF_VF2PF_MSGTYPE_MASK) >> ADF_VF2PF_MSGTYPE_SHIFT) {
+	case ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ:
+		{
+		u8 vf_compat_ver = msg >> ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
+
+		resp = (ADF_PF2VF_MSGORIGIN_SYSTEM |
+			 (ADF_PF2VF_MSGTYPE_VERSION_RESP <<
+			  ADF_PF2VF_MSGTYPE_SHIFT) |
+			 (ADF_PFVF_COMPATIBILITY_VERSION <<
+			  ADF_PF2VF_VERSION_RESP_VERS_SHIFT));
+
+		dev_dbg(&GET_DEV(accel_dev),
+			"Compatibility Version Request from VF%d vers=%u\n",
+			vf_nr + 1, vf_compat_ver);
+
+		if (vf_compat_ver < hw_data->min_iov_compat_ver) {
+			dev_err(&GET_DEV(accel_dev),
+				"VF (vers %d) incompatible with PF (vers %d)\n",
+				vf_compat_ver, ADF_PFVF_COMPATIBILITY_VERSION);
+			resp |= ADF_PF2VF_VF_INCOMPATIBLE <<
+				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		} else if (vf_compat_ver > ADF_PFVF_COMPATIBILITY_VERSION) {
+			dev_err(&GET_DEV(accel_dev),
+				"VF (vers %d) compat with PF (vers %d) unkn.\n",
+				vf_compat_ver, ADF_PFVF_COMPATIBILITY_VERSION);
+			resp |= ADF_PF2VF_VF_COMPAT_UNKNOWN <<
+				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		} else {
+			dev_dbg(&GET_DEV(accel_dev),
+				"VF (vers %d) compatible with PF (vers %d)\n",
+				vf_compat_ver, ADF_PFVF_COMPATIBILITY_VERSION);
+			resp |= ADF_PF2VF_VF_COMPATIBLE <<
+				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		}
+		}
+		break;
+	case ADF_VF2PF_MSGTYPE_VERSION_REQ:
+		dev_dbg(&GET_DEV(accel_dev),
+			"Legacy VersionRequest received from VF%d 0x%x\n",
+			vf_nr + 1, msg);
+		resp = (ADF_PF2VF_MSGORIGIN_SYSTEM |
+			 (ADF_PF2VF_MSGTYPE_VERSION_RESP <<
+			  ADF_PF2VF_MSGTYPE_SHIFT) |
+			 (ADF_PFVF_COMPATIBILITY_VERSION <<
+			  ADF_PF2VF_VERSION_RESP_VERS_SHIFT));
+		resp |= ADF_PF2VF_VF_COMPATIBLE <<
+			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		/* Set legacy major and minor version num */
+		resp |= 1 << ADF_PF2VF_MAJORVERSION_SHIFT |
+			1 << ADF_PF2VF_MINORVERSION_SHIFT;
+		break;
+	case ADF_VF2PF_MSGTYPE_INIT:
+		{
+		dev_dbg(&GET_DEV(accel_dev),
+			"Init message received from VF%d 0x%x\n",
+			vf_nr + 1, msg);
+		vf_info->init = true;
+		}
+		break;
+	case ADF_VF2PF_MSGTYPE_SHUTDOWN:
+		{
+		dev_dbg(&GET_DEV(accel_dev),
+			"Shutdown message received from VF%d 0x%x\n",
+			vf_nr + 1, msg);
+		vf_info->init = false;
+		}
+		break;
+	default:
+		goto err;
+	}
+
+	if (resp && adf_iov_putmsg(accel_dev, resp, vf_nr))
+		dev_err(&GET_DEV(accel_dev), "Failed to send response to VF\n");
+
+	/* re-enable interrupt on PF from this VF */
+	adf_enable_vf2pf_interrupts(accel_dev, (1 << vf_nr));
+	return;
+err:
+	dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x);\n",
+		vf_nr + 1, msg);
+}
+
 void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_vf_info *vf;

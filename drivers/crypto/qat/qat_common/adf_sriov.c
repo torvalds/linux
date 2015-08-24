@@ -79,125 +79,32 @@ static struct workqueue_struct *pf2vf_resp_wq;
 	ADF_CSR_WR(pmisc_bar_addr, ME2FUNCTION_MAP_B_OFFSET +		\
 		   ME2FUNCTION_MAP_REG_SIZE * index, value)
 
-struct adf_pf2vf_resp_data {
+struct adf_pf2vf_resp {
 	struct work_struct pf2vf_resp_work;
-	struct adf_accel_dev *accel_dev;
-	u32 resp;
-	u8 vf_nr;
+	struct adf_accel_vf_info *vf_info;
 };
 
 static void adf_iov_send_resp(struct work_struct *work)
 {
-	struct adf_pf2vf_resp_data *pf2vf_resp_data =
-		container_of(work, struct adf_pf2vf_resp_data, pf2vf_resp_work);
+	struct adf_pf2vf_resp *pf2vf_resp =
+		container_of(work, struct adf_pf2vf_resp, pf2vf_resp_work);
 
-	if (adf_iov_putmsg(pf2vf_resp_data->accel_dev, pf2vf_resp_data->resp,
-			   pf2vf_resp_data->vf_nr)) {
-		dev_err(&GET_DEV(pf2vf_resp_data->accel_dev),
-			"Failed to send response\n");
-	}
-
-	kfree(pf2vf_resp_data);
+	adf_vf2pf_req_hndl(pf2vf_resp->vf_info);
+	kfree(pf2vf_resp);
 }
 
 static void adf_vf2pf_bh_handler(void *data)
 {
 	struct adf_accel_vf_info *vf_info = (struct adf_accel_vf_info *)data;
-	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_addr = pmisc->virt_addr;
-	u32 msg;
+	struct adf_pf2vf_resp *pf2vf_resp;
 
-	/* Read message from the VF */
-	msg = ADF_CSR_RD(pmisc_addr, hw_data->get_pf2vf_offset(vf_info->vf_nr));
+	pf2vf_resp = kzalloc(sizeof(*pf2vf_resp), GFP_ATOMIC);
+	if (!pf2vf_resp)
+		return;
 
-	if (!(msg & ADF_VF2PF_MSGORIGIN_SYSTEM))
-		/* Ignore legacy non-system (non-kernel) VF2PF messages */
-		goto err;
-
-	switch ((msg & ADF_VF2PF_MSGTYPE_MASK) >> ADF_VF2PF_MSGTYPE_SHIFT) {
-	case ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ:
-		{
-		u8 vf_compat_ver = msg >> ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
-		struct adf_pf2vf_resp_data *pf2vf_resp_data;
-		u32 resp = (ADF_PF2VF_MSGORIGIN_SYSTEM |
-				 (ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-				  ADF_PF2VF_MSGTYPE_SHIFT) |
-				 (ADF_PFVF_COMPATIBILITY_VERSION <<
-				  ADF_PF2VF_VERSION_RESP_VERS_SHIFT));
-
-		dev_dbg(&GET_DEV(accel_dev),
-			"Compatibility Version Request from VF%d vers=%u\n",
-			vf_info->vf_nr + 1, vf_compat_ver);
-
-		if (vf_compat_ver < hw_data->min_iov_compat_ver) {
-			dev_err(&GET_DEV(accel_dev),
-				"VF (vers %d) incompatible with PF (vers %d)\n",
-				vf_compat_ver, ADF_PFVF_COMPATIBILITY_VERSION);
-			resp |= ADF_PF2VF_VF_INCOMPATIBLE <<
-				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		} else if (vf_compat_ver > ADF_PFVF_COMPATIBILITY_VERSION) {
-			dev_err(&GET_DEV(accel_dev),
-				"VF (vers %d) compat with PF (vers %d) unkn.\n",
-				vf_compat_ver, ADF_PFVF_COMPATIBILITY_VERSION);
-			resp |= ADF_PF2VF_VF_COMPAT_UNKNOWN <<
-				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		} else {
-			dev_dbg(&GET_DEV(accel_dev),
-				"VF (vers %d) compatible with PF (vers %d)\n",
-				vf_compat_ver, ADF_PFVF_COMPATIBILITY_VERSION);
-			resp |= ADF_PF2VF_VF_COMPATIBLE <<
-				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		}
-
-		pf2vf_resp_data = kzalloc(sizeof(*pf2vf_resp_data), GFP_ATOMIC);
-		if (!pf2vf_resp_data)
-			return;
-
-		pf2vf_resp_data->accel_dev = accel_dev;
-		pf2vf_resp_data->vf_nr = vf_info->vf_nr;
-		pf2vf_resp_data->resp = resp;
-		INIT_WORK(&pf2vf_resp_data->pf2vf_resp_work, adf_iov_send_resp);
-		queue_work(pf2vf_resp_wq, &pf2vf_resp_data->pf2vf_resp_work);
-		}
-		break;
-	case ADF_VF2PF_MSGTYPE_INIT:
-		{
-		dev_dbg(&GET_DEV(accel_dev),
-			"Init message received from VF%d 0x%x\n",
-			vf_info->vf_nr + 1, msg);
-		vf_info->init = true;
-		}
-		break;
-	case ADF_VF2PF_MSGTYPE_SHUTDOWN:
-		{
-		dev_dbg(&GET_DEV(accel_dev),
-			"Shutdown message received from VF%d 0x%x\n",
-			vf_info->vf_nr + 1, msg);
-		vf_info->init = false;
-		}
-		break;
-	case ADF_VF2PF_MSGTYPE_VERSION_REQ:
-		dev_err(&GET_DEV(accel_dev),
-			"Incompatible VersionRequest received from VF%d 0x%x\n",
-			vf_info->vf_nr + 1, msg);
-		break;
-	default:
-		goto err;
-	}
-
-	/* To ACK, clear the VF2PFINT bit */
-	msg &= ~ADF_VF2PF_INT;
-	ADF_CSR_WR(pmisc_addr, hw_data->get_pf2vf_offset(vf_info->vf_nr), msg);
-
-	/* re-enable interrupt on PF from this VF */
-	adf_enable_vf2pf_interrupts(accel_dev, (1 << vf_info->vf_nr));
-	return;
-err:
-	dev_err(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x);\n",
-		vf_info->vf_nr + 1, msg);
+	pf2vf_resp->vf_info = vf_info;
+	INIT_WORK(&pf2vf_resp->pf2vf_resp_work, adf_iov_send_resp);
+	queue_work(pf2vf_resp_wq, &pf2vf_resp->pf2vf_resp_work);
 }
 
 static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
