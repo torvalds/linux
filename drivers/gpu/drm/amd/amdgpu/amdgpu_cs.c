@@ -847,7 +847,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		job->adev = parser->adev;
 		job->ibs = parser->ibs;
 		job->num_ibs = parser->num_ibs;
-		job->owner = parser->filp;
+		job->base.owner = parser->filp;
 		mutex_init(&job->job_lock);
 		if (job->ibs[job->num_ibs - 1].user) {
 			memcpy(&job->uf,  &parser->uf,

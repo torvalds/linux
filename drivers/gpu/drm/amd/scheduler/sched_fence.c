@@ -27,7 +27,7 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
-struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity)
+struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity, void *owner)
 {
 	struct amd_sched_fence *fence = NULL;
 	unsigned seq;
@@ -35,7 +35,7 @@ struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity
 	fence = kzalloc(sizeof(struct amd_sched_fence), GFP_KERNEL);
 	if (fence == NULL)
 		return NULL;
-
+	fence->owner = owner;
 	fence->scheduler = s_entity->scheduler;
 	spin_lock_init(&fence->lock);
 

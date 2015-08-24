@@ -232,7 +232,8 @@ static bool amd_sched_entity_in(struct amd_sched_job *job)
 int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 {
 	struct amd_sched_entity *entity = sched_job->s_entity;
-	struct amd_sched_fence *fence = amd_sched_fence_create(entity);
+	struct amd_sched_fence *fence = amd_sched_fence_create(
+		entity, sched_job->owner);
 	int r;
 
 	if (!fence)

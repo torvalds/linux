@@ -44,7 +44,7 @@ static struct fence *amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 	r = amdgpu_ib_schedule(sched_job->adev,
 			       sched_job->num_ibs,
 			       sched_job->ibs,
-			       sched_job->owner);
+			       sched_job->base.owner);
 	if (r)
 		goto err;
 	fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs - 1].fence);
@@ -101,7 +101,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 		job->adev = adev;
 		job->ibs = ibs;
 		job->num_ibs = num_ibs;
-		job->owner = owner;
+		job->base.owner = owner;
 		mutex_init(&job->job_lock);
 		job->free_job = free_job;
 		mutex_lock(&job->job_lock);

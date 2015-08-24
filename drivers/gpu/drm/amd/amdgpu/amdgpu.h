@@ -1264,7 +1264,6 @@ struct amdgpu_cs_parser {
 struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
-	struct drm_file		*owner;
 	struct amdgpu_ib	*ibs;
 	uint32_t		num_ibs;
 	struct mutex            job_lock;
