@@ -1,6 +1,7 @@
 /*
  * Linux performance counter support for ARC
  *
+ * Copyright (C) 2014-2015 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2011-2013 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -12,8 +13,8 @@
 #ifndef __ASM_PERF_EVENT_H
 #define __ASM_PERF_EVENT_H
 
-/* real maximum varies per CPU, this is the maximum supported by the driver */
-#define ARC_PMU_MAX_HWEVENTS	64
+/* Max number of counters that PCT block may ever have */
+#define ARC_PERF_MAX_COUNTERS	32
 
 #define ARC_REG_CC_BUILD	0xF6
 #define ARC_REG_CC_INDEX	0x240

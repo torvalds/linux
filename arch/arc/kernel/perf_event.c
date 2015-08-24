@@ -1,7 +1,7 @@
 /*
  * Linux performance counter support for ARC700 series
  *
- * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013-2015 Synopsys, Inc. (www.synopsys.com)
  *
  * This code is inspired by the perf support of various other architectures.
  *
@@ -22,7 +22,7 @@ struct arc_pmu {
 	struct pmu	pmu;
 	int		counter_size;	/* in bits */
 	int		n_counters;
-	unsigned long	used_mask[BITS_TO_LONGS(ARC_PMU_MAX_HWEVENTS)];
+	unsigned long	used_mask[BITS_TO_LONGS(ARC_PERF_MAX_COUNTERS)];
 	int		ev_hw_idx[PERF_COUNT_ARC_HW_MAX];
 };
 
@@ -284,7 +284,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		pr_err("This core does not have performance counters!\n");
 		return -ENODEV;
 	}
-	BUG_ON(pct_bcr.c > ARC_PMU_MAX_HWEVENTS);
+	BUG_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS);
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
 	BUG_ON(!cc_bcr.v); /* Counters exist but No countable conditions ? */
