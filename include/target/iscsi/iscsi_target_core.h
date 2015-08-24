@@ -528,8 +528,8 @@ struct iscsi_conn {
 	u32			exp_statsn;
 	/* Per connection status sequence number */
 	u32			stat_sn;
-	struct __kernel_sockaddr_storage login_sockaddr;
-	struct __kernel_sockaddr_storage local_sockaddr;
+	struct sockaddr_storage login_sockaddr;
+	struct sockaddr_storage local_sockaddr;
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;
 	atomic_t		check_immediate_queue;
@@ -779,7 +779,7 @@ struct iscsi_np {
 	spinlock_t		np_thread_lock;
 	struct completion	np_restart_comp;
 	struct socket		*np_socket;
-	struct __kernel_sockaddr_storage np_sockaddr;
+	struct sockaddr_storage np_sockaddr;
 	struct task_struct	*np_thread;
 	struct timer_list	np_login_timer;
 	void			*np_context;

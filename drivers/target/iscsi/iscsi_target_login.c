@@ -877,7 +877,7 @@ static void iscsi_stop_login_thread_timer(struct iscsi_np *np)
 
 int iscsit_setup_np(
 	struct iscsi_np *np,
-	struct __kernel_sockaddr_storage *sockaddr)
+	struct sockaddr_storage *sockaddr)
 {
 	struct socket *sock = NULL;
 	int backlog = ISCSIT_TCP_BACKLOG, ret, opt = 0, len;
@@ -916,7 +916,7 @@ int iscsit_setup_np(
 	 * in iscsi_target_configfs.c code..
 	 */
 	memcpy(&np->np_sockaddr, sockaddr,
-			sizeof(struct __kernel_sockaddr_storage));
+			sizeof(struct sockaddr_storage));
 
 	if (sockaddr->ss_family == AF_INET6)
 		len = sizeof(struct sockaddr_in6);
@@ -975,7 +975,7 @@ fail:
 
 int iscsi_target_setup_login_socket(
 	struct iscsi_np *np,
-	struct __kernel_sockaddr_storage *sockaddr)
+	struct sockaddr_storage *sockaddr)
 {
 	struct iscsit_transport *t;
 	int rc;

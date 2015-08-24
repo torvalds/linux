@@ -3102,7 +3102,7 @@ out:
 
 static int
 isert_setup_np(struct iscsi_np *np,
-	       struct __kernel_sockaddr_storage *ksockaddr)
+	       struct sockaddr_storage *ksockaddr)
 {
 	struct isert_np *isert_np;
 	struct rdma_cm_id *isert_lid;
@@ -3124,7 +3124,7 @@ isert_setup_np(struct iscsi_np *np,
 	 * in iscsi_target_configfs.c code..
 	 */
 	memcpy(&np->np_sockaddr, ksockaddr,
-	       sizeof(struct __kernel_sockaddr_storage));
+	       sizeof(struct sockaddr_storage));
 
 	isert_lid = isert_setup_id(isert_np);
 	if (IS_ERR(isert_lid)) {

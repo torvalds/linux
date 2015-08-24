@@ -269,7 +269,7 @@ int iscsit_deaccess_np(struct iscsi_np *np, struct iscsi_portal_group *tpg,
 }
 
 bool iscsit_check_np_match(
-	struct __kernel_sockaddr_storage *sockaddr,
+	struct sockaddr_storage *sockaddr,
 	struct iscsi_np *np,
 	int network_transport)
 {
@@ -311,7 +311,7 @@ bool iscsit_check_np_match(
  * Called with mutex np_lock held
  */
 static struct iscsi_np *iscsit_get_np(
-	struct __kernel_sockaddr_storage *sockaddr,
+	struct sockaddr_storage *sockaddr,
 	int network_transport)
 {
 	struct iscsi_np *np;
@@ -342,7 +342,7 @@ static struct iscsi_np *iscsit_get_np(
 }
 
 struct iscsi_np *iscsit_add_np(
-	struct __kernel_sockaddr_storage *sockaddr,
+	struct sockaddr_storage *sockaddr,
 	int network_transport)
 {
 	struct iscsi_np *np;
@@ -3452,7 +3452,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 						tpg_np_list) {
 				struct iscsi_np *np = tpg_np->tpg_np;
 				bool inaddr_any = iscsit_check_inaddr_any(np);
-				struct __kernel_sockaddr_storage *sockaddr;
+				struct sockaddr_storage *sockaddr;
 
 				if (np->np_network_transport != network_transport)
 					continue;

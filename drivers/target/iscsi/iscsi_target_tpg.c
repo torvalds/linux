@@ -431,7 +431,7 @@ struct iscsi_tpg_np *iscsit_tpg_locate_child_np(
 
 static bool iscsit_tpg_check_network_portal(
 	struct iscsi_tiqn *tiqn,
-	struct __kernel_sockaddr_storage *sockaddr,
+	struct sockaddr_storage *sockaddr,
 	int network_transport)
 {
 	struct iscsi_portal_group *tpg;
@@ -460,7 +460,7 @@ static bool iscsit_tpg_check_network_portal(
 
 struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	struct iscsi_portal_group *tpg,
-	struct __kernel_sockaddr_storage *sockaddr,
+	struct sockaddr_storage *sockaddr,
 	struct iscsi_tpg_np *tpg_np_parent,
 	int network_transport)
 {

@@ -220,7 +220,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tpg_np *tpg_np;
 	char *str, *str2, *ip_str, *port_str;
-	struct __kernel_sockaddr_storage sockaddr;
+	struct sockaddr_storage sockaddr;
 	struct sockaddr_in *sock_in;
 	struct sockaddr_in6 *sock_in6;
 	unsigned long port;
@@ -235,7 +235,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	memset(buf, 0, MAX_PORTAL_LEN + 1);
 	snprintf(buf, MAX_PORTAL_LEN + 1, "%s", name);
 
-	memset(&sockaddr, 0, sizeof(struct __kernel_sockaddr_storage));
+	memset(&sockaddr, 0, sizeof(struct sockaddr_storage));
 
 	str = strstr(buf, "[");
 	if (str) {
