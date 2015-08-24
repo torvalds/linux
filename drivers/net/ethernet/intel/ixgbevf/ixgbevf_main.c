@@ -765,7 +765,7 @@ static void ixgbevf_reuse_rx_page(struct ixgbevf_ring *rx_ring,
 
 static inline bool ixgbevf_page_is_reserved(struct page *page)
 {
-	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
+	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
 /**

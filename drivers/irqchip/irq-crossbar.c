@@ -68,7 +68,9 @@ static struct irq_chip crossbar_chip = {
 	.irq_mask		= irq_chip_mask_parent,
 	.irq_unmask		= irq_chip_unmask_parent,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_wake		= irq_chip_set_wake_parent,
+	.irq_set_type		= irq_chip_set_type_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SKIP_SET_WAKE,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 #endif
