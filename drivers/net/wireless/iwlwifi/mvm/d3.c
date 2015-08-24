@@ -1170,6 +1170,9 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
+	/* make sure the d0i3 exit work is not pending */
+	flush_work(&mvm->d0i3_exit_work);
+
 	ret = iwl_trans_suspend(mvm->trans);
 	if (ret)
 		return ret;
