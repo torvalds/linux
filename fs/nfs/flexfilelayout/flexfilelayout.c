@@ -290,7 +290,6 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		}
 
 		fls->mirror_array[i]->ds_count = ds_count;
-		fls->mirror_array[i]->lseg = &fls->generic_hdr;
 
 		/* deviceid */
 		rc = decode_deviceid(&stream, &devid);
@@ -513,7 +512,8 @@ nfs4_ff_layout_stat_io_update_completed(struct nfs4_ff_layoutstat *layoutstat,
 }
 
 static void
-nfs4_ff_layout_stat_io_start_read(struct nfs4_ff_layout_mirror *mirror,
+nfs4_ff_layout_stat_io_start_read(struct inode *inode,
+		struct nfs4_ff_layout_mirror *mirror,
 		__u64 requested, ktime_t now)
 {
 	bool report;
@@ -524,8 +524,7 @@ nfs4_ff_layout_stat_io_start_read(struct nfs4_ff_layout_mirror *mirror,
 	spin_unlock(&mirror->lock);
 
 	if (report)
-		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode,
-				GFP_KERNEL);
+		pnfs_report_layoutstat(inode, GFP_KERNEL);
 }
 
 static void
@@ -542,7 +541,8 @@ nfs4_ff_layout_stat_io_end_read(struct rpc_task *task,
 }
 
 static void
-nfs4_ff_layout_stat_io_start_write(struct nfs4_ff_layout_mirror *mirror,
+nfs4_ff_layout_stat_io_start_write(struct inode *inode,
+		struct nfs4_ff_layout_mirror *mirror,
 		__u64 requested, ktime_t now)
 {
 	bool report;
@@ -553,8 +553,7 @@ nfs4_ff_layout_stat_io_start_write(struct nfs4_ff_layout_mirror *mirror,
 	spin_unlock(&mirror->lock);
 
 	if (report)
-		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode,
-				GFP_NOIO);
+		pnfs_report_layoutstat(inode, GFP_NOIO);
 }
 
 static void
@@ -1098,7 +1097,7 @@ ff_layout_reset_to_mds(struct pnfs_layout_segment *lseg, int idx)
 static int ff_layout_read_prepare_common(struct rpc_task *task,
 					 struct nfs_pgio_header *hdr)
 {
-	nfs4_ff_layout_stat_io_start_read(
+	nfs4_ff_layout_stat_io_start_read(hdr->inode,
 			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
 			hdr->args.count,
 			task->tk_start);
@@ -1285,7 +1284,7 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 static int ff_layout_write_prepare_common(struct rpc_task *task,
 					  struct nfs_pgio_header *hdr)
 {
-	nfs4_ff_layout_stat_io_start_write(
+	nfs4_ff_layout_stat_io_start_write(hdr->inode,
 			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
 			hdr->args.count,
 			task->tk_start);
@@ -1367,7 +1366,7 @@ static void ff_layout_write_count_stats(struct rpc_task *task, void *data)
 static void ff_layout_commit_prepare_common(struct rpc_task *task,
 		struct nfs_commit_data *cdata)
 {
-	nfs4_ff_layout_stat_io_start_write(
+	nfs4_ff_layout_stat_io_start_write(cdata->inode,
 			FF_LAYOUT_COMP(cdata->lseg, cdata->ds_commit_index),
 			0, task->tk_start);
 }
@@ -1912,8 +1911,8 @@ ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 		devinfo->layout_type = LAYOUT_FLEX_FILES;
 		devinfo->layoutstats_encode = ff_layout_encode_layoutstats;
 		devinfo->layout_private = mirror;
-		/* lseg refcount put in cleanup_layoutstats */
-		pnfs_get_lseg(pls);
+		/* mirror refcount put in cleanup_layoutstats */
+		atomic_inc(&mirror->ref);
 
 		++(*dev_count);
 	}
@@ -1965,7 +1964,7 @@ ff_layout_cleanup_layoutstats(struct nfs42_layoutstat_data *data)
 	for (i = 0; i < data->args.num_dev; i++) {
 		mirror = data->args.devinfo[i].layout_private;
 		data->args.devinfo[i].layout_private = NULL;
-		pnfs_put_lseg(mirror->lseg);
+		ff_layout_put_mirror(mirror);
 	}
 }
 
