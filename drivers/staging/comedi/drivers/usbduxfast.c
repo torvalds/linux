@@ -339,6 +339,11 @@ static int usbduxfast_ai_check_chanlist(struct comedi_device *dev,
 	unsigned int gain0 = CR_RANGE(cmd->chanlist[0]);
 	int i;
 
+	if (cmd->chanlist_len > 3 && cmd->chanlist_len != 16) {
+		dev_err(dev->class_dev, "unsupported combination of channels\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < cmd->chanlist_len; ++i) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 		unsigned int gain = CR_RANGE(cmd->chanlist[i]);
@@ -779,11 +784,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		usbduxfast_cmd_data(dev, 4, 0x09, 0x01, rngmask, 0xff);
 
 		break;
-
-	default:
-		dev_err(dev->class_dev, "unsupported combination of channels\n");
-		up(&devpriv->sem);
-		return -EFAULT;
 	}
 
 	/* 0 means that the AD commands are sent */
