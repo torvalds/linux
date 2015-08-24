@@ -399,6 +399,11 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	if (!cmd->chanlist_len)
 		err |= -EINVAL;
 
+	/* external start trigger is only valid for 1 or 16 channels */
+	if (cmd->start_src == TRIG_EXT &&
+	    cmd->chanlist_len != 1 && cmd->chanlist_len != 16)
+		err |= -EINVAL;
+
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
 
@@ -516,13 +521,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	}
 	if (steps > MAX_SAMPLING_PERIOD) {
 		dev_err(dev->class_dev, "sampling rate too low\n");
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
-	if ((cmd->start_src == TRIG_EXT) && (cmd->chanlist_len != 1)
-	    && (cmd->chanlist_len != 16)) {
-		dev_err(dev->class_dev,
-			"TRIG_EXT only with 1 or 16 channels possible\n");
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
