@@ -226,7 +226,7 @@ static void blade_image_blit(struct tridentfb_par *par, const char *data,
 	writemmr(par, DST1, point(x, y));
 	writemmr(par, DST2, point(x + w - 1, y + h - 1));
 
-	memcpy(par->io_virt + 0x10000, data, 4 * size);
+	iowrite32_rep(par->io_virt + 0x10000, data, size);
 }
 
 static void blade_copy_rect(struct tridentfb_par *par,
