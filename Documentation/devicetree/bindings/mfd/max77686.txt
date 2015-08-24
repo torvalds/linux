@@ -26,7 +26,7 @@ Optional node:
 	};
 	refer Documentation/devicetree/bindings/regulator/regulator.txt
 
-  The regulator-compatible property of regulator should initialized with string
+  The regulator node's name should be initialized with a string
 to get matched with their hardware counterparts as follow:
 
 	-LDOn 	:	for LDOs, where n can lie in range 1 to 26.
@@ -55,16 +55,14 @@ Example:
 		reg = <0x09>;
 
 		voltage-regulators {
-			ldo11_reg {
-				regulator-compatible = "LDO11";
+			ldo11_reg: LDO11 {
 				regulator-name = "vdd_ldo11";
 				regulator-min-microvolt = <1900000>;
 				regulator-max-microvolt = <1900000>;
 				regulator-always-on;
 			};
 
-			buck1_reg {
-				regulator-compatible = "BUCK1";
+			buck1_reg: BUCK1 {
 				regulator-name = "vdd_mif";
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1300000>;
@@ -72,8 +70,7 @@ Example:
 				regulator-boot-on;
 			};
 
-			buck9_reg {
-				regulator-compatible = "BUCK9";
+			buck9_reg: BUCK9 {
 				regulator-name = "CAM_ISP_CORE_1.2V";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1200000>;
