@@ -258,6 +258,17 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 		sd->entity.info.dev.major = VIDEO_MAJOR;
 		sd->entity.info.dev.minor = vdev->minor;
+
+		/* Interface is created by __video_register_device() */
+		if (vdev->v4l2_dev->mdev) {
+			struct media_link *link;
+
+			link = media_create_intf_link(&sd->entity,
+						      &vdev->intf_devnode->intf,
+						      0);
+			if (!link)
+				goto clean_up;
+		}
 #endif
 		sd->devnode = vdev;
 	}
@@ -294,7 +305,10 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	if (v4l2_dev->mdev) {
-		media_entity_remove_links(&sd->entity);
+		/*
+		 * No need to explicitly remove links, as both pads and
+		 * links are removed by the function below, in the right order
+		 */
 		media_device_unregister_entity(&sd->entity);
 	}
 #endif
