@@ -204,6 +204,7 @@ static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 };
 
 static int ip_tun_build_state(struct net_device *dev, struct nlattr *attr,
+			      unsigned int family, const void *cfg,
 			      struct lwtunnel_state **ts)
 {
 	struct ip_tunnel_info *tun_info;
@@ -311,6 +312,7 @@ static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
 };
 
 static int ip6_tun_build_state(struct net_device *dev, struct nlattr *attr,
+			       unsigned int family, const void *cfg,
 			       struct lwtunnel_state **ts)
 {
 	struct ip_tunnel_info *tun_info;

@@ -123,6 +123,7 @@ drop:
 }
 
 static int mpls_build_state(struct net_device *dev, struct nlattr *nla,
+			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts)
 {
 	struct mpls_iptunnel_encap *tun_encap_info;
