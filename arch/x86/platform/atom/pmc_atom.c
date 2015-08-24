@@ -15,7 +15,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -422,18 +421,13 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 /*
  * Data for PCI driver interface
  *
- * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
- * register a pci_driver, because lpc_ich will register
- * a driver on the same PCI id.
+ * used by pci_match_id() call below.
  */
 static const struct pci_device_id pmc_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_VLV_PMC), (kernel_ulong_t)&byt_reg_map },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CHT_PMC), (kernel_ulong_t)&cht_reg_map },
 	{ 0, },
 };
-
-MODULE_DEVICE_TABLE(pci, pmc_pci_ids);
 
 static int __init pmc_atom_init(void)
 {
@@ -457,9 +451,10 @@ static int __init pmc_atom_init(void)
 	return -ENODEV;
 }
 
-module_init(pmc_atom_init);
-/* no module_exit, this driver shouldn't be unloaded */
+device_initcall(pmc_atom_init);
 
+/*
 MODULE_AUTHOR("Aubrey Li <aubrey.li@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Atom SOC Power Management Controller Interface");
 MODULE_LICENSE("GPL v2");
+*/
