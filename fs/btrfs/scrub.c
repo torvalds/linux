@@ -2446,8 +2446,7 @@ static void scrub_block_complete(struct scrub_block *sblock)
 	}
 }
 
-static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u64 len,
-			   u8 *csum)
+static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 {
 	struct btrfs_ordered_sum *sum = NULL;
 	unsigned long index;
@@ -2511,7 +2510,7 @@ static int scrub_extent(struct scrub_ctx *sctx, u64 logical, u64 len,
 
 		if (flags & BTRFS_EXTENT_FLAG_DATA) {
 			/* push csums to sbio */
-			have_csum = scrub_find_csum(sctx, logical, l, csum);
+			have_csum = scrub_find_csum(sctx, logical, csum);
 			if (have_csum == 0)
 				++sctx->stat.no_csum;
 			if (sctx->is_dev_replace && !have_csum) {
@@ -2649,7 +2648,7 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 
 		if (flags & BTRFS_EXTENT_FLAG_DATA) {
 			/* push csums to sbio */
-			have_csum = scrub_find_csum(sctx, logical, l, csum);
+			have_csum = scrub_find_csum(sctx, logical, csum);
 			if (have_csum == 0)
 				goto skip;
 		}
