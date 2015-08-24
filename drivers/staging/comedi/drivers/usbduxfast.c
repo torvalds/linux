@@ -840,32 +840,6 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int usbduxfast_attach_common(struct comedi_device *dev)
-{
-	struct comedi_subdevice *s;
-	int ret;
-
-	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret)
-		return ret;
-
-	/* Analog Input subdevice */
-	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan	= 16;
-	s->len_chanlist	= 16;
-	s->insn_read	= usbduxfast_ai_insn_read;
-	s->do_cmdtest	= usbduxfast_ai_cmdtest;
-	s->do_cmd	= usbduxfast_ai_cmd;
-	s->cancel	= usbduxfast_ai_cancel;
-	s->maxdata	= 0x1000;	/* 12-bit + 1 overflow bit */
-	s->range_table	= &range_usbduxfast_ai_range;
-
-	return 0;
-}
-
 static int usbduxfast_upload_firmware(struct comedi_device *dev,
 				      const u8 *data, size_t size,
 				      unsigned long context)
@@ -943,6 +917,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv;
+	struct comedi_subdevice *s;
 	int ret;
 
 	if (usb->speed != USB_SPEED_HIGH) {
@@ -985,7 +960,25 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	return usbduxfast_attach_common(dev);
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
+
+	/* Analog Input subdevice */
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->n_chan	= 16;
+	s->maxdata	= 0x1000;	/* 12-bit + 1 overflow bit */
+	s->range_table	= &range_usbduxfast_ai_range;
+	s->insn_read	= usbduxfast_ai_insn_read;
+	s->len_chanlist	= s->n_chan;
+	s->do_cmdtest	= usbduxfast_ai_cmdtest;
+	s->do_cmd	= usbduxfast_ai_cmd;
+	s->cancel	= usbduxfast_ai_cancel;
+
+	return 0;
 }
 
 static void usbduxfast_detach(struct comedi_device *dev)
