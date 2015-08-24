@@ -590,7 +590,9 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
 		     m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
 	if (hdmi_drv->edid.scdc_present == 1) {
-		if (tmdsclk > 340000000) {/* used for HDMI 2.0 TX */
+		if (tmdsclk > 340000000 ||
+		    hdmi_drv->edid.lte_340mcsc_scramble) {
+			/* used for HDMI 2.0 TX */
 			mutex_lock(&hdmi_dev->ddc_lock);
 			rockchip_hdmiv2_scdc_init(hdmi_dev);
 			sink_version =
