@@ -998,16 +998,10 @@ static void usbduxfast_detach(struct comedi_device *dev)
 		usb_kill_urb(devpriv->urb);
 
 		kfree(devpriv->inbuf);
-		devpriv->inbuf = NULL;
-
 		usb_free_urb(devpriv->urb);
-		devpriv->urb = NULL;
 	}
 
 	kfree(devpriv->duxbuf);
-	devpriv->duxbuf = NULL;
-
-	devpriv->ai_cmd_running = 0;
 
 	up(&devpriv->sem);
 }
