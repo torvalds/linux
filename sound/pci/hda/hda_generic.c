@@ -671,7 +671,8 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 		}
 		for (i = 0; i < path->depth; i++) {
 			if (path->path[i] == nid) {
-				if (dir == HDA_OUTPUT || path->idx[i] == idx)
+				if (dir == HDA_OUTPUT || idx == -1 ||
+				    path->idx[i] == idx)
 					return true;
 				break;
 			}
@@ -682,7 +683,7 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 
 /* check whether the NID is referred by any active paths */
 #define is_active_nid_for_any(codec, nid) \
-	is_active_nid(codec, nid, HDA_OUTPUT, 0)
+	is_active_nid(codec, nid, HDA_OUTPUT, -1)
 
 /* get the default amp value for the target state */
 static int get_amp_val_to_activate(struct hda_codec *codec, hda_nid_t nid,
