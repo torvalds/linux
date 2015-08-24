@@ -276,6 +276,10 @@ static void option_instat_callback(struct urb *urb);
 #define ZTE_PRODUCT_MF622			0x0001
 #define ZTE_PRODUCT_MF628			0x0015
 #define ZTE_PRODUCT_MF626			0x0031
+#define ZTE_PRODUCT_ZM8620_X			0x0396
+#define ZTE_PRODUCT_ME3620_MBIM			0x0426
+#define ZTE_PRODUCT_ME3620_X			0x1432
+#define ZTE_PRODUCT_ME3620_L			0x1433
 #define ZTE_PRODUCT_AC2726			0xfff1
 #define ZTE_PRODUCT_CDMA_TECH			0xfffe
 #define ZTE_PRODUCT_AC8710T			0xffff
@@ -547,6 +551,18 @@ static const struct option_blacklist_info zte_mc2718_z_blacklist = {
 
 static const struct option_blacklist_info zte_mc2716_z_blacklist = {
 	.sendsetup = BIT(1) | BIT(2) | BIT(3),
+};
+
+static const struct option_blacklist_info zte_me3620_mbim_blacklist = {
+	.reserved = BIT(2) | BIT(3) | BIT(4),
+};
+
+static const struct option_blacklist_info zte_me3620_xl_blacklist = {
+	.reserved = BIT(3) | BIT(4) | BIT(5),
+};
+
+static const struct option_blacklist_info zte_zm8620_x_blacklist = {
+	.reserved = BIT(3) | BIT(4) | BIT(5),
 };
 
 static const struct option_blacklist_info huawei_cdc12_blacklist = {
@@ -1579,6 +1595,14 @@ static const struct usb_device_id option_ids[] = {
 	 .driver_info = (kernel_ulong_t)&zte_ad3812_z_blacklist },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_MC2716, 0xff, 0xff, 0xff),
 	 .driver_info = (kernel_ulong_t)&zte_mc2716_z_blacklist },
+	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_ME3620_L),
+	 .driver_info = (kernel_ulong_t)&zte_me3620_xl_blacklist },
+	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_ME3620_MBIM),
+	 .driver_info = (kernel_ulong_t)&zte_me3620_mbim_blacklist },
+	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_ME3620_X),
+	 .driver_info = (kernel_ulong_t)&zte_me3620_xl_blacklist },
+	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_ZM8620_X),
+	 .driver_info = (kernel_ulong_t)&zte_zm8620_x_blacklist },
 	{ USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0xff, 0x02, 0x01) },
 	{ USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0xff, 0x02, 0x05) },
 	{ USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0xff, 0x86, 0x10) },
