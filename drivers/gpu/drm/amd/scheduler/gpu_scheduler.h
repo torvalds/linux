@@ -112,11 +112,12 @@ struct amd_gpu_scheduler {
 	wait_queue_head_t		wait_queue;
 	uint32_t                        hw_submission_limit;
 	char                            name[20];
+	void                            *priv;
 };
 
 struct amd_gpu_scheduler *
 amd_sched_create(struct amd_sched_backend_ops *ops,
-		 uint32_t ring, uint32_t hw_submission);
+		 uint32_t ring, uint32_t hw_submission, void *priv);
 int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,

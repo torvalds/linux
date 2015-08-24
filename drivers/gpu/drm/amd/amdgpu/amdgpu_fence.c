@@ -628,7 +628,8 @@ void amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 	if (amdgpu_enable_scheduler) {
 		ring->scheduler = amd_sched_create(&amdgpu_sched_ops,
 						   ring->idx,
-						   amdgpu_sched_hw_submission);
+						   amdgpu_sched_hw_submission,
+						   (void *)ring->adev);
 		if (!ring->scheduler)
 			DRM_ERROR("Failed to create scheduler on ring %d.\n",
 				  ring->idx);

@@ -341,7 +341,8 @@ static int amd_sched_main(void *param)
  * Return the pointer to scheduler for success, otherwise return NULL
 */
 struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
-					   unsigned ring, unsigned hw_submission)
+					   unsigned ring, unsigned hw_submission,
+					   void *priv)
 {
 	struct amd_gpu_scheduler *sched;
 
@@ -352,6 +353,7 @@ struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
 	sched->ops = ops;
 	sched->ring_id = ring;
 	sched->hw_submission_limit = hw_submission;
+	sched->priv = priv;
 	snprintf(sched->name, sizeof(sched->name), "amdgpu[%d]", ring);
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
