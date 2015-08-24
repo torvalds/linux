@@ -27,6 +27,8 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
+static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
+
 /* Initialize a given run queue struct */
 static void amd_sched_rq_init(struct amd_sched_rq *rq)
 {
@@ -209,7 +211,7 @@ static bool amd_sched_entity_in(struct amd_sched_job *job)
 
 	/* first job wakes up scheduler */
 	if (first)
-		wake_up_interruptible(&job->sched->wait_queue);
+		amd_sched_wakeup(job->sched);
 
 	return added;
 }
@@ -247,6 +249,15 @@ static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
 {
 	return atomic_read(&sched->hw_rq_count) <
 		sched->hw_submission_limit;
+}
+
+/**
+ * Wake up the scheduler when it is ready
+ */
+static void amd_sched_wakeup(struct amd_gpu_scheduler *sched)
+{
+	if (amd_sched_ready(sched))
+		wake_up_interruptible(&sched->wait_queue);
 }
 
 /**
