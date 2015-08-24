@@ -28,9 +28,9 @@
 		gpio = <&pcf_gpio_21 5 GPIO_ACTIVE_HIGH>;
 	};
 
-	mmc2_3v3: fixedregulator-mmc2 {
+	evm_3v3_sw: fixedregulator-evm_3v3_sw {
 		compatible = "regulator-fixed";
-		regulator-name = "mmc2_3v3";
+		regulator-name = "evm_3v3_sw";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
@@ -484,7 +484,7 @@
 
 &mmc2 {
 	status = "okay";
-	vmmc-supply = <&mmc2_3v3>;
+	vmmc-supply = <&evm_3v3_sw>;
 	bus-width = <8>;
 };
 
