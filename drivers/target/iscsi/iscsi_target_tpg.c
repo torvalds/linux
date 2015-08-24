@@ -514,8 +514,8 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 		spin_unlock(&tpg_np_parent->tpg_np_parent_lock);
 	}
 
-	pr_debug("CORE[%s] - Added Network Portal: %pISc:%hu,%hu on %s\n",
-		tpg->tpg_tiqn->tiqn, &np->np_sockaddr, np->np_port, tpg->tpgt,
+	pr_debug("CORE[%s] - Added Network Portal: %pISpc,%hu on %s\n",
+		tpg->tpg_tiqn->tiqn, &np->np_sockaddr, tpg->tpgt,
 		np->np_transport->name);
 
 	return tpg_np;
@@ -528,8 +528,8 @@ static int iscsit_tpg_release_np(
 {
 	iscsit_clear_tpg_np_login_thread(tpg_np, tpg, true);
 
-	pr_debug("CORE[%s] - Removed Network Portal: %pISc:%hu,%hu on %s\n",
-		tpg->tpg_tiqn->tiqn, &np->np_sockaddr, np->np_port, tpg->tpgt,
+	pr_debug("CORE[%s] - Removed Network Portal: %pISpc,%hu on %s\n",
+		tpg->tpg_tiqn->tiqn, &np->np_sockaddr, tpg->tpgt,
 		np->np_transport->name);
 
 	tpg_np->tpg_np = NULL;

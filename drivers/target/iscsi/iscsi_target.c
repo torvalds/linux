@@ -276,7 +276,7 @@ bool iscsit_check_np_match(
 	struct sockaddr_in *sock_in, *sock_in_e;
 	struct sockaddr_in6 *sock_in6, *sock_in6_e;
 	bool ip_match = false;
-	u16 port;
+	u16 port, port_e;
 
 	if (sockaddr->ss_family == AF_INET6) {
 		sock_in6 = (struct sockaddr_in6 *)sockaddr;
@@ -288,6 +288,7 @@ bool iscsit_check_np_match(
 			ip_match = true;
 
 		port = ntohs(sock_in6->sin6_port);
+		port_e = ntohs(sock_in6_e->sin6_port);
 	} else {
 		sock_in = (struct sockaddr_in *)sockaddr;
 		sock_in_e = (struct sockaddr_in *)&np->np_sockaddr;
@@ -296,9 +297,10 @@ bool iscsit_check_np_match(
 			ip_match = true;
 
 		port = ntohs(sock_in->sin_port);
+		port_e = ntohs(sock_in_e->sin_port);
 	}
 
-	if (ip_match && (np->np_port == port) &&
+	if (ip_match && (port_e == port) &&
 	    (np->np_network_transport == network_transport))
 		return true;
 
@@ -343,8 +345,6 @@ struct iscsi_np *iscsit_add_np(
 	struct __kernel_sockaddr_storage *sockaddr,
 	int network_transport)
 {
-	struct sockaddr_in *sock_in;
-	struct sockaddr_in6 *sock_in6;
 	struct iscsi_np *np;
 	int ret;
 
@@ -367,14 +367,6 @@ struct iscsi_np *iscsit_add_np(
 	}
 
 	np->np_flags |= NPF_IP_NETWORK;
-	if (sockaddr->ss_family == AF_INET6) {
-		sock_in6 = (struct sockaddr_in6 *)sockaddr;
-		np->np_port = ntohs(sock_in6->sin6_port);
-	} else {
-		sock_in = (struct sockaddr_in *)sockaddr;
-		np->np_port = ntohs(sock_in->sin_port);
-	}
-
 	np->np_network_transport = network_transport;
 	spin_lock_init(&np->np_thread_lock);
 	init_completion(&np->np_restart_comp);
@@ -408,8 +400,8 @@ struct iscsi_np *iscsit_add_np(
 	list_add_tail(&np->np_list, &g_np_list);
 	mutex_unlock(&np_lock);
 
-	pr_debug("CORE[0] - Added Network Portal: %pISc:%hu on %s\n",
-		&np->np_sockaddr, np->np_port, np->np_transport->name);
+	pr_debug("CORE[0] - Added Network Portal: %pISpc on %s\n",
+		&np->np_sockaddr, np->np_transport->name);
 
 	return np;
 }
@@ -478,8 +470,8 @@ int iscsit_del_np(struct iscsi_np *np)
 	list_del(&np->np_list);
 	mutex_unlock(&np_lock);
 
-	pr_debug("CORE[0] - Removed Network Portal: %pISc:%hu on %s\n",
-		&np->np_sockaddr, np->np_port, np->np_transport->name);
+	pr_debug("CORE[0] - Removed Network Portal: %pISpc on %s\n",
+		&np->np_sockaddr, np->np_transport->name);
 
 	iscsit_put_transport(np->np_transport);
 	kfree(np);
@@ -3460,6 +3452,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 						tpg_np_list) {
 				struct iscsi_np *np = tpg_np->tpg_np;
 				bool inaddr_any = iscsit_check_inaddr_any(np);
+				struct __kernel_sockaddr_storage *sockaddr;
 
 				if (np->np_network_transport != network_transport)
 					continue;
@@ -3487,18 +3480,15 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 					}
 				}
 
-				if (inaddr_any) {
-					len = sprintf(buf, "TargetAddress="
-						      "%s:%hu,%hu",
-						      conn->local_ip,
-						      np->np_port,
-						      tpg->tpgt);
-				} else {
-					len = sprintf(buf, "TargetAddress="
-						      "%pISpc,%hu",
-						      &np->np_sockaddr,
-						      tpg->tpgt);
-				}
+				if (inaddr_any)
+					sockaddr = &conn->local_sockaddr;
+				else
+					sockaddr = &np->np_sockaddr;
+
+				len = sprintf(buf, "TargetAddress="
+					      "%pISpc,%hu",
+					      sockaddr,
+					      tpg->tpgt);
 				len += 1;
 
 				if ((len + payload_len) > buffer_len) {

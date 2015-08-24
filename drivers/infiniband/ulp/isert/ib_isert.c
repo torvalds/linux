@@ -3218,9 +3218,7 @@ isert_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
 		conn->login_port = ntohs(sock_in6->sin6_port);
 
 		sock_in6 = (struct sockaddr_in6 *)&cm_route->addr.src_addr;
-		snprintf(conn->local_ip, sizeof(conn->local_ip), "%pI6c",
-			 &sock_in6->sin6_addr.in6_u);
-		conn->local_port = ntohs(sock_in6->sin6_port);
+		memcpy(&conn->local_sockaddr , &sock_in6, sizeof(sock_in6));
 	} else {
 		sock_in = (struct sockaddr_in *)&cm_route->addr.dst_addr;
 		sprintf(conn->login_ip, "%pI4",
@@ -3228,9 +3226,7 @@ isert_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
 		conn->login_port = ntohs(sock_in->sin_port);
 
 		sock_in = (struct sockaddr_in *)&cm_route->addr.src_addr;
-		sprintf(conn->local_ip, "%pI4",
-			&sock_in->sin_addr.s_addr);
-		conn->local_port = ntohs(sock_in->sin_port);
+		memcpy(&conn->local_sockaddr , &sock_in, sizeof(sock_in));
 	}
 }
 

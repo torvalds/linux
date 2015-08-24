@@ -344,8 +344,8 @@ static void lio_target_call_delnpfromtpg(
 
 	se_tpg = &tpg->tpg_se_tpg;
 	pr_debug("LIO_Target_ConfigFS: DEREGISTER -> %s TPGT: %hu"
-		" PORTAL: %pISc:%hu\n", config_item_name(&se_tpg->se_tpg_wwn->wwn_group.cg_item),
-		tpg->tpgt, &tpg_np->tpg_np->np_sockaddr, tpg_np->tpg_np->np_port);
+		" PORTAL: %pISpc\n", config_item_name(&se_tpg->se_tpg_wwn->wwn_group.cg_item),
+		tpg->tpgt, &tpg_np->tpg_np->np_sockaddr);
 
 	ret = iscsit_tpg_del_network_portal(tpg, tpg_np);
 	if (ret < 0)

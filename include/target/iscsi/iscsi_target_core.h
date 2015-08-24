@@ -519,7 +519,6 @@ struct iscsi_conn {
 	u16			cid;
 	/* Remote TCP Port */
 	u16			login_port;
-	u16			local_port;
 	int			net_size;
 	int			login_family;
 	u32			auth_id;
@@ -531,7 +530,7 @@ struct iscsi_conn {
 	u32			stat_sn;
 #define IPV6_ADDRESS_SPACE				48
 	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
-	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
+	struct __kernel_sockaddr_storage local_sockaddr;
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;
 	atomic_t		check_immediate_queue;
@@ -778,7 +777,6 @@ struct iscsi_np {
 	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;
-	u16			np_port;
 	spinlock_t		np_thread_lock;
 	struct completion	np_restart_comp;
 	struct socket		*np_socket;
