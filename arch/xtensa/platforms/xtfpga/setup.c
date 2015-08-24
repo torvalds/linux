@@ -283,7 +283,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.irq		= DUART16552_INTNUM,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,
-		.iotype		= UPIO_MEM32,
+		.iotype		= XCHAL_HAVE_BE ? UPIO_MEM32BE : UPIO_MEM32,
 		.regshift	= 2,
 		.uartclk	= 0,    /* set in xtavnet_init() */
 	},

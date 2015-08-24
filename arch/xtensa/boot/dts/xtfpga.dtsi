@@ -60,6 +60,8 @@
 			no-loopback-test;
 			reg = <0x0d050020 0x20>;
 			reg-shift = <2>;
+			reg-io-width = <4>;
+			native-endian;
 			interrupts = <0 1>; /* external irq 0 */
 			clocks = <&osc>;
 		};
