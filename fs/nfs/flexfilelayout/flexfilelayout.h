@@ -77,6 +77,7 @@ struct nfs4_ff_layout_mirror {
 	u32				uid;
 	u32				gid;
 	struct rpc_cred			*cred;
+	atomic_t			ref;
 	spinlock_t			lock;
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;

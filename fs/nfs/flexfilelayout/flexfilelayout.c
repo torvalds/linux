@@ -135,6 +135,31 @@ decode_name(struct xdr_stream *xdr, u32 *id)
 	return 0;
 }
 
+static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(gfp_t gfp_flags)
+{
+	struct nfs4_ff_layout_mirror *mirror;
+
+	mirror = kzalloc(sizeof(*mirror), gfp_flags);
+	if (mirror != NULL) {
+		spin_lock_init(&mirror->lock);
+		atomic_set(&mirror->ref, 1);
+	}
+	return mirror;
+}
+
+static void ff_layout_free_mirror(struct nfs4_ff_layout_mirror *mirror)
+{
+	kfree(mirror->fh_versions);
+	nfs4_ff_layout_put_deviceid(mirror->mirror_ds);
+	kfree(mirror);
+}
+
+static void ff_layout_put_mirror(struct nfs4_ff_layout_mirror *mirror)
+{
+	if (mirror != NULL && atomic_dec_and_test(&mirror->ref))
+		ff_layout_free_mirror(mirror);
+}
+
 static void ff_layout_free_mirror_array(struct nfs4_ff_layout_segment *fls)
 {
 	int i;
@@ -144,11 +169,7 @@ static void ff_layout_free_mirror_array(struct nfs4_ff_layout_segment *fls)
 			/* normally mirror_ds is freed in
 			 * .free_deviceid_node but we still do it here
 			 * for .alloc_lseg error path */
-			if (fls->mirror_array[i]) {
-				kfree(fls->mirror_array[i]->fh_versions);
-				nfs4_ff_layout_put_deviceid(fls->mirror_array[i]->mirror_ds);
-				kfree(fls->mirror_array[i]);
-			}
+			ff_layout_put_mirror(fls->mirror_array[i]);
 		}
 		kfree(fls->mirror_array);
 		fls->mirror_array = NULL;
@@ -262,15 +283,12 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		if (ds_count != 1)
 			goto out_err_free;
 
-		fls->mirror_array[i] =
-			kzalloc(sizeof(struct nfs4_ff_layout_mirror),
-				gfp_flags);
+		fls->mirror_array[i] = ff_layout_alloc_mirror(gfp_flags);
 		if (fls->mirror_array[i] == NULL) {
 			rc = -ENOMEM;
 			goto out_err_free;
 		}
 
-		spin_lock_init(&fls->mirror_array[i]->lock);
 		fls->mirror_array[i]->ds_count = ds_count;
 		fls->mirror_array[i]->lseg = &fls->generic_hdr;
 
