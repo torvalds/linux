@@ -91,13 +91,6 @@ void arch_cpu_idle_exit(void)
 	ledtrig_cpu(CPU_LED_IDLE_END);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-void arch_cpu_idle_dead(void)
-{
-	cpu_die();
-}
-#endif
-
 void __show_regs(struct pt_regs *regs)
 {
 	unsigned long flags;
