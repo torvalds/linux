@@ -312,7 +312,7 @@ static void qcom_smd_channel_reset(struct qcom_smd_channel *channel)
 	SET_TX_CHANNEL_INFO(channel, fHEAD, 0);
 	SET_TX_CHANNEL_INFO(channel, fTAIL, 0);
 	SET_TX_CHANNEL_INFO(channel, fSTATE, 1);
-	SET_TX_CHANNEL_INFO(channel, fBLOCKREADINTR, 0);
+	SET_TX_CHANNEL_INFO(channel, fBLOCKREADINTR, 1);
 	SET_TX_CHANNEL_INFO(channel, head, 0);
 	SET_TX_CHANNEL_INFO(channel, tail, 0);
 
@@ -683,7 +683,7 @@ int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len)
 			goto out;
 		}
 
-		SET_TX_CHANNEL_INFO(channel, fBLOCKREADINTR, 1);
+		SET_TX_CHANNEL_INFO(channel, fBLOCKREADINTR, 0);
 
 		ret = wait_event_interruptible(channel->fblockread_event,
 				       qcom_smd_get_tx_avail(channel) >= tlen ||
@@ -691,7 +691,7 @@ int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len)
 		if (ret)
 			goto out;
 
-		SET_TX_CHANNEL_INFO(channel, fBLOCKREADINTR, 0);
+		SET_TX_CHANNEL_INFO(channel, fBLOCKREADINTR, 1);
 	}
 
 	SET_TX_CHANNEL_INFO(channel, fTAIL, 0);
