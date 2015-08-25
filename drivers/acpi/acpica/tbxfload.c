@@ -51,9 +51,6 @@
 #define _COMPONENT          ACPI_TABLES
 ACPI_MODULE_NAME("tbxfload")
 
-/* Local prototypes */
-static acpi_status acpi_tb_load_namespace(void);
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_load_tables
@@ -65,7 +62,6 @@ static acpi_status acpi_tb_load_namespace(void);
  * DESCRIPTION: Load the ACPI tables from the RSDT/XSDT
  *
  ******************************************************************************/
-
 acpi_status __init acpi_load_tables(void)
 {
 	acpi_status status;
@@ -75,6 +71,13 @@ acpi_status __init acpi_load_tables(void)
 	/* Load the namespace from the tables */
 
 	status = acpi_tb_load_namespace();
+
+	/* Don't let single failures abort the load */
+
+	if (status == AE_CTRL_TERMINATE) {
+		status = AE_OK;
+	}
+
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While loading namespace from ACPI tables"));
@@ -97,7 +100,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_load_tables)
  *              the RSDT/XSDT.
  *
  ******************************************************************************/
-static acpi_status acpi_tb_load_namespace(void)
+acpi_status acpi_tb_load_namespace(void)
 {
 	acpi_status status;
 	u32 i;
@@ -214,6 +217,10 @@ static acpi_status acpi_tb_load_namespace(void)
 		ACPI_ERROR((AE_INFO,
 			    "%u ACPI AML tables successfully acquired and loaded, %u failed",
 			    tables_loaded, tables_failed));
+
+		/* Indicate at least one failure */
+
+		status = AE_CTRL_TERMINATE;
 	}
 
 unlock_and_exit:
