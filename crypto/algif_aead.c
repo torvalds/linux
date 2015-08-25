@@ -90,6 +90,7 @@ static void aead_put_sgl(struct sock *sk)
 		put_page(sg_page(sg + i));
 		sg_assign_page(sg + i, NULL);
 	}
+	sg_init_table(sg, ALG_MAX_PAGES);
 	sgl->cur = 0;
 	ctx->used = 0;
 	ctx->more = 0;
