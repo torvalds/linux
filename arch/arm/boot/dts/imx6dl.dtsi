@@ -126,3 +126,7 @@
 &vpu {
 	compatible = "fsl,imx6dl-vpu", "cnm,coda960";
 };
+
+&vpu_fsl {
+	iramsize = <0>;
+};
