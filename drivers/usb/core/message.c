@@ -1387,8 +1387,6 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * new altsetting.
 	 */
 	if (manual) {
-		int i;
-
 		for (i = 0; i < alt->desc.bNumEndpoints; i++) {
 			epaddr = alt->endpoint[i].desc.bEndpointAddress;
 			pipe = __create_pipe(dev,
