@@ -89,7 +89,8 @@
 			#size-cells = <0>;
 			reg = <0x0d090000 0x20>;
 			reg-shift = <2>;
-			reg-io-width = <1>;
+			reg-io-width = <4>;
+			native-endian;
 			interrupts = <4 1>;
 			clocks = <&osc>;
 
