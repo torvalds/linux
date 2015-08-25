@@ -286,7 +286,7 @@ static void ipu_irq_handler(unsigned int __irq, struct irq_desc *desc)
 		raw_spin_unlock(&bank_lock);
 		while ((line = ffs(status))) {
 			struct ipu_irq_map *map;
-			unsigned int irq;
+			unsigned int irq = NO_IRQ;
 
 			line--;
 			status &= ~(1UL << line);
