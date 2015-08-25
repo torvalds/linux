@@ -116,12 +116,12 @@ static acpi_status acpi_tb_load_namespace(void)
 	if (!acpi_gbl_root_table_list.current_table_count ||
 	    !ACPI_COMPARE_NAME(&
 			       (acpi_gbl_root_table_list.
-				tables[ACPI_TABLE_INDEX_DSDT].signature),
+				tables[acpi_gbl_dsdt_index].signature),
 			       ACPI_SIG_DSDT)
 	    ||
 	    ACPI_FAILURE(acpi_tb_validate_table
 			 (&acpi_gbl_root_table_list.
-			  tables[ACPI_TABLE_INDEX_DSDT]))) {
+			  tables[acpi_gbl_dsdt_index]))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
 	}
@@ -133,7 +133,7 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * .Pointer field is not validated until after call to acpi_tb_validate_table.
 	 */
 	acpi_gbl_DSDT =
-	    acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer;
+	    acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index].pointer;
 
 	/*
 	 * Optionally copy the entire DSDT to local memory (instead of simply
@@ -142,7 +142,7 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * the DSDT.
 	 */
 	if (acpi_gbl_copy_dsdt_locally) {
-		new_dsdt = acpi_tb_copy_dsdt(ACPI_TABLE_INDEX_DSDT);
+		new_dsdt = acpi_tb_copy_dsdt(acpi_gbl_dsdt_index);
 		if (new_dsdt) {
 			acpi_gbl_DSDT = new_dsdt;
 		}
@@ -159,7 +159,7 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	/* Load and parse tables */
 
-	status = acpi_ns_load_table(ACPI_TABLE_INDEX_DSDT, acpi_gbl_root_node);
+	status = acpi_ns_load_table(acpi_gbl_dsdt_index, acpi_gbl_root_node);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "[DSDT] table load failed"));
 		tables_failed++;

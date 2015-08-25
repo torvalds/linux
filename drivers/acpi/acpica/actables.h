@@ -154,13 +154,12 @@ void acpi_tb_check_dsdt_header(void);
 struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index);
 
 void
-acpi_tb_install_table_with_override(u32 table_index,
-				    struct acpi_table_desc *new_table_desc,
-				    u8 override);
+acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
+				    u8 override, u32 *table_index);
 
 acpi_status
 acpi_tb_install_fixed_table(acpi_physical_address address,
-			    char *signature, u32 table_index);
+			    char *signature, u32 *table_index);
 
 acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
 

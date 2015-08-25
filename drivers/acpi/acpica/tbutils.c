@@ -74,22 +74,20 @@ acpi_status acpi_tb_initialize_facs(void)
 	if (acpi_gbl_reduced_hardware) {
 		acpi_gbl_FACS = NULL;
 		return (AE_OK);
-	}
-
-	(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-				      ACPI_CAST_INDIRECT_PTR(struct
-							     acpi_table_header,
-							     &acpi_gbl_facs32));
-	(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_X_FACS,
-				      ACPI_CAST_INDIRECT_PTR(struct
-							     acpi_table_header,
-							     &acpi_gbl_facs64));
-
-	if (acpi_gbl_facs64
-	    && (!acpi_gbl_facs32 || !acpi_gbl_use32_bit_facs_addresses)) {
-		acpi_gbl_FACS = acpi_gbl_facs64;
-	} else if (acpi_gbl_facs32) {
+	} else if (acpi_gbl_FADT.Xfacs &&
+		   (!acpi_gbl_FADT.facs
+		    || !acpi_gbl_use32_bit_facs_addresses)) {
+		(void)acpi_get_table_by_index(acpi_gbl_xfacs_index,
+					      ACPI_CAST_INDIRECT_PTR(struct
+								     acpi_table_header,
+								     &acpi_gbl_facs32));
 		acpi_gbl_FACS = acpi_gbl_facs32;
+	} else if (acpi_gbl_FADT.facs) {
+		(void)acpi_get_table_by_index(acpi_gbl_facs_index,
+					      ACPI_CAST_INDIRECT_PTR(struct
+								     acpi_table_header,
+								     &acpi_gbl_facs64));
+		acpi_gbl_FACS = acpi_gbl_facs64;
 	}
 
 	/* If there is no FACS, just continue. There was already an error msg */
@@ -192,7 +190,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 	acpi_tb_uninstall_table(table_desc);
 
 	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.
-				      tables[ACPI_TABLE_INDEX_DSDT],
+				      tables[acpi_gbl_dsdt_index],
 				      ACPI_PTR_TO_PHYSADDR(new_table),
 				      ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
 				      new_table);
@@ -368,13 +366,6 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	table_count = (u32)((table->length - sizeof(struct acpi_table_header)) /
 			    table_entry_size);
 	table_entry = ACPI_ADD_PTR(u8, table, sizeof(struct acpi_table_header));
-
-	/*
-	 * First three entries in the table array are reserved for the DSDT
-	 * and 32bit/64bit FACS, which are not actually present in the
-	 * RSDT/XSDT - they come from the FADT
-	 */
-	acpi_gbl_root_table_list.current_table_count = 3;
 
 	/* Initialize the root table array from the RSDT/XSDT */
 

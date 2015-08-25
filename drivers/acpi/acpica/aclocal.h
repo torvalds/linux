@@ -213,11 +213,9 @@ struct acpi_table_list {
 #define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
 #define ACPI_ROOT_ALLOW_RESIZE          (2)
 
-/* Predefined (fixed) table indexes */
+/* Predefined table indexes */
 
-#define ACPI_TABLE_INDEX_DSDT           (0)
-#define ACPI_TABLE_INDEX_FACS           (1)
-#define ACPI_TABLE_INDEX_X_FACS         (2)
+#define ACPI_INVALID_TABLE_INDEX        (0xFFFFFFFF)
 
 struct acpi_find_context {
 	char *search_for;
