@@ -2153,43 +2153,6 @@ static void rk3368_lcdc_layer_enable(struct lcdc_device *lcdc_dev,
 	spin_unlock(&lcdc_dev->reg_lock);
 }
 
-static int rk3368_lcdc_lineflag_config(struct rk_lcdc_driver *dev_drv)
-{
-	struct lcdc_device *lcdc_dev =
-	    container_of(dev_drv, struct lcdc_device, driver);
-	struct rk_screen *screen = dev_drv->cur_screen;
-	u16 hsync_len = screen->mode.hsync_len;
-	u16 left_margin = screen->mode.left_margin;
-	u16 right_margin = screen->mode.right_margin;
-	u16 vsync_len = screen->mode.vsync_len;
-	u16 upper_margin = screen->mode.upper_margin;
-	u16 lower_margin = screen->mode.lower_margin;
-	u16 x_res = screen->mode.xres;
-	u16 y_res = screen->mode.yres;
-	u32 mask, val, frame_time;
-	u16 h_total, v_total, vact_end_f1;
-
-	h_total = hsync_len + left_margin + x_res + right_margin;
-	v_total = vsync_len + upper_margin + y_res + lower_margin;
-	frame_time = 1000 * v_total * h_total / (screen->mode.pixclock / 1000);
-
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
-		vact_end_f1 = 2 * (vsync_len + upper_margin) + y_res +
-				lower_margin + 1;
-		mask = m_DSP_LINE_FLAG0_NUM | m_DSP_LINE_FLAG1_NUM;
-		val = v_DSP_LINE_FLAG0_NUM(vact_end_f1) |
-			v_DSP_LINE_FLAG1_NUM(vact_end_f1 -
-			EARLY_TIME * v_total / frame_time);
-		lcdc_msk_reg(lcdc_dev, LINE_FLAG, mask, val);
-	} else {
-		mask = m_DSP_LINE_FLAG0_NUM | m_DSP_LINE_FLAG1_NUM;
-		val = v_DSP_LINE_FLAG0_NUM(vsync_len + upper_margin + y_res) |
-			v_DSP_LINE_FLAG1_NUM(vsync_len + upper_margin + y_res -
-					     EARLY_TIME * v_total / frame_time);
-		lcdc_msk_reg(lcdc_dev, LINE_FLAG, mask, val);
-	}
-	return 0;
-}
 static int rk3368_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
@@ -2262,7 +2225,6 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		   rk3368_lcdc_mmu_en(dev_drv); */
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
 			rk3368_lcdc_set_dclk(dev_drv, 0);
-			rk3368_lcdc_lineflag_config(dev_drv);
 			/*rk3368_lcdc_enable_irq(dev_drv);*/
 		} else {
 			rk3368_load_screen(dev_drv, 1);
