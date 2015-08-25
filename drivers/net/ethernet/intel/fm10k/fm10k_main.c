@@ -1905,7 +1905,7 @@ static void fm10k_init_reta(struct fm10k_intfc *interface)
 	u32 reta, base;
 
 	/* If the netdev is initialized we have to maintain table if possible */
-	if (interface->netdev->reg_state) {
+	if (interface->netdev->reg_state != NETREG_UNINITIALIZED) {
 		for (i = FM10K_RETA_SIZE; i--;) {
 			reta = interface->reta[i];
 			if ((((reta << 24) >> 24) < rss_i) &&
