@@ -242,7 +242,6 @@ struct arizona_fll {
 	int id;
 	unsigned int base;
 	unsigned int vco_mult;
-	struct completion ok;
 
 	unsigned int fout;
 	int sync_src;
