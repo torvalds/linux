@@ -26,6 +26,8 @@
 #include "hw.h"
 #include "dma.h"
 
+#define MAX_SCF	1024
+
 /* provide a lookup table for setting the source address in the base or
  * extended descriptor of an xor or pq descriptor
  */
@@ -634,8 +636,11 @@ struct dma_async_tx_descriptor *
 ioat_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 		 unsigned int src_cnt, size_t len, unsigned long flags)
 {
-	unsigned char scf[src_cnt];
+	unsigned char scf[MAX_SCF];
 	dma_addr_t pq[2];
+
+	if (src_cnt > MAX_SCF)
+		return NULL;
 
 	memset(scf, 0, src_cnt);
 	pq[0] = dst;
@@ -654,8 +659,11 @@ ioat_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 		     unsigned int src_cnt, size_t len,
 		     enum sum_check_flags *result, unsigned long flags)
 {
-	unsigned char scf[src_cnt];
+	unsigned char scf[MAX_SCF];
 	dma_addr_t pq[2];
+
+	if (src_cnt > MAX_SCF)
+		return NULL;
 
 	/* the cleanup routine only sets bits on validate failure, it
 	 * does not clear bits on validate success... so clear it here
