@@ -1102,9 +1102,10 @@ int rds_ib_recv_init(void)
 	rds_ib_frag_slab = kmem_cache_create("rds_ib_frag",
 					sizeof(struct rds_page_frag),
 					0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!rds_ib_frag_slab)
+	if (!rds_ib_frag_slab) {
 		kmem_cache_destroy(rds_ib_incoming_slab);
-	else
+		rds_ib_incoming_slab = NULL;
+	} else
 		ret = 0;
 out:
 	return ret;
