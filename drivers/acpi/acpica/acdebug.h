@@ -67,9 +67,6 @@ struct acpi_db_execute_walk {
 };
 
 #define PARAM_LIST(pl)                  pl
-#define DBTEST_OUTPUT_LEVEL(lvl)        if (acpi_gbl_db_opt_verbose)
-#define VERBOSE_PRINT(fp)               DBTEST_OUTPUT_LEVEL(lvl) {\
-			  acpi_os_printf PARAM_LIST(fp);}
 
 #define EX_NO_SINGLE_STEP               1
 #define EX_SINGLE_STEP                  2
