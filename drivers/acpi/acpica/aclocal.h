@@ -1131,6 +1131,10 @@ struct acpi_integrity_info {
 #define ACPI_DB_CONSOLE_OUTPUT          0x02
 #define ACPI_DB_DUPLICATE_OUTPUT        0x03
 
+struct acpi_object_info {
+	u32 types[ACPI_TOTAL_TYPES];
+};
+
 /*****************************************************************************
  *
  * Debug
