@@ -1501,8 +1501,8 @@ static ssize_t smk_write_net6addr(struct file *file, const char __user *buf,
 	 */
 	if (smack[0] != '-') {
 		skp = smk_import_entry(smack, 0);
-		if (skp == NULL) {
-			rc = -EINVAL;
+		if (IS_ERR(skp)) {
+			rc = PTR_ERR(skp);
 			goto free_out;
 		}
 	} else {
