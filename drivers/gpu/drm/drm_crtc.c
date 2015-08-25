@@ -538,7 +538,12 @@ EXPORT_SYMBOL(drm_framebuffer_reference);
  */
 void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
+	struct drm_device *dev;
+
+	if (!fb)
+		return;
+
+	dev = fb->dev;
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	/* Mark fb as reaped and drop idr ref. */
@@ -589,11 +594,16 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  */
 void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
+	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	struct drm_mode_set set;
 	int ret;
+
+	if (!fb)
+		return;
+
+	dev = fb->dev;
 
 	WARN_ON(!list_empty(&fb->filp_head));
 
