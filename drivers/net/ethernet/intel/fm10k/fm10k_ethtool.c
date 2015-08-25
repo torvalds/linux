@@ -206,13 +206,13 @@ static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 	}
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
-		sprintf(p, "tx_queue_%u_packets", i);
+		snprintf(p, ETH_GSTRING_LEN, "tx_queue_%u_packets", i);
 		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_queue_%u_bytes", i);
+		snprintf(p, ETH_GSTRING_LEN, "tx_queue_%u_bytes", i);
 		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_queue_%u_packets", i);
+		snprintf(p, ETH_GSTRING_LEN, "rx_queue_%u_packets", i);
 		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_queue_%u_bytes", i);
+		snprintf(p, ETH_GSTRING_LEN, "rx_queue_%u_bytes", i);
 		p += ETH_GSTRING_LEN;
 	}
 }
