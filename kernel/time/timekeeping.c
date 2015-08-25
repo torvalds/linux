@@ -1674,7 +1674,7 @@ static void timekeeping_adjust(struct timekeeper *tk, s64 offset)
 /**
  * accumulate_nsecs_to_secs - Accumulates nsecs into secs
  *
- * Helper function that accumulates a the nsecs greater then a second
+ * Helper function that accumulates the nsecs greater than a second
  * from the xtime_nsec field to the xtime_secs field.
  * It also calls into the NTP code to handle leapsecond processing.
  *
@@ -1726,7 +1726,7 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 	cycle_t interval = tk->cycle_interval << shift;
 	u64 raw_nsecs;
 
-	/* If the offset is smaller then a shifted interval, do nothing */
+	/* If the offset is smaller than a shifted interval, do nothing */
 	if (offset < interval)
 		return offset;
 

@@ -59,7 +59,7 @@
 /*
  * The timer bases:
  *
- * There are more clockids then hrtimer bases. Thus, we index
+ * There are more clockids than hrtimer bases. Thus, we index
  * into the timer bases by the hrtimer_base_type enum. When trying
  * to reach a base using a clockid, hrtimer_clockid_to_base()
  * is used to convert from clockid to the proper hrtimer_base_type.
