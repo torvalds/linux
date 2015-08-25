@@ -243,6 +243,11 @@
 	status = "okay";
 };
 
+&cpu0 {
+	arm-supply = <&sw1a_reg>;
+	soc-supply = <&sw1c_reg>;
+};
+
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 9 0>;
@@ -265,6 +270,10 @@
 	phy-mode = "rgmii";
 	phy-reset-gpios = <&gpio1 25 0>;
 	status = "okay";
+};
+
+&gpc {
+	fsl,ldo-bypass = <1>;
 };
 
 &hdmi_audio {
