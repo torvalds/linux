@@ -102,6 +102,8 @@ static acpi_status acpi_tb_load_namespace(void)
 	acpi_status status;
 	u32 i;
 	struct acpi_table_header *new_dsdt;
+	u32 tables_loaded = 0;
+	u32 tables_failed = 0;
 
 	ACPI_FUNCTION_TRACE(tb_load_namespace);
 
@@ -159,7 +161,10 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	status = acpi_ns_load_table(ACPI_TABLE_INDEX_DSDT, acpi_gbl_root_node);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		ACPI_EXCEPTION((AE_INFO, status, "[DSDT] table load failed"));
+		tables_failed++;
+	} else {
+		tables_loaded++;
 	}
 
 	/* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
@@ -187,11 +192,29 @@ static acpi_status acpi_tb_load_namespace(void)
 		/* Ignore errors while loading tables, get as many as possible */
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		(void)acpi_ns_load_table(i, acpi_gbl_root_node);
+		status = acpi_ns_load_table(i, acpi_gbl_root_node);
+		if (ACPI_FAILURE(status)) {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"[%4.4s] table load failed",
+					&acpi_gbl_root_table_list.tables[i].
+					signature.ascii[0]));
+			tables_failed++;
+		} else {
+			tables_loaded++;
+		}
+
 		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	}
 
-	ACPI_INFO((AE_INFO, "All ACPI Tables successfully acquired"));
+	if (!tables_failed) {
+		ACPI_INFO((AE_INFO,
+			   "All (%u) ACPI AML tables successfully loaded",
+			   tables_loaded));
+	} else {
+		ACPI_ERROR((AE_INFO,
+			    "%u ACPI AML tables loaded, %u failed",
+			    tables_loaded, tables_failed));
+	}
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);

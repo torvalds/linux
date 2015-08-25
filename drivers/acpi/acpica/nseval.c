@@ -274,6 +274,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		acpi_ex_exit_interpreter();
 
 		if (ACPI_FAILURE(status)) {
+			info->return_object = NULL;
 			goto cleanup;
 		}
 
