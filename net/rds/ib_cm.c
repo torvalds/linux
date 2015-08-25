@@ -135,7 +135,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	rds_ib_recv_init_ring(ic);
 	/* Post receive buffers - as a side effect, this will update
 	 * the posted credit count. */
-	rds_ib_recv_refill(conn, 1);
+	rds_ib_recv_refill(conn, 1, GFP_KERNEL);
 
 	/* Tune RNR behavior */
 	rds_ib_tune_rnr(ic, &qp_attr);
@@ -640,6 +640,15 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 			   (atomic_read(&ic->i_signaled_sends) == 0));
 		tasklet_kill(&ic->i_recv_tasklet);
 
+		/* first destroy the ib state that generates callbacks */
+		if (ic->i_cm_id->qp)
+			rdma_destroy_qp(ic->i_cm_id);
+		if (ic->i_send_cq)
+			ib_destroy_cq(ic->i_send_cq);
+		if (ic->i_recv_cq)
+			ib_destroy_cq(ic->i_recv_cq);
+
+		/* then free the resources that ib callbacks use */
 		if (ic->i_send_hdrs)
 			ib_dma_free_coherent(dev,
 					   ic->i_send_ring.w_nr *
@@ -663,12 +672,6 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		if (ic->i_recvs)
 			rds_ib_recv_clear_ring(ic);
 
-		if (ic->i_cm_id->qp)
-			rdma_destroy_qp(ic->i_cm_id);
-		if (ic->i_send_cq)
-			ib_destroy_cq(ic->i_send_cq);
-		if (ic->i_recv_cq)
-			ib_destroy_cq(ic->i_recv_cq);
 		rdma_destroy_id(ic->i_cm_id);
 
 		/*
