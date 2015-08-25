@@ -93,7 +93,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-state-mem {
-				regulator-on-in-suspend;
+				regulator-off-in-suspend;
 			};
 		};
 
@@ -102,7 +102,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-state-mem {
-				regulator-on-in-suspend;
+				regulator-off-in-suspend;
 			};
 		};
 	};

@@ -109,7 +109,7 @@
 			regulator-boot-on;
 			regulator-name = "vcc18_lcd";
 			regulator-state-mem {
-				regulator-on-in-suspend;
+				regulator-off-in-suspend;
 			};
 		};
 	};
