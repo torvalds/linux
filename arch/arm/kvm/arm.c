@@ -271,6 +271,16 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return kvm_timer_should_fire(vcpu);
 }
 
+void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
+{
+	kvm_timer_schedule(vcpu);
+}
+
+void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
+{
+	kvm_timer_unschedule(vcpu);
+}
+
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	/* Force users to call KVM_ARM_VCPU_INIT */

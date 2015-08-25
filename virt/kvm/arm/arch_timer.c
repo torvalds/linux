@@ -111,14 +111,21 @@ static enum hrtimer_restart kvm_timer_expire(struct hrtimer *hrt)
 	return HRTIMER_NORESTART;
 }
 
+static bool kvm_timer_irq_can_fire(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	return !(timer->cntv_ctl & ARCH_TIMER_CTRL_IT_MASK) &&
+		(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE) &&
+		!kvm_vgic_get_phys_irq_active(timer->map);
+}
+
 bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 	cycle_t cval, now;
 
-	if ((timer->cntv_ctl & ARCH_TIMER_CTRL_IT_MASK) ||
-	    !(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE) ||
-	    kvm_vgic_get_phys_irq_active(timer->map))
+	if (!kvm_timer_irq_can_fire(vcpu))
 		return false;
 
 	cval = timer->cntv_cval;
@@ -127,12 +134,57 @@ bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
 	return cval <= now;
 }
 
+/*
+ * Schedule the background timer before calling kvm_vcpu_block, so that this
+ * thread is removed from its waitqueue and made runnable when there's a timer
+ * interrupt to handle.
+ */
+void kvm_timer_schedule(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	u64 ns;
+	cycle_t cval, now;
+
+	BUG_ON(timer_is_armed(timer));
+
+	/*
+	 * No need to schedule a background timer if the guest timer has
+	 * already expired, because kvm_vcpu_block will return before putting
+	 * the thread to sleep.
+	 */
+	if (kvm_timer_should_fire(vcpu))
+		return;
+
+	/*
+	 * If the timer is not capable of raising interrupts (disabled or
+	 * masked), then there's no more work for us to do.
+	 */
+	if (!kvm_timer_irq_can_fire(vcpu))
+		return;
+
+	/*  The timer has not yet expired, schedule a background timer */
+	cval = timer->cntv_cval;
+	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
+
+	ns = cyclecounter_cyc2ns(timecounter->cc,
+				 cval - now,
+				 timecounter->mask,
+				 &timecounter->frac);
+	timer_arm(timer, ns);
+}
+
+void kvm_timer_unschedule(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	timer_disarm(timer);
+}
+
 /**
  * kvm_timer_flush_hwstate - prepare to move the virt timer to the cpu
  * @vcpu: The vcpu pointer
  *
- * Disarm any pending soft timers, since the world-switch code will write the
- * virtual timer state back to the physical CPU.
+ * Check if the virtual timer has expired while we were running in the host,
+ * and inject an interrupt if that was the case.
  */
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 {
@@ -140,17 +192,6 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	bool phys_active;
 	int ret;
 
-	/*
-	 * We're about to run this vcpu again, so there is no need to
-	 * keep the background timer running, as we're about to
-	 * populate the CPU timer again.
-	 */
-	timer_disarm(timer);
-
-	/*
-	 * If the timer expired while we were not scheduled, now is the time
-	 * to inject it.
-	 */
 	if (kvm_timer_should_fire(vcpu))
 		kvm_timer_inject_irq(vcpu);
 
@@ -176,32 +217,17 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
  * kvm_timer_sync_hwstate - sync timer state from cpu
  * @vcpu: The vcpu pointer
  *
- * Check if the virtual timer was armed and either schedule a corresponding
- * soft timer or inject directly if already expired.
+ * Check if the virtual timer has expired while we were running in the guest,
+ * and inject an interrupt if that was the case.
  */
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-	cycle_t cval, now;
-	u64 ns;
 
 	BUG_ON(timer_is_armed(timer));
 
-	if (kvm_timer_should_fire(vcpu)) {
-		/*
-		 * Timer has already expired while we were not
-		 * looking. Inject the interrupt and carry on.
-		 */
+	if (kvm_timer_should_fire(vcpu))
 		kvm_timer_inject_irq(vcpu);
-		return;
-	}
-
-	cval = timer->cntv_cval;
-	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
-
-	ns = cyclecounter_cyc2ns(timecounter->cc, cval - now, timecounter->mask,
-				 &timecounter->frac);
-	timer_arm(timer, ns);
 }
 
 int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
