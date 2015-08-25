@@ -533,14 +533,17 @@ nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
 			    ktime_t now)
 {
 	static const ktime_t notime = {0};
+	s64 report_interval = FF_LAYOUTSTATS_REPORT_INTERVAL;
 
 	nfs4_ff_start_busy_timer(&layoutstat->busy_timer, now);
 	if (ktime_equal(mirror->start_time, notime))
 		mirror->start_time = now;
 	if (ktime_equal(mirror->last_report_time, notime))
 		mirror->last_report_time = now;
+	if (layoutstats_timer != 0)
+		report_interval = (s64)layoutstats_timer * 1000LL;
 	if (ktime_to_ms(ktime_sub(now, mirror->last_report_time)) >=
-			FF_LAYOUTSTATS_REPORT_INTERVAL) {
+			report_interval) {
 		mirror->last_report_time = now;
 		return true;
 	}

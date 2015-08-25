@@ -528,12 +528,15 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 					nfss->pnfs_curr_ld->id == src->l_type);
 }
 
+extern unsigned int layoutstats_timer;
+
 #ifdef NFS_DEBUG
 void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
 #else
 static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
 {
 }
+
 #endif /* NFS_DEBUG */
 #else  /* CONFIG_NFS_V4_1 */
 
