@@ -44,7 +44,6 @@ struct amd_sched_entity {
 	struct kfifo                    job_queue;
 	spinlock_t			queue_lock;
 	struct amd_gpu_scheduler	*scheduler;
-	wait_queue_head_t		wait_queue;
 	uint64_t                        fence_context;
 };
 
@@ -104,7 +103,8 @@ struct amd_gpu_scheduler {
 	atomic_t			hw_rq_count;
 	struct amd_sched_backend_ops	*ops;
 	uint32_t			ring_id;
-	wait_queue_head_t		wait_queue;
+	wait_queue_head_t		wake_up_worker;
+	wait_queue_head_t		job_scheduled;
 	uint32_t                        hw_submission_limit;
 	char                            name[20];
 	void                            *priv;

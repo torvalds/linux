@@ -117,7 +117,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	memset(entity, 0, sizeof(struct amd_sched_entity));
 	entity->belongto_rq = rq;
 	entity->scheduler = sched;
-	init_waitqueue_head(&entity->wait_queue);
 	entity->fence_context = fence_context_alloc(1);
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
@@ -183,7 +182,7 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs
 	*/
-	wait_event(entity->wait_queue, amd_sched_entity_is_idle(entity));
+	wait_event(sched->job_scheduled, amd_sched_entity_is_idle(entity));
 
 	amd_sched_rq_remove_entity(rq, entity);
 	kfifo_free(&entity->job_queue);
@@ -236,7 +235,7 @@ int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	fence_get(&fence->base);
 	sched_job->s_fence = fence;
 
-	r = wait_event_interruptible(entity->wait_queue,
+	r = wait_event_interruptible(entity->scheduler->job_scheduled,
 				     amd_sched_entity_in(sched_job));
 
 	return r;
@@ -257,7 +256,7 @@ static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
 static void amd_sched_wakeup(struct amd_gpu_scheduler *sched)
 {
 	if (amd_sched_ready(sched))
-		wake_up_interruptible(&sched->wait_queue);
+		wake_up_interruptible(&sched->wake_up_worker);
 }
 
 /**
@@ -290,7 +289,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	atomic_dec(&sched->hw_rq_count);
 	fence_put(&sched_job->s_fence->base);
 	sched->ops->process_job(sched_job);
-	wake_up_interruptible(&sched->wait_queue);
+	wake_up_interruptible(&sched->wake_up_worker);
 }
 
 static int amd_sched_main(void *param)
@@ -306,7 +305,7 @@ static int amd_sched_main(void *param)
 		struct amd_sched_job *job;
 		struct fence *fence;
 
-		wait_event_interruptible(sched->wait_queue,
+		wait_event_interruptible(sched->wake_up_worker,
 			kthread_should_stop() ||
 			(c_entity = amd_sched_select_context(sched)));
 
@@ -329,7 +328,7 @@ static int amd_sched_main(void *param)
 			fence_put(fence);
 		}
 
-		wake_up(&c_entity->wait_queue);
+		wake_up(&sched->job_scheduled);
 	}
 	return 0;
 }
@@ -361,7 +360,8 @@ struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
 
-	init_waitqueue_head(&sched->wait_queue);
+	init_waitqueue_head(&sched->wake_up_worker);
+	init_waitqueue_head(&sched->job_scheduled);
 	atomic_set(&sched->hw_rq_count, 0);
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_run(amd_sched_main, sched, sched->name);
