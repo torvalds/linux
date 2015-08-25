@@ -390,6 +390,13 @@
 			interrupt-controller;
 			#interrupt-cells = <4>;
 		};
+
+		rng@22000 {
+			compatible = "qcom,prng";
+			reg = <0x00022000 0x200>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+		};
 	};
 };
 
