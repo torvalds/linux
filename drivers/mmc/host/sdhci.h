@@ -309,9 +309,10 @@ struct sdhci_adma2_64_desc {
  */
 #define SDHCI_MAX_SEGS		128
 
-struct sdhci_host_next {
-	unsigned int	sg_count;
-	s32		cookie;
+enum sdhci_cookie {
+	COOKIE_UNMAPPED,
+	COOKIE_MAPPED,
+	COOKIE_GIVEN,
 };
 
 struct sdhci_host {
@@ -505,7 +506,6 @@ struct sdhci_host {
 	unsigned int		tuning_mode;	/* Re-tuning mode supported by host */
 #define SDHCI_TUNING_MODE_1	0
 
-	struct sdhci_host_next	next_data;
 	unsigned long private[0] ____cacheline_aligned;
 };
 
