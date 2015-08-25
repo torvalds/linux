@@ -362,7 +362,13 @@ int xfs_lots_retries;
 int xfs_lock_delays;
 #endif
 
-#ifdef CONFIG_LOCKDEP
+/*
+ * xfs_lockdep_subclass_ok() is only used in an ASSERT, so is only called when
+ * DEBUG or XFS_WARN is set. And MAX_LOCKDEP_SUBCLASSES is then only defined
+ * when CONFIG_LOCKDEP is set. Hence the complex define below to avoid build
+ * errors and warnings.
+ */
+#if (defined(DEBUG) || defined(XFS_WARN)) && defined(CONFIG_LOCKDEP)
 static bool
 xfs_lockdep_subclass_ok(
 	int subclass)
