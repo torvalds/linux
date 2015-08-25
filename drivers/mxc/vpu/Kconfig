@@ -1,0 +1,31 @@
+#
+# Codec configuration
+#
+
+menu "MXC VPU(Video Processing Unit) support"
+
+config MXC_VPU
+	  tristate "Support for MXC VPU(Video Processing Unit)"
+	  depends on (SOC_IMX27 || SOC_IMX5 || SOC_IMX6Q)
+	  default y
+	---help---
+	  The VPU codec device provides codec function for H.264/MPEG4/H.263,
+	  as well as MPEG2/VC-1/DivX on some platforms.
+
+config MXC_VPU_DEBUG
+	bool "MXC VPU debugging"
+	depends on MXC_VPU != n
+	help
+	  This is an option for the developers; most people should
+	  say N here.  This enables MXC VPU driver debugging.
+
+config MX6_VPU_352M
+	bool "MX6 VPU 352M"
+	depends on MXC_VPU
+	default n
+	help
+	 Increase VPU frequncy to 352M, the config will disable bus frequency
+	 adjust dynamic, and CPU lowest setpoint will be 352Mhz.
+	 This config is used for special VPU use case.
+
+endmenu
