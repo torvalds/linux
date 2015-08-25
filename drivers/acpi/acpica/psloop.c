@@ -321,6 +321,8 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 	union acpi_operand_object *method_obj;
 	struct acpi_namespace_node *parent_node;
 
+	ACPI_FUNCTION_TRACE(ps_link_module_code);
+
 	/* Get the tail of the list */
 
 	prev = next = acpi_gbl_module_code_list;
@@ -340,8 +342,12 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 
 		method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 		if (!method_obj) {
-			return;
+			return_VOID;
 		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Create/Link new code block: %p\n",
+				  method_obj));
 
 		if (parent_op->common.node) {
 			parent_node = parent_op->common.node;
@@ -367,8 +373,14 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 			prev->method.mutex = method_obj;
 		}
 	} else {
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Appending to existing code block: %p\n",
+				  prev));
+
 		prev->method.aml_length += aml_length;
 	}
+
+	return_VOID;
 }
 
 /*******************************************************************************

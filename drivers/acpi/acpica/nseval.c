@@ -465,7 +465,8 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	status = acpi_ns_evaluate(info);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "Executed module-level code at %p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INIT_NAMES,
+			  "Executed module-level code at %p\n",
 			  method_obj->method.aml_start));
 
 	/* Delete a possible implicit return value (in slack mode) */
