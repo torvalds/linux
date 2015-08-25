@@ -412,3 +412,36 @@ next_table:
 
 	return_ACPI_STATUS(AE_OK);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_is_valid_signature
+ *
+ * PARAMETERS:  signature           - Sig string to be validated
+ *
+ * RETURN:      TRUE if signature is correct length and has valid characters
+ *
+ * DESCRIPTION: Validate an ACPI table signature.
+ *
+ ******************************************************************************/
+
+u8 acpi_is_valid_signature(char *signature)
+{
+	u32 i;
+
+	/* Validate the signature length */
+
+	if (strlen(signature) != ACPI_NAME_SIZE) {
+		return (FALSE);
+	}
+
+	/* Validate each character in the signature */
+
+	for (i = 0; i < ACPI_NAME_SIZE; i++) {
+		if (!acpi_ut_valid_acpi_char(signature[i], i)) {
+			return (FALSE);
+		}
+	}
+
+	return (TRUE);
+}

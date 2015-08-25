@@ -164,4 +164,6 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 
 acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
 
+u8 acpi_is_valid_signature(char *signature);
+
 #endif				/* __ACTABLES_H__ */
