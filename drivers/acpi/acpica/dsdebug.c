@@ -89,7 +89,7 @@ acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-	status = acpi_ns_handle_to_pathname(node, &buffer, FALSE);
+	status = acpi_ns_handle_to_pathname(node, &buffer, TRUE);
 	if (ACPI_SUCCESS(status)) {
 		if (message) {
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "%s ",

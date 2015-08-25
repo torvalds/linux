@@ -996,7 +996,7 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 		acpi_os_printf(" %p ", obj_desc->reference.node);
 
 		status = acpi_ns_handle_to_pathname(obj_desc->reference.node,
-						    &ret_buf, FALSE);
+						    &ret_buf, TRUE);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf(" Could not convert name to pathname\n");
 		} else {
