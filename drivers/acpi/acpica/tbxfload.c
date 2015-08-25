@@ -105,6 +105,7 @@ acpi_status acpi_tb_load_namespace(void)
 	acpi_status status;
 	u32 i;
 	struct acpi_table_header *new_dsdt;
+	struct acpi_table_desc *table;
 	u32 tables_loaded = 0;
 	u32 tables_failed = 0;
 
@@ -116,15 +117,11 @@ acpi_status acpi_tb_load_namespace(void)
 	 * Load the namespace. The DSDT is required, but any SSDT and
 	 * PSDT tables are optional. Verify the DSDT.
 	 */
+	table = &acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index];
+
 	if (!acpi_gbl_root_table_list.current_table_count ||
-	    !ACPI_COMPARE_NAME(&
-			       (acpi_gbl_root_table_list.
-				tables[acpi_gbl_dsdt_index].signature),
-			       ACPI_SIG_DSDT)
-	    ||
-	    ACPI_FAILURE(acpi_tb_validate_table
-			 (&acpi_gbl_root_table_list.
-			  tables[acpi_gbl_dsdt_index]))) {
+	    !ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_DSDT) ||
+	    ACPI_FAILURE(acpi_tb_validate_table(table))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
 	}
@@ -135,8 +132,7 @@ acpi_status acpi_tb_load_namespace(void)
 	 * array can change dynamically as tables are loaded at run-time. Note:
 	 * .Pointer field is not validated until after call to acpi_tb_validate_table.
 	 */
-	acpi_gbl_DSDT =
-	    acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index].pointer;
+	acpi_gbl_DSDT = table->pointer;
 
 	/*
 	 * Optionally copy the entire DSDT to local memory (instead of simply
@@ -174,21 +170,15 @@ acpi_status acpi_tb_load_namespace(void)
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
+		table = &acpi_gbl_root_table_list.tables[i];
+
 		if (!acpi_gbl_root_table_list.tables[i].address ||
-		    (!ACPI_COMPARE_NAME
-		     (&(acpi_gbl_root_table_list.tables[i].signature),
-		      ACPI_SIG_SSDT)
-		     &&
-		     !ACPI_COMPARE_NAME(&
-					(acpi_gbl_root_table_list.tables[i].
-					 signature), ACPI_SIG_PSDT)
-		     &&
-		     !ACPI_COMPARE_NAME(&
-					(acpi_gbl_root_table_list.tables[i].
-					 signature), ACPI_SIG_OSDT))
-		    ||
-		    ACPI_FAILURE(acpi_tb_validate_table
-				 (&acpi_gbl_root_table_list.tables[i]))) {
+		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
+		     && !ACPI_COMPARE_NAME(table->signature.ascii,
+					   ACPI_SIG_PSDT)
+		     && !ACPI_COMPARE_NAME(table->signature.ascii,
+					   ACPI_SIG_OSDT))
+		    || ACPI_FAILURE(acpi_tb_validate_table(table))) {
 			continue;
 		}
 
@@ -198,10 +188,15 @@ acpi_status acpi_tb_load_namespace(void)
 		status = acpi_ns_load_table(i, acpi_gbl_root_node);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"[%4.4s] table load failed",
-					&acpi_gbl_root_table_list.tables[i].
-					signature.ascii[0]));
+					"(%4.4s:%8.8s) while loading table",
+					table->signature.ascii,
+					table->pointer->oem_table_id));
 			tables_failed++;
+
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+					      "Table [%4.4s:%8.8s] (id FF) - Table namespace load failed\n\n",
+					      table->signature.ascii,
+					      table->pointer->oem_table_id));
 		} else {
 			tables_loaded++;
 		}
@@ -215,8 +210,8 @@ acpi_status acpi_tb_load_namespace(void)
 			   tables_loaded));
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "%u ACPI AML tables successfully acquired and loaded, %u failed",
-			    tables_loaded, tables_failed));
+			    "%u table load failures, %u successful",
+			    tables_failed, tables_loaded));
 
 		/* Indicate at least one failure */
 
