@@ -1561,6 +1561,26 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(pnfs_update_layout);
 
+static bool
+pnfs_sanity_check_layout_range(struct pnfs_layout_range *range)
+{
+	switch (range->iomode) {
+	case IOMODE_READ:
+	case IOMODE_RW:
+		break;
+	default:
+		return false;
+	}
+	if (range->offset == NFS4_MAX_UINT64)
+		return false;
+	if (range->length == 0)
+		return false;
+	if (range->length != NFS4_MAX_UINT64 &&
+	    range->length > NFS4_MAX_UINT64 - range->offset)
+		return false;
+	return true;
+}
+
 struct pnfs_layout_segment *
 pnfs_layout_process(struct nfs4_layoutget *lgp)
 {
@@ -1569,7 +1589,10 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	struct pnfs_layout_segment *lseg;
 	struct inode *ino = lo->plh_inode;
 	LIST_HEAD(free_me);
-	int status = 0;
+	int status = -EINVAL;
+
+	if (!pnfs_sanity_check_layout_range(&res->range))
+		goto out;
 
 	/* Inject layout blob into I/O device driver */
 	lseg = NFS_SERVER(ino)->pnfs_curr_ld->alloc_lseg(lo, res, lgp->gfp_flags);
