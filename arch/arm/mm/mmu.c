@@ -1363,6 +1363,9 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	 */
 	local_flush_tlb_all();
 	flush_cache_all();
+
+	/* Enable asynchronous aborts */
+	local_abt_enable();
 }
 
 static void __init kmap_init(void)
