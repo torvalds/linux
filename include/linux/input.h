@@ -187,6 +187,11 @@ struct input_dev {
 	struct input_value *vals;
 
 	bool devres_managed;
+
+	int (*inhibit)(struct input_dev *dev);
+	int (*uninhibit)(struct input_dev *dev);
+
+	bool inhibited;
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
 

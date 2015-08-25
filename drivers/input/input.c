@@ -367,6 +367,13 @@ static void input_handle_event(struct input_dev *dev,
 {
 	int disposition;
 
+	/*
+	 * When inhibited, skip all events. For devices that do not implement
+	 * inhibit() themselves.
+	 */
+	if (dev->inhibited)
+		return;
+
 	disposition = input_get_disposition(dev, type, code, &value);
 
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
@@ -1380,12 +1387,50 @@ static ssize_t input_dev_show_properties(struct device *dev,
 }
 static DEVICE_ATTR(properties, S_IRUGO, input_dev_show_properties, NULL);
 
+static int input_inhibit(struct input_dev *dev);
+static int input_uninhibit(struct input_dev *dev);
+
+static ssize_t input_dev_show_inhibited(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", input_dev->inhibited);
+}
+
+static ssize_t input_dev_store_inhibited(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf,
+					 size_t len)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	ssize_t rv;
+	bool inhibited;
+
+	if (strtobool(buf, &inhibited))
+		return -EINVAL;
+
+	if (inhibited)
+		rv = input_inhibit(input_dev);
+	else
+		rv = input_uninhibit(input_dev);
+
+	if (rv != 0)
+		return rv;
+
+	return len;
+}
+
+static DEVICE_ATTR(inhibited, S_IWUSR | S_IRUGO, input_dev_show_inhibited,
+		   input_dev_store_inhibited);
+
 static struct attribute *input_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_phys.attr,
 	&dev_attr_uniq.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_properties.attr,
+	&dev_attr_inhibited.attr,
 	NULL
 };
 
@@ -1672,6 +1717,57 @@ void input_reset_device(struct input_dev *dev)
 	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL(input_reset_device);
+
+static int input_inhibit(struct input_dev *dev)
+{
+	int rv = 0;
+
+	mutex_lock(&dev->mutex);
+
+	if (dev->inhibited)
+		goto out;
+
+	if (dev->inhibit) {
+		rv = dev->inhibit(dev);
+		if (rv != 0)
+			goto out;
+	}
+
+	input_dev_release_keys(dev);
+	input_dev_toggle(dev, false);
+
+	dev->inhibited = true;
+
+out:
+	mutex_unlock(&dev->mutex);
+	return rv;
+}
+
+static int input_uninhibit(struct input_dev *dev)
+{
+	int rv = 0;
+
+	mutex_lock(&dev->mutex);
+
+	if (!dev->inhibited)
+		goto out;
+
+	input_dev_toggle(dev, true);
+
+	if (dev->uninhibit) {
+		rv = dev->uninhibit(dev);
+		if (rv != 0) {
+			input_dev_toggle(dev, false);
+			goto out;
+		}
+	}
+
+	dev->inhibited = false;
+
+out:
+	mutex_unlock(&dev->mutex);
+	return rv;
+}
 
 #ifdef CONFIG_PM
 static int input_dev_suspend(struct device *dev)
