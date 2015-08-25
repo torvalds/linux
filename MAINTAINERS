@@ -11078,6 +11078,14 @@ S:	Supported
 F:	drivers/regulator/
 F:	include/linux/regulator/
 
+VRF
+M:	David Ahern <dsa@cumulusnetworks.com>
+M:	Shrijeet Mukherjee <shm@cumulusnetworks.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/vrf.c
+F:	include/net/vrf.h
+
 VT1211 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
 L:	lm-sensors@lm-sensors.org
