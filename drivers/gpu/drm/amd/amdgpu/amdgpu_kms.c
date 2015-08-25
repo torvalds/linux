@@ -560,6 +560,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (!fpriv)
 		return;
 
+	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
@@ -567,8 +569,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);
-
-	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;
