@@ -656,9 +656,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		}
 	} else {
 		if (enable_requested) {
-			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
-			POSTING_READ(HSW_PWR_WELL_DRIVER);
-			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
+			if (IS_SKYLAKE(dev) &&
+				(power_well->data == SKL_DISP_PW_1) &&
+				(intel_csr_load_status_get(dev_priv) == FW_LOADED))
+				DRM_DEBUG_KMS("Not Disabling PW1, dmc will handle\n");
+			else {
+				I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
+				POSTING_READ(HSW_PWR_WELL_DRIVER);
+				DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
+			}
 
 			if ((GEN9_ENABLE_DC5(dev) || SKL_ENABLE_DC6(dev)) &&
 				power_well->data == SKL_DISP_PW_2) {
