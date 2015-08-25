@@ -262,11 +262,12 @@ again:
 	if (dst->dev)
 		dev_put(dst->dev);
 
+	lwtstate_put(dst->lwtstate);
+
 	if (dst->flags & DST_METADATA)
 		kfree(dst);
 	else
 		kmem_cache_free(dst->ops->kmem_cachep, dst);
-	lwtstate_put(dst->lwtstate);
 
 	dst = child;
 	if (dst) {
