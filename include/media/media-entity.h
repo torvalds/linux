@@ -28,6 +28,39 @@
 #include <linux/list.h>
 #include <linux/media.h>
 
+/* Enums used internally at the media controller to represent graphs */
+
+/**
+ * enum media_gobj_type - type of a graph object
+ *
+ */
+enum media_gobj_type {
+	 /* FIXME: add the types here, as we embed media_gobj */
+	MEDIA_GRAPH_NONE
+};
+
+#define MEDIA_BITS_PER_TYPE		8
+#define MEDIA_BITS_PER_LOCAL_ID		(32 - MEDIA_BITS_PER_TYPE)
+#define MEDIA_LOCAL_ID_MASK		 GENMASK(MEDIA_BITS_PER_LOCAL_ID - 1, 0)
+
+/* Structs to represent the objects that belong to a media graph */
+
+/**
+ * struct media_gobj - Define a graph object.
+ *
+ * @id:		Non-zero object ID identifier. The ID should be unique
+ *		inside a media_device, as it is composed by
+ *		MEDIA_BITS_PER_TYPE to store the type plus
+ *		MEDIA_BITS_PER_LOCAL_ID	to store a per-type ID
+ *		(called as "local ID").
+ *
+ * All objects on the media graph should have this struct embedded
+ */
+struct media_gobj {
+	u32			id;
+};
+
+
 struct media_pipeline {
 };
 
@@ -118,6 +151,26 @@ static inline u32 media_entity_id(struct media_entity *entity)
 	return entity->id;
 }
 
+static inline enum media_gobj_type media_type(struct media_gobj *gobj)
+{
+	return gobj->id >> MEDIA_BITS_PER_LOCAL_ID;
+}
+
+static inline u32 media_localid(struct media_gobj *gobj)
+{
+	return gobj->id & MEDIA_LOCAL_ID_MASK;
+}
+
+static inline u32 media_gobj_gen_id(enum media_gobj_type type, u32 local_id)
+{
+	u32 id;
+
+	id = type << MEDIA_BITS_PER_LOCAL_ID;
+	id |= local_id & MEDIA_LOCAL_ID_MASK;
+
+	return id;
+}
+
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
 #define MEDIA_ENTITY_ENUM_MAX_ID	64
 
@@ -137,6 +190,14 @@ struct media_entity_graph {
 	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
 	int top;
 };
+
+#define gobj_to_entity(gobj) \
+		container_of(gobj, struct media_entity, graph_obj)
+
+void media_gobj_init(struct media_device *mdev,
+		    enum media_gobj_type type,
+		    struct media_gobj *gobj);
+void media_gobj_remove(struct media_gobj *gobj);
 
 int media_entity_init(struct media_entity *entity, u16 num_pads,
 		struct media_pad *pads);

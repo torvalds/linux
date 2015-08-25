@@ -27,6 +27,38 @@
 #include <media/media-device.h>
 
 /**
+ *  media_gobj_init - Initialize a graph object
+ *
+ * @mdev:	Pointer to the media_device that contains the object
+ * @type:	Type of the object
+ * @gobj:	Pointer to the object
+ *
+ * This routine initializes the embedded struct media_gobj inside a
+ * media graph object. It is called automatically if media_*_create()
+ * calls are used. However, if the object (entity, link, pad, interface)
+ * is embedded on some other object, this function should be called before
+ * registering the object at the media controller.
+ */
+void media_gobj_init(struct media_device *mdev,
+			   enum media_gobj_type type,
+			   struct media_gobj *gobj)
+{
+	/* For now, nothing to do */
+}
+
+/**
+ *  media_gobj_remove - Stop using a graph object on a media device
+ *
+ * @graph_obj:	Pointer to the object
+ *
+ * This should be called at media_device_unregister_*() routines
+ */
+void media_gobj_remove(struct media_gobj *gobj)
+{
+	/* For now, nothing to do */
+}
+
+/**
  * media_entity_init - Initialize a media entity
  *
  * @num_pads: Total number of sink and source pads.
