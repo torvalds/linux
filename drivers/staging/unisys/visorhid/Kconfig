@@ -1,0 +1,10 @@
+#
+# Unisys visorhid configuration
+#
+
+config UNISYS_VISORHID
+	tristate "Unisys visorhid driver"
+	depends on UNISYSSPAR && UNISYS_VISORBUS && FB
+	---help---
+	If you say Y here, you will enable the Unisys visorhid driver.
+
