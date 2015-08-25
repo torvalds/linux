@@ -92,13 +92,6 @@ acpi_status __init acpi_terminate(void)
 
 	acpi_ut_mutex_terminate();
 
-#ifdef ACPI_DEBUGGER
-
-	/* Shut down the debugger */
-
-	acpi_db_terminate();
-#endif
-
 	/* Now we can shutdown the OS-dependent layer */
 
 	status = acpi_os_terminate();
