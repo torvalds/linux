@@ -427,8 +427,8 @@
 
 &iomuxc {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&pinctrl_hog_1 &pinctrl_hog &pinctrl_hog_sd2_vselect &pinctrl_hog_mipi>;
-	pinctrl-1 = <&pinctrl_hog_1 &pinctrl_hog &pinctrl_hog_sd2_vselect &pinctrl_hog_mipi>;
+	pinctrl-0 = <&pinctrl_hog_1 &pinctrl_hog_sd2_vselect &pinctrl_hog_mipi>;
+	pinctrl-1 = <&pinctrl_hog_1 &pinctrl_hog_sd2_vselect &pinctrl_hog_mipi>;
 
 	imx7d-12x12-lpddr3-arm2 {
 
