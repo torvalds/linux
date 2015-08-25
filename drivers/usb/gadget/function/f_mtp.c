@@ -1216,40 +1216,6 @@ static void mtp_function_disable(struct usb_function *f)
 	VDBG(cdev, "%s disabled\n", dev->function.name);
 }
 
-static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
-{
-	struct mtp_dev *dev = _mtp_dev;
-	int ret = 0;
-
-	printk(KERN_INFO "mtp_bind_config\n");
-
-	/* allocate a string ID for our interface */
-	if (mtp_string_defs[INTERFACE_STRING_INDEX].id == 0) {
-		ret = usb_string_id(c->cdev);
-		if (ret < 0)
-			return ret;
-		mtp_string_defs[INTERFACE_STRING_INDEX].id = ret;
-		mtp_interface_desc.iInterface = ret;
-	}
-
-	dev->cdev = c->cdev;
-	dev->function.name = DRIVER_NAME;
-	dev->function.strings = mtp_strings;
-	if (ptp_config) {
-		dev->function.fs_descriptors = fs_ptp_descs;
-		dev->function.hs_descriptors = hs_ptp_descs;
-	} else {
-		dev->function.fs_descriptors = fs_mtp_descs;
-		dev->function.hs_descriptors = hs_mtp_descs;
-	}
-	dev->function.bind = mtp_function_bind;
-	dev->function.unbind = mtp_function_unbind;
-	dev->function.set_alt = mtp_function_set_alt;
-	dev->function.disable = mtp_function_disable;
-
-	return usb_add_function(c, &dev->function);
-}
-
 static int __mtp_setup(struct mtp_instance *fi_mtp)
 {
 	struct mtp_dev *dev;
@@ -1295,11 +1261,6 @@ err1:
 	kfree(dev);
 	printk(KERN_ERR "mtp gadget driver failed to initialize\n");
 	return ret;
-}
-
-static int mtp_setup(void)
-{
-	return __mtp_setup(NULL);
 }
 
 static int mtp_setup_configfs(struct mtp_instance *fi_mtp)
