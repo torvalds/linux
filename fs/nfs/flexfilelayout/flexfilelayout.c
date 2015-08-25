@@ -183,7 +183,7 @@ ff_layout_add_mirror(struct pnfs_layout_hdr *lo,
 	return mirror;
 }
 
-void
+static void
 ff_layout_remove_mirror(struct nfs4_ff_layout_mirror *mirror)
 {
 	struct inode *inode;
