@@ -2245,6 +2245,9 @@ void omap3_gpmc_save_context(void)
 {
 	int i;
 
+	if (!gpmc_base)
+		return;
+
 	gpmc_context.sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
 	gpmc_context.irqenable = gpmc_read_reg(GPMC_IRQENABLE);
 	gpmc_context.timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
@@ -2276,6 +2279,9 @@ void omap3_gpmc_save_context(void)
 void omap3_gpmc_restore_context(void)
 {
 	int i;
+
+	if (!gpmc_base)
+		return;
 
 	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context.sysconfig);
 	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context.irqenable);

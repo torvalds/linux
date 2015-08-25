@@ -582,6 +582,7 @@ static const struct of_device_id g762_dt_match[] = {
 	{ .compatible = "gmt,g763" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, g762_dt_match);
 
 /*
  * Grab clock (a required property), enable it, get (fixed) clock frequency

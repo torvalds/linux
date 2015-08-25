@@ -1343,12 +1343,15 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
 	set_page_owner(page, order, gfp_flags);
 
 	/*
-	 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was necessary to
+	 * page is set pfmemalloc when ALLOC_NO_WATERMARKS was necessary to
 	 * allocate the page. The expectation is that the caller is taking
 	 * steps that will free more memory. The caller should avoid the page
 	 * being used for !PFMEMALLOC purposes.
 	 */
-	page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+	if (alloc_flags & ALLOC_NO_WATERMARKS)
+		set_page_pfmemalloc(page);
+	else
+		clear_page_pfmemalloc(page);
 
 	return 0;
 }
@@ -3345,7 +3348,7 @@ refill:
 		atomic_add(size - 1, &page->_count);
 
 		/* reset page count bias and offset to start of new frag */
-		nc->pfmemalloc = page->pfmemalloc;
+		nc->pfmemalloc = page_is_pfmemalloc(page);
 		nc->pagecnt_bias = size;
 		nc->offset = size;
 	}
@@ -5060,6 +5063,10 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
 {
 	unsigned long zone_start_pfn, zone_end_pfn;
 
+	/* When hotadd a new node, the node should be empty */
+	if (!node_start_pfn && !node_end_pfn)
+		return 0;
+
 	/* Get the start and end of the zone */
 	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
 	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
@@ -5122,6 +5129,10 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
 	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
 	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
 	unsigned long zone_start_pfn, zone_end_pfn;
+
+	/* When hotadd a new node, the node should be empty */
+	if (!node_start_pfn && !node_end_pfn)
+		return 0;
 
 	zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
 	zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);

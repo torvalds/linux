@@ -457,8 +457,15 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 		if (!strcmp(t->tf_ops->name, fo->name)) {
 			BUG_ON(atomic_read(&t->tf_access_cnt));
 			list_del(&t->tf_list);
+			mutex_unlock(&g_tf_lock);
+			/*
+			 * Wait for any outstanding fabric se_deve_entry->rcu_head
+			 * callbacks to complete post kfree_rcu(), before allowing
+			 * fabric driver unload of TFO->module to proceed.
+			 */
+			rcu_barrier();
 			kfree(t);
-			break;
+			return;
 		}
 	}
 	mutex_unlock(&g_tf_lock);

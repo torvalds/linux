@@ -11826,7 +11826,9 @@ encoder_retry:
 		goto encoder_retry;
 	}
 
-	pipe_config->dither = pipe_config->pipe_bpp != base_bpp;
+	/* Dithering seems to not pass-through bits correctly when it should, so
+	 * only enable it on 6bpc panels. */
+	pipe_config->dither = pipe_config->pipe_bpp == 6*3;
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
@@ -12624,17 +12626,17 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 
 	modeset_update_crtc_power_domains(state);
 
-	drm_atomic_helper_commit_planes(dev, state);
-
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!needs_modeset(crtc->state) || !crtc->state->enable)
+		if (!needs_modeset(crtc->state) || !crtc->state->enable) {
+			drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 			continue;
+		}
 
 		update_scanline_offset(to_intel_crtc(crtc));
 
 		dev_priv->display.crtc_enable(crtc);
-		intel_crtc_enable_planes(crtc);
+		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 	}
 
 	/* FIXME: add subpixel order */
@@ -12891,20 +12893,11 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	return 0;
 }
 
-static bool primary_plane_visible(struct drm_crtc *crtc)
-{
-	struct intel_plane_state *plane_state =
-		to_intel_plane_state(crtc->primary->state);
-
-	return plane_state->visible;
-}
-
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
 	struct drm_atomic_state *state = NULL;
 	struct intel_crtc_state *pipe_config;
-	bool primary_plane_was_visible;
 	int ret;
 
 	BUG_ON(!set);
@@ -12943,37 +12936,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	intel_update_pipe_size(to_intel_crtc(set->crtc));
 
-	primary_plane_was_visible = primary_plane_visible(set->crtc);
-
 	ret = intel_set_mode_with_config(set->crtc, pipe_config, true);
-
-	if (ret == 0 &&
-	    pipe_config->base.enable &&
-	    pipe_config->base.planes_changed &&
-	    !needs_modeset(&pipe_config->base)) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
-
-		/*
-		 * We need to make sure the primary plane is re-enabled if it
-		 * has previously been turned off.
-		 */
-		if (ret == 0 && !primary_plane_was_visible &&
-		    primary_plane_visible(set->crtc)) {
-			WARN_ON(!intel_crtc->active);
-			intel_post_enable_primary(set->crtc);
-		}
-
-		/*
-		 * In the fastboot case this may be our only check of the
-		 * state after boot.  It would be better to only do it on
-		 * the first update, but we don't have a nice way of doing that
-		 * (and really, set_config isn't used much for high freq page
-		 * flipping, so increasing its cost here shouldn't be a big
-		 * deal).
-		 */
-		if (i915.fastboot && ret == 0)
-			intel_modeset_check_state(set->crtc->dev);
-	}
 
 	if (ret) {
 		DRM_DEBUG_KMS("failed to set mode on [CRTC:%d], err = %d\n",
@@ -13305,6 +13268,9 @@ intel_check_primary_plane(struct drm_plane *plane,
 			 */
 			if (IS_BROADWELL(dev))
 				intel_crtc->atomic.wait_vblank = true;
+
+			if (crtc_state)
+				intel_crtc->atomic.post_enable_primary = true;
 		}
 
 		/*
@@ -13316,6 +13282,10 @@ intel_check_primary_plane(struct drm_plane *plane,
 		 */
 		if (!state->visible || !fb)
 			intel_crtc->atomic.disable_ips = true;
+
+		if (!state->visible && old_state->visible &&
+		    crtc_state && !needs_modeset(&crtc_state->base))
+			intel_crtc->atomic.pre_disable_primary = true;
 
 		intel_crtc->atomic.fb_bits |=
 			INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
@@ -15034,6 +15004,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		struct intel_plane_state *plane_state;
 
 		memset(crtc->config, 0, sizeof(*crtc->config));
+		crtc->config->base.crtc = &crtc->base;
 
 		crtc->config->quirks |= PIPE_CONFIG_QUIRK_INHERITED_MODE;
 
