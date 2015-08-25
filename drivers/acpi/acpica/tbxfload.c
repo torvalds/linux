@@ -208,11 +208,11 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	if (!tables_failed) {
 		ACPI_INFO((AE_INFO,
-			   "All (%u) ACPI AML tables successfully loaded",
+			   "%u ACPI AML tables successfully acquired and loaded",
 			   tables_loaded));
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "%u ACPI AML tables loaded, %u failed",
+			    "%u ACPI AML tables successfully acquired and loaded, %u failed",
 			    tables_loaded, tables_failed));
 	}
 

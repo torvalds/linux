@@ -237,6 +237,15 @@ acpi_ds_initialize_objects(u32 table_index,
 		return_ACPI_STATUS(status);
 	}
 
+	/* DSDT is always the first AML table */
+
+	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT)) {
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+				      "\nInitializing Namespace objects:\n"));
+	}
+
+	/* Summary of objects initialized */
+
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "Table [%4.4s] (id %4.4X) - %4u Objects with %3u Devices, "
 			      "%3u Regions, %3u Methods (%u/%u/%u Serial/Non/Cvt)\n",
