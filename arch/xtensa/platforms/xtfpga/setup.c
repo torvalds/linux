@@ -223,6 +223,7 @@ static struct ethoc_platform_data ethoc_pdata = {
 	 */
 	.hwaddr = { 0x00, 0x50, 0xc2, 0x13, 0x6f, 0 },
 	.phy_id = -1,
+	.big_endian = XCHAL_HAVE_BE,
 };
 
 static struct platform_device ethoc_device = {

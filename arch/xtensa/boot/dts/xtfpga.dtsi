@@ -69,6 +69,7 @@
 		enet0: ethoc@0d030000 {
 			compatible = "opencores,ethoc";
 			reg = <0x0d030000 0x4000 0x0d800000 0x4000>;
+			native-endian;
 			interrupts = <1 1>; /* external irq 1 */
 			local-mac-address = [00 50 c2 13 6f 00];
 			clocks = <&osc>;
