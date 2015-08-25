@@ -2212,6 +2212,8 @@ static int vxlan_open(struct net_device *dev)
 
 	if (vxlan_addr_multicast(&vxlan->default_dst.remote_ip)) {
 		ret = vxlan_igmp_join(vxlan);
+		if (ret == -EADDRINUSE)
+			ret = 0;
 		if (ret) {
 			vxlan_sock_release(vs);
 			return ret;
