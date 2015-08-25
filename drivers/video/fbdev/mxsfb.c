@@ -1232,10 +1232,12 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	else
 		sprintf(fb_info->fix.id, "mxs-lcdif%d", host->id);
 
-	/* first video mode in the modelist as default video mode  */
-	modelist = list_first_entry(&fb_info->modelist,
-			struct fb_modelist, list);
-	fb_videomode_to_var(var, &modelist->mode);
+	if (!list_empty(&fb_info->modelist)) {
+		/* first video mode in the modelist as default video mode  */
+		modelist = list_first_entry(&fb_info->modelist,
+				struct fb_modelist, list);
+		fb_videomode_to_var(var, &modelist->mode);
+	}
 	/* save the sync value getting from dtb */
 	host->sync = fb_info->var.sync;
 
