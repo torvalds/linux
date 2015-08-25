@@ -515,15 +515,15 @@ static struct lp8727_platform_data *lp8727_parse_dt(struct device *dev)
 	struct lp8727_platform_data *pdata;
 	const char *type;
 
-	/* If charging parameter is not defined, just skip parsing the dt */
-	if (of_get_child_count(np) == 0)
-		return NULL;
-
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
 	of_property_read_u32(np, "debounce-ms", &pdata->debounce_msec);
+
+	/* If charging parameter is not defined, just skip parsing the dt */
+	if (of_get_child_count(np) == 0)
+		return pdata;
 
 	for_each_child_of_node(np, child) {
 		of_property_read_string(child, "charger-type", &type);
