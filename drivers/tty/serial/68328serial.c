@@ -560,8 +560,8 @@ static void rs_fair_output(void)
 	struct m68k_serial *info = &m68k_soft[0];
 	char c;
 
-	if (info == 0) return;
-	if (info->xmit_buf == 0) return;
+	if (info == NULL) return;
+	if (info->xmit_buf == NULL) return;
 
 	local_irq_save(flags);
 	left = info->xmit_cnt;
