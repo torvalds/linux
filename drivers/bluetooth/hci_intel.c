@@ -45,6 +45,38 @@ struct intel_data {
 	unsigned long flags;
 };
 
+static u8 intel_convert_speed(unsigned int speed)
+{
+	switch (speed) {
+	case 9600:
+		return 0x00;
+	case 19200:
+		return 0x01;
+	case 38400:
+		return 0x02;
+	case 57600:
+		return 0x03;
+	case 115200:
+		return 0x04;
+	case 230400:
+		return 0x05;
+	case 460800:
+		return 0x06;
+	case 921600:
+		return 0x07;
+	case 1843200:
+		return 0x08;
+	case 3250000:
+		return 0x09;
+	case 2000000:
+		return 0x0a;
+	case 3000000:
+		return 0x0b;
+	default:
+		return 0xff;
+	}
+}
+
 static int intel_open(struct hci_uart *hu)
 {
 	struct intel_data *intel;
@@ -111,6 +143,56 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 	return hci_recv_frame(hdev, skb);
 }
 
+static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
+{
+	struct intel_data *intel = hu->priv;
+	struct hci_dev *hdev = hu->hdev;
+	u8 speed_cmd[] = { 0x06, 0xfc, 0x01, 0x00 };
+	struct sk_buff *skb;
+
+	BT_INFO("%s: Change controller speed to %d", hdev->name, speed);
+
+	speed_cmd[3] = intel_convert_speed(speed);
+	if (speed_cmd[3] == 0xff) {
+		BT_ERR("%s: Unsupported speed", hdev->name);
+		return -EINVAL;
+	}
+
+	/* Device will not accept speed change if Intel version has not been
+	 * previously requested.
+	 */
+	skb = __hci_cmd_sync(hdev, 0xfc05, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		BT_ERR("%s: Reading Intel version information failed (%ld)",
+		       hdev->name, PTR_ERR(skb));
+		return PTR_ERR(skb);
+	}
+	kfree_skb(skb);
+
+	skb = bt_skb_alloc(sizeof(speed_cmd), GFP_KERNEL);
+	if (!skb) {
+		BT_ERR("%s: Failed to allocate memory for baudrate packet",
+		       hdev->name);
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, sizeof(speed_cmd)), speed_cmd, sizeof(speed_cmd));
+	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+
+	hci_uart_set_flow_control(hu, true);
+
+	skb_queue_tail(&intel->txq, skb);
+	hci_uart_tx_wakeup(hu);
+
+	/* wait 100ms to change baudrate on controller side */
+	msleep(100);
+
+	hci_uart_set_baudrate(hu, speed);
+	hci_uart_set_flow_control(hu, false);
+
+	return 0;
+}
+
 static int intel_setup(struct hci_uart *hu)
 {
 	static const u8 reset_param[] = { 0x00, 0x01, 0x00, 0x01,
@@ -126,6 +208,8 @@ static int intel_setup(struct hci_uart *hu)
 	u32 frag_len;
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
+	unsigned int init_speed, oper_speed;
+	int speed_change = 0;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -133,6 +217,19 @@ static int intel_setup(struct hci_uart *hu)
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
 
 	calltime = ktime_get();
+
+	if (hu->init_speed)
+		init_speed = hu->init_speed;
+	else
+		init_speed = hu->proto->init_speed;
+
+	if (hu->oper_speed)
+		oper_speed = hu->oper_speed;
+	else
+		oper_speed = hu->proto->oper_speed;
+
+	if (oper_speed && init_speed && oper_speed != init_speed)
+		speed_change = 1;
 
 	set_bit(STATE_BOOTLOADER, &intel->flags);
 
@@ -416,6 +513,13 @@ done:
 	if (err < 0)
 		return err;
 
+	/* We need to restore the default speed before Intel reset */
+	if (speed_change) {
+		err = intel_set_baudrate(hu, init_speed);
+		if (err)
+			return err;
+	}
+
 	calltime = ktime_get();
 
 	set_bit(STATE_BOOTING, &intel->flags);
@@ -455,6 +559,19 @@ done:
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
 	BT_INFO("%s: Device booted in %llu usecs", hdev->name, duration);
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+	kfree_skb(skb);
+
+	if (speed_change) {
+		err = intel_set_baudrate(hu, oper_speed);
+		if (err)
+			return err;
+	}
+
+	BT_INFO("%s: Setup complete", hdev->name);
 
 	clear_bit(STATE_BOOTLOADER, &intel->flags);
 
@@ -572,10 +689,12 @@ static const struct hci_uart_proto intel_proto = {
 	.id		= HCI_UART_INTEL,
 	.name		= "Intel",
 	.init_speed	= 115200,
+	.oper_speed	= 3000000,
 	.open		= intel_open,
 	.close		= intel_close,
 	.flush		= intel_flush,
 	.setup		= intel_setup,
+	.set_baudrate	= intel_set_baudrate,
 	.recv		= intel_recv,
 	.enqueue	= intel_enqueue,
 	.dequeue	= intel_dequeue,
