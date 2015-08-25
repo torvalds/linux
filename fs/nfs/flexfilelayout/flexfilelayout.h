@@ -67,6 +67,8 @@ struct nfs4_ff_layoutstat {
 };
 
 struct nfs4_ff_layout_mirror {
+	struct pnfs_layout_hdr		*layout;
+	struct list_head		mirrors;
 	u32				ds_count;
 	u32				efficiency;
 	struct nfs4_ff_layout_ds	*mirror_ds;
@@ -95,6 +97,7 @@ struct nfs4_ff_layout_segment {
 struct nfs4_flexfile_layout {
 	struct pnfs_layout_hdr generic_hdr;
 	struct pnfs_ds_commit_info commit_info;
+	struct list_head	mirrors;
 	struct list_head	error_list; /* nfs4_ff_layout_ds_err */
 };
 
