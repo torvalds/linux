@@ -1096,12 +1096,33 @@ static int i2c_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int i2c_imx_suspend(struct device *dev)
+{
+	pinctrl_pm_select_sleep_state(dev);
+	return 0;
+}
+
+static int i2c_imx_resume(struct device *dev)
+{
+	pinctrl_pm_select_default_state(dev);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(imx_i2c_pm, i2c_imx_suspend, i2c_imx_resume);
+#define IMX_I2C_PM	(&imx_i2c_pm)
+#else
+#define IMX_I2C_PM	NULL
+#endif
+
 static struct platform_driver i2c_imx_driver = {
 	.probe = i2c_imx_probe,
 	.remove = i2c_imx_remove,
 	.driver	= {
-		.name	= DRIVER_NAME,
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
 		.of_match_table = i2c_imx_dt_ids,
+		.pm = IMX_I2C_PM,
 	},
 	.id_table	= imx_i2c_devtype,
 };
