@@ -320,11 +320,10 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
-static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
-	bool error = false;
 	int i;
 
 	drm_warn_on_modeset_not_all_locked(dev);
@@ -348,14 +347,15 @@ static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 		if (crtc->funcs->cursor_set) {
 			ret = crtc->funcs->cursor_set(crtc, NULL, 0, 0, 0);
 			if (ret)
-				error = true;
+				return ret;
 		}
 
 		ret = drm_mode_set_config_internal(mode_set);
 		if (ret)
-			error = true;
+			return ret;
 	}
-	return error;
+
+	return 0;
 }
 
 /**
@@ -365,12 +365,15 @@ static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
  * This should be called from driver's drm ->lastclose callback
  * when implementing an fbcon on top of kms using this helper. This ensures that
  * the user isn't greeted with a black screen when e.g. X dies.
+ *
+ * RETURNS:
+ * Zero if everything went ok, negative error code otherwise.
  */
-bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
+int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
-	bool ret;
-	bool do_delayed = false;
+	bool do_delayed;
+	int ret;
 
 	drm_modeset_lock_all(dev);
 	ret = restore_fbdev_mode(fb_helper);
