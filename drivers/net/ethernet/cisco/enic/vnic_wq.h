@@ -97,6 +97,7 @@ struct devcmd2_controller {
 	int color;
 	struct vnic_dev_ring results_ring;
 	struct vnic_wq wq;
+	u32 posted;
 };
 
 static inline unsigned int vnic_wq_desc_avail(struct vnic_wq *wq)

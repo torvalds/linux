@@ -301,12 +301,12 @@ static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	struct devcmd2_result *result = dc2c->result + dc2c->next_result;
 	unsigned int i;
 	int delay, err;
-	u32 fetch_index, posted, new_posted;
+	u32 fetch_index, new_posted;
+	u32 posted = dc2c->posted;
 
-	posted = ioread32(&dc2c->wq_ctrl->posted_index);
 	fetch_index = ioread32(&dc2c->wq_ctrl->fetch_index);
 
-	if (posted == 0xFFFFFFFF || fetch_index == 0xFFFFFFFF)
+	if (fetch_index == 0xFFFFFFFF)
 		return -ENODEV;
 
 	new_posted = (posted + 1) % DEVCMD2_RING_SIZE;
@@ -331,6 +331,7 @@ static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	 */
 	wmb();
 	iowrite32(new_posted, &dc2c->wq_ctrl->posted_index);
+	dc2c->posted = new_posted;
 
 	if (dc2c->cmd_ring[posted].flags & DEVCMD2_FNORESULT)
 		return 0;
@@ -402,6 +403,7 @@ static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 
 	enic_wq_init_start(&vdev->devcmd2->wq, 0, fetch_index, fetch_index, 0,
 			   0);
+	vdev->devcmd2->posted = fetch_index;
 	vnic_wq_enable(&vdev->devcmd2->wq);
 
 	err = vnic_dev_alloc_desc_ring(vdev, &vdev->devcmd2->results_ring,
