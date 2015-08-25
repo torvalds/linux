@@ -43,6 +43,6 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset);
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv, struct sk_buff *skb);
 enum batadv_dhcp_recipient
 batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
-			     uint8_t *chaddr);
+			     u8 *chaddr);
 
 #endif /* _NET_BATMAN_ADV_GATEWAY_CLIENT_H_ */

@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
+#include <linux/rculist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -70,7 +71,7 @@ batadv_orig_node_vlan_get(struct batadv_orig_node *orig_node,
 	struct batadv_orig_node_vlan *vlan = NULL, *tmp;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(tmp, &orig_node->vlan_list, list) {
+	hlist_for_each_entry_rcu(tmp, &orig_node->vlan_list, list) {
 		if (tmp->vid != vid)
 			continue;
 
@@ -118,7 +119,7 @@ batadv_orig_node_vlan_new(struct batadv_orig_node *orig_node,
 	atomic_set(&vlan->refcount, 2);
 	vlan->vid = vid;
 
-	list_add_rcu(&vlan->list, &orig_node->vlan_list);
+	hlist_add_head_rcu(&vlan->list, &orig_node->vlan_list);
 
 out:
 	spin_unlock_bh(&orig_node->vlan_list_lock);
@@ -452,8 +453,7 @@ out:
  */
 struct batadv_neigh_node *
 batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
-		      const uint8_t *neigh_addr,
-		      struct batadv_orig_node *orig_node)
+		      const u8 *neigh_addr, struct batadv_orig_node *orig_node)
 {
 	struct batadv_neigh_node *neigh_node;
 
@@ -489,7 +489,7 @@ out:
 struct batadv_neigh_node *
 batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
 		      const struct batadv_hard_iface *hard_iface,
-		      const uint8_t *addr)
+		      const u8 *addr)
 {
 	struct batadv_neigh_node *tmp_neigh_node, *res = NULL;
 
@@ -624,7 +624,7 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct batadv_orig_node *orig_node;
-	uint32_t i;
+	u32 i;
 
 	if (!hash)
 		return;
@@ -659,7 +659,7 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
  * Returns the newly created object or NULL on failure.
  */
 struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
-					      const uint8_t *addr)
+					      const u8 *addr)
 {
 	struct batadv_orig_node *orig_node;
 	struct batadv_orig_node_vlan *vlan;
@@ -674,7 +674,7 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 		return NULL;
 
 	INIT_HLIST_HEAD(&orig_node->neigh_list);
-	INIT_LIST_HEAD(&orig_node->vlan_list);
+	INIT_HLIST_HEAD(&orig_node->vlan_list);
 	INIT_HLIST_HEAD(&orig_node->ifinfo_list);
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
@@ -981,7 +981,7 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct batadv_orig_node *orig_node;
-	uint32_t i;
+	u32 i;
 
 	if (!hash)
 		return;
@@ -1115,7 +1115,7 @@ int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	struct batadv_orig_node *orig_node;
-	uint32_t i;
+	u32 i;
 	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
@@ -1152,7 +1152,7 @@ int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
 	struct batadv_hard_iface *hard_iface_tmp;
 	struct batadv_orig_node *orig_node;
 	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
-	uint32_t i;
+	u32 i;
 	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on

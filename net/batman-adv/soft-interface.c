@@ -131,7 +131,7 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_softif_vlan *vlan;
 	struct sockaddr *addr = p;
-	uint8_t old_addr[ETH_ALEN];
+	u8 old_addr[ETH_ALEN];
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
@@ -186,19 +186,19 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
 	__be16 ethertype = htons(ETH_P_BATMAN);
-	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
-						   0x00, 0x00};
-	static const uint8_t ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
-						    0x00, 0x00};
+	static const u8 stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
+					      0x00, 0x00};
+	static const u8 ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
+					       0x00, 0x00};
 	enum batadv_dhcp_recipient dhcp_rcp = BATADV_DHCP_NO;
-	uint8_t *dst_hint = NULL, chaddr[ETH_ALEN];
+	u8 *dst_hint = NULL, chaddr[ETH_ALEN];
 	struct vlan_ethhdr *vhdr;
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
 	unsigned long brd_delay = 1;
 	bool do_bcast = false, client_added;
 	unsigned short vid;
-	uint32_t seqno;
+	u32 seqno;
 	int gw_mode;
 	enum batadv_forw_mode forw_mode;
 	struct batadv_orig_node *mcast_single_orig = NULL;
@@ -750,9 +750,9 @@ static void batadv_softif_destroy_finish(struct work_struct *work)
 static int batadv_softif_init_late(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv;
-	uint32_t random_seqno;
+	u32 random_seqno;
 	int ret;
-	size_t cnt_len = sizeof(uint64_t) * BATADV_CNT_NUM;
+	size_t cnt_len = sizeof(u64) * BATADV_CNT_NUM;
 
 	batadv_set_lockdep_class(dev);
 
@@ -763,7 +763,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	/* batadv_interface_stats() needs to be available as soon as
 	 * register_netdevice() has been called
 	 */
-	bat_priv->bat_counters = __alloc_percpu(cnt_len, __alignof__(uint64_t));
+	bat_priv->bat_counters = __alloc_percpu(cnt_len, __alignof__(u64));
 	if (!bat_priv->bat_counters)
 		return -ENOMEM;
 
@@ -1117,8 +1117,7 @@ static const struct {
 #endif
 };
 
-static void batadv_get_strings(struct net_device *dev, uint32_t stringset,
-			       uint8_t *data)
+static void batadv_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	if (stringset == ETH_SS_STATS)
 		memcpy(data, batadv_counters_strings,
@@ -1126,8 +1125,7 @@ static void batadv_get_strings(struct net_device *dev, uint32_t stringset,
 }
 
 static void batadv_get_ethtool_stats(struct net_device *dev,
-				     struct ethtool_stats *stats,
-				     uint64_t *data)
+				     struct ethtool_stats *stats, u64 *data)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	int i;

@@ -28,9 +28,9 @@
  * and curr_seqno is within range of last_seqno. Otherwise returns 0.
  */
 static inline int batadv_test_bit(const unsigned long *seq_bits,
-				  uint32_t last_seqno, uint32_t curr_seqno)
+				  u32 last_seqno, u32 curr_seqno)
 {
-	int32_t diff;
+	s32 diff;
 
 	diff = last_seqno - curr_seqno;
 	if (diff < 0 || diff >= BATADV_TQ_LOCAL_WINDOW_SIZE)
@@ -39,7 +39,7 @@ static inline int batadv_test_bit(const unsigned long *seq_bits,
 }
 
 /* turn corresponding bit on, so we can remember that we got the packet */
-static inline void batadv_set_bit(unsigned long *seq_bits, int32_t n)
+static inline void batadv_set_bit(unsigned long *seq_bits, s32 n)
 {
 	/* if too old, just drop it */
 	if (n < 0 || n >= BATADV_TQ_LOCAL_WINDOW_SIZE)
@@ -51,7 +51,7 @@ static inline void batadv_set_bit(unsigned long *seq_bits, int32_t n)
 /* receive and process one packet, returns 1 if received seq_num is considered
  * new, 0 if old
  */
-int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
-			  int32_t seq_num_diff, int set_mark);
+int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
+			  int set_mark);
 
 #endif /* _NET_BATMAN_ADV_BITARRAY_H_ */
