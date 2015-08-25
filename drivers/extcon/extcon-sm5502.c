@@ -650,6 +650,7 @@ static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sm5502_dt_match);
 
 #ifdef CONFIG_PM_SLEEP
 static int sm5502_muic_suspend(struct device *dev)

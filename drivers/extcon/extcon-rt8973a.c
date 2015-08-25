@@ -658,6 +658,7 @@ static const struct of_device_id rt8973a_dt_match[] = {
 	{ .compatible = "richtek,rt8973a-muic" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, rt8973a_dt_match);
 
 #ifdef CONFIG_PM_SLEEP
 static int rt8973a_muic_suspend(struct device *dev)
