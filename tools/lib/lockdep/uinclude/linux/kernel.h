@@ -23,7 +23,7 @@
 #define WARN_ON(x) (x)
 #define WARN_ON_ONCE(x) (x)
 #define likely(x) (x)
-#define WARN(x, y, z) (x)
+#define WARN(x, y...) (x)
 #define uninitialized_var(x) x
 #define __init
 #define noinline
