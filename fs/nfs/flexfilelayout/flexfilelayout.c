@@ -265,6 +265,65 @@ static void _ff_layout_free_lseg(struct nfs4_ff_layout_segment *fls)
 	}
 }
 
+static bool
+ff_lseg_range_is_after(const struct pnfs_layout_range *l1,
+		const struct pnfs_layout_range *l2)
+{
+	u64 end1, end2;
+
+	if (l1->iomode != l2->iomode)
+		return l1->iomode != IOMODE_READ;
+	end1 = pnfs_calc_offset_end(l1->offset, l1->length);
+	end2 = pnfs_calc_offset_end(l2->offset, l2->length);
+	if (end1 < l2->offset)
+		return false;
+	if (end2 < l1->offset)
+		return true;
+	return l2->offset <= l1->offset;
+}
+
+static bool
+ff_lseg_merge(struct pnfs_layout_segment *new,
+		struct pnfs_layout_segment *old)
+{
+	u64 new_end, old_end;
+
+	if (new->pls_range.iomode != old->pls_range.iomode)
+		return false;
+	old_end = pnfs_calc_offset_end(old->pls_range.offset,
+			old->pls_range.length);
+	if (old_end < new->pls_range.offset)
+		return false;
+	new_end = pnfs_calc_offset_end(new->pls_range.offset,
+			new->pls_range.length);
+	if (new_end < old->pls_range.offset)
+		return false;
+
+	/* Mergeable: copy info from 'old' to 'new' */
+	if (new_end < old_end)
+		new_end = old_end;
+	if (new->pls_range.offset < old->pls_range.offset)
+		new->pls_range.offset = old->pls_range.offset;
+	new->pls_range.length = pnfs_calc_offset_length(new->pls_range.offset,
+			new_end);
+	if (test_bit(NFS_LSEG_ROC, &old->pls_flags))
+		set_bit(NFS_LSEG_ROC, &new->pls_flags);
+	if (test_bit(NFS_LSEG_LAYOUTRETURN, &old->pls_flags))
+		set_bit(NFS_LSEG_LAYOUTRETURN, &new->pls_flags);
+	return true;
+}
+
+static void
+ff_layout_add_lseg(struct pnfs_layout_hdr *lo,
+		struct pnfs_layout_segment *lseg,
+		struct list_head *free_me)
+{
+	pnfs_generic_layout_insert_lseg(lo, lseg,
+			ff_lseg_range_is_after,
+			ff_lseg_merge,
+			free_me);
+}
+
 static void ff_layout_sort_mirrors(struct nfs4_ff_layout_segment *fls)
 {
 	int i, j;
@@ -2046,6 +2105,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.free_layout_hdr	= ff_layout_free_layout_hdr,
 	.alloc_lseg		= ff_layout_alloc_lseg,
 	.free_lseg		= ff_layout_free_lseg,
+	.add_lseg		= ff_layout_add_lseg,
 	.pg_read_ops		= &ff_layout_pg_read_ops,
 	.pg_write_ops		= &ff_layout_pg_write_ops,
 	.get_ds_info		= ff_layout_get_ds_info,

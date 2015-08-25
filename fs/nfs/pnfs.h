@@ -539,6 +539,22 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 					nfss->pnfs_curr_ld->id == src->l_type);
 }
 
+static inline u64
+pnfs_calc_offset_end(u64 offset, u64 len)
+{
+	if (len == NFS4_MAX_UINT64 || len >= NFS4_MAX_UINT64 - offset)
+		return NFS4_MAX_UINT64;
+	return offset + len - 1;
+}
+
+static inline u64
+pnfs_calc_offset_length(u64 offset, u64 end)
+{
+	if (end == NFS4_MAX_UINT64 || end <= offset)
+		return NFS4_MAX_UINT64;
+	return 1 + end - offset;
+}
+
 extern unsigned int layoutstats_timer;
 
 #ifdef NFS_DEBUG
