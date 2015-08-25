@@ -34,7 +34,8 @@ ENTRY(v6_early_abort)
 	ldr	r3, [r4]			@ read aborted ARM instruction
  ARM_BE8(rev	r3, r3)
 
-	do_ldrd_abort tmp=ip, insn=r3
+	teq_ldrd tmp=ip, insn=r3		@ insn was LDRD?
+	beq	do_DataAbort			@ yes
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
 #endif

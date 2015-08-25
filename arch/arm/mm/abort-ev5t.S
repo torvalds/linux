@@ -22,7 +22,8 @@ ENTRY(v5t_early_abort)
 	do_thumb_abort fsr=r1, pc=r4, psr=r5, tmp=r3
 	ldreq	r3, [r4]			@ read aborted ARM instruction
 	bic	r1, r1, #1 << 11		@ clear bits 11 of FSR
-	do_ldrd_abort tmp=ip, insn=r3
+	teq_ldrd tmp=ip, insn=r3		@ insn was LDRD?
+	beq	do_DataAbort			@ yes
 	tst	r3, #1 << 20			@ check write
 	orreq	r1, r1, #1 << 11
 	b	do_DataAbort
