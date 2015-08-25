@@ -247,7 +247,7 @@ struct amdgpu_buffer_funcs {
 	unsigned	copy_num_dw;
 
 	/* used for buffer migration */
-	void (*emit_copy_buffer)(struct amdgpu_ring *ring,
+	void (*emit_copy_buffer)(struct amdgpu_ib *ib,
 				 /* src addr in bytes */
 				 uint64_t src_offset,
 				 /* dst addr in bytes */
@@ -518,7 +518,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t dst_offset,
 		       uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct amdgpu_fence **fence);
+		       struct fence **fence);
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 
 struct amdgpu_bo_list_entry {
@@ -2247,7 +2247,7 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 #define amdgpu_display_add_connector(adev, ci, sd, ct, ib, coi, h, r) (adev)->mode_info.funcs->add_connector((adev), (ci), (sd), (ct), (ib), (coi), (h), (r))
 #define amdgpu_display_stop_mc_access(adev, s) (adev)->mode_info.funcs->stop_mc_access((adev), (s))
 #define amdgpu_display_resume_mc_access(adev, s) (adev)->mode_info.funcs->resume_mc_access((adev), (s))
-#define amdgpu_emit_copy_buffer(adev, r, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((r), (s), (d), (b))
+#define amdgpu_emit_copy_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b))
 #define amdgpu_emit_fill_buffer(adev, r, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((r), (s), (d), (b))
 #define amdgpu_dpm_get_temperature(adev) (adev)->pm.funcs->get_temperature((adev))
 #define amdgpu_dpm_pre_set_power_state(adev) (adev)->pm.funcs->pre_set_power_state((adev))
@@ -2379,7 +2379,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		       uint64_t addr);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
-
+int amdgpu_vm_free_job(struct amdgpu_job *job);
 /*
  * functions used by amdgpu_encoder.c
  */

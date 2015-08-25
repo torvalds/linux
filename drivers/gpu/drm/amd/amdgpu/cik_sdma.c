@@ -1339,18 +1339,18 @@ static void cik_sdma_set_irq_funcs(struct amdgpu_device *adev)
  * Used by the amdgpu ttm implementation to move pages if
  * registered as the asic copy callback.
  */
-static void cik_sdma_emit_copy_buffer(struct amdgpu_ring *ring,
+static void cik_sdma_emit_copy_buffer(struct amdgpu_ib *ib,
 				      uint64_t src_offset,
 				      uint64_t dst_offset,
 				      uint32_t byte_count)
 {
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, 0));
-	amdgpu_ring_write(ring, byte_count);
-	amdgpu_ring_write(ring, 0); /* src/dst endian swap */
-	amdgpu_ring_write(ring, lower_32_bits(src_offset));
-	amdgpu_ring_write(ring, upper_32_bits(src_offset));
-	amdgpu_ring_write(ring, lower_32_bits(dst_offset));
-	amdgpu_ring_write(ring, upper_32_bits(dst_offset));
+	ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, 0);
+	ib->ptr[ib->length_dw++] = byte_count;
+	ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
+	ib->ptr[ib->length_dw++] = lower_32_bits(src_offset);
+	ib->ptr[ib->length_dw++] = upper_32_bits(src_offset);
+	ib->ptr[ib->length_dw++] = lower_32_bits(dst_offset);
+	ib->ptr[ib->length_dw++] = upper_32_bits(dst_offset);
 }
 
 /**
