@@ -58,6 +58,7 @@ static struct bench mem_benchmarks[] = {
 static struct bench futex_benchmarks[] = {
 	{ "hash",	"Benchmark for futex hash table",               bench_futex_hash	},
 	{ "wake",	"Benchmark for futex wake calls",               bench_futex_wake	},
+	{ "wake-parallel", "Benchmark for parallel futex wake calls",   bench_futex_wake_parallel },
 	{ "requeue",	"Benchmark for futex requeue calls",            bench_futex_requeue	},
 	{ "all",	"Test all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}

@@ -53,20 +53,13 @@ config CRYPTO_SHA256_ARM
 	  SHA-256 secure hash standard (DFIPS 180-2) implemented
 	  using optimized ARM assembler and NEON, when available.
 
-config CRYPTO_SHA512_ARM_NEON
-	tristate "SHA384 and SHA512 digest algorithm (ARM NEON)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_SHA512
+config CRYPTO_SHA512_ARM
+	tristate "SHA-384/512 digest algorithm (ARM-asm and NEON)"
 	select CRYPTO_HASH
+	depends on !CPU_V7M
 	help
 	  SHA-512 secure hash standard (DFIPS 180-2) implemented
-	  using ARM NEON instructions, when available.
-
-	  This version of SHA implements a 512 bit hash with 256 bits of
-	  security against collision attacks.
-
-	  This code also includes SHA-384, a 384 bit hash with 192 bits
-	  of security against collision attacks.
+	  using optimized ARM assembler and NEON, when available.
 
 config CRYPTO_AES_ARM
 	tristate "AES cipher algorithms (ARM-asm)"

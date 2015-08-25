@@ -248,7 +248,8 @@ enum rdma_link_layer usnic_ib_port_link_layer(struct ib_device *device,
 }
 
 int usnic_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+			  struct ib_device_attr *props,
+			  struct ib_udata *uhw)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
 	union ib_gid gid;
@@ -257,6 +258,9 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	int qp_per_vf;
 
 	usnic_dbg("\n");
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
+
 	mutex_lock(&us_ibdev->usdev_lock);
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
 	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
@@ -570,13 +574,17 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return status;
 }
 
-struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev, int entries,
-					int vector, struct ib_ucontext *context,
-					struct ib_udata *udata)
+struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
+				 const struct ib_cq_init_attr *attr,
+				 struct ib_ucontext *context,
+				 struct ib_udata *udata)
 {
 	struct ib_cq *cq;
 
 	usnic_dbg("\n");
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
 		return ERR_PTR(-EBUSY);

@@ -50,8 +50,7 @@ physical_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
-	rpcrdma_map_one(ia->ri_id->device, seg,
-			rpcrdma_data_dir(writing));
+	rpcrdma_map_one(ia->ri_device, seg, rpcrdma_data_dir(writing));
 	seg->mr_rkey = ia->ri_bind_mem->rkey;
 	seg->mr_base = seg->mr_dma;
 	seg->mr_nsegs = 1;
@@ -65,16 +64,8 @@ physical_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
-	read_lock(&ia->ri_qplock);
-	rpcrdma_unmap_one(ia->ri_id->device, seg);
-	read_unlock(&ia->ri_qplock);
-
+	rpcrdma_unmap_one(ia->ri_device, seg);
 	return 1;
-}
-
-static void
-physical_op_reset(struct rpcrdma_xprt *r_xprt)
-{
 }
 
 static void
@@ -88,7 +79,6 @@ const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops = {
 	.ro_open			= physical_op_open,
 	.ro_maxpages			= physical_op_maxpages,
 	.ro_init			= physical_op_init,
-	.ro_reset			= physical_op_reset,
 	.ro_destroy			= physical_op_destroy,
 	.ro_displayname			= "physical",
 };

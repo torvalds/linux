@@ -3175,8 +3175,7 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 	return (u64)(unsigned long)fp;
 }
 
-#define WL1271_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
-				  FIF_ALLMULTI | \
+#define WL1271_SUPPORTED_FILTERS (FIF_ALLMULTI | \
 				  FIF_FCSFAIL | \
 				  FIF_BCN_PRBRESP_PROMISC | \
 				  FIF_CONTROL | \
@@ -5966,10 +5965,6 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 {
 	int ret;
 
-	ret = wl12xx_set_power_on(wl);
-	if (ret < 0)
-		return ret;
-
 	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &wl->chip.id);
 	if (ret < 0)
 		goto out;
@@ -5985,7 +5980,6 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 		ret = wl->ops->get_mac(wl);
 
 out:
-	wl1271_power_off(wl);
 	return ret;
 }
 
@@ -6066,18 +6060,19 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	/* FIXME: find a proper value */
 	wl->hw->max_listen_interval = wl->conf.conn.max_listen_interval;
 
-	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		IEEE80211_HW_HAS_RATE_CONTROL |
-		IEEE80211_HW_CONNECTION_MONITOR |
-		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		IEEE80211_HW_SPECTRUM_MGMT |
-		IEEE80211_HW_AP_LINK_PS |
-		IEEE80211_HW_AMPDU_AGGREGATION |
-		IEEE80211_HW_TX_AMPDU_SETUP_IN_HW |
-		IEEE80211_HW_QUEUE_CONTROL |
-		IEEE80211_HW_CHANCTX_STA_CSA;
+	ieee80211_hw_set(wl->hw, SUPPORT_FAST_XMIT);
+	ieee80211_hw_set(wl->hw, CHANCTX_STA_CSA);
+	ieee80211_hw_set(wl->hw, QUEUE_CONTROL);
+	ieee80211_hw_set(wl->hw, TX_AMPDU_SETUP_IN_HW);
+	ieee80211_hw_set(wl->hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(wl->hw, AP_LINK_PS);
+	ieee80211_hw_set(wl->hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(wl->hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(wl->hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(wl->hw, HAS_RATE_CONTROL);
+	ieee80211_hw_set(wl->hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(wl->hw, SIGNAL_DBM);
+	ieee80211_hw_set(wl->hw, SUPPORTS_PS);
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -6432,10 +6427,22 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 	else
 		wl->irq_flags |= IRQF_ONESHOT;
 
+	ret = wl12xx_set_power_on(wl);
+	if (ret < 0)
+		goto out_free_nvs;
+
+	ret = wl12xx_get_hw_info(wl);
+	if (ret < 0) {
+		wl1271_error("couldn't get hw info");
+		wl1271_power_off(wl);
+		goto out_free_nvs;
+	}
+
 	ret = request_threaded_irq(wl->irq, hardirq_fn, wlcore_irq,
 				   wl->irq_flags, pdev->name, wl);
 	if (ret < 0) {
-		wl1271_error("request_irq() failed: %d", ret);
+		wl1271_error("interrupt configuration failed");
+		wl1271_power_off(wl);
 		goto out_free_nvs;
 	}
 
@@ -6449,12 +6456,7 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 	}
 #endif
 	disable_irq(wl->irq);
-
-	ret = wl12xx_get_hw_info(wl);
-	if (ret < 0) {
-		wl1271_error("couldn't get hw info");
-		goto out_irq;
-	}
+	wl1271_power_off(wl);
 
 	ret = wl->ops->identify_chip(wl);
 	if (ret < 0)

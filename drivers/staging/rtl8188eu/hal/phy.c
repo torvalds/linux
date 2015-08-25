@@ -629,7 +629,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 
 static u8 phy_path_a_iqk(struct adapter *adapt, bool config_pathb)
 {
-	u32 reg_eac, reg_e94, reg_e9c, reg_ea4;
+	u32 reg_eac, reg_e94, reg_e9c;
 	u8 result = 0x00;
 
 	/* 1 Tx IQK */
@@ -651,7 +651,6 @@ static u8 phy_path_a_iqk(struct adapter *adapt, bool config_pathb)
 	reg_eac = phy_query_bb_reg(adapt, rRx_Power_After_IQK_A_2, bMaskDWord);
 	reg_e94 = phy_query_bb_reg(adapt, rTx_Power_Before_IQK_A, bMaskDWord);
 	reg_e9c = phy_query_bb_reg(adapt, rTx_Power_After_IQK_A, bMaskDWord);
-	reg_ea4 = phy_query_bb_reg(adapt, rRx_Power_Before_IQK_A_2, bMaskDWord);
 
 	if (!(reg_eac & BIT28) &&
 	    (((reg_e94 & 0x03FF0000)>>16) != 0x142) &&
@@ -1316,8 +1315,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 	s32 result[4][8];
 	u8 i, final, chn_index;
 	bool pathaok, pathbok;
-	s32 reg_e94, reg_e9c, reg_ea4, reg_eac, reg_eb4, reg_ebc, reg_ec4,
-	    reg_ecc;
+	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_ec4;
 	bool is12simular, is13simular, is23simular;
 	bool singletone = false, carrier_sup = false;
 	u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
@@ -1389,18 +1387,15 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		reg_e94 = result[i][0];
 		reg_e9c = result[i][1];
 		reg_ea4 = result[i][2];
-		reg_eac = result[i][3];
 		reg_eb4 = result[i][4];
 		reg_ebc = result[i][5];
 		reg_ec4 = result[i][6];
-		reg_ecc = result[i][7];
 	}
 
 	if (final != 0xff) {
 		reg_e94 = result[final][0];
 		reg_e9c = result[final][1];
 		reg_ea4 = result[final][2];
-		reg_eac = result[final][3];
 		reg_eb4 = result[final][4];
 		reg_ebc = result[final][5];
 		dm_odm->RFCalibrateInfo.RegE94 = reg_e94;
@@ -1408,7 +1403,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		dm_odm->RFCalibrateInfo.RegEB4 = reg_eb4;
 		dm_odm->RFCalibrateInfo.RegEBC = reg_ebc;
 		reg_ec4 = result[final][6];
-		reg_ecc = result[final][7];
 		pathaok = true;
 		pathbok = true;
 	} else {

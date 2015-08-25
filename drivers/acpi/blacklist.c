@@ -162,6 +162,15 @@ static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
 	acpi_osi_setup("!Windows 2012");
 	return 0;
 }
+#ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
+static int __init dmi_enable_rev_override(const struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE PREFIX "DMI detected: %s (force ACPI _REV to 5)\n",
+	       d->ident);
+	acpi_rev_override_setup(NULL);
+	return 0;
+}
+#endif
 
 static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	{
@@ -325,6 +334,23 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "1015PX"),
 		},
 	},
+
+#ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
+	/*
+	 * DELL XPS 13 (2015) switches sound between HDA and I2S
+	 * depending on the ACPI _REV callback. If userspace supports
+	 * I2S sufficiently (or if you do not care about sound), you
+	 * can safely disable this quirk.
+	 */
+	{
+	 .callback = dmi_enable_rev_override,
+	 .ident = "DELL XPS 13 (2015)",
+	 .matches = {
+		      DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		      DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9343"),
+		},
+	},
+#endif
 	{}
 };
 

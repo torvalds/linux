@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	13
+#define IWL8000_UCODE_API_MAX	15
 
 /* Oldest version we won't warn about */
 #define IWL8000_UCODE_API_OK	12
@@ -122,24 +122,49 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
 };
 
-#define IWL_DEVICE_8000						\
-	.ucode_api_max = IWL8000_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL8000_UCODE_API_OK,			\
-	.ucode_api_min = IWL8000_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_8000,		\
-	.max_inst_size = IWL60_RTC_INST_SIZE,			\
-	.max_data_size = IWL60_RTC_DATA_SIZE,			\
-	.base_params = &iwl8000_base_params,			\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,	\
-	.d0i3 = true,						\
-	.non_shared_ant = ANT_A,				\
-	.dccm_offset = IWL8260_DCCM_OFFSET,			\
-	.dccm_len = IWL8260_DCCM_LEN,				\
-	.dccm2_offset = IWL8260_DCCM2_OFFSET,			\
-	.dccm2_len = IWL8260_DCCM2_LEN,				\
-	.smem_offset = IWL8260_SMEM_OFFSET,			\
-	.smem_len = IWL8260_SMEM_LEN
+static const struct iwl_tt_params iwl8000_tt_params = {
+	.ct_kill_entry = 115,
+	.ct_kill_exit = 93,
+	.ct_kill_duration = 5,
+	.dynamic_smps_entry = 111,
+	.dynamic_smps_exit = 107,
+	.tx_protection_entry = 112,
+	.tx_protection_exit = 105,
+	.tx_backoff = {
+		{.temperature = 110, .backoff = 200},
+		{.temperature = 111, .backoff = 600},
+		{.temperature = 112, .backoff = 1200},
+		{.temperature = 113, .backoff = 2000},
+		{.temperature = 114, .backoff = 4000},
+	},
+	.support_ct_kill = true,
+	.support_dynamic_smps = true,
+	.support_tx_protection = true,
+	.support_tx_backoff = true,
+};
+
+#define IWL_DEVICE_8000							\
+	.ucode_api_max = IWL8000_UCODE_API_MAX,				\
+	.ucode_api_ok = IWL8000_UCODE_API_OK,				\
+	.ucode_api_min = IWL8000_UCODE_API_MIN,				\
+	.device_family = IWL_DEVICE_FAMILY_8000,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,				\
+	.max_data_size = IWL60_RTC_DATA_SIZE,				\
+	.base_params = &iwl8000_base_params,				\
+	.led_mode = IWL_LED_RF_STATE,					\
+	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,		\
+	.d0i3 = true,							\
+	.non_shared_ant = ANT_A,					\
+	.dccm_offset = IWL8260_DCCM_OFFSET,				\
+	.dccm_len = IWL8260_DCCM_LEN,					\
+	.dccm2_offset = IWL8260_DCCM2_OFFSET,				\
+	.dccm2_len = IWL8260_DCCM2_LEN,					\
+	.smem_offset = IWL8260_SMEM_OFFSET,				\
+	.smem_len = IWL8260_SMEM_LEN,					\
+	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,	\
+	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,	\
+	.thermal_params = &iwl8000_tt_params,				\
+	.apmg_not_supported = true
 
 const struct iwl_cfg iwl8260_2n_cfg = {
 	.name = "Intel(R) Dual Band Wireless N 8260",
@@ -177,8 +202,6 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,
-	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
 	.disable_dummy_notification = true,
 	.max_ht_ampdu_exponent  = MAX_HT_AMPDU_EXPONENT_8260_SDIO,
@@ -192,8 +215,6 @@ const struct iwl_cfg iwl4165_2ac_sdio_cfg = {
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,
-	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
 	.bt_shared_single_ant = true,
 	.disable_dummy_notification = true,

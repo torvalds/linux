@@ -227,7 +227,7 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops imx_gpc_domain_ops = {
+static const struct irq_domain_ops imx_gpc_domain_ops = {
 	.xlate	= imx_gpc_domain_xlate,
 	.alloc	= imx_gpc_domain_alloc,
 	.free	= irq_domain_free_irqs_common,
@@ -280,12 +280,16 @@ void __init imx_gpc_check_dt(void)
 	struct device_node *np;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
-	if (WARN_ON(!np ||
-		    !of_find_property(np, "interrupt-controller", NULL)))
-		pr_warn("Outdated DT detected, system is about to crash!!!\n");
-}
+	if (WARN_ON(!np))
+		return;
 
-#ifdef CONFIG_PM_GENERIC_DOMAINS
+	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL))) {
+		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
+
+		/* map GPC, so that at least CPUidle and WARs keep working */
+		gpc_base = of_iomap(np, 0);
+	}
+}
 
 static void _imx6q_pm_pu_power_off(struct generic_pm_domain *genpd)
 {
@@ -393,7 +397,6 @@ static struct genpd_onecell_data imx_gpc_onecell_data = {
 static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 {
 	struct clk *clk;
-	bool is_off;
 	int i;
 
 	imx6q_pu_domain.reg = pu_reg;
@@ -410,18 +413,13 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	}
 	imx6q_pu_domain.num_clks = i;
 
-	is_off = IS_ENABLED(CONFIG_PM);
-	if (is_off) {
-		_imx6q_pm_pu_power_off(&imx6q_pu_domain.base);
-	} else {
-		/*
-		 * Enable power if compiled without CONFIG_PM in case the
-		 * bootloader disabled it.
-		 */
-		imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
-	}
+	/* Enable power always in case bootloader disabled it. */
+	imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
 
-	pm_genpd_init(&imx6q_pu_domain.base, NULL, is_off);
+	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
+		return 0;
+
+	pm_genpd_init(&imx6q_pu_domain.base, NULL, false);
 	return of_genpd_add_provider_onecell(dev->of_node,
 					     &imx_gpc_onecell_data);
 
@@ -431,17 +429,14 @@ clk_err:
 	return -EINVAL;
 }
 
-#else
-static inline int imx_gpc_genpd_init(struct device *dev, struct regulator *reg)
-{
-	return 0;
-}
-#endif /* CONFIG_PM_GENERIC_DOMAINS */
-
 static int imx_gpc_probe(struct platform_device *pdev)
 {
 	struct regulator *pu_reg;
 	int ret;
+
+	/* bail out if DT too old and doesn't provide the necessary info */
+	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells"))
+		return 0;
 
 	pu_reg = devm_regulator_get_optional(&pdev->dev, "pu");
 	if (PTR_ERR(pu_reg) == -ENODEV)
@@ -464,7 +459,6 @@ static const struct of_device_id imx_gpc_dt_ids[] = {
 static struct platform_driver imx_gpc_driver = {
 	.driver = {
 		.name = "imx-gpc",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_gpc_dt_ids,
 	},
 	.probe = imx_gpc_probe,

@@ -211,22 +211,23 @@ int soc_camera_client_s_crop(struct v4l2_subdev *sd,
 }
 EXPORT_SYMBOL(soc_camera_client_s_crop);
 
-/* Iterative s_mbus_fmt, also updates cached client crop on success */
-static int client_s_fmt(struct soc_camera_device *icd,
+/* Iterative set_fmt, also updates cached client crop on success */
+static int client_set_fmt(struct soc_camera_device *icd,
 			struct v4l2_rect *rect, struct v4l2_rect *subrect,
 			unsigned int max_width, unsigned int max_height,
-			struct v4l2_mbus_framefmt *mf, bool host_can_scale)
+			struct v4l2_subdev_format *format, bool host_can_scale)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	unsigned int width = mf->width, height = mf->height, tmp_w, tmp_h;
 	struct v4l2_cropcap cap;
 	bool host_1to1;
 	int ret;
 
 	ret = v4l2_device_call_until_err(sd->v4l2_dev,
-					 soc_camera_grp_id(icd), video,
-					 s_mbus_fmt, mf);
+					 soc_camera_grp_id(icd), pad,
+					 set_fmt, NULL, format);
 	if (ret < 0)
 		return ret;
 
@@ -265,8 +266,8 @@ static int client_s_fmt(struct soc_camera_device *icd,
 		mf->width = tmp_w;
 		mf->height = tmp_h;
 		ret = v4l2_device_call_until_err(sd->v4l2_dev,
-					soc_camera_grp_id(icd), video,
-					s_mbus_fmt, mf);
+					soc_camera_grp_id(icd), pad,
+					set_fmt, NULL, format);
 		dev_geo(dev, "Camera scaled to %ux%u\n",
 			mf->width, mf->height);
 		if (ret < 0) {
@@ -309,7 +310,11 @@ int soc_camera_client_scale(struct soc_camera_device *icd,
 			bool host_can_scale, unsigned int shift)
 {
 	struct device *dev = icd->parent;
-	struct v4l2_mbus_framefmt mf_tmp = *mf;
+	struct v4l2_subdev_format fmt_tmp = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.format = *mf,
+	};
+	struct v4l2_mbus_framefmt *mf_tmp = &fmt_tmp.format;
 	unsigned int scale_h, scale_v;
 	int ret;
 
@@ -317,25 +322,25 @@ int soc_camera_client_scale(struct soc_camera_device *icd,
 	 * 5. Apply iterative camera S_FMT for camera user window (also updates
 	 *    client crop cache and the imaginary sub-rectangle).
 	 */
-	ret = client_s_fmt(icd, rect, subrect, *width, *height,
-			   &mf_tmp, host_can_scale);
+	ret = client_set_fmt(icd, rect, subrect, *width, *height,
+			   &fmt_tmp, host_can_scale);
 	if (ret < 0)
 		return ret;
 
 	dev_geo(dev, "5: camera scaled to %ux%u\n",
-		mf_tmp.width, mf_tmp.height);
+		mf_tmp->width, mf_tmp->height);
 
 	/* 6. Retrieve camera output window (g_fmt) */
 
 	/* unneeded - it is already in "mf_tmp" */
 
 	/* 7. Calculate new client scales. */
-	scale_h = soc_camera_calc_scale(rect->width, shift, mf_tmp.width);
-	scale_v = soc_camera_calc_scale(rect->height, shift, mf_tmp.height);
+	scale_h = soc_camera_calc_scale(rect->width, shift, mf_tmp->width);
+	scale_v = soc_camera_calc_scale(rect->height, shift, mf_tmp->height);
 
-	mf->width	= mf_tmp.width;
-	mf->height	= mf_tmp.height;
-	mf->colorspace	= mf_tmp.colorspace;
+	mf->width	= mf_tmp->width;
+	mf->height	= mf_tmp->height;
+	mf->colorspace	= mf_tmp->colorspace;
 
 	/*
 	 * 8. Calculate new host crop - apply camera scales to previously

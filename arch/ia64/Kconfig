@@ -137,29 +137,6 @@ config AUDIT_ARCH
 	bool
 	default y
 
-menuconfig PARAVIRT_GUEST
-	bool "Paravirtualized guest support"
-	depends on BROKEN
-	help
-	  Say Y here to get to see options related to running Linux under
-	  various hypervisors.  This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped and disabled.
-
-if PARAVIRT_GUEST
-
-config PARAVIRT
-	bool "Enable paravirtualization code"
-	depends on PARAVIRT_GUEST
-	default y
-	help
-	  This changes the kernel so it can modify itself when it is run
-	  under a hypervisor, potentially improving performance significantly
-	  over full virtualization.  However, when run without a hypervisor
-	  the kernel is theoretically slower and slightly larger.
-
-endif
-
 choice
 	prompt "System type"
 	default IA64_GENERIC

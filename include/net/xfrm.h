@@ -168,6 +168,7 @@ struct xfrm_state {
 	struct xfrm_algo	*ealg;
 	struct xfrm_algo	*calg;
 	struct xfrm_algo_aead	*aead;
+	const char		*geniv;
 
 	/* Data for encapsulator */
 	struct xfrm_encap_tmpl	*encap;
@@ -1314,6 +1315,7 @@ static inline int xfrm_id_proto_match(u8 proto, u8 userproto)
  * xfrm algorithm information
  */
 struct xfrm_algo_aead_info {
+	char *geniv;
 	u16 icv_truncbits;
 };
 
@@ -1323,6 +1325,7 @@ struct xfrm_algo_auth_info {
 };
 
 struct xfrm_algo_encr_info {
+	char *geniv;
 	u16 blockbits;
 	u16 defkeybits;
 };

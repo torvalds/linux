@@ -12,6 +12,7 @@
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/platform_data/clk-u300.h>
 
 /* APP side SYSCON registers */
 /* CLK Control Register 16bit (R/W) */

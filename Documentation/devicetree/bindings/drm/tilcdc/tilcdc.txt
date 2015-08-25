@@ -18,6 +18,12 @@ Optional properties:
  - max-pixelclock: The maximum pixel clock that can be supported
    by the lcd controller in KHz.
 
+Optional nodes:
+
+ - port/ports: to describe a connection to an external encoder. The
+   binding follows Documentation/devicetree/bindings/graph.txt and
+   suppors a single port with a single endpoint.
+
 Example:
 
 	fb: fb@4830e000 {
@@ -26,4 +32,25 @@ Example:
 		interrupt-parent = <&intc>;
 		interrupts = <36>;
 		ti,hwmods = "lcdc";
+
+		port {
+			lcdc_0: endpoint@0 {
+				remote-endpoint = <&hdmi_0>;
+			};
+		};
+	};
+
+	tda19988: tda19988 {
+		compatible = "nxp,tda998x";
+		reg = <0x70>;
+
+		pinctrl-names = "default", "off";
+		pinctrl-0 = <&nxp_hdmi_bonelt_pins>;
+		pinctrl-1 = <&nxp_hdmi_bonelt_off_pins>;
+
+		port {
+			hdmi_0: endpoint@0 {
+				remote-endpoint = <&lcdc_0>;
+			};
+		};
 	};

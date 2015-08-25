@@ -1102,7 +1102,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies),
 						    priv->supplies);
 			if (ret != 0)
@@ -1235,7 +1235,6 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 				       priv->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

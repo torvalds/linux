@@ -47,8 +47,7 @@
 #define RECV		1
 
 #define STATE_NONE	0
-#define STATE_PENDING	1
-#define STATE_READY	2
+#define STATE_READY	1
 
 struct posix_msg_tree_node {
 	struct rb_node		rb_node;
@@ -143,7 +142,6 @@ static int msg_insert(struct msg_msg *msg, struct mqueue_inode_info *info)
 		if (!leaf)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&leaf->msg_list);
-		info->qsize += sizeof(*leaf);
 	}
 	leaf->priority = msg->m_type;
 	rb_link_node(&leaf->rb_node, parent, p);
@@ -188,7 +186,6 @@ try_again:
 			     "lazy leaf delete!\n");
 		rb_erase(&leaf->rb_node, &info->msg_tree);
 		if (info->node_cache) {
-			info->qsize -= sizeof(*leaf);
 			kfree(leaf);
 		} else {
 			info->node_cache = leaf;
@@ -201,7 +198,6 @@ try_again:
 		if (list_empty(&leaf->msg_list)) {
 			rb_erase(&leaf->rb_node, &info->msg_tree);
 			if (info->node_cache) {
-				info->qsize -= sizeof(*leaf);
 				kfree(leaf);
 			} else {
 				info->node_cache = leaf;
@@ -571,14 +567,11 @@ static int wq_sleep(struct mqueue_inode_info *info, int sr,
 	wq_add(info, sr, ewp);
 
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		__set_current_state(TASK_INTERRUPTIBLE);
 
 		spin_unlock(&info->lock);
 		time = schedule_hrtimeout_range_clock(timeout, 0,
 			HRTIMER_MODE_ABS, CLOCK_REALTIME);
-
-		while (ewp->state == STATE_PENDING)
-			cpu_relax();
 
 		if (ewp->state == STATE_READY) {
 			retval = 0;
@@ -907,11 +900,15 @@ out_name:
  * list of waiting receivers. A sender checks that list before adding the new
  * message into the message array. If there is a waiting receiver, then it
  * bypasses the message array and directly hands the message over to the
- * receiver.
- * The receiver accepts the message and returns without grabbing the queue
- * spinlock. Therefore an intermediate STATE_PENDING state and memory barriers
- * are necessary. The same algorithm is used for sysv semaphores, see
- * ipc/sem.c for more details.
+ * receiver. The receiver accepts the message and returns without grabbing the
+ * queue spinlock:
+ *
+ * - Set pointer to message.
+ * - Queue the receiver task for later wakeup (without the info->lock).
+ * - Update its state to STATE_READY. Now the receiver can continue.
+ * - Wake up the process after the lock is dropped. Should the process wake up
+ *   before this wakeup (due to a timeout or a signal) it will either see
+ *   STATE_READY and continue or acquire the lock to check the state again.
  *
  * The same algorithm is used for senders.
  */
@@ -919,21 +916,29 @@ out_name:
 /* pipelined_send() - send a message directly to the task waiting in
  * sys_mq_timedreceive() (without inserting message into a queue).
  */
-static inline void pipelined_send(struct mqueue_inode_info *info,
+static inline void pipelined_send(struct wake_q_head *wake_q,
+				  struct mqueue_inode_info *info,
 				  struct msg_msg *message,
 				  struct ext_wait_queue *receiver)
 {
 	receiver->msg = message;
 	list_del(&receiver->list);
-	receiver->state = STATE_PENDING;
-	wake_up_process(receiver->task);
-	smp_wmb();
+	wake_q_add(wake_q, receiver->task);
+	/*
+	 * Rely on the implicit cmpxchg barrier from wake_q_add such
+	 * that we can ensure that updating receiver->state is the last
+	 * write operation: As once set, the receiver can continue,
+	 * and if we don't have the reference count from the wake_q,
+	 * yet, at that point we can later have a use-after-free
+	 * condition and bogus wakeup.
+	 */
 	receiver->state = STATE_READY;
 }
 
 /* pipelined_receive() - if there is task waiting in sys_mq_timedsend()
  * gets its message and put to the queue (we have one free place for sure). */
-static inline void pipelined_receive(struct mqueue_inode_info *info)
+static inline void pipelined_receive(struct wake_q_head *wake_q,
+				     struct mqueue_inode_info *info)
 {
 	struct ext_wait_queue *sender = wq_get_first_waiter(info, SEND);
 
@@ -944,10 +949,9 @@ static inline void pipelined_receive(struct mqueue_inode_info *info)
 	}
 	if (msg_insert(sender->msg, info))
 		return;
+
 	list_del(&sender->list);
-	sender->state = STATE_PENDING;
-	wake_up_process(sender->task);
-	smp_wmb();
+	wake_q_add(wake_q, sender->task);
 	sender->state = STATE_READY;
 }
 
@@ -965,6 +969,7 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 	struct timespec ts;
 	struct posix_msg_tree_node *new_leaf = NULL;
 	int ret = 0;
+	WAKE_Q(wake_q);
 
 	if (u_abs_timeout) {
 		int res = prepare_timeout(u_abs_timeout, &expires, &ts);
@@ -1026,7 +1031,6 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 		/* Save our speculative allocation into the cache */
 		INIT_LIST_HEAD(&new_leaf->msg_list);
 		info->node_cache = new_leaf;
-		info->qsize += sizeof(*new_leaf);
 		new_leaf = NULL;
 	} else {
 		kfree(new_leaf);
@@ -1049,7 +1053,7 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 	} else {
 		receiver = wq_get_first_waiter(info, RECV);
 		if (receiver) {
-			pipelined_send(info, msg_ptr, receiver);
+			pipelined_send(&wake_q, info, msg_ptr, receiver);
 		} else {
 			/* adds message to the queue */
 			ret = msg_insert(msg_ptr, info);
@@ -1062,6 +1066,7 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 	}
 out_unlock:
 	spin_unlock(&info->lock);
+	wake_up_q(&wake_q);
 out_free:
 	if (ret)
 		free_msg(msg_ptr);
@@ -1133,7 +1138,6 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 		/* Save our speculative allocation into the cache */
 		INIT_LIST_HEAD(&new_leaf->msg_list);
 		info->node_cache = new_leaf;
-		info->qsize += sizeof(*new_leaf);
 	} else {
 		kfree(new_leaf);
 	}
@@ -1149,14 +1153,17 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 			msg_ptr = wait.msg;
 		}
 	} else {
+		WAKE_Q(wake_q);
+
 		msg_ptr = msg_get(info);
 
 		inode->i_atime = inode->i_mtime = inode->i_ctime =
 				CURRENT_TIME;
 
 		/* There is now free space in queue. */
-		pipelined_receive(info);
+		pipelined_receive(&wake_q, info);
 		spin_unlock(&info->lock);
+		wake_up_q(&wake_q);
 		ret = 0;
 	}
 	if (ret == 0) {

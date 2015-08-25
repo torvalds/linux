@@ -1,6 +1,7 @@
 #ifndef __PERF_EVLIST_H
 #define __PERF_EVLIST_H 1
 
+#include <linux/atomic.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 #include "event.h"
 #include "evsel.h"
 #include "util.h"
+#include "auxtrace.h"
 #include <unistd.h>
 
 struct pollfd;
@@ -26,8 +28,9 @@ struct record_opts;
 struct perf_mmap {
 	void		 *base;
 	int		 mask;
-	int		 refcnt;
+	atomic_t	 refcnt;
 	u64		 prev;
+	struct auxtrace_mmap auxtrace_mmap;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
 };
 
@@ -37,6 +40,8 @@ struct perf_evlist {
 	int		 nr_entries;
 	int		 nr_groups;
 	int		 nr_mmaps;
+	bool		 overwrite;
+	bool		 enabled;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
@@ -45,7 +50,6 @@ struct perf_evlist {
 		int	cork_fd;
 		pid_t	pid;
 	} workload;
-	bool		 overwrite;
 	struct fdarray	 pollfd;
 	struct perf_mmap *mmap;
 	struct thread_map *threads;
@@ -122,16 +126,21 @@ int perf_evlist__start_workload(struct perf_evlist *evlist);
 
 struct option;
 
+int __perf_evlist__parse_mmap_pages(unsigned int *mmap_pages, const char *str);
 int perf_evlist__parse_mmap_pages(const struct option *opt,
 				  const char *str,
 				  int unset);
 
+int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
+			 bool overwrite, unsigned int auxtrace_pages,
+			 bool auxtrace_overwrite);
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite);
 void perf_evlist__munmap(struct perf_evlist *evlist);
 
 void perf_evlist__disable(struct perf_evlist *evlist);
 void perf_evlist__enable(struct perf_evlist *evlist);
+void perf_evlist__toggle_enable(struct perf_evlist *evlist);
 
 int perf_evlist__disable_event(struct perf_evlist *evlist,
 			       struct perf_evsel *evsel);
@@ -280,5 +289,4 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 
 void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
-
 #endif /* __PERF_EVLIST_H */

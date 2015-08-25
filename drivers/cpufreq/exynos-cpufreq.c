@@ -10,6 +10,7 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -168,10 +169,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 
 	exynos_info->dev = &pdev->dev;
 
-	if (of_machine_is_compatible("samsung,exynos4210")) {
-		exynos_info->type = EXYNOS_SOC_4210;
-		ret = exynos4210_cpufreq_init(exynos_info);
-	} else if (of_machine_is_compatible("samsung,exynos4212")) {
+	if (of_machine_is_compatible("samsung,exynos4212")) {
 		exynos_info->type = EXYNOS_SOC_4212;
 		ret = exynos4x12_cpufreq_init(exynos_info);
 	} else if (of_machine_is_compatible("samsung,exynos4412")) {
@@ -182,7 +180,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 		ret = exynos5250_cpufreq_init(exynos_info);
 	} else {
 		pr_err("%s: Unknown SoC type\n", __func__);
-		return -ENODEV;
+		ret = -ENODEV;
 	}
 
 	if (ret)
@@ -190,12 +188,14 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 
 	if (exynos_info->set_freq == NULL) {
 		dev_err(&pdev->dev, "No set_freq function (ERR)\n");
+		ret = -EINVAL;
 		goto err_vdd_arm;
 	}
 
 	arm_regulator = regulator_get(NULL, "vdd_arm");
 	if (IS_ERR(arm_regulator)) {
 		dev_err(&pdev->dev, "failed to get resource vdd_arm\n");
+		ret = -EINVAL;
 		goto err_vdd_arm;
 	}
 
@@ -227,7 +227,7 @@ err_cpufreq_reg:
 	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);
-	return -EINVAL;
+	return ret;
 }
 
 static struct platform_driver exynos_cpufreq_platdrv = {

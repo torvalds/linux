@@ -948,9 +948,9 @@ static int tz1090_pdc_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pdc_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, pmx);

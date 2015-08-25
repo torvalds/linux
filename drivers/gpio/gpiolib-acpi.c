@@ -114,10 +114,11 @@ static inline int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip,
  * @path:	ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
  * @pin:	ACPI GPIO pin number (0-based, controller-relative)
  *
- * Returns GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
- * error value
+ * Return: GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
+ * error value. Specifically returns %-EPROBE_DEFER if the referenced GPIO
+ * controller does not have gpiochip registered at the moment. This is to
+ * support probe deferral.
  */
-
 static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 {
 	struct gpio_chip *chip;
@@ -131,7 +132,7 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 
 	chip = gpiochip_find(handle, acpi_gpiochip_find);
 	if (!chip)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EPROBE_DEFER);
 
 	offset = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
 	if (offset < 0)
@@ -307,6 +308,7 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	acpi_walk_resources(handle, "_AEI",
 			    acpi_gpiochip_request_interrupt, acpi_gpio);
 }
+EXPORT_SYMBOL_GPL(acpi_gpiochip_request_interrupts);
 
 /**
  * acpi_gpiochip_free_interrupts() - Free GPIO ACPI event interrupts.
@@ -346,6 +348,7 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 		kfree(event);
 	}
 }
+EXPORT_SYMBOL_GPL(acpi_gpiochip_free_interrupts);
 
 int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 			      const struct acpi_gpio_mapping *gpios)
@@ -513,6 +516,35 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 
 	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
 }
+
+/**
+ * acpi_dev_gpio_irq_get() - Find GpioInt and translate it to Linux IRQ number
+ * @adev: pointer to a ACPI device to get IRQ from
+ * @index: index of GpioInt resource (starting from %0)
+ *
+ * If the device has one or more GpioInt resources, this function can be
+ * used to translate from the GPIO offset in the resource to the Linux IRQ
+ * number.
+ *
+ * Return: Linux IRQ number (>%0) on success, negative errno on failure.
+ */
+int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
+{
+	int idx, i;
+
+	for (i = 0, idx = 0; idx <= index; i++) {
+		struct acpi_gpio_info info;
+		struct gpio_desc *desc;
+
+		desc = acpi_get_gpiod_by_index(adev, NULL, i, &info);
+		if (IS_ERR(desc))
+			break;
+		if (info.gpioint && idx++ == index)
+			return gpiod_to_irq(desc);
+	}
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_get);
 
 static acpi_status
 acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,

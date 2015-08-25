@@ -53,9 +53,6 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 
 #include "sis.h"
 #include "sis_main.h"
@@ -4130,13 +4127,13 @@ static void sisfb_post_map_vram(struct sis_video_info *ivideo,
 	if (*mapsize < (min << 20))
 		return;
 
-	ivideo->video_vbase = ioremap(ivideo->video_base, (*mapsize));
+	ivideo->video_vbase = ioremap_wc(ivideo->video_base, (*mapsize));
 
 	if(!ivideo->video_vbase) {
 		printk(KERN_ERR
 			"sisfb: Unable to map maximum video RAM for size detection\n");
 		(*mapsize) >>= 1;
-		while((!(ivideo->video_vbase = ioremap(ivideo->video_base, (*mapsize))))) {
+		while((!(ivideo->video_vbase = ioremap_wc(ivideo->video_base, (*mapsize))))) {
 			(*mapsize) >>= 1;
 			if((*mapsize) < (min << 20))
 				break;
@@ -6186,7 +6183,7 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto error_2;
 	}
 
-	ivideo->video_vbase = ioremap(ivideo->video_base, ivideo->video_size);
+	ivideo->video_vbase = ioremap_wc(ivideo->video_base, ivideo->video_size);
 	ivideo->SiS_Pr.VideoMemoryAddress = ivideo->video_vbase;
 	if(!ivideo->video_vbase) {
 		printk(KERN_ERR "sisfb: Fatal error: Unable to map framebuffer memory\n");
@@ -6253,8 +6250,6 @@ error_3:	vfree(ivideo->bios_abase);
 	/* Used for clearing the screen only, therefore respect our mem limit */
 	ivideo->SiS_Pr.VideoMemoryAddress += ivideo->video_offset;
 	ivideo->SiS_Pr.VideoMemorySize = ivideo->sisfb_mem;
-
-	ivideo->mtrr = -1;
 
 	ivideo->vbflags = 0;
 	ivideo->lcddefmodeidx = DEFAULT_LCDMODE;
@@ -6443,14 +6438,8 @@ error_3:	vfree(ivideo->bios_abase);
 
 		printk(KERN_DEBUG "sisfb: Initial vbflags 0x%x\n", (int)ivideo->vbflags);
 
-#ifdef CONFIG_MTRR
-		ivideo->mtrr = mtrr_add(ivideo->video_base, ivideo->video_size,
-					MTRR_TYPE_WRCOMB, 1);
-		if(ivideo->mtrr < 0) {
-			printk(KERN_DEBUG "sisfb: Failed to add MTRRs\n");
-		}
-#endif
-
+		ivideo->wc_cookie = arch_phys_wc_add(ivideo->video_base,
+						     ivideo->video_size);
 		if(register_framebuffer(sis_fb_info) < 0) {
 			printk(KERN_ERR "sisfb: Fatal error: Failed to register framebuffer\n");
 			ret = -EINVAL;
@@ -6507,11 +6496,7 @@ static void sisfb_remove(struct pci_dev *pdev)
 
 	pci_dev_put(ivideo->nbridge);
 
-#ifdef CONFIG_MTRR
-	/* Release MTRR region */
-	if(ivideo->mtrr >= 0)
-		mtrr_del(ivideo->mtrr, ivideo->video_base, ivideo->video_size);
-#endif
+	arch_phys_wc_del(ivideo->wc_cookie);
 
 	/* If device was disabled when starting, disable
 	 * it when quitting.

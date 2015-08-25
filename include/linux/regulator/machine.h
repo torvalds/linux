@@ -75,6 +75,8 @@ struct regulator_state {
  *
  * @min_uA: Smallest current consumers may set.
  * @max_uA: Largest current consumers may set.
+ * @ilim_uA: Maximum input current.
+ * @system_load: Load that isn't captured by any consumer requests.
  *
  * @valid_modes_mask: Mask of modes which may be configured by consumers.
  * @valid_ops_mask: Operations which may be performed by consumers.
@@ -86,6 +88,8 @@ struct regulator_state {
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
  * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
+ * @soft_start: Enable soft start so that voltage ramps slowly.
+ * @pull_down: Enable pull down when regulator is disabled.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *
@@ -111,6 +115,9 @@ struct regulation_constraints {
 	/* current output range (inclusive) - for current control */
 	int min_uA;
 	int max_uA;
+	int ilim_uA;
+
+	int system_load;
 
 	/* valid regulator operating modes for this machine */
 	unsigned int valid_modes_mask;
@@ -138,6 +145,8 @@ struct regulation_constraints {
 	unsigned boot_on:1;	/* bootloader/firmware enabled regulator */
 	unsigned apply_uV:1;	/* apply uV constraint if min == max */
 	unsigned ramp_disable:1; /* disable ramp delay */
+	unsigned soft_start:1;	/* ramp voltage slowly */
+	unsigned pull_down:1;	/* pull down resistor when regulator off */
 };
 
 /**

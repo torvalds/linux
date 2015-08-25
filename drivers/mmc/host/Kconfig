@@ -219,6 +219,7 @@ config MMC_SDHCI_SIRF
 	tristate "SDHCI support on CSR SiRFprimaII and SiRFmarco SoCs"
 	depends on ARCH_SIRF
 	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the SDHCI support for SiRF System-on-Chip devices.
 
@@ -775,3 +776,12 @@ config MMC_TOSHIBA_PCI
 	tristate "Toshiba Type A SD/MMC Card Interface Driver"
 	depends on PCI
 	help
+
+config MMC_MTK
+	tristate "MediaTek SD/MMC Card Interface support"
+	depends on HAS_DMA
+	help
+	  This selects the MediaTek(R) Secure digital and Multimedia card Interface.
+	  If you have a machine with a integrated SD/MMC card reader, say Y or M here.
+	  This is needed if support for any SD/SDIO/MMC devices is required.
+	  If unsure, say N.

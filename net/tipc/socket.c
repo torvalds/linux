@@ -41,6 +41,7 @@
 #include "link.h"
 #include "name_distr.h"
 #include "socket.h"
+#include "bcast.h"
 
 #define SS_LISTENING		-1	/* socket is listening */
 #define SS_READY		-2	/* socket is connectionless */
@@ -342,7 +343,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	}
 
 	/* Allocate socket's protocol area */
-	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto);
+	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto, kern);
 	if (sk == NULL)
 		return -ENOMEM;
 
@@ -409,7 +410,7 @@ static int tipc_release(struct socket *sock)
 	struct net *net;
 	struct tipc_sock *tsk;
 	struct sk_buff *skb;
-	u32 dnode, probing_state;
+	u32 dnode;
 
 	/*
 	 * Exit if socket isn't fully initialized (occurs when a failed accept()
@@ -447,10 +448,7 @@ static int tipc_release(struct socket *sock)
 	}
 
 	tipc_sk_withdraw(tsk, 0, NULL);
-	probing_state = tsk->probing_state;
-	if (del_timer_sync(&sk->sk_timer) &&
-	    probing_state != TIPC_CONN_PROBING)
-		sock_put(sk);
+	sk_stop_timer(sk, &sk->sk_timer);
 	tipc_sk_remove(tsk);
 	if (tsk->connected) {
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
@@ -2009,6 +2007,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 	res = tipc_sk_create(sock_net(sock->sk), new_sock, 0, 1);
 	if (res)
 		goto exit;
+	security_sk_clone(sock->sk, new_sock->sk);
 
 	new_sk = new_sock->sk;
 	new_tsock = tipc_sk(new_sk);
@@ -2142,11 +2141,17 @@ static void tipc_sk_timeout(unsigned long data)
 	peer_node = tsk_peer_node(tsk);
 
 	if (tsk->probing_state == TIPC_CONN_PROBING) {
-		/* Previous probe not answered -> self abort */
-		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
-				      TIPC_CONN_MSG, SHORT_H_SIZE, 0,
-				      own_node, peer_node, tsk->portid,
-				      peer_port, TIPC_ERR_NO_PORT);
+		if (!sock_owned_by_user(sk)) {
+			sk->sk_socket->state = SS_DISCONNECTING;
+			tsk->connected = 0;
+			tipc_node_remove_conn(sock_net(sk), tsk_peer_node(tsk),
+					      tsk_peer_port(tsk));
+			sk->sk_state_change(sk);
+		} else {
+			/* Try again later */
+			sk_reset_timer(sk, &sk->sk_timer, (HZ / 20));
+		}
+
 	} else {
 		skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE,
 				      INT_H_SIZE, 0, peer_node, own_node,

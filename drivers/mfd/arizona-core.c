@@ -250,20 +250,50 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 	return ret;
 }
 
-static int arizona_apply_hardware_patch(struct arizona* arizona)
+static inline void arizona_enable_reset(struct arizona *arizona)
 {
-	unsigned int fll, sysclk;
+	if (arizona->pdata.reset)
+		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+}
+
+static void arizona_disable_reset(struct arizona *arizona)
+{
+	if (arizona->pdata.reset) {
+		switch (arizona->type) {
+		case WM5110:
+		case WM8280:
+			/* Meet requirements for minimum reset duration */
+			msleep(5);
+			break;
+		default:
+			break;
+		}
+
+		gpio_set_value_cansleep(arizona->pdata.reset, 1);
+		msleep(1);
+	}
+}
+
+struct arizona_sysclk_state {
+	unsigned int fll;
+	unsigned int sysclk;
+};
+
+static int arizona_enable_freerun_sysclk(struct arizona *arizona,
+					 struct arizona_sysclk_state *state)
+{
 	int ret, err;
 
 	/* Cache existing FLL and SYSCLK settings */
-	ret = regmap_read(arizona->regmap, ARIZONA_FLL1_CONTROL_1, &fll);
-	if (ret != 0) {
+	ret = regmap_read(arizona->regmap, ARIZONA_FLL1_CONTROL_1, &state->fll);
+	if (ret) {
 		dev_err(arizona->dev, "Failed to cache FLL settings: %d\n",
 			ret);
 		return ret;
 	}
-	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &sysclk);
-	if (ret != 0) {
+	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1,
+			  &state->sysclk);
+	if (ret) {
 		dev_err(arizona->dev, "Failed to cache SYSCLK settings: %d\n",
 			ret);
 		return ret;
@@ -272,7 +302,7 @@ static int arizona_apply_hardware_patch(struct arizona* arizona)
 	/* Start up SYSCLK using the FLL in free running mode */
 	ret = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1,
 			ARIZONA_FLL1_ENA | ARIZONA_FLL1_FREERUN);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(arizona->dev,
 			"Failed to start FLL in freerunning mode: %d\n",
 			ret);
@@ -281,53 +311,137 @@ static int arizona_apply_hardware_patch(struct arizona* arizona)
 	ret = arizona_poll_reg(arizona, 25, ARIZONA_INTERRUPT_RAW_STATUS_5,
 			       ARIZONA_FLL1_CLOCK_OK_STS,
 			       ARIZONA_FLL1_CLOCK_OK_STS);
-	if (ret != 0) {
+	if (ret) {
 		ret = -ETIMEDOUT;
 		goto err_fll;
 	}
 
 	ret = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, 0x0144);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(arizona->dev, "Failed to start SYSCLK: %d\n", ret);
 		goto err_fll;
 	}
 
+	return 0;
+
+err_fll:
+	err = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, state->fll);
+	if (err)
+		dev_err(arizona->dev,
+			"Failed to re-apply old FLL settings: %d\n", err);
+
+	return ret;
+}
+
+static int arizona_disable_freerun_sysclk(struct arizona *arizona,
+					  struct arizona_sysclk_state *state)
+{
+	int ret;
+
+	ret = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1,
+			   state->sysclk);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to re-apply old SYSCLK settings: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, state->fll);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to re-apply old FLL settings: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int wm5102_apply_hardware_patch(struct arizona *arizona)
+{
+	struct arizona_sysclk_state state;
+	int err, ret;
+
+	ret = arizona_enable_freerun_sysclk(arizona, &state);
+	if (ret)
+		return ret;
+
 	/* Start the write sequencer and wait for it to finish */
 	ret = regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
-			ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START | 160);
-	if (ret != 0) {
+			   ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START | 160);
+	if (ret) {
 		dev_err(arizona->dev, "Failed to start write sequencer: %d\n",
 			ret);
-		goto err_sysclk;
+		goto err;
 	}
+
 	ret = arizona_poll_reg(arizona, 5, ARIZONA_WRITE_SEQUENCER_CTRL_1,
 			       ARIZONA_WSEQ_BUSY, 0);
-	if (ret != 0) {
+	if (ret) {
 		regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
-				ARIZONA_WSEQ_ABORT);
+			     ARIZONA_WSEQ_ABORT);
 		ret = -ETIMEDOUT;
 	}
 
-err_sysclk:
-	err = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, sysclk);
-	if (err != 0) {
-		dev_err(arizona->dev,
-			"Failed to re-apply old SYSCLK settings: %d\n",
-			err);
-	}
+err:
+	err = arizona_disable_freerun_sysclk(arizona, &state);
 
-err_fll:
-	err = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, fll);
-	if (err != 0) {
-		dev_err(arizona->dev,
-			"Failed to re-apply old FLL settings: %d\n",
-			err);
-	}
+	return ret ?: err;
+}
 
-	if (ret != 0)
+/*
+ * Register patch to some of the CODECs internal write sequences
+ * to ensure a clean exit from the low power sleep state.
+ */
+static const struct reg_default wm5110_sleep_patch[] = {
+	{ 0x337A, 0xC100 },
+	{ 0x337B, 0x0041 },
+	{ 0x3300, 0xA210 },
+	{ 0x3301, 0x050C },
+};
+
+static int wm5110_apply_sleep_patch(struct arizona *arizona)
+{
+	struct arizona_sysclk_state state;
+	int err, ret;
+
+	ret = arizona_enable_freerun_sysclk(arizona, &state);
+	if (ret)
 		return ret;
-	else
-		return err;
+
+	ret = regmap_multi_reg_write_bypassed(arizona->regmap,
+					      wm5110_sleep_patch,
+					      ARRAY_SIZE(wm5110_sleep_patch));
+
+	err = arizona_disable_freerun_sysclk(arizona, &state);
+
+	return ret ?: err;
+}
+
+static int wm5102_clear_write_sequencer(struct arizona *arizona)
+{
+	int ret;
+
+	ret = regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_3,
+			   0x0);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to clear write sequencer state: %d\n", ret);
+		return ret;
+	}
+
+	arizona_enable_reset(arizona);
+	regulator_disable(arizona->dcvdd);
+
+	msleep(20);
+
+	ret = regulator_enable(arizona->dcvdd);
+	if (ret) {
+		dev_err(arizona->dev, "Failed to re-enable DCVDD: %d\n", ret);
+		return ret;
+	}
+	arizona_disable_reset(arizona);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -338,10 +452,31 @@ static int arizona_runtime_resume(struct device *dev)
 
 	dev_dbg(arizona->dev, "Leaving AoD mode\n");
 
+	if (arizona->has_fully_powered_off) {
+		dev_dbg(arizona->dev, "Re-enabling core supplies\n");
+
+		ret = regulator_bulk_enable(arizona->num_core_supplies,
+					    arizona->core_supplies);
+		if (ret) {
+			dev_err(dev, "Failed to enable core supplies: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
 	ret = regulator_enable(arizona->dcvdd);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to enable DCVDD: %d\n", ret);
+		if (arizona->has_fully_powered_off)
+			regulator_bulk_disable(arizona->num_core_supplies,
+					       arizona->core_supplies);
 		return ret;
+	}
+
+	if (arizona->has_fully_powered_off) {
+		arizona_disable_reset(arizona);
+		enable_irq(arizona->irq);
+		arizona->has_fully_powered_off = false;
 	}
 
 	regcache_cache_only(arizona->regmap, false);
@@ -366,10 +501,49 @@ static int arizona_runtime_resume(struct device *dev)
 			goto err;
 		}
 
-		ret = arizona_apply_hardware_patch(arizona);
-		if (ret != 0) {
+		ret = wm5102_apply_hardware_patch(arizona);
+		if (ret) {
 			dev_err(arizona->dev,
 				"Failed to apply hardware patch: %d\n",
+				ret);
+			goto err;
+		}
+		break;
+	case WM5110:
+	case WM8280:
+		ret = arizona_wait_for_boot(arizona);
+		if (ret)
+			goto err;
+
+		if (arizona->external_dcvdd) {
+			ret = regmap_update_bits(arizona->regmap,
+						 ARIZONA_ISOLATION_CONTROL,
+						 ARIZONA_ISOLATE_DCVDD1, 0);
+			if (ret) {
+				dev_err(arizona->dev,
+					"Failed to connect DCVDD: %d\n", ret);
+				goto err;
+			}
+		} else {
+			/*
+			 * As this is only called for the internal regulator
+			 * (where we know voltage ranges available) it is ok
+			 * to request an exact range.
+			 */
+			ret = regulator_set_voltage(arizona->dcvdd,
+						    1200000, 1200000);
+			if (ret < 0) {
+				dev_err(arizona->dev,
+					"Failed to set resume voltage: %d\n",
+					ret);
+				goto err;
+			}
+		}
+
+		ret = wm5110_apply_sleep_patch(arizona);
+		if (ret) {
+			dev_err(arizona->dev,
+				"Failed to re-apply sleep patch: %d\n",
 				ret);
 			goto err;
 		}
@@ -410,9 +584,16 @@ err:
 static int arizona_runtime_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
+	unsigned int val;
 	int ret;
 
 	dev_dbg(arizona->dev, "Entering AoD mode\n");
+
+	ret = regmap_read(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE, &val);
+	if (ret) {
+		dev_err(dev, "Failed to check jack det status: %d\n", ret);
+		return ret;
+	}
 
 	if (arizona->external_dcvdd) {
 		ret = regmap_update_bits(arizona->regmap,
@@ -426,9 +607,55 @@ static int arizona_runtime_suspend(struct device *dev)
 		}
 	}
 
+	switch (arizona->type) {
+	case WM5110:
+	case WM8280:
+		if (arizona->external_dcvdd)
+			break;
+
+		/*
+		 * As this is only called for the internal regulator
+		 * (where we know voltage ranges available) it is ok
+		 * to request an exact range.
+		 */
+		ret = regulator_set_voltage(arizona->dcvdd, 1175000, 1175000);
+		if (ret < 0) {
+			dev_err(arizona->dev,
+				"Failed to set suspend voltage: %d\n", ret);
+			return ret;
+		}
+		break;
+	case WM5102:
+		if (!(val & ARIZONA_JD1_ENA)) {
+			ret = regmap_write(arizona->regmap,
+					   ARIZONA_WRITE_SEQUENCER_CTRL_3, 0x0);
+			if (ret) {
+				dev_err(arizona->dev,
+					"Failed to clear write sequencer: %d\n",
+					ret);
+				return ret;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
 	regcache_cache_only(arizona->regmap, true);
 	regcache_mark_dirty(arizona->regmap);
 	regulator_disable(arizona->dcvdd);
+
+	/* Allow us to completely power down if no jack detection */
+	if (!(val & ARIZONA_JD1_ENA)) {
+		dev_dbg(arizona->dev, "Fully powering off\n");
+
+		arizona->has_fully_powered_off = true;
+
+		disable_irq_nosync(arizona->irq);
+		arizona_enable_reset(arizona);
+		regulator_bulk_disable(arizona->num_core_supplies,
+				       arizona->core_supplies);
+	}
 
 	return 0;
 }
@@ -728,9 +955,9 @@ int arizona_dev_init(struct arizona *arizona)
 
 	if (arizona->pdata.reset) {
 		/* Start out with /RESET low to put the chip into reset */
-		ret = gpio_request_one(arizona->pdata.reset,
-				       GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-				       "arizona /RESET");
+		ret = devm_gpio_request_one(arizona->dev, arizona->pdata.reset,
+					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+					    "arizona /RESET");
 		if (ret != 0) {
 			dev_err(dev, "Failed to request /RESET: %d\n", ret);
 			goto err_dcvdd;
@@ -751,10 +978,7 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_enable;
 	}
 
-	if (arizona->pdata.reset) {
-		gpio_set_value_cansleep(arizona->pdata.reset, 1);
-		msleep(1);
-	}
+	arizona_disable_reset(arizona);
 
 	regcache_cache_only(arizona->regmap, false);
 
@@ -777,8 +1001,6 @@ int arizona_dev_init(struct arizona *arizona)
 
 	/* If we have a /RESET GPIO we'll already be reset */
 	if (!arizona->pdata.reset) {
-		regcache_mark_dirty(arizona->regmap);
-
 		ret = regmap_write(arizona->regmap, ARIZONA_SOFTWARE_RESET, 0);
 		if (ret != 0) {
 			dev_err(dev, "Failed to reset device: %d\n", ret);
@@ -786,12 +1008,6 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 
 		msleep(1);
-
-		ret = regcache_sync(arizona->regmap);
-		if (ret != 0) {
-			dev_err(dev, "Failed to sync device: %d\n", ret);
-			goto err_reset;
-		}
 	}
 
 	/* Ensure device startup is complete */
@@ -799,21 +1015,24 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM5102:
 		ret = regmap_read(arizona->regmap,
 				  ARIZONA_WRITE_SEQUENCER_CTRL_3, &val);
-		if (ret != 0)
+		if (ret) {
 			dev_err(dev,
 				"Failed to check write sequencer state: %d\n",
 				ret);
-		else if (val & 0x01)
-			break;
-		/* Fall through */
-	default:
-		ret = arizona_wait_for_boot(arizona);
-		if (ret != 0) {
-			dev_err(arizona->dev,
-				"Device failed initial boot: %d\n", ret);
-			goto err_reset;
+		} else if (val & 0x01) {
+			ret = wm5102_clear_write_sequencer(arizona);
+			if (ret)
+				return ret;
 		}
 		break;
+	default:
+		break;
+	}
+
+	ret = arizona_wait_for_boot(arizona);
+	if (ret) {
+		dev_err(arizona->dev, "Device failed initial boot: %d\n", ret);
+		goto err_reset;
 	}
 
 	/* Read the device ID information & do device specific stuff */
@@ -891,10 +1110,20 @@ int arizona_dev_init(struct arizona *arizona)
 
 		switch (arizona->type) {
 		case WM5102:
-			ret = arizona_apply_hardware_patch(arizona);
-			if (ret != 0) {
+			ret = wm5102_apply_hardware_patch(arizona);
+			if (ret) {
 				dev_err(arizona->dev,
 					"Failed to apply hardware patch: %d\n",
+					ret);
+				goto err_reset;
+			}
+			break;
+		case WM5110:
+		case WM8280:
+			ret = wm5110_apply_sleep_patch(arizona);
+			if (ret) {
+				dev_err(arizona->dev,
+					"Failed to apply sleep patch: %d\n",
 					ret);
 				goto err_reset;
 			}
@@ -911,10 +1140,6 @@ int arizona_dev_init(struct arizona *arizona)
 		regmap_write(arizona->regmap, ARIZONA_GPIO1_CTRL + i,
 			     arizona->pdata.gpio_defaults[i]);
 	}
-
-	pm_runtime_set_autosuspend_delay(arizona->dev, 100);
-	pm_runtime_use_autosuspend(arizona->dev);
-	pm_runtime_enable(arizona->dev);
 
 	/* Chip default */
 	if (!arizona->pdata.clk32k_src)
@@ -977,12 +1202,16 @@ int arizona_dev_init(struct arizona *arizona)
 		/* Default for both is 0 so noop with defaults */
 		val = arizona->pdata.dmic_ref[i]
 			<< ARIZONA_IN1_DMIC_SUP_SHIFT;
-		val |= arizona->pdata.inmode[i] << ARIZONA_IN1_MODE_SHIFT;
+		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_DMIC)
+			val |= 1 << ARIZONA_IN1_MODE_SHIFT;
+		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
+			val |= 1 << ARIZONA_IN1_SINGLE_ENDED_SHIFT;
 
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_IN1L_CONTROL + (i * 8),
 				   ARIZONA_IN1_DMIC_SUP_MASK |
-				   ARIZONA_IN1_MODE_MASK, val);
+				   ARIZONA_IN1_MODE_MASK |
+				   ARIZONA_IN1_SINGLE_ENDED_MASK, val);
 	}
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; i++) {
@@ -1012,10 +1241,16 @@ int arizona_dev_init(struct arizona *arizona)
 					   arizona->pdata.spk_fmt[i]);
 	}
 
+	pm_runtime_set_active(arizona->dev);
+	pm_runtime_enable(arizona->dev);
+
 	/* Set up for interrupts */
 	ret = arizona_irq_init(arizona);
 	if (ret != 0)
 		goto err_reset;
+
+	pm_runtime_set_autosuspend_delay(arizona->dev, 100);
+	pm_runtime_use_autosuspend(arizona->dev);
 
 	arizona_request_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, "CLKGEN error",
 			    arizona_clkgen_err, arizona);
@@ -1045,19 +1280,12 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_irq;
 	}
 
-#ifdef CONFIG_PM
-	regulator_disable(arizona->dcvdd);
-#endif
-
 	return 0;
 
 err_irq:
 	arizona_irq_exit(arizona);
 err_reset:
-	if (arizona->pdata.reset) {
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
-		gpio_free(arizona->pdata.reset);
-	}
+	arizona_enable_reset(arizona);
 	regulator_disable(arizona->dcvdd);
 err_enable:
 	regulator_bulk_disable(arizona->num_core_supplies,
@@ -1082,8 +1310,7 @@ int arizona_dev_exit(struct arizona *arizona)
 	arizona_free_irq(arizona, ARIZONA_IRQ_OVERCLOCKED, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, arizona);
 	arizona_irq_exit(arizona);
-	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+	arizona_enable_reset(arizona);
 
 	regulator_bulk_disable(arizona->num_core_supplies,
 			       arizona->core_supplies);

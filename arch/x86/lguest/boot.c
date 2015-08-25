@@ -70,7 +70,7 @@
 #include <asm/e820.h>
 #include <asm/mce.h>
 #include <asm/io.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 #include <asm/kvm_para.h>
@@ -90,7 +90,7 @@ struct lguest_data lguest_data = {
 	.noirq_iret = (u32)lguest_noirq_iret,
 	.kernel_address = PAGE_OFFSET,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
-	.syscall_vec = SYSCALL_VECTOR,
+	.syscall_vec = IA32_SYSCALL_VECTOR,
 };
 
 /*G:037
@@ -866,7 +866,7 @@ static void __init lguest_init_IRQ(void)
 	for (i = FIRST_EXTERNAL_VECTOR; i < FIRST_SYSTEM_VECTOR; i++) {
 		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
 		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
-		if (i != SYSCALL_VECTOR)
+		if (i != IA32_SYSCALL_VECTOR)
 			set_intr_gate(i, irq_entries_start +
 					8 * (i - FIRST_EXTERNAL_VECTOR));
 	}

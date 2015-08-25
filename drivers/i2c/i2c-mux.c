@@ -51,7 +51,7 @@ static int i2c_mux_master_xfer(struct i2c_adapter *adap,
 
 	ret = priv->select(parent, priv->mux_priv, priv->chan_id);
 	if (ret >= 0)
-		ret = parent->algo->master_xfer(parent, msgs, num);
+		ret = __i2c_transfer(parent, msgs, num);
 	if (priv->deselect)
 		priv->deselect(parent, priv->mux_priv, priv->chan_id);
 
@@ -144,6 +144,7 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 	priv->adap.dev.parent = &parent->dev;
 	priv->adap.retries = parent->retries;
 	priv->adap.timeout = parent->timeout;
+	priv->adap.quirks = parent->quirks;
 
 	/* Sanity check on class */
 	if (i2c_mux_parent_classes(parent) & class)

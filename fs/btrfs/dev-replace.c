@@ -376,6 +376,10 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	WARN_ON(!tgt_device);
 	dev_replace->tgtdev = tgt_device;
 
+	ret = btrfs_kobj_add_device(tgt_device->fs_devices, tgt_device);
+	if (ret)
+		btrfs_err(root->fs_info, "kobj add dev failed %d\n", ret);
+
 	printk_in_rcu(KERN_INFO
 		      "BTRFS: dev_replace from %s (devid %llu) to %s started\n",
 		      src_device->missing ? "<missing disk>" :
@@ -583,8 +587,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&uuid_mutex);
 
 	/* replace the sysfs entry */
-	btrfs_kobj_rm_device(fs_info, src_device);
-	btrfs_kobj_add_device(fs_info, tgt_device);
+	btrfs_kobj_rm_device(fs_info->fs_devices, src_device);
 	btrfs_rm_dev_replace_free_srcdev(fs_info, src_device);
 
 	/* write back the superblocks */

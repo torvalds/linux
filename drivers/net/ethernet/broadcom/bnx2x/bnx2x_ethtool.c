@@ -257,14 +257,15 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	u32 media_type;
 
 	/* Dual Media boards present all available port types */
 	cmd->supported = bp->port.supported[cfg_idx] |
 		(bp->port.supported[cfg_idx ^ 1] &
 		 (SUPPORTED_TP | SUPPORTED_FIBRE));
 	cmd->advertising = bp->port.advertising[cfg_idx];
-	if (bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type ==
-	    ETH_PHY_SFP_1G_FIBER) {
+	media_type = bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type;
+	if (media_type == ETH_PHY_SFP_1G_FIBER) {
 		cmd->supported &= ~(SUPPORTED_10000baseT_Full);
 		cmd->advertising &= ~(ADVERTISED_10000baseT_Full);
 	}
@@ -312,12 +313,26 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->lp_advertising |= ADVERTISED_100baseT_Full;
 		if (status & LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_1000baseT_Half;
-		if (status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_1000baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE) {
+			if (media_type == ETH_PHY_KR) {
+				cmd->lp_advertising |=
+					ADVERTISED_1000baseKX_Full;
+			} else {
+				cmd->lp_advertising |=
+					ADVERTISED_1000baseT_Full;
+			}
+		}
 		if (status & LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_2500baseX_Full;
-		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_10000baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE) {
+			if (media_type == ETH_PHY_KR) {
+				cmd->lp_advertising |=
+					ADVERTISED_10000baseKR_Full;
+			} else {
+				cmd->lp_advertising |=
+					ADVERTISED_10000baseT_Full;
+			}
+		}
 		if (status & LINK_STATUS_LINK_PARTNER_20GXFD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_20000baseKR2_Full;
 	}
@@ -564,15 +579,20 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 
-			if (!(bp->port.supported[cfg_idx] &
-			      SUPPORTED_1000baseT_Full)) {
+			if (bp->port.supported[cfg_idx] &
+			     SUPPORTED_1000baseT_Full) {
+				advertising = (ADVERTISED_1000baseT_Full |
+					       ADVERTISED_TP);
+
+			} else if (bp->port.supported[cfg_idx] &
+				   SUPPORTED_1000baseKX_Full) {
+				advertising = ADVERTISED_1000baseKX_Full;
+			} else {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "1G full not supported\n");
 				return -EINVAL;
 			}
 
-			advertising = (ADVERTISED_1000baseT_Full |
-				       ADVERTISED_TP);
 			break;
 
 		case SPEED_2500:
@@ -600,17 +620,22 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 			phy_idx = bnx2x_get_cur_phy_idx(bp);
-			if (!(bp->port.supported[cfg_idx]
-			      & SUPPORTED_10000baseT_Full) ||
-			    (bp->link_params.phy[phy_idx].media_type ==
+			if ((bp->port.supported[cfg_idx] &
+			     SUPPORTED_10000baseT_Full) &&
+			    (bp->link_params.phy[phy_idx].media_type !=
 			     ETH_PHY_SFP_1G_FIBER)) {
+				advertising = (ADVERTISED_10000baseT_Full |
+					       ADVERTISED_FIBRE);
+			} else if (bp->port.supported[cfg_idx] &
+			       SUPPORTED_10000baseKR_Full) {
+				advertising = (ADVERTISED_10000baseKR_Full |
+					       ADVERTISED_FIBRE);
+			} else {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "10G full not supported\n");
 				return -EINVAL;
 			}
 
-			advertising = (ADVERTISED_10000baseT_Full |
-				       ADVERTISED_FIBRE);
 			break;
 
 		default:
@@ -633,6 +658,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bp->link_params.multi_phy_config = new_multi_phy_config;
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -1204,6 +1230,7 @@ static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 	if (!(val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port))) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot get access to nvram interface\n");
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_NVRAM);
 		return -EBUSY;
 	}
 
@@ -1691,6 +1718,22 @@ static int bnx2x_nvram_write(struct bnx2x *bp, u32 offset, u8 *data_buf,
 		offset += sizeof(u32);
 		data_buf += sizeof(u32);
 		written_so_far += sizeof(u32);
+
+		/* At end of each 4Kb page, release nvram lock to allow MFW
+		 * chance to take it for its own use.
+		 */
+		if ((cmd_flags & MCPR_NVM_COMMAND_LAST) &&
+		    (written_so_far < buf_size)) {
+			DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
+			   "Releasing NVM lock after offset 0x%x\n",
+			   (u32)(offset - sizeof(u32)));
+			bnx2x_release_nvram_lock(bp);
+			usleep_range(1000, 2000);
+			rc = bnx2x_acquire_nvram_lock(bp);
+			if (rc)
+				return rc;
+		}
+
 		cmd_flags = 0;
 	}
 
@@ -1944,6 +1987,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 

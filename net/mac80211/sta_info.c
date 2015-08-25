@@ -71,6 +71,7 @@ static const struct rhashtable_params sta_rht_params = {
 	.key_offset = offsetof(struct sta_info, sta.addr),
 	.key_len = ETH_ALEN,
 	.hashfn = sta_addr_hash,
+	.max_size = CONFIG_MAC80211_STA_HASH_MAX_SIZE,
 };
 
 /* Caller must hold local->sta_mtx */
@@ -281,12 +282,12 @@ static void sta_deliver_ps_frames(struct work_struct *wk)
 static int sta_prepare_rate_control(struct ieee80211_local *local,
 				    struct sta_info *sta, gfp_t gfp)
 {
-	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
 		return 0;
 
 	sta->rate_ctrl = local->rate_ctrl;
 	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
-						     &sta->sta, gfp);
+						     sta, gfp);
 	if (!sta->rate_ctrl_priv)
 		return -ENOMEM;
 
@@ -312,6 +313,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
 #ifdef CONFIG_MAC80211_MESH
+	spin_lock_init(&sta->plink_lock);
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&
 	    !sdata->u.mesh.user_mpm)
 		init_timer(&sta->plink_timer);
@@ -641,7 +643,7 @@ static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 	}
 
 	/* No need to do anything if the driver does all */
-	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
+	if (ieee80211_hw_check(&local->hw, AP_LINK_PS))
 		return;
 
 	if (sta->dead)
@@ -1146,7 +1148,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	sta->driver_buffered_tids = 0;
 	sta->txq_buffered_tids = 0;
 
-	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
+	if (!ieee80211_hw_check(&local->hw, AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
 	if (sta->sta.txq[0]) {
@@ -1217,6 +1219,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	ps_dbg(sdata,
 	       "STA %pM aid %d sending %d filtered/%d PS frames since STA not sleeping anymore\n",
 	       sta->sta.addr, sta->sta.aid, filtered, buffered);
+
+	ieee80211_check_fast_xmit(sta);
 }
 
 static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
@@ -1615,6 +1619,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 
 	if (block) {
 		set_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_clear_fast_xmit(sta);
 		return;
 	}
 
@@ -1632,6 +1637,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 		ieee80211_queue_work(hw, &sta->drv_deliver_wk);
 	} else {
 		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_check_fast_xmit(sta);
 	}
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
@@ -1736,6 +1742,7 @@ int sta_info_move_state(struct sta_info *sta,
 			     !sta->sdata->u.vlan.sta))
 				atomic_dec(&sta->sdata->bss->num_mcast_sta);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			ieee80211_clear_fast_xmit(sta);
 		}
 		break;
 	case IEEE80211_STA_AUTHORIZED:
@@ -1745,6 +1752,7 @@ int sta_info_move_state(struct sta_info *sta,
 			     !sta->sdata->u.vlan.sta))
 				atomic_inc(&sta->sdata->bss->num_mcast_sta);
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			ieee80211_check_fast_xmit(sta);
 		}
 		break;
 	default:
@@ -1871,8 +1879,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->rx_beacon_signal_avg = ieee80211_ave_rssi(&sdata->vif);
 	}
 
-	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
-	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
+	if (ieee80211_hw_check(&sta->local->hw, SIGNAL_DBM) ||
+	    ieee80211_hw_check(&sta->local->hw, SIGNAL_UNSPEC)) {
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL))) {
 			sinfo->signal = (s8)sta->last_signal;
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
@@ -1924,7 +1932,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 		if (!(tidstats->filled &
 				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES)) &&
-		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			tidstats->filled |=
 				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
 			tidstats->tx_msdu_retries = sta->tx_msdu_retries[i];
@@ -1932,7 +1940,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 		if (!(tidstats->filled &
 				BIT(NL80211_TID_STATS_TX_MSDU_FAILED)) &&
-		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			tidstats->filled |=
 				BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
 			tidstats->tx_msdu_failed = sta->tx_msdu_failed[i];

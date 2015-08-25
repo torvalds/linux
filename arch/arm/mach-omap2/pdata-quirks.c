@@ -44,6 +44,27 @@ static void __init omap2420_n8x0_legacy_init(void)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
+/*
+ * Configures GPIOs 126, 127 and 129 to 1.8V mode instead of 3.0V
+ * mode for MMC1 in case bootloader did not configure things.
+ * Note that if the pins are used for MMC1, pbias-regulator
+ * manages the IO voltage.
+ */
+static void __init omap3_gpio126_127_129(void)
+{
+	u32 reg;
+
+	reg = omap_ctrl_readl(OMAP343X_CONTROL_PBIAS_LITE);
+	reg &= ~OMAP343X_PBIASLITEVMODE1;
+	reg |= OMAP343X_PBIASLITEPWRDNZ1;
+	omap_ctrl_writel(reg, OMAP343X_CONTROL_PBIAS_LITE);
+	if (cpu_is_omap3630()) {
+		reg = omap_ctrl_readl(OMAP34XX_CONTROL_WKUP_CTRL);
+		reg |= OMAP36XX_GPIO_IO_PWRDNZ;
+		omap_ctrl_writel(reg, OMAP34XX_CONTROL_WKUP_CTRL);
+	}
+}
+
 static void __init hsmmc2_internal_input_clk(void)
 {
 	u32 reg;
@@ -356,6 +377,7 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
 	{ "isee,omap3-igep0020-rev-f", omap3_igep0020_rev_f_legacy_init, },
 	{ "isee,omap3-igep0030-rev-g", omap3_igep0030_rev_g_legacy_init, },
+	{ "logicpd,dm3730-torpedo-devkit", omap3_gpio126_127_129, },
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,am3517-evm", am3517_evm_legacy_init, },
 	{ "technexion,omap3-tao3530", omap3_tao3530_legacy_init, },

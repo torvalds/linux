@@ -93,13 +93,16 @@ static int cx18_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 {
 	struct cx18 *cx = container_of(cxhdl, struct cx18, cxhdl);
 	int is_mpeg1 = val == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-	struct v4l2_mbus_framefmt fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *fmt = &format.format;
 
 	/* fix videodecoder resolution */
-	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
-	fmt.height = cxhdl->height;
-	fmt.code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(cx->sd_av, video, s_mbus_fmt, &fmt);
+	fmt->width = cxhdl->width / (is_mpeg1 ? 2 : 1);
+	fmt->height = cxhdl->height;
+	fmt->code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, &format);
 	return 0;
 }
 

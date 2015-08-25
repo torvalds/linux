@@ -226,6 +226,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 		chip->of_node	= cc->core->dev.of_node;
 #endif
 	switch (bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM4707:
 	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
 		chip->ngpio	= 32;
@@ -235,16 +236,17 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	}
 
 	/*
-	 * On MIPS we register GPIO devices (LEDs, buttons) using absolute GPIO
-	 * pin numbers. We don't have Device Tree there and we can't really use
-	 * relative (per chip) numbers.
-	 * So let's use predictable base for BCM47XX and "random" for all other.
+	 * Register SoC GPIO devices with absolute GPIO pin base.
+	 * On MIPS, we don't have Device Tree and we can't use relative (per chip)
+	 * GPIO numbers.
+	 * On some ARM devices, user space may want to access some system GPIO
+	 * pins directly, which is easier to do with a predictable GPIO base.
 	 */
-#if IS_BUILTIN(CONFIG_BCM47XX)
-	chip->base		= bus->num * BCMA_GPIO_MAX_PINS;
-#else
-	chip->base		= -1;
-#endif
+	if (IS_BUILTIN(CONFIG_BCM47XX) ||
+	    cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
+		chip->base		= bus->num * BCMA_GPIO_MAX_PINS;
+	else
+		chip->base		= -1;
 
 	err = bcma_gpio_irq_domain_init(cc);
 	if (err)

@@ -16,13 +16,13 @@
 #define PS_TIMEOUT_OTHER	(500*HZ)
 
 #include <linux/device.h>
-#include <scsi/scsi_driver.h>
-#include <scsi/scsi_device.h>
 #include <linux/kref.h>
 #include <linux/kobject.h>
 
+struct scsi_device;
+
 struct pscsi_plugin_task {
-	unsigned char pscsi_sense[SCSI_SENSE_BUFFERSIZE];
+	unsigned char pscsi_sense[TRANSPORT_SENSE_BUFFER];
 	int	pscsi_direction;
 	int	pscsi_result;
 	u32	pscsi_resid;
@@ -45,6 +45,7 @@ struct pscsi_dev_virt {
 	int	pdv_lun_id;
 	struct block_device *pdv_bd;
 	struct scsi_device *pdv_sd;
+	struct Scsi_Host *pdv_lld_host;
 } ____cacheline_aligned;
 
 typedef enum phv_modes {

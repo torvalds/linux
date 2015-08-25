@@ -590,24 +590,35 @@ static void delayed_free_vfsmnt(struct rcu_head *head)
 }
 
 /* call under rcu_read_lock */
-bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 {
 	struct mount *mnt;
 	if (read_seqretry(&mount_lock, seq))
-		return false;
+		return 1;
 	if (bastard == NULL)
-		return true;
+		return 0;
 	mnt = real_mount(bastard);
 	mnt_add_count(mnt, 1);
 	if (likely(!read_seqretry(&mount_lock, seq)))
-		return true;
+		return 0;
 	if (bastard->mnt_flags & MNT_SYNC_UMOUNT) {
 		mnt_add_count(mnt, -1);
-		return false;
+		return 1;
 	}
-	rcu_read_unlock();
-	mntput(bastard);
-	rcu_read_lock();
+	return -1;
+}
+
+/* call under rcu_read_lock */
+bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+{
+	int res = __legitimize_mnt(bastard, seq);
+	if (likely(!res))
+		return true;
+	if (unlikely(res < 0)) {
+		rcu_read_unlock();
+		mntput(bastard);
+		rcu_read_lock();
+	}
 	return false;
 }
 
@@ -1215,7 +1226,7 @@ EXPORT_SYMBOL(replace_mount_options);
 /* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 
 	down_read(&namespace_sem);
 	if (p->cached_event == p->ns->event) {
@@ -1236,7 +1247,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 
 	p->cached_mount = seq_list_next(v, &p->ns->list, pos);
 	p->cached_index = *pos;
@@ -1250,7 +1261,7 @@ static void m_stop(struct seq_file *m, void *v)
 
 static int m_show(struct seq_file *m, void *v)
 {
-	struct proc_mounts *p = proc_mounts(m);
+	struct proc_mounts *p = m->private;
 	struct mount *r = list_entry(v, struct mount, mnt_list);
 	return p->show(m, &r->mnt);
 }
@@ -1350,6 +1361,36 @@ enum umount_tree_flags {
 	UMOUNT_PROPAGATE = 2,
 	UMOUNT_CONNECTED = 4,
 };
+
+static bool disconnect_mount(struct mount *mnt, enum umount_tree_flags how)
+{
+	/* Leaving mounts connected is only valid for lazy umounts */
+	if (how & UMOUNT_SYNC)
+		return true;
+
+	/* A mount without a parent has nothing to be connected to */
+	if (!mnt_has_parent(mnt))
+		return true;
+
+	/* Because the reference counting rules change when mounts are
+	 * unmounted and connected, umounted mounts may not be
+	 * connected to mounted mounts.
+	 */
+	if (!(mnt->mnt_parent->mnt.mnt_flags & MNT_UMOUNT))
+		return true;
+
+	/* Has it been requested that the mount remain connected? */
+	if (how & UMOUNT_CONNECTED)
+		return false;
+
+	/* Is the mount locked such that it needs to remain connected? */
+	if (IS_MNT_LOCKED(mnt))
+		return false;
+
+	/* By default disconnect the mount */
+	return true;
+}
+
 /*
  * mount_lock must be held
  * namespace_sem must be held for write
@@ -1387,10 +1428,7 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 		if (how & UMOUNT_SYNC)
 			p->mnt.mnt_flags |= MNT_SYNC_UMOUNT;
 
-		disconnect = !(((how & UMOUNT_CONNECTED) &&
-				mnt_has_parent(p) &&
-				(p->mnt_parent->mnt.mnt_flags & MNT_UMOUNT)) ||
-			       IS_MNT_LOCKED_AND_LAZY(p));
+		disconnect = disconnect_mount(p, how);
 
 		pin_insert_group(&p->mnt_umount, &p->mnt_parent->mnt,
 				 disconnect ? &unmounted : NULL);
@@ -1527,11 +1565,8 @@ void __detach_mounts(struct dentry *dentry)
 	while (!hlist_empty(&mp->m_list)) {
 		mnt = hlist_entry(mp->m_list.first, struct mount, mnt_mp_list);
 		if (mnt->mnt.mnt_flags & MNT_UMOUNT) {
-			struct mount *p, *tmp;
-			list_for_each_entry_safe(p, tmp, &mnt->mnt_mounts,  mnt_child) {
-				hlist_add_head(&p->mnt_umount.s_list, &unmounted);
-				umount_mnt(p);
-			}
+			hlist_add_head(&mnt->mnt_umount.s_list, &unmounted);
+			umount_mnt(mnt);
 		}
 		else umount_tree(mnt, UMOUNT_CONNECTED);
 	}
@@ -2332,6 +2367,8 @@ unlock:
 	return err;
 }
 
+static bool fs_fully_visible(struct file_system_type *fs_type, int *new_mnt_flags);
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
@@ -2362,6 +2399,10 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 		if (!(type->fs_flags & FS_USERNS_DEV_MOUNT)) {
 			flags |= MS_NODEV;
 			mnt_flags |= MNT_NODEV | MNT_LOCK_NODEV;
+		}
+		if (type->fs_flags & FS_USERNS_VISIBLE) {
+			if (!fs_fully_visible(type, &mnt_flags))
+				return -EPERM;
 		}
 	}
 
@@ -3164,9 +3205,10 @@ bool current_chrooted(void)
 	return chrooted;
 }
 
-bool fs_fully_visible(struct file_system_type *type)
+static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 {
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	int new_flags = *new_mnt_flags;
 	struct mount *mnt;
 	bool visible = false;
 
@@ -3185,16 +3227,36 @@ bool fs_fully_visible(struct file_system_type *type)
 		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
 			continue;
 
-		/* This mount is not fully visible if there are any child mounts
-		 * that cover anything except for empty directories.
+		/* Verify the mount flags are equal to or more permissive
+		 * than the proposed new mount.
+		 */
+		if ((mnt->mnt.mnt_flags & MNT_LOCK_READONLY) &&
+		    !(new_flags & MNT_READONLY))
+			continue;
+		if ((mnt->mnt.mnt_flags & MNT_LOCK_NODEV) &&
+		    !(new_flags & MNT_NODEV))
+			continue;
+		if ((mnt->mnt.mnt_flags & MNT_LOCK_ATIME) &&
+		    ((mnt->mnt.mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
+			continue;
+
+		/* This mount is not fully visible if there are any
+		 * locked child mounts that cover anything except for
+		 * empty directories.
 		 */
 		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
 			struct inode *inode = child->mnt_mountpoint->d_inode;
-			if (!S_ISDIR(inode->i_mode))
-				goto next;
-			if (inode->i_nlink > 2)
+			/* Only worry about locked mounts */
+			if (!(mnt->mnt.mnt_flags & MNT_LOCKED))
+				continue;
+			/* Is the directory permanetly empty? */
+			if (!is_empty_dir_inode(inode))
 				goto next;
 		}
+		/* Preserve the locked attributes */
+		*new_mnt_flags |= mnt->mnt.mnt_flags & (MNT_LOCK_READONLY | \
+							MNT_LOCK_NODEV    | \
+							MNT_LOCK_ATIME);
 		visible = true;
 		goto found;
 	next:	;

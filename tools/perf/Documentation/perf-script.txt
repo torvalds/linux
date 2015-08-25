@@ -115,7 +115,8 @@ OPTIONS
 -f::
 --fields::
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff, srcline, period.
+        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
+	srcline, period, flags.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
@@ -164,6 +165,12 @@ OPTIONS
         'trace' not valid for software events.
 
 	At this point usage is displayed, and perf-script exits.
+
+	The flags field is synthesized and may have a value when Instruction
+	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
+	call, return, conditional, system, asynchronous, interrupt,
+	transaction abort, trace begin, trace end, and in transaction,
+	respectively.
 
 	Finally, a user may not set fields to none for all event types.
 	i.e., -f "" is not allowed.
@@ -220,6 +227,34 @@ OPTIONS
 
 --header-only
 	Show only perf.data header.
+
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+		i	synthesize instructions events
+		b	synthesize branches events
+		c	synthesize branches events (calls only)
+		r	synthesize branches events (returns only)
+		x	synthesize transactions events
+		e	synthesize error events
+		d	create a debug log
+		g	synthesize a call chain (use with i or x)
+
+	The default is all events i.e. the same as --itrace=ibxe
+
+	In addition, the period (default 100000) for instructions events
+	can be specified in units of:
+
+		i	instructions
+		t	ticks
+		ms	milliseconds
+		us	microseconds
+		ns	nanoseconds (default)
+
+	Also the call chain size (default 16, max. 1024) for instructions or
+	transactions events can be specified.
+
+	To disable decoding entirely, use --no-itrace.
 
 SEE ALSO
 --------

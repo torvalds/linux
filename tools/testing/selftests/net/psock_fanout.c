@@ -272,7 +272,7 @@ int main(int argc, char **argv)
 	const int expect_hash[2][2]	= { { 15, 5 },  { 20, 5 } };
 	const int expect_hash_rb[2][2]	= { { 15, 5 },  { 20, 15 } };
 	const int expect_lb[2][2]	= { { 10, 10 }, { 18, 17 } };
-	const int expect_rb[2][2]	= { { 20, 0 },  { 20, 15 } };
+	const int expect_rb[2][2]	= { { 15, 5 },  { 20, 15 } };
 	const int expect_cpu0[2][2]	= { { 20, 0 },  { 20, 0 } };
 	const int expect_cpu1[2][2]	= { { 0, 20 },  { 0, 20 } };
 	int port_off = 2, tries = 5, ret;

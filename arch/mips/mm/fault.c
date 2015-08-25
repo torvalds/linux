@@ -21,10 +21,10 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <linux/perf_event.h>
+#include <linux/uaccess.h>
 
 #include <asm/branch.h>
 #include <asm/mmu_context.h>
-#include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/highmem.h>		/* For VMALLOC_END */
 #include <linux/kdebug.h>
@@ -94,7 +94,7 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto bad_area_nosemaphore;
 
 	if (user_mode(regs))
@@ -133,7 +133,8 @@ good_area:
 #endif
 				goto bad_area;
 			}
-			if (!(vma->vm_flags & VM_READ)) {
+			if (!(vma->vm_flags & VM_READ) &&
+			    exception_epc(regs) != address) {
 #if 0
 				pr_notice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] RI violation\n",
 					  raw_smp_processor_id(),

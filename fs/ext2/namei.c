@@ -189,7 +189,8 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 	} else {
 		/* fast symlink */
 		inode->i_op = &ext2_fast_symlink_inode_operations;
-		memcpy((char*)(EXT2_I(inode)->i_data),symname,l);
+		inode->i_link = (char*)EXT2_I(inode)->i_data;
+		memcpy(inode->i_link, symname, l);
 		inode->i_size = l-1;
 	}
 	mark_inode_dirty(inode);

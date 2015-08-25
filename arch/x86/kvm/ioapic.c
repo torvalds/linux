@@ -349,6 +349,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	irqe.delivery_mode = entry->fields.delivery_mode << 8;
 	irqe.level = 1;
 	irqe.shorthand = 0;
+	irqe.msi_redir_hint = false;
 
 	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
 		ioapic->irr_delivered |= 1 << irq;
@@ -637,11 +638,9 @@ void kvm_ioapic_destroy(struct kvm *kvm)
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 
 	cancel_delayed_work_sync(&ioapic->eoi_inject);
-	if (ioapic) {
-		kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &ioapic->dev);
-		kvm->arch.vioapic = NULL;
-		kfree(ioapic);
-	}
+	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &ioapic->dev);
+	kvm->arch.vioapic = NULL;
+	kfree(ioapic);
 }
 
 int kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state)

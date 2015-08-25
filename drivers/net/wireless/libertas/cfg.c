@@ -835,14 +835,13 @@ static int lbs_cfg_scan(struct wiphy *wiphy,
  * Events
  */
 
-void lbs_send_disconnect_notification(struct lbs_private *priv)
+void lbs_send_disconnect_notification(struct lbs_private *priv,
+				      bool locally_generated)
 {
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
-	cfg80211_disconnected(priv->dev,
-		0,
-		NULL, 0,
-		GFP_KERNEL);
+	cfg80211_disconnected(priv->dev, 0, NULL, 0, locally_generated,
+			      GFP_KERNEL);
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
 }
@@ -1458,7 +1457,7 @@ int lbs_disconnect(struct lbs_private *priv, u16 reason)
 
 	cfg80211_disconnected(priv->dev,
 			reason,
-			NULL, 0,
+			NULL, 0, true,
 			GFP_KERNEL);
 	priv->connect_status = LBS_DISCONNECTED;
 
@@ -2031,7 +2030,7 @@ static int lbs_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	ret = lbs_cmd_with_response(priv, CMD_802_11_AD_HOC_STOP, &cmd);
 
 	/* TODO: consider doing this at MACREG_INT_CODE_ADHOC_BCN_LOST time */
-	lbs_mac_event_disconnected(priv);
+	lbs_mac_event_disconnected(priv, true);
 
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
 	return ret;

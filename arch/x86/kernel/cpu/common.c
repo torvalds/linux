@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -31,8 +32,7 @@
 #include <asm/setup.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include <asm/mtrr.h>
 #include <linux/numa.h>
 #include <asm/asm.h>
@@ -145,32 +145,21 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
-static int __init x86_xsave_setup(char *s)
+static int __init x86_mpx_setup(char *s)
 {
+	/* require an exact match without trailing characters */
 	if (strlen(s))
 		return 0;
-	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
-	setup_clear_cpu_cap(X86_FEATURE_AVX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX2);
-	return 1;
-}
-__setup("noxsave", x86_xsave_setup);
 
-static int __init x86_xsaveopt_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-	return 1;
-}
-__setup("noxsaveopt", x86_xsaveopt_setup);
+	/* do not emit a message if the feature is not present */
+	if (!boot_cpu_has(X86_FEATURE_MPX))
+		return 1;
 
-static int __init x86_xsaves_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+	setup_clear_cpu_cap(X86_FEATURE_MPX);
+	pr_info("nompx: Intel Memory Protection Extensions (MPX) disabled\n");
 	return 1;
 }
-__setup("noxsaves", x86_xsaves_setup);
+__setup("nompx", x86_mpx_setup);
 
 #ifdef CONFIG_X86_32
 static int cachesize_override = -1;
@@ -182,14 +171,6 @@ static int __init cachesize_setup(char *str)
 	return 1;
 }
 __setup("cachesize=", cachesize_setup);
-
-static int __init x86_fxsr_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_FXSR);
-	setup_clear_cpu_cap(X86_FEATURE_XMM);
-	return 1;
-}
-__setup("nofxsr", x86_fxsr_setup);
 
 static int __init x86_sep_setup(char *s)
 {
@@ -419,7 +400,7 @@ static const struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
 static void get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
-	char *p, *q;
+	char *p, *q, *s;
 
 	if (c->extended_cpuid_level < 0x80000004)
 		return;
@@ -430,19 +411,21 @@ static void get_model_name(struct cpuinfo_x86 *c)
 	cpuid(0x80000004, &v[8], &v[9], &v[10], &v[11]);
 	c->x86_model_id[48] = 0;
 
-	/*
-	 * Intel chips right-justify this string for some dumb reason;
-	 * undo that brain damage:
-	 */
-	p = q = &c->x86_model_id[0];
+	/* Trim whitespace */
+	p = q = s = &c->x86_model_id[0];
+
 	while (*p == ' ')
 		p++;
-	if (p != q) {
-		while (*p)
-			*q++ = *p++;
-		while (q <= &c->x86_model_id[48])
-			*q++ = '\0';	/* Zero-pad the rest */
+
+	while (*p) {
+		/* Note the last non-whitespace index */
+		if (!isspace(*p))
+			s = q;
+
+		*q++ = *p++;
 	}
+
+	*(s + 1) = '\0';
 }
 
 void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
@@ -508,7 +491,7 @@ static void cpu_detect_tlb(struct cpuinfo_x86 *c)
 
 void detect_ht(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_SMP
 	u32 eax, ebx, ecx, edx;
 	int index_msb, core_bits;
 	static bool printed;
@@ -759,7 +742,6 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	cpu_detect(c);
 	get_cpu_vendor(c);
 	get_cpu_cap(c);
-	fpu_detect(c);
 
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
@@ -771,6 +753,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		this_cpu->c_bsp_init(c);
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
+	fpu__init_system(c);
 }
 
 void __init early_cpu_init(void)
@@ -844,7 +827,7 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	if (c->cpuid_level >= 0x00000001) {
 		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_X86_HT
+# ifdef CONFIG_SMP
 		c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 # else
 		c->apicid = c->initial_apicid;
@@ -1026,7 +1009,7 @@ void enable_sep_cpu(void)
 	      (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack),
 	      0);
 
-	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)ia32_sysenter_target, 0);
+	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
 
 out:
 	put_cpu();
@@ -1122,7 +1105,7 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 		printk(KERN_CONT "%s ", vendor);
 
 	if (c->x86_model_id[0])
-		printk(KERN_CONT "%s", strim(c->x86_model_id));
+		printk(KERN_CONT "%s", c->x86_model_id);
 	else
 		printk(KERN_CONT "%d86", c->x86);
 
@@ -1155,10 +1138,6 @@ static __init int setup_disablecpuid(char *arg)
 }
 __setup("clearcpuid=", setup_disablecpuid);
 
-DEFINE_PER_CPU(unsigned long, kernel_stack) =
-	(unsigned long)&init_thread_union + THREAD_SIZE;
-EXPORT_PER_CPU_SYMBOL(kernel_stack);
-
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
 struct desc_ptr debug_idt_descr = { NR_VECTORS * 16 - 1,
@@ -1183,8 +1162,6 @@ DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
-DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
-
 /*
  * Special IST stacks which the CPU switches to when it calls
  * an IST-marked descriptor entry. Up to 7 stacks (hardware
@@ -1208,10 +1185,10 @@ void syscall_init(void)
 	 * set CS/DS but only a 32bit target. LSTAR sets the 64bit rip.
 	 */
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32);
-	wrmsrl(MSR_LSTAR, system_call);
+	wrmsrl(MSR_LSTAR, entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
-	wrmsrl(MSR_CSTAR, ia32_cstar_target);
+	wrmsrl(MSR_CSTAR, entry_SYSCALL_compat);
 	/*
 	 * This only works on Intel CPUs.
 	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
@@ -1220,7 +1197,7 @@ void syscall_init(void)
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
-	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
+	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
 	wrmsrl(MSR_CSTAR, ignore_sysret);
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
@@ -1275,7 +1252,6 @@ DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
-DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 /*
  * On x86_32, vm86 modifies tss.sp0, so sp0 isn't a reliable way to find
@@ -1434,12 +1410,12 @@ void cpu_init(void)
 	load_sp0(t, &current->thread);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
-	load_LDT(&init_mm.context);
+	load_mm_ldt(&init_mm);
 
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
 
-	fpu_init();
+	fpu__init_cpu();
 
 	if (is_uv_system())
 		uv_cpu_init();
@@ -1483,7 +1459,7 @@ void cpu_init(void)
 	load_sp0(t, thread);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
-	load_LDT(&init_mm.context);
+	load_mm_ldt(&init_mm);
 
 	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
 
@@ -1495,7 +1471,7 @@ void cpu_init(void)
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
 
-	fpu_init();
+	fpu__init_cpu();
 }
 #endif
 

@@ -674,7 +674,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	irq_set_handler_data(irq, agent);
 	agent->irq_name = kasprintf(GFP_KERNEL, "twl4030_%s", sih->name);
 	status = request_threaded_irq(irq, NULL, handle_twl4030_sih,
-				      IRQF_EARLY_RESUME,
+				      IRQF_EARLY_RESUME | IRQF_ONESHOT,
 				      agent->irq_name ?: sih->name, NULL);
 
 	dev_info(dev, "%s (irq %d) chaining IRQs %d..%d\n", sih->name,

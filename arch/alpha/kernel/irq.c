@@ -19,7 +19,6 @@
 #include <linux/ptrace.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

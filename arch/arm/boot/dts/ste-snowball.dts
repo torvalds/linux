@@ -18,6 +18,13 @@
 	model = "Calao Systems Snowball platform with device tree";
 	compatible = "calaosystems,snowball-a9500", "st-ericsson,u9500";
 
+	/* This stablilizes the serial port enumeration */
+	aliases {
+		serial0 = &ux500_serial0;
+		serial1 = &ux500_serial1;
+		serial2 = &ux500_serial2;
+	};
+
 	memory {
 		reg = <0x00000000 0x20000000>;
 	};
@@ -223,11 +230,11 @@
 			status = "okay";
 		};
 
+		/* This UART is unused and thus left disabled */
 		uart@80121000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart1_default_mode>;
 			pinctrl-1 = <&uart1_sleep_mode>;
-			status = "okay";
 		};
 
 		uart@80007000 {
@@ -262,15 +269,19 @@
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_snowball_mode>;
+				interrupt-parent = <&gpio5>;
+				interrupts = <3 IRQ_TYPE_EDGE_RISING>, /* INT1 */
+					     <4 IRQ_TYPE_EDGE_RISING>; /* INT2 */
 			};
-			lsm303dlm@1e {
+			lsm303dlh@1e {
 				/* Magnetometer */
-				compatible = "st,lsm303dlm-magn";
+				compatible = "st,lsm303dlh-magn";
 				reg = <0x1e>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&magneto_snowball_mode>;
+				gpios = <&gpio5 5 0x4>; /* DRDY line */
 			};
 			l3g4200d@68 {
 				/* Gyroscope */
@@ -279,6 +290,11 @@
 				reg = <0x68>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&gyro_snowball_mode>;
+				gpios = <&gpio5 6 0x4>; /* DRDY line */
+				interrupt-parent = <&gpio5>;
+				interrupts = <9 IRQ_TYPE_EDGE_RISING>; /* INT1 */
 			};
 			lsp001wm@5c {
 				/* Barometer/pressure sensor */
@@ -443,7 +459,21 @@
 						pins = "GPIO21_AB3"; /* DAT31DIR */
 						ste,config = <&out_hi>;
 					};
-
+					/* SD card detect GPIO pin, extend default state */
+					snowball_cfg2 {
+						pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+					/* VMMCI level-shifter enable */
+					snowball_cfg3 {
+						pins = "GPIO217_AH12";
+						ste,config = <&gpio_out_lo>;
+					};
+					/* VMMCI level-shifter voltage select */
+					snowball_cfg4 {
+						pins = "GPIO228_AJ6";
+						ste,config = <&gpio_out_hi>;
+					};
 				};
 			};
 			ssp0 {
@@ -485,6 +515,16 @@
 						pins =
 						"GPIO163_C20", /* ACCEL_IRQ1 */
 						"GPIO164_B21"; /* ACCEL_IRQ2 */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			gyro {
+				gyro_snowball_mode: gyro_snowball {
+					snowball_cfg1 {
+						pins =
+						"GPIO166_A22", /* DRDY */
+						"GPIO169_D22"; /* INT */
 						ste,config = <&gpio_in_pu>;
 					};
 				};

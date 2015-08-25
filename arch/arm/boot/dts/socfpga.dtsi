@@ -36,6 +36,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "altr,socfpga-smp";
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
@@ -451,6 +452,14 @@
 						clk-phase = <0 135>;
 					};
 
+					sdmmc_clk_divided: sdmmc_clk_divided {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&sdmmc_clk>;
+						clk-gate = <0xa0 8>;
+						fixed-divider = <4>;
+					};
+
 					nand_x_clk: nand_x_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-gate-clk";
@@ -488,6 +497,8 @@
 			reset-names = "stmmaceth";
 			snps,multicast-filter-bins = <256>;
 			snps,perfect-filter-entries = <128>;
+			tx-fifo-depth = <4096>;
+			rx-fifo-depth = <4096>;
 			status = "disabled";
 		};
 
@@ -504,6 +515,8 @@
 			reset-names = "stmmaceth";
 			snps,multicast-filter-bins = <256>;
 			snps,perfect-filter-entries = <128>;
+			tx-fifo-depth = <4096>;
+			rx-fifo-depth = <4096>;
 			status = "disabled";
 		};
 
@@ -635,7 +648,7 @@
 			fifo-depth = <0x400>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
+			clocks = <&l4_mp_clk>, <&sdmmc_clk_divided>;
 			clock-names = "biu", "ciu";
 		};
 
@@ -653,6 +666,11 @@
 			num-cs = <4>;
 			clocks = <&spi_m_clk>;
 			status = "disabled";
+		};
+
+		scu: snoop-control-unit@fffec000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xfffec000 0x100>;
 		};
 
 		spi1: spi@fff01000 {

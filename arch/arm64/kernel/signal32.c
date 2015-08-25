@@ -168,7 +168,8 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 		 * Other callers might not initialize the si_lsb field,
 		 * so check explicitely for the right codes here.
 		 */
-		if (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO)
+		if (from->si_signo == SIGBUS &&
+		    (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO))
 			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
 #endif
 		break;
@@ -201,8 +202,6 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 
 int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 {
-	memset(to, 0, sizeof *to);
-
 	if (copy_from_user(to, from, __ARCH_SI_PREAMBLE_SIZE) ||
 	    copy_from_user(to->_sifields._pad,
 			   from->_sifields._pad, SI_PAD_SIZE))
@@ -370,7 +369,7 @@ badframe:
 	if (show_unhandled_signals)
 		pr_info_ratelimited("%s[%d]: bad frame in %s: pc=%08llx sp=%08llx\n",
 				    current->comm, task_pid_nr(current), __func__,
-				    regs->pc, regs->sp);
+				    regs->pc, regs->compat_sp);
 	force_sig(SIGSEGV, current);
 	return 0;
 }
@@ -407,7 +406,7 @@ badframe:
 	if (show_unhandled_signals)
 		pr_info_ratelimited("%s[%d]: bad frame in %s: pc=%08llx sp=%08llx\n",
 				    current->comm, task_pid_nr(current), __func__,
-				    regs->pc, regs->sp);
+				    regs->pc, regs->compat_sp);
 	force_sig(SIGSEGV, current);
 	return 0;
 }

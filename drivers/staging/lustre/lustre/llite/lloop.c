@@ -840,9 +840,9 @@ out_mem4:
 out_mem3:
 	while (i--)
 		put_disk(disks[i]);
-	OBD_FREE(disks, max_loop * sizeof(*disks));
+	kfree(disks);
 out_mem2:
-	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));
+	kfree(loop_dev);
 out_mem1:
 	unregister_blkdev(lloop_major, "lloop");
 	ll_iocontrol_unregister(ll_iocontrol_magic);
@@ -863,8 +863,8 @@ static void lloop_exit(void)
 
 	unregister_blkdev(lloop_major, "lloop");
 
-	OBD_FREE(disks, max_loop * sizeof(*disks));
-	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));
+	kfree(disks);
+	kfree(loop_dev);
 }
 
 module_init(lloop_init);

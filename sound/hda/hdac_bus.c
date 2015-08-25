@@ -11,21 +11,36 @@
 
 static void process_unsol_events(struct work_struct *work);
 
+static const struct hdac_bus_ops default_ops = {
+	.command = snd_hdac_bus_send_cmd,
+	.get_response = snd_hdac_bus_get_response,
+};
+
 /**
  * snd_hdac_bus_init - initialize a HD-audio bas bus
  * @bus: the pointer to bus object
+ * @ops: bus verb operators
+ * @io_ops: lowlevel I/O operators
  *
  * Returns 0 if successful, or a negative error code.
  */
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
-		      const struct hdac_bus_ops *ops)
+		      const struct hdac_bus_ops *ops,
+		      const struct hdac_io_ops *io_ops)
 {
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
-	bus->ops = ops;
+	if (ops)
+		bus->ops = ops;
+	else
+		bus->ops = &default_ops;
+	bus->io_ops = io_ops;
+	INIT_LIST_HEAD(&bus->stream_list);
 	INIT_LIST_HEAD(&bus->codec_list);
 	INIT_WORK(&bus->unsol_work, process_unsol_events);
+	spin_lock_init(&bus->reg_lock);
 	mutex_init(&bus->cmd_mutex);
+	bus->irq = -1;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init);
@@ -36,6 +51,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_init);
  */
 void snd_hdac_bus_exit(struct hdac_bus *bus)
 {
+	WARN_ON(!list_empty(&bus->stream_list));
 	WARN_ON(!list_empty(&bus->codec_list));
 	cancel_work_sync(&bus->unsol_work);
 }

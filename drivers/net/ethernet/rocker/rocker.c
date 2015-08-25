@@ -181,7 +181,7 @@ struct rocker_desc_info {
 	size_t data_size;
 	size_t tlv_size;
 	struct rocker_desc *desc;
-	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	dma_addr_t mapaddr;
 };
 
 struct rocker_dma_ring_info {
@@ -225,6 +225,7 @@ struct rocker_port {
 	struct napi_struct napi_rx;
 	struct rocker_dma_ring_info tx_ring;
 	struct rocker_dma_ring_info rx_ring;
+	struct list_head trans_mem;
 };
 
 struct rocker {
@@ -236,21 +237,21 @@ struct rocker {
 	struct {
 		u64 id;
 	} hw;
-	spinlock_t cmd_ring_lock;
+	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
 	DECLARE_HASHTABLE(flow_tbl, 16);
-	spinlock_t flow_tbl_lock;
+	spinlock_t flow_tbl_lock;		/* for flow tbl accesses */
 	u64 flow_tbl_next_cookie;
 	DECLARE_HASHTABLE(group_tbl, 16);
-	spinlock_t group_tbl_lock;
+	spinlock_t group_tbl_lock;		/* for group tbl accesses */
 	DECLARE_HASHTABLE(fdb_tbl, 16);
-	spinlock_t fdb_tbl_lock;
+	spinlock_t fdb_tbl_lock;		/* for fdb tbl accesses */
 	unsigned long internal_vlan_bitmap[ROCKER_INTERNAL_VLAN_BITMAP_LEN];
 	DECLARE_HASHTABLE(internal_vlan_tbl, 8);
-	spinlock_t internal_vlan_tbl_lock;
+	spinlock_t internal_vlan_tbl_lock;	/* for vlan tbl accesses */
 	DECLARE_HASHTABLE(neigh_tbl, 16);
-	spinlock_t neigh_tbl_lock;
+	spinlock_t neigh_tbl_lock;		/* for neigh tbl accesses */
 	u32 neigh_tbl_next_index;
 };
 
@@ -294,7 +295,7 @@ static bool rocker_vlan_id_is_internal(__be16 vlan_id)
 	return (_vlan_id >= start && _vlan_id <= end);
 }
 
-static __be16 rocker_port_vid_to_vlan(struct rocker_port *rocker_port,
+static __be16 rocker_port_vid_to_vlan(const struct rocker_port *rocker_port,
 				      u16 vid, bool *pop_vlan)
 {
 	__be16 vlan_id;
@@ -311,7 +312,7 @@ static __be16 rocker_port_vid_to_vlan(struct rocker_port *rocker_port,
 	return vlan_id;
 }
 
-static u16 rocker_port_vlan_to_vid(struct rocker_port *rocker_port,
+static u16 rocker_port_vlan_to_vid(const struct rocker_port *rocker_port,
 				   __be16 vlan_id)
 {
 	if (rocker_vlan_id_is_internal(vlan_id))
@@ -320,9 +321,86 @@ static u16 rocker_port_vlan_to_vid(struct rocker_port *rocker_port,
 	return ntohs(vlan_id);
 }
 
-static bool rocker_port_is_bridged(struct rocker_port *rocker_port)
+static bool rocker_port_is_bridged(const struct rocker_port *rocker_port)
 {
 	return !!rocker_port->bridge_dev;
+}
+
+#define ROCKER_OP_FLAG_REMOVE		BIT(0)
+#define ROCKER_OP_FLAG_NOWAIT		BIT(1)
+#define ROCKER_OP_FLAG_LEARNED		BIT(2)
+#define ROCKER_OP_FLAG_REFRESH		BIT(3)
+
+static void *__rocker_port_mem_alloc(struct rocker_port *rocker_port,
+				     enum switchdev_trans trans, int flags,
+				     size_t size)
+{
+	struct list_head *elem = NULL;
+	gfp_t gfp_flags = (flags & ROCKER_OP_FLAG_NOWAIT) ?
+			  GFP_ATOMIC : GFP_KERNEL;
+
+	/* If in transaction prepare phase, allocate the memory
+	 * and enqueue it on a per-port list.  If in transaction
+	 * commit phase, dequeue the memory from the per-port list
+	 * rather than re-allocating the memory.  The idea is the
+	 * driver code paths for prepare and commit are identical
+	 * so the memory allocated in the prepare phase is the
+	 * memory used in the commit phase.
+	 */
+
+	switch (trans) {
+	case SWITCHDEV_TRANS_PREPARE:
+		elem = kzalloc(size + sizeof(*elem), gfp_flags);
+		if (!elem)
+			return NULL;
+		list_add_tail(elem, &rocker_port->trans_mem);
+		break;
+	case SWITCHDEV_TRANS_COMMIT:
+		BUG_ON(list_empty(&rocker_port->trans_mem));
+		elem = rocker_port->trans_mem.next;
+		list_del_init(elem);
+		break;
+	case SWITCHDEV_TRANS_NONE:
+		elem = kzalloc(size + sizeof(*elem), gfp_flags);
+		if (elem)
+			INIT_LIST_HEAD(elem);
+		break;
+	default:
+		break;
+	}
+
+	return elem ? elem + 1 : NULL;
+}
+
+static void *rocker_port_kzalloc(struct rocker_port *rocker_port,
+				 enum switchdev_trans trans, int flags,
+				 size_t size)
+{
+	return __rocker_port_mem_alloc(rocker_port, trans, flags, size);
+}
+
+static void *rocker_port_kcalloc(struct rocker_port *rocker_port,
+				 enum switchdev_trans trans, int flags,
+				 size_t n, size_t size)
+{
+	return __rocker_port_mem_alloc(rocker_port, trans, flags, n * size);
+}
+
+static void rocker_port_kfree(enum switchdev_trans trans, const void *mem)
+{
+	struct list_head *elem;
+
+	/* Frees are ignored if in transaction prepare phase.  The
+	 * memory remains on the per-port list until freed in the
+	 * commit phase.
+	 */
+
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		return;
+
+	elem = (struct list_head *)mem - 1;
+	BUG_ON(!list_empty(elem));
+	kfree(elem);
 }
 
 struct rocker_wait {
@@ -343,20 +421,23 @@ static void rocker_wait_init(struct rocker_wait *wait)
 	rocker_wait_reset(wait);
 }
 
-static struct rocker_wait *rocker_wait_create(gfp_t gfp)
+static struct rocker_wait *rocker_wait_create(struct rocker_port *rocker_port,
+					      enum switchdev_trans trans,
+					      int flags)
 {
 	struct rocker_wait *wait;
 
-	wait = kmalloc(sizeof(*wait), gfp);
+	wait = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*wait));
 	if (!wait)
 		return NULL;
 	rocker_wait_init(wait);
 	return wait;
 }
 
-static void rocker_wait_destroy(struct rocker_wait *work)
+static void rocker_wait_destroy(enum switchdev_trans trans,
+				struct rocker_wait *wait)
 {
-	kfree(work);
+	rocker_port_kfree(trans, wait);
 }
 
 static bool rocker_wait_event_timeout(struct rocker_wait *wait,
@@ -374,18 +455,18 @@ static void rocker_wait_wake_up(struct rocker_wait *wait)
 	wake_up(&wait->wait);
 }
 
-static u32 rocker_msix_vector(struct rocker *rocker, unsigned int vector)
+static u32 rocker_msix_vector(const struct rocker *rocker, unsigned int vector)
 {
 	return rocker->msix_entries[vector].vector;
 }
 
-static u32 rocker_msix_tx_vector(struct rocker_port *rocker_port)
+static u32 rocker_msix_tx_vector(const struct rocker_port *rocker_port)
 {
 	return rocker_msix_vector(rocker_port->rocker,
 				  ROCKER_MSIX_VEC_TX(rocker_port->port_number));
 }
 
-static u32 rocker_msix_rx_vector(struct rocker_port *rocker_port)
+static u32 rocker_msix_rx_vector(const struct rocker_port *rocker_port)
 {
 	return rocker_msix_vector(rocker_port->rocker,
 				  ROCKER_MSIX_VEC_RX(rocker_port->port_number));
@@ -404,9 +485,9 @@ static u32 rocker_msix_rx_vector(struct rocker_port *rocker_port)
  * HW basic testing functions
  *****************************/
 
-static int rocker_reg_test(struct rocker *rocker)
+static int rocker_reg_test(const struct rocker *rocker)
 {
-	struct pci_dev *pdev = rocker->pdev;
+	const struct pci_dev *pdev = rocker->pdev;
 	u64 test_reg;
 	u64 rnd;
 
@@ -434,12 +515,12 @@ static int rocker_reg_test(struct rocker *rocker)
 	return 0;
 }
 
-static int rocker_dma_test_one(struct rocker *rocker, struct rocker_wait *wait,
-			       u32 test_type, dma_addr_t dma_handle,
-			       unsigned char *buf, unsigned char *expect,
-			       size_t size)
+static int rocker_dma_test_one(const struct rocker *rocker,
+			       struct rocker_wait *wait, u32 test_type,
+			       dma_addr_t dma_handle, const unsigned char *buf,
+			       const unsigned char *expect, size_t size)
 {
-	struct pci_dev *pdev = rocker->pdev;
+	const struct pci_dev *pdev = rocker->pdev;
 	int i;
 
 	rocker_wait_reset(wait);
@@ -463,7 +544,7 @@ static int rocker_dma_test_one(struct rocker *rocker, struct rocker_wait *wait,
 #define ROCKER_TEST_DMA_BUF_SIZE (PAGE_SIZE * 4)
 #define ROCKER_TEST_DMA_FILL_PATTERN 0x96
 
-static int rocker_dma_test_offset(struct rocker *rocker,
+static int rocker_dma_test_offset(const struct rocker *rocker,
 				  struct rocker_wait *wait, int offset)
 {
 	struct pci_dev *pdev = rocker->pdev;
@@ -523,7 +604,8 @@ free_alloc:
 	return err;
 }
 
-static int rocker_dma_test(struct rocker *rocker, struct rocker_wait *wait)
+static int rocker_dma_test(const struct rocker *rocker,
+			   struct rocker_wait *wait)
 {
 	int i;
 	int err;
@@ -545,9 +627,9 @@ static irqreturn_t rocker_test_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int rocker_basic_hw_test(struct rocker *rocker)
+static int rocker_basic_hw_test(const struct rocker *rocker)
 {
-	struct pci_dev *pdev = rocker->pdev;
+	const struct pci_dev *pdev = rocker->pdev;
 	struct rocker_wait wait;
 	int err;
 
@@ -680,7 +762,7 @@ static u64 rocker_tlv_get_u64(const struct rocker_tlv *tlv)
 	return *(u64 *) rocker_tlv_data(tlv);
 }
 
-static void rocker_tlv_parse(struct rocker_tlv **tb, int maxtype,
+static void rocker_tlv_parse(const struct rocker_tlv **tb, int maxtype,
 			     const char *buf, int buf_len)
 {
 	const struct rocker_tlv *tlv;
@@ -693,19 +775,19 @@ static void rocker_tlv_parse(struct rocker_tlv **tb, int maxtype,
 		u32 type = rocker_tlv_type(tlv);
 
 		if (type > 0 && type <= maxtype)
-			tb[type] = (struct rocker_tlv *) tlv;
+			tb[type] = tlv;
 	}
 }
 
-static void rocker_tlv_parse_nested(struct rocker_tlv **tb, int maxtype,
+static void rocker_tlv_parse_nested(const struct rocker_tlv **tb, int maxtype,
 				    const struct rocker_tlv *tlv)
 {
 	rocker_tlv_parse(tb, maxtype, rocker_tlv_data(tlv),
 			 rocker_tlv_len(tlv));
 }
 
-static void rocker_tlv_parse_desc(struct rocker_tlv **tb, int maxtype,
-				  struct rocker_desc_info *desc_info)
+static void rocker_tlv_parse_desc(const struct rocker_tlv **tb, int maxtype,
+				  const struct rocker_desc_info *desc_info)
 {
 	rocker_tlv_parse(tb, maxtype, desc_info->data,
 			 desc_info->desc->tlv_size);
@@ -790,9 +872,9 @@ static void rocker_tlv_nest_end(struct rocker_desc_info *desc_info,
 }
 
 static void rocker_tlv_nest_cancel(struct rocker_desc_info *desc_info,
-				   struct rocker_tlv *start)
+				   const struct rocker_tlv *start)
 {
-	desc_info->tlv_size = (char *) start - desc_info->data;
+	desc_info->tlv_size = (const char *) start - desc_info->data;
 }
 
 /******************************************
@@ -804,7 +886,7 @@ static u32 __pos_inc(u32 pos, size_t limit)
 	return ++pos == limit ? 0 : pos;
 }
 
-static int rocker_desc_err(struct rocker_desc_info *desc_info)
+static int rocker_desc_err(const struct rocker_desc_info *desc_info)
 {
 	int err = desc_info->desc->comp_err & ~ROCKER_DMA_DESC_COMP_ERR_GEN;
 
@@ -832,31 +914,31 @@ static int rocker_desc_err(struct rocker_desc_info *desc_info)
 	return -EINVAL;
 }
 
-static void rocker_desc_gen_clear(struct rocker_desc_info *desc_info)
+static void rocker_desc_gen_clear(const struct rocker_desc_info *desc_info)
 {
 	desc_info->desc->comp_err &= ~ROCKER_DMA_DESC_COMP_ERR_GEN;
 }
 
-static bool rocker_desc_gen(struct rocker_desc_info *desc_info)
+static bool rocker_desc_gen(const struct rocker_desc_info *desc_info)
 {
 	u32 comp_err = desc_info->desc->comp_err;
 
 	return comp_err & ROCKER_DMA_DESC_COMP_ERR_GEN ? true : false;
 }
 
-static void *rocker_desc_cookie_ptr_get(struct rocker_desc_info *desc_info)
+static void *rocker_desc_cookie_ptr_get(const struct rocker_desc_info *desc_info)
 {
 	return (void *)(uintptr_t)desc_info->desc->cookie;
 }
 
-static void rocker_desc_cookie_ptr_set(struct rocker_desc_info *desc_info,
+static void rocker_desc_cookie_ptr_set(const struct rocker_desc_info *desc_info,
 				       void *ptr)
 {
 	desc_info->desc->cookie = (uintptr_t) ptr;
 }
 
 static struct rocker_desc_info *
-rocker_desc_head_get(struct rocker_dma_ring_info *info)
+rocker_desc_head_get(const struct rocker_dma_ring_info *info)
 {
 	static struct rocker_desc_info *desc_info;
 	u32 head = __pos_inc(info->head, info->size);
@@ -868,15 +950,15 @@ rocker_desc_head_get(struct rocker_dma_ring_info *info)
 	return desc_info;
 }
 
-static void rocker_desc_commit(struct rocker_desc_info *desc_info)
+static void rocker_desc_commit(const struct rocker_desc_info *desc_info)
 {
 	desc_info->desc->buf_size = desc_info->data_size;
 	desc_info->desc->tlv_size = desc_info->tlv_size;
 }
 
-static void rocker_desc_head_set(struct rocker *rocker,
+static void rocker_desc_head_set(const struct rocker *rocker,
 				 struct rocker_dma_ring_info *info,
-				 struct rocker_desc_info *desc_info)
+				 const struct rocker_desc_info *desc_info)
 {
 	u32 head = __pos_inc(info->head, info->size);
 
@@ -901,8 +983,8 @@ rocker_desc_tail_get(struct rocker_dma_ring_info *info)
 	return desc_info;
 }
 
-static void rocker_dma_ring_credits_set(struct rocker *rocker,
-					struct rocker_dma_ring_info *info,
+static void rocker_dma_ring_credits_set(const struct rocker *rocker,
+					const struct rocker_dma_ring_info *info,
 					u32 credits)
 {
 	if (credits)
@@ -915,7 +997,7 @@ static unsigned long rocker_dma_ring_size_fix(size_t size)
 		   min(roundup_pow_of_two(size), ROCKER_DMA_SIZE_MAX));
 }
 
-static int rocker_dma_ring_create(struct rocker *rocker,
+static int rocker_dma_ring_create(const struct rocker *rocker,
 				  unsigned int type,
 				  size_t size,
 				  struct rocker_dma_ring_info *info)
@@ -951,8 +1033,8 @@ static int rocker_dma_ring_create(struct rocker *rocker,
 	return 0;
 }
 
-static void rocker_dma_ring_destroy(struct rocker *rocker,
-				    struct rocker_dma_ring_info *info)
+static void rocker_dma_ring_destroy(const struct rocker *rocker,
+				    const struct rocker_dma_ring_info *info)
 {
 	rocker_write64(rocker, DMA_DESC_ADDR(info->type), 0);
 
@@ -962,7 +1044,7 @@ static void rocker_dma_ring_destroy(struct rocker *rocker,
 	kfree(info->desc_info);
 }
 
-static void rocker_dma_ring_pass_to_producer(struct rocker *rocker,
+static void rocker_dma_ring_pass_to_producer(const struct rocker *rocker,
 					     struct rocker_dma_ring_info *info)
 {
 	int i;
@@ -977,8 +1059,8 @@ static void rocker_dma_ring_pass_to_producer(struct rocker *rocker,
 	rocker_desc_commit(&info->desc_info[i]);
 }
 
-static int rocker_dma_ring_bufs_alloc(struct rocker *rocker,
-				      struct rocker_dma_ring_info *info,
+static int rocker_dma_ring_bufs_alloc(const struct rocker *rocker,
+				      const struct rocker_dma_ring_info *info,
 				      int direction, size_t buf_size)
 {
 	struct pci_dev *pdev = rocker->pdev;
@@ -1015,7 +1097,7 @@ static int rocker_dma_ring_bufs_alloc(struct rocker *rocker,
 
 rollback:
 	for (i--; i >= 0; i--) {
-		struct rocker_desc_info *desc_info = &info->desc_info[i];
+		const struct rocker_desc_info *desc_info = &info->desc_info[i];
 
 		pci_unmap_single(pdev, dma_unmap_addr(desc_info, mapaddr),
 				 desc_info->data_size, direction);
@@ -1024,15 +1106,15 @@ rollback:
 	return err;
 }
 
-static void rocker_dma_ring_bufs_free(struct rocker *rocker,
-				      struct rocker_dma_ring_info *info,
+static void rocker_dma_ring_bufs_free(const struct rocker *rocker,
+				      const struct rocker_dma_ring_info *info,
 				      int direction)
 {
 	struct pci_dev *pdev = rocker->pdev;
 	int i;
 
 	for (i = 0; i < info->size; i++) {
-		struct rocker_desc_info *desc_info = &info->desc_info[i];
+		const struct rocker_desc_info *desc_info = &info->desc_info[i];
 		struct rocker_desc *desc = &info->desc[i];
 
 		desc->buf_addr = 0;
@@ -1045,7 +1127,7 @@ static void rocker_dma_ring_bufs_free(struct rocker *rocker,
 
 static int rocker_dma_rings_init(struct rocker *rocker)
 {
-	struct pci_dev *pdev = rocker->pdev;
+	const struct pci_dev *pdev = rocker->pdev;
 	int err;
 
 	err = rocker_dma_ring_create(rocker, ROCKER_DMA_CMD,
@@ -1102,11 +1184,11 @@ static void rocker_dma_rings_fini(struct rocker *rocker)
 	rocker_dma_ring_destroy(rocker, &rocker->cmd_ring);
 }
 
-static int rocker_dma_rx_ring_skb_map(struct rocker *rocker,
-				      struct rocker_port *rocker_port,
+static int rocker_dma_rx_ring_skb_map(const struct rocker_port *rocker_port,
 				      struct rocker_desc_info *desc_info,
 				      struct sk_buff *skb, size_t buf_len)
 {
+	const struct rocker *rocker = rocker_port->rocker;
 	struct pci_dev *pdev = rocker->pdev;
 	dma_addr_t dma_handle;
 
@@ -1126,13 +1208,12 @@ tlv_put_failure:
 	return -EMSGSIZE;
 }
 
-static size_t rocker_port_rx_buf_len(struct rocker_port *rocker_port)
+static size_t rocker_port_rx_buf_len(const struct rocker_port *rocker_port)
 {
 	return rocker_port->dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 }
 
-static int rocker_dma_rx_ring_skb_alloc(struct rocker *rocker,
-					struct rocker_port *rocker_port,
+static int rocker_dma_rx_ring_skb_alloc(const struct rocker_port *rocker_port,
 					struct rocker_desc_info *desc_info)
 {
 	struct net_device *dev = rocker_port->dev;
@@ -1149,8 +1230,7 @@ static int rocker_dma_rx_ring_skb_alloc(struct rocker *rocker,
 	skb = netdev_alloc_skb_ip_align(dev, buf_len);
 	if (!skb)
 		return -ENOMEM;
-	err = rocker_dma_rx_ring_skb_map(rocker, rocker_port, desc_info,
-					 skb, buf_len);
+	err = rocker_dma_rx_ring_skb_map(rocker_port, desc_info, skb, buf_len);
 	if (err) {
 		dev_kfree_skb_any(skb);
 		return err;
@@ -1159,8 +1239,8 @@ static int rocker_dma_rx_ring_skb_alloc(struct rocker *rocker,
 	return 0;
 }
 
-static void rocker_dma_rx_ring_skb_unmap(struct rocker *rocker,
-					 struct rocker_tlv **attrs)
+static void rocker_dma_rx_ring_skb_unmap(const struct rocker *rocker,
+					 const struct rocker_tlv **attrs)
 {
 	struct pci_dev *pdev = rocker->pdev;
 	dma_addr_t dma_handle;
@@ -1174,10 +1254,10 @@ static void rocker_dma_rx_ring_skb_unmap(struct rocker *rocker,
 	pci_unmap_single(pdev, dma_handle, len, PCI_DMA_FROMDEVICE);
 }
 
-static void rocker_dma_rx_ring_skb_free(struct rocker *rocker,
-					struct rocker_desc_info *desc_info)
+static void rocker_dma_rx_ring_skb_free(const struct rocker *rocker,
+					const struct rocker_desc_info *desc_info)
 {
-	struct rocker_tlv *attrs[ROCKER_TLV_RX_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_RX_MAX + 1];
 	struct sk_buff *skb = rocker_desc_cookie_ptr_get(desc_info);
 
 	if (!skb)
@@ -1187,15 +1267,15 @@ static void rocker_dma_rx_ring_skb_free(struct rocker *rocker,
 	dev_kfree_skb_any(skb);
 }
 
-static int rocker_dma_rx_ring_skbs_alloc(struct rocker *rocker,
-					 struct rocker_port *rocker_port)
+static int rocker_dma_rx_ring_skbs_alloc(const struct rocker_port *rocker_port)
 {
-	struct rocker_dma_ring_info *rx_ring = &rocker_port->rx_ring;
+	const struct rocker_dma_ring_info *rx_ring = &rocker_port->rx_ring;
+	const struct rocker *rocker = rocker_port->rocker;
 	int i;
 	int err;
 
 	for (i = 0; i < rx_ring->size; i++) {
-		err = rocker_dma_rx_ring_skb_alloc(rocker, rocker_port,
+		err = rocker_dma_rx_ring_skb_alloc(rocker_port,
 						   &rx_ring->desc_info[i]);
 		if (err)
 			goto rollback;
@@ -1208,10 +1288,10 @@ rollback:
 	return err;
 }
 
-static void rocker_dma_rx_ring_skbs_free(struct rocker *rocker,
-					 struct rocker_port *rocker_port)
+static void rocker_dma_rx_ring_skbs_free(const struct rocker_port *rocker_port)
 {
-	struct rocker_dma_ring_info *rx_ring = &rocker_port->rx_ring;
+	const struct rocker_dma_ring_info *rx_ring = &rocker_port->rx_ring;
+	const struct rocker *rocker = rocker_port->rocker;
 	int i;
 
 	for (i = 0; i < rx_ring->size; i++)
@@ -1257,7 +1337,7 @@ static int rocker_port_dma_rings_init(struct rocker_port *rocker_port)
 		goto err_dma_rx_ring_bufs_alloc;
 	}
 
-	err = rocker_dma_rx_ring_skbs_alloc(rocker, rocker_port);
+	err = rocker_dma_rx_ring_skbs_alloc(rocker_port);
 	if (err) {
 		netdev_err(rocker_port->dev, "failed to alloc rx dma ring skbs\n");
 		goto err_dma_rx_ring_skbs_alloc;
@@ -1283,7 +1363,7 @@ static void rocker_port_dma_rings_fini(struct rocker_port *rocker_port)
 {
 	struct rocker *rocker = rocker_port->rocker;
 
-	rocker_dma_rx_ring_skbs_free(rocker, rocker_port);
+	rocker_dma_rx_ring_skbs_free(rocker_port);
 	rocker_dma_ring_bufs_free(rocker, &rocker_port->rx_ring,
 				  PCI_DMA_BIDIRECTIONAL);
 	rocker_dma_ring_destroy(rocker, &rocker_port->rx_ring);
@@ -1292,7 +1372,8 @@ static void rocker_port_dma_rings_fini(struct rocker_port *rocker_port)
 	rocker_dma_ring_destroy(rocker, &rocker_port->tx_ring);
 }
 
-static void rocker_port_set_enable(struct rocker_port *rocker_port, bool enable)
+static void rocker_port_set_enable(const struct rocker_port *rocker_port,
+				   bool enable)
 {
 	u64 val = rocker_read64(rocker_port->rocker, PORT_PHYS_ENABLE);
 
@@ -1310,7 +1391,7 @@ static void rocker_port_set_enable(struct rocker_port *rocker_port, bool enable)
 static irqreturn_t rocker_cmd_irq_handler(int irq, void *dev_id)
 {
 	struct rocker *rocker = dev_id;
-	struct rocker_desc_info *desc_info;
+	const struct rocker_desc_info *desc_info;
 	struct rocker_wait *wait;
 	u32 credits = 0;
 
@@ -1319,7 +1400,7 @@ static irqreturn_t rocker_cmd_irq_handler(int irq, void *dev_id)
 		wait = rocker_desc_cookie_ptr_get(desc_info);
 		if (wait->nowait) {
 			rocker_desc_gen_clear(desc_info);
-			rocker_wait_destroy(wait);
+			rocker_wait_destroy(SWITCHDEV_TRANS_NONE, wait);
 		} else {
 			rocker_wait_wake_up(wait);
 		}
@@ -1331,22 +1412,22 @@ static irqreturn_t rocker_cmd_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void rocker_port_link_up(struct rocker_port *rocker_port)
+static void rocker_port_link_up(const struct rocker_port *rocker_port)
 {
 	netif_carrier_on(rocker_port->dev);
 	netdev_info(rocker_port->dev, "Link is up\n");
 }
 
-static void rocker_port_link_down(struct rocker_port *rocker_port)
+static void rocker_port_link_down(const struct rocker_port *rocker_port)
 {
 	netif_carrier_off(rocker_port->dev);
 	netdev_info(rocker_port->dev, "Link is down\n");
 }
 
-static int rocker_event_link_change(struct rocker *rocker,
+static int rocker_event_link_change(const struct rocker *rocker,
 				    const struct rocker_tlv *info)
 {
-	struct rocker_tlv *attrs[ROCKER_TLV_EVENT_LINK_CHANGED_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_EVENT_LINK_CHANGED_MAX + 1];
 	unsigned int port_number;
 	bool link_up;
 	struct rocker_port *rocker_port;
@@ -1373,22 +1454,18 @@ static int rocker_event_link_change(struct rocker *rocker,
 	return 0;
 }
 
-#define ROCKER_OP_FLAG_REMOVE		BIT(0)
-#define ROCKER_OP_FLAG_NOWAIT		BIT(1)
-#define ROCKER_OP_FLAG_LEARNED		BIT(2)
-#define ROCKER_OP_FLAG_REFRESH		BIT(3)
-
 static int rocker_port_fdb(struct rocker_port *rocker_port,
+			   enum switchdev_trans trans,
 			   const unsigned char *addr,
 			   __be16 vlan_id, int flags);
 
-static int rocker_event_mac_vlan_seen(struct rocker *rocker,
+static int rocker_event_mac_vlan_seen(const struct rocker *rocker,
 				      const struct rocker_tlv *info)
 {
-	struct rocker_tlv *attrs[ROCKER_TLV_EVENT_MAC_VLAN_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_EVENT_MAC_VLAN_MAX + 1];
 	unsigned int port_number;
 	struct rocker_port *rocker_port;
-	unsigned char *addr;
+	const unsigned char *addr;
 	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_LEARNED;
 	__be16 vlan_id;
 
@@ -1411,14 +1488,15 @@ static int rocker_event_mac_vlan_seen(struct rocker *rocker,
 	    rocker_port->stp_state != BR_STATE_FORWARDING)
 		return 0;
 
-	return rocker_port_fdb(rocker_port, addr, vlan_id, flags);
+	return rocker_port_fdb(rocker_port, SWITCHDEV_TRANS_NONE,
+			       addr, vlan_id, flags);
 }
 
-static int rocker_event_process(struct rocker *rocker,
-				struct rocker_desc_info *desc_info)
+static int rocker_event_process(const struct rocker *rocker,
+				const struct rocker_desc_info *desc_info)
 {
-	struct rocker_tlv *attrs[ROCKER_TLV_EVENT_MAX + 1];
-	struct rocker_tlv *info;
+	const struct rocker_tlv *attrs[ROCKER_TLV_EVENT_MAX + 1];
+	const struct rocker_tlv *info;
 	u16 type;
 
 	rocker_tlv_parse_desc(attrs, ROCKER_TLV_EVENT_MAX, desc_info);
@@ -1442,8 +1520,8 @@ static int rocker_event_process(struct rocker *rocker,
 static irqreturn_t rocker_event_irq_handler(int irq, void *dev_id)
 {
 	struct rocker *rocker = dev_id;
-	struct pci_dev *pdev = rocker->pdev;
-	struct rocker_desc_info *desc_info;
+	const struct pci_dev *pdev = rocker->pdev;
+	const struct rocker_desc_info *desc_info;
 	u32 credits = 0;
 	int err;
 
@@ -1487,65 +1565,75 @@ static irqreturn_t rocker_rx_irq_handler(int irq, void *dev_id)
  * Command interface
  ********************/
 
-typedef int (*rocker_cmd_cb_t)(struct rocker *rocker,
-			       struct rocker_port *rocker_port,
-			       struct rocker_desc_info *desc_info,
-			       void *priv);
+typedef int (*rocker_cmd_prep_cb_t)(const struct rocker_port *rocker_port,
+				    struct rocker_desc_info *desc_info,
+				    void *priv);
 
-static int rocker_cmd_exec(struct rocker *rocker,
-			   struct rocker_port *rocker_port,
-			   rocker_cmd_cb_t prepare, void *prepare_priv,
-			   rocker_cmd_cb_t process, void *process_priv,
-			   bool nowait)
+typedef int (*rocker_cmd_proc_cb_t)(const struct rocker_port *rocker_port,
+				    const struct rocker_desc_info *desc_info,
+				    void *priv);
+
+static int rocker_cmd_exec(struct rocker_port *rocker_port,
+			   enum switchdev_trans trans, int flags,
+			   rocker_cmd_prep_cb_t prepare, void *prepare_priv,
+			   rocker_cmd_proc_cb_t process, void *process_priv)
 {
+	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_desc_info *desc_info;
 	struct rocker_wait *wait;
-	unsigned long flags;
+	bool nowait = !!(flags & ROCKER_OP_FLAG_NOWAIT);
+	unsigned long lock_flags;
 	int err;
 
-	wait = rocker_wait_create(nowait ? GFP_ATOMIC : GFP_KERNEL);
+	wait = rocker_wait_create(rocker_port, trans, flags);
 	if (!wait)
 		return -ENOMEM;
 	wait->nowait = nowait;
 
-	spin_lock_irqsave(&rocker->cmd_ring_lock, flags);
+	spin_lock_irqsave(&rocker->cmd_ring_lock, lock_flags);
+
 	desc_info = rocker_desc_head_get(&rocker->cmd_ring);
 	if (!desc_info) {
-		spin_unlock_irqrestore(&rocker->cmd_ring_lock, flags);
+		spin_unlock_irqrestore(&rocker->cmd_ring_lock, lock_flags);
 		err = -EAGAIN;
 		goto out;
 	}
-	err = prepare(rocker, rocker_port, desc_info, prepare_priv);
+
+	err = prepare(rocker_port, desc_info, prepare_priv);
 	if (err) {
-		spin_unlock_irqrestore(&rocker->cmd_ring_lock, flags);
+		spin_unlock_irqrestore(&rocker->cmd_ring_lock, lock_flags);
 		goto out;
 	}
+
 	rocker_desc_cookie_ptr_set(desc_info, wait);
-	rocker_desc_head_set(rocker, &rocker->cmd_ring, desc_info);
-	spin_unlock_irqrestore(&rocker->cmd_ring_lock, flags);
+
+	if (trans != SWITCHDEV_TRANS_PREPARE)
+		rocker_desc_head_set(rocker, &rocker->cmd_ring, desc_info);
+
+	spin_unlock_irqrestore(&rocker->cmd_ring_lock, lock_flags);
 
 	if (nowait)
 		return 0;
 
-	if (!rocker_wait_event_timeout(wait, HZ / 10))
-		return -EIO;
+	if (trans != SWITCHDEV_TRANS_PREPARE)
+		if (!rocker_wait_event_timeout(wait, HZ / 10))
+			return -EIO;
 
 	err = rocker_desc_err(desc_info);
 	if (err)
 		return err;
 
 	if (process)
-		err = process(rocker, rocker_port, desc_info, process_priv);
+		err = process(rocker_port, desc_info, process_priv);
 
 	rocker_desc_gen_clear(desc_info);
 out:
-	rocker_wait_destroy(wait);
+	rocker_wait_destroy(trans, wait);
 	return err;
 }
 
 static int
-rocker_cmd_get_port_settings_prep(struct rocker *rocker,
-				  struct rocker_port *rocker_port,
+rocker_cmd_get_port_settings_prep(const struct rocker_port *rocker_port,
 				  struct rocker_desc_info *desc_info,
 				  void *priv)
 {
@@ -1565,14 +1653,13 @@ rocker_cmd_get_port_settings_prep(struct rocker *rocker,
 }
 
 static int
-rocker_cmd_get_port_settings_ethtool_proc(struct rocker *rocker,
-					  struct rocker_port *rocker_port,
-					  struct rocker_desc_info *desc_info,
+rocker_cmd_get_port_settings_ethtool_proc(const struct rocker_port *rocker_port,
+					  const struct rocker_desc_info *desc_info,
 					  void *priv)
 {
 	struct ethtool_cmd *ecmd = priv;
-	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
-	struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	const struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
 	u32 speed;
 	u8 duplex;
 	u8 autoneg;
@@ -1604,15 +1691,14 @@ rocker_cmd_get_port_settings_ethtool_proc(struct rocker *rocker,
 }
 
 static int
-rocker_cmd_get_port_settings_macaddr_proc(struct rocker *rocker,
-					  struct rocker_port *rocker_port,
-					  struct rocker_desc_info *desc_info,
+rocker_cmd_get_port_settings_macaddr_proc(const struct rocker_port *rocker_port,
+					  const struct rocker_desc_info *desc_info,
 					  void *priv)
 {
 	unsigned char *macaddr = priv;
-	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
-	struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
-	struct rocker_tlv *attr;
+	const struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	const struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
+	const struct rocker_tlv *attr;
 
 	rocker_tlv_parse_desc(attrs, ROCKER_TLV_CMD_MAX, desc_info);
 	if (!attrs[ROCKER_TLV_CMD_INFO])
@@ -1637,17 +1723,16 @@ struct port_name {
 };
 
 static int
-rocker_cmd_get_port_settings_phys_name_proc(struct rocker *rocker,
-					    struct rocker_port *rocker_port,
-					    struct rocker_desc_info *desc_info,
+rocker_cmd_get_port_settings_phys_name_proc(const struct rocker_port *rocker_port,
+					    const struct rocker_desc_info *desc_info,
 					    void *priv)
 {
-	struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
-	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	const struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
 	struct port_name *name = priv;
-	struct rocker_tlv *attr;
+	const struct rocker_tlv *attr;
 	size_t i, j, len;
-	char *str;
+	const char *str;
 
 	rocker_tlv_parse_desc(attrs, ROCKER_TLV_CMD_MAX, desc_info);
 	if (!attrs[ROCKER_TLV_CMD_INFO])
@@ -1679,8 +1764,7 @@ rocker_cmd_get_port_settings_phys_name_proc(struct rocker *rocker,
 }
 
 static int
-rocker_cmd_set_port_settings_ethtool_prep(struct rocker *rocker,
-					  struct rocker_port *rocker_port,
+rocker_cmd_set_port_settings_ethtool_prep(const struct rocker_port *rocker_port,
 					  struct rocker_desc_info *desc_info,
 					  void *priv)
 {
@@ -1710,12 +1794,11 @@ rocker_cmd_set_port_settings_ethtool_prep(struct rocker *rocker,
 }
 
 static int
-rocker_cmd_set_port_settings_macaddr_prep(struct rocker *rocker,
-					  struct rocker_port *rocker_port,
+rocker_cmd_set_port_settings_macaddr_prep(const struct rocker_port *rocker_port,
 					  struct rocker_desc_info *desc_info,
 					  void *priv)
 {
-	unsigned char *macaddr = priv;
+	const unsigned char *macaddr = priv;
 	struct rocker_tlv *cmd_info;
 
 	if (rocker_tlv_put_u16(desc_info, ROCKER_TLV_CMD_TYPE,
@@ -1735,8 +1818,7 @@ rocker_cmd_set_port_settings_macaddr_prep(struct rocker *rocker,
 }
 
 static int
-rocker_cmd_set_port_learning_prep(struct rocker *rocker,
-				  struct rocker_port *rocker_port,
+rocker_cmd_set_port_learning_prep(const struct rocker_port *rocker_port,
 				  struct rocker_desc_info *desc_info,
 				  void *priv)
 {
@@ -1761,46 +1843,48 @@ rocker_cmd_set_port_learning_prep(struct rocker *rocker,
 static int rocker_cmd_get_port_settings_ethtool(struct rocker_port *rocker_port,
 						struct ethtool_cmd *ecmd)
 {
-	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	return rocker_cmd_exec(rocker_port, SWITCHDEV_TRANS_NONE, 0,
 			       rocker_cmd_get_port_settings_prep, NULL,
 			       rocker_cmd_get_port_settings_ethtool_proc,
-			       ecmd, false);
+			       ecmd);
 }
 
 static int rocker_cmd_get_port_settings_macaddr(struct rocker_port *rocker_port,
 						unsigned char *macaddr)
 {
-	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	return rocker_cmd_exec(rocker_port, SWITCHDEV_TRANS_NONE, 0,
 			       rocker_cmd_get_port_settings_prep, NULL,
 			       rocker_cmd_get_port_settings_macaddr_proc,
-			       macaddr, false);
+			       macaddr);
 }
 
 static int rocker_cmd_set_port_settings_ethtool(struct rocker_port *rocker_port,
 						struct ethtool_cmd *ecmd)
 {
-	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	return rocker_cmd_exec(rocker_port, SWITCHDEV_TRANS_NONE, 0,
 			       rocker_cmd_set_port_settings_ethtool_prep,
-			       ecmd, NULL, NULL, false);
+			       ecmd, NULL, NULL);
 }
 
 static int rocker_cmd_set_port_settings_macaddr(struct rocker_port *rocker_port,
 						unsigned char *macaddr)
 {
-	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	return rocker_cmd_exec(rocker_port, SWITCHDEV_TRANS_NONE, 0,
 			       rocker_cmd_set_port_settings_macaddr_prep,
-			       macaddr, NULL, NULL, false);
+			       macaddr, NULL, NULL);
 }
 
-static int rocker_port_set_learning(struct rocker_port *rocker_port)
+static int rocker_port_set_learning(struct rocker_port *rocker_port,
+				    enum switchdev_trans trans)
 {
-	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	return rocker_cmd_exec(rocker_port, trans, 0,
 			       rocker_cmd_set_port_learning_prep,
-			       NULL, NULL, NULL, false);
+			       NULL, NULL, NULL);
 }
 
-static int rocker_cmd_flow_tbl_add_ig_port(struct rocker_desc_info *desc_info,
-					   struct rocker_flow_tbl_entry *entry)
+static int
+rocker_cmd_flow_tbl_add_ig_port(struct rocker_desc_info *desc_info,
+				const struct rocker_flow_tbl_entry *entry)
 {
 	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_OF_DPA_IN_PPORT,
 			       entry->key.ig_port.in_pport))
@@ -1815,8 +1899,9 @@ static int rocker_cmd_flow_tbl_add_ig_port(struct rocker_desc_info *desc_info,
 	return 0;
 }
 
-static int rocker_cmd_flow_tbl_add_vlan(struct rocker_desc_info *desc_info,
-					struct rocker_flow_tbl_entry *entry)
+static int
+rocker_cmd_flow_tbl_add_vlan(struct rocker_desc_info *desc_info,
+			     const struct rocker_flow_tbl_entry *entry)
 {
 	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_OF_DPA_IN_PPORT,
 			       entry->key.vlan.in_pport))
@@ -1838,8 +1923,9 @@ static int rocker_cmd_flow_tbl_add_vlan(struct rocker_desc_info *desc_info,
 	return 0;
 }
 
-static int rocker_cmd_flow_tbl_add_term_mac(struct rocker_desc_info *desc_info,
-					    struct rocker_flow_tbl_entry *entry)
+static int
+rocker_cmd_flow_tbl_add_term_mac(struct rocker_desc_info *desc_info,
+				 const struct rocker_flow_tbl_entry *entry)
 {
 	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_OF_DPA_IN_PPORT,
 			       entry->key.term_mac.in_pport))
@@ -1875,7 +1961,7 @@ static int rocker_cmd_flow_tbl_add_term_mac(struct rocker_desc_info *desc_info,
 
 static int
 rocker_cmd_flow_tbl_add_ucast_routing(struct rocker_desc_info *desc_info,
-				      struct rocker_flow_tbl_entry *entry)
+				      const struct rocker_flow_tbl_entry *entry)
 {
 	if (rocker_tlv_put_be16(desc_info, ROCKER_TLV_OF_DPA_ETHERTYPE,
 				entry->key.ucast_routing.eth_type))
@@ -1896,8 +1982,9 @@ rocker_cmd_flow_tbl_add_ucast_routing(struct rocker_desc_info *desc_info,
 	return 0;
 }
 
-static int rocker_cmd_flow_tbl_add_bridge(struct rocker_desc_info *desc_info,
-					  struct rocker_flow_tbl_entry *entry)
+static int
+rocker_cmd_flow_tbl_add_bridge(struct rocker_desc_info *desc_info,
+			       const struct rocker_flow_tbl_entry *entry)
 {
 	if (entry->key.bridge.has_eth_dst &&
 	    rocker_tlv_put(desc_info, ROCKER_TLV_OF_DPA_DST_MAC,
@@ -1929,8 +2016,9 @@ static int rocker_cmd_flow_tbl_add_bridge(struct rocker_desc_info *desc_info,
 	return 0;
 }
 
-static int rocker_cmd_flow_tbl_add_acl(struct rocker_desc_info *desc_info,
-				       struct rocker_flow_tbl_entry *entry)
+static int
+rocker_cmd_flow_tbl_add_acl(struct rocker_desc_info *desc_info,
+			    const struct rocker_flow_tbl_entry *entry)
 {
 	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_OF_DPA_IN_PPORT,
 			       entry->key.acl.in_pport))
@@ -1995,12 +2083,11 @@ static int rocker_cmd_flow_tbl_add_acl(struct rocker_desc_info *desc_info,
 	return 0;
 }
 
-static int rocker_cmd_flow_tbl_add(struct rocker *rocker,
-				   struct rocker_port *rocker_port,
+static int rocker_cmd_flow_tbl_add(const struct rocker_port *rocker_port,
 				   struct rocker_desc_info *desc_info,
 				   void *priv)
 {
-	struct rocker_flow_tbl_entry *entry = priv;
+	const struct rocker_flow_tbl_entry *entry = priv;
 	struct rocker_tlv *cmd_info;
 	int err = 0;
 
@@ -2053,8 +2140,7 @@ static int rocker_cmd_flow_tbl_add(struct rocker *rocker,
 	return 0;
 }
 
-static int rocker_cmd_flow_tbl_del(struct rocker *rocker,
-				   struct rocker_port *rocker_port,
+static int rocker_cmd_flow_tbl_del(const struct rocker_port *rocker_port,
 				   struct rocker_desc_info *desc_info,
 				   void *priv)
 {
@@ -2090,7 +2176,7 @@ rocker_cmd_group_tbl_add_l2_interface(struct rocker_desc_info *desc_info,
 
 static int
 rocker_cmd_group_tbl_add_l2_rewrite(struct rocker_desc_info *desc_info,
-				    struct rocker_group_tbl_entry *entry)
+				    const struct rocker_group_tbl_entry *entry)
 {
 	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_OF_DPA_GROUP_ID_LOWER,
 			       entry->l2_rewrite.group_id))
@@ -2113,7 +2199,7 @@ rocker_cmd_group_tbl_add_l2_rewrite(struct rocker_desc_info *desc_info,
 
 static int
 rocker_cmd_group_tbl_add_group_ids(struct rocker_desc_info *desc_info,
-				   struct rocker_group_tbl_entry *entry)
+				   const struct rocker_group_tbl_entry *entry)
 {
 	int i;
 	struct rocker_tlv *group_ids;
@@ -2139,7 +2225,7 @@ rocker_cmd_group_tbl_add_group_ids(struct rocker_desc_info *desc_info,
 
 static int
 rocker_cmd_group_tbl_add_l3_unicast(struct rocker_desc_info *desc_info,
-				    struct rocker_group_tbl_entry *entry)
+				    const struct rocker_group_tbl_entry *entry)
 {
 	if (!is_zero_ether_addr(entry->l3_unicast.eth_src) &&
 	    rocker_tlv_put(desc_info, ROCKER_TLV_OF_DPA_SRC_MAC,
@@ -2163,8 +2249,7 @@ rocker_cmd_group_tbl_add_l3_unicast(struct rocker_desc_info *desc_info,
 	return 0;
 }
 
-static int rocker_cmd_group_tbl_add(struct rocker *rocker,
-				    struct rocker_port *rocker_port,
+static int rocker_cmd_group_tbl_add(const struct rocker_port *rocker_port,
 				    struct rocker_desc_info *desc_info,
 				    void *priv)
 {
@@ -2209,8 +2294,7 @@ static int rocker_cmd_group_tbl_add(struct rocker *rocker,
 	return 0;
 }
 
-static int rocker_cmd_group_tbl_del(struct rocker *rocker,
-				    struct rocker_port *rocker_port,
+static int rocker_cmd_group_tbl_del(const struct rocker_port *rocker_port,
 				    struct rocker_desc_info *desc_info,
 				    void *priv)
 {
@@ -2293,7 +2377,8 @@ static void rocker_free_tbls(struct rocker *rocker)
 }
 
 static struct rocker_flow_tbl_entry *
-rocker_flow_tbl_find(struct rocker *rocker, struct rocker_flow_tbl_entry *match)
+rocker_flow_tbl_find(const struct rocker *rocker,
+		     const struct rocker_flow_tbl_entry *match)
 {
 	struct rocker_flow_tbl_entry *found;
 	size_t key_len = match->key_len ? match->key_len : sizeof(found->key);
@@ -2308,24 +2393,25 @@ rocker_flow_tbl_find(struct rocker *rocker, struct rocker_flow_tbl_entry *match)
 }
 
 static int rocker_flow_tbl_add(struct rocker_port *rocker_port,
-			       struct rocker_flow_tbl_entry *match,
-			       bool nowait)
+			       enum switchdev_trans trans, int flags,
+			       struct rocker_flow_tbl_entry *match)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_flow_tbl_entry *found;
 	size_t key_len = match->key_len ? match->key_len : sizeof(found->key);
-	unsigned long flags;
+	unsigned long lock_flags;
 
 	match->key_crc32 = crc32(~0, &match->key, key_len);
 
-	spin_lock_irqsave(&rocker->flow_tbl_lock, flags);
+	spin_lock_irqsave(&rocker->flow_tbl_lock, lock_flags);
 
 	found = rocker_flow_tbl_find(rocker, match);
 
 	if (found) {
 		match->cookie = found->cookie;
-		hash_del(&found->entry);
-		kfree(found);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
+		rocker_port_kfree(trans, found);
 		found = match;
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_FLOW_MOD;
 	} else {
@@ -2334,73 +2420,69 @@ static int rocker_flow_tbl_add(struct rocker_port *rocker_port,
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_FLOW_ADD;
 	}
 
-	hash_add(rocker->flow_tbl, &found->entry, found->key_crc32);
+	if (trans != SWITCHDEV_TRANS_PREPARE)
+		hash_add(rocker->flow_tbl, &found->entry, found->key_crc32);
 
-	spin_unlock_irqrestore(&rocker->flow_tbl_lock, flags);
+	spin_unlock_irqrestore(&rocker->flow_tbl_lock, lock_flags);
 
-	return rocker_cmd_exec(rocker, rocker_port,
-			       rocker_cmd_flow_tbl_add,
-			       found, NULL, NULL, nowait);
+	return rocker_cmd_exec(rocker_port, trans, flags,
+			       rocker_cmd_flow_tbl_add, found, NULL, NULL);
 }
 
 static int rocker_flow_tbl_del(struct rocker_port *rocker_port,
-			       struct rocker_flow_tbl_entry *match,
-			       bool nowait)
+			       enum switchdev_trans trans, int flags,
+			       struct rocker_flow_tbl_entry *match)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_flow_tbl_entry *found;
 	size_t key_len = match->key_len ? match->key_len : sizeof(found->key);
-	unsigned long flags;
+	unsigned long lock_flags;
 	int err = 0;
 
 	match->key_crc32 = crc32(~0, &match->key, key_len);
 
-	spin_lock_irqsave(&rocker->flow_tbl_lock, flags);
+	spin_lock_irqsave(&rocker->flow_tbl_lock, lock_flags);
 
 	found = rocker_flow_tbl_find(rocker, match);
 
 	if (found) {
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_FLOW_DEL;
 	}
 
-	spin_unlock_irqrestore(&rocker->flow_tbl_lock, flags);
+	spin_unlock_irqrestore(&rocker->flow_tbl_lock, lock_flags);
 
-	kfree(match);
+	rocker_port_kfree(trans, match);
 
 	if (found) {
-		err = rocker_cmd_exec(rocker, rocker_port,
+		err = rocker_cmd_exec(rocker_port, trans, flags,
 				      rocker_cmd_flow_tbl_del,
-				      found, NULL, NULL, nowait);
-		kfree(found);
+				      found, NULL, NULL);
+		rocker_port_kfree(trans, found);
 	}
 
 	return err;
 }
 
-static gfp_t rocker_op_flags_gfp(int flags)
-{
-	return flags & ROCKER_OP_FLAG_NOWAIT ? GFP_ATOMIC : GFP_KERNEL;
-}
-
 static int rocker_flow_tbl_do(struct rocker_port *rocker_port,
-			      int flags, struct rocker_flow_tbl_entry *entry)
+			      enum switchdev_trans trans, int flags,
+			      struct rocker_flow_tbl_entry *entry)
 {
-	bool nowait = flags & ROCKER_OP_FLAG_NOWAIT;
-
 	if (flags & ROCKER_OP_FLAG_REMOVE)
-		return rocker_flow_tbl_del(rocker_port, entry, nowait);
+		return rocker_flow_tbl_del(rocker_port, trans, flags, entry);
 	else
-		return rocker_flow_tbl_add(rocker_port, entry, nowait);
+		return rocker_flow_tbl_add(rocker_port, trans, flags, entry);
 }
 
 static int rocker_flow_tbl_ig_port(struct rocker_port *rocker_port,
-				   int flags, u32 in_pport, u32 in_pport_mask,
+				   enum switchdev_trans trans, int flags,
+				   u32 in_pport, u32 in_pport_mask,
 				   enum rocker_of_dpa_table_id goto_tbl)
 {
 	struct rocker_flow_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2410,18 +2492,19 @@ static int rocker_flow_tbl_ig_port(struct rocker_port *rocker_port,
 	entry->key.ig_port.in_pport_mask = in_pport_mask;
 	entry->key.ig_port.goto_tbl = goto_tbl;
 
-	return rocker_flow_tbl_do(rocker_port, flags, entry);
+	return rocker_flow_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_flow_tbl_vlan(struct rocker_port *rocker_port,
-				int flags, u32 in_pport,
-				__be16 vlan_id, __be16 vlan_id_mask,
+				enum switchdev_trans trans, int flags,
+				u32 in_pport, __be16 vlan_id,
+				__be16 vlan_id_mask,
 				enum rocker_of_dpa_table_id goto_tbl,
 				bool untagged, __be16 new_vlan_id)
 {
 	struct rocker_flow_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2435,10 +2518,11 @@ static int rocker_flow_tbl_vlan(struct rocker_port *rocker_port,
 	entry->key.vlan.untagged = untagged;
 	entry->key.vlan.new_vlan_id = new_vlan_id;
 
-	return rocker_flow_tbl_do(rocker_port, flags, entry);
+	return rocker_flow_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_flow_tbl_term_mac(struct rocker_port *rocker_port,
+				    enum switchdev_trans trans,
 				    u32 in_pport, u32 in_pport_mask,
 				    __be16 eth_type, const u8 *eth_dst,
 				    const u8 *eth_dst_mask, __be16 vlan_id,
@@ -2447,7 +2531,7 @@ static int rocker_flow_tbl_term_mac(struct rocker_port *rocker_port,
 {
 	struct rocker_flow_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2471,11 +2555,11 @@ static int rocker_flow_tbl_term_mac(struct rocker_port *rocker_port,
 	entry->key.term_mac.vlan_id_mask = vlan_id_mask;
 	entry->key.term_mac.copy_to_cpu = copy_to_cpu;
 
-	return rocker_flow_tbl_do(rocker_port, flags, entry);
+	return rocker_flow_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_flow_tbl_bridge(struct rocker_port *rocker_port,
-				  int flags,
+				  enum switchdev_trans trans, int flags,
 				  const u8 *eth_dst, const u8 *eth_dst_mask,
 				  __be16 vlan_id, u32 tunnel_id,
 				  enum rocker_of_dpa_table_id goto_tbl,
@@ -2487,7 +2571,7 @@ static int rocker_flow_tbl_bridge(struct rocker_port *rocker_port,
 	bool dflt = !eth_dst || (eth_dst && eth_dst_mask);
 	bool wild = false;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2500,7 +2584,7 @@ static int rocker_flow_tbl_bridge(struct rocker_port *rocker_port,
 	if (eth_dst_mask) {
 		entry->key.bridge.has_eth_dst_mask = 1;
 		ether_addr_copy(entry->key.bridge.eth_dst_mask, eth_dst_mask);
-		if (memcmp(eth_dst_mask, ff_mac, ETH_ALEN))
+		if (!ether_addr_equal(eth_dst_mask, ff_mac))
 			wild = true;
 	}
 
@@ -2525,10 +2609,11 @@ static int rocker_flow_tbl_bridge(struct rocker_port *rocker_port,
 	entry->key.bridge.group_id = group_id;
 	entry->key.bridge.copy_to_cpu = copy_to_cpu;
 
-	return rocker_flow_tbl_do(rocker_port, flags, entry);
+	return rocker_flow_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_flow_tbl_ucast4_routing(struct rocker_port *rocker_port,
+					  enum switchdev_trans trans,
 					  __be16 eth_type, __be32 dst,
 					  __be32 dst_mask, u32 priority,
 					  enum rocker_of_dpa_table_id goto_tbl,
@@ -2536,7 +2621,7 @@ static int rocker_flow_tbl_ucast4_routing(struct rocker_port *rocker_port,
 {
 	struct rocker_flow_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2550,30 +2635,29 @@ static int rocker_flow_tbl_ucast4_routing(struct rocker_port *rocker_port,
 	entry->key_len = offsetof(struct rocker_flow_tbl_key,
 				  ucast_routing.group_id);
 
-	return rocker_flow_tbl_do(rocker_port, flags, entry);
+	return rocker_flow_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_flow_tbl_acl(struct rocker_port *rocker_port,
-			       int flags, u32 in_pport,
-			       u32 in_pport_mask,
+			       enum switchdev_trans trans, int flags,
+			       u32 in_pport, u32 in_pport_mask,
 			       const u8 *eth_src, const u8 *eth_src_mask,
 			       const u8 *eth_dst, const u8 *eth_dst_mask,
-			       __be16 eth_type,
-			       __be16 vlan_id, __be16 vlan_id_mask,
-			       u8 ip_proto, u8 ip_proto_mask,
-			       u8 ip_tos, u8 ip_tos_mask,
+			       __be16 eth_type, __be16 vlan_id,
+			       __be16 vlan_id_mask, u8 ip_proto,
+			       u8 ip_proto_mask, u8 ip_tos, u8 ip_tos_mask,
 			       u32 group_id)
 {
 	u32 priority;
 	struct rocker_flow_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
 	priority = ROCKER_PRIORITY_ACL_NORMAL;
 	if (eth_dst && eth_dst_mask) {
-		if (memcmp(eth_dst_mask, mcast_mac, ETH_ALEN) == 0)
+		if (ether_addr_equal(eth_dst_mask, mcast_mac))
 			priority = ROCKER_PRIORITY_ACL_DFLT;
 		else if (is_link_local_ether_addr(eth_dst))
 			priority = ROCKER_PRIORITY_ACL_CTRL;
@@ -2602,12 +2686,12 @@ static int rocker_flow_tbl_acl(struct rocker_port *rocker_port,
 	entry->key.acl.ip_tos_mask = ip_tos_mask;
 	entry->key.acl.group_id = group_id;
 
-	return rocker_flow_tbl_do(rocker_port, flags, entry);
+	return rocker_flow_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static struct rocker_group_tbl_entry *
-rocker_group_tbl_find(struct rocker *rocker,
-		      struct rocker_group_tbl_entry *match)
+rocker_group_tbl_find(const struct rocker *rocker,
+		      const struct rocker_group_tbl_entry *match)
 {
 	struct rocker_group_tbl_entry *found;
 
@@ -2620,34 +2704,36 @@ rocker_group_tbl_find(struct rocker *rocker,
 	return NULL;
 }
 
-static void rocker_group_tbl_entry_free(struct rocker_group_tbl_entry *entry)
+static void rocker_group_tbl_entry_free(enum switchdev_trans trans,
+					struct rocker_group_tbl_entry *entry)
 {
 	switch (ROCKER_GROUP_TYPE_GET(entry->group_id)) {
 	case ROCKER_OF_DPA_GROUP_TYPE_L2_FLOOD:
 	case ROCKER_OF_DPA_GROUP_TYPE_L2_MCAST:
-		kfree(entry->group_ids);
+		rocker_port_kfree(trans, entry->group_ids);
 		break;
 	default:
 		break;
 	}
-	kfree(entry);
+	rocker_port_kfree(trans, entry);
 }
 
 static int rocker_group_tbl_add(struct rocker_port *rocker_port,
-				struct rocker_group_tbl_entry *match,
-				bool nowait)
+				enum switchdev_trans trans, int flags,
+				struct rocker_group_tbl_entry *match)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_group_tbl_entry *found;
-	unsigned long flags;
+	unsigned long lock_flags;
 
-	spin_lock_irqsave(&rocker->group_tbl_lock, flags);
+	spin_lock_irqsave(&rocker->group_tbl_lock, lock_flags);
 
 	found = rocker_group_tbl_find(rocker, match);
 
 	if (found) {
-		hash_del(&found->entry);
-		rocker_group_tbl_entry_free(found);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
+		rocker_group_tbl_entry_free(trans, found);
 		found = match;
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_GROUP_MOD;
 	} else {
@@ -2655,116 +2741,118 @@ static int rocker_group_tbl_add(struct rocker_port *rocker_port,
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_GROUP_ADD;
 	}
 
-	hash_add(rocker->group_tbl, &found->entry, found->group_id);
+	if (trans != SWITCHDEV_TRANS_PREPARE)
+		hash_add(rocker->group_tbl, &found->entry, found->group_id);
 
-	spin_unlock_irqrestore(&rocker->group_tbl_lock, flags);
+	spin_unlock_irqrestore(&rocker->group_tbl_lock, lock_flags);
 
-	return rocker_cmd_exec(rocker, rocker_port,
-			       rocker_cmd_group_tbl_add,
-			       found, NULL, NULL, nowait);
+	return rocker_cmd_exec(rocker_port, trans, flags,
+			       rocker_cmd_group_tbl_add, found, NULL, NULL);
 }
 
 static int rocker_group_tbl_del(struct rocker_port *rocker_port,
-				struct rocker_group_tbl_entry *match,
-				bool nowait)
+				enum switchdev_trans trans, int flags,
+				struct rocker_group_tbl_entry *match)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_group_tbl_entry *found;
-	unsigned long flags;
+	unsigned long lock_flags;
 	int err = 0;
 
-	spin_lock_irqsave(&rocker->group_tbl_lock, flags);
+	spin_lock_irqsave(&rocker->group_tbl_lock, lock_flags);
 
 	found = rocker_group_tbl_find(rocker, match);
 
 	if (found) {
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 		found->cmd = ROCKER_TLV_CMD_TYPE_OF_DPA_GROUP_DEL;
 	}
 
-	spin_unlock_irqrestore(&rocker->group_tbl_lock, flags);
+	spin_unlock_irqrestore(&rocker->group_tbl_lock, lock_flags);
 
-	rocker_group_tbl_entry_free(match);
+	rocker_group_tbl_entry_free(trans, match);
 
 	if (found) {
-		err = rocker_cmd_exec(rocker, rocker_port,
+		err = rocker_cmd_exec(rocker_port, trans, flags,
 				      rocker_cmd_group_tbl_del,
-				      found, NULL, NULL, nowait);
-		rocker_group_tbl_entry_free(found);
+				      found, NULL, NULL);
+		rocker_group_tbl_entry_free(trans, found);
 	}
 
 	return err;
 }
 
 static int rocker_group_tbl_do(struct rocker_port *rocker_port,
-			       int flags, struct rocker_group_tbl_entry *entry)
+			       enum switchdev_trans trans, int flags,
+			       struct rocker_group_tbl_entry *entry)
 {
-	bool nowait = flags & ROCKER_OP_FLAG_NOWAIT;
-
 	if (flags & ROCKER_OP_FLAG_REMOVE)
-		return rocker_group_tbl_del(rocker_port, entry, nowait);
+		return rocker_group_tbl_del(rocker_port, trans, flags, entry);
 	else
-		return rocker_group_tbl_add(rocker_port, entry, nowait);
+		return rocker_group_tbl_add(rocker_port, trans, flags, entry);
 }
 
 static int rocker_group_l2_interface(struct rocker_port *rocker_port,
-				     int flags, __be16 vlan_id,
-				     u32 out_pport, int pop_vlan)
+				     enum switchdev_trans trans, int flags,
+				     __be16 vlan_id, u32 out_pport,
+				     int pop_vlan)
 {
 	struct rocker_group_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
 	entry->group_id = ROCKER_GROUP_L2_INTERFACE(vlan_id, out_pport);
 	entry->l2_interface.pop_vlan = pop_vlan;
 
-	return rocker_group_tbl_do(rocker_port, flags, entry);
+	return rocker_group_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_group_l2_fan_out(struct rocker_port *rocker_port,
+				   enum switchdev_trans trans,
 				   int flags, u8 group_count,
-				   u32 *group_ids, u32 group_id)
+				   const u32 *group_ids, u32 group_id)
 {
 	struct rocker_group_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
 	entry->group_id = group_id;
 	entry->group_count = group_count;
 
-	entry->group_ids = kcalloc(group_count, sizeof(u32),
-				   rocker_op_flags_gfp(flags));
+	entry->group_ids = rocker_port_kcalloc(rocker_port, trans, flags,
+					       group_count, sizeof(u32));
 	if (!entry->group_ids) {
-		kfree(entry);
+		rocker_port_kfree(trans, entry);
 		return -ENOMEM;
 	}
 	memcpy(entry->group_ids, group_ids, group_count * sizeof(u32));
 
-	return rocker_group_tbl_do(rocker_port, flags, entry);
+	return rocker_group_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static int rocker_group_l2_flood(struct rocker_port *rocker_port,
-				 int flags, __be16 vlan_id,
-				 u8 group_count, u32 *group_ids,
-				 u32 group_id)
+				 enum switchdev_trans trans, int flags,
+				 __be16 vlan_id, u8 group_count,
+				 const u32 *group_ids, u32 group_id)
 {
-	return rocker_group_l2_fan_out(rocker_port, flags,
+	return rocker_group_l2_fan_out(rocker_port, trans, flags,
 				       group_count, group_ids,
 				       group_id);
 }
 
 static int rocker_group_l3_unicast(struct rocker_port *rocker_port,
-				   int flags, u32 index, u8 *src_mac,
-				   u8 *dst_mac, __be16 vlan_id,
-				   bool ttl_check, u32 pport)
+				   enum switchdev_trans trans, int flags,
+				   u32 index, const u8 *src_mac, const u8 *dst_mac,
+				   __be16 vlan_id, bool ttl_check, u32 pport)
 {
 	struct rocker_group_tbl_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2777,11 +2865,11 @@ static int rocker_group_l3_unicast(struct rocker_port *rocker_port,
 	entry->l3_unicast.ttl_check = ttl_check;
 	entry->l3_unicast.group_id = ROCKER_GROUP_L2_INTERFACE(vlan_id, pport);
 
-	return rocker_group_tbl_do(rocker_port, flags, entry);
+	return rocker_group_tbl_do(rocker_port, trans, flags, entry);
 }
 
 static struct rocker_neigh_tbl_entry *
-	rocker_neigh_tbl_find(struct rocker *rocker, __be32 ip_addr)
+rocker_neigh_tbl_find(const struct rocker *rocker, __be32 ip_addr)
 {
 	struct rocker_neigh_tbl_entry *found;
 
@@ -2794,37 +2882,44 @@ static struct rocker_neigh_tbl_entry *
 }
 
 static void _rocker_neigh_add(struct rocker *rocker,
+			      enum switchdev_trans trans,
 			      struct rocker_neigh_tbl_entry *entry)
 {
-	entry->index = rocker->neigh_tbl_next_index++;
+	if (trans != SWITCHDEV_TRANS_COMMIT)
+		entry->index = rocker->neigh_tbl_next_index++;
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		return;
 	entry->ref_count++;
 	hash_add(rocker->neigh_tbl, &entry->entry,
 		 be32_to_cpu(entry->ip_addr));
 }
 
-static void _rocker_neigh_del(struct rocker *rocker,
+static void _rocker_neigh_del(enum switchdev_trans trans,
 			      struct rocker_neigh_tbl_entry *entry)
 {
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		return;
 	if (--entry->ref_count == 0) {
 		hash_del(&entry->entry);
-		kfree(entry);
+		rocker_port_kfree(trans, entry);
 	}
 }
 
-static void _rocker_neigh_update(struct rocker *rocker,
-				 struct rocker_neigh_tbl_entry *entry,
-				 u8 *eth_dst, bool ttl_check)
+static void _rocker_neigh_update(struct rocker_neigh_tbl_entry *entry,
+				 enum switchdev_trans trans,
+				 const u8 *eth_dst, bool ttl_check)
 {
 	if (eth_dst) {
 		ether_addr_copy(entry->eth_dst, eth_dst);
 		entry->ttl_check = ttl_check;
-	} else {
+	} else if (trans != SWITCHDEV_TRANS_PREPARE) {
 		entry->ref_count++;
 	}
 }
 
 static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
-				  int flags, __be32 ip_addr, u8 *eth_dst)
+				  enum switchdev_trans trans,
+				  int flags, __be32 ip_addr, const u8 *eth_dst)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_neigh_tbl_entry *entry;
@@ -2840,7 +2935,7 @@ static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
 	bool removing;
 	int err = 0;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2857,12 +2952,12 @@ static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
 		entry->dev = rocker_port->dev;
 		ether_addr_copy(entry->eth_dst, eth_dst);
 		entry->ttl_check = true;
-		_rocker_neigh_add(rocker, entry);
+		_rocker_neigh_add(rocker, trans, entry);
 	} else if (removing) {
 		memcpy(entry, found, sizeof(*entry));
-		_rocker_neigh_del(rocker, found);
+		_rocker_neigh_del(trans, found);
 	} else if (updating) {
-		_rocker_neigh_update(rocker, found, eth_dst, true);
+		_rocker_neigh_update(found, trans, eth_dst, true);
 		memcpy(entry, found, sizeof(*entry));
 	} else {
 		err = -ENOENT;
@@ -2879,7 +2974,7 @@ static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
 	 * other routes' nexthops.
 	 */
 
-	err = rocker_group_l3_unicast(rocker_port, flags,
+	err = rocker_group_l3_unicast(rocker_port, trans, flags,
 				      entry->index,
 				      rocker_port->dev->dev_addr,
 				      entry->eth_dst,
@@ -2895,7 +2990,7 @@ static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
 
 	if (adding || removing) {
 		group_id = ROCKER_GROUP_L3_UNICAST(entry->index);
-		err = rocker_flow_tbl_ucast4_routing(rocker_port,
+		err = rocker_flow_tbl_ucast4_routing(rocker_port, trans,
 						     eth_type, ip_addr,
 						     inet_make_mask(32),
 						     priority, goto_tbl,
@@ -2909,13 +3004,13 @@ static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
 
 err_out:
 	if (!adding)
-		kfree(entry);
+		rocker_port_kfree(trans, entry);
 
 	return err;
 }
 
 static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
-				    __be32 ip_addr)
+				    enum switchdev_trans trans, __be32 ip_addr)
 {
 	struct net_device *dev = rocker_port->dev;
 	struct neighbour *n = __ipv4_neigh_lookup(dev, (__force u32)ip_addr);
@@ -2933,7 +3028,8 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 	 */
 
 	if (n->nud_state & NUD_VALID)
-		err = rocker_port_ipv4_neigh(rocker_port, 0, ip_addr, n->ha);
+		err = rocker_port_ipv4_neigh(rocker_port, trans, 0,
+					     ip_addr, n->ha);
 	else
 		neigh_event_send(n, NULL);
 
@@ -2941,7 +3037,8 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 	return err;
 }
 
-static int rocker_port_ipv4_nh(struct rocker_port *rocker_port, int flags,
+static int rocker_port_ipv4_nh(struct rocker_port *rocker_port,
+			       enum switchdev_trans trans, int flags,
 			       __be32 ip_addr, u32 *index)
 {
 	struct rocker *rocker = rocker_port->rocker;
@@ -2954,7 +3051,7 @@ static int rocker_port_ipv4_nh(struct rocker_port *rocker_port, int flags,
 	bool resolved = true;
 	int err = 0;
 
-	entry = kzalloc(sizeof(*entry), rocker_op_flags_gfp(flags));
+	entry = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*entry));
 	if (!entry)
 		return -ENOMEM;
 
@@ -2971,13 +3068,13 @@ static int rocker_port_ipv4_nh(struct rocker_port *rocker_port, int flags,
 	if (adding) {
 		entry->ip_addr = ip_addr;
 		entry->dev = rocker_port->dev;
-		_rocker_neigh_add(rocker, entry);
+		_rocker_neigh_add(rocker, trans, entry);
 		*index = entry->index;
 		resolved = false;
 	} else if (removing) {
-		_rocker_neigh_del(rocker, found);
+		_rocker_neigh_del(trans, found);
 	} else if (updating) {
-		_rocker_neigh_update(rocker, found, NULL, false);
+		_rocker_neigh_update(found, trans, NULL, false);
 		resolved = !is_zero_ether_addr(found->eth_dst);
 	} else {
 		err = -ENOENT;
@@ -2986,7 +3083,7 @@ static int rocker_port_ipv4_nh(struct rocker_port *rocker_port, int flags,
 	spin_unlock_irqrestore(&rocker->neigh_tbl_lock, lock_flags);
 
 	if (!adding)
-		kfree(entry);
+		rocker_port_kfree(trans, entry);
 
 	if (err)
 		return err;
@@ -2994,24 +3091,25 @@ static int rocker_port_ipv4_nh(struct rocker_port *rocker_port, int flags,
 	/* Resolved means neigh ip_addr is resolved to neigh mac. */
 
 	if (!resolved)
-		err = rocker_port_ipv4_resolve(rocker_port, ip_addr);
+		err = rocker_port_ipv4_resolve(rocker_port, trans, ip_addr);
 
 	return err;
 }
 
 static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
+					enum switchdev_trans trans,
 					int flags, __be16 vlan_id)
 {
 	struct rocker_port *p;
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker *rocker = rocker_port->rocker;
 	u32 group_id = ROCKER_GROUP_L2_FLOOD(vlan_id, 0);
 	u32 *group_ids;
 	u8 group_count = 0;
 	int err = 0;
 	int i;
 
-	group_ids = kcalloc(rocker->port_count, sizeof(u32),
-			    rocker_op_flags_gfp(flags));
+	group_ids = rocker_port_kcalloc(rocker_port, trans, flags,
+					rocker->port_count, sizeof(u32));
 	if (!group_ids)
 		return -ENOMEM;
 
@@ -3022,6 +3120,8 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 
 	for (i = 0; i < rocker->port_count; i++) {
 		p = rocker->ports[i];
+		if (!p)
+			continue;
 		if (!rocker_port_is_bridged(p))
 			continue;
 		if (test_bit(ntohs(vlan_id), p->vlan_bitmap)) {
@@ -3034,23 +3134,22 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 	if (group_count == 0)
 		goto no_ports_in_vlan;
 
-	err = rocker_group_l2_flood(rocker_port, flags, vlan_id,
-				    group_count, group_ids,
-				    group_id);
+	err = rocker_group_l2_flood(rocker_port, trans, flags, vlan_id,
+				    group_count, group_ids, group_id);
 	if (err)
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 flood group\n", err);
 
 no_ports_in_vlan:
-	kfree(group_ids);
+	rocker_port_kfree(trans, group_ids);
 	return err;
 }
 
 static int rocker_port_vlan_l2_groups(struct rocker_port *rocker_port,
-				      int flags, __be16 vlan_id,
-				      bool pop_vlan)
+				      enum switchdev_trans trans, int flags,
+				      __be16 vlan_id, bool pop_vlan)
 {
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker *rocker = rocker_port->rocker;
 	struct rocker_port *p;
 	bool adding = !(flags & ROCKER_OP_FLAG_REMOVE);
 	u32 out_pport;
@@ -3065,9 +3164,8 @@ static int rocker_port_vlan_l2_groups(struct rocker_port *rocker_port,
 	if (rocker_port->stp_state == BR_STATE_LEARNING ||
 	    rocker_port->stp_state == BR_STATE_FORWARDING) {
 		out_pport = rocker_port->pport;
-		err = rocker_group_l2_interface(rocker_port, flags,
-						vlan_id, out_pport,
-						pop_vlan);
+		err = rocker_group_l2_interface(rocker_port, trans, flags,
+						vlan_id, out_pport, pop_vlan);
 		if (err) {
 			netdev_err(rocker_port->dev,
 				   "Error (%d) port VLAN l2 group for pport %d\n",
@@ -3083,7 +3181,7 @@ static int rocker_port_vlan_l2_groups(struct rocker_port *rocker_port,
 
 	for (i = 0; i < rocker->port_count; i++) {
 		p = rocker->ports[i];
-		if (test_bit(ntohs(vlan_id), p->vlan_bitmap))
+		if (p && test_bit(ntohs(vlan_id), p->vlan_bitmap))
 			ref++;
 	}
 
@@ -3091,9 +3189,8 @@ static int rocker_port_vlan_l2_groups(struct rocker_port *rocker_port,
 		return 0;
 
 	out_pport = 0;
-	err = rocker_group_l2_interface(rocker_port, flags,
-					vlan_id, out_pport,
-					pop_vlan);
+	err = rocker_group_l2_interface(rocker_port, trans, flags,
+					vlan_id, out_pport, pop_vlan);
 	if (err) {
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 group for CPU port\n", err);
@@ -3149,14 +3246,14 @@ static struct rocker_ctrl {
 };
 
 static int rocker_port_ctrl_vlan_acl(struct rocker_port *rocker_port,
-				     int flags, struct rocker_ctrl *ctrl,
-				     __be16 vlan_id)
+				     enum switchdev_trans trans, int flags,
+				     const struct rocker_ctrl *ctrl, __be16 vlan_id)
 {
 	u32 in_pport = rocker_port->pport;
 	u32 in_pport_mask = 0xffffffff;
 	u32 out_pport = 0;
-	u8 *eth_src = NULL;
-	u8 *eth_src_mask = NULL;
+	const u8 *eth_src = NULL;
+	const u8 *eth_src_mask = NULL;
 	__be16 vlan_id_mask = htons(0xffff);
 	u8 ip_proto = 0;
 	u8 ip_proto_mask = 0;
@@ -3165,7 +3262,7 @@ static int rocker_port_ctrl_vlan_acl(struct rocker_port *rocker_port,
 	u32 group_id = ROCKER_GROUP_L2_INTERFACE(vlan_id, out_pport);
 	int err;
 
-	err = rocker_flow_tbl_acl(rocker_port, flags,
+	err = rocker_flow_tbl_acl(rocker_port, trans, flags,
 				  in_pport, in_pport_mask,
 				  eth_src, eth_src_mask,
 				  ctrl->eth_dst, ctrl->eth_dst_mask,
@@ -3182,7 +3279,8 @@ static int rocker_port_ctrl_vlan_acl(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_ctrl_vlan_bridge(struct rocker_port *rocker_port,
-					int flags, struct rocker_ctrl *ctrl,
+					enum switchdev_trans trans, int flags,
+					const struct rocker_ctrl *ctrl,
 					__be16 vlan_id)
 {
 	enum rocker_of_dpa_table_id goto_tbl =
@@ -3194,7 +3292,7 @@ static int rocker_port_ctrl_vlan_bridge(struct rocker_port *rocker_port,
 	if (!rocker_port_is_bridged(rocker_port))
 		return 0;
 
-	err = rocker_flow_tbl_bridge(rocker_port, flags,
+	err = rocker_flow_tbl_bridge(rocker_port, trans, flags,
 				     ctrl->eth_dst, ctrl->eth_dst_mask,
 				     vlan_id, tunnel_id,
 				     goto_tbl, group_id, ctrl->copy_to_cpu);
@@ -3206,8 +3304,8 @@ static int rocker_port_ctrl_vlan_bridge(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_ctrl_vlan_term(struct rocker_port *rocker_port,
-				      int flags, struct rocker_ctrl *ctrl,
-				      __be16 vlan_id)
+				      enum switchdev_trans trans, int flags,
+				      const struct rocker_ctrl *ctrl, __be16 vlan_id)
 {
 	u32 in_pport_mask = 0xffffffff;
 	__be16 vlan_id_mask = htons(0xffff);
@@ -3216,7 +3314,7 @@ static int rocker_port_ctrl_vlan_term(struct rocker_port *rocker_port,
 	if (ntohs(vlan_id) == 0)
 		vlan_id = rocker_port->internal_vlan_id;
 
-	err = rocker_flow_tbl_term_mac(rocker_port,
+	err = rocker_flow_tbl_term_mac(rocker_port, trans,
 				       rocker_port->pport, in_pport_mask,
 				       ctrl->eth_type, ctrl->eth_dst,
 				       ctrl->eth_dst_mask, vlan_id,
@@ -3229,32 +3327,34 @@ static int rocker_port_ctrl_vlan_term(struct rocker_port *rocker_port,
 	return err;
 }
 
-static int rocker_port_ctrl_vlan(struct rocker_port *rocker_port, int flags,
-				 struct rocker_ctrl *ctrl, __be16 vlan_id)
+static int rocker_port_ctrl_vlan(struct rocker_port *rocker_port,
+				 enum switchdev_trans trans, int flags,
+				 const struct rocker_ctrl *ctrl, __be16 vlan_id)
 {
 	if (ctrl->acl)
-		return rocker_port_ctrl_vlan_acl(rocker_port, flags,
+		return rocker_port_ctrl_vlan_acl(rocker_port, trans, flags,
 						 ctrl, vlan_id);
 	if (ctrl->bridge)
-		return rocker_port_ctrl_vlan_bridge(rocker_port, flags,
+		return rocker_port_ctrl_vlan_bridge(rocker_port, trans, flags,
 						    ctrl, vlan_id);
 
 	if (ctrl->term)
-		return rocker_port_ctrl_vlan_term(rocker_port, flags,
+		return rocker_port_ctrl_vlan_term(rocker_port, trans, flags,
 						  ctrl, vlan_id);
 
 	return -EOPNOTSUPP;
 }
 
 static int rocker_port_ctrl_vlan_add(struct rocker_port *rocker_port,
-				     int flags, __be16 vlan_id)
+				     enum switchdev_trans trans, int flags,
+				     __be16 vlan_id)
 {
 	int err = 0;
 	int i;
 
 	for (i = 0; i < ROCKER_CTRL_MAX; i++) {
 		if (rocker_port->ctrls[i]) {
-			err = rocker_port_ctrl_vlan(rocker_port, flags,
+			err = rocker_port_ctrl_vlan(rocker_port, trans, flags,
 						    &rocker_ctrls[i], vlan_id);
 			if (err)
 				return err;
@@ -3264,8 +3364,9 @@ static int rocker_port_ctrl_vlan_add(struct rocker_port *rocker_port,
 	return err;
 }
 
-static int rocker_port_ctrl(struct rocker_port *rocker_port, int flags,
-			    struct rocker_ctrl *ctrl)
+static int rocker_port_ctrl(struct rocker_port *rocker_port,
+			    enum switchdev_trans trans, int flags,
+			    const struct rocker_ctrl *ctrl)
 {
 	u16 vid;
 	int err = 0;
@@ -3273,7 +3374,7 @@ static int rocker_port_ctrl(struct rocker_port *rocker_port, int flags,
 	for (vid = 1; vid < VLAN_N_VID; vid++) {
 		if (!test_bit(vid, rocker_port->vlan_bitmap))
 			continue;
-		err = rocker_port_ctrl_vlan(rocker_port, flags,
+		err = rocker_port_ctrl_vlan(rocker_port, trans, flags,
 					    ctrl, htons(vid));
 		if (err)
 			break;
@@ -3282,8 +3383,8 @@ static int rocker_port_ctrl(struct rocker_port *rocker_port, int flags,
 	return err;
 }
 
-static int rocker_port_vlan(struct rocker_port *rocker_port, int flags,
-			    u16 vid)
+static int rocker_port_vlan(struct rocker_port *rocker_port,
+			    enum switchdev_trans trans, int flags, u16 vid)
 {
 	enum rocker_of_dpa_table_id goto_tbl =
 		ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC;
@@ -3297,50 +3398,57 @@ static int rocker_port_vlan(struct rocker_port *rocker_port, int flags,
 
 	internal_vlan_id = rocker_port_vid_to_vlan(rocker_port, vid, &untagged);
 
-	if (adding && test_and_set_bit(ntohs(internal_vlan_id),
-				       rocker_port->vlan_bitmap))
+	if (adding && test_bit(ntohs(internal_vlan_id),
+			       rocker_port->vlan_bitmap))
 			return 0; /* already added */
-	else if (!adding && !test_and_clear_bit(ntohs(internal_vlan_id),
-						rocker_port->vlan_bitmap))
+	else if (!adding && !test_bit(ntohs(internal_vlan_id),
+				      rocker_port->vlan_bitmap))
 			return 0; /* already removed */
 
+	change_bit(ntohs(internal_vlan_id), rocker_port->vlan_bitmap);
+
 	if (adding) {
-		err = rocker_port_ctrl_vlan_add(rocker_port, flags,
+		err = rocker_port_ctrl_vlan_add(rocker_port, trans, flags,
 						internal_vlan_id);
 		if (err) {
 			netdev_err(rocker_port->dev,
 				   "Error (%d) port ctrl vlan add\n", err);
-			return err;
+			goto err_out;
 		}
 	}
 
-	err = rocker_port_vlan_l2_groups(rocker_port, flags,
+	err = rocker_port_vlan_l2_groups(rocker_port, trans, flags,
 					 internal_vlan_id, untagged);
 	if (err) {
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 groups\n", err);
-		return err;
+		goto err_out;
 	}
 
-	err = rocker_port_vlan_flood_group(rocker_port, flags,
+	err = rocker_port_vlan_flood_group(rocker_port, trans, flags,
 					   internal_vlan_id);
 	if (err) {
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 flood group\n", err);
-		return err;
+		goto err_out;
 	}
 
-	err = rocker_flow_tbl_vlan(rocker_port, flags,
+	err = rocker_flow_tbl_vlan(rocker_port, trans, flags,
 				   in_pport, vlan_id, vlan_id_mask,
 				   goto_tbl, untagged, internal_vlan_id);
 	if (err)
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN table\n", err);
 
+err_out:
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		change_bit(ntohs(internal_vlan_id), rocker_port->vlan_bitmap);
+
 	return err;
 }
 
-static int rocker_port_ig_tbl(struct rocker_port *rocker_port, int flags)
+static int rocker_port_ig_tbl(struct rocker_port *rocker_port,
+			      enum switchdev_trans trans, int flags)
 {
 	enum rocker_of_dpa_table_id goto_tbl;
 	u32 in_pport;
@@ -3355,7 +3463,7 @@ static int rocker_port_ig_tbl(struct rocker_port *rocker_port, int flags)
 	in_pport_mask = 0xffff0000;
 	goto_tbl = ROCKER_OF_DPA_TABLE_ID_VLAN;
 
-	err = rocker_flow_tbl_ig_port(rocker_port, flags,
+	err = rocker_flow_tbl_ig_port(rocker_port, trans, flags,
 				      in_pport, in_pport_mask,
 				      goto_tbl);
 	if (err)
@@ -3367,7 +3475,8 @@ static int rocker_port_ig_tbl(struct rocker_port *rocker_port, int flags)
 
 struct rocker_fdb_learn_work {
 	struct work_struct work;
-	struct net_device *dev;
+	struct rocker_port *rocker_port;
+	enum switchdev_trans trans;
 	int flags;
 	u8 addr[ETH_ALEN];
 	u16 vid;
@@ -3375,27 +3484,28 @@ struct rocker_fdb_learn_work {
 
 static void rocker_port_fdb_learn_work(struct work_struct *work)
 {
-	struct rocker_fdb_learn_work *lw =
+	const struct rocker_fdb_learn_work *lw =
 		container_of(work, struct rocker_fdb_learn_work, work);
 	bool removing = (lw->flags & ROCKER_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & ROCKER_OP_FLAG_LEARNED);
-	struct netdev_switch_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info;
 
 	info.addr = lw->addr;
 	info.vid = lw->vid;
 
 	if (learned && removing)
-		call_netdev_switch_notifiers(NETDEV_SWITCH_FDB_DEL,
-					     lw->dev, &info.info);
+		call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
+					 lw->rocker_port->dev, &info.info);
 	else if (learned && !removing)
-		call_netdev_switch_notifiers(NETDEV_SWITCH_FDB_ADD,
-					     lw->dev, &info.info);
+		call_switchdev_notifiers(SWITCHDEV_FDB_ADD,
+					 lw->rocker_port->dev, &info.info);
 
-	kfree(work);
+	rocker_port_kfree(lw->trans, work);
 }
 
 static int rocker_port_fdb_learn(struct rocker_port *rocker_port,
-				 int flags, const u8 *addr, __be16 vlan_id)
+				 enum switchdev_trans trans, int flags,
+				 const u8 *addr, __be16 vlan_id)
 {
 	struct rocker_fdb_learn_work *lw;
 	enum rocker_of_dpa_table_id goto_tbl =
@@ -3411,8 +3521,8 @@ static int rocker_port_fdb_learn(struct rocker_port *rocker_port,
 		group_id = ROCKER_GROUP_L2_INTERFACE(vlan_id, out_pport);
 
 	if (!(flags & ROCKER_OP_FLAG_REFRESH)) {
-		err = rocker_flow_tbl_bridge(rocker_port, flags, addr, NULL,
-					     vlan_id, tunnel_id, goto_tbl,
+		err = rocker_flow_tbl_bridge(rocker_port, trans, flags, addr,
+					     NULL, vlan_id, tunnel_id, goto_tbl,
 					     group_id, copy_to_cpu);
 		if (err)
 			return err;
@@ -3424,24 +3534,29 @@ static int rocker_port_fdb_learn(struct rocker_port *rocker_port,
 	if (!rocker_port_is_bridged(rocker_port))
 		return 0;
 
-	lw = kmalloc(sizeof(*lw), rocker_op_flags_gfp(flags));
+	lw = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*lw));
 	if (!lw)
 		return -ENOMEM;
 
 	INIT_WORK(&lw->work, rocker_port_fdb_learn_work);
 
-	lw->dev = rocker_port->dev;
+	lw->rocker_port = rocker_port;
+	lw->trans = trans;
 	lw->flags = flags;
 	ether_addr_copy(lw->addr, addr);
 	lw->vid = rocker_port_vlan_to_vid(rocker_port, vlan_id);
 
-	schedule_work(&lw->work);
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		rocker_port_kfree(trans, lw);
+	else
+		schedule_work(&lw->work);
 
 	return 0;
 }
 
 static struct rocker_fdb_tbl_entry *
-rocker_fdb_tbl_find(struct rocker *rocker, struct rocker_fdb_tbl_entry *match)
+rocker_fdb_tbl_find(const struct rocker *rocker,
+		    const struct rocker_fdb_tbl_entry *match)
 {
 	struct rocker_fdb_tbl_entry *found;
 
@@ -3453,6 +3568,7 @@ rocker_fdb_tbl_find(struct rocker *rocker, struct rocker_fdb_tbl_entry *match)
 }
 
 static int rocker_port_fdb(struct rocker_port *rocker_port,
+			   enum switchdev_trans trans,
 			   const unsigned char *addr,
 			   __be16 vlan_id, int flags)
 {
@@ -3462,7 +3578,7 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 	bool removing = (flags & ROCKER_OP_FLAG_REMOVE);
 	unsigned long lock_flags;
 
-	fdb = kzalloc(sizeof(*fdb), rocker_op_flags_gfp(flags));
+	fdb = rocker_port_kzalloc(rocker_port, trans, flags, sizeof(*fdb));
 	if (!fdb)
 		return -ENOMEM;
 
@@ -3477,32 +3593,34 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 	found = rocker_fdb_tbl_find(rocker, fdb);
 
 	if (removing && found) {
-		kfree(fdb);
-		hash_del(&found->entry);
+		rocker_port_kfree(trans, fdb);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 	} else if (!removing && !found) {
-		hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
 	}
 
 	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
 
 	/* Check if adding and already exists, or removing and can't find */
 	if (!found != !removing) {
-		kfree(fdb);
+		rocker_port_kfree(trans, fdb);
 		if (!found && removing)
 			return 0;
 		/* Refreshing existing to update aging timers */
 		flags |= ROCKER_OP_FLAG_REFRESH;
 	}
 
-	return rocker_port_fdb_learn(rocker_port, flags, addr, vlan_id);
+	return rocker_port_fdb_learn(rocker_port, trans, flags, addr, vlan_id);
 }
 
-static int rocker_port_fdb_flush(struct rocker_port *rocker_port)
+static int rocker_port_fdb_flush(struct rocker_port *rocker_port,
+				 enum switchdev_trans trans, int flags)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_fdb_tbl_entry *found;
 	unsigned long lock_flags;
-	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE;
 	struct hlist_node *tmp;
 	int bkt;
 	int err = 0;
@@ -3511,6 +3629,8 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port)
 	    rocker_port->stp_state == BR_STATE_FORWARDING)
 		return 0;
 
+	flags |= ROCKER_OP_FLAG_REMOVE;
+
 	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
 
 	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
@@ -3518,12 +3638,13 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port)
 			continue;
 		if (!found->learned)
 			continue;
-		err = rocker_port_fdb_learn(rocker_port, flags,
+		err = rocker_port_fdb_learn(rocker_port, trans, flags,
 					    found->key.addr,
 					    found->key.vlan_id);
 		if (err)
 			goto err_out;
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 	}
 
 err_out:
@@ -3533,7 +3654,8 @@ err_out:
 }
 
 static int rocker_port_router_mac(struct rocker_port *rocker_port,
-				  int flags, __be16 vlan_id)
+				  enum switchdev_trans trans, int flags,
+				  __be16 vlan_id)
 {
 	u32 in_pport_mask = 0xffffffff;
 	__be16 eth_type;
@@ -3546,7 +3668,7 @@ static int rocker_port_router_mac(struct rocker_port *rocker_port,
 		vlan_id = rocker_port->internal_vlan_id;
 
 	eth_type = htons(ETH_P_IP);
-	err = rocker_flow_tbl_term_mac(rocker_port,
+	err = rocker_flow_tbl_term_mac(rocker_port, trans,
 				       rocker_port->pport, in_pport_mask,
 				       eth_type, rocker_port->dev->dev_addr,
 				       dst_mac_mask, vlan_id, vlan_id_mask,
@@ -3555,7 +3677,7 @@ static int rocker_port_router_mac(struct rocker_port *rocker_port,
 		return err;
 
 	eth_type = htons(ETH_P_IPV6);
-	err = rocker_flow_tbl_term_mac(rocker_port,
+	err = rocker_flow_tbl_term_mac(rocker_port, trans,
 				       rocker_port->pport, in_pport_mask,
 				       eth_type, rocker_port->dev->dev_addr,
 				       dst_mac_mask, vlan_id, vlan_id_mask,
@@ -3564,13 +3686,13 @@ static int rocker_port_router_mac(struct rocker_port *rocker_port,
 	return err;
 }
 
-static int rocker_port_fwding(struct rocker_port *rocker_port)
+static int rocker_port_fwding(struct rocker_port *rocker_port,
+			      enum switchdev_trans trans, int flags)
 {
 	bool pop_vlan;
 	u32 out_pport;
 	__be16 vlan_id;
 	u16 vid;
-	int flags = ROCKER_OP_FLAG_NOWAIT;
 	int err;
 
 	/* Port will be forwarding-enabled if its STP state is LEARNING
@@ -3590,9 +3712,8 @@ static int rocker_port_fwding(struct rocker_port *rocker_port)
 			continue;
 		vlan_id = htons(vid);
 		pop_vlan = rocker_vlan_id_is_internal(vlan_id);
-		err = rocker_group_l2_interface(rocker_port, flags,
-						vlan_id, out_pport,
-						pop_vlan);
+		err = rocker_group_l2_interface(rocker_port, trans, flags,
+						vlan_id, out_pport, pop_vlan);
 		if (err) {
 			netdev_err(rocker_port->dev,
 				   "Error (%d) port VLAN l2 group for pport %d\n",
@@ -3604,12 +3725,20 @@ static int rocker_port_fwding(struct rocker_port *rocker_port)
 	return 0;
 }
 
-static int rocker_port_stp_update(struct rocker_port *rocker_port, u8 state)
+static int rocker_port_stp_update(struct rocker_port *rocker_port,
+				  enum switchdev_trans trans, int flags,
+				  u8 state)
 {
 	bool want[ROCKER_CTRL_MAX] = { 0, };
-	int flags;
+	bool prev_ctrls[ROCKER_CTRL_MAX];
+	u8 prev_state;
 	int err;
 	int i;
+
+	if (trans == SWITCHDEV_TRANS_PREPARE) {
+		memcpy(prev_ctrls, rocker_port->ctrls, sizeof(prev_ctrls));
+		prev_state = rocker_port->stp_state;
+	}
 
 	if (rocker_port->stp_state == state)
 		return 0;
@@ -3638,45 +3767,57 @@ static int rocker_port_stp_update(struct rocker_port *rocker_port, u8 state)
 
 	for (i = 0; i < ROCKER_CTRL_MAX; i++) {
 		if (want[i] != rocker_port->ctrls[i]) {
-			flags = ROCKER_OP_FLAG_NOWAIT |
-				(want[i] ? 0 : ROCKER_OP_FLAG_REMOVE);
-			err = rocker_port_ctrl(rocker_port, flags,
+			int ctrl_flags = flags |
+					 (want[i] ? 0 : ROCKER_OP_FLAG_REMOVE);
+			err = rocker_port_ctrl(rocker_port, trans, ctrl_flags,
 					       &rocker_ctrls[i]);
 			if (err)
-				return err;
+				goto err_out;
 			rocker_port->ctrls[i] = want[i];
 		}
 	}
 
-	err = rocker_port_fdb_flush(rocker_port);
+	err = rocker_port_fdb_flush(rocker_port, trans, flags);
 	if (err)
-		return err;
+		goto err_out;
 
-	return rocker_port_fwding(rocker_port);
+	err = rocker_port_fwding(rocker_port, trans, flags);
+
+err_out:
+	if (trans == SWITCHDEV_TRANS_PREPARE) {
+		memcpy(rocker_port->ctrls, prev_ctrls, sizeof(prev_ctrls));
+		rocker_port->stp_state = prev_state;
+	}
+
+	return err;
 }
 
-static int rocker_port_fwd_enable(struct rocker_port *rocker_port)
+static int rocker_port_fwd_enable(struct rocker_port *rocker_port,
+				  enum switchdev_trans trans, int flags)
 {
 	if (rocker_port_is_bridged(rocker_port))
 		/* bridge STP will enable port */
 		return 0;
 
 	/* port is not bridged, so simulate going to FORWARDING state */
-	return rocker_port_stp_update(rocker_port, BR_STATE_FORWARDING);
+	return rocker_port_stp_update(rocker_port, trans, flags,
+				      BR_STATE_FORWARDING);
 }
 
-static int rocker_port_fwd_disable(struct rocker_port *rocker_port)
+static int rocker_port_fwd_disable(struct rocker_port *rocker_port,
+				   enum switchdev_trans trans, int flags)
 {
 	if (rocker_port_is_bridged(rocker_port))
 		/* bridge STP will disable port */
 		return 0;
 
 	/* port is not bridged, so simulate going to DISABLED state */
-	return rocker_port_stp_update(rocker_port, BR_STATE_DISABLED);
+	return rocker_port_stp_update(rocker_port, trans, flags,
+				      BR_STATE_DISABLED);
 }
 
 static struct rocker_internal_vlan_tbl_entry *
-rocker_internal_vlan_tbl_find(struct rocker *rocker, int ifindex)
+rocker_internal_vlan_tbl_find(const struct rocker *rocker, int ifindex)
 {
 	struct rocker_internal_vlan_tbl_entry *found;
 
@@ -3731,8 +3872,9 @@ found:
 	return found->vlan_id;
 }
 
-static void rocker_port_internal_vlan_id_put(struct rocker_port *rocker_port,
-					     int ifindex)
+static void
+rocker_port_internal_vlan_id_put(const struct rocker_port *rocker_port,
+				 int ifindex)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_internal_vlan_tbl_entry *found;
@@ -3760,11 +3902,12 @@ not_found:
 	spin_unlock_irqrestore(&rocker->internal_vlan_tbl_lock, lock_flags);
 }
 
-static int rocker_port_fib_ipv4(struct rocker_port *rocker_port, __be32 dst,
-				int dst_len, struct fib_info *fi, u32 tb_id,
-				int flags)
+static int rocker_port_fib_ipv4(struct rocker_port *rocker_port,
+				enum switchdev_trans trans, __be32 dst,
+				int dst_len, const struct fib_info *fi,
+				u32 tb_id, int flags)
 {
-	struct fib_nh *nh;
+	const struct fib_nh *nh;
 	__be16 eth_type = htons(ETH_P_IP);
 	__be32 dst_mask = inet_make_mask(dst_len);
 	__be16 internal_vlan_id = rocker_port->internal_vlan_id;
@@ -3784,7 +3927,7 @@ static int rocker_port_fib_ipv4(struct rocker_port *rocker_port, __be32 dst,
 	has_gw = !!nh->nh_gw;
 
 	if (has_gw && nh_on_port) {
-		err = rocker_port_ipv4_nh(rocker_port, flags,
+		err = rocker_port_ipv4_nh(rocker_port, trans, flags,
 					  nh->nh_gw, &index);
 		if (err)
 			return err;
@@ -3795,7 +3938,7 @@ static int rocker_port_fib_ipv4(struct rocker_port *rocker_port, __be32 dst,
 		group_id = ROCKER_GROUP_L2_INTERFACE(internal_vlan_id, 0);
 	}
 
-	err = rocker_flow_tbl_ucast4_routing(rocker_port, eth_type, dst,
+	err = rocker_flow_tbl_ucast4_routing(rocker_port, trans, eth_type, dst,
 					     dst_mask, priority, goto_tbl,
 					     group_id, flags);
 	if (err)
@@ -3834,7 +3977,7 @@ static int rocker_port_open(struct net_device *dev)
 		goto err_request_rx_irq;
 	}
 
-	err = rocker_port_fwd_enable(rocker_port);
+	err = rocker_port_fwd_enable(rocker_port, SWITCHDEV_TRANS_NONE, 0);
 	if (err)
 		goto err_fwd_enable;
 
@@ -3861,7 +4004,8 @@ static int rocker_port_stop(struct net_device *dev)
 	rocker_port_set_enable(rocker_port, false);
 	napi_disable(&rocker_port->napi_rx);
 	napi_disable(&rocker_port->napi_tx);
-	rocker_port_fwd_disable(rocker_port);
+	rocker_port_fwd_disable(rocker_port, SWITCHDEV_TRANS_NONE,
+				ROCKER_OP_FLAG_NOWAIT);
 	free_irq(rocker_msix_rx_vector(rocker_port), rocker_port);
 	free_irq(rocker_msix_tx_vector(rocker_port), rocker_port);
 	rocker_port_dma_rings_fini(rocker_port);
@@ -3869,12 +4013,12 @@ static int rocker_port_stop(struct net_device *dev)
 	return 0;
 }
 
-static void rocker_tx_desc_frags_unmap(struct rocker_port *rocker_port,
-				       struct rocker_desc_info *desc_info)
+static void rocker_tx_desc_frags_unmap(const struct rocker_port *rocker_port,
+				       const struct rocker_desc_info *desc_info)
 {
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker *rocker = rocker_port->rocker;
 	struct pci_dev *pdev = rocker->pdev;
-	struct rocker_tlv *attrs[ROCKER_TLV_TX_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_TX_MAX + 1];
 	struct rocker_tlv *attr;
 	int rem;
 
@@ -3882,7 +4026,7 @@ static void rocker_tx_desc_frags_unmap(struct rocker_port *rocker_port,
 	if (!attrs[ROCKER_TLV_TX_FRAGS])
 		return;
 	rocker_tlv_for_each_nested(attr, attrs[ROCKER_TLV_TX_FRAGS], rem) {
-		struct rocker_tlv *frag_attrs[ROCKER_TLV_TX_FRAG_ATTR_MAX + 1];
+		const struct rocker_tlv *frag_attrs[ROCKER_TLV_TX_FRAG_ATTR_MAX + 1];
 		dma_addr_t dma_handle;
 		size_t len;
 
@@ -3899,11 +4043,11 @@ static void rocker_tx_desc_frags_unmap(struct rocker_port *rocker_port,
 	}
 }
 
-static int rocker_tx_desc_frag_map_put(struct rocker_port *rocker_port,
+static int rocker_tx_desc_frag_map_put(const struct rocker_port *rocker_port,
 				       struct rocker_desc_info *desc_info,
 				       char *buf, size_t buf_len)
 {
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker *rocker = rocker_port->rocker;
 	struct pci_dev *pdev = rocker->pdev;
 	dma_addr_t dma_handle;
 	struct rocker_tlv *frag;
@@ -4008,187 +4152,6 @@ static int rocker_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int rocker_port_vlan_rx_add_vid(struct net_device *dev,
-				       __be16 proto, u16 vid)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int err;
-
-	err = rocker_port_vlan(rocker_port, 0, vid);
-	if (err)
-		return err;
-
-	return rocker_port_router_mac(rocker_port, 0, htons(vid));
-}
-
-static int rocker_port_vlan_rx_kill_vid(struct net_device *dev,
-					__be16 proto, u16 vid)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int err;
-
-	err = rocker_port_router_mac(rocker_port, ROCKER_OP_FLAG_REMOVE,
-				     htons(vid));
-	if (err)
-		return err;
-
-	return rocker_port_vlan(rocker_port, ROCKER_OP_FLAG_REMOVE, vid);
-}
-
-static int rocker_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
-			       struct net_device *dev,
-			       const unsigned char *addr, u16 vid,
-			       u16 nlm_flags)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, vid, NULL);
-	int flags = 0;
-
-	if (!rocker_port_is_bridged(rocker_port))
-		return -EINVAL;
-
-	return rocker_port_fdb(rocker_port, addr, vlan_id, flags);
-}
-
-static int rocker_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
-			       struct net_device *dev,
-			       const unsigned char *addr, u16 vid)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, vid, NULL);
-	int flags = ROCKER_OP_FLAG_REMOVE;
-
-	if (!rocker_port_is_bridged(rocker_port))
-		return -EINVAL;
-
-	return rocker_port_fdb(rocker_port, addr, vlan_id, flags);
-}
-
-static int rocker_fdb_fill_info(struct sk_buff *skb,
-				struct rocker_port *rocker_port,
-				const unsigned char *addr, u16 vid,
-				u32 portid, u32 seq, int type,
-				unsigned int flags)
-{
-	struct nlmsghdr *nlh;
-	struct ndmsg *ndm;
-
-	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
-	if (!nlh)
-		return -EMSGSIZE;
-
-	ndm = nlmsg_data(nlh);
-	ndm->ndm_family	 = AF_BRIDGE;
-	ndm->ndm_pad1    = 0;
-	ndm->ndm_pad2    = 0;
-	ndm->ndm_flags	 = NTF_SELF;
-	ndm->ndm_type	 = 0;
-	ndm->ndm_ifindex = rocker_port->dev->ifindex;
-	ndm->ndm_state   = NUD_REACHABLE;
-
-	if (nla_put(skb, NDA_LLADDR, ETH_ALEN, addr))
-		goto nla_put_failure;
-
-	if (vid && nla_put_u16(skb, NDA_VLAN, vid))
-		goto nla_put_failure;
-
-	nlmsg_end(skb, nlh);
-	return 0;
-
-nla_put_failure:
-	nlmsg_cancel(skb, nlh);
-	return -EMSGSIZE;
-}
-
-static int rocker_port_fdb_dump(struct sk_buff *skb,
-				struct netlink_callback *cb,
-				struct net_device *dev,
-				struct net_device *filter_dev,
-				int idx)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	struct rocker *rocker = rocker_port->rocker;
-	struct rocker_fdb_tbl_entry *found;
-	struct hlist_node *tmp;
-	int bkt;
-	unsigned long lock_flags;
-	const unsigned char *addr;
-	u16 vid;
-	int err;
-
-	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
-	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
-		if (found->key.pport != rocker_port->pport)
-			continue;
-		if (idx < cb->args[0])
-			goto skip;
-		addr = found->key.addr;
-		vid = rocker_port_vlan_to_vid(rocker_port, found->key.vlan_id);
-		err = rocker_fdb_fill_info(skb, rocker_port, addr, vid,
-					   NETLINK_CB(cb->skb).portid,
-					   cb->nlh->nlmsg_seq,
-					   RTM_NEWNEIGH, NLM_F_MULTI);
-		if (err < 0)
-			break;
-skip:
-		++idx;
-	}
-	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
-	return idx;
-}
-
-static int rocker_port_bridge_setlink(struct net_device *dev,
-				      struct nlmsghdr *nlh, u16 flags)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	struct nlattr *protinfo;
-	struct nlattr *attr;
-	int err;
-
-	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg),
-				   IFLA_PROTINFO);
-	if (protinfo) {
-		attr = nla_find_nested(protinfo, IFLA_BRPORT_LEARNING);
-		if (attr) {
-			if (nla_len(attr) < sizeof(u8))
-				return -EINVAL;
-
-			if (nla_get_u8(attr))
-				rocker_port->brport_flags |= BR_LEARNING;
-			else
-				rocker_port->brport_flags &= ~BR_LEARNING;
-			err = rocker_port_set_learning(rocker_port);
-			if (err)
-				return err;
-		}
-		attr = nla_find_nested(protinfo, IFLA_BRPORT_LEARNING_SYNC);
-		if (attr) {
-			if (nla_len(attr) < sizeof(u8))
-				return -EINVAL;
-
-			if (nla_get_u8(attr))
-				rocker_port->brport_flags |= BR_LEARNING_SYNC;
-			else
-				rocker_port->brport_flags &= ~BR_LEARNING_SYNC;
-		}
-	}
-
-	return 0;
-}
-
-static int rocker_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-				      struct net_device *dev,
-				      u32 filter_mask, int nlflags)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	u16 mode = BRIDGE_MODE_UNDEF;
-	u32 mask = BR_LEARNING | BR_LEARNING_SYNC;
-
-	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode,
-				       rocker_port->brport_flags, mask,
-				       nlflags);
-}
-
 static int rocker_port_get_phys_port_name(struct net_device *dev,
 					  char *buf, size_t len)
 {
@@ -4196,10 +4159,10 @@ static int rocker_port_get_phys_port_name(struct net_device *dev,
 	struct port_name name = { .buf = buf, .len = len };
 	int err;
 
-	err = rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	err = rocker_cmd_exec(rocker_port, SWITCHDEV_TRANS_NONE, 0,
 			      rocker_cmd_get_port_settings_prep, NULL,
 			      rocker_cmd_get_port_settings_phys_name_proc,
-			      &name, false);
+			      &name);
 
 	return err ? -EOPNOTSUPP : 0;
 }
@@ -4209,13 +4172,12 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_stop			= rocker_port_stop,
 	.ndo_start_xmit			= rocker_port_xmit,
 	.ndo_set_mac_address		= rocker_port_set_mac_address,
-	.ndo_vlan_rx_add_vid		= rocker_port_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid		= rocker_port_vlan_rx_kill_vid,
-	.ndo_fdb_add			= rocker_port_fdb_add,
-	.ndo_fdb_del			= rocker_port_fdb_del,
-	.ndo_fdb_dump			= rocker_port_fdb_dump,
-	.ndo_bridge_setlink		= rocker_port_bridge_setlink,
-	.ndo_bridge_getlink		= rocker_port_bridge_getlink,
+	.ndo_bridge_getlink		= switchdev_port_bridge_getlink,
+	.ndo_bridge_setlink		= switchdev_port_bridge_setlink,
+	.ndo_bridge_dellink		= switchdev_port_bridge_dellink,
+	.ndo_fdb_add			= switchdev_port_fdb_add,
+	.ndo_fdb_del			= switchdev_port_fdb_del,
+	.ndo_fdb_dump			= switchdev_port_fdb_dump,
 	.ndo_get_phys_port_name		= rocker_port_get_phys_port_name,
 };
 
@@ -4223,54 +4185,326 @@ static const struct net_device_ops rocker_port_netdev_ops = {
  * swdev interface
  ********************/
 
-static int rocker_port_swdev_parent_id_get(struct net_device *dev,
-					   struct netdev_phys_item_id *psid)
+static int rocker_port_attr_get(struct net_device *dev,
+				struct switchdev_attr *attr)
 {
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker_port *rocker_port = netdev_priv(dev);
+	const struct rocker *rocker = rocker_port->rocker;
 
-	psid->id_len = sizeof(rocker->hw.id);
-	memcpy(&psid->id, &rocker->hw.id, psid->id_len);
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_PARENT_ID:
+		attr->u.ppid.id_len = sizeof(rocker->hw.id);
+		memcpy(&attr->u.ppid.id, &rocker->hw.id, attr->u.ppid.id_len);
+		break;
+	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+		attr->u.brport_flags = rocker_port->brport_flags;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
-static int rocker_port_swdev_port_stp_update(struct net_device *dev, u8 state)
+static void rocker_port_trans_abort(const struct rocker_port *rocker_port)
 {
-	struct rocker_port *rocker_port = netdev_priv(dev);
+	struct list_head *mem, *tmp;
 
-	return rocker_port_stp_update(rocker_port, state);
+	list_for_each_safe(mem, tmp, &rocker_port->trans_mem) {
+		list_del(mem);
+		kfree(mem);
+	}
 }
 
-static int rocker_port_swdev_fib_ipv4_add(struct net_device *dev,
-					  __be32 dst, int dst_len,
-					  struct fib_info *fi,
-					  u8 tos, u8 type,
-					  u32 nlflags, u32 tb_id)
+static int rocker_port_brport_flags_set(struct rocker_port *rocker_port,
+					enum switchdev_trans trans,
+					unsigned long brport_flags)
+{
+	unsigned long orig_flags;
+	int err = 0;
+
+	orig_flags = rocker_port->brport_flags;
+	rocker_port->brport_flags = brport_flags;
+	if ((orig_flags ^ rocker_port->brport_flags) & BR_LEARNING)
+		err = rocker_port_set_learning(rocker_port, trans);
+
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		rocker_port->brport_flags = orig_flags;
+
+	return err;
+}
+
+static int rocker_port_attr_set(struct net_device *dev,
+				struct switchdev_attr *attr)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
+	int err = 0;
+
+	switch (attr->trans) {
+	case SWITCHDEV_TRANS_PREPARE:
+		BUG_ON(!list_empty(&rocker_port->trans_mem));
+		break;
+	case SWITCHDEV_TRANS_ABORT:
+		rocker_port_trans_abort(rocker_port);
+		return 0;
+	default:
+		break;
+	}
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_STP_STATE:
+		err = rocker_port_stp_update(rocker_port, attr->trans,
+					     ROCKER_OP_FLAG_NOWAIT,
+					     attr->u.stp_state);
+		break;
+	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+		err = rocker_port_brport_flags_set(rocker_port, attr->trans,
+						   attr->u.brport_flags);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int rocker_port_vlan_add(struct rocker_port *rocker_port,
+				enum switchdev_trans trans, u16 vid, u16 flags)
+{
+	int err;
+
+	/* XXX deal with flags for PVID and untagged */
+
+	err = rocker_port_vlan(rocker_port, trans, 0, vid);
+	if (err)
+		return err;
+
+	err = rocker_port_router_mac(rocker_port, trans, 0, htons(vid));
+	if (err)
+		rocker_port_vlan(rocker_port, trans,
+				 ROCKER_OP_FLAG_REMOVE, vid);
+
+	return err;
+}
+
+static int rocker_port_vlans_add(struct rocker_port *rocker_port,
+				 enum switchdev_trans trans,
+				 const struct switchdev_obj_vlan *vlan)
+{
+	u16 vid;
+	int err;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		err = rocker_port_vlan_add(rocker_port, trans,
+					   vid, vlan->flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rocker_port_fdb_add(struct rocker_port *rocker_port,
+			       enum switchdev_trans trans,
+			       const struct switchdev_obj_fdb *fdb)
+{
+	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
 	int flags = 0;
 
-	return rocker_port_fib_ipv4(rocker_port, dst, dst_len,
-				    fi, tb_id, flags);
+	if (!rocker_port_is_bridged(rocker_port))
+		return -EINVAL;
+
+	return rocker_port_fdb(rocker_port, trans, fdb->addr, vlan_id, flags);
 }
 
-static int rocker_port_swdev_fib_ipv4_del(struct net_device *dev,
-					  __be32 dst, int dst_len,
-					  struct fib_info *fi,
-					  u8 tos, u8 type, u32 tb_id)
+static int rocker_port_obj_add(struct net_device *dev,
+			       struct switchdev_obj *obj)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = ROCKER_OP_FLAG_REMOVE;
+	const struct switchdev_obj_ipv4_fib *fib4;
+	int err = 0;
 
-	return rocker_port_fib_ipv4(rocker_port, dst, dst_len,
-				    fi, tb_id, flags);
+	switch (obj->trans) {
+	case SWITCHDEV_TRANS_PREPARE:
+		BUG_ON(!list_empty(&rocker_port->trans_mem));
+		break;
+	case SWITCHDEV_TRANS_ABORT:
+		rocker_port_trans_abort(rocker_port);
+		return 0;
+	default:
+		break;
+	}
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_PORT_VLAN:
+		err = rocker_port_vlans_add(rocker_port, obj->trans,
+					    &obj->u.vlan);
+		break;
+	case SWITCHDEV_OBJ_IPV4_FIB:
+		fib4 = &obj->u.ipv4_fib;
+		err = rocker_port_fib_ipv4(rocker_port, obj->trans,
+					   htonl(fib4->dst), fib4->dst_len,
+					   fib4->fi, fib4->tb_id, 0);
+		break;
+	case SWITCHDEV_OBJ_PORT_FDB:
+		err = rocker_port_fdb_add(rocker_port, obj->trans, &obj->u.fdb);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
 }
 
-static const struct swdev_ops rocker_port_swdev_ops = {
-	.swdev_parent_id_get		= rocker_port_swdev_parent_id_get,
-	.swdev_port_stp_update		= rocker_port_swdev_port_stp_update,
-	.swdev_fib_ipv4_add		= rocker_port_swdev_fib_ipv4_add,
-	.swdev_fib_ipv4_del		= rocker_port_swdev_fib_ipv4_del,
+static int rocker_port_vlan_del(struct rocker_port *rocker_port,
+				u16 vid, u16 flags)
+{
+	int err;
+
+	err = rocker_port_router_mac(rocker_port, SWITCHDEV_TRANS_NONE,
+				     ROCKER_OP_FLAG_REMOVE, htons(vid));
+	if (err)
+		return err;
+
+	return rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE,
+				ROCKER_OP_FLAG_REMOVE, vid);
+}
+
+static int rocker_port_vlans_del(struct rocker_port *rocker_port,
+				 const struct switchdev_obj_vlan *vlan)
+{
+	u16 vid;
+	int err;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		err = rocker_port_vlan_del(rocker_port, vid, vlan->flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rocker_port_fdb_del(struct rocker_port *rocker_port,
+			       enum switchdev_trans trans,
+			       const struct switchdev_obj_fdb *fdb)
+{
+	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
+	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE;
+
+	if (!rocker_port_is_bridged(rocker_port))
+		return -EINVAL;
+
+	return rocker_port_fdb(rocker_port, trans, fdb->addr, vlan_id, flags);
+}
+
+static int rocker_port_obj_del(struct net_device *dev,
+			       struct switchdev_obj *obj)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	const struct switchdev_obj_ipv4_fib *fib4;
+	int err = 0;
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_PORT_VLAN:
+		err = rocker_port_vlans_del(rocker_port, &obj->u.vlan);
+		break;
+	case SWITCHDEV_OBJ_IPV4_FIB:
+		fib4 = &obj->u.ipv4_fib;
+		err = rocker_port_fib_ipv4(rocker_port, SWITCHDEV_TRANS_NONE,
+					   htonl(fib4->dst), fib4->dst_len,
+					   fib4->fi, fib4->tb_id,
+					   ROCKER_OP_FLAG_REMOVE);
+		break;
+	case SWITCHDEV_OBJ_PORT_FDB:
+		err = rocker_port_fdb_del(rocker_port, obj->trans, &obj->u.fdb);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
+				struct switchdev_obj *obj)
+{
+	struct rocker *rocker = rocker_port->rocker;
+	struct switchdev_obj_fdb *fdb = &obj->u.fdb;
+	struct rocker_fdb_tbl_entry *found;
+	struct hlist_node *tmp;
+	unsigned long lock_flags;
+	int bkt;
+	int err = 0;
+
+	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
+	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
+		if (found->key.pport != rocker_port->pport)
+			continue;
+		fdb->addr = found->key.addr;
+		fdb->vid = rocker_port_vlan_to_vid(rocker_port,
+						   found->key.vlan_id);
+		err = obj->cb(rocker_port->dev, obj);
+		if (err)
+			break;
+	}
+	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
+
+	return err;
+}
+
+static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
+				 struct switchdev_obj *obj)
+{
+	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
+	u16 vid;
+	int err = 0;
+
+	for (vid = 1; vid < VLAN_N_VID; vid++) {
+		if (!test_bit(vid, rocker_port->vlan_bitmap))
+			continue;
+		vlan->flags = 0;
+		if (rocker_vlan_id_is_internal(htons(vid)))
+			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
+		vlan->vid_begin = vlan->vid_end = vid;
+		err = obj->cb(rocker_port->dev, obj);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int rocker_port_obj_dump(struct net_device *dev,
+				struct switchdev_obj *obj)
+{
+	const struct rocker_port *rocker_port = netdev_priv(dev);
+	int err = 0;
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_PORT_FDB:
+		err = rocker_port_fdb_dump(rocker_port, obj);
+		break;
+	case SWITCHDEV_OBJ_PORT_VLAN:
+		err = rocker_port_vlan_dump(rocker_port, obj);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static const struct switchdev_ops rocker_port_switchdev_ops = {
+	.switchdev_port_attr_get	= rocker_port_attr_get,
+	.switchdev_port_attr_set	= rocker_port_attr_set,
+	.switchdev_port_obj_add		= rocker_port_obj_add,
+	.switchdev_port_obj_del		= rocker_port_obj_del,
+	.switchdev_port_obj_dump	= rocker_port_obj_dump,
 };
 
 /********************
@@ -4334,8 +4568,7 @@ static void rocker_port_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static int
-rocker_cmd_get_port_stats_prep(struct rocker *rocker,
-			       struct rocker_port *rocker_port,
+rocker_cmd_get_port_stats_prep(const struct rocker_port *rocker_port,
 			       struct rocker_desc_info *desc_info,
 			       void *priv)
 {
@@ -4359,14 +4592,13 @@ rocker_cmd_get_port_stats_prep(struct rocker *rocker,
 }
 
 static int
-rocker_cmd_get_port_stats_ethtool_proc(struct rocker *rocker,
-				       struct rocker_port *rocker_port,
-				       struct rocker_desc_info *desc_info,
+rocker_cmd_get_port_stats_ethtool_proc(const struct rocker_port *rocker_port,
+				       const struct rocker_desc_info *desc_info,
 				       void *priv)
 {
-	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
-	struct rocker_tlv *stats_attrs[ROCKER_TLV_CMD_PORT_STATS_MAX + 1];
-	struct rocker_tlv *pattr;
+	const struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	const struct rocker_tlv *stats_attrs[ROCKER_TLV_CMD_PORT_STATS_MAX + 1];
+	const struct rocker_tlv *pattr;
 	u32 pport;
 	u64 *data = priv;
 	int i;
@@ -4400,10 +4632,10 @@ rocker_cmd_get_port_stats_ethtool_proc(struct rocker *rocker,
 static int rocker_cmd_get_port_stats_ethtool(struct rocker_port *rocker_port,
 					     void *priv)
 {
-	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+	return rocker_cmd_exec(rocker_port, SWITCHDEV_TRANS_NONE, 0,
 			       rocker_cmd_get_port_stats_prep, NULL,
 			       rocker_cmd_get_port_stats_ethtool_proc,
-			       priv, false);
+			       priv);
 }
 
 static void rocker_port_get_stats(struct net_device *dev,
@@ -4417,8 +4649,6 @@ static void rocker_port_get_stats(struct net_device *dev,
 		for (i = 0; i < ARRAY_SIZE(rocker_port_stats); ++i)
 			data[i] = 0;
 	}
-
-	return;
 }
 
 static int rocker_port_get_sset_count(struct net_device *netdev, int sset)
@@ -4453,8 +4683,8 @@ static struct rocker_port *rocker_port_napi_tx_get(struct napi_struct *napi)
 static int rocker_port_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct rocker_port *rocker_port = rocker_port_napi_tx_get(napi);
-	struct rocker *rocker = rocker_port->rocker;
-	struct rocker_desc_info *desc_info;
+	const struct rocker *rocker = rocker_port->rocker;
+	const struct rocker_desc_info *desc_info;
 	u32 credits = 0;
 	int err;
 
@@ -4472,8 +4702,9 @@ static int rocker_port_poll_tx(struct napi_struct *napi, int budget)
 		if (err == 0) {
 			rocker_port->dev->stats.tx_packets++;
 			rocker_port->dev->stats.tx_bytes += skb->len;
-		} else
+		} else {
 			rocker_port->dev->stats.tx_errors++;
+		}
 
 		dev_kfree_skb_any(skb);
 		credits++;
@@ -4488,11 +4719,11 @@ static int rocker_port_poll_tx(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static int rocker_port_rx_proc(struct rocker *rocker,
-			       struct rocker_port *rocker_port,
+static int rocker_port_rx_proc(const struct rocker *rocker,
+			       const struct rocker_port *rocker_port,
 			       struct rocker_desc_info *desc_info)
 {
-	struct rocker_tlv *attrs[ROCKER_TLV_RX_MAX + 1];
+	const struct rocker_tlv *attrs[ROCKER_TLV_RX_MAX + 1];
 	struct sk_buff *skb = rocker_desc_cookie_ptr_get(desc_info);
 	size_t rx_len;
 
@@ -4514,7 +4745,7 @@ static int rocker_port_rx_proc(struct rocker *rocker,
 
 	netif_receive_skb(skb);
 
-	return rocker_dma_rx_ring_skb_alloc(rocker, rocker_port, desc_info);
+	return rocker_dma_rx_ring_skb_alloc(rocker_port, desc_info);
 }
 
 static struct rocker_port *rocker_port_napi_rx_get(struct napi_struct *napi)
@@ -4525,7 +4756,7 @@ static struct rocker_port *rocker_port_napi_rx_get(struct napi_struct *napi)
 static int rocker_port_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct rocker_port *rocker_port = rocker_port_napi_rx_get(napi);
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker *rocker = rocker_port->rocker;
 	struct rocker_desc_info *desc_info;
 	u32 credits = 0;
 	int err;
@@ -4565,9 +4796,9 @@ static int rocker_port_poll_rx(struct napi_struct *napi, int budget)
  * PCI driver ops
  *****************/
 
-static void rocker_carrier_init(struct rocker_port *rocker_port)
+static void rocker_carrier_init(const struct rocker_port *rocker_port)
 {
-	struct rocker *rocker = rocker_port->rocker;
+	const struct rocker *rocker = rocker_port->rocker;
 	u64 link_status = rocker_read64(rocker, PORT_PHYS_LINK_STATUS);
 	bool link_up;
 
@@ -4578,23 +4809,27 @@ static void rocker_carrier_init(struct rocker_port *rocker_port)
 		netif_carrier_off(rocker_port->dev);
 }
 
-static void rocker_remove_ports(struct rocker *rocker)
+static void rocker_remove_ports(const struct rocker *rocker)
 {
 	struct rocker_port *rocker_port;
 	int i;
 
 	for (i = 0; i < rocker->port_count; i++) {
 		rocker_port = rocker->ports[i];
-		rocker_port_ig_tbl(rocker_port, ROCKER_OP_FLAG_REMOVE);
+		if (!rocker_port)
+			continue;
+		rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE,
+				   ROCKER_OP_FLAG_REMOVE);
 		unregister_netdev(rocker_port->dev);
+		free_netdev(rocker_port->dev);
 	}
 	kfree(rocker->ports);
 }
 
-static void rocker_port_dev_addr_init(struct rocker *rocker,
-				      struct rocker_port *rocker_port)
+static void rocker_port_dev_addr_init(struct rocker_port *rocker_port)
 {
-	struct pci_dev *pdev = rocker->pdev;
+	const struct rocker *rocker = rocker_port->rocker;
+	const struct pci_dev *pdev = rocker->pdev;
 	int err;
 
 	err = rocker_cmd_get_port_settings_macaddr(rocker_port,
@@ -4607,9 +4842,10 @@ static void rocker_port_dev_addr_init(struct rocker *rocker,
 
 static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 {
-	struct pci_dev *pdev = rocker->pdev;
+	const struct pci_dev *pdev = rocker->pdev;
 	struct rocker_port *rocker_port;
 	struct net_device *dev;
+	u16 untagged_vid = 0;
 	int err;
 
 	dev = alloc_etherdev(sizeof(struct rocker_port));
@@ -4621,20 +4857,19 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port->port_number = port_number;
 	rocker_port->pport = port_number + 1;
 	rocker_port->brport_flags = BR_LEARNING | BR_LEARNING_SYNC;
+	INIT_LIST_HEAD(&rocker_port->trans_mem);
 
-	rocker_port_dev_addr_init(rocker, rocker_port);
+	rocker_port_dev_addr_init(rocker_port);
 	dev->netdev_ops = &rocker_port_netdev_ops;
 	dev->ethtool_ops = &rocker_port_ethtool_ops;
-	dev->swdev_ops = &rocker_port_swdev_ops;
+	dev->switchdev_ops = &rocker_port_switchdev_ops;
 	netif_napi_add(dev, &rocker_port->napi_tx, rocker_port_poll_tx,
 		       NAPI_POLL_WEIGHT);
 	netif_napi_add(dev, &rocker_port->napi_rx, rocker_port_poll_rx,
 		       NAPI_POLL_WEIGHT);
 	rocker_carrier_init(rocker_port);
 
-	dev->features |= NETIF_F_NETNS_LOCAL |
-			 NETIF_F_HW_VLAN_CTAG_FILTER |
-			 NETIF_F_HW_SWITCH_OFFLOAD;
+	dev->features |= NETIF_F_NETNS_LOCAL;
 
 	err = register_netdev(dev);
 	if (err) {
@@ -4643,18 +4878,29 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	}
 	rocker->ports[port_number] = rocker_port;
 
-	rocker_port_set_learning(rocker_port);
+	rocker_port_set_learning(rocker_port, SWITCHDEV_TRANS_NONE);
 
-	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port, dev->ifindex);
-	err = rocker_port_ig_tbl(rocker_port, 0);
+	err = rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE, 0);
 	if (err) {
 		dev_err(&pdev->dev, "install ig port table failed\n");
 		goto err_port_ig_tbl;
 	}
 
+	rocker_port->internal_vlan_id =
+		rocker_port_internal_vlan_id_get(rocker_port, dev->ifindex);
+
+	err = rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
+				   untagged_vid, 0);
+	if (err) {
+		netdev_err(rocker_port->dev, "install untagged VLAN failed\n");
+		goto err_untagged_vlan;
+	}
+
 	return 0;
 
+err_untagged_vlan:
+	rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE,
+			   ROCKER_OP_FLAG_REMOVE);
 err_port_ig_tbl:
 	unregister_netdev(dev);
 err_register_netdev:
@@ -4669,7 +4915,7 @@ static int rocker_probe_ports(struct rocker *rocker)
 	int err;
 
 	alloc_size = sizeof(struct rocker_port *) * rocker->port_count;
-	rocker->ports = kmalloc(alloc_size, GFP_KERNEL);
+	rocker->ports = kzalloc(alloc_size, GFP_KERNEL);
 	if (!rocker->ports)
 		return -ENOMEM;
 	for (i = 0; i < rocker->port_count; i++) {
@@ -4718,7 +4964,7 @@ err_enable_msix:
 	return err;
 }
 
-static void rocker_msix_fini(struct rocker *rocker)
+static void rocker_msix_fini(const struct rocker *rocker)
 {
 	pci_disable_msix(rocker->pdev);
 	kfree(rocker->msix_entries);
@@ -4884,7 +5130,7 @@ static struct pci_driver rocker_pci_driver = {
  * Net device notifier event handler
  ************************************/
 
-static bool rocker_port_dev_check(struct net_device *dev)
+static bool rocker_port_dev_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &rocker_port_netdev_ops;
 }
@@ -4892,45 +5138,55 @@ static bool rocker_port_dev_check(struct net_device *dev)
 static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 				   struct net_device *bridge)
 {
+	u16 untagged_vid = 0;
 	int err;
+
+	/* Port is joining bridge, so the internal VLAN for the
+	 * port is going to change to the bridge internal VLAN.
+	 * Let's remove untagged VLAN (vid=0) from port and
+	 * re-add once internal VLAN has changed.
+	 */
+
+	err = rocker_port_vlan_del(rocker_port, untagged_vid, 0);
+	if (err)
+		return err;
 
 	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->dev->ifindex);
+	rocker_port->internal_vlan_id =
+		rocker_port_internal_vlan_id_get(rocker_port, bridge->ifindex);
 
 	rocker_port->bridge_dev = bridge;
 
-	/* Use bridge internal VLAN ID for untagged pkts */
-	err = rocker_port_vlan(rocker_port, ROCKER_OP_FLAG_REMOVE, 0);
-	if (err)
-		return err;
-	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port,
-						 bridge->ifindex);
-	return rocker_port_vlan(rocker_port, 0, 0);
+	return rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
+				    untagged_vid, 0);
 }
 
 static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 {
+	u16 untagged_vid = 0;
 	int err;
+
+	err = rocker_port_vlan_del(rocker_port, untagged_vid, 0);
+	if (err)
+		return err;
 
 	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->bridge_dev->ifindex);
-
-	rocker_port->bridge_dev = NULL;
-
-	/* Use port internal VLAN ID for untagged pkts */
-	err = rocker_port_vlan(rocker_port, ROCKER_OP_FLAG_REMOVE, 0);
-	if (err)
-		return err;
 	rocker_port->internal_vlan_id =
 		rocker_port_internal_vlan_id_get(rocker_port,
 						 rocker_port->dev->ifindex);
-	err = rocker_port_vlan(rocker_port, 0, 0);
+
+	rocker_port->bridge_dev = NULL;
+
+	err = rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
+				   untagged_vid, 0);
 	if (err)
 		return err;
 
 	if (rocker_port->dev->flags & IFF_UP)
-		err = rocker_port_fwd_enable(rocker_port);
+		err = rocker_port_fwd_enable(rocker_port,
+					     SWITCHDEV_TRANS_NONE, 0);
 
 	return err;
 }
@@ -4989,10 +5245,12 @@ static struct notifier_block rocker_netdevice_nb __read_mostly = {
 static int rocker_neigh_update(struct net_device *dev, struct neighbour *n)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = (n->nud_state & NUD_VALID) ? 0 : ROCKER_OP_FLAG_REMOVE;
+	int flags = (n->nud_state & NUD_VALID ? 0 : ROCKER_OP_FLAG_REMOVE) |
+		    ROCKER_OP_FLAG_NOWAIT;
 	__be32 ip_addr = *(__be32 *)n->primary_key;
 
-	return rocker_port_ipv4_neigh(rocker_port, flags, ip_addr, n->ha);
+	return rocker_port_ipv4_neigh(rocker_port, SWITCHDEV_TRANS_NONE,
+				      flags, ip_addr, n->ha);
 }
 
 static int rocker_netevent_event(struct notifier_block *unused,
@@ -5040,7 +5298,7 @@ static int __init rocker_module_init(void)
 	return 0;
 
 err_pci_register_driver:
-	unregister_netdevice_notifier(&rocker_netevent_nb);
+	unregister_netevent_notifier(&rocker_netevent_nb);
 	unregister_netdevice_notifier(&rocker_netdevice_nb);
 	return err;
 }

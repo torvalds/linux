@@ -99,7 +99,6 @@ struct ib_umad_port {
 };
 
 struct ib_umad_device {
-	int                  start_port, end_port;
 	struct kobject       kobj;
 	struct ib_umad_port  port[0];
 };
@@ -263,20 +262,23 @@ static ssize_t copy_recv_mad(struct ib_umad_file *file, char __user *buf,
 {
 	struct ib_mad_recv_buf *recv_buf;
 	int left, seg_payload, offset, max_seg_payload;
+	size_t seg_size;
+
+	recv_buf = &packet->recv_wc->recv_buf;
+	seg_size = packet->recv_wc->mad_seg_size;
 
 	/* We need enough room to copy the first (or only) MAD segment. */
-	recv_buf = &packet->recv_wc->recv_buf;
-	if ((packet->length <= sizeof (*recv_buf->mad) &&
+	if ((packet->length <= seg_size &&
 	     count < hdr_size(file) + packet->length) ||
-	    (packet->length > sizeof (*recv_buf->mad) &&
-	     count < hdr_size(file) + sizeof (*recv_buf->mad)))
+	    (packet->length > seg_size &&
+	     count < hdr_size(file) + seg_size))
 		return -EINVAL;
 
 	if (copy_to_user(buf, &packet->mad, hdr_size(file)))
 		return -EFAULT;
 
 	buf += hdr_size(file);
-	seg_payload = min_t(int, packet->length, sizeof (*recv_buf->mad));
+	seg_payload = min_t(int, packet->length, seg_size);
 	if (copy_to_user(buf, recv_buf->mad, seg_payload))
 		return -EFAULT;
 
@@ -293,7 +295,7 @@ static ssize_t copy_recv_mad(struct ib_umad_file *file, char __user *buf,
 			return -ENOSPC;
 		}
 		offset = ib_get_mad_data_offset(recv_buf->mad->mad_hdr.mgmt_class);
-		max_seg_payload = sizeof (struct ib_mad) - offset;
+		max_seg_payload = seg_size - offset;
 
 		for (left = packet->length - seg_payload, buf += seg_payload;
 		     left; left -= seg_payload, buf += seg_payload) {
@@ -426,11 +428,11 @@ static int is_duplicate(struct ib_umad_file *file,
 		 * the same TID, reject the second as a duplicate.  This is more
 		 * restrictive than required by the spec.
 		 */
-		if (!ib_response_mad((struct ib_mad *) hdr)) {
-			if (!ib_response_mad((struct ib_mad *) sent_hdr))
+		if (!ib_response_mad(hdr)) {
+			if (!ib_response_mad(sent_hdr))
 				return 1;
 			continue;
-		} else if (!ib_response_mad((struct ib_mad *) sent_hdr))
+		} else if (!ib_response_mad(sent_hdr))
 			continue;
 
 		if (same_destination(&packet->mad.hdr, &sent_packet->mad.hdr))
@@ -451,6 +453,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_rmpp_mad *rmpp_mad;
 	__be64 *tid;
 	int ret, data_len, hdr_len, copy_offset, rmpp_active;
+	u8 base_version;
 
 	if (count < hdr_size(file) + IB_MGMT_RMPP_HDR)
 		return -EINVAL;
@@ -517,11 +520,13 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		rmpp_active = 0;
 	}
 
+	base_version = ((struct ib_mad_hdr *)&packet->mad.data)->base_version;
 	data_len = count - hdr_size(file) - hdr_len;
 	packet->msg = ib_create_send_mad(agent,
 					 be32_to_cpu(packet->mad.hdr.qpn),
 					 packet->mad.hdr.pkey_index, rmpp_active,
-					 hdr_len, data_len, GFP_KERNEL);
+					 hdr_len, data_len, GFP_KERNEL,
+					 base_version);
 	if (IS_ERR(packet->msg)) {
 		ret = PTR_ERR(packet->msg);
 		goto err_ah;
@@ -1273,16 +1278,10 @@ static void ib_umad_add_one(struct ib_device *device)
 {
 	struct ib_umad_device *umad_dev;
 	int s, e, i;
+	int count = 0;
 
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
-
-	if (device->node_type == RDMA_NODE_IB_SWITCH)
-		s = e = 0;
-	else {
-		s = 1;
-		e = device->phys_port_cnt;
-	}
+	s = rdma_start_port(device);
+	e = rdma_end_port(device);
 
 	umad_dev = kzalloc(sizeof *umad_dev +
 			   (e - s + 1) * sizeof (struct ib_umad_port),
@@ -1292,25 +1291,34 @@ static void ib_umad_add_one(struct ib_device *device)
 
 	kobject_init(&umad_dev->kobj, &ib_umad_dev_ktype);
 
-	umad_dev->start_port = s;
-	umad_dev->end_port   = e;
-
 	for (i = s; i <= e; ++i) {
+		if (!rdma_cap_ib_mad(device, i))
+			continue;
+
 		umad_dev->port[i - s].umad_dev = umad_dev;
 
 		if (ib_umad_init_port(device, i, umad_dev,
 				      &umad_dev->port[i - s]))
 			goto err;
+
+		count++;
 	}
+
+	if (!count)
+		goto free;
 
 	ib_set_client_data(device, &umad_client, umad_dev);
 
 	return;
 
 err:
-	while (--i >= s)
-		ib_umad_kill_port(&umad_dev->port[i - s]);
+	while (--i >= s) {
+		if (!rdma_cap_ib_mad(device, i))
+			continue;
 
+		ib_umad_kill_port(&umad_dev->port[i - s]);
+	}
+free:
 	kobject_put(&umad_dev->kobj);
 }
 
@@ -1322,8 +1330,10 @@ static void ib_umad_remove_one(struct ib_device *device)
 	if (!umad_dev)
 		return;
 
-	for (i = 0; i <= umad_dev->end_port - umad_dev->start_port; ++i)
-		ib_umad_kill_port(&umad_dev->port[i]);
+	for (i = 0; i <= rdma_end_port(device) - rdma_start_port(device); ++i) {
+		if (rdma_cap_ib_mad(device, i + rdma_start_port(device)))
+			ib_umad_kill_port(&umad_dev->port[i]);
+	}
 
 	kobject_put(&umad_dev->kobj);
 }

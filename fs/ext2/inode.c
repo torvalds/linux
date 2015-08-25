@@ -1403,6 +1403,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 			inode->i_mapping->a_ops = &ext2_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (ext2_inode_is_fast_symlink(inode)) {
+			inode->i_link = (char *)ei->i_data;
 			inode->i_op = &ext2_fast_symlink_inode_operations;
 			nd_terminate_link(ei->i_data, inode->i_size,
 				sizeof(ei->i_data) - 1);

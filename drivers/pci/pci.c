@@ -3101,39 +3101,6 @@ bool pci_check_and_unmask_intx(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_check_and_unmask_intx);
 
-/**
- * pci_msi_off - disables any MSI or MSI-X capabilities
- * @dev: the PCI device to operate on
- *
- * If you want to use MSI, see pci_enable_msi() and friends.
- * This is a lower-level primitive that allows us to disable
- * MSI operation at the device level.
- */
-void pci_msi_off(struct pci_dev *dev)
-{
-	int pos;
-	u16 control;
-
-	/*
-	 * This looks like it could go in msi.c, but we need it even when
-	 * CONFIG_PCI_MSI=n.  For the same reason, we can't use
-	 * dev->msi_cap or dev->msix_cap here.
-	 */
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
-		control &= ~PCI_MSI_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
-	}
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
-		control &= ~PCI_MSIX_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
-	}
-}
-EXPORT_SYMBOL_GPL(pci_msi_off);
-
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
 	return dma_set_max_seg_size(&dev->dev, size);
@@ -4323,6 +4290,17 @@ bool pci_device_is_present(struct pci_dev *pdev)
 	return pci_bus_read_dev_vendor_id(pdev->bus, pdev->devfn, &v, 0);
 }
 EXPORT_SYMBOL_GPL(pci_device_is_present);
+
+void pci_ignore_hotplug(struct pci_dev *dev)
+{
+	struct pci_dev *bridge = dev->bus->self;
+
+	dev->ignore_hotplug = 1;
+	/* Propagate the "ignore hotplug" setting to the parent bridge. */
+	if (bridge)
+		bridge->ignore_hotplug = 1;
+}
+EXPORT_SYMBOL_GPL(pci_ignore_hotplug);
 
 #define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
 static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};

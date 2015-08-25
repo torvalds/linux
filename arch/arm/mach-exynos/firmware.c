@@ -49,6 +49,7 @@ static int exynos_do_idle(unsigned long mode)
 			     sysram_ns_base_addr + 0x24);
 		__raw_writel(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
 		if (soc_is_exynos3250()) {
+			flush_cache_all();
 			exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
 				   SMC_POWERSTATE_IDLE, 0);
 			exynos_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CLUSTER,
@@ -104,6 +105,22 @@ static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 	return 0;
 }
 
+static int exynos_get_cpu_boot_addr(int cpu, unsigned long *boot_addr)
+{
+	void __iomem *boot_reg;
+
+	if (!sysram_ns_base_addr)
+		return -ENODEV;
+
+	boot_reg = sysram_ns_base_addr + 0x1c;
+
+	if (soc_is_exynos4412())
+		boot_reg += 4 * cpu;
+
+	*boot_addr = __raw_readl(boot_reg);
+	return 0;
+}
+
 static int exynos_cpu_suspend(unsigned long arg)
 {
 	flush_cache_all();
@@ -138,6 +155,7 @@ static int exynos_resume(void)
 static const struct firmware_ops exynos_firmware_ops = {
 	.do_idle		= IS_ENABLED(CONFIG_EXYNOS_CPU_SUSPEND) ? exynos_do_idle : NULL,
 	.set_cpu_boot_addr	= exynos_set_cpu_boot_addr,
+	.get_cpu_boot_addr	= exynos_get_cpu_boot_addr,
 	.cpu_boot		= exynos_cpu_boot,
 	.suspend		= IS_ENABLED(CONFIG_PM_SLEEP) ? exynos_suspend : NULL,
 	.resume			= IS_ENABLED(CONFIG_EXYNOS_CPU_SUSPEND) ? exynos_resume : NULL,

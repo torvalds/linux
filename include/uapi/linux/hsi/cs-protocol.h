@@ -76,6 +76,15 @@ struct cs_buffer_config {
 };
 
 /*
+ * struct for monotonic timestamp taken when the
+ * last control command was received
+ */
+struct cs_timestamp {
+	__u32 tv_sec;  /* seconds */
+	__u32 tv_nsec; /* nanoseconds */
+};
+
+/*
  * Struct describing the layout and contents of the driver mmap area.
  * This information is meant as read-only information for the application.
  */
@@ -91,11 +100,8 @@ struct cs_mmap_config_block {
 	__u32 rx_ptr;
 	__u32 rx_ptr_boundary;
 	__u32 reserved3[2];
-	/*
-	 * if enabled with CS_FEAT_TSTAMP_RX_CTRL, monotonic
-	 * timestamp taken when the last control command was received
-	 */
-	struct timespec tstamp_rx_ctrl;
+	/* enabled with CS_FEAT_TSTAMP_RX_CTRL */
+	struct cs_timestamp tstamp_rx_ctrl;
 };
 
 #define CS_IO_MAGIC		'C'

@@ -615,8 +615,15 @@ static struct rtnl_link_stats64 *enic_get_stats(struct net_device *netdev,
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_stats *stats;
+	int err;
 
-	enic_dev_stats_dump(enic, &stats);
+	err = enic_dev_stats_dump(enic, &stats);
+	/* return only when pci_zalloc_consistent fails in vnic_dev_stats_dump
+	 * For other failures, like devcmd failure, we return previously
+	 * recorded stats.
+	 */
+	if (err == -ENOMEM)
+		return net_stats;
 
 	net_stats->tx_packets = stats->tx.tx_frames_ok;
 	net_stats->tx_bytes = stats->tx.tx_bytes_ok;
@@ -1163,7 +1170,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 						 wq_work_done,
 						 0 /* dont unmask intr */,
 						 0 /* dont reset intr timer */);
-		return rq_work_done;
+		return budget;
 	}
 
 	if (budget > 0)
@@ -1184,6 +1191,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 			0 /* don't reset intr timer */);
 
 	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
 
 	/* Buffer allocation failed. Stay in polling
 	 * mode so we can try to fill the ring again.
@@ -1201,7 +1209,6 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 		vnic_intr_unmask(&enic->intr[intr]);
 	}
-	enic_poll_unlock_napi(&enic->rq[cq_rq]);
 
 	return rq_work_done;
 }
@@ -1407,6 +1414,7 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 		 */
 		enic_calc_int_moderation(enic, &enic->rq[rq]);
 
+	enic_poll_unlock_napi(&enic->rq[rq], napi);
 	if (work_done < work_to_do) {
 
 		/* Some work done, but not enough to stay in polling,
@@ -1418,7 +1426,6 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 			enic_set_int_moderation(enic, &enic->rq[rq]);
 		vnic_intr_unmask(&enic->intr[intr]);
 	}
-	enic_poll_unlock_napi(&enic->rq[rq]);
 
 	return work_done;
 }

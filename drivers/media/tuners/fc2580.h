@@ -21,32 +21,26 @@
 #ifndef FC2580_H
 #define FC2580_H
 
-#include <linux/kconfig.h>
 #include "dvb_frontend.h"
+#include <media/v4l2-subdev.h>
+#include <linux/i2c.h>
 
-struct fc2580_config {
-	/*
-	 * I2C address
-	 * 0x56, ...
-	 */
-	u8 i2c_addr;
+/*
+ * I2C address
+ * 0x56, ...
+ */
 
-	/*
-	 * clock
-	 */
-	u32 clock;
+/**
+ * struct fc2580_platform_data - Platform data for the fc2580 driver
+ * @clk: Clock frequency (0 = internal clock).
+ * @dvb_frontend: DVB frontend.
+ * @get_v4l2_subdev: Get V4L2 subdev.
+ */
+struct fc2580_platform_data {
+	u32 clk;
+	struct dvb_frontend *dvb_frontend;
+
+	struct v4l2_subdev* (*get_v4l2_subdev)(struct i2c_client *);
 };
-
-#if IS_REACHABLE(CONFIG_MEDIA_TUNER_FC2580)
-extern struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct fc2580_config *cfg);
-#else
-static inline struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct fc2580_config *cfg)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
 
 #endif

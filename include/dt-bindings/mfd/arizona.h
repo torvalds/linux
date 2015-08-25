@@ -90,4 +90,22 @@
 #define ARIZONA_INMODE_SE   1
 #define ARIZONA_INMODE_DMIC 2
 
+#define ARIZONA_MICD_TIME_CONTINUOUS                 0
+#define ARIZONA_MICD_TIME_250US                      1
+#define ARIZONA_MICD_TIME_500US                      2
+#define ARIZONA_MICD_TIME_1MS                        3
+#define ARIZONA_MICD_TIME_2MS                        4
+#define ARIZONA_MICD_TIME_4MS                        5
+#define ARIZONA_MICD_TIME_8MS                        6
+#define ARIZONA_MICD_TIME_16MS                       7
+#define ARIZONA_MICD_TIME_32MS                       8
+#define ARIZONA_MICD_TIME_64MS                       9
+#define ARIZONA_MICD_TIME_128MS                      10
+#define ARIZONA_MICD_TIME_256MS                      11
+#define ARIZONA_MICD_TIME_512MS                      12
+
+#define ARIZONA_ACCDET_MODE_MIC 0
+#define ARIZONA_ACCDET_MODE_HPL 1
+#define ARIZONA_ACCDET_MODE_HPR 2
+
 #endif

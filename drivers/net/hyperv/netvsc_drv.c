@@ -46,6 +46,8 @@ static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
+static int max_num_vrss_chns = 8;
+
 static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 				NETIF_MSG_LINK | NETIF_MSG_IFUP |
 				NETIF_MSG_IFDOWN | NETIF_MSG_RX_ERR |
@@ -196,12 +198,12 @@ static bool netvsc_set_hash(u32 *hash, struct sk_buff *skb)
 	struct flow_keys flow;
 	int data_len;
 
-	if (!skb_flow_dissect(skb, &flow) ||
-	    !(flow.n_proto == htons(ETH_P_IP) ||
-	      flow.n_proto == htons(ETH_P_IPV6)))
+	if (!skb_flow_dissect_flow_keys(skb, &flow) ||
+	    !(flow.basic.n_proto == htons(ETH_P_IP) ||
+	      flow.basic.n_proto == htons(ETH_P_IPV6)))
 		return false;
 
-	if (flow.ip_proto == IPPROTO_TCP)
+	if (flow.basic.ip_proto == IPPROTO_TCP)
 		data_len = 12;
 	else
 		data_len = 8;
@@ -391,7 +393,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 skb_length;
 	u32 pkt_sz;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
-
+	struct netvsc_stats *tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
 
 	/* We will atmost need two pages to describe the rndis
 	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
@@ -580,8 +582,10 @@ do_send:
 
 drop:
 	if (ret == 0) {
-		net->stats.tx_bytes += skb_length;
-		net->stats.tx_packets++;
+		u64_stats_update_begin(&tx_stats->syncp);
+		tx_stats->packets++;
+		tx_stats->bytes += skb_length;
+		u64_stats_update_end(&tx_stats->syncp);
 	} else {
 		if (ret != -EAGAIN) {
 			dev_kfree_skb_any(skb);
@@ -644,13 +648,17 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 				struct ndis_tcp_ip_checksum_info *csum_info)
 {
 	struct net_device *net;
+	struct net_device_context *net_device_ctx;
 	struct sk_buff *skb;
+	struct netvsc_stats *rx_stats;
 
 	net = ((struct netvsc_device *)hv_get_drvdata(device_obj))->ndev;
 	if (!net || net->reg_state != NETREG_REGISTERED) {
 		packet->status = NVSP_STAT_FAIL;
 		return 0;
 	}
+	net_device_ctx = netdev_priv(net);
+	rx_stats = this_cpu_ptr(net_device_ctx->rx_stats);
 
 	/* Allocate a skb - TODO direct I/O to pages? */
 	skb = netdev_alloc_skb_ip_align(net, packet->total_data_buflen);
@@ -686,8 +694,10 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	skb_record_rx_queue(skb, packet->channel->
 			    offermsg.offer.sub_channel_index);
 
-	net->stats.rx_packets++;
-	net->stats.rx_bytes += packet->total_data_buflen;
+	u64_stats_update_begin(&rx_stats->syncp);
+	rx_stats->packets++;
+	rx_stats->bytes += packet->total_data_buflen;
+	u64_stats_update_end(&rx_stats->syncp);
 
 	/*
 	 * Pass the skb back up. Network stack will deallocate the skb when it
@@ -747,12 +757,53 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	ndevctx->device_ctx = hdev;
 	hv_set_drvdata(hdev, ndev);
 	device_info.ring_size = ring_size;
+	device_info.max_num_vrss_chns = max_num_vrss_chns;
 	rndis_filter_device_add(hdev, &device_info);
 	netif_tx_wake_all_queues(ndev);
 
 	return 0;
 }
 
+static struct rtnl_link_stats64 *netvsc_get_stats64(struct net_device *net,
+						    struct rtnl_link_stats64 *t)
+{
+	struct net_device_context *ndev_ctx = netdev_priv(net);
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct netvsc_stats *tx_stats = per_cpu_ptr(ndev_ctx->tx_stats,
+							    cpu);
+		struct netvsc_stats *rx_stats = per_cpu_ptr(ndev_ctx->rx_stats,
+							    cpu);
+		u64 tx_packets, tx_bytes, rx_packets, rx_bytes;
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			tx_packets = tx_stats->packets;
+			tx_bytes = tx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
+
+		do {
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			rx_packets = rx_stats->packets;
+			rx_bytes = rx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
+
+		t->tx_bytes	+= tx_bytes;
+		t->tx_packets	+= tx_packets;
+		t->rx_bytes	+= rx_bytes;
+		t->rx_packets	+= rx_packets;
+	}
+
+	t->tx_dropped	= net->stats.tx_dropped;
+	t->tx_errors	= net->stats.tx_dropped;
+
+	t->rx_dropped	= net->stats.rx_dropped;
+	t->rx_errors	= net->stats.rx_errors;
+
+	return t;
+}
 
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 {
@@ -804,6 +855,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		netvsc_set_mac_addr,
 	.ndo_select_queue =		netvsc_select_queue,
+	.ndo_get_stats64 =		netvsc_get_stats64,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller =		netvsc_poll_controller,
 #endif
@@ -855,6 +907,14 @@ static void netvsc_link_change(struct work_struct *w)
 		netdev_notify_peers(net);
 }
 
+static void netvsc_free_netdev(struct net_device *netdev)
+{
+	struct net_device_context *net_device_ctx = netdev_priv(netdev);
+
+	free_percpu(net_device_ctx->tx_stats);
+	free_percpu(net_device_ctx->rx_stats);
+	free_netdev(netdev);
+}
 
 static int netvsc_probe(struct hv_device *dev,
 			const struct hv_vmbus_device_id *dev_id)
@@ -883,6 +943,18 @@ static int netvsc_probe(struct hv_device *dev,
 		netdev_dbg(net, "netvsc msg_enable: %d\n",
 			   net_device_ctx->msg_enable);
 
+	net_device_ctx->tx_stats = netdev_alloc_pcpu_stats(struct netvsc_stats);
+	if (!net_device_ctx->tx_stats) {
+		free_netdev(net);
+		return -ENOMEM;
+	}
+	net_device_ctx->rx_stats = netdev_alloc_pcpu_stats(struct netvsc_stats);
+	if (!net_device_ctx->rx_stats) {
+		free_percpu(net_device_ctx->tx_stats);
+		free_netdev(net);
+		return -ENOMEM;
+	}
+
 	hv_set_drvdata(dev, net);
 	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_link_change);
 	INIT_WORK(&net_device_ctx->work, do_set_multicast);
@@ -906,10 +978,11 @@ static int netvsc_probe(struct hv_device *dev,
 
 	/* Notify the netvsc driver of the new device */
 	device_info.ring_size = ring_size;
+	device_info.max_num_vrss_chns = max_num_vrss_chns;
 	ret = rndis_filter_device_add(dev, &device_info);
 	if (ret != 0) {
 		netdev_err(net, "unable to add netvsc device (ret %d)\n", ret);
-		free_netdev(net);
+		netvsc_free_netdev(net);
 		hv_set_drvdata(dev, NULL);
 		return ret;
 	}
@@ -923,7 +996,7 @@ static int netvsc_probe(struct hv_device *dev,
 	if (ret != 0) {
 		pr_err("Unable to register netdev.\n");
 		rndis_filter_device_remove(dev);
-		free_netdev(net);
+		netvsc_free_netdev(net);
 	} else {
 		schedule_delayed_work(&net_device_ctx->dwork, 0);
 	}
@@ -962,7 +1035,7 @@ static int netvsc_remove(struct hv_device *dev)
 	 */
 	rndis_filter_device_remove(dev);
 
-	free_netdev(net);
+	netvsc_free_netdev(net);
 	return 0;
 }
 

@@ -65,31 +65,6 @@ struct machdep_calls {
 	 * destroyed as well */
 	void		(*hpte_clear_all)(void);
 
-	int		(*tce_build)(struct iommu_table *tbl,
-				     long index,
-				     long npages,
-				     unsigned long uaddr,
-				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs);
-	void		(*tce_free)(struct iommu_table *tbl,
-				    long index,
-				    long npages);
-	unsigned long	(*tce_get)(struct iommu_table *tbl,
-				    long index);
-	void		(*tce_flush)(struct iommu_table *tbl);
-
-	/* _rm versions are for real mode use only */
-	int		(*tce_build_rm)(struct iommu_table *tbl,
-				     long index,
-				     long npages,
-				     unsigned long uaddr,
-				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs);
-	void		(*tce_free_rm)(struct iommu_table *tbl,
-				    long index,
-				    long npages);
-	void		(*tce_flush_rm)(struct iommu_table *tbl);
-
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags, void *caller);
 	void		(*iounmap)(volatile void __iomem *token);
@@ -130,12 +105,6 @@ struct machdep_calls {
 
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
-
-#ifdef CONFIG_PCI_MSI
-	int		(*setup_msi_irqs)(struct pci_dev *dev,
-					  int nvec, int type);
-	void		(*teardown_msi_irqs)(struct pci_dev *dev);
-#endif
 
 	void		(*restart)(char *cmd);
 	void		(*halt)(void);

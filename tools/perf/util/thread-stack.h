@@ -96,6 +96,7 @@ int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
 void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr);
 void thread_stack__sample(struct thread *thread, struct ip_callchain *chain,
 			  size_t sz, u64 ip);
+int thread_stack__flush(struct thread *thread);
 void thread_stack__free(struct thread *thread);
 
 struct call_return_processor *

@@ -24,7 +24,7 @@
 
 extern void mvebu_cortex_a9_secondary_startup(void);
 
-static int __cpuinit mvebu_cortex_a9_boot_secondary(unsigned int cpu,
+static int mvebu_cortex_a9_boot_secondary(unsigned int cpu,
 						    struct task_struct *idle)
 {
 	int ret, hw_cpu;

@@ -563,8 +563,8 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 		return -ENOMEM;
 	}
 
-	irq_set_chained_handler(irq, exynos_irq_demux_eint16_31);
-	irq_set_handler_data(irq, muxed_data);
+	irq_set_chained_handler_and_data(irq, exynos_irq_demux_eint16_31,
+					 muxed_data);
 
 	bank = d->pin_banks;
 	idx = 0;

@@ -580,15 +580,10 @@ static int drv260x_probe(struct i2c_client *client,
 		return error;
 	}
 
-	haptics->enable_gpio = devm_gpiod_get(&client->dev, "enable");
-	if (IS_ERR(haptics->enable_gpio)) {
-		error = PTR_ERR(haptics->enable_gpio);
-		if (error != -ENOENT && error != -ENOSYS)
-			return error;
-		haptics->enable_gpio = NULL;
-	} else {
-		gpiod_direction_output(haptics->enable_gpio, 1);
-	}
+	haptics->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
+						       GPIOD_OUT_HIGH);
+	if (IS_ERR(haptics->enable_gpio))
+		return PTR_ERR(haptics->enable_gpio);
 
 	haptics->input_dev = devm_input_allocate_device(&client->dev);
 	if (!haptics->input_dev) {

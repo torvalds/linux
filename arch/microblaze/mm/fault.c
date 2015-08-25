@@ -107,14 +107,14 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	if ((error_code & 0x13) == 0x13 || (error_code & 0x11) == 0x11)
 		is_write = 0;
 
-	if (unlikely(in_atomic() || !mm)) {
+	if (unlikely(faulthandler_disabled() || !mm)) {
 		if (kernel_mode(regs))
 			goto bad_area_nosemaphore;
 
-		/* in_atomic() in user mode is really bad,
+		/* faulthandler_disabled() in user mode is really bad,
 		   as is current->mm == NULL. */
-		pr_emerg("Page fault in user mode with in_atomic(), mm = %p\n",
-									mm);
+		pr_emerg("Page fault in user mode with faulthandler_disabled(), mm = %p\n",
+			 mm);
 		pr_emerg("r15 = %lx  MSR = %lx\n",
 		       regs->r15, regs->msr);
 		die("Weird page fault", regs, SIGSEGV);

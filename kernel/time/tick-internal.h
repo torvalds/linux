@@ -36,11 +36,22 @@ static inline int tick_device_is_functional(struct clock_event_device *dev)
 	return !(dev->features & CLOCK_EVT_FEAT_DUMMY);
 }
 
+static inline enum clock_event_state clockevent_get_state(struct clock_event_device *dev)
+{
+	return dev->state_use_accessors;
+}
+
+static inline void clockevent_set_state(struct clock_event_device *dev,
+					enum clock_event_state state)
+{
+	dev->state_use_accessors = state;
+}
+
 extern void clockevents_shutdown(struct clock_event_device *dev);
 extern void clockevents_exchange_device(struct clock_event_device *old,
 					struct clock_event_device *new);
-extern void clockevents_set_state(struct clock_event_device *dev,
-				 enum clock_event_state state);
+extern void clockevents_switch_state(struct clock_event_device *dev,
+				     enum clock_event_state state);
 extern int clockevents_program_event(struct clock_event_device *dev,
 				     ktime_t expires, bool force);
 extern void clockevents_handle_noop(struct clock_event_device *dev);
@@ -137,3 +148,19 @@ extern void tick_nohz_init(void);
 # else
 static inline void tick_nohz_init(void) { }
 #endif
+
+#ifdef CONFIG_NO_HZ_COMMON
+extern unsigned long tick_nohz_active;
+#else
+#define tick_nohz_active (0)
+#endif
+
+#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
+extern void timers_update_migration(bool update_nohz);
+#else
+static inline void timers_update_migration(bool update_nohz) { }
+#endif
+
+DECLARE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases);
+
+extern u64 get_next_timer_interrupt(unsigned long basej, u64 basem);

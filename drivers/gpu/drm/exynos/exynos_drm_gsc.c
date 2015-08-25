@@ -593,8 +593,7 @@ static int gsc_src_set_transf(struct device *dev,
 
 	gsc_write(cfg, GSC_IN_CON);
 
-	ctx->rotation = cfg &
-		(GSC_IN_ROT_90 | GSC_IN_ROT_270) ? 1 : 0;
+	ctx->rotation = (cfg & GSC_IN_ROT_90) ? 1 : 0;
 	*swap = ctx->rotation;
 
 	return 0;
@@ -857,8 +856,7 @@ static int gsc_dst_set_transf(struct device *dev,
 
 	gsc_write(cfg, GSC_IN_CON);
 
-	ctx->rotation = cfg &
-		(GSC_IN_ROT_90 | GSC_IN_ROT_270) ? 1 : 0;
+	ctx->rotation = (cfg & GSC_IN_ROT_90) ? 1 : 0;
 	*swap = ctx->rotation;
 
 	return 0;

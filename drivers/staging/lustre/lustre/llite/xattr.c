@@ -188,11 +188,11 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 		valid |= rce_ops2valid(rce->rce_ops);
 	}
 #endif
-		oc = ll_mdscapa_get(inode);
-		rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode), oc,
-				valid, name, pv, size, 0, flags,
-				ll_i2suppgid(inode), &req);
-		capa_put(oc);
+	oc = ll_mdscapa_get(inode);
+	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode), oc,
+			 valid, name, pv, size, 0, flags,
+			 ll_i2suppgid(inode), &req);
+	capa_put(oc);
 #ifdef CONFIG_FS_POSIX_ACL
 	if (new_value != NULL)
 		lustre_posix_acl_xattr_free(new_value, size);

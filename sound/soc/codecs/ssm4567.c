@@ -315,7 +315,13 @@ static int ssm4567_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	if (invert_fclk)
 		ctrl1 |= SSM4567_SAI_CTRL_1_FSYNC;
 
-	return regmap_write(ssm4567->regmap, SSM4567_REG_SAI_CTRL_1, ctrl1);
+	return regmap_update_bits(ssm4567->regmap, SSM4567_REG_SAI_CTRL_1,
+			SSM4567_SAI_CTRL_1_BCLK |
+			SSM4567_SAI_CTRL_1_FSYNC |
+			SSM4567_SAI_CTRL_1_LJ |
+			SSM4567_SAI_CTRL_1_TDM |
+			SSM4567_SAI_CTRL_1_PDM,
+			ctrl1);
 }
 
 static int ssm4567_set_power(struct ssm4567 *ssm4567, bool enable)
@@ -353,7 +359,7 @@ static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			ret = ssm4567_set_power(ssm4567, true);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -361,12 +367,7 @@ static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	codec->dapm.bias_level = level;
-
-	return 0;
+	return ret;
 }
 
 static const struct snd_soc_dai_ops ssm4567_dai_ops = {

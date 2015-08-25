@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/export.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 #include <trace/events/rpm.h>
 #include "power.h"
 
@@ -514,6 +515,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
 
+	dev_pm_enable_wake_irq(dev);
 	retval = rpm_callback(callback, dev);
 	if (retval)
 		goto fail;
@@ -552,6 +554,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	return retval;
 
  fail:
+	dev_pm_disable_wake_irq(dev);
 	__update_runtime_status(dev, RPM_ACTIVE);
 	dev->power.deferred_resume = false;
 	wake_up_all(&dev->power.wait_queue);
@@ -734,13 +737,16 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
+	dev_pm_disable_wake_irq(dev);
 	retval = rpm_callback(callback, dev);
 	if (retval) {
 		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_cancel_pending(dev);
+		dev_pm_enable_wake_irq(dev);
 	} else {
  no_callback:
 		__update_runtime_status(dev, RPM_ACTIVE);
+		pm_runtime_mark_last_busy(dev);
 		if (parent)
 			atomic_inc(&parent->power.child_count);
 	}

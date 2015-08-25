@@ -206,6 +206,11 @@ struct power_supply_desc {
 	int (*set_property)(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    const union power_supply_propval *val);
+	/*
+	 * property_is_writeable() will be called during registration
+	 * of power supply. If this happens during device probe then it must
+	 * not access internal data of device (because probe did not end).
+	 */
 	int (*property_is_writeable)(struct power_supply *psy,
 				     enum power_supply_property psp);
 	void (*external_power_changed)(struct power_supply *psy);
@@ -237,6 +242,7 @@ struct power_supply {
 	/* private */
 	struct device dev;
 	struct work_struct changed_work;
+	struct delayed_work deferred_register_work;
 	spinlock_t changed_lock;
 	bool changed;
 	atomic_t use_cnt;
@@ -286,9 +292,14 @@ extern void power_supply_put(struct power_supply *psy);
 #ifdef CONFIG_OF
 extern struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 							const char *property);
+extern struct power_supply *devm_power_supply_get_by_phandle(
+				    struct device *dev, const char *property);
 #else /* !CONFIG_OF */
 static inline struct power_supply *
 power_supply_get_by_phandle(struct device_node *np, const char *property)
+{ return NULL; }
+static inline struct power_supply *
+devm_power_supply_get_by_phandle(struct device *dev, const char *property)
 { return NULL; }
 #endif /* CONFIG_OF */
 extern void power_supply_changed(struct power_supply *psy);

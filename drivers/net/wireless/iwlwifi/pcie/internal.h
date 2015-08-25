@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -320,7 +320,7 @@ struct iwl_trans_pcie {
 
 	/*protect hw register */
 	spinlock_t reg_lock;
-	bool cmd_in_flight;
+	bool cmd_hold_nic_awake;
 	bool ref_cmd_in_flight;
 
 	/* protect ref counter */

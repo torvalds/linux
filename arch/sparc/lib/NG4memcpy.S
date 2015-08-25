@@ -240,8 +240,11 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	add		%o0, 0x40, %o0
 	bne,pt		%icc, 1b
 	 LOAD(prefetch, %g1 + 0x200, #n_reads_strong)
+#ifdef NON_USER_COPY
+	VISExitHalfFast
+#else
 	VISExitHalf
-
+#endif
 	brz,pn		%o2, .Lexit
 	 cmp		%o2, 19
 	ble,pn		%icc, .Lsmall_unaligned

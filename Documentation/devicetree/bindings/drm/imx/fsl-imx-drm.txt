@@ -65,8 +65,10 @@ Optional properties:
 - edid: verbatim EDID data block describing attached display.
 - ddc: phandle describing the i2c bus handling the display data
   channel
-- port: A port node with endpoint definitions as defined in
+- port@[0-1]: Port nodes with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt.
+  Port 0 is the input port connected to the IPU display interface,
+  port 1 is the output port connected to a panel.
 
 example:
 
@@ -75,9 +77,29 @@ display@di0 {
 	edid = [edid-data];
 	interface-pix-fmt = "rgb24";
 
-	port {
+	port@0 {
+		reg = <0>;
+
 		display_in: endpoint {
 			remote-endpoint = <&ipu_di0_disp0>;
+		};
+	};
+
+	port@1 {
+		reg = <1>;
+
+		display_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
+};
+
+panel {
+	...
+
+	port {
+		panel_in: endpoint {
+			remote-endpoint = <&display_out>;
 		};
 	};
 };

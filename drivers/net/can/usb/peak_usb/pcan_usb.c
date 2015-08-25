@@ -526,9 +526,9 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 		hwts->hwtstamp = timeval_to_ktime(tv);
 	}
 
-	netif_rx(skb);
 	mc->netdev->stats.rx_packets++;
 	mc->netdev->stats.rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 
 	return 0;
 }
@@ -659,12 +659,11 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 	hwts = skb_hwtstamps(skb);
 	hwts->hwtstamp = timeval_to_ktime(tv);
 
-	/* push the skb */
-	netif_rx(skb);
-
 	/* update statistics */
 	mc->netdev->stats.rx_packets++;
 	mc->netdev->stats.rx_bytes += cf->can_dlc;
+	/* push the skb */
+	netif_rx(skb);
 
 	return 0;
 

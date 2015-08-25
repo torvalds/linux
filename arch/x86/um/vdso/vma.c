@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/page.h>
+#include <asm/elf.h>
 #include <linux/init.h>
 
 static unsigned int __read_mostly vdso_enabled = 1;

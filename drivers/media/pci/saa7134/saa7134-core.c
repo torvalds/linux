@@ -20,6 +20,9 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -32,9 +35,6 @@
 #include <linux/mutex.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm.h>
-
-#include "saa7134-reg.h"
-#include "saa7134.h"
 
 MODULE_DESCRIPTION("v4l2 driver module for saa7130/34 based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -102,8 +102,15 @@ static unsigned int saa7134_devcount;
 int (*saa7134_dmasound_init)(struct saa7134_dev *dev);
 int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 
-#define dprintk(fmt, arg...)	if (core_debug) \
-	printk(KERN_DEBUG "%s/core: " fmt, dev->name , ## arg)
+#define core_dbg(fmt, arg...) do { \
+	if (core_debug) \
+		printk(KERN_DEBUG pr_fmt("core: " fmt), ## arg); \
+	} while (0)
+
+#define irq_dbg(level, fmt, arg...)  do {\
+	if (irq_debug > level) \
+		printk(KERN_DEBUG pr_fmt("irq: " fmt), ## arg); \
+	} while (0)
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 {
@@ -116,8 +123,7 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 	saa_andorb(SAA7134_GPIO_GPMODE3,SAA7134_GPIO_GPRESCAN,SAA7134_GPIO_GPRESCAN);
 	mode   = saa_readl(SAA7134_GPIO_GPMODE0   >> 2) & 0xfffffff;
 	status = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & 0xfffffff;
-	printk(KERN_DEBUG
-	       "%s: gpio: mode=0x%07lx in=0x%07lx out=0x%07lx [%s]\n",
+	core_dbg("%s: gpio: mode=0x%07lx in=0x%07lx out=0x%07lx [%s]\n",
 	       dev->name, mode, (~mode) & status, mode & status, msg);
 }
 
@@ -128,7 +134,8 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 	index = 1 << bit_no;
 	switch (value) {
 	case 0: /* static value */
-	case 1:	dprintk("setting GPIO%d to static %d\n", bit_no, value);
+	case 1:
+		core_dbg("setting GPIO%d to static %d\n", bit_no, value);
 		/* turn sync mode off if necessary */
 		if (index & 0x00c00000)
 			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x00);
@@ -140,7 +147,7 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, index, bitval);
 		break;
 	case 3:	/* tristate */
-		dprintk("setting GPIO%d to tristate\n", bit_no);
+		core_dbg("setting GPIO%d to tristate\n", bit_no);
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, 0);
 		break;
 	}
@@ -274,7 +281,7 @@ int saa7134_buffer_queue(struct saa7134_dev *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->slock, flags);
-	dprintk("buffer_queue %p\n", buf);
+	core_dbg("buffer_queue %p\n", buf);
 	if (NULL == q->curr) {
 		if (!q->need_two) {
 			q->curr = buf;
@@ -298,7 +305,7 @@ void saa7134_buffer_finish(struct saa7134_dev *dev,
 			   struct saa7134_dmaqueue *q,
 			   unsigned int state)
 {
-	dprintk("buffer_finish %p\n", q->curr);
+	core_dbg("buffer_finish %p\n", q->curr);
 
 	/* finish current buffer */
 	v4l2_get_timestamp(&q->curr->vb2.v4l2_buf.timestamp);
@@ -318,18 +325,18 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 	if (!list_empty(&q->queue)) {
 		/* activate next one from queue */
 		buf = list_entry(q->queue.next, struct saa7134_buf, entry);
-		dprintk("buffer_next %p [prev=%p/next=%p]\n",
+		core_dbg("buffer_next %p [prev=%p/next=%p]\n",
 			buf, q->queue.prev, q->queue.next);
 		list_del(&buf->entry);
 		if (!list_empty(&q->queue))
 			next = list_entry(q->queue.next, struct saa7134_buf, entry);
 		q->curr = buf;
 		buf->activate(dev, buf, next);
-		dprintk("buffer_next #2 prev=%p/next=%p\n",
+		core_dbg("buffer_next #2 prev=%p/next=%p\n",
 			q->queue.prev, q->queue.next);
 	} else {
 		/* nothing to do -- just stop DMA */
-		dprintk("buffer_next %p\n", NULL);
+		core_dbg("buffer_next %p\n", NULL);
 		saa7134_set_dmabits(dev);
 		del_timer(&q->timeout);
 	}
@@ -351,7 +358,7 @@ void saa7134_buffer_timeout(unsigned long data)
 	/* flag current buffer as failed,
 	   try to start over with the next one. */
 	if (q->curr) {
-		dprintk("timeout on %p\n", q->curr);
+		core_dbg("timeout on %p\n", q->curr);
 		saa7134_buffer_finish(dev, q, VB2_BUF_STATE_ERROR);
 	}
 	saa7134_buffer_next(dev, q);
@@ -474,7 +481,7 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		   SAA7134_MAIN_CTRL_TE5 |
 		   SAA7134_MAIN_CTRL_TE6,
 		   ctrl);
-	dprintk("dmabits: task=0x%02x ctrl=0x%02x irq=0x%x split=%s\n",
+	core_dbg("dmabits: task=0x%02x ctrl=0x%02x irq=0x%x split=%s\n",
 		task, ctrl, irq, split ? "no" : "yes");
 
 	return 0;
@@ -496,21 +503,21 @@ static void print_irqstatus(struct saa7134_dev *dev, int loop,
 {
 	unsigned int i;
 
-	printk(KERN_DEBUG "%s/irq[%d,%ld]: r=0x%lx s=0x%02lx",
-	       dev->name,loop,jiffies,report,status);
+	irq_dbg(1, "[%d,%ld]: r=0x%lx s=0x%02lx",
+		loop, jiffies, report, status);
 	for (i = 0; i < IRQBITS; i++) {
 		if (!(report & (1 << i)))
 			continue;
-		printk(" %s",irqbits[i]);
+		pr_cont(" %s", irqbits[i]);
 	}
 	if (report & SAA7134_IRQ_REPORT_DONE_RA0) {
-		printk(" | RA0=%s,%s,%s,%ld",
-		       (status & 0x40) ? "vbi"  : "video",
-		       (status & 0x20) ? "b"    : "a",
-		       (status & 0x10) ? "odd"  : "even",
-		       (status & 0x0f));
+		pr_cont(" | RA0=%s,%s,%s,%ld",
+			(status & 0x40) ? "vbi"  : "video",
+			(status & 0x20) ? "b"    : "a",
+			(status & 0x10) ? "odd"  : "even",
+			(status & 0x0f));
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 static irqreturn_t saa7134_irq(int irq, void *dev_id)
@@ -532,16 +539,12 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA3) &&
 			(dev->dmasound.priv_data != NULL) )
 		{
-			if (irq_debug > 1)
-				printk(KERN_DEBUG "%s/irq: preserving DMA sound interrupt\n",
-				       dev->name);
+			irq_dbg(2, "preserving DMA sound interrupt\n");
 			report &= ~SAA7134_IRQ_REPORT_DONE_RA3;
 		}
 
 		if (0 == report) {
-			if (irq_debug > 1)
-				printk(KERN_DEBUG "%s/irq: no (more) work\n",
-				       dev->name);
+			irq_dbg(2, "no (more) work\n");
 			goto out;
 		}
 
@@ -614,24 +617,24 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 		print_irqstatus(dev,loop,report,status);
 		if (report & SAA7134_IRQ_REPORT_PE) {
 			/* disable all parity error */
-			printk(KERN_WARNING "%s/irq: looping -- "
+			pr_warn("%s/irq: looping -- "
 			       "clearing PE (parity error!) enable bit\n",dev->name);
 			saa_clearl(SAA7134_IRQ2,SAA7134_IRQ2_INTE_PE);
 		} else if (report & SAA7134_IRQ_REPORT_GPIO16) {
 			/* disable gpio16 IRQ */
-			printk(KERN_WARNING "%s/irq: looping -- "
+			pr_warn("%s/irq: looping -- "
 			       "clearing GPIO16 enable bit\n",dev->name);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_P);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_N);
 		} else if (report & SAA7134_IRQ_REPORT_GPIO18) {
 			/* disable gpio18 IRQs */
-			printk(KERN_WARNING "%s/irq: looping -- "
+			pr_warn("%s/irq: looping -- "
 			       "clearing GPIO18 enable bit\n",dev->name);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_N);
 		} else {
 			/* disable all irqs */
-			printk(KERN_WARNING "%s/irq: looping -- "
+			pr_warn("%s/irq: looping -- "
 			       "clearing all enable bits\n",dev->name);
 			saa_writel(SAA7134_IRQ1,0);
 			saa_writel(SAA7134_IRQ2,0);
@@ -680,7 +683,7 @@ static int saa7134_hw_enable1(struct saa7134_dev *dev)
 
 static int saa7134_hwinit1(struct saa7134_dev *dev)
 {
-	dprintk("hwinit1\n");
+	core_dbg("hwinit1\n");
 
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, 0);
@@ -742,7 +745,7 @@ static int saa7134_hw_enable2(struct saa7134_dev *dev)
 static int saa7134_hwinit2(struct saa7134_dev *dev)
 {
 
-	dprintk("hwinit2\n");
+	core_dbg("hwinit2\n");
 
 	saa7134_video_init2(dev);
 	saa7134_tvaudio_init2(dev);
@@ -756,7 +759,7 @@ static int saa7134_hwinit2(struct saa7134_dev *dev)
 /* shutdown */
 static int saa7134_hwfini(struct saa7134_dev *dev)
 {
-	dprintk("hwfini\n");
+	core_dbg("hwfini\n");
 
 	if (card_has_mpeg(dev))
 		saa7134_ts_fini(dev);
@@ -772,34 +775,32 @@ static void must_configure_manually(int has_eeprom)
 	unsigned int i,p;
 
 	if (!has_eeprom)
-		printk(KERN_WARNING
-		       "saa7134: <rant>\n"
-		       "saa7134:  Congratulations!  Your TV card vendor saved a few\n"
-		       "saa7134:  cents for a eeprom, thus your pci board has no\n"
-		       "saa7134:  subsystem ID and I can't identify it automatically\n"
-		       "saa7134: </rant>\n"
-		       "saa7134: I feel better now.  Ok, here are the good news:\n"
-		       "saa7134: You can use the card=<nr> insmod option to specify\n"
-		       "saa7134: which board do you have.  The list:\n");
+		pr_warn("saa7134: <rant>\n"
+			"saa7134:  Congratulations!  Your TV card vendor saved a few\n"
+			"saa7134:  cents for a eeprom, thus your pci board has no\n"
+			"saa7134:  subsystem ID and I can't identify it automatically\n"
+			"saa7134: </rant>\n"
+			"saa7134: I feel better now.  Ok, here are the good news:\n"
+			"saa7134: You can use the card=<nr> insmod option to specify\n"
+			"saa7134: which board do you have.  The list:\n");
 	else
-		printk(KERN_WARNING
-		       "saa7134: Board is currently unknown. You might try to use the card=<nr>\n"
-		       "saa7134: insmod option to specify which board do you have, but this is\n"
-		       "saa7134: somewhat risky, as might damage your card. It is better to ask\n"
-		       "saa7134: for support at linux-media@vger.kernel.org.\n"
-		       "saa7134: The supported cards are:\n");
+		pr_warn("saa7134: Board is currently unknown. You might try to use the card=<nr>\n"
+			"saa7134: insmod option to specify which board do you have, but this is\n"
+			"saa7134: somewhat risky, as might damage your card. It is better to ask\n"
+			"saa7134: for support at linux-media@vger.kernel.org.\n"
+			"saa7134: The supported cards are:\n");
 
 	for (i = 0; i < saa7134_bcount; i++) {
-		printk(KERN_WARNING "saa7134:   card=%d -> %-40.40s",
+		pr_warn("saa7134:   card=%d -> %-40.40s",
 		       i,saa7134_boards[i].name);
 		for (p = 0; saa7134_pci_tbl[p].driver_data; p++) {
 			if (saa7134_pci_tbl[p].driver_data != i)
 				continue;
-			printk(" %04x:%04x",
+			pr_cont(" %04x:%04x",
 			       saa7134_pci_tbl[p].subvendor,
 			       saa7134_pci_tbl[p].subdevice);
 		}
-		printk("\n");
+		pr_cont("\n");
 	}
 }
 
@@ -903,31 +904,31 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	/* pci quirks */
 	if (pci_pci_problems) {
 		if (pci_pci_problems & PCIPCI_TRITON)
-			printk(KERN_INFO "%s: quirk: PCIPCI_TRITON\n", dev->name);
+			pr_info("%s: quirk: PCIPCI_TRITON\n", dev->name);
 		if (pci_pci_problems & PCIPCI_NATOMA)
-			printk(KERN_INFO "%s: quirk: PCIPCI_NATOMA\n", dev->name);
+			pr_info("%s: quirk: PCIPCI_NATOMA\n", dev->name);
 		if (pci_pci_problems & PCIPCI_VIAETBF)
-			printk(KERN_INFO "%s: quirk: PCIPCI_VIAETBF\n", dev->name);
+			pr_info("%s: quirk: PCIPCI_VIAETBF\n", dev->name);
 		if (pci_pci_problems & PCIPCI_VSFX)
-			printk(KERN_INFO "%s: quirk: PCIPCI_VSFX\n",dev->name);
+			pr_info("%s: quirk: PCIPCI_VSFX\n", dev->name);
 #ifdef PCIPCI_ALIMAGIK
 		if (pci_pci_problems & PCIPCI_ALIMAGIK) {
-			printk(KERN_INFO "%s: quirk: PCIPCI_ALIMAGIK -- latency fixup\n",
+			pr_info("%s: quirk: PCIPCI_ALIMAGIK -- latency fixup\n",
 			       dev->name);
 			latency = 0x0A;
 		}
 #endif
 		if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL)) {
-			printk(KERN_INFO "%s: quirk: this driver and your "
+			pr_info("%s: quirk: this driver and your "
 					"chipset may not work together"
 					" in overlay mode.\n",dev->name);
 			if (!saa7134_no_overlay) {
-				printk(KERN_INFO "%s: quirk: overlay "
+				pr_info("%s: quirk: overlay "
 						"mode will be disabled.\n",
 						dev->name);
 				saa7134_no_overlay = 1;
 			} else {
-				printk(KERN_INFO "%s: quirk: overlay "
+				pr_info("%s: quirk: overlay "
 						"mode will be forced. Use this"
 						" option at your own risk.\n",
 						dev->name);
@@ -935,7 +936,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		}
 	}
 	if (UNSET != latency) {
-		printk(KERN_INFO "%s: setting pci latency timer to %d\n",
+		pr_info("%s: setting pci latency timer to %d\n",
 		       dev->name,latency);
 		pci_write_config_byte(pci_dev, PCI_LATENCY_TIMER, latency);
 	}
@@ -943,13 +944,13 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	/* print pci info */
 	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-	printk(KERN_INFO "%s: found at %s, rev: %d, irq: %d, "
+	pr_info("%s: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev, DMA_BIT_MASK(32))) {
-		printk("%s: Oops: no 32bit PCI DMA ???\n",dev->name);
+		pr_warn("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
 		err = -EIO;
 		goto fail1;
 	}
@@ -972,7 +973,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
 	if (UNSET != tuner[dev->nr])
 		dev->tuner_type = tuner[dev->nr];
-	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+	pr_info("%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 		dev->name,pci_dev->subsystem_vendor,
 		pci_dev->subsystem_device,saa7134_boards[dev->board].name,
 		dev->board, dev->autodetected ?
@@ -983,7 +984,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 				pci_resource_len(pci_dev,0),
 				dev->name)) {
 		err = -EBUSY;
-		printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
+		pr_err("%s: can't get MMIO memory @ 0x%llx\n",
 		       dev->name,(unsigned long long)pci_resource_start(pci_dev,0));
 		goto fail1;
 	}
@@ -992,7 +993,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->bmmio = (__u8 __iomem *)dev->lmmio;
 	if (NULL == dev->lmmio) {
 		err = -EIO;
-		printk(KERN_ERR "%s: can't ioremap() MMIO memory\n",
+		pr_err("%s: can't ioremap() MMIO memory\n",
 		       dev->name);
 		goto fail2;
 	}
@@ -1010,7 +1011,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	err = request_irq(pci_dev->irq, saa7134_irq,
 			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get IRQ %d\n",
+		pr_err("%s: can't get IRQ %d\n",
 		       dev->name,pci_dev->irq);
 		goto fail4;
 	}
@@ -1040,7 +1041,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 				&dev->i2c_adap, "saa6588",
 				0, I2C_ADDRS(saa7134_boards[dev->board].rds_addr));
 		if (sd) {
-			printk(KERN_INFO "%s: found RDS decoder\n", dev->name);
+			pr_info("%s: found RDS decoder\n", dev->name);
 			dev->has_rds = 1;
 		}
 	}
@@ -1059,7 +1060,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* register v4l devices */
 	if (saa7134_no_overlay > 0)
-		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
+		pr_info("%s: Overlay support disabled.\n", dev->name);
 
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	dev->video_dev->ctrl_handler = &dev->ctrl_handler;
@@ -1068,11 +1069,11 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s: can't register video device\n",
+		pr_info("%s: can't register video device\n",
 		       dev->name);
 		goto fail5;
 	}
-	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	pr_info("%s: registered device %s [v4l2]\n",
 	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
@@ -1084,7 +1085,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
 		goto fail5;
-	printk(KERN_INFO "%s: registered device %s\n",
+	pr_info("%s: registered device %s\n",
 	       dev->name, video_device_node_name(dev->vbi_dev));
 
 	if (card_has_radio(dev)) {
@@ -1095,7 +1096,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 					    radio_nr[dev->nr]);
 		if (err < 0)
 			goto fail5;
-		printk(KERN_INFO "%s: registered device %s\n",
+		pr_info("%s: registered device %s\n",
 		       dev->name, video_device_node_name(dev->radio_dev));
 	}
 
@@ -1204,12 +1205,12 @@ static int saa7134_buffer_requeue(struct saa7134_dev *dev,
 
 	buf  = q->curr;
 	next = buf;
-	dprintk("buffer_requeue\n");
+	core_dbg("buffer_requeue\n");
 
 	if (!buf)
 		return 0;
 
-	dprintk("buffer_requeue : resending active buffers \n");
+	core_dbg("buffer_requeue : resending active buffer\n");
 
 	if (!list_empty(&q->queue))
 		next = list_entry(q->queue.next, struct saa7134_buf,
@@ -1358,7 +1359,7 @@ static struct pci_driver saa7134_pci_driver = {
 static int __init saa7134_init(void)
 {
 	INIT_LIST_HEAD(&saa7134_devlist);
-	printk(KERN_INFO "saa7130/34: v4l2 driver version %s loaded\n",
+	pr_info("saa7130/34: v4l2 driver version %s loaded\n",
 	       SAA7134_VERSION);
 	return pci_register_driver(&saa7134_pci_driver);
 }

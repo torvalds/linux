@@ -28,7 +28,6 @@
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
 #include <linux/miscdevice.h>
-#include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
@@ -393,19 +392,6 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 };
 
 static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
-
-int update_persistent_clock(struct timespec now)
-{
-	struct rtc_device *rtc = rtc_class_open("rtc0");
-	int err = -1;
-
-	if (rtc) {
-		err = rtc_set_mmss(rtc, now.tv_sec);
-		rtc_class_close(rtc);
-	}
-
-	return err;
-}
 
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);

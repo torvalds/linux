@@ -453,7 +453,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *subdevice,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct me4000_board *thisboard = dev->board_ptr;
+	const struct me4000_board *board = dev->board_ptr;
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
@@ -491,7 +491,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	switch (aref) {
 	case AREF_GROUND:
 	case AREF_COMMON:
-		if (chan >= thisboard->ai_nchan) {
+		if (chan >= board->ai_nchan) {
 			dev_err(dev->class_dev,
 				"Analog input is not available\n");
 			return -EINVAL;
@@ -506,7 +506,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			return -EINVAL;
 		}
 
-		if (chan >= thisboard->ai_diff_nchan) {
+		if (chan >= board->ai_diff_nchan) {
 			dev_err(dev->class_dev,
 				"Analog input is not available\n");
 			return -EINVAL;
@@ -1252,17 +1252,17 @@ static int me4000_auto_attach(struct comedi_device *dev,
 			      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct me4000_board *thisboard = NULL;
+	const struct me4000_board *board = NULL;
 	struct me4000_info *info;
 	struct comedi_subdevice *s;
 	int result;
 
 	if (context < ARRAY_SIZE(me4000_boards))
-		thisboard = &me4000_boards[context];
-	if (!thisboard)
+		board = &me4000_boards[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	info = comedi_alloc_devpriv(dev, sizeof(*info));
 	if (!info)
@@ -1301,11 +1301,11 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 
-	if (thisboard->ai_nchan) {
+	if (board->ai_nchan) {
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags =
 		    SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-		s->n_chan = thisboard->ai_nchan;
+		s->n_chan = board->ai_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit ADC */
 		s->len_chanlist = ME4000_AI_CHANNEL_LIST_COUNT;
 		s->range_table = &me4000_ai_range;
@@ -1328,10 +1328,10 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 
-	if (thisboard->ao_nchan) {
+	if (board->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_COMMON | SDF_GROUND;
-		s->n_chan = thisboard->ao_nchan;
+		s->n_chan = board->ao_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &range_bipolar10;
 		s->insn_write = me4000_ao_insn_write;
@@ -1349,10 +1349,10 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 
-	if (thisboard->dio_nchan) {
+	if (board->dio_nchan) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = thisboard->dio_nchan;
+		s->n_chan = board->dio_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = me4000_dio_insn_bits;
@@ -1373,7 +1373,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	/* Counter subdevice (8254) */
 	s = &dev->subdevices[3];
-	if (thisboard->has_counter) {
+	if (board->has_counter) {
 		unsigned long timer_base = pci_resource_start(pcidev, 3);
 
 		if (!timer_base)

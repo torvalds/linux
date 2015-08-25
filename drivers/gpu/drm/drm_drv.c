@@ -46,13 +46,11 @@ MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
-MODULE_PARM_DESC(atomic, "Enable experimental atomic KMS API");
 MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
 MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 module_param_named(debug, drm_debug, int, 0600);
-module_param_named_unsafe(atomic, drm_atomic, bool, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
@@ -92,8 +90,6 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
 
-#define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
-
 struct drm_master *drm_master_create(struct drm_minor *minor)
 {
 	struct drm_master *master;
@@ -105,11 +101,7 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 	kref_init(&master->refcount);
 	spin_lock_init(&master->lock.spinlock);
 	init_waitqueue_head(&master->lock.lock_queue);
-	if (drm_ht_create(&master->magiclist, DRM_MAGIC_HASH_ORDER)) {
-		kfree(master);
-		return NULL;
-	}
-	INIT_LIST_HEAD(&master->magicfree);
+	idr_init(&master->magic_map);
 	master->minor = minor;
 
 	return master;
@@ -138,16 +130,10 @@ static void drm_master_destroy(struct kref *kref)
 			r_list = NULL;
 		}
 	}
-
-	if (master->unique) {
-		kfree(master->unique);
-		master->unique = NULL;
-		master->unique_len = 0;
-	}
-
-	drm_ht_remove(&master->magiclist);
-
 	mutex_unlock(&dev->struct_mutex);
+
+	idr_destroy(&master->magic_map);
+	kfree(master->unique);
 	kfree(master);
 }
 

@@ -776,7 +776,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	struct iwl_host_cmd cmd = {
 		.id = BT_CONFIG,
 		.len = { sizeof(*bt_cmd), },
-		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
+		.dataflags = { IWL_HCMD_DFL_DUP, },
 		.flags = CMD_ASYNC,
 	};
 	struct iwl_mvm_sta *mvmsta;

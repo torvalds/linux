@@ -1022,9 +1022,12 @@ static int register_root_hub(struct usb_hcd *hcd)
 				dev_name(&usb_dev->dev), retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
 	}
-	if (usb_dev->speed == USB_SPEED_SUPER) {
+
+	if (le16_to_cpu(usb_dev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(usb_dev);
-		if (retval < 0) {
+		if (!retval) {
+			usb_dev->lpm_capable = usb_device_supports_lpm(usb_dev);
+		} else if (usb_dev->speed == USB_SPEED_SUPER) {
 			mutex_unlock(&usb_bus_list_lock);
 			dev_dbg(parent_dev, "can't read %s bos descriptor %d\n",
 					dev_name(&usb_dev->dev), retval);
@@ -2691,7 +2694,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if ((retval = usb_register_bus(&hcd->self)) < 0)
 		goto err_register_bus;
 
-	if ((rhdev = usb_alloc_dev(NULL, &hcd->self, 0)) == NULL) {
+	rhdev = usb_alloc_dev(NULL, &hcd->self, 0);
+	if (rhdev == NULL) {
 		dev_err(hcd->self.controller, "unable to allocate root hub\n");
 		retval = -ENOMEM;
 		goto err_allocate_root_hub;

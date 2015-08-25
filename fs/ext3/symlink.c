@@ -17,16 +17,8 @@
  *  ext3 symlink handling code
  */
 
-#include <linux/namei.h>
 #include "ext3.h"
 #include "xattr.h"
-
-static void * ext3_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct ext3_inode_info *ei = EXT3_I(d_inode(dentry));
-	nd_set_link(nd, (char*)ei->i_data);
-	return NULL;
-}
 
 const struct inode_operations ext3_symlink_inode_operations = {
 	.readlink	= generic_readlink,
@@ -43,7 +35,7 @@ const struct inode_operations ext3_symlink_inode_operations = {
 
 const struct inode_operations ext3_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= ext3_follow_link,
+	.follow_link	= simple_follow_link,
 	.setattr	= ext3_setattr,
 #ifdef CONFIG_EXT3_FS_XATTR
 	.setxattr	= generic_setxattr,

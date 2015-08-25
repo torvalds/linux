@@ -253,7 +253,7 @@ void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 #define DP_VOLTAGE_MAX         DP_TRAIN_VOLTAGE_SWING_LEVEL_3
 #define DP_PRE_EMPHASIS_MAX    DP_TRAIN_PRE_EMPH_LEVEL_3
 
-static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
+static void dp_get_adjust_train(const u8 link_status[DP_LINK_STATUS_SIZE],
 				int lane_count,
 				u8 train_set[4])
 {
@@ -311,7 +311,7 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 /***** radeon specific DP functions *****/
 
 int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				u8 dpcd[DP_DPCD_SIZE])
+				const u8 dpcd[DP_DPCD_SIZE])
 {
 	int max_link_rate;
 
@@ -328,7 +328,7 @@ int radeon_dp_get_max_link_rate(struct drm_connector *connector,
  * if the max lane# < low rate lane# then use max lane# instead.
  */
 static int radeon_dp_get_dp_lane_number(struct drm_connector *connector,
-					u8 dpcd[DP_DPCD_SIZE],
+					const u8 dpcd[DP_DPCD_SIZE],
 					int pix_clock)
 {
 	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
@@ -347,7 +347,7 @@ static int radeon_dp_get_dp_lane_number(struct drm_connector *connector,
 }
 
 static int radeon_dp_get_dp_link_clock(struct drm_connector *connector,
-				       u8 dpcd[DP_DPCD_SIZE],
+				       const u8 dpcd[DP_DPCD_SIZE],
 				       int pix_clock)
 {
 	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));

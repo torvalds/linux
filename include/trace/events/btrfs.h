@@ -1117,61 +1117,6 @@ DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
 	TP_ARGS(wq)
 );
 
-#define show_oper_type(type)						\
-	__print_symbolic(type,						\
-		{ BTRFS_QGROUP_OPER_ADD_EXCL, 	"OPER_ADD_EXCL" },	\
-		{ BTRFS_QGROUP_OPER_ADD_SHARED, "OPER_ADD_SHARED" },	\
-		{ BTRFS_QGROUP_OPER_SUB_EXCL, 	"OPER_SUB_EXCL" },	\
-		{ BTRFS_QGROUP_OPER_SUB_SHARED,	"OPER_SUB_SHARED" })
-
-DECLARE_EVENT_CLASS(btrfs_qgroup_oper,
-
-	TP_PROTO(struct btrfs_qgroup_operation *oper),
-
-	TP_ARGS(oper),
-
-	TP_STRUCT__entry(
-		__field(	u64,  ref_root		)
-		__field(	u64,  bytenr		)
-		__field(	u64,  num_bytes		)
-		__field(	u64,  seq		)
-		__field(	int,  type		)
-		__field(	u64,  elem_seq		)
-	),
-
-	TP_fast_assign(
-		__entry->ref_root	= oper->ref_root;
-		__entry->bytenr		= oper->bytenr,
-		__entry->num_bytes	= oper->num_bytes;
-		__entry->seq 		= oper->seq;
-		__entry->type		= oper->type;
-		__entry->elem_seq	= oper->elem.seq;
-	),
-
-	TP_printk("ref_root = %llu, bytenr = %llu, num_bytes = %llu, "
-		  "seq = %llu, elem.seq = %llu, type = %s",
-		  (unsigned long long)__entry->ref_root,
-		  (unsigned long long)__entry->bytenr,
-		  (unsigned long long)__entry->num_bytes,
-		  (unsigned long long)__entry->seq,
-		  (unsigned long long)__entry->elem_seq,
-		  show_oper_type(__entry->type))
-);
-
-DEFINE_EVENT(btrfs_qgroup_oper, btrfs_qgroup_account,
-
-	TP_PROTO(struct btrfs_qgroup_operation *oper),
-
-	TP_ARGS(oper)
-);
-
-DEFINE_EVENT(btrfs_qgroup_oper, btrfs_qgroup_record_ref,
-
-	TP_PROTO(struct btrfs_qgroup_operation *oper),
-
-	TP_ARGS(oper)
-);
-
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */

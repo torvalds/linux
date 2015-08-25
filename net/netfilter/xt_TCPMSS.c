@@ -277,6 +277,9 @@ static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 			"FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return -EINVAL;
 	}
+	if (par->nft_compat)
+		return 0;
+
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
 			return 0;
@@ -299,6 +302,9 @@ static int tcpmss_tg6_check(const struct xt_tgchk_param *par)
 			"FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return -EINVAL;
 	}
+	if (par->nft_compat)
+		return 0;
+
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
 			return 0;

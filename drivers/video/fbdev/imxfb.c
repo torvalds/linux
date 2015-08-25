@@ -170,7 +170,7 @@ struct imxfb_info {
 	struct regulator	*lcd_pwr;
 };
 
-static struct platform_device_id imxfb_devtype[] = {
+static const struct platform_device_id imxfb_devtype[] = {
 	{
 		.name = "imx1-fb",
 		.driver_data = IMX1_FB,

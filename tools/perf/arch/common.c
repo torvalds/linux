@@ -61,7 +61,7 @@ const char *const mips_triplets[] = {
 static bool lookup_path(char *name)
 {
 	bool found = false;
-	char *path, *tmp;
+	char *path, *tmp = NULL;
 	char buf[PATH_MAX];
 	char *env = getenv("PATH");
 

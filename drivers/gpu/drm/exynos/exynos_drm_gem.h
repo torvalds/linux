@@ -61,7 +61,6 @@ struct exynos_drm_gem_buf {
  *	or at framebuffer creation.
  * @size: size requested from user, in bytes and this size is aligned
  *	in page unit.
- * @vma: a pointer to vm_area.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
  * P.S. this object would be transferred to user as kms_bo.handle so
@@ -71,7 +70,6 @@ struct exynos_drm_gem_obj {
 	struct drm_gem_object		base;
 	struct exynos_drm_gem_buf	*buffer;
 	unsigned long			size;
-	struct vm_area_struct		*vma;
 	unsigned int			flags;
 };
 

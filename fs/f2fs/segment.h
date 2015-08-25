@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 
 /* constant macro */
 #define NULL_SEGNO			((unsigned int)(~0))
@@ -163,6 +164,7 @@ struct seg_entry {
 	 */
 	unsigned short ckpt_valid_blocks;
 	unsigned char *ckpt_valid_map;
+	unsigned char *discard_map;
 	unsigned char type;		/* segment type like CURSEG_XXX_TYPE */
 	unsigned long long mtime;	/* modification time of the segment */
 };
@@ -713,7 +715,7 @@ static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
  */
 static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 {
-	if (sbi->sb->s_bdi->dirty_exceeded)
+	if (sbi->sb->s_bdi->wb.dirty_exceeded)
 		return 0;
 
 	if (type == DATA)

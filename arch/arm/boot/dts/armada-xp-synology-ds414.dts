@@ -114,7 +114,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "micron,n25q064";
+					compatible = "micron,n25q064", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <20000000>;
 

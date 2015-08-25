@@ -33,21 +33,6 @@ static const unsigned int max77843_safeout_voltage_table[] = {
 	3300000,
 };
 
-static int max77843_reg_is_enabled(struct regulator_dev *rdev)
-{
-	struct regmap *regmap = rdev->regmap;
-	int ret;
-	unsigned int reg;
-
-	ret = regmap_read(regmap, rdev->desc->enable_reg, &reg);
-	if (ret) {
-		dev_err(&rdev->dev, "Fialed to read charger register\n");
-		return ret;
-	}
-
-	return (reg & rdev->desc->enable_mask) == rdev->desc->enable_mask;
-}
-
 static int max77843_reg_get_current_limit(struct regulator_dev *rdev)
 {
 	struct regmap *regmap = rdev->regmap;
@@ -96,7 +81,7 @@ static int max77843_reg_set_current_limit(struct regulator_dev *rdev,
 }
 
 static struct regulator_ops max77843_charger_ops = {
-	.is_enabled		= max77843_reg_is_enabled,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.get_current_limit	= max77843_reg_get_current_limit,
@@ -112,37 +97,25 @@ static struct regulator_ops max77843_regulator_ops = {
 	.set_voltage_sel        = regulator_set_voltage_sel_regmap,
 };
 
+#define	MAX77843_SAFEOUT(num)	{ \
+	.name		= "SAFEOUT" # num, \
+	.id		= MAX77843_SAFEOUT ## num, \
+	.ops		= &max77843_regulator_ops, \
+	.of_match	= of_match_ptr("SAFEOUT" # num), \
+	.regulators_node = of_match_ptr("regulators"), \
+	.type		= REGULATOR_VOLTAGE, \
+	.owner		= THIS_MODULE, \
+	.n_voltages	= ARRAY_SIZE(max77843_safeout_voltage_table), \
+	.volt_table	= max77843_safeout_voltage_table, \
+	.enable_reg	= MAX77843_SYS_REG_SAFEOUTCTRL, \
+	.enable_mask	= MAX77843_REG_SAFEOUTCTRL_ENSAFEOUT ## num, \
+	.vsel_reg	= MAX77843_SYS_REG_SAFEOUTCTRL, \
+	.vsel_mask	= MAX77843_REG_SAFEOUTCTRL_SAFEOUT ## num ## _MASK, \
+}
+
 static const struct regulator_desc max77843_supported_regulators[] = {
-	[MAX77843_SAFEOUT1] = {
-		.name		= "SAFEOUT1",
-		.id		= MAX77843_SAFEOUT1,
-		.ops		= &max77843_regulator_ops,
-		.of_match	= of_match_ptr("SAFEOUT1"),
-		.regulators_node = of_match_ptr("regulators"),
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-		.n_voltages	= ARRAY_SIZE(max77843_safeout_voltage_table),
-		.volt_table	= max77843_safeout_voltage_table,
-		.enable_reg	= MAX77843_SYS_REG_SAFEOUTCTRL,
-		.enable_mask	= MAX77843_REG_SAFEOUTCTRL_ENSAFEOUT1,
-		.vsel_reg	= MAX77843_SYS_REG_SAFEOUTCTRL,
-		.vsel_mask	= MAX77843_REG_SAFEOUTCTRL_SAFEOUT1_MASK,
-	},
-	[MAX77843_SAFEOUT2] = {
-		.name           = "SAFEOUT2",
-		.id             = MAX77843_SAFEOUT2,
-		.ops            = &max77843_regulator_ops,
-		.of_match	= of_match_ptr("SAFEOUT2"),
-		.regulators_node = of_match_ptr("regulators"),
-		.type           = REGULATOR_VOLTAGE,
-		.owner          = THIS_MODULE,
-		.n_voltages	= ARRAY_SIZE(max77843_safeout_voltage_table),
-		.volt_table	= max77843_safeout_voltage_table,
-		.enable_reg     = MAX77843_SYS_REG_SAFEOUTCTRL,
-		.enable_mask    = MAX77843_REG_SAFEOUTCTRL_ENSAFEOUT2,
-		.vsel_reg	= MAX77843_SYS_REG_SAFEOUTCTRL,
-		.vsel_mask	= MAX77843_REG_SAFEOUTCTRL_SAFEOUT2_MASK,
-	},
+	[MAX77843_SAFEOUT1] = MAX77843_SAFEOUT(1),
+	[MAX77843_SAFEOUT2] = MAX77843_SAFEOUT(2),
 	[MAX77843_CHARGER] = {
 		.name		= "CHARGER",
 		.id		= MAX77843_CHARGER,
@@ -152,7 +125,8 @@ static const struct regulator_desc max77843_supported_regulators[] = {
 		.type		= REGULATOR_CURRENT,
 		.owner		= THIS_MODULE,
 		.enable_reg	= MAX77843_CHG_REG_CHG_CNFG_00,
-		.enable_mask	= MAX77843_CHG_MASK,
+		.enable_mask	= MAX77843_CHG_MASK | MAX77843_CHG_BUCK_MASK,
+		.enable_val	= MAX77843_CHG_MASK | MAX77843_CHG_BUCK_MASK,
 	},
 };
 

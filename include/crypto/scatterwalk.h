@@ -102,4 +102,8 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 
 int scatterwalk_bytes_sglen(struct scatterlist *sg, int num_bytes);
 
+struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
+				     struct scatterlist *src,
+				     unsigned int len);
+
 #endif  /* _CRYPTO_SCATTERWALK_H */

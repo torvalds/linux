@@ -11,10 +11,10 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/prefetch.h>
+#include <linux/uaccess.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
 
 extern int die(char *, struct pt_regs *, long);
 
@@ -96,7 +96,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	/*
 	 * If we're in an interrupt or have no user context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP

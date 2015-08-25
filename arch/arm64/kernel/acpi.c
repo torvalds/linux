@@ -36,12 +36,6 @@ EXPORT_SYMBOL(acpi_disabled);
 int acpi_pci_disabled = 1;	/* skip ACPI PCI scan and IRQ initialization */
 EXPORT_SYMBOL(acpi_pci_disabled);
 
-/* Processors with enabled flag and sane MPIDR */
-static int enabled_cpus;
-
-/* Boot CPU is valid or not in MADT */
-static bool bootcpu_valid  __initdata;
-
 static bool param_acpi_off __initdata;
 static bool param_acpi_force __initdata;
 
@@ -95,122 +89,15 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
 	early_memunmap(map, size);
 }
 
-/**
- * acpi_map_gic_cpu_interface - generates a logical cpu number
- * and map to MPIDR represented by GICC structure
- */
-static void __init
-acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
+bool __init acpi_psci_present(void)
 {
-	int i;
-	u64 mpidr = processor->arm_mpidr & MPIDR_HWID_BITMASK;
-	bool enabled = !!(processor->flags & ACPI_MADT_ENABLED);
-
-	if (mpidr == INVALID_HWID) {
-		pr_info("Skip MADT cpu entry with invalid MPIDR\n");
-		return;
-	}
-
-	total_cpus++;
-	if (!enabled)
-		return;
-
-	if (enabled_cpus >=  NR_CPUS) {
-		pr_warn("NR_CPUS limit of %d reached, Processor %d/0x%llx ignored.\n",
-			NR_CPUS, total_cpus, mpidr);
-		return;
-	}
-
-	/* Check if GICC structure of boot CPU is available in the MADT */
-	if (cpu_logical_map(0) == mpidr) {
-		if (bootcpu_valid) {
-			pr_err("Firmware bug, duplicate CPU MPIDR: 0x%llx in MADT\n",
-			       mpidr);
-			return;
-		}
-
-		bootcpu_valid = true;
-	}
-
-	/*
-	 * Duplicate MPIDRs are a recipe for disaster. Scan
-	 * all initialized entries and check for
-	 * duplicates. If any is found just ignore the CPU.
-	 */
-	for (i = 1; i < enabled_cpus; i++) {
-		if (cpu_logical_map(i) == mpidr) {
-			pr_err("Firmware bug, duplicate CPU MPIDR: 0x%llx in MADT\n",
-			       mpidr);
-			return;
-		}
-	}
-
-	if (!acpi_psci_present())
-		return;
-
-	cpu_ops[enabled_cpus] = cpu_get_ops("psci");
-	/* CPU 0 was already initialized */
-	if (enabled_cpus) {
-		if (!cpu_ops[enabled_cpus])
-			return;
-
-		if (cpu_ops[enabled_cpus]->cpu_init(NULL, enabled_cpus))
-			return;
-
-		/* map the logical cpu id to cpu MPIDR */
-		cpu_logical_map(enabled_cpus) = mpidr;
-	}
-
-	enabled_cpus++;
+	return acpi_gbl_FADT.arm_boot_flags & ACPI_FADT_PSCI_COMPLIANT;
 }
 
-static int __init
-acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
-				const unsigned long end)
+/* Whether HVC must be used instead of SMC as the PSCI conduit */
+bool __init acpi_psci_use_hvc(void)
 {
-	struct acpi_madt_generic_interrupt *processor;
-
-	processor = (struct acpi_madt_generic_interrupt *)header;
-
-	if (BAD_MADT_ENTRY(processor, end))
-		return -EINVAL;
-
-	acpi_table_print_madt_entry(header);
-	acpi_map_gic_cpu_interface(processor);
-	return 0;
-}
-
-/* Parse GIC cpu interface entries in MADT for SMP init */
-void __init acpi_init_cpus(void)
-{
-	int count, i;
-
-	/*
-	 * do a partial walk of MADT to determine how many CPUs
-	 * we have including disabled CPUs, and get information
-	 * we need for SMP init
-	 */
-	count = acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
-			acpi_parse_gic_cpu_interface, 0);
-
-	if (!count) {
-		pr_err("No GIC CPU interface entries present\n");
-		return;
-	} else if (count < 0) {
-		pr_err("Error parsing GIC CPU interface entry\n");
-		return;
-	}
-
-	if (!bootcpu_valid) {
-		pr_err("MADT missing boot CPU MPIDR, not enabling secondaries\n");
-		return;
-	}
-
-	for (i = 0; i < enabled_cpus; i++)
-		set_cpu_possible(i, true);
-
-	/* Make boot-up look pretty */
-	pr_info("%d CPUs enabled, %d CPUs total\n", enabled_cpus, total_cpus);
+	return acpi_gbl_FADT.arm_boot_flags & ACPI_FADT_PSCI_USE_HVC;
 }
 
 /*

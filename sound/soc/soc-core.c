@@ -40,6 +40,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dpcm.h>
+#include <sound/soc-topology.h>
 #include <sound/initval.h>
 
 #define CREATE_TRACE_POINTS
@@ -92,30 +93,21 @@ static int format_register_str(struct snd_soc_codec *codec,
 	int wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
 	int regsize = codec->driver->reg_word_size * 2;
 	int ret;
-	char tmpbuf[len + 1];
-	char regbuf[regsize + 1];
-
-	/* since tmpbuf is allocated on the stack, warn the callers if they
-	 * try to abuse this function */
-	WARN_ON(len > 63);
 
 	/* +2 for ': ' and + 1 for '\n' */
 	if (wordsize + regsize + 2 + 1 != len)
 		return -EINVAL;
 
+	sprintf(buf, "%.*x: ", wordsize, reg);
+	buf += wordsize + 2;
+
 	ret = snd_soc_read(codec, reg);
-	if (ret < 0) {
-		memset(regbuf, 'X', regsize);
-		regbuf[regsize] = '\0';
-	} else {
-		snprintf(regbuf, regsize + 1, "%.*x", regsize, ret);
-	}
-
-	/* prepare the buffer */
-	snprintf(tmpbuf, len + 1, "%.*x: %s\n", wordsize, reg, regbuf);
-	/* copy it back to the caller without the '\0' */
-	memcpy(buf, tmpbuf, len);
-
+	if (ret < 0)
+		memset(buf, 'X', regsize);
+	else
+		sprintf(buf, "%.*x", regsize, ret);
+	buf[regsize] = '\n';
+	/* no NUL-termination needed */
 	return 0;
 }
 
@@ -750,23 +742,10 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		/* If the CODEC was idle over suspend then it will have been
-		 * left with bias OFF or STANDBY and suspended so we must now
-		 * resume.  Otherwise the suspend was suppressed.
-		 */
 		if (codec->suspended) {
-			switch (codec->dapm.bias_level) {
-			case SND_SOC_BIAS_STANDBY:
-			case SND_SOC_BIAS_OFF:
-				if (codec->driver->resume)
-					codec->driver->resume(codec);
-				codec->suspended = 0;
-				break;
-			default:
-				dev_dbg(codec->dev,
-					"ASoC: CODEC was on over suspend\n");
-				break;
-			}
+			if (codec->driver->resume)
+				codec->driver->resume(codec);
+			codec->suspended = 0;
 		}
 	}
 
@@ -904,12 +883,17 @@ static struct snd_soc_dai *snd_soc_find_dai(
 {
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
+	struct device_node *component_of_node;
 
 	lockdep_assert_held(&client_mutex);
 
 	/* Find CPU DAI from registered DAIs*/
 	list_for_each_entry(component, &component_list, list) {
-		if (dlc->of_node && component->dev->of_node != dlc->of_node)
+		component_of_node = component->dev->of_node;
+		if (!component_of_node && component->dev->parent)
+			component_of_node = component->dev->parent->of_node;
+
+		if (dlc->of_node && component_of_node != dlc->of_node)
 			continue;
 		if (dlc->name && strcmp(component->name, dlc->name))
 			continue;
@@ -1732,6 +1716,7 @@ card_probe_error:
 	if (card->remove)
 		card->remove(card);
 
+	snd_soc_dapm_free(&card->dapm);
 	soc_cleanup_card_debugfs(card);
 	snd_card_free(card->snd_card);
 
@@ -2435,6 +2420,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		card->rtd_aux[i].card = card;
 
 	INIT_LIST_HEAD(&card->dapm_dirty);
+	INIT_LIST_HEAD(&card->dobj_list);
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
@@ -2599,7 +2585,8 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 		 * the same naming style even though those DAIs are not
 		 * component-less anymore.
 		 */
-		if (count == 1 && legacy_dai_naming) {
+		if (count == 1 && legacy_dai_naming &&
+			(dai_drv[i].id == 0 || dai_drv[i].name == NULL)) {
 			dai->name = fmt_single_name(dev, &dai->id);
 		} else {
 			dai->name = fmt_multiple_name(dev, &dai_drv[i]);
@@ -2749,6 +2736,7 @@ static void snd_soc_component_add_unlocked(struct snd_soc_component *component)
 	}
 
 	list_add(&component->list, &component_list);
+	INIT_LIST_HEAD(&component->dobj_list);
 }
 
 static void snd_soc_component_add(struct snd_soc_component *component)
@@ -2825,6 +2813,7 @@ void snd_soc_unregister_component(struct device *dev)
 	return;
 
 found:
+	snd_soc_tplg_component_remove(cmpnt, SND_SOC_TPLG_INDEX_ALL);
 	snd_soc_component_del_unlocked(cmpnt);
 	mutex_unlock(&client_mutex);
 	snd_soc_component_cleanup(cmpnt);
@@ -3488,11 +3477,16 @@ static int snd_soc_get_dai_name(struct of_phandle_args *args,
 				const char **dai_name)
 {
 	struct snd_soc_component *pos;
+	struct device_node *component_of_node;
 	int ret = -EPROBE_DEFER;
 
 	mutex_lock(&client_mutex);
 	list_for_each_entry(pos, &component_list, list) {
-		if (pos->dev->of_node != args->np)
+		component_of_node = pos->dev->of_node;
+		if (!component_of_node && pos->dev->parent)
+			component_of_node = pos->dev->parent->of_node;
+
+		if (component_of_node != args->np)
 			continue;
 
 		if (pos->driver->of_xlate_dai_name) {

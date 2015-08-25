@@ -273,28 +273,36 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static void set_ip_addr(struct sk_buff *skb, struct iphdr *nh,
-			__be32 *addr, __be32 new_addr)
+static void update_ip_l4_checksum(struct sk_buff *skb, struct iphdr *nh,
+				  __be32 addr, __be32 new_addr)
 {
 	int transport_len = skb->len - skb_transport_offset(skb);
+
+	if (nh->frag_off & htons(IP_OFFSET))
+		return;
 
 	if (nh->protocol == IPPROTO_TCP) {
 		if (likely(transport_len >= sizeof(struct tcphdr)))
 			inet_proto_csum_replace4(&tcp_hdr(skb)->check, skb,
-						 *addr, new_addr, 1);
+						 addr, new_addr, 1);
 	} else if (nh->protocol == IPPROTO_UDP) {
 		if (likely(transport_len >= sizeof(struct udphdr))) {
 			struct udphdr *uh = udp_hdr(skb);
 
 			if (uh->check || skb->ip_summed == CHECKSUM_PARTIAL) {
 				inet_proto_csum_replace4(&uh->check, skb,
-							 *addr, new_addr, 1);
+							 addr, new_addr, 1);
 				if (!uh->check)
 					uh->check = CSUM_MANGLED_0;
 			}
 		}
 	}
+}
 
+static void set_ip_addr(struct sk_buff *skb, struct iphdr *nh,
+			__be32 *addr, __be32 new_addr)
+{
+	update_ip_l4_checksum(skb, nh, *addr, new_addr);
 	csum_replace4(&nh->check, *addr, new_addr);
 	skb_clear_hash(skb);
 	*addr = new_addr;
@@ -608,17 +616,16 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 }
 
 static int output_userspace(struct datapath *dp, struct sk_buff *skb,
-			    struct sw_flow_key *key, const struct nlattr *attr)
+			    struct sw_flow_key *key, const struct nlattr *attr,
+			    const struct nlattr *actions, int actions_len)
 {
 	struct ovs_tunnel_info info;
 	struct dp_upcall_info upcall;
 	const struct nlattr *a;
 	int rem;
 
+	memset(&upcall, 0, sizeof(upcall));
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
-	upcall.userdata = NULL;
-	upcall.portid = 0;
-	upcall.egress_tun_info = NULL;
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
 		 a = nla_next(a, &rem)) {
@@ -647,6 +654,13 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			break;
 		}
 
+		case OVS_USERSPACE_ATTR_ACTIONS: {
+			/* Include actions. */
+			upcall.actions = actions;
+			upcall.actions_len = actions_len;
+			break;
+		}
+
 		} /* End of switch. */
 	}
 
@@ -654,7 +668,8 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 }
 
 static int sample(struct datapath *dp, struct sk_buff *skb,
-		  struct sw_flow_key *key, const struct nlattr *attr)
+		  struct sw_flow_key *key, const struct nlattr *attr,
+		  const struct nlattr *actions, int actions_len)
 {
 	const struct nlattr *acts_list = NULL;
 	const struct nlattr *a;
@@ -688,7 +703,7 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 	 */
 	if (likely(nla_type(a) == OVS_ACTION_ATTR_USERSPACE &&
 		   nla_is_last(a, rem)))
-		return output_userspace(dp, skb, key, a);
+		return output_userspace(dp, skb, key, a, actions, actions_len);
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb)
@@ -872,7 +887,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_ACTION_ATTR_USERSPACE:
-			output_userspace(dp, skb, key, a);
+			output_userspace(dp, skb, key, a, attr, len);
 			break;
 
 		case OVS_ACTION_ATTR_HASH:
@@ -916,7 +931,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_ACTION_ATTR_SAMPLE:
-			err = sample(dp, skb, key, a);
+			err = sample(dp, skb, key, a, attr, len);
 			break;
 		}
 

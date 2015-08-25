@@ -33,11 +33,6 @@
 #include "../core.h"
 #include "pinctrl-samsung.h"
 
-#define GROUP_SUFFIX		"-grp"
-#define GSUFFIX_LEN		sizeof(GROUP_SUFFIX)
-#define FUNCTION_SUFFIX		"-mux"
-#define FSUFFIX_LEN		sizeof(FUNCTION_SUFFIX)
-
 /* list of all possible config options supported */
 static struct pin_config {
 	const char *property;
@@ -806,7 +801,7 @@ static int samsung_pinctrl_parse_dt(struct platform_device *pdev,
 	functions = samsung_pinctrl_create_functions(dev, drvdata, &func_cnt);
 	if (IS_ERR(functions)) {
 		dev_err(dev, "failed to parse pin functions\n");
-		return PTR_ERR(groups);
+		return PTR_ERR(functions);
 	}
 
 	drvdata->pin_groups = groups;
@@ -873,9 +868,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 		return ret;
 
 	drvdata->pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, drvdata);
-	if (!drvdata->pctl_dev) {
+	if (IS_ERR(drvdata->pctl_dev)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(drvdata->pctl_dev);
 	}
 
 	for (bank = 0; bank < drvdata->nr_banks; ++bank) {

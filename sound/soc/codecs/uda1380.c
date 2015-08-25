@@ -590,9 +590,6 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 	int reg;
 	struct uda1380_platform_data *pdata = codec->dev->platform_data;
 
-	if (codec->dapm.bias_level == level)
-		return 0;
-
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
@@ -600,7 +597,7 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		uda1380_write(codec, UDA1380_PM, R02_PON_BIAS | pm);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			if (gpio_is_valid(pdata->gpio_power)) {
 				gpio_set_value(pdata->gpio_power, 1);
 				mdelay(1);
@@ -623,7 +620,6 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		for (reg = UDA1380_MVOL; reg < UDA1380_CACHEREGNUM; reg++)
 			set_bit(reg - 0x10, &uda1380_cache_dirty);
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

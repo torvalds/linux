@@ -48,11 +48,11 @@
 static int
 lst_session_new_ioctl(lstio_session_new_args_t *args)
 {
-	char      *name;
-	int	rc;
+	char *name;
+	int rc;
 
 	if (args->lstio_ses_idp   == NULL || /* address for output sid */
-	    args->lstio_ses_key   == 0 || /* no key is specified */
+	    args->lstio_ses_key   == 0 ||    /* no key is specified */
 	    args->lstio_ses_namep == NULL || /* session name */
 	    args->lstio_ses_nmlen <= 0 ||
 	    args->lstio_ses_nmlen > LST_NAME_SIZE)
@@ -96,12 +96,12 @@ lst_session_info_ioctl(lstio_session_info_args_t *args)
 {
 	/* no checking of key */
 
-	if (args->lstio_ses_idp   == NULL || /* address for output sid */
-	    args->lstio_ses_keyp  == NULL || /* address for output key */
+	if (args->lstio_ses_idp    == NULL || /* address for output sid */
+	    args->lstio_ses_keyp   == NULL || /* address for output key */
 	    args->lstio_ses_featp  == NULL || /* address for output features */
 	    args->lstio_ses_ndinfo == NULL || /* address for output ndinfo */
-	    args->lstio_ses_namep == NULL || /* address for output name */
-	    args->lstio_ses_nmlen <= 0 ||
+	    args->lstio_ses_namep  == NULL || /* address for output name */
+	    args->lstio_ses_nmlen  <= 0 ||
 	    args->lstio_ses_nmlen > LST_NAME_SIZE)
 		return -EINVAL;
 
@@ -197,8 +197,8 @@ out:
 static int
 lst_group_add_ioctl(lstio_group_add_args_t *args)
 {
-	char	   *name;
-	int	     rc;
+	char *name;
+	int rc;
 
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
@@ -324,8 +324,8 @@ static int
 lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 {
 	unsigned feats;
-	int     rc;
-	char   *name;
+	int rc;
+	char *name;
 
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
@@ -385,10 +385,10 @@ lst_group_list_ioctl(lstio_group_list_args_t *args)
 static int
 lst_group_info_ioctl(lstio_group_info_args_t *args)
 {
-	char	   *name;
-	int	     ndent;
-	int	     index;
-	int	     rc;
+	char *name;
+	int ndent;
+	int index;
+	int rc;
 
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
@@ -449,8 +449,8 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 static int
 lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 {
-	int	     rc;
-	char	   *name;
+	int rc;
+	char *name;
 
 	if (args->lstio_bat_key != console_session.ses_key)
 		return -EACCES;
@@ -483,8 +483,8 @@ lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 static int
 lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 {
-	int	     rc;
-	char	   *name;
+	int rc;
+	char *name;
 
 	if (args->lstio_bat_key != console_session.ses_key)
 		return -EACCES;
@@ -518,8 +518,8 @@ lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 static int
 lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 {
-	int	     rc;
-	char	   *name;
+	int rc;
+	char *name;
 
 	if (args->lstio_bat_key != console_session.ses_key)
 		return -EACCES;
@@ -613,10 +613,10 @@ lst_batch_list_ioctl(lstio_batch_list_args_t *args)
 static int
 lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 {
-	char	   *name;
-	int	     rc;
-	int	     index;
-	int	     ndent;
+	char *name;
+	int rc;
+	int index;
+	int ndent;
 
 	if (args->lstio_bat_key != console_session.ses_key)
 		return -EACCES;
@@ -678,8 +678,8 @@ lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 static int
 lst_stat_query_ioctl(lstio_stat_args_t *args)
 {
-	int	     rc;
-	char	   *name;
+	int rc;
+	char *name;
 
 	/* TODO: not finished */
 	if (args->lstio_sta_key != console_session.ses_key)

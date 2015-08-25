@@ -1078,7 +1078,6 @@ static struct scsi_host_template inia100_template = {
 	.can_queue		= 1,
 	.this_id		= 1,
 	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun 		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 

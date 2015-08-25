@@ -158,8 +158,9 @@ static int fan_get_state(struct acpi_device *device, unsigned long *state)
 	if (result)
 		return result;
 
-	*state = (acpi_state == ACPI_STATE_D3_COLD ? 0 :
-		 (acpi_state == ACPI_STATE_D0 ? 1 : -1));
+	*state = acpi_state == ACPI_STATE_D3_COLD
+			|| acpi_state == ACPI_STATE_D3_HOT ?
+		0 : (acpi_state == ACPI_STATE_D0 ? 1 : -1);
 	return 0;
 }
 

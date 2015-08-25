@@ -67,7 +67,7 @@ static int pn544_mei_remove(struct mei_cl_device *device)
 }
 
 static struct mei_cl_device_id pn544_mei_tbl[] = {
-	{ PN544_DRIVER_NAME },
+	{ PN544_DRIVER_NAME, MEI_NFC_UUID},
 
 	/* required last entry */
 	{ }

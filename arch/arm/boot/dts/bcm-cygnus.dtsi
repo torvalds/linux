@@ -212,6 +212,18 @@
 		status = "disabled";
 	};
 
+	nand: nand@18046000 {
+		compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1", "brcm,brcmnand";
+		reg = <0x18046000 0x600>, <0xf8105408 0x600>, <0x18046f00 0x20>;
+		reg-names = "nand", "iproc-idm", "iproc-ext";
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		brcm,nand-has-wp;
+	};
+
 	gic: interrupt-controller@19021000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;

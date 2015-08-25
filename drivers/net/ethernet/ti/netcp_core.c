@@ -34,6 +34,7 @@
 #define NETCP_SOP_OFFSET	(NET_IP_ALIGN + NET_SKB_PAD)
 #define NETCP_NAPI_WEIGHT	64
 #define NETCP_TX_TIMEOUT	(5 * HZ)
+#define NETCP_PACKET_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN)
 #define NETCP_MIN_PACKET_SIZE	ETH_ZLEN
 #define NETCP_MAX_MCAST_ADDR	16
 
@@ -537,7 +538,7 @@ int netcp_unregister_rxhook(struct netcp_intf *netcp_priv, int order,
 static void netcp_frag_free(bool is_frag, void *ptr)
 {
 	if (is_frag)
-		put_page(virt_to_head_page(ptr));
+		skb_free_frag(ptr);
 	else
 		kfree(ptr);
 }
@@ -698,7 +699,6 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		}
 	}
 
-	netcp->ndev->last_rx = jiffies;
 	netcp->ndev->stats.rx_packets++;
 	netcp->ndev->stats.rx_bytes += skb->len;
 
@@ -805,30 +805,28 @@ static void netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 	if (likely(fdq == 0)) {
 		unsigned int primary_buf_len;
 		/* Allocate a primary receive queue entry */
-		buf_len = netcp->rx_buffer_sizes[0] + NETCP_SOP_OFFSET;
+		buf_len = NETCP_PACKET_SIZE + NETCP_SOP_OFFSET;
 		primary_buf_len = SKB_DATA_ALIGN(buf_len) +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-		if (primary_buf_len <= PAGE_SIZE) {
-			bufptr = netdev_alloc_frag(primary_buf_len);
-			pad[1] = primary_buf_len;
-		} else {
-			bufptr = kmalloc(primary_buf_len, GFP_ATOMIC |
-					 GFP_DMA32 | __GFP_COLD);
-			pad[1] = 0;
-		}
+		bufptr = netdev_alloc_frag(primary_buf_len);
+		pad[1] = primary_buf_len;
 
 		if (unlikely(!bufptr)) {
-			dev_warn_ratelimited(netcp->ndev_dev, "Primary RX buffer alloc failed\n");
+			dev_warn_ratelimited(netcp->ndev_dev,
+					     "Primary RX buffer alloc failed\n");
 			goto fail;
 		}
 		dma = dma_map_single(netcp->dev, bufptr, buf_len,
 				     DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(netcp->dev, dma)))
+			goto fail;
+
 		pad[0] = (u32)bufptr;
 
 	} else {
 		/* Allocate a secondary receive queue entry */
-		page = alloc_page(GFP_ATOMIC | GFP_DMA32 | __GFP_COLD);
+		page = alloc_page(GFP_ATOMIC | GFP_DMA | __GFP_COLD);
 		if (unlikely(!page)) {
 			dev_warn_ratelimited(netcp->ndev_dev, "Secondary page alloc failed\n");
 			goto fail;
@@ -1011,7 +1009,7 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 
 	/* Map the linear buffer */
 	dma_addr = dma_map_single(dev, skb->data, pkt_len, DMA_TO_DEVICE);
-	if (unlikely(!dma_addr)) {
+	if (unlikely(dma_mapping_error(dev, dma_addr))) {
 		dev_err(netcp->ndev_dev, "Failed to map skb buffer\n");
 		return NULL;
 	}
@@ -1547,8 +1545,8 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	knav_queue_disable_notify(netcp->rx_queue);
 
 	/* open Rx FDQs */
-	for (i = 0; i < KNAV_DMA_FDQ_PER_CHAN &&
-	     netcp->rx_queue_depths[i] && netcp->rx_buffer_sizes[i]; ++i) {
+	for (i = 0; i < KNAV_DMA_FDQ_PER_CHAN && netcp->rx_queue_depths[i];
+	     ++i) {
 		snprintf(name, sizeof(name), "rx-fdq-%s-%d", ndev->name, i);
 		netcp->rx_fdq[i] = knav_queue_open(name, KNAV_QUEUE_GP, 0);
 		if (IS_ERR_OR_NULL(netcp->rx_fdq[i])) {
@@ -1618,11 +1616,11 @@ static int netcp_ndo_open(struct net_device *ndev)
 	}
 	mutex_unlock(&netcp_modules_lock);
 
-	netcp_rxpool_refill(netcp);
 	napi_enable(&netcp->rx_napi);
 	napi_enable(&netcp->tx_napi);
 	knav_queue_enable_notify(netcp->tx_compl_q);
 	knav_queue_enable_notify(netcp->rx_queue);
+	netcp_rxpool_refill(netcp);
 	netif_tx_wake_all_queues(ndev);
 	dev_dbg(netcp->ndev_dev, "netcp device %s opened\n", ndev->name);
 	return 0;
@@ -1942,14 +1940,6 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		netcp->rx_queue_depths[0] = 128;
 	}
 
-	ret = of_property_read_u32_array(node_interface, "rx-buffer-size",
-					 netcp->rx_buffer_sizes,
-					 KNAV_DMA_FDQ_PER_CHAN);
-	if (ret) {
-		dev_err(dev, "missing \"rx-buffer-size\" parameter\n");
-		netcp->rx_buffer_sizes[0] = 1536;
-	}
-
 	ret = of_property_read_u32_array(node_interface, "rx-pool", temp, 2);
 	if (ret < 0) {
 		dev_err(dev, "missing \"rx-pool\" parameter\n");
@@ -2113,6 +2103,7 @@ probe_quit:
 static int netcp_remove(struct platform_device *pdev)
 {
 	struct netcp_device *netcp_device = platform_get_drvdata(pdev);
+	struct netcp_intf *netcp_intf, *netcp_tmp;
 	struct netcp_inst_modpriv *inst_modpriv, *tmp;
 	struct netcp_module *module;
 
@@ -2124,10 +2115,17 @@ static int netcp_remove(struct platform_device *pdev)
 		list_del(&inst_modpriv->inst_list);
 		kfree(inst_modpriv);
 	}
-	WARN(!list_empty(&netcp_device->interface_head), "%s interface list not empty!\n",
-	     pdev->name);
 
-	devm_kfree(&pdev->dev, netcp_device);
+	/* now that all modules are removed, clean up the interfaces */
+	list_for_each_entry_safe(netcp_intf, netcp_tmp,
+				 &netcp_device->interface_head,
+				 interface_list) {
+		netcp_delete_interface(netcp_device, netcp_intf->ndev);
+	}
+
+	WARN(!list_empty(&netcp_device->interface_head),
+	     "%s interface list not empty!\n", pdev->name);
+
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);

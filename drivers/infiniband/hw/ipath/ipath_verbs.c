@@ -1495,10 +1495,13 @@ bail:
 	return 0;
 }
 
-static int ipath_query_device(struct ib_device *ibdev,
-			      struct ib_device_attr *props)
+static int ipath_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			      struct ib_udata *uhw)
 {
 	struct ipath_ibdev *dev = to_idev(ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
 
@@ -1980,6 +1983,24 @@ static int disable_timer(struct ipath_devdata *dd)
 	return 0;
 }
 
+static int ipath_port_immutable(struct ib_device *ibdev, u8 port_num,
+			        struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = ipath_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 /**
  * ipath_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -2023,9 +2044,9 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 
 	spin_lock_init(&idev->qp_table.lock);
 	spin_lock_init(&idev->lk_table.lock);
-	idev->sm_lid = __constant_be16_to_cpu(IB_LID_PERMISSIVE);
+	idev->sm_lid = be16_to_cpu(IB_LID_PERMISSIVE);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
-	idev->gid_prefix = __constant_cpu_to_be64(0xfe80000000000000ULL);
+	idev->gid_prefix = cpu_to_be64(0xfe80000000000000ULL);
 
 	ret = ipath_init_qp_table(idev, ib_ipath_qp_table_size);
 	if (ret)
@@ -2179,6 +2200,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->process_mad = ipath_process_mad;
 	dev->mmap = ipath_mmap;
 	dev->dma_ops = &ipath_dma_mapping_ops;
+	dev->get_port_immutable = ipath_port_immutable;
 
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
 		 IPATH_IDSTR " %s", init_utsname()->nodename);

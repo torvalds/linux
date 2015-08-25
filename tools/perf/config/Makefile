@@ -11,9 +11,9 @@ ifneq ($(obj-perf),)
 obj-perf := $(abspath $(obj-perf))/
 endif
 
-$(shell echo -n > .config-detected)
-detected     = $(shell echo "$(1)=y"       >> .config-detected)
-detected_var = $(shell echo "$(1)=$($(1))" >> .config-detected)
+$(shell echo -n > $(OUTPUT).config-detected)
+detected     = $(shell echo "$(1)=y"       >> $(OUTPUT).config-detected)
+detected_var = $(shell echo "$(1)=$($(1))" >> $(OUTPUT).config-detected)
 
 CFLAGS := $(EXTRA_CFLAGS) $(EXTRA_WARNINGS)
 
@@ -32,7 +32,7 @@ ifeq ($(ARCH),x86)
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
     $(call detected,CONFIG_X86_64)
   else
-    LIBUNWIND_LIBS = -lunwind -lunwind-x86
+    LIBUNWIND_LIBS = -lunwind-x86 -llzma -lunwind
   endif
   NO_PERF_REGS := 0
 endif
@@ -130,6 +130,8 @@ endif
 
 ifeq ($(DEBUG),0)
   CFLAGS += -O6
+else
+  CFLAGS += $(call cc-option,-Og,-O0)
 endif
 
 ifdef PARSER_DEBUG
@@ -267,6 +269,10 @@ else
     endif # Dwarf support
   endif # libelf support
 endif # NO_LIBELF
+
+ifdef NO_DWARF
+  NO_LIBDW_DWARF_UNWIND := 1
+endif
 
 ifndef NO_LIBELF
   CFLAGS += -DHAVE_LIBELF_SUPPORT
@@ -610,6 +616,11 @@ ifdef LIBBABELTRACE
   endif
 endif
 
+ifndef NO_AUXTRACE
+  $(call detected,CONFIG_AUXTRACE)
+  CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+endif
+
 # Among the variables below, these:
 #   perfexecdir
 #   template_dir
@@ -627,7 +638,7 @@ ifndef DESTDIR
 prefix ?= $(HOME)
 endif
 bindir_relative = bin
-bindir = $(prefix)/$(bindir_relative)
+bindir = $(abspath $(prefix)/$(bindir_relative))
 mandir = share/man
 infodir = share/info
 perfexecdir = libexec/perf-core

@@ -12,7 +12,7 @@ menuconfig RTC_CLASS
 	select RTC_LIB
 	help
 	  Generic RTC class support. If you say yes here, you will
- 	  be allowed to plug one or more RTCs to your system. You will
+	  be allowed to plug one or more RTCs to your system. You will
 	  probably want to enable one or more of the interfaces below.
 
 if RTC_CLASS
@@ -25,17 +25,9 @@ config RTC_HCTOSYS
 	  the value read from a specified RTC device. This is useful to avoid
 	  unnecessary fsck runs at boot time, and to network better.
 
-config RTC_SYSTOHC
-	bool "Set the RTC time based on NTP synchronization"
-	default y
-	help
-	  If you say yes here, the system time (wall clock) will be stored
-	  in the RTC specified by RTC_HCTOSYS_DEVICE approximately every 11
-	  minutes if userspace reports synchronized NTP status.
-
 config RTC_HCTOSYS_DEVICE
 	string "RTC used to set the system time"
-	depends on RTC_HCTOSYS = y || RTC_SYSTOHC = y
+	depends on RTC_HCTOSYS
 	default "rtc0"
 	help
 	  The RTC device that will be used to (re)initialize the system
@@ -55,6 +47,25 @@ config RTC_HCTOSYS_DEVICE
 	  be useful to reinitialize system time when resuming from system
 	  sleep states. Do not specify an RTC here unless it stays powered
 	  during all this system's supported sleep states.
+
+config RTC_SYSTOHC
+	bool "Set the RTC time based on NTP synchronization"
+	default y
+	help
+	  If you say yes here, the system time (wall clock) will be stored
+	  in the RTC specified by RTC_HCTOSYS_DEVICE approximately every 11
+	  minutes if userspace reports synchronized NTP status.
+
+config RTC_SYSTOHC_DEVICE
+	string "RTC used to synchronize NTP adjustment"
+	depends on RTC_SYSTOHC
+	default RTC_HCTOSYS_DEVICE if RTC_HCTOSYS
+	default "rtc0"
+	help
+	  The RTC device used for NTP synchronization. The main difference
+	  between RTC_HCTOSYS_DEVICE and RTC_SYSTOHC_DEVICE is that this
+	  one can sleep when setting time, because it runs in the workqueue
+	  context.
 
 config RTC_DEBUG
 	bool "RTC debug support"
@@ -135,7 +146,7 @@ if I2C
 
 config RTC_DRV_88PM860X
 	tristate "Marvell 88PM860x"
-	depends on I2C && MFD_88PM860X
+	depends on MFD_88PM860X
 	help
 	  If you say yes here you get support for RTC function in Marvell
 	  88PM860x chips.
@@ -145,7 +156,7 @@ config RTC_DRV_88PM860X
 
 config RTC_DRV_88PM80X
 	tristate "Marvell 88PM80x"
-	depends on I2C && MFD_88PM800
+	depends on MFD_88PM800
 	help
 	  If you say yes here you get support for RTC function in Marvell
 	  88PM80x chips.
@@ -154,10 +165,9 @@ config RTC_DRV_88PM80X
 	  will be called rtc-88pm80x.
 
 config RTC_DRV_ABB5ZES3
-       depends on I2C
-       select REGMAP_I2C
-       tristate "Abracon AB-RTCMC-32.768kHz-B5ZE-S3"
-       help
+	select REGMAP_I2C
+	tristate "Abracon AB-RTCMC-32.768kHz-B5ZE-S3"
+	help
 	  If you say yes here you get support for the Abracon
 	  AB-RTCMC-32.768kHz-B5ZE-S3 I2C RTC chip.
 
@@ -204,7 +214,6 @@ config RTC_DRV_DS1307
 
 config RTC_DRV_DS1374
 	tristate "Dallas/Maxim DS1374"
-	depends on I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS1374 real-time clock chips. If an interrupt is associated
@@ -232,7 +241,6 @@ config RTC_DRV_DS1672
 
 config RTC_DRV_DS3232
 	tristate "Dallas/Maxim DS3232"
-	depends on I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS3232 real-time clock chips. If an interrupt is associated
@@ -243,7 +251,7 @@ config RTC_DRV_DS3232
 
 config RTC_DRV_HYM8563
 	tristate "Haoyu Microelectronics HYM8563"
-	depends on I2C && OF
+	depends on OF
 	help
 	  Say Y to enable support for the HYM8563 I2C RTC chip. Apart
 	  from the usual rtc functions it provides a clock output of
@@ -365,10 +373,9 @@ config RTC_DRV_ISL12022
 	  will be called rtc-isl12022.
 
 config RTC_DRV_ISL12057
-       depends on I2C
-       select REGMAP_I2C
-       tristate "Intersil ISL12057"
-       help
+	select REGMAP_I2C
+	tristate "Intersil ISL12057"
+	help
 	  If you say yes here you get support for the Intersil ISL12057
 	  I2C RTC chip.
 
@@ -603,13 +610,13 @@ comment "SPI RTC drivers"
 if SPI_MASTER
 
 config RTC_DRV_M41T93
-        tristate "ST M41T93"
-        help
-          If you say yes here you will get support for the
-          ST M41T93 SPI RTC chip.
+	tristate "ST M41T93"
+	help
+	  If you say yes here you will get support for the
+	  ST M41T93 SPI RTC chip.
 
-          This driver can also be built as a module. If so, the module
-          will be called rtc-m41t93.
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-m41t93.
 
 config RTC_DRV_M41T94
 	tristate "ST M41T94"
@@ -1200,7 +1207,7 @@ config RTC_DRV_SH
 	  Say Y here to enable support for the on-chip RTC found in
 	  most SuperH processors.
 
- 	  To compile this driver as a module, choose M here: the
+	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sh.
 
 config RTC_DRV_VR41XX
@@ -1299,14 +1306,14 @@ config RTC_DRV_GENERIC
 	  just say Y.
 
 config RTC_DRV_PXA
-       tristate "PXA27x/PXA3xx"
-       depends on ARCH_PXA
-       help
-         If you say Y here you will get access to the real time clock
-         built into your PXA27x or PXA3xx CPU.
+	tristate "PXA27x/PXA3xx"
+	depends on ARCH_PXA
+	help
+	 If you say Y here you will get access to the real time clock
+	 built into your PXA27x or PXA3xx CPU.
 
-         This RTC driver uses PXA RTC registers available since pxa27x
-         series (RDxR, RYxR) instead of legacy RCNR, RTAR.
+	 This RTC driver uses PXA RTC registers available since pxa27x
+	 series (RDxR, RYxR) instead of legacy RCNR, RTAR.
 
 config RTC_DRV_VT8500
 	tristate "VIA/WonderMedia 85xx SoC RTC"
@@ -1372,6 +1379,17 @@ config RTC_DRV_ARMADA38X
 	  This driver can also be built as a module. If so, the module
 	  will be called armada38x-rtc.
 
+config RTC_DRV_GEMINI
+	tristate "Gemini SoC RTC"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  If you say Y here you will get support for the
+	  RTC found on Gemini SoC's.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-gemini.
+
 config RTC_DRV_PS3
 	tristate "PS3 RTC"
 	depends on PPC_PS3
@@ -1396,6 +1414,7 @@ config RTC_DRV_COH901331
 config RTC_DRV_STMP
 	tristate "Freescale STMP3xxx/i.MX23/i.MX28 RTC"
 	depends on ARCH_MXS
+	select STMP_DEVICE
 	help
 	  If you say yes here you will get support for the onboard
 	  STMP3xxx/i.MX23/i.MX28 RTC.
@@ -1484,7 +1503,7 @@ config RTC_DRV_PUV3
 
 config RTC_DRV_LOONGSON1
 	tristate "loongson1 RTC support"
-	depends on MACH_LOONGSON1
+	depends on MACH_LOONGSON32
 	help
 	  This is a driver for the loongson1 on-chip Counter0 (Time-Of-Year
 	  counter) to be used as a RTC.
@@ -1520,6 +1539,17 @@ config RTC_DRV_SIRFSOC
 	  Say "yes" here to support the real time clock on SiRF SOC chips.
 	  This driver can also be built as a module called rtc-sirfsoc.
 
+config RTC_DRV_ST_LPC
+	tristate "STMicroelectronics LPC RTC"
+	depends on ARCH_STI
+	depends on OF
+	help
+	  Say Y here to include STMicroelectronics Low Power Controller
+	  (LPC) based RTC support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-st-lpc.
+
 config RTC_DRV_MOXART
 	tristate "MOXA ART RTC"
 	depends on ARCH_MOXART || COMPILE_TEST
@@ -1530,9 +1560,20 @@ config RTC_DRV_MOXART
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-moxart
 
+config RTC_DRV_MT6397
+	tristate "Mediatek Real Time Clock driver"
+	depends on MFD_MT6397 || COMPILE_TEST
+	help
+	  This selects the Mediatek(R) RTC driver. RTC is part of Mediatek
+	  MT6397 PMIC. You should enable MT6397 PMIC MFD before select
+	  Mediatek(R) RTC driver.
+
+	  If you want to use Mediatek(R) RTC interface, select Y or M here.
+
 config RTC_DRV_XGENE
 	tristate "APM X-Gene RTC"
 	depends on HAS_IOMEM
+	depends on ARCH_XGENE || COMPILE_TEST
 	help
 	  If you say yes here you get support for the APM X-Gene SoC real time
 	  clock.

@@ -108,6 +108,8 @@ OPTIONS
 	Number of mmap data pages (must be a power of two) or size
 	specification with appended unit character - B/K/M/G. The
 	size is rounded up to have nearest pages power of two value.
+	Also, by adding a comma, the number of mmap pages for AUX
+	area tracing can be specified.
 
 --group::
 	Put all events in a single event group.  This precedes the --event
@@ -145,16 +147,21 @@ OPTIONS
 
 -s::
 --stat::
-	Per thread counts.
+	Record per-thread event counts.  Use it with 'perf report -T' to see
+	the values.
 
 -d::
 --data::
-	Sample addresses.
+	Record the sample addresses.
 
 -T::
 --timestamp::
-	Sample timestamps. Use it with 'perf report -D' to see the timestamps,
-	for instance.
+	Record the sample timestamps. Use it with 'perf report -D' to see the
+	timestamps, for instance.
+
+-P::
+--period::
+	Record the sample period.
 
 -n::
 --no-samples::
@@ -256,6 +263,18 @@ Sets the clock id to use for the various time fields in the perf_event_type
 records. See clock_gettime(). In particular CLOCK_MONOTONIC and
 CLOCK_MONOTONIC_RAW are supported, some events might also allow
 CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
+
+-S::
+--snapshot::
+Select AUX area tracing Snapshot Mode. This option is valid only with an
+AUX area tracing event. Optionally the number of bytes to capture per
+snapshot can be specified. In Snapshot Mode, trace data is captured only when
+signal SIGUSR2 is received.
+
+--proc-map-timeout::
+When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+because the file may be huge. A time out is needed in such cases.
+This option sets the time out limit. The default value is 500 ms.
 
 SEE ALSO
 --------

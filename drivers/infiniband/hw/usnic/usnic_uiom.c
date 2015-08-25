@@ -472,11 +472,10 @@ struct usnic_uiom_pd *usnic_uiom_alloc_pd(void)
 		return ERR_PTR(-ENOMEM);
 
 	pd->domain = domain = iommu_domain_alloc(&pci_bus_type);
-	if (IS_ERR_OR_NULL(domain)) {
-		usnic_err("Failed to allocate IOMMU domain with err %ld\n",
-				PTR_ERR(pd->domain));
+	if (!domain) {
+		usnic_err("Failed to allocate IOMMU domain");
 		kfree(pd);
-		return ERR_PTR(domain ? PTR_ERR(domain) : -ENOMEM);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	iommu_set_fault_handler(pd->domain, usnic_uiom_dma_fault, NULL);

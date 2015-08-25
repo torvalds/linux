@@ -1054,8 +1054,8 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 			  SNDRV_PCM_RATE_48000)
 
 #define WM9713_PCM_FORMATS \
-	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
-	 SNDRV_PCM_FORMAT_S24_LE)
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops wm9713_dai_ops_hifi = {
 	.prepare	= ac97_hifi_prepare,
@@ -1171,7 +1171,6 @@ static int wm9713_set_bias_level(struct snd_soc_codec *codec,
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1201,7 +1200,7 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* do we need to re-start the PLL ? */
 	if (wm9713->pll_in)

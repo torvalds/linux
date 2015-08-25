@@ -24,6 +24,7 @@
 #include "cifsfs.h"
 #include "dns_resolve.h"
 #include "cifs_debug.h"
+#include "cifs_unicode.h"
 
 static LIST_HEAD(cifs_dfs_automount_list);
 
@@ -312,7 +313,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	xid = get_xid();
 	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
-		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cifs_remap(cifs_sb));
 	free_xid(xid);
 
 	cifs_put_tlink(tlink);

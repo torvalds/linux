@@ -40,7 +40,9 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	int bpp, i;
 	int lane_count, slots, rate;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct intel_connector *found = NULL;
+	struct drm_connector *drm_connector;
+	struct intel_connector *connector, *found = NULL;
+	struct drm_connector_state *connector_state;
 	int mst_pbn;
 
 	pipe_config->dp_encoder_is_mst = true;
@@ -70,12 +72,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	state = pipe_config->base.state;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
+	for_each_connector_in_state(state, drm_connector, connector_state, i) {
+		connector = to_intel_connector(drm_connector);
 
-		if (state->connector_states[i]->best_encoder == &encoder->base) {
-			found = to_intel_connector(state->connectors[i]);
+		if (connector_state->best_encoder == &encoder->base) {
+			found = connector;
 			break;
 		}
 	}
@@ -150,14 +151,14 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	enum port port = intel_dig_port->port;
 	int ret;
 	uint32_t temp;
-	struct intel_connector *found = NULL, *intel_connector;
+	struct intel_connector *found = NULL, *connector;
 	int slots;
 	struct drm_crtc *crtc = encoder->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	for_each_intel_connector(dev, intel_connector) {
-		if (intel_connector->new_encoder == encoder) {
-			found = intel_connector;
+	for_each_intel_connector(dev, connector) {
+		if (connector->base.state->best_encoder == &encoder->base) {
+			found = connector;
 			break;
 		}
 	}
@@ -173,8 +174,10 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	if (intel_dp->active_mst_links == 0) {
 		enum port port = intel_ddi_get_encoder_port(encoder);
 
-		I915_WRITE(PORT_CLK_SEL(port),
-			   intel_crtc->config->ddi_pll_sel);
+		/* FIXME: add support for SKL */
+		if (INTEL_INFO(dev)->gen < 9)
+			I915_WRITE(PORT_CLK_SEL(port),
+				   intel_crtc->config->ddi_pll_sel);
 
 		intel_ddi_init_dp_buf_reg(&intel_dig_port->base);
 
@@ -354,6 +357,16 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *connector,
+							 struct drm_connector_state *state)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_dp *intel_dp = intel_connector->mst_port;
+	struct intel_crtc *crtc = to_intel_crtc(state->crtc);
+
+	return &intel_dp->mst_encoders[crtc->pipe]->base.base;
+}
+
 static struct drm_encoder *intel_mst_best_encoder(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -364,6 +377,7 @@ static struct drm_encoder *intel_mst_best_encoder(struct drm_connector *connecto
 static const struct drm_connector_helper_funcs intel_dp_mst_connector_helper_funcs = {
 	.get_modes = intel_dp_mst_get_modes,
 	.mode_valid = intel_dp_mst_mode_valid,
+	.atomic_best_encoder = intel_mst_atomic_best_encoder,
 	.best_encoder = intel_mst_best_encoder,
 };
 

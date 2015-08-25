@@ -64,7 +64,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
  *  looks just like atomic_cmpxchg on our arch currently with a bunch of
  *  variable casting.
  */
-#define __HAVE_ARCH_CMPXCHG 1
 
 #define cmpxchg(ptr, old, new)					\
 ({								\

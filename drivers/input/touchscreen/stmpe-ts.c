@@ -267,27 +267,10 @@ static void stmpe_ts_close(struct input_dev *dev)
 static void stmpe_ts_get_platform_info(struct platform_device *pdev,
 					struct stmpe_touch *ts)
 {
-	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
-	struct stmpe_ts_platform_data *ts_pdata = NULL;
+	u32 val;
 
-	ts->stmpe = stmpe;
-
-	if (stmpe->pdata && stmpe->pdata->ts) {
-		ts_pdata = stmpe->pdata->ts;
-
-		ts->sample_time = ts_pdata->sample_time;
-		ts->mod_12b = ts_pdata->mod_12b;
-		ts->ref_sel = ts_pdata->ref_sel;
-		ts->adc_freq = ts_pdata->adc_freq;
-		ts->ave_ctrl = ts_pdata->ave_ctrl;
-		ts->touch_det_delay = ts_pdata->touch_det_delay;
-		ts->settling = ts_pdata->settling;
-		ts->fraction_z = ts_pdata->fraction_z;
-		ts->i_drive = ts_pdata->i_drive;
-	} else if (np) {
-		u32 val;
-
+	if (np) {
 		if (!of_property_read_u32(np, "st,sample-time", &val))
 			ts->sample_time = val;
 		if (!of_property_read_u32(np, "st,mod-12b", &val))
@@ -311,6 +294,7 @@ static void stmpe_ts_get_platform_info(struct platform_device *pdev,
 
 static int stmpe_input_probe(struct platform_device *pdev)
 {
+	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
 	struct stmpe_touch *ts;
 	struct input_dev *idev;
 	int error;
@@ -329,6 +313,7 @@ static int stmpe_input_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ts);
+	ts->stmpe = stmpe;
 	ts->idev = idev;
 	ts->dev = &pdev->dev;
 
@@ -351,14 +336,13 @@ static int stmpe_input_probe(struct platform_device *pdev)
 	idev->name = STMPE_TS_NAME;
 	idev->phys = STMPE_TS_NAME"/input0";
 	idev->id.bustype = BUS_I2C;
-	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	idev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	idev->open = stmpe_ts_open;
 	idev->close = stmpe_ts_close;
 
 	input_set_drvdata(idev, ts);
 
+	input_set_capability(idev, EV_KEY, BTN_TOUCH);
 	input_set_abs_params(idev, ABS_X, 0, XY_MASK, 0, 0);
 	input_set_abs_params(idev, ABS_Y, 0, XY_MASK, 0, 0);
 	input_set_abs_params(idev, ABS_PRESSURE, 0x0, 0xff, 0, 0);
@@ -383,14 +367,19 @@ static int stmpe_ts_remove(struct platform_device *pdev)
 
 static struct platform_driver stmpe_ts_driver = {
 	.driver = {
-		   .name = STMPE_TS_NAME,
-		   },
+		.name = STMPE_TS_NAME,
+	},
 	.probe = stmpe_input_probe,
 	.remove = stmpe_ts_remove,
 };
 module_platform_driver(stmpe_ts_driver);
 
+static const struct of_device_id stmpe_ts_ids[] = {
+	{ .compatible = "st,stmpe-ts", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, stmpe_ts_ids);
+
 MODULE_AUTHOR("Luotao Fu <l.fu@pengutronix.de>");
 MODULE_DESCRIPTION("STMPEXXX touchscreen driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" STMPE_TS_NAME);

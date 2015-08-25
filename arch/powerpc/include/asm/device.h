@@ -46,6 +46,9 @@ struct dev_archdata {
 #ifdef CONFIG_FAIL_IOMMU
 	int fail_iommu;
 #endif
+#ifdef CONFIG_CXL_BASE
+	struct cxl_context	*cxl_ctx;
+#endif
 };
 
 struct pdev_archdata {

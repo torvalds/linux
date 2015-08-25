@@ -19,10 +19,10 @@
 #include <xen/grant_table.h>
 #include <xen/events.h>
 #include <xen/hvc-console.h>
+#include <xen/page.h>
 #include <xen/xen-ops.h>
 
 #include <asm/xen/hypercall.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypervisor.h>
 
 enum shutdown_state {

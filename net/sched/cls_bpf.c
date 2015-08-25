@@ -64,6 +64,11 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	struct cls_bpf_head *head = rcu_dereference_bh(tp->root);
 	struct cls_bpf_prog *prog;
+#ifdef CONFIG_NET_CLS_ACT
+	bool at_ingress = G_TC_AT(skb->tc_verd) & AT_INGRESS;
+#else
+	bool at_ingress = false;
+#endif
 	int ret = -1;
 
 	if (unlikely(!skb_mac_header_was_set(skb)))
@@ -72,7 +77,16 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	/* Needed here for accessing maps. */
 	rcu_read_lock();
 	list_for_each_entry_rcu(prog, &head->plist, link) {
-		int filter_res = BPF_PROG_RUN(prog->filter, skb);
+		int filter_res;
+
+		if (at_ingress) {
+			/* It is safe to push/pull even if skb_shared() */
+			__skb_push(skb, skb->mac_len);
+			filter_res = BPF_PROG_RUN(prog->filter, skb);
+			__skb_pull(skb, skb->mac_len);
+		} else {
+			filter_res = BPF_PROG_RUN(prog->filter, skb);
+		}
 
 		if (filter_res == 0)
 			continue;
@@ -364,7 +378,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 
 	if (oldprog) {
-		list_replace_rcu(&prog->link, &oldprog->link);
+		list_replace_rcu(&oldprog->link, &prog->link);
 		tcf_unbind_filter(tp, &oldprog->res);
 		call_rcu(&oldprog->rcu, __cls_bpf_delete_prog);
 	} else {

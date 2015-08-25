@@ -641,6 +641,8 @@ struct iwl_trans {
 
 	enum iwl_d0i3_mode d0i3_mode;
 
+	bool wowlan_d0i3;
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));
@@ -1011,19 +1013,19 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans)
 }
 
 /*****************************************************
+ * transport helper functions
+ *****************************************************/
+struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
+				  struct device *dev,
+				  const struct iwl_cfg *cfg,
+				  const struct iwl_trans_ops *ops,
+				  size_t dev_cmd_headroom);
+void iwl_trans_free(struct iwl_trans *trans);
+
+/*****************************************************
 * driver (transport) register/unregister functions
 ******************************************************/
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
-
-static inline void trans_lockdep_init(struct iwl_trans *trans)
-{
-#ifdef CONFIG_LOCKDEP
-	static struct lock_class_key __key;
-
-	lockdep_init_map(&trans->sync_cmd_lockdep_map, "sync_cmd_lockdep_map",
-			 &__key, 0);
-#endif
-}
 
 #endif /* __iwl_trans_h__ */

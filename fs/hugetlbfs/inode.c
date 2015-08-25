@@ -130,7 +130,6 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		goto out;
 
 	ret = 0;
-	hugetlb_prefault_arch_hook(vma->vm_mm);
 	if (vma->vm_flags & VM_WRITE && inode->i_size < len)
 		inode->i_size = len;
 out:
@@ -1011,6 +1010,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	inode = hugetlbfs_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0);
 	if (!inode)
 		goto out_dentry;
+	if (creat_flags == HUGETLB_SHMFS_INODE)
+		inode->i_flags |= S_PRIVATE;
 
 	file = ERR_PTR(-ENOMEM);
 	if (hugetlb_reserve_pages(inode, 0,

@@ -11,6 +11,21 @@
  * can take tens of usecs to complete.
  */
 
+/* Normal operation
+ *
+ * A Memory Region is prepared for RDMA READ or WRITE using the
+ * ib_map_phys_fmr verb (fmr_op_map). When the RDMA operation is
+ * finished, the Memory Region is unmapped using the ib_unmap_fmr
+ * verb (fmr_op_unmap).
+ */
+
+/* Transport recovery
+ *
+ * After a transport reconnect, fmr_op_map re-uses the MR already
+ * allocated for the RPC, but generates a fresh rkey then maps the
+ * MR again. This process is synchronous.
+ */
+
 #include "xprt_rdma.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -50,19 +65,28 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_mw *r;
 	int i, rc;
 
+	spin_lock_init(&buf->rb_mwlock);
 	INIT_LIST_HEAD(&buf->rb_mws);
 	INIT_LIST_HEAD(&buf->rb_all);
 
-	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
-	dprintk("RPC:       %s: initializing %d FMRs\n", __func__, i);
+	i = max_t(int, RPCRDMA_MAX_DATA_SEGS / RPCRDMA_MAX_FMR_SGES, 1);
+	i += 2;				/* head + tail */
+	i *= buf->rb_max_requests;	/* one set for each RPC slot */
+	dprintk("RPC:       %s: initalizing %d FMRs\n", __func__, i);
 
+	rc = -ENOMEM;
 	while (i--) {
 		r = kzalloc(sizeof(*r), GFP_KERNEL);
 		if (!r)
-			return -ENOMEM;
+			goto out;
 
-		r->r.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
-		if (IS_ERR(r->r.fmr))
+		r->r.fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
+					     sizeof(u64), GFP_KERNEL);
+		if (!r->r.fmr.physaddrs)
+			goto out_free;
+
+		r->r.fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
+		if (IS_ERR(r->r.fmr.fmr))
 			goto out_fmr_err;
 
 		list_add(&r->mw_list, &buf->rb_mws);
@@ -71,10 +95,22 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	return 0;
 
 out_fmr_err:
-	rc = PTR_ERR(r->r.fmr);
+	rc = PTR_ERR(r->r.fmr.fmr);
 	dprintk("RPC:       %s: ib_alloc_fmr status %i\n", __func__, rc);
+	kfree(r->r.fmr.physaddrs);
+out_free:
 	kfree(r);
+out:
 	return rc;
+}
+
+static int
+__fmr_unmap(struct rpcrdma_mw *r)
+{
+	LIST_HEAD(l);
+
+	list_add(&r->r.fmr.fmr->list, &l);
+	return ib_unmap_fmr(&l);
 }
 
 /* Use the ib_map_phys_fmr() verb to register a memory region
@@ -85,12 +121,24 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	   int nsegs, bool writing)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct ib_device *device = ia->ri_id->device;
+	struct ib_device *device = ia->ri_device;
 	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
-	struct rpcrdma_mw *mw = seg1->rl_mw;
-	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
 	int len, pageoff, i, rc;
+	struct rpcrdma_mw *mw;
+
+	mw = seg1->rl_mw;
+	seg1->rl_mw = NULL;
+	if (!mw) {
+		mw = rpcrdma_get_mw(r_xprt);
+		if (!mw)
+			return -ENOMEM;
+	} else {
+		/* this is a retransmit; generate a fresh rkey */
+		rc = __fmr_unmap(mw);
+		if (rc)
+			return rc;
+	}
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
@@ -100,7 +148,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		nsegs = RPCRDMA_MAX_FMR_SGES;
 	for (i = 0; i < nsegs;) {
 		rpcrdma_map_one(device, seg, direction);
-		physaddrs[i] = seg->mr_dma;
+		mw->r.fmr.physaddrs[i] = seg->mr_dma;
 		len += seg->mr_len;
 		++seg;
 		++i;
@@ -110,11 +158,13 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			break;
 	}
 
-	rc = ib_map_phys_fmr(mw->r.fmr, physaddrs, i, seg1->mr_dma);
+	rc = ib_map_phys_fmr(mw->r.fmr.fmr, mw->r.fmr.physaddrs,
+			     i, seg1->mr_dma);
 	if (rc)
 		goto out_maperr;
 
-	seg1->mr_rkey = mw->r.fmr->rkey;
+	seg1->rl_mw = mw;
+	seg1->mr_rkey = mw->r.fmr.fmr->rkey;
 	seg1->mr_base = seg1->mr_dma + pageoff;
 	seg1->mr_nsegs = i;
 	seg1->mr_len = len;
@@ -137,46 +187,26 @@ fmr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mr_seg *seg1 = seg;
-	struct ib_device *device;
+	struct rpcrdma_mw *mw = seg1->rl_mw;
 	int rc, nsegs = seg->mr_nsegs;
-	LIST_HEAD(l);
 
-	list_add(&seg1->rl_mw->r.fmr->list, &l);
-	rc = ib_unmap_fmr(&l);
-	read_lock(&ia->ri_qplock);
-	device = ia->ri_id->device;
+	dprintk("RPC:       %s: FMR %p\n", __func__, mw);
+
+	seg1->rl_mw = NULL;
 	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(device, seg++);
-	read_unlock(&ia->ri_qplock);
+		rpcrdma_unmap_one(ia->ri_device, seg++);
+	rc = __fmr_unmap(mw);
 	if (rc)
 		goto out_err;
+	rpcrdma_put_mw(r_xprt, mw);
 	return nsegs;
 
 out_err:
+	/* The FMR is abandoned, but remains in rb_all. fmr_op_destroy
+	 * will attempt to release it when the transport is destroyed.
+	 */
 	dprintk("RPC:       %s: ib_unmap_fmr status %i\n", __func__, rc);
 	return nsegs;
-}
-
-/* After a disconnect, unmap all FMRs.
- *
- * This is invoked only in the transport connect worker in order
- * to serialize with rpcrdma_register_fmr_external().
- */
-static void
-fmr_op_reset(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct rpcrdma_mw *r;
-	LIST_HEAD(list);
-	int rc;
-
-	list_for_each_entry(r, &buf->rb_all, mw_all)
-		list_add(&r->r.fmr->list, &list);
-
-	rc = ib_unmap_fmr(&list);
-	if (rc)
-		dprintk("RPC:       %s: ib_unmap_fmr failed %i\n",
-			__func__, rc);
 }
 
 static void
@@ -188,10 +218,13 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
 		list_del(&r->mw_all);
-		rc = ib_dealloc_fmr(r->r.fmr);
+		kfree(r->r.fmr.physaddrs);
+
+		rc = ib_dealloc_fmr(r->r.fmr.fmr);
 		if (rc)
 			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
 				__func__, rc);
+
 		kfree(r);
 	}
 }
@@ -202,7 +235,6 @@ const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
 	.ro_init			= fmr_op_init,
-	.ro_reset			= fmr_op_reset,
 	.ro_destroy			= fmr_op_destroy,
 	.ro_displayname			= "fmr",
 };

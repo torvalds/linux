@@ -144,8 +144,6 @@ struct eeh_stats {
 
 static struct eeh_stats eeh_stats;
 
-#define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
-
 static int __init eeh_setup(char *str)
 {
 	if (!strcmp(str, "off"))
@@ -719,7 +717,7 @@ static void *eeh_restore_dev_state(void *data, void *userdata)
 
 	/* The caller should restore state for the specified device */
 	if (pdev != dev)
-		pci_save_state(pdev);
+		pci_restore_state(pdev);
 
 	return NULL;
 }
@@ -1412,13 +1410,11 @@ static int dev_has_iommu_table(struct device *dev, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pci_dev **ppdev = data;
-	struct iommu_table *tbl;
 
 	if (!dev)
 		return 0;
 
-	tbl = get_iommu_table_base(dev);
-	if (tbl && tbl->it_group) {
+	if (dev->iommu_group) {
 		*ppdev = pdev;
 		return 1;
 	}
@@ -1646,6 +1642,41 @@ int eeh_pe_configure(struct eeh_pe *pe)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(eeh_pe_configure);
+
+/**
+ * eeh_pe_inject_err - Injecting the specified PCI error to the indicated PE
+ * @pe: the indicated PE
+ * @type: error type
+ * @function: error function
+ * @addr: address
+ * @mask: address mask
+ *
+ * The routine is called to inject the specified PCI error, which
+ * is determined by @type and @function, to the indicated PE for
+ * testing purpose.
+ */
+int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
+		      unsigned long addr, unsigned long mask)
+{
+	/* Invalid PE ? */
+	if (!pe)
+		return -ENODEV;
+
+	/* Unsupported operation ? */
+	if (!eeh_ops || !eeh_ops->err_inject)
+		return -ENOENT;
+
+	/* Check on PCI error type */
+	if (type != EEH_ERR_TYPE_32 && type != EEH_ERR_TYPE_64)
+		return -EINVAL;
+
+	/* Check on PCI error function */
+	if (func < EEH_ERR_FUNC_MIN || func > EEH_ERR_FUNC_MAX)
+		return -EINVAL;
+
+	return eeh_ops->err_inject(pe, type, func, addr, mask);
+}
+EXPORT_SYMBOL_GPL(eeh_pe_inject_err);
 
 static int proc_eeh_show(struct seq_file *m, void *v)
 {

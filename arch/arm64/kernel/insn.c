@@ -77,6 +77,14 @@ bool __kprobes aarch64_insn_is_nop(u32 insn)
 	}
 }
 
+bool aarch64_insn_is_branch_imm(u32 insn)
+{
+	return (aarch64_insn_is_b(insn) || aarch64_insn_is_bl(insn) ||
+		aarch64_insn_is_tbz(insn) || aarch64_insn_is_tbnz(insn) ||
+		aarch64_insn_is_cbz(insn) || aarch64_insn_is_cbnz(insn) ||
+		aarch64_insn_is_bcond(insn));
+}
+
 static DEFINE_SPINLOCK(patch_lock);
 
 static void __kprobes *patch_map(void *addr, int fixmap)
@@ -1055,6 +1063,58 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, reg);
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn, shift);
+}
+
+/*
+ * Decode the imm field of a branch, and return the byte offset as a
+ * signed value (so it can be used when computing a new branch
+ * target).
+ */
+s32 aarch64_get_branch_offset(u32 insn)
+{
+	s32 imm;
+
+	if (aarch64_insn_is_b(insn) || aarch64_insn_is_bl(insn)) {
+		imm = aarch64_insn_decode_immediate(AARCH64_INSN_IMM_26, insn);
+		return (imm << 6) >> 4;
+	}
+
+	if (aarch64_insn_is_cbz(insn) || aarch64_insn_is_cbnz(insn) ||
+	    aarch64_insn_is_bcond(insn)) {
+		imm = aarch64_insn_decode_immediate(AARCH64_INSN_IMM_19, insn);
+		return (imm << 13) >> 11;
+	}
+
+	if (aarch64_insn_is_tbz(insn) || aarch64_insn_is_tbnz(insn)) {
+		imm = aarch64_insn_decode_immediate(AARCH64_INSN_IMM_14, insn);
+		return (imm << 18) >> 16;
+	}
+
+	/* Unhandled instruction */
+	BUG();
+}
+
+/*
+ * Encode the displacement of a branch in the imm field and return the
+ * updated instruction.
+ */
+u32 aarch64_set_branch_offset(u32 insn, s32 offset)
+{
+	if (aarch64_insn_is_b(insn) || aarch64_insn_is_bl(insn))
+		return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_26, insn,
+						     offset >> 2);
+
+	if (aarch64_insn_is_cbz(insn) || aarch64_insn_is_cbnz(insn) ||
+	    aarch64_insn_is_bcond(insn))
+		return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_19, insn,
+						     offset >> 2);
+
+	if (aarch64_insn_is_tbz(insn) || aarch64_insn_is_tbnz(insn))
+		return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_14, insn,
+						     offset >> 2);
+
+	/* Unhandled instruction */
+	BUG();
 }
 
 bool aarch32_insn_is_wide(u32 insn)

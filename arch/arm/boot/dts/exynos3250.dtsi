@@ -138,8 +138,8 @@
 
 		mipi_phy: video-phy@10020710 {
 			compatible = "samsung,s5pv210-mipi-video-phy";
-			reg = <0x10020710 8>;
 			#phy-cells = <1>;
+			syscon = <&pmu_system_controller>;
 		};
 
 		pd_cam: cam-power-domain@10023C00 {
@@ -189,7 +189,7 @@
 		};
 
 		rtc: rtc@10070000 {
-			compatible = "samsung,exynos3250-rtc";
+			compatible = "samsung,s3c6410-rtc";
 			reg = <0x10070000 0x100>;
 			interrupts = <0 73 0>, <0 74 0>;
 			interrupt-parent = <&pmu_system_controller>;
@@ -243,6 +243,30 @@
 			interrupts = <0 240 0>;
 		};
 
+		jpeg: codec@11830000 {
+			compatible = "samsung,exynos3250-jpeg";
+			reg = <0x11830000 0x1000>;
+			interrupts = <0 171 0>;
+			clocks = <&cmu CLK_JPEG>, <&cmu CLK_SCLK_JPEG>;
+			clock-names = "jpeg", "sclk";
+			power-domains = <&pd_cam>;
+			assigned-clocks = <&cmu CLK_MOUT_CAM_BLK>, <&cmu CLK_SCLK_JPEG>;
+			assigned-clock-rates = <0>, <150000000>;
+			assigned-clock-parents = <&cmu CLK_DIV_MPLL_PRE>;
+			iommus = <&sysmmu_jpeg>;
+			status = "disabled";
+		};
+
+		sysmmu_jpeg: sysmmu@11A60000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x11a60000 0x1000>;
+			interrupts = <0 156 0>, <0 161 0>;
+			clock-names = "sysmmu", "master";
+			clocks = <&cmu CLK_SMMUJPEG>, <&cmu CLK_JPEG>;
+			power-domains = <&pd_cam>;
+			#iommu-cells = <0>;
+		};
+
 		fimd: fimd@11c00000 {
 			compatible = "samsung,exynos3250-fimd";
 			reg = <0x11c00000 0x30000>;
@@ -251,6 +275,7 @@
 			clocks = <&cmu CLK_SCLK_FIMD0>, <&cmu CLK_FIMD0>;
 			clock-names = "sclk_fimd", "fimd";
 			power-domains = <&pd_lcd0>;
+			iommus = <&sysmmu_fimd0>;
 			samsung,sysreg = <&sys_reg>;
 			status = "disabled";
 		};
@@ -268,6 +293,16 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		sysmmu_fimd0: sysmmu@11E20000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x11e20000 0x1000>;
+			interrupts = <0 80 0>, <0 81 0>;
+			clock-names = "sysmmu", "master";
+			clocks = <&cmu CLK_SMMUFIMD0>, <&cmu CLK_FIMD0>;
+			power-domains = <&pd_lcd0>;
+			#iommu-cells = <0>;
 		};
 
 		hsotg: hsotg@12480000 {
@@ -364,7 +399,18 @@
 			clock-names = "mfc", "sclk_mfc";
 			clocks = <&cmu CLK_MFC>, <&cmu CLK_SCLK_MFC>;
 			power-domains = <&pd_mfc>;
+			iommus = <&sysmmu_mfc>;
 			status = "disabled";
+		};
+
+		sysmmu_mfc: sysmmu@13620000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x13620000 0x1000>;
+			interrupts = <0 96 0>, <0 98 0>;
+			clock-names = "sysmmu", "master";
+			clocks = <&cmu CLK_SMMUMFC_L>, <&cmu CLK_MFC>;
+			power-domains = <&pd_mfc>;
+			#iommu-cells = <0>;
 		};
 
 		serial_0: serial@13800000 {

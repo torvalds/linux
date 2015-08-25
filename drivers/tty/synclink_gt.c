@@ -1539,7 +1539,8 @@ static int hdlcdev_open(struct net_device *dev)
 	DBGINFO(("%s hdlcdev_open\n", dev->name));
 
 	/* generic HDLC layer open processing */
-	if ((rc = hdlc_open(dev)))
+	rc = hdlc_open(dev);
+	if (rc)
 		return rc;
 
 	/* arbitrate between network and tty opens */
@@ -1803,7 +1804,8 @@ static int hdlcdev_init(struct slgt_info *info)
 
 	/* allocate and initialize network and HDLC layer objects */
 
-	if (!(dev = alloc_hdlcdev(info))) {
+	dev = alloc_hdlcdev(info);
+	if (!dev) {
 		printk(KERN_ERR "%s hdlc device alloc failure\n", info->device_name);
 		return -ENOMEM;
 	}
@@ -1824,7 +1826,8 @@ static int hdlcdev_init(struct slgt_info *info)
 	hdlc->xmit   = hdlcdev_xmit;
 
 	/* register objects with HDLC layer */
-	if ((rc = register_hdlc_device(dev))) {
+	rc = register_hdlc_device(dev);
+	if (rc) {
 		printk(KERN_WARNING "%s:unable to register hdlc device\n",__FILE__);
 		free_netdev(dev);
 		return rc;
@@ -1879,7 +1882,8 @@ static void rx_async(struct slgt_info *info)
 
 			stat = 0;
 
-			if ((status = *(p+1) & (BIT1 + BIT0))) {
+			status = *(p + 1) & (BIT1 + BIT0);
+			if (status) {
 				if (status & BIT1)
 					icount->parity++;
 				else if (status & BIT0)
@@ -3755,7 +3759,8 @@ static void slgt_cleanup(void)
 	if (serial_driver) {
 		for (info=slgt_device_list ; info != NULL ; info=info->next_device)
 			tty_unregister_device(serial_driver, info->line);
-		if ((rc = tty_unregister_driver(serial_driver)))
+		rc = tty_unregister_driver(serial_driver);
+		if (rc)
 			DBGERR(("tty_unregister_driver error=%d\n", rc));
 		put_tty_driver(serial_driver);
 	}

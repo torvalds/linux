@@ -819,13 +819,6 @@ static void quirk_amd_ioapic(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_VIPER_7410,	quirk_amd_ioapic);
-
-static void quirk_ioapic_rmw(struct pci_dev *dev)
-{
-	if (dev->devfn == 0 && dev->bus->number == 0)
-		sis_apic_bug = 1;
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_ANY_ID,			quirk_ioapic_rmw);
 #endif /* CONFIG_X86_IO_APIC */
 
 /*
@@ -1600,7 +1593,6 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_a
 
 static void quirk_pcie_mch(struct pci_dev *pdev)
 {
-	pci_msi_off(pdev);
 	pdev->no_msi = 1;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7520_MCH,	quirk_pcie_mch);
@@ -1614,7 +1606,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7525_MCH,	quir
  */
 static void quirk_pcie_pxh(struct pci_dev *dev)
 {
-	pci_msi_off(dev);
 	dev->no_msi = 1;
 	dev_warn(&dev->dev, "PXH quirk detected; SHPC device MSI disabled\n");
 }
@@ -3572,6 +3563,8 @@ static void quirk_dma_func1_alias(struct pci_dev *dev)
  * SKUs this function is not present, making this a ghost requester.
  * https://bugzilla.kernel.org/show_bug.cgi?id=42679
  */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9120,
+			 quirk_dma_func1_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9123,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c14 */
@@ -3740,6 +3733,8 @@ static const u16 pci_quirk_intel_pch_acs_ids[] = {
 	/* Wellsburg (X99) PCH */
 	0x8d10, 0x8d11, 0x8d12, 0x8d13, 0x8d14, 0x8d15, 0x8d16, 0x8d17,
 	0x8d18, 0x8d19, 0x8d1a, 0x8d1b, 0x8d1c, 0x8d1d, 0x8d1e,
+	/* Lynx Point (9 series) PCH */
+	0x8c90, 0x8c92, 0x8c94, 0x8c96, 0x8c98, 0x8c9a, 0x8c9c, 0x8c9e,
 };
 
 static bool pci_quirk_intel_pch_acs_match(struct pci_dev *dev)

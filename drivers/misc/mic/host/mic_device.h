@@ -27,7 +27,7 @@
 #include <linux/irqreturn.h>
 #include <linux/dmaengine.h>
 #include <linux/mic_bus.h>
-
+#include "../bus/scif_bus.h"
 #include "mic_intr.h"
 
 /* The maximum number of MIC devices supported in a single host system. */
@@ -90,7 +90,9 @@ enum mic_stepping {
  * @vdev_list: list of virtio devices.
  * @pm_notifier: Handles PM notifications from the OS.
  * @dma_mbdev: MIC BUS DMA device.
- * @dma_ch: DMA channel reserved by this driver for use by virtio devices.
+ * @dma_ch - Array of DMA channels
+ * @num_dma_ch - Number of DMA channels available
+ * @scdev: SCIF device on the SCIF virtual bus.
  */
 struct mic_device {
 	struct mic_mw mmio;
@@ -129,7 +131,9 @@ struct mic_device {
 	struct list_head vdev_list;
 	struct notifier_block pm_notifier;
 	struct mbus_device *dma_mbdev;
-	struct dma_chan *dma_ch;
+	struct dma_chan *dma_ch[MIC_MAX_DMA_CHAN];
+	int num_dma_ch;
+	struct scif_hw_dev *scdev;
 };
 
 /**
@@ -228,4 +232,5 @@ void mic_exit_debugfs(void);
 void mic_prepare_suspend(struct mic_device *mdev);
 void mic_complete_resume(struct mic_device *mdev);
 void mic_suspend(struct mic_device *mdev);
+extern atomic_t g_num_mics;
 #endif

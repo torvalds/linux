@@ -30,6 +30,8 @@
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
+unsigned int intr_to_DE_cnt;
+
 /* Part of U-boot ABI: see head.S */
 int __initdata uboot_tag;
 char __initdata *uboot_arg;
@@ -45,6 +47,7 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_perip uncached_space;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+	unsigned long perip_space;
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
@@ -54,7 +57,12 @@ static void read_arc_build_cfg_regs(void)
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-	cpu->uncached_base = uncached_space.start << 24;
+        if (uncached_space.ver < 3)
+		perip_space = uncached_space.start << 24;
+	else
+		perip_space = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
+
+	BUG_ON(perip_space != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
@@ -96,7 +104,7 @@ static void read_arc_build_cfg_regs(void)
 	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
 
-	{
+	if (is_isa_arcompact()) {
 		struct bcr_fp_arcompact sp, dp;
 		struct bcr_bpu_arcompact bpu;
 
@@ -112,6 +120,19 @@ static void read_arc_build_cfg_regs(void)
 			cpu->bpu.num_cache = 256 << (bpu.ent - 1);
 			cpu->bpu.num_pred = 256 << (bpu.ent - 1);
 		}
+	} else {
+		struct bcr_fp_arcv2 spdp;
+		struct bcr_bpu_arcv2 bpu;
+
+		READ_BCR(ARC_REG_FP_V2_BCR, spdp);
+		cpu->extn.fpu_sp = spdp.sp ? 1 : 0;
+		cpu->extn.fpu_dp = spdp.dp ? 1 : 0;
+
+		READ_BCR(ARC_REG_BPU_BCR, bpu);
+		cpu->bpu.ver = bpu.ver;
+		cpu->bpu.full = bpu.ft;
+		cpu->bpu.num_cache = 256 << bpu.bce;
+		cpu->bpu.num_pred = 2048 << bpu.pte;
 	}
 
 	READ_BCR(ARC_REG_AP_BCR, bcr);
@@ -127,16 +148,22 @@ static void read_arc_build_cfg_regs(void)
 }
 
 static const struct cpuinfo_data arc_cpu_tbl[] = {
+#ifdef CONFIG_ISA_ARCOMPACT
 	{ {0x20, "ARC 600"      }, 0x2F},
 	{ {0x30, "ARC 700"      }, 0x33},
 	{ {0x34, "ARC 700 R4.10"}, 0x34},
 	{ {0x35, "ARC 700 R4.11"}, 0x35},
+#else
+	{ {0x50, "ARC HS38 R2.0"}, 0x51},
+	{ {0x52, "ARC HS38 R2.1"}, 0x52},
+#endif
 	{ {0x00, NULL		} }
 };
 
-#define IS_AVAIL1(v, str)	((v) ? str : "")
-#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "" : "(not used) ")
-#define IS_AVAIL2(v, str, cfg)  IS_AVAIL1(v, str), IS_AVAIL1(v, IS_USED(cfg))
+#define IS_AVAIL1(v, s)		((v) ? s : "")
+#define IS_USED_RUN(v)		((v) ? "" : "(not used) ")
+#define IS_USED_CFG(cfg)	IS_USED_RUN(IS_ENABLED(cfg))
+#define IS_AVAIL2(v, s, cfg)	IS_AVAIL1(v, s), IS_AVAIL1(v, IS_USED_CFG(cfg))
 
 static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
@@ -149,13 +176,17 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	FIX_PTR(cpu);
 
-	{
+	if (is_isa_arcompact()) {
 		isa_nm = "ARCompact";
 		be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
 		atomic = cpu->isa.atomic1;
 		if (!cpu->isa.ver)	/* ISA BCR absent, use Kconfig info */
 			atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
+	} else {
+		isa_nm = "ARCv2";
+		be = cpu->isa.be;
+		atomic = cpu->isa.atomic;
 	}
 
 	n += scnprintf(buf + n, len - n,
@@ -183,16 +214,34 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s\nISA Extn\t: ",
 		       IS_AVAIL1(cpu->timers.t0, "Timer0 "),
 		       IS_AVAIL1(cpu->timers.t1, "Timer1 "),
-		       IS_AVAIL2(cpu->timers.rtsc, "64-bit RTSC ", CONFIG_ARC_HAS_RTSC));
+		       IS_AVAIL2(cpu->timers.rtc, "64-bit RTC ",
+				 CONFIG_ARC_HAS_RTC));
 
-	n += i = scnprintf(buf + n, len - n, "%s%s",
-			   IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC));
+	n += i = scnprintf(buf + n, len - n, "%s%s%s%s%s",
+			   IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
+			   IS_AVAIL2(cpu->isa.ldd, "ll64 ", CONFIG_ARC_HAS_LL64),
+			   IS_AVAIL1(cpu->isa.unalign, "unalign (not used)"));
 
 	if (i)
 		n += scnprintf(buf + n, len - n, "\n\t\t: ");
 
+	if (cpu->extn_mpy.ver) {
+		if (cpu->extn_mpy.ver <= 0x2) {	/* ARCompact */
+			n += scnprintf(buf + n, len - n, "mpy ");
+		} else {
+			int opt = 2;	/* stock MPY/MPYH */
+
+			if (cpu->extn_mpy.dsp)	/* OPT 7-9 */
+				opt = cpu->extn_mpy.dsp + 6;
+
+			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
+		}
+		n += scnprintf(buf + n, len - n, "%s",
+			       IS_USED_CFG(CONFIG_ARC_HAS_HW_MPY));
+	}
+
 	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
-		       IS_AVAIL1(cpu->extn_mpy.ver, "mpy "),
+		       IS_AVAIL1(cpu->isa.div_rem, "div_rem "),
 		       IS_AVAIL1(cpu->extn.norm, "norm "),
 		       IS_AVAIL1(cpu->extn.barrel, "barrel-shift "),
 		       IS_AVAIL1(cpu->extn.swap, "swap "),
@@ -219,7 +268,7 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 
 	n += scnprintf(buf + n, len - n,
 		       "Vector Table\t: %#x\nUncached Base\t: %#x\n",
-		       cpu->vec_base, cpu->uncached_base);
+		       cpu->vec_base, ARC_UNCACHED_ADDR_SPACE);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
@@ -254,8 +303,8 @@ static void arc_chk_core_config(void)
 	if (!cpu->timers.t1)
 		panic("Timer1 is not present!\n");
 
-	if (IS_ENABLED(CONFIG_ARC_HAS_RTSC) && !cpu->timers.rtsc)
-		panic("RTSC is not present\n");
+	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->timers.rtc)
+		panic("RTC is not present\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
@@ -287,6 +336,10 @@ static void arc_chk_core_config(void)
 		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
 	else if (!cpu->extn.fpu_dp && fpu_enabled)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
+
+	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
+	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
+		panic("llock/scond livelock workaround missing\n");
 }
 
 /*
@@ -323,13 +376,16 @@ static inline int is_kernel(unsigned long addr)
 
 void __init setup_arch(char **cmdline_p)
 {
+#ifdef CONFIG_ARC_UBOOT_SUPPORT
 	/* make sure that uboot passed pointer to cmdline/dtb is valid */
 	if (uboot_tag && is_kernel((unsigned long)uboot_arg))
 		panic("Invalid uboot arg\n");
 
 	/* See if u-boot passed an external Device Tree blob */
 	machine_desc = setup_machine_fdt(uboot_arg);	/* uboot_tag == 2 */
-	if (!machine_desc) {
+	if (!machine_desc)
+#endif
+	{
 		/* No, so try the embedded one */
 		machine_desc = setup_machine_fdt(__dtb_start);
 		if (!machine_desc)

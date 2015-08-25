@@ -270,6 +270,18 @@ int uvc_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 	return ret;
 }
 
+int uvc_export_buffer(struct uvc_video_queue *queue,
+		      struct v4l2_exportbuffer *exp)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_expbuf(&queue->queue, exp);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
 int uvc_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
 		       int nonblocking)
 {

@@ -256,7 +256,6 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 		return PTR_ERR(sg);
 
 	obj->pages = sg;
-	obj->has_dma_mapping = true;
 	return 0;
 }
 
@@ -264,7 +263,6 @@ static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
 	dma_buf_unmap_attachment(obj->base.import_attach,
 				 obj->pages, DMA_BIDIRECTIONAL);
-	obj->has_dma_mapping = false;
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {

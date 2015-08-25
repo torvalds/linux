@@ -313,6 +313,12 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 
 	pm_runtime_enable(dev->dev);
 
+	ret = drm_vblank_init(dev, 1);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to initialize vblank\n");
+		goto err_periph_clk_disable;
+	}
+
 	ret = atmel_hlcdc_dc_modeset_init(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize mode setting\n");
@@ -320,12 +326,6 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	}
 
 	drm_mode_config_reset(dev);
-
-	ret = drm_vblank_init(dev, 1);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to initialize vblank\n");
-		goto err_periph_clk_disable;
-	}
 
 	pm_runtime_get_sync(dev->dev);
 	ret = drm_irq_install(dev, dc->hlcdc->irq);
@@ -559,7 +559,7 @@ static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);

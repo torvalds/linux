@@ -17,10 +17,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
+#include "omap_drv.h"
 
 MODULE_PARM_DESC(ywrap, "Enable ywrap scrolling (omap44xx and later, default 'y')");
 static bool ywrap_enabled = true;
@@ -135,7 +135,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
 	if (fbdev->ywrap_enabled) {
 		/* need to align pitch to page size if using DMM scrolling */
-		mode_cmd.pitches[0] = ALIGN(mode_cmd.pitches[0], PAGE_SIZE);
+		mode_cmd.pitches[0] = PAGE_ALIGN(mode_cmd.pitches[0]);
 	}
 
 	/* allocate backing bo */

@@ -1,0 +1,54 @@
+#
+# Cavium ethernet device configuration
+#
+
+config NET_VENDOR_CAVIUM
+	tristate "Cavium ethernet drivers"
+	depends on PCI
+	default y
+	---help---
+	  Select this option if you want enable Cavium network support.
+
+	  If you have a Cavium SoC or network adapter, say Y.
+
+if NET_VENDOR_CAVIUM
+
+config THUNDER_NIC_PF
+	tristate "Thunder Physical function driver"
+	depends on 64BIT
+	select THUNDER_NIC_BGX
+	---help---
+	  This driver supports Thunder's NIC physical function.
+	  The NIC provides the controller and DMA engines to
+	  move network traffic to/from the memory. The NIC
+	  works closely with TNS, BGX and SerDes to implement the
+	  functions replacing and virtualizing those of a typical
+	  standalone PCIe NIC chip.
+
+config THUNDER_NIC_VF
+	tristate "Thunder Virtual function driver"
+	depends on 64BIT
+	---help---
+	  This driver supports Thunder's NIC virtual function
+
+config	THUNDER_NIC_BGX
+	tristate "Thunder MAC interface driver (BGX)"
+	depends on 64BIT
+	---help---
+	  This driver supports programming and controlling of MAC
+	  interface from NIC physical function driver.
+
+config LIQUIDIO
+	tristate "Cavium LiquidIO support"
+	depends on 64BIT
+	select PTP_1588_CLOCK
+	select FW_LOADER
+	select LIBCRC32C
+	---help---
+	  This driver supports Cavium LiquidIO Intelligent Server Adapters
+	  based on CN66XX and CN68XX chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called liquidio.  This is recommended.
+
+endif # NET_VENDOR_CAVIUM

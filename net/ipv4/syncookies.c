@@ -219,9 +219,9 @@ int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
 }
 EXPORT_SYMBOL_GPL(__cookie_v4_check);
 
-static struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
-				    struct request_sock *req,
-				    struct dst_entry *dst)
+struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
+				 struct request_sock *req,
+				 struct dst_entry *dst)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sock *child;
@@ -235,7 +235,7 @@ static struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 	}
 	return child;
 }
-
+EXPORT_SYMBOL(tcp_get_cookie_sock);
 
 /*
  * when syncookies are in effect and tcp timestamps are enabled we stored
@@ -391,7 +391,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	ireq->rcv_wscale  = rcv_wscale;
 	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk), &rt->dst);
 
-	ret = get_cookie_sock(sk, skb, req, &rt->dst);
+	ret = tcp_get_cookie_sock(sk, skb, req, &rt->dst);
 	/* ip_queue_xmit() depends on our flow being setup
 	 * Normal sockets get it right from inet_csk_route_child_sock()
 	 */

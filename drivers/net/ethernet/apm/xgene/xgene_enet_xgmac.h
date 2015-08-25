@@ -21,8 +21,27 @@
 #ifndef __XGENE_ENET_XGMAC_H__
 #define __XGENE_ENET_XGMAC_H__
 
+#define X2_BLOCK_ETH_MAC_CSR_OFFSET	0x3000
 #define BLOCK_AXG_MAC_OFFSET		0x0800
 #define BLOCK_AXG_MAC_CSR_OFFSET	0x2000
+
+#define XGENET_CONFIG_REG_ADDR		0x20
+#define XGENET_SRST_ADDR		0x00
+#define XGENET_CLKEN_ADDR		0x08
+
+#define CSR_CLK		BIT(0)
+#define XGENET_CLK	BIT(1)
+#define PCS_CLK		BIT(3)
+#define AN_REF_CLK	BIT(4)
+#define AN_CLK		BIT(5)
+#define AD_CLK		BIT(6)
+
+#define CSR_RST		BIT(0)
+#define XGENET_RST	BIT(1)
+#define PCS_RST		BIT(3)
+#define AN_REF_RST	BIT(4)
+#define AN_RST		BIT(5)
+#define AD_RST		BIT(6)
 
 #define AXGMAC_CONFIG_0			0x0000
 #define AXGMAC_CONFIG_1			0x0004
@@ -38,6 +57,7 @@
 #define HSTMACADR_MSW_ADDR		0x0014
 #define HSTMAXFRAME_LENGTH_ADDR		0x0020
 
+#define XG_MCX_RX_DV_GATE_REG_0_ADDR	0x0004
 #define XG_RSIF_CONFIG_REG_ADDR		0x00a0
 #define XCLE_BYPASS_REG0_ADDR           0x0160
 #define XCLE_BYPASS_REG1_ADDR           0x0164

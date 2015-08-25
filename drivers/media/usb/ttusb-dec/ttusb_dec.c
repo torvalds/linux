@@ -1431,8 +1431,8 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			       __func__, model);
 			return -ENOENT;
 		}
-			if (version >= 0x01770000)
-				dec->can_playback = 1;
+		if (version >= 0x01770000)
+			dec->can_playback = 1;
 	}
 	return 0;
 }

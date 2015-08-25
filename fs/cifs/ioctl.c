@@ -31,12 +31,15 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
+#include <linux/btrfs.h>
 
 #define CIFS_IOCTL_MAGIC	0xCF
 #define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
+#define CIFS_IOC_SET_INTEGRITY  _IO(CIFS_IOCTL_MAGIC, 4)
 
 static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
-			unsigned long srcfd, u64 off, u64 len, u64 destoff)
+			unsigned long srcfd, u64 off, u64 len, u64 destoff,
+			bool dup_extents)
 {
 	int rc;
 	struct cifsFileInfo *smb_file_target = dst_file->private_data;
@@ -109,9 +112,14 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	truncate_inode_pages_range(&target_inode->i_data, destoff,
 				   PAGE_CACHE_ALIGN(destoff + len)-1);
 
-	if (target_tcon->ses->server->ops->clone_range)
+	if (dup_extents && target_tcon->ses->server->ops->duplicate_extents)
+		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
+			smb_file_src, smb_file_target, off, len, destoff);
+	else if (!dup_extents && target_tcon->ses->server->ops->clone_range)
 		rc = target_tcon->ses->server->ops->clone_range(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
+	else
+		rc = -EOPNOTSUPP;
 
 	/* force revalidate of size and timestamps of target file now
 	   that target is updated on the server */
@@ -205,7 +213,20 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 			break;
 		case CIFS_IOC_COPYCHUNK_FILE:
-			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0);
+			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, false);
+			break;
+		case BTRFS_IOC_CLONE:
+			rc = cifs_ioctl_clone(xid, filep, arg, 0, 0, 0, true);
+			break;
+		case CIFS_IOC_SET_INTEGRITY:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			if (tcon->ses->server->ops->set_integrity)
+				rc = tcon->ses->server->ops->set_integrity(xid,
+						tcon, pSMBFile);
+			else
+				rc = -EOPNOTSUPP;
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

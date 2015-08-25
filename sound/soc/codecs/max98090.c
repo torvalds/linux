@@ -27,7 +27,7 @@
 #include "max98090.h"
 
 /* Allows for sparsely populated register maps */
-static struct reg_default max98090_reg[] = {
+static const struct reg_default max98090_reg[] = {
 	{ 0x00, 0x00 }, /* 00 Software Reset */
 	{ 0x03, 0x04 }, /* 03 Interrupt Masks */
 	{ 0x04, 0x00 }, /* 04 System Clock Quick */
@@ -1500,7 +1500,7 @@ static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
 static int max98090_add_widgets(struct snd_soc_codec *codec)
 {
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	snd_soc_add_codec_controls(codec, max98090_snd_controls,
 		ARRAY_SIZE(max98090_snd_controls));
@@ -1798,16 +1798,17 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (!IS_ERR(max98090->mclk)) {
-			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
-				clk_disable_unprepare(max98090->mclk);
-			else
-				clk_prepare_enable(max98090->mclk);
-		}
+		if (IS_ERR(max98090->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON)
+			clk_disable_unprepare(max98090->mclk);
+		else
+			clk_prepare_enable(max98090->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98090->regmap);
 			if (ret != 0) {
 				dev_err(codec->dev,
@@ -1824,7 +1825,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(max98090->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -2187,7 +2187,6 @@ static void max98090_jack_work(struct work_struct *work)
 		struct max98090_priv,
 		jack_work.work);
 	struct snd_soc_codec *codec = max98090->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int status = 0;
 	int reg;
 
@@ -2266,8 +2265,6 @@ static void max98090_jack_work(struct work_struct *work)
 
 	snd_soc_jack_report(max98090->jack, status,
 			    SND_JACK_HEADSET | SND_JACK_BTN_0);
-
-	snd_soc_dapm_sync(dapm);
 }
 
 static irqreturn_t max98090_interrupt(int irq, void *data)
@@ -2422,6 +2419,8 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	struct max98090_cdata *cdata;
 	enum max98090_type devtype;
 	int ret = 0;
+	int err;
+	unsigned int micbias;
 
 	dev_dbg(codec->dev, "max98090_probe\n");
 
@@ -2506,8 +2505,17 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, M98090_REG_BIAS_CONTROL,
 		M98090_VCM_MODE_MASK);
 
+	err = device_property_read_u32(codec->dev, "maxim,micbias", &micbias);
+	if (err) {
+		micbias = M98090_MBVSEL_2V8;
+		dev_info(codec->dev, "use default 2.8v micbias\n");
+	} else if (micbias < M98090_MBVSEL_2V2 || micbias > M98090_MBVSEL_2V8) {
+		dev_err(codec->dev, "micbias out of range 0x%x\n", micbias);
+		micbias = M98090_MBVSEL_2V8;
+	}
+
 	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
-		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
+		M98090_MBVSEL_MASK, micbias);
 
 	max98090_add_widgets(codec);
 
@@ -2696,7 +2704,7 @@ static const struct of_device_id max98090_of_match[] = {
 MODULE_DEVICE_TABLE(of, max98090_of_match);
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id max98090_acpi_match[] = {
+static const struct acpi_device_id max98090_acpi_match[] = {
 	{ "193C9890", MAX98090 },
 	{ }
 };

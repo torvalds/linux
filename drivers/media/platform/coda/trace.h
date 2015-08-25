@@ -9,8 +9,6 @@
 
 #include "coda.h"
 
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
-
 TRACE_EVENT(coda_bit_run,
 	TP_PROTO(struct coda_ctx *ctx, int cmd),
 

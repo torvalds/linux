@@ -1119,6 +1119,8 @@ bool ar9003_is_paprd_enabled(struct ath_hw *ah);
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 void ar9003_hw_init_rate_txpower(struct ath_hw *ah, u8 *rate_array,
 				 struct ath9k_channel *chan);
+void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
+				 struct ath9k_channel *chan, int bin);
 void ar5008_hw_init_rate_txpower(struct ath_hw *ah, int16_t *rate_array,
 				 struct ath9k_channel *chan, int ht40_delta);
 

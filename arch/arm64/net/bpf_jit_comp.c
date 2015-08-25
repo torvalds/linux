@@ -113,9 +113,9 @@ static inline void emit_a64_mov_i(const int is64, const int reg,
 static inline int bpf2a64_offset(int bpf_to, int bpf_from,
 				 const struct jit_ctx *ctx)
 {
-	int to = ctx->offset[bpf_to + 1];
+	int to = ctx->offset[bpf_to];
 	/* -1 to account for the Branch instruction */
-	int from = ctx->offset[bpf_from + 1] - 1;
+	int from = ctx->offset[bpf_from] - 1;
 
 	return to - from;
 }
@@ -289,20 +289,38 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	case BPF_ALU | BPF_END | BPF_FROM_BE:
 #ifdef CONFIG_CPU_BIG_ENDIAN
 		if (BPF_SRC(code) == BPF_FROM_BE)
-			break;
+			goto emit_bswap_uxt;
 #else /* !CONFIG_CPU_BIG_ENDIAN */
 		if (BPF_SRC(code) == BPF_FROM_LE)
-			break;
+			goto emit_bswap_uxt;
 #endif
 		switch (imm) {
 		case 16:
 			emit(A64_REV16(is64, dst, dst), ctx);
+			/* zero-extend 16 bits into 64 bits */
+			emit(A64_UXTH(is64, dst, dst), ctx);
 			break;
 		case 32:
 			emit(A64_REV32(is64, dst, dst), ctx);
+			/* upper 32 bits already cleared */
 			break;
 		case 64:
 			emit(A64_REV64(dst, dst), ctx);
+			break;
+		}
+		break;
+emit_bswap_uxt:
+		switch (imm) {
+		case 16:
+			/* zero-extend 16 bits into 64 bits */
+			emit(A64_UXTH(is64, dst, dst), ctx);
+			break;
+		case 32:
+			/* zero-extend 32 bits into 64 bits */
+			emit(A64_UXTW(is64, dst, dst), ctx);
+			break;
+		case 64:
+			/* nop */
 			break;
 		}
 		break;
@@ -640,10 +658,11 @@ static int build_body(struct jit_ctx *ctx)
 		const struct bpf_insn *insn = &prog->insnsi[i];
 		int ret;
 
+		ret = build_insn(insn, ctx);
+
 		if (ctx->image == NULL)
 			ctx->offset[i] = ctx->idx;
 
-		ret = build_insn(insn, ctx);
 		if (ret > 0) {
 			i++;
 			continue;

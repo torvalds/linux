@@ -267,6 +267,13 @@ static void dma_chan_put(struct dma_chan *chan)
 	/* This channel is not in use anymore, free it */
 	if (!chan->client_count && chan->device->device_free_chan_resources)
 		chan->device->device_free_chan_resources(chan);
+
+	/* If the channel is used via a DMA request router, free the mapping */
+	if (chan->router && chan->router->route_free) {
+		chan->router->route_free(chan->router->dev, chan->route_data);
+		chan->router = NULL;
+		chan->route_data = NULL;
+	}
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
@@ -487,7 +494,11 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	caps->directions = device->directions;
 	caps->residue_granularity = device->residue_granularity;
 
-	caps->cmd_pause = !!device->device_pause;
+	/*
+	 * Some devices implement only pause (e.g. to get residuum) but no
+	 * resume. However cmd_pause is advertised as pause AND resume.
+	 */
+	caps->cmd_pause = !!(device->device_pause && device->device_resume);
 	caps->cmd_terminate = !!device->device_terminate_all;
 
 	return 0;
@@ -532,7 +543,7 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 }
 
 /**
- * dma_request_slave_channel - try to get specific channel exclusively
+ * dma_get_slave_channel - try to get specific channel exclusively
  * @chan: target channel
  */
 struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
@@ -644,7 +655,7 @@ struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 EXPORT_SYMBOL_GPL(__dma_request_channel);
 
 /**
- * dma_request_slave_channel - try to allocate an exclusive slave channel
+ * dma_request_slave_channel_reason - try to allocate an exclusive slave channel
  * @dev:	pointer to client device structure
  * @name:	slave channel name
  *
@@ -678,6 +689,10 @@ struct dma_chan *dma_request_slave_channel(struct device *dev,
 	struct dma_chan *ch = dma_request_slave_channel_reason(dev, name);
 	if (IS_ERR(ch))
 		return NULL;
+
+	dma_cap_set(DMA_PRIVATE, ch->device->cap_mask);
+	ch->device->privatecnt++;
+
 	return ch;
 }
 EXPORT_SYMBOL_GPL(dma_request_slave_channel);
@@ -832,6 +847,8 @@ int dma_async_device_register(struct dma_device *device)
 		!device->device_prep_dma_pq);
 	BUG_ON(dma_has_cap(DMA_PQ_VAL, device->cap_mask) &&
 		!device->device_prep_dma_pq_val);
+	BUG_ON(dma_has_cap(DMA_MEMSET, device->cap_mask) &&
+		!device->device_prep_dma_memset);
 	BUG_ON(dma_has_cap(DMA_INTERRUPT, device->cap_mask) &&
 		!device->device_prep_dma_interrupt);
 	BUG_ON(dma_has_cap(DMA_SG, device->cap_mask) &&

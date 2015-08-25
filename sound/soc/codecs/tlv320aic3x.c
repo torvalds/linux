@@ -147,6 +147,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
@@ -179,7 +180,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 		update.mask = mask;
 		update.val = val;
 
-		snd_soc_dapm_mixer_update_power(&codec->dapm, kcontrol, connect,
+		snd_soc_dapm_mixer_update_power(dapm, kcontrol, connect,
 			&update);
 	}
 
@@ -979,7 +980,7 @@ static const struct snd_soc_dapm_route intercon_3007[] = {
 static int aic3x_add_widgets(struct snd_soc_codec *codec)
 {
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	switch (aic3x->model) {
 	case AIC3X_MODEL_3X:
@@ -1384,7 +1385,7 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY &&
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY &&
 		    aic3x->master) {
 			/* enable pll */
 			snd_soc_update_bits(codec, AIC3X_PLL_PROGA_REG,
@@ -1394,7 +1395,7 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (!aic3x->power)
 			aic3x_set_power(codec, 1);
-		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE &&
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE &&
 		    aic3x->master) {
 			/* disable pll */
 			snd_soc_update_bits(codec, AIC3X_PLL_PROGA_REG,
@@ -1406,7 +1407,6 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 			aic3x_set_power(codec, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

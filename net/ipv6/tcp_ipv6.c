@@ -99,8 +99,7 @@ static void inet6_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 		dst_hold(dst);
 		sk->sk_rx_dst = dst;
 		inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
-		if (rt->rt6i_node)
-			inet6_sk(sk)->rx_dst_cookie = rt->rt6i_node->fn_sernum;
+		inet6_sk(sk)->rx_dst_cookie = rt6_get_cookie(rt);
 	}
 }
 
@@ -121,7 +120,6 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct in6_addr *saddr = NULL, *final_p, final;
-	struct rt6_info *rt;
 	struct flowi6 fl6;
 	struct dst_entry *dst;
 	int addr_type;
@@ -259,10 +257,9 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	sk->sk_gso_type = SKB_GSO_TCPV6;
 	__ip6_dst_store(sk, dst, NULL, NULL);
 
-	rt = (struct rt6_info *) dst;
 	if (tcp_death_row.sysctl_tw_recycle &&
 	    !tp->rx_opt.ts_recent_stamp &&
-	    ipv6_addr_equal(&rt->rt6i_dst.addr, &sk->sk_v6_daddr))
+	    ipv6_addr_equal(&fl6.daddr, &sk->sk_v6_daddr))
 		tcp_fetch_timewait_stamp(sk, dst);
 
 	icsk->icsk_ext_hdr_len = 0;
@@ -946,7 +943,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk, struct sk_buff *skb)
 				   &ipv6_hdr(skb)->daddr, tcp_v6_iif(skb));
 	if (req) {
 		nsk = tcp_check_req(sk, skb, req, false);
-		if (!nsk)
+		if (!nsk || nsk == sk)
 			reqsk_put(req);
 		return nsk;
 	}
@@ -1251,7 +1248,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (skb->len < tcp_hdrlen(skb) || tcp_checksum_complete(skb))
+	if (tcp_checksum_complete(skb))
 		goto csum_err;
 
 	if (sk->sk_state == TCP_LISTEN) {
@@ -1421,6 +1418,7 @@ process:
 	skb->dev = NULL;
 
 	bh_lock_sock_nested(sk);
+	tcp_sk(sk)->segs_in += max_t(u16, 1, skb_shinfo(skb)->gso_segs);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
 		if (!tcp_prequeue(sk, skb))
@@ -1442,7 +1440,7 @@ no_tcp_socket:
 
 	tcp_v6_fill_cb(skb, hdr, th);
 
-	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
+	if (tcp_checksum_complete(skb)) {
 csum_error:
 		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
 bad_packet:
@@ -1467,10 +1465,6 @@ do_time_wait:
 
 	tcp_v6_fill_cb(skb, hdr, th);
 
-	if (skb->len < (th->doff<<2)) {
-		inet_twsk_put(inet_twsk(sk));
-		goto bad_packet;
-	}
 	if (tcp_checksum_complete(skb)) {
 		inet_twsk_put(inet_twsk(sk));
 		goto csum_error;

@@ -243,6 +243,8 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	mutex_unlock(&dev_priv->fb_tracking.lock);
+
+	intel_psr_single_frame_update(dev);
 }
 
 /**

@@ -19,6 +19,13 @@
 
 #include "cpu.h"
 
+/*
+ * nodes_per_socket: Stores the number of nodes per socket.
+ * Refer to Fam15h Models 00-0fh BKDG - CPUID Fn8000_001E_ECX
+ * Node Identifiers[10:8]
+ */
+static u32 nodes_per_socket = 1;
+
 static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 {
 	u32 gprs[8] = { 0 };
@@ -288,10 +295,10 @@ static int nearby_node(int apicid)
  *     Assumption: Number of cores in each internal node is the same.
  * (2) AMD processors supporting compute units
  */
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_SMP
 static void amd_get_topology(struct cpuinfo_x86 *c)
 {
-	u32 nodes, cores_per_cu = 1;
+	u32 cores_per_cu = 1;
 	u8 node_id;
 	int cpu = smp_processor_id();
 
@@ -300,7 +307,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		u32 eax, ebx, ecx, edx;
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
-		nodes = ((ecx >> 8) & 7) + 1;
+		nodes_per_socket = ((ecx >> 8) & 7) + 1;
 		node_id = ecx & 7;
 
 		/* get compute unit information */
@@ -311,18 +318,18 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		nodes = ((value >> 3) & 7) + 1;
+		nodes_per_socket = ((value >> 3) & 7) + 1;
 		node_id = value & 7;
 	} else
 		return;
 
 	/* fixup multi-node processor information */
-	if (nodes > 1) {
+	if (nodes_per_socket > 1) {
 		u32 cores_per_node;
 		u32 cus_per_node;
 
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
-		cores_per_node = c->x86_max_cores / nodes;
+		cores_per_node = c->x86_max_cores / nodes_per_socket;
 		cus_per_node = cores_per_node / cores_per_cu;
 
 		/* store NodeID, use llc_shared_map to store sibling info */
@@ -341,7 +348,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
  */
 static void amd_detect_cmp(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_SMP
 	unsigned bits;
 	int cpu = smp_processor_id();
 
@@ -365,6 +372,12 @@ u16 amd_get_nb_id(int cpu)
 	return id;
 }
 EXPORT_SYMBOL_GPL(amd_get_nb_id);
+
+u32 amd_get_nodes_per_socket(void)
+{
+	return nodes_per_socket;
+}
+EXPORT_SYMBOL_GPL(amd_get_nodes_per_socket);
 
 static void srat_detect_node(struct cpuinfo_x86 *c)
 {
@@ -420,7 +433,7 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 
 static void early_init_amd_mc(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_SMP
 	unsigned bits, ecx;
 
 	/* Multi core CPU? */
@@ -520,8 +533,16 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 #endif
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_PCI)
-	/* check CPU config space for extended APIC ID */
-	if (cpu_has_apic && c->x86 >= 0xf) {
+	/*
+	 * ApicID can always be treated as an 8-bit value for AMD APIC versions
+	 * >= 0x10, but even old K8s came out of reset with version 0x10. So, we
+	 * can safely set X86_FEATURE_EXTD_APICID unconditionally for families
+	 * after 16h.
+	 */
+	if (cpu_has_apic && c->x86 > 0x16) {
+		set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
+	} else if (cpu_has_apic && c->x86 >= 0xf) {
+		/* check CPU config space for extended APIC ID */
 		unsigned int val;
 		val = read_pci_config(0, 24, 0, 0x68);
 		if ((val & ((1 << 17) | (1 << 18))) == ((1 << 17) | (1 << 18)))

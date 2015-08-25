@@ -367,6 +367,11 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 	struct clusterip_config *config;
 	int ret;
 
+	if (par->nft_compat) {
+		pr_err("cannot use CLUSTERIP target from nftables compat\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT_DPT) {

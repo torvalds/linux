@@ -24,7 +24,8 @@
 #include <linux/module.h>
 #include <asm/unaligned.h>
 
-#include <scsi/scsi.h>
+#include <scsi/scsi_proto.h>
+#include <scsi/scsi_common.h>
 #include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
@@ -37,10 +38,9 @@
 #include "target_core_ua.h"
 #include "target_core_xcopy.h"
 
-static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
+static void spc_fill_alua_data(struct se_lun *lun, unsigned char *buf)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
-	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 
 	/*
 	 * Set SCCS for MAINTENANCE_IN + REPORT_TARGET_PORT_GROUPS.
@@ -53,17 +53,11 @@ static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 	 *
 	 * See spc4r17 section 6.4.2 Table 135
 	 */
-	if (!port)
-		return;
-	tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
-	if (!tg_pt_gp_mem)
-		return;
-
-	spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
-	tg_pt_gp = tg_pt_gp_mem->tg_pt_gp;
+	spin_lock(&lun->lun_tg_pt_gp_lock);
+	tg_pt_gp = lun->lun_tg_pt_gp;
 	if (tg_pt_gp)
 		buf[5] |= tg_pt_gp->tg_pt_gp_alua_access_type;
-	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
+	spin_unlock(&lun->lun_tg_pt_gp_lock);
 }
 
 sense_reason_t
@@ -94,7 +88,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Enable SCCS and TPGS fields for Emulated ALUA
 	 */
-	spc_fill_alua_data(lun->lun_sep, buf);
+	spc_fill_alua_data(lun, buf);
 
 	/*
 	 * Set Third-Party Copy (3PC) bit to indicate support for EXTENDED_COPY
@@ -181,11 +175,9 @@ spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_lun *lun = cmd->se_lun;
-	struct se_port *port = NULL;
 	struct se_portal_group *tpg = NULL;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
-	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 	unsigned char *prod = &dev->t10_wwn.model[0];
 	u32 prod_len;
 	u32 unit_serial_len, off = 0;
@@ -267,18 +259,15 @@ check_t10_vend_desc:
 	/* Header size for Designation descriptor */
 	len += (id_len + 4);
 	off += (id_len + 4);
-	/*
-	 * struct se_port is only set for INQUIRY VPD=1 through $FABRIC_MOD
-	 */
-	port = lun->lun_sep;
-	if (port) {
+
+	if (1) {
 		struct t10_alua_lu_gp *lu_gp;
 		u32 padding, scsi_name_len, scsi_target_len;
 		u16 lu_gp_id = 0;
 		u16 tg_pt_gp_id = 0;
 		u16 tpgt;
 
-		tpg = port->sep_tpg;
+		tpg = lun->lun_tpg;
 		/*
 		 * Relative target port identifer, see spc4r17
 		 * section 7.7.3.7
@@ -286,8 +275,7 @@ check_t10_vend_desc:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-		buf[off] =
-			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
+		buf[off] = tpg->proto_id << 4;
 		buf[off++] |= 0x1; /* CODE SET == Binary */
 		buf[off] = 0x80; /* Set PIV=1 */
 		/* Set ASSOCIATION == target port: 01b */
@@ -299,8 +287,8 @@ check_t10_vend_desc:
 		/* Skip over Obsolete field in RTPI payload
 		 * in Table 472 */
 		off += 2;
-		buf[off++] = ((port->sep_rtpi >> 8) & 0xff);
-		buf[off++] = (port->sep_rtpi & 0xff);
+		buf[off++] = ((lun->lun_rtpi >> 8) & 0xff);
+		buf[off++] = (lun->lun_rtpi & 0xff);
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * Target port group identifier, see spc4r17
@@ -309,21 +297,16 @@ check_t10_vend_desc:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-		tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
-		if (!tg_pt_gp_mem)
-			goto check_lu_gp;
-
-		spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
-		tg_pt_gp = tg_pt_gp_mem->tg_pt_gp;
+		spin_lock(&lun->lun_tg_pt_gp_lock);
+		tg_pt_gp = lun->lun_tg_pt_gp;
 		if (!tg_pt_gp) {
-			spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
+			spin_unlock(&lun->lun_tg_pt_gp_lock);
 			goto check_lu_gp;
 		}
 		tg_pt_gp_id = tg_pt_gp->tg_pt_gp_id;
-		spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
+		spin_unlock(&lun->lun_tg_pt_gp_lock);
 
-		buf[off] =
-			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
+		buf[off] = tpg->proto_id << 4;
 		buf[off++] |= 0x1; /* CODE SET == Binary */
 		buf[off] = 0x80; /* Set PIV=1 */
 		/* Set ASSOCIATION == target port: 01b */
@@ -371,8 +354,7 @@ check_lu_gp:
 		 * section 7.5.1 Table 362
 		 */
 check_scsi_name:
-		buf[off] =
-			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
+		buf[off] = tpg->proto_id << 4;
 		buf[off++] |= 0x3; /* CODE SET == UTF-8 */
 		buf[off] = 0x80; /* Set PIV=1 */
 		/* Set ASSOCIATION == target port: 01b */
@@ -412,8 +394,7 @@ check_scsi_name:
 		/*
 		 * Target device designator
 		 */
-		buf[off] =
-			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
+		buf[off] = tpg->proto_id << 4;
 		buf[off++] |= 0x3; /* CODE SET == UTF-8 */
 		buf[off] = 0x80; /* Set PIV=1 */
 		/* Set ASSOCIATION == target device: 10b */
@@ -473,15 +454,22 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 		    cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE1_PROT)
 			buf[4] = 0x5;
 		else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT ||
-			cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE3_PROT)
+			 cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE3_PROT)
 			buf[4] = 0x4;
+	}
+
+	/* logical unit supports type 1 and type 3 protection */
+	if ((dev->transport->get_device_type(dev) == TYPE_DISK) &&
+	    (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) &&
+	    (dev->dev_attrib.pi_prot_type || cmd->se_sess->sess_prot_type)) {
+		buf[4] |= (0x3 << 3);
 	}
 
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
 	/* If WriteCache emulation is enabled, set V_SUP */
-	if (se_dev_check_wce(dev))
+	if (target_check_wce(dev))
 		buf[6] = 0x01;
 	/* If an LBA map is present set R_SUP */
 	spin_lock(&cmd->se_dev->t10_alua.lba_map_lock);
@@ -698,7 +686,7 @@ static sense_reason_t
 spc_emulate_inquiry(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
+	struct se_portal_group *tpg = cmd->se_lun->lun_tpg;
 	unsigned char *rbuf;
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char *buf;
@@ -712,7 +700,7 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
-	if (dev == tpg->tpg_virt_lun0.lun_se_dev)
+	if (dev == rcu_access_pointer(tpg->tpg_virt_lun0->lun_se_dev))
 		buf[0] = 0x3f; /* Not connected */
 	else
 		buf[0] = dev->transport->get_device_type(dev);
@@ -888,7 +876,7 @@ static int spc_modesense_caching(struct se_cmd *cmd, u8 pc, u8 *p)
 	if (pc == 1)
 		goto out;
 
-	if (se_dev_check_wce(dev))
+	if (target_check_wce(dev))
 		p[2] = 0x04; /* Write Cache Enable */
 	p[12] = 0x20; /* Disabled Read Ahead */
 
@@ -985,6 +973,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	int length = 0;
 	int ret;
 	int i;
+	bool read_only = target_lun_is_rdonly(cmd);;
 
 	memset(buf, 0, SE_MODE_PAGE_BUF);
 
@@ -995,13 +984,15 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	length = ten ? 3 : 2;
 
 	/* DEVICE-SPECIFIC PARAMETER */
-	if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
-	    (cmd->se_deve &&
-	     (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
+	if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) || read_only)
 		spc_modesense_write_protect(&buf[length], type);
 
-	if ((se_dev_check_wce(dev)) &&
-	    (dev->dev_attrib.emulate_fua_write > 0))
+	/*
+	 * SBC only allows us to enable FUA and DPO together.  Fortunately
+	 * DPO is explicitly specified as a hint, so a noop is a perfectly
+	 * valid implementation.
+	 */
+	if (target_check_fua(dev))
 		spc_modesense_dpofua(&buf[length], type);
 
 	++length;
@@ -1211,17 +1202,14 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
+	struct se_node_acl *nacl;
+	struct scsi_lun slun;
 	unsigned char *buf;
-	u32 lun_count = 0, offset = 8, i;
-
-	if (cmd->data_length < 16) {
-		pr_warn("REPORT LUNS allocation length %u too small\n",
-			cmd->data_length);
-		return TCM_INVALID_CDB_FIELD;
-	}
+	u32 lun_count = 0, offset = 8;
+	__be32 len;
 
 	buf = transport_kmap_data_sg(cmd);
-	if (!buf)
+	if (cmd->data_length && !buf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	/*
@@ -1229,41 +1217,49 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 	 * coming via a target_core_mod PASSTHROUGH op, and not through
 	 * a $FABRIC_MOD.  In that case, report LUN=0 only.
 	 */
-	if (!sess) {
-		int_to_scsilun(0, (struct scsi_lun *)&buf[offset]);
-		lun_count = 1;
+	if (!sess)
 		goto done;
-	}
 
-	spin_lock_irq(&sess->se_node_acl->device_list_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = sess->se_node_acl->device_list[i];
-		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
-			continue;
+	nacl = sess->se_node_acl;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
 		/*
 		 * We determine the correct LUN LIST LENGTH even once we
 		 * have reached the initial allocation length.
 		 * See SPC2-R20 7.19.
 		 */
 		lun_count++;
-		if ((offset + 8) > cmd->data_length)
+		if (offset >= cmd->data_length)
 			continue;
 
-		int_to_scsilun(deve->mapped_lun, (struct scsi_lun *)&buf[offset]);
+		int_to_scsilun(deve->mapped_lun, &slun);
+		memcpy(buf + offset, &slun,
+		       min(8u, cmd->data_length - offset));
 		offset += 8;
 	}
-	spin_unlock_irq(&sess->se_node_acl->device_list_lock);
+	rcu_read_unlock();
 
 	/*
 	 * See SPC3 r07, page 159.
 	 */
 done:
-	lun_count *= 8;
-	buf[0] = ((lun_count >> 24) & 0xff);
-	buf[1] = ((lun_count >> 16) & 0xff);
-	buf[2] = ((lun_count >> 8) & 0xff);
-	buf[3] = (lun_count & 0xff);
-	transport_kunmap_data_sg(cmd);
+	/*
+	 * If no LUNs are accessible, report virtual LUN 0.
+	 */
+	if (lun_count == 0) {
+		int_to_scsilun(0, &slun);
+		if (cmd->data_length > 8)
+			memcpy(buf + offset, &slun,
+			       min(8u, cmd->data_length - offset));
+		lun_count = 1;
+	}
+
+	if (buf) {
+		len = cpu_to_be32(lun_count * 8);
+		memcpy(buf, &len, min_t(int, sizeof len, cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd_with_length(cmd, GOOD, 8 + lun_count * 8);
 	return 0;

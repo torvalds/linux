@@ -1650,16 +1650,17 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (!IS_ERR(max98095->mclk)) {
-			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
-				clk_disable_unprepare(max98095->mclk);
-			else
-				clk_prepare_enable(max98095->mclk);
-		}
+		if (IS_ERR(max98095->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON)
+			clk_disable_unprepare(max98095->mclk);
+		else
+			clk_prepare_enable(max98095->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98095->regmap);
 
 			if (ret != 0) {
@@ -1678,7 +1679,6 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(max98095->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -2198,7 +2198,7 @@ static int max98095_suspend(struct snd_soc_codec *codec)
 	if (max98095->headphone_jack || max98095->mic_jack)
 		max98095_jack_detect_disable(codec);
 
-	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -2208,7 +2208,7 @@ static int max98095_resume(struct snd_soc_codec *codec)
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *client = to_i2c_client(codec->dev);
 
-	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	if (max98095->headphone_jack || max98095->mic_jack) {
 		max98095_jack_detect_enable(codec);
@@ -2301,8 +2301,8 @@ static int max98095_probe(struct snd_soc_codec *codec)
 		/* register an audio interrupt */
 		ret = request_threaded_irq(client->irq, NULL,
 			max98095_report_jack,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"max98095", codec);
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT, "max98095", codec);
 		if (ret) {
 			dev_err(codec->dev, "Failed to request IRQ: %d\n", ret);
 			goto err_access;

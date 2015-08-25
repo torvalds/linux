@@ -219,6 +219,7 @@ struct nfs_inode {
 #define NFS_INO_COMMIT		(7)		/* inode is committing unstable writes */
 #define NFS_INO_LAYOUTCOMMIT	(9)		/* layoutcommit required */
 #define NFS_INO_LAYOUTCOMMITTING (10)		/* layoutcommit inflight */
+#define NFS_INO_LAYOUTSTATS	(11)		/* layoutstats inflight */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -291,9 +292,12 @@ static inline void nfs_mark_for_revalidate(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS;
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR |
+				NFS_INO_REVAL_PAGECACHE |
+				NFS_INO_INVALID_ACCESS |
+				NFS_INO_INVALID_ACL;
 	if (S_ISDIR(inode->i_mode))
-		nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_DATA;
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
 }
 

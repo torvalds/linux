@@ -1,0 +1,40 @@
+#
+# Feature name:          irq-time-acct
+#         Kconfig:       HAVE_IRQ_TIME_ACCOUNTING
+#         description:   arch supports precise IRQ time accounting
+#
+    -----------------------
+    |         arch |status|
+    -----------------------
+    |       alpha: |  ..  |
+    |         arc: | TODO |
+    |         arm: |  ok  |
+    |       arm64: |  ..  |
+    |       avr32: | TODO |
+    |    blackfin: | TODO |
+    |         c6x: | TODO |
+    |        cris: | TODO |
+    |         frv: | TODO |
+    |       h8300: | TODO |
+    |     hexagon: | TODO |
+    |        ia64: |  ..  |
+    |        m32r: | TODO |
+    |        m68k: | TODO |
+    |       metag: | TODO |
+    |  microblaze: | TODO |
+    |        mips: |  ok  |
+    |     mn10300: | TODO |
+    |       nios2: | TODO |
+    |    openrisc: | TODO |
+    |      parisc: |  ..  |
+    |     powerpc: |  ..  |
+    |        s390: |  ..  |
+    |       score: | TODO |
+    |          sh: | TODO |
+    |       sparc: |  ..  |
+    |        tile: |  ..  |
+    |          um: | TODO |
+    |   unicore32: | TODO |
+    |         x86: |  ok  |
+    |      xtensa: |  ok  |
+    -----------------------

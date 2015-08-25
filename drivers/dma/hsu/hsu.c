@@ -384,7 +384,10 @@ static int hsu_dma_terminate_all(struct dma_chan *chan)
 	spin_lock_irqsave(&hsuc->vchan.lock, flags);
 
 	hsu_dma_stop_channel(hsuc);
-	hsuc->desc = NULL;
+	if (hsuc->desc) {
+		hsu_dma_desc_free(&hsuc->desc->vdesc);
+		hsuc->desc = NULL;
+	}
 
 	vchan_get_all_descriptors(&hsuc->vchan, &head);
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);

@@ -58,40 +58,6 @@
 		reg = <0x80000000 0x20000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_usb_otg1_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "usb_otg1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio4 0 0>;
-			enable-active-high;
-		};
-
-		reg_usb_otg2_vbus: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "usb_otg2_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio4 2 0>;
-			enable-active-high;
-		};
-
-		reg_1p8v: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "1P8V";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-		};
-	};
-
 	usdhc3_pwrseq: usdhc3_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>, 	/* WL_REG_ON */
@@ -121,14 +87,13 @@
 };
 
 &usbotg1 {
-	vbus-supply = <&reg_usb_otg1_vbus>;
-	dr_mode = "host";
+	dr_mode = "peripheral";
 	disable-over-current;
 	status = "okay";
 };
 
 &usbotg2 {
-	vbus-supply = <&reg_usb_otg2_vbus>;
+	dr_mode = "host";
 	disable-over-current;
 	status = "okay";
 };

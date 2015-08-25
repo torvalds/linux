@@ -483,6 +483,7 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	pte_t pte;
 	unsigned long pfn;
 	struct page *page;
+	unsigned char dummy;
 
 	ptep = lookup_address((unsigned long)v, &level);
 	BUG_ON(ptep == NULL);
@@ -491,6 +492,32 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	page = pfn_to_page(pfn);
 
 	pte = pfn_pte(pfn, prot);
+
+	/*
+	 * Careful: update_va_mapping() will fail if the virtual address
+	 * we're poking isn't populated in the page tables.  We don't
+	 * need to worry about the direct map (that's always in the page
+	 * tables), but we need to be careful about vmap space.  In
+	 * particular, the top level page table can lazily propagate
+	 * entries between processes, so if we've switched mms since we
+	 * vmapped the target in the first place, we might not have the
+	 * top-level page table entry populated.
+	 *
+	 * We disable preemption because we want the same mm active when
+	 * we probe the target and when we issue the hypercall.  We'll
+	 * have the same nominal mm, but if we're a kernel thread, lazy
+	 * mm dropping could change our pgd.
+	 *
+	 * Out of an abundance of caution, this uses __get_user() to fault
+	 * in the target address just in case there's some obscure case
+	 * in which the target address isn't readable.
+	 */
+
+	preempt_disable();
+
+	pagefault_disable();	/* Avoid warnings due to being atomic. */
+	__get_user(dummy, (unsigned char __user __force *)v);
+	pagefault_enable();
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
 		BUG();
@@ -503,12 +530,25 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 				BUG();
 	} else
 		kmap_flush_unused();
+
+	preempt_enable();
 }
 
 static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 {
 	const unsigned entries_per_page = PAGE_SIZE / LDT_ENTRY_SIZE;
 	int i;
+
+	/*
+	 * We need to mark the all aliases of the LDT pages RO.  We
+	 * don't need to call vm_flush_aliases(), though, since that's
+	 * only responsible for flushing aliases out the TLBs, not the
+	 * page tables, and Xen will flush the TLB for us if needed.
+	 *
+	 * To avoid confusing future readers: none of this is necessary
+	 * to load the LDT.  The hypervisor only checks this when the
+	 * LDT is faulted in due to subsequent descriptor access.
+	 */
 
 	for(i = 0; i < entries; i += entries_per_page)
 		set_aliased_prot(ldt + i, PAGE_KERNEL_RO);
@@ -1181,10 +1221,11 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.read_tscp = native_read_tscp,
 
 	.iret = xen_iret,
-	.irq_enable_sysexit = xen_sysexit,
 #ifdef CONFIG_X86_64
 	.usergs_sysret32 = xen_sysret32,
 	.usergs_sysret64 = xen_sysret64,
+#else
+	.irq_enable_sysexit = xen_sysexit,
 #endif
 
 	.load_tr_desc = paravirt_nop,
@@ -1423,7 +1464,7 @@ static void xen_pvh_set_cr_flags(int cpu)
 		return;
 	/*
 	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
-	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu_init.
+	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu__init_cpu().
 	*/
 	if (cpu_has_pse)
 		cr4_set_bits_and_update_boot(X86_CR4_PSE);

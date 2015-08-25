@@ -162,6 +162,17 @@ config MX3_IPU_IRQS
 	  To avoid bloating the irq_desc[] array we allocate a sufficient
 	  number of IRQ slots and map them dynamically to specific sources.
 
+config PXA_DMA
+	bool "PXA DMA support"
+	depends on (ARCH_MMP || ARCH_PXA)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for PXA. It is also compatible with MMP PDMA
+	  platform. The internal DMA IP of all PXA variants is supported, with
+	  16 to 32 channels for peripheral to memory or memory to memory
+	  transfers.
+
 config TXX9_DMAC
 	tristate "Toshiba TXx9 SoC DMA support"
 	depends on MACH_TX49XX || MACH_TX39XX
@@ -244,6 +255,9 @@ config TI_EDMA
 	help
 	  Enable support for the TI EDMA controller. This DMA
 	  engine is found on TI DaVinci and AM33xx parts.
+
+config TI_DMA_CROSSBAR
+	bool
 
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
@@ -330,6 +344,7 @@ config DMA_OMAP
 	depends on ARCH_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
+	select TI_DMA_CROSSBAR if SOC_DRA7XX
 
 config DMA_BCM2835
 	tristate "BCM2835 DMA engine support"

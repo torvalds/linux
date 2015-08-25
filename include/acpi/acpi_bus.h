@@ -208,7 +208,10 @@ struct acpi_device_flags {
 	u32 visited:1;
 	u32 hotplug_notify:1;
 	u32 is_dock_station:1;
-	u32 reserved:23;
+	u32 of_compatible_ok:1;
+	u32 coherent_dma:1;
+	u32 cca_seen:1;
+	u32 reserved:20;
 };
 
 /* File System */
@@ -271,7 +274,6 @@ struct acpi_device_power_flags {
 struct acpi_device_power_state {
 	struct {
 		u8 valid:1;
-		u8 os_accessible:1;
 		u8 explicit_set:1;	/* _PSx present? */
 		u8 reserved:6;
 	} flags;
@@ -380,12 +382,45 @@ struct acpi_device {
 	void (*remove)(struct acpi_device *);
 };
 
+static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
+{
+	bool ret = false;
+
+	if (!adev)
+		return ret;
+
+	/**
+	 * Currently, we only support _CCA=1 (i.e. coherent_dma=1)
+	 * This should be equivalent to specifyig dma-coherent for
+	 * a device in OF.
+	 *
+	 * For the case when _CCA=0 (i.e. coherent_dma=0 && cca_seen=1),
+	 * There are two cases:
+	 * case 1. Do not support and disable DMA.
+	 * case 2. Support but rely on arch-specific cache maintenance for
+	 *         non-coherence DMA operations.
+	 * Currently, we implement case 1 above.
+	 *
+	 * For the case when _CCA is missing (i.e. cca_seen=0) and
+	 * platform specifies ACPI_CCA_REQUIRED, we do not support DMA,
+	 * and fallback to arch-specific default handling.
+	 *
+	 * See acpi_init_coherency() for more info.
+	 */
+	if (adev->flags.coherent_dma) {
+		ret = true;
+		if (coherent)
+			*coherent = adev->flags.coherent_dma;
+	}
+	return ret;
+}
+
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->type == FWNODE_ACPI;
 }
 
-static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_node(struct fwnode_handle *fwnode)
 {
 	return is_acpi_node(fwnode) ?
 		container_of(fwnode, struct acpi_device, fwnode) : NULL;
@@ -601,7 +636,7 @@ static inline bool acpi_device_can_wakeup(struct acpi_device *adev)
 
 static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 {
-	return adev->power.states[ACPI_STATE_D3_COLD].flags.os_accessible;
+	return adev->power.states[ACPI_STATE_D3_COLD].flags.valid;
 }
 
 #else	/* CONFIG_ACPI */

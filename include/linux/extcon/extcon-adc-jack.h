@@ -44,7 +44,7 @@ struct adc_jack_cond {
  * @consumer_channel:	Unique name to identify the channel on the consumer
  *			side. This typically describes the channels used within
  *			the consumer. E.g. 'battery_voltage'
- * @cable_names:	array of cable names ending with null.
+ * @cable_names:	array of extcon id for supported cables.
  * @adc_contitions:	array of struct adc_jack_cond conditions ending
  *			with .state = 0 entry. This describes how to decode
  *			adc values into extcon state.
@@ -58,8 +58,7 @@ struct adc_jack_pdata {
 	const char *name;
 	const char *consumer_channel;
 
-	/* The last entry should be NULL */
-	const char **cable_names;
+	const enum extcon *cable_names;
 
 	/* The last entry's state should be 0 */
 	struct adc_jack_cond *adc_conditions;

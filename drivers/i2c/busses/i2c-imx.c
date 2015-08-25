@@ -241,7 +241,7 @@ static struct imx_i2c_hwdata vf610_i2c_hwdata = {
 
 };
 
-static struct platform_device_id imx_i2c_devtype[] = {
+static const struct platform_device_id imx_i2c_devtype[] = {
 	{
 		.name = "imx1-i2c",
 		.driver_data = (kernel_ulong_t)&imx1_i2c_hwdata,

@@ -1044,9 +1044,9 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	palmas_pinctrl_desc.pins = palmas_pins_desc;
 	palmas_pinctrl_desc.npins = ARRAY_SIZE(palmas_pins_desc);
 	pci->pctl = pinctrl_register(&palmas_pinctrl_desc, &pdev->dev, pci);
-	if (!pci->pctl) {
+	if (IS_ERR(pci->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pci->pctl);
 	}
 	return 0;
 }

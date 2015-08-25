@@ -21,6 +21,7 @@
 #include <asm/nmi.h>
 #include <asm/crw.h>
 #include <asm/switch_to.h>
+#include <asm/ctl_reg.h>
 
 struct mcck_struct {
 	int kill_task;
@@ -129,26 +130,30 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	} else
 		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
 
-	asm volatile(
-		"	ld	0,0(%0)\n"
-		"	ld	1,8(%0)\n"
-		"	ld	2,16(%0)\n"
-		"	ld	3,24(%0)\n"
-		"	ld	4,32(%0)\n"
-		"	ld	5,40(%0)\n"
-		"	ld	6,48(%0)\n"
-		"	ld	7,56(%0)\n"
-		"	ld	8,64(%0)\n"
-		"	ld	9,72(%0)\n"
-		"	ld	10,80(%0)\n"
-		"	ld	11,88(%0)\n"
-		"	ld	12,96(%0)\n"
-		"	ld	13,104(%0)\n"
-		"	ld	14,112(%0)\n"
-		"	ld	15,120(%0)\n"
-		: : "a" (fpt_save_area));
-	/* Revalidate vector registers */
-	if (MACHINE_HAS_VX && current->thread.vxrs) {
+	if (!MACHINE_HAS_VX) {
+		/* Revalidate floating point registers */
+		asm volatile(
+			"	ld	0,0(%0)\n"
+			"	ld	1,8(%0)\n"
+			"	ld	2,16(%0)\n"
+			"	ld	3,24(%0)\n"
+			"	ld	4,32(%0)\n"
+			"	ld	5,40(%0)\n"
+			"	ld	6,48(%0)\n"
+			"	ld	7,56(%0)\n"
+			"	ld	8,64(%0)\n"
+			"	ld	9,72(%0)\n"
+			"	ld	10,80(%0)\n"
+			"	ld	11,88(%0)\n"
+			"	ld	12,96(%0)\n"
+			"	ld	13,104(%0)\n"
+			"	ld	14,112(%0)\n"
+			"	ld	15,120(%0)\n"
+			: : "a" (fpt_save_area));
+	} else {
+		/* Revalidate vector registers */
+		union ctlreg0 cr0;
+
 		if (!mci->vr) {
 			/*
 			 * Vector registers can't be restored and therefore
@@ -156,8 +161,12 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			 */
 			kill_task = 1;
 		}
+		cr0.val = S390_lowcore.cregs_save_area[0];
+		cr0.afp = cr0.vx = 1;
+		__ctl_load(cr0.val, 0, 0);
 		restore_vx_regs((__vector128 *)
-				S390_lowcore.vector_save_area_addr);
+				&S390_lowcore.vector_save_area);
+		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Revalidate access registers */
 	asm volatile(

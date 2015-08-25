@@ -4,7 +4,7 @@
  * derived from the OF-version.
  *
  * Copyright (c) 2010 Pengutronix e.K.
- *   Author: Wolfram Sang <w.sang@pengutronix.de>
+ *   Author: Wolfram Sang <kernel@pengutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -112,6 +112,14 @@
 #define ESDHC_FLAG_STD_TUNING		BIT(5)
 /* The IP has SDHCI_CAPABILITIES_1 register */
 #define ESDHC_FLAG_HAVE_CAP1		BIT(6)
+/*
+ * The IP has errata ERR004536
+ * uSDHC: ADMA Length Mismatch Error occurs if the AHB read access is slow,
+ * when reading data from the card
+ */
+#define ESDHC_FLAG_ERR004536		BIT(7)
+/* The IP supports HS200 mode */
+#define ESDHC_FLAG_HS200		BIT(8)
 
 struct esdhc_soc_data {
 	u32 flags;
@@ -139,7 +147,13 @@ static struct esdhc_soc_data usdhc_imx6q_data = {
 
 static struct esdhc_soc_data usdhc_imx6sl_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
-			| ESDHC_FLAG_HAVE_CAP1,
+			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_ERR004536
+			| ESDHC_FLAG_HS200,
+};
+
+static struct esdhc_soc_data usdhc_imx6sx_data = {
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
+			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200,
 };
 
 struct pltfm_imx_data {
@@ -161,7 +175,7 @@ struct pltfm_imx_data {
 	u32 is_ddr;
 };
 
-static struct platform_device_id imx_esdhc_devtype[] = {
+static const struct platform_device_id imx_esdhc_devtype[] = {
 	{
 		.name = "sdhci-esdhc-imx25",
 		.driver_data = (kernel_ulong_t) &esdhc_imx25_data,
@@ -182,6 +196,7 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx35-esdhc", .data = &esdhc_imx35_data, },
 	{ .compatible = "fsl,imx51-esdhc", .data = &esdhc_imx51_data, },
 	{ .compatible = "fsl,imx53-esdhc", .data = &esdhc_imx53_data, },
+	{ .compatible = "fsl,imx6sx-usdhc", .data = &usdhc_imx6sx_data, },
 	{ .compatible = "fsl,imx6sl-usdhc", .data = &usdhc_imx6sl_data, },
 	{ .compatible = "fsl,imx6q-usdhc", .data = &usdhc_imx6q_data, },
 	{ /* sentinel */ }
@@ -298,7 +313,7 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 	u32 data;
 
 	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)) {
-		if (val & SDHCI_INT_CARD_INT) {
+		if ((val & SDHCI_INT_CARD_INT) && !esdhc_is_usdhc(imx_data)) {
 			/*
 			 * Clear and then set D3CD bit to avoid missing the
 			 * card interrupt.  This is a eSDHC controller problem
@@ -312,6 +327,11 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 			writel(data, host->ioaddr + SDHCI_HOST_CONTROL);
 			data |= ESDHC_CTRL_D3CD;
 			writel(data, host->ioaddr + SDHCI_HOST_CONTROL);
+		}
+
+		if (val & SDHCI_INT_ADMA_ERROR) {
+			val &= ~SDHCI_INT_ADMA_ERROR;
+			val |= ESDHC_INT_VENDOR_SPEC_DMA_ERR;
 		}
 	}
 
@@ -331,13 +351,6 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 				writel(data, host->ioaddr + SDHCI_TRANSFER_MODE);
 				imx_data->multiblock_status = WAIT_FOR_INT;
 			}
-	}
-
-	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)) {
-		if (val & SDHCI_INT_ADMA_ERROR) {
-			val &= ~SDHCI_INT_ADMA_ERROR;
-			val |= ESDHC_INT_VENDOR_SPEC_DMA_ERR;
-		}
 	}
 
 	writel(val, host->ioaddr + reg);
@@ -568,13 +581,8 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct pltfm_imx_data *imx_data = pltfm_host->priv;
-	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
-	if (boarddata->f_max && (boarddata->f_max < pltfm_host->clock))
-		return boarddata->f_max;
-	else
-		return pltfm_host->clock;
+	return pltfm_host->clock;
 }
 
 static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
@@ -865,33 +873,18 @@ static const struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
 static int
 sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 			 struct sdhci_host *host,
-			 struct esdhc_platform_data *boarddata)
+			 struct pltfm_imx_data *imx_data)
 {
 	struct device_node *np = pdev->dev.of_node;
-
-	if (!np)
-		return -ENODEV;
-
-	if (of_get_property(np, "non-removable", NULL))
-		boarddata->cd_type = ESDHC_CD_PERMANENT;
-
-	if (of_get_property(np, "fsl,cd-controller", NULL))
-		boarddata->cd_type = ESDHC_CD_CONTROLLER;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
+	int ret;
 
 	if (of_get_property(np, "fsl,wp-controller", NULL))
 		boarddata->wp_type = ESDHC_WP_CONTROLLER;
 
-	boarddata->cd_gpio = of_get_named_gpio(np, "cd-gpios", 0);
-	if (gpio_is_valid(boarddata->cd_gpio))
-		boarddata->cd_type = ESDHC_CD_GPIO;
-
 	boarddata->wp_gpio = of_get_named_gpio(np, "wp-gpios", 0);
 	if (gpio_is_valid(boarddata->wp_gpio))
 		boarddata->wp_type = ESDHC_WP_GPIO;
-
-	of_property_read_u32(np, "bus-width", &boarddata->max_bus_width);
-
-	of_property_read_u32(np, "max-frequency", &boarddata->f_max);
 
 	if (of_find_property(np, "no-1-8-v", NULL))
 		boarddata->support_vsel = false;
@@ -903,17 +896,110 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
+	/* sdr50 and sdr104 needs work on 1.8v signal voltage */
+	if ((boarddata->support_vsel) && esdhc_is_usdhc(imx_data) &&
+	    !IS_ERR(imx_data->pins_default)) {
+		imx_data->pins_100mhz = pinctrl_lookup_state(imx_data->pinctrl,
+						ESDHC_PINCTRL_STATE_100MHZ);
+		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
+						ESDHC_PINCTRL_STATE_200MHZ);
+		if (IS_ERR(imx_data->pins_100mhz) ||
+				IS_ERR(imx_data->pins_200mhz)) {
+			dev_warn(mmc_dev(host->mmc),
+				"could not get ultra high speed state, work on normal mode\n");
+			/*
+			 * fall back to not support uhs by specify no 1.8v quirk
+			 */
+			host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+		}
+	} else {
+		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+	}
+
+	/* call to generic mmc_of_parse to support additional capabilities */
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		return ret;
+
+	if (!IS_ERR_VALUE(mmc_gpio_get_cd(host->mmc)))
+		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+
 	return 0;
 }
 #else
 static inline int
 sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 			 struct sdhci_host *host,
-			 struct esdhc_platform_data *boarddata)
+			 struct pltfm_imx_data *imx_data)
 {
 	return -ENODEV;
 }
 #endif
+
+static int sdhci_esdhc_imx_probe_nondt(struct platform_device *pdev,
+			 struct sdhci_host *host,
+			 struct pltfm_imx_data *imx_data)
+{
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
+	int err;
+
+	if (!host->mmc->parent->platform_data) {
+		dev_err(mmc_dev(host->mmc), "no board data!\n");
+		return -EINVAL;
+	}
+
+	imx_data->boarddata = *((struct esdhc_platform_data *)
+				host->mmc->parent->platform_data);
+	/* write_protect */
+	if (boarddata->wp_type == ESDHC_WP_GPIO) {
+		err = mmc_gpio_request_ro(host->mmc, boarddata->wp_gpio);
+		if (err) {
+			dev_err(mmc_dev(host->mmc),
+				"failed to request write-protect gpio!\n");
+			return err;
+		}
+		host->mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+	}
+
+	/* card_detect */
+	switch (boarddata->cd_type) {
+	case ESDHC_CD_GPIO:
+		err = mmc_gpio_request_cd(host->mmc, boarddata->cd_gpio, 0);
+		if (err) {
+			dev_err(mmc_dev(host->mmc),
+				"failed to request card-detect gpio!\n");
+			return err;
+		}
+		/* fall through */
+
+	case ESDHC_CD_CONTROLLER:
+		/* we have a working card_detect back */
+		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+		break;
+
+	case ESDHC_CD_PERMANENT:
+		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+		break;
+
+	case ESDHC_CD_NONE:
+		break;
+	}
+
+	switch (boarddata->max_bus_width) {
+	case 8:
+		host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA;
+		break;
+	case 4:
+		host->mmc->caps |= MMC_CAP_4_BIT_DATA;
+		break;
+	case 1:
+	default:
+		host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
+		break;
+	}
+
+	return 0;
+}
 
 static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 {
@@ -921,7 +1007,6 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 			of_match_device(imx_esdhc_dt_ids, &pdev->dev);
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
-	struct esdhc_platform_data *boarddata;
 	int err;
 	struct pltfm_imx_data *imx_data;
 
@@ -991,6 +1076,16 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		writel(0x08100810, host->ioaddr + ESDHC_WTMK_LVL);
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 		host->mmc->caps |= MMC_CAP_1_8V_DDR;
+
+		if (!(imx_data->socdata->flags & ESDHC_FLAG_HS200))
+			host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
+
+		/*
+		* errata ESDHC_FLAG_ERR004536 fix for MX6Q TO1.2 and MX6DL
+		* TO1.1, it's harmless for MX6SL
+		*/
+		writel(readl(host->ioaddr + 0x6c) | BIT(7),
+			host->ioaddr + 0x6c);
 	}
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
@@ -1002,54 +1097,13 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 			ESDHC_STD_TUNING_EN | ESDHC_TUNING_START_TAP,
 			host->ioaddr + ESDHC_TUNING_CTRL);
 
-	boarddata = &imx_data->boarddata;
-	if (sdhci_esdhc_imx_probe_dt(pdev, host, boarddata) < 0) {
-		if (!host->mmc->parent->platform_data) {
-			dev_err(mmc_dev(host->mmc), "no board data!\n");
-			err = -EINVAL;
-			goto disable_clk;
-		}
-		imx_data->boarddata = *((struct esdhc_platform_data *)
-					host->mmc->parent->platform_data);
-	}
+	if (imx_data->socdata->flags & ESDHC_FLAG_ERR004536)
+		host->quirks |= SDHCI_QUIRK_BROKEN_ADMA;
 
-	/* card_detect */
-	if (boarddata->cd_type == ESDHC_CD_CONTROLLER)
-		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-
-	switch (boarddata->max_bus_width) {
-	case 8:
-		host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA;
-		break;
-	case 4:
-		host->mmc->caps |= MMC_CAP_4_BIT_DATA;
-		break;
-	case 1:
-	default:
-		host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
-		break;
-	}
-
-	/* sdr50 and sdr104 needs work on 1.8v signal voltage */
-	if ((boarddata->support_vsel) && esdhc_is_usdhc(imx_data) &&
-	    !IS_ERR(imx_data->pins_default)) {
-		imx_data->pins_100mhz = pinctrl_lookup_state(imx_data->pinctrl,
-						ESDHC_PINCTRL_STATE_100MHZ);
-		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
-						ESDHC_PINCTRL_STATE_200MHZ);
-		if (IS_ERR(imx_data->pins_100mhz) ||
-				IS_ERR(imx_data->pins_200mhz)) {
-			dev_warn(mmc_dev(host->mmc),
-				"could not get ultra high speed state, work on normal mode\n");
-			/* fall back to not support uhs by specify no 1.8v quirk */
-			host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
-		}
-	} else {
-		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
-	}
-
-	/* call to generic mmc_of_parse to support additional capabilities */
-	err = mmc_of_parse(host->mmc);
+	if (of_id)
+		err = sdhci_esdhc_imx_probe_dt(pdev, host, imx_data);
+	else
+		err = sdhci_esdhc_imx_probe_nondt(pdev, host, imx_data);
 	if (err)
 		goto disable_clk;
 
@@ -1151,5 +1205,5 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 module_platform_driver(sdhci_esdhc_imx_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for Freescale i.MX eSDHC");
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_LICENSE("GPL v2");

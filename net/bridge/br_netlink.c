@@ -112,6 +112,8 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(1)	/* IFLA_BRPORT_FAST_LEAVE */
 		+ nla_total_size(1)	/* IFLA_BRPORT_LEARNING */
 		+ nla_total_size(1)	/* IFLA_BRPORT_UNICAST_FLOOD */
+		+ nla_total_size(1)	/* IFLA_BRPORT_PROXYARP */
+		+ nla_total_size(1)	/* IFLA_BRPORT_PROXYARP_WIFI */
 		+ 0;
 }
 
@@ -457,6 +459,8 @@ static int br_afspec(struct net_bridge *br,
 		if (nla_len(attr) != sizeof(struct bridge_vlan_info))
 			return -EINVAL;
 		vinfo = nla_data(attr);
+		if (!vinfo->vid || vinfo->vid >= VLAN_VID_MASK)
+			return -EINVAL;
 		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
 			if (vinfo_start)
 				return -EINVAL;
@@ -504,6 +508,8 @@ static const struct nla_policy br_port_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_FAST_LEAVE]= { .type = NLA_U8 },
 	[IFLA_BRPORT_LEARNING]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_UNICAST_FLOOD] = { .type = NLA_U8 },
+	[IFLA_BRPORT_PROXYARP]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_PROXYARP_WIFI] = { .type = NLA_U8 },
 };
 
 /* Change the state of the port and notify spanning tree */
@@ -586,7 +592,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
 	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
-	int err = 0, ret_offload = 0;
+	int err = 0;
 
 	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_PROTINFO);
 	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
@@ -628,16 +634,6 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 				afspec, RTM_SETLINK);
 	}
 
-	if (p && !(flags & BRIDGE_FLAGS_SELF)) {
-		/* set bridge attributes in hardware if supported
-		 */
-		ret_offload = netdev_switch_port_bridge_setlink(dev, nlh,
-								flags);
-		if (ret_offload && ret_offload != -EOPNOTSUPP)
-			br_warn(p->br, "error setting attrs on port %u(%s)\n",
-				(unsigned int)p->port_no, p->dev->name);
-	}
-
 	if (err == 0)
 		br_ifinfo_notify(RTM_NEWLINK, p);
 out:
@@ -649,7 +645,7 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 {
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
-	int err = 0, ret_offload = 0;
+	int err = 0;
 
 	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
 	if (!afspec)
@@ -667,16 +663,6 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 		 * expects RTM_NEWLINK for vlan dels
 		 */
 		br_ifinfo_notify(RTM_NEWLINK, p);
-
-	if (p && !(flags & BRIDGE_FLAGS_SELF)) {
-		/* del bridge attributes in hardware
-		 */
-		ret_offload = netdev_switch_port_bridge_dellink(dev, nlh,
-								flags);
-		if (ret_offload && ret_offload != -EOPNOTSUPP)
-			br_warn(p->br, "error deleting attrs on port %u (%s)\n",
-				(unsigned int)p->port_no, p->dev->name);
-	}
 
 	return err;
 }
@@ -711,9 +697,17 @@ static int br_port_slave_changelink(struct net_device *brdev,
 				    struct nlattr *tb[],
 				    struct nlattr *data[])
 {
+	struct net_bridge *br = netdev_priv(brdev);
+	int ret;
+
 	if (!data)
 		return 0;
-	return br_setport(br_port_get_rtnl(dev), data);
+
+	spin_lock_bh(&br->lock);
+	ret = br_setport(br_port_get_rtnl(dev), data);
+	spin_unlock_bh(&br->lock);
+
+	return ret;
 }
 
 static int br_port_fill_slave_info(struct sk_buff *skb,

@@ -348,6 +348,9 @@ enum secure_load_status_reg {
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
 
+#define MON_DMARB_RD_CTL_ADDR		(0xa03c60)
+#define MON_DMARB_RD_DATA_ADDR		(0xa03c5c)
+
 #define DBGC_IN_SAMPLE			(0xa03c00)
 
 /* enable the ID buf for read */

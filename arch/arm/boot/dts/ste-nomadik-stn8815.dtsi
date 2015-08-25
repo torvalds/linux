@@ -722,8 +722,9 @@
 			   reg = <0x1a>;
 		};
 		lis3lv02dl@1d {
-			   compatible = "st,lis3lv02dl";
-			   reg = <0x1d>;
+			/* Accelerometer */
+			compatible = "st,lis3lv02dl-accel";
+			reg = <0x1d>;
 		};
 	};
 
@@ -756,6 +757,7 @@
 			clock-names = "uartclk", "apb_pclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_default_mux>;
+			status = "disabled";
 		};
 
 		uart1: uart@101fb000 {

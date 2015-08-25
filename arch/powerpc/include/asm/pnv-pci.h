@@ -11,7 +11,7 @@
 #define _ASM_PNV_PCI_H
 
 #include <linux/pci.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode);
 int pnv_cxl_ioda_msi_setup(struct pci_dev *dev, unsigned int hwirq,

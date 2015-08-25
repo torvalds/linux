@@ -95,8 +95,9 @@ static const struct snd_soc_dapm_widget at91sam9g20ek_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route intercon[] = {
 
-	/* speaker connected to LHPOUT */
+	/* speaker connected to LHPOUT/RHPOUT */
 	{"Ext Spk", NULL, "LHPOUT"},
+	{"Ext Spk", NULL, "RHPOUT"},
 
 	/* mic is connected to Mic Jack, with WM8731 Mic Bias */
 	{"MICIN", NULL, "Mic Bias"},
@@ -108,9 +109,7 @@ static const struct snd_soc_dapm_route intercon[] = {
  */
 static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	printk(KERN_DEBUG
@@ -123,10 +122,6 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 		printk(KERN_ERR "Failed to set WM8731 SYSCLK: %d\n", ret);
 		return ret;
 	}
-
-	/* not connected */
-	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
-	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
 
 #ifndef ENABLE_MIC_INPUT
 	snd_soc_dapm_nc_pin(&rtd->card->dapm, "Int Mic");
@@ -158,6 +153,7 @@ static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.num_dapm_widgets = ARRAY_SIZE(at91sam9g20ek_dapm_widgets),
 	.dapm_routes = intercon,
 	.num_dapm_routes = ARRAY_SIZE(intercon),
+	.fully_routed = true,
 };
 
 static int at91sam9g20ek_audio_probe(struct platform_device *pdev)

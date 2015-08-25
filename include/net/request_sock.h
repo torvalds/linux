@@ -64,6 +64,7 @@ struct request_sock {
 	struct timer_list		rsk_timer;
 	const struct request_sock_ops	*rsk_ops;
 	struct sock			*sk;
+	u32				*saved_syn;
 	u32				secid;
 	u32				peer_secid;
 };
@@ -77,7 +78,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 		req->rsk_ops = ops;
 		sock_hold(sk_listener);
 		req->rsk_listener = sk_listener;
-
+		req->saved_syn = NULL;
 		/* Following is temporary. It is coupled with debugging
 		 * helpers in reqsk_put() & reqsk_free()
 		 */
@@ -104,6 +105,7 @@ static inline void reqsk_free(struct request_sock *req)
 	req->rsk_ops->destructor(req);
 	if (req->rsk_listener)
 		sock_put(req->rsk_listener);
+	kfree(req->saved_syn);
 	kmem_cache_free(req->rsk_ops->slab, req);
 }
 

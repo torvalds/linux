@@ -555,31 +555,22 @@ static int nfs_launder_page(struct page *page)
 	return nfs_wb_page(inode, page);
 }
 
-#ifdef CONFIG_NFS_SWAP
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 						sector_t *span)
 {
-	int ret;
 	struct rpc_clnt *clnt = NFS_CLIENT(file->f_mapping->host);
 
 	*span = sis->pages;
 
-	rcu_read_lock();
-	ret = xs_swapper(rcu_dereference(clnt->cl_xprt), 1);
-	rcu_read_unlock();
-
-	return ret;
+	return rpc_clnt_swap_activate(clnt);
 }
 
 static void nfs_swap_deactivate(struct file *file)
 {
 	struct rpc_clnt *clnt = NFS_CLIENT(file->f_mapping->host);
 
-	rcu_read_lock();
-	xs_swapper(rcu_dereference(clnt->cl_xprt), 0);
-	rcu_read_unlock();
+	rpc_clnt_swap_deactivate(clnt);
 }
-#endif
 
 const struct address_space_operations nfs_file_aops = {
 	.readpage = nfs_readpage,
@@ -596,10 +587,8 @@ const struct address_space_operations nfs_file_aops = {
 	.launder_page = nfs_launder_page,
 	.is_dirty_writeback = nfs_check_dirty_writeback,
 	.error_remove_page = generic_error_remove_page,
-#ifdef CONFIG_NFS_SWAP
 	.swap_activate = nfs_swap_activate,
 	.swap_deactivate = nfs_swap_deactivate,
-#endif
 };
 
 /*

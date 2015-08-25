@@ -17,7 +17,6 @@ clean-files := inat-tables.c
 obj-$(CONFIG_SMP) += msr-smp.o cache-smp.o
 
 lib-y := delay.o misc.o cmdline.o
-lib-y += thunk_$(BITS).o
 lib-y += usercopy_$(BITS).o usercopy.o getuser.o putuser.o
 lib-y += memcpy_$(BITS).o
 lib-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += rwsem.o
@@ -40,6 +39,6 @@ else
         lib-y += csum-partial_64.o csum-copy_64.o csum-wrappers_64.o
         lib-y += clear_page_64.o copy_page_64.o
         lib-y += memmove_64.o memset_64.o
-        lib-y += copy_user_64.o copy_user_nocache_64.o
+        lib-y += copy_user_64.o
 	lib-y += cmpxchg16b_emu.o
 endif

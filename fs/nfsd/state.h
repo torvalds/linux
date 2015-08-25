@@ -68,6 +68,7 @@ struct nfsd4_callback {
 	struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
 	int cb_status;
+	bool cb_update_seq_nr;
 	bool cb_need_restart;
 };
 
@@ -582,9 +583,9 @@ enum nfsd4_cb_op {
 struct nfsd4_compound_state;
 struct nfsd_net;
 
-extern __be32 nfs4_preprocess_stateid_op(struct net *net,
-		struct nfsd4_compound_state *cstate,
-		stateid_t *stateid, int flags, struct file **filp);
+extern __be32 nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *cstate, stateid_t *stateid,
+		int flags, struct file **filp, bool *tmp_file);
 __be32 nfsd4_lookup_stateid(struct nfsd4_compound_state *cstate,
 		     stateid_t *stateid, unsigned char typemask,
 		     struct nfs4_stid **s, struct nfsd_net *nn);

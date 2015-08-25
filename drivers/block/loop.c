@@ -86,8 +86,6 @@ static DEFINE_MUTEX(loop_index_mutex);
 static int max_part;
 static int part_shift;
 
-static struct workqueue_struct *loop_wq;
-
 static int transfer_xor(struct loop_device *lo, int cmd,
 			struct page *raw_page, unsigned raw_off,
 			struct page *loop_page, unsigned loop_off,
@@ -476,6 +474,28 @@ static int loop_flush(struct loop_device *lo)
 	return loop_switch(lo, NULL);
 }
 
+static void loop_reread_partitions(struct loop_device *lo,
+				   struct block_device *bdev)
+{
+	int rc;
+
+	/*
+	 * bd_mutex has been held already in release path, so don't
+	 * acquire it if this function is called in such case.
+	 *
+	 * If the reread partition isn't from release path, lo_refcnt
+	 * must be at least one and it can only become zero when the
+	 * current holder is released.
+	 */
+	if (!atomic_read(&lo->lo_refcnt))
+		rc = __blkdev_reread_part(bdev);
+	else
+		rc = blkdev_reread_part(bdev);
+	if (rc)
+		pr_warn("%s: partition scan of loop%d (%s) failed (rc=%d)\n",
+			__func__, lo->lo_number, lo->lo_file_name, rc);
+}
+
 /*
  * loop_change_fd switched the backing store of a loopback device to
  * a new file. This is useful for operating system installers to free up
@@ -524,7 +544,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 
 	fput(old_file);
 	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
-		ioctl_by_bdev(bdev, BLKRRPART, 0);
+		loop_reread_partitions(lo, bdev);
 	return 0;
 
  out_putf:
@@ -568,7 +588,7 @@ static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
 
 	spin_lock_irq(&lo->lo_lock);
 	if (lo->lo_backing_file)
-		p = d_path(&lo->lo_backing_file->f_path, buf, PAGE_SIZE - 1);
+		p = file_path(lo->lo_backing_file, buf, PAGE_SIZE - 1);
 	spin_unlock_irq(&lo->lo_lock);
 
 	if (IS_ERR_OR_NULL(p))
@@ -725,6 +745,12 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	size = get_loop_size(lo, file);
 	if ((loff_t)(sector_t)size != size)
 		goto out_putf;
+	error = -ENOMEM;
+	lo->wq = alloc_workqueue("kloopd%d",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 16,
+			lo->lo_number);
+	if (!lo->wq)
+		goto out_putf;
 
 	error = 0;
 
@@ -755,7 +781,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	if (part_shift)
 		lo->lo_flags |= LO_FLAGS_PARTSCAN;
 	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
-		ioctl_by_bdev(bdev, BLKRRPART, 0);
+		loop_reread_partitions(lo, bdev);
 
 	/* Grab the block_device to prevent its destruction after we
 	 * put /dev/loopXX inode. Later in loop_clr_fd() we bdput(bdev).
@@ -827,7 +853,7 @@ static int loop_clr_fd(struct loop_device *lo)
 	 * <dev>/do something like mkfs/losetup -d <dev> causing the losetup -d
 	 * command to fail with EBUSY.
 	 */
-	if (lo->lo_refcnt > 1) {
+	if (atomic_read(&lo->lo_refcnt) > 1) {
 		lo->lo_flags |= LO_FLAGS_AUTOCLEAR;
 		mutex_unlock(&lo->lo_ctl_mutex);
 		return 0;
@@ -835,6 +861,9 @@ static int loop_clr_fd(struct loop_device *lo)
 
 	if (filp == NULL)
 		return -EINVAL;
+
+	/* freeze request queue during the transition */
+	blk_mq_freeze_queue(lo->lo_queue);
 
 	spin_lock_irq(&lo->lo_lock);
 	lo->lo_state = Lo_rundown;
@@ -867,11 +896,15 @@ static int loop_clr_fd(struct loop_device *lo)
 	lo->lo_state = Lo_unbound;
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
+	blk_mq_unfreeze_queue(lo->lo_queue);
+
 	if (lo->lo_flags & LO_FLAGS_PARTSCAN && bdev)
-		ioctl_by_bdev(bdev, BLKRRPART, 0);
+		loop_reread_partitions(lo, bdev);
 	lo->lo_flags = 0;
 	if (!part_shift)
 		lo->lo_disk->flags |= GENHD_FL_NO_PART_SCAN;
+	destroy_workqueue(lo->wq);
+	lo->wq = NULL;
 	mutex_unlock(&lo->lo_ctl_mutex);
 	/*
 	 * Need not hold lo_ctl_mutex to fput backing file.
@@ -943,7 +976,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	     !(lo->lo_flags & LO_FLAGS_PARTSCAN)) {
 		lo->lo_flags |= LO_FLAGS_PARTSCAN;
 		lo->lo_disk->flags &= ~GENHD_FL_NO_PART_SCAN;
-		ioctl_by_bdev(lo->lo_device, BLKRRPART, 0);
+		loop_reread_partitions(lo, lo->lo_device);
 	}
 
 	lo->lo_encrypt_key_size = info->lo_encrypt_key_size;
@@ -1324,9 +1357,7 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 	}
 
-	mutex_lock(&lo->lo_ctl_mutex);
-	lo->lo_refcnt++;
-	mutex_unlock(&lo->lo_ctl_mutex);
+	atomic_inc(&lo->lo_refcnt);
 out:
 	mutex_unlock(&loop_index_mutex);
 	return err;
@@ -1337,11 +1368,10 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 	struct loop_device *lo = disk->private_data;
 	int err;
 
+	if (atomic_dec_return(&lo->lo_refcnt))
+		return;
+
 	mutex_lock(&lo->lo_ctl_mutex);
-
-	if (--lo->lo_refcnt)
-		goto out;
-
 	if (lo->lo_flags & LO_FLAGS_AUTOCLEAR) {
 		/*
 		 * In autoclear mode, stop the loop thread
@@ -1358,7 +1388,6 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		loop_flush(lo);
 	}
 
-out:
 	mutex_unlock(&lo->lo_ctl_mutex);
 }
 
@@ -1425,8 +1454,12 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
+	struct loop_device *lo = cmd->rq->q->queuedata;
 
 	blk_mq_start_request(bd->rq);
+
+	if (lo->lo_state != Lo_bound)
+		return -EIO;
 
 	if (cmd->rq->cmd_flags & REQ_WRITE) {
 		struct loop_device *lo = cmd->rq->q->queuedata;
@@ -1441,9 +1474,9 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		spin_unlock_irq(&lo->lo_lock);
 
 		if (need_sched)
-			queue_work(loop_wq, &lo->write_work);
+			queue_work(lo->wq, &lo->write_work);
 	} else {
-		queue_work(loop_wq, &cmd->read_work);
+		queue_work(lo->wq, &cmd->read_work);
 	}
 
 	return BLK_MQ_RQ_QUEUE_OK;
@@ -1454,9 +1487,6 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 	const bool write = cmd->rq->cmd_flags & REQ_WRITE;
 	struct loop_device *lo = cmd->rq->q->queuedata;
 	int ret = -EIO;
-
-	if (lo->lo_state != Lo_bound)
-		goto failed;
 
 	if (write && (lo->lo_flags & LO_FLAGS_READ_ONLY))
 		goto failed;
@@ -1594,6 +1624,7 @@ static int loop_add(struct loop_device **l, int i)
 		disk->flags |= GENHD_FL_NO_PART_SCAN;
 	disk->flags |= GENHD_FL_EXT_DEVT;
 	mutex_init(&lo->lo_ctl_mutex);
+	atomic_set(&lo->lo_refcnt, 0);
 	lo->lo_number		= i;
 	spin_lock_init(&lo->lo_lock);
 	disk->major		= LOOP_MAJOR;
@@ -1711,7 +1742,7 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 			mutex_unlock(&lo->lo_ctl_mutex);
 			break;
 		}
-		if (lo->lo_refcnt > 0) {
+		if (atomic_read(&lo->lo_refcnt) > 0) {
 			ret = -EBUSY;
 			mutex_unlock(&lo->lo_ctl_mutex);
 			break;
@@ -1806,13 +1837,6 @@ static int __init loop_init(void)
 		goto misc_out;
 	}
 
-	loop_wq = alloc_workqueue("kloopd",
-			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 0);
-	if (!loop_wq) {
-		err = -ENOMEM;
-		goto misc_out;
-	}
-
 	blk_register_region(MKDEV(LOOP_MAJOR, 0), range,
 				  THIS_MODULE, loop_probe, NULL, NULL);
 
@@ -1849,8 +1873,6 @@ static void __exit loop_exit(void)
 
 	blk_unregister_region(MKDEV(LOOP_MAJOR, 0), range);
 	unregister_blkdev(LOOP_MAJOR, "loop");
-
-	destroy_workqueue(loop_wq);
 
 	misc_deregister(&loop_misc);
 }

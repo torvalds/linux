@@ -313,8 +313,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 				memset(&he->stat, 0, sizeof(he->stat));
 		}
 
-		if (he->ms.map)
-			he->ms.map->referenced = true;
+		map__get(he->ms.map);
 
 		if (he->branch_info) {
 			/*
@@ -324,6 +323,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 			 */
 			he->branch_info = malloc(sizeof(*he->branch_info));
 			if (he->branch_info == NULL) {
+				map__zput(he->ms.map);
 				free(he->stat_acc);
 				free(he);
 				return NULL;
@@ -332,17 +332,13 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 			memcpy(he->branch_info, template->branch_info,
 			       sizeof(*he->branch_info));
 
-			if (he->branch_info->from.map)
-				he->branch_info->from.map->referenced = true;
-			if (he->branch_info->to.map)
-				he->branch_info->to.map->referenced = true;
+			map__get(he->branch_info->from.map);
+			map__get(he->branch_info->to.map);
 		}
 
 		if (he->mem_info) {
-			if (he->mem_info->iaddr.map)
-				he->mem_info->iaddr.map->referenced = true;
-			if (he->mem_info->daddr.map)
-				he->mem_info->daddr.map->referenced = true;
+			map__get(he->mem_info->iaddr.map);
+			map__get(he->mem_info->daddr.map);
 		}
 
 		if (symbol_conf.use_callchain)
@@ -362,10 +358,10 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 	return 0;
 }
 
-static struct hist_entry *add_hist_entry(struct hists *hists,
-					 struct hist_entry *entry,
-					 struct addr_location *al,
-					 bool sample_self)
+static struct hist_entry *hists__findnew_entry(struct hists *hists,
+					       struct hist_entry *entry,
+					       struct addr_location *al,
+					       bool sample_self)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
@@ -407,9 +403,8 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 			 * the history counter to increment.
 			 */
 			if (he->ms.map != entry->ms.map) {
-				he->ms.map = entry->ms.map;
-				if (he->ms.map)
-					he->ms.map->referenced = true;
+				map__put(he->ms.map);
+				he->ms.map = map__get(entry->ms.map);
 			}
 			goto out;
 		}
@@ -468,7 +463,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.transaction = transaction,
 	};
 
-	return add_hist_entry(hists, &entry, al, sample_self);
+	return hists__findnew_entry(hists, &entry, al, sample_self);
 }
 
 static int
@@ -548,9 +543,9 @@ iter_finish_mem_entry(struct hist_entry_iter *iter,
 
 out:
 	/*
-	 * We don't need to free iter->priv (mem_info) here since
-	 * the mem info was either already freed in add_hist_entry() or
-	 * passed to a new hist entry by hist_entry__new().
+	 * We don't need to free iter->priv (mem_info) here since the mem info
+	 * was either already freed in hists__findnew_entry() or passed to a
+	 * new hist entry by hist_entry__new().
 	 */
 	iter->priv = NULL;
 
@@ -851,18 +846,14 @@ const struct hist_iter_ops hist_iter_cumulative = {
 };
 
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
-			 struct perf_evsel *evsel, struct perf_sample *sample,
 			 int max_stack_depth, void *arg)
 {
 	int err, err2;
 
-	err = sample__resolve_callchain(sample, &iter->parent, evsel, al,
-					max_stack_depth);
+	err = sample__resolve_callchain(iter->sample, &iter->parent,
+					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
-
-	iter->evsel = evsel;
-	iter->sample = sample;
 
 	err = iter->ops->prepare_entry(iter, al);
 	if (err)
@@ -937,8 +928,20 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 void hist_entry__delete(struct hist_entry *he)
 {
 	thread__zput(he->thread);
-	zfree(&he->branch_info);
-	zfree(&he->mem_info);
+	map__zput(he->ms.map);
+
+	if (he->branch_info) {
+		map__zput(he->branch_info->from.map);
+		map__zput(he->branch_info->to.map);
+		zfree(&he->branch_info);
+	}
+
+	if (he->mem_info) {
+		map__zput(he->mem_info->iaddr.map);
+		map__zput(he->mem_info->daddr.map);
+		zfree(&he->mem_info);
+	}
+
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
 	free_callchain(he->callchain);
@@ -1163,7 +1166,7 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 		return;
 
 	/* force fold unfiltered entry for simplicity */
-	h->ms.unfolded = false;
+	h->unfolded = false;
 	h->row_offset = 0;
 	h->nr_rows = 0;
 

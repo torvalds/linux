@@ -160,13 +160,14 @@ struct pv_cpu_ops {
 	u64 (*read_pmc)(int counter);
 	unsigned long long (*read_tscp)(unsigned int *aux);
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Atomically enable interrupts and return to userspace.  This
-	 * is only ever used to return to 32-bit processes; in a
-	 * 64-bit kernel, it's used for 32-on-64 compat processes, but
-	 * never native 64-bit processes.  (Jump, not call.)
+	 * is only used in 32-bit kernels.  64-bit kernels use
+	 * usergs_sysret32 instead.
 	 */
 	void (*irq_enable_sysexit)(void);
+#endif
 
 	/*
 	 * Switch to usermode gs and return to 64-bit usermode using
@@ -333,9 +334,19 @@ struct arch_spinlock;
 typedef u16 __ticket_t;
 #endif
 
+struct qspinlock;
+
 struct pv_lock_ops {
+#ifdef CONFIG_QUEUED_SPINLOCKS
+	void (*queued_spin_lock_slowpath)(struct qspinlock *lock, u32 val);
+	struct paravirt_callee_save queued_spin_unlock;
+
+	void (*wait)(u8 *ptr, u8 val);
+	void (*kick)(int cpu);
+#else /* !CONFIG_QUEUED_SPINLOCKS */
 	struct paravirt_callee_save lock_spinning;
 	void (*unlock_kick)(struct arch_spinlock *lock, __ticket_t ticket);
+#endif /* !CONFIG_QUEUED_SPINLOCKS */
 };
 
 /* This contains all the paravirt structures: we get a convenient

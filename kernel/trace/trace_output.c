@@ -60,9 +60,9 @@ enum print_line_t trace_print_printk_msg_only(struct trace_iterator *iter)
 }
 
 const char *
-ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
-		       unsigned long flags,
-		       const struct trace_print_flags *flag_array)
+trace_print_flags_seq(struct trace_seq *p, const char *delim,
+		      unsigned long flags,
+		      const struct trace_print_flags *flag_array)
 {
 	unsigned long mask;
 	const char *str;
@@ -95,11 +95,11 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_flags_seq);
+EXPORT_SYMBOL(trace_print_flags_seq);
 
 const char *
-ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
-			 const struct trace_print_flags *symbol_array)
+trace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+			const struct trace_print_flags *symbol_array)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -120,11 +120,11 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_symbols_seq);
+EXPORT_SYMBOL(trace_print_symbols_seq);
 
 #if BITS_PER_LONG == 32
 const char *
-ftrace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
+trace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
 			 const struct trace_print_flags_u64 *symbol_array)
 {
 	int i;
@@ -146,12 +146,12 @@ ftrace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_symbols_seq_u64);
+EXPORT_SYMBOL(trace_print_symbols_seq_u64);
 #endif
 
 const char *
-ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
-			 unsigned int bitmask_size)
+trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
+			unsigned int bitmask_size)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
@@ -160,10 +160,10 @@ ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ftrace_print_bitmask_seq);
+EXPORT_SYMBOL_GPL(trace_print_bitmask_seq);
 
 const char *
-ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
+trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -175,11 +175,11 @@ ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_hex_seq);
+EXPORT_SYMBOL(trace_print_hex_seq);
 
 const char *
-ftrace_print_array_seq(struct trace_seq *p, const void *buf, int count,
-		       size_t el_size)
+trace_print_array_seq(struct trace_seq *p, const void *buf, int count,
+		      size_t el_size)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	const char *prefix = "";
@@ -220,17 +220,17 @@ ftrace_print_array_seq(struct trace_seq *p, const void *buf, int count,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_array_seq);
+EXPORT_SYMBOL(trace_print_array_seq);
 
-int ftrace_raw_output_prep(struct trace_iterator *iter,
-			   struct trace_event *trace_event)
+int trace_raw_output_prep(struct trace_iterator *iter,
+			  struct trace_event *trace_event)
 {
-	struct ftrace_event_call *event;
+	struct trace_event_call *event;
 	struct trace_seq *s = &iter->seq;
 	struct trace_seq *p = &iter->tmp_seq;
 	struct trace_entry *entry;
 
-	event = container_of(trace_event, struct ftrace_event_call, event);
+	event = container_of(trace_event, struct trace_event_call, event);
 	entry = iter->ent;
 
 	if (entry->type != event->event.type) {
@@ -239,14 +239,14 @@ int ftrace_raw_output_prep(struct trace_iterator *iter,
 	}
 
 	trace_seq_init(p);
-	trace_seq_printf(s, "%s: ", ftrace_event_name(event));
+	trace_seq_printf(s, "%s: ", trace_event_name(event));
 
 	return trace_handle_return(s);
 }
-EXPORT_SYMBOL(ftrace_raw_output_prep);
+EXPORT_SYMBOL(trace_raw_output_prep);
 
-static int ftrace_output_raw(struct trace_iterator *iter, char *name,
-			     char *fmt, va_list ap)
+static int trace_output_raw(struct trace_iterator *iter, char *name,
+			    char *fmt, va_list ap)
 {
 	struct trace_seq *s = &iter->seq;
 
@@ -256,18 +256,18 @@ static int ftrace_output_raw(struct trace_iterator *iter, char *name,
 	return trace_handle_return(s);
 }
 
-int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
+int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 
 	va_start(ap, fmt);
-	ret = ftrace_output_raw(iter, name, fmt, ap);
+	ret = trace_output_raw(iter, name, fmt, ap);
 	va_end(ap);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ftrace_output_call);
+EXPORT_SYMBOL_GPL(trace_output_call);
 
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
@@ -675,7 +675,7 @@ static int trace_search_list(struct list_head **list)
 	}
 
 	/* Did we used up all 65 thousand events??? */
-	if ((last + 1) > FTRACE_MAX_EVENT)
+	if ((last + 1) > TRACE_EVENT_TYPE_MAX)
 		return 0;
 
 	*list = &e->list;
@@ -693,7 +693,7 @@ void trace_event_read_unlock(void)
 }
 
 /**
- * register_ftrace_event - register output for an event type
+ * register_trace_event - register output for an event type
  * @event: the event type to register
  *
  * Event types are stored in a hash and this hash is used to
@@ -707,7 +707,7 @@ void trace_event_read_unlock(void)
  *
  * Returns the event type number or zero on error.
  */
-int register_ftrace_event(struct trace_event *event)
+int register_trace_event(struct trace_event *event)
 {
 	unsigned key;
 	int ret = 0;
@@ -725,7 +725,7 @@ int register_ftrace_event(struct trace_event *event)
 	if (!event->type) {
 		struct list_head *list = NULL;
 
-		if (next_event_type > FTRACE_MAX_EVENT) {
+		if (next_event_type > TRACE_EVENT_TYPE_MAX) {
 
 			event->type = trace_search_list(&list);
 			if (!event->type)
@@ -771,12 +771,12 @@ int register_ftrace_event(struct trace_event *event)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(register_ftrace_event);
+EXPORT_SYMBOL_GPL(register_trace_event);
 
 /*
  * Used by module code with the trace_event_sem held for write.
  */
-int __unregister_ftrace_event(struct trace_event *event)
+int __unregister_trace_event(struct trace_event *event)
 {
 	hlist_del(&event->node);
 	list_del(&event->list);
@@ -784,18 +784,18 @@ int __unregister_ftrace_event(struct trace_event *event)
 }
 
 /**
- * unregister_ftrace_event - remove a no longer used event
+ * unregister_trace_event - remove a no longer used event
  * @event: the event to remove
  */
-int unregister_ftrace_event(struct trace_event *event)
+int unregister_trace_event(struct trace_event *event)
 {
 	down_write(&trace_event_sem);
-	__unregister_ftrace_event(event);
+	__unregister_trace_event(event);
 	up_write(&trace_event_sem);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(unregister_ftrace_event);
+EXPORT_SYMBOL_GPL(unregister_trace_event);
 
 /*
  * Standard events
@@ -1243,7 +1243,7 @@ __init static int init_events(void)
 	for (i = 0; events[i]; i++) {
 		event = events[i];
 
-		ret = register_ftrace_event(event);
+		ret = register_trace_event(event);
 		if (!ret) {
 			printk(KERN_WARNING "event %d failed to register\n",
 			       event->type);

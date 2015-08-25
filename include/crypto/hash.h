@@ -66,7 +66,7 @@ struct ahash_request {
 /**
  * struct ahash_alg - asynchronous message digest definition
  * @init: Initialize the transformation context. Intended only to initialize the
- *	  state of the HASH transformation at the begining. This shall fill in
+ *	  state of the HASH transformation at the beginning. This shall fill in
  *	  the internal structures used during the entire duration of the whole
  *	  transformation. No data processing happens at this point.
  * @update: Push a chunk of data into the driver for transformation. This

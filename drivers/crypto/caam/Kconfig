@@ -45,7 +45,6 @@ config CRYPTO_DEV_FSL_CAAM_RINGSIZE
 config CRYPTO_DEV_FSL_CAAM_INTC
 	bool "Job Ring interrupt coalescing"
 	depends on CRYPTO_DEV_FSL_CAAM_JR
-	default n
 	help
 	  Enable the Job Ring's interrupt coalescing feature.
 
@@ -77,8 +76,9 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	tristate "Register algorithm implementations with the Crypto API"
 	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
 	default y
-	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
+	select CRYPTO_BLKCIPHER
 	help
 	  Selecting this will offload crypto for users of the
 	  scatterlist crypto API (such as the linux native IPSec
@@ -115,7 +115,6 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 config CRYPTO_DEV_FSL_CAAM_DEBUG
 	bool "Enable debug output in CAAM driver"
 	depends on CRYPTO_DEV_FSL_CAAM
-	default n
 	help
 	  Selecting this will enable printing of various debug
 	  information in the CAAM driver.

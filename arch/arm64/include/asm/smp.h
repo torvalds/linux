@@ -42,7 +42,7 @@ extern void handle_IPI(int ipinr, struct pt_regs *regs);
  * Discover the set of possible CPUs and determine their
  * SMP operations.
  */
-extern void of_smp_init_cpus(void);
+extern void smp_init_cpus(void);
 
 /*
  * Provide a function to raise an IPI cross call on CPUs in callmap.

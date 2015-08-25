@@ -38,8 +38,7 @@
  *
  * Author: Tom Tucker <tom@opengridcomputing.com>
  */
-#include <linux/module.h>
-#include <linux/init.h>
+
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sysctl.h>
@@ -295,8 +294,3 @@ int svc_rdma_init(void)
 	destroy_workqueue(svc_rdma_wq);
 	return -ENOMEM;
 }
-MODULE_AUTHOR("Tom Tucker <tom@opengridcomputing.com>");
-MODULE_DESCRIPTION("SVC RDMA Transport");
-MODULE_LICENSE("Dual BSD/GPL");
-module_init(svc_rdma_init);
-module_exit(svc_rdma_cleanup);

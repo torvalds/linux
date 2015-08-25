@@ -56,6 +56,28 @@ MODULE_LICENSE("GPL");
 /* ADV7842 system clock frequency */
 #define ADV7842_fsc (28636360)
 
+#define ADV7842_RGB_OUT					(1 << 1)
+
+#define ADV7842_OP_FORMAT_SEL_8BIT			(0 << 0)
+#define ADV7842_OP_FORMAT_SEL_10BIT			(1 << 0)
+#define ADV7842_OP_FORMAT_SEL_12BIT			(2 << 0)
+
+#define ADV7842_OP_MODE_SEL_SDR_422			(0 << 5)
+#define ADV7842_OP_MODE_SEL_DDR_422			(1 << 5)
+#define ADV7842_OP_MODE_SEL_SDR_444			(2 << 5)
+#define ADV7842_OP_MODE_SEL_DDR_444			(3 << 5)
+#define ADV7842_OP_MODE_SEL_SDR_422_2X			(4 << 5)
+#define ADV7842_OP_MODE_SEL_ADI_CM			(5 << 5)
+
+#define ADV7842_OP_CH_SEL_GBR				(0 << 5)
+#define ADV7842_OP_CH_SEL_GRB				(1 << 5)
+#define ADV7842_OP_CH_SEL_BGR				(2 << 5)
+#define ADV7842_OP_CH_SEL_RGB				(3 << 5)
+#define ADV7842_OP_CH_SEL_BRG				(4 << 5)
+#define ADV7842_OP_CH_SEL_RBG				(5 << 5)
+
+#define ADV7842_OP_SWAP_CB_CR				(1 << 0)
+
 /*
 **********************************************************************
 *
@@ -63,6 +85,14 @@ MODULE_LICENSE("GPL");
 *
 **********************************************************************
 */
+
+struct adv7842_format_info {
+	u32 code;
+	u8 op_ch_sel;
+	bool rgb_out;
+	bool swap_cb_cr;
+	u8 op_format_sel;
+};
 
 struct adv7842_state {
 	struct adv7842_platform_data pdata;
@@ -72,6 +102,9 @@ struct adv7842_state {
 	enum adv7842_mode mode;
 	struct v4l2_dv_timings timings;
 	enum adv7842_vid_std_select vid_std_select;
+
+	const struct adv7842_format_info *format;
+
 	v4l2_std_id norm;
 	struct {
 		u8 edid[256];
@@ -209,6 +242,11 @@ static const struct adv7842_video_standards adv7842_prim_mode_hdmi_gr[] = {
 	{ },
 };
 
+static const struct v4l2_event adv7842_ev_fmt = {
+	.type = V4L2_EVENT_SOURCE_CHANGE,
+	.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+};
+
 /* ----------------------------------------------------------------------- */
 
 static inline struct adv7842_state *to_state(struct v4l2_subdev *sd)
@@ -221,9 +259,19 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 	return &container_of(ctrl->handler, struct adv7842_state, hdl)->sd;
 }
 
+static inline unsigned hblanking(const struct v4l2_bt_timings *t)
+{
+	return V4L2_DV_BT_BLANKING_WIDTH(t);
+}
+
 static inline unsigned htotal(const struct v4l2_bt_timings *t)
 {
 	return V4L2_DV_BT_FRAME_WIDTH(t);
+}
+
+static inline unsigned vblanking(const struct v4l2_bt_timings *t)
+{
+	return V4L2_DV_BT_BLANKING_HEIGHT(t);
 }
 
 static inline unsigned vtotal(const struct v4l2_bt_timings *t)
@@ -333,6 +381,12 @@ static inline int io_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 static inline int io_write_and_or(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
 {
 	return io_write(sd, reg, (io_read(sd, reg) & mask) | val);
+}
+
+static inline int io_write_clr_set(struct v4l2_subdev *sd,
+				   u8 reg, u8 mask, u8 val)
+{
+	return io_write(sd, reg, (io_read(sd, reg) & ~mask) | val);
 }
 
 static inline int avlink_read(struct v4l2_subdev *sd, u8 reg)
@@ -533,6 +587,64 @@ static void main_reset(struct v4l2_subdev *sd)
 	adv_smbus_write_byte_no_check(client, 0xff, 0x80);
 
 	mdelay(5);
+}
+
+/* -----------------------------------------------------------------------------
+ * Format helpers
+ */
+
+static const struct adv7842_format_info adv7842_formats[] = {
+	{ MEDIA_BUS_FMT_RGB888_1X24, ADV7842_OP_CH_SEL_RGB, true, false,
+	  ADV7842_OP_MODE_SEL_SDR_444 | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, ADV7842_OP_CH_SEL_RGB, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422 | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, ADV7842_OP_CH_SEL_RGB, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422 | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_YUYV10_2X10, ADV7842_OP_CH_SEL_RGB, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422 | ADV7842_OP_FORMAT_SEL_10BIT },
+	{ MEDIA_BUS_FMT_YVYU10_2X10, ADV7842_OP_CH_SEL_RGB, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422 | ADV7842_OP_FORMAT_SEL_10BIT },
+	{ MEDIA_BUS_FMT_YUYV12_2X12, ADV7842_OP_CH_SEL_RGB, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422 | ADV7842_OP_FORMAT_SEL_12BIT },
+	{ MEDIA_BUS_FMT_YVYU12_2X12, ADV7842_OP_CH_SEL_RGB, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422 | ADV7842_OP_FORMAT_SEL_12BIT },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, ADV7842_OP_CH_SEL_RBG, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, ADV7842_OP_CH_SEL_RBG, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, ADV7842_OP_CH_SEL_RGB, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, ADV7842_OP_CH_SEL_RGB, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_8BIT },
+	{ MEDIA_BUS_FMT_UYVY10_1X20, ADV7842_OP_CH_SEL_RBG, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_10BIT },
+	{ MEDIA_BUS_FMT_VYUY10_1X20, ADV7842_OP_CH_SEL_RBG, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_10BIT },
+	{ MEDIA_BUS_FMT_YUYV10_1X20, ADV7842_OP_CH_SEL_RGB, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_10BIT },
+	{ MEDIA_BUS_FMT_YVYU10_1X20, ADV7842_OP_CH_SEL_RGB, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_10BIT },
+	{ MEDIA_BUS_FMT_UYVY12_1X24, ADV7842_OP_CH_SEL_RBG, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_12BIT },
+	{ MEDIA_BUS_FMT_VYUY12_1X24, ADV7842_OP_CH_SEL_RBG, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_12BIT },
+	{ MEDIA_BUS_FMT_YUYV12_1X24, ADV7842_OP_CH_SEL_RGB, false, false,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_12BIT },
+	{ MEDIA_BUS_FMT_YVYU12_1X24, ADV7842_OP_CH_SEL_RGB, false, true,
+	  ADV7842_OP_MODE_SEL_SDR_422_2X | ADV7842_OP_FORMAT_SEL_12BIT },
+};
+
+static const struct adv7842_format_info *
+adv7842_format_info(struct adv7842_state *state, u32 code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(adv7842_formats); ++i) {
+		if (adv7842_formats[i].code == code)
+			return &adv7842_formats[i];
+	}
+
+	return NULL;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1333,12 +1445,12 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 	if (v4l2_detect_cvt(stdi->lcf + 1, hfreq, stdi->lcvs,
 			(stdi->hs_pol == '+' ? V4L2_DV_HSYNC_POS_POL : 0) |
 			(stdi->vs_pol == '+' ? V4L2_DV_VSYNC_POS_POL : 0),
-			    timings))
+			false, timings))
 		return 0;
 	if (v4l2_detect_gtf(stdi->lcf + 1, hfreq, stdi->lcvs,
 			(stdi->hs_pol == '+' ? V4L2_DV_HSYNC_POS_POL : 0) |
 			(stdi->vs_pol == '+' ? V4L2_DV_VSYNC_POS_POL : 0),
-			    state->aspect_ratio, timings))
+			false, state->aspect_ratio, timings))
 		return 0;
 
 	v4l2_dbg(2, debug, sd,
@@ -1440,9 +1552,11 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 	}
 	bt->interlaced = stdi.interlaced ?
 		V4L2_DV_INTERLACED : V4L2_DV_PROGRESSIVE;
+	bt->standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT;
 
 	if (is_digital_input(sd)) {
-		uint32_t freq;
+		u32 freq;
 
 		timings->type = V4L2_DV_BT_656_1120;
 
@@ -1478,6 +1592,10 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 					hdmi_read(sd, 0x31)) / 2;
 			bt->il_vbackporch = ((hdmi_read(sd, 0x34) & 0x1f) * 256 +
 					hdmi_read(sd, 0x35)) / 2;
+		} else {
+			bt->il_vfrontporch = 0;
+			bt->il_vsync = 0;
+			bt->il_vbackporch = 0;
 		}
 		adv7842_fill_optional_dv_timings_fields(sd, timings);
 	} else {
@@ -1862,50 +1980,155 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 	select_input(sd, state->vid_std_select);
 	enable_input(sd);
 
-	v4l2_subdev_notify(sd, ADV7842_FMT_CHANGE, NULL);
+	v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
+			   (void *)&adv7842_ev_fmt);
 
 	return 0;
 }
 
-static int adv7842_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				 u32 *code)
+static int adv7842_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index)
+	if (code->index >= ARRAY_SIZE(adv7842_formats))
 		return -EINVAL;
-	/* Good enough for now */
-	*code = MEDIA_BUS_FMT_FIXED;
+	code->code = adv7842_formats[code->index].code;
 	return 0;
 }
 
-static int adv7842_g_mbus_fmt(struct v4l2_subdev *sd,
-			      struct v4l2_mbus_framefmt *fmt)
+static void adv7842_fill_format(struct adv7842_state *state,
+				struct v4l2_mbus_framefmt *format)
+{
+	memset(format, 0, sizeof(*format));
+
+	format->width = state->timings.bt.width;
+	format->height = state->timings.bt.height;
+	format->field = V4L2_FIELD_NONE;
+	format->colorspace = V4L2_COLORSPACE_SRGB;
+
+	if (state->timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO)
+		format->colorspace = (state->timings.bt.height <= 576) ?
+			V4L2_COLORSPACE_SMPTE170M : V4L2_COLORSPACE_REC709;
+}
+
+/*
+ * Compute the op_ch_sel value required to obtain on the bus the component order
+ * corresponding to the selected format taking into account bus reordering
+ * applied by the board at the output of the device.
+ *
+ * The following table gives the op_ch_value from the format component order
+ * (expressed as op_ch_sel value in column) and the bus reordering (expressed as
+ * adv7842_bus_order value in row).
+ *
+ *           |	GBR(0)	GRB(1)	BGR(2)	RGB(3)	BRG(4)	RBG(5)
+ * ----------+-------------------------------------------------
+ * RGB (NOP) |	GBR	GRB	BGR	RGB	BRG	RBG
+ * GRB (1-2) |	BGR	RGB	GBR	GRB	RBG	BRG
+ * RBG (2-3) |	GRB	GBR	BRG	RBG	BGR	RGB
+ * BGR (1-3) |	RBG	BRG	RGB	BGR	GRB	GBR
+ * BRG (ROR) |	BRG	RBG	GRB	GBR	RGB	BGR
+ * GBR (ROL) |	RGB	BGR	RBG	BRG	GBR	GRB
+ */
+static unsigned int adv7842_op_ch_sel(struct adv7842_state *state)
+{
+#define _SEL(a, b, c, d, e, f)	{ \
+	ADV7842_OP_CH_SEL_##a, ADV7842_OP_CH_SEL_##b, ADV7842_OP_CH_SEL_##c, \
+	ADV7842_OP_CH_SEL_##d, ADV7842_OP_CH_SEL_##e, ADV7842_OP_CH_SEL_##f }
+#define _BUS(x)			[ADV7842_BUS_ORDER_##x]
+
+	static const unsigned int op_ch_sel[6][6] = {
+		_BUS(RGB) /* NOP */ = _SEL(GBR, GRB, BGR, RGB, BRG, RBG),
+		_BUS(GRB) /* 1-2 */ = _SEL(BGR, RGB, GBR, GRB, RBG, BRG),
+		_BUS(RBG) /* 2-3 */ = _SEL(GRB, GBR, BRG, RBG, BGR, RGB),
+		_BUS(BGR) /* 1-3 */ = _SEL(RBG, BRG, RGB, BGR, GRB, GBR),
+		_BUS(BRG) /* ROR */ = _SEL(BRG, RBG, GRB, GBR, RGB, BGR),
+		_BUS(GBR) /* ROL */ = _SEL(RGB, BGR, RBG, BRG, GBR, GRB),
+	};
+
+	return op_ch_sel[state->pdata.bus_order][state->format->op_ch_sel >> 5];
+}
+
+static void adv7842_setup_format(struct adv7842_state *state)
+{
+	struct v4l2_subdev *sd = &state->sd;
+
+	io_write_clr_set(sd, 0x02, 0x02,
+			state->format->rgb_out ? ADV7842_RGB_OUT : 0);
+	io_write(sd, 0x03, state->format->op_format_sel |
+		 state->pdata.op_format_mode_sel);
+	io_write_clr_set(sd, 0x04, 0xe0, adv7842_op_ch_sel(state));
+	io_write_clr_set(sd, 0x05, 0x01,
+			state->format->swap_cb_cr ? ADV7842_OP_SWAP_CB_CR : 0);
+}
+
+static int adv7842_get_format(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *format)
 {
 	struct adv7842_state *state = to_state(sd);
 
-	fmt->width = state->timings.bt.width;
-	fmt->height = state->timings.bt.height;
-	fmt->code = MEDIA_BUS_FMT_FIXED;
-	fmt->field = V4L2_FIELD_NONE;
+	if (format->pad != ADV7842_PAD_SOURCE)
+		return -EINVAL;
 
 	if (state->mode == ADV7842_MODE_SDP) {
 		/* SPD block */
-		if (!(sdp_read(sd, 0x5A) & 0x01))
+		if (!(sdp_read(sd, 0x5a) & 0x01))
 			return -EINVAL;
-		fmt->width = 720;
+		format->format.code = MEDIA_BUS_FMT_YUYV8_2X8;
+		format->format.width = 720;
 		/* valid signal */
 		if (state->norm & V4L2_STD_525_60)
-			fmt->height = 480;
+			format->format.height = 480;
 		else
-			fmt->height = 576;
-		fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+			format->format.height = 576;
+		format->format.colorspace = V4L2_COLORSPACE_SMPTE170M;
 		return 0;
 	}
 
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	if (state->timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
-		fmt->colorspace = (state->timings.bt.height <= 576) ?
-			V4L2_COLORSPACE_SMPTE170M : V4L2_COLORSPACE_REC709;
+	adv7842_fill_format(state, &format->format);
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		format->format.code = fmt->code;
+	} else {
+		format->format.code = state->format->code;
 	}
+
+	return 0;
+}
+
+static int adv7842_set_format(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *format)
+{
+	struct adv7842_state *state = to_state(sd);
+	const struct adv7842_format_info *info;
+
+	if (format->pad != ADV7842_PAD_SOURCE)
+		return -EINVAL;
+
+	if (state->mode == ADV7842_MODE_SDP)
+		return adv7842_get_format(sd, cfg, format);
+
+	info = adv7842_format_info(state, format->format.code);
+	if (info == NULL)
+		info = adv7842_format_info(state, MEDIA_BUS_FMT_YUYV8_2X8);
+
+	adv7842_fill_format(state, &format->format);
+	format->format.code = info->code;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt->code = format->format.code;
+	} else {
+		state->format = info;
+		adv7842_setup_format(state);
+	}
+
 	return 0;
 }
 
@@ -1991,7 +2214,8 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			 "%s: fmt_change_cp = 0x%x, fmt_change_digital = 0x%x, fmt_change_sdp = 0x%x\n",
 			 __func__, fmt_change_cp, fmt_change_digital,
 			 fmt_change_sdp);
-		v4l2_subdev_notify(sd, ADV7842_FMT_CHANGE, NULL);
+		v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
+				   (void *)&adv7842_ev_fmt);
 		if (handled)
 			*handled = true;
 	}
@@ -2110,7 +2334,7 @@ struct adv7842_cfg_read_infoframe {
 static void log_infoframe(struct v4l2_subdev *sd, struct adv7842_cfg_read_infoframe *cri)
 {
 	int i;
-	uint8_t buffer[32];
+	u8 buffer[32];
 	union hdmi_infoframe frame;
 	u8 len;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -2183,7 +2407,7 @@ static const char * const prim_mode_txt[] = {
 static int adv7842_sdp_log_status(struct v4l2_subdev *sd)
 {
 	/* SDP (Standard definition processor) block */
-	uint8_t sdp_signal_detected = sdp_read(sd, 0x5A) & 0x01;
+	u8 sdp_signal_detected = sdp_read(sd, 0x5A) & 0x01;
 
 	v4l2_info(sd, "Chip powered %s\n", no_power(sd) ? "off" : "on");
 	v4l2_info(sd, "Prim-mode = 0x%x, video std = 0x%x\n",
@@ -2227,10 +2451,10 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 	/* CP block */
 	struct adv7842_state *state = to_state(sd);
 	struct v4l2_dv_timings timings;
-	uint8_t reg_io_0x02 = io_read(sd, 0x02);
-	uint8_t reg_io_0x21 = io_read(sd, 0x21);
-	uint8_t reg_rep_0x77 = rep_read(sd, 0x77);
-	uint8_t reg_rep_0x7d = rep_read(sd, 0x7d);
+	u8 reg_io_0x02 = io_read(sd, 0x02);
+	u8 reg_io_0x21 = io_read(sd, 0x21);
+	u8 reg_rep_0x77 = rep_read(sd, 0x77);
+	u8 reg_rep_0x7d = rep_read(sd, 0x7d);
 	bool audio_pll_locked = hdmi_read(sd, 0x04) & 0x01;
 	bool audio_sample_packet_detect = hdmi_read(sd, 0x18) & 0x01;
 	bool audio_mute = io_read(sd, 0x65) & 0x40;
@@ -2302,10 +2526,10 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 	if (no_cp_signal(sd)) {
 		v4l2_info(sd, "STDI: not locked\n");
 	} else {
-		uint32_t bl = ((cp_read(sd, 0xb1) & 0x3f) << 8) | cp_read(sd, 0xb2);
-		uint32_t lcf = ((cp_read(sd, 0xb3) & 0x7) << 8) | cp_read(sd, 0xb4);
-		uint32_t lcvs = cp_read(sd, 0xb3) >> 3;
-		uint32_t fcl = ((cp_read(sd, 0xb8) & 0x1f) << 8) | cp_read(sd, 0xb9);
+		u32 bl = ((cp_read(sd, 0xb1) & 0x3f) << 8) | cp_read(sd, 0xb2);
+		u32 lcf = ((cp_read(sd, 0xb3) & 0x7) << 8) | cp_read(sd, 0xb4);
+		u32 lcvs = cp_read(sd, 0xb3) >> 3;
+		u32 fcl = ((cp_read(sd, 0xb8) & 0x1f) << 8) | cp_read(sd, 0xb9);
 		char hs_pol = ((cp_read(sd, 0xb5) & 0x10) ?
 				((cp_read(sd, 0xb5) & 0x08) ? '+' : '-') : 'x');
 		char vs_pol = ((cp_read(sd, 0xb5) & 0x40) ?
@@ -2545,14 +2769,11 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 		 0xf0 |
 		 pdata->alt_gamma << 3 |
 		 pdata->op_656_range << 2 |
-		 pdata->rgb_out << 1 |
 		 pdata->alt_data_sat << 0);
-	io_write(sd, 0x03, pdata->op_format_sel);
-	io_write_and_or(sd, 0x04, 0x1f, pdata->op_ch_sel << 5);
 	io_write_and_or(sd, 0x05, 0xf0, pdata->blank_data << 3 |
 			pdata->insert_av_codes << 2 |
-			pdata->replicate_av_codes << 1 |
-			pdata->invert_cbcr << 0);
+			pdata->replicate_av_codes << 1);
+	adv7842_setup_format(state);
 
 	/* HDMI audio */
 	hdmi_write_and_or(sd, 0x1a, 0xf1, 0x08); /* Wait 1 s before unmute */
@@ -2809,13 +3030,12 @@ static const struct v4l2_subdev_video_ops adv7842_video_ops = {
 	.s_dv_timings = adv7842_s_dv_timings,
 	.g_dv_timings = adv7842_g_dv_timings,
 	.query_dv_timings = adv7842_query_dv_timings,
-	.enum_mbus_fmt = adv7842_enum_mbus_fmt,
-	.g_mbus_fmt = adv7842_g_mbus_fmt,
-	.try_mbus_fmt = adv7842_g_mbus_fmt,
-	.s_mbus_fmt = adv7842_g_mbus_fmt,
 };
 
 static const struct v4l2_subdev_pad_ops adv7842_pad_ops = {
+	.enum_mbus_code = adv7842_enum_mbus_code,
+	.get_fmt = adv7842_get_format,
+	.set_fmt = adv7842_set_format,
 	.get_edid = adv7842_get_edid,
 	.set_edid = adv7842_set_edid,
 	.enum_dv_timings = adv7842_enum_dv_timings,
@@ -2986,6 +3206,7 @@ static int adv7842_probe(struct i2c_client *client,
 	/* platform data */
 	state->pdata = *pdata;
 	state->timings = cea640x480;
+	state->format = adv7842_format_info(state, MEDIA_BUS_FMT_YUYV8_2X8);
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7842_ops);

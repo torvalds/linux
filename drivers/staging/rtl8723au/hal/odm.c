@@ -40,7 +40,7 @@ static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {          /*  UL			DL */
 	{0x5ea42b, 0xa630, 0x5e431c}, /*  11:airgocap AP */
 };
 
-/*  EDCA Paramter for AP/ADSL   by Mingzhi 2011-11-22 */
+/*  EDCA Parameter for AP/ADSL   by Mingzhi 2011-11-22 */
 
 /*  Global var */
 u32 OFDMSwingTable23A[OFDM_TABLE_SIZE_92D] = {
@@ -388,7 +388,7 @@ void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm)
 		pDM_Odm->bCckHighPower = true;
 	else
 		pDM_Odm->bCckHighPower = false;
-		
+
 	pDM_Odm->RFPathRxEnable =
 		rtl8723au_read32(pDM_Odm->Adapter, rOFDM0_TRxPathEnable) & 0x0F;
 

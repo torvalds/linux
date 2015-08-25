@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2015 B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -15,10 +15,33 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "multicast.h"
-#include "originator.h"
-#include "hard-interface.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/in6.h>
+#include <linux/in.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <net/addrconf.h>
+#include <net/ipv6.h>
+
+#include "packet.h"
 #include "translation-table.h"
 
 /**

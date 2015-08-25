@@ -25,14 +25,12 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/configfs.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 
 #include "target_core_internal.h"
 #include "target_core_pr.h"
@@ -58,7 +56,6 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 					bool src)
 {
 	struct se_device *se_dev;
-	struct configfs_subsystem *subsys = target_core_subsystem[0];
 	unsigned char tmp_dev_wwn[XCOPY_NAA_IEEE_REGEX_LEN], *dev_wwn;
 	int rc;
 
@@ -90,8 +87,7 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 				" se_dev\n", xop->src_dev);
 		}
 
-		rc = configfs_depend_item(subsys,
-				&se_dev->dev_group.cg_item);
+		rc = target_depend_item(&se_dev->dev_group.cg_item);
 		if (rc != 0) {
 			pr_err("configfs_depend_item attempt failed:"
 				" %d for se_dev: %p\n", rc, se_dev);
@@ -99,8 +95,8 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 			return rc;
 		}
 
-		pr_debug("Called configfs_depend_item for subsys: %p se_dev: %p"
-			" se_dev->se_dev_group: %p\n", subsys, se_dev,
+		pr_debug("Called configfs_depend_item for se_dev: %p"
+			" se_dev->se_dev_group: %p\n", se_dev,
 			&se_dev->dev_group);
 
 		mutex_unlock(&g_device_mutex);
@@ -351,19 +347,13 @@ struct xcopy_pt_cmd {
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 };
 
-static struct se_port xcopy_pt_port;
-static struct se_portal_group xcopy_pt_tpg;
+struct se_portal_group xcopy_pt_tpg;
 static struct se_session xcopy_pt_sess;
 static struct se_node_acl xcopy_pt_nacl;
 
 static char *xcopy_pt_get_fabric_name(void)
 {
         return "xcopy-pt";
-}
-
-static u32 xcopy_pt_get_tag(struct se_cmd *se_cmd)
-{
-        return 0;
 }
 
 static int xcopy_pt_get_cmd_state(struct se_cmd *se_cmd)
@@ -373,7 +363,6 @@ static int xcopy_pt_get_cmd_state(struct se_cmd *se_cmd)
 
 static void xcopy_pt_undepend_remotedev(struct xcopy_op *xop)
 {
-	struct configfs_subsystem *subsys = target_core_subsystem[0];
 	struct se_device *remote_dev;
 
 	if (xop->op_origin == XCOL_SOURCE_RECV_OP)
@@ -381,11 +370,11 @@ static void xcopy_pt_undepend_remotedev(struct xcopy_op *xop)
 	else
 		remote_dev = xop->src_dev;
 
-	pr_debug("Calling configfs_undepend_item for subsys: %p"
+	pr_debug("Calling configfs_undepend_item for"
 		  " remote_dev: %p remote_dev->dev_group: %p\n",
-		  subsys, remote_dev, &remote_dev->dev_group.cg_item);
+		  remote_dev, &remote_dev->dev_group.cg_item);
 
-	configfs_undepend_item(subsys, &remote_dev->dev_group.cg_item);
+	target_undepend_item(&remote_dev->dev_group.cg_item);
 }
 
 static void xcopy_pt_release_cmd(struct se_cmd *se_cmd)
@@ -427,7 +416,6 @@ static int xcopy_pt_queue_status(struct se_cmd *se_cmd)
 
 static const struct target_core_fabric_ops xcopy_pt_tfo = {
 	.get_fabric_name	= xcopy_pt_get_fabric_name,
-	.get_task_tag		= xcopy_pt_get_tag,
 	.get_cmd_state		= xcopy_pt_get_cmd_state,
 	.release_cmd		= xcopy_pt_release_cmd,
 	.check_stop_free	= xcopy_pt_check_stop_free,
@@ -449,17 +437,11 @@ int target_xcopy_setup_pt(void)
 		return -ENOMEM;
 	}
 
-	memset(&xcopy_pt_port, 0, sizeof(struct se_port));
-	INIT_LIST_HEAD(&xcopy_pt_port.sep_alua_list);
-	INIT_LIST_HEAD(&xcopy_pt_port.sep_list);
-	mutex_init(&xcopy_pt_port.sep_tg_pt_md_mutex);
-
 	memset(&xcopy_pt_tpg, 0, sizeof(struct se_portal_group));
 	INIT_LIST_HEAD(&xcopy_pt_tpg.se_tpg_node);
 	INIT_LIST_HEAD(&xcopy_pt_tpg.acl_node_list);
 	INIT_LIST_HEAD(&xcopy_pt_tpg.tpg_sess_list);
 
-	xcopy_pt_port.sep_tpg = &xcopy_pt_tpg;
 	xcopy_pt_tpg.se_tpg_tfo = &xcopy_pt_tfo;
 
 	memset(&xcopy_pt_nacl, 0, sizeof(struct se_node_acl));
@@ -500,10 +482,6 @@ static void target_xcopy_setup_pt_port(
 		 */
 		if (remote_port) {
 			xpt_cmd->remote_port = remote_port;
-			pt_cmd->se_lun->lun_sep = &xcopy_pt_port;
-			pr_debug("Setup emulated remote DEST xcopy_pt_port: %p to"
-				" cmd->se_lun->lun_sep for X-COPY data PUSH\n",
-				pt_cmd->se_lun->lun_sep);
 		} else {
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
@@ -523,10 +501,6 @@ static void target_xcopy_setup_pt_port(
 		 */
 		if (remote_port) {
 			xpt_cmd->remote_port = remote_port;
-			pt_cmd->se_lun->lun_sep = &xcopy_pt_port;
-			pr_debug("Setup emulated remote SRC xcopy_pt_port: %p to"
-				" cmd->se_lun->lun_sep for X-COPY data PULL\n",
-				pt_cmd->se_lun->lun_sep);
 		} else {
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
@@ -578,6 +552,7 @@ static int target_xcopy_setup_pt_cmd(
 	xpt_cmd->xcopy_op = xop;
 	target_xcopy_setup_pt_port(xpt_cmd, xop, remote_port);
 
+	cmd->tag = 0;
 	sense_rc = target_setup_cmd_from_cdb(cmd, cdb);
 	if (sense_rc) {
 		ret = -EINVAL;

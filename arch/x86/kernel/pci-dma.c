@@ -140,6 +140,51 @@ void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
 		free_pages((unsigned long)vaddr, get_order(size));
 }
 
+void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		      gfp_t gfp, struct dma_attrs *attrs)
+{
+	struct dma_map_ops *ops = get_dma_ops(dev);
+	void *memory;
+
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+
+	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
+		return memory;
+
+	if (!dev)
+		dev = &x86_dma_fallback_dev;
+
+	if (!is_device_dma_capable(dev))
+		return NULL;
+
+	if (!ops->alloc)
+		return NULL;
+
+	memory = ops->alloc(dev, size, dma_handle,
+			    dma_alloc_coherent_gfp_flags(dev, gfp), attrs);
+	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
+
+	return memory;
+}
+EXPORT_SYMBOL(dma_alloc_attrs);
+
+void dma_free_attrs(struct device *dev, size_t size,
+		    void *vaddr, dma_addr_t bus,
+		    struct dma_attrs *attrs)
+{
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
+	WARN_ON(irqs_disabled());       /* for portability */
+
+	if (dma_release_from_coherent(dev, get_order(size), vaddr))
+		return;
+
+	debug_dma_free_coherent(dev, size, vaddr, bus);
+	if (ops->free)
+		ops->free(dev, size, vaddr, bus, attrs);
+}
+EXPORT_SYMBOL(dma_free_attrs);
+
 /*
  * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel
  * parameter documentation.

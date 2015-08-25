@@ -25,23 +25,12 @@
  *  ext2 symlink handling code
  */
 
-#include <linux/fs.h>
-#include <linux/namei.h>
-
 #include "ufs_fs.h"
 #include "ufs.h"
 
-
-static void *ufs_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct ufs_inode_info *p = UFS_I(d_inode(dentry));
-	nd_set_link(nd, (char*)p->i_u1.i_symlink);
-	return NULL;
-}
-
 const struct inode_operations ufs_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= ufs_follow_link,
+	.follow_link	= simple_follow_link,
 	.setattr	= ufs_setattr,
 };
 

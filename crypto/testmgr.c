@@ -20,14 +20,17 @@
  *
  */
 
+#include <crypto/aead.h>
 #include <crypto/hash.h>
 #include <linux/err.h>
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <crypto/rng.h>
 #include <crypto/drbg.h>
+#include <crypto/akcipher.h>
 
 #include "internal.h"
 
@@ -114,6 +117,11 @@ struct drbg_test_suite {
 	unsigned int count;
 };
 
+struct akcipher_test_suite {
+	struct akcipher_testvec *vecs;
+	unsigned int count;
+};
+
 struct alg_test_desc {
 	const char *alg;
 	int (*test)(const struct alg_test_desc *desc, const char *driver,
@@ -128,6 +136,7 @@ struct alg_test_desc {
 		struct hash_test_suite hash;
 		struct cprng_test_suite cprng;
 		struct drbg_test_suite drbg;
+		struct akcipher_test_suite akcipher;
 	} suite;
 };
 
@@ -425,7 +434,6 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	char *key;
 	struct aead_request *req;
 	struct scatterlist *sg;
-	struct scatterlist *asg;
 	struct scatterlist *sgout;
 	const char *e, *d;
 	struct tcrypt_result result;
@@ -452,11 +460,10 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		goto out_nooutbuf;
 
 	/* avoid "the frame size is larger than 1024 bytes" compiler warning */
-	sg = kmalloc(sizeof(*sg) * 8 * (diff_dst ? 3 : 2), GFP_KERNEL);
+	sg = kmalloc(sizeof(*sg) * 8 * (diff_dst ? 4 : 2), GFP_KERNEL);
 	if (!sg)
 		goto out_nosg;
-	asg = &sg[8];
-	sgout = &asg[8];
+	sgout = &sg[16];
 
 	if (diff_dst)
 		d = "-ddst";
@@ -535,23 +542,27 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			goto out;
 		}
 
+		k = !!template[i].alen;
+		sg_init_table(sg, k + 1);
+		sg_set_buf(&sg[0], assoc, template[i].alen);
+		sg_set_buf(&sg[k], input,
+			   template[i].ilen + (enc ? authsize : 0));
+		output = input;
+
 		if (diff_dst) {
+			sg_init_table(sgout, k + 1);
+			sg_set_buf(&sgout[0], assoc, template[i].alen);
+
 			output = xoutbuf[0];
 			output += align_offset;
-			sg_init_one(&sg[0], input, template[i].ilen);
-			sg_init_one(&sgout[0], output, template[i].rlen);
-		} else {
-			sg_init_one(&sg[0], input,
-				    template[i].ilen + (enc ? authsize : 0));
-			output = input;
+			sg_set_buf(&sgout[k], output,
+				   template[i].rlen + (enc ? 0 : authsize));
 		}
-
-		sg_init_one(&asg[0], assoc, template[i].alen);
 
 		aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
 				       template[i].ilen, iv);
 
-		aead_request_set_assoc(req, asg, template[i].alen);
+		aead_request_set_ad(req, template[i].alen);
 
 		ret = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
 
@@ -631,9 +642,29 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		authsize = abs(template[i].rlen - template[i].ilen);
 
 		ret = -EINVAL;
-		sg_init_table(sg, template[i].np);
+		sg_init_table(sg, template[i].anp + template[i].np);
 		if (diff_dst)
-			sg_init_table(sgout, template[i].np);
+			sg_init_table(sgout, template[i].anp + template[i].np);
+
+		ret = -EINVAL;
+		for (k = 0, temp = 0; k < template[i].anp; k++) {
+			if (WARN_ON(offset_in_page(IDX[k]) +
+				    template[i].atap[k] > PAGE_SIZE))
+				goto out;
+			sg_set_buf(&sg[k],
+				   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
+					  offset_in_page(IDX[k]),
+					  template[i].assoc + temp,
+					  template[i].atap[k]),
+				   template[i].atap[k]);
+			if (diff_dst)
+				sg_set_buf(&sgout[k],
+					   axbuf[IDX[k] >> PAGE_SHIFT] +
+					   offset_in_page(IDX[k]),
+					   template[i].atap[k]);
+			temp += template[i].atap[k];
+		}
+
 		for (k = 0, temp = 0; k < template[i].np; k++) {
 			if (WARN_ON(offset_in_page(IDX[k]) +
 				    template[i].tap[k] > PAGE_SIZE))
@@ -641,7 +672,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
 			memcpy(q, template[i].input + temp, template[i].tap[k]);
-			sg_set_buf(&sg[k], q, template[i].tap[k]);
+			sg_set_buf(&sg[template[i].anp + k],
+				   q, template[i].tap[k]);
 
 			if (diff_dst) {
 				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
@@ -649,7 +681,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 				memset(q, 0, template[i].tap[k]);
 
-				sg_set_buf(&sgout[k], q, template[i].tap[k]);
+				sg_set_buf(&sgout[template[i].anp + k],
+					   q, template[i].tap[k]);
 			}
 
 			n = template[i].tap[k];
@@ -669,39 +702,24 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		}
 
 		if (enc) {
-			if (WARN_ON(sg[k - 1].offset +
-				    sg[k - 1].length + authsize >
-				    PAGE_SIZE)) {
+			if (WARN_ON(sg[template[i].anp + k - 1].offset +
+				    sg[template[i].anp + k - 1].length +
+				    authsize > PAGE_SIZE)) {
 				ret = -EINVAL;
 				goto out;
 			}
 
 			if (diff_dst)
-				sgout[k - 1].length += authsize;
-			else
-				sg[k - 1].length += authsize;
-		}
-
-		sg_init_table(asg, template[i].anp);
-		ret = -EINVAL;
-		for (k = 0, temp = 0; k < template[i].anp; k++) {
-			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].atap[k] > PAGE_SIZE))
-				goto out;
-			sg_set_buf(&asg[k],
-				   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
-					  offset_in_page(IDX[k]),
-					  template[i].assoc + temp,
-					  template[i].atap[k]),
-				   template[i].atap[k]);
-			temp += template[i].atap[k];
+				sgout[template[i].anp + k - 1].length +=
+					authsize;
+			sg[template[i].anp + k - 1].length += authsize;
 		}
 
 		aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
 				       template[i].ilen,
 				       iv);
 
-		aead_request_set_assoc(req, asg, template[i].alen);
+		aead_request_set_ad(req, template[i].alen);
 
 		ret = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
 
@@ -1814,6 +1832,147 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 
 }
 
+static int do_test_rsa(struct crypto_akcipher *tfm,
+		       struct akcipher_testvec *vecs)
+{
+	struct akcipher_request *req;
+	void *outbuf_enc = NULL;
+	void *outbuf_dec = NULL;
+	struct tcrypt_result result;
+	unsigned int out_len_max, out_len = 0;
+	int err = -ENOMEM;
+
+	req = akcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		return err;
+
+	init_completion(&result.completion);
+	err = crypto_akcipher_setkey(tfm, vecs->key, vecs->key_len);
+	if (err)
+		goto free_req;
+
+	akcipher_request_set_crypt(req, vecs->m, outbuf_enc, vecs->m_size,
+				   out_len);
+	/* expect this to fail, and update the required buf len */
+	crypto_akcipher_encrypt(req);
+	out_len = req->dst_len;
+	if (!out_len) {
+		err = -EINVAL;
+		goto free_req;
+	}
+
+	out_len_max = out_len;
+	err = -ENOMEM;
+	outbuf_enc = kzalloc(out_len_max, GFP_KERNEL);
+	if (!outbuf_enc)
+		goto free_req;
+
+	akcipher_request_set_crypt(req, vecs->m, outbuf_enc, vecs->m_size,
+				   out_len);
+	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				      tcrypt_complete, &result);
+
+	/* Run RSA encrypt - c = m^e mod n;*/
+	err = wait_async_op(&result, crypto_akcipher_encrypt(req));
+	if (err) {
+		pr_err("alg: rsa: encrypt test failed. err %d\n", err);
+		goto free_all;
+	}
+	if (out_len != vecs->c_size) {
+		pr_err("alg: rsa: encrypt test failed. Invalid output len\n");
+		err = -EINVAL;
+		goto free_all;
+	}
+	/* verify that encrypted message is equal to expected */
+	if (memcmp(vecs->c, outbuf_enc, vecs->c_size)) {
+		pr_err("alg: rsa: encrypt test failed. Invalid output\n");
+		err = -EINVAL;
+		goto free_all;
+	}
+	/* Don't invoke decrypt for vectors with public key */
+	if (vecs->public_key_vec) {
+		err = 0;
+		goto free_all;
+	}
+	outbuf_dec = kzalloc(out_len_max, GFP_KERNEL);
+	if (!outbuf_dec) {
+		err = -ENOMEM;
+		goto free_all;
+	}
+	init_completion(&result.completion);
+	akcipher_request_set_crypt(req, outbuf_enc, outbuf_dec, vecs->c_size,
+				   out_len);
+
+	/* Run RSA decrypt - m = c^d mod n;*/
+	err = wait_async_op(&result, crypto_akcipher_decrypt(req));
+	if (err) {
+		pr_err("alg: rsa: decrypt test failed. err %d\n", err);
+		goto free_all;
+	}
+	out_len = req->dst_len;
+	if (out_len != vecs->m_size) {
+		pr_err("alg: rsa: decrypt test failed. Invalid output len\n");
+		err = -EINVAL;
+		goto free_all;
+	}
+	/* verify that decrypted message is equal to the original msg */
+	if (memcmp(vecs->m, outbuf_dec, vecs->m_size)) {
+		pr_err("alg: rsa: decrypt test failed. Invalid output\n");
+		err = -EINVAL;
+	}
+free_all:
+	kfree(outbuf_dec);
+	kfree(outbuf_enc);
+free_req:
+	akcipher_request_free(req);
+	return err;
+}
+
+static int test_rsa(struct crypto_akcipher *tfm, struct akcipher_testvec *vecs,
+		    unsigned int tcount)
+{
+	int ret, i;
+
+	for (i = 0; i < tcount; i++) {
+		ret = do_test_rsa(tfm, vecs++);
+		if (ret) {
+			pr_err("alg: rsa: test failed on vector %d, err=%d\n",
+			       i + 1, ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int test_akcipher(struct crypto_akcipher *tfm, const char *alg,
+			 struct akcipher_testvec *vecs, unsigned int tcount)
+{
+	if (strncmp(alg, "rsa", 3) == 0)
+		return test_rsa(tfm, vecs, tcount);
+
+	return 0;
+}
+
+static int alg_test_akcipher(const struct alg_test_desc *desc,
+			     const char *driver, u32 type, u32 mask)
+{
+	struct crypto_akcipher *tfm;
+	int err = 0;
+
+	tfm = crypto_alloc_akcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	if (IS_ERR(tfm)) {
+		pr_err("alg: akcipher: Failed to load tfm for %s: %ld\n",
+		       driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+	if (desc->suite.akcipher.vecs)
+		err = test_akcipher(tfm, desc->alg, desc->suite.akcipher.vecs,
+				    desc->suite.akcipher.count);
+
+	crypto_free_akcipher(tfm);
+	return err;
+}
+
 static int alg_test_null(const struct alg_test_desc *desc,
 			     const char *driver, u32 type, u32 mask)
 {
@@ -1896,6 +2055,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "__driver-ecb-twofish-avx",
 		.test = alg_test_null,
+	}, {
+		.alg = "__driver-gcm-aes-aesni",
+		.test = alg_test_null,
+		.fips_allowed = 1,
 	}, {
 		.alg = "__ghash-pclmulqdqni",
 		.test = alg_test_null,
@@ -2297,6 +2460,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "chacha20",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = chacha20_enc_tv_template,
+					.count = CHACHA20_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = chacha20_enc_tv_template,
+					.count = CHACHA20_ENC_TEST_VECTORS
+				},
+			}
+		}
+	}, {
 		.alg = "cmac(aes)",
 		.test = alg_test_hash,
 		.suite = {
@@ -2317,6 +2495,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "compress_null",
 		.test = alg_test_null,
+	}, {
+		.alg = "crc32",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = crc32_tv_template,
+				.count = CRC32_TEST_VECTORS
+			}
+		}
 	}, {
 		.alg = "crc32c",
 		.test = alg_test_crc32c,
@@ -3095,6 +3282,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "jitterentropy_rng",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
 		.alg = "lrw(aes)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -3276,6 +3467,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "poly1305",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = poly1305_tv_template,
+				.count = POLY1305_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "rfc3686(ctr(aes))",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
@@ -3339,6 +3539,36 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "rfc7539(chacha20,poly1305)",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = rfc7539_enc_tv_template,
+					.count = RFC7539_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = rfc7539_dec_tv_template,
+					.count = RFC7539_DEC_TEST_VECTORS
+				},
+			}
+		}
+	}, {
+		.alg = "rfc7539esp(chacha20,poly1305)",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = rfc7539esp_enc_tv_template,
+					.count = RFC7539ESP_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = rfc7539esp_dec_tv_template,
+					.count = RFC7539ESP_DEC_TEST_VECTORS
+				},
+			}
+		}
+	}, {
 		.alg = "rmd128",
 		.test = alg_test_hash,
 		.suite = {
@@ -3372,6 +3602,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = {
 				.vecs = rmd320_tv_template,
 				.count = RMD320_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "rsa",
+		.test = alg_test_akcipher,
+		.fips_allowed = 1,
+		.suite = {
+			.akcipher = {
+				.vecs = rsa_tv_template,
+				.count = RSA_TEST_VECTORS
 			}
 		}
 	}, {

@@ -196,17 +196,209 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
 	return result;
 }
 
-static int proc_pid_cmdline(struct seq_file *m, struct pid_namespace *ns,
-			    struct pid *pid, struct task_struct *task)
+static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+				     size_t _count, loff_t *pos)
 {
+	struct task_struct *tsk;
+	struct mm_struct *mm;
+	char *page;
+	unsigned long count = _count;
+	unsigned long arg_start, arg_end, env_start, env_end;
+	unsigned long len1, len2, len;
+	unsigned long p;
+	char c;
+	ssize_t rv;
+
+	BUG_ON(*pos < 0);
+
+	tsk = get_proc_task(file_inode(file));
+	if (!tsk)
+		return -ESRCH;
+	mm = get_task_mm(tsk);
+	put_task_struct(tsk);
+	if (!mm)
+		return 0;
+	/* Check if process spawned far enough to have cmdline. */
+	if (!mm->env_end) {
+		rv = 0;
+		goto out_mmput;
+	}
+
+	page = (char *)__get_free_page(GFP_TEMPORARY);
+	if (!page) {
+		rv = -ENOMEM;
+		goto out_mmput;
+	}
+
+	down_read(&mm->mmap_sem);
+	arg_start = mm->arg_start;
+	arg_end = mm->arg_end;
+	env_start = mm->env_start;
+	env_end = mm->env_end;
+	up_read(&mm->mmap_sem);
+
+	BUG_ON(arg_start > arg_end);
+	BUG_ON(env_start > env_end);
+
+	len1 = arg_end - arg_start;
+	len2 = env_end - env_start;
+
+	/* Empty ARGV. */
+	if (len1 == 0) {
+		rv = 0;
+		goto out_free_page;
+	}
 	/*
-	 * Rely on struct seq_operations::show() being called once
-	 * per internal buffer allocation. See single_open(), traverse().
+	 * Inherently racy -- command line shares address space
+	 * with code and data.
 	 */
-	BUG_ON(m->size < PAGE_SIZE);
-	m->count += get_cmdline(task, m->buf, PAGE_SIZE);
-	return 0;
+	rv = access_remote_vm(mm, arg_end - 1, &c, 1, 0);
+	if (rv <= 0)
+		goto out_free_page;
+
+	rv = 0;
+
+	if (c == '\0') {
+		/* Command line (set of strings) occupies whole ARGV. */
+		if (len1 <= *pos)
+			goto out_free_page;
+
+		p = arg_start + *pos;
+		len = len1 - *pos;
+		while (count > 0 && len > 0) {
+			unsigned int _count;
+			int nr_read;
+
+			_count = min3(count, len, PAGE_SIZE);
+			nr_read = access_remote_vm(mm, p, page, _count, 0);
+			if (nr_read < 0)
+				rv = nr_read;
+			if (nr_read <= 0)
+				goto out_free_page;
+
+			if (copy_to_user(buf, page, nr_read)) {
+				rv = -EFAULT;
+				goto out_free_page;
+			}
+
+			p	+= nr_read;
+			len	-= nr_read;
+			buf	+= nr_read;
+			count	-= nr_read;
+			rv	+= nr_read;
+		}
+	} else {
+		/*
+		 * Command line (1 string) occupies ARGV and maybe
+		 * extends into ENVP.
+		 */
+		if (len1 + len2 <= *pos)
+			goto skip_argv_envp;
+		if (len1 <= *pos)
+			goto skip_argv;
+
+		p = arg_start + *pos;
+		len = len1 - *pos;
+		while (count > 0 && len > 0) {
+			unsigned int _count, l;
+			int nr_read;
+			bool final;
+
+			_count = min3(count, len, PAGE_SIZE);
+			nr_read = access_remote_vm(mm, p, page, _count, 0);
+			if (nr_read < 0)
+				rv = nr_read;
+			if (nr_read <= 0)
+				goto out_free_page;
+
+			/*
+			 * Command line can be shorter than whole ARGV
+			 * even if last "marker" byte says it is not.
+			 */
+			final = false;
+			l = strnlen(page, nr_read);
+			if (l < nr_read) {
+				nr_read = l;
+				final = true;
+			}
+
+			if (copy_to_user(buf, page, nr_read)) {
+				rv = -EFAULT;
+				goto out_free_page;
+			}
+
+			p	+= nr_read;
+			len	-= nr_read;
+			buf	+= nr_read;
+			count	-= nr_read;
+			rv	+= nr_read;
+
+			if (final)
+				goto out_free_page;
+		}
+skip_argv:
+		/*
+		 * Command line (1 string) occupies ARGV and
+		 * extends into ENVP.
+		 */
+		if (len1 <= *pos) {
+			p = env_start + *pos - len1;
+			len = len1 + len2 - *pos;
+		} else {
+			p = env_start;
+			len = len2;
+		}
+		while (count > 0 && len > 0) {
+			unsigned int _count, l;
+			int nr_read;
+			bool final;
+
+			_count = min3(count, len, PAGE_SIZE);
+			nr_read = access_remote_vm(mm, p, page, _count, 0);
+			if (nr_read < 0)
+				rv = nr_read;
+			if (nr_read <= 0)
+				goto out_free_page;
+
+			/* Find EOS. */
+			final = false;
+			l = strnlen(page, nr_read);
+			if (l < nr_read) {
+				nr_read = l;
+				final = true;
+			}
+
+			if (copy_to_user(buf, page, nr_read)) {
+				rv = -EFAULT;
+				goto out_free_page;
+			}
+
+			p	+= nr_read;
+			len	-= nr_read;
+			buf	+= nr_read;
+			count	-= nr_read;
+			rv	+= nr_read;
+
+			if (final)
+				goto out_free_page;
+		}
+skip_argv_envp:
+		;
+	}
+
+out_free_page:
+	free_page((unsigned long)page);
+out_mmput:
+	mmput(mm);
+	if (rv > 0)
+		*pos += rv;
+	return rv;
 }
+
+static const struct file_operations proc_pid_cmdline_ops = {
+	.read	= proc_pid_cmdline_read,
+	.llseek	= generic_file_llseek,
+};
 
 static int proc_pid_auxv(struct seq_file *m, struct pid_namespace *ns,
 			 struct pid *pid, struct task_struct *task)
@@ -304,14 +496,17 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 }
 #endif
 
-#ifdef CONFIG_SCHEDSTATS
+#ifdef CONFIG_SCHED_INFO
 /*
  * Provides /proc/PID/schedstat
  */
 static int proc_pid_schedstat(struct seq_file *m, struct pid_namespace *ns,
 			      struct pid *pid, struct task_struct *task)
 {
-	seq_printf(m, "%llu %llu %lu\n",
+	if (unlikely(!sched_info_on()))
+		seq_printf(m, "0 0 0\n");
+	else
+		seq_printf(m, "%llu %llu %lu\n",
 		   (unsigned long long)task->se.sum_exec_runtime,
 		   (unsigned long long)task->sched_info.run_delay,
 		   task->sched_info.pcount);
@@ -1380,7 +1575,7 @@ static int proc_exe_link(struct dentry *dentry, struct path *exe_path)
 		return -ENOENT;
 }
 
-static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *proc_pid_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct inode *inode = d_inode(dentry);
 	struct path path;
@@ -1394,7 +1589,7 @@ static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (error)
 		goto out;
 
-	nd_jump_link(nd, &path);
+	nd_jump_link(&path);
 	return NULL;
 out:
 	return ERR_PTR(error);
@@ -2572,7 +2767,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
 	ONE("syscall",    S_IRUSR, proc_pid_syscall),
 #endif
-	ONE("cmdline",    S_IRUGO, proc_pid_cmdline),
+	REG("cmdline",    S_IRUGO, proc_pid_cmdline_ops),
 	ONE("stat",       S_IRUGO, proc_tgid_stat),
 	ONE("statm",      S_IRUGO, proc_pid_statm),
 	REG("maps",       S_IRUGO, proc_pid_maps_operations),
@@ -2600,7 +2795,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_STACKTRACE
 	ONE("stack",      S_IRUSR, proc_pid_stack),
 #endif
-#ifdef CONFIG_SCHEDSTATS
+#ifdef CONFIG_SCHED_INFO
 	ONE("schedstat",  S_IRUGO, proc_pid_schedstat),
 #endif
 #ifdef CONFIG_LATENCYTOP
@@ -2918,11 +3113,11 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
 	ONE("syscall",   S_IRUSR, proc_pid_syscall),
 #endif
-	ONE("cmdline",   S_IRUGO, proc_pid_cmdline),
+	REG("cmdline",   S_IRUGO, proc_pid_cmdline_ops),
 	ONE("stat",      S_IRUGO, proc_tid_stat),
 	ONE("statm",     S_IRUGO, proc_pid_statm),
 	REG("maps",      S_IRUGO, proc_tid_maps_operations),
-#ifdef CONFIG_CHECKPOINT_RESTORE
+#ifdef CONFIG_PROC_CHILDREN
 	REG("children",  S_IRUGO, proc_tid_children_operations),
 #endif
 #ifdef CONFIG_NUMA
@@ -2948,7 +3143,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_STACKTRACE
 	ONE("stack",      S_IRUSR, proc_pid_stack),
 #endif
-#ifdef CONFIG_SCHEDSTATS
+#ifdef CONFIG_SCHED_INFO
 	ONE("schedstat", S_IRUGO, proc_pid_schedstat),
 #endif
 #ifdef CONFIG_LATENCYTOP

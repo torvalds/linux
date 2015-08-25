@@ -187,6 +187,7 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 
 	tcp_cleanup_congestion_control(sk);
 	icsk->icsk_ca_ops = ca;
+	icsk->icsk_ca_setsockopt = 1;
 
 	if (sk->sk_state != TCP_CLOSE && icsk->icsk_ca_ops->init)
 		icsk->icsk_ca_ops->init(sk);
@@ -335,8 +336,10 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	rcu_read_lock();
 	ca = __tcp_ca_find_autoload(name);
 	/* No change asking for existing value */
-	if (ca == icsk->icsk_ca_ops)
+	if (ca == icsk->icsk_ca_ops) {
+		icsk->icsk_ca_setsockopt = 1;
 		goto out;
+	}
 	if (!ca)
 		err = -ENOENT;
 	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||

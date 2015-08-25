@@ -29,9 +29,8 @@
 
 #include <asm/uaccess.h>
 #include <asm/traps.h>
-#include <asm/desc.h>
 #include <asm/user.h>
-#include <asm/i387.h>
+#include <asm/fpu/internal.h>
 
 #include "fpu_system.h"
 #include "fpu_emu.h"
@@ -147,13 +146,9 @@ void math_emulate(struct math_emu_info *info)
 	unsigned long code_base = 0;
 	unsigned long code_limit = 0;	/* Initialized to stop compiler warnings */
 	struct desc_struct code_descriptor;
+	struct fpu *fpu = &current->thread.fpu;
 
-	if (!used_math()) {
-		if (init_fpu(current)) {
-			do_group_exit(SIGKILL);
-			return;
-		}
-	}
+	fpu__activate_curr(fpu);
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
@@ -185,7 +180,7 @@ void math_emulate(struct math_emu_info *info)
 			math_abort(FPU_info, SIGILL);
 		}
 
-		code_descriptor = LDT_DESCRIPTOR(FPU_CS);
+		code_descriptor = FPU_get_ldt_descriptor(FPU_CS);
 		if (SEG_D_SIZE(code_descriptor)) {
 			/* The above test may be wrong, the book is not clear */
 			/* Segmented 32 bit protected mode */
@@ -673,7 +668,7 @@ void math_abort(struct math_emu_info *info, unsigned int signal)
 #endif /* PARANOID */
 }
 
-#define S387 ((struct i387_soft_struct *)s387)
+#define S387 ((struct swregs_state *)s387)
 #define sstatus_word() \
   ((S387->swd & ~SW_Top & 0xffff) | ((S387->ftop << SW_Top_Shift) & SW_Top))
 
@@ -682,14 +677,14 @@ int fpregs_soft_set(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    const void *kbuf, const void __user *ubuf)
 {
-	struct i387_soft_struct *s387 = &target->thread.fpu.state->soft;
+	struct swregs_state *s387 = &target->thread.fpu.state.soft;
 	void *space = s387->st_space;
 	int ret;
 	int offset, other, i, tags, regnr, tag, newtop;
 
 	RE_ENTRANT_CHECK_OFF;
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, s387, 0,
-				 offsetof(struct i387_soft_struct, st_space));
+				 offsetof(struct swregs_state, st_space));
 	RE_ENTRANT_CHECK_ON;
 
 	if (ret)
@@ -734,7 +729,7 @@ int fpregs_soft_get(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    void *kbuf, void __user *ubuf)
 {
-	struct i387_soft_struct *s387 = &target->thread.fpu.state->soft;
+	struct swregs_state *s387 = &target->thread.fpu.state.soft;
 	const void *space = s387->st_space;
 	int ret;
 	int offset = (S387->ftop & 7) * 10, other = 80 - offset;
@@ -752,7 +747,7 @@ int fpregs_soft_get(struct task_struct *target,
 #endif /* PECULIAR_486 */
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, s387, 0,
-				  offsetof(struct i387_soft_struct, st_space));
+				  offsetof(struct swregs_state, st_space));
 
 	/* Copy all registers in stack order. */
 	if (!ret)

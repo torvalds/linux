@@ -180,7 +180,8 @@ gt215_clk_info(struct nvkm_clk *clock, int clk, u32 khz,
 	       struct gt215_clk_info *info)
 {
 	struct gt215_clk_priv *priv = (void *)clock;
-	u32 oclk, sclk, sdiv, diff;
+	u32 oclk, sclk, sdiv;
+	s32 diff;
 
 	info->clk = 0;
 

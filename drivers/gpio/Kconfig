@@ -126,6 +126,14 @@ config GPIO_BCM_KONA
 	help
 	  Turn on GPIO support for Broadcom "Kona" chips.
 
+config GPIO_BRCMSTB
+	tristate "BRCMSTB GPIO support"
+	default y if ARCH_BRCMSTB
+	depends on OF_GPIO && (ARCH_BRCMSTB || COMPILE_TEST)
+	select GPIO_GENERIC
+	help
+	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -158,6 +166,14 @@ config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
 	select GPIO_GENERIC
+
+config GPIO_ETRAXFS
+	bool "Axis ETRAX FS General I/O"
+	depends on CRIS || COMPILE_TEST
+	depends on OF
+	select GPIO_GENERIC
+	help
+	  Say yes here to support the GPIO controller on Axis ETRAX FS SoCs.
 
 config GPIO_F7188X
 	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"
@@ -229,6 +245,14 @@ config GPIO_LOONGSON
 	depends on CPU_LOONGSON2 || CPU_LOONGSON3
 	help
 	  driver for GPIO functionality on Loongson-2F/3A/3B processors.
+
+config GPIO_LPC18XX
+	bool "NXP LPC18XX/43XX GPIO support"
+	default y if ARCH_LPC18XX
+	depends on OF_GPIO && (ARCH_LPC18XX || COMPILE_TEST)
+	help
+	  Select this option to enable GPIO driver for
+	  NXP LPC18XX/43XX devices.
 
 config GPIO_LYNXPOINT
 	tristate "Intel Lynxpoint GPIO support"
@@ -308,7 +332,7 @@ config GPIO_OCTEON
 	  family of SOCs.
 
 config GPIO_OMAP
-	bool "TI OMAP GPIO support" if COMPILE_TEST && !ARCH_OMAP2PLUS
+	tristate "TI OMAP GPIO support" if ARCH_OMAP2PLUS || COMPILE_TEST
 	default y if ARCH_OMAP
 	depends on ARM
 	select GENERIC_IRQ_CHIP
@@ -488,6 +512,17 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_XLP
+	tristate "Netlogic XLP GPIO support"
+	depends on CPU_XLP
+	select GPIOLIB_IRQCHIP
+	help
+	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
+	  SoCs. Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX,
+	  XLP9XX and XLP5XX.
+
+	  If unsure, say N.
+
 config GPIO_XTENSA
 	bool "Xtensa GPIO32 support"
 	depends on XTENSA
@@ -505,7 +540,7 @@ config GPIO_ZEVIO
 
 config GPIO_ZYNQ
 	tristate "Xilinx Zynq GPIO support"
-	depends on ARCH_ZYNQ
+	depends on ARCH_ZYNQ || ARCH_ZYNQMP
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.

@@ -52,14 +52,15 @@ dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 }
 
 static inline int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	   enum dma_data_direction direction)
 {
 	int i;
+	struct scatterlist *sg;
 
 	BUG_ON(direction == DMA_NONE);
 
-	for (i = 0; i < nents; i++, sg++ ) {
+	for_each_sg(sglist, sg, nents, i) {
 		BUG_ON(!sg_page(sg));
 
 		sg->dma_address = sg_phys(sg);
@@ -124,20 +125,24 @@ dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
 	consistent_sync((void *)bus_to_virt(dma_handle)+offset,size,direction);
 }
 static inline void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sglist, int nelems,
 		 enum dma_data_direction dir)
 {
 	int i;
-	for (i = 0; i < nelems; i++, sg++)
+	struct scatterlist *sg;
+
+	for_each_sg(sglist, sg, nelems, i)
 		consistent_sync(sg_virt(sg), sg->length, dir);
 }
 
 static inline void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
-		 enum dma_data_direction dir)
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sglist,
+		       int nelems, enum dma_data_direction dir)
 {
 	int i;
-	for (i = 0; i < nelems; i++, sg++)
+	struct scatterlist *sg;
+
+	for_each_sg(sglist, sg, nelems, i)
 		consistent_sync(sg_virt(sg), sg->length, dir);
 }
 static inline int
@@ -183,6 +188,19 @@ static inline int dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 				  size_t size)
 {
 	return -EINVAL;
+}
+
+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+				    dma_addr_t *dma_handle, gfp_t flag,
+				    struct dma_attrs *attrs)
+{
+	return NULL;
+}
+
+static inline void dma_free_attrs(struct device *dev, size_t size,
+				  void *vaddr, dma_addr_t dma_handle,
+				  struct dma_attrs *attrs)
+{
 }
 
 #endif	/* _XTENSA_DMA_MAPPING_H */

@@ -17,10 +17,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "drm_flip_work.h"
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
 
-#include "omap_drv.h"
 #include "omap_dmm_tiler.h"
+#include "omap_drv.h"
 
 /* some hackery because omapdss has an 'enum omap_plane' (which would be
  * better named omap_plane_id).. and compiler seems unhappy about having
@@ -32,237 +34,183 @@
  * plane funcs
  */
 
-struct callback {
-	void (*fxn)(void *);
-	void *arg;
-};
-
 #define to_omap_plane(x) container_of(x, struct omap_plane, base)
 
 struct omap_plane {
 	struct drm_plane base;
 	int id;  /* TODO rename omap_plane -> omap_plane_id in omapdss so I can use the enum */
 	const char *name;
-	struct omap_overlay_info info;
-	struct omap_drm_apply apply;
-
-	/* position/orientation of scanout within the fb: */
-	struct omap_drm_window win;
-	bool enabled;
-
-	/* last fb that we pinned: */
-	struct drm_framebuffer *pinned_fb;
 
 	uint32_t nformats;
 	uint32_t formats[32];
 
 	struct omap_drm_irq error_irq;
-
-	/* for deferring bo unpin's until next post_apply(): */
-	struct drm_flip_work unpin_work;
-
-	// XXX maybe get rid of this and handle vblank in crtc too?
-	struct callback apply_done_cb;
 };
 
-static void omap_plane_unpin_worker(struct drm_flip_work *work, void *val)
-{
-	struct omap_plane *omap_plane =
-			container_of(work, struct omap_plane, unpin_work);
-	struct drm_device *dev = omap_plane->base.dev;
+struct omap_plane_state {
+	struct drm_plane_state base;
 
-	/*
-	 * omap_framebuffer_pin/unpin are always called from priv->wq,
-	 * so there's no need for locking here.
-	 */
-	omap_framebuffer_unpin(val);
-	mutex_lock(&dev->mode_config.mutex);
-	drm_framebuffer_unreference(val);
-	mutex_unlock(&dev->mode_config.mutex);
+	unsigned int zorder;
+};
+
+static inline struct omap_plane_state *
+to_omap_plane_state(struct drm_plane_state *state)
+{
+	return container_of(state, struct omap_plane_state, base);
 }
 
-/* update which fb (if any) is pinned for scanout */
-static int omap_plane_update_pin(struct drm_plane *plane,
-				 struct drm_framebuffer *fb)
+static int omap_plane_prepare_fb(struct drm_plane *plane,
+				 struct drm_framebuffer *fb,
+				 const struct drm_plane_state *new_state)
+{
+	return omap_framebuffer_pin(fb);
+}
+
+static void omap_plane_cleanup_fb(struct drm_plane *plane,
+				  struct drm_framebuffer *fb,
+				  const struct drm_plane_state *old_state)
+{
+	omap_framebuffer_unpin(fb);
+}
+
+static void omap_plane_atomic_update(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct drm_framebuffer *pinned_fb = omap_plane->pinned_fb;
-
-	if (pinned_fb != fb) {
-		int ret = 0;
-
-		DBG("%p -> %p", pinned_fb, fb);
-
-		if (fb) {
-			drm_framebuffer_reference(fb);
-			ret = omap_framebuffer_pin(fb);
-		}
-
-		if (pinned_fb)
-			drm_flip_work_queue(&omap_plane->unpin_work, pinned_fb);
-
-		if (ret) {
-			dev_err(plane->dev->dev, "could not swap %p -> %p\n",
-					omap_plane->pinned_fb, fb);
-			drm_framebuffer_unreference(fb);
-			omap_plane->pinned_fb = NULL;
-			return ret;
-		}
-
-		omap_plane->pinned_fb = fb;
-	}
-
-	return 0;
-}
-
-static void omap_plane_pre_apply(struct omap_drm_apply *apply)
-{
-	struct omap_plane *omap_plane =
-			container_of(apply, struct omap_plane, apply);
-	struct omap_drm_window *win = &omap_plane->win;
-	struct drm_plane *plane = &omap_plane->base;
-	struct drm_device *dev = plane->dev;
-	struct omap_overlay_info *info = &omap_plane->info;
-	struct drm_crtc *crtc = plane->crtc;
-	enum omap_channel channel;
-	bool enabled = omap_plane->enabled && crtc;
+	struct drm_plane_state *state = plane->state;
+	struct omap_plane_state *omap_state = to_omap_plane_state(state);
+	struct omap_overlay_info info;
+	struct omap_drm_window win;
 	int ret;
 
-	DBG("%s, enabled=%d", omap_plane->name, enabled);
+	DBG("%s, crtc=%p fb=%p", omap_plane->name, state->crtc, state->fb);
 
-	/* if fb has changed, pin new fb: */
-	omap_plane_update_pin(plane, enabled ? plane->fb : NULL);
+	memset(&info, 0, sizeof(info));
+	info.rotation_type = OMAP_DSS_ROT_DMA;
+	info.rotation = OMAP_DSS_ROT_0;
+	info.global_alpha = 0xff;
+	info.mirror = 0;
+	info.zorder = omap_state->zorder;
 
-	if (!enabled) {
-		dispc_ovl_enable(omap_plane->id, false);
-		return;
+	memset(&win, 0, sizeof(win));
+	win.rotation = state->rotation;
+	win.crtc_x = state->crtc_x;
+	win.crtc_y = state->crtc_y;
+	win.crtc_w = state->crtc_w;
+	win.crtc_h = state->crtc_h;
+
+	/*
+	 * src values are in Q16 fixed point, convert to integer.
+	 * omap_framebuffer_update_scanout() takes adjusted src.
+	 */
+	win.src_x = state->src_x >> 16;
+	win.src_y = state->src_y >> 16;
+
+	switch (state->rotation & 0xf) {
+	case BIT(DRM_ROTATE_90):
+	case BIT(DRM_ROTATE_270):
+		win.src_w = state->src_h >> 16;
+		win.src_h = state->src_w >> 16;
+		break;
+	default:
+		win.src_w = state->src_w >> 16;
+		win.src_h = state->src_h >> 16;
+		break;
 	}
 
-	channel = omap_crtc_channel(crtc);
-
 	/* update scanout: */
-	omap_framebuffer_update_scanout(plane->fb, win, info);
+	omap_framebuffer_update_scanout(state->fb, &win, &info);
 
-	DBG("%dx%d -> %dx%d (%d)", info->width, info->height,
-			info->out_width, info->out_height,
-			info->screen_width);
-	DBG("%d,%d %pad %pad", info->pos_x, info->pos_y,
-			&info->paddr, &info->p_uv_addr);
+	DBG("%dx%d -> %dx%d (%d)", info.width, info.height,
+			info.out_width, info.out_height,
+			info.screen_width);
+	DBG("%d,%d %pad %pad", info.pos_x, info.pos_y,
+			&info.paddr, &info.p_uv_addr);
 
-	dispc_ovl_set_channel_out(omap_plane->id, channel);
+	dispc_ovl_set_channel_out(omap_plane->id,
+				  omap_crtc_channel(state->crtc));
 
 	/* and finally, update omapdss: */
-	ret = dispc_ovl_setup(omap_plane->id, info, false,
-			      omap_crtc_timings(crtc), false);
-	if (ret) {
-		dev_err(dev->dev, "dispc_ovl_setup failed: %d\n", ret);
+	ret = dispc_ovl_setup(omap_plane->id, &info, false,
+			      omap_crtc_timings(state->crtc), false);
+	if (WARN_ON(ret)) {
+		dispc_ovl_enable(omap_plane->id, false);
 		return;
 	}
 
 	dispc_ovl_enable(omap_plane->id, true);
 }
 
-static void omap_plane_post_apply(struct omap_drm_apply *apply)
+static void omap_plane_atomic_disable(struct drm_plane *plane,
+				      struct drm_plane_state *old_state)
 {
-	struct omap_plane *omap_plane =
-			container_of(apply, struct omap_plane, apply);
-	struct drm_plane *plane = &omap_plane->base;
-	struct omap_drm_private *priv = plane->dev->dev_private;
-	struct callback cb;
+	struct omap_plane_state *omap_state = to_omap_plane_state(plane->state);
+	struct omap_plane *omap_plane = to_omap_plane(plane);
 
-	cb = omap_plane->apply_done_cb;
-	omap_plane->apply_done_cb.fxn = NULL;
+	plane->state->rotation = BIT(DRM_ROTATE_0);
+	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
+			   ? 0 : omap_plane->id;
 
-	drm_flip_work_commit(&omap_plane->unpin_work, priv->wq);
-
-	if (cb.fxn)
-		cb.fxn(cb.arg);
+	dispc_ovl_enable(omap_plane->id, false);
 }
 
-static int omap_plane_apply(struct drm_plane *plane)
+static int omap_plane_atomic_check(struct drm_plane *plane,
+				   struct drm_plane_state *state)
 {
-	if (plane->crtc) {
-		struct omap_plane *omap_plane = to_omap_plane(plane);
-		return omap_crtc_apply(plane->crtc, &omap_plane->apply);
-	}
+	struct drm_crtc_state *crtc_state;
+
+	if (!state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	if (state->crtc_x < 0 || state->crtc_y < 0)
+		return -EINVAL;
+
+	if (state->crtc_x + state->crtc_w > crtc_state->adjusted_mode.hdisplay)
+		return -EINVAL;
+
+	if (state->crtc_y + state->crtc_h > crtc_state->adjusted_mode.vdisplay)
+		return -EINVAL;
+
 	return 0;
 }
 
-int omap_plane_mode_set(struct drm_plane *plane,
-			struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			int crtc_x, int crtc_y,
-			unsigned int crtc_w, unsigned int crtc_h,
-			unsigned int src_x, unsigned int src_y,
-			unsigned int src_w, unsigned int src_h,
-			void (*fxn)(void *), void *arg)
+static const struct drm_plane_helper_funcs omap_plane_helper_funcs = {
+	.prepare_fb = omap_plane_prepare_fb,
+	.cleanup_fb = omap_plane_cleanup_fb,
+	.atomic_check = omap_plane_atomic_check,
+	.atomic_update = omap_plane_atomic_update,
+	.atomic_disable = omap_plane_atomic_disable,
+};
+
+static void omap_plane_reset(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct omap_drm_window *win = &omap_plane->win;
+	struct omap_plane_state *omap_state;
 
-	win->crtc_x = crtc_x;
-	win->crtc_y = crtc_y;
-	win->crtc_w = crtc_w;
-	win->crtc_h = crtc_h;
+	if (plane->state && plane->state->fb)
+		drm_framebuffer_unreference(plane->state->fb);
 
-	win->src_x = src_x;
-	win->src_y = src_y;
-	win->src_w = src_w;
-	win->src_h = src_h;
+	kfree(plane->state);
+	plane->state = NULL;
 
-	if (fxn) {
-		/* omap_crtc should ensure that a new page flip
-		 * isn't permitted while there is one pending:
-		 */
-		BUG_ON(omap_plane->apply_done_cb.fxn);
-
-		omap_plane->apply_done_cb.fxn = fxn;
-		omap_plane->apply_done_cb.arg = arg;
-	}
-
-	return omap_plane_apply(plane);
-}
-
-static int omap_plane_update(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h)
-{
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-	omap_plane->enabled = true;
-
-	/* omap_plane_mode_set() takes adjusted src */
-	switch (omap_plane->win.rotation & 0xf) {
-	case BIT(DRM_ROTATE_90):
-	case BIT(DRM_ROTATE_270):
-		swap(src_w, src_h);
-		break;
-	}
+	omap_state = kzalloc(sizeof(*omap_state), GFP_KERNEL);
+	if (omap_state == NULL)
+		return;
 
 	/*
-	 * We don't need to take a reference to the framebuffer as the DRM core
-	 * has already done so for the purpose of setting plane->fb.
+	 * Set defaults depending on whether we are a primary or overlay
+	 * plane.
 	 */
-	plane->fb = fb;
-	plane->crtc = crtc;
+	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
+			   ? 0 : omap_plane->id;
+	omap_state->base.rotation = BIT(DRM_ROTATE_0);
 
-	/* src values are in Q16 fixed point, convert to integer: */
-	return omap_plane_mode_set(plane, crtc, fb,
-			crtc_x, crtc_y, crtc_w, crtc_h,
-			src_x >> 16, src_y >> 16, src_w >> 16, src_h >> 16,
-			NULL, NULL);
-}
-
-static int omap_plane_disable(struct drm_plane *plane)
-{
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-
-	omap_plane->win.rotation = BIT(DRM_ROTATE_0);
-	omap_plane->info.zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
-				? 0 : omap_plane->id;
-
-	return omap_plane_set_enable(plane, false);
+	plane->state = &omap_state->base;
+	plane->state->plane = plane;
 }
 
 static void omap_plane_destroy(struct drm_plane *plane)
@@ -275,20 +223,7 @@ static void omap_plane_destroy(struct drm_plane *plane)
 
 	drm_plane_cleanup(plane);
 
-	drm_flip_work_cleanup(&omap_plane->unpin_work);
-
 	kfree(omap_plane);
-}
-
-int omap_plane_set_enable(struct drm_plane *plane, bool enable)
-{
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-
-	if (enable == omap_plane->enabled)
-		return 0;
-
-	omap_plane->enabled = enable;
-	return omap_plane_apply(plane);
 }
 
 /* helper to install properties which are common to planes and crtcs */
@@ -297,60 +232,85 @@ void omap_plane_install_properties(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_property *prop;
 
 	if (priv->has_dmm) {
-		prop = priv->rotation_prop;
-		if (!prop) {
-			prop = drm_mode_create_rotation_property(dev,
-								 BIT(DRM_ROTATE_0) |
-								 BIT(DRM_ROTATE_90) |
-								 BIT(DRM_ROTATE_180) |
-								 BIT(DRM_ROTATE_270) |
-								 BIT(DRM_REFLECT_X) |
-								 BIT(DRM_REFLECT_Y));
-			if (prop == NULL)
-				return;
-			priv->rotation_prop = prop;
-		}
+		struct drm_property *prop = dev->mode_config.rotation_property;
+
 		drm_object_attach_property(obj, prop, 0);
 	}
 
-	prop = priv->zorder_prop;
-	if (!prop) {
-		prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
-		if (prop == NULL)
-			return;
-		priv->zorder_prop = prop;
-	}
-	drm_object_attach_property(obj, prop, 0);
+	drm_object_attach_property(obj, priv->zorder_prop, 0);
 }
 
-int omap_plane_set_property(struct drm_plane *plane,
-		struct drm_property *property, uint64_t val)
+static struct drm_plane_state *
+omap_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
-	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct omap_plane_state *state;
+	struct omap_plane_state *copy;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	state = to_omap_plane_state(plane->state);
+	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (copy == NULL)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
+
+	return &copy->base;
+}
+
+static void omap_plane_atomic_destroy_state(struct drm_plane *plane,
+					    struct drm_plane_state *state)
+{
+	__drm_atomic_helper_plane_destroy_state(plane, state);
+	kfree(to_omap_plane_state(state));
+}
+
+static int omap_plane_atomic_set_property(struct drm_plane *plane,
+					  struct drm_plane_state *state,
+					  struct drm_property *property,
+					  uint64_t val)
+{
 	struct omap_drm_private *priv = plane->dev->dev_private;
-	int ret = -EINVAL;
+	struct omap_plane_state *omap_state = to_omap_plane_state(state);
 
-	if (property == priv->rotation_prop) {
-		DBG("%s: rotation: %02x", omap_plane->name, (uint32_t)val);
-		omap_plane->win.rotation = val;
-		ret = omap_plane_apply(plane);
-	} else if (property == priv->zorder_prop) {
-		DBG("%s: zorder: %02x", omap_plane->name, (uint32_t)val);
-		omap_plane->info.zorder = val;
-		ret = omap_plane_apply(plane);
-	}
+	if (property == priv->zorder_prop)
+		omap_state->zorder = val;
+	else
+		return -EINVAL;
 
-	return ret;
+	return 0;
+}
+
+static int omap_plane_atomic_get_property(struct drm_plane *plane,
+					  const struct drm_plane_state *state,
+					  struct drm_property *property,
+					  uint64_t *val)
+{
+	struct omap_drm_private *priv = plane->dev->dev_private;
+	const struct omap_plane_state *omap_state =
+		container_of(state, const struct omap_plane_state, base);
+
+	if (property == priv->zorder_prop)
+		*val = omap_state->zorder;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 
 static const struct drm_plane_funcs omap_plane_funcs = {
-	.update_plane = omap_plane_update,
-	.disable_plane = omap_plane_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.reset = omap_plane_reset,
 	.destroy = omap_plane_destroy,
-	.set_property = omap_plane_set_property,
+	.set_property = drm_atomic_helper_plane_set_property,
+	.atomic_duplicate_state = omap_plane_atomic_duplicate_state,
+	.atomic_destroy_state = omap_plane_atomic_destroy_state,
+	.atomic_set_property = omap_plane_atomic_set_property,
+	.atomic_get_property = omap_plane_atomic_get_property,
 };
 
 static void omap_plane_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
@@ -382,7 +342,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
-	struct omap_overlay_info *info;
 	int ret;
 
 	DBG("%s: type=%d", plane_names[id], type);
@@ -391,9 +350,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	if (!omap_plane)
 		return ERR_PTR(-ENOMEM);
 
-	drm_flip_work_init(&omap_plane->unpin_work,
-			"unpin", omap_plane_unpin_worker);
-
 	omap_plane->nformats = omap_framebuffer_get_formats(
 			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
 			dss_feat_get_supported_color_modes(id));
@@ -401,9 +357,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	omap_plane->name = plane_names[id];
 
 	plane = &omap_plane->base;
-
-	omap_plane->apply.pre_apply  = omap_plane_pre_apply;
-	omap_plane->apply.post_apply = omap_plane_post_apply;
 
 	omap_plane->error_irq.irqmask = error_irqs[id];
 	omap_plane->error_irq.irq = omap_plane_error_irq;
@@ -415,26 +368,9 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	if (ret < 0)
 		goto error;
 
+	drm_plane_helper_add(plane, &omap_plane_helper_funcs);
+
 	omap_plane_install_properties(plane, &plane->base);
-
-	/* get our starting configuration, set defaults for parameters
-	 * we don't currently use, etc:
-	 */
-	info = &omap_plane->info;
-	info->rotation_type = OMAP_DSS_ROT_DMA;
-	info->rotation = OMAP_DSS_ROT_0;
-	info->global_alpha = 0xff;
-	info->mirror = 0;
-
-	/* Set defaults depending on whether we are a CRTC or overlay
-	 * layer.
-	 * TODO add ioctl to give userspace an API to change this.. this
-	 * will come in a subsequent patch.
-	 */
-	if (type == DRM_PLANE_TYPE_PRIMARY)
-		omap_plane->info.zorder = 0;
-	else
-		omap_plane->info.zorder = id;
 
 	return plane;
 

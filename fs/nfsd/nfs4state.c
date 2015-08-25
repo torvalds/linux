@@ -3861,7 +3861,7 @@ static __be32
 nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *cur_fh, struct nfs4_ol_stateid *stp, struct nfsd4_open *open)
 {
 	__be32 status;
-	unsigned char old_deny_bmap;
+	unsigned char old_deny_bmap = stp->st_deny_bmap;
 
 	if (!test_access(open->op_share_access, stp))
 		return nfs4_get_vfs_file(rqstp, fp, cur_fh, stp, open);
@@ -3870,7 +3870,6 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 	spin_lock(&fp->fi_lock);
 	status = nfs4_file_check_deny(fp, open->op_share_deny);
 	if (status == nfs_ok) {
-		old_deny_bmap = stp->st_deny_bmap;
 		set_deny(open->op_share_deny, stp);
 		fp->fi_share_deny |=
 				(open->op_share_deny & NFS4_SHARE_DENY_BOTH);
@@ -4397,9 +4396,9 @@ laundromat_main(struct work_struct *laundry)
 	queue_delayed_work(laundry_wq, &nn->laundromat_work, t*HZ);
 }
 
-static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_ol_stateid *stp)
+static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_stid *stp)
 {
-	if (!fh_match(&fhp->fh_handle, &stp->st_stid.sc_file->fi_fhandle))
+	if (!fh_match(&fhp->fh_handle, &stp->sc_file->fi_fhandle))
 		return nfserr_bad_stateid;
 	return nfs_ok;
 }
@@ -4574,85 +4573,130 @@ nfsd4_lookup_stateid(struct nfsd4_compound_state *cstate,
 	return nfs_ok;
 }
 
-/*
-* Checks for stateid operations
-*/
-__be32
-nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
-			   stateid_t *stateid, int flags, struct file **filpp)
+static struct file *
+nfs4_find_file(struct nfs4_stid *s, int flags)
 {
-	struct nfs4_stid *s;
-	struct nfs4_ol_stateid *stp = NULL;
-	struct nfs4_delegation *dp = NULL;
-	struct svc_fh *current_fh = &cstate->current_fh;
-	struct inode *ino = d_inode(current_fh->fh_dentry);
+	if (!s)
+		return NULL;
+
+	switch (s->sc_type) {
+	case NFS4_DELEG_STID:
+		if (WARN_ON_ONCE(!s->sc_file->fi_deleg_file))
+			return NULL;
+		return get_file(s->sc_file->fi_deleg_file);
+	case NFS4_OPEN_STID:
+	case NFS4_LOCK_STID:
+		if (flags & RD_STATE)
+			return find_readable_file(s->sc_file);
+		else
+			return find_writeable_file(s->sc_file);
+		break;
+	}
+
+	return NULL;
+}
+
+static __be32
+nfs4_check_olstateid(struct svc_fh *fhp, struct nfs4_ol_stateid *ols, int flags)
+{
+	__be32 status;
+
+	status = nfsd4_check_openowner_confirmed(ols);
+	if (status)
+		return status;
+	return nfs4_check_openmode(ols, flags);
+}
+
+static __be32
+nfs4_check_file(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfs4_stid *s,
+		struct file **filpp, bool *tmp_file, int flags)
+{
+	int acc = (flags & RD_STATE) ? NFSD_MAY_READ : NFSD_MAY_WRITE;
+	struct file *file;
+	__be32 status;
+
+	file = nfs4_find_file(s, flags);
+	if (file) {
+		status = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
+				acc | NFSD_MAY_OWNER_OVERRIDE);
+		if (status) {
+			fput(file);
+			return status;
+		}
+
+		*filpp = file;
+	} else {
+		status = nfsd_open(rqstp, fhp, S_IFREG, acc, filpp);
+		if (status)
+			return status;
+
+		if (tmp_file)
+			*tmp_file = true;
+	}
+
+	return 0;
+}
+
+/*
+ * Checks for stateid operations
+ */
+__be32
+nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *cstate, stateid_t *stateid,
+		int flags, struct file **filpp, bool *tmp_file)
+{
+	struct svc_fh *fhp = &cstate->current_fh;
+	struct inode *ino = d_inode(fhp->fh_dentry);
+	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	struct file *file = NULL;
+	struct nfs4_stid *s = NULL;
 	__be32 status;
 
 	if (filpp)
 		*filpp = NULL;
+	if (tmp_file)
+		*tmp_file = false;
 
 	if (grace_disallows_io(net, ino))
 		return nfserr_grace;
 
-	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
-		return check_special_stateids(net, current_fh, stateid, flags);
+	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid)) {
+		status = check_special_stateids(net, fhp, stateid, flags);
+		goto done;
+	}
 
 	status = nfsd4_lookup_stateid(cstate, stateid,
 				NFS4_DELEG_STID|NFS4_OPEN_STID|NFS4_LOCK_STID,
 				&s, nn);
 	if (status)
 		return status;
-	status = check_stateid_generation(stateid, &s->sc_stateid, nfsd4_has_session(cstate));
+	status = check_stateid_generation(stateid, &s->sc_stateid,
+			nfsd4_has_session(cstate));
 	if (status)
 		goto out;
+
 	switch (s->sc_type) {
 	case NFS4_DELEG_STID:
-		dp = delegstateid(s);
-		status = nfs4_check_delegmode(dp, flags);
-		if (status)
-			goto out;
-		if (filpp) {
-			file = dp->dl_stid.sc_file->fi_deleg_file;
-			if (!file) {
-				WARN_ON_ONCE(1);
-				status = nfserr_serverfault;
-				goto out;
-			}
-			get_file(file);
-		}
+		status = nfs4_check_delegmode(delegstateid(s), flags);
 		break;
 	case NFS4_OPEN_STID:
 	case NFS4_LOCK_STID:
-		stp = openlockstateid(s);
-		status = nfs4_check_fh(current_fh, stp);
-		if (status)
-			goto out;
-		status = nfsd4_check_openowner_confirmed(stp);
-		if (status)
-			goto out;
-		status = nfs4_check_openmode(stp, flags);
-		if (status)
-			goto out;
-		if (filpp) {
-			struct nfs4_file *fp = stp->st_stid.sc_file;
-
-			if (flags & RD_STATE)
-				file = find_readable_file(fp);
-			else
-				file = find_writeable_file(fp);
-		}
+		status = nfs4_check_olstateid(fhp, openlockstateid(s), flags);
 		break;
 	default:
 		status = nfserr_bad_stateid;
-		goto out;
+		break;
 	}
-	status = nfs_ok;
-	if (file)
-		*filpp = file;
+	if (status)
+		goto out;
+	status = nfs4_check_fh(fhp, s);
+
+done:
+	if (!status && filpp)
+		status = nfs4_check_file(rqstp, fhp, s, filpp, tmp_file, flags);
 out:
-	nfs4_put_stid(s);
+	if (s)
+		nfs4_put_stid(s);
 	return status;
 }
 
@@ -4754,7 +4798,7 @@ static __be32 nfs4_seqid_op_checks(struct nfsd4_compound_state *cstate, stateid_
 	status = check_stateid_generation(stateid, &stp->st_stid.sc_stateid, nfsd4_has_session(cstate));
 	if (status)
 		return status;
-	return nfs4_check_fh(current_fh, stp);
+	return nfs4_check_fh(current_fh, &stp->st_stid);
 }
 
 /* 
@@ -5505,7 +5549,7 @@ static __be32 nfsd_test_lock(struct svc_rqst *rqstp, struct svc_fh *fhp, struct 
 	__be32 err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
 	if (!err) {
 		err = nfserrno(vfs_test_lock(file, lock));
-		nfsd_close(file);
+		fput(file);
 	}
 	return err;
 }

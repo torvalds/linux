@@ -196,6 +196,62 @@ static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	return (struct fimd_driver_data *)of_id->data;
 }
 
+static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
+{
+	struct fimd_context *ctx = crtc->ctx;
+	u32 val;
+
+	if (ctx->suspended)
+		return -EPERM;
+
+	if (!test_and_set_bit(0, &ctx->irq_flags)) {
+		val = readl(ctx->regs + VIDINTCON0);
+
+		val |= VIDINTCON0_INT_ENABLE;
+
+		if (ctx->i80_if) {
+			val |= VIDINTCON0_INT_I80IFDONE;
+			val |= VIDINTCON0_INT_SYSMAINCON;
+			val &= ~VIDINTCON0_INT_SYSSUBCON;
+		} else {
+			val |= VIDINTCON0_INT_FRAME;
+
+			val &= ~VIDINTCON0_FRAMESEL0_MASK;
+			val |= VIDINTCON0_FRAMESEL0_VSYNC;
+			val &= ~VIDINTCON0_FRAMESEL1_MASK;
+			val |= VIDINTCON0_FRAMESEL1_NONE;
+		}
+
+		writel(val, ctx->regs + VIDINTCON0);
+	}
+
+	return 0;
+}
+
+static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
+{
+	struct fimd_context *ctx = crtc->ctx;
+	u32 val;
+
+	if (ctx->suspended)
+		return;
+
+	if (test_and_clear_bit(0, &ctx->irq_flags)) {
+		val = readl(ctx->regs + VIDINTCON0);
+
+		val &= ~VIDINTCON0_INT_ENABLE;
+
+		if (ctx->i80_if) {
+			val &= ~VIDINTCON0_INT_I80IFDONE;
+			val &= ~VIDINTCON0_INT_SYSMAINCON;
+			val &= ~VIDINTCON0_INT_SYSSUBCON;
+		} else
+			val &= ~VIDINTCON0_INT_FRAME;
+
+		writel(val, ctx->regs + VIDINTCON0);
+	}
+}
+
 static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
@@ -242,11 +298,18 @@ static void fimd_enable_shadow_channel_path(struct fimd_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void fimd_clear_channel(struct fimd_context *ctx)
+static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 {
+	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* Hardware is in unknown state, so ensure it gets enabled properly */
+	pm_runtime_get_sync(ctx->dev);
+
+	clk_prepare_enable(ctx->bus_clk);
+	clk_prepare_enable(ctx->lcd_clk);
 
 	/* Check if any channel is enabled. */
 	for (win = 0; win < WINDOWS_NR; win++) {
@@ -265,36 +328,24 @@ static void fimd_clear_channel(struct fimd_context *ctx)
 
 	/* Wait for vsync, as disable channel takes effect at next vsync */
 	if (ch_enabled) {
-		unsigned int state = ctx->suspended;
+		int pipe = ctx->pipe;
 
-		ctx->suspended = 0;
+		/* ensure that vblank interrupt won't be reported to core */
+		ctx->suspended = false;
+		ctx->pipe = -1;
+
+		fimd_enable_vblank(ctx->crtc);
 		fimd_wait_for_vblank(ctx->crtc);
-		ctx->suspended = state;
-	}
-}
+		fimd_disable_vblank(ctx->crtc);
 
-static int fimd_iommu_attach_devices(struct fimd_context *ctx,
-			struct drm_device *drm_dev)
-{
-
-	/* attach this sub driver to iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev)) {
-		int ret;
-
-		/*
-		 * If any channel is already active, iommu will throw
-		 * a PAGE FAULT when enabled. So clear any channel if enabled.
-		 */
-		fimd_clear_channel(ctx);
-		ret = drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
-		if (ret) {
-			DRM_ERROR("drm_iommu_attach failed.\n");
-			return ret;
-		}
-
+		ctx->suspended = true;
+		ctx->pipe = pipe;
 	}
 
-	return 0;
+	clk_disable_unprepare(ctx->lcd_clk);
+	clk_disable_unprepare(ctx->bus_clk);
+
+	pm_runtime_put(ctx->dev);
 }
 
 static void fimd_iommu_detach_devices(struct fimd_context *ctx)
@@ -337,7 +388,7 @@ static bool fimd_mode_fixup(struct exynos_drm_crtc *crtc,
 static void fimd_commit(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	struct drm_display_mode *mode = &crtc->base.mode;
+	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 val, clkdiv;
@@ -434,61 +485,6 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	writel(val, ctx->regs + VIDCON0);
 }
 
-static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
-{
-	struct fimd_context *ctx = crtc->ctx;
-	u32 val;
-
-	if (ctx->suspended)
-		return -EPERM;
-
-	if (!test_and_set_bit(0, &ctx->irq_flags)) {
-		val = readl(ctx->regs + VIDINTCON0);
-
-		val |= VIDINTCON0_INT_ENABLE;
-
-		if (ctx->i80_if) {
-			val |= VIDINTCON0_INT_I80IFDONE;
-			val |= VIDINTCON0_INT_SYSMAINCON;
-			val &= ~VIDINTCON0_INT_SYSSUBCON;
-		} else {
-			val |= VIDINTCON0_INT_FRAME;
-
-			val &= ~VIDINTCON0_FRAMESEL0_MASK;
-			val |= VIDINTCON0_FRAMESEL0_VSYNC;
-			val &= ~VIDINTCON0_FRAMESEL1_MASK;
-			val |= VIDINTCON0_FRAMESEL1_NONE;
-		}
-
-		writel(val, ctx->regs + VIDINTCON0);
-	}
-
-	return 0;
-}
-
-static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
-{
-	struct fimd_context *ctx = crtc->ctx;
-	u32 val;
-
-	if (ctx->suspended)
-		return;
-
-	if (test_and_clear_bit(0, &ctx->irq_flags)) {
-		val = readl(ctx->regs + VIDINTCON0);
-
-		val &= ~VIDINTCON0_INT_ENABLE;
-
-		if (ctx->i80_if) {
-			val &= ~VIDINTCON0_INT_I80IFDONE;
-			val &= ~VIDINTCON0_INT_SYSMAINCON;
-			val &= ~VIDINTCON0_INT_SYSSUBCON;
-		} else
-			val &= ~VIDINTCON0_INT_FRAME;
-
-		writel(val, ctx->regs + VIDINTCON0);
-	}
-}
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 {
@@ -634,11 +630,8 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	/* If suspended, enable this on resume */
-	if (ctx->suspended) {
-		plane->resume = true;
+	if (ctx->suspended)
 		return;
-	}
 
 	/*
 	 * SHADOWCON/PRTCON register is used for enabling timing.
@@ -728,8 +721,6 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	/* Enable DMA channel and unprotect windows */
 	fimd_shadow_protect_win(ctx, win, false);
 
-	plane->enabled = true;
-
 	if (ctx->i80_if)
 		atomic_set(&ctx->win_updated, 1);
 }
@@ -744,11 +735,8 @@ static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	if (ctx->suspended) {
-		/* do not resume this window*/
-		plane->resume = false;
+	if (ctx->suspended)
 		return;
-	}
 
 	/* protect windows */
 	fimd_shadow_protect_win(ctx, win, true);
@@ -760,57 +748,15 @@ static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	/* unprotect windows */
 	fimd_shadow_protect_win(ctx, win, false);
-
-	plane->enabled = false;
 }
 
-static void fimd_window_suspend(struct fimd_context *ctx)
+static void fimd_enable(struct exynos_drm_crtc *crtc)
 {
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->resume = plane->enabled;
-		if (plane->enabled)
-			fimd_win_disable(ctx->crtc, i);
-	}
-}
-
-static void fimd_window_resume(struct fimd_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->enabled = plane->resume;
-		plane->resume = false;
-	}
-}
-
-static void fimd_apply(struct fimd_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		if (plane->enabled)
-			fimd_win_commit(ctx->crtc, i);
-		else
-			fimd_win_disable(ctx->crtc, i);
-	}
-
-	fimd_commit(ctx->crtc);
-}
-
-static int fimd_poweron(struct fimd_context *ctx)
-{
+	struct fimd_context *ctx = crtc->ctx;
 	int ret;
 
 	if (!ctx->suspended)
-		return 0;
+		return;
 
 	ctx->suspended = false;
 
@@ -819,50 +765,43 @@ static int fimd_poweron(struct fimd_context *ctx)
 	ret = clk_prepare_enable(ctx->bus_clk);
 	if (ret < 0) {
 		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
-		goto bus_clk_err;
+		return;
 	}
 
 	ret = clk_prepare_enable(ctx->lcd_clk);
 	if  (ret < 0) {
 		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
-		goto lcd_clk_err;
+		return;
 	}
 
 	/* if vblank was enabled status, enable it again. */
-	if (test_and_clear_bit(0, &ctx->irq_flags)) {
-		ret = fimd_enable_vblank(ctx->crtc);
-		if (ret) {
-			DRM_ERROR("Failed to re-enable vblank [%d]\n", ret);
-			goto enable_vblank_err;
-		}
-	}
+	if (test_and_clear_bit(0, &ctx->irq_flags))
+		fimd_enable_vblank(ctx->crtc);
 
-	fimd_window_resume(ctx);
-
-	fimd_apply(ctx);
-
-	return 0;
-
-enable_vblank_err:
-	clk_disable_unprepare(ctx->lcd_clk);
-lcd_clk_err:
-	clk_disable_unprepare(ctx->bus_clk);
-bus_clk_err:
-	ctx->suspended = true;
-	return ret;
+	fimd_commit(ctx->crtc);
 }
 
-static int fimd_poweroff(struct fimd_context *ctx)
+static void fimd_disable(struct exynos_drm_crtc *crtc)
 {
+	struct fimd_context *ctx = crtc->ctx;
+	int i;
+
 	if (ctx->suspended)
-		return 0;
+		return;
 
 	/*
 	 * We need to make sure that all windows are disabled before we
 	 * suspend that connector. Otherwise we might try to scan from
 	 * a destroyed buffer later.
 	 */
-	fimd_window_suspend(ctx);
+	for (i = 0; i < WINDOWS_NR; i++)
+		fimd_win_disable(crtc, i);
+
+	fimd_enable_vblank(crtc);
+	fimd_wait_for_vblank(crtc);
+	fimd_disable_vblank(crtc);
+
+	writel(0, ctx->regs + VIDCON0);
 
 	clk_disable_unprepare(ctx->lcd_clk);
 	clk_disable_unprepare(ctx->bus_clk);
@@ -870,26 +809,6 @@ static int fimd_poweroff(struct fimd_context *ctx)
 	pm_runtime_put_sync(ctx->dev);
 
 	ctx->suspended = true;
-	return 0;
-}
-
-static void fimd_dpms(struct exynos_drm_crtc *crtc, int mode)
-{
-	DRM_DEBUG_KMS("%s, %d\n", __FILE__, mode);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		fimd_poweron(crtc->ctx);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		fimd_poweroff(crtc->ctx);
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
 }
 
 static void fimd_trigger(struct device *dev)
@@ -964,7 +883,8 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 }
 
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
-	.dpms = fimd_dpms,
+	.enable = fimd_enable,
+	.disable = fimd_disable,
 	.mode_fixup = fimd_mode_fixup,
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
@@ -974,6 +894,7 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.win_disable = fimd_win_disable,
 	.te_handler = fimd_te_handler,
 	.clock_enable = fimd_dp_clock_enable,
+	.clear_channels = fimd_clear_channels,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
@@ -1043,7 +964,11 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
-	return fimd_iommu_attach_devices(ctx, drm_dev);
+	ret = drm_iommu_attach_device_if_possible(ctx->crtc, drm_dev, dev);
+	if (ret)
+		priv->pipe--;
+
+	return ret;
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,
@@ -1051,7 +976,7 @@ static void fimd_unbind(struct device *dev, struct device *master,
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 
-	fimd_dpms(ctx->crtc, DRM_MODE_DPMS_OFF);
+	fimd_disable(ctx->crtc);
 
 	fimd_iommu_detach_devices(ctx);
 
@@ -1078,11 +1003,6 @@ static int fimd_probe(struct platform_device *pdev)
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
-
-	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CRTC,
-				       EXYNOS_DISPLAY_TYPE_LCD);
-	if (ret)
-		return ret;
 
 	ctx->dev = dev;
 	ctx->suspended = true;
@@ -1134,38 +1054,33 @@ static int fimd_probe(struct platform_device *pdev)
 	ctx->bus_clk = devm_clk_get(dev, "fimd");
 	if (IS_ERR(ctx->bus_clk)) {
 		dev_err(dev, "failed to get bus clock\n");
-		ret = PTR_ERR(ctx->bus_clk);
-		goto err_del_component;
+		return PTR_ERR(ctx->bus_clk);
 	}
 
 	ctx->lcd_clk = devm_clk_get(dev, "sclk_fimd");
 	if (IS_ERR(ctx->lcd_clk)) {
 		dev_err(dev, "failed to get lcd clock\n");
-		ret = PTR_ERR(ctx->lcd_clk);
-		goto err_del_component;
+		return PTR_ERR(ctx->lcd_clk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	ctx->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ctx->regs)) {
-		ret = PTR_ERR(ctx->regs);
-		goto err_del_component;
-	}
+	if (IS_ERR(ctx->regs))
+		return PTR_ERR(ctx->regs);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 					   ctx->i80_if ? "lcd_sys" : "vsync");
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
-		ret = -ENXIO;
-		goto err_del_component;
+		return -ENXIO;
 	}
 
 	ret = devm_request_irq(dev, res->start, fimd_irq_handler,
 							0, "drm_fimd", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_del_component;
+		return ret;
 	}
 
 	init_waitqueue_head(&ctx->wait_vsync_queue);
@@ -1175,8 +1090,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	ctx->display = exynos_dpi_probe(dev);
 	if (IS_ERR(ctx->display)) {
-		ret = PTR_ERR(ctx->display);
-		goto err_del_component;
+		return PTR_ERR(ctx->display);
 	}
 
 	pm_runtime_enable(dev);
@@ -1190,8 +1104,6 @@ static int fimd_probe(struct platform_device *pdev)
 err_disable_pm_runtime:
 	pm_runtime_disable(dev);
 
-err_del_component:
-	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CRTC);
 	return ret;
 }
 
@@ -1200,7 +1112,6 @@ static int fimd_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	component_del(&pdev->dev, &fimd_component_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }

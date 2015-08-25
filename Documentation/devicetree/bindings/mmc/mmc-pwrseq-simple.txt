@@ -21,5 +21,7 @@ Example:
 
 	sdhci0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio1 12 0>;
+		reset-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_32768_ck>;
+		clock-names = "ext_clock";
 	}

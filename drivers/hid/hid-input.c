@@ -462,12 +462,15 @@ out:
 
 static void hidinput_cleanup_battery(struct hid_device *dev)
 {
+	const struct power_supply_desc *psy_desc;
+
 	if (!dev->battery)
 		return;
 
+	psy_desc = dev->battery->desc;
 	power_supply_unregister(dev->battery);
-	kfree(dev->battery->desc->name);
-	kfree(dev->battery->desc);
+	kfree(psy_desc->name);
+	kfree(psy_desc);
 	dev->battery = NULL;
 }
 #else  /* !CONFIG_HID_BATTERY_STRENGTH */
@@ -1157,7 +1160,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 
 	/* report the usage code as scancode if the key status has changed */
-	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
+	if (usage->type == EV_KEY &&
+	    (!test_bit(usage->code, input->key)) == value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
 
 	input_event(input, usage->type, usage->code, value);

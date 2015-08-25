@@ -44,6 +44,9 @@
 
 #include "remoteproc_internal.h"
 
+static DEFINE_MUTEX(rproc_list_mutex);
+static LIST_HEAD(rproc_list);
+
 typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
 				struct resource_table *table, int len);
 typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
@@ -132,31 +135,47 @@ static void rproc_disable_iommu(struct rproc *rproc)
 
 	iommu_detach_device(domain, dev);
 	iommu_domain_free(domain);
-
-	return;
 }
 
-/*
+/**
+ * rproc_da_to_va() - lookup the kernel virtual address for a remoteproc address
+ * @rproc: handle of a remote processor
+ * @da: remoteproc device address to translate
+ * @len: length of the memory region @da is pointing to
+ *
  * Some remote processors will ask us to allocate them physically contiguous
  * memory regions (which we call "carveouts"), and map them to specific
- * device addresses (which are hardcoded in the firmware).
+ * device addresses (which are hardcoded in the firmware). They may also have
+ * dedicated memory regions internal to the processors, and use them either
+ * exclusively or alongside carveouts.
  *
  * They may then ask us to copy objects into specific device addresses (e.g.
  * code/data sections) or expose us certain symbols in other device address
  * (e.g. their trace buffer).
  *
- * This function is an internal helper with which we can go over the allocated
- * carveouts and translate specific device address to kernel virtual addresses
- * so we can access the referenced memory.
+ * This function is a helper function with which we can go over the allocated
+ * carveouts and translate specific device addresses to kernel virtual addresses
+ * so we can access the referenced memory. This function also allows to perform
+ * translations on the internal remoteproc memory regions through a platform
+ * implementation specific da_to_va ops, if present.
+ *
+ * The function returns a valid kernel address on success or NULL on failure.
  *
  * Note: phys_to_virt(iommu_iova_to_phys(rproc->domain, da)) will work too,
  * but only on kernel direct mapped RAM memory. Instead, we're just using
- * here the output of the DMA API, which should be more correct.
+ * here the output of the DMA API for the carveouts, which should be more
+ * correct.
  */
 void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 {
 	struct rproc_mem_entry *carveout;
 	void *ptr = NULL;
+
+	if (rproc->ops->da_to_va) {
+		ptr = rproc->ops->da_to_va(rproc, da, len);
+		if (ptr)
+			goto out;
+	}
 
 	list_for_each_entry(carveout, &rproc->carveouts, node) {
 		int offset = da - carveout->da;
@@ -174,6 +193,7 @@ void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 		break;
 	}
 
+out:
 	return ptr;
 }
 EXPORT_SYMBOL(rproc_da_to_va);
@@ -411,10 +431,8 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 	}
 
 	trace = kzalloc(sizeof(*trace), GFP_KERNEL);
-	if (!trace) {
-		dev_err(dev, "kzalloc trace failed\n");
+	if (!trace)
 		return -ENOMEM;
-	}
 
 	/* set the trace buffer dma properties */
 	trace->len = rsc->len;
@@ -489,10 +507,8 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
 	}
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
-	if (!mapping) {
-		dev_err(dev, "kzalloc mapping failed\n");
+	if (!mapping)
 		return -ENOMEM;
-	}
 
 	ret = iommu_map(rproc->domain, rsc->da, rsc->pa, rsc->len, rsc->flags);
 	if (ret) {
@@ -565,10 +581,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 			rsc->da, rsc->pa, rsc->len, rsc->flags);
 
 	carveout = kzalloc(sizeof(*carveout), GFP_KERNEL);
-	if (!carveout) {
-		dev_err(dev, "kzalloc carveout failed\n");
+	if (!carveout)
 		return -ENOMEM;
-	}
 
 	va = dma_alloc_coherent(dev->parent, rsc->len, &dma, GFP_KERNEL);
 	if (!va) {
@@ -768,7 +782,8 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 
 	/* clean up carveout allocations */
 	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
-		dma_free_coherent(dev->parent, entry->len, entry->va, entry->dma);
+		dma_free_coherent(dev->parent, entry->len, entry->va,
+				  entry->dma);
 		list_del(&entry->node);
 		kfree(entry);
 	}
@@ -808,9 +823,8 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw, &tablesz);
-	if (!table) {
+	if (!table)
 		goto clean_up;
-	}
 
 	/* Verify that resource table in loaded fw is unchanged */
 	if (rproc->table_csum != crc32(0, table, tablesz)) {
@@ -911,7 +925,8 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 
 	/* count the number of notify-ids */
 	rproc->max_notifyid = -1;
-	ret = rproc_handle_resources(rproc, tablesz, rproc_count_vrings_handler);
+	ret = rproc_handle_resources(rproc, tablesz,
+				     rproc_count_vrings_handler);
 	if (ret)
 		goto out;
 
@@ -1152,6 +1167,50 @@ out:
 EXPORT_SYMBOL(rproc_shutdown);
 
 /**
+ * rproc_get_by_phandle() - find a remote processor by phandle
+ * @phandle: phandle to the rproc
+ *
+ * Finds an rproc handle using the remote processor's phandle, and then
+ * return a handle to the rproc.
+ *
+ * This function increments the remote processor's refcount, so always
+ * use rproc_put() to decrement it back once rproc isn't needed anymore.
+ *
+ * Returns the rproc handle on success, and NULL on failure.
+ */
+#ifdef CONFIG_OF
+struct rproc *rproc_get_by_phandle(phandle phandle)
+{
+	struct rproc *rproc = NULL, *r;
+	struct device_node *np;
+
+	np = of_find_node_by_phandle(phandle);
+	if (!np)
+		return NULL;
+
+	mutex_lock(&rproc_list_mutex);
+	list_for_each_entry(r, &rproc_list, node) {
+		if (r->dev.parent && r->dev.parent->of_node == np) {
+			rproc = r;
+			get_device(&rproc->dev);
+			break;
+		}
+	}
+	mutex_unlock(&rproc_list_mutex);
+
+	of_node_put(np);
+
+	return rproc;
+}
+#else
+struct rproc *rproc_get_by_phandle(phandle phandle)
+{
+	return NULL;
+}
+#endif
+EXPORT_SYMBOL(rproc_get_by_phandle);
+
+/**
  * rproc_add() - register a remote processor
  * @rproc: the remote processor handle to register
  *
@@ -1179,6 +1238,11 @@ int rproc_add(struct rproc *rproc)
 	ret = device_add(dev);
 	if (ret < 0)
 		return ret;
+
+	/* expose to rproc_get_by_phandle users */
+	mutex_lock(&rproc_list_mutex);
+	list_add(&rproc->node, &rproc_list);
+	mutex_unlock(&rproc_list_mutex);
 
 	dev_info(dev, "%s is available\n", rproc->name);
 
@@ -1268,10 +1332,8 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 		name_len = strlen(name) + strlen(template) - 2 + 1;
 
 	rproc = kzalloc(sizeof(struct rproc) + len + name_len, GFP_KERNEL);
-	if (!rproc) {
-		dev_err(dev, "%s: kzalloc failed\n", __func__);
+	if (!rproc)
 		return NULL;
-	}
 
 	if (!firmware) {
 		p = (char *)rproc + sizeof(struct rproc) + len;
@@ -1368,6 +1430,11 @@ int rproc_del(struct rproc *rproc)
 
 	/* Free the copy of the resource table */
 	kfree(rproc->cached_table);
+
+	/* the rproc is downref'ed as soon as it's removed from the klist */
+	mutex_lock(&rproc_list_mutex);
+	list_del(&rproc->node);
+	mutex_unlock(&rproc_list_mutex);
 
 	device_del(&rproc->dev);
 

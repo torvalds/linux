@@ -31,7 +31,6 @@
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
-#include <linux/netfilter.h>
 #include <linux/sysctl.h>
 #include <net/ip.h>
 #include <net/arp.h>

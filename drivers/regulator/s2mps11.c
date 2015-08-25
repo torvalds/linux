@@ -34,6 +34,8 @@
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s2mpu02.h>
 
+/* The highest number of possible regulators for supported devices. */
+#define S2MPS_REGULATOR_MAX		S2MPS13_REGULATOR_MAX
 struct s2mps11_info {
 	unsigned int rdev_num;
 	int ramp_delay2;
@@ -49,7 +51,7 @@ struct s2mps11_info {
 	 * One bit for each S2MPS13/S2MPS14/S2MPU02 regulator whether
 	 * the suspend mode was enabled.
 	 */
-	unsigned long long s2mps14_suspend_state:50;
+	DECLARE_BITMAP(suspend_state, S2MPS_REGULATOR_MAX);
 
 	/* Array of size rdev_num with GPIO-s for external sleep control */
 	int *ext_control_gpio;
@@ -500,7 +502,7 @@ static int s2mps14_regulator_enable(struct regulator_dev *rdev)
 	switch (s2mps11->dev_type) {
 	case S2MPS13X:
 	case S2MPS14X:
-		if (s2mps11->s2mps14_suspend_state & (1 << rdev_get_id(rdev)))
+		if (test_bit(rdev_get_id(rdev), s2mps11->suspend_state))
 			val = S2MPS14_ENABLE_SUSPEND;
 		else if (gpio_is_valid(s2mps11->ext_control_gpio[rdev_get_id(rdev)]))
 			val = S2MPS14_ENABLE_EXT_CONTROL;
@@ -508,14 +510,14 @@ static int s2mps14_regulator_enable(struct regulator_dev *rdev)
 			val = rdev->desc->enable_mask;
 		break;
 	case S2MPU02:
-		if (s2mps11->s2mps14_suspend_state & (1 << rdev_get_id(rdev)))
+		if (test_bit(rdev_get_id(rdev), s2mps11->suspend_state))
 			val = S2MPU02_ENABLE_SUSPEND;
 		else
 			val = rdev->desc->enable_mask;
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 			rdev->desc->enable_mask, val);
@@ -538,7 +540,7 @@ static int s2mps14_regulator_set_suspend_disable(struct regulator_dev *rdev)
 		default:
 			state = S2MPS14_ENABLE_SUSPEND;
 			break;
-		};
+		}
 		break;
 	case S2MPU02:
 		switch (rdev_id) {
@@ -552,17 +554,17 @@ static int s2mps14_regulator_set_suspend_disable(struct regulator_dev *rdev)
 		default:
 			state = S2MPU02_ENABLE_SUSPEND;
 			break;
-		};
+		}
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
 	if (ret < 0)
 		return ret;
 
-	s2mps11->s2mps14_suspend_state |= (1 << rdev_get_id(rdev));
+	set_bit(rdev_get_id(rdev), s2mps11->suspend_state);
 	/*
 	 * Don't enable suspend mode if regulator is already disabled because
 	 * this would effectively for a short time turn on the regulator after
@@ -960,24 +962,28 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	case S2MPS11X:
 		s2mps11->rdev_num = ARRAY_SIZE(s2mps11_regulators);
 		regulators = s2mps11_regulators;
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
 		break;
 	case S2MPS13X:
 		s2mps11->rdev_num = ARRAY_SIZE(s2mps13_regulators);
 		regulators = s2mps13_regulators;
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
 		break;
 	case S2MPS14X:
 		s2mps11->rdev_num = ARRAY_SIZE(s2mps14_regulators);
 		regulators = s2mps14_regulators;
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
 		break;
 	case S2MPU02:
 		s2mps11->rdev_num = ARRAY_SIZE(s2mpu02_regulators);
 		regulators = s2mpu02_regulators;
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid device type: %u\n",
 				    s2mps11->dev_type);
 		return -EINVAL;
-	};
+	}
 
 	s2mps11->ext_control_gpio = devm_kmalloc(&pdev->dev,
 			sizeof(*s2mps11->ext_control_gpio) * s2mps11->rdev_num,

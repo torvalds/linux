@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2015 B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *
@@ -15,18 +15,36 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/if_ether.h>
+#include "distributed-arp-table.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
 #include <linux/if_arp.h>
+#include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/in.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
 #include <net/arp.h>
 
-#include "main.h"
-#include "hash.h"
-#include "distributed-arp-table.h"
 #include "hard-interface.h"
+#include "hash.h"
 #include "originator.h"
 #include "send.h"
-#include "types.h"
 #include "translation-table.h"
 
 static void batadv_dat_purge(struct work_struct *work);
@@ -206,9 +224,22 @@ static uint32_t batadv_hash_dat(const void *data, uint32_t size)
 {
 	uint32_t hash = 0;
 	const struct batadv_dat_entry *dat = data;
+	const unsigned char *key;
+	uint32_t i;
 
-	hash = batadv_hash_bytes(hash, &dat->ip, sizeof(dat->ip));
-	hash = batadv_hash_bytes(hash, &dat->vid, sizeof(dat->vid));
+	key = (const unsigned char *)&dat->ip;
+	for (i = 0; i < sizeof(dat->ip); i++) {
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+
+	key = (const unsigned char *)&dat->vid;
+	for (i = 0; i < sizeof(dat->vid); i++) {
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
 
 	hash += (hash << 3);
 	hash ^= (hash >> 11);
@@ -1107,6 +1138,9 @@ void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
  * @hdr_size: size of the encapsulation header
+ *
+ * Returns true if the packet was snooped and consumed by DAT. False if the
+ * packet has to be delivered to the interface
  */
 bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb, int hdr_size)
@@ -1114,7 +1148,7 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	uint16_t type;
 	__be32 ip_src, ip_dst;
 	uint8_t *hw_src, *hw_dst;
-	bool ret = false;
+	bool dropped = false;
 	unsigned short vid;
 
 	if (!atomic_read(&bat_priv->distributed_arp_table))
@@ -1143,12 +1177,17 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	/* if this REPLY is directed to a client of mine, let's deliver the
 	 * packet to the interface
 	 */
-	ret = !batadv_is_my_client(bat_priv, hw_dst, vid);
+	dropped = !batadv_is_my_client(bat_priv, hw_dst, vid);
+
+	/* if this REPLY is sent on behalf of a client of mine, let's drop the
+	 * packet because the client will reply by itself
+	 */
+	dropped |= batadv_is_my_client(bat_priv, hw_src, vid);
 out:
-	if (ret)
+	if (dropped)
 		kfree_skb(skb);
-	/* if ret == false -> packet has to be delivered to the interface */
-	return ret;
+	/* if dropped == false -> deliver to the interface */
+	return dropped;
 }
 
 /**

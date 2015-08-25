@@ -35,8 +35,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
+#include <linux/completion.h>
 #include "../../include/linux/lnet/lib-lnet.h"
-
 
 static int   accept_port    = 988;
 static int   accept_backlog = 127;
@@ -143,10 +143,10 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	    __u32 local_ip, __u32 peer_ip, int peer_port)
 {
 	lnet_acceptor_connreq_t cr;
-	struct socket	   *sock;
-	int		     rc;
-	int		     port;
-	int		     fatal;
+	struct socket *sock;
+	int rc;
+	int port;
+	int fatal;
 
 	CLASSERT(sizeof(cr) <= 16);	    /* not too big to be on the stack */
 
@@ -155,9 +155,8 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	     --port) {
 		/* Iterate through reserved ports. */
 
-		rc = libcfs_sock_connect(&sock, &fatal,
-					 local_ip, port,
-					 peer_ip, peer_port);
+		rc = lnet_sock_connect(&sock, &fatal, local_ip, port, peer_ip,
+				       peer_port);
 		if (rc != 0) {
 			if (fatal)
 				goto failed;
@@ -184,8 +183,7 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 			lnet_net_unlock(LNET_LOCK_EX);
 		}
 
-		rc = libcfs_sock_write(sock, &cr, sizeof(cr),
-				       accept_timeout);
+		rc = lnet_sock_write(sock, &cr, sizeof(cr), accept_timeout);
 		if (rc != 0)
 			goto failed_sock;
 
@@ -197,7 +195,7 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	goto failed;
 
  failed_sock:
-	libcfs_sock_release(sock);
+	sock_release(sock);
  failed:
 	lnet_connect_console_error(rc, peer_nid, peer_ip, peer_port);
 	return rc;
@@ -211,16 +209,16 @@ static int
 lnet_accept(struct socket *sock, __u32 magic)
 {
 	lnet_acceptor_connreq_t cr;
-	__u32		   peer_ip;
-	int		     peer_port;
-	int		     rc;
-	int		     flip;
-	lnet_ni_t	      *ni;
-	char		   *str;
+	__u32 peer_ip;
+	int peer_port;
+	int rc;
+	int flip;
+	lnet_ni_t *ni;
+	char *str;
 
 	LASSERT(sizeof(cr) <= 16);	     /* not too big for the stack */
 
-	rc = libcfs_sock_getaddr(sock, 1, &peer_ip, &peer_port);
+	rc = lnet_sock_getaddr(sock, 1, &peer_ip, &peer_port);
 	LASSERT(rc == 0);		      /* we succeeded before */
 
 	if (!lnet_accept_magic(magic, LNET_PROTO_ACCEPTOR_MAGIC)) {
@@ -234,8 +232,8 @@ lnet_accept(struct socket *sock, __u32 magic)
 			memset(&cr, 0, sizeof(cr));
 			cr.acr_magic = LNET_PROTO_ACCEPTOR_MAGIC;
 			cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
-			rc = libcfs_sock_write(sock, &cr, sizeof(cr),
-					       accept_timeout);
+			rc = lnet_sock_write(sock, &cr, sizeof(cr),
+					     accept_timeout);
 
 			if (rc != 0)
 				CERROR("Error sending magic+version in response to LNET magic from %pI4h: %d\n",
@@ -245,8 +243,6 @@ lnet_accept(struct socket *sock, __u32 magic)
 
 		if (magic == le32_to_cpu(LNET_PROTO_TCP_MAGIC))
 			str = "'old' socknal/tcpnal";
-		else if (lnet_accept_magic(magic, LNET_PROTO_RA_MAGIC))
-			str = "'old' ranal";
 		else
 			str = "unrecognised";
 
@@ -257,9 +253,8 @@ lnet_accept(struct socket *sock, __u32 magic)
 
 	flip = (magic != LNET_PROTO_ACCEPTOR_MAGIC);
 
-	rc = libcfs_sock_read(sock, &cr.acr_version,
-			      sizeof(cr.acr_version),
-			      accept_timeout);
+	rc = lnet_sock_read(sock, &cr.acr_version, sizeof(cr.acr_version),
+			    accept_timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading connection request version from %pI4h\n",
 			rc, &peer_ip);
@@ -280,19 +275,17 @@ lnet_accept(struct socket *sock, __u32 magic)
 		cr.acr_magic = LNET_PROTO_ACCEPTOR_MAGIC;
 		cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
 
-		rc = libcfs_sock_write(sock, &cr, sizeof(cr),
-				       accept_timeout);
-
+		rc = lnet_sock_write(sock, &cr, sizeof(cr), accept_timeout);
 		if (rc != 0)
 			CERROR("Error sending magic+version in response to version %d from %pI4h: %d\n",
 			       peer_version, &peer_ip, rc);
 		return -EPROTO;
 	}
 
-	rc = libcfs_sock_read(sock, &cr.acr_nid,
-			      sizeof(cr) -
-			      offsetof(lnet_acceptor_connreq_t, acr_nid),
-			      accept_timeout);
+	rc = lnet_sock_read(sock, &cr.acr_nid,
+			    sizeof(cr) -
+			    offsetof(lnet_acceptor_connreq_t, acr_nid),
+			    accept_timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading connection request from %pI4h\n",
 			rc, &peer_ip);
@@ -333,18 +326,18 @@ static int
 lnet_acceptor(void *arg)
 {
 	struct socket *newsock;
-	int	    rc;
-	__u32	  magic;
-	__u32	  peer_ip;
-	int	    peer_port;
-	int	    secure = (int)((long_ptr_t)arg);
+	int rc;
+	__u32 magic;
+	__u32 peer_ip;
+	int peer_port;
+	int secure = (int)((long_ptr_t)arg);
 
 	LASSERT(lnet_acceptor_state.pta_sock == NULL);
 
 	cfs_block_allsigs();
 
-	rc = libcfs_sock_listen(&lnet_acceptor_state.pta_sock,
-				0, accept_port, accept_backlog);
+	rc = lnet_sock_listen(&lnet_acceptor_state.pta_sock, 0, accept_port,
+			      accept_backlog);
 	if (rc != 0) {
 		if (rc == -EADDRINUSE)
 			LCONSOLE_ERROR_MSG(0x122, "Can't start acceptor on port %d: port already in use\n",
@@ -367,7 +360,7 @@ lnet_acceptor(void *arg)
 
 	while (!lnet_acceptor_state.pta_shutdown) {
 
-		rc = libcfs_sock_accept(&newsock, lnet_acceptor_state.pta_sock);
+		rc = lnet_sock_accept(&newsock, lnet_acceptor_state.pta_sock);
 		if (rc != 0) {
 			if (rc != -EAGAIN) {
 				CWARN("Accept error %d: pausing...\n", rc);
@@ -377,13 +370,13 @@ lnet_acceptor(void *arg)
 			continue;
 		}
 
-		/* maybe we're waken up with libcfs_sock_abort_accept() */
+		/* maybe the LNet acceptor thread has been waken */
 		if (lnet_acceptor_state.pta_shutdown) {
-			libcfs_sock_release(newsock);
+			sock_release(newsock);
 			break;
 		}
 
-		rc = libcfs_sock_getaddr(newsock, 1, &peer_ip, &peer_port);
+		rc = lnet_sock_getaddr(newsock, 1, &peer_ip, &peer_port);
 		if (rc != 0) {
 			CERROR("Can't determine new connection's address\n");
 			goto failed;
@@ -395,8 +388,8 @@ lnet_acceptor(void *arg)
 			goto failed;
 		}
 
-		rc = libcfs_sock_read(newsock, &magic, sizeof(magic),
-				      accept_timeout);
+		rc = lnet_sock_read(newsock, &magic, sizeof(magic),
+				    accept_timeout);
 		if (rc != 0) {
 			CERROR("Error %d reading connection request from %pI4h\n",
 				rc, &peer_ip);
@@ -410,10 +403,10 @@ lnet_acceptor(void *arg)
 		continue;
 
 failed:
-		libcfs_sock_release(newsock);
+		sock_release(newsock);
 	}
 
-	libcfs_sock_release(lnet_acceptor_state.pta_sock);
+	sock_release(lnet_acceptor_state.pta_sock);
 	lnet_acceptor_state.pta_sock = NULL;
 
 	CDEBUG(D_NET, "Acceptor stopping\n");
@@ -444,7 +437,7 @@ accept2secure(const char *acc, long *sec)
 int
 lnet_acceptor_start(void)
 {
-	int  rc;
+	int rc;
 	long rc2;
 	long secure;
 
@@ -493,7 +486,7 @@ lnet_acceptor_stop(void)
 		return;
 
 	lnet_acceptor_state.pta_shutdown = 1;
-	libcfs_sock_abort_accept(lnet_acceptor_state.pta_sock);
+	wake_up_all(sk_sleep(lnet_acceptor_state.pta_sock->sk));
 
 	/* block until acceptor signals exit */
 	wait_for_completion(&lnet_acceptor_state.pta_signal);

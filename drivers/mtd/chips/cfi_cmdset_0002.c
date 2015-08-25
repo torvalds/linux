@@ -1295,7 +1295,7 @@ static int do_otp_write(struct map_info *map, struct flchip *chip, loff_t adr,
 		unsigned long bus_ofs = adr & ~(map_bankwidth(map)-1);
 		int gap = adr - bus_ofs;
 		int n = min_t(int, len, map_bankwidth(map) - gap);
-		map_word datum;
+		map_word datum = map_word_ff(map);
 
 		if (n != map_bankwidth(map)) {
 			/* partial write of a word, load old contents */

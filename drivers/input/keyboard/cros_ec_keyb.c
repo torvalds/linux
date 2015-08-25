@@ -148,19 +148,28 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 
 static int cros_ec_keyb_get_state(struct cros_ec_keyb *ckdev, uint8_t *kb_state)
 {
-	int ret;
-	struct cros_ec_command msg = {
-		.command = EC_CMD_MKBP_STATE,
-		.insize = ckdev->cols,
-	};
+	int ret = 0;
+	struct cros_ec_command *msg;
 
-	ret = cros_ec_cmd_xfer(ckdev->ec, &msg);
-	if (ret < 0)
-		return ret;
+	msg = kmalloc(sizeof(*msg) + ckdev->cols, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
-	memcpy(kb_state, msg.indata, ckdev->cols);
+	msg->version = 0;
+	msg->command = EC_CMD_MKBP_STATE;
+	msg->insize = ckdev->cols;
+	msg->outsize = 0;
 
-	return 0;
+	ret = cros_ec_cmd_xfer(ckdev->ec, msg);
+	if (ret < 0) {
+		dev_err(ckdev->dev, "Error transferring EC message %d\n", ret);
+		goto exit;
+	}
+
+	memcpy(kb_state, msg->data, ckdev->cols);
+exit:
+	kfree(msg);
+	return ret;
 }
 
 static irqreturn_t cros_ec_keyb_irq(int irq, void *data)
@@ -266,7 +275,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	ckdev->dev = dev;
 	dev_set_drvdata(&pdev->dev, ckdev);
 
-	idev->name = ec->ec_name;
+	idev->name = CROS_EC_DEV_NAME;
 	idev->phys = ec->phys_name;
 	__set_bit(EV_REP, idev->evbit);
 

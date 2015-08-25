@@ -73,7 +73,9 @@ static int init_display(struct fbtft_par *par)
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
 		"%s()\n", __func__);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-		"display size %dx%d\n", par->info->var.xres, par->info->var.yres);
+		"display size %dx%d\n",
+		par->info->var.xres,
+		par->info->var.yres);
 
 	par->fbtftops.reset(par);
 
@@ -101,7 +103,8 @@ static int init_display(struct fbtft_par *par)
 		write_reg(par, 0x1D, 0x0E);
 		write_reg(par, 0x1E, 0x00);
 		write_reg(par, 0x1F, 0x02);
-	} else if ((par->info->var.xres == 480) && (par->info->var.yres == 272)) {
+	} else if ((par->info->var.xres == 480) &&
+		   (par->info->var.yres == 272)) {
 		/* PLL clock frequency  */
 		write_reg(par, 0x88, 0x0A);
 		write_reg(par, 0x89, 0x02);
@@ -125,7 +128,8 @@ static int init_display(struct fbtft_par *par)
 		write_reg(par, 0x1D, 0x07);
 		write_reg(par, 0x1E, 0x00);
 		write_reg(par, 0x1F, 0x09);
-	} else if ((par->info->var.xres == 640) && (par->info->var.yres == 480)) {
+	} else if ((par->info->var.xres == 640) &&
+		   (par->info->var.yres == 480)) {
 		/* PLL clock frequency */
 		write_reg(par, 0x88, 0x0B);
 		write_reg(par, 0x89, 0x02);
@@ -149,7 +153,8 @@ static int init_display(struct fbtft_par *par)
 		write_reg(par, 0x1D, 0x0E);
 		write_reg(par, 0x1E, 0x00);
 		write_reg(par, 0x1F, 0x01);
-	} else if ((par->info->var.xres == 800) && (par->info->var.yres == 480)) {
+	} else if ((par->info->var.xres == 800) &&
+		   (par->info->var.yres == 480)) {
 		/* PLL clock frequency */
 		write_reg(par, 0x88, 0x0B);
 		write_reg(par, 0x89, 0x02);

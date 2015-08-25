@@ -119,6 +119,34 @@
 			status = "disabled";
 		};
 
+		hdmi: hdmi@0120000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x00120000 0x9000>;
+			interrupts = <0 115 0x04>;
+			gpr = <&gpr>;
+			clocks = <&clks IMX6QDL_CLK_HDMI_IAHB>,
+				 <&clks IMX6QDL_CLK_HDMI_ISFR>;
+			clock-names = "iahb", "isfr";
+			status = "disabled";
+
+			port@0 {
+				reg = <0>;
+
+				hdmi_mux_0: endpoint {
+					remote-endpoint = <&ipu1_di0_hdmi>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				hdmi_mux_1: endpoint {
+					remote-endpoint = <&ipu1_di1_hdmi>;
+				};
+			};
+		};
+
 		timer@00a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
@@ -153,10 +181,10 @@
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 2 &intc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 3 &intc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 4 &intc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &gpc GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 2 &gpc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 3 &gpc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 4 &gpc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6QDL_CLK_PCIE_AXI>,
 				 <&clks IMX6QDL_CLK_LVDS1_GATE>,
 				 <&clks IMX6QDL_CLK_PCIE_REF_125M>;
@@ -343,6 +371,7 @@
 				clocks = <&clks IMX6QDL_CLK_VPU_AXI>,
 					 <&clks IMX6QDL_CLK_MMDC_CH0_AXI>;
 				clock-names = "per", "ahb";
+				power-domains = <&gpc 1>;
 				resets = <&src 1>;
 				iram = <&ocram>;
 			};
@@ -774,34 +803,6 @@
 						lvds1_mux_1: endpoint {
 							remote-endpoint = <&ipu1_di1_lvds1>;
 						};
-					};
-				};
-			};
-
-			hdmi: hdmi@0120000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0x00120000 0x9000>;
-				interrupts = <0 115 0x04>;
-				gpr = <&gpr>;
-				clocks = <&clks IMX6QDL_CLK_HDMI_IAHB>,
-					 <&clks IMX6QDL_CLK_HDMI_ISFR>;
-				clock-names = "iahb", "isfr";
-				status = "disabled";
-
-				port@0 {
-					reg = <0>;
-
-					hdmi_mux_0: endpoint {
-						remote-endpoint = <&ipu1_di0_hdmi>;
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-
-					hdmi_mux_1: endpoint {
-						remote-endpoint = <&ipu1_di1_hdmi>;
 					};
 				};
 			};

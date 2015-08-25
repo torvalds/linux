@@ -272,13 +272,20 @@ static int posix_get_tai(clockid_t which_clock, struct timespec *tp)
 	return 0;
 }
 
+static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec *tp)
+{
+	tp->tv_sec = 0;
+	tp->tv_nsec = hrtimer_resolution;
+	return 0;
+}
+
 /*
  * Initialize everything, well, just everything in Posix clocks/timers ;)
  */
 static __init int init_posix_timers(void)
 {
 	struct k_clock clock_realtime = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_clock_realtime_get,
 		.clock_set	= posix_clock_realtime_set,
 		.clock_adj	= posix_clock_realtime_adj,
@@ -290,7 +297,7 @@ static __init int init_posix_timers(void)
 		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_monotonic = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_ktime_get_ts,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
@@ -300,7 +307,7 @@ static __init int init_posix_timers(void)
 		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_monotonic_raw = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_get_monotonic_raw,
 	};
 	struct k_clock clock_realtime_coarse = {
@@ -312,7 +319,7 @@ static __init int init_posix_timers(void)
 		.clock_get	= posix_get_monotonic_coarse,
 	};
 	struct k_clock clock_tai = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_get_tai,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
@@ -322,7 +329,7 @@ static __init int init_posix_timers(void)
 		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_boottime = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_get_boottime,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,

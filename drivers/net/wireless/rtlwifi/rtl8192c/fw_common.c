@@ -233,13 +233,14 @@ int rtl92c_download_fw(struct ieee80211_hw *hw)
 	pfwheader = (struct rtl92c_firmware_header *)rtlhal->pfirmware;
 	pfwdata = (u8 *)rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
-
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
 			 "Firmware Version(%d), Signature(%#x),Size(%d)\n",
 			  pfwheader->version, pfwheader->signature,
 			  (int)sizeof(struct rtl92c_firmware_header));
 
+		rtlhal->fw_version = pfwheader->version;
+		rtlhal->fw_subversion = pfwheader->subversion;
 		pfwdata = pfwdata + sizeof(struct rtl92c_firmware_header);
 		fwsize = fwsize - sizeof(struct rtl92c_firmware_header);
 	}

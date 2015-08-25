@@ -52,6 +52,7 @@ unsigned int skip_c0;
 unsigned int skip_c1;
 unsigned int do_nhm_cstates;
 unsigned int do_snb_cstates;
+unsigned int do_knl_cstates;
 unsigned int do_pc2;
 unsigned int do_pc3;
 unsigned int do_pc6;
@@ -91,6 +92,7 @@ unsigned int do_gfx_perf_limit_reasons;
 unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
+int base_cpu;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -316,7 +318,7 @@ void print_header(void)
 
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "  CPU%%c1");
-	if (do_nhm_cstates && !do_slm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates && !do_knl_cstates)
 		outp += sprintf(outp, "  CPU%%c3");
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "  CPU%%c6");
@@ -546,7 +548,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	if (do_nhm_cstates && !do_slm_cstates)
+	if (do_nhm_cstates && !do_slm_cstates && !do_knl_cstates)
 		outp += sprintf(outp, "%8.2f", 100.0 * c->c3/t->tsc);
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "%8.2f", 100.0 * c->c6/t->tsc);
@@ -1018,13 +1020,16 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
 
-	if (do_nhm_cstates && !do_slm_cstates) {
+	if (do_nhm_cstates && !do_slm_cstates && !do_knl_cstates) {
 		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
 			return -6;
 	}
 
-	if (do_nhm_cstates) {
+	if (do_nhm_cstates && !do_knl_cstates) {
 		if (get_msr(cpu, MSR_CORE_C6_RESIDENCY, &c->c6))
+			return -7;
+	} else if (do_knl_cstates) {
+		if (get_msr(cpu, MSR_KNL_CORE_C6_RESIDENCY, &c->c6))
 			return -7;
 	}
 
@@ -1150,7 +1155,7 @@ dump_nhm_platform_info(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	get_msr(0, MSR_NHM_PLATFORM_INFO, &msr);
+	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
 
 	fprintf(stderr, "cpu0: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", msr);
 
@@ -1162,7 +1167,7 @@ dump_nhm_platform_info(void)
 	fprintf(stderr, "%d * %.0f = %.0f MHz base frequency\n",
 		ratio, bclk, ratio * bclk);
 
-	get_msr(0, MSR_IA32_POWER_CTL, &msr);
+	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
 	fprintf(stderr, "cpu0: MSR_IA32_POWER_CTL: 0x%08llx (C1E auto-promotion: %sabled)\n",
 		msr, msr & 0x2 ? "EN" : "DIS");
 
@@ -1175,7 +1180,7 @@ dump_hsw_turbo_ratio_limits(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	get_msr(0, MSR_TURBO_RATIO_LIMIT2, &msr);
+	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT2, &msr);
 
 	fprintf(stderr, "cpu0: MSR_TURBO_RATIO_LIMIT2: 0x%08llx\n", msr);
 
@@ -1197,7 +1202,7 @@ dump_ivt_turbo_ratio_limits(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	get_msr(0, MSR_TURBO_RATIO_LIMIT1, &msr);
+	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT1, &msr);
 
 	fprintf(stderr, "cpu0: MSR_TURBO_RATIO_LIMIT1: 0x%08llx\n", msr);
 
@@ -1249,7 +1254,7 @@ dump_nhm_turbo_ratio_limits(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	get_msr(0, MSR_TURBO_RATIO_LIMIT, &msr);
+	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT, &msr);
 
 	fprintf(stderr, "cpu0: MSR_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
 
@@ -1296,11 +1301,72 @@ dump_nhm_turbo_ratio_limits(void)
 }
 
 static void
+dump_knl_turbo_ratio_limits(void)
+{
+	int cores;
+	unsigned int ratio;
+	unsigned long long msr;
+	int delta_cores;
+	int delta_ratio;
+	int i;
+
+	get_msr(base_cpu, MSR_NHM_TURBO_RATIO_LIMIT, &msr);
+
+	fprintf(stderr, "cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n",
+	msr);
+
+	/**
+	 * Turbo encoding in KNL is as follows:
+	 * [7:0] -- Base value of number of active cores of bucket 1.
+	 * [15:8] -- Base value of freq ratio of bucket 1.
+	 * [20:16] -- +ve delta of number of active cores of bucket 2.
+	 * i.e. active cores of bucket 2 =
+	 * active cores of bucket 1 + delta
+	 * [23:21] -- Negative delta of freq ratio of bucket 2.
+	 * i.e. freq ratio of bucket 2 =
+	 * freq ratio of bucket 1 - delta
+	 * [28:24]-- +ve delta of number of active cores of bucket 3.
+	 * [31:29]-- -ve delta of freq ratio of bucket 3.
+	 * [36:32]-- +ve delta of number of active cores of bucket 4.
+	 * [39:37]-- -ve delta of freq ratio of bucket 4.
+	 * [44:40]-- +ve delta of number of active cores of bucket 5.
+	 * [47:45]-- -ve delta of freq ratio of bucket 5.
+	 * [52:48]-- +ve delta of number of active cores of bucket 6.
+	 * [55:53]-- -ve delta of freq ratio of bucket 6.
+	 * [60:56]-- +ve delta of number of active cores of bucket 7.
+	 * [63:61]-- -ve delta of freq ratio of bucket 7.
+	 */
+	cores = msr & 0xFF;
+	ratio = (msr >> 8) && 0xFF;
+	if (ratio > 0)
+		fprintf(stderr,
+			"%d * %.0f = %.0f MHz max turbo %d active cores\n",
+			ratio, bclk, ratio * bclk, cores);
+
+	for (i = 16; i < 64; i = i + 8) {
+		delta_cores = (msr >> i) & 0x1F;
+		delta_ratio = (msr >> (i + 5)) && 0x7;
+		if (!delta_cores || !delta_ratio)
+			return;
+		cores = cores + delta_cores;
+		ratio = ratio - delta_ratio;
+
+		/** -ve ratios will make successive ratio calculations
+		 * negative. Hence return instead of carrying on.
+		 */
+		if (ratio > 0)
+			fprintf(stderr,
+				"%d * %.0f = %.0f MHz max turbo %d active cores\n",
+				ratio, bclk, ratio * bclk, cores);
+	}
+}
+
+static void
 dump_nhm_cst_cfg(void)
 {
 	unsigned long long msr;
 
-	get_msr(0, MSR_NHM_SNB_PKG_CST_CFG_CTL, &msr);
+	get_msr(base_cpu, MSR_NHM_SNB_PKG_CST_CFG_CTL, &msr);
 
 #define SNB_C1_AUTO_UNDEMOTE              (1UL << 27)
 #define SNB_C3_AUTO_UNDEMOTE              (1UL << 28)
@@ -1381,12 +1447,41 @@ int parse_int_file(const char *fmt, ...)
 }
 
 /*
- * cpu_is_first_sibling_in_core(cpu)
- * return 1 if given CPU is 1st HT sibling in the core
+ * get_cpu_position_in_core(cpu)
+ * return the position of the CPU among its HT siblings in the core
+ * return -1 if the sibling is not in list
  */
-int cpu_is_first_sibling_in_core(int cpu)
+int get_cpu_position_in_core(int cpu)
 {
-	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
+	char path[64];
+	FILE *filep;
+	int this_cpu;
+	char character;
+	int i;
+
+	sprintf(path,
+		"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list",
+		cpu);
+	filep = fopen(path, "r");
+	if (filep == NULL) {
+		perror(path);
+		exit(1);
+	}
+
+	for (i = 0; i < topo.num_threads_per_core; i++) {
+		fscanf(filep, "%d", &this_cpu);
+		if (this_cpu == cpu) {
+			fclose(filep);
+			return i;
+		}
+
+		/* Account for no separator after last thread*/
+		if (i != (topo.num_threads_per_core - 1))
+			fscanf(filep, "%c", &character);
+	}
+
+	fclose(filep);
+	return -1;
 }
 
 /*
@@ -1412,25 +1507,31 @@ int get_num_ht_siblings(int cpu)
 {
 	char path[80];
 	FILE *filep;
-	int sib1, sib2;
-	int matches;
+	int sib1;
+	int matches = 0;
 	char character;
+	char str[100];
+	char *ch;
 
 	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 	filep = fopen_or_die(path, "r");
+
 	/*
 	 * file format:
-	 * if a pair of number with a character between: 2 siblings (eg. 1-2, or 1,4)
-	 * otherwinse 1 sibling (self).
+	 * A ',' separated or '-' separated set of numbers
+	 * (eg 1-2 or 1,3,4,5)
 	 */
-	matches = fscanf(filep, "%d%c%d\n", &sib1, &character, &sib2);
+	fscanf(filep, "%d%c\n", &sib1, &character);
+	fseek(filep, 0, SEEK_SET);
+	fgets(str, 100, filep);
+	ch = strchr(str, character);
+	while (ch != NULL) {
+		matches++;
+		ch = strchr(ch+1, character);
+	}
 
 	fclose(filep);
-
-	if (matches == 3)
-		return 2;
-	else
-		return 1;
+	return matches+1;
 }
 
 /*
@@ -1594,8 +1695,10 @@ restart:
 void check_dev_msr()
 {
 	struct stat sb;
+	char pathname[32];
 
-	if (stat("/dev/cpu/0/msr", &sb))
+	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
+	if (stat(pathname, &sb))
  		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
 			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
 }
@@ -1608,6 +1711,7 @@ void check_permissions()
 	cap_user_data_t cap_data = &cap_data_data;
 	extern int capget(cap_user_header_t hdrp, cap_user_data_t datap);
 	int do_exit = 0;
+	char pathname[32];
 
 	/* check for CAP_SYS_RAWIO */
 	cap_header->pid = getpid();
@@ -1622,7 +1726,8 @@ void check_permissions()
 	}
 
 	/* test file permissions */
-	if (euidaccess("/dev/cpu/0/msr", R_OK)) {
+	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
+	if (euidaccess(pathname, R_OK)) {
 		do_exit++;
 		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr");
 	}
@@ -1704,7 +1809,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	default:
 		return 0;
 	}
-	get_msr(0, MSR_NHM_SNB_PKG_CST_CFG_CTL, &msr);
+	get_msr(base_cpu, MSR_NHM_SNB_PKG_CST_CFG_CTL, &msr);
 
 	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
 
@@ -1753,6 +1858,21 @@ int has_hsw_turbo_ratio_limit(unsigned int family, unsigned int model)
 	}
 }
 
+int has_knl_turbo_ratio_limit(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
+		return 0;
+
+	switch (model) {
+	case 0x57:	/* Knights Landing */
+		return 1;
+	default:
+		return 0;
+	}
+}
 static void
 dump_cstate_pstate_config_info(family, model)
 {
@@ -1769,6 +1889,9 @@ dump_cstate_pstate_config_info(family, model)
 
 	if (has_nhm_turbo_ratio_limit(family, model))
 		dump_nhm_turbo_ratio_limits();
+
+	if (has_knl_turbo_ratio_limit(family, model))
+		dump_knl_turbo_ratio_limits();
 
 	dump_nhm_cst_cfg();
 }
@@ -1801,7 +1924,7 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (get_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, &msr))
 		return 0;
 
-	switch (msr & 0x7) {
+	switch (msr & 0xF) {
 	case ENERGY_PERF_BIAS_PERFORMANCE:
 		epb_string = "performance";
 		break;
@@ -1925,7 +2048,7 @@ double get_tdp(model)
 	unsigned long long msr;
 
 	if (do_rapl & RAPL_PKG_POWER_INFO)
-		if (!get_msr(0, MSR_PKG_POWER_INFO, &msr))
+		if (!get_msr(base_cpu, MSR_PKG_POWER_INFO, &msr))
 			return ((msr >> 0) & RAPL_POWER_GRANULARITY) * rapl_power_units;
 
 	switch (model) {
@@ -1950,6 +2073,7 @@ rapl_dram_energy_units_probe(int  model, double rapl_energy_units)
 	case 0x3F:	/* HSX */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
+	case 0x57:	/* KNL */
 		return (rapl_dram_energy_units = 15.3 / 1000000);
 	default:
 		return (rapl_energy_units);
@@ -1991,6 +2115,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case 0x3F:	/* HSX */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
+	case 0x57:	/* KNL */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x2D:
@@ -2006,7 +2131,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	}
 
 	/* units on package 0, verify later other packages match */
-	if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
+	if (get_msr(base_cpu, MSR_RAPL_POWER_UNIT, &msr))
 		return;
 
 	rapl_power_units = 1.0 / (1 << (msr & 0xF));
@@ -2331,6 +2456,17 @@ int is_slm(unsigned int family, unsigned int model)
 	return 0;
 }
 
+int is_knl(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+	switch (model) {
+	case 0x57:	/* KNL */
+		return 1;
+	}
+	return 0;
+}
+
 #define SLM_BCLK_FREQS 5
 double slm_freq_table[SLM_BCLK_FREQS] = { 83.3, 100.0, 133.3, 116.7, 80.0};
 
@@ -2340,7 +2476,7 @@ double slm_bclk(void)
 	unsigned int i;
 	double freq;
 
-	if (get_msr(0, MSR_FSB_FREQ, &msr))
+	if (get_msr(base_cpu, MSR_FSB_FREQ, &msr))
 		fprintf(stderr, "SLM BCLK: unknown\n");
 
 	i = msr & 0xf;
@@ -2408,7 +2544,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	if (!do_nhm_platform_info)
 		goto guess;
 
-	if (get_msr(0, MSR_IA32_TEMPERATURE_TARGET, &msr))
+	if (get_msr(base_cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
 		goto guess;
 
 	target_c_local = (msr >> 16) & 0xFF;
@@ -2541,6 +2677,7 @@ void process_cpuid()
 	do_c8_c9_c10 = has_hsw_msrs(family, model);
 	do_skl_residency = has_skl_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
+	do_knl_cstates  = is_knl(family, model);
 	bclk = discover_bclk(family, model);
 
 	rapl_probe(family, model);
@@ -2755,13 +2892,9 @@ int initialize_counters(int cpu_id)
 
 	my_package_id = get_physical_package_id(cpu_id);
 	my_core_id = get_core_id(cpu_id);
-
-	if (cpu_is_first_sibling_in_core(cpu_id)) {
-		my_thread_id = 0;
+	my_thread_id = get_cpu_position_in_core(cpu_id);
+	if (!my_thread_id)
 		topo.num_cores++;
-	} else {
-		my_thread_id = 1;
-	}
 
 	init_counter(EVEN_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
 	init_counter(ODD_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
@@ -2785,13 +2918,24 @@ void setup_all_buffers(void)
 	for_all_proc_cpus(initialize_counters);
 }
 
+void set_base_cpu(void)
+{
+	base_cpu = sched_getcpu();
+	if (base_cpu < 0)
+		err(-ENODEV, "No valid cpus found");
+
+	if (debug > 1)
+		fprintf(stderr, "base_cpu = %d\n", base_cpu);
+}
+
 void turbostat_init()
 {
+	setup_all_buffers();
+	set_base_cpu();
 	check_dev_msr();
 	check_permissions();
 	process_cpuid();
 
-	setup_all_buffers();
 
 	if (debug)
 		for_all_cpus(print_epb, ODD_COUNTERS);
@@ -2870,7 +3014,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.5 2 Apr, 2015"
+	fprintf(stderr, "turbostat version 4.7 27-May, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 

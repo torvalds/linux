@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich, Antonio Quartulli
  *
@@ -15,18 +15,41 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "translation-table.h"
-#include "soft-interface.h"
-#include "hard-interface.h"
-#include "send.h"
-#include "hash.h"
-#include "originator.h"
-#include "routing.h"
-#include "bridge_loop_avoidance.h"
-#include "multicast.h"
+#include "main.h"
 
+#include <linux/atomic.h>
+#include <linux/bug.h>
+#include <linux/byteorder/generic.h>
+#include <linux/compiler.h>
 #include <linux/crc32c.h>
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/jhash.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/lockdep.h>
+#include <linux/netdevice.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
+#include <net/net_namespace.h>
+
+#include "bridge_loop_avoidance.h"
+#include "hard-interface.h"
+#include "hash.h"
+#include "multicast.h"
+#include "originator.h"
+#include "packet.h"
+#include "soft-interface.h"
 
 /* hash class keys */
 static struct lock_class_key batadv_tt_local_hash_lock_class_key;
@@ -67,12 +90,8 @@ static inline uint32_t batadv_choose_tt(const void *data, uint32_t size)
 	uint32_t hash = 0;
 
 	tt = (struct batadv_tt_common_entry *)data;
-	hash = batadv_hash_bytes(hash, &tt->addr, ETH_ALEN);
-	hash = batadv_hash_bytes(hash, &tt->vid, sizeof(tt->vid));
-
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
+	hash = jhash(&tt->addr, ETH_ALEN, hash);
+	hash = jhash(&tt->vid, sizeof(tt->vid), hash);
 
 	return hash % size;
 }
@@ -575,6 +594,12 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 
 	/* increase the refcounter of the related vlan */
 	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	if (WARN(!vlan, "adding TT local entry %pM to non-existent VLAN %d",
+		 addr, BATADV_PRINT_VID(vid))) {
+		kfree(tt_local);
+		tt_local = NULL;
+		goto out;
+	}
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Creating new local tt entry: %pM (vid: %d, ttvn: %d)\n",
@@ -954,17 +979,17 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 				   " * %pM %4i [%c%c%c%c%c%c] %3u.%03u   (%#.8x)\n",
 				   tt_common_entry->addr,
 				   BATADV_PRINT_VID(tt_common_entry->vid),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_ROAM) ? 'R' : '.'),
 				   no_purge ? 'P' : '.',
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_NEW ? 'N' : '.'),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_PENDING ? 'X' : '.'),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_NEW) ? 'N' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_PENDING) ? 'X' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_WIFI) ? 'W' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_ISOLA) ? 'I' : '.'),
 				   no_purge ? 0 : last_seen_secs,
 				   no_purge ? 0 : last_seen_msecs,
 				   vlan->tt.crc);
@@ -1015,6 +1040,7 @@ uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
 	struct batadv_tt_local_entry *tt_local_entry;
 	uint16_t flags, curr_flags = BATADV_NO_FLAGS;
 	struct batadv_softif_vlan *vlan;
+	void *tt_entry_exists;
 
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr, vid);
 	if (!tt_local_entry)
@@ -1042,11 +1068,22 @@ uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
 	 * immediately purge it
 	 */
 	batadv_tt_local_event(bat_priv, tt_local_entry, BATADV_TT_CLIENT_DEL);
-	hlist_del_rcu(&tt_local_entry->common.hash_entry);
+
+	tt_entry_exists = batadv_hash_remove(bat_priv->tt.local_hash,
+					     batadv_compare_tt,
+					     batadv_choose_tt,
+					     &tt_local_entry->common);
+	if (!tt_entry_exists)
+		goto out;
+
+	/* extra call to free the local tt entry */
 	batadv_tt_local_entry_free_ref(tt_local_entry);
 
 	/* decrease the reference held for this vlan */
 	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	if (!vlan)
+		goto out;
+
 	batadv_softif_vlan_free_ref(vlan);
 	batadv_softif_vlan_free_ref(vlan);
 
@@ -1147,8 +1184,10 @@ static void batadv_tt_local_table_free(struct batadv_priv *bat_priv)
 			/* decrease the reference held for this vlan */
 			vlan = batadv_softif_vlan_get(bat_priv,
 						      tt_common_entry->vid);
-			batadv_softif_vlan_free_ref(vlan);
-			batadv_softif_vlan_free_ref(vlan);
+			if (vlan) {
+				batadv_softif_vlan_free_ref(vlan);
+				batadv_softif_vlan_free_ref(vlan);
+			}
 
 			batadv_tt_local_entry_free_ref(tt_local);
 		}
@@ -1528,10 +1567,10 @@ batadv_tt_global_print_entry(struct batadv_priv *bat_priv,
 			   BATADV_PRINT_VID(tt_global_entry->common.vid),
 			   best_entry->ttvn, best_entry->orig_node->orig,
 			   last_ttvn, vlan->tt.crc,
-			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
-			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-			   (flags & BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
-			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
+			   ((flags & BATADV_TT_CLIENT_ROAM) ? 'R' : '.'),
+			   ((flags & BATADV_TT_CLIENT_WIFI) ? 'W' : '.'),
+			   ((flags & BATADV_TT_CLIENT_ISOLA) ? 'I' : '.'),
+			   ((flags & BATADV_TT_CLIENT_TEMP) ? 'T' : '.'));
 
 		batadv_orig_node_vlan_free_ref(vlan);
 	}
@@ -1560,10 +1599,10 @@ print_list:
 			   BATADV_PRINT_VID(tt_global_entry->common.vid),
 			   orig_entry->ttvn, orig_entry->orig_node->orig,
 			   last_ttvn, vlan->tt.crc,
-			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
-			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-			   (flags & BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
-			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
+			   ((flags & BATADV_TT_CLIENT_ROAM) ? 'R' : '.'),
+			   ((flags & BATADV_TT_CLIENT_WIFI) ? 'W' : '.'),
+			   ((flags & BATADV_TT_CLIENT_ISOLA) ? 'I' : '.'),
+			   ((flags & BATADV_TT_CLIENT_TEMP) ? 'T' : '.'));
 
 		batadv_orig_node_vlan_free_ref(vlan);
 	}
@@ -2529,7 +2568,7 @@ static bool batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received TT_REQUEST from %pM for ttvn: %u (%pM) [%c]\n",
 		   req_src, tt_data->ttvn, req_dst,
-		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
+		   ((tt_data->flags & BATADV_TT_FULL_TABLE) ? 'F' : '.'));
 
 	/* Let's get the orig node of the REAL destination */
 	req_dst_orig_node = batadv_orig_hash_find(bat_priv, req_dst);
@@ -2660,7 +2699,7 @@ static bool batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received TT_REQUEST from %pM for ttvn: %u (me) [%c]\n",
 		   req_src, tt_data->ttvn,
-		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
+		   ((tt_data->flags & BATADV_TT_FULL_TABLE) ? 'F' : '.'));
 
 	spin_lock_bh(&bat_priv->tt.commit_lock);
 
@@ -2899,7 +2938,7 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
 		   resp_src, tt_data->ttvn, num_entries,
-		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
+		   ((tt_data->flags & BATADV_TT_FULL_TABLE) ? 'F' : '.'));
 
 	orig_node = batadv_orig_hash_find(bat_priv, resp_src);
 	if (!orig_node)
@@ -3188,8 +3227,10 @@ static void batadv_tt_local_purge_pending_clients(struct batadv_priv *bat_priv)
 
 			/* decrease the reference held for this vlan */
 			vlan = batadv_softif_vlan_get(bat_priv, tt_common->vid);
-			batadv_softif_vlan_free_ref(vlan);
-			batadv_softif_vlan_free_ref(vlan);
+			if (vlan) {
+				batadv_softif_vlan_free_ref(vlan);
+				batadv_softif_vlan_free_ref(vlan);
+			}
 
 			batadv_tt_local_entry_free_ref(tt_local);
 		}

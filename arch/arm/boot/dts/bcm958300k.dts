@@ -58,4 +58,20 @@
 	uart3: serial@18023000 {
 		status = "okay";
 	};
+
+	nand: nand@18046000 {
+		nandcs@1 {
+			compatible = "brcm,nandcs";
+			reg = <0>;
+			nand-on-flash-bbt;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			nand-ecc-strength = <24>;
+			nand-ecc-step-size = <1024>;
+
+			brcm,nand-oob-sector-size = <27>;
+		};
+	};
 };

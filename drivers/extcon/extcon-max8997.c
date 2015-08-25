@@ -145,34 +145,17 @@ struct max8997_muic_info {
 	int path_uart;
 };
 
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_FAST_CHARGER,
-	EXTCON_CABLE_SLOW_CHARGER,
-	EXTCON_CABLE_CHARGE_DOWNSTREAM,
-	EXTCON_CABLE_MHL,
-	EXTCON_CABLE_DOCK_DESK,
-	EXTCON_CABLE_DOCK_CARD,
-	EXTCON_CABLE_JIG,
-
-	_EXTCON_CABLE_NUM,
-};
-
-static const char *max8997_extcon_cable[] = {
-	[EXTCON_CABLE_USB]			= "USB",
-	[EXTCON_CABLE_USB_HOST]			= "USB-Host",
-	[EXTCON_CABLE_TA]			= "TA",
-	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
-	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
-	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
-	[EXTCON_CABLE_MHL]			= "MHL",
-	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
-	[EXTCON_CABLE_DOCK_CARD]		= "Dock-Card",
-	[EXTCON_CABLE_JIG]			= "JIG",
-
-	NULL,
+static const unsigned int max8997_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_TA,
+	EXTCON_FAST_CHARGER,
+	EXTCON_SLOW_CHARGER,
+	EXTCON_CHARGE_DOWNSTREAM,
+	EXTCON_MHL,
+	EXTCON_DOCK,
+	EXTCON_JIG,
+	EXTCON_NONE,
 };
 
 /*
@@ -347,10 +330,10 @@ static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 
 	switch (usb_type) {
 	case MAX8997_USB_HOST:
-		extcon_set_cable_state(info->edev, "USB-Host", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, attached);
 		break;
 	case MAX8997_USB_DEVICE:
-		extcon_set_cable_state(info->edev, "USB", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s usb cable\n",
@@ -374,10 +357,8 @@ static int max8997_muic_handle_dock(struct max8997_muic_info *info,
 
 	switch (cable_type) {
 	case MAX8997_MUIC_ADC_AV_CABLE_NOLOAD:
-		extcon_set_cable_state(info->edev, "Dock-desk", attached);
-		break;
 	case MAX8997_MUIC_ADC_FACTORY_MODE_UART_ON:
-		extcon_set_cable_state(info->edev, "Dock-card", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_DOCK, attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s dock device\n",
@@ -400,7 +381,7 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 		return ret;
 	}
 
-	extcon_set_cable_state(info->edev, "JIG", attached);
+	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -422,7 +403,7 @@ static int max8997_muic_adc_handler(struct max8997_muic_info *info)
 			return ret;
 		break;
 	case MAX8997_MUIC_ADC_MHL:
-		extcon_set_cable_state(info->edev, "MHL", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_MHL, attached);
 		break;
 	case MAX8997_MUIC_ADC_FACTORY_MODE_USB_OFF:
 	case MAX8997_MUIC_ADC_FACTORY_MODE_USB_ON:
@@ -505,17 +486,19 @@ static int max8997_muic_chg_handler(struct max8997_muic_info *info)
 		}
 		break;
 	case MAX8997_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state(info->edev,
-				      "Charge-downstream", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHARGE_DOWNSTREAM,
+					attached);
 		break;
 	case MAX8997_CHARGER_TYPE_DEDICATED_CHG:
-		extcon_set_cable_state(info->edev, "TA", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 		break;
 	case MAX8997_CHARGER_TYPE_500MA:
-		extcon_set_cable_state(info->edev, "Slow-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_SLOW_CHARGER,
+					attached);
 		break;
 	case MAX8997_CHARGER_TYPE_1A:
-		extcon_set_cable_state(info->edev, "Fast-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_FAST_CHARGER,
+					attached);
 		break;
 	default:
 		dev_err(info->dev,
@@ -700,7 +683,6 @@ static int max8997_muic_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_irq;
 	}
-	info->edev->name = DEV_NAME;
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {

@@ -1236,10 +1236,14 @@ static int dw_mci_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
+	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	u32 uhs;
 	u32 v18 = SDMMC_UHS_18V << slot->id;
 	int min_uv, max_uv;
 	int ret;
+
+	if (drv_data && drv_data->switch_voltage)
+		return drv_data->switch_voltage(mmc, ios);
 
 	/*
 	 * Program the voltage.  Note that some instances of dw_mmc may use
@@ -1278,10 +1282,7 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 	int gpio_ro = mmc_gpio_get_ro(mmc);
 
 	/* Use platform get_ro function, else try on board write protect */
-	if ((slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT) ||
-			(slot->host->quirks & DW_MCI_QUIRK_NO_WRITE_PROTECT))
-		read_only = 0;
-	else if (!IS_ERR_VALUE(gpio_ro))
+	if (!IS_ERR_VALUE(gpio_ro))
 		read_only = gpio_ro;
 	else
 		read_only =
@@ -2280,9 +2281,10 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_OF
-/* given a slot id, find out the device node representing that slot */
-static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
+/* given a slot, find out the device node representing that slot */
+static struct device_node *dw_mci_of_find_slot_node(struct dw_mci_slot *slot)
 {
+	struct device *dev = slot->mmc->parent;
 	struct device_node *np;
 	const __be32 *addr;
 	int len;
@@ -2294,42 +2296,28 @@ static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
 		addr = of_get_property(np, "reg", &len);
 		if (!addr || (len < sizeof(int)))
 			continue;
-		if (be32_to_cpup(addr) == slot)
+		if (be32_to_cpup(addr) == slot->id)
 			return np;
 	}
 	return NULL;
 }
 
-static struct dw_mci_of_slot_quirks {
-	char *quirk;
-	int id;
-} of_slot_quirks[] = {
-	{
-		.quirk	= "disable-wp",
-		.id	= DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT,
-	},
-};
-
-static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
+static void dw_mci_slot_of_parse(struct dw_mci_slot *slot)
 {
-	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
-	int quirks = 0;
-	int idx;
+	struct device_node *np = dw_mci_of_find_slot_node(slot);
 
-	/* get quirks */
-	for (idx = 0; idx < ARRAY_SIZE(of_slot_quirks); idx++)
-		if (of_get_property(np, of_slot_quirks[idx].quirk, NULL)) {
-			dev_warn(dev, "Slot quirk %s is deprecated\n",
-					of_slot_quirks[idx].quirk);
-			quirks |= of_slot_quirks[idx].id;
-		}
+	if (!np)
+		return;
 
-	return quirks;
+	if (of_property_read_bool(np, "disable-wp")) {
+		slot->mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+		dev_warn(slot->mmc->parent,
+			"Slot quirk 'disable-wp' is deprecated\n");
+	}
 }
 #else /* CONFIG_OF */
-static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
+static void dw_mci_slot_of_parse(struct dw_mci_slot *slot)
 {
-	return 0;
 }
 #endif /* CONFIG_OF */
 
@@ -2351,8 +2339,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	slot->mmc = mmc;
 	slot->host = host;
 	host->slot[id] = slot;
-
-	slot->quirks = dw_mci_of_get_slot_quirks(host->dev, slot->id);
 
 	mmc->ops = &dw_mci_ops;
 	if (of_property_read_u32_array(host->dev->of_node,
@@ -2390,6 +2376,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
+
+	dw_mci_slot_of_parse(slot);
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
@@ -2618,9 +2606,6 @@ static struct dw_mci_of_quirks {
 	{
 		.quirk	= "broken-cd",
 		.id	= DW_MCI_QUIRK_BROKEN_CARD_DETECTION,
-	}, {
-		.quirk	= "disable-wp",
-		.id	= DW_MCI_QUIRK_NO_WRITE_PROTECT,
 	},
 };
 
@@ -2941,14 +2926,14 @@ void dw_mci_remove(struct dw_mci *host)
 {
 	int i;
 
-	mci_writel(host, RINTSTS, 0xFFFFFFFF);
-	mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
-
 	for (i = 0; i < host->num_slots; i++) {
 		dev_dbg(host->dev, "remove slot %d\n", i);
 		if (host->slot[i])
 			dw_mci_cleanup_slot(host->slot[i], i);
 	}
+
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
 
 	/* disable clock to CIU */
 	mci_writel(host, CLKENA, 0);

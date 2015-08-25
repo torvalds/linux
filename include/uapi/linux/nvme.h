@@ -179,6 +179,10 @@ enum {
 	NVME_SMART_CRIT_VOLATILE_MEMORY	= 1 << 4,
 };
 
+enum {
+	NVME_AER_NOTICE_NS_CHANGED	= 0x0002,
+};
+
 struct nvme_lba_range_type {
 	__u8			type;
 	__u8			attributes;
@@ -579,5 +583,6 @@ struct nvme_passthru_cmd {
 #define NVME_IOCTL_ADMIN_CMD	_IOWR('N', 0x41, struct nvme_admin_cmd)
 #define NVME_IOCTL_SUBMIT_IO	_IOW('N', 0x42, struct nvme_user_io)
 #define NVME_IOCTL_IO_CMD	_IOWR('N', 0x43, struct nvme_passthru_cmd)
+#define NVME_IOCTL_RESET	_IO('N', 0x44)
 
 #endif /* _UAPI_LINUX_NVME_H */

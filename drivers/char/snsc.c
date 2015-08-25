@@ -198,7 +198,7 @@ scdrv_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos)
 		add_wait_queue(&sd->sd_rq, &wait);
 		spin_unlock_irqrestore(&sd->sd_rlock, flags);
 
-		schedule_timeout(SCDRV_TIMEOUT);
+		schedule_timeout(msecs_to_jiffies(SCDRV_TIMEOUT));
 
 		remove_wait_queue(&sd->sd_rq, &wait);
 		if (signal_pending(current)) {
@@ -294,7 +294,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		add_wait_queue(&sd->sd_wq, &wait);
 		spin_unlock_irqrestore(&sd->sd_wlock, flags);
 
-		schedule_timeout(SCDRV_TIMEOUT);
+		schedule_timeout(msecs_to_jiffies(SCDRV_TIMEOUT));
 
 		remove_wait_queue(&sd->sd_wq, &wait);
 		if (signal_pending(current)) {

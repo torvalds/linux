@@ -208,7 +208,7 @@ static int set_param_timeout(const char *val, const struct kernel_param *kp)
 	return rv;
 }
 
-static struct kernel_param_ops param_ops_timeout = {
+static const struct kernel_param_ops param_ops_timeout = {
 	.set = set_param_timeout,
 	.get = param_get_int,
 };
@@ -270,14 +270,14 @@ static int set_param_wdog_ifnum(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_wdog_ifnum = {
+static const struct kernel_param_ops param_ops_wdog_ifnum = {
 	.set = set_param_wdog_ifnum,
 	.get = param_get_int,
 };
 
 #define param_check_wdog_ifnum param_check_int
 
-static struct kernel_param_ops param_ops_str = {
+static const struct kernel_param_ops param_ops_str = {
 	.set = set_param_str,
 	.get = get_param_str,
 };

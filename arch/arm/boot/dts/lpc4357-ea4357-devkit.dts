@@ -1,0 +1,41 @@
+/*
+ * Embedded Artist LPC4357 Developer's Kit
+ *
+ * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+/dts-v1/;
+
+#include "lpc18xx.dtsi"
+#include "lpc4357.dtsi"
+
+/ {
+	model = "Embedded Artists' LPC4357 Developer's Kit";
+	compatible = "ea,lpc4357-developers-kit", "nxp,lpc4357", "nxp,lpc4350";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
+	chosen {
+		stdout-path = &uart0;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x28000000 0x2000000>; /* 32 MB */
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

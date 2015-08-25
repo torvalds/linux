@@ -123,6 +123,10 @@ struct option {
 #define OPT_LONG(s, l, v, h)        { .type = OPTION_LONG, .short_name = (s), .long_name = (l), .value = check_vtype(v, long *), .help = (h) }
 #define OPT_U64(s, l, v, h)         { .type = OPTION_U64, .short_name = (s), .long_name = (l), .value = check_vtype(v, u64 *), .help = (h) }
 #define OPT_STRING(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), (a), .help = (h) }
+#define OPT_STRING_OPTARG(s, l, v, a, h, d) \
+	{ .type = OPTION_STRING,  .short_name = (s), .long_name = (l), \
+	  .value = check_vtype(v, const char **), (a), .help = (h), \
+	  .flags = PARSE_OPT_OPTARG, .defval = (intptr_t)(d) }
 #define OPT_STRING_NOEMPTY(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), (a), .help = (h), .flags = PARSE_OPT_NOEMPTY}
 #define OPT_DATE(s, l, v, h) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = "time", .help = (h), .callback = parse_opt_approxidate_cb }

@@ -44,7 +44,11 @@ SYSCALL_DEFINE0(arc_gettls)
 void arch_cpu_idle(void)
 {
 	/* sleep, but enable all interrupts before committing */
-	__asm__("sleep 0x3");
+	if (is_isa_arcompact()) {
+		__asm__("sleep 0x3");
+	} else {
+		__asm__("sleep 0x10");
+	}
 }
 
 asmlinkage void ret_from_fork(void);
@@ -166,8 +170,7 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 	 * [L] ZOL loop inhibited to begin with - cleared by a LP insn
 	 * Interrupts enabled
 	 */
-	regs->status32 = STATUS_U_MASK | STATUS_L_MASK |
-			 STATUS_E1_MASK | STATUS_E2_MASK;
+	regs->status32 = STATUS_U_MASK | STATUS_L_MASK | ISA_INIT_STATUS_BITS;
 
 	/* bogus seed values for debugging */
 	regs->lp_start = 0x10;
@@ -197,8 +200,11 @@ int elf_check_arch(const struct elf32_hdr *x)
 {
 	unsigned int eflags;
 
-	if (x->e_machine != EM_ARCOMPACT)
+	if (x->e_machine != EM_ARC_INUSE) {
+		pr_err("ELF not built for %s ISA\n",
+			is_isa_arcompact() ? "ARCompact":"ARCv2");
 		return 0;
+	}
 
 	eflags = x->e_flags;
 	if ((eflags & EF_ARC_OSABI_MSK) < EF_ARC_OSABI_CURRENT) {

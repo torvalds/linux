@@ -117,6 +117,27 @@ void efi_get_time(struct timespec *now)
 	now->tv_nsec = 0;
 }
 
+void __init efi_find_mirror(void)
+{
+	void *p;
+	u64 mirror_size = 0, total_size = 0;
+
+	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+		efi_memory_desc_t *md = p;
+		unsigned long long start = md->phys_addr;
+		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+
+		total_size += size;
+		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
+			memblock_mark_mirror(start, size);
+			mirror_size += size;
+		}
+	}
+	if (mirror_size)
+		pr_info("Memory: %lldM/%lldM mirrored memory\n",
+			mirror_size>>20, total_size>>20);
+}
+
 /*
  * Tell the kernel about the EFI memory map.  This might include
  * more than the max 128 entries that can fit in the e820 legacy
@@ -152,6 +173,9 @@ static void __init do_add_efi_memmap(void)
 			break;
 		case EFI_UNUSABLE_MEMORY:
 			e820_type = E820_UNUSABLE;
+			break;
+		case EFI_PERSISTENT_MEMORY:
+			e820_type = E820_PMEM;
 			break;
 		default:
 			/*
@@ -501,6 +525,8 @@ void __init efi_init(void)
 
 	if (efi_enabled(EFI_DBG))
 		print_efi_memmap();
+
+	efi_esrt_init();
 }
 
 void __init efi_late_init(void)
@@ -946,6 +972,11 @@ u64 efi_mem_attributes(unsigned long phys_addr)
 
 static int __init arch_parse_efi_cmdline(char *str)
 {
+	if (!str) {
+		pr_warn("need at least one option\n");
+		return -EINVAL;
+	}
+
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
 	if (parse_option_str(str, "debug"))

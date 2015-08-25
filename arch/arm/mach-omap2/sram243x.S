@@ -64,7 +64,7 @@ ENTRY(omap243x_sram_ddr_init)
 	mvn	r9, #0x4		@ mask to get clear bit2
 	and	r10, r10, r9		@ clear bit2 for lock mode.
 	orr	r10, r10, #0x8		@ make sure DLL on (es2 bit pos)
-	orr	r10, r10, #0x2		@ 90 degree phase for all below 133Mhz
+	orr	r10, r10, #0x2		@ 90 degree phase for all below 133MHz
 	str	r10, [r11]		@ commit to DLLA_CTRL
 	bl	i_dll_wait		@ wait for dll to lock
 

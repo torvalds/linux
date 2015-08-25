@@ -108,6 +108,9 @@
 #ifndef cpu_has_llsc
 #define cpu_has_llsc		(cpu_data[0].options & MIPS_CPU_LLSC)
 #endif
+#ifndef cpu_has_bp_ghist
+#define cpu_has_bp_ghist	(cpu_data[0].options & MIPS_CPU_BP_GHIST)
+#endif
 #ifndef kernel_uses_llsc
 #define kernel_uses_llsc	cpu_has_llsc
 #endif

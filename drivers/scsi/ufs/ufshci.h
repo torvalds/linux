@@ -89,8 +89,9 @@ enum {
 
 /* Controller UFSHCI version */
 enum {
-	UFSHCI_VERSION_10 = 0x00010000,
-	UFSHCI_VERSION_11 = 0x00010100,
+	UFSHCI_VERSION_10 = 0x00010000, /* 1.0 */
+	UFSHCI_VERSION_11 = 0x00010100, /* 1.1 */
+	UFSHCI_VERSION_20 = 0x00000200, /* 2.0 */
 };
 
 /*
@@ -205,6 +206,9 @@ enum {
 #define ATTR_SET_TYPE_MASK		UFS_MASK(0xFF, 16)
 #define CONFIG_RESULT_CODE_MASK		0xFF
 #define GENERIC_ERROR_CODE_MASK		0xFF
+
+/* GenSelectorIndex calculation macros for M-PHY attributes */
+#define UIC_ARG_MPHY_TX_GEN_SEL_INDEX(lane) (lane)
 
 #define UIC_ARG_MIB_SEL(attr, sel)	((((attr) & 0xFFFF) << 16) |\
 					 ((sel) & 0xFFFF))

@@ -81,26 +81,34 @@ static unsigned long __init intel_mid_calibrate_tsc(void)
 	return 0;
 }
 
+static void __init intel_mid_setup_bp_timer(void)
+{
+	apbt_time_init();
+	setup_boot_APIC_clock();
+}
+
 static void __init intel_mid_time_init(void)
 {
 	sfi_table_parse(SFI_SIG_MTMR, NULL, NULL, sfi_parse_mtmr);
+
 	switch (intel_mid_timer_options) {
 	case INTEL_MID_TIMER_APBT_ONLY:
 		break;
 	case INTEL_MID_TIMER_LAPIC_APBT:
-		x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
+		/* Use apbt and local apic */
+		x86_init.timers.setup_percpu_clockev = intel_mid_setup_bp_timer;
 		x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
-		break;
+		return;
 	default:
 		if (!boot_cpu_has(X86_FEATURE_ARAT))
 			break;
+		/* Lapic only, no apbt */
 		x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
 		x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
 		return;
 	}
-	/* we need at least one APB timer */
-	pre_init_apic_IRQ0();
-	apbt_time_init();
+
+	x86_init.timers.setup_percpu_clockev = apbt_time_init;
 }
 
 static void intel_mid_arch_setup(void)

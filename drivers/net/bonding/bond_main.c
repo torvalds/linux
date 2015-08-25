@@ -76,7 +76,7 @@
 #include <net/netns/generic.h>
 #include <net/pkt_sched.h>
 #include <linux/rculist.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 #include <net/switchdev.h>
 #include <net/bonding.h>
 #include <net/bond_3ad.h>
@@ -625,6 +625,23 @@ static void bond_set_dev_addr(struct net_device *bond_dev,
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
 }
 
+static struct slave *bond_get_old_active(struct bonding *bond,
+					 struct slave *new_active)
+{
+	struct slave *slave;
+	struct list_head *iter;
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (slave == new_active)
+			continue;
+
+		if (ether_addr_equal(bond->dev->dev_addr, slave->dev->dev_addr))
+			return slave;
+	}
+
+	return NULL;
+}
+
 /* bond_do_fail_over_mac
  *
  * Perform special MAC address swapping for fail_over_mac settings
@@ -651,6 +668,9 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		 */
 		if (!new_active)
 			return;
+
+		if (!old_active)
+			old_active = bond_get_old_active(bond, new_active);
 
 		if (old_active) {
 			ether_addr_copy(tmp_mac, new_active->dev->dev_addr);
@@ -689,40 +709,57 @@ out:
 
 }
 
-static bool bond_should_change_active(struct bonding *bond)
+static struct slave *bond_choose_primary_or_current(struct bonding *bond)
 {
 	struct slave *prim = rtnl_dereference(bond->primary_slave);
 	struct slave *curr = rtnl_dereference(bond->curr_active_slave);
 
-	if (!prim || !curr || curr->link != BOND_LINK_UP)
-		return true;
+	if (!prim || prim->link != BOND_LINK_UP) {
+		if (!curr || curr->link != BOND_LINK_UP)
+			return NULL;
+		return curr;
+	}
+
 	if (bond->force_primary) {
 		bond->force_primary = false;
-		return true;
+		return prim;
 	}
-	if (bond->params.primary_reselect == BOND_PRI_RESELECT_BETTER &&
-	    (prim->speed < curr->speed ||
-	     (prim->speed == curr->speed && prim->duplex <= curr->duplex)))
-		return false;
-	if (bond->params.primary_reselect == BOND_PRI_RESELECT_FAILURE)
-		return false;
-	return true;
+
+	if (!curr || curr->link != BOND_LINK_UP)
+		return prim;
+
+	/* At this point, prim and curr are both up */
+	switch (bond->params.primary_reselect) {
+	case BOND_PRI_RESELECT_ALWAYS:
+		return prim;
+	case BOND_PRI_RESELECT_BETTER:
+		if (prim->speed < curr->speed)
+			return curr;
+		if (prim->speed == curr->speed && prim->duplex <= curr->duplex)
+			return curr;
+		return prim;
+	case BOND_PRI_RESELECT_FAILURE:
+		return curr;
+	default:
+		netdev_err(bond->dev, "impossible primary_reselect %d\n",
+			   bond->params.primary_reselect);
+		return curr;
+	}
 }
 
 /**
- * find_best_interface - select the best available slave to be the active one
+ * bond_find_best_slave - select the best available slave to be the active one
  * @bond: our bonding struct
  */
 static struct slave *bond_find_best_slave(struct bonding *bond)
 {
-	struct slave *slave, *bestslave = NULL, *primary;
+	struct slave *slave, *bestslave = NULL;
 	struct list_head *iter;
 	int mintime = bond->params.updelay;
 
-	primary = rtnl_dereference(bond->primary_slave);
-	if (primary && primary->link == BOND_LINK_UP &&
-	    bond_should_change_active(bond))
-		return primary;
+	slave = bond_choose_primary_or_current(bond);
+	if (slave)
+		return slave;
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (slave->link == BOND_LINK_UP)
@@ -749,6 +786,7 @@ static bool bond_should_notify_peers(struct bonding *bond)
 		   slave ? slave->dev->name : "NULL");
 
 	if (!slave || !bond->send_peer_notif ||
+	    !netif_carrier_ok(bond->dev) ||
 	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
 		return false;
 
@@ -1015,10 +1053,7 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 	netdev_features_t mask;
 	struct slave *slave;
 
-	/* If any slave has the offload feature flag set,
-	 * set the offload flag on the bond.
-	 */
-	mask = features | NETIF_F_HW_SWITCH_OFFLOAD;
+	mask = features;
 
 	features &= ~NETIF_F_ONE_FOR_ALL;
 	features |= NETIF_F_ALL_FOR_ALL;
@@ -1711,9 +1746,16 @@ err_free:
 
 err_undo_flags:
 	/* Enslave of first slave has failed and we need to fix master's mac */
-	if (!bond_has_slaves(bond) &&
-	    ether_addr_equal_64bits(bond_dev->dev_addr, slave_dev->dev_addr))
-		eth_hw_addr_random(bond_dev);
+	if (!bond_has_slaves(bond)) {
+		if (ether_addr_equal_64bits(bond_dev->dev_addr,
+					    slave_dev->dev_addr))
+			eth_hw_addr_random(bond_dev);
+		if (bond_dev->type != ARPHRD_ETHER) {
+			ether_setup(bond_dev);
+			bond_dev->flags |= IFF_MASTER;
+			bond_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		}
+	}
 
 	return res;
 }
@@ -1902,6 +1944,7 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
 		netdev_info(bond_dev, "Destroying bond %s\n",
 			    bond_dev->name);
+		bond_remove_proc_entry(bond);
 		unregister_netdevice(bond_dev);
 	}
 	return ret;
@@ -3054,16 +3097,15 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	int noff, proto = -1;
 
 	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23)
-		return skb_flow_dissect(skb, fk);
+		return skb_flow_dissect_flow_keys(skb, fk);
 
-	fk->ports = 0;
+	fk->ports.ports = 0;
 	noff = skb_network_offset(skb);
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph))))
 			return false;
 		iph = ip_hdr(skb);
-		fk->src = iph->saddr;
-		fk->dst = iph->daddr;
+		iph_to_flow_copy_v4addrs(fk, iph);
 		noff += iph->ihl << 2;
 		if (!ip_is_fragment(iph))
 			proto = iph->protocol;
@@ -3071,15 +3113,14 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph6))))
 			return false;
 		iph6 = ipv6_hdr(skb);
-		fk->src = (__force __be32)ipv6_addr_hash(&iph6->saddr);
-		fk->dst = (__force __be32)ipv6_addr_hash(&iph6->daddr);
+		iph_to_flow_copy_v6addrs(fk, iph6);
 		noff += sizeof(*iph6);
 		proto = iph6->nexthdr;
 	} else {
 		return false;
 	}
 	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34 && proto >= 0)
-		fk->ports = skb_flow_get_ports(skb, noff, proto);
+		fk->ports.ports = skb_flow_get_ports(skb, noff, proto);
 
 	return true;
 }
@@ -3105,8 +3146,9 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 	    bond->params.xmit_policy == BOND_XMIT_POLICY_ENCAP23)
 		hash = bond_eth_hash(skb);
 	else
-		hash = (__force u32)flow.ports;
-	hash ^= (__force u32)flow.dst ^ (__force u32)flow.src;
+		hash = (__force u32)flow.ports.ports;
+	hash ^= (__force u32)flow_get_u32_dst(&flow) ^
+		(__force u32)flow_get_u32_src(&flow);
 	hash ^= (hash >> 16);
 	hash ^= (hash >> 8);
 
@@ -4039,8 +4081,12 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
 	.ndo_fix_features	= bond_fix_features,
-	.ndo_bridge_setlink	= ndo_dflt_netdev_switch_port_bridge_setlink,
-	.ndo_bridge_dellink	= ndo_dflt_netdev_switch_port_bridge_dellink,
+	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
+	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
+	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
+	.ndo_fdb_add		= switchdev_port_fdb_add,
+	.ndo_fdb_del		= switchdev_port_fdb_del,
+	.ndo_fdb_dump		= switchdev_port_fdb_dump,
 	.ndo_features_check	= passthru_features_check,
 };
 
@@ -4140,6 +4186,8 @@ static int bond_check_params(struct bond_params *params)
 	struct bond_opt_value newval;
 	const struct bond_opt_value *valptr;
 	int arp_all_targets_value;
+	u16 ad_actor_sys_prio = 0;
+	u16 ad_user_port_key = 0;
 
 	/* Convert string parameters. */
 	if (mode) {
@@ -4434,6 +4482,24 @@ static int bond_check_params(struct bond_params *params)
 		fail_over_mac_value = BOND_FOM_NONE;
 	}
 
+	bond_opt_initstr(&newval, "default");
+	valptr = bond_opt_parse(
+			bond_opt_get(BOND_OPT_AD_ACTOR_SYS_PRIO),
+				     &newval);
+	if (!valptr) {
+		pr_err("Error: No ad_actor_sys_prio default value");
+		return -EINVAL;
+	}
+	ad_actor_sys_prio = valptr->value;
+
+	valptr = bond_opt_parse(bond_opt_get(BOND_OPT_AD_USER_PORT_KEY),
+				&newval);
+	if (!valptr) {
+		pr_err("Error: No ad_user_port_key default value");
+		return -EINVAL;
+	}
+	ad_user_port_key = valptr->value;
+
 	if (lp_interval == 0) {
 		pr_warn("Warning: ip_interval must be between 1 and %d, so it was reset to %d\n",
 			INT_MAX, BOND_ALB_DEFAULT_LP_INTERVAL);
@@ -4462,6 +4528,9 @@ static int bond_check_params(struct bond_params *params)
 	params->lp_interval = lp_interval;
 	params->packets_per_slave = packets_per_slave;
 	params->tlb_dynamic_lb = 1; /* Default value */
+	params->ad_actor_sys_prio = ad_actor_sys_prio;
+	eth_zero_addr(params->ad_actor_system);
+	params->ad_user_port_key = ad_user_port_key;
 	if (packets_per_slave > 0) {
 		params->reciprocal_packets_per_slave =
 			reciprocal_value(packets_per_slave);

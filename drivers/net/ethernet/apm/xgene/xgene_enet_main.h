@@ -35,6 +35,7 @@
 #include <linux/if_vlan.h>
 #include <linux/phy.h>
 #include "xgene_enet_hw.h"
+#include "xgene_enet_ring2.h"
 
 #define XGENE_DRV_VERSION	"v1.0"
 #define XGENE_ENET_MAX_MTU	1536
@@ -51,11 +52,25 @@
 #define START_BP_BUFNUM_1	0x2A
 #define START_RING_NUM_1	264
 
+#define X2_START_CPU_BUFNUM_0	0
+#define X2_START_ETH_BUFNUM_0	0
+#define X2_START_BP_BUFNUM_0	0x20
+#define X2_START_RING_NUM_0	0
+#define X2_START_CPU_BUFNUM_1	0xc
+#define X2_START_ETH_BUFNUM_1	0
+#define X2_START_BP_BUFNUM_1	0x20
+#define X2_START_RING_NUM_1	256
+
 #define IRQ_ID_SIZE		16
 #define XGENE_MAX_TXC_RINGS	1
 
 #define PHY_POLL_LINK_ON	(10 * HZ)
 #define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
+
+enum xgene_enet_id {
+	XGENE_ENET1 = 1,
+	XGENE_ENET2
+};
 
 /* software context of a descriptor ring */
 struct xgene_enet_desc_ring {
@@ -68,10 +83,12 @@ struct xgene_enet_desc_ring {
 	u16 irq;
 	char irq_name[IRQ_ID_SIZE];
 	u32 size;
-	u32 state[NUM_RING_CONFIG];
+	u32 state[X2_NUM_RING_CONFIG];
 	void __iomem *cmd_base;
 	void __iomem *cmd;
 	dma_addr_t dma;
+	dma_addr_t irq_mbox_dma;
+	void *irq_mbox_addr;
 	u16 dst_ring_num;
 	u8 nbufpool;
 	struct sk_buff *(*rx_skb);
@@ -105,6 +122,15 @@ struct xgene_port_ops {
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
 };
 
+struct xgene_ring_ops {
+	u8 num_ring_config;
+	u8 num_ring_id_shift;
+	struct xgene_enet_desc_ring * (*setup)(struct xgene_enet_desc_ring *);
+	void (*clear)(struct xgene_enet_desc_ring *);
+	void (*wr_cmd)(struct xgene_enet_desc_ring *, int);
+	u32 (*len)(struct xgene_enet_desc_ring *);
+};
+
 /* ethernet private data */
 struct xgene_enet_pdata {
 	struct net_device *ndev;
@@ -113,6 +139,7 @@ struct xgene_enet_pdata {
 	int phy_speed;
 	struct clk *clk;
 	struct platform_device *pdev;
+	enum xgene_enet_id enet_id;
 	struct xgene_enet_desc_ring *tx_ring;
 	struct xgene_enet_desc_ring *rx_ring;
 	char *dev_name;
@@ -136,6 +163,7 @@ struct xgene_enet_pdata {
 	struct rtnl_link_stats64 stats;
 	struct xgene_mac_ops *mac_ops;
 	struct xgene_port_ops *port_ops;
+	struct xgene_ring_ops *ring_ops;
 	struct delayed_work link_work;
 	u32 port_id;
 	u8 cpu_bufnum;

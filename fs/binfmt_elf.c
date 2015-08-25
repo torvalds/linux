@@ -918,7 +918,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			total_size = total_mapping_size(elf_phdata,
 							loc->elf_ex.e_phnum);
 			if (!total_size) {
-				error = -EINVAL;
+				retval = -EINVAL;
 				goto out_free_dentry;
 			}
 		}
@@ -1530,7 +1530,7 @@ static int fill_files_note(struct memelfnote *note)
 		file = vma->vm_file;
 		if (!file)
 			continue;
-		filename = d_path(&file->f_path, name_curpos, remaining);
+		filename = file_path(file, name_curpos, remaining);
 		if (IS_ERR(filename)) {
 			if (PTR_ERR(filename) == -ENAMETOOLONG) {
 				vfree(data);
@@ -1540,7 +1540,7 @@ static int fill_files_note(struct memelfnote *note)
 			continue;
 		}
 
-		/* d_path() fills at the end, move name down */
+		/* file_path() fills at the end, move name down */
 		/* n = strlen(filename) + 1: */
 		n = (name_curpos + remaining) - filename;
 		remaining = filename - name_curpos;

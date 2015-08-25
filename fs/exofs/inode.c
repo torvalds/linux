@@ -1222,10 +1222,11 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_fop = &exofs_dir_operations;
 		inode->i_mapping->a_ops = &exofs_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
-		if (exofs_inode_is_fast_symlink(inode))
-			inode->i_op = &exofs_fast_symlink_inode_operations;
-		else {
-			inode->i_op = &exofs_symlink_inode_operations;
+		if (exofs_inode_is_fast_symlink(inode)) {
+			inode->i_op = &simple_symlink_inode_operations;
+			inode->i_link = (char *)oi->i_data;
+		} else {
+			inode->i_op = &page_symlink_inode_operations;
 			inode->i_mapping->a_ops = &exofs_aops;
 		}
 	} else {

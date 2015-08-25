@@ -189,7 +189,7 @@ static struct clk *of_clk_gpio_gate_delayed_register_get(
 /**
  * of_gpio_gate_clk_setup() - Setup function for gpio controlled clock
  */
-void __init of_gpio_gate_clk_setup(struct device_node *node)
+static void __init of_gpio_gate_clk_setup(struct device_node *node)
 {
 	struct clk_gpio_gate_delayed_register_data *data;
 
@@ -203,6 +203,5 @@ void __init of_gpio_gate_clk_setup(struct device_node *node)
 
 	of_clk_add_provider(node, of_clk_gpio_gate_delayed_register_get, data);
 }
-EXPORT_SYMBOL_GPL(of_gpio_gate_clk_setup);
 CLK_OF_DECLARE(gpio_gate_clk, "gpio-gate-clock", of_gpio_gate_clk_setup);
 #endif

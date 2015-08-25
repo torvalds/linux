@@ -2299,8 +2299,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	encoder_mode = atombios_get_encoder_mode(encoder);
 	if (connector && (radeon_audio != 0) &&
 	    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
-	     (ENCODER_MODE_IS_DP(encoder_mode) &&
-	      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
+	     ENCODER_MODE_IS_DP(encoder_mode)))
 		radeon_audio_mode_set(encoder, adjusted_mode);
 }
 

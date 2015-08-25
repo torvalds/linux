@@ -769,6 +769,7 @@ static void dump_threads(void)
 		t = perf_session__findnew(session, st->tid);
 		pr_info("%10d: %s\n", st->tid, thread__comm_str(t));
 		node = rb_next(node);
+		thread__put(t);
 	};
 }
 
@@ -810,6 +811,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
+	int err = 0;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -821,10 +823,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		return f(evsel, sample);
+		err = f(evsel, sample);
 	}
 
-	return 0;
+	thread__put(thread);
+
+	return err;
 }
 
 static void sort_result(void)

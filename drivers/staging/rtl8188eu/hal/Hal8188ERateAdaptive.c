@@ -87,7 +87,7 @@ static u8 DROPING_NECESSARY[RATESIZE] = {
 
 static u8 PendingForRateUpFail[5] = {2, 10, 24, 40, 60};
 static u16 DynamicTxRPTTiming[6] = {
-	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12 , 0x927c}; /*  200ms-1200ms */
+	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12, 0x927c}; /*  200ms-1200ms */
 
 /*  End Rate adaptive parameters */
 

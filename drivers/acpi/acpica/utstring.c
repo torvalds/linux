@@ -79,7 +79,7 @@ void acpi_ut_strlwr(char *src_string)
 	/* Walk entire string, lowercasing the letters */
 
 	for (string = src_string; *string; string++) {
-		*string = (char)ACPI_TOLOWER(*string);
+		*string = (char)tolower((int)*string);
 	}
 
 	return;
@@ -145,7 +145,7 @@ void acpi_ut_strupr(char *src_string)
 	/* Walk entire string, uppercasing the letters */
 
 	for (string = src_string; *string; string++) {
-		*string = (char)ACPI_TOUPPER(*string);
+		*string = (char)toupper((int)*string);
 	}
 
 	return;
@@ -202,7 +202,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 	/* Skip over any white space in the buffer */
 
-	while ((*string) && (ACPI_IS_SPACE(*string) || *string == '\t')) {
+	while ((*string) && (isspace((int)*string) || *string == '\t')) {
 		string++;
 	}
 
@@ -211,7 +211,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 		 * Base equal to ACPI_ANY_BASE means 'ToInteger operation case'.
 		 * We need to determine if it is decimal or hexadecimal.
 		 */
-		if ((*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
+		if ((*string == '0') && (tolower((int)*(string + 1)) == 'x')) {
 			sign_of0x = 1;
 			base = 16;
 
@@ -224,7 +224,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 	/* Any string left? Check that '0x' is not followed by white space. */
 
-	if (!(*string) || ACPI_IS_SPACE(*string) || *string == '\t') {
+	if (!(*string) || isspace((int)*string) || *string == '\t') {
 		if (to_integer_op) {
 			goto error_exit;
 		} else {
@@ -241,7 +241,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	/* Main loop: convert the string to a 32- or 64-bit integer */
 
 	while (*string) {
-		if (ACPI_IS_DIGIT(*string)) {
+		if (isdigit((int)*string)) {
 
 			/* Convert ASCII 0-9 to Decimal value */
 
@@ -252,8 +252,8 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 			term = 1;
 		} else {
-			this_digit = (u8)ACPI_TOUPPER(*string);
-			if (ACPI_IS_XDIGIT((char)this_digit)) {
+			this_digit = (u8)toupper((int)*string);
+			if (isxdigit((int)this_digit)) {
 
 				/* Convert ASCII Hex char to value */
 
@@ -404,7 +404,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
 
 			/* Check for printable character or hex escape */
 
-			if (ACPI_IS_PRINT(string[i])) {
+			if (isprint((int)string[i])) {
 				/* This is a normal character */
 
 				acpi_os_printf("%c", (int)string[i]);
@@ -609,22 +609,22 @@ void ut_convert_backslashes(char *pathname)
 u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source)
 {
 
-	if (ACPI_STRLEN(source) >= dest_size) {
+	if (strlen(source) >= dest_size) {
 		return (TRUE);
 	}
 
-	ACPI_STRCPY(dest, source);
+	strcpy(dest, source);
 	return (FALSE);
 }
 
 u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source)
 {
 
-	if ((ACPI_STRLEN(dest) + ACPI_STRLEN(source)) >= dest_size) {
+	if ((strlen(dest) + strlen(source)) >= dest_size) {
 		return (TRUE);
 	}
 
-	ACPI_STRCAT(dest, source);
+	strcat(dest, source);
 	return (FALSE);
 }
 
@@ -635,14 +635,13 @@ acpi_ut_safe_strncat(char *dest,
 {
 	acpi_size actual_transfer_length;
 
-	actual_transfer_length =
-	    ACPI_MIN(max_transfer_length, ACPI_STRLEN(source));
+	actual_transfer_length = ACPI_MIN(max_transfer_length, strlen(source));
 
-	if ((ACPI_STRLEN(dest) + actual_transfer_length) >= dest_size) {
+	if ((strlen(dest) + actual_transfer_length) >= dest_size) {
 		return (TRUE);
 	}
 
-	ACPI_STRNCAT(dest, source, max_transfer_length);
+	strncat(dest, source, max_transfer_length);
 	return (FALSE);
 }
 #endif
