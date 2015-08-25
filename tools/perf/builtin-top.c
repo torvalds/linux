@@ -601,8 +601,8 @@ static void display_sig(int sig __maybe_unused)
 
 static void display_setup_sig(void)
 {
-	signal(SIGSEGV, display_sig);
-	signal(SIGFPE,  display_sig);
+	signal(SIGSEGV, sighandler_dump_stack);
+	signal(SIGFPE, sighandler_dump_stack);
 	signal(SIGINT,  display_sig);
 	signal(SIGQUIT, display_sig);
 	signal(SIGTERM, display_sig);
