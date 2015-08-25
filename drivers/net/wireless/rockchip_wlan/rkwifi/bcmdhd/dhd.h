@@ -41,6 +41,7 @@ int get_scheduler_policy(struct task_struct *p);
 
 #include <wlioctl.h>
 #include <wlfc_proto.h>
+#include <hnd_pktq.h>
 
 #if defined(BCMWDF)
 #include <wdf.h>
@@ -61,7 +62,6 @@ struct dhd_bus;
 struct dhd_prot;
 struct dhd_info;
 struct dhd_ioctl;
-struct pktq;
 
 /* The level of bus communication with the dongle */
 enum dhd_bus_state {

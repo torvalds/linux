@@ -2003,9 +2003,9 @@ process_nvram_vars(char *varbuf, unsigned int len)
 		for (n=1; n<len; n++) {
 			if (varbuf[n] == '\n')
 				break;
-			printf("%c", varbuf[n]);
+			printk("%c", varbuf[n]);
 		}
-		printf("\n");
+		printk("\n");
 	}
 
 	for (n = 0; n < len; n++) {

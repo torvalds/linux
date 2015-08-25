@@ -57,8 +57,8 @@ int wl_cfgp2p_if_stop(struct net_device *net);
 #if defined(WL_ENABLE_P2P_IF)
 static int wl_cfgp2p_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd);
-static int wl_cfgp2p_if_open(struct net_device *net);
-static int wl_cfgp2p_if_stop(struct net_device *net);
+int wl_cfgp2p_if_open(struct net_device *net);
+int wl_cfgp2p_if_stop(struct net_device *net);
 
 static const struct net_device_ops wl_cfgp2p_if_ops = {
 	.ndo_open       = wl_cfgp2p_if_open,
@@ -783,7 +783,7 @@ wl_cfgp2p_disable_discovery(struct bcm_cfg80211 *cfg)
 	CFGP2P_DBG((" enter\n"));
 	wl_clr_p2p_status(cfg, DISCOVERY_ON);
 
-	if(!cfg->p2p) { // terence 20130113: Fix for p2p NULL pointer
+	if (!cfg->p2p) { // terence 20130113: Fix for p2p NULL pointer
 		ret = BCME_ERROR;
 		CFGP2P_ERR(("wl->p2p is NULL\n"));
 		goto exit;
@@ -2659,7 +2659,7 @@ wl_cfgp2p_register_ndev(struct bcm_cfg80211 *cfg)
 #endif /* WL_NEWCFG_PRIVCMD_SUPPORT */
 	cfg->p2p_net = net;
 
-	printk("%s: P2P Interface Registered\n", net->name);
+	printf("%s: P2P Interface Registered\n", net->name);
 
 	return ret;
 }
@@ -2719,10 +2719,11 @@ static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd
 #endif /* WL_ENABLE_P2P_IF || WL_NEWCFG_PRIVCMD_SUPPORT || defined(P2PONEINT) */
 
 #if defined(WL_ENABLE_P2P_IF) || defined(P2PONEINT)
+int
 #ifdef  P2PONEINT
-int wl_cfgp2p_if_open(struct net_device *net)
+wl_cfgp2p_if_open(struct net_device *net)
 #else
-static int wl_cfgp2p_if_open(struct net_device *net)
+wl_cfgp2p_if_open(struct net_device *net)
 #endif
 {
 	struct wireless_dev *wdev = net->ieee80211_ptr;
@@ -2745,10 +2746,11 @@ static int wl_cfgp2p_if_open(struct net_device *net)
 	return 0;
 }
 
+int
 #ifdef  P2PONEINT
-int wl_cfgp2p_if_stop(struct net_device *net)
+wl_cfgp2p_if_stop(struct net_device *net)
 #else
-static int wl_cfgp2p_if_stop(struct net_device *net)
+wl_cfgp2p_if_stop(struct net_device *net)
 #endif
 {
 	struct wireless_dev *wdev = net->ieee80211_ptr;

@@ -3418,12 +3418,12 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 		cmd = SIOCGIWAP;
 		wrqu.data.length = strlen(extra);
 		if (!(flags & WLC_EVENT_MSG_LINK)) {
-			printk("%s: Link Down with BSSID="MACSTR"\n", __FUNCTION__,
+			printf("%s: Link Down with BSSID="MACSTR"\n", __FUNCTION__,
 				MAC2STR((u8 *)wrqu.addr.sa_data));
 			bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 			bzero(&extra, ETHER_ADDR_LEN);
 		} else {
-			printk("%s: Link UP with BSSID="MACSTR"\n", __FUNCTION__,
+			printf("%s: Link UP with BSSID="MACSTR"\n", __FUNCTION__,
 				MAC2STR((u8 *)wrqu.addr.sa_data));
 		}
 		break;
@@ -3783,7 +3783,7 @@ _iscan_sysioc_thread(void *data)
 	uint32 status;
 	iscan_info_t *iscan = (iscan_info_t *)data;
 
-	printk("%s: thread Enter\n", __FUNCTION__);
+	printf("%s: thread Enter\n", __FUNCTION__);
 	DAEMONIZE("iscan_sysioc");
 
 	status = WL_SCAN_RESULTS_PARTIAL;
@@ -3839,7 +3839,7 @@ _iscan_sysioc_thread(void *data)
 				break;
 		 }
 	}
-	printk("%s: was terminated\n", __FUNCTION__);
+	printf("%s: was terminated\n", __FUNCTION__);
 	complete_and_exit(&iscan->sysioc_exited, 0);
 }
 
@@ -3848,7 +3848,7 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 {
 	iscan_info_t *iscan = NULL;
 
-	printk("%s: Enter\n", __FUNCTION__);
+	printf("%s: Enter\n", __FUNCTION__);
 
 	if (!dev)
 		return 0;

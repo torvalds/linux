@@ -117,7 +117,7 @@ uint android_msg_level = ANDROID_ERROR_LEVEL;
 #define CMD_MIRACAST		"MIRACAST"
 #define CMD_NAN		"NAN_"
 #define CMD_GET_CHANNEL			"GET_CHANNEL"
-#define CMD_SET_ROAM			"SET_ROAM_TRIGGER"			
+#define CMD_SET_ROAM			"SET_ROAM_TRIGGER"
 #define CMD_GET_ROAM			"GET_ROAM_TRIGGER"
 #define CMD_GET_KEEP_ALIVE		"GET_KEEP_ALIVE"
 #define CMD_GET_PM				"GET_PM"
@@ -924,9 +924,9 @@ int wl_android_wifi_on(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	printk("%s in 1\n", __FUNCTION__);
+	printf("%s in 1\n", __FUNCTION__);
 	dhd_net_if_lock(dev);
-	printk("%s in 2: g_wifi_on=%d\n", __FUNCTION__, g_wifi_on);
+	printf("%s in 2: g_wifi_on=%d\n", __FUNCTION__, g_wifi_on);
 	if (!g_wifi_on) {
 		do {
 			dhd_net_wifi_platform_set_power(dev, TRUE, WIFI_TURNON_DELAY);
@@ -968,7 +968,7 @@ int wl_android_wifi_on(struct net_device *dev)
 	}
 
 exit:
-	printk("%s: Success\n", __FUNCTION__);
+	printf("%s: Success\n", __FUNCTION__);
 	dhd_net_if_unlock(dev);
 	return ret;
 
@@ -977,7 +977,7 @@ err:
 	dhd_net_bus_devreset(dev, TRUE);
 	dhd_net_bus_suspend(dev);
 	dhd_net_wifi_platform_set_power(dev, FALSE, WIFI_TURNOFF_DELAY);
-	printk("%s: Failed\n", __FUNCTION__);
+	printf("%s: Failed\n", __FUNCTION__);
 	dhd_net_if_unlock(dev);
 	return ret;
 #endif
@@ -992,9 +992,9 @@ int wl_android_wifi_off(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	printk("%s in 1\n", __FUNCTION__);
+	printf("%s in 1\n", __FUNCTION__);
 	dhd_net_if_lock(dev);
-	printk("%s in 2: g_wifi_on=%d\n", __FUNCTION__, g_wifi_on);
+	printf("%s in 2: g_wifi_on=%d\n", __FUNCTION__, g_wifi_on);
 	if (g_wifi_on) {
 #if defined(BCMSDIO) || defined(BCMPCIE)
 		ret = dhd_net_bus_devreset(dev, TRUE);
@@ -1005,7 +1005,7 @@ int wl_android_wifi_off(struct net_device *dev)
 		dhd_net_wifi_platform_set_power(dev, FALSE, WIFI_TURNOFF_DELAY);
 		g_wifi_on = FALSE;
 	}
-	printk("%s out\n", __FUNCTION__);
+	printf("%s out\n", __FUNCTION__);
 	dhd_net_if_unlock(dev);
 
 	return ret;
@@ -2312,7 +2312,7 @@ struct net_device *dev, char* command, int total_len)
 
 	sscanf(command, "%*s %10d", &roam_trigger[0]);
 	roam_trigger[1] = WLC_BAND_ALL;
-	
+
 	ret = wldev_ioctl(dev, WLC_SET_ROAM_TRIGGER, roam_trigger, sizeof(roam_trigger), 1);
 	if (ret)
 		ANDROID_ERROR(("WLC_SET_ROAM_TRIGGER ERROR %d ret=%d\n", roam_trigger[0], ret));
@@ -2328,21 +2328,21 @@ struct net_device *dev, char *command, int total_len)
 	int bytes_written;
 	int roam_trigger[2] = {0, 0};
 	int trigger[2]= {0, 0};
-	
+
 	roam_trigger[1] = WLC_BAND_2G;
 	ret = wldev_ioctl(dev, WLC_GET_ROAM_TRIGGER, roam_trigger, sizeof(roam_trigger), 0);
 	if (!ret)
 		trigger[0] = roam_trigger[0];
- 	else
+	else
 		ANDROID_ERROR(("2G WLC_GET_ROAM_TRIGGER ERROR %d ret=%d\n", roam_trigger[0], ret));
 
 	roam_trigger[1] = WLC_BAND_5G;
 	ret = wldev_ioctl(dev, WLC_GET_ROAM_TRIGGER, roam_trigger, sizeof(roam_trigger), 0);
 	if (!ret)
 		trigger[1] = roam_trigger[0];
- 	else
+	else
 		ANDROID_ERROR(("5G WLC_GET_ROAM_TRIGGER ERROR %d ret=%d\n", roam_trigger[0], ret));
-	
+
 	ANDROID_TRACE(("roam_trigger %d %d\n", trigger[0], trigger[1]));
 	bytes_written = snprintf(command, total_len, "%d %d", trigger[0], trigger[1]);
 
@@ -3309,7 +3309,7 @@ wl_update_connected_rssi_cache(struct net_device *net, wl_rssi_cache_ctrl_t *rss
 		if (!memcmp(&node->BSSID, &bssid, ETHER_ADDR_LEN)) {
 			ANDROID_INFO(("%s: Update %d with BSSID %pM, RSSI=%d\n",
 				__FUNCTION__, k, &bssid, rssi));
-			for(j=0; j<RSSIAVG_LEN-1; j++)
+			for (j=0; j<RSSIAVG_LEN-1; j++)
 				node->RSSI[j] = node->RSSI[j+1];
 			node->RSSI[j] = rssi;
 			node->dirty = 0;
@@ -3382,7 +3382,7 @@ wl_update_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl, wl_scan_results_t *s
 			if (!memcmp(&node->BSSID, &bi->BSSID, ETHER_ADDR_LEN)) {
 				ANDROID_INFO(("%s: Update %d with BSSID %pM, RSSI=%d, SSID \"%s\"\n",
 					__FUNCTION__, k, &bi->BSSID, dtoh16(bi->RSSI), bi->SSID));
-				for(j=0; j<RSSIAVG_LEN-1; j++)
+				for (j=0; j<RSSIAVG_LEN-1; j++)
 					node->RSSI[j] = node->RSSI[j+1];
 				node->RSSI[j] = dtoh16(bi->RSSI);
 				node->dirty = 0;
@@ -3619,10 +3619,10 @@ wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl, wl_scan_results_t *ss_l
 		node = *bss_head;
 		prev = NULL;
 		bi = bi ? (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length)) : ss_list->bss_info;
-		
+
 		for (;node;) {
 			if (!memcmp(&node->results.bss_info->BSSID, &bi->BSSID, ETHER_ADDR_LEN)) {
- 				tmp = node;
+				tmp = node;
 				leaf = kmalloc(dtoh32(bi->length) + WLC_IW_SS_CACHE_CTRL_FIELD_MAXLEN, GFP_KERNEL);
 				if (!leaf) {
 					ANDROID_ERROR(("%s: Memory alloc failure %d and keep old BSS info\n",

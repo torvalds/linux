@@ -434,33 +434,33 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		break;
 
 	case IOV_GVAL(IOV_WLMSGLEVEL):
-		printk("android_msg_level=0x%x\n", android_msg_level);
-		printk("config_msg_level=0x%x\n", config_msg_level);
+		printf("android_msg_level=0x%x\n", android_msg_level);
+		printf("config_msg_level=0x%x\n", config_msg_level);
 #if defined(WL_WIRELESS_EXT)
 		int_val = (int32)iw_msg_level;
 		bcopy(&int_val, arg, val_size);
-		printk("iw_msg_level=0x%x\n", iw_msg_level);
+		printf("iw_msg_level=0x%x\n", iw_msg_level);
 #endif
 #ifdef WL_CFG80211
 		int_val = (int32)wl_dbg_level;
 		bcopy(&int_val, arg, val_size);
-		printk("cfg_msg_level=0x%x\n", wl_dbg_level);
+		printf("cfg_msg_level=0x%x\n", wl_dbg_level);
 #endif
 		break;
 
 	case IOV_SVAL(IOV_WLMSGLEVEL):
 		if (int_val & DHD_ANDROID_VAL) {
 			android_msg_level = (uint)(int_val & 0xFFFF);
-			printk("android_msg_level=0x%x\n", android_msg_level);
+			printf("android_msg_level=0x%x\n", android_msg_level);
 		}
 		if (int_val & DHD_CONFIG_VAL) {
 			config_msg_level = (uint)(int_val & 0xFFFF);
-			printk("config_msg_level=0x%x\n", config_msg_level);
+			printf("config_msg_level=0x%x\n", config_msg_level);
 		}
 #if defined(WL_WIRELESS_EXT)
 		if (int_val & DHD_IW_VAL) {
 			iw_msg_level = (uint)(int_val & 0xFFFF);
-			printk("iw_msg_level=0x%x\n", iw_msg_level);
+			printf("iw_msg_level=0x%x\n", iw_msg_level);
 		}
 #endif
 #ifdef WL_CFG80211

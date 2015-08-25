@@ -857,10 +857,11 @@ dhdpcie_download_firmware(struct dhd_bus *bus, osl_t *osh)
 	dhd_conf_preinit(bus->dhd);
 	dhd_conf_read_config(bus->dhd, bus->dhd->conf_path);
 	dhd_conf_set_fw_name_by_chip(bus->dhd, bus->fw_path);
+	dhd_conf_set_nv_name_by_chip(bus->dhd, bus->nv_path);
 
-	printk("Final fw_path=%s\n", bus->fw_path);
-	printk("Final nv_path=%s\n", bus->nv_path);
-	printk("Final conf_path=%s\n", bus->dhd->conf_path);
+	printf("Final fw_path=%s\n", bus->fw_path);
+	printf("Final nv_path=%s\n", bus->nv_path);
+	printf("Final conf_path=%s\n", bus->dhd->conf_path);
 
 	ret = _dhdpcie_download_firmware(bus);
 
@@ -884,7 +885,7 @@ dhdpcie_download_code_file(struct dhd_bus *bus, char *pfw_path)
 	 */
 	image = dhd_os_open_image(pfw_path);
 	if (image == NULL) {
-		printk("%s: Open firmware file failed %s\n", __FUNCTION__, pfw_path);
+		printf("%s: Open firmware file failed %s\n", __FUNCTION__, pfw_path);
 		goto err;
 	}
 
@@ -955,7 +956,7 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 	if (nvram_file_exists) {
 		image = dhd_os_open_image(pnv_path);
 		if (image == NULL) {
-			printk("%s: Open nvram file failed %s\n", __FUNCTION__, pnv_path);
+			printf("%s: Open nvram file failed %s\n", __FUNCTION__, pnv_path);
 			goto err;
 		}
 	}

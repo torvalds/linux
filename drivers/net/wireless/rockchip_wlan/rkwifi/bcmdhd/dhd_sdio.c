@@ -367,6 +367,8 @@ typedef struct dhd_bus {
 #ifdef DHDENABLE_TAILPAD
 	void		*pad_pkt;
 #endif /* DHDENABLE_TAILPAD */
+	uint        txglomframes;	/* Number of tx glom frames (superframes) */
+	uint        txglompkts;		/* Number of packets from tx glom frames */
 } dhd_bus_t;
 
 /* clkstate */
@@ -716,6 +718,7 @@ dhdsdio_sr_cap(dhd_bus_t *bus)
 		(bus->sih->chip == BCM4354_CHIP_ID) ||
 		(bus->sih->chip == BCM4356_CHIP_ID) ||
 		(bus->sih->chip == BCM4358_CHIP_ID) ||
+		(bus->sih->chip == BCM4371_CHIP_ID) ||
 		(BCM4349_CHIP(bus->sih->chip))		||
 		(bus->sih->chip == BCM4350_CHIP_ID)) {
 		core_capext = TRUE;
@@ -736,6 +739,7 @@ dhdsdio_sr_cap(dhd_bus_t *bus)
 		(bus->sih->chip == BCM4354_CHIP_ID) ||
 		(bus->sih->chip == BCM4356_CHIP_ID) ||
 		(bus->sih->chip == BCM4358_CHIP_ID) ||
+		(bus->sih->chip == BCM4371_CHIP_ID) ||
 		(bus->sih->chip == BCM4350_CHIP_ID)) {
 		uint32 enabval = 0;
 		addr = SI_ENUM_BASE + OFFSETOF(chipcregs_t, chipcontrol_addr);
@@ -747,7 +751,8 @@ dhdsdio_sr_cap(dhd_bus_t *bus)
 			(bus->sih->chip == BCM4345_CHIP_ID) ||
 			(bus->sih->chip == BCM4354_CHIP_ID) ||
 			(bus->sih->chip == BCM4356_CHIP_ID) ||
-			(bus->sih->chip == BCM4358_CHIP_ID))
+			(bus->sih->chip == BCM4358_CHIP_ID) ||
+			(bus->sih->chip == BCM4371_CHIP_ID))
 			enabval &= CC_CHIPCTRL3_SR_ENG_ENABLE;
 
 		if (enabval)
@@ -2119,8 +2124,11 @@ dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 			break;
 		if (dhdsdio_txpkt(bus, SDPCM_DATA_CHANNEL, pkts, i, TRUE) != BCME_OK)
 			dhd->tx_errors++;
-		else
+		else {
 			dhd->dstats.tx_bytes += datalen;
+			bus->txglomframes++;
+			bus->txglompkts += num_pkt;
+		}
 		cnt += i;
 
 		/* In poll mode, need to check for other events */
@@ -2620,6 +2628,11 @@ dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 #endif /* DHD_DEBUG */
 	bcm_bprintf(strbuf, "clkstate %d activity %d idletime %d idlecount %d sleeping %d\n",
 	            bus->clkstate, bus->activity, bus->idletime, bus->idlecount, bus->sleeping);
+	dhd_dump_pct(strbuf, "Tx: glom pct", (100 * bus->txglompkts), bus->dhd->tx_packets);
+	dhd_dump_pct(strbuf, ", pkts/glom", bus->txglompkts, bus->txglomframes);
+	bcm_bprintf(strbuf, "\n");
+	bcm_bprintf(strbuf, "txglomframes %u, txglompkts %u\n", bus->txglomframes, bus->txglompkts);
+	bcm_bprintf(strbuf, "\n");
 }
 
 void
@@ -2636,6 +2649,7 @@ dhd_bus_clearcounts(dhd_pub_t *dhdp)
 	bus->tx_sderrs = bus->fc_rcvd = bus->fc_xoff = bus->fc_xon = 0;
 	bus->rxglomfail = bus->rxglomframes = bus->rxglompkts = 0;
 	bus->f2rxhdrs = bus->f2rxdata = bus->f2txdata = bus->f1regdata = 0;
+	bus->txglomframes = bus->txglompkts = 0;
 }
 
 #ifdef SDTEST
@@ -4300,7 +4314,7 @@ dhd_txglom_enable(dhd_pub_t *dhdp, bool enable)
 	} else
 #endif /* BCMSDIOH_TXGLOM */
 		bus->txglom_enable = FALSE;
-	printk("%s: enable %d\n",  __FUNCTION__, bus->txglom_enable);
+	printf("%s: enable %d\n",  __FUNCTION__, bus->txglom_enable);
 }
 
 int
@@ -5649,6 +5663,15 @@ deliver:
 		dhd_os_sdunlock(bus->dhd);
 		dhd_rx_frame(bus->dhd, ifidx, pkt, pkt_count, chan);
 		dhd_os_sdlock(bus->dhd);
+#if defined(SDIO_ISR_THREAD)
+		/* terence 20150615: fix for below error due to bussleep in watchdog after dhd_os_sdunlock here,
+		  * so call BUS_WAKE to wake up bus again
+		  * dhd_bcmsdh_recv_buf: Device asleep
+		  * dhdsdio_readframes: RXHEADER FAILED: -40
+		  * dhdsdio_rxfail: abort command, terminate frame, send NAK
+		*/
+		BUS_WAKE(bus);
+#endif
 	}
 	rxcount = maxframes - rxleft;
 #ifdef DHD_DEBUG
@@ -6101,7 +6124,7 @@ dhdsdio_isr(void *arg)
 #if defined(SDIO_ISR_THREAD)
 	DHD_TRACE(("Calling dhdsdio_dpc() from %s\n", __FUNCTION__));
 	DHD_OS_WAKE_LOCK(bus->dhd);
-	/* terence 20150209: dpc should be scheded again if dpc_sched is TRUE or dhd_bus_txdata can 
+	/* terence 20150209: dpc should be scheded again if dpc_sched is TRUE or dhd_bus_txdata can
 	    not schedule anymore because dpc_sched is TRUE now.
 	 */
 	if (dhdsdio_dpc(bus)) {
@@ -6740,6 +6763,8 @@ dhdsdio_chipmatch(uint16 chipid)
 	if (chipid == BCM4356_CHIP_ID)
 		return TRUE;
 	if (chipid == BCM4358_CHIP_ID)
+		return TRUE;
+	if (chipid == BCM4371_CHIP_ID)
 		return TRUE;
 	if (chipid == BCM43430_CHIP_ID)
 		return TRUE;
@@ -7388,6 +7413,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 			case BCM4354_CHIP_ID:
 			case BCM4356_CHIP_ID:
 			case BCM4358_CHIP_ID:
+			case BCM4371_CHIP_ID:
 				bus->dongle_ram_base = CR4_4350_RAM_BASE;
 				break;
 			case BCM4360_CHIP_ID:
@@ -7637,9 +7663,9 @@ dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh, void *sdh)
 	dhd_conf_set_fw_name_by_mac(bus->dhd, bus->sdh, bus->fw_path);
 	dhd_conf_set_nv_name_by_mac(bus->dhd, bus->sdh, bus->nv_path);
 
-	printk("Final fw_path=%s\n", bus->fw_path);
-	printk("Final nv_path=%s\n", bus->nv_path);
-	printk("Final conf_path=%s\n", bus->dhd->conf_path);
+	printf("Final fw_path=%s\n", bus->fw_path);
+	printf("Final nv_path=%s\n", bus->nv_path);
+	printf("Final conf_path=%s\n", bus->dhd->conf_path);
 
 	ret = _dhdsdio_download_firmware(bus);
 
@@ -7970,7 +7996,7 @@ dhdsdio_download_code_file(struct dhd_bus *bus, char *pfw_path)
 
 	image = dhd_os_open_image(pfw_path);
 	if (image == NULL) {
-		printk("%s: Open firmware file failed %s\n", __FUNCTION__, pfw_path);
+		printf("%s: Open firmware file failed %s\n", __FUNCTION__, pfw_path);
 		goto err;
 	}
 
@@ -8092,7 +8118,7 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
 	if (nvram_file_exists) {
 		image = dhd_os_open_image(pnv_path);
 		if (image == NULL) {
-			printk("%s: Open nvram file failed %s\n", __FUNCTION__, pnv_path);
+			printf("%s: Open nvram file failed %s\n", __FUNCTION__, pnv_path);
 			goto err;
 		}
 	}
@@ -8370,14 +8396,14 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			dhd_txglom_enable(dhdp, FALSE);
 			dhd_os_sdunlock(dhdp);
 
-			printk("%s:  WLAN OFF DONE\n", __FUNCTION__);
+			printf("%s:  WLAN OFF DONE\n", __FUNCTION__);
 			/* App can now remove power from device */
 		} else
 			bcmerror = BCME_SDIO_ERROR;
 	} else {
 		/* App must have restored power to device before calling */
 
-		printk("\n\n%s: == WLAN ON ==\n", __FUNCTION__);
+		printf("\n\n%s: == WLAN ON ==\n", __FUNCTION__);
 
 		if (bus->dhd->dongle_reset) {
 			/* Turn on WLAN */
@@ -8426,9 +8452,9 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 				dhd_os_sdunlock(dhdp);
 		} else {
 			bcmerror = BCME_SDIO_ERROR;
-			printk("%s called when dongle is not in reset\n",
+			printf("%s called when dongle is not in reset\n",
 				__FUNCTION__);
-			printk("Will call dhd_bus_start instead\n");
+			printf("Will call dhd_bus_start instead\n");
 			dhd_bus_resume(dhdp, 1);
 #if defined(HW_OOB)
 			dhd_conf_set_hw_oob_intr(bus->sdh, bus->sih->chip); // terence 20120615: fix for OOB initial issue

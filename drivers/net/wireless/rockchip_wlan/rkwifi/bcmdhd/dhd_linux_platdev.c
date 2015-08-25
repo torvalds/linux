@@ -53,7 +53,9 @@ extern struct wifi_platform_data dhd_wlan_control;
 #else
 static bool dts_enabled = FALSE;
 struct resource dhd_wlan_resources = {0};
+#ifdef CUSTOMER_HW
 struct wifi_platform_data dhd_wlan_control = {0};
+#endif
 #endif /* !defind(DHD_OF_SUPPORT) */
 #endif /* !defind(CONFIG_DTS) */
 
@@ -432,8 +434,8 @@ static int wifi_ctrlfunc_register_drv(void)
 
 #if !defined(CONFIG_DTS)
 	if (dts_enabled) {
-		adapter->wifi_plat_data = (void *)&dhd_wlan_control;
 #ifdef CUSTOMER_HW
+		adapter->wifi_plat_data = (void *)&dhd_wlan_control;
 		bcm_wlan_set_plat_data();
 #ifdef CUSTOMER_OOB
 		adapter->irq_num = bcm_wlan_get_oob_irq();
