@@ -430,6 +430,9 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	int rc, r, i, j = 1;
 	struct cxl_irq_name *irq_name;
 
+	/* Initialize the list head to hold irq names */
+	INIT_LIST_HEAD(&ctx->irq_names);
+
 	if ((rc = cxl_alloc_irq_ranges(&ctx->irqs, ctx->afu->adapter, count)))
 		return rc;
 
@@ -441,13 +444,12 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	ctx->irq_bitmap = kcalloc(BITS_TO_LONGS(count),
 				  sizeof(*ctx->irq_bitmap), GFP_KERNEL);
 	if (!ctx->irq_bitmap)
-		return -ENOMEM;
+		goto out;
 
 	/*
 	 * Allocate names first.  If any fail, bail out before allocating
 	 * actual hardware IRQs.
 	 */
-	INIT_LIST_HEAD(&ctx->irq_names);
 	for (r = 1; r < CXL_IRQ_RANGES; r++) {
 		for (i = 0; i < ctx->irqs.range[r]; i++) {
 			irq_name = kmalloc(sizeof(struct cxl_irq_name),
@@ -469,6 +471,7 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	return 0;
 
 out:
+	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 	afu_irq_name_free(ctx);
 	return -ENOMEM;
 }
