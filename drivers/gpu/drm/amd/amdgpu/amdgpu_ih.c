@@ -97,18 +97,12 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
 			/* add 8 bytes for the rptr/wptr shadows and
 			 * add them to the end of the ring allocation.
 			 */
-			adev->irq.ih.ring = kzalloc(adev->irq.ih.ring_size + 8, GFP_KERNEL);
+			adev->irq.ih.ring = pci_alloc_consistent(adev->pdev,
+								 adev->irq.ih.ring_size + 8,
+								 &adev->irq.ih.rb_dma_addr);
 			if (adev->irq.ih.ring == NULL)
 				return -ENOMEM;
-			adev->irq.ih.rb_dma_addr = pci_map_single(adev->pdev,
-								  (void *)adev->irq.ih.ring,
-								  adev->irq.ih.ring_size,
-								  PCI_DMA_BIDIRECTIONAL);
-			if (pci_dma_mapping_error(adev->pdev, adev->irq.ih.rb_dma_addr)) {
-				dev_err(&adev->pdev->dev, "Failed to DMA MAP the IH RB page\n");
-				kfree((void *)adev->irq.ih.ring);
-				return -ENOMEM;
-			}
+			memset((void *)adev->irq.ih.ring, 0, adev->irq.ih.ring_size + 8);
 			adev->irq.ih.wptr_offs = (adev->irq.ih.ring_size / 4) + 0;
 			adev->irq.ih.rptr_offs = (adev->irq.ih.ring_size / 4) + 1;
 		}
@@ -148,9 +142,9 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev)
 			/* add 8 bytes for the rptr/wptr shadows and
 			 * add them to the end of the ring allocation.
 			 */
-			pci_unmap_single(adev->pdev, adev->irq.ih.rb_dma_addr,
-					 adev->irq.ih.ring_size + 8, PCI_DMA_BIDIRECTIONAL);
-			kfree((void *)adev->irq.ih.ring);
+			pci_free_consistent(adev->pdev, adev->irq.ih.ring_size + 8,
+					    (void *)adev->irq.ih.ring,
+					    adev->irq.ih.rb_dma_addr);
 			adev->irq.ih.ring = NULL;
 		}
 	} else {
