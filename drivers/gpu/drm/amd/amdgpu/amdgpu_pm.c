@@ -52,7 +52,7 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
-	enum amdgpu_pm_state_type pm = adev->pm.dpm.user_state;
+	enum amd_pm_state_type pm = adev->pm.dpm.user_state;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			(pm == POWER_STATE_TYPE_BATTERY) ? "battery" :
@@ -351,7 +351,7 @@ void amdgpu_dpm_thermal_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device,
 			     pm.dpm.thermal.work);
 	/* switch to the thermal state */
-	enum amdgpu_pm_state_type dpm_state = POWER_STATE_TYPE_INTERNAL_THERMAL;
+	enum amd_pm_state_type dpm_state = POWER_STATE_TYPE_INTERNAL_THERMAL;
 
 	if (!adev->pm.dpm_enabled)
 		return;
@@ -379,7 +379,7 @@ void amdgpu_dpm_thermal_work_handler(struct work_struct *work)
 }
 
 static struct amdgpu_ps *amdgpu_dpm_pick_power_state(struct amdgpu_device *adev,
-						     enum amdgpu_pm_state_type dpm_state)
+						     enum amd_pm_state_type dpm_state)
 {
 	int i;
 	struct amdgpu_ps *ps;
@@ -516,7 +516,7 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_ps *ps;
-	enum amdgpu_pm_state_type dpm_state;
+	enum amd_pm_state_type dpm_state;
 	int ret;
 
 	/* if dpm init failed */

@@ -1299,31 +1299,7 @@ struct amdgpu_wb {
 int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb);
 
-/**
- * struct amdgpu_pm - power management datas
- * It keeps track of various data needed to take powermanagement decision.
- */
 
-enum amdgpu_pm_state_type {
-	/* not used for dpm */
-	POWER_STATE_TYPE_DEFAULT,
-	POWER_STATE_TYPE_POWERSAVE,
-	/* user selectable states */
-	POWER_STATE_TYPE_BATTERY,
-	POWER_STATE_TYPE_BALANCED,
-	POWER_STATE_TYPE_PERFORMANCE,
-	/* internal states */
-	POWER_STATE_TYPE_INTERNAL_UVD,
-	POWER_STATE_TYPE_INTERNAL_UVD_SD,
-	POWER_STATE_TYPE_INTERNAL_UVD_HD,
-	POWER_STATE_TYPE_INTERNAL_UVD_HD2,
-	POWER_STATE_TYPE_INTERNAL_UVD_MVC,
-	POWER_STATE_TYPE_INTERNAL_BOOT,
-	POWER_STATE_TYPE_INTERNAL_THERMAL,
-	POWER_STATE_TYPE_INTERNAL_ACPI,
-	POWER_STATE_TYPE_INTERNAL_ULV,
-	POWER_STATE_TYPE_INTERNAL_3DPERF,
-};
 
 enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_NONE,
@@ -1605,8 +1581,8 @@ struct amdgpu_dpm {
 	/* vce requirements */
 	struct amdgpu_vce_state vce_states[AMDGPU_MAX_VCE_LEVELS];
 	enum amdgpu_vce_level vce_level;
-	enum amdgpu_pm_state_type state;
-	enum amdgpu_pm_state_type user_state;
+	enum amd_pm_state_type state;
+	enum amd_pm_state_type user_state;
 	u32                     platform_caps;
 	u32                     voltage_response_time;
 	u32                     backbias_response_time;
