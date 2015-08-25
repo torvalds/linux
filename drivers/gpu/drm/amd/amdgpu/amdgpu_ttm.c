@@ -1014,13 +1014,19 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	/* for fence and sync */
 	num_dw += 64 + AMDGPU_NUM_SYNCS * 8;
 
+	r = amdgpu_sync_wait(&sync);
+	if (r) {
+		DRM_ERROR("sync wait failed (%d).\n", r);
+		amdgpu_sync_free(adev, &sync, NULL);
+		return r;
+	}
+
 	r = amdgpu_ring_lock(ring, num_dw);
 	if (r) {
 		DRM_ERROR("ring lock failed (%d).\n", r);
 		amdgpu_sync_free(adev, &sync, NULL);
 		return r;
 	}
-
 	amdgpu_sync_rings(&sync, ring);
 
 	for (i = 0; i < num_loops; i++) {
