@@ -202,6 +202,28 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 	return r;
 }
 
+struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
+{
+	struct amdgpu_sync_entry *e;
+	struct hlist_node *tmp;
+	struct fence *f;
+	int i;
+
+	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+
+		f = e->fence;
+
+		hash_del(&e->node);
+		kfree(e);
+
+		if (!fence_is_signaled(f))
+			return f;
+
+		fence_put(f);
+	}
+	return NULL;
+}
+
 int amdgpu_sync_wait(struct amdgpu_sync *sync)
 {
 	struct amdgpu_sync_entry *e;

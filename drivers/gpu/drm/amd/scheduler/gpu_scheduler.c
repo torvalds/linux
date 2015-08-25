@@ -192,13 +192,35 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 	kfifo_free(&entity->job_queue);
 }
 
+static void amd_sched_entity_wakeup(struct fence *f, struct fence_cb *cb)
+{
+	struct amd_sched_entity *entity =
+		container_of(cb, struct amd_sched_entity, cb);
+	entity->dependency = NULL;
+	fence_put(f);
+	amd_sched_wakeup(entity->scheduler);
+}
+
 static struct amd_sched_job *
 amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 {
+	struct amd_gpu_scheduler *sched = entity->scheduler;
 	struct amd_sched_job *job;
+
+	if (ACCESS_ONCE(entity->dependency))
+		return NULL;
 
 	if (!kfifo_out_peek(&entity->job_queue, &job, sizeof(job)))
 		return NULL;
+
+	while ((entity->dependency = sched->ops->dependency(job))) {
+
+		if (fence_add_callback(entity->dependency, &entity->cb,
+				       amd_sched_entity_wakeup))
+			fence_put(entity->dependency);
+		else
+			return NULL;
+	}
 
 	return job;
 }

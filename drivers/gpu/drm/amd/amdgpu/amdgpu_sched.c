@@ -27,6 +27,12 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
+static struct fence *amdgpu_sched_dependency(struct amd_sched_job *job)
+{
+	struct amdgpu_job *sched_job = (struct amdgpu_job *)job;
+	return amdgpu_sync_get_fence(&sched_job->ibs->sync);
+}
+
 static struct fence *amdgpu_sched_run_job(struct amd_sched_job *job)
 {
 	struct amdgpu_job *sched_job;
@@ -75,6 +81,7 @@ static void amdgpu_sched_process_job(struct amd_sched_job *job)
 }
 
 struct amd_sched_backend_ops amdgpu_sched_ops = {
+	.dependency = amdgpu_sched_dependency,
 	.run_job = amdgpu_sched_run_job,
 	.process_job = amdgpu_sched_process_job
 };
