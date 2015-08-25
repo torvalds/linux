@@ -183,15 +183,15 @@ struct pnfs_layoutdriver_type {
 
 struct pnfs_layout_hdr {
 	atomic_t		plh_refcount;
+	atomic_t		plh_outstanding; /* number of RPCs out */
 	struct list_head	plh_layouts;   /* other client layouts */
 	struct list_head	plh_bulk_destroy;
 	struct list_head	plh_segs;      /* layout segments list */
-	nfs4_stateid		plh_stateid;
-	atomic_t		plh_outstanding; /* number of RPCs out */
 	unsigned long		plh_block_lgets; /* block LAYOUTGET if >0 */
-	u32			plh_barrier; /* ignore lower seqids */
 	unsigned long		plh_retry_timestamp;
 	unsigned long		plh_flags;
+	nfs4_stateid		plh_stateid;
+	u32			plh_barrier; /* ignore lower seqids */
 	enum pnfs_iomode	plh_return_iomode;
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
 	struct rpc_cred		*plh_lc_cred; /* layoutcommit cred */
