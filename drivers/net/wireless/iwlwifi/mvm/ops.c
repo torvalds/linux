@@ -268,7 +268,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 #undef RX_HANDLER_GRP
 #define CMD(x) [x] = #x
 
-static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
+static const char *const iwl_mvm_cmd_strings[REPLY_MAX + 1] = {
 	CMD(MVM_ALIVE),
 	CMD(REPLY_ERROR),
 	CMD(INIT_COMPLETE_NOTIF),

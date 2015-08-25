@@ -949,9 +949,10 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 					   char *buf, size_t count,
 					   loff_t *ppos)
 {
-	int ret, conf_id;
+	unsigned int conf_id;
+	int ret;
 
-	ret = kstrtoint(buf, 0, &conf_id);
+	ret = kstrtouint(buf, 0, &conf_id);
 	if (ret)
 		return ret;
 
