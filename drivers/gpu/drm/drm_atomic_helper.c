@@ -42,14 +42,14 @@
  * add their own additional internal state.
  *
  * This library also provides default implementations for the check callback in
- * drm_atomic_helper_check and for the commit callback with
- * drm_atomic_helper_commit. But the individual stages and callbacks are expose
- * to allow drivers to mix and match and e.g. use the plane helpers only
+ * drm_atomic_helper_check() and for the commit callback with
+ * drm_atomic_helper_commit(). But the individual stages and callbacks are
+ * exposed to allow drivers to mix and match and e.g. use the plane helpers only
  * together with a driver private modeset implementation.
  *
  * This library also provides implementations for all the legacy driver
- * interfaces on top of the atomic interface. See drm_atomic_helper_set_config,
- * drm_atomic_helper_disable_plane, drm_atomic_helper_disable_plane and the
+ * interfaces on top of the atomic interface. See drm_atomic_helper_set_config(),
+ * drm_atomic_helper_disable_plane(), drm_atomic_helper_disable_plane() and the
  * various functions to implement set_property callbacks. New drivers must not
  * implement these functions themselves but must use the provided helpers.
  */
@@ -1077,7 +1077,7 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
  * work item, which allows nice concurrent updates on disjoint sets of crtcs.
  *
  * 3. The software state is updated synchronously with
- * drm_atomic_helper_swap_state. Doing this under the protection of all modeset
+ * drm_atomic_helper_swap_state(). Doing this under the protection of all modeset
  * locks means concurrent callers never see inconsistent state. And doing this
  * while it's guaranteed that no relevant async worker runs means that async
  * workers do not need grab any locks. Actually they must not grab locks, for
@@ -1334,7 +1334,7 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  *
  * 4. Actually commit the hardware state.
  *
- * 5. Call drm_atomic_helper_cleanup_planes with @state, which since step 3
+ * 5. Call drm_atomic_helper_cleanup_planes() with @state, which since step 3
  * contains the old state. Also do any other cleanup required with that state.
  */
 void drm_atomic_helper_swap_state(struct drm_device *dev,
