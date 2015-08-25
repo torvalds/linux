@@ -1051,12 +1051,6 @@ static int skl_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
 
-	/*
-	 * This is to ensure that CSR isn't identified as loaded before
-	 * CSR-loading program is called during runtime-resume.
-	 */
-	intel_csr_load_status_set(dev_priv, FW_UNINITIALIZED);
-
 	skl_uninit_cdclk(dev_priv);
 
 	return 0;
