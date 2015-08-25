@@ -587,7 +587,7 @@ static void dfll_load_i2c_lut(struct tegra_dfll *td)
 		else
 			lut_index = i;
 
-		  val = regulator_list_hardware_vsel(td->vdd_reg,
+		val = regulator_list_hardware_vsel(td->vdd_reg,
 						     td->i2c_lut[lut_index]);
 		__raw_writel(val, td->lut_base + i * 4);
 	}
@@ -1432,6 +1432,7 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 	int selector;
 	unsigned long rate;
 	struct dev_pm_opp *opp;
+	int lut;
 
 	rcu_read_lock();
 
@@ -1444,9 +1445,10 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 	v_max = dev_pm_opp_get_voltage(opp);
 
 	v = td->soc->min_millivolts * 1000;
-	td->i2c_lut[0] = find_vdd_map_entry_exact(td, v);
-	if (td->i2c_lut[0] < 0)
+	lut = find_vdd_map_entry_exact(td, v);
+	if (lut < 0)
 		goto out;
+	td->i2c_lut[0] = lut;
 
 	for (j = 1, rate = 0; ; rate++) {
 		opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
