@@ -262,6 +262,7 @@ static int ioat_reset_sync(struct ioatdma_chan *ioat_chan, unsigned long tmo)
 }
 
 static dma_cookie_t ioat_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
+	__releases(&ioat_chan->prep_lock)
 {
 	struct dma_chan *c = tx->chan;
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
@@ -474,6 +475,7 @@ static bool reshape_ring(struct ioatdma_chan *ioat_chan, int order)
  * @num_descs: allocation length
  */
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
+	__acquires(&ioat_chan->prep_lock)
 {
 	bool retry;
 
