@@ -515,7 +515,7 @@ static int find_perf_probe_point_from_dwarf(struct probe_trace_point *tp,
 		if (ret < 0)
 			goto error;
 		addr += stext;
-	} else {
+	} else if (tp->symbol) {
 		addr = kernel_get_symbol_address_by_name(tp->symbol, false);
 		if (addr == 0)
 			goto error;
@@ -1815,17 +1815,17 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 {
 	struct symbol *sym = NULL;
 	struct map *map;
-	u64 addr;
+	u64 addr = tp->address;
 	int ret = -ENOENT;
 
 	if (!is_kprobe) {
 		map = dso__new_map(tp->module);
 		if (!map)
 			goto out;
-		addr = tp->address;
 		sym = map__find_symbol(map, addr, NULL);
 	} else {
-		addr = kernel_get_symbol_address_by_name(tp->symbol, true);
+		if (tp->symbol)
+			addr = kernel_get_symbol_address_by_name(tp->symbol, true);
 		if (addr) {
 			addr += tp->offset;
 			sym = __find_kernel_function(addr, &map);
