@@ -128,6 +128,9 @@ struct pnfs_layoutdriver_type {
 
 	struct pnfs_layout_segment * (*alloc_lseg) (struct pnfs_layout_hdr *layoutid, struct nfs4_layoutget_res *lgr, gfp_t gfp_flags);
 	void (*free_lseg) (struct pnfs_layout_segment *lseg);
+	void (*add_lseg) (struct pnfs_layout_hdr *layoutid,
+			struct pnfs_layout_segment *lseg,
+			struct list_head *free_me);
 
 	void (*return_range) (struct pnfs_layout_hdr *lo,
 			      struct pnfs_layout_range *range);
@@ -284,6 +287,14 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       enum pnfs_iomode iomode,
 					       gfp_t gfp_flags);
 void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo);
+
+void pnfs_generic_layout_insert_lseg(struct pnfs_layout_hdr *lo,
+		   struct pnfs_layout_segment *lseg,
+		   bool (*is_after)(const struct pnfs_layout_range *lseg_range,
+			   const struct pnfs_layout_range *old),
+		   bool (*do_merge)(struct pnfs_layout_segment *lseg,
+			   struct pnfs_layout_segment *old),
+		   struct list_head *free_me);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 int pnfs_read_done_resend_to_mds(struct nfs_pgio_header *);
