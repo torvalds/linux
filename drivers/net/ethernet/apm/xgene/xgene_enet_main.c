@@ -1277,9 +1277,10 @@ static int xgene_enet_remove(struct platform_device *pdev)
 	mac_ops->tx_disable(pdata);
 
 	xgene_enet_napi_del(pdata);
-	xgene_enet_mdio_remove(pdata);
-	xgene_enet_delete_desc_rings(pdata);
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+		xgene_enet_mdio_remove(pdata);
 	unregister_netdev(ndev);
+	xgene_enet_delete_desc_rings(pdata);
 	pdata->port_ops->shutdown(pdata);
 	free_netdev(ndev);
 
