@@ -241,9 +241,10 @@ static inline void vxlan_get_rx_port(struct net_device *netdev)
 {
 }
 #endif
-#endif
 
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
 {
 	return vs->sock->sk->sk_family;
 }
+
+#endif
