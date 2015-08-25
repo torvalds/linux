@@ -30,6 +30,8 @@
 
 #include <drm/drm_crtc.h>
 
+struct drm_atomic_state;
+
 int drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state);
 int drm_atomic_helper_check_planes(struct drm_device *dev,
@@ -73,7 +75,11 @@ int drm_atomic_helper_update_plane(struct drm_plane *plane,
 				   uint32_t src_x, uint32_t src_y,
 				   uint32_t src_w, uint32_t src_h);
 int drm_atomic_helper_disable_plane(struct drm_plane *plane);
+int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
+		struct drm_plane_state *plane_state);
 int drm_atomic_helper_set_config(struct drm_mode_set *set);
+int __drm_atomic_helper_set_config(struct drm_mode_set *set,
+		struct drm_atomic_state *state);
 
 int drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
 					struct drm_property *property,

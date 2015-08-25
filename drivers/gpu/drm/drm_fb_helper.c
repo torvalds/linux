@@ -38,6 +38,8 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
@@ -334,6 +336,72 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
+static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_plane *plane;
+	struct drm_atomic_state *state;
+	int i, ret;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = dev->mode_config.acquire_ctx;
+retry:
+	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			ret = PTR_ERR(plane_state);
+			goto fail;
+		}
+
+		ret = drm_atomic_plane_set_property(plane, plane_state,
+				dev->mode_config.rotation_property,
+				BIT(DRM_ROTATE_0));
+		if (ret != 0)
+			goto fail;
+
+		/* disable non-primary: */
+		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+			continue;
+
+		ret = __drm_atomic_helper_disable_plane(plane, plane_state);
+		if (ret != 0)
+			goto fail;
+	}
+
+	for(i = 0; i < fb_helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+
+		ret = __drm_atomic_helper_set_config(mode_set, state);
+		if (ret != 0)
+			goto fail;
+	}
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	return 0;
+
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_free(state);
+
+	return ret;
+
+backoff:
+	drm_atomic_state_clear(state);
+	drm_atomic_legacy_backoff(state);
+
+	goto retry;
+}
+
 static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -341,6 +409,9 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	int i;
 
 	drm_warn_on_modeset_not_all_locked(dev);
+
+	if (fb_helper->atomic)
+		return restore_fbdev_mode_atomic(fb_helper);
 
 	drm_for_each_plane(plane, dev) {
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
@@ -643,6 +714,8 @@ int drm_fb_helper_init(struct drm_device *dev,
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
+
+	fb_helper->atomic = !!drm_core_check_feature(dev, DRIVER_ATOMIC);
 
 	return 0;
 out_free:

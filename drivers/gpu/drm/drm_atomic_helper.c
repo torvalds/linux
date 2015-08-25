@@ -1553,21 +1553,9 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+	ret = __drm_atomic_helper_disable_plane(plane, plane_state);
 	if (ret != 0)
 		goto fail;
-	drm_atomic_set_fb_for_plane(plane_state, NULL);
-	plane_state->crtc_x = 0;
-	plane_state->crtc_y = 0;
-	plane_state->crtc_h = 0;
-	plane_state->crtc_w = 0;
-	plane_state->src_x = 0;
-	plane_state->src_y = 0;
-	plane_state->src_h = 0;
-	plane_state->src_w = 0;
-
-	if (plane == plane->crtc->cursor)
-		state->legacy_cursor_update = true;
 
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
@@ -1596,6 +1584,32 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_disable_plane);
+
+/* just used from fb-helper and atomic-helper: */
+int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
+		struct drm_plane_state *plane_state)
+{
+	int ret;
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+	if (ret != 0)
+		return ret;
+
+	drm_atomic_set_fb_for_plane(plane_state, NULL);
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
+	plane_state->crtc_h = 0;
+	plane_state->crtc_w = 0;
+	plane_state->src_x = 0;
+	plane_state->src_y = 0;
+	plane_state->src_h = 0;
+	plane_state->src_w = 0;
+
+	if (plane->crtc && (plane == plane->crtc->cursor))
+		plane_state->state->legacy_cursor_update = true;
+
+	return 0;
+}
 
 static int update_output_state(struct drm_atomic_state *state,
 			       struct drm_mode_set *set)
@@ -1680,8 +1694,6 @@ int drm_atomic_helper_set_config(struct drm_mode_set *set)
 {
 	struct drm_atomic_state *state;
 	struct drm_crtc *crtc = set->crtc;
-	struct drm_crtc_state *crtc_state;
-	struct drm_plane_state *primary_state;
 	int ret = 0;
 
 	state = drm_atomic_state_alloc(crtc->dev);
@@ -1690,62 +1702,8 @@ int drm_atomic_helper_set_config(struct drm_mode_set *set)
 
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
 retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto fail;
-	}
-
-	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
-	if (IS_ERR(primary_state)) {
-		ret = PTR_ERR(primary_state);
-		goto fail;
-	}
-
-	if (!set->mode) {
-		WARN_ON(set->fb);
-		WARN_ON(set->num_connectors);
-
-		ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
-		if (ret != 0)
-			goto fail;
-
-		crtc_state->active = false;
-
-		ret = drm_atomic_set_crtc_for_plane(primary_state, NULL);
-		if (ret != 0)
-			goto fail;
-
-		drm_atomic_set_fb_for_plane(primary_state, NULL);
-
-		goto commit;
-	}
-
-	WARN_ON(!set->fb);
-	WARN_ON(!set->num_connectors);
-
-	ret = drm_atomic_set_mode_for_crtc(crtc_state, set->mode);
+	ret = __drm_atomic_helper_set_config(set, state);
 	if (ret != 0)
-		goto fail;
-
-	crtc_state->active = true;
-
-	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
-	if (ret != 0)
-		goto fail;
-	drm_atomic_set_fb_for_plane(primary_state, set->fb);
-	primary_state->crtc_x = 0;
-	primary_state->crtc_y = 0;
-	primary_state->crtc_h = set->mode->vdisplay;
-	primary_state->crtc_w = set->mode->hdisplay;
-	primary_state->src_x = set->x << 16;
-	primary_state->src_y = set->y << 16;
-	primary_state->src_h = set->mode->vdisplay << 16;
-	primary_state->src_w = set->mode->hdisplay << 16;
-
-commit:
-	ret = update_output_state(state, set);
-	if (ret)
 		goto fail;
 
 	ret = drm_atomic_commit(state);
@@ -1775,6 +1733,73 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_set_config);
+
+/* just used from fb-helper and atomic-helper: */
+int __drm_atomic_helper_set_config(struct drm_mode_set *set,
+		struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane_state *primary_state;
+	struct drm_crtc *crtc = set->crtc;
+	int ret;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(primary_state))
+		return PTR_ERR(primary_state);
+
+	if (!set->mode) {
+		WARN_ON(set->fb);
+		WARN_ON(set->num_connectors);
+
+		ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
+		if (ret != 0)
+			return ret;
+
+		crtc_state->active = false;
+
+		ret = drm_atomic_set_crtc_for_plane(primary_state, NULL);
+		if (ret != 0)
+			return ret;
+
+		drm_atomic_set_fb_for_plane(primary_state, NULL);
+
+		goto commit;
+	}
+
+	WARN_ON(!set->fb);
+	WARN_ON(!set->num_connectors);
+
+	ret = drm_atomic_set_mode_for_crtc(crtc_state, set->mode);
+	if (ret != 0)
+		return ret;
+
+	crtc_state->active = true;
+
+	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
+	if (ret != 0)
+		return ret;
+
+	drm_atomic_set_fb_for_plane(primary_state, set->fb);
+	primary_state->crtc_x = 0;
+	primary_state->crtc_y = 0;
+	primary_state->crtc_h = set->mode->vdisplay;
+	primary_state->crtc_w = set->mode->hdisplay;
+	primary_state->src_x = set->x << 16;
+	primary_state->src_y = set->y << 16;
+	primary_state->src_h = set->mode->vdisplay << 16;
+	primary_state->src_w = set->mode->hdisplay << 16;
+
+commit:
+	ret = update_output_state(state, set);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 /**
  * drm_atomic_helper_crtc_set_property - helper for crtc properties
