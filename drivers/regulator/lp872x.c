@@ -903,6 +903,7 @@ static struct lp872x_platform_data
 static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp872x *lp;
+	struct lp872x_platform_data *pdata;
 	int ret;
 	const int lp872x_num_regulators[] = {
 		[LP8720] = LP8720_NUM_REGULATORS,
@@ -910,8 +911,10 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	};
 
 	if (cl->dev.of_node)
-		cl->dev.platform_data = lp872x_populate_pdata_from_dt(&cl->dev,
+		pdata = lp872x_populate_pdata_from_dt(&cl->dev,
 					      (enum lp872x_id)id->driver_data);
+	else
+		pdata = dev_get_platdata(&cl->dev);
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
@@ -927,7 +930,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	}
 
 	lp->dev = &cl->dev;
-	lp->pdata = dev_get_platdata(&cl->dev);
+	lp->pdata = pdata;
 	lp->chipid = id->driver_data;
 	i2c_set_clientdata(cl, lp);
 
