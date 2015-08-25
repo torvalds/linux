@@ -68,6 +68,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
 
 acpi_status acpi_tb_initialize_facs(void)
 {
+	struct acpi_table_facs *facs;
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
@@ -80,14 +81,14 @@ acpi_status acpi_tb_initialize_facs(void)
 		(void)acpi_get_table_by_index(acpi_gbl_xfacs_index,
 					      ACPI_CAST_INDIRECT_PTR(struct
 								     acpi_table_header,
-								     &acpi_gbl_facs32));
-		acpi_gbl_FACS = acpi_gbl_facs32;
+								     &facs));
+		acpi_gbl_FACS = facs;
 	} else if (acpi_gbl_FADT.facs) {
 		(void)acpi_get_table_by_index(acpi_gbl_facs_index,
 					      ACPI_CAST_INDIRECT_PTR(struct
 								     acpi_table_header,
-								     &acpi_gbl_facs64));
-		acpi_gbl_FACS = acpi_gbl_facs64;
+								     &facs));
+		acpi_gbl_FACS = facs;
 	}
 
 	/* If there is no FACS, just continue. There was already an error msg */

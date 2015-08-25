@@ -64,8 +64,6 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_xfacs_index, ACPI_INVALID_TABLE_INDEX);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_FACS);
-ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_facs32);
-ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_facs64);
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
