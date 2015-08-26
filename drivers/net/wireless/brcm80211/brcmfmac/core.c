@@ -83,6 +83,25 @@ char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 	return "<if_none>";
 }
 
+struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
+{
+	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
+		brcmf_err("ifidx %d out of range\n", ifidx);
+		return ERR_PTR(-ERANGE);
+	}
+
+	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
+	 * events this is easy because it contains the bssidx which maps
+	 * 1-on-1 to the netdev/ifp. But for data frames the ifidx is rcvd.
+	 * bssidx 1 is used for p2p0 and no data can be received or
+	 * transmitted on it. Therefor bssidx is ifidx + 1 if ifidx > 0
+	 */
+	if (ifidx)
+		ifidx++;
+
+	return drvr->iflist[ifidx];
+}
+
 static void _brcmf_set_multicast_list(struct work_struct *work)
 {
 	struct brcmf_if *ifp;
