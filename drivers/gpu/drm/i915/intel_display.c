@@ -14807,13 +14807,22 @@ intel_check_plane_mapping(struct intel_crtc *crtc)
 	return true;
 }
 
+static bool intel_crtc_has_encoders(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *encoder;
+
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
+		return true;
+
+	return false;
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *encoder;
 	u32 reg;
-	bool enable;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
 	reg = PIPECONF(crtc->config->cpu_transcoder);
@@ -14857,16 +14866,11 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
-	enable = false;
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
-		enable = true;
-		break;
-	}
-
-	if (!enable)
+	if (!intel_crtc_has_encoders(crtc))
 		intel_crtc_disable_noatomic(&crtc->base);
 
 	if (crtc->active != crtc->base.state->active) {
+		struct intel_encoder *encoder;
 
 		/* This can happen either due to bugs in the get_hw_state
 		 * functions or because of calls to intel_crtc_disable_noatomic,
