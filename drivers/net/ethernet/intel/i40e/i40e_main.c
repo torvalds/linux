@@ -1726,36 +1726,27 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 
 	/* remove filter if not in netdev list */
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-		bool found = false;
 
 		if (!f->is_netdev)
 			continue;
 
-		if (is_multicast_ether_addr(f->macaddr)) {
-			netdev_for_each_mc_addr(mca, netdev) {
-				if (ether_addr_equal(mca->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
-		} else {
-			netdev_for_each_uc_addr(uca, netdev) {
-				if (ether_addr_equal(uca->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
+		netdev_for_each_mc_addr(mca, netdev)
+			if (ether_addr_equal(mca->addr, f->macaddr))
+				goto bottom_of_search_loop;
 
-			for_each_dev_addr(netdev, ha) {
-				if (ether_addr_equal(ha->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
-		}
-		if (!found)
-			i40e_del_filter(
-			   vsi, f->macaddr, I40E_VLAN_ANY, false, true);
+		netdev_for_each_uc_addr(uca, netdev)
+			if (ether_addr_equal(uca->addr, f->macaddr))
+				goto bottom_of_search_loop;
+
+		for_each_dev_addr(netdev, ha)
+			if (ether_addr_equal(ha->addr, f->macaddr))
+				goto bottom_of_search_loop;
+
+		/* f->macaddr wasn't found in uc, mc, or ha list so delete it */
+		i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY, false, true);
+
+bottom_of_search_loop:
+		continue;
 	}
 
 	/* check for other flag changes */

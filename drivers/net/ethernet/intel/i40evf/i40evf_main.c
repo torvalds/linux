@@ -855,6 +855,7 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	struct i40evf_mac_filter *f, *ftmp;
 	struct netdev_hw_addr *uca;
 	struct netdev_hw_addr *mca;
+	struct netdev_hw_addr *ha;
 	int count = 50;
 
 	/* add addr if not already in the filter list */
@@ -876,29 +877,27 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	}
 	/* remove filter if not in netdev list */
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
-		bool found = false;
+		netdev_for_each_mc_addr(mca, netdev)
+			if (ether_addr_equal(mca->addr, f->macaddr))
+				goto bottom_of_search_loop;
 
-		if (is_multicast_ether_addr(f->macaddr)) {
-			netdev_for_each_mc_addr(mca, netdev) {
-				if (ether_addr_equal(mca->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
-		} else {
-			netdev_for_each_uc_addr(uca, netdev) {
-				if (ether_addr_equal(uca->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
-			if (ether_addr_equal(f->macaddr, adapter->hw.mac.addr))
-				found = true;
-		}
-		if (!found) {
-			f->remove = true;
-			adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
-		}
+		netdev_for_each_uc_addr(uca, netdev)
+			if (ether_addr_equal(uca->addr, f->macaddr))
+				goto bottom_of_search_loop;
+
+		for_each_dev_addr(netdev, ha)
+			if (ether_addr_equal(ha->addr, f->macaddr))
+				goto bottom_of_search_loop;
+
+		if (ether_addr_equal(f->macaddr, adapter->hw.mac.addr))
+			goto bottom_of_search_loop;
+
+		/* f->macaddr wasn't found in uc, mc, or ha list so delete it */
+		f->remove = true;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+
+bottom_of_search_loop:
+		continue;
 	}
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 }
