@@ -966,7 +966,7 @@ signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
 fence_rm_cb:
 	for (idx = 0; idx < count; ++idx) {
 		fence = array[idx];
-		if (fence)
+		if (fence && cb[idx].base.func)
 			fence_remove_callback(fence, &cb[idx].base);
 	}
 
