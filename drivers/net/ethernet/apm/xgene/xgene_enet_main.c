@@ -219,6 +219,11 @@ out:
 	return hopinfo;
 }
 
+static u16 xgene_enet_encode_len(u16 len)
+{
+	return (len == BUFLEN_16K) ? 0 : len;
+}
+
 static int xgene_enet_setup_tx_desc(struct xgene_enet_desc_ring *tx_ring,
 				    struct sk_buff *skb)
 {
@@ -227,27 +232,36 @@ static int xgene_enet_setup_tx_desc(struct xgene_enet_desc_ring *tx_ring,
 	dma_addr_t dma_addr;
 	u16 tail = tx_ring->tail;
 	u64 hopinfo;
+	u32 len, hw_len;
+	u8 count = 1;
 
 	raw_desc = &tx_ring->raw_desc[tail];
 	memset(raw_desc, 0, sizeof(struct xgene_enet_raw_desc));
 
-	dma_addr = dma_map_single(dev, skb->data, skb->len, DMA_TO_DEVICE);
+	len = skb_headlen(skb);
+	hw_len = xgene_enet_encode_len(len);
+
+	dma_addr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
 		netdev_err(tx_ring->ndev, "DMA mapping error\n");
 		return -EINVAL;
 	}
 
 	/* Hardware expects descriptor in little endian format */
-	raw_desc->m0 = cpu_to_le64(tail);
 	raw_desc->m1 = cpu_to_le64(SET_VAL(DATAADDR, dma_addr) |
-				   SET_VAL(BUFDATALEN, skb->len) |
+				   SET_VAL(BUFDATALEN, hw_len) |
 				   SET_BIT(COHERENT));
+
+	raw_desc->m0 = cpu_to_le64(SET_VAL(USERINFO, tail));
 	hopinfo = xgene_enet_work_msg(skb);
 	raw_desc->m3 = cpu_to_le64(SET_VAL(HENQNUM, tx_ring->dst_ring_num) |
 				   hopinfo);
 	tx_ring->cp_ring->cp_skb[tail] = skb;
 
-	return 0;
+	tail = (tail + 1) & (tx_ring->slots - 1);
+	tx_ring->tail = tail;
+
+	return count;
 }
 
 static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
@@ -257,6 +271,7 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 	struct xgene_enet_desc_ring *tx_ring = pdata->tx_ring;
 	struct xgene_enet_desc_ring *cp_ring = tx_ring->cp_ring;
 	u32 tx_level, cq_level;
+	int count;
 
 	tx_level = pdata->ring_ops->len(tx_ring);
 	cq_level = pdata->ring_ops->len(cp_ring);
@@ -266,14 +281,14 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (xgene_enet_setup_tx_desc(tx_ring, skb)) {
+	count = xgene_enet_setup_tx_desc(tx_ring, skb);
+	if (count <= 0) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
-	pdata->ring_ops->wr_cmd(tx_ring, 1);
+	pdata->ring_ops->wr_cmd(tx_ring, count);
 	skb_tx_timestamp(skb);
-	tx_ring->tail = (tx_ring->tail + 1) & (tx_ring->slots - 1);
 
 	pdata->stats.tx_packets++;
 	pdata->stats.tx_bytes += skb->len;
