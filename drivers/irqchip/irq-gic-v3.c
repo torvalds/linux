@@ -70,6 +70,11 @@ static inline int gic_irq_in_rdist(struct irq_data *d)
 	return gic_irq(d) < 32;
 }
 
+static inline bool forwarded_irq(struct irq_data *d)
+{
+	return d->handler_data != NULL;
+}
+
 static inline void __iomem *gic_dist_base(struct irq_data *d)
 {
 	if (gic_irq_in_rdist(d))	/* SGI+PPI -> SGI_base for this CPU */
@@ -236,6 +241,16 @@ static void gic_mask_irq(struct irq_data *d)
 static void gic_eoimode1_mask_irq(struct irq_data *d)
 {
 	gic_mask_irq(d);
+	/*
+	 * When masking a forwarded interrupt, make sure it is
+	 * deactivated as well.
+	 *
+	 * This ensures that an interrupt that is getting
+	 * disabled/masked will not get "stuck", because there is
+	 * noone to deactivate it (guest is being terminated).
+	 */
+	if (forwarded_irq(d))
+		gic_poke_irq(d, GICD_ICACTIVER);
 }
 
 static void gic_unmask_irq(struct irq_data *d)
@@ -306,9 +321,10 @@ static void gic_eoi_irq(struct irq_data *d)
 static void gic_eoimode1_eoi_irq(struct irq_data *d)
 {
 	/*
-	 * No need to deactivate an LPI.
+	 * No need to deactivate an LPI, or an interrupt that
+	 * is is getting forwarded to a vcpu.
 	 */
-	if (gic_irq(d) >= 8192)
+	if (gic_irq(d) >= 8192 || forwarded_irq(d))
 		return;
 	gic_write_dir(gic_irq(d));
 }
@@ -337,6 +353,12 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	return gic_configure_irq(irq, type, base, rwp_wait);
+}
+
+static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
+{
+	d->handler_data = vcpu;
+	return 0;
 }
 
 static u64 gic_mpidr_to_affinity(u64 mpidr)
@@ -703,6 +725,7 @@ static struct irq_chip gic_eoimode1_chip = {
 	.irq_set_affinity	= gic_set_affinity,
 	.irq_get_irqchip_state	= gic_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gic_irq_set_irqchip_state,
+	.irq_set_vcpu_affinity	= gic_irq_set_vcpu_affinity,
 	.flags			= IRQCHIP_SET_TYPE_MASKED,
 };
 
