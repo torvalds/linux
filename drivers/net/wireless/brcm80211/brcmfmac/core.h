@@ -122,6 +122,7 @@ struct brcmf_pub {
 	struct mac_address addresses[BRCMF_MAX_IFS];
 
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
+	s32 if2bss[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];

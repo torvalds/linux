@@ -85,21 +85,20 @@ char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
 {
+	struct brcmf_if *ifp;
+	s32 bssidx;
+
 	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("ifidx %d out of range\n", ifidx);
 		return NULL;
 	}
 
-	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
-	 * events this is easy because it contains the bssidx which maps
-	 * 1-on-1 to the netdev/ifp. But for data frames the ifidx is rcvd.
-	 * bssidx 1 is used for p2p0 and no data can be received or
-	 * transmitted on it. Therefor bssidx is ifidx + 1 if ifidx > 0
-	 */
-	if (ifidx)
-		ifidx++;
+	ifp = NULL;
+	bssidx = drvr->if2bss[ifidx];
+	if (bssidx >= 0)
+		ifp = drvr->iflist[bssidx];
 
-	return drvr->iflist[ifidx];
+	return ifp;
 }
 
 static void _brcmf_set_multicast_list(struct work_struct *work)
@@ -831,6 +830,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
+		/* store mapping ifidx to bssidx */
+		drvr->if2bss[ifidx] = bssidx;
 	}
 
 	ifp->drvr = drvr;
@@ -855,6 +856,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	struct brcmf_if *ifp;
 
 	ifp = drvr->iflist[bssidx];
+	drvr->if2bss[ifp->ifidx] = -1;
 	drvr->iflist[bssidx] = NULL;
 	if (!ifp) {
 		brcmf_err("Null interface, idx=%d\n", bssidx);
@@ -862,6 +864,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	}
 	brcmf_dbg(TRACE, "Enter, idx=%d, ifidx=%d\n", bssidx, ifp->ifidx);
 	if (ifp->ndev) {
+		drvr->if2bss[ifp->ifidx] = -1;
 		if (bssidx == 0) {
 			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
 				rtnl_lock();
@@ -926,6 +929,7 @@ int brcmf_attach(struct device *dev)
 	if (!drvr)
 		return -ENOMEM;
 
+	memset(drvr->if2bss, 0xFF, sizeof(drvr->if2bss));
 	mutex_init(&drvr->proto_block);
 
 	/* Link to bus module */
