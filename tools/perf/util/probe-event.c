@@ -1519,9 +1519,31 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 	} else
 		p = argv[1];
 	fmt1_str = strtok_r(p, "+", &fmt);
-	if (fmt1_str[0] == '0')	/* only the address started with 0x */
-		tp->address = strtoul(fmt1_str, NULL, 0);
-	else {
+	/* only the address started with 0x */
+	if (fmt1_str[0] == '0')	{
+		/*
+		 * Fix a special case:
+		 * if address == 0, kernel reports something like:
+		 * p:probe_libc/abs_0 /lib/libc-2.18.so:0x          (null) arg1=%ax
+		 * Newer kernel may fix that, but we want to
+		 * support old kernel also.
+		 */
+		if (strcmp(fmt1_str, "0x") == 0) {
+			if (!argv[2] || strcmp(argv[2], "(null)")) {
+				ret = -EINVAL;
+				goto out;
+			}
+			tp->address = 0;
+
+			free(argv[2]);
+			for (i = 2; argv[i + 1] != NULL; i++)
+				argv[i] = argv[i + 1];
+
+			argv[i] = NULL;
+			argc -= 1;
+		} else
+			tp->address = strtoul(fmt1_str, NULL, 0);
+	} else {
 		/* Only the symbol-based probe has offset */
 		tp->symbol = strdup(fmt1_str);
 		if (tp->symbol == NULL) {
