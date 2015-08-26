@@ -222,7 +222,6 @@ static struct platform_driver snd_rk_mc_driver = {
 	.probe = snd_rk_mc_probe,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = rockchip_max98090_of_match,
 	},
