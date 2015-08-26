@@ -97,7 +97,7 @@
 #define I40E_MAX_USER_PRIORITY        8
 #define I40E_DEFAULT_MSG_ENABLE       4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT   10
-#define I40E_INT_NAME_STR_LEN        (IFNAMSIZ + 9)
+#define I40E_INT_NAME_STR_LEN        (IFNAMSIZ + 16)
 
 /* Ethtool Private Flags */
 #define I40E_PRIV_FLAGS_NPAR_FLAG	BIT(0)
