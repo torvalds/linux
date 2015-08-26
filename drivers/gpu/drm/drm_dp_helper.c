@@ -500,6 +500,15 @@ static int drm_dp_i2c_retry_count(const struct drm_dp_aux_msg *msg,
 }
 
 /*
+ * FIXME currently assumes 10 kHz as some real world devices seem
+ * to require it. We should query/set the speed via DPCD if supported.
+ */
+static int dp_aux_i2c_speed_khz __read_mostly = 10;
+module_param_unsafe(dp_aux_i2c_speed_khz, int, 0644);
+MODULE_PARM_DESC(dp_aux_i2c_speed_khz,
+		 "Assumed speed of the i2c bus in kHz, (1-400, default 10)");
+
+/*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
  * retrying the transaction as appropriate.  It is assumed that the
  * aux->transfer function does not modify anything in the msg other than the
@@ -517,10 +526,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	 * before giving up the AUX transaction.
 	 *
 	 * We also try to account for the i2c bus speed.
-	 * FIXME currently assumes 10 kHz as some real world devices seem
-	 * to require it. We should query/set the speed via DPCD if supported.
 	 */
-	int max_retries = max(7, drm_dp_i2c_retry_count(msg, 10));
+	int max_retries = max(7, drm_dp_i2c_retry_count(msg, dp_aux_i2c_speed_khz));
 
 	for (retry = 0, defer_i2c = 0; retry < (max_retries + defer_i2c); retry++) {
 		mutex_lock(&aux->hw_mutex);
