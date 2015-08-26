@@ -135,6 +135,39 @@ intel_pch_rawclk(struct drm_device *dev)
 	return I915_READ(PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK;
 }
 
+/* hrawclock is 1/4 the FSB frequency */
+int intel_hrawclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t clkcfg;
+
+	/* There is no CLKCFG reg in Valleyview. VLV hrawclk is 200 MHz */
+	if (IS_VALLEYVIEW(dev))
+		return 200;
+
+	clkcfg = I915_READ(CLKCFG);
+	switch (clkcfg & CLKCFG_FSB_MASK) {
+	case CLKCFG_FSB_400:
+		return 100;
+	case CLKCFG_FSB_533:
+		return 133;
+	case CLKCFG_FSB_667:
+		return 166;
+	case CLKCFG_FSB_800:
+		return 200;
+	case CLKCFG_FSB_1067:
+		return 266;
+	case CLKCFG_FSB_1333:
+		return 333;
+	/* these two are just a guess; one of them might be right */
+	case CLKCFG_FSB_1600:
+	case CLKCFG_FSB_1600_ALT:
+		return 400;
+	default:
+		return 133;
+	}
+}
+
 static inline u32 /* units of 100MHz */
 intel_fdi_link_freq(struct drm_device *dev)
 {
