@@ -1866,7 +1866,7 @@ static int convert_to_perf_probe_point(struct probe_trace_point *tp,
 	if (tp->symbol) {
 		pp->function = strdup(tp->symbol);
 		pp->offset = tp->offset;
-	} else if (!tp->module && !is_kprobe) {
+	} else {
 		ret = e_snprintf(buf, 128, "0x%" PRIx64, (u64)tp->address);
 		if (ret < 0)
 			return ret;
