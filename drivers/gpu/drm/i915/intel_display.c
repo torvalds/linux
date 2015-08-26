@@ -8059,6 +8059,14 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	else
 		i9xx_crtc_clock_get(crtc, pipe_config);
 
+	/*
+	 * Normally the dotclock is filled in by the encoder .get_config()
+	 * but in case the pipe is enabled w/o any ports we need a sane
+	 * default.
+	 */
+	pipe_config->base.adjusted_mode.crtc_clock =
+		pipe_config->port_clock / pipe_config->pixel_multiplier;
+
 	return true;
 }
 
