@@ -935,7 +935,7 @@ static struct samsung_cmu_info fsys1_cmu_info __initdata = {
 	.nr_mux_clks		= ARRAY_SIZE(fsys1_mux_clks),
 	.gate_clks		= fsys1_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(fsys1_gate_clks),
-	.nr_clk_ids		= TOP1_NR_CLK,
+	.nr_clk_ids		= FSYS1_NR_CLK,
 	.clk_regs		= fsys1_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(fsys1_clk_regs),
 };
