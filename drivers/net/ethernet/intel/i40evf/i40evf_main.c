@@ -489,8 +489,7 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 			q_vector);
 		if (err) {
 			dev_info(&adapter->pdev->dev,
-				 "%s: request_irq failed, error: %d\n",
-				__func__, err);
+				 "Request_irq failed, error: %d\n", err);
 			goto free_queue_irqs;
 		}
 		/* assign the mask for this irq */
@@ -1853,8 +1852,7 @@ static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter)
 		if (!err)
 			continue;
 		dev_err(&adapter->pdev->dev,
-			"%s: Allocation for Tx Queue %u failed\n",
-			__func__, i);
+			"Allocation for Tx Queue %u failed\n", i);
 		break;
 	}
 
@@ -1881,8 +1879,7 @@ static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter)
 		if (!err)
 			continue;
 		dev_err(&adapter->pdev->dev,
-			"%s: Allocation for Rx Queue %u failed\n",
-			__func__, i);
+			"Allocation for Rx Queue %u failed\n", i);
 		break;
 	}
 	return err;
