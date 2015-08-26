@@ -37,7 +37,6 @@ struct snd_usb_audio {
 	struct usb_interface *pm_intf;
 	u32 usb_id;
 	struct mutex mutex;
-	unsigned int probing:1;
 	unsigned int autosuspended:1;	
 	atomic_t active;
 	atomic_t shutdown;
