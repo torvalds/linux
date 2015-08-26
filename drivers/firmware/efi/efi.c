@@ -492,7 +492,6 @@ static __initdata struct {
 };
 
 struct param_info {
-	int verbose;
 	int found;
 	void *params;
 };
@@ -523,21 +522,20 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 		else
 			*(u64 *)dest = val;
 
-		if (info->verbose)
+		if (efi_enabled(EFI_DBG))
 			pr_info("  %s: 0x%0*llx\n", dt_params[i].name,
 				dt_params[i].size * 2, val);
 	}
 	return 1;
 }
 
-int __init efi_get_fdt_params(struct efi_fdt_params *params, int verbose)
+int __init efi_get_fdt_params(struct efi_fdt_params *params)
 {
 	struct param_info info;
 	int ret;
 
 	pr_info("Getting EFI parameters from FDT:\n");
 
-	info.verbose = verbose;
 	info.found = 0;
 	info.params = params;
 

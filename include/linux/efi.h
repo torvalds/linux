@@ -902,7 +902,7 @@ extern void efi_initialize_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource, struct resource *bss_resource);
 extern void efi_get_time(struct timespec *now);
 extern void efi_reserve_boot_services(void);
-extern int efi_get_fdt_params(struct efi_fdt_params *params, int verbose);
+extern int efi_get_fdt_params(struct efi_fdt_params *params);
 extern struct efi_memory_map memmap;
 extern struct kobject *efi_kobj;
 
