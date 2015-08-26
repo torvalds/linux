@@ -29,6 +29,7 @@
 #include "linux/delay.h"
 #include "cz_smumgr.h"
 #include "tonga_smumgr.h"
+#include "fiji_smumgr.h"
 
 int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -57,6 +58,9 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		switch (smumgr->chip_id) {
 		case CHIP_TONGA:
 			tonga_smum_init(smumgr);
+			break;
+		case CHIP_FIJI:
+			fiji_smum_init(smumgr);
 			break;
 		default:
 			return -EINVAL;
