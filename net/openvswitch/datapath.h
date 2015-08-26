@@ -200,6 +200,10 @@ void ovs_dp_notify_wq(struct work_struct *work);
 int action_fifos_init(void);
 void action_fifos_exit(void);
 
+/* 'KEY' must not have any bits set outside of the 'MASK' */
+#define OVS_MASKED(OLD, KEY, MASK) ((KEY) | ((OLD) & ~(MASK)))
+#define OVS_SET_MASKED(OLD, KEY, MASK) ((OLD) = OVS_MASKED(OLD, KEY, MASK))
+
 #define OVS_NLERR(logging_allowed, fmt, ...)			\
 do {								\
 	if (logging_allowed && net_ratelimit())			\
