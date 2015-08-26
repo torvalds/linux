@@ -696,6 +696,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		goto asq_send_command_error;
 	}
 
+	hw->aq.asq_last_status = I40E_AQ_RC_OK;
+
 	val = rd32(hw, hw->aq.asq.head);
 	if (val >= hw->aq.num_asq_entries) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
