@@ -846,13 +846,13 @@ static struct samsung_mux_clock fsys0_mux_clks[] __initdata = {
 };
 
 static struct samsung_gate_clock fsys0_gate_clks[] __initdata = {
-	GATE(ACLK_AXIUS_USBDRD30X_FSYS0X, "aclk_axius_usbdrd30x_fsys0x",
-		"mout_aclk_fsys0_200_user",
-		ENABLE_ACLK_FSYS00, 19, 0, 0),
 	GATE(ACLK_PDMA1, "aclk_pdma1", "mout_aclk_fsys0_200_user",
 			ENABLE_ACLK_FSYS00, 3, 0, 0),
 	GATE(ACLK_PDMA0, "aclk_pdma0", "mout_aclk_fsys0_200_user",
 			ENABLE_ACLK_FSYS00, 4, 0, 0),
+	GATE(ACLK_AXIUS_USBDRD30X_FSYS0X, "aclk_axius_usbdrd30x_fsys0x",
+		"mout_aclk_fsys0_200_user",
+		ENABLE_ACLK_FSYS00, 19, 0, 0),
 
 	GATE(ACLK_USBDRD300, "aclk_usbdrd300", "mout_aclk_fsys0_200_user",
 		ENABLE_ACLK_FSYS01, 29, 0, 0),
@@ -884,7 +884,7 @@ static struct samsung_cmu_info fsys0_cmu_info __initdata = {
 	.nr_mux_clks		= ARRAY_SIZE(fsys0_mux_clks),
 	.gate_clks		= fsys0_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(fsys0_gate_clks),
-	.nr_clk_ids		= TOP1_NR_CLK,
+	.nr_clk_ids		= FSYS0_NR_CLK,
 	.clk_regs		= fsys0_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(fsys0_clk_regs),
 };
