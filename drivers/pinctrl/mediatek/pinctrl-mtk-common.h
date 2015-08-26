@@ -256,6 +256,7 @@ struct mtk_pinctrl_devdata {
 struct mtk_pinctrl {
 	struct regmap	*regmap1;
 	struct regmap	*regmap2;
+	struct pinctrl_desc pctl_desc;
 	struct device           *dev;
 	struct gpio_chip	*chip;
 	struct mtk_pinctrl_group	*groups;
