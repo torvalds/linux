@@ -41,7 +41,6 @@ tools/include/asm-generic/bitops.h
 tools/include/linux/atomic.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
-tools/include/linux/export.h
 tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
