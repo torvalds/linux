@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx7d-12x12-lpddr3-arm2.dts"
+
+/ {
+	sound {
+		compatible = "fsl,imx7d-12x12-lpddr3-arm2-wm8958",
+			    "fsl,imx-audio-wm8958";
+		model = "wm8958-audio";
+		cpu-dai = <&sai1>;
+		audio-codec = <&codec>;
+		codec-master;
+		hp-det-gpios = <&gpio1 12 1>;
+	};
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog_1>;
+};
+
+&sai1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	status = "okay";
+};
+
+&sdma {
+	status = "okay";
+};
+
+&sim1 {
+	status = "disabled";
+};
+
+&usdhc2 {
+	no-1-8-v;
+};
