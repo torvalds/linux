@@ -53,6 +53,7 @@ IWL_EXPORT_SYMBOL(iwl_write32);
 u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
 {
 	u32 val = iwl_trans_read32(trans, ofs);
+
 	trace_iwlwifi_dev_ioread32(trans->dev, ofs, val);
 	return val;
 }
