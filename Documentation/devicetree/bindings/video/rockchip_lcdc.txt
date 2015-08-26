@@ -6,6 +6,7 @@ buffer to an external LCD interface.
 Required properties:
 - compatible: value should be one of the following
 		"rockchip,rk3288-lcdc"; /* for RK3288 SoCs */
+		"rockchip,rk3368-lcdc"; /* for RK3368 SoCs */
 - rockchip,prop: set the lcdc as primary or extend display.
 - rochchip,pwr18: set the controller IO voltage,0 is 3.3v,1 is 1.8v.
 - reg: physical base address and length of the LCDC registers set.
