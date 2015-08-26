@@ -1194,9 +1194,13 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		*ptr++ = '\0';
 	}
 
-	tmp = strdup(arg);
-	if (tmp == NULL)
-		return -ENOMEM;
+	if (arg[0] == '\0')
+		tmp = NULL;
+	else {
+		tmp = strdup(arg);
+		if (tmp == NULL)
+			return -ENOMEM;
+	}
 
 	if (file_spec)
 		pp->file = tmp;
