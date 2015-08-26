@@ -327,7 +327,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	prog = to_bpf(act);
 	spin_lock_bh(&prog->tcf_lock);
 
-	if (ret != ACT_P_CREATED)
+	if (res != ACT_P_CREATED)
 		tcf_bpf_prog_fill_cfg(prog, &old);
 
 	prog->bpf_ops = cfg.bpf_ops;
