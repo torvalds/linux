@@ -93,6 +93,17 @@ static struct pci_device_id ioat_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_HSW8) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_HSW9) },
 
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX0) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX1) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX2) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX3) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX4) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX5) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX6) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX7) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX8) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX9) },
+
 	/* I/OAT v3.3 platforms */
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BWD0) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BWD1) },
@@ -219,10 +230,29 @@ static bool is_hsw_ioat(struct pci_dev *pdev)
 
 }
 
+static bool is_bdx_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX0:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX1:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX3:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX4:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX5:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX6:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX7:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX8:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDX9:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool is_xeon_cb32(struct pci_dev *pdev)
 {
 	return is_jf_ioat(pdev) || is_snb_ioat(pdev) || is_ivb_ioat(pdev) ||
-		is_hsw_ioat(pdev);
+		is_hsw_ioat(pdev) || is_bdx_ioat(pdev);
 }
 
 bool is_bwd_ioat(struct pci_dev *pdev)
