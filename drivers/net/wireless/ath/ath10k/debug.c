@@ -323,7 +323,7 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	ret = ath10k_wmi_pull_fw_stats(ar, skb, &stats);
 	if (ret) {
 		ath10k_warn(ar, "failed to pull fw stats: %d\n", ret);
-		goto unlock;
+		goto free;
 	}
 
 	/* Stat data may exceed htc-wmi buffer limit. In such case firmware
@@ -386,7 +386,6 @@ free:
 	ath10k_debug_fw_stats_vdevs_free(&stats.vdevs);
 	ath10k_debug_fw_stats_peers_free(&stats.peers);
 
-unlock:
 	spin_unlock_bh(&ar->data_lock);
 }
 

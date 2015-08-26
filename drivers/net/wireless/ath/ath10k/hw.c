@@ -152,6 +152,6 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 	cc -= cc_prev - cc_fix;
 	rcc -= rcc_prev;
 
-	survey->time = CCNT_TO_MSEC(cc);
-	survey->time_busy = CCNT_TO_MSEC(rcc);
+	survey->time = CCNT_TO_MSEC(ar, cc);
+	survey->time_busy = CCNT_TO_MSEC(ar, rcc);
 }

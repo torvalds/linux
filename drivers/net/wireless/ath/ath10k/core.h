@@ -554,6 +554,7 @@ struct ath10k {
 	u8 mac_addr[ETH_ALEN];
 
 	enum ath10k_hw_rev hw_rev;
+	u16 dev_id;
 	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
@@ -608,6 +609,8 @@ struct ath10k {
 		 * for the hardware which have such requirement.
 		 */
 		bool continuous_frag_desc;
+
+		u32 channel_counters_freq_hz;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;

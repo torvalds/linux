@@ -806,7 +806,7 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
 	     u16 reply_id, void *reply, u8 reply_size, int to_msec)
 {
 	int rc;
-	int remain;
+	unsigned long remain;
 
 	mutex_lock(&wil->wmi_mutex);
 

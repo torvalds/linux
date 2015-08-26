@@ -552,8 +552,7 @@ enum ath10k_hw_rate_cck {
 #define SCRATCH_3_ADDRESS			ar->regs->scratch_3_address
 #define CPU_INTR_ADDRESS			0x0010
 
-/* Cycle counters are running at 88MHz */
-#define CCNT_TO_MSEC(x) ((x) / 88000)
+#define CCNT_TO_MSEC(ar, x) ((x) / ar->hw_params.channel_counters_freq_hz)
 
 /* Firmware indications to the Host via SCRATCH_3 register. */
 #define FW_INDICATOR_ADDRESS			ar->regs->fw_indicator_address
