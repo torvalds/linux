@@ -384,18 +384,20 @@ int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec)
 {
 	int ret;
 
-	hda_widget_sysfs_exit(codec);
+	if (device_is_registered(&codec->dev))
+		hda_widget_sysfs_exit(codec);
 	ret = snd_hdac_refresh_widgets(codec);
 	if (ret) {
 		dev_err(&codec->dev, "failed to refresh widget: %d\n", ret);
 		return ret;
 	}
-	ret = hda_widget_sysfs_init(codec);
-	if (ret) {
-		dev_err(&codec->dev, "failed to init sysfs: %d\n", ret);
-		return ret;
+	if (device_is_registered(&codec->dev)) {
+		ret = hda_widget_sysfs_init(codec);
+		if (ret) {
+			dev_err(&codec->dev, "failed to init sysfs: %d\n", ret);
+			return ret;
+		}
 	}
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_refresh_widget_sysfs);
