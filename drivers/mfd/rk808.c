@@ -1399,7 +1399,7 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	/******************************set sleep vol & dcdc mode******************/
 	#ifdef CONFIG_OF
 	rk808->pmic_sleep_gpio = pdev->pmic_sleep_gpio;
-	if (rk808->pmic_sleep_gpio) {
+	if (gpio_is_valid(rk808->pmic_sleep_gpio)) {
 			ret = gpio_request(rk808->pmic_sleep_gpio, "rk808_pmic_sleep");
 			if (ret < 0) {
 				dev_err(rk808->dev,"Failed to request gpio %d with ret:""%d\n",	rk808->pmic_sleep_gpio, ret);
