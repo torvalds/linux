@@ -12102,10 +12102,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	      (DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_NVSYNC)))
 		pipe_config->base.adjusted_mode.flags |= DRM_MODE_FLAG_NVSYNC;
 
-	/* Compute a starting value for pipe_config->pipe_bpp taking the source
-	 * plane pixel format and any sink constraints into account. Returns the
-	 * source plane bpp so that dithering can be selected on mismatches
-	 * after encoders and crtc also have had their say. */
 	base_bpp = compute_baseline_pipe_bpp(to_intel_crtc(crtc),
 					     pipe_config);
 	if (base_bpp < 0)
@@ -12174,7 +12170,7 @@ encoder_retry:
 	/* Dithering seems to not pass-through bits correctly when it should, so
 	 * only enable it on 6bpc panels. */
 	pipe_config->dither = pipe_config->pipe_bpp == 6*3;
-	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
+	DRM_DEBUG_KMS("hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
 fail:
