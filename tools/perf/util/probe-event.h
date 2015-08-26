@@ -59,6 +59,7 @@ struct perf_probe_point {
 	bool		retprobe;	/* Return probe flag */
 	char		*lazy_line;	/* Lazy matching pattern */
 	unsigned long	offset;		/* Offset from function entry */
+	unsigned long	abs_address;	/* Absolute address of the point */
 };
 
 /* Perf probe probing argument field chain */
@@ -155,5 +156,8 @@ int e_snprintf(char *str, size_t size, const char *format, ...)
 
 /* Maximum index number of event-name postfix */
 #define MAX_EVENT_INDEX	1024
+
+int copy_to_probe_trace_arg(struct probe_trace_arg *tvar,
+			    struct perf_probe_arg *pvar);
 
 #endif /*_PROBE_EVENT_H */
