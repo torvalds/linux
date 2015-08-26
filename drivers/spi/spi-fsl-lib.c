@@ -122,10 +122,6 @@ int mpc8xxx_spi_remove(struct device *dev)
 	master = dev_get_drvdata(dev);
 	mpc8xxx_spi = spi_master_get_devdata(master);
 
-	spi_unregister_master(master);
-
-	free_irq(mpc8xxx_spi->irq, mpc8xxx_spi);
-
 	if (mpc8xxx_spi->spi_remove)
 		mpc8xxx_spi->spi_remove(mpc8xxx_spi);
 

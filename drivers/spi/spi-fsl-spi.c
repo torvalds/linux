@@ -561,7 +561,6 @@ static irqreturn_t fsl_spi_irq(s32 irq, void *context_data)
 
 static void fsl_spi_remove(struct mpc8xxx_spi *mspi)
 {
-	iounmap(mspi->reg_base);
 	fsl_spi_cpm_free(mspi);
 }
 
@@ -639,10 +638,10 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 	if (ret)
 		goto err_cpm_init;
 
-	mpc8xxx_spi->reg_base = ioremap(mem->start, resource_size(mem));
+	mpc8xxx_spi->reg_base = devm_ioremap_resource(dev, mem);
 	if (mpc8xxx_spi->reg_base == NULL) {
 		ret = -ENOMEM;
-		goto err_ioremap;
+		goto err_probe;
 	}
 
 	if (mpc8xxx_spi->type == TYPE_GRLIB)
@@ -661,11 +660,11 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 					&mpc8xxx_spi->tx_shift, 8, 1);
 
 	/* Register for SPI Interrupt */
-	ret = request_irq(mpc8xxx_spi->irq, fsl_spi_irq,
-			  0, "fsl_spi", mpc8xxx_spi);
+	ret = devm_request_irq(dev, mpc8xxx_spi->irq, fsl_spi_irq,
+			       0, "fsl_spi", mpc8xxx_spi);
 
 	if (ret != 0)
-		goto free_irq;
+		goto err_probe;
 
 	reg_base = mpc8xxx_spi->reg_base;
 
@@ -686,20 +685,16 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 
 	mpc8xxx_spi_write_reg(&reg_base->mode, regval);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret < 0)
-		goto unreg_master;
+		goto err_probe;
 
 	dev_info(dev, "at 0x%p (irq = %d), %s mode\n", reg_base,
 		 mpc8xxx_spi->irq, mpc8xxx_spi_strmode(mpc8xxx_spi->flags));
 
 	return master;
 
-unreg_master:
-	free_irq(mpc8xxx_spi->irq, mpc8xxx_spi);
-free_irq:
-	iounmap(mpc8xxx_spi->reg_base);
-err_ioremap:
+err_probe:
 	fsl_spi_cpm_free(mpc8xxx_spi);
 err_cpm_init:
 	spi_master_put(master);
