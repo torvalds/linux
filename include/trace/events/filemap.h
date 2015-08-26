@@ -82,7 +82,7 @@ DECLARE_EVENT_CLASS(mm_filemap_find_page_cache_miss,
 		}
 	),
 
-	TP_printk("path_name %s pos %lld count %lu miss %s",
+	TP_printk("path_name %s pos %lld count %zu miss %s",
 		  __entry->path_name,
 		  __entry->pos, __entry->count,
 		  (__entry->miss ? "yes" : "no"))
