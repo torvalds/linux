@@ -179,6 +179,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 {
 	struct brcmf_if_event *ifevent = data;
 	struct brcmf_if *ifp;
+	bool is_p2pdev;
 	int err = 0;
 
 	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u role: %u\n",
@@ -186,18 +187,16 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		  ifevent->flags, ifevent->role);
 
 	/* The P2P Device interface event must not be ignored
-	 * contrary to what firmware tells us. The only way to
-	 * distinguish the P2P Device is by looking at the ifidx
-	 * and bssidx received.
+	 * contrary to what firmware tells us.
 	 */
-	if (!(ifevent->ifidx == 0 && ifevent->bssidx == 1) &&
-	    (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
+	is_p2pdev = (ifevent->flags & BRCMF_E_IF_FLAG_NOIF) &&
+		    ifevent->role == BRCMF_E_IF_ROLE_P2P_CLIENT;
+	if (!is_p2pdev && (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
 		brcmf_dbg(EVENT, "event can be ignored\n");
 		return;
 	}
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
-		brcmf_err("invalid interface index: %u\n",
-			  ifevent->ifidx);
+		brcmf_err("invalid interface index: %u\n", ifevent->ifidx);
 		return;
 	}
 
@@ -207,7 +206,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		brcmf_dbg(EVENT, "adding %s (%pM)\n", emsg->ifname,
 			  emsg->addr);
 		ifp = brcmf_add_if(drvr, ifevent->bssidx, ifevent->ifidx,
-				   emsg->ifname, emsg->addr);
+				   is_p2pdev, emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;
 		brcmf_fws_add_interface(ifp);
