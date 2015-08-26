@@ -4747,7 +4747,8 @@ void brcmf_cfg80211_free_netdev(struct net_device *ndev)
 	ifp = netdev_priv(ndev);
 	vif = ifp->vif;
 
-	brcmf_free_vif(vif);
+	if (vif)
+		brcmf_free_vif(vif);
 	free_netdev(ndev);
 }
 

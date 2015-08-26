@@ -718,8 +718,6 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	}
 
 	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
-
-	ndev->destructor = brcmf_cfg80211_free_netdev;
 	return 0;
 
 fail:
@@ -727,6 +725,14 @@ fail:
 	ndev->netdev_ops = NULL;
 	free_netdev(ndev);
 	return -EBADE;
+}
+
+static void brcmf_net_detach(struct net_device *ndev)
+{
+	if (ndev->reg_state == NETREG_REGISTERED)
+		unregister_netdev(ndev);
+	else
+		brcmf_cfg80211_free_netdev(ndev);
 }
 
 static int brcmf_net_p2p_open(struct net_device *ndev)
@@ -805,8 +811,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 			  ifp->ndev->name);
 		if (ifidx) {
 			netif_stop_queue(ifp->ndev);
-			unregister_netdev(ifp->ndev);
-			free_netdev(ifp->ndev);
+			brcmf_net_detach(ifp->ndev);
 			drvr->iflist[bssidx] = NULL;
 		} else {
 			brcmf_err("ignore IF event\n");
@@ -828,6 +833,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		if (!ndev)
 			return ERR_PTR(-ENOMEM);
 
+		ndev->destructor = brcmf_cfg80211_free_netdev;
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
 		/* store mapping ifidx to bssidx */
@@ -879,8 +885,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
 		}
-		/* unregister will take care of freeing it */
-		unregister_netdev(ifp->ndev);
+		brcmf_net_detach(ifp->ndev);
 	}
 }
 
@@ -1056,11 +1061,11 @@ fail:
 			brcmf_fws_deinit(drvr);
 		}
 		if (drvr->iflist[0]) {
-			free_netdev(ifp->ndev);
+			brcmf_net_detach(ifp->ndev);
 			drvr->iflist[0] = NULL;
 		}
 		if (p2p_ifp) {
-			free_netdev(p2p_ifp->ndev);
+			brcmf_net_detach(p2p_ifp->ndev);
 			drvr->iflist[1] = NULL;
 		}
 		return ret;
