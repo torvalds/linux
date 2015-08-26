@@ -5836,15 +5836,23 @@ static void i40e_veb_link_event(struct i40e_veb *veb, bool link_up)
  **/
 static void i40e_link_event(struct i40e_pf *pf)
 {
-	bool new_link, old_link;
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	u8 new_link_speed, old_link_speed;
+	i40e_status status;
+	bool new_link, old_link;
 
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
 
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
-	new_link = i40e_get_link_status(&pf->hw);
+
+	status = i40e_get_link_status(&pf->hw, &new_link);
+	if (status) {
+		dev_dbg(&pf->pdev->dev, "couldn't get link state, status: %d\n",
+			status);
+		return;
+	}
+
 	old_link_speed = pf->hw.phy.link_info_old.link_speed;
 	new_link_speed = pf->hw.phy.link_info.link_speed;
 

@@ -2235,27 +2235,28 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 /**
  * i40e_get_link_status - get status of the HW network link
  * @hw: pointer to the hw struct
+ * @link_up: pointer to bool (true/false = linkup/linkdown)
  *
- * Returns true if link is up, false if link is down.
+ * Variable link_up true if link is up, false if link is down.
+ * The variable link_up is invalid if returned value of status != 0
  *
  * Side effect: LinkStatusEvent reporting becomes enabled
  **/
-bool i40e_get_link_status(struct i40e_hw *hw)
+i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
 {
 	i40e_status status = 0;
-	bool link_status = false;
 
 	if (hw->phy.get_link_info) {
 		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 
 		if (status)
-			goto i40e_get_link_status_exit;
+			i40e_debug(hw, I40E_DEBUG_LINK, "get link failed: status %d\n",
+				   status);
 	}
 
-	link_status = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
+	*link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
 
-i40e_get_link_status_exit:
-	return link_status;
+	return status;
 }
 
 /**
