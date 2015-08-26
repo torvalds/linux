@@ -1049,7 +1049,10 @@ int brcmf_bus_start(struct device *dev)
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);
-		brcmf_cfg80211_detach(drvr->config);
+		if (drvr->config) {
+			brcmf_cfg80211_detach(drvr->config);
+			drvr->config = NULL;
+		}
 		if (drvr->fws) {
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
