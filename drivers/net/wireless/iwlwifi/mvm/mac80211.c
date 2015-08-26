@@ -1577,20 +1577,6 @@ static struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
 	return NULL;
 }
 
-static int iwl_mvm_set_tx_power_old(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif, s8 tx_power)
-{
-	/* FW is in charge of regulatory enforcement */
-	struct iwl_reduce_tx_power_cmd reduce_txpwr_cmd = {
-		.mac_context_id = iwl_mvm_vif_from_mac80211(vif)->id,
-		.pwr_restriction = cpu_to_le16(tx_power),
-	};
-
-	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0,
-				    sizeof(reduce_txpwr_cmd),
-				    &reduce_txpwr_cmd);
-}
-
 static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				s16 tx_power)
 {
@@ -1601,9 +1587,6 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		.v2.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
 	int len = sizeof(cmd);
-
-	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_TX_POWER_DEV))
-		return iwl_mvm_set_tx_power_old(mvm, vif, tx_power);
 
 	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
 		cmd.v2.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
