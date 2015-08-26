@@ -1448,7 +1448,7 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	struct sk_buff *skb;
 	struct brcmf_skbuff_cb *skcb;
 	struct brcmf_fws_mac_descriptor *entry = NULL;
-	u8 ifidx;
+	struct brcmf_if *ifp;
 
 	brcmf_dbg(DATA, "flags %d\n", flags);
 
@@ -1497,15 +1497,16 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	}
 	brcmf_fws_macdesc_return_req_credit(skb);
 
-	if (brcmf_proto_hdrpull(fws->drvr, false, &ifidx, skb)) {
+	ret = brcmf_proto_hdrpull(fws->drvr, false, skb, &ifp);
+	if (ret) {
 		brcmu_pkt_buf_free_skb(skb);
 		return -EINVAL;
 	}
 	if (!remove_from_hanger)
-		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, ifidx,
+		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, ifp->ifidx,
 						    genbit, seq);
 	if (remove_from_hanger || ret)
-		brcmf_txfinalize(fws->drvr, skb, ifidx, true);
+		brcmf_txfinalize(fws->drvr, skb, ifp->ifidx, true);
 
 	return 0;
 }
@@ -1848,7 +1849,7 @@ static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 		entry->transit_count--;
 		if (entry->suppressed)
 			entry->suppr_transit_count--;
-		brcmf_proto_hdrpull(fws->drvr, false, &ifidx, skb);
+		(void)brcmf_proto_hdrpull(fws->drvr, false, skb, NULL);
 		goto rollback;
 	}
 

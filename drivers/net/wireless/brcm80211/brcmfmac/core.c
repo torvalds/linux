@@ -87,7 +87,7 @@ struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
 {
 	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("ifidx %d out of range\n", ifidx);
-		return ERR_PTR(-ERANGE);
+		return NULL;
 	}
 
 	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
@@ -539,17 +539,15 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_skb_reorder_data *rd;
-	u8 ifidx;
 	int ret;
 
 	brcmf_dbg(DATA, "Enter: %s: rxp=%p\n", dev_name(dev), skb);
 
 	/* process and remove protocol-specific header */
-	ret = brcmf_proto_hdrpull(drvr, true, &ifidx, skb);
-	ifp = drvr->iflist[ifidx];
+	ret = brcmf_proto_hdrpull(drvr, true, skb, &ifp);
 
 	if (ret || !ifp || !ifp->ndev) {
-		if ((ret != -ENODATA) && ifp)
+		if (ret != -ENODATA && ifp)
 			ifp->stats.rx_errors++;
 		brcmu_pkt_buf_free_skb(skb);
 		return;
@@ -592,17 +590,17 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
-	u8 ifidx;
+	struct brcmf_if *ifp;
 
 	/* await txstatus signal for firmware if active */
 	if (brcmf_fws_fc_active(drvr->fws)) {
 		if (!success)
 			brcmf_fws_bustxfail(drvr->fws, txp);
 	} else {
-		if (brcmf_proto_hdrpull(drvr, false, &ifidx, txp))
+		if (brcmf_proto_hdrpull(drvr, false, txp, &ifp))
 			brcmu_pkt_buf_free_skb(txp);
 		else
-			brcmf_txfinalize(drvr, txp, ifidx, success);
+			brcmf_txfinalize(drvr, txp, ifp->ifidx, success);
 	}
 }
 

@@ -522,7 +522,7 @@ static int brcmf_msgbuf_set_dcmd(struct brcmf_pub *drvr, int ifidx,
 
 
 static int brcmf_msgbuf_hdrpull(struct brcmf_pub *drvr, bool do_fws,
-				u8 *ifidx, struct sk_buff *skb)
+				struct sk_buff *skb, struct brcmf_if **ifp)
 {
 	return -ENODEV;
 }
@@ -1082,7 +1082,7 @@ brcmf_msgbuf_rx_skb(struct brcmf_msgbuf *msgbuf, struct sk_buff *skb,
 	struct brcmf_if *ifp;
 
 	ifp = brcmf_get_ifp(msgbuf->drvr, ifidx);
-	if (IS_ERR_OR_NULL(ifp) || !ifp->ndev) {
+	if (!ifp || !ifp->ndev) {
 		brcmf_err("Received pkt for invalid ifidx %d\n", ifidx);
 		brcmu_pkt_buf_free_skb(skb);
 		return;
