@@ -28,12 +28,19 @@ struct ovs_ct_len_tbl {
 	size_t minlen;
 };
 
+/* Metadata mark for masked write to conntrack mark */
+struct md_mark {
+	u32 value;
+	u32 mask;
+};
+
 /* Conntrack action context for execution. */
 struct ovs_conntrack_info {
 	struct nf_conntrack_zone zone;
 	struct nf_conn *ct;
 	u32 flags;
 	u16 family;
+	struct md_mark mark;
 };
 
 static u16 key_to_nfproto(const struct sw_flow_key *key)
@@ -84,10 +91,12 @@ static u8 ovs_ct_get_state(enum ip_conntrack_info ctinfo)
 }
 
 static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
-				const struct nf_conntrack_zone *zone)
+				const struct nf_conntrack_zone *zone,
+				const struct nf_conn *ct)
 {
 	key->ct.state = state;
 	key->ct.zone = zone->id;
+	key->ct.mark = ct ? ct->mark : 0;
 }
 
 /* Update 'key' based on skb->nfct. If 'post_ct' is true, then OVS has
@@ -110,7 +119,7 @@ static void ovs_ct_update_key(const struct sk_buff *skb,
 	} else if (post_ct) {
 		state = OVS_CS_F_TRACKED | OVS_CS_F_INVALID;
 	}
-	__ovs_ct_update_key(key, state, zone);
+	__ovs_ct_update_key(key, state, zone, ct);
 }
 
 void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
@@ -126,6 +135,35 @@ int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    nla_put_u16(skb, OVS_KEY_ATTR_CT_ZONE, key->ct.zone))
 		return -EMSGSIZE;
+
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
+	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, key->ct.mark))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int ovs_ct_set_mark(struct sk_buff *skb, struct sw_flow_key *key,
+			   u32 ct_mark, u32 mask)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+	u32 new_mark;
+
+	if (!IS_ENABLED(CONFIG_NF_CONNTRACK_MARK))
+		return -ENOTSUPP;
+
+	/* The connection could be invalid, in which case set_mark is no-op. */
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return 0;
+
+	new_mark = ct_mark | (ct->mark & ~(mask));
+	if (ct->mark != new_mark) {
+		ct->mark = new_mark;
+		nf_conntrack_event_cache(IPCT_MARK, ct);
+		key->ct.mark = new_mark;
+	}
 
 	return 0;
 }
@@ -247,7 +285,7 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		u8 state;
 
 		state = OVS_CS_F_TRACKED | OVS_CS_F_NEW | OVS_CS_F_RELATED;
-		__ovs_ct_update_key(key, state, &info->zone);
+		__ovs_ct_update_key(key, state, &info->zone, exp->master);
 	} else {
 		int err;
 
@@ -310,7 +348,13 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 		err = ovs_ct_commit(net, key, info, skb);
 	else
 		err = ovs_ct_lookup(net, key, info, skb);
+	if (err)
+		goto err;
 
+	if (info->mark.mask)
+		err = ovs_ct_set_mark(skb, key, info->mark.value,
+				      info->mark.mask);
+err:
 	skb_push(skb, nh_ofs);
 	return err;
 }
@@ -320,6 +364,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 				    .maxlen = sizeof(u32) },
 	[OVS_CT_ATTR_ZONE]	= { .minlen = sizeof(u16),
 				    .maxlen = sizeof(u16) },
+	[OVS_CT_ATTR_MARK]	= { .minlen = sizeof(struct md_mark),
+				    .maxlen = sizeof(struct md_mark) },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -355,6 +401,14 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			info->zone.id = nla_get_u16(a);
 			break;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_MARK
+		case OVS_CT_ATTR_MARK: {
+			struct md_mark *mark = nla_data(a);
+
+			info->mark = *mark;
+			break;
+		}
+#endif
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -376,6 +430,9 @@ bool ovs_ct_verify(enum ovs_key_attr attr)
 		return true;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    attr == OVS_KEY_ATTR_CT_ZONE)
+		return true;
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
+	    attr == OVS_KEY_ATTR_CT_MARK)
 		return true;
 
 	return false;
@@ -438,6 +495,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 		return -EMSGSIZE;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    nla_put_u16(skb, OVS_CT_ATTR_ZONE, ct_info->zone.id))
+		return -EMSGSIZE;
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
+	    nla_put(skb, OVS_CT_ATTR_MARK, sizeof(ct_info->mark),
+		    &ct_info->mark))
 		return -EMSGSIZE;
 
 	nla_nest_end(skb, start);

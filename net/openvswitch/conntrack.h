@@ -65,6 +65,7 @@ static inline void ovs_ct_fill_key(const struct sk_buff *skb,
 {
 	key->ct.state = 0;
 	key->ct.zone = 0;
+	key->ct.mark = 0;
 }
 
 static inline int ovs_ct_put_key(const struct sw_flow_key *key,
