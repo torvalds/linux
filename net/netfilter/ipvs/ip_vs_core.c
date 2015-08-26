@@ -436,7 +436,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	 * with persistence the connection is created on SYN+ACK.
 	 */
 	if (pptr[0] == FTPDATA) {
-		IP_VS_DBG_PKT(12, svc->af, pp, skb, 0,
+		IP_VS_DBG_PKT(12, svc->af, pp, skb, iph->off,
 			      "Not scheduling FTPDATA");
 		return NULL;
 	}
@@ -446,7 +446,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	 */
 	if ((!skb->dev || skb->dev->flags & IFF_LOOPBACK) &&
 	    (cp = pp->conn_in_get(svc->af, skb, iph, 1))) {
-		IP_VS_DBG_PKT(12, svc->af, pp, skb, 0,
+		IP_VS_DBG_PKT(12, svc->af, pp, skb, iph->off,
 			      "Not scheduling reply for existing connection");
 		__ip_vs_conn_put(cp);
 		return NULL;
@@ -934,8 +934,8 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 	IP_VS_DBG_PKT(11, AF_INET, pp, skb, offset,
 		      "Checking outgoing ICMP for");
 
-	ip_vs_fill_ip4hdr(cih, &ciph);
-	ciph.len += offset;
+	ip_vs_fill_iph_skb_off(AF_INET, skb, offset, &ciph);
+
 	/* The embedded headers contain source and dest in reverse order */
 	cp = pp->conn_out_get(AF_INET, skb, &ciph, 1);
 	if (!cp)
@@ -951,12 +951,11 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 			     unsigned int hooknum, struct ip_vs_iphdr *ipvsh)
 {
 	struct icmp6hdr	_icmph, *ic;
-	struct ipv6hdr _ip6h, *ip6h; /* The ip header contained within ICMP */
 	struct ip_vs_iphdr ciph = {.flags = 0, .fragoffs = 0};/*Contained IP */
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	union nf_inet_addr snet;
-	unsigned int writable;
+	unsigned int offset;
 
 	*related = 1;
 	ic = frag_safe_skb_hp(skb, ipvsh->len, sizeof(_icmph), &_icmph, ipvsh);
@@ -984,17 +983,9 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
 		  &ipvsh->saddr, &ipvsh->daddr);
 
-	/* Now find the contained IP header */
-	ciph.len = ipvsh->len + sizeof(_icmph);
-	ip6h = skb_header_pointer(skb, ciph.len, sizeof(_ip6h), &_ip6h);
-	if (ip6h == NULL)
+	if (!ip_vs_fill_iph_skb_off(AF_INET6, skb, ipvsh->len + sizeof(_icmph),
+				    &ciph))
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
-	ciph.saddr.in6 = ip6h->saddr; /* conn_out_get() handles reverse order */
-	ciph.daddr.in6 = ip6h->daddr;
-	/* skip possible IPv6 exthdrs of contained IPv6 packet */
-	ciph.protocol = ipv6_find_hdr(skb, &ciph.len, -1, &ciph.fragoffs, NULL);
-	if (ciph.protocol < 0)
-		return NF_ACCEPT; /* Contained IPv6 hdr looks wrong, ignore */
 
 	pp = ip_vs_proto_get(ciph.protocol);
 	if (!pp)
@@ -1006,9 +997,9 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 		return NF_ACCEPT;
 
 	snet.in6 = ciph.saddr.in6;
-	writable = ciph.len;
+	offset = ciph.len;
 	return handle_response_icmp(AF_INET6, skb, &snet, ciph.protocol, cp,
-				    pp, writable, sizeof(struct ipv6hdr),
+				    pp, offset, sizeof(struct ipv6hdr),
 				    hooknum);
 }
 #endif
@@ -1093,7 +1084,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 {
 	struct ip_vs_protocol *pp = pd->pp;
 
-	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Outgoing packet");
+	IP_VS_DBG_PKT(11, af, pp, skb, iph->off, "Outgoing packet");
 
 	if (!skb_make_writable(skb, iph->len))
 		goto drop;
@@ -1130,7 +1121,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	if (ip_vs_route_me_harder(af, skb, hooknum))
 		goto drop;
 
-	IP_VS_DBG_PKT(10, af, pp, skb, 0, "After SNAT");
+	IP_VS_DBG_PKT(10, af, pp, skb, iph->off, "After SNAT");
 
 	ip_vs_out_stats(cp, skb);
 	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pd);
@@ -1221,7 +1212,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 					       ip_vs_defrag_user(hooknum)))
 				return NF_STOLEN;
 
-			ip_vs_fill_ip4hdr(skb_network_header(skb), &iph);
+			ip_vs_fill_iph_skb(AF_INET, skb, &iph);
 		}
 
 	/*
@@ -1272,7 +1263,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 			}
 		}
 	}
-	IP_VS_DBG_PKT(12, af, pp, skb, 0,
+	IP_VS_DBG_PKT(12, af, pp, skb, iph.off,
 		      "ip_vs_out: packet continues traversal as normal");
 	return NF_ACCEPT;
 }
@@ -1416,9 +1407,9 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		      "Checking incoming ICMP for");
 
 	offset2 = offset;
-	ip_vs_fill_ip4hdr(cih, &ciph);
-	ciph.len += offset;
+	ip_vs_fill_iph_skb_off(AF_INET, skb, offset, &ciph);
 	offset = ciph.len;
+
 	/* The embedded headers contain source and dest in reverse order.
 	 * For IPIP this is error for request, not for reply.
 	 */
@@ -1511,13 +1502,12 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 			    unsigned int hooknum, struct ip_vs_iphdr *iph)
 {
 	struct net *net = NULL;
-	struct ipv6hdr _ip6h, *ip6h;
 	struct icmp6hdr	_icmph, *ic;
 	struct ip_vs_iphdr ciph = {.flags = 0, .fragoffs = 0};/*Contained IP */
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
-	unsigned int offs_ciph, writable, verdict;
+	unsigned int offset, verdict;
 
 	*related = 1;
 
@@ -1546,18 +1536,9 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
 		  &iph->saddr, &iph->daddr);
 
-	/* Now find the contained IP header */
-	ciph.len = iph->len + sizeof(_icmph);
-	offs_ciph = ciph.len; /* Save ip header offset */
-	ip6h = skb_header_pointer(skb, ciph.len, sizeof(_ip6h), &_ip6h);
-	if (ip6h == NULL)
-		return NF_ACCEPT; /* The packet looks wrong, ignore */
-	ciph.saddr.in6 = ip6h->saddr; /* conn_in_get() handles reverse order */
-	ciph.daddr.in6 = ip6h->daddr;
-	/* skip possible IPv6 exthdrs of contained IPv6 packet */
-	ciph.protocol = ipv6_find_hdr(skb, &ciph.len, -1, &ciph.fragoffs, NULL);
-	if (ciph.protocol < 0)
-		return NF_ACCEPT; /* Contained IPv6 hdr looks wrong, ignore */
+	offset = iph->len + sizeof(_icmph);
+	if (!ip_vs_fill_iph_skb_off(AF_INET6, skb, offset, &ciph))
+		return NF_ACCEPT;
 
 	net = skb_net(skb);
 	pd = ip_vs_proto_data_get(net, ciph.protocol);
@@ -1569,7 +1550,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	if (ciph.fragoffs)
 		return NF_ACCEPT;
 
-	IP_VS_DBG_PKT(11, AF_INET6, pp, skb, offs_ciph,
+	IP_VS_DBG_PKT(11, AF_INET6, pp, skb, offset,
 		      "Checking incoming ICMPv6 for");
 
 	/* The embedded headers contain source and dest in reverse order
@@ -1591,12 +1572,12 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	ip_vs_in_stats(cp, skb);
 
 	/* Need to mangle contained IPv6 header in ICMPv6 packet */
-	writable = ciph.len;
+	offset = ciph.len;
 	if (IPPROTO_TCP == ciph.protocol || IPPROTO_UDP == ciph.protocol ||
 	    IPPROTO_SCTP == ciph.protocol)
-		writable += 2 * sizeof(__u16); /* Also mangle ports */
+		offset += 2 * sizeof(__u16); /* Also mangle ports */
 
-	verdict = ip_vs_icmp_xmit_v6(skb, cp, pp, writable, hooknum, &ciph);
+	verdict = ip_vs_icmp_xmit_v6(skb, cp, pp, offset, hooknum, &ciph);
 
 	__ip_vs_conn_put(cp);
 
@@ -1720,12 +1701,13 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 			 * is missing module nf_defrag_ipv6
 			 */
 			IP_VS_DBG_RL("Unhandled frag, load nf_defrag_ipv6\n");
-			IP_VS_DBG_PKT(7, af, pp, skb, 0, "unhandled fragment");
+			IP_VS_DBG_PKT(7, af, pp, skb, iph.off,
+				      "unhandled fragment");
 		}
 		return NF_ACCEPT;
 	}
 
-	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Incoming packet");
+	IP_VS_DBG_PKT(11, af, pp, skb, iph.off, "Incoming packet");
 	/* Check the server status */
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		/* the destination server is not available */
