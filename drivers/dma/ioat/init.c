@@ -1186,6 +1186,31 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	return 0;
 }
 
+static void ioat_shutdown(struct pci_dev *pdev)
+{
+	struct ioatdma_device *ioat_dma = pci_get_drvdata(pdev);
+	struct ioatdma_chan *ioat_chan;
+	int i;
+
+	if (!ioat_dma)
+		return;
+
+	for (i = 0; i < IOAT_MAX_CHANS; i++) {
+		ioat_chan = ioat_dma->idx[i];
+		if (!ioat_chan)
+			continue;
+
+		spin_lock_bh(&ioat_chan->prep_lock);
+		set_bit(IOAT_CHAN_DOWN, &ioat_chan->state);
+		del_timer_sync(&ioat_chan->timer);
+		spin_unlock_bh(&ioat_chan->prep_lock);
+		/* this should quiesce then reset */
+		ioat_reset_hw(ioat_chan);
+	}
+
+	ioat_disable_interrupts(ioat_dma);
+}
+
 #define DRV_NAME "ioatdma"
 
 static struct pci_driver ioat_pci_driver = {
@@ -1193,6 +1218,7 @@ static struct pci_driver ioat_pci_driver = {
 	.id_table	= ioat_pci_tbl,
 	.probe		= ioat_pci_probe,
 	.remove		= ioat_remove,
+	.shutdown	= ioat_shutdown,
 };
 
 static struct ioatdma_device *
