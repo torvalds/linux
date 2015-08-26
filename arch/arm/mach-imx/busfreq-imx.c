@@ -248,8 +248,6 @@ static void exit_lpm_imx6_up(void)
 		imx_clk_set_rate(ahb_clk, LPAPM_CLK / 3);
 
 	imx_clk_set_rate(ocram_clk, LPAPM_CLK / 2);
-	/* set periph_clk2 to pll3 */
-	imx_clk_set_parent(periph_clk2_sel_clk, pll3_clk);
 	/* set periph clk to from pll2_bus on i.MX6UL */
 	if (cpu_is_imx6ul())
 		imx_clk_set_parent(periph_pre_clk, pll2_bus_clk);
@@ -257,6 +255,8 @@ static void exit_lpm_imx6_up(void)
 	else
 		imx_clk_set_parent(periph_pre_clk, pll2_400_clk);
 	imx_clk_set_parent(periph_clk, periph_pre_clk);
+	/* set periph_clk2 to pll3 */
+	imx_clk_set_parent(periph_clk2_sel_clk, pll3_clk);
 
 	if (ddr_type == IMX_DDR_TYPE_DDR3)
 		update_ddr_freq_imx6_up(ddr_normal_rate);
@@ -776,24 +776,21 @@ static int busfreq_probe(struct platform_device *pdev)
 	if (!ddr_freq_change_iram_base)
 		return -ENOMEM;
 
-	if (cpu_is_imx6q() || cpu_is_imx6dl() || cpu_is_imx6sx()) {
+	if (cpu_is_imx6()) {
 		osc_clk = devm_clk_get(&pdev->dev, "osc");
 		pll2_400_clk = devm_clk_get(&pdev->dev, "pll2_pfd2_396m");
 		pll2_200_clk = devm_clk_get(&pdev->dev, "pll2_198m");
 		pll2_bus_clk = devm_clk_get(&pdev->dev, "pll2_bus");
-		arm_clk = devm_clk_get(&pdev->dev, "arm");
 		pll3_clk = devm_clk_get(&pdev->dev, "pll3_usb_otg");
 		periph_clk = devm_clk_get(&pdev->dev, "periph");
 		periph_pre_clk = devm_clk_get(&pdev->dev, "periph_pre");
 		periph_clk2_clk = devm_clk_get(&pdev->dev, "periph_clk2");
 		periph_clk2_sel_clk = devm_clk_get(&pdev->dev,
 			"periph_clk2_sel");
-
 		if (IS_ERR(osc_clk) || IS_ERR(pll2_400_clk)
 			|| IS_ERR(pll2_200_clk) || IS_ERR(pll2_bus_clk)
-			|| IS_ERR(arm_clk) || IS_ERR(pll3_clk)
-			|| IS_ERR(periph_clk) || IS_ERR(periph_pre_clk)
-			|| IS_ERR(periph_clk2_clk)
+			|| IS_ERR(pll3_clk) || IS_ERR(periph_clk)
+			|| IS_ERR(periph_pre_clk) || IS_ERR(periph_clk2_clk)
 			|| IS_ERR(periph_clk2_sel_clk)) {
 			dev_err(busfreq_dev,
 				"%s: failed to get busfreq clk\n", __func__);
@@ -813,31 +810,39 @@ static int busfreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_is_imx6sx()) {
-		m4_clk = devm_clk_get(&pdev->dev, "m4");
+	if (cpu_is_imx6sx() || cpu_is_imx6ul()) {
 		ahb_clk = devm_clk_get(&pdev->dev, "ahb");
-		step_clk = devm_clk_get(&pdev->dev, "step");
-		mmdc_clk = devm_clk_get(&pdev->dev, "mmdc");
 		ocram_clk = devm_clk_get(&pdev->dev, "ocram");
-		periph_clk2_clk = devm_clk_get(&pdev->dev, "periph_clk2");
-		periph_clk2_sel_clk =
-			devm_clk_get(&pdev->dev, "periph_clk2_sel");
+		mmdc_clk = devm_clk_get(&pdev->dev, "mmdc");
+		periph2_clk = devm_clk_get(&pdev->dev, "periph2");
+		periph2_pre_clk = devm_clk_get(&pdev->dev, "periph2_pre");
 		periph2_clk2_clk = devm_clk_get(&pdev->dev, "periph2_clk2");
 		periph2_clk2_sel_clk =
 			devm_clk_get(&pdev->dev, "periph2_clk2_sel");
-		if (IS_ERR(m4_clk) || IS_ERR(arm_clk) || IS_ERR(osc_clk)
-			|| IS_ERR(ahb_clk) || IS_ERR(pll3_clk)
-			|| IS_ERR(step_clk) || IS_ERR(mmdc_clk)
-			|| IS_ERR(ocram_clk) || IS_ERR(pll2_400_clk)
-			|| IS_ERR(pll2_200_clk) || IS_ERR(pll2_bus_clk)
-			|| IS_ERR(periph_clk) || IS_ERR(periph_pre_clk)
-			|| IS_ERR(periph_clk2_clk)
-			|| IS_ERR(periph_clk2_sel_clk)
-			|| IS_ERR(periph2_clk) || IS_ERR(periph2_pre_clk)
-			|| IS_ERR(periph2_clk2_clk)
+		if (IS_ERR(ahb_clk) || IS_ERR(ocram_clk)
+			|| IS_ERR(mmdc_clk) || IS_ERR(periph2_clk)
+			|| IS_ERR(periph2_pre_clk) || IS_ERR(periph2_clk2_clk)
 			|| IS_ERR(periph2_clk2_sel_clk)) {
 			dev_err(busfreq_dev,
-				"%s: failed to get busfreq clk\n", __func__);
+				"%s: failed to get busfreq clk for imx6ul/sx/sl.\n", __func__);
+			return -EINVAL;
+		}
+	}
+
+	if (cpu_is_imx6sx()) {
+		m4_clk = devm_clk_get(&pdev->dev, "m4");
+		if (IS_ERR(m4_clk)) {
+			dev_err(busfreq_dev, "%s: failed to get m4 clk.\n", __func__);
+			return -EINVAL;
+		}
+	}
+
+	if (cpu_is_imx6sl()) {
+		arm_clk = devm_clk_get(&pdev->dev, "arm");
+		step_clk = devm_clk_get(&pdev->dev, "step");
+		if (IS_ERR(arm_clk) || IS_ERR(step_clk)) {
+			dev_err(busfreq_dev,
+				"%s failed to get busfreq clk for imx6sl.\n", __func__);
 			return -EINVAL;
 		}
 	}
@@ -923,18 +928,21 @@ static int busfreq_probe(struct platform_device *pdev)
 
 	if (cpu_is_imx7d())
 		err = init_ddrc_ddr_settings(pdev);
-	else if (cpu_is_imx6sx()) {
+	else if (cpu_is_imx6sx() || cpu_is_imx6ul()) {
 		ddr_type = imx_mmdc_get_ddr_type();
 		if (ddr_type == IMX_DDR_TYPE_DDR3)
 			err = init_mmdc_ddr3_settings_imx6_up(pdev);
 		else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
 			err = init_mmdc_lpddr2_settings(pdev);
+	} else if (cpu_is_imx6q() || cpu_is_imx6dl()) {
+		err = init_mmdc_ddr3_settings_imx6_smp(pdev);
+	}
+
+	if (cpu_is_imx6sx()) {
 		/* if M4 is enabled and rate > 24MHz, add high bus count */
 		if (imx_src_is_m4_enabled() &&
 			(clk_get_rate(m4_clk) > LPAPM_CLK))
-				high_bus_count++;
-	} else if (cpu_is_imx6q() || cpu_is_imx6dl()) {
-		err = init_mmdc_ddr3_settings_imx6_smp(pdev);
+			high_bus_count++;
 	}
 
 	if (err) {

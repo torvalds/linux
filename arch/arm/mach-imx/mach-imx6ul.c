@@ -91,6 +91,7 @@ static void __init imx6ul_map_io(void)
 {
 	debug_ll_io_init();
 	imx6_pm_map_io();
+	imx_busfreq_map_io();
 }
 
 static const char *imx6ul_dt_compat[] __initconst = {
