@@ -887,12 +887,13 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	}
 }
 
-void brcmf_remove_interface(struct brcmf_pub *drvr, u32 bssidx)
+void brcmf_remove_interface(struct brcmf_if *ifp)
 {
-	if (drvr->iflist[bssidx]) {
-		brcmf_fws_del_interface(drvr->iflist[bssidx]);
-		brcmf_del_if(drvr, bssidx);
-	}
+	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bssidx] != ifp))
+		return;
+
+	brcmf_fws_del_interface(ifp);
+	brcmf_del_if(ifp->drvr, ifp->bssidx);
 }
 
 int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
@@ -1122,7 +1123,7 @@ void brcmf_detach(struct device *dev)
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		brcmf_remove_interface(drvr, i);
+		brcmf_remove_interface(drvr->iflist[i]);
 
 	brcmf_cfg80211_detach(drvr->config);
 

@@ -4983,7 +4983,7 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 		brcmf_dbg(CONN, "AP mode link down\n");
 		complete(&cfg->vif_disabled);
 		if (ifp->vif->mbss)
-			brcmf_remove_interface(ifp->drvr, ifp->bssidx);
+			brcmf_remove_interface(ifp);
 		return 0;
 	}
 
