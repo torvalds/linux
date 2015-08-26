@@ -1057,11 +1057,13 @@ struct nfs4_statfs_res {
 struct nfs4_server_caps_arg {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh		       *fhandle;
+	const u32 *			bitmask;
 };
 
 struct nfs4_server_caps_res {
 	struct nfs4_sequence_res	seq_res;
 	u32				attr_bitmask[3];
+	u32				exclcreat_bitmask[3];
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;

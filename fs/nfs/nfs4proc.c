@@ -2893,8 +2893,10 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
+	u32 bitmask[3] = {}, minorversion = server->nfs_client->cl_minorversion;
 	struct nfs4_server_caps_arg args = {
 		.fhandle = fhandle,
+		.bitmask = bitmask,
 	};
 	struct nfs4_server_caps_res res = {};
 	struct rpc_message msg = {
@@ -2904,10 +2906,18 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 	};
 	int status;
 
+	bitmask[0] = FATTR4_WORD0_SUPPORTED_ATTRS |
+		     FATTR4_WORD0_FH_EXPIRE_TYPE |
+		     FATTR4_WORD0_LINK_SUPPORT |
+		     FATTR4_WORD0_SYMLINK_SUPPORT |
+		     FATTR4_WORD0_ACLSUPPORT;
+	if (minorversion)
+		bitmask[2] = FATTR4_WORD2_SUPPATTR_EXCLCREAT;
+
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (status == 0) {
 		/* Sanity check the server answers */
-		switch (server->nfs_client->cl_minorversion) {
+		switch (minorversion) {
 		case 0:
 			res.attr_bitmask[1] &= FATTR4_WORD1_NFS40_MASK;
 			res.attr_bitmask[2] = 0;
@@ -2960,6 +2970,8 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		server->cache_consistency_bitmask[0] &= FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE;
 		server->cache_consistency_bitmask[1] &= FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
 		server->cache_consistency_bitmask[2] = 0;
+		memcpy(server->exclcreat_bitmask, res.exclcreat_bitmask,
+			sizeof(server->exclcreat_bitmask));
 		server->acl_bitmask = res.acl_bitmask;
 		server->fh_expire_type = res.fh_expire_type;
 	}
