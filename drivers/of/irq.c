@@ -431,6 +431,7 @@ int of_irq_get_byname(struct device_node *dev, const char *name)
 
 	return of_irq_get(dev, index);
 }
+EXPORT_SYMBOL_GPL(of_irq_get_byname);
 
 /**
  * of_irq_count - Count the number of IRQs a node uses
