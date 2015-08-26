@@ -36,7 +36,7 @@ static void free_tcf(struct rcu_head *head)
 	kfree(p);
 }
 
-void tcf_hash_destroy(struct tc_action *a)
+static void tcf_hash_destroy(struct tc_action *a)
 {
 	struct tcf_common *p = a->priv;
 	struct tcf_hashinfo *hinfo = a->ops->hinfo;
@@ -52,7 +52,6 @@ void tcf_hash_destroy(struct tc_action *a)
 	 */
 	call_rcu(&p->tcfc_rcu, free_tcf);
 }
-EXPORT_SYMBOL(tcf_hash_destroy);
 
 int __tcf_hash_release(struct tc_action *a, bool bind, bool strict)
 {

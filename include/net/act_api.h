@@ -111,7 +111,6 @@ struct tc_action_ops {
 };
 
 int tcf_hash_search(struct tc_action *a, u32 index);
-void tcf_hash_destroy(struct tc_action *a);
 u32 tcf_hash_new_index(struct tcf_hashinfo *hinfo);
 int tcf_hash_check(u32 index, struct tc_action *a, int bind);
 int tcf_hash_create(u32 index, struct nlattr *est, struct tc_action *a,
