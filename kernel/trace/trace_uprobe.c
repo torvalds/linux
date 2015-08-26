@@ -601,7 +601,22 @@ static int probes_seq_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%c:%s/%s", c, tu->tp.call.class->system,
 			trace_event_name(&tu->tp.call));
-	seq_printf(m, " %s:0x%p", tu->filename, (void *)tu->offset);
+	seq_printf(m, " %s:", tu->filename);
+
+	/* Don't print "0x  (null)" when offset is 0 */
+	if (tu->offset) {
+		seq_printf(m, "0x%p", (void *)tu->offset);
+	} else {
+		switch (sizeof(void *)) {
+		case 4:
+			seq_printf(m, "0x00000000");
+			break;
+		case 8:
+		default:
+			seq_printf(m, "0x0000000000000000");
+			break;
+		}
+	}
 
 	for (i = 0; i < tu->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tu->tp.args[i].name, tu->tp.args[i].comm);
