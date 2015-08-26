@@ -153,7 +153,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 		plane = to_rcar_plane(state->planes[i]);
 		plane_state = to_rcar_plane_state(state->plane_states[i]);
 
-		dev_dbg(rcdu->dev, "%s: checking plane (%u,%u)\n", __func__,
+		dev_dbg(rcdu->dev, "%s: checking plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
 
 		/* If the plane is being disabled we don't need to go through
@@ -221,7 +221,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 			 */
 			if (group_freed_planes[index] & (1 << i)) {
 				dev_dbg(rcdu->dev,
-					"%s: plane (%u,%u) has been freed, skipping\n",
+					"%s: plane (%u,%tu) has been freed, skipping\n",
 					__func__, plane->group->index,
 					plane - plane->group->planes);
 				continue;
@@ -231,7 +231,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 			used_planes |= rcar_du_plane_hwmask(plane_state);
 
 			dev_dbg(rcdu->dev,
-				"%s: plane (%u,%u) uses %u hwplanes (index %d)\n",
+				"%s: plane (%u,%tu) uses %u hwplanes (index %d)\n",
 				__func__, plane->group->index,
 				plane - plane->group->planes,
 				plane_state->format ?
@@ -260,7 +260,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 		plane = to_rcar_plane(state->planes[i]);
 		plane_state = to_rcar_plane_state(state->plane_states[i]);
 
-		dev_dbg(rcdu->dev, "%s: allocating plane (%u,%u)\n", __func__,
+		dev_dbg(rcdu->dev, "%s: allocating plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
 
 		/* Skip planes that are being disabled or don't need to be
