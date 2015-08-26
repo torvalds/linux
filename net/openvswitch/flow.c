@@ -715,7 +715,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 				   struct sk_buff *skb,
 				   struct sw_flow_key *key, bool log)
 {
@@ -724,7 +724,7 @@ int ovs_flow_key_extract_userspace(const struct nlattr *attr,
 	memset(key, 0, OVS_SW_FLOW_KEY_METADATA_SIZE);
 
 	/* Extract metadata from netlink attributes. */
-	err = ovs_nla_get_flow_metadata(attr, key, log);
+	err = ovs_nla_get_flow_metadata(net, attr, key, log);
 	if (err)
 		return err;
 

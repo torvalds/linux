@@ -15,6 +15,7 @@
 #include <linux/openvswitch.h>
 #include <net/ip.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
@@ -34,6 +35,12 @@ struct md_mark {
 	u32 mask;
 };
 
+/* Metadata label for masked write to conntrack label. */
+struct md_label {
+	struct ovs_key_ct_label value;
+	struct ovs_key_ct_label mask;
+};
+
 /* Conntrack action context for execution. */
 struct ovs_conntrack_info {
 	struct nf_conntrack_zone zone;
@@ -41,6 +48,7 @@ struct ovs_conntrack_info {
 	u32 flags;
 	u16 family;
 	struct md_mark mark;
+	struct md_label label;
 };
 
 static u16 key_to_nfproto(const struct sw_flow_key *key)
@@ -90,6 +98,24 @@ static u8 ovs_ct_get_state(enum ip_conntrack_info ctinfo)
 	return ct_state;
 }
 
+static void ovs_ct_get_label(const struct nf_conn *ct,
+			     struct ovs_key_ct_label *label)
+{
+	struct nf_conn_labels *cl = ct ? nf_ct_labels_find(ct) : NULL;
+
+	if (cl) {
+		size_t len = cl->words * sizeof(long);
+
+		if (len > OVS_CT_LABEL_LEN)
+			len = OVS_CT_LABEL_LEN;
+		else if (len < OVS_CT_LABEL_LEN)
+			memset(label, 0, OVS_CT_LABEL_LEN);
+		memcpy(label, cl->bits, len);
+	} else {
+		memset(label, 0, OVS_CT_LABEL_LEN);
+	}
+}
+
 static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
 				const struct nf_conntrack_zone *zone,
 				const struct nf_conn *ct)
@@ -97,6 +123,7 @@ static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
 	key->ct.state = state;
 	key->ct.zone = zone->id;
 	key->ct.mark = ct ? ct->mark : 0;
+	ovs_ct_get_label(ct, &key->ct.label);
 }
 
 /* Update 'key' based on skb->nfct. If 'post_ct' is true, then OVS has
@@ -140,6 +167,11 @@ int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
 	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, key->ct.mark))
 		return -EMSGSIZE;
 
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABEL) &&
+	    nla_put(skb, OVS_KEY_ATTR_CT_LABEL, sizeof(key->ct.label),
+		    &key->ct.label))
+		return -EMSGSIZE;
+
 	return 0;
 }
 
@@ -165,6 +197,40 @@ static int ovs_ct_set_mark(struct sk_buff *skb, struct sw_flow_key *key,
 		key->ct.mark = new_mark;
 	}
 
+	return 0;
+}
+
+static int ovs_ct_set_label(struct sk_buff *skb, struct sw_flow_key *key,
+			    const struct ovs_key_ct_label *label,
+			    const struct ovs_key_ct_label *mask)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn_labels *cl;
+	struct nf_conn *ct;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS))
+		return -ENOTSUPP;
+
+	/* The connection could be invalid, in which case set_label is no-op.*/
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return 0;
+
+	cl = nf_ct_labels_find(ct);
+	if (!cl) {
+		nf_ct_labels_ext_add(ct);
+		cl = nf_ct_labels_find(ct);
+	}
+	if (!cl || cl->words * sizeof(long) < OVS_CT_LABEL_LEN)
+		return -ENOSPC;
+
+	err = nf_connlabels_replace(ct, (u32 *)label, (u32 *)mask,
+				    OVS_CT_LABEL_LEN / sizeof(u32));
+	if (err)
+		return err;
+
+	ovs_ct_get_label(ct, &key->ct.label);
 	return 0;
 }
 
@@ -327,6 +393,17 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	return 0;
 }
 
+static bool label_nonzero(const struct ovs_key_ct_label *label)
+{
+	size_t i;
+
+	for (i = 0; i < sizeof(*label); i++)
+		if (label->ct_label[i])
+			return true;
+
+	return false;
+}
+
 int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 		   struct sw_flow_key *key,
 		   const struct ovs_conntrack_info *info)
@@ -351,9 +428,15 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 	if (err)
 		goto err;
 
-	if (info->mark.mask)
+	if (info->mark.mask) {
 		err = ovs_ct_set_mark(skb, key, info->mark.value,
 				      info->mark.mask);
+		if (err)
+			goto err;
+	}
+	if (label_nonzero(&info->label.mask))
+		err = ovs_ct_set_label(skb, key, &info->label.value,
+				       &info->label.mask);
 err:
 	skb_push(skb, nh_ofs);
 	return err;
@@ -366,6 +449,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 				    .maxlen = sizeof(u16) },
 	[OVS_CT_ATTR_MARK]	= { .minlen = sizeof(struct md_mark),
 				    .maxlen = sizeof(struct md_mark) },
+	[OVS_CT_ATTR_LABEL]	= { .minlen = sizeof(struct md_label),
+				    .maxlen = sizeof(struct md_label) },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -409,6 +494,14 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			break;
 		}
 #endif
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+		case OVS_CT_ATTR_LABEL: {
+			struct md_label *label = nla_data(a);
+
+			info->label = *label;
+			break;
+		}
+#endif
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -424,7 +517,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 	return 0;
 }
 
-bool ovs_ct_verify(enum ovs_key_attr attr)
+bool ovs_ct_verify(struct net *net, enum ovs_key_attr attr)
 {
 	if (attr == OVS_KEY_ATTR_CT_STATE)
 		return true;
@@ -434,6 +527,12 @@ bool ovs_ct_verify(enum ovs_key_attr attr)
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
 	    attr == OVS_KEY_ATTR_CT_MARK)
 		return true;
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
+	    attr == OVS_KEY_ATTR_CT_LABEL) {
+		struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
+
+		return ovs_net->xt_label;
+	}
 
 	return false;
 }
@@ -500,6 +599,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	    nla_put(skb, OVS_CT_ATTR_MARK, sizeof(ct_info->mark),
 		    &ct_info->mark))
 		return -EMSGSIZE;
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
+	    nla_put(skb, OVS_CT_ATTR_LABEL, sizeof(ct_info->label),
+		    &ct_info->label))
+		return -EMSGSIZE;
 
 	nla_nest_end(skb, start);
 
@@ -512,4 +615,25 @@ void ovs_ct_free_action(const struct nlattr *a)
 
 	if (ct_info->ct)
 		nf_ct_put(ct_info->ct);
+}
+
+void ovs_ct_init(struct net *net)
+{
+	unsigned int n_bits = sizeof(struct ovs_key_ct_label) * BITS_PER_BYTE;
+	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
+
+	if (nf_connlabels_get(net, n_bits)) {
+		ovs_net->xt_label = false;
+		OVS_NLERR(true, "Failed to set connlabel length");
+	} else {
+		ovs_net->xt_label = true;
+	}
+}
+
+void ovs_ct_exit(struct net *net)
+{
+	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
+
+	if (ovs_net->xt_label)
+		nf_connlabels_put(net);
 }

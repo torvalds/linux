@@ -45,15 +45,16 @@ void ovs_match_init(struct sw_flow_match *match,
 
 int ovs_nla_put_key(const struct sw_flow_key *, const struct sw_flow_key *,
 		    int attr, bool is_mask, struct sk_buff *);
-int ovs_nla_get_flow_metadata(const struct nlattr *, struct sw_flow_key *,
-			      bool log);
+int ovs_nla_get_flow_metadata(struct net *, const struct nlattr *,
+			      struct sw_flow_key *, bool log);
 
 int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb);
 int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb);
 int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb);
 
-int ovs_nla_get_match(struct sw_flow_match *, const struct nlattr *key,
-		      const struct nlattr *mask, bool log);
+int ovs_nla_get_match(struct net *, struct sw_flow_match *,
+		      const struct nlattr *key, const struct nlattr *mask,
+		      bool log);
 int ovs_nla_put_egress_tunnel_key(struct sk_buff *,
 				  const struct ip_tunnel_info *);
 
