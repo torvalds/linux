@@ -9947,6 +9947,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
 	static u16 pfs_found;
+	u16 wol_nvm_bits;
 	u16 link_status;
 	int err = 0;
 	u32 len;
@@ -10163,8 +10164,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	clear_bit(__I40E_SERVICE_SCHED, &pf->state);
 	pf->flags |= I40E_FLAG_NEED_LINK_UPDATE;
 
-	/* WoL defaults to disabled */
-	pf->wol_en = false;
+	/* NVM bit on means WoL disabled for the port */
+	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
+	if ((1 << hw->port) & wol_nvm_bits || hw->partition_id != 1)
+		pf->wol_en = false;
+	else
+		pf->wol_en = true;
 	device_set_wakeup_enable(&pf->pdev->dev, pf->wol_en);
 
 	/* set up the main switch operations */
