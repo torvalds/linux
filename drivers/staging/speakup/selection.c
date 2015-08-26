@@ -7,7 +7,7 @@
 #include <linux/workqueue.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <asm/cmpxchg.h>
+#include <linux/atomic.h>
 
 #include "speakup.h"
 

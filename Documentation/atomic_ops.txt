@@ -542,6 +542,10 @@ The routines xchg() and cmpxchg() must provide the same exact
 memory-barrier semantics as the atomic and bit operations returning
 values.
 
+Note: If someone wants to use xchg(), cmpxchg() and their variants,
+linux/atomic.h should be included rather than asm/cmpxchg.h, unless
+the code is in arch/* and can take care of itself.
+
 Spinlocks and rwlocks have memory barrier expectations as well.
 The rule to follow is simple:
 
