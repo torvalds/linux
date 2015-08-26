@@ -68,6 +68,7 @@ struct scp_domain_data {
 	u32 sram_pdn_ack_bits;
 	u32 bus_prot_mask;
 	enum clk_id clk_id;
+	bool active_wakeup;
 };
 
 static const struct scp_domain_data scp_domain_data[] __initconst = {
@@ -128,6 +129,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
 		.clk_id = MT8173_CLK_NONE,
+		.active_wakeup = true,
 	},
 	[MT8173_POWER_DOMAIN_MFG_ASYNC] = {
 		.name = "mfg_async",
@@ -172,6 +174,7 @@ struct scp_domain {
 	u32 sram_pdn_bits;
 	u32 sram_pdn_ack_bits;
 	u32 bus_prot_mask;
+	bool active_wakeup;
 };
 
 struct scp {
@@ -371,6 +374,17 @@ out:
 	return ret;
 }
 
+static bool scpsys_active_wakeup(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+	struct scp_domain *scpd;
+
+	genpd = pd_to_genpd(dev->pm_domain);
+	scpd = container_of(genpd, struct scp_domain, genpd);
+
+	return scpd->active_wakeup;
+}
+
 static int __init scpsys_probe(struct platform_device *pdev)
 {
 	struct genpd_onecell_data *pd_data;
@@ -428,12 +442,14 @@ static int __init scpsys_probe(struct platform_device *pdev)
 		scpd->sram_pdn_bits = data->sram_pdn_bits;
 		scpd->sram_pdn_ack_bits = data->sram_pdn_ack_bits;
 		scpd->bus_prot_mask = data->bus_prot_mask;
+		scpd->active_wakeup = data->active_wakeup;
 		if (data->clk_id != MT8173_CLK_NONE)
 			scpd->clk = clk[data->clk_id];
 
 		genpd->name = data->name;
 		genpd->power_off = scpsys_power_off;
 		genpd->power_on = scpsys_power_on;
+		genpd->dev_ops.active_wakeup = scpsys_active_wakeup;
 
 		/*
 		 * Initially turn on all domains to make the domains usable
