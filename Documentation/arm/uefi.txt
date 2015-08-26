@@ -60,5 +60,3 @@ linux,uefi-mmap-desc-ver  | 32-bit | Version of the mmap descriptor format.
 --------------------------------------------------------------------------------
 linux,uefi-stub-kern-ver  | string | Copy of linux_banner from build.
 --------------------------------------------------------------------------------
-
-For verbose debug messages, specify 'uefi_debug' on the kernel command line.
