@@ -34,6 +34,7 @@ bool test_attr__enabled;
 bool perf_host  = true;
 bool perf_guest = false;
 
+char tracing_path[PATH_MAX + 1]        = "/sys/kernel/debug/tracing";
 char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
 void event_attr_init(struct perf_event_attr *attr)
@@ -391,6 +392,8 @@ void set_term_quiet_input(struct termios *old)
 
 static void set_tracing_events_path(const char *tracing, const char *mountpoint)
 {
+	snprintf(tracing_path, sizeof(tracing_path), "%s/%s",
+		 mountpoint, tracing);
 	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s%s",
 		 mountpoint, tracing, "events");
 }
@@ -440,62 +443,11 @@ void perf_debugfs_set_path(const char *mntpt)
 	set_tracing_events_path("tracing/", mntpt);
 }
 
-static const char *find_tracefs(void)
-{
-	const char *path = __perf_tracefs_mount(NULL);
-
-	return path;
-}
-
-static const char *find_debugfs(void)
-{
-	const char *path = __perf_debugfs_mount(NULL);
-
-	if (!path)
-		fprintf(stderr, "Your kernel does not support the debugfs filesystem");
-
-	return path;
-}
-
-/*
- * Finds the path to the debugfs/tracing
- * Allocates the string and stores it.
- */
-const char *find_tracing_dir(void)
-{
-	const char *tracing_dir = "";
-	static char *tracing;
-	static int tracing_found;
-	const char *debugfs;
-
-	if (tracing_found)
-		return tracing;
-
-	debugfs = find_tracefs();
-	if (!debugfs) {
-		tracing_dir = "/tracing";
-		debugfs = find_debugfs();
-		if (!debugfs)
-			return NULL;
-	}
-
-	if (asprintf(&tracing, "%s%s", debugfs, tracing_dir) < 0)
-		return NULL;
-
-	tracing_found = 1;
-	return tracing;
-}
-
 char *get_tracing_file(const char *name)
 {
-	const char *tracing;
 	char *file;
 
-	tracing = find_tracing_dir();
-	if (!tracing)
-		return NULL;
-
-	if (asprintf(&file, "%s/%s", tracing, name) < 0)
+	if (asprintf(&file, "%s/%s", tracing_path, name) < 0)
 		return NULL;
 
 	return file;
