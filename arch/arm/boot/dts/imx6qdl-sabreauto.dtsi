@@ -52,6 +52,15 @@
 			gpio = <&max7310_c 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		reg_audio: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "cs42888_supply";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
 	};
 
 	clocks {
@@ -62,41 +71,13 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_audio: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "cs42888_supply";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-	};
-
 	sound-cs42888 {
 		compatible = "fsl,imx6-sabreauto-cs42888",
-			"fsl,imx-audio-cs42888";
+				"fsl,imx-audio-cs42888";
 		model = "imx-cs42888";
-		audio-cpu = <&esai>;
-		audio-asrc = <&asrc>;
+		esai-controller = <&esai>;
+		asrc-controller = <&asrc>;
 		audio-codec = <&codec>;
-		audio-routing =
-			"Line Out Jack", "AOUT1L",
-			"Line Out Jack", "AOUT1R",
-			"Line Out Jack", "AOUT2L",
-			"Line Out Jack", "AOUT2R",
-			"Line Out Jack", "AOUT3L",
-			"Line Out Jack", "AOUT3R",
-			"Line Out Jack", "AOUT4L",
-			"Line Out Jack", "AOUT4R",
-			"AIN1L", "Line In Jack",
-			"AIN1R", "Line In Jack",
-			"AIN2L", "Line In Jack",
-			"AIN2R", "Line In Jack";
 	};
 
 	sound-spdif {
