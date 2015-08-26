@@ -1398,7 +1398,7 @@ done:
 }
 
 static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
-					 struct sk_buff *skb, u8 ifidx,
+					 struct sk_buff *skb,
 					 u32 genbit, u16 seq)
 {
 	struct brcmf_fws_mac_descriptor *entry = brcmf_skbcb(skb)->mac;
@@ -1503,7 +1503,7 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 		return -EINVAL;
 	}
 	if (!remove_from_hanger)
-		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, ifp->ifidx,
+		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb,
 						    genbit, seq);
 	if (remove_from_hanger || ret)
 		brcmf_txfinalize(ifp, skb, true);
