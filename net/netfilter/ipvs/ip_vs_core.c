@@ -934,7 +934,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 	IP_VS_DBG_PKT(11, AF_INET, pp, skb, offset,
 		      "Checking outgoing ICMP for");
 
-	ip_vs_fill_iph_skb_off(AF_INET, skb, offset, &ciph);
+	ip_vs_fill_iph_skb_icmp(AF_INET, skb, offset, true, &ciph);
 
 	/* The embedded headers contain source and dest in reverse order */
 	cp = pp->conn_out_get(AF_INET, skb, &ciph, 1);
@@ -983,8 +983,8 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
 		  &ipvsh->saddr, &ipvsh->daddr);
 
-	if (!ip_vs_fill_iph_skb_off(AF_INET6, skb, ipvsh->len + sizeof(_icmph),
-				    &ciph))
+	if (!ip_vs_fill_iph_skb_icmp(AF_INET6, skb, ipvsh->len + sizeof(_icmph),
+				     true, &ciph))
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
 	pp = ip_vs_proto_get(ciph.protocol);
@@ -1177,7 +1177,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	if (!net_ipvs(net)->enable)
 		return NF_ACCEPT;
 
-	ip_vs_fill_iph_skb(af, skb, &iph);
+	ip_vs_fill_iph_skb(af, skb, false, &iph);
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
@@ -1212,7 +1212,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 					       ip_vs_defrag_user(hooknum)))
 				return NF_STOLEN;
 
-			ip_vs_fill_iph_skb(AF_INET, skb, &iph);
+			ip_vs_fill_iph_skb(AF_INET, skb, false, &iph);
 		}
 
 	/*
@@ -1407,7 +1407,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		      "Checking incoming ICMP for");
 
 	offset2 = offset;
-	ip_vs_fill_iph_skb_off(AF_INET, skb, offset, &ciph);
+	ip_vs_fill_iph_skb_icmp(AF_INET, skb, offset, !ipip, &ciph);
 	offset = ciph.len;
 
 	/* The embedded headers contain source and dest in reverse order.
@@ -1537,7 +1537,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 		  &iph->saddr, &iph->daddr);
 
 	offset = iph->len + sizeof(_icmph);
-	if (!ip_vs_fill_iph_skb_off(AF_INET6, skb, offset, &ciph))
+	if (!ip_vs_fill_iph_skb_icmp(AF_INET6, skb, offset, true, &ciph))
 		return NF_ACCEPT;
 
 	net = skb_net(skb);
@@ -1614,7 +1614,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	if (unlikely((skb->pkt_type != PACKET_HOST &&
 		      hooknum != NF_INET_LOCAL_OUT) ||
 		     !skb_dst(skb))) {
-		ip_vs_fill_iph_skb(af, skb, &iph);
+		ip_vs_fill_iph_skb(af, skb, false, &iph);
 		IP_VS_DBG_BUF(12, "packet type=%d proto=%d daddr=%s"
 			      " ignored in hook %u\n",
 			      skb->pkt_type, iph.protocol,
@@ -1627,7 +1627,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
-	ip_vs_fill_iph_skb(af, skb, &iph);
+	ip_vs_fill_iph_skb(af, skb, false, &iph);
 
 	/* Bad... Do not break raw sockets */
 	if (unlikely(skb->sk != NULL && hooknum == NF_INET_LOCAL_OUT &&
@@ -1841,7 +1841,7 @@ ip_vs_forward_icmp_v6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	struct netns_ipvs *ipvs;
 	struct ip_vs_iphdr iphdr;
 
-	ip_vs_fill_iph_skb(AF_INET6, skb, &iphdr);
+	ip_vs_fill_iph_skb(AF_INET6, skb, false, &iphdr);
 	if (iphdr.protocol != IPPROTO_ICMPV6)
 		return NF_ACCEPT;
 

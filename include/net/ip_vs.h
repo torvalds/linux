@@ -29,6 +29,9 @@
 #endif
 #include <net/net_namespace.h>		/* Netw namespace */
 
+#define IP_VS_HDR_INVERSE	1
+#define IP_VS_HDR_ICMP		2
+
 /* Generic access of ipvs struct */
 static inline struct netns_ipvs *net_ipvs(struct net* net)
 {
@@ -104,6 +107,7 @@ static inline struct net *seq_file_single_net(struct seq_file *seq)
 extern int ip_vs_conn_tab_size;
 
 struct ip_vs_iphdr {
+	int hdr_flags;	/* ipvs flags */
 	__u32 off;	/* Where IP or IPv4 header starts */
 	__u32 len;	/* IPv4 simply where L4 starts
 			 * IPv6 where L4 Transport Header starts */
@@ -127,9 +131,11 @@ static inline void *frag_safe_skb_hp(const struct sk_buff *skb, int offset,
  */
 static inline int
 ip_vs_fill_iph_skb_off(int af, const struct sk_buff *skb, int offset,
-		       struct ip_vs_iphdr *iphdr)
+		       int hdr_flags, struct ip_vs_iphdr *iphdr)
 {
+	iphdr->hdr_flags = hdr_flags;
 	iphdr->off = offset;
+
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
 		struct ipv6hdr _iph;
@@ -168,9 +174,40 @@ ip_vs_fill_iph_skb_off(int af, const struct sk_buff *skb, int offset,
 }
 
 static inline int
-ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, struct ip_vs_iphdr *iphdr)
+ip_vs_fill_iph_skb_icmp(int af, const struct sk_buff *skb, int offset,
+			bool inverse, struct ip_vs_iphdr *iphdr)
 {
-	return ip_vs_fill_iph_skb_off(af, skb, skb_network_offset(skb), iphdr);
+	int hdr_flags = IP_VS_HDR_ICMP;
+
+	if (inverse)
+		hdr_flags |= IP_VS_HDR_INVERSE;
+
+	return ip_vs_fill_iph_skb_off(af, skb, offset, hdr_flags, iphdr);
+}
+
+static inline int
+ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, bool inverse,
+		   struct ip_vs_iphdr *iphdr)
+{
+	int hdr_flags = 0;
+
+	if (inverse)
+		hdr_flags |= IP_VS_HDR_INVERSE;
+
+	return ip_vs_fill_iph_skb_off(af, skb, skb_network_offset(skb),
+				      hdr_flags, iphdr);
+}
+
+static inline bool
+ip_vs_iph_inverse(const struct ip_vs_iphdr *iph)
+{
+	return !!(iph->hdr_flags & IP_VS_HDR_INVERSE);
+}
+
+static inline bool
+ip_vs_iph_icmp(const struct ip_vs_iphdr *iph)
+{
+	return !!(iph->hdr_flags & IP_VS_HDR_ICMP);
 }
 
 static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
