@@ -37,25 +37,24 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 		   struct tcf_result *res)
 {
 	struct tcf_bpf *prog = act->priv;
+	struct bpf_prog *filter;
 	int action, filter_res;
 	bool at_ingress = G_TC_AT(skb->tc_verd) & AT_INGRESS;
 
 	if (unlikely(!skb_mac_header_was_set(skb)))
 		return TC_ACT_UNSPEC;
 
-	spin_lock(&prog->tcf_lock);
+	tcf_lastuse_update(&prog->tcf_tm);
+	bstats_cpu_update(this_cpu_ptr(prog->common.cpu_bstats), skb);
 
-	prog->tcf_tm.lastuse = jiffies;
-	bstats_update(&prog->tcf_bstats, skb);
-
-	/* Needed here for accessing maps. */
 	rcu_read_lock();
+	filter = rcu_dereference(prog->filter);
 	if (at_ingress) {
 		__skb_push(skb, skb->mac_len);
-		filter_res = BPF_PROG_RUN(prog->filter, skb);
+		filter_res = BPF_PROG_RUN(filter, skb);
 		__skb_pull(skb, skb->mac_len);
 	} else {
-		filter_res = BPF_PROG_RUN(prog->filter, skb);
+		filter_res = BPF_PROG_RUN(filter, skb);
 	}
 	rcu_read_unlock();
 
@@ -77,7 +76,7 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 		break;
 	case TC_ACT_SHOT:
 		action = filter_res;
-		prog->tcf_qstats.drops++;
+		qstats_drop_inc(this_cpu_ptr(prog->common.cpu_qstats));
 		break;
 	case TC_ACT_UNSPEC:
 		action = prog->tcf_action;
@@ -87,7 +86,6 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 		break;
 	}
 
-	spin_unlock(&prog->tcf_lock);
 	return action;
 }
 
@@ -263,7 +261,10 @@ static void tcf_bpf_prog_fill_cfg(const struct tcf_bpf *prog,
 				  struct tcf_bpf_cfg *cfg)
 {
 	cfg->is_ebpf = tcf_bpf_is_ebpf(prog);
-	cfg->filter = prog->filter;
+	/* updates to prog->filter are prevented, since it's called either
+	 * with rtnl lock or during final cleanup in rcu callback
+	 */
+	cfg->filter = rcu_dereference_protected(prog->filter, 1);
 
 	cfg->bpf_ops = prog->bpf_ops;
 	cfg->bpf_name = prog->bpf_name;
@@ -294,7 +295,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	if (!tcf_hash_check(parm->index, act, bind)) {
 		ret = tcf_hash_create(parm->index, est, act,
-				      sizeof(*prog), bind, false);
+				      sizeof(*prog), bind, true);
 		if (ret < 0)
 			return ret;
 
@@ -325,7 +326,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		goto out;
 
 	prog = to_bpf(act);
-	spin_lock_bh(&prog->tcf_lock);
+	ASSERT_RTNL();
 
 	if (res != ACT_P_CREATED)
 		tcf_bpf_prog_fill_cfg(prog, &old);
@@ -339,14 +340,15 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		prog->bpf_fd = cfg.bpf_fd;
 
 	prog->tcf_action = parm->action;
-	prog->filter = cfg.filter;
+	rcu_assign_pointer(prog->filter, cfg.filter);
 
-	spin_unlock_bh(&prog->tcf_lock);
-
-	if (res == ACT_P_CREATED)
+	if (res == ACT_P_CREATED) {
 		tcf_hash_insert(act);
-	else
+	} else {
+		/* make sure the program being replaced is no longer executing */
+		synchronize_rcu();
 		tcf_bpf_cfg_cleanup(&old);
+	}
 
 	return res;
 out:
