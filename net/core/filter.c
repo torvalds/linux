@@ -1528,6 +1528,7 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 
 	info = &md->u.tun_info;
 	info->mode = IP_TUNNEL_INFO_TX;
+	info->key.tun_flags = TUNNEL_KEY;
 	info->key.tun_id = cpu_to_be64(from->tunnel_id);
 	info->key.u.ipv4.dst = cpu_to_be32(from->remote_ipv4);
 
