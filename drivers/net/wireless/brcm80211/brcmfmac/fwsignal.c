@@ -1616,11 +1616,10 @@ static int brcmf_fws_notify_bcmc_credit_support(struct brcmf_if *ifp,
 	return 0;
 }
 
-int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
-		      struct sk_buff *skb)
+void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 {
 	struct brcmf_skb_reorder_data *rd;
-	struct brcmf_fws_info *fws = drvr->fws;
+	struct brcmf_fws_info *fws = ifp->drvr->fws;
 	u8 *signal_data;
 	s16 data_len;
 	u8 type;
@@ -1630,20 +1629,20 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 	s32 err;
 
 	brcmf_dbg(HDRS, "enter: ifidx %d, skblen %u, sig %d\n",
-		  ifidx, skb->len, signal_len);
+		  ifp->ifidx, skb->len, siglen);
 
-	WARN_ON(signal_len > skb->len);
+	WARN_ON(siglen > skb->len);
 
-	if (!signal_len)
-		return 0;
+	if (!siglen)
+		return;
 	/* if flow control disabled, skip to packet data and leave */
 	if ((!fws) || (!fws->fw_signals)) {
-		skb_pull(skb, signal_len);
-		return 0;
+		skb_pull(skb, siglen);
+		return;
 	}
 
 	fws->stats.header_pulls++;
-	data_len = signal_len;
+	data_len = siglen;
 	signal_data = skb->data;
 
 	status = BRCMF_FWS_RET_OK_NOSCHEDULE;
@@ -1731,14 +1730,12 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 	/* signalling processing result does
 	 * not affect the actual ethernet packet.
 	 */
-	skb_pull(skb, signal_len);
+	skb_pull(skb, siglen);
 
 	/* this may be a signal-only packet
 	 */
 	if (skb->len == 0)
 		fws->stats.header_only_pkt++;
-
-	return 0;
 }
 
 static u8 brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,

@@ -312,8 +312,7 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 
 	skb_pull(pktbuf, BCDC_HEADER_LEN);
 	if (do_fws)
-		brcmf_fws_hdrpull(drvr, tmp_if->ifidx, h->data_offset << 2,
-				  pktbuf);
+		brcmf_fws_hdrpull(tmp_if, h->data_offset << 2, pktbuf);
 	else
 		skb_pull(pktbuf, h->data_offset << 2);
 
