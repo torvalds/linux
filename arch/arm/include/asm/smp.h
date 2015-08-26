@@ -112,7 +112,7 @@ struct smp_operations {
 
 struct of_cpu_method {
 	const char *method;
-	struct smp_operations *ops;
+	const struct smp_operations *ops;
 };
 
 #define CPU_METHOD_OF_DECLARE(name, _method, _ops)			\
