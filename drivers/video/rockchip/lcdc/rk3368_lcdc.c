@@ -280,10 +280,6 @@ static int win##id##_enable(struct lcdc_device *lcdc_dev, int en)	\
 	val  =  v_WIN##id##_EN(en);					\
 	lcdc_msk_reg(lcdc_dev, WIN##id##_CTRL0, msk, val);		\
 	lcdc_cfg_done(lcdc_dev);					\
-	/*val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);		\
-	while (val !=  (!!en))	{					\
-		val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);	\
-	}*/								\
 	spin_unlock(&lcdc_dev->reg_lock);				\
 	return 0;							\
 }
@@ -439,21 +435,20 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		lcdc_grf_writel(lcdc_dev->pmugrf_base,
 				PMUGRF_SOC_CON0_VOP, v);
 	}
-#if 0
-	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_0, 0x15110903);
+	/*lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_0, 0x15110903);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_1, 0x00030911);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_0, 0x1a150b04);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_1, 0x00040b15);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_0, 0x15110903);
-	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_1, 0x00030911);
-#else
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_1, 0x00030911);*/
+
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_0, 0x40000000);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_1, 0x0);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_0, 0x80000000);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_1, 0x0);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_0, 0x40000000);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_1, 0x0);
-#endif
+
 	lcdc_writel(lcdc_dev, FRC_LOWER01_0, 0x12844821);
 	lcdc_writel(lcdc_dev, FRC_LOWER01_1, 0x21488412);
 	lcdc_writel(lcdc_dev, FRC_LOWER10_0, 0xa55a9696);
@@ -1066,7 +1061,7 @@ static int rk3368_init_fbdc_config(struct rk_lcdc_driver *dev_drv, int win_id)
 }
 
 static int rk3368_lcdc_axi_gather_cfg(struct lcdc_device *lcdc_dev,
-				            struct rk_lcdc_win *win)
+				      struct rk_lcdc_win *win)
 {
 	u32 mask, val;
 	u16 yrgb_gather_num = 3;
@@ -1098,15 +1093,18 @@ static int rk3368_lcdc_axi_gather_cfg(struct lcdc_device *lcdc_dev,
 	if ((win->id == 0) || (win->id == 1)) {
 		mask = m_WIN0_YRGB_AXI_GATHER_EN | m_WIN0_CBR_AXI_GATHER_EN |
 			m_WIN0_YRGB_AXI_GATHER_NUM | m_WIN0_CBR_AXI_GATHER_NUM;
-		val = v_WIN0_YRGB_AXI_GATHER_EN(1) | v_WIN0_CBR_AXI_GATHER_EN(1) |
+		val = v_WIN0_YRGB_AXI_GATHER_EN(1) |
+			v_WIN0_CBR_AXI_GATHER_EN(1) |
 			v_WIN0_YRGB_AXI_GATHER_NUM(yrgb_gather_num) |
 			v_WIN0_CBR_AXI_GATHER_NUM(cbcr_gather_num);
-		lcdc_msk_reg(lcdc_dev, WIN0_CTRL1 + (win->id * 0x40), mask, val);
+		lcdc_msk_reg(lcdc_dev, WIN0_CTRL1 + (win->id * 0x40),
+			     mask, val);
 	} else if ((win->id == 2) || (win->id == 3)) {
 		mask = m_WIN2_AXI_GATHER_EN | m_WIN2_AXI_GATHER_NUM;
 		val = v_WIN2_AXI_GATHER_EN(1) |
 			v_WIN2_AXI_GATHER_NUM(yrgb_gather_num);
-		lcdc_msk_reg(lcdc_dev, WIN2_CTRL1 + ((win->id - 2) * 0x50), mask, val);
+		lcdc_msk_reg(lcdc_dev, WIN2_CTRL1 + ((win->id - 2) * 0x50),
+			     mask, val);
 	} else if (win->id == 4) {
 		mask = m_HWC_AXI_GATHER_EN | m_HWC_AXI_GATHER_NUM;
 		val = v_HWC_AXI_GATHER_EN(1) |
@@ -1172,17 +1170,17 @@ static int rk3368_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			lcdc_msk_reg(lcdc_dev, IFBDC_CTRL, mask, val);
 		}
 		mask = m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
-		    m_WIN0_LB_MODE | m_WIN0_RB_SWAP | m_WIN0_X_MIRROR |
-		    m_WIN0_Y_MIRROR | m_WIN0_CSC_MODE |m_WIN0_UV_SWAP;
+			m_WIN0_LB_MODE | m_WIN0_RB_SWAP | m_WIN0_X_MIRROR |
+			m_WIN0_Y_MIRROR | m_WIN0_CSC_MODE | m_WIN0_UV_SWAP;
 		val = v_WIN0_EN(win->state) |
-		    v_WIN0_DATA_FMT(win->area[0].fmt_cfg) |
-		    v_WIN0_FMT_10(win->fmt_10) |
-		    v_WIN0_LB_MODE(win->win_lb_mode) |
-		    v_WIN0_RB_SWAP(win->area[0].swap_rb) |
-		    v_WIN0_X_MIRROR(win->mirror_en) |
-		    v_WIN0_Y_MIRROR(win->mirror_en) |
-		    v_WIN0_CSC_MODE(win->csc_mode) |
-		    v_WIN0_UV_SWAP(win->area[0].swap_uv);
+			v_WIN0_DATA_FMT(win->area[0].fmt_cfg) |
+			v_WIN0_FMT_10(win->fmt_10) |
+			v_WIN0_LB_MODE(win->win_lb_mode) |
+			v_WIN0_RB_SWAP(win->area[0].swap_rb) |
+			v_WIN0_X_MIRROR(win->mirror_en) |
+			v_WIN0_Y_MIRROR(win->mirror_en) |
+			v_WIN0_CSC_MODE(win->csc_mode) |
+			v_WIN0_UV_SWAP(win->area[0].swap_uv);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0 + off, mask, val);
 
 		mask = m_WIN0_BIC_COE_SEL |
@@ -1247,9 +1245,11 @@ static int rk3368_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 		if (dev_drv->cur_screen->mode.vmode == FB_VMODE_INTERLACED) {
 			mask = m_WIN0_YRGB_DEFLICK | m_WIN0_CBR_DEFLICK;
 			if (win->area[0].yact == 2 * win->area[0].ysize)
-				val =v_WIN0_YRGB_DEFLICK(0) | v_WIN0_CBR_DEFLICK(0);
+				val = v_WIN0_YRGB_DEFLICK(0) |
+					v_WIN0_CBR_DEFLICK(0);
 			else
-				val =v_WIN0_YRGB_DEFLICK(1) | v_WIN0_CBR_DEFLICK(1);
+				val = v_WIN0_YRGB_DEFLICK(1) |
+					v_WIN0_CBR_DEFLICK(1);
 			lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
 		}
 	} else {
@@ -1526,7 +1526,7 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	    container_of(dev_drv, struct lcdc_device, driver);
 
 	if (unlikely(!lcdc_dev->clk_on)) {
-                pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
 #if defined(CONFIG_ROCKCHIP_IOMMU)
@@ -1559,8 +1559,8 @@ static int rk3368_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv, int reset_rate)
 #ifdef CONFIG_RK_FPGA
 	return 0;
 #endif
-        if (reset_rate)
-	        ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);/*set pll */
+	if (reset_rate)
+		ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);
 	if (ret)
 		dev_err(dev_drv->dev, "set lcdc%d dclk failed\n", lcdc_dev->id);
 	lcdc_dev->pixclock =
@@ -1805,7 +1805,7 @@ static int rk3368_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 	lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
 
 	lcdc_msk_reg(lcdc_dev, WIN0_VIR, m_WIN0_VIR_STRIDE,
-			v_WIN0_VIR_STRIDE(xvir));
+		     v_WIN0_VIR_STRIDE(xvir));
 	lcdc_writel(lcdc_dev, WIN0_ACT_INFO, v_WIN0_ACT_WIDTH(xact) |
 		    v_WIN0_ACT_HEIGHT(yact));
 
@@ -1822,8 +1822,8 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
 	u32 __maybe_unused v;
-        /*printk("0407:standby=%d,initscreen=%d,dev_drv->first_frame=%d\n",
-                lcdc_dev->standby,initscreen,dev_drv->first_frame);*/
+	/*printk("0407:standby=%d,initscreen=%d,dev_drv->first_frame=%d\n",
+		lcdc_dev->standby,initscreen,dev_drv->first_frame);*/
 	if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1)) {
 		mdelay(150);
 		mask = m_WIN0_EN;
@@ -1847,7 +1847,7 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN, v_STANDBY_EN(1));
 		writel_relaxed(0, lcdc_dev->regs + REG_CFG_DONE);
 		mdelay(50);
-#if 0
+#ifdef VOP_RESET
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_deactivate(dev_drv->dev);
@@ -1889,8 +1889,8 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		return 0;
 	}
 
-        if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1))
-                flush_kthread_worker(&dev_drv->update_regs_worker);
+	if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1))
+		flush_kthread_worker(&dev_drv->update_regs_worker);
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
@@ -1903,7 +1903,7 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			mdelay(50);
 		}
 #else
-        lcdc_reset(dev_drv, initscreen);
+	lcdc_reset(dev_drv, initscreen);
 #endif
 		switch (screen->face) {
 		case OUT_P565:
@@ -2006,10 +2006,10 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			break;
 		case SCREEN_HDMI:
 			/*face = OUT_RGB_AAA;*/
-                        if (screen->color_mode == COLOR_RGB)
-                                dev_drv->overlay_mode = VOP_RGB_DOMAIN;
-                        else
-                                dev_drv->overlay_mode = VOP_YUV_DOMAIN;
+			if (screen->color_mode == COLOR_RGB)
+				dev_drv->overlay_mode = VOP_RGB_DOMAIN;
+			else
+				dev_drv->overlay_mode = VOP_YUV_DOMAIN;
 			mask = m_HDMI_OUT_EN  | m_RGB_OUT_EN;
 			val = v_HDMI_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
@@ -2108,7 +2108,7 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	    screen->type != SCREEN_TVOUT &&
 	    dev_drv->trsm_ops &&
 	    dev_drv->trsm_ops->enable)
-		dev_drv->trsm_ops->enable();	
+		dev_drv->trsm_ops->enable();
 		if (screen->init)
 			screen->init();
 	/*if (!lcdc_dev->standby)
@@ -2167,7 +2167,7 @@ static int rk3368_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	lcdc_msk_reg(lcdc_dev, INTR_CLEAR, mask, val);
 
 	mask = m_FS_INTR_EN | m_LINE_FLAG0_INTR_EN |
-	        m_BUS_ERROR_INTR_EN | m_LINE_FLAG1_INTR_EN;
+		m_BUS_ERROR_INTR_EN | m_LINE_FLAG1_INTR_EN;
 	val = v_FS_INTR_EN(1) | v_LINE_FLAG0_INTR_EN(1) |
 	    v_BUS_ERROR_INTR_EN(1) | v_LINE_FLAG1_INTR_EN(0);
 	lcdc_msk_reg(lcdc_dev, INTR_EN, mask, val);
@@ -2191,10 +2191,6 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-#if 0/*ndef CONFIG_RK_FPGA*/
-	int sys_status =
-	    (dev_drv->id == 0) ? SYS_STATUS_LCDC0 : SYS_STATUS_LCDC1;
-#endif
 	/*enable clk,when first layer open */
 	if ((open) && (!lcdc_dev->atv_layer_cnt)) {
 		/*rockchip_set_system_status(sys_status);*/
@@ -2262,7 +2258,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	   rockchip_clear_system_status(sys_status);
 	   #endif
 	   } */
-        dev_drv->first_frame = 0;
+	dev_drv->first_frame = 0;
 	return 0;
 }
 
@@ -2287,9 +2283,9 @@ static int win_0_1_display(struct lcdc_device *lcdc_dev,
 		win->area[0].uv_addr = uv_addr;
 		lcdc_writel(lcdc_dev, WIN0_YRGB_MST + off, win->area[0].y_addr);
 		lcdc_writel(lcdc_dev, WIN0_CBR_MST + off, win->area[0].uv_addr);
-                if (win->area[0].fbdc_en == 1)
-                        lcdc_writel(lcdc_dev, IFBDC_BASE_ADDR,
-                                        win->area[0].y_addr);
+		if (win->area[0].fbdc_en == 1)
+			lcdc_writel(lcdc_dev, IFBDC_BASE_ADDR,
+				    win->area[0].y_addr);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -2318,9 +2314,9 @@ static int win_2_3_display(struct lcdc_device *lcdc_dev,
 		lcdc_writel(lcdc_dev, WIN2_MST1 + off, win->area[1].y_addr);
 		lcdc_writel(lcdc_dev, WIN2_MST2 + off, win->area[2].y_addr);
 		lcdc_writel(lcdc_dev, WIN2_MST3 + off, win->area[3].y_addr);
-                if (win->area[0].fbdc_en == 1)
-                        lcdc_writel(lcdc_dev, IFBDC_BASE_ADDR,
-                                        win->area[0].y_addr);
+		if (win->area[0].fbdc_en == 1)
+			lcdc_writel(lcdc_dev, IFBDC_BASE_ADDR,
+				    win->area[0].y_addr);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
@@ -2394,7 +2390,8 @@ static int rk3368_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 	return 0;
 }
 
-static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
+static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win,
+				   struct rk_screen *screen)
 {
 	u16 srcW;
 	u16 srcH;
@@ -2605,9 +2602,9 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *sc
 			__func__, win->win_lb_mode);
 		break;
 	}
-	if (win->mirror_en == 1) {
+	if (win->mirror_en == 1)
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
-	}
+
 	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
 		/*interlace mode must bill */
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
@@ -3070,15 +3067,15 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 					dsp_y_pos(win->mirror_en, screen,
 						  &win->area[i]);
 			if (((win->area[i].xact != win->area[i].xsize) ||
-			    (win->area[i].yact != win->area[i].ysize)) &&
-			    (screen->mode.vmode == FB_VMODE_NONINTERLACED)) {
-                                pr_err("win[%d]->area[%d],not support scale\n",
-                                        win->id, i);
-                                pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
-                                        win->area[i].xact,win->area[i].yact,
-                                        win->area[i].xsize,win->area[i].ysize);
-                                win->area[i].xsize = win->area[i].xact;
-                                win->area[i].ysize = win->area[i].yact;
+			     (win->area[i].yact != win->area[i].ysize)) &&
+			     (screen->mode.vmode == FB_VMODE_NONINTERLACED)) {
+				pr_err("win[%d]->area[%d],not support scale\n",
+				       win->id, i);
+				pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+				       win->area[i].xact, win->area[i].yact,
+				       win->area[i].xsize, win->area[i].ysize);
+				win->area[i].xsize = win->area[i].xact;
+				win->area[i].ysize = win->area[i].yact;
 			}
 			DBG(2, "fmt:%s:xsize:%d>>ysize:%d>>xpos:%d>>ypos:%d\n",
 			    get_format_string(win->area[i].format, fmt),
@@ -3243,7 +3240,8 @@ static int rk3368_lcdc_get_backlight_device(struct rk_lcdc_driver *dev_drv)
 		return -EINVAL;
 	max = length / sizeof(u32);
 	last = max - 1;
-	if (!of_property_read_u32_array(backlight, "brightness-levels", brightness_levels, max)) {
+	if (!of_property_read_u32_array(backlight, "brightness-levels",
+					brightness_levels, max)) {
 		if (brightness_levels[0] > brightness_levels[last])
 			dev_drv->cabc_pwm_pol = 1;/*negative*/
 		else
@@ -3368,66 +3366,67 @@ static int rk3368_lcdc_blank(struct rk_lcdc_driver *dev_drv,
 }
 
 static int rk3368_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv,
-                                           int win_id, int area_id)
+				     int win_id, int area_id)
 {
 	struct lcdc_device *lcdc_dev =
-	    container_of(dev_drv, struct lcdc_device, driver);
-        u32 win_ctrl = 0;
-        u32 area_status = 0, state = 0;
+		container_of(dev_drv, struct lcdc_device, driver);
+	u32 win_ctrl = 0;
+	u32 area_status = 0, state = 0;
 
-        switch (win_id) {
-        case 0:
-                win_ctrl = lcdc_readl(lcdc_dev, WIN0_CTRL0);
-                area_status = win_ctrl & m_WIN0_EN;
-                break;
-        case 1:
-                win_ctrl = lcdc_readl(lcdc_dev, WIN1_CTRL0);
-                area_status = win_ctrl & m_WIN1_EN;
-                break;
-        case 2:
-                win_ctrl = lcdc_readl(lcdc_dev, WIN2_CTRL0);
-                if (area_id == 0)
-                        area_status = win_ctrl & (m_WIN2_MST0_EN | m_WIN2_EN);
-                if (area_id == 1)
-                        area_status = win_ctrl & m_WIN2_MST1_EN;
-                if (area_id == 2)
-                        area_status = win_ctrl & m_WIN2_MST2_EN;
-                if (area_id == 3)
-                        area_status = win_ctrl & m_WIN2_MST3_EN;
-                break;
-        case 3:
-                win_ctrl = lcdc_readl(lcdc_dev, WIN3_CTRL0);
-                if (area_id == 0)
-                        area_status = win_ctrl & (m_WIN3_MST0_EN | m_WIN3_EN);
-                if (area_id == 1)
-                        area_status = win_ctrl & m_WIN3_MST1_EN;
-                if (area_id == 2)
-                        area_status = win_ctrl & m_WIN3_MST2_EN;
-                if (area_id == 3)
-                        area_status = win_ctrl & m_WIN3_MST3_EN;
-                break;
-        case 4:
-                win_ctrl = lcdc_readl(lcdc_dev, HWC_CTRL0);
-                area_status = win_ctrl & m_HWC_EN;
-                break;
-        default:
-                pr_err("!!!%s,win[%d]area[%d],unsupport!!!\n",__func__,win_id,area_id);
-                break;
-        }
+	switch (win_id) {
+	case 0:
+		win_ctrl = lcdc_readl(lcdc_dev, WIN0_CTRL0);
+		area_status = win_ctrl & m_WIN0_EN;
+		break;
+	case 1:
+		win_ctrl = lcdc_readl(lcdc_dev, WIN1_CTRL0);
+		area_status = win_ctrl & m_WIN1_EN;
+		break;
+	case 2:
+		win_ctrl = lcdc_readl(lcdc_dev, WIN2_CTRL0);
+		if (area_id == 0)
+			area_status = win_ctrl & (m_WIN2_MST0_EN | m_WIN2_EN);
+		if (area_id == 1)
+			area_status = win_ctrl & m_WIN2_MST1_EN;
+		if (area_id == 2)
+			area_status = win_ctrl & m_WIN2_MST2_EN;
+		if (area_id == 3)
+			area_status = win_ctrl & m_WIN2_MST3_EN;
+		break;
+	case 3:
+		win_ctrl = lcdc_readl(lcdc_dev, WIN3_CTRL0);
+		if (area_id == 0)
+			area_status = win_ctrl & (m_WIN3_MST0_EN | m_WIN3_EN);
+		if (area_id == 1)
+			area_status = win_ctrl & m_WIN3_MST1_EN;
+		if (area_id == 2)
+			area_status = win_ctrl & m_WIN3_MST2_EN;
+		if (area_id == 3)
+			area_status = win_ctrl & m_WIN3_MST3_EN;
+		break;
+	case 4:
+		win_ctrl = lcdc_readl(lcdc_dev, HWC_CTRL0);
+		area_status = win_ctrl & m_HWC_EN;
+		break;
+	default:
+		pr_err("!!!%s,win[%d]area[%d],unsupport!!!\n",
+		       __func__, win_id, area_id);
+		break;
+	}
 
 	state = (area_status > 0) ? 1 : 0;
 	return state;
 }
 
 static int rk3368_lcdc_get_area_num(struct rk_lcdc_driver *dev_drv,
-				           unsigned int *area_support)
+				    unsigned int *area_support)
 {
-        area_support[0] = 1;
-        area_support[1] = 1;
-        area_support[2] = 4;
-        area_support[3] = 4;
+	area_support[0] = 1;
+	area_support[1] = 1;
+	area_support[2] = 4;
+	area_support[3] = 4;
 
-        return 0;
+	return 0;
 }
 
 /*overlay will be do at regupdate*/
@@ -4199,7 +4198,7 @@ static int rk3368_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 static u32 pwm_period_hpr, pwm_duty_lpr;
-static u32 cabc_status = 0;
+static u32 cabc_status;
 
 int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty)
 {
@@ -4522,7 +4521,7 @@ rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 
 
 static int rk3368_lcdc_wait_frame_start(struct rk_lcdc_driver *dev_drv,
-					 int enable)
+					int enable)
 {
 	u32 line_scane_num, vsync_end, vact_end;
 	u32 interlace_mode;
@@ -4571,7 +4570,7 @@ static int rk3368_lcdc_backlight_close(struct rk_lcdc_driver *dev_drv,
 	    container_of(dev_drv, struct lcdc_device, driver);
 
 	if (unlikely(!lcdc_dev->clk_on)) {
-                pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
 	rk3368_lcdc_get_backlight_device(dev_drv);
@@ -4608,13 +4607,13 @@ static int rk3368_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
-        /*rk3368_lcdc_post_cfg(dev_drv);*/
+	/*rk3368_lcdc_post_cfg(dev_drv);*/
 
-        return 0;
+	return 0;
 }
 
 static int rk3368_lcdc_extern_func(struct rk_lcdc_driver *dev_drv,
-					int cmd)
+				   int cmd)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
@@ -4630,7 +4629,7 @@ static int rk3368_lcdc_extern_func(struct rk_lcdc_driver *dev_drv,
 		val = lcdc_readl(lcdc_dev, MMU_INT_RAWSTAT);
 		if ((val & 0x1) == 1) {
 			if ((val & 0x2) == 1)
-				pr_info("val = 0x%x, vop iommu bus error\n", val);
+				pr_info("val=0x%x,vop iommu bus error\n", val);
 			else
 				return 1;
 		}
@@ -4645,7 +4644,7 @@ static int rk3368_lcdc_extern_func(struct rk_lcdc_driver *dev_drv,
 		break;
 	}
 
-        return 0;
+	return 0;
 }
 
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
@@ -4736,7 +4735,7 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 	ktime_t timestamp = ktime_get();
 	u32 intr_status;
 	u32 scale_global_limit, scale_global_limit_reg;
-	u32 cabc_pwm_lut_value;
+	u32 cabc_pwm_lut_value, lut_val;
 	int pwm_plus;
 	int *cabc_gamma_base = NULL;
 	u32 line_scane_num, dsp_vs_st_f1;
@@ -4784,9 +4783,10 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 
 			if (lcdc_dev->driver.cabc_pwm_pol == 1) {/*negative*/
 				pwm_plus = pwm_period_hpr - pwm_duty_lpr;
+				lut_val = cabc_gamma_base[scale_global_limit];
 				cabc_pwm_lut_value =
 					pwm_period_hpr -
-					((cabc_gamma_base[scale_global_limit] * pwm_plus) >> 16);
+					((lut_val * pwm_plus) >> 16);
 			} else {/*positive*/
 				pwm_plus = pwm_duty_lpr;
 				cabc_pwm_lut_value =
@@ -5034,7 +5034,6 @@ static void rk3368_lcdc_shutdown(struct platform_device *pdev)
 	rk3368_lcdc_early_suspend(&lcdc_dev->driver);
 	rk3368_lcdc_deint(lcdc_dev);
 #endif
-
 }
 
 #if defined(CONFIG_OF)
