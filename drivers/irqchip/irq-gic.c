@@ -140,6 +140,36 @@ static inline unsigned int gic_irq(struct irq_data *d)
 	return d->hwirq;
 }
 
+static inline bool cascading_gic_irq(struct irq_data *d)
+{
+	void *data = irq_data_get_irq_handler_data(d);
+
+	/*
+	 * If handler_data pointing to one of the secondary GICs, then
+	 * this is a cascading interrupt, and it cannot possibly be
+	 * forwarded.
+	 */
+	if (data >= (void *)(gic_data + 1) &&
+	    data <  (void *)(gic_data + MAX_GIC_NR))
+		return true;
+
+	return false;
+}
+
+static inline bool forwarded_irq(struct irq_data *d)
+{
+	/*
+	 * A forwarded interrupt:
+	 * - is on the primary GIC
+	 * - has its handler_data set to a value
+	 * - that isn't a secondary GIC
+	 */
+	if (d->handler_data && !cascading_gic_irq(d))
+		return true;
+
+	return false;
+}
+
 /*
  * Routines to acknowledge, disable and enable interrupts
  */
@@ -163,6 +193,16 @@ static void gic_mask_irq(struct irq_data *d)
 static void gic_eoimode1_mask_irq(struct irq_data *d)
 {
 	gic_mask_irq(d);
+	/*
+	 * When masking a forwarded interrupt, make sure it is
+	 * deactivated as well.
+	 *
+	 * This ensures that an interrupt that is getting
+	 * disabled/masked will not get "stuck", because there is
+	 * noone to deactivate it (guest is being terminated).
+	 */
+	if (forwarded_irq(d))
+		gic_poke_irq(d, GIC_DIST_ACTIVE_CLEAR);
 }
 
 static void gic_unmask_irq(struct irq_data *d)
@@ -177,6 +217,10 @@ static void gic_eoi_irq(struct irq_data *d)
 
 static void gic_eoimode1_eoi_irq(struct irq_data *d)
 {
+	/* Do not deactivate an IRQ forwarded to a vcpu. */
+	if (forwarded_irq(d))
+		return;
+
 	writel_relaxed(gic_irq(d), gic_cpu_base(d) + GIC_CPU_DEACTIVATE);
 }
 
@@ -244,6 +288,16 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 
 	return gic_configure_irq(gicirq, type, base, NULL);
+}
+
+static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
+{
+	/* Only interrupts on the primary GIC can be forwarded to a vcpu. */
+	if (cascading_gic_irq(d))
+		return -EINVAL;
+
+	d->handler_data = vcpu;
+	return 0;
 }
 
 #ifdef CONFIG_SMP
@@ -357,6 +411,7 @@ static struct irq_chip gic_eoimode1_chip = {
 #endif
 	.irq_get_irqchip_state	= gic_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gic_irq_set_irqchip_state,
+	.irq_set_vcpu_affinity	= gic_irq_set_vcpu_affinity,
 	.flags			= IRQCHIP_SET_TYPE_MASKED |
 				  IRQCHIP_SKIP_SET_WAKE |
 				  IRQCHIP_MASK_ON_SUSPEND,
