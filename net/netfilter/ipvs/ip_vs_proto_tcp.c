@@ -41,6 +41,12 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	struct tcphdr _tcph, *th;
 	struct netns_ipvs *ipvs;
 
+	if (ip_vs_iph_icmp(iph)) {
+		/* TEMPORARY - do not schedule icmp yet */
+		*verdict = NF_ACCEPT;
+		return 0;
+	}
+
 	th = skb_header_pointer(skb, iph->len, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		*verdict = NF_DROP;
@@ -48,6 +54,7 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	}
 	net = skb_net(skb);
 	ipvs = net_ipvs(net);
+
 	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
 	rcu_read_lock();
 	if ((th->syn || sysctl_sloppy_tcp(ipvs)) && !th->rst &&

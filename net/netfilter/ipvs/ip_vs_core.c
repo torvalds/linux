@@ -1409,7 +1409,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
 	unsigned int offset, offset2, ihl, verdict;
-	bool ipip;
+	bool ipip, new_cp = false;
 
 	*related = 1;
 
@@ -1487,8 +1487,17 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	 * For IPIP this is error for request, not for reply.
 	 */
 	cp = pp->conn_in_get(AF_INET, skb, &ciph);
-	if (!cp)
-		return NF_ACCEPT;
+
+	if (!cp) {
+		int v;
+
+		if (!sysctl_schedule_icmp(net_ipvs(net)))
+			return NF_ACCEPT;
+
+		if (!ip_vs_try_to_schedule(AF_INET, skb, pd, &v, &cp, &ciph))
+			return v;
+		new_cp = true;
+	}
 
 	verdict = NF_DROP;
 
@@ -1565,7 +1574,10 @@ ignore_ipip:
 	verdict = ip_vs_icmp_xmit(skb, cp, pp, offset, hooknum, &ciph);
 
 out:
-	__ip_vs_conn_put(cp);
+	if (likely(!new_cp))
+		__ip_vs_conn_put(cp);
+	else
+		ip_vs_conn_put(cp);
 
 	return verdict;
 }
@@ -1581,6 +1593,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
 	unsigned int offset, verdict;
+	bool new_cp = false;
 
 	*related = 1;
 
@@ -1631,13 +1644,23 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	 */
 	cp = pp->conn_in_get(AF_INET6, skb, &ciph);
 
-	if (!cp)
-		return NF_ACCEPT;
+	if (!cp) {
+		int v;
+
+		if (!sysctl_schedule_icmp(net_ipvs(net)))
+			return NF_ACCEPT;
+
+		if (!ip_vs_try_to_schedule(AF_INET6, skb, pd, &v, &cp, &ciph))
+			return v;
+
+		new_cp = true;
+	}
+
 	/* VS/TUN, VS/DR and LOCALNODE just let it go */
 	if ((hooknum == NF_INET_LOCAL_OUT) &&
 	    (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ)) {
-		__ip_vs_conn_put(cp);
-		return NF_ACCEPT;
+		verdict = NF_ACCEPT;
+		goto out;
 	}
 
 	/* do the statistics and put it back */
@@ -1651,7 +1674,11 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 
 	verdict = ip_vs_icmp_xmit_v6(skb, cp, pp, offset, hooknum, &ciph);
 
-	__ip_vs_conn_put(cp);
+out:
+	if (likely(!new_cp))
+		__ip_vs_conn_put(cp);
+	else
+		ip_vs_conn_put(cp);
 
 	return verdict;
 }

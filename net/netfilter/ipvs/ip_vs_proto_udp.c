@@ -37,6 +37,12 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	struct ip_vs_service *svc;
 	struct udphdr _udph, *uh;
 
+	if (ip_vs_iph_icmp(iph)) {
+		/* TEMPORARY - do not schedule icmp yet */
+		*verdict = NF_ACCEPT;
+		return 0;
+	}
+
 	/* IPv6 fragments, only first fragment will hit this */
 	uh = skb_header_pointer(skb, iph->len, sizeof(_udph), &_udph);
 	if (uh == NULL) {
