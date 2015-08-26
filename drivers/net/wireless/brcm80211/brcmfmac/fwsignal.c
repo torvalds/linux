@@ -1506,7 +1506,7 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, ifp->ifidx,
 						    genbit, seq);
 	if (remove_from_hanger || ret)
-		brcmf_txfinalize(fws->drvr, skb, ifp->ifidx, true);
+		brcmf_txfinalize(ifp, skb, true);
 
 	return 0;
 }
@@ -1905,7 +1905,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	if (fws->avoid_queueing) {
 		rc = brcmf_proto_txdata(drvr, ifp->ifidx, 0, skb);
 		if (rc < 0)
-			brcmf_txfinalize(drvr, skb, ifp->ifidx, false);
+			brcmf_txfinalize(ifp, skb, false);
 		return rc;
 	}
 
@@ -1929,7 +1929,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		brcmf_fws_schedule_deq(fws);
 	} else {
 		brcmf_err("drop skb: no hanger slot\n");
-		brcmf_txfinalize(drvr, skb, ifp->ifidx, false);
+		brcmf_txfinalize(ifp, skb, false);
 		rc = -ENOMEM;
 	}
 	brcmf_fws_unlock(fws);
@@ -2009,8 +2009,9 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 				ret = brcmf_proto_txdata(drvr, ifidx, 0, skb);
 				brcmf_fws_lock(fws);
 				if (ret < 0)
-					brcmf_txfinalize(drvr, skb, ifidx,
-							 false);
+					brcmf_txfinalize(brcmf_get_ifp(drvr,
+								       ifidx),
+							 skb, false);
 				if (fws->bus_flow_blocked)
 					break;
 			}

@@ -560,16 +560,10 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 		brcmf_netif_rx(ifp, skb);
 }
 
-void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
-		      bool success)
+void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success)
 {
-	struct brcmf_if *ifp;
 	struct ethhdr *eh;
 	u16 type;
-
-	ifp = drvr->iflist[ifidx];
-	if (!ifp)
-		goto done;
 
 	eh = (struct ethhdr *)(txp->data);
 	type = ntohs(eh->h_proto);
@@ -582,7 +576,7 @@ void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
 
 	if (!success)
 		ifp->stats.tx_errors++;
-done:
+
 	brcmu_pkt_buf_free_skb(txp);
 }
 
@@ -600,7 +594,7 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 		if (brcmf_proto_hdrpull(drvr, false, txp, &ifp))
 			brcmu_pkt_buf_free_skb(txp);
 		else
-			brcmf_txfinalize(drvr, txp, ifp->ifidx, success);
+			brcmf_txfinalize(ifp, txp, success);
 	}
 }
 
