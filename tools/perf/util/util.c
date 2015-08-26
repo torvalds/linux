@@ -439,7 +439,6 @@ const char *perf_debugfs_mount(const char *mountpoint)
 
 void perf_debugfs_set_path(const char *mntpt)
 {
-	snprintf(debugfs_mountpoint, strlen(debugfs_mountpoint), "%s", mntpt);
 	set_tracing_events_path("tracing/", mntpt);
 }
 
