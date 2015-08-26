@@ -3657,7 +3657,7 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
 	qdisc_bstats_cpu_update(cl->q, skb);
 
-	switch (tc_classify(skb, cl, &cl_res)) {
+	switch (tc_classify(skb, cl, &cl_res, false)) {
 	case TC_ACT_OK:
 	case TC_ACT_RECLASSIFY:
 		skb->tc_index = TC_H_MIN(cl_res.classid);

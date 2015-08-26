@@ -230,7 +230,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	else {
 		struct tcf_result res;
 		struct tcf_proto *fl = rcu_dereference_bh(p->filter_list);
-		int result = tc_classify(skb, fl, &res);
+		int result = tc_classify(skb, fl, &res, false);
 
 		pr_debug("result %d class 0x%04x\n", result, res.classid);
 
