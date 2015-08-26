@@ -1,0 +1,11 @@
+
+menu "MXC HDMI CEC (Consumer Electronics Control) support"
+
+config MXC_HDMI_CEC
+	tristate "Support for MXC HDMI CEC (Consumer Electronics Control)"
+	depends on MFD_MXC_HDMI
+	depends on FB_MXC_HDMI
+	help
+	  The HDMI CEC device implement low level protocol on i.MX6x platforms.
+
+endmenu

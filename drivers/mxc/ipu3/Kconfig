@@ -1,0 +1,21 @@
+config MXC_IPU_V3
+	bool
+
+config MXC_IPU_V3_PRG
+	tristate "i.MX IPUv3 prefetch gasket engine"
+	depends on MXC_IPU_V3 && MXC_IPU_V3_PRE
+	help
+	  This enables support for the IPUv3 prefetch gasket engine to
+	  support double buffer handshake control bewteen IPUv3 and
+	  prefetch engine(PRE), snoop the AXI interface for display
+	  refresh requests to memory and modify the request address to
+	  fetch the double buffered row of blocks in OCRAM.
+
+config MXC_IPU_V3_PRE
+	tristate "i.MX IPUv3 prefetch engine"
+	depends on MXC_IPU_V3
+	select MXC_IPU_V3_PRG
+	help
+	  This enables support for the IPUv3 prefetch engine to improve
+	  the system memory performance.  The engine has the capability
+	  to resolve framebuffers in tile pixel format to linear.
