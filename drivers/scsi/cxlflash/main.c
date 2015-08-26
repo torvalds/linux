@@ -354,7 +354,6 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)host->hostdata;
 	struct afu *afu = cfg->afu;
 	struct pci_dev *pdev = cfg->dev;
-	struct device *dev = &cfg->dev->dev;
 	struct afu_cmd *cmd;
 	u32 port_sel = scp->device->channel + 1;
 	int nseg, i, ncount;
@@ -384,11 +383,13 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 
 	switch (cfg->state) {
 	case STATE_LIMBO:
-		dev_dbg_ratelimited(dev, "%s: device in limbo!\n", __func__);
+		dev_dbg_ratelimited(&cfg->dev->dev, "%s: device in limbo!\n",
+				    __func__);
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;
 	case STATE_FAILTERM:
-		dev_dbg_ratelimited(dev, "%s: device has failed!\n", __func__);
+		dev_dbg_ratelimited(&cfg->dev->dev, "%s: device has failed!\n",
+				    __func__);
 		scp->result = (DID_NO_CONNECT << 16);
 		scp->scsi_done(scp);
 		rc = 0;
