@@ -15,6 +15,7 @@
 #include <linux/openvswitch.h>
 #include <net/ip.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
@@ -43,6 +44,7 @@ struct md_label {
 
 /* Conntrack action context for execution. */
 struct ovs_conntrack_info {
+	struct nf_conntrack_helper *helper;
 	struct nf_conntrack_zone zone;
 	struct nf_conn *ct;
 	u32 flags;
@@ -234,6 +236,51 @@ static int ovs_ct_set_label(struct sk_buff *skb, struct sw_flow_key *key,
 	return 0;
 }
 
+/* 'skb' should already be pulled to nh_ofs. */
+static int ovs_ct_helper(struct sk_buff *skb, u16 proto)
+{
+	const struct nf_conntrack_helper *helper;
+	const struct nf_conn_help *help;
+	enum ip_conntrack_info ctinfo;
+	unsigned int protoff;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
+		return NF_ACCEPT;
+
+	help = nfct_help(ct);
+	if (!help)
+		return NF_ACCEPT;
+
+	helper = rcu_dereference(help->helper);
+	if (!helper)
+		return NF_ACCEPT;
+
+	switch (proto) {
+	case NFPROTO_IPV4:
+		protoff = ip_hdrlen(skb);
+		break;
+	case NFPROTO_IPV6: {
+		u8 nexthdr = ipv6_hdr(skb)->nexthdr;
+		__be16 frag_off;
+
+		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
+					   &nexthdr, &frag_off);
+		if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
+			pr_debug("proto header not found\n");
+			return NF_ACCEPT;
+		}
+		break;
+	}
+	default:
+		WARN_ONCE(1, "helper invoked on non-IP family!");
+		return NF_DROP;
+	}
+
+	return helper->help(skb, protoff, ct, ctinfo);
+}
+
 static int handle_fragments(struct net *net, struct sw_flow_key *key,
 			    u16 zone, struct sk_buff *skb)
 {
@@ -306,6 +353,13 @@ static bool skb_nfct_cached(const struct net *net, const struct sk_buff *skb,
 		return false;
 	if (!nf_ct_zone_equal_any(info->ct, nf_ct_zone(ct)))
 		return false;
+	if (info->helper) {
+		struct nf_conn_help *help;
+
+		help = nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+		if (help && rcu_access_pointer(help->helper) != info->helper)
+			return false;
+	}
 
 	return true;
 }
@@ -334,6 +388,11 @@ static int __ovs_ct_lookup(struct net *net, const struct sw_flow_key *key,
 		if (nf_conntrack_in(net, info->family, NF_INET_PRE_ROUTING,
 				    skb) != NF_ACCEPT)
 			return -ENOENT;
+
+		if (ovs_ct_helper(skb, info->family) != NF_ACCEPT) {
+			WARN_ONCE(1, "helper rejected packet");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -442,6 +501,30 @@ err:
 	return err;
 }
 
+static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
+			     const struct sw_flow_key *key, bool log)
+{
+	struct nf_conntrack_helper *helper;
+	struct nf_conn_help *help;
+
+	helper = nf_conntrack_helper_try_module_get(name, info->family,
+						    key->ip.proto);
+	if (!helper) {
+		OVS_NLERR(log, "Unknown helper \"%s\"", name);
+		return -EINVAL;
+	}
+
+	help = nf_ct_helper_ext_add(info->ct, helper, GFP_KERNEL);
+	if (!help) {
+		module_put(helper->me);
+		return -ENOMEM;
+	}
+
+	rcu_assign_pointer(help->helper, helper);
+	info->helper = helper;
+	return 0;
+}
+
 static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	[OVS_CT_ATTR_FLAGS]	= { .minlen = sizeof(u32),
 				    .maxlen = sizeof(u32) },
@@ -451,10 +534,12 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 				    .maxlen = sizeof(struct md_mark) },
 	[OVS_CT_ATTR_LABEL]	= { .minlen = sizeof(struct md_label),
 				    .maxlen = sizeof(struct md_label) },
+	[OVS_CT_ATTR_HELPER]	= { .minlen = 1,
+				    .maxlen = NF_CT_HELPER_NAME_LEN }
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
-		    bool log)
+		    const char **helper, bool log)
 {
 	struct nlattr *a;
 	int rem;
@@ -502,6 +587,13 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			break;
 		}
 #endif
+		case OVS_CT_ATTR_HELPER:
+			*helper = nla_data(a);
+			if (!memchr(*helper, '\0', nla_len(a))) {
+				OVS_NLERR(log, "Invalid conntrack helper");
+				return -EINVAL;
+			}
+			break;
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -542,6 +634,7 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		       struct sw_flow_actions **sfa,  bool log)
 {
 	struct ovs_conntrack_info ct_info;
+	const char *helper = NULL;
 	u16 family;
 	int err;
 
@@ -557,7 +650,7 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	nf_ct_zone_init(&ct_info.zone, NF_CT_DEFAULT_ZONE_ID,
 			NF_CT_DEFAULT_ZONE_DIR, 0);
 
-	err = parse_ct(attr, &ct_info, log);
+	err = parse_ct(attr, &ct_info, &helper, log);
 	if (err)
 		return err;
 
@@ -566,6 +659,11 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (!ct_info.ct) {
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
+	}
+	if (helper) {
+		err = ovs_ct_add_helper(&ct_info, helper, key, log);
+		if (err)
+			goto err_free_ct;
 	}
 
 	err = ovs_nla_add_action(sfa, OVS_ACTION_ATTR_CT, &ct_info,
@@ -603,6 +701,11 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	    nla_put(skb, OVS_CT_ATTR_LABEL, sizeof(ct_info->label),
 		    &ct_info->label))
 		return -EMSGSIZE;
+	if (ct_info->helper) {
+		if (nla_put_string(skb, OVS_CT_ATTR_HELPER,
+				   ct_info->helper->name))
+			return -EMSGSIZE;
+	}
 
 	nla_nest_end(skb, start);
 
@@ -613,6 +716,8 @@ void ovs_ct_free_action(const struct nlattr *a)
 {
 	struct ovs_conntrack_info *ct_info = nla_data(a);
 
+	if (ct_info->helper)
+		module_put(ct_info->helper->me);
 	if (ct_info->ct)
 		nf_ct_put(ct_info->ct);
 }

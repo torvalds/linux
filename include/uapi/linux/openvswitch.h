@@ -626,6 +626,7 @@ struct ovs_action_hash {
  * @OVS_CT_ATTR_LABEL: %OVS_CT_LABEL_LEN value followed by %OVS_CT_LABEL_LEN
  * mask. For each bit set in the mask, the corresponding bit in the value is
  * copied to the connection tracking label field in the connection.
+ * @OVS_CT_ATTR_HELPER: variable length string defining conntrack ALG.
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
@@ -633,6 +634,8 @@ enum ovs_ct_attr {
 	OVS_CT_ATTR_ZONE,       /* u16 zone id. */
 	OVS_CT_ATTR_MARK,       /* mark to associate with this connection. */
 	OVS_CT_ATTR_LABEL,      /* label to associate with this connection. */
+	OVS_CT_ATTR_HELPER,     /* netlink helper to assist detection of
+				   related connections. */
 	__OVS_CT_ATTR_MAX
 };
 
