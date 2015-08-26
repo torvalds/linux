@@ -1099,16 +1099,8 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	if (ret < 0)
 		goto error_video;
 
-	/* Connect the video node to the ccp2 subdev. */
-	ret = media_create_pad_link(&ccp2->video_in.video.entity, 0,
-				       &ccp2->subdev.entity, CCP2_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap3isp_video_cleanup(&ccp2->video_in);
 error_video:
 	media_entity_cleanup(&ccp2->subdev.entity);
 	return ret;
@@ -1154,6 +1146,20 @@ int omap3isp_ccp2_init(struct isp_device *isp)
 
 	ccp2_reset(ccp2);
 	return 0;
+}
+
+/*
+ * omap3isp_ccp2_create_pads_links - CCP2 pads links creation
+ * @isp : Pointer to ISP device
+ * return negative error code or zero on success
+ */
+int omap3isp_ccp2_create_pads_links(struct isp_device *isp)
+{
+	struct isp_ccp2_device *ccp2 = &isp->isp_ccp2;
+
+	/* Connect the video node to the ccp2 subdev. */
+	return media_create_pad_link(&ccp2->video_in.video.entity, 0,
+				     &ccp2->subdev.entity, CCP2_PAD_SINK, 0);
 }
 
 /*

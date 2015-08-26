@@ -119,6 +119,7 @@ struct isp_res_device {
 struct isp_device;
 
 int omap3isp_resizer_init(struct isp_device *isp);
+int omap3isp_resizer_create_pads_links(struct isp_device *isp);
 void omap3isp_resizer_cleanup(struct isp_device *isp);
 
 int omap3isp_resizer_register_entities(struct isp_res_device *res,

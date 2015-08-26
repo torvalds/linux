@@ -2311,21 +2311,8 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	if (ret < 0)
 		goto error_video_out;
 
-	/* Connect the video nodes to the previewer subdev. */
-	ret = media_create_pad_link(&prev->video_in.video.entity, 0,
-			&prev->subdev.entity, PREV_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(&prev->subdev.entity, PREV_PAD_SOURCE,
-			&prev->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap3isp_video_cleanup(&prev->video_out);
 error_video_out:
 	omap3isp_video_cleanup(&prev->video_in);
 error_video_in:
@@ -2347,6 +2334,26 @@ int omap3isp_preview_init(struct isp_device *isp)
 	preview_init_params(prev);
 
 	return preview_init_entities(prev);
+}
+
+/*
+ * omap3isp_preview_create_pads_links - Previewer pads links creation
+ * @isp : Pointer to ISP device
+ * return negative error code or zero on success
+ */
+int omap3isp_preview_create_pads_links(struct isp_device *isp)
+{
+	struct isp_prev_device *prev = &isp->isp_prev;
+	int ret;
+
+	/* Connect the video nodes to the previewer subdev. */
+	ret = media_create_pad_link(&prev->video_in.video.entity, 0,
+			&prev->subdev.entity, PREV_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	return media_create_pad_link(&prev->subdev.entity, PREV_PAD_SOURCE,
+				     &prev->video_out.video.entity, 0, 0);
 }
 
 void omap3isp_preview_cleanup(struct isp_device *isp)

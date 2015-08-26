@@ -1933,6 +1933,100 @@ done:
 	return ret;
 }
 
+/*
+ * isp_create_pads_links - Pads links creation for the subdevices
+ * @isp : Pointer to ISP device
+ * return negative error code or zero on success
+ */
+static int isp_create_pads_links(struct isp_device *isp)
+{
+	int ret;
+
+	ret = omap3isp_csi2_create_pads_links(isp);
+	if (ret < 0) {
+		dev_err(isp->dev, "CSI2 pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap3isp_ccp2_create_pads_links(isp);
+	if (ret < 0) {
+		dev_err(isp->dev, "CCP2 pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap3isp_ccdc_create_pads_links(isp);
+	if (ret < 0) {
+		dev_err(isp->dev, "CCDC pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap3isp_preview_create_pads_links(isp);
+	if (ret < 0) {
+		dev_err(isp->dev, "Preview pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap3isp_resizer_create_pads_links(isp);
+	if (ret < 0) {
+		dev_err(isp->dev, "Resizer pads links creation failed\n");
+		return ret;
+	}
+
+	/* Connect the submodules. */
+	ret = media_create_pad_link(
+			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SOURCE,
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
+			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
+			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_aewb.subdev.entity, 0,
+			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_af.subdev.entity, 0,
+			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_hist.subdev.entity, 0,
+			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static void isp_cleanup_modules(struct isp_device *isp)
 {
 	omap3isp_h3a_aewb_cleanup(isp);
@@ -2003,62 +2097,8 @@ static int isp_initialize_modules(struct isp_device *isp)
 		goto error_h3a_af;
 	}
 
-	/* Connect the submodules. */
-	ret = media_create_pad_link(
-			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SOURCE,
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
-			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
-			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_aewb.subdev.entity, 0,
-			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_af.subdev.entity, 0,
-			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_hist.subdev.entity, 0,
-			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap3isp_h3a_af_cleanup(isp);
 error_h3a_af:
 	omap3isp_h3a_aewb_cleanup(isp);
 error_h3a_aewb:
@@ -2467,6 +2507,10 @@ static int isp_probe(struct platform_device *pdev)
 	ret = isp_register_entities(isp);
 	if (ret < 0)
 		goto error_modules;
+
+	ret = isp_create_pads_links(isp);
+	if (ret < 0)
+		goto error_register_entities;
 
 	isp->notifier.bound = isp_subdev_notifier_bound;
 	isp->notifier.complete = isp_subdev_notifier_complete;

@@ -2666,16 +2666,8 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 	if (ret < 0)
 		goto error_video;
 
-	/* Connect the CCDC subdev to the video node. */
-	ret = media_create_pad_link(&ccdc->subdev.entity, CCDC_PAD_SOURCE_OF,
-			&ccdc->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap3isp_video_cleanup(&ccdc->video_out);
 error_video:
 	media_entity_cleanup(me);
 	return ret;
@@ -2718,6 +2710,20 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 	}
 
 	return 0;
+}
+
+/*
+ * omap3isp_ccdc_create_pads_links - CCDC pads links creation
+ * @isp : Pointer to ISP device
+ * return negative error code or zero on success
+ */
+int omap3isp_ccdc_create_pads_links(struct isp_device *isp)
+{
+	struct isp_ccdc_device *ccdc = &isp->isp_ccdc;
+
+	/* Connect the CCDC subdev to the video node. */
+	return media_create_pad_link(&ccdc->subdev.entity, CCDC_PAD_SOURCE_OF,
+				     &ccdc->video_out.video.entity, 0, 0);
 }
 
 /*

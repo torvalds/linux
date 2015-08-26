@@ -148,6 +148,7 @@ struct isp_csi2_device {
 void omap3isp_csi2_isr(struct isp_csi2_device *csi2);
 int omap3isp_csi2_reset(struct isp_csi2_device *csi2);
 int omap3isp_csi2_init(struct isp_device *isp);
+int omap3isp_csi2_create_pads_links(struct isp_device *isp);
 void omap3isp_csi2_cleanup(struct isp_device *isp);
 void omap3isp_csi2_unregister_entities(struct isp_csi2_device *csi2);
 int omap3isp_csi2_register_entities(struct isp_csi2_device *csi2,
