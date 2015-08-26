@@ -115,8 +115,7 @@ static int pll_gf40lp_frac_enable(struct clk_hw *hw)
 	u32 val;
 
 	val = pll_readl(pll, PLL_CTRL3);
-	val &= ~(PLL_FRAC_CTRL3_PD | PLL_FRAC_CTRL3_DACPD |
-		 PLL_FRAC_CTRL3_DSMPD | PLL_FRAC_CTRL3_FOUTPOSTDIVPD |
+	val &= ~(PLL_FRAC_CTRL3_PD | PLL_FRAC_CTRL3_FOUTPOSTDIVPD |
 		 PLL_FRAC_CTRL3_FOUT4PHASEPD | PLL_FRAC_CTRL3_FOUTVCOPD);
 	pll_writel(pll, val, PLL_CTRL3);
 
@@ -233,7 +232,7 @@ static int pll_gf40lp_laint_enable(struct clk_hw *hw)
 	u32 val;
 
 	val = pll_readl(pll, PLL_CTRL1);
-	val &= ~(PLL_INT_CTRL1_PD | PLL_INT_CTRL1_DSMPD |
+	val &= ~(PLL_INT_CTRL1_PD |
 		 PLL_INT_CTRL1_FOUTPOSTDIVPD | PLL_INT_CTRL1_FOUTVCOPD);
 	pll_writel(pll, val, PLL_CTRL1);
 
