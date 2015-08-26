@@ -30,6 +30,8 @@
 #include "cz_hwmgr.h"
 #include "tonga_hwmgr.h"
 
+extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
+
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
 	struct pp_hwmgr *hwmgr;
@@ -58,6 +60,9 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		switch (hwmgr->chip_id) {
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
+			break;
+		case CHIP_FIJI:
+			fiji_hwmgr_init(hwmgr);
 			break;
 		default:
 			return -EINVAL;
