@@ -1619,6 +1619,7 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 
 	memcpy(acts->actions, (*sfa)->actions, (*sfa)->actions_len);
 	acts->actions_len = (*sfa)->actions_len;
+	acts->orig_len = (*sfa)->orig_len;
 	kfree(*sfa);
 	*sfa = acts;
 
@@ -2223,6 +2224,7 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 	if (IS_ERR(*sfa))
 		return PTR_ERR(*sfa);
 
+	(*sfa)->orig_len = nla_len(attr);
 	err = __ovs_nla_copy_actions(attr, key, 0, sfa, key->eth.type,
 				     key->eth.tci, log);
 	if (err)
