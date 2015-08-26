@@ -102,9 +102,9 @@ static struct samsung_mux_clock topc_mux_clks[] __initdata = {
 	MUX(0, "mout_sclk_mfc_pll_cmuc", mout_sclk_mfc_pll_cmuc_p,
 		MUX_SEL_TOPC0, 28, 1),
 
+	MUX(0, "mout_aud_pll_ctrl", mout_aud_pll_ctrl_p, MUX_SEL_TOPC1, 0, 1),
 	MUX(0, "mout_sclk_bus0_pll_out", mout_sclk_bus0_pll_out_p,
 		MUX_SEL_TOPC1, 16, 1),
-	MUX(0, "mout_aud_pll_ctrl", mout_aud_pll_ctrl_p, MUX_SEL_TOPC1, 0, 1),
 
 	MUX(0, "mout_aclk_ccore_133", mout_topc_group2,	MUX_SEL_TOPC2, 4, 2),
 
@@ -122,15 +122,15 @@ static struct samsung_div_clock topc_div_clks[] __initdata = {
 		DIV_TOPC1, 24, 4),
 
 	DIV(DOUT_SCLK_BUS0_PLL, "dout_sclk_bus0_pll", "mout_sclk_bus0_pll_out",
-		DIV_TOPC3, 0, 3),
+		DIV_TOPC3, 0, 4),
 	DIV(DOUT_SCLK_BUS1_PLL, "dout_sclk_bus1_pll", "mout_bus1_pll_ctrl",
-		DIV_TOPC3, 8, 3),
+		DIV_TOPC3, 8, 4),
 	DIV(DOUT_SCLK_CC_PLL, "dout_sclk_cc_pll", "mout_cc_pll_ctrl",
-		DIV_TOPC3, 12, 3),
+		DIV_TOPC3, 12, 4),
 	DIV(DOUT_SCLK_MFC_PLL, "dout_sclk_mfc_pll", "mout_mfc_pll_ctrl",
-		DIV_TOPC3, 16, 3),
+		DIV_TOPC3, 16, 4),
 	DIV(DOUT_SCLK_AUD_PLL, "dout_sclk_aud_pll", "mout_aud_pll_ctrl",
-		DIV_TOPC3, 28, 3),
+		DIV_TOPC3, 28, 4),
 };
 
 static struct samsung_pll_rate_table pll1460x_24mhz_tbl[] __initdata = {
