@@ -6213,7 +6213,7 @@ static void brcmf_free_wiphy(struct wiphy *wiphy)
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 						  struct device *busdev)
 {
-	struct net_device *ndev = drvr->iflist[0]->ndev;
+	struct net_device *ndev = brcmf_get_ifp(drvr, 0)->ndev;
 	struct brcmf_cfg80211_info *cfg;
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_vif *vif;

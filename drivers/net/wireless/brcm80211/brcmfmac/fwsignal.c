@@ -972,7 +972,7 @@ static void
 brcmf_fws_flow_control_check(struct brcmf_fws_info *fws, struct pktq *pq,
 			     u8 if_id)
 {
-	struct brcmf_if *ifp = fws->drvr->iflist[!if_id ? 0 : if_id + 1];
+	struct brcmf_if *ifp = brcmf_get_ifp(fws->drvr, if_id);
 
 	if (WARN_ON(!ifp))
 		return;
@@ -2118,6 +2118,7 @@ static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
 int brcmf_fws_init(struct brcmf_pub *drvr)
 {
 	struct brcmf_fws_info *fws;
+	struct brcmf_if *ifp;
 	u32 tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS;
 	int rc;
 	u32 mode;
@@ -2177,21 +2178,22 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	 * continue. Set mode back to none indicating not enabled.
 	 */
 	fws->fw_signals = true;
-	if (brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv)) {
+	ifp = brcmf_get_ifp(drvr, 0);
+	if (brcmf_fil_iovar_int_set(ifp, "tlv", tlv)) {
 		brcmf_err("failed to set bdcv2 tlv signaling\n");
 		fws->fcmode = BRCMF_FWS_FCMODE_NONE;
 		fws->fw_signals = false;
 	}
 
-	if (brcmf_fil_iovar_int_set(drvr->iflist[0], "ampdu_hostreorder", 1))
+	if (brcmf_fil_iovar_int_set(ifp, "ampdu_hostreorder", 1))
 		brcmf_dbg(INFO, "enabling AMPDU host-reorder failed\n");
 
 	/* Enable seq number reuse, if supported */
-	if (brcmf_fil_iovar_int_get(drvr->iflist[0], "wlfc_mode", &mode) == 0) {
+	if (brcmf_fil_iovar_int_get(ifp, "wlfc_mode", &mode) == 0) {
 		if (BRCMF_FWS_MODE_GET_REUSESEQ(mode)) {
 			mode = 0;
 			BRCMF_FWS_MODE_SET_REUSESEQ(mode, 1);
-			if (brcmf_fil_iovar_int_set(drvr->iflist[0],
+			if (brcmf_fil_iovar_int_set(ifp,
 						    "wlfc_mode", mode) == 0) {
 				BRCMF_FWS_MODE_SET_REUSESEQ(fws->mode, 1);
 			}

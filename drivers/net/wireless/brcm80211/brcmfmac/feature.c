@@ -121,7 +121,7 @@ static void brcmf_feat_iovar_int_set(struct brcmf_if *ifp,
 
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
-	struct brcmf_if *ifp = drvr->iflist[0];
+	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_MCHAN, "mchan");
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
