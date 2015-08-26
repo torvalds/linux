@@ -88,12 +88,10 @@ static inline void pll_lock(struct pistachio_clk_pll *pll)
 		cpu_relax();
 }
 
-static inline u32 do_div_round_closest(u64 dividend, u32 divisor)
+static inline u64 do_div_round_closest(u64 dividend, u64 divisor)
 {
 	dividend += divisor / 2;
-	do_div(dividend, divisor);
-
-	return dividend;
+	return div64_u64(dividend, divisor);
 }
 
 static inline struct pistachio_clk_pll *to_pistachio_pll(struct clk_hw *hw)
@@ -173,7 +171,7 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
 	struct pistachio_pll_rate_table *params;
 	int enabled = pll_gf40lp_frac_is_enabled(hw);
-	u32 val, vco, old_postdiv1, old_postdiv2;
+	u64 val, vco, old_postdiv1, old_postdiv2;
 	const char *name = clk_hw_get_name(hw);
 
 	if (rate < MIN_OUTPUT_FRAC || rate > MAX_OUTPUT_FRAC)
@@ -183,17 +181,17 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!params || !params->refdiv)
 		return -EINVAL;
 
-	vco = params->fref * params->fbdiv / params->refdiv;
+	vco = div64_u64(params->fref * params->fbdiv, params->refdiv);
 	if (vco < MIN_VCO_FRAC_FRAC || vco > MAX_VCO_FRAC_FRAC)
-		pr_warn("%s: VCO %u is out of range %lu..%lu\n", name, vco,
+		pr_warn("%s: VCO %llu is out of range %lu..%lu\n", name, vco,
 			MIN_VCO_FRAC_FRAC, MAX_VCO_FRAC_FRAC);
 
-	val = params->fref / params->refdiv;
+	val = div64_u64(params->fref, params->refdiv);
 	if (val < MIN_PFD)
-		pr_warn("%s: PFD %u is too low (min %lu)\n",
+		pr_warn("%s: PFD %llu is too low (min %lu)\n",
 			name, val, MIN_PFD);
 	if (val > vco / 16)
-		pr_warn("%s: PFD %u is too high (max %u)\n",
+		pr_warn("%s: PFD %llu is too high (max %llu)\n",
 			name, val, vco / 16);
 
 	val = pll_readl(pll, PLL_CTRL1);
@@ -237,8 +235,7 @@ static unsigned long pll_gf40lp_frac_recalc_rate(struct clk_hw *hw,
 						 unsigned long parent_rate)
 {
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
-	u32 val, prediv, fbdiv, frac, postdiv1, postdiv2;
-	u64 rate = parent_rate;
+	u64 val, prediv, fbdiv, frac, postdiv1, postdiv2, rate;
 
 	val = pll_readl(pll, PLL_CTRL1);
 	prediv = (val >> PLL_CTRL1_REFDIV_SHIFT) & PLL_CTRL1_REFDIV_MASK;
@@ -251,6 +248,7 @@ static unsigned long pll_gf40lp_frac_recalc_rate(struct clk_hw *hw,
 		PLL_FRAC_CTRL2_POSTDIV2_MASK;
 	frac = (val >> PLL_FRAC_CTRL2_FRAC_SHIFT) & PLL_FRAC_CTRL2_FRAC_MASK;
 
+	rate = parent_rate;
 	rate *= (fbdiv << 24) + frac;
 	rate = do_div_round_closest(rate, (prediv * postdiv1 * postdiv2) << 24);
 
@@ -325,12 +323,12 @@ static int pll_gf40lp_laint_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!params || !params->refdiv)
 		return -EINVAL;
 
-	vco = params->fref * params->fbdiv / params->refdiv;
+	vco = div_u64(params->fref * params->fbdiv, params->refdiv);
 	if (vco < MIN_VCO_LA || vco > MAX_VCO_LA)
 		pr_warn("%s: VCO %u is out of range %lu..%lu\n", name, vco,
 			MIN_VCO_LA, MAX_VCO_LA);
 
-	val = params->fref / params->refdiv;
+	val = div_u64(params->fref, params->refdiv);
 	if (val < MIN_PFD)
 		pr_warn("%s: PFD %u is too low (min %lu)\n",
 			name, val, MIN_PFD);
