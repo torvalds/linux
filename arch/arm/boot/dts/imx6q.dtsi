@@ -91,6 +91,25 @@
 			interrupts = <0 107 0x04>, <0 112 0x4>, <0 113 0x4>, <0 114 0x4>;
 			interrupt-names = "irq_busfreq_0", "irq_busfreq_1", "irq_busfreq_2", "irq_busfreq_3";
 			fsl,max_ddr_freq = <528000000>;
+                gpu@00130000 {
+			compatible = "fsl,imx6q-gpu";
+			reg = <0x00130000 0x4000>, <0x00134000 0x4000>,
+			      <0x02204000 0x4000>, <0x0 0x0>;
+			reg-names = "iobase_3d", "iobase_2d",
+				    "iobase_vg", "phys_baseaddr";
+			interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 10 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 11 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_3d", "irq_2d", "irq_vg";
+			clocks = <&clks IMX6QDL_CLK_GPU2D_AXI>, <&clks IMX6QDL_CLK_OPENVG_AXI>,
+				 <&clks IMX6QDL_CLK_GPU3D_AXI>, <&clks IMX6QDL_CLK_GPU2D_CORE>,
+				 <&clks IMX6QDL_CLK_GPU3D_CORE>, <&clks IMX6QDL_CLK_GPU3D_SHADER>;
+			clock-names = "gpu2d_axi_clk", "openvg_axi_clk",
+				      "gpu3d_axi_clk", "gpu2d_clk",
+				      "gpu3d_clk", "gpu3d_shader_clk";
+			resets = <&src 0>, <&src 3>, <&src 3>;
+			reset-names = "gpu3d", "gpu2d", "gpuvg";
+			power-domains = <&gpc 1>;
 		};
 
 		ocram: sram@00905000 {

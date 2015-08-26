@@ -1,0 +1,313 @@
+##############################################################################
+#
+#    The MIT License (MIT)
+#
+#    Copyright (c) 2014 Vivante Corporation
+#
+#    Permission is hereby granted, free of charge, to any person obtaining a
+#    copy of this software and associated documentation files (the "Software"),
+#    to deal in the Software without restriction, including without limitation
+#    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+#    and/or sell copies of the Software, and to permit persons to whom the
+#    Software is furnished to do so, subject to the following conditions:
+#
+#    The above copyright notice and this permission notice shall be included in
+#    all copies or substantial portions of the Software.
+#
+#    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+#    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#    DEALINGS IN THE SOFTWARE.
+#
+##############################################################################
+#
+#    The GPL License (GPL)
+#
+#    Copyright (C) 2014  Vivante Corporation
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU General Public License
+#    as published by the Free Software Foundation; either version 2
+#    of the License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software Foundation,
+#    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+##############################################################################
+#
+#    Note: This software is released under dual MIT and GPL licenses. A
+#    recipient may use this file under the terms of either the MIT license or
+#    GPL License. If you wish to use only one license not the other, you can
+#    indicate your decision by deleting one of the above license notices in your
+#    version of this file.
+#
+##############################################################################
+
+
+#
+# Linux build file for kernel HAL driver.
+#
+
+AQROOT := $(srctree)/drivers/mxc/gpu-viv
+
+include $(AQROOT)/config
+
+KERNEL_DIR ?= $(TOOL_DIR)/kernel
+
+OS_KERNEL_DIR   := hal/os/linux/kernel
+ARCH_KERNEL_DIR := hal/kernel/arch
+ARCH_VG_KERNEL_DIR := hal/kernel/archvg
+HAL_KERNEL_DIR  := hal/kernel
+HOST := $(shell hostname)
+
+# Check and include platform config.
+ifneq ($(PLATFORM),)
+
+# Get platform config path.
+PLATFORM_CONFIG ?= $(AQROOT)/$(OS_KERNEL_DIR)/platform/$(PLATFORM).config
+
+# Check whether it exists.
+PLATFORM_CONFIG := $(wildcard $(PLATFORM_CONFIG))
+
+# Include it if exists.
+ifneq ($(PLATFORM_CONFIG),)
+include $(PLATFORM_CONFIG)
+endif
+
+endif
+
+MODULE_NAME ?= galcore
+CUSTOMER_ALLOCATOR_OBJS    ?=
+ALLOCATOR_ARRAY_H_LOCATION ?= $(OS_KERNEL_DIR)/allocator/default/
+
+EXTRA_CFLAGS += -Werror
+
+OBJS := $(OS_KERNEL_DIR)/gc_hal_kernel_device.o \
+        $(OS_KERNEL_DIR)/gc_hal_kernel_linux.o \
+        $(OS_KERNEL_DIR)/gc_hal_kernel_math.o \
+        $(OS_KERNEL_DIR)/gc_hal_kernel_os.o \
+        $(OS_KERNEL_DIR)/gc_hal_kernel_debugfs.o \
+        $(OS_KERNEL_DIR)/gc_hal_kernel_allocator.o \
+
+ifneq ($(CONFIG_DMA_SHARED_BUFFER),)
+OBJS += $(OS_KERNEL_DIR)/allocator/default/gc_hal_kernel_allocator_dmabuf.o
+endif
+
+ifneq ($(CONFIG_IOMMU_SUPPORT),)
+OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_iommu.o
+endif
+
+ifneq ($(PLATFORM),)
+OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_probe.o
+OBJS += $(OS_KERNEL_DIR)/platform/$(PLATFORM).o
+else
+OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_driver.o
+endif
+
+OBJS += $(HAL_KERNEL_DIR)/gc_hal_kernel.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_command.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_db.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_debug.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_event.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_heap.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_mmu.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_video_memory.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_power.o
+
+OBJS += $(ARCH_KERNEL_DIR)/gc_hal_kernel_context.o \
+        $(ARCH_KERNEL_DIR)/gc_hal_kernel_hardware.o
+
+ifeq ($(VIVANTE_ENABLE_3D), 1)
+OBJS += $(ARCH_KERNEL_DIR)/gc_hal_kernel_recorder.o
+endif
+
+ifeq ($(VIVANTE_ENABLE_VG), 1)
+OBJS +=\
+          $(HAL_KERNEL_DIR)/gc_hal_kernel_vg.o\
+          $(HAL_KERNEL_DIR)/gc_hal_kernel_command_vg.o\
+          $(HAL_KERNEL_DIR)/gc_hal_kernel_interrupt_vg.o\
+          $(HAL_KERNEL_DIR)/gc_hal_kernel_mmu_vg.o\
+          $(ARCH_VG_KERNEL_DIR)/gc_hal_kernel_hardware_command_vg.o\
+          $(ARCH_VG_KERNEL_DIR)/gc_hal_kernel_hardware_vg.o
+endif
+
+ifneq ($(CONFIG_SYNC),)
+EXTRA_CFLAGS += -Idrivers/staging/android
+
+OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_sync.o
+endif
+
+ifeq ($(SECURITY), 1)
+OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_security_channel.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_security.o
+endif
+
+ifneq ($(CUSTOMER_ALLOCATOR_OBJS),)
+OBJS += $(CUSTOMER_ALLOCATOR_OBJS)
+endif
+
+ifeq ($(KERNELRELEASE), )
+
+.PHONY: all clean install
+
+# Define targets.
+all:
+	@make V=$(V) ARCH=$(ARCH_TYPE) -C $(KERNEL_DIR) SUBDIRS=`pwd` modules
+
+clean:
+	@rm -rf $(OBJS)
+	@rm -rf modules.order Module.symvers
+	@find $(AQROOT) -name ".gc_*.cmd" | xargs rm -f
+
+install: all
+	@mkdir -p $(SDK_DIR)/drivers
+
+else
+
+
+EXTRA_CFLAGS += -DLINUX -DDRIVER
+
+ifeq ($(FLAREON),1)
+EXTRA_CFLAGS += -DFLAREON
+endif
+
+ifeq ($(DEBUG), 1)
+EXTRA_CFLAGS += -DDBG=1 -DDEBUG -D_DEBUG
+else
+EXTRA_CFLAGS += -DDBG=0
+endif
+
+ifeq ($(NO_DMA_COHERENT), 1)
+EXTRA_CFLAGS += -DNO_DMA_COHERENT
+endif
+
+ifeq ($(CONFIG_DOVE_GPU), 1)
+EXTRA_CFLAGS += -DCONFIG_DOVE_GPU=1
+endif
+
+ifneq ($(USE_PLATFORM_DRIVER), 0)
+EXTRA_CFLAGS += -DUSE_PLATFORM_DRIVER=1
+else
+EXTRA_CFLAGS += -DUSE_PLATFORM_DRIVER=0
+endif
+
+EXTRA_CFLAGS += -DVIVANTE_PROFILER=1
+EXTRA_CFLAGS += -DVIVANTE_PROFILER_CONTEXT=1
+
+ifeq ($(ENABLE_GPU_CLOCK_BY_DRIVER), 1)
+EXTRA_CFLAGS += -DENABLE_GPU_CLOCK_BY_DRIVER=1
+else
+EXTRA_CFLAGS += -DENABLE_GPU_CLOCK_BY_DRIVER=0
+endif
+
+ifeq ($(USE_NEW_LINUX_SIGNAL), 1)
+EXTRA_CFLAGS += -DUSE_NEW_LINUX_SIGNAL=1
+else
+EXTRA_CFLAGS += -DUSE_NEW_LINUX_SIGNAL=0
+endif
+
+ifeq ($(FORCE_ALL_VIDEO_MEMORY_CACHED), 1)
+EXTRA_CFLAGS += -DgcdPAGED_MEMORY_CACHEABLE=1
+else
+EXTRA_CFLAGS += -DgcdPAGED_MEMORY_CACHEABLE=0
+endif
+
+ifeq ($(NONPAGED_MEMORY_CACHEABLE), 1)
+EXTRA_CFLAGS += -DgcdNONPAGED_MEMORY_CACHEABLE=1
+else
+EXTRA_CFLAGS += -DgcdNONPAGED_MEMORY_CACHEABLE=0
+endif
+
+ifeq ($(NONPAGED_MEMORY_BUFFERABLE), 1)
+EXTRA_CFLAGS += -DgcdNONPAGED_MEMORY_BUFFERABLE=1
+else
+EXTRA_CFLAGS += -DgcdNONPAGED_MEMORY_BUFFERABLE=0
+endif
+
+ifeq ($(CACHE_FUNCTION_UNIMPLEMENTED), 1)
+EXTRA_CFLAGS += -DgcdCACHE_FUNCTION_UNIMPLEMENTED=1
+else
+EXTRA_CFLAGS += -DgcdCACHE_FUNCTION_UNIMPLEMENTED=0
+endif
+
+ifeq ($(CONFIG_SMP), y)
+EXTRA_CFLAGS += -DgcdSMP=1
+else
+EXTRA_CFLAGS += -DgcdSMP=0
+endif
+
+ifeq ($(VIVANTE_ENABLE_3D),0)
+EXTRA_CFLAGS += -DgcdENABLE_3D=0
+else
+EXTRA_CFLAGS += -DgcdENABLE_3D=1
+endif
+
+ifeq ($(VIVANTE_ENABLE_2D),0)
+EXTRA_CFLAGS += -DgcdENABLE_2D=0
+else
+EXTRA_CFLAGS += -DgcdENABLE_2D=1
+endif
+
+ifeq ($(VIVANTE_ENABLE_VG),0)
+EXTRA_CFLAGS += -DgcdENABLE_VG=0
+else
+EXTRA_CFLAGS += -DgcdENABLE_VG=1
+endif
+
+ifeq ($(ENABLE_OUTER_CACHE_PATCH), 1)
+EXTRA_CFLAGS += -DgcdENABLE_OUTER_CACHE_PATCH=1
+else
+EXTRA_CFLAGS += -DgcdENABLE_OUTER_CACHE_PATCH=0
+endif
+
+ifeq ($(USE_BANK_ALIGNMENT), 1)
+    EXTRA_CFLAGS += -DgcdENABLE_BANK_ALIGNMENT=1
+    ifneq ($(BANK_BIT_START), 0)
+	        ifneq ($(BANK_BIT_END), 0)
+	            EXTRA_CFLAGS += -DgcdBANK_BIT_START=$(BANK_BIT_START)
+	            EXTRA_CFLAGS += -DgcdBANK_BIT_END=$(BANK_BIT_END)
+	        endif
+    endif
+
+    ifneq ($(BANK_CHANNEL_BIT), 0)
+        EXTRA_CFLAGS += -DgcdBANK_CHANNEL_BIT=$(BANK_CHANNEL_BIT)
+    endif
+endif
+
+ifeq ($(gcdFPGA_BUILD), 1)
+EXTRA_CFLAGS += -DgcdFPGA_BUILD=1
+else
+EXTRA_CFLAGS += -DgcdFPGA_BUILD=0
+endif
+
+ifeq ($(SECURITY), 1)
+EXTRA_CFLAGS += -DgcdSECURITY=1
+endif
+
+EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/inc
+EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel
+EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/arch
+EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/inc
+EXTRA_CFLAGS += -I$(AQROOT)/hal/os/linux/kernel
+EXTRA_CFLAGS += -I$(AQROOT)/$(ALLOCATOR_ARRAY_H_LOCATION)
+
+ifeq ($(VIVANTE_ENABLE_VG), 1)
+EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/archvg
+endif
+
+EXTRA_CFLAGS += -DHOST=\"$(HOST)\"
+
+obj-$(CONFIG_MXC_GPU_VIV) += galcore.o
+
+galcore-objs  := $(OBJS)
+
+endif
