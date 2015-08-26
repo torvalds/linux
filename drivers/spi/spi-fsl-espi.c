@@ -797,11 +797,6 @@ err:
 	return ret;
 }
 
-static int of_fsl_espi_remove(struct platform_device *dev)
-{
-	return mpc8xxx_spi_remove(&dev->dev);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int of_fsl_espi_suspend(struct device *dev)
 {
@@ -865,7 +860,6 @@ static struct platform_driver fsl_espi_driver = {
 		.pm = &espi_pm,
 	},
 	.probe		= of_fsl_espi_probe,
-	.remove		= of_fsl_espi_remove,
 };
 module_platform_driver(fsl_espi_driver);
 
