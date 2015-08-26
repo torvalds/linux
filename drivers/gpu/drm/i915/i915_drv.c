@@ -1726,7 +1726,7 @@ static int __init i915_init(void)
 	 * to the atomic ioctl and the atomic properties.  Only plane operations on
 	 * a single CRTC will actually work.
 	 */
-	if (driver.driver_features & DRIVER_MODESET)
+	if (i915.nuclear_pageflip)
 		driver.driver_features |= DRIVER_ATOMIC;
 
 	return drm_pci_init(&driver, &i915_pci_driver);

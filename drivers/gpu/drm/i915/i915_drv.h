@@ -2640,6 +2640,7 @@ struct i915_params {
 	int use_mmio_flip;
 	int mmio_debug;
 	bool verbose_state_checks;
+	bool nuclear_pageflip;
 	int edp_vswing;
 };
 extern struct i915_params i915 __read_mostly;

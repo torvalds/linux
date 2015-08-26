@@ -51,6 +51,7 @@ struct i915_params i915 __read_mostly = {
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
+	.nuclear_pageflip = 0,
 	.edp_vswing = 0,
 	.enable_guc_submission = false,
 	.guc_log_level = -1,
@@ -176,6 +177,10 @@ MODULE_PARM_DESC(mmio_debug,
 module_param_named(verbose_state_checks, i915.verbose_state_checks, bool, 0600);
 MODULE_PARM_DESC(verbose_state_checks,
 	"Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.");
+
+module_param_named_unsafe(nuclear_pageflip, i915.nuclear_pageflip, bool, 0600);
+MODULE_PARM_DESC(nuclear_pageflip,
+		 "Force atomic modeset functionality; asynchronous mode is not yet supported. (default: false).");
 
 /* WA to get away with the default setting in VBT for early platforms.Will be removed */
 module_param_named_unsafe(edp_vswing, i915.edp_vswing, int, 0400);
