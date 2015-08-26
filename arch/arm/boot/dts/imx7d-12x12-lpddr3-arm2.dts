@@ -446,6 +446,13 @@
 			>;
 		};
 
+		pinctrl_mqs: mqsgrp {
+			fsl,pins = <
+				MX7D_PAD_SAI1_RX_SYNC__MQS_RIGHT     0x0
+				MX7D_PAD_SAI1_RX_BCLK__MQS_LEFT      0x0
+			>;
+		};
+
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO08__PWM1_OUT 0x110b0
