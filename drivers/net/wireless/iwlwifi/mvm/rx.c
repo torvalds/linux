@@ -621,12 +621,6 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 
 	iwl_mvm_rx_stats_check_trigger(mvm, pkt);
 
-	/* Only handle rx statistics temperature changes if async temp
-	 * notifications are not supported
-	 */
-	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_ASYNC_DTM))
-		iwl_mvm_tt_temp_changed(mvm, temperature);
-
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_stat_iterator,
