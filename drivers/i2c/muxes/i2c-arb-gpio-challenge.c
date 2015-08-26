@@ -197,6 +197,7 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	arb->parent = of_get_i2c_adapter_by_node(parent_np);
+	of_node_put(parent_np);
 	if (!arb->parent) {
 		dev_err(dev, "Cannot find parent bus\n");
 		return -EPROBE_DEFER;

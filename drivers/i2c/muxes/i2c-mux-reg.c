@@ -106,6 +106,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 		return -ENODEV;
 	}
 	adapter = of_find_i2c_adapter_by_node(adapter_np);
+	of_node_put(adapter_np);
 	if (!adapter)
 		return -EPROBE_DEFER;
 
