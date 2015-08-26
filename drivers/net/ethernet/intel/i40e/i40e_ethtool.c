@@ -425,6 +425,7 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 		ecmd->advertising = ADVERTISED_10000baseKR_Full;
 		break;
 	case I40E_DEV_ID_10G_BASE_T:
+	case I40E_DEV_ID_10G_BASE_T4:
 		ecmd->supported = SUPPORTED_10000baseT_Full |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_100baseT_Full;
