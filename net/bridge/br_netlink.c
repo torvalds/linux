@@ -673,6 +673,21 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 			return -EADDRNOTAVAIL;
 	}
 
+	if (!data)
+		return 0;
+
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	if (data[IFLA_BR_VLAN_PROTOCOL]) {
+		switch (nla_get_be16(data[IFLA_BR_VLAN_PROTOCOL])) {
+		case htons(ETH_P_8021Q):
+		case htons(ETH_P_8021AD):
+			break;
+		default:
+			return -EPROTONOSUPPORT;
+		}
+	}
+#endif
+
 	return 0;
 }
 
@@ -729,6 +744,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_STP_STATE] = { .type = NLA_U32 },
 	[IFLA_BR_PRIORITY] = { .type = NLA_U16 },
 	[IFLA_BR_VLAN_FILTERING] = { .type = NLA_U8 },
+	[IFLA_BR_VLAN_PROTOCOL] = { .type = NLA_U16 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -784,6 +800,16 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 			return err;
 	}
 
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	if (data[IFLA_BR_VLAN_PROTOCOL]) {
+		__be16 vlan_proto = nla_get_be16(data[IFLA_BR_VLAN_PROTOCOL]);
+
+		err = __br_vlan_set_proto(br, vlan_proto);
+		if (err)
+			return err;
+	}
+#endif
+
 	return 0;
 }
 
@@ -796,6 +822,9 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_STP_STATE */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_PRIORITY */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_FILTERING */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
+#endif
 	       0;
 }
 
@@ -818,6 +847,11 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority) ||
 	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled))
 		return -EMSGSIZE;
+
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto))
+		return -EMSGSIZE;
+#endif
 
 	return 0;
 }
