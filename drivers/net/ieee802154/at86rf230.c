@@ -377,14 +377,6 @@ at86rf230_async_read_reg(struct at86rf230_local *lp, const u8 reg,
 	}
 }
 
-static inline u8 at86rf230_state_to_force(u8 state)
-{
-	if (state == STATE_TX_ON)
-		return STATE_FORCE_TX_ON;
-	else
-		return STATE_FORCE_TRX_OFF;
-}
-
 static void
 at86rf230_async_state_assert(void *context)
 {
@@ -426,7 +418,7 @@ at86rf230_async_state_assert(void *context)
 				u8 state = ctx->to_state;
 
 				if (lp->tx_retry >= AT86RF2XX_MAX_TX_RETRIES)
-					state = at86rf230_state_to_force(state);
+					state = STATE_FORCE_TRX_OFF;
 				lp->tx_retry++;
 
 				at86rf230_async_state_change(lp, ctx, state,
