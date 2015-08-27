@@ -141,7 +141,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	/* allocate firmware, stack and heap BO */
 
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, &adev->vce.vcpu_bo);
+			     AMDGPU_GEM_DOMAIN_VRAM,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     NULL, &adev->vce.vcpu_bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate VCE bo\n", r);
 		return r;
