@@ -169,6 +169,17 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
+
+#ifdef CONFIG_PPC_BOOK3E_64
+	/*
+	 * With hardware tablewalk, a sync is needed to ensure that
+	 * subsequent accesses see the PTE we just wrote.  Unlike userspace
+	 * mappings, we can't tolerate spurious faults, so make sure
+	 * the new PTE will be seen the first time.
+	 */
+	if (is_kernel_addr(addr))
+		mb();
+#endif
 #endif
 }
 
