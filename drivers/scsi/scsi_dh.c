@@ -57,15 +57,8 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 	return dh;
 }
 
-/*
- * device_handler_match_function - Match a device handler to a device
- * @sdev - SCSI device to be tested
- *
- * Tests @sdev against the match function of all registered device_handler.
- * Returns the found device handler or NULL if not found.
- */
 static struct scsi_device_handler *
-device_handler_match_function(struct scsi_device *sdev)
+device_handler_match(struct scsi_device *sdev)
 {
 	struct scsi_device_handler *tmp_dh, *found_dh = NULL;
 
@@ -77,29 +70,6 @@ device_handler_match_function(struct scsi_device *sdev)
 		}
 	}
 	spin_unlock(&list_lock);
-	return found_dh;
-}
-
-/*
- * device_handler_match - Attach a device handler to a device
- * @scsi_dh - The device handler to match against or NULL
- * @sdev - SCSI device to be tested against @scsi_dh
- *
- * Tests @sdev against the device handler @scsi_dh or against
- * all registered device_handler if @scsi_dh == NULL.
- * Returns the found device handler or NULL if not found.
- */
-static struct scsi_device_handler *
-device_handler_match(struct scsi_device_handler *scsi_dh,
-		     struct scsi_device *sdev)
-{
-	struct scsi_device_handler *found_dh;
-
-	found_dh = device_handler_match_function(sdev);
-
-	if (scsi_dh && found_dh != scsi_dh)
-		found_dh = NULL;
-
 	return found_dh;
 }
 
@@ -212,119 +182,26 @@ static struct device_attribute scsi_dh_state_attr =
 	__ATTR(dh_state, S_IRUGO | S_IWUSR, show_dh_state,
 	       store_dh_state);
 
-/*
- * scsi_dh_sysfs_attr_add - Callback for scsi_init_dh
- */
-static int scsi_dh_sysfs_attr_add(struct device *dev, void *data)
+int scsi_dh_add_device(struct scsi_device *sdev)
 {
-	struct scsi_device *sdev;
+	struct scsi_device_handler *devinfo;
 	int err;
 
-	if (!scsi_is_sdev_device(dev))
-		return 0;
+	err = device_create_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
+	if (err)
+		return err;
 
-	sdev = to_scsi_device(dev);
-
-	err = device_create_file(&sdev->sdev_gendev,
-				 &scsi_dh_state_attr);
-
-	return 0;
-}
-
-/*
- * scsi_dh_sysfs_attr_remove - Callback for scsi_exit_dh
- */
-static int scsi_dh_sysfs_attr_remove(struct device *dev, void *data)
-{
-	struct scsi_device *sdev;
-
-	if (!scsi_is_sdev_device(dev))
-		return 0;
-
-	sdev = to_scsi_device(dev);
-
-	device_remove_file(&sdev->sdev_gendev,
-			   &scsi_dh_state_attr);
-
-	return 0;
-}
-
-/*
- * scsi_dh_notifier - notifier chain callback
- */
-static int scsi_dh_notifier(struct notifier_block *nb,
-			    unsigned long action, void *data)
-{
-	struct device *dev = data;
-	struct scsi_device *sdev;
-	int err = 0;
-	struct scsi_device_handler *devinfo = NULL;
-
-	if (!scsi_is_sdev_device(dev))
-		return 0;
-
-	sdev = to_scsi_device(dev);
-
-	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		err = device_create_file(dev, &scsi_dh_state_attr);
-		/* don't care about err */
-		devinfo = device_handler_match(NULL, sdev);
-		if (devinfo)
-			err = scsi_dh_handler_attach(sdev, devinfo);
-	} else if (action == BUS_NOTIFY_DEL_DEVICE) {
-		device_remove_file(dev, &scsi_dh_state_attr);
-		if (sdev->scsi_dh_data)
-			scsi_dh_handler_detach(sdev);
-	}
+	devinfo = device_handler_match(sdev);
+	if (devinfo)
+		err = scsi_dh_handler_attach(sdev, devinfo);
 	return err;
 }
 
-/*
- * scsi_dh_notifier_add - Callback for scsi_register_device_handler
- */
-static int scsi_dh_notifier_add(struct device *dev, void *data)
+void scsi_dh_remove_device(struct scsi_device *sdev)
 {
-	struct scsi_device_handler *scsi_dh = data;
-	struct scsi_device *sdev;
-
-	if (!scsi_is_sdev_device(dev))
-		return 0;
-
-	if (!get_device(dev))
-		return 0;
-
-	sdev = to_scsi_device(dev);
-
-	if (device_handler_match(scsi_dh, sdev))
-		scsi_dh_handler_attach(sdev, scsi_dh);
-
-	put_device(dev);
-
-	return 0;
-}
-
-/*
- * scsi_dh_notifier_remove - Callback for scsi_unregister_device_handler
- */
-static int scsi_dh_notifier_remove(struct device *dev, void *data)
-{
-	struct scsi_device_handler *scsi_dh = data;
-	struct scsi_device *sdev;
-
-	if (!scsi_is_sdev_device(dev))
-		return 0;
-
-	if (!get_device(dev))
-		return 0;
-
-	sdev = to_scsi_device(dev);
-
-	if (sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh == scsi_dh)
+	if (sdev->scsi_dh_data)
 		scsi_dh_handler_detach(sdev);
-
-	put_device(dev);
-
-	return 0;
+	device_remove_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 }
 
 /*
@@ -346,7 +223,6 @@ int scsi_register_device_handler(struct scsi_device_handler *scsi_dh)
 	list_add(&scsi_dh->list, &scsi_dh_list);
 	spin_unlock(&list_lock);
 
-	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh, scsi_dh_notifier_add);
 	printk(KERN_INFO "%s: device handler registered\n", scsi_dh->name);
 
 	return SCSI_DH_OK;
@@ -362,12 +238,8 @@ EXPORT_SYMBOL_GPL(scsi_register_device_handler);
  */
 int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 {
-
 	if (!__scsi_dh_lookup(scsi_dh->name))
 		return -ENODEV;
-
-	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh,
-			 scsi_dh_notifier_remove);
 
 	spin_lock(&list_lock);
 	list_del(&scsi_dh->list);
@@ -538,34 +410,3 @@ const char *scsi_dh_attached_handler_name(struct request_queue *q, gfp_t gfp)
 	return handler_name;
 }
 EXPORT_SYMBOL_GPL(scsi_dh_attached_handler_name);
-
-static struct notifier_block scsi_dh_nb = {
-	.notifier_call = scsi_dh_notifier
-};
-
-static int __init scsi_dh_init(void)
-{
-	int r;
-
-	r = bus_register_notifier(&scsi_bus_type, &scsi_dh_nb);
-
-	if (!r)
-		bus_for_each_dev(&scsi_bus_type, NULL, NULL,
-				 scsi_dh_sysfs_attr_add);
-
-	return r;
-}
-
-static void __exit scsi_dh_exit(void)
-{
-	bus_for_each_dev(&scsi_bus_type, NULL, NULL,
-			 scsi_dh_sysfs_attr_remove);
-	bus_unregister_notifier(&scsi_bus_type, &scsi_dh_nb);
-}
-
-module_init(scsi_dh_init);
-module_exit(scsi_dh_exit);
-
-MODULE_DESCRIPTION("SCSI device handler");
-MODULE_AUTHOR("Chandra Seetharaman <sekharan@us.ibm.com>");
-MODULE_LICENSE("GPL");

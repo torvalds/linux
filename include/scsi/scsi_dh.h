@@ -55,7 +55,7 @@ enum {
 	SCSI_DH_NOSYS,
 	SCSI_DH_DRIVER_MAX,
 };
-#if defined(CONFIG_SCSI_DH) || defined(CONFIG_SCSI_DH_MODULE)
+#ifdef CONFIG_SCSI_DH
 extern int scsi_dh_activate(struct request_queue *, activate_complete, void *);
 extern int scsi_dh_attach(struct request_queue *, const char *);
 extern const char *scsi_dh_attached_handler_name(struct request_queue *, gfp_t);
