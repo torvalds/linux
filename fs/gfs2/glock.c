@@ -1776,10 +1776,10 @@ static const char *gfs2_stype[] = {
 
 static int gfs2_sbstats_seq_show(struct seq_file *seq, void *iter_ptr)
 {
-	struct gfs2_glock_iter *gi = seq->private;
-	struct gfs2_sbd *sdp = gi->sdp;
-	unsigned index = gi->hash >> 3;
-	unsigned subindex = gi->hash & 0x07;
+	struct gfs2_sbd *sdp = seq->private;
+	loff_t pos = *(loff_t *)iter_ptr;
+	unsigned index = pos >> 3;
+	unsigned subindex = pos & 0x07;
 	s64 value;
 	int i;
 
@@ -1930,26 +1930,19 @@ static int gfs2_glock_seq_show(struct seq_file *seq, void *iter_ptr)
 
 static void *gfs2_sbstats_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct gfs2_glock_iter *gi = seq->private;
-
-	gi->hash = *pos;
+	preempt_disable();
 	if (*pos >= GFS2_NR_SBSTATS)
 		return NULL;
-	preempt_disable();
-	return SEQ_START_TOKEN;
+	return pos;
 }
 
 static void *gfs2_sbstats_seq_next(struct seq_file *seq, void *iter_ptr,
 				   loff_t *pos)
 {
-	struct gfs2_glock_iter *gi = seq->private;
 	(*pos)++;
-	gi->hash++;
-	if (gi->hash >= GFS2_NR_SBSTATS) {
-		preempt_enable();
+	if (*pos >= GFS2_NR_SBSTATS)
 		return NULL;
-	}
-	return SEQ_START_TOKEN;
+	return pos;
 }
 
 static void gfs2_sbstats_seq_stop(struct seq_file *seq, void *iter_ptr)
@@ -2012,12 +2005,10 @@ static int gfs2_glstats_open(struct inode *inode, struct file *file)
 
 static int gfs2_sbstats_open(struct inode *inode, struct file *file)
 {
-	int ret = seq_open_private(file, &gfs2_sbstats_seq_ops,
-				   sizeof(struct gfs2_glock_iter));
+	int ret = seq_open(file, &gfs2_sbstats_seq_ops);
 	if (ret == 0) {
 		struct seq_file *seq = file->private_data;
-		struct gfs2_glock_iter *gi = seq->private;
-		gi->sdp = inode->i_private;
+		seq->private = inode->i_private;  /* sdp */
 	}
 	return ret;
 }
@@ -2043,7 +2034,7 @@ static const struct file_operations gfs2_sbstats_fops = {
 	.open	 = gfs2_sbstats_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release_private,
+	.release = seq_release,
 };
 
 int gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
