@@ -25,19 +25,24 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 
 	get_device(&afu->dev);
 	ctx = cxl_context_alloc();
-	if (IS_ERR(ctx))
-		return ctx;
+	if (IS_ERR(ctx)) {
+		rc = PTR_ERR(ctx);
+		goto err_dev;
+	}
 
 	/* Make it a slave context.  We can promote it later? */
 	rc = cxl_context_init(ctx, afu, false, NULL);
-	if (rc) {
-		kfree(ctx);
-		put_device(&afu->dev);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (rc)
+		goto err_ctx;
 	cxl_assign_psn_space(ctx);
 
 	return ctx;
+
+err_ctx:
+	kfree(ctx);
+err_dev:
+	put_device(&afu->dev);
+	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(cxl_dev_context_init);
 
