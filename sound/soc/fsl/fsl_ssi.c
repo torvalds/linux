@@ -705,15 +705,15 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 		else
 			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
 
+		clkrate /= factor;
+		afreq = clkrate / (i + 1);
+
 		/*
 		 * Hardware limitation: The bclk rate must be
 		 * never greater than 1/5 IPG clock rate
 		 */
-		if (clkrate * 5 > clk_get_rate(ssi_private->clk))
+		if (afreq * 5 > clk_get_rate(ssi_private->clk))
 			continue;
-
-		clkrate /= factor;
-		afreq = clkrate / (i + 1);
 
 		if (freq == afreq)
 			sub = 0;
