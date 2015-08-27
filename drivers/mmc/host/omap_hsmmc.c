@@ -246,13 +246,14 @@ static int omap_hsmmc_get_cover_state(struct device *dev)
 
 #ifdef CONFIG_REGULATOR
 
-static int omap_hsmmc_enable_supply(struct mmc_host *mmc, int vdd)
+static int omap_hsmmc_enable_supply(struct mmc_host *mmc)
 {
 	int ret;
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
+	struct mmc_ios *ios = &mmc->ios;
 
 	if (mmc->supply.vmmc) {
-		ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
+		ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
 		if (ret)
 			return ret;
 	}
@@ -387,7 +388,7 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 	 * chips/cards need an interface voltage rail too.
 	 */
 	if (power_on) {
-		ret = omap_hsmmc_enable_supply(mmc, vdd);
+		ret = omap_hsmmc_enable_supply(mmc);
 		if (ret)
 			return ret;
 
