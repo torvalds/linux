@@ -124,6 +124,7 @@ struct connection {
 	struct connection *othercon;
 	struct work_struct rwork; /* Receive workqueue */
 	struct work_struct swork; /* Send workqueue */
+	void (*orig_error_report)(struct sock *sk);
 };
 #define sock2con(x) ((struct connection *)(x)->sk_user_data)
 
@@ -464,6 +465,43 @@ int dlm_lowcomms_connect_node(int nodeid)
 	return 0;
 }
 
+static void lowcomms_error_report(struct sock *sk)
+{
+	struct connection *con = sock2con(sk);
+	struct sockaddr_storage saddr;
+
+	if (nodeid_to_addr(con->nodeid, &saddr, NULL, false)) {
+		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
+				   "sending to node %d, port %d, "
+				   "sk_err=%d/%d\n", dlm_our_nodeid(),
+				   con->nodeid, dlm_config.ci_tcp_port,
+				   sk->sk_err, sk->sk_err_soft);
+		return;
+	} else if (saddr.ss_family == AF_INET) {
+		struct sockaddr_in *sin4 = (struct sockaddr_in *)&saddr;
+
+		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
+				   "sending to node %d at %pI4, port %d, "
+				   "sk_err=%d/%d\n", dlm_our_nodeid(),
+				   con->nodeid, &sin4->sin_addr.s_addr,
+				   dlm_config.ci_tcp_port, sk->sk_err,
+				   sk->sk_err_soft);
+	} else {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&saddr;
+
+		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
+				   "sending to node %d at %u.%u.%u.%u, "
+				   "port %d, sk_err=%d/%d\n", dlm_our_nodeid(),
+				   con->nodeid, sin6->sin6_addr.s6_addr32[0],
+				   sin6->sin6_addr.s6_addr32[1],
+				   sin6->sin6_addr.s6_addr32[2],
+				   sin6->sin6_addr.s6_addr32[3],
+				   dlm_config.ci_tcp_port, sk->sk_err,
+				   sk->sk_err_soft);
+	}
+	con->orig_error_report(sk);
+}
+
 /* Make a socket active */
 static void add_sock(struct socket *sock, struct connection *con)
 {
@@ -475,6 +513,8 @@ static void add_sock(struct socket *sock, struct connection *con)
 	con->sock->sk->sk_state_change = lowcomms_state_change;
 	con->sock->sk->sk_user_data = con;
 	con->sock->sk->sk_allocation = GFP_NOFS;
+	con->orig_error_report = con->sock->sk->sk_error_report;
+	con->sock->sk->sk_error_report = lowcomms_error_report;
 }
 
 /* Add the port number to an IPv6 or 4 sockaddr and return the address
