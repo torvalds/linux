@@ -99,6 +99,33 @@
 			clocks = <&atl_clkin2_ck>;
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@0 {
+			label = "dra7:usr1";
+			gpios = <&pcf_lcd 4 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led@1 {
+			label = "dra7:usr2";
+			gpios = <&pcf_lcd 5 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led@2 {
+			label = "dra7:usr3";
+			gpios = <&pcf_lcd 6 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led@3 {
+			label = "dra7:usr4";
+			gpios = <&pcf_lcd 7 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
 };
 
 &dra7_pmx_core {
