@@ -46,7 +46,7 @@
 
 #define DP_AUX_I2C_WRITE		0x0
 #define DP_AUX_I2C_READ			0x1
-#define DP_AUX_I2C_STATUS		0x2
+#define DP_AUX_I2C_WRITE_STATUS_UPDATE	0x2
 #define DP_AUX_I2C_MOT			0x4
 #define DP_AUX_NATIVE_WRITE		0x8
 #define DP_AUX_NATIVE_READ		0x9
