@@ -342,6 +342,7 @@ ioremap_cache(phys_addr_t offset, unsigned long size)
 {
 	return __ioremap_mode(offset, size, PAGE_KERNEL);
 }
+#define ioremap_cache ioremap_cache
 
 #ifdef CONFIG_HAVE_IOREMAP_PROT
 static inline void __iomem *

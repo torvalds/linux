@@ -41,6 +41,7 @@ enum nfit_uuids {
 };
 
 enum {
+	ND_BLK_READ_FLUSH = 1,
 	ND_BLK_DCR_LATCH = 2,
 };
 
@@ -117,12 +118,16 @@ enum nd_blk_mmio_selector {
 	DCR,
 };
 
+struct nd_blk_addr {
+	union {
+		void __iomem *base;
+		void __pmem  *aperture;
+	};
+};
+
 struct nfit_blk {
 	struct nfit_blk_mmio {
-		union {
-			void __iomem *base;
-			void __pmem  *aperture;
-		};
+		struct nd_blk_addr addr;
 		u64 size;
 		u64 base_offset;
 		u32 line_size;
@@ -149,7 +154,8 @@ struct nfit_spa_mapping {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
 	struct kref kref;
-	void __iomem *iomem;
+	enum spa_map_type type;
+	struct nd_blk_addr addr;
 };
 
 static inline struct nfit_spa_mapping *to_spa_map(struct kref *kref)

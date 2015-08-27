@@ -92,7 +92,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 }
 
 static long pmem_direct_access(struct block_device *bdev, sector_t sector,
-			      void **kaddr, unsigned long *pfn, long size)
+		      void __pmem **kaddr, unsigned long *pfn, long size)
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	size_t offset = sector << 9;
@@ -101,7 +101,7 @@ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
 		return -ENODEV;
 
 	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
-	*kaddr = (void __force *) pmem->virt_addr + offset;
+	*kaddr = pmem->virt_addr + offset;
 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
 
 	return pmem->size - offset;
@@ -119,7 +119,7 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 {
 	struct pmem_device *pmem;
 
-	pmem = kzalloc(sizeof(*pmem), GFP_KERNEL);
+	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
 	if (!pmem)
 		return ERR_PTR(-ENOMEM);
 
@@ -128,19 +128,16 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 	if (!arch_has_pmem_api())
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
-	if (!request_mem_region(pmem->phys_addr, pmem->size, dev_name(dev))) {
+	if (!devm_request_mem_region(dev, pmem->phys_addr, pmem->size,
+			dev_name(dev))) {
 		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n",
 				&pmem->phys_addr, pmem->size);
-		kfree(pmem);
 		return ERR_PTR(-EBUSY);
 	}
 
-	pmem->virt_addr = memremap_pmem(pmem->phys_addr, pmem->size);
-	if (!pmem->virt_addr) {
-		release_mem_region(pmem->phys_addr, pmem->size);
-		kfree(pmem);
+	pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr, pmem->size);
+	if (!pmem->virt_addr)
 		return ERR_PTR(-ENXIO);
-	}
 
 	return pmem;
 }
@@ -210,20 +207,12 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 	return 0;
 }
 
-static void pmem_free(struct pmem_device *pmem)
-{
-	memunmap_pmem(pmem->virt_addr);
-	release_mem_region(pmem->phys_addr, pmem->size);
-	kfree(pmem);
-}
-
 static int nd_pmem_probe(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	struct nd_namespace_common *ndns;
 	struct nd_namespace_io *nsio;
 	struct pmem_device *pmem;
-	int rc;
 
 	ndns = nvdimm_namespace_common_probe(dev);
 	if (IS_ERR(ndns))
@@ -236,16 +225,14 @@ static int nd_pmem_probe(struct device *dev)
 
 	dev_set_drvdata(dev, pmem);
 	ndns->rw_bytes = pmem_rw_bytes;
+
 	if (is_nd_btt(dev))
-		rc = nvdimm_namespace_attach_btt(ndns);
-	else if (nd_btt_probe(ndns, pmem) == 0) {
+		return nvdimm_namespace_attach_btt(ndns);
+
+	if (nd_btt_probe(ndns, pmem) == 0)
 		/* we'll come back as btt-pmem */
-		rc = -ENXIO;
-	} else
-		rc = pmem_attach_disk(ndns, pmem);
-	if (rc)
-		pmem_free(pmem);
-	return rc;
+		return -ENXIO;
+	return pmem_attach_disk(ndns, pmem);
 }
 
 static int nd_pmem_remove(struct device *dev)
@@ -256,7 +243,6 @@ static int nd_pmem_remove(struct device *dev)
 		nvdimm_namespace_detach_btt(to_nd_btt(dev)->ndns);
 	else
 		pmem_detach_disk(pmem);
-	pmem_free(pmem);
 
 	return 0;
 }
