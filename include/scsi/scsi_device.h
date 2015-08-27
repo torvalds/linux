@@ -221,7 +221,6 @@ struct scsi_device_handler {
 struct scsi_dh_data {
 	struct scsi_device_handler *scsi_dh;
 	struct scsi_device *sdev;
-	struct kref kref;
 };
 
 #define	to_scsi_device(d)	\
