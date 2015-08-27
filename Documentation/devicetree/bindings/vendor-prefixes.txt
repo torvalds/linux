@@ -110,6 +110,7 @@ ingenic	Ingenic Semiconductor
 innolux	Innolux Corporation
 intel	Intel Corporation
 intercontrol	Inter Control Group
+invensense	InvenSense Inc.
 isee	ISEE 2007 S.L.
 isil	Intersil
 karo	Ka-Ro electronics GmbH

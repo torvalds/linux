@@ -9,6 +9,7 @@
 #include <keys/ceph-type.h>
 #include <linux/module.h>
 #include <linux/mount.h>
+#include <linux/nsproxy.h>
 #include <linux/parser.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -16,8 +17,6 @@
 #include <linux/statfs.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/nsproxy.h>
-#include <net/net_namespace.h>
 
 
 #include <linux/ceph/ceph_features.h>
@@ -130,6 +129,13 @@ int ceph_compare_options(struct ceph_options *new_opt,
 	int ofs = offsetof(struct ceph_options, mon_addr);
 	int i;
 	int ret;
+
+	/*
+	 * Don't bother comparing options if network namespaces don't
+	 * match.
+	 */
+	if (!net_eq(current->nsproxy->net_ns, read_pnet(&client->msgr.net)))
+		return -1;
 
 	ret = memcmp(opt1, opt2, ofs);
 	if (ret)
@@ -334,9 +340,6 @@ ceph_parse_options(char *options, const char *dev_name,
 	const char *c;
 	int err = -ENOMEM;
 	substring_t argstr[MAX_OPT_ARGS];
-
-	if (current->nsproxy->net_ns != &init_net)
-		return ERR_PTR(-EINVAL);
 
 	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
 	if (!opt)
@@ -608,6 +611,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 fail_monc:
 	ceph_monc_stop(&client->monc);
 fail:
+	ceph_messenger_fini(&client->msgr);
 	kfree(client);
 	return ERR_PTR(err);
 }
@@ -621,8 +625,8 @@ void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_osdc_stop(&client->osdc);
-
 	ceph_monc_stop(&client->monc);
+	ceph_messenger_fini(&client->msgr);
 
 	ceph_debugfs_client_cleanup(client);
 

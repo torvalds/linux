@@ -183,8 +183,18 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		if (IS_GEN4(dev)) {
 			uint32_t ddc2 = I915_READ(DCC2);
 
-			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE))
+			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE)) {
+				/* Since the swizzling may vary within an
+				 * object, we have no idea what the swizzling
+				 * is for any page in particular. Thus we
+				 * cannot migrate tiled pages using the GPU,
+				 * nor can we tell userspace what the exact
+				 * swizzling is for any object.
+				 */
 				dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
+				swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
+				swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+			}
 		}
 
 		if (dcc == 0xffffffff) {

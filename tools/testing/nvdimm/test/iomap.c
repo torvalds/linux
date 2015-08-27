@@ -65,6 +65,21 @@ void __iomem *__nfit_test_ioremap(resource_size_t offset, unsigned long size,
 	return fallback_fn(offset, size);
 }
 
+void __iomem *__wrap_devm_ioremap_nocache(struct device *dev,
+		resource_size_t offset, unsigned long size)
+{
+	struct nfit_test_resource *nfit_res;
+
+	rcu_read_lock();
+	nfit_res = get_nfit_res(offset);
+	rcu_read_unlock();
+	if (nfit_res)
+		return (void __iomem *) nfit_res->buf + offset
+			- nfit_res->res->start;
+	return devm_ioremap_nocache(dev, offset, size);
+}
+EXPORT_SYMBOL(__wrap_devm_ioremap_nocache);
+
 void __iomem *__wrap_ioremap_cache(resource_size_t offset, unsigned long size)
 {
 	return __nfit_test_ioremap(offset, size, ioremap_cache);
@@ -76,6 +91,18 @@ void __iomem *__wrap_ioremap_nocache(resource_size_t offset, unsigned long size)
 	return __nfit_test_ioremap(offset, size, ioremap_nocache);
 }
 EXPORT_SYMBOL(__wrap_ioremap_nocache);
+
+void __iomem *__wrap_ioremap_wt(resource_size_t offset, unsigned long size)
+{
+	return __nfit_test_ioremap(offset, size, ioremap_wt);
+}
+EXPORT_SYMBOL(__wrap_ioremap_wt);
+
+void __iomem *__wrap_ioremap_wc(resource_size_t offset, unsigned long size)
+{
+	return __nfit_test_ioremap(offset, size, ioremap_wc);
+}
+EXPORT_SYMBOL(__wrap_ioremap_wc);
 
 void __wrap_iounmap(volatile void __iomem *addr)
 {

@@ -343,6 +343,27 @@ out_bc:
 	tick_install_broadcast_device(newdev);
 }
 
+/**
+ * tick_broadcast_oneshot_control - Enter/exit broadcast oneshot mode
+ * @state:	The target state (enter/exit)
+ *
+ * The system enters/leaves a state, where affected devices might stop
+ * Returns 0 on success, -EBUSY if the cpu is used to broadcast wakeups.
+ *
+ * Called with interrupts disabled, so clockevents_lock is not
+ * required here because the local clock event device cannot go away
+ * under us.
+ */
+int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+{
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
+
+	if (!(td->evtdev->features & CLOCK_EVT_FEAT_C3STOP))
+		return 0;
+
+	return __tick_broadcast_oneshot_control(state);
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * Transfer the do_timer job away from a dying cpu.

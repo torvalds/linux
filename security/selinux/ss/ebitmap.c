@@ -153,6 +153,12 @@ int ebitmap_netlbl_import(struct ebitmap *ebmap,
 		if (offset == (u32)-1)
 			return 0;
 
+		/* don't waste ebitmap space if the netlabel bitmap is empty */
+		if (bitmap == 0) {
+			offset += EBITMAP_UNIT_SIZE;
+			continue;
+		}
+
 		if (e_iter == NULL ||
 		    offset >= e_iter->startbit + EBITMAP_SIZE) {
 			e_prev = e_iter;

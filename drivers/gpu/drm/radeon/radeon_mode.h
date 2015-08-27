@@ -343,7 +343,6 @@ struct radeon_crtc {
 	int max_cursor_width;
 	int max_cursor_height;
 	uint32_t legacy_display_base_addr;
-	uint32_t legacy_cursor_offset;
 	enum radeon_rmx_type rmx_type;
 	u8 h_border;
 	u8 v_border;

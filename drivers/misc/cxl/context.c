@@ -113,11 +113,11 @@ static int cxl_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
 		area = ctx->afu->psn_phys;
-		if (offset > ctx->afu->adapter->ps_size)
+		if (offset >= ctx->afu->adapter->ps_size)
 			return VM_FAULT_SIGBUS;
 	} else {
 		area = ctx->psn_phys;
-		if (offset > ctx->psn_size)
+		if (offset >= ctx->psn_size)
 			return VM_FAULT_SIGBUS;
 	}
 
@@ -145,8 +145,16 @@ static const struct vm_operations_struct cxl_mmap_vmops = {
  */
 int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 {
+	u64 start = vma->vm_pgoff << PAGE_SHIFT;
 	u64 len = vma->vm_end - vma->vm_start;
-	len = min(len, ctx->psn_size);
+
+	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
+		if (start + len > ctx->afu->adapter->ps_size)
+			return -EINVAL;
+	} else {
+		if (start + len > ctx->psn_size)
+			return -EINVAL;
+	}
 
 	if (ctx->afu->current_mode != CXL_MODE_DEDICATED) {
 		/* make sure there is a valid per process space for this AFU */
