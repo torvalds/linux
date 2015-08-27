@@ -643,6 +643,8 @@ struct amsdu_subframe_hdr {
 	__be16 len;
 } __packed;
 
+#define GROUP_ID_IS_SU_MIMO(x) ((x) == 0 || (x) == 63)
+
 static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 				  struct ieee80211_rx_status *status,
 				  struct htt_rx_desc *rxd)
@@ -650,6 +652,7 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 	struct ieee80211_supported_band *sband;
 	u8 cck, rate, bw, sgi, mcs, nss;
 	u8 preamble = 0;
+	u8 group_id;
 	u32 info1, info2, info3;
 
 	info1 = __le32_to_cpu(rxd->ppdu_start.info1);
@@ -692,10 +695,27 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 	case HTT_RX_VHT_WITH_TXBF:
 		/* VHT-SIG-A1 in info2, VHT-SIG-A2 in info3
 		   TODO check this */
-		mcs = (info3 >> 4) & 0x0F;
-		nss = ((info2 >> 10) & 0x07) + 1;
 		bw = info2 & 3;
 		sgi = info3 & 1;
+		group_id = (info2 >> 4) & 0x3F;
+
+		if (GROUP_ID_IS_SU_MIMO(group_id)) {
+			mcs = (info3 >> 4) & 0x0F;
+			nss = ((info2 >> 10) & 0x07) + 1;
+		} else {
+			/* Hardware doesn't decode VHT-SIG-B into Rx descriptor
+			 * so it's impossible to decode MCS. Also since
+			 * firmware consumes Group Id Management frames host
+			 * has no knowledge regarding group/user position
+			 * mapping so it's impossible to pick the correct Nsts
+			 * from VHT-SIG-A1.
+			 *
+			 * Bandwidth and SGI are valid so report the rateinfo
+			 * on best-effort basis.
+			 */
+			mcs = 0;
+			nss = 1;
+		}
 
 		status->rate_idx = mcs;
 		status->vht_nss = nss;
