@@ -5384,9 +5384,8 @@ u8 set_stakey_hdl(struct adapter *padapter, u8 *pbuf)
 
 			cam_id = psta->mac_id + 3;/* 0~3 for default key, cmd_id = macid + 3, macid = aid+1; */
 
-			DBG_88E("Write CAM, mac_addr =%x:%x:%x:%x:%x:%x, cam_entry=%d\n", pparm->addr[0],
-				pparm->addr[1], pparm->addr[2], pparm->addr[3], pparm->addr[4],
-				pparm->addr[5], cam_id);
+			DBG_88E("Write CAM, mac_addr =%pM, cam_entry=%d\n",
+				pparm->addr, cam_id);
 
 			write_cam(padapter, cam_id, ctrl, pparm->addr, pparm->key);
 
