@@ -1890,7 +1890,7 @@ EXPORT_SYMBOL_GPL(of_genpd_get_from_provider);
 
 /**
  * genpd_dev_pm_detach - Detach a device from its PM domain.
- * @dev: Device to attach.
+ * @dev: Device to detach.
  * @power_off: Currently not used
  *
  * Try to locate a corresponding generic PM domain, which the device was
