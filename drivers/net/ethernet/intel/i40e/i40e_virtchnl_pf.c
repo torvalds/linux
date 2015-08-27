@@ -998,17 +998,19 @@ static int i40e_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 		goto err_out;
 	}
 
-	dev_info(&pdev->dev, "Allocating %d VFs.\n", num_vfs);
 	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
 		i40e_free_vfs(pf);
 	else if (pre_existing_vfs && pre_existing_vfs == num_vfs)
 		goto out;
 
 	if (num_vfs > pf->num_req_vfs) {
+		dev_warn(&pdev->dev, "Unable to enable %d VFs. Limited to %d VFs due to device resource constraints.\n",
+			 num_vfs, pf->num_req_vfs);
 		err = -EPERM;
 		goto err_out;
 	}
 
+	dev_info(&pdev->dev, "Allocating %d VFs.\n", num_vfs);
 	err = i40e_alloc_vfs(pf, num_vfs);
 	if (err) {
 		dev_warn(&pdev->dev, "Failed to enable SR-IOV: %d\n", err);
