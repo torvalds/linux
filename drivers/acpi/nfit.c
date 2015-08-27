@@ -1024,7 +1024,7 @@ static void wmb_blk(struct nfit_blk *nfit_blk)
 		wmb_pmem();
 }
 
-static u64 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
+static u32 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 {
 	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[DCR];
 	u64 offset = nfit_blk->stat_offset + mmio->size * bw;
@@ -1032,7 +1032,7 @@ static u64 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 	if (mmio->num_lines)
 		offset = to_interleave_offset(offset, mmio);
 
-	return readq(mmio->base + offset);
+	return readl(mmio->base + offset);
 }
 
 static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
