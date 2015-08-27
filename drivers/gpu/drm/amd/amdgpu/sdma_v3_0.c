@@ -810,6 +810,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 	gpu_addr = adev->wb.gpu_addr + (index * 4);
 	tmp = 0xCAFEDEAD;
 	adev->wb.wb[index] = cpu_to_le32(tmp);
+	memset(&ib, 0, sizeof(ib));
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
@@ -1473,19 +1474,19 @@ static void sdma_v3_0_set_irq_funcs(struct amdgpu_device *adev)
  * Used by the amdgpu ttm implementation to move pages if
  * registered as the asic copy callback.
  */
-static void sdma_v3_0_emit_copy_buffer(struct amdgpu_ring *ring,
+static void sdma_v3_0_emit_copy_buffer(struct amdgpu_ib *ib,
 				       uint64_t src_offset,
 				       uint64_t dst_offset,
 				       uint32_t byte_count)
 {
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_COPY) |
-			  SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR));
-	amdgpu_ring_write(ring, byte_count);
-	amdgpu_ring_write(ring, 0); /* src/dst endian swap */
-	amdgpu_ring_write(ring, lower_32_bits(src_offset));
-	amdgpu_ring_write(ring, upper_32_bits(src_offset));
-	amdgpu_ring_write(ring, lower_32_bits(dst_offset));
-	amdgpu_ring_write(ring, upper_32_bits(dst_offset));
+	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_COPY) |
+		SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);
+	ib->ptr[ib->length_dw++] = byte_count;
+	ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
+	ib->ptr[ib->length_dw++] = lower_32_bits(src_offset);
+	ib->ptr[ib->length_dw++] = upper_32_bits(src_offset);
+	ib->ptr[ib->length_dw++] = lower_32_bits(dst_offset);
+	ib->ptr[ib->length_dw++] = upper_32_bits(dst_offset);
 }
 
 /**

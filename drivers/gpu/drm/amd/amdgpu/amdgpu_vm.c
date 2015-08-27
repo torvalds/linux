@@ -200,19 +200,29 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
  */
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct amdgpu_vm *vm,
-		     struct amdgpu_fence *updates)
+		     struct fence *updates)
 {
 	uint64_t pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
-	struct amdgpu_fence *flushed_updates = vm_id->flushed_updates;
+	struct fence *flushed_updates = vm_id->flushed_updates;
+	bool is_earlier = false;
+
+	if (flushed_updates && updates) {
+		BUG_ON(flushed_updates->context != updates->context);
+		is_earlier = (updates->seqno - flushed_updates->seqno <=
+			      INT_MAX) ? true : false;
+	}
 
 	if (pd_addr != vm_id->pd_gpu_addr || !flushed_updates ||
-	    (updates && amdgpu_fence_is_earlier(flushed_updates, updates))) {
+	    is_earlier) {
 
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id->id);
-		vm_id->flushed_updates = amdgpu_fence_ref(
-			amdgpu_fence_later(flushed_updates, updates));
-		amdgpu_fence_unref(&flushed_updates);
+		if (is_earlier) {
+			vm_id->flushed_updates = fence_get(updates);
+			fence_put(flushed_updates);
+		}
+		if (!flushed_updates)
+			vm_id->flushed_updates = fence_get(updates);
 		vm_id->pd_gpu_addr = pd_addr;
 		amdgpu_ring_emit_vm_flush(ring, vm_id->id, vm_id->pd_gpu_addr);
 	}
@@ -306,8 +316,7 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 	}
 }
 
-static int amdgpu_vm_free_job(
-	struct amdgpu_cs_parser *sched_job)
+int amdgpu_vm_free_job(struct amdgpu_job *sched_job)
 {
 	int i;
 	for (i = 0; i < sched_job->num_ibs; i++)
@@ -1347,7 +1356,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	fence_put(vm->page_directory_fence);
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		amdgpu_fence_unref(&vm->ids[i].flushed_updates);
+		fence_put(vm->ids[i].flushed_updates);
 		amdgpu_fence_unref(&vm->ids[i].last_id_use);
 	}
 

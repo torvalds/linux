@@ -27,19 +27,22 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
-struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity)
+struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity, void *owner)
 {
 	struct amd_sched_fence *fence = NULL;
+	unsigned seq;
+
 	fence = kzalloc(sizeof(struct amd_sched_fence), GFP_KERNEL);
 	if (fence == NULL)
 		return NULL;
-	fence->v_seq = atomic64_inc_return(&s_entity->last_queued_v_seq);
-	fence->entity = s_entity;
+	fence->owner = owner;
+	fence->scheduler = s_entity->scheduler;
 	spin_lock_init(&fence->lock);
-	fence_init(&fence->base, &amd_sched_fence_ops,
-		&fence->lock,
-		s_entity->fence_context,
-		fence->v_seq);
+
+	seq = atomic_inc_return(&s_entity->fence_seq);
+	fence_init(&fence->base, &amd_sched_fence_ops, &fence->lock,
+		   s_entity->fence_context, seq);
+
 	return fence;
 }
 
@@ -60,7 +63,7 @@ static const char *amd_sched_fence_get_driver_name(struct fence *fence)
 static const char *amd_sched_fence_get_timeline_name(struct fence *f)
 {
 	struct amd_sched_fence *fence = to_amd_sched_fence(f);
-	return (const char *)fence->entity->name;
+	return (const char *)fence->scheduler->name;
 }
 
 static bool amd_sched_fence_enable_signaling(struct fence *f)

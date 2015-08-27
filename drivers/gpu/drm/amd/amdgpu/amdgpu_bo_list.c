@@ -62,39 +62,6 @@ static int amdgpu_bo_list_create(struct amdgpu_fpriv *fpriv,
 	return 0;
 }
 
-struct amdgpu_bo_list *
-amdgpu_bo_list_clone(struct amdgpu_bo_list *list)
-{
-	struct amdgpu_bo_list *result;
-	unsigned i;
-
-	result = kmalloc(sizeof(struct amdgpu_bo_list), GFP_KERNEL);
-	if (!result)
-		return NULL;
-
-	result->array = drm_calloc_large(list->num_entries,
-		sizeof(struct amdgpu_bo_list_entry));
-	if (!result->array) {
-		kfree(result);
-		return NULL;
-	}
-
-	mutex_init(&result->lock);
-	result->gds_obj = list->gds_obj;
-	result->gws_obj = list->gws_obj;
-	result->oa_obj = list->oa_obj;
-	result->has_userptr = list->has_userptr;
-	result->num_entries = list->num_entries;
-
-	memcpy(result->array, list->array, list->num_entries *
-	       sizeof(struct amdgpu_bo_list_entry));
-
-	for (i = 0; i < result->num_entries; ++i)
-		amdgpu_bo_ref(result->array[i].robj);
-
-	return result;
-}
-
 static void amdgpu_bo_list_destroy(struct amdgpu_fpriv *fpriv, int id)
 {
 	struct amdgpu_bo_list *list;

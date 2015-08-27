@@ -27,30 +27,32 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
+static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
+
 /* Initialize a given run queue struct */
 static void amd_sched_rq_init(struct amd_sched_rq *rq)
 {
+	spin_lock_init(&rq->lock);
 	INIT_LIST_HEAD(&rq->entities);
-	mutex_init(&rq->lock);
 	rq->current_entity = NULL;
 }
 
 static void amd_sched_rq_add_entity(struct amd_sched_rq *rq,
 				    struct amd_sched_entity *entity)
 {
-	mutex_lock(&rq->lock);
+	spin_lock(&rq->lock);
 	list_add_tail(&entity->list, &rq->entities);
-	mutex_unlock(&rq->lock);
+	spin_unlock(&rq->lock);
 }
 
 static void amd_sched_rq_remove_entity(struct amd_sched_rq *rq,
 				       struct amd_sched_entity *entity)
 {
-	mutex_lock(&rq->lock);
+	spin_lock(&rq->lock);
 	list_del_init(&entity->list);
 	if (rq->current_entity == entity)
 		rq->current_entity = NULL;
-	mutex_unlock(&rq->lock);
+	spin_unlock(&rq->lock);
 }
 
 /**
@@ -61,12 +63,16 @@ static void amd_sched_rq_remove_entity(struct amd_sched_rq *rq,
 static struct amd_sched_entity *
 amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 {
-	struct amd_sched_entity *entity = rq->current_entity;
+	struct amd_sched_entity *entity;
 
+	spin_lock(&rq->lock);
+
+	entity = rq->current_entity;
 	if (entity) {
 		list_for_each_entry_continue(entity, &rq->entities, list) {
 			if (!kfifo_is_empty(&entity->job_queue)) {
 				rq->current_entity = entity;
+				spin_unlock(&rq->lock);
 				return rq->current_entity;
 			}
 		}
@@ -76,6 +82,7 @@ amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 
 		if (!kfifo_is_empty(&entity->job_queue)) {
 			rq->current_entity = entity;
+			spin_unlock(&rq->lock);
 			return rq->current_entity;
 		}
 
@@ -83,76 +90,9 @@ amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 			break;
 	}
 
+	spin_unlock(&rq->lock);
+
 	return NULL;
-}
-
-/**
- * Note: This function should only been called inside scheduler main
- * function for thread safety, there is no other protection here.
- * return ture if scheduler has something ready to run.
- *
- * For active_hw_rq, there is only one producer(scheduler thread) and
- * one consumer(ISR). It should be safe to use this function in scheduler
- * main thread to decide whether to continue emit more IBs.
-*/
-static bool is_scheduler_ready(struct amd_gpu_scheduler *sched)
-{
-	unsigned long flags;
-	bool full;
-
-	spin_lock_irqsave(&sched->queue_lock, flags);
-	full = atomic64_read(&sched->hw_rq_count) <
-		sched->hw_submission_limit ? true : false;
-	spin_unlock_irqrestore(&sched->queue_lock, flags);
-
-	return full;
-}
-
-/**
- * Select next entity from the kernel run queue, if not available,
- * return null.
-*/
-static struct amd_sched_entity *
-kernel_rq_select_context(struct amd_gpu_scheduler *sched)
-{
-	struct amd_sched_entity *sched_entity;
-	struct amd_sched_rq *rq = &sched->kernel_rq;
-
-	mutex_lock(&rq->lock);
-	sched_entity = amd_sched_rq_select_entity(rq);
-	mutex_unlock(&rq->lock);
-	return sched_entity;
-}
-
-/**
- * Select next entity containing real IB submissions
-*/
-static struct amd_sched_entity *
-select_context(struct amd_gpu_scheduler *sched)
-{
-	struct amd_sched_entity *wake_entity = NULL;
-	struct amd_sched_entity *tmp;
-	struct amd_sched_rq *rq;
-
-	if (!is_scheduler_ready(sched))
-		return NULL;
-
-	/* Kernel run queue has higher priority than normal run queue*/
-	tmp = kernel_rq_select_context(sched);
-	if (tmp != NULL)
-		goto exit;
-
-	rq = &sched->sched_rq;
-	mutex_lock(&rq->lock);
-	tmp = amd_sched_rq_select_entity(rq);
-	mutex_unlock(&rq->lock);
-exit:
-	if (sched->current_entity && (sched->current_entity != tmp))
-		wake_entity = sched->current_entity;
-	sched->current_entity = tmp;
-	if (wake_entity && wake_entity->need_wakeup)
-		wake_up(&wake_entity->wait_queue);
-	return tmp;
 }
 
 /**
@@ -171,31 +111,20 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_rq *rq,
 			  uint32_t jobs)
 {
-	uint64_t seq_ring = 0;
-	char name[20];
-
 	if (!(sched && entity && rq))
 		return -EINVAL;
 
 	memset(entity, 0, sizeof(struct amd_sched_entity));
-	seq_ring = ((uint64_t)sched->ring_id) << 60;
-	spin_lock_init(&entity->lock);
 	entity->belongto_rq = rq;
 	entity->scheduler = sched;
-	init_waitqueue_head(&entity->wait_queue);
-	init_waitqueue_head(&entity->wait_emit);
 	entity->fence_context = fence_context_alloc(1);
-	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
-	memcpy(entity->name, name, 20);
-	entity->need_wakeup = false;
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
 		       GFP_KERNEL))
 		return -EINVAL;
 
 	spin_lock_init(&entity->queue_lock);
-	atomic64_set(&entity->last_queued_v_seq, seq_ring);
-	atomic64_set(&entity->last_signaled_v_seq, seq_ring);
+	atomic_set(&entity->fence_seq, 0);
 
 	/* Add the entity to the run queue */
 	amd_sched_rq_add_entity(rq, entity);
@@ -210,23 +139,24 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
  *
  * return true if entity is initialized, false otherwise
 */
-static bool is_context_entity_initialized(struct amd_gpu_scheduler *sched,
-					  struct amd_sched_entity *entity)
+static bool amd_sched_entity_is_initialized(struct amd_gpu_scheduler *sched,
+					    struct amd_sched_entity *entity)
 {
 	return entity->scheduler == sched &&
 		entity->belongto_rq != NULL;
 }
 
-static bool is_context_entity_idle(struct amd_gpu_scheduler *sched,
-				   struct amd_sched_entity *entity)
+/**
+ * Check if entity is idle
+ *
+ * @entity	The pointer to a valid scheduler entity
+ *
+ * Return true if entity don't has any unscheduled jobs.
+ */
+static bool amd_sched_entity_is_idle(struct amd_sched_entity *entity)
 {
-	/**
-	 * Idle means no pending IBs, and the entity is not
-	 * currently being used.
-	*/
-	barrier();
-	if ((sched->current_entity != entity) &&
-	    kfifo_is_empty(&entity->job_queue))
+	rmb();
+	if (kfifo_is_empty(&entity->job_queue))
 		return true;
 
 	return false;
@@ -238,84 +168,114 @@ static bool is_context_entity_idle(struct amd_gpu_scheduler *sched,
  * @sched       Pointer to scheduler instance
  * @entity	The pointer to a valid scheduler entity
  *
- * return 0 if succeed. negative error code on failure
+ * Cleanup and free the allocated resources.
  */
-int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
-			    struct amd_sched_entity *entity)
+void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
+			   struct amd_sched_entity *entity)
 {
-	int r = 0;
 	struct amd_sched_rq *rq = entity->belongto_rq;
 
-	if (!is_context_entity_initialized(sched, entity))
-		return 0;
-	entity->need_wakeup = true;
+	if (!amd_sched_entity_is_initialized(sched, entity))
+		return;
+
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs
 	*/
-	r = wait_event_timeout(
-		entity->wait_queue,
-		is_context_entity_idle(sched, entity),
-		msecs_to_jiffies(AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS)
-		) ?  0 : -1;
-
-	if (r) {
-		if (entity->is_pending)
-			DRM_INFO("Entity %p is in waiting state during fini,\
-				all pending ibs will be canceled.\n",
-				 entity);
-	}
+	wait_event(sched->job_scheduled, amd_sched_entity_is_idle(entity));
 
 	amd_sched_rq_remove_entity(rq, entity);
 	kfifo_free(&entity->job_queue);
+}
+
+/**
+ * Helper to submit a job to the job queue
+ *
+ * @job		The pointer to job required to submit
+ *
+ * Returns true if we could submit the job.
+ */
+static bool amd_sched_entity_in(struct amd_sched_job *job)
+{
+	struct amd_sched_entity *entity = job->s_entity;
+	bool added, first = false;
+
+	spin_lock(&entity->queue_lock);
+	added = kfifo_in(&entity->job_queue, &job, sizeof(job)) == sizeof(job);
+
+	if (added && kfifo_len(&entity->job_queue) == sizeof(job))
+		first = true;
+
+	spin_unlock(&entity->queue_lock);
+
+	/* first job wakes up scheduler */
+	if (first)
+		amd_sched_wakeup(job->sched);
+
+	return added;
+}
+
+/**
+ * Submit a job to the job queue
+ *
+ * @job		The pointer to job required to submit
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
+{
+	struct amd_sched_entity *entity = sched_job->s_entity;
+	struct amd_sched_fence *fence = amd_sched_fence_create(
+		entity, sched_job->owner);
+	int r;
+
+	if (!fence)
+		return -ENOMEM;
+
+	fence_get(&fence->base);
+	sched_job->s_fence = fence;
+
+	r = wait_event_interruptible(entity->scheduler->job_scheduled,
+				     amd_sched_entity_in(sched_job));
+
 	return r;
 }
 
 /**
- * Submit a normal job to the job queue
- *
- * @sched	The pointer to the scheduler
- * @c_entity    The pointer to amd_sched_entity
- * @job		The pointer to job required to submit
- * return 0 if succeed. -1 if failed.
- *        -2 indicate queue is full for this client, client should wait untill
- *	     scheduler consum some queued command.
- *	  -1 other fail.
-*/
-int amd_sched_push_job(struct amd_gpu_scheduler *sched,
-		       struct amd_sched_entity *c_entity,
-		       void *data,
-		       struct amd_sched_fence **fence)
+ * Return ture if we can push more jobs to the hw.
+ */
+static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
 {
-	struct amd_sched_job *job;
+	return atomic_read(&sched->hw_rq_count) <
+		sched->hw_submission_limit;
+}
 
-	if (!fence)
-		return -EINVAL;
-	job = kzalloc(sizeof(struct amd_sched_job), GFP_KERNEL);
-	if (!job)
-		return -ENOMEM;
-	job->sched = sched;
-	job->s_entity = c_entity;
-	job->data = data;
-	*fence = amd_sched_fence_create(c_entity);
-	if ((*fence) == NULL) {
-		kfree(job);
-		return -EINVAL;
-	}
-	fence_get(&(*fence)->base);
-	job->s_fence = *fence;
-	while (kfifo_in_spinlocked(&c_entity->job_queue, &job, sizeof(void *),
-				   &c_entity->queue_lock) != sizeof(void *)) {
-		/**
-		 * Current context used up all its IB slots
-		 * wait here, or need to check whether GPU is hung
-		*/
-		schedule();
-	}
-	/* first job wake up scheduler */
-	if ((kfifo_len(&c_entity->job_queue) / sizeof(void *)) == 1)
-		wake_up_interruptible(&sched->wait_queue);
-	return 0;
+/**
+ * Wake up the scheduler when it is ready
+ */
+static void amd_sched_wakeup(struct amd_gpu_scheduler *sched)
+{
+	if (amd_sched_ready(sched))
+		wake_up_interruptible(&sched->wake_up_worker);
+}
+
+/**
+ * Select next entity containing real IB submissions
+*/
+static struct amd_sched_entity *
+amd_sched_select_context(struct amd_gpu_scheduler *sched)
+{
+	struct amd_sched_entity *tmp;
+
+	if (!amd_sched_ready(sched))
+		return NULL;
+
+	/* Kernel run queue has higher priority than normal run queue*/
+	tmp = amd_sched_rq_select_entity(&sched->kernel_rq);
+	if (tmp == NULL)
+		tmp = amd_sched_rq_select_entity(&sched->sched_rq);
+
+	return tmp;
 }
 
 static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
@@ -323,52 +283,41 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	struct amd_sched_job *sched_job =
 		container_of(cb, struct amd_sched_job, cb);
 	struct amd_gpu_scheduler *sched;
-	unsigned long flags;
 
 	sched = sched_job->sched;
-	atomic64_set(&sched_job->s_entity->last_signaled_v_seq,
-		     sched_job->s_fence->v_seq);
 	amd_sched_fence_signal(sched_job->s_fence);
-	spin_lock_irqsave(&sched->queue_lock, flags);
-	list_del(&sched_job->list);
-	atomic64_dec(&sched->hw_rq_count);
-	spin_unlock_irqrestore(&sched->queue_lock, flags);
-
-	sched->ops->process_job(sched, sched_job);
+	atomic_dec(&sched->hw_rq_count);
 	fence_put(&sched_job->s_fence->base);
-	kfree(sched_job);
-	wake_up_interruptible(&sched->wait_queue);
+	sched->ops->process_job(sched_job);
+	wake_up_interruptible(&sched->wake_up_worker);
 }
 
 static int amd_sched_main(void *param)
 {
-	int r;
-	struct amd_sched_job *job;
 	struct sched_param sparam = {.sched_priority = 1};
-	struct amd_sched_entity *c_entity = NULL;
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
+	int r;
 
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
 	while (!kthread_should_stop()) {
+		struct amd_sched_entity *c_entity = NULL;
+		struct amd_sched_job *job;
 		struct fence *fence;
 
-		wait_event_interruptible(sched->wait_queue,
-					 is_scheduler_ready(sched) &&
-					 (c_entity = select_context(sched)));
+		wait_event_interruptible(sched->wake_up_worker,
+			kthread_should_stop() ||
+			(c_entity = amd_sched_select_context(sched)));
+
+		if (!c_entity)
+			continue;
+
 		r = kfifo_out(&c_entity->job_queue, &job, sizeof(void *));
 		if (r != sizeof(void *))
 			continue;
-		r = sched->ops->prepare_job(sched, c_entity, job);
-		if (!r) {
-			unsigned long flags;
-			spin_lock_irqsave(&sched->queue_lock, flags);
-			list_add_tail(&job->list, &sched->active_hw_rq);
-			atomic64_inc(&sched->hw_rq_count);
-			spin_unlock_irqrestore(&sched->queue_lock, flags);
-		}
-		mutex_lock(&sched->sched_lock);
-		fence = sched->ops->run_job(sched, c_entity, job);
+		atomic_inc(&sched->hw_rq_count);
+
+		fence = sched->ops->run_job(job);
 		if (fence) {
 			r = fence_add_callback(fence, &job->cb,
 					       amd_sched_process_job);
@@ -378,7 +327,8 @@ static int amd_sched_main(void *param)
 				DRM_ERROR("fence add callback failed (%d)\n", r);
 			fence_put(fence);
 		}
-		mutex_unlock(&sched->sched_lock);
+
+		wake_up(&sched->job_scheduled);
 	}
 	return 0;
 }
@@ -386,53 +336,42 @@ static int amd_sched_main(void *param)
 /**
  * Create a gpu scheduler
  *
- * @device	The device context for this scheduler
- * @ops		The backend operations for this scheduler.
- * @id	        The scheduler is per ring, here is ring id.
- * @granularity	The minumum ms unit the scheduler will scheduled.
- * @preemption  Indicate whether this ring support preemption, 0 is no.
+ * @ops			The backend operations for this scheduler.
+ * @ring		The the ring id for the scheduler.
+ * @hw_submissions	Number of hw submissions to do.
  *
- * return the pointer to scheduler for success, otherwise return NULL
+ * Return the pointer to scheduler for success, otherwise return NULL
 */
-struct amd_gpu_scheduler *amd_sched_create(void *device,
-					   struct amd_sched_backend_ops *ops,
-					   unsigned ring,
-					   unsigned granularity,
-					   unsigned preemption,
-					   unsigned hw_submission)
+struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
+					   unsigned ring, unsigned hw_submission,
+					   void *priv)
 {
 	struct amd_gpu_scheduler *sched;
-	char name[20];
 
 	sched = kzalloc(sizeof(struct amd_gpu_scheduler), GFP_KERNEL);
 	if (!sched)
 		return NULL;
 
-	sched->device = device;
 	sched->ops = ops;
-	sched->granularity = granularity;
 	sched->ring_id = ring;
-	sched->preemption = preemption;
 	sched->hw_submission_limit = hw_submission;
-	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
-	mutex_init(&sched->sched_lock);
-	spin_lock_init(&sched->queue_lock);
+	sched->priv = priv;
+	snprintf(sched->name, sizeof(sched->name), "amdgpu[%d]", ring);
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
 
-	init_waitqueue_head(&sched->wait_queue);
-	INIT_LIST_HEAD(&sched->active_hw_rq);
-	atomic64_set(&sched->hw_rq_count, 0);
+	init_waitqueue_head(&sched->wake_up_worker);
+	init_waitqueue_head(&sched->job_scheduled);
+	atomic_set(&sched->hw_rq_count, 0);
 	/* Each scheduler will run on a seperate kernel thread */
-	sched->thread = kthread_create(amd_sched_main, sched, name);
-	if (sched->thread) {
-		wake_up_process(sched->thread);
-		return sched;
+	sched->thread = kthread_run(amd_sched_main, sched, sched->name);
+	if (IS_ERR(sched->thread)) {
+		DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
+		kfree(sched);
+		return NULL;
 	}
 
-	DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
-	kfree(sched);
-	return NULL;
+	return sched;
 }
 
 /**
@@ -447,16 +386,4 @@ int amd_sched_destroy(struct amd_gpu_scheduler *sched)
 	kthread_stop(sched->thread);
 	kfree(sched);
 	return  0;
-}
-
-/**
- * Get next queued sequence number
- *
- * @entity The context entity
- *
- * return the next queued sequence number
-*/
-uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity)
-{
-	return atomic64_read(&c_entity->last_queued_v_seq) + 1;
 }

@@ -126,19 +126,6 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 	return 0;
 }
 
-static void amdgpu_job_work_func(struct work_struct *work)
-{
-	struct amdgpu_cs_parser *sched_job =
-		container_of(work, struct amdgpu_cs_parser,
-			     job_work);
-	mutex_lock(&sched_job->job_lock);
-	if (sched_job->free_job)
-		sched_job->free_job(sched_job);
-	mutex_unlock(&sched_job->job_lock);
-	/* after processing job, free memory */
-	fence_put(&sched_job->s_fence->base);
-	kfree(sched_job);
-}
 struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,
                                                struct drm_file *filp,
                                                struct amdgpu_ctx *ctx,
@@ -157,10 +144,6 @@ struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,
 	parser->ctx = ctx;
 	parser->ibs = ibs;
 	parser->num_ibs = num_ibs;
-	if (amdgpu_enable_scheduler) {
-		mutex_init(&parser->job_lock);
-		INIT_WORK(&parser->job_work, amdgpu_job_work_func);
-	}
 	for (i = 0; i < num_ibs; i++)
 		ibs[i].ctx = ctx;
 
@@ -173,7 +156,6 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	uint64_t *chunk_array_user;
 	uint64_t *chunk_array = NULL;
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_bo_list *bo_list = NULL;
 	unsigned size, i;
 	int r = 0;
 
@@ -185,20 +167,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		r = -EINVAL;
 		goto out;
 	}
-	bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
-	if (!amdgpu_enable_scheduler)
-		p->bo_list = bo_list;
-	else {
-		if (bo_list && !bo_list->has_userptr) {
-			p->bo_list = amdgpu_bo_list_clone(bo_list);
-			amdgpu_bo_list_put(bo_list);
-			if (!p->bo_list)
-				return -ENOMEM;
-		} else if (bo_list && bo_list->has_userptr)
-			p->bo_list = bo_list;
-		else
-			p->bo_list = NULL;
-	}
+	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 
 	/* get chunks */
 	INIT_LIST_HEAD(&p->validated);
@@ -291,7 +260,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	}
 
 
-	p->ibs = kmalloc_array(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
+	p->ibs = kcalloc(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!p->ibs)
 		r = -ENOMEM;
 
@@ -498,25 +467,24 @@ static void amdgpu_cs_parser_fini_late(struct amdgpu_cs_parser *parser)
 	unsigned i;
 	if (parser->ctx)
 		amdgpu_ctx_put(parser->ctx);
-	if (parser->bo_list) {
-		if (amdgpu_enable_scheduler && !parser->bo_list->has_userptr)
-			amdgpu_bo_list_free(parser->bo_list);
-		else
-			amdgpu_bo_list_put(parser->bo_list);
-	}
+	if (parser->bo_list)
+		amdgpu_bo_list_put(parser->bo_list);
+
 	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
-	if (parser->ibs)
-		for (i = 0; i < parser->num_ibs; i++)
-			amdgpu_ib_free(parser->adev, &parser->ibs[i]);
-	kfree(parser->ibs);
-	if (parser->uf.bo)
-		drm_gem_object_unreference_unlocked(&parser->uf.bo->gem_base);
-
 	if (!amdgpu_enable_scheduler)
-		kfree(parser);
+	{
+		if (parser->ibs)
+			for (i = 0; i < parser->num_ibs; i++)
+				amdgpu_ib_free(parser->adev, &parser->ibs[i]);
+		kfree(parser->ibs);
+		if (parser->uf.bo)
+			drm_gem_object_unreference_unlocked(&parser->uf.bo->gem_base);
+	}
+
+	kfree(parser);
 }
 
 /**
@@ -531,12 +499,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 {
        amdgpu_cs_parser_fini_early(parser, error, backoff);
        amdgpu_cs_parser_fini_late(parser);
-}
-
-static int amdgpu_cs_parser_free_job(struct amdgpu_cs_parser *sched_job)
-{
-       amdgpu_cs_parser_fini_late(sched_job);
-       return 0;
 }
 
 static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
@@ -810,68 +772,16 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_cs_parser_prepare_job(struct amdgpu_cs_parser *sched_job)
+static int amdgpu_cs_free_job(struct amdgpu_job *sched_job)
 {
-	int r, i;
-	struct amdgpu_cs_parser *parser = sched_job;
-	struct amdgpu_device *adev = sched_job->adev;
-	bool reserved_buffers = false;
-
-	r = amdgpu_cs_parser_relocs(parser);
-	if (r) {
-		if (r != -ERESTARTSYS) {
-			if (r == -ENOMEM)
-				DRM_ERROR("Not enough memory for command submission!\n");
-			else
-				DRM_ERROR("Failed to process the buffer list %d!\n", r);
-		}
-	}
-
-	if (!r) {
-		reserved_buffers = true;
-		r = amdgpu_cs_ib_fill(adev, parser);
-	}
-	if (!r) {
-		r = amdgpu_cs_dependencies(adev, parser);
-		if (r)
-			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
-	}
-	if (r) {
-		amdgpu_cs_parser_fini(parser, r, reserved_buffers);
-		return r;
-	}
-
-	for (i = 0; i < parser->num_ibs; i++)
-		trace_amdgpu_cs(parser, i);
-
-	r = amdgpu_cs_ib_vm_chunk(adev, parser);
-	return r;
-}
-
-static struct amdgpu_ring *amdgpu_cs_parser_get_ring(
-	struct amdgpu_device *adev,
-	struct amdgpu_cs_parser *parser)
-{
-	int i, r;
-
-	struct amdgpu_cs_chunk *chunk;
-	struct drm_amdgpu_cs_chunk_ib *chunk_ib;
-	struct amdgpu_ring *ring;
-	for (i = 0; i < parser->nchunks; i++) {
-		chunk = &parser->chunks[i];
-		chunk_ib = (struct drm_amdgpu_cs_chunk_ib *)chunk->kdata;
-
-		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
-			continue;
-
-		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
-				       chunk_ib->ip_instance, chunk_ib->ring,
-				       &ring);
-		if (r)
-			return NULL;
-		break;
-	}
-	return ring;
+	int i;
+	if (sched_job->ibs)
+		for (i = 0; i < sched_job->num_ibs; i++)
+			amdgpu_ib_free(sched_job->adev, &sched_job->ibs[i]);
+	kfree(sched_job->ibs);
+	if (sched_job->uf.bo)
+		drm_gem_object_unreference_unlocked(&sched_job->uf.bo->gem_base);
+	return 0;
 }
 
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
@@ -879,7 +789,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct amdgpu_device *adev = dev->dev_private;
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser *parser;
-	int r;
+	bool reserved_buffers = false;
+	int i, r;
 
 	down_read(&adev->exclusive_lock);
 	if (!adev->accel_working) {
@@ -899,44 +810,79 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return r;
 	}
 
-	if (amdgpu_enable_scheduler && parser->num_ibs) {
-		struct amdgpu_ring * ring =
-			amdgpu_cs_parser_get_ring(adev, parser);
-		r = amdgpu_cs_parser_prepare_job(parser);
-		if (r)
-			goto out;
-		parser->ring = ring;
-		parser->free_job = amdgpu_cs_parser_free_job;
-		mutex_lock(&parser->job_lock);
-		r = amd_sched_push_job(ring->scheduler,
-				       &parser->ctx->rings[ring->idx].entity,
-				       parser,
-				       &parser->s_fence);
-		if (r) {
-			mutex_unlock(&parser->job_lock);
-			goto out;
-		}
-		parser->ibs[parser->num_ibs - 1].sequence =
-			amdgpu_ctx_add_fence(parser->ctx, ring,
-					     &parser->s_fence->base,
-					     parser->s_fence->v_seq);
-		cs->out.handle = parser->s_fence->v_seq;
-		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
-		ttm_eu_fence_buffer_objects(&parser->ticket,
-				&parser->validated,
-				&parser->s_fence->base);
-
-		mutex_unlock(&parser->job_lock);
-		up_read(&adev->exclusive_lock);
-		return 0;
+	r = amdgpu_cs_parser_relocs(parser);
+	if (r == -ENOMEM)
+		DRM_ERROR("Not enough memory for command submission!\n");
+	else if (r && r != -ERESTARTSYS)
+		DRM_ERROR("Failed to process the buffer list %d!\n", r);
+	else if (!r) {
+		reserved_buffers = true;
+		r = amdgpu_cs_ib_fill(adev, parser);
 	}
-	r = amdgpu_cs_parser_prepare_job(parser);
+
+	if (!r) {
+		r = amdgpu_cs_dependencies(adev, parser);
+		if (r)
+			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
+	}
+
 	if (r)
 		goto out;
 
+	for (i = 0; i < parser->num_ibs; i++)
+		trace_amdgpu_cs(parser, i);
+
+	r = amdgpu_cs_ib_vm_chunk(adev, parser);
+	if (r)
+		goto out;
+
+	if (amdgpu_enable_scheduler && parser->num_ibs) {
+		struct amdgpu_job *job;
+		struct amdgpu_ring * ring =  parser->ibs->ring;
+		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
+		if (!job)
+			return -ENOMEM;
+		job->base.sched = ring->scheduler;
+		job->base.s_entity = &parser->ctx->rings[ring->idx].entity;
+		job->adev = parser->adev;
+		job->ibs = parser->ibs;
+		job->num_ibs = parser->num_ibs;
+		job->base.owner = parser->filp;
+		mutex_init(&job->job_lock);
+		if (job->ibs[job->num_ibs - 1].user) {
+			memcpy(&job->uf,  &parser->uf,
+			       sizeof(struct amdgpu_user_fence));
+			job->ibs[job->num_ibs - 1].user = &job->uf;
+		}
+
+		job->free_job = amdgpu_cs_free_job;
+		mutex_lock(&job->job_lock);
+		r = amd_sched_entity_push_job((struct amd_sched_job *)job);
+		if (r) {
+			mutex_unlock(&job->job_lock);
+			amdgpu_cs_free_job(job);
+			kfree(job);
+			goto out;
+		}
+		cs->out.handle =
+			amdgpu_ctx_add_fence(parser->ctx, ring,
+					     &job->base.s_fence->base);
+		parser->ibs[parser->num_ibs - 1].sequence = cs->out.handle;
+
+		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
+		ttm_eu_fence_buffer_objects(&parser->ticket,
+				&parser->validated,
+				&job->base.s_fence->base);
+
+		mutex_unlock(&job->job_lock);
+		amdgpu_cs_parser_fini_late(parser);
+		up_read(&adev->exclusive_lock);
+		return 0;
+	}
+
 	cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 out:
-	amdgpu_cs_parser_fini(parser, r, true);
+	amdgpu_cs_parser_fini(parser, r, reserved_buffers);
 	up_read(&adev->exclusive_lock);
 	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;

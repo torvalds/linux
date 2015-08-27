@@ -49,9 +49,10 @@
 /*
  * KMS wrapper.
  * - 3.0.0 - initial driver
+ * - 3.1.0 - allow reading more status registers (GRBM, SRBM, SDMA, CP)
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	0
+#define KMS_DRIVER_MINOR	1
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
