@@ -40,8 +40,6 @@
 
 #define __BAD__ FPU_illegal	/* Illegal on an 80486, causes SIGILL */
 
-#ifndef NO_UNDOC_CODE		/* Un-documented FPU op-codes supported by default. */
-
 /* WARNING: These codes are not documented by Intel in their 80486 manual
    and may not work on FPU clones or later Intel FPUs. */
 
@@ -68,21 +66,6 @@ static FUNC const st_instr_table[64] = {
 	fdivr_, FPU_trigb, __BAD__, __BAD__, fdiv_i, __BAD__, fdivp_, __BAD__,
 };
 
-#else /* Support only documented FPU op-codes */
-
-static FUNC const st_instr_table[64] = {
-	fadd__, fld_i_, __BAD__, __BAD__, fadd_i, ffree_, faddp_, __BAD__,
-	fmul__, fxch_i, __BAD__, __BAD__, fmul_i, __BAD__, fmulp_, __BAD__,
-	fcom_st, fp_nop, __BAD__, __BAD__, __BAD__, fst_i_, __BAD__, __BAD__,
-	fcompst, __BAD__, __BAD__, __BAD__, __BAD__, fstp_i, fcompp, __BAD__,
-	fsub__, FPU_etc, __BAD__, finit_, fsubri, fucom_, fsubrp, fstsw_,
-	fsubr_, fconst, fucompp, __BAD__, fsub_i, fucomp, fsubp_, __BAD__,
-	fdiv__, FPU_triga, __BAD__, __BAD__, fdivri, __BAD__, fdivrp, __BAD__,
-	fdivr_, FPU_trigb, __BAD__, __BAD__, fdiv_i, __BAD__, fdivp_, __BAD__,
-};
-
-#endif /* NO_UNDOC_CODE */
-
 #define _NONE_ 0		/* Take no special action */
 #define _REG0_ 1		/* Need to check for not empty st(0) */
 #define _REGI_ 2		/* Need to check for not empty st(0) and st(rm) */
@@ -94,10 +77,6 @@ static FUNC const st_instr_table[64] = {
 #define _REGIc 0		/* Compare st(0) and st(rm) */
 #define _REGIn 0		/* Uses st(0) and st(rm), but handle checks later */
 
-#ifndef NO_UNDOC_CODE
-
-/* Un-documented FPU op-codes supported by default. (see above) */
-
 static u_char const type_table[64] = {
 	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _REGi_,
 	_REGI_, _REGIn, _null_, _null_, _REGIi, _REGI_, _REGIp, _REGI_,
@@ -108,21 +87,6 @@ static u_char const type_table[64] = {
 	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
 	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_
 };
-
-#else /* Support only documented FPU op-codes */
-
-static u_char const type_table[64] = {
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _null_,
-	_REGI_, _REGIn, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
-	_REGIc, _NONE_, _null_, _null_, _null_, _REG0_, _null_, _null_,
-	_REGIc, _null_, _null_, _null_, _null_, _REG0_, _REGIc, _null_,
-	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
-	_REGI_, _NONE_, _REGIc, _null_, _REGIi, _REGIc, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_
-};
-
-#endif /* NO_UNDOC_CODE */
 
 #ifdef RE_ENTRANT_CHECKING
 u_char emulating = 0;
