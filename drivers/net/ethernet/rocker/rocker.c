@@ -322,21 +322,16 @@ static u16 rocker_port_vlan_to_vid(const struct rocker_port *rocker_port,
 	return ntohs(vlan_id);
 }
 
-static bool rocker_port_is_slave(const struct rocker_port *rocker_port,
-				   const char *kind)
-{
-	return rocker_port->bridge_dev &&
-		!strcmp(rocker_port->bridge_dev->rtnl_link_ops->kind, kind);
-}
-
 static bool rocker_port_is_bridged(const struct rocker_port *rocker_port)
 {
-	return rocker_port_is_slave(rocker_port, "bridge");
+	return rocker_port->bridge_dev &&
+	       netif_is_bridge_master(rocker_port->bridge_dev);
 }
 
 static bool rocker_port_is_ovsed(const struct rocker_port *rocker_port)
 {
-	return rocker_port_is_slave(rocker_port, "openvswitch");
+	return rocker_port->bridge_dev &&
+	       netif_is_ovs_master(rocker_port->bridge_dev);
 }
 
 #define ROCKER_OP_FLAG_REMOVE		BIT(0)
@@ -5338,10 +5333,10 @@ static int rocker_port_master_changed(struct net_device *dev)
 	int err = 0;
 
 	/* N.B: Do nothing if the type of master is not supported */
-	if (master && master->rtnl_link_ops) {
-		if (!strcmp(master->rtnl_link_ops->kind, "bridge"))
+	if (master) {
+		if (netif_is_bridge_master(master))
 			err = rocker_port_bridge_join(rocker_port, master);
-		else if (!strcmp(master->rtnl_link_ops->kind, "openvswitch"))
+		else if (netif_is_ovs_master(master))
 			err = rocker_port_ovs_changed(rocker_port, master);
 	} else if (rocker_port_is_bridged(rocker_port)) {
 		err = rocker_port_bridge_leave(rocker_port);
