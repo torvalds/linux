@@ -420,6 +420,7 @@ struct cxl_context {
 	struct mutex mapping_lock;
 	struct page *ff_page;
 	bool mmio_err_ff;
+	bool kernelapi;
 
 	spinlock_t sste_lock; /* Protects segment table entries */
 	struct cxl_sste *sstp;

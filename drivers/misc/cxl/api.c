@@ -12,11 +12,13 @@
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <misc/cxl.h>
+#include <linux/fs.h>
 
 #include "cxl.h"
 
 struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 {
+	struct address_space *mapping;
 	struct cxl_afu *afu;
 	struct cxl_context  *ctx;
 	int rc;
@@ -30,14 +32,32 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 		goto err_dev;
 	}
 
-	/* Make it a slave context.  We can promote it later? */
-	rc = cxl_context_init(ctx, afu, false, NULL);
-	if (rc)
+	ctx->kernelapi = true;
+
+	/*
+	 * Make our own address space since we won't have one from the
+	 * filesystem like the user api has, and even if we do associate a file
+	 * with this context we don't want to use the global anonymous inode's
+	 * address space as that can invalidate unrelated users:
+	 */
+	mapping = kmalloc(sizeof(struct address_space), GFP_KERNEL);
+	if (!mapping) {
+		rc = -ENOMEM;
 		goto err_ctx;
+	}
+	address_space_init_once(mapping);
+
+	/* Make it a slave context.  We can promote it later? */
+	rc = cxl_context_init(ctx, afu, false, mapping);
+	if (rc)
+		goto err_mapping;
+
 	cxl_assign_psn_space(ctx);
 
 	return ctx;
 
+err_mapping:
+	kfree(mapping);
 err_ctx:
 	kfree(ctx);
 err_dev:
@@ -260,9 +280,16 @@ struct file *cxl_get_fd(struct cxl_context *ctx, struct file_operations *fops,
 
 	file = anon_inode_getfile("cxl", fops, ctx, flags);
 	if (IS_ERR(file))
-		put_unused_fd(fdtmp);
+		goto err_fd;
+
+	file->f_mapping = ctx->mapping;
+
 	*fd = fdtmp;
 	return file;
+
+err_fd:
+	put_unused_fd(fdtmp);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(cxl_get_fd);
 
