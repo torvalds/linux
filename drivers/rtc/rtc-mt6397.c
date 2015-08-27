@@ -402,6 +402,7 @@ static const struct of_device_id mt6397_rtc_of_match[] = {
 	{ .compatible = "mediatek,mt6397-rtc", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt6397_rtc_of_match);
 
 static struct platform_driver mtk_rtc_driver = {
 	.driver = {

@@ -295,6 +295,7 @@ static const struct of_device_id armada38x_rtc_of_match_table[] = {
 	{ .compatible = "marvell,armada-380-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
 #endif
 
 static struct platform_driver armada38x_rtc_driver = {

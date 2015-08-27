@@ -169,6 +169,7 @@ static const struct of_device_id da9063_compatible_reg_id_table[] = {
 	{ .compatible = "dlg,da9062-rtc", .data = &da9062_aa_regs },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, da9063_compatible_reg_id_table);
 
 static void da9063_data_to_tm(u8 *data, struct rtc_time *tm,
 			      struct da9063_compatible_rtc *rtc)
