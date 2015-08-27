@@ -1176,6 +1176,11 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			/* clone ring and setup updated count */
 			tx_rings[i] = *vsi->tx_rings[i];
 			tx_rings[i].count = new_tx_count;
+			/* the desc and bi pointers will be reallocated in the
+			 * setup call
+			 */
+			tx_rings[i].desc = NULL;
+			tx_rings[i].rx_bi = NULL;
 			err = i40e_setup_tx_descriptors(&tx_rings[i]);
 			if (err) {
 				while (i) {
@@ -1206,6 +1211,11 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			/* clone ring and setup updated count */
 			rx_rings[i] = *vsi->rx_rings[i];
 			rx_rings[i].count = new_rx_count;
+			/* the desc and bi pointers will be reallocated in the
+			 * setup call
+			 */
+			rx_rings[i].desc = NULL;
+			rx_rings[i].rx_bi = NULL;
 			err = i40e_setup_rx_descriptors(&rx_rings[i]);
 			if (err) {
 				while (i) {
