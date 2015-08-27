@@ -244,8 +244,6 @@ static int omap_hsmmc_get_cover_state(struct device *dev)
 	return mmc_gpio_get_cd(host->mmc);
 }
 
-#ifdef CONFIG_REGULATOR
-
 static int omap_hsmmc_enable_supply(struct mmc_host *mmc)
 {
 	int ret;
@@ -519,30 +517,6 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 
 	return 0;
 }
-
-static inline int omap_hsmmc_have_reg(void)
-{
-	return 1;
-}
-
-#else
-
-static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
-{
-	return 0;
-}
-
-static inline int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
-{
-	return -EINVAL;
-}
-
-static inline int omap_hsmmc_have_reg(void)
-{
-	return 0;
-}
-
-#endif
 
 static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id);
 
@@ -2204,11 +2178,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	if (omap_hsmmc_have_reg()) {
-		ret = omap_hsmmc_reg_get(host);
-		if (ret)
-			goto err_irq;
-	}
+	ret = omap_hsmmc_reg_get(host);
+	if (ret)
+		goto err_irq;
 
 	mmc->ocr_avail = mmc_pdata(host)->ocr_mask;
 
