@@ -1264,36 +1264,13 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (vxlan_collect_metadata(vs)) {
-		tun_dst = metadata_dst_alloc(sizeof(*md), GFP_ATOMIC);
+		tun_dst = udp_tun_rx_dst(skb, vxlan_get_sk_family(vs), TUNNEL_KEY,
+					 cpu_to_be64(vni >> 8), sizeof(*md));
+
 		if (!tun_dst)
 			goto drop;
 
 		info = &tun_dst->u.tun_info;
-		if (vxlan_get_sk_family(vs) == AF_INET) {
-			const struct iphdr *iph = ip_hdr(skb);
-
-			info->key.u.ipv4.src = iph->saddr;
-			info->key.u.ipv4.dst = iph->daddr;
-			info->key.tos = iph->tos;
-			info->key.ttl = iph->ttl;
-		} else {
-			const struct ipv6hdr *ip6h = ipv6_hdr(skb);
-
-			info->key.u.ipv6.src = ip6h->saddr;
-			info->key.u.ipv6.dst = ip6h->daddr;
-			info->key.tos = ipv6_get_dsfield(ip6h);
-			info->key.ttl = ip6h->hop_limit;
-		}
-
-		info->key.tp_src = udp_hdr(skb)->source;
-		info->key.tp_dst = udp_hdr(skb)->dest;
-
-		info->mode = IP_TUNNEL_INFO_RX;
-		info->key.tun_flags = TUNNEL_KEY;
-		info->key.tun_id = cpu_to_be64(vni >> 8);
-		if (udp_hdr(skb)->check != 0)
-			info->key.tun_flags |= TUNNEL_CSUM;
-
 		md = ip_tunnel_info_opts(info, sizeof(*md));
 	} else {
 		memset(md, 0, sizeof(*md));
