@@ -410,6 +410,7 @@ struct i40e_pf {
 	u32 npar_min_bw;
 
 	u32 ioremap_len;
+	u32 fd_inv;
 };
 
 struct i40e_mac_filter {
