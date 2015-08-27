@@ -3274,6 +3274,9 @@ static void intel_update_pipe_size(struct intel_crtc *crtc)
 	if (!i915.fastboot)
 		return;
 
+	if (HAS_DDI(dev))
+		intel_set_pipe_csc(&crtc->base);
+
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
 	 * that in compute_mode_changes we check the native mode (not the pfit
