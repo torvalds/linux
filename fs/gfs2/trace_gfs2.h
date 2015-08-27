@@ -267,14 +267,14 @@ TRACE_EVENT(gfs2_glock_lock_time,
 		__field(	int,	status		)
 		__field(	char,	flags		)
 		__field(	s64,	tdiff		)
-		__field(	s64,	srtt		)
-		__field(	s64,	srttvar		)
-		__field(	s64,	srttb		)
-		__field(	s64,	srttvarb	)
-		__field(	s64,	sirt		)
-		__field(	s64,	sirtvar		)
-		__field(	s64,	dcount		)
-		__field(	s64,	qcount		)
+		__field(	u64,	srtt		)
+		__field(	u64,	srttvar		)
+		__field(	u64,	srttb		)
+		__field(	u64,	srttvarb	)
+		__field(	u64,	sirt		)
+		__field(	u64,	sirtvar		)
+		__field(	u64,	dcount		)
+		__field(	u64,	qcount		)
 	),
 
 	TP_fast_assign(

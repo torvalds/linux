@@ -1680,17 +1680,17 @@ static int gfs2_glstats_seq_show(struct seq_file *seq, void *iter_ptr)
 {
 	struct gfs2_glock *gl = iter_ptr;
 
-	seq_printf(seq, "G: n:%u/%llx rtt:%lld/%lld rttb:%lld/%lld irt:%lld/%lld dcnt: %lld qcnt: %lld\n",
+	seq_printf(seq, "G: n:%u/%llx rtt:%llu/%llu rttb:%llu/%llu irt:%llu/%llu dcnt: %llu qcnt: %llu\n",
 		   gl->gl_name.ln_type,
 		   (unsigned long long)gl->gl_name.ln_number,
-		   (long long)gl->gl_stats.stats[GFS2_LKS_SRTT],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_SRTTVAR],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_SRTTB],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_SRTTVARB],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_SIRT],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_SIRTVAR],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_DCOUNT],
-		   (long long)gl->gl_stats.stats[GFS2_LKS_QCOUNT]);
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_SRTT],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_SRTTVAR],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_SRTTB],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_SRTTVARB],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_SIRT],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_SIRTVAR],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_DCOUNT],
+		   (unsigned long long)gl->gl_stats.stats[GFS2_LKS_QCOUNT]);
 	return 0;
 }
 
@@ -1727,7 +1727,7 @@ static int gfs2_sbstats_seq_show(struct seq_file *seq, void *iter_ptr)
 	loff_t pos = *(loff_t *)iter_ptr;
 	unsigned index = pos >> 3;
 	unsigned subindex = pos & 0x07;
-	s64 value;
+	u64 value;
 	int i;
 
 	if (index == 0 && subindex != 0)
@@ -1743,7 +1743,7 @@ static int gfs2_sbstats_seq_show(struct seq_file *seq, void *iter_ptr)
 		} else {
 			value = lkstats->lkstats[index - 1].stats[subindex];
 		}
-		seq_printf(seq, " %15lld", (long long)value);
+		seq_printf(seq, " %15llu", (long long)value);
 	}
 	seq_putc(seq, '\n');
 	return 0;

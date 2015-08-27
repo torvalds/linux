@@ -244,7 +244,7 @@ enum {
 };
 
 struct gfs2_lkstats {
-	s64 stats[GFS2_NR_LKSTATS];
+	u64 stats[GFS2_NR_LKSTATS];
 };
 
 enum {
