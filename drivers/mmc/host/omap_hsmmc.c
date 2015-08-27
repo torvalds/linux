@@ -269,8 +269,11 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 	if (host->pbias) {
 		if (host->pbias_enabled == 1) {
 			ret = regulator_disable(host->pbias);
-			if (!ret)
-				host->pbias_enabled = 0;
+			if (ret) {
+				dev_err(dev, "pbias reg disable failed\n");
+				return ret;
+			}
+			host->pbias_enabled = 0;
 		}
 	}
 
@@ -288,23 +291,35 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 	 * chips/cards need an interface voltage rail too.
 	 */
 	if (power_on) {
-		if (mmc->supply.vmmc)
+		if (mmc->supply.vmmc) {
 			ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
+			if (ret)
+				return ret;
+		}
+
 		/* Enable interface voltage rail, if needed */
-		if (ret == 0 && mmc->supply.vqmmc) {
+		if (mmc->supply.vqmmc) {
 			ret = regulator_enable(mmc->supply.vqmmc);
-			if (ret < 0 && mmc->supply.vmmc)
-				ret = mmc_regulator_set_ocr(mmc,
-							    mmc->supply.vmmc,
-							    0);
+			if (ret) {
+				dev_err(dev, "vmmc_aux reg enable failed\n");
+				goto err_set_vqmmc;
+			}
 		}
 	} else {
 		/* Shut down the rail */
-		if (mmc->supply.vqmmc)
+		if (mmc->supply.vqmmc) {
 			ret = regulator_disable(mmc->supply.vqmmc);
+			if (ret) {
+				dev_err(dev, "vmmc_aux reg disable failed\n");
+				return ret;
+			}
+		}
+
 		if (mmc->supply.vmmc) {
 			/* Then proceed to shut down the local regulator */
 			ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -316,19 +331,32 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 			ret = regulator_set_voltage(host->pbias, VDD_3V0,
 								VDD_3V0);
 		if (ret < 0)
-			goto error_set_power;
+			goto err_set_voltage;
 
 		if (host->pbias_enabled == 0) {
 			ret = regulator_enable(host->pbias);
-			if (!ret)
+			if (ret) {
+				dev_err(dev, "pbias reg enable failed\n");
+				goto err_set_voltage;
+			} else {
 				host->pbias_enabled = 1;
+			}
 		}
 	}
 
 	if (mmc_pdata(host)->after_set_reg)
 		mmc_pdata(host)->after_set_reg(dev, power_on, vdd);
 
-error_set_power:
+	return 0;
+
+err_set_voltage:
+	if (mmc->supply.vqmmc)
+		regulator_disable(mmc->supply.vqmmc);
+
+err_set_vqmmc:
+	if (mmc->supply.vmmc)
+		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+
 	return ret;
 }
 
