@@ -502,7 +502,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 			goto reserve_fail;
 	}
 again:
-	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
+	h = kmem_cache_zalloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	if (!h) {
 		ret = -ENOMEM;
 		goto alloc_fail;
@@ -543,23 +543,10 @@ again:
 
 	h->transid = cur_trans->transid;
 	h->transaction = cur_trans;
-	h->blocks_used = 0;
-	h->bytes_reserved = 0;
-	h->chunk_bytes_reserved = 0;
 	h->root = root;
-	h->delayed_ref_updates = 0;
 	h->use_count = 1;
-	h->adding_csums = 0;
-	h->block_rsv = NULL;
-	h->orig_rsv = NULL;
-	h->aborted = 0;
-	h->qgroup_reserved = 0;
-	h->delayed_ref_elem.seq = 0;
 	h->type = type;
-	h->allocating_chunk = false;
 	h->can_flush_pending_bgs = true;
-	h->reloc_reserved = false;
-	h->sync = false;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
 	INIT_LIST_HEAD(&h->ordered);
