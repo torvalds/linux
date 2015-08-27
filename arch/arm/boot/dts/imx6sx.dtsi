@@ -77,8 +77,8 @@
 				 <&clks IMX6SX_CLK_PLL1_SW>,
 				 <&clks IMX6SX_CLK_PLL1_SYS>,
 				 <&clks IMX6SX_CLK_PLL1>,
-				 <&clks IMX6SX_PLL7_BYPASS>,
-				 <&clks IMX6SX_PLL7_BYPASS_SRC>;
+				 <&clks IMX6SX_PLL1_BYPASS>,
+				 <&clks IMX6SX_PLL1_BYPASS_SRC>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
 				      "pll1_sw", "pll1_sys", "pll1",
 				      "pll1_bypass", "pll1_bypass_src";
