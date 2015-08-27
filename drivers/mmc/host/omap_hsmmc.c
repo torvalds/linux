@@ -272,7 +272,6 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 			if (!ret)
 				host->pbias_enabled = 0;
 		}
-		regulator_set_voltage(host->pbias, VDD_3V0, VDD_3V0);
 	}
 
 	/*
