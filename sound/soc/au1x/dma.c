@@ -312,14 +312,8 @@ static int alchemy_pcm_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	return snd_soc_register_platform(&pdev->dev, &alchemy_pcm_soc_platform);
-}
-
-static int alchemy_pcm_drvremove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-
-	return 0;
+	return devm_snd_soc_register_platform(&pdev->dev,
+					      &alchemy_pcm_soc_platform);
 }
 
 static struct platform_driver alchemy_pcmdma_driver = {
@@ -327,7 +321,6 @@ static struct platform_driver alchemy_pcmdma_driver = {
 		.name	= "alchemy-pcm-dma",
 	},
 	.probe		= alchemy_pcm_drvprobe,
-	.remove		= alchemy_pcm_drvremove,
 };
 
 module_platform_driver(alchemy_pcmdma_driver);
