@@ -184,6 +184,7 @@ struct omap_hsmmc_host {
 	struct	regulator	*pbias;
 	bool			pbias_enabled;
 	void	__iomem		*base;
+	int			vqmmc_enabled;
 	resource_size_t		mapbase;
 	spinlock_t		irq_lock; /* Prevent races with irq handler */
 	unsigned int		dma_len;
@@ -249,6 +250,7 @@ static int omap_hsmmc_get_cover_state(struct device *dev)
 static int omap_hsmmc_enable_supply(struct mmc_host *mmc, int vdd)
 {
 	int ret;
+	struct omap_hsmmc_host *host = mmc_priv(mmc);
 
 	if (mmc->supply.vmmc) {
 		ret = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
@@ -257,12 +259,13 @@ static int omap_hsmmc_enable_supply(struct mmc_host *mmc, int vdd)
 	}
 
 	/* Enable interface voltage rail, if needed */
-	if (mmc->supply.vqmmc) {
+	if (mmc->supply.vqmmc && !host->vqmmc_enabled) {
 		ret = regulator_enable(mmc->supply.vqmmc);
 		if (ret) {
 			dev_err(mmc_dev(mmc), "vmmc_aux reg enable failed\n");
 			goto err_vqmmc;
 		}
+		host->vqmmc_enabled = 1;
 	}
 
 	return 0;
@@ -278,13 +281,15 @@ static int omap_hsmmc_disable_supply(struct mmc_host *mmc)
 {
 	int ret;
 	int status;
+	struct omap_hsmmc_host *host = mmc_priv(mmc);
 
-	if (mmc->supply.vqmmc) {
+	if (mmc->supply.vqmmc && host->vqmmc_enabled) {
 		ret = regulator_disable(mmc->supply.vqmmc);
 		if (ret) {
 			dev_err(mmc_dev(mmc), "vmmc_aux reg disable failed\n");
 			return ret;
 		}
+		host->vqmmc_enabled = 0;
 	}
 
 	if (mmc->supply.vmmc) {
@@ -2077,6 +2082,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->power_mode = MMC_POWER_OFF;
 	host->next_data.cookie = 1;
 	host->pbias_enabled = 0;
+	host->vqmmc_enabled = 0;
 
 	ret = omap_hsmmc_gpio_init(mmc, host, pdata);
 	if (ret)
