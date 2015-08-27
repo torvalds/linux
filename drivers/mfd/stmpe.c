@@ -795,6 +795,7 @@ static int stmpe24xx_get_altfunc(struct stmpe *stmpe, enum stmpe_block block)
 		return 2;
 
 	case STMPE_BLOCK_KEYPAD:
+	case STMPE_BLOCK_PWM:
 		return 1;
 
 	case STMPE_BLOCK_GPIO:
