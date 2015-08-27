@@ -343,6 +343,7 @@ struct acpi_device_data {
 	const union acpi_object *pointer;
 	const union acpi_object *properties;
 	const union acpi_object *of_compatible;
+	struct list_head subnodes;
 };
 
 struct acpi_gpio_mapping;
@@ -376,6 +377,14 @@ struct acpi_device {
 	struct list_head physical_node_list;
 	struct mutex physical_node_lock;
 	void (*remove)(struct acpi_device *);
+};
+
+/* Non-device subnode */
+struct acpi_data_node {
+	const char *name;
+	struct fwnode_handle fwnode;
+	struct acpi_device_data data;
+	struct list_head sibling;
 };
 
 static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)

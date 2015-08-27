@@ -24,6 +24,115 @@ static const u8 prp_uuid[16] = {
 	0x14, 0xd8, 0xff, 0xda, 0xba, 0x6e, 0x8c, 0x4d,
 	0x8a, 0x91, 0xbc, 0x9b, 0xbf, 0x4a, 0xa3, 0x01
 };
+/* ACPI _DSD data subnodes UUID: dbb8e3e6-5886-4ba6-8795-1319f52a966b */
+static const u8 ads_uuid[16] = {
+	0xe6, 0xe3, 0xb8, 0xdb, 0x86, 0x58, 0xa6, 0x4b,
+	0x87, 0x95, 0x13, 0x19, 0xf5, 0x2a, 0x96, 0x6b
+};
+
+static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
+					   const union acpi_object *desc,
+					   struct acpi_device_data *data);
+static bool acpi_extract_properties(const union acpi_object *desc,
+				    struct acpi_device_data *data);
+
+static bool acpi_nondev_subnode_ok(acpi_handle scope,
+				   const union acpi_object *link,
+				   struct list_head *list)
+{
+	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+	struct acpi_data_node *dn;
+	acpi_handle handle;
+	acpi_status status;
+
+	dn = kzalloc(sizeof(*dn), GFP_KERNEL);
+	if (!dn)
+		return false;
+
+	dn->name = link->package.elements[0].string.pointer;
+	dn->fwnode.type = FWNODE_ACPI_DATA;
+	INIT_LIST_HEAD(&dn->data.subnodes);
+
+	status = acpi_get_handle(scope, link->package.elements[1].string.pointer,
+				 &handle);
+	if (ACPI_FAILURE(status))
+		goto fail;
+
+	status = acpi_evaluate_object_typed(handle, NULL, NULL, &buf,
+					    ACPI_TYPE_PACKAGE);
+	if (ACPI_FAILURE(status))
+		goto fail;
+
+	if (acpi_extract_properties(buf.pointer, &dn->data))
+		dn->data.pointer = buf.pointer;
+
+	if (acpi_enumerate_nondev_subnodes(scope, buf.pointer, &dn->data))
+		dn->data.pointer = buf.pointer;
+
+	if (dn->data.pointer) {
+		list_add_tail(&dn->sibling, list);
+		return true;
+	}
+
+	acpi_handle_debug(handle, "Invalid properties/subnodes data, skipping\n");
+
+ fail:
+	ACPI_FREE(buf.pointer);
+	kfree(dn);
+	return false;
+}
+
+static int acpi_add_nondev_subnodes(acpi_handle scope,
+				    const union acpi_object *links,
+				    struct list_head *list)
+{
+	bool ret = false;
+	int i;
+
+	for (i = 0; i < links->package.count; i++) {
+		const union acpi_object *link;
+
+		link = &links->package.elements[i];
+		/* Only two elements allowed, both must be strings. */
+		if (link->package.count == 2
+		    && link->package.elements[0].type == ACPI_TYPE_STRING
+		    && link->package.elements[1].type == ACPI_TYPE_STRING
+		    && acpi_nondev_subnode_ok(scope, link, list))
+			ret = true;
+	}
+
+	return ret;
+}
+
+static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
+					   const union acpi_object *desc,
+					   struct acpi_device_data *data)
+{
+	int i;
+
+	/* Look for the ACPI data subnodes UUID. */
+	for (i = 0; i < desc->package.count; i += 2) {
+		const union acpi_object *uuid, *links;
+
+		uuid = &desc->package.elements[i];
+		links = &desc->package.elements[i + 1];
+
+		/*
+		 * The first element must be a UUID and the second one must be
+		 * a package.
+		 */
+		if (uuid->type != ACPI_TYPE_BUFFER || uuid->buffer.length != 16
+		    || links->type != ACPI_TYPE_PACKAGE)
+			break;
+
+		if (memcmp(uuid->buffer.pointer, ads_uuid, sizeof(ads_uuid)))
+			continue;
+
+		return acpi_add_nondev_subnodes(scope, links, &data->subnodes);
+	}
+
+	return false;
+}
 
 static bool acpi_property_value_ok(const union acpi_object *value)
 {
@@ -147,6 +256,8 @@ void acpi_init_properties(struct acpi_device *adev)
 	acpi_status status;
 	bool acpi_of = false;
 
+	INIT_LIST_HEAD(&adev->data.subnodes);
+
 	/*
 	 * Check if ACPI_DT_NAMESPACE_HID is present and inthat case we fill in
 	 * Device Tree compatible properties for this device.
@@ -167,7 +278,11 @@ void acpi_init_properties(struct acpi_device *adev)
 		adev->data.pointer = buf.pointer;
 		if (acpi_of)
 			acpi_init_of_compatible(adev);
-	} else {
+	}
+	if (acpi_enumerate_nondev_subnodes(adev->handle, buf.pointer, &adev->data))
+		adev->data.pointer = buf.pointer;
+
+	if (!adev->data.pointer) {
 		acpi_handle_debug(adev->handle, "Invalid _DSD data, skipping\n");
 		ACPI_FREE(buf.pointer);
 	}
@@ -178,8 +293,24 @@ void acpi_init_properties(struct acpi_device *adev)
 			 ACPI_DT_NAMESPACE_HID " requires 'compatible' property\n");
 }
 
+static void acpi_destroy_nondev_subnodes(struct list_head *list)
+{
+	struct acpi_data_node *dn, *next;
+
+	if (list_empty(list))
+		return;
+
+	list_for_each_entry_safe_reverse(dn, next, list, sibling) {
+		acpi_destroy_nondev_subnodes(&dn->data.subnodes);
+		list_del(&dn->sibling);
+		ACPI_FREE((void *)dn->data.pointer);
+		kfree(dn);
+	}
+}
+
 void acpi_free_properties(struct acpi_device *adev)
 {
+	acpi_destroy_nondev_subnodes(&adev->data.subnodes);
 	ACPI_FREE((void *)adev->data.pointer);
 	adev->data.of_compatible = NULL;
 	adev->data.pointer = NULL;
