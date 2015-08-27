@@ -889,6 +889,10 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		   "AQTX: desc and buffer writeback:\n");
 	i40e_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff, buff_size);
 
+	/* save writeback aq if requested */
+	if (details->wb_desc)
+		*details->wb_desc = *desc_on_ring;
+
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {

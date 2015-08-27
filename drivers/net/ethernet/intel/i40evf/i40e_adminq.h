@@ -69,6 +69,7 @@ struct i40e_asq_cmd_details {
 	u16 flags_dis;
 	bool async;
 	bool postpone;
+	struct i40e_aq_desc *wb_desc;
 };
 
 #define I40E_ADMINQ_DETAILS(R, i)   \
