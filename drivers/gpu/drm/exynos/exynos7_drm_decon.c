@@ -383,6 +383,17 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
+static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
+					struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, true);
+}
+
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
@@ -409,9 +420,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	 * wouldn't be updated at vsync also but updated once unprotect window
 	 * is set.
 	 */
-
-	/* protect windows */
-	decon_shadow_protect_win(ctx, win, true);
 
 	/* buffer start address */
 	val = (unsigned long)plane->dma_addr[0];
@@ -510,12 +518,20 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	val &= ~WINCONx_ENWIN;
 	writel(val, ctx->regs + WINCON(win));
 
-	/* unprotect windows */
-	decon_shadow_protect_win(ctx, win, false);
-
 	val = readl(ctx->regs + DECON_UPDATE);
 	val |= DECON_UPDATE_STANDALONE_F;
 	writel(val, ctx->regs + DECON_UPDATE);
+}
+
+static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
+					struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, false);
 }
 
 static void decon_init(struct decon_context *ctx)
@@ -614,8 +630,10 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.wait_for_vblank = decon_wait_for_vblank,
+	.atomic_begin = decon_atomic_begin,
 	.update_plane = decon_update_plane,
 	.disable_plane = decon_disable_plane,
+	.atomic_flush = decon_atomic_flush,
 };
 
 

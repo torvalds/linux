@@ -219,6 +219,17 @@ static void decon_shadow_protect_win(struct decon_context *ctx, int win,
 	writel(val, ctx->addr + DECON_SHADOWCON);
 }
 
+static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
+					struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, true);
+}
+
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
@@ -231,8 +242,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	if (ctx->suspended)
 		return;
-
-	decon_shadow_protect_win(ctx, win, true);
 
 	val = COORDINATE_X(plane->crtc_x) | COORDINATE_Y(plane->crtc_y);
 	writel(val, ctx->addr + DECON_VIDOSDxA(win));
@@ -265,15 +274,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val |= WINCONx_ENWIN_F;
 	writel(val, ctx->addr + DECON_WINCONx(win));
 
-	decon_shadow_protect_win(ctx, win, false);
-
 	/* standalone update */
 	val = readl(ctx->addr + DECON_UPDATE);
 	val |= STANDALONE_UPDATE_F;
 	writel(val, ctx->addr + DECON_UPDATE);
-
-	if (ctx->i80_if)
-		atomic_set(&ctx->win_updated, 1);
 }
 
 static void decon_disable_plane(struct exynos_drm_crtc *crtc,
@@ -299,6 +303,20 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	val = readl(ctx->addr + DECON_UPDATE);
 	val |= STANDALONE_UPDATE_F;
 	writel(val, ctx->addr + DECON_UPDATE);
+}
+
+static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
+				struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, false);
+
+	if (ctx->i80_if)
+		atomic_set(&ctx->win_updated, 1);
 }
 
 static void decon_swreset(struct decon_context *ctx)
@@ -455,8 +473,10 @@ static struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
 	.commit			= decon_commit,
+	.atomic_begin		= decon_atomic_begin,
 	.update_plane		= decon_update_plane,
 	.disable_plane		= decon_disable_plane,
+	.atomic_flush		= decon_atomic_flush,
 	.te_handler		= decon_te_irq_handler,
 };
 
