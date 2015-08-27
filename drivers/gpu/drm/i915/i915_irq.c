@@ -1300,8 +1300,6 @@ static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
 		return val & PORTB_HOTPLUG_LONG_DETECT;
 	case PORT_C:
 		return val & PORTC_HOTPLUG_LONG_DETECT;
-	case PORT_D:
-		return val & PORTD_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
@@ -2128,8 +2126,8 @@ static void bxt_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
-	dig_hotplug_reg = I915_READ(BXT_HOTPLUG_CTL);
-	I915_WRITE(BXT_HOTPLUG_CTL, dig_hotplug_reg);
+	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
 
 	intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
 			   dig_hotplug_reg, hpd,
@@ -3247,27 +3245,17 @@ static void ilk_hpd_irq_setup(struct drm_device *dev)
 static void bxt_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 hotplug_port;
-	u32 hotplug_ctrl;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
 
-	hotplug_port = intel_hpd_enabled_irqs(dev, hpd_bxt);
+	enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_bxt);
+	hotplug_irqs = BXT_DE_PORT_HOTPLUG_MASK;
 
-	hotplug_ctrl = I915_READ(BXT_HOTPLUG_CTL) & ~BXT_HOTPLUG_CTL_MASK;
+	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
 
-	if (hotplug_port & BXT_DE_PORT_HP_DDIA)
-		hotplug_ctrl |= BXT_DDIA_HPD_ENABLE;
-	if (hotplug_port & BXT_DE_PORT_HP_DDIB)
-		hotplug_ctrl |= BXT_DDIB_HPD_ENABLE;
-	if (hotplug_port & BXT_DE_PORT_HP_DDIC)
-		hotplug_ctrl |= BXT_DDIC_HPD_ENABLE;
-	I915_WRITE(BXT_HOTPLUG_CTL, hotplug_ctrl);
-
-	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IMR) & ~hotplug_port;
-	I915_WRITE(GEN8_DE_PORT_IMR, hotplug_ctrl);
-
-	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IER) | hotplug_port;
-	I915_WRITE(GEN8_DE_PORT_IER, hotplug_ctrl);
-	POSTING_READ(GEN8_DE_PORT_IER);
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug |= PORTC_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE |
+		PORTA_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
 static void ibx_irq_postinstall(struct drm_device *dev)
@@ -3561,7 +3549,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					   GEN8_PIPE_FIFO_UNDERRUN;
 
 	de_port_enables = de_port_masked;
-	if (IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev_priv))
+		de_port_enables |= BXT_DE_PORT_HOTPLUG_MASK;
+	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_masked;

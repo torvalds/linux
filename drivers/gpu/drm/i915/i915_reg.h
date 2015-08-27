@@ -5797,21 +5797,6 @@ enum skl_disp_power_wells {
 #define GEN8_PCU_IIR 0x444e8
 #define GEN8_PCU_IER 0x444ec
 
-/* BXT hotplug control */
-#define BXT_HOTPLUG_CTL			0xC4030
-#define   BXT_DDIA_HPD_ENABLE		(1 << 28)
-#define   BXT_DDIA_HPD_STATUS		(3 << 24)
-#define   BXT_DDIC_HPD_ENABLE		(1 << 12)
-#define   BXT_DDIC_HPD_STATUS		(3 << 8)
-#define   BXT_DDIB_HPD_ENABLE		(1 << 4)
-#define   BXT_DDIB_HPD_STATUS		(3 << 0)
-#define   BXT_HOTPLUG_CTL_MASK		(BXT_DDIA_HPD_ENABLE | \
-					 BXT_DDIB_HPD_ENABLE | \
-					 BXT_DDIC_HPD_ENABLE)
-#define   BXT_HPD_STATUS_MASK		(BXT_DDIA_HPD_STATUS | \
-					 BXT_DDIB_HPD_STATUS | \
-					 BXT_DDIC_HPD_STATUS)
-
 #define ILK_DISPLAY_CHICKEN2	0x42004
 /* Required on all Ironlake and Sandybridge according to the B-Spec. */
 #define  ILK_ELPIN_409_SELECT	(1 << 25)
