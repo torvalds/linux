@@ -1250,7 +1250,7 @@ static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
 	case PORT_A:
-		return val & BXT_PORTA_HOTPLUG_LONG_DETECT;
+		return val & PORTA_HOTPLUG_LONG_DETECT;
 	case PORT_B:
 		return val & PORTB_HOTPLUG_LONG_DETECT;
 	case PORT_C:
