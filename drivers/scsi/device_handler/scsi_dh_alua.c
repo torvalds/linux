@@ -819,11 +819,6 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 
 }
 
-static bool alua_match(struct scsi_device *sdev)
-{
-	return (scsi_device_tpgs(sdev) != 0);
-}
-
 /*
  * alua_bus_attach - Attach device handler
  * @sdev: device to be attached to
@@ -877,7 +872,6 @@ static struct scsi_device_handler alua_dh = {
 	.check_sense = alua_check_sense,
 	.activate = alua_activate,
 	.set_params = alua_set_params,
-	.match = alua_match,
 };
 
 static int __init alua_init(void)

@@ -778,55 +778,6 @@ static int rdac_check_sense(struct scsi_device *sdev,
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-static const struct {
-	char *vendor;
-	char *model;
-} rdac_dev_list[] = {
-	{"IBM", "1722"},
-	{"IBM", "1724"},
-	{"IBM", "1726"},
-	{"IBM", "1742"},
-	{"IBM", "1745"},
-	{"IBM", "1746"},
-	{"IBM", "1813"},
-	{"IBM", "1814"},
-	{"IBM", "1815"},
-	{"IBM", "1818"},
-	{"IBM", "3526"},
-	{"SGI", "TP9"},
-	{"SGI", "IS"},
-	{"STK", "OPENstorage D280"},
-	{"STK", "FLEXLINE 380"},
-	{"SUN", "CSM"},
-	{"SUN", "LCSM100"},
-	{"SUN", "STK6580_6780"},
-	{"SUN", "SUN_6180"},
-	{"SUN", "ArrayStorage"},
-	{"DELL", "MD3"},
-	{"NETAPP", "INF-01-00"},
-	{"LSI", "INF-01-00"},
-	{"ENGENIO", "INF-01-00"},
-	{NULL, NULL},
-};
-
-static bool rdac_match(struct scsi_device *sdev)
-{
-	int i;
-
-	if (scsi_device_tpgs(sdev))
-		return false;
-
-	for (i = 0; rdac_dev_list[i].vendor; i++) {
-		if (!strncmp(sdev->vendor, rdac_dev_list[i].vendor,
-			strlen(rdac_dev_list[i].vendor)) &&
-		    !strncmp(sdev->model, rdac_dev_list[i].model,
-			strlen(rdac_dev_list[i].model))) {
-			return true;
-		}
-	}
-	return false;
-}
-
 static struct scsi_dh_data *rdac_bus_attach(struct scsi_device *sdev)
 {
 	struct rdac_dh_data *h;
@@ -895,7 +846,6 @@ static struct scsi_device_handler rdac_dh = {
 	.attach = rdac_bus_attach,
 	.detach = rdac_bus_detach,
 	.activate = rdac_activate,
-	.match = rdac_match,
 };
 
 static int __init rdac_init(void)

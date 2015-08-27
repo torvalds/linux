@@ -311,35 +311,6 @@ static int hp_sw_activate(struct scsi_device *sdev,
 	return 0;
 }
 
-static const struct {
-	char *vendor;
-	char *model;
-} hp_sw_dh_data_list[] = {
-	{"COMPAQ", "MSA1000 VOLUME"},
-	{"COMPAQ", "HSV110"},
-	{"HP", "HSV100"},
-	{"DEC", "HSG80"},
-	{NULL, NULL},
-};
-
-static bool hp_sw_match(struct scsi_device *sdev)
-{
-	int i;
-
-	if (scsi_device_tpgs(sdev))
-		return false;
-
-	for (i = 0; hp_sw_dh_data_list[i].vendor; i++) {
-		if (!strncmp(sdev->vendor, hp_sw_dh_data_list[i].vendor,
-			strlen(hp_sw_dh_data_list[i].vendor)) &&
-		    !strncmp(sdev->model, hp_sw_dh_data_list[i].model,
-			strlen(hp_sw_dh_data_list[i].model))) {
-			return true;
-		}
-	}
-	return false;
-}
-
 static struct scsi_dh_data *hp_sw_bus_attach(struct scsi_device *sdev)
 {
 	struct hp_sw_dh_data *h;
@@ -379,7 +350,6 @@ static struct scsi_device_handler hp_sw_dh = {
 	.detach		= hp_sw_bus_detach,
 	.activate	= hp_sw_activate,
 	.prep_fn	= hp_sw_prep_fn,
-	.match		= hp_sw_match,
 };
 
 static int __init hp_sw_init(void)

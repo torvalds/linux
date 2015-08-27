@@ -29,6 +29,67 @@
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(scsi_dh_list);
 
+struct scsi_dh_blist {
+	const char *vendor;
+	const char *model;
+	const char *driver;
+};
+
+static const struct scsi_dh_blist scsi_dh_blist[] = {
+	{"DGC", "RAID",			"clariion" },
+	{"DGC", "DISK",			"clariion" },
+	{"DGC", "VRAID",		"clariion" },
+
+	{"COMPAQ", "MSA1000 VOLUME",	"hp_sw" },
+	{"COMPAQ", "HSV110",		"hp_sw" },
+	{"HP", "HSV100",		"hp_sw"},
+	{"DEC", "HSG80",		"hp_sw"},
+
+	{"IBM", "1722",			"rdac", },
+	{"IBM", "1724",			"rdac", },
+	{"IBM", "1726",			"rdac", },
+	{"IBM", "1742",			"rdac", },
+	{"IBM", "1745",			"rdac", },
+	{"IBM", "1746",			"rdac", },
+	{"IBM", "1813",			"rdac", },
+	{"IBM", "1814",			"rdac", },
+	{"IBM", "1815",			"rdac", },
+	{"IBM", "1818",			"rdac", },
+	{"IBM", "3526",			"rdac", },
+	{"SGI", "TP9",			"rdac", },
+	{"SGI", "IS",			"rdac", },
+	{"STK", "OPENstorage D280",	"rdac", },
+	{"STK", "FLEXLINE 380",		"rdac", },
+	{"SUN", "CSM",			"rdac", },
+	{"SUN", "LCSM100",		"rdac", },
+	{"SUN", "STK6580_6780",		"rdac", },
+	{"SUN", "SUN_6180",		"rdac", },
+	{"SUN", "ArrayStorage",		"rdac", },
+	{"DELL", "MD3",			"rdac", },
+	{"NETAPP", "INF-01-00",		"rdac", },
+	{"LSI", "INF-01-00",		"rdac", },
+	{"ENGENIO", "INF-01-00",	"rdac", },
+	{NULL, NULL,			NULL },
+};
+
+static const char *
+scsi_dh_find_driver(struct scsi_device *sdev)
+{
+	const struct scsi_dh_blist *b;
+
+	if (scsi_device_tpgs(sdev))
+		return "alua";
+
+	for (b = scsi_dh_blist; b->vendor; b++) {
+		if (!strncmp(sdev->vendor, b->vendor, strlen(b->vendor)) &&
+		    !strncmp(sdev->model, b->model, strlen(b->model))) {
+			return b->driver;
+		}
+	}
+	return NULL;
+}
+
+
 static struct scsi_device_handler *__scsi_dh_lookup(const char *name)
 {
 	struct scsi_device_handler *tmp, *found = NULL;
@@ -55,22 +116,6 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 	}
 
 	return dh;
-}
-
-static struct scsi_device_handler *
-device_handler_match(struct scsi_device *sdev)
-{
-	struct scsi_device_handler *tmp_dh, *found_dh = NULL;
-
-	spin_lock(&list_lock);
-	list_for_each_entry(tmp_dh, &scsi_dh_list, list) {
-		if (tmp_dh->match && tmp_dh->match(sdev)) {
-			found_dh = tmp_dh;
-			break;
-		}
-	}
-	spin_unlock(&list_lock);
-	return found_dh;
 }
 
 /*
@@ -184,14 +229,17 @@ static struct device_attribute scsi_dh_state_attr =
 
 int scsi_dh_add_device(struct scsi_device *sdev)
 {
-	struct scsi_device_handler *devinfo;
+	struct scsi_device_handler *devinfo = NULL;
+	const char *drv;
 	int err;
 
 	err = device_create_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 	if (err)
 		return err;
 
-	devinfo = device_handler_match(sdev);
+	drv = scsi_dh_find_driver(sdev);
+	if (drv)
+		devinfo = scsi_dh_lookup(drv);
 	if (devinfo)
 		err = scsi_dh_handler_attach(sdev, devinfo);
 	return err;
