@@ -53,6 +53,10 @@ static const u32 hpd_ivb[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = DE_DP_A_HOTPLUG_IVB,
 };
 
+static const u32 hpd_bdw[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = GEN8_PORT_DP_A_HOTPLUG,
+};
+
 static const u32 hpd_ibx[HPD_NUM_PINS] = {
 	[HPD_CRT] = SDE_CRT_HOTPLUG,
 	[HPD_SDVO_B] = SDE_SDVOB_HOTPLUG,
@@ -368,6 +372,38 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	synchronize_irq(dev->irq);
+}
+
+/**
+  * bdw_update_port_irq - update DE port interrupt
+  * @dev_priv: driver private
+  * @interrupt_mask: mask of interrupt bits to update
+  * @enabled_irq_mask: mask of interrupt bits to enable
+  */
+static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
+				uint32_t interrupt_mask,
+				uint32_t enabled_irq_mask)
+{
+	uint32_t new_val;
+	uint32_t old_val;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
+
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return;
+
+	old_val = I915_READ(GEN8_DE_PORT_IMR);
+
+	new_val = old_val;
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != old_val) {
+		I915_WRITE(GEN8_DE_PORT_IMR, new_val);
+		POSTING_READ(GEN8_DE_PORT_IMR);
+	}
 }
 
 /**
@@ -2145,9 +2181,23 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		tmp = I915_READ(GEN8_DE_PORT_IIR);
 		if (tmp) {
 			bool found = false;
+			u32 hotplug_trigger = tmp & GEN8_PORT_DP_A_HOTPLUG;
 
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
+
+			if (IS_BROADWELL(dev) && hotplug_trigger) {
+				u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
+
+				dig_hotplug_reg = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
+				I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, dig_hotplug_reg);
+
+				intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+						   dig_hotplug_reg, hpd_bdw,
+						   ilk_port_hotplug_long_detect);
+				intel_hpd_irq_handler(dev, pin_mask, long_mask);
+				found = true;
+			}
 
 			if (tmp & aux_mask) {
 				dp_aux_irq_handler(dev);
@@ -3166,15 +3216,22 @@ static void ilk_hpd_irq_setup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 hotplug_irqs, hotplug, enabled_irqs;
 
-	if (INTEL_INFO(dev)->gen >= 7) {
+	if (INTEL_INFO(dev)->gen >= 8) {
+		hotplug_irqs = GEN8_PORT_DP_A_HOTPLUG;
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_bdw);
+
+		bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
+	} else if (INTEL_INFO(dev)->gen >= 7) {
 		hotplug_irqs = DE_DP_A_HOTPLUG_IVB;
 		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ivb);
+
+		ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
 	} else {
 		hotplug_irqs = DE_DP_A_HOTPLUG;
 		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ilk);
-	}
 
-	ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
+		ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
+	}
 
 	/*
 	 * Enable digital hotplug on the CPU, and configure the DP short pulse
@@ -3486,23 +3543,28 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	uint32_t de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
 	uint32_t de_pipe_enables;
-	int pipe;
-	u32 de_port_en = GEN8_AUX_CHANNEL_A;
+	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
+	u32 de_port_enables;
+	enum pipe pipe;
 
 	if (IS_GEN9(dev_priv)) {
 		de_pipe_masked |= GEN9_PIPE_PLANE1_FLIP_DONE |
 				  GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
-		de_port_en |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
-			GEN9_AUX_CHANNEL_D;
-
+		de_port_masked |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
+				  GEN9_AUX_CHANNEL_D;
 		if (IS_BROXTON(dev_priv))
-			de_port_en |= BXT_DE_PORT_GMBUS;
-	} else
+			de_port_masked |= BXT_DE_PORT_GMBUS;
+	} else {
 		de_pipe_masked |= GEN8_PIPE_PRIMARY_FLIP_DONE |
 				  GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
+	}
 
 	de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
 					   GEN8_PIPE_FIFO_UNDERRUN;
+
+	de_port_enables = de_port_masked;
+	if (IS_BROADWELL(dev_priv))
+		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
@@ -3515,7 +3577,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  dev_priv->de_irq_mask[pipe],
 					  de_pipe_enables);
 
-	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_en, de_port_en);
+	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
@@ -4298,7 +4360,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		else if (HAS_PCH_SPT(dev))
 			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
 		else
-			dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
+			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_reset;
