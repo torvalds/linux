@@ -537,6 +537,7 @@ struct i40e_vsi {
 	u16 idx;               /* index in pf->vsi[] */
 	u16 veb_idx;           /* index of VEB parent */
 	struct kobject *kobj;  /* sysfs object */
+	bool current_isup;     /* Sync 'link up' logging */
 
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
@@ -791,4 +792,5 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi);
 i40e_status i40e_get_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_commit_npar_bw_setting(struct i40e_pf *pf);
+void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
 #endif /* _I40E_H_ */

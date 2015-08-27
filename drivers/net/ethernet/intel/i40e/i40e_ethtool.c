@@ -690,7 +690,7 @@ static int i40e_set_settings(struct net_device *netdev,
 			/* Tell the OS link is going down, the link will go
 			 * back up when fw says it is ready asynchronously
 			 */
-			netdev_info(netdev, "PHY settings change requested, NIC Link is going down.\n");
+			i40e_print_link_message(vsi, false);
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
 		}
@@ -834,7 +834,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	/* Tell the OS link is going down, the link will go back up when fw
 	 * says it is ready asynchronously
 	 */
-	netdev_info(netdev, "Flow control settings change requested, NIC Link is going down.\n");
+	i40e_print_link_message(vsi, false);
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 

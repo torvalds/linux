@@ -4837,11 +4837,14 @@ out:
  * i40e_print_link_message - print link up or down
  * @vsi: the VSI for which link needs a message
  */
-static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
+void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 {
 	char speed[SPEED_SIZE] = "Unknown";
 	char fc[FC_SIZE] = "RX/TX";
 
+	if (vsi->current_isup == isup)
+		return;
+	vsi->current_isup = isup;
 	if (!isup) {
 		netdev_info(vsi->netdev, "NIC Link is Down\n");
 		return;
