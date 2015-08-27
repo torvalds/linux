@@ -1136,6 +1136,10 @@ module_param_array(slave_addrs, int, &num_slave_addrs, 0);
 MODULE_PARM_DESC(slave_addrs,
 		 "The default IPMB slave address for the controller.");
 
+static bool alerts_broken;
+module_param(alerts_broken, bool, 0);
+MODULE_PARM_DESC(alerts_broken, "Don't enable alerts for the controller.");
+
 /*
  * Bit 0 enables message debugging, bit 1 enables state debugging, and
  * bit 2 enables timing debugging.  This is an array indexed by
@@ -1581,6 +1585,10 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ssif_info->has_event_buffer = true;
 		ssif_info->global_enables |= IPMI_BMC_EVT_MSG_BUFF;
 	}
+
+	/* Some systems don't behave well if you enable alerts. */
+	if (alerts_broken)
+		goto found;
 
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
