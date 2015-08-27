@@ -1499,16 +1499,16 @@ static void sdma_v3_0_emit_copy_buffer(struct amdgpu_ib *ib,
  *
  * Fill GPU buffers using the DMA engine (VI).
  */
-static void sdma_v3_0_emit_fill_buffer(struct amdgpu_ring *ring,
+static void sdma_v3_0_emit_fill_buffer(struct amdgpu_ib *ib,
 				       uint32_t src_data,
 				       uint64_t dst_offset,
 				       uint32_t byte_count)
 {
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_CONST_FILL));
-	amdgpu_ring_write(ring, lower_32_bits(dst_offset));
-	amdgpu_ring_write(ring, upper_32_bits(dst_offset));
-	amdgpu_ring_write(ring, src_data);
-	amdgpu_ring_write(ring, byte_count);
+	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_CONST_FILL);
+	ib->ptr[ib->length_dw++] = lower_32_bits(dst_offset);
+	ib->ptr[ib->length_dw++] = upper_32_bits(dst_offset);
+	ib->ptr[ib->length_dw++] = src_data;
+	ib->ptr[ib->length_dw++] = byte_count;
 }
 
 static const struct amdgpu_buffer_funcs sdma_v3_0_buffer_funcs = {
