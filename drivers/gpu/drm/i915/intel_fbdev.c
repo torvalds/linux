@@ -541,9 +541,6 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	struct intel_crtc *intel_crtc;
 	unsigned int max_size = 0;
 
-	if (!i915.fastboot)
-		return false;
-
 	/* Find the largest fb */
 	for_each_crtc(dev, crtc) {
 		struct drm_i915_gem_object *obj =
