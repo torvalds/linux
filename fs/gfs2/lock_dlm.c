@@ -31,7 +31,7 @@ extern struct workqueue_struct *gfs2_control_wq;
  *
  * @delta is the difference between the current rtt sample and the
  * running average srtt. We add 1/8 of that to the srtt in order to
- * update the current srtt estimate. The varience estimate is a bit
+ * update the current srtt estimate. The variance estimate is a bit
  * more complicated. We subtract the abs value of the @delta from
  * the current variance estimate and add 1/4 of that to the running
  * total.
