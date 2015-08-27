@@ -114,7 +114,7 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("tx_errors", stats.eth.tx_errors),
 	I40E_PF_STAT("rx_dropped", stats.eth.rx_discards),
 	I40E_PF_STAT("tx_dropped_link_down", stats.tx_dropped_link_down),
-	I40E_PF_STAT("crc_errors", stats.crc_errors),
+	I40E_PF_STAT("rx_crc_errors", stats.crc_errors),
 	I40E_PF_STAT("illegal_bytes", stats.illegal_bytes),
 	I40E_PF_STAT("mac_local_faults", stats.mac_local_faults),
 	I40E_PF_STAT("mac_remote_faults", stats.mac_remote_faults),
@@ -197,7 +197,14 @@ static const struct i40e_stats i40e_gstrings_fcoe_stats[] = {
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_tx) + \
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_2_xoff)) \
 		 / sizeof(u64))
+#define I40E_VEB_TC_STATS_LEN ( \
+		(FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_rx_packets) + \
+		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_rx_bytes) + \
+		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_tx_packets) + \
+		 FIELD_SIZEOF(struct i40e_veb, tc_stats.tc_tx_bytes)) \
+		 / sizeof(u64))
 #define I40E_VEB_STATS_LEN	ARRAY_SIZE(i40e_gstrings_veb_stats)
+#define I40E_VEB_STATS_TOTAL	(I40E_VEB_STATS_LEN + I40E_VEB_TC_STATS_LEN)
 #define I40E_PF_STATS_LEN(n)	(I40E_GLOBAL_STATS_LEN + \
 				 I40E_PFC_STATS_LEN + \
 				 I40E_VSI_STATS_LEN((n)))
@@ -1257,7 +1264,7 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 			int len = I40E_PF_STATS_LEN(netdev);
 
 			if (pf->lan_veb != I40E_NO_VEB)
-				len += I40E_VEB_STATS_LEN;
+				len += I40E_VEB_STATS_TOTAL;
 			return len;
 		} else {
 			return I40E_VSI_STATS_LEN(netdev);
@@ -1406,6 +1413,20 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
 				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
 					i40e_gstrings_veb_stats[i].stat_string);
+				p += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_tx_packets", i);
+				p += ETH_GSTRING_LEN;
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_tx_bytes", i);
+				p += ETH_GSTRING_LEN;
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_rx_packets", i);
+				p += ETH_GSTRING_LEN;
+				snprintf(p, ETH_GSTRING_LEN,
+					 "veb.tc_%u_rx_bytes", i);
 				p += ETH_GSTRING_LEN;
 			}
 		}
@@ -1559,6 +1580,21 @@ static inline bool i40e_active_vfs(struct i40e_pf *pf)
 	return false;
 }
 
+static inline bool i40e_active_vmdqs(struct i40e_pf *pf)
+{
+	struct i40e_vsi **vsi = pf->vsi;
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		if (!vsi[i])
+			continue;
+		if (vsi[i]->type == I40E_VSI_VMDQ2)
+			return true;
+	}
+
+	return false;
+}
+
 static void i40e_diag_test(struct net_device *netdev,
 			   struct ethtool_test *eth_test, u64 *data)
 {
@@ -1572,9 +1608,9 @@ static void i40e_diag_test(struct net_device *netdev,
 
 		set_bit(__I40E_TESTING, &pf->state);
 
-		if (i40e_active_vfs(pf)) {
+		if (i40e_active_vfs(pf) || i40e_active_vmdqs(pf)) {
 			dev_warn(&pf->pdev->dev,
-				 "Please take active VFS offline and restart the adapter before running NIC diagnostics\n");
+				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
 			data[I40E_ETH_TEST_REG]		= 1;
 			data[I40E_ETH_TEST_EEPROM]	= 1;
 			data[I40E_ETH_TEST_INTR]	= 1;
@@ -1590,11 +1626,13 @@ static void i40e_diag_test(struct net_device *netdev,
 			/* indicate we're in test mode */
 			dev_close(netdev);
 		else
+			/* This reset does not affect link - if it is
+			 * changed to a type of reset that does affect
+			 * link then the following link test would have
+			 * to be moved to before the reset
+			 */
 			i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
-		/* Link test performed before hardware reset
-		 * so autoneg doesn't interfere with test result
-		 */
 		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -2508,7 +2546,7 @@ static int i40e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
  * @indir: indirection table
  * @key: hash key
  *
- * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
+ * Returns -EINVAL if the table specifies an invalid queue id, otherwise
  * returns 0 after programming the table.
  **/
 static int i40e_set_rxfh(struct net_device *netdev, const u32 *indir,

@@ -361,7 +361,7 @@ bool i40evf_check_asq_alive(struct i40e_hw *hw)
 {
 	if (hw->aq.asq.len)
 		return !!(rd32(hw, hw->aq.asq.len) &
-			  I40E_PF_ATQLEN_ATQENABLE_MASK);
+			  I40E_VF_ATQLEN1_ATQENABLE_MASK);
 	else
 		return false;
 }
