@@ -46,6 +46,7 @@ struct fam15h_power_data {
 	unsigned int tdp_to_watts;
 	unsigned int base_tdp;
 	unsigned int processor_pwr_watts;
+	unsigned int cpu_pwr_sample_ratio;
 };
 
 static ssize_t show_power(struct device *dev,
@@ -188,7 +189,7 @@ static int fam15h_power_resume(struct pci_dev *pdev)
 static void fam15h_power_init_data(struct pci_dev *f4,
 					     struct fam15h_power_data *data)
 {
-	u32 val;
+	u32 val, eax, ebx, ecx, edx;
 	u64 tmp;
 
 	pci_read_config_dword(f4, REG_PROCESSOR_TDP, &val);
@@ -209,6 +210,19 @@ static void fam15h_power_init_data(struct pci_dev *f4,
 
 	/* convert to microWatt */
 	data->processor_pwr_watts = (tmp * 15625) >> 10;
+
+	cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+
+	/* CPUID Fn8000_0007:EDX[12] indicates to support accumulated power */
+	if (!(edx & BIT(12)))
+		return;
+
+	/*
+	 * determine the ratio of the compute unit power accumulator
+	 * sample period to the PTSC counter period by executing CPUID
+	 * Fn8000_0007:ECX
+	 */
+	data->cpu_pwr_sample_ratio = ecx;
 }
 
 static int fam15h_power_probe(struct pci_dev *pdev,
