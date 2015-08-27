@@ -68,8 +68,8 @@ static int imx_si476x_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai,
-			channels == 1 ? 0xfffffffe : 0xfffffffc,
-			channels == 1 ? 0xfffffffe : 0xfffffffc,
+			channels == 1 ? 1 : 0x3,
+			channels == 1 ? 1 : 0x3,
 			2, 32);
 	if (ret) {
 		dev_err(cpu_dai->dev, "failed to set dai tdm slot\n");
