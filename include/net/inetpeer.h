@@ -71,6 +71,29 @@ void inet_initpeers(void) __init;
 
 #define INETPEER_METRICS_NEW	(~(u32) 0)
 
+static inline void inetpeer_set_addr_v4(struct inetpeer_addr *iaddr, __be32 ip)
+{
+	iaddr->addr.a4 = ip;
+	iaddr->family = AF_INET;
+}
+
+static inline __be32 inetpeer_get_addr_v4(struct inetpeer_addr *iaddr)
+{
+	return iaddr->addr.a4;
+}
+
+static inline void inetpeer_set_addr_v6(struct inetpeer_addr *iaddr,
+					struct in6_addr *in6)
+{
+	iaddr->addr.in6 = *in6;
+	iaddr->family = AF_INET6;
+}
+
+static inline struct in6_addr *inetpeer_get_addr_v6(struct inetpeer_addr *iaddr)
+{
+	return &iaddr->addr.in6;
+}
+
 /* can be called with or without local BH being disabled */
 struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 			       const struct inetpeer_addr *daddr,
