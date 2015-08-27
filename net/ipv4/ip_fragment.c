@@ -151,7 +151,8 @@ static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 	qp->vif = arg->vif;
 	qp->user = arg->user;
 	qp->peer = sysctl_ipfrag_max_dist ?
-		inet_getpeer_v4(net->ipv4.peers, arg->iph->saddr, 1) : NULL;
+		inet_getpeer_v4(net->ipv4.peers, arg->iph->saddr, arg->vif, 1) :
+		NULL;
 }
 
 static void ip4_frag_free(struct inet_frag_queue *q)

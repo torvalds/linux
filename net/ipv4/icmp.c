@@ -309,9 +309,10 @@ static bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 
 	rc = false;
 	if (icmp_global_allow()) {
+		int vif = vrf_master_ifindex(dst->dev);
 		struct inet_peer *peer;
 
-		peer = inet_getpeer_v4(net->ipv4.peers, fl4->daddr, 1);
+		peer = inet_getpeer_v4(net->ipv4.peers, fl4->daddr, vif, 1);
 		rc = inet_peer_xrlim_allow(peer,
 					   net->ipv4.sysctl_icmp_ratelimit);
 		if (peer)
