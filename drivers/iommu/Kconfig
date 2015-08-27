@@ -369,4 +369,11 @@ config ARM_SMMU_V3
 	  Say Y here if your system includes an IOMMU device implementing
 	  the ARM SMMUv3 architecture.
 
+config S390_IOMMU
+	def_bool y if S390 && PCI
+	depends on S390 && PCI
+	select IOMMU_API
+	help
+	  Support for the IOMMU API for s390 PCI devices.
+
 endif # IOMMU_SUPPORT

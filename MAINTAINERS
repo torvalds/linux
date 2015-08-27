@@ -8943,6 +8943,13 @@ F:	drivers/s390/net/*iucv*
 F:	include/net/iucv/
 F:	net/iucv/
 
+S390 IOMMU (PCI)
+M:	Gerald Schaefer <gerald.schaefer@de.ibm.com>
+L:	linux-s390@vger.kernel.org
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+F:	drivers/iommu/s390-iommu.c
+
 S3C24XX SD/MMC Driver
 M:	Ben Dooks <ben-linux@fluff.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
