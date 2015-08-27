@@ -1412,8 +1412,7 @@ void eeh_dev_release(struct pci_dev *pdev)
 		goto out;
 
 	/* Decrease PE's pass through count */
-	atomic_dec(&edev->pe->pass_dev_cnt);
-	WARN_ON(atomic_read(&edev->pe->pass_dev_cnt) < 0);
+	WARN_ON(atomic_dec_if_positive(&edev->pe->pass_dev_cnt) < 0);
 	eeh_pe_change_owner(edev->pe);
 out:
 	mutex_unlock(&eeh_dev_mutex);
