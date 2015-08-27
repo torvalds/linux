@@ -322,21 +322,16 @@ static u16 rocker_port_vlan_to_vid(const struct rocker_port *rocker_port,
 	return ntohs(vlan_id);
 }
 
-static bool rocker_port_is_slave(const struct rocker_port *rocker_port,
-				   const char *kind)
-{
-	return rocker_port->bridge_dev &&
-		!strcmp(rocker_port->bridge_dev->rtnl_link_ops->kind, kind);
-}
-
 static bool rocker_port_is_bridged(const struct rocker_port *rocker_port)
 {
-	return rocker_port_is_slave(rocker_port, "bridge");
+	return rocker_port->bridge_dev &&
+	       netif_is_bridge_master(rocker_port->bridge_dev);
 }
 
 static bool rocker_port_is_ovsed(const struct rocker_port *rocker_port)
 {
-	return rocker_port_is_slave(rocker_port, "openvswitch");
+	return rocker_port->bridge_dev &&
+	       netif_is_ovs_master(rocker_port->bridge_dev);
 }
 
 #define ROCKER_OP_FLAG_REMOVE		BIT(0)
@@ -5331,46 +5326,61 @@ static int rocker_port_ovs_changed(struct rocker_port *rocker_port,
 	return err;
 }
 
-static int rocker_port_master_changed(struct net_device *dev)
+static int rocker_port_master_linked(struct rocker_port *rocker_port,
+				     struct net_device *master)
 {
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	struct net_device *master = netdev_master_upper_dev_get(dev);
 	int err = 0;
 
-	/* N.B: Do nothing if the type of master is not supported */
-	if (master && master->rtnl_link_ops) {
-		if (!strcmp(master->rtnl_link_ops->kind, "bridge"))
-			err = rocker_port_bridge_join(rocker_port, master);
-		else if (!strcmp(master->rtnl_link_ops->kind, "openvswitch"))
-			err = rocker_port_ovs_changed(rocker_port, master);
-	} else if (rocker_port_is_bridged(rocker_port)) {
-		err = rocker_port_bridge_leave(rocker_port);
-	} else if (rocker_port_is_ovsed(rocker_port)) {
-		err = rocker_port_ovs_changed(rocker_port, NULL);
-	}
+	if (netif_is_bridge_master(master))
+		err = rocker_port_bridge_join(rocker_port, master);
+	else if (netif_is_ovs_master(master))
+		err = rocker_port_ovs_changed(rocker_port, master);
+	return err;
+}
 
+static int rocker_port_master_unlinked(struct rocker_port *rocker_port)
+{
+	int err = 0;
+
+	if (rocker_port_is_bridged(rocker_port))
+		err = rocker_port_bridge_leave(rocker_port);
+	else if (rocker_port_is_ovsed(rocker_port))
+		err = rocker_port_ovs_changed(rocker_port, NULL);
 	return err;
 }
 
 static int rocker_netdevice_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_notifier_changeupper_info *info;
+	struct rocker_port *rocker_port;
 	int err;
+
+	if (!rocker_port_dev_check(dev))
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
-		dev = netdev_notifier_info_to_dev(ptr);
-		if (!rocker_port_dev_check(dev))
-			return NOTIFY_DONE;
-		err = rocker_port_master_changed(dev);
-		if (err)
-			netdev_warn(dev,
-				    "failed to reflect master change (err %d)\n",
-				    err);
+		info = ptr;
+		if (!info->master)
+			goto out;
+		rocker_port = netdev_priv(dev);
+		if (info->linking) {
+			err = rocker_port_master_linked(rocker_port,
+							info->upper_dev);
+			if (err)
+				netdev_warn(dev, "failed to reflect master linked (err %d)\n",
+					    err);
+		} else {
+			err = rocker_port_master_unlinked(rocker_port);
+			if (err)
+				netdev_warn(dev, "failed to reflect master unlinked (err %d)\n",
+					    err);
+		}
 		break;
 	}
-
+out:
 	return NOTIFY_DONE;
 }
 
