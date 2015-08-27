@@ -74,6 +74,8 @@ enum brcmf_pcie_state {
 #define BRCMF_PCIE_REG_INTMASK			0x94
 #define BRCMF_PCIE_REG_SBMBX			0x98
 
+#define BRCMF_PCIE_REG_LINK_STATUS_CTRL		0xBC
+
 #define BRCMF_PCIE_PCIE2REG_INTMASK		0x24
 #define BRCMF_PCIE_PCIE2REG_MAILBOXINT		0x48
 #define BRCMF_PCIE_PCIE2REG_MAILBOXMASK		0x4C
@@ -466,6 +468,7 @@ brcmf_pcie_select_core(struct brcmf_pciedev_info *devinfo, u16 coreid)
 
 static void brcmf_pcie_reset_device(struct brcmf_pciedev_info *devinfo)
 {
+	struct brcmf_core *core;
 	u16 cfg_offset[] = { BRCMF_PCIE_CFGREG_STATUS_CMD,
 			     BRCMF_PCIE_CFGREG_PM_CSR,
 			     BRCMF_PCIE_CFGREG_MSI_CAP,
@@ -484,32 +487,38 @@ static void brcmf_pcie_reset_device(struct brcmf_pciedev_info *devinfo)
 	if (!devinfo->ci)
 		return;
 
+	/* Disable ASPM */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
-	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR,
-			       BRCMF_PCIE_CFGREG_LINK_STATUS_CTRL);
-	lsc = brcmf_pcie_read_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGDATA);
+	pci_read_config_dword(devinfo->pdev, BRCMF_PCIE_REG_LINK_STATUS_CTRL,
+			      &lsc);
 	val = lsc & (~BRCMF_PCIE_LINK_STATUS_CTRL_ASPM_ENAB);
-	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGDATA, val);
+	pci_write_config_dword(devinfo->pdev, BRCMF_PCIE_REG_LINK_STATUS_CTRL,
+			       val);
 
+	/* Watchdog reset */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_CHIPCOMMON);
 	WRITECC32(devinfo, watchdog, 4);
 	msleep(100);
 
+	/* Restore ASPM */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
-	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR,
-			       BRCMF_PCIE_CFGREG_LINK_STATUS_CTRL);
-	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGDATA, lsc);
+	pci_write_config_dword(devinfo->pdev, BRCMF_PCIE_REG_LINK_STATUS_CTRL,
+			       lsc);
 
-	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
-	for (i = 0; i < ARRAY_SIZE(cfg_offset); i++) {
-		brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR,
-				       cfg_offset[i]);
-		val = brcmf_pcie_read_reg32(devinfo,
-					    BRCMF_PCIE_PCIE2REG_CONFIGDATA);
-		brcmf_dbg(PCIE, "config offset 0x%04x, value 0x%04x\n",
-			  cfg_offset[i], val);
-		brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGDATA,
-				       val);
+	core = brcmf_chip_get_core(devinfo->ci, BCMA_CORE_PCIE2);
+	if (core->rev <= 13) {
+		for (i = 0; i < ARRAY_SIZE(cfg_offset); i++) {
+			brcmf_pcie_write_reg32(devinfo,
+					       BRCMF_PCIE_PCIE2REG_CONFIGADDR,
+					       cfg_offset[i]);
+			val = brcmf_pcie_read_reg32(devinfo,
+				BRCMF_PCIE_PCIE2REG_CONFIGDATA);
+			brcmf_dbg(PCIE, "config offset 0x%04x, value 0x%04x\n",
+				  cfg_offset[i], val);
+			brcmf_pcie_write_reg32(devinfo,
+					       BRCMF_PCIE_PCIE2REG_CONFIGDATA,
+					       val);
+		}
 	}
 }
 
@@ -519,8 +528,6 @@ static void brcmf_pcie_attach(struct brcmf_pciedev_info *devinfo)
 	u32 config;
 
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
-	if (brcmf_pcie_read_reg32(devinfo, BRCMF_PCIE_PCIE2REG_INTMASK) != 0)
-		brcmf_pcie_reset_device(devinfo);
 	/* BAR1 window may not be sized properly */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
 	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR, 0x4e0);
@@ -1636,6 +1643,23 @@ static int brcmf_pcie_buscoreprep(void *ctx)
 }
 
 
+static int brcmf_pcie_buscore_reset(void *ctx, struct brcmf_chip *chip)
+{
+	struct brcmf_pciedev_info *devinfo = (struct brcmf_pciedev_info *)ctx;
+	u32 val;
+
+	devinfo->ci = chip;
+	brcmf_pcie_reset_device(devinfo);
+
+	val = brcmf_pcie_read_reg32(devinfo, BRCMF_PCIE_PCIE2REG_MAILBOXINT);
+	if (val != 0xffffffff)
+		brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_MAILBOXINT,
+				       val);
+
+	return 0;
+}
+
+
 static void brcmf_pcie_buscore_activate(void *ctx, struct brcmf_chip *chip,
 					u32 rstvec)
 {
@@ -1647,6 +1671,7 @@ static void brcmf_pcie_buscore_activate(void *ctx, struct brcmf_chip *chip,
 
 static const struct brcmf_buscore_ops brcmf_pcie_buscore_ops = {
 	.prepare = brcmf_pcie_buscoreprep,
+	.reset = brcmf_pcie_buscore_reset,
 	.activate = brcmf_pcie_buscore_activate,
 	.read32 = brcmf_pcie_buscore_read32,
 	.write32 = brcmf_pcie_buscore_write32,
@@ -1814,7 +1839,6 @@ brcmf_pcie_remove(struct pci_dev *pdev)
 		brcmf_pcie_intr_disable(devinfo);
 
 	brcmf_detach(&pdev->dev);
-	brcmf_pcie_reset_device(devinfo);
 
 	kfree(bus->bus_priv.pcie);
 	kfree(bus->msgbuf->flowrings);

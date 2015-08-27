@@ -101,6 +101,9 @@
 /* ARM Cortex M3 core, ID 0x82a */
 #define BCM4329_CORE_ARM_BASE		0x18002000
 
+/* Max possibly supported memory size (limited by IO mapped memory) */
+#define BRCMF_CHIP_MAX_MEMSIZE		(4 * 1024 * 1024)
+
 #define CORE_SB(base, field) \
 		(base + SBCONFIGOFF + offsetof(struct sbconfig, field))
 #define	SBCOREREV(sbidh) \
@@ -687,6 +690,12 @@ static int brcmf_chip_get_raminfo(struct brcmf_chip_priv *ci)
 		brcmf_err("RAM size is undetermined\n");
 		return -ENOMEM;
 	}
+
+	if (ci->pub.ramsize > BRCMF_CHIP_MAX_MEMSIZE) {
+		brcmf_err("RAM size is incorrect\n");
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -899,6 +908,15 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 
 	/* assure chip is passive for core access */
 	brcmf_chip_set_passive(&ci->pub);
+
+	/* Call bus specific reset function now. Cores have been determined
+	 * but further access may require a chip specific reset at this point.
+	 */
+	if (ci->ops->reset) {
+		ci->ops->reset(ci->ctx, &ci->pub);
+		brcmf_chip_set_passive(&ci->pub);
+	}
+
 	return brcmf_chip_get_raminfo(ci);
 }
 
