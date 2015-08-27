@@ -5394,15 +5394,17 @@ enum skl_disp_power_wells {
 
 #define CPU_VGACNTRL	0x41000
 
-#define DIGITAL_PORT_HOTPLUG_CNTRL      0x44030
-#define  DIGITAL_PORTA_HOTPLUG_ENABLE           (1 << 4)
-#define  DIGITAL_PORTA_SHORT_PULSE_2MS          (0 << 2)
-#define  DIGITAL_PORTA_SHORT_PULSE_4_5MS        (1 << 2)
-#define  DIGITAL_PORTA_SHORT_PULSE_6MS          (2 << 2)
-#define  DIGITAL_PORTA_SHORT_PULSE_100MS        (3 << 2)
-#define  DIGITAL_PORTA_NO_DETECT                (0 << 0)
-#define  DIGITAL_PORTA_LONG_PULSE_DETECT_MASK   (1 << 1)
-#define  DIGITAL_PORTA_SHORT_PULSE_DETECT_MASK  (1 << 0)
+#define DIGITAL_PORT_HOTPLUG_CNTRL	0x44030
+#define  DIGITAL_PORTA_HOTPLUG_ENABLE		(1 << 4)
+#define  DIGITAL_PORTA_PULSE_DURATION_2ms	(0 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_4_5ms	(1 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_6ms	(2 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_100ms	(3 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_MASK	(3 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_HOTPLUG_STATUS_MASK	(3 << 0)
+#define  DIGITAL_PORTA_HOTPLUG_NO_DETECT	(0 << 0)
+#define  DIGITAL_PORTA_HOTPLUG_SHORT_DETECT	(1 << 0)
+#define  DIGITAL_PORTA_HOTPLUG_LONG_DETECT	(2 << 0)
 
 /* refresh rate hardware control */
 #define RR_HW_CTL       0x45300
@@ -6030,46 +6032,46 @@ enum skl_disp_power_wells {
 #define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 /* digital port hotplug */
-#define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */
-#define BXT_PORTA_HOTPLUG_ENABLE	(1 << 28)
-#define BXT_PORTA_HOTPLUG_STATUS_MASK	(0x3 << 24)
+#define PCH_PORT_HOTPLUG		0xc4030	/* SHOTPLUG_CTL */
+#define  BXT_PORTA_HOTPLUG_ENABLE	(1 << 28)
+#define  BXT_PORTA_HOTPLUG_STATUS_MASK	(3 << 24)
 #define  BXT_PORTA_HOTPLUG_NO_DETECT	(0 << 24)
 #define  BXT_PORTA_HOTPLUG_SHORT_DETECT	(1 << 24)
 #define  BXT_PORTA_HOTPLUG_LONG_DETECT	(2 << 24)
-#define PORTD_HOTPLUG_ENABLE            (1 << 20)
-#define PORTD_PULSE_DURATION_2ms        (0)
-#define PORTD_PULSE_DURATION_4_5ms      (1 << 18)
-#define PORTD_PULSE_DURATION_6ms        (2 << 18)
-#define PORTD_PULSE_DURATION_100ms      (3 << 18)
-#define PORTD_PULSE_DURATION_MASK	(3 << 18)
-#define PORTD_HOTPLUG_STATUS_MASK	(0x3 << 16)
+#define  PORTD_HOTPLUG_ENABLE		(1 << 20)
+#define  PORTD_PULSE_DURATION_2ms	(0 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_4_5ms	(1 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_6ms	(2 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_100ms	(3 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_MASK	(3 << 18) /* pre-LPT */
+#define  PORTD_HOTPLUG_STATUS_MASK	(3 << 16)
 #define  PORTD_HOTPLUG_NO_DETECT	(0 << 16)
 #define  PORTD_HOTPLUG_SHORT_DETECT	(1 << 16)
 #define  PORTD_HOTPLUG_LONG_DETECT	(2 << 16)
-#define PORTC_HOTPLUG_ENABLE            (1 << 12)
-#define PORTC_PULSE_DURATION_2ms        (0)
-#define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
-#define PORTC_PULSE_DURATION_6ms        (2 << 10)
-#define PORTC_PULSE_DURATION_100ms      (3 << 10)
-#define PORTC_PULSE_DURATION_MASK	(3 << 10)
-#define PORTC_HOTPLUG_STATUS_MASK	(0x3 << 8)
+#define  PORTC_HOTPLUG_ENABLE		(1 << 12)
+#define  PORTC_PULSE_DURATION_2ms	(0 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_4_5ms	(1 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_6ms	(2 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_100ms	(3 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_MASK	(3 << 10) /* pre-LPT */
+#define  PORTC_HOTPLUG_STATUS_MASK	(3 << 8)
 #define  PORTC_HOTPLUG_NO_DETECT	(0 << 8)
 #define  PORTC_HOTPLUG_SHORT_DETECT	(1 << 8)
 #define  PORTC_HOTPLUG_LONG_DETECT	(2 << 8)
-#define PORTB_HOTPLUG_ENABLE            (1 << 4)
-#define PORTB_PULSE_DURATION_2ms        (0)
-#define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
-#define PORTB_PULSE_DURATION_6ms        (2 << 2)
-#define PORTB_PULSE_DURATION_100ms      (3 << 2)
-#define PORTB_PULSE_DURATION_MASK	(3 << 2)
-#define PORTB_HOTPLUG_STATUS_MASK	(0x3 << 0)
+#define  PORTB_HOTPLUG_ENABLE		(1 << 4)
+#define  PORTB_PULSE_DURATION_2ms	(0 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_4_5ms	(1 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_6ms	(2 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_100ms	(3 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_MASK	(3 << 2) /* pre-LPT */
+#define  PORTB_HOTPLUG_STATUS_MASK	(3 << 0)
 #define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
 
-#define PCH_PORT_HOTPLUG2        0xc403C		/* SHOTPLUG_CTL2 */
-#define PORTE_HOTPLUG_ENABLE            (1 << 4)
-#define PORTE_HOTPLUG_STATUS_MASK	(0x3 << 0)
+#define PCH_PORT_HOTPLUG2		0xc403C	/* SHOTPLUG_CTL2 SPT+ */
+#define  PORTE_HOTPLUG_ENABLE		(1 << 4)
+#define  PORTE_HOTPLUG_STATUS_MASK	(3 << 0)
 #define  PORTE_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTE_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTE_HOTPLUG_LONG_DETECT	(2 << 0)
