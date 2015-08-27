@@ -248,8 +248,6 @@ static inline void flush_write_buffers(void)
 #endif
 }
 
-#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
-
 #endif /* __KERNEL__ */
 
 extern void native_io_delay(void);

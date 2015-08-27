@@ -18,6 +18,8 @@
 #include <asm/cpufeature.h>
 #include <asm/special_insns.h>
 
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
+
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 /**
  * arch_memcpy_to_pmem - copy data to persistent memory
