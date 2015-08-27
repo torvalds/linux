@@ -3031,7 +3031,7 @@ static int pick_local_ip6addrs(struct c4iw_dev *dev, struct iw_cm_id *cm_id)
 	struct sockaddr_in6 *la6 = (struct sockaddr_in6 *)&cm_id->local_addr;
 	struct sockaddr_in6 *ra6 = (struct sockaddr_in6 *)&cm_id->remote_addr;
 
-	if (get_lladdr(dev->rdev.lldi.ports[0], &addr, IFA_F_TENTATIVE)) {
+	if (!get_lladdr(dev->rdev.lldi.ports[0], &addr, IFA_F_TENTATIVE)) {
 		memcpy(la6->sin6_addr.s6_addr, &addr, 16);
 		memcpy(ra6->sin6_addr.s6_addr, &addr, 16);
 		return 0;
