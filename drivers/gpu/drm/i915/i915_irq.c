@@ -2128,27 +2128,17 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void bxt_hpd_handler(struct drm_device *dev, uint32_t iir_status)
+static void bxt_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 hp_control, hp_trigger;
-	u32 pin_mask = 0, long_mask = 0;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
-	/* Get the status */
-	hp_trigger = iir_status & BXT_DE_PORT_HOTPLUG_MASK;
-	hp_control = I915_READ(BXT_HOTPLUG_CTL);
+	dig_hotplug_reg = I915_READ(BXT_HOTPLUG_CTL);
+	I915_WRITE(BXT_HOTPLUG_CTL, dig_hotplug_reg);
 
-	/* Hotplug not enabled ? */
-	if (!(hp_control & BXT_HOTPLUG_CTL_MASK)) {
-		DRM_ERROR("Interrupt when HPD disabled\n");
-		return;
-	}
-
-	/* Clear sticky bits in hpd status */
-	I915_WRITE(BXT_HOTPLUG_CTL, hp_control);
-
-	intel_get_hpd_pins(&pin_mask, &long_mask, hp_trigger, hp_control,
-			   hpd_bxt, bxt_port_hotplug_long_detect);
+	intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+			   dig_hotplug_reg, hpd_bxt,
+			   bxt_port_hotplug_long_detect);
 	intel_hpd_irq_handler(dev, pin_mask, long_mask);
 }
 
@@ -2198,7 +2188,12 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		tmp = I915_READ(GEN8_DE_PORT_IIR);
 		if (tmp) {
 			bool found = false;
-			u32 hotplug_trigger = tmp & GEN8_PORT_DP_A_HOTPLUG;
+			u32 hotplug_trigger = 0;
+
+			if (IS_BROXTON(dev_priv))
+				hotplug_trigger = tmp & BXT_DE_PORT_HOTPLUG_MASK;
+			else if (IS_BROADWELL(dev_priv))
+				hotplug_trigger = tmp & GEN8_PORT_DP_A_HOTPLUG;
 
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
@@ -2221,8 +2216,8 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 				found = true;
 			}
 
-			if (IS_BROXTON(dev) && tmp & BXT_DE_PORT_HOTPLUG_MASK) {
-				bxt_hpd_handler(dev, tmp);
+			if (IS_BROXTON(dev) && hotplug_trigger) {
+				bxt_hpd_irq_handler(dev, hotplug_trigger);
 				found = true;
 			}
 
