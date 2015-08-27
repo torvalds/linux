@@ -2644,7 +2644,6 @@ struct i915_params {
 	int enable_cmd_parser;
 	/* leave bools at the end to not create holes */
 	bool enable_hangcheck;
-	bool fastboot;
 	bool prefault_disable;
 	bool load_detect_test;
 	bool reset;
