@@ -2806,13 +2806,13 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		}
 
 		regmap_write(rt5645->regmap, RT5645_JD_CTRL3, 0x00f0);
-		regmap_update_bits(rt5645->regmap,
-				   RT5645_IN1_CTRL2, 0x1000, 0x1000);
-		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1, 0x0004,
-			0x0004);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL2,
+			RT5645_CBJ_MN_JD, RT5645_CBJ_MN_JD);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
+			RT5645_CBJ_BST1_EN, RT5645_CBJ_BST1_EN);
 		msleep(100);
-		regmap_update_bits(rt5645->regmap,
-				   RT5645_IN1_CTRL2, 0x1000, 0x0000);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL2,
+			RT5645_CBJ_MN_JD, 0);
 
 		msleep(600);
 		regmap_read(rt5645->regmap, RT5645_IN1_CTRL3, &val);
@@ -2836,10 +2836,10 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 	} else { /* jack out */
 		rt5645->jack_type = 0;
 
-		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL2, 0x1000,
-			0x1000);
-		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1, 0x0004,
-			0x0000);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL2,
+			RT5645_CBJ_MN_JD, RT5645_CBJ_MN_JD);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
+			RT5645_CBJ_BST1_EN, 0);
 
 		if (rt5645->en_button_func)
 			rt5645_enable_push_button_irq(codec, false);
@@ -3449,6 +3449,18 @@ static int rt5645_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static void rt5645_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct rt5645_priv *rt5645 = i2c_get_clientdata(i2c);
+
+	regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL3,
+		RT5645_RING2_SLEEVE_GND, RT5645_RING2_SLEEVE_GND);
+	regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL2, RT5645_CBJ_MN_JD,
+		RT5645_CBJ_MN_JD);
+	regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1, RT5645_CBJ_BST1_EN,
+		0);
+}
+
 static struct i2c_driver rt5645_i2c_driver = {
 	.driver = {
 		.name = "rt5645",
@@ -3456,7 +3468,8 @@ static struct i2c_driver rt5645_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5645_acpi_match),
 	},
 	.probe = rt5645_i2c_probe,
-	.remove   = rt5645_i2c_remove,
+	.remove = rt5645_i2c_remove,
+	.shutdown = rt5645_i2c_shutdown,
 	.id_table = rt5645_i2c_id,
 };
 module_i2c_driver(rt5645_i2c_driver);
