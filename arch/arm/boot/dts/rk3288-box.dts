@@ -909,9 +909,16 @@
 	regulator-name = "vcc_sd";
 	};
 
-&remotectl {
+/*
+ * Due to not have the software of PWM for remotectrl.
+ * We can _*HACK*_ do that as the following.
+ */
+&pwm0 {
+	compatible = "rockchip,remotectl-pwm";
+	remote_pwm_id = <0>;
 	handle_cpu_id = <1>;
 	status = "okay";
+
 	ir_key1{
 		rockchip,usercode = <0x4040>;
 		rockchip,key_table =
