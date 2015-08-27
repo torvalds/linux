@@ -1717,6 +1717,8 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				lseg->pls_range.length);
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			mark_lseg_invalid(lseg, tmp_list);
+			set_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
+					&lo->plh_flags);
 		}
 }
 
