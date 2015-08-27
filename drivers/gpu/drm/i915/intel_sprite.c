@@ -203,6 +203,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	int scaler_id;
 
 	plane_ctl = PLANE_CTL_ENABLE |
+		PLANE_CTL_PIPE_GAMMA_ENABLE |
 		PLANE_CTL_PIPE_CSC_ENABLE;
 
 	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
