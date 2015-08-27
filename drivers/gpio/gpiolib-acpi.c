@@ -453,7 +453,7 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 	return 0;
 }
 
-static int acpi_gpio_property_lookup(struct acpi_device *adev,
+static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 				     const char *propname, int index,
 				     struct acpi_gpio_lookup *lookup)
 {
@@ -461,10 +461,16 @@ static int acpi_gpio_property_lookup(struct acpi_device *adev,
 	int ret;
 
 	memset(&args, 0, sizeof(args));
-	ret = acpi_dev_get_property_reference(adev, propname, index, &args);
-	if (ret && !acpi_get_driver_gpio_data(adev, propname, index, &args))
-		return ret;
+	ret = acpi_node_get_property_reference(fwnode, propname, index, &args);
+	if (ret) {
+		struct acpi_device *adev = to_acpi_device_node(fwnode);
 
+		if (!adev)
+			return ret;
+
+		if (!acpi_get_driver_gpio_data(adev, propname, index, &args))
+			return ret;
+	}
 	/*
 	 * The property was found and resolved, so need to lookup the GPIO based
 	 * on returned args.
@@ -518,7 +524,8 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	if (propname) {
 		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
 
-		ret = acpi_gpio_property_lookup(adev, propname, index, &lookup);
+		ret = acpi_gpio_property_lookup(acpi_fwnode_handle(adev),
+						propname, index, &lookup);
 		if (ret)
 			return ERR_PTR(ret);
 
@@ -529,6 +536,47 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 		dev_dbg(&adev->dev, "GPIO: looking up %d in _CRS\n", index);
 		lookup.adev = adev;
 	}
+
+	ret = acpi_gpio_resource_lookup(&lookup, info);
+	return ret ? ERR_PTR(ret) : lookup.desc;
+}
+
+/**
+ * acpi_node_get_gpiod() - get a GPIO descriptor from ACPI resources
+ * @fwnode: pointer to an ACPI firmware node to get the GPIO information from
+ * @propname: Property name of the GPIO
+ * @index: index of GpioIo/GpioInt resource (starting from %0)
+ * @info: info pointer to fill in (optional)
+ *
+ * If @fwnode is an ACPI device object, call %acpi_get_gpiod_by_index() for it.
+ * Otherwise (ie. it is a data-only non-device object), use the property-based
+ * GPIO lookup to get to the GPIO resource with the relevant information and use
+ * that to obtain the GPIO descriptor to return.
+ */
+struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
+				      const char *propname, int index,
+				      struct acpi_gpio_info *info)
+{
+	struct acpi_gpio_lookup lookup;
+	struct acpi_device *adev;
+	int ret;
+
+	adev = to_acpi_device_node(fwnode);
+	if (adev)
+		return acpi_get_gpiod_by_index(adev, propname, index, info);
+
+	if (!is_acpi_data_node(fwnode))
+		return ERR_PTR(-ENODEV);
+
+	if (!propname)
+		return ERR_PTR(-EINVAL);
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.index = index;
+
+	ret = acpi_gpio_property_lookup(fwnode, propname, index, &lookup);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = acpi_gpio_resource_lookup(&lookup, info);
 	return ret ? ERR_PTR(ret) : lookup.desc;

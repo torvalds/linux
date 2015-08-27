@@ -461,9 +461,9 @@ static int acpi_data_get_property_array(struct acpi_device_data *data,
 }
 
 /**
- * acpi_dev_get_property_reference - returns handle to the referenced object
- * @adev: ACPI device to get property
- * @name: Name of the property
+ * acpi_data_get_property_reference - returns handle to the referenced object
+ * @data: ACPI device data object containing the property
+ * @propname: Name of the property
  * @index: Index of the reference to return
  * @args: Location to store the returned reference with optional arguments
  *
@@ -477,16 +477,16 @@ static int acpi_data_get_property_array(struct acpi_device_data *data,
  *
  * Return: %0 on success, negative error code on failure.
  */
-int acpi_dev_get_property_reference(struct acpi_device *adev,
-				    const char *name, size_t index,
-				    struct acpi_reference_args *args)
+static int acpi_data_get_property_reference(struct acpi_device_data *data,
+					    const char *propname, size_t index,
+					    struct acpi_reference_args *args)
 {
 	const union acpi_object *element, *end;
 	const union acpi_object *obj;
 	struct acpi_device *device;
 	int ret, idx = 0;
 
-	ret = acpi_dev_get_property(adev, name, ACPI_TYPE_ANY, &obj);
+	ret = acpi_data_get_property(data, propname, ACPI_TYPE_ANY, &obj);
 	if (ret)
 		return ret;
 
@@ -561,7 +561,23 @@ int acpi_dev_get_property_reference(struct acpi_device *adev,
 
 	return -EPROTO;
 }
-EXPORT_SYMBOL_GPL(acpi_dev_get_property_reference);
+
+/**
+ * acpi_node_get_property_reference - get a handle to the referenced object.
+ * @fwnode: Firmware node to get the property from.
+ * @propname: Name of the property.
+ * @index: Index of the reference to return.
+ * @args: Location to store the returned reference with optional arguments.
+ */
+int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				     const char *name, size_t index,
+				     struct acpi_reference_args *args)
+{
+	struct acpi_device_data *data = acpi_device_data_of_node(fwnode);
+
+	return data ? acpi_data_get_property_reference(data, name, index, args) : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(acpi_node_get_property_reference);
 
 static int acpi_data_prop_read_single(struct acpi_device_data *data,
 				      const char *propname,
@@ -767,4 +783,60 @@ int acpi_node_prop_read(struct fwnode_handle *fwnode,  const char *propname,
 {
 	return acpi_data_prop_read(acpi_device_data_of_node(fwnode),
 				   propname, proptype, val, nval);
+}
+
+/**
+ * acpi_get_next_subnode - Return the next child node handle for a device.
+ * @dev: Device to find the next child node for.
+ * @child: Handle to one of the device's child nodes or a null handle.
+ */
+struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
+					    struct fwnode_handle *child)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct list_head *head, *next;
+
+	if (!adev)
+		return NULL;
+
+	if (!child || child->type == FWNODE_ACPI) {
+		head = &adev->children;
+		if (list_empty(head))
+			goto nondev;
+
+		if (child) {
+			adev = to_acpi_device_node(child);
+			next = adev->node.next;
+			if (next == head) {
+				child = NULL;
+				goto nondev;
+			}
+			adev = list_entry(next, struct acpi_device, node);
+		} else {
+			adev = list_first_entry(head, struct acpi_device, node);
+		}
+		return acpi_fwnode_handle(adev);
+	}
+
+ nondev:
+	if (!child || child->type == FWNODE_ACPI_DATA) {
+		struct acpi_data_node *dn;
+
+		head = &adev->data.subnodes;
+		if (list_empty(head))
+			return NULL;
+
+		if (child) {
+			dn = to_acpi_data_node(child);
+			next = dn->sibling.next;
+			if (next == head)
+				return NULL;
+
+			dn = list_entry(next, struct acpi_data_node, sibling);
+		} else {
+			dn = list_first_entry(head, struct acpi_data_node, sibling);
+		}
+		return &dn->fwnode;
+	}
+	return NULL;
 }
