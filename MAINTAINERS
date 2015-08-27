@@ -10338,6 +10338,16 @@ F:	include/uapi/linux/thermal.h
 F:	include/linux/cpu_cooling.h
 F:	Documentation/devicetree/bindings/thermal/
 
+THERMAL/CPU_COOLING
+M:	Amit Daniel Kachhap <amit.kachhap@gmail.com>
+M:	Viresh Kumar <viresh.kumar@linaro.org>
+M:	Javi Merino <javi.merino@arm.com>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+F:	Documentation/thermal/cpu-cooling-api.txt
+F:	drivers/thermal/cpu_cooling.c
+F:	include/linux/cpu_cooling.h
+
 THINGM BLINK(1) USB RGB LED DRIVER
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
 S:	Maintained
