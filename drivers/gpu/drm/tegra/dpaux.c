@@ -119,6 +119,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	 */
 	if (msg->size < 1) {
 		switch (msg->request & ~DP_AUX_I2C_MOT) {
+		case DP_AUX_I2C_WRITE_STATUS_UPDATE:
 		case DP_AUX_I2C_WRITE:
 		case DP_AUX_I2C_READ:
 			value = DPAUX_DP_AUXCTL_CMD_ADDRESS_ONLY;
