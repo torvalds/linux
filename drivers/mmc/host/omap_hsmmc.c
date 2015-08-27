@@ -375,10 +375,28 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 
 	/* Allow an aux regulator */
 	reg = devm_regulator_get_optional(host->dev, "vmmc_aux");
-	host->vcc_aux = IS_ERR(reg) ? NULL : reg;
+	if (IS_ERR(reg)) {
+		ret = PTR_ERR(reg);
+		if (ret != -ENODEV)
+			return ret;
+		host->vcc_aux = NULL;
+		dev_dbg(host->dev, "unable to get vmmc_aux regulator %ld\n",
+			PTR_ERR(reg));
+	} else {
+		host->vcc_aux = reg;
+	}
 
 	reg = devm_regulator_get_optional(host->dev, "pbias");
-	host->pbias = IS_ERR(reg) ? NULL : reg;
+	if (IS_ERR(reg)) {
+		ret = PTR_ERR(reg);
+		if (ret != -ENODEV)
+			return ret;
+		host->pbias = NULL;
+		dev_dbg(host->dev, "unable to get pbias regulator %ld\n",
+			PTR_ERR(reg));
+	} else {
+		host->pbias = reg;
+	}
 
 	/* For eMMC do not power off when not in sleep state */
 	if (mmc_pdata(host)->no_regulator_off_init)
