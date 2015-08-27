@@ -37,6 +37,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/scsi_dh.h>
 #include <scsi/sg.h>
 
 #include "scsi_priv.h"
@@ -464,11 +465,10 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 	if (scsi_sense_is_deferred(&sshdr))
 		return NEEDS_RETRY;
 
-	if (sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh &&
-			sdev->scsi_dh_data->scsi_dh->check_sense) {
+	if (sdev->handler && sdev->handler->check_sense) {
 		int rc;
 
-		rc = sdev->scsi_dh_data->scsi_dh->check_sense(sdev, &sshdr);
+		rc = sdev->handler->check_sense(sdev, &sshdr);
 		if (rc != SCSI_RETURN_NOT_HANDLED)
 			return rc;
 		/* handler does not care. Drop down to default handling */

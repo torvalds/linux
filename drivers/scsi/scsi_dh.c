@@ -126,26 +126,20 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 static int scsi_dh_handler_attach(struct scsi_device *sdev,
 				  struct scsi_device_handler *scsi_dh)
 {
-	struct scsi_dh_data *d;
+	int error;
 
 	if (!try_module_get(scsi_dh->module))
 		return -EINVAL;
 
-	d = scsi_dh->attach(sdev);
-	if (IS_ERR(d)) {
-		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%ld)\n",
-			    scsi_dh->name, PTR_ERR(d));
+	error = scsi_dh->attach(sdev);
+	if (error) {
+		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
+			    scsi_dh->name, error);
 		module_put(scsi_dh->module);
-		return PTR_ERR(d);
-	}
+	} else
+		sdev->handler = scsi_dh;
 
-	d->scsi_dh = scsi_dh;
-	d->sdev = sdev;
-
-	spin_lock_irq(sdev->request_queue->queue_lock);
-	sdev->scsi_dh_data = d;
-	spin_unlock_irq(sdev->request_queue->queue_lock);
-	return 0;
+	return error;
 }
 
 /*
@@ -154,17 +148,9 @@ static int scsi_dh_handler_attach(struct scsi_device *sdev,
  */
 static void scsi_dh_handler_detach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data = sdev->scsi_dh_data;
-	struct scsi_device_handler *scsi_dh = scsi_dh_data->scsi_dh;
-
-	scsi_dh->detach(sdev);
-
-	spin_lock_irq(sdev->request_queue->queue_lock);
-	sdev->scsi_dh_data = NULL;
-	spin_unlock_irq(sdev->request_queue->queue_lock);
-
-	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", scsi_dh->name);
-	module_put(scsi_dh->module);
+	sdev->handler->detach(sdev);
+	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", sdev->handler->name);
+	module_put(sdev->handler->module);
 }
 
 /*
@@ -182,7 +168,7 @@ store_dh_state(struct device *dev, struct device_attribute *attr,
 	    sdev->sdev_state == SDEV_DEL)
 		return -ENODEV;
 
-	if (!sdev->scsi_dh_data) {
+	if (!sdev->handler) {
 		/*
 		 * Attach to a device handler
 		 */
@@ -191,7 +177,6 @@ store_dh_state(struct device *dev, struct device_attribute *attr,
 			return err;
 		err = scsi_dh_handler_attach(sdev, scsi_dh);
 	} else {
-		scsi_dh = sdev->scsi_dh_data->scsi_dh;
 		if (!strncmp(buf, "detach", 6)) {
 			/*
 			 * Detach from a device handler
@@ -202,8 +187,8 @@ store_dh_state(struct device *dev, struct device_attribute *attr,
 			/*
 			 * Activate a device handler
 			 */
-			if (scsi_dh->activate)
-				err = scsi_dh->activate(sdev, NULL, NULL);
+			if (sdev->handler->activate)
+				err = sdev->handler->activate(sdev, NULL, NULL);
 			else
 				err = 0;
 		}
@@ -217,10 +202,10 @@ show_dh_state(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
-	if (!sdev->scsi_dh_data)
+	if (!sdev->handler)
 		return snprintf(buf, 20, "detached\n");
 
-	return snprintf(buf, 20, "%s\n", sdev->scsi_dh_data->scsi_dh->name);
+	return snprintf(buf, 20, "%s\n", sdev->handler->name);
 }
 
 static struct device_attribute scsi_dh_state_attr =
@@ -247,7 +232,7 @@ int scsi_dh_add_device(struct scsi_device *sdev)
 
 void scsi_dh_remove_device(struct scsi_device *sdev)
 {
-	if (sdev->scsi_dh_data)
+	if (sdev->handler)
 		scsi_dh_handler_detach(sdev);
 	device_remove_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 }
@@ -316,7 +301,6 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 	int err = 0;
 	unsigned long flags;
 	struct scsi_device *sdev;
-	struct scsi_device_handler *scsi_dh = NULL;
 	struct device *dev = NULL;
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -329,10 +313,8 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 		return err;
 	}
 
-	if (sdev->scsi_dh_data)
-		scsi_dh = sdev->scsi_dh_data->scsi_dh;
 	dev = get_device(&sdev->sdev_gendev);
-	if (!scsi_dh || !dev ||
+	if (!sdev->handler || !dev ||
 	    sdev->sdev_state == SDEV_CANCEL ||
 	    sdev->sdev_state == SDEV_DEL)
 		err = SCSI_DH_NOSYS;
@@ -346,8 +328,8 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 		goto out;
 	}
 
-	if (scsi_dh->activate)
-		err = scsi_dh->activate(sdev, fn, data);
+	if (sdev->handler->activate)
+		err = sdev->handler->activate(sdev, fn, data);
 out:
 	put_device(dev);
 	return err;
@@ -369,19 +351,18 @@ int scsi_dh_set_params(struct request_queue *q, const char *params)
 	int err = -SCSI_DH_NOSYS;
 	unsigned long flags;
 	struct scsi_device *sdev;
-	struct scsi_device_handler *scsi_dh = NULL;
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	sdev = q->queuedata;
-	if (sdev && sdev->scsi_dh_data)
-		scsi_dh = sdev->scsi_dh_data->scsi_dh;
-	if (scsi_dh && scsi_dh->set_params && get_device(&sdev->sdev_gendev))
+	if (sdev->handler &&
+	    sdev->handler->set_params &&
+	    get_device(&sdev->sdev_gendev))
 		err = 0;
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	if (err)
 		return err;
-	err = scsi_dh->set_params(sdev, params);
+	err = sdev->handler->set_params(sdev, params);
 	put_device(&sdev->sdev_gendev);
 	return err;
 }
@@ -413,8 +394,8 @@ int scsi_dh_attach(struct request_queue *q, const char *name)
 	if (err)
 		return err;
 
-	if (sdev->scsi_dh_data) {
-		if (sdev->scsi_dh_data->scsi_dh != scsi_dh)
+	if (sdev->handler) {
+		if (sdev->handler != scsi_dh)
 			err = -EBUSY;
 		goto out_put_device;
 	}
@@ -451,8 +432,8 @@ const char *scsi_dh_attached_handler_name(struct request_queue *q, gfp_t gfp)
 	if (!sdev)
 		return NULL;
 
-	if (sdev->scsi_dh_data)
-		handler_name = kstrdup(sdev->scsi_dh_data->scsi_dh->name, gfp);
+	if (sdev->handler)
+		handler_name = kstrdup(sdev->handler->name, gfp);
 
 	put_device(&sdev->sdev_gendev);
 	return handler_name;
