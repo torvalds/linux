@@ -1163,7 +1163,7 @@ static int i40evf_set_interrupt_capability(struct i40evf_adapter *adapter)
 	for (vector = 0; vector < v_budget; vector++)
 		adapter->msix_entries[vector].entry = vector;
 
-	i40evf_acquire_msix_vectors(adapter, v_budget);
+	err = i40evf_acquire_msix_vectors(adapter, v_budget);
 
 out:
 	adapter->netdev->real_num_tx_queues = pairs;
