@@ -13,6 +13,30 @@
 
 &msmgpio {
 
+	blsp1_uart1_default: blsp1_uart1_default {
+		pinmux {
+			function = "blsp_uart1";
+			pins = "gpio0", "gpio1";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	blsp1_uart1_sleep: blsp1_uart1_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio0", "gpio1";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
 	blsp1_uart2_default: blsp1_uart2_default {
 		pinmux {
 			function = "blsp_uart2";
@@ -27,7 +51,7 @@
 
 	blsp1_uart2_sleep: blsp1_uart2_sleep {
 		pinmux {
-			function = "blsp_uart2";
+			function = "gpio";
 			pins = "gpio4", "gpio5";
 		};
 		pinconf {
