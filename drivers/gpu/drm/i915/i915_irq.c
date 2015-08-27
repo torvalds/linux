@@ -154,35 +154,46 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 
-/* For display hotplug interrupt */
-void
-ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
+/**
+ * ilk_update_display_irq - update DEIMR
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
+static void ilk_update_display_irq(struct drm_i915_private *dev_priv,
+				   uint32_t interrupt_mask,
+				   uint32_t enabled_irq_mask)
 {
+	uint32_t new_val;
+
 	assert_spin_locked(&dev_priv->irq_lock);
+
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
 
 	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
-	if ((dev_priv->irq_mask & mask) != 0) {
-		dev_priv->irq_mask &= ~mask;
+	new_val = dev_priv->irq_mask;
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != dev_priv->irq_mask) {
+		dev_priv->irq_mask = new_val;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
 		POSTING_READ(DEIMR);
 	}
 }
 
 void
+ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
+{
+	ilk_update_display_irq(dev_priv, mask, mask);
+}
+
+void
 ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
-	assert_spin_locked(&dev_priv->irq_lock);
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return;
-
-	if ((dev_priv->irq_mask & mask) != mask) {
-		dev_priv->irq_mask |= mask;
-		I915_WRITE(DEIMR, dev_priv->irq_mask);
-		POSTING_READ(DEIMR);
-	}
+	ilk_update_display_irq(dev_priv, mask, 0);
 }
 
 /**
