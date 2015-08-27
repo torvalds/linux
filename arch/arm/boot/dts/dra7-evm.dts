@@ -10,6 +10,7 @@
 #include "dra74x.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clk/ti-dra7-atl.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "TI DRA742";
@@ -124,6 +125,25 @@
 			label = "dra7:usr4";
 			gpios = <&pcf_lcd 7 GPIO_ACTIVE_LOW>;
 			default-state = "off";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		USER1 {
+			label = "btnUser1";
+			linux,code = <BTN_0>;
+			gpios = <&pcf_lcd 2 GPIO_ACTIVE_LOW>;
+		};
+
+		USER2 {
+			label = "btnUser2";
+			linux,code = <BTN_1>;
+			gpios = <&pcf_lcd 3 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
