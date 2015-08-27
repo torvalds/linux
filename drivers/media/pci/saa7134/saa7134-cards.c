@@ -5884,6 +5884,42 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		},
 	},
+	[SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM] = {
+		.name           = "Leadtek Winfast TV2100 FM",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x0d,
+		.inputs         = {{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE1,
+			.gpio = 0x00,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x08,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x08,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE1,
+			.gpio = 0x04,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+			.gpio = 0x08,
+		},
+	},
 
 };
 
@@ -7149,6 +7185,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0xa10a,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_505,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x107d,
+		.subdevice    = 0x6f3a,
+		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -7545,6 +7587,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS:
 	case SAA7134_BOARD_ROVERMEDIA_LINK_PRO_FM:
 	case SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S:
+	case SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
