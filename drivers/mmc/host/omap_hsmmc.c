@@ -305,6 +305,48 @@ err_set_ocr:
 	return ret;
 }
 
+static int omap_hsmmc_set_pbias(struct omap_hsmmc_host *host, bool power_on,
+				int vdd)
+{
+	int ret;
+
+	if (!host->pbias)
+		return 0;
+
+	if (power_on) {
+		if (vdd <= VDD_165_195)
+			ret = regulator_set_voltage(host->pbias, VDD_1V8,
+						    VDD_1V8);
+		else
+			ret = regulator_set_voltage(host->pbias, VDD_3V0,
+						    VDD_3V0);
+		if (ret < 0) {
+			dev_err(host->dev, "pbias set voltage fail\n");
+			return ret;
+		}
+
+		if (host->pbias_enabled == 0) {
+			ret = regulator_enable(host->pbias);
+			if (ret) {
+				dev_err(host->dev, "pbias reg enable fail\n");
+				return ret;
+			}
+			host->pbias_enabled = 1;
+		}
+	} else {
+		if (host->pbias_enabled == 1) {
+			ret = regulator_disable(host->pbias);
+			if (ret) {
+				dev_err(host->dev, "pbias reg disable fail\n");
+				return ret;
+			}
+			host->pbias_enabled = 0;
+		}
+	}
+
+	return 0;
+}
+
 static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 {
 	struct omap_hsmmc_host *host =
@@ -325,16 +367,9 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 	if (mmc_pdata(host)->before_set_reg)
 		mmc_pdata(host)->before_set_reg(dev, power_on, vdd);
 
-	if (host->pbias) {
-		if (host->pbias_enabled == 1) {
-			ret = regulator_disable(host->pbias);
-			if (ret) {
-				dev_err(dev, "pbias reg disable failed\n");
-				return ret;
-			}
-			host->pbias_enabled = 0;
-		}
-	}
+	ret = omap_hsmmc_set_pbias(host, false, 0);
+	if (ret)
+		return ret;
 
 	/*
 	 * Assume Vcc regulator is used only to power the card ... OMAP
@@ -359,26 +394,9 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 			return ret;
 	}
 
-	if (host->pbias) {
-		if (vdd <= VDD_165_195)
-			ret = regulator_set_voltage(host->pbias, VDD_1V8,
-								VDD_1V8);
-		else
-			ret = regulator_set_voltage(host->pbias, VDD_3V0,
-								VDD_3V0);
-		if (ret < 0)
-			goto err_set_voltage;
-
-		if (host->pbias_enabled == 0) {
-			ret = regulator_enable(host->pbias);
-			if (ret) {
-				dev_err(dev, "pbias reg enable failed\n");
-				goto err_set_voltage;
-			} else {
-				host->pbias_enabled = 1;
-			}
-		}
-	}
+	ret = omap_hsmmc_set_pbias(host, true, vdd);
+	if (ret)
+		goto err_set_voltage;
 
 	if (mmc_pdata(host)->after_set_reg)
 		mmc_pdata(host)->after_set_reg(dev, power_on, vdd);
