@@ -29,7 +29,7 @@
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(scsi_dh_list);
 
-static struct scsi_device_handler *get_device_handler(const char *name)
+static struct scsi_device_handler *__scsi_dh_lookup(const char *name)
 {
 	struct scsi_device_handler *tmp, *found = NULL;
 
@@ -42,6 +42,19 @@ static struct scsi_device_handler *get_device_handler(const char *name)
 	}
 	spin_unlock(&list_lock);
 	return found;
+}
+
+static struct scsi_device_handler *scsi_dh_lookup(const char *name)
+{
+	struct scsi_device_handler *dh;
+
+	dh = __scsi_dh_lookup(name);
+	if (!dh) {
+		request_module(name);
+		dh = __scsi_dh_lookup(name);
+	}
+
+	return dh;
 }
 
 /*
@@ -158,7 +171,8 @@ store_dh_state(struct device *dev, struct device_attribute *attr,
 		/*
 		 * Attach to a device handler
 		 */
-		if (!(scsi_dh = get_device_handler(buf)))
+		scsi_dh = scsi_dh_lookup(buf);
+		if (!scsi_dh)
 			return err;
 		err = scsi_dh_handler_attach(sdev, scsi_dh);
 	} else {
@@ -322,8 +336,7 @@ static int scsi_dh_notifier_remove(struct device *dev, void *data)
  */
 int scsi_register_device_handler(struct scsi_device_handler *scsi_dh)
 {
-
-	if (get_device_handler(scsi_dh->name))
+	if (__scsi_dh_lookup(scsi_dh->name))
 		return -EBUSY;
 
 	if (!scsi_dh->attach || !scsi_dh->detach)
@@ -350,7 +363,7 @@ EXPORT_SYMBOL_GPL(scsi_register_device_handler);
 int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 {
 
-	if (!get_device_handler(scsi_dh->name))
+	if (!__scsi_dh_lookup(scsi_dh->name))
 		return -ENODEV;
 
 	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh,
@@ -455,17 +468,6 @@ int scsi_dh_set_params(struct request_queue *q, const char *params)
 EXPORT_SYMBOL_GPL(scsi_dh_set_params);
 
 /*
- * scsi_dh_handler_exist - Return TRUE(1) if a device handler exists for
- *	the given name. FALSE(0) otherwise.
- * @name - name of the device handler.
- */
-int scsi_dh_handler_exist(const char *name)
-{
-	return (get_device_handler(name) != NULL);
-}
-EXPORT_SYMBOL_GPL(scsi_dh_handler_exist);
-
-/*
  * scsi_dh_attach - Attach device handler
  * @q - Request queue that is associated with the scsi_device
  *      the handler should be attached to
@@ -478,7 +480,7 @@ int scsi_dh_attach(struct request_queue *q, const char *name)
 	struct scsi_device_handler *scsi_dh;
 	int err = 0;
 
-	scsi_dh = get_device_handler(name);
+	scsi_dh = scsi_dh_lookup(name);
 	if (!scsi_dh)
 		return -EINVAL;
 

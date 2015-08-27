@@ -725,12 +725,6 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 		return 0;
 
 	m->hw_handler_name = kstrdup(dm_shift_arg(as), GFP_KERNEL);
-	if (!try_then_request_module(scsi_dh_handler_exist(m->hw_handler_name),
-				     "scsi_dh_%s", m->hw_handler_name)) {
-		ti->error = "unknown hardware handler type";
-		ret = -EINVAL;
-		goto fail;
-	}
 
 	if (hw_argc > 1) {
 		char *p;
