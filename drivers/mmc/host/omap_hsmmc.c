@@ -388,15 +388,15 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 		ret = omap_hsmmc_enable_supply(mmc, vdd);
 		if (ret)
 			return ret;
+
+		ret = omap_hsmmc_set_pbias(host, true, vdd);
+		if (ret)
+			goto err_set_voltage;
 	} else {
 		ret = omap_hsmmc_disable_supply(mmc);
 		if (ret)
 			return ret;
 	}
-
-	ret = omap_hsmmc_set_pbias(host, true, vdd);
-	if (ret)
-		goto err_set_voltage;
 
 	if (mmc_pdata(host)->after_set_reg)
 		mmc_pdata(host)->after_set_reg(dev, power_on, vdd);
