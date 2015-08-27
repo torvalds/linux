@@ -202,6 +202,9 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(&fl4, 0, sizeof(fl4));
 	fl4.flowi4_tos = RT_TOS(tos);
 	fl4.daddr = geneve->remote.sin_addr.s_addr;
+	fl4.flowi4_mark = skb->mark;
+	fl4.flowi4_proto = IPPROTO_UDP;
+
 	rt = ip_route_output_key(geneve->net, &fl4);
 	if (IS_ERR(rt)) {
 		netdev_dbg(dev, "no route to %pI4\n", &fl4.daddr);
