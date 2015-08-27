@@ -100,34 +100,13 @@ static void acpi_init_of_compatible(struct acpi_device *adev)
 	adev->flags.of_compatible_ok = 1;
 }
 
-void acpi_init_properties(struct acpi_device *adev)
+static bool acpi_extract_properties(const union acpi_object *desc,
+				    struct acpi_device_data *data)
 {
-	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
-	bool acpi_of = false;
-	struct acpi_hardware_id *hwid;
-	const union acpi_object *desc;
-	acpi_status status;
 	int i;
 
-	/*
-	 * Check if ACPI_DT_NAMESPACE_HID is present and inthat case we fill in
-	 * Device Tree compatible properties for this device.
-	 */
-	list_for_each_entry(hwid, &adev->pnp.ids, list) {
-		if (!strcmp(hwid->id, ACPI_DT_NAMESPACE_HID)) {
-			acpi_of = true;
-			break;
-		}
-	}
-
-	status = acpi_evaluate_object_typed(adev->handle, "_DSD", NULL, &buf,
-					    ACPI_TYPE_PACKAGE);
-	if (ACPI_FAILURE(status))
-		goto out;
-
-	desc = buf.pointer;
 	if (desc->package.count % 2)
-		goto fail;
+		return false;
 
 	/* Look for the device properties UUID. */
 	for (i = 0; i < desc->package.count; i += 2) {
@@ -154,18 +133,44 @@ void acpi_init_properties(struct acpi_device *adev)
 		if (!acpi_properties_format_valid(properties))
 			break;
 
-		adev->data.pointer = buf.pointer;
-		adev->data.properties = properties;
-
-		if (acpi_of)
-			acpi_init_of_compatible(adev);
-
-		goto out;
+		data->properties = properties;
+		return true;
 	}
 
- fail:
-	dev_dbg(&adev->dev, "Returned _DSD data is not valid, skipping\n");
-	ACPI_FREE(buf.pointer);
+	return false;
+}
+
+void acpi_init_properties(struct acpi_device *adev)
+{
+	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+	struct acpi_hardware_id *hwid;
+	acpi_status status;
+	bool acpi_of = false;
+
+	/*
+	 * Check if ACPI_DT_NAMESPACE_HID is present and inthat case we fill in
+	 * Device Tree compatible properties for this device.
+	 */
+	list_for_each_entry(hwid, &adev->pnp.ids, list) {
+		if (!strcmp(hwid->id, ACPI_DT_NAMESPACE_HID)) {
+			acpi_of = true;
+			break;
+		}
+	}
+
+	status = acpi_evaluate_object_typed(adev->handle, "_DSD", NULL, &buf,
+					    ACPI_TYPE_PACKAGE);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	if (acpi_extract_properties(buf.pointer, &adev->data)) {
+		adev->data.pointer = buf.pointer;
+		if (acpi_of)
+			acpi_init_of_compatible(adev);
+	} else {
+		acpi_handle_debug(adev->handle, "Invalid _DSD data, skipping\n");
+		ACPI_FREE(buf.pointer);
+	}
 
  out:
 	if (acpi_of && !adev->flags.of_compatible_ok)
