@@ -64,12 +64,13 @@ static bool acpi_nondev_subnode_ok(acpi_handle scope,
 		goto fail;
 
 	if (acpi_extract_properties(buf.pointer, &dn->data))
-		dn->data.pointer = buf.pointer;
+		dn->handle = handle;
 
 	if (acpi_enumerate_nondev_subnodes(scope, buf.pointer, &dn->data))
-		dn->data.pointer = buf.pointer;
+		dn->handle = handle;
 
-	if (dn->data.pointer) {
+	if (dn->handle) {
+		dn->data.pointer = buf.pointer;
 		list_add_tail(&dn->sibling, list);
 		return true;
 	}
@@ -302,6 +303,7 @@ static void acpi_destroy_nondev_subnodes(struct list_head *list)
 
 	list_for_each_entry_safe_reverse(dn, next, list, sibling) {
 		acpi_destroy_nondev_subnodes(&dn->data.subnodes);
+		wait_for_completion(&dn->kobj_done);
 		list_del(&dn->sibling);
 		ACPI_FREE((void *)dn->data.pointer);
 		kfree(dn);
