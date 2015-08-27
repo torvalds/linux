@@ -2973,9 +2973,19 @@ struct wmi_10_4_mgmt_rx_event {
 #define WMI_RX_STATUS_ERR_MIC			0x10
 #define WMI_RX_STATUS_ERR_KEY_CACHE_MISS	0x20
 
-#define PHY_ERROR_SPECTRAL_SCAN		0x26
-#define PHY_ERROR_FALSE_RADAR_EXT		0x24
-#define PHY_ERROR_RADAR				0x05
+#define PHY_ERROR_GEN_SPECTRAL_SCAN		0x26
+#define PHY_ERROR_GEN_FALSE_RADAR_EXT		0x24
+#define PHY_ERROR_GEN_RADAR			0x05
+
+#define PHY_ERROR_10_4_RADAR_MASK               0x4
+#define PHY_ERROR_10_4_SPECTRAL_SCAN_MASK       0x4000000
+
+enum phy_err_type {
+	PHY_ERROR_UNKNOWN,
+	PHY_ERROR_SPECTRAL_SCAN,
+	PHY_ERROR_FALSE_RADAR_EXT,
+	PHY_ERROR_RADAR
+};
 
 struct wmi_phyerr {
 	__le32 tsf_timestamp;
@@ -2996,6 +3006,23 @@ struct wmi_phyerr_event {
 	__le32 tsf_l32;
 	__le32 tsf_u32;
 	struct wmi_phyerr phyerrs[0];
+} __packed;
+
+struct wmi_10_4_phyerr_event {
+	__le32 tsf_l32;
+	__le32 tsf_u32;
+	__le16 freq1;
+	__le16 freq2;
+	u8 rssi_combined;
+	u8 chan_width_mhz;
+	u8 phy_err_code;
+	u8 rsvd0;
+	__le32 rssi_chains[4];
+	__le16 nf_chains[4];
+	__le32 phy_err_mask[2];
+	__le32 tsf_timestamp;
+	__le32 buf_len;
+	u8 buf[0];
 } __packed;
 
 #define PHYERR_TLV_SIG				0xBB
@@ -5590,6 +5617,7 @@ struct wmi_peer_sta_kickout_event {
 } __packed;
 
 #define WMI_CHAN_INFO_FLAG_COMPLETE BIT(0)
+#define WMI_CHAN_INFO_FLAG_PRE_COMPLETE BIT(1)
 
 /* Beacon filter wmi command info */
 #define BCN_FLT_MAX_SUPPORTED_IES	256
@@ -5788,11 +5816,24 @@ struct wmi_swba_ev_arg {
 };
 
 struct wmi_phyerr_ev_arg {
-	__le32 num_phyerrs;
-	__le32 tsf_l32;
-	__le32 tsf_u32;
-	__le32 buf_len;
-	const struct wmi_phyerr *phyerrs;
+	u32 tsf_timestamp;
+	u16 freq1;
+	u16 freq2;
+	u8 rssi_combined;
+	u8 chan_width_mhz;
+	u8 phy_err_code;
+	u16 nf_chains[4];
+	u32 buf_len;
+	const u8 *buf;
+	u8 hdr_len;
+};
+
+struct wmi_phyerr_hdr_arg {
+	u32 num_phyerrs;
+	u32 tsf_l32;
+	u32 tsf_u32;
+	u32 buf_len;
+	const void *phyerrs;
 };
 
 struct wmi_svc_rdy_ev_arg {
@@ -6070,9 +6111,9 @@ void ath10k_wmi_event_peer_sta_kickout(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_tbttoffset_update(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_dfs(struct ath10k *ar,
-			  const struct wmi_phyerr *phyerr, u64 tsf);
+			  struct wmi_phyerr_ev_arg *phyerr, u64 tsf);
 void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
-				    const struct wmi_phyerr *phyerr,
+				    struct wmi_phyerr_ev_arg *phyerr,
 				    u64 tsf);
 void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_roam(struct ath10k *ar, struct sk_buff *skb);
@@ -6101,5 +6142,6 @@ void ath10k_wmi_event_vdev_standby_req(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_vdev_resume_req(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb);
-
+int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar, const void *phyerr_buf,
+				 int left_len, struct wmi_phyerr_ev_arg *arg);
 #endif /* _WMI_H_ */

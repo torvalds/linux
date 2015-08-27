@@ -349,10 +349,11 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_SCHED) {
 		WARN_ON_ONCE(mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR);
 
-		IWL_DEBUG_SCAN(mvm,
-			       "Scheduled scan %s, EBS status %s, Last line %d, Last iteration %d, Time after last iteration %d\n",
+		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status),
+			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+		IWL_DEBUG_SCAN(mvm,
+			       "Last line %d, Last iteration %d, Time after last iteration %d\n",
 			       scan_notif->last_schedule_line,
 			       scan_notif->last_schedule_iteration,
 			       __le32_to_cpu(scan_notif->time_after_last_iter));
@@ -367,10 +368,11 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	} else if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
 		WARN_ON_ONCE(mvm->scan_status & IWL_MVM_SCAN_REGULAR);
 
-		IWL_DEBUG_SCAN(mvm,
-			       "Scheduled scan %s, EBS status %s, Last line %d, Last iteration %d, Time after last iteration %d (FW)\n",
+		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status),
+			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+		IWL_DEBUG_SCAN(mvm,
+			       "Last line %d, Last iteration %d, Time after last iteration %d (FW)\n",
 			       scan_notif->last_schedule_line,
 			       scan_notif->last_schedule_iteration,
 			       __le32_to_cpu(scan_notif->time_after_last_iter));
@@ -1346,11 +1348,13 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
 	IWL_DEBUG_SCAN(mvm,
-		       "Scan completed, uid %u type %u, status %s, EBS status %s, Last line %d, Last iteration %d, Time from last iteration %d\n",
+		       "Scan completed, uid %u type %u, status %s, EBS status %s\n",
 		       uid, mvm->scan_uid_status[uid],
 		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 				"completed" : "aborted",
-		       iwl_mvm_ebs_status_str(notif->ebs_status),
+		       iwl_mvm_ebs_status_str(notif->ebs_status));
+	IWL_DEBUG_SCAN(mvm,
+		       "Last line %d, Last iteration %d, Time from last iteration %d\n",
 		       notif->last_schedule, notif->last_iter,
 		       __le32_to_cpu(notif->time_from_last_iter));
 

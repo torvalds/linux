@@ -473,7 +473,7 @@ do {									\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
-extern const char *const iwl_dvm_cmd_strings[REPLY_MAX];
+extern const char *const iwl_dvm_cmd_strings[REPLY_MAX + 1];
 
 static inline const char *iwl_dvm_get_cmd_string(u8 cmd)
 {
