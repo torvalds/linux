@@ -878,6 +878,8 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	/* save for later use */
 	priv->reg_ctrl_default = reg_ctrl;
+	/* leave interrupts disabled for now */
+	reg_ctrl &= ~FLEXCAN_CTRL_ERR_ALL;
 	netdev_dbg(dev, "%s: writing ctrl=0x%08x", __func__, reg_ctrl);
 	flexcan_write(reg_ctrl, &regs->ctrl);
 
@@ -937,8 +939,11 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	/* enable FIFO interrupts */
+	/* enable interrupts atomically */
+	disable_irq(dev->irq);
+	flexcan_write(priv->reg_ctrl_default, &regs->ctrl);
 	flexcan_write(FLEXCAN_IFLAG_DEFAULT, &regs->imask1);
+	enable_irq(dev->irq);
 
 	/* print chip status */
 	netdev_dbg(dev, "%s: reading mcr=0x%08x ctrl=0x%08x\n", __func__,
