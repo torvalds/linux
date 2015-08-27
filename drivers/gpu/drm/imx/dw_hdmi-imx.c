@@ -75,6 +75,11 @@ static const struct dw_hdmi_curr_ctrl imx_cur_ctr[] = {
 	},
 };
 
+/*
+ * Resistance term 133Ohm Cfg
+ * PREEMP config 0.00
+ * TX/CK level 10
+ */
 static const struct dw_hdmi_phy_config imx_phy_config[] = {
 	/*pixelclk   symbol   term   vlev */
 	{ 148500000, 0x800d, 0x0005, 0x01ad},
