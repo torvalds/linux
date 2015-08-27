@@ -2127,6 +2127,13 @@ struct netdev_notifier_change_info {
 	unsigned int flags_changed;
 };
 
+struct netdev_notifier_changeupper_info {
+	struct netdev_notifier_info info; /* must be first */
+	struct net_device *upper_dev; /* new upper dev */
+	bool master; /* is upper dev master */
+	bool linking; /* is the nofication for link or unlink */
+};
+
 static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
 					     struct net_device *dev)
 {
