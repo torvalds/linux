@@ -96,6 +96,9 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 		    __u8 ttl, __be16 df, __be16 src_port, __be16 dst_port,
 		    __be16 tun_flags, u8 vni[3], u8 opt_len, u8 *opt,
 		    bool csum, bool xnet);
+
+struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
+					u8 name_assign_type, u16 dst_port);
 #endif /*ifdef CONFIG_INET */
 
 #endif /*ifdef__NET_GENEVE_H */
