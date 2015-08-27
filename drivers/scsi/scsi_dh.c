@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <scsi/scsi_dh.h>
-#include "../scsi_priv.h"
+#include "scsi_priv.h"
 
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(scsi_dh_list);
