@@ -1262,6 +1262,16 @@ static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
 	}
 }
 
+static bool spt_port_hotplug2_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_E:
+		return val & PORTE_HOTPLUG_LONG_DETECT;
+	default:
+		return false;
+	}
+}
+
 static bool pch_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
@@ -1271,8 +1281,6 @@ static bool pch_port_hotplug_long_detect(enum port port, u32 val)
 		return val & PORTC_HOTPLUG_LONG_DETECT;
 	case PORT_D:
 		return val & PORTD_HOTPLUG_LONG_DETECT;
-	case PORT_E:
-		return val & PORTE_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
@@ -1776,12 +1784,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	u32 hotplug_trigger;
-
-	if (HAS_PCH_SPT(dev))
-		hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_SPT;
-	else
-		hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
+	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
 	if (hotplug_trigger) {
 		u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
@@ -1789,22 +1792,10 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
 		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
 
-		if (HAS_PCH_SPT(dev)) {
-			intel_get_hpd_pins(&pin_mask, &long_mask,
-					   hotplug_trigger,
-					   dig_hotplug_reg, hpd_spt,
-					   pch_port_hotplug_long_detect);
-
-			/* detect PORTE HP event */
-			dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG2);
-			if (pch_port_hotplug_long_detect(PORT_E,
-							 dig_hotplug_reg))
-				long_mask |= 1 << HPD_PORT_E;
-		} else
-			intel_get_hpd_pins(&pin_mask, &long_mask,
-					   hotplug_trigger,
-					   dig_hotplug_reg, hpd_cpt,
-					   pch_port_hotplug_long_detect);
+		intel_get_hpd_pins(&pin_mask, &long_mask,
+				   hotplug_trigger,
+				   dig_hotplug_reg, hpd_cpt,
+				   pch_port_hotplug_long_detect);
 
 		intel_hpd_irq_handler(dev, pin_mask, long_mask);
 	}
@@ -1836,6 +1827,43 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 
 	if (pch_iir & SDE_ERROR_CPT)
 		cpt_serr_int_handler(dev);
+}
+
+static void spt_irq_handler(struct drm_device *dev, u32 pch_iir)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_SPT &
+		~SDE_PORTE_HOTPLUG_SPT;
+	u32 hotplug2_trigger = pch_iir & SDE_PORTE_HOTPLUG_SPT;
+	u32 pin_mask = 0, long_mask = 0;
+
+	if (hotplug_trigger) {
+		u32 dig_hotplug_reg;
+
+		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+		I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+
+		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+				   dig_hotplug_reg, hpd_spt,
+				   pch_port_hotplug_long_detect);
+	}
+
+	if (hotplug2_trigger) {
+		u32 dig_hotplug_reg;
+
+		dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG2);
+		I915_WRITE(PCH_PORT_HOTPLUG2, dig_hotplug_reg);
+
+		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug2_trigger,
+				   dig_hotplug_reg, hpd_spt,
+				   spt_port_hotplug2_long_detect);
+	}
+
+	if (pin_mask)
+		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+
+	if (pch_iir & SDE_GMBUS_CPT)
+		gmbus_irq_handler(dev);
 }
 
 static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
@@ -2156,7 +2184,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (pch_iir) {
 			I915_WRITE(SDEIIR, pch_iir);
 			ret = IRQ_HANDLED;
-			cpt_irq_handler(dev, pch_iir);
+
+			if (HAS_PCH_SPT(dev_priv))
+				spt_irq_handler(dev, pch_iir);
+			else
+				cpt_irq_handler(dev, pch_iir);
 		} else
 			DRM_ERROR("The master control interrupt lied (SDE)!\n");
 
@@ -3038,9 +3070,6 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 	if (HAS_PCH_IBX(dev)) {
 		hotplug_irqs = SDE_HOTPLUG_MASK;
 		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ibx);
-	} else if (HAS_PCH_SPT(dev)) {
-		hotplug_irqs = SDE_HOTPLUG_MASK_SPT;
-		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_spt);
 	} else {
 		hotplug_irqs = SDE_HOTPLUG_MASK_CPT;
 		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_cpt);
@@ -3050,9 +3079,8 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 
 	/*
 	 * Enable digital hotplug on the PCH, and configure the DP short pulse
-	 * duration to 2ms (which is the minimum in the Display Port spec)
-	 *
-	 * This register is the same on all known PCH chips.
+	 * duration to 2ms (which is the minimum in the Display Port spec).
+	 * The pulse duration bits are reserved on LPT+.
 	 */
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
 	hotplug &= ~(PORTD_PULSE_DURATION_MASK|PORTC_PULSE_DURATION_MASK|PORTB_PULSE_DURATION_MASK);
@@ -3060,13 +3088,27 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
 	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+}
 
-	/* enable SPT PORTE hot plug */
-	if (HAS_PCH_SPT(dev)) {
-		hotplug = I915_READ(PCH_PORT_HOTPLUG2);
-		hotplug |= PORTE_HOTPLUG_ENABLE;
-		I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
-	}
+static void spt_hpd_irq_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
+
+	hotplug_irqs = SDE_HOTPLUG_MASK_SPT;
+	enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_spt);
+
+	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
+
+	/* Enable digital hotplug on the PCH */
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug |= PORTD_HOTPLUG_ENABLE | PORTC_HOTPLUG_ENABLE |
+		PORTB_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+
+	hotplug = I915_READ(PCH_PORT_HOTPLUG2);
+	hotplug |= PORTE_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
 }
 
 static void bxt_hpd_irq_setup(struct drm_device *dev)
@@ -4171,10 +4213,12 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_uninstall = gen8_irq_uninstall;
 		dev->driver->enable_vblank = gen8_enable_vblank;
 		dev->driver->disable_vblank = gen8_disable_vblank;
-		if (HAS_PCH_SPLIT(dev))
-			dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
-		else
+		if (IS_BROXTON(dev))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
+		else if (HAS_PCH_SPT(dev))
+			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
+		else
+			dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_reset;
