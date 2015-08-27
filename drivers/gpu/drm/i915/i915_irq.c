@@ -3002,27 +3002,34 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	vlv_display_irq_reset(dev_priv);
 }
 
+static u32 intel_hpd_enabled_irqs(struct drm_device *dev,
+				  const u32 hpd[HPD_NUM_PINS])
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_encoder *encoder;
+	u32 enabled_irqs = 0;
+
+	for_each_intel_encoder(dev, encoder)
+		if (dev_priv->hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
+			enabled_irqs |= hpd[encoder->hpd_pin];
+
+	return enabled_irqs;
+}
+
 static void ibx_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
-	u32 hotplug_irqs, hotplug, enabled_irqs = 0;
+	u32 hotplug_irqs, hotplug, enabled_irqs;
 
 	if (HAS_PCH_IBX(dev)) {
 		hotplug_irqs = SDE_HOTPLUG_MASK;
-		for_each_intel_encoder(dev, intel_encoder)
-			if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-				enabled_irqs |= hpd_ibx[intel_encoder->hpd_pin];
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ibx);
 	} else if (HAS_PCH_SPT(dev)) {
 		hotplug_irqs = SDE_HOTPLUG_MASK_SPT;
-		for_each_intel_encoder(dev, intel_encoder)
-			if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-				enabled_irqs |= hpd_spt[intel_encoder->hpd_pin];
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_spt);
 	} else {
 		hotplug_irqs = SDE_HOTPLUG_MASK_CPT;
-		for_each_intel_encoder(dev, intel_encoder)
-			if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-				enabled_irqs |= hpd_cpt[intel_encoder->hpd_pin];
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_cpt);
 	}
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
@@ -3051,15 +3058,10 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 static void bxt_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
-	u32 hotplug_port = 0;
+	u32 hotplug_port;
 	u32 hotplug_ctrl;
 
-	for_each_intel_encoder(dev, intel_encoder) {
-		if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state
-				== HPD_ENABLED)
-			hotplug_port |= hpd_bxt[intel_encoder->hpd_pin];
-	}
+	hotplug_port = intel_hpd_enabled_irqs(dev, hpd_bxt);
 
 	hotplug_ctrl = I915_READ(BXT_HOTPLUG_CTL) & ~BXT_HOTPLUG_CTL_MASK;
 
@@ -3935,7 +3937,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 static void i915_hpd_irq_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
 	u32 hotplug_en;
 
 	assert_spin_locked(&dev_priv->irq_lock);
@@ -3944,9 +3945,7 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 	hotplug_en &= ~HOTPLUG_INT_EN_MASK;
 	/* Note HDMI and DP share hotplug bits */
 	/* enable bits are the same for all generations */
-	for_each_intel_encoder(dev, intel_encoder)
-		if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_ENABLED)
-			hotplug_en |= hpd_mask_i915[intel_encoder->hpd_pin];
+	hotplug_en |= intel_hpd_enabled_irqs(dev, hpd_mask_i915);
 	/* Programming the CRT detection parameters tends
 	   to generate a spurious hotplug event about three
 	   seconds later.  So just do it once.
