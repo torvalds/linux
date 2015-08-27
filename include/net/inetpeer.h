@@ -15,16 +15,14 @@
 #include <net/ipv6.h>
 #include <linux/atomic.h>
 
-struct inetpeer_addr_base {
-	union {
-		__be32			a4;
-		__be32			a6[4];
-		struct in6_addr		in6;
-	};
-};
+#define INETPEER_MAXKEYSZ   (sizeof(struct in6_addr) / sizeof(u32))
 
 struct inetpeer_addr {
-	struct inetpeer_addr_base	addr;
+	union {
+		__be32			a4;
+		struct in6_addr		a6;
+		u32			key[INETPEER_MAXKEYSZ];
+	};
 	__u16				family;
 };
 
@@ -73,25 +71,25 @@ void inet_initpeers(void) __init;
 
 static inline void inetpeer_set_addr_v4(struct inetpeer_addr *iaddr, __be32 ip)
 {
-	iaddr->addr.a4 = ip;
+	iaddr->a4 = ip;
 	iaddr->family = AF_INET;
 }
 
 static inline __be32 inetpeer_get_addr_v4(struct inetpeer_addr *iaddr)
 {
-	return iaddr->addr.a4;
+	return iaddr->a4;
 }
 
 static inline void inetpeer_set_addr_v6(struct inetpeer_addr *iaddr,
 					struct in6_addr *in6)
 {
-	iaddr->addr.in6 = *in6;
+	iaddr->a6 = *in6;
 	iaddr->family = AF_INET6;
 }
 
 static inline struct in6_addr *inetpeer_get_addr_v6(struct inetpeer_addr *iaddr)
 {
-	return &iaddr->addr.in6;
+	return &iaddr->a6;
 }
 
 /* can be called with or without local BH being disabled */
@@ -105,7 +103,7 @@ static inline struct inet_peer *inet_getpeer_v4(struct inet_peer_base *base,
 {
 	struct inetpeer_addr daddr;
 
-	daddr.addr.a4 = v4daddr;
+	daddr.a4 = v4daddr;
 	daddr.family = AF_INET;
 	return inet_getpeer(base, &daddr, create);
 }
@@ -116,7 +114,7 @@ static inline struct inet_peer *inet_getpeer_v6(struct inet_peer_base *base,
 {
 	struct inetpeer_addr daddr;
 
-	daddr.addr.in6 = *v6daddr;
+	daddr.a6 = *v6daddr;
 	daddr.family = AF_INET6;
 	return inet_getpeer(base, &daddr, create);
 }
@@ -124,12 +122,17 @@ static inline struct inet_peer *inet_getpeer_v6(struct inet_peer_base *base,
 static inline int inetpeer_addr_cmp(const struct inetpeer_addr *a,
 				    const struct inetpeer_addr *b)
 {
-	int i, n = (a->family == AF_INET ? 1 : 4);
+	int i, n;
+
+	if (a->family == AF_INET)
+		n = sizeof(a->a4) / sizeof(u32);
+	else
+		n = sizeof(a->a6) / sizeof(u32);
 
 	for (i = 0; i < n; i++) {
-		if (a->addr.a6[i] == b->addr.a6[i])
+		if (a->key[i] == b->key[i])
 			continue;
-		if ((__force u32)a->addr.a6[i] < (__force u32)b->addr.a6[i])
+		if (a->key[i] < b->key[i])
 			return -1;
 		return 1;
 	}
