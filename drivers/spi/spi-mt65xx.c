@@ -158,7 +158,7 @@ static void mtk_spi_config(struct mtk_spi *mdata,
 #endif
 
 	/* set finish and pause interrupt always enable */
-	reg_val |= SPI_CMD_FINISH_IE | SPI_CMD_PAUSE_EN;
+	reg_val |= SPI_CMD_FINISH_IE | SPI_CMD_PAUSE_IE;
 
 	/* disable dma mode */
 	reg_val &= ~(SPI_CMD_TX_DMA | SPI_CMD_RX_DMA);
