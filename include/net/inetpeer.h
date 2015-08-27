@@ -121,6 +121,22 @@ static inline struct inet_peer *inet_getpeer_v6(struct inet_peer_base *base,
 	return inet_getpeer(base, &daddr, create);
 }
 
+static inline int inetpeer_addr_cmp(const struct inetpeer_addr *a,
+				    const struct inetpeer_addr *b)
+{
+	int i, n = (a->family == AF_INET ? 1 : 4);
+
+	for (i = 0; i < n; i++) {
+		if (a->addr.a6[i] == b->addr.a6[i])
+			continue;
+		if ((__force u32)a->addr.a6[i] < (__force u32)b->addr.a6[i])
+			return -1;
+		return 1;
+	}
+
+	return 0;
+}
+
 /* can be called from BH context or outside */
 void inet_putpeer(struct inet_peer *p);
 bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout);
