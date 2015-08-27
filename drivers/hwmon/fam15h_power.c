@@ -59,8 +59,19 @@ static ssize_t show_power(struct device *dev,
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_RUNNING_AVERAGE, &val);
-	running_avg_capture = (val >> 4) & 0x3fffff;
-	running_avg_capture = sign_extend32(running_avg_capture, 21);
+
+	/*
+	 * On Carrizo and later platforms, TdpRunAvgAccCap bit field
+	 * is extended to 4:31 from 4:25.
+	 */
+	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60) {
+		running_avg_capture = val >> 4;
+		running_avg_capture = sign_extend32(running_avg_capture, 27);
+	} else {
+		running_avg_capture = (val >> 4) & 0x3fffff;
+		running_avg_capture = sign_extend32(running_avg_capture, 21);
+	}
+
 	running_avg_range = (val & 0xf) + 1;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
