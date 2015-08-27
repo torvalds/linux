@@ -49,6 +49,7 @@
 #include "datapath.h"
 #include "flow.h"
 #include "flow_netlink.h"
+#include "conntrack.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
@@ -707,13 +708,14 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	key->phy.priority = skb->priority;
 	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
 	key->phy.skb_mark = skb->mark;
+	ovs_ct_fill_key(skb, key);
 	key->ovs_flow_hash = 0;
 	key->recirc_id = 0;
 
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 				   struct sk_buff *skb,
 				   struct sw_flow_key *key, bool log)
 {
@@ -722,7 +724,7 @@ int ovs_flow_key_extract_userspace(const struct nlattr *attr,
 	memset(key, 0, OVS_SW_FLOW_KEY_METADATA_SIZE);
 
 	/* Extract metadata from netlink attributes. */
-	err = ovs_nla_get_flow_metadata(attr, key, log);
+	err = ovs_nla_get_flow_metadata(net, attr, key, log);
 	if (err)
 		return err;
 

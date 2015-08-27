@@ -31,6 +31,17 @@ config OPENVSWITCH
 
 	  If unsure, say N.
 
+config OPENVSWITCH_CONNTRACK
+	bool "Open vSwitch conntrack action support"
+	depends on OPENVSWITCH
+	depends on NF_CONNTRACK
+	default OPENVSWITCH
+	---help---
+	  If you say Y here, then Open vSwitch module will be able to pass
+	  packets through conntrack.
+
+	  Say N to exclude this support and reduce the binary size.
+
 config OPENVSWITCH_GRE
 	tristate "Open vSwitch GRE tunneling support"
 	depends on OPENVSWITCH
