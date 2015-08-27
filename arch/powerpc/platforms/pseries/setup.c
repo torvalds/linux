@@ -268,6 +268,11 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 			eeh_dev_init(PCI_DN(np), pci->phb);
 		}
 		break;
+	case OF_RECONFIG_DETACH_NODE:
+		pci = PCI_DN(np);
+		if (pci)
+			list_del(&pci->list);
+		break;
 	default:
 		err = NOTIFY_DONE;
 		break;
