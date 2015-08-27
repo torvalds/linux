@@ -288,7 +288,6 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * @pdev: client pci device
  * @ops: client callbacks
  * @id: client identifier, see enum vga_switcheroo_client_id
- * @active: whether the audio device is fully initialized
  *
  * Register audio client (audio device on a GPU). The power state of the
  * client is assumed to be ON.
@@ -297,9 +296,9 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  */
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 					 const struct vga_switcheroo_client_ops *ops,
-					 int id, bool active)
+					 int id)
 {
-	return register_client(pdev, ops, id | ID_BIT_AUDIO, active, false);
+	return register_client(pdev, ops, id | ID_BIT_AUDIO, false, false);
 }
 EXPORT_SYMBOL(vga_switcheroo_register_audio_client);
 
@@ -331,7 +330,7 @@ find_active_client(struct list_head *head)
 	struct vga_switcheroo_client *client;
 
 	list_for_each_entry(client, head, list)
-		if (client->active && client_is_vga(client))
+		if (client->active)
 			return client;
 	return NULL;
 }
