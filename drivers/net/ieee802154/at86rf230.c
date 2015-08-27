@@ -1376,7 +1376,7 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 	if (irq_type == IRQ_TYPE_EDGE_RISING ||
 	    irq_type == IRQ_TYPE_EDGE_FALLING)
 		dev_warn(&lp->spi->dev,
-			 "Using edge triggered irq's are not recommended!\n");
+			 "Using edge triggered irq's are not recommended, because it can cause races and result in a non-functional driver!\n");
 	if (irq_type == IRQ_TYPE_EDGE_FALLING ||
 	    irq_type == IRQ_TYPE_LEVEL_LOW)
 		irq_pol = IRQ_ACTIVE_LOW;
