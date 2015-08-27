@@ -1727,7 +1727,6 @@ static int gfs2_sbstats_seq_show(struct seq_file *seq, void *iter_ptr)
 	loff_t pos = *(loff_t *)iter_ptr;
 	unsigned index = pos >> 3;
 	unsigned subindex = pos & 0x07;
-	u64 value;
 	int i;
 
 	if (index == 0 && subindex != 0)
@@ -1738,12 +1737,12 @@ static int gfs2_sbstats_seq_show(struct seq_file *seq, void *iter_ptr)
 
 	for_each_possible_cpu(i) {
                 const struct gfs2_pcpu_lkstats *lkstats = per_cpu_ptr(sdp->sd_lkstats, i);
-		if (index == 0) {
-			value = i;
-		} else {
-			value = lkstats->lkstats[index - 1].stats[subindex];
-		}
-		seq_printf(seq, " %15llu", (long long)value);
+
+		if (index == 0)
+			seq_printf(seq, " %15u", i);
+		else
+			seq_printf(seq, " %15llu", (unsigned long long)lkstats->
+				   lkstats[index - 1].stats[subindex]);
 	}
 	seq_putc(seq, '\n');
 	return 0;
