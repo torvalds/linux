@@ -416,9 +416,19 @@ struct Qdisc noop_qdisc = {
 };
 EXPORT_SYMBOL(noop_qdisc);
 
-static struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
+static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt)
+{
+	/* register_qdisc() assigns a default of noop_enqueue if unset,
+	 * but __dev_queue_xmit() treats noqueue only as such
+	 * if this is NULL - so clear it here. */
+	qdisc->enqueue = NULL;
+	return 0;
+}
+
+struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
 	.id		=	"noqueue",
 	.priv_size	=	0,
+	.init		=	noqueue_init,
 	.enqueue	=	noop_enqueue,
 	.dequeue	=	noop_dequeue,
 	.peek		=	noop_dequeue,
