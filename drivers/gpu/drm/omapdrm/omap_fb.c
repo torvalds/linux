@@ -145,6 +145,14 @@ static uint32_t get_linear_addr(struct plane *plane,
 	return plane->paddr + offset;
 }
 
+bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	struct plane *plane = &omap_fb->planes[0];
+
+	return omap_gem_flags(plane->bo) & OMAP_BO_TILED;
+}
+
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
