@@ -1264,6 +1264,7 @@ struct net_device_ops {
  * @IFF_MACVLAN: Macvlan device
  * @IFF_VRF_MASTER: device is a VRF master
  * @IFF_NO_QUEUE: device can run without qdisc attached
+ * @IFF_OPENVSWITCH: device is a Open vSwitch master
  */
 enum netdev_priv_flags {
 	IFF_802_1Q_VLAN			= 1<<0,
@@ -1293,6 +1294,7 @@ enum netdev_priv_flags {
 	IFF_IPVLAN_SLAVE		= 1<<24,
 	IFF_VRF_MASTER			= 1<<25,
 	IFF_NO_QUEUE			= 1<<26,
+	IFF_OPENVSWITCH			= 1<<27,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1322,6 +1324,7 @@ enum netdev_priv_flags {
 #define IFF_IPVLAN_SLAVE		IFF_IPVLAN_SLAVE
 #define IFF_VRF_MASTER			IFF_VRF_MASTER
 #define IFF_NO_QUEUE			IFF_NO_QUEUE
+#define IFF_OPENVSWITCH			IFF_OPENVSWITCH
 
 /**
  *	struct net_device - The DEVICE structure.
@@ -3851,6 +3854,11 @@ static inline bool netif_is_vrf(const struct net_device *dev)
 static inline bool netif_is_bridge_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_EBRIDGE;
+}
+
+static inline bool netif_is_ovs_master(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_OPENVSWITCH;
 }
 
 static inline bool netif_index_is_vrf(struct net *net, int ifindex)
