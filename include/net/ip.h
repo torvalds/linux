@@ -458,6 +458,11 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 
 #endif
 
+static inline unsigned int ipv4_addr_hash(__be32 ip)
+{
+	return (__force unsigned int) ip;
+}
+
 bool ip_call_ra_chain(struct sk_buff *skb);
 
 /*
