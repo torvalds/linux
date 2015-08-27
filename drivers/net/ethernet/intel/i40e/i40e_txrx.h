@@ -188,6 +188,7 @@ struct i40e_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
 	u64 tx_done_old;
+	u64 tx_linearize;
 };
 
 struct i40e_rx_queue_stats {
