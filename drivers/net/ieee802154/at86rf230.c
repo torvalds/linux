@@ -667,28 +667,9 @@ at86rf230_tx_trac_check(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
-	const u8 *buf = ctx->buf;
-	const u8 trac = (buf[1] & 0xe0) >> 5;
 
-	/* If trac status is different than zero we need to do a state change
-	 * to STATE_FORCE_TRX_OFF then STATE_RX_AACK_ON to recover the
-	 * transceiver.
-	 */
-	if (trac)
-		at86rf230_async_state_change(lp, ctx, STATE_FORCE_TRX_OFF,
-					     at86rf230_tx_on, true);
-	else
-		at86rf230_tx_on(context);
-}
-
-static void
-at86rf230_tx_trac_status(void *context)
-{
-	struct at86rf230_state_change *ctx = context;
-	struct at86rf230_local *lp = ctx->lp;
-
-	at86rf230_async_read_reg(lp, RG_TRX_STATE, ctx,
-				 at86rf230_tx_trac_check, true);
+	at86rf230_async_state_change(lp, &lp->irq, STATE_TX_ON,
+				     at86rf230_tx_on, true);
 }
 
 static void
@@ -758,10 +739,8 @@ at86rf230_irq_trx_end(struct at86rf230_local *lp)
 {
 	if (lp->is_tx) {
 		lp->is_tx = 0;
-		at86rf230_async_state_change(lp, &lp->irq,
-					     STATE_FORCE_TX_ON,
-					     at86rf230_tx_trac_status,
-					     true);
+		at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
+					 at86rf230_tx_trac_check, true);
 	} else {
 		at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
 					 at86rf230_rx_trac_check, true);
