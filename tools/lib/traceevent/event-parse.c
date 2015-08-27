@@ -4828,6 +4828,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case 'z':
 			case 'Z':
 			case '0' ... '9':
+			case '-':
 				goto cont_process;
 			case 'p':
 				if (pevent->long_size == 4)
