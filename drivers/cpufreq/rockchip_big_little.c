@@ -68,6 +68,9 @@ static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS];
 #define DISABLE_FURTHER_CPUFREQ         0x10
 #define ENABLE_FURTHER_CPUFREQ          0x20
 #define MASK_FURTHER_CPUFREQ            0x30
+#define CPU_LOW_FREQ	600000    /* KHz */
+#define CCI_LOW_RATE	288000000 /* Hz */
+#define CCI_HIGH_RATE	576000000 /* Hz */
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
 #define CPUFREQ_PRIVATE                 0x100
 static unsigned int no_cpufreq_access[MAX_CLUSTERS] = { 0 };
@@ -82,6 +85,9 @@ static struct dvfs_node *clk_cpu_dvfs_node[MAX_CLUSTERS];
 static struct dvfs_node *clk_gpu_dvfs_node;
 static struct dvfs_node *clk_ddr_dvfs_node;
 static cpumask_var_t cluster_policy_mask[MAX_CLUSTERS];
+static struct clk *aclk_cci;
+static unsigned long cci_rate;
+static unsigned int cpu_bl_freq[MAX_CLUSTERS];
 
 #ifdef CONFIG_ROCKCHIP_CPUQUIET
 static void rockchip_bl_balanced_cpufreq_transition(unsigned int cluster,
@@ -161,6 +167,51 @@ static int rockchip_bl_cpufreq_notifier_policy(struct notifier_block *nb,
 
 static struct notifier_block notifier_policy_block = {
 	.notifier_call = rockchip_bl_cpufreq_notifier_policy
+};
+
+static int rockchip_bl_cpufreq_notifier_trans(struct notifier_block *nb,
+					      unsigned long val, void *data)
+{
+	struct cpufreq_freqs *freq = data;
+	unsigned int cluster = cpu_to_cluster(freq->cpu);
+	int ret;
+
+	cpu_bl_freq[cluster] = freq->new;
+
+	switch (val) {
+	case CPUFREQ_PRECHANGE:
+		if (cpu_bl_freq[B_CLUSTER] > CPU_LOW_FREQ ||
+		    cpu_bl_freq[L_CLUSTER] > CPU_LOW_FREQ) {
+			if (cci_rate != CCI_HIGH_RATE) {
+				ret = clk_set_rate(aclk_cci, CCI_HIGH_RATE);
+				if (ret)
+					break;
+				pr_debug("ccirate %ld-->%d Hz\n",
+					 cci_rate, CCI_HIGH_RATE);
+				cci_rate = CCI_HIGH_RATE;
+			}
+		}
+		break;
+	case CPUFREQ_POSTCHANGE:
+		if (cpu_bl_freq[B_CLUSTER] <= CPU_LOW_FREQ &&
+		    cpu_bl_freq[L_CLUSTER] <= CPU_LOW_FREQ) {
+			if (cci_rate != CCI_LOW_RATE) {
+				ret = clk_set_rate(aclk_cci, CCI_LOW_RATE);
+				if (ret)
+					break;
+				pr_debug("ccirate %ld-->%d Hz\n",
+					 cci_rate, CCI_LOW_RATE);
+				cci_rate = CCI_LOW_RATE;
+			}
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block notifier_trans_block = {
+	.notifier_call = rockchip_bl_cpufreq_notifier_trans,
 };
 
 static int rockchip_bl_cpufreq_verify(struct cpufreq_policy *policy)
@@ -274,6 +325,19 @@ static int rockchip_bl_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 
 	cpufreq_register_notifier(&notifier_policy_block,
 				  CPUFREQ_POLICY_NOTIFIER);
+
+	aclk_cci = clk_get(NULL, "aclk_cci");
+	if (!IS_ERR(aclk_cci)) {
+		cci_rate = clk_get_rate(aclk_cci);
+		if (clk_cpu_dvfs_node[L_CLUSTER])
+			cpu_bl_freq[L_CLUSTER] =
+			clk_get_rate(clk_cpu_dvfs_node[L_CLUSTER]->clk) / 1000;
+		if (clk_cpu_dvfs_node[B_CLUSTER])
+			cpu_bl_freq[B_CLUSTER] =
+			clk_get_rate(clk_cpu_dvfs_node[B_CLUSTER]->clk) / 1000;
+		cpufreq_register_notifier(&notifier_trans_block,
+					  CPUFREQ_TRANSITION_NOTIFIER);
+	}
 
 	pr_info("version " VERSION ", suspend freq %d %d MHz\n",
 		suspend_freq[0] / 1000, suspend_freq[1] / 1000);
