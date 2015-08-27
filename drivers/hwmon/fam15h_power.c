@@ -117,7 +117,7 @@ static const struct attribute_group fam15h_power_group = {
 };
 __ATTRIBUTE_GROUPS(fam15h_power);
 
-static bool fam15h_power_is_internal_node0(struct pci_dev *f4)
+static bool should_load_on_this_node(struct pci_dev *f4)
 {
 	u32 val;
 
@@ -214,7 +214,7 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev))
+	if (!should_load_on_this_node(pdev))
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
