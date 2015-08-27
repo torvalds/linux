@@ -262,6 +262,7 @@ MODULE_DEVICE_TABLE(of, imx_mqs_dt_ids);
 static struct platform_driver imx_mqs_driver = {
 	.driver = {
 		.name = "imx-mqs",
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_mqs_dt_ids,
 	},
 	.probe = imx_mqs_probe,
