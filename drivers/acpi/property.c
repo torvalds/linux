@@ -19,6 +19,11 @@
 
 #include "internal.h"
 
+static int acpi_data_get_property_array(struct acpi_device_data *data,
+					const char *name,
+					acpi_object_type type,
+					const union acpi_object **obj);
+
 /* ACPI _DSD device properties UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301 */
 static const u8 prp_uuid[16] = {
 	0x14, 0xd8, 0xff, 0xda, 0xba, 0x6e, 0x8c, 0x4d,
@@ -191,8 +196,8 @@ static void acpi_init_of_compatible(struct acpi_device *adev)
 	const union acpi_object *of_compatible;
 	int ret;
 
-	ret = acpi_dev_get_property_array(adev, "compatible", ACPI_TYPE_STRING,
-					  &of_compatible);
+	ret = acpi_data_get_property_array(&adev->data, "compatible",
+					   ACPI_TYPE_STRING, &of_compatible);
 	if (ret) {
 		ret = acpi_dev_get_property(adev, "compatible",
 					    ACPI_TYPE_STRING, &of_compatible);
@@ -320,8 +325,8 @@ void acpi_free_properties(struct acpi_device *adev)
 }
 
 /**
- * acpi_dev_get_property - return an ACPI property with given name
- * @adev: ACPI device to get property
+ * acpi_data_get_property - return an ACPI property with given name
+ * @data: ACPI device deta object to get the property from
  * @name: Name of the property
  * @type: Expected property type
  * @obj: Location to store the property value (if not %NULL)
@@ -330,26 +335,27 @@ void acpi_free_properties(struct acpi_device *adev)
  * object at the location pointed to by @obj if found.
  *
  * Callers must not attempt to free the returned objects.  These objects will be
- * freed by the ACPI core automatically during the removal of @adev.
+ * freed by the ACPI core automatically during the removal of @data.
  *
  * Return: %0 if property with @name has been found (success),
  *         %-EINVAL if the arguments are invalid,
  *         %-ENODATA if the property doesn't exist,
  *         %-EPROTO if the property value type doesn't match @type.
  */
-int acpi_dev_get_property(struct acpi_device *adev, const char *name,
-			  acpi_object_type type, const union acpi_object **obj)
+static int acpi_data_get_property(struct acpi_device_data *data,
+				  const char *name, acpi_object_type type,
+				  const union acpi_object **obj)
 {
 	const union acpi_object *properties;
 	int i;
 
-	if (!adev || !name)
+	if (!data || !name)
 		return -EINVAL;
 
-	if (!adev->data.pointer || !adev->data.properties)
+	if (!data->pointer || !data->properties)
 		return -ENODATA;
 
-	properties = adev->data.properties;
+	properties = data->properties;
 	for (i = 0; i < properties->package.count; i++) {
 		const union acpi_object *propname, *propvalue;
 		const union acpi_object *property;
@@ -370,11 +376,50 @@ int acpi_dev_get_property(struct acpi_device *adev, const char *name,
 	}
 	return -ENODATA;
 }
-EXPORT_SYMBOL_GPL(acpi_dev_get_property);
 
 /**
- * acpi_dev_get_property_array - return an ACPI array property with given name
- * @adev: ACPI device to get property
+ * acpi_dev_get_property - return an ACPI property with given name.
+ * @adev: ACPI device to get the property from.
+ * @name: Name of the property.
+ * @type: Expected property type.
+ * @obj: Location to store the property value (if not %NULL).
+ */
+int acpi_dev_get_property(struct acpi_device *adev, const char *name,
+			  acpi_object_type type, const union acpi_object **obj)
+{
+	return adev ? acpi_data_get_property(&adev->data, name, type, obj) : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_property);
+
+static struct acpi_device_data *acpi_device_data_of_node(struct fwnode_handle *fwnode)
+{
+	if (fwnode->type == FWNODE_ACPI) {
+		struct acpi_device *adev = to_acpi_device_node(fwnode);
+		return &adev->data;
+	} else if (fwnode->type == FWNODE_ACPI_DATA) {
+		struct acpi_data_node *dn = to_acpi_data_node(fwnode);
+		return &dn->data;
+	}
+	return NULL;
+}
+
+/**
+ * acpi_node_prop_get - return an ACPI property with given name.
+ * @fwnode: Firmware node to get the property from.
+ * @propname: Name of the property.
+ * @valptr: Location to store a pointer to the property value (if not %NULL).
+ */
+int acpi_node_prop_get(struct fwnode_handle *fwnode, const char *propname,
+		       void **valptr)
+{
+	return acpi_data_get_property(acpi_device_data_of_node(fwnode),
+				      propname, ACPI_TYPE_ANY,
+				      (const union acpi_object **)valptr);
+}
+
+/**
+ * acpi_data_get_property_array - return an ACPI array property with given name
+ * @adev: ACPI data object to get the property from
  * @name: Name of the property
  * @type: Expected type of array elements
  * @obj: Location to store a pointer to the property value (if not NULL)
@@ -383,7 +428,7 @@ EXPORT_SYMBOL_GPL(acpi_dev_get_property);
  * ACPI object at the location pointed to by @obj if found.
  *
  * Callers must not attempt to free the returned objects.  Those objects will be
- * freed by the ACPI core automatically during the removal of @adev.
+ * freed by the ACPI core automatically during the removal of @data.
  *
  * Return: %0 if array property (package) with @name has been found (success),
  *         %-EINVAL if the arguments are invalid,
@@ -391,14 +436,15 @@ EXPORT_SYMBOL_GPL(acpi_dev_get_property);
  *         %-EPROTO if the property is not a package or the type of its elements
  *           doesn't match @type.
  */
-int acpi_dev_get_property_array(struct acpi_device *adev, const char *name,
-				acpi_object_type type,
-				const union acpi_object **obj)
+static int acpi_data_get_property_array(struct acpi_device_data *data,
+					const char *name,
+					acpi_object_type type,
+					const union acpi_object **obj)
 {
 	const union acpi_object *prop;
 	int ret, i;
 
-	ret = acpi_dev_get_property(adev, name, ACPI_TYPE_PACKAGE, &prop);
+	ret = acpi_data_get_property(data, name, ACPI_TYPE_PACKAGE, &prop);
 	if (ret)
 		return ret;
 
@@ -413,7 +459,6 @@ int acpi_dev_get_property_array(struct acpi_device *adev, const char *name,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(acpi_dev_get_property_array);
 
 /**
  * acpi_dev_get_property_reference - returns handle to the referenced object
@@ -518,15 +563,9 @@ int acpi_dev_get_property_reference(struct acpi_device *adev,
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_property_reference);
 
-int acpi_dev_prop_get(struct acpi_device *adev, const char *propname,
-		      void **valptr)
-{
-	return acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY,
-				     (const union acpi_object **)valptr);
-}
-
-int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
-			      enum dev_prop_type proptype, void *val)
+static int acpi_data_prop_read_single(struct acpi_device_data *data,
+				      const char *propname,
+				      enum dev_prop_type proptype, void *val)
 {
 	const union acpi_object *obj;
 	int ret;
@@ -535,7 +574,7 @@ int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
 		return -EINVAL;
 
 	if (proptype >= DEV_PROP_U8 && proptype <= DEV_PROP_U64) {
-		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_INTEGER, &obj);
+		ret = acpi_data_get_property(data, propname, ACPI_TYPE_INTEGER, &obj);
 		if (ret)
 			return ret;
 
@@ -560,7 +599,7 @@ int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
 			break;
 		}
 	} else if (proptype == DEV_PROP_STRING) {
-		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_STRING, &obj);
+		ret = acpi_data_get_property(data, propname, ACPI_TYPE_STRING, &obj);
 		if (ret)
 			return ret;
 
@@ -569,6 +608,12 @@ int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
 		ret = -EINVAL;
 	}
 	return ret;
+}
+
+int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
+			      enum dev_prop_type proptype, void *val)
+{
+	return adev ? acpi_data_prop_read_single(&adev->data, propname, proptype, val) : -EINVAL;
 }
 
 static int acpi_copy_property_array_u8(const union acpi_object *items, u8 *val,
@@ -647,20 +692,22 @@ static int acpi_copy_property_array_string(const union acpi_object *items,
 	return 0;
 }
 
-int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
-		       enum dev_prop_type proptype, void *val, size_t nval)
+static int acpi_data_prop_read(struct acpi_device_data *data,
+			       const char *propname,
+			       enum dev_prop_type proptype,
+			       void *val, size_t nval)
 {
 	const union acpi_object *obj;
 	const union acpi_object *items;
 	int ret;
 
 	if (val && nval == 1) {
-		ret = acpi_dev_prop_read_single(adev, propname, proptype, val);
+		ret = acpi_data_prop_read_single(data, propname, proptype, val);
 		if (!ret)
 			return ret;
 	}
 
-	ret = acpi_dev_get_property_array(adev, propname, ACPI_TYPE_ANY, &obj);
+	ret = acpi_data_get_property_array(data, propname, ACPI_TYPE_ANY, &obj);
 	if (ret)
 		return ret;
 
@@ -695,4 +742,29 @@ int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
 		break;
 	}
 	return ret;
+}
+
+int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
+		       enum dev_prop_type proptype, void *val, size_t nval)
+{
+	return adev ? acpi_data_prop_read(&adev->data, propname, proptype, val, nval) : -EINVAL;
+}
+
+/**
+ * acpi_node_prop_read - retrieve the value of an ACPI property with given name.
+ * @fwnode: Firmware node to get the property from.
+ * @propname: Name of the property.
+ * @proptype: Expected property type.
+ * @val: Location to store the property value (if not %NULL).
+ * @nval: Size of the array pointed to by @val.
+ *
+ * If @val is %NULL, return the number of array elements comprising the value
+ * of the property.  Otherwise, read at most @nval values to the array at the
+ * location pointed to by @val.
+ */
+int acpi_node_prop_read(struct fwnode_handle *fwnode,  const char *propname,
+		        enum dev_prop_type proptype, void *val, size_t nval)
+{
+	return acpi_data_prop_read(acpi_device_data_of_node(fwnode),
+				   propname, proptype, val, nval);
 }

@@ -134,7 +134,7 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	if (is_of_node(fwnode))
 		return of_property_read_bool(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
-		return !acpi_dev_prop_get(to_acpi_node(fwnode), propname, NULL);
+		return !acpi_node_prop_get(fwnode, propname, NULL);
 
 	return !!pset_prop_get(to_pset(fwnode), propname);
 }
@@ -298,8 +298,8 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
 		_ret_ = OF_DEV_PROP_READ_ARRAY(to_of_node(_fwnode_), _propname_, \
 					       _type_, _val_, _nval_); \
 	else if (is_acpi_node(_fwnode_)) \
-		_ret_ = acpi_dev_prop_read(to_acpi_node(_fwnode_), _propname_, \
-					   _proptype_, _val_, _nval_); \
+		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_, \
+					    _val_, _nval_); \
 	else if (is_pset(_fwnode_)) \
 		_ret_ = pset_prop_read_array(to_pset(_fwnode_), _propname_, \
 					     _proptype_, _val_, _nval_); \
@@ -440,8 +440,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 						      propname, val, nval) :
 			of_property_count_strings(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
-		return acpi_dev_prop_read(to_acpi_node(fwnode), propname,
-					  DEV_PROP_STRING, val, nval);
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, nval);
 	else if (is_pset(fwnode))
 		return pset_prop_read_array(to_pset(fwnode), propname,
 					    DEV_PROP_STRING, val, nval);
@@ -470,8 +470,8 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	if (is_of_node(fwnode))
 		return of_property_read_string(to_of_node(fwnode), propname, val);
 	else if (is_acpi_node(fwnode))
-		return acpi_dev_prop_read(to_acpi_node(fwnode), propname,
-					  DEV_PROP_STRING, val, 1);
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, 1);
 
 	return pset_prop_read_array(to_pset(fwnode), propname,
 				    DEV_PROP_STRING, val, 1);
@@ -495,7 +495,7 @@ struct fwnode_handle *device_get_next_child_node(struct device *dev,
 	} else if (IS_ENABLED(CONFIG_ACPI)) {
 		struct acpi_device *node;
 
-		node = acpi_get_next_child(dev, to_acpi_node(child));
+		node = acpi_get_next_child(dev, to_acpi_device_node(child));
 		if (node)
 			return acpi_fwnode_handle(node);
 	}

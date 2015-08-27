@@ -425,13 +425,30 @@ static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
 
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
+	return fwnode && (fwnode->type == FWNODE_ACPI
+		|| fwnode->type == FWNODE_ACPI_DATA);
+}
+
+static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
+{
 	return fwnode && fwnode->type == FWNODE_ACPI;
 }
 
-static inline struct acpi_device *to_acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
 {
-	return is_acpi_node(fwnode) ?
+	return is_acpi_device_node(fwnode) ?
 		container_of(fwnode, struct acpi_device, fwnode) : NULL;
+}
+
+static inline bool is_acpi_data_node(struct fwnode_handle *fwnode)
+{
+	return fwnode && fwnode->type == FWNODE_ACPI_DATA;
+}
+
+static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
+{
+	return is_acpi_data_node(fwnode) ?
+		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
