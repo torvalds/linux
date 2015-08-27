@@ -48,7 +48,6 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/types.h>
-#include <linux/wait.h>
 #include <linux/string.h>
 #include <linux/gfp.h>
 #include <linux/random.h>
