@@ -3848,6 +3848,11 @@ static inline bool netif_is_vrf(const struct net_device *dev)
 	return dev->priv_flags & IFF_VRF_MASTER;
 }
 
+static inline bool netif_is_bridge_master(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_EBRIDGE;
+}
+
 static inline bool netif_index_is_vrf(struct net *net, int ifindex)
 {
 	bool rc = false;
