@@ -106,6 +106,11 @@
 	unlikely(__ret_warn_on);					\
 })
 
+static inline const char *yesno(bool v)
+{
+	return v ? "yes" : "no";
+}
+
 enum pipe {
 	INVALID_PIPE = -1,
 	PIPE_A = 0,

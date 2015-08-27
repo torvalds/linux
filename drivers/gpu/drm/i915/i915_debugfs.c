@@ -46,11 +46,6 @@ enum {
 	PINNED_LIST,
 };
 
-static const char *yesno(int v)
-{
-	return v ? "yes" : "no";
-}
-
 /* As the drm_debugfs_init() routines are called before dev->dev_private is
  * allocated we need to hook into the minor for release. */
 static int

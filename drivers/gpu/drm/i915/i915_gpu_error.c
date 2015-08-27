@@ -30,11 +30,6 @@
 #include <generated/utsrelease.h>
 #include "i915_drv.h"
 
-static const char *yesno(int v)
-{
-	return v ? "yes" : "no";
-}
-
 static const char *ring_str(int ring)
 {
 	switch (ring) {
