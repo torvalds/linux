@@ -338,6 +338,8 @@ struct intel_crtc_state {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
+	bool update_pipe;
+
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
 	 * and get clipped at the edges. */

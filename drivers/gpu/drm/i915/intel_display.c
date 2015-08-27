@@ -112,6 +112,9 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	struct intel_crtc_state *crtc_state);
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 			   int num_connectors);
+static void skylake_pfit_enable(struct intel_crtc *crtc);
+static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
+static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
 
 typedef struct {
@@ -3265,14 +3268,20 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	return pending;
 }
 
-static void intel_update_pipe_size(struct intel_crtc *crtc)
+static void intel_update_pipe_config(struct intel_crtc *crtc,
+				     struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct drm_display_mode *adjusted_mode;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->base.state);
 
-	if (!i915.fastboot)
-		return;
+	/* drm_atomic_helper_update_legacy_modeset_state might not be called. */
+	crtc->base.mode = crtc->base.state->mode;
+
+	DRM_DEBUG_KMS("Updating pipe size %ix%i -> %ix%i\n",
+		      old_crtc_state->pipe_src_w, old_crtc_state->pipe_src_h,
+		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
 
 	if (HAS_DDI(dev))
 		intel_set_pipe_csc(&crtc->base);
@@ -3284,27 +3293,24 @@ static void intel_update_pipe_size(struct intel_crtc *crtc)
 	 * fastboot case, we'll flip, but if we don't update the pipesrc and
 	 * pfit state, we'll end up with a big fb scanned out into the wrong
 	 * sized surface.
-	 *
-	 * To fix this properly, we need to hoist the checks up into
-	 * compute_mode_changes (or above), check the actual pfit state and
-	 * whether the platform allows pfit disable with pipe active, and only
-	 * then update the pipesrc and pfit state, even on the flip path.
 	 */
 
-	adjusted_mode = &crtc->config->base.adjusted_mode;
-
 	I915_WRITE(PIPESRC(crtc->pipe),
-		   ((adjusted_mode->crtc_hdisplay - 1) << 16) |
-		   (adjusted_mode->crtc_vdisplay - 1));
-	if (!crtc->config->pch_pfit.enabled &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
-	     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
-		I915_WRITE(PF_CTL(crtc->pipe), 0);
-		I915_WRITE(PF_WIN_POS(crtc->pipe), 0);
-		I915_WRITE(PF_WIN_SZ(crtc->pipe), 0);
+		   ((pipe_config->pipe_src_w - 1) << 16) |
+		   (pipe_config->pipe_src_h - 1));
+
+	/* on skylake this is done by detaching scalers */
+	if (INTEL_INFO(dev)->gen >= 9) {
+		skl_detach_scalers(crtc);
+
+		if (pipe_config->pch_pfit.enabled)
+			skylake_pfit_enable(crtc);
+	} else if (HAS_PCH_SPLIT(dev)) {
+		if (pipe_config->pch_pfit.enabled)
+			ironlake_pfit_enable(crtc);
+		else if (old_crtc_state->pch_pfit.enabled)
+			ironlake_pfit_disable(crtc, true);
 	}
-	crtc->config->pipe_src_w = adjusted_mode->crtc_hdisplay;
-	crtc->config->pipe_src_h = adjusted_mode->crtc_vdisplay;
 }
 
 static void intel_fdi_normal_train(struct drm_crtc *crtc)
@@ -4961,7 +4967,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	}
 }
 
-static void ironlake_pfit_disable(struct intel_crtc *crtc)
+static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4969,7 +4975,7 @@ static void ironlake_pfit_disable(struct intel_crtc *crtc)
 
 	/* To avoid upsetting the power well on haswell only disable the pfit if
 	 * it's in use. The hw state code will make sure we get this right. */
-	if (crtc->config->pch_pfit.enabled) {
+	if (force || crtc->config->pch_pfit.enabled) {
 		I915_WRITE(PF_CTL(pipe), 0);
 		I915_WRITE(PF_WIN_POS(pipe), 0);
 		I915_WRITE(PF_WIN_SZ(pipe), 0);
@@ -4996,7 +5002,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_disable_pipe(intel_crtc);
 
-	ironlake_pfit_disable(intel_crtc);
+	ironlake_pfit_disable(intel_crtc, false);
 
 	if (intel_crtc->config->has_pch_encoder)
 		ironlake_fdi_disable(crtc);
@@ -5059,7 +5065,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	if (INTEL_INFO(dev)->gen >= 9)
 		skylake_scaler_disable(intel_crtc);
 	else
-		ironlake_pfit_disable(intel_crtc);
+		ironlake_pfit_disable(intel_crtc, false);
 
 	intel_ddi_disable_pipe_clock(intel_crtc);
 
@@ -12218,7 +12224,6 @@ static bool intel_fuzzy_clock_check(int clock1, int clock2)
 			    base.head) \
 		if (mask & (1 <<(intel_crtc)->pipe))
 
-
 static bool
 intel_compare_m_n(unsigned int m, unsigned int n,
 		  unsigned int m2, unsigned int n2,
@@ -12439,19 +12444,21 @@ intel_pipe_config_compare(struct drm_device *dev,
 				      DRM_MODE_FLAG_NVSYNC);
 	}
 
-	PIPE_CONF_CHECK_I(pipe_src_w);
-	PIPE_CONF_CHECK_I(pipe_src_h);
-
 	PIPE_CONF_CHECK_X(gmch_pfit.control);
 	/* pfit ratios are autocomputed by the hw on gen4+ */
 	if (INTEL_INFO(dev)->gen < 4)
 		PIPE_CONF_CHECK_I(gmch_pfit.pgm_ratios);
 	PIPE_CONF_CHECK_X(gmch_pfit.lvds_border_bits);
 
-	PIPE_CONF_CHECK_I(pch_pfit.enabled);
-	if (current_config->pch_pfit.enabled) {
-		PIPE_CONF_CHECK_X(pch_pfit.pos);
-		PIPE_CONF_CHECK_X(pch_pfit.size);
+	if (!adjust) {
+		PIPE_CONF_CHECK_I(pipe_src_w);
+		PIPE_CONF_CHECK_I(pipe_src_h);
+
+		PIPE_CONF_CHECK_I(pch_pfit.enabled);
+		if (current_config->pch_pfit.enabled) {
+			PIPE_CONF_CHECK_X(pch_pfit.pos);
+			PIPE_CONF_CHECK_X(pch_pfit.size);
+		}
 	}
 
 	PIPE_CONF_CHECK_I(scaler_state.scaler_id);
@@ -12616,7 +12623,8 @@ check_crtc_state(struct drm_device *dev, struct drm_atomic_state *old_state)
 		struct intel_crtc_state *pipe_config, *sw_config;
 		bool active;
 
-		if (!needs_modeset(crtc->state))
+		if (!needs_modeset(crtc->state) &&
+		    !to_intel_crtc_state(crtc->state)->update_pipe)
 			continue;
 
 		__drm_atomic_helper_crtc_destroy_state(crtc, old_crtc_state);
@@ -12912,7 +12920,6 @@ static int intel_modeset_all_pipes(struct drm_atomic_state *state)
 	return ret;
 }
 
-
 static int intel_modeset_checks(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -13003,6 +13010,7 @@ static int intel_atomic_check(struct drm_device *dev,
 					to_intel_crtc_state(crtc->state),
 					pipe_config, true)) {
 			crtc_state->mode_changed = false;
+			to_intel_crtc_state(crtc_state)->update_pipe = true;
 		}
 
 		if (needs_modeset(crtc_state)) {
@@ -13100,16 +13108,30 @@ static int intel_atomic_commit(struct drm_device *dev,
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		bool modeset = needs_modeset(crtc->state);
+		bool update_pipe = !modeset &&
+			to_intel_crtc_state(crtc->state)->update_pipe;
+		unsigned long put_domains = 0;
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
 		}
 
+		if (update_pipe) {
+			put_domains = modeset_get_crtc_power_domains(crtc);
+
+			/* make sure intel_modeset_check_state runs */
+			any_ms = true;
+		}
+
 		if (!modeset)
 			intel_pre_plane_update(intel_crtc);
 
 		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
+
+		if (put_domains)
+			modeset_put_power_domains(dev_priv, put_domains);
+
 		intel_post_plane_update(intel_crtc);
 	}
 
@@ -13426,10 +13448,6 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	if (!crtc->state->active)
 		return;
 
-	if (state->visible)
-		/* FIXME: kill this fastboot hack */
-		intel_update_pipe_size(intel_crtc);
-
 	dev_priv->display.update_primary_plane(crtc, fb,
 					       state->src.x1 >> 16,
 					       state->src.y1 >> 16);
@@ -13450,6 +13468,9 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *old_intel_state =
+		to_intel_crtc_state(old_crtc_state);
+	bool modeset = needs_modeset(crtc->state);
 
 	if (intel_crtc->atomic.update_wm_pre)
 		intel_update_watermarks(crtc);
@@ -13458,7 +13479,12 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 	if (crtc->state->active)
 		intel_pipe_update_start(intel_crtc);
 
-	if (!needs_modeset(crtc->state) && INTEL_INFO(dev)->gen >= 9)
+	if (modeset)
+		return;
+
+	if (to_intel_crtc_state(crtc->state)->update_pipe)
+		intel_update_pipe_config(intel_crtc, old_intel_state);
+	else if (INTEL_INFO(dev)->gen >= 9)
 		skl_detach_scalers(intel_crtc);
 }
 
