@@ -762,6 +762,36 @@ static void i40e_cee_to_dcb_config(
 }
 
 /**
+ * i40e_get_ieee_dcb_config
+ * @hw: pointer to the hw struct
+ *
+ * Get IEEE mode DCB configuration from the Firmware
+ **/
+static i40e_status i40e_get_ieee_dcb_config(struct i40e_hw *hw)
+{
+	i40e_status ret = 0;
+
+	/* IEEE mode */
+	hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_IEEE;
+	/* Get Local DCB Config */
+	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_LOCAL, 0,
+				     &hw->local_dcbx_config);
+	if (ret)
+		goto out;
+
+	/* Get Remote DCB Config */
+	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
+				     I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE,
+				     &hw->remote_dcbx_config);
+	/* Don't treat ENOENT as an error for Remote MIBs */
+	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
+		ret = 0;
+
+out:
+	return ret;
+}
+
+/**
  * i40e_get_dcb_config
  * @hw: pointer to the hw struct
  *
@@ -776,7 +806,7 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 	/* If Firmware version < v4.33 IEEE only */
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4))
-		goto ieee;
+		return i40e_get_ieee_dcb_config(hw);
 
 	/* If Firmware version == v4.33 use old CEE struct */
 	if ((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver == 33)) {
@@ -805,16 +835,14 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 
 	/* CEE mode not enabled try querying IEEE data */
 	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
-		goto ieee;
-	else
+		return i40e_get_ieee_dcb_config(hw);
+
+	if (ret)
 		goto out;
 
-ieee:
-	/* IEEE mode */
-	hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_IEEE;
-	/* Get Local DCB Config */
+	/* Get CEE DCB Desired Config */
 	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_LOCAL, 0,
-				     &hw->local_dcbx_config);
+				     &hw->desired_dcbx_config);
 	if (ret)
 		goto out;
 

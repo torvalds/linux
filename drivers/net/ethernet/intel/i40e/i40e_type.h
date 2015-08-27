@@ -510,8 +510,9 @@ struct i40e_hw {
 	u16 dcbx_status;
 
 	/* DCBX info */
-	struct i40e_dcbx_config local_dcbx_config;
-	struct i40e_dcbx_config remote_dcbx_config;
+	struct i40e_dcbx_config local_dcbx_config; /* Oper/Local Cfg */
+	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
+	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
 	/* debug mask */
 	u32 debug_mask;
