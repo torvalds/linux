@@ -376,8 +376,8 @@ static int __mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 
 	err = mlxsw_core_skb_transmit(mlxsw_core->driver_priv, skb, tx_info);
 	if (err) {
-		dev_warn(mlxsw_core->bus_info->dev, "Failed to transmit EMAD (tid=%llx)\n",
-			 mlxsw_core->emad.tid);
+		dev_err(mlxsw_core->bus_info->dev, "Failed to transmit EMAD (tid=%llx)\n",
+			mlxsw_core->emad.tid);
 		dev_kfree_skb(skb);
 		return err;
 	}
