@@ -49,6 +49,10 @@ static const u32 hpd_ilk[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = DE_DP_A_HOTPLUG,
 };
 
+static const u32 hpd_ivb[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = DE_DP_A_HOTPLUG_IVB,
+};
+
 static const u32 hpd_ibx[HPD_NUM_PINS] = {
 	[HPD_CRT] = SDE_CRT_HOTPLUG,
 	[HPD_SDVO_B] = SDE_SDVOB_HOTPLUG,
@@ -1946,6 +1950,19 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
+	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG_IVB;
+
+	if (hotplug_trigger) {
+		u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
+
+		dig_hotplug_reg = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
+		I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, dig_hotplug_reg);
+
+		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
+				   dig_hotplug_reg, hpd_ivb,
+				   ilk_port_hotplug_long_detect);
+		intel_hpd_irq_handler(dev, pin_mask, long_mask);
+	}
 
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev);
@@ -3143,14 +3160,20 @@ static void ilk_hpd_irq_setup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 hotplug_irqs, hotplug, enabled_irqs;
 
-	hotplug_irqs = DE_DP_A_HOTPLUG;
-	enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ilk);
+	if (INTEL_INFO(dev)->gen >= 7) {
+		hotplug_irqs = DE_DP_A_HOTPLUG_IVB;
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ivb);
+	} else {
+		hotplug_irqs = DE_DP_A_HOTPLUG;
+		enabled_irqs = intel_hpd_enabled_irqs(dev, hpd_ilk);
+	}
 
 	ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
 
 	/*
 	 * Enable digital hotplug on the CPU, and configure the DP short pulse
 	 * duration to 2ms (which is the minimum in the Display Port spec)
+	 * The pulse duration bits are reserved on HSW+.
 	 */
 	hotplug = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
 	hotplug &= ~DIGITAL_PORTA_PULSE_DURATION_MASK;
@@ -3251,7 +3274,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 				DE_PLANEB_FLIP_DONE_IVB |
 				DE_PLANEA_FLIP_DONE_IVB | DE_AUX_CHANNEL_A_IVB);
 		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
-			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB);
+			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB |
+			      DE_DP_A_HOTPLUG_IVB);
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
@@ -4276,10 +4300,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
 		dev->driver->enable_vblank = ironlake_enable_vblank;
 		dev->driver->disable_vblank = ironlake_disable_vblank;
-		if (INTEL_INFO(dev)->gen >= 7)
-			dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
-		else
-			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
+		dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else {
 		if (INTEL_INFO(dev_priv)->gen == 2) {
 			dev->driver->irq_preinstall = i8xx_irq_preinstall;
