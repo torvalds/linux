@@ -74,6 +74,7 @@ static const u32 hpd_cpt[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_spt[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = SDE_PORTA_HOTPLUG_SPT,
 	[HPD_PORT_B] = SDE_PORTB_HOTPLUG_CPT,
 	[HPD_PORT_C] = SDE_PORTC_HOTPLUG_CPT,
 	[HPD_PORT_D] = SDE_PORTD_HOTPLUG_CPT,
@@ -1316,6 +1317,22 @@ static bool spt_port_hotplug2_long_detect(enum port port, u32 val)
 	}
 }
 
+static bool spt_port_hotplug_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_A:
+		return val & PORTA_HOTPLUG_LONG_DETECT;
+	case PORT_B:
+		return val & PORTB_HOTPLUG_LONG_DETECT;
+	case PORT_C:
+		return val & PORTC_HOTPLUG_LONG_DETECT;
+	case PORT_D:
+		return val & PORTD_HOTPLUG_LONG_DETECT;
+	default:
+		return false;
+	}
+}
+
 static bool ilk_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
@@ -1899,7 +1916,7 @@ static void spt_irq_handler(struct drm_device *dev, u32 pch_iir)
 
 		intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
 				   dig_hotplug_reg, hpd_spt,
-				   pch_port_hotplug_long_detect);
+				   spt_port_hotplug_long_detect);
 	}
 
 	if (hotplug2_trigger) {
@@ -3203,7 +3220,7 @@ static void spt_hpd_irq_setup(struct drm_device *dev)
 	/* Enable digital hotplug on the PCH */
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
 	hotplug |= PORTD_HOTPLUG_ENABLE | PORTC_HOTPLUG_ENABLE |
-		PORTB_HOTPLUG_ENABLE;
+		PORTB_HOTPLUG_ENABLE | PORTA_HOTPLUG_ENABLE;
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 
 	hotplug = I915_READ(PCH_PORT_HOTPLUG2);

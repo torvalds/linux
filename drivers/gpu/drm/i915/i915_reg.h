@@ -5984,6 +5984,7 @@ enum skl_disp_power_wells {
 #define SDE_AUXB_CPT		(1 << 25)
 #define SDE_AUX_MASK_CPT	(7 << 25)
 #define SDE_PORTE_HOTPLUG_SPT	(1 << 25)
+#define SDE_PORTA_HOTPLUG_SPT	(1 << 24)
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
@@ -5997,7 +5998,8 @@ enum skl_disp_power_wells {
 #define SDE_HOTPLUG_MASK_SPT	(SDE_PORTE_HOTPLUG_SPT |	\
 				 SDE_PORTD_HOTPLUG_CPT |	\
 				 SDE_PORTC_HOTPLUG_CPT |	\
-				 SDE_PORTB_HOTPLUG_CPT)
+				 SDE_PORTB_HOTPLUG_CPT |	\
+				 SDE_PORTA_HOTPLUG_SPT)
 #define SDE_GMBUS_CPT		(1 << 17)
 #define SDE_ERROR_CPT		(1 << 16)
 #define SDE_AUDIO_CP_REQ_C_CPT	(1 << 10)
