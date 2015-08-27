@@ -297,6 +297,7 @@ static void geneve_setup(struct net_device *dev)
 
 	netif_keep_dst(dev);
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
+	eth_hw_addr_random(dev);
 }
 
 static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
@@ -363,9 +364,6 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 		    !memcmp(&remote, &dummy->remote, sizeof(dummy->remote)))
 			return -EBUSY;
 	}
-
-	if (tb[IFLA_ADDRESS] == NULL)
-		eth_hw_addr_random(dev);
 
 	err = register_netdevice(dev);
 	if (err)
