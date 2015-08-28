@@ -66,7 +66,7 @@
 			/* BKL1_PWM_EN#, disable TPS65911 PMIC PWM backlight */
 			uart3_cts_n_pa1 {
 				nvidia,pins =	"uart3_cts_n_pa1";
-				nvidia,function = "rsvd1";
+				nvidia,function = "rsvd2";
 				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
@@ -152,32 +152,32 @@
 			};
 
 			/* Apalis PWM1 */
-			gpio_pu6 {
-				nvidia,pins =	"gpio_pu6";
+			pu6 {
+				nvidia,pins =	"pu6";
 				nvidia,function = "pwm3";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			/* Apalis PWM2 */
-			gpio_pu5 {
-				nvidia,pins =	"gpio_pu5";
+			pu5 {
+				nvidia,pins =	"pu5";
 				nvidia,function = "pwm2";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			/* Apalis PWM3 */
-			gpio_pu4 {
-				nvidia,pins =	"gpio_pu4";
+			pu4 {
+				nvidia,pins =	"pu4";
 				nvidia,function = "pwm1";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			/* Apalis PWM4 */
-			gpio_pu3 {
-				nvidia,pins =	"gpio_pu3";
+			pu3 {
+				nvidia,pins =	"pu3";
 				nvidia,function = "pwm0";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
