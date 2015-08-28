@@ -919,7 +919,7 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	struct saa7164_encoder_fh *fh =
 		(struct saa7164_encoder_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
-	unsigned int mask = 0;
+	unsigned int mask = v4l2_ctrl_poll(file, wait);
 
 	port->last_poll_msecs_diff = port->last_poll_msecs;
 	port->last_poll_msecs = jiffies_to_msecs(jiffies);
@@ -935,7 +935,7 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
 			if (saa7164_encoder_initialize(port) < 0)
-				return POLLERR;
+				return mask | POLLERR;
 			saa7164_encoder_start_streaming(port);
 			msleep(200);
 		}
@@ -976,6 +976,10 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap	 = vidioc_s_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	 = vidioc_s_fmt_vid_cap,
+	.vidioc_log_status	 = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event  = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static struct video_device saa7164_mpeg_template = {
