@@ -50,13 +50,8 @@ struct ip_tunnel_key {
 	__be16			tp_dst;
 };
 
-/* Indicates whether the tunnel info structure represents receive
- * or transmit tunnel parameters.
- */
-enum {
-	IP_TUNNEL_INFO_RX,
-	IP_TUNNEL_INFO_TX,
-};
+/* Flags for ip_tunnel_info mode. */
+#define IP_TUNNEL_INFO_TX	0x01	/* represents tx tunnel parameters */
 
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;

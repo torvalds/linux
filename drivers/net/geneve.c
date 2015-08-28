@@ -623,7 +623,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (geneve->collect_md) {
 		info = skb_tunnel_info(skb);
-		if (unlikely(info && info->mode != IP_TUNNEL_INFO_TX)) {
+		if (unlikely(info && !(info->mode & IP_TUNNEL_INFO_TX))) {
 			netdev_dbg(dev, "no tunnel metadata\n");
 			goto tx_error;
 		}

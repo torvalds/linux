@@ -59,7 +59,6 @@ static inline struct metadata_dst *tun_rx_dst(__be16 flags,
 		return NULL;
 
 	info = &tun_dst->u.tun_info;
-	info->mode = IP_TUNNEL_INFO_RX;
 	info->key.tun_flags = flags;
 	info->key.tun_id = tunnel_id;
 	info->key.tp_src = 0;

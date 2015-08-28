@@ -2113,7 +2113,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (vxlan->flags & VXLAN_F_COLLECT_METADATA &&
-	    info && info->mode == IP_TUNNEL_INFO_TX) {
+	    info && info->mode & IP_TUNNEL_INFO_TX) {
 		vxlan_xmit_one(skb, dev, NULL, false);
 		return NETDEV_TX_OK;
 	}
