@@ -727,6 +727,19 @@ static struct qcom_smd_driver *to_smd_driver(struct device *dev)
 
 static int qcom_smd_dev_match(struct device *dev, struct device_driver *drv)
 {
+	struct qcom_smd_device *qsdev = to_smd_device(dev);
+	struct qcom_smd_driver *qsdrv = container_of(drv, struct qcom_smd_driver, driver);
+	const struct qcom_smd_id *match = qsdrv->smd_match_table;
+	const char *name = qsdev->channel->name;
+
+	if (match) {
+		while (match->name[0]) {
+			if (!strcmp(match->name, name))
+				return 1;
+			match++;
+		}
+	}
+
 	return of_driver_match_device(dev, drv);
 }
 
@@ -880,19 +893,17 @@ static int qcom_smd_create_device(struct qcom_smd_channel *channel)
 	if (channel->qsdev)
 		return -EEXIST;
 
-	node = qcom_smd_match_channel(edge->of_node, channel->name);
-	if (!node) {
-		dev_dbg(smd->dev, "no match for '%s'\n", channel->name);
-		return -ENXIO;
-	}
-
 	dev_dbg(smd->dev, "registering '%s'\n", channel->name);
 
 	qsdev = kzalloc(sizeof(*qsdev), GFP_KERNEL);
 	if (!qsdev)
 		return -ENOMEM;
 
-	dev_set_name(&qsdev->dev, "%s.%s", edge->of_node->name, node->name);
+	node = qcom_smd_match_channel(edge->of_node, channel->name);
+	dev_set_name(&qsdev->dev, "%s.%s",
+		     edge->of_node->name,
+		     node ? node->name : channel->name);
+
 	qsdev->dev.parent = smd->dev;
 	qsdev->dev.bus = &qcom_smd_bus;
 	qsdev->dev.release = qcom_smd_release_device;
