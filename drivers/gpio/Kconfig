@@ -297,14 +297,6 @@ config GPIO_MPC8XXX
 	  Say Y here if you're going to use hardware that connects to the
 	  MPC512x/831x/834x/837x/8572/8610 GPIOs.
 
-config GPIO_MSM_V2
-	tristate "Qualcomm MSM GPIO v2"
-	depends on GPIOLIB && OF && ARCH_QCOM
-	help
-	  Say yes here to support the GPIO interface on ARM v7 based
-	  Qualcomm MSM chips.  Most of the pins on the MSM can be
-	  selected for GPIO, and are controlled by this driver.
-
 config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION
