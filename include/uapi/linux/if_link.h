@@ -550,6 +550,7 @@ enum {
 				 * on/off switch
 				 */
 	IFLA_VF_STATS,		/* network device statistics */
+	IFLA_VF_TRUST,		/* Trust VF */
 	__IFLA_VF_MAX,
 };
 
@@ -610,6 +611,11 @@ enum {
 };
 
 #define IFLA_VF_STATS_MAX (__IFLA_VF_STATS_MAX - 1)
+
+struct ifla_vf_trust {
+	__u32 vf;
+	__u32 setting;
+};
 
 /* VF ports management section
  *
