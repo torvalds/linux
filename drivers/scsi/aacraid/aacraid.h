@@ -12,7 +12,7 @@
  *              D E F I N E S
  *----------------------------------------------------------------------------*/
 
-#define AAC_MAX_MSIX		8	/* vectors */
+#define AAC_MAX_MSIX		32	/* vectors */
 #define AAC_PCI_MSI_ENABLE	0x8000
 
 enum {
