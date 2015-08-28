@@ -681,15 +681,18 @@ static void i40e_cee_to_dcb_config(
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
 
+	/* Note that the FW creates the oper_prio_tc nibbles reversed
+	 * from those in the CEE Priority Group sub-TLV.
+	 */
 	for (i = 0; i < 4; i++) {
-		tc = (u8)((cee_cfg->oper_prio_tc[i] &
-			 I40E_CEE_PGID_PRIO_1_MASK) >>
-			 I40E_CEE_PGID_PRIO_1_SHIFT);
-		dcbcfg->etscfg.prioritytable[i*2] =  tc;
 		tc = (u8)((cee_cfg->oper_prio_tc[i] &
 			 I40E_CEE_PGID_PRIO_0_MASK) >>
 			 I40E_CEE_PGID_PRIO_0_SHIFT);
-		dcbcfg->etscfg.prioritytable[i*2 + 1] = tc;
+		dcbcfg->etscfg.prioritytable[i * 2] =  tc;
+		tc = (u8)((cee_cfg->oper_prio_tc[i] &
+			 I40E_CEE_PGID_PRIO_1_MASK) >>
+			 I40E_CEE_PGID_PRIO_1_SHIFT);
+		dcbcfg->etscfg.prioritytable[i * 2 + 1] = tc;
 	}
 
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
