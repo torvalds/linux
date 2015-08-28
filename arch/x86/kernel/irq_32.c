@@ -150,7 +150,7 @@ void do_softirq_own_stack(void)
 
 bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 {
-	unsigned int irq = irq_desc_get_irq(desc);
+	unsigned int irq;
 	int overflow;
 
 	overflow = check_stack_overflow();
@@ -158,6 +158,7 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 	if (IS_ERR_OR_NULL(desc))
 		return false;
 
+	irq = irq_desc_get_irq(desc);
 	if (user_mode(regs) || !execute_on_irq_stack(overflow, desc, irq)) {
 		if (unlikely(overflow))
 			print_stack_overflow();
