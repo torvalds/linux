@@ -1,0 +1,21 @@
+Holt Integrated Circuits HI-8435 threshold detector bindings
+
+Required properties:
+ - compatible: should be "holt,hi8435"
+ - reg: spi chip select number for the device
+
+Recommended properties:
+ - spi-max-frequency: definition as per
+		Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Optional properties:
+ - gpios: GPIO used for controlling the reset pin
+
+Example:
+sensor@0 {
+	compatible = "holt,hi8435";
+	reg = <0>;
+	gpios = <&gpio6 1 0>;
+
+	spi-max-frequency = <1000000>;
+};
