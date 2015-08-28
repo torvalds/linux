@@ -183,6 +183,17 @@ config EXYNOS_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
 
+config HI8435
+	tristate "Holt Integrated Circuits HI-8435 threshold detector"
+	select IIO_TRIGGERED_EVENT
+	depends on SPI
+	help
+	  If you say yes here you get support for Holt Integrated Circuits
+	  HI-8435 chip.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called hi8435.
+
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
 	depends on MFD_LP8788
