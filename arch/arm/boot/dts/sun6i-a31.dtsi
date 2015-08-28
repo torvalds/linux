@@ -768,6 +768,13 @@
 			reg = <0x01c20ca0 0x20>;
 		};
 
+		lradc: lradc@01c22800 {
+			compatible = "allwinner,sun4i-a10-lradc-keys";
+			reg = <0x01c22800 0x100>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		rtp: rtp@01c25000 {
 			compatible = "allwinner,sun6i-a31-ts";
 			reg = <0x01c25000 0x100>;
