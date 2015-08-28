@@ -615,6 +615,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		info.alignment = robj->tbo.mem.page_alignment << PAGE_SHIFT;
 		info.domains = robj->initial_domain;
 		info.domain_flags = robj->flags;
+		amdgpu_bo_unreserve(robj);
 		if (copy_to_user(out, &info, sizeof(info)))
 			r = -EFAULT;
 		break;
@@ -622,17 +623,19 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	case AMDGPU_GEM_OP_SET_PLACEMENT:
 		if (amdgpu_ttm_tt_has_userptr(robj->tbo.ttm)) {
 			r = -EPERM;
+			amdgpu_bo_unreserve(robj);
 			break;
 		}
 		robj->initial_domain = args->value & (AMDGPU_GEM_DOMAIN_VRAM |
 						      AMDGPU_GEM_DOMAIN_GTT |
 						      AMDGPU_GEM_DOMAIN_CPU);
+		amdgpu_bo_unreserve(robj);
 		break;
 	default:
+		amdgpu_bo_unreserve(robj);
 		r = -EINVAL;
 	}
 
-	amdgpu_bo_unreserve(robj);
 out:
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
