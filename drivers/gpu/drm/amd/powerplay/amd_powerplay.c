@@ -27,6 +27,8 @@
 #include "amd_shared.h"
 #include "amd_powerplay.h"
 #include "pp_instance.h"
+#include "power_state.h"
+#include "eventmanager.h"
 
 static int pp_early_init(void *handle)
 {
@@ -177,11 +179,31 @@ static int pp_set_powergating_state(void *handle,
 
 static int pp_suspend(void *handle)
 {
+	struct pp_instance *pp_handle;
+	struct pp_eventmgr *eventmgr;
+	struct pem_event_data event_data = { {0} };
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+	eventmgr = pp_handle->eventmgr;
+	pem_handle_event(eventmgr, AMD_PP_EVENT_SUSPEND, &event_data);
 	return 0;
 }
 
 static int pp_resume(void *handle)
 {
+	struct pp_instance *pp_handle;
+	struct pp_eventmgr *eventmgr;
+	struct pem_event_data event_data = { {0} };
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+	eventmgr = pp_handle->eventmgr;
+	pem_handle_event(eventmgr, AMD_PP_EVENT_RESUME, &event_data);
 	return 0;
 }
 
@@ -215,44 +237,197 @@ static int pp_dpm_fw_loading_complete(void *handle)
 static int pp_dpm_force_performance_level(void *handle,
 					enum amd_dpm_forced_level level)
 {
+	struct pp_instance *pp_handle;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	    hwmgr->hwmgr_func->force_dpm_level == NULL)
+		return -EINVAL;
+
+	hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
+
 	return 0;
 }
+
 static enum amd_dpm_forced_level pp_dpm_get_performance_level(
 								void *handle)
 {
-	return 0;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	return (((struct pp_instance *)handle)->hwmgr->dpm_level);
 }
+
 static int pp_dpm_get_sclk(void *handle, bool low)
 {
-	return 0;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	    hwmgr->hwmgr_func->get_sclk == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_sclk(hwmgr, low);
 }
+
 static int pp_dpm_get_mclk(void *handle, bool low)
 {
-	return 0;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	    hwmgr->hwmgr_func->get_mclk == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_mclk(hwmgr, low);
 }
+
 static int pp_dpm_powergate_vce(void *handle, bool gate)
 {
-	return 0;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	    hwmgr->hwmgr_func->powergate_vce == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
 }
+
 static int pp_dpm_powergate_uvd(void *handle, bool gate)
 {
-	return 0;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	    hwmgr->hwmgr_func->powergate_uvd == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
+}
+
+static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
+{
+	switch (state) {
+	case POWER_STATE_TYPE_BATTERY:
+		return PP_StateUILabel_Battery;
+	case POWER_STATE_TYPE_BALANCED:
+		return PP_StateUILabel_Balanced;
+	case POWER_STATE_TYPE_PERFORMANCE:
+		return PP_StateUILabel_Performance;
+	default:
+		return PP_StateUILabel_None;
+	}
 }
 
 int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input, void *output)
 {
-	return 0;
+	int ret = 0;
+	struct pp_instance *pp_handle;
+	struct pem_event_data data = { {0} };
+
+	pp_handle = (struct pp_instance *)handle;
+
+	if (pp_handle == NULL)
+		return -EINVAL;
+
+	switch (event_id) {
+	case AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE:
+		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+		break;
+	case AMD_PP_EVENT_ENABLE_USER_STATE:
+	{
+		enum amd_pm_state_type  ps;
+
+		if (input == NULL)
+			return -EINVAL;
+		ps = *(unsigned long *)input;
+
+		data.requested_ui_label = power_state_convert(ps);
+		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+	}
+	break;
+	default:
+		break;
+	}
+	return ret;
 }
+
 enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 {
-	return 0;
+	struct pp_hwmgr *hwmgr;
+	struct pp_power_state *state;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->current_ps == NULL)
+		return -EINVAL;
+
+	state = hwmgr->current_ps;
+
+	switch (state->classification.ui_label) {
+	case PP_StateUILabel_Battery:
+		return POWER_STATE_TYPE_BATTERY;
+	case PP_StateUILabel_Balanced:
+		return POWER_STATE_TYPE_BALANCED;
+	case PP_StateUILabel_Performance:
+		return POWER_STATE_TYPE_PERFORMANCE;
+	default:
+		return POWER_STATE_TYPE_DEFAULT;
+	}
 }
+
 static void
 pp_debugfs_print_current_performance_level(void *handle,
 					       struct seq_file *m)
 {
-	return;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	  hwmgr->hwmgr_func->print_current_perforce_level == NULL)
+		return;
+
+	hwmgr->hwmgr_func->print_current_perforce_level(hwmgr, m);
 }
+
 
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = NULL,
