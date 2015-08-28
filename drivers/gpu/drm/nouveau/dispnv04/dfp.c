@@ -485,7 +485,7 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 {
 #ifdef __powerpc__
 	struct drm_device *dev = encoder->dev;
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_object *device = &nouveau_drm(dev)->device.object;
 
 	/* BIOS scripts usually take care of the backlight, thanks
 	 * Apple for your consistency.
