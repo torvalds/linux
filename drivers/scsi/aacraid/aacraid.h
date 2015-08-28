@@ -547,6 +547,7 @@ struct adapter_ops
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 	int  (*adapter_restart)(struct aac_dev *dev, int bled);
+	void (*adapter_start)(struct aac_dev *dev);
 	/* Transport operations */
 	int  (*adapter_ioremap)(struct aac_dev * dev, u32 size);
 	irq_handler_t adapter_intr;
@@ -1246,6 +1247,9 @@ struct aac_dev
 
 #define aac_adapter_restart(dev,bled) \
 	(dev)->a_ops.adapter_restart(dev,bled)
+
+#define aac_adapter_start(dev) \
+	((dev)->a_ops.adapter_start(dev))
 
 #define aac_adapter_ioremap(dev, size) \
 	(dev)->a_ops.adapter_ioremap(dev, size)
@@ -2127,6 +2131,7 @@ int aac_sa_init(struct aac_dev *dev);
 int aac_src_init(struct aac_dev *dev);
 int aac_srcv_init(struct aac_dev *dev);
 int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify);
+void aac_define_int_mode(struct aac_dev *dev);
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev *dev, u32 Index,

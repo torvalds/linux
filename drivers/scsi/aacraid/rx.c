@@ -623,6 +623,7 @@ int _aac_rx_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rx_check_health;
 	dev->a_ops.adapter_restart = aac_rx_restart_adapter;
+	dev->a_ops.adapter_start = aac_rx_start_adapter;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
