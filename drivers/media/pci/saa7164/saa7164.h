@@ -390,8 +390,6 @@ struct saa7164_port {
 	u32 height;
 	u32 width;
 	u32 freq;
-	u32 ts_packet_size;
-	u32 ts_packet_count;
 	u8 mux_input;
 	u8 encoder_profile;
 	u8 video_format;

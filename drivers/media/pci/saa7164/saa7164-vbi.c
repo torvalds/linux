@@ -388,75 +388,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
-	struct v4l2_fmtdesc *f)
-{
-	if (f->index != 0)
-		return -EINVAL;
-
-	strlcpy(f->description, "VBI", sizeof(f->description));
-	f->pixelformat = V4L2_PIX_FMT_MPEG;
-
-	return 0;
-}
-
-static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		port->ts_packet_size * port->ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-	f->fmt.pix.width        = port->width;
-	f->fmt.pix.height       = port->height;
-
-	dprintk(DBGLVL_VBI, "VIDIOC_G_FMT: w: %d, h: %d\n",
-		port->width, port->height);
-
-	return 0;
-}
-
-static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		port->ts_packet_size * port->ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-	dprintk(DBGLVL_VBI, "VIDIOC_TRY_FMT: w: %d, h: %d\n",
-		port->width, port->height);
-	return 0;
-}
-
-static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		port->ts_packet_size * port->ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-
-	dprintk(DBGLVL_VBI, "VIDIOC_S_FMT: w: %d, h: %d, f: %d\n",
-		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field);
-
-	return 0;
-}
-
 static int saa7164_vbi_stop_port(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
@@ -646,7 +577,6 @@ static int saa7164_vbi_fmt(struct file *file, void *priv,
 			   struct v4l2_format *f)
 {
 	/* ntsc */
-	f->fmt.vbi.samples_per_line = 1600;
 	f->fmt.vbi.samples_per_line = 1440;
 	f->fmt.vbi.sampling_rate = 27000000;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
@@ -656,6 +586,7 @@ static int saa7164_vbi_fmt(struct file *file, void *priv,
 	f->fmt.vbi.count[0] = 18;
 	f->fmt.vbi.start[1] = 263 + 10 + 1;
 	f->fmt.vbi.count[1] = 18;
+	memset(f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
 	return 0;
 }
 
@@ -906,10 +837,6 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_g_frequency	 = vidioc_g_frequency,
 	.vidioc_s_frequency	 = vidioc_s_frequency,
 	.vidioc_querycap	 = vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap	 = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_s_fmt_vbi_cap	 = saa7164_vbi_fmt,
