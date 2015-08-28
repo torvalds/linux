@@ -2338,7 +2338,34 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 					  &ival);
 			if (ret != 0)
 				return ret;
-			map->format.format_val(val + (i * val_bytes), ival, 0);
+
+			if (map->format.format_val) {
+				map->format.format_val(val + (i * val_bytes), ival, 0);
+			} else {
+				/* Devices providing read and write
+				 * operations can use the bulk I/O
+				 * functions if they define a val_bytes,
+				 * we assume that the values are native
+				 * endian.
+				 */
+				u32 *u32 = val;
+				u16 *u16 = val;
+				u8 *u8 = val;
+
+				switch (map->format.val_bytes) {
+				case 4:
+					u32[i] = ival;
+					break;
+				case 2:
+					u16[i] = ival;
+					break;
+				case 1:
+					u8[i] = ival;
+					break;
+				default:
+					return -EINVAL;
+				}
+			}
 		}
 	}
 
