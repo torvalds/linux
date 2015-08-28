@@ -899,6 +899,41 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	return 0;
 }
 
+static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
+{
+	enum vgt_g2v_type msg;
+	struct drm_device *dev = ppgtt->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned int offset = vgtif_reg(pdp0_lo);
+	int i;
+
+	if (USES_FULL_48BIT_PPGTT(dev)) {
+		u64 daddr = px_dma(&ppgtt->pml4);
+
+		I915_WRITE(offset, lower_32_bits(daddr));
+		I915_WRITE(offset + 4, upper_32_bits(daddr));
+
+		msg = (create ? VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE :
+				VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY);
+	} else {
+		for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
+			u64 daddr = i915_page_dir_dma_addr(ppgtt, i);
+
+			I915_WRITE(offset, lower_32_bits(daddr));
+			I915_WRITE(offset + 4, upper_32_bits(daddr));
+
+			offset += 8;
+		}
+
+		msg = (create ? VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE :
+				VGT_G2V_PPGTT_L3_PAGE_TABLE_DESTROY);
+	}
+
+	I915_WRITE(vgtif_reg(g2v_notify), msg);
+
+	return 0;
+}
+
 static void gen8_free_scratch(struct i915_address_space *vm)
 {
 	struct drm_device *dev = vm->dev;
@@ -944,6 +979,9 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
+
+	if (intel_vgpu_active(vm->dev))
+		gen8_ppgtt_notify_vgt(ppgtt, false);
 
 	if (!USES_FULL_48BIT_PPGTT(ppgtt->base.dev))
 		gen8_ppgtt_cleanup_3lvl(ppgtt->base.dev, &ppgtt->pdp);
@@ -1518,6 +1556,9 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 				goto free_scratch;
 		}
 	}
+
+	if (intel_vgpu_active(ppgtt->base.dev))
+		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	return 0;
 
