@@ -447,6 +447,10 @@ static int aac_src_deliver_message(struct fib *fib)
 	u32 fibsize;
 	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
+#if !defined(writeq)
+	unsigned long flags;
+#endif
+
 	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
 
 	atomic_inc(&q->numpending);
@@ -511,10 +515,14 @@ static int aac_src_deliver_message(struct fib *fib)
 			return -EINVAL;
 		address |= fibsize;
 	}
-
+#if defined(writeq)
+	src_writeq(dev, MUnit.IQ_L, (u64)address);
+#else
+	spin_lock_irqsave(&fib->dev->iq_lock, flags);
 	src_writel(dev, MUnit.IQ_H, upper_32_bits(address) & 0xffffffff);
 	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
-
+	spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
+#endif
 	return 0;
 }
 
