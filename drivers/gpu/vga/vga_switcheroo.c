@@ -102,7 +102,7 @@ struct vga_switcheroo_client {
 	struct fb_info *fb_info;
 	enum vga_switcheroo_state pwr_state;
 	const struct vga_switcheroo_client_ops *ops;
-	int id;
+	enum vga_switcheroo_client_id id;
 	bool active;
 	bool driver_power_control;
 	struct list_head list;
@@ -233,7 +233,8 @@ EXPORT_SYMBOL(vga_switcheroo_unregister_handler);
 
 static int register_client(struct pci_dev *pdev,
 			   const struct vga_switcheroo_client_ops *ops,
-			   int id, bool active, bool driver_power_control)
+			   enum vga_switcheroo_client_id id, bool active,
+			   bool driver_power_control)
 {
 	struct vga_switcheroo_client *client;
 
@@ -288,7 +289,7 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * vga_switcheroo_register_audio_client - register audio client
  * @pdev: client pci device
  * @ops: client callbacks
- * @id: client identifier, see enum vga_switcheroo_client_id
+ * @id: client identifier
  *
  * Register audio client (audio device on a GPU). The power state of the
  * client is assumed to be ON.
@@ -297,7 +298,7 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  */
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 					 const struct vga_switcheroo_client_ops *ops,
-					 int id)
+					 enum vga_switcheroo_client_id id)
 {
 	return register_client(pdev, ops, id | ID_BIT_AUDIO, false, false);
 }
@@ -315,7 +316,8 @@ find_client_from_pci(struct list_head *head, struct pci_dev *pdev)
 }
 
 static struct vga_switcheroo_client *
-find_client_from_id(struct list_head *head, int client_id)
+find_client_from_id(struct list_head *head,
+		    enum vga_switcheroo_client_id client_id)
 {
 	struct vga_switcheroo_client *client;
 
@@ -497,7 +499,8 @@ static int vga_switchoff(struct vga_switcheroo_client *client)
 	return 0;
 }
 
-static void set_audio_state(int id, enum vga_switcheroo_state state)
+static void set_audio_state(enum vga_switcheroo_client_id id,
+			    enum vga_switcheroo_state state)
 {
 	struct vga_switcheroo_client *client;
 
@@ -584,7 +587,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	int ret;
 	bool delay = false, can_switch;
 	bool just_mux = false;
-	int client_id = VGA_SWITCHEROO_UNKNOWN_ID;
+	enum vga_switcheroo_client_id client_id = VGA_SWITCHEROO_UNKNOWN_ID;
 	struct vga_switcheroo_client *client = NULL;
 
 	if (cnt > 63)
