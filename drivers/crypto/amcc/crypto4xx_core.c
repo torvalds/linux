@@ -1284,6 +1284,7 @@ static const struct of_device_id crypto4xx_match[] = {
 	{ .compatible      = "amcc,ppc4xx-crypto",},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, crypto4xx_match);
 
 static struct platform_driver crypto4xx_driver = {
 	.driver = {
