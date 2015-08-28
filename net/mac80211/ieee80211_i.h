@@ -419,6 +419,8 @@ struct ieee80211_sta_tx_tspec {
 	bool downgraded;
 };
 
+DECLARE_EWMA(beacon_signal, 16, 4)
+
 struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list conn_mon_timer;
@@ -490,13 +492,7 @@ struct ieee80211_if_managed {
 
 	s16 p2p_noa_index;
 
-	/*
-	 * Weighted average of the signal strength from Beacon frames in the
-	 * current BSS. This is in units of 1/16 of the signal unit to maintain
-	 * accuracy and to speed up calculations, i.e., the value need to be
-	 * divided by 16 to get the actual value.
-	 */
-	int ave_beacon_signal;
+	struct ewma_beacon_signal ave_beacon_signal;
 
 	/*
 	 * Number of Beacon frames used in ave_beacon_signal. This can be used
