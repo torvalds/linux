@@ -424,6 +424,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	dev->management_fib_count = 0;
 	spin_lock_init(&dev->manage_lock);
 	spin_lock_init(&dev->sync_lock);
+	spin_lock_init(&dev->iq_lock);
 	dev->max_fib_size = sizeof(struct hw_fib);
 	dev->sg_tablesize = host->sg_tablesize = (dev->max_fib_size
 		- sizeof(struct aac_fibhdr)

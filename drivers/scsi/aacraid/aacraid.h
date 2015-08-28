@@ -844,6 +844,10 @@ struct src_registers {
 						&((AEP)->regs.src.bar0->CSR))
 #define src_writel(AEP, CSR, value)	writel(value, \
 						&((AEP)->regs.src.bar0->CSR))
+#if defined(writeq)
+#define	src_writeq(AEP, CSR, value)	writeq(value, \
+						&((AEP)->regs.src.bar0->CSR))
+#endif
 
 #define SRC_ODR_SHIFT		12
 #define SRC_IDR_SHIFT		9
@@ -1163,6 +1167,11 @@ struct aac_dev
 	struct fsa_dev_info	*fsa_dev;
 	struct task_struct	*thread;
 	int			cardtype;
+	/*
+	 *This lock will protect the two 32-bit
+	 *writes to the Inbound Queue
+	 */
+	spinlock_t		iq_lock;
 
 	/*
 	 *	The following is the device specific extension.
