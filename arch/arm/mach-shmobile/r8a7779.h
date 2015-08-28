@@ -1,8 +1,6 @@
 #ifndef __ASM_R8A7779_H__
 #define __ASM_R8A7779_H__
 
-#include <linux/sh_clk.h>
-
 extern void r8a7779_pm_init(void);
 
 #ifdef CONFIG_PM
