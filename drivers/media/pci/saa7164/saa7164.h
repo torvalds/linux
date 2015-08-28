@@ -54,8 +54,6 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/videobuf-dma-sg.h>
-#include <media/videobuf-dvb.h>
 #include <dvb_demux.h>
 #include <dvb_frontend.h>
 #include <dvb_net.h>
