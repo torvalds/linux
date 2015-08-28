@@ -126,6 +126,10 @@
 		};
 	};
 
+	hda@70030000 {
+		status = "okay";
+	};
+
 	sd1: sdhci@78000000 {
 		status = "okay";
 		bus-width = <4>;
