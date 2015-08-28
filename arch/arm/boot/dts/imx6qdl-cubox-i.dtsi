@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2014 Russell King
  *
+ * Copyright 2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
@@ -118,13 +120,6 @@
 			linux,code = <BTN_0>;
 		};
 	};
-};
-
-&hdmi {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_cubox_i_hdmi>;
-	ddc-i2c-bus = <&i2c2>;
-	status = "okay";
 };
 
 &i2c2 {

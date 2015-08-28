@@ -1,6 +1,6 @@
 /*
  * Copyright 2013 Boundary Devices, Inc.
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2015 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -14,6 +14,10 @@
 #include <dt-bindings/input/input.h>
 
 / {
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
 	chosen {
 		stdout-path = &uart2;
 	};
@@ -130,6 +134,17 @@
 		power-supply = <&reg_3p3v>;
 		status = "okay";
 	};
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "hdmi";
+		interface_pix_fmt = "RGB24";
+		mode_str ="1920x1080M@60";
+		default_bpp = <24>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
 };
 
 &audmux {
@@ -174,8 +189,15 @@
 	status = "okay";
 };
 
-&hdmi {
-	ddc-i2c-bus = <&i2c2>;
+&hdmi_core {
+	ipu_id = <0>;
+	disp_id = <0>;
+	status = "okay";
+};
+
+&hdmi_video {
+	fsl,phy_reg_vlev = <0x0294>;
+	fsl,phy_reg_cksymtx = <0x800d>;
 	status = "okay";
 };
 
@@ -204,6 +226,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+
+	hdmi: edid@50 {
+		compatible = "fsl,imx6-hdmi-i2c";
+		reg = <0x50>;
+	};
 };
 
 &i2c3 {

@@ -1,6 +1,8 @@
 /*
  * Copyright 2013 Christian Hemp, Phytec Messtechnik GmbH
  *
+ * Copyright 2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
  * Version 2 or later at the following locations:
@@ -12,6 +14,10 @@
 #include <dt-bindings/sound/fsl-imx-audmux.h>
 
 / {
+	aliases {
+		mxcfb0 = &mxcfb1;
+	};
+
 	chosen {
 		linux,stdout-path = &uart4;
 	};
@@ -76,6 +82,17 @@
 		};
 	};
 
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "hdmi";
+		interface_pix_fmt = "RGB24";
+		mode_str ="1920x1080M@60";
+		default_bpp = <24>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+
 };
 
 &audmux {
@@ -109,7 +126,15 @@
 	status = "okay";
 };
 
-&hdmi {
+&hdmi_core {
+	ipu_id = <0>;
+	disp_id = <0>;
+	status = "okay";
+};
+
+&hdmi_video {
+	fsl,phy_reg_vlev = <0x0294>;
+	fsl,phy_reg_cksymtx = <0x800d>;
 	status = "okay";
 };
 

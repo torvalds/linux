@@ -3,6 +3,8 @@
  *
  * Copyright (C) 2014 Heiko Schocher <hs@denx.de>
  *
+ * Copyright 2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -20,38 +22,6 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
-	soc {
-		display0: display@di0 {
-			compatible = "fsl,imx-parallel-display";
-			interface-pix-fmt = "rgb24";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_ipu_disp>;
-			status = "okay";
-
-			display-timings {
-				800x480p60 {
-					native-mode;
-					clock-frequency = <33246000>;
-					hactive = <800>;
-					vactive = <480>;
-					hfront-porch = <88>;
-					hback-porch = <88>;
-					hsync-len = <80>;
-					vback-porch = <10>;
-					vfront-porch = <10>;
-					vsync-len = <25>;
-					vsync-active = <1>;
-				};
-			};
-
-			port {
-				display0_in: endpoint {
-					remote-endpoint = <&ipu1_di0_disp0>;
-				};
-			};
-		};
-	};
-
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm3 0 3000>;
@@ -62,15 +32,24 @@
 	};
 };
 
+&mxcfb1 {
+	status = "okay";
+};
+
+&lcd {
+	ipu_id = <0>;
+	disp_id = <0>;
+	default_ifmt = "RGB24";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ipu_disp>;
+	status = "okay";
+};
+
 &i2c2 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
-};
-
-&ipu1_di0_disp0 {
-	remote-endpoint = <&display0_in>;
 };
 
 &pwm3 {

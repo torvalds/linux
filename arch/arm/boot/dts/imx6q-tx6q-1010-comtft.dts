@@ -1,6 +1,8 @@
 /*
  * Copyright 2014 Lothar Waßmann <LW@KARO-electronics.de>
  *
+ * Copyright 2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
  * Version 2 at the following locations:
@@ -16,10 +18,6 @@
 / {
 	model = "Ka-Ro electronics TX6Q-1010 Module on CoMpact TFT";
 	compatible = "karo,imx6q-tx6q", "fsl,imx6q";
-
-	aliases {
-		display = &display;
-	};
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
@@ -43,39 +41,15 @@
 		default-brightness-level = <50>;
 	};
 
-	display: display@di0 {
-		compatible = "fsl,imx-parallel-display";
-		interface-pix-fmt = "rgb24";
+	lcd@0 {
+		compatible = "fsl,lcd";
+		ipu_id = <0>;
+		disp_id = <0>;
+		default_ifmt = "RGB565";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_disp0_1>;
 		status = "okay";
-
-		port {
-			display0_in: endpoint {
-				remote-endpoint = <&ipu1_di0_disp0>;
-			};
-		};
-
-		display-timings {
-			native-mode = <&ET070001DM6>;
-
-			ET070001DM6: CoMTFT { /* same as ET0700 but with inverted pixel clock */
-				clock-frequency = <33264000>;
-				hactive = <800>;
-				vactive = <480>;
-				hback-porch = <88>;
-				hsync-len = <128>;
-				hfront-porch = <40>;
-				vback-porch = <33>;
-				vsync-len = <2>;
-				vfront-porch = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <1>;
-				pixelclk-active = <1>;
-			};
-		};
-        };
+	};
 };
 
 &can1 {
@@ -84,10 +58,6 @@
 
 &can2 {
 	xceiver-supply = <&reg_3v3>;
-};
-
-&ipu1_di0_disp0 {
-	remote-endpoint = <&display0_in>;
 };
 
 &kpp {
