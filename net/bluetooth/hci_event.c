@@ -3726,17 +3726,25 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		if (ev->link_type == ESCO_LINK)
 			goto unlock;
 
+		/* When the link type in the event indicates SCO connection
+		 * and lookup of the connection object fails, then check
+		 * if an eSCO connection object exists.
+		 *
+		 * The core limits the synchronous connections to either
+		 * SCO or eSCO. The eSCO connection is preferred and tried
+		 * to be setup first and until successfully established,
+		 * the link type will be hinted as eSCO.
+		 */
 		conn = hci_conn_hash_lookup_ba(hdev, ESCO_LINK, &ev->bdaddr);
 		if (!conn)
 			goto unlock;
-
-		conn->type = SCO_LINK;
 	}
 
 	switch (ev->status) {
 	case 0x00:
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;
+		conn->type   = ev->link_type;
 
 		hci_debugfs_create_conn(conn);
 		hci_conn_add_sysfs(conn);
