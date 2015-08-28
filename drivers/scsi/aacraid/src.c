@@ -798,9 +798,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	unsigned long status;
 	int restart = 0;
 	int instance = dev->id;
-	int i, j;
 	const char *name = dev->name;
-	int cpu;
 
 	dev->a_ops.adapter_ioremap = aac_srcv_ioremap;
 	dev->a_ops.adapter_comm = aac_src_select_comm;
@@ -918,48 +916,10 @@ int aac_srcv_init(struct aac_dev *dev)
 		goto error_iounmap;
 	if (dev->msi_enabled)
 		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
-	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
-		cpu = cpumask_first(cpu_online_mask);
-		for (i = 0; i < dev->max_msix; i++) {
-			dev->aac_msix[i].vector_no = i;
-			dev->aac_msix[i].dev = dev;
 
-			if (request_irq(dev->msixentry[i].vector,
-					dev->a_ops.adapter_intr,
-					0,
-					"aacraid",
-					&(dev->aac_msix[i]))) {
-				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
-						name, instance, i);
-				for (j = 0 ; j < i ; j++)
-					free_irq(dev->msixentry[j].vector,
-						 &(dev->aac_msix[j]));
-				pci_disable_msix(dev->pdev);
-				goto error_iounmap;
-			}
-			if (irq_set_affinity_hint(
-			   dev->msixentry[i].vector,
-			   get_cpu_mask(cpu))) {
-				printk(KERN_ERR "%s%d: Failed to set IRQ affinity for cpu %d\n",
-						name, instance, cpu);
-			}
-			cpu = cpumask_next(cpu, cpu_online_mask);
-		}
-	} else {
-		dev->aac_msix[0].vector_no = 0;
-		dev->aac_msix[0].dev = dev;
+	if (aac_acquire_irq(dev))
+		goto error_iounmap;
 
-		if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
-				IRQF_SHARED,
-				"aacraid",
-				&(dev->aac_msix[0])) < 0) {
-			if (dev->msi)
-				pci_disable_msi(dev->pdev);
-			printk(KERN_ERR "%s%d: Interrupt unavailable.\n",
-					name, instance);
-			goto error_iounmap;
-		}
-	}
 	dev->dbg_base = dev->base_start;
 	dev->dbg_base_mapped = dev->base;
 	dev->dbg_size = dev->base_size;

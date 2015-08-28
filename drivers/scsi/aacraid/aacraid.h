@@ -2110,6 +2110,8 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 #define AAC_OWNER_ERROR_HANDLER	0x103
 #define AAC_OWNER_FIRMWARE	0x106
 
+int aac_acquire_irq(struct aac_dev *dev);
+void aac_free_irq(struct aac_dev *dev);
 const char *aac_driverinfo(struct Scsi_Host *);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
 int aac_fib_setup(struct aac_dev *dev);
