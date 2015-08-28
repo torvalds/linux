@@ -40,8 +40,7 @@ struct m62332_data {
 #endif
 };
 
-static int m62332_set_value(struct iio_dev *indio_dev,
-	u8 val, int channel)
+static int m62332_set_value(struct iio_dev *indio_dev, u8 val, int channel)
 {
 	struct m62332_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
@@ -87,30 +86,35 @@ static int m62332_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
 			   int *val2,
-			   long m)
+			   long mask)
 {
 	struct m62332_data *data = iio_priv(indio_dev);
 
-	switch (m) {
+	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		/* Corresponds to Vref / 2^(bits) */
 		*val = data->vref_mv;
 		*val2 = 8;
+
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_RAW:
 		*val = data->raw[chan->channel];
+
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = 1;
+
 		return IIO_VAL_INT;
 	default:
 		break;
 	}
+
 	return -EINVAL;
 }
 
 static int m62332_write_raw(struct iio_dev *indio_dev,
-	struct iio_chan_spec const *chan, int val, int val2, long mask)
+			    struct iio_chan_spec const *chan, int val, int val2,
+			    long mask)
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -195,6 +199,7 @@ static int m62332_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -230,6 +235,7 @@ static int m62332_probe(struct i2c_client *client,
 
 err:
 	iio_map_array_unregister(indio_dev);
+
 	return ret;
 }
 
