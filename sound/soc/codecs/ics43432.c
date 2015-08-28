@@ -57,7 +57,7 @@ static const struct of_device_id ics43432_ids[] = {
 	{ .compatible = "invensense,ics43432", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, ics43432_dt_ids);
+MODULE_DEVICE_TABLE(of, ics43432_ids);
 #endif
 
 static struct platform_driver ics43432_driver = {
