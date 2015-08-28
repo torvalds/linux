@@ -1,5 +1,5 @@
-#ifndef _ASM_IO_64_NONATOMIC_LO_HI_H_
-#define _ASM_IO_64_NONATOMIC_LO_HI_H_
+#ifndef _LINUX_IO_64_NONATOMIC_LO_HI_H_
+#define _LINUX_IO_64_NONATOMIC_LO_HI_H_
 
 #include <linux/io.h>
 #include <asm-generic/int-ll64.h>
@@ -29,4 +29,4 @@ static inline void lo_hi_writeq(__u64 val, volatile void __iomem *addr)
 #define writeq lo_hi_writeq
 #endif
 
-#endif	/* _ASM_IO_64_NONATOMIC_LO_HI_H_ */
+#endif	/* _LINUX_IO_64_NONATOMIC_LO_HI_H_ */

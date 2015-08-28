@@ -67,7 +67,7 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 /* PCI Address Constants */
 #define SMBBAR		0

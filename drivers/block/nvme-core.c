@@ -41,7 +41,7 @@
 #include <linux/t10-pi.h>
 #include <linux/types.h>
 #include <scsi/sg.h>
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define NVME_MINORS		(1U << MINORBITS)
 #define NVME_Q_DEPTH		1024
