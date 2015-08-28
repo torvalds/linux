@@ -915,6 +915,7 @@ err:
 
 static unsigned int fops_poll(struct file *file, poll_table *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct saa7164_encoder_fh *fh =
 		(struct saa7164_encoder_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
@@ -928,23 +929,15 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	saa7164_histogram_update(&port->poll_interval,
 		port->last_poll_msecs_diff);
 
-	if (!video_is_registered(port->v4l_device))
-		return -EIO;
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return mask;
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
 			if (saa7164_encoder_initialize(port) < 0)
-				return -EINVAL;
+				return POLLERR;
 			saa7164_encoder_start_streaming(port);
 			msleep(200);
-		}
-	}
-
-	/* blocking wait for buffer */
-	if ((file->f_flags & O_NONBLOCK) == 0) {
-		if (wait_event_interruptible(port->wait_read,
-			saa7164_enc_next_buf(port))) {
-				return -ERESTARTSYS;
 		}
 	}
 
