@@ -696,6 +696,12 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 		status = i40e_nvmupd_state_writing(hw, cmd, bytes, perrno);
 		break;
 
+	case I40E_NVMUPD_STATE_INIT_WAIT:
+	case I40E_NVMUPD_STATE_WRITE_WAIT:
+		status = I40E_ERR_NOT_READY;
+		*perrno = -EBUSY;
+		break;
+
 	default:
 		/* invalid state, should never happen */
 		i40e_debug(hw, I40E_DEBUG_NVM,
@@ -759,10 +765,12 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 						     hw->aq.asq_last_status);
 		} else {
 			status = i40e_nvmupd_nvm_erase(hw, cmd, perrno);
-			if (status)
+			if (status) {
 				i40e_release_nvm(hw);
-			else
+			} else {
 				hw->aq.nvm_release_on_done = true;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+			}
 		}
 		break;
 
@@ -773,10 +781,12 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 						     hw->aq.asq_last_status);
 		} else {
 			status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
-			if (status)
+			if (status) {
 				i40e_release_nvm(hw);
-			else
+			} else {
 				hw->aq.nvm_release_on_done = true;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+			}
 		}
 		break;
 
@@ -790,7 +800,7 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 			if (status)
 				i40e_release_nvm(hw);
 			else
-				hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
 		}
 		break;
 
@@ -809,6 +819,7 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 				i40e_release_nvm(hw);
 			} else {
 				hw->aq.nvm_release_on_done = true;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
 			}
 		}
 		break;
@@ -838,7 +849,7 @@ static i40e_status i40e_nvmupd_state_reading(struct i40e_hw *hw,
 					     struct i40e_nvm_access *cmd,
 					     u8 *bytes, int *perrno)
 {
-	i40e_status status;
+	i40e_status status = 0;
 	enum i40e_nvmupd_cmd upd_cmd;
 
 	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
@@ -880,7 +891,7 @@ static i40e_status i40e_nvmupd_state_writing(struct i40e_hw *hw,
 					     struct i40e_nvm_access *cmd,
 					     u8 *bytes, int *perrno)
 {
-	i40e_status status;
+	i40e_status status = 0;
 	enum i40e_nvmupd_cmd upd_cmd;
 	bool retry_attempt = false;
 
@@ -890,13 +901,22 @@ retry:
 	switch (upd_cmd) {
 	case I40E_NVMUPD_WRITE_CON:
 		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
+		if (!status)
+			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
 		break;
 
 	case I40E_NVMUPD_WRITE_LCB:
 		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
-		if (!status)
+		if (status) {
+			*perrno = hw->aq.asq_last_status ?
+				   i40e_aq_rc_to_posix(status,
+						       hw->aq.asq_last_status) :
+				   -EIO;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		} else {
 			hw->aq.nvm_release_on_done = true;
-		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+		}
 		break;
 
 	case I40E_NVMUPD_CSUM_CON:
@@ -907,19 +927,23 @@ retry:
 						       hw->aq.asq_last_status) :
 				   -EIO;
 			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		} else {
+			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
 		}
 		break;
 
 	case I40E_NVMUPD_CSUM_LCB:
 		status = i40e_update_nvm_checksum(hw);
-		if (status)
+		if (status) {
 			*perrno = hw->aq.asq_last_status ?
 				   i40e_aq_rc_to_posix(status,
 						       hw->aq.asq_last_status) :
 				   -EIO;
-		else
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		} else {
 			hw->aq.nvm_release_on_done = true;
-		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+		}
 		break;
 
 	default:

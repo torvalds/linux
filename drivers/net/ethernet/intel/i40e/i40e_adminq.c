@@ -1018,6 +1018,19 @@ clean_arq_element_out:
 			i40e_release_nvm(hw);
 			hw->aq.nvm_release_on_done = false;
 		}
+
+		switch (hw->nvmupd_state) {
+		case I40E_NVMUPD_STATE_INIT_WAIT:
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+			break;
+
+		case I40E_NVMUPD_STATE_WRITE_WAIT:
+			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
+			break;
+
+		default:
+			break;
+		}
 	}
 
 	return ret_code;

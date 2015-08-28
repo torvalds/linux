@@ -310,7 +310,9 @@ enum i40e_nvmupd_cmd {
 enum i40e_nvmupd_state {
 	I40E_NVMUPD_STATE_INIT,
 	I40E_NVMUPD_STATE_READING,
-	I40E_NVMUPD_STATE_WRITING
+	I40E_NVMUPD_STATE_WRITING,
+	I40E_NVMUPD_STATE_INIT_WAIT,
+	I40E_NVMUPD_STATE_WRITE_WAIT,
 };
 
 /* nvm_access definition and its masks/shifts need to be accessible to
