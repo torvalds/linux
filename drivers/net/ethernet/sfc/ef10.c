@@ -295,11 +295,11 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	/* We can have one VI for each 8K region.  However, until we
 	 * use TX option descriptors we need two TX queues per channel.
 	 */
-	efx->max_channels =
-		min_t(unsigned int,
-		      EFX_MAX_CHANNELS,
-		      efx_ef10_mem_map_size(efx) /
-		      (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
+	efx->max_channels = min_t(unsigned int,
+				  EFX_MAX_CHANNELS,
+				  efx_ef10_mem_map_size(efx) /
+				  (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
+	efx->max_tx_channels = efx->max_channels;
 	if (WARN_ON(efx->max_channels == 0))
 		return -EIO;
 
@@ -824,11 +824,13 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	unsigned int uc_mem_map_size, wc_mem_map_size;
-	unsigned int min_vis, pio_write_vi_base, max_vis;
+	unsigned int min_vis = max(EFX_TXQ_TYPES,
+				   efx_separate_tx_channels ? 2 : 1);
+	unsigned int channel_vis, pio_write_vi_base, max_vis;
 	void __iomem *membase;
 	int rc;
 
-	min_vis = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+	channel_vis = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
 
 #ifdef EFX_USE_PIO
 	/* Try to allocate PIO buffers if wanted and if the full
@@ -862,11 +864,11 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	 * page size is >4K).  So we may allocate some extra VIs just
 	 * for writing PIO buffers through.
 	 *
-	 * The UC mapping contains (min_vis - 1) complete VIs and the
+	 * The UC mapping contains (channel_vis - 1) complete VIs and the
 	 * first half of the next VI.  Then the WC mapping begins with
 	 * the second half of this last VI.
 	 */
-	uc_mem_map_size = PAGE_ALIGN((min_vis - 1) * EFX_VI_PAGE_SIZE +
+	uc_mem_map_size = PAGE_ALIGN((channel_vis - 1) * EFX_VI_PAGE_SIZE +
 				     ER_DZ_TX_PIOBUF);
 	if (nic_data->n_piobufs) {
 		/* pio_write_vi_base rounds down to give the number of complete
@@ -881,7 +883,7 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	} else {
 		pio_write_vi_base = 0;
 		wc_mem_map_size = 0;
-		max_vis = min_vis;
+		max_vis = channel_vis;
 	}
 
 	/* In case the last attached driver failed to free VIs, do it now */
@@ -892,6 +894,23 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	rc = efx_ef10_alloc_vis(efx, min_vis, max_vis);
 	if (rc != 0)
 		return rc;
+
+	if (nic_data->n_allocated_vis < channel_vis) {
+		netif_info(efx, drv, efx->net_dev,
+			   "Could not allocate enough VIs to satisfy RSS"
+			   " requirements. Performance may not be optimal.\n");
+		/* We didn't get the VIs to populate our channels.
+		 * We could keep what we got but then we'd have more
+		 * interrupts than we need.
+		 * Instead calculate new max_channels and restart
+		 */
+		efx->max_channels = nic_data->n_allocated_vis;
+		efx->max_tx_channels =
+			nic_data->n_allocated_vis / EFX_TXQ_TYPES;
+
+		efx_ef10_free_vis(efx);
+		return -EAGAIN;
+	}
 
 	/* If we didn't get enough VIs to map all the PIO buffers, free the
 	 * PIO buffers

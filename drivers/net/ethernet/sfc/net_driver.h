@@ -972,6 +972,7 @@ struct efx_nic {
 	unsigned next_buffer_table;
 
 	unsigned int max_channels;
+	unsigned int max_tx_channels;
 	unsigned n_channels;
 	unsigned n_rx_channels;
 	unsigned rss_spread;
