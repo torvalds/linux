@@ -236,6 +236,12 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 {
 	WARN_ON(i915.enable_ppgtt == -1);
 
+	/* On platforms with execlist available, vGPU will only
+	 * support execlist mode, no ring buffer mode.
+	 */
+	if (HAS_LOGICAL_RING_CONTEXTS(dev) && intel_vgpu_active(dev))
+		return 1;
+
 	if (INTEL_INFO(dev)->gen >= 9)
 		return 1;
 
