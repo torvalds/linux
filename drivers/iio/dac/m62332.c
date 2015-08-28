@@ -243,6 +243,8 @@ static int m62332_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 	iio_map_array_unregister(indio_dev);
+	m62332_set_value(indio_dev, 0, 0);
+	m62332_set_value(indio_dev, 0, 1);
 
 	return 0;
 }
