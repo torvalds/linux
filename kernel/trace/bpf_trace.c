@@ -81,13 +81,16 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 
 /*
  * limited trace_printk()
- * only %d %u %x %ld %lu %lx %lld %llu %llx %p conversion specifiers allowed
+ * only %d %u %x %ld %lu %lx %lld %llu %llx %p %s conversion specifiers allowed
  */
 static u64 bpf_trace_printk(u64 r1, u64 fmt_size, u64 r3, u64 r4, u64 r5)
 {
 	char *fmt = (char *) (long) r1;
+	bool str_seen = false;
 	int mod[3] = {};
 	int fmt_cnt = 0;
+	u64 unsafe_addr;
+	char buf[64];
 	int i;
 
 	/*
@@ -114,12 +117,37 @@ static u64 bpf_trace_printk(u64 r1, u64 fmt_size, u64 r3, u64 r4, u64 r5)
 		if (fmt[i] == 'l') {
 			mod[fmt_cnt]++;
 			i++;
-		} else if (fmt[i] == 'p') {
+		} else if (fmt[i] == 'p' || fmt[i] == 's') {
 			mod[fmt_cnt]++;
 			i++;
 			if (!isspace(fmt[i]) && !ispunct(fmt[i]) && fmt[i] != 0)
 				return -EINVAL;
 			fmt_cnt++;
+			if (fmt[i - 1] == 's') {
+				if (str_seen)
+					/* allow only one '%s' per fmt string */
+					return -EINVAL;
+				str_seen = true;
+
+				switch (fmt_cnt) {
+				case 1:
+					unsafe_addr = r3;
+					r3 = (long) buf;
+					break;
+				case 2:
+					unsafe_addr = r4;
+					r4 = (long) buf;
+					break;
+				case 3:
+					unsafe_addr = r5;
+					r5 = (long) buf;
+					break;
+				}
+				buf[0] = 0;
+				strncpy_from_unsafe(buf,
+						    (void *) (long) unsafe_addr,
+						    sizeof(buf));
+			}
 			continue;
 		}
 
