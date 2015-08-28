@@ -515,7 +515,7 @@ static int find_perf_probe_point_from_dwarf(struct probe_trace_point *tp,
 		if (ret < 0)
 			goto error;
 		addr += stext;
-	} else {
+	} else if (tp->symbol) {
 		addr = kernel_get_symbol_address_by_name(tp->symbol, false);
 		if (addr == 0)
 			goto error;
@@ -1194,14 +1194,36 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		*ptr++ = '\0';
 	}
 
-	tmp = strdup(arg);
-	if (tmp == NULL)
-		return -ENOMEM;
+	if (arg[0] == '\0')
+		tmp = NULL;
+	else {
+		tmp = strdup(arg);
+		if (tmp == NULL)
+			return -ENOMEM;
+	}
 
 	if (file_spec)
 		pp->file = tmp;
-	else
+	else {
 		pp->function = tmp;
+
+		/*
+		 * Keep pp->function even if this is absolute address,
+		 * so it can mark whether abs_address is valid.
+		 * Which make 'perf probe lib.bin 0x0' possible.
+		 *
+		 * Note that checking length of tmp is not needed
+		 * because when we access tmp[1] we know tmp[0] is '0',
+		 * so tmp[1] should always valid (but could be '\0').
+		 */
+		if (tmp && !strncmp(tmp, "0x", 2)) {
+			pp->abs_address = strtoul(pp->function, &tmp, 0);
+			if (*tmp != '\0') {
+				semantic_error("Invalid absolute address.\n");
+				return -EINVAL;
+			}
+		}
+	}
 
 	/* Parse other options */
 	while (ptr) {
@@ -1519,9 +1541,31 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 	} else
 		p = argv[1];
 	fmt1_str = strtok_r(p, "+", &fmt);
-	if (fmt1_str[0] == '0')	/* only the address started with 0x */
-		tp->address = strtoul(fmt1_str, NULL, 0);
-	else {
+	/* only the address started with 0x */
+	if (fmt1_str[0] == '0')	{
+		/*
+		 * Fix a special case:
+		 * if address == 0, kernel reports something like:
+		 * p:probe_libc/abs_0 /lib/libc-2.18.so:0x          (null) arg1=%ax
+		 * Newer kernel may fix that, but we want to
+		 * support old kernel also.
+		 */
+		if (strcmp(fmt1_str, "0x") == 0) {
+			if (!argv[2] || strcmp(argv[2], "(null)")) {
+				ret = -EINVAL;
+				goto out;
+			}
+			tp->address = 0;
+
+			free(argv[2]);
+			for (i = 2; argv[i + 1] != NULL; i++)
+				argv[i] = argv[i + 1];
+
+			argv[i] = NULL;
+			argc -= 1;
+		} else
+			tp->address = strtoul(fmt1_str, NULL, 0);
+	} else {
 		/* Only the symbol-based probe has offset */
 		tp->symbol = strdup(fmt1_str);
 		if (tp->symbol == NULL) {
@@ -1778,14 +1822,29 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
 	if (len <= 0)
 		goto error;
 
-	/* Uprobes must have tp->address and tp->module */
-	if (tev->uprobes && (!tp->address || !tp->module))
+	/* Uprobes must have tp->module */
+	if (tev->uprobes && !tp->module)
 		goto error;
+	/*
+	 * If tp->address == 0, then this point must be a
+	 * absolute address uprobe.
+	 * try_to_find_absolute_address() should have made
+	 * tp->symbol to "0x0".
+	 */
+	if (tev->uprobes && !tp->address) {
+		if (!tp->symbol || strcmp(tp->symbol, "0x0"))
+			goto error;
+	}
 
 	/* Use the tp->address for uprobes */
 	if (tev->uprobes)
 		ret = e_snprintf(buf + len, MAX_CMDLEN - len, "%s:0x%lx",
 				 tp->module, tp->address);
+	else if (!strncmp(tp->symbol, "0x", 2))
+		/* Absolute address. See try_to_find_absolute_address() */
+		ret = e_snprintf(buf + len, MAX_CMDLEN - len, "%s%s0x%lx",
+				 tp->module ?: "", tp->module ? ":" : "",
+				 tp->address);
 	else
 		ret = e_snprintf(buf + len, MAX_CMDLEN - len, "%s%s%s+%lu",
 				 tp->module ?: "", tp->module ? ":" : "",
@@ -1815,17 +1874,17 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 {
 	struct symbol *sym = NULL;
 	struct map *map;
-	u64 addr;
+	u64 addr = tp->address;
 	int ret = -ENOENT;
 
 	if (!is_kprobe) {
 		map = dso__new_map(tp->module);
 		if (!map)
 			goto out;
-		addr = tp->address;
 		sym = map__find_symbol(map, addr, NULL);
 	} else {
-		addr = kernel_get_symbol_address_by_name(tp->symbol, true);
+		if (tp->symbol)
+			addr = kernel_get_symbol_address_by_name(tp->symbol, true);
 		if (addr) {
 			addr += tp->offset;
 			sym = __find_kernel_function(addr, &map);
@@ -1848,8 +1907,8 @@ out:
 }
 
 static int convert_to_perf_probe_point(struct probe_trace_point *tp,
-					struct perf_probe_point *pp,
-					bool is_kprobe)
+				       struct perf_probe_point *pp,
+				       bool is_kprobe)
 {
 	char buf[128];
 	int ret;
@@ -1866,7 +1925,7 @@ static int convert_to_perf_probe_point(struct probe_trace_point *tp,
 	if (tp->symbol) {
 		pp->function = strdup(tp->symbol);
 		pp->offset = tp->offset;
-	} else if (!tp->module && !is_kprobe) {
+	} else {
 		ret = e_snprintf(buf, 128, "0x%" PRIx64, (u64)tp->address);
 		if (ret < 0)
 			return ret;
@@ -2305,7 +2364,9 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 	if (pev->event)
 		event = pev->event;
 	else
-		if (pev->point.function && !strisglob(pev->point.function))
+		if (pev->point.function &&
+			(strncmp(pev->point.function, "0x", 2) != 0) &&
+			!strisglob(pev->point.function))
 			event = pev->point.function;
 		else
 			event = tev->point.realname;
@@ -2572,6 +2633,98 @@ err_out:
 	goto out;
 }
 
+static int try_to_find_absolute_address(struct perf_probe_event *pev,
+					struct probe_trace_event **tevs)
+{
+	struct perf_probe_point *pp = &pev->point;
+	struct probe_trace_event *tev;
+	struct probe_trace_point *tp;
+	int i, err;
+
+	if (!(pev->point.function && !strncmp(pev->point.function, "0x", 2)))
+		return -EINVAL;
+	if (perf_probe_event_need_dwarf(pev))
+		return -EINVAL;
+
+	/*
+	 * This is 'perf probe /lib/libc.so 0xabcd'. Try to probe at
+	 * absolute address.
+	 *
+	 * Only one tev can be generated by this.
+	 */
+	*tevs = zalloc(sizeof(*tev));
+	if (!*tevs)
+		return -ENOMEM;
+
+	tev = *tevs;
+	tp = &tev->point;
+
+	/*
+	 * Don't use tp->offset, use address directly, because
+	 * in synthesize_probe_trace_command() address cannot be
+	 * zero.
+	 */
+	tp->address = pev->point.abs_address;
+	tp->retprobe = pp->retprobe;
+	tev->uprobes = pev->uprobes;
+
+	err = -ENOMEM;
+	/*
+	 * Give it a '0x' leading symbol name.
+	 * In __add_probe_trace_events, a NULL symbol is interpreted as
+	 * invalud.
+	 */
+	if (asprintf(&tp->symbol, "0x%lx", tp->address) < 0)
+		goto errout;
+
+	/* For kprobe, check range */
+	if ((!tev->uprobes) &&
+	    (kprobe_warn_out_range(tev->point.symbol,
+				   tev->point.address))) {
+		err = -EACCES;
+		goto errout;
+	}
+
+	if (asprintf(&tp->realname, "abs_%lx", tp->address) < 0)
+		goto errout;
+
+	if (pev->target) {
+		tp->module = strdup(pev->target);
+		if (!tp->module)
+			goto errout;
+	}
+
+	if (tev->group) {
+		tev->group = strdup(pev->group);
+		if (!tev->group)
+			goto errout;
+	}
+
+	if (pev->event) {
+		tev->event = strdup(pev->event);
+		if (!tev->event)
+			goto errout;
+	}
+
+	tev->nargs = pev->nargs;
+	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
+	if (!tev->args) {
+		err = -ENOMEM;
+		goto errout;
+	}
+	for (i = 0; i < tev->nargs; i++)
+		copy_to_probe_trace_arg(&tev->args[i], &pev->args[i]);
+
+	return 1;
+
+errout:
+	if (*tevs) {
+		clear_probe_trace_events(*tevs, 1);
+		*tevs = NULL;
+	}
+	return err;
+}
+
 bool __weak arch__prefers_symtab(void) { return false; }
 
 static int convert_to_probe_trace_events(struct perf_probe_event *pev,
@@ -2587,6 +2740,10 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 			return ret;
 		}
 	}
+
+	ret = try_to_find_absolute_address(pev, tevs);
+	if (ret > 0)
+		return ret;
 
 	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
 		ret = find_probe_trace_events_from_map(pev, tevs);
@@ -2758,3 +2915,22 @@ end:
 	return ret;
 }
 
+int copy_to_probe_trace_arg(struct probe_trace_arg *tvar,
+			    struct perf_probe_arg *pvar)
+{
+	tvar->value = strdup(pvar->var);
+	if (tvar->value == NULL)
+		return -ENOMEM;
+	if (pvar->type) {
+		tvar->type = strdup(pvar->type);
+		if (tvar->type == NULL)
+			return -ENOMEM;
+	}
+	if (pvar->name) {
+		tvar->name = strdup(pvar->name);
+		if (tvar->name == NULL)
+			return -ENOMEM;
+	} else
+		tvar->name = NULL;
+	return 0;
+}

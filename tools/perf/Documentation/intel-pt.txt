@@ -142,19 +142,21 @@ which is the same as
 
 	-e intel_pt/tsc=1,noretcomp=0/
 
+Note there are now new config terms - see section 'config terms' further below.
+
 The config terms are listed in /sys/devices/intel_pt/format.  They are bit
 fields within the config member of the struct perf_event_attr which is
 passed to the kernel by the perf_event_open system call.  They correspond to bit
 fields in the IA32_RTIT_CTL MSR.  Here is a list of them and their definitions:
 
-	$ for f in `ls /sys/devices/intel_pt/format`;do
-	> echo $f
-	> cat /sys/devices/intel_pt/format/$f
-	> done
-	noretcomp
-	config:11
-	tsc
-	config:10
+	$ grep -H . /sys/bus/event_source/devices/intel_pt/format/*
+	/sys/bus/event_source/devices/intel_pt/format/cyc:config:1
+	/sys/bus/event_source/devices/intel_pt/format/cyc_thresh:config:19-22
+	/sys/bus/event_source/devices/intel_pt/format/mtc:config:9
+	/sys/bus/event_source/devices/intel_pt/format/mtc_period:config:14-17
+	/sys/bus/event_source/devices/intel_pt/format/noretcomp:config:11
+	/sys/bus/event_source/devices/intel_pt/format/psb_period:config:24-27
+	/sys/bus/event_source/devices/intel_pt/format/tsc:config:10
 
 Note that the default config must be overridden for each term i.e.
 
@@ -209,8 +211,184 @@ perf_event_attr is displayed if the -vv option is used e.g.
 	------------------------------------------------------------
 
 
+config terms
+------------
+
+The June 2015 version of Intel 64 and IA-32 Architectures Software Developer
+Manuals, Chapter 36 Intel Processor Trace, defined new Intel PT features.
+Some of the features are reflect in new config terms.  All the config terms are
+described below.
+
+tsc		Always supported.  Produces TSC timestamp packets to provide
+		timing information.  In some cases it is possible to decode
+		without timing information, for example a per-thread context
+		that does not overlap executable memory maps.
+
+		The default config selects tsc (i.e. tsc=1).
+
+noretcomp	Always supported.  Disables "return compression" so a TIP packet
+		is produced when a function returns.  Causes more packets to be
+		produced but might make decoding more reliable.
+
+		The default config does not select noretcomp (i.e. noretcomp=0).
+
+psb_period	Allows the frequency of PSB packets to be specified.
+
+		The PSB packet is a synchronization packet that provides a
+		starting point for decoding or recovery from errors.
+
+		Support for psb_period is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/psb_cyc
+
+		which contains "1" if the feature is supported and "0"
+		otherwise.
+
+		Valid values are given by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/psb_periods
+
+		which contains a hexadecimal value, the bits of which represent
+		valid values e.g. bit 2 set means value 2 is valid.
+
+		The psb_period value is converted to the approximate number of
+		trace bytes between PSB packets as:
+
+			2 ^ (value + 11)
+
+		e.g. value 3 means 16KiB bytes between PSBs
+
+		If an invalid value is entered, the error message
+		will give a list of valid values e.g.
+
+			$ perf record -e intel_pt/psb_period=15/u uname
+			Invalid psb_period for intel_pt. Valid values are: 0-5
+
+		If MTC packets are selected, the default config selects a value
+		of 3 (i.e. psb_period=3) or the nearest lower value that is
+		supported (0 is always supported).  Otherwise the default is 0.
+
+		If decoding is expected to be reliable and the buffer is large
+		then a large PSB period can be used.
+
+		Because a TSC packet is produced with PSB, the PSB period can
+		also affect the granularity to timing information in the absence
+		of MTC or CYC.
+
+mtc		Produces MTC timing packets.
+
+		MTC packets provide finer grain timestamp information than TSC
+		packets.  MTC packets record time using the hardware crystal
+		clock (CTC) which is related to TSC packets using a TMA packet.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/mtc
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+		The frequency of MTC packets can also be specified - see
+		mtc_period below.
+
+mtc_period	Specifies how frequently MTC packets are produced - see mtc
+		above for how to determine if MTC packets are supported.
+
+		Valid values are given by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/mtc_periods
+
+		which contains a hexadecimal value, the bits of which represent
+		valid values e.g. bit 2 set means value 2 is valid.
+
+		The mtc_period value is converted to the MTC frequency as:
+
+			CTC-frequency / (2 ^ value)
+
+		e.g. value 3 means one eighth of CTC-frequency
+
+		Where CTC is the hardware crystal clock, the frequency of which
+		can be related to TSC via values provided in cpuid leaf 0x15.
+
+		If an invalid value is entered, the error message
+		will give a list of valid values e.g.
+
+			$ perf record -e intel_pt/mtc_period=15/u uname
+			Invalid mtc_period for intel_pt. Valid values are: 0,3,6,9
+
+		The default value is 3 or the nearest lower value
+		that is supported (0 is always supported).
+
+cyc		Produces CYC timing packets.
+
+		CYC packets provide even finer grain timestamp information than
+		MTC and TSC packets.  A CYC packet contains the number of CPU
+		cycles since the last CYC packet. Unlike MTC and TSC packets,
+		CYC packets are only sent when another packet is also sent.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/psb_cyc
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+		The number of CYC packets produced can be reduced by specifying
+		a threshold - see cyc_thresh below.
+
+cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
+		above for how to determine if CYC packets are supported.
+
+		Valid cyc_thresh values are given by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/cycle_thresholds
+
+		which contains a hexadecimal value, the bits of which represent
+		valid values e.g. bit 2 set means value 2 is valid.
+
+		The cyc_thresh value represents the minimum number of CPU cycles
+		that must have passed before a CYC packet can be sent.  The
+		number of CPU cycles is:
+
+			2 ^ (value - 1)
+
+		e.g. value 4 means 8 CPU cycles must pass before a CYC packet
+		can be sent.  Note a CYC packet is still only sent when another
+		packet is sent, not at, e.g. every 8 CPU cycles.
+
+		If an invalid value is entered, the error message
+		will give a list of valid values e.g.
+
+			$ perf record -e intel_pt/cyc,cyc_thresh=15/u uname
+			Invalid cyc_thresh for intel_pt. Valid values are: 0-12
+
+		CYC packets are not requested by default.
+
+no_force_psb	This is a driver option and is not in the IA32_RTIT_CTL MSR.
+
+		It stops the driver resetting the byte count to zero whenever
+		enabling the trace (for example on context switches) which in
+		turn results in no PSB being forced.  However some processors
+		will produce a PSB anyway.
+
+		In any case, there is still a PSB when the trace is enabled for
+		the first time.
+
+		no_force_psb can be used to slightly decrease the trace size but
+		may make it harder for the decoder to recover from errors.
+
+		no_force_psb is not selected by default.
+
+
 new snapshot option
 -------------------
+
+The difference between full trace and snapshot from the kernel's perspective is
+that in full trace we don't overwrite trace data that the user hasn't collected
+yet (and indicated that by advancing aux_tail), whereas in snapshot mode we let
+the trace run and overwrite older data in the buffer so that whenever something
+interesting happens, we can stop it and grab a snapshot of what was going on
+around that interesting moment.
 
 To select snapshot mode a new option has been added:
 

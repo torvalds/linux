@@ -553,24 +553,9 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 	char buf[32], *ptr;
 	int ret = 0;
 
-	if (!is_c_varname(pf->pvar->var)) {
-		/* Copy raw parameters */
-		pf->tvar->value = strdup(pf->pvar->var);
-		if (pf->tvar->value == NULL)
-			return -ENOMEM;
-		if (pf->pvar->type) {
-			pf->tvar->type = strdup(pf->pvar->type);
-			if (pf->tvar->type == NULL)
-				return -ENOMEM;
-		}
-		if (pf->pvar->name) {
-			pf->tvar->name = strdup(pf->pvar->name);
-			if (pf->tvar->name == NULL)
-				return -ENOMEM;
-		} else
-			pf->tvar->name = NULL;
-		return 0;
-	}
+	/* Copy raw parameters */
+	if (!is_c_varname(pf->pvar->var))
+		return copy_to_probe_trace_arg(pf->tvar, pf->pvar);
 
 	if (pf->pvar->name)
 		pf->tvar->name = strdup(pf->pvar->name);

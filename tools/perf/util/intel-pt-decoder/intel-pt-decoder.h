@@ -36,6 +36,7 @@ enum intel_pt_period_type {
 	INTEL_PT_PERIOD_NONE,
 	INTEL_PT_PERIOD_INSTRUCTIONS,
 	INTEL_PT_PERIOD_TICKS,
+	INTEL_PT_PERIOD_MTC,
 };
 
 enum {
@@ -58,6 +59,7 @@ struct intel_pt_state {
 	uint64_t from_ip;
 	uint64_t to_ip;
 	uint64_t cr3;
+	uint64_t tot_insn_cnt;
 	uint64_t timestamp;
 	uint64_t est_timestamp;
 	uint64_t trace_nr;
@@ -86,6 +88,9 @@ struct intel_pt_params {
 	uint64_t period;
 	enum intel_pt_period_type period_type;
 	unsigned max_non_turbo_ratio;
+	unsigned int mtc_period;
+	uint32_t tsc_ctc_ratio_n;
+	uint32_t tsc_ctc_ratio_d;
 };
 
 struct intel_pt_decoder;
