@@ -31,7 +31,6 @@
 
 struct m62332_data {
 	struct i2c_client	*client;
-	u16			vref_mv;
 	struct regulator	*vcc;
 	struct mutex		mutex;
 	u8			raw[M62332_CHANNELS];
@@ -89,11 +88,16 @@ static int m62332_read_raw(struct iio_dev *indio_dev,
 			   long mask)
 {
 	struct m62332_data *data = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		/* Corresponds to Vref / 2^(bits) */
-		*val = data->vref_mv;
+		ret = regulator_get_voltage(data->vcc);
+		if (ret < 0)
+			return ret;
+
+		*val = ret / 1000; /* mV */
 		*val2 = 8;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
@@ -217,11 +221,6 @@ static int m62332_probe(struct i2c_client *client,
 	indio_dev->channels = m62332_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &m62332_info;
-
-	ret = regulator_get_voltage(data->vcc);
-	if (ret < 0)
-		return ret;
-	data->vref_mv = ret / 1000; /* mV */
 
 	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
 	if (ret < 0)
