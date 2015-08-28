@@ -978,17 +978,23 @@ static int sunxi_nand_chip_init_timings(struct sunxi_nand_chip *chip,
 		mode = chip->nand.onfi_timing_mode_default;
 	} else {
 		uint8_t feature[ONFI_SUBFEATURE_PARAM_LEN] = {};
+		int i;
 
 		mode = fls(mode) - 1;
 		if (mode < 0)
 			mode = 0;
 
 		feature[0] = mode;
-		ret = chip->nand.onfi_set_features(&chip->mtd, &chip->nand,
+		for (i = 0; i < chip->nsels; i++) {
+			chip->nand.select_chip(&chip->mtd, i);
+			ret = chip->nand.onfi_set_features(&chip->mtd,
+						&chip->nand,
 						ONFI_FEATURE_ADDR_TIMING_MODE,
 						feature);
-		if (ret)
-			return ret;
+			chip->nand.select_chip(&chip->mtd, -1);
+			if (ret)
+				return ret;
+		}
 	}
 
 	timings = onfi_async_timing_mode_to_sdr_timings(mode);
