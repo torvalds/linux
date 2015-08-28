@@ -27,7 +27,6 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
@@ -161,9 +160,6 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
-		if (gw_node->deleted)
-			continue;
-
 		orig_node = gw_node->orig_node;
 		router = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
 		if (!router)
@@ -473,9 +469,6 @@ batadv_gw_node_get(struct batadv_priv *bat_priv,
 		if (gw_node_tmp->orig_node != orig_node)
 			continue;
 
-		if (gw_node_tmp->deleted)
-			continue;
-
 		if (!atomic_inc_not_zero(&gw_node_tmp->refcount))
 			continue;
 
@@ -525,9 +518,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 	gw_node->bandwidth_down = ntohl(gateway->bandwidth_down);
 	gw_node->bandwidth_up = ntohl(gateway->bandwidth_up);
 
-	gw_node->deleted = 0;
 	if (ntohl(gateway->bandwidth_down) == 0) {
-		gw_node->deleted = jiffies;
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Gateway %pM removed from gateway list\n",
 			   orig_node->orig);
@@ -535,14 +526,21 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		/* Note: We don't need a NULL check here, since curr_gw never
 		 * gets dereferenced.
 		 */
+		spin_lock_bh(&bat_priv->gw.list_lock);
+		hlist_del_init_rcu(&gw_node->list);
+		spin_unlock_bh(&bat_priv->gw.list_lock);
+
+		batadv_gw_node_free_ref(gw_node);
+
 		curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 		if (gw_node == curr_gw)
 			batadv_gw_reselect(bat_priv);
+
+		if (curr_gw)
+			batadv_gw_node_free_ref(curr_gw);
 	}
 
 out:
-	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
 	if (gw_node)
 		batadv_gw_node_free_ref(gw_node);
 }
@@ -558,39 +556,18 @@ void batadv_gw_node_delete(struct batadv_priv *bat_priv,
 	batadv_gw_node_update(bat_priv, orig_node, &gateway);
 }
 
-void batadv_gw_node_purge(struct batadv_priv *bat_priv)
+void batadv_gw_node_free(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *gw_node, *curr_gw;
+	struct batadv_gw_node *gw_node;
 	struct hlist_node *node_tmp;
-	unsigned long timeout = msecs_to_jiffies(2 * BATADV_PURGE_TIMEOUT);
-	int do_reselect = 0;
-
-	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
-
 	hlist_for_each_entry_safe(gw_node, node_tmp,
 				  &bat_priv->gw.list, list) {
-		if (((!gw_node->deleted) ||
-		     (time_before(jiffies, gw_node->deleted + timeout))) &&
-		    atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE)
-			continue;
-
-		if (curr_gw == gw_node)
-			do_reselect = 1;
-
-		hlist_del_rcu(&gw_node->list);
+		hlist_del_init_rcu(&gw_node->list);
 		batadv_gw_node_free_ref(gw_node);
 	}
-
 	spin_unlock_bh(&bat_priv->gw.list_lock);
-
-	/* gw_reselect() needs to acquire the gw_list_lock */
-	if (do_reselect)
-		batadv_gw_reselect(bat_priv);
-
-	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
 }
 
 /* fails if orig_node has no router */
@@ -654,9 +631,6 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
-		if (gw_node->deleted)
-			continue;
-
 		/* fails if orig_node has no router */
 		if (batadv_write_buffer_text(bat_priv, seq, gw_node) < 0)
 			continue;
