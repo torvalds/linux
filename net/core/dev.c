@@ -7010,7 +7010,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	setup(dev);
 
 	if (!dev->tx_queue_len)
-		printk(KERN_WARNING "%s uses DEPRECATED zero tx_queue_len - convert driver to use IFF_NO_QUEUE instead.\n", name);
+		dev->priv_flags |= IFF_NO_QUEUE;
 
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;
