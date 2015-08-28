@@ -9914,6 +9914,9 @@ static void i40e_print_features(struct i40e_pf *pf)
 	}
 	if (pf->flags & I40E_FLAG_DCB_CAPABLE)
 		buf += sprintf(buf, "DCB ");
+#if IS_ENABLED(CONFIG_VXLAN)
+	buf += sprintf(buf, "VxLAN ");
+#endif
 	if (pf->flags & I40E_FLAG_PTP)
 		buf += sprintf(buf, "PTP ");
 #ifdef I40E_FCOE
