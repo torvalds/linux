@@ -1825,8 +1825,7 @@ reclassify:
 
 		err = tp->classify(skb, tp, res);
 #ifdef CONFIG_NET_CLS_ACT
-		if (unlikely(err == TC_ACT_RECLASSIFY &&
-			     !compat_mode))
+		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode))
 			goto reset;
 #endif
 		if (err >= 0)
@@ -1837,9 +1836,9 @@ reclassify:
 #ifdef CONFIG_NET_CLS_ACT
 reset:
 	if (unlikely(limit++ >= MAX_REC_LOOP)) {
-		net_notice_ratelimited("%s: reclassify loop, rule prio %u, "
-				       "protocol %02x\n", tp->q->ops->id,
-				       tp->prio & 0xffff, ntohs(tp->protocol));
+		net_notice_ratelimited("%s: reclassify loop, rule prio %u, protocol %02x\n",
+				       tp->q->ops->id, tp->prio & 0xffff,
+				       ntohs(tp->protocol));
 		return TC_ACT_SHOT;
 	}
 
