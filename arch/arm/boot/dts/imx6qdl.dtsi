@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2015 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -30,6 +30,7 @@
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
+		ipu0 = &ipu1;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
@@ -179,6 +180,45 @@
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
 			interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		hdmi_core: hdmi_core@00120000 {
+			compatible = "fsl,imx6q-hdmi-core";
+			reg = <0x00120000 0x9000>;
+			clocks = <&clks IMX6QDL_CLK_HDMI_ISFR>,
+					<&clks IMX6QDL_CLK_HDMI_IAHB>,
+					<&clks IMX6QDL_CLK_HSI_TX>;
+			clock-names = "hdmi_isfr", "hdmi_iahb", "mipi_core";
+			status = "disabled";
+		};
+
+		hdmi_video: hdmi_video@020e0000 {
+			compatible = "fsl,imx6q-hdmi-video";
+			reg = <0x020e0000 0x1000>;
+			reg-names = "hdmi_gpr";
+			interrupts = <0 115 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_HDMI_ISFR>,
+					<&clks IMX6QDL_CLK_HDMI_IAHB>,
+					<&clks IMX6QDL_CLK_HSI_TX>;
+			clock-names = "hdmi_isfr", "hdmi_iahb", "mipi_core";
+			status = "disabled";
+		};
+
+		hdmi_audio: hdmi_audio@00120000 {
+			compatible = "fsl,imx6q-hdmi-audio";
+			clocks = <&clks IMX6QDL_CLK_HDMI_ISFR>,
+					<&clks IMX6QDL_CLK_HDMI_IAHB>,
+					<&clks IMX6QDL_CLK_HSI_TX>;
+			clock-names = "hdmi_isfr", "hdmi_iahb", "mipi_core";
+			dmas = <&sdma 2 24 0>;
+			dma-names = "tx";
+			status = "disabled";
+		};
+
+		hdmi_cec: hdmi_cec@00120000 {
+			compatible = "fsl,imx6q-hdmi-cec";
+			interrupts = <0 115 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
 		};
 
 		aips-bus@02000000 { /* AIPS1 */
@@ -801,7 +841,6 @@
 			ldb: ldb@020e0008 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
 				gpr = <&gpr>;
 				status = "disabled";
 
@@ -810,22 +849,6 @@
 					#size-cells = <0>;
 					reg = <0>;
 					status = "disabled";
-
-					port@0 {
-						reg = <0>;
-
-						lvds0_mux_0: endpoint {
-							remote-endpoint = <&ipu1_di0_lvds0>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						lvds0_mux_1: endpoint {
-							remote-endpoint = <&ipu1_di1_lvds0>;
-						};
-					};
 				};
 
 				lvds-channel@1 {
@@ -833,50 +856,6 @@
 					#size-cells = <0>;
 					reg = <1>;
 					status = "disabled";
-
-					port@0 {
-						reg = <0>;
-
-						lvds1_mux_0: endpoint {
-							remote-endpoint = <&ipu1_di0_lvds1>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						lvds1_mux_1: endpoint {
-							remote-endpoint = <&ipu1_di1_lvds1>;
-						};
-					};
-				};
-			};
-
-			hdmi: hdmi@0120000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0x00120000 0x9000>;
-				interrupts = <0 115 0x04>;
-				gpr = <&gpr>;
-				clocks = <&clks IMX6QDL_CLK_HDMI_IAHB>,
-					 <&clks IMX6QDL_CLK_HDMI_ISFR>;
-				clock-names = "iahb", "isfr";
-				status = "disabled";
-
-				port@0 {
-					reg = <0>;
-
-					hdmi_mux_0: endpoint {
-						remote-endpoint = <&ipu1_di0_hdmi>;
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-
-					hdmi_mux_1: endpoint {
-						remote-endpoint = <&ipu1_di1_hdmi>;
-					};
 				};
 			};
 
@@ -1153,24 +1132,21 @@
 					port@0 {
 						reg = <0>;
 
-						mipi_mux_0: endpoint {
-							remote-endpoint = <&ipu1_di0_mipi>;
-						};
 					};
 
 					port@1 {
 						reg = <1>;
 
-						mipi_mux_1: endpoint {
-							remote-endpoint = <&ipu1_di1_mipi>;
-						};
 					};
 				};
 			};
 
 			vdoa@021e4000 {
+				compatible = "fsl,imx6q-vdoa";
 				reg = <0x021e4000 0x4000>;
 				interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6QDL_CLK_VDOA>;
+				iram = <&ocram>;
 			};
 
 			uart2: serial@021e8000 {
@@ -1230,68 +1206,15 @@
 			interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>,
 				     <0 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6QDL_CLK_IPU1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0>,
-				 <&clks IMX6QDL_CLK_IPU1_DI1>;
-			clock-names = "bus", "di0", "di1";
+				 <&clks IMX6QDL_CLK_IPU1_DI0>, <&clks IMX6QDL_CLK_IPU1_DI1>,
+				 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+				 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
+			clock-names = "bus",
+				      "di0", "di1",
+				      "di0_sel", "di1_sel",
+				      "ldb_di0", "ldb_di1";
 			resets = <&src 2>;
-
-			ipu1_csi0: port@0 {
-				reg = <0>;
-			};
-
-			ipu1_csi1: port@1 {
-				reg = <1>;
-			};
-
-			ipu1_di0: port@2 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <2>;
-
-				ipu1_di0_disp0: endpoint@0 {
-				};
-
-				ipu1_di0_hdmi: endpoint@1 {
-					remote-endpoint = <&hdmi_mux_0>;
-				};
-
-				ipu1_di0_mipi: endpoint@2 {
-					remote-endpoint = <&mipi_mux_0>;
-				};
-
-				ipu1_di0_lvds0: endpoint@3 {
-					remote-endpoint = <&lvds0_mux_0>;
-				};
-
-				ipu1_di0_lvds1: endpoint@4 {
-					remote-endpoint = <&lvds1_mux_0>;
-				};
-			};
-
-			ipu1_di1: port@3 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <3>;
-
-				ipu1_di0_disp1: endpoint@0 {
-				};
-
-				ipu1_di1_hdmi: endpoint@1 {
-					remote-endpoint = <&hdmi_mux_1>;
-				};
-
-				ipu1_di1_mipi: endpoint@2 {
-					remote-endpoint = <&mipi_mux_1>;
-				};
-
-				ipu1_di1_lvds0: endpoint@3 {
-					remote-endpoint = <&lvds0_mux_1>;
-				};
-
-				ipu1_di1_lvds1: endpoint@4 {
-					remote-endpoint = <&lvds1_mux_1>;
-				};
-			};
+			bypass_reset = <0>;
 		};
 	};
 };

@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright 2013-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -119,24 +119,22 @@
 			};
 		};
 	};
-
-	display-subsystem {
-		compatible = "fsl,imx-display-subsystem";
-		ports = <&ipu1_di0>, <&ipu1_di1>;
-	};
-};
-
-&hdmi {
-	compatible = "fsl,imx6dl-hdmi";
 };
 
 &ldb {
-	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+	compatible = "fsl,imx6dl-ldb", "fsl,imx53-ldb";
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>,
 		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
-		 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
-	clock-names = "di0_pll", "di1_pll",
+		 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>,
+		 <&clks IMX6QDL_CLK_LDB_DI0_DIV_3_5>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_3_5>,
+		 <&clks IMX6QDL_CLK_LDB_DI0_DIV_7>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_7>,
+		 <&clks IMX6QDL_CLK_LDB_DI0_DIV_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_SEL>;
+	clock-names = "ldb_di0", "ldb_di1",
 		      "di0_sel", "di1_sel",
-		      "di0", "di1";
+		      "di2_sel",
+		      "ldb_di0_div_3_5", "ldb_di1_div_3_5",
+		      "ldb_di0_div_7", "ldb_di1_div_7",
+		      "ldb_di0_div_sel", "ldb_di1_div_sel";
 };
 
 &vpu {

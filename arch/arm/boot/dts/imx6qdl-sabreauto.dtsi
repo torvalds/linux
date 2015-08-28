@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2012-2015 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -13,6 +13,13 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	aliases {
+		mxcfb0 = &mxcfb1;
+		mxcfb1 = &mxcfb2;
+		mxcfb2 = &mxcfb3;
+		mxcfb3 = &mxcfb4;
+	};
+
 	memory:	memory {
 		reg = <0x10000000 0x80000000>;
 	};
@@ -97,7 +104,63 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 		};
+	};
 
+	hannstar_cabc {
+		compatible = "hannstar,cabc";
+
+		lvds_share {
+			gpios = <&max7310_a 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	sound-hdmi {
+		compatible = "fsl,imx6q-audio-hdmi",
+			     "fsl,imx-audio-hdmi";
+		model = "imx-audio-hdmi";
+		hdmi-controller = <&hdmi_audio>;
+	};
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB666";
+		default_bpp = <16>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "disabled";
+	};
+
+	mxcfb2: fb@1 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "hdmi";
+		interface_pix_fmt = "RGB24";
+		mode_str ="1920x1080M@60";
+		default_bpp = <24>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "disabled";
+	};
+
+	mxcfb3: fb@2 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "lcd";
+		interface_pix_fmt = "RGB565";
+		mode_str ="CLAA-WVGA";
+		default_bpp = <16>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "disabled";
+	};
+
+	mxcfb4: fb@3 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "ldb";
+		interface_pix_fmt = "RGB666";
+		default_bpp = <16>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "disabled";
 	};
 
 	clocks {
@@ -200,11 +263,43 @@
 	status = "okay";
 };
 
+&hdmi_audio {
+	status = "okay";
+};
+
+&hdmi_cec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi_cec>;
+	status = "okay";
+};
+
+&hdmi_core {
+	ipu_id = <0>;
+	disp_id = <1>;
+	status = "okay";
+};
+
+&hdmi_video {
+	fsl,phy_reg_vlev = <0x0294>;
+	fsl,phy_reg_cksymtx = <0x800d>;
+	status = "okay";
+};
+
 &i2c2 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+
+	egalax_ts@04 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_egalax_int>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <28 2>;
+		wakeup-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+	};
 
 	pmic: pfuze100@08 {
 		compatible = "fsl,pfuze100";
@@ -303,6 +398,11 @@
 				regulator-always-on;
 			};
 		};
+	};
+
+	hdmi: edid@50 {
+		compatible = "fsl,imx6-hdmi-i2c";
+		reg = <0x50>;
 	};
 
 	codec: cs42888@48 {
@@ -421,6 +521,12 @@
 			>;
 		};
 
+		pinctrl_egalax_int: egalax_intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_EB0__GPIO2_IO28 0x80000000
+			>;
+		};
+
 		pinctrl_enet: enetgrp {
 			fsl,pins = <
 				MX6QDL_PAD_KEY_COL1__ENET_MDIO		0x1b0b0
@@ -490,6 +596,30 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_EB2__I2C2_SCL	0x4001b8b1
 				MX6QDL_PAD_KEY_ROW3__I2C2_SDA	0x4001b8b1
+			>;
+		};
+
+		pinctrl_ipu1_1: ipu1grp-1 { /* parallel port 16-bit */
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT4__IPU1_CSI0_DATA04   0x80000000
+				MX6QDL_PAD_CSI0_DAT5__IPU1_CSI0_DATA05   0x80000000
+				MX6QDL_PAD_CSI0_DAT6__IPU1_CSI0_DATA06   0x80000000
+				MX6QDL_PAD_CSI0_DAT7__IPU1_CSI0_DATA07   0x80000000
+				MX6QDL_PAD_CSI0_DAT8__IPU1_CSI0_DATA08   0x80000000
+				MX6QDL_PAD_CSI0_DAT9__IPU1_CSI0_DATA09   0x80000000
+				MX6QDL_PAD_CSI0_DAT10__IPU1_CSI0_DATA10  0x80000000
+				MX6QDL_PAD_CSI0_DAT11__IPU1_CSI0_DATA11  0x80000000
+				MX6QDL_PAD_CSI0_DAT12__IPU1_CSI0_DATA12  0x80000000
+				MX6QDL_PAD_CSI0_DAT13__IPU1_CSI0_DATA13  0x80000000
+				MX6QDL_PAD_CSI0_DAT14__IPU1_CSI0_DATA14  0x80000000
+				MX6QDL_PAD_CSI0_DAT15__IPU1_CSI0_DATA15  0x80000000
+				MX6QDL_PAD_CSI0_DAT16__IPU1_CSI0_DATA16  0x80000000
+				MX6QDL_PAD_CSI0_DAT17__IPU1_CSI0_DATA17  0x80000000
+				MX6QDL_PAD_CSI0_DAT18__IPU1_CSI0_DATA18  0x80000000
+				MX6QDL_PAD_CSI0_DAT19__IPU1_CSI0_DATA19  0x80000000
+				MX6QDL_PAD_CSI0_PIXCLK__IPU1_CSI0_PIXCLK 0x80000000
+				MX6QDL_PAD_CSI0_MCLK__IPU1_CSI0_HSYNC    0x80000000
+				MX6QDL_PAD_CSI0_VSYNC__IPU1_CSI0_VSYNC   0x80000000
 			>;
 		};
 
@@ -650,6 +780,12 @@
 			>;
 		};
 	};
+
+	pinctrl_hdmi_cec: hdmicecgrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_A25__HDMI_TX_CEC_LINE 0x1f8b0
+		>;
+	};
 };
 
 &ldb {
@@ -658,11 +794,33 @@
 	lvds-channel@0 {
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <18>;
+		primary;
 		status = "okay";
 
 		display-timings {
 			native-mode = <&timing0>;
 			timing0: hsd100pxn1 {
+				clock-frequency = <65000000>;
+				hactive = <1024>;
+				vactive = <768>;
+				hback-porch = <220>;
+				hfront-porch = <40>;
+				vback-porch = <21>;
+				vfront-porch = <7>;
+				hsync-len = <60>;
+				vsync-len = <10>;
+			};
+		};
+	};
+
+	lvds-channel@1 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <18>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&timing1>;
+			timing1: hsd100pxn1 {
 				clock-frequency = <65000000>;
 				hactive = <1024>;
 				vactive = <768>;

@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright 2013-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -176,156 +176,38 @@
 			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
 				     <0 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6QDL_CLK_IPU2>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0>,
-				 <&clks IMX6QDL_CLK_IPU2_DI1>;
-			clock-names = "bus", "di0", "di1";
+				 <&clks IMX6QDL_CLK_IPU2_DI0>, <&clks IMX6QDL_CLK_IPU2_DI1>,
+				 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
+				 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
+			clock-names = "bus",
+				      "di0", "di1",
+				      "di0_sel", "di1_sel",
+				      "ldb_di0", "ldb_di1";
+
 			resets = <&src 4>;
+			bypass_reset = <0>;
 
-			ipu2_csi0: port@0 {
-				reg = <0>;
-			};
-
-			ipu2_csi1: port@1 {
-				reg = <1>;
-			};
-
-			ipu2_di0: port@2 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <2>;
-
-				ipu2_di0_disp0: endpoint@0 {
-				};
-
-				ipu2_di0_hdmi: endpoint@1 {
-					remote-endpoint = <&hdmi_mux_2>;
-				};
-
-				ipu2_di0_mipi: endpoint@2 {
-				};
-
-				ipu2_di0_lvds0: endpoint@3 {
-					remote-endpoint = <&lvds0_mux_2>;
-				};
-
-				ipu2_di0_lvds1: endpoint@4 {
-					remote-endpoint = <&lvds1_mux_2>;
-				};
-			};
-
-			ipu2_di1: port@3 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <3>;
-
-				ipu2_di1_hdmi: endpoint@1 {
-					remote-endpoint = <&hdmi_mux_3>;
-				};
-
-				ipu2_di1_mipi: endpoint@2 {
-				};
-
-				ipu2_di1_lvds0: endpoint@3 {
-					remote-endpoint = <&lvds0_mux_3>;
-				};
-
-				ipu2_di1_lvds1: endpoint@4 {
-					remote-endpoint = <&lvds1_mux_3>;
-				};
 			};
 		};
 	};
 
-	display-subsystem {
-		compatible = "fsl,imx-display-subsystem";
-		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
-	};
-};
-
-&hdmi {
-	compatible = "fsl,imx6q-hdmi";
-
-	port@2 {
-		reg = <2>;
-
-		hdmi_mux_2: endpoint {
-			remote-endpoint = <&ipu2_di0_hdmi>;
-		};
-	};
-
-	port@3 {
-		reg = <3>;
-
-		hdmi_mux_3: endpoint {
-			remote-endpoint = <&ipu2_di1_hdmi>;
-		};
-	};
-};
 
 &ldb {
-	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+	compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
+
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>,
 		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
 		 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
-		 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
-	clock-names = "di0_pll", "di1_pll",
-		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
-		      "di0", "di1";
+		 <&clks IMX6QDL_CLK_LDB_DI0_DIV_3_5>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_3_5>,
+		 <&clks IMX6QDL_CLK_LDB_DI0_DIV_7>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_7>,
+		 <&clks IMX6QDL_CLK_LDB_DI0_DIV_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_SEL>;
+	clock-names = "ldb_di0", "ldb_di1",
+		      "di0_sel", "di1_sel",
+		      "di2_sel", "di3_sel",
+		      "ldb_di0_div_3_5", "ldb_di1_div_3_5",
+		      "ldb_di0_div_7", "ldb_di1_div_7",
+		      "ldb_di0_div_sel", "ldb_di1_div_sel";
 
-	lvds-channel@0 {
-		port@2 {
-			reg = <2>;
-
-			lvds0_mux_2: endpoint {
-				remote-endpoint = <&ipu2_di0_lvds0>;
-			};
-		};
-
-		port@3 {
-			reg = <3>;
-
-			lvds0_mux_3: endpoint {
-				remote-endpoint = <&ipu2_di1_lvds0>;
-			};
-		};
-	};
-
-	lvds-channel@1 {
-		port@2 {
-			reg = <2>;
-
-			lvds1_mux_2: endpoint {
-				remote-endpoint = <&ipu2_di0_lvds1>;
-			};
-		};
-
-		port@3 {
-			reg = <3>;
-
-			lvds1_mux_3: endpoint {
-				remote-endpoint = <&ipu2_di1_lvds1>;
-			};
-		};
-	};
-};
-
-&mipi_dsi {
-	ports {
-		port@2 {
-			reg = <2>;
-
-			mipi_mux_2: endpoint {
-				remote-endpoint = <&ipu2_di0_mipi>;
-			};
-		};
-
-		port@3 {
-			reg = <3>;
-
-			mipi_mux_3: endpoint {
-				remote-endpoint = <&ipu2_di1_mipi>;
-			};
-		};
-	};
 };
 
 &vpu {

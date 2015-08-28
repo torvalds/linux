@@ -13,6 +13,22 @@
 	model = "Freescale i.MX6 Quad Plus SABRE Automotive Board";
 };
 
+&mxcfb1 {
+	prefetch;
+};
+
+&mxcfb2 {
+	prefetch;
+};
+
+&mxcfb3 {
+	prefetch;
+};
+
+&mxcfb4 {
+	prefetch;
+};
+
 &fec {
 	pinctrl-assert-gpios = <&max7322 0 GPIO_ACTIVE_HIGH>;
 };
