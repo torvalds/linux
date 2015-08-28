@@ -2,6 +2,28 @@
 #define __NVKM_THERM_H__
 #include <core/subdev.h>
 
+#include <subdev/bios.h>
+#include <subdev/bios/therm.h>
+#include <subdev/timer.h>
+
+enum nvkm_therm_thrs_direction {
+	NVKM_THERM_THRS_FALLING = 0,
+	NVKM_THERM_THRS_RISING = 1
+};
+
+enum nvkm_therm_thrs_state {
+	NVKM_THERM_THRS_LOWER = 0,
+	NVKM_THERM_THRS_HIGHER = 1
+};
+
+enum nvkm_therm_thrs {
+	NVKM_THERM_THRS_FANBOOST = 0,
+	NVKM_THERM_THRS_DOWNCLOCK = 1,
+	NVKM_THERM_THRS_CRITICAL = 2,
+	NVKM_THERM_THRS_SHUTDOWN = 3,
+	NVKM_THERM_THRS_NR
+};
+
 enum nvkm_therm_fan_mode {
 	NVKM_THERM_CTRL_NONE = 0,
 	NVKM_THERM_CTRL_MANUAL = 1,
@@ -24,56 +46,54 @@ enum nvkm_therm_attr_type {
 };
 
 struct nvkm_therm {
-	struct nvkm_subdev base;
+	const struct nvkm_therm_func *func;
+	struct nvkm_subdev subdev;
 
-	int (*pwm_ctrl)(struct nvkm_therm *, int line, bool);
-	int (*pwm_get)(struct nvkm_therm *, int line, u32 *, u32 *);
-	int (*pwm_set)(struct nvkm_therm *, int line, u32, u32);
-	int (*pwm_clock)(struct nvkm_therm *, int line);
+	/* automatic thermal management */
+	struct nvkm_alarm alarm;
+	spinlock_t lock;
+	struct nvbios_therm_trip_point *last_trip;
+	int mode;
+	int cstate;
+	int suspend;
+
+	/* bios */
+	struct nvbios_therm_sensor bios_sensor;
+
+	/* fan priv */
+	struct nvkm_fan *fan;
+
+	/* alarms priv */
+	struct {
+		spinlock_t alarm_program_lock;
+		struct nvkm_alarm therm_poll_alarm;
+		enum nvkm_therm_thrs_state alarm_state[NVKM_THERM_THRS_NR];
+	} sensor;
+
+	/* what should be done if the card overheats */
+	struct {
+		void (*downclock)(struct nvkm_therm *, bool active);
+		void (*pause)(struct nvkm_therm *, bool active);
+	} emergency;
+
+	/* ic */
+	struct i2c_client *ic;
 
 	int (*fan_get)(struct nvkm_therm *);
 	int (*fan_set)(struct nvkm_therm *, int);
-	int (*fan_sense)(struct nvkm_therm *);
-
-	int (*temp_get)(struct nvkm_therm *);
 
 	int (*attr_get)(struct nvkm_therm *, enum nvkm_therm_attr_type);
 	int (*attr_set)(struct nvkm_therm *, enum nvkm_therm_attr_type, int);
 };
 
-static inline struct nvkm_therm *
-nvkm_therm(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_THERM);
-}
+int nvkm_therm_temp_get(struct nvkm_therm *);
+int nvkm_therm_fan_sense(struct nvkm_therm *);
+int nvkm_therm_cstate(struct nvkm_therm *, int, int);
 
-#define nvkm_therm_create(p,e,o,d)                                          \
-	nvkm_therm_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nvkm_therm_destroy(p) ({                                            \
-	struct nvkm_therm *therm = (p);                                     \
-        _nvkm_therm_dtor(nv_object(therm));                                 \
-})
-#define nvkm_therm_init(p) ({                                               \
-	struct nvkm_therm *therm = (p);                                     \
-        _nvkm_therm_init(nv_object(therm));                                 \
-})
-#define nvkm_therm_fini(p,s) ({                                             \
-	struct nvkm_therm *therm = (p);                                     \
-        _nvkm_therm_init(nv_object(therm), (s));                            \
-})
-
-int  nvkm_therm_create_(struct nvkm_object *, struct nvkm_object *,
-			   struct nvkm_oclass *, int, void **);
-void _nvkm_therm_dtor(struct nvkm_object *);
-int  _nvkm_therm_init(struct nvkm_object *);
-int  _nvkm_therm_fini(struct nvkm_object *, bool);
-
-int  nvkm_therm_cstate(struct nvkm_therm *, int, int);
-
-extern struct nvkm_oclass nv40_therm_oclass;
-extern struct nvkm_oclass nv50_therm_oclass;
-extern struct nvkm_oclass g84_therm_oclass;
-extern struct nvkm_oclass gt215_therm_oclass;
-extern struct nvkm_oclass gf110_therm_oclass;
-extern struct nvkm_oclass gm107_therm_oclass;
+int nv40_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int nv50_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int g84_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int gt215_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int gf119_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int gm107_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 #endif

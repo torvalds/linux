@@ -24,46 +24,44 @@
 #include "nv40.h"
 
 static void
-nv40_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+nv40_perfctr_init(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		  struct nvkm_perfctr *ctr)
 {
-	struct nv40_pm_priv *priv = (void *)ppm;
-	struct nv40_pm_cntr *cntr = (void *)ctr;
+	struct nvkm_device *device = pm->engine.subdev.device;
 	u32 log = ctr->logic_op;
 	u32 src = 0x00000000;
 	int i;
 
-	for (i = 0; i < 4 && ctr->signal[i]; i++)
-		src |= (ctr->signal[i] - dom->signal) << (i * 8);
+	for (i = 0; i < 4; i++)
+		src |= ctr->signal[i] << (i * 8);
 
-	nv_wr32(priv, 0x00a7c0 + dom->addr, 0x00000001);
-	nv_wr32(priv, 0x00a400 + dom->addr + (cntr->base.slot * 0x40), src);
-	nv_wr32(priv, 0x00a420 + dom->addr + (cntr->base.slot * 0x40), log);
+	nvkm_wr32(device, 0x00a7c0 + dom->addr, 0x00000001 | (dom->mode << 4));
+	nvkm_wr32(device, 0x00a400 + dom->addr + (ctr->slot * 0x40), src);
+	nvkm_wr32(device, 0x00a420 + dom->addr + (ctr->slot * 0x40), log);
 }
 
 static void
-nv40_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+nv40_perfctr_read(struct nvkm_pm *pm, struct nvkm_perfdom *dom,
 		  struct nvkm_perfctr *ctr)
 {
-	struct nv40_pm_priv *priv = (void *)ppm;
-	struct nv40_pm_cntr *cntr = (void *)ctr;
+	struct nvkm_device *device = pm->engine.subdev.device;
 
-	switch (cntr->base.slot) {
-	case 0: cntr->base.ctr = nv_rd32(priv, 0x00a700 + dom->addr); break;
-	case 1: cntr->base.ctr = nv_rd32(priv, 0x00a6c0 + dom->addr); break;
-	case 2: cntr->base.ctr = nv_rd32(priv, 0x00a680 + dom->addr); break;
-	case 3: cntr->base.ctr = nv_rd32(priv, 0x00a740 + dom->addr); break;
+	switch (ctr->slot) {
+	case 0: ctr->ctr = nvkm_rd32(device, 0x00a700 + dom->addr); break;
+	case 1: ctr->ctr = nvkm_rd32(device, 0x00a6c0 + dom->addr); break;
+	case 2: ctr->ctr = nvkm_rd32(device, 0x00a680 + dom->addr); break;
+	case 3: ctr->ctr = nvkm_rd32(device, 0x00a740 + dom->addr); break;
 	}
-	cntr->base.clk = nv_rd32(priv, 0x00a600 + dom->addr);
+	dom->clk = nvkm_rd32(device, 0x00a600 + dom->addr);
 }
 
 static void
-nv40_perfctr_next(struct nvkm_pm *ppm, struct nvkm_perfdom *dom)
+nv40_perfctr_next(struct nvkm_pm *pm, struct nvkm_perfdom *dom)
 {
-	struct nv40_pm_priv *priv = (void *)ppm;
-	if (priv->sequence != ppm->sequence) {
-		nv_wr32(priv, 0x400084, 0x00000020);
-		priv->sequence = ppm->sequence;
+	struct nvkm_device *device = pm->engine.subdev.device;
+	if (pm->sequence != pm->sequence) {
+		nvkm_wr32(device, 0x400084, 0x00000020);
+		pm->sequence = pm->sequence;
 	}
 }
 
@@ -73,6 +71,28 @@ nv40_perfctr_func = {
 	.read = nv40_perfctr_read,
 	.next = nv40_perfctr_next,
 };
+
+static const struct nvkm_pm_func
+nv40_pm_ = {
+};
+
+int
+nv40_pm_new_(const struct nvkm_specdom *doms, struct nvkm_device *device,
+	     int index, struct nvkm_pm **ppm)
+{
+	struct nv40_pm *pm;
+	int ret;
+
+	if (!(pm = kzalloc(sizeof(*pm), GFP_KERNEL)))
+		return -ENOMEM;
+	*ppm = &pm->base;
+
+	ret = nvkm_pm_ctor(&nv40_pm_, device, index, &pm->base);
+	if (ret)
+		return ret;
+
+	return nvkm_perfdom_new(&pm->base, "pc", 0, 0, 0, 4, doms);
+}
 
 static const struct nvkm_specdom
 nv40_pm[] = {
@@ -95,36 +115,7 @@ nv40_pm[] = {
 };
 
 int
-nv40_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+nv40_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
 {
-	struct nv40_pm_oclass *mclass = (void *)oclass;
-	struct nv40_pm_priv *priv;
-	int ret;
-
-	ret = nvkm_pm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	ret = nvkm_perfdom_new(&priv->base, "pm", 0, 0, 0, 4, mclass->doms);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->cclass = &nvkm_pm_cclass;
-	nv_engine(priv)->sclass =  nvkm_pm_sclass;
-	return 0;
+	return nv40_pm_new_(nv40_pm, device, index, ppm);
 }
-
-struct nvkm_oclass *
-nv40_pm_oclass = &(struct nv40_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0x40),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_pm_ctor,
-		.dtor = _nvkm_pm_dtor,
-		.init = _nvkm_pm_init,
-		.fini = _nvkm_pm_fini,
-	},
-	.doms = nv40_pm,
-}.base;

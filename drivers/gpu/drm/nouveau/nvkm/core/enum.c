@@ -38,29 +38,19 @@ nvkm_enum_find(const struct nvkm_enum *en, u32 value)
 	return NULL;
 }
 
-const struct nvkm_enum *
-nvkm_enum_print(const struct nvkm_enum *en, u32 value)
-{
-	en = nvkm_enum_find(en, value);
-	if (en)
-		pr_cont("%s", en->name);
-	else
-		pr_cont("(unknown enum 0x%08x)", value);
-	return en;
-}
-
 void
-nvkm_bitfield_print(const struct nvkm_bitfield *bf, u32 value)
+nvkm_snprintbf(char *data, int size, const struct nvkm_bitfield *bf, u32 value)
 {
-	while (bf->name) {
+	bool space = false;
+	while (size >= 1 && bf->name) {
 		if (value & bf->mask) {
-			pr_cont(" %s", bf->name);
-			value &= ~bf->mask;
+			int this = snprintf(data, size, "%s%s",
+					    space ? " " : "", bf->name);
+			size -= this;
+			data += this;
+			space = true;
 		}
-
 		bf++;
 	}
-
-	if (value)
-		pr_cont(" (unknown bits 0x%08x)", value);
+	data[0] = '\0';
 }
