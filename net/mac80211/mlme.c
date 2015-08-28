@@ -3380,7 +3380,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->rssi_min_thold != ifmgd->rssi_max_thold &&
 	    ifmgd->count_beacon_signal >= IEEE80211_SIGNAL_AVE_MIN_COUNT) {
-		int sig = ifmgd->ave_beacon_signal;
+		int sig = ifmgd->ave_beacon_signal / 16;
 		int last_sig = ifmgd->last_ave_beacon_signal;
 		struct ieee80211_event event = {
 			.type = RSSI_EVENT,
