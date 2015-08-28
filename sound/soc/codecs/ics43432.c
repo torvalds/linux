@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2015 Axis Communications AB
  *
- * Licensed under GPL2.
+ * Licensed under GPL v2.
  */
 
 #include <linux/module.h>
@@ -73,4 +73,4 @@ module_platform_driver(ics43432_driver);
 
 MODULE_DESCRIPTION("ASoC ICS43432 driver");
 MODULE_AUTHOR("Ricard Wanderlof <ricardw@axis.com>");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
