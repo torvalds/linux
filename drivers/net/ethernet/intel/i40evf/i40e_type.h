@@ -306,6 +306,7 @@ enum i40e_nvmupd_cmd {
 	I40E_NVMUPD_CSUM_LCB,
 	I40E_NVMUPD_STATUS,
 	I40E_NVMUPD_EXEC_AQ,
+	I40E_NVMUPD_GET_AQ_RESULT,
 };
 
 enum i40e_nvmupd_state {
