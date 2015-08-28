@@ -1783,7 +1783,7 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 		return ret;
 
 	fep->mii_timeout = 0;
-	init_completion(&fep->mdio_done);
+	reinit_completion(&fep->mdio_done);
 
 	/* start a read op */
 	writel(FEC_MMFR_ST | FEC_MMFR_OP_READ |
@@ -1822,7 +1822,7 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 		return ret;
 
 	fep->mii_timeout = 0;
-	init_completion(&fep->mdio_done);
+	reinit_completion(&fep->mdio_done);
 
 	/* start a write op */
 	writel(FEC_MMFR_ST | FEC_MMFR_OP_WRITE |

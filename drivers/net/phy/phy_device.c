@@ -176,7 +176,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	if (c45_ids)
 		dev->c45_ids = *c45_ids;
 	dev->bus = bus;
-	dev->dev.parent = bus->parent;
+	dev->dev.parent = &bus->dev;
 	dev->dev.bus = &mdio_bus_type;
 	dev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
 	dev_set_name(&dev->dev, PHY_ID_FMT, bus->id, addr);

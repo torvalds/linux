@@ -1307,7 +1307,12 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 		}
 	}
 
-	if (core_stats) {
+	if (!core_stats)
+		return stats_count;
+
+	if (nic_data->datapath_caps &
+			1 << MC_CMD_GET_CAPABILITIES_OUT_EVB_LBN) {
+		/* Use vadaptor stats. */
 		core_stats->rx_packets = stats[EF10_STAT_rx_unicast] +
 					 stats[EF10_STAT_rx_multicast] +
 					 stats[EF10_STAT_rx_broadcast];
@@ -1327,6 +1332,26 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 		core_stats->rx_fifo_errors = stats[EF10_STAT_rx_overflow];
 		core_stats->rx_errors = core_stats->rx_crc_errors;
 		core_stats->tx_errors = stats[EF10_STAT_tx_bad];
+	} else {
+		/* Use port stats. */
+		core_stats->rx_packets = stats[EF10_STAT_port_rx_packets];
+		core_stats->tx_packets = stats[EF10_STAT_port_tx_packets];
+		core_stats->rx_bytes = stats[EF10_STAT_port_rx_bytes];
+		core_stats->tx_bytes = stats[EF10_STAT_port_tx_bytes];
+		core_stats->rx_dropped = stats[EF10_STAT_port_rx_nodesc_drops] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
+		core_stats->multicast = stats[EF10_STAT_port_rx_multicast];
+		core_stats->rx_length_errors =
+				stats[EF10_STAT_port_rx_gtjumbo] +
+				stats[EF10_STAT_port_rx_length_error];
+		core_stats->rx_crc_errors = stats[EF10_STAT_port_rx_bad];
+		core_stats->rx_frame_errors =
+				stats[EF10_STAT_port_rx_align_error];
+		core_stats->rx_fifo_errors = stats[EF10_STAT_port_rx_overflow];
+		core_stats->rx_errors = (core_stats->rx_length_errors +
+					 core_stats->rx_crc_errors +
+					 core_stats->rx_frame_errors);
 	}
 
 	return stats_count;

@@ -702,11 +702,11 @@ static ssize_t flags_show(struct device *dev,
 	u16 flags = to_nfit_memdev(dev)->flags;
 
 	return sprintf(buf, "%s%s%s%s%s\n",
-			flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save " : "",
-			flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore " : "",
-			flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush " : "",
-			flags & ACPI_NFIT_MEM_ARMED ? "arm " : "",
-			flags & ACPI_NFIT_MEM_HEALTH_OBSERVED ? "smart " : "");
+		flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save_fail " : "",
+		flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore_fail " : "",
+		flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush_fail " : "",
+		flags & ACPI_NFIT_MEM_ARMED ? "not_armed " : "",
+		flags & ACPI_NFIT_MEM_HEALTH_OBSERVED ? "smart_event " : "");
 }
 static DEVICE_ATTR_RO(flags);
 
@@ -849,12 +849,12 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		if ((mem_flags & ACPI_NFIT_MEM_FAILED_MASK) == 0)
 			continue;
 
-		dev_info(acpi_desc->dev, "%s: failed: %s%s%s%s\n",
+		dev_info(acpi_desc->dev, "%s flags:%s%s%s%s\n",
 				nvdimm_name(nvdimm),
-			mem_flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save " : "",
-			mem_flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore " : "",
-			mem_flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush " : "",
-			mem_flags & ACPI_NFIT_MEM_ARMED ? "arm " : "");
+		  mem_flags & ACPI_NFIT_MEM_SAVE_FAILED ? " save_fail" : "",
+		  mem_flags & ACPI_NFIT_MEM_RESTORE_FAILED ? " restore_fail":"",
+		  mem_flags & ACPI_NFIT_MEM_FLUSH_FAILED ? " flush_fail" : "",
+		  mem_flags & ACPI_NFIT_MEM_ARMED ? " not_armed" : "");
 
 	}
 
@@ -1024,7 +1024,7 @@ static void wmb_blk(struct nfit_blk *nfit_blk)
 		wmb_pmem();
 }
 
-static u64 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
+static u32 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 {
 	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[DCR];
 	u64 offset = nfit_blk->stat_offset + mmio->size * bw;
@@ -1032,7 +1032,7 @@ static u64 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 	if (mmio->num_lines)
 		offset = to_interleave_offset(offset, mmio);
 
-	return readq(mmio->base + offset);
+	return readl(mmio->base + offset);
 }
 
 static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,

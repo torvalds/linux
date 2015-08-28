@@ -1041,10 +1041,14 @@ int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	int value = -1;
 
 	if (phydrv->read_mmd_indirect == NULL) {
-		mmd_phy_indirect(phydev->bus, prtad, devad, addr);
+		struct mii_bus *bus = phydev->bus;
+
+		mutex_lock(&bus->mdio_lock);
+		mmd_phy_indirect(bus, prtad, devad, addr);
 
 		/* Read the content of the MMD's selected register */
-		value = phydev->bus->read(phydev->bus, addr, MII_MMD_DATA);
+		value = bus->read(bus, addr, MII_MMD_DATA);
+		mutex_unlock(&bus->mdio_lock);
 	} else {
 		value = phydrv->read_mmd_indirect(phydev, prtad, devad, addr);
 	}
@@ -1074,10 +1078,14 @@ void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 	struct phy_driver *phydrv = phydev->drv;
 
 	if (phydrv->write_mmd_indirect == NULL) {
-		mmd_phy_indirect(phydev->bus, prtad, devad, addr);
+		struct mii_bus *bus = phydev->bus;
+
+		mutex_lock(&bus->mdio_lock);
+		mmd_phy_indirect(bus, prtad, devad, addr);
 
 		/* Write the data into MMD's selected register */
-		phydev->bus->write(phydev->bus, addr, MII_MMD_DATA, data);
+		bus->write(bus, addr, MII_MMD_DATA, data);
+		mutex_unlock(&bus->mdio_lock);
 	} else {
 		phydrv->write_mmd_indirect(phydev, prtad, devad, addr, data);
 	}
