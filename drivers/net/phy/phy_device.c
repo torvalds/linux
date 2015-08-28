@@ -156,8 +156,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 
 	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (NULL == dev)
-		return (struct phy_device *)PTR_ERR((void *)-ENOMEM);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
 
 	dev->dev.release = phy_device_release;
 
@@ -178,7 +178,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	dev->bus = bus;
 	dev->dev.parent = &bus->dev;
 	dev->dev.bus = &mdio_bus_type;
-	dev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
+	dev->irq = bus->irq ? bus->irq[addr] : PHY_POLL;
 	dev_set_name(&dev->dev, PHY_ID_FMT, bus->id, addr);
 
 	dev->state = PHY_DOWN;
@@ -589,7 +589,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Assume that if there is no driver, that it doesn't
 	 * exist, and we should use the genphy driver.
 	 */
-	if (NULL == d->driver) {
+	if (!d->driver) {
 		if (phydev->is_c45)
 			d->driver = &genphy_driver[GENPHY_DRV_10G].driver;
 		else
