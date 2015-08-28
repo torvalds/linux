@@ -205,10 +205,8 @@ static int saa7164_encoder_initialize(struct saa7164_port *port)
 }
 
 /* -- V4L2 --------------------------------------------------------- */
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
+int saa7164_s_std(struct saa7164_port *port, v4l2_std_id id)
 {
-	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 	unsigned int i;
 
@@ -234,17 +232,27 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
 
+	return saa7164_s_std(fh->port, id);
+}
+
+int saa7164_g_std(struct saa7164_port *port, v4l2_std_id *id)
+{
 	*id = port->std;
 	return 0;
 }
 
-static int vidioc_enum_input(struct file *file, void *priv,
-	struct v4l2_input *i)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7164_encoder_fh *fh = file->private_data;
+
+	return saa7164_g_std(fh->port, id);
+}
+
+int saa7164_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 {
 	static const char * const inputs[] = {
 		"tuner", "composite", "svideo", "aux",
@@ -268,10 +276,8 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+int saa7164_g_input(struct saa7164_port *port, unsigned int *i)
 {
-	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
 	if (saa7164_api_get_videomux(port) != SAA_OK)
@@ -284,10 +290,15 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
+
+	return saa7164_g_input(fh->port, i);
+}
+
+int saa7164_s_input(struct saa7164_port *port, unsigned int i)
+{
 	struct saa7164_dev *dev = port->dev;
 
 	dprintk(DBGLVL_ENC, "%s() input=%d\n", __func__, i);
@@ -303,8 +314,14 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_g_tuner(struct file *file, void *priv,
-	struct v4l2_tuner *t)
+static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+{
+	struct saa7164_encoder_fh *fh = file->private_data;
+
+	return saa7164_s_input(fh->port, i);
+}
+
+int saa7164_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
@@ -323,8 +340,8 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_tuner(struct file *file, void *priv,
-	const struct v4l2_tuner *t)
+int saa7164_s_tuner(struct file *file, void *priv,
+			   const struct v4l2_tuner *t)
 {
 	if (0 != t->index)
 		return -EINVAL;
@@ -333,25 +350,26 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+int saa7164_g_frequency(struct saa7164_port *port, struct v4l2_frequency *f)
 {
-	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-
 	if (f->tuner)
 		return -EINVAL;
 
 	f->frequency = port->freq;
-
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *priv,
-	const struct v4l2_frequency *f)
+static int vidioc_g_frequency(struct file *file, void *priv,
+	struct v4l2_frequency *f)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
+
+	return saa7164_g_frequency(fh->port, f);
+}
+
+int saa7164_s_frequency(struct saa7164_port *port,
+			const struct v4l2_frequency *f)
+{
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_port *tsport;
 	struct dvb_frontend *fe;
@@ -377,8 +395,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	/* Update the hardware */
 	if (port->nr == SAA7164_PORT_ENC1)
 		tsport = &dev->ports[SAA7164_PORT_TS1];
-	else
-	if (port->nr == SAA7164_PORT_ENC2)
+	else if (port->nr == SAA7164_PORT_ENC2)
 		tsport = &dev->ports[SAA7164_PORT_TS2];
 	else
 		BUG();
@@ -393,6 +410,14 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	saa7164_encoder_initialize(port);
 
 	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+			      const struct v4l2_frequency *f)
+{
+	struct saa7164_encoder_fh *fh = file->private_data;
+
+	return saa7164_s_frequency(fh->port, f);
 }
 
 static int saa7164_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -940,11 +965,11 @@ static const struct v4l2_file_operations mpeg_fops = {
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_g_std		 = vidioc_g_std,
-	.vidioc_enum_input	 = vidioc_enum_input,
+	.vidioc_enum_input	 = saa7164_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
-	.vidioc_g_tuner		 = vidioc_g_tuner,
-	.vidioc_s_tuner		 = vidioc_s_tuner,
+	.vidioc_g_tuner		 = saa7164_g_tuner,
+	.vidioc_s_tuner		 = saa7164_s_tuner,
 	.vidioc_g_frequency	 = vidioc_g_frequency,
 	.vidioc_s_frequency	 = vidioc_s_frequency,
 	.vidioc_querycap	 = vidioc_querycap,

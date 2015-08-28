@@ -424,6 +424,7 @@ struct saa7164_port {
 	/* V4L VBI */
 	struct tmComResVBIFormatDescrHeader vbi_fmt_ntsc;
 	struct saa7164_vbi_params vbi_params;
+	struct saa7164_port *enc_port;
 
 	/* Debug */
 	u32 sync_errors;
@@ -599,6 +600,16 @@ extern int saa7164_buffer_zero_offsets(struct saa7164_port *port, int i);
 
 /* ----------------------------------------------------------- */
 /* saa7164-encoder.c                                            */
+int saa7164_s_std(struct saa7164_port *port, v4l2_std_id id);
+int saa7164_g_std(struct saa7164_port *port, v4l2_std_id *id);
+int saa7164_enum_input(struct file *file, void *priv, struct v4l2_input *i);
+int saa7164_g_input(struct saa7164_port *port, unsigned int *i);
+int saa7164_s_input(struct saa7164_port *port, unsigned int i);
+int saa7164_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t);
+int saa7164_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *t);
+int saa7164_g_frequency(struct saa7164_port *port, struct v4l2_frequency *f);
+int saa7164_s_frequency(struct saa7164_port *port,
+			const struct v4l2_frequency *f);
 int saa7164_encoder_register(struct saa7164_port *port);
 void saa7164_encoder_unregister(struct saa7164_port *port);
 
