@@ -153,6 +153,7 @@
 
 	usb-phy@7d000000 {
 		status = "okay";
+		dr_mode = "otg";
 		vbus-supply = <&usbo1_vbus_reg>;
 	};
 
