@@ -1418,6 +1418,8 @@ static int arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
 		return -ENXIO;
 
+	pages += off;
+
 	do {
 		int ret = vm_insert_page(vma, uaddr, *pages++);
 		if (ret) {
