@@ -657,6 +657,9 @@ i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
 
 	/* destroy the locks */
 
+	if (hw->nvm_buff.va)
+		i40e_free_virt_mem(hw, &hw->nvm_buff);
+
 	return ret_code;
 }
 

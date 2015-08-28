@@ -305,6 +305,7 @@ enum i40e_nvmupd_cmd {
 	I40E_NVMUPD_CSUM_SA,
 	I40E_NVMUPD_CSUM_LCB,
 	I40E_NVMUPD_STATUS,
+	I40E_NVMUPD_EXEC_AQ,
 };
 
 enum i40e_nvmupd_state {
@@ -491,6 +492,7 @@ struct i40e_hw {
 	/* state of nvm update process */
 	enum i40e_nvmupd_state nvmupd_state;
 	struct i40e_aq_desc nvm_wb_desc;
+	struct i40e_virt_mem nvm_buff;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */
