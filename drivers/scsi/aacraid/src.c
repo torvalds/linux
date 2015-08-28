@@ -726,6 +726,7 @@ int aac_src_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_src_check_health;
 	dev->a_ops.adapter_restart = aac_src_restart_adapter;
+	dev->a_ops.adapter_start = aac_src_start_adapter;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
@@ -892,6 +893,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_src_check_health;
 	dev->a_ops.adapter_restart = aac_src_restart_adapter;
+	dev->a_ops.adapter_start = aac_src_start_adapter;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we

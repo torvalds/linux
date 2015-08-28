@@ -43,8 +43,6 @@
 
 #include "aacraid.h"
 
-static void aac_define_int_mode(struct aac_dev *dev);
-
 struct aac_common aac_config = {
 	.irq_mod = 1
 };
@@ -338,6 +336,82 @@ static int aac_comm_init(struct aac_dev * dev)
 	return 0;
 }
 
+void aac_define_int_mode(struct aac_dev *dev)
+{
+	int i, msi_count;
+
+	msi_count = i = 0;
+	/* max. vectors from GET_COMM_PREFERRED_SETTINGS */
+	if (dev->max_msix == 0 ||
+	    dev->pdev->device == PMC_DEVICE_S6 ||
+	    dev->sync_mode) {
+		dev->max_msix = 1;
+		dev->vector_cap =
+			dev->scsi_host_ptr->can_queue +
+			AAC_NUM_MGT_FIB;
+		return;
+	}
+
+	/* Don't bother allocating more MSI-X vectors than cpus */
+	msi_count = min(dev->max_msix,
+		(unsigned int)num_online_cpus());
+
+	dev->max_msix = msi_count;
+
+	if (msi_count > AAC_MAX_MSIX)
+		msi_count = AAC_MAX_MSIX;
+
+	for (i = 0; i < msi_count; i++)
+		dev->msixentry[i].entry = i;
+
+	if (msi_count > 1 &&
+	    pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX)) {
+		i = pci_enable_msix(dev->pdev,
+				    dev->msixentry,
+				    msi_count);
+		 /* Check how many MSIX vectors are allocated */
+		if (i >= 0) {
+			dev->msi_enabled = 1;
+			if (i) {
+				msi_count = i;
+				if (pci_enable_msix(dev->pdev,
+				    dev->msixentry,
+				    msi_count)) {
+					dev->msi_enabled = 0;
+					printk(KERN_ERR "%s%d: MSIX not supported!! Will try MSI 0x%x.\n",
+							dev->name, dev->id, i);
+				}
+			}
+		} else {
+			dev->msi_enabled = 0;
+			printk(KERN_ERR "%s%d: MSIX not supported!! Will try MSI 0x%x.\n",
+					dev->name, dev->id, i);
+		}
+	}
+
+	if (!dev->msi_enabled) {
+		msi_count = 1;
+		i = pci_enable_msi(dev->pdev);
+
+		if (!i) {
+			dev->msi_enabled = 1;
+			dev->msi = 1;
+		} else {
+			printk(KERN_ERR "%s%d: MSI not supported!! Will try INTx 0x%x.\n",
+					dev->name, dev->id, i);
+		}
+	}
+
+	if (!dev->msi_enabled)
+		dev->max_msix = msi_count = 1;
+	else {
+		if (dev->max_msix > msi_count)
+			dev->max_msix = msi_count;
+	}
+	dev->vector_cap =
+		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) /
+		msi_count;
+}
 struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 {
 	u32 status[5];
@@ -508,79 +582,3 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	return dev;
 }
 
-static void aac_define_int_mode(struct aac_dev *dev)
-{
-
-	int i, msi_count;
-
-	msi_count = i = 0;
-	/* max. vectors from GET_COMM_PREFERRED_SETTINGS */
-	if (dev->max_msix == 0 ||
-	    dev->pdev->device == PMC_DEVICE_S6 ||
-	    dev->sync_mode) {
-		dev->max_msix = 1;
-		dev->vector_cap =
-			dev->scsi_host_ptr->can_queue +
-			AAC_NUM_MGT_FIB;
-		return;
-	}
-
-	msi_count = min(dev->max_msix,
-		(unsigned int)num_online_cpus());
-
-	dev->max_msix = msi_count;
-
-	if (msi_count > AAC_MAX_MSIX)
-		msi_count = AAC_MAX_MSIX;
-
-	for (i = 0; i < msi_count; i++)
-		dev->msixentry[i].entry = i;
-
-	if (msi_count > 1 &&
-	    pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX)) {
-		i = pci_enable_msix(dev->pdev,
-				    dev->msixentry,
-				    msi_count);
-		 /* Check how many MSIX vectors are allocated */
-		if (i >= 0) {
-			dev->msi_enabled = 1;
-			if (i) {
-				msi_count = i;
-				if (pci_enable_msix(dev->pdev,
-				    dev->msixentry,
-				    msi_count)) {
-					dev->msi_enabled = 0;
-					printk(KERN_ERR "%s%d: MSIX not supported!! Will try MSI 0x%x.\n",
-							dev->name, dev->id, i);
-				}
-			}
-		} else {
-			dev->msi_enabled = 0;
-			printk(KERN_ERR "%s%d: MSIX not supported!! Will try MSI 0x%x.\n",
-					dev->name, dev->id, i);
-		}
-	}
-
-	if (!dev->msi_enabled) {
-		msi_count = 1;
-		i = pci_enable_msi(dev->pdev);
-
-		if (!i) {
-			dev->msi_enabled = 1;
-			dev->msi = 1;
-		} else {
-			printk(KERN_ERR "%s%d: MSI not supported!! Will try INTx 0x%x.\n",
-					dev->name, dev->id, i);
-		}
-	}
-
-	if (!dev->msi_enabled)
-		dev->max_msix = msi_count = 1;
-	else {
-		if (dev->max_msix > msi_count)
-			dev->max_msix = msi_count;
-	}
-	dev->vector_cap =
-		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) /
-		msi_count;
-}
