@@ -112,21 +112,17 @@ static int m62332_read_raw(struct iio_dev *indio_dev,
 static int m62332_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int val, int val2, long mask)
 {
-	int ret;
-
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (val < 0 || val > 255)
 			return -EINVAL;
 
-		ret = m62332_set_value(indio_dev, val, chan->channel);
-		break;
+		return m62332_set_value(indio_dev, val, chan->channel);
 	default:
-		ret = -EINVAL;
 		break;
 	}
 
-	return ret;
+	return -EINVAL;
 }
 
 #ifdef CONFIG_PM_SLEEP
