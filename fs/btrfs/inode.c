@@ -7405,6 +7405,10 @@ static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 	return em;
 }
 
+struct btrfs_dio_data {
+	u64 outstanding_extents;
+	u64 reserve;
+};
 
 static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
@@ -7412,10 +7416,10 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	struct extent_map *em;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_state *cached_state = NULL;
+	struct btrfs_dio_data *dio_data = NULL;
 	u64 start = iblock << inode->i_blkbits;
 	u64 lockstart, lockend;
 	u64 len = bh_result->b_size;
-	u64 *outstanding_extents = NULL;
 	int unlock_bits = EXTENT_LOCKED;
 	int ret = 0;
 
@@ -7433,7 +7437,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		 * that anything that needs to check if there's a transction doesn't get
 		 * confused.
 		 */
-		outstanding_extents = current->journal_info;
+		dio_data = current->journal_info;
 		current->journal_info = NULL;
 	}
 
@@ -7565,17 +7569,18 @@ unlock:
 		 * within our reservation, otherwise we need to adjust our inode
 		 * counter appropriately.
 		 */
-		if (*outstanding_extents) {
-			(*outstanding_extents)--;
+		if (dio_data->outstanding_extents) {
+			(dio_data->outstanding_extents)--;
 		} else {
 			spin_lock(&BTRFS_I(inode)->lock);
 			BTRFS_I(inode)->outstanding_extents++;
 			spin_unlock(&BTRFS_I(inode)->lock);
 		}
 
-		current->journal_info = outstanding_extents;
 		btrfs_free_reserved_data_space(inode, len);
-		set_bit(BTRFS_INODE_DIO_READY, &BTRFS_I(inode)->runtime_flags);
+		WARN_ON(dio_data->reserve < len);
+		dio_data->reserve -= len;
+		current->journal_info = dio_data;
 	}
 
 	/*
@@ -7598,8 +7603,8 @@ unlock:
 unlock_err:
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			 unlock_bits, 1, 0, &cached_state, GFP_NOFS);
-	if (outstanding_extents)
-		current->journal_info = outstanding_extents;
+	if (dio_data)
+		current->journal_info = dio_data;
 	return ret;
 }
 
@@ -8329,7 +8334,8 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	u64 outstanding_extents = 0;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_dio_data dio_data = { 0 };
 	size_t count = 0;
 	int flags = 0;
 	bool wakeup = true;
@@ -8367,7 +8373,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		ret = btrfs_delalloc_reserve_space(inode, count);
 		if (ret)
 			goto out;
-		outstanding_extents = div64_u64(count +
+		dio_data.outstanding_extents = div64_u64(count +
 						BTRFS_MAX_EXTENT_SIZE - 1,
 						BTRFS_MAX_EXTENT_SIZE);
 
@@ -8376,7 +8382,8 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		 * do the accounting properly if we go over the number we
 		 * originally calculated.  Abuse current->journal_info for this.
 		 */
-		current->journal_info = &outstanding_extents;
+		dio_data.reserve = round_up(count, root->sectorsize);
+		current->journal_info = &dio_data;
 	} else if (test_bit(BTRFS_INODE_READDIO_NEED_LOCK,
 				     &BTRFS_I(inode)->runtime_flags)) {
 		inode_dio_end(inode);
@@ -8391,16 +8398,9 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	if (iov_iter_rw(iter) == WRITE) {
 		current->journal_info = NULL;
 		if (ret < 0 && ret != -EIOCBQUEUED) {
-			/*
-			 * If the error comes from submitting stage,
-			 * btrfs_get_blocsk_direct() has free'd data space,
-			 * and metadata space will be handled by
-			 * finish_ordered_fn, don't do that again to make
-			 * sure bytes_may_use is correct.
-			 */
-			if (!test_and_clear_bit(BTRFS_INODE_DIO_READY,
-				     &BTRFS_I(inode)->runtime_flags))
-				btrfs_delalloc_release_space(inode, count);
+			if (dio_data.reserve)
+				btrfs_delalloc_release_space(inode,
+							dio_data.reserve);
 		} else if (ret >= 0 && (size_t)ret < count)
 			btrfs_delalloc_release_space(inode,
 						     count - (size_t)ret);
