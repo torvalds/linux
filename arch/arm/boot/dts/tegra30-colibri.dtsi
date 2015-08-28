@@ -252,7 +252,7 @@
 				/*
 				 * EN_+V3.3 switching via FET:
 				 * +V3.3_AUDIO_AVDD_S, +V3.3 and +V1.8_VDD_LAN
-				 * see also v3_3 fixed supply
+				 * see also 3v3 fixed supply
 				 */
 				ldo2_reg: ldo2 {
 					regulator-name = "en_3v3";
