@@ -45,8 +45,8 @@ static bool nf_dup_ipv6_route(struct sk_buff *skb, const struct in6_addr *gw,
 		fl6.flowi6_oif = oif;
 
 	fl6.daddr = *gw;
-	fl6.flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
-			 (iph->flow_lbl[1] << 8) | iph->flow_lbl[2];
+	fl6.flowlabel = (__force __be32)(((iph->flow_lbl[0] & 0xF) << 16) |
+			(iph->flow_lbl[1] << 8) | iph->flow_lbl[2]);
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
 		dst_release(dst);
