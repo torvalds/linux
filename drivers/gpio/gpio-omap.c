@@ -1253,8 +1253,11 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	omap_gpio_mod_init(bank);
 
 	ret = omap_gpio_chip_init(bank, irqc);
-	if (ret)
+	if (ret) {
+		pm_runtime_put_sync(bank->dev);
+		pm_runtime_disable(bank->dev);
 		return ret;
+	}
 
 	omap_gpio_show_rev(bank);
 
