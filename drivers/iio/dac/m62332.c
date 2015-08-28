@@ -62,8 +62,8 @@ static int m62332_set_value(struct iio_dev *indio_dev,
 			goto out;
 	}
 
-	res = i2c_master_send(client, outbuf, 2);
-	if (res >= 0 && res != 2)
+	res = i2c_master_send(client, outbuf, ARRAY_SIZE(outbuf));
+	if (res >= 0 && res != ARRAY_SIZE(outbuf))
 		res = -EIO;
 	if (res < 0)
 		goto out;
@@ -212,7 +212,7 @@ static int m62332_probe(struct i2c_client *client,
 	/* establish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 
-	indio_dev->num_channels = M62332_CHANNELS;
+	indio_dev->num_channels = ARRAY_SIZE(m62332_channels);
 	indio_dev->channels = m62332_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &m62332_info;
