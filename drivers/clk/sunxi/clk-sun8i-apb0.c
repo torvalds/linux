@@ -52,6 +52,7 @@ static const struct of_device_id sun8i_a23_apb0_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun8i-a23-apb0-clk" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun8i_a23_apb0_clk_dt_ids);
 
 static struct platform_driver sun8i_a23_apb0_clk_driver = {
 	.driver = {
