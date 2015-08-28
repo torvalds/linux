@@ -1493,6 +1493,8 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 
 	if (unlikely(size != sizeof(struct bpf_tunnel_key) || flags || !info))
 		return -EINVAL;
+	if (ip_tunnel_info_af(info) != AF_INET)
+		return -EINVAL;
 
 	to->tunnel_id = be64_to_cpu(info->key.tun_id);
 	to->remote_ipv4 = be32_to_cpu(info->key.u.ipv4.src);

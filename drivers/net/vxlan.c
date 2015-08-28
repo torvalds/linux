@@ -1903,6 +1903,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				  dev->name);
 			goto drop;
 		}
+		if (family != ip_tunnel_info_af(info))
+			goto drop;
 
 		dst_port = info->key.tp_dst ? : vxlan->cfg.dst_port;
 		vni = be64_to_cpu(info->key.tun_id);

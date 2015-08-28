@@ -627,6 +627,8 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 			netdev_dbg(dev, "no tunnel metadata\n");
 			goto tx_error;
 		}
+		if (info && ip_tunnel_info_af(info) != AF_INET)
+			goto tx_error;
 	}
 
 	rt = geneve_get_rt(skb, dev, &fl4, info);
