@@ -84,6 +84,7 @@
 		};
 	};
 
+	/* SD/MMC */
 	sdhci@78000200 {
 		status = "okay";
 		bus-width = <4>;
