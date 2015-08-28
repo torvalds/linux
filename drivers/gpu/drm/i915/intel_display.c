@@ -5712,15 +5712,12 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 	/* enable PG1 and Misc I/O */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
 
-	/* DPLL0 already enabed !? */
-	if (I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE) {
-		DRM_DEBUG_DRIVER("DPLL0 already running\n");
-		return;
+	/* DPLL0 not enabled (happens on early BIOS versions) */
+	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
+		/* enable DPLL0 */
+		required_vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
+		skl_dpll0_enable(dev_priv, required_vco);
 	}
-
-	/* enable DPLL0 */
-	required_vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
-	skl_dpll0_enable(dev_priv, required_vco);
 
 	/* set CDCLK to the frequency the BIOS chose */
 	skl_set_cdclk(dev_priv, dev_priv->skl_boot_cdclk);
