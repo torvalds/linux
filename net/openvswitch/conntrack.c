@@ -169,7 +169,7 @@ int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
 	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, key->ct.mark))
 		return -EMSGSIZE;
 
-	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABEL) &&
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
 	    nla_put(skb, OVS_KEY_ATTR_CT_LABEL, sizeof(key->ct.label),
 		    &key->ct.label))
 		return -EMSGSIZE;
