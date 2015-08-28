@@ -1441,6 +1441,33 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	}
 }
 
+static int gen8_preallocate_top_level_pdps(struct i915_hw_ppgtt *ppgtt)
+{
+	unsigned long *new_page_dirs, **new_page_tables;
+	uint32_t pdpes = I915_PDPES_PER_PDP(dev);
+	int ret;
+
+	/* We allocate temp bitmap for page tables for no gain
+	 * but as this is for init only, lets keep the things simple
+	 */
+	ret = alloc_gen8_temp_bitmaps(&new_page_dirs, &new_page_tables, pdpes);
+	if (ret)
+		return ret;
+
+	/* Allocate for all pdps regardless of how the ppgtt
+	 * was defined.
+	 */
+	ret = gen8_ppgtt_alloc_page_directories(&ppgtt->base, &ppgtt->pdp,
+						0, 1ULL << 32,
+						new_page_dirs);
+	if (!ret)
+		*ppgtt->pdp.used_pdpes = *new_page_dirs;
+
+	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables, pdpes);
+
+	return ret;
+}
+
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -1484,6 +1511,12 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		trace_i915_page_directory_pointer_entry_alloc(&ppgtt->base,
 							      0, 0,
 							      GEN8_PML4E_SHIFT);
+
+		if (intel_vgpu_active(ppgtt->base.dev)) {
+			ret = gen8_preallocate_top_level_pdps(ppgtt);
+			if (ret)
+				goto free_scratch;
+		}
 	}
 
 	return 0;
