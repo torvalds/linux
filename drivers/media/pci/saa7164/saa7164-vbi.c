@@ -678,8 +678,10 @@ static int fops_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
-	file->private_data = fh;
 	fh->port = port;
+	v4l2_fh_init(&fh->fh, video_devdata(file));
+	v4l2_fh_add(&fh->fh);
+	file->private_data = fh;
 
 	return 0;
 }
@@ -700,7 +702,8 @@ static int fops_release(struct file *file)
 		}
 	}
 
-	file->private_data = NULL;
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 
 	return 0;

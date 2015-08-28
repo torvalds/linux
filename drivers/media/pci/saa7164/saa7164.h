@@ -186,11 +186,13 @@ struct saa7164_subid {
 };
 
 struct saa7164_encoder_fh {
+	struct v4l2_fh fh;
 	struct saa7164_port *port;
 	atomic_t v4l_reading;
 };
 
 struct saa7164_vbi_fh {
+	struct v4l2_fh fh;
 	struct saa7164_port *port;
 	atomic_t v4l_reading;
 };
