@@ -730,8 +730,8 @@ static int qcom_smem_probe(struct platform_device *pdev)
 
 static int qcom_smem_remove(struct platform_device *pdev)
 {
-	__smem = NULL;
 	hwspin_lock_free(__smem->hwlock);
+	__smem = NULL;
 
 	return 0;
 }
