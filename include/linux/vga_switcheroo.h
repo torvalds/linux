@@ -138,7 +138,7 @@ void vga_switcheroo_unregister_handler(void);
 
 int vga_switcheroo_process_delayed_switch(void);
 
-int vga_switcheroo_get_client_state(struct pci_dev *dev);
+enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *dev);
 
 void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev, enum vga_switcheroo_state dynamic);
 
@@ -157,7 +157,7 @@ static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	int id) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
-static inline int vga_switcheroo_get_client_state(struct pci_dev *dev) { return VGA_SWITCHEROO_ON; }
+static inline enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *dev) { return VGA_SWITCHEROO_ON; }
 
 static inline void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev, enum vga_switcheroo_state dynamic) {}
 

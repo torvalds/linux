@@ -100,7 +100,7 @@
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
 	struct fb_info *fb_info;
-	int pwr_state;
+	enum vga_switcheroo_state pwr_state;
 	const struct vga_switcheroo_client_ops *ops;
 	int id;
 	bool active;
@@ -344,7 +344,7 @@ find_active_client(struct list_head *head)
  *
  * Return: Power state.
  */
-int vga_switcheroo_get_client_state(struct pci_dev *pdev)
+enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *pdev)
 {
 	struct vga_switcheroo_client *client;
 	enum vga_switcheroo_state ret;
@@ -496,7 +496,7 @@ static int vga_switchoff(struct vga_switcheroo_client *client)
 	return 0;
 }
 
-static void set_audio_state(int id, int state)
+static void set_audio_state(int id, enum vga_switcheroo_state state)
 {
 	struct vga_switcheroo_client *client;
 
