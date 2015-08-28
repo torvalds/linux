@@ -1777,6 +1777,7 @@ static const struct of_device_id ux500_cryp_match[] = {
 	{ .compatible = "stericsson,ux500-cryp" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ux500_cryp_match);
 
 static struct platform_driver cryp_driver = {
 	.probe  = ux500_cryp_probe,

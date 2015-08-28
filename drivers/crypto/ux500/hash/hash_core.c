@@ -1958,6 +1958,7 @@ static const struct of_device_id ux500_hash_match[] = {
 	{ .compatible = "stericsson,ux500-hash" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ux500_hash_match);
 
 static struct platform_driver hash_driver = {
 	.probe  = ux500_hash_probe,
