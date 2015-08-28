@@ -2115,6 +2115,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	adapter->vsi.tx_itr_setting = (I40E_ITR_DYNAMIC |
 				       ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
 	adapter->vsi.netdev = adapter->netdev;
+	adapter->vsi.qs_handle = adapter->vsi_res->qset_handle;
 	return 0;
 }
 
