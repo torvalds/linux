@@ -16,6 +16,7 @@
 #include <linux/etherdevice.h>
 #include <linux/hash.h>
 #include <net/dst_metadata.h>
+#include <net/gro_cells.h>
 #include <net/rtnetlink.h>
 #include <net/geneve.h>
 #include <net/protocol.h>
@@ -58,6 +59,7 @@ struct geneve_dev {
 	struct list_head   next;	/* geneve's per namespace list */
 	__be16		   dst_port;
 	bool		   collect_md;
+	struct gro_cells   gro_cells;
 };
 
 struct geneve_sock {
@@ -199,7 +201,7 @@ static void geneve_rx(struct geneve_sock *gs, struct sk_buff *skb)
 	stats->rx_bytes += skb->len;
 	u64_stats_update_end(&stats->syncp);
 
-	netif_rx(skb);
+	gro_cells_receive(&geneve->gro_cells, skb);
 	return;
 drop:
 	/* Consume bad packet */
@@ -209,14 +211,27 @@ drop:
 /* Setup stats when device is created */
 static int geneve_init(struct net_device *dev)
 {
+	struct geneve_dev *geneve = netdev_priv(dev);
+	int err;
+
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	err = gro_cells_init(&geneve->gro_cells, dev);
+	if (err) {
+		free_percpu(dev->tstats);
+		return err;
+	}
+
 	return 0;
 }
 
 static void geneve_uninit(struct net_device *dev)
 {
+	struct geneve_dev *geneve = netdev_priv(dev);
+
+	gro_cells_destroy(&geneve->gro_cells);
 	free_percpu(dev->tstats);
 }
 
