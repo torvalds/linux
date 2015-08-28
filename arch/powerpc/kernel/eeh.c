@@ -308,11 +308,26 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	if (!(pe->type & EEH_PE_PHB)) {
 		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG))
 			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
-		eeh_ops->configure_bridge(pe);
-		eeh_pe_restore_bars(pe);
 
-		pci_regs_buf[0] = 0;
-		eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
+		/*
+		 * The config space of some PCI devices can't be accessed
+		 * when their PEs are in frozen state. Otherwise, fenced
+		 * PHB might be seen. Those PEs are identified with flag
+		 * EEH_PE_CFG_RESTRICTED, indicating EEH_PE_CFG_BLOCKED
+		 * is set automatically when the PE is put to EEH_PE_ISOLATED.
+		 *
+		 * Restoring BARs possibly triggers PCI config access in
+		 * (OPAL) firmware and then causes fenced PHB. If the
+		 * PCI config is blocked with flag EEH_PE_CFG_BLOCKED, it's
+		 * pointless to restore BARs and dump config space.
+		 */
+		eeh_ops->configure_bridge(pe);
+		if (!(pe->state & EEH_PE_CFG_BLOCKED)) {
+			eeh_pe_restore_bars(pe);
+
+			pci_regs_buf[0] = 0;
+			eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
+		}
 	}
 
 	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
