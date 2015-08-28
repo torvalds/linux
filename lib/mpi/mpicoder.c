@@ -19,7 +19,7 @@
  */
 
 #include <linux/bitops.h>
-#include <asm-generic/bitops/count_zeros.h>
+#include <linux/count_zeros.h>
 #include "mpi-internal.h"
 
 #define MAX_EXTERN_MPI_BITS 16384
