@@ -63,7 +63,6 @@ MODULE_DEVICE_TABLE(of, ics43432_dt_ids);
 static struct platform_driver ics43432_driver = {
 	.driver = {
 		.name = "ics43432",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ics43432_ids),
 	},
 	.probe = ics43432_probe,
