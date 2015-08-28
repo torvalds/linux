@@ -611,11 +611,11 @@ static void netlink_increment_head(struct netlink_ring *ring)
 
 static void netlink_forward_ring(struct netlink_ring *ring)
 {
-	unsigned int head = ring->head, pos = head;
+	unsigned int head = ring->head;
 	const struct nl_mmap_hdr *hdr;
 
 	do {
-		hdr = __netlink_lookup_frame(ring, pos);
+		hdr = __netlink_lookup_frame(ring, ring->head);
 		if (hdr->nm_status == NL_MMAP_STATUS_UNUSED)
 			break;
 		if (hdr->nm_status != NL_MMAP_STATUS_SKIP)
