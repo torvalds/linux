@@ -38,9 +38,10 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	 *
 	 * XXX Name it properly..
 	 */
-	sprintf(firmware_name, "ara:%04x:%04x:%04x:%04x:%04x.fw", intf->unipro_mfg_id,
-		intf->unipro_prod_id, intf->ara_vend_id, intf->ara_prod_id,
-		stage);
+	snprintf(firmware_name, sizeof(firmware_name),
+		 "ara:%04x:%04x:%04x:%04x:%04x.fw",
+		 intf->unipro_mfg_id, intf->unipro_prod_id,
+		 intf->ara_vend_id, intf->ara_prod_id, stage);
 
 	return request_firmware(&firmware->fw, firmware_name, &connection->dev);
 }
