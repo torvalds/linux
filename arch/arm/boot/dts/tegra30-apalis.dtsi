@@ -34,8 +34,8 @@
 
 	host1x@50000000 {
 		hdmi@54280000 {
-			vdd-supply = <&sys_3v3_reg>;
-			pll-supply = <&vio_reg>;
+			vdd-supply = <&avdd_hdmi_3v3_reg>;
+			pll-supply = <&avdd_hdmi_pll_1v8_reg>;
 
 			nvidia,hpd-gpio =
 				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
@@ -667,18 +667,40 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		sys_3v3_reg: regulator@100 {
+		avdd_hdmi_pll_1v8_reg: regulator@100 {
 			compatible = "regulator-fixed";
 			reg = <100>;
+			regulator-name = "+V1.8_AVDD_HDMI_PLL";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&vio_reg>;
+		};
+
+		sys_3v3_reg: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
 			regulator-name = "3v3";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 
-		charge_pump_5v0_reg: regulator@101 {
+		avdd_hdmi_3v3_reg: regulator@102 {
 			compatible = "regulator-fixed";
-			reg = <101>;
+			reg = <102>;
+			regulator-name = "+V3.3_AVDD_HDMI";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		charge_pump_5v0_reg: regulator@103 {
+			compatible = "regulator-fixed";
+			reg = <103>;
 			regulator-name = "5v0";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
