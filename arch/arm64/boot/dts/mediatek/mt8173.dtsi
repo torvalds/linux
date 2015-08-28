@@ -95,7 +95,7 @@
 	};
 
 	psci {
-		compatible = "arm,psci";
+		compatible = "arm,psci-1.0", "arm,psci-0.2", "arm,psci";
 		method = "smc";
 		cpu_suspend   = <0x84000001>;
 		cpu_off	      = <0x84000002>;
