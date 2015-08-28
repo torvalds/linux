@@ -418,6 +418,10 @@ static i40e_status i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 				     bool last_command)
 {
 	i40e_status ret_code = I40E_ERR_NVM;
+	struct i40e_asq_cmd_details cmd_details;
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
 
 	/* Here we are checking the SR limit only for the flat memory model.
 	 * We cannot do it for the module-based model, as we did not acquire
@@ -443,7 +447,7 @@ static i40e_status i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 		ret_code = i40e_aq_update_nvm(hw, module_pointer,
 					      2 * offset,  /*bytes*/
 					      2 * words,   /*bytes*/
-					      data, last_command, NULL);
+					      data, last_command, &cmd_details);
 
 	return ret_code;
 }
@@ -1041,6 +1045,7 @@ static i40e_status i40e_nvmupd_nvm_read(struct i40e_hw *hw,
 					struct i40e_nvm_access *cmd,
 					u8 *bytes, int *perrno)
 {
+	struct i40e_asq_cmd_details cmd_details;
 	i40e_status status;
 	u8 module, transaction;
 	bool last;
@@ -1049,8 +1054,11 @@ static i40e_status i40e_nvmupd_nvm_read(struct i40e_hw *hw,
 	module = i40e_nvmupd_get_module(cmd->config);
 	last = (transaction == I40E_NVM_LCB) || (transaction == I40E_NVM_SA);
 
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
+
 	status = i40e_aq_read_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
-				  bytes, last, NULL);
+				  bytes, last, &cmd_details);
 	if (status) {
 		i40e_debug(hw, I40E_DEBUG_NVM,
 			   "i40e_nvmupd_nvm_read mod 0x%x  off 0x%x  len 0x%x\n",
@@ -1077,14 +1085,19 @@ static i40e_status i40e_nvmupd_nvm_erase(struct i40e_hw *hw,
 					 int *perrno)
 {
 	i40e_status status = 0;
+	struct i40e_asq_cmd_details cmd_details;
 	u8 module, transaction;
 	bool last;
 
 	transaction = i40e_nvmupd_get_transaction(cmd->config);
 	module = i40e_nvmupd_get_module(cmd->config);
 	last = (transaction & I40E_NVM_LCB);
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
+
 	status = i40e_aq_erase_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
-				   last, NULL);
+				   last, &cmd_details);
 	if (status) {
 		i40e_debug(hw, I40E_DEBUG_NVM,
 			   "i40e_nvmupd_nvm_erase mod 0x%x  off 0x%x len 0x%x\n",
@@ -1112,6 +1125,7 @@ static i40e_status i40e_nvmupd_nvm_write(struct i40e_hw *hw,
 					 u8 *bytes, int *perrno)
 {
 	i40e_status status = 0;
+	struct i40e_asq_cmd_details cmd_details;
 	u8 module, transaction;
 	bool last;
 
@@ -1119,8 +1133,12 @@ static i40e_status i40e_nvmupd_nvm_write(struct i40e_hw *hw,
 	module = i40e_nvmupd_get_module(cmd->config);
 	last = (transaction & I40E_NVM_LCB);
 
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
+
 	status = i40e_aq_update_nvm(hw, module, cmd->offset,
-				    (u16)cmd->data_size, bytes, last, NULL);
+				    (u16)cmd->data_size, bytes, last,
+				    &cmd_details);
 	if (status) {
 		i40e_debug(hw, I40E_DEBUG_NVM,
 			   "i40e_nvmupd_nvm_write mod 0x%x off 0x%x len 0x%x\n",
