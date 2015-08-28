@@ -490,9 +490,6 @@ struct ieee80211_if_managed {
 
 	s16 p2p_noa_index;
 
-	/* Signal strength from the last Beacon frame in the current BSS. */
-	int last_beacon_signal;
-
 	/*
 	 * Weighted average of the signal strength from Beacon frames in the
 	 * current BSS. This is in units of 1/16 of the signal unit to maintain
