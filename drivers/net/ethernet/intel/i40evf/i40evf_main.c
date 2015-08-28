@@ -730,6 +730,8 @@ static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
+	if (!VLAN_ALLOWED(adapter))
+		return -EIO;
 	if (i40evf_add_vlan(adapter, vid) == NULL)
 		return -ENOMEM;
 	return 0;
@@ -745,8 +747,11 @@ static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	i40evf_del_vlan(adapter, vid);
-	return 0;
+	if (VLAN_ALLOWED(adapter)) {
+		i40evf_del_vlan(adapter, vid);
+		return 0;
+	}
+	return -EIO;
 }
 
 /**
