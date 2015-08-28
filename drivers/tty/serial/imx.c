@@ -1795,6 +1795,38 @@ static struct console imx_console = {
 };
 
 #define IMX_CONSOLE	&imx_console
+
+#ifdef CONFIG_OF
+static void imx_console_early_putchar(struct uart_port *port, int ch)
+{
+	while (readl_relaxed(port->membase + IMX21_UTS) & UTS_TXFULL)
+		cpu_relax();
+
+	writel_relaxed(ch, port->membase + URTX0);
+}
+
+static void imx_console_early_write(struct console *con, const char *s,
+				    unsigned count)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, count, imx_console_early_putchar);
+}
+
+static int __init
+imx_console_early_setup(struct earlycon_device *dev, const char *opt)
+{
+	if (!dev->port.membase)
+		return -ENODEV;
+
+	dev->con->write = imx_console_early_write;
+
+	return 0;
+}
+OF_EARLYCON_DECLARE(ec_imx6q, "fsl,imx6q-uart", imx_console_early_setup);
+OF_EARLYCON_DECLARE(ec_imx21, "fsl,imx21-uart", imx_console_early_setup);
+#endif
+
 #else
 #define IMX_CONSOLE	NULL
 #endif

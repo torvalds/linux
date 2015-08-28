@@ -582,6 +582,7 @@ config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
 	depends on SERIAL_IMX=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON if OF
 	help
 	  If you have enabled the serial port on the Freescale IMX
 	  CPU you can make it the console by answering Y to this option.
