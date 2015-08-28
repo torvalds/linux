@@ -152,6 +152,7 @@ struct vf_data_storage {
 	u16 vlan_count;
 	u8 spoofchk_enabled;
 	bool rss_query_enabled;
+	u8 trusted;
 	unsigned int vf_api;
 };
 
