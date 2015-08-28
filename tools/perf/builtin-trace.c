@@ -1,3 +1,21 @@
+/*
+ * builtin-trace.c
+ *
+ * Builtin 'trace' command:
+ *
+ * Display a continuously updated trace of any workload, CPU, specific PID,
+ * system wide, etc.  Default format is loosely strace like, but any other
+ * event may be specified using --event.
+ *
+ * Copyright (C) 2012, 2013, 2014, 2015 Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
+ *
+ * Initially based on the 'trace' prototype by Thomas Gleixner:
+ *
+ * http://lwn.net/Articles/415728/ ("Announcing a new utility: 'trace'")
+ *
+ * Released under the GPL v2. (and only v2, not any later version)
+ */
+
 #include <traceevent/event-parse.h>
 #include "builtin.h"
 #include "util/color.h"
@@ -27,6 +45,7 @@
 
 #ifndef MADV_HWPOISON
 # define MADV_HWPOISON		100
+
 #endif
 
 #ifndef MADV_MERGEABLE
