@@ -26,7 +26,7 @@ struct hist_browser {
 	struct map_symbol   *selection;
 	struct hist_browser_timer *hbt;
 	struct pstack	    *pstack;
-	struct perf_session_env *env;
+	struct perf_env *env;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
@@ -1214,7 +1214,7 @@ static int hist_browser__dump(struct hist_browser *browser)
 
 static struct hist_browser *hist_browser__new(struct hists *hists,
 					      struct hist_browser_timer *hbt,
-					      struct perf_session_env *env)
+					      struct perf_env *env)
 {
 	struct hist_browser *browser = zalloc(sizeof(*browser));
 
@@ -1695,7 +1695,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    bool left_exits,
 				    struct hist_browser_timer *hbt,
 				    float min_pcnt,
-				    struct perf_session_env *env)
+				    struct perf_env *env)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_browser *browser = hist_browser__new(hists, hbt, env);
@@ -2016,7 +2016,7 @@ struct perf_evsel_menu {
 	struct perf_evsel *selection;
 	bool lost_events, lost_events_warned;
 	float min_pcnt;
-	struct perf_session_env *env;
+	struct perf_env *env;
 };
 
 static void perf_evsel_menu__write(struct ui_browser *browser,
@@ -2169,7 +2169,7 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 					   int nr_entries, const char *help,
 					   struct hist_browser_timer *hbt,
 					   float min_pcnt,
-					   struct perf_session_env *env)
+					   struct perf_env *env)
 {
 	struct perf_evsel *pos;
 	struct perf_evsel_menu menu = {
@@ -2202,7 +2202,7 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
-				  struct perf_session_env *env)
+				  struct perf_env *env)
 {
 	int nr_entries = evlist->nr_entries;
 

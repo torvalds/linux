@@ -91,7 +91,7 @@ static int ui__list_menu(int argc, char * const argv[])
 	return list_menu__run(&menu);
 }
 
-int tui__header_window(struct perf_session_env *env)
+int tui__header_window(struct perf_env *env)
 {
 	int i, argc = 0;
 	char **argv;
