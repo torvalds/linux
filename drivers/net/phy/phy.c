@@ -1040,7 +1040,7 @@ int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	struct phy_driver *phydrv = phydev->drv;
 	int value = -1;
 
-	if (phydrv->read_mmd_indirect == NULL) {
+	if (!phydrv->read_mmd_indirect) {
 		struct mii_bus *bus = phydev->bus;
 
 		mutex_lock(&bus->mdio_lock);
@@ -1077,7 +1077,7 @@ void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 {
 	struct phy_driver *phydrv = phydev->drv;
 
-	if (phydrv->write_mmd_indirect == NULL) {
+	if (!phydrv->write_mmd_indirect) {
 		struct mii_bus *bus = phydev->bus;
 
 		mutex_lock(&bus->mdio_lock);
