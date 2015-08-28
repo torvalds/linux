@@ -157,7 +157,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (NULL == dev)
-		return (struct phy_device *)PTR_ERR((void *)-ENOMEM);
+		return ERR_PTR(-ENOMEM);
 
 	dev->dev.release = phy_device_release;
 
