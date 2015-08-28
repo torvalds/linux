@@ -38,12 +38,6 @@
 
 struct omap_drm_usergart;
 
-/* max # of mapper-id's that can be assigned.. todo, come up with a better
- * (but still inexpensive) way to store/access per-buffer mapper private
- * data..
- */
-#define MAX_MAPPERS 2
-
 /* parameters which describe (unrotated) coordinates of scanout within a fb: */
 struct omap_drm_window {
 	uint32_t rotation;
