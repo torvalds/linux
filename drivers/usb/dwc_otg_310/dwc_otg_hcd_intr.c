@@ -2110,6 +2110,8 @@ int32_t dwc_otg_hcd_handle_hc_n_intr(dwc_otg_hcd_t *dwc_otg_hcd, uint32_t num)
 		/* All transfer had been killed, clear panding interrupts */
 		hcint.d32 = DWC_READ_REG32(&hc_regs->hcint);
 		DWC_WRITE_REG32(&hc_regs->hcint, hcint.d32);
+		release_channel(dwc_otg_hcd, hc, NULL,
+				DWC_OTG_HC_XFER_URB_DEQUEUE);
 		return retval;
 	}
 	qtd = DWC_CIRCLEQ_FIRST(&hc->qh->qtd_list);
