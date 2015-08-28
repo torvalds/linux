@@ -536,6 +536,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 	}
 	if (type == I40E_VSI_SRIOV) {
 		u8 brdcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
 		vf->lan_vsi_idx = vsi->idx;
 		vf->lan_vsi_id = vsi->id;
 		/* If the port VLAN has been configured and then the
@@ -605,6 +606,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	/* map PF queues to VF queues */
 	for (j = 0; j < pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs; j++) {
 		u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_id, j);
+
 		reg = (qid & I40E_VPLAN_QTABLE_QINDEX_MASK);
 		wr32(hw, I40E_VPLAN_QTABLE(total_queue_pairs, vf->vf_id), reg);
 		total_queue_pairs++;
@@ -991,7 +993,7 @@ static int i40e_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	int pre_existing_vfs = pci_num_vf(pdev);
 	int err = 0;
 
-	if (pf->state & __I40E_TESTING) {
+	if (test_bit(__I40E_TESTING, &pf->state)) {
 		dev_warn(&pdev->dev,
 			 "Cannot enable SR-IOV virtual functions while the device is undergoing diagnostic testing\n");
 		err = -EPERM;
@@ -1210,8 +1212,8 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 		vfres->vsi_res[i].vsi_type = I40E_VSI_SRIOV;
 		vfres->vsi_res[i].num_queue_pairs =
 		    pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs;
-		memcpy(vfres->vsi_res[i].default_mac_addr,
-		       vf->default_lan_addr.addr, ETH_ALEN);
+		ether_addr_copy(vfres->vsi_res[i].default_mac_addr,
+				vf->default_lan_addr.addr);
 		i++;
 	}
 	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
@@ -1715,6 +1717,7 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	for (i = 0; i < vfl->num_elements; i++) {
 		/* add new VLAN filter */
 		int ret = i40e_vsi_add_vlan(vsi, vfl->vlan_id[i]);
+
 		if (ret)
 			dev_err(&pf->pdev->dev,
 				"Unable to add VF vlan filter %d, error %d\n",
@@ -1766,6 +1769,7 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	for (i = 0; i < vfl->num_elements; i++) {
 		int ret = i40e_vsi_kill_vlan(vsi, vfl->vlan_id[i]);
+
 		if (ret)
 			dev_err(&pf->pdev->dev,
 				"Unable to delete VF vlan filter %d, error %d\n",
@@ -1877,7 +1881,6 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 	case I40E_VIRTCHNL_OP_UNKNOWN:
 	default:
 		return -EPERM;
-		break;
 	}
 	/* few more checks */
 	if ((valid_len != msglen) || (err_msg_format)) {
@@ -2316,7 +2319,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 
 	ivi->vf = vf_id;
 
-	memcpy(&ivi->mac, vf->default_lan_addr.addr, ETH_ALEN);
+	ether_addr_copy(ivi->mac, vf->default_lan_addr.addr);
 
 	ivi->max_tx_rate = vf->tx_rate;
 	ivi->min_tx_rate = 0;

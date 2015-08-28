@@ -1360,6 +1360,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	if ((pf->lan_veb != I40E_NO_VEB) &&
 	    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
 		struct i40e_veb *veb = pf->veb[pf->lan_veb];
+
 		for (j = 0; j < I40E_VEB_STATS_LEN; j++) {
 			p = (char *)veb;
 			p += i40e_gstrings_veb_stats[j].stat_offset;
@@ -1607,7 +1608,7 @@ static inline bool i40e_active_vfs(struct i40e_pf *pf)
 	int i;
 
 	for (i = 0; i < pf->num_alloc_vfs; i++)
-		if (vfs[i].vf_states & I40E_VF_STAT_ACTIVE)
+		if (test_bit(I40E_VF_STAT_ACTIVE, &vfs[i].vf_states))
 			return true;
 	return false;
 }

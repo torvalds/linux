@@ -164,6 +164,7 @@ struct i40e_tx_buffer {
 	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
+
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;

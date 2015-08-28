@@ -992,10 +992,10 @@ void i40e_vf_parse_hw_config(struct i40e_hw *hw,
 			     I40E_VIRTCHNL_VF_OFFLOAD_FCOE) ? 1 : 0;
 	for (i = 0; i < msg->num_vsis; i++) {
 		if (vsi_res->vsi_type == I40E_VSI_SRIOV) {
-			memcpy(hw->mac.perm_addr, vsi_res->default_mac_addr,
-			       ETH_ALEN);
-			memcpy(hw->mac.addr, vsi_res->default_mac_addr,
-			       ETH_ALEN);
+			ether_addr_copy(hw->mac.perm_addr,
+					vsi_res->default_mac_addr);
+			ether_addr_copy(hw->mac.addr,
+					vsi_res->default_mac_addr);
 		}
 		vsi_res++;
 	}

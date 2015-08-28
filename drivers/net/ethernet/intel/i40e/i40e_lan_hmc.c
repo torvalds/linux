@@ -431,9 +431,8 @@ exit_sd_error:
 			pd_idx1 = max(pd_idx,
 				      ((j - 1) * I40E_HMC_MAX_BP_COUNT));
 			pd_lmt1 = min(pd_lmt, (j * I40E_HMC_MAX_BP_COUNT));
-			for (i = pd_idx1; i < pd_lmt1; i++) {
+			for (i = pd_idx1; i < pd_lmt1; i++)
 				i40e_remove_pd_bp(hw, info->hmc_info, i);
-			}
 			i40e_remove_pd_page(hw, info->hmc_info, (j - 1));
 			break;
 		case I40E_SD_TYPE_DIRECT:

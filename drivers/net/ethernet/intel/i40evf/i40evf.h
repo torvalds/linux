@@ -48,10 +48,6 @@
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "i40evf: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__func__ , ## args)))
 
 /* dummy struct to make common code less painful */
 struct i40e_vsi {
