@@ -2321,26 +2321,33 @@ static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
 				     struct v4l2_subdev *subdev,
 				     struct v4l2_async_subdev *asd)
 {
-	struct isp_device *isp = container_of(async, struct isp_device,
-					      notifier);
 	struct isp_async_subdev *isd =
 		container_of(asd, struct isp_async_subdev, asd);
-	int ret;
-
-	ret = isp_link_entity(isp, &subdev->entity, isd->bus.interface);
-	if (ret < 0)
-		return ret;
 
 	isd->sd = subdev;
 	isd->sd->host_priv = &isd->bus;
 
-	return ret;
+	return 0;
 }
 
 static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 {
 	struct isp_device *isp = container_of(async, struct isp_device,
 					      notifier);
+	struct v4l2_device *v4l2_dev = &isp->v4l2_dev;
+	struct v4l2_subdev *sd;
+	struct isp_bus_cfg *bus;
+	int ret;
+
+	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
+		/* Only try to link entities whose interface was set on bound */
+		if (sd->host_priv) {
+			bus = (struct isp_bus_cfg *)sd->host_priv;
+			ret = isp_link_entity(isp, &sd->entity, bus->interface);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	return v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
 }
