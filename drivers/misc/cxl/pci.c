@@ -370,6 +370,55 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 	return 0;
 }
 
+#define TBSYNC_CNT(n) (((u64)n & 0x7) << (63-6))
+#define _2048_250MHZ_CYCLES 1
+
+static int cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
+{
+	u64 psl_tb;
+	int delta;
+	unsigned int retry = 0;
+	struct device_node *np;
+
+	if (!(np = pnv_pci_get_phb_node(dev)))
+		return -ENODEV;
+
+	/* Do not fail when CAPP timebase sync is not supported by OPAL */
+	of_node_get(np);
+	if (! of_get_property(np, "ibm,capp-timebase-sync", NULL)) {
+		of_node_put(np);
+		pr_err("PSL: Timebase sync: OPAL support missing\n");
+		return 0;
+	}
+	of_node_put(np);
+
+	/*
+	 * Setup PSL Timebase Control and Status register
+	 * with the recommended Timebase Sync Count value
+	 */
+	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
+		     TBSYNC_CNT(2 * _2048_250MHZ_CYCLES));
+
+	/* Enable PSL Timebase */
+	cxl_p1_write(adapter, CXL_PSL_Control, 0x0000000000000000);
+	cxl_p1_write(adapter, CXL_PSL_Control, CXL_PSL_Control_tb);
+
+	/* Wait until CORE TB and PSL TB difference <= 16usecs */
+	do {
+		msleep(1);
+		if (retry++ > 5) {
+			pr_err("PSL: Timebase sync: giving up!\n");
+			return -EIO;
+		}
+		psl_tb = cxl_p1_read(adapter, CXL_PSL_Timebase);
+		delta = mftb() - psl_tb;
+		if (delta < 0)
+			delta = -delta;
+	} while (cputime_to_usecs(delta) > 16);
+
+	return 0;
+}
+
 static int init_implementation_afu_regs(struct cxl_afu *afu)
 {
 	/* read/write masks for this slice */
@@ -1053,9 +1102,12 @@ err1:
 	return NULL;
 }
 
+#define CXL_PSL_ErrIVTE_tberror (0x1ull << (63-31))
+
 static int sanitise_adapter_regs(struct cxl *adapter)
 {
-	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
+	/* Clear PSL tberror bit by writing 1 to it */
+	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, CXL_PSL_ErrIVTE_tberror);
 	return cxl_tlb_slb_invalidate(adapter);
 }
 
@@ -1106,6 +1158,9 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 	/* If recovery happened, the last step is to turn on snooping.
 	 * In the non-recovery case this has no effect */
 	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_ON)))
+		goto err;
+
+	if ((rc = cxl_setup_psl_timebase(adapter, dev)))
 		goto err;
 
 	if ((rc = cxl_register_psl_err_irq(adapter)))

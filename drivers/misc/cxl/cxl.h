@@ -83,8 +83,10 @@ static const cxl_p1_reg_t CXL_PSL_AFUSEL  = {0x00B0};
 /* 0x00C0:7EFF Implementation dependent area */
 static const cxl_p1_reg_t CXL_PSL_FIR1      = {0x0100};
 static const cxl_p1_reg_t CXL_PSL_FIR2      = {0x0108};
+static const cxl_p1_reg_t CXL_PSL_Timebase  = {0x0110};
 static const cxl_p1_reg_t CXL_PSL_VERSION   = {0x0118};
 static const cxl_p1_reg_t CXL_PSL_RESLCKTO  = {0x0128};
+static const cxl_p1_reg_t CXL_PSL_TB_CTLSTAT = {0x0140};
 static const cxl_p1_reg_t CXL_PSL_FIR_CNTL  = {0x0148};
 static const cxl_p1_reg_t CXL_PSL_DSNDCTL   = {0x0150};
 static const cxl_p1_reg_t CXL_PSL_SNWRALLOC = {0x0158};
@@ -151,6 +153,9 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SPAP_Size 0x0000000000000ff0ULL
 #define CXL_PSL_SPAP_Size_Shift 4
 #define CXL_PSL_SPAP_V    0x0000000000000001ULL
+
+/****** CXL_PSL_Control ****************************************************/
+#define CXL_PSL_Control_tb 0x0000000000000001ULL
 
 /****** CXL_PSL_DLCNTL *****************************************************/
 #define CXL_PSL_DLCNTL_D (0x1ull << (63-28))
