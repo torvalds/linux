@@ -59,6 +59,9 @@ enum vga_switcheroo_state {
 
 /**
  * enum vga_switcheroo_client_id - client identifier
+ * @VGA_SWITCHEROO_UNKNOWN_ID: initial identifier assigned to vga clients.
+ * 	Determining the id requires the handler, so GPUs are given their
+ * 	true id in a delayed fashion in vga_switcheroo_enable()
  * @VGA_SWITCHEROO_IGD: integrated graphics device
  * @VGA_SWITCHEROO_DIS: discrete graphics device
  * @VGA_SWITCHEROO_MAX_CLIENTS: currently no more than two GPUs are supported
@@ -66,6 +69,7 @@ enum vga_switcheroo_state {
  * Client identifier. Audio clients use the same identifier & 0x100.
  */
 enum vga_switcheroo_client_id {
+	VGA_SWITCHEROO_UNKNOWN_ID = -1,
 	VGA_SWITCHEROO_IGD,
 	VGA_SWITCHEROO_DIS,
 	VGA_SWITCHEROO_MAX_CLIENTS,

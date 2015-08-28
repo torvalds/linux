@@ -84,9 +84,9 @@
  * @fb_info: framebuffer to which console is remapped on switching
  * @pwr_state: current power state
  * @ops: client callbacks
- * @id: client identifier, see enum vga_switcheroo_client_id.
- * 	Determining the id requires the handler, so GPUs are initially
- * 	assigned -1 and later given their true id in vga_switcheroo_enable()
+ * @id: client identifier. Determining the id requires the handler,
+ * 	so gpus are initially assigned VGA_SWITCHEROO_UNKNOWN_ID
+ * 	and later given their true id in vga_switcheroo_enable()
  * @active: whether the outputs are currently switched to this client
  * @driver_power_control: whether power state is controlled by the driver's
  * 	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
@@ -145,7 +145,8 @@ struct vgasr_priv {
 
 #define ID_BIT_AUDIO		0x100
 #define client_is_audio(c)	((c)->id & ID_BIT_AUDIO)
-#define client_is_vga(c)	((c)->id == -1 || !client_is_audio(c))
+#define client_is_vga(c)	((c)->id == VGA_SWITCHEROO_UNKNOWN_ID || \
+				 !client_is_audio(c))
 #define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
 static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
@@ -173,7 +174,7 @@ static void vga_switcheroo_enable(void)
 		vgasr_priv.handler->init();
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
-		if (client->id != -1)
+		if (client->id != VGA_SWITCHEROO_UNKNOWN_ID)
 			continue;
 		ret = vgasr_priv.handler->get_client_id(client->pdev);
 		if (ret < 0)
@@ -277,7 +278,7 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 				   const struct vga_switcheroo_client_ops *ops,
 				   bool driver_power_control)
 {
-	return register_client(pdev, ops, -1,
+	return register_client(pdev, ops, VGA_SWITCHEROO_UNKNOWN_ID,
 			       pdev == vga_default_device(),
 			       driver_power_control);
 }
@@ -583,7 +584,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	int ret;
 	bool delay = false, can_switch;
 	bool just_mux = false;
-	int client_id = -1;
+	int client_id = VGA_SWITCHEROO_UNKNOWN_ID;
 	struct vga_switcheroo_client *client = NULL;
 
 	if (cnt > 63)
@@ -652,7 +653,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		client_id = VGA_SWITCHEROO_DIS;
 	}
 
-	if (client_id == -1)
+	if (client_id == VGA_SWITCHEROO_UNKNOWN_ID)
 		goto out;
 	client = find_client_from_id(&vgasr_priv.clients, client_id);
 	if (!client)
