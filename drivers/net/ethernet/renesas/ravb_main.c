@@ -1643,7 +1643,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->dma = -1;
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		error = -ENODEV;
+		error = irq;
 		goto out_release;
 	}
 	ndev->irq = irq;
