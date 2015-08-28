@@ -396,7 +396,8 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	emmc: sdhci@78000600 {
+	/* eMMC */
+	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
