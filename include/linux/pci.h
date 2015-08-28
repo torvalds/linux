@@ -744,10 +744,11 @@ struct pci_driver {
 void pcie_bus_configure_settings(struct pci_bus *bus);
 
 enum pcie_bus_config_types {
-	PCIE_BUS_TUNE_OFF,
-	PCIE_BUS_SAFE,
-	PCIE_BUS_PERFORMANCE,
-	PCIE_BUS_PEER2PEER,
+	PCIE_BUS_TUNE_OFF,	/* don't touch MPS at all */
+	PCIE_BUS_DEFAULT,	/* ensure MPS matches upstream bridge */
+	PCIE_BUS_SAFE,		/* use largest MPS boot-time devices support */
+	PCIE_BUS_PERFORMANCE,	/* use MPS and MRRS for best performance */
+	PCIE_BUS_PEER2PEER,	/* set MPS = 128 for all devices */
 };
 
 extern enum pcie_bus_config_types pcie_bus_config;
@@ -793,6 +794,10 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int busmax);
 int pci_bus_update_busn_res_end(struct pci_bus *b, int busmax);
 void pci_bus_release_busn_res(struct pci_bus *b);
+struct pci_bus *pci_scan_root_bus_msi(struct device *parent, int bus,
+				      struct pci_ops *ops, void *sysdata,
+				      struct list_head *resources,
+				      struct msi_controller *msi);
 struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
 					     struct pci_ops *ops, void *sysdata,
 					     struct list_head *resources);

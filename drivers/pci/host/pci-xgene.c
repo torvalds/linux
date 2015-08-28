@@ -522,6 +522,7 @@ static int xgene_pcie_msi_enable(struct pci_bus *bus)
 	if (!bus->msi)
 		return -ENODEV;
 
+	of_node_put(msi_node);
 	bus->msi->dev = &bus->dev;
 	return 0;
 }

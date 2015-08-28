@@ -525,7 +525,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 #ifdef CONFIG_PCI_MSI
 	dw_pcie_msi_chip.dev = pp->dev;
-	dw_pci.msi_ctrl = &dw_pcie_msi_chip;
 #endif
 
 	dw_pci.nr_controllers = 1;
@@ -707,8 +706,15 @@ static struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	struct pcie_port *pp = sys_to_pcie(sys);
 
 	pp->root_bus_nr = sys->busnr;
-	bus = pci_scan_root_bus(pp->dev, sys->busnr,
-				  &dw_pcie_ops, sys, &sys->resources);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		bus = pci_scan_root_bus_msi(pp->dev, sys->busnr, &dw_pcie_ops,
+					    sys, &sys->resources,
+					    &dw_pcie_msi_chip);
+	else
+		bus = pci_scan_root_bus(pp->dev, sys->busnr, &dw_pcie_ops,
+					sys, &sys->resources);
+
 	if (!bus)
 		return NULL;
 
