@@ -899,7 +899,7 @@ static int mtk_eint_flip_edge(struct mtk_pinctrl *pctl, int hwirq)
 	int start_level, curr_level;
 	unsigned int reg_offset;
 	const struct mtk_eint_offsets *eint_offsets = &(pctl->devdata->eint_offsets);
-	u32 mask = 1 << (hwirq & 0x1f);
+	u32 mask = BIT(hwirq & 0x1f);
 	u32 port = (hwirq >> 5) & eint_offsets->port_mask;
 	void __iomem *reg = pctl->eint_reg_base + (port << 2);
 	const struct mtk_desc_pin *pin;
