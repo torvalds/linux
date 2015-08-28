@@ -173,15 +173,15 @@ static const struct iio_info m62332_info = {
 	.driver_module = THIS_MODULE,
 };
 
-#define M62332_CHANNEL(chan) {				\
-	.type = IIO_VOLTAGE,				\
-	.indexed = 1,					\
-	.output = 1,					\
-	.channel = (chan),				\
-	.datasheet_name = "CH" #chan,			\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
-		BIT(IIO_CHAN_INFO_SCALE) |		\
-		BIT(IIO_CHAN_INFO_OFFSET),		\
+#define M62332_CHANNEL(chan) {					\
+	.type = IIO_VOLTAGE,					\
+	.indexed = 1,						\
+	.output = 1,						\
+	.channel = (chan),					\
+	.datasheet_name = "CH" #chan,				\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
+				    BIT(IIO_CHAN_INFO_OFFSET),	\
 }
 
 static const struct iio_chan_spec m62332_channels[M62332_CHANNELS] = {
