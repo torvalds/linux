@@ -500,16 +500,19 @@ int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
 					   range->offset, range->length))
 			continue;
 		/* offset(8) + length(8) + stateid(NFS4_STATEID_SIZE)
-		 * + deviceid(NFS4_DEVICEID4_SIZE) + status(4) + opnum(4)
+		 * + array length + deviceid(NFS4_DEVICEID4_SIZE)
+		 * + status(4) + opnum(4)
 		 */
 		p = xdr_reserve_space(xdr,
-				24 + NFS4_STATEID_SIZE + NFS4_DEVICEID4_SIZE);
+				28 + NFS4_STATEID_SIZE + NFS4_DEVICEID4_SIZE);
 		if (unlikely(!p))
 			return -ENOBUFS;
 		p = xdr_encode_hyper(p, err->offset);
 		p = xdr_encode_hyper(p, err->length);
 		p = xdr_encode_opaque_fixed(p, &err->stateid,
 					    NFS4_STATEID_SIZE);
+		/* Encode 1 error */
+		*p++ = cpu_to_be32(1);
 		p = xdr_encode_opaque_fixed(p, &err->deviceid,
 					    NFS4_DEVICEID4_SIZE);
 		*p++ = cpu_to_be32(err->status);
