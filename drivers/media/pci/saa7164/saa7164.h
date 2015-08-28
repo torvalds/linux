@@ -117,7 +117,11 @@
 #define DBGLVL_CPU 8192
 
 #define SAA7164_NORMS \
-	(V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443)
+	(V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_JP)
+
+/* TV frequency range copied from tuner-core.c */
+#define SAA7164_TV_MIN_FREQ (44U * 16U)
+#define SAA7164_TV_MAX_FREQ (958U * 16U)
 
 enum port_t {
 	SAA7164_MPEG_UNDEFINED = 0,

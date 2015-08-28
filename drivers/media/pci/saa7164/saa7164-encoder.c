@@ -246,10 +246,11 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 static int vidioc_enum_input(struct file *file, void *priv,
 	struct v4l2_input *i)
 {
+	static const char * const inputs[] = {
+		"tuner", "composite", "svideo", "aux",
+		"composite 2", "svideo 2", "aux 2"
+	};
 	int n;
-
-	char *inputs[] = { "tuner", "composite", "svideo", "aux",
-		"composite 2", "svideo 2", "aux 2" };
 
 	if (i->index >= 7)
 		return -EINVAL;
@@ -313,8 +314,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "tuner");
-	t->type = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO;
+	t->rangelow = SAA7164_TV_MIN_FREQ;
+	t->rangehigh = SAA7164_TV_MAX_FREQ;
 
 	dprintk(DBGLVL_ENC, "VIDIOC_G_TUNER: tuner type %d\n", t->type);
 
@@ -324,6 +326,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 	const struct v4l2_tuner *t)
 {
+	if (0 != t->index)
+		return -EINVAL;
+
 	/* Update the A/V core */
 	return 0;
 }
@@ -334,7 +339,9 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 
-	f->type = V4L2_TUNER_ANALOG_TV;
+	if (f->tuner)
+		return -EINVAL;
+
 	f->frequency = port->freq;
 
 	return 0;
@@ -364,10 +371,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (f->tuner != 0)
 		return -EINVAL;
 
-	if (f->type != V4L2_TUNER_ANALOG_TV)
-		return -EINVAL;
-
-	port->freq = f->frequency;
+	port->freq = clamp(f->frequency,
+			   SAA7164_TV_MIN_FREQ, SAA7164_TV_MAX_FREQ);
 
 	/* Update the hardware */
 	if (port->nr == SAA7164_PORT_ENC1)
@@ -1012,6 +1017,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	port->video_format = EU_VIDEO_FORMAT_MPEG_2;
 	port->audio_format = 0;
 	port->video_resolution = 0;
+	port->freq = SAA7164_TV_MIN_FREQ;
 
 	v4l2_ctrl_handler_init(hdl, 14);
 	v4l2_ctrl_new_std(hdl, &saa7164_ctrl_ops,
