@@ -400,7 +400,8 @@ static int nfs4_stat_to_errno(int);
 #define decode_layoutcommit_maxsz (op_decode_hdr_maxsz + 3)
 #define encode_layoutreturn_maxsz (8 + op_encode_hdr_maxsz + \
 				encode_stateid_maxsz + \
-				1 /* FIXME: opaque lrf_body always empty at the moment */)
+				1 + \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT))
 #define decode_layoutreturn_maxsz (op_decode_hdr_maxsz + \
 				1 + decode_stateid_maxsz)
 #define encode_secinfo_no_name_maxsz (op_encode_hdr_maxsz + 1)
