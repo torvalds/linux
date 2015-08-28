@@ -36,8 +36,6 @@
 #include <crypto/algapi.h>
 #include <crypto/des.h>
 
-#include <asm/kmap_types.h>
-
 //#define HIFN_DEBUG
 
 #ifdef HIFN_DEBUG
