@@ -839,6 +839,18 @@ struct media_pad *media_entity_remote_pad(struct media_pad *pad)
 EXPORT_SYMBOL_GPL(media_entity_remote_pad);
 
 
+static void media_interface_init(struct media_device *mdev,
+				 struct media_interface *intf,
+				 u32 gobj_type,
+				 u32 intf_type, u32 flags)
+{
+	intf->type = intf_type;
+	intf->flags = flags;
+	INIT_LIST_HEAD(&intf->links);
+
+	media_gobj_init(mdev, gobj_type, &intf->graph_obj);
+}
+
 /* Functions related to the media interface via device nodes */
 
 struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
@@ -847,23 +859,16 @@ struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
 						gfp_t gfp_flags)
 {
 	struct media_intf_devnode *devnode;
-	struct media_interface *intf;
 
 	devnode = kzalloc(sizeof(*devnode), gfp_flags);
 	if (!devnode)
 		return NULL;
 
-	intf = &devnode->intf;
-
-	intf->type = type;
-	intf->flags = flags;
-	INIT_LIST_HEAD(&intf->links);
-
 	devnode->major = major;
 	devnode->minor = minor;
 
-	media_gobj_init(mdev, MEDIA_GRAPH_INTF_DEVNODE,
-		       &devnode->intf.graph_obj);
+	media_interface_init(mdev, &devnode->intf, MEDIA_GRAPH_INTF_DEVNODE,
+			     type, flags);
 
 	return devnode;
 }
