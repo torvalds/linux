@@ -153,7 +153,14 @@ struct vf_data_storage {
 	u8 spoofchk_enabled;
 	bool rss_query_enabled;
 	u8 trusted;
+	int xcast_mode;
 	unsigned int vf_api;
+};
+
+enum ixgbevf_xcast_modes {
+	IXGBEVF_XCAST_MODE_NONE = 0,
+	IXGBEVF_XCAST_MODE_MULTI,
+	IXGBEVF_XCAST_MODE_ALLMULTI,
 };
 
 struct vf_macvlans {
