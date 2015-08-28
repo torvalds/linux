@@ -37,6 +37,7 @@
 #include "t4_regs.h"
 #include "t4_values.h"
 #include "t4fw_api.h"
+#include "t4fw_version.h"
 
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
@@ -2163,6 +2164,61 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
 		 FW_HDR_FW_VER_MINOR_V(hdr->hdr_ver[1]) |
 		 FW_HDR_FW_VER_MICRO_V(hdr->hdr_ver[2]) |
 		 FW_HDR_FW_VER_BUILD_V(hdr->hdr_ver[3]));
+	return 0;
+}
+
+/**
+ *	t4_check_fw_version - check if the FW is supported with this driver
+ *	@adap: the adapter
+ *
+ *	Checks if an adapter's FW is compatible with the driver.  Returns 0
+ *	if there's exact match, a negative error if the version could not be
+ *	read or there's a major version mismatch
+ */
+int t4_check_fw_version(struct adapter *adap)
+{
+	int ret, major, minor, micro;
+	int exp_major, exp_minor, exp_micro;
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
+
+	ret = t4_get_fw_version(adap, &adap->params.fw_vers);
+	if (ret)
+		return ret;
+
+	major = FW_HDR_FW_VER_MAJOR_G(adap->params.fw_vers);
+	minor = FW_HDR_FW_VER_MINOR_G(adap->params.fw_vers);
+	micro = FW_HDR_FW_VER_MICRO_G(adap->params.fw_vers);
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+		exp_major = T4FW_MIN_VERSION_MAJOR;
+		exp_minor = T4FW_MIN_VERSION_MINOR;
+		exp_micro = T4FW_MIN_VERSION_MICRO;
+		break;
+	case CHELSIO_T5:
+		exp_major = T5FW_MIN_VERSION_MAJOR;
+		exp_minor = T5FW_MIN_VERSION_MINOR;
+		exp_micro = T5FW_MIN_VERSION_MICRO;
+		break;
+	case CHELSIO_T6:
+		exp_major = T6FW_MIN_VERSION_MAJOR;
+		exp_minor = T6FW_MIN_VERSION_MINOR;
+		exp_micro = T6FW_MIN_VERSION_MICRO;
+		break;
+	default:
+		dev_err(adap->pdev_dev, "Unsupported chip type, %x\n",
+			adap->chip);
+		return -EINVAL;
+	}
+
+	if (major < exp_major || (major == exp_major && minor < exp_minor) ||
+	    (major == exp_major && minor == exp_minor && micro < exp_micro)) {
+		dev_err(adap->pdev_dev,
+			"Card has firmware version %u.%u.%u, minimum "
+			"supported firmware is %u.%u.%u.\n", major, minor,
+			micro, exp_major, exp_minor, exp_micro);
+		return -EFAULT;
+	}
 	return 0;
 }
 
