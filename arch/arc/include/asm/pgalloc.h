@@ -107,7 +107,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	pgtable_t pte_pg;
 	struct page *page;
 
-	pte_pg = __get_free_pages(GFP_KERNEL | __GFP_REPEAT, __get_order_pte());
+	pte_pg = (pgtable_t)__get_free_pages(GFP_KERNEL | __GFP_REPEAT, __get_order_pte());
 	if (!pte_pg)
 		return 0;
 	memzero((void *)pte_pg, PTRS_PER_PTE * 4);
@@ -128,12 +128,12 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
 {
 	pgtable_page_dtor(virt_to_page(ptep));
-	free_pages(ptep, __get_order_pte());
+	free_pages((unsigned long)ptep, __get_order_pte());
 }
 
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
 
 #define check_pgt_cache()   do { } while (0)
-#define pmd_pgtable(pmd) pmd_page_vaddr(pmd)
+#define pmd_pgtable(pmd)	((pgtable_t) pmd_page_vaddr(pmd))
 
 #endif /* _ASM_ARC_PGALLOC_H */

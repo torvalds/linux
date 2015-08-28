@@ -43,7 +43,6 @@ typedef struct {
 typedef struct {
 	unsigned long pgprot;
 } pgprot_t;
-typedef unsigned long pgtable_t;
 
 #define pte_val(x)      ((x).pte)
 #define pgd_val(x)      ((x).pgd)
@@ -60,7 +59,6 @@ typedef unsigned long pgtable_t;
 typedef unsigned long pte_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
-typedef unsigned long pgtable_t;
 
 #define pte_val(x)	(x)
 #define pgd_val(x)	(x)
@@ -70,6 +68,8 @@ typedef unsigned long pgtable_t;
 #define pte_pgprot(x)	(x)
 
 #endif
+
+typedef pte_t * pgtable_t;
 
 #define ARCH_PFN_OFFSET     (CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT)
 
