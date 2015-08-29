@@ -94,7 +94,7 @@ void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
 		op_data->op_handle = *fh;
 	op_data->op_capa1 = ll_mdscapa_get(inode);
 
-	if (LLIF_DATA_MODIFIED & ll_i2info(inode)->lli_flags)
+	if (ll_i2info(inode)->lli_flags & LLIF_DATA_MODIFIED)
 		op_data->op_bias |= MDS_DATA_MODIFIED;
 }
 
@@ -1433,7 +1433,7 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 	 * little endian.  We convert it to host endian before
 	 * passing it to userspace.
 	 */
-	if (LOV_MAGIC != cpu_to_le32(LOV_MAGIC)) {
+	if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC) {
 		int stripe_count;
 
 		stripe_count = le16_to_cpu(lmm->lmm_stripe_count);
@@ -2494,8 +2494,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	default: {
 		int err;
 
-		if (LLIOC_STOP ==
-		     ll_iocontrol_call(inode, file, cmd, arg, &err))
+		if (ll_iocontrol_call(inode, file, cmd, arg, &err) ==
+		     LLIOC_STOP)
 			return err;
 
 		return obd_iocontrol(cmd, ll_i2dtexp(inode), 0, NULL,
@@ -2850,7 +2850,7 @@ ldlm_mode_t ll_take_md_lock(struct inode *inode, __u64 bits,
 	fid = &ll_i2info(inode)->lli_fid;
 	CDEBUG(D_INFO, "trying to match res "DFID"\n", PFID(fid));
 
-	rc = md_lock_match(ll_i2mdexp(inode), LDLM_FL_BLOCK_GRANTED|flags,
+	rc = md_lock_match(ll_i2mdexp(inode), flags | LDLM_FL_BLOCK_GRANTED,
 			   fid, LDLM_IBITS, &policy, mode, lockh);
 
 	return rc;
