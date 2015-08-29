@@ -677,8 +677,8 @@ cfs_hash_bd_findadd_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			   int noref)
 {
 	return cfs_hash_bd_lookup_intent(hs, bd, key, hnode,
-					 CFS_HS_LOOKUP_IT_ADD |
-					 (!noref * CFS_HS_LOOKUP_MASK_REF));
+					 (!noref * CFS_HS_LOOKUP_MASK_REF) |
+					 CFS_HS_LOOKUP_IT_ADD);
 }
 EXPORT_SYMBOL(cfs_hash_bd_findadd_locked);
 
@@ -756,7 +756,7 @@ cfs_hash_multi_bd_findadd_locked(struct cfs_hash *hs,
 	unsigned	   i;
 
 	LASSERT(hnode != NULL);
-	intent = CFS_HS_LOOKUP_IT_PEEK | (!noref * CFS_HS_LOOKUP_MASK_REF);
+	intent = (!noref * CFS_HS_LOOKUP_MASK_REF) | CFS_HS_LOOKUP_IT_PEEK;
 
 	cfs_hash_for_each_bd(bds, n, i) {
 		ehnode = cfs_hash_bd_lookup_intent(hs, &bds[i], key,
