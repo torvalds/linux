@@ -552,4 +552,3 @@ module_i2c_driver(ltc3589_driver);
 MODULE_AUTHOR("Philipp Zabel <p.zabel@pengutronix.de>");
 MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3589(-1,2)");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:ltc3589");
