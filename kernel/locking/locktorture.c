@@ -36,6 +36,7 @@
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/percpu-rwsem.h>
 #include <linux/torture.h>
 
 MODULE_LICENSE("GPL");
@@ -526,6 +527,48 @@ static struct lock_torture_ops rwsem_lock_ops = {
 	.name		= "rwsem_lock"
 };
 
+#include <linux/percpu-rwsem.h>
+static struct percpu_rw_semaphore pcpu_rwsem;
+
+void torture_percpu_rwsem_init(void)
+{
+	BUG_ON(percpu_init_rwsem(&pcpu_rwsem));
+}
+
+static int torture_percpu_rwsem_down_write(void) __acquires(pcpu_rwsem)
+{
+	percpu_down_write(&pcpu_rwsem);
+	return 0;
+}
+
+static void torture_percpu_rwsem_up_write(void) __releases(pcpu_rwsem)
+{
+	percpu_up_write(&pcpu_rwsem);
+}
+
+static int torture_percpu_rwsem_down_read(void) __acquires(pcpu_rwsem)
+{
+	percpu_down_read(&pcpu_rwsem);
+	return 0;
+}
+
+static void torture_percpu_rwsem_up_read(void) __releases(pcpu_rwsem)
+{
+	percpu_up_read(&pcpu_rwsem);
+}
+
+static struct lock_torture_ops percpu_rwsem_lock_ops = {
+	.init		= torture_percpu_rwsem_init,
+	.writelock	= torture_percpu_rwsem_down_write,
+	.write_delay	= torture_rwsem_write_delay,
+	.task_boost     = torture_boost_dummy,
+	.writeunlock	= torture_percpu_rwsem_up_write,
+	.readlock       = torture_percpu_rwsem_down_read,
+	.read_delay     = torture_rwsem_read_delay,
+	.readunlock     = torture_percpu_rwsem_up_read,
+	.name		= "percpu_rwsem_lock"
+};
+
 /*
  * Lock torture writer kthread.  Repeatedly acquires and releases
  * the lock, checking for duplicate acquisitions.
@@ -749,6 +792,7 @@ static int __init lock_torture_init(void)
 		&rtmutex_lock_ops,
 #endif
 		&rwsem_lock_ops,
+		&percpu_rwsem_lock_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose, &torture_runnable))
