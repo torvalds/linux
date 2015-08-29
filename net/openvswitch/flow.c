@@ -272,8 +272,6 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 	key->ipv6.addr.dst = nh->daddr;
 
 	payload_ofs = ipv6_skip_exthdr(skb, payload_ofs, &nexthdr, &frag_off);
-	if (unlikely(payload_ofs < 0))
-		return -EINVAL;
 
 	if (frag_off) {
 		if (frag_off & htons(~0x7))
@@ -283,6 +281,13 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 	} else {
 		key->ip.frag = OVS_FRAG_TYPE_NONE;
 	}
+
+	/* Delayed handling of error in ipv6_skip_exthdr() as it
+	 * always sets frag_off to a valid value which may be
+	 * used to set key->ip.frag above.
+	 */
+	if (unlikely(payload_ofs < 0))
+		return -EPROTO;
 
 	nh_len = payload_ofs - nh_ofs;
 	skb_set_transport_header(skb, nh_ofs + nh_len);
@@ -623,12 +628,16 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 		nh_len = parse_ipv6hdr(skb, key);
 		if (unlikely(nh_len < 0)) {
-			memset(&key->ip, 0, sizeof(key->ip));
-			memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
-			if (nh_len == -EINVAL) {
+			switch (nh_len) {
+			case -EINVAL:
+				memset(&key->ip, 0, sizeof(key->ip));
+				memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
+				/* fall-through */
+			case -EPROTO:
 				skb->transport_header = skb->network_header;
 				error = 0;
-			} else {
+				break;
+			default:
 				error = nh_len;
 			}
 			return error;
