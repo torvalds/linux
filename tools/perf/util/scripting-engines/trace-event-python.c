@@ -251,6 +251,7 @@ static void define_event_symbols(struct event_format *event,
 		/* gcc warns for these? */
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_FUNC:
 	case PRINT_BITMASK:
 		/* we should warn... */

@@ -294,6 +294,7 @@ enum print_arg_type {
 	PRINT_OP,
 	PRINT_FUNC,
 	PRINT_BITMASK,
+	PRINT_DYNAMIC_ARRAY_LEN,
 };
 
 struct print_arg {
