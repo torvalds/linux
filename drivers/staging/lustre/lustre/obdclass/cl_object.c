@@ -694,10 +694,10 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 		INIT_LIST_HEAD(&cle->ce_linkage);
 		cle->ce_magic = &cl_env_init0;
 		env = &cle->ce_lu;
-		rc = lu_env_init(env, LCT_CL_THREAD|ctx_tags);
+		rc = lu_env_init(env, ctx_tags | LCT_CL_THREAD);
 		if (rc == 0) {
 			rc = lu_context_init(&cle->ce_ses,
-					     LCT_SESSION | ses_tags);
+					     ses_tags | LCT_SESSION);
 			if (rc == 0) {
 				lu_context_enter(&cle->ce_ses);
 				env->le_ses = &cle->ce_ses;
