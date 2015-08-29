@@ -166,7 +166,7 @@ static int __init armctrl_of_init(struct device_node *node,
 			BUG_ON(irq <= 0);
 			irq_set_chip_and_handler(irq, &armctrl_chip,
 				handle_level_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_set_probe(irq);
 		}
 	}
 

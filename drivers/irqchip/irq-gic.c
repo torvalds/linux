@@ -890,11 +890,11 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 		irq_set_percpu_devid(irq);
 		irq_domain_set_info(d, irq, hw, chip, d->host_data,
 				    handle_percpu_devid_irq, NULL, NULL);
-		set_irq_flags(irq, IRQF_VALID | IRQF_NOAUTOEN);
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	} else {
 		irq_domain_set_info(d, irq, hw, chip, d->host_data,
 				    handle_fasteoi_irq, NULL, NULL);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_set_probe(irq);
 	}
 	return 0;
 }

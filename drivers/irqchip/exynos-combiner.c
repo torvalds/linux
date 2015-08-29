@@ -163,7 +163,7 @@ static int combiner_irq_domain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &combiner_chip, handle_level_irq);
 	irq_set_chip_data(irq, &combiner_data[hw >> 3]);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(irq);
 
 	return 0;
 }
