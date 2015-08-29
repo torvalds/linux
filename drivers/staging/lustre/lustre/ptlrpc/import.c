@@ -899,7 +899,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	}
 
 	/* Determine what recovery state to move the import to. */
-	if (MSG_CONNECT_RECONNECT & msg_flags) {
+	if (msg_flags & MSG_CONNECT_RECONNECT) {
 		memset(&old_hdl, 0, sizeof(old_hdl));
 		if (!memcmp(&old_hdl, lustre_msg_get_handle(request->rq_repmsg),
 			    sizeof(old_hdl))) {
@@ -924,7 +924,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			 * eviction. If it is in recovery - we are safe to
 			 * participate since we can reestablish all of our state
 			 * with server again */
-			if ((MSG_CONNECT_RECOVERING & msg_flags)) {
+			if ((msg_flags & MSG_CONNECT_RECOVERING)) {
 				CDEBUG(level, "%s@%s changed server handle from %#llx to %#llx but is still in recovery\n",
 				       obd2cli_tgt(imp->imp_obd),
 				       imp->imp_connection->c_remote_uuid.uuid,
@@ -945,7 +945,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			imp->imp_remote_handle =
 				     *lustre_msg_get_handle(request->rq_repmsg);
 
-			if (!(MSG_CONNECT_RECOVERING & msg_flags)) {
+			if (!(msg_flags & MSG_CONNECT_RECOVERING)) {
 				IMPORT_SET_STATE(imp, LUSTRE_IMP_EVICTED);
 				rc = 0;
 				goto finish;
@@ -961,7 +961,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			CDEBUG(D_HA, "%s: reconnected but import is invalid; marking evicted\n",
 			       imp->imp_obd->obd_name);
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_EVICTED);
-		} else if (MSG_CONNECT_RECOVERING & msg_flags) {
+		} else if (msg_flags & MSG_CONNECT_RECOVERING) {
 			CDEBUG(D_HA, "%s: reconnected to %s during replay\n",
 			       imp->imp_obd->obd_name,
 			       obd2cli_tgt(imp->imp_obd));
@@ -974,7 +974,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		} else {
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_RECOVER);
 		}
-	} else if ((MSG_CONNECT_RECOVERING & msg_flags) && !imp->imp_invalid) {
+	} else if ((msg_flags & MSG_CONNECT_RECOVERING) && !imp->imp_invalid) {
 		LASSERT(imp->imp_replayable);
 		imp->imp_remote_handle =
 				*lustre_msg_get_handle(request->rq_repmsg);

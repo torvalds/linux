@@ -883,7 +883,7 @@ void lustre_msg_clear_flags(struct lustre_msg *msg, int flags)
 	case LUSTRE_MSG_MAGIC_V2: {
 		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
 		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
-		pb->pb_flags &= ~(MSG_GEN_FLAG_MASK & flags);
+		pb->pb_flags &= ~(flags & MSG_GEN_FLAG_MASK);
 		return;
 	}
 	default:
