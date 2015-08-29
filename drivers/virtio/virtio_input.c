@@ -313,6 +313,7 @@ err_init_vq:
 static void virtinput_remove(struct virtio_device *vdev)
 {
 	struct virtio_input *vi = vdev->priv;
+	void *buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vi->lock, flags);
@@ -320,6 +321,9 @@ static void virtinput_remove(struct virtio_device *vdev)
 	spin_unlock_irqrestore(&vi->lock, flags);
 
 	input_unregister_device(vi->idev);
+	vdev->config->reset(vdev);
+	while ((buf = virtqueue_detach_unused_buf(vi->sts)) != NULL)
+		kfree(buf);
 	vdev->config->del_vqs(vdev);
 	kfree(vi);
 }

@@ -2026,14 +2026,6 @@ static bool detect_ivrs(void)
 	return true;
 }
 
-static int amd_iommu_init_dma(void)
-{
-	if (iommu_pass_through)
-		return amd_iommu_init_passthrough();
-	else
-		return amd_iommu_init_dma_ops();
-}
-
 /****************************************************************************
  *
  * AMD IOMMU Initialization State Machine
@@ -2073,7 +2065,7 @@ static int __init state_next(void)
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_INTERRUPTS_EN;
 		break;
 	case IOMMU_INTERRUPTS_EN:
-		ret = amd_iommu_init_dma();
+		ret = amd_iommu_init_dma_ops();
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_DMA_OPS;
 		break;
 	case IOMMU_DMA_OPS:

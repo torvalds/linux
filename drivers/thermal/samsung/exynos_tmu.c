@@ -1296,7 +1296,6 @@ static struct thermal_zone_of_device_ops exynos_sensor_ops = {
 
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
-	struct exynos_tmu_platform_data *pdata;
 	struct exynos_tmu_data *data;
 	int ret;
 
@@ -1317,8 +1316,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	ret = exynos_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
-
-	pdata = data->pdata;
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 
@@ -1392,6 +1389,8 @@ err_clk_sec:
 	if (!IS_ERR(data->clk_sec))
 		clk_unprepare(data->clk_sec);
 err_sensor:
+	if (!IS_ERR_OR_NULL(data->regulator))
+		regulator_disable(data->regulator);
 	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
 
 	return ret;

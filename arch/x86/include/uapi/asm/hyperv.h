@@ -108,6 +108,8 @@
 #define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		(1 << 4)
 /* Support for a virtual guest idle state is available */
 #define HV_X64_GUEST_IDLE_STATE_AVAILABLE		(1 << 5)
+/* Guest crash data handler available */
+#define HV_X64_GUEST_CRASH_MSR_AVAILABLE		(1 << 10)
 
 /*
  * Implementation recommendations. Indicates which behaviors the hypervisor

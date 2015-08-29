@@ -1017,14 +1017,16 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (neigh) {
-		read_lock_bh(&neigh->lock);
-		memcpy(r->arp_ha.sa_data, neigh->ha, dev->addr_len);
-		r->arp_flags = arp_state_to_flags(neigh);
-		read_unlock_bh(&neigh->lock);
-		r->arp_ha.sa_family = dev->type;
-		strlcpy(r->arp_dev, dev->name, sizeof(r->arp_dev));
+		if (!(neigh->nud_state & NUD_NOARP)) {
+			read_lock_bh(&neigh->lock);
+			memcpy(r->arp_ha.sa_data, neigh->ha, dev->addr_len);
+			r->arp_flags = arp_state_to_flags(neigh);
+			read_unlock_bh(&neigh->lock);
+			r->arp_ha.sa_family = dev->type;
+			strlcpy(r->arp_dev, dev->name, sizeof(r->arp_dev));
+			err = 0;
+		}
 		neigh_release(neigh);
-		err = 0;
 	}
 	return err;
 }

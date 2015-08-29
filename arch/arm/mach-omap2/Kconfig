@@ -60,6 +60,7 @@ config SOC_AM43XX
 	select ARM_GIC
 	select MACH_OMAP_GENERIC
 	select MIGHT_HAVE_CACHE_L2X0
+	select HAVE_ARM_SCU
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"

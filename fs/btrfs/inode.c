@@ -4209,7 +4209,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	u64 extent_num_bytes = 0;
 	u64 extent_offset = 0;
 	u64 item_end = 0;
-	u64 last_size = (u64)-1;
+	u64 last_size = new_size;
 	u32 found_type = (u8)-1;
 	int found_extent;
 	int del_item;
@@ -4493,8 +4493,7 @@ out:
 			btrfs_abort_transaction(trans, root, ret);
 	}
 error:
-	if (last_size != (u64)-1 &&
-	    root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
+	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
 		btrfs_ordered_update_i_size(inode, last_size, NULL);
 
 	btrfs_free_path(path);

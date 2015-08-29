@@ -101,6 +101,11 @@ static unsigned int efx_ef10_mem_map_size(struct efx_nic *efx)
 	return resource_size(&efx->pci_dev->resource[bar]);
 }
 
+static bool efx_ef10_is_vf(struct efx_nic *efx)
+{
+	return efx->type->is_vf;
+}
+
 static int efx_ef10_get_pf_index(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
@@ -677,6 +682,48 @@ static int efx_ef10_probe_pf(struct efx_nic *efx)
 	return efx_ef10_probe(efx);
 }
 
+int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_ALLOC_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID, port_id);
+	return efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_ALLOC, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
+int efx_ef10_vadaptor_free(struct efx_nic *efx, unsigned int port_id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_FREE_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, VADAPTOR_FREE_IN_UPSTREAM_PORT_ID, port_id);
+	return efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_FREE, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
+int efx_ef10_vport_add_mac(struct efx_nic *efx,
+			   unsigned int port_id, u8 *mac)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_ADD_MAC_ADDRESS_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, VPORT_ADD_MAC_ADDRESS_IN_VPORT_ID, port_id);
+	ether_addr_copy(MCDI_PTR(inbuf, VPORT_ADD_MAC_ADDRESS_IN_MACADDR), mac);
+
+	return efx_mcdi_rpc(efx, MC_CMD_VPORT_ADD_MAC_ADDRESS, inbuf,
+			    sizeof(inbuf), NULL, 0, NULL);
+}
+
+int efx_ef10_vport_del_mac(struct efx_nic *efx,
+			   unsigned int port_id, u8 *mac)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_DEL_MAC_ADDRESS_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, VPORT_DEL_MAC_ADDRESS_IN_VPORT_ID, port_id);
+	ether_addr_copy(MCDI_PTR(inbuf, VPORT_DEL_MAC_ADDRESS_IN_MACADDR), mac);
+
+	return efx_mcdi_rpc(efx, MC_CMD_VPORT_DEL_MAC_ADDRESS, inbuf,
+			    sizeof(inbuf), NULL, 0, NULL);
+}
+
 #ifdef CONFIG_SFC_SRIOV
 static int efx_ef10_probe_vf(struct efx_nic *efx)
 {
@@ -1235,7 +1282,12 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 		}
 	}
 
-	if (core_stats) {
+	if (!core_stats)
+		return stats_count;
+
+	if (nic_data->datapath_caps &
+			1 << MC_CMD_GET_CAPABILITIES_OUT_EVB_LBN) {
+		/* Use vadaptor stats. */
 		core_stats->rx_packets = stats[EF10_STAT_rx_unicast] +
 					 stats[EF10_STAT_rx_multicast] +
 					 stats[EF10_STAT_rx_broadcast];
@@ -1255,6 +1307,26 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 		core_stats->rx_fifo_errors = stats[EF10_STAT_rx_overflow];
 		core_stats->rx_errors = core_stats->rx_crc_errors;
 		core_stats->tx_errors = stats[EF10_STAT_tx_bad];
+	} else {
+		/* Use port stats. */
+		core_stats->rx_packets = stats[EF10_STAT_port_rx_packets];
+		core_stats->tx_packets = stats[EF10_STAT_port_tx_packets];
+		core_stats->rx_bytes = stats[EF10_STAT_port_rx_bytes];
+		core_stats->tx_bytes = stats[EF10_STAT_port_tx_bytes];
+		core_stats->rx_dropped = stats[EF10_STAT_port_rx_nodesc_drops] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
+		core_stats->multicast = stats[EF10_STAT_port_rx_multicast];
+		core_stats->rx_length_errors =
+				stats[EF10_STAT_port_rx_gtjumbo] +
+				stats[EF10_STAT_port_rx_length_error];
+		core_stats->rx_crc_errors = stats[EF10_STAT_port_rx_bad];
+		core_stats->rx_frame_errors =
+				stats[EF10_STAT_port_rx_align_error];
+		core_stats->rx_fifo_errors = stats[EF10_STAT_port_rx_overflow];
+		core_stats->rx_errors = (core_stats->rx_length_errors +
+					 core_stats->rx_crc_errors +
+					 core_stats->rx_frame_errors);
 	}
 
 	return stats_count;
@@ -3804,6 +3876,72 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	WARN_ON(remove_failed);
 }
 
+static int efx_ef10_vport_set_mac_address(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u8 mac_old[ETH_ALEN];
+	int rc, rc2;
+
+	/* Only reconfigure a PF-created vport */
+	if (is_zero_ether_addr(nic_data->vport_mac))
+		return 0;
+
+	efx_device_detach_sync(efx);
+	efx_net_stop(efx->net_dev);
+	down_write(&efx->filter_sem);
+	efx_ef10_filter_table_remove(efx);
+	up_write(&efx->filter_sem);
+
+	rc = efx_ef10_vadaptor_free(efx, nic_data->vport_id);
+	if (rc)
+		goto restore_filters;
+
+	ether_addr_copy(mac_old, nic_data->vport_mac);
+	rc = efx_ef10_vport_del_mac(efx, nic_data->vport_id,
+				    nic_data->vport_mac);
+	if (rc)
+		goto restore_vadaptor;
+
+	rc = efx_ef10_vport_add_mac(efx, nic_data->vport_id,
+				    efx->net_dev->dev_addr);
+	if (!rc) {
+		ether_addr_copy(nic_data->vport_mac, efx->net_dev->dev_addr);
+	} else {
+		rc2 = efx_ef10_vport_add_mac(efx, nic_data->vport_id, mac_old);
+		if (rc2) {
+			/* Failed to add original MAC, so clear vport_mac */
+			eth_zero_addr(nic_data->vport_mac);
+			goto reset_nic;
+		}
+	}
+
+restore_vadaptor:
+	rc2 = efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	if (rc2)
+		goto reset_nic;
+restore_filters:
+	down_write(&efx->filter_sem);
+	rc2 = efx_ef10_filter_table_probe(efx);
+	up_write(&efx->filter_sem);
+	if (rc2)
+		goto reset_nic;
+
+	rc2 = efx_net_open(efx->net_dev);
+	if (rc2)
+		goto reset_nic;
+
+	netif_device_attach(efx->net_dev);
+
+	return rc;
+
+reset_nic:
+	netif_err(efx, drv, efx->net_dev,
+		  "Failed to restore when changing MAC address - scheduling reset\n");
+	efx_schedule_reset(efx, RESET_TYPE_DATAPATH);
+
+	return rc ? rc : rc2;
+}
+
 static int efx_ef10_set_mac_address(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_SET_MAC_IN_LEN);
@@ -3820,8 +3958,8 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 			efx->net_dev->dev_addr);
 	MCDI_SET_DWORD(inbuf, VADAPTOR_SET_MAC_IN_UPSTREAM_PORT_ID,
 		       nic_data->vport_id);
-	rc = efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
-			  sizeof(inbuf), NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
+				sizeof(inbuf), NULL, 0, NULL);
 
 	efx_ef10_filter_table_probe(efx);
 	up_write(&efx->filter_sem);
@@ -3829,38 +3967,27 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 		efx_net_open(efx->net_dev);
 	netif_device_attach(efx->net_dev);
 
-#if !defined(CONFIG_SFC_SRIOV)
-	if (rc == -EPERM)
-		netif_err(efx, drv, efx->net_dev,
-			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
-			  " on this interface\n");
-#else
-	if (rc == -EPERM) {
+#ifdef CONFIG_SFC_SRIOV
+	if (efx->pci_dev->is_virtfn && efx->pci_dev->physfn) {
 		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
 
-		/* Switch to PF and change MAC address on vport */
-		if (efx->pci_dev->is_virtfn && pci_dev_pf) {
-			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+		if (rc == -EPERM) {
+			struct efx_nic *efx_pf;
 
-			if (!efx_ef10_sriov_set_vf_mac(efx_pf,
+			/* Switch to PF and change MAC address on vport */
+			efx_pf = pci_get_drvdata(pci_dev_pf);
+
+			rc = efx_ef10_sriov_set_vf_mac(efx_pf,
 						       nic_data->vf_index,
-						       efx->net_dev->dev_addr))
-				return 0;
-		}
-		netif_err(efx, drv, efx->net_dev,
-			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
-			  " on this interface\n");
-	} else if (efx->pci_dev->is_virtfn) {
-		/* Successfully changed by VF (with MAC spoofing), so update the
-		 * parent PF if possible.
-		 */
-		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
-
-		if (pci_dev_pf) {
+						       efx->net_dev->dev_addr);
+		} else if (!rc) {
 			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
 			struct efx_ef10_nic_data *nic_data = efx_pf->nic_data;
 			unsigned int i;
 
+			/* MAC address successfully changed by VF (with MAC
+			 * spoofing) so update the parent PF if possible.
+			 */
 			for (i = 0; i < efx_pf->vf_count; ++i) {
 				struct ef10_vf *vf = nic_data->vf + i;
 
@@ -3871,8 +3998,24 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 				}
 			}
 		}
-	}
+	} else
 #endif
+	if (rc == -EPERM) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Cannot change MAC address; use sfboot to enable"
+			  " mac-spoofing on this interface\n");
+	} else if (rc == -ENOSYS && !efx_ef10_is_vf(efx)) {
+		/* If the active MCFW does not support MC_CMD_VADAPTOR_SET_MAC
+		 * fall-back to the method of changing the MAC address on the
+		 * vport.  This only applies to PFs because such versions of
+		 * MCFW do not support VFs.
+		 */
+		rc = efx_ef10_vport_set_mac_address(efx);
+	} else {
+		efx_mcdi_display_error(efx, MC_CMD_VADAPTOR_SET_MAC,
+				       sizeof(inbuf), NULL, 0, rc);
+	}
+
 	return rc;
 }
 

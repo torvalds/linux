@@ -164,8 +164,8 @@ int msm_atomic_commit(struct drm_device *dev,
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
-int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
-		ktime_t *timeout);
+int msm_wait_fence(struct drm_device *dev, uint32_t fence,
+		ktime_t *timeout, bool interruptible);
 int msm_queue_fence_cb(struct drm_device *dev,
 		struct msm_fence_cb *cb, uint32_t fence);
 void msm_update_fence(struct drm_device *dev, uint32_t fence);

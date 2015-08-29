@@ -1723,9 +1723,6 @@ void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
 
 int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
-	if (obj->has_dma_mapping)
-		return 0;
-
 	if (!dma_map_sg(&obj->base.dev->pdev->dev,
 			obj->pages->sgl, obj->pages->nents,
 			PCI_DMA_BIDIRECTIONAL))
@@ -1926,6 +1923,17 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 		vma->vm->insert_entries(vma->vm, pages,
 					vma->node.start,
 					cache_level, pte_flags);
+
+		/* Note the inconsistency here is due to absence of the
+		 * aliasing ppgtt on gen4 and earlier. Though we always
+		 * request PIN_USER for execbuffer (translated to LOCAL_BIND),
+		 * without the appgtt, we cannot honour that request and so
+		 * must substitute it with a global binding. Since we do this
+		 * behind the upper layers back, we need to explicitly set
+		 * the bound flag ourselves.
+		 */
+		vma->bound |= GLOBAL_BIND;
+
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && flags & LOCAL_BIND) {
@@ -1972,10 +1980,8 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 
 	interruptible = do_idling(dev_priv);
 
-	if (!obj->has_dma_mapping)
-		dma_unmap_sg(&dev->pdev->dev,
-			     obj->pages->sgl, obj->pages->nents,
-			     PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_sg(&dev->pdev->dev, obj->pages->sgl, obj->pages->nents,
+		     PCI_DMA_BIDIRECTIONAL);
 
 	undo_idling(dev_priv, interruptible);
 }

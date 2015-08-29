@@ -521,6 +521,15 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		goto out_child;
 	}
 
+	/*
+	 * Normally perf_session__new would do this, but it doesn't have the
+	 * evlist.
+	 */
+	if (rec->tool.ordered_events && !perf_evlist__sample_id_all(rec->evlist)) {
+		pr_warning("WARNING: No sample_id_all support, falling back to unordered processing\n");
+		rec->tool.ordered_events = false;
+	}
+
 	if (!rec->evlist->nr_groups)
 		perf_header__clear_feat(&session->header, HEADER_GROUP_DESC);
 
@@ -965,9 +974,11 @@ static struct record record = {
 	.tool = {
 		.sample		= process_sample_event,
 		.fork		= perf_event__process_fork,
+		.exit		= perf_event__process_exit,
 		.comm		= perf_event__process_comm,
 		.mmap		= perf_event__process_mmap,
 		.mmap2		= perf_event__process_mmap2,
+		.ordered_events	= true,
 	},
 };
 

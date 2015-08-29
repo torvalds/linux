@@ -130,7 +130,7 @@ struct pm800_regulators {
 		.owner	= THIS_MODULE,					\
 		.n_voltages = ARRAY_SIZE(ldo_volt_table),		\
 		.vsel_reg	= PM800_##vreg##_VOUT,			\
-		.vsel_mask	= 0x1f,					\
+		.vsel_mask	= 0xf,					\
 		.enable_reg	= PM800_##ereg,				\
 		.enable_mask	= 1 << (ebit),				\
 		.volt_table	= ldo_volt_table,			\

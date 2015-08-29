@@ -286,7 +286,7 @@ extern phys_addr_t (*arch_virt_to_idmap)(unsigned long x);
  */
 static inline phys_addr_t __virt_to_idmap(unsigned long x)
 {
-	if (arch_virt_to_idmap)
+	if (IS_ENABLED(CONFIG_MMU) && arch_virt_to_idmap)
 		return arch_virt_to_idmap(x);
 	else
 		return __virt_to_phys(x);

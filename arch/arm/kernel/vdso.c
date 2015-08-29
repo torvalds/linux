@@ -296,7 +296,6 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
  */
 void update_vsyscall(struct timekeeper *tk)
 {
-	struct timespec xtime_coarse;
 	struct timespec64 *wtm = &tk->wall_to_monotonic;
 
 	if (!cntvct_ok) {
@@ -308,10 +307,10 @@ void update_vsyscall(struct timekeeper *tk)
 
 	vdso_write_begin(vdso_data);
 
-	xtime_coarse = __current_kernel_time();
 	vdso_data->tk_is_cntvct			= tk_is_cntvct(tk);
-	vdso_data->xtime_coarse_sec		= xtime_coarse.tv_sec;
-	vdso_data->xtime_coarse_nsec		= xtime_coarse.tv_nsec;
+	vdso_data->xtime_coarse_sec		= tk->xtime_sec;
+	vdso_data->xtime_coarse_nsec		= (u32)(tk->tkr_mono.xtime_nsec >>
+							tk->tkr_mono.shift);
 	vdso_data->wtm_clock_sec		= wtm->tv_sec;
 	vdso_data->wtm_clock_nsec		= wtm->tv_nsec;
 

@@ -1760,7 +1760,8 @@ static int pcs_irq_init_chained_handler(struct pcs_device *pcs,
 		int res;
 
 		res = request_irq(pcs_soc->irq, pcs_irq_handler,
-				  IRQF_SHARED | IRQF_NO_SUSPEND,
+				  IRQF_SHARED | IRQF_NO_SUSPEND |
+				  IRQF_NO_THREAD,
 				  name, pcs_soc);
 		if (res) {
 			pcs_soc->irq = -1;

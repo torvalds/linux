@@ -184,7 +184,6 @@ out:
 static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 			  struct xt_ct_target_info_v1 *info)
 {
-	struct nf_conntrack_tuple t;
 	struct nf_conn *ct;
 	int ret = -EOPNOTSUPP;
 
@@ -202,11 +201,11 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	if (ret < 0)
 		goto err1;
 
-	memset(&t, 0, sizeof(t));
-	ct = nf_conntrack_alloc(par->net, info->zone, &t, &t, GFP_KERNEL);
-	ret = PTR_ERR(ct);
-	if (IS_ERR(ct))
+	ct = nf_ct_tmpl_alloc(par->net, info->zone, GFP_KERNEL);
+	if (!ct) {
+		ret = -ENOMEM;
 		goto err2;
+	}
 
 	ret = 0;
 	if ((info->ct_events || info->exp_events) &&
@@ -227,8 +226,8 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 		if (ret < 0)
 			goto err3;
 	}
-
-	nf_conntrack_tmpl_insert(par->net, ct);
+	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
+	nf_conntrack_get(&ct->ct_general);
 out:
 	info->ct = ct;
 	return 0;

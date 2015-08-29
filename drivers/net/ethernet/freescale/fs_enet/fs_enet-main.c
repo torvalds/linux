@@ -586,7 +586,8 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	frag = skb_shinfo(skb)->frags;
 	while (nr_frags) {
 		CBDC_SC(bdp,
-			BD_ENET_TX_STATS | BD_ENET_TX_LAST | BD_ENET_TX_TC);
+			BD_ENET_TX_STATS | BD_ENET_TX_INTR | BD_ENET_TX_LAST |
+			BD_ENET_TX_TC);
 		CBDS_SC(bdp, BD_ENET_TX_READY);
 
 		if ((CBDR_SC(bdp) & BD_ENET_TX_WRAP) == 0)

@@ -1602,20 +1602,16 @@ static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
 	skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 	/*
-	 * Propagate page->pfmemalloc to the skb if we can. The problem is
-	 * that not all callers have unique ownership of the page. If
-	 * pfmemalloc is set, we check the mapping as a mapping implies
-	 * page->index is set (index and pfmemalloc share space).
-	 * If it's a valid mapping, we cannot use page->pfmemalloc but we
-	 * do not lose pfmemalloc information as the pages would not be
-	 * allocated using __GFP_MEMALLOC.
+	 * Propagate page pfmemalloc to the skb if we can. The problem is
+	 * that not all callers have unique ownership of the page but rely
+	 * on page_is_pfmemalloc doing the right thing(tm).
 	 */
 	frag->page.p		  = page;
 	frag->page_offset	  = off;
 	skb_frag_size_set(frag, size);
 
 	page = compound_head(page);
-	if (page->pfmemalloc && !page->mapping)
+	if (page_is_pfmemalloc(page))
 		skb->pfmemalloc	= true;
 }
 
@@ -2263,7 +2259,7 @@ static inline struct page *dev_alloc_page(void)
 static inline void skb_propagate_pfmemalloc(struct page *page,
 					     struct sk_buff *skb)
 {
-	if (page && page->pfmemalloc)
+	if (page_is_pfmemalloc(page))
 		skb->pfmemalloc = true;
 }
 
@@ -2884,11 +2880,11 @@ static inline bool skb_defer_rx_timestamp(struct sk_buff *skb)
  *
  * PHY drivers may accept clones of transmitted packets for
  * timestamping via their phy_driver.txtstamp method. These drivers
- * must call this function to return the skb back to the stack, with
- * or without a timestamp.
+ * must call this function to return the skb back to the stack with a
+ * timestamp.
  *
  * @skb: clone of the the original outgoing packet
- * @hwtstamps: hardware time stamps, may be NULL if not available
+ * @hwtstamps: hardware time stamps
  *
  */
 void skb_complete_tx_timestamp(struct sk_buff *skb,

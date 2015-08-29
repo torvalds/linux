@@ -296,6 +296,22 @@ extern struct rpc_procinfo nfs4_procedures[];
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 extern struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags);
+static inline struct nfs4_label *
+nfs4_label_copy(struct nfs4_label *dst, struct nfs4_label *src)
+{
+	if (!dst || !src)
+		return NULL;
+
+	if (src->len > NFS4_MAXLABELLEN)
+		return NULL;
+
+	dst->lfs = src->lfs;
+	dst->pi = src->pi;
+	dst->len = src->len;
+	memcpy(dst->label, src->label, src->len);
+
+	return dst;
+}
 static inline void nfs4_label_free(struct nfs4_label *label)
 {
 	if (label) {
@@ -315,6 +331,11 @@ static inline struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp
 static inline void nfs4_label_free(void *label) {}
 static inline void nfs_zap_label_cache_locked(struct nfs_inode *nfsi)
 {
+}
+static inline struct nfs4_label *
+nfs4_label_copy(struct nfs4_label *dst, struct nfs4_label *src)
+{
+	return NULL;
 }
 #endif /* CONFIG_NFS_V4_SECURITY_LABEL */
 

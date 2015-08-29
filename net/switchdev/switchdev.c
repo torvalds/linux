@@ -171,8 +171,10 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 		 * released.
 		 */
 
-		attr->trans = SWITCHDEV_TRANS_ABORT;
-		__switchdev_port_attr_set(dev, attr);
+		if (err != -EOPNOTSUPP) {
+			attr->trans = SWITCHDEV_TRANS_ABORT;
+			__switchdev_port_attr_set(dev, attr);
+		}
 
 		return err;
 	}
@@ -249,8 +251,10 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 		 * released.
 		 */
 
-		obj->trans = SWITCHDEV_TRANS_ABORT;
-		__switchdev_port_obj_add(dev, obj);
+		if (err != -EOPNOTSUPP) {
+			obj->trans = SWITCHDEV_TRANS_ABORT;
+			__switchdev_port_obj_add(dev, obj);
+		}
 
 		return err;
 	}

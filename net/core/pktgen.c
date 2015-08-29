@@ -3514,8 +3514,6 @@ static int pktgen_thread_worker(void *arg)
 
 	set_freezable();
 
-	__set_current_state(TASK_RUNNING);
-
 	while (!kthread_should_stop()) {
 		pkt_dev = next_to_run(t);
 
@@ -3560,7 +3558,6 @@ static int pktgen_thread_worker(void *arg)
 
 		try_to_freeze();
 	}
-	set_current_state(TASK_INTERRUPTIBLE);
 
 	pr_debug("%s stopping all device\n", t->tsk->comm);
 	pktgen_stop(t);
@@ -3570,13 +3567,6 @@ static int pktgen_thread_worker(void *arg)
 
 	pr_debug("%s removing thread\n", t->tsk->comm);
 	pktgen_rem_thread(t);
-
-	/* Wait for kthread_stop */
-	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-	}
-	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
@@ -3769,6 +3759,7 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 	}
 
 	t->net = pn;
+	get_task_struct(p);
 	wake_up_process(p);
 	wait_for_completion(&t->start_done);
 
@@ -3891,6 +3882,7 @@ static void __net_exit pg_net_exit(struct net *net)
 		t = list_entry(q, struct pktgen_thread, th_list);
 		list_del(&t->th_list);
 		kthread_stop(t->tsk);
+		put_task_struct(t->tsk);
 		kfree(t);
 	}
 

@@ -11,6 +11,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "imx6q.dtsi"
 
 / {
@@ -196,8 +197,8 @@
 };
 
 &usdhc3 {
-	cd-gpios = <&gpio6 11 0>;
-	wp-gpios = <&gpio6 14 0>;
+	cd-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3
