@@ -602,7 +602,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	    (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) {
 		if (lock->l_req_mode == lock->l_granted_mode &&
 		    lock->l_granted_mode != LCK_NL &&
-		    NULL == data)
+		    data == NULL)
 			ldlm_lock_decref_internal(lock, lock->l_req_mode);
 
 		/* Need to wake up the waiter if we were evicted */
@@ -614,7 +614,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 
 	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
 		       LDLM_FL_BLOCK_CONV))) {
-		if (NULL == data)
+		if (data == NULL)
 			/* mds granted the lock in the reply */
 			goto granted;
 		/* CP AST RPC: lock get granted, wake it up */
@@ -627,10 +627,10 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	obd = class_exp2obd(lock->l_conn_export);
 
 	/* if this is a local lock, there is no import */
-	if (NULL != obd)
+	if (obd != NULL)
 		imp = obd->u.cli.cl_import;
 
-	if (NULL != imp) {
+	if (imp != NULL) {
 		spin_lock(&imp->imp_lock);
 		fwd.fwd_generation = imp->imp_generation;
 		spin_unlock(&imp->imp_lock);
