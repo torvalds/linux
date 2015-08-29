@@ -553,7 +553,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	oap->oap_cmd = crt == CRT_WRITE ? OBD_BRW_WRITE : OBD_BRW_READ;
 	oap->oap_page_off = opg->ops_from;
 	oap->oap_count = opg->ops_to - opg->ops_from;
-	oap->oap_brw_flags = OBD_BRW_SYNC | brw_flags;
+	oap->oap_brw_flags = brw_flags | OBD_BRW_SYNC;
 
 	if (!client_is_remote(osc_export(obj)) &&
 			capable(CFS_CAP_SYS_RESOURCE)) {
