@@ -224,9 +224,9 @@ static int sti_uniperiph_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, priv);
 
-	ret = snd_soc_register_component(&pdev->dev,
-					 &sti_uniperiph_dai_component,
-					 priv->dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &sti_uniperiph_dai_component,
+					      priv->dai, 1);
 	if (ret < 0)
 		return ret;
 
