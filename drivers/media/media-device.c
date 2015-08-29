@@ -638,14 +638,30 @@ void media_device_unregister_entity(struct media_entity *entity)
 		return;
 
 	spin_lock(&mdev->lock);
+
+	/* Remove interface links with this entity on it */
+	list_for_each_entry_safe(link, tmp, &mdev->links, graph_obj.list) {
+		if (media_type(link->gobj1) == MEDIA_GRAPH_ENTITY
+		    && link->entity == entity) {
+			media_gobj_remove(&link->graph_obj);
+			kfree(link);
+		}
+	}
+
+	/* Remove all data links that belong to this entity */
 	list_for_each_entry_safe(link, tmp, &entity->links, list) {
 		media_gobj_remove(&link->graph_obj);
 		list_del(&link->list);
 		kfree(link);
 	}
+
+	/* Remove all pads that belong to this entity */
 	for (i = 0; i < entity->num_pads; i++)
 		media_gobj_remove(&entity->pads[i].graph_obj);
+
+	/* Remove the entity */
 	media_gobj_remove(&entity->graph_obj);
+
 	spin_unlock(&mdev->lock);
 	entity->graph_obj.mdev = NULL;
 }
