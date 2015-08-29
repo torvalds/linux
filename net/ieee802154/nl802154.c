@@ -1034,7 +1034,7 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-	bool mode;
+	int mode;
 
 	if (netif_running(dev))
 		return -EBUSY;
@@ -1042,7 +1042,11 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_LBT_MODE])
 		return -EINVAL;
 
-	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	mode = nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+
+	if (mode != 0 && mode != 1)
+		return -EINVAL;
+
 	if (!wpan_phy_supported_bool(mode, rdev->wpan_phy.supported.lbt))
 		return -EINVAL;
 
@@ -1055,7 +1059,7 @@ nl802154_set_ackreq_default(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-	bool ackreq;
+	int ackreq;
 
 	if (netif_running(dev))
 		return -EBUSY;
@@ -1063,7 +1067,11 @@ nl802154_set_ackreq_default(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_ACKREQ_DEFAULT])
 		return -EINVAL;
 
-	ackreq = !!nla_get_u8(info->attrs[NL802154_ATTR_ACKREQ_DEFAULT]);
+	ackreq = nla_get_u8(info->attrs[NL802154_ATTR_ACKREQ_DEFAULT]);
+
+	if (ackreq != 0 && ackreq != 1)
+		return -EINVAL;
+
 	return rdev_set_ackreq_default(rdev, wpan_dev, ackreq);
 }
 
