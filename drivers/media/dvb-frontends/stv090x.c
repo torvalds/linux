@@ -3692,9 +3692,12 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			}
 			val /= 16;
 			last = ARRAY_SIZE(stv090x_s2cn_tab) - 1;
-			div = stv090x_s2cn_tab[0].read -
-			      stv090x_s2cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			div = stv090x_s2cn_tab[last].real -
+			      stv090x_s2cn_tab[3].real;
+			val = stv090x_table_lookup(stv090x_s2cn_tab, last, val);
+			if (val < 0)
+				val = 0;
+			*cnr = val * 0xFFFF / div;
 		}
 		break;
 
@@ -3714,9 +3717,10 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			}
 			val /= 16;
 			last = ARRAY_SIZE(stv090x_s1cn_tab) - 1;
-			div = stv090x_s1cn_tab[0].read -
-			      stv090x_s1cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			div = stv090x_s1cn_tab[last].real -
+			      stv090x_s1cn_tab[0].real;
+			val = stv090x_table_lookup(stv090x_s1cn_tab, last, val);
+			*cnr = val * 0xFFFF / div;
 		}
 		break;
 	default:
