@@ -59,7 +59,6 @@ static inline struct metadata_dst *tun_rx_dst(__be16 flags,
 		return NULL;
 
 	info = &tun_dst->u.tun_info;
-	info->mode = IP_TUNNEL_INFO_RX;
 	info->key.tun_flags = flags;
 	info->key.tun_id = tunnel_id;
 	info->key.tp_src = 0;
@@ -106,6 +105,7 @@ static inline struct metadata_dst *ipv6_tun_rx_dst(struct sk_buff *skb,
 	info->key.u.ipv6.dst = ip6h->daddr;
 	info->key.tos = ipv6_get_dsfield(ip6h);
 	info->key.ttl = ip6h->hop_limit;
+	info->mode = IP_TUNNEL_INFO_IPV6;
 	return tun_dst;
 }
 

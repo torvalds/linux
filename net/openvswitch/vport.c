@@ -587,6 +587,8 @@ int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 
 	if (unlikely(!tun_info))
 		return -EINVAL;
+	if (ip_tunnel_info_af(tun_info) != AF_INET)
+		return -EINVAL;
 
 	tun_key = &tun_info->key;
 

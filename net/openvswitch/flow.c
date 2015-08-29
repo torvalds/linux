@@ -688,6 +688,8 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 {
 	/* Extract metadata from packet. */
 	if (tun_info) {
+		if (ip_tunnel_info_af(tun_info) != AF_INET)
+			return -EINVAL;
 		memcpy(&key->tun_key, &tun_info->key, sizeof(key->tun_key));
 
 		if (tun_info->options) {

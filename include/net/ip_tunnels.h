@@ -4,6 +4,7 @@
 #include <linux/if_tunnel.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/socket.h>
 #include <linux/types.h>
 #include <linux/u64_stats_sync.h>
 #include <net/dsfield.h>
@@ -50,13 +51,9 @@ struct ip_tunnel_key {
 	__be16			tp_dst;
 };
 
-/* Indicates whether the tunnel info structure represents receive
- * or transmit tunnel parameters.
- */
-enum {
-	IP_TUNNEL_INFO_RX,
-	IP_TUNNEL_INFO_TX,
-};
+/* Flags for ip_tunnel_info mode. */
+#define IP_TUNNEL_INFO_TX	0x01	/* represents tx tunnel parameters */
+#define IP_TUNNEL_INFO_IPV6	0x02	/* key contains IPv6 addresses */
 
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
@@ -213,6 +210,8 @@ static inline void __ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
 
 	tun_info->options = opts;
 	tun_info->options_len = opts_len;
+
+	tun_info->mode = 0;
 }
 
 static inline void ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
@@ -224,6 +223,12 @@ static inline void ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
 	__ip_tunnel_info_init(tun_info, iph->saddr, iph->daddr,
 			      iph->tos, iph->ttl, tp_src, tp_dst,
 			      tun_id, tun_flags, opts, opts_len);
+}
+
+static inline unsigned short ip_tunnel_info_af(const struct ip_tunnel_info
+					       *tun_info)
+{
+	return tun_info->mode & IP_TUNNEL_INFO_IPV6 ? AF_INET6 : AF_INET;
 }
 
 #ifdef CONFIG_INET
