@@ -1504,7 +1504,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	else
 		rates = &arizona_48k_bclk_rates[0];
 
-	wl = snd_pcm_format_width(params_format(params));
+	wl = params_width(params);
 
 	if (tdm_slots) {
 		arizona_aif_dbg(dai, "Configuring for %d %d bit TDM slots\n",
@@ -2303,6 +2303,82 @@ const struct snd_kcontrol_new arizona_adsp2_rate_controls[] = {
 	SOC_ENUM("DSP4 Rate", arizona_adsp2_rate_enum[3]),
 };
 EXPORT_SYMBOL_GPL(arizona_adsp2_rate_controls);
+
+static bool arizona_eq_filter_unstable(bool mode, __be16 _a, __be16 _b)
+{
+	s16 a = be16_to_cpu(_a);
+	s16 b = be16_to_cpu(_b);
+
+	if (!mode) {
+		return abs(a) >= 4096;
+	} else {
+		if (abs(b) >= 4096)
+			return true;
+
+		return (abs((a << 16) / (4096 - b)) >= 4096 << 4);
+	}
+}
+
+int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct soc_bytes *params = (void *)kcontrol->private_value;
+	unsigned int val;
+	__be16 *data;
+	int len;
+	int ret;
+
+	len = params->num_regs * regmap_get_val_bytes(arizona->regmap);
+
+	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
+
+	data[0] &= cpu_to_be16(ARIZONA_EQ1_B1_MODE);
+
+	if (arizona_eq_filter_unstable(!!data[0], data[1], data[2]) ||
+	    arizona_eq_filter_unstable(true, data[4], data[5]) ||
+	    arizona_eq_filter_unstable(true, data[8], data[9]) ||
+	    arizona_eq_filter_unstable(true, data[12], data[13]) ||
+	    arizona_eq_filter_unstable(false, data[16], data[17])) {
+		dev_err(arizona->dev, "Rejecting unstable EQ coefficients\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = regmap_read(arizona->regmap, params->base, &val);
+	if (ret != 0)
+		goto out;
+
+	val &= ~ARIZONA_EQ1_B1_MODE;
+	data[0] |= cpu_to_be16(val);
+
+	ret = regmap_raw_write(arizona->regmap, params->base, data, len);
+
+out:
+	kfree(data);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arizona_eq_coeff_put);
+
+int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	__be16 *data = (__be16 *)ucontrol->value.bytes.data;
+	s16 val = be16_to_cpu(*data);
+
+	if (abs(val) >= 4096) {
+		dev_err(arizona->dev, "Rejecting unstable LHPF coefficients\n");
+		return -EINVAL;
+	}
+
+	return snd_soc_bytes_put(kcontrol, ucontrol);
+}
+EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

@@ -1028,10 +1028,8 @@ static int pm860x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 	if (dir == PM860X_CLK_DIR_OUT)
 		pm860x->dir = PM860X_CLK_DIR_OUT;
-	else {
-		pm860x->dir = PM860X_CLK_DIR_IN;
+	else	/* Slave mode is not supported */
 		return -EINVAL;
-	}
 
 	return 0;
 }
