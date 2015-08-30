@@ -23,6 +23,11 @@
 #include <mach/gpio_data.h>
 #endif
 
+#include <mach/irqs.h>
+
+// SPICC Ingerrupt Number
+#define AMLOGIC_SPI_IRQ     INT_SPI_2
+
 /**
  * struct spicc
  * @lock: spinlock for SPICC controller.
@@ -35,9 +40,7 @@
  */
 struct spicc {
 	spinlock_t lock;
-	struct list_head msg_queue;
-	struct workqueue_struct *wq;
-	struct work_struct work;			
+
 	struct spi_master	*master;
 	struct spi_device	*spi;
 	struct class cls;
@@ -52,6 +55,13 @@ struct spicc {
     int     cur_speed;
     u8      cur_mode;
     u8      cur_bits_per_word;
+
+    // SPI IRQ USED
+    u8      *cur_msg_txbuf;
+    u8      *cur_msg_rxbuf;
+    int     cur_msg_txp;
+    int     cur_msg_rxp;
+    int     cur_msg_len;
 };
 
 #if defined CONFIG_AMLOGIC_SPICC_MASTER_DEBUG
@@ -108,11 +118,19 @@ static void spicc_set_mode(struct spicc *spicc, u8 mode)
     spicc_dbg("mode = 0x%x\n", mode);
 }
 
+//
+// available spi clock out table
+//
+// div = 0 : 39,843,750 Hz, div = 1 : 19,921,875 Hz
+// div = 2 :  9,960,937 Hz, div = 3 :  4,980,468 Hz
+// div = 4 :  2,490,234 Hz, div = 5 :  1,245,117 Hz
+// div = 6 :    625,558 Hz, div = 7 :    311,279 Hz
+//
 static void spicc_set_clk(struct spicc *spicc, int speed) 
 {	
     struct clk *sys_clk = clk_get_sys("clk81", NULL);
-    unsigned sys_clk_rate = clk_get_rate(sys_clk);
-    unsigned div, mid_speed;
+    unsigned long sys_clk_rate = clk_get_rate(sys_clk);
+    unsigned long div, mid_speed, div_val;
   
     // actually, speed = sys_clk_rate / 2^(conreg.data_rate_div+2)
     mid_speed = (sys_clk_rate * 3) >> 4;
@@ -122,37 +140,9 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
     }
     spicc->regs->conreg.data_rate_div = div;
     spicc->cur_speed = speed;
-    spicc_dbg("sys_clk_rate = %d, speed = %d, div = %d, actually speed = %d\n",
-        sys_clk_rate, speed, div, sys_clk_rate / (2^(div+2)));
-}
-
-static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
-{
-	u8 dat;
-	int i, num,retry;
-	
-	spicc_dbg("length = %d\n", len);
-	while (len > 0) {
-		num = (len > SPICC_FIFO_SIZE) ? SPICC_FIFO_SIZE : len;
-		for (i=0; i<num; i++) {
-			dat = txp ? (*txp++) : 0;
-			spicc->regs->txdata = dat;
-			//spicc_dbg("txdata[%d] = 0x%x\n", i, dat);
-		}
-		for (i=0; i<num; i++) {
-			retry = 100;
-			while (!spicc->regs->statreg.rx_ready && retry--) {udelay(1);}
-			dat = spicc->regs->rxdata;
-			if (rxp) *rxp++ = dat;
-			//spicc_dbg("rxdata[%d] = 0x%x\n", i, dat);
-			if (!retry) {
-			  printk("error: spicc timeout\n");
-			  return -ETIMEDOUT;
-			}
-		}
-		len -= num;
-	}
-	return 0;
+    div_val = (div + 2);
+    spicc_dbg("sys_clk_rate = %ld, speed = %d, div = %ld, actually speed = %ld\n",
+        sys_clk_rate, speed, div, (sys_clk_rate >> div_val));
 }
 
 /*
@@ -254,78 +244,116 @@ static int spicc_setup(struct spi_device *spi)
     return 0;
 }
 
-static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
+static irqreturn_t spicc_irq_handler    (int irq, void*data)
 {
+	struct spicc *spicc = data;
+	unsigned char   rdata;
+	unsigned long   flags;
+
+	spin_lock_irqsave(&spicc->lock, flags);
+
+    if(spicc->regs->statreg.rx_ready)   {
+	    rdata = spicc->regs->rxdata;
+	    if(spicc->cur_msg_rxbuf)    spicc->cur_msg_rxbuf[spicc->cur_msg_rxp] = rdata;
+        spicc->cur_msg_rxp++;
+	}
+
+    if(spicc->regs->statreg.tx_empty)   {
+        if(spicc->cur_msg_len)   {
+            spicc->regs->txdata =
+                spicc->cur_msg_txbuf ? spicc->cur_msg_txbuf[spicc->cur_msg_txp] : 0x00;
+            spicc->cur_msg_txp++;   spicc->cur_msg_len--;
+        }
+    }
+
+	spin_unlock_irqrestore(&spicc->lock, flags);
+
+    return  IRQ_HANDLED;
+}
+
+static int spicc_hw_xfer    (struct spicc *spicc, u8 *txp, u8 *rxp, int len)
+{
+	int retry;
+
+	spicc_dbg("length = %d\n", len);
+
+    if((len <= 0))  {
+        pr_err("%s : error! len = %d\n", __func__, len);    return  -1;
+    }
+
+    // RX ready interrupt enable
+    spicc->regs->intreg.rx_ready_en = 1;
+
+	spicc->cur_msg_txbuf    = txp;	spicc->cur_msg_txp      = 1;
+	spicc->cur_msg_rxbuf    = rxp;	spicc->cur_msg_rxp      = 0;
+	spicc->cur_msg_len      = len -1;
+
+    spicc->regs->txdata = spicc->cur_msg_txbuf ? spicc->cur_msg_txbuf[0] : 0x00;
+
+    // wait for rxbuf data (Max 1ms)
+    retry = 1000;
+    while(retry--)    {
+        usleep_range(1, 2);
+        if(spicc->cur_msg_rxp == len)   break;
+    }
+
+    // RX ready interrupt disable
+    spicc->regs->intreg.rx_ready_en = 0;
+
+    if (!retry) {
+        pr_err("error: spicc rxdata recv timeout\n");   return  -ETIMEDOUT;
+    }
+    return  0;
+}
+
+static int spicc_transfer_one_message(struct spi_master *master,
+					    struct spi_message *m)
+{
+	struct spicc *spicc = spi_master_get_devdata(master);
     struct spi_device *spi = m->spi;
     struct spi_transfer *t;
     int ret = 0;
 
     // re-set to prevent others from disable the SPICC clk gate
     spicc_clk_gate_on();
+
+    // enable spicc
+    spicc->regs->conreg.enable = 1;
+
     if (spicc->spi != spi) {
         spicc->spi = spi;
         spicc_set_clk(spicc, spi->max_speed_hz);
         spicc_set_mode(spicc, spi->mode);
     }
 
-    spicc_chip_select(spicc, 1); // select
-    spicc->regs->conreg.enable = 1; // enable spicc
-
     list_for_each_entry(t, &m->transfers, transfer_list) {
+
+        spicc_chip_select(spicc, 1); // select
+
         if((spi->max_speed_hz != t->speed_hz) && t->speed_hz) {
             spicc_set_clk(spicc, t->speed_hz);
         }
-        if (spicc_hw_xfer(spicc,(u8 *)t->tx_buf, (u8 *)t->rx_buf, t->len) < 0) {
+
+        if ((ret = spicc_hw_xfer(spicc,(u8 *)t->tx_buf, (u8 *)t->rx_buf, t->len)) < 0) {
             goto spicc_handle_end;
         }
+
         m->actual_length += t->len;
+
         if (t->delay_usecs) {
             udelay(t->delay_usecs);
         }
     }
 
 spicc_handle_end:
+    spicc_chip_select(spicc, 0);    // unselect
     spicc->regs->conreg.enable = 0; // disable spicc
-    spicc_chip_select(spicc, 0); // unselect
     spicc_clk_gate_off();
 
-    m->status = ret;
-    if(m->context) {
-        m->complete(m->context);
-    }
-}
+	m->status = ret;
+    spi_finalize_current_message(spicc->master);
 
-static int spicc_transfer(struct spi_device *spi, struct spi_message *m)
-{
-	struct spicc *spicc = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	m->actual_length = 0;
-	m->status = -EINPROGRESS;
-
-	spin_lock_irqsave(&spicc->lock, flags);
-	list_add_tail(&m->queue, &spicc->msg_queue);
-	queue_work(spicc->wq, &spicc->work);
-	spin_unlock_irqrestore(&spicc->lock, flags);
-
-	return 0;
-}
-
-static void spicc_work(struct work_struct *work)
-{
-	struct spicc *spicc = container_of(work, struct spicc, work);
-	struct spi_message *m;
-	unsigned long flags;
-
-	spin_lock_irqsave(&spicc->lock, flags);
-	while (!list_empty(&spicc->msg_queue)) {
-		m = container_of(spicc->msg_queue.next, struct spi_message, queue);
-		list_del_init(&m->queue);
-		spin_unlock_irqrestore(&spicc->lock, flags);
-		spicc_handle_one_msg(spicc, m);
-		spin_lock_irqsave(&spicc->lock, flags);
-	}
-	spin_unlock_irqrestore(&spicc->lock, flags);
+    return  0;
 }
 
 static 	ssize_t spicc_test (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
@@ -339,7 +367,7 @@ static 	ssize_t spicc_test (struct device *dev, struct device_attribute *attr, c
 	if (buf[0] == 'h') {
 		printk("SPI device test help\n");
 		printk("You can test the SPI device even without its driver through this sysfs node\n");
-		printk("echo cs_gpio speed mode num [wdata1 wdata2 wdata3 wdata4] >test\n");
+		printk("echo cs_gpio speed mode num [wdata1 wdata2 wdata3 wdata4] > test\n");
 		return count;
 	}
 
@@ -356,18 +384,21 @@ static 	ssize_t spicc_test (struct device *dev, struct device_attribute *attr, c
 	amlogic_gpio_request(cs_gpio, "spicc_cs");
 	amlogic_gpio_direction_output(cs_gpio, 0, "spicc_cs");
 
-    spicc_clk_gate_on();
+    spicc_clk_gate_on();    udelay(10);
     spicc_set_clk(spicc, speed);
     spicc_set_mode(spicc, mode);
     spicc->regs->conreg.enable = 1; // enable spicc
 
 	spicc_dump(spicc);
+	spin_unlock_irqrestore(&spicc->lock, flags);
 
 	spicc_hw_xfer(spicc, wbuf, rbuf, num);
+
+	spin_lock_irqsave(&spicc->lock, flags);
+
 	printk("read back data: ");
-	for (i=0; i<num; i++) {
-		printk("0x%x, ", rbuf[i]);
-	}
+
+	for (i=0; i<num; i++)   printk("0x%x, ", rbuf[i]);
 	printk("\n");
 
 	spicc->regs->conreg.enable = 0; // disable spicc
@@ -484,23 +515,18 @@ static int spicc_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS;
 
-	master->setup = spicc_setup;
-	master->transfer = spicc_transfer;
+	master->setup                   = spicc_setup;
+    master->transfer_one_message    = spicc_transfer_one_message;
 
 	spicc = spi_master_get_devdata(master);
-	spicc->master = master;	
-	spicc->regs = pdata->regs;
-	spicc->pinctrl = pdata->pinctrl;
+
+	spicc->master   = master;
+	spicc->regs     = pdata->regs;
+	spicc->pinctrl  = pdata->pinctrl;
+
 	dev_set_drvdata(&pdev->dev, spicc);
-	INIT_WORK(&spicc->work, spicc_work);
-	spicc->wq = create_singlethread_workqueue(dev_name(master->dev.parent));
-	if (spicc->wq == NULL) {
-		ret = -EBUSY;
-		goto err;
-	}		  		  
+
 	spin_lock_init(&spicc->lock);
-	INIT_LIST_HEAD(&spicc->msg_queue);
-		
 	spicc_hw_init(spicc);
 
     /*setup class*/
@@ -509,14 +535,20 @@ static int spicc_probe(struct platform_device *pdev)
 		goto    err;
 	}
 
-	ret = spi_register_master(master);
+    if((ret = request_irq(AMLOGIC_SPI_IRQ, spicc_irq_handler, IRQF_DISABLED, "spicc_irq", spicc)))    {
+        dev_err(&pdev->dev, "Failed to register SPICC IRQ(%d)!\n", AMLOGIC_SPI_IRQ);
+		goto    err;
+    }
+    else
+        dev_info(&pdev->dev, "Register SPICC IRQ(%d) success!\n",  AMLOGIC_SPI_IRQ);
 
-	if (ret < 0) {
+	if ((ret = spi_register_master(master)) < 0) {
         dev_err(&pdev->dev, "register spi master failed! (%d)\n", ret);
         goto err;
 	}
 
     dev_info(&pdev->dev, "SPICC init ok \n");
+
     return ret;
 err:
 	spi_master_put(master);
@@ -528,9 +560,6 @@ static int spicc_remove(struct platform_device *pdev)
     struct spicc *spicc = dev_get_drvdata(&pdev->dev);
     struct spi_master *master = spicc->master;
     int i;
-
-    flush_work(&spicc->work);    flush_workqueue(spicc->wq);
-    destroy_workqueue(spicc->wq);
 
     spi_unregister_master(spicc->master);
 
@@ -548,6 +577,7 @@ static int spicc_remove(struct platform_device *pdev)
     pinmux_clr(&spicc->pinctrl);
 #endif
 
+    free_irq(AMLOGIC_SPI_IRQ, spicc);
     spi_master_put(master);
 
     dev_info(&pdev->dev, "SPICC remove OK \n");
