@@ -51,7 +51,7 @@ struct arch_timer_cpu {
 	bool				armed;
 
 	/* Timer IRQ */
-	const struct kvm_irq_level	*irq;
+	struct kvm_irq_level		irq;
 
 	/* VGIC mapping */
 	struct irq_phys_map		*map;

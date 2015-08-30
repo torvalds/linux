@@ -59,18 +59,6 @@ static void timer_disarm(struct arch_timer_cpu *timer)
 	}
 }
 
-static void kvm_timer_inject_irq(struct kvm_vcpu *vcpu)
-{
-	int ret;
-	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-
-	kvm_vgic_set_phys_irq_active(timer->map, true);
-	ret = kvm_vgic_inject_mapped_irq(vcpu->kvm, vcpu->vcpu_id,
-					 timer->map,
-					 timer->irq->level);
-	WARN_ON(ret);
-}
-
 static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 {
 	struct kvm_vcpu *vcpu = *(struct kvm_vcpu **)dev_id;
@@ -116,8 +104,7 @@ static bool kvm_timer_irq_can_fire(struct kvm_vcpu *vcpu)
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
 	return !(timer->cntv_ctl & ARCH_TIMER_CTRL_IT_MASK) &&
-		(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE) &&
-		!kvm_vgic_get_phys_irq_active(timer->map);
+		(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE);
 }
 
 bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
@@ -132,6 +119,41 @@ bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
 	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
 
 	return cval <= now;
+}
+
+static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level)
+{
+	int ret;
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	BUG_ON(!vgic_initialized(vcpu->kvm));
+
+	timer->irq.level = new_level;
+	ret = kvm_vgic_inject_mapped_irq(vcpu->kvm, vcpu->vcpu_id,
+					 timer->map,
+					 timer->irq.level);
+	WARN_ON(ret);
+}
+
+/*
+ * Check if there was a change in the timer state (should we raise or lower
+ * the line level to the GIC).
+ */
+static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	/*
+	 * If userspace modified the timer registers via SET_ONE_REG before
+	 * the vgic was initialized, we mustn't set the timer->irq.level value
+	 * because the guest would never see the interrupt.  Instead wait
+	 * until we call this function from kvm_timer_flush_hwstate.
+	 */
+	if (!vgic_initialized(vcpu->kvm))
+	    return;
+
+	if (kvm_timer_should_fire(vcpu) != timer->irq.level)
+		kvm_timer_update_irq(vcpu, !timer->irq.level);
 }
 
 /*
@@ -192,17 +214,20 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	bool phys_active;
 	int ret;
 
-	if (kvm_timer_should_fire(vcpu))
-		kvm_timer_inject_irq(vcpu);
+	kvm_timer_update_state(vcpu);
 
 	/*
-	 * We keep track of whether the edge-triggered interrupt has been
-	 * signalled to the vgic/guest, and if so, we mask the interrupt and
-	 * the physical distributor to prevent the timer from raising a
-	 * physical interrupt whenever we run a guest, preventing forward
-	 * VCPU progress.
+	 * If we enter the guest with the virtual input level to the VGIC
+	 * asserted, then we have already told the VGIC what we need to, and
+	 * we don't need to exit from the guest until the guest deactivates
+	 * the already injected interrupt, so therefore we should set the
+	 * hardware active state to prevent unnecessary exits from the guest.
+	 *
+	 * Conversely, if the virtual input level is deasserted, then always
+	 * clear the hardware active state to ensure that hardware interrupts
+	 * from the timer triggers a guest exit.
 	 */
-	if (kvm_vgic_get_phys_irq_active(timer->map))
+	if (timer->irq.level)
 		phys_active = true;
 	else
 		phys_active = false;
@@ -226,8 +251,11 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 
 	BUG_ON(timer_is_armed(timer));
 
-	if (kvm_timer_should_fire(vcpu))
-		kvm_timer_inject_irq(vcpu);
+	/*
+	 * The guest could have modified the timer registers or the timer
+	 * could have expired, update the timer state.
+	 */
+	kvm_timer_update_state(vcpu);
 }
 
 int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
@@ -242,7 +270,7 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	 * kvm_vcpu_set_target(). To handle this, we determine
 	 * vcpu timer irq number when the vcpu is reset.
 	 */
-	timer->irq = irq;
+	timer->irq.irq = irq->irq;
 
 	/*
 	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
@@ -251,6 +279,7 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	 * the ARMv7 architecture.
 	 */
 	timer->cntv_ctl = 0;
+	kvm_timer_update_state(vcpu);
 
 	/*
 	 * Tell the VGIC that the virtual interrupt is tied to a
@@ -295,6 +324,8 @@ int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 	default:
 		return -1;
 	}
+
+	kvm_timer_update_state(vcpu);
 	return 0;
 }
 
