@@ -1075,18 +1075,26 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 	if (task->tk_status >= 0)
 		return 0;
 
-	if (task->tk_status != -EJUKEBOX) {
+	switch (task->tk_status) {
+	/* File access problems. Don't mark the device as unavailable */
+	case -EACCES:
+	case -ESTALE:
+	case -EISDIR:
+	case -EBADHANDLE:
+	case -ELOOP:
+	case -ENOSPC:
+		break;
+	case -EJUKEBOX:
+		nfs_inc_stats(lseg->pls_layout->plh_inode, NFSIOS_DELAY);
+		goto out_retry;
+	default:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
 		nfs4_mark_deviceid_unavailable(devid);
-		if (ff_layout_has_available_ds(lseg))
-			return -NFS4ERR_RESET_TO_PNFS;
-		else
-			return -NFS4ERR_RESET_TO_MDS;
 	}
-
-	if (task->tk_status == -EJUKEBOX)
-		nfs_inc_stats(lseg->pls_layout->plh_inode, NFSIOS_DELAY);
+	/* FIXME: Need to prevent infinite looping here. */
+	return -NFS4ERR_RESET_TO_PNFS;
+out_retry:
 	task->tk_status = 0;
 	rpc_restart_call(task);
 	rpc_delay(task, NFS_JUKEBOX_RETRY_TIME);
