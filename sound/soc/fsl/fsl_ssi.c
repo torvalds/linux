@@ -156,7 +156,7 @@ struct fsl_ssi_soc_data {
  *
  * @dbg_stats: Debugging statistics
  *
- * @soc: SoC specifc data
+ * @soc: SoC specific data
  */
 struct fsl_ssi_private {
 	struct regmap *regs;
@@ -1210,7 +1210,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 		}
 	}
 
-	/* For those SLAVE implementations, we ingore non-baudclk cases
+	/* For those SLAVE implementations, we ignore non-baudclk cases
 	 * and, instead, abandon MASTER mode that needs baud clock.
 	 */
 	ssi_private->baudclk = devm_clk_get(&pdev->dev, "baud");
@@ -1257,7 +1257,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 		if (ret)
 			goto error_pcm;
 	} else {
-		ret = imx_pcm_dma_init(pdev);
+		ret = imx_pcm_dma_init(pdev, IMX_SSI_DMABUF_SIZE);
 		if (ret)
 			goto error_pcm;
 	}
