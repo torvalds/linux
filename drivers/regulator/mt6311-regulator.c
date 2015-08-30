@@ -166,7 +166,6 @@ MODULE_DEVICE_TABLE(of, mt6311_dt_ids);
 static struct i2c_driver mt6311_regulator_driver = {
 	.driver = {
 		.name = "mt6311",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mt6311_dt_ids),
 	},
 	.probe = mt6311_i2c_probe,
