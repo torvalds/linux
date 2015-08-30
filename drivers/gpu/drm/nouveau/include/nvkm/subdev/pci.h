@@ -35,4 +35,5 @@ int g84_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int g94_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int gf100_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 int gf106_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
+int gk104_pci_new(struct nvkm_device *, int, struct nvkm_pci **);
 #endif
