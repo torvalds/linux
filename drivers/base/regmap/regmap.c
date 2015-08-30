@@ -93,6 +93,9 @@ bool regmap_writeable(struct regmap *map, unsigned int reg)
 
 bool regmap_readable(struct regmap *map, unsigned int reg)
 {
+	if (!map->reg_read)
+		return false;
+
 	if (map->max_register && reg > map->max_register)
 		return false;
 
@@ -573,8 +576,9 @@ struct regmap *regmap_init(struct device *dev,
 		map->reg_stride = config->reg_stride;
 	else
 		map->reg_stride = 1;
-	map->use_single_rw = config->use_single_rw;
-	map->can_multi_write = config->can_multi_write;
+	map->use_single_read = config->use_single_rw || !bus || !bus->read;
+	map->use_single_write = config->use_single_rw || !bus || !bus->write;
+	map->can_multi_write = config->can_multi_write && bus && bus->write;
 	map->dev = dev;
 	map->bus = bus;
 	map->bus_context = bus_context;
@@ -763,7 +767,7 @@ struct regmap *regmap_init(struct device *dev,
 		if ((reg_endian != REGMAP_ENDIAN_BIG) ||
 		    (val_endian != REGMAP_ENDIAN_BIG))
 			goto err_map;
-		map->use_single_rw = true;
+		map->use_single_write = true;
 	}
 
 	if (!map->format.format_write &&
@@ -1382,7 +1386,8 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
  */
 bool regmap_can_raw_write(struct regmap *map)
 {
-	return map->bus && map->format.format_val && map->format.format_reg;
+	return map->bus && map->bus->write && map->format.format_val &&
+		map->format.format_reg;
 }
 EXPORT_SYMBOL_GPL(regmap_can_raw_write);
 
@@ -1677,9 +1682,15 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 
 	/*
 	 * Some devices don't support bulk write, for
-	 * them we have a series of single write operations.
+	 * them we have a series of single write operations in the first two if
+	 * blocks.
+	 *
+	 * The first if block is used for memory mapped io. It does not allow
+	 * val_bytes of 3 for example.
+	 * The second one is used for busses which do not have this limitation
+	 * and can write arbitrary value lengths.
 	 */
-	if (!map->bus || map->use_single_rw) {
+	if (!map->bus) {
 		map->lock(map->lock_arg);
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
@@ -1711,6 +1722,17 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		}
 out:
 		map->unlock(map->lock_arg);
+	} else if (map->use_single_write) {
+		map->lock(map->lock_arg);
+		for (i = 0; i < val_count; i++) {
+			ret = _regmap_raw_write(map,
+						reg + (i * map->reg_stride),
+						val + (i * val_bytes),
+						val_bytes);
+			if (ret)
+				break;
+		}
+		map->unlock(map->lock_arg);
 	} else {
 		void *wval;
 
@@ -1740,7 +1762,7 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
  *
  * the (register,newvalue) pairs in regs have not been formatted, but
  * they are all in the same page and have been changed to being page
- * relative. The page register has been written if that was neccessary.
+ * relative. The page register has been written if that was necessary.
  */
 static int _regmap_raw_multi_reg_write(struct regmap *map,
 				       const struct reg_default *regs,
@@ -2050,7 +2072,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 
 	/*
 	 * Some buses or devices flag reads by setting the high bits in the
-	 * register addresss; since it's always the high bits for all
+	 * register address; since it's always the high bits for all
 	 * current formats we can do this here rather than in
 	 * formatting.  This may break if we get interesting formats.
 	 */
@@ -2096,8 +2118,6 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 {
 	int ret;
 	void *context = _regmap_map_get_context(map);
-
-	WARN_ON(!map->reg_read);
 
 	if (!map->cache_bypass) {
 		ret = regcache_read(map, reg, val);
@@ -2179,11 +2199,18 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
+	if (val_count == 0)
+		return -EINVAL;
 
 	map->lock(map->lock_arg);
 
 	if (regmap_volatile_range(map, reg, val_count) || map->cache_bypass ||
 	    map->cache_type == REGCACHE_NONE) {
+		if (!map->bus->read) {
+			ret = -ENOTSUPP;
+			goto out;
+		}
+
 		/* Physical block read if there's no cache involved */
 		ret = _regmap_raw_read(map, reg, val, val_len);
 
@@ -2292,7 +2319,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		 * Some devices does not support bulk read, for
 		 * them we have a series of single read operations.
 		 */
-		if (map->use_single_rw) {
+		if (map->use_single_read) {
 			for (i = 0; i < val_count; i++) {
 				ret = regmap_raw_read(map,
 						reg + (i * map->reg_stride),

@@ -296,8 +296,12 @@ typedef void (*regmap_hw_free_context)(void *context);
  *                if not implemented  on a given device.
  * @async_write: Write operation which completes asynchronously, optional and
  *               must serialise with respect to non-async I/O.
+ * @reg_write: Write a single register value to the given register address. This
+ *             write operation has to complete when returning from the function.
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
+ * @reg_read: Read a single register value from a given register address.
+ * @free_context: Free context.
  * @async_alloc: Allocate a regmap_async() structure.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
  *                  a read.
@@ -307,7 +311,6 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @val_format_endian_default: Default endianness for formatted register
  *     values. Used when the regmap_config specifies DEFAULT. If this is
  *     DEFAULT, BIG is assumed.
- * @async_size: Size of struct used for async work.
  */
 struct regmap_bus {
 	bool fast_io;

@@ -139,8 +139,10 @@ struct regmap {
 	struct reg_default *patch;
 	int patch_regs;
 
-	/* if set, converts bulk rw to single rw */
-	bool use_single_rw;
+	/* if set, converts bulk read to single read */
+	bool use_single_read;
+	/* if set, converts bulk read to single read */
+	bool use_single_write;
 	/* if set, the device supports multi write mode */
 	bool can_multi_write;
 
