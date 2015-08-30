@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -32,7 +33,7 @@ enum max77843_muic_status {
 
 struct max77843_muic_info {
 	struct device *dev;
-	struct max77843 *max77843;
+	struct max77693_dev *max77843;
 	struct extcon_dev *edev;
 
 	struct mutex mutex;
@@ -198,18 +199,18 @@ static const struct regmap_irq_chip max77843_muic_irq_chip = {
 static int max77843_muic_set_path(struct max77843_muic_info *info,
 		u8 val, bool attached)
 {
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int ret = 0;
 	unsigned int ctrl1, ctrl2;
 
 	if (attached)
 		ctrl1 = val;
 	else
-		ctrl1 = CONTROL1_SW_OPEN;
+		ctrl1 = MAX77843_MUIC_CONTROL1_SW_OPEN;
 
 	ret = regmap_update_bits(max77843->regmap_muic,
 			MAX77843_MUIC_REG_CONTROL1,
-			CONTROL1_COM_SW, ctrl1);
+			MAX77843_MUIC_CONTROL1_COM_SW, ctrl1);
 	if (ret < 0) {
 		dev_err(info->dev, "Cannot switch MUIC port\n");
 		return ret;
@@ -243,7 +244,7 @@ static int max77843_muic_get_cable_type(struct max77843_muic_info *info,
 
 	adc = info->status[MAX77843_MUIC_STATUS1] &
 			MAX77843_MUIC_STATUS1_ADC_MASK;
-	adc >>= STATUS1_ADC_SHIFT;
+	adc >>= MAX77843_MUIC_STATUS1_ADC_SHIFT;
 
 	switch (group) {
 	case MAX77843_CABLE_GROUP_ADC:
@@ -309,7 +310,7 @@ static int max77843_muic_get_cable_type(struct max77843_muic_info *info,
 			/* Get VBVolt register bit */
 			gnd_type |= (info->status[MAX77843_MUIC_STATUS2] &
 					MAX77843_MUIC_STATUS2_VBVOLT_MASK);
-			gnd_type >>= STATUS2_VBVOLT_SHIFT;
+			gnd_type >>= MAX77843_MUIC_STATUS2_VBVOLT_SHIFT;
 
 			/* Offset of GND cable */
 			gnd_type |= MAX77843_MUIC_GND_USB_HOST;
@@ -338,7 +339,9 @@ static int max77843_muic_adc_gnd_handler(struct max77843_muic_info *info)
 	switch (gnd_cable_type) {
 	case MAX77843_MUIC_GND_USB_HOST:
 	case MAX77843_MUIC_GND_USB_HOST_VB:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_USB, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_USB,
+					     attached);
 		if (ret < 0)
 			return ret;
 
@@ -346,7 +349,9 @@ static int max77843_muic_adc_gnd_handler(struct max77843_muic_info *info)
 		break;
 	case MAX77843_MUIC_GND_MHL_VB:
 	case MAX77843_MUIC_GND_MHL:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_OPEN, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_OPEN,
+					     attached);
 		if (ret < 0)
 			return ret;
 
@@ -365,7 +370,7 @@ static int max77843_muic_jig_handler(struct max77843_muic_info *info,
 		int cable_type, bool attached)
 {
 	int ret;
-	u8 path = CONTROL1_SW_OPEN;
+	u8 path = MAX77843_MUIC_CONTROL1_SW_OPEN;
 
 	dev_dbg(info->dev, "external connector is %s (adc:0x%02x)\n",
 			attached ? "attached" : "detached", cable_type);
@@ -373,10 +378,10 @@ static int max77843_muic_jig_handler(struct max77843_muic_info *info,
 	switch (cable_type) {
 	case MAX77843_MUIC_ADC_FACTORY_MODE_USB_OFF:
 	case MAX77843_MUIC_ADC_FACTORY_MODE_USB_ON:
-		path = CONTROL1_SW_USB;
+		path = MAX77843_MUIC_CONTROL1_SW_USB;
 		break;
 	case MAX77843_MUIC_ADC_FACTORY_MODE_UART_OFF:
-		path = CONTROL1_SW_UART;
+		path = MAX77843_MUIC_CONTROL1_SW_UART;
 		break;
 	default:
 		return -EINVAL;
@@ -474,14 +479,18 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 
 	switch (chg_type) {
 	case MAX77843_MUIC_CHG_USB:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_USB, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_USB,
+					     attached);
 		if (ret < 0)
 			return ret;
 
 		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
 		break;
 	case MAX77843_MUIC_CHG_DOWNSTREAM:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_OPEN, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_OPEN,
+					     attached);
 		if (ret < 0)
 			return ret;
 
@@ -489,14 +498,18 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_DEDICATED:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_OPEN, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_OPEN,
+					     attached);
 		if (ret < 0)
 			return ret;
 
 		extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 		break;
 	case MAX77843_MUIC_CHG_SPECIAL_500MA:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_OPEN, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_OPEN,
+					     attached);
 		if (ret < 0)
 			return ret;
 
@@ -504,7 +517,9 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_SPECIAL_1A:
-		ret = max77843_muic_set_path(info, CONTROL1_SW_OPEN, attached);
+		ret = max77843_muic_set_path(info,
+					     MAX77843_MUIC_CONTROL1_SW_OPEN,
+					     attached);
 		if (ret < 0)
 			return ret;
 
@@ -528,7 +543,8 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 			"failed to detect %s accessory (chg_type:0x%x)\n",
 			attached ? "attached" : "detached", chg_type);
 
-		max77843_muic_set_path(info, CONTROL1_SW_OPEN, attached);
+		max77843_muic_set_path(info, MAX77843_MUIC_CONTROL1_SW_OPEN,
+				       attached);
 		return -EINVAL;
 	}
 
@@ -539,7 +555,7 @@ static void max77843_muic_irq_work(struct work_struct *work)
 {
 	struct max77843_muic_info *info = container_of(work,
 			struct max77843_muic_info, irq_work);
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int ret = 0;
 
 	mutex_lock(&info->mutex);
@@ -615,7 +631,7 @@ static void max77843_muic_detect_cable_wq(struct work_struct *work)
 {
 	struct max77843_muic_info *info = container_of(to_delayed_work(work),
 			struct max77843_muic_info, wq_detcable);
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int chg_type, adc, ret;
 	bool attached;
 
@@ -656,7 +672,7 @@ err_cable_wq:
 static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 		enum max77843_muic_adc_debounce_time time)
 {
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 	int ret;
 
 	switch (time) {
@@ -667,7 +683,7 @@ static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 		ret = regmap_update_bits(max77843->regmap_muic,
 				MAX77843_MUIC_REG_CONTROL4,
 				MAX77843_MUIC_CONTROL4_ADCDBSET_MASK,
-				time << CONTROL4_ADCDBSET_SHIFT);
+				time << MAX77843_MUIC_CONTROL4_ADCDBSET_SHIFT);
 		if (ret < 0) {
 			dev_err(info->dev, "Cannot write MUIC regmap\n");
 			return ret;
@@ -681,7 +697,7 @@ static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 	return 0;
 }
 
-static int max77843_init_muic_regmap(struct max77843 *max77843)
+static int max77843_init_muic_regmap(struct max77693_dev *max77843)
 {
 	int ret;
 
@@ -720,7 +736,7 @@ err_muic_i2c:
 
 static int max77843_muic_probe(struct platform_device *pdev)
 {
-	struct max77843 *max77843 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_dev *max77843 = dev_get_drvdata(pdev->dev.parent);
 	struct max77843_muic_info *info;
 	unsigned int id;
 	int i, ret;
@@ -768,7 +784,7 @@ static int max77843_muic_probe(struct platform_device *pdev)
 	max77843_muic_set_debounce_time(info, MAX77843_DEBOUNCE_TIME_25MS);
 
 	/* Set initial path for UART */
-	max77843_muic_set_path(info, CONTROL1_SW_UART, true);
+	max77843_muic_set_path(info, MAX77843_MUIC_CONTROL1_SW_UART, true);
 
 	/* Check revision number of MUIC device */
 	ret = regmap_read(max77843->regmap_muic, MAX77843_MUIC_REG_ID, &id);
@@ -821,7 +837,7 @@ err_muic_irq:
 static int max77843_muic_remove(struct platform_device *pdev)
 {
 	struct max77843_muic_info *info = platform_get_drvdata(pdev);
-	struct max77843 *max77843 = info->max77843;
+	struct max77693_dev *max77843 = info->max77843;
 
 	cancel_work_sync(&info->irq_work);
 	regmap_del_irq_chip(max77843->irq, max77843->irq_data_muic);
