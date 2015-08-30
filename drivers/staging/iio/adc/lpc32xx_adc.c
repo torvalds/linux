@@ -137,7 +137,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get platform I/O memory\n");
-		return -EBUSY;
+		return -ENXIO;
 	}
 
 	iodev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
@@ -162,7 +162,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed getting interrupt resource\n");
-		return -EINVAL;
+		return -ENXIO;
 	}
 
 	retval = devm_request_irq(&pdev->dev, irq, lpc32xx_adc_isr, 0,
