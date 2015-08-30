@@ -41,13 +41,13 @@
 #define HCI_IBS_SLEEP_IND	0xFE
 #define HCI_IBS_WAKE_IND	0xFD
 #define HCI_IBS_WAKE_ACK	0xFC
-#define HCI_MAX_IBS_SIZE 	10
+#define HCI_MAX_IBS_SIZE	10
 
 /* Controller states */
 #define STATE_IN_BAND_SLEEP_ENABLED	1
 
-#define IBS_WAKE_RETRANS_TIMEOUT_MS 	100
-#define IBS_TX_IDLE_TIMEOUT_MS 		2000
+#define IBS_WAKE_RETRANS_TIMEOUT_MS	100
+#define IBS_TX_IDLE_TIMEOUT_MS		2000
 #define BAUDRATE_SETTLE_TIMEOUT_MS	300
 
 /* HCI_IBS transmit side sleep protocol states */
