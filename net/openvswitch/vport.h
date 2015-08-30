@@ -157,7 +157,6 @@ struct vport_parms {
  * @get_options: Appends vport-specific attributes for the configuration of an
  * existing vport to a &struct sk_buff.  May be %NULL for a vport that does not
  * have any configuration.
- * @get_name: Get the device's name.
  * @send: Send a packet on the device.  Returns the length of the packet sent,
  * zero for dropped packets or negative for error.
  * @get_egress_tun_info: Get the egress tunnel 5-tuple and other info for
@@ -172,9 +171,6 @@ struct vport_ops {
 
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
-
-	/* Called with rcu_read_lock or ovs_mutex. */
-	const char *(*get_name)(const struct vport *);
 
 	int (*send)(struct vport *, struct sk_buff *);
 	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
@@ -239,7 +235,7 @@ static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 
 static inline const char *ovs_vport_name(struct vport *vport)
 {
-	return vport->dev ? vport->dev->name : vport->ops->get_name(vport);
+	return vport->dev->name;
 }
 
 int ovs_vport_ops_register(struct vport_ops *ops);
