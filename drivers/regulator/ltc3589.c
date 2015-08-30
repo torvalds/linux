@@ -542,7 +542,6 @@ MODULE_DEVICE_TABLE(i2c, ltc3589_i2c_id);
 static struct i2c_driver ltc3589_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = ltc3589_probe,
 	.id_table = ltc3589_i2c_id,
