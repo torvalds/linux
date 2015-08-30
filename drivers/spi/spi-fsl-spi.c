@@ -633,8 +633,8 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 		goto err_cpm_init;
 
 	mpc8xxx_spi->reg_base = devm_ioremap_resource(dev, mem);
-	if (mpc8xxx_spi->reg_base == NULL) {
-		ret = -ENOMEM;
+	if (IS_ERR(mpc8xxx_spi->reg_base)) {
+		ret = PTR_ERR(mpc8xxx_spi->reg_base);
 		goto err_probe;
 	}
 
