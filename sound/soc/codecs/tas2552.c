@@ -520,7 +520,7 @@ static const struct dev_pm_ops tas2552_pm = {
 			   NULL)
 };
 
-static struct snd_soc_dai_ops tas2552_speaker_dai_ops = {
+static const struct snd_soc_dai_ops tas2552_speaker_dai_ops = {
 	.hw_params	= tas2552_hw_params,
 	.prepare	= tas2552_prepare,
 	.set_sysclk	= tas2552_set_dai_sysclk,

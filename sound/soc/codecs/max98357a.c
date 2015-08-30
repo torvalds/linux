@@ -79,7 +79,7 @@ static struct snd_soc_codec_driver max98357a_codec_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(max98357a_dapm_routes),
 };
 
-static struct snd_soc_dai_ops max98357a_dai_ops = {
+static const struct snd_soc_dai_ops max98357a_dai_ops = {
 	.trigger	= max98357a_daiops_trigger,
 };
 
