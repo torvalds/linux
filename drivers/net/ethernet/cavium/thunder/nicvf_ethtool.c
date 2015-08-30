@@ -525,17 +525,15 @@ static int nicvf_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct nicvf_rss_info *rss = &nic->rss_info;
 	int idx;
 
-	if ((nic->qs->rq_cnt <= 1) || (nic->cpi_alg != CPI_ALG_NONE)) {
-		rss->enable = false;
-		rss->hash_bits = 0;
-		return -EIO;
-	}
-
-	/* We do not allow change in unsupported parameters */
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	rss->enable = true;
+	if (!rss->enable) {
+		netdev_err(nic->netdev,
+			   "RSS is disabled, cannot change settings\n");
+		return -EIO;
+	}
+
 	if (indir) {
 		for (idx = 0; idx < rss->rss_size; idx++)
 			rss->ind_tbl[idx] = indir[idx];
