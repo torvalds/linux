@@ -620,6 +620,7 @@ int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
  * @pin:    name of the pin to update
  * @mask:   bits to check for in reported jack status
  * @invert: if non-zero then pin is enabled when status is not reported
+ * @list:   internal list entry
  */
 struct snd_soc_jack_pin {
 	struct list_head list;
@@ -636,7 +637,7 @@ struct snd_soc_jack_pin {
  * @jack_type: type of jack that is expected for this voltage
  * @debounce_time: debounce_time for jack, codec driver should wait for this
  *		duration before reading the adc for voltages
- * @:list: list container
+ * @list:   internal list entry
  */
 struct snd_soc_jack_zone {
 	unsigned int min_mv;
@@ -652,12 +653,12 @@ struct snd_soc_jack_zone {
  * @gpio:         legacy gpio number
  * @idx:          gpio descriptor index within the function of the GPIO
  *                consumer device
- * @gpiod_dev     GPIO consumer device
+ * @gpiod_dev:    GPIO consumer device
  * @name:         gpio name. Also as connection ID for the GPIO consumer
  *                device function name lookup
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
- * @debouce_time: debouce time in ms
+ * @debounce_time: debounce time in ms
  * @wake:	  enable as wake source
  * @jack_status_check: callback function which overrides the detection
  *		       to provide more complex checks (eg, reading an
@@ -673,11 +674,13 @@ struct snd_soc_jack_gpio {
 	int debounce_time;
 	bool wake;
 
+	/* private: */
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
 	struct gpio_desc *desc;
 
 	void *data;
+	/* public: */
 	int (*jack_status_check)(void *data);
 };
 
@@ -1315,7 +1318,7 @@ static inline struct snd_soc_dapm_context *snd_soc_codec_get_dapm(
 
 /**
  * snd_soc_dapm_init_bias_level() - Initialize CODEC DAPM bias level
- * @dapm: The CODEC for which to initialize the DAPM bias level
+ * @codec: The CODEC for which to initialize the DAPM bias level
  * @level: The DAPM level to initialize to
  *
  * Initializes the CODEC DAPM bias level. See snd_soc_dapm_init_bias_level().

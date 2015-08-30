@@ -2876,7 +2876,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_weak_routes);
 
 /**
  * snd_soc_dapm_new_widgets - add new dapm widgets
- * @dapm: DAPM context
+ * @card: card to be checked for new dapm widgets
  *
  * Checks the codec for any new dapm widgets and creates them if found.
  *
