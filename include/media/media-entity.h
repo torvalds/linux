@@ -96,6 +96,7 @@ struct media_pipeline {
  * @reverse:	Pointer to the link for the reverse direction of a pad to pad
  *		link.
  * @flags:	Link flags, as defined in uapi/media.h (MEDIA_LNK_FL_*)
+ * @is_backlink: Indicate if the link is a backlink.
  */
 struct media_link {
 	struct media_gobj graph_obj;
@@ -112,6 +113,7 @@ struct media_link {
 	};
 	struct media_link *reverse;
 	unsigned long flags;
+	bool is_backlink;
 };
 
 /**

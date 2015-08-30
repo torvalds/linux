@@ -333,6 +333,9 @@ static long __media_device_get_topology(struct media_device *mdev,
 	/* Get links and number of links */
 	i = 0;
 	media_device_for_each_link(link, mdev) {
+		if (link->is_backlink)
+			continue;
+
 		i++;
 
 		if (ret || !topo->links)
