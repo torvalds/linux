@@ -146,6 +146,10 @@ struct regmap {
 	/* if set, the device supports multi write mode */
 	bool can_multi_write;
 
+	/* if set, raw reads/writes are limited to this size */
+	size_t max_raw_read;
+	size_t max_raw_write;
+
 	struct rb_root range_tree;
 	void *selector_work_buf;	/* Scratch buffer used for selector */
 };

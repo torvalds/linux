@@ -311,6 +311,8 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @val_format_endian_default: Default endianness for formatted register
  *     values. Used when the regmap_config specifies DEFAULT. If this is
  *     DEFAULT, BIG is assumed.
+ * @max_raw_read: Max raw read size that can be used on the bus.
+ * @max_raw_write: Max raw write size that can be used on the bus.
  */
 struct regmap_bus {
 	bool fast_io;
@@ -325,6 +327,8 @@ struct regmap_bus {
 	u8 read_flag_mask;
 	enum regmap_endian reg_format_endian_default;
 	enum regmap_endian val_format_endian_default;
+	size_t max_raw_read;
+	size_t max_raw_write;
 };
 
 struct regmap *regmap_init(struct device *dev,
