@@ -20,12 +20,6 @@
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
 
-static const uint32_t formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_NV12,
-};
-
 /*
  * This function is to get X or Y size shown via screen. This needs length and
  * start position of CRTC.
@@ -217,13 +211,14 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane,
 		      unsigned long possible_crtcs, enum drm_plane_type type,
+		      const uint32_t *formats, unsigned int fcount,
 		      unsigned int zpos)
 {
 	int err;
 
 	err = drm_universal_plane_init(dev, &exynos_plane->base, possible_crtcs,
-				       &exynos_plane_funcs, formats,
-				       ARRAY_SIZE(formats), type);
+				       &exynos_plane_funcs, formats, fcount,
+				       type);
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
 		return err;

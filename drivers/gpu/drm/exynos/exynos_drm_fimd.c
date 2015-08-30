@@ -188,6 +188,14 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
 
+static const uint32_t fimd_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
+
 static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	struct platform_device *pdev)
 {
@@ -956,7 +964,8 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, zpos);
+					1 << ctx->pipe, type, fimd_formats,
+					ARRAY_SIZE(fimd_formats), zpos);
 		if (ret)
 			return ret;
 	}
