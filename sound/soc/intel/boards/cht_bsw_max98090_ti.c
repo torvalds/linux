@@ -275,6 +275,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
 	.name = "chtmax98090",
+	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
 	.aux_dev = &cht_max98090_headset_dev,

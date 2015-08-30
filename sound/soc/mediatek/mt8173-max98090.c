@@ -136,6 +136,7 @@ static struct snd_soc_dai_link mt8173_max98090_dais[] = {
 
 static struct snd_soc_card mt8173_max98090_card = {
 	.name = "mt8173-max98090",
+	.owner = THIS_MODULE,
 	.dai_link = mt8173_max98090_dais,
 	.num_links = ARRAY_SIZE(mt8173_max98090_dais),
 	.controls = mt8173_max98090_controls,
