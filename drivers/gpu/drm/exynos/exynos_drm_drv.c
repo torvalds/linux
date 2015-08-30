@@ -442,8 +442,6 @@ static struct drm_driver exynos_drm_driver = {
 				  | DRIVER_ATOMIC,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
-	.suspend		= exynos_drm_suspend,
-	.resume			= exynos_drm_resume,
 	.open			= exynos_drm_open,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
