@@ -63,6 +63,9 @@ enum OID {
 	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
 	OID_sha1,			/* 1.3.14.3.2.26 */
 	OID_sha256,			/* 2.16.840.1.101.3.4.2.1 */
+	OID_sha384,			/* 2.16.840.1.101.3.4.2.2 */
+	OID_sha512,			/* 2.16.840.1.101.3.4.2.3 */
+	OID_sha224,			/* 2.16.840.1.101.3.4.2.4 */
 
 	/* Distinguished Name attribute IDs [RFC 2256] */
 	OID_commonName,			/* 2.5.4.3 */
