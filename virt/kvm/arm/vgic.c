@@ -2128,8 +2128,12 @@ int vgic_init(struct kvm *kvm)
 			break;
 		}
 
-		for (i = 0; i < dist->nr_irqs; i++) {
-			if (i < VGIC_NR_PPIS)
+		/*
+		 * Enable all SGIs and configure all private IRQs as
+		 * edge-triggered.
+		 */
+		for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
+			if (i < VGIC_NR_SGIS)
 				vgic_bitmap_set_irq_val(&dist->irq_enabled,
 							vcpu->vcpu_id, i, 1);
 			if (i < VGIC_NR_PRIVATE_IRQS)
