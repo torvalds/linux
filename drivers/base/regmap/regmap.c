@@ -1393,6 +1393,28 @@ bool regmap_can_raw_write(struct regmap *map)
 }
 EXPORT_SYMBOL_GPL(regmap_can_raw_write);
 
+/**
+ * regmap_get_raw_read_max - Get the maximum size we can read
+ *
+ * @map: Map to check.
+ */
+size_t regmap_get_raw_read_max(struct regmap *map)
+{
+	return map->max_raw_read;
+}
+EXPORT_SYMBOL_GPL(regmap_get_raw_read_max);
+
+/**
+ * regmap_get_raw_write_max - Get the maximum size we can read
+ *
+ * @map: Map to check.
+ */
+size_t regmap_get_raw_write_max(struct regmap *map)
+{
+	return map->max_raw_write;
+}
+EXPORT_SYMBOL_GPL(regmap_get_raw_write_max);
+
 static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 				       unsigned int val)
 {
