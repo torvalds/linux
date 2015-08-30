@@ -2481,7 +2481,7 @@ static int wm2200_runtime_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops wm2200_pm = {
+static const struct dev_pm_ops wm2200_pm = {
 	SET_RUNTIME_PM_OPS(wm2200_runtime_suspend, wm2200_runtime_resume,
 			   NULL)
 };
