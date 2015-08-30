@@ -38,7 +38,7 @@
 #define RT288_VENDOR_ID 0x10ec0288
 
 struct rt286_priv {
-	struct reg_default *index_cache;
+	const struct reg_default *index_cache;
 	int index_cache_size;
 	struct regmap *regmap;
 	struct snd_soc_codec *codec;
@@ -50,7 +50,7 @@ struct rt286_priv {
 	int clk_id;
 };
 
-static struct reg_default rt286_index_def[] = {
+static const struct reg_default rt286_index_def[] = {
 	{ 0x01, 0xaaaa },
 	{ 0x02, 0x8aaa },
 	{ 0x03, 0x0002 },

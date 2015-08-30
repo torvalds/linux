@@ -117,7 +117,7 @@ WM8996_REGULATOR_EVENT(0)
 WM8996_REGULATOR_EVENT(1)
 WM8996_REGULATOR_EVENT(2)
 
-static struct reg_default wm8996_reg[] = {
+static const struct reg_default wm8996_reg[] = {
 	{ WM8996_POWER_MANAGEMENT_1, 0x0 },
 	{ WM8996_POWER_MANAGEMENT_2, 0x0 },
 	{ WM8996_POWER_MANAGEMENT_3, 0x0 },

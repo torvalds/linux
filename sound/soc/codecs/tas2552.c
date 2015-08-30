@@ -38,7 +38,7 @@
 
 #include "tas2552.h"
 
-static struct reg_default tas2552_reg_defs[] = {
+static const struct reg_default tas2552_reg_defs[] = {
 	{TAS2552_CFG_1, 0x22},
 	{TAS2552_CFG_3, 0x80},
 	{TAS2552_DOUT, 0x00},

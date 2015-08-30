@@ -948,7 +948,7 @@ struct da9055_priv {
 	struct da9055_platform_data *pdata;
 };
 
-static struct reg_default da9055_reg_defaults[] = {
+static const struct reg_default da9055_reg_defaults[] = {
 	{ 0x21, 0x10 },
 	{ 0x22, 0x0A },
 	{ 0x23, 0x00 },
