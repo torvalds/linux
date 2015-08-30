@@ -289,26 +289,23 @@ enum clk_src {
 
 /* Gain and Volume */
 
-static const unsigned int aux_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(aux_vol_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(-5400, 0, 0),
 	/* -54dB to 15dB */
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0)
-};
+);
 
-static const unsigned int digital_gain_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(digital_gain_tlv,
 	0x0, 0x07, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -78dB to 12dB */
 	0x08, 0x7f, TLV_DB_SCALE_ITEM(-7800, 75, 0)
-};
+);
 
-static const unsigned int alc_analog_gain_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(alc_analog_gain_tlv,
 	0x0, 0x0, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* 0dB to 36dB */
 	0x01, 0x07, TLV_DB_SCALE_ITEM(0, 600, 0)
-};
+);
 
 static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(mixin_gain_tlv, -450, 150, 0);
