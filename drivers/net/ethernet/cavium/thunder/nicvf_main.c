@@ -51,6 +51,14 @@ module_param(cpi_alg, int, S_IRUGO);
 MODULE_PARM_DESC(cpi_alg,
 		 "PFC algorithm (0=none, 1=VLAN, 2=VLAN16, 3=IP Diffserv)");
 
+static inline u8 nicvf_netdev_qidx(struct nicvf *nic, u8 qidx)
+{
+	if (nic->sqs_mode)
+		return qidx + ((nic->sqs_id + 1) * MAX_CMP_QUEUES_PER_QS);
+	else
+		return qidx;
+}
+
 static inline void nicvf_set_rx_frame_cnt(struct nicvf *nic,
 					  struct sk_buff *skb)
 {
@@ -193,6 +201,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		if (!nic->set_mac_pending)
 			ether_addr_copy(nic->netdev->dev_addr,
 					mbx.nic_cfg.mac_addr);
+		nic->sqs_mode = mbx.nic_cfg.sqs_mode;
 		nic->link_up = false;
 		nic->duplex = 0;
 		nic->speed = 0;
@@ -229,6 +238,26 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 			netif_carrier_off(nic->netdev);
 			netif_tx_stop_all_queues(nic->netdev);
 		}
+		break;
+	case NIC_MBOX_MSG_ALLOC_SQS:
+		nic->sqs_count = mbx.sqs_alloc.qs_count;
+		nic->pf_acked = true;
+		break;
+	case NIC_MBOX_MSG_SNICVF_PTR:
+		/* Primary VF: make note of secondary VF's pointer
+		 * to be used while packet transmission.
+		 */
+		nic->snicvf[mbx.nicvf.sqs_id] =
+			(struct nicvf *)mbx.nicvf.nicvf;
+		nic->pf_acked = true;
+		break;
+	case NIC_MBOX_MSG_PNICVF_PTR:
+		/* Secondary VF/Qset: make note of primary VF's pointer
+		 * to be used while packet reception, to handover packet
+		 * to primary VF's netdev.
+		 */
+		nic->pnicvf = (struct nicvf *)mbx.nicvf.nicvf;
+		nic->pf_acked = true;
 		break;
 	default:
 		netdev_err(nic->netdev,
@@ -338,9 +367,98 @@ static int nicvf_rss_init(struct nicvf *nic)
 
 	for (idx = 0; idx < rss->rss_size; idx++)
 		rss->ind_tbl[idx] = ethtool_rxfh_indir_default(idx,
-							       nic->qs->rq_cnt);
+							       nic->rx_queues);
 	nicvf_config_rss(nic);
 	return 1;
+}
+
+/* Request PF to allocate additional Qsets */
+static void nicvf_request_sqs(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+	int sqs;
+	int sqs_count = nic->sqs_count;
+	int rx_queues = 0, tx_queues = 0;
+
+	/* Only primary VF should request */
+	if (nic->sqs_mode ||  !nic->sqs_count)
+		return;
+
+	mbx.sqs_alloc.msg = NIC_MBOX_MSG_ALLOC_SQS;
+	mbx.sqs_alloc.vf_id = nic->vf_id;
+	mbx.sqs_alloc.qs_count = nic->sqs_count;
+	if (nicvf_send_msg_to_pf(nic, &mbx)) {
+		/* No response from PF */
+		nic->sqs_count = 0;
+		return;
+	}
+
+	/* Return if no Secondary Qsets available */
+	if (!nic->sqs_count)
+		return;
+
+	if (nic->rx_queues > MAX_RCV_QUEUES_PER_QS)
+		rx_queues = nic->rx_queues - MAX_RCV_QUEUES_PER_QS;
+	if (nic->tx_queues > MAX_SND_QUEUES_PER_QS)
+		tx_queues = nic->tx_queues - MAX_SND_QUEUES_PER_QS;
+
+	/* Set no of Rx/Tx queues in each of the SQsets */
+	for (sqs = 0; sqs < nic->sqs_count; sqs++) {
+		mbx.nicvf.msg = NIC_MBOX_MSG_SNICVF_PTR;
+		mbx.nicvf.vf_id = nic->vf_id;
+		mbx.nicvf.sqs_id = sqs;
+		nicvf_send_msg_to_pf(nic, &mbx);
+
+		nic->snicvf[sqs]->sqs_id = sqs;
+		if (rx_queues > MAX_RCV_QUEUES_PER_QS) {
+			nic->snicvf[sqs]->qs->rq_cnt = MAX_RCV_QUEUES_PER_QS;
+			rx_queues -= MAX_RCV_QUEUES_PER_QS;
+		} else {
+			nic->snicvf[sqs]->qs->rq_cnt = rx_queues;
+			rx_queues = 0;
+		}
+
+		if (tx_queues > MAX_SND_QUEUES_PER_QS) {
+			nic->snicvf[sqs]->qs->sq_cnt = MAX_SND_QUEUES_PER_QS;
+			tx_queues -= MAX_SND_QUEUES_PER_QS;
+		} else {
+			nic->snicvf[sqs]->qs->sq_cnt = tx_queues;
+			tx_queues = 0;
+		}
+
+		nic->snicvf[sqs]->qs->cq_cnt =
+		max(nic->snicvf[sqs]->qs->rq_cnt, nic->snicvf[sqs]->qs->sq_cnt);
+
+		/* Initialize secondary Qset's queues and its interrupts */
+		nicvf_open(nic->snicvf[sqs]->netdev);
+	}
+
+	/* Update stack with actual Rx/Tx queue count allocated */
+	if (sqs_count != nic->sqs_count)
+		nicvf_set_real_num_queues(nic->netdev,
+					  nic->tx_queues, nic->rx_queues);
+}
+
+/* Send this Qset's nicvf pointer to PF.
+ * PF inturn sends primary VF's nicvf struct to secondary Qsets/VFs
+ * so that packets received by these Qsets can use primary VF's netdev
+ */
+static void nicvf_send_vf_struct(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+
+	mbx.nicvf.msg = NIC_MBOX_MSG_NICVF_PTR;
+	mbx.nicvf.sqs_mode = nic->sqs_mode;
+	mbx.nicvf.nicvf = (u64)nic;
+	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static void nicvf_get_primary_vf_struct(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+
+	mbx.nicvf.msg = NIC_MBOX_MSG_PNICVF_PTR;
+	nicvf_send_msg_to_pf(nic, &mbx);
 }
 
 int nicvf_set_real_num_queues(struct net_device *netdev,
@@ -453,6 +571,15 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
 	int err = 0;
+	int rq_idx;
+
+	rq_idx = nicvf_netdev_qidx(nic, cqe_rx->rq_idx);
+
+	if (nic->sqs_mode) {
+		/* Use primary VF's 'nicvf' struct */
+		nic = nic->pnicvf;
+		netdev = nic->netdev;
+	}
 
 	/* Check for errors */
 	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
@@ -482,7 +609,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 
 	nicvf_set_rxhash(netdev, cqe_rx, skb);
 
-	skb_record_rx_queue(skb, cqe_rx->rq_idx);
+	skb_record_rx_queue(skb, rq_idx);
 	if (netdev->hw_features & NETIF_F_RXCSUM) {
 		/* HW by default verifies TCP/UDP/SCTP checksums */
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -578,8 +705,11 @@ loop:
 done:
 	/* Wakeup TXQ if its stopped earlier due to SQ full */
 	if (tx_done) {
-		txq = netdev_get_tx_queue(netdev, cq_idx);
-		if (netif_tx_queue_stopped(txq)) {
+		netdev = nic->pnicvf->netdev;
+		txq = netdev_get_tx_queue(netdev,
+					  nicvf_netdev_qidx(nic, cq_idx));
+		nic = nic->pnicvf;
+		if (netif_tx_queue_stopped(txq) && netif_carrier_ok(netdev)) {
 			netif_tx_start_queue(txq);
 			nic->drv_stats.txq_wake++;
 			if (netif_msg_tx_err(nic))
@@ -893,7 +1023,6 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 			netdev_warn(netdev,
 				    "%s: Transmit ring full, stopping SQ%d\n",
 				    netdev->name, qid);
-
 		return NETDEV_TX_BUSY;
 	}
 
@@ -926,6 +1055,17 @@ int nicvf_stop(struct net_device *netdev)
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	netif_carrier_off(netdev);
+	netif_tx_stop_all_queues(nic->netdev);
+
+	/* Teardown secondary qsets first */
+	if (!nic->sqs_mode) {
+		for (qidx = 0; qidx < nic->sqs_count; qidx++) {
+			if (!nic->snicvf[qidx])
+				continue;
+			nicvf_stop(nic->snicvf[qidx]->netdev);
+			nic->snicvf[qidx] = NULL;
+		}
+	}
 
 	/* Disable RBDR & QS error interrupts */
 	for (qidx = 0; qidx < qs->rbdr_cnt; qidx++) {
@@ -972,6 +1112,10 @@ int nicvf_stop(struct net_device *netdev)
 	nicvf_unregister_interrupts(nic);
 
 	nicvf_free_cq_poll(nic);
+
+	/* Clear multiqset info */
+	nic->pnicvf = nic;
+	nic->sqs_count = 0;
 
 	return 0;
 }
@@ -1028,10 +1172,16 @@ int nicvf_open(struct net_device *netdev)
 
 	/* Configure CPI alorithm */
 	nic->cpi_alg = cpi_alg;
-	nicvf_config_cpi(nic);
+	if (!nic->sqs_mode)
+		nicvf_config_cpi(nic);
+
+	nicvf_request_sqs(nic);
+	if (nic->sqs_mode)
+		nicvf_get_primary_vf_struct(nic);
 
 	/* Configure receive side scaling */
-	nicvf_rss_init(nic);
+	if (!nic->sqs_mode)
+		nicvf_rss_init(nic);
 
 	err = nicvf_register_interrupts(nic);
 	if (err)
@@ -1282,8 +1432,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	struct nicvf *nic;
-	struct queue_set *qs;
-	int    err;
+	int    err, qcount;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1309,9 +1458,17 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_release_regions;
 	}
 
-	netdev = alloc_etherdev_mqs(sizeof(struct nicvf),
-				    MAX_RCV_QUEUES_PER_QS,
-				    MAX_SND_QUEUES_PER_QS);
+	qcount = MAX_CMP_QUEUES_PER_QS;
+
+	/* Restrict multiqset support only for host bound VFs */
+	if (pdev->is_virtfn) {
+		/* Set max number of queues per VF */
+		qcount = roundup(num_online_cpus(), MAX_CMP_QUEUES_PER_QS);
+		qcount = min(qcount,
+			     (MAX_SQS_PER_VF + 1) * MAX_CMP_QUEUES_PER_QS);
+	}
+
+	netdev = alloc_etherdev_mqs(sizeof(struct nicvf), qcount, qcount);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_release_regions;
@@ -1324,6 +1481,8 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	nic = netdev_priv(netdev);
 	nic->netdev = netdev;
 	nic->pdev = pdev;
+	nic->pnicvf = nic;
+	nic->max_queues = qcount;
 
 	/* MAP VF's configuration registers */
 	nic->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
@@ -1337,20 +1496,26 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_free_netdev;
 
-	qs = nic->qs;
-
-	err = nicvf_set_real_num_queues(netdev, qs->sq_cnt, qs->rq_cnt);
-	if (err)
-		goto err_free_netdev;
-
 	/* Check if PF is alive and get MAC address for this VF */
 	err = nicvf_register_misc_interrupt(nic);
 	if (err)
 		goto err_free_netdev;
 
+	nicvf_send_vf_struct(nic);
+
+	/* Check if this VF is in QS only mode */
+	if (nic->sqs_mode)
+		return 0;
+
+	err = nicvf_set_real_num_queues(netdev, nic->tx_queues, nic->rx_queues);
+	if (err)
+		goto err_unregister_interrupts;
+
 	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
 			       NETIF_F_TSO | NETIF_F_GRO |
-			       NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXHASH);
+			       NETIF_F_HW_VLAN_CTAG_RX);
+
+	netdev->hw_features |= NETIF_F_RXHASH;
 
 	netdev->features |= netdev->hw_features;
 
@@ -1389,8 +1554,13 @@ static void nicvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nicvf *nic = netdev_priv(netdev);
+	struct net_device *pnetdev = nic->pnicvf->netdev;
 
-	unregister_netdev(netdev);
+	/* Check if this Qset is assigned to different VF.
+	 * If yes, clean primary and all secondary Qsets.
+	 */
+	if (pnetdev && (pnetdev->reg_state == NETREG_REGISTERED))
+		unregister_netdev(pnetdev);
 	nicvf_unregister_interrupts(nic);
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);

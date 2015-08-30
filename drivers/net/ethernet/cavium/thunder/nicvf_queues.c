@@ -621,6 +621,7 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	mbx.sq.msg = NIC_MBOX_MSG_SQ_CFG;
 	mbx.sq.qs_num = qs->vnic_id;
 	mbx.sq.sq_num = qidx;
+	mbx.sq.sqs_mode = nic->sqs_mode;
 	mbx.sq.cfg = (sq->cq_qs << 3) | sq->cq_idx;
 	nicvf_send_msg_to_pf(nic, &mbx);
 
@@ -702,6 +703,7 @@ void nicvf_qset_config(struct nicvf *nic, bool enable)
 	/* Send a mailbox msg to PF to config Qset */
 	mbx.qs.msg = NIC_MBOX_MSG_QS_CFG;
 	mbx.qs.num = qs->vnic_id;
+	mbx.qs.sqs_count = nic->sqs_count;
 
 	mbx.qs.cfg = 0;
 	qs_cfg = (struct qs_cfg *)&mbx.qs.cfg;
@@ -782,6 +784,10 @@ int nicvf_set_qset_resources(struct nicvf *nic)
 	qs->rbdr_len = RCV_BUF_COUNT;
 	qs->sq_len = SND_QUEUE_LEN;
 	qs->cq_len = CMP_QUEUE_LEN;
+
+	nic->rx_queues = qs->rq_cnt;
+	nic->tx_queues = qs->sq_cnt;
+
 	return 0;
 }
 
@@ -1025,7 +1031,7 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
  * them to SQ for transfer
  */
 static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
-			       int qentry, struct sk_buff *skb)
+			       int sq_num, int qentry, struct sk_buff *skb)
 {
 	struct tso_t tso;
 	int seg_subdescs = 0, desc_cnt = 0;
@@ -1085,7 +1091,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 
 	/* Inform HW to xmit all TSO segments */
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
-			      skb_get_queue_mapping(skb), desc_cnt);
+			      sq_num, desc_cnt);
 	nic->drv_stats.tx_tso++;
 	return 1;
 }
@@ -1096,10 +1102,24 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
 	int i, size;
 	int subdesc_cnt;
 	int sq_num, qentry;
-	struct queue_set *qs = nic->qs;
+	struct queue_set *qs;
 	struct snd_queue *sq;
 
 	sq_num = skb_get_queue_mapping(skb);
+	if (sq_num >= MAX_SND_QUEUES_PER_QS) {
+		/* Get secondary Qset's SQ structure */
+		i = sq_num / MAX_SND_QUEUES_PER_QS;
+		if (!nic->snicvf[i - 1]) {
+			netdev_warn(nic->netdev,
+				    "Secondary Qset#%d's ptr not initialized\n",
+				    i - 1);
+			return 1;
+		}
+		nic = (struct nicvf *)nic->snicvf[i - 1];
+		sq_num = sq_num % MAX_SND_QUEUES_PER_QS;
+	}
+
+	qs = nic->qs;
 	sq = &qs->sq[sq_num];
 
 	subdesc_cnt = nicvf_sq_subdesc_required(nic, skb);
@@ -1110,7 +1130,7 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
 
 	/* Check if its a TSO packet */
 	if (skb_shinfo(skb)->gso_size)
-		return nicvf_sq_append_tso(nic, sq, qentry, skb);
+		return nicvf_sq_append_tso(nic, sq, sq_num, qentry, skb);
 
 	/* Add SQ header subdesc */
 	nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, skb, skb->len);
@@ -1146,6 +1166,8 @@ doorbell:
 	return 1;
 
 append_fail:
+	/* Use original PCI dev for debug log */
+	nic = nic->pnicvf;
 	netdev_dbg(nic->netdev, "Not enough SQ descriptors to xmit pkt\n");
 	return 0;
 }
