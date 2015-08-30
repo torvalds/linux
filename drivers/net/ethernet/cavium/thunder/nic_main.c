@@ -329,6 +329,10 @@ static void nic_init_hw(struct nicpf *nic)
 
 	/* Timer config */
 	nic_reg_write(nic, NIC_PF_INTR_TIMER_CFG, NICPF_CLK_PER_INT_TICK);
+
+	/* Enable VLAN ethertype matching and stripping */
+	nic_reg_write(nic, NIC_PF_RX_ETYPE_0_7,
+		      (2 << 19) | (ETYPE_ALG_VLAN_STRIP << 16) | ETH_P_8021Q);
 }
 
 /* Channel parse index configuration */

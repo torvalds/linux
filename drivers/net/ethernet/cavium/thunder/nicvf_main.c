@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/log2.h>
@@ -490,6 +491,11 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
+
+	/* Check for stripped VLAN */
+	if (cqe_rx->vlan_found && cqe_rx->vlan_stripped)
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       ntohs((__force __be16)cqe_rx->vlan_tci));
 
 	if (napi && (netdev->features & NETIF_F_GRO))
 		napi_gro_receive(napi, skb);
@@ -1220,6 +1226,18 @@ static void nicvf_reset_task(struct work_struct *work)
 	nic->netdev->trans_start = jiffies;
 }
 
+static int nicvf_set_features(struct net_device *netdev,
+			      netdev_features_t features)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+	netdev_features_t changed = features ^ netdev->features;
+
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
+		nicvf_config_vlan_stripping(nic, features);
+
+	return 0;
+}
+
 static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_open		= nicvf_open,
 	.ndo_stop		= nicvf_stop,
@@ -1228,6 +1246,7 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_set_mac_address	= nicvf_set_mac_address,
 	.ndo_get_stats64	= nicvf_get_stats64,
 	.ndo_tx_timeout         = nicvf_tx_timeout,
+	.ndo_set_features       = nicvf_set_features,
 };
 
 static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1301,10 +1320,13 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_free_netdev;
 
-	netdev->features |= (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
-			     NETIF_F_TSO | NETIF_F_GRO | NETIF_F_RXHASH);
+	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
+			       NETIF_F_TSO | NETIF_F_GRO |
+			       NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXHASH);
 
-	netdev->hw_features = netdev->features;
+	netdev->features |= netdev->hw_features;
+
+	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;

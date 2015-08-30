@@ -475,6 +475,27 @@ static void nicvf_reclaim_rbdr(struct nicvf *nic,
 		return;
 }
 
+void nicvf_config_vlan_stripping(struct nicvf *nic, netdev_features_t features)
+{
+	u64 rq_cfg;
+	int sqs;
+
+	rq_cfg = nicvf_queue_reg_read(nic, NIC_QSET_RQ_GEN_CFG, 0);
+
+	/* Enable first VLAN stripping */
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		rq_cfg |= (1ULL << 25);
+	else
+		rq_cfg &= ~(1ULL << 25);
+	nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, 0, rq_cfg);
+
+	/* Configure Secondary Qsets, if any */
+	for (sqs = 0; sqs < nic->sqs_count; sqs++)
+		if (nic->snicvf[sqs])
+			nicvf_queue_reg_write(nic->snicvf[sqs],
+					      NIC_QSET_RQ_GEN_CFG, 0, rq_cfg);
+}
+
 /* Configures receive queue */
 static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 				   int qidx, bool enable)
@@ -524,7 +545,9 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	mbx.rq.cfg = (1ULL << 62) | (RQ_CQ_DROP << 8);
 	nicvf_send_msg_to_pf(nic, &mbx);
 
-	nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, qidx, 0x00);
+	nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, 0, 0x00);
+	if (!nic->sqs_mode)
+		nicvf_config_vlan_stripping(nic, nic->netdev->features);
 
 	/* Enable Receive queue */
 	rq_cfg.ena = 1;
@@ -961,9 +984,6 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 
 	/* Offload checksum calculation to HW */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (skb->protocol != htons(ETH_P_IP))
-			return;
-
 		hdr->csum_l3 = 1; /* Enable IP csum calculation */
 		hdr->l3_offset = skb_network_offset(skb);
 		hdr->l4_offset = skb_transport_offset(skb);
