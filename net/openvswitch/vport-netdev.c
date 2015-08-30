@@ -39,8 +39,11 @@
 static struct vport_ops ovs_netdev_vport_ops;
 
 /* Must be called with rcu_read_lock. */
-static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
+static void netdev_port_receive(struct sk_buff *skb)
 {
+	struct vport *vport;
+
+	vport = ovs_netdev_get_vport(skb->dev);
 	if (unlikely(!vport))
 		goto error;
 
@@ -56,10 +59,8 @@ static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 
 	skb_push(skb, ETH_HLEN);
 	ovs_skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
-
 	ovs_vport_receive(vport, skb, skb_tunnel_info(skb));
 	return;
-
 error:
 	kfree_skb(skb);
 }
@@ -68,15 +69,11 @@ error:
 static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
-	struct vport *vport;
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
 
-	vport = ovs_netdev_get_vport(skb->dev);
-
-	netdev_port_receive(vport, skb);
-
+	netdev_port_receive(skb);
 	return RX_HANDLER_CONSUMED;
 }
 
@@ -203,27 +200,24 @@ static unsigned int packet_length(const struct sk_buff *skb)
 	return length;
 }
 
-int ovs_netdev_send(struct vport *vport, struct sk_buff *skb)
+void ovs_netdev_send(struct vport *vport, struct sk_buff *skb)
 {
 	int mtu = vport->dev->mtu;
-	int len;
 
 	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
 				     vport->dev->name,
 				     packet_length(skb), mtu);
+		vport->dev->stats.tx_errors++;
 		goto drop;
 	}
 
 	skb->dev = vport->dev;
-	len = skb->len;
 	dev_queue_xmit(skb);
-
-	return len;
+	return;
 
 drop:
 	kfree_skb(skb);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ovs_netdev_send);
 
