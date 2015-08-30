@@ -36,10 +36,6 @@ struct vport_parms;
 
 /* The following definitions are for users of the vport subsytem: */
 
-struct vport_net {
-	struct vport __rcu *gre_vport;
-};
-
 int ovs_vport_init(void);
 void ovs_vport_exit(void);
 

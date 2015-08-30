@@ -30,7 +30,6 @@
 #include "conntrack.h"
 #include "flow.h"
 #include "flow_table.h"
-#include "vport.h"
 
 #define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
@@ -134,7 +133,6 @@ struct dp_upcall_info {
 struct ovs_net {
 	struct list_head dps;
 	struct work_struct dp_notify_work;
-	struct vport_net vport_net;
 
 	/* Module reference for configuring conntrack. */
 	bool xt_label;
