@@ -135,6 +135,7 @@
 #define	NICVF_TX_TIMEOUT		(50 * HZ)
 
 struct nicvf_cq_poll {
+	struct  nicvf *nicvf;
 	u8	cq_idx;		/* Completion queue index */
 	struct	napi_struct napi;
 };
