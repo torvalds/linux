@@ -25,6 +25,7 @@
 #include "sst-atom-controls.h"
 
 extern struct sst_device *sst;
+extern struct snd_compr_ops sst_platform_compr_ops;
 
 #define SST_MONO		1
 #define SST_STEREO		2
