@@ -1837,7 +1837,9 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		clk_prepare_enable(wm8904->mclk);
+		ret = clk_prepare_enable(wm8904->mclk);
+		if (ret)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
