@@ -690,10 +690,9 @@ bool vgic_handle_cfg_reg(u32 *reg, struct kvm_exit_mmio *mmio,
 	vgic_reg_access(mmio, &val, offset,
 			ACCESS_READ_VALUE | ACCESS_WRITE_VALUE);
 	if (mmio->is_write) {
-		if (offset < 8) {
-			*reg = ~0U; /* Force PPIs/SGIs to 1 */
+		/* Ignore writes to read-only SGI and PPI bits */
+		if (offset < 8)
 			return false;
-		}
 
 		val = vgic_cfg_compress(val);
 		if (offset & 4) {
