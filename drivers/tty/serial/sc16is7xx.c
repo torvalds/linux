@@ -1420,7 +1420,6 @@ static struct i2c_driver sc16is7xx_i2c_uart_driver = {
 	.id_table	= sc16is7xx_i2c_id_table,
 };
 
-MODULE_ALIAS("i2c:sc16is7xx");
 #endif
 
 static int __init sc16is7xx_init(void)
