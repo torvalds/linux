@@ -791,7 +791,6 @@ struct snd_soc_component {
 
 	/* Don't use these, use snd_soc_component_get_dapm() */
 	struct snd_soc_dapm_context dapm;
-	struct snd_soc_dapm_context *dapm_ptr;
 
 	const struct snd_kcontrol_new *controls;
 	unsigned int num_controls;
@@ -830,9 +829,6 @@ struct snd_soc_codec {
 
 	/* component */
 	struct snd_soc_component component;
-
-	/* Don't access this directly, use snd_soc_codec_get_dapm() */
-	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_reg;
@@ -1276,7 +1272,7 @@ static inline struct snd_soc_component *snd_soc_dapm_to_component(
 static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
 	struct snd_soc_dapm_context *dapm)
 {
-	return container_of(dapm, struct snd_soc_codec, dapm);
+	return snd_soc_component_to_codec(snd_soc_dapm_to_component(dapm));
 }
 
 /**
@@ -1301,7 +1297,7 @@ static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
 static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 	struct snd_soc_component *component)
 {
-	return component->dapm_ptr;
+	return &component->dapm;
 }
 
 /**
@@ -1313,7 +1309,7 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 static inline struct snd_soc_dapm_context *snd_soc_codec_get_dapm(
 	struct snd_soc_codec *codec)
 {
-	return &codec->dapm;
+	return snd_soc_component_get_dapm(&codec->component);
 }
 
 /**

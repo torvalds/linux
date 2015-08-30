@@ -2163,14 +2163,16 @@ int snd_soc_dapm_mixer_update_power(struct snd_soc_dapm_context *dapm,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_mixer_update_power);
 
-static ssize_t dapm_widget_show_codec(struct snd_soc_codec *codec, char *buf)
+static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
+	char *buf)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
 	struct snd_soc_dapm_widget *w;
 	int count = 0;
 	char *state = "not set";
 
-	list_for_each_entry(w, &codec->component.card->widgets, list) {
-		if (w->dapm != &codec->dapm)
+	list_for_each_entry(w, &cmpnt->card->widgets, list) {
+		if (w->dapm != dapm)
 			continue;
 
 		/* only display widgets that burnm power */
@@ -2198,7 +2200,7 @@ static ssize_t dapm_widget_show_codec(struct snd_soc_codec *codec, char *buf)
 		}
 	}
 
-	switch (codec->dapm.bias_level) {
+	switch (snd_soc_dapm_get_bias_level(dapm)) {
 	case SND_SOC_BIAS_ON:
 		state = "On";
 		break;
@@ -2227,8 +2229,9 @@ static ssize_t dapm_widget_show(struct device *dev,
 	mutex_lock(&rtd->card->dapm_mutex);
 
 	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_codec *codec = rtd->codec_dais[i]->codec;
-		count += dapm_widget_show_codec(codec, buf + count);
+		struct snd_soc_component *cmpnt = rtd->codec_dais[i]->component;
+
+		count += dapm_widget_show_component(cmpnt, buf + count);
 	}
 
 	mutex_unlock(&rtd->card->dapm_mutex);
