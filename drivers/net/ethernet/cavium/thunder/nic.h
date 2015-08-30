@@ -295,10 +295,9 @@ struct nicvf {
 	char			irq_name[NIC_VF_MSIX_VECTORS][20];
 	bool			irq_allocated[NIC_VF_MSIX_VECTORS];
 
-	bool			pf_ready_to_rcv_msg;
+	/* VF <-> PF mailbox communication */
 	bool			pf_acked;
 	bool			pf_nacked;
-	bool			bgx_stats_acked;
 	bool			set_mac_pending;
 } ____cacheline_aligned_in_smp;
 

@@ -105,7 +105,6 @@ u64 nicvf_queue_reg_read(struct nicvf *nic, u64 offset, u64 qidx)
 }
 
 /* VF -> PF mailbox communication */
-
 static void nicvf_write_to_mbx(struct nicvf *nic, union nic_mbx *mbx)
 {
 	u64 *msg = (u64 *)mbx;
@@ -147,26 +146,15 @@ int nicvf_send_msg_to_pf(struct nicvf *nic, union nic_mbx *mbx)
 */
 static int nicvf_check_pf_ready(struct nicvf *nic)
 {
-	int timeout = 5000, sleep = 20;
 	union nic_mbx mbx = {};
 
 	mbx.msg.msg = NIC_MBOX_MSG_READY;
-
-	nic->pf_ready_to_rcv_msg = false;
-
-	nicvf_write_to_mbx(nic, &mbx);
-
-	while (!nic->pf_ready_to_rcv_msg) {
-		msleep(sleep);
-		if (nic->pf_ready_to_rcv_msg)
-			break;
-		timeout -= sleep;
-		if (!timeout) {
-			netdev_err(nic->netdev,
-				   "PF didn't respond to READY msg\n");
-			return 0;
-		}
+	if (nicvf_send_msg_to_pf(nic, &mbx)) {
+		netdev_err(nic->netdev,
+			   "PF didn't respond to READY msg\n");
+		return 0;
 	}
+
 	return 1;
 }
 
@@ -197,7 +185,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 	netdev_dbg(nic->netdev, "Mbox message: msg: 0x%x\n", mbx.msg.msg);
 	switch (mbx.msg.msg) {
 	case NIC_MBOX_MSG_READY:
-		nic->pf_ready_to_rcv_msg = true;
+		nic->pf_acked = true;
 		nic->vf_id = mbx.nic_cfg.vf_id & 0x7F;
 		nic->tns_mode = mbx.nic_cfg.tns_mode & 0x7F;
 		nic->node = mbx.nic_cfg.node_id;
@@ -221,7 +209,6 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 	case NIC_MBOX_MSG_BGX_STATS:
 		nicvf_read_bgx_stats(nic, &mbx.bgx_stats);
 		nic->pf_acked = true;
-		nic->bgx_stats_acked = true;
 		break;
 	case NIC_MBOX_MSG_BGX_LINK_CHANGE:
 		nic->pf_acked = true;
@@ -1083,7 +1070,6 @@ void nicvf_update_lmac_stats(struct nicvf *nic)
 {
 	int stat = 0;
 	union nic_mbx mbx = {};
-	int timeout;
 
 	if (!netif_running(nic->netdev))
 		return;
@@ -1093,14 +1079,9 @@ void nicvf_update_lmac_stats(struct nicvf *nic)
 	/* Rx stats */
 	mbx.bgx_stats.rx = 1;
 	while (stat < BGX_RX_STATS_COUNT) {
-		nic->bgx_stats_acked = 0;
 		mbx.bgx_stats.idx = stat;
-		nicvf_send_msg_to_pf(nic, &mbx);
-		timeout = 0;
-		while ((!nic->bgx_stats_acked) && (timeout < 10)) {
-			msleep(2);
-			timeout++;
-		}
+		if (nicvf_send_msg_to_pf(nic, &mbx))
+			return;
 		stat++;
 	}
 
@@ -1109,14 +1090,9 @@ void nicvf_update_lmac_stats(struct nicvf *nic)
 	/* Tx stats */
 	mbx.bgx_stats.rx = 0;
 	while (stat < BGX_TX_STATS_COUNT) {
-		nic->bgx_stats_acked = 0;
 		mbx.bgx_stats.idx = stat;
-		nicvf_send_msg_to_pf(nic, &mbx);
-		timeout = 0;
-		while ((!nic->bgx_stats_acked) && (timeout < 10)) {
-			msleep(2);
-			timeout++;
-		}
+		if (nicvf_send_msg_to_pf(nic, &mbx))
+			return;
 		stat++;
 	}
 }
