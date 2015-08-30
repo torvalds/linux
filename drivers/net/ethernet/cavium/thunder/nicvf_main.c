@@ -202,6 +202,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 			ether_addr_copy(nic->netdev->dev_addr,
 					mbx.nic_cfg.mac_addr);
 		nic->sqs_mode = mbx.nic_cfg.sqs_mode;
+		nic->loopback_supported = mbx.nic_cfg.loopback_supported;
 		nic->link_up = false;
 		nic->duplex = 0;
 		nic->speed = 0;
@@ -1404,6 +1405,30 @@ static void nicvf_reset_task(struct work_struct *work)
 	nic->netdev->trans_start = jiffies;
 }
 
+static int nicvf_config_loopback(struct nicvf *nic,
+				 netdev_features_t features)
+{
+	union nic_mbx mbx = {};
+
+	mbx.lbk.msg = NIC_MBOX_MSG_LOOPBACK;
+	mbx.lbk.vf_id = nic->vf_id;
+	mbx.lbk.enable = (features & NETIF_F_LOOPBACK) != 0;
+
+	return nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static netdev_features_t nicvf_fix_features(struct net_device *netdev,
+					    netdev_features_t features)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+
+	if ((features & NETIF_F_LOOPBACK) &&
+	    netif_running(netdev) && !nic->loopback_supported)
+		features &= ~NETIF_F_LOOPBACK;
+
+	return features;
+}
+
 static int nicvf_set_features(struct net_device *netdev,
 			      netdev_features_t features)
 {
@@ -1412,6 +1437,9 @@ static int nicvf_set_features(struct net_device *netdev,
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		nicvf_config_vlan_stripping(nic, features);
+
+	if ((changed & NETIF_F_LOOPBACK) && netif_running(netdev))
+		return nicvf_config_loopback(nic, features);
 
 	return 0;
 }
@@ -1424,6 +1452,7 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_set_mac_address	= nicvf_set_mac_address,
 	.ndo_get_stats64	= nicvf_get_stats64,
 	.ndo_tx_timeout         = nicvf_tx_timeout,
+	.ndo_fix_features       = nicvf_fix_features,
 	.ndo_set_features       = nicvf_set_features,
 };
 
@@ -1518,6 +1547,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features |= NETIF_F_RXHASH;
 
 	netdev->features |= netdev->hw_features;
+	netdev->hw_features |= NETIF_F_LOOPBACK;
 
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 

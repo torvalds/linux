@@ -154,6 +154,9 @@ static void nic_mbx_send_ready(struct nicpf *nic, int vf)
 	}
 	mbx.nic_cfg.sqs_mode = (vf >= nic->num_vf_en) ? true : false;
 	mbx.nic_cfg.node_id = nic->node;
+
+	mbx.nic_cfg.loopback_supported = vf < MAX_LMAC;
+
 	nic_send_msg_to_vf(nic, vf, &mbx);
 }
 
@@ -579,6 +582,21 @@ send_mbox:
 	nic_send_msg_to_vf(nic, sqs->vf_id, &mbx);
 }
 
+static int nic_config_loopback(struct nicpf *nic, struct set_loopback *lbk)
+{
+	int bgx_idx, lmac_idx;
+
+	if (lbk->vf_id > MAX_LMAC)
+		return -1;
+
+	bgx_idx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lbk->vf_id]);
+	lmac_idx = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lbk->vf_id]);
+
+	bgx_lmac_internal_loopback(nic->node, bgx_idx, lmac_idx, lbk->enable);
+
+	return 0;
+}
+
 /* Interrupt handler to handle mailbox messages from VFs */
 static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 {
@@ -702,6 +720,9 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	case NIC_MBOX_MSG_BGX_STATS:
 		nic_get_bgx_stats(nic, &mbx.bgx_stats);
 		goto unlock;
+	case NIC_MBOX_MSG_LOOPBACK:
+		ret = nic_config_loopback(nic, &mbx.lbk);
+		break;
 	default:
 		dev_err(&nic->pdev->dev,
 			"Invalid msg from VF%d, msg 0x%x\n", vf, mbx.msg.msg);

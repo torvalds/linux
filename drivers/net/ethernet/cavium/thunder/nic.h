@@ -265,6 +265,7 @@ struct nicvf {
 	u8			node;
 	u8			tns_mode:1;
 	u8			sqs_mode:1;
+	u8			loopback_supported:1;
 	u16			mtu;
 	struct queue_set	*qs;
 #define	MAX_SQS_PER_VF_SINGLE_NODE		5
@@ -344,6 +345,7 @@ struct nicvf {
 #define	NIC_MBOX_MSG_NICVF_PTR		0x13	/* Send nicvf ptr to PF */
 #define	NIC_MBOX_MSG_PNICVF_PTR		0x14	/* Get primary qset nicvf ptr */
 #define	NIC_MBOX_MSG_SNICVF_PTR		0x15	/* Send sqet nicvf ptr to PVF */
+#define	NIC_MBOX_MSG_LOOPBACK		0x16	/* Set interface in loopback */
 #define	NIC_MBOX_MSG_CFG_DONE		0xF0	/* VF configuration done */
 #define	NIC_MBOX_MSG_SHUTDOWN		0xF1	/* VF is being shutdown */
 
@@ -353,6 +355,7 @@ struct nic_cfg_msg {
 	u8    node_id;
 	u8    tns_mode:1;
 	u8    sqs_mode:1;
+	u8    loopback_supported:1;
 	u8    mac_addr[ETH_ALEN];
 };
 
@@ -452,6 +455,13 @@ struct nicvf_ptr {
 	u64   nicvf;
 };
 
+/* Set interface in loopback mode */
+struct set_loopback {
+	u8    msg;
+	u8    vf_id;
+	bool  enable;
+};
+
 /* 128 bit shared memory between PF and each VF */
 union nic_mbx {
 	struct { u8 msg; }	msg;
@@ -468,6 +478,7 @@ union nic_mbx {
 	struct bgx_link_status  link_status;
 	struct sqs_alloc        sqs_alloc;
 	struct nicvf_ptr	nicvf;
+	struct set_loopback	lbk;
 };
 
 #define NIC_NODE_ID_MASK	0x03
