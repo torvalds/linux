@@ -693,7 +693,8 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 	hci_setup_event_mask(req);
 
-	if (hdev->commands[6] & 0x20) {
+	if (hdev->commands[6] & 0x20 &&
+	    !test_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks)) {
 		struct hci_cp_read_stored_link_key cp;
 
 		bacpy(&cp.bdaddr, BDADDR_ANY);
