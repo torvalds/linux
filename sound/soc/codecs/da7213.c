@@ -1585,7 +1585,6 @@ MODULE_DEVICE_TABLE(i2c, da7213_i2c_id);
 static struct i2c_driver da7213_i2c_driver = {
 	.driver = {
 		.name = "da7213",
-		.owner = THIS_MODULE,
 	},
 	.probe		= da7213_i2c_probe,
 	.remove		= da7213_remove,

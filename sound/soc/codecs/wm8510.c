@@ -690,7 +690,6 @@ MODULE_DEVICE_TABLE(i2c, wm8510_i2c_id);
 static struct i2c_driver wm8510_i2c_driver = {
 	.driver = {
 		.name = "wm8510",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8510_of_match,
 	},
 	.probe =    wm8510_i2c_probe,

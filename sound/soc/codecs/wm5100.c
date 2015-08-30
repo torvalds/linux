@@ -2722,7 +2722,6 @@ MODULE_DEVICE_TABLE(i2c, wm5100_i2c_id);
 static struct i2c_driver wm5100_i2c_driver = {
 	.driver = {
 		.name = "wm5100",
-		.owner = THIS_MODULE,
 		.pm = &wm5100_pm,
 	},
 	.probe =    wm5100_i2c_probe,

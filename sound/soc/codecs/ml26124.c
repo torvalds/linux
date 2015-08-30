@@ -597,7 +597,6 @@ MODULE_DEVICE_TABLE(i2c, ml26124_i2c_id);
 static struct i2c_driver ml26124_i2c_driver = {
 	.driver = {
 		.name = "ml26124",
-		.owner = THIS_MODULE,
 	},
 	.probe = ml26124_i2c_probe,
 	.remove = ml26124_i2c_remove,
