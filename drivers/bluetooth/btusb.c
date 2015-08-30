@@ -1348,7 +1348,9 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 
 	rp = (struct hci_rp_read_local_version *)skb->data;
 
-	if (le16_to_cpu(rp->manufacturer) != 10) {
+	/* Detect controllers which aren't real CSR ones. */
+	if (le16_to_cpu(rp->manufacturer) != 10 ||
+	    le16_to_cpu(rp->lmp_subver) == 0x0c5c) {
 		/* Clear the reset quirk since this is not an actual
 		 * early Bluetooth 1.1 device from CSR.
 		 */
@@ -2782,7 +2784,7 @@ static int btusb_probe(struct usb_interface *intf,
 			set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 		/* Fake CSR devices with broken commands */
-		if (bcdDevice <= 0x100)
+		if (bcdDevice <= 0x100 || bcdDevice == 0x134)
 			hdev->setup = btusb_setup_csr;
 
 		set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
