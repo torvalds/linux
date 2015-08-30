@@ -674,9 +674,11 @@ static void __media_entity_remove_link(struct media_entity *entity,
 
 		/* Remove the remote link */
 		list_del(&rlink->list);
+		media_gobj_remove(&rlink->graph_obj);
 		kfree(rlink);
 	}
 	list_del(&link->list);
+	media_gobj_remove(&link->graph_obj);
 	kfree(link);
 }
 
@@ -920,11 +922,13 @@ struct media_link *media_create_intf_link(struct media_entity *entity,
 EXPORT_SYMBOL_GPL(media_create_intf_link);
 
 
-static void __media_remove_intf_link(struct media_link *link)
+void __media_remove_intf_link(struct media_link *link)
 {
+	list_del(&link->list);
 	media_gobj_remove(&link->graph_obj);
 	kfree(link);
 }
+EXPORT_SYMBOL_GPL(__media_remove_intf_link);
 
 void media_remove_intf_link(struct media_link *link)
 {

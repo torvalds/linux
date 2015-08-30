@@ -325,6 +325,7 @@ void media_devnode_remove(struct media_intf_devnode *devnode);
 struct media_link *media_create_intf_link(struct media_entity *entity,
 					    struct media_interface *intf,
 					    u32 flags);
+void __media_remove_intf_link(struct media_link *link);
 void media_remove_intf_link(struct media_link *link);
 void __media_remove_intf_links(struct media_interface *intf);
 void media_remove_intf_links(struct media_interface *intf);

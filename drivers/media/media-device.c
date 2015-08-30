@@ -574,6 +574,17 @@ void media_device_unregister(struct media_device *mdev)
 {
 	struct media_entity *entity;
 	struct media_entity *next;
+	struct media_interface *intf, *tmp_intf;
+
+	/* Remove all interfaces from the media device */
+	spin_lock(&mdev->lock);
+	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
+				 graph_obj.list) {
+		__media_remove_intf_links(intf);
+		media_gobj_remove(&intf->graph_obj);
+		kfree(intf);
+	}
+	spin_unlock(&mdev->lock);
 
 	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
 		media_device_unregister_entity(entity);
@@ -633,27 +644,24 @@ void media_device_unregister_entity(struct media_entity *entity)
 	int i;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_link *link, *tmp;
+	struct media_interface *intf;
 
 	if (mdev == NULL)
 		return;
 
 	spin_lock(&mdev->lock);
 
-	/* Remove interface links with this entity on it */
-	list_for_each_entry_safe(link, tmp, &mdev->links, graph_obj.list) {
-		if (media_type(link->gobj1) == MEDIA_GRAPH_ENTITY
-		    && link->entity == entity) {
-			media_gobj_remove(&link->graph_obj);
-			kfree(link);
+	/* Remove all interface links pointing to this entity */
+	list_for_each_entry(intf, &mdev->interfaces, graph_obj.list) {
+		list_for_each_entry_safe(link, tmp, &intf->links, list) {
+			if (media_type(link->gobj1) == MEDIA_GRAPH_ENTITY
+			    && link->entity == entity)
+				__media_remove_intf_link(link);
 		}
 	}
 
 	/* Remove all data links that belong to this entity */
-	list_for_each_entry_safe(link, tmp, &entity->links, list) {
-		media_gobj_remove(&link->graph_obj);
-		list_del(&link->list);
-		kfree(link);
-	}
+	__media_entity_remove_links(entity);
 
 	/* Remove all pads that belong to this entity */
 	for (i = 0; i < entity->num_pads; i++)
