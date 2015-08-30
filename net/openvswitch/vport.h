@@ -61,9 +61,8 @@ int ovs_vport_send(struct vport *, struct sk_buff *);
 
 int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 			       struct net *net,
-			       const struct ip_tunnel_info *tun_info,
+			       struct sk_buff *,
 			       u8 ipproto,
-			       u32 skb_mark,
 			       __be16 tp_src,
 			       __be16 tp_dst);
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,

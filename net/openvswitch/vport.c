@@ -483,7 +483,6 @@ void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	u64_stats_update_end(&stats->syncp);
 
 	OVS_CB(skb)->input_vport = vport;
-	OVS_CB(skb)->egress_tun_info = NULL;
 	OVS_CB(skb)->mru = 0;
 	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_key_extract(tun_info, skb, &key);
@@ -575,13 +574,14 @@ EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
 
 int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 			       struct net *net,
-			       const struct ip_tunnel_info *tun_info,
+			       struct sk_buff *skb,
 			       u8 ipproto,
-			       u32 skb_mark,
 			       __be16 tp_src,
 			       __be16 tp_dst)
 {
+	const struct ip_tunnel_info *tun_info = skb_tunnel_info(skb);
 	const struct ip_tunnel_key *tun_key;
+	u32 skb_mark = skb->mark;
 	struct rtable *rt;
 	struct flowi4 fl;
 

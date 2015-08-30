@@ -62,8 +62,7 @@ static int geneve_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 
 	return ovs_tunnel_get_egress_info(egress_tun_info,
 					  ovs_dp_get_net(vport->dp),
-					  OVS_CB(skb)->egress_tun_info,
-					  IPPROTO_UDP, skb->mark, sport, dport);
+					  skb, IPPROTO_UDP, sport, dport);
 }
 
 static struct vport *geneve_tnl_create(const struct vport_parms *parms)

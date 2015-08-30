@@ -94,15 +94,12 @@ struct datapath {
 
 /**
  * struct ovs_skb_cb - OVS data in skb CB
- * @egress_tun_key: Tunnel information about this packet on egress path.
- * NULL if the packet is not being tunneled.
  * @input_vport: The original vport packet came in on. This value is cached
  * when a packet is received by OVS.
  * @mru: The maximum received fragement size; 0 if the packet is not
  * fragmented.
  */
 struct ovs_skb_cb {
-	struct ip_tunnel_info  *egress_tun_info;
 	struct vport		*input_vport;
 	u16			mru;
 };
