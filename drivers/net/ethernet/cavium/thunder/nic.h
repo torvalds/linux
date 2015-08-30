@@ -190,10 +190,10 @@ enum tx_stats_reg_offset {
 };
 
 struct nicvf_hw_stats {
-	u64 rx_bytes_ok;
-	u64 rx_ucast_frames_ok;
-	u64 rx_bcast_frames_ok;
-	u64 rx_mcast_frames_ok;
+	u64 rx_bytes;
+	u64 rx_ucast_frames;
+	u64 rx_bcast_frames;
+	u64 rx_mcast_frames;
 	u64 rx_fcs_errors;
 	u64 rx_l2_errors;
 	u64 rx_drop_red;
@@ -204,6 +204,31 @@ struct nicvf_hw_stats {
 	u64 rx_drop_mcast;
 	u64 rx_drop_l3_bcast;
 	u64 rx_drop_l3_mcast;
+	u64 rx_bgx_truncated_pkts;
+	u64 rx_jabber_errs;
+	u64 rx_fcs_errs;
+	u64 rx_bgx_errs;
+	u64 rx_prel2_errs;
+	u64 rx_l2_hdr_malformed;
+	u64 rx_oversize;
+	u64 rx_undersize;
+	u64 rx_l2_len_mismatch;
+	u64 rx_l2_pclp;
+	u64 rx_ip_ver_errs;
+	u64 rx_ip_csum_errs;
+	u64 rx_ip_hdr_malformed;
+	u64 rx_ip_payload_malformed;
+	u64 rx_ip_ttl_errs;
+	u64 rx_l3_pclp;
+	u64 rx_l4_malformed;
+	u64 rx_l4_csum_errs;
+	u64 rx_udp_len_errs;
+	u64 rx_l4_port_errs;
+	u64 rx_tcp_flag_errs;
+	u64 rx_tcp_offset_errs;
+	u64 rx_l4_pclp;
+	u64 rx_truncated_pkts;
+
 	u64 tx_bytes_ok;
 	u64 tx_ucast_frames_ok;
 	u64 tx_bcast_frames_ok;
@@ -222,6 +247,7 @@ struct nicvf_drv_stats {
 	u64 rx_frames_1518;
 	u64 rx_frames_jumbo;
 	u64 rx_drops;
+
 	/* Tx */
 	u64 tx_frames_ok;
 	u64 tx_drops;
@@ -257,7 +283,7 @@ struct nicvf {
 	u32			cq_coalesce_usecs;
 
 	u32			msg_enable;
-	struct nicvf_hw_stats   stats;
+	struct nicvf_hw_stats   hw_stats;
 	struct nicvf_drv_stats  drv_stats;
 	struct bgx_stats	bgx_stats;
 	struct work_struct	reset_task;

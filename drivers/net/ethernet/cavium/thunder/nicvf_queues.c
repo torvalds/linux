@@ -1371,10 +1371,11 @@ void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx)
 int nicvf_check_cqe_rx_errs(struct nicvf *nic,
 			    struct cmp_queue *cq, struct cqe_rx_t *cqe_rx)
 {
-	struct cmp_queue_stats *stats = &cq->stats;
+	struct nicvf_hw_stats *stats = &nic->hw_stats;
+	struct nicvf_drv_stats *drv_stats = &nic->drv_stats;
 
 	if (!cqe_rx->err_level && !cqe_rx->err_opcode) {
-		stats->rx.errop.good++;
+		drv_stats->rx_frames_ok++;
 		return 0;
 	}
 
@@ -1384,111 +1385,78 @@ int nicvf_check_cqe_rx_errs(struct nicvf *nic,
 			   nic->netdev->name,
 			   cqe_rx->err_level, cqe_rx->err_opcode);
 
-	switch (cqe_rx->err_level) {
-	case CQ_ERRLVL_MAC:
-		stats->rx.errlvl.mac_errs++;
-		break;
-	case CQ_ERRLVL_L2:
-		stats->rx.errlvl.l2_errs++;
-		break;
-	case CQ_ERRLVL_L3:
-		stats->rx.errlvl.l3_errs++;
-		break;
-	case CQ_ERRLVL_L4:
-		stats->rx.errlvl.l4_errs++;
-		break;
-	}
-
 	switch (cqe_rx->err_opcode) {
 	case CQ_RX_ERROP_RE_PARTIAL:
-		stats->rx.errop.partial_pkts++;
+		stats->rx_bgx_truncated_pkts++;
 		break;
 	case CQ_RX_ERROP_RE_JABBER:
-		stats->rx.errop.jabber_errs++;
+		stats->rx_jabber_errs++;
 		break;
 	case CQ_RX_ERROP_RE_FCS:
-		stats->rx.errop.fcs_errs++;
-		break;
-	case CQ_RX_ERROP_RE_TERMINATE:
-		stats->rx.errop.terminate_errs++;
+		stats->rx_fcs_errs++;
 		break;
 	case CQ_RX_ERROP_RE_RX_CTL:
-		stats->rx.errop.bgx_rx_errs++;
+		stats->rx_bgx_errs++;
 		break;
 	case CQ_RX_ERROP_PREL2_ERR:
-		stats->rx.errop.prel2_errs++;
-		break;
-	case CQ_RX_ERROP_L2_FRAGMENT:
-		stats->rx.errop.l2_frags++;
-		break;
-	case CQ_RX_ERROP_L2_OVERRUN:
-		stats->rx.errop.l2_overruns++;
-		break;
-	case CQ_RX_ERROP_L2_PFCS:
-		stats->rx.errop.l2_pfcs++;
-		break;
-	case CQ_RX_ERROP_L2_PUNY:
-		stats->rx.errop.l2_puny++;
+		stats->rx_prel2_errs++;
 		break;
 	case CQ_RX_ERROP_L2_MAL:
-		stats->rx.errop.l2_hdr_malformed++;
+		stats->rx_l2_hdr_malformed++;
 		break;
 	case CQ_RX_ERROP_L2_OVERSIZE:
-		stats->rx.errop.l2_oversize++;
+		stats->rx_oversize++;
 		break;
 	case CQ_RX_ERROP_L2_UNDERSIZE:
-		stats->rx.errop.l2_undersize++;
+		stats->rx_undersize++;
 		break;
 	case CQ_RX_ERROP_L2_LENMISM:
-		stats->rx.errop.l2_len_mismatch++;
+		stats->rx_l2_len_mismatch++;
 		break;
 	case CQ_RX_ERROP_L2_PCLP:
-		stats->rx.errop.l2_pclp++;
+		stats->rx_l2_pclp++;
 		break;
 	case CQ_RX_ERROP_IP_NOT:
-		stats->rx.errop.non_ip++;
+		stats->rx_ip_ver_errs++;
 		break;
 	case CQ_RX_ERROP_IP_CSUM_ERR:
-		stats->rx.errop.ip_csum_err++;
+		stats->rx_ip_csum_errs++;
 		break;
 	case CQ_RX_ERROP_IP_MAL:
-		stats->rx.errop.ip_hdr_malformed++;
+		stats->rx_ip_hdr_malformed++;
 		break;
 	case CQ_RX_ERROP_IP_MALD:
-		stats->rx.errop.ip_payload_malformed++;
+		stats->rx_ip_payload_malformed++;
 		break;
 	case CQ_RX_ERROP_IP_HOP:
-		stats->rx.errop.ip_hop_errs++;
-		break;
-	case CQ_RX_ERROP_L3_ICRC:
-		stats->rx.errop.l3_icrc_errs++;
+		stats->rx_ip_ttl_errs++;
 		break;
 	case CQ_RX_ERROP_L3_PCLP:
-		stats->rx.errop.l3_pclp++;
+		stats->rx_l3_pclp++;
 		break;
 	case CQ_RX_ERROP_L4_MAL:
-		stats->rx.errop.l4_malformed++;
+		stats->rx_l4_malformed++;
 		break;
 	case CQ_RX_ERROP_L4_CHK:
-		stats->rx.errop.l4_csum_errs++;
+		stats->rx_l4_csum_errs++;
 		break;
 	case CQ_RX_ERROP_UDP_LEN:
-		stats->rx.errop.udp_len_err++;
+		stats->rx_udp_len_errs++;
 		break;
 	case CQ_RX_ERROP_L4_PORT:
-		stats->rx.errop.bad_l4_port++;
+		stats->rx_l4_port_errs++;
 		break;
 	case CQ_RX_ERROP_TCP_FLAG:
-		stats->rx.errop.bad_tcp_flag++;
+		stats->rx_tcp_flag_errs++;
 		break;
 	case CQ_RX_ERROP_TCP_OFFSET:
-		stats->rx.errop.tcp_offset_errs++;
+		stats->rx_tcp_offset_errs++;
 		break;
 	case CQ_RX_ERROP_L4_PCLP:
-		stats->rx.errop.l4_pclp++;
+		stats->rx_l4_pclp++;
 		break;
 	case CQ_RX_ERROP_RBDR_TRUNC:
-		stats->rx.errop.pkt_truncated++;
+		stats->rx_truncated_pkts++;
 		break;
 	}
 

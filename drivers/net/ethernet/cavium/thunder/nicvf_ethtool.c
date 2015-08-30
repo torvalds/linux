@@ -35,10 +35,10 @@ struct nicvf_stat {
 }
 
 static const struct nicvf_stat nicvf_hw_stats[] = {
-	NICVF_HW_STAT(rx_bytes_ok),
-	NICVF_HW_STAT(rx_ucast_frames_ok),
-	NICVF_HW_STAT(rx_bcast_frames_ok),
-	NICVF_HW_STAT(rx_mcast_frames_ok),
+	NICVF_HW_STAT(rx_bytes),
+	NICVF_HW_STAT(rx_ucast_frames),
+	NICVF_HW_STAT(rx_bcast_frames),
+	NICVF_HW_STAT(rx_mcast_frames),
 	NICVF_HW_STAT(rx_fcs_errors),
 	NICVF_HW_STAT(rx_l2_errors),
 	NICVF_HW_STAT(rx_drop_red),
@@ -49,6 +49,30 @@ static const struct nicvf_stat nicvf_hw_stats[] = {
 	NICVF_HW_STAT(rx_drop_mcast),
 	NICVF_HW_STAT(rx_drop_l3_bcast),
 	NICVF_HW_STAT(rx_drop_l3_mcast),
+	NICVF_HW_STAT(rx_bgx_truncated_pkts),
+	NICVF_HW_STAT(rx_jabber_errs),
+	NICVF_HW_STAT(rx_fcs_errs),
+	NICVF_HW_STAT(rx_bgx_errs),
+	NICVF_HW_STAT(rx_prel2_errs),
+	NICVF_HW_STAT(rx_l2_hdr_malformed),
+	NICVF_HW_STAT(rx_oversize),
+	NICVF_HW_STAT(rx_undersize),
+	NICVF_HW_STAT(rx_l2_len_mismatch),
+	NICVF_HW_STAT(rx_l2_pclp),
+	NICVF_HW_STAT(rx_ip_ver_errs),
+	NICVF_HW_STAT(rx_ip_csum_errs),
+	NICVF_HW_STAT(rx_ip_hdr_malformed),
+	NICVF_HW_STAT(rx_ip_payload_malformed),
+	NICVF_HW_STAT(rx_ip_ttl_errs),
+	NICVF_HW_STAT(rx_l3_pclp),
+	NICVF_HW_STAT(rx_l4_malformed),
+	NICVF_HW_STAT(rx_l4_csum_errs),
+	NICVF_HW_STAT(rx_udp_len_errs),
+	NICVF_HW_STAT(rx_l4_port_errs),
+	NICVF_HW_STAT(rx_tcp_flag_errs),
+	NICVF_HW_STAT(rx_tcp_offset_errs),
+	NICVF_HW_STAT(rx_l4_pclp),
+	NICVF_HW_STAT(rx_truncated_pkts),
 	NICVF_HW_STAT(tx_bytes_ok),
 	NICVF_HW_STAT(tx_ucast_frames_ok),
 	NICVF_HW_STAT(tx_bcast_frames_ok),
@@ -195,7 +219,7 @@ static void nicvf_get_ethtool_stats(struct net_device *netdev,
 	nicvf_update_lmac_stats(nic);
 
 	for (stat = 0; stat < nicvf_n_hw_stats; stat++)
-		*(data++) = ((u64 *)&nic->stats)
+		*(data++) = ((u64 *)&nic->hw_stats)
 				[nicvf_hw_stats[stat].index];
 	for (stat = 0; stat < nicvf_n_drv_stats; stat++)
 		*(data++) = ((u64 *)&nic->drv_stats)
