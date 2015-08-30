@@ -160,8 +160,7 @@ static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 	src_port = udp_flow_src_port(net, skb, 0, 0, true);
 
 	return ovs_tunnel_get_egress_info(egress_tun_info, net,
-					  OVS_CB(skb)->egress_tun_info,
-					  IPPROTO_UDP, skb->mark,
+					  skb, IPPROTO_UDP,
 					  src_port, dst_port);
 }
 

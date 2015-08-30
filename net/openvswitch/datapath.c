@@ -610,7 +610,6 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		goto err_flow_free;
 
 	rcu_assign_pointer(flow->sf_acts, acts);
-	OVS_CB(packet)->egress_tun_info = NULL;
 	packet->priority = flow->key.phy.priority;
 	packet->mark = flow->key.phy.skb_mark;
 

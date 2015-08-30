@@ -46,10 +46,11 @@
 #include <net/mpls.h>
 #include <net/ndisc.h>
 
+#include "conntrack.h"
 #include "datapath.h"
 #include "flow.h"
 #include "flow_netlink.h"
-#include "conntrack.h"
+#include "vport.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {

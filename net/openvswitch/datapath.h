@@ -30,7 +30,6 @@
 #include "conntrack.h"
 #include "flow.h"
 #include "flow_table.h"
-#include "vport.h"
 
 #define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
@@ -94,15 +93,12 @@ struct datapath {
 
 /**
  * struct ovs_skb_cb - OVS data in skb CB
- * @egress_tun_key: Tunnel information about this packet on egress path.
- * NULL if the packet is not being tunneled.
  * @input_vport: The original vport packet came in on. This value is cached
  * when a packet is received by OVS.
  * @mru: The maximum received fragement size; 0 if the packet is not
  * fragmented.
  */
 struct ovs_skb_cb {
-	struct ip_tunnel_info  *egress_tun_info;
 	struct vport		*input_vport;
 	u16			mru;
 };
@@ -137,7 +133,6 @@ struct dp_upcall_info {
 struct ovs_net {
 	struct list_head dps;
 	struct work_struct dp_notify_work;
-	struct vport_net vport_net;
 
 	/* Module reference for configuring conntrack. */
 	bool xt_label;
