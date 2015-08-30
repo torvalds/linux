@@ -137,7 +137,6 @@ static struct i2c_driver rt5033_driver = {
 };
 module_i2c_driver(rt5033_driver);
 
-MODULE_ALIAS("i2c:rt5033");
 MODULE_DESCRIPTION("Richtek RT5033 multi-function core driver");
 MODULE_AUTHOR("Beomho Seo <beomho.seo@samsung.com>");
 MODULE_LICENSE("GPL");
