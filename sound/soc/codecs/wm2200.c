@@ -897,7 +897,7 @@ static bool wm2200_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct reg_default wm2200_reva_patch[] = {
+static const struct reg_sequence wm2200_reva_patch[] = {
 	{ 0x07, 0x0003 },
 	{ 0x102, 0x0200 },
 	{ 0x203, 0x0084 },

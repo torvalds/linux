@@ -1108,7 +1108,7 @@ static const struct acpi_device_id rt286_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, rt286_acpi_match);
 
-static struct dmi_system_id force_combo_jack_table[] = {
+static const struct dmi_system_id force_combo_jack_table[] = {
 	{
 		.ident = "Intel Wilson Beach",
 		.matches = {
@@ -1118,7 +1118,7 @@ static struct dmi_system_id force_combo_jack_table[] = {
 	{ }
 };
 
-static struct dmi_system_id dmi_dell_dino[] = {
+static const struct dmi_system_id dmi_dell_dino[] = {
 	{
 		.ident = "Dell Dino",
 		.matches = {
@@ -1157,7 +1157,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	}
 	if (val != RT286_VENDOR_ID && val != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt286\n", val);
+			"Device with ID register %#x is not rt286\n", val);
 		return -ENODEV;
 	}
 

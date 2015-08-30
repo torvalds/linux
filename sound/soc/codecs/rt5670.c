@@ -51,7 +51,7 @@ static const struct regmap_range_cfg rt5670_ranges[] = {
 	  .window_len = 0x1, },
 };
 
-static const struct reg_default init_list[] = {
+static const struct reg_sequence init_list[] = {
 	{ RT5670_PR_BASE + 0x14, 0x9a8a },
 	{ RT5670_PR_BASE + 0x38, 0x3ba1 },
 	{ RT5670_PR_BASE + 0x3d, 0x3640 },
@@ -683,10 +683,11 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
-	int idx = -EINVAL;
+	int idx, rate;
 
-	idx = rl6231_calc_dmic_clk(rt5670->sysclk);
-
+	rate = rt5670->sysclk / rl6231_get_pre_div(rt5670->regmap,
+		RT5670_ADDA_CLK1, RT5670_I2S_PD1_SFT);
+	idx = rl6231_calc_dmic_clk(rate);
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");
 	else

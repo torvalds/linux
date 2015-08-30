@@ -51,7 +51,7 @@ static const struct regmap_range_cfg rt5640_ranges[] = {
 	  .window_len = 0x1, },
 };
 
-static const struct reg_default init_list[] = {
+static const struct reg_sequence init_list[] = {
 	{RT5640_PR_BASE + 0x3d,	0x3600},
 	{RT5640_PR_BASE + 0x12,	0x0aa8},
 	{RT5640_PR_BASE + 0x14,	0x0aaa},
@@ -459,10 +459,11 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
-	int idx = -EINVAL;
+	int idx, rate;
 
-	idx = rl6231_calc_dmic_clk(rt5640->sysclk);
-
+	rate = rt5640->sysclk / rl6231_get_pre_div(rt5640->regmap,
+		RT5640_ADDA_CLK1, RT5640_I2S_PD1_SFT);
+	idx = rl6231_calc_dmic_clk(rate);
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");
 	else
