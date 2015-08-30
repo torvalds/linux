@@ -142,7 +142,7 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
@@ -154,11 +154,7 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 
 static int mxs_sgtl5000_remove(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
 	mxs_saif_put_mclk(0);
-
-	snd_soc_unregister_card(card);
 
 	return 0;
 }
