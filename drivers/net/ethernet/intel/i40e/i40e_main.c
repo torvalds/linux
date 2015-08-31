@@ -10064,6 +10064,13 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = i40e_init_adminq(hw);
 	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
+
+	/* provide additional fw info, like api and ver */
+	dev_info(&pdev->dev, "fw_version:%d.%d.%05d\n",
+		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build);
+	dev_info(&pdev->dev, "fw api version:%d.%d\n",
+		 hw->aq.api_maj_ver, hw->aq.api_min_ver);
+
 	if (err) {
 		dev_info(&pdev->dev,
 			 "The driver for the device stopped because the NVM image is newer than expected. You must install the most recent version of the network driver.\n");
