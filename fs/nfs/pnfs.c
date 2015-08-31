@@ -868,6 +868,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs4_layoutget *lgp;
 	struct pnfs_layout_segment *lseg;
+	loff_t i_size;
 
 	dprintk("--> %s\n", __func__);
 
@@ -875,9 +876,17 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	if (lgp == NULL)
 		return NULL;
 
+	i_size = i_size_read(ino);
+
 	lgp->args.minlength = PAGE_CACHE_SIZE;
 	if (lgp->args.minlength > range->length)
 		lgp->args.minlength = range->length;
+	if (range->iomode == IOMODE_READ) {
+		if (range->offset >= i_size)
+			lgp->args.minlength = 0;
+		else if (i_size - range->offset < lgp->args.minlength)
+			lgp->args.minlength = i_size - range->offset;
+	}
 	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
 	lgp->args.range = *range;
 	lgp->args.type = server->pnfs_curr_ld->id;
