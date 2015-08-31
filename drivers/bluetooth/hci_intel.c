@@ -67,7 +67,7 @@ struct intel_device {
 };
 
 static LIST_HEAD(intel_device_list);
-static DEFINE_SPINLOCK(intel_device_list_lock);
+static DEFINE_MUTEX(intel_device_list_lock);
 
 struct intel_data {
 	struct sk_buff *rx_skb;
@@ -143,7 +143,7 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 	struct list_head *p;
 	int err = -ENODEV;
 
-	spin_lock(&intel_device_list_lock);
+	mutex_lock(&intel_device_list_lock);
 
 	list_for_each(p, &intel_device_list) {
 		struct intel_device *idev = list_entry(p, struct intel_device,
@@ -187,7 +187,7 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 		}
 	}
 
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
 	return err;
 }
@@ -696,7 +696,7 @@ done:
 	bt_dev_info(hdev, "Device booted in %llu usecs", duration);
 
 	/* Enable LPM if matching pdev with wakeup enabled */
-	spin_lock(&intel_device_list_lock);
+	mutex_lock(&intel_device_list_lock);
 	list_for_each(p, &intel_device_list) {
 		struct intel_device *dev = list_entry(p, struct intel_device,
 						      list);
@@ -706,7 +706,7 @@ done:
 			break;
 		}
 	}
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
 	if (!idev)
 		goto no_lpm;
@@ -982,9 +982,9 @@ no_irq:
 	platform_set_drvdata(pdev, idev);
 
 	/* Place this instance on the device list */
-	spin_lock(&intel_device_list_lock);
+	mutex_lock(&intel_device_list_lock);
 	list_add_tail(&idev->list, &intel_device_list);
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
 	dev_info(&pdev->dev, "registered, gpio(%d)/irq(%d).\n",
 		 desc_to_gpio(idev->reset), idev->irq);
@@ -998,9 +998,9 @@ static int intel_remove(struct platform_device *pdev)
 
 	device_wakeup_disable(&pdev->dev);
 
-	spin_lock(&intel_device_list_lock);
+	mutex_lock(&intel_device_list_lock);
 	list_del(&idev->list);
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
 	dev_info(&pdev->dev, "unregistered.\n");
 
