@@ -1201,6 +1201,11 @@ xfrm4_gc_thresh - INTEGER
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.
 
+igmp_link_local_mcast_reports - BOOLEAN
+	Enable IGMP reports for link local multicast groups in the
+	224.0.0.X range.
+	Default TRUE
+
 Alexey Kuznetsov.
 kuznet@ms2.inr.ac.ru
 
