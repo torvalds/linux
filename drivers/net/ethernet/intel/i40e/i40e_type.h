@@ -418,6 +418,8 @@ struct i40e_fc_info {
 #define I40E_APP_PROTOID_FIP		0x8914
 #define I40E_APP_SEL_ETHTYPE		0x1
 #define I40E_APP_SEL_TCPIP		0x2
+#define I40E_CEE_APP_SEL_ETHTYPE	0x0
+#define I40E_CEE_APP_SEL_TCPIP		0x1
 
 /* CEE or IEEE 802.1Qaz ETS Configuration data */
 struct i40e_dcb_ets_config {
