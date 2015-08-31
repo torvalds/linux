@@ -113,6 +113,22 @@
 	status = "okay";
 };
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+	status = "okay";
+};
+
+&uart5 { /* for bluetooth */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5_1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode;*/
+	/* pinctrl-0 = <&pinctrl_uart5dte_1>; */
+};
+
 &usbotg1 {
 	vbus-supply = <&reg_usb_otg1_vbus>;
 	pinctrl-names = "default";
@@ -203,6 +219,31 @@
 			fsl,pins = <
 				MX6SX_PAD_GPIO1_IO04__UART1_TX		0x1b0b1
 				MX6SX_PAD_GPIO1_IO05__UART1_RX		0x1b0b1
+			>;
+		};
+
+		pinctrl_uart2_1: uart2grp-1 {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO07__UART2_RX 0x1b0b1
+				MX6SX_PAD_GPIO1_IO06__UART2_TX 0x1b0b1
+			>;
+		};
+
+		pinctrl_uart5_1: uart5grp-1 {
+			fsl,pins = <
+				MX6SX_PAD_KEY_ROW3__UART5_RX    0x1b0b1
+				MX6SX_PAD_KEY_COL3__UART5_TX    0x1b0b1
+				MX6SX_PAD_KEY_ROW2__UART5_CTS_B 0x1b0b1
+				MX6SX_PAD_KEY_COL2__UART5_RTS_B 0x1b0b1
+			>;
+		};
+
+		pinctrl_uart5dte_1: uart5dtegrp-1 {
+			fsl,pins = <
+				MX6SX_PAD_KEY_ROW3__UART5_TX	0x1b0b1
+				MX6SX_PAD_KEY_COL3__UART5_RX	0x1b0b1
+				MX6SX_PAD_KEY_ROW2__UART5_RTS_B	0x1b0b1
+				MX6SX_PAD_KEY_COL2__UART5_CTS_B	0x1b0b1
 			>;
 		};
 
