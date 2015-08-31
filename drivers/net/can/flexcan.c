@@ -779,6 +779,7 @@ static int flexcan_chip_start(struct net_device *dev)
 	 * only supervisor access
 	 * enable warning int
 	 * disable local echo
+	 * enable individual RX masking
 	 * choose format C
 	 * set max mailbox number
 	 */
@@ -786,7 +787,8 @@ static int flexcan_chip_start(struct net_device *dev)
 	reg_mcr &= ~FLEXCAN_MCR_MAXMB(0xff);
 	reg_mcr |= FLEXCAN_MCR_FRZ | FLEXCAN_MCR_FEN | FLEXCAN_MCR_HALT |
 		FLEXCAN_MCR_SUPV | FLEXCAN_MCR_WRN_EN | FLEXCAN_MCR_SRX_DIS |
-		FLEXCAN_MCR_IDAM_C | FLEXCAN_MCR_MAXMB(priv->tx_mb_idx);
+		FLEXCAN_MCR_IRMQ | FLEXCAN_MCR_IDAM_C |
+		FLEXCAN_MCR_MAXMB(priv->tx_mb_idx);
 	netdev_dbg(dev, "%s: writing mcr=0x%08x", __func__, reg_mcr);
 	flexcan_write(reg_mcr, &regs->mcr);
 
@@ -844,6 +846,10 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_DISABLE_RXFG)
 		flexcan_write(0x0, &regs->rxfgmask);
+
+	/* clear acceptance filters */
+	for (i = 0; i < ARRAY_SIZE(regs->mb); i++)
+		flexcan_write(0, &regs->rximr[i]);
 
 	/* On Vybrid, disable memory error detection interrupts
 	 * and freeze mode.
