@@ -1239,7 +1239,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:24;
+		u32     reserved:23;
+		u32     support_ext_io_size:1;
 		u32	support_ext_queue_depth:1;
 		u32     security_protocol_cmds_fw:1;
 		u32     support_core_affinity:1;
@@ -1257,7 +1258,8 @@ typedef union _MFI_CAPABILITIES {
 		u32     support_core_affinity:1;
 		u32     security_protocol_cmds_fw:1;
 		u32	support_ext_queue_depth:1;
-		u32     reserved:24;
+		u32     support_ext_io_size:1;
+		u32     reserved:23;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -1795,6 +1797,7 @@ struct megasas_instance {
 	char mpio;
 	u16 throttlequeuedepth;
 	u8 mask_interrupts;
+	u16 max_chain_frame_sz;
 	u8 is_imr;
 	bool dev_handle;
 };

@@ -316,26 +316,23 @@ static int megasas_create_frame_pool_fusion(struct megasas_instance *instance)
 	u32 max_cmd;
 	struct fusion_context *fusion;
 	struct megasas_cmd_fusion *cmd;
-	u32 total_sz_chain_frame;
 
 	fusion = instance->ctrl_context;
 	max_cmd = instance->max_fw_cmds;
 
-	total_sz_chain_frame = MEGASAS_MAX_SZ_CHAIN_FRAME;
 
 	/*
 	 * Use DMA pool facility provided by PCI layer
 	 */
 
-	fusion->sg_dma_pool = pci_pool_create("megasas sg pool fusion",
-					      instance->pdev,
-					      total_sz_chain_frame, 4,
-					      0);
+	fusion->sg_dma_pool = pci_pool_create("sg_pool_fusion", instance->pdev,
+						instance->max_chain_frame_sz,
+						4, 0);
 	if (!fusion->sg_dma_pool) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "failed to setup request pool fusion\n");
 		return -ENOMEM;
 	}
-	fusion->sense_dma_pool = pci_pool_create("megasas sense pool fusion",
+	fusion->sense_dma_pool = pci_pool_create("sense pool fusion",
 						 instance->pdev,
 						 SCSI_SENSE_BUFFERSIZE, 64, 0);
 
@@ -665,6 +662,9 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	drv_ops->mfi_capabilities.support_max_255lds = 1;
 	drv_ops->mfi_capabilities.support_ndrive_r1_lb = 1;
 	drv_ops->mfi_capabilities.security_protocol_cmds_fw = 1;
+
+	if (instance->max_chain_frame_sz > MEGASAS_CHAIN_FRAME_SZ_MIN)
+		drv_ops->mfi_capabilities.support_ext_io_size = 1;
 
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
@@ -1054,7 +1054,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *reg_set;
 	struct fusion_context *fusion;
-	u32 max_cmd;
+	u32 max_cmd, scratch_pad_2;
 	int i = 0, count;
 
 	fusion = instance->ctrl_context;
@@ -1093,15 +1093,40 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 		(MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE *
 		 (max_cmd + 1)); /* Extra 1 for SMID 0 */
 
+	scratch_pad_2 = readl(&instance->reg_set->outbound_scratch_pad_2);
+	/* If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
+	 * Firmware support extended IO chain frame which is 4 times more than
+	 * legacy Firmware.
+	 * Legacy Firmware - Frame size is (8 * 128) = 1K
+	 * 1M IO Firmware  - Frame size is (8 * 128 * 4)  = 4K
+	 */
+	if (scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
+		instance->max_chain_frame_sz =
+			((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
+			MEGASAS_MAX_CHAIN_SHIFT) * MEGASAS_1MB_IO;
+	else
+		instance->max_chain_frame_sz =
+			((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
+			MEGASAS_MAX_CHAIN_SHIFT) * MEGASAS_256K_IO;
+
+	if (instance->max_chain_frame_sz < MEGASAS_CHAIN_FRAME_SZ_MIN) {
+		dev_warn(&instance->pdev->dev, "frame size %d invalid, fall back to legacy max frame size %d\n",
+			instance->max_chain_frame_sz,
+			MEGASAS_CHAIN_FRAME_SZ_MIN);
+		instance->max_chain_frame_sz = MEGASAS_CHAIN_FRAME_SZ_MIN;
+	}
+
 	fusion->max_sge_in_main_msg =
-	  (MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE -
-	   offsetof(struct MPI2_RAID_SCSI_IO_REQUEST, SGL))/16;
+		(MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE
+			- offsetof(struct MPI2_RAID_SCSI_IO_REQUEST, SGL))/16;
 
 	fusion->max_sge_in_chain =
-		MEGASAS_MAX_SZ_CHAIN_FRAME / sizeof(union MPI2_SGE_IO_UNION);
+		instance->max_chain_frame_sz
+			/ sizeof(union MPI2_SGE_IO_UNION);
 
-	instance->max_num_sge = rounddown_pow_of_two(
-		fusion->max_sge_in_main_msg + fusion->max_sge_in_chain - 2);
+	instance->max_num_sge =
+		rounddown_pow_of_two(fusion->max_sge_in_main_msg
+			+ fusion->max_sge_in_chain - 2);
 
 	/* Used for pass thru MFI frame (DCMD) */
 	fusion->chain_offset_mfi_pthru =
@@ -1327,7 +1352,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 
 			sgl_ptr =
 			  (struct MPI25_IEEE_SGE_CHAIN64 *)cmd->sg_frame;
-			memset(sgl_ptr, 0, MEGASAS_MAX_SZ_CHAIN_FRAME);
+			memset(sgl_ptr, 0, instance->max_chain_frame_sz);
 		}
 	}
 
@@ -1892,7 +1917,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 			struct scsi_cmnd *scp,
 			struct megasas_cmd_fusion *cmd)
 {
-	u32 sge_count;
+	u16 sge_count;
 	u8  cmd_type;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request = cmd->io_request;
 
@@ -1950,7 +1975,11 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 		return 1;
 	}
 
+	/* numSGE store lower 8 bit of sge_count.
+	 * numSGEExt store higher 8 bit of sge_count
+	 */
 	io_request->RaidContext.numSGE = sge_count;
+	io_request->RaidContext.numSGEExt = (u8)(sge_count >> 8);
 
 	io_request->SGLFlags = cpu_to_le16(MPI2_SGE_FLAGS_64_BIT_ADDRESSING);
 
@@ -2344,7 +2373,7 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 	mpi25_ieee_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 		MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR;
 
-	mpi25_ieee_chain->Length = cpu_to_le32(MEGASAS_MAX_SZ_CHAIN_FRAME);
+	mpi25_ieee_chain->Length = cpu_to_le32(instance->max_chain_frame_sz);
 
 	return 0;
 }
