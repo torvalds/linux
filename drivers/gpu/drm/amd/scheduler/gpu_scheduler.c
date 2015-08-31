@@ -354,7 +354,6 @@ static int amd_sched_main(void *param)
 		s_fence = job->s_fence;
 		atomic_inc(&sched->hw_rq_count);
 		fence = sched->ops->run_job(job);
-		sched->ops->process_job(job);
 		if (fence) {
 			r = fence_add_callback(fence, &s_fence->cb,
 					       amd_sched_process_job);

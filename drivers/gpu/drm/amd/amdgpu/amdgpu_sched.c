@@ -35,8 +35,8 @@ static struct fence *amdgpu_sched_dependency(struct amd_sched_job *job)
 
 static struct fence *amdgpu_sched_run_job(struct amd_sched_job *job)
 {
+	struct amdgpu_fence *fence = NULL;
 	struct amdgpu_job *sched_job;
-	struct amdgpu_fence *fence;
 	int r;
 
 	if (!job) {
@@ -49,41 +49,26 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *job)
 			       sched_job->num_ibs,
 			       sched_job->ibs,
 			       sched_job->base.owner);
-	if (r)
+	if (r) {
+		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;
+	}
+
 	fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs - 1].fence);
 
+err:
 	if (sched_job->free_job)
 		sched_job->free_job(sched_job);
 
 	mutex_unlock(&sched_job->job_lock);
-	return &fence->base;
-
-err:
-	DRM_ERROR("Run job error\n");
-	mutex_unlock(&sched_job->job_lock);
-	job->sched->ops->process_job(job);
-	return NULL;
-}
-
-static void amdgpu_sched_process_job(struct amd_sched_job *job)
-{
-	struct amdgpu_job *sched_job;
-
-	if (!job) {
-		DRM_ERROR("job is null\n");
-		return;
-	}
-	sched_job = (struct amdgpu_job *)job;
-	/* after processing job, free memory */
 	fence_put(&sched_job->base.s_fence->base);
 	kfree(sched_job);
+	return fence ? &fence->base : NULL;
 }
 
 struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_sched_dependency,
 	.run_job = amdgpu_sched_run_job,
-	.process_job = amdgpu_sched_process_job
 };
 
 int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
