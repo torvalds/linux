@@ -4842,18 +4842,22 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	}
 	if (ctrl_info->host_interface.SRIOV) {
-		if (!ctrl_info->adapterOperations2.activePassive)
-			instance->PlasmaFW111 = 1;
+		instance->requestorId = ctrl_info->iov.requestorId;
+		if (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) {
+			if (!ctrl_info->adapterOperations2.activePassive)
+			    instance->PlasmaFW111 = 1;
 
-		if (!instance->PlasmaFW111)
-			instance->requestorId =
-				ctrl_info->iov.requestorId;
-		else {
-			iovPtr = (struct IOV_111 *)((unsigned char *)ctrl_info + IOV_111_OFFSET);
-			instance->requestorId = iovPtr->requestorId;
+			dev_info(&instance->pdev->dev, "SR-IOV: firmware type: %s\n",
+			    instance->PlasmaFW111 ? "1.11" : "new");
+
+			if (instance->PlasmaFW111) {
+			    iovPtr = (struct IOV_111 *)
+				((unsigned char *)ctrl_info + IOV_111_OFFSET);
+			    instance->requestorId = iovPtr->requestorId;
+			}
 		}
-		dev_warn(&instance->pdev->dev, "I am VF "
-		       "requestorId %d\n", instance->requestorId);
+		dev_info(&instance->pdev->dev, "SRIOV: VF requestorId %d\n",
+			instance->requestorId);
 	}
 
 	instance->crash_dump_fw_support =
@@ -6723,8 +6727,7 @@ megasas_aen_polling(struct work_struct *work)
 		case MR_EVT_CFG_CLEARED:
 		case MR_EVT_LD_DELETED:
 			if (!instance->requestorId ||
-			    (instance->requestorId &&
-			     megasas_get_ld_vf_affiliation(instance, 0))) {
+			    megasas_get_ld_vf_affiliation(instance, 0)) {
 				if (megasas_ld_list_query(instance,
 							  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
 					megasas_get_ld_list(instance);
@@ -6755,8 +6758,7 @@ megasas_aen_polling(struct work_struct *work)
 			break;
 		case MR_EVT_LD_CREATED:
 			if (!instance->requestorId ||
-			    (instance->requestorId &&
-			     megasas_get_ld_vf_affiliation(instance, 0))) {
+			    megasas_get_ld_vf_affiliation(instance, 0)) {
 				if (megasas_ld_list_query(instance,
 							  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
 					megasas_get_ld_list(instance);
@@ -6822,8 +6824,7 @@ megasas_aen_polling(struct work_struct *work)
 		}
 
 		if (!instance->requestorId ||
-		    (instance->requestorId &&
-		     megasas_get_ld_vf_affiliation(instance, 0))) {
+		    megasas_get_ld_vf_affiliation(instance, 0)) {
 			if (megasas_ld_list_query(instance,
 						  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
 				megasas_get_ld_list(instance);
