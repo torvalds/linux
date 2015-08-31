@@ -319,15 +319,13 @@ amd_sched_select_job(struct amd_gpu_scheduler *sched)
 
 static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 {
-	struct amd_sched_job *sched_job =
-		container_of(cb, struct amd_sched_job, cb);
-	struct amd_gpu_scheduler *sched;
+	struct amd_sched_fence *s_fence =
+		container_of(cb, struct amd_sched_fence, cb);
+	struct amd_gpu_scheduler *sched = s_fence->scheduler;
 
-	sched = sched_job->sched;
-	amd_sched_fence_signal(sched_job->s_fence);
 	atomic_dec(&sched->hw_rq_count);
-	fence_put(&sched_job->s_fence->base);
-	sched->ops->process_job(sched_job);
+	amd_sched_fence_signal(s_fence);
+	fence_put(&s_fence->base);
 	wake_up_interruptible(&sched->wake_up_worker);
 }
 
@@ -341,6 +339,7 @@ static int amd_sched_main(void *param)
 
 	while (!kthread_should_stop()) {
 		struct amd_sched_entity *entity;
+		struct amd_sched_fence *s_fence;
 		struct amd_sched_job *job;
 		struct fence *fence;
 
@@ -352,19 +351,21 @@ static int amd_sched_main(void *param)
 			continue;
 
 		entity = job->s_entity;
+		s_fence = job->s_fence;
 		atomic_inc(&sched->hw_rq_count);
 		fence = sched->ops->run_job(job);
+		sched->ops->process_job(job);
 		if (fence) {
-			r = fence_add_callback(fence, &job->cb,
+			r = fence_add_callback(fence, &s_fence->cb,
 					       amd_sched_process_job);
 			if (r == -ENOENT)
-				amd_sched_process_job(fence, &job->cb);
+				amd_sched_process_job(fence, &s_fence->cb);
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n", r);
 			fence_put(fence);
 		} else {
 			DRM_ERROR("Failed to run job!\n");
-			amd_sched_process_job(NULL, &job->cb);
+			amd_sched_process_job(NULL, &s_fence->cb);
 		}
 
 		count = kfifo_out(&entity->job_queue, &job, sizeof(job));
