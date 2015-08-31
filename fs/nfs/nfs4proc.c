@@ -5020,7 +5020,7 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 		return 0;
 retry:
 	rcu_read_lock();
-	len = 10 + strlen(clp->cl_ipaddr) + 1 +
+	len = 14 + strlen(clp->cl_ipaddr) + 1 +
 		strlen(rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR)) +
 		1 +
 		strlen(rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_PROTO)) +
