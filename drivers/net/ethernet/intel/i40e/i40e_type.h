@@ -289,6 +289,7 @@ struct i40e_nvm_info {
 	bool blank_nvm_mode;      /* is NVM empty (no FW present)*/
 	u16 version;              /* NVM package version */
 	u32 eetrack;              /* NVM data version */
+	u32 oem_ver;              /* OEM version info */
 };
 
 /* definitions used in NVM update support */
@@ -1204,6 +1205,8 @@ struct i40e_hw_port_stats {
 #define I40E_SR_EMP_MODULE_PTR			0x0F
 #define I40E_SR_PBA_FLAGS			0x15
 #define I40E_SR_PBA_BLOCK_PTR			0x16
+#define I40E_SR_BOOT_CONFIG_PTR			0x17
+#define I40E_NVM_OEM_VER_OFF			0x83
 #define I40E_SR_NVM_DEV_STARTER_VERSION		0x18
 #define I40E_SR_NVM_WAKE_ON_LAN			0x19
 #define I40E_SR_ALTERNATE_SAN_MAC_ADDRESS_PTR	0x27
