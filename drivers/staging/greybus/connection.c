@@ -371,11 +371,6 @@ static int gb_connection_init(struct gb_connection *connection)
 	int cport_id = connection->intf_cport_id;
 	int ret;
 
-	if (!connection->protocol) {
-		dev_warn(&connection->dev, "init without protocol.\n");
-		return 0;
-	}
-
 	/*
 	 * Inform Interface about Active CPorts. We don't need to do this
 	 * operation for control cport.
