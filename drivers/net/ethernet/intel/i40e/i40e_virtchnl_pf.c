@@ -964,8 +964,6 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		/* VF resources get allocated during reset */
 		i40e_reset_vf(&vfs[i], false);
 
-		/* enable VF vplan_qtable mappings */
-		i40e_enable_vf_mappings(&vfs[i]);
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
 
