@@ -303,6 +303,7 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 
 	of_node_get(np);
 	phy->dev.of_node = np;
+	phy->is_pseudo_fixed_link = true;
 
 	ret = phy_device_register(phy);
 	if (ret) {
