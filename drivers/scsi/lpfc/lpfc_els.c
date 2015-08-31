@@ -1026,9 +1026,11 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 stop_rr_fcf_flogi:
 		/* FLOGI failure */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				"2858 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				"2858 FLOGI failure Status:x%x/x%x TMO:x%x "
+				"Data x%x x%x\n",
 				irsp->ulpStatus, irsp->un.ulpWord[4],
-				irsp->ulpTimeout);
+				irsp->ulpTimeout, phba->hba_flag,
+				phba->fcf.fcf_flag);
 
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
@@ -1152,6 +1154,9 @@ stop_rr_fcf_flogi:
 	}
 
 flogifail:
+	spin_lock_irq(&phba->hbalock);
+	phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+	spin_unlock_irq(&phba->hbalock);
 	lpfc_nlp_put(ndlp);
 
 	if (!lpfc_error_lost_link(irsp)) {
