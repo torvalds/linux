@@ -800,7 +800,6 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *ndlp, *next_ndlp;
-	int  rc;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp))
@@ -816,10 +815,10 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 		if ((phba->sli_rev < LPFC_SLI_REV4) &&
 		    (!remove && ndlp->nlp_type & NLP_FABRIC))
 			continue;
-		rc = lpfc_disc_state_machine(vport, ndlp, NULL,
-					     remove
-					     ? NLP_EVT_DEVICE_RM
-					     : NLP_EVT_DEVICE_RECOVERY);
+		lpfc_disc_state_machine(vport, ndlp, NULL,
+					remove
+					? NLP_EVT_DEVICE_RM
+					: NLP_EVT_DEVICE_RECOVERY);
 	}
 	if (phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) {
 		if (phba->sli_rev == LPFC_SLI_REV4)
@@ -1774,7 +1773,6 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 			     uint16_t *next_fcf_index)
 {
 	void *virt_addr;
-	dma_addr_t phys_addr;
 	struct lpfc_mbx_sge sge;
 	struct lpfc_mbx_read_fcf_tbl *read_fcf;
 	uint32_t shdr_status, shdr_add_status, if_type;
@@ -1785,7 +1783,6 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	 * routine only uses a single SGE.
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
-	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
 	if (unlikely(!mboxq->sge_array)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
 				"2524 Failed to get the non-embedded SGE "

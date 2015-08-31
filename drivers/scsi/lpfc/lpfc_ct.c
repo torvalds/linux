@@ -575,7 +575,6 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
-	struct lpfc_dmabuf *bmp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_nodelist *ndlp;
@@ -588,7 +587,6 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
 	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-	bmp = (struct lpfc_dmabuf *) cmdiocb->context3;
 	irsp = &rspiocb->iocb;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
@@ -1733,11 +1731,8 @@ hba_out:
 	case SLI_MGMT_RPRT:
 	case SLI_MGMT_RPA:
 		{
-			lpfc_vpd_t *vp;
 			struct serv_parm *hsp;
 			int len = 0;
-
-			vp = &phba->vpd;
 
 			if (cmdcode == SLI_MGMT_RPRT) {
 				rh = (struct lpfc_fdmi_reg_hba *)
