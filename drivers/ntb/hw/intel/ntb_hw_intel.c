@@ -575,10 +575,13 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 			 "Connection Topology -\t%s\n",
 			 ntb_topo_string(ndev->ntb.topo));
 
-	off += scnprintf(buf + off, buf_size - off,
-			 "B2B Offset -\t\t%#lx\n", ndev->b2b_off);
-	off += scnprintf(buf + off, buf_size - off,
-			 "B2B MW Idx -\t\t%d\n", ndev->b2b_idx);
+	if (ndev->b2b_idx != UINT_MAX) {
+		off += scnprintf(buf + off, buf_size - off,
+				 "B2B MW Idx -\t\t%u\n", ndev->b2b_idx);
+		off += scnprintf(buf + off, buf_size - off,
+				 "B2B Offset -\t\t%#lx\n", ndev->b2b_off);
+	}
+
 	off += scnprintf(buf + off, buf_size - off,
 			 "BAR4 Split -\t\t%s\n",
 			 ndev->bar4_split ? "yes" : "no");
@@ -1487,7 +1490,7 @@ static int xeon_setup_b2b_mw(struct intel_ntb_dev *ndev,
 	pdev = ndev_pdev(ndev);
 	mmio = ndev->self_mmio;
 
-	if (ndev->b2b_idx >= ndev->mw_count) {
+	if (ndev->b2b_idx == UINT_MAX) {
 		dev_dbg(ndev_dev(ndev), "not using b2b mw\n");
 		b2b_bar = 0;
 		ndev->b2b_off = 0;
@@ -1779,6 +1782,13 @@ static int xeon_init_ntb(struct intel_ntb_dev *ndev)
 			else
 				ndev->b2b_idx = b2b_mw_idx;
 
+			if (ndev->b2b_idx >= ndev->mw_count) {
+				dev_dbg(ndev_dev(ndev),
+					"b2b_mw_idx %d invalid for mw_count %u\n",
+					b2b_mw_idx, ndev->mw_count);
+				return -EINVAL;
+			}
+
 			dev_dbg(ndev_dev(ndev),
 				"setting up b2b mw idx %d means %d\n",
 				b2b_mw_idx, ndev->b2b_idx);
@@ -2008,7 +2018,7 @@ static inline void ndev_init_struct(struct intel_ntb_dev *ndev,
 	ndev->ntb.ops = &intel_ntb_ops;
 
 	ndev->b2b_off = 0;
-	ndev->b2b_idx = INT_MAX;
+	ndev->b2b_idx = UINT_MAX;
 
 	ndev->bar4_split = 0;
 
