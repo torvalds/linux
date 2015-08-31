@@ -240,7 +240,7 @@ static inline int ndev_ignore_unsafe(struct intel_ntb_dev *ndev,
 
 static int ndev_mw_to_bar(struct intel_ntb_dev *ndev, int idx)
 {
-	if (idx < 0 || idx > ndev->mw_count)
+	if (idx < 0 || idx >= ndev->mw_count)
 		return -EINVAL;
 	return ndev->reg->mw_bar[idx];
 }
