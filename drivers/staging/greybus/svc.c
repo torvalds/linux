@@ -82,8 +82,7 @@ gb_ap_interface_create(struct greybus_host_device *hd,
 	return intf;
 }
 
-static int intf_device_id_operation(struct gb_svc *svc,
-				u8 intf_id, u8 device_id)
+int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
 {
 	struct gb_svc_intf_device_id_request request;
 
@@ -93,8 +92,9 @@ static int intf_device_id_operation(struct gb_svc *svc,
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_DEVICE_ID,
 				 &request, sizeof(request), NULL, 0);
 }
+EXPORT_SYMBOL_GPL(gb_svc_intf_device_id);
 
-static int intf_reset_operation(struct gb_svc *svc, u8 intf_id)
+int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id)
 {
 	struct gb_svc_intf_reset_request request;
 
@@ -103,8 +103,9 @@ static int intf_reset_operation(struct gb_svc *svc, u8 intf_id)
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_RESET,
 				 &request, sizeof(request), NULL, 0);
 }
+EXPORT_SYMBOL_GPL(gb_svc_intf_reset);
 
-static int connection_create_operation(struct gb_svc *svc,
+int gb_svc_connection_create(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
 				u8 intf2_id, u16 cport2_id)
 {
@@ -124,10 +125,10 @@ static int connection_create_operation(struct gb_svc *svc,
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);
 }
+EXPORT_SYMBOL_GPL(gb_svc_connection_create);
 
-static void connection_destroy_operation(struct gb_svc *svc,
-				u8 intf1_id, u16 cport1_id,
-				u8 intf2_id, u16 cport2_id)
+void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
+			       u8 intf2_id, u16 cport2_id)
 {
 	struct gb_svc_conn_destroy_request request;
 	struct gb_connection *connection = svc->connection;
@@ -146,9 +147,10 @@ static void connection_destroy_operation(struct gb_svc *svc,
 			intf1_id, cport1_id, intf2_id, cport2_id, ret);
 	}
 }
+EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
-static int route_create_operation(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-				  u8 intf2_id, u8 dev2_id)
+int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
+			u8 intf2_id, u8 dev2_id)
 {
 	struct gb_svc_route_create_request request;
 
@@ -159,42 +161,6 @@ static int route_create_operation(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_CREATE,
 				 &request, sizeof(request), NULL, 0);
-}
-
-int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
-{
-	return intf_device_id_operation(svc, intf_id, device_id);
-}
-EXPORT_SYMBOL_GPL(gb_svc_intf_device_id);
-
-int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id)
-{
-	return intf_reset_operation(svc, intf_id);
-}
-EXPORT_SYMBOL_GPL(gb_svc_intf_reset);
-
-int gb_svc_connection_create(struct gb_svc *svc,
-				u8 intf1_id, u16 cport1_id,
-				u8 intf2_id, u16 cport2_id)
-{
-	return connection_create_operation(svc, intf1_id, cport1_id,
-						intf2_id, cport2_id);
-}
-EXPORT_SYMBOL_GPL(gb_svc_connection_create);
-
-void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
-			       u8 intf2_id, u16 cport2_id)
-{
-	connection_destroy_operation(svc, intf1_id, cport1_id, intf2_id,
-				     cport2_id);
-}
-EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
-
-int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-			u8 intf2_id, u8 dev2_id)
-{
-	return route_create_operation(svc, intf1_id, dev1_id,
-				      intf2_id, dev2_id);
 }
 EXPORT_SYMBOL_GPL(gb_svc_route_create);
 
@@ -323,7 +289,7 @@ static void svc_process_hotplug(struct work_struct *work)
 		goto destroy_interface;
 	}
 
-	ret = intf_device_id_operation(svc, intf_id, device_id);
+	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
 	if (ret) {
 		dev_err(dev, "%s: Device id operation failed, interface %hhu device_id %hhu (%d)\n",
 			__func__, intf_id, device_id, ret);
@@ -333,16 +299,16 @@ static void svc_process_hotplug(struct work_struct *work)
 	/*
 	 * Create a two-way route between the AP and the new interface
 	 */
-	ret = route_create_operation(svc, hd->endo->ap_intf_id,
-				     GB_DEVICE_ID_AP, intf_id, device_id);
+	ret = gb_svc_route_create(svc, hd->endo->ap_intf_id, GB_DEVICE_ID_AP,
+				  intf_id, device_id);
 	if (ret) {
 		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
 			__func__, intf_id, device_id, ret);
 		goto ida_put;
 	}
 
-	ret = route_create_operation(svc, intf_id, device_id,
-				     hd->endo->ap_intf_id, GB_DEVICE_ID_AP);
+	ret = gb_svc_route_create(svc, intf_id, device_id, hd->endo->ap_intf_id,
+				  GB_DEVICE_ID_AP);
 	if (ret) {
 		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
 			__func__, intf_id, device_id, ret);
