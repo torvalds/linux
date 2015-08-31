@@ -51,6 +51,8 @@ enum perf_output_field {
 	PERF_OUTPUT_SRCLINE         = 1U << 12,
 	PERF_OUTPUT_PERIOD          = 1U << 13,
 	PERF_OUTPUT_IREGS	    = 1U << 14,
+	PERF_OUTPUT_BRSTACK	    = 1U << 15,
+	PERF_OUTPUT_BRSTACKSYM	    = 1U << 16,
 };
 
 struct output_option {
@@ -72,6 +74,8 @@ struct output_option {
 	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
 	{.str = "period", .field = PERF_OUTPUT_PERIOD},
 	{.str = "iregs", .field = PERF_OUTPUT_IREGS},
+	{.str = "brstack", .field = PERF_OUTPUT_BRSTACK},
+	{.str = "brstacksym", .field = PERF_OUTPUT_BRSTACKSYM},
 };
 
 /* default set to maintain compatibility with current format */
@@ -425,6 +429,77 @@ static void print_sample_start(struct perf_sample *sample,
 	}
 }
 
+static inline char
+mispred_str(struct branch_entry *br)
+{
+	if (!(br->flags.mispred  || br->flags.predicted))
+		return '-';
+
+	return br->flags.predicted ? 'P' : 'M';
+}
+
+static void print_sample_brstack(union perf_event *event __maybe_unused,
+			  struct perf_sample *sample,
+			  struct thread *thread __maybe_unused,
+			  struct perf_event_attr *attr __maybe_unused)
+{
+	struct branch_stack *br = sample->branch_stack;
+	u64 i;
+
+	if (!(br && br->nr))
+		return;
+
+	for (i = 0; i < br->nr; i++) {
+		printf(" 0x%"PRIx64"/0x%"PRIx64"/%c/%c/%c/%d ",
+			br->entries[i].from,
+			br->entries[i].to,
+			mispred_str( br->entries + i),
+			br->entries[i].flags.in_tx? 'X' : '-',
+			br->entries[i].flags.abort? 'A' : '-',
+			br->entries[i].flags.cycles);
+	}
+}
+
+static void print_sample_brstacksym(union perf_event *event __maybe_unused,
+			  struct perf_sample *sample,
+			  struct thread *thread __maybe_unused,
+			  struct perf_event_attr *attr __maybe_unused)
+{
+	struct branch_stack *br = sample->branch_stack;
+	struct addr_location alf, alt;
+	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	u64 i, from, to;
+
+	if (!(br && br->nr))
+		return;
+
+	for (i = 0; i < br->nr; i++) {
+
+		memset(&alf, 0, sizeof(alf));
+		memset(&alt, 0, sizeof(alt));
+		from = br->entries[i].from;
+		to   = br->entries[i].to;
+
+		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, from, &alf);
+		if (alf.map)
+			alf.sym = map__find_symbol(alf.map, alf.addr, NULL);
+
+		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, to, &alt);
+		if (alt.map)
+			alt.sym = map__find_symbol(alt.map, alt.addr, NULL);
+
+		symbol__fprintf_symname_offs(alf.sym, &alf, stdout);
+		putchar('/');
+		symbol__fprintf_symname_offs(alt.sym, &alt, stdout);
+		printf("/%c/%c/%c/%d ",
+			mispred_str( br->entries + i),
+			br->entries[i].flags.in_tx? 'X' : '-',
+			br->entries[i].flags.abort? 'A' : '-',
+			br->entries[i].flags.cycles);
+	}
+}
+
+
 static void print_sample_addr(union perf_event *event,
 			  struct perf_sample *sample,
 			  struct thread *thread,
@@ -559,6 +634,11 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 
 	if (PRINT_FIELD(IREGS))
 		print_sample_iregs(event, sample, thread, attr);
+
+	if (PRINT_FIELD(BRSTACK))
+		print_sample_brstack(event, sample, thread, attr);
+	else if (PRINT_FIELD(BRSTACKSYM))
+		print_sample_brstacksym(event, sample, thread, attr);
 
 	printf("\n");
 }
@@ -1681,7 +1761,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff,period,iregs,flags", parse_output_fields),
+		     "addr,symoff,period,iregs,brstack,brstacksym,flags", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
