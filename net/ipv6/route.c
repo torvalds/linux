@@ -1698,6 +1698,7 @@ out:
 static int ip6_convert_metrics(struct mx6_config *mxc,
 			       const struct fib6_config *cfg)
 {
+	bool ecn_ca = false;
 	struct nlattr *nla;
 	int remaining;
 	u32 *mp;
@@ -1711,30 +1712,36 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 
 	nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
 		int type = nla_type(nla);
+		u32 val;
 
-		if (type) {
-			u32 val;
+		if (!type)
+			continue;
+		if (unlikely(type > RTAX_MAX))
+			goto err;
 
-			if (unlikely(type > RTAX_MAX))
+		if (type == RTAX_CC_ALGO) {
+			char tmp[TCP_CA_NAME_MAX];
+
+			nla_strlcpy(tmp, nla, sizeof(tmp));
+			val = tcp_ca_get_key_by_name(tmp, &ecn_ca);
+			if (val == TCP_CA_UNSPEC)
 				goto err;
-			if (type == RTAX_CC_ALGO) {
-				char tmp[TCP_CA_NAME_MAX];
-
-				nla_strlcpy(tmp, nla, sizeof(tmp));
-				val = tcp_ca_get_key_by_name(tmp);
-				if (val == TCP_CA_UNSPEC)
-					goto err;
-			} else {
-				val = nla_get_u32(nla);
-			}
-
-			mp[type - 1] = val;
-			__set_bit(type - 1, mxc->mx_valid);
+		} else {
+			val = nla_get_u32(nla);
 		}
+		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
+			goto err;
+
+		mp[type - 1] = val;
+		__set_bit(type - 1, mxc->mx_valid);
+	}
+
+	if (ecn_ca) {
+		__set_bit(RTAX_FEATURES - 1, mxc->mx_valid);
+		mp[RTAX_FEATURES - 1] |= DST_FEATURE_ECN_CA;
 	}
 
 	mxc->mx = mp;
-
 	return 0;
  err:
 	kfree(mp);

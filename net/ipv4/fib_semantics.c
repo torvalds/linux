@@ -876,6 +876,50 @@ static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 	return true;
 }
 
+static int
+fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
+{
+	bool ecn_ca = false;
+	struct nlattr *nla;
+	int remaining;
+
+	if (!cfg->fc_mx)
+		return 0;
+
+	nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
+		int type = nla_type(nla);
+		u32 val;
+
+		if (!type)
+			continue;
+		if (type > RTAX_MAX)
+			return -EINVAL;
+
+		if (type == RTAX_CC_ALGO) {
+			char tmp[TCP_CA_NAME_MAX];
+
+			nla_strlcpy(tmp, nla, sizeof(tmp));
+			val = tcp_ca_get_key_by_name(tmp, &ecn_ca);
+			if (val == TCP_CA_UNSPEC)
+				return -EINVAL;
+		} else {
+			val = nla_get_u32(nla);
+		}
+		if (type == RTAX_ADVMSS && val > 65535 - 40)
+			val = 65535 - 40;
+		if (type == RTAX_MTU && val > 65535 - 15)
+			val = 65535 - 15;
+		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
+			return -EINVAL;
+		fi->fib_metrics[type - 1] = val;
+	}
+
+	if (ecn_ca)
+		fi->fib_metrics[RTAX_FEATURES - 1] |= DST_FEATURE_ECN_CA;
+
+	return 0;
+}
+
 struct fib_info *fib_create_info(struct fib_config *cfg)
 {
 	int err;
@@ -948,36 +992,9 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			goto failure;
 	} endfor_nexthops(fi)
 
-	if (cfg->fc_mx) {
-		struct nlattr *nla;
-		int remaining;
-
-		nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
-			int type = nla_type(nla);
-
-			if (type) {
-				u32 val;
-
-				if (type > RTAX_MAX)
-					goto err_inval;
-				if (type == RTAX_CC_ALGO) {
-					char tmp[TCP_CA_NAME_MAX];
-
-					nla_strlcpy(tmp, nla, sizeof(tmp));
-					val = tcp_ca_get_key_by_name(tmp);
-					if (val == TCP_CA_UNSPEC)
-						goto err_inval;
-				} else {
-					val = nla_get_u32(nla);
-				}
-				if (type == RTAX_ADVMSS && val > 65535 - 40)
-					val = 65535 - 40;
-				if (type == RTAX_MTU && val > 65535 - 15)
-					val = 65535 - 15;
-				fi->fib_metrics[type - 1] = val;
-			}
-		}
-	}
+	err = fib_convert_metrics(fi, cfg);
+	if (err)
+		goto failure;
 
 	if (cfg->fc_mp) {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH

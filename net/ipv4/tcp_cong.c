@@ -114,16 +114,19 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 }
 EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
 
-u32 tcp_ca_get_key_by_name(const char *name)
+u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca)
 {
 	const struct tcp_congestion_ops *ca;
-	u32 key;
+	u32 key = TCP_CA_UNSPEC;
 
 	might_sleep();
 
 	rcu_read_lock();
 	ca = __tcp_ca_find_autoload(name);
-	key = ca ? ca->key : TCP_CA_UNSPEC;
+	if (ca) {
+		key = ca->key;
+		*ecn_ca = ca->flags & TCP_CONG_NEEDS_ECN;
+	}
 	rcu_read_unlock();
 
 	return key;
