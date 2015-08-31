@@ -105,6 +105,10 @@ struct img_spfi {
 	bool rx_dma_busy;
 };
 
+struct img_spfi_device_data {
+	bool gpio_requested;
+};
+
 static inline u32 spfi_readl(struct img_spfi *spfi, u32 reg)
 {
 	return readl(spfi->regs + reg);
@@ -267,14 +271,14 @@ static int img_spfi_start_pio(struct spi_master *master,
 		cpu_relax();
 	}
 
-	ret = spfi_wait_all_done(spfi);
-	if (ret < 0)
-		return ret;
-
 	if (rx_bytes > 0 || tx_bytes > 0) {
 		dev_err(spfi->dev, "PIO transfer timed out\n");
 		return -ETIMEDOUT;
 	}
+
+	ret = spfi_wait_all_done(spfi);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -440,21 +444,50 @@ static int img_spfi_unprepare(struct spi_master *master,
 
 static int img_spfi_setup(struct spi_device *spi)
 {
-	int ret;
+	int ret = -EINVAL;
+	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
 
-	ret = gpio_request_one(spi->cs_gpio, (spi->mode & SPI_CS_HIGH) ?
-			       GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
-			       dev_name(&spi->dev));
-	if (ret)
-		dev_err(&spi->dev, "can't request chipselect gpio %d\n",
+	if (!spfi_data) {
+		spfi_data = kzalloc(sizeof(*spfi_data), GFP_KERNEL);
+		if (!spfi_data)
+			return -ENOMEM;
+		spfi_data->gpio_requested = false;
+		spi_set_ctldata(spi, spfi_data);
+	}
+	if (!spfi_data->gpio_requested) {
+		ret = gpio_request_one(spi->cs_gpio,
+				       (spi->mode & SPI_CS_HIGH) ?
+				       GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
+				       dev_name(&spi->dev));
+		if (ret)
+			dev_err(&spi->dev, "can't request chipselect gpio %d\n",
 				spi->cs_gpio);
+		else
+			spfi_data->gpio_requested = true;
+	} else {
+		if (gpio_is_valid(spi->cs_gpio)) {
+			int mode = ((spi->mode & SPI_CS_HIGH) ?
+				    GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
 
+			ret = gpio_direction_output(spi->cs_gpio, mode);
+			if (ret)
+				dev_err(&spi->dev, "chipselect gpio %d setup failed (%d)\n",
+					spi->cs_gpio, ret);
+		}
+	}
 	return ret;
 }
 
 static void img_spfi_cleanup(struct spi_device *spi)
 {
-	gpio_free(spi->cs_gpio);
+	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
+
+	if (spfi_data) {
+		if (spfi_data->gpio_requested)
+			gpio_free(spi->cs_gpio);
+		kfree(spfi_data);
+		spi_set_ctldata(spi, NULL);
+	}
 }
 
 static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
