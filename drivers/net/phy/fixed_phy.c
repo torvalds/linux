@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/gpio.h>
 
 #define MII_REGS_NUM 29
 
@@ -38,6 +39,7 @@ struct fixed_phy {
 	struct fixed_phy_status status;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
 	struct list_head node;
+	int link_gpio;
 };
 
 static struct platform_device *pdev;
@@ -51,6 +53,9 @@ static int fixed_phy_update_regs(struct fixed_phy *fp)
 	u16 bmcr = 0;
 	u16 lpagb = 0;
 	u16 lpa = 0;
+
+	if (gpio_is_valid(fp->link_gpio))
+		fp->status.link = !!gpio_get_value_cansleep(fp->link_gpio);
 
 	if (!fp->status.link)
 		goto done;
@@ -215,7 +220,8 @@ int fixed_phy_update_state(struct phy_device *phydev,
 EXPORT_SYMBOL(fixed_phy_update_state);
 
 int fixed_phy_add(unsigned int irq, int phy_addr,
-		  struct fixed_phy_status *status)
+		  struct fixed_phy_status *status,
+		  int link_gpio)
 {
 	int ret;
 	struct fixed_mdio_bus *fmb = &platform_fmb;
@@ -231,15 +237,26 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 
 	fp->addr = phy_addr;
 	fp->status = *status;
+	fp->link_gpio = link_gpio;
+
+	if (gpio_is_valid(fp->link_gpio)) {
+		ret = gpio_request_one(fp->link_gpio, GPIOF_DIR_IN,
+				       "fixed-link-gpio-link");
+		if (ret)
+			goto err_regs;
+	}
 
 	ret = fixed_phy_update_regs(fp);
 	if (ret)
-		goto err_regs;
+		goto err_gpio;
 
 	list_add_tail(&fp->node, &fmb->phys);
 
 	return 0;
 
+err_gpio:
+	if (gpio_is_valid(fp->link_gpio))
+		gpio_free(fp->link_gpio);
 err_regs:
 	kfree(fp);
 	return ret;
@@ -254,6 +271,8 @@ void fixed_phy_del(int phy_addr)
 	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			list_del(&fp->node);
+			if (gpio_is_valid(fp->link_gpio))
+				gpio_free(fp->link_gpio);
 			kfree(fp);
 			return;
 		}
@@ -266,6 +285,7 @@ static DEFINE_SPINLOCK(phy_fixed_addr_lock);
 
 struct phy_device *fixed_phy_register(unsigned int irq,
 				      struct fixed_phy_status *status,
+				      int link_gpio,
 				      struct device_node *np)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
@@ -282,7 +302,7 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 	phy_addr = phy_fixed_addr++;
 	spin_unlock(&phy_fixed_addr_lock);
 
-	ret = fixed_phy_add(PHY_POLL, phy_addr, status);
+	ret = fixed_phy_add(PHY_POLL, phy_addr, status, link_gpio);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

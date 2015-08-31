@@ -16,6 +16,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
@@ -294,6 +295,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 	struct fixed_phy_status status = {};
 	struct device_node *fixed_link_node;
 	const __be32 *fixed_link_prop;
+	int link_gpio;
 	int len, err;
 	struct phy_device *phy;
 	const char *managed;
@@ -302,7 +304,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 	if (err == 0) {
 		if (strcmp(managed, "in-band-status") == 0) {
 			/* status is zeroed, namely its .link member */
-			phy = fixed_phy_register(PHY_POLL, &status, np);
+			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
 			return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 		}
 	}
@@ -318,8 +320,13 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.pause = of_property_read_bool(fixed_link_node, "pause");
 		status.asym_pause = of_property_read_bool(fixed_link_node,
 							  "asym-pause");
+		link_gpio = of_get_named_gpio_flags(fixed_link_node,
+						    "link-gpios", 0, NULL);
 		of_node_put(fixed_link_node);
-		phy = fixed_phy_register(PHY_POLL, &status, np);
+		if (link_gpio == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		phy = fixed_phy_register(PHY_POLL, &status, link_gpio, np);
 		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 
@@ -331,7 +338,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.speed = be32_to_cpu(fixed_link_prop[2]);
 		status.pause = be32_to_cpu(fixed_link_prop[3]);
 		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
-		phy = fixed_phy_register(PHY_POLL, &status, np);
+		phy = fixed_phy_register(PHY_POLL, &status, -1, np);
 		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 
