@@ -143,7 +143,6 @@ static void geneve_rx(struct geneve_sock *gs, struct sk_buff *skb)
 
 	if (ip_tunnel_collect_metadata() || gs->collect_md) {
 		__be16 flags;
-		void *opts;
 
 		flags = TUNNEL_KEY | TUNNEL_GENEVE_OPT |
 			(gnvh->oam ? TUNNEL_OAM : 0) |
@@ -154,11 +153,9 @@ static void geneve_rx(struct geneve_sock *gs, struct sk_buff *skb)
 					 gnvh->opt_len * 4);
 		if (!tun_dst)
 			goto drop;
-
 		/* Update tunnel dst according to Geneve options. */
-		opts = ip_tunnel_info_opts(&tun_dst->u.tun_info,
-					   gnvh->opt_len * 4);
-		memcpy(opts, gnvh->options, gnvh->opt_len * 4);
+		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,
+					gnvh->options, gnvh->opt_len * 4);
 	} else {
 		/* Drop packets w/ critical options,
 		 * since we don't support any...
@@ -663,7 +660,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		tunnel_id_to_vni(key->tun_id, vni);
 		if (key->tun_flags & TUNNEL_GENEVE_OPT)
-			opts = ip_tunnel_info_opts(info, info->options_len);
+			opts = ip_tunnel_info_opts(info);
 
 		udp_csum = !!(key->tun_flags & TUNNEL_CSUM);
 		err = geneve_build_skb(rt, skb, key->tun_flags, vni,

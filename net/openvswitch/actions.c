@@ -793,11 +793,13 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			if (vport) {
 				int err;
 
+				upcall.egress_tun_info = &info;
 				err = ovs_vport_get_egress_tun_info(vport, skb,
-								    &info);
-				if (!err)
-					upcall.egress_tun_info = &info;
+								    &upcall);
+				if (err)
+					upcall.egress_tun_info = NULL;
 			}
+
 			break;
 		}
 

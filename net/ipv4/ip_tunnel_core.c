@@ -249,7 +249,6 @@ static int ip_tun_build_state(struct net_device *dev, struct nlattr *attr,
 		tun_info->key.tun_flags = nla_get_u16(tb[LWTUNNEL_IP_FLAGS]);
 
 	tun_info->mode = IP_TUNNEL_INFO_TX;
-	tun_info->options = NULL;
 	tun_info->options_len = 0;
 
 	*ts = new_state;
@@ -357,7 +356,6 @@ static int ip6_tun_build_state(struct net_device *dev, struct nlattr *attr,
 		tun_info->key.tun_flags = nla_get_u16(tb[LWTUNNEL_IP6_FLAGS]);
 
 	tun_info->mode = IP_TUNNEL_INFO_TX | IP_TUNNEL_INFO_IPV6;
-	tun_info->options = NULL;
 	tun_info->options_len = 0;
 
 	*ts = new_state;

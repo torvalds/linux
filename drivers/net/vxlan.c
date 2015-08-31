@@ -1271,7 +1271,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			goto drop;
 
 		info = &tun_dst->u.tun_info;
-		md = ip_tunnel_info_opts(info, sizeof(*md));
+		md = ip_tunnel_info_opts(info);
 	} else {
 		memset(md, 0, sizeof(*md));
 	}
@@ -1948,7 +1948,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		tos = info->key.tos;
 
 		if (info->options_len)
-			md = ip_tunnel_info_opts(info, sizeof(*md));
+			md = ip_tunnel_info_opts(info);
 	} else {
 		md->gbp = skb->mark;
 	}

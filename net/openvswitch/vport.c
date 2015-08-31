@@ -487,13 +487,14 @@ void ovs_vport_deferred_free(struct vport *vport)
 }
 EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
 
-int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
+int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
 			       struct net *net,
 			       struct sk_buff *skb,
 			       u8 ipproto,
 			       __be16 tp_src,
 			       __be16 tp_dst)
 {
+	struct ip_tunnel_info *egress_tun_info = upcall->egress_tun_info;
 	const struct ip_tunnel_info *tun_info = skb_tunnel_info(skb);
 	const struct ip_tunnel_key *tun_key;
 	u32 skb_mark = skb->mark;
@@ -520,26 +521,26 @@ int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 	/* Generate egress_tun_info based on tun_info,
 	 * saddr, tp_src and tp_dst
 	 */
-	__ip_tunnel_info_init(egress_tun_info,
-			      fl.saddr, tun_key->u.ipv4.dst,
-			      tun_key->tos,
-			      tun_key->ttl,
-			      tp_src, tp_dst,
-			      tun_key->tun_id,
-			      tun_key->tun_flags,
-			      tun_info->options,
-			      tun_info->options_len);
-
+	ip_tunnel_key_init(&egress_tun_info->key,
+			   fl.saddr, tun_key->u.ipv4.dst,
+			   tun_key->tos,
+			   tun_key->ttl,
+			   tp_src, tp_dst,
+			   tun_key->tun_id,
+			   tun_key->tun_flags);
+	egress_tun_info->options_len = tun_info->options_len;
+	egress_tun_info->mode = tun_info->mode;
+	upcall->egress_tun_opts = ip_tunnel_info_opts(egress_tun_info);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ovs_tunnel_get_egress_info);
 
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct ip_tunnel_info *info)
+				  struct dp_upcall_info *upcall)
 {
 	/* get_egress_tun_info() is only implemented on tunnel ports. */
 	if (unlikely(!vport->ops->get_egress_tun_info))
 		return -EINVAL;
 
-	return vport->ops->get_egress_tun_info(vport, skb, info);
+	return vport->ops->get_egress_tun_info(vport, skb, upcall);
 }

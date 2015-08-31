@@ -57,7 +57,6 @@ struct ip_tunnel_key {
 
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
-	const void		*options;
 	u8			options_len;
 	u8			mode;
 };
@@ -180,49 +179,32 @@ int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
 int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
 			    unsigned int num);
 
-static inline void __ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
-					 __be32 saddr, __be32 daddr,
-					 u8 tos, u8 ttl,
-					 __be16 tp_src, __be16 tp_dst,
-					 __be64 tun_id, __be16 tun_flags,
-					 const void *opts, u8 opts_len)
+static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
+				      __be32 saddr, __be32 daddr,
+				      u8 tos, u8 ttl,
+				      __be16 tp_src, __be16 tp_dst,
+				      __be64 tun_id, __be16 tun_flags)
 {
-	tun_info->key.tun_id = tun_id;
-	tun_info->key.u.ipv4.src = saddr;
-	tun_info->key.u.ipv4.dst = daddr;
-	memset((unsigned char *)&tun_info->key + IP_TUNNEL_KEY_IPV4_PAD,
+	key->tun_id = tun_id;
+	key->u.ipv4.src = saddr;
+	key->u.ipv4.dst = daddr;
+	memset((unsigned char *)key + IP_TUNNEL_KEY_IPV4_PAD,
 	       0, IP_TUNNEL_KEY_IPV4_PAD_LEN);
-	tun_info->key.tos = tos;
-	tun_info->key.ttl = ttl;
-	tun_info->key.tun_flags = tun_flags;
+	key->tos = tos;
+	key->ttl = ttl;
+	key->tun_flags = tun_flags;
 
 	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
 	 * the upper tunnel are used.
 	 * E.g: GRE over IPSEC, the tp_src and tp_port are zero.
 	 */
-	tun_info->key.tp_src = tp_src;
-	tun_info->key.tp_dst = tp_dst;
+	key->tp_src = tp_src;
+	key->tp_dst = tp_dst;
 
 	/* Clear struct padding. */
-	if (sizeof(tun_info->key) != IP_TUNNEL_KEY_SIZE)
-		memset((unsigned char *)&tun_info->key + IP_TUNNEL_KEY_SIZE,
-		       0, sizeof(tun_info->key) - IP_TUNNEL_KEY_SIZE);
-
-	tun_info->options = opts;
-	tun_info->options_len = opts_len;
-
-	tun_info->mode = 0;
-}
-
-static inline void ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
-				       const struct iphdr *iph,
-				       __be16 tp_src, __be16 tp_dst,
-				       __be64 tun_id, __be16 tun_flags,
-				       const void *opts, u8 opts_len)
-{
-	__ip_tunnel_info_init(tun_info, iph->saddr, iph->daddr,
-			      iph->tos, iph->ttl, tp_src, tp_dst,
-			      tun_id, tun_flags, opts, opts_len);
+	if (sizeof(*key) != IP_TUNNEL_KEY_SIZE)
+		memset((unsigned char *)key + IP_TUNNEL_KEY_SIZE,
+		       0, sizeof(*key) - IP_TUNNEL_KEY_SIZE);
 }
 
 static inline unsigned short ip_tunnel_info_af(const struct ip_tunnel_info
@@ -317,9 +299,22 @@ static inline void iptunnel_xmit_stats(int err,
 	}
 }
 
-static inline void *ip_tunnel_info_opts(struct ip_tunnel_info *info, size_t n)
+static inline void *ip_tunnel_info_opts(struct ip_tunnel_info *info)
 {
 	return info + 1;
+}
+
+static inline void ip_tunnel_info_opts_get(void *to,
+					   const struct ip_tunnel_info *info)
+{
+	memcpy(to, info + 1, info->options_len);
+}
+
+static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
+					   const void *from, int len)
+{
+	memcpy(ip_tunnel_info_opts(info), from, len);
+	info->options_len = len;
 }
 
 static inline struct ip_tunnel_info *lwt_tun_info(struct lwtunnel_state *lwtstate)

@@ -702,12 +702,13 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			return -EINVAL;
 		memcpy(&key->tun_key, &tun_info->key, sizeof(key->tun_key));
 
-		if (tun_info->options) {
+		if (tun_info->options_len) {
 			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
 						   8)) - 1
 					> sizeof(key->tun_opts));
-			memcpy(TUN_METADATA_OPTS(key, tun_info->options_len),
-			       tun_info->options, tun_info->options_len);
+
+			ip_tunnel_info_opts_get(TUN_METADATA_OPTS(key, tun_info->options_len),
+						tun_info);
 			key->tun_opts_len = tun_info->options_len;
 		} else {
 			key->tun_opts_len = 0;

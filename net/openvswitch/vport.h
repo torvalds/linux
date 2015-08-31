@@ -53,14 +53,15 @@ int ovs_vport_set_upcall_portids(struct vport *, const struct nlattr *pids);
 int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
-int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
+int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
 			       struct net *net,
 			       struct sk_buff *,
 			       u8 ipproto,
 			       __be16 tp_src,
 			       __be16 tp_dst);
+
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct ip_tunnel_info *info);
+				  struct dp_upcall_info *upcall);
 
 /**
  * struct vport_portids - array of netlink portids of a vport.
@@ -154,7 +155,7 @@ struct vport_ops {
 
 	void (*send)(struct vport *, struct sk_buff *);
 	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
-				   struct ip_tunnel_info *);
+				   struct dp_upcall_info *upcall);
 
 	struct module *owner;
 	struct list_head list;

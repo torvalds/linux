@@ -716,10 +716,11 @@ static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 }
 
 int ovs_nla_put_egress_tunnel_key(struct sk_buff *skb,
-				  const struct ip_tunnel_info *egress_tun_info)
+				  const struct ip_tunnel_info *egress_tun_info,
+				  const void *egress_tun_opts)
 {
 	return __ipv4_tun_to_nlattr(skb, &egress_tun_info->key,
-				    egress_tun_info->options,
+				    egress_tun_opts,
 				    egress_tun_info->options_len);
 }
 
@@ -1876,20 +1877,14 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	tun_info = &tun_dst->u.tun_info;
 	tun_info->mode = IP_TUNNEL_INFO_TX;
 	tun_info->key = key.tun_key;
-	tun_info->options_len = key.tun_opts_len;
 
-	if (tun_info->options_len) {
-		/* We need to store the options in the action itself since
-		 * everything else will go away after flow setup. We can append
-		 * it to tun_info and then point there.
-		 */
-		memcpy((tun_info + 1),
-		       TUN_METADATA_OPTS(&key, key.tun_opts_len), key.tun_opts_len);
-		tun_info->options = (tun_info + 1);
-	} else {
-		tun_info->options = NULL;
-	}
-
+	/* We need to store the options in the action itself since
+	 * everything else will go away after flow setup. We can append
+	 * it to tun_info and then point there.
+	 */
+	ip_tunnel_info_opts_set(tun_info,
+				TUN_METADATA_OPTS(&key, key.tun_opts_len),
+				key.tun_opts_len);
 	add_nested_action_end(*sfa, start);
 
 	return err;
@@ -2345,7 +2340,7 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 
 		err = ipv4_tun_to_nlattr(skb, &tun_info->key,
 					 tun_info->options_len ?
-						tun_info->options : NULL,
+					     ip_tunnel_info_opts(tun_info) : NULL,
 					 tun_info->options_len);
 		if (err)
 			return err;
