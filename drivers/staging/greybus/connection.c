@@ -451,19 +451,20 @@ void gb_hd_connections_exit(struct greybus_host_device *hd)
 		gb_connection_destroy(connection);
 }
 
-void gb_connection_bind_protocol(struct gb_connection *connection)
+int gb_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;
+	int ret;
 
 	/* If we already have a protocol bound here, just return */
 	if (connection->protocol)
-		return;
+		return 0;
 
 	protocol = gb_protocol_get(connection->protocol_id,
 				   connection->major,
 				   connection->minor);
 	if (!protocol)
-		return;
+		return 0;
 	connection->protocol = protocol;
 
 	/*
@@ -472,6 +473,14 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
 	 */
 	if ((!connection->bundle &&
 	     connection->hd_cport_id == GB_SVC_CPORT_ID) ||
-	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD)
-		gb_connection_init(connection);
+	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD) {
+		ret = gb_connection_init(connection);
+		if (ret) {
+			gb_protocol_put(protocol);
+			connection->protocol = NULL;
+			return ret;
+		}
+	}
+
+	return 0;
 }

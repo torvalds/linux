@@ -68,6 +68,6 @@ void gb_connection_push_timestamp(struct gb_connection *connection);
 int gb_connection_pop_timestamp(struct gb_connection *connection,
 				struct timeval *tv);
 
-void gb_connection_bind_protocol(struct gb_connection *connection);
+int gb_connection_bind_protocol(struct gb_connection *connection);
 
 #endif /* __CONNECTION_H */
