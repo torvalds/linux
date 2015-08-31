@@ -548,10 +548,10 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	 */
 	num_of_segments = 0;
 	for (i = 0; (i < count && (buf[i] != '\0') && (buf[i] != '\n')); i++) {
-		for (j = i; (buf[j] != ':') &&
+		for (j = i; j < count &&
+			(buf[j] != ':') &&
 			(buf[j] != '\0') &&
-			(buf[j] != '\n') &&
-			j < count; j++) {
+			(buf[j] != '\n'); j++) {
 			local_buf[j-i] = toupper(buf[j]);
 		}
 		local_buf[j-i] = '\0';
@@ -723,7 +723,7 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	/*
 	 * parse input
 	 */
-	for (i = 0; ((*(buf+i)!='\0') && (*(buf+i)!='\n') && i < count); i++) {
+	for (i = 0; (i < count && (*(buf+i)!='\0') && (*(buf+i)!='\n')); i++) {
 		local_buf[i] = toupper(buf[i]);
 	}
 	local_buf[i] = '\0';
@@ -904,10 +904,10 @@ dcssblk_check_params(void)
 
 	for (i = 0; (i < DCSSBLK_PARM_LEN) && (dcssblk_segments[i] != '\0');
 	     i++) {
-		for (j = i; (dcssblk_segments[j] != ',')  &&
+		for (j = i; (j < DCSSBLK_PARM_LEN) &&
+			    (dcssblk_segments[j] != ',')  &&
 			    (dcssblk_segments[j] != '\0') &&
-			    (dcssblk_segments[j] != '(')  &&
-			    (j < DCSSBLK_PARM_LEN); j++)
+			    (dcssblk_segments[j] != '('); j++)
 		{
 			buf[j-i] = dcssblk_segments[j];
 		}

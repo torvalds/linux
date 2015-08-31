@@ -1372,7 +1372,7 @@ static int ap_probe_device_type(struct ap_device *ap_dev)
 
 	/* Wait for the test message to complete. */
 	for (i = 0; i < 6; i++) {
-		mdelay(300);
+		msleep(300);
 		status = __ap_recv(ap_dev->qid, &psmid, reply, 4096);
 		if (status.response_code == AP_RESPONSE_NORMAL &&
 		    psmid == 0x0102030405060708ULL)
