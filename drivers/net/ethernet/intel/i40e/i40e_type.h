@@ -167,6 +167,24 @@ struct i40e_link_status {
 	bool crc_enable;
 	u8 pacing;
 	u8 requested_speeds;
+	u8 module_type[3];
+	/* 1st byte: module identifier */
+#define I40E_MODULE_TYPE_SFP		0x03
+#define I40E_MODULE_TYPE_QSFP		0x0D
+	/* 2nd byte: ethernet compliance codes for 10/40G */
+#define I40E_MODULE_TYPE_40G_ACTIVE	0x01
+#define I40E_MODULE_TYPE_40G_LR4	0x02
+#define I40E_MODULE_TYPE_40G_SR4	0x04
+#define I40E_MODULE_TYPE_40G_CR4	0x08
+#define I40E_MODULE_TYPE_10G_BASE_SR	0x10
+#define I40E_MODULE_TYPE_10G_BASE_LR	0x20
+#define I40E_MODULE_TYPE_10G_BASE_LRM	0x40
+#define I40E_MODULE_TYPE_10G_BASE_ER	0x80
+	/* 3rd byte: ethernet compliance codes for 1G */
+#define I40E_MODULE_TYPE_1000BASE_SX	0x01
+#define I40E_MODULE_TYPE_1000BASE_LX	0x02
+#define I40E_MODULE_TYPE_1000BASE_CX	0x04
+#define I40E_MODULE_TYPE_1000BASE_T	0x08
 };
 
 struct i40e_phy_info {

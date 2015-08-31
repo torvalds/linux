@@ -1717,14 +1717,14 @@ enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 			*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
 	}
 	/* Update the link info */
-	status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+	status = i40e_update_link_info(hw);
 	if (status) {
 		/* Wait a little bit (on 40G cards it sometimes takes a really
 		 * long time for link to come back from the atomic reset)
 		 * and try once more
 		 */
 		msleep(1000);
-		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+		status = i40e_update_link_info(hw);
 	}
 	if (status)
 		*aq_failures |= I40E_SET_FC_AQ_FAIL_UPDATE;
@@ -2247,7 +2247,7 @@ i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
 	i40e_status status = 0;
 
 	if (hw->phy.get_link_info) {
-		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+		status = i40e_update_link_info(hw);
 
 		if (status)
 			i40e_debug(hw, I40E_DEBUG_LINK, "get link failed: status %d\n",
@@ -2255,6 +2255,30 @@ i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
 	}
 
 	*link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
+
+	return status;
+}
+
+/**
+ * i40e_updatelink_status - update status of the HW network link
+ * @hw: pointer to the hw struct
+ **/
+i40e_status i40e_update_link_info(struct i40e_hw *hw)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	i40e_status status = 0;
+
+	status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+	if (status)
+		return status;
+
+	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
+					      NULL);
+	if (status)
+		return status;
+
+	memcpy(hw->phy.link_info.module_type, &abilities.module_type,
+	       sizeof(hw->phy.link_info.module_type));
 
 	return status;
 }

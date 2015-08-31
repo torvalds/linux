@@ -307,12 +307,18 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	case I40E_PHY_TYPE_10GBASE_LR:
 	case I40E_PHY_TYPE_1000BASE_SX:
 	case I40E_PHY_TYPE_1000BASE_LX:
-		ecmd->supported = SUPPORTED_10000baseT_Full |
-				  SUPPORTED_1000baseT_Full;
+		ecmd->supported = SUPPORTED_10000baseT_Full;
+		if (hw_link_info->module_type[2] &
+		    I40E_MODULE_TYPE_1000BASE_SX ||
+		    hw_link_info->module_type[2] &
+		    I40E_MODULE_TYPE_1000BASE_LX) {
+			ecmd->supported |= SUPPORTED_1000baseT_Full;
+			if (hw_link_info->requested_speeds &
+			    I40E_LINK_SPEED_1GB)
+				ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		}
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
-		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
 		break;
 	case I40E_PHY_TYPE_1000BASE_KX:
 		ecmd->supported = SUPPORTED_Autoneg |
@@ -704,7 +710,7 @@ static int i40e_set_settings(struct net_device *netdev,
 			return -EAGAIN;
 		}
 
-		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+		status = i40e_update_link_info(hw);
 		if (status)
 			netdev_info(netdev, "Updating link info failed with err %s aq_err %s\n",
 				    i40e_stat_str(hw, status),
