@@ -6,6 +6,7 @@
 #include "util/exec_cmd.h"
 #include "util/header.h"
 #include "util/parse-options.h"
+#include "util/perf_regs.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/symbol.h"
@@ -46,6 +47,7 @@ enum perf_output_field {
 	PERF_OUTPUT_SYMOFFSET       = 1U << 11,
 	PERF_OUTPUT_SRCLINE         = 1U << 12,
 	PERF_OUTPUT_PERIOD          = 1U << 13,
+	PERF_OUTPUT_IREGS	    = 1U << 14,
 };
 
 struct output_option {
@@ -66,6 +68,7 @@ struct output_option {
 	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
 	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
 	{.str = "period", .field = PERF_OUTPUT_PERIOD},
+	{.str = "iregs", .field = PERF_OUTPUT_IREGS},
 };
 
 /* default set to maintain compatibility with current format */
@@ -255,6 +258,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 					PERF_OUTPUT_PERIOD))
 		return -EINVAL;
 
+	if (PRINT_FIELD(IREGS) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS",
+					PERF_OUTPUT_IREGS))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -350,6 +358,24 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 out:
 	return 0;
+}
+
+static void print_sample_iregs(union perf_event *event __maybe_unused,
+			  struct perf_sample *sample,
+			  struct thread *thread __maybe_unused,
+			  struct perf_event_attr *attr)
+{
+	struct regs_dump *regs = &sample->intr_regs;
+	uint64_t mask = attr->sample_regs_intr;
+	unsigned i = 0, r;
+
+	if (!regs)
+		return;
+
+	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
+		u64 val = regs->regs[i++];
+		printf("%5s:0x%"PRIx64" ", perf_reg_name(r), val);
+	}
 }
 
 static void print_sample_start(struct perf_sample *sample,
@@ -524,6 +550,9 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 				     output[attr->type].print_ip_opts,
 				     PERF_MAX_STACK_DEPTH);
 	}
+
+	if (PRINT_FIELD(IREGS))
+		print_sample_iregs(event, sample, thread, attr);
 
 	printf("\n");
 }
@@ -1643,7 +1672,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff,period,flags", parse_output_fields),
+		     "addr,symoff,period,iregs,flags", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
