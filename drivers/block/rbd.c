@@ -4720,7 +4720,10 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 	}
 
 	ret = rbd_dev_v2_snap_context(rbd_dev);
-	dout("rbd_dev_v2_snap_context returned %d\n", ret);
+	if (ret && first_time) {
+		kfree(rbd_dev->header.object_prefix);
+		rbd_dev->header.object_prefix = NULL;
+	}
 
 	return ret;
 }
