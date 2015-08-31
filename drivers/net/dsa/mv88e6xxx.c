@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/if_bridge.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
@@ -558,6 +559,63 @@ static bool mv88e6xxx_6352_family(struct dsa_switch *ds)
 		return true;
 	}
 	return false;
+}
+
+/* We expect the switch to perform auto negotiation if there is a real
+ * phy. However, in the case of a fixed link phy, we force the port
+ * settings from the fixed link settings.
+ */
+void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
+			   struct phy_device *phydev)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u32 ret, reg;
+
+	if (!phy_is_pseudo_fixed_link(phydev))
+		return;
+
+	mutex_lock(&ps->smi_mutex);
+
+	ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_PCS_CTRL);
+	if (ret < 0)
+		goto out;
+
+	reg = ret & ~(PORT_PCS_CTRL_LINK_UP |
+		      PORT_PCS_CTRL_FORCE_LINK |
+		      PORT_PCS_CTRL_DUPLEX_FULL |
+		      PORT_PCS_CTRL_FORCE_DUPLEX |
+		      PORT_PCS_CTRL_UNFORCED);
+
+	reg |= PORT_PCS_CTRL_FORCE_LINK;
+	if (phydev->link)
+			reg |= PORT_PCS_CTRL_LINK_UP;
+
+	if (mv88e6xxx_6065_family(ds) && phydev->speed > SPEED_100)
+		goto out;
+
+	switch (phydev->speed) {
+	case SPEED_1000:
+		reg |= PORT_PCS_CTRL_1000;
+		break;
+	case SPEED_100:
+		reg |= PORT_PCS_CTRL_100;
+		break;
+	case SPEED_10:
+		reg |= PORT_PCS_CTRL_10;
+		break;
+	default:
+		pr_info("Unknown speed");
+		goto out;
+	}
+
+	reg |= PORT_PCS_CTRL_FORCE_DUPLEX;
+	if (phydev->duplex == DUPLEX_FULL)
+		reg |= PORT_PCS_CTRL_DUPLEX_FULL;
+
+	_mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_PCS_CTRL, reg);
+
+out:
+	mutex_unlock(&ps->smi_mutex);
 }
 
 /* Must be called with SMI mutex held */
