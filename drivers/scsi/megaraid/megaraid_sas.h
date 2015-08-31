@@ -273,6 +273,16 @@ enum MFI_STAT {
 	MFI_STAT_INVALID_STATUS = 0xFF
 };
 
+enum mfi_evt_class {
+	MFI_EVT_CLASS_DEBUG =		-2,
+	MFI_EVT_CLASS_PROGRESS =	-1,
+	MFI_EVT_CLASS_INFO =		0,
+	MFI_EVT_CLASS_WARNING =		1,
+	MFI_EVT_CLASS_CRITICAL =	2,
+	MFI_EVT_CLASS_FATAL =		3,
+	MFI_EVT_CLASS_DEAD =		4
+};
+
 /*
  * Crash dump related defines
  */

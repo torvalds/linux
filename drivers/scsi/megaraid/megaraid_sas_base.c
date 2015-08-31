@@ -260,6 +260,66 @@ megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 
 }
 
+static const char *
+format_timestamp(uint32_t timestamp)
+{
+	static char buffer[32];
+
+	if ((timestamp & 0xff000000) == 0xff000000)
+		snprintf(buffer, sizeof(buffer), "boot + %us", timestamp &
+		0x00ffffff);
+	else
+		snprintf(buffer, sizeof(buffer), "%us", timestamp);
+	return buffer;
+}
+
+static const char *
+format_class(int8_t class)
+{
+	static char buffer[6];
+
+	switch (class) {
+	case MFI_EVT_CLASS_DEBUG:
+		return "debug";
+	case MFI_EVT_CLASS_PROGRESS:
+		return "progress";
+	case MFI_EVT_CLASS_INFO:
+		return "info";
+	case MFI_EVT_CLASS_WARNING:
+		return "WARN";
+	case MFI_EVT_CLASS_CRITICAL:
+		return "CRIT";
+	case MFI_EVT_CLASS_FATAL:
+		return "FATAL";
+	case MFI_EVT_CLASS_DEAD:
+		return "DEAD";
+	default:
+		snprintf(buffer, sizeof(buffer), "%d", class);
+		return buffer;
+	}
+}
+
+/**
+  * megasas_decode_evt: Decode FW AEN event and print critical event
+  * for information.
+  * @instance:			Adapter soft state
+  */
+static void
+megasas_decode_evt(struct megasas_instance *instance)
+{
+	struct megasas_evt_detail *evt_detail = instance->evt_detail;
+	union megasas_evt_class_locale class_locale;
+	class_locale.word = le32_to_cpu(evt_detail->cl.word);
+
+	if (class_locale.members.class >= MFI_EVT_CLASS_CRITICAL)
+		dev_info(&instance->pdev->dev, "%d (%s/0x%04x/%s) - %s\n",
+			le32_to_cpu(evt_detail->seq_num),
+			format_timestamp(le32_to_cpu(evt_detail->time_stamp)),
+			(class_locale.members.locale),
+			format_class(class_locale.members.class),
+			evt_detail->description);
+}
+
 /**
 *	The following functions are defined for xscale
 *	(deviceid : 1064R, PERC5) controllers
@@ -6602,6 +6662,7 @@ megasas_aen_polling(struct work_struct *work)
 	instance->ev = NULL;
 	host = instance->host;
 	if (instance->evt_detail) {
+		megasas_decode_evt(instance);
 
 		switch (le32_to_cpu(instance->evt_detail->code)) {
 		case MR_EVT_PD_INSERTED:
