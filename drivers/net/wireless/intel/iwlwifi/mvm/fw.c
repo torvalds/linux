@@ -134,6 +134,23 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
 }
 
+static int iwl_mvm_send_dqa_cmd(struct iwl_mvm *mvm)
+{
+	struct iwl_dqa_enable_cmd dqa_cmd = {
+		.cmd_queue = cpu_to_le32(IWL_MVM_DQA_CMD_QUEUE),
+	};
+	u32 cmd_id = iwl_cmd_id(DQA_ENABLE_CMD, DATA_PATH_GROUP, 0);
+	int ret;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, sizeof(dqa_cmd), &dqa_cmd);
+	if (ret)
+		IWL_ERR(mvm, "Failed to send DQA enabling command: %d\n", ret);
+	else
+		IWL_DEBUG_FW(mvm, "Working in DQA mode\n");
+
+	return ret;
+}
+
 void iwl_free_fw_paging(struct iwl_mvm *mvm)
 {
 	int i;
@@ -978,6 +995,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	/* reset quota debouncing buffer - 0xff will yield invalid data */
 	memset(&mvm->last_quota_cmd, 0xff, sizeof(mvm->last_quota_cmd));
+
+	/* Enable DQA-mode if required */
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		ret = iwl_mvm_send_dqa_cmd(mvm);
+		if (ret)
+			goto error;
+	} else {
+		IWL_DEBUG_FW(mvm, "Working in non-DQA mode\n");
+	}
 
 	/* Add auxiliary station for scanning */
 	ret = iwl_mvm_add_aux_sta(mvm);

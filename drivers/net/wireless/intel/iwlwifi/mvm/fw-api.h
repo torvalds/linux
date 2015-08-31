@@ -332,6 +332,7 @@ enum iwl_system_subcmd_ids {
 };
 
 enum iwl_data_path_subcmd_ids {
+	DQA_ENABLE_CMD = 0x0,
 	UPDATE_MU_GROUPS_CMD = 0x1,
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
 	MU_GROUP_MGMT_NOTIF = 0xFE,
@@ -360,6 +361,14 @@ enum {
 struct iwl_cmd_response {
 	__le32 status;
 };
+
+/*
+ * struct iwl_dqa_enable_cmd
+ * @cmd_queue: the TXQ number of the command queue
+ */
+struct iwl_dqa_enable_cmd {
+	__le32 cmd_queue;
+} __packed; /* DQA_CONTROL_CMD_API_S_VER_1 */
 
 /*
  * struct iwl_tx_ant_cfg_cmd
