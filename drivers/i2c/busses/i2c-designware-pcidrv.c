@@ -268,7 +268,6 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	i2c_dw_disable_int(dev);
-	i2c_dw_clear_int(dev);
 	r = i2c_add_numbered_adapter(adap);
 	if (r) {
 		dev_err(&pdev->dev, "failure adding adapter\n");
