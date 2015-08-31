@@ -1684,7 +1684,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 
 		if ((raidLUN[0] == 1) &&
-			(local_map_ptr->raidMap.devHndlInfo[io_info.pd_after_lb].validHandles > 2)) {
+			(local_map_ptr->raidMap.devHndlInfo[io_info.pd_after_lb].validHandles > 1)) {
 			instance->dev_handle = !(instance->dev_handle);
 			io_info.devHandle =
 				local_map_ptr->raidMap.devHndlInfo[io_info.pd_after_lb].devHandle[instance->dev_handle];
