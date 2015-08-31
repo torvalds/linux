@@ -1494,6 +1494,9 @@ pnfs_update_layout(struct inode *ino,
 	if (!pnfs_enabled_sb(NFS_SERVER(ino)))
 		goto out;
 
+	if (iomode == IOMODE_READ && i_size_read(ino) == 0)
+		goto out;
+
 	if (pnfs_within_mdsthreshold(ctx, ino, iomode))
 		goto out;
 
