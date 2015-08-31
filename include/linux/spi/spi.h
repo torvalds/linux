@@ -23,12 +23,67 @@
 #include <linux/scatterlist.h>
 
 struct dma_chan;
+struct spi_master;
+struct spi_transfer;
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
  * (There's no SPI slave support for Linux yet...)
  */
 extern struct bus_type spi_bus_type;
+
+/**
+ * struct spi_statistics - statistics for spi transfers
+ * @clock:         lock protecting this structure
+ *
+ * @messages:      number of spi-messages handled
+ * @transfers:     number of spi_transfers handled
+ * @errors:        number of errors during spi_transfer
+ * @timedout:      number of timeouts during spi_transfer
+ *
+ * @spi_sync:      number of times spi_sync is used
+ * @spi_sync_immediate:
+ *                 number of times spi_sync is executed immediately
+ *                 in calling context without queuing and scheduling
+ * @spi_async:     number of times spi_async is used
+ *
+ * @bytes:         number of bytes transferred to/from device
+ * @bytes_tx:      number of bytes sent to device
+ * @bytes_rx:      number of bytes received from device
+ *
+ */
+struct spi_statistics {
+	spinlock_t		lock; /* lock for the whole structure */
+
+	unsigned long		messages;
+	unsigned long		transfers;
+	unsigned long		errors;
+	unsigned long		timedout;
+
+	unsigned long		spi_sync;
+	unsigned long		spi_sync_immediate;
+	unsigned long		spi_async;
+
+	unsigned long long	bytes;
+	unsigned long long	bytes_rx;
+	unsigned long long	bytes_tx;
+
+};
+
+void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
+				       struct spi_transfer *xfer,
+				       struct spi_master *master);
+
+#define SPI_STATISTICS_ADD_TO_FIELD(stats, field, count)	\
+	do {							\
+		unsigned long flags;				\
+		spin_lock_irqsave(&(stats)->lock, flags);	\
+		(stats)->field += count;			\
+		spin_unlock_irqrestore(&(stats)->lock, flags);	\
+	} while (0)
+
+#define SPI_STATISTICS_INCREMENT_FIELD(stats, field)	\
+	SPI_STATISTICS_ADD_TO_FIELD(stats, field, 1)
 
 /**
  * struct spi_device - Master side proxy for an SPI slave device
@@ -59,6 +114,8 @@ extern struct bus_type spi_bus_type;
  *	for driver coldplugging, and in uevents used for hotplugging
  * @cs_gpio: gpio number of the chipselect line (optional, -ENOENT when
  *	when not using a GPIO line)
+ *
+ * @statistics: statistics for the spi_device
  *
  * A @spi_device is used to interchange data between an SPI slave
  * (usually a discrete chip) and CPU memory.
@@ -97,6 +154,9 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	int			cs_gpio;	/* chip select gpio */
+
+	/* the statistics */
+	struct spi_statistics	statistics;
 
 	/*
 	 * likely need more hooks for more protocol options affecting how
@@ -296,6 +356,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
+ * @statistics: statistics for the spi_master
  * @dma_tx: DMA transmit channel
  * @dma_rx: DMA receive channel
  * @dummy_rx: dummy receive buffer for full-duplex devices
@@ -451,6 +512,9 @@ struct spi_master {
 
 	/* gpio chip select */
 	int			*cs_gpios;
+
+	/* statistics */
+	struct spi_statistics	statistics;
 
 	/* DMA channels for use with core dmaengine helpers */
 	struct dma_chan		*dma_tx;
