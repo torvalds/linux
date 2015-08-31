@@ -119,6 +119,7 @@ enum vcpu_sysreg {
 
 	/* Performance Monitors Registers */
 	PMCR_EL0,	/* Control Register */
+	PMSELR_EL0,	/* Event Counter Selection Register */
 
 	/* 32bit specific registers. Keep them at the end of the range */
 	DACR32_EL2,	/* Domain Access Control Register */
