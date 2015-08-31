@@ -2428,7 +2428,10 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	res_size = resource_size(res);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
+	if (irq == -EPROBE_DEFER) {
+		retval = -EPROBE_DEFER;
+		goto out_0;
+	} else if (irq <= 0) {
 		pr_warn("Could not allocate irq resource\n");
 		retval = -ENODEV;
 		goto out_0;
