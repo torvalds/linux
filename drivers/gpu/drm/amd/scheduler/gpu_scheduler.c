@@ -264,7 +264,6 @@ int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	struct amd_sched_entity *entity = sched_job->s_entity;
 	struct amd_sched_fence *fence = amd_sched_fence_create(
 		entity, sched_job->owner);
-	int r;
 
 	if (!fence)
 		return -ENOMEM;
@@ -272,10 +271,10 @@ int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	fence_get(&fence->base);
 	sched_job->s_fence = fence;
 
-	r = wait_event_interruptible(entity->scheduler->job_scheduled,
-				     amd_sched_entity_in(sched_job));
+	wait_event(entity->scheduler->job_scheduled,
+		   amd_sched_entity_in(sched_job));
 
-	return r;
+	return 0;
 }
 
 /**
