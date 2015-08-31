@@ -639,8 +639,6 @@ static ssize_t ds2781_read_param_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2781_device_info *dev_info = to_ds2781_device_info(psy);
 
-	count = min_t(loff_t, count, DS2781_PARAM_EEPROM_SIZE - off);
-
 	return ds2781_read_block(dev_info, buf,
 				DS2781_EEPROM_BLOCK1_START + off, count);
 }
@@ -654,8 +652,6 @@ static ssize_t ds2781_write_param_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2781_device_info *dev_info = to_ds2781_device_info(psy);
 	int ret;
-
-	count = min_t(loff_t, count, DS2781_PARAM_EEPROM_SIZE - off);
 
 	ret = ds2781_write(dev_info, buf,
 				DS2781_EEPROM_BLOCK1_START + off, count);
@@ -688,8 +684,6 @@ static ssize_t ds2781_read_user_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2781_device_info *dev_info = to_ds2781_device_info(psy);
 
-	count = min_t(loff_t, count, DS2781_USER_EEPROM_SIZE - off);
-
 	return ds2781_read_block(dev_info, buf,
 				DS2781_EEPROM_BLOCK0_START + off, count);
 
@@ -704,8 +698,6 @@ static ssize_t ds2781_write_user_eeprom_bin(struct file *filp,
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2781_device_info *dev_info = to_ds2781_device_info(psy);
 	int ret;
-
-	count = min_t(loff_t, count, DS2781_USER_EEPROM_SIZE - off);
 
 	ret = ds2781_write(dev_info, buf,
 				DS2781_EEPROM_BLOCK0_START + off, count);
