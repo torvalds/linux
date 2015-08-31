@@ -589,8 +589,7 @@ static int null_add_dev(void)
 	blk_queue_physical_block_size(nullb->q, bs);
 
 	size = gb * 1024 * 1024 * 1024ULL;
-	sector_div(size, bs);
-	set_capacity(disk, size);
+	set_capacity(disk, size >> 9);
 
 	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;
