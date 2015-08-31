@@ -11,5 +11,6 @@
 *.png
 *.gif
 *.svg
+*.proc
 media-indices.tmpl
 media-entities.tmpl
