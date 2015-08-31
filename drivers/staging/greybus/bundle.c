@@ -9,8 +9,6 @@
 
 #include "greybus.h"
 
-static void gb_bundle_connections_exit(struct gb_bundle *bundle);
-
 static ssize_t class_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -197,6 +195,18 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	return bundle;
 }
 
+static void gb_bundle_connections_exit(struct gb_bundle *bundle)
+{
+	struct gb_connection *connection;
+	struct gb_connection *next;
+
+	list_for_each_entry_safe(connection, next, &bundle->connections,
+				 bundle_links) {
+		gb_connection_exit(connection);
+		gb_connection_destroy(connection);
+	}
+}
+
 /*
  * Tear down a previously set up bundle.
  */
@@ -223,16 +233,4 @@ found:
 	spin_unlock_irq(&gb_bundles_lock);
 
 	return bundle;
-}
-
-static void gb_bundle_connections_exit(struct gb_bundle *bundle)
-{
-	struct gb_connection *connection;
-	struct gb_connection *next;
-
-	list_for_each_entry_safe(connection, next, &bundle->connections,
-				 bundle_links) {
-		gb_connection_exit(connection);
-		gb_connection_destroy(connection);
-	}
 }
