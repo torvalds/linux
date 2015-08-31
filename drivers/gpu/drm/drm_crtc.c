@@ -1519,7 +1519,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  */
 int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
-				  char *modes[])
+				  const char * const modes[])
 {
 	struct drm_property *tv_selector;
 	struct drm_property *tv_subconnector;

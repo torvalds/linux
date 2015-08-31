@@ -106,7 +106,7 @@ extern int ch7006_debug;
 extern char *ch7006_tv_norm;
 extern int ch7006_scale;
 
-extern char *ch7006_tv_norm_names[];
+extern const char * const ch7006_tv_norm_names[];
 extern struct ch7006_tv_norm_info ch7006_tv_norms[];
 extern struct ch7006_mode ch7006_modes[];
 

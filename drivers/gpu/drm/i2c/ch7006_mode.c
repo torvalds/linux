@@ -26,7 +26,7 @@
 
 #include "ch7006_priv.h"
 
-char *ch7006_tv_norm_names[] = {
+const char * const ch7006_tv_norm_names[] = {
 	[TV_NORM_PAL] = "PAL",
 	[TV_NORM_PAL_M] = "PAL-M",
 	[TV_NORM_PAL_N] = "PAL-N",
@@ -202,7 +202,7 @@ void ch7006_setup_levels(struct drm_encoder *encoder)
 	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	uint8_t *regs = priv->state.regs;
-	struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
 	int gain;
 	int black_level;
 
