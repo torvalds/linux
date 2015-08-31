@@ -1730,6 +1730,8 @@ static void remap_cell_to_origin_clear_discard(struct cache *cache,
 		remap_to_origin(cache, bio);
 		issue(cache, bio);
 	}
+
+	free_prison_cell(cache, cell);
 }
 
 static void remap_cell_to_cache_dirty(struct cache *cache, struct dm_bio_prison_cell *cell,
@@ -1764,6 +1766,8 @@ static void remap_cell_to_cache_dirty(struct cache *cache, struct dm_bio_prison_
 		remap_to_cache(cache, bio, cblock);
 		issue(cache, bio);
 	}
+
+	free_prison_cell(cache, cell);
 }
 
 /*----------------------------------------------------------------*/
