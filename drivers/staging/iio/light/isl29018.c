@@ -838,7 +838,6 @@ static struct i2c_driver isl29018_driver = {
 			.name = "isl29018",
 			.acpi_match_table = ACPI_PTR(isl29018_acpi_match),
 			.pm = ISL29018_PM_OPS,
-			.owner = THIS_MODULE,
 			.of_match_table = isl29018_of_match,
 		    },
 	.probe	 = isl29018_probe,

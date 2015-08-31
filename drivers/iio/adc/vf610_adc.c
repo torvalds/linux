@@ -68,6 +68,9 @@
 #define VF610_ADC_CLK_DIV8		0x60
 #define VF610_ADC_CLK_MASK		0x60
 #define VF610_ADC_ADLSMP_LONG		0x10
+#define VF610_ADC_ADSTS_SHORT   0x100
+#define VF610_ADC_ADSTS_NORMAL  0x200
+#define VF610_ADC_ADSTS_LONG    0x300
 #define VF610_ADC_ADSTS_MASK		0x300
 #define VF610_ADC_ADLPC_EN		0x80
 #define VF610_ADC_ADHSC_EN		0x400
@@ -98,6 +101,8 @@
 #define VF610_ADC_CALF			0x2
 #define VF610_ADC_TIMEOUT		msecs_to_jiffies(100)
 
+#define DEFAULT_SAMPLE_TIME		1000
+
 enum clk_sel {
 	VF610_ADCIOC_BUSCLK_SET,
 	VF610_ADCIOC_ALTCLK_SET,
@@ -124,6 +129,17 @@ enum conversion_mode_sel {
 	VF610_ADC_CONV_LOW_POWER,
 };
 
+enum lst_adder_sel {
+	VF610_ADCK_CYCLES_3,
+	VF610_ADCK_CYCLES_5,
+	VF610_ADCK_CYCLES_7,
+	VF610_ADCK_CYCLES_9,
+	VF610_ADCK_CYCLES_13,
+	VF610_ADCK_CYCLES_17,
+	VF610_ADCK_CYCLES_21,
+	VF610_ADCK_CYCLES_25,
+};
+
 struct vf610_adc_feature {
 	enum clk_sel	clk_sel;
 	enum vol_ref	vol_ref;
@@ -132,6 +148,8 @@ struct vf610_adc_feature {
 	int	clk_div;
 	int     sample_rate;
 	int	res_mode;
+	u32 lst_adder_index;
+	u32 default_sample_time;
 
 	bool	calibration;
 	bool	ovwren;
@@ -155,11 +173,13 @@ struct vf610_adc {
 };
 
 static const u32 vf610_hw_avgs[] = { 1, 4, 8, 16, 32 };
+static const u32 vf610_lst_adder[] = { 3, 5, 7, 9, 13, 17, 21, 25 };
 
 static inline void vf610_adc_calculate_rates(struct vf610_adc *info)
 {
 	struct vf610_adc_feature *adc_feature = &info->adc_feature;
 	unsigned long adck_rate, ipg_rate = clk_get_rate(info->clk);
+	u32 adck_period, lst_addr_min;
 	int divisor, i;
 
 	adck_rate = info->max_adck_rate[adc_feature->conv_mode];
@@ -174,6 +194,19 @@ static inline void vf610_adc_calculate_rates(struct vf610_adc *info)
 	}
 
 	/*
+	 * Determine the long sample time adder value to be used based
+	 * on the default minimum sample time provided.
+	 */
+	adck_period = NSEC_PER_SEC / adck_rate;
+	lst_addr_min = adc_feature->default_sample_time / adck_period;
+	for (i = 0; i < ARRAY_SIZE(vf610_lst_adder); i++) {
+		if (vf610_lst_adder[i] > lst_addr_min) {
+			adc_feature->lst_adder_index = i;
+			break;
+		}
+	}
+
+	/*
 	 * Calculate ADC sample frequencies
 	 * Sample time unit is ADCK cycles. ADCK clk source is ipg clock,
 	 * which is the same as bus clock.
@@ -182,12 +215,13 @@ static inline void vf610_adc_calculate_rates(struct vf610_adc *info)
 	 * SFCAdder: fixed to 6 ADCK cycles
 	 * AverageNum: 1, 4, 8, 16, 32 samples for hardware average.
 	 * BCT (Base Conversion Time): fixed to 25 ADCK cycles for 12 bit mode
-	 * LSTAdder(Long Sample Time): fixed to 3 ADCK cycles
+	 * LSTAdder(Long Sample Time): 3, 5, 7, 9, 13, 17, 21, 25 ADCK cycles
 	 */
 	adck_rate = ipg_rate / info->adc_feature.clk_div;
 	for (i = 0; i < ARRAY_SIZE(vf610_hw_avgs); i++)
 		info->sample_freq_avail[i] =
-			adck_rate / (6 + vf610_hw_avgs[i] * (25 + 3));
+			adck_rate / (6 + vf610_hw_avgs[i] *
+			 (25 + vf610_lst_adder[adc_feature->lst_adder_index]));
 }
 
 static inline void vf610_adc_cfg_init(struct vf610_adc *info)
@@ -347,8 +381,40 @@ static void vf610_adc_sample_set(struct vf610_adc *info)
 		break;
 	}
 
-	/* Use the short sample mode */
-	cfg_data &= ~(VF610_ADC_ADLSMP_LONG | VF610_ADC_ADSTS_MASK);
+	/*
+	 * Set ADLSMP and ADSTS based on the Long Sample Time Adder value
+	 * determined.
+	 */
+	switch (adc_feature->lst_adder_index) {
+	case VF610_ADCK_CYCLES_3:
+		break;
+	case VF610_ADCK_CYCLES_5:
+		cfg_data |= VF610_ADC_ADSTS_SHORT;
+		break;
+	case VF610_ADCK_CYCLES_7:
+		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		break;
+	case VF610_ADCK_CYCLES_9:
+		cfg_data |= VF610_ADC_ADSTS_LONG;
+		break;
+	case VF610_ADCK_CYCLES_13:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		break;
+	case VF610_ADCK_CYCLES_17:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		cfg_data |= VF610_ADC_ADSTS_SHORT;
+		break;
+	case VF610_ADCK_CYCLES_21:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		break;
+	case VF610_ADCK_CYCLES_25:
+		cfg_data |= VF610_ADC_ADLSMP_LONG;
+		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		break;
+	default:
+		dev_err(info->dev, "error in sample time select\n");
+	}
 
 	/* update hardware average selection */
 	cfg_data &= ~VF610_ADC_AVGS_MASK;
@@ -712,6 +778,11 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	of_property_read_u32_array(pdev->dev.of_node, "fsl,adck-max-frequency",
 			info->max_adck_rate, 3);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "min-sample-time",
+			&info->adc_feature.default_sample_time);
+	if (ret)
+		info->adc_feature.default_sample_time = DEFAULT_SAMPLE_TIME;
 
 	platform_set_drvdata(pdev, indio_dev);
 

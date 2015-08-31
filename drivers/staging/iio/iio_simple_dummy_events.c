@@ -120,7 +120,7 @@ int iio_simple_dummy_read_event_value(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-					  enum iio_event_info info,
+				      enum iio_event_info info,
 				      int *val, int *val2)
 {
 	struct iio_dummy_state *st = iio_priv(indio_dev);
@@ -143,7 +143,7 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir,
-					   enum iio_event_info info,
+				       enum iio_event_info info,
 				       int val, int val2)
 {
 	struct iio_dummy_state *st = iio_priv(indio_dev);

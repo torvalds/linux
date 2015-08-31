@@ -1,12 +1,11 @@
 /* visorchannel_funcs.c
  *
- * Copyright (C) 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -259,7 +258,8 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 
 	if (offset < chdr_size) {
 		copy_size = min(chdr_size - offset, nbytes);
-		memcpy(&channel->chan_hdr + offset, local, copy_size);
+		memcpy(((char *)(&channel->chan_hdr)) + offset,
+		       local, copy_size);
 	}
 
 	memcpy_toio(channel->mapped + offset, local, nbytes);
@@ -416,11 +416,12 @@ bool
 visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 {
 	bool rc;
+	unsigned long flags;
 
 	if (channel->needs_lock) {
-		spin_lock(&channel->remove_lock);
+		spin_lock_irqsave(&channel->remove_lock, flags);
 		rc = signalremove_inner(channel, queue, msg);
-		spin_unlock(&channel->remove_lock);
+		spin_unlock_irqrestore(&channel->remove_lock, flags);
 	} else {
 		rc = signalremove_inner(channel, queue, msg);
 	}
@@ -428,6 +429,27 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
+
+bool
+visorchannel_signalempty(struct visorchannel *channel, u32 queue)
+{
+	unsigned long flags = 0;
+	struct signal_queue_header sig_hdr;
+	bool rc = false;
+
+	if (channel->needs_lock)
+		spin_lock_irqsave(&channel->remove_lock, flags);
+
+	if (!sig_read_header(channel, queue, &sig_hdr))
+		rc = true;
+	if (sig_hdr.head == sig_hdr.tail)
+		rc = true;
+	if (channel->needs_lock)
+		spin_unlock_irqrestore(&channel->remove_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(visorchannel_signalempty);
 
 static bool
 signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
@@ -470,11 +492,12 @@ bool
 visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
 {
 	bool rc;
+	unsigned long flags;
 
 	if (channel->needs_lock) {
-		spin_lock(&channel->insert_lock);
+		spin_lock_irqsave(&channel->insert_lock, flags);
 		rc = signalinsert_inner(channel, queue, msg);
-		spin_unlock(&channel->insert_lock);
+		spin_unlock_irqrestore(&channel->insert_lock, flags);
 	} else {
 		rc = signalinsert_inner(channel, queue, msg);
 	}

@@ -39,8 +39,8 @@ enum debug_region {
 #define FIRM_DBG                (1 << Firmware_debug)
 
 #if defined (WILC_DEBUGFS)
-extern int wilc_debugfs_init(void);
-extern void wilc_debugfs_remove(void);
+int wilc_debugfs_init(void);
+void wilc_debugfs_remove(void);
 
 extern atomic_t REGION;
 extern atomic_t DEBUG_LEVEL;
