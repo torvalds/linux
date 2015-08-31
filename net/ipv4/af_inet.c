@@ -1471,7 +1471,7 @@ EXPORT_SYMBOL_GPL(snmp_fold_field);
 
 #if BITS_PER_LONG==32
 
-u64 snmp_get_cpu_field64(void __percpu *mib, int cpu, int offct,
+u64 snmp_get_cpu_field64(void __percpu *mib, int cpu, int offt,
 			 size_t syncp_offset)
 {
 	void *bhptr;
@@ -1496,7 +1496,7 @@ u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_offset)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		res += snmp_get_cpu_field(mib, cpu, offct, syncp_offset);
+		res += snmp_get_cpu_field(mib, cpu, offt, syncp_offset);
 	}
 	return res;
 }
