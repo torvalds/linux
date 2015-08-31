@@ -605,6 +605,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	int i;
 	struct megasas_header *frame_hdr;
 	const char *sys_info;
+	MFI_CAPABILITIES *drv_ops;
 
 	fusion = instance->ctrl_context;
 
@@ -652,20 +653,19 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	init_frame->cmd	= MFI_CMD_INIT;
 	init_frame->cmd_status = 0xFF;
 
+	drv_ops = (MFI_CAPABILITIES *) &(init_frame->driver_operations);
+
 	/* driver support Extended MSIX */
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
-		init_frame->driver_operations.
-			mfi_capabilities.support_additional_msix = 1;
+		drv_ops->mfi_capabilities.support_additional_msix = 1;
 	/* driver supports HA / Remote LUN over Fast Path interface */
-	init_frame->driver_operations.mfi_capabilities.support_fp_remote_lun
-		= 1;
-	init_frame->driver_operations.mfi_capabilities.support_max_255lds
-		= 1;
-	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb
-		= 1;
-	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw
-		= 1;
+	drv_ops->mfi_capabilities.support_fp_remote_lun = 1;
+
+	drv_ops->mfi_capabilities.support_max_255lds = 1;
+	drv_ops->mfi_capabilities.support_ndrive_r1_lb = 1;
+	drv_ops->mfi_capabilities.security_protocol_cmds_fw = 1;
+
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
 
