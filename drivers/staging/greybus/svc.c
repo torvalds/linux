@@ -82,7 +82,7 @@ gb_ap_interface_create(struct greybus_host_device *hd,
 	return intf;
 }
 
-int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
+static int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
 {
 	struct gb_svc_intf_device_id_request request;
 
@@ -92,7 +92,6 @@ int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_DEVICE_ID,
 				 &request, sizeof(request), NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_intf_device_id);
 
 int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id)
 {
@@ -149,8 +148,8 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
-int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-			u8 intf2_id, u8 dev2_id)
+static int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
+			       u8 intf2_id, u8 dev2_id)
 {
 	struct gb_svc_route_create_request request;
 
@@ -162,7 +161,6 @@ int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_CREATE,
 				 &request, sizeof(request), NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_route_create);
 
 static int gb_svc_version_request(struct gb_operation *op)
 {
