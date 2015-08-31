@@ -5,6 +5,13 @@
 
 struct regs_dump;
 
+struct sample_reg {
+	const char *name;
+	uint64_t mask;
+};
+
+extern const struct sample_reg sample_reg_masks[];
+
 #ifdef HAVE_PERF_REGS_SUPPORT
 #include <perf_regs.h>
 
