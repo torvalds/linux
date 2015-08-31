@@ -691,6 +691,10 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			.tid = cfg->tid,
 		};
 
+		/* Set sta_id in the command, if it exists */
+		if (iwl_mvm_is_dqa_supported(mvm))
+			cmd.sta_id = cfg->sta_id;
+
 		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
 					 wdg_timeout);
 		WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd),

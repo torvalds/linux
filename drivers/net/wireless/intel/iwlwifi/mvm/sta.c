@@ -635,8 +635,15 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 			.scd_queue = queue,
 			.enable = 0,
 		};
+		u8 ac;
 
 		disable_agg_tids = iwl_mvm_remove_sta_queue_marking(mvm, queue);
+
+		spin_lock_bh(&mvm->queue_info_lock);
+		ac = mvm->queue_info[queue].mac80211_ac;
+		cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
+		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[ac];
+		spin_unlock_bh(&mvm->queue_info_lock);
 
 		/* Disable the queue */
 		iwl_mvm_invalidate_sta_queue(mvm, queue, disable_agg_tids,
