@@ -96,7 +96,7 @@ struct gb_operation_msg_hdr {
 	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
 	__u8	result;		/* Result of request (in responses only) */
 	__u8	pad[2];		/* must be zero (ignore when read) */
-};
+} __packed;
 
 
 /* Generic request numbers supported by all modules */
@@ -109,7 +109,7 @@ struct gb_operation_msg_hdr {
 struct gb_protocol_version_response {
 	__u8	major;
 	__u8	minor;
-};
+} __packed;
 
 /* Control Protocol */
 
@@ -127,21 +127,21 @@ struct gb_protocol_version_response {
 /* Control protocol manifest get size request has no payload*/
 struct gb_control_get_manifest_size_response {
 	__le16			size;
-};
+} __packed;
 
 /* Control protocol manifest get request has no payload */
 struct gb_control_get_manifest_response {
 	__u8			data[0];
-};
+} __packed;
 
 /* Control protocol [dis]connected request */
 struct gb_control_connected_request {
 	__le16			cport_id;
-};
+} __packed;
 
 struct gb_control_disconnected_request {
 	__le16			cport_id;
-};
+} __packed;
 /* Control protocol [dis]connected response has no payload */
 
 
@@ -224,7 +224,7 @@ struct gb_firmware_ready_to_boot_request {
 
 struct gb_battery_technology_response {
 	__le32	technology;
-};
+} __packed;
 
 /* Should match up with battery status in linux/power_supply.h */
 #define GB_BATTERY_STATUS_UNKNOWN		0x0000
@@ -235,23 +235,23 @@ struct gb_battery_technology_response {
 
 struct gb_battery_status_response {
 	__le16	battery_status;
-};
+} __packed;
 
 struct gb_battery_max_voltage_response {
 	__le32	max_voltage;
-};
+} __packed;
 
 struct gb_battery_capacity_response {
 	__le32	capacity;
-};
+} __packed;
 
 struct gb_battery_temperature_response {
 	__le32	temperature;
-};
+} __packed;
 
 struct gb_battery_voltage_response {
 	__le32	voltage;
-};
+} __packed;
 
 
 /* HID */
@@ -289,19 +289,19 @@ struct gb_hid_desc_response {
 struct gb_hid_get_report_request {
 	__u8				report_type;
 	__u8				report_id;
-};
+} __packed;
 
 /* HID set report request */
 struct gb_hid_set_report_request {
 	__u8				report_type;
 	__u8				report_id;
 	__u8				report[0];
-};
+} __packed;
 
 /* HID input report request, via interrupt pipe */
 struct gb_hid_input_report_request {
 	__u8				report[0];
-};
+} __packed;
 
 
 /* I2C */
@@ -322,16 +322,16 @@ struct gb_hid_input_report_request {
 /* functionality request has no payload */
 struct gb_i2c_functionality_response {
 	__le32	functionality;
-};
+} __packed;
 
 struct gb_i2c_timeout_request {
 	__le16	msec;
-};
+} __packed;
 /* timeout response has no payload */
 
 struct gb_i2c_retries_request {
 	__u8	retries;
-};
+} __packed;
 /* retries response has no payload */
 
 /*
@@ -348,15 +348,15 @@ struct gb_i2c_transfer_op {
 	__le16	addr;
 	__le16	flags;
 	__le16	size;
-};
+} __packed;
 
 struct gb_i2c_transfer_request {
 	__le16				op_count;
 	struct gb_i2c_transfer_op	ops[0];		/* op_count of these */
-};
+} __packed;
 struct gb_i2c_transfer_response {
 	__u8				data[0];	/* inbound data */
-};
+} __packed;
 
 
 /* GPIO */
@@ -390,47 +390,47 @@ struct gb_i2c_transfer_response {
 /* line count request has no payload */
 struct gb_gpio_line_count_response {
 	__u8	count;
-};
+} __packed;
 
 struct gb_gpio_activate_request {
 	__u8	which;
-};
+} __packed;
 /* activate response has no payload */
 
 struct gb_gpio_deactivate_request {
 	__u8	which;
-};
+} __packed;
 /* deactivate response has no payload */
 
 struct gb_gpio_get_direction_request {
 	__u8	which;
-};
+} __packed;
 struct gb_gpio_get_direction_response {
 	__u8	direction;
-};
+} __packed;
 
 struct gb_gpio_direction_in_request {
 	__u8	which;
-};
+} __packed;
 /* direction in response has no payload */
 
 struct gb_gpio_direction_out_request {
 	__u8	which;
 	__u8	value;
-};
+} __packed;
 /* direction out response has no payload */
 
 struct gb_gpio_get_value_request {
 	__u8	which;
-};
+} __packed;
 struct gb_gpio_get_value_response {
 	__u8	value;
-};
+} __packed;
 
 struct gb_gpio_set_value_request {
 	__u8	which;
 	__u8	value;
-};
+} __packed;
 /* set value response has no payload */
 
 struct gb_gpio_set_debounce_request {
@@ -442,23 +442,23 @@ struct gb_gpio_set_debounce_request {
 struct gb_gpio_irq_type_request {
 	__u8	which;
 	__u8	type;
-};
+} __packed;
 /* irq type response has no payload */
 
 struct gb_gpio_irq_mask_request {
 	__u8	which;
-};
+} __packed;
 /* irq mask response has no payload */
 
 struct gb_gpio_irq_unmask_request {
 	__u8	which;
-};
+} __packed;
 /* irq unmask response has no payload */
 
 /* irq event requests originate on another module and are handled on the AP */
 struct gb_gpio_irq_event_request {
 	__u8	which;
-};
+} __packed;
 /* irq event has no response */
 
 
@@ -480,15 +480,15 @@ struct gb_gpio_irq_event_request {
 /* pwm count request has no payload */
 struct gb_pwm_count_response {
 	__u8	count;
-};
+} __packed;
 
 struct gb_pwm_activate_request {
 	__u8	which;
-};
+} __packed;
 
 struct gb_pwm_deactivate_request {
 	__u8	which;
-};
+} __packed;
 
 struct gb_pwm_config_request {
 	__u8	which;
@@ -499,15 +499,15 @@ struct gb_pwm_config_request {
 struct gb_pwm_polarity_request {
 	__u8	which;
 	__u8	polarity;
-};
+} __packed;
 
 struct gb_pwm_enable_request {
 	__u8	which;
-};
+} __packed;
 
 struct gb_pwm_disable_request {
 	__u8	which;
-};
+} __packed;
 
 /* I2S */
 
@@ -593,48 +593,48 @@ struct gb_i2s_mgmt_configuration {
 	__u8	ll_wclk_tx_edge;
 	__u8	ll_wclk_rx_edge;
 	__u8	ll_data_offset;
-};
+} __packed;
 
 /* get supported configurations request has no payload */
 struct gb_i2s_mgmt_get_supported_configurations_response {
 	__u8					config_count;
 	__u8					pad[3];
 	struct gb_i2s_mgmt_configuration	config[0];
-};
+} __packed;
 
 struct gb_i2s_mgmt_set_configuration_request {
 	struct gb_i2s_mgmt_configuration	config;
-};
+} __packed;
 /* set configuration response has no payload */
 
 struct gb_i2s_mgmt_set_samples_per_message_request {
 	__le16	samples_per_message;
-};
+} __packed;
 /* set samples per message response has no payload */
 
 /* get processing request delay has no payload */
 struct gb_i2s_mgmt_get_processing_delay_response {
 	__le32	microseconds;
-};
+} __packed;
 
 struct gb_i2s_mgmt_set_start_delay_request {
 	__le32	microseconds;
-};
+} __packed;
 /* set start delay response has no payload */
 
 struct gb_i2s_mgmt_activate_cport_request {
 	__le16	cport;
-};
+} __packed;
 /* activate cport response has no payload */
 
 struct gb_i2s_mgmt_deactivate_cport_request {
 	__le16	cport;
-};
+} __packed;
 /* deactivate cport response has no payload */
 
 struct gb_i2s_mgmt_report_event_request {
 	__u8	event;
-};
+} __packed;
 /* report event response has no payload */
 
 #define GB_I2S_DATA_TYPE_SEND_DATA			0x02
@@ -643,7 +643,7 @@ struct gb_i2s_send_data_request {
 	__le32	sample_number;
 	__le32	size;
 	__u8	data[0];
-};
+} __packed;
 /* send data has no response at all */
 
 
@@ -682,22 +682,22 @@ struct gb_i2s_send_data_request {
 /* mode request has no payload */
 struct gb_spi_mode_response {
 	__le16	mode;
-};
+} __packed;
 
 /* flags request has no payload */
 struct gb_spi_flags_response {
 	__le16	flags;
-};
+} __packed;
 
 /* bits-per-word request has no payload */
 struct gb_spi_bpw_response {
 	__le32	bits_per_word_mask;
-};
+} __packed;
 
 /* num-chipselects request has no payload */
 struct gb_spi_chipselect_response {
 	__le16	num_chipselect;
-};
+} __packed;
 
 /**
  * struct gb_spi_transfer - a read/write buffer pair
@@ -717,18 +717,18 @@ struct gb_spi_transfer {
 	__le16		delay_usecs;
 	__u8		cs_change;
 	__u8		bits_per_word;
-};
+} __packed;
 
 struct gb_spi_transfer_request {
 	__u8			chip_select;	/* of the spi device */
 	__u8			mode;		/* of the spi device */
 	__le16			count;
 	struct gb_spi_transfer	transfers[0];	/* count of these */
-};
+} __packed;
 
 struct gb_spi_transfer_response {
 	__u8			data[0];	/* inbound data */
-};
+} __packed;
 
 /* Version of the Greybus SVC protocol we support */
 #define GB_SVC_VERSION_MAJOR		0x00
@@ -819,7 +819,7 @@ struct gb_svc_route_create_request {
 struct gb_raw_send_request {
 	__le32	len;
 	__u8	data[0];
-};
+} __packed;
 
 
 /* UART */
@@ -840,7 +840,7 @@ struct gb_raw_send_request {
 struct gb_uart_send_data_request {
 	__le16	size;
 	__u8	data[0];
-};
+} __packed;
 
 /* recv-data-request flags */
 #define GB_UART_RECV_FLAG_FRAMING		0x01	/* Framing error */
@@ -878,11 +878,11 @@ struct gb_uart_set_line_coding_request {
 
 struct gb_uart_set_control_line_state_request {
 	__u8	control;
-};
+} __packed;
 
 struct gb_uart_set_break_request {
 	__u8	state;
-};
+} __packed;
 
 /* input control lines and line errors */
 #define GB_UART_CTRL_DCD			0x01
@@ -891,7 +891,7 @@ struct gb_uart_set_break_request {
 
 struct gb_uart_serial_state_request {
 	__u8	control;
-};
+} __packed;
 
 /* Loopback */
 
@@ -907,11 +907,11 @@ struct gb_uart_serial_state_request {
 struct gb_loopback_transfer_request {
 	__le32	len;
 	__u8	data[0];
-};
+} __packed;
 
 struct gb_loopback_transfer_response {
 	__u8	data[0];
-};
+} __packed;
 
 /* SDIO */
 /* Version of the Greybus sdio protocol we support */
@@ -954,7 +954,7 @@ struct gb_sdio_get_caps_response {
 	__le32 ocr;
 	__le16 max_blk_count;
 	__le16 max_blk_size;
-};
+} __packed;
 
 /* set ios request: response has no payload */
 struct gb_sdio_set_ios_request {
@@ -1040,7 +1040,7 @@ struct gb_sdio_command_request {
 
 struct gb_sdio_command_response {
 	__le32	resp[4];
-};
+} __packed;
 
 /* transfer request */
 struct gb_sdio_transfer_request {
@@ -1058,7 +1058,7 @@ struct gb_sdio_transfer_response {
 	__le16	data_blocks;
 	__le16	data_blksz;
 	__u8	data[0];
-};
+} __packed;
 
 /* event request: generated by module and is defined as unidirectional */
 struct gb_sdio_event_request {
@@ -1066,7 +1066,7 @@ struct gb_sdio_event_request {
 #define GB_SDIO_CARD_INSERTED	0x01
 #define GB_SDIO_CARD_REMOVED	0x02
 #define GB_SDIO_WP		0x04
-};
+} __packed;
 
 /* Lights */
 
@@ -1119,30 +1119,30 @@ struct gb_sdio_event_request {
 /* get count of lights in module */
 struct gb_lights_get_lights_response {
 	__u8	lights_count;
-};
+} __packed;
 
 /* light config request payload */
 struct gb_lights_get_light_config_request {
 	__u8	id;
-};
+} __packed;
 
 /* light config response payload */
 struct gb_lights_get_light_config_response {
 	__u8	channel_count;
 	__u8	name[32];
-};
+} __packed;
 
 /* channel config request payload */
 struct gb_lights_get_channel_config_request {
 	__u8	light_id;
 	__u8	channel_id;
-};
+} __packed;
 
 /* channel flash config request payload */
 struct gb_lights_get_channel_flash_config_request {
 	__u8	light_id;
 	__u8	channel_id;
-};
+} __packed;
 
 /* channel config response payload */
 struct gb_lights_get_channel_config_response {
@@ -1162,7 +1162,7 @@ struct gb_lights_get_channel_flash_config_response {
 	__le32	timeout_min_us;
 	__le32	timeout_max_us;
 	__le32	timeout_step_us;
-};
+} __packed;
 
 /* blink request payload: response have no payload */
 struct gb_lights_blink_request {
@@ -1170,14 +1170,14 @@ struct gb_lights_blink_request {
 	__u8	channel_id;
 	__le16	time_on_ms;
 	__le16	time_off_ms;
-};
+} __packed;
 
 /* set brightness request payload: response have no payload */
 struct gb_lights_set_brightness_request {
 	__u8	light_id;
 	__u8	channel_id;
 	__u8	brightness;
-};
+} __packed;
 
 /* set color request payload: response have no payload */
 struct gb_lights_set_color_request {
@@ -1192,14 +1192,14 @@ struct gb_lights_set_fade_request {
 	__u8	channel_id;
 	__u8	fade_in;
 	__u8	fade_out;
-};
+} __packed;
 
 /* event request: generated by module */
 struct gb_lights_event_request {
 	__u8	light_id;
 	__u8	event;
 #define GB_LIGHTS_LIGHT_CONFIG		0x01
-};
+} __packed;
 
 /* set flash intensity request payload: response have no payload */
 struct gb_lights_set_flash_intensity_request {
@@ -1213,7 +1213,7 @@ struct gb_lights_set_flash_strobe_request {
 	__u8	light_id;
 	__u8	channel_id;
 	__u8	state;
-};
+} __packed;
 
 /* set flash timeout request payload: response have no payload */
 struct gb_lights_set_flash_timeout_request {
@@ -1226,7 +1226,7 @@ struct gb_lights_set_flash_timeout_request {
 struct gb_lights_get_flash_fault_request {
 	__u8	light_id;
 	__u8	channel_id;
-};
+} __packed;
 
 /* get flash fault response payload */
 struct gb_lights_get_flash_fault_response {
@@ -1240,7 +1240,7 @@ struct gb_lights_get_flash_fault_response {
 #define GB_LIGHTS_FLASH_FAULT_UNDER_VOLTAGE		0x00000020
 #define GB_LIGHTS_FLASH_FAULT_INPUT_VOLTAGE		0x00000040
 #define GB_LIGHTS_FLASH_FAULT_LED_OVER_TEMPERATURE	0x00000080
-};
+} __packed;
 
 #endif /* __GREYBUS_PROTOCOLS_H */
 
