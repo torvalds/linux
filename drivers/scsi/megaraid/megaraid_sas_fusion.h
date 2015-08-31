@@ -117,7 +117,8 @@ struct RAID_CONTEXT {
 	u8      numSGE;
 	__le16	configSeqNum;
 	u8      spanArm;
-	u8      resvd2[3];
+	u8      priority;
+	u8      resvd2[2];
 };
 
 #define RAID_CTX_SPANARM_ARM_SHIFT	(0)

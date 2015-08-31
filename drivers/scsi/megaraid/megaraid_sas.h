@@ -973,7 +973,11 @@ struct megasas_ctrl_info {
 
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:12;
+		u32     reserved:8;
+		u32     supportExtendedSSCSize:1;
+		u32     supportDiskCacheSettingForSysPDs:1;
+		u32     supportCPLDUpdate:1;
+		u32     supportTTYLogCompression:1;
 		u32     discardCacheDuringLDDelete:1;
 		u32     supportSecurityonJBOD:1;
 		u32     supportCacheBypassModes:1;
@@ -1013,7 +1017,11 @@ struct megasas_ctrl_info {
 		u32     supportCacheBypassModes:1;
 		u32     supportSecurityonJBOD:1;
 		u32     discardCacheDuringLDDelete:1;
-		u32     reserved:12;
+		u32     supportTTYLogCompression:1;
+		u32     supportCPLDUpdate:1;
+		u32     supportDiskCacheSettingForSysPDs:1;
+		u32     supportExtendedSSCSize:1;
+		u32     reserved:8;
 #endif
 	} adapterOperations3;
 
@@ -1229,7 +1237,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:25;
+		u32     reserved:24;
+		u32	support_ext_queue_depth:1;
 		u32     security_protocol_cmds_fw:1;
 		u32     support_core_affinity:1;
 		u32     support_ndrive_r1_lb:1;
@@ -1245,7 +1254,8 @@ typedef union _MFI_CAPABILITIES {
 		u32     support_ndrive_r1_lb:1;
 		u32     support_core_affinity:1;
 		u32     security_protocol_cmds_fw:1;
-		u32     reserved:25;
+		u32	support_ext_queue_depth:1;
+		u32     reserved:24;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
