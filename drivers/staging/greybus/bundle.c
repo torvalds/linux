@@ -201,10 +201,8 @@ static void gb_bundle_connections_exit(struct gb_bundle *bundle)
 	struct gb_connection *next;
 
 	list_for_each_entry_safe(connection, next, &bundle->connections,
-				 bundle_links) {
-		gb_connection_exit(connection);
+				 bundle_links)
 		gb_connection_destroy(connection);
-	}
 }
 
 /*

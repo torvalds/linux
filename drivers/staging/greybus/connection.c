@@ -318,32 +318,6 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 	spin_unlock_irq(&connection->lock);
 }
 
-/*
- * Tear down a previously set up connection.
- */
-void gb_connection_destroy(struct gb_connection *connection)
-{
-	struct ida *id_map;
-
-	if (WARN_ON(!connection))
-		return;
-
-	spin_lock_irq(&gb_connections_lock);
-	list_del(&connection->bundle_links);
-	list_del(&connection->hd_links);
-	spin_unlock_irq(&gb_connections_lock);
-
-	if (connection->protocol)
-		gb_protocol_put(connection->protocol);
-	connection->protocol = NULL;
-
-	id_map = &connection->hd->cport_id_map;
-	ida_simple_remove(id_map, connection->hd_cport_id);
-	connection->hd_cport_id = CPORT_ID_BAD;
-
-	device_unregister(&connection->dev);
-}
-
 static void gb_connection_disconnected(struct gb_connection *connection)
 {
 	struct gb_control *control;
@@ -420,7 +394,7 @@ disconnect:
 	return ret;
 }
 
-void gb_connection_exit(struct gb_connection *connection)
+static void gb_connection_exit(struct gb_connection *connection)
 {
 	if (!connection->protocol) {
 		dev_warn(&connection->dev, "exit without protocol.\n");
@@ -441,14 +415,40 @@ void gb_connection_exit(struct gb_connection *connection)
 	gb_connection_disconnected(connection);
 }
 
+/*
+ * Tear down a previously set up connection.
+ */
+void gb_connection_destroy(struct gb_connection *connection)
+{
+	struct ida *id_map;
+
+	if (WARN_ON(!connection))
+		return;
+
+	gb_connection_exit(connection);
+
+	spin_lock_irq(&gb_connections_lock);
+	list_del(&connection->bundle_links);
+	list_del(&connection->hd_links);
+	spin_unlock_irq(&gb_connections_lock);
+
+	if (connection->protocol)
+		gb_protocol_put(connection->protocol);
+	connection->protocol = NULL;
+
+	id_map = &connection->hd->cport_id_map;
+	ida_simple_remove(id_map, connection->hd_cport_id);
+	connection->hd_cport_id = CPORT_ID_BAD;
+
+	device_unregister(&connection->dev);
+}
+
 void gb_hd_connections_exit(struct greybus_host_device *hd)
 {
 	struct gb_connection *connection;
 
-	list_for_each_entry(connection, &hd->connections, hd_links) {
-		gb_connection_exit(connection);
+	list_for_each_entry(connection, &hd->connections, hd_links)
 		gb_connection_destroy(connection);
-	}
 }
 
 void gb_connection_bind_protocol(struct gb_connection *connection)

@@ -60,8 +60,6 @@ struct gb_connection *gb_connection_create_range(struct greybus_host_device *hd,
 			   u16 cport_id, u8 protocol_id, u32 ida_start,
 			   u32 ida_end);
 void gb_connection_destroy(struct gb_connection *connection);
-
-void gb_connection_exit(struct gb_connection *connection);
 void gb_hd_connections_exit(struct greybus_host_device *hd);
 
 void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
