@@ -172,27 +172,27 @@ struct gb_control_disconnected_request {
 /* Firmware protocol firmware size request/response */
 struct gb_firmware_size_request {
 	__u8			stage;
-};
+} __packed;
 
 struct gb_firmware_size_response {
 	__le32			size;
-};
+} __packed;
 
 /* Firmware protocol get firmware request/response */
 struct gb_firmware_get_firmware_request {
 	__le32			offset;
 	__le32			size;
-};
+} __packed;
 
 struct gb_firmware_get_firmware_response {
 	__u8			data[0];
-};
+} __packed;
 
 /* Firmware protocol Ready to boot request */
 struct gb_firmware_ready_to_boot_request {
 	__u8			stage;
 	__u8			status;
-};
+} __packed;
 /* Firmware protocol Ready to boot response has no payload */
 
 
@@ -756,7 +756,7 @@ struct gb_svc_hello_request {
 struct gb_svc_intf_device_id_request {
 	__u8	intf_id;
 	__u8	device_id;
-};
+} __packed;
 /* device id response has no payload */
 
 struct gb_svc_intf_hotplug_request {
@@ -772,12 +772,12 @@ struct gb_svc_intf_hotplug_request {
 
 struct gb_svc_intf_hot_unplug_request {
 	__u8	intf_id;
-};
+} __packed;
 /* hot unplug response has no payload */
 
 struct gb_svc_intf_reset_request {
 	__u8	intf_id;
-};
+} __packed;
 /* interface reset response has no payload */
 
 struct gb_svc_conn_create_request {
@@ -803,7 +803,7 @@ struct gb_svc_route_create_request {
 	__u8	dev1_id;
 	__u8	intf2_id;
 	__u8	dev2_id;
-};
+} __packed;
 /* route create response has no payload */
 
 
