@@ -79,6 +79,7 @@ zram_fill_fs()
 	echo "zram compression ratio: $(echo "scale=2; $v / 100 " | bc):1: OK"
 }
 
+check_prereqs
 zram_load
 zram_max_streams
 zram_compress_alg

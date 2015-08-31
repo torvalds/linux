@@ -37,6 +37,7 @@ zram_max_streams="2"
 zram_sizes="1048576" # 1M
 zram_mem_limits="1M"
 
+check_prereqs
 zram_load
 zram_max_streams
 zram_set_disksizes
