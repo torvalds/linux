@@ -1025,6 +1025,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		u32 old_read = obj->base.read_domains;
 		u32 old_write = obj->base.write_domain;
 
+		obj->dirty = 1; /* be paranoid  */
 		obj->base.write_domain = obj->base.pending_write_domain;
 		if (obj->base.write_domain == 0)
 			obj->base.pending_read_domains |= obj->base.read_domains;
@@ -1032,7 +1033,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 		i915_vma_move_to_active(vma, ring);
 		if (obj->base.write_domain) {
-			obj->dirty = 1;
 			i915_gem_request_assign(&obj->last_write_req, req);
 
 			intel_fb_obj_invalidate(obj, ring, ORIGIN_CS);
