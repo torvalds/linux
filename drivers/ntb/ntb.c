@@ -114,7 +114,7 @@ int ntb_register_device(struct ntb_dev *ntb)
 	ntb->dev.bus = &ntb_bus;
 	ntb->dev.parent = &ntb->pdev->dev;
 	ntb->dev.release = ntb_dev_release;
-	dev_set_name(&ntb->dev, pci_name(ntb->pdev));
+	dev_set_name(&ntb->dev, "%s", pci_name(ntb->pdev));
 
 	ntb->ctx = NULL;
 	ntb->ctx_ops = NULL;

@@ -42,7 +42,7 @@
 #define TAS2552_BOOST_APT_CTRL		0x14
 #define TAS2552_VER_NUM			0x16
 #define TAS2552_VBAT_DATA		0x19
-#define TAS2552_MAX_REG			0x20
+#define TAS2552_MAX_REG			TAS2552_VBAT_DATA
 
 /* CFG1 Register Masks */
 #define TAS2552_DEV_RESET		(1 << 0)

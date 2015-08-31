@@ -1591,7 +1591,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 		break;
 	}
 
-	if (skb_trimmed)
+	if (skb_trimmed && skb_trimmed != skb)
 		kfree_skb(skb_trimmed);
 
 	return err;
@@ -1636,7 +1636,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 		break;
 	}
 
-	if (skb_trimmed)
+	if (skb_trimmed && skb_trimmed != skb)
 		kfree_skb(skb_trimmed);
 
 	return err;

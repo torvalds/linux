@@ -880,7 +880,8 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 	/* Establish migration ptes or remove ptes */
 	if (page_mapped(page)) {
 		try_to_unmap(page,
-			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|
+			TTU_IGNORE_HWPOISON);
 		page_was_mapped = 1;
 	}
 
@@ -950,7 +951,10 @@ out:
 		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
 				page_is_file_cache(page));
-		if (reason != MR_MEMORY_FAILURE)
+		/* Soft-offlined page shouldn't go through lru cache list */
+		if (reason == MR_MEMORY_FAILURE)
+			put_page(page);
+		else
 			putback_lru_page(page);
 	}
 

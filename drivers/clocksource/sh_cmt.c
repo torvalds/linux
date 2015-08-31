@@ -661,6 +661,9 @@ static void sh_cmt_clocksource_suspend(struct clocksource *cs)
 {
 	struct sh_cmt_channel *ch = cs_to_sh_cmt(cs);
 
+	if (!ch->cs_enabled)
+		return;
+
 	sh_cmt_stop(ch, FLAG_CLOCKSOURCE);
 	pm_genpd_syscore_poweroff(&ch->cmt->pdev->dev);
 }
@@ -668,6 +671,9 @@ static void sh_cmt_clocksource_suspend(struct clocksource *cs)
 static void sh_cmt_clocksource_resume(struct clocksource *cs)
 {
 	struct sh_cmt_channel *ch = cs_to_sh_cmt(cs);
+
+	if (!ch->cs_enabled)
+		return;
 
 	pm_genpd_syscore_poweron(&ch->cmt->pdev->dev);
 	sh_cmt_start(ch, FLAG_CLOCKSOURCE);
