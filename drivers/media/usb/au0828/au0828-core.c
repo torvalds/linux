@@ -153,11 +153,26 @@ static void au0828_usb_release(struct au0828_dev *dev)
 }
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
+
+static void au0828_usb_v4l2_media_release(struct au0828_dev *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	int i;
+
+	for (i = 0; i < AU0828_MAX_INPUT; i++) {
+		if (AUVI_INPUT(i).type == AU0828_VMUX_UNDEFINED)
+			return;
+		media_device_unregister_entity(&dev->input_ent[i]);
+	}
+#endif
+}
+
 static void au0828_usb_v4l2_release(struct v4l2_device *v4l2_dev)
 {
 	struct au0828_dev *dev =
 		container_of(v4l2_dev, struct au0828_dev, v4l2_dev);
 
+	au0828_usb_v4l2_media_release(dev);
 	v4l2_ctrl_handler_free(&dev->v4l2_ctrl_hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	au0828_usb_release(dev);
