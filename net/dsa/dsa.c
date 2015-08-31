@@ -181,7 +181,7 @@ static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
 	struct dsa_chip_data *cd = ds->pd;
 	struct device_node *port_dn;
 	struct phy_device *phydev;
-	int ret, port;
+	int ret, port, mode;
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
@@ -196,6 +196,12 @@ static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
 				return ret;
 			}
 			phydev = of_phy_find_device(port_dn);
+
+			mode = of_get_phy_mode(port_dn);
+			if (mode < 0)
+				mode = PHY_INTERFACE_MODE_NA;
+			phydev->interface = mode;
+
 			genphy_config_init(phydev);
 			genphy_read_status(phydev);
 			if (ds->drv->adjust_link)
