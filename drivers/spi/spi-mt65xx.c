@@ -85,7 +85,7 @@ struct mtk_spi {
 	void __iomem *base;
 	u32 state;
 	u32 pad_sel;
-	struct clk *spi_clk, *parent_clk;
+	struct clk *parent_clk, *sel_clk, *spi_clk;
 	struct spi_transfer *cur_transfer;
 	u32 xfer_len;
 	struct scatterlist *tx_sgl, *rx_sgl;
@@ -576,17 +576,24 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	mdata->spi_clk = devm_clk_get(&pdev->dev, "spi-clk");
-	if (IS_ERR(mdata->spi_clk)) {
-		ret = PTR_ERR(mdata->spi_clk);
-		dev_err(&pdev->dev, "failed to get spi-clk: %d\n", ret);
-		goto err_put_master;
-	}
-
 	mdata->parent_clk = devm_clk_get(&pdev->dev, "parent-clk");
 	if (IS_ERR(mdata->parent_clk)) {
 		ret = PTR_ERR(mdata->parent_clk);
 		dev_err(&pdev->dev, "failed to get parent-clk: %d\n", ret);
+		goto err_put_master;
+	}
+
+	mdata->sel_clk = devm_clk_get(&pdev->dev, "sel-clk");
+	if (IS_ERR(mdata->sel_clk)) {
+		ret = PTR_ERR(mdata->spi_clk);
+		dev_err(&pdev->dev, "failed to get sel-clk: %d\n", ret);
+		goto err_put_master;
+	}
+
+	mdata->spi_clk = devm_clk_get(&pdev->dev, "spi-clk");
+	if (IS_ERR(mdata->spi_clk)) {
+		ret = PTR_ERR(mdata->parent_clk);
+		dev_err(&pdev->dev, "failed to get spi-clk: %d\n", ret);
 		goto err_put_master;
 	}
 
@@ -596,7 +603,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	ret = clk_set_parent(mdata->spi_clk, mdata->parent_clk);
+	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to clk_set_parent (%d)\n", ret);
 		goto err_disable_clk;
