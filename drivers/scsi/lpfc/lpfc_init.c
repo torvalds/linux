@@ -8678,7 +8678,6 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
-	struct cpumask *mask;
 	uint8_t chann[LPFC_FCP_IO_CHAN_MAX+1];
 
 	/* If there is no mapping, just return */
@@ -8772,11 +8771,8 @@ found:
 			first_cpu = cpu;
 
 		/* Now affinitize to the selected CPU */
-		mask = &cpup->maskbits;
-		cpumask_clear(mask);
-		cpumask_set_cpu(cpu, mask);
 		i = irq_set_affinity_hint(phba->sli4_hba.msix_entries[idx].
-					  vector, mask);
+					  vector, get_cpu_mask(cpu));
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"3330 Set Affinity: CPU %d channel %d "
