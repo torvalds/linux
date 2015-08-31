@@ -32,7 +32,7 @@ MODULE_PARM_DESC(edid_firmware, "Do not probe monitor, use specified EDID blob "
 	"from built-in data or /lib/firmware instead. ");
 
 #define GENERIC_EDIDS 6
-static const char *generic_edid_name[GENERIC_EDIDS] = {
+static const char * const generic_edid_name[GENERIC_EDIDS] = {
 	"edid/800x600.bin",
 	"edid/1024x768.bin",
 	"edid/1280x1024.bin",
