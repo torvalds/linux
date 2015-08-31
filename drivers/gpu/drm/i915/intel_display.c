@@ -11142,11 +11142,10 @@ static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc)
 static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
-	u32 start_vbl_count;
 
 	intel_mark_page_flip_active(intel_crtc);
 
-	intel_pipe_update_start(intel_crtc, &start_vbl_count);
+	intel_pipe_update_start(intel_crtc);
 
 	if (INTEL_INFO(dev)->gen >= 9)
 		skl_do_mmio_flip(intel_crtc);
@@ -11154,7 +11153,7 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 		/* use_mmio_flip() retricts MMIO flips to ilk+ */
 		ilk_do_mmio_flip(intel_crtc);
 
-	intel_pipe_update_end(intel_crtc, start_vbl_count);
+	intel_pipe_update_end(intel_crtc);
 }
 
 static void intel_mmio_flip_work_func(struct work_struct *work)
@@ -13463,7 +13462,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 
 	/* Perform vblank evasion around commit operation */
 	if (crtc->state->active)
-		intel_pipe_update_start(intel_crtc, &intel_crtc->start_vbl_count);
+		intel_pipe_update_start(intel_crtc);
 
 	if (!needs_modeset(crtc->state) && INTEL_INFO(dev)->gen >= 9)
 		skl_detach_scalers(intel_crtc);
@@ -13475,7 +13474,7 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	if (crtc->state->active)
-		intel_pipe_update_end(intel_crtc, intel_crtc->start_vbl_count);
+		intel_pipe_update_end(intel_crtc);
 }
 
 /**

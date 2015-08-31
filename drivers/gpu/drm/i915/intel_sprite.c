@@ -76,7 +76,7 @@ static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
  * avoid random delays. The value written to @start_vbl_count should be
  * supplied to intel_pipe_update_end() for error checking.
  */
-void intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
+void intel_pipe_update_start(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
@@ -95,7 +95,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 	max = vblank_start - 1;
 
 	local_irq_disable();
-	*start_vbl_count = 0;
+	crtc->start_vbl_count = 0;
 
 	if (min <= 0 || max <= 0)
 		return;
@@ -134,9 +134,10 @@ void intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 
 	drm_crtc_vblank_put(&crtc->base);
 
-	*start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+	crtc->start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 
-	trace_i915_pipe_update_vblank_evaded(crtc, min, max, *start_vbl_count);
+	trace_i915_pipe_update_vblank_evaded(crtc, min, max,
+					     crtc->start_vbl_count);
 }
 
 /**
@@ -148,7 +149,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
  * re-enables interrupts and verifies the update was actually completed
  * before a vblank using the value of @start_vbl_count.
  */
-void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count)
+void intel_pipe_update_end(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
@@ -158,9 +159,9 @@ void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count)
 
 	local_irq_enable();
 
-	if (start_vbl_count && start_vbl_count != end_vbl_count)
+	if (crtc->start_vbl_count && crtc->start_vbl_count != end_vbl_count)
 		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u)\n",
-			  pipe_name(pipe), start_vbl_count, end_vbl_count);
+			  pipe_name(pipe), crtc->start_vbl_count, end_vbl_count);
 }
 
 static void

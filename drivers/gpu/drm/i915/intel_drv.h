@@ -1414,9 +1414,8 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-void intel_pipe_update_start(struct intel_crtc *crtc,
-			     uint32_t *start_vbl_count);
-void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
+void intel_pipe_update_start(struct intel_crtc *crtc);
+void intel_pipe_update_end(struct intel_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
