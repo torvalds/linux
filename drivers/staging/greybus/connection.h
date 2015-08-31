@@ -61,7 +61,6 @@ struct gb_connection *gb_connection_create_range(struct greybus_host_device *hd,
 			   u32 ida_end);
 void gb_connection_destroy(struct gb_connection *connection);
 
-int gb_connection_init(struct gb_connection *connection);
 void gb_connection_exit(struct gb_connection *connection);
 void gb_hd_connections_exit(struct greybus_host_device *hd);
 

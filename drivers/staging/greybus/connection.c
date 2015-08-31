@@ -163,31 +163,6 @@ int svc_update_connection(struct gb_interface *intf,
 	return 0;
 }
 
-void gb_connection_bind_protocol(struct gb_connection *connection)
-{
-	struct gb_protocol *protocol;
-
-	/* If we already have a protocol bound here, just return */
-	if (connection->protocol)
-		return;
-
-	protocol = gb_protocol_get(connection->protocol_id,
-				   connection->major,
-				   connection->minor);
-	if (!protocol)
-		return;
-	connection->protocol = protocol;
-
-	/*
-	 * If we have a valid device_id for the interface block, then we have an
-	 * active device, so bring up the connection at the same time.
-	 */
-	if ((!connection->bundle &&
-	     connection->hd_cport_id == GB_SVC_CPORT_ID) ||
-	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD)
-		gb_connection_init(connection);
-}
-
 /*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -391,7 +366,7 @@ static void gb_connection_disconnected(struct gb_connection *connection)
 			"Failed to disconnect CPort-%d (%d)\n", cport_id, ret);
 }
 
-int gb_connection_init(struct gb_connection *connection)
+static int gb_connection_init(struct gb_connection *connection)
 {
 	int cport_id = connection->intf_cport_id;
 	int ret;
@@ -479,4 +454,29 @@ void gb_hd_connections_exit(struct greybus_host_device *hd)
 		gb_connection_exit(connection);
 		gb_connection_destroy(connection);
 	}
+}
+
+void gb_connection_bind_protocol(struct gb_connection *connection)
+{
+	struct gb_protocol *protocol;
+
+	/* If we already have a protocol bound here, just return */
+	if (connection->protocol)
+		return;
+
+	protocol = gb_protocol_get(connection->protocol_id,
+				   connection->major,
+				   connection->minor);
+	if (!protocol)
+		return;
+	connection->protocol = protocol;
+
+	/*
+	 * If we have a valid device_id for the interface block, then we have an
+	 * active device, so bring up the connection at the same time.
+	 */
+	if ((!connection->bundle &&
+	     connection->hd_cport_id == GB_SVC_CPORT_ID) ||
+	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD)
+		gb_connection_init(connection);
 }
