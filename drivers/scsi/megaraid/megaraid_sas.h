@@ -973,7 +973,8 @@ struct megasas_ctrl_info {
 
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:8;
+		u32     reserved:7;
+		u32     useSeqNumJbodFP:1;
 		u32     supportExtendedSSCSize:1;
 		u32     supportDiskCacheSettingForSysPDs:1;
 		u32     supportCPLDUpdate:1;
@@ -1021,7 +1022,8 @@ struct megasas_ctrl_info {
 		u32     supportCPLDUpdate:1;
 		u32     supportDiskCacheSettingForSysPDs:1;
 		u32     supportExtendedSSCSize:1;
-		u32     reserved:8;
+		u32     useSeqNumJbodFP:1;
+		u32     reserved:7;
 #endif
 	} adapterOperations3;
 
@@ -1700,6 +1702,7 @@ struct megasas_instance {
 	u32 crash_dump_drv_support;
 	u32 crash_dump_app_support;
 	u32 secure_jbod_support;
+	bool use_seqnum_jbod_fp;   /* Added for PD sequence */
 	spinlock_t crashdump_lock;
 
 	struct megasas_register_set __iomem *reg_set;
@@ -1779,7 +1782,9 @@ struct megasas_instance {
 	struct msix_entry msixentry[MEGASAS_MAX_MSIX_QUEUES];
 	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
 	u64 map_id;
+	u64 pd_seq_map_id;
 	struct megasas_cmd *map_update_cmd;
+	struct megasas_cmd *jbod_seq_cmd;
 	unsigned long bar;
 	long reset_flags;
 	struct mutex reset_mutex;
@@ -1995,6 +2000,9 @@ __le16 get_updated_dev_handle(struct megasas_instance *instance,
 void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *map,
 	struct LD_LOAD_BALANCE_INFO *lbInfo);
 int megasas_get_ctrl_info(struct megasas_instance *instance);
+/* PD sequence */
+int
+megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend);
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);
@@ -2010,5 +2018,6 @@ void __megasas_return_cmd(struct megasas_instance *instance,
 void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
 	struct megasas_cmd *cmd_mfi, struct megasas_cmd_fusion *cmd_fusion);
 int megasas_cmd_type(struct scsi_cmnd *cmd);
+void megasas_setup_jbod_map(struct megasas_instance *instance);
 
 #endif				/*LSI_MEGARAID_SAS_H */

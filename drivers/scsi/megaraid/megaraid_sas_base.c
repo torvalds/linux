@@ -2837,7 +2837,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	struct megasas_header *hdr = &cmd->frame->hdr;
 	unsigned long flags;
 	struct fusion_context *fusion = instance->ctrl_context;
-	u32 opcode;
+	u32 opcode, status;
 
 	/* flag for the retry reset */
 	cmd->retry_for_fw_reset = 0;
@@ -2945,6 +2945,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			&& (cmd->frame->dcmd.mbox.b[1] == 1)) {
 			fusion->fast_path_io = 0;
 			spin_lock_irqsave(instance->host->host_lock, flags);
+			instance->map_update_cmd = NULL;
 			if (cmd->frame->hdr.cmd_status != 0) {
 				if (cmd->frame->hdr.cmd_status !=
 				    MFI_STAT_NOT_FOUND)
@@ -2980,6 +2981,27 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			spin_lock_irqsave(&poll_aen_lock, flags);
 			megasas_poll_wait_aen = 0;
 			spin_unlock_irqrestore(&poll_aen_lock, flags);
+		}
+
+		/* FW has an updated PD sequence */
+		if ((opcode == MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
+			(cmd->frame->dcmd.mbox.b[0] == 1)) {
+
+			spin_lock_irqsave(instance->host->host_lock, flags);
+			status = cmd->frame->hdr.cmd_status;
+			instance->jbod_seq_cmd = NULL;
+			megasas_return_cmd(instance, cmd);
+
+			if (status == MFI_STAT_OK) {
+				instance->pd_seq_map_id++;
+				/* Re-register a pd sync seq num cmd */
+				if (megasas_sync_pd_seq_num(instance, true))
+					instance->use_seqnum_jbod_fp = false;
+			} else
+				instance->use_seqnum_jbod_fp = false;
+
+			spin_unlock_irqrestore(instance->host->host_lock, flags);
+			break;
 		}
 
 		/*
@@ -4136,6 +4158,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
 		le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
 		megasas_update_ext_vd_details(instance);
+		instance->use_seqnum_jbod_fp =
+			ctrl_info->adapterOperations3.useSeqNumJbodFP;
 		instance->is_imr = (ctrl_info->memory_size ? 0 : 1);
 		dev_info(&instance->pdev->dev,
 				"controller type\t: %s(%dMB)\n",
@@ -4481,6 +4505,62 @@ megasas_destroy_irqs(struct megasas_instance *instance) {
 }
 
 /**
+ * megasas_setup_jbod_map -	setup jbod map for FP seq_number.
+ * @instance:				Adapter soft state
+ * @is_probe:				Driver probe check
+ *
+ * Return 0 on success.
+ */
+void
+megasas_setup_jbod_map(struct megasas_instance *instance)
+{
+	int i;
+	struct fusion_context *fusion = instance->ctrl_context;
+	u32 pd_seq_map_sz;
+
+	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+		(sizeof(struct MR_PD_CFG_SEQ) * (MAX_PHYSICAL_DEVICES - 1));
+
+	if (reset_devices || !fusion ||
+		!instance->ctrl_info->adapterOperations3.useSeqNumJbodFP) {
+		dev_info(&instance->pdev->dev,
+			"Jbod map is not supported %s %d\n",
+			__func__, __LINE__);
+		instance->use_seqnum_jbod_fp = false;
+		return;
+	}
+
+	if (fusion->pd_seq_sync[0])
+		goto skip_alloc;
+
+	for (i = 0; i < JBOD_MAPS_COUNT; i++) {
+		fusion->pd_seq_sync[i] = dma_alloc_coherent
+			(&instance->pdev->dev, pd_seq_map_sz,
+			&fusion->pd_seq_phys[i], GFP_KERNEL);
+		if (!fusion->pd_seq_sync[i]) {
+			dev_err(&instance->pdev->dev,
+				"Failed to allocate memory from %s %d\n",
+				__func__, __LINE__);
+			if (i == 1) {
+				dma_free_coherent(&instance->pdev->dev,
+					pd_seq_map_sz, fusion->pd_seq_sync[0],
+					fusion->pd_seq_phys[0]);
+				fusion->pd_seq_sync[0] = NULL;
+			}
+			instance->use_seqnum_jbod_fp = false;
+			return;
+		}
+	}
+
+skip_alloc:
+	if (!megasas_sync_pd_seq_num(instance, false) &&
+		!megasas_sync_pd_seq_num(instance, true))
+		instance->use_seqnum_jbod_fp = true;
+	else
+		instance->use_seqnum_jbod_fp = false;
+}
+
+/**
  * megasas_init_fw -	Initializes the FW
  * @instance:		Adapter soft state
  *
@@ -4653,6 +4733,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	dev_err(&instance->pdev->dev, "INIT adapter done\n");
 
+	megasas_setup_jbod_map(instance);
+
 	/** for passthrough
 	 * the following function will get the PD LIST.
 	 */
@@ -4749,6 +4831,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->crash_dump_drv_support ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "secure jbod		: %s\n",
 		instance->secure_jbod_support ? "yes" : "no");
+	dev_info(&instance->pdev->dev, "jbod sync map		: %s\n",
+		instance->use_seqnum_jbod_fp ? "yes" : "no");
 
 
 	instance->max_sectors_per_req = instance->max_num_sge *
@@ -5510,6 +5594,10 @@ static void megasas_shutdown_controller(struct megasas_instance *instance,
 	if (instance->map_update_cmd)
 		megasas_issue_blocked_abort_cmd(instance,
 			instance->map_update_cmd, MEGASAS_BLOCKED_CMD_TIMEOUT);
+	if (instance->jbod_seq_cmd)
+		megasas_issue_blocked_abort_cmd(instance,
+			instance->jbod_seq_cmd, MEGASAS_BLOCKED_CMD_TIMEOUT);
+
 	dcmd = &cmd->frame->dcmd;
 
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
@@ -5674,6 +5762,7 @@ megasas_resume(struct pci_dev *pdev)
 	}
 
 	instance->instancet->enable_intr(instance);
+	megasas_setup_jbod_map(instance);
 	instance->unload = 0;
 
 	/*
@@ -5721,6 +5810,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 	struct fusion_context *fusion;
+	u32 pd_seq_map_sz;
 
 	instance = pci_get_drvdata(pdev);
 	instance->unload = 1;
@@ -5775,6 +5865,9 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_LSI_INVADER:
 	case PCI_DEVICE_ID_LSI_FURY:
 		megasas_release_fusion(instance);
+			pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+				(sizeof(struct MR_PD_CFG_SEQ) *
+					(MAX_PHYSICAL_DEVICES - 1));
 		for (i = 0; i < 2 ; i++) {
 			if (fusion->ld_map[i])
 				dma_free_coherent(&instance->pdev->dev,
@@ -5784,6 +5877,11 @@ static void megasas_detach_one(struct pci_dev *pdev)
 			if (fusion->ld_drv_map[i])
 				free_pages((ulong)fusion->ld_drv_map[i],
 					fusion->drv_map_pages);
+				if (fusion->pd_seq_sync)
+					dma_free_coherent(&instance->pdev->dev,
+						pd_seq_map_sz,
+						fusion->pd_seq_sync[i],
+						fusion->pd_seq_phys[i]);
 		}
 		free_pages((ulong)instance->ctrl_context,
 			instance->ctrl_context_pages);

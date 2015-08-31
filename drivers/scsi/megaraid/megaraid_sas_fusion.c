@@ -726,6 +726,83 @@ fail_get_cmd:
 	return ret;
 }
 
+/**
+ * megasas_sync_pd_seq_num -	JBOD SEQ MAP
+ * @instance:		Adapter soft state
+ * @pend:		set to 1, if it is pended jbod map.
+ *
+ * Issue Jbod map to the firmware. If it is pended command,
+ * issue command and return. If it is first instance of jbod map
+ * issue and receive command.
+ */
+int
+megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
+	int ret = 0;
+	u32 pd_seq_map_sz;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+	struct fusion_context *fusion = instance->ctrl_context;
+	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
+	dma_addr_t pd_seq_h;
+
+	pd_sync = (void *)fusion->pd_seq_sync[(instance->pd_seq_map_id & 1)];
+	pd_seq_h = fusion->pd_seq_phys[(instance->pd_seq_map_id & 1)];
+	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+			(sizeof(struct MR_PD_CFG_SEQ) *
+			(MAX_PHYSICAL_DEVICES - 1));
+
+	cmd = megasas_get_cmd(instance);
+	if (!cmd) {
+		dev_err(&instance->pdev->dev,
+			"Could not get mfi cmd. Fail from %s %d\n",
+			__func__, __LINE__);
+		return -ENOMEM;
+	}
+
+	dcmd = &cmd->frame->dcmd;
+
+	memset(pd_sync, 0, pd_seq_map_sz);
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = cpu_to_le32(pd_seq_map_sz);
+	dcmd->opcode = cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO);
+	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(pd_seq_h);
+	dcmd->sgl.sge32[0].length = cpu_to_le32(pd_seq_map_sz);
+
+	if (pend) {
+		dcmd->mbox.b[0] = MEGASAS_DCMD_MBOX_PEND_FLAG;
+		dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_WRITE);
+		instance->jbod_seq_cmd = cmd;
+		instance->instancet->issue_dcmd(instance, cmd);
+		return 0;
+	}
+
+	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+
+	/* Below code is only for non pended DCMD */
+	if (instance->ctrl_context && !instance->mask_interrupts)
+		ret = megasas_issue_blocked_cmd(instance, cmd, 60);
+	else
+		ret = megasas_issue_polled(instance, cmd);
+
+	if (le32_to_cpu(pd_sync->count) > MAX_PHYSICAL_DEVICES) {
+		dev_warn(&instance->pdev->dev,
+			"driver supports max %d JBOD, but FW reports %d\n",
+			MAX_PHYSICAL_DEVICES, le32_to_cpu(pd_sync->count));
+		ret = -EINVAL;
+	}
+
+	if (!ret)
+		instance->pd_seq_map_id++;
+
+	megasas_return_cmd(instance, cmd);
+	return ret;
+}
+
 /*
  * megasas_get_ld_map_info -	Returns FW's ld_map structure
  * @instance:				Adapter soft state
@@ -1722,7 +1799,9 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 	u16 timeout_limit;
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	struct RAID_CONTEXT	*pRAID_Context;
+	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
 	struct fusion_context *fusion = instance->ctrl_context;
+	pd_sync = (void *)fusion->pd_seq_sync[(instance->pd_seq_map_id - 1) & 1];
 
 	device_id = MEGASAS_DEV_INDEX(scmd);
 	pd_index = MEGASAS_PD_INDEX(scmd);
@@ -1731,16 +1810,38 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 	io_request = cmd->io_request;
 	/* get RAID_Context pointer */
 	pRAID_Context = &io_request->RaidContext;
+	pRAID_Context->regLockFlags = 0;
+	pRAID_Context->regLockRowLBA = 0;
+	pRAID_Context->regLockLength = 0;
 	io_request->DataLength = cpu_to_le32(scsi_bufflen(scmd));
 	io_request->LUN[1] = scmd->device->lun;
 	pRAID_Context->RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
 		<< MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
 
-	pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
-	pRAID_Context->configSeqNum = 0;
-	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
-	io_request->DevHandle =
-		local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+	/* If FW supports PD sequence number */
+	if (instance->use_seqnum_jbod_fp &&
+		instance->pd_list[pd_index].driveType == TYPE_DISK) {
+		/* TgtId must be incremented by 255 as jbod seq number is index
+		 * below raid map
+		 */
+		pRAID_Context->VirtualDiskTgtId =
+			cpu_to_le16(device_id + (MAX_PHYSICAL_DEVICES - 1));
+		pRAID_Context->configSeqNum = pd_sync->seq[pd_index].seqNum;
+		io_request->DevHandle = pd_sync->seq[pd_index].devHandle;
+		pRAID_Context->regLockFlags |=
+			(MR_RL_FLAGS_SEQ_NUM_ENABLE|MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+	} else if (fusion->fast_path_io) {
+		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
+		pRAID_Context->configSeqNum = 0;
+		local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
+		io_request->DevHandle =
+			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+	} else {
+		/* Want to send all IO via FW path */
+		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
+		pRAID_Context->configSeqNum = 0;
+		io_request->DevHandle = le16_to_cpu(0xFFFF);
+	}
 
 	cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
 	cmd->request_desc->SCSIIO.MSIxIndex =
@@ -1755,12 +1856,10 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 			(MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
 				MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		pRAID_Context->timeoutValue = cpu_to_le16(os_timeout_value);
+		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
 	} else {
 		/* system pd Fast Path */
 		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
-		pRAID_Context->regLockFlags = 0;
-		pRAID_Context->regLockRowLBA = 0;
-		pRAID_Context->regLockLength = 0;
 		timeout_limit = (scmd->device->type == TYPE_DISK) ?
 				255 : 0xFFFF;
 		pRAID_Context->timeoutValue =
@@ -1768,9 +1867,6 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 			timeout_limit : os_timeout_value);
 		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
 			(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
-			cmd->request_desc->SCSIIO.RequestFlags |=
-				(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
-				MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 			pRAID_Context->Type = MPI2_TYPE_CUDA;
 			pRAID_Context->nseg = 0x1;
 			io_request->IoFlags |=
@@ -2512,8 +2608,10 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 			continue;
 		req_desc = megasas_get_request_descriptor
 					(instance, smid - 1);
-		if (req_desc && (cmd_mfi->frame->dcmd.opcode !=
-				cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)))
+		if (req_desc && ((cmd_mfi->frame->dcmd.opcode !=
+				cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) &&
+				 (cmd_mfi->frame->dcmd.opcode !=
+				cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO))))
 			megasas_fire_cmd_fusion(instance, req_desc);
 		else
 			megasas_return_cmd(instance, cmd_mfi);
@@ -2815,6 +2913,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 
 			if (!megasas_get_map_info(instance))
 				megasas_sync_map_info(instance);
+
+			megasas_setup_jbod_map(instance);
 
 			clear_bit(MEGASAS_FUSION_IN_RESET,
 				  &instance->reset_flags);
