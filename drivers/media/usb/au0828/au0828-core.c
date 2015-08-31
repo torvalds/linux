@@ -259,6 +259,7 @@ static void au0828_create_media_graph(struct au0828_dev *dev)
 	struct media_device *mdev = dev->media_dev;
 	struct media_entity *entity;
 	struct media_entity *tuner = NULL, *decoder = NULL;
+	int i;
 
 	if (!mdev)
 		return;
@@ -276,6 +277,7 @@ static void au0828_create_media_graph(struct au0828_dev *dev)
 
 	/* Analog setup, using tuner as a link */
 
+	/* Something bad happened! */
 	if (!decoder)
 		return;
 
@@ -286,6 +288,30 @@ static void au0828_create_media_graph(struct au0828_dev *dev)
 			      MEDIA_LNK_FL_ENABLED);
 	media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
 			      MEDIA_LNK_FL_ENABLED);
+
+	for (i = 0; i < AU0828_MAX_INPUT; i++) {
+		struct media_entity *ent = &dev->input_ent[i];
+
+		if (AUVI_INPUT(i).type == AU0828_VMUX_UNDEFINED)
+			break;
+
+		switch (AUVI_INPUT(i).type) {
+		case AU0828_VMUX_CABLE:
+		case AU0828_VMUX_TELEVISION:
+		case AU0828_VMUX_DVB:
+			if (tuner)
+				media_create_pad_link(ent, 0, tuner,
+						      TUNER_PAD_RF_INPUT,
+						      MEDIA_LNK_FL_ENABLED);
+			break;
+		case AU0828_VMUX_COMPOSITE:
+		case AU0828_VMUX_SVIDEO:
+		default: /* AU0828_VMUX_DEBUG */
+			/* FIXME: fix the decoder PAD */
+			media_create_pad_link(ent, 0, decoder, 0, 0);
+			break;
+		}
+	}
 #endif
 }
 
