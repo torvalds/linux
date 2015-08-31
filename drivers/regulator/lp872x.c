@@ -849,7 +849,7 @@ static struct lp872x_platform_data
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	of_property_read_u8(np, "ti,general-config", &pdata->general_config);
 	if (of_find_property(np, "ti,update-config", NULL))
@@ -857,7 +857,7 @@ static struct lp872x_platform_data
 
 	pdata->dvs = devm_kzalloc(dev, sizeof(struct lp872x_dvs), GFP_KERNEL);
 	if (!pdata->dvs)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	pdata->dvs->gpio = of_get_named_gpio(np, "ti,dvs-gpio", 0);
 	of_property_read_u8(np, "ti,dvs-vsel", (u8 *)&pdata->dvs->vsel);
@@ -903,15 +903,21 @@ static struct lp872x_platform_data
 static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp872x *lp;
+	struct lp872x_platform_data *pdata;
 	int ret;
 	const int lp872x_num_regulators[] = {
 		[LP8720] = LP8720_NUM_REGULATORS,
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
 
-	if (cl->dev.of_node)
-		cl->dev.platform_data = lp872x_populate_pdata_from_dt(&cl->dev,
+	if (cl->dev.of_node) {
+		pdata = lp872x_populate_pdata_from_dt(&cl->dev,
 					      (enum lp872x_id)id->driver_data);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	} else {
+		pdata = dev_get_platdata(&cl->dev);
+	}
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
@@ -927,7 +933,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	}
 
 	lp->dev = &cl->dev;
-	lp->pdata = dev_get_platdata(&cl->dev);
+	lp->pdata = pdata;
 	lp->chipid = id->driver_data;
 	i2c_set_clientdata(cl, lp);
 
@@ -955,7 +961,6 @@ MODULE_DEVICE_TABLE(i2c, lp872x_ids);
 static struct i2c_driver lp872x_driver = {
 	.driver = {
 		.name = "lp872x",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(lp872x_dt_ids),
 	},
 	.probe = lp872x_probe,
