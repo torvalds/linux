@@ -1671,6 +1671,11 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			    itrace_parse_synth_opts),
 	OPT_BOOLEAN(0, "full-source-path", &srcline_full_filename,
 			"Show full source file name path for source lines"),
+	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
+			"Enable symbol demangling"),
+	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
+			"Enable kernel symbol demangling"),
+
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };

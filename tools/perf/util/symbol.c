@@ -1853,7 +1853,7 @@ static void vmlinux_path__exit(void)
 	zfree(&vmlinux_path);
 }
 
-static int vmlinux_path__init(struct perf_session_env *env)
+static int vmlinux_path__init(struct perf_env *env)
 {
 	struct utsname uts;
 	char bf[PATH_MAX];
@@ -1964,7 +1964,7 @@ static bool symbol__read_kptr_restrict(void)
 	return value;
 }
 
-int symbol__init(struct perf_session_env *env)
+int symbol__init(struct perf_env *env)
 {
 	const char *symfs;
 

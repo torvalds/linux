@@ -25,8 +25,6 @@
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {
 	char root_dir[PATH_MAX];
-	char notes[PATH_MAX];
-	u8 build_id[BUILD_ID_SIZE];
 	char *p;
 
 	strlcpy(root_dir, proc_dir, sizeof(root_dir));
@@ -35,15 +33,7 @@ static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 	if (!p)
 		return -1;
 	*p = '\0';
-
-	scnprintf(notes, sizeof(notes), "%s/sys/kernel/notes", root_dir);
-
-	if (sysfs__read_build_id(notes, build_id, sizeof(build_id)))
-		return -1;
-
-	build_id__sprintf(build_id, sizeof(build_id), sbuildid);
-
-	return 0;
+	return sysfs__sprintf_build_id(root_dir, sbuildid);
 }
 
 static int build_id_cache__kcore_dir(char *dir, size_t sz)
@@ -138,7 +128,7 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 		return -1;
 	*p = '\0';
 
-	if (build_id_cache__kcore_buildid(from_dir, sbuildid))
+	if (build_id_cache__kcore_buildid(from_dir, sbuildid) < 0)
 		return -1;
 
 	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s",

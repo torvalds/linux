@@ -170,7 +170,7 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session_env__exit(struct perf_session_env *env)
+static void perf_session_env__exit(struct perf_env *env)
 {
 	zfree(&env->hostname);
 	zfree(&env->os_release);

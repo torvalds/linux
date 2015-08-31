@@ -66,7 +66,7 @@ struct perf_header;
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd);
 
-struct perf_session_env {
+struct perf_env {
 	char			*hostname;
 	char			*os_release;
 	char			*version;
@@ -98,7 +98,7 @@ struct perf_header {
 	u64				data_size;
 	u64				feat_offset;
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
-	struct perf_session_env 	env;
+	struct perf_env 	env;
 };
 
 struct perf_evlist;

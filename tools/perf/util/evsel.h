@@ -60,6 +60,9 @@ struct perf_evsel_config_term {
 
 /** struct perf_evsel - event selector
  *
+ * @evlist - evlist this evsel is in, if it is in one.
+ * @node - To insert it into evlist->entries or in other list_heads, say in
+ *         the event parsing routines.
  * @name - Can be set to retain the original event name passed by the user,
  *         so that when showing results in tools such as 'perf stat', we
  *         show the name used, not some alias.
@@ -73,6 +76,7 @@ struct perf_evsel_config_term {
  */
 struct perf_evsel {
 	struct list_head	node;
+	struct perf_evlist	*evlist;
 	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
