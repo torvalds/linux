@@ -661,11 +661,11 @@ static int __init lock_torture_init(void)
 		for (i = 0; i < ARRAY_SIZE(torture_ops); i++)
 			pr_alert(" %s", torture_ops[i]->name);
 		pr_alert("\n");
-		torture_init_end();
-		return -EINVAL;
+		firsterr = -EINVAL;
+		goto unwind;
 	}
 	if (cxt.cur_ops->init)
-		cxt.cur_ops->init(); /* no "goto unwind" prior to this point!!! */
+		cxt.cur_ops->init();
 
 	if (nwriters_stress >= 0)
 		cxt.nrealwriters_stress = nwriters_stress;
