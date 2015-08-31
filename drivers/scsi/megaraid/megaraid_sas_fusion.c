@@ -2509,6 +2509,70 @@ static int
 megasas_adp_reset_fusion(struct megasas_instance *instance,
 			 struct megasas_register_set __iomem *regs)
 {
+	u32 host_diag, abs_state, retry;
+
+	/* Now try to reset the chip */
+	writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+	writel(MPI2_WRSEQ_1ST_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+	writel(MPI2_WRSEQ_2ND_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+	writel(MPI2_WRSEQ_3RD_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+	writel(MPI2_WRSEQ_4TH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+	writel(MPI2_WRSEQ_5TH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+	writel(MPI2_WRSEQ_6TH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
+
+	/* Check that the diag write enable (DRWE) bit is on */
+	host_diag = readl(&instance->reg_set->fusion_host_diag);
+	retry = 0;
+	while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
+		msleep(100);
+		host_diag = readl(&instance->reg_set->fusion_host_diag);
+		if (retry++ == 100) {
+			dev_warn(&instance->pdev->dev,
+				"Host diag unlock failed from %s %d\n",
+				__func__, __LINE__);
+			break;
+		}
+	}
+	if (!(host_diag & HOST_DIAG_WRITE_ENABLE))
+		return -1;
+
+	/* Send chip reset command */
+	writel(host_diag | HOST_DIAG_RESET_ADAPTER,
+		&instance->reg_set->fusion_host_diag);
+	msleep(3000);
+
+	/* Make sure reset adapter bit is cleared */
+	host_diag = readl(&instance->reg_set->fusion_host_diag);
+	retry = 0;
+	while (host_diag & HOST_DIAG_RESET_ADAPTER) {
+		msleep(100);
+		host_diag = readl(&instance->reg_set->fusion_host_diag);
+		if (retry++ == 1000) {
+			dev_warn(&instance->pdev->dev,
+				"Diag reset adapter never cleared %s %d\n",
+				__func__, __LINE__);
+			break;
+		}
+	}
+	if (host_diag & HOST_DIAG_RESET_ADAPTER)
+		return -1;
+
+	abs_state = instance->instancet->read_fw_status_reg(instance->reg_set)
+			& MFI_STATE_MASK;
+	retry = 0;
+
+	while ((abs_state <= MFI_STATE_FW_INIT) && (retry++ < 1000)) {
+		msleep(100);
+		abs_state = instance->instancet->
+			read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
+	}
+	if (abs_state <= MFI_STATE_FW_INIT) {
+		dev_warn(&instance->pdev->dev,
+			"fw state < MFI_STATE_FW_INIT, state = 0x%x %s %d\n",
+			abs_state, __func__, __LINE__);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -2674,11 +2738,11 @@ out:
 /* Core fusion reset function */
 int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 {
-	int retval = SUCCESS, i, retry = 0, convert = 0;
+	int retval = SUCCESS, i, convert = 0;
 	struct megasas_instance *instance;
 	struct megasas_cmd_fusion *cmd_fusion;
 	struct fusion_context *fusion;
-	u32 host_diag, abs_state, status_reg, reset_adapter;
+	u32 abs_state, status_reg, reset_adapter;
 	u32 io_timeout_in_crash_mode = 0;
 	struct scsi_cmnd *scmd_local = NULL;
 
@@ -2832,81 +2896,10 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 
 		/* Now try to reset the chip */
 		for (i = 0; i < MEGASAS_FUSION_MAX_RESET_TRIES; i++) {
-			writel(MPI2_WRSEQ_FLUSH_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
-			writel(MPI2_WRSEQ_1ST_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
-			writel(MPI2_WRSEQ_2ND_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
-			writel(MPI2_WRSEQ_3RD_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
-			writel(MPI2_WRSEQ_4TH_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
-			writel(MPI2_WRSEQ_5TH_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
-			writel(MPI2_WRSEQ_6TH_KEY_VALUE,
-			       &instance->reg_set->fusion_seq_offset);
 
-			/* Check that the diag write enable (DRWE) bit is on */
-			host_diag = readl(&instance->reg_set->fusion_host_diag);
-			retry = 0;
-			while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
-				msleep(100);
-				host_diag =
-				readl(&instance->reg_set->fusion_host_diag);
-				if (retry++ == 100) {
-					dev_warn(&instance->pdev->dev,
-					       "Host diag unlock failed! "
-					       "for scsi%d\n",
-						instance->host->host_no);
-					break;
-				}
-			}
-			if (!(host_diag & HOST_DIAG_WRITE_ENABLE))
+			if (instance->instancet->adp_reset
+				(instance, instance->reg_set))
 				continue;
-
-			/* Send chip reset command */
-			writel(host_diag | HOST_DIAG_RESET_ADAPTER,
-			       &instance->reg_set->fusion_host_diag);
-			msleep(3000);
-
-			/* Make sure reset adapter bit is cleared */
-			host_diag = readl(&instance->reg_set->fusion_host_diag);
-			retry = 0;
-			while (host_diag & HOST_DIAG_RESET_ADAPTER) {
-				msleep(100);
-				host_diag =
-				readl(&instance->reg_set->fusion_host_diag);
-				if (retry++ == 1000) {
-					dev_warn(&instance->pdev->dev,
-					       "Diag reset adapter never "
-					       "cleared for scsi%d!\n",
-						instance->host->host_no);
-					break;
-				}
-			}
-			if (host_diag & HOST_DIAG_RESET_ADAPTER)
-				continue;
-
-			abs_state =
-				instance->instancet->read_fw_status_reg(
-					instance->reg_set) & MFI_STATE_MASK;
-			retry = 0;
-
-			while ((abs_state <= MFI_STATE_FW_INIT) &&
-			       (retry++ < 1000)) {
-				msleep(100);
-				abs_state =
-				instance->instancet->read_fw_status_reg(
-					instance->reg_set) & MFI_STATE_MASK;
-			}
-			if (abs_state <= MFI_STATE_FW_INIT) {
-				dev_warn(&instance->pdev->dev, "firmware "
-				       "state < MFI_STATE_FW_INIT, state = "
-				       "0x%x for scsi%d\n", abs_state,
-					instance->host->host_no);
-				continue;
-			}
 
 			/* Wait for FW to become ready */
 			if (megasas_transition_to_ready(instance, 1)) {
