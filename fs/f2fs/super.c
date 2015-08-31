@@ -693,7 +693,7 @@ static int segment_info_seq_show(struct seq_file *seq, void *offset)
 		struct seg_entry *se = get_seg_entry(sbi, i);
 
 		if ((i % 10) == 0)
-			seq_printf(seq, "%-5d", i);
+			seq_printf(seq, "%-10d", i);
 		seq_printf(seq, "%d|%-3u", se->type,
 					get_valid_blocks(sbi, i, 1));
 		if ((i % 10) == 9 || i == (total_segs - 1))
