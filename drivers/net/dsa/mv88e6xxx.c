@@ -395,6 +395,7 @@ void mv88e6xxx_poll_link(struct dsa_switch *ds)
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
 		struct net_device *dev;
 		int uninitialized_var(port_status);
+		int pcs_ctrl;
 		int link;
 		int speed;
 		int duplex;
@@ -402,6 +403,10 @@ void mv88e6xxx_poll_link(struct dsa_switch *ds)
 
 		dev = ds->ports[i];
 		if (dev == NULL)
+			continue;
+
+		pcs_ctrl = mv88e6xxx_reg_read(ds, REG_PORT(i), PORT_PCS_CTRL);
+		if (pcs_ctrl < 0 || pcs_ctrl & PORT_PCS_CTRL_FORCE_LINK)
 			continue;
 
 		link = 0;
