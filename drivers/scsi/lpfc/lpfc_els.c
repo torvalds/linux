@@ -5850,6 +5850,13 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		return 1;
 	}
 
+	/* send our FLOGI first */
+	if (vport->port_state < LPFC_FLOGI) {
+		vport->fc_myDID = 0;
+		lpfc_initial_flogi(vport);
+		vport->fc_myDID = Fabric_DID;
+	}
+
 	/* Send back ACC */
 	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, NULL);
 
@@ -7324,6 +7331,15 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 "Data: x%x x%x x%x x%x\n",
 			cmd, did, vport->port_state, vport->fc_flag,
 			vport->fc_myDID, vport->fc_prevDID);
+
+	/* reject till our FLOGI completes */
+	if ((vport->port_state < LPFC_FABRIC_CFG_LINK) &&
+		(cmd != ELS_CMD_FLOGI)) {
+		rjt_err = LSRJT_UNABLE_TPC;
+		rjt_exp = LSEXP_NOTHING_MORE;
+		goto lsrjt;
+	}
+
 	switch (cmd) {
 	case ELS_CMD_PLOGI:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
@@ -7360,20 +7376,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				rjt_err = LSRJT_UNABLE_TPC;
 				rjt_exp = LSEXP_NOTHING_MORE;
 				break;
-			}
-			/* We get here, and drop thru, if we are PT2PT with
-			 * another NPort and the other side has initiated
-			 * the PLOGI before responding to our FLOGI.
-			 */
-			if (phba->sli_rev == LPFC_SLI_REV4 &&
-			    (phba->fc_topology_changed ||
-			     vport->fc_myDID != vport->fc_prevDID)) {
-				lpfc_unregister_fcf_prep(phba);
-				spin_lock_irq(shost->host_lock);
-				vport->fc_flag &= ~FC_VFI_REGISTERED;
-				spin_unlock_irq(shost->host_lock);
-				phba->fc_topology_changed = 0;
-				lpfc_issue_reg_vfi(vport);
 			}
 		}
 
@@ -7605,6 +7607,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		break;
 	}
 
+lsrjt:
 	/* check if need to LS_RJT received ELS cmd */
 	if (rjt_err) {
 		memset(&stat, 0, sizeof(stat));
