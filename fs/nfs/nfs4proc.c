@@ -7781,10 +7781,19 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 	case 0:
 		goto out;
 	/*
+	 * NFS4ERR_BADLAYOUT means the MDS cannot return a layout of
+	 * length lgp->args.minlength != 0 (see RFC5661 section 18.43.3).
+	 */
+	case -NFS4ERR_BADLAYOUT:
+		goto out_overflow;
+	/*
 	 * NFS4ERR_LAYOUTTRYLATER is a conflict with another client
-	 * (or clients) writing to the same RAID stripe
+	 * (or clients) writing to the same RAID stripe except when
+	 * the minlength argument is 0 (see RFC5661 section 18.43.3).
 	 */
 	case -NFS4ERR_LAYOUTTRYLATER:
+		if (lgp->args.minlength == 0)
+			goto out_overflow;
 	/*
 	 * NFS4ERR_RECALLCONFLICT is when conflict with self (must recall
 	 * existing layout before getting a new one).
@@ -7840,6 +7849,10 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 		rpc_restart_call_prepare(task);
 out:
 	dprintk("<-- %s\n", __func__);
+	return;
+out_overflow:
+	task->tk_status = -EOVERFLOW;
+	goto out;
 }
 
 static size_t max_response_pages(struct nfs_server *server)
