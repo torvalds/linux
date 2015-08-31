@@ -612,6 +612,16 @@ void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 	if (phydev->duplex == DUPLEX_FULL)
 		reg |= PORT_PCS_CTRL_DUPLEX_FULL;
 
+	if ((mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds)) &&
+	    (port >= ps->num_ports - 2)) {
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
+			reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK;
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
+			reg |= PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+			reg |= (PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
+				PORT_PCS_CTRL_RGMII_DELAY_TXCLK);
+	}
 	_mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_PCS_CTRL, reg);
 
 out:
