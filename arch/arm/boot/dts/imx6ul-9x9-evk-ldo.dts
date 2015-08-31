@@ -1,0 +1,31 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ul-9x9-evk.dts"
+
+&cpu0 {
+	operating-points = <
+		/* kHz	uV */
+		528000	1175000
+		396000	1025000
+		198000	950000
+	>;
+	fsl,soc-operating-points = <
+		/* KHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	arm-supply = <&reg_arm>;
+	soc-supply = <&reg_soc>;
+	fsl,arm-soc-shared = <0>;
+};
+
+&gpc {
+	fsl,ldo-bypass = <0>; /* use ldo-enable, u-boot will check it and configure */
+};
