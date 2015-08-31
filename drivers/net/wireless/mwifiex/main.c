@@ -1447,6 +1447,26 @@ exit_sem_err:
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);
 
+void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
+		  const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!adapter->dev || !(adapter->debug_mask & mask))
+		return;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	dev_info(adapter->dev, "%pV", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(_mwifiex_dbg);
+
 /*
  * This function initializes the module.
  *

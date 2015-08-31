@@ -48,6 +48,9 @@
 
 extern const char driver_version[];
 
+struct mwifiex_adapter;
+struct mwifiex_private;
+
 enum {
 	MWIFIEX_ASYNC_CMD,
 	MWIFIEX_SYNC_CMD
@@ -180,12 +183,11 @@ enum MWIFIEX_DEBUG_LEVEL {
 					MWIFIEX_DBG_FATAL | \
 					MWIFIEX_DBG_ERROR)
 
-#define mwifiex_dbg(adapter, dbg_mask, fmt, args...)		\
-do {								\
-	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
-		if ((adapter)->dev)				\
-			dev_info((adapter)->dev, fmt, ## args);	\
-} while (0)
+__printf(3, 4)
+void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
+		  const char *fmt, ...);
+#define mwifiex_dbg(adapter, mask, fmt, ...)				\
+	_mwifiex_dbg(adapter, MWIFIEX_DBG_##mask, fmt, ##__VA_ARGS__)
 
 #define DEBUG_DUMP_DATA_MAX_LEN		128
 #define mwifiex_dbg_dump(adapter, dbg_mask, str, buf, len)	\
@@ -505,9 +507,6 @@ enum mwifiex_iface_work_flags {
 	MWIFIEX_IFACE_WORK_DEVICE_DUMP,
 	MWIFIEX_IFACE_WORK_CARD_RESET,
 };
-
-struct mwifiex_adapter;
-struct mwifiex_private;
 
 struct mwifiex_private {
 	struct mwifiex_adapter *adapter;
