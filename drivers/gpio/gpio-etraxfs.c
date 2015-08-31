@@ -292,6 +292,7 @@ static int etraxfs_gpio_irq_request_resources(struct irq_data *d)
 	struct etraxfs_gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
+	int ret = -EBUSY;
 
 	spin_lock(&block->lock);
 	if (block->group[grpirq])
@@ -313,7 +314,7 @@ static int etraxfs_gpio_irq_request_resources(struct irq_data *d)
 
 out:
 	spin_unlock(&block->lock);
-	return -EBUSY;
+	return ret;
 }
 
 static void etraxfs_gpio_irq_release_resources(struct irq_data *d)
