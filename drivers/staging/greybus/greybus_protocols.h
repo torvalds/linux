@@ -804,6 +804,7 @@ struct gb_svc_route_create_request {
 	__u8	intf2_id;
 	__u8	dev2_id;
 };
+/* route create response has no payload */
 
 
 /* RAW */
