@@ -4705,6 +4705,8 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 
 	desc->info.port_speed.speed = cpu_to_be16(rdp_speed);
 
+	if (phba->lmt & LMT_32Gb)
+		rdp_cap |= RDP_PS_32GB;
 	if (phba->lmt & LMT_16Gb)
 		rdp_cap |= RDP_PS_16GB;
 	if (phba->lmt & LMT_10Gb)

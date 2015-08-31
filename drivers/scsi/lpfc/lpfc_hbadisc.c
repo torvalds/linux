@@ -3029,6 +3029,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	case LPFC_LINK_SPEED_8GHZ:
 	case LPFC_LINK_SPEED_10GHZ:
 	case LPFC_LINK_SPEED_16GHZ:
+	case LPFC_LINK_SPEED_32GHZ:
 		phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
 		break;
 	default:

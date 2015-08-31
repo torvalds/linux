@@ -699,7 +699,9 @@ lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology,
 	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_10G) &&
 	     !(phba->lmt & LMT_10Gb)) ||
 	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G) &&
-	     !(phba->lmt & LMT_16Gb))) {
+	     !(phba->lmt & LMT_16Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_32G) &&
+	     !(phba->lmt & LMT_32Gb))) {
 		/* Reset link speed to auto */
 		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 			"1302 Invalid speed for this board:%d "
@@ -2035,7 +2037,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		&& descp && descp[0] != '\0')
 		return;
 
-	if (phba->lmt & LMT_16Gb)
+	if (phba->lmt & LMT_32Gb)
+		max_speed = 32;
+	else if (phba->lmt & LMT_16Gb)
 		max_speed = 16;
 	else if (phba->lmt & LMT_10Gb)
 		max_speed = 10;
@@ -2228,6 +2232,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		oneConnect = 1;
 		m = (typeof(m)){"OCe15100", "PCIe",
 				"Obsolete, Unsupported FCoE"};
+		break;
+	case PCI_DEVICE_ID_LANCER_G6_FC:
+		m = (typeof(m)){"LPe32000", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SKYHAWK:
 	case PCI_DEVICE_ID_SKYHAWK_VF:
@@ -3491,6 +3498,8 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 				 sizeof fc_host_symbolic_name(shost));
 
 	fc_host_supported_speeds(shost) = 0;
+	if (phba->lmt & LMT_32Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_32GBIT;
 	if (phba->lmt & LMT_16Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_16GBIT;
 	if (phba->lmt & LMT_10Gb)
@@ -3853,6 +3862,9 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 			break;
 		case LPFC_FC_LA_SPEED_16G:
 			port_speed = 16000;
+			break;
+		case LPFC_FC_LA_SPEED_32G:
+			port_speed = 32000;
 			break;
 		default:
 			port_speed = 0;
@@ -11348,6 +11360,8 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LANCER_FC_VF,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LANCER_FCOE_VF,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LANCER_G6_FC,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SKYHAWK,
 		PCI_ANY_ID, PCI_ANY_ID, },

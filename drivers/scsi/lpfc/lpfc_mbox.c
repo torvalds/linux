@@ -506,6 +506,13 @@ lpfc_init_link(struct lpfc_hba * phba,
 		break;
 	}
 
+	if (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
+		mb->un.varInitLnk.link_flags & FLAGS_TOPOLOGY_MODE_LOOP) {
+		/* Failover is not tried for Lancer G6 */
+		mb->un.varInitLnk.link_flags = FLAGS_TOPOLOGY_MODE_PT_PT;
+		phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
+	}
+
 	/* Enable asynchronous ABTS responses from firmware */
 	mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
 
@@ -538,6 +545,10 @@ lpfc_init_link(struct lpfc_hba * phba,
 		case LPFC_USER_LINK_SPEED_16G:
 			mb->un.varInitLnk.link_flags |=	FLAGS_LINK_SPEED;
 			mb->un.varInitLnk.link_speed = LINK_SPEED_16G;
+			break;
+		case LPFC_USER_LINK_SPEED_32G:
+			mb->un.varInitLnk.link_flags |= FLAGS_LINK_SPEED;
+			mb->un.varInitLnk.link_speed = LINK_SPEED_32G;
 			break;
 		case LPFC_USER_LINK_SPEED_AUTO:
 		default:
