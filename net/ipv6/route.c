@@ -318,8 +318,7 @@ static const struct rt6_info ip6_blk_hole_entry_template = {
 /* allocate dst with ip6_dst_ops */
 static struct rt6_info *__ip6_dst_alloc(struct net *net,
 					struct net_device *dev,
-					int flags,
-					struct fib6_table *table)
+					int flags)
 {
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
 					0, DST_OBSOLETE_FORCE_CHK, flags);
@@ -336,10 +335,9 @@ static struct rt6_info *__ip6_dst_alloc(struct net *net,
 
 static struct rt6_info *ip6_dst_alloc(struct net *net,
 				      struct net_device *dev,
-				      int flags,
-				      struct fib6_table *table)
+				      int flags)
 {
-	struct rt6_info *rt = __ip6_dst_alloc(net, dev, flags, table);
+	struct rt6_info *rt = __ip6_dst_alloc(net, dev, flags);
 
 	if (rt) {
 		rt->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, GFP_ATOMIC);
@@ -950,8 +948,7 @@ static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
 	if (ort->rt6i_flags & (RTF_CACHE | RTF_PCPU))
 		ort = (struct rt6_info *)ort->dst.from;
 
-	rt = __ip6_dst_alloc(dev_net(ort->dst.dev), ort->dst.dev,
-			     0, ort->rt6i_table);
+	rt = __ip6_dst_alloc(dev_net(ort->dst.dev), ort->dst.dev, 0);
 
 	if (!rt)
 		return NULL;
@@ -983,8 +980,7 @@ static struct rt6_info *ip6_rt_pcpu_alloc(struct rt6_info *rt)
 	struct rt6_info *pcpu_rt;
 
 	pcpu_rt = __ip6_dst_alloc(dev_net(rt->dst.dev),
-				  rt->dst.dev, rt->dst.flags,
-				  rt->rt6i_table);
+				  rt->dst.dev, rt->dst.flags);
 
 	if (!pcpu_rt)
 		return NULL;
@@ -997,32 +993,53 @@ static struct rt6_info *ip6_rt_pcpu_alloc(struct rt6_info *rt)
 /* It should be called with read_lock_bh(&tb6_lock) acquired */
 static struct rt6_info *rt6_get_pcpu_route(struct rt6_info *rt)
 {
-	struct rt6_info *pcpu_rt, *prev, **p;
+	struct rt6_info *pcpu_rt, **p;
 
 	p = this_cpu_ptr(rt->rt6i_pcpu);
 	pcpu_rt = *p;
 
-	if (pcpu_rt)
-		goto done;
+	if (pcpu_rt) {
+		dst_hold(&pcpu_rt->dst);
+		rt6_dst_from_metrics_check(pcpu_rt);
+	}
+	return pcpu_rt;
+}
+
+static struct rt6_info *rt6_make_pcpu_route(struct rt6_info *rt)
+{
+	struct fib6_table *table = rt->rt6i_table;
+	struct rt6_info *pcpu_rt, *prev, **p;
 
 	pcpu_rt = ip6_rt_pcpu_alloc(rt);
 	if (!pcpu_rt) {
 		struct net *net = dev_net(rt->dst.dev);
 
-		pcpu_rt = net->ipv6.ip6_null_entry;
-		goto done;
+		dst_hold(&net->ipv6.ip6_null_entry->dst);
+		return net->ipv6.ip6_null_entry;
 	}
 
-	prev = cmpxchg(p, NULL, pcpu_rt);
-	if (prev) {
-		/* If someone did it before us, return prev instead */
+	read_lock_bh(&table->tb6_lock);
+	if (rt->rt6i_pcpu) {
+		p = this_cpu_ptr(rt->rt6i_pcpu);
+		prev = cmpxchg(p, NULL, pcpu_rt);
+		if (prev) {
+			/* If someone did it before us, return prev instead */
+			dst_destroy(&pcpu_rt->dst);
+			pcpu_rt = prev;
+		}
+	} else {
+		/* rt has been removed from the fib6 tree
+		 * before we have a chance to acquire the read_lock.
+		 * In this case, don't brother to create a pcpu rt
+		 * since rt is going away anyway.  The next
+		 * dst_check() will trigger a re-lookup.
+		 */
 		dst_destroy(&pcpu_rt->dst);
-		pcpu_rt = prev;
+		pcpu_rt = rt;
 	}
-
-done:
 	dst_hold(&pcpu_rt->dst);
 	rt6_dst_from_metrics_check(pcpu_rt);
+	read_unlock_bh(&table->tb6_lock);
 	return pcpu_rt;
 }
 
@@ -1097,9 +1114,22 @@ redo_rt6_select:
 		rt->dst.lastuse = jiffies;
 		rt->dst.__use++;
 		pcpu_rt = rt6_get_pcpu_route(rt);
-		read_unlock_bh(&table->tb6_lock);
+
+		if (pcpu_rt) {
+			read_unlock_bh(&table->tb6_lock);
+		} else {
+			/* We have to do the read_unlock first
+			 * because rt6_make_pcpu_route() may trigger
+			 * ip6_dst_gc() which will take the write_lock.
+			 */
+			dst_hold(&rt->dst);
+			read_unlock_bh(&table->tb6_lock);
+			pcpu_rt = rt6_make_pcpu_route(rt);
+			dst_release(&rt->dst);
+		}
 
 		return pcpu_rt;
+
 	}
 }
 
@@ -1555,7 +1585,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (unlikely(!idev))
 		return ERR_PTR(-ENODEV);
 
-	rt = ip6_dst_alloc(net, dev, 0, NULL);
+	rt = ip6_dst_alloc(net, dev, 0);
 	if (unlikely(!rt)) {
 		in6_dev_put(idev);
 		dst = ERR_PTR(-ENOMEM);
@@ -1742,7 +1772,8 @@ int ip6_route_add(struct fib6_config *cfg)
 	if (!table)
 		goto out;
 
-	rt = ip6_dst_alloc(net, NULL, (cfg->fc_flags & RTF_ADDRCONF) ? 0 : DST_NOCOUNT, table);
+	rt = ip6_dst_alloc(net, NULL,
+			   (cfg->fc_flags & RTF_ADDRCONF) ? 0 : DST_NOCOUNT);
 
 	if (!rt) {
 		err = -ENOMEM;
@@ -1831,6 +1862,7 @@ int ip6_route_add(struct fib6_config *cfg)
 		int gwa_type;
 
 		gw_addr = &cfg->fc_gateway;
+		gwa_type = ipv6_addr_type(gw_addr);
 
 		/* if gw_addr is local we will fail to detect this in case
 		 * address is still TENTATIVE (DAD in progress). rt6_lookup()
@@ -1838,11 +1870,12 @@ int ip6_route_add(struct fib6_config *cfg)
 		 * prefix route was assigned to, which might be non-loopback.
 		 */
 		err = -EINVAL;
-		if (ipv6_chk_addr_and_flags(net, gw_addr, NULL, 0, 0))
+		if (ipv6_chk_addr_and_flags(net, gw_addr,
+					    gwa_type & IPV6_ADDR_LINKLOCAL ?
+					    dev : NULL, 0, 0))
 			goto out;
 
 		rt->rt6i_gateway = *gw_addr;
-		gwa_type = ipv6_addr_type(gw_addr);
 
 		if (gwa_type != (IPV6_ADDR_LINKLOCAL|IPV6_ADDR_UNICAST)) {
 			struct rt6_info *grt;
@@ -2397,7 +2430,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 {
 	struct net *net = dev_net(idev->dev);
 	struct rt6_info *rt = ip6_dst_alloc(net, net->loopback_dev,
-					    DST_NOCOUNT, NULL);
+					    DST_NOCOUNT);
 	if (!rt)
 		return ERR_PTR(-ENOMEM);
 

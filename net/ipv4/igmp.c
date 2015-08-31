@@ -1435,33 +1435,35 @@ static int __ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed)
 	struct sk_buff *skb_chk;
 	unsigned int transport_len;
 	unsigned int len = skb_transport_offset(skb) + sizeof(struct igmphdr);
-	int ret;
+	int ret = -EINVAL;
 
 	transport_len = ntohs(ip_hdr(skb)->tot_len) - ip_hdrlen(skb);
 
-	skb_get(skb);
 	skb_chk = skb_checksum_trimmed(skb, transport_len,
 				       ip_mc_validate_checksum);
 	if (!skb_chk)
-		return -EINVAL;
+		goto err;
 
-	if (!pskb_may_pull(skb_chk, len)) {
-		kfree_skb(skb_chk);
-		return -EINVAL;
-	}
+	if (!pskb_may_pull(skb_chk, len))
+		goto err;
 
 	ret = ip_mc_check_igmp_msg(skb_chk);
-	if (ret) {
-		kfree_skb(skb_chk);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	if (skb_trimmed)
 		*skb_trimmed = skb_chk;
-	else
+	/* free now unneeded clone */
+	else if (skb_chk != skb)
 		kfree_skb(skb_chk);
 
-	return 0;
+	ret = 0;
+
+err:
+	if (ret && skb_chk && skb_chk != skb)
+		kfree_skb(skb_chk);
+
+	return ret;
 }
 
 /**
@@ -1470,7 +1472,7 @@ static int __ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed)
  * @skb_trimmed: to store an skb pointer trimmed to IPv4 packet tail (optional)
  *
  * Checks whether an IPv4 packet is a valid IGMP packet. If so sets
- * skb network and transport headers accordingly and returns zero.
+ * skb transport header accordingly and returns zero.
  *
  * -EINVAL: A broken packet was detected, i.e. it violates some internet
  *  standard
@@ -1485,7 +1487,8 @@ static int __ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed)
  * to leave the original skb and its full frame unchanged (which might be
  * desirable for layer 2 frame jugglers).
  *
- * The caller needs to release a reference count from any returned skb_trimmed.
+ * Caller needs to set the skb network header and free any returned skb if it
+ * differs from the provided skb.
  */
 int ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed)
 {

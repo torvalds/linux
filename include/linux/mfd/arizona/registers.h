@@ -39,6 +39,7 @@
 #define ARIZONA_PWM_DRIVE_3                      0x32
 #define ARIZONA_WAKE_CONTROL                     0x40
 #define ARIZONA_SEQUENCE_CONTROL                 0x41
+#define ARIZONA_SPARE_TRIGGERS                   0x42
 #define ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_1    0x61
 #define ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2    0x62
 #define ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_3    0x63
@@ -1429,6 +1430,42 @@
 #define ARIZONA_WSEQ_ENA_JD2_RISE_MASK           0x0001  /* WSEQ_ENA_JD2_RISE */
 #define ARIZONA_WSEQ_ENA_JD2_RISE_SHIFT               0  /* WSEQ_ENA_JD2_RISE */
 #define ARIZONA_WSEQ_ENA_JD2_RISE_WIDTH               1  /* WSEQ_ENA_JD2_RISE */
+
+/*
+ * R66 (0x42) - Spare Triggers
+ */
+#define ARIZONA_WS_TRG8                          0x0080  /* WS_TRG8 */
+#define ARIZONA_WS_TRG8_MASK                     0x0080  /* WS_TRG8 */
+#define ARIZONA_WS_TRG8_SHIFT                         7  /* WS_TRG8 */
+#define ARIZONA_WS_TRG8_WIDTH                         1  /* WS_TRG8 */
+#define ARIZONA_WS_TRG7                          0x0040  /* WS_TRG7 */
+#define ARIZONA_WS_TRG7_MASK                     0x0040  /* WS_TRG7 */
+#define ARIZONA_WS_TRG7_SHIFT                         6  /* WS_TRG7 */
+#define ARIZONA_WS_TRG7_WIDTH                         1  /* WS_TRG7 */
+#define ARIZONA_WS_TRG6                          0x0020  /* WS_TRG6 */
+#define ARIZONA_WS_TRG6_MASK                     0x0020  /* WS_TRG6 */
+#define ARIZONA_WS_TRG6_SHIFT                         5  /* WS_TRG6 */
+#define ARIZONA_WS_TRG6_WIDTH                         1  /* WS_TRG6 */
+#define ARIZONA_WS_TRG5                          0x0010  /* WS_TRG5 */
+#define ARIZONA_WS_TRG5_MASK                     0x0010  /* WS_TRG5 */
+#define ARIZONA_WS_TRG5_SHIFT                         4  /* WS_TRG5 */
+#define ARIZONA_WS_TRG5_WIDTH                         1  /* WS_TRG5 */
+#define ARIZONA_WS_TRG4                          0x0008  /* WS_TRG4 */
+#define ARIZONA_WS_TRG4_MASK                     0x0008  /* WS_TRG4 */
+#define ARIZONA_WS_TRG4_SHIFT                         3  /* WS_TRG4 */
+#define ARIZONA_WS_TRG4_WIDTH                         1  /* WS_TRG4 */
+#define ARIZONA_WS_TRG3                          0x0004  /* WS_TRG3 */
+#define ARIZONA_WS_TRG3_MASK                     0x0004  /* WS_TRG3 */
+#define ARIZONA_WS_TRG3_SHIFT                         2  /* WS_TRG3 */
+#define ARIZONA_WS_TRG3_WIDTH                         1  /* WS_TRG3 */
+#define ARIZONA_WS_TRG2                          0x0002  /* WS_TRG2 */
+#define ARIZONA_WS_TRG2_MASK                     0x0002  /* WS_TRG2 */
+#define ARIZONA_WS_TRG2_SHIFT                         1  /* WS_TRG2 */
+#define ARIZONA_WS_TRG2_WIDTH                         1  /* WS_TRG2 */
+#define ARIZONA_WS_TRG1                          0x0001  /* WS_TRG1 */
+#define ARIZONA_WS_TRG1_MASK                     0x0001  /* WS_TRG1 */
+#define ARIZONA_WS_TRG1_SHIFT                         0  /* WS_TRG1 */
+#define ARIZONA_WS_TRG1_WIDTH                         1  /* WS_TRG1 */
 
 /*
  * R97 (0x61) - Sample Rate Sequence Select 1

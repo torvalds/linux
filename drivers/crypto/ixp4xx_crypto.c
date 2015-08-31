@@ -905,7 +905,6 @@ static int ablk_perform(struct ablkcipher_request *req, int encrypt)
 		crypt->mode |= NPE_OP_NOT_IN_PLACE;
 		/* This was never tested by Intel
 		 * for more than one dst buffer, I think. */
-		BUG_ON(req->dst->length < nbytes);
 		req_ctx->dst = NULL;
 		if (!chainup_buffers(dev, req->dst, nbytes, &dst_hook,
 					flags, DMA_FROM_DEVICE))

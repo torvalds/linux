@@ -92,14 +92,15 @@ int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_ewma)
 static inline void
 minstrel_sort_best_tp_rates(struct minstrel_sta_info *mi, int i, u8 *tp_list)
 {
-	int j = MAX_THR_RATES;
-	struct minstrel_rate_stats *tmp_mrs = &mi->r[j - 1].stats;
+	int j;
+	struct minstrel_rate_stats *tmp_mrs;
 	struct minstrel_rate_stats *cur_mrs = &mi->r[i].stats;
 
-	while (j > 0 && (minstrel_get_tp_avg(&mi->r[i], cur_mrs->prob_ewma) >
-	       minstrel_get_tp_avg(&mi->r[tp_list[j - 1]], tmp_mrs->prob_ewma))) {
-		j--;
+	for (j = MAX_THR_RATES; j > 0; --j) {
 		tmp_mrs = &mi->r[tp_list[j - 1]].stats;
+		if (minstrel_get_tp_avg(&mi->r[i], cur_mrs->prob_ewma) <=
+		    minstrel_get_tp_avg(&mi->r[tp_list[j - 1]], tmp_mrs->prob_ewma))
+			break;
 	}
 
 	if (j < MAX_THR_RATES - 1)

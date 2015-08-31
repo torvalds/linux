@@ -21,7 +21,7 @@
 #define WM5110_NUM_AOD_ISR 2
 #define WM5110_NUM_ISR 5
 
-static const struct reg_default wm5110_reva_patch[] = {
+static const struct reg_sequence wm5110_reva_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x44, 0x20 },
 	{ 0x45, 0x40 },
@@ -134,7 +134,7 @@ static const struct reg_default wm5110_reva_patch[] = {
 	{ 0x209, 0x002A },
 };
 
-static const struct reg_default wm5110_revb_patch[] = {
+static const struct reg_sequence wm5110_revb_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x36e, 0x0210 },
 	{ 0x370, 0x0210 },
@@ -224,7 +224,7 @@ static const struct reg_default wm5110_revb_patch[] = {
 	{ 0x80, 0x0 },
 };
 
-static const struct reg_default wm5110_revd_patch[] = {
+static const struct reg_sequence wm5110_revd_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x80, 0x3 },
 	{ 0x393, 0x27 },
@@ -249,6 +249,16 @@ static const struct reg_default wm5110_revd_patch[] = {
 	{ 0x80, 0x0 },
 };
 
+/* Add extra headphone write sequence locations */
+static const struct reg_default wm5110_reve_patch[] = {
+	{ 0x80, 0x3 },
+	{ 0x80, 0x3 },
+	{ 0x4b, 0x138 },
+	{ 0x4c, 0x13d },
+	{ 0x80, 0x0 },
+	{ 0x80, 0x0 },
+};
+
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5110_patch(struct arizona *arizona)
 {
@@ -266,7 +276,9 @@ int wm5110_patch(struct arizona *arizona)
 					     wm5110_revd_patch,
 					     ARRAY_SIZE(wm5110_revd_patch));
 	default:
-		return 0;
+		return regmap_register_patch(arizona->regmap,
+					     wm5110_reve_patch,
+					     ARRAY_SIZE(wm5110_reve_patch));
 	}
 }
 EXPORT_SYMBOL_GPL(wm5110_patch);
@@ -676,6 +688,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000032, 0x0100 },    /* R50    - PWM Drive 3 */
 	{ 0x00000040, 0x0000 },    /* R64    - Wake control */
 	{ 0x00000041, 0x0000 },    /* R65    - Sequence control */
+	{ 0x00000042, 0x0000 },    /* R66    - Spare Triggers */
 	{ 0x00000061, 0x01FF },    /* R97    - Sample Rate Sequence Select 1 */
 	{ 0x00000062, 0x01FF },    /* R98    - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01FF },    /* R99    - Sample Rate Sequence Select 3 */
@@ -1716,6 +1729,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_PWM_DRIVE_3:
 	case ARIZONA_WAKE_CONTROL:
 	case ARIZONA_SEQUENCE_CONTROL:
+	case ARIZONA_SPARE_TRIGGERS:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_1:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_3:

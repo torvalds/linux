@@ -3514,8 +3514,6 @@ static int pktgen_thread_worker(void *arg)
 
 	set_freezable();
 
-	__set_current_state(TASK_RUNNING);
-
 	while (!kthread_should_stop()) {
 		pkt_dev = next_to_run(t);
 
@@ -3560,7 +3558,6 @@ static int pktgen_thread_worker(void *arg)
 
 		try_to_freeze();
 	}
-	set_current_state(TASK_INTERRUPTIBLE);
 
 	pr_debug("%s stopping all device\n", t->tsk->comm);
 	pktgen_stop(t);
