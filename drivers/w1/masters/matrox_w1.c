@@ -232,16 +232,4 @@ static void matrox_w1_remove(struct pci_dev *pdev)
 	}
 	kfree(dev);
 }
-
-static int __init matrox_w1_init(void)
-{
-	return pci_register_driver(&matrox_w1_pci_driver);
-}
-
-static void __exit matrox_w1_fini(void)
-{
-	pci_unregister_driver(&matrox_w1_pci_driver);
-}
-
-module_init(matrox_w1_init);
-module_exit(matrox_w1_fini);
+module_pci_driver(matrox_w1_pci_driver);

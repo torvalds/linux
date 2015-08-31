@@ -4,6 +4,10 @@ Required properties:
 - compatible: "allwinner,sun4i-a10-sid" or "allwinner,sun7i-a20-sid"
 - reg: Should contain registers location and length
 
+= Data cells =
+Are child nodes of qfprom, bindings of which as described in
+bindings/nvmem/nvmem.txt
+
 Example for sun4i:
 	sid@01c23800 {
 		compatible = "allwinner,sun4i-a10-sid";
