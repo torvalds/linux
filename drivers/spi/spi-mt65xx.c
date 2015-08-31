@@ -630,7 +630,6 @@ static int mtk_spi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	mtk_spi_reset(mdata);
-	clk_disable_unprepare(mdata->spi_clk);
 	spi_master_put(master);
 
 	return 0;
