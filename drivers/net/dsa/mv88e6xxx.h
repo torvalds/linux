@@ -46,6 +46,8 @@
 #define PORT_STATUS_TX_PAUSED	BIT(5)
 #define PORT_STATUS_FLOW_CTRL	BIT(4)
 #define PORT_PCS_CTRL		0x01
+#define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
+#define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
 #define PORT_PCS_CTRL_FC		BIT(7)
 #define PORT_PCS_CTRL_FORCE_FC		BIT(6)
 #define PORT_PCS_CTRL_LINK_UP		BIT(5)
@@ -446,6 +448,8 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 				 uint64_t *data);
 int mv88e6xxx_get_sset_count(struct dsa_switch *ds);
 int mv88e6xxx_get_sset_count_basic(struct dsa_switch *ds);
+void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
+			   struct phy_device *phydev);
 int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
 void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 			struct ethtool_regs *regs, void *_p);
