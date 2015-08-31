@@ -1865,6 +1865,8 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 	sport->saved_reg[9] = readl(sport->port.membase + IMX21_UTS);
 	clk_disable_unprepare(sport->clk_ipg);
 
+	pinctrl_pm_select_sleep_state(&dev->dev);
+
 	return 0;
 }
 
@@ -1872,6 +1874,8 @@ static int serial_imx_resume(struct platform_device *dev)
 {
 	struct imx_port *sport = platform_get_drvdata(dev);
 	unsigned int val;
+
+	pinctrl_pm_select_default_state(&dev->dev);
 
 	clk_prepare_enable(sport->clk_ipg);
 	writel(sport->saved_reg[4], sport->port.membase + UFCR);
