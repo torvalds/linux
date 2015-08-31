@@ -329,6 +329,37 @@ static void bgx_flush_dmac_addrs(struct bgx *bgx, int lmac)
 	}
 }
 
+/* Configure BGX LMAC in internal loopback mode */
+void bgx_lmac_internal_loopback(int node, int bgx_idx,
+				int lmac_idx, bool enable)
+{
+	struct bgx *bgx;
+	struct lmac *lmac;
+	u64    cfg;
+
+	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	if (!bgx)
+		return;
+
+	lmac = &bgx->lmac[lmac_idx];
+	if (lmac->is_sgmii) {
+		cfg = bgx_reg_read(bgx, lmac_idx, BGX_GMP_PCS_MRX_CTL);
+		if (enable)
+			cfg |= PCS_MRX_CTL_LOOPBACK1;
+		else
+			cfg &= ~PCS_MRX_CTL_LOOPBACK1;
+		bgx_reg_write(bgx, lmac_idx, BGX_GMP_PCS_MRX_CTL, cfg);
+	} else {
+		cfg = bgx_reg_read(bgx, lmac_idx, BGX_SPUX_CONTROL1);
+		if (enable)
+			cfg |= SPU_CTL_LOOPBACK;
+		else
+			cfg &= ~SPU_CTL_LOOPBACK;
+		bgx_reg_write(bgx, lmac_idx, BGX_SPUX_CONTROL1, cfg);
+	}
+}
+EXPORT_SYMBOL(bgx_lmac_internal_loopback);
+
 static int bgx_lmac_sgmii_init(struct bgx *bgx, int lmacid)
 {
 	u64 cfg;
