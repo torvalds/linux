@@ -262,6 +262,9 @@
 	pinctrl-0 = <&pinctrl_uart5>;
 	fsl,uart-has-rtscts;
 	status = "okay";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode;*/
+	/* pinctrl-0 = <&pinctrl_uart5dte_1>; */
 };
 
 &usbotg1 {
@@ -470,6 +473,15 @@
 				MX6SX_PAD_KEY_COL3__UART5_TX		0x1b0b1
 				MX6SX_PAD_KEY_ROW2__UART5_CTS_B		0x1b0b1
 				MX6SX_PAD_KEY_COL2__UART5_RTS_B		0x1b0b1
+			>;
+		};
+
+		pinctrl_uart5dte_1: uart5dtegrp-1 {
+			fsl,pins = <
+				MX6SX_PAD_KEY_ROW3__UART5_TX		0x1b0b1
+				MX6SX_PAD_KEY_COL3__UART5_RX		0x1b0b1
+				MX6SX_PAD_KEY_ROW2__UART5_RTS_B		0x1b0b1
+				MX6SX_PAD_KEY_COL2__UART5_CTS_B		0x1b0b1
 			>;
 		};
 
