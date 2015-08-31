@@ -61,6 +61,7 @@ struct media_device_info {
 #define MEDIA_ENT_T_DVB_BASE		0x00000000
 #define MEDIA_ENT_T_V4L2_BASE		0x00010000
 #define MEDIA_ENT_T_V4L2_SUBDEV_BASE	0x00020000
+#define MEDIA_ENT_T_CONNECTOR_BASE	0x00030000
 
 /*
  * V4L2 entities - Those are used for DMA (mmap/DMABUF) and
@@ -105,6 +106,13 @@ struct media_device_info {
 #define MEDIA_ENT_T_DVB_CA		(MEDIA_ENT_T_DVB_BASE + 4)
 #define MEDIA_ENT_T_DVB_NET_DECAP	(MEDIA_ENT_T_DVB_BASE + 5)
 
+/* Connectors */
+#define MEDIA_ENT_T_CONN_RF		(MEDIA_ENT_T_CONNECTOR_BASE + 1)
+#define MEDIA_ENT_T_CONN_SVIDEO		(MEDIA_ENT_T_CONNECTOR_BASE + 2)
+#define MEDIA_ENT_T_CONN_COMPOSITE	(MEDIA_ENT_T_CONNECTOR_BASE + 3)
+/* For internal test signal generators and other debug connectors */
+#define MEDIA_ENT_T_CONN_TEST		(MEDIA_ENT_T_CONNECTOR_BASE + 4)
+
 #ifndef __KERNEL__
 /* Legacy symbols used to avoid userspace compilation breakages */
 #define MEDIA_ENT_TYPE_SHIFT		16
@@ -121,9 +129,9 @@ struct media_device_info {
 #define MEDIA_ENT_T_DEVNODE_DVB		(MEDIA_ENT_T_DEVNODE + 4)
 #endif
 
-/* Entity types */
-
+/* Entity flags */
 #define MEDIA_ENT_FL_DEFAULT		(1 << 0)
+#define MEDIA_ENT_FL_CONNECTOR		(1 << 1)
 
 struct media_entity_desc {
 	__u32 id;
