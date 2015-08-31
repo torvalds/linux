@@ -908,6 +908,8 @@ fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 			val = 65535 - 40;
 		if (type == RTAX_MTU && val > 65535 - 15)
 			val = 65535 - 15;
+		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
+			return -EINVAL;
 		fi->fib_metrics[type - 1] = val;
 	}
 
