@@ -276,7 +276,11 @@ filter out the startup phase of the program, which is often very different.
 --intr-regs::
 Capture machine state (registers) at interrupt, i.e., on counter overflows for
 each sample. List of captured registers depends on the architecture. This option
-is off by default.
+is off by default. It is possible to select the registers to sample using their
+symbolic names, e.g. on x86, ax, si. To list the available registers use
+--intr-regs=\?. To name registers, pass a comma separated list such as
+--intr-regs=ax,bx. The list of register is architecture dependent.
+
 
 --running-time::
 Record running and enabled time for read events (:S)
