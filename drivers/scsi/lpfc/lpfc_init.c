@@ -2253,7 +2253,7 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 				phba->Port);
 		else if (max_speed == 0)
 			snprintf(descp, 255,
-				"Emulex %s %s %s ",
+				"Emulex %s %s %s",
 				m.name, m.bus, m.function);
 		else
 			snprintf(descp, 255,
