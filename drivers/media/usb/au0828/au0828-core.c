@@ -27,6 +27,9 @@
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
+/* Due to enum tuner_pad_index */
+#include <media/tuner.h>
+
 /*
  * 1 = General debug messages
  * 2 = USB handling
@@ -260,7 +263,7 @@ static void au0828_create_media_graph(struct au0828_dev *dev)
 		return;
 
 	if (tuner)
-		media_create_pad_link(tuner, 0, decoder, 0,
+		media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT, decoder, 0,
 				      MEDIA_LNK_FL_ENABLED);
 	media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
 			      MEDIA_LNK_FL_ENABLED);

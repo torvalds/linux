@@ -34,6 +34,9 @@
 #include <linux/mutex.h>
 #include "dvbdev.h"
 
+/* Due to enum tuner_pad_index */
+#include <media/tuner.h>
+
 static DEFINE_MUTEX(dvbdev_mutex);
 static int dvbdev_debug;
 
@@ -552,7 +555,7 @@ void dvb_create_media_graph(struct dvb_adapter *adap)
 	}
 
 	if (tuner && demod)
-		media_create_pad_link(tuner, 0, demod, 0, 0);
+		media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT, demod, 0, 0);
 
 	if (demod && demux)
 		media_create_pad_link(demod, 1, demux, 0, MEDIA_LNK_FL_ENABLED);
