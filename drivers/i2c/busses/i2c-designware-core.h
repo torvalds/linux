@@ -112,8 +112,6 @@ struct dw_i2c_dev {
 #define ACCESS_SWAP		0x00000001
 #define ACCESS_16BIT		0x00000002
 
-extern u32 dw_readl(struct dw_i2c_dev *dev, int offset);
-extern void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset);
 extern int i2c_dw_init(struct dw_i2c_dev *dev);
 extern int i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		int num);

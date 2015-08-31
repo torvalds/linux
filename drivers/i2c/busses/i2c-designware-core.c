@@ -165,7 +165,7 @@ static char *abort_sources[] = {
 		"lost arbitration",
 };
 
-u32 dw_readl(struct dw_i2c_dev *dev, int offset)
+static u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 {
 	u32 value;
 
@@ -181,7 +181,7 @@ u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 		return value;
 }
 
-void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
+static void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 {
 	if (dev->accessor_flags & ACCESS_SWAP)
 		b = swab32(b);
