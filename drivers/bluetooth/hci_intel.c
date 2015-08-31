@@ -117,12 +117,12 @@ static int intel_wait_booting(struct hci_uart *hu)
 				  msecs_to_jiffies(1000));
 
 	if (err == 1) {
-		BT_ERR("%s: Device boot interrupted", hu->hdev->name);
+		bt_dev_err(hu->hdev, "Device boot interrupted");
 		return -EINTR;
 	}
 
 	if (err) {
-		BT_ERR("%s: Device boot timeout", hu->hdev->name);
+		bt_dev_err(hu->hdev, "Device boot timeout");
 		return -ETIMEDOUT;
 	}
 
@@ -283,11 +283,11 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	if (err && err != ETIMEDOUT)
 		return err;
 
-	BT_INFO("%s: Change controller speed to %d", hdev->name, speed);
+	bt_dev_info(hdev, "Change controller speed to %d", speed);
 
 	speed_cmd[3] = intel_convert_speed(speed);
 	if (speed_cmd[3] == 0xff) {
-		BT_ERR("%s: Unsupported speed", hdev->name);
+		bt_dev_err(hdev, "Unsupported speed");
 		return -EINVAL;
 	}
 
@@ -296,16 +296,15 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc05, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading Intel version information failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading Intel version information failed (%ld)",
+			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 	kfree_skb(skb);
 
 	skb = bt_skb_alloc(sizeof(speed_cmd), GFP_KERNEL);
 	if (!skb) {
-		BT_ERR("%s: Failed to allocate memory for baudrate packet",
-		       hdev->name);
+		bt_dev_err(hdev, "Failed to alloc memory for baudrate packet");
 		return -ENOMEM;
 	}
 
@@ -348,7 +347,7 @@ static int intel_setup(struct hci_uart *hu)
 	int speed_change = 0;
 	int err;
 
-	BT_DBG("%s", hdev->name);
+	bt_dev_dbg(hdev, "start intel_setup");
 
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
 
@@ -384,21 +383,21 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc05, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading Intel version information failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading Intel version information failed (%ld)",
+			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 
 	if (skb->len != sizeof(*ver)) {
-		BT_ERR("%s: Intel version event size mismatch", hdev->name);
+		bt_dev_err(hdev, "Intel version event size mismatch");
 		kfree_skb(skb);
 		return -EILSEQ;
 	}
 
 	ver = (struct intel_version *)skb->data;
 	if (ver->status) {
-		BT_ERR("%s: Intel version command failure (%02x)",
-		       hdev->name, ver->status);
+		bt_dev_err(hdev, "Intel version command failure (%02x)",
+			   ver->status);
 		err = -bt_to_errno(ver->status);
 		kfree_skb(skb);
 		return err;
@@ -408,8 +407,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * for now only accept this single value.
 	 */
 	if (ver->hw_platform != 0x37) {
-		BT_ERR("%s: Unsupported Intel hardware platform (%u)",
-		       hdev->name, ver->hw_platform);
+		bt_dev_err(hdev, "Unsupported Intel hardware platform (%u)",
+			   ver->hw_platform);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -420,8 +419,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * when newer hardware variants come along.
 	 */
 	if (ver->hw_variant != 0x0b) {
-		BT_ERR("%s: Unsupported Intel hardware variant (%u)",
-		       hdev->name, ver->hw_variant);
+		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
+			   ver->hw_variant);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -452,8 +451,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * choice is to return an error and abort the device initialization.
 	 */
 	if (ver->fw_variant != 0x06) {
-		BT_ERR("%s: Unsupported Intel firmware variant (%u)",
-		       hdev->name, ver->fw_variant);
+		bt_dev_err(hdev, "Unsupported Intel firmware variant (%u)",
+			   ver->fw_variant);
 		kfree_skb(skb);
 		return -ENODEV;
 	}
@@ -465,33 +464,33 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc0d, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading Intel boot parameters failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading Intel boot parameters failed (%ld)",
+			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 
 	if (skb->len != sizeof(*params)) {
-		BT_ERR("%s: Intel boot parameters size mismatch", hdev->name);
+		bt_dev_err(hdev, "Intel boot parameters size mismatch");
 		kfree_skb(skb);
 		return -EILSEQ;
 	}
 
 	params = (struct intel_boot_params *)skb->data;
 	if (params->status) {
-		BT_ERR("%s: Intel boot parameters command failure (%02x)",
-		       hdev->name, params->status);
+		bt_dev_err(hdev, "Intel boot parameters command failure (%02x)",
+			   params->status);
 		err = -bt_to_errno(params->status);
 		kfree_skb(skb);
 		return err;
 	}
 
-	BT_INFO("%s: Device revision is %u", hdev->name,
-		le16_to_cpu(params->dev_revid));
+	bt_dev_info(hdev, "Device revision is %u",
+		    le16_to_cpu(params->dev_revid));
 
-	BT_INFO("%s: Secure boot is %s", hdev->name,
-		params->secure_boot ? "enabled" : "disabled");
+	bt_dev_info(hdev, "Secure boot is %s",
+		    params->secure_boot ? "enabled" : "disabled");
 
-	BT_INFO("%s: Minimum firmware build %u week %u %u", hdev->name,
+	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
 		params->min_fw_build_nn, params->min_fw_build_cw,
 		2000 + params->min_fw_build_yy);
 
@@ -500,8 +499,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * that this bootloader does not send them, then abort the setup.
 	 */
 	if (params->limited_cce != 0x00) {
-		BT_ERR("%s: Unsupported Intel firmware loading method (%u)",
-		       hdev->name, params->limited_cce);
+		bt_dev_err(hdev, "Unsupported Intel firmware loading method (%u)",
+			   params->limited_cce);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -510,7 +509,7 @@ static int intel_setup(struct hci_uart *hu)
 	 * also be no valid address for the operational firmware.
 	 */
 	if (!bacmp(&params->otp_bdaddr, BDADDR_ANY)) {
-		BT_INFO("%s: No device address configured", hdev->name);
+		bt_dev_info(hdev, "No device address configured");
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
 	}
 
@@ -525,19 +524,19 @@ static int intel_setup(struct hci_uart *hu)
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
-		BT_ERR("%s: Failed to load Intel firmware file (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to load Intel firmware file (%d)",
+			   err);
 		kfree_skb(skb);
 		return err;
 	}
 
-	BT_INFO("%s: Found device firmware: %s", hdev->name, fwname);
+	bt_dev_info(hdev, "Found device firmware: %s", fwname);
 
 	kfree_skb(skb);
 
 	if (fw->size < 644) {
-		BT_ERR("%s: Invalid size of firmware file (%zu)",
-		       hdev->name, fw->size);
+		bt_dev_err(hdev, "Invalid size of firmware file (%zu)",
+			   fw->size);
 		err = -EBADF;
 		goto done;
 	}
@@ -549,8 +548,7 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	err = btintel_secure_send(hdev, 0x00, 128, fw->data);
 	if (err < 0) {
-		BT_ERR("%s: Failed to send firmware header (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to send firmware header (%d)", err);
 		goto done;
 	}
 
@@ -559,8 +557,8 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	err = btintel_secure_send(hdev, 0x03, 256, fw->data + 128);
 	if (err < 0) {
-		BT_ERR("%s: Failed to send firmware public key (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to send firmware public key (%d)",
+			   err);
 		goto done;
 	}
 
@@ -569,8 +567,8 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	err = btintel_secure_send(hdev, 0x02, 256, fw->data + 388);
 	if (err < 0) {
-		BT_ERR("%s: Failed to send firmware signature (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to send firmware signature (%d)",
+			   err);
 		goto done;
 	}
 
@@ -582,8 +580,8 @@ static int intel_setup(struct hci_uart *hu)
 
 		frag_len += sizeof(*cmd) + cmd->plen;
 
-		BT_DBG("%s: patching %td/%zu", hdev->name,
-		       (fw_ptr - fw->data), fw->size);
+		bt_dev_dbg(hdev, "Patching %td/%zu", (fw_ptr - fw->data),
+			   fw->size);
 
 		/* The parameter length of the secure send command requires
 		 * a 4 byte alignment. It happens so that the firmware file
@@ -601,8 +599,8 @@ static int intel_setup(struct hci_uart *hu)
 		 */
 		err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
 		if (err < 0) {
-			BT_ERR("%s: Failed to send firmware data (%d)",
-			       hdev->name, err);
+			bt_dev_err(hdev, "Failed to send firmware data (%d)",
+				   err);
 			goto done;
 		}
 
@@ -612,7 +610,7 @@ static int intel_setup(struct hci_uart *hu)
 
 	set_bit(STATE_FIRMWARE_LOADED, &intel->flags);
 
-	BT_INFO("%s: Waiting for firmware download to complete", hdev->name);
+	bt_dev_info(hdev, "Waiting for firmware download to complete");
 
 	/* Before switching the device into operational mode and with that
 	 * booting the loaded firmware, wait for the bootloader notification
@@ -629,19 +627,19 @@ static int intel_setup(struct hci_uart *hu)
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(5000));
 	if (err == 1) {
-		BT_ERR("%s: Firmware loading interrupted", hdev->name);
+		bt_dev_err(hdev, "Firmware loading interrupted");
 		err = -EINTR;
 		goto done;
 	}
 
 	if (err) {
-		BT_ERR("%s: Firmware loading timeout", hdev->name);
+		bt_dev_err(hdev, "Firmware loading timeout");
 		err = -ETIMEDOUT;
 		goto done;
 	}
 
 	if (test_bit(STATE_FIRMWARE_FAILED, &intel->flags)) {
-		BT_ERR("%s: Firmware loading failed", hdev->name);
+		bt_dev_err(hdev, "Firmware loading failed");
 		err = -ENOEXEC;
 		goto done;
 	}
@@ -650,7 +648,7 @@ static int intel_setup(struct hci_uart *hu)
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("%s: Firmware loaded in %llu usecs", hdev->name, duration);
+	bt_dev_info(hdev, "Firmware loaded in %llu usecs", duration);
 
 done:
 	release_firmware(fw);
@@ -683,7 +681,7 @@ done:
 	 * 1 second. However if that happens, then just fail the setup
 	 * since something went wrong.
 	 */
-	BT_INFO("%s: Waiting for device to boot", hdev->name);
+	bt_dev_info(hdev, "Waiting for device to boot");
 
 	err = intel_wait_booting(hu);
 	if (err)
@@ -695,7 +693,7 @@ done:
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("%s: Device booted in %llu usecs", hdev->name, duration);
+	bt_dev_info(hdev, "Device booted in %llu usecs", duration);
 
 	/* Enable LPM if matching pdev with wakeup enabled */
 	spin_lock(&intel_device_list_lock);
@@ -713,12 +711,12 @@ done:
 	if (!idev)
 		goto no_lpm;
 
-	BT_INFO("%s: Enabling LPM", hdev->name);
+	bt_dev_info(hdev, "Enabling LPM");
 
 	skb = __hci_cmd_sync(hdev, 0xfc8b, sizeof(lpm_param), lpm_param,
 			     HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Failed to enable LPM", hdev->name);
+		bt_dev_err(hdev, "Failed to enable LPM");
 		goto no_lpm;
 	}
 	kfree_skb(skb);
@@ -737,7 +735,7 @@ no_lpm:
 			return err;
 	}
 
-	BT_INFO("%s: Setup complete", hdev->name);
+	bt_dev_info(hdev, "Setup complete");
 
 	clear_bit(STATE_BOOTLOADER, &intel->flags);
 
@@ -791,7 +789,7 @@ static void intel_recv_lpm_notify(struct hci_dev *hdev, int value)
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct intel_data *intel = hu->priv;
 
-	BT_DBG("%s: TX idle notification (%d)", hdev->name, value);
+	bt_dev_dbg(hdev, "TX idle notification (%d)", value);
 
 	if (value)
 		set_bit(STATE_TX_ACTIVE, &intel->flags);
@@ -809,8 +807,7 @@ static int intel_recv_lpm(struct hci_dev *hdev, struct sk_buff *skb)
 			intel_recv_lpm_notify(hdev, lpm->data[0]);
 		break;
 	default:
-		BT_ERR("%s: unknown LPM opcode (%02x)", hdev->name,
-		       lpm->opcode);
+		bt_dev_err(hdev, "Unknown LPM opcode (%02x)", lpm->opcode);
 		break;
 	}
 
@@ -845,7 +842,7 @@ static int intel_recv(struct hci_uart *hu, const void *data, int count)
 				    ARRAY_SIZE(intel_recv_pkts));
 	if (IS_ERR(intel->rx_skb)) {
 		int err = PTR_ERR(intel->rx_skb);
-		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		intel->rx_skb = NULL;
 		return err;
 	}
