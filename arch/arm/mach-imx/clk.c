@@ -7,6 +7,8 @@
 
 DEFINE_SPINLOCK(imx_ccm_lock);
 
+bool uart_from_osc;
+
 void __init imx_check_clocks(struct clk *clks[], unsigned int count)
 {
 	unsigned i;
@@ -73,3 +75,10 @@ void imx_cscmr1_fixup(u32 *val)
 	*val ^= CSCMR1_FIXUP;
 	return;
 }
+
+static int __init setup_uart_clk(char *uart_rate)
+{
+       uart_from_osc = true;
+       return 1;
+}
+__setup("uart_from_osc", setup_uart_clk);

@@ -413,6 +413,12 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	/* set perclk to from OSC */
 	clk_set_parent(clks[IMX6UL_CLK_PERCLK_SEL], clks[IMX6UL_CLK_OSC]);
 
+        /* Set the UART parent if needed */
+        if (uart_from_osc)
+		imx_clk_set_parent(clks[IMX6UL_CLK_UART_SEL], clks[IMX6UL_CLK_OSC]);
+        else
+		imx_clk_set_parent(clks[IMX6UL_CLK_UART_SEL], clks[IMX6UL_CLK_PLL3_80M]);
+
 	clk_set_rate(clks[IMX6UL_CLK_ENET_REF], 50000000);
 	clk_set_rate(clks[IMX6UL_CLK_ENET2_REF], 50000000);
 	clk_set_rate(clks[IMX6UL_CLK_CSI], 24000000);

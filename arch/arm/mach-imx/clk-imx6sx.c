@@ -551,6 +551,12 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clk_set_parent(clks[IMX6SX_CLK_ESAI_SEL], clks[IMX6SX_CLK_PLL4_AUDIO_DIV]);
 	clk_set_rate(clks[IMX6SX_CLK_ESAI_PODF], 24576000);
 
+        /* Set the UART parent if needed. */
+        if (uart_from_osc)
+		clk_set_parent(clks[IMX6SX_CLK_UART_SEL], clks[IMX6SX_CLK_OSC]);
+        else
+		clk_set_parent(clks[IMX6SX_CLK_UART_SEL], clks[IMX6SX_CLK_PLL3_80M]);
+
 	/* Set parent clock for vadc */
 	clk_set_parent(clks[IMX6SX_CLK_VID_SEL], clks[IMX6SX_CLK_PLL3_USB_OTG]);
 
