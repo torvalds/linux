@@ -125,19 +125,26 @@ static int connection_create_operation(struct gb_svc *svc,
 				 &request, sizeof(request), NULL, 0);
 }
 
-static int connection_destroy_operation(struct gb_svc *svc,
+static void connection_destroy_operation(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
 				u8 intf2_id, u16 cport2_id)
 {
 	struct gb_svc_conn_destroy_request request;
+	struct gb_connection *connection = svc->connection;
+	int ret;
 
 	request.intf1_id = intf1_id;
 	request.cport1_id = cport1_id;
 	request.intf2_id = intf2_id;
 	request.cport2_id = cport2_id;
 
-	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_DESTROY,
-				 &request, sizeof(request), NULL, 0);
+	ret = gb_operation_sync(connection, GB_SVC_TYPE_CONN_DESTROY,
+				&request, sizeof(request), NULL, 0);
+	if (ret) {
+		dev_err(&connection->dev,
+			"failed to destroy connection (%hhx:%hx %hhx:%hx) %d\n",
+			intf1_id, cport1_id, intf2_id, cport2_id, ret);
+	}
 }
 
 static int route_create_operation(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
@@ -175,12 +182,11 @@ int gb_svc_connection_create(struct gb_svc *svc,
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_create);
 
-int gb_svc_connection_destroy(struct gb_svc *svc,
-				u8 intf1_id, u16 cport1_id,
-				u8 intf2_id, u16 cport2_id)
+void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
+			       u8 intf2_id, u16 cport2_id)
 {
-	return connection_destroy_operation(svc, intf1_id, cport1_id,
-						intf2_id, cport2_id);
+	connection_destroy_operation(svc, intf1_id, cport1_id, intf2_id,
+				     cport2_id);
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
