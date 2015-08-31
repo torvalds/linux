@@ -3454,6 +3454,7 @@ X:	Documentation/devicetree/
 X:	Documentation/acpi
 X:	Documentation/power
 X:	Documentation/spi
+X:	Documentation/DocBook/media
 T:	git git://git.lwn.net/linux-2.6.git docs-next
 
 DOUBLETALK DRIVER
@@ -6700,6 +6701,7 @@ M:	Johannes Thumshirn <morbidrsa@gmail.com>
 S:	Maintained
 F:	drivers/mcb/
 F:	include/linux/mcb.h
+F:	Documentation/men-chameleon-bus.txt
 
 MEN F21BMC (Board Management Controller)
 M:	Andreas Werner <andreas.werner@men.de>

@@ -910,6 +910,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Disable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs.
 
+	dis_ucode_ldr	[X86] Disable the microcode loader.
+
 	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
 			this option disables the debugging code at boot.
 
