@@ -5014,11 +5014,10 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 	int result;
 	size_t len;
 	char *str;
-	bool retried = false;
 
 	if (clp->cl_owner_id != NULL)
 		return 0;
-retry:
+
 	rcu_read_lock();
 	len = 14 + strlen(clp->cl_ipaddr) + 1 +
 		strlen(rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR)) +
@@ -5046,14 +5045,6 @@ retry:
 			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_PROTO));
 	rcu_read_unlock();
 
-	/* Did something change? */
-	if (result >= len) {
-		kfree(str);
-		if (retried)
-			return -EINVAL;
-		retried = true;
-		goto retry;
-	}
 	clp->cl_owner_id = str;
 	return 0;
 }
@@ -5085,10 +5076,6 @@ nfs4_init_uniquifier_client_string(struct nfs_client *clp)
 			clp->rpc_ops->version, clp->cl_minorversion,
 			nfs4_client_id_uniquifier,
 			clp->cl_rpcclient->cl_nodename);
-	if (result >= len) {
-		kfree(str);
-		return -EINVAL;
-	}
 	clp->cl_owner_id = str;
 	return 0;
 }
@@ -5124,10 +5111,6 @@ nfs4_init_uniform_client_string(struct nfs_client *clp)
 	result = scnprintf(str, len, "Linux NFSv%u.%u %s",
 			clp->rpc_ops->version, clp->cl_minorversion,
 			clp->cl_rpcclient->cl_nodename);
-	if (result >= len) {
-		kfree(str);
-		return -EINVAL;
-	}
 	clp->cl_owner_id = str;
 	return 0;
 }
