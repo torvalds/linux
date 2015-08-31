@@ -83,6 +83,7 @@ TRACE_EVENT(fib_validate_source,
 		__string(	name,	dev->name	)
 		__field(	int,	oif		)
 		__field(	int,	iif		)
+		__field(	__u8,	tos		)
 		__array(	__u8,	src,	4	)
 		__array(	__u8,	dst,	4	)
 	),
@@ -93,6 +94,7 @@ TRACE_EVENT(fib_validate_source,
 		__assign_str(name, dev ? dev->name : "not set");
 		__entry->oif = flp->flowi4_oif;
 		__entry->iif = flp->flowi4_iif;
+		__entry->tos = flp->flowi4_tos;
 
 		p32 = (__be32 *) __entry->src;
 		*p32 = flp->saddr;
@@ -101,8 +103,8 @@ TRACE_EVENT(fib_validate_source,
 		*p32 = flp->daddr;
 	),
 
-	TP_printk("dev %s oif %d iif %d src %pI4 dst %pI4",
-		  __get_str(name), __entry->oif, __entry->iif,
+	TP_printk("dev %s oif %d iif %d tos %d src %pI4 dst %pI4",
+		  __get_str(name), __entry->oif, __entry->iif, __entry->tos,
 		  __entry->src, __entry->dst)
 );
 #endif /* _TRACE_FIB_H */
