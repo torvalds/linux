@@ -146,6 +146,8 @@ static int sdma_v2_4_init_microcode(struct amdgpu_device *adev)
 		hdr = (const struct sdma_firmware_header_v1_0 *)adev->sdma[i].fw->data;
 		adev->sdma[i].fw_version = le32_to_cpu(hdr->header.ucode_version);
 		adev->sdma[i].feature_version = le32_to_cpu(hdr->ucode_feature_version);
+		if (adev->sdma[i].feature_version >= 20)
+			adev->sdma[i].burst_nop = true;
 
 		if (adev->firmware.smu_load) {
 			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
