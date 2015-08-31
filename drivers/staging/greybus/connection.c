@@ -396,10 +396,8 @@ disconnect:
 
 static void gb_connection_exit(struct gb_connection *connection)
 {
-	if (!connection->protocol) {
-		dev_warn(&connection->dev, "exit without protocol.\n");
+	if (!connection->protocol)
 		return;
-	}
 
 	spin_lock_irq(&connection->lock);
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
