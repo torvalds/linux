@@ -133,7 +133,7 @@ static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
 static inline void dw_i2c_acpi_unconfigure(struct platform_device *pdev) { }
 #endif
 
-static int dw_i2c_probe(struct platform_device *pdev)
+static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
@@ -271,7 +271,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_i2c_remove(struct platform_device *pdev)
+static int dw_i2c_plat_remove(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
 
@@ -300,12 +300,12 @@ MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-static int dw_i2c_prepare(struct device *dev)
+static int dw_i2c_plat_prepare(struct device *dev)
 {
 	return pm_runtime_suspended(dev);
 }
 
-static void dw_i2c_complete(struct device *dev)
+static void dw_i2c_plat_complete(struct device *dev)
 {
 	if (dev->power.direct_complete)
 		pm_request_resume(dev);
@@ -316,7 +316,7 @@ static void dw_i2c_complete(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM
-static int dw_i2c_suspend(struct device *dev)
+static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
@@ -327,7 +327,7 @@ static int dw_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int dw_i2c_resume(struct device *dev)
+static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
@@ -341,10 +341,10 @@ static int dw_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
-	.prepare = dw_i2c_prepare,
-	.complete = dw_i2c_complete,
-	SET_SYSTEM_SLEEP_PM_OPS(dw_i2c_suspend, dw_i2c_resume)
-	SET_RUNTIME_PM_OPS(dw_i2c_suspend, dw_i2c_resume, NULL)
+	.prepare = dw_i2c_plat_prepare,
+	.complete = dw_i2c_plat_complete,
+	SET_SYSTEM_SLEEP_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume)
+	SET_RUNTIME_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume, NULL)
 };
 
 #define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)
@@ -356,8 +356,8 @@ static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
 MODULE_ALIAS("platform:i2c_designware");
 
 static struct platform_driver dw_i2c_driver = {
-	.probe = dw_i2c_probe,
-	.remove = dw_i2c_remove,
+	.probe = dw_i2c_plat_probe,
+	.remove = dw_i2c_plat_remove,
 	.driver		= {
 		.name	= "i2c_designware",
 		.of_match_table = of_match_ptr(dw_i2c_of_match),
