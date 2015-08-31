@@ -13,6 +13,8 @@
 
 #include <linux/pm_runtime.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include <linux/component.h>
@@ -36,6 +38,98 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
+struct exynos_atomic_commit {
+	struct work_struct	work;
+	struct drm_device	*dev;
+	struct drm_atomic_state *state;
+	u32			crtcs;
+};
+
+static void exynos_atomic_wait_for_commit(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, ret;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+		if (!crtc->state->enable)
+			continue;
+
+		ret = drm_crtc_vblank_get(crtc);
+		if (ret)
+			continue;
+
+		exynos_drm_crtc_wait_pending_update(exynos_crtc);
+		drm_crtc_vblank_put(crtc);
+	}
+}
+
+static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
+{
+	struct drm_device *dev = commit->dev;
+	struct exynos_drm_private *priv = dev->dev_private;
+	struct drm_atomic_state *state = commit->state;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc_state *crtc_state;
+	int i;
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	/*
+	 * Exynos can't update planes with CRTCs and encoders disabled,
+	 * its updates routines, specially for FIMD, requires the clocks
+	 * to be enabled. So it is necessary to handle the modeset operations
+	 * *before* the commit_planes() step, this way it will always
+	 * have the relevant clocks enabled to perform the update.
+	 */
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+		atomic_set(&exynos_crtc->pending_update, 0);
+	}
+
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		struct exynos_drm_crtc *exynos_crtc =
+						to_exynos_crtc(plane->crtc);
+
+		if (!plane->crtc)
+			continue;
+
+		atomic_inc(&exynos_crtc->pending_update);
+	}
+
+	drm_atomic_helper_commit_planes(dev, state);
+
+	exynos_atomic_wait_for_commit(state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_state_free(state);
+
+	spin_lock(&priv->lock);
+	priv->pending &= ~commit->crtcs;
+	spin_unlock(&priv->lock);
+
+	wake_up_all(&priv->wait);
+
+	kfree(commit);
+}
+
+static void exynos_drm_atomic_work(struct work_struct *work)
+{
+	struct exynos_atomic_commit *commit = container_of(work,
+				struct exynos_atomic_commit, work);
+
+	exynos_atomic_commit_complete(commit);
+}
+
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -46,6 +140,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
+
+	init_waitqueue_head(&private->wait);
+	spin_lock_init(&private->lock);
 
 	dev_set_drvdata(dev->dev, dev);
 	dev->dev_private = (void *)private;
@@ -149,6 +246,64 @@ static int exynos_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
+static int commit_is_pending(struct exynos_drm_private *priv, u32 crtcs)
+{
+	bool pending;
+
+	spin_lock(&priv->lock);
+	pending = priv->pending & crtcs;
+	spin_unlock(&priv->lock);
+
+	return pending;
+}
+
+int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
+			 bool async)
+{
+	struct exynos_drm_private *priv = dev->dev_private;
+	struct exynos_atomic_commit *commit;
+	int i, ret;
+
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (!commit)
+		return -ENOMEM;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret) {
+		kfree(commit);
+		return ret;
+	}
+
+	/* This is the point of no return */
+
+	INIT_WORK(&commit->work, exynos_drm_atomic_work);
+	commit->dev = dev;
+	commit->state = state;
+
+	/* Wait until all affected CRTCs have completed previous commits and
+	 * mark them as pending.
+	 */
+	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
+		if (state->crtcs[i])
+			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
+	}
+
+	wait_event(priv->wait, !commit_is_pending(priv, commit->crtcs));
+
+	spin_lock(&priv->lock);
+	priv->pending |= commit->crtcs;
+	spin_unlock(&priv->lock);
+
+	drm_atomic_helper_swap_state(dev, state);
+
+	if (async)
+		schedule_work(&commit->work);
+	else
+		exynos_atomic_commit_complete(commit);
+
+	return 0;
+}
+
 static int exynos_drm_suspend(struct drm_device *dev, pm_message_t state)
 {
 	struct drm_connector *connector;
@@ -248,25 +403,25 @@ static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 
 static const struct drm_ioctl_desc exynos_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exynos_drm_gem_create_ioctl,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET, exynos_drm_gem_get_ioctl,
+			DRM_UNLOCKED | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION, vidi_connection_ioctl,
 			DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET,
-			exynos_drm_gem_get_ioctl, DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,
-			vidi_connection_ioctl, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER,
-			exynos_g2d_get_ver_ioctl, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST,
-			exynos_g2d_set_cmdlist_ioctl, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC,
-			exynos_g2d_exec_ioctl, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY,
-			exynos_drm_ipp_get_property, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY,
-			exynos_drm_ipp_set_property, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF,
-			exynos_drm_ipp_queue_buf, DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL,
-			exynos_drm_ipp_cmd_ctrl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER, exynos_g2d_get_ver_ioctl,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exynos_g2d_set_cmdlist_ioctl,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY, exynos_drm_ipp_get_property,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY, exynos_drm_ipp_set_property,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF, exynos_drm_ipp_queue_buf,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL, exynos_drm_ipp_cmd_ctrl,
+			DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -283,11 +438,10 @@ static const struct file_operations exynos_drm_driver_fops = {
 };
 
 static struct drm_driver exynos_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
+				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
-	.suspend		= exynos_drm_suspend,
-	.resume			= exynos_drm_resume,
 	.open			= exynos_drm_open,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,

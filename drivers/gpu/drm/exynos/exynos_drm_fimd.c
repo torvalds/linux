@@ -59,6 +59,7 @@
 #define VIDWnALPHA1(win)	(VIDW_ALPHA + 0x04 + (win) * 8)
 
 #define VIDWx_BUF_START(win, buf)	(VIDW_BUF_START(buf) + (win) * 8)
+#define VIDWx_BUF_START_S(win, buf)	(VIDW_BUF_START_S(buf) + (win) * 8)
 #define VIDWx_BUF_END(win, buf)		(VIDW_BUF_END(buf) + (win) * 8)
 #define VIDWx_BUF_SIZE(win, buf)	(VIDW_BUF_SIZE(buf) + (win) * 4)
 
@@ -186,6 +187,14 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
+
+static const uint32_t fimd_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
 
 static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	struct platform_device *pdev)
@@ -591,6 +600,16 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 {
 	u32 reg, bits, val;
 
+	/*
+	 * SHADOWCON/PRTCON register is used for enabling timing.
+	 *
+	 * for example, once only width value of a register is set,
+	 * if the dma is started then fimd hardware could malfunction so
+	 * with protect window setting, the register fields with prefix '_F'
+	 * wouldn't be updated at vsync also but updated once unprotect window
+	 * is set.
+	 */
+
 	if (ctx->driver_data->has_shadowcon) {
 		reg = SHADOWCON;
 		bits = SHADOWCON_WINx_PROTECT(win);
@@ -607,6 +626,28 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
+static void fimd_atomic_begin(struct exynos_drm_crtc *crtc,
+			       struct exynos_drm_plane *plane)
+{
+	struct fimd_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	fimd_shadow_protect_win(ctx, plane->zpos, true);
+}
+
+static void fimd_atomic_flush(struct exynos_drm_crtc *crtc,
+			       struct exynos_drm_plane *plane)
+{
+	struct fimd_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	fimd_shadow_protect_win(ctx, plane->zpos, false);
+}
+
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane)
 {
@@ -621,20 +662,6 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 
 	if (ctx->suspended)
 		return;
-
-	/*
-	 * SHADOWCON/PRTCON register is used for enabling timing.
-	 *
-	 * for example, once only width value of a register is set,
-	 * if the dma is started then fimd hardware could malfunction so
-	 * with protect window setting, the register fields with prefix '_F'
-	 * wouldn't be updated at vsync also but updated once unprotect window
-	 * is set.
-	 */
-
-	/* protect windows */
-	fimd_shadow_protect_win(ctx, win, true);
-
 
 	offset = plane->src_x * bpp;
 	offset += plane->src_y * pitch;
@@ -707,9 +734,6 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	if (ctx->driver_data->has_shadowcon)
 		fimd_enable_shadow_channel_path(ctx, win, true);
 
-	/* Enable DMA channel and unprotect windows */
-	fimd_shadow_protect_win(ctx, win, false);
-
 	if (ctx->i80_if)
 		atomic_set(&ctx->win_updated, 1);
 }
@@ -723,16 +747,10 @@ static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
 	if (ctx->suspended)
 		return;
 
-	/* protect windows */
-	fimd_shadow_protect_win(ctx, win, true);
-
 	fimd_enable_video_output(ctx, win, false);
 
 	if (ctx->driver_data->has_shadowcon)
 		fimd_enable_shadow_channel_path(ctx, win, false);
-
-	/* unprotect windows */
-	fimd_shadow_protect_win(ctx, win, false);
 }
 
 static void fimd_enable(struct exynos_drm_crtc *crtc)
@@ -875,8 +893,10 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 	.wait_for_vblank = fimd_wait_for_vblank,
+	.atomic_begin = fimd_atomic_begin,
 	.update_plane = fimd_update_plane,
 	.disable_plane = fimd_disable_plane,
+	.atomic_flush = fimd_atomic_flush,
 	.te_handler = fimd_te_handler,
 	.clock_enable = fimd_dp_clock_enable,
 };
@@ -884,7 +904,8 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
-	u32 val, clear_bit;
+	u32 val, clear_bit, start, start_s;
+	int win;
 
 	val = readl(ctx->regs + VIDINTCON1);
 
@@ -896,15 +917,25 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	if (ctx->pipe < 0 || !ctx->drm_dev)
 		goto out;
 
-	if (ctx->i80_if) {
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
+	if (!ctx->i80_if)
+		drm_crtc_handle_vblank(&ctx->crtc->base);
 
+	for (win = 0 ; win < WINDOWS_NR ; win++) {
+		struct exynos_drm_plane *plane = &ctx->planes[win];
+
+		if (!plane->pending_fb)
+			continue;
+
+		start = readl(ctx->regs + VIDWx_BUF_START(win, 0));
+		start_s = readl(ctx->regs + VIDWx_BUF_START_S(win, 0));
+		if (start == start_s)
+			exynos_drm_crtc_finish_update(ctx->crtc, plane);
+	}
+
+	if (ctx->i80_if) {
 		/* Exits triggering mode */
 		atomic_set(&ctx->triggering, 0);
 	} else {
-		drm_crtc_handle_vblank(&ctx->crtc->base);
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
-
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
 			atomic_set(&ctx->wait_vsync_event, 0);
@@ -933,7 +964,8 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, zpos);
+					1 << ctx->pipe, type, fimd_formats,
+					ARRAY_SIZE(fimd_formats), zpos);
 		if (ret)
 			return ret;
 	}

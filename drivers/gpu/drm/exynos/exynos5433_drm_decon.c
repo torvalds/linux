@@ -54,6 +54,13 @@ static const char * const decon_clks_name[] = {
 	"sclk_decon_eclk",
 };
 
+static const uint32_t decon_formats[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
+
 static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
@@ -219,6 +226,17 @@ static void decon_shadow_protect_win(struct decon_context *ctx, int win,
 	writel(val, ctx->addr + DECON_SHADOWCON);
 }
 
+static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
+					struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, true);
+}
+
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
@@ -231,8 +249,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	if (ctx->suspended)
 		return;
-
-	decon_shadow_protect_win(ctx, win, true);
 
 	val = COORDINATE_X(plane->crtc_x) | COORDINATE_Y(plane->crtc_y);
 	writel(val, ctx->addr + DECON_VIDOSDxA(win));
@@ -265,15 +281,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val |= WINCONx_ENWIN_F;
 	writel(val, ctx->addr + DECON_WINCONx(win));
 
-	decon_shadow_protect_win(ctx, win, false);
-
 	/* standalone update */
 	val = readl(ctx->addr + DECON_UPDATE);
 	val |= STANDALONE_UPDATE_F;
 	writel(val, ctx->addr + DECON_UPDATE);
-
-	if (ctx->i80_if)
-		atomic_set(&ctx->win_updated, 1);
 }
 
 static void decon_disable_plane(struct exynos_drm_crtc *crtc,
@@ -299,6 +310,20 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	val = readl(ctx->addr + DECON_UPDATE);
 	val |= STANDALONE_UPDATE_F;
 	writel(val, ctx->addr + DECON_UPDATE);
+}
+
+static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
+				struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, false);
+
+	if (ctx->i80_if)
+		atomic_set(&ctx->win_updated, 1);
 }
 
 static void decon_swreset(struct decon_context *ctx)
@@ -455,8 +480,10 @@ static struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
 	.commit			= decon_commit,
+	.atomic_begin		= decon_atomic_begin,
 	.update_plane		= decon_update_plane,
 	.disable_plane		= decon_disable_plane,
+	.atomic_flush		= decon_atomic_flush,
 	.te_handler		= decon_te_irq_handler,
 };
 
@@ -477,7 +504,8 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 							DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-				1 << ctx->pipe, type, zpos);
+				1 << ctx->pipe, type, decon_formats,
+				ARRAY_SIZE(decon_formats), zpos);
 		if (ret)
 			return ret;
 	}
@@ -542,13 +570,21 @@ static irqreturn_t decon_lcd_sys_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = dev_id;
 	u32 val;
+	int win;
 
 	if (!test_bit(BIT_CLKS_ENABLED, &ctx->enabled))
 		goto out;
 
 	val = readl(ctx->addr + DECON_VIDINTCON1);
 	if (val & VIDINTCON1_INTFRMDONEPEND) {
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
+		for (win = 0 ; win < WINDOWS_NR ; win++) {
+			struct exynos_drm_plane *plane = &ctx->planes[win];
+
+			if (!plane->pending_fb)
+				continue;
+
+			exynos_drm_crtc_finish_update(ctx->crtc, plane);
+		}
 
 		/* clear */
 		writel(VIDINTCON1_INTFRMDONEPEND,

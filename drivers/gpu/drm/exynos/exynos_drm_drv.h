@@ -74,6 +74,7 @@ struct exynos_drm_plane {
 	unsigned int v_ratio;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
+	struct drm_framebuffer *pending_fb;
 };
 
 /*
@@ -87,6 +88,8 @@ struct exynos_drm_plane {
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
+ * @atomic_begin: prepare a window to receive a update
+ * @atomic_flush: mark the end of a window update
  * @update_plane: apply hardware specific overlay data to registers.
  * @disable_plane: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
@@ -107,9 +110,13 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
+	void (*atomic_begin)(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane);
 	void (*update_plane)(struct exynos_drm_crtc *crtc,
 			     struct exynos_drm_plane *plane);
 	void (*disable_plane)(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane);
+	void (*atomic_flush)(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
@@ -129,6 +136,8 @@ struct exynos_drm_crtc_ops {
  *	this pipe value.
  * @enabled: if the crtc is enabled or not
  * @event: vblank event that is currently queued for flip
+ * @wait_update: wait all pending planes updates to finish
+ * @pending_update: number of pending plane updates in this crtc
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
  */
@@ -136,9 +145,9 @@ struct exynos_drm_crtc {
 	struct drm_crtc			base;
 	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
-	bool				enabled;
-	wait_queue_head_t		pending_flip_queue;
 	struct drm_pending_vblank_event	*event;
+	wait_queue_head_t		wait_update;
+	atomic_t			pending_update;
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 };
@@ -164,6 +173,9 @@ struct drm_exynos_file_private {
  * @da_space_size: size of device address space.
  *	if 0 then default value is used for it.
  * @pipe: the pipe number for this crtc/manager.
+ * @pending: the crtcs that have pending updates to finish
+ * @lock: protect access to @pending
+ * @wait: wait an atomic commit to finish
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
@@ -179,6 +191,11 @@ struct exynos_drm_private {
 	unsigned long da_space_size;
 
 	unsigned int pipe;
+
+	/* for atomic commit */
+	u32			pending;
+	spinlock_t		lock;
+	wait_queue_head_t	wait;
 };
 
 /*
@@ -236,6 +253,9 @@ static inline int exynos_dpi_bind(struct drm_device *dev,
 	return 0;
 }
 #endif
+
+int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
+			 bool async);
 
 
 extern struct platform_driver fimd_driver;

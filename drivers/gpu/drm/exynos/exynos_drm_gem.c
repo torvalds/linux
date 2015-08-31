@@ -668,7 +668,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	exynos_gem_obj = exynos_drm_gem_init(dev, attach->dmabuf->size);
 	if (IS_ERR(exynos_gem_obj)) {
 		ret = PTR_ERR(exynos_gem_obj);
-		goto err;
+		return ERR_PTR(ret);
 	}
 
 	exynos_gem_obj->dma_addr = sg_dma_address(sgt->sgl);
