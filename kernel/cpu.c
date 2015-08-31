@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
 #endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
-int __ref register_cpu_notifier(struct notifier_block *nb)
+int register_cpu_notifier(struct notifier_block *nb)
 {
 	int ret;
 	cpu_maps_update_begin();
@@ -215,7 +215,7 @@ int __ref register_cpu_notifier(struct notifier_block *nb)
 	return ret;
 }
 
-int __ref __register_cpu_notifier(struct notifier_block *nb)
+int __register_cpu_notifier(struct notifier_block *nb)
 {
 	return raw_notifier_chain_register(&cpu_chain, nb);
 }
@@ -245,7 +245,7 @@ static void cpu_notify_nofail(unsigned long val, void *v)
 EXPORT_SYMBOL(register_cpu_notifier);
 EXPORT_SYMBOL(__register_cpu_notifier);
 
-void __ref unregister_cpu_notifier(struct notifier_block *nb)
+void unregister_cpu_notifier(struct notifier_block *nb)
 {
 	cpu_maps_update_begin();
 	raw_notifier_chain_unregister(&cpu_chain, nb);
@@ -253,7 +253,7 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
-void __ref __unregister_cpu_notifier(struct notifier_block *nb)
+void __unregister_cpu_notifier(struct notifier_block *nb)
 {
 	raw_notifier_chain_unregister(&cpu_chain, nb);
 }
@@ -330,7 +330,7 @@ struct take_cpu_down_param {
 };
 
 /* Take this CPU down. */
-static int __ref take_cpu_down(void *_param)
+static int take_cpu_down(void *_param)
 {
 	struct take_cpu_down_param *param = _param;
 	int err;
@@ -349,7 +349,7 @@ static int __ref take_cpu_down(void *_param)
 }
 
 /* Requires cpu_add_remove_lock to be held */
-static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
+static int _cpu_down(unsigned int cpu, int tasks_frozen)
 {
 	int err, nr_calls = 0;
 	void *hcpu = (void *)(long)cpu;
@@ -443,7 +443,7 @@ out_release:
 	return err;
 }
 
-int __ref cpu_down(unsigned int cpu)
+int cpu_down(unsigned int cpu)
 {
 	int err;
 
@@ -633,7 +633,7 @@ void __weak arch_enable_nonboot_cpus_end(void)
 {
 }
 
-void __ref enable_nonboot_cpus(void)
+void enable_nonboot_cpus(void)
 {
 	int cpu, error;
 
