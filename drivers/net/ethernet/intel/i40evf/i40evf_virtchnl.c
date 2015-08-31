@@ -756,6 +756,8 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			  sizeof(struct i40e_virtchnl_vsi_resource);
 		memcpy(adapter->vf_res, msg, min(msglen, len));
 		i40e_vf_parse_hw_config(&adapter->hw, adapter->vf_res);
+		/* restore current mac address */
+		ether_addr_copy(adapter->hw.mac.addr, netdev->dev_addr);
 		i40evf_process_config(adapter);
 		}
 		break;
