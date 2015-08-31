@@ -5506,10 +5506,10 @@ static void megasas_shutdown_controller(struct megasas_instance *instance,
 
 	if (instance->aen_cmd)
 		megasas_issue_blocked_abort_cmd(instance,
-			instance->aen_cmd, 30);
+			instance->aen_cmd, MEGASAS_BLOCKED_CMD_TIMEOUT);
 	if (instance->map_update_cmd)
 		megasas_issue_blocked_abort_cmd(instance,
-			instance->map_update_cmd, 30);
+			instance->map_update_cmd, MEGASAS_BLOCKED_CMD_TIMEOUT);
 	dcmd = &cmd->frame->dcmd;
 
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
