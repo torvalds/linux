@@ -260,6 +260,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 
 	snprintf(adap->name, sizeof(adap->name), "i2c-designware-pci");
 
+	i2c_dw_disable_int(dev);
 	r = devm_request_irq(&pdev->dev, pdev->irq, i2c_dw_isr,
 			IRQF_SHARED | IRQF_COND_SUSPEND, adap->name, dev);
 	if (r) {
@@ -267,7 +268,6 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return r;
 	}
 
-	i2c_dw_disable_int(dev);
 	r = i2c_add_numbered_adapter(adap);
 	if (r) {
 		dev_err(&pdev->dev, "failure adding adapter\n");
