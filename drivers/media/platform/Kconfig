@@ -121,13 +121,21 @@ config VIDEO_MXC_OUTPUT
 	---help---
 	This is the video4linux2 output driver based on MXC module.
 
+config VIDEO_MXC_CAPTURE
+	tristate "MXC Video For Linux Video Capture"
+	depends on VIDEO_V4L2
+	---help---
+	  This is the video4linux2 capture driver based on i.MX video-in module.
+
+source "drivers/media/platform/mxc/capture/Kconfig"
+source "drivers/media/platform/mxc/output/Kconfig"
+source "drivers/media/platform/mxc/subdev/Kconfig"
 source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/s5p-tv/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
 
-source "drivers/media/platform/mxc/output/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS
 

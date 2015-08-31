@@ -1,0 +1,83 @@
+if VIDEO_MXC_CAPTURE
+config VIDEO_V4L2_MXC_INT_DEVICE
+       tristate
+
+menu "MXC Camera/V4L2 PRP Features support"
+config VIDEO_MXC_IPU_CAMERA
+	bool
+	select VIDEO_V4L2_MXC_INT_DEVICE
+	depends on VIDEO_MXC_CAPTURE && MXC_IPU
+	default y
+
+config MXC_CAMERA_OV5640
+        tristate "OmniVision ov5640 camera support"
+        depends on !VIDEO_MXC_EMMA_CAMERA && I2C
+        ---help---
+          If you plan to use the ov5640 Camera with your MXC system, say Y here.
+
+config MXC_CAMERA_OV5642
+	tristate "OmniVision ov5642 camera support"
+	depends on !VIDEO_MXC_EMMA_CAMERA && I2C
+	---help---
+	  If you plan to use the ov5642 Camera with your MXC system, say Y here.
+
+config MXC_CAMERA_OV5640_MIPI
+	tristate "OmniVision ov5640 camera support using mipi"
+	depends on !VIDEO_MXC_EMMA_CAMERA && I2C
+	---help---
+	  If you plan to use the ov5640 Camera with mipi interface in your MXC system, say Y here.
+
+config MXC_TVIN_ADV7180
+	tristate "Analog Device adv7180 TV Decoder Input support"
+	depends on !VIDEO_MXC_EMMA_CAMERA && I2C
+	---help---
+	  If you plan to use the adv7180 video decoder with your MXC system, say Y here.
+
+choice
+	prompt "Select Overlay Rounting"
+	default MXC_IPU_DEVICE_QUEUE_SDC
+	depends on VIDEO_MXC_IPU_CAMERA && FB_MXC_SYNC_PANEL
+
+config MXC_IPU_DEVICE_QUEUE_SDC
+	tristate "Queue ipu device for overlay library"
+	depends on VIDEO_MXC_IPU_CAMERA
+	---help---
+	  Use case CSI->MEM->IPU DEVICE->SDC:
+		Images from sensor will be frist recieved in memory,then
+		queue to ipu device for processing if needed, and displaying
+		it on synchronous display with SDC use case.
+
+config MXC_IPU_PRP_VF_SDC
+	bool "Pre-Processor VF SDC library"
+	depends on VIDEO_MXC_IPU_CAMERA
+	---help---
+	  Use case PRP_VF_SDC:
+		Preprocessing image from smart sensor for viewfinder and
+		displaying it on synchronous display with SDC use case.
+		If SDC BG is selected, Rotation will not be supported.
+		CSI -> IC (PRP VF) -> MEM
+		MEM -> IC (ROT) -> MEM
+		MEM -> SDC (FG/BG)
+
+endchoice
+
+config MXC_IPU_PRP_ENC
+	tristate "Pre-processor Encoder library"
+	depends on VIDEO_MXC_IPU_CAMERA
+	default y
+	---help---
+	  Use case PRP_ENC:
+		Preprocessing image from smart sensor for encoder.
+		CSI -> IC (PRP ENC) -> MEM
+
+config MXC_IPU_CSI_ENC
+	tristate "IPU CSI Encoder library"
+	depends on VIDEO_MXC_IPU_CAMERA
+	default y
+	---help---
+	  Use case IPU_CSI_ENC:
+		Get raw image with CSI from smart sensor for encoder.
+		CSI -> MEM
+endmenu
+
+endif

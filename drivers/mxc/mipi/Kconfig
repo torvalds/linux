@@ -1,0 +1,14 @@
+#
+# MIPI configuration
+#
+
+menu "MXC MIPI Support"
+
+config MXC_MIPI_CSI2
+	tristate "MIPI CSI2 support"
+	depends on SOC_IMX6Q
+	default n
+	---help---
+	Say Y to get the MIPI CSI2 support.
+
+endmenu

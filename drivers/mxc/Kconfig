@@ -15,6 +15,7 @@ source "drivers/mxc/mlb/Kconfig"
 source "drivers/mxc/ipu3/Kconfig"
 source "drivers/mxc/gpu-viv/Kconfig"
 source "drivers/mxc/sim/Kconfig"
+source "drivers/mxc/mipi/Kconfig"
 source "drivers/mxc/vpu/Kconfig"
 source "drivers/mxc/hdmi-cec/Kconfig"
 
