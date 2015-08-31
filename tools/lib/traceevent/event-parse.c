@@ -4905,8 +4905,8 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				else
 					ls = 2;
 
-				if (*(ptr+1) == 'F' ||
-				    *(ptr+1) == 'f') {
+				if (*(ptr+1) == 'F' || *(ptr+1) == 'f' ||
+				    *(ptr+1) == 'S' || *(ptr+1) == 's') {
 					ptr++;
 					show_func = *ptr;
 				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
