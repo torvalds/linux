@@ -135,7 +135,7 @@
 	phy-handle = <&ethphy1>;
 	pinctrl-assert-gpios = <&max7322_1 0 GPIO_ACTIVE_HIGH>;
 	fsl,magic-packet;
-	status = "disabled";
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -160,7 +160,7 @@
 	phy-handle = <&ethphy0>;
 	pinctrl-assert-gpios = <&max7322_2 0 GPIO_ACTIVE_HIGH>;
 	fsl,magic-packet;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c1 {
