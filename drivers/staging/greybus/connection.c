@@ -386,9 +386,9 @@ static int gb_connection_init(struct gb_connection *connection)
 
 		ret = gb_control_connected_operation(control, cport_id);
 		if (ret) {
-			dev_warn(&connection->dev,
-				 "Failed to connect CPort-%d (%d)\n",
-				 cport_id, ret);
+			dev_err(&connection->dev,
+				"Failed to connect CPort-%d (%d)\n",
+				cport_id, ret);
 			return 0;
 		}
 	}
