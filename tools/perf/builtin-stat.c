@@ -565,7 +565,7 @@ static void print_aggr(char *prefix)
 {
 	FILE *output = stat_config.output;
 	struct perf_evsel *counter;
-	int cpu, cpu2, s, s2, id, nr;
+	int cpu, s, s2, id, nr;
 	double uval;
 	u64 ena, run, val;
 
@@ -578,8 +578,7 @@ static void print_aggr(char *prefix)
 			val = ena = run = 0;
 			nr = 0;
 			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-				cpu2 = perf_evsel__cpus(counter)->map[cpu];
-				s2 = aggr_get_id(evsel_list->cpus, cpu2);
+				s2 = aggr_get_id(perf_evsel__cpus(counter), cpu);
 				if (s2 != id)
 					continue;
 				val += perf_counts(counter->counts, cpu, 0)->val;

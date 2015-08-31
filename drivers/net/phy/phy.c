@@ -811,6 +811,7 @@ void phy_state_machine(struct work_struct *work)
 	bool needs_aneg = false, do_suspend = false;
 	enum phy_state old_state;
 	int err = 0;
+	int old_link;
 
 	mutex_lock(&phydev->lock);
 
@@ -896,11 +897,18 @@ void phy_state_machine(struct work_struct *work)
 		phydev->adjust_link(phydev->attached_dev);
 		break;
 	case PHY_RUNNING:
-		/* Only register a CHANGE if we are
-		 * polling or ignoring interrupts
+		/* Only register a CHANGE if we are polling or ignoring
+		 * interrupts and link changed since latest checking.
 		 */
-		if (!phy_interrupt_is_valid(phydev))
-			phydev->state = PHY_CHANGELINK;
+		if (!phy_interrupt_is_valid(phydev)) {
+			old_link = phydev->link;
+			err = phy_read_status(phydev);
+			if (err)
+				break;
+
+			if (old_link != phydev->link)
+				phydev->state = PHY_CHANGELINK;
+		}
 		break;
 	case PHY_CHANGELINK:
 		err = phy_read_status(phydev);
@@ -1030,10 +1038,14 @@ int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	int value = -1;
 
 	if (phydrv->read_mmd_indirect == NULL) {
-		mmd_phy_indirect(phydev->bus, prtad, devad, addr);
+		struct mii_bus *bus = phydev->bus;
+
+		mutex_lock(&bus->mdio_lock);
+		mmd_phy_indirect(bus, prtad, devad, addr);
 
 		/* Read the content of the MMD's selected register */
-		value = phydev->bus->read(phydev->bus, addr, MII_MMD_DATA);
+		value = bus->read(bus, addr, MII_MMD_DATA);
+		mutex_unlock(&bus->mdio_lock);
 	} else {
 		value = phydrv->read_mmd_indirect(phydev, prtad, devad, addr);
 	}
@@ -1063,10 +1075,14 @@ void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 	struct phy_driver *phydrv = phydev->drv;
 
 	if (phydrv->write_mmd_indirect == NULL) {
-		mmd_phy_indirect(phydev->bus, prtad, devad, addr);
+		struct mii_bus *bus = phydev->bus;
+
+		mutex_lock(&bus->mdio_lock);
+		mmd_phy_indirect(bus, prtad, devad, addr);
 
 		/* Write the data into MMD's selected register */
-		phydev->bus->write(phydev->bus, addr, MII_MMD_DATA, data);
+		bus->write(bus, addr, MII_MMD_DATA, data);
+		mutex_unlock(&bus->mdio_lock);
 	} else {
 		phydrv->write_mmd_indirect(phydev, prtad, devad, addr, data);
 	}

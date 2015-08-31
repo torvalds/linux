@@ -258,8 +258,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*granted_power));
 	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*extra_actor_power));
 	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*weighted_req_power));
-	req_power = devm_kcalloc(&tz->device, num_actors * 5,
-				 sizeof(*req_power), GFP_KERNEL);
+	req_power = kcalloc(num_actors * 5, sizeof(*req_power), GFP_KERNEL);
 	if (!req_power) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -334,7 +333,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 				      max_allocatable_power, current_temp,
 				      (s32)control_temp - (s32)current_temp);
 
-	devm_kfree(&tz->device, req_power);
+	kfree(req_power);
 unlock:
 	mutex_unlock(&tz->lock);
 
@@ -426,7 +425,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 		return -EINVAL;
 	}
 
-	params = devm_kzalloc(&tz->device, sizeof(*params), GFP_KERNEL);
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
 
@@ -468,14 +467,14 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	return 0;
 
 free:
-	devm_kfree(&tz->device, params);
+	kfree(params);
 	return ret;
 }
 
 static void power_allocator_unbind(struct thermal_zone_device *tz)
 {
 	dev_dbg(&tz->device, "Unbinding from thermal zone %d\n", tz->id);
-	devm_kfree(&tz->device, tz->governor_data);
+	kfree(tz->governor_data);
 	tz->governor_data = NULL;
 }
 

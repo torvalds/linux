@@ -380,8 +380,8 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 		return 0;
 
 	if (!initxattrs)
-		return call_int_hook(inode_init_security, 0, inode, dir, qstr,
-							 NULL, NULL, NULL);
+		return call_int_hook(inode_init_security, -EOPNOTSUPP, inode,
+				     dir, qstr, NULL, NULL, NULL);
 	memset(new_xattrs, 0, sizeof(new_xattrs));
 	lsm_xattr = new_xattrs;
 	ret = call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir, qstr,
@@ -409,8 +409,8 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_init_security, 0, inode, dir, qstr,
-				name, value, len);
+	return call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir,
+			     qstr, name, value, len);
 }
 EXPORT_SYMBOL(security_old_inode_init_security);
 
@@ -1281,7 +1281,8 @@ int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
 
 int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
-	return call_int_hook(socket_getpeersec_dgram, 0, sock, skb, secid);
+	return call_int_hook(socket_getpeersec_dgram, -ENOPROTOOPT, sock,
+			     skb, secid);
 }
 EXPORT_SYMBOL(security_socket_getpeersec_dgram);
 
