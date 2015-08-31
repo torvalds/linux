@@ -305,6 +305,18 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 	phy->dev.of_node = np;
 	phy->is_pseudo_fixed_link = true;
 
+	switch (status->speed) {
+	case SPEED_1000:
+		phy->supported = PHY_1000BT_FEATURES;
+		break;
+	case SPEED_100:
+		phy->supported = PHY_100BT_FEATURES;
+		break;
+	case SPEED_10:
+	default:
+		phy->supported = PHY_10BT_FEATURES;
+	}
+
 	ret = phy_device_register(phy);
 	if (ret) {
 		phy_device_free(phy);
