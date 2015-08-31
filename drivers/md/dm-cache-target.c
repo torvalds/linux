@@ -1063,14 +1063,6 @@ static void dec_io_migrations(struct cache *cache)
 	atomic_dec(&cache->nr_io_migrations);
 }
 
-static void __cell_release(struct cache *cache, struct dm_bio_prison_cell *cell,
-			   bool holder, struct bio_list *bios)
-{
-	(holder ? dm_cell_release : dm_cell_release_no_holder)
-		(cache->prison, cell, bios);
-	free_prison_cell(cache, cell);
-}
-
 static bool discard_or_flush(struct bio *bio)
 {
 	return bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD);
@@ -1078,14 +1070,13 @@ static bool discard_or_flush(struct bio *bio)
 
 static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
 {
-	if (discard_or_flush(cell->holder))
+	if (discard_or_flush(cell->holder)) {
 		/*
-		 * We have to handle these bios
-		 * individually.
+		 * We have to handle these bios individually.
 		 */
-		__cell_release(cache, cell, true, &cache->deferred_bios);
-
-	else
+		dm_cell_release(cache->prison, cell, &cache->deferred_bios);
+		free_prison_cell(cache, cell);
+	} else
 		list_add_tail(&cell->user_list, &cache->deferred_cells);
 }
 
@@ -1112,7 +1103,7 @@ static void cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell, boo
 static void cell_error_with_code(struct cache *cache, struct dm_bio_prison_cell *cell, int err)
 {
 	dm_cell_error(cache->prison, cell, err);
-	dm_bio_prison_free_cell(cache->prison, cell);
+	free_prison_cell(cache, cell);
 }
 
 static void cell_requeue(struct cache *cache, struct dm_bio_prison_cell *cell)
