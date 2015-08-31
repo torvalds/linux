@@ -378,7 +378,7 @@ static int __net_init synproxy_net_init(struct net *net)
 err3:
 	free_percpu(snet->stats);
 err2:
-	nf_conntrack_free(ct);
+	nf_ct_tmpl_free(ct);
 err1:
 	return err;
 }

@@ -320,12 +320,13 @@ out_free:
 }
 EXPORT_SYMBOL_GPL(nf_ct_tmpl_alloc);
 
-static void nf_ct_tmpl_free(struct nf_conn *tmpl)
+void nf_ct_tmpl_free(struct nf_conn *tmpl)
 {
 	nf_ct_ext_destroy(tmpl);
 	nf_ct_ext_free(tmpl);
 	kfree(tmpl);
 }
+EXPORT_SYMBOL_GPL(nf_ct_tmpl_free);
 
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
