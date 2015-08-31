@@ -139,9 +139,27 @@
 };
 
 &cpu0 {
-	arm-supply = <&reg_arm>;
-	soc-supply = <&reg_soc>;
-	dc-supply = <&reg_gpio_dvfs>;
+	/*
+	 * on i.MX6UL, no seperated VDD_ARM_IN and VDD_SOC_IN,
+	 * to align with other platform and use the same cpufreq
+	 * driver, still use the seperated OPP define for arm
+	 * and soc.
+	 */
+	operating-points = <
+		/* kHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	fsl,soc-operating-points = <
+		/* KHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	arm-supply = <&sw1c_reg>;
+	soc-supply = <&sw1c_reg>;
+	fsl,arm-soc-shared = <1>;
 };
 
 &csi {
@@ -205,7 +223,7 @@
 	fsl,cpu_pdnscr_iso2sw = <0x1>;
 	fsl,cpu_pdnscr_iso = <0x1>;
 	fsl,wdog-reset = <1>; /* watchdog select of reset source */
-	fsl,ldo-bypass = <0>; /* DCDC, ldo-enable */
+	fsl,ldo-bypass = <1>;
 };
 
 &i2c1 {
@@ -219,14 +237,6 @@
 		reg = <0x08>;
 
 		regulators {
-			sw1a_reg: sw1a {
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <1475000>;
-				regulator-boot-on;
-				regulator-always-on;
-				regulator-ramp-delay = <6250>;
-			};
-
 			/* use sw1c_reg to align with pfuze100/pfuze200 */
 			sw1c_reg: sw1b {
 				regulator-min-microvolt = <700000>;
