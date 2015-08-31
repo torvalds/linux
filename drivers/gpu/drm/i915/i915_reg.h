@@ -5949,6 +5949,7 @@ enum skl_disp_power_wells {
 #define SDE_AUXC_CPT		(1 << 26)
 #define SDE_AUXB_CPT		(1 << 25)
 #define SDE_AUX_MASK_CPT	(7 << 25)
+#define SDE_PORTE_HOTPLUG_SPT	(1 << 25)
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
@@ -5956,6 +5957,10 @@ enum skl_disp_power_wells {
 #define SDE_SDVOB_HOTPLUG_CPT	(1 << 18)
 #define SDE_HOTPLUG_MASK_CPT	(SDE_CRT_HOTPLUG_CPT |		\
 				 SDE_SDVOB_HOTPLUG_CPT |	\
+				 SDE_PORTD_HOTPLUG_CPT |	\
+				 SDE_PORTC_HOTPLUG_CPT |	\
+				 SDE_PORTB_HOTPLUG_CPT)
+#define SDE_HOTPLUG_MASK_SPT	(SDE_PORTE_HOTPLUG_SPT |	\
 				 SDE_PORTD_HOTPLUG_CPT |	\
 				 SDE_PORTC_HOTPLUG_CPT |	\
 				 SDE_PORTB_HOTPLUG_CPT)
@@ -6029,6 +6034,13 @@ enum skl_disp_power_wells {
 #define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
+
+#define PCH_PORT_HOTPLUG2        0xc403C		/* SHOTPLUG_CTL2 */
+#define PORTE_HOTPLUG_ENABLE            (1 << 4)
+#define PORTE_HOTPLUG_STATUS_MASK	(0x3 << 0)
+#define  PORTE_HOTPLUG_NO_DETECT	(0 << 0)
+#define  PORTE_HOTPLUG_SHORT_DETECT	(1 << 0)
+#define  PORTE_HOTPLUG_LONG_DETECT	(2 << 0)
 
 #define PCH_GPIOA               0xc5010
 #define PCH_GPIOB               0xc5014

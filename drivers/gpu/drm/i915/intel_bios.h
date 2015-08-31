@@ -203,9 +203,11 @@ struct bdb_general_features {
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
-/* We used to keep this struct but without any version control. We should avoid
+/*
+ * We used to keep this struct but without any version control. We should avoid
  * using it in the future, but it should be safe to keep using it in the old
- * code. */
+ * code. Do not change; we rely on its size.
+ */
 struct old_child_dev_config {
 	u16 handle;
 	u16 device_type;

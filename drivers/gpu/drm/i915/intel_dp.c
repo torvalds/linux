@@ -1223,21 +1223,24 @@ static bool intel_dp_source_supports_hbr2(struct drm_device *dev)
 static int
 intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 {
+	int size;
+
 	if (IS_BROXTON(dev)) {
 		*source_rates = bxt_rates;
-		return ARRAY_SIZE(bxt_rates);
+		size = ARRAY_SIZE(bxt_rates);
 	} else if (IS_SKYLAKE(dev)) {
 		*source_rates = skl_rates;
-		return ARRAY_SIZE(skl_rates);
+		size = ARRAY_SIZE(skl_rates);
+	} else {
+		*source_rates = default_rates;
+		size = ARRAY_SIZE(default_rates);
 	}
 
-	*source_rates = default_rates;
-
 	/* This depends on the fact that 5.4 is last value in the array */
-	if (intel_dp_source_supports_hbr2(dev))
-		return (DP_LINK_BW_5_4 >> 3) + 1;
-	else
-		return (DP_LINK_BW_2_7 >> 3) + 1;
+	if (!intel_dp_source_supports_hbr2(dev))
+		size--;
+
+	return size;
 }
 
 static void
@@ -5856,6 +5859,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		break;
 	case PORT_D:
 		intel_encoder->hpd_pin = HPD_PORT_D;
+		break;
+	case PORT_E:
+		intel_encoder->hpd_pin = HPD_PORT_E;
 		break;
 	default:
 		BUG();
