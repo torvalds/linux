@@ -7,7 +7,6 @@
 #include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/spi/pxa2xx_spi.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 
 #include <linux/dmaengine.h>
