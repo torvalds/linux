@@ -5401,7 +5401,7 @@ lpfc_send_rscn_event(struct lpfc_vport *vport,
 
 	fc_host_post_vendor_event(shost,
 		fc_get_event_number(),
-		sizeof(struct lpfc_els_event_header) + payload_len,
+		sizeof(struct lpfc_rscn_event_header) + payload_len,
 		(char *)rscn_event_data,
 		LPFC_NL_VENDOR_ID);
 
