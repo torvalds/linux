@@ -78,7 +78,7 @@ static struct rk_fb_trsm_ops *trsm_mipi_ops;
 static int uboot_logo_on;
 
 static int rk_fb_debug_lvl;
-static int rk_fb_iommu_debug = 1;
+static int rk_fb_iommu_debug;
 module_param(rk_fb_debug_lvl, int, S_IRUGO | S_IWUSR);
 module_param(rk_fb_iommu_debug, int, S_IRUGO | S_IWUSR);
 
