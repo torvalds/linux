@@ -815,19 +815,6 @@ tx_aborted:
 }
 EXPORT_SYMBOL_GPL(i2c_dw_isr);
 
-void i2c_dw_enable(struct dw_i2c_dev *dev)
-{
-       /* Enable the adapter */
-	__i2c_dw_enable(dev, true);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_enable);
-
-u32 i2c_dw_is_enabled(struct dw_i2c_dev *dev)
-{
-	return dw_readl(dev, DW_IC_ENABLE);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_is_enabled);
-
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	/* Disable controller */
