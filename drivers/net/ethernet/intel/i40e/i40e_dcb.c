@@ -393,7 +393,7 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 	for (i = 0; i < dcbcfg->numapps; i++) {
 		app = (struct i40e_cee_app_prio *)(tlv->tlvinfo + offset);
 		for (up = 0; up < I40E_MAX_USER_PRIORITY; up++) {
-			if (app->prio_map & (1 << up))
+			if (app->prio_map & BIT(up))
 				break;
 		}
 		dcbcfg->app[i].priority = up;
