@@ -97,6 +97,17 @@
 			gpio = <&gpio4 7 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		reg_pcie: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "MPCIE_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio_spi 6 GPIO_ACTIVE_HIGH>;
+			regulator-always-on;
+			enable-active-high;
+		};
 	};
 };
 
@@ -561,6 +572,13 @@
 			};
 		};
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	reset-gpio = <&gpio_spi 1 GPIO_ACTIVE_LOW>;
+	disable-gpio = <&gpio_spi 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
 };
 
 &sai1 {

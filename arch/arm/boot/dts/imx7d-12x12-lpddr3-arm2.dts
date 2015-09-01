@@ -458,6 +458,13 @@
 			>;
 		};
 
+		pinctrl_pcie: pciegrp {
+			fsl,pins = <
+				MX7D_PAD_SAI2_TX_SYNC__GPIO6_IO19	0x2
+				MX7D_PAD_SAI2_RX_DATA__GPIO6_IO21	0x2
+			>;
+		};
+
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO08__PWM1_OUT 0x110b0
@@ -630,6 +637,14 @@
 			};
 		};
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio6 21 GPIO_ACTIVE_LOW>;
+	power-on-gpio = <&gpio6 19 GPIO_ACTIVE_HIGH>;
+	status = "disabled";
 };
 
 &pwm1 {
