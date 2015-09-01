@@ -78,11 +78,21 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 				   struct drm_fb_helper_surface_size *sizes,
 				   struct exynos_drm_gem_obj *obj)
 {
-	struct fb_info *fbi = helper->fbdev;
+	struct fb_info *fbi;
 	struct drm_framebuffer *fb = helper->fb;
 	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned int nr_pages;
 	unsigned long offset;
+
+	fbi = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(fbi)) {
+		DRM_ERROR("failed to allocate fb info.\n");
+		return PTR_ERR(fbi);
+	}
+
+	fbi->par = helper;
+	fbi->flags = FBINFO_FLAG_DEFAULT;
+	fbi->fbops = &exynos_drm_fb_ops;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
@@ -93,6 +103,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 			pgprot_writecombine(PAGE_KERNEL));
 	if (!obj->kvaddr) {
 		DRM_ERROR("failed to map pages to kernel space.\n");
+		drm_fb_helper_release_fbi(helper);
 		return -EIO;
 	}
 
@@ -112,7 +123,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
 	struct exynos_drm_gem_obj *obj;
 	struct drm_device *dev = helper->dev;
-	struct fb_info *fbi;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct platform_device *pdev = dev->platformdev;
 	unsigned long size;
@@ -130,13 +140,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
-	fbi = drm_fb_helper_alloc_fbi(helper);
-	if (IS_ERR(fbi)) {
-		DRM_ERROR("failed to allocate fb info.\n");
-		ret = PTR_ERR(fbi);
-		goto out;
-	}
-
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
 	obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
@@ -152,7 +155,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
-		goto err_release_fbi;
+		goto out;
 	}
 
 	exynos_fbdev->obj = obj;
@@ -163,10 +166,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
 	}
-
-	fbi->par = helper;
-	fbi->flags = FBINFO_FLAG_DEFAULT;
-	fbi->fbops = &exynos_drm_fb_ops;
 
 	ret = exynos_drm_fbdev_update(helper, sizes, obj);
 	if (ret < 0)
@@ -179,8 +178,6 @@ err_destroy_framebuffer:
 	drm_framebuffer_cleanup(helper->fb);
 err_destroy_gem:
 	exynos_drm_gem_destroy(obj);
-err_release_fbi:
-	drm_fb_helper_release_fbi(helper);
 
 /*
  * if failed, all resources allocated above would be released by
