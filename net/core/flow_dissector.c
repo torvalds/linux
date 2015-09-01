@@ -200,6 +200,9 @@ ip:
 			}
 		}
 
+		if (flags & FLOW_DISSECTOR_F_STOP_AT_L3)
+			goto out_good;
+
 		break;
 	}
 	case htons(ETH_P_IPV6): {
@@ -237,6 +240,9 @@ ipv6:
 				key_tags->flow_label = ntohl(flow_label);
 			}
 		}
+
+		if (flags & FLOW_DISSECTOR_F_STOP_AT_L3)
+			goto out_good;
 
 		break;
 	}
