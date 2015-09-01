@@ -32,12 +32,10 @@
  * exynos specific framebuffer structure.
  *
  * @fb: drm framebuffer obejct.
- * @buf_cnt: a buffer count to drm framebuffer.
  * @exynos_gem_obj: array of exynos specific gem object containing a gem object.
  */
 struct exynos_drm_fb {
 	struct drm_framebuffer		fb;
-	unsigned int			buf_cnt;
 	struct exynos_drm_gem_obj	*exynos_gem_obj[MAX_FB_BUFFER];
 };
 
@@ -97,10 +95,6 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 
-	/* This fb should have only one gem object. */
-	if (WARN_ON(exynos_fb->buf_cnt != 1))
-		return -EINVAL;
-
 	return drm_gem_handle_create(file_priv,
 			&exynos_fb->exynos_gem_obj[0]->base, handle);
 }
@@ -134,9 +128,6 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
 	if (!exynos_fb)
 		return ERR_PTR(-ENOMEM);
-
-	exynos_fb->buf_cnt = count;
-	DRM_DEBUG_KMS("buf_cnt = %d\n", exynos_fb->buf_cnt);
 
 	for (i = 0; i < count; i++) {
 		ret = check_fb_gem_memory_type(dev, gem_obj[i]);
