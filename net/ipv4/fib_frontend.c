@@ -213,7 +213,7 @@ void fib_flush_external(struct net *net)
  */
 static inline unsigned int __inet_dev_addr_type(struct net *net,
 						const struct net_device *dev,
-						__be32 addr, int tb_id)
+						__be32 addr, u32 tb_id)
 {
 	struct flowi4		fl4 = { .daddr = addr };
 	struct fib_result	res;
@@ -240,7 +240,7 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	return ret;
 }
 
-unsigned int inet_addr_type_table(struct net *net, __be32 addr, int tb_id)
+unsigned int inet_addr_type_table(struct net *net, __be32 addr, u32 tb_id)
 {
 	return __inet_dev_addr_type(net, NULL, addr, tb_id);
 }
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(inet_addr_type);
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
-	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+	u32 rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
 
 	return __inet_dev_addr_type(net, dev, addr, rt_table);
 }
@@ -268,7 +268,7 @@ unsigned int inet_addr_type_dev_table(struct net *net,
 				      const struct net_device *dev,
 				      __be32 addr)
 {
-	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+	u32 rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
 
 	return __inet_dev_addr_type(net, NULL, addr, rt_table);
 }
@@ -803,7 +803,7 @@ out:
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct net *net = dev_net(ifa->ifa_dev->dev);
-	int tb_id = vrf_dev_table_rtnl(ifa->ifa_dev->dev);
+	u32 tb_id = vrf_dev_table_rtnl(ifa->ifa_dev->dev);
 	struct fib_table *tb;
 	struct fib_config cfg = {
 		.fc_protocol = RTPROT_KERNEL,

@@ -863,7 +863,7 @@ static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 {
 	if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
 	    fib_prefsrc != cfg->fc_dst) {
-		int tb_id = cfg->fc_table;
+		u32 tb_id = cfg->fc_table;
 
 		if (tb_id == RT_TABLE_MAIN)
 			tb_id = RT_TABLE_LOCAL;

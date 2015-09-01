@@ -66,9 +66,9 @@ static inline int vrf_master_ifindex(const struct net_device *dev)
 }
 
 /* called with rcu_read_lock */
-static inline int vrf_dev_table_rcu(const struct net_device *dev)
+static inline u32 vrf_dev_table_rcu(const struct net_device *dev)
 {
-	int tb_id = 0;
+	u32 tb_id = 0;
 
 	if (dev) {
 		struct net_vrf_dev *vrf_ptr;
@@ -80,9 +80,9 @@ static inline int vrf_dev_table_rcu(const struct net_device *dev)
 	return tb_id;
 }
 
-static inline int vrf_dev_table(const struct net_device *dev)
+static inline u32 vrf_dev_table(const struct net_device *dev)
 {
-	int tb_id;
+	u32 tb_id;
 
 	rcu_read_lock();
 	tb_id = vrf_dev_table_rcu(dev);
@@ -91,10 +91,10 @@ static inline int vrf_dev_table(const struct net_device *dev)
 	return tb_id;
 }
 
-static inline int vrf_dev_table_ifindex(struct net *net, int ifindex)
+static inline u32 vrf_dev_table_ifindex(struct net *net, int ifindex)
 {
 	struct net_device *dev;
-	int tb_id = 0;
+	u32 tb_id = 0;
 
 	if (!ifindex)
 		return 0;
@@ -111,9 +111,9 @@ static inline int vrf_dev_table_ifindex(struct net *net, int ifindex)
 }
 
 /* called with rtnl */
-static inline int vrf_dev_table_rtnl(const struct net_device *dev)
+static inline u32 vrf_dev_table_rtnl(const struct net_device *dev)
 {
-	int tb_id = 0;
+	u32 tb_id = 0;
 
 	if (dev) {
 		struct net_vrf_dev *vrf_ptr;
@@ -149,22 +149,22 @@ static inline int vrf_master_ifindex(const struct net_device *dev)
 	return 0;
 }
 
-static inline int vrf_dev_table_rcu(const struct net_device *dev)
+static inline u32 vrf_dev_table_rcu(const struct net_device *dev)
 {
 	return 0;
 }
 
-static inline int vrf_dev_table(const struct net_device *dev)
+static inline u32 vrf_dev_table(const struct net_device *dev)
 {
 	return 0;
 }
 
-static inline int vrf_dev_table_ifindex(struct net *net, int ifindex)
+static inline u32 vrf_dev_table_ifindex(struct net *net, int ifindex)
 {
 	return 0;
 }
 
-static inline int vrf_dev_table_rtnl(const struct net_device *dev)
+static inline u32 vrf_dev_table_rtnl(const struct net_device *dev)
 {
 	return 0;
 }

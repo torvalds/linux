@@ -11,12 +11,12 @@
 
 TRACE_EVENT(fib_table_lookup,
 
-	TP_PROTO(int tb_id, const struct flowi4 *flp),
+	TP_PROTO(u32 tb_id, const struct flowi4 *flp),
 
 	TP_ARGS(tb_id, flp),
 
 	TP_STRUCT__entry(
-		__field(	int,	tb_id		)
+		__field(	u32,	tb_id		)
 		__field(	int,	oif		)
 		__field(	int,	iif		)
 		__field(	__u8,	tos		)
@@ -43,7 +43,7 @@ TRACE_EVENT(fib_table_lookup,
 		*p32 = flp->daddr;
 	),
 
-	TP_printk("table %d oif %d iif %d src %pI4 dst %pI4 tos %d scope %d flags %x",
+	TP_printk("table %u oif %d iif %d src %pI4 dst %pI4 tos %d scope %d flags %x",
 		  __entry->tb_id, __entry->oif, __entry->iif,
 		  __entry->src, __entry->dst, __entry->tos, __entry->scope,
 		  __entry->flags)
