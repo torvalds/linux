@@ -645,14 +645,6 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 
 extern void set_task_blockstep(struct task_struct *task, bool on);
 
-/*
- * from system description table in BIOS. Mostly for MCA use, but
- * others may find it useful:
- */
-extern unsigned int		machine_id;
-extern unsigned int		machine_submodel_id;
-extern unsigned int		BIOS_revision;
-
 /* Boot loader type from the setup header: */
 extern int			bootloader_type;
 extern int			bootloader_version;
