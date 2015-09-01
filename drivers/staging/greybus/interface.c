@@ -16,7 +16,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_interface *intf = to_gb_interface(dev);		\
-	return sprintf(buf, "%"#type"\n", intf->field);			\
+	return scnprintf(buf, PAGE_SIZE, "%"#type"\n", intf->field);	\
 }									\
 static DEVICE_ATTR_RO(field)
 
