@@ -220,6 +220,9 @@ static int __ordered_events__flush(struct ordered_events *oe)
 	else if (last_ts <= limit)
 		oe->last = list_entry(head->prev, struct ordered_event, list);
 
+	if (show_progress)
+		ui_progress__finish();
+
 	return 0;
 }
 

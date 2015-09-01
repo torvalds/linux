@@ -67,6 +67,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 			rb_erase(&al->sym->rb_node,
 				 &al->map->dso->symbols[al->map->type]);
 			symbol__delete(al->sym);
+			dso__reset_find_symbol_cache(al->map->dso);
 		}
 		return 0;
 	}
@@ -187,6 +188,7 @@ find_next:
 			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
+			zfree(&notes->src->cycles_hist);
 			zfree(&notes->src);
 		}
 	}
@@ -238,6 +240,8 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists, NULL);
+			/* Don't sort callchain */
+			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
 			hists__output_resort(hists, NULL);
 
 			if (symbol_conf.event_group &&
