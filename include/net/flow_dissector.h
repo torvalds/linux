@@ -14,6 +14,7 @@ struct flow_dissector_key_control {
 	u16	addr_type;
 	u32	is_fragment:1;
 	u32	first_frag:1;
+	u32	encapsulation:1;
 };
 
 /**
@@ -127,6 +128,7 @@ enum flow_dissector_key_id {
 #define FLOW_DISSECTOR_F_PARSE_1ST_FRAG		BIT(0)
 #define FLOW_DISSECTOR_F_STOP_AT_L3		BIT(1)
 #define FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL	BIT(2)
+#define FLOW_DISSECTOR_F_STOP_AT_ENCAP		BIT(3)
 
 struct flow_dissector_key {
 	enum flow_dissector_key_id key_id;

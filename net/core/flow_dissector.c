@@ -397,6 +397,11 @@ ip_proto_again:
 			proto = eth->h_proto;
 			nhoff += sizeof(*eth);
 		}
+
+		key_control->encapsulation = 1;
+		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
+			goto out_good;
+
 		goto again;
 	}
 	case NEXTHDR_HOP:
@@ -444,9 +449,19 @@ ip_proto_again:
 	}
 	case IPPROTO_IPIP:
 		proto = htons(ETH_P_IP);
+
+		key_control->encapsulation = 1;
+		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
+			goto out_good;
+
 		goto ip;
 	case IPPROTO_IPV6:
 		proto = htons(ETH_P_IPV6);
+
+		key_control->encapsulation = 1;
+		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
+			goto out_good;
+
 		goto ipv6;
 	case IPPROTO_MPLS:
 		proto = htons(ETH_P_MPLS_UC);
