@@ -556,6 +556,12 @@ S:	Maintained
 F:	Documentation/i2c/busses/i2c-ali1563
 F:	drivers/i2c/busses/i2c-ali1563.c
 
+ALLWINNER SECURITY SYSTEM
+M:	Corentin Labbe <clabbe.montjoie@gmail.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	drivers/crypto/sunxi-ss/
+
 ALPHA PORT
 M:	Richard Henderson <rth@twiddle.net>
 M:	Ivan Kokshaysky <ink@jurassic.park.msu.ru>
@@ -5078,9 +5084,21 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
 S:	Maintained
 F:	arch/ia64/
 
+IBM Power VMX Cryptographic instructions
+M:	Leonidas S. Barbosa <leosilva@linux.vnet.ibm.com>
+M:	Paulo Flabiano Smorigo <pfsmorigo@linux.vnet.ibm.com>
+L:	linux-crypto@vger.kernel.org
+S:	Supported
+F:	drivers/crypto/vmx/Makefile
+F:	drivers/crypto/vmx/Kconfig
+F:	drivers/crypto/vmx/vmx.c
+F:	drivers/crypto/vmx/aes*
+F:	drivers/crypto/vmx/ghash*
+F:	drivers/crypto/vmx/ppc-xlate.pl
+
 IBM Power in-Nest Crypto Acceleration
-M:	Marcelo Henrique Cerri <mhcerri@linux.vnet.ibm.com>
-M:	Fionnuala Gunter <fin@linux.vnet.ibm.com>
+M:	Leonidas S. Barbosa <leosilva@linux.vnet.ibm.com>
+M:	Paulo Flabiano Smorigo <pfsmorigo@linux.vnet.ibm.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	drivers/crypto/nx/Makefile
@@ -5092,7 +5110,7 @@ F:	drivers/crypto/nx/nx_csbcpb.h
 F:	drivers/crypto/nx/nx_debugfs.h
 
 IBM Power 842 compression accelerator
-M:	Dan Streetman <ddstreet@us.ibm.com>
+M:	Dan Streetman <ddstreet@ieee.org>
 S:	Supported
 F:	drivers/crypto/nx/Makefile
 F:	drivers/crypto/nx/Kconfig

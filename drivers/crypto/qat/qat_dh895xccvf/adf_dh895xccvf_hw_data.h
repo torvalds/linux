@@ -3,7 +3,7 @@
   redistributing this file, you may do so under either license.
 
   GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
+  Copyright(c) 2015 Intel Corporation.
   This program is free software; you can redistribute it and/or modify
   it under the terms of version 2 of the GNU General Public License as
   published by the Free Software Foundation.
@@ -17,7 +17,7 @@
   qat-linux@intel.com
 
   BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
+  Copyright(c) 2015 Intel Corporation.
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
   are met:
@@ -44,64 +44,25 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include <icp_qat_fw_init_admin.h>
-#include <adf_accel_devices.h>
-#include <adf_common_drv.h>
-#include "adf_drv.h"
+#ifndef ADF_DH895XVF_HW_DATA_H_
+#define ADF_DH895XVF_HW_DATA_H_
 
-static struct service_hndl qat_admin;
+#define ADF_DH895XCCIOV_PMISC_BAR 1
+#define ADF_DH895XCCIOV_ACCELERATORS_MASK 0x1
+#define ADF_DH895XCCIOV_ACCELENGINES_MASK 0x1
+#define ADF_DH895XCCIOV_MAX_ACCELERATORS 1
+#define ADF_DH895XCCIOV_MAX_ACCELENGINES 1
+#define ADF_DH895XCCIOV_RX_RINGS_OFFSET 8
+#define ADF_DH895XCCIOV_TX_RINGS_MASK 0xFF
+#define ADF_DH895XCCIOV_ETR_BAR 0
+#define ADF_DH895XCCIOV_ETR_MAX_BANKS 1
 
-static int qat_send_admin_cmd(struct adf_accel_dev *accel_dev, int cmd)
-{
-	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	struct icp_qat_fw_init_admin_req req;
-	struct icp_qat_fw_init_admin_resp resp;
-	int i;
+#define ADF_DH895XCCIOV_PF2VF_OFFSET	0x200
+#define ADF_DH895XCC_PF2VF_PF2VFINT	BIT(0)
 
-	memset(&req, 0, sizeof(struct icp_qat_fw_init_admin_req));
-	req.init_admin_cmd_id = cmd;
-	for (i = 0; i < hw_device->get_num_aes(hw_device); i++) {
-		memset(&resp, 0, sizeof(struct icp_qat_fw_init_admin_resp));
-		if (adf_put_admin_msg_sync(accel_dev, i, &req, &resp) ||
-		    resp.init_resp_hdr.status)
-			return -EFAULT;
-	}
-	return 0;
-}
+#define ADF_DH895XCCIOV_VINTSOU_OFFSET	0x204
+#define ADF_DH895XCC_VINTSOU_BUN	BIT(0)
+#define ADF_DH895XCC_VINTSOU_PF2VF	BIT(1)
 
-static int qat_admin_start(struct adf_accel_dev *accel_dev)
-{
-	return qat_send_admin_cmd(accel_dev, ICP_QAT_FW_INIT_ME);
-}
-
-static int qat_admin_event_handler(struct adf_accel_dev *accel_dev,
-				   enum adf_event event)
-{
-	int ret;
-
-	switch (event) {
-	case ADF_EVENT_START:
-		ret = qat_admin_start(accel_dev);
-		break;
-	case ADF_EVENT_STOP:
-	case ADF_EVENT_INIT:
-	case ADF_EVENT_SHUTDOWN:
-	default:
-		ret = 0;
-	}
-	return ret;
-}
-
-int qat_admin_register(void)
-{
-	memset(&qat_admin, 0, sizeof(struct service_hndl));
-	qat_admin.event_hld = qat_admin_event_handler;
-	qat_admin.name = "qat_admin";
-	qat_admin.admin = 1;
-	return adf_service_register(&qat_admin);
-}
-
-int qat_admin_unregister(void)
-{
-	return adf_service_unregister(&qat_admin);
-}
+#define ADF_DH895XCCIOV_VINTMSK_OFFSET	0x208
+#endif

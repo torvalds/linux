@@ -106,6 +106,18 @@ PROPERTIES
           to the interrupt parent to which the child domain
           is being mapped.
 
+   - clocks
+      Usage: required if SEC 4.0 requires explicit enablement of clocks
+      Value type: <prop_encoded-array>
+      Definition:  A list of phandle and clock specifier pairs describing
+          the clocks required for enabling and disabling SEC 4.0.
+
+   - clock-names
+      Usage: required if SEC 4.0 requires explicit enablement of clocks
+      Value type: <string>
+      Definition: A list of clock name strings in the same order as the
+          clocks property.
+
    Note: All other standard properties (see the ePAPR) are allowed
    but are optional.
 
@@ -120,6 +132,11 @@ EXAMPLE
 		ranges = <0 0x300000 0x10000>;
 		interrupt-parent = <&mpic>;
 		interrupts = <92 2>;
+		clocks = <&clks IMX6QDL_CLK_CAAM_MEM>,
+			 <&clks IMX6QDL_CLK_CAAM_ACLK>,
+			 <&clks IMX6QDL_CLK_CAAM_IPG>,
+			 <&clks IMX6QDL_CLK_EIM_SLOW>;
+		clock-names = "mem", "aclk", "ipg", "emi_slow";
 	};
 
 =====================================================================
