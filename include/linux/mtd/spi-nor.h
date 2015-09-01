@@ -147,6 +147,8 @@ struct mtd_info;
  *			at the offset @offs
  * @flash_lock:		[FLASH-SPECIFIC] lock a region of the SPI NOR
  * @flash_unlock:	[FLASH-SPECIFIC] unlock a region of the SPI NOR
+ * @flash_is_locked:	[FLASH-SPECIFIC] check if a region of the SPI NOR is
+ *			completely locked
  * @priv:		the private data
  */
 struct spi_nor {
@@ -178,6 +180,7 @@ struct spi_nor {
 
 	int (*flash_lock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
 	int (*flash_unlock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
+	int (*flash_is_locked)(struct spi_nor *nor, loff_t ofs, uint64_t len);
 
 	void *priv;
 };
