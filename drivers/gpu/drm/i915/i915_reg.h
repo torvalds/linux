@@ -7588,6 +7588,13 @@ enum skl_disp_power_wells {
 #define _MIPIA_PORT_CTRL			(VLV_DISPLAY_BASE + 0x61190)
 #define _MIPIC_PORT_CTRL			(VLV_DISPLAY_BASE + 0x61700)
 #define MIPI_PORT_CTRL(port)	_MIPI_PORT(port, _MIPIA_PORT_CTRL, _MIPIC_PORT_CTRL)
+
+ /* BXT port control */
+#define _BXT_MIPIA_PORT_CTRL				0x6B0C0
+#define _BXT_MIPIC_PORT_CTRL				0x6B8C0
+#define BXT_MIPI_PORT_CTRL(tc)	_MIPI_PORT(tc, _BXT_MIPIA_PORT_CTRL, \
+						_BXT_MIPIC_PORT_CTRL)
+
 #define  DPI_ENABLE					(1 << 31) /* A + C */
 #define  MIPIA_MIPI4DPHY_DELAY_COUNT_SHIFT		27
 #define  MIPIA_MIPI4DPHY_DELAY_COUNT_MASK		(0xf << 27)
