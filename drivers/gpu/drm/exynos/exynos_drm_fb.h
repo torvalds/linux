@@ -25,10 +25,6 @@ struct exynos_drm_gem_obj *exynos_drm_fb_gem_obj(struct drm_framebuffer *fb,
 
 void exynos_drm_mode_config_init(struct drm_device *dev);
 
-/* set a buffer count to drm framebuffer. */
-void exynos_drm_fb_set_buf_cnt(struct drm_framebuffer *fb,
-						unsigned int cnt);
-
 /* get a buffer count to drm framebuffer. */
 unsigned int exynos_drm_fb_get_buf_cnt(struct drm_framebuffer *fb);
 

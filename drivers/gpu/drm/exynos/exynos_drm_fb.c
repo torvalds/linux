@@ -122,16 +122,6 @@ static struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 	.dirty		= exynos_drm_fb_dirty,
 };
 
-void exynos_drm_fb_set_buf_cnt(struct drm_framebuffer *fb,
-						unsigned int cnt)
-{
-	struct exynos_drm_fb *exynos_fb;
-
-	exynos_fb = to_exynos_fb(fb);
-
-	exynos_fb->buf_cnt = cnt;
-}
-
 unsigned int exynos_drm_fb_get_buf_cnt(struct drm_framebuffer *fb)
 {
 	struct exynos_drm_fb *exynos_fb;
@@ -162,6 +152,9 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 
 	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
 	exynos_fb->exynos_gem_obj[0] = exynos_gem_obj;
+
+	/* buffer count to framebuffer always is 1 at booting time. */
+	exynos_fb->buf_cnt = 1;
 
 	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
 	if (ret) {
