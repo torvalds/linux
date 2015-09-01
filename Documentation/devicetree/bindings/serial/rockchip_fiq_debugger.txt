@@ -1,0 +1,32 @@
+* Fiq debugger based on UART
+
+- compatible: "rockchip,fiq-debugger"
+
+  Compatibility with all rk30xx rk31xx rk32xx rk33xx SOCs.
+
+- rockchip,serial-id: The uart which is used as debug port,
+  start from 0,1,2,3...
+
+- rockchip,signal-irq: A hardware interrupt without source,
+  which is triggered by FIQ handler to call functions that
+  must be called in IRQ context. Often it is configured by
+  soc developer.
+
+- rockchip,wake-irq: It is used to wake up fiq debugger,
+  but usually not used.
+
+- rockchip,irq-mode-enable: If it is set 1, uart uses irq
+  instead of fiq.
+
+- rockchip,baudrate: Only 115200 and 1500000.
+
+Example:
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,signal-irq = <186>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <0>;
+		rockchip,baudrate = <115200>;
+		status = "disabled";
+	};
