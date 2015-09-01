@@ -27,8 +27,9 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0xc0000000 0x00010000>,
-			<0x00000001 0x00002000 0xff202000 0x00000010>;
-	
+			<0x00000001 0x00002000 0xff202000 0x00000010>,
+			<0x00000001 0x00003000 0xff203000 0x00000010>;
+
 		pio_0: gpio@0x100000000 {
 			status = "okay";
 
@@ -39,8 +40,60 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 		}; //end gpio@0x100000000 (pio_0)
+		
+		acl_iface_button_pio: gpio@0x100003000 {
+			compatible = "altr,pio-15.0", "altr,pio-1.0";
+			reg = <0x00000001 0x00003000 0x00000010>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 41 1>;
+			altr,gpio-bank-width = <2>;	/* embeddedsw.dts.params.altr,gpio-bank-width type NUMBER */
+			altr,interrupt_type = <2>;	/* embeddedsw.dts.params.altr,interrupt_type type NUMBER */
+			edge_type = <1>;	/* embeddedsw.dts.params.edge_type type NUMBER */
+			level_trigger = <0>;	/* embeddedsw.dts.params.level_trigger type NUMBER */
+			resetvalue = <0>;	/* embeddedsw.dts.params.resetvalue type NUMBER */
+			#gpio-cells = <2>;
+			gpio-controller;
+		}; //end gpio@0x100003000 (acl_iface_button_pio)
 	}; //end bridge@0xc0000000 (hps_0_bridges)
 
+	/*
+	//doesn't seem to work with gpio driver.  using polled instead.
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+		button@21 {
+			label = "h key";
+			linux,code = <35>;
+			gpios = <&acl_iface_button_pio 0 1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+	};*/
+	
+	gpio_keys_polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+		//autorepeat;
+		button@21 {
+			label = "h key";
+			linux,code = <35>;
+			gpios = <&acl_iface_button_pio 0 1>;
+		};
+		button@22 {
+			label = "h key";
+			linux,code = <35>;
+			gpios = <&acl_iface_button_pio 1 1>;
+		};
+		/*button@22 {
+			label = "r key";
+			linux,code = <19>;
+			gpios = <&acl_iface_button_pio 1 1>;
+		};*/
+	};
 };
 
 &spi0 {
