@@ -170,13 +170,13 @@ static bool choke_match_flow(struct sk_buff *skb1,
 
 	if (!choke_skb_cb(skb1)->keys_valid) {
 		choke_skb_cb(skb1)->keys_valid = 1;
-		skb_flow_dissect_flow_keys(skb1, &temp);
+		skb_flow_dissect_flow_keys(skb1, &temp, 0);
 		make_flow_keys_digest(&choke_skb_cb(skb1)->keys, &temp);
 	}
 
 	if (!choke_skb_cb(skb2)->keys_valid) {
 		choke_skb_cb(skb2)->keys_valid = 1;
-		skb_flow_dissect_flow_keys(skb2, &temp);
+		skb_flow_dissect_flow_keys(skb2, &temp, 0);
 		make_flow_keys_digest(&choke_skb_cb(skb2)->keys, &temp);
 	}
 

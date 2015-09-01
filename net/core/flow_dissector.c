@@ -121,7 +121,8 @@ EXPORT_SYMBOL(__skb_flow_get_ports);
 bool __skb_flow_dissect(const struct sk_buff *skb,
 			struct flow_dissector *flow_dissector,
 			void *target_container,
-			void *data, __be16 proto, int nhoff, int hlen)
+			void *data, __be16 proto, int nhoff, int hlen,
+			unsigned int flags)
 {
 	struct flow_dissector_key_control *key_control;
 	struct flow_dissector_key_basic *key_basic;
@@ -556,7 +557,7 @@ EXPORT_SYMBOL(flow_hash_from_keys);
 static inline u32 ___skb_get_hash(const struct sk_buff *skb,
 				  struct flow_keys *keys, u32 keyval)
 {
-	if (!skb_flow_dissect_flow_keys(skb, keys))
+	if (!skb_flow_dissect_flow_keys(skb, keys, 0))
 		return 0;
 
 	return __flow_hash_from_keys(keys, keyval);
@@ -726,7 +727,7 @@ u32 skb_get_poff(const struct sk_buff *skb)
 {
 	struct flow_keys keys;
 
-	if (!skb_flow_dissect_flow_keys(skb, &keys))
+	if (!skb_flow_dissect_flow_keys(skb, &keys, 0))
 		return 0;
 
 	return __skb_get_poff(skb, skb->data, &keys, skb_headlen(skb));

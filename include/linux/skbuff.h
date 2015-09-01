@@ -991,31 +991,34 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 bool __skb_flow_dissect(const struct sk_buff *skb,
 			struct flow_dissector *flow_dissector,
 			void *target_container,
-			void *data, __be16 proto, int nhoff, int hlen);
+			void *data, __be16 proto, int nhoff, int hlen,
+			unsigned int flags);
 
 static inline bool skb_flow_dissect(const struct sk_buff *skb,
 				    struct flow_dissector *flow_dissector,
-				    void *target_container)
+				    void *target_container, unsigned int flags)
 {
 	return __skb_flow_dissect(skb, flow_dissector, target_container,
-				  NULL, 0, 0, 0);
+				  NULL, 0, 0, 0, flags);
 }
 
 static inline bool skb_flow_dissect_flow_keys(const struct sk_buff *skb,
-					      struct flow_keys *flow)
+					      struct flow_keys *flow,
+					      unsigned int flags)
 {
 	memset(flow, 0, sizeof(*flow));
 	return __skb_flow_dissect(skb, &flow_keys_dissector, flow,
-				  NULL, 0, 0, 0);
+				  NULL, 0, 0, 0, flags);
 }
 
 static inline bool skb_flow_dissect_flow_keys_buf(struct flow_keys *flow,
 						  void *data, __be16 proto,
-						  int nhoff, int hlen)
+						  int nhoff, int hlen,
+						  unsigned int flags)
 {
 	memset(flow, 0, sizeof(*flow));
 	return __skb_flow_dissect(NULL, &flow_keys_buf_dissector, flow,
-				  data, proto, nhoff, hlen);
+				  data, proto, nhoff, hlen, flags);
 }
 
 static inline __u32 skb_get_hash(struct sk_buff *skb)
@@ -2046,7 +2049,7 @@ static inline void skb_probe_transport_header(struct sk_buff *skb,
 
 	if (skb_transport_header_was_set(skb))
 		return;
-	else if (skb_flow_dissect_flow_keys(skb, &keys))
+	else if (skb_flow_dissect_flow_keys(skb, &keys, 0))
 		skb_set_transport_header(skb, keys.control.thoff);
 	else
 		skb_set_transport_header(skb, offset_hint);
