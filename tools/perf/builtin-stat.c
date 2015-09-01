@@ -215,7 +215,7 @@ static void read_counters(bool close_counters)
 
 	evlist__for_each(evsel_list, counter) {
 		if (read_counter(counter))
-			pr_warning("failed to read counter %s\n", counter->name);
+			pr_debug("failed to read counter %s\n", counter->name);
 
 		if (perf_stat_process_counter(&stat_config, counter))
 			pr_warning("failed to process counter %s\n", counter->name);
