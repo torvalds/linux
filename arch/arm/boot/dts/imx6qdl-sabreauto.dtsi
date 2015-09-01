@@ -357,6 +357,14 @@
 		#gpio-cells = <2>;
 	};
 
+	mag3110@0e {
+		compatible = "fsl,mag3110";
+		reg = <0x0e>;
+		position = <2>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <29 1>;
+	};
+
 	mma8451@1c {
 		compatible = "fsl,mma8451";
 		reg = <0x1c>;
@@ -386,6 +394,7 @@
 				MX6QDL_PAD_SD2_DAT2__GPIO1_IO13  0x80000000
 				MX6QDL_PAD_GPIO_18__SD3_VSELECT 0x17059
 				MX6QDL_PAD_EIM_BCLK__GPIO6_IO31 0x80000000
+				MX6QDL_PAD_EIM_EB1__GPIO2_IO29	0x80000000
 			>;
 		};
 

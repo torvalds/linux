@@ -190,6 +190,15 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
+	mag3110@0e {
+		compatible = "fsl,mag3110";
+		reg = <0x0e>;
+		position = <2>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <5 1>;
+		shared-interrupt;
+	};
+
 	mma8451@1c {
 		compatible = "fsl,mma8451";
 		reg = <0x1c>;
@@ -339,6 +348,7 @@
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX6SX_PAD_SD1_DATA0__GPIO6_IO_2 0x17059
+				MX6SX_PAD_SD1_DATA3__GPIO6_IO_5 0xb000
 			>;
 		};
 
