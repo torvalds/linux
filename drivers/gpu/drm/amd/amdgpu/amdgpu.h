@@ -98,6 +98,9 @@ extern int amdgpu_sched_hw_submission;
 #define AMDGPU_MAX_COMPUTE_RINGS		8
 #define AMDGPU_MAX_VCE_RINGS			2
 
+/* max number of IP instances */
+#define AMDGPU_MAX_SDMA_INSTANCES		2
+
 /* number of hw syncs before falling back on blocking */
 #define AMDGPU_NUM_SYNCS			4
 
@@ -2057,7 +2060,7 @@ struct amdgpu_device {
 	struct amdgpu_gfx		gfx;
 
 	/* sdma */
-	struct amdgpu_sdma		sdma[2];
+	struct amdgpu_sdma		sdma[AMDGPU_MAX_SDMA_INSTANCES];
 	struct amdgpu_irq_src		sdma_trap_irq;
 	struct amdgpu_irq_src		sdma_illegal_inst_irq;
 
