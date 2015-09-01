@@ -23,7 +23,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
-#include "exynos_drm_gem.h"
 #include "exynos_drm_iommu.h"
 #include "exynos_drm_crtc.h"
 
@@ -134,36 +133,41 @@ unsigned int exynos_drm_fb_get_buf_cnt(struct drm_framebuffer *fb)
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
-			    struct drm_gem_object *obj)
+			    struct exynos_drm_gem_obj **gem_obj,
+			    int count)
 {
 	struct exynos_drm_fb *exynos_fb;
-	struct exynos_drm_gem_obj *exynos_gem_obj;
+	int i;
 	int ret;
-
-	exynos_gem_obj = to_exynos_gem_obj(obj);
-
-	ret = check_fb_gem_memory_type(dev, exynos_gem_obj);
-	if (ret < 0)
-		return ERR_PTR(ret);
 
 	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
 	if (!exynos_fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
-	exynos_fb->exynos_gem_obj[0] = exynos_gem_obj;
+	exynos_fb->buf_cnt = count;
+	DRM_DEBUG_KMS("buf_cnt = %d\n", exynos_fb->buf_cnt);
 
-	/* buffer count to framebuffer always is 1 at booting time. */
-	exynos_fb->buf_cnt = 1;
+	for (i = 0; i < count; i++) {
+		ret = check_fb_gem_memory_type(dev, gem_obj[i]);
+		if (ret < 0)
+			goto err;
+
+		exynos_fb->exynos_gem_obj[i] = gem_obj[i];
+	}
+
+	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
 
 	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
-	if (ret) {
-		kfree(exynos_fb);
+	if (ret < 0) {
 		DRM_ERROR("failed to initialize framebuffer\n");
-		return ERR_PTR(ret);
+		goto err;
 	}
 
 	return &exynos_fb->fb;
+
+err:
+	kfree(exynos_fb);
+	return ERR_PTR(ret);
 }
 
 static struct drm_framebuffer *

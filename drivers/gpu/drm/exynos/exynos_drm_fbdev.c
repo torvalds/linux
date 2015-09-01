@@ -21,7 +21,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
-#include "exynos_drm_gem.h"
 #include "exynos_drm_iommu.h"
 
 #define MAX_CONNECTOR		4
@@ -160,7 +159,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	exynos_fbdev->obj = obj;
 
-	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd, &obj->base);
+	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd, &obj, 1);
 	if (IS_ERR(helper->fb)) {
 		DRM_ERROR("failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
