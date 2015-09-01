@@ -121,15 +121,6 @@ static struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 	.dirty		= exynos_drm_fb_dirty,
 };
 
-unsigned int exynos_drm_fb_get_buf_cnt(struct drm_framebuffer *fb)
-{
-	struct exynos_drm_fb *exynos_fb;
-
-	exynos_fb = to_exynos_fb(fb);
-
-	return exynos_fb->buf_cnt;
-}
-
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
