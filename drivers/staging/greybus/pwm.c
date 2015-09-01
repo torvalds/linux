@@ -204,7 +204,7 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 
 	ret = pwmchip_add(pwm);
 	if (ret) {
-		pr_err("Failed to register PWM\n");
+		dev_err(&connection->dev, "failed to register PWM: %d\n", ret);
 		goto out_err;
 	}
 
