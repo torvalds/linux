@@ -75,24 +75,17 @@ static struct fb_ops exynos_drm_fb_ops = {
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
-				     struct drm_fb_helper_surface_size *sizes,
-				     struct drm_framebuffer *fb)
+				   struct drm_fb_helper_surface_size *sizes,
+				   struct exynos_drm_gem_obj *obj)
 {
 	struct fb_info *fbi = helper->fbdev;
-	struct exynos_drm_gem_obj *obj;
+	struct drm_framebuffer *fb = helper->fb;
 	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned int nr_pages;
 	unsigned long offset;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
-
-	/* RGB formats use only one buffer */
-	obj = exynos_drm_fb_gem_obj(fb, 0);
-	if (!obj) {
-		DRM_DEBUG_KMS("gem object is null.\n");
-		return -EFAULT;
-	}
 
 	nr_pages = obj->size >> PAGE_SHIFT;
 
@@ -175,7 +168,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
-	ret = exynos_drm_fbdev_update(helper, sizes, helper->fb);
+	ret = exynos_drm_fbdev_update(helper, sizes, obj);
 	if (ret < 0)
 		goto err_destroy_framebuffer;
 
