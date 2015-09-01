@@ -582,6 +582,16 @@
 		status = "disabled";
 	};
 
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,signal-irq = <186>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <0>;  /* If enable uart uses irq instead of fiq */
+		rockchip,baudrate = <115200>;  /* Only 115000 and 1500000 */
+		status = "disabled";
+	};
+
 	mbox: mbox@ff6b0000 {
 		compatible = "rockchip,rk3368-mailbox";
 		reg = <0x0 0xff6b0000 0x0 0x1000>,
