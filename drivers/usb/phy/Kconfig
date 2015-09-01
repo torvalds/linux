@@ -221,4 +221,13 @@ config USB_ULPI_VIEWPORT
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
 
+config DUAL_ROLE_USB_INTF
+	bool "Generic DUAL ROLE sysfs interface"
+	depends on SYSFS && USB_PHY
+	help
+	  A generic sysfs interface to track and change the state of
+	  dual role usb phys. The usb phy drivers can register to
+	  this interface to expose it capabilities to the userspace
+	  and thereby allowing userspace to change the port mode.
+
 endmenu
