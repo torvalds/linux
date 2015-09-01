@@ -586,27 +586,9 @@ static void *display_thread_tui(void *arg)
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
 
-	while (true)  {
-		int key = perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
-							top->min_percent,
-							&top->session->header.env);
-
-		if (key != 'f')
-			break;
-
-		perf_evlist__toggle_enable(top->evlist);
-		/*
-		 * No need to refresh, resort/decay histogram entries
-		 * if we are not collecting samples:
-		 */
-		if (top->evlist->enabled) {
-			hbt.refresh = top->delay_secs;
-			help = "Press 'f' to disable the events or 'h' to see other hotkeys";
-		} else {
-			help = "Press 'f' again to re-enable the events";
-			hbt.refresh = 0;
-		}
-	}
+	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+				      top->min_percent,
+				      &top->session->header.env);
 
 	done = 1;
 	return NULL;

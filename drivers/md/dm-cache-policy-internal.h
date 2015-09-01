@@ -7,6 +7,7 @@
 #ifndef DM_CACHE_POLICY_INTERNAL_H
 #define DM_CACHE_POLICY_INTERNAL_H
 
+#include <linux/vmalloc.h>
 #include "dm-cache-policy.h"
 
 /*----------------------------------------------------------------*/
@@ -16,9 +17,10 @@
  */
 static inline int policy_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 			     bool can_block, bool can_migrate, bool discarded_oblock,
-			     struct bio *bio, struct policy_result *result)
+			     struct bio *bio, struct policy_locker *locker,
+			     struct policy_result *result)
 {
-	return p->map(p, oblock, can_block, can_migrate, discarded_oblock, bio, result);
+	return p->map(p, oblock, can_block, can_migrate, discarded_oblock, bio, locker, result);
 }
 
 static inline int policy_lookup(struct dm_cache_policy *p, dm_oblock_t oblock, dm_cblock_t *cblock)
@@ -54,9 +56,10 @@ static inline int policy_walk_mappings(struct dm_cache_policy *p,
 
 static inline int policy_writeback_work(struct dm_cache_policy *p,
 					dm_oblock_t *oblock,
-					dm_cblock_t *cblock)
+					dm_cblock_t *cblock,
+					bool critical_only)
 {
-	return p->writeback_work ? p->writeback_work(p, oblock, cblock) : -ENOENT;
+	return p->writeback_work ? p->writeback_work(p, oblock, cblock, critical_only) : -ENOENT;
 }
 
 static inline void policy_remove_mapping(struct dm_cache_policy *p, dm_oblock_t oblock)
@@ -80,19 +83,21 @@ static inline dm_cblock_t policy_residency(struct dm_cache_policy *p)
 	return p->residency(p);
 }
 
-static inline void policy_tick(struct dm_cache_policy *p)
+static inline void policy_tick(struct dm_cache_policy *p, bool can_block)
 {
 	if (p->tick)
-		return p->tick(p);
+		return p->tick(p, can_block);
 }
 
-static inline int policy_emit_config_values(struct dm_cache_policy *p, char *result, unsigned maxlen)
+static inline int policy_emit_config_values(struct dm_cache_policy *p, char *result,
+					    unsigned maxlen, ssize_t *sz_ptr)
 {
-	ssize_t sz = 0;
+	ssize_t sz = *sz_ptr;
 	if (p->emit_config_values)
-		return p->emit_config_values(p, result, maxlen);
+		return p->emit_config_values(p, result, maxlen, sz_ptr);
 
-	DMEMIT("0");
+	DMEMIT("0 ");
+	*sz_ptr = sz;
 	return 0;
 }
 
@@ -100,6 +105,33 @@ static inline int policy_set_config_value(struct dm_cache_policy *p,
 					  const char *key, const char *value)
 {
 	return p->set_config_value ? p->set_config_value(p, key, value) : -EINVAL;
+}
+
+/*----------------------------------------------------------------*/
+
+/*
+ * Some utility functions commonly used by policies and the core target.
+ */
+static inline size_t bitset_size_in_bytes(unsigned nr_entries)
+{
+	return sizeof(unsigned long) * dm_div_up(nr_entries, BITS_PER_LONG);
+}
+
+static inline unsigned long *alloc_bitset(unsigned nr_entries)
+{
+	size_t s = bitset_size_in_bytes(nr_entries);
+	return vzalloc(s);
+}
+
+static inline void clear_bitset(void *bitset, unsigned nr_entries)
+{
+	size_t s = bitset_size_in_bytes(nr_entries);
+	memset(bitset, 0, s);
+}
+
+static inline void free_bitset(unsigned long *bits)
+{
+	vfree(bits);
 }
 
 /*----------------------------------------------------------------*/

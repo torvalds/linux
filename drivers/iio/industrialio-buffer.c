@@ -239,13 +239,19 @@ static ssize_t iio_scan_el_show(struct device *dev,
 /* Note NULL used as error indicator as it doesn't make sense. */
 static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 					  unsigned int masklength,
-					  const unsigned long *mask)
+					  const unsigned long *mask,
+					  bool strict)
 {
 	if (bitmap_empty(mask, masklength))
 		return NULL;
 	while (*av_masks) {
-		if (bitmap_subset(mask, av_masks, masklength))
-			return av_masks;
+		if (strict) {
+			if (bitmap_equal(mask, av_masks, masklength))
+				return av_masks;
+		} else {
+			if (bitmap_subset(mask, av_masks, masklength))
+				return av_masks;
+		}
 		av_masks += BITS_TO_LONGS(masklength);
 	}
 	return NULL;
@@ -295,7 +301,7 @@ static int iio_scan_mask_set(struct iio_dev *indio_dev,
 	if (indio_dev->available_scan_masks) {
 		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
 					   indio_dev->masklength,
-					   trialmask);
+					   trialmask, false);
 		if (!mask)
 			goto err_invalid_mask;
 	}
@@ -539,26 +545,13 @@ static void iio_buffer_deactivate(struct iio_buffer *buffer)
 	iio_buffer_put(buffer);
 }
 
-void iio_disable_all_buffers(struct iio_dev *indio_dev)
+static void iio_buffer_deactivate_all(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *buffer, *_buffer;
-
-	if (list_empty(&indio_dev->buffer_list))
-		return;
-
-	if (indio_dev->setup_ops->predisable)
-		indio_dev->setup_ops->predisable(indio_dev);
 
 	list_for_each_entry_safe(buffer, _buffer,
 			&indio_dev->buffer_list, buffer_list)
 		iio_buffer_deactivate(buffer);
-
-	indio_dev->currentmode = INDIO_DIRECT_MODE;
-	if (indio_dev->setup_ops->postdisable)
-		indio_dev->setup_ops->postdisable(indio_dev);
-
-	if (indio_dev->available_scan_masks == NULL)
-		kfree(indio_dev->active_scan_mask);
 }
 
 static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
@@ -575,87 +568,143 @@ static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
 	buffer->access->set_bytes_per_datum(buffer, bytes);
 }
 
-static int __iio_update_buffers(struct iio_dev *indio_dev,
-		       struct iio_buffer *insert_buffer,
-		       struct iio_buffer *remove_buffer)
+static int iio_buffer_request_update(struct iio_dev *indio_dev,
+	struct iio_buffer *buffer)
 {
 	int ret;
-	int success = 0;
-	struct iio_buffer *buffer;
-	unsigned long *compound_mask;
-	const unsigned long *old_mask;
 
-	/* Wind down existing buffers - iff there are any */
-	if (!list_empty(&indio_dev->buffer_list)) {
-		if (indio_dev->setup_ops->predisable) {
-			ret = indio_dev->setup_ops->predisable(indio_dev);
-			if (ret)
-				return ret;
-		}
-		indio_dev->currentmode = INDIO_DIRECT_MODE;
-		if (indio_dev->setup_ops->postdisable) {
-			ret = indio_dev->setup_ops->postdisable(indio_dev);
-			if (ret)
-				return ret;
+	iio_buffer_update_bytes_per_datum(indio_dev, buffer);
+	if (buffer->access->request_update) {
+		ret = buffer->access->request_update(buffer);
+		if (ret) {
+			dev_dbg(&indio_dev->dev,
+			       "Buffer not started: buffer parameter update failed (%d)\n",
+				ret);
+			return ret;
 		}
 	}
-	/* Keep a copy of current setup to allow roll back */
-	old_mask = indio_dev->active_scan_mask;
+
+	return 0;
+}
+
+static void iio_free_scan_mask(struct iio_dev *indio_dev,
+	const unsigned long *mask)
+{
+	/* If the mask is dynamically allocated free it, otherwise do nothing */
 	if (!indio_dev->available_scan_masks)
-		indio_dev->active_scan_mask = NULL;
+		kfree(mask);
+}
 
-	if (remove_buffer)
-		iio_buffer_deactivate(remove_buffer);
+struct iio_device_config {
+	unsigned int mode;
+	const unsigned long *scan_mask;
+	unsigned int scan_bytes;
+	bool scan_timestamp;
+};
+
+static int iio_verify_update(struct iio_dev *indio_dev,
+	struct iio_buffer *insert_buffer, struct iio_buffer *remove_buffer,
+	struct iio_device_config *config)
+{
+	unsigned long *compound_mask;
+	const unsigned long *scan_mask;
+	bool strict_scanmask = false;
+	struct iio_buffer *buffer;
+	bool scan_timestamp;
+	unsigned int modes;
+
+	memset(config, 0, sizeof(*config));
+
+	/*
+	 * If there is just one buffer and we are removing it there is nothing
+	 * to verify.
+	 */
+	if (remove_buffer && !insert_buffer &&
+		list_is_singular(&indio_dev->buffer_list))
+			return 0;
+
+	modes = indio_dev->modes;
+
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		if (buffer == remove_buffer)
+			continue;
+		modes &= buffer->access->modes;
+	}
+
 	if (insert_buffer)
-		iio_buffer_activate(indio_dev, insert_buffer);
+		modes &= insert_buffer->access->modes;
 
-	/* If no buffers in list, we are done */
-	if (list_empty(&indio_dev->buffer_list)) {
-		indio_dev->currentmode = INDIO_DIRECT_MODE;
-		if (indio_dev->available_scan_masks == NULL)
-			kfree(old_mask);
-		return 0;
+	/* Definitely possible for devices to support both of these. */
+	if ((modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
+		config->mode = INDIO_BUFFER_TRIGGERED;
+	} else if (modes & INDIO_BUFFER_HARDWARE) {
+		/*
+		 * Keep things simple for now and only allow a single buffer to
+		 * be connected in hardware mode.
+		 */
+		if (insert_buffer && !list_empty(&indio_dev->buffer_list))
+			return -EINVAL;
+		config->mode = INDIO_BUFFER_HARDWARE;
+		strict_scanmask = true;
+	} else if (modes & INDIO_BUFFER_SOFTWARE) {
+		config->mode = INDIO_BUFFER_SOFTWARE;
+	} else {
+		/* Can only occur on first buffer */
+		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+			dev_dbg(&indio_dev->dev, "Buffer not started: no trigger\n");
+		return -EINVAL;
 	}
 
 	/* What scan mask do we actually have? */
 	compound_mask = kcalloc(BITS_TO_LONGS(indio_dev->masklength),
 				sizeof(long), GFP_KERNEL);
-	if (compound_mask == NULL) {
-		if (indio_dev->available_scan_masks == NULL)
-			kfree(old_mask);
+	if (compound_mask == NULL)
 		return -ENOMEM;
-	}
-	indio_dev->scan_timestamp = 0;
+
+	scan_timestamp = false;
 
 	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		if (buffer == remove_buffer)
+			continue;
 		bitmap_or(compound_mask, compound_mask, buffer->scan_mask,
 			  indio_dev->masklength);
-		indio_dev->scan_timestamp |= buffer->scan_timestamp;
+		scan_timestamp |= buffer->scan_timestamp;
 	}
+
+	if (insert_buffer) {
+		bitmap_or(compound_mask, compound_mask,
+			  insert_buffer->scan_mask, indio_dev->masklength);
+		scan_timestamp |= insert_buffer->scan_timestamp;
+	}
+
 	if (indio_dev->available_scan_masks) {
-		indio_dev->active_scan_mask =
-			iio_scan_mask_match(indio_dev->available_scan_masks,
-					    indio_dev->masklength,
-					    compound_mask);
-		if (indio_dev->active_scan_mask == NULL) {
-			/*
-			 * Roll back.
-			 * Note can only occur when adding a buffer.
-			 */
-			iio_buffer_deactivate(insert_buffer);
-			if (old_mask) {
-				indio_dev->active_scan_mask = old_mask;
-				success = -EINVAL;
-			}
-			else {
-				kfree(compound_mask);
-				ret = -EINVAL;
-				return ret;
-			}
-		}
+		scan_mask = iio_scan_mask_match(indio_dev->available_scan_masks,
+				    indio_dev->masklength,
+				    compound_mask,
+				    strict_scanmask);
+		kfree(compound_mask);
+		if (scan_mask == NULL)
+			return -EINVAL;
 	} else {
-		indio_dev->active_scan_mask = compound_mask;
+	    scan_mask = compound_mask;
 	}
+
+	config->scan_bytes = iio_compute_scan_bytes(indio_dev,
+				    scan_mask, scan_timestamp);
+	config->scan_mask = scan_mask;
+	config->scan_timestamp = scan_timestamp;
+
+	return 0;
+}
+
+static int iio_enable_buffers(struct iio_dev *indio_dev,
+	struct iio_device_config *config)
+{
+	int ret;
+
+	indio_dev->active_scan_mask = config->scan_mask;
+	indio_dev->scan_timestamp = config->scan_timestamp;
+	indio_dev->scan_bytes = config->scan_bytes;
 
 	iio_update_demux(indio_dev);
 
@@ -663,79 +712,133 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	if (indio_dev->setup_ops->preenable) {
 		ret = indio_dev->setup_ops->preenable(indio_dev);
 		if (ret) {
-			printk(KERN_ERR
+			dev_dbg(&indio_dev->dev,
 			       "Buffer not started: buffer preenable failed (%d)\n", ret);
-			goto error_remove_inserted;
+			goto err_undo_config;
 		}
 	}
-	indio_dev->scan_bytes =
-		iio_compute_scan_bytes(indio_dev,
-				       indio_dev->active_scan_mask,
-				       indio_dev->scan_timestamp);
-	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
-		iio_buffer_update_bytes_per_datum(indio_dev, buffer);
-		if (buffer->access->request_update) {
-			ret = buffer->access->request_update(buffer);
-			if (ret) {
-				printk(KERN_INFO
-				       "Buffer not started: buffer parameter update failed (%d)\n", ret);
-				goto error_run_postdisable;
-			}
-		}
-	}
+
 	if (indio_dev->info->update_scan_mode) {
 		ret = indio_dev->info
 			->update_scan_mode(indio_dev,
 					   indio_dev->active_scan_mask);
 		if (ret < 0) {
-			printk(KERN_INFO "Buffer not started: update scan mode failed (%d)\n", ret);
-			goto error_run_postdisable;
+			dev_dbg(&indio_dev->dev,
+				"Buffer not started: update scan mode failed (%d)\n",
+				ret);
+			goto err_run_postdisable;
 		}
 	}
-	/* Definitely possible for devices to support both of these. */
-	if ((indio_dev->modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
-		indio_dev->currentmode = INDIO_BUFFER_TRIGGERED;
-	} else if (indio_dev->modes & INDIO_BUFFER_HARDWARE) {
-		indio_dev->currentmode = INDIO_BUFFER_HARDWARE;
-	} else if (indio_dev->modes & INDIO_BUFFER_SOFTWARE) {
-		indio_dev->currentmode = INDIO_BUFFER_SOFTWARE;
-	} else { /* Should never be reached */
-		/* Can only occur on first buffer */
-		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
-			pr_info("Buffer not started: no trigger\n");
-		ret = -EINVAL;
-		goto error_run_postdisable;
-	}
+
+	indio_dev->currentmode = config->mode;
 
 	if (indio_dev->setup_ops->postenable) {
 		ret = indio_dev->setup_ops->postenable(indio_dev);
 		if (ret) {
-			printk(KERN_INFO
+			dev_dbg(&indio_dev->dev,
 			       "Buffer not started: postenable failed (%d)\n", ret);
-			indio_dev->currentmode = INDIO_DIRECT_MODE;
-			if (indio_dev->setup_ops->postdisable)
-				indio_dev->setup_ops->postdisable(indio_dev);
-			goto error_disable_all_buffers;
+			goto err_run_postdisable;
 		}
 	}
 
-	if (indio_dev->available_scan_masks)
-		kfree(compound_mask);
-	else
-		kfree(old_mask);
+	return 0;
 
-	return success;
-
-error_disable_all_buffers:
+err_run_postdisable:
 	indio_dev->currentmode = INDIO_DIRECT_MODE;
-error_run_postdisable:
 	if (indio_dev->setup_ops->postdisable)
 		indio_dev->setup_ops->postdisable(indio_dev);
-error_remove_inserted:
+err_undo_config:
+	indio_dev->active_scan_mask = NULL;
+
+	return ret;
+}
+
+static int iio_disable_buffers(struct iio_dev *indio_dev)
+{
+	int ret = 0;
+	int ret2;
+
+	/* Wind down existing buffers - iff there are any */
+	if (list_empty(&indio_dev->buffer_list))
+		return 0;
+
+	/*
+	 * If things go wrong at some step in disable we still need to continue
+	 * to perform the other steps, otherwise we leave the device in a
+	 * inconsistent state. We return the error code for the first error we
+	 * encountered.
+	 */
+
+	if (indio_dev->setup_ops->predisable) {
+		ret2 = indio_dev->setup_ops->predisable(indio_dev);
+		if (ret2 && !ret)
+			ret = ret2;
+	}
+
+	indio_dev->currentmode = INDIO_DIRECT_MODE;
+
+	if (indio_dev->setup_ops->postdisable) {
+		ret2 = indio_dev->setup_ops->postdisable(indio_dev);
+		if (ret2 && !ret)
+			ret = ret2;
+	}
+
+	iio_free_scan_mask(indio_dev, indio_dev->active_scan_mask);
+	indio_dev->active_scan_mask = NULL;
+
+	return ret;
+}
+
+static int __iio_update_buffers(struct iio_dev *indio_dev,
+		       struct iio_buffer *insert_buffer,
+		       struct iio_buffer *remove_buffer)
+{
+	struct iio_device_config new_config;
+	int ret;
+
+	ret = iio_verify_update(indio_dev, insert_buffer, remove_buffer,
+		&new_config);
+	if (ret)
+		return ret;
+
+	if (insert_buffer) {
+		ret = iio_buffer_request_update(indio_dev, insert_buffer);
+		if (ret)
+			goto err_free_config;
+	}
+
+	ret = iio_disable_buffers(indio_dev);
+	if (ret)
+		goto err_deactivate_all;
+
+	if (remove_buffer)
+		iio_buffer_deactivate(remove_buffer);
 	if (insert_buffer)
-		iio_buffer_deactivate(insert_buffer);
-	indio_dev->active_scan_mask = old_mask;
-	kfree(compound_mask);
+		iio_buffer_activate(indio_dev, insert_buffer);
+
+	/* If no buffers in list, we are done */
+	if (list_empty(&indio_dev->buffer_list))
+		return 0;
+
+	ret = iio_enable_buffers(indio_dev, &new_config);
+	if (ret)
+		goto err_deactivate_all;
+
+	return 0;
+
+err_deactivate_all:
+	/*
+	 * We've already verified that the config is valid earlier. If things go
+	 * wrong in either enable or disable the most likely reason is an IO
+	 * error from the device. In this case there is no good recovery
+	 * strategy. Just make sure to disable everything and leave the device
+	 * in a sane state.  With a bit of luck the device might come back to
+	 * life again later and userspace can try again.
+	 */
+	iio_buffer_deactivate_all(indio_dev);
+
+err_free_config:
+	iio_free_scan_mask(indio_dev, new_config.scan_mask);
 	return ret;
 }
 
@@ -777,6 +880,12 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(iio_update_buffers);
 
+void iio_disable_all_buffers(struct iio_dev *indio_dev)
+{
+	iio_disable_buffers(indio_dev);
+	iio_buffer_deactivate_all(indio_dev);
+}
+
 static ssize_t iio_buffer_store_enable(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf,
@@ -806,8 +915,6 @@ static ssize_t iio_buffer_store_enable(struct device *dev,
 		ret = __iio_update_buffers(indio_dev,
 					 NULL, indio_dev->buffer);
 
-	if (ret < 0)
-		goto done;
 done:
 	mutex_unlock(&indio_dev->mlock);
 	return (ret < 0) ? ret : len;
@@ -886,6 +993,15 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	int ret, i, attrn, attrcount, attrcount_orig = 0;
 	const struct iio_chan_spec *channels;
 
+	channels = indio_dev->channels;
+	if (channels) {
+		int ml = indio_dev->masklength;
+
+		for (i = 0; i < indio_dev->num_channels; i++)
+			ml = max(ml, channels[i].scan_index + 1);
+		indio_dev->masklength = ml;
+	}
+
 	if (!buffer)
 		return 0;
 
@@ -928,12 +1044,6 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		for (i = 0; i < indio_dev->num_channels; i++) {
 			if (channels[i].scan_index < 0)
 				continue;
-
-			/* Establish necessary mask length */
-			if (channels[i].scan_index >
-			    (int)indio_dev->masklength - 1)
-				indio_dev->masklength
-					= channels[i].scan_index + 1;
 
 			ret = iio_buffer_add_channel_sysfs(indio_dev,
 							 &channels[i]);

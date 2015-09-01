@@ -584,6 +584,7 @@ static int patch_cs420x(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs_patch_ops;
 	spec->gen.automute_hook = cs_automute;
 	codec->single_adc_amp = 1;
 
@@ -594,8 +595,6 @@ static int patch_cs420x(struct hda_codec *codec)
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cs_patch_ops;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -738,6 +737,7 @@ static int patch_cs4208(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs_patch_ops;
 	spec->gen.automute_hook = cs_automute;
 	/* exclude NID 0x10 (HP) from output volumes due to different steps */
 	spec->gen.out_vol_mask = 1ULL << 0x10;
@@ -755,8 +755,6 @@ static int patch_cs4208(struct hda_codec *codec)
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cs_patch_ops;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -1001,9 +999,7 @@ static void cs4210_spdif_automute(struct hda_codec *codec,
 
 	spec->spdif_present = spdif_present;
 	/* SPDIF TX on/off */
-	if (spdif_present)
-		snd_hda_set_pin_ctl(codec, spdif_pin,
-				    spdif_present ? PIN_OUT : 0);
+	snd_hda_set_pin_ctl(codec, spdif_pin, spdif_present ? PIN_OUT : 0);
 
 	cs_automute(codec);
 }
@@ -1150,6 +1146,7 @@ static int patch_cs4210(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs421x_patch_ops;
 	spec->gen.automute_hook = cs_automute;
 
 	snd_hda_pick_fixup(codec, cs421x_models, cs421x_fixup_tbl,
@@ -1166,8 +1163,6 @@ static int patch_cs4210(struct hda_codec *codec)
 	err = cs421x_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cs421x_patch_ops;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -1187,11 +1182,12 @@ static int patch_cs4213(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	codec->patch_ops = cs421x_patch_ops;
+
 	err = cs421x_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 
-	codec->patch_ops = cs421x_patch_ops;
 	return 0;
 
  error:

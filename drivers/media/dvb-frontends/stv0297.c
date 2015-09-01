@@ -136,10 +136,10 @@ static u32 stv0297_get_symbolrate(struct stv0297_state *state)
 {
 	u64 tmp;
 
-	tmp = stv0297_readreg(state, 0x55);
-	tmp |= stv0297_readreg(state, 0x56) << 8;
-	tmp |= stv0297_readreg(state, 0x57) << 16;
-	tmp |= stv0297_readreg(state, 0x58) << 24;
+	tmp = (u64)(stv0297_readreg(state, 0x55)
+		    | (stv0297_readreg(state, 0x56) << 8)
+		    | (stv0297_readreg(state, 0x57) << 16)
+		    | (stv0297_readreg(state, 0x58) << 24));
 
 	tmp *= STV0297_CLOCK_KHZ;
 	tmp >>= 32;
@@ -233,7 +233,8 @@ static void stv0297_set_initialdemodfreq(struct stv0297_state *state, long freq)
 	stv0297_writereg(state, 0x20, tmp);
 }
 
-static int stv0297_set_qam(struct stv0297_state *state, fe_modulation_t modulation)
+static int stv0297_set_qam(struct stv0297_state *state,
+			   enum fe_modulation modulation)
 {
 	int val = 0;
 
@@ -267,7 +268,8 @@ static int stv0297_set_qam(struct stv0297_state *state, fe_modulation_t modulati
 	return 0;
 }
 
-static int stv0297_set_inversion(struct stv0297_state *state, fe_spectral_inversion_t inversion)
+static int stv0297_set_inversion(struct stv0297_state *state,
+				 enum fe_spectral_inversion inversion)
 {
 	int val = 0;
 
@@ -325,7 +327,8 @@ static int stv0297_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0297_read_status(struct dvb_frontend *fe, fe_status_t * status)
+static int stv0297_read_status(struct dvb_frontend *fe,
+			       enum fe_status *status)
 {
 	struct stv0297_state *state = fe->demodulator_priv;
 
@@ -415,7 +418,7 @@ static int stv0297_set_frontend(struct dvb_frontend *fe)
 	int sweeprate;
 	int carrieroffset;
 	unsigned long timeout;
-	fe_spectral_inversion_t inversion;
+	enum fe_spectral_inversion inversion;
 
 	switch (p->modulation) {
 	case QAM_16:

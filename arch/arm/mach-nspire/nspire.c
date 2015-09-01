@@ -22,8 +22,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/hardware/timer-sp.h>
-
 #include "mmio.h"
 #include "clcd.h"
 

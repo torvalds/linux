@@ -74,32 +74,52 @@ struct jit_ctx {
 
 int bpf_jit_enable __read_mostly;
 
-static u64 jit_get_skb_b(struct sk_buff *skb, unsigned offset)
+static inline int call_neg_helper(struct sk_buff *skb, int offset, void *ret,
+		      unsigned int size)
+{
+	void *ptr = bpf_internal_load_pointer_neg_helper(skb, offset, size);
+
+	if (!ptr)
+		return -EFAULT;
+	memcpy(ret, ptr, size);
+	return 0;
+}
+
+static u64 jit_get_skb_b(struct sk_buff *skb, int offset)
 {
 	u8 ret;
 	int err;
 
-	err = skb_copy_bits(skb, offset, &ret, 1);
+	if (offset < 0)
+		err = call_neg_helper(skb, offset, &ret, 1);
+	else
+		err = skb_copy_bits(skb, offset, &ret, 1);
 
 	return (u64)err << 32 | ret;
 }
 
-static u64 jit_get_skb_h(struct sk_buff *skb, unsigned offset)
+static u64 jit_get_skb_h(struct sk_buff *skb, int offset)
 {
 	u16 ret;
 	int err;
 
-	err = skb_copy_bits(skb, offset, &ret, 2);
+	if (offset < 0)
+		err = call_neg_helper(skb, offset, &ret, 2);
+	else
+		err = skb_copy_bits(skb, offset, &ret, 2);
 
 	return (u64)err << 32 | ntohs(ret);
 }
 
-static u64 jit_get_skb_w(struct sk_buff *skb, unsigned offset)
+static u64 jit_get_skb_w(struct sk_buff *skb, int offset)
 {
 	u32 ret;
 	int err;
 
-	err = skb_copy_bits(skb, offset, &ret, 4);
+	if (offset < 0)
+		err = call_neg_helper(skb, offset, &ret, 4);
+	else
+		err = skb_copy_bits(skb, offset, &ret, 4);
 
 	return (u64)err << 32 | ntohl(ret);
 }
@@ -536,9 +556,6 @@ static int build_body(struct jit_ctx *ctx)
 		case BPF_LD | BPF_B | BPF_ABS:
 			load_order = 0;
 load:
-			/* the interpreter will deal with the negative K */
-			if ((int)k < 0)
-				return -ENOTSUPP;
 			emit_mov_i(r_off, k, ctx);
 load_common:
 			ctx->seen |= SEEN_DATA | SEEN_CALL;
@@ -547,11 +564,23 @@ load_common:
 				emit(ARM_SUB_I(r_scratch, r_skb_hl,
 					       1 << load_order), ctx);
 				emit(ARM_CMP_R(r_scratch, r_off), ctx);
-				condt = ARM_COND_HS;
+				condt = ARM_COND_GE;
 			} else {
 				emit(ARM_CMP_R(r_skb_hl, r_off), ctx);
 				condt = ARM_COND_HI;
 			}
+
+			/*
+			 * test for negative offset, only if we are
+			 * currently scheduled to take the fast
+			 * path. this will update the flags so that
+			 * the slowpath instruction are ignored if the
+			 * offset is negative.
+			 *
+			 * for loard_order == 0 the HI condition will
+			 * make loads at offset 0 take the slow path too.
+			 */
+			_emit(condt, ARM_CMP_I(r_off, 0), ctx);
 
 			_emit(condt, ARM_ADD_R(r_scratch, r_off, r_skb_data),
 			      ctx);
@@ -860,9 +889,11 @@ b_epilogue:
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
 			if (code == (BPF_ANC | SKF_AD_VLAN_TAG))
-				OP_IMM3(ARM_AND, r_A, r_A, VLAN_VID_MASK, ctx);
-			else
-				OP_IMM3(ARM_AND, r_A, r_A, VLAN_TAG_PRESENT, ctx);
+				OP_IMM3(ARM_AND, r_A, r_A, ~VLAN_TAG_PRESENT, ctx);
+			else {
+				OP_IMM3(ARM_LSR, r_A, r_A, 12, ctx);
+				OP_IMM3(ARM_AND, r_A, r_A, 0x1, ctx);
+			}
 			break;
 		case BPF_ANC | SKF_AD_QUEUE:
 			ctx->seen |= SEEN_SKB;
@@ -872,6 +903,16 @@ b_epilogue:
 					      queue_mapping) > 0xff);
 			off = offsetof(struct sk_buff, queue_mapping);
 			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
+			break;
+		case BPF_LDX | BPF_W | BPF_ABS:
+			/*
+			 * load a 32bit word from struct seccomp_data.
+			 * seccomp_check_filter() will already have checked
+			 * that k is 32bit aligned and lies within the
+			 * struct seccomp_data.
+			 */
+			ctx->seen |= SEEN_SKB;
+			emit(ARM_LDR_I(r_A, r_skb, k), ctx);
 			break;
 		default:
 			return -1;

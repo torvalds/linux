@@ -46,7 +46,7 @@
 
 static int aac_src_get_sync_status(struct aac_dev *dev);
 
-irqreturn_t aac_src_intr_message(int irq, void *dev_id)
+static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 {
 	struct aac_msix_ctx *ctx;
 	struct aac_dev *dev;

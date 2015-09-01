@@ -1595,31 +1595,31 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 		/*pll_freq_word = 0x3463497;*/
 		vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
-	if (spectral_invert) {
-		if_freq -= 400000;
-		/* Enable Spectral Invert*/
-		vid_blk_read_word(dev, DIF_MISC_CTRL,
-					&dif_misc_ctrl_value);
-		dif_misc_ctrl_value = dif_misc_ctrl_value | 0x00200000;
-		vid_blk_write_word(dev, DIF_MISC_CTRL,
-					dif_misc_ctrl_value);
-	} else {
-		if_freq += 400000;
-		/* Disable Spectral Invert*/
-		vid_blk_read_word(dev, DIF_MISC_CTRL,
-					&dif_misc_ctrl_value);
-		dif_misc_ctrl_value = dif_misc_ctrl_value & 0xFFDFFFFF;
-		vid_blk_write_word(dev, DIF_MISC_CTRL,
-					dif_misc_ctrl_value);
-	}
+		if (spectral_invert) {
+			if_freq -= 400000;
+			/* Enable Spectral Invert*/
+			vid_blk_read_word(dev, DIF_MISC_CTRL,
+					  &dif_misc_ctrl_value);
+			dif_misc_ctrl_value = dif_misc_ctrl_value | 0x00200000;
+			vid_blk_write_word(dev, DIF_MISC_CTRL,
+					  dif_misc_ctrl_value);
+		} else {
+			if_freq += 400000;
+			/* Disable Spectral Invert*/
+			vid_blk_read_word(dev, DIF_MISC_CTRL,
+					  &dif_misc_ctrl_value);
+			dif_misc_ctrl_value = dif_misc_ctrl_value & 0xFFDFFFFF;
+			vid_blk_write_word(dev, DIF_MISC_CTRL,
+					  dif_misc_ctrl_value);
+		}
 
-	if_freq = (if_freq/100000)*100000;
+		if_freq = (if_freq / 100000) * 100000;
 
-	if (if_freq < 3000000)
-		if_freq = 3000000;
+		if (if_freq < 3000000)
+			if_freq = 3000000;
 
-	if (if_freq > 16000000)
-		if_freq = 16000000;
+		if (if_freq > 16000000)
+			if_freq = 16000000;
 	}
 
 	dev_dbg(dev->dev, "Enter IF=%zu\n", ARRAY_SIZE(Dif_set_array));

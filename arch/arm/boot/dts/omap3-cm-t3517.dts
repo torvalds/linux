@@ -66,7 +66,7 @@
 
 	otg_drv_vbus: pinmux_otg_drv_vbus {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x2210, PIN_INPUT_PULLDOWN | MUX_MODE0) /* rmii_50Mhz_clk.usb0_drvvbus */
+			OMAP3_CORE1_IOPAD(0x2210, PIN_INPUT_PULLDOWN | MUX_MODE0) /* rmii_50MHz_clk.usb0_drvvbus */
 		>;
 	};
 

@@ -681,6 +681,4 @@ static int iss_net_init(void)
 
 	return 1;
 }
-
-module_init(iss_net_init);
-
+device_initcall(iss_net_init);

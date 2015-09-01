@@ -94,7 +94,6 @@ struct dump_save_areas {
 };
 
 extern struct dump_save_areas dump_save_areas;
-struct save_area_ext *dump_save_area_create(int cpu);
 
 extern void do_reipl(void);
 extern void do_halt(void);

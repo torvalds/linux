@@ -192,13 +192,13 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 	if (*lmmp && !lsm) {
 		stripe_count = le16_to_cpu((*lmmp)->lmm_stripe_count);
 		lmm_size = lov_mds_md_size(stripe_count, lmm_magic);
-		OBD_FREE_LARGE(*lmmp, lmm_size);
+		kvfree(*lmmp);
 		*lmmp = NULL;
 		return 0;
 	}
 
 	if (!*lmmp) {
-		OBD_ALLOC_LARGE(*lmmp, lmm_size);
+		*lmmp = libcfs_kvzalloc(lmm_size, GFP_NOFS);
 		if (!*lmmp)
 			return -ENOMEM;
 	}
@@ -285,7 +285,7 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 		CERROR("bad disk LOV MAGIC: 0x%08X; dumping LMM (size=%d):\n",
 		       le32_to_cpu(*(__u32 *)lmm), lmm_bytes);
 		sz = lmm_bytes * 2 + 1;
-		OBD_ALLOC_LARGE(buffer, sz);
+		buffer = libcfs_kvzalloc(sz, GFP_NOFS);
 		if (buffer != NULL) {
 			int i;
 
@@ -293,7 +293,7 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 				sprintf(buffer+2*i, "%.2X", ((char *)lmm)[i]);
 			buffer[sz - 1] = '\0';
 			CERROR("%s\n", buffer);
-			OBD_FREE_LARGE(buffer, sz);
+			kvfree(buffer);
 		}
 		return -EINVAL;
 	}
@@ -367,9 +367,11 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
 		if (rc)
 			return rc;
 		magic = le32_to_cpu(lmm->lmm_magic);
+		pattern = le32_to_cpu(lmm->lmm_pattern);
 	} else {
 		magic = LOV_MAGIC;
 		stripe_count = lov_get_stripecnt(lov, magic, 0);
+		pattern = LOV_PATTERN_RAID0;
 	}
 
 	/* If we aren't passed an lsmp struct, we just want the size */
@@ -384,7 +386,6 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
 		return 0;
 	}
 
-	pattern = le32_to_cpu(lmm->lmm_pattern);
 	lsm_size = lov_alloc_memmd(lsmp, stripe_count, pattern, magic);
 	if (lsm_size < 0)
 		return lsm_size;

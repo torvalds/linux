@@ -21,7 +21,22 @@
 #ifndef A8293_H
 #define A8293_H
 
+#include "dvb_frontend.h"
 #include <linux/kconfig.h>
+
+/*
+ * I2C address
+ * 0x08, 0x09, 0x0a, 0x0b
+ */
+
+/**
+ * struct a8293_platform_data - Platform data for the a8293 driver
+ * @dvb_frontend: DVB frontend.
+ */
+struct a8293_platform_data {
+	struct dvb_frontend *dvb_frontend;
+};
+
 
 struct a8293_config {
 	u8 i2c_addr;

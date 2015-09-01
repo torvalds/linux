@@ -51,19 +51,22 @@ static void iser_cq_callback(struct ib_cq *cq, void *cq_context);
 
 static void iser_cq_event_callback(struct ib_event *cause, void *context)
 {
-	iser_err("got cq event %d \n", cause->event);
+	iser_err("cq event %s (%d)\n",
+		 ib_event_msg(cause->event), cause->event);
 }
 
 static void iser_qp_event_callback(struct ib_event *cause, void *context)
 {
-	iser_err("got qp event %d\n",cause->event);
+	iser_err("qp event %s (%d)\n",
+		 ib_event_msg(cause->event), cause->event);
 }
 
 static void iser_event_handler(struct ib_event_handler *handler,
 				struct ib_event *event)
 {
-	iser_err("async event %d on device %s port %d\n", event->event,
-		event->device->name, event->element.port_num);
+	iser_err("async event %s (%d) on device %s port %d\n",
+		 ib_event_msg(event->event), event->event,
+		 event->device->name, event->element.port_num);
 }
 
 /**
@@ -123,14 +126,17 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		goto pd_err;
 
 	for (i = 0; i < device->comps_used; i++) {
+		struct ib_cq_init_attr cq_attr = {};
 		struct iser_comp *comp = &device->comps[i];
 
 		comp->device = device;
+		cq_attr.cqe = max_cqe;
+		cq_attr.comp_vector = i;
 		comp->cq = ib_create_cq(device->ib_device,
 					iser_cq_callback,
 					iser_cq_event_callback,
 					(void *)comp,
-					max_cqe, i);
+					&cq_attr);
 		if (IS_ERR(comp->cq)) {
 			comp->cq = NULL;
 			goto cq_err;
@@ -873,8 +879,9 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 	int ret = 0;
 
 	iser_conn = (struct iser_conn *)cma_id->context;
-	iser_info("event %d status %d conn %p id %p\n",
-		  event->event, event->status, cma_id->context, cma_id);
+	iser_info("%s (%d): status %d conn %p id %p\n",
+		  rdma_event_msg(event->event), event->event,
+		  event->status, cma_id->context, cma_id);
 
 	mutex_lock(&iser_conn->state_mutex);
 	switch (event->event) {
@@ -913,7 +920,8 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 		}
 		break;
 	default:
-		iser_err("Unexpected RDMA CM event (%d)\n", event->event);
+		iser_err("Unexpected RDMA CM event: %s (%d)\n",
+			 rdma_event_msg(event->event), event->event);
 		break;
 	}
 	mutex_unlock(&iser_conn->state_mutex);
@@ -1173,10 +1181,13 @@ static void iser_handle_wc(struct ib_wc *wc)
 		}
 	} else {
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			iser_err("wr id %llx status %d vend_err %x\n",
-				 wc->wr_id, wc->status, wc->vendor_err);
+			iser_err("%s (%d): wr id %llx vend_err %x\n",
+				 ib_wc_status_msg(wc->status), wc->status,
+				 wc->wr_id, wc->vendor_err);
 		else
-			iser_dbg("flush error: wr id %llx\n", wc->wr_id);
+			iser_dbg("%s (%d): wr id %llx\n",
+				 ib_wc_status_msg(wc->status), wc->status,
+				 wc->wr_id);
 
 		if (wc->wr_id == ISER_BEACON_WRID)
 			/* all flush errors were consumed */

@@ -109,10 +109,8 @@ struct clk *clk_register_fractional_divider(struct device *dev,
 	struct clk *clk;
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
-	if (!fd) {
-		dev_err(dev, "could not allocate fractional divider clk\n");
+	if (!fd)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &clk_fractional_divider_ops;

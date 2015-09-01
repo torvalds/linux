@@ -227,12 +227,12 @@ struct comedi_async {
  * @COMEDI_CB_ERROR_MASK:	events that indicate an error has occurred
  * @COMEDI_CB_CANCEL_MASK:	events that will cancel an async command
  */
-#define COMEDI_CB_EOS		(1 << 0)
-#define COMEDI_CB_EOA		(1 << 1)
-#define COMEDI_CB_BLOCK		(1 << 2)
-#define COMEDI_CB_EOBUF		(1 << 3)
-#define COMEDI_CB_ERROR		(1 << 4)
-#define COMEDI_CB_OVERFLOW	(1 << 5)
+#define COMEDI_CB_EOS		BIT(0)
+#define COMEDI_CB_EOA		BIT(1)
+#define COMEDI_CB_BLOCK		BIT(2)
+#define COMEDI_CB_EOBUF		BIT(3)
+#define COMEDI_CB_ERROR		BIT(4)
+#define COMEDI_CB_OVERFLOW	BIT(5)
 
 #define COMEDI_CB_ERROR_MASK	(COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)
 #define COMEDI_CB_CANCEL_MASK	(COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
@@ -303,26 +303,10 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s);
 struct comedi_device *comedi_dev_get_from_minor(unsigned minor);
 int comedi_dev_put(struct comedi_device *dev);
 
-/**
- * comedi_subdevice "runflags"
- * @COMEDI_SRF_RT:		DEPRECATED: command is running real-time
- * @COMEDI_SRF_ERROR:		indicates an COMEDI_CB_ERROR event has occurred
- *				since the last command was started
- * @COMEDI_SRF_RUNNING:		command is running
- * @COMEDI_SRF_FREE_SPRIV:	free s->private on detach
- *
- * @COMEDI_SRF_BUSY_MASK:	runflags that indicate the subdevice is "busy"
- */
-#define COMEDI_SRF_RT		BIT(1)
-#define COMEDI_SRF_ERROR	BIT(2)
-#define COMEDI_SRF_RUNNING	BIT(27)
-#define COMEDI_SRF_FREE_SPRIV	BIT(31)
-
-#define COMEDI_SRF_BUSY_MASK	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING)
-
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
 
 void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size);
+void comedi_set_spriv_auto_free(struct comedi_subdevice *s);
 
 int comedi_check_chanlist(struct comedi_subdevice *s,
 			  int n,

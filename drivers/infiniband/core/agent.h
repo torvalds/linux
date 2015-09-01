@@ -44,8 +44,8 @@ extern int ib_agent_port_open(struct ib_device *device, int port_num);
 
 extern int ib_agent_port_close(struct ib_device *device, int port_num);
 
-extern void agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
-				struct ib_wc *wc, struct ib_device *device,
-				int port_num, int qpn);
+extern void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *grh,
+				const struct ib_wc *wc, const struct ib_device *device,
+				int port_num, int qpn, size_t resp_mad_len, bool opa);
 
 #endif	/* __AGENT_H_ */

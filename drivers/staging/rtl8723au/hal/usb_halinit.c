@@ -360,7 +360,7 @@ static void _InitWMACSetting(struct rtw_adapter *Adapter)
 	/*  2010.09.08 hpfan */
 	/*  Since ADF is removed from RCR, ps-poll will not be indicate
 	    to driver, */
-	/*  RxFilterMap should mask ps-poll to gurantee AP mode can
+	/*  RxFilterMap should mask ps-poll to guarantee AP mode can
 	    rx ps-poll. */
 	/* value16 = 0x400; */
 	/* rtl8723au_write16(Adapter, REG_RXFLTMAP1, value16); */

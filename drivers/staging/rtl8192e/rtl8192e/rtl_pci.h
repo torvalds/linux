@@ -28,23 +28,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
-struct mp_adapter {
-	u8		LinkCtrlReg;
-
-	u8		BusNumber;
-	u8		DevNumber;
-	u8		FuncNumber;
-
-	u8		PciBridgeBusNum;
-	u8		PciBridgeDevNum;
-	u8		PciBridgeFuncNum;
-	u8		PciBridgeVendor;
-	u16		PciBridgeVendorId;
-	u16		PciBridgeDeviceId;
-	u8		PciBridgePCIeHdrOffset;
-	u8		PciBridgeLinkCtrlReg;
-};
-
 struct net_device;
 bool rtl8192_pci_findadapter(struct pci_dev *pdev, struct net_device *dev);
 

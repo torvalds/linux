@@ -148,6 +148,10 @@ static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	return 0;
 }
 
+static struct notifier_block cs_cpufreq_notifier_block = {
+	.notifier_call = dbs_cpufreq_notifier,
+};
+
 /************************** sysfs interface ************************/
 static struct common_dbs_data cs_dbs_cdata;
 
@@ -317,7 +321,7 @@ static struct attribute_group cs_attr_group_gov_pol = {
 
 /************************** sysfs end ************************/
 
-static int cs_init(struct dbs_data *dbs_data)
+static int cs_init(struct dbs_data *dbs_data, bool notify)
 {
 	struct cs_dbs_tuners *tuners;
 
@@ -336,24 +340,24 @@ static int cs_init(struct dbs_data *dbs_data)
 	dbs_data->tuners = tuners;
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
 		jiffies_to_usecs(10);
-	mutex_init(&dbs_data->mutex);
+
+	if (notify)
+		cpufreq_register_notifier(&cs_cpufreq_notifier_block,
+					  CPUFREQ_TRANSITION_NOTIFIER);
+
 	return 0;
 }
 
-static void cs_exit(struct dbs_data *dbs_data)
+static void cs_exit(struct dbs_data *dbs_data, bool notify)
 {
+	if (notify)
+		cpufreq_unregister_notifier(&cs_cpufreq_notifier_block,
+					    CPUFREQ_TRANSITION_NOTIFIER);
+
 	kfree(dbs_data->tuners);
 }
 
 define_get_cpu_dbs_routines(cs_cpu_dbs_info);
-
-static struct notifier_block cs_cpufreq_notifier_block = {
-	.notifier_call = dbs_cpufreq_notifier,
-};
-
-static struct cs_ops cs_ops = {
-	.notifier_block = &cs_cpufreq_notifier_block,
-};
 
 static struct common_dbs_data cs_dbs_cdata = {
 	.governor = GOV_CONSERVATIVE,
@@ -363,9 +367,9 @@ static struct common_dbs_data cs_dbs_cdata = {
 	.get_cpu_dbs_info_s = get_cpu_dbs_info_s,
 	.gov_dbs_timer = cs_dbs_timer,
 	.gov_check_cpu = cs_check_cpu,
-	.gov_ops = &cs_ops,
 	.init = cs_init,
 	.exit = cs_exit,
+	.mutex = __MUTEX_INITIALIZER(cs_dbs_cdata.mutex),
 };
 
 static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,

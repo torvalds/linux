@@ -1885,10 +1885,10 @@
 #define DISPLAY_CONTROL_750LE 	0x80288
 /* Palette RAM */
 
-/* Panel Pallete register starts at 0x080400 ~ 0x0807FC */
+/* Panel Palette register starts at 0x080400 ~ 0x0807FC */
 #define PANEL_PALETTE_RAM                             0x080400
 
-/* Panel Pallete register starts at 0x080C00 ~ 0x080FFC */
+/* Panel Palette register starts at 0x080C00 ~ 0x080FFC */
 #define CRT_PALETTE_RAM                               0x080C00
 
 /* 2D registers

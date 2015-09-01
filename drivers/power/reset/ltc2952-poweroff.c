@@ -201,16 +201,15 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->gpio_trigger = devm_gpiod_get(&pdev->dev, "trigger", GPIOD_IN);
+	data->gpio_trigger = devm_gpiod_get_optional(&pdev->dev, "trigger",
+						     GPIOD_IN);
 	if (IS_ERR(data->gpio_trigger)) {
 		/*
 		 * It's not a problem if the trigger gpio isn't available, but
 		 * it is worth a warning if its use was defined in the device
 		 * tree.
 		 */
-		if (PTR_ERR(data->gpio_trigger) != -ENOENT)
-			dev_err(&pdev->dev,
-				"unable to claim gpio \"trigger\"\n");
+		dev_err(&pdev->dev, "unable to claim gpio \"trigger\"\n");
 		data->gpio_trigger = NULL;
 	}
 

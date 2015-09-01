@@ -245,6 +245,16 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
+	/* Sensor does not support interrupts */
+	if (sdata->sensor_settings->drdy_irq.addr == 0) {
+		if (pdata->drdy_int_pin)
+			dev_info(&indio_dev->dev,
+				 "DRDY on pin INT%d specified, but sensor "
+				 "does not support interrupts\n",
+				 pdata->drdy_int_pin);
+		return 0;
+	}
+
 	switch (pdata->drdy_int_pin) {
 	case 1:
 		if (sdata->sensor_settings->drdy_irq.mask_int1 == 0) {
@@ -285,7 +295,7 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
 		pdata->drdy_int_pin = (u8) val;
 	else
-		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 1;
+		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 0;
 
 	return pdata;
 }
@@ -332,11 +342,13 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 		return err;
 
 	/* set BDU */
-	err = st_sensors_write_data_with_mask(indio_dev,
+	if (sdata->sensor_settings->bdu.addr) {
+		err = st_sensors_write_data_with_mask(indio_dev,
 					sdata->sensor_settings->bdu.addr,
 					sdata->sensor_settings->bdu.mask, true);
-	if (err < 0)
-		return err;
+		if (err < 0)
+			return err;
+	}
 
 	err = st_sensors_set_axis_enable(indio_dev, ST_SENSORS_ENABLE_ALL_AXIS);
 
@@ -419,7 +431,9 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	if (err < 0)
 		goto st_sensors_free_memory;
 
-	if (byte_for_channel == 2)
+	if (byte_for_channel == 1)
+		*data = (s8)*outdata;
+	else if (byte_for_channel == 2)
 		*data = (s16)get_unaligned_le16(outdata);
 	else if (byte_for_channel == 3)
 		*data = (s32)st_sensors_get_unaligned_le24(outdata);
@@ -489,7 +503,8 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			break;
 	}
 	if (n == ARRAY_SIZE(sensor_settings[i].sensors_supported)) {
-		dev_err(&indio_dev->dev, "device name and WhoAmI mismatch.\n");
+		dev_err(&indio_dev->dev, "device name \"%s\" and WhoAmI (0x%02x) mismatch",
+			indio_dev->name, wai);
 		goto sensor_name_mismatch;
 	}
 

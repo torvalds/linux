@@ -190,7 +190,7 @@ void mantis_dma_start(struct mantis_pci *mantis)
 	mmwrite(0, MANTIS_DMA_CTL);
 	mantis->last_block = mantis->busy_block = 0;
 
-	mmwrite(mmread(MANTIS_INT_MASK) | MANTIS_INT_RISCI, MANTIS_INT_MASK);
+	mantis_unmask_ints(mantis, MANTIS_INT_RISCI);
 
 	mmwrite(MANTIS_FIFO_EN | MANTIS_DCAP_EN
 			       | MANTIS_RISC_EN, MANTIS_DMA_CTL);
@@ -209,8 +209,7 @@ void mantis_dma_stop(struct mantis_pci *mantis)
 
 	mmwrite(mmread(MANTIS_INT_STAT), MANTIS_INT_STAT);
 
-	mmwrite(mmread(MANTIS_INT_MASK) & ~(MANTIS_INT_RISCI |
-					    MANTIS_INT_RISCEN), MANTIS_INT_MASK);
+	mantis_mask_ints(mantis, MANTIS_INT_RISCI | MANTIS_INT_RISCEN);
 }
 
 

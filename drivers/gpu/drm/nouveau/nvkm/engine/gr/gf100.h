@@ -181,6 +181,7 @@ struct gf100_gr_oclass {
 	int ppc_nr;
 };
 
+int  gf100_gr_wait_idle(struct gf100_gr_priv *);
 void gf100_gr_mmio(struct gf100_gr_priv *, const struct gf100_gr_pack *);
 void gf100_gr_icmd(struct gf100_gr_priv *, const struct gf100_gr_pack *);
 void gf100_gr_mthd(struct gf100_gr_priv *, const struct gf100_gr_pack *);

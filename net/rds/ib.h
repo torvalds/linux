@@ -235,28 +235,34 @@ extern struct workqueue_struct *rds_ib_wq;
  * doesn't define it.
  */
 static inline void rds_ib_dma_sync_sg_for_cpu(struct ib_device *dev,
-		struct scatterlist *sg, unsigned int sg_dma_len, int direction)
+					      struct scatterlist *sglist,
+					      unsigned int sg_dma_len,
+					      int direction)
 {
+	struct scatterlist *sg;
 	unsigned int i;
 
-	for (i = 0; i < sg_dma_len; ++i) {
+	for_each_sg(sglist, sg, sg_dma_len, i) {
 		ib_dma_sync_single_for_cpu(dev,
-				ib_sg_dma_address(dev, &sg[i]),
-				ib_sg_dma_len(dev, &sg[i]),
+				ib_sg_dma_address(dev, sg),
+				ib_sg_dma_len(dev, sg),
 				direction);
 	}
 }
 #define ib_dma_sync_sg_for_cpu	rds_ib_dma_sync_sg_for_cpu
 
 static inline void rds_ib_dma_sync_sg_for_device(struct ib_device *dev,
-		struct scatterlist *sg, unsigned int sg_dma_len, int direction)
+						 struct scatterlist *sglist,
+						 unsigned int sg_dma_len,
+						 int direction)
 {
+	struct scatterlist *sg;
 	unsigned int i;
 
-	for (i = 0; i < sg_dma_len; ++i) {
+	for_each_sg(sglist, sg, sg_dma_len, i) {
 		ib_dma_sync_single_for_device(dev,
-				ib_sg_dma_address(dev, &sg[i]),
-				ib_sg_dma_len(dev, &sg[i]),
+				ib_sg_dma_address(dev, sg),
+				ib_sg_dma_len(dev, sg),
 				direction);
 	}
 }
@@ -339,7 +345,6 @@ u32 rds_ib_ring_completed(struct rds_ib_work_ring *ring, u32 wr_id, u32 oldest);
 extern wait_queue_head_t rds_ib_ring_empty_wait;
 
 /* ib_send.c */
-char *rds_ib_wc_status_str(enum ib_wc_status status);
 void rds_ib_xmit_complete(struct rds_connection *conn);
 int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		unsigned int hdr_off, unsigned int sg, unsigned int off);

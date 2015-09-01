@@ -22,17 +22,11 @@ Required property:
 - mboxes: List of phandle and mailbox channel specifiers.
 
 Optional property:
-- mbox-names: List of identifier strings for each mailbox channel
-		required by the client. The use of this property
-		is discouraged in favor of using index in list of
-		'mboxes' while requesting a mailbox. Instead the
-		platforms may define channel indices, in DT headers,
-		to something legible.
+- mbox-names: List of identifier strings for each mailbox channel.
 
 Example:
 	pwr_cntrl: power {
 		...
 		mbox-names = "pwr-ctrl", "rpc";
-		mboxes = <&mailbox 0
-			&mailbox 1>;
+		mboxes = <&mailbox 0 &mailbox 1>;
 	};

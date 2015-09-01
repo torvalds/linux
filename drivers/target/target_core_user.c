@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2013 Shaohua Li <shli@kernel.org>
  * Copyright (C) 2014 Red Hat, Inc.
+ * Copyright (C) 2015 Arrikto, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,16 +20,17 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/idr.h>
+#include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/parser.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
+#include <linux/vmalloc.h>
 #include <linux/uio_driver.h>
 #include <net/genetlink.h>
+#include <scsi/scsi_common.h>
+#include <scsi/scsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include <linux/target_core_user.h>
 
@@ -166,6 +168,11 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 	tcmu_cmd->tcmu_dev = udev;
 	tcmu_cmd->data_length = se_cmd->data_length;
 
+	if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
+		tcmu_cmd->data_length += se_cmd->t_bidi_data_sg->length;
+	}
+
 	tcmu_cmd->deadline = jiffies + msecs_to_jiffies(TCMU_TIME_OUT);
 
 	idr_preload(GFP_KERNEL);
@@ -224,9 +231,106 @@ static inline size_t head_to_end(size_t head, size_t size)
 
 #define UPDATE_HEAD(head, used, size) smp_store_release(&head, ((head % size) + used) % size)
 
+static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
+	struct scatterlist *data_sg, unsigned int data_nents,
+	struct iovec **iov, int *iov_cnt, bool copy_data)
+{
+	int i;
+	void *from, *to;
+	size_t copy_bytes;
+	struct scatterlist *sg;
+
+	for_each_sg(data_sg, sg, data_nents, i) {
+		copy_bytes = min_t(size_t, sg->length,
+				 head_to_end(udev->data_head, udev->data_size));
+		from = kmap_atomic(sg_page(sg)) + sg->offset;
+		to = (void *) udev->mb_addr + udev->data_off + udev->data_head;
+
+		if (copy_data) {
+			memcpy(to, from, copy_bytes);
+			tcmu_flush_dcache_range(to, copy_bytes);
+		}
+
+		/* Even iov_base is relative to mb_addr */
+		(*iov)->iov_len = copy_bytes;
+		(*iov)->iov_base = (void __user *) udev->data_off +
+						udev->data_head;
+		(*iov_cnt)++;
+		(*iov)++;
+
+		UPDATE_HEAD(udev->data_head, copy_bytes, udev->data_size);
+
+		/* Uh oh, we wrapped the buffer. Must split sg across 2 iovs. */
+		if (sg->length != copy_bytes) {
+			void *from_skip = from + copy_bytes;
+
+			copy_bytes = sg->length - copy_bytes;
+
+			(*iov)->iov_len = copy_bytes;
+			(*iov)->iov_base = (void __user *) udev->data_off +
+							udev->data_head;
+
+			if (copy_data) {
+				to = (void *) udev->mb_addr +
+					udev->data_off + udev->data_head;
+				memcpy(to, from_skip, copy_bytes);
+				tcmu_flush_dcache_range(to, copy_bytes);
+			}
+
+			(*iov_cnt)++;
+			(*iov)++;
+
+			UPDATE_HEAD(udev->data_head,
+				copy_bytes, udev->data_size);
+		}
+
+		kunmap_atomic(from - sg->offset);
+	}
+}
+
+static void gather_and_free_data_area(struct tcmu_dev *udev,
+	struct scatterlist *data_sg, unsigned int data_nents)
+{
+	int i;
+	void *from, *to;
+	size_t copy_bytes;
+	struct scatterlist *sg;
+
+	/* It'd be easier to look at entry's iovec again, but UAM */
+	for_each_sg(data_sg, sg, data_nents, i) {
+		copy_bytes = min_t(size_t, sg->length,
+				 head_to_end(udev->data_tail, udev->data_size));
+
+		to = kmap_atomic(sg_page(sg)) + sg->offset;
+		WARN_ON(sg->length + sg->offset > PAGE_SIZE);
+		from = (void *) udev->mb_addr +
+			udev->data_off + udev->data_tail;
+		tcmu_flush_dcache_range(from, copy_bytes);
+		memcpy(to, from, copy_bytes);
+
+		UPDATE_HEAD(udev->data_tail, copy_bytes, udev->data_size);
+
+		/* Uh oh, wrapped the data buffer for this sg's data */
+		if (sg->length != copy_bytes) {
+			void *to_skip = to + copy_bytes;
+
+			from = (void *) udev->mb_addr +
+				udev->data_off + udev->data_tail;
+			WARN_ON(udev->data_tail);
+			copy_bytes = sg->length - copy_bytes;
+			tcmu_flush_dcache_range(from, copy_bytes);
+			memcpy(to_skip, from, copy_bytes);
+
+			UPDATE_HEAD(udev->data_tail,
+				copy_bytes, udev->data_size);
+		}
+		kunmap_atomic(to - sg->offset);
+	}
+}
+
 /*
- * We can't queue a command until we have space available on the cmd ring *and* space
- * space avail on the data ring.
+ * We can't queue a command until we have space available on the cmd ring *and*
+ * space available on the data ring.
  *
  * Called with ring lock held.
  */
@@ -274,12 +378,11 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	size_t base_command_size, command_size;
 	struct tcmu_mailbox *mb;
 	struct tcmu_cmd_entry *entry;
-	int i;
-	struct scatterlist *sg;
 	struct iovec *iov;
-	int iov_cnt = 0;
+	int iov_cnt;
 	uint32_t cmd_head;
 	uint64_t cdb_off;
+	bool copy_to_data_area;
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags))
 		return -EINVAL;
@@ -292,7 +395,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 * b/c size == offsetof one-past-element.
 	*/
 	base_command_size = max(offsetof(struct tcmu_cmd_entry,
-					 req.iov[se_cmd->t_data_nents + 2]),
+					 req.iov[se_cmd->t_bidi_data_nents +
+						 se_cmd->t_data_nents + 2]),
 				sizeof(struct tcmu_cmd_entry));
 	command_size = base_command_size
 		+ round_up(scsi_command_size(se_cmd->t_task_cdb), TCMU_OP_ALIGN_SIZE);
@@ -360,52 +464,19 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 * Fix up iovecs, and handle if allocation in data ring wrapped.
 	 */
 	iov = &entry->req.iov[0];
-	for_each_sg(se_cmd->t_data_sg, sg, se_cmd->t_data_nents, i) {
-		size_t copy_bytes = min((size_t)sg->length,
-				     head_to_end(udev->data_head, udev->data_size));
-		void *from = kmap_atomic(sg_page(sg)) + sg->offset;
-		void *to = (void *) mb + udev->data_off + udev->data_head;
-
-		if (tcmu_cmd->se_cmd->data_direction == DMA_TO_DEVICE) {
-			memcpy(to, from, copy_bytes);
-			tcmu_flush_dcache_range(to, copy_bytes);
-		}
-
-		/* Even iov_base is relative to mb_addr */
-		iov->iov_len = copy_bytes;
-		iov->iov_base = (void __user *) udev->data_off +
-						udev->data_head;
-		iov_cnt++;
-		iov++;
-
-		UPDATE_HEAD(udev->data_head, copy_bytes, udev->data_size);
-
-		/* Uh oh, we wrapped the buffer. Must split sg across 2 iovs. */
-		if (sg->length != copy_bytes) {
-			from += copy_bytes;
-			copy_bytes = sg->length - copy_bytes;
-
-			iov->iov_len = copy_bytes;
-			iov->iov_base = (void __user *) udev->data_off +
-							udev->data_head;
-
-			if (se_cmd->data_direction == DMA_TO_DEVICE) {
-				to = (void *) mb + udev->data_off + udev->data_head;
-				memcpy(to, from, copy_bytes);
-				tcmu_flush_dcache_range(to, copy_bytes);
-			}
-
-			iov_cnt++;
-			iov++;
-
-			UPDATE_HEAD(udev->data_head, copy_bytes, udev->data_size);
-		}
-
-		kunmap_atomic(from);
-	}
+	iov_cnt = 0;
+	copy_to_data_area = (se_cmd->data_direction == DMA_TO_DEVICE
+		|| se_cmd->se_cmd_flags & SCF_BIDI);
+	alloc_and_scatter_data_area(udev, se_cmd->t_data_sg,
+		se_cmd->t_data_nents, &iov, &iov_cnt, copy_to_data_area);
 	entry->req.iov_cnt = iov_cnt;
-	entry->req.iov_bidi_cnt = 0;
 	entry->req.iov_dif_cnt = 0;
+
+	/* Handle BIDI commands */
+	iov_cnt = 0;
+	alloc_and_scatter_data_area(udev, se_cmd->t_bidi_data_sg,
+		se_cmd->t_bidi_data_nents, &iov, &iov_cnt, false);
+	entry->req.iov_bidi_cnt = iov_cnt;
 
 	/* All offsets relative to mb_addr, not start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
@@ -479,47 +550,22 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 			       se_cmd->scsi_sense_length);
 
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
-	}
-	else if (se_cmd->data_direction == DMA_FROM_DEVICE) {
-		struct scatterlist *sg;
-		int i;
+	} else if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		/* Discard data_out buffer */
+		UPDATE_HEAD(udev->data_tail,
+			(size_t)se_cmd->t_data_sg->length, udev->data_size);
 
-		/* It'd be easier to look at entry's iovec again, but UAM */
-		for_each_sg(se_cmd->t_data_sg, sg, se_cmd->t_data_nents, i) {
-			size_t copy_bytes;
-			void *to;
-			void *from;
-
-			copy_bytes = min((size_t)sg->length,
-					 head_to_end(udev->data_tail, udev->data_size));
-
-			to = kmap_atomic(sg_page(sg)) + sg->offset;
-			WARN_ON(sg->length + sg->offset > PAGE_SIZE);
-			from = (void *) udev->mb_addr + udev->data_off + udev->data_tail;
-			tcmu_flush_dcache_range(from, copy_bytes);
-			memcpy(to, from, copy_bytes);
-
-			UPDATE_HEAD(udev->data_tail, copy_bytes, udev->data_size);
-
-			/* Uh oh, wrapped the data buffer for this sg's data */
-			if (sg->length != copy_bytes) {
-				from = (void *) udev->mb_addr + udev->data_off + udev->data_tail;
-				WARN_ON(udev->data_tail);
-				to += copy_bytes;
-				copy_bytes = sg->length - copy_bytes;
-				tcmu_flush_dcache_range(from, copy_bytes);
-				memcpy(to, from, copy_bytes);
-
-				UPDATE_HEAD(udev->data_tail, copy_bytes, udev->data_size);
-			}
-
-			kunmap_atomic(to);
-		}
-
+		/* Get Data-In buffer */
+		gather_and_free_data_area(udev,
+			se_cmd->t_bidi_data_sg, se_cmd->t_bidi_data_nents);
+	} else if (se_cmd->data_direction == DMA_FROM_DEVICE) {
+		gather_and_free_data_area(udev,
+			se_cmd->t_data_sg, se_cmd->t_data_nents);
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
-	} else {
-		pr_warn("TCMU: data direction was %d!\n", se_cmd->data_direction);
+	} else if (se_cmd->data_direction != DMA_NONE) {
+		pr_warn("TCMU: data direction was %d!\n",
+			se_cmd->data_direction);
 	}
 
 	target_complete_cmd(cmd->se_cmd, entry->rsp.scsi_status);
@@ -908,6 +954,14 @@ static int tcmu_check_pending_cmd(int id, void *p, void *data)
 	return -EINVAL;
 }
 
+static void tcmu_dev_call_rcu(struct rcu_head *p)
+{
+	struct se_device *dev = container_of(p, struct se_device, rcu_head);
+	struct tcmu_dev *udev = TCMU_DEV(dev);
+
+	kfree(udev);
+}
+
 static void tcmu_free_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
@@ -933,8 +987,7 @@ static void tcmu_free_device(struct se_device *dev)
 		kfree(udev->uio_info.name);
 		kfree(udev->name);
 	}
-
-	kfree(udev);
+	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
 }
 
 enum {
@@ -1052,27 +1105,7 @@ tcmu_parse_cdb(struct se_cmd *cmd)
 	return passthrough_parse_cdb(cmd, tcmu_pass_op);
 }
 
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_pi_prot_type);
-TB_DEV_ATTR_RO(tcmu, hw_pi_prot_type);
-
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_block_size);
-TB_DEV_ATTR_RO(tcmu, hw_block_size);
-
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_max_sectors);
-TB_DEV_ATTR_RO(tcmu, hw_max_sectors);
-
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_queue_depth);
-TB_DEV_ATTR_RO(tcmu, hw_queue_depth);
-
-static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
-	&tcmu_dev_attrib_hw_pi_prot_type.attr,
-	&tcmu_dev_attrib_hw_block_size.attr,
-	&tcmu_dev_attrib_hw_max_sectors.attr,
-	&tcmu_dev_attrib_hw_queue_depth.attr,
-	NULL,
-};
-
-static struct se_subsystem_api tcmu_template = {
+static const struct target_backend_ops tcmu_ops = {
 	.name			= "user",
 	.inquiry_prod		= "USER",
 	.inquiry_rev		= TCMU_VERSION,
@@ -1088,11 +1121,11 @@ static struct se_subsystem_api tcmu_template = {
 	.show_configfs_dev_params = tcmu_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= tcmu_get_blocks,
+	.tb_dev_attrib_attrs	= passthrough_attrib_attrs,
 };
 
 static int __init tcmu_module_init(void)
 {
-	struct target_backend_cits *tbc = &tcmu_template.tb_cits;
 	int ret;
 
 	BUILD_BUG_ON((sizeof(struct tcmu_cmd_entry) % TCMU_OP_ALIGN_SIZE) != 0);
@@ -1115,10 +1148,7 @@ static int __init tcmu_module_init(void)
 		goto out_unreg_device;
 	}
 
-	target_core_setup_sub_cits(&tcmu_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = tcmu_backend_dev_attrs;
-
-	ret = transport_subsystem_register(&tcmu_template);
+	ret = transport_backend_register(&tcmu_ops);
 	if (ret)
 		goto out_unreg_genl;
 
@@ -1136,7 +1166,7 @@ out_free_cache:
 
 static void __exit tcmu_module_exit(void)
 {
-	transport_subsystem_release(&tcmu_template);
+	target_backend_unregister(&tcmu_ops);
 	genl_unregister_family(&tcmu_genl_family);
 	root_device_unregister(tcmu_root_device);
 	kmem_cache_destroy(tcmu_cmd_cache);

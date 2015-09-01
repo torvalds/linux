@@ -4,7 +4,6 @@
 
 menuconfig CHROME_PLATFORMS
 	bool "Platform support for Chrome hardware"
-	depends on X86 || ARM
 	---help---
 	  Say Y here to get to see options for platform support for
 	  various Chromebooks and Chromeboxes. This option alone does
@@ -40,7 +39,7 @@ config CHROMEOS_PSTORE
 
 config CROS_EC_CHARDEV
         tristate "Chrome OS Embedded Controller userspace device interface"
-        depends on MFD_CROS_EC
+        depends on CROS_EC_PROTO
         ---help---
           This driver adds support to talk with the ChromeOS EC from userspace.
 
@@ -49,7 +48,7 @@ config CROS_EC_CHARDEV
 
 config CROS_EC_LPC
         tristate "ChromeOS Embedded Controller (LPC)"
-        depends on MFD_CROS_EC && (X86 || COMPILE_TEST)
+        depends on MFD_CROS_EC && CROS_EC_PROTO && (X86 || COMPILE_TEST)
         help
           If you say Y here, you get support for talking to the ChromeOS EC
           over an LPC bus. This uses a simple byte-level protocol with a
@@ -58,5 +57,10 @@ config CROS_EC_LPC
 
           To compile this driver as a module, choose M here: the
           module will be called cros_ec_lpc.
+
+config CROS_EC_PROTO
+        bool
+        help
+          ChromeOS EC communication protocol helpers.
 
 endif # CHROMEOS_PLATFORMS

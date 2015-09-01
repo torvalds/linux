@@ -48,14 +48,34 @@
 static struct backing_dev_info mtd_bdi = {
 };
 
-static int mtd_cls_suspend(struct device *dev, pm_message_t state);
-static int mtd_cls_resume(struct device *dev);
+#ifdef CONFIG_PM_SLEEP
+
+static int mtd_cls_suspend(struct device *dev)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	return mtd ? mtd_suspend(mtd) : 0;
+}
+
+static int mtd_cls_resume(struct device *dev)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	if (mtd)
+		mtd_resume(mtd);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(mtd_cls_pm_ops, mtd_cls_suspend, mtd_cls_resume);
+#define MTD_CLS_PM_OPS (&mtd_cls_pm_ops)
+#else
+#define MTD_CLS_PM_OPS NULL
+#endif
 
 static struct class mtd_class = {
 	.name = "mtd",
 	.owner = THIS_MODULE,
-	.suspend = mtd_cls_suspend,
-	.resume = mtd_cls_resume,
+	.pm = MTD_CLS_PM_OPS,
 };
 
 static DEFINE_IDR(mtd_idr);
@@ -86,22 +106,6 @@ static void mtd_release(struct device *dev)
 
 	/* remove /dev/mtdXro node */
 	device_destroy(&mtd_class, index + 1);
-}
-
-static int mtd_cls_suspend(struct device *dev, pm_message_t state)
-{
-	struct mtd_info *mtd = dev_get_drvdata(dev);
-
-	return mtd ? mtd_suspend(mtd) : 0;
-}
-
-static int mtd_cls_resume(struct device *dev)
-{
-	struct mtd_info *mtd = dev_get_drvdata(dev);
-
-	if (mtd)
-		mtd_resume(mtd);
-	return 0;
 }
 
 static ssize_t mtd_type_show(struct device *dev,
@@ -375,8 +379,7 @@ static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
  *
  *	Add a device to the list of MTD devices present in the system, and
  *	notify each currently active MTD 'user' of its arrival. Returns
- *	zero on success or 1 on failure, which currently will only happen
- *	if there is insufficient memory or a sysfs error.
+ *	zero on success or non-zero on failure.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
@@ -390,8 +393,10 @@ int add_mtd_device(struct mtd_info *mtd)
 	mutex_lock(&mtd_table_mutex);
 
 	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
-	if (i < 0)
+	if (i < 0) {
+		error = i;
 		goto fail_locked;
+	}
 
 	mtd->index = i;
 	mtd->usecount = 0;
@@ -420,6 +425,8 @@ int add_mtd_device(struct mtd_info *mtd)
 			printk(KERN_WARNING
 			       "%s: unlock failed, writes may not work\n",
 			       mtd->name);
+		/* Ignore unlock failures? */
+		error = 0;
 	}
 
 	/* Caller should have set dev.parent to match the
@@ -430,7 +437,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
-	if (device_register(&mtd->dev) != 0)
+	error = device_register(&mtd->dev);
+	if (error)
 		goto fail_added;
 
 	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
@@ -454,7 +462,7 @@ fail_added:
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
-	return 1;
+	return error;
 }
 
 /**
@@ -510,8 +518,8 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 
 	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
 		ret = add_mtd_device(mtd);
-		if (ret == 1)
-			return -ENODEV;
+		if (ret)
+			return ret;
 	}
 
 	if (nbparts > 0) {

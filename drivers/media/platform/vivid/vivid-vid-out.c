@@ -258,6 +258,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		}
 		break;
 	}
+	dev->xfer_func_out = V4L2_XFER_FUNC_DEFAULT;
 	dev->ycbcr_enc_out = V4L2_YCBCR_ENC_DEFAULT;
 	dev->quantization_out = V4L2_QUANTIZATION_DEFAULT;
 	dev->compose_out = dev->sink_rect;
@@ -320,6 +321,7 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 	mp->field        = dev->field_out;
 	mp->pixelformat  = fmt->fourcc;
 	mp->colorspace   = dev->colorspace_out;
+	mp->xfer_func    = dev->xfer_func_out;
 	mp->ycbcr_enc    = dev->ycbcr_enc_out;
 	mp->quantization = dev->quantization_out;
 	mp->num_planes = fmt->buffers;
@@ -407,6 +409,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 	for (p = fmt->buffers; p < fmt->planes; p++)
 		pfmt[0].sizeimage += (pfmt[0].bytesperline * fmt->bit_depth[p]) /
 				     (fmt->bit_depth[0] * fmt->vdownsampling[p]);
+	mp->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	mp->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	mp->quantization = V4L2_QUANTIZATION_DEFAULT;
 	if (vivid_is_svid_out(dev)) {
@@ -546,6 +549,7 @@ int vivid_s_fmt_vid_out(struct file *file, void *priv,
 
 set_colorspace:
 	dev->colorspace_out = mp->colorspace;
+	dev->xfer_func_out = mp->xfer_func;
 	dev->ycbcr_enc_out = mp->ycbcr_enc;
 	dev->quantization_out = mp->quantization;
 	if (dev->loop_video) {
@@ -1152,7 +1156,8 @@ int vivid_vid_out_g_parm(struct file *file, void *priv,
 	parm->parm.output.capability   = V4L2_CAP_TIMEPERFRAME;
 	parm->parm.output.timeperframe = dev->timeperframe_vid_out;
 	parm->parm.output.writebuffers  = 1;
-return 0;
+
+	return 0;
 }
 
 int vidioc_subscribe_event(struct v4l2_fh *fh,

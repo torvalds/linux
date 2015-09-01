@@ -637,8 +637,8 @@ static void msm_debugfs_cleanup(struct drm_minor *minor)
  * Fences:
  */
 
-int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
-		struct timespec *timeout)
+int msm_wait_fence(struct drm_device *dev, uint32_t fence,
+		ktime_t *timeout , bool interruptible)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
@@ -656,16 +656,23 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 		/* no-wait: */
 		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
 	} else {
-		unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
-		unsigned long start_jiffies = jiffies;
+		ktime_t now = ktime_get();
 		unsigned long remaining_jiffies;
 
-		if (time_after(start_jiffies, timeout_jiffies))
+		if (ktime_compare(*timeout, now) < 0) {
 			remaining_jiffies = 0;
-		else
-			remaining_jiffies = timeout_jiffies - start_jiffies;
+		} else {
+			ktime_t rem = ktime_sub(*timeout, now);
+			struct timespec ts = ktime_to_timespec(rem);
+			remaining_jiffies = timespec_to_jiffies(&ts);
+		}
 
-		ret = wait_event_interruptible_timeout(priv->fence_event,
+		if (interruptible)
+			ret = wait_event_interruptible_timeout(priv->fence_event,
+				fence_completed(dev, fence),
+				remaining_jiffies);
+		else
+			ret = wait_event_timeout(priv->fence_event,
 				fence_completed(dev, fence),
 				remaining_jiffies);
 
@@ -772,13 +779,17 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 			args->flags, &args->handle);
 }
 
-#define TS(t) ((struct timespec){ .tv_sec = (t).tv_sec, .tv_nsec = (t).tv_nsec })
+static inline ktime_t to_ktime(struct drm_msm_timespec timeout)
+{
+	return ktime_set(timeout.tv_sec, timeout.tv_nsec);
+}
 
 static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_gem_cpu_prep *args = data;
 	struct drm_gem_object *obj;
+	ktime_t timeout = to_ktime(args->timeout);
 	int ret;
 
 	if (args->op & ~MSM_PREP_FLAGS) {
@@ -790,7 +801,7 @@ static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	ret = msm_gem_cpu_prep(obj, args->op, &TS(args->timeout));
+	ret = msm_gem_cpu_prep(obj, args->op, &timeout);
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -840,14 +851,14 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_wait_fence *args = data;
+	ktime_t timeout = to_ktime(args->timeout);
 
 	if (args->pad) {
 		DRM_ERROR("invalid pad: %08x\n", args->pad);
 		return -EINVAL;
 	}
 
-	return msm_wait_fence_interruptable(dev, args->fence,
-			&TS(args->timeout));
+	return msm_wait_fence(dev, args->fence, &timeout, true);
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
@@ -885,6 +896,7 @@ static struct drm_driver msm_driver = {
 				DRIVER_GEM |
 				DRIVER_PRIME |
 				DRIVER_RENDER |
+				DRIVER_ATOMIC |
 				DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,

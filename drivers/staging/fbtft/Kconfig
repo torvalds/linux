@@ -12,7 +12,7 @@ config FB_TFT_AGM1264K_FL
 	tristate "FB driver for the AGM1264K-FL LCD display"
 	depends on FB_TFT
 	help
-	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatable chips)
+	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatible chips)
 
 config FB_TFT_BD663474
 	tristate "FB driver for the BD663474 LCD Controller"
@@ -37,6 +37,12 @@ config FB_TFT_HX8353D
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for HX8353D
+
+config FB_TFT_HX8357D
+	tristate "FB driver for the HX8357D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8357D
 
 config FB_TFT_ILI9163
 	tristate "FB driver for the ILI9163 LCD Controller"

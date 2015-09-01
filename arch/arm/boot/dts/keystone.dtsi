@@ -286,7 +286,7 @@
 			ti,syscon-dev = <&devctrl 0x2a0>;
 		};
 
-		pcie@21800000 {
+		pcie0: pcie@21800000 {
 			compatible = "ti,keystone-pcie", "snps,dw-pcie";
 			clocks = <&clkpcie>;
 			clock-names = "pcie";
@@ -296,6 +296,7 @@
 			ranges = <0x81000000 0 0 0x23250000 0 0x4000
 				0x82000000 0 0x50000000 0x50000000 0 0x10000000>;
 
+			status = "disabled";
 			device_type = "pci";
 			num-lanes = <2>;
 

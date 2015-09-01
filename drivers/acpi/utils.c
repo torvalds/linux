@@ -712,3 +712,18 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 	return false;
 }
 EXPORT_SYMBOL(acpi_check_dsm);
+
+/*
+ * acpi_backlight= handling, this is done here rather then in video_detect.c
+ * because __setup cannot be used in modules.
+ */
+char acpi_video_backlight_string[16];
+EXPORT_SYMBOL(acpi_video_backlight_string);
+
+static int __init acpi_backlight(char *str)
+{
+	strlcpy(acpi_video_backlight_string, str,
+		sizeof(acpi_video_backlight_string));
+	return 1;
+}
+__setup("acpi_backlight=", acpi_backlight);

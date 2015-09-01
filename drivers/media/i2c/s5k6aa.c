@@ -875,7 +875,7 @@ static int s5k6aa_set_power(struct v4l2_subdev *sd, int on)
 
 	mutex_lock(&s5k6aa->lock);
 
-	if (!on == s5k6aa->power) {
+	if (s5k6aa->power == !on) {
 		if (on) {
 			ret = __s5k6aa_power_on(s5k6aa);
 			if (!ret)

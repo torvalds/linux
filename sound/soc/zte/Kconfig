@@ -1,0 +1,17 @@
+config ZX296702_SPDIF
+	tristate "ZX296702 spdif"
+	depends on SOC_ZX296702 || COMPILE_TEST
+	depends on COMMON_CLK
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  zx296702 spdif interface
+
+config ZX296702_I2S
+	tristate "ZX296702 i2s"
+	depends on SOC_ZX296702 || COMPILE_TEST
+	depends on COMMON_CLK
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  zx296702 i2s interface

@@ -144,6 +144,8 @@ struct kfd2kgd_calls {
 	int (*init_pipeline)(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 
+	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
+
 	int (*hqd_load)(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 
@@ -160,6 +162,27 @@ struct kfd2kgd_calls {
 
 	int (*hqd_sdma_destroy)(struct kgd_dev *kgd, void *mqd,
 				unsigned int timeout);
+
+	int (*address_watch_disable)(struct kgd_dev *kgd);
+	int (*address_watch_execute)(struct kgd_dev *kgd,
+					unsigned int watch_point_id,
+					uint32_t cntl_val,
+					uint32_t addr_hi,
+					uint32_t addr_lo);
+	int (*wave_control_execute)(struct kgd_dev *kgd,
+					uint32_t gfx_index_val,
+					uint32_t sq_cmd);
+	uint32_t (*address_watch_get_offset)(struct kgd_dev *kgd,
+					unsigned int watch_point_id,
+					unsigned int reg_offset);
+	bool (*get_atc_vmid_pasid_mapping_valid)(
+					struct kgd_dev *kgd,
+					uint8_t vmid);
+	uint16_t (*get_atc_vmid_pasid_mapping_pasid)(
+					struct kgd_dev *kgd,
+					uint8_t vmid);
+	void (*write_vmid_invalidate_request)(struct kgd_dev *kgd,
+					uint8_t vmid);
 
 	uint16_t (*get_fw_version)(struct kgd_dev *kgd,
 				enum kgd_engine_type type);

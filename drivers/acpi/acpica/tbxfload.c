@@ -150,8 +150,8 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * Save the original DSDT header for detection of table corruption
 	 * and/or replacement of the DSDT from outside the OS.
 	 */
-	ACPI_MEMCPY(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
-		    sizeof(struct acpi_table_header));
+	memcpy(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
+	       sizeof(struct acpi_table_header));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 
@@ -166,13 +166,18 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
-		if ((!ACPI_COMPARE_NAME
+		if (!acpi_gbl_root_table_list.tables[i].address ||
+		    (!ACPI_COMPARE_NAME
 		     (&(acpi_gbl_root_table_list.tables[i].signature),
 		      ACPI_SIG_SSDT)
 		     &&
 		     !ACPI_COMPARE_NAME(&
 					(acpi_gbl_root_table_list.tables[i].
-					 signature), ACPI_SIG_PSDT))
+					 signature), ACPI_SIG_PSDT)
+		     &&
+		     !ACPI_COMPARE_NAME(&
+					(acpi_gbl_root_table_list.tables[i].
+					 signature), ACPI_SIG_OSDT))
 		    ||
 		    ACPI_FAILURE(acpi_tb_validate_table
 				 (&acpi_gbl_root_table_list.tables[i]))) {
@@ -219,9 +224,9 @@ acpi_install_table(acpi_physical_address address, u8 physical)
 	ACPI_FUNCTION_TRACE(acpi_install_table);
 
 	if (physical) {
-		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
-	} else {
 		flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
+	} else {
+		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
 	}
 
 	status = acpi_tb_install_standard_table(address, flags,

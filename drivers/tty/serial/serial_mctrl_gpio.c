@@ -49,8 +49,7 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 	unsigned int count = 0;
 
 	for (i = 0; i < UART_GPIO_MAX; i++)
-		if (!IS_ERR_OR_NULL(gpios->gpio[i]) &&
-		    mctrl_gpios_desc[i].dir_out) {
+		if (gpios->gpio[i] && mctrl_gpios_desc[i].dir_out) {
 			desc_array[count] = gpios->gpio[i];
 			value_array[count] = !!(mctrl & mctrl_gpios_desc[i].mctrl);
 			count++;
@@ -118,7 +117,7 @@ void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios)
 	enum mctrl_gpio_idx i;
 
 	for (i = 0; i < UART_GPIO_MAX; i++)
-		if (!IS_ERR_OR_NULL(gpios->gpio[i]))
+		if (gpios->gpio[i])
 			devm_gpiod_put(dev, gpios->gpio[i]);
 	devm_kfree(dev, gpios);
 }

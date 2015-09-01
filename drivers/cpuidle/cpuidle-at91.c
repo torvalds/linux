@@ -62,5 +62,4 @@ static struct platform_driver at91_cpuidle_driver = {
 	},
 	.probe = at91_cpuidle_probe,
 };
-
-module_platform_driver(at91_cpuidle_driver);
+builtin_platform_driver(at91_cpuidle_driver);

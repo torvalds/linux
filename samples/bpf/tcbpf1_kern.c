@@ -21,7 +21,7 @@ static inline void set_dst_mac(struct __sk_buff *skb, char *mac)
 
 static inline void set_ip_tos(struct __sk_buff *skb, __u8 new_tos)
 {
-	__u8 old_tos = load_byte(skb, BPF_LL_OFF + TOS_OFF);
+	__u8 old_tos = load_byte(skb, TOS_OFF);
 
 	bpf_l3_csum_replace(skb, IP_CSUM_OFF, htons(old_tos), htons(new_tos), 2);
 	bpf_skb_store_bytes(skb, TOS_OFF, &new_tos, sizeof(new_tos), 0);
@@ -34,7 +34,7 @@ static inline void set_ip_tos(struct __sk_buff *skb, __u8 new_tos)
 
 static inline void set_tcp_ip_src(struct __sk_buff *skb, __u32 new_ip)
 {
-	__u32 old_ip = _htonl(load_word(skb, BPF_LL_OFF + IP_SRC_OFF));
+	__u32 old_ip = _htonl(load_word(skb, IP_SRC_OFF));
 
 	bpf_l4_csum_replace(skb, TCP_CSUM_OFF, old_ip, new_ip, IS_PSEUDO | sizeof(new_ip));
 	bpf_l3_csum_replace(skb, IP_CSUM_OFF, old_ip, new_ip, sizeof(new_ip));
@@ -44,7 +44,7 @@ static inline void set_tcp_ip_src(struct __sk_buff *skb, __u32 new_ip)
 #define TCP_DPORT_OFF (ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, dest))
 static inline void set_tcp_dest_port(struct __sk_buff *skb, __u16 new_port)
 {
-	__u16 old_port = htons(load_half(skb, BPF_LL_OFF + TCP_DPORT_OFF));
+	__u16 old_port = htons(load_half(skb, TCP_DPORT_OFF));
 
 	bpf_l4_csum_replace(skb, TCP_CSUM_OFF, old_port, new_port, sizeof(new_port));
 	bpf_skb_store_bytes(skb, TCP_DPORT_OFF, &new_port, sizeof(new_port), 0);
@@ -53,7 +53,7 @@ static inline void set_tcp_dest_port(struct __sk_buff *skb, __u16 new_port)
 SEC("classifier")
 int bpf_prog1(struct __sk_buff *skb)
 {
-	__u8 proto = load_byte(skb, BPF_LL_OFF + ETH_HLEN + offsetof(struct iphdr, protocol));
+	__u8 proto = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, protocol));
 	long *value;
 
 	if (proto == IPPROTO_TCP) {

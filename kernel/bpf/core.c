@@ -26,8 +26,9 @@
 #include <linux/vmalloc.h>
 #include <linux/random.h>
 #include <linux/moduleloader.h>
-#include <asm/unaligned.h>
 #include <linux/bpf.h>
+
+#include <asm/unaligned.h>
 
 /* Registers */
 #define BPF_R0	regs[BPF_REG_0]
@@ -62,6 +63,7 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 		ptr = skb_network_header(skb) + k - SKF_NET_OFF;
 	else if (k >= SKF_LL_OFF)
 		ptr = skb_mac_header(skb) + k - SKF_LL_OFF;
+
 	if (ptr >= skb->head && ptr + size <= skb_tail_pointer(skb))
 		return ptr;
 
@@ -244,6 +246,7 @@ static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 		[BPF_ALU64 | BPF_NEG] = &&ALU64_NEG,
 		/* Call instruction */
 		[BPF_JMP | BPF_CALL] = &&JMP_CALL,
+		[BPF_JMP | BPF_CALL | BPF_X] = &&JMP_TAIL_CALL,
 		/* Jumps */
 		[BPF_JMP | BPF_JA] = &&JMP_JA,
 		[BPF_JMP | BPF_JEQ | BPF_X] = &&JMP_JEQ_X,
@@ -286,6 +289,7 @@ static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 		[BPF_LD | BPF_IND | BPF_B] = &&LD_IND_B,
 		[BPF_LD | BPF_IMM | BPF_DW] = &&LD_IMM_DW,
 	};
+	u32 tail_call_cnt = 0;
 	void *ptr;
 	int off;
 
@@ -431,6 +435,30 @@ select_insn:
 						       BPF_R4, BPF_R5);
 		CONT;
 
+	JMP_TAIL_CALL: {
+		struct bpf_map *map = (struct bpf_map *) (unsigned long) BPF_R2;
+		struct bpf_array *array = container_of(map, struct bpf_array, map);
+		struct bpf_prog *prog;
+		u64 index = BPF_R3;
+
+		if (unlikely(index >= array->map.max_entries))
+			goto out;
+
+		if (unlikely(tail_call_cnt > MAX_TAIL_CALL_CNT))
+			goto out;
+
+		tail_call_cnt++;
+
+		prog = READ_ONCE(array->prog[index]);
+		if (unlikely(!prog))
+			goto out;
+
+		ARG1 = BPF_R1;
+		insn = prog->insnsi;
+		goto select_insn;
+out:
+		CONT;
+	}
 	/* JMP */
 	JMP_JA:
 		insn += insn->off;
@@ -615,25 +643,63 @@ load_byte:
 		return 0;
 }
 
-void __weak bpf_int_jit_compile(struct bpf_prog *prog)
+bool bpf_prog_array_compatible(struct bpf_array *array,
+			       const struct bpf_prog *fp)
 {
+	if (!array->owner_prog_type) {
+		/* There's no owner yet where we could check for
+		 * compatibility.
+		 */
+		array->owner_prog_type = fp->type;
+		array->owner_jited = fp->jited;
+
+		return true;
+	}
+
+	return array->owner_prog_type == fp->type &&
+	       array->owner_jited == fp->jited;
+}
+
+static int bpf_check_tail_call(const struct bpf_prog *fp)
+{
+	struct bpf_prog_aux *aux = fp->aux;
+	int i;
+
+	for (i = 0; i < aux->used_map_cnt; i++) {
+		struct bpf_map *map = aux->used_maps[i];
+		struct bpf_array *array;
+
+		if (map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
+			continue;
+
+		array = container_of(map, struct bpf_array, map);
+		if (!bpf_prog_array_compatible(array, fp))
+			return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
- *	bpf_prog_select_runtime - select execution runtime for BPF program
+ *	bpf_prog_select_runtime - select exec runtime for BPF program
  *	@fp: bpf_prog populated with internal BPF program
  *
- * try to JIT internal BPF program, if JIT is not available select interpreter
- * BPF program will be executed via BPF_PROG_RUN() macro
+ * Try to JIT eBPF program, if JIT is not available, use interpreter.
+ * The BPF program will be executed via BPF_PROG_RUN() macro.
  */
-void bpf_prog_select_runtime(struct bpf_prog *fp)
+int bpf_prog_select_runtime(struct bpf_prog *fp)
 {
 	fp->bpf_func = (void *) __bpf_prog_run;
 
-	/* Probe if internal BPF can be JITed */
 	bpf_int_jit_compile(fp);
-	/* Lock whole bpf_prog as read-only */
 	bpf_prog_lock_ro(fp);
+
+	/* The tail call compatibility check can only be done at
+	 * this late stage as we need to determine, if we deal
+	 * with JITed or non JITed program concatenations and not
+	 * all eBPF JITs might immediately support all features.
+	 */
+	return bpf_check_tail_call(fp);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
@@ -663,6 +729,29 @@ const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
+const struct bpf_func_proto bpf_ktime_get_ns_proto __weak;
+const struct bpf_func_proto bpf_get_current_pid_tgid_proto __weak;
+const struct bpf_func_proto bpf_get_current_uid_gid_proto __weak;
+const struct bpf_func_proto bpf_get_current_comm_proto __weak;
+const struct bpf_func_proto * __weak bpf_get_trace_printk_proto(void)
+{
+	return NULL;
+}
+
+/* Always built-in helper functions. */
+const struct bpf_func_proto bpf_tail_call_proto = {
+	.func		= NULL,
+	.gpl_only	= false,
+	.ret_type	= RET_VOID,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+/* For classic BPF JITs that don't implement bpf_int_jit_compile(). */
+void __weak bpf_int_jit_compile(struct bpf_prog *prog)
+{
+}
 
 /* To execute LD_ABS/LD_IND instructions __bpf_prog_run() may call
  * skb_copy_bits(), so provide a weak definition of it for NET-less config.

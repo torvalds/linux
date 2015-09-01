@@ -26,6 +26,7 @@ struct kvm_lapic {
 	struct kvm_vcpu *vcpu;
 	bool sw_enabled;
 	bool irr_pending;
+	bool lvt0_in_nmi_mode;
 	/* Number of bits set in ISR. */
 	s16 isr_count;
 	/* The highest vector set in ISR; if -1 - invalid, must scan ISR. */
@@ -48,7 +49,7 @@ int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu);
 int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu);
 void kvm_apic_accept_events(struct kvm_vcpu *vcpu);
-void kvm_lapic_reset(struct kvm_vcpu *vcpu);
+void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event);
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8);
 void kvm_lapic_set_eoi(struct kvm_vcpu *vcpu);
@@ -150,7 +151,18 @@ static inline bool kvm_apic_vid_enabled(struct kvm *kvm)
 
 static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.apic->pending_events;
+	return kvm_vcpu_has_lapic(vcpu) && vcpu->arch.apic->pending_events;
+}
+
+static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
+{
+	return (irq->delivery_mode == APIC_DM_LOWEST ||
+			irq->msi_redir_hint);
+}
+
+static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_has_lapic(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);

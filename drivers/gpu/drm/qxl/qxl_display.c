@@ -67,7 +67,7 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 	crc = crc32(0, (const uint8_t *)&qdev->rom->client_monitors_config,
 		  sizeof(qdev->rom->client_monitors_config));
 	if (crc != qdev->rom->client_monitors_config_crc) {
-		qxl_io_log(qdev, "crc mismatch: have %X (%d) != %X\n", crc,
+		qxl_io_log(qdev, "crc mismatch: have %X (%zd) != %X\n", crc,
 			   sizeof(qdev->rom->client_monitors_config),
 			   qdev->rom->client_monitors_config_crc);
 		return 1;

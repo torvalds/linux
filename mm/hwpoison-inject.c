@@ -28,7 +28,7 @@ static int hwpoison_inject(void *data, u64 val)
 	/*
 	 * This implies unable to support free buddy pages.
 	 */
-	if (!get_page_unless_zero(hpage))
+	if (!get_hwpoison_page(p))
 		return 0;
 
 	if (!hwpoison_filter_enable)
@@ -58,7 +58,7 @@ inject:
 	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
 	return memory_failure(pfn, 18, MF_COUNT_INCREASED);
 put_out:
-	put_page(hpage);
+	put_page(p);
 	return 0;
 }
 

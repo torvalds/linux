@@ -3209,7 +3209,7 @@ static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 }
 
 
-void rtl819x_watchdog_wqcallback(struct work_struct *work)
+static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, watch_dog_wq);
@@ -3273,13 +3273,13 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 
 }
 
-void watch_dog_timer_callback(unsigned long data)
+static void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *) data);
 	queue_delayed_work(priv->priv_wq, &priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer, jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
 }
-int _rtl8192_up(struct net_device *dev)
+static int _rtl8192_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int init_status = 0;
@@ -3330,7 +3330,7 @@ int rtl8192_up(struct net_device *dev)
 }
 
 
-int rtl8192_close(struct net_device *dev)
+static int rtl8192_close(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
@@ -3403,7 +3403,7 @@ void rtl8192_commit(struct net_device *dev)
 
 }
 
-void rtl8192_restart(struct work_struct *work)
+static void rtl8192_restart(struct work_struct *work)
 {
 	struct r8192_priv *priv = container_of(work, struct r8192_priv, reset_wq);
 	struct net_device *dev = priv->ieee80211->dev;
@@ -3711,10 +3711,10 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	static u32 slide_beacon_adc_pwdb_index, slide_beacon_adc_pwdb_statistics;
 	static u32 last_beacon_adc_pwdb;
 
-	struct ieee80211_hdr_3addr *hdr;
+	struct rtl_80211_hdr_3addr *hdr;
 	u16 sc;
 	unsigned int frag, seq;
-	hdr = (struct ieee80211_hdr_3addr *)buffer;
+	hdr = (struct rtl_80211_hdr_3addr *)buffer;
 	sc = le16_to_cpu(hdr->seq_ctl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	seq = WLAN_GET_SEQ_SEQ(sc);
@@ -4205,7 +4205,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	bool bpacket_match_bssid, bpacket_toself;
 	bool bPacketBeacon = false, bToSelfBA = false;
 	static struct ieee80211_rx_stats  previous_stats;
-	struct ieee80211_hdr_3addr *hdr;//by amy
+	struct rtl_80211_hdr_3addr *hdr;//by amy
 	u16 fc, type;
 
 	// Get Signal Quality for only RX data queue (but not command queue)
@@ -4216,7 +4216,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	/* Get MAC frame start address. */
 	tmp_buf = (u8 *)skb->data;
 
-	hdr = (struct ieee80211_hdr_3addr *)tmp_buf;
+	hdr = (struct rtl_80211_hdr_3addr *)tmp_buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
@@ -4487,7 +4487,7 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 		.freq = IEEE80211_24GHZ_BAND,
 	};
 	u32 rx_pkt_len = 0;
-	struct ieee80211_hdr_1addr *ieee80211_hdr = NULL;
+	struct rtl_80211_hdr_1addr *ieee80211_hdr = NULL;
 	bool unicast_packet = false;
 
 	/* 20 is for ps-poll */
@@ -4500,7 +4500,7 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 		skb_trim(skb, skb->len - 4/*sCrcLng*/);
 
 		rx_pkt_len = skb->len;
-		ieee80211_hdr = (struct ieee80211_hdr_1addr *)skb->data;
+		ieee80211_hdr = (struct rtl_80211_hdr_1addr *)skb->data;
 		unicast_packet = false;
 		if (is_broadcast_ether_addr(ieee80211_hdr->addr1)) {
 			//TODO
@@ -4615,7 +4615,7 @@ static void rtl8192_rx_cmd(struct sk_buff *skb)
 	}
 }
 
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
 	struct sk_buff *skb;
 	struct rtl8192_rx_info *info;
@@ -4733,7 +4733,7 @@ fail:
 }
 
 //detach all the work and timer structure declared or inititialize in r8192U_init function.
-void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
+static void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
 {
 
 	cancel_work_sync(&priv->reset_wq);

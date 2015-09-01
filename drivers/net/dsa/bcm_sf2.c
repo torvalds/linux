@@ -24,6 +24,7 @@
 #include <net/dsa.h>
 #include <linux/ethtool.h>
 #include <linux/if_bridge.h>
+#include <linux/brcmphy.h>
 
 #include "bcm_sf2.h"
 #include "bcm_sf2_regs.h"
@@ -695,9 +696,20 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	}
 
 	/* Include the pseudo-PHY address and the broadcast PHY address to
-	 * divert reads towards our workaround
+	 * divert reads towards our workaround. This is only required for
+	 * 7445D0, since 7445E0 disconnects the internal switch pseudo-PHY such
+	 * that we can use the regular SWITCH_MDIO master controller instead.
+	 *
+	 * By default, DSA initializes ds->phys_mii_mask to ds->phys_port_mask
+	 * to have a 1:1 mapping between Port address and PHY address in order
+	 * to utilize the slave_mii_bus instance to read from Port PHYs. This is
+	 * not what we want here, so we initialize phys_mii_mask 0 to always
+	 * utilize the "master" MDIO bus backed by the "mdio-unimac" driver.
 	 */
-	ds->phys_mii_mask |= ((1 << 30) | (1 << 0));
+	if (of_machine_is_compatible("brcm,bcm7445d0"))
+		ds->phys_mii_mask |= ((1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0));
+	else
+		ds->phys_mii_mask = 0;
 
 	rev = reg_readl(priv, REG_SWITCH_REVISION);
 	priv->hw_params.top_rev = (rev >> SWITCH_TOP_REV_SHIFT) &
@@ -782,7 +794,7 @@ static int bcm_sf2_sw_phy_read(struct dsa_switch *ds, int addr, int regnum)
 	 */
 	switch (addr) {
 	case 0:
-	case 30:
+	case BRCM_PSEUDO_PHY_ADDR:
 		return bcm_sf2_sw_indir_rw(ds, 1, addr, regnum, 0);
 	default:
 		return 0xffff;
@@ -797,7 +809,7 @@ static int bcm_sf2_sw_phy_write(struct dsa_switch *ds, int addr, int regnum,
 	 */
 	switch (addr) {
 	case 0:
-	case 30:
+	case BRCM_PSEUDO_PHY_ADDR:
 		bcm_sf2_sw_indir_rw(ds, 0, addr, regnum, val);
 		break;
 	}
@@ -911,6 +923,13 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 	 */
 	if (port == 7) {
 		status->link = priv->port_sts[port].link;
+		/* For MoCA interfaces, also force a link down notification
+		 * since some version of the user-space daemon (mocad) use
+		 * cmd->autoneg to force the link, which messes up the PHY
+		 * state machine and make it go in PHY_FORCING state instead.
+		 */
+		if (!status->link)
+			netif_carrier_off(ds->ports[port]);
 		status->duplex = 1;
 	} else {
 		status->link = 1;

@@ -350,7 +350,8 @@ static int sp8870_init (struct dvb_frontend* fe)
 	return 0;
 }
 
-static int sp8870_read_status (struct dvb_frontend* fe, fe_status_t * fe_status)
+static int sp8870_read_status(struct dvb_frontend *fe,
+			      enum fe_status *fe_status)
 {
 	struct sp8870_state* state = fe->demodulator_priv;
 	int status;

@@ -136,8 +136,8 @@ static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 	/* AFE_RX_LP_COUNTER, set RX bandwidth to maximum */
 	phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
 
-	/* AFE_TX_CONFIG, set 1000BT Cfeed=110 for all ports */
-	phy_write_misc(phydev, AFE_TX_CONFIG, 0x0061);
+	/* AFE_TX_CONFIG, set 100BT Cfeed=011 to improve rise/fall time */
+	phy_write_misc(phydev, AFE_TX_CONFIG, 0x431);
 
 	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
 	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
@@ -166,6 +166,9 @@ static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
 {
 	/* AFE_RXCONFIG_1, provide more margin for INL/DNL measurement */
 	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
+
+	/* AFE_TX_CONFIG, set 100BT Cfeed=011 to improve rise/fall time */
+	phy_write_misc(phydev, AFE_TX_CONFIG, 0x431);
 
 	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
 	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
@@ -242,6 +245,13 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 
 	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
 		     dev_name(&phydev->dev), phydev->drv->name, rev, patch);
+
+	/* Dummy read to a register to workaround an issue upon reset where the
+	 * internal inverter may not allow the first MDIO transaction to pass
+	 * the MDIO management controller and make us return 0xffff for such
+	 * reads.
+	 */
+	phy_read(phydev, MII_BMSR);
 
 	switch (rev) {
 	case 0xb0:

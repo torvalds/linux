@@ -650,7 +650,7 @@ static int tda10046_init(struct dvb_frontend* fe)
 
 	if (tda10046_fwupload(fe)) {
 		printk("tda1004x: firmware upload failed\n");
-			return -EIO;
+		return -EIO;
 	}
 
 	// tda setup
@@ -1005,7 +1005,8 @@ static int tda1004x_get_fe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda1004x_read_status(struct dvb_frontend* fe, fe_status_t * fe_status)
+static int tda1004x_read_status(struct dvb_frontend *fe,
+				enum fe_status *fe_status)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
 	int status;

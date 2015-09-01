@@ -55,7 +55,7 @@ struct list_head freercvpool;
 /* lock to arbitrate free buffer list for receive command data */
 spinlock_t free_buff_lock;
 
-int numofmsgbuf = 0;
+int numofmsgbuf;
 
 /*
  * Table of entry-point routines for char device
@@ -317,7 +317,7 @@ static int ft1000_open(struct inode *inode, struct file *file)
 
 	/* Search for available application info block */
 	for (i = 0; i < MAX_NUM_APP; i++) {
-		if ((dev->app_info[i].fileobject == NULL))
+		if (dev->app_info[i].fileobject == NULL)
 			break;
 	}
 
@@ -588,8 +588,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 				/* Check message qtype type which is the lower byte within qos_class */
 				qtype = ntohs(dpram_data->pseudohdr.qos_class) & 0xff;
 				/* pr_debug("qtype = %d\n", qtype); */
-				if (qtype) {
-				} else {
+				if (!qtype) {
 					/* Put message into Slow Queue */
 					/* Only put a message into the DPRAM if msg doorbell is available */
 					status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_DOORBELL);

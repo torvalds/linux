@@ -1446,6 +1446,16 @@
 #define RT5677_DSP_OB_4_7_CLK_SEL_MASK		(0xf << 8)
 #define RT5677_DSP_OB_4_7_CLK_SEL_SFT		8
 
+/* ASRC Control 8 (0x8a) */
+#define RT5677_I2S1_CLK_SEL_MASK		(0xf << 12)
+#define RT5677_I2S1_CLK_SEL_SFT			12
+#define RT5677_I2S2_CLK_SEL_MASK		(0xf << 8)
+#define RT5677_I2S2_CLK_SEL_SFT			8
+#define RT5677_I2S3_CLK_SEL_MASK		(0xf << 4)
+#define RT5677_I2S3_CLK_SEL_SFT			4
+#define RT5677_I2S4_CLK_SEL_MASK		(0xf)
+#define RT5677_I2S4_CLK_SEL_SFT			0
+
 /* VAD Function Control 4 (0x9f) */
 #define RT5677_VAD_SRC_MASK			(0x7 << 8)
 #define RT5677_VAD_SRC_SFT			8
@@ -1744,6 +1754,10 @@ enum {
 	RT5677_AD_MONO_R_FILTER = (0x1 << 12),
 	RT5677_DSP_OB_0_3_FILTER = (0x1 << 13),
 	RT5677_DSP_OB_4_7_FILTER = (0x1 << 14),
+	RT5677_I2S1_SOURCE = (0x1 << 15),
+	RT5677_I2S2_SOURCE = (0x1 << 16),
+	RT5677_I2S3_SOURCE = (0x1 << 17),
+	RT5677_I2S4_SOURCE = (0x1 << 18),
 };
 
 struct rt5677_priv {
@@ -1762,6 +1776,7 @@ struct rt5677_priv {
 	int pll_in;
 	int pll_out;
 	int pow_ldo2; /* POW_LDO2 pin */
+	int reset_pin; /* RESET pin */
 	enum rt5677_type type;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;

@@ -38,19 +38,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static struct platform_device *exynos_drm_pdev;
-
-static DEFINE_MUTEX(drm_component_lock);
-static LIST_HEAD(drm_component_list);
-
-struct component_dev {
-	struct list_head list;
-	struct device *crtc_dev;
-	struct device *conn_dev;
-	enum exynos_drm_output_type out_type;
-	unsigned int dev_type_flag;
-};
-
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -97,6 +84,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = exynos_drm_device_subdrv_probe(dev);
 	if (ret)
 		goto err_cleanup_vblank;
+
+	drm_mode_config_reset(dev);
 
 	/*
 	 * enable drm irq mode.
@@ -348,189 +337,28 @@ static const struct dev_pm_ops exynos_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(exynos_drm_sys_suspend, exynos_drm_sys_resume)
 };
 
-int exynos_drm_component_add(struct device *dev,
-				enum exynos_drm_device_type dev_type,
-				enum exynos_drm_output_type out_type)
-{
-	struct component_dev *cdev;
+/* forward declaration */
+static struct platform_driver exynos_drm_platform_driver;
 
-	if (dev_type != EXYNOS_DEVICE_TYPE_CRTC &&
-			dev_type != EXYNOS_DEVICE_TYPE_CONNECTOR) {
-		DRM_ERROR("invalid device type.\n");
-		return -EINVAL;
-	}
-
-	mutex_lock(&drm_component_lock);
-
-	/*
-	 * Make sure to check if there is a component which has two device
-	 * objects, for connector and for encoder/connector.
-	 * It should make sure that crtc and encoder/connector drivers are
-	 * ready before exynos drm core binds them.
-	 */
-	list_for_each_entry(cdev, &drm_component_list, list) {
-		if (cdev->out_type == out_type) {
-			/*
-			 * If crtc and encoder/connector device objects are
-			 * added already just return.
-			 */
-			if (cdev->dev_type_flag == (EXYNOS_DEVICE_TYPE_CRTC |
-						EXYNOS_DEVICE_TYPE_CONNECTOR)) {
-				mutex_unlock(&drm_component_lock);
-				return 0;
-			}
-
-			if (dev_type == EXYNOS_DEVICE_TYPE_CRTC) {
-				cdev->crtc_dev = dev;
-				cdev->dev_type_flag |= dev_type;
-			}
-
-			if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR) {
-				cdev->conn_dev = dev;
-				cdev->dev_type_flag |= dev_type;
-			}
-
-			mutex_unlock(&drm_component_lock);
-			return 0;
-		}
-	}
-
-	mutex_unlock(&drm_component_lock);
-
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
-		return -ENOMEM;
-
-	if (dev_type == EXYNOS_DEVICE_TYPE_CRTC)
-		cdev->crtc_dev = dev;
-	if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR)
-		cdev->conn_dev = dev;
-
-	cdev->out_type = out_type;
-	cdev->dev_type_flag = dev_type;
-
-	mutex_lock(&drm_component_lock);
-	list_add_tail(&cdev->list, &drm_component_list);
-	mutex_unlock(&drm_component_lock);
-
-	return 0;
-}
-
-void exynos_drm_component_del(struct device *dev,
-				enum exynos_drm_device_type dev_type)
-{
-	struct component_dev *cdev, *next;
-
-	mutex_lock(&drm_component_lock);
-
-	list_for_each_entry_safe(cdev, next, &drm_component_list, list) {
-		if (dev_type == EXYNOS_DEVICE_TYPE_CRTC) {
-			if (cdev->crtc_dev == dev) {
-				cdev->crtc_dev = NULL;
-				cdev->dev_type_flag &= ~dev_type;
-			}
-		}
-
-		if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR) {
-			if (cdev->conn_dev == dev) {
-				cdev->conn_dev = NULL;
-				cdev->dev_type_flag &= ~dev_type;
-			}
-		}
-
-		/*
-		 * Release cdev object only in case that both of crtc and
-		 * encoder/connector device objects are NULL.
-		 */
-		if (!cdev->crtc_dev && !cdev->conn_dev) {
-			list_del(&cdev->list);
-			kfree(cdev);
-		}
-	}
-
-	mutex_unlock(&drm_component_lock);
-}
-
-static int compare_dev(struct device *dev, void *data)
-{
-	return dev == (struct device *)data;
-}
-
-static struct component_match *exynos_drm_match_add(struct device *dev)
-{
-	struct component_match *match = NULL;
-	struct component_dev *cdev;
-	unsigned int attach_cnt = 0;
-
-	mutex_lock(&drm_component_lock);
-
-	/* Do not retry to probe if there is no any kms driver regitered. */
-	if (list_empty(&drm_component_list)) {
-		mutex_unlock(&drm_component_lock);
-		return ERR_PTR(-ENODEV);
-	}
-
-	list_for_each_entry(cdev, &drm_component_list, list) {
-		/*
-		 * Add components to master only in case that crtc and
-		 * encoder/connector device objects exist.
-		 */
-		if (!cdev->crtc_dev || !cdev->conn_dev)
-			continue;
-
-		attach_cnt++;
-
-		mutex_unlock(&drm_component_lock);
-
-		/*
-		 * fimd and dpi modules have same device object so add
-		 * only crtc device object in this case.
-		 */
-		if (cdev->crtc_dev == cdev->conn_dev) {
-			component_match_add(dev, &match, compare_dev,
-						cdev->crtc_dev);
-			goto out_lock;
-		}
-
-		/*
-		 * Do not chage below call order.
-		 * crtc device first should be added to master because
-		 * connector/encoder need pipe number of crtc when they
-		 * are created.
-		 */
-		component_match_add(dev, &match, compare_dev, cdev->crtc_dev);
-		component_match_add(dev, &match, compare_dev, cdev->conn_dev);
-
-out_lock:
-		mutex_lock(&drm_component_lock);
-	}
-
-	mutex_unlock(&drm_component_lock);
-
-	return attach_cnt ? match : ERR_PTR(-EPROBE_DEFER);
-}
-
-static int exynos_drm_bind(struct device *dev)
-{
-	return drm_platform_init(&exynos_drm_driver, to_platform_device(dev));
-}
-
-static void exynos_drm_unbind(struct device *dev)
-{
-	drm_put_dev(dev_get_drvdata(dev));
-}
-
-static const struct component_master_ops exynos_drm_ops = {
-	.bind		= exynos_drm_bind,
-	.unbind		= exynos_drm_unbind,
-};
-
+/*
+ * Connector drivers should not be placed before associated crtc drivers,
+ * because connector requires pipe number of its crtc during initialization.
+ */
 static struct platform_driver *const exynos_drm_kms_drivers[] = {
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	&vidi_driver,
+#endif
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	&fimd_driver,
 #endif
+#ifdef CONFIG_DRM_EXYNOS5433_DECON
+	&exynos5433_decon_driver,
+#endif
 #ifdef CONFIG_DRM_EXYNOS7_DECON
 	&decon_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_MIC
+	&mic_driver,
 #endif
 #ifdef CONFIG_DRM_EXYNOS_DP
 	&dp_driver,
@@ -560,6 +388,59 @@ static struct platform_driver *const exynos_drm_non_kms_drivers[] = {
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	&ipp_driver,
 #endif
+	&exynos_drm_platform_driver,
+};
+
+static struct platform_driver *const exynos_drm_drv_with_simple_dev[] = {
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	&vidi_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	&ipp_driver,
+#endif
+	&exynos_drm_platform_driver,
+};
+#define PDEV_COUNT ARRAY_SIZE(exynos_drm_drv_with_simple_dev)
+
+static int compare_dev(struct device *dev, void *data)
+{
+	return dev == (struct device *)data;
+}
+
+static struct component_match *exynos_drm_match_add(struct device *dev)
+{
+	struct component_match *match = NULL;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_kms_drivers); ++i) {
+		struct device_driver *drv = &exynos_drm_kms_drivers[i]->driver;
+		struct device *p = NULL, *d;
+
+		while ((d = bus_find_device(&platform_bus_type, p, drv,
+					    (void *)platform_bus_type.match))) {
+			put_device(p);
+			component_match_add(dev, &match, compare_dev, d);
+			p = d;
+		}
+		put_device(p);
+	}
+
+	return match ?: ERR_PTR(-ENODEV);
+}
+
+static int exynos_drm_bind(struct device *dev)
+{
+	return drm_platform_init(&exynos_drm_driver, to_platform_device(dev));
+}
+
+static void exynos_drm_unbind(struct device *dev)
+{
+	drm_put_dev(dev_get_drvdata(dev));
+}
+
+static const struct component_master_ops exynos_drm_ops = {
+	.bind		= exynos_drm_bind,
+	.unbind		= exynos_drm_unbind,
 };
 
 static int exynos_drm_platform_probe(struct platform_device *pdev)
@@ -570,9 +451,8 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	exynos_drm_driver.num_ioctls = ARRAY_SIZE(exynos_ioctls);
 
 	match = exynos_drm_match_add(&pdev->dev);
-	if (IS_ERR(match)) {
+	if (IS_ERR(match))
 		return PTR_ERR(match);
-	}
 
 	return component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
 					       match);
@@ -584,13 +464,6 @@ static int exynos_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const char * const strings[] = {
-	"samsung,exynos3",
-	"samsung,exynos4",
-	"samsung,exynos5",
-	"samsung,exynos7",
-};
-
 static struct platform_driver exynos_drm_platform_driver = {
 	.probe	= exynos_drm_platform_probe,
 	.remove	= exynos_drm_platform_remove,
@@ -600,101 +473,125 @@ static struct platform_driver exynos_drm_platform_driver = {
 	},
 };
 
+static struct platform_device *exynos_drm_pdevs[PDEV_COUNT];
+
+static void exynos_drm_unregister_devices(void)
+{
+	int i = PDEV_COUNT;
+
+	while (--i >= 0) {
+		platform_device_unregister(exynos_drm_pdevs[i]);
+		exynos_drm_pdevs[i] = NULL;
+	}
+}
+
+static int exynos_drm_register_devices(void)
+{
+	int i;
+
+	for (i = 0; i < PDEV_COUNT; ++i) {
+		struct platform_driver *d = exynos_drm_drv_with_simple_dev[i];
+		struct platform_device *pdev =
+			platform_device_register_simple(d->driver.name, -1,
+							NULL, 0);
+
+		if (!IS_ERR(pdev)) {
+			exynos_drm_pdevs[i] = pdev;
+			continue;
+		}
+		while (--i >= 0) {
+			platform_device_unregister(exynos_drm_pdevs[i]);
+			exynos_drm_pdevs[i] = NULL;
+		}
+
+		return PTR_ERR(pdev);
+	}
+
+	return 0;
+}
+
+static void exynos_drm_unregister_drivers(struct platform_driver * const *drv,
+					  int count)
+{
+	while (--count >= 0)
+		platform_driver_unregister(drv[count]);
+}
+
+static int exynos_drm_register_drivers(struct platform_driver * const *drv,
+				       int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; ++i) {
+		ret = platform_driver_register(drv[i]);
+		if (!ret)
+			continue;
+
+		while (--i >= 0)
+			platform_driver_unregister(drv[i]);
+
+		return ret;
+	}
+
+	return 0;
+}
+
+static inline int exynos_drm_register_kms_drivers(void)
+{
+	return exynos_drm_register_drivers(exynos_drm_kms_drivers,
+					ARRAY_SIZE(exynos_drm_kms_drivers));
+}
+
+static inline int exynos_drm_register_non_kms_drivers(void)
+{
+	return exynos_drm_register_drivers(exynos_drm_non_kms_drivers,
+					ARRAY_SIZE(exynos_drm_non_kms_drivers));
+}
+
+static inline void exynos_drm_unregister_kms_drivers(void)
+{
+	exynos_drm_unregister_drivers(exynos_drm_kms_drivers,
+					ARRAY_SIZE(exynos_drm_kms_drivers));
+}
+
+static inline void exynos_drm_unregister_non_kms_drivers(void)
+{
+	exynos_drm_unregister_drivers(exynos_drm_non_kms_drivers,
+					ARRAY_SIZE(exynos_drm_non_kms_drivers));
+}
+
 static int exynos_drm_init(void)
 {
-	bool is_exynos = false;
-	int ret, i, j;
+	int ret;
 
-	/*
-	 * Register device object only in case of Exynos SoC.
-	 *
-	 * Below codes resolves temporarily infinite loop issue incurred
-	 * by Exynos drm driver when using multi-platform kernel.
-	 * So these codes will be replaced with more generic way later.
-	 */
-	for (i = 0; i < ARRAY_SIZE(strings); i++) {
-		if (of_machine_is_compatible(strings[i])) {
-			is_exynos = true;
-			break;
-		}
-	}
-
-	if (!is_exynos)
-		return -ENODEV;
-
-	exynos_drm_pdev = platform_device_register_simple("exynos-drm", -1,
-								NULL, 0);
-	if (IS_ERR(exynos_drm_pdev))
-		return PTR_ERR(exynos_drm_pdev);
-
-	ret = exynos_drm_probe_vidi();
-	if (ret < 0)
-		goto err_unregister_pd;
-
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_kms_drivers); ++i) {
-		ret = platform_driver_register(exynos_drm_kms_drivers[i]);
-		if (ret < 0)
-			goto err_unregister_kms_drivers;
-	}
-
-	for (j = 0; j < ARRAY_SIZE(exynos_drm_non_kms_drivers); ++j) {
-		ret = platform_driver_register(exynos_drm_non_kms_drivers[j]);
-		if (ret < 0)
-			goto err_unregister_non_kms_drivers;
-	}
-
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	ret = exynos_platform_device_ipp_register();
-	if (ret < 0)
-		goto err_unregister_non_kms_drivers;
-#endif
-
-	ret = platform_driver_register(&exynos_drm_platform_driver);
+	ret = exynos_drm_register_devices();
 	if (ret)
-		goto err_unregister_resources;
+		return ret;
+
+	ret = exynos_drm_register_kms_drivers();
+	if (ret)
+		goto err_unregister_pdevs;
+
+	ret = exynos_drm_register_non_kms_drivers();
+	if (ret)
+		goto err_unregister_kms_drivers;
 
 	return 0;
 
-err_unregister_resources:
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	exynos_platform_device_ipp_unregister();
-#endif
-
-err_unregister_non_kms_drivers:
-	while (--j >= 0)
-		platform_driver_unregister(exynos_drm_non_kms_drivers[j]);
-
 err_unregister_kms_drivers:
-	while (--i >= 0)
-		platform_driver_unregister(exynos_drm_kms_drivers[i]);
+	exynos_drm_unregister_kms_drivers();
 
-	exynos_drm_remove_vidi();
-
-err_unregister_pd:
-	platform_device_unregister(exynos_drm_pdev);
+err_unregister_pdevs:
+	exynos_drm_unregister_devices();
 
 	return ret;
 }
 
 static void exynos_drm_exit(void)
 {
-	int i;
-
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	exynos_platform_device_ipp_unregister();
-#endif
-
-	for (i = ARRAY_SIZE(exynos_drm_non_kms_drivers) - 1; i >= 0; --i)
-		platform_driver_unregister(exynos_drm_non_kms_drivers[i]);
-
-	for (i = ARRAY_SIZE(exynos_drm_kms_drivers) - 1; i >= 0; --i)
-		platform_driver_unregister(exynos_drm_kms_drivers[i]);
-
-	platform_driver_unregister(&exynos_drm_platform_driver);
-
-	exynos_drm_remove_vidi();
-
-	platform_device_unregister(exynos_drm_pdev);
+	exynos_drm_unregister_non_kms_drivers();
+	exynos_drm_unregister_kms_drivers();
+	exynos_drm_unregister_devices();
 }
 
 module_init(exynos_drm_init);

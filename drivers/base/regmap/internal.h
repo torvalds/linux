@@ -131,7 +131,10 @@ struct regmap {
 	struct reg_default *reg_defaults;
 	const void *reg_defaults_raw;
 	void *cache;
+	/* if set, the cache contains newer data than the HW */
 	u32 cache_dirty;
+	/* if set, the HW registers are known to match map->reg_defaults */
+	bool no_sync_defaults;
 
 	struct reg_default *patch;
 	int patch_regs;

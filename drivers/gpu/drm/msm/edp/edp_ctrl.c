@@ -1018,7 +1018,7 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 {
 	struct edp_ctrl *ctrl = container_of(
 				work, struct edp_ctrl, off_work);
-	int ret;
+	unsigned long time_left;
 
 	mutex_lock(&ctrl->dev_mutex);
 
@@ -1030,11 +1030,10 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 	reinit_completion(&ctrl->idle_comp);
 	edp_state_ctrl(ctrl, EDP_STATE_CTRL_PUSH_IDLE);
 
-	ret = wait_for_completion_timeout(&ctrl->idle_comp,
+	time_left = wait_for_completion_timeout(&ctrl->idle_comp,
 						msecs_to_jiffies(500));
-	if (ret <= 0)
-		DBG("%s: idle pattern timedout, %d\n",
-				__func__, ret);
+	if (!time_left)
+		DBG("%s: idle pattern timedout\n", __func__);
 
 	edp_state_ctrl(ctrl, 0);
 

@@ -1049,8 +1049,6 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	    !trans_pcie->cmd_hold_nic_awake) {
 		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-			udelay(2);
 
 		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
 				   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,

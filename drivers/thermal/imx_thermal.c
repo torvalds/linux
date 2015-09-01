@@ -306,7 +306,8 @@ static int imx_bind(struct thermal_zone_device *tz,
 
 	ret = thermal_zone_bind_cooling_device(tz, IMX_TRIP_PASSIVE, cdev,
 					       THERMAL_NO_LIMIT,
-					       THERMAL_NO_LIMIT);
+					       THERMAL_NO_LIMIT,
+					       THERMAL_WEIGHT_DEFAULT);
 	if (ret) {
 		dev_err(&tz->device,
 			"binding zone %s with cdev %s failed:%d\n",

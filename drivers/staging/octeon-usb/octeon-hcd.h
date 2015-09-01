@@ -1693,7 +1693,7 @@ union cvmx_usbnx_usbp_ctl_status {
 	 * struct cvmx_usbnx_usbp_ctl_status_s
 	 * @txrisetune: HS Transmitter Rise/Fall Time Adjustment
 	 * @txvreftune: HS DC Voltage Level Adjustment
-	 * @txfslstune: FS/LS Source Impedence Adjustment
+	 * @txfslstune: FS/LS Source Impedance Adjustment
 	 * @txhsxvtune: Transmitter High-Speed Crossover Adjustment
 	 * @sqrxtune: Squelch Threshold Adjustment
 	 * @compdistune: Disconnect Threshold Adjustment

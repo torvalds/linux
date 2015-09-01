@@ -1489,7 +1489,7 @@ static int iss_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id omap4iss_id_table[] = {
+static const struct platform_device_id omap4iss_id_table[] = {
 	{ "omap4iss", 0 },
 	{ },
 };

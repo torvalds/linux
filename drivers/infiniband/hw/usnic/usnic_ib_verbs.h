@@ -24,9 +24,12 @@
 enum rdma_link_layer usnic_ib_port_link_layer(struct ib_device *device,
 						u8 port_num);
 int usnic_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props);
+				struct ib_device_attr *props,
+			  struct ib_udata *uhw);
 int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 				struct ib_port_attr *props);
+enum rdma_protocol_type
+usnic_ib_query_protocol(struct ib_device *device, u8 port_num);
 int usnic_ib_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 				int qp_attr_mask,
 				struct ib_qp_init_attr *qp_init_attr);
@@ -44,9 +47,10 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 int usnic_ib_destroy_qp(struct ib_qp *qp);
 int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				int attr_mask, struct ib_udata *udata);
-struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev, int entries,
-					int vector, struct ib_ucontext *context,
-					struct ib_udata *udata);
+struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
+				 const struct ib_cq_init_attr *attr,
+				 struct ib_ucontext *context,
+				 struct ib_udata *udata);
 int usnic_ib_destroy_cq(struct ib_cq *cq);
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 				u64 virt_addr, int access_flags,

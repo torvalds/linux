@@ -79,18 +79,6 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-static u64 bpf_ktime_get_ns(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
-{
-	/* NMI safe access to clock monotonic */
-	return ktime_get_mono_fast_ns();
-}
-
-static const struct bpf_func_proto bpf_ktime_get_ns_proto = {
-	.func		= bpf_ktime_get_ns,
-	.gpl_only	= true,
-	.ret_type	= RET_INTEGER,
-};
-
 /*
  * limited trace_printk()
  * only %d %u %x %ld %lu %lx %lld %llu %llx %p conversion specifiers allowed
@@ -159,6 +147,17 @@ static const struct bpf_func_proto bpf_trace_printk_proto = {
 	.arg2_type	= ARG_CONST_STACK_SIZE,
 };
 
+const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
+{
+	/*
+	 * this program might be calling bpf_trace_printk,
+	 * so allocate per-cpu printk buffers
+	 */
+	trace_printk_init_buffers();
+
+	return &bpf_trace_printk_proto;
+}
+
 static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -172,15 +171,18 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return &bpf_probe_read_proto;
 	case BPF_FUNC_ktime_get_ns:
 		return &bpf_ktime_get_ns_proto;
-
+	case BPF_FUNC_tail_call:
+		return &bpf_tail_call_proto;
+	case BPF_FUNC_get_current_pid_tgid:
+		return &bpf_get_current_pid_tgid_proto;
+	case BPF_FUNC_get_current_uid_gid:
+		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_get_current_comm:
+		return &bpf_get_current_comm_proto;
 	case BPF_FUNC_trace_printk:
-		/*
-		 * this program might be calling bpf_trace_printk,
-		 * so allocate per-cpu printk buffers
-		 */
-		trace_printk_init_buffers();
-
-		return &bpf_trace_printk_proto;
+		return bpf_get_trace_printk_proto();
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_smp_processor_id_proto;
 	default:
 		return NULL;
 	}

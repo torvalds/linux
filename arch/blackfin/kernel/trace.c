@@ -136,7 +136,7 @@ void decode_address(char *buf, unsigned long address)
 				struct file *file = vma->vm_file;
 
 				if (file) {
-					char *d_name = d_path(&file->f_path, _tmpbuf,
+					char *d_name = file_path(file, _tmpbuf,
 						      sizeof(_tmpbuf));
 					if (!IS_ERR(d_name))
 						name = d_name;

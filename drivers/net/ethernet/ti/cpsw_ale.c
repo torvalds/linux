@@ -268,39 +268,6 @@ int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask, int vid)
 }
 EXPORT_SYMBOL_GPL(cpsw_ale_flush_multicast);
 
-static void cpsw_ale_flush_ucast(struct cpsw_ale *ale, u32 *ale_entry,
-				 int port_mask)
-{
-	int port;
-
-	port = cpsw_ale_get_port_num(ale_entry);
-	if ((BIT(port) & port_mask) == 0)
-		return; /* ports dont intersect, not interested */
-	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
-}
-
-int cpsw_ale_flush(struct cpsw_ale *ale, int port_mask)
-{
-	u32 ale_entry[ALE_ENTRY_WORDS];
-	int ret, idx;
-
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
-		cpsw_ale_read(ale, idx, ale_entry);
-		ret = cpsw_ale_get_entry_type(ale_entry);
-		if (ret != ALE_TYPE_ADDR && ret != ALE_TYPE_VLAN_ADDR)
-			continue;
-
-		if (cpsw_ale_get_mcast(ale_entry))
-			cpsw_ale_flush_mcast(ale, ale_entry, port_mask);
-		else
-			cpsw_ale_flush_ucast(ale, ale_entry, port_mask);
-
-		cpsw_ale_write(ale, idx, ale_entry);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cpsw_ale_flush);
-
 static inline void cpsw_ale_set_vlan_entry_type(u32 *ale_entry,
 						int flags, u16 vid)
 {
@@ -751,18 +718,6 @@ static void cpsw_ale_timer(unsigned long arg)
 		add_timer(&ale->timer);
 	}
 }
-
-int cpsw_ale_set_ageout(struct cpsw_ale *ale, int ageout)
-{
-	del_timer_sync(&ale->timer);
-	ale->ageout = ageout * HZ;
-	if (ale->ageout) {
-		ale->timer.expires = jiffies + ale->ageout;
-		add_timer(&ale->timer);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cpsw_ale_set_ageout);
 
 void cpsw_ale_start(struct cpsw_ale *ale)
 {

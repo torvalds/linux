@@ -649,7 +649,115 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 		slot_hold(qd);
 	}
 
+	if (change < 0) /* Reset quiet flag if we freed some blocks */
+		clear_bit(QDF_QMSG_QUIET, &qd->qd_flags);
 	mutex_unlock(&sdp->sd_quota_mutex);
+}
+
+static int gfs2_write_buf_to_page(struct gfs2_inode *ip, unsigned long index,
+				  unsigned off, void *buf, unsigned bytes)
+{
+	struct inode *inode = &ip->i_inode;
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct address_space *mapping = inode->i_mapping;
+	struct page *page;
+	struct buffer_head *bh;
+	void *kaddr;
+	u64 blk;
+	unsigned bsize = sdp->sd_sb.sb_bsize, bnum = 0, boff = 0;
+	unsigned to_write = bytes, pg_off = off;
+	int done = 0;
+
+	blk = index << (PAGE_CACHE_SHIFT - sdp->sd_sb.sb_bsize_shift);
+	boff = off % bsize;
+
+	page = find_or_create_page(mapping, index, GFP_NOFS);
+	if (!page)
+		return -ENOMEM;
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, bsize, 0);
+
+	bh = page_buffers(page);
+	while (!done) {
+		/* Find the beginning block within the page */
+		if (pg_off >= ((bnum * bsize) + bsize)) {
+			bh = bh->b_this_page;
+			bnum++;
+			blk++;
+			continue;
+		}
+		if (!buffer_mapped(bh)) {
+			gfs2_block_map(inode, blk, bh, 1);
+			if (!buffer_mapped(bh))
+				goto unlock_out;
+			/* If it's a newly allocated disk block, zero it */
+			if (buffer_new(bh))
+				zero_user(page, bnum * bsize, bh->b_size);
+		}
+		if (PageUptodate(page))
+			set_buffer_uptodate(bh);
+		if (!buffer_uptodate(bh)) {
+			ll_rw_block(READ | REQ_META, 1, &bh);
+			wait_on_buffer(bh);
+			if (!buffer_uptodate(bh))
+				goto unlock_out;
+		}
+		gfs2_trans_add_data(ip->i_gl, bh);
+
+		/* If we need to write to the next block as well */
+		if (to_write > (bsize - boff)) {
+			pg_off += (bsize - boff);
+			to_write -= (bsize - boff);
+			boff = pg_off % bsize;
+			continue;
+		}
+		done = 1;
+	}
+
+	/* Write to the page, now that we have setup the buffer(s) */
+	kaddr = kmap_atomic(page);
+	memcpy(kaddr + off, buf, bytes);
+	flush_dcache_page(page);
+	kunmap_atomic(kaddr);
+	unlock_page(page);
+	page_cache_release(page);
+
+	return 0;
+
+unlock_out:
+	unlock_page(page);
+	page_cache_release(page);
+	return -EIO;
+}
+
+static int gfs2_write_disk_quota(struct gfs2_inode *ip, struct gfs2_quota *qp,
+				 loff_t loc)
+{
+	unsigned long pg_beg;
+	unsigned pg_off, nbytes, overflow = 0;
+	int pg_oflow = 0, error;
+	void *ptr;
+
+	nbytes = sizeof(struct gfs2_quota);
+
+	pg_beg = loc >> PAGE_CACHE_SHIFT;
+	pg_off = loc % PAGE_CACHE_SIZE;
+
+	/* If the quota straddles a page boundary, split the write in two */
+	if ((pg_off + nbytes) > PAGE_CACHE_SIZE) {
+		pg_oflow = 1;
+		overflow = (pg_off + nbytes) - PAGE_CACHE_SIZE;
+	}
+
+	ptr = qp;
+	error = gfs2_write_buf_to_page(ip, pg_beg, pg_off, ptr,
+				       nbytes - overflow);
+	/* If there's an overflow, write the remaining bytes to the next page */
+	if (!error && pg_oflow)
+		error = gfs2_write_buf_to_page(ip, pg_beg + 1, 0,
+					       ptr + nbytes - overflow,
+					       overflow);
+	return error;
 }
 
 /**
@@ -672,15 +780,8 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 {
 	struct inode *inode = &ip->i_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct address_space *mapping = inode->i_mapping;
-	unsigned long index = loc >> PAGE_CACHE_SHIFT;
-	unsigned offset = loc & (PAGE_CACHE_SIZE - 1);
-	unsigned blocksize, iblock, pos;
-	struct buffer_head *bh;
-	struct page *page;
-	void *kaddr, *ptr;
 	struct gfs2_quota q;
-	int err, nbytes;
+	int err;
 	u64 size;
 
 	if (gfs2_is_stuffed(ip)) {
@@ -694,8 +795,11 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	if (err < 0)
 		return err;
 
+	loc -= sizeof(q); /* gfs2_internal_read would've advanced the loc ptr */
 	err = -EIO;
 	be64_add_cpu(&q.qu_value, change);
+	if (((s64)be64_to_cpu(q.qu_value)) < 0)
+		q.qu_value = 0; /* Never go negative on quota usage */
 	qd->qd_qb.qb_value = q.qu_value;
 	if (fdq) {
 		if (fdq->d_fieldmask & QC_SPC_SOFT) {
@@ -712,79 +816,16 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 		}
 	}
 
-	/* Write the quota into the quota file on disk */
-	ptr = &q;
-	nbytes = sizeof(struct gfs2_quota);
-get_a_page:
-	page = find_or_create_page(mapping, index, GFP_NOFS);
-	if (!page)
-		return -ENOMEM;
-
-	blocksize = inode->i_sb->s_blocksize;
-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
-
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, blocksize, 0);
-
-	bh = page_buffers(page);
-	pos = blocksize;
-	while (offset >= pos) {
-		bh = bh->b_this_page;
-		iblock++;
-		pos += blocksize;
+	err = gfs2_write_disk_quota(ip, &q, loc);
+	if (!err) {
+		size = loc + sizeof(struct gfs2_quota);
+		if (size > inode->i_size)
+			i_size_write(inode, size);
+		inode->i_mtime = inode->i_atime = CURRENT_TIME;
+		mark_inode_dirty(inode);
+		set_bit(QDF_REFRESH, &qd->qd_flags);
 	}
 
-	if (!buffer_mapped(bh)) {
-		gfs2_block_map(inode, iblock, bh, 1);
-		if (!buffer_mapped(bh))
-			goto unlock_out;
-		/* If it's a newly allocated disk block for quota, zero it */
-		if (buffer_new(bh))
-			zero_user(page, pos - blocksize, bh->b_size);
-	}
-
-	if (PageUptodate(page))
-		set_buffer_uptodate(bh);
-
-	if (!buffer_uptodate(bh)) {
-		ll_rw_block(READ | REQ_META, 1, &bh);
-		wait_on_buffer(bh);
-		if (!buffer_uptodate(bh))
-			goto unlock_out;
-	}
-
-	gfs2_trans_add_data(ip->i_gl, bh);
-
-	kaddr = kmap_atomic(page);
-	if (offset + sizeof(struct gfs2_quota) > PAGE_CACHE_SIZE)
-		nbytes = PAGE_CACHE_SIZE - offset;
-	memcpy(kaddr + offset, ptr, nbytes);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr);
-	unlock_page(page);
-	page_cache_release(page);
-
-	/* If quota straddles page boundary, we need to update the rest of the
-	 * quota at the beginning of the next page */
-	if ((offset + sizeof(struct gfs2_quota)) > PAGE_CACHE_SIZE) {
-		ptr = ptr + nbytes;
-		nbytes = sizeof(struct gfs2_quota) - nbytes;
-		offset = 0;
-		index++;
-		goto get_a_page;
-	}
-
-	size = loc + sizeof(struct gfs2_quota);
-	if (size > inode->i_size)
-		i_size_write(inode, size);
-	inode->i_mtime = inode->i_atime = CURRENT_TIME;
-	mark_inode_dirty(inode);
-	set_bit(QDF_REFRESH, &qd->qd_flags);
-	return 0;
-
-unlock_out:
-	unlock_page(page);
-	page_cache_release(page);
 	return err;
 }
 
@@ -1148,10 +1189,13 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 			/* If no min_target specified or we don't meet
 			 * min_target, return -EDQUOT */
 			if (!ap->min_target || ap->min_target > ap->allowed) {
-				print_message(qd, "exceeded");
-				quota_send_warning(qd->qd_id,
-						   sdp->sd_vfs->s_dev,
-						   QUOTA_NL_BHARDWARN);
+				if (!test_and_set_bit(QDF_QMSG_QUIET,
+						      &qd->qd_flags)) {
+					print_message(qd, "exceeded");
+					quota_send_warning(qd->qd_id,
+							   sdp->sd_vfs->s_dev,
+							   QUOTA_NL_BHARDWARN);
+				}
 				error = -EDQUOT;
 				break;
 			}
@@ -1648,6 +1692,8 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 
 	/* Apply changes */
 	error = gfs2_adjust_quota(ip, offset, 0, qd, fdq);
+	if (!error)
+		clear_bit(QDF_QMSG_QUIET, &qd->qd_flags);
 
 	gfs2_trans_end(sdp);
 out_release:

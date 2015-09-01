@@ -8,23 +8,8 @@
 #include <linux/types.h>
 #include "xyarray.h"
 #include "symbol.h"
-
-struct perf_counts_values {
-	union {
-		struct {
-			u64 val;
-			u64 ena;
-			u64 run;
-		};
-		u64 values[3];
-	};
-};
-
-struct perf_counts {
-	s8		   	  scaled;
-	struct perf_counts_values aggr;
-	struct perf_counts_values cpu[];
-};
+#include "cpumap.h"
+#include "stat.h"
 
 struct perf_evsel;
 
@@ -82,6 +67,7 @@ struct perf_evsel {
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
+	struct thread_map	*threads;
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
@@ -113,10 +99,20 @@ struct thread_map;
 struct perf_evlist;
 struct record_opts;
 
+static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
+{
+	return evsel->cpus;
+}
+
+static inline int perf_evsel__nr_cpus(struct perf_evsel *evsel)
+{
+	return perf_evsel__cpus(evsel)->nr;
+}
+
 void perf_counts_values__scale(struct perf_counts_values *count,
 			       bool scale, s8 *pscaled);
 
-void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
+void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu, int thread,
 				struct perf_counts_values *count);
 
 int perf_evsel__object_config(size_t object_size,
@@ -233,12 +229,8 @@ static inline bool perf_evsel__match2(struct perf_evsel *e1,
 	 (a)->attr.type == (b)->attr.type &&	\
 	 (a)->attr.config == (b)->attr.config)
 
-typedef int (perf_evsel__read_cb_t)(struct perf_evsel *evsel,
-				    int cpu, int thread,
-				    struct perf_counts_values *count);
-
-int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
-			perf_evsel__read_cb_t cb);
+int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
+		     struct perf_counts_values *count);
 
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale);

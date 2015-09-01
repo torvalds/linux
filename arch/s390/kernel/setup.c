@@ -128,9 +128,9 @@ __setup("condev=", condev_setup);
 static void __init set_preferred_console(void)
 {
 	if (MACHINE_IS_KVM) {
-		if (sclp_has_vt220())
+		if (sclp.has_vt220)
 			add_preferred_console("ttyS", 1, NULL);
-		else if (sclp_has_linemode())
+		else if (sclp.has_linemode)
 			add_preferred_console("ttyS", 0, NULL);
 		else
 			add_preferred_console("hvc", 0, NULL);
@@ -510,8 +510,8 @@ static void reserve_memory_end(void)
 {
 #ifdef CONFIG_CRASH_DUMP
 	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
-	    !OLDMEM_BASE && sclp_get_hsa_size()) {
-		memory_end = sclp_get_hsa_size();
+	    !OLDMEM_BASE && sclp.hsa_size) {
+		memory_end = sclp.hsa_size;
 		memory_end &= PAGE_MASK;
 		memory_end_set = 1;
 	}
@@ -576,7 +576,7 @@ static void __init reserve_crashkernel(void)
 		crash_base = low;
 	} else {
 		/* Find suitable area in free memory */
-		low = max_t(unsigned long, crash_size, sclp_get_hsa_size());
+		low = max_t(unsigned long, crash_size, sclp.hsa_size);
 		high = crash_base ? crash_base + crash_size : ULONG_MAX;
 
 		if (crash_base && crash_base < low) {
@@ -640,19 +640,24 @@ static void __init check_initrd(void)
 }
 
 /*
- * Reserve all kernel text
+ * Reserve memory used for lowcore/command line/kernel image.
  */
 static void __init reserve_kernel(void)
 {
-	unsigned long start_pfn;
-	start_pfn = PFN_UP(__pa(&_end));
+	unsigned long start_pfn = PFN_UP(__pa(&_end));
 
+#ifdef CONFIG_DMA_API_DEBUG
 	/*
-	 * Reserve memory used for lowcore/command line/kernel image.
+	 * DMA_API_DEBUG code stumbles over addresses from the
+	 * range [_ehead, _stext]. Mark the memory as reserved
+	 * so it is not used for CONFIG_DMA_API_DEBUG=y.
 	 */
+	memblock_reserve(0, PFN_PHYS(start_pfn));
+#else
 	memblock_reserve(0, (unsigned long)_ehead);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
+#endif
 }
 
 static void __init reserve_elfcorehdr(void)
@@ -863,6 +868,11 @@ void __init setup_arch(char **cmdline_p)
 
 	check_initrd();
 	reserve_crashkernel();
+	/*
+	 * Be aware that smp_save_dump_cpus() triggers a system reset.
+	 * Therefore CPU and device initialization should be done afterwards.
+	 */
+	smp_save_dump_cpus();
 
 	setup_resources();
 	setup_vmcoreinfo();

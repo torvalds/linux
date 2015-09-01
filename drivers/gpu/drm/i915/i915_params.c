@@ -53,6 +53,7 @@ struct i915_params i915 __read_mostly = {
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
 	.nuclear_pageflip = 0,
+	.edp_vswing = 0,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -184,3 +185,10 @@ MODULE_PARM_DESC(verbose_state_checks,
 module_param_named_unsafe(nuclear_pageflip, i915.nuclear_pageflip, bool, 0600);
 MODULE_PARM_DESC(nuclear_pageflip,
 		 "Force atomic modeset functionality; only planes work for now (default: false).");
+
+/* WA to get away with the default setting in VBT for early platforms.Will be removed */
+module_param_named_unsafe(edp_vswing, i915.edp_vswing, int, 0400);
+MODULE_PARM_DESC(edp_vswing,
+		 "Ignore/Override vswing pre-emph table selection from VBT "
+		 "(0=use value from vbt [default], 1=low power swing(200mV),"
+		 "2=default swing(400mV))");

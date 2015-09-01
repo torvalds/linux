@@ -25,6 +25,19 @@ config INPUT
 
 if INPUT
 
+config INPUT_LEDS
+	tristate "Export input device LEDs in sysfs"
+	depends on LEDS_CLASS
+	default INPUT
+	help
+	  Say Y here if you would like to export LEDs on input devices
+	  as standard LED class devices in sysfs.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called input-leds.
+
 config INPUT_FF_MEMLESS
 	tristate "Support for memoryless force-feedback devices"
 	help

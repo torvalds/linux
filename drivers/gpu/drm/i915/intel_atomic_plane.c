@@ -85,8 +85,8 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	state = &intel_state->base;
-	if (state->fb)
-		drm_framebuffer_reference(state->fb);
+
+	__drm_atomic_helper_plane_duplicate_state(plane, state);
 
 	return state;
 }
@@ -111,6 +111,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_crtc *crtc = state->crtc;
 	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *crtc_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state = to_intel_plane_state(state);
 
@@ -125,6 +126,17 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (!crtc)
 		return 0;
+
+	/* FIXME: temporary hack necessary while we still use the plane update
+	 * helper. */
+	if (state->state) {
+		crtc_state =
+			intel_atomic_get_crtc_state(state->state, intel_crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	} else {
+		crtc_state = intel_crtc->config;
+	}
 
 	/*
 	 * The original src/dest coordinates are stored in state->base, but
@@ -144,9 +156,9 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;
 	intel_state->clip.x2 =
-		intel_crtc->active ? intel_crtc->config->pipe_src_w : 0;
+		crtc_state->base.active ? crtc_state->pipe_src_w : 0;
 	intel_state->clip.y2 =
-		intel_crtc->active ? intel_crtc->config->pipe_src_h : 0;
+		crtc_state->base.active ? crtc_state->pipe_src_h : 0;
 
 	/*
 	 * Disabling a plane is always okay; we just need to update
@@ -162,6 +174,30 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 			(1 << drm_plane_index(plane));
 	}
 
+	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
+		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
+			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
+			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * 90/270 is not allowed with RGB64 16:16:16:16,
+		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
+		 * TBD: Add RGB64 case once its added in supported format list.
+		 */
+		switch (state->fb->pixel_format) {
+		case DRM_FORMAT_C8:
+		case DRM_FORMAT_RGB565:
+			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
+					drm_get_format_name(state->fb->pixel_format));
+			return -EINVAL;
+
+		default:
+			break;
+		}
+	}
+
 	return intel_plane->check_plane(plane, intel_state);
 }
 
@@ -171,10 +207,6 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane->state);
-
-	/* Don't disable an already disabled plane */
-	if (!plane->state->fb && !old_state->fb)
-		return;
 
 	intel_plane->commit_plane(plane, intel_state);
 }

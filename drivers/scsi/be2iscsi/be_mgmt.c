@@ -1707,3 +1707,72 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 		     (params->dw[offsetof(struct amap_beiscsi_offload_params,
 		      exp_statsn) / 32] + 1));
 }
+
+/**
+ * beiscsi_logout_fw_sess()- Firmware Session Logout
+ * @phba: Device priv structure instance
+ * @fw_sess_handle: FW session handle
+ *
+ * Logout from the FW established sessions.
+ * returns
+ *  Success: 0
+ *  Failure: Non-Zero Value
+ *
+ */
+int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
+		uint32_t fw_sess_handle)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_logout_fw_sess *req;
+	struct be_cmd_resp_logout_fw_sess *resp;
+	unsigned int tag;
+	int rc;
+
+	beiscsi_log(phba, KERN_INFO,
+		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BG_%d : In bescsi_logout_fwboot_sess\n");
+
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		beiscsi_log(phba, KERN_INFO,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BG_%d : MBX Tag Failure\n");
+		return -EINVAL;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
+			   OPCODE_ISCSI_INI_SESSION_LOGOUT_TARGET,
+			   sizeof(struct be_cmd_req_logout_fw_sess));
+
+	/* Set the session handle */
+	req->session_handle = fw_sess_handle;
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+
+	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (rc) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+			    "BG_%d : MBX CMD FW_SESSION_LOGOUT_TARGET Failed\n");
+		return -EBUSY;
+	}
+
+	resp = embedded_payload(wrb);
+	if (resp->session_status !=
+		BEISCSI_MGMT_SESSION_CLOSE) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+			    "BG_%d : FW_SESSION_LOGOUT_TARGET resp : 0x%x\n",
+			    resp->session_status);
+		rc = -EINVAL;
+	}
+
+	return rc;
+}

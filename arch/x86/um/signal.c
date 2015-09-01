@@ -541,7 +541,8 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	 */
 	/* x86-64 should always use SA_RESTORER. */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
-		err |= __put_user(ksig->ka.sa.sa_restorer, &frame->pretcode);
+		err |= __put_user((void *)ksig->ka.sa.sa_restorer,
+				  &frame->pretcode);
 	else
 		/* could use a vstub here */
 		return err;

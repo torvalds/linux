@@ -94,7 +94,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 static void update_sit_info(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
-	unsigned int blks_per_sec, hblks_per_sec, total_vblocks, bimodal, dist;
+	unsigned long long blks_per_sec, hblks_per_sec, total_vblocks;
+	unsigned long long bimodal, dist;
 	unsigned int segno, vblocks;
 	int ndirty = 0;
 
@@ -112,10 +113,10 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 			ndirty++;
 		}
 	}
-	dist = MAIN_SECS(sbi) * hblks_per_sec * hblks_per_sec / 100;
-	si->bimodal = bimodal / dist;
+	dist = div_u64(MAIN_SECS(sbi) * hblks_per_sec * hblks_per_sec, 100);
+	si->bimodal = div_u64(bimodal, dist);
 	if (si->dirty_count)
-		si->avg_vblocks = total_vblocks / ndirty;
+		si->avg_vblocks = div_u64(total_vblocks, ndirty);
 	else
 		si->avg_vblocks = 0;
 }
@@ -143,7 +144,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem += sizeof(struct sit_info);
 	si->base_mem += MAIN_SEGS(sbi) * sizeof(struct seg_entry);
 	si->base_mem += f2fs_bitmap_size(MAIN_SEGS(sbi));
-	si->base_mem += 2 * SIT_VBLOCK_MAP_SIZE * MAIN_SEGS(sbi);
+	si->base_mem += 3 * SIT_VBLOCK_MAP_SIZE * MAIN_SEGS(sbi);
 	si->base_mem += SIT_VBLOCK_MAP_SIZE;
 	if (sbi->segs_per_sec > 1)
 		si->base_mem += MAIN_SECS(sbi) * sizeof(struct sec_entry);

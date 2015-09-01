@@ -561,9 +561,13 @@ void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 
 		/* spin until TX is done */
 		ret = spin_event_timeout(((events = mpc8xxx_spi_read_reg(
-				&reg_base->event)) & SPIE_NF) == 0, 1000, 0);
+				&reg_base->event)) & SPIE_NF), 1000, 0);
 		if (!ret) {
 			dev_err(mspi->dev, "tired waiting for SPIE_NF\n");
+
+			/* Clear the SPIE bits */
+			mpc8xxx_spi_write_reg(&reg_base->event, events);
+			complete(&mspi->done);
 			return;
 		}
 	}

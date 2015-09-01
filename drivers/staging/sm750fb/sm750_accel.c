@@ -18,81 +18,81 @@
 #include "sm750.h"
 #include "sm750_accel.h"
 #include "sm750_help.h"
-static inline void write_dpr(struct lynx_accel * accel,int offset,u32 regValue)
+static inline void write_dpr(struct lynx_accel *accel, int offset, u32 regValue)
 {
-	writel(regValue,accel->dprBase + offset);
+	writel(regValue, accel->dprBase + offset);
 }
 
-static inline u32 read_dpr(struct lynx_accel * accel,int offset)
+static inline u32 read_dpr(struct lynx_accel *accel, int offset)
 {
 	return readl(accel->dprBase + offset);
 }
 
-static inline void write_dpPort(struct lynx_accel * accel,u32 data)
+static inline void write_dpPort(struct lynx_accel *accel, u32 data)
 {
-	writel(data,accel->dpPortBase);
+	writel(data, accel->dpPortBase);
 }
 
-void hw_de_init(struct lynx_accel * accel)
+void hw_de_init(struct lynx_accel *accel)
 {
 	/* setup 2d engine registers */
-	u32 reg,clr;
+	u32 reg, clr;
 	
-	write_dpr(accel,DE_MASKS,0xFFFFFFFF);
+	write_dpr(accel, DE_MASKS, 0xFFFFFFFF);
 
 	/* dpr1c */
-	reg = FIELD_SET(0,DE_STRETCH_FORMAT,PATTERN_XY,NORMAL)|
-		FIELD_VALUE(0,DE_STRETCH_FORMAT,PATTERN_Y,0)|
-		FIELD_VALUE(0,DE_STRETCH_FORMAT,PATTERN_X,0)|
-		FIELD_SET(0,DE_STRETCH_FORMAT,ADDRESSING,XY)|
-		FIELD_VALUE(0,DE_STRETCH_FORMAT,SOURCE_HEIGHT,3);
+	reg = FIELD_SET(0, DE_STRETCH_FORMAT, PATTERN_XY, NORMAL)|
+		FIELD_VALUE(0, DE_STRETCH_FORMAT, PATTERN_Y, 0)|
+		FIELD_VALUE(0, DE_STRETCH_FORMAT, PATTERN_X, 0)|
+		FIELD_SET(0, DE_STRETCH_FORMAT, ADDRESSING, XY)|
+		FIELD_VALUE(0, DE_STRETCH_FORMAT, SOURCE_HEIGHT, 3);
 
-	clr = FIELD_CLEAR(DE_STRETCH_FORMAT,PATTERN_XY)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT,PATTERN_Y)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT,PATTERN_X)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT,ADDRESSING)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT,SOURCE_HEIGHT);
+	clr = FIELD_CLEAR(DE_STRETCH_FORMAT, PATTERN_XY)&
+		FIELD_CLEAR(DE_STRETCH_FORMAT, PATTERN_Y)&
+		FIELD_CLEAR(DE_STRETCH_FORMAT, PATTERN_X)&
+		FIELD_CLEAR(DE_STRETCH_FORMAT, ADDRESSING)&
+		FIELD_CLEAR(DE_STRETCH_FORMAT, SOURCE_HEIGHT);
 
 	/* DE_STRETCH bpp format need be initilized in setMode routine */
-	write_dpr(accel,DE_STRETCH_FORMAT,(read_dpr(accel,DE_STRETCH_FORMAT) & clr) | reg);
+	write_dpr(accel, DE_STRETCH_FORMAT, (read_dpr(accel, DE_STRETCH_FORMAT) & clr) | reg);
 
 	/* disable clipping and transparent */
-	write_dpr(accel,DE_CLIP_TL,0);//dpr2c
-	write_dpr(accel,DE_CLIP_BR,0);//dpr30
+	write_dpr(accel, DE_CLIP_TL, 0); /* dpr2c */
+	write_dpr(accel, DE_CLIP_BR, 0); /* dpr30 */
 
-	write_dpr(accel,DE_COLOR_COMPARE_MASK,0);//dpr24
-	write_dpr(accel,DE_COLOR_COMPARE,0);
+	write_dpr(accel, DE_COLOR_COMPARE_MASK, 0); /* dpr24 */
+	write_dpr(accel, DE_COLOR_COMPARE, 0);
 
-	reg = FIELD_SET(0,DE_CONTROL,TRANSPARENCY,DISABLE)|
-		FIELD_SET(0,DE_CONTROL,TRANSPARENCY_MATCH,OPAQUE)|
-		FIELD_SET(0,DE_CONTROL,TRANSPARENCY_SELECT,SOURCE);
+	reg = FIELD_SET(0, DE_CONTROL, TRANSPARENCY, DISABLE)|
+		FIELD_SET(0, DE_CONTROL, TRANSPARENCY_MATCH, OPAQUE)|
+		FIELD_SET(0, DE_CONTROL, TRANSPARENCY_SELECT, SOURCE);
 
-	clr = FIELD_CLEAR(DE_CONTROL,TRANSPARENCY)&
-		FIELD_CLEAR(DE_CONTROL,TRANSPARENCY_MATCH)&
-		FIELD_CLEAR(DE_CONTROL,TRANSPARENCY_SELECT);
+	clr = FIELD_CLEAR(DE_CONTROL, TRANSPARENCY)&
+		FIELD_CLEAR(DE_CONTROL, TRANSPARENCY_MATCH)&
+		FIELD_CLEAR(DE_CONTROL, TRANSPARENCY_SELECT);
 
 	/* dpr0c */
-	write_dpr(accel,DE_CONTROL,(read_dpr(accel,DE_CONTROL)&clr)|reg);
+	write_dpr(accel, DE_CONTROL, (read_dpr(accel, DE_CONTROL)&clr)|reg);
 }
 
 /* set2dformat only be called from setmode functions
  * but if you need dual framebuffer driver,need call set2dformat
  * every time you use 2d function */
 
-void hw_set2dformat(struct lynx_accel * accel,int fmt)
+void hw_set2dformat(struct lynx_accel *accel, int fmt)
 {
 	u32 reg;
 	
 	/* fmt=0,1,2 for 8,16,32,bpp on sm718/750/502 */
-	reg = read_dpr(accel,DE_STRETCH_FORMAT);
-	reg = FIELD_VALUE(reg,DE_STRETCH_FORMAT,PIXEL_FORMAT,fmt);
-	write_dpr(accel,DE_STRETCH_FORMAT,reg);
+	reg = read_dpr(accel, DE_STRETCH_FORMAT);
+	reg = FIELD_VALUE(reg, DE_STRETCH_FORMAT, PIXEL_FORMAT, fmt);
+	write_dpr(accel, DE_STRETCH_FORMAT, reg);
 }
 
-int hw_fillrect(struct lynx_accel * accel,
-				u32 base,u32 pitch,u32 Bpp,
-				u32 x,u32 y,u32 width,u32 height,
-				u32 color,u32 rop)
+int hw_fillrect(struct lynx_accel *accel,
+				u32 base, u32 pitch, u32 Bpp,
+				u32 x, u32 y, u32 width, u32 height,
+				u32 color, u32 rop)
 {
 	u32 deCtrl;
 
@@ -100,44 +100,44 @@ int hw_fillrect(struct lynx_accel * accel,
 	{
 		/* int time wait and always busy,seems hardware
 		 * got something error */
-		pr_debug("%s:De engine always bussy\n",__func__);
+		pr_debug("%s:De engine always bussy\n", __func__);
 		return -1;
 	}
 
-	write_dpr(accel,DE_WINDOW_DESTINATION_BASE,base);//dpr40
-	write_dpr(accel,DE_PITCH,
-			FIELD_VALUE(0,DE_PITCH,DESTINATION,pitch/Bpp)|
-			FIELD_VALUE(0,DE_PITCH,SOURCE,pitch/Bpp));//dpr10
+	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, base); /* dpr40 */
+	write_dpr(accel, DE_PITCH,
+			FIELD_VALUE(0, DE_PITCH, DESTINATION, pitch/Bpp)|
+			FIELD_VALUE(0, DE_PITCH, SOURCE, pitch/Bpp)); /* dpr10 */
 
-	write_dpr(accel,DE_WINDOW_WIDTH,
-			FIELD_VALUE(0,DE_WINDOW_WIDTH,DESTINATION,pitch/Bpp)|
-			FIELD_VALUE(0,DE_WINDOW_WIDTH,SOURCE,pitch/Bpp));//dpr44
+	write_dpr(accel, DE_WINDOW_WIDTH,
+			FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, pitch/Bpp)|
+			FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE, pitch/Bpp)); /* dpr44 */
 
-	write_dpr(accel,DE_FOREGROUND,color);//DPR14
+	write_dpr(accel, DE_FOREGROUND, color); /* DPR14 */
 
-	write_dpr(accel,DE_DESTINATION,
-			FIELD_SET(0,DE_DESTINATION,WRAP,DISABLE)|
-			FIELD_VALUE(0,DE_DESTINATION,X,x)|
-			FIELD_VALUE(0,DE_DESTINATION,Y,y));//dpr4
+	write_dpr(accel, DE_DESTINATION,
+			FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE)|
+			FIELD_VALUE(0, DE_DESTINATION, X, x)|
+			FIELD_VALUE(0, DE_DESTINATION, Y, y)); /* dpr4 */
 
-	write_dpr(accel,DE_DIMENSION,
-			FIELD_VALUE(0,DE_DIMENSION,X,width)|
-			FIELD_VALUE(0,DE_DIMENSION,Y_ET,height));//dpr8
+	write_dpr(accel, DE_DIMENSION,
+			FIELD_VALUE(0, DE_DIMENSION, X, width)|
+			FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr8 */
 
 	deCtrl =
-		FIELD_SET(0,DE_CONTROL,STATUS,START)|
-		FIELD_SET(0,DE_CONTROL,DIRECTION,LEFT_TO_RIGHT)|
-		FIELD_SET(0,DE_CONTROL,LAST_PIXEL,ON)|
-		FIELD_SET(0,DE_CONTROL,COMMAND,RECTANGLE_FILL)|
-		FIELD_SET(0,DE_CONTROL,ROP_SELECT,ROP2)|
-		FIELD_VALUE(0,DE_CONTROL,ROP,rop);//dpr0xc
+		FIELD_SET(0, DE_CONTROL, STATUS, START)|
+		FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)|
+		FIELD_SET(0, DE_CONTROL, LAST_PIXEL, ON)|
+		FIELD_SET(0, DE_CONTROL, COMMAND, RECTANGLE_FILL)|
+		FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2)|
+		FIELD_VALUE(0, DE_CONTROL, ROP, rop); /* dpr0xc */
 
-	write_dpr(accel,DE_CONTROL,deCtrl);
+	write_dpr(accel, DE_CONTROL, deCtrl);
 	return 0;
 }
 
 int hw_copyarea(
-struct lynx_accel * accel,
+struct lynx_accel *accel,
 unsigned int sBase,  /* Address of source: offset in frame buffer */
 unsigned int sPitch, /* Pitch value of source surface in BYTE */
 unsigned int sx,
@@ -236,40 +236,40 @@ unsigned int rop2)   /* ROP value */
     /* 2D Source Base.
        It is an address offset (128 bit aligned) from the beginning of frame buffer.
     */
-    write_dpr(accel,DE_WINDOW_SOURCE_BASE, sBase);//dpr40
+    write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase); /* dpr40 */
 
     /* 2D Destination Base.
        It is an address offset (128 bit aligned) from the beginning of frame buffer.
     */
-    write_dpr(accel,DE_WINDOW_DESTINATION_BASE, dBase);//dpr44
+    write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
 
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
-       pixel values. Need Byte to pixel convertion.
+       pixel values. Need Byte to pixel conversion.
     */
 	if(Bpp == 3){
 			sx *= 3;
 			dx *= 3;
 			width *= 3;
-		write_dpr(accel,DE_PITCH,
+		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch)); /* dpr10 */
 	}
 	else
 #endif
 	{
-		write_dpr(accel,DE_PITCH,
+		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, (dPitch/Bpp)) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      (sPitch/Bpp)));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      (sPitch/Bpp))); /* dpr10 */
 	}
 
     /* Screen Window width in Pixels.
        2D engine uses this value to calculate the linear address in frame buffer for a given point.
     */
-    write_dpr(accel,DE_WINDOW_WIDTH,
+    write_dpr(accel, DE_WINDOW_WIDTH,
         FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
-        FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp)));//dpr3c
+        FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
 
 	if (accel->de_wait() != 0){
 		return -1;
@@ -277,17 +277,17 @@ unsigned int rop2)   /* ROP value */
 
     {
 
-        write_dpr(accel,DE_SOURCE,
+        write_dpr(accel, DE_SOURCE,
             FIELD_SET  (0, DE_SOURCE, WRAP, DISABLE) |
             FIELD_VALUE(0, DE_SOURCE, X_K1, sx)   |
-            FIELD_VALUE(0, DE_SOURCE, Y_K2, sy));//dpr0
-        write_dpr(accel,DE_DESTINATION,
+            FIELD_VALUE(0, DE_SOURCE, Y_K2, sy)); /* dpr0 */
+        write_dpr(accel, DE_DESTINATION,
             FIELD_SET  (0, DE_DESTINATION, WRAP, DISABLE) |
             FIELD_VALUE(0, DE_DESTINATION, X,    dx)  |
-            FIELD_VALUE(0, DE_DESTINATION, Y,    dy));//dpr04
-        write_dpr(accel,DE_DIMENSION,
+            FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
+        write_dpr(accel, DE_DIMENSION,
             FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-            FIELD_VALUE(0, DE_DIMENSION, Y_ET, height));//dpr08
+            FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
 
         de_ctrl =
             FIELD_VALUE(0, DE_CONTROL, ROP, rop2) |
@@ -297,17 +297,17 @@ unsigned int rop2)   /* ROP value */
             FIELD_SET(0, DE_CONTROL, DIRECTION, RIGHT_TO_LEFT)
             : FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)) |
             FIELD_SET(0, DE_CONTROL, STATUS, START);
-		write_dpr(accel,DE_CONTROL,de_ctrl);//dpr0c
+		write_dpr(accel, DE_CONTROL, de_ctrl); /* dpr0c */
     }
 
     return 0;
 }
 
-static unsigned int deGetTransparency(struct lynx_accel * accel)
+static unsigned int deGetTransparency(struct lynx_accel *accel)
 {
     unsigned int de_ctrl;
 
-    de_ctrl = read_dpr(accel,DE_CONTROL);
+    de_ctrl = read_dpr(accel, DE_CONTROL);
 
     de_ctrl &=
         FIELD_MASK(DE_CONTROL_TRANSPARENCY_MATCH) |
@@ -346,65 +346,64 @@ int hw_imageblit(struct lynx_accel *accel,
 
 	if(accel->de_wait() != 0)
     {
-//		inf_msg("*** ImageBlit return -1 ***\n");
         return -1;
     }
 
     /* 2D Source Base.
        Use 0 for HOST Blt.
     */
-    write_dpr(accel,DE_WINDOW_SOURCE_BASE, 0);
+    write_dpr(accel, DE_WINDOW_SOURCE_BASE, 0);
 
     /* 2D Destination Base.
        It is an address offset (128 bit aligned) from the beginning of frame buffer.
     */
-    write_dpr(accel,DE_WINDOW_DESTINATION_BASE, dBase);
+    write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
-       pixel values. Need Byte to pixel convertion.
+       pixel values. Need Byte to pixel conversion.
     */
 	if(bytePerPixel == 3 ){
 		dx *= 3;
 		width *= 3;
 		startBit *= 3;
-		write_dpr(accel,DE_PITCH,
+		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch)); /* dpr10 */
 
 	}
 	else
 #endif
 	{
-		write_dpr(accel,DE_PITCH,
+		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch/bytePerPixel) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch/bytePerPixel));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch/bytePerPixel)); /* dpr10 */
 	}
 
     /* Screen Window width in Pixels.
        2D engine uses this value to calculate the linear address in frame buffer for a given point.
     */
-    write_dpr(accel,DE_WINDOW_WIDTH,
+    write_dpr(accel, DE_WINDOW_WIDTH,
         FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/bytePerPixel)) |
         FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (dPitch/bytePerPixel)));
 
     /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed, and Y_K2 field is not used.
              For mono bitmap, use startBit for X_K1. */
-    write_dpr(accel,DE_SOURCE,
+    write_dpr(accel, DE_SOURCE,
         FIELD_SET  (0, DE_SOURCE, WRAP, DISABLE)       |
-        FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit));//dpr00
+        FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit)); /* dpr00 */
 
-    write_dpr(accel,DE_DESTINATION,
+    write_dpr(accel, DE_DESTINATION,
         FIELD_SET  (0, DE_DESTINATION, WRAP, DISABLE) |
         FIELD_VALUE(0, DE_DESTINATION, X,    dx)    |
-        FIELD_VALUE(0, DE_DESTINATION, Y,    dy));//dpr04
+        FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
 
-    write_dpr(accel,DE_DIMENSION,
+    write_dpr(accel, DE_DIMENSION,
         FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-        FIELD_VALUE(0, DE_DIMENSION, Y_ET, height));//dpr08
+        FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
 
-    write_dpr(accel,DE_FOREGROUND, fColor);
-    write_dpr(accel,DE_BACKGROUND, bColor);
+    write_dpr(accel, DE_FOREGROUND, fColor);
+    write_dpr(accel, DE_BACKGROUND, bColor);
 
 	de_ctrl = FIELD_VALUE(0, DE_CONTROL, ROP, rop2)         |
 		FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2)    |
@@ -412,7 +411,7 @@ int hw_imageblit(struct lynx_accel *accel,
 		FIELD_SET(0, DE_CONTROL, HOST, MONO)          |
 		FIELD_SET(0, DE_CONTROL, STATUS, START);
 
-	write_dpr(accel,DE_CONTROL, de_ctrl | deGetTransparency(accel));
+	write_dpr(accel, DE_CONTROL, de_ctrl | deGetTransparency(accel));
 
     /* Write MONO data (line by line) to 2D Engine data port */
     for (i=0; i<height; i++)

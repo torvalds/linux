@@ -21,15 +21,25 @@ been permitted to redistribute under separate cover.
 
 To submit firmware to that repository, please send either a git binary
 diff or preferably a git pull request to:
-      David Woodhouse <dwmw2@infradead.org>
-      Ben Hutchings <ben@decadent.org.uk>
+      linux-firmware@kernel.org
+and also cc: to related mailing lists.
 
 Your commit should include an update to the WHENCE file clearly
 identifying the licence under which the firmware is available, and
 that it is redistributable. If the licence is long and involved, it's
 permitted to include it in a separate file and refer to it from the
 WHENCE file.
+And if it were possible, a changelog of the firmware itself.
 
 Ideally, your commit should contain a Signed-Off-By: from someone
 authoritative on the licensing of the firmware in question (i.e. from
 within the company that owns the code).
+
+
+WARNING:
+=======
+
+Don't send any "CONFIDENTIALITY STATEMENT" in your e-mail, patch or
+request. Otherwise your firmware _will never be accepted_.
+
+Maintainers are really busy, so don't expect a prompt reply.

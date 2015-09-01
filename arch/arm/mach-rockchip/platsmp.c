@@ -119,8 +119,7 @@ static int pmu_set_power_domain(int pd, bool on)
  * Handling of CPU cores
  */
 
-static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
-					     struct task_struct *idle)
+static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
@@ -149,8 +148,7 @@ static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
 		 * sram_base_addr + 8: start address for pc
 		 * */
 		udelay(10);
-		writel(virt_to_phys(rockchip_secondary_startup),
-			sram_base_addr + 8);
+		writel(virt_to_phys(secondary_startup), sram_base_addr + 8);
 		writel(0xDEADBEAF, sram_base_addr + 4);
 		dsb_sev();
 	}
@@ -189,7 +187,7 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 	}
 
 	/* set the boot function for the sram code */
-	rockchip_boot_fn = virt_to_phys(rockchip_secondary_startup);
+	rockchip_boot_fn = virt_to_phys(secondary_startup);
 
 	/* copy the trampoline to sram, that runs during startup of the core */
 	memcpy(sram_base_addr, &rockchip_secondary_trampoline, trampoline_sz);

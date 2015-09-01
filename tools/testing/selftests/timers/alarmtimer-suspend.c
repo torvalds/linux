@@ -57,7 +57,7 @@ static inline int ksft_exit_fail(void)
 
 
 #define NSEC_PER_SEC 1000000000ULL
-#define UNREASONABLE_LAT (NSEC_PER_SEC * 4) /* hopefully we resume in 4secs */
+#define UNREASONABLE_LAT (NSEC_PER_SEC * 5) /* hopefully we resume in 5 secs */
 
 #define SUSPEND_SECS 15
 int alarmcount;
@@ -152,7 +152,11 @@ int main(void)
 			alarm_clock_id++) {
 
 		alarmcount = 0;
-		timer_create(alarm_clock_id, &se, &tm1);
+		if (timer_create(alarm_clock_id, &se, &tm1) == -1) {
+			printf("timer_create failled, %s unspported?\n",
+					clockstring(alarm_clock_id));
+			break;
+		}
 
 		clock_gettime(alarm_clock_id, &start_time);
 		printf("Start time (%s): %ld:%ld\n", clockstring(alarm_clock_id),
@@ -172,7 +176,7 @@ int main(void)
 		while (alarmcount < 10) {
 			int ret;
 
-			sleep(1);
+			sleep(3);
 			ret = system("echo mem > /sys/power/state");
 			if (ret)
 				break;

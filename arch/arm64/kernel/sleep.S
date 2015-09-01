@@ -130,12 +130,14 @@ ENDPROC(__cpu_suspend_enter)
 /*
  * x0 must contain the sctlr value retrieved from restored context
  */
+	.pushsection	".idmap.text", "ax"
 ENTRY(cpu_resume_mmu)
 	ldr	x3, =cpu_resume_after_mmu
 	msr	sctlr_el1, x0		// restore sctlr_el1
 	isb
 	br	x3			// global jump to virtual address
 ENDPROC(cpu_resume_mmu)
+	.popsection
 cpu_resume_after_mmu:
 	mov	x0, #0			// return zero on success
 	ldp	x19, x20, [sp, #16]
@@ -162,15 +164,12 @@ ENTRY(cpu_resume)
 #else
 	mov	x7, xzr
 #endif
-	adrp	x0, sleep_save_sp
-	add	x0, x0, #:lo12:sleep_save_sp
-	ldr	x0, [x0, #SLEEP_SAVE_SP_PHYS]
+	ldr_l	x0, sleep_save_sp + SLEEP_SAVE_SP_PHYS
 	ldr	x0, [x0, x7, lsl #3]
 	/* load sp from context */
 	ldr	x2, [x0, #CPU_CTX_SP]
-	adrp	x1, sleep_idmap_phys
 	/* load physical address of identity map page table in x1 */
-	ldr	x1, [x1, #:lo12:sleep_idmap_phys]
+	adrp	x1, idmap_pg_dir
 	mov	sp, x2
 	/*
 	 * cpu_do_resume expects x0 to contain context physical address

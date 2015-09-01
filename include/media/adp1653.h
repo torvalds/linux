@@ -100,9 +100,11 @@ struct adp1653_platform_data {
 	int (*power)(struct v4l2_subdev *sd, int on);
 
 	u32 max_flash_timeout;		/* flash light timeout in us */
-	u32 max_flash_intensity;	/* led intensity, flash mode */
-	u32 max_torch_intensity;	/* led intensity, torch mode */
-	u32 max_indicator_intensity;	/* indicator led intensity */
+	u32 max_flash_intensity;	/* led intensity, flash mode, mA */
+	u32 max_torch_intensity;	/* led intensity, torch mode, mA */
+	u32 max_indicator_intensity;	/* indicator led intensity, uA */
+
+	struct gpio_desc *enable_gpio;	/* for device-tree based boot */
 };
 
 #define to_adp1653_flash(sd)	container_of(sd, struct adp1653_flash, subdev)

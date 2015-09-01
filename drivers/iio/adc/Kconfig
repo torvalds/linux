@@ -135,6 +135,13 @@ config AXP288_ADC
 	  device. Depending on platform configuration, this general purpose ADC can
 	  be used for sampling sensors such as thermal resistors.
 
+config BERLIN2_ADC
+	tristate "Marvell Berlin2 ADC driver"
+	depends on ARCH_BERLIN
+	help
+	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
+	  temperature measurement.
+
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
 	depends on MFD_DA9150
@@ -146,8 +153,7 @@ config DA9150_GPADC
 
 config CC10001_ADC
 	tristate "Cosmic Circuits 10001 ADC driver"
-	depends on HAVE_CLK || REGULATOR
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAVE_CLK && REGULATOR
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -285,11 +291,11 @@ config TI_ADC081C
 	  called ti-adc081c.
 
 config TI_ADC128S052
-	tristate "Texas Instruments ADC128S052"
+	tristate "Texas Instruments ADC128S052/ADC122S021"
 	depends on SPI
 	help
 	  If you say yes here you get support for Texas Instruments ADC128S052
-	  chip.
+	  and ADC122S021 chips.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.

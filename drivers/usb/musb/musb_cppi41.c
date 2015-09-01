@@ -678,7 +678,7 @@ err:
 	return ret;
 }
 
-void dma_controller_destroy(struct dma_controller *c)
+void cppi41_dma_controller_destroy(struct dma_controller *c)
 {
 	struct cppi41_dma_controller *controller = container_of(c,
 			struct cppi41_dma_controller, controller);
@@ -687,9 +687,10 @@ void dma_controller_destroy(struct dma_controller *c)
 	cppi41_dma_controller_stop(controller);
 	kfree(controller);
 }
+EXPORT_SYMBOL_GPL(cppi41_dma_controller_destroy);
 
-struct dma_controller *dma_controller_create(struct musb *musb,
-					void __iomem *base)
+struct dma_controller *
+cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct cppi41_dma_controller *controller;
 	int ret = 0;
@@ -726,3 +727,4 @@ kzalloc_fail:
 		return ERR_PTR(ret);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(cppi41_dma_controller_create);

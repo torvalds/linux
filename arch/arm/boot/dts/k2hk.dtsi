@@ -98,5 +98,6 @@
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x25c>;
 		};
+		/include/ "k2hk-netcp.dtsi"
 	};
 };

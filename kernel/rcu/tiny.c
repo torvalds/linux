@@ -35,7 +35,7 @@
 #include <linux/time.h>
 #include <linux/cpu.h>
 #include <linux/prefetch.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 
 #include "rcu.h"
 

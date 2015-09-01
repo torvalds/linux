@@ -621,8 +621,6 @@ static int pccardd(void *__skt)
 		unsigned int events;
 		unsigned int sysfs_events;
 
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		spin_lock_irqsave(&skt->thread_lock, flags);
 		events = skt->thread_events;
 		skt->thread_events = 0;
@@ -670,11 +668,15 @@ static int pccardd(void *__skt)
 		if (kthread_should_stop())
 			break;
 
+		set_current_state(TASK_INTERRUPTIBLE);
+
 		schedule();
+
+		/* make sure we are running */
+		__set_current_state(TASK_RUNNING);
+
 		try_to_freeze();
 	}
-	/* make sure we are running before we exit */
-	set_current_state(TASK_RUNNING);
 
 	/* shut down socket, if a device is still present */
 	if (skt->state & SOCKET_PRESENT) {

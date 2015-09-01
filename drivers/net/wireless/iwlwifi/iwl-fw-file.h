@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -237,6 +237,8 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_GO_UAPSD		= BIT(30),
 };
 
+typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
+
 /**
  * enum iwl_ucode_tlv_api - ucode api
  * @IWL_UCODE_TLV_API_BT_COEX_SPLIT: new API for BT Coex
@@ -255,21 +257,26 @@ enum iwl_ucode_tlv_flag {
  * @IWL_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
  * @IWL_UCODE_TLV_API_STATS_V10: uCode supports/uses statistics API version 10
  * @IWL_UCODE_TLV_API_NEW_VERSION: new versioning format
+ * @IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY: scan APIs use 8-level priority
+ *	instead of 3.
  */
 enum iwl_ucode_tlv_api {
-	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = BIT(3),
-	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= BIT(8),
-	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= BIT(9),
-	IWL_UCODE_TLV_API_HDC_PHASE_0		= BIT(10),
-	IWL_UCODE_TLV_API_TX_POWER_DEV		= BIT(11),
-	IWL_UCODE_TLV_API_BASIC_DWELL		= BIT(13),
-	IWL_UCODE_TLV_API_SCD_CFG		= BIT(15),
-	IWL_UCODE_TLV_API_SINGLE_SCAN_EBS	= BIT(16),
-	IWL_UCODE_TLV_API_ASYNC_DTM		= BIT(17),
-	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= BIT(18),
-	IWL_UCODE_TLV_API_STATS_V10		= BIT(19),
-	IWL_UCODE_TLV_API_NEW_VERSION		= BIT(20),
+	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = (__force iwl_ucode_tlv_api_t)3,
+	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= (__force iwl_ucode_tlv_api_t)8,
+	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= (__force iwl_ucode_tlv_api_t)9,
+	IWL_UCODE_TLV_API_HDC_PHASE_0		= (__force iwl_ucode_tlv_api_t)10,
+	IWL_UCODE_TLV_API_TX_POWER_DEV		= (__force iwl_ucode_tlv_api_t)11,
+	IWL_UCODE_TLV_API_BASIC_DWELL		= (__force iwl_ucode_tlv_api_t)13,
+	IWL_UCODE_TLV_API_SCD_CFG		= (__force iwl_ucode_tlv_api_t)15,
+	IWL_UCODE_TLV_API_SINGLE_SCAN_EBS	= (__force iwl_ucode_tlv_api_t)16,
+	IWL_UCODE_TLV_API_ASYNC_DTM		= (__force iwl_ucode_tlv_api_t)17,
+	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= (__force iwl_ucode_tlv_api_t)18,
+	IWL_UCODE_TLV_API_STATS_V10		= (__force iwl_ucode_tlv_api_t)19,
+	IWL_UCODE_TLV_API_NEW_VERSION		= (__force iwl_ucode_tlv_api_t)20,
+	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= (__force iwl_ucode_tlv_api_t)24,
 };
+
+typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
 
 /**
  * enum iwl_ucode_tlv_capa - ucode capabilities
@@ -290,6 +297,7 @@ enum iwl_ucode_tlv_api {
  *	which also implies support for the scheduler configuration command
  * @IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH: supports TDLS channel switching
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
+ * @IWL_UCODE_TLV_CAPA_DC2DC_SUPPORT: supports DC2DC Command
  * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
  * @IWL_UCODE_TLV_CAPA_BT_COEX_PLCR: enabled BT Coex packet level co-running
  * @IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC: ucode supports LAR updates with different
@@ -299,22 +307,23 @@ enum iwl_ucode_tlv_api {
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  */
 enum iwl_ucode_tlv_capa {
-	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
-	IWL_UCODE_TLV_CAPA_LAR_SUPPORT			= BIT(1),
-	IWL_UCODE_TLV_CAPA_UMAC_SCAN			= BIT(2),
-	IWL_UCODE_TLV_CAPA_BEAMFORMER			= BIT(3),
-	IWL_UCODE_TLV_CAPA_TDLS_SUPPORT			= BIT(6),
-	IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT	= BIT(8),
-	IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT	= BIT(9),
-	IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT	= BIT(10),
-	IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT		= BIT(11),
-	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= BIT(12),
-	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= BIT(13),
-	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
-	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
-	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= BIT(28),
-	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= BIT(29),
-	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= BIT(30),
+	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= (__force iwl_ucode_tlv_capa_t)0,
+	IWL_UCODE_TLV_CAPA_LAR_SUPPORT			= (__force iwl_ucode_tlv_capa_t)1,
+	IWL_UCODE_TLV_CAPA_UMAC_SCAN			= (__force iwl_ucode_tlv_capa_t)2,
+	IWL_UCODE_TLV_CAPA_BEAMFORMER			= (__force iwl_ucode_tlv_capa_t)3,
+	IWL_UCODE_TLV_CAPA_TDLS_SUPPORT			= (__force iwl_ucode_tlv_capa_t)6,
+	IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT	= (__force iwl_ucode_tlv_capa_t)8,
+	IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)9,
+	IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)10,
+	IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT		= (__force iwl_ucode_tlv_capa_t)11,
+	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= (__force iwl_ucode_tlv_capa_t)12,
+	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= (__force iwl_ucode_tlv_capa_t)13,
+	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)18,
+	IWL_UCODE_TLV_CAPA_DC2DC_CONFIG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)19,
+	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= (__force iwl_ucode_tlv_capa_t)22,
+	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= (__force iwl_ucode_tlv_capa_t)28,
+	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
+	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
 };
 
 /* The default calibrate table size if not specified by firmware file */
@@ -325,13 +334,14 @@ enum iwl_ucode_tlv_capa {
 /* The default max probe length if not specified by the firmware file */
 #define IWL_DEFAULT_MAX_PROBE_LENGTH	200
 
+#define IWL_API_MAX_BITS		64
+#define IWL_CAPABILITIES_MAX_BITS	64
+
 /*
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
 #define IWL_UCODE_SECTION_MAX 12
-#define IWL_API_ARRAY_SIZE	1
-#define IWL_CAPABILITIES_ARRAY_SIZE	1
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */
@@ -424,11 +434,13 @@ struct iwl_fw_dbg_reg_op {
  * @SMEM_MODE: monitor stores the data in SMEM
  * @EXTERNAL_MODE: monitor stores the data in allocated DRAM
  * @MARBH_MODE: monitor stores the data in MARBH buffer
+ * @MIPI_MODE: monitor outputs the data through the MIPI interface
  */
 enum iwl_fw_dbg_monitor_mode {
 	SMEM_MODE = 0,
 	EXTERNAL_MODE = 1,
 	MARBH_MODE = 2,
+	MIPI_MODE = 3,
 };
 
 /**
@@ -436,6 +448,7 @@ enum iwl_fw_dbg_monitor_mode {
  *
  * @version: version of the TLV - currently 0
  * @monitor_mode: %enum iwl_fw_dbg_monitor_mode
+ * @size_power: buffer size will be 2^(size_power + 11)
  * @base_reg: addr of the base addr register (PRPH)
  * @end_reg:  addr of the end addr register (PRPH)
  * @write_ptr_reg: the addr of the reg of the write pointer
@@ -449,7 +462,8 @@ enum iwl_fw_dbg_monitor_mode {
 struct iwl_fw_dbg_dest_tlv {
 	u8 version;
 	u8 monitor_mode;
-	u8 reserved[2];
+	u8 size_power;
+	u8 reserved;
 	__le32 base_reg;
 	__le32 end_reg;
 	__le32 write_ptr_reg;
@@ -656,6 +670,33 @@ struct iwl_fw_dbg_trigger_time_event {
 		__le32 action_bitmap;
 		__le32 status_bitmap;
 	} __packed time_events[16];
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_ba - configures BlockAck related trigger
+ * rx_ba_start: tid bitmap to configure on what tid the trigger should occur
+ *	when an Rx BlockAck session is started.
+ * rx_ba_stop: tid bitmap to configure on what tid the trigger should occur
+ *	when an Rx BlockAck session is stopped.
+ * tx_ba_start: tid bitmap to configure on what tid the trigger should occur
+ *	when a Tx BlockAck session is started.
+ * tx_ba_stop: tid bitmap to configure on what tid the trigger should occur
+ *	when a Tx BlockAck session is stopped.
+ * rx_bar: tid bitmap to configure on what tid the trigger should occur
+ *	when a BAR is received (for a Tx BlockAck session).
+ * tx_bar: tid bitmap to configure on what tid the trigger should occur
+ *	when a BAR is send (for an Rx BlocAck session).
+ * frame_timeout: tid bitmap to configure on what tid the trigger should occur
+ *	when a frame times out in the reodering buffer.
+ */
+struct iwl_fw_dbg_trigger_ba {
+	__le16 rx_ba_start;
+	__le16 rx_ba_stop;
+	__le16 tx_ba_start;
+	__le16 tx_ba_stop;
+	__le16 rx_bar;
+	__le16 tx_bar;
+	__le16 frame_timeout;
 } __packed;
 
 /**

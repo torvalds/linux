@@ -49,8 +49,6 @@
 1:
 .endm
 
-	.cpu A7
-
 	.section .init.text, "ax",@progbits
 	.type stext, @function
 	.globl stext
@@ -83,6 +81,7 @@ stext:
 	st.ab   0, [r5, 4]
 1:
 
+#ifdef CONFIG_ARC_UBOOT_SUPPORT
 	; Uboot - kernel ABI
 	;    r0 = [0] No uboot interaction, [1] cmdline in r2, [2] DTB in r2
 	;    r1 = magic number (board identity, unused as of now
@@ -90,6 +89,7 @@ stext:
 	; These are handled later in setup_arch()
 	st	r0, [@uboot_tag]
 	st	r2, [@uboot_arg]
+#endif
 
 	; setup "current" tsk and optionally cache it in dedicated r25
 	mov	r9, @init_task

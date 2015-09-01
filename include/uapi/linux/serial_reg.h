@@ -331,6 +331,9 @@
  * Extra serial register definitions for the internal UARTs
  * in TI OMAP processors.
  */
+#define OMAP1_UART1_BASE	0xfffb0000
+#define OMAP1_UART2_BASE	0xfffb0800
+#define OMAP1_UART3_BASE	0xfffb9800
 #define UART_OMAP_MDR1		0x08	/* Mode definition register */
 #define UART_OMAP_MDR2		0x09	/* Mode definition register 2 */
 #define UART_OMAP_SCR		0x10	/* Supplementary control register */

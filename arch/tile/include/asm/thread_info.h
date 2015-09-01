@@ -42,6 +42,7 @@ struct thread_info {
 	unsigned long		unalign_jit_tmp[4]; /* temp r0..r3 storage */
 	void __user		*unalign_jit_base; /* unalign fixup JIT base */
 #endif
+	bool in_backtrace;			/* currently doing backtrace? */
 };
 
 /*

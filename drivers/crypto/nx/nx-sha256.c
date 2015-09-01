@@ -29,34 +29,28 @@
 #include "nx.h"
 
 
-static int nx_sha256_init(struct shash_desc *desc)
+static int nx_crypto_ctx_sha256_init(struct crypto_tfm *tfm)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
-	struct nx_sg *out_sg;
-	int len;
-	u32 max_sg_len;
+	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(tfm);
+	int err;
+
+	err = nx_crypto_ctx_sha_init(tfm);
+	if (err)
+		return err;
 
 	nx_ctx_init(nx_ctx, HCOP_FC_SHA);
-
-	memset(sctx, 0, sizeof *sctx);
 
 	nx_ctx->ap = &nx_ctx->props[NX_PROPS_SHA256];
 
 	NX_CPB_SET_DIGEST_SIZE(nx_ctx->csbcpb, NX_DS_SHA256);
 
-	max_sg_len = min_t(u64, nx_ctx->ap->sglen,
-			nx_driver.of.max_sg_len/sizeof(struct nx_sg));
-	max_sg_len = min_t(u64, max_sg_len,
-			nx_ctx->ap->databytelen/NX_PAGE_SIZE);
+	return 0;
+}
 
-	len = SHA256_DIGEST_SIZE;
-	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *)sctx->state,
-				  &len, max_sg_len);
-	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
+static int nx_sha256_init(struct shash_desc *desc) {
+	struct sha256_state *sctx = shash_desc_ctx(desc);
 
-	if (len != SHA256_DIGEST_SIZE)
-		return -EINVAL;
+	memset(sctx, 0, sizeof *sctx);
 
 	sctx->state[0] = __cpu_to_be32(SHA256_H0);
 	sctx->state[1] = __cpu_to_be32(SHA256_H1);
@@ -78,6 +72,7 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg;
+	struct nx_sg *out_sg;
 	u64 to_process = 0, leftover, total;
 	unsigned long irq_flags;
 	int rc = 0;
@@ -107,6 +102,16 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 			nx_driver.of.max_sg_len/sizeof(struct nx_sg));
 	max_sg_len = min_t(u64, max_sg_len,
 			nx_ctx->ap->databytelen/NX_PAGE_SIZE);
+
+	data_len = SHA256_DIGEST_SIZE;
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *)sctx->state,
+				  &data_len, max_sg_len);
+	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
+
+	if (data_len != SHA256_DIGEST_SIZE) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	do {
 		/*
@@ -282,7 +287,7 @@ struct shash_alg nx_shash_sha256_alg = {
 		.cra_blocksize   = SHA256_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
-		.cra_init        = nx_crypto_ctx_sha_init,
+		.cra_init        = nx_crypto_ctx_sha256_init,
 		.cra_exit        = nx_crypto_ctx_exit,
 	}
 };

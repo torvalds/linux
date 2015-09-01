@@ -75,6 +75,29 @@ rdev_set_cca_mode(struct cfg802154_registered_device *rdev,
 }
 
 static inline int
+rdev_set_cca_ed_level(struct cfg802154_registered_device *rdev, s32 ed_level)
+{
+	int ret;
+
+	trace_802154_rdev_set_cca_ed_level(&rdev->wpan_phy, ed_level);
+	ret = rdev->ops->set_cca_ed_level(&rdev->wpan_phy, ed_level);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_tx_power(struct cfg802154_registered_device *rdev,
+		  s32 power)
+{
+	int ret;
+
+	trace_802154_rdev_set_tx_power(&rdev->wpan_phy, power);
+	ret = rdev->ops->set_tx_power(&rdev->wpan_phy, power);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
 rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 		struct wpan_dev *wpan_dev, __le16 pan_id)
 {

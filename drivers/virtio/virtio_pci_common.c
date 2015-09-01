@@ -507,10 +507,6 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto err_enable_device;
 
-	rc = pci_request_regions(pci_dev, "virtio-pci");
-	if (rc)
-		goto err_request_regions;
-
 	if (force_legacy) {
 		rc = virtio_pci_legacy_probe(vp_dev);
 		/* Also try modern mode if we can't map BAR0 (no IO space). */
@@ -540,8 +536,6 @@ err_register:
 	else
 	     virtio_pci_modern_remove(vp_dev);
 err_probe:
-	pci_release_regions(pci_dev);
-err_request_regions:
 	pci_disable_device(pci_dev);
 err_enable_device:
 	kfree(vp_dev);
@@ -559,7 +553,6 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 	else
 		virtio_pci_modern_remove(vp_dev);
 
-	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 }
 

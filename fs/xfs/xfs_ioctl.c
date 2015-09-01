@@ -336,7 +336,7 @@ xfs_set_dmattrs(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SET_DMATTRS);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -346,7 +346,7 @@ xfs_set_dmattrs(
 	ip->i_d.di_dmstate  = state;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 
 	return error;
 }
@@ -1076,7 +1076,7 @@ xfs_ioctl_setattr_get_trans(
 	return tp;
 
 out_cancel:
-	xfs_trans_cancel(tp, 0);
+	xfs_trans_cancel(tp);
 	return ERR_PTR(error);
 }
 
@@ -1253,7 +1253,7 @@ xfs_ioctl_setattr(
 	else
 		ip->i_d.di_extsize = 0;
 
-	code = xfs_trans_commit(tp, 0);
+	code = xfs_trans_commit(tp);
 
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
@@ -1265,7 +1265,7 @@ xfs_ioctl_setattr(
 	return code;
 
 error_trans_cancel:
-	xfs_trans_cancel(tp, 0);
+	xfs_trans_cancel(tp);
 error_free_dquots:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(pdqp);
@@ -1338,11 +1338,11 @@ xfs_ioc_setxflags(
 
 	error = xfs_ioctl_setattr_xflags(tp, ip, &fa);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		goto out_drop_write;
 	}
 
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 out_drop_write:
 	mnt_drop_write_file(filp);
 	return error;

@@ -120,6 +120,12 @@ extern struct device_node *of_aliases;
 extern struct device_node *of_stdout;
 extern raw_spinlock_t devtree_lock;
 
+/* flag descriptions (need to be visible even when !CONFIG_OF) */
+#define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
+#define OF_DETACHED	2 /* node has been detached from the device tree */
+#define OF_POPULATED	3 /* device already created for the node */
+#define OF_POPULATED_BUS	4 /* of_platform_populate recursed to children of this node */
+
 #ifdef CONFIG_OF
 void of_core_init(void);
 
@@ -128,7 +134,7 @@ static inline bool is_of_node(struct fwnode_handle *fwnode)
 	return fwnode && fwnode->type == FWNODE_OF;
 }
 
-static inline struct device_node *of_node(struct fwnode_handle *fwnode)
+static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 {
 	return fwnode ? container_of(fwnode, struct device_node, fwnode) : NULL;
 }
@@ -218,12 +224,6 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 #define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
 #define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
 #endif
-
-/* flag descriptions */
-#define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
-#define OF_DETACHED	2 /* node has been detached from the device tree */
-#define OF_POPULATED	3 /* device already created for the node */
-#define OF_POPULATED_BUS	4 /* of_platform_populate recursed to children of this node */
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
@@ -387,7 +387,7 @@ static inline bool is_of_node(struct fwnode_handle *fwnode)
 	return false;
 }
 
-static inline struct device_node *of_node(struct fwnode_handle *fwnode)
+static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
@@ -424,6 +424,11 @@ static inline struct device_node *of_find_node_by_path(const char *path)
 
 static inline struct device_node *of_find_node_opts_by_path(const char *path,
 	const char **opts)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_find_node_by_phandle(phandle handle)
 {
 	return NULL;
 }
@@ -673,7 +678,10 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 #if defined(CONFIG_OF) && defined(CONFIG_NUMA)
 extern int of_node_to_nid(struct device_node *np);
 #else
-static inline int of_node_to_nid(struct device_node *device) { return 0; }
+static inline int of_node_to_nid(struct device_node *device)
+{
+	return NUMA_NO_NODE;
+}
 #endif
 
 static inline struct device_node *of_find_matching_node(
@@ -821,7 +829,7 @@ static inline int of_property_read_string_index(struct device_node *np,
  * @propname:	name of the property to be searched.
  *
  * Search for a property in a device node.
- * Returns true if the property exist false otherwise.
+ * Returns true if the property exists false otherwise.
  */
 static inline bool of_property_read_bool(const struct device_node *np,
 					 const char *propname)

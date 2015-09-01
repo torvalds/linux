@@ -100,16 +100,6 @@
  */
 #define TX_QCHECK_PERIOD (HZ / 2)
 
-/* SGE Hung Ingress DMA Threshold Warning time (in Hz) and Warning Repeat Rate
- * (in RX_QCHECK_PERIOD multiples).  If we find one of the SGE Ingress DMA
- * State Machines in the same state for this amount of time (in HZ) then we'll
- * issue a warning about a potential hang.  We'll repeat the warning as the
- * SGE Ingress DMA Channel appears to be hung every N RX_QCHECK_PERIODs till
- * the situation clears.  If the situation clears, we'll note that as well.
- */
-#define SGE_IDMA_WARN_THRESH (1 * HZ)
-#define SGE_IDMA_WARN_REPEAT (20 * RX_QCHECK_PERIOD)
-
 /*
  * Max number of Tx descriptors to be reclaimed by the Tx timer.
  */
@@ -532,14 +522,17 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 {
-	u32 val;
 	if (q->pend_cred >= 8) {
+		u32 val = adap->params.arch.sge_fl_db;
+
 		if (is_t4(adap->params.chip))
-			val = PIDX_V(q->pend_cred / 8);
+			val |= PIDX_V(q->pend_cred / 8);
 		else
-			val = PIDX_T5_V(q->pend_cred / 8) |
-				DBTYPE_F;
-		val |= DBPRIO_F;
+			val |= PIDX_T5_V(q->pend_cred / 8);
+
+		/* Make sure all memory writes to the Free List queue are
+		 * committed before we tell the hardware about them.
+		 */
 		wmb();
 
 		/* If we don't have access to the new User Doorbell (T5+), use
@@ -593,6 +586,11 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	__be64 *d = &q->desc[q->pidx];
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 	int node;
+
+#ifdef CONFIG_DEBUG_FS
+	if (test_bit(q->cntxt_id - adap->sge.egr_start, adap->sge.blocked_fl))
+		goto out;
+#endif
 
 	gfp |= __GFP_NOWARN;
 	node = dev_to_node(adap->pdev_dev);
@@ -930,7 +928,10 @@ static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
  */
 static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
-	wmb();            /* write descriptors before telling HW */
+	/* Make sure that all writes to the TX Descriptors are committed
+	 * before we tell the hardware about them.
+	 */
+	wmb();
 
 	/* If we don't have access to the new User Doorbell (T5+), use the old
 	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
@@ -1032,7 +1033,7 @@ static void inline_tx_skb(const struct sk_buff *skb, const struct sge_txq *q,
  * Figure out what HW csum a packet wants and return the appropriate control
  * bits.
  */
-static u64 hwcsum(const struct sk_buff *skb)
+static u64 hwcsum(enum chip_type chip, const struct sk_buff *skb)
 {
 	int csum_type;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -1047,7 +1048,7 @@ nocsum:			/*
 			 * unknown protocol, disable HW csum
 			 * and hope a bad packet is detected
 			 */
-			return TXPKT_L4CSUM_DIS;
+			return TXPKT_L4CSUM_DIS_F;
 		}
 	} else {
 		/*
@@ -1063,15 +1064,21 @@ nocsum:			/*
 			goto nocsum;
 	}
 
-	if (likely(csum_type >= TX_CSUM_TCPIP))
-		return TXPKT_CSUM_TYPE(csum_type) |
-			TXPKT_IPHDR_LEN(skb_network_header_len(skb)) |
-			TXPKT_ETHHDR_LEN(skb_network_offset(skb) - ETH_HLEN);
-	else {
+	if (likely(csum_type >= TX_CSUM_TCPIP)) {
+		u64 hdr_len = TXPKT_IPHDR_LEN_V(skb_network_header_len(skb));
+		int eth_hdr_len = skb_network_offset(skb) - ETH_HLEN;
+
+		if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
+			hdr_len |= TXPKT_ETHHDR_LEN_V(eth_hdr_len);
+		else
+			hdr_len |= T6_TXPKT_ETHHDR_LEN_V(eth_hdr_len);
+		return TXPKT_CSUM_TYPE_V(csum_type) | hdr_len;
+	} else {
 		int start = skb_transport_offset(skb);
 
-		return TXPKT_CSUM_TYPE(csum_type) | TXPKT_CSUM_START(start) |
-			TXPKT_CSUM_LOC(start + skb->csum_offset);
+		return TXPKT_CSUM_TYPE_V(csum_type) |
+			TXPKT_CSUM_START_V(start) |
+			TXPKT_CSUM_LOC_V(start + skb->csum_offset);
 	}
 }
 
@@ -1112,11 +1119,11 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
 		return -ENOTSUPP;
 
 	/* FC CRC offload */
-	*cntrl = TXPKT_CSUM_TYPE(TX_CSUM_FCOE) |
-		     TXPKT_L4CSUM_DIS | TXPKT_IPCSUM_DIS |
-		     TXPKT_CSUM_START(CXGB_FCOE_TXPKT_CSUM_START) |
-		     TXPKT_CSUM_END(CXGB_FCOE_TXPKT_CSUM_END) |
-		     TXPKT_CSUM_LOC(CXGB_FCOE_TXPKT_CSUM_END);
+	*cntrl = TXPKT_CSUM_TYPE_V(TX_CSUM_FCOE) |
+		     TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F |
+		     TXPKT_CSUM_START_V(CXGB_FCOE_TXPKT_CSUM_START) |
+		     TXPKT_CSUM_END_V(CXGB_FCOE_TXPKT_CSUM_END) |
+		     TXPKT_CSUM_LOC_V(CXGB_FCOE_TXPKT_CSUM_END);
 	return 0;
 }
 #endif /* CONFIG_CHELSIO_T4_FCOE */
@@ -1130,7 +1137,6 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
  */
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int len;
 	u32 wr_mid;
 	u64 cntrl, *end;
 	int qidx, credits;
@@ -1143,6 +1149,7 @@ netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	const struct skb_shared_info *ssi;
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
 	bool immediate = false;
+	int len, max_pkt_len;
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	int err;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
@@ -1156,13 +1163,20 @@ out_free:	dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
+	/* Discard the packet if the length is greater than mtu */
+	max_pkt_len = ETH_HLEN + dev->mtu;
+	if (skb_vlan_tag_present(skb))
+		max_pkt_len += VLAN_HLEN;
+	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+		goto out_free;
+
 	pi = netdev_priv(dev);
 	adap = pi->adapter;
 	qidx = skb_get_queue_mapping(skb);
 	q = &adap->sge.ethtxq[qidx + pi->first_qset];
 
 	reclaim_completed_tx(adap, &q->q, true);
-	cntrl = TXPKT_L4CSUM_DIS | TXPKT_IPCSUM_DIS;
+	cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
 
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	err = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
@@ -1213,23 +1227,29 @@ out_free:	dev_kfree_skb_any(skb);
 		len += sizeof(*lso);
 		wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
 				       FW_WR_IMMDLEN_V(len));
-		lso->c.lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
-					LSO_FIRST_SLICE | LSO_LAST_SLICE |
-					LSO_IPV6(v6) |
-					LSO_ETHHDR_LEN(eth_xtra_len / 4) |
-					LSO_IPHDR_LEN(l3hdr_len / 4) |
-					LSO_TCPHDR_LEN(tcp_hdr(skb)->doff));
+		lso->c.lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+					LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
+					LSO_IPV6_V(v6) |
+					LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+					LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+					LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
 		lso->c.ipid_ofst = htons(0);
 		lso->c.mss = htons(ssi->gso_size);
 		lso->c.seqno_offset = htonl(0);
 		if (is_t4(adap->params.chip))
 			lso->c.len = htonl(skb->len);
 		else
-			lso->c.len = htonl(LSO_T5_XFER_SIZE(skb->len));
+			lso->c.len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
 		cpl = (void *)(lso + 1);
-		cntrl = TXPKT_CSUM_TYPE(v6 ? TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
-			TXPKT_IPHDR_LEN(l3hdr_len) |
-			TXPKT_ETHHDR_LEN(eth_xtra_len);
+
+		if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+			cntrl =	TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+		else
+			cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+
+		cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
+					   TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
+			 TXPKT_IPHDR_LEN_V(l3hdr_len);
 		q->tso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
@@ -1238,23 +1258,25 @@ out_free:	dev_kfree_skb_any(skb);
 				       FW_WR_IMMDLEN_V(len));
 		cpl = (void *)(wr + 1);
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			cntrl = hwcsum(skb) | TXPKT_IPCSUM_DIS;
+			cntrl = hwcsum(adap->params.chip, skb) |
+				TXPKT_IPCSUM_DIS_F;
 			q->tx_cso++;
 		}
 	}
 
 	if (skb_vlan_tag_present(skb)) {
 		q->vlan_ins++;
-		cntrl |= TXPKT_VLAN_VLD | TXPKT_VLAN(skb_vlan_tag_get(skb));
+		cntrl |= TXPKT_VLAN_VLD_F | TXPKT_VLAN_V(skb_vlan_tag_get(skb));
 #ifdef CONFIG_CHELSIO_T4_FCOE
 		if (skb->protocol == htons(ETH_P_FCOE))
-			cntrl |= TXPKT_VLAN(
+			cntrl |= TXPKT_VLAN_V(
 				 ((skb->priority & 0x7) << VLAN_PRIO_SHIFT));
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	}
 
-	cpl->ctrl0 = htonl(TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(adap->fn));
+	cpl->ctrl0 = htonl(TXPKT_OPCODE_V(CPL_TX_PKT_XT) |
+			   TXPKT_INTF_V(pi->tx_chan) |
+			   TXPKT_PF_V(adap->pf));
 	cpl->pack = htons(0);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
@@ -1964,7 +1986,7 @@ static void restore_rx_bufs(const struct pkt_gl *si, struct sge_fl *q,
 static inline bool is_new_response(const struct rsp_ctrl *r,
 				   const struct sge_rspq *q)
 {
-	return RSPD_GEN(r->type_gen) == q->gen;
+	return (r->type_gen >> RSPD_GEN_S) == q->gen;
 }
 
 /**
@@ -2011,19 +2033,19 @@ static int process_responses(struct sge_rspq *q, int budget)
 			break;
 
 		dma_rmb();
-		rsp_type = RSPD_TYPE(rc->type_gen);
-		if (likely(rsp_type == RSP_TYPE_FLBUF)) {
+		rsp_type = RSPD_TYPE_G(rc->type_gen);
+		if (likely(rsp_type == RSPD_TYPE_FLBUF_X)) {
 			struct page_frag *fp;
 			struct pkt_gl si;
 			const struct rx_sw_desc *rsd;
 			u32 len = ntohl(rc->pldbuflen_qid), bufsz, frags;
 
-			if (len & RSPD_NEWBUF) {
+			if (len & RSPD_NEWBUF_F) {
 				if (likely(q->offset > 0)) {
 					free_rx_bufs(q->adap, &rxq->fl, 1);
 					q->offset = 0;
 				}
-				len = RSPD_LEN(len);
+				len = RSPD_LEN_G(len);
 			}
 			si.tot_len = len;
 
@@ -2058,7 +2080,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 				q->offset += ALIGN(fp->size, s->fl_align);
 			else
 				restore_rx_bufs(&si, &rxq->fl, frags);
-		} else if (likely(rsp_type == RSP_TYPE_CPL)) {
+		} else if (likely(rsp_type == RSPD_TYPE_CPL_X)) {
 			ret = q->handler(q, q->cur_desc, NULL);
 		} else {
 			ret = q->handler(q, (const __be64 *)rc, CXGB4_MSG_AN);
@@ -2066,7 +2088,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 
 		if (unlikely(ret)) {
 			/* couldn't process descriptor, back off for recovery */
-			q->next_intr_params = QINTR_TIMER_IDX(NOMEM_TMR_IDX);
+			q->next_intr_params = QINTR_TIMER_IDX_V(NOMEM_TMR_IDX);
 			break;
 		}
 
@@ -2090,7 +2112,7 @@ int cxgb_busy_poll(struct napi_struct *napi)
 		return LL_FLUSH_BUSY;
 
 	work_done = process_responses(q, 4);
-	params = QINTR_TIMER_IDX(TIMERREG_COUNTER0_X) | QINTR_CNT_EN;
+	params = QINTR_TIMER_IDX_V(TIMERREG_COUNTER0_X) | QINTR_CNT_EN_V(1);
 	q->next_intr_params = params;
 	val = CIDXINC_V(work_done) | SEINTARM_V(params);
 
@@ -2137,7 +2159,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		int timer_index;
 
 		napi_complete(napi);
-		timer_index = QINTR_TIMER_IDX_GET(q->next_intr_params);
+		timer_index = QINTR_TIMER_IDX_G(q->next_intr_params);
 
 		if (q->adaptive_rx) {
 			if (work_done > max(timer_pkt_quota[timer_index],
@@ -2147,15 +2169,16 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 				timer_index = timer_index - 1;
 
 			timer_index = clamp(timer_index, 0, SGE_TIMERREGS - 1);
-			q->next_intr_params = QINTR_TIMER_IDX(timer_index) |
-							      V_QINTR_CNT_EN;
+			q->next_intr_params =
+					QINTR_TIMER_IDX_V(timer_index) |
+					QINTR_CNT_EN_V(0);
 			params = q->next_intr_params;
 		} else {
 			params = q->next_intr_params;
 			q->next_intr_params = q->intr_params;
 		}
 	} else
-		params = QINTR_TIMER_IDX(7);
+		params = QINTR_TIMER_IDX_V(7);
 
 	val = CIDXINC_V(work_done) | SEINTARM_V(params);
 
@@ -2203,7 +2226,7 @@ static unsigned int process_intrq(struct adapter *adap)
 			break;
 
 		dma_rmb();
-		if (RSPD_TYPE(rc->type_gen) == RSP_TYPE_INTR) {
+		if (RSPD_TYPE_G(rc->type_gen) == RSPD_TYPE_INTR_X) {
 			unsigned int qid = ntohl(rc->pldbuflen_qid);
 
 			qid -= adap->sge.ingr_start;
@@ -2279,7 +2302,7 @@ irq_handler_t t4_intr_handler(struct adapter *adap)
 static void sge_rx_timer_cb(unsigned long data)
 {
 	unsigned long m;
-	unsigned int i, idma_same_state_cnt[2];
+	unsigned int i;
 	struct adapter *adap = (struct adapter *)data;
 	struct sge *s = &adap->sge;
 
@@ -2300,67 +2323,16 @@ static void sge_rx_timer_cb(unsigned long data)
 					set_bit(id, s->starving_fl);
 			}
 		}
+	/* The remainder of the SGE RX Timer Callback routine is dedicated to
+	 * global Master PF activities like checking for chip ingress stalls,
+	 * etc.
+	 */
+	if (!(adap->flags & MASTER_PF))
+		goto done;
 
-	t4_write_reg(adap, SGE_DEBUG_INDEX_A, 13);
-	idma_same_state_cnt[0] = t4_read_reg(adap, SGE_DEBUG_DATA_HIGH_A);
-	idma_same_state_cnt[1] = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
+	t4_idma_monitor(adap, &s->idma_monitor, HZ, RX_QCHECK_PERIOD);
 
-	for (i = 0; i < 2; i++) {
-		u32 debug0, debug11;
-
-		/* If the Ingress DMA Same State Counter ("timer") is less
-		 * than 1s, then we can reset our synthesized Stall Timer and
-		 * continue.  If we have previously emitted warnings about a
-		 * potential stalled Ingress Queue, issue a note indicating
-		 * that the Ingress Queue has resumed forward progress.
-		 */
-		if (idma_same_state_cnt[i] < s->idma_1s_thresh) {
-			if (s->idma_stalled[i] >= SGE_IDMA_WARN_THRESH)
-				CH_WARN(adap, "SGE idma%d, queue%u,resumed after %d sec\n",
-					i, s->idma_qid[i],
-					s->idma_stalled[i]/HZ);
-			s->idma_stalled[i] = 0;
-			continue;
-		}
-
-		/* Synthesize an SGE Ingress DMA Same State Timer in the Hz
-		 * domain.  The first time we get here it'll be because we
-		 * passed the 1s Threshold; each additional time it'll be
-		 * because the RX Timer Callback is being fired on its regular
-		 * schedule.
-		 *
-		 * If the stall is below our Potential Hung Ingress Queue
-		 * Warning Threshold, continue.
-		 */
-		if (s->idma_stalled[i] == 0)
-			s->idma_stalled[i] = HZ;
-		else
-			s->idma_stalled[i] += RX_QCHECK_PERIOD;
-
-		if (s->idma_stalled[i] < SGE_IDMA_WARN_THRESH)
-			continue;
-
-		/* We'll issue a warning every SGE_IDMA_WARN_REPEAT Hz */
-		if (((s->idma_stalled[i] - HZ) % SGE_IDMA_WARN_REPEAT) != 0)
-			continue;
-
-		/* Read and save the SGE IDMA State and Queue ID information.
-		 * We do this every time in case it changes across time ...
-		 */
-		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 0);
-		debug0 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
-		s->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
-
-		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 11);
-		debug11 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
-		s->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
-
-		CH_WARN(adap, "SGE idma%u, queue%u, maybe stuck state%u %dsecs (debug0=%#x, debug11=%#x)\n",
-			i, s->idma_qid[i], s->idma_state[i],
-			s->idma_stalled[i]/HZ, debug0, debug11);
-		t4_sge_decode_idma_state(adap, s->idma_state[i]);
-	}
-
+done:
 	mod_timer(&s->rx_timer, jiffies + RX_QCHECK_PERIOD);
 }
 
@@ -2429,7 +2401,7 @@ static void __iomem *bar2_address(struct adapter *adapter,
 	u64 bar2_qoffset;
 	int ret;
 
-	ret = cxgb4_t4_bar2_sge_qregs(adapter, qid, qtype,
+	ret = t4_bar2_sge_qregs(adapter, qid, qtype, 0,
 				&bar2_qoffset, pbar2_qid);
 	if (ret)
 		return NULL;
@@ -2437,9 +2409,12 @@ static void __iomem *bar2_address(struct adapter *adapter,
 	return adapter->bar2 + bar2_qoffset;
 }
 
+/* @intr_idx: MSI/MSI-X vector if >=0, -(absolute qid + 1) if < 0
+ * @cong: < 0 -> no congestion feedback, >= 0 -> congestion channel map
+ */
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		     struct net_device *dev, int intr_idx,
-		     struct sge_fl *fl, rspq_handler_t hnd)
+		     struct sge_fl *fl, rspq_handler_t hnd, int cong)
 {
 	int ret, flsz = 0;
 	struct fw_iq_cmd c;
@@ -2457,12 +2432,13 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_IQ_CMD_PFN_V(adap->fn) | FW_IQ_CMD_VFN_V(0));
+			    FW_IQ_CMD_PFN_V(adap->pf) | FW_IQ_CMD_VFN_V(0));
 	c.alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC_F | FW_IQ_CMD_IQSTART_F |
 				 FW_LEN16(c));
 	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE_V(FW_IQ_TYPE_FL_INT_CAP) |
 		FW_IQ_CMD_IQASYNCH_V(fwevtq) | FW_IQ_CMD_VIID_V(pi->viid) |
-		FW_IQ_CMD_IQANDST_V(intr_idx < 0) | FW_IQ_CMD_IQANUD_V(1) |
+		FW_IQ_CMD_IQANDST_V(intr_idx < 0) |
+		FW_IQ_CMD_IQANUD_V(UPDATEDELIVERY_INTERRUPT_X) |
 		FW_IQ_CMD_IQANDSTINDEX_V(intr_idx >= 0 ? intr_idx :
 							-intr_idx - 1));
 	c.iqdroprss_to_iqesize = htons(FW_IQ_CMD_IQPCIECH_V(pi->tx_chan) |
@@ -2471,8 +2447,21 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		FW_IQ_CMD_IQESIZE_V(ilog2(iq->iqe_len) - 4));
 	c.iqsize = htons(iq->size);
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
+	if (cong >= 0)
+		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F);
 
 	if (fl) {
+		enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
+
+		/* Allocate the ring for the hardware free list (with space
+		 * for its status page) along with the associated software
+		 * descriptor ring.  The free list size needs to be a multiple
+		 * of the Egress Queue Unit and at least 2 Egress Units larger
+		 * than the SGE's Egress Congrestion Threshold
+		 * (fl_starve_thres - 1).
+		 */
+		if (fl->size < s->fl_starve_thres - 1 + 2 * 8)
+			fl->size = s->fl_starve_thres - 1 + 2 * 8;
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
@@ -2481,17 +2470,25 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 			goto fl_nomem;
 
 		flsz = fl->size / 8 + s->stat_len / sizeof(struct tx_desc);
-		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN_F |
-					    FW_IQ_CMD_FL0FETCHRO_F |
-					    FW_IQ_CMD_FL0DATARO_F |
-					    FW_IQ_CMD_FL0PADEN_F);
-		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN_V(2) |
-				FW_IQ_CMD_FL0FBMAX_V(3));
+		c.iqns_to_fl0congen |= htonl(FW_IQ_CMD_FL0PACKEN_F |
+					     FW_IQ_CMD_FL0FETCHRO_F |
+					     FW_IQ_CMD_FL0DATARO_F |
+					     FW_IQ_CMD_FL0PADEN_F);
+		if (cong >= 0)
+			c.iqns_to_fl0congen |=
+				htonl(FW_IQ_CMD_FL0CNGCHMAP_V(cong) |
+				      FW_IQ_CMD_FL0CONGCIF_F |
+				      FW_IQ_CMD_FL0CONGEN_F);
+		c.fl0dcaen_to_fl0cidxfthresh =
+			htons(FW_IQ_CMD_FL0FBMIN_V(FETCHBURSTMIN_64B_X) |
+			      FW_IQ_CMD_FL0FBMAX_V((chip <= CHELSIO_T5) ?
+						   FETCHBURSTMAX_512B_X :
+						   FETCHBURSTMAX_256B_X));
 		c.fl0size = htons(flsz);
 		c.fl0addr = cpu_to_be64(fl->addr);
 	}
 
-	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
 	if (ret)
 		goto err;
 
@@ -2532,6 +2529,41 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 					     &fl->bar2_qid);
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
+
+	/* For T5 and later we attempt to set up the Congestion Manager values
+	 * of the new RX Ethernet Queue.  This should really be handled by
+	 * firmware because it's more complex than any host driver wants to
+	 * get involved with and it's different per chip and this is almost
+	 * certainly wrong.  Firmware would be wrong as well, but it would be
+	 * a lot easier to fix in one place ...  For now we do something very
+	 * simple (and hopefully less wrong).
+	 */
+	if (!is_t4(adap->params.chip) && cong >= 0) {
+		u32 param, val;
+		int i;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+			 FW_PARAMS_PARAM_YZ_V(iq->cntxt_id));
+		if (cong == 0) {
+			val = CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_QUEUE_X);
+		} else {
+			val =
+			    CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_CHANNEL_X);
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |=
+					     CONMCTXT_CNGCHMAP_V(1 << (i << 2));
+			}
+		}
+		ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1,
+				    &param, &val);
+		if (ret)
+			dev_warn(adap->pdev_dev, "Failed to set Congestion"
+				 " Manager Context for Ingress Queue %d: %d\n",
+				 iq->cntxt_id, -ret);
+	}
+
 	return 0;
 
 fl_nomem:
@@ -2589,23 +2621,24 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_ETH_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_EQ_ETH_CMD_PFN_V(adap->fn) |
+			    FW_EQ_ETH_CMD_PFN_V(adap->pf) |
 			    FW_EQ_ETH_CMD_VFN_V(0));
 	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC_F |
 				 FW_EQ_ETH_CMD_EQSTART_F | FW_LEN16(c));
 	c.viid_pkd = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
 			   FW_EQ_ETH_CMD_VIID_V(pi->viid));
-	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V(2) |
-				   FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
-				   FW_EQ_ETH_CMD_FETCHRO_V(1) |
-				   FW_EQ_ETH_CMD_IQID_V(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN_V(2) |
-				  FW_EQ_ETH_CMD_FBMAX_V(3) |
-				  FW_EQ_ETH_CMD_CIDXFTHRESH_V(5) |
-				  FW_EQ_ETH_CMD_EQSIZE_V(nentries));
+	c.fetchszm_to_iqid =
+		htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V(HOSTFCMODE_STATUS_PAGE_X) |
+		      FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
+		      FW_EQ_ETH_CMD_FETCHRO_F | FW_EQ_ETH_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize =
+		htonl(FW_EQ_ETH_CMD_FBMIN_V(FETCHBURSTMIN_64B_X) |
+		      FW_EQ_ETH_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
+		      FW_EQ_ETH_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
+		      FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
-	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
 	if (ret) {
 		kfree(txq->q.sdesc);
 		txq->q.sdesc = NULL;
@@ -2637,29 +2670,30 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
-				 NULL, 0, NUMA_NO_NODE);
+				 NULL, 0, dev_to_node(adap->pdev_dev));
 	if (!txq->q.desc)
 		return -ENOMEM;
 
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_EQ_CTRL_CMD_PFN_V(adap->fn) |
+			    FW_EQ_CTRL_CMD_PFN_V(adap->pf) |
 			    FW_EQ_CTRL_CMD_VFN_V(0));
 	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_ALLOC_F |
 				 FW_EQ_CTRL_CMD_EQSTART_F | FW_LEN16(c));
 	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_CMPLIQID_V(cmplqid));
 	c.physeqid_pkd = htonl(0);
-	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE_V(2) |
-				   FW_EQ_CTRL_CMD_PCIECHN_V(pi->tx_chan) |
-				   FW_EQ_CTRL_CMD_FETCHRO_F |
-				   FW_EQ_CTRL_CMD_IQID_V(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN_V(2) |
-				  FW_EQ_CTRL_CMD_FBMAX_V(3) |
-				  FW_EQ_CTRL_CMD_CIDXFTHRESH_V(5) |
-				  FW_EQ_CTRL_CMD_EQSIZE_V(nentries));
+	c.fetchszm_to_iqid =
+		htonl(FW_EQ_CTRL_CMD_HOSTFCMODE_V(HOSTFCMODE_STATUS_PAGE_X) |
+		      FW_EQ_CTRL_CMD_PCIECHN_V(pi->tx_chan) |
+		      FW_EQ_CTRL_CMD_FETCHRO_F | FW_EQ_CTRL_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize =
+		htonl(FW_EQ_CTRL_CMD_FBMIN_V(FETCHBURSTMIN_64B_X) |
+		      FW_EQ_CTRL_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
+		      FW_EQ_CTRL_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
+		      FW_EQ_CTRL_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
-	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
 	if (ret) {
 		dma_free_coherent(adap->pdev_dev,
 				  nentries * sizeof(struct tx_desc),
@@ -2697,21 +2731,22 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_EQ_OFLD_CMD_PFN_V(adap->fn) |
+			    FW_EQ_OFLD_CMD_PFN_V(adap->pf) |
 			    FW_EQ_OFLD_CMD_VFN_V(0));
 	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC_F |
 				 FW_EQ_OFLD_CMD_EQSTART_F | FW_LEN16(c));
-	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE_V(2) |
-				   FW_EQ_OFLD_CMD_PCIECHN_V(pi->tx_chan) |
-				   FW_EQ_OFLD_CMD_FETCHRO_F |
-				   FW_EQ_OFLD_CMD_IQID_V(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN_V(2) |
-				  FW_EQ_OFLD_CMD_FBMAX_V(3) |
-				  FW_EQ_OFLD_CMD_CIDXFTHRESH_V(5) |
-				  FW_EQ_OFLD_CMD_EQSIZE_V(nentries));
+	c.fetchszm_to_iqid =
+		htonl(FW_EQ_OFLD_CMD_HOSTFCMODE_V(HOSTFCMODE_STATUS_PAGE_X) |
+		      FW_EQ_OFLD_CMD_PCIECHN_V(pi->tx_chan) |
+		      FW_EQ_OFLD_CMD_FETCHRO_F | FW_EQ_OFLD_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize =
+		htonl(FW_EQ_OFLD_CMD_FBMIN_V(FETCHBURSTMIN_64B_X) |
+		      FW_EQ_OFLD_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
+		      FW_EQ_OFLD_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
+		      FW_EQ_OFLD_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
-	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
+	ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
 	if (ret) {
 		kfree(txq->q.sdesc);
 		txq->q.sdesc = NULL;
@@ -2750,7 +2785,7 @@ static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 	unsigned int fl_id = fl ? fl->cntxt_id : 0xffff;
 
 	adap->sge.ingr_map[rq->cntxt_id - adap->sge.ingr_start] = NULL;
-	t4_iq_free(adap, adap->fn, adap->fn, 0, FW_IQ_TYPE_FL_INT_CAP,
+	t4_iq_free(adap, adap->mbox, adap->pf, 0, FW_IQ_TYPE_FL_INT_CAP,
 		   rq->cntxt_id, fl_id, 0xffff);
 	dma_free_coherent(adap->pdev_dev, (rq->size + 1) * rq->iqe_len,
 			  rq->desc, rq->phys_addr);
@@ -2805,7 +2840,7 @@ void t4_free_sge_resources(struct adapter *adap)
 			free_rspq_fl(adap, &eq->rspq,
 				     eq->fl.size ? &eq->fl : NULL);
 		if (etq->q.desc) {
-			t4_eth_eq_free(adap, adap->fn, adap->fn, 0,
+			t4_eth_eq_free(adap, adap->mbox, adap->pf, 0,
 				       etq->q.cntxt_id);
 			free_tx_desc(adap, &etq->q, etq->q.in_use, true);
 			kfree(etq->q.sdesc);
@@ -2824,7 +2859,7 @@ void t4_free_sge_resources(struct adapter *adap)
 
 		if (q->q.desc) {
 			tasklet_kill(&q->qresume_tsk);
-			t4_ofld_eq_free(adap, adap->fn, adap->fn, 0,
+			t4_ofld_eq_free(adap, adap->mbox, adap->pf, 0,
 					q->q.cntxt_id);
 			free_tx_desc(adap, &q->q, q->q.in_use, false);
 			kfree(q->q.sdesc);
@@ -2839,7 +2874,7 @@ void t4_free_sge_resources(struct adapter *adap)
 
 		if (cq->q.desc) {
 			tasklet_kill(&cq->qresume_tsk);
-			t4_ctrl_eq_free(adap, adap->fn, adap->fn, 0,
+			t4_ctrl_eq_free(adap, adap->mbox, adap->pf, 0,
 					cq->q.cntxt_id);
 			__skb_queue_purge(&cq->sendq);
 			free_txq(adap, &cq->q);
@@ -3023,7 +3058,11 @@ int t4_sge_init(struct adapter *adap)
 	 * Packing Boundary.  T5 introduced the ability to specify these
 	 * separately.  The actual Ingress Packet Data alignment boundary
 	 * within Packed Buffer Mode is the maximum of these two
-	 * specifications.
+	 * specifications.  (Note that it makes no real practical sense to
+	 * have the Pading Boudary be larger than the Packing Boundary but you
+	 * could set the chip up that way and, in fact, legacy T4 code would
+	 * end doing this because it would initialize the Padding Boundary and
+	 * leave the Packing Boundary initialized to 0 (16 bytes).)
 	 */
 	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) +
 			       INGPADBOUNDARY_SHIFT_X);
@@ -3067,11 +3106,14 @@ int t4_sge_init(struct adapter *adap)
 		egress_threshold = EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
 	s->fl_starve_thres = 2*egress_threshold + 1;
 
+	t4_idma_monitor_init(adap, &s->idma_monitor);
+
+	/* Set up timers used for recuring callbacks to process RX and TX
+	 * administrative tasks.
+	 */
 	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
 	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adap);
-	s->idma_1s_thresh = core_ticks_per_usec(adap) * 1000000;  /* 1 s */
-	s->idma_stalled[0] = 0;
-	s->idma_stalled[1] = 0;
+
 	spin_lock_init(&s->intrq_lock);
 
 	return 0;

@@ -243,6 +243,7 @@ struct waiting_dir_move {
 	 * after this directory is moved, we can try to rmdir the ino rmdir_ino.
 	 */
 	u64 rmdir_ino;
+	bool orphanized;
 };
 
 struct orphan_dir_info {
@@ -1158,6 +1159,9 @@ struct backref_ctx {
 	/* may be truncated in case it's the last extent in a file */
 	u64 extent_len;
 
+	/* data offset in the file extent item */
+	u64 data_offset;
+
 	/* Just to check for bugs in backref resolving */
 	int found_itself;
 };
@@ -1221,7 +1225,7 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 	if (ret < 0)
 		return ret;
 
-	if (offset + bctx->extent_len > i_size)
+	if (offset + bctx->data_offset + bctx->extent_len > i_size)
 		return 0;
 
 	/*
@@ -1363,6 +1367,19 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_ctx->cur_offset = data_offset;
 	backref_ctx->found_itself = 0;
 	backref_ctx->extent_len = num_bytes;
+	/*
+	 * For non-compressed extents iterate_extent_inodes() gives us extent
+	 * offsets that already take into account the data offset, but not for
+	 * compressed extents, since the offset is logical and not relative to
+	 * the physical extent locations. We must take this into account to
+	 * avoid sending clone offsets that go beyond the source file's size,
+	 * which would result in the clone ioctl failing with -EINVAL on the
+	 * receiving end.
+	 */
+	if (compressed == BTRFS_COMPRESS_NONE)
+		backref_ctx->data_offset = 0;
+	else
+		backref_ctx->data_offset = btrfs_file_extent_offset(eb, fi);
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -1900,8 +1917,13 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 		goto out;
 	}
 
-	/* we know that it is or will be overwritten. check this now */
-	if (ow_inode < sctx->send_progress)
+	/*
+	 * We know that it is or will be overwritten. Check this now.
+	 * The current inode being processed might have been the one that caused
+	 * inode 'ino' to be orphanized, therefore ow_inode can actually be the
+	 * same as sctx->send_progress.
+	 */
+	if (ow_inode <= sctx->send_progress)
 		ret = 1;
 	else
 		ret = 0;
@@ -2223,6 +2245,8 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	fs_path_reset(dest);
 
 	while (!stop && ino != BTRFS_FIRST_FREE_OBJECTID) {
+		struct waiting_dir_move *wdm;
+
 		fs_path_reset(name);
 
 		if (is_waiting_for_rm(sctx, ino)) {
@@ -2233,7 +2257,11 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 			break;
 		}
 
-		if (is_waiting_for_move(sctx, ino)) {
+		wdm = get_waiting_dir_move(sctx, ino);
+		if (wdm && wdm->orphanized) {
+			ret = gen_unique_name(sctx, ino, gen, name);
+			stop = 1;
+		} else if (wdm) {
 			ret = get_first_ref(sctx->parent_root, ino,
 					    &parent_inode, &parent_gen, name);
 		} else {
@@ -2328,8 +2356,12 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CTRANSID,
 		    le64_to_cpu(sctx->send_root->root_item.ctransid));
 	if (parent_root) {
-		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
-				sctx->parent_root->root_item.uuid);
+		if (!btrfs_is_empty_uuid(parent_root->root_item.received_uuid))
+			TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+				     parent_root->root_item.received_uuid);
+		else
+			TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+				     parent_root->root_item.uuid);
 		TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
 			    le64_to_cpu(sctx->parent_root->root_item.ctransid));
 	}
@@ -2923,7 +2955,7 @@ static int is_waiting_for_move(struct send_ctx *sctx, u64 ino)
 	return entry != NULL;
 }
 
-static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
+static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino, bool orphanized)
 {
 	struct rb_node **p = &sctx->waiting_dir_moves.rb_node;
 	struct rb_node *parent = NULL;
@@ -2934,6 +2966,7 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
 		return -ENOMEM;
 	dm->ino = ino;
 	dm->rmdir_ino = 0;
+	dm->orphanized = orphanized;
 
 	while (*p) {
 		parent = *p;
@@ -3030,7 +3063,7 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 			goto out;
 	}
 
-	ret = add_waiting_dir_move(sctx, pm->ino);
+	ret = add_waiting_dir_move(sctx, pm->ino, is_orphan);
 	if (ret)
 		goto out;
 
@@ -3353,8 +3386,40 @@ out:
 	return ret;
 }
 
+/*
+ * Check if ino ino1 is an ancestor of inode ino2 in the given root.
+ * Return 1 if true, 0 if false and < 0 on error.
+ */
+static int is_ancestor(struct btrfs_root *root,
+		       const u64 ino1,
+		       const u64 ino1_gen,
+		       const u64 ino2,
+		       struct fs_path *fs_path)
+{
+	u64 ino = ino2;
+
+	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
+		int ret;
+		u64 parent;
+		u64 parent_gen;
+
+		fs_path_reset(fs_path);
+		ret = get_first_ref(root, ino, &parent, &parent_gen, fs_path);
+		if (ret < 0) {
+			if (ret == -ENOENT && ino == ino2)
+				ret = 0;
+			return ret;
+		}
+		if (parent == ino1)
+			return parent_gen == ino1_gen ? 1 : 0;
+		ino = parent;
+	}
+	return 0;
+}
+
 static int wait_for_parent_move(struct send_ctx *sctx,
-				struct recorded_ref *parent_ref)
+				struct recorded_ref *parent_ref,
+				const bool is_orphan)
 {
 	int ret = 0;
 	u64 ino = parent_ref->dir;
@@ -3374,11 +3439,24 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	 * Our current directory inode may not yet be renamed/moved because some
 	 * ancestor (immediate or not) has to be renamed/moved first. So find if
 	 * such ancestor exists and make sure our own rename/move happens after
-	 * that ancestor is processed.
+	 * that ancestor is processed to avoid path build infinite loops (done
+	 * at get_cur_path()).
 	 */
 	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
 		if (is_waiting_for_move(sctx, ino)) {
-			ret = 1;
+			/*
+			 * If the current inode is an ancestor of ino in the
+			 * parent root, we need to delay the rename of the
+			 * current inode, otherwise don't delayed the rename
+			 * because we can end up with a circular dependency
+			 * of renames, resulting in some directories never
+			 * getting the respective rename operations issued in
+			 * the send stream or getting into infinite path build
+			 * loops.
+			 */
+			ret = is_ancestor(sctx->parent_root,
+					  sctx->cur_ino, sctx->cur_inode_gen,
+					  ino, path_before);
 			break;
 		}
 
@@ -3420,7 +3498,7 @@ out:
 					   ino,
 					   &sctx->new_refs,
 					   &sctx->deleted_refs,
-					   false);
+					   is_orphan);
 		if (!ret)
 			ret = 1;
 	}
@@ -3589,6 +3667,17 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 			}
 		}
 
+		if (S_ISDIR(sctx->cur_inode_mode) && sctx->parent_root &&
+		    can_rename) {
+			ret = wait_for_parent_move(sctx, cur, is_orphan);
+			if (ret < 0)
+				goto out;
+			if (ret == 1) {
+				can_rename = false;
+				*pending_move = 1;
+			}
+		}
+
 		/*
 		 * link/move the ref to the new place. If we have an orphan
 		 * inode, move it and update valid_path. If not, link or move
@@ -3609,18 +3698,11 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 				 * dirs, we always have one new and one deleted
 				 * ref. The deleted ref is ignored later.
 				 */
-				ret = wait_for_parent_move(sctx, cur);
-				if (ret < 0)
-					goto out;
-				if (ret) {
-					*pending_move = 1;
-				} else {
-					ret = send_rename(sctx, valid_path,
-							  cur->full_path);
-					if (!ret)
-						ret = fs_path_copy(valid_path,
-							       cur->full_path);
-				}
+				ret = send_rename(sctx, valid_path,
+						  cur->full_path);
+				if (!ret)
+					ret = fs_path_copy(valid_path,
+							   cur->full_path);
 				if (ret < 0)
 					goto out;
 			} else {
@@ -4508,8 +4590,21 @@ verbose_printk("btrfs: send_clone offset=%llu, len=%d, clone_root=%llu, "
 	if (ret < 0)
 		goto out;
 
-	TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
-			clone_root->root->root_item.uuid);
+	/*
+	 * If the parent we're using has a received_uuid set then use that as
+	 * our clone source as that is what we will look for when doing a
+	 * receive.
+	 *
+	 * This covers the case that we create a snapshot off of a received
+	 * subvolume and then use that as the parent and try to receive on a
+	 * different host.
+	 */
+	if (!btrfs_is_empty_uuid(clone_root->root->root_item.received_uuid))
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+			     clone_root->root->root_item.received_uuid);
+	else
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+			     clone_root->root->root_item.uuid);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
 		    le64_to_cpu(clone_root->root->root_item.ctransid));
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_CLONE_PATH, p);

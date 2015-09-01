@@ -381,6 +381,18 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	IVB_CURSOR_OFFSETS,
 };
 
+static const struct intel_device_info intel_broxton_info = {
+	.is_preliminary = 1,
+	.gen = 9,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.num_pipes = 3,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -420,7 +432,8 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	INTEL_CHV_IDS(&intel_cherryview_info),	\
 	INTEL_SKL_GT1_IDS(&intel_skylake_info),	\
 	INTEL_SKL_GT2_IDS(&intel_skylake_info),	\
-	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info)	\
+	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info),	\
+	INTEL_BXT_IDS(&intel_broxton_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
@@ -543,6 +556,26 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
 }
 
+void i915_firmware_load_error_print(const char *fw_path, int err)
+{
+	DRM_ERROR("failed to load firmware %s (%d)\n", fw_path, err);
+
+	/*
+	 * If the reason is not known assume -ENOENT since that's the most
+	 * usual failure mode.
+	 */
+	if (!err)
+		err = -ENOENT;
+
+	if (!(IS_BUILTIN(CONFIG_DRM_I915) && err == -ENOENT))
+		return;
+
+	DRM_ERROR(
+	  "The driver is built-in, so to load the firmware you need to\n"
+	  "include it either in the kernel (see CONFIG_EXTRA_FIRMWARE) or\n"
+	  "in your initrd/initramfs image.\n");
+}
+
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -561,6 +594,9 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
+static int skl_resume_prepare(struct drm_i915_private *dev_priv);
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
+
 
 static int i915_drm_suspend(struct drm_device *dev)
 {
@@ -776,11 +812,16 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
-		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
+		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
+			  ret);
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		ret = skl_resume_prepare(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
@@ -952,7 +993,7 @@ static int i915_pm_suspend_late(struct device *dev)
 	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	/*
-	 * We have a suspedn ordering issue with the snd-hda driver also
+	 * We have a suspend ordering issue with the snd-hda driver also
 	 * requiring our device to be power up. Due to the lack of a
 	 * parent/child relationship we currently solve this with an late
 	 * suspend hook.
@@ -996,9 +1037,66 @@ static int i915_pm_resume(struct device *dev)
 	return i915_drm_resume(drm_dev);
 }
 
+static int skl_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
+
+	/*
+	 * This is to ensure that CSR isn't identified as loaded before
+	 * CSR-loading program is called during runtime-resume.
+	 */
+	intel_csr_load_status_set(dev_priv, FW_UNINITIALIZED);
+
+	skl_uninit_cdclk(dev_priv);
+
+	return 0;
+}
+
 static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
+
+	return 0;
+}
+
+static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/* TODO: when DC5 support is added disable DC5 here. */
+
+	broxton_ddi_phy_uninit(dev);
+	broxton_uninit_cdclk(dev);
+	bxt_enable_dc9(dev_priv);
+
+	return 0;
+}
+
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/* TODO: when CSR FW support is added make sure the FW is loaded */
+
+	bxt_disable_dc9(dev_priv);
+
+	/*
+	 * TODO: when DC5 support is added enable DC5 here if the CSR FW
+	 * is available.
+	 */
+	broxton_init_cdclk(dev);
+	broxton_ddi_phy_init(dev);
+	intel_prepare_ddi(dev);
+
+	return 0;
+}
+
+static int skl_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	skl_init_cdclk(dev_priv);
+	intel_csr_load_program(dev);
 
 	return 0;
 }
@@ -1461,6 +1559,11 @@ static int intel_runtime_resume(struct device *device)
 
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
+
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
+	else if (IS_SKYLAKE(dev))
+		ret = skl_resume_prepare(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv))
@@ -1490,12 +1593,15 @@ static int intel_runtime_resume(struct device *device)
  */
 static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_BROXTON(dev_priv))
+		ret = bxt_suspend_complete(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		ret = skl_suspend_complete(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
 	else
 		ret = 0;

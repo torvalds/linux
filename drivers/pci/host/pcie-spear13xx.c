@@ -4,8 +4,8 @@
  * SPEAr13xx PCIe Glue Layer Source Code
  *
  * Copyright (C) 2010-2014 ST Microelectronics
- * Pratyush Anand <pratyush.anand@st.com>
- * Mohit Kumar <mohit.kumar@st.com>
+ * Pratyush Anand <pratyush.anand@gmail.com>
+ * Mohit Kumar <mohit.kumar.dhaka@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -386,5 +386,5 @@ static int __init spear13xx_pcie_init(void)
 module_init(spear13xx_pcie_init);
 
 MODULE_DESCRIPTION("ST Microelectronics SPEAr13xx PCIe host controller driver");
-MODULE_AUTHOR("Pratyush Anand <pratyush.anand@st.com>");
+MODULE_AUTHOR("Pratyush Anand <pratyush.anand@gmail.com>");
 MODULE_LICENSE("GPL v2");

@@ -348,7 +348,7 @@ static int s921_initfe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s921_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int s921_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct s921_state *state = fe->demodulator_priv;
 	int regstatus, rc;
@@ -389,7 +389,7 @@ static int s921_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int s921_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	fe_status_t	status;
+	enum fe_status	status;
 	struct s921_state *state = fe->demodulator_priv;
 	int rc;
 
@@ -449,7 +449,7 @@ static int s921_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	int rc = 0;
 

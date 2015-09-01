@@ -1379,9 +1379,8 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 				xd_set_err_code(chip, XD_PRG_ERROR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
-			} else {
-				xd_set_err_code(chip, XD_ERASE_FAIL);
 			}
+			xd_set_err_code(chip, XD_ERASE_FAIL);
 			retval = xd_reset_cmd(chip);
 			if (retval != STATUS_SUCCESS) {
 				rtsx_trace(chip);

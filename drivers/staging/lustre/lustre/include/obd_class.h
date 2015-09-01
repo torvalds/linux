@@ -75,8 +75,7 @@ struct lu_device_type;
 extern struct list_head obd_types;
 struct obd_export *class_conn2export(struct lustre_handle *);
 int class_register_type(struct obd_ops *, struct md_ops *,
-			struct lprocfs_vars *, const char *nm,
-			struct lu_device_type *ldt);
+			const char *nm, struct lu_device_type *ldt);
 int class_unregister_type(const char *nm);
 
 struct obd_device *class_newdev(const char *type_name, const char *name);
@@ -140,14 +139,7 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg);
 int class_add_uuid(const char *uuid, __u64 nid);
 
 /*obdecho*/
-#if defined (CONFIG_PROC_FS)
 extern void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
-#else
-static inline void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars)
-{
-	memset(lvars, 0, sizeof(*lvars));
-}
-#endif
 
 #define CFG_F_START     0x01   /* Set when we start updating from a log */
 #define CFG_F_MARKER    0x02   /* We are within a maker */
@@ -357,7 +349,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	return rc;
 }
 
-#if defined (CONFIG_PROC_FS)
 #define OBD_COUNTER_OFFSET(op)				  \
 	((offsetof(struct obd_ops, o_ ## op) -		  \
 	  offsetof(struct obd_ops, o_iocontrol))		\
@@ -379,10 +370,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 			OBD_COUNTER_OFFSET(op);			      \
 		LASSERT(coffset < (export)->exp_obd->obd_stats->ls_num);     \
 		lprocfs_counter_incr((export)->exp_obd->obd_stats, coffset); \
-		if ((export)->exp_nid_stats != NULL &&		       \
-		    (export)->exp_nid_stats->nid_stats != NULL)	      \
-			lprocfs_counter_incr(				\
-				(export)->exp_nid_stats->nid_stats, coffset);\
 	}
 
 #define MD_COUNTER_OFFSET(op)				   \
@@ -411,27 +398,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 				(export)->exp_md_stats, coffset);	    \
 	}
 
-#else
-#define OBD_COUNTER_OFFSET(op)
-#define OBD_COUNTER_INCREMENT(obd, op)
-#define EXP_COUNTER_INCREMENT(exp, op)
-#define MD_COUNTER_INCREMENT(obd, op)
-#define EXP_MD_COUNTER_INCREMENT(exp, op)
-#endif
-
-static inline int lprocfs_nid_ldlm_stats_init(struct nid_stat *tmp)
-{
-	/* Always add in ldlm_stats */
-	tmp->nid_ldlm_stats = lprocfs_alloc_stats(LDLM_LAST_OPC - LDLM_FIRST_OPC
-						  ,LPROCFS_STATS_FLAG_NOPERCPU);
-	if (tmp->nid_ldlm_stats == NULL)
-		return -ENOMEM;
-
-	lprocfs_init_ldlm_stats(tmp->nid_ldlm_stats);
-
-	return lprocfs_register_stats(tmp->nid_proc, "ldlm_stats",
-				      tmp->nid_ldlm_stats);
-}
 
 #define OBD_CHECK_MD_OP(obd, op, err)			   \
 do {							    \

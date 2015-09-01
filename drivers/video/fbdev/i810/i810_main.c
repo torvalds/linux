@@ -41,6 +41,7 @@
 #include <linux/resource.h>
 #include <linux/unistd.h>
 #include <linux/console.h>
+#include <linux/io.h>
 
 #include <asm/io.h>
 #include <asm/div64.h>
@@ -1816,7 +1817,9 @@ static void i810_init_device(struct i810fb_par *par)
 	u8 reg;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 
-	if (mtrr) set_mtrr(par);
+	if (mtrr)
+		par->wc_cookie= arch_phys_wc_add((u32) par->aperture.physical,
+						 par->aperture.size);
 
 	i810_init_cursor(par);
 
@@ -1865,8 +1868,8 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	}
 	par->res_flags |= FRAMEBUFFER_REQ;
 
-	par->aperture.virtual = ioremap_nocache(par->aperture.physical, 
-					par->aperture.size);
+	par->aperture.virtual = ioremap_wc(par->aperture.physical,
+					   par->aperture.size);
 	if (!par->aperture.virtual) {
 		printk("i810fb_init: cannot remap framebuffer region\n");
 		return -ENODEV;
@@ -2096,7 +2099,7 @@ static void i810fb_release_resource(struct fb_info *info,
 				    struct i810fb_par *par)
 {
 	struct gtt_data *gtt = &par->i810_gtt;
-	unset_mtrr(par);
+	arch_phys_wc_del(par->wc_cookie);
 
 	i810_delete_i2c_busses(par);
 

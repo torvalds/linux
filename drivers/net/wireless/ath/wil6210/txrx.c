@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -236,7 +236,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 		return -ENOMEM;
 	}
 
-	d->dma.d0 = BIT(9) | RX_DMA_D0_CMD_DMA_IT;
+	d->dma.d0 = RX_DMA_D0_CMD_DMA_RT | RX_DMA_D0_CMD_DMA_IT;
 	wil_desc_addr_set(&d->dma.addr, pa);
 	/* ip_length don't care */
 	/* b11 don't care */
@@ -427,6 +427,8 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	cid = wil_rxdesc_cid(d);
 	stats = &wil->sta[cid].stats;
 	stats->last_mcs_rx = wil_rxdesc_mcs(d);
+	if (stats->last_mcs_rx < ARRAY_SIZE(stats->rx_per_mcs))
+		stats->rx_per_mcs[stats->last_mcs_rx]++;
 
 	/* use radiotap header only if required */
 	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP)
@@ -724,6 +726,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 
 	cmd.vring_cfg.tx_sw_ring.ring_mem_base = cpu_to_le64(vring->pa);
 
+	if (!wil->privacy)
+		txdata->dot1x_open = true;
 	rc = wmi_call(wil, WMI_VRING_CFG_CMDID, &cmd, sizeof(cmd),
 		      WMI_VRING_CFG_DONE_EVENTID, &reply, sizeof(reply), 100);
 	if (rc)
@@ -738,11 +742,13 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
 	txdata->enabled = 1;
-	if (wil->sta[cid].data_port_open && (agg_wsize >= 0))
+	if (txdata->dot1x_open && (agg_wsize >= 0))
 		wil_addba_tx_request(wil, id, agg_wsize);
 
 	return 0;
  out_free:
+	txdata->dot1x_open = false;
+	txdata->enabled = 0;
 	wil_vring_free(wil, vring, 1);
  out:
 
@@ -792,6 +798,8 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 
 	cmd.vring_cfg.tx_sw_ring.ring_mem_base = cpu_to_le64(vring->pa);
 
+	if (!wil->privacy)
+		txdata->dot1x_open = true;
 	rc = wmi_call(wil, WMI_BCAST_VRING_CFG_CMDID, &cmd, sizeof(cmd),
 		      WMI_VRING_CFG_DONE_EVENTID, &reply, sizeof(reply), 100);
 	if (rc)
@@ -809,6 +817,8 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 
 	return 0;
  out_free:
+	txdata->enabled = 0;
+	txdata->dot1x_open = false;
 	wil_vring_free(wil, vring, 1);
  out:
 
@@ -828,6 +838,7 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 	wil_dbg_misc(wil, "%s() id=%d\n", __func__, id);
 
 	spin_lock_bh(&txdata->lock);
+	txdata->dot1x_open = false;
 	txdata->enabled = 0; /* no Tx can be in progress or start anew */
 	spin_unlock_bh(&txdata->lock);
 	/* make sure NAPI won't touch this vring */
@@ -848,12 +859,11 @@ static struct vring *wil_find_tx_ucast(struct wil6210_priv *wil,
 	if (cid < 0)
 		return NULL;
 
-	if (!wil->sta[cid].data_port_open &&
-	    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
-		return NULL;
-
 	/* TODO: fix for multiple TID */
 	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++) {
+		if (!wil->vring_tx_data[i].dot1x_open &&
+		    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
+			continue;
 		if (wil->vring2cid_tid[i][0] == cid) {
 			struct vring *v = &wil->vring_tx[i];
 
@@ -883,7 +893,7 @@ static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
 
 	/* In the STA mode, it is expected to have only 1 VRING
 	 * for the AP we connected to.
-	 * find 1-st vring and see whether it is eligible for data
+	 * find 1-st vring eligible for this skb and use it.
 	 */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		v = &wil->vring_tx[i];
@@ -894,9 +904,9 @@ static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
 		if (cid >= WIL6210_MAX_CID) /* skip BCAST */
 			continue;
 
-		if (!wil->sta[cid].data_port_open &&
+		if (!wil->vring_tx_data[i].dot1x_open &&
 		    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
-			break;
+			continue;
 
 		wil_dbg_txrx(wil, "Tx -> ring %d\n", i);
 
@@ -918,7 +928,6 @@ static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
  *    in all cases override dest address to unicast peer's address
  * Use old strategy when new is not supported yet:
  *  - for PBSS
- *  - for secure link
  */
 static struct vring *wil_find_tx_bcast_1(struct wil6210_priv *wil,
 					 struct sk_buff *skb)
@@ -930,6 +939,9 @@ static struct vring *wil_find_tx_bcast_1(struct wil6210_priv *wil,
 		return NULL;
 	v = &wil->vring_tx[i];
 	if (!v->va)
+		return NULL;
+	if (!wil->vring_tx_data[i].dot1x_open &&
+	    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
 		return NULL;
 
 	return v;
@@ -963,7 +975,8 @@ static struct vring *wil_find_tx_bcast_2(struct wil6210_priv *wil,
 		cid = wil->vring2cid_tid[i][0];
 		if (cid >= WIL6210_MAX_CID) /* skip BCAST */
 			continue;
-		if (!wil->sta[cid].data_port_open)
+		if (!wil->vring_tx_data[i].dot1x_open &&
+		    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
 			continue;
 
 		/* don't Tx back to source when re-routing Rx->Tx at the AP */
@@ -989,7 +1002,8 @@ found:
 		cid = wil->vring2cid_tid[i][0];
 		if (cid >= WIL6210_MAX_CID) /* skip BCAST */
 			continue;
-		if (!wil->sta[cid].data_port_open)
+		if (!wil->vring_tx_data[i].dot1x_open &&
+		    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
 			continue;
 
 		if (0 == memcmp(wil->sta[cid].addr, src, ETH_ALEN))
@@ -1014,9 +1028,6 @@ static struct vring *wil_find_tx_bcast(struct wil6210_priv *wil,
 	struct wireless_dev *wdev = wil->wdev;
 
 	if (wdev->iftype != NL80211_IFTYPE_AP)
-		return wil_find_tx_bcast_2(wil, skb);
-
-	if (wil->privacy)
 		return wil_find_tx_bcast_2(wil, skb);
 
 	return wil_find_tx_bcast_1(wil, skb);
@@ -1144,13 +1155,8 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_tx_desc_map(d, pa, len, vring_index);
 	if (unlikely(mcast)) {
 		d->mac.d[0] |= BIT(MAC_CFG_DESC_TX_0_MCS_EN_POS); /* MCS 0 */
-		if (unlikely(len > WIL_BCAST_MCS0_LIMIT)) {
-			/* set MCS 1 */
+		if (unlikely(len > WIL_BCAST_MCS0_LIMIT)) /* set MCS 1 */
 			d->mac.d[0] |= (1 << MAC_CFG_DESC_TX_0_MCS_INDEX_POS);
-			/* packet mode 2 */
-			d->mac.d[1] |= BIT(MAC_CFG_DESC_TX_1_PKT_MODE_EN_POS) |
-				       (2 << MAC_CFG_DESC_TX_1_PKT_MODE_POS);
-		}
 	}
 	/* Process TCP/UDP checksum offloading */
 	if (unlikely(wil_tx_desc_offload_cksum_set(wil, d, skb))) {

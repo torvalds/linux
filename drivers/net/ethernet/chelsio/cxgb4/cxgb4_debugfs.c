@@ -182,6 +182,95 @@ static const struct file_operations cim_la_fops = {
 	.release = seq_release_private
 };
 
+static int cim_pif_la_show(struct seq_file *seq, void *v, int idx)
+{
+	const u32 *p = v;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq, "Cntl ID DataBE   Addr                 Data\n");
+	} else if (idx < CIM_PIFLA_SIZE) {
+		seq_printf(seq, " %02x  %02x  %04x  %08x %08x%08x%08x%08x\n",
+			   (p[5] >> 22) & 0xff, (p[5] >> 16) & 0x3f,
+			   p[5] & 0xffff, p[4], p[3], p[2], p[1], p[0]);
+	} else {
+		if (idx == CIM_PIFLA_SIZE)
+			seq_puts(seq, "\nCntl ID               Data\n");
+		seq_printf(seq, " %02x  %02x %08x%08x%08x%08x\n",
+			   (p[4] >> 6) & 0xff, p[4] & 0x3f,
+			   p[3], p[2], p[1], p[0]);
+	}
+	return 0;
+}
+
+static int cim_pif_la_open(struct inode *inode, struct file *file)
+{
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	p = seq_open_tab(file, 2 * CIM_PIFLA_SIZE, 6 * sizeof(u32), 1,
+			 cim_pif_la_show);
+	if (!p)
+		return -ENOMEM;
+
+	t4_cim_read_pif_la(adap, (u32 *)p->data,
+			   (u32 *)p->data + 6 * CIM_PIFLA_SIZE, NULL, NULL);
+	return 0;
+}
+
+static const struct file_operations cim_pif_la_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_pif_la_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+static int cim_ma_la_show(struct seq_file *seq, void *v, int idx)
+{
+	const u32 *p = v;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq, "\n");
+	} else if (idx < CIM_MALA_SIZE) {
+		seq_printf(seq, "%02x%08x%08x%08x%08x\n",
+			   p[4], p[3], p[2], p[1], p[0]);
+	} else {
+		if (idx == CIM_MALA_SIZE)
+			seq_puts(seq,
+				 "\nCnt ID Tag UE       Data       RDY VLD\n");
+		seq_printf(seq, "%3u %2u  %x   %u %08x%08x  %u   %u\n",
+			   (p[2] >> 10) & 0xff, (p[2] >> 7) & 7,
+			   (p[2] >> 3) & 0xf, (p[2] >> 2) & 1,
+			   (p[1] >> 2) | ((p[2] & 3) << 30),
+			   (p[0] >> 2) | ((p[1] & 3) << 30), (p[0] >> 1) & 1,
+			   p[0] & 1);
+	}
+	return 0;
+}
+
+static int cim_ma_la_open(struct inode *inode, struct file *file)
+{
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	p = seq_open_tab(file, 2 * CIM_MALA_SIZE, 5 * sizeof(u32), 1,
+			 cim_ma_la_show);
+	if (!p)
+		return -ENOMEM;
+
+	t4_cim_read_ma_la(adap, (u32 *)p->data,
+			  (u32 *)p->data + 5 * CIM_MALA_SIZE);
+	return 0;
+}
+
+static const struct file_operations cim_ma_la_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_ma_la_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
 static int cim_qcfg_show(struct seq_file *seq, void *v)
 {
 	static const char * const qname[] = {
@@ -663,6 +752,39 @@ static const struct file_operations pm_stats_debugfs_fops = {
 	.write   = pm_stats_clear
 };
 
+static int tx_rate_show(struct seq_file *seq, void *v)
+{
+	u64 nrate[NCHAN], orate[NCHAN];
+	struct adapter *adap = seq->private;
+
+	t4_get_chan_txrate(adap, nrate, orate);
+	if (adap->params.arch.nchan == NCHAN) {
+		seq_puts(seq, "              channel 0   channel 1   "
+			 "channel 2   channel 3\n");
+		seq_printf(seq, "NIC B/s:     %10llu  %10llu  %10llu  %10llu\n",
+			   (unsigned long long)nrate[0],
+			   (unsigned long long)nrate[1],
+			   (unsigned long long)nrate[2],
+			   (unsigned long long)nrate[3]);
+		seq_printf(seq, "Offload B/s: %10llu  %10llu  %10llu  %10llu\n",
+			   (unsigned long long)orate[0],
+			   (unsigned long long)orate[1],
+			   (unsigned long long)orate[2],
+			   (unsigned long long)orate[3]);
+	} else {
+		seq_puts(seq, "              channel 0   channel 1\n");
+		seq_printf(seq, "NIC B/s:     %10llu  %10llu\n",
+			   (unsigned long long)nrate[0],
+			   (unsigned long long)nrate[1]);
+		seq_printf(seq, "Offload B/s: %10llu  %10llu\n",
+			   (unsigned long long)orate[0],
+			   (unsigned long long)orate[1]);
+	}
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(tx_rate);
+
 static int cctrl_tbl_show(struct seq_file *seq, void *v)
 {
 	static const char * const dec_fac[] = {
@@ -830,16 +952,23 @@ static int devlog_show(struct seq_file *seq, void *v)
 		 * eventually have to put a format interpreter in here ...
 		 */
 		seq_printf(seq, "%10d  %15llu  %8s  %8s  ",
-			   e->seqno, e->timestamp,
+			   be32_to_cpu(e->seqno),
+			   be64_to_cpu(e->timestamp),
 			   (e->level < ARRAY_SIZE(devlog_level_strings)
 			    ? devlog_level_strings[e->level]
 			    : "UNKNOWN"),
 			   (e->facility < ARRAY_SIZE(devlog_facility_strings)
 			    ? devlog_facility_strings[e->facility]
 			    : "UNKNOWN"));
-		seq_printf(seq, e->fmt, e->params[0], e->params[1],
-			   e->params[2], e->params[3], e->params[4],
-			   e->params[5], e->params[6], e->params[7]);
+		seq_printf(seq, e->fmt,
+			   be32_to_cpu(e->params[0]),
+			   be32_to_cpu(e->params[1]),
+			   be32_to_cpu(e->params[2]),
+			   be32_to_cpu(e->params[3]),
+			   be32_to_cpu(e->params[4]),
+			   be32_to_cpu(e->params[5]),
+			   be32_to_cpu(e->params[6]),
+			   be32_to_cpu(e->params[7]));
 	}
 	return 0;
 }
@@ -921,23 +1050,17 @@ static int devlog_open(struct inode *inode, struct file *file)
 		return ret;
 	}
 
-	/* Translate log multi-byte integral elements into host native format
-	 * and determine where the first entry in the log is.
+	/* Find the earliest (lowest Sequence Number) log entry in the
+	 * circular Device Log.
 	 */
 	for (fseqno = ~((u32)0), index = 0; index < dinfo->nentries; index++) {
 		struct fw_devlog_e *e = &dinfo->log[index];
-		int i;
 		__u32 seqno;
 
 		if (e->timestamp == 0)
 			continue;
 
-		e->timestamp = (__force __be64)be64_to_cpu(e->timestamp);
 		seqno = be32_to_cpu(e->seqno);
-		for (i = 0; i < 8; i++)
-			e->params[i] =
-				(__force __be32)be32_to_cpu(e->params[i]);
-
 		if (seqno < fseqno) {
 			fseqno = seqno;
 			dinfo->first = index;
@@ -1084,41 +1207,89 @@ static inline void tcamxy2valmask(u64 x, u64 y, u8 *addr, u64 *mask)
 
 static int mps_tcam_show(struct seq_file *seq, void *v)
 {
-	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "Idx  Ethernet address     Mask     Vld Ports PF"
-			 "  VF              Replication             "
-			 "P0 P1 P2 P3  ML\n");
-	else {
+	struct adapter *adap = seq->private;
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
+
+	if (v == SEQ_START_TOKEN) {
+		if (adap->params.arch.mps_rplc_size > 128)
+			seq_puts(seq, "Idx  Ethernet address     Mask     "
+				 "Vld Ports PF  VF                           "
+				 "Replication                                "
+				 "    P0 P1 P2 P3  ML\n");
+		else
+			seq_puts(seq, "Idx  Ethernet address     Mask     "
+				 "Vld Ports PF  VF              Replication"
+				 "	         P0 P1 P2 P3  ML\n");
+	} else {
 		u64 mask;
 		u8 addr[ETH_ALEN];
-		struct adapter *adap = seq->private;
+		bool replicate;
 		unsigned int idx = (uintptr_t)v - 2;
-		u64 tcamy = t4_read_reg64(adap, MPS_CLS_TCAM_Y_L(idx));
-		u64 tcamx = t4_read_reg64(adap, MPS_CLS_TCAM_X_L(idx));
-		u32 cls_lo = t4_read_reg(adap, MPS_CLS_SRAM_L(idx));
-		u32 cls_hi = t4_read_reg(adap, MPS_CLS_SRAM_H(idx));
-		u32 rplc[4] = {0, 0, 0, 0};
+		u64 tcamy, tcamx, val;
+		u32 cls_lo, cls_hi, ctl;
+		u32 rplc[8] = {0};
+
+		if (chip_ver > CHELSIO_T5) {
+			/* CtlCmdType - 0: Read, 1: Write
+			 * CtlTcamSel - 0: TCAM0, 1: TCAM1
+			 * CtlXYBitSel- 0: Y bit, 1: X bit
+			 */
+
+			/* Read tcamy */
+			ctl = CTLCMDTYPE_V(0) | CTLXYBITSEL_V(0);
+			if (idx < 256)
+				ctl |= CTLTCAMINDEX_V(idx) | CTLTCAMSEL_V(0);
+			else
+				ctl |= CTLTCAMINDEX_V(idx - 256) |
+				       CTLTCAMSEL_V(1);
+			t4_write_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A, ctl);
+			val = t4_read_reg(adap, MPS_CLS_TCAM_DATA1_A);
+			tcamy = DMACH_G(val) << 32;
+			tcamy |= t4_read_reg(adap, MPS_CLS_TCAM_DATA0_A);
+
+			/* Read tcamx. Change the control param */
+			ctl |= CTLXYBITSEL_V(1);
+			t4_write_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A, ctl);
+			val = t4_read_reg(adap, MPS_CLS_TCAM_DATA1_A);
+			tcamx = DMACH_G(val) << 32;
+			tcamx |= t4_read_reg(adap, MPS_CLS_TCAM_DATA0_A);
+		} else {
+			tcamy = t4_read_reg64(adap, MPS_CLS_TCAM_Y_L(idx));
+			tcamx = t4_read_reg64(adap, MPS_CLS_TCAM_X_L(idx));
+		}
+
+		cls_lo = t4_read_reg(adap, MPS_CLS_SRAM_L(idx));
+		cls_hi = t4_read_reg(adap, MPS_CLS_SRAM_H(idx));
 
 		if (tcamx & tcamy) {
 			seq_printf(seq, "%3u         -\n", idx);
 			goto out;
 		}
 
-		if (cls_lo & REPLICATE_F) {
+		rplc[0] = rplc[1] = rplc[2] = rplc[3] = 0;
+		if (chip_ver > CHELSIO_T5)
+			replicate = (cls_lo & T6_REPLICATE_F);
+		else
+			replicate = (cls_lo & REPLICATE_F);
+
+		if (replicate) {
 			struct fw_ldst_cmd ldst_cmd;
 			int ret;
+			struct fw_ldst_mps_rplc mps_rplc;
+			u32 ldst_addrspc;
 
 			memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+			ldst_addrspc =
+				FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_MPS);
 			ldst_cmd.op_to_addrspace =
 				htonl(FW_CMD_OP_V(FW_LDST_CMD) |
 				      FW_CMD_REQUEST_F |
 				      FW_CMD_READ_F |
-				      FW_LDST_CMD_ADDRSPACE_V(
-					      FW_LDST_ADDRSPC_MPS));
+				      ldst_addrspc);
 			ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
-			ldst_cmd.u.mps.fid_ctl =
+			ldst_cmd.u.mps.rplc.fid_idx =
 				htons(FW_LDST_CMD_FID_V(FW_LDST_MPS_RPLC) |
-				      FW_LDST_CMD_CTL_V(idx));
+				      FW_LDST_CMD_IDX_V(idx));
 			ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd,
 					 sizeof(ldst_cmd), &ldst_cmd);
 			if (ret)
@@ -1126,30 +1297,69 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 					 "replication map for idx %d: %d\n",
 					 idx, -ret);
 			else {
-				rplc[0] = ntohl(ldst_cmd.u.mps.rplc31_0);
-				rplc[1] = ntohl(ldst_cmd.u.mps.rplc63_32);
-				rplc[2] = ntohl(ldst_cmd.u.mps.rplc95_64);
-				rplc[3] = ntohl(ldst_cmd.u.mps.rplc127_96);
+				mps_rplc = ldst_cmd.u.mps.rplc;
+				rplc[0] = ntohl(mps_rplc.rplc31_0);
+				rplc[1] = ntohl(mps_rplc.rplc63_32);
+				rplc[2] = ntohl(mps_rplc.rplc95_64);
+				rplc[3] = ntohl(mps_rplc.rplc127_96);
+				if (adap->params.arch.mps_rplc_size > 128) {
+					rplc[4] = ntohl(mps_rplc.rplc159_128);
+					rplc[5] = ntohl(mps_rplc.rplc191_160);
+					rplc[6] = ntohl(mps_rplc.rplc223_192);
+					rplc[7] = ntohl(mps_rplc.rplc255_224);
+				}
 			}
 		}
 
 		tcamxy2valmask(tcamx, tcamy, addr, &mask);
-		seq_printf(seq, "%3u %02x:%02x:%02x:%02x:%02x:%02x %012llx"
-			   "%3c   %#x%4u%4d",
-			   idx, addr[0], addr[1], addr[2], addr[3], addr[4],
-			   addr[5], (unsigned long long)mask,
-			   (cls_lo & SRAM_VLD_F) ? 'Y' : 'N', PORTMAP_G(cls_hi),
-			   PF_G(cls_lo),
-			   (cls_lo & VF_VALID_F) ? VF_G(cls_lo) : -1);
-		if (cls_lo & REPLICATE_F)
-			seq_printf(seq, " %08x %08x %08x %08x",
-				   rplc[3], rplc[2], rplc[1], rplc[0]);
+		if (chip_ver > CHELSIO_T5)
+			seq_printf(seq, "%3u %02x:%02x:%02x:%02x:%02x:%02x "
+				   "%012llx%3c   %#x%4u%4d",
+				   idx, addr[0], addr[1], addr[2], addr[3],
+				   addr[4], addr[5], (unsigned long long)mask,
+				   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
+				   PORTMAP_G(cls_hi),
+				   T6_PF_G(cls_lo),
+				   (cls_lo & T6_VF_VALID_F) ?
+				   T6_VF_G(cls_lo) : -1);
 		else
-			seq_printf(seq, "%36c", ' ');
-		seq_printf(seq, "%4u%3u%3u%3u %#x\n",
-			   SRAM_PRIO0_G(cls_lo), SRAM_PRIO1_G(cls_lo),
-			   SRAM_PRIO2_G(cls_lo), SRAM_PRIO3_G(cls_lo),
-			   (cls_lo >> MULTILISTEN0_S) & 0xf);
+			seq_printf(seq, "%3u %02x:%02x:%02x:%02x:%02x:%02x "
+				   "%012llx%3c   %#x%4u%4d",
+				   idx, addr[0], addr[1], addr[2], addr[3],
+				   addr[4], addr[5], (unsigned long long)mask,
+				   (cls_lo & SRAM_VLD_F) ? 'Y' : 'N',
+				   PORTMAP_G(cls_hi),
+				   PF_G(cls_lo),
+				   (cls_lo & VF_VALID_F) ? VF_G(cls_lo) : -1);
+
+		if (replicate) {
+			if (adap->params.arch.mps_rplc_size > 128)
+				seq_printf(seq, " %08x %08x %08x %08x "
+					   "%08x %08x %08x %08x",
+					   rplc[7], rplc[6], rplc[5], rplc[4],
+					   rplc[3], rplc[2], rplc[1], rplc[0]);
+			else
+				seq_printf(seq, " %08x %08x %08x %08x",
+					   rplc[3], rplc[2], rplc[1], rplc[0]);
+		} else {
+			if (adap->params.arch.mps_rplc_size > 128)
+				seq_printf(seq, "%72c", ' ');
+			else
+				seq_printf(seq, "%36c", ' ');
+		}
+
+		if (chip_ver > CHELSIO_T5)
+			seq_printf(seq, "%4u%3u%3u%3u %#x\n",
+				   T6_SRAM_PRIO0_G(cls_lo),
+				   T6_SRAM_PRIO1_G(cls_lo),
+				   T6_SRAM_PRIO2_G(cls_lo),
+				   T6_SRAM_PRIO3_G(cls_lo),
+				   (cls_lo >> T6_MULTILISTEN0_S) & 0xf);
+		else
+			seq_printf(seq, "%4u%3u%3u%3u %#x\n",
+				   SRAM_PRIO0_G(cls_lo), SRAM_PRIO1_G(cls_lo),
+				   SRAM_PRIO2_G(cls_lo), SRAM_PRIO3_G(cls_lo),
+				   (cls_lo >> MULTILISTEN0_S) & 0xf);
 	}
 out:	return 0;
 }
@@ -1222,7 +1432,7 @@ static int sensors_show(struct seq_file *seq, void *v)
 	param[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
 		    FW_PARAMS_PARAM_Y_V(FW_PARAM_DEV_DIAG_VDD));
-	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
 			      param, val);
 
 	if (ret < 0 || val[0] == 0)
@@ -1416,6 +1626,9 @@ static int rss_config_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  HashDelay:     %3d\n", HASHDELAY_G(rssconf));
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
 		seq_printf(seq, "  VfWrAddr:      %3d\n", VFWRADDR_G(rssconf));
+	else
+		seq_printf(seq, "  VfWrAddr:      %3d\n",
+			   T6_VFWRADDR_G(rssconf));
 	seq_printf(seq, "  KeyMode:       %s\n", keymode[KEYMODE_G(rssconf)]);
 	seq_printf(seq, "  VfWrEn:        %3s\n", yesno(rssconf & VFWREN_F));
 	seq_printf(seq, "  KeyWrEn:       %3s\n", yesno(rssconf & KEYWREN_F));
@@ -1634,14 +1847,14 @@ static int rss_vf_config_open(struct inode *inode, struct file *file)
 	struct adapter *adapter = inode->i_private;
 	struct seq_tab *p;
 	struct rss_vf_conf *vfconf;
-	int vf;
+	int vf, vfcount = adapter->params.arch.vfcount;
 
-	p = seq_open_tab(file, 128, sizeof(*vfconf), 1, rss_vf_config_show);
+	p = seq_open_tab(file, vfcount, sizeof(*vfconf), 1, rss_vf_config_show);
 	if (!p)
 		return -ENOMEM;
 
 	vfconf = (struct rss_vf_conf *)p->data;
-	for (vf = 0; vf < 128; vf++) {
+	for (vf = 0; vf < vfcount; vf++) {
 		t4_read_rss_vf_config(adapter, vf, &vfconf[vf].rss_vf_vfl,
 				      &vfconf[vf].rss_vf_vfh);
 	}
@@ -1959,6 +2172,61 @@ static void add_debugfs_mem(struct adapter *adap, const char *name,
 				 size_mb << 20);
 }
 
+static int blocked_fl_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t blocked_fl_read(struct file *filp, char __user *ubuf,
+			       size_t count, loff_t *ppos)
+{
+	int len;
+	const struct adapter *adap = filp->private_data;
+	char *buf;
+	ssize_t size = (adap->sge.egr_sz + 3) / 4 +
+			adap->sge.egr_sz / 32 + 2; /* includes ,/\n/\0 */
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len = snprintf(buf, size - 1, "%*pb\n",
+		       adap->sge.egr_sz, adap->sge.blocked_fl);
+	len += sprintf(buf + len, "\n");
+	size = simple_read_from_buffer(ubuf, count, ppos, buf, len);
+	t4_free_mem(buf);
+	return size;
+}
+
+static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
+				size_t count, loff_t *ppos)
+{
+	int err;
+	unsigned long *t;
+	struct adapter *adap = filp->private_data;
+
+	t = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz), sizeof(long), GFP_KERNEL);
+	if (!t)
+		return -ENOMEM;
+
+	err = bitmap_parse_user(ubuf, count, t, adap->sge.egr_sz);
+	if (err)
+		return err;
+
+	bitmap_copy(adap->sge.blocked_fl, t, adap->sge.egr_sz);
+	t4_free_mem(t);
+	return count;
+}
+
+static const struct file_operations blocked_fl_fops = {
+	.owner   = THIS_MODULE,
+	.open    = blocked_fl_open,
+	.read    = blocked_fl_read,
+	.write   = blocked_fl_write,
+	.llseek  = generic_file_llseek,
+};
+
 /* Add an array of Debug FS files.
  */
 void add_debugfs_files(struct adapter *adap,
@@ -1978,11 +2246,13 @@ void add_debugfs_files(struct adapter *adap,
 int t4_setup_debugfs(struct adapter *adap)
 {
 	int i;
-	u32 size;
+	u32 size = 0;
 	struct dentry *de;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
+		{ "cim_pif_la", &cim_pif_la_fops, S_IRUSR, 0 },
+		{ "cim_ma_la", &cim_ma_la_fops, S_IRUSR, 0 },
 		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
 		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
@@ -2018,10 +2288,12 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "ulprx_la", &ulprx_la_fops, S_IRUSR, 0 },
 		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
+		{ "tx_rate", &tx_rate_debugfs_fops, S_IRUSR, 0 },
 		{ "cctrl", &cctrl_tbl_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif
+		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.
@@ -2048,12 +2320,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		size = t4_read_reg(adap, MA_EDRAM1_BAR_A);
 		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM1_SIZE_G(size));
 	}
-	if (is_t4(adap->params.chip)) {
-		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
-		if (i & EXT_MEM_ENABLE_F)
-			add_debugfs_mem(adap, "mc", MEM_MC,
-					EXT_MEM_SIZE_G(size));
-	} else {
+	if (is_t5(adap->params.chip)) {
 		if (i & EXT_MEM0_ENABLE_F) {
 			size = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
 			add_debugfs_mem(adap, "mc0", MEM_MC0,
@@ -2064,6 +2331,11 @@ int t4_setup_debugfs(struct adapter *adap)
 			add_debugfs_mem(adap, "mc1", MEM_MC1,
 					EXT_MEM1_SIZE_G(size));
 		}
+	} else {
+		if (i & EXT_MEM_ENABLE_F)
+			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
+			add_debugfs_mem(adap, "mc", MEM_MC,
+					EXT_MEM_SIZE_G(size));
 	}
 
 	de = debugfs_create_file_size("flash", S_IRUSR, adap->debugfs_root, adap,

@@ -132,6 +132,12 @@
 			};
 		};
 
+		emif: emif@4c000000 {
+			compatible = "ti,emif-am4372";
+			reg = <0x4c000000 0x1000000>;
+			ti,hwmods = "emif";
+		};
+
 		edma: edma@49000000 {
 			compatible = "ti,edma3";
 			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
@@ -941,6 +947,7 @@
 				ti,hwmods = "dss_rfbi";
 				clocks = <&disp_clk>;
 				clock-names = "fck";
+				status = "disabled";
 			};
 		};
 

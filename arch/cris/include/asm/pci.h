@@ -29,7 +29,7 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
 

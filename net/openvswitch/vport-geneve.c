@@ -46,11 +46,6 @@ static inline struct geneve_port *geneve_vport(const struct vport *vport)
 	return vport_priv(vport);
 }
 
-static inline struct genevehdr *geneve_hdr(const struct sk_buff *skb)
-{
-	return (struct genevehdr *)(udp_hdr(skb) + 1);
-}
-
 /* Convert 64 bit tunnel ID to 24 bit VNI. */
 static void tunnel_id_to_vni(__be64 tun_id, __u8 *vni)
 {

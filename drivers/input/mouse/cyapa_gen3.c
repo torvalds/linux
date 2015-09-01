@@ -950,14 +950,13 @@ static u16 cyapa_get_wait_time_for_pwr_cmd(u8 pwr_mode)
  * Device power mode can only be set when device is in operational mode.
  */
 static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
-		u16 always_unused)
+				     u16 always_unused)
 {
 	int ret;
 	u8 power;
 	int tries;
 	u16 sleep_time;
 
-	always_unused = 0;
 	if (cyapa->state != CYAPA_STATE_OP)
 		return 0;
 

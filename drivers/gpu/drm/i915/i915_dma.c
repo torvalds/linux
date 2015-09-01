@@ -564,6 +564,140 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 #undef SEP_COMMA
 }
 
+static void cherryview_sseu_info_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_device_info *info;
+	u32 fuse, eu_dis;
+
+	info = (struct intel_device_info *)&dev_priv->info;
+	fuse = I915_READ(CHV_FUSE_GT);
+
+	info->slice_total = 1;
+
+	if (!(fuse & CHV_FGT_DISABLE_SS0)) {
+		info->subslice_per_slice++;
+		eu_dis = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
+				 CHV_FGT_EU_DIS_SS0_R1_MASK);
+		info->eu_total += 8 - hweight32(eu_dis);
+	}
+
+	if (!(fuse & CHV_FGT_DISABLE_SS1)) {
+		info->subslice_per_slice++;
+		eu_dis = fuse & (CHV_FGT_EU_DIS_SS1_R0_MASK |
+				 CHV_FGT_EU_DIS_SS1_R1_MASK);
+		info->eu_total += 8 - hweight32(eu_dis);
+	}
+
+	info->subslice_total = info->subslice_per_slice;
+	/*
+	 * CHV expected to always have a uniform distribution of EU
+	 * across subslices.
+	*/
+	info->eu_per_subslice = info->subslice_total ?
+				info->eu_total / info->subslice_total :
+				0;
+	/*
+	 * CHV supports subslice power gating on devices with more than
+	 * one subslice, and supports EU power gating on devices with
+	 * more than one EU pair per subslice.
+	*/
+	info->has_slice_pg = 0;
+	info->has_subslice_pg = (info->subslice_total > 1);
+	info->has_eu_pg = (info->eu_per_subslice > 2);
+}
+
+static void gen9_sseu_info_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_device_info *info;
+	int s_max = 3, ss_max = 4, eu_max = 8;
+	int s, ss;
+	u32 fuse2, s_enable, ss_disable, eu_disable;
+	u8 eu_mask = 0xff;
+
+	/*
+	 * BXT has a single slice. BXT also has at most 6 EU per subslice,
+	 * and therefore only the lowest 6 bits of the 8-bit EU disable
+	 * fields are valid.
+	*/
+	if (IS_BROXTON(dev)) {
+		s_max = 1;
+		eu_max = 6;
+		eu_mask = 0x3f;
+	}
+
+	info = (struct intel_device_info *)&dev_priv->info;
+	fuse2 = I915_READ(GEN8_FUSE2);
+	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >>
+		   GEN8_F2_S_ENA_SHIFT;
+	ss_disable = (fuse2 & GEN9_F2_SS_DIS_MASK) >>
+		     GEN9_F2_SS_DIS_SHIFT;
+
+	info->slice_total = hweight32(s_enable);
+	/*
+	 * The subslice disable field is global, i.e. it applies
+	 * to each of the enabled slices.
+	*/
+	info->subslice_per_slice = ss_max - hweight32(ss_disable);
+	info->subslice_total = info->slice_total *
+			       info->subslice_per_slice;
+
+	/*
+	 * Iterate through enabled slices and subslices to
+	 * count the total enabled EU.
+	*/
+	for (s = 0; s < s_max; s++) {
+		if (!(s_enable & (0x1 << s)))
+			/* skip disabled slice */
+			continue;
+
+		eu_disable = I915_READ(GEN9_EU_DISABLE(s));
+		for (ss = 0; ss < ss_max; ss++) {
+			int eu_per_ss;
+
+			if (ss_disable & (0x1 << ss))
+				/* skip disabled subslice */
+				continue;
+
+			eu_per_ss = eu_max - hweight8((eu_disable >> (ss*8)) &
+						      eu_mask);
+
+			/*
+			 * Record which subslice(s) has(have) 7 EUs. we
+			 * can tune the hash used to spread work among
+			 * subslices if they are unbalanced.
+			 */
+			if (eu_per_ss == 7)
+				info->subslice_7eu[s] |= 1 << ss;
+
+			info->eu_total += eu_per_ss;
+		}
+	}
+
+	/*
+	 * SKL is expected to always have a uniform distribution
+	 * of EU across subslices with the exception that any one
+	 * EU in any one subslice may be fused off for die
+	 * recovery. BXT is expected to be perfectly uniform in EU
+	 * distribution.
+	*/
+	info->eu_per_subslice = info->subslice_total ?
+				DIV_ROUND_UP(info->eu_total,
+					     info->subslice_total) : 0;
+	/*
+	 * SKL supports slice power gating on devices with more than
+	 * one slice, and supports EU power gating on devices with
+	 * more than one EU pair per subslice. BXT supports subslice
+	 * power gating on devices with more than one subslice, and
+	 * supports EU power gating on devices with more than one EU
+	 * pair per subslice.
+	*/
+	info->has_slice_pg = (IS_SKYLAKE(dev) && (info->slice_total > 1));
+	info->has_subslice_pg = (IS_BROXTON(dev) && (info->subslice_total > 1));
+	info->has_eu_pg = (info->eu_per_subslice > 2);
+}
+
 /*
  * Determine various intel_device_info fields at runtime.
  *
@@ -585,7 +719,11 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 
 	info = (struct intel_device_info *)&dev_priv->info;
 
-	if (IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen == 9)
+	if (IS_BROXTON(dev)) {
+		info->num_sprites[PIPE_A] = 3;
+		info->num_sprites[PIPE_B] = 3;
+		info->num_sprites[PIPE_C] = 2;
+	} else if (IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen == 9)
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
 	else
@@ -620,116 +758,11 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	}
 
 	/* Initialize slice/subslice/EU info */
-	if (IS_CHERRYVIEW(dev)) {
-		u32 fuse, eu_dis;
+	if (IS_CHERRYVIEW(dev))
+		cherryview_sseu_info_init(dev);
+	else if (INTEL_INFO(dev)->gen >= 9)
+		gen9_sseu_info_init(dev);
 
-		fuse = I915_READ(CHV_FUSE_GT);
-
-		info->slice_total = 1;
-
-		if (!(fuse & CHV_FGT_DISABLE_SS0)) {
-			info->subslice_per_slice++;
-			eu_dis = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
-					 CHV_FGT_EU_DIS_SS0_R1_MASK);
-			info->eu_total += 8 - hweight32(eu_dis);
-		}
-
-		if (!(fuse & CHV_FGT_DISABLE_SS1)) {
-			info->subslice_per_slice++;
-			eu_dis = fuse & (CHV_FGT_EU_DIS_SS1_R0_MASK |
-					CHV_FGT_EU_DIS_SS1_R1_MASK);
-			info->eu_total += 8 - hweight32(eu_dis);
-		}
-
-		info->subslice_total = info->subslice_per_slice;
-		/*
-		 * CHV expected to always have a uniform distribution of EU
-		 * across subslices.
-		*/
-		info->eu_per_subslice = info->subslice_total ?
-					info->eu_total / info->subslice_total :
-					0;
-		/*
-		 * CHV supports subslice power gating on devices with more than
-		 * one subslice, and supports EU power gating on devices with
-		 * more than one EU pair per subslice.
-		*/
-		info->has_slice_pg = 0;
-		info->has_subslice_pg = (info->subslice_total > 1);
-		info->has_eu_pg = (info->eu_per_subslice > 2);
-	} else if (IS_SKYLAKE(dev)) {
-		const int s_max = 3, ss_max = 4, eu_max = 8;
-		int s, ss;
-		u32 fuse2, eu_disable[s_max], s_enable, ss_disable;
-
-		fuse2 = I915_READ(GEN8_FUSE2);
-		s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >>
-			   GEN8_F2_S_ENA_SHIFT;
-		ss_disable = (fuse2 & GEN9_F2_SS_DIS_MASK) >>
-			     GEN9_F2_SS_DIS_SHIFT;
-
-		eu_disable[0] = I915_READ(GEN8_EU_DISABLE0);
-		eu_disable[1] = I915_READ(GEN8_EU_DISABLE1);
-		eu_disable[2] = I915_READ(GEN8_EU_DISABLE2);
-
-		info->slice_total = hweight32(s_enable);
-		/*
-		 * The subslice disable field is global, i.e. it applies
-		 * to each of the enabled slices.
-		*/
-		info->subslice_per_slice = ss_max - hweight32(ss_disable);
-		info->subslice_total = info->slice_total *
-				       info->subslice_per_slice;
-
-		/*
-		 * Iterate through enabled slices and subslices to
-		 * count the total enabled EU.
-		*/
-		for (s = 0; s < s_max; s++) {
-			if (!(s_enable & (0x1 << s)))
-				/* skip disabled slice */
-				continue;
-
-			for (ss = 0; ss < ss_max; ss++) {
-				u32 n_disabled;
-
-				if (ss_disable & (0x1 << ss))
-					/* skip disabled subslice */
-					continue;
-
-				n_disabled = hweight8(eu_disable[s] >>
-						      (ss * eu_max));
-
-				/*
-				 * Record which subslice(s) has(have) 7 EUs. we
-				 * can tune the hash used to spread work among
-				 * subslices if they are unbalanced.
-				 */
-				if (eu_max - n_disabled == 7)
-					info->subslice_7eu[s] |= 1 << ss;
-
-				info->eu_total += eu_max - n_disabled;
-			}
-		}
-
-		/*
-		 * SKL is expected to always have a uniform distribution
-		 * of EU across subslices with the exception that any one
-		 * EU in any one subslice may be fused off for die
-		 * recovery.
-		*/
-		info->eu_per_subslice = info->subslice_total ?
-					DIV_ROUND_UP(info->eu_total,
-						     info->subslice_total) : 0;
-		/*
-		 * SKL supports slice power gating on devices with more than
-		 * one slice, and supports EU power gating on devices with
-		 * more than one EU pair per subslice.
-		*/
-		info->has_slice_pg = (info->slice_total > 1) ? 1 : 0;
-		info->has_subslice_pg = 0;
-		info->has_eu_pg = (info->eu_per_subslice > 2) ? 1 : 0;
-	}
 	DRM_DEBUG_DRIVER("slice total: %u\n", info->slice_total);
 	DRM_DEBUG_DRIVER("subslice total: %u\n", info->subslice_total);
 	DRM_DEBUG_DRIVER("subslice per slice: %u\n", info->subslice_per_slice);
@@ -781,8 +814,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->uncore.lock);
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	spin_lock_init(&dev_priv->mmio_flip_lock);
-	mutex_init(&dev_priv->dpio_lock);
+	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
+	mutex_init(&dev_priv->csr_lock);
 
 	intel_pm_setup(dev);
 
@@ -828,9 +862,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_uncore_init(dev);
 
+	/* Load CSR Firmware for SKL */
+	intel_csr_ucode_init(dev);
+
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
-		goto out_regs;
+		goto out_freecsr;
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1000,14 +1037,19 @@ out_mtrrfree:
 	io_mapping_free(dev_priv->gtt.mappable);
 out_gtt:
 	i915_global_gtt_cleanup(dev);
-out_regs:
+out_freecsr:
+	intel_csr_ucode_fini(dev);
 	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
-	if (dev_priv->slab)
-		kmem_cache_destroy(dev_priv->slab);
+	if (dev_priv->requests)
+		kmem_cache_destroy(dev_priv->requests);
+	if (dev_priv->vmas)
+		kmem_cache_destroy(dev_priv->vmas);
+	if (dev_priv->objects)
+		kmem_cache_destroy(dev_priv->objects);
 	kfree(dev_priv);
 	return ret;
 }
@@ -1072,10 +1114,11 @@ int i915_driver_unload(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
-	i915_gem_batch_pool_fini(&dev_priv->mm.batch_pool);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_stolen(dev);
+
+	intel_csr_ucode_fini(dev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
@@ -1091,8 +1134,12 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
-	if (dev_priv->slab)
-		kmem_cache_destroy(dev_priv->slab);
+	if (dev_priv->requests)
+		kmem_cache_destroy(dev_priv->requests);
+	if (dev_priv->vmas)
+		kmem_cache_destroy(dev_priv->vmas);
+	if (dev_priv->objects)
+		kmem_cache_destroy(dev_priv->objects);
 
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev_priv);

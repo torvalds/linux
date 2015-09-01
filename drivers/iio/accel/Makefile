@@ -14,6 +14,9 @@ obj-$(CONFIG_MMA9551_CORE)	+= mma9551_core.o
 obj-$(CONFIG_MMA9551)		+= mma9551.o
 obj-$(CONFIG_MMA9553)		+= mma9553.o
 
+obj-$(CONFIG_STK8312)		+= stk8312.o
+obj-$(CONFIG_STK8BA50)		+= stk8ba50.o
+
 obj-$(CONFIG_IIO_SSP_SENSORS_COMMONS) += ssp_accel_sensor.o
 
 obj-$(CONFIG_IIO_ST_ACCEL_3AXIS) += st_accel.o

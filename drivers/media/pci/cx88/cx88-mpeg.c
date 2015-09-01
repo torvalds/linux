@@ -173,7 +173,7 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 
 	/* reset counter */
 	cx_write(MO_TS_GPCNTRL, GP_COUNT_CONTROL_RESET);
-	q->count = 1;
+	q->count = 0;
 
 	/* enable irqs */
 	dprintk( 1, "setting the interrupt mask\n" );
@@ -216,8 +216,6 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.v4l2_buf.index);
 	cx8802_start_dma(dev, q, buf);
-	list_for_each_entry(buf, &q->active, list)
-		buf->count = q->count++;
 	return 0;
 }
 
@@ -260,7 +258,6 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 	if (list_empty(&cx88q->active)) {
 		dprintk( 1, "queue is empty - first active\n" );
 		list_add_tail(&buf->list, &cx88q->active);
-		buf->count    = cx88q->count++;
 		dprintk(1,"[%p/%d] %s - first active\n",
 			buf, buf->vb.v4l2_buf.index, __func__);
 
@@ -269,7 +266,6 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(cx88q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &cx88q->active);
-		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
 			buf, buf->vb.v4l2_buf.index, __func__);

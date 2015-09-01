@@ -457,14 +457,14 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_RIGHT_J:
 		if (params_width(params) == 16) {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
-				CS4265_DAC_CTL_DIF, (1 << 5));
+				CS4265_DAC_CTL_DIF, (2 << 4));
 			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
-				CS4265_SPDIF_CTL2_DIF, (1 << 7));
+				CS4265_SPDIF_CTL2_DIF, (2 << 6));
 		} else {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
-				CS4265_DAC_CTL_DIF, (3 << 5));
+				CS4265_DAC_CTL_DIF, (3 << 4));
 			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
-				CS4265_SPDIF_CTL2_DIF, (1 << 7));
+				CS4265_SPDIF_CTL2_DIF, (3 << 6));
 		}
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -473,7 +473,7 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, CS4265_ADC_CTL,
 			CS4265_ADC_DIF, 0);
 		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
-			CS4265_SPDIF_CTL2_DIF, (1 << 6));
+			CS4265_SPDIF_CTL2_DIF, 0);
 
 		break;
 	default:
@@ -503,7 +503,6 @@ static int cs4265_set_bias_level(struct snd_soc_codec *codec,
 			CS4265_PWRCTL_PDN);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

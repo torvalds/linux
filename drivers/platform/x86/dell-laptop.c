@@ -31,7 +31,9 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <acpi/video.h>
 #include "../../firmware/dcdbas.h"
+#include "dell-rbtn.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
 #define KBD_LED_OFF_TOKEN 0x01E1
@@ -305,15 +307,17 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 };
 
 static struct calling_interface_buffer *buffer;
-static struct page *bufferpage;
 static DEFINE_MUTEX(buffer_mutex);
 
-static int hwswitch_state;
+static void clear_buffer(void)
+{
+	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+}
 
 static void get_buffer(void)
 {
 	mutex_lock(&buffer_mutex);
-	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+	clear_buffer();
 }
 
 static void release_buffer(void)
@@ -422,66 +426,166 @@ static inline int dell_smi_error(int value)
 	}
 }
 
-/* Derived from information in DellWirelessCtl.cpp:
-   Class 17, select 11 is radio control. It returns an array of 32-bit values.
-
-   Input byte 0 = 0: Wireless information
-
-   result[0]: return code
-   result[1]:
-     Bit 0:      Hardware switch supported
-     Bit 1:      Wifi locator supported
-     Bit 2:      Wifi is supported
-     Bit 3:      Bluetooth is supported
-     Bit 4:      WWAN is supported
-     Bit 5:      Wireless keyboard supported
-     Bits 6-7:   Reserved
-     Bit 8:      Wifi is installed
-     Bit 9:      Bluetooth is installed
-     Bit 10:     WWAN is installed
-     Bits 11-15: Reserved
-     Bit 16:     Hardware switch is on
-     Bit 17:     Wifi is blocked
-     Bit 18:     Bluetooth is blocked
-     Bit 19:     WWAN is blocked
-     Bits 20-31: Reserved
-   result[2]: NVRAM size in bytes
-   result[3]: NVRAM format version number
-
-   Input byte 0 = 2: Wireless switch configuration
-   result[0]: return code
-   result[1]:
-     Bit 0:      Wifi controlled by switch
-     Bit 1:      Bluetooth controlled by switch
-     Bit 2:      WWAN controlled by switch
-     Bits 3-6:   Reserved
-     Bit 7:      Wireless switch config locked
-     Bit 8:      Wifi locator enabled
-     Bits 9-14:  Reserved
-     Bit 15:     Wifi locator setting locked
-     Bits 16-31: Reserved
-*/
+/*
+ * Derived from information in smbios-wireless-ctl:
+ *
+ * cbSelect 17, Value 11
+ *
+ * Return Wireless Info
+ * cbArg1, byte0 = 0x00
+ *
+ *     cbRes1 Standard return codes (0, -1, -2)
+ *     cbRes2 Info bit flags:
+ *
+ *     0 Hardware switch supported (1)
+ *     1 WiFi locator supported (1)
+ *     2 WLAN supported (1)
+ *     3 Bluetooth (BT) supported (1)
+ *     4 WWAN supported (1)
+ *     5 Wireless KBD supported (1)
+ *     6 Uw b supported (1)
+ *     7 WiGig supported (1)
+ *     8 WLAN installed (1)
+ *     9 BT installed (1)
+ *     10 WWAN installed (1)
+ *     11 Uw b installed (1)
+ *     12 WiGig installed (1)
+ *     13-15 Reserved (0)
+ *     16 Hardware (HW) switch is On (1)
+ *     17 WLAN disabled (1)
+ *     18 BT disabled (1)
+ *     19 WWAN disabled (1)
+ *     20 Uw b disabled (1)
+ *     21 WiGig disabled (1)
+ *     20-31 Reserved (0)
+ *
+ *     cbRes3 NVRAM size in bytes
+ *     cbRes4, byte 0 NVRAM format version number
+ *
+ *
+ * Set QuickSet Radio Disable Flag
+ *     cbArg1, byte0 = 0x01
+ *     cbArg1, byte1
+ *     Radio ID     value:
+ *     0        Radio Status
+ *     1        WLAN ID
+ *     2        BT ID
+ *     3        WWAN ID
+ *     4        UWB ID
+ *     5        WIGIG ID
+ *     cbArg1, byte2    Flag bits:
+ *             0 QuickSet disables radio (1)
+ *             1-7 Reserved (0)
+ *
+ *     cbRes1    Standard return codes (0, -1, -2)
+ *     cbRes2    QuickSet (QS) radio disable bit map:
+ *     0 QS disables WLAN
+ *     1 QS disables BT
+ *     2 QS disables WWAN
+ *     3 QS disables UWB
+ *     4 QS disables WIGIG
+ *     5-31 Reserved (0)
+ *
+ * Wireless Switch Configuration
+ *     cbArg1, byte0 = 0x02
+ *
+ *     cbArg1, byte1
+ *     Subcommand:
+ *     0 Get config
+ *     1 Set config
+ *     2 Set WiFi locator enable/disable
+ *     cbArg1,byte2
+ *     Switch settings (if byte 1==1):
+ *     0 WLAN sw itch control (1)
+ *     1 BT sw itch control (1)
+ *     2 WWAN sw itch control (1)
+ *     3 UWB sw itch control (1)
+ *     4 WiGig sw itch control (1)
+ *     5-7 Reserved (0)
+ *    cbArg1, byte2 Enable bits (if byte 1==2):
+ *     0 Enable WiFi locator (1)
+ *
+ *    cbRes1     Standard return codes (0, -1, -2)
+ *    cbRes2 QuickSet radio disable bit map:
+ *     0 WLAN controlled by sw itch (1)
+ *     1 BT controlled by sw itch (1)
+ *     2 WWAN controlled by sw itch (1)
+ *     3 UWB controlled by sw itch (1)
+ *     4 WiGig controlled by sw itch (1)
+ *     5-6 Reserved (0)
+ *     7 Wireless sw itch config locked (1)
+ *     8 WiFi locator enabled (1)
+ *     9-14 Reserved (0)
+ *     15 WiFi locator setting locked (1)
+ *     16-31 Reserved (0)
+ *
+ * Read Local Config Data (LCD)
+ *     cbArg1, byte0 = 0x10
+ *     cbArg1, byte1 NVRAM index low byte
+ *     cbArg1, byte2 NVRAM index high byte
+ *     cbRes1 Standard return codes (0, -1, -2)
+ *     cbRes2 4 bytes read from LCD[index]
+ *     cbRes3 4 bytes read from LCD[index+4]
+ *     cbRes4 4 bytes read from LCD[index+8]
+ *
+ * Write Local Config Data (LCD)
+ *     cbArg1, byte0 = 0x11
+ *     cbArg1, byte1 NVRAM index low byte
+ *     cbArg1, byte2 NVRAM index high byte
+ *     cbArg2 4 bytes to w rite at LCD[index]
+ *     cbArg3 4 bytes to w rite at LCD[index+4]
+ *     cbArg4 4 bytes to w rite at LCD[index+8]
+ *     cbRes1 Standard return codes (0, -1, -2)
+ *
+ * Populate Local Config Data from NVRAM
+ *     cbArg1, byte0 = 0x12
+ *     cbRes1 Standard return codes (0, -1, -2)
+ *
+ * Commit Local Config Data to NVRAM
+ *     cbArg1, byte0 = 0x13
+ *     cbRes1 Standard return codes (0, -1, -2)
+ */
 
 static int dell_rfkill_set(void *data, bool blocked)
 {
 	int disable = blocked ? 1 : 0;
 	unsigned long radio = (unsigned long)data;
 	int hwswitch_bit = (unsigned long)data - 1;
+	int hwswitch;
+	int status;
+	int ret;
 
 	get_buffer();
+
 	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
+	status = buffer->output[1];
+
+	if (ret != 0)
+		goto out;
+
+	clear_buffer();
+
+	buffer->input[0] = 0x2;
+	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
+	hwswitch = buffer->output[1];
 
 	/* If the hardware switch controls this radio, and the hardware
 	   switch is disabled, always disable the radio */
-	if ((hwswitch_state & BIT(hwswitch_bit)) &&
-	    !(buffer->output[1] & BIT(16)))
+	if (ret == 0 && (hwswitch & BIT(hwswitch_bit)) &&
+	    (status & BIT(0)) && !(status & BIT(16)))
 		disable = 1;
+
+	clear_buffer();
 
 	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
 	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
 
+ out:
 	release_buffer();
-	return 0;
+	return dell_smi_error(ret);
 }
 
 /* Must be called with the buffer held */
@@ -491,6 +595,7 @@ static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 	if (status & BIT(0)) {
 		/* Has hw-switch, sync sw_state to BIOS */
 		int block = rfkill_blocked(rfkill);
+		clear_buffer();
 		buffer->input[0] = (1 | (radio << 8) | (block << 16));
 		dell_send_request(buffer, 17, 11);
 	} else {
@@ -500,23 +605,43 @@ static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 }
 
 static void dell_rfkill_update_hw_state(struct rfkill *rfkill, int radio,
-					int status)
+					int status, int hwswitch)
 {
-	if (hwswitch_state & (BIT(radio - 1)))
+	if (hwswitch & (BIT(radio - 1)))
 		rfkill_set_hw_state(rfkill, !(status & BIT(16)));
 }
 
 static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 {
+	int radio = ((unsigned long)data & 0xF);
+	int hwswitch;
 	int status;
+	int ret;
 
 	get_buffer();
+
 	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
 	status = buffer->output[1];
 
-	dell_rfkill_update_hw_state(rfkill, (unsigned long)data, status);
+	if (ret != 0 || !(status & BIT(0))) {
+		release_buffer();
+		return;
+	}
+
+	clear_buffer();
+
+	buffer->input[0] = 0x2;
+	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
+	hwswitch = buffer->output[1];
 
 	release_buffer();
+
+	if (ret != 0)
+		return;
+
+	dell_rfkill_update_hw_state(rfkill, radio, status, hwswitch);
 }
 
 static const struct rfkill_ops dell_rfkill_ops = {
@@ -528,13 +653,27 @@ static struct dentry *dell_laptop_dir;
 
 static int dell_debugfs_show(struct seq_file *s, void *data)
 {
+	int hwswitch_state;
+	int hwswitch_ret;
 	int status;
+	int ret;
 
 	get_buffer();
+
 	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
 	status = buffer->output[1];
+
+	clear_buffer();
+
+	buffer->input[0] = 0x2;
+	dell_send_request(buffer, 17, 11);
+	hwswitch_ret = buffer->output[0];
+	hwswitch_state = buffer->output[1];
+
 	release_buffer();
 
+	seq_printf(s, "return:\t%d\n", ret);
 	seq_printf(s, "status:\t0x%X\n", status);
 	seq_printf(s, "Bit 0 : Hardware switch supported:   %lu\n",
 		   status & BIT(0));
@@ -548,12 +687,21 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 		  (status & BIT(4)) >> 4);
 	seq_printf(s, "Bit 5 : Wireless keyboard supported: %lu\n",
 		  (status & BIT(5)) >> 5);
+	seq_printf(s, "Bit 6 : UWB supported:               %lu\n",
+		  (status & BIT(6)) >> 6);
+	seq_printf(s, "Bit 7 : WiGig supported:             %lu\n",
+		  (status & BIT(7)) >> 7);
 	seq_printf(s, "Bit 8 : Wifi is installed:           %lu\n",
 		  (status & BIT(8)) >> 8);
 	seq_printf(s, "Bit 9 : Bluetooth is installed:      %lu\n",
 		  (status & BIT(9)) >> 9);
 	seq_printf(s, "Bit 10: WWAN is installed:           %lu\n",
 		  (status & BIT(10)) >> 10);
+	seq_printf(s, "Bit 11: UWB installed:               %lu\n",
+		  (status & BIT(11)) >> 11);
+	seq_printf(s, "Bit 12: WiGig installed:             %lu\n",
+		  (status & BIT(12)) >> 12);
+
 	seq_printf(s, "Bit 16: Hardware switch is on:       %lu\n",
 		  (status & BIT(16)) >> 16);
 	seq_printf(s, "Bit 17: Wifi is blocked:             %lu\n",
@@ -562,14 +710,23 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 		  (status & BIT(18)) >> 18);
 	seq_printf(s, "Bit 19: WWAN is blocked:             %lu\n",
 		  (status & BIT(19)) >> 19);
+	seq_printf(s, "Bit 20: UWB is blocked:              %lu\n",
+		  (status & BIT(20)) >> 20);
+	seq_printf(s, "Bit 21: WiGig is blocked:            %lu\n",
+		  (status & BIT(21)) >> 21);
 
-	seq_printf(s, "\nhwswitch_state:\t0x%X\n", hwswitch_state);
+	seq_printf(s, "\nhwswitch_return:\t%d\n", hwswitch_ret);
+	seq_printf(s, "hwswitch_state:\t0x%X\n", hwswitch_state);
 	seq_printf(s, "Bit 0 : Wifi controlled by switch:      %lu\n",
 		   hwswitch_state & BIT(0));
 	seq_printf(s, "Bit 1 : Bluetooth controlled by switch: %lu\n",
 		   (hwswitch_state & BIT(1)) >> 1);
 	seq_printf(s, "Bit 2 : WWAN controlled by switch:      %lu\n",
 		   (hwswitch_state & BIT(2)) >> 2);
+	seq_printf(s, "Bit 3 : UWB controlled by switch:       %lu\n",
+		   (hwswitch_state & BIT(3)) >> 3);
+	seq_printf(s, "Bit 4 : WiGig controlled by switch:     %lu\n",
+		   (hwswitch_state & BIT(4)) >> 4);
 	seq_printf(s, "Bit 7 : Wireless switch config locked:  %lu\n",
 		   (hwswitch_state & BIT(7)) >> 7);
 	seq_printf(s, "Bit 8 : Wifi locator enabled:           %lu\n",
@@ -595,25 +752,43 @@ static const struct file_operations dell_debugfs_fops = {
 
 static void dell_update_rfkill(struct work_struct *ignored)
 {
+	int hwswitch = 0;
 	int status;
+	int ret;
 
 	get_buffer();
+
 	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
 	status = buffer->output[1];
 
+	if (ret != 0)
+		goto out;
+
+	clear_buffer();
+
+	buffer->input[0] = 0x2;
+	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
+
+	if (ret == 0 && (status & BIT(0)))
+		hwswitch = buffer->output[1];
+
 	if (wifi_rfkill) {
-		dell_rfkill_update_hw_state(wifi_rfkill, 1, status);
+		dell_rfkill_update_hw_state(wifi_rfkill, 1, status, hwswitch);
 		dell_rfkill_update_sw_state(wifi_rfkill, 1, status);
 	}
 	if (bluetooth_rfkill) {
-		dell_rfkill_update_hw_state(bluetooth_rfkill, 2, status);
+		dell_rfkill_update_hw_state(bluetooth_rfkill, 2, status,
+					    hwswitch);
 		dell_rfkill_update_sw_state(bluetooth_rfkill, 2, status);
 	}
 	if (wwan_rfkill) {
-		dell_rfkill_update_hw_state(wwan_rfkill, 3, status);
+		dell_rfkill_update_hw_state(wwan_rfkill, 3, status, hwswitch);
 		dell_rfkill_update_sw_state(wwan_rfkill, 3, status);
 	}
 
+ out:
 	release_buffer();
 }
 static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
@@ -642,6 +817,20 @@ static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
+static int (*dell_rbtn_notifier_register_func)(struct notifier_block *);
+static int (*dell_rbtn_notifier_unregister_func)(struct notifier_block *);
+
+static int dell_laptop_rbtn_notifier_call(struct notifier_block *nb,
+					  unsigned long action, void *data)
+{
+	schedule_delayed_work(&dell_rfkill_work, 0);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block dell_laptop_rbtn_notifier = {
+	.notifier_call = dell_laptop_rbtn_notifier_call,
+};
+
 static int __init dell_setup_rfkill(void)
 {
 	int status, ret, whitelisted;
@@ -661,21 +850,17 @@ static int __init dell_setup_rfkill(void)
 
 	get_buffer();
 	dell_send_request(buffer, 17, 11);
+	ret = buffer->output[0];
 	status = buffer->output[1];
-	buffer->input[0] = 0x2;
-	dell_send_request(buffer, 17, 11);
-	hwswitch_state = buffer->output[1];
 	release_buffer();
 
-	if (!(status & BIT(0))) {
-		if (force_rfkill) {
-			/* No hwsitch, clear all hw-controlled bits */
-			hwswitch_state &= ~7;
-		} else {
-			/* rfkill is only tested on laptops with a hwswitch */
-			return 0;
-		}
-	}
+	/* dell wireless info smbios call is not supported */
+	if (ret != 0)
+		return 0;
+
+	/* rfkill is only tested on laptops with a hwswitch */
+	if (!(status & BIT(0)) && !force_rfkill)
+		return 0;
 
 	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
 		wifi_rfkill = rfkill_alloc("dell-wifi", &platform_device->dev,
@@ -718,10 +903,62 @@ static int __init dell_setup_rfkill(void)
 			goto err_wwan;
 	}
 
-	ret = i8042_install_filter(dell_laptop_i8042_filter);
-	if (ret) {
-		pr_warn("Unable to install key filter\n");
+	/*
+	 * Dell Airplane Mode Switch driver (dell-rbtn) supports ACPI devices
+	 * which can receive events from HW slider switch.
+	 *
+	 * Dell SMBIOS on whitelisted models supports controlling radio devices
+	 * but does not support receiving HW button switch events. We can use
+	 * i8042 filter hook function to receive keyboard data and handle
+	 * keycode for HW button.
+	 *
+	 * So if it is possible we will use Dell Airplane Mode Switch ACPI
+	 * driver for receiving HW events and Dell SMBIOS for setting rfkill
+	 * states. If ACPI driver or device is not available we will fallback to
+	 * i8042 filter hook function.
+	 *
+	 * To prevent duplicate rfkill devices which control and do same thing,
+	 * dell-rbtn driver will automatically remove its own rfkill devices
+	 * once function dell_rbtn_notifier_register() is called.
+	 */
+
+	dell_rbtn_notifier_register_func =
+		symbol_request(dell_rbtn_notifier_register);
+	if (dell_rbtn_notifier_register_func) {
+		dell_rbtn_notifier_unregister_func =
+			symbol_request(dell_rbtn_notifier_unregister);
+		if (!dell_rbtn_notifier_unregister_func) {
+			symbol_put(dell_rbtn_notifier_register);
+			dell_rbtn_notifier_register_func = NULL;
+		}
+	}
+
+	if (dell_rbtn_notifier_register_func) {
+		ret = dell_rbtn_notifier_register_func(
+			&dell_laptop_rbtn_notifier);
+		symbol_put(dell_rbtn_notifier_register);
+		dell_rbtn_notifier_register_func = NULL;
+		if (ret != 0) {
+			symbol_put(dell_rbtn_notifier_unregister);
+			dell_rbtn_notifier_unregister_func = NULL;
+		}
+	} else {
+		pr_info("Symbols from dell-rbtn acpi driver are not available\n");
+		ret = -ENODEV;
+	}
+
+	if (ret == 0) {
+		pr_info("Using dell-rbtn acpi driver for receiving events\n");
+	} else if (ret != -ENODEV) {
+		pr_warn("Unable to register dell rbtn notifier\n");
 		goto err_filter;
+	} else {
+		ret = i8042_install_filter(dell_laptop_i8042_filter);
+		if (ret) {
+			pr_warn("Unable to install key filter\n");
+			goto err_filter;
+		}
+		pr_info("Using i8042 filter function for receiving events\n");
 	}
 
 	return 0;
@@ -744,6 +981,14 @@ err_wifi:
 
 static void dell_cleanup_rfkill(void)
 {
+	if (dell_rbtn_notifier_unregister_func) {
+		dell_rbtn_notifier_unregister_func(&dell_laptop_rbtn_notifier);
+		symbol_put(dell_rbtn_notifier_unregister);
+		dell_rbtn_notifier_unregister_func = NULL;
+	} else {
+		i8042_remove_filter(dell_laptop_i8042_filter);
+	}
+	cancel_delayed_work_sync(&dell_rfkill_work);
 	if (wifi_rfkill) {
 		rfkill_unregister(wifi_rfkill);
 		rfkill_destroy(wifi_rfkill);
@@ -760,47 +1005,50 @@ static void dell_cleanup_rfkill(void)
 
 static int dell_send_intensity(struct backlight_device *bd)
 {
-	int ret = 0;
+	int token;
+	int ret;
+
+	token = find_token_location(BRIGHTNESS_TOKEN);
+	if (token == -1)
+		return -ENODEV;
 
 	get_buffer();
-	buffer->input[0] = find_token_location(BRIGHTNESS_TOKEN);
+	buffer->input[0] = token;
 	buffer->input[1] = bd->props.brightness;
-
-	if (buffer->input[0] == -1) {
-		ret = -ENODEV;
-		goto out;
-	}
 
 	if (power_supply_is_system_supplied() > 0)
 		dell_send_request(buffer, 1, 2);
 	else
 		dell_send_request(buffer, 1, 1);
 
- out:
+	ret = dell_smi_error(buffer->output[0]);
+
 	release_buffer();
 	return ret;
 }
 
 static int dell_get_intensity(struct backlight_device *bd)
 {
-	int ret = 0;
+	int token;
+	int ret;
+
+	token = find_token_location(BRIGHTNESS_TOKEN);
+	if (token == -1)
+		return -ENODEV;
 
 	get_buffer();
-	buffer->input[0] = find_token_location(BRIGHTNESS_TOKEN);
-
-	if (buffer->input[0] == -1) {
-		ret = -ENODEV;
-		goto out;
-	}
+	buffer->input[0] = token;
 
 	if (power_supply_is_system_supplied() > 0)
 		dell_send_request(buffer, 0, 2);
 	else
 		dell_send_request(buffer, 0, 1);
 
-	ret = buffer->output[1];
+	if (buffer->output[0])
+		ret = dell_smi_error(buffer->output[0]);
+	else
+		ret = buffer->output[1];
 
- out:
 	release_buffer();
 	return ret;
 }
@@ -1864,6 +2112,7 @@ static void kbd_led_exit(void)
 static int __init dell_init(void)
 {
 	int max_intensity = 0;
+	int token;
 	int ret;
 
 	if (!dmi_check_system(dell_device_table))
@@ -1896,12 +2145,11 @@ static int __init dell_init(void)
 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
 	 * is passed to SMI handler.
 	 */
-	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
-	if (!bufferpage) {
+	buffer = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
+	if (!buffer) {
 		ret = -ENOMEM;
 		goto fail_buffer;
 	}
-	buffer = page_address(bufferpage);
 
 	ret = dell_setup_rfkill();
 
@@ -1920,21 +2168,18 @@ static int __init dell_init(void)
 		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
 				    &dell_debugfs_fops);
 
-#ifdef CONFIG_ACPI
-	/* In the event of an ACPI backlight being available, don't
-	 * register the platform controller.
-	 */
-	if (acpi_video_backlight_support())
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
-#endif
 
-	get_buffer();
-	buffer->input[0] = find_token_location(BRIGHTNESS_TOKEN);
-	if (buffer->input[0] != -1) {
+	token = find_token_location(BRIGHTNESS_TOKEN);
+	if (token != -1) {
+		get_buffer();
+		buffer->input[0] = token;
 		dell_send_request(buffer, 0, 2);
-		max_intensity = buffer->output[3];
+		if (buffer->output[0] == 0)
+			max_intensity = buffer->output[3];
+		release_buffer();
 	}
-	release_buffer();
 
 	if (max_intensity) {
 		struct backlight_properties props;
@@ -1961,11 +2206,9 @@ static int __init dell_init(void)
 	return 0;
 
 fail_backlight:
-	i8042_remove_filter(dell_laptop_i8042_filter);
-	cancel_delayed_work_sync(&dell_rfkill_work);
 	dell_cleanup_rfkill();
 fail_rfkill:
-	free_page((unsigned long)bufferpage);
+	free_page((unsigned long)buffer);
 fail_buffer:
 	platform_device_del(platform_device);
 fail_platform_device2:
@@ -1983,8 +2226,6 @@ static void __exit dell_exit(void)
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
 	kbd_led_exit();
-	i8042_remove_filter(dell_laptop_i8042_filter);
-	cancel_delayed_work_sync(&dell_rfkill_work);
 	backlight_device_unregister(dell_backlight_device);
 	dell_cleanup_rfkill();
 	if (platform_device) {
@@ -1995,7 +2236,14 @@ static void __exit dell_exit(void)
 	free_page((unsigned long)buffer);
 }
 
-module_init(dell_init);
+/* dell-rbtn.c driver export functions which will not work correctly (and could
+ * cause kernel crash) if they are called before dell-rbtn.c init code. This is
+ * not problem when dell-rbtn.c is compiled as external module. When both files
+ * (dell-rbtn.c and dell-laptop.c) are compiled statically into kernel, then we
+ * need to ensure that dell_init() will be called after initializing dell-rbtn.
+ * This can be achieved by late_initcall() instead module_init().
+ */
+late_initcall(dell_init);
 module_exit(dell_exit);
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");

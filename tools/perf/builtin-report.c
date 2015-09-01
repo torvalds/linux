@@ -742,6 +742,17 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
+	if (symbol_conf.vmlinux_name &&
+	    access(symbol_conf.vmlinux_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.vmlinux_name);
+		return -EINVAL;
+	}
+	if (symbol_conf.kallsyms_name &&
+	    access(symbol_conf.kallsyms_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.kallsyms_name);
+		return -EINVAL;
+	}
+
 	if (report.use_stdio)
 		use_browser = 0;
 	else if (report.use_tui)
@@ -828,8 +839,10 @@ repeat:
 	if (report.header || report.header_only) {
 		perf_session__fprintf_info(session, stdout,
 					   report.show_full_info);
-		if (report.header_only)
-			return 0;
+		if (report.header_only) {
+			ret = 0;
+			goto error;
+		}
 	} else if (use_browser == 0) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);

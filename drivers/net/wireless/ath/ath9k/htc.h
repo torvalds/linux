@@ -440,9 +440,9 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
-#define OP_BT_PRIORITY_DETECTED    BIT(3)
-#define OP_BT_SCAN                 BIT(4)
-#define OP_TSF_RESET               BIT(6)
+#define OP_BT_PRIORITY_DETECTED    3
+#define OP_BT_SCAN                 4
+#define OP_TSF_RESET               6
 
 enum htc_op_flags {
 	HTC_FWFLAG_NO_RMW,
@@ -531,6 +531,7 @@ struct ath9k_htc_priv {
 	struct ath9k_debug debug;
 #endif
 	struct mutex mutex;
+	struct ieee80211_vif *csa_vif;
 };
 
 static inline void ath_read_cachesize(struct ath_common *common, int *csz)
@@ -584,6 +585,7 @@ void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
 void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event);
 void ath9k_tx_failed_tasklet(unsigned long data);
 void ath9k_htc_tx_cleanup_timer(unsigned long data);
+bool ath9k_htc_csa_is_finished(struct ath9k_htc_priv *priv);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);

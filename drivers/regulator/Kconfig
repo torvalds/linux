@@ -178,6 +178,16 @@ config REGULATOR_DA9055
 	  This driver can also be built as a module. If so, the module
 	  will be called da9055-regulator.
 
+config REGULATOR_DA9062
+	tristate "Dialog Semiconductor DA9062 regulators"
+	depends on MFD_DA9062
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  DA9062 PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9062-regulator.
+
 config REGULATOR_DA9063
 	tristate "Dialog Semiconductor DA9063 regulators"
 	depends on MFD_DA9063
@@ -233,7 +243,7 @@ config REGULATOR_FAN53555
 
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This driver provides support for regulators that can be
 	  controlled via gpios.
@@ -511,6 +521,17 @@ config REGULATOR_QCOM_RPM
 	  Say M here if you want to include support for the regulators on the
 	  Qualcomm RPM as a module. The module will be named
 	  "qcom_rpm-regulator".
+
+config REGULATOR_QCOM_SPMI
+	tristate "Qualcomm SPMI regulator driver"
+	depends on SPMI || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators found in Qualcomm SPMI PMICs.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm SPMI PMICs as a module. The module will be named
+	  "qcom_spmi-regulator".
 
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"

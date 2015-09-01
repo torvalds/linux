@@ -48,6 +48,8 @@
 	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |\
 	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
+#define ATC_MAX_DSCR_TRIALS	10
+
 /*
  * Initial number of descriptors to allocate for each channel. This could
  * be increased during dma usage.
@@ -247,6 +249,10 @@ static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 	channel_writel(atchan, CTRLA, 0);
 	channel_writel(atchan, CTRLB, 0);
 	channel_writel(atchan, DSCR, first->txd.phys);
+	channel_writel(atchan, SPIP, ATC_SPIP_HOLE(first->src_hole) |
+		       ATC_SPIP_BOUNDARY(first->boundary));
+	channel_writel(atchan, DPIP, ATC_DPIP_HOLE(first->dst_hole) |
+		       ATC_DPIP_BOUNDARY(first->boundary));
 	dma_writel(atdma, CHER, atchan->mask);
 
 	vdbg_dump_regs(atchan);
@@ -281,28 +287,19 @@ static struct at_desc *atc_get_desc_by_cookie(struct at_dma_chan *atchan,
  *
  * @current_len: the number of bytes left before reading CTRLA
  * @ctrla: the value of CTRLA
- * @desc: the descriptor containing the transfer width
  */
-static inline int atc_calc_bytes_left(int current_len, u32 ctrla,
-					struct at_desc *desc)
+static inline int atc_calc_bytes_left(int current_len, u32 ctrla)
 {
-	return current_len - ((ctrla & ATC_BTSIZE_MAX) << desc->tx_width);
-}
+	u32 btsize = (ctrla & ATC_BTSIZE_MAX);
+	u32 src_width = ATC_REG_TO_SRC_WIDTH(ctrla);
 
-/**
- * atc_calc_bytes_left_from_reg - calculates the number of bytes left according
- * to the current value of CTRLA.
- *
- * @current_len: the number of bytes left before reading CTRLA
- * @atchan: the channel to read CTRLA for
- * @desc: the descriptor containing the transfer width
- */
-static inline int atc_calc_bytes_left_from_reg(int current_len,
-			struct at_dma_chan *atchan, struct at_desc *desc)
-{
-	u32 ctrla = channel_readl(atchan, CTRLA);
-
-	return atc_calc_bytes_left(current_len, ctrla, desc);
+	/*
+	 * According to the datasheet, when reading the Control A Register
+	 * (ctrla), the Buffer Transfer Size (btsize) bitfield refers to the
+	 * number of transfers completed on the Source Interface.
+	 * So btsize is always a number of source width transfers.
+	 */
+	return current_len - (btsize << src_width);
 }
 
 /**
@@ -316,7 +313,7 @@ static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
 	struct at_desc *desc_first = atc_first_active(atchan);
 	struct at_desc *desc;
 	int ret;
-	u32 ctrla, dscr;
+	u32 ctrla, dscr, trials;
 
 	/*
 	 * If the cookie doesn't match to the currently running transfer then
@@ -342,15 +339,82 @@ static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
 		 * the channel's DSCR register and compare it against the value
 		 * of the hardware linked list structure of each child
 		 * descriptor.
+		 *
+		 * The CTRLA register provides us with the amount of data
+		 * already read from the source for the current child
+		 * descriptor. So we can compute a more accurate residue by also
+		 * removing the number of bytes corresponding to this amount of
+		 * data.
+		 *
+		 * However, the DSCR and CTRLA registers cannot be read both
+		 * atomically. Hence a race condition may occur: the first read
+		 * register may refer to one child descriptor whereas the second
+		 * read may refer to a later child descriptor in the list
+		 * because of the DMA transfer progression inbetween the two
+		 * reads.
+		 *
+		 * One solution could have been to pause the DMA transfer, read
+		 * the DSCR and CTRLA then resume the DMA transfer. Nonetheless,
+		 * this approach presents some drawbacks:
+		 * - If the DMA transfer is paused, RX overruns or TX underruns
+		 *   are more likey to occur depending on the system latency.
+		 *   Taking the USART driver as an example, it uses a cyclic DMA
+		 *   transfer to read data from the Receive Holding Register
+		 *   (RHR) to avoid RX overruns since the RHR is not protected
+		 *   by any FIFO on most Atmel SoCs. So pausing the DMA transfer
+		 *   to compute the residue would break the USART driver design.
+		 * - The atc_pause() function masks interrupts but we'd rather
+		 *   avoid to do so for system latency purpose.
+		 *
+		 * Then we'd rather use another solution: the DSCR is read a
+		 * first time, the CTRLA is read in turn, next the DSCR is read
+		 * a second time. If the two consecutive read values of the DSCR
+		 * are the same then we assume both refers to the very same
+		 * child descriptor as well as the CTRLA value read inbetween
+		 * does. For cyclic tranfers, the assumption is that a full loop
+		 * is "not so fast".
+		 * If the two DSCR values are different, we read again the CTRLA
+		 * then the DSCR till two consecutive read values from DSCR are
+		 * equal or till the maxium trials is reach.
+		 * This algorithm is very unlikely not to find a stable value for
+		 * DSCR.
 		 */
 
-		ctrla = channel_readl(atchan, CTRLA);
-		rmb(); /* ensure CTRLA is read before DSCR */
 		dscr = channel_readl(atchan, DSCR);
+		rmb(); /* ensure DSCR is read before CTRLA */
+		ctrla = channel_readl(atchan, CTRLA);
+		for (trials = 0; trials < ATC_MAX_DSCR_TRIALS; ++trials) {
+			u32 new_dscr;
+
+			rmb(); /* ensure DSCR is read after CTRLA */
+			new_dscr = channel_readl(atchan, DSCR);
+
+			/*
+			 * If the DSCR register value has not changed inside the
+			 * DMA controller since the previous read, we assume
+			 * that both the dscr and ctrla values refers to the
+			 * very same descriptor.
+			 */
+			if (likely(new_dscr == dscr))
+				break;
+
+			/*
+			 * DSCR has changed inside the DMA controller, so the
+			 * previouly read value of CTRLA may refer to an already
+			 * processed descriptor hence could be outdated.
+			 * We need to update ctrla to match the current
+			 * descriptor.
+			 */
+			dscr = new_dscr;
+			rmb(); /* ensure DSCR is read before CTRLA */
+			ctrla = channel_readl(atchan, CTRLA);
+		}
+		if (unlikely(trials >= ATC_MAX_DSCR_TRIALS))
+			return -ETIMEDOUT;
 
 		/* for the first descriptor we can be more accurate */
 		if (desc_first->lli.dscr == dscr)
-			return atc_calc_bytes_left(ret, ctrla, desc_first);
+			return atc_calc_bytes_left(ret, ctrla);
 
 		ret -= desc_first->len;
 		list_for_each_entry(desc, &desc_first->tx_list, desc_node) {
@@ -361,16 +425,14 @@ static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
 		}
 
 		/*
-		 * For the last descriptor in the chain we can calculate
+		 * For the current descriptor in the chain we can calculate
 		 * the remaining bytes using the channel's register.
-		 * Note that the transfer width of the first and last
-		 * descriptor may differ.
 		 */
-		if (!desc->lli.dscr)
-			ret = atc_calc_bytes_left_from_reg(ret, atchan, desc);
+		ret = atc_calc_bytes_left(ret, ctrla);
 	} else {
 		/* single transfer */
-		ret = atc_calc_bytes_left_from_reg(ret, atchan, desc_first);
+		ctrla = channel_readl(atchan, CTRLA);
+		ret = atc_calc_bytes_left(ret, ctrla);
 	}
 
 	return ret;
@@ -635,6 +697,103 @@ static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx)
 }
 
 /**
+ * atc_prep_dma_interleaved - prepare memory to memory interleaved operation
+ * @chan: the channel to prepare operation on
+ * @xt: Interleaved transfer template
+ * @flags: tx descriptor status flags
+ */
+static struct dma_async_tx_descriptor *
+atc_prep_dma_interleaved(struct dma_chan *chan,
+			 struct dma_interleaved_template *xt,
+			 unsigned long flags)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct data_chunk	*first = xt->sgl;
+	struct at_desc		*desc = NULL;
+	size_t			xfer_count;
+	unsigned int		dwidth;
+	u32			ctrla;
+	u32			ctrlb;
+	size_t			len = 0;
+	int			i;
+
+	dev_info(chan2dev(chan),
+		 "%s: src=0x%08x, dest=0x%08x, numf=%d, frame_size=%d, flags=0x%lx\n",
+		__func__, xt->src_start, xt->dst_start, xt->numf,
+		xt->frame_size, flags);
+
+	if (unlikely(!xt || xt->numf != 1 || !xt->frame_size))
+		return NULL;
+
+	/*
+	 * The controller can only "skip" X bytes every Y bytes, so we
+	 * need to make sure we are given a template that fit that
+	 * description, ie a template with chunks that always have the
+	 * same size, with the same ICGs.
+	 */
+	for (i = 0; i < xt->frame_size; i++) {
+		struct data_chunk *chunk = xt->sgl + i;
+
+		if ((chunk->size != xt->sgl->size) ||
+		    (dmaengine_get_dst_icg(xt, chunk) != dmaengine_get_dst_icg(xt, first)) ||
+		    (dmaengine_get_src_icg(xt, chunk) != dmaengine_get_src_icg(xt, first))) {
+			dev_err(chan2dev(chan),
+				"%s: the controller can transfer only identical chunks\n",
+				__func__);
+			return NULL;
+		}
+
+		len += chunk->size;
+	}
+
+	dwidth = atc_get_xfer_width(xt->src_start,
+				    xt->dst_start, len);
+
+	xfer_count = len >> dwidth;
+	if (xfer_count > ATC_BTSIZE_MAX) {
+		dev_err(chan2dev(chan), "%s: buffer is too big\n", __func__);
+		return NULL;
+	}
+
+	ctrla = ATC_SRC_WIDTH(dwidth) |
+		ATC_DST_WIDTH(dwidth);
+
+	ctrlb =   ATC_DEFAULT_CTRLB | ATC_IEN
+		| ATC_SRC_ADDR_MODE_INCR
+		| ATC_DST_ADDR_MODE_INCR
+		| ATC_SRC_PIP
+		| ATC_DST_PIP
+		| ATC_FC_MEM2MEM;
+
+	/* create the transfer */
+	desc = atc_desc_get(atchan);
+	if (!desc) {
+		dev_err(chan2dev(chan),
+			"%s: couldn't allocate our descriptor\n", __func__);
+		return NULL;
+	}
+
+	desc->lli.saddr = xt->src_start;
+	desc->lli.daddr = xt->dst_start;
+	desc->lli.ctrla = ctrla | xfer_count;
+	desc->lli.ctrlb = ctrlb;
+
+	desc->boundary = first->size >> dwidth;
+	desc->dst_hole = (dmaengine_get_dst_icg(xt, first) >> dwidth) + 1;
+	desc->src_hole = (dmaengine_get_src_icg(xt, first) >> dwidth) + 1;
+
+	desc->txd.cookie = -EBUSY;
+	desc->total_len = desc->len = len;
+
+	/* set end-of-link to the last link descriptor of list*/
+	set_desc_eol(desc);
+
+	desc->txd.flags = flags; /* client is in control of this ack */
+
+	return &desc->txd;
+}
+
+/**
  * atc_prep_dma_memcpy - prepare a memcpy operation
  * @chan: the channel to prepare operation on
  * @dest: operation virtual destination address
@@ -701,10 +860,6 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
 	first->total_len = len;
-
-	/* set transfer width for the calculation of the residue */
-	first->tx_width = src_width;
-	prev->tx_width = src_width;
 
 	/* set end-of-link to the last link descriptor of list*/
 	set_desc_eol(desc);
@@ -854,10 +1009,6 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	first->txd.cookie = -EBUSY;
 	first->total_len = total_len;
 
-	/* set transfer width for the calculation of the residue */
-	first->tx_width = reg_width;
-	prev->tx_width = reg_width;
-
 	/* first link descriptor of list is responsible of flags */
 	first->txd.flags = flags; /* client is in control of this ack */
 
@@ -974,12 +1125,6 @@ atc_prep_dma_sg(struct dma_chan *chan,
 
 		desc->txd.cookie = 0;
 		desc->len = len;
-
-		/*
-		 * Although we only need the transfer width for the first and
-		 * the last descriptor, its easier to set it to all descriptors.
-		 */
-		desc->tx_width = src_width;
 
 		atc_desc_chain(&first, &prev, desc);
 
@@ -1154,7 +1299,6 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
 	first->total_len = buf_len;
-	first->tx_width = reg_width;
 
 	return &first->txd;
 
@@ -1609,6 +1753,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	/* setup platform data for each SoC */
 	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);
 	dma_cap_set(DMA_SG, at91sam9rl_config.cap_mask);
+	dma_cap_set(DMA_INTERLEAVE, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_MEMCPY, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_SLAVE, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_SG, at91sam9g45_config.cap_mask);
@@ -1713,6 +1858,9 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	atdma->dma_common.dev = &pdev->dev;
 
 	/* set prep routines based on capability */
+	if (dma_has_cap(DMA_INTERLEAVE, atdma->dma_common.cap_mask))
+		atdma->dma_common.device_prep_interleaved_dma = atc_prep_dma_interleaved;
+
 	if (dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_prep_dma_memcpy = atc_prep_dma_memcpy;
 

@@ -78,7 +78,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	dev->dev.parent = coredev->device;
 
 #if 0
-	/* TODO: properly initialize the parameters bellow */
+	/* TODO: properly initialize the parameters below */
 	dev->input_id.bustype = BUS_USB;
 	dev->input_id.version = 1;
 	dev->input_id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);

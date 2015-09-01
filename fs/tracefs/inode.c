@@ -496,16 +496,11 @@ struct dentry *tracefs_create_instance_dir(const char *name, struct dentry *pare
 	return dentry;
 }
 
-static inline int tracefs_positive(struct dentry *dentry)
-{
-	return dentry->d_inode && !d_unhashed(dentry);
-}
-
 static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
 {
 	int ret = 0;
 
-	if (tracefs_positive(dentry)) {
+	if (simple_positive(dentry)) {
 		if (dentry->d_inode) {
 			dget(dentry);
 			switch (dentry->d_inode->i_mode & S_IFMT) {
@@ -582,7 +577,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 	 */
 	spin_lock(&parent->d_lock);
 	list_for_each_entry(child, &parent->d_subdirs, d_child) {
-		if (!tracefs_positive(child))
+		if (!simple_positive(child))
 			continue;
 
 		/* perhaps simple_empty(child) makes more sense */
@@ -603,7 +598,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 		 * from d_subdirs. When releasing the parent->d_lock we can
 		 * no longer trust that the next pointer is valid.
 		 * Restart the loop. We'll skip this one with the
-		 * tracefs_positive() check.
+		 * simple_positive() check.
 		 */
 		goto loop;
 	}
@@ -631,14 +626,12 @@ bool tracefs_initialized(void)
 	return tracefs_registered;
 }
 
-static struct kobject *trace_kobj;
-
 static int __init tracefs_init(void)
 {
 	int retval;
 
-	trace_kobj = kobject_create_and_add("tracing", kernel_kobj);
-	if (!trace_kobj)
+	retval = sysfs_create_mount_point(kernel_kobj, "tracing");
+	if (retval)
 		return -EINVAL;
 
 	retval = register_filesystem(&trace_fs_type);

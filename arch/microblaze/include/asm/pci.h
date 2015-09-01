@@ -16,8 +16,8 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/scatterlist.h>
 
-#include <asm/scatterlist.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
@@ -26,8 +26,6 @@
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
-
-struct pci_dev;
 
 /* Values for the `which' argument to sys_pciconfig_iobase syscall.  */
 #define IOBASE_BRIDGE_NUMBER	0
@@ -78,21 +76,6 @@ extern void pcibios_claim_one_bus(struct pci_bus *b);
 extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
 
 extern void pcibios_resource_survey(void);
-
-extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
-extern int remove_phb_dynamic(struct pci_controller *phb);
-
-extern struct pci_dev *of_create_pci_dev(struct device_node *node,
-					struct pci_bus *bus, int devfn);
-
-extern void of_scan_pci_bridge(struct device_node *node,
-				struct pci_dev *dev);
-
-extern void of_scan_bus(struct device_node *node, struct pci_bus *bus);
-extern void of_rescan_bus(struct device_node *node, struct pci_bus *bus);
-
-extern int pci_bus_find_capability(struct pci_bus *bus,
-						unsigned int devfn, int cap);
 
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,

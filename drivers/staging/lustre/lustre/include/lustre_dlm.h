@@ -60,11 +60,13 @@
 struct obd_ops;
 struct obd_device;
 
+extern struct kset *ldlm_ns_kset;
+extern struct kset *ldlm_svc_kset;
+
 #define OBD_LDLM_DEVICENAME  "ldlm"
 
 #define LDLM_DEFAULT_LRU_SIZE (100 * num_online_cpus())
 #define LDLM_DEFAULT_MAX_ALIVE (cfs_time_seconds(36000))
-#define LDLM_CTIME_AGE_LIMIT (10)
 #define LDLM_DEFAULT_PARALLEL_AST_LIMIT 1024
 
 /**
@@ -232,8 +234,8 @@ struct ldlm_pool_ops {
  * This feature is commonly referred to as lru_resize.
  */
 struct ldlm_pool {
-	/** Pool proc directory. */
-	struct proc_dir_entry	*pl_proc_dir;
+	/** Pool debugfs directory. */
+	struct dentry		*pl_debugfs_entry;
 	/** Pool name, must be long enough to hold compound proc entry name. */
 	char			pl_name[100];
 	/** Lock for protecting SLV/CLV updates. */
@@ -263,6 +265,10 @@ struct ldlm_pool {
 	int			pl_grant_plan;
 	/** Pool statistics. */
 	struct lprocfs_stats	*pl_stats;
+
+	/* sysfs object */
+	struct kobject		 pl_kobj;
+	struct completion	 pl_kobj_unregister;
 };
 
 typedef int (*ldlm_res_policy)(struct ldlm_namespace *, struct ldlm_lock **,
@@ -301,14 +307,6 @@ typedef enum {
 	LDLM_NAMESPACE_GREEDY = 1 << 0,
 	LDLM_NAMESPACE_MODEST = 1 << 1
 } ldlm_appetite_t;
-
-/**
- * Default values for the "max_nolock_size", "contention_time" and
- * "contended_locks" namespace tunables.
- */
-#define NS_DEFAULT_MAX_NOLOCK_BYTES 0
-#define NS_DEFAULT_CONTENTION_SECONDS 2
-#define NS_DEFAULT_CONTENDED_LOCKS 32
 
 struct ldlm_ns_bucket {
 	/** back pointer to namespace */
@@ -390,8 +388,8 @@ struct ldlm_namespace {
 	/** Client side original connect flags supported by server. */
 	__u64			ns_orig_connect_flags;
 
-	/* namespace proc dir entry */
-	struct proc_dir_entry	*ns_proc_dir_entry;
+	/* namespace debugfs dir entry */
+	struct dentry		*ns_debugfs_entry;
 
 	/**
 	 * Position in global namespace list linking all namespaces on
@@ -421,18 +419,6 @@ struct ldlm_namespace {
 	unsigned int		ns_max_unused;
 	/** Maximum allowed age (last used time) for locks in the LRU */
 	unsigned int		ns_max_age;
-	/**
-	 * Server only: number of times we evicted clients due to lack of reply
-	 * to ASTs.
-	 */
-	unsigned int		ns_timeouts;
-	/**
-	 * Number of seconds since the file change time after which the
-	 * MDT will return an UPDATE lock along with a LOOKUP lock.
-	 * This allows the client to start caching negative dentries
-	 * for a directory and may save an RPC for a later stat.
-	 */
-	unsigned int		ns_ctime_age_limit;
 
 	/**
 	 * Used to rate-limit ldlm_namespace_dump calls.
@@ -466,27 +452,6 @@ struct ldlm_namespace {
 	/** Definition of how eagerly unused locks will be released from LRU */
 	ldlm_appetite_t		ns_appetite;
 
-	/**
-	 * If more than \a ns_contended_locks are found, the resource is
-	 * considered to be contended. Lock enqueues might specify that no
-	 * contended locks should be granted
-	 */
-	unsigned		ns_contended_locks;
-
-	/**
-	 * The resources in this namespace remember contended state during
-	 * \a ns_contention_time, in seconds.
-	 */
-	unsigned		ns_contention_time;
-
-	/**
-	 * Limit size of contended extent locks, in bytes.
-	 * If extended lock is requested for more then this many bytes and
-	 * caller instructs us not to grant contended locks, we would disregard
-	 * such a request.
-	 */
-	unsigned		ns_max_nolock_size;
-
 	/** Limit of parallel AST RPC count. */
 	unsigned		ns_max_parallel_ast;
 
@@ -501,6 +466,9 @@ struct ldlm_namespace {
 	 * recalculation of LDLM pool statistics should be skipped.
 	 */
 	unsigned		ns_stopping:1;
+
+	struct kobject		ns_kobj; /* sysfs object */
+	struct completion	ns_kobj_unregister;
 };
 
 /**
@@ -1283,13 +1251,8 @@ void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
-#if defined (CONFIG_PROC_FS)
-int ldlm_proc_setup(void);
-void ldlm_proc_cleanup(void);
-#else
-static inline int ldlm_proc_setup(void) { return 0; }
-static inline void ldlm_proc_cleanup(void) {}
-#endif
+int ldlm_debugfs_setup(void);
+void ldlm_debugfs_cleanup(void);
 
 /* resource.c - internal */
 struct ldlm_resource *ldlm_resource_get(struct ldlm_namespace *ns,

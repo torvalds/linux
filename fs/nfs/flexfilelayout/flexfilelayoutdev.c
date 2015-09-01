@@ -324,7 +324,8 @@ static int ff_layout_update_mirror_cred(struct nfs4_ff_layout_mirror *mirror,
 				__func__, PTR_ERR(cred));
 			return PTR_ERR(cred);
 		} else {
-			mirror->cred = cred;
+			if (cmpxchg(&mirror->cred, NULL, cred))
+				put_rpccred(cred);
 		}
 	}
 	return 0;
@@ -386,7 +387,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	/* matching smp_wmb() in _nfs4_pnfs_v3/4_ds_connect */
 	smp_rmb();
 	if (ds->ds_clp)
-		goto out;
+		goto out_update_creds;
 
 	flavor = nfs4_ff_layout_choose_authflavor(mirror);
 
@@ -430,7 +431,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 			}
 		}
 	}
-
+out_update_creds:
 	if (ff_layout_update_mirror_cred(mirror, ds))
 		ds = NULL;
 out:

@@ -116,6 +116,8 @@ struct ovs_skb_cb {
 struct dp_upcall_info {
 	const struct ovs_tunnel_info *egress_tun_info;
 	const struct nlattr *userdata;
+	const struct nlattr *actions;
+	int actions_len;
 	u32 portid;
 	u8 cmd;
 };

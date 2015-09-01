@@ -169,7 +169,7 @@ int exynos_cluster_power_state(int cluster)
 		S5P_CORE_LOCAL_PWR_EN);
 }
 
-void __iomem *cpu_boot_reg_base(void)
+static void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
 		return pmu_base_addr + S5P_INFORM5;
@@ -195,7 +195,7 @@ static inline void __iomem *cpu_boot_reg(int cpu)
  *
  * Currently this is needed only when booting secondary CPU on Exynos3250.
  */
-static void exynos_core_restart(u32 core_id)
+void exynos_core_restart(u32 core_id)
 {
 	u32 val;
 
@@ -210,7 +210,6 @@ static void exynos_core_restart(u32 core_id)
 	val |= S5P_CORE_WAKEUP_FROM_LOCAL_CFG;
 	pmu_raw_writel(val, EXYNOS_ARM_CORE_STATUS(core_id));
 
-	pr_info("CPU%u: Software reset\n", core_id);
 	pmu_raw_writel(EXYNOS_CORE_PO_RESET(core_id), EXYNOS_SWRESET);
 }
 
@@ -246,6 +245,56 @@ static void exynos_secondary_init(unsigned int cpu)
 	 */
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
+}
+
+int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
+{
+	int ret;
+
+	/*
+	 * Try to set boot address using firmware first
+	 * and fall back to boot register if it fails.
+	 */
+	ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
+	if (ret && ret != -ENOSYS)
+		goto fail;
+	if (ret == -ENOSYS) {
+		void __iomem *boot_reg = cpu_boot_reg(core_id);
+
+		if (IS_ERR(boot_reg)) {
+			ret = PTR_ERR(boot_reg);
+			goto fail;
+		}
+		__raw_writel(boot_addr, boot_reg);
+		ret = 0;
+	}
+fail:
+	return ret;
+}
+
+int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
+{
+	int ret;
+
+	/*
+	 * Try to get boot address using firmware first
+	 * and fall back to boot register if it fails.
+	 */
+	ret = call_firmware_op(get_cpu_boot_addr, core_id, boot_addr);
+	if (ret && ret != -ENOSYS)
+		goto fail;
+	if (ret == -ENOSYS) {
+		void __iomem *boot_reg = cpu_boot_reg(core_id);
+
+		if (IS_ERR(boot_reg)) {
+			ret = PTR_ERR(boot_reg);
+			goto fail;
+		}
+		*boot_addr = __raw_readl(boot_reg);
+		ret = 0;
+	}
+fail:
+	return ret;
 }
 
 static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -307,22 +356,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
-		/*
-		 * Try to set boot address using firmware first
-		 * and fall back to boot register if it fails.
-		 */
-		ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
-		if (ret && ret != -ENOSYS)
+		ret = exynos_set_boot_addr(core_id, boot_addr);
+		if (ret)
 			goto fail;
-		if (ret == -ENOSYS) {
-			void __iomem *boot_reg = cpu_boot_reg(core_id);
-
-			if (IS_ERR(boot_reg)) {
-				ret = PTR_ERR(boot_reg);
-				goto fail;
-			}
-			__raw_writel(boot_addr, boot_reg);
-		}
 
 		call_firmware_op(cpu_boot, core_id);
 
@@ -336,6 +372,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		udelay(10);
 	}
+
+	if (pen_release != -1)
+		ret = -ETIMEDOUT;
 
 	/*
 	 * now the secondary core is starting up let it run its
@@ -407,16 +446,9 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 		core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
-		ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
-		if (ret && ret != -ENOSYS)
+		ret = exynos_set_boot_addr(core_id, boot_addr);
+		if (ret)
 			break;
-		if (ret == -ENOSYS) {
-			void __iomem *boot_reg = cpu_boot_reg(core_id);
-
-			if (IS_ERR(boot_reg))
-				break;
-			__raw_writel(boot_addr, boot_reg);
-		}
 	}
 }
 

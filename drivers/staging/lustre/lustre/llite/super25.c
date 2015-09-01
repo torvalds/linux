@@ -89,7 +89,6 @@ void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
 
 static int __init init_lustre_lite(void)
 {
-	struct proc_dir_entry *entry;
 	lnet_process_id_t lnet_id;
 	struct timeval tv;
 	int i, rc, seed[2];
@@ -128,15 +127,18 @@ static int __init init_lustre_lite(void)
 	if (ll_rmtperm_hash_cachep == NULL)
 		goto out_cache;
 
-	entry = lprocfs_register("llite", proc_lustre_root, NULL, NULL);
-	if (IS_ERR(entry)) {
-		rc = PTR_ERR(entry);
-		CERROR("cannot register '/proc/fs/lustre/llite': rc = %d\n",
-		       rc);
+	llite_root = debugfs_create_dir("llite", debugfs_lustre_root);
+	if (IS_ERR_OR_NULL(llite_root)) {
+		rc = llite_root ? PTR_ERR(llite_root) : -ENOMEM;
+		llite_root = NULL;
 		goto out_cache;
 	}
 
-	proc_lustre_fs_root = entry;
+	llite_kset = kset_create_and_add("llite", NULL, lustre_kobj);
+	if (!llite_kset) {
+		rc = -ENOMEM;
+		goto out_debugfs;
+	}
 
 	cfs_get_random_bytes(seed, sizeof(seed));
 
@@ -155,7 +157,7 @@ static int __init init_lustre_lite(void)
 	setup_timer(&ll_capa_timer, ll_capa_timer_callback, 0);
 	rc = ll_capa_thread_start();
 	if (rc != 0)
-		goto out_proc;
+		goto out_sysfs;
 
 	rc = vvp_global_init();
 	if (rc != 0)
@@ -176,8 +178,10 @@ out_vvp:
 out_capa:
 	del_timer(&ll_capa_timer);
 	ll_capa_thread_stop();
-out_proc:
-	lprocfs_remove(&proc_lustre_fs_root);
+out_sysfs:
+	kset_unregister(llite_kset);
+out_debugfs:
+	debugfs_remove(llite_root);
 out_cache:
 	if (ll_inode_cachep != NULL)
 		kmem_cache_destroy(ll_inode_cachep);
@@ -200,7 +204,8 @@ static void __exit exit_lustre_lite(void)
 	lustre_register_kill_super_cb(NULL);
 	lustre_register_client_process_config(NULL);
 
-	lprocfs_remove(&proc_lustre_fs_root);
+	debugfs_remove(llite_root);
+	kset_unregister(llite_kset);
 
 	ll_xattr_fini();
 	vvp_global_fini();

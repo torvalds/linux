@@ -634,26 +634,9 @@ struct cpl_tid_release {
 
 struct cpl_tx_pkt_core {
 	__be32 ctrl0;
-#define TXPKT_VF(x)        ((x) << 0)
-#define TXPKT_PF(x)        ((x) << 8)
-#define TXPKT_VF_VLD       (1 << 11)
-#define TXPKT_OVLAN_IDX(x) ((x) << 12)
-#define TXPKT_INTF(x)      ((x) << 16)
-#define TXPKT_INS_OVLAN    (1 << 21)
-#define TXPKT_OPCODE(x)    ((x) << 24)
 	__be16 pack;
 	__be16 len;
 	__be64 ctrl1;
-#define TXPKT_CSUM_END(x)   ((x) << 12)
-#define TXPKT_CSUM_START(x) ((x) << 20)
-#define TXPKT_IPHDR_LEN(x)  ((u64)(x) << 20)
-#define TXPKT_CSUM_LOC(x)   ((u64)(x) << 30)
-#define TXPKT_ETHHDR_LEN(x) ((u64)(x) << 34)
-#define TXPKT_CSUM_TYPE(x)  ((u64)(x) << 40)
-#define TXPKT_VLAN(x)       ((u64)(x) << 44)
-#define TXPKT_VLAN_VLD      (1ULL << 60)
-#define TXPKT_IPCSUM_DIS    (1ULL << 62)
-#define TXPKT_L4CSUM_DIS    (1ULL << 63)
 };
 
 struct cpl_tx_pkt {
@@ -663,16 +646,69 @@ struct cpl_tx_pkt {
 
 #define cpl_tx_pkt_xt cpl_tx_pkt
 
+/* cpl_tx_pkt_core.ctrl0 fields */
+#define TXPKT_VF_S    0
+#define TXPKT_VF_V(x) ((x) << TXPKT_VF_S)
+
+#define TXPKT_PF_S    8
+#define TXPKT_PF_V(x) ((x) << TXPKT_PF_S)
+
+#define TXPKT_VF_VLD_S    11
+#define TXPKT_VF_VLD_V(x) ((x) << TXPKT_VF_VLD_S)
+#define TXPKT_VF_VLD_F    TXPKT_VF_VLD_V(1U)
+
+#define TXPKT_OVLAN_IDX_S    12
+#define TXPKT_OVLAN_IDX_V(x) ((x) << TXPKT_OVLAN_IDX_S)
+
+#define TXPKT_INTF_S    16
+#define TXPKT_INTF_V(x) ((x) << TXPKT_INTF_S)
+
+#define TXPKT_INS_OVLAN_S    21
+#define TXPKT_INS_OVLAN_V(x) ((x) << TXPKT_INS_OVLAN_S)
+#define TXPKT_INS_OVLAN_F    TXPKT_INS_OVLAN_V(1U)
+
+#define TXPKT_OPCODE_S    24
+#define TXPKT_OPCODE_V(x) ((x) << TXPKT_OPCODE_S)
+
+/* cpl_tx_pkt_core.ctrl1 fields */
+#define TXPKT_CSUM_END_S    12
+#define TXPKT_CSUM_END_V(x) ((x) << TXPKT_CSUM_END_S)
+
+#define TXPKT_CSUM_START_S    20
+#define TXPKT_CSUM_START_V(x) ((x) << TXPKT_CSUM_START_S)
+
+#define TXPKT_IPHDR_LEN_S    20
+#define TXPKT_IPHDR_LEN_V(x) ((__u64)(x) << TXPKT_IPHDR_LEN_S)
+
+#define TXPKT_CSUM_LOC_S    30
+#define TXPKT_CSUM_LOC_V(x) ((__u64)(x) << TXPKT_CSUM_LOC_S)
+
+#define TXPKT_ETHHDR_LEN_S    34
+#define TXPKT_ETHHDR_LEN_V(x) ((__u64)(x) << TXPKT_ETHHDR_LEN_S)
+
+#define T6_TXPKT_ETHHDR_LEN_S    32
+#define T6_TXPKT_ETHHDR_LEN_V(x) ((__u64)(x) << T6_TXPKT_ETHHDR_LEN_S)
+
+#define TXPKT_CSUM_TYPE_S    40
+#define TXPKT_CSUM_TYPE_V(x) ((__u64)(x) << TXPKT_CSUM_TYPE_S)
+
+#define TXPKT_VLAN_S    44
+#define TXPKT_VLAN_V(x) ((__u64)(x) << TXPKT_VLAN_S)
+
+#define TXPKT_VLAN_VLD_S    60
+#define TXPKT_VLAN_VLD_V(x) ((__u64)(x) << TXPKT_VLAN_VLD_S)
+#define TXPKT_VLAN_VLD_F    TXPKT_VLAN_VLD_V(1ULL)
+
+#define TXPKT_IPCSUM_DIS_S    62
+#define TXPKT_IPCSUM_DIS_V(x) ((__u64)(x) << TXPKT_IPCSUM_DIS_S)
+#define TXPKT_IPCSUM_DIS_F    TXPKT_IPCSUM_DIS_V(1ULL)
+
+#define TXPKT_L4CSUM_DIS_S    63
+#define TXPKT_L4CSUM_DIS_V(x) ((__u64)(x) << TXPKT_L4CSUM_DIS_S)
+#define TXPKT_L4CSUM_DIS_F    TXPKT_L4CSUM_DIS_V(1ULL)
+
 struct cpl_tx_pkt_lso_core {
 	__be32 lso_ctrl;
-#define LSO_TCPHDR_LEN(x) ((x) << 0)
-#define LSO_IPHDR_LEN(x)  ((x) << 4)
-#define LSO_ETHHDR_LEN(x) ((x) << 16)
-#define LSO_IPV6(x)       ((x) << 20)
-#define LSO_LAST_SLICE    (1 << 22)
-#define LSO_FIRST_SLICE   (1 << 23)
-#define LSO_OPCODE(x)     ((x) << 24)
-#define LSO_T5_XFER_SIZE(x) ((x) << 0)
 	__be16 ipid_ofst;
 	__be16 mss;
 	__be32 seqno_offset;

@@ -5,6 +5,9 @@
  * First, the standard VFP set.
  */
 
+#ifndef __ASM_VFP_H
+#define __ASM_VFP_H
+
 #define FPSID			cr0
 #define FPSCR			cr1
 #define MVFR1			cr6
@@ -87,3 +90,9 @@
 #define VFPOPDESC_UNUSED_BIT	(24)
 #define VFPOPDESC_UNUSED_MASK	(0xFF << VFPOPDESC_UNUSED_BIT)
 #define VFPOPDESC_OPDESC_MASK	(~(VFPOPDESC_LENGTH_MASK | VFPOPDESC_UNUSED_MASK))
+
+#ifndef __ASSEMBLY__
+void vfp_disable(void);
+#endif
+
+#endif /* __ASM_VFP_H */

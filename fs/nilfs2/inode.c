@@ -307,31 +307,13 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 static ssize_t
 nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 {
-	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = file->f_mapping->host;
-	size_t count = iov_iter_count(iter);
-	ssize_t size;
+	struct inode *inode = file_inode(iocb->ki_filp);
 
 	if (iov_iter_rw(iter) == WRITE)
 		return 0;
 
 	/* Needs synchronization with the cleaner */
-	size = blockdev_direct_IO(iocb, inode, iter, offset, nilfs_get_block);
-
-	/*
-	 * In case of error extending write may have instantiated a few
-	 * blocks outside i_size. Trim these off again.
-	 */
-	if (unlikely(iov_iter_rw(iter) == WRITE && size < 0)) {
-		loff_t isize = i_size_read(inode);
-		loff_t end = offset + count;
-
-		if (end > isize)
-			nilfs_write_failed(mapping, end);
-	}
-
-	return size;
+	return blockdev_direct_IO(iocb, inode, iter, offset, nilfs_get_block);
 }
 
 const struct address_space_operations nilfs_aops = {

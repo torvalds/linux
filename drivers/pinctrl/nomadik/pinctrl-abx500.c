@@ -1234,10 +1234,10 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	abx500_pinctrl_desc.pins = pct->soc->pins;
 	abx500_pinctrl_desc.npins = pct->soc->npins;
 	pct->pctldev = pinctrl_register(&abx500_pinctrl_desc, &pdev->dev, pct);
-	if (!pct->pctldev) {
+	if (IS_ERR(pct->pctldev)) {
 		dev_err(&pdev->dev,
 			"could not register abx500 pinctrl driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(pct->pctldev);
 		goto out_rem_chip;
 	}
 	dev_info(&pdev->dev, "registered pin controller\n");

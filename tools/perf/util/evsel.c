@@ -885,6 +885,8 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
 	close_cgroup(evsel->cgrp);
+	cpu_map__put(evsel->cpus);
+	thread_map__put(evsel->threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
 	perf_evsel__object.fini(evsel);
@@ -896,7 +898,7 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	free(evsel);
 }
 
-void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
+void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu, int thread,
 				struct perf_counts_values *count)
 {
 	struct perf_counts_values tmp;
@@ -908,8 +910,8 @@ void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
 		tmp = evsel->prev_raw_counts->aggr;
 		evsel->prev_raw_counts->aggr = *count;
 	} else {
-		tmp = evsel->prev_raw_counts->cpu[cpu];
-		evsel->prev_raw_counts->cpu[cpu] = *count;
+		tmp = *perf_counts(evsel->prev_raw_counts, cpu, thread);
+		*perf_counts(evsel->prev_raw_counts, cpu, thread) = *count;
 	}
 
 	count->val = count->val - tmp.val;
@@ -937,20 +939,18 @@ void perf_counts_values__scale(struct perf_counts_values *count,
 		*pscaled = scaled;
 }
 
-int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
-			perf_evsel__read_cb_t cb)
+int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
+		     struct perf_counts_values *count)
 {
-	struct perf_counts_values count;
-
-	memset(&count, 0, sizeof(count));
+	memset(count, 0, sizeof(*count));
 
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (readn(FD(evsel, cpu, thread), &count, sizeof(count)) < 0)
+	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) < 0)
 		return -errno;
 
-	return cb(evsel, cpu, thread, &count);
+	return 0;
 }
 
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
@@ -962,15 +962,15 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1) < 0)
+	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1, thread + 1) < 0)
 		return -ENOMEM;
 
 	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) < 0)
 		return -errno;
 
-	perf_evsel__compute_deltas(evsel, cpu, &count);
+	perf_evsel__compute_deltas(evsel, cpu, thread, &count);
 	perf_counts_values__scale(&count, scale, NULL);
-	evsel->counts->cpu[cpu] = count;
+	*perf_counts(evsel->counts, cpu, thread) = count;
 	return 0;
 }
 
@@ -1167,7 +1167,7 @@ retry_sample_id:
 			int group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
-				pid = threads->map[thread];
+				pid = thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:

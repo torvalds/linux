@@ -302,6 +302,20 @@ config MAC80211_DEBUG_COUNTERS
 	---help---
 	  Selecting this option causes mac80211 to keep additional
 	  and very verbose statistics about TX and RX handler use
-	  and show them in debugfs.
+	  as well as a few selected dot11 counters. These will be
+	  exposed in debugfs.
+
+	  Note that some of the counters are not concurrency safe
+	  and may thus not always be accurate.
 
 	  If unsure, say N.
+
+config MAC80211_STA_HASH_MAX_SIZE
+	int "Station hash table maximum size" if MAC80211_DEBUG_MENU
+	default 0
+	---help---
+	  Setting this option to a low value (e.g. 4) allows testing the
+	  hash table with collisions relatively deterministically (just
+	  connect more stations than the number selected here.)
+
+	  If unsure, leave the default of 0.

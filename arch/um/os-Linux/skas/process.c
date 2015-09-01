@@ -174,7 +174,7 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 	handle_syscall(regs);
 }
 
-extern int __syscall_stub_start;
+extern char __syscall_stub_start[];
 
 static int userspace_tramp(void *stack)
 {
@@ -197,7 +197,7 @@ static int userspace_tramp(void *stack)
 	 * This has a pte, but it can't be mapped in with the usual
 	 * tlb_flush mechanism because this is part of that mechanism
 	 */
-	fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
+	fd = phys_mapping(to_phys(__syscall_stub_start), &offset);
 	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 	if (addr == MAP_FAILED) {
@@ -223,7 +223,7 @@ static int userspace_tramp(void *stack)
 
 		unsigned long v = STUB_CODE +
 				  (unsigned long) stub_segv_handler -
-				  (unsigned long) &__syscall_stub_start;
+				  (unsigned long) __syscall_stub_start;
 
 		set_sigstack((void *) STUB_DATA, UM_KERN_PAGE_SIZE);
 		sigemptyset(&sa.sa_mask);
@@ -447,7 +447,7 @@ static int __init init_thread_regs(void)
 	/* Set parent's instruction pointer to start of clone-stub */
 	thread_regs[REGS_IP_INDEX] = STUB_CODE +
 				(unsigned long) stub_clone_handler -
-				(unsigned long) &__syscall_stub_start;
+				(unsigned long) __syscall_stub_start;
 	thread_regs[REGS_SP_INDEX] = STUB_DATA + UM_KERN_PAGE_SIZE -
 		sizeof(void *);
 #ifdef __SIGNAL_FRAMESIZE

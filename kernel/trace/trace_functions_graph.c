@@ -278,7 +278,7 @@ int __trace_graph_entry(struct trace_array *tr,
 				unsigned long flags,
 				int pc)
 {
-	struct ftrace_event_call *call = &event_funcgraph_entry;
+	struct trace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ent_entry *entry;
@@ -393,7 +393,7 @@ void __trace_graph_return(struct trace_array *tr,
 				unsigned long flags,
 				int pc)
 {
-	struct ftrace_event_call *call = &event_funcgraph_exit;
+	struct trace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ret_entry *entry;
@@ -1454,12 +1454,12 @@ static __init int init_graph_trace(void)
 {
 	max_bytes_for_cpu = snprintf(NULL, 0, "%d", nr_cpu_ids - 1);
 
-	if (!register_ftrace_event(&graph_trace_entry_event)) {
+	if (!register_trace_event(&graph_trace_entry_event)) {
 		pr_warning("Warning: could not register graph trace events\n");
 		return 1;
 	}
 
-	if (!register_ftrace_event(&graph_trace_ret_event)) {
+	if (!register_trace_event(&graph_trace_ret_event)) {
 		pr_warning("Warning: could not register graph trace events\n");
 		return 1;
 	}

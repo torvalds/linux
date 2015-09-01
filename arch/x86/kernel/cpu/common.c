@@ -742,7 +742,6 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	cpu_detect(c);
 	get_cpu_vendor(c);
 	get_cpu_cap(c);
-	fpu__init_system(c);
 
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
@@ -754,6 +753,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		this_cpu->c_bsp_init(c);
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
+	fpu__init_system(c);
 }
 
 void __init early_cpu_init(void)
@@ -1410,7 +1410,7 @@ void cpu_init(void)
 	load_sp0(t, &current->thread);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
-	load_LDT(&init_mm.context);
+	load_mm_ldt(&init_mm);
 
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
@@ -1459,7 +1459,7 @@ void cpu_init(void)
 	load_sp0(t, thread);
 	set_tss_desc(cpu, t);
 	load_TR_desc();
-	load_LDT(&init_mm.context);
+	load_mm_ldt(&init_mm);
 
 	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
 

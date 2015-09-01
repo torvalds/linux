@@ -68,9 +68,9 @@
 #include "ptlrpc_internal.h"
 
 struct ptlrpcd {
-	int		pd_size;
-	int		pd_index;
-	int		pd_nthreads;
+	int pd_size;
+	int pd_index;
+	int pd_nthreads;
 	struct ptlrpcd_ctl pd_thread_rcv;
 	struct ptlrpcd_ctl pd_threads[0];
 };
@@ -528,8 +528,9 @@ static int ptlrpcd_bind(int index, int max)
 	}
 
 	if (rc == 0 && pc->pc_npartners > 0) {
-		OBD_ALLOC(pc->pc_partners,
-			  sizeof(struct ptlrpcd_ctl *) * pc->pc_npartners);
+		pc->pc_partners = kcalloc(pc->pc_npartners,
+					  sizeof(struct ptlrpcd_ctl *),
+					  GFP_NOFS);
 		if (pc->pc_partners == NULL) {
 			pc->pc_npartners = 0;
 			rc = -ENOMEM;
@@ -699,8 +700,7 @@ out:
 	if (pc->pc_npartners > 0) {
 		LASSERT(pc->pc_partners != NULL);
 
-		OBD_FREE(pc->pc_partners,
-			 sizeof(struct ptlrpcd_ctl *) * pc->pc_npartners);
+		kfree(pc->pc_partners);
 		pc->pc_partners = NULL;
 	}
 	pc->pc_npartners = 0;
@@ -717,7 +717,7 @@ static void ptlrpcd_fini(void)
 			ptlrpcd_free(&ptlrpcds->pd_threads[i]);
 		ptlrpcd_stop(&ptlrpcds->pd_thread_rcv, 0);
 		ptlrpcd_free(&ptlrpcds->pd_thread_rcv);
-		OBD_FREE(ptlrpcds, ptlrpcds->pd_size);
+		kfree(ptlrpcds);
 		ptlrpcds = NULL;
 	}
 }
@@ -738,7 +738,7 @@ static int ptlrpcd_init(void)
 		nthreads &= ~1; /* make sure it is even */
 
 	size = offsetof(struct ptlrpcd, pd_threads[nthreads]);
-	OBD_ALLOC(ptlrpcds, size);
+	ptlrpcds = kzalloc(size, GFP_NOFS);
 	if (ptlrpcds == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -781,7 +781,7 @@ out:
 			ptlrpcd_free(&ptlrpcds->pd_threads[j]);
 		ptlrpcd_stop(&ptlrpcds->pd_thread_rcv, 0);
 		ptlrpcd_free(&ptlrpcds->pd_thread_rcv);
-		OBD_FREE(ptlrpcds, size);
+		kfree(ptlrpcds);
 		ptlrpcds = NULL;
 	}
 

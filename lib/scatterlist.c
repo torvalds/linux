@@ -650,9 +650,8 @@ EXPORT_SYMBOL(sg_miter_stop);
  * Returns the number of copied bytes.
  *
  **/
-static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
-			     void *buf, size_t buflen, off_t skip,
-			     bool to_buffer)
+size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
+		      size_t buflen, off_t skip, bool to_buffer)
 {
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
@@ -689,6 +688,7 @@ static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 	local_irq_restore(flags);
 	return offset;
 }
+EXPORT_SYMBOL(sg_copy_buffer);
 
 /**
  * sg_copy_from_buffer - Copy from a linear buffer to an SG list
@@ -701,9 +701,9 @@ static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
  *
  **/
 size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			   void *buf, size_t buflen)
+			   const void *buf, size_t buflen)
 {
-	return sg_copy_buffer(sgl, nents, buf, buflen, 0, false);
+	return sg_copy_buffer(sgl, nents, (void *)buf, buflen, 0, false);
 }
 EXPORT_SYMBOL(sg_copy_from_buffer);
 
@@ -729,16 +729,16 @@ EXPORT_SYMBOL(sg_copy_to_buffer);
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy from
- * @skip:		 Number of bytes to skip before copying
  * @buflen:		 The number of bytes to copy
+ * @skip:		 Number of bytes to skip before copying
  *
  * Returns the number of copied bytes.
  *
  **/
 size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			    void *buf, size_t buflen, off_t skip)
+			    const void *buf, size_t buflen, off_t skip)
 {
-	return sg_copy_buffer(sgl, nents, buf, buflen, skip, false);
+	return sg_copy_buffer(sgl, nents, (void *)buf, buflen, skip, false);
 }
 EXPORT_SYMBOL(sg_pcopy_from_buffer);
 
@@ -747,8 +747,8 @@ EXPORT_SYMBOL(sg_pcopy_from_buffer);
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy to
- * @skip:		 Number of bytes to skip before copying
  * @buflen:		 The number of bytes to copy
+ * @skip:		 Number of bytes to skip before copying
  *
  * Returns the number of copied bytes.
  *

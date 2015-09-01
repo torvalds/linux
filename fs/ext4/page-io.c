@@ -84,7 +84,7 @@ static void ext4_finish_bio(struct bio *bio)
 			/* The bounce data pages are unmapped. */
 			data_page = page;
 			ctx = (struct ext4_crypto_ctx *)page_private(data_page);
-			page = ctx->control_page;
+			page = ctx->w.control_page;
 		}
 #endif
 
@@ -359,7 +359,6 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	if (bio) {
 		bio_get(io->io_bio);
 		submit_bio(io->io_op, io->io_bio);
-		BUG_ON(bio_flagged(io->io_bio, BIO_EOPNOTSUPP));
 		bio_put(io->io_bio);
 	}
 	io->io_bio = NULL;

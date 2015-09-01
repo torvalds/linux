@@ -1448,10 +1448,9 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 	case PERF_RECORD_AUX:
 		ret = machine__process_aux_event(machine, event); break;
 	case PERF_RECORD_ITRACE_START:
-		ret = machine__process_itrace_start_event(machine, event);
+		ret = machine__process_itrace_start_event(machine, event); break;
 	case PERF_RECORD_LOST_SAMPLES:
 		ret = machine__process_lost_samples_event(machine, event, sample); break;
-		break;
 	default:
 		ret = -1;
 		break;

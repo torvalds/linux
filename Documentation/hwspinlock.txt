@@ -48,6 +48,16 @@ independent, drivers.
      ids for predefined purposes.
      Should be called from a process context (might sleep).
 
+  int of_hwspin_lock_get_id(struct device_node *np, int index);
+   - retrieve the global lock id for an OF phandle-based specific lock.
+     This function provides a means for DT users of a hwspinlock module
+     to get the global lock id of a specific hwspinlock, so that it can
+     be requested using the normal hwspin_lock_request_specific() API.
+     The function returns a lock id number on success, -EPROBE_DEFER if
+     the hwspinlock device is not yet registered with the core, or other
+     error values.
+     Should be called from a process context (might sleep).
+
   int hwspin_lock_free(struct hwspinlock *hwlock);
    - free a previously-assigned hwspinlock; returns 0 on success, or an
      appropriate error code on failure (e.g. -EINVAL if the hwspinlock

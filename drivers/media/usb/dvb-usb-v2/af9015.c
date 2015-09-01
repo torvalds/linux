@@ -641,7 +641,7 @@ static int af9015_af9013_set_frontend(struct dvb_frontend *fe)
 
 /* override demod callbacks for resource locking */
 static int af9015_af9013_read_status(struct dvb_frontend *fe,
-	fe_status_t *status)
+	enum fe_status *status)
 {
 	int ret;
 	struct af9015_state *state = fe_to_priv(fe);

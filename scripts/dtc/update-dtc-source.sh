@@ -34,6 +34,7 @@ DTC_SOURCE="checks.c data.c dtc.c dtc.h flattree.c fstree.c livetree.c srcpos.c 
 		srcpos.h treesource.c util.c util.h version_gen.h Makefile.dtc \
 		dtc-lexer.l dtc-parser.y"
 DTC_GENERATED="dtc-lexer.lex.c dtc-parser.tab.c dtc-parser.tab.h"
+LIBFDT_SOURCE="Makefile.libfdt fdt.c fdt.h fdt_empty_tree.c fdt_ro.c fdt_rw.c fdt_strerror.c fdt_sw.c fdt_wip.c libfdt.h libfdt_env.h libfdt_internal.h"
 
 # Build DTC
 cd $DTC_UPSTREAM_PATH
@@ -50,5 +51,13 @@ for f in $DTC_GENERATED; do
 	cp ${DTC_UPSTREAM_PATH}/$f ${f}_shipped
 	git add ${f}_shipped
 done
+for f in $LIBFDT_SOURCE; do
+       cp ${DTC_UPSTREAM_PATH}/libfdt/${f} libfdt/${f}
+       git add libfdt/${f}
+done
+
+sed -i -- 's/#include <libfdt_env.h>/#include "libfdt_env.h"/g' ./libfdt/libfdt.h
+sed -i -- 's/#include <fdt.h>/#include "fdt.h"/g' ./libfdt/libfdt.h
+git add ./libfdt/libfdt.h
 
 git commit -e -v -m "scripts/dtc: Update to upstream version [CHANGEME]"

@@ -15,6 +15,8 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
 #include <asm/mce.h>
 
 #include "mce_amd.h"
@@ -24,6 +26,25 @@
  */
 static struct mce i_mce;
 static struct dentry *dfs_inj;
+
+static u8 n_banks;
+
+#define MAX_FLAG_OPT_SIZE	3
+
+enum injection_type {
+	SW_INJ = 0,	/* SW injection, simply decode the error */
+	HW_INJ,		/* Trigger a #MC */
+	N_INJ_TYPES,
+};
+
+static const char * const flags_options[] = {
+	[SW_INJ] = "sw",
+	[HW_INJ] = "hw",
+	NULL
+};
+
+/* Set default injection to SW_INJ */
+static enum injection_type inj_type = SW_INJ;
 
 #define MCE_INJECT_SET(reg)						\
 static int inj_##reg##_set(void *data, u64 val)				\
@@ -79,24 +100,66 @@ static int toggle_hw_mce_inject(unsigned int cpu, bool enable)
 	return err;
 }
 
-static int flags_get(void *data, u64 *val)
+static int __set_inj(const char *buf)
 {
-	struct mce *m = (struct mce *)data;
+	int i;
 
-	*val = m->inject_flags;
-
-	return 0;
+	for (i = 0; i < N_INJ_TYPES; i++) {
+		if (!strncmp(flags_options[i], buf, strlen(flags_options[i]))) {
+			inj_type = i;
+			return 0;
+		}
+	}
+	return -EINVAL;
 }
 
-static int flags_set(void *data, u64 val)
+static ssize_t flags_read(struct file *filp, char __user *ubuf,
+			  size_t cnt, loff_t *ppos)
 {
-	struct mce *m = (struct mce *)data;
+	char buf[MAX_FLAG_OPT_SIZE];
+	int n;
 
-	m->inject_flags = (u8)val;
-	return 0;
+	n = sprintf(buf, "%s\n", flags_options[inj_type]);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, n);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(flags_fops, flags_get, flags_set, "%llu\n");
+static ssize_t flags_write(struct file *filp, const char __user *ubuf,
+			   size_t cnt, loff_t *ppos)
+{
+	char buf[MAX_FLAG_OPT_SIZE], *__buf;
+	int err;
+	size_t ret;
+
+	if (cnt > MAX_FLAG_OPT_SIZE)
+		cnt = MAX_FLAG_OPT_SIZE;
+
+	ret = cnt;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt - 1] = 0;
+
+	/* strip whitespace */
+	__buf = strstrip(buf);
+
+	err = __set_inj(__buf);
+	if (err) {
+		pr_err("%s: Invalid flags value: %s\n", __func__, __buf);
+		return err;
+	}
+
+	*ppos += ret;
+
+	return ret;
+}
+
+static const struct file_operations flags_fops = {
+	.read           = flags_read,
+	.write          = flags_write,
+	.llseek         = generic_file_llseek,
+};
 
 /*
  * On which CPU to inject?
@@ -128,20 +191,23 @@ static void do_inject(void)
 	unsigned int cpu = i_mce.extcpu;
 	u8 b = i_mce.bank;
 
-	if (!(i_mce.inject_flags & MCJ_EXCEPTION)) {
+	if (i_mce.misc)
+		i_mce.status |= MCI_STATUS_MISCV;
+
+	if (inj_type == SW_INJ) {
 		amd_decode_mce(NULL, 0, &i_mce);
 		return;
 	}
-
-	get_online_cpus();
-	if (!cpu_online(cpu))
-		goto err;
 
 	/* prep MCE global settings for the injection */
 	mcg_status = MCG_STATUS_MCIP | MCG_STATUS_EIPV;
 
 	if (!(i_mce.status & MCI_STATUS_PCC))
 		mcg_status |= MCG_STATUS_RIPV;
+
+	get_online_cpus();
+	if (!cpu_online(cpu))
+		goto err;
 
 	toggle_hw_mce_inject(cpu, true);
 
@@ -174,11 +240,9 @@ static int inj_bank_set(void *data, u64 val)
 {
 	struct mce *m = (struct mce *)data;
 
-	if (val > 5) {
-		if (boot_cpu_data.x86 != 0x15 || val > 6) {
-			pr_err("Non-existent MCE bank: %llu\n", val);
-			return -EINVAL;
-		}
+	if (val >= n_banks) {
+		pr_err("Non-existent MCE bank: %llu\n", val);
+		return -EINVAL;
 	}
 
 	m->bank = val;
@@ -187,32 +251,81 @@ static int inj_bank_set(void *data, u64 val)
 	return 0;
 }
 
-static int inj_bank_get(void *data, u64 *val)
-{
-	struct mce *m = (struct mce *)data;
-
-	*val = m->bank;
-	return 0;
-}
+MCE_INJECT_GET(bank);
 
 DEFINE_SIMPLE_ATTRIBUTE(bank_fops, inj_bank_get, inj_bank_set, "%llu\n");
+
+static const char readme_msg[] =
+"Description of the files and their usages:\n"
+"\n"
+"Note1: i refers to the bank number below.\n"
+"Note2: See respective BKDGs for the exact bit definitions of the files below\n"
+"as they mirror the hardware registers.\n"
+"\n"
+"status:\t Set MCi_STATUS: the bits in that MSR control the error type and\n"
+"\t attributes of the error which caused the MCE.\n"
+"\n"
+"misc:\t Set MCi_MISC: provide auxiliary info about the error. It is mostly\n"
+"\t used for error thresholding purposes and its validity is indicated by\n"
+"\t MCi_STATUS[MiscV].\n"
+"\n"
+"addr:\t Error address value to be written to MCi_ADDR. Log address information\n"
+"\t associated with the error.\n"
+"\n"
+"cpu:\t The CPU to inject the error on.\n"
+"\n"
+"bank:\t Specify the bank you want to inject the error into: the number of\n"
+"\t banks in a processor varies and is family/model-specific, therefore, the\n"
+"\t supplied value is sanity-checked. Setting the bank value also triggers the\n"
+"\t injection.\n"
+"\n"
+"flags:\t Injection type to be performed. Writing to this file will trigger a\n"
+"\t real machine check, an APIC interrupt or invoke the error decoder routines\n"
+"\t for AMD processors.\n"
+"\n"
+"\t Allowed error injection types:\n"
+"\t  - \"sw\": Software error injection. Decode error to a human-readable \n"
+"\t    format only. Safe to use.\n"
+"\t  - \"hw\": Hardware error injection. Causes the #MC exception handler to \n"
+"\t    handle the error. Be warned: might cause system panic if MCi_STATUS[PCC] \n"
+"\t    is set. Therefore, consider setting (debugfs_mountpoint)/mce/fake_panic \n"
+"\t    before injecting.\n"
+"\n";
+
+static ssize_t
+inj_readme_read(struct file *filp, char __user *ubuf,
+		       size_t cnt, loff_t *ppos)
+{
+	return simple_read_from_buffer(ubuf, cnt, ppos,
+					readme_msg, strlen(readme_msg));
+}
+
+static const struct file_operations readme_fops = {
+	.read		= inj_readme_read,
+};
 
 static struct dfs_node {
 	char *name;
 	struct dentry *d;
 	const struct file_operations *fops;
+	umode_t perm;
 } dfs_fls[] = {
-	{ .name = "status",	.fops = &status_fops },
-	{ .name = "misc",	.fops = &misc_fops },
-	{ .name = "addr",	.fops = &addr_fops },
-	{ .name = "bank",	.fops = &bank_fops },
-	{ .name = "flags",	.fops = &flags_fops },
-	{ .name = "cpu",	.fops = &extcpu_fops },
+	{ .name = "status",	.fops = &status_fops, .perm = S_IRUSR | S_IWUSR },
+	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
+	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
+	{ .name = "README",	.fops = &readme_fops, .perm = S_IRUSR | S_IRGRP | S_IROTH },
 };
 
 static int __init init_mce_inject(void)
 {
 	int i;
+	u64 cap;
+
+	rdmsrl(MSR_IA32_MCG_CAP, cap);
+	n_banks = cap & MCG_BANKCNT_MASK;
 
 	dfs_inj = debugfs_create_dir("mce-inject", NULL);
 	if (!dfs_inj)
@@ -220,7 +333,7 @@ static int __init init_mce_inject(void)
 
 	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++) {
 		dfs_fls[i].d = debugfs_create_file(dfs_fls[i].name,
-						    S_IRUSR | S_IWUSR,
+						    dfs_fls[i].perm,
 						    dfs_inj,
 						    &i_mce,
 						    dfs_fls[i].fops);

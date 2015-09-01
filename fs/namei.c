@@ -792,7 +792,7 @@ static void set_root(struct nameidata *nd)
 	get_fs_root(current->fs, &nd->root);
 }
 
-static unsigned set_root_rcu(struct nameidata *nd)
+static void set_root_rcu(struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
 	unsigned seq;
@@ -802,7 +802,6 @@ static unsigned set_root_rcu(struct nameidata *nd)
 		nd->root = fs->root;
 		nd->root_seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
 	} while (read_seqcount_retry(&fs->seq, seq));
-	return nd->root_seq;
 }
 
 static void path_put_conditional(struct path *path, struct nameidata *nd)
@@ -880,7 +879,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	/* Allowed if parent directory not sticky and world-writable. */
-	parent = nd->path.dentry->d_inode;
+	parent = nd->inode;
 	if ((parent->i_mode & (S_ISVTX|S_IWOTH)) != (S_ISVTX|S_IWOTH))
 		return 0;
 
@@ -1955,8 +1954,13 @@ OK:
 				continue;
 			}
 		}
-		if (unlikely(!d_can_lookup(nd->path.dentry)))
+		if (unlikely(!d_can_lookup(nd->path.dentry))) {
+			if (nd->flags & LOOKUP_RCU) {
+				if (unlazy_walk(nd, NULL, 0))
+					return -ECHILD;
+			}
 			return -ENOTDIR;
+		}
 	}
 }
 
@@ -1998,7 +2002,8 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	if (*s == '/') {
 		if (flags & LOOKUP_RCU) {
 			rcu_read_lock();
-			nd->seq = set_root_rcu(nd);
+			set_root_rcu(nd);
+			nd->seq = nd->root_seq;
 		} else {
 			set_root(nd);
 			path_get(&nd->root);

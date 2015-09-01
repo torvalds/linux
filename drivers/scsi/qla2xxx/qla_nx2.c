@@ -397,11 +397,11 @@ qla8044_idc_lock(struct qla_hw_data *ha)
 				 * has the lock, wait for 2secs
 				 * and retry
 				 */
-				 ql_dbg(ql_dbg_p3p, vha, 0xb08a,
-				     "%s: IDC lock Recovery by %d "
-				     "failed, Retrying timeout\n", __func__,
-				     ha->portnum);
-				 timeout = 0;
+				ql_dbg(ql_dbg_p3p, vha, 0xb08a,
+				       "%s: IDC lock Recovery by %d "
+				       "failed, Retrying timeout\n", __func__,
+				       ha->portnum);
+				timeout = 0;
 			}
 		}
 		msleep(QLA8044_DRV_LOCK_MSLEEP);
@@ -3141,8 +3141,7 @@ qla8044_minidump_process_rdmdio(struct scsi_qla_host *vha,
 			goto error;
 
 		addr7 = addr2 - (4 * stride1);
-			data = qla8044_ipmdio_rd_reg(vha, addr1, addr3,
-			    mask, addr7);
+		data = qla8044_ipmdio_rd_reg(vha, addr1, addr3, mask, addr7);
 		if (data == -1)
 			goto error;
 

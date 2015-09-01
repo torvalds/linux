@@ -24,6 +24,7 @@ struct inet_diag_handler {
 					  struct inet_diag_msg *r,
 					  void *info);
 	__u16		idiag_type;
+	__u16		idiag_info_size;
 };
 
 struct inet_connection_sock;

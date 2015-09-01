@@ -804,7 +804,6 @@ static struct platform_driver sun6i_a31s_pinctrl_driver = {
 	.probe	= sun6i_a31s_pinctrl_probe,
 	.driver	= {
 		.name		= "sun6i-a31s-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sun6i_a31s_pinctrl_match,
 	},
 };

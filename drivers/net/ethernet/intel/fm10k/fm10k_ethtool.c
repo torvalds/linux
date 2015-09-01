@@ -124,7 +124,7 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	char *p = (char *)data;
-	int i;
+	unsigned int i;
 
 	switch (stringset) {
 	case ETH_SS_TEST:
@@ -143,12 +143,13 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 		}
 
-		if (interface->hw.mac.type != fm10k_mac_vf)
+		if (interface->hw.mac.type != fm10k_mac_vf) {
 			for (i = 0; i < FM10K_PF_STATS_LEN; i++) {
 				memcpy(p, fm10k_gstrings_pf_stats[i].stat_string,
 				       ETH_GSTRING_LEN);
 				p += ETH_GSTRING_LEN;
 			}
+		}
 
 		for (i = 0; i < interface->hw.mac.max_queues; i++) {
 			sprintf(p, "tx_queue_%u_packets", i);

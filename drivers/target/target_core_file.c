@@ -30,14 +30,13 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <linux/falloc.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include "target_core_file.h"
 
@@ -46,10 +45,6 @@ static inline struct fd_dev *FD_DEV(struct se_device *dev)
 	return container_of(dev, struct fd_dev, dev);
 }
 
-/*	fd_attach_hba(): (Part of se_subsystem_api_t template)
- *
- *
- */
 static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct fd_host *fd_host;
@@ -66,7 +61,7 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	pr_debug("CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
 		" Target Core Stack %s\n", hba->hba_id, FD_VERSION,
-		TARGET_CORE_MOD_VERSION);
+		TARGET_CORE_VERSION);
 	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic\n",
 		hba->hba_id, fd_host->fd_host_id);
 
@@ -246,6 +241,14 @@ fail:
 	return ret;
 }
 
+static void fd_dev_call_rcu(struct rcu_head *p)
+{
+	struct se_device *dev = container_of(p, struct se_device, rcu_head);
+	struct fd_dev *fd_dev = FD_DEV(dev);
+
+	kfree(fd_dev);
+}
+
 static void fd_free_device(struct se_device *dev)
 {
 	struct fd_dev *fd_dev = FD_DEV(dev);
@@ -254,79 +257,18 @@ static void fd_free_device(struct se_device *dev)
 		filp_close(fd_dev->fd_file, NULL);
 		fd_dev->fd_file = NULL;
 	}
-
-	kfree(fd_dev);
+	call_rcu(&dev->rcu_head, fd_dev_call_rcu);
 }
 
-static int fd_do_prot_rw(struct se_cmd *cmd, struct fd_prot *fd_prot,
-			 int is_write)
+static int fd_do_rw(struct se_cmd *cmd, struct file *fd,
+		    u32 block_size, struct scatterlist *sgl,
+		    u32 sgl_nents, u32 data_length, int is_write)
 {
-	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *dev = FD_DEV(se_dev);
-	struct file *prot_fd = dev->fd_prot_file;
-	loff_t pos = (cmd->t_task_lba * se_dev->prot_length);
-	unsigned char *buf;
-	u32 prot_size;
-	int rc, ret = 1;
-
-	prot_size = (cmd->data_length / se_dev->dev_attrib.block_size) *
-		     se_dev->prot_length;
-
-	if (!is_write) {
-		fd_prot->prot_buf = kzalloc(prot_size, GFP_KERNEL);
-		if (!fd_prot->prot_buf) {
-			pr_err("Unable to allocate fd_prot->prot_buf\n");
-			return -ENOMEM;
-		}
-		buf = fd_prot->prot_buf;
-
-		fd_prot->prot_sg_nents = 1;
-		fd_prot->prot_sg = kzalloc(sizeof(struct scatterlist),
-					   GFP_KERNEL);
-		if (!fd_prot->prot_sg) {
-			pr_err("Unable to allocate fd_prot->prot_sg\n");
-			kfree(fd_prot->prot_buf);
-			return -ENOMEM;
-		}
-		sg_init_table(fd_prot->prot_sg, fd_prot->prot_sg_nents);
-		sg_set_buf(fd_prot->prot_sg, buf, prot_size);
-	}
-
-	if (is_write) {
-		rc = kernel_write(prot_fd, fd_prot->prot_buf, prot_size, pos);
-		if (rc < 0 || prot_size != rc) {
-			pr_err("kernel_write() for fd_do_prot_rw failed:"
-			       " %d\n", rc);
-			ret = -EINVAL;
-		}
-	} else {
-		rc = kernel_read(prot_fd, pos, fd_prot->prot_buf, prot_size);
-		if (rc < 0) {
-			pr_err("kernel_read() for fd_do_prot_rw failed:"
-			       " %d\n", rc);
-			ret = -EINVAL;
-		}
-	}
-
-	if (is_write || ret < 0) {
-		kfree(fd_prot->prot_sg);
-		kfree(fd_prot->prot_buf);
-	}
-
-	return ret;
-}
-
-static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, int is_write)
-{
-	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *dev = FD_DEV(se_dev);
-	struct file *fd = dev->fd_file;
 	struct scatterlist *sg;
 	struct iov_iter iter;
 	struct bio_vec *bvec;
 	ssize_t len = 0;
-	loff_t pos = (cmd->t_task_lba * se_dev->dev_attrib.block_size);
+	loff_t pos = (cmd->t_task_lba * block_size);
 	int ret = 0, i;
 
 	bvec = kcalloc(sgl_nents, sizeof(struct bio_vec), GFP_KERNEL);
@@ -352,7 +294,7 @@ static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
 	kfree(bvec);
 
 	if (is_write) {
-		if (ret < 0 || ret != cmd->data_length) {
+		if (ret < 0 || ret != data_length) {
 			pr_err("%s() write returned %d\n", __func__, ret);
 			return (ret < 0 ? ret : -EINVAL);
 		}
@@ -363,10 +305,10 @@ static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
 		 * block_device.
 		 */
 		if (S_ISBLK(file_inode(fd)->i_mode)) {
-			if (ret < 0 || ret != cmd->data_length) {
+			if (ret < 0 || ret != data_length) {
 				pr_err("%s() returned %d, expecting %u for "
 						"S_ISBLK\n", __func__, ret,
-						cmd->data_length);
+						data_length);
 				return (ret < 0 ? ret : -EINVAL);
 			}
 		} else {
@@ -533,9 +475,9 @@ fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
+fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 {
-	struct file *file = priv;
+	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
@@ -577,42 +519,13 @@ fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-fd_execute_write_same_unmap(struct se_cmd *cmd)
-{
-	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *fd_dev = FD_DEV(se_dev);
-	struct file *file = fd_dev->fd_file;
-	sector_t lba = cmd->t_task_lba;
-	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	sense_reason_t ret;
-
-	if (!nolb) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
-
-	ret = fd_do_unmap(cmd, file, lba, nolb);
-	if (ret)
-		return ret;
-
-	target_complete_cmd(cmd, GOOD);
-	return 0;
-}
-
-static sense_reason_t
-fd_execute_unmap(struct se_cmd *cmd)
-{
-	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
-
-	return sbc_execute_unmap(cmd, fd_do_unmap, file);
-}
-
-static sense_reason_t
 fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	      enum dma_data_direction data_direction)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct fd_prot fd_prot;
+	struct fd_dev *fd_dev = FD_DEV(dev);
+	struct file *file = fd_dev->fd_file;
+	struct file *pfile = fd_dev->fd_prot_file;
 	sense_reason_t rc;
 	int ret = 0;
 	/*
@@ -630,58 +543,45 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	 * physical memory addresses to struct iovec virtual memory.
 	 */
 	if (data_direction == DMA_FROM_DEVICE) {
-		memset(&fd_prot, 0, sizeof(struct fd_prot));
-
 		if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
-			ret = fd_do_prot_rw(cmd, &fd_prot, false);
+			ret = fd_do_rw(cmd, pfile, dev->prot_length,
+				       cmd->t_prot_sg, cmd->t_prot_nents,
+				       cmd->prot_length, 0);
 			if (ret < 0)
 				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 
-		ret = fd_do_rw(cmd, sgl, sgl_nents, 0);
+		ret = fd_do_rw(cmd, file, dev->dev_attrib.block_size,
+			       sgl, sgl_nents, cmd->data_length, 0);
 
 		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type) {
-			u32 sectors = cmd->data_length / dev->dev_attrib.block_size;
+			u32 sectors = cmd->data_length >>
+					ilog2(dev->dev_attrib.block_size);
 
-			rc = sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors,
-						 0, fd_prot.prot_sg, 0);
-			if (rc) {
-				kfree(fd_prot.prot_sg);
-				kfree(fd_prot.prot_buf);
+			rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors,
+					    0, cmd->t_prot_sg, 0);
+			if (rc)
 				return rc;
-			}
-			kfree(fd_prot.prot_sg);
-			kfree(fd_prot.prot_buf);
 		}
 	} else {
-		memset(&fd_prot, 0, sizeof(struct fd_prot));
-
 		if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
-			u32 sectors = cmd->data_length / dev->dev_attrib.block_size;
+			u32 sectors = cmd->data_length >>
+					ilog2(dev->dev_attrib.block_size);
 
-			ret = fd_do_prot_rw(cmd, &fd_prot, false);
-			if (ret < 0)
-				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-			rc = sbc_dif_verify_write(cmd, cmd->t_task_lba, sectors,
-						  0, fd_prot.prot_sg, 0);
-			if (rc) {
-				kfree(fd_prot.prot_sg);
-				kfree(fd_prot.prot_buf);
+			rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors,
+					    0, cmd->t_prot_sg, 0);
+			if (rc)
 				return rc;
-			}
 		}
 
-		ret = fd_do_rw(cmd, sgl, sgl_nents, 1);
+		ret = fd_do_rw(cmd, file, dev->dev_attrib.block_size,
+			       sgl, sgl_nents, cmd->data_length, 1);
 		/*
 		 * Perform implicit vfs_fsync_range() for fd_do_writev() ops
 		 * for SCSI WRITEs with Forced Unit Access (FUA) set.
 		 * Allow this to happen independent of WCE=0 setting.
 		 */
-		if (ret > 0 &&
-		    dev->dev_attrib.emulate_fua_write > 0 &&
-		    (cmd->se_cmd_flags & SCF_FUA)) {
-			struct fd_dev *fd_dev = FD_DEV(dev);
+		if (ret > 0 && (cmd->se_cmd_flags & SCF_FUA)) {
 			loff_t start = cmd->t_task_lba *
 				dev->dev_attrib.block_size;
 			loff_t end;
@@ -695,17 +595,16 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		}
 
 		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type) {
-			ret = fd_do_prot_rw(cmd, &fd_prot, true);
+			ret = fd_do_rw(cmd, pfile, dev->prot_length,
+				       cmd->t_prot_sg, cmd->t_prot_nents,
+				       cmd->prot_length, 1);
 			if (ret < 0)
 				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 	}
 
-	if (ret < 0) {
-		kfree(fd_prot.prot_sg);
-		kfree(fd_prot.prot_buf);
+	if (ret < 0)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
 
 	if (ret)
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
@@ -908,7 +807,6 @@ static struct sbc_ops fd_sbc_ops = {
 	.execute_rw		= fd_execute_rw,
 	.execute_sync_cache	= fd_execute_sync_cache,
 	.execute_write_same	= fd_execute_write_same,
-	.execute_write_same_unmap = fd_execute_write_same_unmap,
 	.execute_unmap		= fd_execute_unmap,
 };
 
@@ -918,42 +816,7 @@ fd_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &fd_sbc_ops);
 }
 
-DEF_TB_DEFAULT_ATTRIBS(fileio);
-
-static struct configfs_attribute *fileio_backend_dev_attrs[] = {
-	&fileio_dev_attrib_emulate_model_alias.attr,
-	&fileio_dev_attrib_emulate_dpo.attr,
-	&fileio_dev_attrib_emulate_fua_write.attr,
-	&fileio_dev_attrib_emulate_fua_read.attr,
-	&fileio_dev_attrib_emulate_write_cache.attr,
-	&fileio_dev_attrib_emulate_ua_intlck_ctrl.attr,
-	&fileio_dev_attrib_emulate_tas.attr,
-	&fileio_dev_attrib_emulate_tpu.attr,
-	&fileio_dev_attrib_emulate_tpws.attr,
-	&fileio_dev_attrib_emulate_caw.attr,
-	&fileio_dev_attrib_emulate_3pc.attr,
-	&fileio_dev_attrib_pi_prot_type.attr,
-	&fileio_dev_attrib_hw_pi_prot_type.attr,
-	&fileio_dev_attrib_pi_prot_format.attr,
-	&fileio_dev_attrib_enforce_pr_isids.attr,
-	&fileio_dev_attrib_is_nonrot.attr,
-	&fileio_dev_attrib_emulate_rest_reord.attr,
-	&fileio_dev_attrib_force_pr_aptpl.attr,
-	&fileio_dev_attrib_hw_block_size.attr,
-	&fileio_dev_attrib_block_size.attr,
-	&fileio_dev_attrib_hw_max_sectors.attr,
-	&fileio_dev_attrib_optimal_sectors.attr,
-	&fileio_dev_attrib_hw_queue_depth.attr,
-	&fileio_dev_attrib_queue_depth.attr,
-	&fileio_dev_attrib_max_unmap_lba_count.attr,
-	&fileio_dev_attrib_max_unmap_block_desc_count.attr,
-	&fileio_dev_attrib_unmap_granularity.attr,
-	&fileio_dev_attrib_unmap_granularity_alignment.attr,
-	&fileio_dev_attrib_max_write_same_len.attr,
-	NULL,
-};
-
-static struct se_subsystem_api fileio_template = {
+static const struct target_backend_ops fileio_ops = {
 	.name			= "fileio",
 	.inquiry_prod		= "FILEIO",
 	.inquiry_rev		= FD_VERSION,
@@ -971,21 +834,17 @@ static struct se_subsystem_api fileio_template = {
 	.init_prot		= fd_init_prot,
 	.format_prot		= fd_format_prot,
 	.free_prot		= fd_free_prot,
+	.tb_dev_attrib_attrs	= sbc_attrib_attrs,
 };
 
 static int __init fileio_module_init(void)
 {
-	struct target_backend_cits *tbc = &fileio_template.tb_cits;
-
-	target_core_setup_sub_cits(&fileio_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = fileio_backend_dev_attrs;
-
-	return transport_subsystem_register(&fileio_template);
+	return transport_backend_register(&fileio_ops);
 }
 
 static void __exit fileio_module_exit(void)
 {
-	transport_subsystem_release(&fileio_template);
+	target_backend_unregister(&fileio_ops);
 }
 
 MODULE_DESCRIPTION("TCM FILEIO subsystem plugin");

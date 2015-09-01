@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -274,50 +274,18 @@ struct iwl_scan_offload_profile_cfg {
 } __packed;
 
 /**
- * iwl_scan_offload_schedule - schedule of scan offload
+ * iwl_scan_schedule_lmac - schedule of scan offload
  * @delay:		delay between iterations, in seconds.
  * @iterations:		num of scan iterations
  * @full_scan_mul:	number of partial scans before each full scan
  */
-struct iwl_scan_offload_schedule {
+struct iwl_scan_schedule_lmac {
 	__le16 delay;
 	u8 iterations;
 	u8 full_scan_mul;
-} __packed;
+} __packed; /* SCAN_SCHEDULE_API_S */
 
-/*
- * iwl_scan_offload_flags
- *
- * IWL_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
- * IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
- * IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE: EBS duration is 100mSec - typical
- *	beacon period. Finding channel activity in this mode is not guaranteed.
- * IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE: EBS duration is 200mSec.
- *	Assuming beacon period is 100ms finding channel activity is guaranteed.
- */
-enum iwl_scan_offload_flags {
-	IWL_SCAN_OFFLOAD_FLAG_PASS_ALL		= BIT(0),
-	IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= BIT(2),
-	IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE	= BIT(5),
-	IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE	= BIT(6),
-};
-
-/**
- * iwl_scan_offload_req - scan offload request command
- * @flags:		bitmap - enum iwl_scan_offload_flags.
- * @watchdog:		maximum scan duration in TU.
- * @delay:		delay in seconds before first iteration.
- * @schedule_line:	scan offload schedule, for fast and regular scan.
- */
-struct iwl_scan_offload_req {
-	__le16 flags;
-	__le16 watchdog;
-	__le16 delay;
-	__le16 reserved;
-	struct iwl_scan_offload_schedule schedule_line[2];
-} __packed;
-
-enum iwl_scan_offload_compleate_status {
+enum iwl_scan_offload_complete_status {
 	IWL_SCAN_OFFLOAD_COMPLETED	= 1,
 	IWL_SCAN_OFFLOAD_ABORTED	= 2,
 };
@@ -326,6 +294,7 @@ enum iwl_scan_ebs_status {
 	IWL_SCAN_EBS_SUCCESS,
 	IWL_SCAN_EBS_FAILED,
 	IWL_SCAN_EBS_CHAN_NOT_FOUND,
+	IWL_SCAN_EBS_INACTIVE,
 };
 
 /**
@@ -463,8 +432,19 @@ enum iwl_scan_priority {
 	IWL_SCAN_PRIORITY_HIGH,
 };
 
+enum iwl_scan_priority_ext {
+	IWL_SCAN_PRIORITY_EXT_0_LOWEST,
+	IWL_SCAN_PRIORITY_EXT_1,
+	IWL_SCAN_PRIORITY_EXT_2,
+	IWL_SCAN_PRIORITY_EXT_3,
+	IWL_SCAN_PRIORITY_EXT_4,
+	IWL_SCAN_PRIORITY_EXT_5,
+	IWL_SCAN_PRIORITY_EXT_6,
+	IWL_SCAN_PRIORITY_EXT_7_HIGHEST,
+};
+
 /**
- * iwl_scan_req_unified_lmac - SCAN_REQUEST_CMD_API_S_VER_1
+ * iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
  * @reserved1: for alignment and future use
  * @channel_num: num of channels to scan
  * @active-dwell: dwell time for active channels
@@ -487,7 +467,7 @@ enum iwl_scan_priority {
  * @channel_opt: channel optimization options, for full and partial scan
  * @data: channel configuration and probe request packet.
  */
-struct iwl_scan_req_unified_lmac {
+struct iwl_scan_req_lmac {
 	/* SCAN_REQUEST_FIXED_PART_API_S_VER_7 */
 	__le32 reserved1;
 	u8 n_channels;
@@ -508,7 +488,7 @@ struct iwl_scan_req_unified_lmac {
 	/* SCAN_REQ_PERIODIC_PARAMS_API_S */
 	__le32 iter_num;
 	__le32 delay;
-	struct iwl_scan_offload_schedule schedule[2];
+	struct iwl_scan_schedule_lmac schedule[2];
 	struct iwl_scan_channel_opt channel_opt[2];
 	u8 data[];
 } __packed;
@@ -582,7 +562,11 @@ struct iwl_mvm_umac_cmd_hdr {
 	u8 ver;
 } __packed;
 
-#define IWL_MVM_MAX_SIMULTANEOUS_SCANS 8
+/* The maximum of either of these cannot exceed 8, because we use an
+ * 8-bit mask (see IWL_MVM_SCAN_MASK in mvm.h).
+ */
+#define IWL_MVM_MAX_UMAC_SCANS 8
+#define IWL_MVM_MAX_LMAC_SCANS 1
 
 enum scan_config_flags {
 	SCAN_CONFIG_FLAG_ACTIVATE			= BIT(0),
@@ -676,7 +660,8 @@ struct iwl_scan_config {
  * iwl_umac_scan_flags
  *@IWL_UMAC_SCAN_FLAG_PREEMPTIVE: scan process triggered by this scan request
  *	can be preempted by other scan requests with higher priority.
- *	The low priority scan is aborted.
+ *	The low priority scan will be resumed when the higher proirity scan is
+ *	completed.
  *@IWL_UMAC_SCAN_FLAG_START_NOTIF: notification will be sent to the driver
  *	when scan starts.
  */
@@ -864,5 +849,28 @@ struct iwl_scan_offload_profiles_query {
 	__le16 reserved;
 	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
+
+/**
+ * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @scanned_channels: number of channels scanned and number of valid elements in
+ *	results array
+ * @status: one of SCAN_COMP_STATUS_*
+ * @bt_status: BT on/off status
+ * @last_channel: last channel that was scanned
+ * @tsf_low: TSF timer (lower half) in usecs
+ * @tsf_high: TSF timer (higher half) in usecs
+ * @results: array of scan results, only "scanned_channels" of them are valid
+ */
+struct iwl_umac_scan_iter_complete_notif {
+	__le32 uid;
+	u8 scanned_channels;
+	u8 status;
+	u8 bt_status;
+	u8 last_channel;
+	__le32 tsf_low;
+	__le32 tsf_high;
+	struct iwl_scan_results_notif results[];
+} __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_1 */
 
 #endif

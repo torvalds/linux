@@ -28,6 +28,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -73,6 +74,7 @@ void nci_req_complete(struct nci_dev *ndev, int result)
 		complete(&ndev->req_completion);
 	}
 }
+EXPORT_SYMBOL(nci_req_complete);
 
 static void nci_req_cancel(struct nci_dev *ndev, int err)
 {
@@ -323,6 +325,32 @@ static void nci_rf_deactivate_req(struct nci_dev *ndev, unsigned long opt)
 		     sizeof(struct nci_rf_deactivate_cmd), &cmd);
 }
 
+struct nci_prop_cmd_param {
+	__u16 opcode;
+	size_t len;
+	__u8 *payload;
+};
+
+static void nci_prop_cmd_req(struct nci_dev *ndev, unsigned long opt)
+{
+	struct nci_prop_cmd_param *param = (struct nci_prop_cmd_param *)opt;
+
+	nci_send_cmd(ndev, param->opcode, param->len, param->payload);
+}
+
+int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload)
+{
+	struct nci_prop_cmd_param param;
+
+	param.opcode = nci_opcode_pack(NCI_GID_PROPRIETARY, oid);
+	param.len = len;
+	param.payload = payload;
+
+	return __nci_request(ndev, nci_prop_cmd_req, (unsigned long)&param,
+			     msecs_to_jiffies(NCI_CMD_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_prop_cmd);
+
 static int nci_open_device(struct nci_dev *ndev)
 {
 	int rc = 0;
@@ -343,11 +371,17 @@ static int nci_open_device(struct nci_dev *ndev)
 
 	set_bit(NCI_INIT, &ndev->flags);
 
-	rc = __nci_request(ndev, nci_reset_req, 0,
-			   msecs_to_jiffies(NCI_RESET_TIMEOUT));
+	if (ndev->ops->init)
+		rc = ndev->ops->init(ndev);
 
-	if (ndev->ops->setup)
-		ndev->ops->setup(ndev);
+	if (!rc) {
+		rc = __nci_request(ndev, nci_reset_req, 0,
+				   msecs_to_jiffies(NCI_RESET_TIMEOUT));
+	}
+
+	if (!rc && ndev->ops->setup) {
+		rc = ndev->ops->setup(ndev);
+	}
 
 	if (!rc) {
 		rc = __nci_request(ndev, nci_init_req, 0,
@@ -407,16 +441,18 @@ static int nci_close_device(struct nci_dev *ndev)
 	set_bit(NCI_INIT, &ndev->flags);
 	__nci_request(ndev, nci_reset_req, 0,
 		      msecs_to_jiffies(NCI_RESET_TIMEOUT));
+
+	/* After this point our queues are empty
+	 * and no works are scheduled.
+	 */
+	ndev->ops->close(ndev);
+
 	clear_bit(NCI_INIT, &ndev->flags);
 
 	del_timer_sync(&ndev->cmd_timer);
 
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
-
-	/* After this point our queues are empty
-	 * and no works are scheduled. */
-	ndev->ops->close(ndev);
 
 	/* Clear flags */
 	ndev->flags = 0;
@@ -762,7 +798,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 
 	if (atomic_read(&ndev->state) == NCI_POLL_ACTIVE) {
 		nci_request(ndev, nci_rf_deactivate_req,
-			    NCI_DEACTIVATE_TYPE_SLEEP_MODE,
+			    NCI_DEACTIVATE_TYPE_IDLE_MODE,
 			    msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 	}
 }
@@ -961,6 +997,14 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 		return NULL;
 
 	ndev->ops = ops;
+
+	if (ops->n_prop_ops > NCI_MAX_PROPRIETARY_CMD) {
+		pr_err("Too many proprietary commands: %zd\n",
+		       ops->n_prop_ops);
+		ops->prop_ops = NULL;
+		ops->n_prop_ops = 0;
+	}
+
 	ndev->tx_headroom = tx_headroom;
 	ndev->tx_tailroom = tx_tailroom;
 	init_completion(&ndev->req_completion);
@@ -1163,6 +1207,49 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 	queue_work(ndev->cmd_wq, &ndev->cmd_work);
 
 	return 0;
+}
+
+/* Proprietary commands API */
+static struct nci_prop_ops *prop_cmd_lookup(struct nci_dev *ndev,
+					    __u16 opcode)
+{
+	size_t i;
+	struct nci_prop_ops *prop_op;
+
+	if (!ndev->ops->prop_ops || !ndev->ops->n_prop_ops)
+		return NULL;
+
+	for (i = 0; i < ndev->ops->n_prop_ops; i++) {
+		prop_op = &ndev->ops->prop_ops[i];
+		if (prop_op->opcode == opcode)
+			return prop_op;
+	}
+
+	return NULL;
+}
+
+int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 rsp_opcode,
+			struct sk_buff *skb)
+{
+	struct nci_prop_ops *prop_op;
+
+	prop_op = prop_cmd_lookup(ndev, rsp_opcode);
+	if (!prop_op || !prop_op->rsp)
+		return -ENOTSUPP;
+
+	return prop_op->rsp(ndev, skb);
+}
+
+int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 ntf_opcode,
+			struct sk_buff *skb)
+{
+	struct nci_prop_ops *prop_op;
+
+	prop_op = prop_cmd_lookup(ndev, ntf_opcode);
+	if (!prop_op || !prop_op->ntf)
+		return -ENOTSUPP;
+
+	return prop_op->ntf(ndev, skb);
 }
 
 /* ---- NCI TX Data worker thread ---- */

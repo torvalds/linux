@@ -65,7 +65,7 @@ static int __init add_bus_probe(void)
 
 	return of_platform_bus_probe(NULL, ce4100_ids, NULL);
 }
-module_init(add_bus_probe);
+device_initcall(add_bus_probe);
 
 #ifdef CONFIG_PCI
 struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)

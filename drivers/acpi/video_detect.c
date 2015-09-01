@@ -1,24 +1,15 @@
 /*
+ *  Copyright (C) 2015       Red Hat Inc.
+ *                           Hans de Goede <hdegoede@redhat.com>
  *  Copyright (C) 2008       SuSE Linux Products GmbH
  *                           Thomas Renninger <trenn@suse.de>
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
  * video_detect.c:
- * Provides acpi_is_video_device() for early scanning of ACPI devices in scan.c
- * There a Linux specific (Spec does not provide a HID for video devices) is
- * assigned
- *
  * After PCI devices are glued with ACPI devices
  * acpi_get_pci_dev() can be called to identify ACPI graphics
  * devices for which a real graphics card is plugged in
- *
- * Now acpi_video_get_capabilities() can be called to check which
- * capabilities the graphics cards plugged in support. The check for general
- * video capabilities will be triggered by the first caller of
- * acpi_video_get_capabilities(NULL); which will happen when the first
- * backlight switching supporting driver calls:
- * acpi_video_backlight_support();
  *
  * Depending on whether ACPI graphics extensions (cmp. ACPI spec Appendix B)
  * are available, video.ko should be used to handle the device.
@@ -26,81 +17,45 @@
  * Otherwise vendor specific drivers like thinkpad_acpi, asus-laptop,
  * sony_acpi,... can take care about backlight brightness.
  *
- * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
- * this file will not be compiled, acpi_video_get_capabilities() and
- * acpi_video_backlight_support() will always return 0 and vendor specific
- * drivers always can handle backlight.
+ * Backlight drivers can use acpi_video_get_backlight_type() to determine
+ * which driver should handle the backlight.
  *
+ * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
+ * this file will not be compiled and acpi_video_get_backlight_type() will
+ * always return acpi_backlight_vendor.
  */
 
 #include <linux/export.h>
 #include <linux/acpi.h>
+#include <linux/backlight.h>
 #include <linux/dmi.h>
+#include <linux/module.h>
 #include <linux/pci.h>
-
-#include "internal.h"
+#include <linux/types.h>
+#include <acpi/video.h>
 
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 
-static long acpi_video_support;
-static bool acpi_video_caps_checked;
+void acpi_video_unregister_backlight(void);
 
-static acpi_status
-acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
-			  void **return_value)
+static bool backlight_notifier_registered;
+static struct notifier_block backlight_nb;
+
+static enum acpi_backlight_type acpi_backlight_cmdline = acpi_backlight_undef;
+static enum acpi_backlight_type acpi_backlight_dmi = acpi_backlight_undef;
+
+static void acpi_video_parse_cmdline(void)
 {
-	long *cap = context;
-
-	if (acpi_has_method(handle, "_BCM") &&
-	    acpi_has_method(handle, "_BCL")) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
-				  "support\n"));
-		*cap |= ACPI_VIDEO_BACKLIGHT;
-		if (!acpi_has_method(handle, "_BQC"))
-			printk(KERN_WARNING FW_BUG PREFIX "No _BQC method, "
-				"cannot determine initial brightness\n");
-		/* We have backlight support, no need to scan further */
-		return AE_CTRL_TERMINATE;
-	}
-	return 0;
+	if (!strcmp("vendor", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_vendor;
+	if (!strcmp("video", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_video;
+	if (!strcmp("native", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_native;
+	if (!strcmp("none", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_none;
 }
-
-/* Returns true if the ACPI object is a video device which can be
- * handled by video.ko.
- * The device will get a Linux specific CID added in scan.c to
- * identify the device as an ACPI graphics device
- * Be aware that the graphics device may not be physically present
- * Use acpi_video_get_capabilities() to detect general ACPI video
- * capabilities of present cards
- */
-long acpi_is_video_device(acpi_handle handle)
-{
-	long video_caps = 0;
-
-	/* Is this device able to support video switching ? */
-	if (acpi_has_method(handle, "_DOD") || acpi_has_method(handle, "_DOS"))
-		video_caps |= ACPI_VIDEO_OUTPUT_SWITCHING;
-
-	/* Is this device able to retrieve a video ROM ? */
-	if (acpi_has_method(handle, "_ROM"))
-		video_caps |= ACPI_VIDEO_ROM_AVAILABLE;
-
-	/* Is this device able to configure which video head to be POSTed ? */
-	if (acpi_has_method(handle, "_VPO") &&
-	    acpi_has_method(handle, "_GPD") &&
-	    acpi_has_method(handle, "_SPD"))
-		video_caps |= ACPI_VIDEO_DEVICE_POSTING;
-
-	/* Only check for backlight functionality if one of the above hit. */
-	if (video_caps)
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-				    ACPI_UINT32_MAX, acpi_backlight_cap_match, NULL,
-				    &video_caps, NULL);
-
-	return video_caps;
-}
-EXPORT_SYMBOL(acpi_is_video_device);
 
 static acpi_status
 find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -109,7 +64,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 	struct pci_dev *dev;
 	struct acpi_device *acpi_dev;
 
-	const struct acpi_device_id video_ids[] = {
+	static const struct acpi_device_id video_ids[] = {
 		{ACPI_VIDEO_HID, 0},
 		{"", 0},
 	};
@@ -130,11 +85,23 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
  * buggy */
 static int video_detect_force_vendor(const struct dmi_system_id *d)
 {
-	acpi_video_support |= ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
+	acpi_backlight_dmi = acpi_backlight_vendor;
 	return 0;
 }
 
-static struct dmi_system_id video_detect_dmi_table[] = {
+static int video_detect_force_video(const struct dmi_system_id *d)
+{
+	acpi_backlight_dmi = acpi_backlight_video;
+	return 0;
+}
+
+static int video_detect_force_native(const struct dmi_system_id *d)
+{
+	acpi_backlight_dmi = acpi_backlight_native;
+	return 0;
+}
+
+static const struct dmi_system_id video_detect_dmi_table[] = {
 	/* On Samsung X360, the BIOS will set a flag (VDRV) if generic
 	 * ACPI backlight device is used. This flag will definitively break
 	 * the backlight interface (even the vendor interface) untill next
@@ -174,137 +141,209 @@ static struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5737"),
 		},
 	},
+
+	/*
+	 * These models have a working acpi_video backlight control, and using
+	 * native backlight causes a regression where backlight does not work
+	 * when userspace is not handling brightness key events. Disable
+	 * native_backlight on these to fix this:
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
+	 */
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad T420",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T420"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad T520",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T520"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad X201s",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
+		},
+	},
+
+	/* The native backlight controls do not work on some older machines */
+	{
+	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
+	 .callback = video_detect_force_video,
+	 .ident = "HP ENVY 15 Notebook",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Notebook PC"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 870Z5E/880Z5E/680Z5E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "870Z5E/880Z5E/680Z5E"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 370R4E/370R4V/370R5E/3570RE/370R5V",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME,
+			  "370R4E/370R4V/370R5E/3570RE/370R5V"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1186097 */
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 3570R/370R/470R/450R/510R/4450RV",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME,
+			  "3570R/370R/470R/450R/510R/4450RV"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1094948 */
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 730U3E/740U3E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "730U3E/740U3E"),
+		},
+	},
+	{
+	 /* https://bugs.freedesktop.org/show_bug.cgi?id=87286 */
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 900X3C/900X3D/900X3E/900X4C/900X4D",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME,
+			  "900X3C/900X3D/900X3E/900X4C/900X4D"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
+	 .callback = video_detect_force_video,
+	 .ident = "Dell XPS15 L521X",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L521X"),
+		},
+	},
+
+	/* Non win8 machines which need native backlight nevertheless */
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo Ideapad Z570",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1217249 */
+	 .callback = video_detect_force_native,
+	 .ident = "Apple MacBook Pro 12,1",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro12,1"),
+		},
+	},
 	{ },
 };
 
-/*
- * Returns the video capabilities of a specific ACPI graphics device
- *
- * if NULL is passed as argument all ACPI devices are enumerated and
- * all graphics capabilities of physically present devices are
- * summarized and returned. This is cached and done only once.
- */
-long acpi_video_get_capabilities(acpi_handle graphics_handle)
+static int acpi_video_backlight_notify(struct notifier_block *nb,
+				       unsigned long val, void *bd)
 {
-	long caps = 0;
-	struct acpi_device *tmp_dev;
-	acpi_status status;
+	struct backlight_device *backlight = bd;
 
-	if (acpi_video_caps_checked && graphics_handle == NULL)
-		return acpi_video_support;
+	/* A raw bl registering may change video -> native */
+	if (backlight->props.type == BACKLIGHT_RAW &&
+	    val == BACKLIGHT_REGISTERED &&
+	    acpi_video_get_backlight_type() != acpi_backlight_video)
+		acpi_video_unregister_backlight();
 
-	if (!graphics_handle) {
-		/* Only do the global walk through all graphics devices once */
+	return NOTIFY_OK;
+}
+
+/*
+ * Determine which type of backlight interface to use on this system,
+ * First check cmdline, then dmi quirks, then do autodetect.
+ *
+ * The autodetect order is:
+ * 1) Is the acpi-video backlight interface supported ->
+ *  no, use a vendor interface
+ * 2) Is this a win8 "ready" BIOS and do we have a native interface ->
+ *  yes, use a native interface
+ * 3) Else use the acpi-video interface
+ *
+ * Arguably the native on win8 check should be done first, but that would
+ * be a behavior change, which may causes issues.
+ */
+enum acpi_backlight_type acpi_video_get_backlight_type(void)
+{
+	static DEFINE_MUTEX(init_mutex);
+	static bool init_done;
+	static long video_caps;
+
+	/* Parse cmdline, dmi and acpi only once */
+	mutex_lock(&init_mutex);
+	if (!init_done) {
+		acpi_video_parse_cmdline();
+		dmi_check_system(video_detect_dmi_table);
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				    ACPI_UINT32_MAX, find_video, NULL,
-				    &caps, NULL);
-		/* There might be boot param flags set already... */
-		acpi_video_support |= caps;
-		acpi_video_caps_checked = 1;
-		/* Add blacklists here. Be careful to use the right *DMI* bits
-		 * to still be able to override logic via boot params, e.g.:
-		 *
-		 *   if (dmi_name_in_vendors("XY")) {
-		 *	acpi_video_support |=
-		 *		ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
-		 *}
-		 */
-
-		dmi_check_system(video_detect_dmi_table);
-	} else {
-		status = acpi_bus_get_device(graphics_handle, &tmp_dev);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status, "Invalid device"));
-			return 0;
-		}
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, graphics_handle,
-				    ACPI_UINT32_MAX, find_video, NULL,
-				    &caps, NULL);
+				    &video_caps, NULL);
+		backlight_nb.notifier_call = acpi_video_backlight_notify;
+		backlight_nb.priority = 0;
+		if (backlight_register_notifier(&backlight_nb) == 0)
+			backlight_notifier_registered = true;
+		init_done = true;
 	}
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "We have 0x%lX video support %s %s\n",
-			  graphics_handle ? caps : acpi_video_support,
-			  graphics_handle ? "on device " : "in general",
-			  graphics_handle ? acpi_device_bid(tmp_dev) : ""));
-	return caps;
+	mutex_unlock(&init_mutex);
+
+	if (acpi_backlight_cmdline != acpi_backlight_undef)
+		return acpi_backlight_cmdline;
+
+	if (acpi_backlight_dmi != acpi_backlight_undef)
+		return acpi_backlight_dmi;
+
+	if (!(video_caps & ACPI_VIDEO_BACKLIGHT))
+		return acpi_backlight_vendor;
+
+	if (acpi_osi_is_win8() && backlight_device_registered(BACKLIGHT_RAW))
+		return acpi_backlight_native;
+
+	return acpi_backlight_video;
 }
-EXPORT_SYMBOL(acpi_video_get_capabilities);
-
-static void acpi_video_caps_check(void)
-{
-	/*
-	 * We must check whether the ACPI graphics device is physically plugged
-	 * in. Therefore this must be called after binding PCI and ACPI devices
-	 */
-	if (!acpi_video_caps_checked)
-		acpi_video_get_capabilities(NULL);
-}
-
-bool acpi_osi_is_win8(void)
-{
-	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
-}
-EXPORT_SYMBOL(acpi_osi_is_win8);
-
-/* Promote the vendor interface instead of the generic video module.
- * This function allow DMI blacklists to be implemented by externals
- * platform drivers instead of putting a big blacklist in video_detect.c
- * After calling this function you will probably want to call
- * acpi_video_unregister() to make sure the video module is not loaded
- */
-void acpi_video_dmi_promote_vendor(void)
-{
-	acpi_video_caps_check();
-	acpi_video_support |= ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
-}
-EXPORT_SYMBOL(acpi_video_dmi_promote_vendor);
-
-/* To be called when a driver who previously promoted the vendor
- * interface */
-void acpi_video_dmi_demote_vendor(void)
-{
-	acpi_video_caps_check();
-	acpi_video_support &= ~ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
-}
-EXPORT_SYMBOL(acpi_video_dmi_demote_vendor);
-
-/* Returns true if video.ko can do backlight switching */
-int acpi_video_backlight_support(void)
-{
-	acpi_video_caps_check();
-
-	/* First check for boot param -> highest prio */
-	if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR)
-		return 0;
-	else if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO)
-		return 1;
-
-	/* Then check for DMI blacklist -> second highest prio */
-	if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_DMI_VENDOR)
-		return 0;
-	else if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_DMI_VIDEO)
-		return 1;
-
-	/* Then go the default way */
-	return acpi_video_support & ACPI_VIDEO_BACKLIGHT;
-}
-EXPORT_SYMBOL(acpi_video_backlight_support);
+EXPORT_SYMBOL(acpi_video_get_backlight_type);
 
 /*
- * Use acpi_backlight=vendor/video to force that backlight switching
- * is processed by vendor specific acpi drivers or video.ko driver.
+ * Set the preferred backlight interface type based on DMI info.
+ * This function allows DMI blacklists to be implemented by external
+ * platform drivers instead of putting a big blacklist in video_detect.c
  */
-static int __init acpi_backlight(char *str)
+void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
 {
-	if (str == NULL || *str == '\0')
-		return 1;
-	else {
-		if (!strcmp("vendor", str))
-			acpi_video_support |=
-				ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR;
-		if (!strcmp("video", str))
-			acpi_video_support |=
-				ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO;
-	}
-	return 1;
+	acpi_backlight_dmi = type;
+	/* Remove acpi-video backlight interface if it is no longer desired */
+	if (acpi_video_get_backlight_type() != acpi_backlight_video)
+		acpi_video_unregister_backlight();
 }
-__setup("acpi_backlight=", acpi_backlight);
+EXPORT_SYMBOL(acpi_video_set_dmi_backlight_type);
+
+void __exit acpi_video_detect_exit(void)
+{
+	if (backlight_notifier_registered)
+		backlight_unregister_notifier(&backlight_nb);
+}

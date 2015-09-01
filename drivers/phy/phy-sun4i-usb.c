@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
+#include <linux/phy/phy-sun4i-usb.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -58,6 +59,7 @@
 #define PHY_OTG_FUNC_EN			0x28
 #define PHY_VBUS_DET_EN			0x29
 #define PHY_DISCON_TH_SEL		0x2a
+#define PHY_SQUELCH_DETECT		0x3c
 
 #define MAX_PHYS			3
 
@@ -203,6 +205,14 @@ static int sun4i_usb_phy_power_off(struct phy *_phy)
 
 	return 0;
 }
+
+void sun4i_usb_phy_set_squelch_detect(struct phy *_phy, bool enabled)
+{
+	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
+
+	sun4i_usb_phy_write(phy, PHY_SQUELCH_DETECT, enabled ? 0 : 2, 2);
+}
+EXPORT_SYMBOL_GPL(sun4i_usb_phy_set_squelch_detect);
 
 static struct phy_ops sun4i_usb_phy_ops = {
 	.init		= sun4i_usb_phy_init,

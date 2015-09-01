@@ -111,8 +111,8 @@ struct ttusb {
 	int last_filter;
 
 	u8 c;			/* transaction counter, wraps around...  */
-	fe_sec_tone_mode_t tone;
-	fe_sec_voltage_t voltage;
+	enum fe_sec_tone_mode tone;
+	enum fe_sec_voltage voltage;
 
 	int mux_state;		// 0..2 - MuxSyncWord, 3 - nMuxPacks,    4 - muxpack
 	u8 mux_npacks;
@@ -511,7 +511,8 @@ static int ttusb_update_lnb(struct ttusb *ttusb)
 	return err;
 }
 
-static int ttusb_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int ttusb_set_voltage(struct dvb_frontend *fe,
+			     enum fe_sec_voltage voltage)
 {
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
 
@@ -520,7 +521,7 @@ static int ttusb_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 }
 
 #ifdef TTUSB_TONE
-static int ttusb_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int ttusb_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
 

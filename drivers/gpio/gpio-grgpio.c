@@ -332,7 +332,7 @@ static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
-static struct irq_domain_ops grgpio_irq_domain_ops = {
+static const struct irq_domain_ops grgpio_irq_domain_ops = {
 	.map	= grgpio_irq_map,
 	.unmap	= grgpio_irq_unmap,
 };
