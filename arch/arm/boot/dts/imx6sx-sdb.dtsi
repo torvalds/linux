@@ -155,6 +155,14 @@
 		mux-ext-port = <6>;
 		hp-det-gpios = <&gpio1 17 1>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif",
+			   "fsl,imx6sx-sdb-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
 };
 
 &adc1 {
@@ -298,6 +306,12 @@
 };
 
 &snvs_poweroff {
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
 	status = "okay";
 };
 
@@ -534,6 +548,12 @@
                                 MX6SX_PAD_CSI_PIXCLK__AUDMUX_MCLK      0x130b0
                         >;
                 };
+
+		pinctrl_spdif: spdifgrp {
+			fsl,pins = <
+				MX6SX_PAD_SD4_DATA4__SPDIF_OUT          0x1b0b0
+			>;
+		};
 
 		pinctrl_vcc_sd3: vccsd3grp {
 			fsl,pins = <
