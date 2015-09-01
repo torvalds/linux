@@ -5598,6 +5598,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.is_lockup = gfx_v7_0_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
@@ -5614,6 +5615,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.is_lockup = gfx_v7_0_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev)

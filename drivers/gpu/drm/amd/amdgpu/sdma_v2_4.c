@@ -1316,6 +1316,7 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.test_ring = sdma_v2_4_ring_test_ring,
 	.test_ib = sdma_v2_4_ring_test_ib,
 	.is_lockup = sdma_v2_4_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void sdma_v2_4_set_ring_funcs(struct amdgpu_device *adev)

@@ -343,6 +343,8 @@ struct amdgpu_ring_funcs {
 	int (*test_ring)(struct amdgpu_ring *ring);
 	int (*test_ib)(struct amdgpu_ring *ring);
 	bool (*is_lockup)(struct amdgpu_ring *ring);
+	/* insert NOP packets */
+	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
 };
 
 /*
@@ -1217,6 +1219,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
 void amdgpu_ring_free_size(struct amdgpu_ring *ring);
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
 int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw);
+void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_unlock_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);

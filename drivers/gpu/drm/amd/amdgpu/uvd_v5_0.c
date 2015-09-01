@@ -825,6 +825,7 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.test_ring = uvd_v5_0_ring_test_ring,
 	.test_ib = uvd_v5_0_ring_test_ib,
 	.is_lockup = amdgpu_ring_test_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev)

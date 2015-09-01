@@ -1305,6 +1305,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
 	.is_lockup = cik_sdma_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
