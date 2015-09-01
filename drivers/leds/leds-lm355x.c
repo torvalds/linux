@@ -555,7 +555,6 @@ MODULE_DEVICE_TABLE(i2c, lm355x_id);
 static struct i2c_driver lm355x_i2c_driver = {
 	.driver = {
 		   .name = LM355x_NAME,
-		   .owner = THIS_MODULE,
 		   .pm = NULL,
 		   },
 	.probe = lm355x_probe,
