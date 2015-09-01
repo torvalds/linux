@@ -7507,6 +7507,28 @@ enum skl_disp_power_wells {
 
 #define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
 
+#define BXT_DSI_PLL_CTL			0x161000
+#define  BXT_DSI_PLL_PVD_RATIO_SHIFT	16
+#define  BXT_DSI_PLL_PVD_RATIO_MASK	(3 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
+#define  BXT_DSI_PLL_PVD_RATIO_1	(1 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
+#define  BXT_DSIC_16X_BY2		(1 << 10)
+#define  BXT_DSIC_16X_BY3		(2 << 10)
+#define  BXT_DSIC_16X_BY4		(3 << 10)
+#define  BXT_DSIA_16X_BY2		(1 << 8)
+#define  BXT_DSIA_16X_BY3		(2 << 8)
+#define  BXT_DSIA_16X_BY4		(3 << 8)
+#define  BXT_DSI_FREQ_SEL_SHIFT		8
+#define  BXT_DSI_FREQ_SEL_MASK		(0xF << BXT_DSI_FREQ_SEL_SHIFT)
+
+#define BXT_DSI_PLL_RATIO_MAX		0x7D
+#define BXT_DSI_PLL_RATIO_MIN		0x22
+#define BXT_DSI_PLL_RATIO_MASK		0xFF
+#define BXT_REF_CLOCK_KHZ		19500
+
+#define BXT_DSI_PLL_ENABLE		0x46080
+#define  BXT_DSI_PLL_DO_ENABLE		(1 << 31)
+#define  BXT_DSI_PLL_LOCKED		(1 << 30)
+
 #define _MIPIA_PORT_CTRL			(VLV_DISPLAY_BASE + 0x61190)
 #define _MIPIC_PORT_CTRL			(VLV_DISPLAY_BASE + 0x61700)
 #define MIPI_PORT_CTRL(port)	_MIPI_PORT(port, _MIPIA_PORT_CTRL, _MIPIC_PORT_CTRL)

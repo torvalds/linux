@@ -914,8 +914,8 @@ static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	intel_dsi_prepare(encoder);
+	intel_enable_dsi_pll(encoder);
 
-	vlv_enable_dsi_pll(encoder);
 }
 
 static enum drm_connector_status
