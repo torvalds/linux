@@ -1,5 +1,8 @@
 /*
- * mma8452.c - Support for Freescale MMA8452Q 3-axis 12-bit accelerometer
+ * mma8452.c - Support for following Freescale 3-axis accelerometers:
+ *
+ * MMA8452Q (12 bit)
+ * MMA8453Q (10 bit)
  *
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
@@ -26,7 +29,7 @@
 
 #define MMA8452_STATUS				0x00
 #define  MMA8452_STATUS_DRDY			(BIT(2) | BIT(1) | BIT(0))
-#define MMA8452_OUT_X				0x01 /* MSB first, 12-bit  */
+#define MMA8452_OUT_X				0x01 /* MSB first */
 #define MMA8452_OUT_Y				0x03
 #define MMA8452_OUT_Z				0x05
 #define MMA8452_INT_SRC				0x0c
@@ -69,6 +72,7 @@
 #define  MMA8452_INT_TRANS			BIT(5)
 
 #define  MMA8452_DEVICE_ID			0x2a
+#define  MMA8453_DEVICE_ID			0x3a
 
 struct mma8452_data {
 	struct i2c_client *client;
@@ -768,8 +772,16 @@ static const struct iio_chan_spec mma8452_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
+static const struct iio_chan_spec mma8453_channels[] = {
+	MMA8452_CHANNEL(X, 0, 10),
+	MMA8452_CHANNEL(Y, 1, 10),
+	MMA8452_CHANNEL(Z, 2, 10),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
 enum {
 	mma8452,
+	mma8453,
 };
 
 static const struct mma_chip_info mma_chip_info_table[] = {
@@ -785,6 +797,22 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		 *	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
 		 */
 		.mma_scales = { {0, 9577}, {0, 19154}, {0, 38307} },
+		.ev_cfg = MMA8452_TRANSIENT_CFG,
+		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
+		.ev_cfg_chan_shift = 1,
+		.ev_src = MMA8452_TRANSIENT_SRC,
+		.ev_src_xe = MMA8452_TRANSIENT_SRC_XTRANSE,
+		.ev_src_ye = MMA8452_TRANSIENT_SRC_YTRANSE,
+		.ev_src_ze = MMA8452_TRANSIENT_SRC_ZTRANSE,
+		.ev_ths = MMA8452_TRANSIENT_THS,
+		.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
+		.ev_count = MMA8452_TRANSIENT_COUNT,
+	},
+	[mma8453] = {
+		.chip_id = MMA8453_DEVICE_ID,
+		.channels = mma8453_channels,
+		.num_channels = ARRAY_SIZE(mma8453_channels),
+		.mma_scales = { {0, 38307}, {0, 76614}, {0, 153228} },
 		.ev_cfg = MMA8452_TRANSIENT_CFG,
 		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
 		.ev_cfg_chan_shift = 1,
@@ -917,6 +945,7 @@ static int mma8452_reset(struct i2c_client *client)
 
 static const struct of_device_id mma8452_dt_ids[] = {
 	{ .compatible = "fsl,mma8452", .data = &mma_chip_info_table[mma8452] },
+	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mma8452_dt_ids);
@@ -932,7 +961,8 @@ static int mma8452_probe(struct i2c_client *client,
 	ret = i2c_smbus_read_byte_data(client, MMA8452_WHO_AM_I);
 	if (ret < 0)
 		return ret;
-	if (ret != MMA8452_DEVICE_ID)
+
+	if (ret != MMA8452_DEVICE_ID && ret != MMA8453_DEVICE_ID)
 		return -ENODEV;
 
 	match = of_match_device(mma8452_dt_ids, &client->dev);
@@ -1079,6 +1109,7 @@ static SIMPLE_DEV_PM_OPS(mma8452_pm_ops, mma8452_suspend, mma8452_resume);
 
 static const struct i2c_device_id mma8452_id[] = {
 	{ "mma8452", mma8452 },
+	{ "mma8453", mma8453 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma8452_id);
