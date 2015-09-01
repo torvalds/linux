@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/math64.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-common.h>
@@ -488,12 +489,14 @@ int vidioc_try_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
 #define FIXP_N    (15)
 #define FIXP_FRAC (1 << FIXP_N)
 #define FIXP_2PI  ((int)(2 * 3.141592653589 * FIXP_FRAC))
+#define M_100000PI (3.14159 * 100000)
 
 void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 {
 	u8 *vbuf = vb2_plane_vaddr(&buf->vb, 0);
 	unsigned long i;
 	unsigned long plane_size = vb2_plane_size(&buf->vb, 0);
+	s64 s64tmp;
 	s32 src_phase_step;
 	s32 mod_phase_step;
 	s32 fixp_i;
@@ -515,7 +518,8 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 						FIXP_2PI) >> (31 - FIXP_N);
 
 		dev->sdr_fixp_src_phase += src_phase_step;
-		dev->sdr_fixp_mod_phase += mod_phase_step / 4;
+		s64tmp = (s64) mod_phase_step * dev->sdr_fm_deviation;
+		dev->sdr_fixp_mod_phase += div_s64(s64tmp, M_100000PI);
 
 		/*
 		 * Transfer phases to [0 / 2xPI] in order to avoid variable

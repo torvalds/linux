@@ -99,6 +99,7 @@
 
 #define VIVID_CID_RADIO_TX_RDS_BLOCKIO	(VIVID_CID_VIVID_BASE + 94)
 
+#define VIVID_CID_SDR_CAP_FM_DEVIATION	(VIVID_CID_VIVID_BASE + 110)
 
 /* General User Controls */
 
@@ -1257,6 +1258,36 @@ static const struct v4l2_ctrl_config vivid_ctrl_radio_tx_rds_blockio = {
 };
 
 
+/* SDR Capture Controls */
+
+static int vivid_sdr_cap_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_sdr_cap);
+
+	switch (ctrl->id) {
+	case VIVID_CID_SDR_CAP_FM_DEVIATION:
+		dev->sdr_fm_deviation = ctrl->val;
+		break;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vivid_sdr_cap_ctrl_ops = {
+	.s_ctrl = vivid_sdr_cap_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_sdr_cap_fm_deviation = {
+	.ops = &vivid_sdr_cap_ctrl_ops,
+	.id = VIVID_CID_SDR_CAP_FM_DEVIATION,
+	.name = "FM Deviation",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min =    100,
+	.max = 200000,
+	.def =  75000,
+	.step =     1,
+};
+
+
 static const struct v4l2_ctrl_config vivid_ctrl_class = {
 	.ops = &vivid_user_gen_ctrl_ops,
 	.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY,
@@ -1314,7 +1345,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_new_custom(hdl_radio_rx, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_radio_tx, 17);
 	v4l2_ctrl_new_custom(hdl_radio_tx, &vivid_ctrl_class, NULL);
-	v4l2_ctrl_handler_init(hdl_sdr_cap, 18);
+	v4l2_ctrl_handler_init(hdl_sdr_cap, 19);
 	v4l2_ctrl_new_custom(hdl_sdr_cap, &vivid_ctrl_class, NULL);
 
 	/* User Controls */
@@ -1544,6 +1575,10 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		dev->radio_tx_rds_ms = v4l2_ctrl_new_std(hdl_radio_tx,
 			&vivid_radio_tx_ctrl_ops,
 			V4L2_CID_RDS_TX_MUSIC_SPEECH, 0, 1, 1, 1);
+	}
+	if (dev->has_sdr_cap) {
+		v4l2_ctrl_new_custom(hdl_sdr_cap,
+			&vivid_ctrl_sdr_cap_fm_deviation, NULL);
 	}
 	if (hdl_user_gen->error)
 		return hdl_user_gen->error;

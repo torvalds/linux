@@ -451,6 +451,7 @@ struct vivid_dev {
 	unsigned			sdr_buffersize;
 	unsigned			sdr_adc_freq;
 	unsigned			sdr_fm_freq;
+	unsigned			sdr_fm_deviation;
 	int				sdr_fixp_src_phase;
 	int				sdr_fixp_mod_phase;
 
