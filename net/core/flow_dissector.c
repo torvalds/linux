@@ -409,6 +409,31 @@ ip_proto_again:
 
 		goto ip_proto_again;
 	}
+	case NEXTHDR_FRAGMENT: {
+		struct frag_hdr _fh, *fh;
+
+		if (proto != htons(ETH_P_IPV6))
+			break;
+
+		fh = __skb_header_pointer(skb, nhoff, sizeof(_fh),
+					  data, hlen, &_fh);
+
+		if (!fh)
+			goto out_bad;
+
+		key_control->is_fragment = 1;
+
+		nhoff += sizeof(_fh);
+
+		if (!(fh->frag_off & htons(IP6_OFFSET))) {
+			key_control->first_frag = 1;
+			if (flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG) {
+				ip_proto = fh->nexthdr;
+				goto ip_proto_again;
+			}
+		}
+		goto out_good;
+	}
 	case IPPROTO_IPIP:
 		proto = htons(ETH_P_IP);
 		goto ip;
