@@ -237,6 +237,14 @@
 		reg = <0x08>;
 
 		regulators {
+			sw1a_reg: sw1a {
+					regulator-min-microvolt = <700000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+					regulator-always-on;
+					regulator-ramp-delay = <6250>;
+			};
+
 			/* use sw1c_reg to align with pfuze100/pfuze200 */
 			sw1c_reg: sw1b {
 				regulator-min-microvolt = <700000>;
