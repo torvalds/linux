@@ -292,7 +292,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 
 	/* HW restart, don't assume the memory has been zeroed */
 	atomic_set(&mvm->pending_frames[sta_id], 0);
-	mvm_sta->tid_disable_agg = 0;
+	mvm_sta->tid_disable_agg = 0xffff; /* No aggs at first */
 	mvm_sta->tfd_queue_msk = 0;
 
 	/* allocate new queues for a TDLS station */
