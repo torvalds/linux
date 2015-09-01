@@ -831,11 +831,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	bool reserved_buffers = false;
 	int i, r;
 
-	down_read(&adev->exclusive_lock);
-	if (!adev->accel_working) {
-		up_read(&adev->exclusive_lock);
+	if (!adev->accel_working)
 		return -EBUSY;
-	}
 
 	parser = amdgpu_cs_parser_create(adev, filp, NULL, NULL, 0);
 	if (!parser)
@@ -843,8 +840,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	r = amdgpu_cs_parser_init(parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
-		kfree(parser);
-		up_read(&adev->exclusive_lock);
+		amdgpu_cs_parser_fini(parser, r, false);
 		r = amdgpu_cs_handle_lockup(adev, r);
 		return r;
 	}
@@ -915,14 +911,12 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		mutex_unlock(&job->job_lock);
 		amdgpu_cs_parser_fini_late(parser);
-		up_read(&adev->exclusive_lock);
 		return 0;
 	}
 
 	cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 out:
 	amdgpu_cs_parser_fini(parser, r, reserved_buffers);
-	up_read(&adev->exclusive_lock);
 	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;
 }

@@ -260,16 +260,8 @@ static void amdgpu_fence_check_lockup(struct work_struct *work)
 				lockup_work.work);
 	ring = fence_drv->ring;
 
-	if (!down_read_trylock(&ring->adev->exclusive_lock)) {
-		/* just reschedule the check if a reset is going on */
-		amdgpu_fence_schedule_check(ring);
-		return;
-	}
-
-	if (amdgpu_fence_activity(ring)) {
+	if (amdgpu_fence_activity(ring))
 		wake_up_all(&ring->fence_drv.fence_queue);
-	}
-	up_read(&ring->adev->exclusive_lock);
 }
 
 /**
@@ -317,18 +309,15 @@ static bool amdgpu_fence_is_signaled(struct fence *f)
 {
 	struct amdgpu_fence *fence = to_amdgpu_fence(f);
 	struct amdgpu_ring *ring = fence->ring;
-	struct amdgpu_device *adev = ring->adev;
 
 	if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
 		return true;
 
-	if (down_read_trylock(&adev->exclusive_lock)) {
-		amdgpu_fence_process(ring);
-		up_read(&adev->exclusive_lock);
+	amdgpu_fence_process(ring);
 
-		if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
-			return true;
-	}
+	if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
+		return true;
+
 	return false;
 }
 

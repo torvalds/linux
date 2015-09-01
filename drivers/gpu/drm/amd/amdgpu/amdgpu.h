@@ -1955,7 +1955,6 @@ struct amdgpu_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
-	struct rw_semaphore		exclusive_lock;
 
 	/* ASIC */
 	enum amd_asic_type		asic_type;

@@ -181,7 +181,6 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	bool kernel = false;
 	int r;
 
-	down_read(&adev->exclusive_lock);
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
 	    AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA)) {
@@ -214,11 +213,9 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	memset(args, 0, sizeof(*args));
 	args->out.handle = handle;
-	up_read(&adev->exclusive_lock);
 	return 0;
 
 error_unlock:
-	up_read(&adev->exclusive_lock);
 	r = amdgpu_gem_handle_lockup(adev, r);
 	return r;
 }
@@ -249,8 +246,6 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		   memory and install a MMU notifier */
 		return -EACCES;
 	}
-
-	down_read(&adev->exclusive_lock);
 
 	/* create a gem object to contain this object in */
 	r = amdgpu_gem_object_create(adev, args->size, 0,
@@ -293,14 +288,12 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto handle_lockup;
 
 	args->handle = handle;
-	up_read(&adev->exclusive_lock);
 	return 0;
 
 release_object:
 	drm_gem_object_unreference_unlocked(gobj);
 
 handle_lockup:
-	up_read(&adev->exclusive_lock);
 	r = amdgpu_gem_handle_lockup(adev, r);
 
 	return r;

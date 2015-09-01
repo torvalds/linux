@@ -1418,7 +1418,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->gfx.gpu_clock_mutex);
 	mutex_init(&adev->srbm_mutex);
 	mutex_init(&adev->grbm_idx_mutex);
-	init_rwsem(&adev->exclusive_lock);
 	mutex_init(&adev->mn_lock);
 	hash_init(adev->mn_hash);
 
@@ -1814,8 +1813,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	int i, r;
 	int resched;
 
-	down_write(&adev->exclusive_lock);
-
 	atomic_inc(&adev->gpu_reset_counter);
 
 	/* block TTM */
@@ -1879,7 +1876,6 @@ retry:
 		dev_info(adev->dev, "GPU reset failed\n");
 	}
 
-	up_write(&adev->exclusive_lock);
 	return r;
 }
 
