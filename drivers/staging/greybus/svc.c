@@ -304,7 +304,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	 * XXX about an AP with multiple interface blocks?
 	 */
 	device_id = ida_simple_get(&greybus_svc_device_id_map,
-				   GB_DEVICE_ID_MODULES_START, 0, GFP_ATOMIC);
+				   GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
 	if (device_id < 0) {
 		ret = device_id;
 		dev_err(dev, "%s: Failed to allocate device id for interface with id %hhu (%d)\n",
