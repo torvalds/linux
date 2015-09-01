@@ -7507,6 +7507,22 @@ enum skl_disp_power_wells {
 
 #define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
 
+/* BXT MIPI mode configure */
+#define  _BXT_MIPIA_TRANS_HACTIVE			0x6B0F8
+#define  _BXT_MIPIC_TRANS_HACTIVE			0x6B8F8
+#define  BXT_MIPI_TRANS_HACTIVE(tc)	_MIPI_PORT(tc, \
+		_BXT_MIPIA_TRANS_HACTIVE, _BXT_MIPIC_TRANS_HACTIVE)
+
+#define  _BXT_MIPIA_TRANS_VACTIVE			0x6B0FC
+#define  _BXT_MIPIC_TRANS_VACTIVE			0x6B8FC
+#define  BXT_MIPI_TRANS_VACTIVE(tc)	_MIPI_PORT(tc, \
+		_BXT_MIPIA_TRANS_VACTIVE, _BXT_MIPIC_TRANS_VACTIVE)
+
+#define  _BXT_MIPIA_TRANS_VTOTAL			0x6B100
+#define  _BXT_MIPIC_TRANS_VTOTAL			0x6B900
+#define  BXT_MIPI_TRANS_VTOTAL(tc)	_MIPI_PORT(tc, \
+		_BXT_MIPIA_TRANS_VTOTAL, _BXT_MIPIC_TRANS_VTOTAL)
+
 #define BXT_DSI_PLL_CTL			0x161000
 #define  BXT_DSI_PLL_PVD_RATIO_SHIFT	16
 #define  BXT_DSI_PLL_PVD_RATIO_MASK	(3 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
@@ -7941,6 +7957,11 @@ enum skl_disp_power_wells {
 #define  READ_REQUEST_PRIORITY_LOW			(0 << 3)
 #define  READ_REQUEST_PRIORITY_HIGH			(3 << 3)
 #define  RGB_FLIP_TO_BGR				(1 << 2)
+
+#define  BXT_PIPE_SELECT_MASK				(7 << 7)
+#define  BXT_PIPE_SELECT_C				(2 << 7)
+#define  BXT_PIPE_SELECT_B				(1 << 7)
+#define  BXT_PIPE_SELECT_A				(0 << 7)
 
 #define _MIPIA_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb108)
 #define _MIPIC_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb908)
