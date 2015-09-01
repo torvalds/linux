@@ -18,7 +18,6 @@
 #include <linux/math64.h>
 #include <linux/sizes.h>
 
-#include <linux/mtd/cfi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/of_platform.h>
 #include <linux/spi/flash.h>
@@ -191,11 +190,11 @@ static inline int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 	u8 cmd;
 
 	switch (JEDEC_MFR(info)) {
-	case CFI_MFR_ST: /* Micron, actually */
+	case SNOR_MFR_MICRON:
 		/* Some Micron need WREN command; all will accept it */
 		need_wren = true;
-	case CFI_MFR_MACRONIX:
-	case 0xEF /* winbond */:
+	case SNOR_MFR_MACRONIX:
+	case SNOR_MFR_WINBOND:
 		if (need_wren)
 			write_enable(nor);
 
@@ -998,14 +997,14 @@ static int set_quad_mode(struct spi_nor *nor, const struct flash_info *info)
 	int status;
 
 	switch (JEDEC_MFR(info)) {
-	case CFI_MFR_MACRONIX:
+	case SNOR_MFR_MACRONIX:
 		status = macronix_quad_enable(nor);
 		if (status) {
 			dev_err(nor->dev, "Macronix quad-read not enabled\n");
 			return -EINVAL;
 		}
 		return status;
-	case CFI_MFR_ST:
+	case SNOR_MFR_MICRON:
 		status = micron_quad_enable(nor);
 		if (status) {
 			dev_err(nor->dev, "Micron quad-read not enabled\n");
@@ -1085,9 +1084,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	 * up with the software protection bits set
 	 */
 
-	if (JEDEC_MFR(info) == CFI_MFR_ATMEL ||
-	    JEDEC_MFR(info) == CFI_MFR_INTEL ||
-	    JEDEC_MFR(info) == CFI_MFR_SST) {
+	if (JEDEC_MFR(info) == SNOR_MFR_ATMEL ||
+	    JEDEC_MFR(info) == SNOR_MFR_INTEL ||
+	    JEDEC_MFR(info) == SNOR_MFR_SST) {
 		write_enable(nor);
 		write_sr(nor, 0);
 	}
@@ -1102,8 +1101,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	mtd->_erase = spi_nor_erase;
 	mtd->_read = spi_nor_read;
 
-	/* nor protection support for STmicro chips */
-	if (JEDEC_MFR(info) == CFI_MFR_ST) {
+	/* NOR protection support for STmicro/Micron chips */
+	if (JEDEC_MFR(info) == SNOR_MFR_MICRON) {
 		nor->flash_lock = stm_lock;
 		nor->flash_unlock = stm_unlock;
 	}
@@ -1197,7 +1196,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	else if (mtd->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
-		if (JEDEC_MFR(info) == CFI_MFR_AMD) {
+		if (JEDEC_MFR(info) == SNOR_MFR_SPANSION) {
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
