@@ -488,7 +488,7 @@ static int req_gap_to_prev(struct request *req, struct bio *next)
 	struct bio *prev = req->biotail;
 
 	return bvec_gap_to_prev(req->q, &prev->bi_io_vec[prev->bi_vcnt - 1],
-			next->bi_io_vec[1].bv_offset);
+			next->bi_io_vec[0].bv_offset);
 }
 
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
