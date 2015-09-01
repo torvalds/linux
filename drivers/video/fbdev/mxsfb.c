@@ -217,7 +217,7 @@ struct mxsfb_info {
 	bool wait4vsync;
 	struct completion vsync_complete;
 	ktime_t vsync_nf_timestamp;
-	struct semaphore flip_sem;
+	struct completion flip_complete;
 	int cur_blank;
 	int restore_blank;
 	char disp_dev[32];
@@ -422,7 +422,7 @@ static irqreturn_t mxsfb_irq_handler(int irq, void *dev_id)
 				host->base + LCDC_CTRL1 + REG_CLR);
 		writel(CTRL1_CUR_FRAME_DONE_IRQ_EN,
 			     host->base + LCDC_CTRL1 + REG_CLR);
-		up(&host->flip_sem);
+		complete(&host->flip_complete);
 	}
 
 	if (acked_status & CTRL1_UNDERFLOW_IRQ)
@@ -673,8 +673,6 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		reenable = 1;
 		mxsfb_disable_controller(fb_info);
 	}
-
-	sema_init(&host->flip_sem, 1);
 
 	/* clear the FIFOs */
 	writel(CTRL1_FIFO_CLEAR, host->base + LCDC_CTRL1 + REG_SET);
@@ -928,6 +926,7 @@ static int mxsfb_blank(int blank, struct fb_info *fb_info)
 static int mxsfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *fb_info)
 {
+	int ret = 0;
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
 	unsigned offset;
 
@@ -947,12 +946,9 @@ static int mxsfb_pan_display(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	offset = fb_info->fix.line_length * var->yoffset;
+	init_completion(&host->flip_complete);
 
-	if (down_timeout(&host->flip_sem, HZ / 2)) {
-		dev_err(fb_info->device, "timeout when waiting for flip irq\n");
-		return -ETIMEDOUT;
-	}
+	offset = fb_info->fix.line_length * var->yoffset;
 
 	/* update on next VSYNC */
 	writel(fb_info->fix.smem_start + offset,
@@ -961,7 +957,14 @@ static int mxsfb_pan_display(struct fb_var_screeninfo *var,
 	writel(CTRL1_CUR_FRAME_DONE_IRQ_EN,
 		host->base + LCDC_CTRL1 + REG_SET);
 
-	return 0;
+	ret = wait_for_completion_timeout(&host->flip_complete, HZ / 2);
+	if (ret < 0) {
+		dev_err(fb_info->device,
+			"mxs wait for pan flip timeout\n");
+		ret = -ETIMEDOUT;
+	}
+
+	return ret;
 }
 
 static int mxsfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
