@@ -12,6 +12,8 @@
 struct flow_dissector_key_control {
 	u16	thoff;
 	u16	addr_type;
+	u32	is_fragment:1;
+	u32	first_frag:1;
 };
 
 /**
@@ -121,6 +123,8 @@ enum flow_dissector_key_id {
 
 	FLOW_DISSECTOR_KEY_MAX,
 };
+
+#define FLOW_DISSECTOR_F_PARSE_1ST_FRAG		BIT(0)
 
 struct flow_dissector_key {
 	enum flow_dissector_key_id key_id;

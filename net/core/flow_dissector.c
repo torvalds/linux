@@ -177,8 +177,6 @@ ip:
 		nhoff += iph->ihl * 4;
 
 		ip_proto = iph->protocol;
-		if (ip_is_fragment(iph))
-			ip_proto = 0;
 
 		if (!skb_flow_dissector_uses_key(flow_dissector,
 						 FLOW_DISSECTOR_KEY_IPV4_ADDRS))
@@ -189,6 +187,19 @@ ip:
 		memcpy(&key_addrs->v4addrs, &iph->saddr,
 		       sizeof(key_addrs->v4addrs));
 		key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+
+		if (ip_is_fragment(iph)) {
+			key_control->is_fragment = 1;
+
+			if (iph->frag_off & htons(IP_OFFSET)) {
+				goto out_good;
+			} else {
+				key_control->first_frag = 1;
+				if (!(flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG))
+					goto out_good;
+			}
+		}
+
 		break;
 	}
 	case htons(ETH_P_IPV6): {
