@@ -185,6 +185,7 @@ static void perf_session_env__exit(struct perf_env *env)
 	zfree(&env->sibling_threads);
 	zfree(&env->numa_nodes);
 	zfree(&env->pmu_mappings);
+	zfree(&env->cpu);
 }
 
 void perf_session__delete(struct perf_session *session)
