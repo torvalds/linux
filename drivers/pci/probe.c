@@ -826,6 +826,9 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 			child->bridge_ctl = bctl;
 		}
 
+		/* Read and initialize bridge resources */
+		pci_read_bridge_bases(child);
+
 		cmax = pci_scan_child_bus(child);
 		if (cmax > subordinate)
 			dev_warn(&dev->dev, "bridge has subordinate %02x but max busn %02x\n",
@@ -886,6 +889,9 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 
 		if (!is_cardbus) {
 			child->bridge_ctl = bctl;
+
+			/* Read and initialize bridge resources */
+			pci_read_bridge_bases(child);
 			max = pci_scan_child_bus(child);
 		} else {
 			/*
@@ -1138,7 +1144,6 @@ int pci_setup_device(struct pci_dev *dev)
 {
 	u32 class;
 	u8 hdr_type;
-	struct pci_slot *slot;
 	int pos = 0;
 	struct pci_bus_region region;
 	struct resource *res;
@@ -1154,10 +1159,7 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->error_state = pci_channel_io_normal;
 	set_pcie_port_type(dev);
 
-	list_for_each_entry(slot, &dev->bus->slots, list)
-		if (PCI_SLOT(dev->devfn) == slot->number)
-			dev->slot = slot;
-
+	pci_dev_assign_slot(dev);
 	/* Assume 32-bit PCI; let 64-bit PCI cards (which are far rarer)
 	   set this higher, assuming the system even supports it.  */
 	dev->dma_mask = 0xffffffff;
@@ -1273,11 +1275,49 @@ int pci_setup_device(struct pci_dev *dev)
 	bad:
 		dev_err(&dev->dev, "ignoring class %#08x (doesn't match header type %02x)\n",
 			dev->class, dev->hdr_type);
-		dev->class = PCI_CLASS_NOT_DEFINED;
+		dev->class = PCI_CLASS_NOT_DEFINED << 8;
 	}
 
 	/* We found a fine healthy device, go go go... */
 	return 0;
+}
+
+static void pci_configure_mps(struct pci_dev *dev)
+{
+	struct pci_dev *bridge = pci_upstream_bridge(dev);
+	int mps, p_mps, rc;
+
+	if (!pci_is_pcie(dev) || !bridge || !pci_is_pcie(bridge))
+		return;
+
+	mps = pcie_get_mps(dev);
+	p_mps = pcie_get_mps(bridge);
+
+	if (mps == p_mps)
+		return;
+
+	if (pcie_bus_config == PCIE_BUS_TUNE_OFF) {
+		dev_warn(&dev->dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+			 mps, pci_name(bridge), p_mps);
+		return;
+	}
+
+	/*
+	 * Fancier MPS configuration is done later by
+	 * pcie_bus_configure_settings()
+	 */
+	if (pcie_bus_config != PCIE_BUS_DEFAULT)
+		return;
+
+	rc = pcie_set_mps(dev, p_mps);
+	if (rc) {
+		dev_warn(&dev->dev, "can't set Max Payload Size to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+			 p_mps);
+		return;
+	}
+
+	dev_info(&dev->dev, "Max Payload Size set to %d (was %d, max %d)\n",
+		 p_mps, mps, 128 << dev->pcie_mpss);
 }
 
 static struct hpp_type0 pci_default_type0 = {
@@ -1400,6 +1440,8 @@ static void pci_configure_device(struct pci_dev *dev)
 {
 	struct hotplug_params hpp;
 	int ret;
+
+	pci_configure_mps(dev);
 
 	memset(&hpp, 0, sizeof(hpp));
 	ret = pci_get_hp_params(dev, &hpp);
@@ -1544,6 +1586,9 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 	/* Single Root I/O Virtualization */
 	pci_iov_init(dev);
+
+	/* Address Translation Services */
+	pci_ats_init(dev);
 
 	/* Enable ACS P2P upstream forwarding */
 	pci_enable_acs(dev);
@@ -1796,22 +1841,6 @@ static void pcie_write_mrrs(struct pci_dev *dev)
 		dev_err(&dev->dev, "MRRS was unable to be configured with a safe value.  If problems are experienced, try running with pci=pcie_bus_safe\n");
 }
 
-static void pcie_bus_detect_mps(struct pci_dev *dev)
-{
-	struct pci_dev *bridge = dev->bus->self;
-	int mps, p_mps;
-
-	if (!bridge)
-		return;
-
-	mps = pcie_get_mps(dev);
-	p_mps = pcie_get_mps(bridge);
-
-	if (mps != p_mps)
-		dev_warn(&dev->dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
-			 mps, pci_name(bridge), p_mps);
-}
-
 static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 {
 	int mps, orig_mps;
@@ -1819,10 +1848,9 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 	if (!pci_is_pcie(dev))
 		return 0;
 
-	if (pcie_bus_config == PCIE_BUS_TUNE_OFF) {
-		pcie_bus_detect_mps(dev);
+	if (pcie_bus_config == PCIE_BUS_TUNE_OFF ||
+	    pcie_bus_config == PCIE_BUS_DEFAULT)
 		return 0;
-	}
 
 	mps = 128 << *(u8 *)data;
 	orig_mps = pcie_get_mps(dev);
@@ -2101,8 +2129,9 @@ void pci_bus_release_busn_res(struct pci_bus *b)
 			res, ret ? "can not be" : "is");
 }
 
-struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
-		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+struct pci_bus *pci_scan_root_bus_msi(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata,
+		struct list_head *resources, struct msi_controller *msi)
 {
 	struct resource_entry *window;
 	bool found = false;
@@ -2119,6 +2148,8 @@ struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
 	if (!b)
 		return NULL;
 
+	b->msi = msi;
+
 	if (!found) {
 		dev_info(&b->dev,
 		 "No busn resource found for root bus, will use [bus %02x-ff]\n",
@@ -2132,6 +2163,13 @@ struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
 		pci_bus_update_busn_res_end(b, max);
 
 	return b;
+}
+
+struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+{
+	return pci_scan_root_bus_msi(parent, bus, ops, sysdata, resources,
+				     NULL);
 }
 EXPORT_SYMBOL(pci_scan_root_bus);
 

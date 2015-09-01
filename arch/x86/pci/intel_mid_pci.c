@@ -211,7 +211,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 	struct irq_alloc_info info;
 	int polarity;
 
-	if (dev->irq_managed && dev->irq > 0)
+	if (pci_has_managed_irq(dev))
 		return 0;
 
 	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
@@ -234,10 +234,13 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 static void intel_mid_pci_irq_disable(struct pci_dev *dev)
 {
-	if (!mp_should_keep_irq(&dev->dev) && dev->irq_managed &&
-	    dev->irq > 0) {
+	if (pci_has_managed_irq(dev)) {
 		mp_unmap_irq(dev->irq);
 		dev->irq_managed = 0;
+		/*
+		 * Don't reset dev->irq here, otherwise
+		 * intel_mid_pci_irq_enable() will fail on next call.
+		 */
 	}
 }
 

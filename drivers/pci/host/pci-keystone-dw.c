@@ -196,7 +196,6 @@ static int ks_dw_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_and_handler(irq, &ks_dw_pcie_msi_irq_chip,
 				 handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
@@ -277,7 +276,6 @@ static int ks_dw_pcie_init_legacy_irq_map(struct irq_domain *d,
 	irq_set_chip_and_handler(irq, &ks_dw_pcie_legacy_irq_chip,
 				 handle_level_irq);
 	irq_set_chip_data(irq, d->host_data);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
