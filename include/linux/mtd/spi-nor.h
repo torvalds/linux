@@ -145,8 +145,8 @@ struct mtd_info;
  * @write:		[DRIVER-SPECIFIC] write data to the SPI NOR
  * @erase:		[DRIVER-SPECIFIC] erase a sector of the SPI NOR
  *			at the offset @offs
- * @lock:		[FLASH-SPECIFIC] lock a region of the SPI NOR
- * @unlock:		[FLASH-SPECIFIC] unlock a region of the SPI NOR
+ * @flash_lock:		[FLASH-SPECIFIC] lock a region of the SPI NOR
+ * @flash_unlock:	[FLASH-SPECIFIC] unlock a region of the SPI NOR
  * @priv:		the private data
  */
 struct spi_nor {
