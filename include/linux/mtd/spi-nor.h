@@ -63,24 +63,24 @@
 #define SPINOR_OP_WD_EVCR      0x61    /* Write EVCR register */
 
 /* Status Register bits. */
-#define SR_WIP			1	/* Write in progress */
-#define SR_WEL			2	/* Write enable latch */
+#define SR_WIP			BIT(0)	/* Write in progress */
+#define SR_WEL			BIT(1)	/* Write enable latch */
 /* meaning of other SR_* bits may differ between vendors */
-#define SR_BP0			4	/* Block protect 0 */
-#define SR_BP1			8	/* Block protect 1 */
-#define SR_BP2			0x10	/* Block protect 2 */
-#define SR_SRWD			0x80	/* SR write protect */
+#define SR_BP0			BIT(2)	/* Block protect 0 */
+#define SR_BP1			BIT(3)	/* Block protect 1 */
+#define SR_BP2			BIT(4)	/* Block protect 2 */
+#define SR_SRWD			BIT(7)	/* SR write protect */
 
-#define SR_QUAD_EN_MX		0x40	/* Macronix Quad I/O */
+#define SR_QUAD_EN_MX		BIT(6)	/* Macronix Quad I/O */
 
 /* Enhanced Volatile Configuration Register bits */
-#define EVCR_QUAD_EN_MICRON    0x80    /* Micron Quad I/O */
+#define EVCR_QUAD_EN_MICRON	BIT(7)	/* Micron Quad I/O */
 
 /* Flag Status Register bits */
-#define FSR_READY		0x80
+#define FSR_READY		BIT(7)
 
 /* Configuration Register bits. */
-#define CR_QUAD_EN_SPAN		0x2	/* Spansion Quad I/O */
+#define CR_QUAD_EN_SPAN		BIT(1)	/* Spansion Quad I/O */
 
 enum read_mode {
 	SPI_NOR_NORMAL = 0,
