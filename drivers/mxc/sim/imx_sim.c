@@ -1808,6 +1808,8 @@ static int sim_suspend(struct platform_device *pdev, pm_message_t state)
 	if (sim->open_cnt)
 		clk_disable_unprepare(sim->clk);
 
+	pinctrl_pm_select_sleep_state(&pdev->dev);
+
 	return 0;
 }
 
@@ -1817,6 +1819,8 @@ static int sim_resume(struct platform_device *pdev)
 
 	if (sim->open_cnt)
 		clk_prepare_enable(sim->clk);
+
+	pinctrl_pm_select_default_state(&pdev->dev);
 
 	return 0;
 }
