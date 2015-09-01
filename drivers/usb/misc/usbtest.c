@@ -95,6 +95,7 @@ static struct usb_device *testdev_to_usbdev(struct usbtest_dev *test)
 	dev_warn(&(tdev)->intf->dev , fmt , ## args)
 
 #define GUARD_BYTE	0xA5
+#define MAX_SGLEN	128
 
 /*-------------------------------------------------------------------------*/
 
@@ -1911,10 +1912,7 @@ test_iso_queue(struct usbtest_dev *dev, struct usbtest_param *param,
 	unsigned		i;
 	unsigned long		packets = 0;
 	int			status = 0;
-	struct urb		*urbs[10];	/* FIXME no limit */
-
-	if (param->sglen > 10)
-		return -EDOM;
+	struct urb		*urbs[param->sglen];
 
 	memset(&context, 0, sizeof(context));
 	context.count = param->iterations * param->sglen;
@@ -2059,6 +2057,9 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 		return -EOPNOTSUPP;
 
 	if (param->iterations <= 0)
+		return -EINVAL;
+
+	if (param->sglen > MAX_SGLEN)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&dev->lock))
