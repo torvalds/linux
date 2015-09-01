@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acenvex.h - Extra host and compiler configuration
+ * Name: acwinex.h - Extra OS specific defines, etc.
  *
  *****************************************************************************/
 
@@ -41,35 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACENVEX_H__
-#define __ACENVEX_H__
+#ifndef __ACWINEX_H__
+#define __ACWINEX_H__
 
-/*! [Begin] no source code translation */
+/* Windows uses VC */
 
-/******************************************************************************
- *
- * Extra host configuration files. All ACPICA headers are included before
- * including these files.
- *
- *****************************************************************************/
-
-#if defined(_LINUX) || defined(__linux__)
-#include <acpi/platform/aclinuxex.h>
-
-#elif defined(WIN32)
-#include "acwinex.h"
-
-#elif defined(_AED_EFI)
-#include "acefiex.h"
-
-#elif defined(_GNU_EFI)
-#include "acefiex.h"
-
-#elif defined(__DragonFly__)
-#include "acdragonflyex.h"
-
-#endif
-
-/*! [End] no source code translation !*/
-
-#endif				/* __ACENVEX_H__ */
+#endif				/* __ACWINEX_H__ */
