@@ -344,7 +344,7 @@ nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx)
 			__func__, mirror_idx);
 		if (mirror && mirror->mirror_ds) {
 			devid = &mirror->mirror_ds->id_node;
-			pnfs_generic_mark_devid_invalid(devid);
+			nfs4_mark_deviceid_unavailable(devid);
 		}
 		goto out;
 	}
@@ -374,7 +374,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 			__func__, ds_idx);
 		if (mirror && mirror->mirror_ds) {
 			devid = &mirror->mirror_ds->id_node;
-			pnfs_generic_mark_devid_invalid(devid);
+			nfs4_mark_deviceid_unavailable(devid);
 		}
 		goto out;
 	}
