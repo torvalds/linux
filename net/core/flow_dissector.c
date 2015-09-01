@@ -616,9 +616,8 @@ EXPORT_SYMBOL(flow_hash_from_keys);
 static inline u32 ___skb_get_hash(const struct sk_buff *skb,
 				  struct flow_keys *keys, u32 keyval)
 {
-	if (!skb_flow_dissect_flow_keys(skb, keys,
-					FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL))
-		return 0;
+	skb_flow_dissect_flow_keys(skb, keys,
+				   FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL);
 
 	return __flow_hash_from_keys(keys, keyval);
 }
@@ -662,15 +661,10 @@ EXPORT_SYMBOL(make_flow_keys_digest);
 void __skb_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys keys;
-	u32 hash;
 
 	__flow_hash_secret_init();
 
-	hash = ___skb_get_hash(skb, &keys, hashrnd);
-	if (!hash)
-		return;
-
-	__skb_set_sw_hash(skb, hash,
+	__skb_set_sw_hash(skb, ___skb_get_hash(skb, &keys, hashrnd),
 			  flow_keys_have_l4(&keys));
 }
 EXPORT_SYMBOL(__skb_get_hash);
