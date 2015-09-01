@@ -838,6 +838,9 @@
 	vop1pwm: pwm@ff9401a0 {
 		compatible = "rockchip,vop-pwm";
 		reg = <0xff9401a0 0x10>;
+
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vop1_pwm_pin>;
@@ -849,6 +852,9 @@
 	vop0pwm: pwm@ff9301a0 {
 		compatible = "rockchip,vop-pwm";
 		reg = <0xff9301a0 0x10>;
+
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vop0_pwm_pin>;
@@ -860,6 +866,9 @@
 	pwm0: pwm@ff680000 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0xff680000 0x10>;
+
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm0_pin>;
@@ -871,6 +880,9 @@
 	pwm1: pwm@ff680010 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0xff680010 0x10>;
+
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm1_pin>;
@@ -882,6 +894,9 @@
 	pwm2: pwm@ff680020 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0xff680020 0x10>;
+
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm2_pin>;
@@ -893,6 +908,9 @@
 	pwm3: pwm@ff680030 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0xff680030 0x10>;
+
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm3_pin>;
