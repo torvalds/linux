@@ -239,6 +239,8 @@ ipv6:
 								     target_container);
 				key_tags->flow_label = ntohl(flow_label);
 			}
+			if (flags & FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL)
+				goto out_good;
 		}
 
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_L3)
@@ -599,7 +601,8 @@ EXPORT_SYMBOL(flow_hash_from_keys);
 static inline u32 ___skb_get_hash(const struct sk_buff *skb,
 				  struct flow_keys *keys, u32 keyval)
 {
-	if (!skb_flow_dissect_flow_keys(skb, keys, 0))
+	if (!skb_flow_dissect_flow_keys(skb, keys,
+					FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL))
 		return 0;
 
 	return __flow_hash_from_keys(keys, keyval);

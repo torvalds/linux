@@ -126,6 +126,7 @@ enum flow_dissector_key_id {
 
 #define FLOW_DISSECTOR_F_PARSE_1ST_FRAG		BIT(0)
 #define FLOW_DISSECTOR_F_STOP_AT_L3		BIT(1)
+#define FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL	BIT(2)
 
 struct flow_dissector_key {
 	enum flow_dissector_key_id key_id;
