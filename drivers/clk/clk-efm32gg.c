@@ -6,7 +6,6 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>

@@ -16,6 +16,7 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/clk.h>
 
 /*
  * "Policies" affect the frequencies of bus clocks provided by a
@@ -1010,25 +1011,23 @@ static long kona_peri_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct bcm_clk_div *div = &bcm_clk->u.peri->div;
 
 	if (!divider_exists(div))
-		return __clk_get_rate(hw->clk);
+		return clk_hw_get_rate(hw);
 
 	/* Quietly avoid a zero rate */
 	return round_rate(bcm_clk->ccu, div, &bcm_clk->u.peri->pre_div,
 				rate ? rate : 1, *parent_rate, NULL);
 }
 
-static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long min_rate,
-		unsigned long max_rate,
-		unsigned long *best_parent_rate, struct clk_hw **best_parent)
+static int kona_peri_clk_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct clk *clk = hw->clk;
-	struct clk *current_parent;
+	struct clk_hw *current_parent;
 	unsigned long parent_rate;
 	unsigned long best_delta;
 	unsigned long best_rate;
 	u32 parent_count;
+	long rate;
 	u32 which;
 
 	/*
@@ -1037,18 +1036,25 @@ static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
 	 */
 	WARN_ON_ONCE(bcm_clk->init_data.flags & CLK_SET_RATE_NO_REPARENT);
 	parent_count = (u32)bcm_clk->init_data.num_parents;
-	if (parent_count < 2)
-		return kona_peri_clk_round_rate(hw, rate, best_parent_rate);
+	if (parent_count < 2) {
+		rate = kona_peri_clk_round_rate(hw, req->rate,
+						&req->best_parent_rate);
+		if (rate < 0)
+			return rate;
+
+		req->rate = rate;
+		return 0;
+	}
 
 	/* Unless we can do better, stick with current parent */
-	current_parent = clk_get_parent(clk);
-	parent_rate = __clk_get_rate(current_parent);
-	best_rate = kona_peri_clk_round_rate(hw, rate, &parent_rate);
-	best_delta = abs(best_rate - rate);
+	current_parent = clk_hw_get_parent(hw);
+	parent_rate = clk_hw_get_rate(current_parent);
+	best_rate = kona_peri_clk_round_rate(hw, req->rate, &parent_rate);
+	best_delta = abs(best_rate - req->rate);
 
 	/* Check whether any other parent clock can produce a better result */
 	for (which = 0; which < parent_count; which++) {
-		struct clk *parent = clk_get_parent_by_index(clk, which);
+		struct clk_hw *parent = clk_hw_get_parent_by_index(hw, which);
 		unsigned long delta;
 		unsigned long other_rate;
 
@@ -1057,18 +1063,20 @@ static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
 			continue;
 
 		/* We don't support CLK_SET_RATE_PARENT */
-		parent_rate = __clk_get_rate(parent);
-		other_rate = kona_peri_clk_round_rate(hw, rate, &parent_rate);
-		delta = abs(other_rate - rate);
+		parent_rate = clk_hw_get_rate(parent);
+		other_rate = kona_peri_clk_round_rate(hw, req->rate,
+						      &parent_rate);
+		delta = abs(other_rate - req->rate);
 		if (delta < best_delta) {
 			best_delta = delta;
 			best_rate = other_rate;
-			*best_parent = __clk_get_hw(parent);
-			*best_parent_rate = parent_rate;
+			req->best_parent_hw = parent;
+			req->best_parent_rate = parent_rate;
 		}
 	}
 
-	return best_rate;
+	req->rate = best_rate;
+	return 0;
 }
 
 static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
@@ -1130,7 +1138,7 @@ static int kona_peri_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (parent_rate > (unsigned long)LONG_MAX)
 		return -EINVAL;
 
-	if (rate == __clk_get_rate(hw->clk))
+	if (rate == clk_hw_get_rate(hw))
 		return 0;
 
 	if (!divider_exists(div))
@@ -1249,6 +1257,7 @@ bool __init kona_ccu_init(struct ccu_data *ccu)
 	unsigned long flags;
 	unsigned int which;
 	struct clk **clks = ccu->clk_data.clks;
+	struct kona_clk *kona_clks = ccu->kona_clks;
 	bool success = true;
 
 	flags = ccu_lock(ccu);
@@ -1259,7 +1268,7 @@ bool __init kona_ccu_init(struct ccu_data *ccu)
 
 		if (!clks[which])
 			continue;
-		bcm_clk = to_kona_clk(__clk_get_hw(clks[which]));
+		bcm_clk = &kona_clks[which];
 		success &= __kona_clk_init(bcm_clk);
 	}
 

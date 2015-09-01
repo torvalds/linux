@@ -9,9 +9,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include <linux/clk.h>
 #include <linux/clk/mxs.h>
-#include <linux/clkdev.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/init.h>
