@@ -137,9 +137,7 @@ static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
 
 /*
  * Architectures call this to let the generic IRQ layer
- * handle an interrupt. If the descriptor is attached to an
- * irqchip-style controller then we call the ->handle_irq() handler,
- * and it calls __do_IRQ() if it's attached to an irqtype-style controller.
+ * handle an interrupt.
  */
 static inline void generic_handle_irq_desc(unsigned int irq, struct irq_desc *desc)
 {
