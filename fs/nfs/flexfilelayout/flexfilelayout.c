@@ -213,6 +213,8 @@ static void ff_layout_free_mirror(struct nfs4_ff_layout_mirror *mirror)
 {
 	ff_layout_remove_mirror(mirror);
 	kfree(mirror->fh_versions);
+	if (mirror->cred)
+		put_rpccred(mirror->cred);
 	nfs4_ff_layout_put_deviceid(mirror->mirror_ds);
 	kfree(mirror);
 }
@@ -525,20 +527,8 @@ static void
 ff_layout_free_lseg(struct pnfs_layout_segment *lseg)
 {
 	struct nfs4_ff_layout_segment *fls = FF_LAYOUT_LSEG(lseg);
-	int i;
 
 	dprintk("--> %s\n", __func__);
-
-	for (i = 0; i < fls->mirror_array_cnt; i++) {
-		if (fls->mirror_array[i]) {
-			nfs4_ff_layout_put_deviceid(fls->mirror_array[i]->mirror_ds);
-			fls->mirror_array[i]->mirror_ds = NULL;
-			if (fls->mirror_array[i]->cred) {
-				put_rpccred(fls->mirror_array[i]->cred);
-				fls->mirror_array[i]->cred = NULL;
-			}
-		}
-	}
 
 	if (lseg->pls_range.iomode == IOMODE_RW) {
 		struct nfs4_flexfile_layout *ffl;
