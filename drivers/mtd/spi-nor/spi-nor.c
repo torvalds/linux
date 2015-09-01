@@ -1215,8 +1215,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	mtd->_erase = spi_nor_erase;
 	mtd->_read = spi_nor_read;
 
-	/* NOR protection support for STmicro/Micron chips */
-	if (JEDEC_MFR(info) == SNOR_MFR_MICRON) {
+	/* NOR protection support for STmicro/Micron chips and similar */
+	if (JEDEC_MFR(info) == SNOR_MFR_MICRON ||
+	    JEDEC_MFR(info) == SNOR_MFR_WINBOND) {
 		nor->flash_lock = stm_lock;
 		nor->flash_unlock = stm_unlock;
 		nor->flash_is_locked = stm_is_locked;
