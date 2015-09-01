@@ -937,12 +937,38 @@ enum pkt_hash_types {
 	PKT_HASH_TYPE_L4,	/* Input: src_IP, dst_IP, src_port, dst_port */
 };
 
+static inline void skb_clear_hash(struct sk_buff *skb)
+{
+	skb->hash = 0;
+	skb->sw_hash = 0;
+	skb->l4_hash = 0;
+}
+
+static inline void skb_clear_hash_if_not_l4(struct sk_buff *skb)
+{
+	if (!skb->l4_hash)
+		skb_clear_hash(skb);
+}
+
+static inline void
+__skb_set_hash(struct sk_buff *skb, __u32 hash, bool is_sw, bool is_l4)
+{
+	skb->l4_hash = is_l4;
+	skb->sw_hash = is_sw;
+	skb->hash = hash;
+}
+
 static inline void
 skb_set_hash(struct sk_buff *skb, __u32 hash, enum pkt_hash_types type)
 {
-	skb->l4_hash = (type == PKT_HASH_TYPE_L4);
-	skb->sw_hash = 0;
-	skb->hash = hash;
+	/* Used by drivers to set hash from HW */
+	__skb_set_hash(skb, hash, false, type == PKT_HASH_TYPE_L4);
+}
+
+static inline void
+__skb_set_sw_hash(struct sk_buff *skb, __u32 hash, bool is_l4)
+{
+	__skb_set_hash(skb, hash, true, is_l4);
 }
 
 void __skb_get_hash(struct sk_buff *skb);
@@ -1025,19 +1051,6 @@ __u32 skb_get_hash_perturb(const struct sk_buff *skb, u32 perturb);
 static inline __u32 skb_get_hash_raw(const struct sk_buff *skb)
 {
 	return skb->hash;
-}
-
-static inline void skb_clear_hash(struct sk_buff *skb)
-{
-	skb->hash = 0;
-	skb->sw_hash = 0;
-	skb->l4_hash = 0;
-}
-
-static inline void skb_clear_hash_if_not_l4(struct sk_buff *skb)
-{
-	if (!skb->l4_hash)
-		skb_clear_hash(skb);
 }
 
 static inline void skb_copy_hash(struct sk_buff *to, const struct sk_buff *from)

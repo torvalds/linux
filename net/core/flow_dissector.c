@@ -590,15 +590,6 @@ void make_flow_keys_digest(struct flow_keys_digest *digest,
 }
 EXPORT_SYMBOL(make_flow_keys_digest);
 
-static inline void __skb_set_sw_hash(struct sk_buff *skb, u32 hash,
-				     struct flow_keys *keys)
-{
-	if (keys->ports.ports)
-		skb->l4_hash = 1;
-	skb->sw_hash = 1;
-	skb->hash = hash;
-}
-
 /**
  * __skb_get_hash: calculate a flow hash
  * @skb: sk_buff to calculate flow hash from
@@ -619,7 +610,8 @@ void __skb_get_hash(struct sk_buff *skb)
 	if (!hash)
 		return;
 
-	__skb_set_sw_hash(skb, hash, &keys);
+	__skb_set_sw_hash(skb, hash,
+			  flow_keys_have_l4(&keys));
 }
 EXPORT_SYMBOL(__skb_get_hash);
 
@@ -648,7 +640,8 @@ __u32 __skb_get_hash_flowi6(struct sk_buff *skb, struct flowi6 *fl6)
 	keys.tags.flow_label = (__force u32)fl6->flowlabel;
 	keys.basic.ip_proto = fl6->flowi6_proto;
 
-	__skb_set_sw_hash(skb, flow_hash_from_keys(&keys), &keys);
+	__skb_set_sw_hash(skb, flow_hash_from_keys(&keys),
+			  flow_keys_have_l4(&keys));
 
 	return skb->hash;
 }
@@ -668,7 +661,8 @@ __u32 __skb_get_hash_flowi4(struct sk_buff *skb, struct flowi4 *fl4)
 	keys.keyid.keyid = fl4->fl4_gre_key;
 	keys.basic.ip_proto = fl4->flowi4_proto;
 
-	__skb_set_sw_hash(skb, flow_hash_from_keys(&keys), &keys);
+	__skb_set_sw_hash(skb, flow_hash_from_keys(&keys),
+			  flow_keys_have_l4(&keys));
 
 	return skb->hash;
 }
