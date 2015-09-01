@@ -304,11 +304,20 @@ static unsigned mod_pattern;
 module_param_named(pattern, mod_pattern, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mod_pattern, "i/o pattern (0 == zeroes)");
 
-static inline void simple_fill_buf(struct urb *urb)
+static unsigned get_maxpacket(struct usb_device *udev, int pipe)
+{
+	struct usb_host_endpoint	*ep;
+
+	ep = usb_pipe_endpoint(udev, pipe);
+	return le16_to_cpup(&ep->desc.wMaxPacketSize);
+}
+
+static void simple_fill_buf(struct urb *urb)
 {
 	unsigned	i;
 	u8		*buf = urb->transfer_buffer;
 	unsigned	len = urb->transfer_buffer_length;
+	unsigned	maxpacket;
 
 	switch (pattern) {
 	default:
@@ -317,8 +326,9 @@ static inline void simple_fill_buf(struct urb *urb)
 		memset(buf, 0, len);
 		break;
 	case 1:			/* mod63 */
+		maxpacket = get_maxpacket(urb->dev, urb->pipe);
 		for (i = 0; i < len; i++)
-			*buf++ = (u8) (i % 63);
+			*buf++ = (u8) ((i % maxpacket) % 63);
 		break;
 	}
 }
@@ -350,6 +360,7 @@ static int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 	u8		expected;
 	u8		*buf = urb->transfer_buffer;
 	unsigned	len = urb->actual_length;
+	unsigned	maxpacket = get_maxpacket(urb->dev, urb->pipe);
 
 	int ret = check_guard_bytes(tdev, urb);
 	if (ret)
@@ -367,7 +378,7 @@ static int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 		 * with set_interface or set_config.
 		 */
 		case 1:			/* mod63 */
-			expected = i % 63;
+			expected = (i % maxpacket) % 63;
 			break;
 		/* always fail unsupported patterns */
 		default:
@@ -479,11 +490,13 @@ static void free_sglist(struct scatterlist *sg, int nents)
 }
 
 static struct scatterlist *
-alloc_sglist(int nents, int max, int vary)
+alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 {
 	struct scatterlist	*sg;
 	unsigned		i;
 	unsigned		size = max;
+	unsigned		maxpacket =
+		get_maxpacket(interface_to_usbdev(dev->intf), pipe);
 
 	if (max == 0)
 		return NULL;
@@ -512,7 +525,7 @@ alloc_sglist(int nents, int max, int vary)
 			break;
 		case 1:
 			for (j = 0; j < size; j++)
-				*buf++ = (u8) (j % 63);
+				*buf++ = (u8) ((j % maxpacket) % 63);
 			break;
 		}
 
@@ -2176,7 +2189,8 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 5:  write %d sglists %d entries of %d bytes\n",
 				param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist(param->sglen, param->length, 0);
+		sg = alloc_sglist(param->sglen, param->length,
+				0, dev, dev->out_pipe);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
@@ -2194,7 +2208,8 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 6:  read %d sglists %d entries of %d bytes\n",
 				param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist(param->sglen, param->length, 0);
+		sg = alloc_sglist(param->sglen, param->length,
+				0, dev, dev->in_pipe);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
@@ -2211,7 +2226,8 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 7:  write/%d %d sglists %d entries 0..%d bytes\n",
 				param->vary, param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist(param->sglen, param->length, param->vary);
+		sg = alloc_sglist(param->sglen, param->length,
+				param->vary, dev, dev->out_pipe);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
@@ -2228,7 +2244,8 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 			"TEST 8:  read/%d %d sglists %d entries 0..%d bytes\n",
 				param->vary, param->iterations,
 				param->sglen, param->length);
-		sg = alloc_sglist(param->sglen, param->length, param->vary);
+		sg = alloc_sglist(param->sglen, param->length,
+				param->vary, dev, dev->in_pipe);
 		if (!sg) {
 			retval = -ENOMEM;
 			break;
