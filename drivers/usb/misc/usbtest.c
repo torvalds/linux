@@ -1720,7 +1720,7 @@ static int ctrl_out(struct usbtest_dev *dev,
 	for (i = 0; i < count; i++) {
 		/* write patterned data */
 		for (j = 0; j < len; j++)
-			buf[j] = i + j;
+			buf[j] = (u8)(i + j);
 		retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				0x5b, USB_DIR_OUT|USB_TYPE_VENDOR,
 				0, 0, buf, len, USB_CTRL_SET_TIMEOUT);
@@ -1750,9 +1750,9 @@ static int ctrl_out(struct usbtest_dev *dev,
 
 		/* fail if we can't verify */
 		for (j = 0; j < len; j++) {
-			if (buf[j] != (u8) (i + j)) {
+			if (buf[j] != (u8)(i + j)) {
 				ERROR(dev, "ctrl_out, byte %d is %d not %d\n",
-					j, buf[j], (u8) i + j);
+					j, buf[j], (u8)(i + j));
 				retval = -EBADMSG;
 				break;
 			}
