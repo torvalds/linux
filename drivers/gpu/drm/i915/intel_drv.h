@@ -564,6 +564,8 @@ struct intel_crtc {
 	int scanline_offset;
 
 	unsigned start_vbl_count;
+	ktime_t start_vbl_time;
+
 	struct intel_crtc_atomic_commit atomic;
 
 	/* scalers available on this crtc */

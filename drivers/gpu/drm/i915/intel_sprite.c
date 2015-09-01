@@ -134,6 +134,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 	drm_crtc_vblank_put(&crtc->base);
 
+	crtc->start_vbl_time = ktime_get();
 	crtc->start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 
 	trace_i915_pipe_update_vblank_evaded(crtc, min, max,
@@ -154,14 +155,16 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
 	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+	ktime_t end_vbl_time = ktime_get();
 
 	trace_i915_pipe_update_end(crtc, end_vbl_count);
 
 	local_irq_enable();
 
 	if (crtc->start_vbl_count && crtc->start_vbl_count != end_vbl_count)
-		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u)\n",
-			  pipe_name(pipe), crtc->start_vbl_count, end_vbl_count);
+		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us\n",
+			  pipe_name(pipe), crtc->start_vbl_count, end_vbl_count,
+			  ktime_us_delta(end_vbl_time, crtc->start_vbl_time));
 }
 
 static void
