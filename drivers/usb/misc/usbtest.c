@@ -1920,7 +1920,6 @@ test_iso_queue(struct usbtest_dev *dev, struct usbtest_param *param,
 	init_completion(&context.done);
 	spin_lock_init(&context.lock);
 
-	memset(urbs, 0, sizeof(urbs));
 	udev = testdev_to_usbdev(dev);
 	dev_info(&dev->intf->dev,
 		"iso period %d %sframes, wMaxPacket %d, transactions: %d\n",
