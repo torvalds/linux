@@ -14,6 +14,10 @@
 		bootargs = "earlyprintk=uart8250-32bit,0xff690000";
 	};
 
+	fiq-debugger {
+		status = "okay";
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
                 rockchip,grf = <&grf>;
@@ -378,10 +382,6 @@
 		enable_dma = <0>;
 	};
 	*/
-};
-
-&uart_dbg {
-	status = "okay";
 };
 
 &uart_bt {
