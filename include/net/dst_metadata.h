@@ -7,7 +7,6 @@
 
 struct metadata_dst {
 	struct dst_entry		dst;
-	size_t				opts_len;
 	union {
 		struct ip_tunnel_info	tun_info;
 	} u;
