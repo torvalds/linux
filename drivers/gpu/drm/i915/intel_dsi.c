@@ -695,7 +695,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
-	u32 pclk;
+	u32 pclk = 0;
 	DRM_DEBUG_KMS("\n");
 
 	/*
@@ -704,7 +704,11 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	 */
 	pipe_config->dpll_hw_state.dpll_md = 0;
 
-	pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
+	if (IS_BROXTON(encoder->base.dev))
+		pclk = bxt_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
+	else if (IS_VALLEYVIEW(encoder->base.dev))
+		pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
+
 	if (!pclk)
 		return;
 

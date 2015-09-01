@@ -384,6 +384,41 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
+u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+{
+	u32 pclk;
+	u32 dsi_clk;
+	u32 dsi_ratio;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+
+	/* Divide by zero */
+	if (!pipe_bpp) {
+		DRM_ERROR("Invalid BPP(0)\n");
+		return 0;
+	}
+
+	dsi_ratio = I915_READ(BXT_DSI_PLL_CTL) &
+				BXT_DSI_PLL_RATIO_MASK;
+
+	/* Invalid DSI ratio ? */
+	if (dsi_ratio < BXT_DSI_PLL_RATIO_MIN ||
+			dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
+		DRM_ERROR("Invalid DSI pll ratio(%u) programmed\n", dsi_ratio);
+		return 0;
+	}
+
+	dsi_clk = (dsi_ratio * BXT_REF_CLOCK_KHZ) / 2;
+
+	/* pixel_format and pipe_bpp should agree */
+	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);
+
+	pclk = DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, pipe_bpp);
+
+	DRM_DEBUG_DRIVER("Calculated pclk=%u\n", pclk);
+	return pclk;
+}
+
 void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 temp;
