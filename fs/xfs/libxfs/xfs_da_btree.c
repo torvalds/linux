@@ -233,6 +233,7 @@ xfs_da3_node_read_verify(
 			bp->b_ops->verify_read(bp);
 			return;
 		default:
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			break;
 	}
 
