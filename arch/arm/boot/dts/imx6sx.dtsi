@@ -1201,6 +1201,7 @@
 				reg = <0x02280000 0x4000>;
 				interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_IPG>;
+				num-channels = <4>;
 				clock-names = "adc";
 				status = "disabled";
                         };
@@ -1210,6 +1211,7 @@
 				reg = <0x02284000 0x4000>;
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_IPG>;
+				num-channels = <4>;
 				clock-names = "adc";
 				status = "disabled";
                         };
