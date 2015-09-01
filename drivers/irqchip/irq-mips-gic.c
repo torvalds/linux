@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/of_address.h>
 #include <linux/sched.h>
@@ -21,8 +22,6 @@
 #include <asm/traps.h>
 
 #include <dt-bindings/interrupt-controller/mips-gic.h>
-
-#include "irqchip.h"
 
 unsigned int gic_present;
 
@@ -358,15 +357,12 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 		break;
 	}
 
-	if (is_edge) {
-		__irq_set_chip_handler_name_locked(d->irq,
-						   &gic_edge_irq_controller,
-						   handle_edge_irq, NULL);
-	} else {
-		__irq_set_chip_handler_name_locked(d->irq,
-						   &gic_level_irq_controller,
-						   handle_level_irq, NULL);
-	}
+	if (is_edge)
+		irq_set_chip_handler_name_locked(d, &gic_edge_irq_controller,
+						 handle_edge_irq, NULL);
+	else
+		irq_set_chip_handler_name_locked(d, &gic_level_irq_controller,
+						 handle_level_irq, NULL);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
@@ -396,7 +392,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 		clear_bit(irq, pcpu_masks[i].pcpu_mask);
 	set_bit(irq, pcpu_masks[cpumask_first(&tmp)].pcpu_mask);
 
-	cpumask_copy(d->affinity, cpumask);
+	cpumask_copy(irq_data_get_affinity_mask(d), cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return IRQ_SET_MASK_OK_NOCOPY;

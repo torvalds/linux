@@ -116,7 +116,7 @@ int __init init_clockevents(void)
 	{
 		struct irq_data *data;
 		data = irq_get_irq_data(cd->irq);
-		cpumask_copy(data->affinity, cpumask_of(cpu));
+		cpumask_copy(irq_data_get_affinity_mask(data), cpumask_of(cpu));
 		iact->flags |= IRQF_NOBALANCING;
 	}
 #endif

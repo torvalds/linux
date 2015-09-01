@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/of_irq.h>
@@ -21,8 +22,6 @@
 
 #include <asm/i8259.h>
 #include <asm/io.h>
-
-#include "../../drivers/irqchip/irqchip.h"
 
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
@@ -353,10 +352,11 @@ void __init init_i8259_irqs(void)
 	__init_i8259_irqs(NULL);
 }
 
-static void i8259_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void i8259_irq_dispatch(unsigned int __irq, struct irq_desc *desc)
 {
-	struct irq_domain *domain = irq_get_handler_data(irq);
+	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	int hwirq = i8259_irq();
+	unsigned int irq;
 
 	if (hwirq < 0)
 		return;

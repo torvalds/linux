@@ -62,8 +62,6 @@ static void __init r8a7779_map_io(void)
 
 static void __init r8a7779_init_irq_dt(void)
 {
-	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE);
-
 	irqchip_init();
 
 	/* route all interrupts to ARM */
