@@ -33,12 +33,6 @@ static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 	return res;
 }
 
-static void gic_set_clock_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
-{
-	/* Nothing to do ...  */
-}
-
 static irqreturn_t gic_compare_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *cd = dev_id;
@@ -67,7 +61,6 @@ static void gic_clockevent_cpu_init(struct clock_event_device *cd)
 	cd->irq			= gic_timer_irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= gic_next_event;
-	cd->set_mode		= gic_set_clock_mode;
 
 	clockevents_config_and_register(cd, gic_frequency, 0x300, 0x7fffffff);
 
