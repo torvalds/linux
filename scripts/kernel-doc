@@ -2391,12 +2391,13 @@ sub process_file($) {
     my $descr;
     my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
+    my ($orig_file) = @_;
 
     if (defined($ENV{'SRCTREE'})) {
-	$file = "$ENV{'SRCTREE'}" . "/" . "@_";
+	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
     }
     else {
-	$file = "@_";
+	$file = $orig_file;
     }
     if (defined($source_map{$file})) {
 	$file = $source_map{$file};
@@ -2640,7 +2641,7 @@ sub process_file($) {
 	    print "<refentry>\n";
 	    print " <refnamediv>\n";
 	    print "  <refname>\n";
-	    print "   ${file}\n";
+	    print "   ${orig_file}\n";
 	    print "  </refname>\n";
 	    print "  <refpurpose>\n";
 	    print "   Document generation inconsistency\n";
@@ -2654,7 +2655,7 @@ sub process_file($) {
 	    print "   <para>\n";
 	    print "    The template for this document tried to insert\n";
 	    print "    the structured comment from the file\n";
-	    print "    <filename>${file}</filename> at this point,\n";
+	    print "    <filename>${orig_file}</filename> at this point,\n";
 	    print "    but none was found.\n";
 	    print "    This dummy section is inserted to allow\n";
 	    print "    generation to continue.\n";
