@@ -47,3 +47,10 @@ config FIQ_WATCHDOG
 	select FIQ_DEBUGGER
 	select PSTORE_RAM
 	default n
+
+config FIQ_DEBUGGER_EL3_TO_EL1
+	bool "Uart FIQ is captured by EL3, then passed to EL1"
+	depends on FIQ_DEBUGGER && ARM64
+	default n
+	help
+	  It is for ARM V8 arch.

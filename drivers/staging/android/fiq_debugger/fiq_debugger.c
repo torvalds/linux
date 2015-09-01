@@ -142,6 +142,10 @@ static bool initial_debug_enable;
 static bool initial_console_enable;
 #endif
 
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+static struct fiq_debugger_state *state_tf;
+#endif
+
 static bool fiq_kgdb_enable;
 
 static unsigned long jif = 0, recv_count0 = 0, recv_count1 = 0;
@@ -185,12 +189,14 @@ static inline bool fiq_debugger_have_fiq(struct fiq_debugger_state *state)
 	return (state->fiq >= 0);
 }
 
-#ifdef CONFIG_FIQ_GLUE
+#if defined(CONFIG_FIQ_GLUE) || defined(CONFIG_FIQ_DEBUGGER_EL3_TO_EL1)
 static void fiq_debugger_force_irq(struct fiq_debugger_state *state)
 {
 	unsigned int irq = state->signal_irq;
 
 	if (WARN_ON(!fiq_debugger_have_fiq(state)))
+		return;
+	if (irq < 0)
 		return;
 	if (state->pdata->force_irq) {
 		state->pdata->force_irq(state->pdev, irq);
@@ -650,6 +656,10 @@ static void fiq_debugger_switch_cpu(struct fiq_debugger_state *state, int cpu)
 				false);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	else {
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+		if (state->pdata->switch_cpu)
+			state->pdata->switch_cpu(state->pdev, cpu);
+#else
 		struct cpumask cpumask;
 
 		if (!cpu_online(cpu)) {
@@ -662,6 +672,7 @@ static void fiq_debugger_switch_cpu(struct fiq_debugger_state *state, int cpu)
 
 		irq_set_affinity(state->fiq, &cpumask);
 		irq_set_affinity(state->uart_irq, &cpumask);
+#endif
 	}
 #endif
 	state->current_cpu = cpu;
@@ -714,6 +725,10 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 		fiq_debugger_printf(&state->output, "console mode\n");
 		fiq_debugger_uart_flush(state);
 		state->console_enable = true;
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+		if (state->pdata->enable_debug)
+			state->pdata->enable_debug(state->pdev, false);
+#endif
 	} else if (!strcmp(cmd, "cpu")) {
 		fiq_debugger_printf(&state->output, "cpu %d\n", state->current_cpu);
 	} else if (!strncmp(cmd, "cpu ", 4)) {
@@ -988,13 +1003,24 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 #ifdef CONFIG_ARCH_ROCKCHIP
 			fiq_debugger_puts(state, "\nWelcome to ");
 #endif
-			fiq_debugger_puts(state, "fiq debugger mode\n");
+			if (fiq_debugger_have_fiq(state))
+				fiq_debugger_puts(state,
+						  "fiq debugger mode\n");
+			else
+				fiq_debugger_puts(state,
+						  "irq debugger mode\n");
+
 			state->debug_count = 0;
 #ifdef CONFIG_ARCH_ROCKCHIP
 			fiq_debugger_puts(state, "Enter ? to get command help\n");
 			state->back_pointer = CMD_COUNT;
 			state->current_pointer = CMD_COUNT;
 			memset(state->cmd_buf, 0, (CMD_COUNT+1)*DEBUG_MAX);
+#endif
+
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+			if (state->pdata->enable_debug)
+				state->pdata->enable_debug(state->pdev, true);
 #endif
 			fiq_debugger_prompt(state);
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
@@ -1129,6 +1155,22 @@ static irqreturn_t fiq_debugger_uart_irq(int irq, void *dev)
 
 	return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+void fiq_debugger_fiq(void *regs)
+{
+	struct fiq_debugger_state *state = state_tf;
+	bool need_irq;
+
+	if (!state)
+		return;
+	need_irq = fiq_debugger_handle_uart_interrupt(state, smp_processor_id(),
+						      regs,
+						      current_thread_info());
+	if (need_irq)
+		fiq_debugger_force_irq(state);
+}
+#endif
 
 /*
  * If FIQs are used, not everything can happen in fiq context.
@@ -1442,7 +1484,15 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	state->console_enable = initial_console_enable;
 
 	state->fiq = fiq;
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+	if (fiq > 0)
+		state->uart_irq = fiq;
+	else
+		state->uart_irq = uart_irq;
+#else
 	state->uart_irq = uart_irq;
+#endif
+
 	state->signal_irq = platform_get_irq_byname(pdev, "signal");
 	state->wakeup_irq = platform_get_irq_byname(pdev, "wakeup");
 
@@ -1543,6 +1593,10 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	}
 	if (state->no_sleep)
 		fiq_debugger_handle_wakeup(state);
+
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+	state_tf = state;
+#endif
 
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 	spin_lock_init(&state->console_lock);

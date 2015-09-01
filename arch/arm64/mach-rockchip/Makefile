@@ -5,6 +5,7 @@ obj-y += ../../arm/mach-rockchip/pvtm.o
 obj-y += ../../arm/mach-rockchip/rk_system_status.o
 obj-y += ../../arm/mach-rockchip/ddr_freq.o
 obj-y += ../../arm/mach-rockchip/psci.o
+obj-$(CONFIG_FIQ_DEBUGGER) += ../../arm/mach-rockchip/rk_fiq_debugger.o
 obj-$(CONFIG_PM) += ../../arm/mach-rockchip/rockchip_pm.o pm-rk3368.o
 obj-$(CONFIG_RK_LAST_LOG) += ../../arm/mach-rockchip/last_log.o
 obj-$(CONFIG_DVFS) += ../../arm/mach-rockchip/dvfs.o
