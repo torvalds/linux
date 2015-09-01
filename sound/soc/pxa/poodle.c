@@ -267,19 +267,11 @@ static int poodle_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 	return ret;
-}
-
-static int poodle_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-	return 0;
 }
 
 static struct platform_driver poodle_driver = {
@@ -288,7 +280,6 @@ static struct platform_driver poodle_driver = {
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= poodle_probe,
-	.remove		= poodle_remove,
 };
 
 module_platform_driver(poodle_driver);
