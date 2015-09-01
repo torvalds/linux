@@ -1746,7 +1746,7 @@ sub output_declaration {
     my $func = "output_${functype}_$output_mode";
     if (($function_only==0) ||
 	( $function_only == 1 && defined($function_table{$name})) ||
-	( $function_only == 2 && !defined($function_table{$name})))
+	( $function_only == 2 && !($functype eq "function" && defined($function_table{$name}))))
     {
 	&$func(@_);
 	$section_counter++;
