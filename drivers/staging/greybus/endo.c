@@ -439,7 +439,7 @@ static int gb_endo_register(struct greybus_host_device *hd,
 {
 	int retval;
 
-	retval = ida_simple_get(&greybus_endo_id_map, 0, 0, GFP_ATOMIC);
+	retval = ida_simple_get(&greybus_endo_id_map, 0, 0, GFP_KERNEL);
 	if (retval < 0)
 		return retval;
 
