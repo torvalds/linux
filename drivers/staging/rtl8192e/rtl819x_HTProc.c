@@ -117,7 +117,7 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 	pHTInfo->RxReorderPendingTime = 30;
 }
 
-u16 HTMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate)
+static u16 HTMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
@@ -502,7 +502,8 @@ u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 	return mcsRate | 0x80;
 }
 
-u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS, u8 *pOperateMCS)
+static u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS,
+			  u8 *pOperateMCS)
 {
 
 	u8 i;

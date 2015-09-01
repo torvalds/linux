@@ -54,8 +54,8 @@
 #include "icp_qat_hal.h"
 
 #define ADF_MAJOR_VERSION	0
-#define ADF_MINOR_VERSION	1
-#define ADF_BUILD_VERSION	3
+#define ADF_MINOR_VERSION	2
+#define ADF_BUILD_VERSION	0
 #define ADF_DRV_VERSION		__stringify(ADF_MAJOR_VERSION) "." \
 				__stringify(ADF_MINOR_VERSION) "." \
 				__stringify(ADF_BUILD_VERSION)
@@ -91,8 +91,12 @@ struct service_hndl {
 	unsigned long start_status;
 	char *name;
 	struct list_head list;
-	int admin;
 };
+
+static inline int get_current_node(void)
+{
+	return topology_physical_package_id(smp_processor_id());
+}
 
 int adf_service_register(struct service_hndl *service);
 int adf_service_unregister(struct service_hndl *service);
@@ -102,13 +106,24 @@ int adf_dev_start(struct adf_accel_dev *accel_dev);
 int adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
+void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
+void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
+int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
+void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info);
+void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
+void adf_clean_vf_map(bool);
+
 int adf_ctl_dev_register(void);
 void adf_ctl_dev_unregister(void);
 int adf_processes_dev_register(void);
 void adf_processes_dev_unregister(void);
 
-int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev);
-void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev);
+int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
+		       struct adf_accel_dev *pf);
+void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
+		       struct adf_accel_dev *pf);
 struct list_head *adf_devmgr_get_head(void);
 struct adf_accel_dev *adf_devmgr_get_dev_by_id(uint32_t id);
 struct adf_accel_dev *adf_devmgr_get_first(void);
@@ -130,6 +145,12 @@ int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf);
 void adf_disable_aer(struct adf_accel_dev *accel_dev);
 int adf_init_aer(void);
 void adf_exit_aer(void);
+int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
+void adf_exit_admin_comms(struct adf_accel_dev *accel_dev);
+int adf_send_admin_init(struct adf_accel_dev *accel_dev);
+int adf_init_arb(struct adf_accel_dev *accel_dev);
+void adf_exit_arb(struct adf_accel_dev *accel_dev);
+void adf_update_ring_arb(struct adf_etr_ring_data *ring);
 
 int adf_dev_get(struct adf_accel_dev *accel_dev);
 void adf_dev_put(struct adf_accel_dev *accel_dev);
@@ -141,10 +162,13 @@ int qat_crypto_unregister(void);
 struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
+void qat_alg_asym_callback(void *resp);
 int qat_algs_init(void);
 void qat_algs_exit(void);
 int qat_algs_register(void);
 int qat_algs_unregister(void);
+int qat_asym_algs_register(void);
+void qat_asym_algs_unregister(void);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
@@ -196,4 +220,23 @@ int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
 void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle);
 int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
 			 void *addr_ptr, int mem_size);
+void qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
+			void *addr_ptr, int mem_size);
+#if defined(CONFIG_PCI_IOV)
+int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
+void adf_disable_sriov(struct adf_accel_dev *accel_dev);
+void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
+				  uint32_t vf_mask);
+void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
+				 uint32_t vf_mask);
+#else
+static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
+{
+	return 0;
+}
+
+static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
+{
+}
+#endif
 #endif

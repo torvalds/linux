@@ -532,8 +532,8 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 
 #ifdef CONFIG_CRASH_DUMP
 
-static void __smp_store_cpu_state(struct save_area_ext *sa_ext, u16 address,
-				  int is_boot_cpu)
+static void __init __smp_store_cpu_state(struct save_area_ext *sa_ext,
+					 u16 address, int is_boot_cpu)
 {
 	void *lc = (void *)(unsigned long) store_prefix();
 	unsigned long vx_sa;

@@ -351,7 +351,7 @@ static inline unsigned long _msecs_to_jiffies(const unsigned int m)
  * directly here and from __msecs_to_jiffies() in the case where
  * constant folding is not possible.
  */
-static inline unsigned long msecs_to_jiffies(const unsigned int m)
+static __always_inline unsigned long msecs_to_jiffies(const unsigned int m)
 {
 	if (__builtin_constant_p(m)) {
 		if ((int)m < 0)
@@ -363,18 +363,11 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 }
 
 extern unsigned long __usecs_to_jiffies(const unsigned int u);
-#if HZ <= USEC_PER_SEC && !(USEC_PER_SEC % HZ)
+#if !(USEC_PER_SEC % HZ)
 static inline unsigned long _usecs_to_jiffies(const unsigned int u)
 {
 	return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
 }
-#elif HZ > USEC_PER_SEC && !(HZ % USEC_PER_SEC)
-static inline unsigned long _usecs_to_jiffies(const unsigned int u)
-{
-	return u * (HZ / USEC_PER_SEC);
-}
-static inline unsigned long _usecs_to_jiffies(const unsigned int u)
-{
 #else
 static inline unsigned long _usecs_to_jiffies(const unsigned int u)
 {
@@ -405,7 +398,7 @@ static inline unsigned long _usecs_to_jiffies(const unsigned int u)
  * directly here and from __msecs_to_jiffies() in the case where
  * constant folding is not possible.
  */
-static inline unsigned long usecs_to_jiffies(const unsigned int u)
+static __always_inline unsigned long usecs_to_jiffies(const unsigned int u)
 {
 	if (__builtin_constant_p(u)) {
 		if (u > jiffies_to_usecs(MAX_JIFFY_OFFSET))

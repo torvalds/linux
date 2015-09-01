@@ -18,6 +18,7 @@ tools/arch/x86/include/asm/atomic.h
 tools/arch/x86/include/asm/rmwcc.h
 tools/lib/traceevent
 tools/lib/api
+tools/lib/bpf
 tools/lib/hweight.c
 tools/lib/rbtree.c
 tools/lib/symbol/kallsyms.c
@@ -40,7 +41,6 @@ tools/include/asm-generic/bitops.h
 tools/include/linux/atomic.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
-tools/include/linux/export.h
 tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h

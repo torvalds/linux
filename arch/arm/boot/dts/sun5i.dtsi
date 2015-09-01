@@ -178,6 +178,7 @@
 			compatible = "allwinner,sun4i-a10-axi-gates-clk";
 			reg = <0x01c2005c 0x4>;
 			clocks = <&axi>;
+			clock-indices = <0>;
 			clock-output-names = "axi_dram";
 		};
 

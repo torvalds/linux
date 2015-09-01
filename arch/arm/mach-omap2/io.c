@@ -37,7 +37,6 @@
 #include "clock.h"
 #include "clock2xxx.h"
 #include "clock3xxx.h"
-#include "clock44xx.h"
 #include "omap-pm.h"
 #include "sdrc.h"
 #include "control.h"
@@ -722,6 +721,8 @@ int __init omap_clk_init(void)
 		return 0;
 
 	ti_clk_init_features();
+
+	omap2_clk_setup_ll_ops();
 
 	if (of_have_populated_dt()) {
 		ret = omap_control_init();

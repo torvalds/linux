@@ -1128,7 +1128,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
 
 	inst = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
-	if (inst == NULL)
+	if (!inst)
 		return -ENOMEM;
 
 	if (!IS_SERVER(lsi)) {
@@ -1232,7 +1232,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		pos += sprintf(obdname + pos, "-%s%04x",
 				  is_ost ? "OST" : "MDT", entry->mne_index);
 
-		cname = is_ost ? "osc" : "mdc",
+		cname = is_ost ? "osc" : "mdc";
 		pos += sprintf(obdname + pos, "-%s-%s", cname, inst);
 		lustre_cfg_bufs_reset(&bufs, obdname);
 
@@ -1493,7 +1493,7 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
 		lsi = s2lsi(cld->cld_cfg.cfg_sb);
 
 	env = kzalloc(sizeof(*env), GFP_NOFS);
-	if (env == NULL)
+	if (!env)
 		return -ENOMEM;
 
 	rc = lu_env_init(env, LCT_MG_THREAD);

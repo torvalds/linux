@@ -252,6 +252,11 @@ struct kvm_pio_request {
 	int size;
 };
 
+struct rsvd_bits_validate {
+	u64 rsvd_bits_mask[2][4];
+	u64 bad_mt_xwr;
+};
+
 /*
  * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
  * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
@@ -289,8 +294,15 @@ struct kvm_mmu {
 
 	u64 *pae_root;
 	u64 *lm_root;
-	u64 rsvd_bits_mask[2][4];
-	u64 bad_mt_xwr;
+
+	/*
+	 * check zero bits on shadow page table entries, these
+	 * bits include not only hardware reserved bits but also
+	 * the bits spte never used.
+	 */
+	struct rsvd_bits_validate shadow_zero_check;
+
+	struct rsvd_bits_validate guest_rsvd_check;
 
 	/*
 	 * Bitmap: bit set = last pte in walk
@@ -356,6 +368,11 @@ struct kvm_mtrr {
 	u64 deftype;
 
 	struct list_head head;
+};
+
+/* Hyper-V per vcpu emulation context */
+struct kvm_vcpu_hv {
+	u64 hv_vapic;
 };
 
 struct kvm_vcpu_arch {
@@ -514,8 +531,7 @@ struct kvm_vcpu_arch {
 	/* used for guest single stepping over the given code position */
 	unsigned long singlestep_rip;
 
-	/* fields used by HYPER-V emulation */
-	u64 hv_vapic;
+	struct kvm_vcpu_hv hyperv;
 
 	cpumask_var_t wbinvd_dirty_mask;
 
@@ -586,6 +602,17 @@ struct kvm_apic_map {
 	struct kvm_lapic *logical_map[16][16];
 };
 
+/* Hyper-V emulation context */
+struct kvm_hv {
+	u64 hv_guest_os_id;
+	u64 hv_hypercall;
+	u64 hv_tsc_page;
+
+	/* Hyper-v based guest crash (NT kernel bugcheck) parameters */
+	u64 hv_crash_param[HV_X64_MSR_CRASH_PARAMS];
+	u64 hv_crash_ctl;
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -645,16 +672,14 @@ struct kvm_arch {
 	/* reads protected by irq_srcu, writes by irq_lock */
 	struct hlist_head mask_notifier_list;
 
-	/* fields used by HYPER-V emulation */
-	u64 hv_guest_os_id;
-	u64 hv_hypercall;
-	u64 hv_tsc_page;
+	struct kvm_hv hyperv;
 
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
 	#endif
 
 	bool boot_vcpu_runs_old_kvmclock;
+	u32 bsp_vcpu_id;
 
 	u64 disabled_quirks;
 };
@@ -1203,5 +1228,7 @@ int __x86_set_memory_region(struct kvm *kvm,
 			    const struct kvm_userspace_memory_region *mem);
 int x86_set_memory_region(struct kvm *kvm,
 			  const struct kvm_userspace_memory_region *mem);
+bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu);
+bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 
 #endif /* _ASM_X86_KVM_HOST_H */

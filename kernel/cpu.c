@@ -191,21 +191,22 @@ void cpu_hotplug_done(void)
 void cpu_hotplug_disable(void)
 {
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled = 1;
+	cpu_hotplug_disabled++;
 	cpu_maps_update_done();
 }
+EXPORT_SYMBOL_GPL(cpu_hotplug_disable);
 
 void cpu_hotplug_enable(void)
 {
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled = 0;
+	WARN_ON(--cpu_hotplug_disabled < 0);
 	cpu_maps_update_done();
 }
-
+EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
 #endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
-int __ref register_cpu_notifier(struct notifier_block *nb)
+int register_cpu_notifier(struct notifier_block *nb)
 {
 	int ret;
 	cpu_maps_update_begin();
@@ -214,7 +215,7 @@ int __ref register_cpu_notifier(struct notifier_block *nb)
 	return ret;
 }
 
-int __ref __register_cpu_notifier(struct notifier_block *nb)
+int __register_cpu_notifier(struct notifier_block *nb)
 {
 	return raw_notifier_chain_register(&cpu_chain, nb);
 }
@@ -244,7 +245,7 @@ static void cpu_notify_nofail(unsigned long val, void *v)
 EXPORT_SYMBOL(register_cpu_notifier);
 EXPORT_SYMBOL(__register_cpu_notifier);
 
-void __ref unregister_cpu_notifier(struct notifier_block *nb)
+void unregister_cpu_notifier(struct notifier_block *nb)
 {
 	cpu_maps_update_begin();
 	raw_notifier_chain_unregister(&cpu_chain, nb);
@@ -252,7 +253,7 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
-void __ref __unregister_cpu_notifier(struct notifier_block *nb)
+void __unregister_cpu_notifier(struct notifier_block *nb)
 {
 	raw_notifier_chain_unregister(&cpu_chain, nb);
 }
@@ -329,7 +330,7 @@ struct take_cpu_down_param {
 };
 
 /* Take this CPU down. */
-static int __ref take_cpu_down(void *_param)
+static int take_cpu_down(void *_param)
 {
 	struct take_cpu_down_param *param = _param;
 	int err;
@@ -348,7 +349,7 @@ static int __ref take_cpu_down(void *_param)
 }
 
 /* Requires cpu_add_remove_lock to be held */
-static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
+static int _cpu_down(unsigned int cpu, int tasks_frozen)
 {
 	int err, nr_calls = 0;
 	void *hcpu = (void *)(long)cpu;
@@ -381,14 +382,14 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 * will observe it.
 	 *
 	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
-	 * not imply sync_sched(), so explicitly call both.
+	 * not imply sync_sched(), so wait for both.
 	 *
 	 * Do sync before park smpboot threads to take care the rcu boost case.
 	 */
-#ifdef CONFIG_PREEMPT
-	synchronize_sched();
-#endif
-	synchronize_rcu();
+	if (IS_ENABLED(CONFIG_PREEMPT))
+		synchronize_rcu_mult(call_rcu, call_rcu_sched);
+	else
+		synchronize_rcu();
 
 	smpboot_park_threads(cpu);
 
@@ -401,7 +402,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	/*
 	 * So now all preempt/rcu users must observe !cpu_active().
 	 */
-	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
+	err = stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		cpu_notify_nofail(CPU_DOWN_FAILED | mod, hcpu);
@@ -442,7 +443,7 @@ out_release:
 	return err;
 }
 
-int __ref cpu_down(unsigned int cpu)
+int cpu_down(unsigned int cpu)
 {
 	int err;
 
@@ -608,13 +609,18 @@ int disable_nonboot_cpus(void)
 		}
 	}
 
-	if (!error) {
+	if (!error)
 		BUG_ON(num_online_cpus() > 1);
-		/* Make sure the CPUs won't be enabled by someone else */
-		cpu_hotplug_disabled = 1;
-	} else {
+	else
 		pr_err("Non-boot CPUs are not disabled\n");
-	}
+
+	/*
+	 * Make sure the CPUs won't be enabled by someone else. We need to do
+	 * this even in case of failure as all disable_nonboot_cpus() users are
+	 * supposed to do enable_nonboot_cpus() on the failure path.
+	 */
+	cpu_hotplug_disabled++;
+
 	cpu_maps_update_done();
 	return error;
 }
@@ -627,13 +633,13 @@ void __weak arch_enable_nonboot_cpus_end(void)
 {
 }
 
-void __ref enable_nonboot_cpus(void)
+void enable_nonboot_cpus(void)
 {
 	int cpu, error;
 
 	/* Allow everyone to use the CPU hotplug again */
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled = 0;
+	WARN_ON(--cpu_hotplug_disabled < 0);
 	if (cpumask_empty(frozen_cpus))
 		goto out;
 

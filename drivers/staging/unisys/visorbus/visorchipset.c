@@ -1,12 +1,11 @@
 /* visorchipset_main.c
  *
- * Copyright (C) 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1247,10 +1246,11 @@ my_device_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	visorchannel = visorchannel_create(cmd->create_device.channel_addr,
-					   cmd->create_device.channel_bytes,
-					   GFP_KERNEL,
-					   cmd->create_device.data_type_uuid);
+	visorchannel =
+	       visorchannel_create_with_lock(cmd->create_device.channel_addr,
+					     cmd->create_device.channel_bytes,
+					     GFP_KERNEL,
+					     cmd->create_device.data_type_uuid);
 
 	if (!visorchannel) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
@@ -2047,6 +2047,7 @@ device_create_response(struct visor_device *dev_info, int response)
 			 response);
 
 	kfree(dev_info->pending_msg_hdr);
+	dev_info->pending_msg_hdr = NULL;
 }
 
 static void
@@ -2381,6 +2382,9 @@ static struct acpi_driver unisys_acpi_driver = {
 		.remove = visorchipset_exit,
 		},
 };
+
+MODULE_DEVICE_TABLE(acpi, unisys_device_ids);
+
 static __init uint32_t visorutil_spar_detect(void)
 {
 	unsigned int eax, ebx, ecx, edx;

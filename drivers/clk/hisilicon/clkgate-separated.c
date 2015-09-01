@@ -25,10 +25,8 @@
 
 #include <linux/kernel.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
 
 #include "clk.h"
 

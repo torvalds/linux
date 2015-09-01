@@ -1521,13 +1521,13 @@ static int __cpufreq_remove_dev_finish(struct device *dev)
  *
  * Removes the cpufreq interface for a CPU device.
  */
-static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
+static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int cpu = dev->id;
 	struct cpufreq_policy *policy = per_cpu(cpufreq_cpu_data, cpu);
 
 	if (!policy)
-		return 0;
+		return;
 
 	if (cpu_online(cpu)) {
 		__cpufreq_remove_dev_prepare(dev);
@@ -1538,7 +1538,7 @@ static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 
 	if (cpumask_empty(policy->real_cpus)) {
 		cpufreq_policy_free(policy, true);
-		return 0;
+		return;
 	}
 
 	if (cpu != policy->kobj_cpu) {
@@ -1557,8 +1557,6 @@ static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 		policy->kobj_cpu = new_cpu;
 		WARN_ON(kobject_move(&policy->kobj, &new_dev->kobj));
 	}
-
-	return 0;
 }
 
 static void handle_update(struct work_struct *work)

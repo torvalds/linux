@@ -575,6 +575,22 @@ static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
+static int qpnpint_get_irqchip_state(struct irq_data *d,
+				     enum irqchip_irq_state which,
+				     bool *state)
+{
+	u8 irq = d->hwirq >> 8;
+	u8 status = 0;
+
+	if (which != IRQCHIP_STATE_LINE_LEVEL)
+		return -EINVAL;
+
+	qpnpint_spmi_read(d, QPNPINT_REG_RT_STS, &status, 1);
+	*state = !!(status & BIT(irq));
+
+	return 0;
+}
+
 static struct irq_chip pmic_arb_irqchip = {
 	.name		= "pmic_arb",
 	.irq_enable	= qpnpint_irq_enable,
@@ -582,6 +598,7 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_mask	= qpnpint_irq_mask,
 	.irq_unmask	= qpnpint_irq_unmask,
 	.irq_set_type	= qpnpint_irq_set_type,
+	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND
 			| IRQCHIP_SKIP_SET_WAKE,
 };

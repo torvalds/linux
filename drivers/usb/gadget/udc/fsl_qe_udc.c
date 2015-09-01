@@ -2417,6 +2417,17 @@ static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 	strcpy(ep->name, ep_name[pipe_num]);
 	ep->ep.name = ep_name[pipe_num];
 
+	if (pipe_num == 0) {
+		ep->ep.caps.type_control = true;
+	} else {
+		ep->ep.caps.type_iso = true;
+		ep->ep.caps.type_bulk = true;
+		ep->ep.caps.type_int = true;
+	}
+
+	ep->ep.caps.dir_in = true;
+	ep->ep.caps.dir_out = true;
+
 	ep->ep.ops = &qe_ep_ops;
 	ep->stopped = 1;
 	usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);

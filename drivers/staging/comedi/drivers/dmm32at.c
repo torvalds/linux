@@ -607,11 +607,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s, dmm32at_8255_io, DMM32AT_8255_IOBASE);
-	if (ret)
-		return ret;
-
-	return 0;
+	return subdev_8255_init(dev, s, dmm32at_8255_io, DMM32AT_8255_IOBASE);
 }
 
 static struct comedi_driver dmm32at_driver = {

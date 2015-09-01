@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <asm/switch_to.h>
+#include <asm/fpu-internal.h>
 #include "entry.h"
 
 int show_unhandled_signals = 1;
@@ -151,7 +151,7 @@ DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN,
 DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN,
 	      "transaction constraint exception")
 
-static inline void do_fp_trap(struct pt_regs *regs, int fpc)
+static inline void do_fp_trap(struct pt_regs *regs, __u32 fpc)
 {
 	int si_code = 0;
 	/* FPC[2] is Data Exception Code */
@@ -227,7 +227,7 @@ DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
 int alloc_vector_registers(struct task_struct *tsk)
 {
 	__vector128 *vxrs;
-	int i;
+	freg_t *fprs;
 
 	/* Allocate vector register save area. */
 	vxrs = kzalloc(sizeof(__vector128) * __NUM_VXRS,
@@ -236,15 +236,13 @@ int alloc_vector_registers(struct task_struct *tsk)
 		return -ENOMEM;
 	preempt_disable();
 	if (tsk == current)
-		save_fp_regs(tsk->thread.fp_regs.fprs);
+		save_fpu_regs();
 	/* Copy the 16 floating point registers */
-	for (i = 0; i < 16; i++)
-		*(freg_t *) &vxrs[i] = tsk->thread.fp_regs.fprs[i];
-	tsk->thread.vxrs = vxrs;
-	if (tsk == current) {
-		__ctl_set_bit(0, 17);
-		restore_vx_regs(vxrs);
-	}
+	convert_fp_to_vx(vxrs, tsk->thread.fpu.fprs);
+	fprs = tsk->thread.fpu.fprs;
+	tsk->thread.fpu.vxrs = vxrs;
+	tsk->thread.fpu.flags |= FPU_USE_VX;
+	kfree(fprs);
 	preempt_enable();
 	return 0;
 }
@@ -259,8 +257,8 @@ void vector_exception(struct pt_regs *regs)
 	}
 
 	/* get vector interrupt code from fpc */
-	asm volatile("stfpc %0" : "=Q" (current->thread.fp_regs.fpc));
-	vic = (current->thread.fp_regs.fpc & 0xf00) >> 8;
+	save_fpu_regs();
+	vic = (current->thread.fpu.fpc & 0xf00) >> 8;
 	switch (vic) {
 	case 1: /* invalid vector operation */
 		si_code = FPE_FLTINV;
@@ -297,22 +295,22 @@ void data_exception(struct pt_regs *regs)
 
 	location = get_trap_ip(regs);
 
-	asm volatile("stfpc %0" : "=Q" (current->thread.fp_regs.fpc));
+	save_fpu_regs();
 	/* Check for vector register enablement */
-	if (MACHINE_HAS_VX && !current->thread.vxrs &&
-	    (current->thread.fp_regs.fpc & FPC_DXC_MASK) == 0xfe00) {
+	if (MACHINE_HAS_VX && !is_vx_task(current) &&
+	    (current->thread.fpu.fpc & FPC_DXC_MASK) == 0xfe00) {
 		alloc_vector_registers(current);
 		/* Vector data exception is suppressing, rewind psw. */
 		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
 		clear_pt_regs_flag(regs, PIF_PER_TRAP);
 		return;
 	}
-	if (current->thread.fp_regs.fpc & FPC_DXC_MASK)
+	if (current->thread.fpu.fpc & FPC_DXC_MASK)
 		signal = SIGFPE;
 	else
 		signal = SIGILL;
 	if (signal == SIGFPE)
-		do_fp_trap(regs, current->thread.fp_regs.fpc);
+		do_fp_trap(regs, current->thread.fpu.fpc);
 	else if (signal)
 		do_trap(regs, signal, ILL_ILLOPN, "data exception");
 }

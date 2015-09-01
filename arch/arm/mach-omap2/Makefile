@@ -12,8 +12,7 @@ obj-y := id.o io.o control.o mux.o devices.o fb.o serial.o timer.o pm.o \
 
 hwmod-common				= omap_hwmod.o omap_hwmod_reset.o \
 					  omap_hwmod_common_data.o
-clock-common				= clock.o clock_common_data.o \
-					  clkt_dpll.o clkt_clksel.o
+clock-common				= clock.o
 secure-common				= omap-smc.o omap-secure.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
@@ -182,24 +181,17 @@ obj-$(CONFIG_SOC_DRA7XX)		+= $(clockdomain-common)
 obj-$(CONFIG_SOC_DRA7XX)		+= clockdomains7xx_data.o
 
 # Clock framework
-obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common)
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpllcore.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_virt_prcm_set.o
-obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpll.o clkt_iclk.o
-obj-$(CONFIG_SOC_OMAP2430)		+= clock2430.o
-obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o clkt34xx_dpll3m2.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clock3517.o clock36xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= dpll3xxx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clkt_iclk.o
+obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpll.o
+obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common)
+obj-$(CONFIG_ARCH_OMAP3)		+= clkt34xx_dpll3m2.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common)
-obj-$(CONFIG_ARCH_OMAP4)		+= dpll3xxx.o dpll44xx.o
-obj-$(CONFIG_SOC_AM33XX)		+= $(clock-common) dpll3xxx.o
+obj-$(CONFIG_SOC_AM33XX)		+= $(clock-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(clock-common)
-obj-$(CONFIG_SOC_OMAP5)			+= dpll3xxx.o dpll44xx.o
 obj-$(CONFIG_SOC_DRA7XX)		+= $(clock-common)
-obj-$(CONFIG_SOC_DRA7XX)		+= dpll3xxx.o dpll44xx.o
-obj-$(CONFIG_SOC_AM43XX)		+= $(clock-common) dpll3xxx.o
+obj-$(CONFIG_SOC_AM43XX)		+= $(clock-common)
 
 # OMAP2 clock rate set data (old "OPP" data)
 obj-$(CONFIG_SOC_OMAP2420)		+= opp2420_data.o

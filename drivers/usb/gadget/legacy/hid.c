@@ -19,7 +19,6 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/g_hid.h>
 
-#include "gadget_chips.h"
 #define DRIVER_DESC		"HID Gadget"
 #define DRIVER_VERSION		"2010/03/16"
 
@@ -68,21 +67,7 @@ static struct usb_device_descriptor device_desc = {
 	.bNumConfigurations =	1,
 };
 
-static struct usb_otg_descriptor otg_descriptor = {
-	.bLength =		sizeof otg_descriptor,
-	.bDescriptorType =	USB_DT_OTG,
-
-	/* REVISIT SRP-only hardware is possible, although
-	 * it would not be called "OTG" ...
-	 */
-	.bmAttributes =		USB_OTG_SRP | USB_OTG_HNP,
-};
-
-static const struct usb_descriptor_header *otg_desc[] = {
-	(struct usb_descriptor_header *) &otg_descriptor,
-	NULL,
-};
-
+static const struct usb_descriptor_header *otg_desc[2];
 
 /* string IDs are assigned dynamically */
 static struct usb_string strings_dev[] = {
@@ -186,16 +171,30 @@ static int hid_bind(struct usb_composite_dev *cdev)
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
+	if (gadget_is_otg(gadget) && !otg_desc[0]) {
+		struct usb_descriptor_header *usb_desc;
+
+		usb_desc = usb_otg_descriptor_alloc(gadget);
+		if (!usb_desc)
+			goto put;
+		usb_otg_descriptor_init(gadget, usb_desc);
+		otg_desc[0] = usb_desc;
+		otg_desc[1] = NULL;
+	}
+
 	/* register our configuration */
 	status = usb_add_config(cdev, &config_driver, do_config);
 	if (status < 0)
-		goto put;
+		goto free_otg_desc;
 
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
 
 	return 0;
 
+free_otg_desc:
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
 put:
 	list_for_each_entry(m, &hidg_func_list, node) {
 		if (m == n)
@@ -213,6 +212,10 @@ static int hid_unbind(struct usb_composite_dev *cdev)
 		usb_put_function(n->f);
 		usb_put_function_instance(n->fi);
 	}
+
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+
 	return 0;
 }
 

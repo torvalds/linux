@@ -22,6 +22,7 @@
 #include <linux/kvm.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
+#include <asm/fpu-internal.h>
 #include <asm/isc.h>
 
 #define KVM_MAX_VCPUS 64
@@ -258,6 +259,9 @@ struct kvm_vcpu_stat {
 	u32 diagnose_10;
 	u32 diagnose_44;
 	u32 diagnose_9c;
+	u32 diagnose_258;
+	u32 diagnose_308;
+	u32 diagnose_500;
 };
 
 #define PGM_OPERATION			0x01
@@ -498,10 +502,9 @@ struct kvm_guestdbg_info_arch {
 
 struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
-	s390_fp_regs      host_fpregs;
 	unsigned int      host_acrs[NUM_ACRS];
-	s390_fp_regs      guest_fpregs;
-	struct kvm_s390_vregs	*host_vregs;
+	struct fpu	  host_fpregs;
+	struct fpu	  guest_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
@@ -630,7 +633,6 @@ extern char sie_exit;
 
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_check_processor_compat(void *rtn) {}
-static inline void kvm_arch_exit(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}

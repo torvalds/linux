@@ -211,7 +211,7 @@
 			#address-cells = <1>;
 			ranges = <0x51000000 0x51000000 0x3000
 				  0x0	     0x20000000 0x10000000>;
-			pcie@51000000 {
+			pcie1: pcie@51000000 {
 				compatible = "ti,dra7-pcie";
 				reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
 				reg-names = "rc_dbics", "ti_conf", "config";
@@ -397,7 +397,7 @@
 		};
 
 		uart1: serial@4806a000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4806a000 0x100>;
 			interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart1";
@@ -408,7 +408,7 @@
 		};
 
 		uart2: serial@4806c000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4806c000 0x100>;
 			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart2";
@@ -419,7 +419,7 @@
 		};
 
 		uart3: serial@48020000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48020000 0x100>;
 			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart3";
@@ -430,7 +430,7 @@
 		};
 
 		uart4: serial@4806e000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4806e000 0x100>;
 			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart4";
@@ -441,7 +441,7 @@
 		};
 
 		uart5: serial@48066000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48066000 0x100>;
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart5";
@@ -452,7 +452,7 @@
 		};
 
 		uart6: serial@48068000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48068000 0x100>;
 			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart6";
@@ -463,7 +463,7 @@
 		};
 
 		uart7: serial@48420000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48420000 0x100>;
 			interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart7";
@@ -472,7 +472,7 @@
 		};
 
 		uart8: serial@48422000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48422000 0x100>;
 			interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart8";
@@ -481,7 +481,7 @@
 		};
 
 		uart9: serial@48424000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48424000 0x100>;
 			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart9";
@@ -490,7 +490,7 @@
 		};
 
 		uart10: serial@4ae2b000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4ae2b000 0x100>;
 			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart10";

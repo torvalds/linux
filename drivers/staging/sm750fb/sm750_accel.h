@@ -7,7 +7,7 @@
 /* notes: below address are the offset value from de_base_address (0x100000)*/
 
 /* for sm718/750/502 de_base is at mmreg_1mb*/
-#define DE_BASE_ADDR_TYPE1 	0x100000
+#define DE_BASE_ADDR_TYPE1 0x100000
 /* for sm712,de_base is at mmreg_32kb */
 #define DE_BASE_ADDR_TYPE2  0x8000
 /* for sm722,de_base is at mmreg_0 */
@@ -26,7 +26,7 @@
 #define DE_SOURCE_WRAP_ENABLE                           1
 #define DE_SOURCE_X_K1                                  29:16
 #define DE_SOURCE_Y_K2                                  15:0
-#define DE_SOURCE_X_K1_MONO 							20:16
+#define DE_SOURCE_X_K1_MONO				20:16
 
 #define DE_DESTINATION                                  0x4
 #define DE_DESTINATION_WRAP                             31:31

@@ -29,6 +29,7 @@
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
+#include <asm/mce.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -319,6 +320,7 @@ void stop_this_cpu(void *dummy)
 	 */
 	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
+	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 
 	for (;;)
 		halt();

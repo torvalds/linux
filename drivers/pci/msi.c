@@ -77,24 +77,9 @@ static void pci_msi_teardown_msi_irqs(struct pci_dev *dev)
 
 /* Arch hooks */
 
-struct msi_controller * __weak pcibios_msi_controller(struct pci_dev *dev)
-{
-	return NULL;
-}
-
-static struct msi_controller *pci_msi_controller(struct pci_dev *dev)
-{
-	struct msi_controller *msi_ctrl = dev->bus->msi;
-
-	if (msi_ctrl)
-		return msi_ctrl;
-
-	return pcibios_msi_controller(dev);
-}
-
 int __weak arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
-	struct msi_controller *chip = pci_msi_controller(dev);
+	struct msi_controller *chip = dev->bus->msi;
 	int err;
 
 	if (!chip || !chip->setup_irq)
@@ -665,6 +650,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	pci_msi_set_enable(dev, 1);
 	dev->msi_enabled = 1;
 
+	pcibios_free_irq(dev);
 	dev->irq = entry->irq;
 	return 0;
 }
@@ -792,9 +778,9 @@ static int msix_capability_init(struct pci_dev *dev,
 	/* Set MSI-X enabled bits and unmask the function */
 	pci_intx_for_msi(dev, 0);
 	dev->msix_enabled = 1;
-
 	pci_msix_clear_and_set_ctrl(dev, PCI_MSIX_FLAGS_MASKALL, 0);
 
+	pcibios_free_irq(dev);
 	return 0;
 
 out_avail:
@@ -909,6 +895,7 @@ void pci_msi_shutdown(struct pci_dev *dev)
 
 	/* Restore dev->irq to its default pin-assertion irq */
 	dev->irq = desc->msi_attrib.default_irq;
+	pcibios_alloc_irq(dev);
 }
 
 void pci_disable_msi(struct pci_dev *dev)
@@ -1009,6 +996,7 @@ void pci_msix_shutdown(struct pci_dev *dev)
 	pci_msix_clear_and_set_ctrl(dev, PCI_MSIX_FLAGS_ENABLE, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
+	pcibios_alloc_irq(dev);
 }
 
 void pci_disable_msix(struct pci_dev *dev)

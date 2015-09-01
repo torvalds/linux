@@ -223,7 +223,6 @@ static int xgene_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	irq_domain_set_info(domain, virq, msi_irq,
 			    &xgene_msi_bottom_irq_chip, domain->host_data,
 			    handle_simple_irq, NULL, NULL);
-	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }
@@ -582,7 +581,6 @@ error:
 static struct platform_driver xgene_msi_driver = {
 	.driver = {
 		.name = "xgene-msi",
-		.owner = THIS_MODULE,
 		.of_match_table = xgene_msi_match_table,
 	},
 	.probe = xgene_msi_probe,

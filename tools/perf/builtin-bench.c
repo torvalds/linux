@@ -60,6 +60,8 @@ static struct bench futex_benchmarks[] = {
 	{ "wake",	"Benchmark for futex wake calls",               bench_futex_wake	},
 	{ "wake-parallel", "Benchmark for parallel futex wake calls",   bench_futex_wake_parallel },
 	{ "requeue",	"Benchmark for futex requeue calls",            bench_futex_requeue	},
+	/* pi-futexes */
+	{ "lock-pi",	"Benchmark for futex lock_pi calls",            bench_futex_lock_pi	},
 	{ "all",	"Test all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
