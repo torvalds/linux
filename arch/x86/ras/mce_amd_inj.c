@@ -6,7 +6,7 @@
  * This file may be distributed under the terms of the GNU General Public
  * License version 2.
  *
- * Copyright (c) 2010-14:  Borislav Petkov <bp@alien8.de>
+ * Copyright (c) 2010-15:  Borislav Petkov <bp@alien8.de>
  *			Advanced Micro Devices Inc.
  */
 
@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 #include <asm/mce.h>
 
-#include "mce_amd.h"
+#include "../kernel/cpu/mcheck/mce-internal.h"
 
 /*
  * Collect all the MCi_XXX settings
@@ -195,7 +195,7 @@ static void do_inject(void)
 		i_mce.status |= MCI_STATUS_MISCV;
 
 	if (inj_type == SW_INJ) {
-		amd_decode_mce(NULL, 0, &i_mce);
+		mce_inject_log(&i_mce);
 		return;
 	}
 
