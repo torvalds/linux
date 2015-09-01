@@ -21,8 +21,8 @@ exact way to do it depends on the GPIO controller providing the GPIOs, see the
 device tree bindings for your controller.
 
 GPIOs mappings are defined in the consumer device's node, in a property named
-<function>-gpios, where <function> is the function the driver will request
-through gpiod_get(). For example:
+either <function>-gpios or <function>-gpio, where <function> is the function
+the driver will request through gpiod_get(). For example:
 
 	foo_device {
 		compatible = "acme,foo";
@@ -31,7 +31,7 @@ through gpiod_get(). For example:
 			    <&gpio 16 GPIO_ACTIVE_HIGH>, /* green */
 			    <&gpio 17 GPIO_ACTIVE_HIGH>; /* blue */
 
-		power-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
+		power-gpio = <&gpio 1 GPIO_ACTIVE_LOW>;
 	};
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the
