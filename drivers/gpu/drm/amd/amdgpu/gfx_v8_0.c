@@ -3240,7 +3240,8 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 
 		/* enable the doorbell if requested */
 		if (use_doorbell) {
-			if (adev->asic_type == CHIP_CARRIZO) {
+			if ((adev->asic_type == CHIP_CARRIZO) ||
+			    (adev->asic_type == CHIP_FIJI)) {
 				WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
 				       AMDGPU_DOORBELL_KIQ << 2);
 				WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
