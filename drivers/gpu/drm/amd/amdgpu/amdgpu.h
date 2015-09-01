@@ -345,7 +345,6 @@ struct amdgpu_ring_funcs {
 	/* testing functions */
 	int (*test_ring)(struct amdgpu_ring *ring);
 	int (*test_ib)(struct amdgpu_ring *ring);
-	bool (*is_lockup)(struct amdgpu_ring *ring);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
 };
@@ -907,8 +906,6 @@ struct amdgpu_ring {
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
-	atomic_t		last_rptr;
-	atomic64_t		last_activity;
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
 	uint32_t		ptr_mask;
@@ -1230,8 +1227,6 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_unlock_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 void amdgpu_ring_unlock_undo(struct amdgpu_ring *ring);
-void amdgpu_ring_lockup_update(struct amdgpu_ring *ring);
-bool amdgpu_ring_test_lockup(struct amdgpu_ring *ring);
 unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
 			    uint32_t **data);
 int amdgpu_ring_restore(struct amdgpu_ring *ring,
@@ -1974,7 +1969,6 @@ struct amdgpu_device {
 	bool				suspend;
 	bool				need_dma32;
 	bool				accel_working;
-	bool				needs_reset;
 	struct work_struct 		reset_work;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
@@ -2253,7 +2247,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r) (r)->funcs->test_ib((r))
-#define amdgpu_ring_is_lockup(r) (r)->funcs->is_lockup((r))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))

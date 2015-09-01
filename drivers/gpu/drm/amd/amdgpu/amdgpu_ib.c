@@ -298,7 +298,6 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		r = amdgpu_ring_test_ib(ring);
 		if (r) {
 			ring->ready = false;
-			adev->needs_reset = false;
 
 			if (ring == &adev->gfx.gfx_ring[0]) {
 				/* oh, oh, that's really bad */

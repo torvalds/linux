@@ -1295,24 +1295,6 @@ const struct amd_ip_funcs sdma_v2_4_ip_funcs = {
 	.set_powergating_state = sdma_v2_4_set_powergating_state,
 };
 
-/**
- * sdma_v2_4_ring_is_lockup - Check if the DMA engine is locked up
- *
- * @ring: amdgpu_ring structure holding ring information
- *
- * Check if the async DMA engine is locked up (VI).
- * Returns true if the engine appears to be locked up, false if not.
- */
-static bool sdma_v2_4_ring_is_lockup(struct amdgpu_ring *ring)
-{
-
-	if (sdma_v2_4_is_idle(ring->adev)) {
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-	return amdgpu_ring_test_lockup(ring);
-}
-
 static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.get_rptr = sdma_v2_4_ring_get_rptr,
 	.get_wptr = sdma_v2_4_ring_get_wptr,
@@ -1325,7 +1307,6 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.emit_hdp_flush = sdma_v2_4_ring_emit_hdp_flush,
 	.test_ring = sdma_v2_4_ring_test_ring,
 	.test_ib = sdma_v2_4_ring_test_ib,
-	.is_lockup = sdma_v2_4_ring_is_lockup,
 	.insert_nop = sdma_v2_4_ring_insert_nop,
 };
 

@@ -1816,12 +1816,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 
 	down_write(&adev->exclusive_lock);
 
-	if (!adev->needs_reset) {
-		up_write(&adev->exclusive_lock);
-		return 0;
-	}
-
-	adev->needs_reset = false;
 	atomic_inc(&adev->gpu_reset_counter);
 
 	/* block TTM */

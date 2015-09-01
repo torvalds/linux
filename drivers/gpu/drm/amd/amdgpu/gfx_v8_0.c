@@ -4075,15 +4075,6 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	}
 }
 
-static bool gfx_v8_0_ring_is_lockup(struct amdgpu_ring *ring)
-{
-	if (gfx_v8_0_is_idle(ring->adev)) {
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-	return amdgpu_ring_test_lockup(ring);
-}
-
 static u32 gfx_v8_0_ring_get_rptr_compute(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs];
@@ -4365,7 +4356,6 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v8_0_ring_test_ring,
 	.test_ib = gfx_v8_0_ring_test_ib,
-	.is_lockup = gfx_v8_0_ring_is_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 
@@ -4382,7 +4372,6 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v8_0_ring_test_ring,
 	.test_ib = gfx_v8_0_ring_test_ib,
-	.is_lockup = gfx_v8_0_ring_is_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 
