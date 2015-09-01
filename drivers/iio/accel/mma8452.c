@@ -6,6 +6,7 @@
  * MMA8652FC (12 bit)
  * MMA8653FC (10 bit)
  *
+ * Copyright 2015 Martin Kepplinger <martin.kepplinger@theobroma-systems.com>
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
  * This file is subject to the terms and conditions of version 2 of
