@@ -272,7 +272,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	struct gb_svc_intf_hotplug_request *hotplug = &svc_hotplug->data;
 	struct gb_connection *connection = svc_hotplug->connection;
 	struct gb_svc *svc = connection->private;
-	struct greybus_host_device *hd = connection->bundle->intf->hd;
+	struct greybus_host_device *hd = connection->hd;
 	struct device *dev = &connection->dev;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
@@ -399,7 +399,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 {
 	struct gb_message *request = op->request;
 	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
-	struct greybus_host_device *hd = op->connection->bundle->intf->hd;
+	struct greybus_host_device *hd = op->connection->hd;
 	struct device *dev = &op->connection->dev;
 	u8 device_id;
 	struct gb_interface *intf;
