@@ -130,6 +130,13 @@ config ARM_KIRKWOOD_CPUFREQ
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
 
+config ARM_MT8173_CPUFREQ
+	bool "Mediatek MT8173 CPUFreq support"
+	depends on ARCH_MEDIATEK && REGULATOR
+	select PM_OPP
+	help
+	  This adds the CPUFreq driver support for Mediatek MT8173 SoC.
+
 config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
 	depends on ARCH_OMAP2PLUS
