@@ -15,7 +15,6 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
-#include <linux/cpuidle.h>
 
 /* Defines used for the flags field in the struct generic_pm_domain */
 #define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
@@ -36,11 +35,6 @@ struct gpd_dev_ops {
 	int (*save_state)(struct device *dev);
 	int (*restore_state)(struct device *dev);
 	bool (*active_wakeup)(struct device *dev);
-};
-
-struct gpd_cpuidle_data {
-	unsigned int saved_exit_latency;
-	struct cpuidle_state *idle_state;
 };
 
 struct generic_pm_domain {
@@ -68,7 +62,6 @@ struct generic_pm_domain {
 	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
 	bool max_off_time_changed;
 	bool cached_power_down_ok;
-	struct gpd_cpuidle_data *cpuidle_data;
 	int (*attach_dev)(struct generic_pm_domain *domain,
 			  struct device *dev);
 	void (*detach_dev)(struct generic_pm_domain *domain,
@@ -131,8 +124,6 @@ extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
-extern int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state);
-extern int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
 
@@ -169,14 +160,6 @@ static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 }
 static inline int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 					    struct generic_pm_domain *target)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int st)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
 {
 	return -ENOSYS;
 }
