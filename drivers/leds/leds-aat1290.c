@@ -559,6 +559,7 @@ static const struct of_device_id aat1290_led_dt_match[] = {
 	{ .compatible = "skyworks,aat1290" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, aat1290_led_dt_match);
 
 static struct platform_driver aat1290_led_driver = {
 	.probe		= aat1290_led_probe,
