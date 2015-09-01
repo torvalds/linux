@@ -12,10 +12,12 @@
 struct flow_dissector_key_control {
 	u16	thoff;
 	u16	addr_type;
-	u32	is_fragment:1;
-	u32	first_frag:1;
-	u32	encapsulation:1;
+	u32	flags;
 };
+
+#define FLOW_DIS_IS_FRAGMENT	BIT(0)
+#define FLOW_DIS_FIRST_FRAG	BIT(1)
+#define FLOW_DIS_ENCAPSULATION	BIT(2)
 
 /**
  * struct flow_dissector_key_basic:

@@ -189,12 +189,12 @@ ip:
 		key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 
 		if (ip_is_fragment(iph)) {
-			key_control->is_fragment = 1;
+			key_control->flags |= FLOW_DIS_IS_FRAGMENT;
 
 			if (iph->frag_off & htons(IP_OFFSET)) {
 				goto out_good;
 			} else {
-				key_control->first_frag = 1;
+				key_control->flags |= FLOW_DIS_FIRST_FRAG;
 				if (!(flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG))
 					goto out_good;
 			}
@@ -398,7 +398,7 @@ ip_proto_again:
 			nhoff += sizeof(*eth);
 		}
 
-		key_control->encapsulation = 1;
+		key_control->flags |= FLOW_DIS_ENCAPSULATION;
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
 			goto out_good;
 
@@ -434,12 +434,12 @@ ip_proto_again:
 		if (!fh)
 			goto out_bad;
 
-		key_control->is_fragment = 1;
+		key_control->flags |= FLOW_DIS_IS_FRAGMENT;
 
 		nhoff += sizeof(_fh);
 
 		if (!(fh->frag_off & htons(IP6_OFFSET))) {
-			key_control->first_frag = 1;
+			key_control->flags |= FLOW_DIS_FIRST_FRAG;
 			if (flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG) {
 				ip_proto = fh->nexthdr;
 				goto ip_proto_again;
@@ -450,7 +450,7 @@ ip_proto_again:
 	case IPPROTO_IPIP:
 		proto = htons(ETH_P_IP);
 
-		key_control->encapsulation = 1;
+		key_control->flags |= FLOW_DIS_ENCAPSULATION;
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
 			goto out_good;
 
@@ -458,7 +458,7 @@ ip_proto_again:
 	case IPPROTO_IPV6:
 		proto = htons(ETH_P_IPV6);
 
-		key_control->encapsulation = 1;
+		key_control->flags |= FLOW_DIS_ENCAPSULATION;
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
 			goto out_good;
 
