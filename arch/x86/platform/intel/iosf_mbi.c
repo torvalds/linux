@@ -30,15 +30,15 @@
 #define PCI_DEVICE_ID_BAYTRAIL		0x0F00
 #define PCI_DEVICE_ID_BRASWELL		0x2280
 #define PCI_DEVICE_ID_QUARK_X1000	0x0958
+#define PCI_DEVICE_ID_TANGIER		0x1170
 
+static struct pci_dev *mbi_pdev;
 static DEFINE_SPINLOCK(iosf_mbi_lock);
 
 static inline u32 iosf_mbi_form_mcr(u8 op, u8 port, u8 offset)
 {
 	return (op << 24) | (port << 16) | (offset << 8) | MBI_ENABLE;
 }
-
-static struct pci_dev *mbi_pdev;	/* one mbi device */
 
 static int iosf_mbi_pci_read_mdr(u32 mcrx, u32 mcr, u32 *mdr)
 {
@@ -104,7 +104,7 @@ int iosf_mbi_read(u8 port, u8 opcode, u32 offset, u32 *mdr)
 	unsigned long flags;
 	int ret;
 
-	/*Access to the GFX unit is handled by GPU code */
+	/* Access to the GFX unit is handled by GPU code */
 	if (port == BT_MBI_UNIT_GFX) {
 		WARN_ON(1);
 		return -EPERM;
@@ -127,7 +127,7 @@ int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr)
 	unsigned long flags;
 	int ret;
 
-	/*Access to the GFX unit is handled by GPU code */
+	/* Access to the GFX unit is handled by GPU code */
 	if (port == BT_MBI_UNIT_GFX) {
 		WARN_ON(1);
 		return -EPERM;
@@ -151,7 +151,7 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
 	unsigned long flags;
 	int ret;
 
-	/*Access to the GFX unit is handled by GPU code */
+	/* Access to the GFX unit is handled by GPU code */
 	if (port == BT_MBI_UNIT_GFX) {
 		WARN_ON(1);
 		return -EPERM;
@@ -240,17 +240,17 @@ static void iosf_sideband_debug_init(void)
 
 	/* mdr */
 	d = debugfs_create_x32("mdr", 0660, iosf_dbg, &dbg_mdr);
-	if (IS_ERR_OR_NULL(d))
+	if (!d)
 		goto cleanup;
 
 	/* mcrx */
-	debugfs_create_x32("mcrx", 0660, iosf_dbg, &dbg_mcrx);
-	if (IS_ERR_OR_NULL(d))
+	d = debugfs_create_x32("mcrx", 0660, iosf_dbg, &dbg_mcrx);
+	if (!d)
 		goto cleanup;
 
 	/* mcr - initiates mailbox tranaction */
-	debugfs_create_file("mcr", 0660, iosf_dbg, &dbg_mcr, &iosf_mcr_fops);
-	if (IS_ERR_OR_NULL(d))
+	d = debugfs_create_file("mcr", 0660, iosf_dbg, &dbg_mcr, &iosf_mcr_fops);
+	if (!d)
 		goto cleanup;
 
 	return;
@@ -292,6 +292,7 @@ static const struct pci_device_id iosf_mbi_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_BAYTRAIL) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_BRASWELL) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_QUARK_X1000) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_TANGIER) },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, iosf_mbi_pci_ids);
@@ -314,10 +315,8 @@ static void __exit iosf_mbi_exit(void)
 	iosf_debugfs_remove();
 
 	pci_unregister_driver(&iosf_mbi_pci_driver);
-	if (mbi_pdev) {
-		pci_dev_put(mbi_pdev);
-		mbi_pdev = NULL;
-	}
+	pci_dev_put(mbi_pdev);
+	mbi_pdev = NULL;
 }
 
 module_init(iosf_mbi_init);
