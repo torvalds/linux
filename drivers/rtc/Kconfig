@@ -1523,6 +1523,7 @@ config RTC_DRV_MXC
 
 config RTC_DRV_SNVS
 	tristate "Freescale SNVS RTC support"
+	select REGMAP_MMIO
 	depends on HAS_IOMEM
 	depends on OF
 	help

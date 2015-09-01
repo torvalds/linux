@@ -435,4 +435,12 @@
 #define IMX6SX_GPR5_DISP_MUX_DCIC1_LVDS			(0x1 << 1)
 #define IMX6SX_GPR5_DISP_MUX_DCIC1_MASK			(0x1 << 1)
 
+/* For imx6ul iomux gpr register field define */
+#define IMX6UL_GPR1_ENET1_CLK_DIR		(0x1 << 17)
+#define IMX6UL_GPR1_ENET2_CLK_DIR		(0x1 << 18)
+#define IMX6UL_GPR1_ENET1_CLK_OUTPUT		(0x1 << 17)
+#define IMX6UL_GPR1_ENET2_CLK_OUTPUT		(0x1 << 18)
+#define IMX6UL_GPR1_ENET_CLK_DIR		(0x3 << 17)
+#define IMX6UL_GPR1_ENET_CLK_OUTPUT		(0x3 << 17)
+
 #endif /* __LINUX_IMX6Q_IOMUXC_GPR_H */

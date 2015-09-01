@@ -1583,7 +1583,10 @@ ARM/UNIPHIER ARCHITECTURE
 M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	arch/arm/boot/dts/uniphier*
 F:	arch/arm/mach-uniphier/
+F:	drivers/pinctrl/uniphier/
+F:	drivers/tty/serial/8250/8250_uniphier.c
 N:	uniphier
 
 ARM/Ux500 ARM ARCHITECTURE
@@ -1678,7 +1681,7 @@ M:	Michal Simek <michal.simek@xilinx.com>
 R:	Sören Brinkmann <soren.brinkmann@xilinx.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://wiki.xilinx.com
-T:	git git://git.xilinx.com/linux-xlnx.git
+T:	git https://github.com/Xilinx/linux-xlnx.git
 S:	Supported
 F:	arch/arm/mach-zynq/
 F:	drivers/cpuidle/cpuidle-zynq.c
