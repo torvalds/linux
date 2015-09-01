@@ -220,6 +220,19 @@ static void sdma_v2_4_ring_set_wptr(struct amdgpu_ring *ring)
 	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me], ring->wptr << 2);
 }
 
+static void sdma_v2_4_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+{
+	struct amdgpu_sdma *sdma = amdgpu_get_sdma_instance(ring);
+	int i;
+
+	for (i = 0; i < count; i++)
+		if (sdma && sdma->burst_nop && (i == 0))
+			amdgpu_ring_write(ring, ring->nop |
+				SDMA_PKT_NOP_HEADER_COUNT(count - 1));
+		else
+			amdgpu_ring_write(ring, ring->nop);
+}
+
 /**
  * sdma_v2_4_ring_emit_ib - Schedule an IB on the DMA engine
  *
@@ -247,8 +260,8 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, next_rptr);
 
 	/* IB packet must end on a 8 DW boundary */
-	while ((ring->wptr & 7) != 2)
-		amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_NOP));
+	sdma_v2_4_ring_insert_nop(ring, (10 - (ring->wptr & 7)) % 8);
+
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT) |
 			  SDMA_PKT_INDIRECT_HEADER_VMID(vmid));
 	/* base must be 32 byte aligned */
@@ -881,8 +894,19 @@ static void sdma_v2_4_vm_set_pte_pde(struct amdgpu_ib *ib,
  */
 static void sdma_v2_4_vm_pad_ib(struct amdgpu_ib *ib)
 {
-	while (ib->length_dw & 0x7)
-		ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_NOP);
+	struct amdgpu_sdma *sdma = amdgpu_get_sdma_instance(ib->ring);
+	u32 pad_count;
+	int i;
+
+	pad_count = (8 - (ib->length_dw & 0x7)) % 8;
+	for (i = 0; i < pad_count; i++)
+		if (sdma && sdma->burst_nop && (i == 0))
+			ib->ptr[ib->length_dw++] =
+				SDMA_PKT_HEADER_OP(SDMA_OP_NOP) |
+				SDMA_PKT_NOP_HEADER_COUNT(pad_count - 1);
+		else
+			ib->ptr[ib->length_dw++] =
+				SDMA_PKT_HEADER_OP(SDMA_OP_NOP);
 }
 
 /**
@@ -1316,7 +1340,7 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.test_ring = sdma_v2_4_ring_test_ring,
 	.test_ib = sdma_v2_4_ring_test_ib,
 	.is_lockup = sdma_v2_4_ring_is_lockup,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_nop = sdma_v2_4_ring_insert_nop,
 };
 
 static void sdma_v2_4_set_ring_funcs(struct amdgpu_device *adev)
