@@ -73,6 +73,8 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 	for (cpu = 0; cpu < cpus; cpu++) {
 		cpu_top->core_info[cpu].cpu = cpu;
 		cpu_top->core_info[cpu].is_online = sysfs_is_cpu_online(cpu);
+		if (!cpu_top->core_info[cpu].is_online)
+			continue;
 		if(sysfs_topology_read_file(
 			cpu,
 			"physical_package_id",
