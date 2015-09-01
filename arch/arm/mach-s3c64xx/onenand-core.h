@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/plat-samsung/onenand-core.h
- *
  *  Copyright (c) 2010 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *  Marek Szyprowski <m.szyprowski@samsung.com>
