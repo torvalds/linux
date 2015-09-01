@@ -321,6 +321,8 @@ struct symbol;
 extern bool srcline_full_filename;
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 		  bool show_sym);
+char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
+		  bool show_sym, bool unwind_inlines);
 void free_srcline(char *srcline);
 
 int filename__read_str(const char *filename, char **buf, size_t *sizep);
