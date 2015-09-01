@@ -656,7 +656,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
-	u32 dpi_enabled, func;
+	u32 dpi_enabled, func, ctrl_reg;
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
@@ -668,8 +668,9 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		func = I915_READ(MIPI_DSI_FUNC_PRG(port));
-		dpi_enabled = I915_READ(MIPI_PORT_CTRL(port)) &
-							DPI_ENABLE;
+		ctrl_reg = IS_BROXTON(dev) ? BXT_MIPI_PORT_CTRL(port) :
+						MIPI_PORT_CTRL(port);
+		dpi_enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
 
 		/* Due to some hardware limitations on BYT, MIPI Port C DPI
 		 * Enable bit does not get set. To check whether DSI Port C
