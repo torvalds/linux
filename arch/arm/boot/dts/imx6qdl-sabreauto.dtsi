@@ -28,6 +28,71 @@
 		};
 	};
 
+	clocks {
+		codec_osc: anaclk2 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24576000>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_audio: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "cs42888_supply";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_usb_h1_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "usb_h1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&max7310_b 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usb_otg_vbus: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "usb_otg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&max7310_c 1 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+	};
+
+	sound-cs42888 {
+		compatible = "fsl,imx6-sabreauto-cs42888",
+			"fsl,imx-audio-cs42888";
+		model = "imx-cs42888";
+		audio-cpu = <&esai>;
+		audio-asrc = <&asrc>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"Line Out Jack", "AOUT1L",
+			"Line Out Jack", "AOUT1R",
+			"Line Out Jack", "AOUT2L",
+			"Line Out Jack", "AOUT2R",
+			"Line Out Jack", "AOUT3L",
+			"Line Out Jack", "AOUT3R",
+			"Line Out Jack", "AOUT4L",
+			"Line Out Jack", "AOUT4R",
+			"AIN1L", "Line In Jack",
+			"AIN1R", "Line In Jack",
+			"AIN2L", "Line In Jack",
+			"AIN2R", "Line In Jack";
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif",
 			   "fsl,imx-sabreauto-spdif";
@@ -43,6 +108,19 @@
 		default-brightness-level = <7>;
 		status = "okay";
 	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6QDL_PLL4_BYPASS_SRC>,
+			  <&clks IMX6QDL_PLL4_BYPASS>,
+			  <&clks IMX6QDL_CLK_PLL4_POST_DIV>,
+			  <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_LVDS2_IN>,
+				 <&clks IMX6QDL_PLL4_BYPASS_SRC>,
+				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
+				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
+	assigned-clock-rates = <0>, <0>, <24576000>;
 };
 
 &ecspi1 {
@@ -61,6 +139,16 @@
 	};
 };
 
+&esai {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esai>;
+	assigned-clocks = <&clks IMX6QDL_CLK_ESAI_SEL>,
+			  <&clks IMX6QDL_CLK_ESAI_EXTAL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
@@ -73,6 +161,10 @@
 &gpmi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
+	status = "okay";
+};
+
+&hdmi {
 	status = "okay";
 };
 
@@ -180,6 +272,18 @@
 			};
 		};
 	};
+
+	codec: cs42888@48 {
+		compatible = "cirrus,cs42888";
+		reg = <0x48>;
+		clocks = <&codec_osc>;
+		clock-names = "mclk";
+		VA-supply = <&reg_audio>;
+		VD-supply = <&reg_audio>;
+		VLS-supply = <&reg_audio>;
+		VLC-supply = <&reg_audio>;
+        };
+
 };
 
 &i2c3 {
@@ -257,6 +361,21 @@
 			>;
 		};
 
+		pinctrl_esai: esaigrp {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_CRS_DV__ESAI_TX_CLK 0x1b030
+				MX6QDL_PAD_ENET_RXD1__ESAI_TX_FS    0x1b030
+				MX6QDL_PAD_ENET_TX_EN__ESAI_TX3_RX2 0x1b030
+				MX6QDL_PAD_GPIO_5__ESAI_TX2_RX3     0x1b030
+				MX6QDL_PAD_ENET_TXD0__ESAI_TX4_RX1  0x1b030
+				MX6QDL_PAD_ENET_MDC__ESAI_TX5_RX0   0x1b030
+				MX6QDL_PAD_GPIO_17__ESAI_TX0        0x1b030
+				MX6QDL_PAD_NANDF_CS3__ESAI_TX1      0x1b030
+				MX6QDL_PAD_ENET_MDIO__ESAI_RX_CLK   0x1b030
+				MX6QDL_PAD_GPIO_9__ESAI_RX_FS       0x1b030
+			>;
+		};
+
 		pinctrl_gpio_leds: gpioledsgrp {
 			fsl,pins = <
 				MX6QDL_PAD_DISP0_DAT21__GPIO5_IO15	0x80000000
@@ -315,6 +434,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_KEY_COL0__UART4_TX_DATA	0x1b0b1
 				MX6QDL_PAD_KEY_ROW0__UART4_RX_DATA	0x1b0b1
+			>;
+		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID 0x17059
 			>;
 		};
 
@@ -459,6 +584,18 @@
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
+	status = "okay";
+};
+
+&usbh1 {
+	vbus-supply = <&reg_usb_h1_vbus>;
+	status = "okay";
+};
+
+&usbotg {
+	vbus-supply = <&reg_usb_otg_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
 	status = "okay";
 };
 
