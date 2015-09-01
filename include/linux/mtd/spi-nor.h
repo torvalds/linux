@@ -11,6 +11,21 @@
 #define __LINUX_MTD_SPI_NOR_H
 
 #include <linux/bitops.h>
+#include <linux/mtd/cfi.h>
+
+/*
+ * Manufacturer IDs
+ *
+ * The first byte returned from the flash after sending opcode SPINOR_OP_RDID.
+ * Sometimes these are the same as CFI IDs, but sometimes they aren't.
+ */
+#define SNOR_MFR_ATMEL		CFI_MFR_ATMEL
+#define SNOR_MFR_INTEL		CFI_MFR_INTEL
+#define SNOR_MFR_MICRON		CFI_MFR_ST /* ST Micro <--> Micron */
+#define SNOR_MFR_MACRONIX	CFI_MFR_MACRONIX
+#define SNOR_MFR_SPANSION	CFI_MFR_AMD
+#define SNOR_MFR_SST		CFI_MFR_SST
+#define SNOR_MFR_WINBOND	0xef
 
 /*
  * Note on opcode nomenclature: some opcodes have a format like
