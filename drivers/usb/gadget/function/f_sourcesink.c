@@ -489,6 +489,7 @@ static int check_read_data(struct f_sourcesink *ss, struct usb_request *req)
 	unsigned		i;
 	u8			*buf = req->buf;
 	struct usb_composite_dev *cdev = ss->function.config->cdev;
+	int max_packet_size = le16_to_cpu(ss->out_ep->desc->wMaxPacketSize);
 
 	if (pattern == 2)
 		return 0;
@@ -510,7 +511,7 @@ static int check_read_data(struct f_sourcesink *ss, struct usb_request *req)
 		 * stutter for any reason, including buffer duplication...)
 		 */
 		case 1:
-			if (*buf == (u8)(i % 63))
+			if (*buf == (u8)((i % max_packet_size) % 63))
 				continue;
 			break;
 		}
@@ -525,6 +526,7 @@ static void reinit_write_data(struct usb_ep *ep, struct usb_request *req)
 {
 	unsigned	i;
 	u8		*buf = req->buf;
+	int max_packet_size = le16_to_cpu(ep->desc->wMaxPacketSize);
 
 	switch (pattern) {
 	case 0:
@@ -532,7 +534,7 @@ static void reinit_write_data(struct usb_ep *ep, struct usb_request *req)
 		break;
 	case 1:
 		for  (i = 0; i < req->length; i++)
-			*buf++ = (u8) (i % 63);
+			*buf++ = (u8) ((i % max_packet_size) % 63);
 		break;
 	case 2:
 		break;
