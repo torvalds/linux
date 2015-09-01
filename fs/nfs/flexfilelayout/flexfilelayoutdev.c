@@ -528,11 +528,11 @@ int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
 	return 0;
 }
 
-bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg)
+static bool ff_read_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 {
 	struct nfs4_ff_layout_mirror *mirror;
 	struct nfs4_deviceid_node *devid;
-	int idx;
+	u32 idx;
 
 	for (idx = 0; idx < FF_LAYOUT_MIRROR_COUNT(lseg); idx++) {
 		mirror = FF_LAYOUT_COMP(lseg, idx);
@@ -544,6 +544,32 @@ bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 	}
 
 	return false;
+}
+
+static bool ff_rw_layout_has_available_ds(struct pnfs_layout_segment *lseg)
+{
+	struct nfs4_ff_layout_mirror *mirror;
+	struct nfs4_deviceid_node *devid;
+	u32 idx;
+
+	for (idx = 0; idx < FF_LAYOUT_MIRROR_COUNT(lseg); idx++) {
+		mirror = FF_LAYOUT_COMP(lseg, idx);
+		if (!mirror || !mirror->mirror_ds)
+			return false;
+		devid = &mirror->mirror_ds->id_node;
+		if (ff_layout_test_devid_unavailable(devid))
+			return false;
+	}
+
+	return FF_LAYOUT_MIRROR_COUNT(lseg) != 0;
+}
+
+bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg)
+{
+	if (lseg->pls_range.iomode == IOMODE_READ)
+		return  ff_read_layout_has_available_ds(lseg);
+	/* Note: RW layout needs all mirrors available */
+	return ff_rw_layout_has_available_ds(lseg);
 }
 
 module_param(dataserver_retrans, uint, 0644);
