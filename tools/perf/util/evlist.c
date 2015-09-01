@@ -1181,6 +1181,10 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **e
 		if (evsel->filter == NULL)
 			continue;
 
+		/*
+		 * filters only work for tracepoint event, which doesn't have cpu limit.
+		 * So evlist and evsel should always be same.
+		 */
 		err = perf_evsel__apply_filter(evsel, ncpus, nthreads, evsel->filter);
 		if (err) {
 			*err_evsel = evsel;
