@@ -382,7 +382,7 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	svc_hotplug = kmalloc(sizeof(*svc_hotplug), GFP_ATOMIC);
+	svc_hotplug = kmalloc(sizeof(*svc_hotplug), GFP_KERNEL);
 	if (!svc_hotplug)
 		return -ENOMEM;
 
