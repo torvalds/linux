@@ -454,10 +454,10 @@ usage:
 			"\t-t testnum	only run specified case\n"
 			"\t-n		no test running, show devices to be tested\n"
 			"Case arguments:\n"
-			"\t-c iterations	default 1000\n"
-			"\t-s packetsize	default 512\n"
-			"\t-g sglen	default 32\n"
-			"\t-v vary		default 512\n",
+			"\t-c iterations		default 1000\n"
+			"\t-s transfer length	default 512\n"
+			"\t-g sglen		default 32\n"
+			"\t-v vary			default 512\n",
 			argv[0]);
 		return 1;
 	}
