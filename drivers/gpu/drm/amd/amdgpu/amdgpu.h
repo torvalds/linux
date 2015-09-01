@@ -2199,6 +2199,21 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 	ring->ring_free_dw--;
 }
 
+static inline struct amdgpu_sdma * amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int i;
+
+	for (i = 0; i < AMDGPU_MAX_SDMA_INSTANCES; i++)
+		if (&adev->sdma[i].ring == ring)
+			break;
+
+	if (i < AMDGPU_MAX_SDMA_INSTANCES)
+		return &adev->sdma[i];
+	else
+		return NULL;
+}
+
 /*
  * ASICs macro.
  */
