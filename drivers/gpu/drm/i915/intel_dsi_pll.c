@@ -276,7 +276,7 @@ static void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
 
-void vlv_disable_dsi_pll(struct intel_encoder *encoder)
+static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	u32 tmp;
@@ -291,6 +291,26 @@ void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
 
 	mutex_unlock(&dev_priv->sb_lock);
+}
+
+static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	u32 val;
+
+	DRM_DEBUG_KMS("\n");
+
+	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	val &= ~BXT_DSI_PLL_DO_ENABLE;
+	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
+
+	/*
+	 * PLL lock should deassert within 200us.
+	 * Wait up to 1ms before timing out.
+	 */
+	if (wait_for((I915_READ(BXT_DSI_PLL_ENABLE)
+					& BXT_DSI_PLL_LOCKED) == 0, 1))
+		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
 static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
@@ -455,4 +475,14 @@ void intel_enable_dsi_pll(struct intel_encoder *encoder)
 		vlv_enable_dsi_pll(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_enable_dsi_pll(encoder);
+}
+
+void intel_disable_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_disable_dsi_pll(encoder);
+	else if (IS_BROXTON(dev))
+		bxt_disable_dsi_pll(encoder);
 }

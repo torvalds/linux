@@ -557,7 +557,7 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 		usleep_range(2000, 2500);
 	}
 
-	vlv_disable_dsi_pll(encoder);
+	intel_disable_dsi_pll(encoder);
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder)
