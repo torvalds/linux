@@ -174,57 +174,36 @@ static struct drm_framebuffer *
 exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct exynos_drm_gem_obj *gem_objs[MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
-	struct exynos_drm_gem_obj *exynos_gem_obj;
-	struct exynos_drm_fb *exynos_fb;
-	int i, ret;
+	struct drm_framebuffer *fb;
+	int i;
+	int ret;
 
-	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
-	if (!exynos_fb)
-		return ERR_PTR(-ENOMEM);
-
-	exynos_fb->buf_cnt = drm_format_num_planes(mode_cmd->pixel_format);
-
-	DRM_DEBUG_KMS("buf_cnt = %d\n", exynos_fb->buf_cnt);
-
-	for (i = 0; i < exynos_fb->buf_cnt; i++) {
+	for (i = 0; i < drm_format_num_planes(mode_cmd->pixel_format); i++) {
 		obj = drm_gem_object_lookup(dev, file_priv,
-				mode_cmd->handles[i]);
+					    mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object\n");
 			ret = -ENOENT;
-			exynos_fb->buf_cnt = i;
 			goto err;
 		}
 
-		exynos_gem_obj = to_exynos_gem_obj(obj);
-		exynos_fb->exynos_gem_obj[i] = exynos_gem_obj;
-
-		ret = check_fb_gem_memory_type(dev, exynos_gem_obj);
-		if (ret < 0)
-			goto err;
+		gem_objs[i] = to_exynos_gem_obj(obj);
 	}
 
-	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
-
-	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
-	if (ret) {
-		DRM_ERROR("failed to init framebuffer.\n");
+	fb = exynos_drm_framebuffer_init(dev, mode_cmd, gem_objs, i);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto err;
 	}
 
-	return &exynos_fb->fb;
+	return fb;
 
 err:
-	for (i = 0; i < exynos_fb->buf_cnt; i++) {
-		struct drm_gem_object *obj;
+	while (i--)
+		drm_gem_object_unreference_unlocked(&gem_objs[i]->base);
 
-		obj = &exynos_fb->exynos_gem_obj[i]->base;
-		if (obj)
-			drm_gem_object_unreference_unlocked(obj);
-	}
-
-	kfree(exynos_fb);
 	return ERR_PTR(ret);
 }
 
