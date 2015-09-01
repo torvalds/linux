@@ -886,6 +886,13 @@
 	status = "disabled";
 };
 
+&sim1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_sim1_1>;
+	pinctrl-1 = <&pinctrl_sim1_1>;
+	status = "disabled";
+};
+
 &uart1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_uart1_1>;
