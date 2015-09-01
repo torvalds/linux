@@ -33,7 +33,6 @@
 #include <asm/paravirt.h>
 #include <asm/percpu.h>
 #include <asm/asm.h>
-#include <asm/context_tracking.h>
 #include <asm/smap.h>
 #include <asm/pgtable_types.h>
 #include <linux/err.h>
@@ -229,6 +228,11 @@ entry_SYSCALL_64_fastpath:
 	 */
 	USERGS_SYSRET64
 
+GLOBAL(int_ret_from_sys_call_irqs_off)
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
+	jmp int_ret_from_sys_call
+
 	/* Do syscall entry tracing */
 tracesys:
 	movq	%rsp, %rdi
@@ -272,69 +276,11 @@ tracesys_phase2:
  * Has correct iret frame.
  */
 GLOBAL(int_ret_from_sys_call)
-	DISABLE_INTERRUPTS(CLBR_NONE)
-int_ret_from_sys_call_irqs_off: /* jumps come here from the irqs-off SYSRET path */
-	TRACE_IRQS_OFF
-	movl	$_TIF_ALLWORK_MASK, %edi
-	/* edi:	mask to check */
-GLOBAL(int_with_check)
-	LOCKDEP_SYS_EXIT_IRQ
-	GET_THREAD_INFO(%rcx)
-	movl	TI_flags(%rcx), %edx
-	andl	%edi, %edx
-	jnz	int_careful
-	andl	$~TS_COMPAT, TI_status(%rcx)
-	jmp	syscall_return
-
-	/*
-	 * Either reschedule or signal or syscall exit tracking needed.
-	 * First do a reschedule test.
-	 * edx:	work, edi: workmask
-	 */
-int_careful:
-	bt	$TIF_NEED_RESCHED, %edx
-	jnc	int_very_careful
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq	%rdi
-	SCHEDULE_USER
-	popq	%rdi
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp	int_with_check
-
-	/* handle signals and tracing -- both require a full pt_regs */
-int_very_careful:
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	SAVE_EXTRA_REGS
-	/* Check for syscall exit trace */
-	testl	$_TIF_WORK_SYSCALL_EXIT, %edx
-	jz	int_signal
-	pushq	%rdi
-	leaq	8(%rsp), %rdi			/* &ptregs -> arg1 */
-	call	syscall_trace_leave
-	popq	%rdi
-	andl	$~(_TIF_WORK_SYSCALL_EXIT|_TIF_SYSCALL_EMU), %edi
-	jmp	int_restore_rest
-
-int_signal:
-	testl	$_TIF_DO_NOTIFY_MASK, %edx
-	jz	1f
-	movq	%rsp, %rdi			/* &ptregs -> arg1 */
-	xorl	%esi, %esi			/* oldset -> arg2 */
-	call	do_notify_resume
-1:	movl	$_TIF_WORK_MASK, %edi
-int_restore_rest:
+	movq	%rsp, %rdi
+	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	RESTORE_EXTRA_REGS
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp	int_with_check
-
-syscall_return:
-	/* The IRETQ could re-enable interrupts: */
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_IRETQ
+	TRACE_IRQS_IRETQ		/* we're about to change IF */
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to
@@ -555,23 +501,22 @@ END(irq_entries_start)
 /* 0(%rsp): ~(interrupt number) */
 	.macro interrupt func
 	cld
-	/*
-	 * Since nothing in interrupt handling code touches r12...r15 members
-	 * of "struct pt_regs", and since interrupts can nest, we can save
-	 * four stack slots and simultaneously provide
-	 * an unwind-friendly stack layout by saving "truncated" pt_regs
-	 * exactly up to rbp slot, without these members.
-	 */
-	ALLOC_PT_GPREGS_ON_STACK -RBP
-	SAVE_C_REGS -RBP
-	/* this goes to 0(%rsp) for unwinder, not for saving the value: */
-	SAVE_EXTRA_REGS_RBP -RBP
+	ALLOC_PT_GPREGS_ON_STACK
+	SAVE_C_REGS
+	SAVE_EXTRA_REGS
 
-	leaq	-RBP(%rsp), %rdi		/* arg1 for \func (pointer to pt_regs) */
-
-	testb	$3, CS-RBP(%rsp)
+	testb	$3, CS(%rsp)
 	jz	1f
+
+	/*
+	 * IRQ from user mode.  Switch to kernel gsbase and inform context
+	 * tracking that we're in kernel mode.
+	 */
 	SWAPGS
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+
 1:
 	/*
 	 * Save previous stack pointer, optionally switch to interrupt stack.
@@ -580,14 +525,14 @@ END(irq_entries_start)
 	 * a little cheaper to use a separate counter in the PDA (short of
 	 * moving irq_enter into assembly, which would be too much work)
 	 */
-	movq	%rsp, %rsi
+	movq	%rsp, %rdi
 	incl	PER_CPU_VAR(irq_count)
 	cmovzq	PER_CPU_VAR(irq_stack_ptr), %rsp
-	pushq	%rsi
+	pushq	%rdi
 	/* We entered an interrupt context - irqs are off: */
 	TRACE_IRQS_OFF
 
-	call	\func
+	call	\func	/* rdi points to pt_regs */
 	.endm
 
 	/*
@@ -606,34 +551,19 @@ ret_from_intr:
 	decl	PER_CPU_VAR(irq_count)
 
 	/* Restore saved previous stack */
-	popq	%rsi
-	/* return code expects complete pt_regs - adjust rsp accordingly: */
-	leaq	-RBP(%rsi), %rsp
+	popq	%rsp
 
 	testb	$3, CS(%rsp)
 	jz	retint_kernel
+
 	/* Interrupt came from user space */
-retint_user:
-	GET_THREAD_INFO(%rcx)
-
-	/* %rcx: thread info. Interrupts are off. */
-retint_with_reschedule:
-	movl	$_TIF_WORK_MASK, %edi
-retint_check:
 	LOCKDEP_SYS_EXIT_IRQ
-	movl	TI_flags(%rcx), %edx
-	andl	%edi, %edx
-	jnz	retint_careful
-
-retint_swapgs:					/* return to user-space */
-	/*
-	 * The iretq could re-enable interrupts:
-	 */
-	DISABLE_INTERRUPTS(CLBR_ANY)
+GLOBAL(retint_user)
+	mov	%rsp,%rdi
+	call	prepare_exit_to_usermode
 	TRACE_IRQS_IRETQ
-
 	SWAPGS
-	jmp	restore_c_regs_and_iret
+	jmp	restore_regs_and_iret
 
 /* Returning to kernel space */
 retint_kernel:
@@ -657,6 +587,8 @@ retint_kernel:
  * At this label, code paths which return to kernel and to user,
  * which come from interrupts/exception and from syscalls, merge.
  */
+restore_regs_and_iret:
+	RESTORE_EXTRA_REGS
 restore_c_regs_and_iret:
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
@@ -707,37 +639,6 @@ native_irq_return_ldt:
 	popq	%rax
 	jmp	native_irq_return_iret
 #endif
-
-	/* edi: workmask, edx: work */
-retint_careful:
-	bt	$TIF_NEED_RESCHED, %edx
-	jnc	retint_signal
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	pushq	%rdi
-	SCHEDULE_USER
-	popq	%rdi
-	GET_THREAD_INFO(%rcx)
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp	retint_check
-
-retint_signal:
-	testl	$_TIF_DO_NOTIFY_MASK, %edx
-	jz	retint_swapgs
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	SAVE_EXTRA_REGS
-	movq	$-1, ORIG_RAX(%rsp)
-	xorl	%esi, %esi			/* oldset */
-	movq	%rsp, %rdi			/* &pt_regs */
-	call	do_notify_resume
-	RESTORE_EXTRA_REGS
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	GET_THREAD_INFO(%rcx)
-	jmp	retint_with_reschedule
-
 END(common_interrupt)
 
 /*
@@ -1143,12 +1044,22 @@ ENTRY(error_entry)
 	SAVE_EXTRA_REGS 8
 	xorl	%ebx, %ebx
 	testb	$3, CS+8(%rsp)
-	jz	error_kernelspace
+	jz	.Lerror_kernelspace
 
-	/* We entered from user mode */
+.Lerror_entry_from_usermode_swapgs:
+	/*
+	 * We entered from user mode or we're pretending to have entered
+	 * from user mode due to an IRET fault.
+	 */
 	SWAPGS
 
-error_entry_done:
+.Lerror_entry_from_usermode_after_swapgs:
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+
+.Lerror_entry_done:
+
 	TRACE_IRQS_OFF
 	ret
 
@@ -1158,31 +1069,30 @@ error_entry_done:
 	 * truncated RIP for IRET exceptions returning to compat mode. Check
 	 * for these here too.
 	 */
-error_kernelspace:
+.Lerror_kernelspace:
 	incl	%ebx
 	leaq	native_irq_return_iret(%rip), %rcx
 	cmpq	%rcx, RIP+8(%rsp)
-	je	error_bad_iret
+	je	.Lerror_bad_iret
 	movl	%ecx, %eax			/* zero extend */
 	cmpq	%rax, RIP+8(%rsp)
-	je	bstep_iret
+	je	.Lbstep_iret
 	cmpq	$gs_change, RIP+8(%rsp)
-	jne	error_entry_done
+	jne	.Lerror_entry_done
 
 	/*
 	 * hack: gs_change can fail with user gsbase.  If this happens, fix up
 	 * gsbase and proceed.  We'll fix up the exception and land in
 	 * gs_change's error handler with kernel gsbase.
 	 */
-	SWAPGS
-	jmp	error_entry_done
+	jmp	.Lerror_entry_from_usermode_swapgs
 
-bstep_iret:
+.Lbstep_iret:
 	/* Fix truncated RIP */
 	movq	%rcx, RIP+8(%rsp)
 	/* fall through */
 
-error_bad_iret:
+.Lerror_bad_iret:
 	/*
 	 * We came from an IRET to user mode, so we have user gsbase.
 	 * Switch to kernel gsbase:
@@ -1198,7 +1108,7 @@ error_bad_iret:
 	call	fixup_bad_iret
 	mov	%rax, %rsp
 	decl	%ebx
-	jmp	error_entry_done
+	jmp	.Lerror_entry_from_usermode_after_swapgs
 END(error_entry)
 
 
@@ -1209,7 +1119,6 @@ END(error_entry)
  */
 ENTRY(error_exit)
 	movl	%ebx, %eax
-	RESTORE_EXTRA_REGS
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	%eax, %eax
