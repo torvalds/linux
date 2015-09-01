@@ -1,0 +1,9 @@
+Broadcom North Star 2 (NS2) device tree bindings
+------------------------------------------------
+
+Boards with NS2 shall have the following properties:
+
+Required root node property:
+
+NS2 SVK board
+compatible = "brcm,ns2-svk", "brcm,ns2";
