@@ -54,9 +54,9 @@ static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
 #define rcu_dereference_check_mce(p) \
 ({ \
-	rcu_lockdep_assert(rcu_read_lock_sched_held() || \
-			   lockdep_is_held(&mce_chrdev_read_mutex), \
-			   "suspicious rcu_dereference_check_mce() usage"); \
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() && \
+			 !lockdep_is_held(&mce_chrdev_read_mutex), \
+			 "suspicious rcu_dereference_check_mce() usage"); \
 	smp_load_acquire(&(p)); \
 })
 
