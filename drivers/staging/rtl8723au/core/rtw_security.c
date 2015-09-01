@@ -245,8 +245,8 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	arcfour_encrypt(&mycontext, payload, payload, length);
 
 	/* calculate icv and compare the icv */
-	actual_crc = le32_to_cpu(getcrc32(payload, length - 4));
-	expected_crc = le32_to_cpu(get_unaligned_le32(&payload[length - 4]));
+	actual_crc = getcrc32(payload, length - 4);
+	expected_crc = get_unaligned_le32(&payload[length - 4]);
 
 	if (actual_crc != expected_crc) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
@@ -767,8 +767,8 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	arcfour_init(&mycontext, rc4key, 16);
 	arcfour_encrypt(&mycontext, payload, payload, length);
 
-	actual_crc = le32_to_cpu(getcrc32(payload, length - 4));
-	expected_crc = le32_to_cpu(get_unaligned_le32(&payload[length - 4]));
+	actual_crc = getcrc32(payload, length - 4);
+	expected_crc = get_unaligned_le32(&payload[length - 4]);
 
 	if (actual_crc != expected_crc) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
