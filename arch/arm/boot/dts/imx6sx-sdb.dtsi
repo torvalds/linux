@@ -190,6 +190,15 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
+	isl29023@44 {
+		compatible = "fsl,isl29023";
+		reg = <0x44>;
+		rext = <499>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <5 1>;
+		shared-interrupt;
+	};
+
 	mag3110@0e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;

@@ -341,6 +341,15 @@
 		wakeup-gpios = <&gpio6 7 0>;
 	};
 
+	isl29023@44 {
+		compatible = "fsl,isl29023";
+		reg = <0x44>;
+		rext = <499>;
+		vdd-supply = <&reg_sensor>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <9 2>;
+	};
+
 	mag3110@0e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;
@@ -371,6 +380,7 @@
 				MX6QDL_PAD_EIM_EB3__GPIO2_IO31 0x80000000
 				MX6QDL_PAD_SD1_CMD__GPIO1_IO18 0x80000000
 				MX6QDL_PAD_EIM_D16__GPIO3_IO16 0x80000000
+				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x80000000
 			>;
 		};
 
