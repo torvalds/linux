@@ -1119,19 +1119,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	return &mr->ibmr;
 
 error:
-	/*
-	 * Destroy the umem *before* destroying the MR, to ensure we
-	 * will not have any in-flight notifiers when destroying the
-	 * MR.
-	 *
-	 * As the MR is completely invalid to begin with, and this
-	 * error path is only taken if we can't push the mr entry into
-	 * the pagefault tree, this is safe.
-	 */
-
 	ib_umem_release(umem);
-	/* Kill the MR, and return an error code. */
-	clean_mr(mr);
 	return ERR_PTR(err);
 }
 
