@@ -417,12 +417,15 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 temp;
+	u32 port_ctrl;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* de-assert ip_tg_enable signal */
-		temp = I915_READ(MIPI_PORT_CTRL(port));
-		I915_WRITE(MIPI_PORT_CTRL(port), temp & ~DPI_ENABLE);
-		POSTING_READ(MIPI_PORT_CTRL(port));
+		port_ctrl = IS_BROXTON(dev) ? BXT_MIPI_PORT_CTRL(port) :
+						MIPI_PORT_CTRL(port);
+		temp = I915_READ(port_ctrl);
+		I915_WRITE(port_ctrl, temp & ~DPI_ENABLE);
+		POSTING_READ(port_ctrl);
 	}
 }
 
@@ -554,12 +557,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 		/* Panel commands can be sent when clock is in LP11 */
 		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
 
-		temp = I915_READ(MIPI_CTRL(port));
-		temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
-		I915_WRITE(MIPI_CTRL(port), temp |
-			   intel_dsi->escape_clk_div <<
-			   ESCAPE_CLOCK_DIVIDER_SHIFT);
-
+		intel_dsi_reset_clocks(encoder, port);
 		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 
 		temp = I915_READ(MIPI_DSI_FUNC_PRG(port));
@@ -578,10 +576,12 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 val;
+	u32 port_ctrl = 0;
 
 	DRM_DEBUG_KMS("\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -598,18 +598,22 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 							ULPS_STATE_ENTER);
 		usleep_range(2000, 2500);
 
+		if (IS_BROXTON(dev))
+			port_ctrl = BXT_MIPI_PORT_CTRL(port);
+		else if (IS_VALLEYVIEW(dev))
+			/* Common bit for both MIPI Port A & MIPI Port C */
+			port_ctrl = MIPI_PORT_CTRL(PORT_A);
+
 		/* Wait till Clock lanes are in LP-00 state for MIPI Port A
 		 * only. MIPI Port C has no similar bit for checking
 		 */
-		if (wait_for(((I915_READ(MIPI_PORT_CTRL(PORT_A)) & AFE_LATCHOUT)
-							== 0x00000), 30))
+		if (wait_for(((I915_READ(port_ctrl) & AFE_LATCHOUT)
+						== 0x00000), 30))
 			DRM_ERROR("DSI LP not going Low\n");
 
-		/* Disable MIPI PHY transparent latch
-		 * Common bit for both MIPI Port A & MIPI Port C
-		 */
-		val = I915_READ(MIPI_PORT_CTRL(PORT_A));
-		I915_WRITE(MIPI_PORT_CTRL(PORT_A), val & ~LP_OUTPUT_HOLD);
+		/* Disable MIPI PHY transparent latch */
+		val = I915_READ(port_ctrl);
+		I915_WRITE(port_ctrl, val & ~LP_OUTPUT_HOLD);
 		usleep_range(1000, 1500);
 
 		I915_WRITE(MIPI_DEVICE_READY(port), 0x00);

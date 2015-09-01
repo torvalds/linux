@@ -384,6 +384,19 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
+void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+{
+	u32 temp;
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	temp = I915_READ(MIPI_CTRL(port));
+	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
+	I915_WRITE(MIPI_CTRL(port), temp |
+			intel_dsi->escape_clk_div <<
+			ESCAPE_CLOCK_DIVIDER_SHIFT);
+}
+
 /* Program BXT Mipi clocks and dividers */
 static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
 {
@@ -527,4 +540,30 @@ void intel_disable_dsi_pll(struct intel_encoder *encoder)
 		vlv_disable_dsi_pll(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_disable_dsi_pll(encoder);
+}
+
+void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+{
+	u32 tmp;
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Clear old configurations */
+	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
+	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+}
+
+void intel_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_BROXTON(dev))
+		bxt_dsi_reset_clocks(encoder, port);
+	else if (IS_VALLEYVIEW(dev))
+		vlv_dsi_reset_clocks(encoder, port);
 }
