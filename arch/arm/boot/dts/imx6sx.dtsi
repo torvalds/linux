@@ -1010,7 +1010,7 @@
 					 <&clks 0>, <&clks 0>;
 				clock-names = "bus", "mclk1", "mclk2", "mclk3";
 				dma-names = "rx", "tx";
-				dmas = <&sdma 31 23 0>, <&sdma 32 23 0>;
+				dmas = <&sdma 31 24 0>, <&sdma 32 24 0>;
 				dma-source = <&gpr 0 15 0 16>;
 				status = "disabled";
 			};
