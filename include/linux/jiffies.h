@@ -363,18 +363,11 @@ static __always_inline unsigned long msecs_to_jiffies(const unsigned int m)
 }
 
 extern unsigned long __usecs_to_jiffies(const unsigned int u);
-#if HZ <= USEC_PER_SEC && !(USEC_PER_SEC % HZ)
+#if !(USEC_PER_SEC % HZ)
 static inline unsigned long _usecs_to_jiffies(const unsigned int u)
 {
 	return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
 }
-#elif HZ > USEC_PER_SEC && !(HZ % USEC_PER_SEC)
-static inline unsigned long _usecs_to_jiffies(const unsigned int u)
-{
-	return u * (HZ / USEC_PER_SEC);
-}
-static inline unsigned long _usecs_to_jiffies(const unsigned int u)
-{
 #else
 static inline unsigned long _usecs_to_jiffies(const unsigned int u)
 {
