@@ -172,4 +172,6 @@ static inline bool flow_keys_have_l4(struct flow_keys *keys)
 	return (keys->ports.ports || keys->tags.flow_label);
 }
 
+u32 flow_hash_from_keys(struct flow_keys *keys);
+
 #endif
