@@ -260,6 +260,19 @@ static inline bool lowpan_is_nalp(u8 dispatch)
 	return (dispatch & LOWPAN_DISPATCH_FIRST) == LOWPAN_DISPATCH_NALP;
 }
 
+/* Lookup for reserved dispatch values at:
+ * https://www.iana.org/assignments/_6lowpan-parameters/_6lowpan-parameters.xhtml#_6lowpan-parameters-1
+ *
+ * Last Updated: 2015-01-22
+ */
+static inline bool lowpan_is_reserved(u8 dispatch)
+{
+	return ((dispatch >= 0x44 && dispatch <= 0x4F) ||
+		(dispatch >= 0x51 && dispatch <= 0x5F) ||
+		(dispatch >= 0xc8 && dispatch <= 0xdf) ||
+		(dispatch >= 0xe8 && dispatch <= 0xff));
+}
+
 /* lowpan_rx_h_check checks on generic 6LoWPAN requirements
  * in MAC and 6LoWPAN header.
  *
@@ -271,7 +284,8 @@ static inline bool lowpan_rx_h_check(struct sk_buff *skb)
 	if (unlikely(!skb->len))
 		return false;
 
-	if (lowpan_is_nalp(*skb_network_header(skb)))
+	if (lowpan_is_nalp(*skb_network_header(skb)) ||
+	    lowpan_is_reserved(*skb_network_header(skb)))
 		return false;
 
 	return true;
