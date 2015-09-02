@@ -1769,7 +1769,7 @@ void sdma_dumpstate(struct sdma_engine *sde)
 	sdma_dumpstate_helper(SD(ENG_ERR_MASK));
 
 	for (i = 0; i < CCE_NUM_INT_CSRS; ++i) {
-		sdma_dumpstate_helper2(CCE_INT_STATUS));
+		sdma_dumpstate_helper2(CCE_INT_STATUS);
 		sdma_dumpstate_helper2(CCE_INT_MASK);
 		sdma_dumpstate_helper2(CCE_INT_BLOCKED);
 	}
@@ -1777,7 +1777,7 @@ void sdma_dumpstate(struct sdma_engine *sde)
 	sdma_dumpstate_helper(SD(TAIL));
 	sdma_dumpstate_helper(SD(HEAD));
 	sdma_dumpstate_helper(SD(PRIORITY_THLD));
-	sdma_dumpstate_helper(SD(IDLE_CNT);
+	sdma_dumpstate_helper(SD(IDLE_CNT));
 	sdma_dumpstate_helper(SD(RELOAD_CNT));
 	sdma_dumpstate_helper(SD(DESC_CNT));
 	sdma_dumpstate_helper(SD(DESC_FETCHED_CNT));
