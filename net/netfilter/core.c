@@ -388,6 +388,12 @@ EXPORT_SYMBOL(nf_conntrack_destroy);
 struct nfq_ct_hook __rcu *nfq_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nfq_ct_hook);
 
+/* Built-in default zone used e.g. by modules. */
+const struct nf_conntrack_zone nf_ct_zone_dflt = {
+	.id	= NF_CT_DEFAULT_ZONE_ID,
+	.dir	= NF_CT_DEFAULT_ZONE_DIR,
+};
+EXPORT_SYMBOL_GPL(nf_ct_zone_dflt);
 #endif /* CONFIG_NF_CONNTRACK */
 
 #ifdef CONFIG_NF_NAT_NEEDED

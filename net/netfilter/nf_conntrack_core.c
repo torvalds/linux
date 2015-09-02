@@ -1286,13 +1286,6 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
 
-/* Built-in default zone used e.g. by modules. */
-const struct nf_conntrack_zone nf_ct_zone_dflt = {
-	.id	= NF_CT_DEFAULT_ZONE_ID,
-	.dir	= NF_CT_DEFAULT_ZONE_DIR,
-};
-EXPORT_SYMBOL_GPL(nf_ct_zone_dflt);
-
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 static struct nf_ct_ext_type nf_ct_zone_extend __read_mostly = {
 	.len	= sizeof(struct nf_conntrack_zone),
