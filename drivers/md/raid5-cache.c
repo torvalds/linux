@@ -79,6 +79,7 @@ struct r5l_log {
 					 * dones't wait for specific io_unit
 					 * switching to IO_UNIT_STRIPE_END
 					 * state) */
+	wait_queue_head_t iounit_wait;
 
 	struct list_head no_space_stripes; /* pending stripes, log has no space */
 	spinlock_t no_space_stripes_lock;
@@ -109,7 +110,6 @@ struct r5l_io_unit {
 	struct list_head stripe_list; /* stripes added to the io_unit */
 
 	int state;
-	wait_queue_head_t wait_state;
 };
 
 /* r5l_io_unit state */
@@ -162,7 +162,6 @@ static struct r5l_io_unit *r5l_alloc_io_unit(struct r5l_log *log)
 	INIT_LIST_HEAD(&io->log_sibling);
 	INIT_LIST_HEAD(&io->stripe_list);
 	io->state = IO_UNIT_RUNNING;
-	init_waitqueue_head(&io->wait_state);
 	return io;
 }
 
@@ -243,8 +242,8 @@ static void __r5l_set_io_unit_state(struct r5l_io_unit *io,
 			r5l_wake_reclaim(log, 0);
 
 		r5l_compress_stripe_end_list(log);
+		wake_up(&log->iounit_wait);
 	}
-	wake_up(&io->wait_state);
 }
 
 static void r5l_set_io_unit_state(struct r5l_io_unit *io,
@@ -622,10 +621,11 @@ void r5l_flush_stripe_to_raid(struct r5l_log *log)
 	submit_bio(WRITE_FLUSH, &log->flush_bio);
 }
 
-static void r5l_kick_io_unit(struct r5l_log *log, struct r5l_io_unit *io)
+static void r5l_kick_io_unit(struct r5l_log *log)
 {
 	md_wakeup_thread(log->rdev->mddev->thread);
-	wait_event(io->wait_state, io->state >= IO_UNIT_STRIPE_END);
+	wait_event_lock_irq(log->iounit_wait, !list_empty(&log->stripe_end_ios),
+			    log->io_list_lock);
 }
 
 static void r5l_write_super(struct r5l_log *log, sector_t cp);
@@ -670,12 +670,7 @@ static void r5l_do_reclaim(struct r5l_log *log)
 		else if (!list_empty(&log->running_ios))
 			target_list = &log->running_ios;
 
-		io = list_first_entry(target_list,
-				      struct r5l_io_unit, log_sibling);
-		spin_unlock_irq(&log->io_list_lock);
-		/* nobody else can delete the io, we are safe */
-		r5l_kick_io_unit(log, io);
-		spin_lock_irq(&log->io_list_lock);
+		r5l_kick_io_unit(log);
 	}
 	spin_unlock_irq(&log->io_list_lock);
 
@@ -1079,6 +1074,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 						 log->rdev->mddev, "reclaim");
 	if (!log->reclaim_thread)
 		goto reclaim_thread;
+	init_waitqueue_head(&log->iounit_wait);
 
 	INIT_LIST_HEAD(&log->no_space_stripes);
 	spin_lock_init(&log->no_space_stripes_lock);
