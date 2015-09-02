@@ -31,28 +31,28 @@ static int i2c_mux_reg_set(const struct regmux *mux, unsigned int chan_id)
 	if (!mux->data.reg)
 		return -EINVAL;
 
+	/*
+	 * Write to the register, followed by a read to ensure the write is
+	 * completed on a "posted" bus, for example PCI or write buffers.
+	 * The endianness of reading doesn't matter and the return data
+	 * is not used.
+	 */
 	switch (mux->data.reg_size) {
 	case 4:
-		if (mux->data.little_endian) {
+		if (mux->data.little_endian)
 			iowrite32(chan_id, mux->data.reg);
-			if (!mux->data.write_only)
-				ioread32(mux->data.reg);
-		} else {
+		else
 			iowrite32be(chan_id, mux->data.reg);
-			if (!mux->data.write_only)
-				ioread32(mux->data.reg);
-		}
+		if (!mux->data.write_only)
+			ioread32(mux->data.reg);
 		break;
 	case 2:
-		if (mux->data.little_endian) {
+		if (mux->data.little_endian)
 			iowrite16(chan_id, mux->data.reg);
-			if (!mux->data.write_only)
-				ioread16(mux->data.reg);
-		} else {
+		else
 			iowrite16be(chan_id, mux->data.reg);
-			if (!mux->data.write_only)
-				ioread16be(mux->data.reg);
-		}
+		if (!mux->data.write_only)
+			ioread16(mux->data.reg);
 		break;
 	case 1:
 		iowrite8(chan_id, mux->data.reg);
