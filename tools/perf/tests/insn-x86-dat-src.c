@@ -421,6 +421,30 @@ int main(void)
 	asm volatile("sha256msg2 0x12345678(%rax,%rcx,8), %xmm0");
 	asm volatile("sha256msg2 0x12345678(%rax,%rcx,8), %xmm15");
 
+	/* clflushopt m8 */
+
+	asm volatile("clflushopt (%rax)");
+	asm volatile("clflushopt (%r8)");
+	asm volatile("clflushopt (0x12345678)");
+	asm volatile("clflushopt 0x12345678(%rax,%rcx,8)");
+	asm volatile("clflushopt 0x12345678(%r8,%rcx,8)");
+	/* Also check instructions in the same group encoding as clflushopt */
+	asm volatile("clflush (%rax)");
+	asm volatile("clflush (%r8)");
+	asm volatile("sfence");
+
+	/* clwb m8 */
+
+	asm volatile("clwb (%rax)");
+	asm volatile("clwb (%r8)");
+	asm volatile("clwb (0x12345678)");
+	asm volatile("clwb 0x12345678(%rax,%rcx,8)");
+	asm volatile("clwb 0x12345678(%r8,%rcx,8)");
+	/* Also check instructions in the same group encoding as clwb */
+	asm volatile("xsaveopt (%rax)");
+	asm volatile("xsaveopt (%r8)");
+	asm volatile("mfence");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bndmk m32, bnd */
@@ -780,7 +804,29 @@ int main(void)
 	asm volatile("sha256msg2 0x12345678(%eax,%ecx,1), %xmm0");
 	asm volatile("sha256msg2 0x12345678(%eax,%ecx,8), %xmm0");
 
+	/* clflushopt m8 */
+
+	asm volatile("clflushopt (%eax)");
+	asm volatile("clflushopt (0x12345678)");
+	asm volatile("clflushopt 0x12345678(%eax,%ecx,8)");
+	/* Also check instructions in the same group encoding as clflushopt */
+	asm volatile("clflush (%eax)");
+	asm volatile("sfence");
+
+	/* clwb m8 */
+
+	asm volatile("clwb (%eax)");
+	asm volatile("clwb (0x12345678)");
+	asm volatile("clwb 0x12345678(%eax,%ecx,8)");
+	/* Also check instructions in the same group encoding as clwb */
+	asm volatile("xsaveopt (%eax)");
+	asm volatile("mfence");
+
 #endif /* #ifndef __x86_64__ */
+
+	/* pcommit */
+
+	asm volatile("pcommit");
 
 	/* Following line is a marker for the awk script - do not change */
 	asm volatile("rdtsc"); /* Stop here */

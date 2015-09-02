@@ -943,8 +943,8 @@ GrpTable: Grp15
 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
 4: XSAVE
 5: XRSTOR | lfence (11B)
-6: XSAVEOPT | mfence (11B)
-7: clflush | sfence (11B)
+6: XSAVEOPT | clwb (66) | mfence (11B)
+7: clflush | clflushopt (66) | sfence (11B) | pcommit (66),(11B)
 EndTable
 
 GrpTable: Grp16
