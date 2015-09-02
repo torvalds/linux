@@ -74,8 +74,7 @@
 #include <linux/magic.h>
 #include <linux/types.h>
 #include <sys/ttydefaults.h>
-#include <api/fs/debugfs.h>
-#include <api/fs/tracefs.h>
+#include <api/fs/tracing_path.h>
 #include <termios.h>
 #include <linux/bitops.h>
 #include <termios.h>

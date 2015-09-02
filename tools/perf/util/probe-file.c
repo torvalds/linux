@@ -22,8 +22,7 @@
 #include "color.h"
 #include "symbol.h"
 #include "thread.h"
-#include <api/fs/debugfs.h>
-#include <api/fs/tracefs.h>
+#include <api/fs/fs.h>
 #include "probe-event.h"
 #include "probe-file.h"
 #include "session.h"
@@ -77,11 +76,11 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 	const char *tracing_dir = "";
 	int ret;
 
-	__debugfs = tracefs_find_mountpoint();
+	__debugfs = tracefs__mountpoint();
 	if (__debugfs == NULL) {
 		tracing_dir = "tracing/";
 
-		__debugfs = debugfs_find_mountpoint();
+		__debugfs = debugfs__mountpoint();
 		if (__debugfs == NULL)
 			return -ENOTSUP;
 	}

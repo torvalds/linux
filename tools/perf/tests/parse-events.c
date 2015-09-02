@@ -3,11 +3,10 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <api/fs/fs.h>
-#include <api/fs/tracefs.h>
-#include <api/fs/debugfs.h>
 #include "tests.h"
 #include "debug.h"
 #include <linux/hw_breakpoint.h>
+#include <api/fs/fs.h>
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
@@ -1268,12 +1267,12 @@ static int count_tracepoints(void)
 	DIR *events_dir;
 	int cnt = 0;
 
-	mountpoint = tracefs_find_mountpoint();
+	mountpoint = tracefs__mountpoint();
 	if (mountpoint) {
 		scnprintf(events_path, PATH_MAX, "%s/events",
 			  mountpoint);
 	} else {
-		mountpoint = debugfs_find_mountpoint();
+		mountpoint = debugfs__mountpoint();
 		scnprintf(events_path, PATH_MAX, "%s/tracing/events",
 			  mountpoint);
 	}

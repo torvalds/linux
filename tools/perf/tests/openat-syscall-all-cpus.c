@@ -1,3 +1,4 @@
+#include <api/fs/fs.h>
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"
@@ -30,9 +31,9 @@ int test__openat_syscall_event_on_all_cpus(void)
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
 	if (evsel == NULL) {
-		if (tracefs_configured())
+		if (tracefs__configured())
 			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
-		else if (debugfs_configured())
+		else if (debugfs__configured())
 			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
 		else
 			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");

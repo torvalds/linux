@@ -7,8 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include "debugfs.h"
-#include "tracefs.h"
+#include "fs.h"
 
 #include "tracing_path.h"
 
@@ -29,7 +28,7 @@ static const char *tracing_path_tracefs_mount(void)
 {
 	const char *mnt;
 
-	mnt = tracefs_mount(NULL);
+	mnt = tracefs__mount();
 	if (!mnt)
 		return NULL;
 
@@ -42,7 +41,7 @@ static const char *tracing_path_debugfs_mount(void)
 {
 	const char *mnt;
 
-	mnt = debugfs_mount(NULL);
+	mnt = debugfs__mount();
 	if (!mnt)
 		return NULL;
 
@@ -96,7 +95,7 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 		 * want some tracepoint which wasn't compiled in your kernel.
 		 * - jirka
 		 */
-		if (debugfs_configured() || tracefs_configured()) {
+		if (debugfs__configured() || tracefs__configured()) {
 			snprintf(buf, size,
 				 "Error:\tFile %s/%s not found.\n"
 				 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
@@ -110,13 +109,13 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
 		break;
 	case EACCES: {
-		const char *mountpoint = debugfs_find_mountpoint();
+		const char *mountpoint = debugfs__mountpoint();
 
 		if (!access(mountpoint, R_OK) && strncmp(filename, "tracing/", 8) == 0) {
-			const char *tracefs_mntpoint = tracefs_find_mountpoint();
+			const char *tracefs_mntpoint = tracefs__mountpoint();
 
 			if (tracefs_mntpoint)
-				mountpoint = tracefs_find_mountpoint();
+				mountpoint = tracefs__mountpoint();
 		}
 
 		snprintf(buf, size,

@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <sys/mount.h>
 
-#include "debugfs.h"
 #include "fs.h"
 
 #define _STR(x) #x
