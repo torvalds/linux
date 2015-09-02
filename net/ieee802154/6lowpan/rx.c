@@ -15,7 +15,10 @@
 
 #include "6lowpan_i.h"
 
+#define LOWPAN_DISPATCH_FIRST		0xc0
 #define LOWPAN_DISPATCH_FRAG_MASK	0xf8
+
+#define LOWPAN_DISPATCH_NALP		0x00
 
 static int lowpan_give_skb_to_device(struct sk_buff *skb)
 {
@@ -162,13 +165,36 @@ rxh_next:
 #undef CALL_RXH
 }
 
+static inline bool lowpan_is_nalp(u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_FIRST) == LOWPAN_DISPATCH_NALP;
+}
+
+/* lowpan_rx_h_check checks on generic 6LoWPAN requirements
+ * in MAC and 6LoWPAN header.
+ *
+ * Don't manipulate the skb here, it could be shared buffer.
+ */
+static inline bool lowpan_rx_h_check(struct sk_buff *skb)
+{
+	/* check if we can dereference the dispatch */
+	if (unlikely(!skb->len))
+		return false;
+
+	if (lowpan_is_nalp(*skb_network_header(skb)))
+		return false;
+
+	return true;
+}
+
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 		      struct packet_type *pt, struct net_device *orig_wdev)
 {
 	struct net_device *ldev;
 
 	if (wdev->type != ARPHRD_IEEE802154 ||
-	    skb->pkt_type == PACKET_OTHERHOST)
+	    skb->pkt_type == PACKET_OTHERHOST ||
+	    !lowpan_rx_h_check(skb))
 		return NET_RX_DROP;
 
 	ldev = wdev->ieee802154_ptr->lowpan_dev;
