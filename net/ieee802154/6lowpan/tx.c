@@ -123,16 +123,14 @@ lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
 
 static int
 lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
-		       const struct ieee802154_hdr *wpan_hdr)
+		       const struct ieee802154_hdr *wpan_hdr, u16 dgram_size,
+		       u16 dgram_offset)
 {
-	u16 dgram_size, dgram_offset;
 	__be16 frag_tag;
 	u8 frag_hdr[5];
 	int frag_cap, frag_len, payload_cap, rc;
 	int skb_unprocessed, skb_offset;
 
-	dgram_size = lowpan_uncompress_size(skb, &dgram_offset) -
-		     skb->mac_len;
 	frag_tag = htons(lowpan_dev_info(ldev)->fragment_tag);
 	lowpan_dev_info(ldev)->fragment_tag++;
 
@@ -187,7 +185,8 @@ err:
 	return rc;
 }
 
-static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
+static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
+			 u16 *dgram_size, u16 *dgram_offset)
 {
 	struct wpan_dev *wpan_dev = lowpan_dev_info(ldev)->wdev->ieee802154_ptr;
 	struct ieee802154_addr sa, da;
@@ -201,7 +200,10 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev)
 	daddr = &info.daddr.u.extended_addr;
 	saddr = &info.saddr.u.extended_addr;
 
+	*dgram_size = skb->len;
 	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
+	/* dgram_offset = (saved bytes after compression) + lowpan header len */
+	*dgram_offset = (*dgram_size - skb->len) + skb_network_header_len(skb);
 
 	cb->type = IEEE802154_FC_TYPE_DATA;
 
@@ -234,6 +236,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct ieee802154_hdr wpan_hdr;
 	int max_single, ret;
+	u16 dgram_size, dgram_offset;
 
 	pr_debug("package xmit\n");
 
@@ -244,7 +247,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	if (!skb)
 		return NET_XMIT_DROP;
 
-	ret = lowpan_header(skb, ldev);
+	ret = lowpan_header(skb, ldev, &dgram_size, &dgram_offset);
 	if (ret < 0) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -264,7 +267,8 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 		netdev_tx_t rc;
 
 		pr_debug("frame is too big, fragmentation is needed\n");
-		rc = lowpan_xmit_fragmented(skb, ldev, &wpan_hdr);
+		rc = lowpan_xmit_fragmented(skb, ldev, &wpan_hdr, dgram_size,
+					    dgram_offset);
 
 		return rc < 0 ? NET_XMIT_DROP : rc;
 	}
