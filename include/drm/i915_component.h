@@ -33,6 +33,13 @@ struct i915_audio_component {
 		void (*put_power)(struct device *);
 		void (*codec_wake_override)(struct device *, bool enable);
 		int (*get_cdclk_freq)(struct device *);
+		/**
+		 * @sync_audio_rate: set n/cts based on the sample rate
+		 *
+		 * Called from audio driver. After audio driver sets the
+		 * sample rate, it will call this function to set n/cts
+		 */
+		int (*sync_audio_rate)(struct device *, int port, int rate);
 	} *ops;
 
 	const struct i915_audio_component_audio_ops {
