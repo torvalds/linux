@@ -83,12 +83,6 @@
 extern const char *graph_line;
 extern const char *graph_dotted_line;
 extern char buildid_dir[];
-extern char tracing_path[];
-extern char tracing_events_path[];
-extern void tracing_path_set(const char *mountpoint);
-const char *tracing_path_mount(void);
-char *get_tracing_file(const char *name);
-void put_tracing_file(char *file);
 
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).

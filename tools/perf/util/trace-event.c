@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <linux/kernel.h>
 #include <traceevent/event-parse.h>
+#include <api/fs/tracing_path.h>
 #include "trace-event.h"
 #include "machine.h"
 #include "util.h"

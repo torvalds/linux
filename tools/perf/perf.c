@@ -15,7 +15,7 @@
 #include "util/parse-events.h"
 #include "util/parse-options.h"
 #include "util/debug.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include <pthread.h>
 
 const char perf_usage_string[] =

@@ -34,9 +34,6 @@ bool test_attr__enabled;
 bool perf_host  = true;
 bool perf_guest = false;
 
-char tracing_path[PATH_MAX + 1]        = "/sys/kernel/debug/tracing";
-char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
-
 void event_attr_init(struct perf_event_attr *attr)
 {
 	if (!perf_host)
@@ -388,73 +385,6 @@ void set_term_quiet_input(struct termios *old)
 	tc.c_cc[VMIN] = 0;
 	tc.c_cc[VTIME] = 0;
 	tcsetattr(0, TCSANOW, &tc);
-}
-
-static void __tracing_path_set(const char *tracing, const char *mountpoint)
-{
-	snprintf(tracing_path, sizeof(tracing_path), "%s/%s",
-		 mountpoint, tracing);
-	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s%s",
-		 mountpoint, tracing, "events");
-}
-
-static const char *tracing_path_tracefs_mount(void)
-{
-	const char *mnt;
-
-	mnt = tracefs_mount(NULL);
-	if (!mnt)
-		return NULL;
-
-	__tracing_path_set("", mnt);
-
-	return mnt;
-}
-
-static const char *tracing_path_debugfs_mount(void)
-{
-	const char *mnt;
-
-	mnt = debugfs_mount(NULL);
-	if (!mnt)
-		return NULL;
-
-	__tracing_path_set("tracing/", mnt);
-
-	return mnt;
-}
-
-const char *tracing_path_mount(void)
-{
-	const char *mnt;
-
-	mnt = tracing_path_tracefs_mount();
-	if (mnt)
-		return mnt;
-
-	mnt = tracing_path_debugfs_mount();
-
-	return mnt;
-}
-
-void tracing_path_set(const char *mntpt)
-{
-	__tracing_path_set("tracing/", mntpt);
-}
-
-char *get_tracing_file(const char *name)
-{
-	char *file;
-
-	if (asprintf(&file, "%s/%s", tracing_path, name) < 0)
-		return NULL;
-
-	return file;
-}
-
-void put_tracing_file(char *file)
-{
-	free(file);
 }
 
 int parse_nsec_time(const char *str, u64 *ptime)
