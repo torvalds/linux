@@ -128,17 +128,23 @@ enum xfeature {
 
 #define FIRST_EXTENDED_XFEATURE	XFEATURE_YMM
 
+struct reg_128_bit {
+	u8      regbytes[128/8];
+};
+
 /*
+ * State component 2:
+ *
  * There are 16x 256-bit AVX registers named YMM0-YMM15.
  * The low 128 bits are aliased to the 16 SSE registers (XMM0-XMM15)
- * and are stored in 'struct fxregs_state::xmm_space[]'.
+ * and are stored in 'struct fxregs_state::xmm_space[]' in the
+ * "legacy" area.
  *
- * The high 128 bits are stored here:
- *    16x 128 bits == 256 bytes.
+ * The high 128 bits are stored here.
  */
 struct ymmh_struct {
-	u8				ymmh_space[256];
-};
+	struct reg_128_bit              hi_ymm[16];
+} __packed;
 
 /* Intel MPX support: */
 
