@@ -184,7 +184,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 
 	if (buffer_size_max < GB_OPERATION_MESSAGE_SIZE_MIN) {
 		dev_err(parent, "greybus host-device buffers too small\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (num_cports == 0 || num_cports > CPORT_ID_MAX) {
