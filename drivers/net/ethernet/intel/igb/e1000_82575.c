@@ -272,6 +272,11 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 			if (ret_val)
 				goto out;
 		}
+		if (phy->id == M88E1543_E_PHY_ID) {
+			ret_val = igb_initialize_M88E1543_phy(hw);
+			if (ret_val)
+				goto out;
+		}
 		break;
 	case IGP03E1000_E_PHY_ID:
 		phy->type = e1000_phy_igp_3;
@@ -925,6 +930,8 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 
 	if (phy->id == M88E1512_E_PHY_ID)
 		ret_val = igb_initialize_M88E1512_phy(hw);
+	if (phy->id == M88E1543_E_PHY_ID)
+		ret_val = igb_initialize_M88E1543_phy(hw);
 out:
 	return ret_val;
 }
