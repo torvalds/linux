@@ -312,24 +312,64 @@ static void __init setup_init_fpu_buf(void)
 /*
  * Calculate total size of enabled xstates in XCR0/xfeatures_mask.
  */
-static void __init init_xstate_size(void)
+static unsigned int __init calculate_xstate_size(void)
 {
 	unsigned int eax, ebx, ecx, edx;
+	unsigned int calculated_xstate_size;
 	int i;
 
 	if (!cpu_has_xsaves) {
 		cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
-		xstate_size = ebx;
-		return;
+		calculated_xstate_size = ebx;
+		return calculated_xstate_size;
 	}
 
-	xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	calculated_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	for (i = 2; i < 64; i++) {
 		if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
 			cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
-			xstate_size += eax;
+			calculated_xstate_size += eax;
 		}
 	}
+	return calculated_xstate_size;
+}
+
+/*
+ * Will the runtime-enumerated 'xstate_size' fit in the init
+ * task's statically-allocated buffer?
+ */
+static bool is_supported_xstate_size(unsigned int test_xstate_size)
+{
+	if (test_xstate_size <= sizeof(union fpregs_state))
+		return true;
+
+	pr_warn("x86/fpu: xstate buffer too small (%zu < %d), disabling xsave\n",
+			sizeof(union fpregs_state), test_xstate_size);
+	return false;
+}
+
+static int init_xstate_size(void)
+{
+	/* Recompute the context size for enabled features: */
+	unsigned int possible_xstate_size = calculate_xstate_size();
+
+	/* Ensure we have the space to store all enabled: */
+	if (!is_supported_xstate_size(possible_xstate_size))
+		return -EINVAL;
+
+	/*
+	 * The size is OK, we are definitely going to use xsave,
+	 * make it known to the world that we need more space.
+	 */
+	xstate_size = possible_xstate_size;
+	return 0;
+}
+
+void fpu__init_disable_system_xstate(void)
+{
+	xfeatures_mask = 0;
+	cr4_clear_bits(X86_CR4_OSXSAVE);
+	fpu__xstate_clear_all_cpu_caps();
 }
 
 /*
@@ -340,6 +380,7 @@ void __init fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 	static int on_boot_cpu = 1;
+	int err;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -367,9 +408,12 @@ void __init fpu__init_system_xstate(void)
 
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();
-
-	/* Recompute the context size for enabled features: */
-	init_xstate_size();
+	err = init_xstate_size();
+	if (err) {
+		/* something went wrong, boot without any XSAVE support */
+		fpu__init_disable_system_xstate();
+		return;
+	}
 
 	update_regset_xstate_info(xstate_size, xfeatures_mask);
 	fpu__init_prepare_fx_sw_frame();

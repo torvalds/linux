@@ -159,22 +159,19 @@ struct xstate_header {
 	u64				reserved[6];
 } __attribute__((packed));
 
-/* New processor state extensions should be added here: */
-#define XSTATE_RESERVE			(sizeof(struct ymmh_struct) + \
-					 sizeof(struct lwp_struct)  + \
-					 sizeof(struct mpx_struct)  )
 /*
  * This is our most modern FPU state format, as saved by the XSAVE
  * and restored by the XRSTOR instructions.
  *
  * It consists of a legacy fxregs portion, an xstate header and
- * subsequent fixed size areas as defined by the xstate header.
- * Not all CPUs support all the extensions.
+ * subsequent areas as defined by the xstate header.  Not all CPUs
+ * support all the extensions, so the size of the extended area
+ * can vary quite a bit between CPUs.
  */
 struct xregs_state {
 	struct fxregs_state		i387;
 	struct xstate_header		header;
-	u8				__reserved[XSTATE_RESERVE];
+	u8				extended_state_area[0];
 } __attribute__ ((packed, aligned (64)));
 
 /*
@@ -182,7 +179,9 @@ struct xregs_state {
  * put together, so that we can pick the right one runtime.
  *
  * The size of the structure is determined by the largest
- * member - which is the xsave area:
+ * member - which is the xsave area.  The padding is there
+ * to ensure that statically-allocated task_structs (just
+ * the init_task today) have enough space.
  */
 union fpregs_state {
 	struct fregs_state		fsave;
