@@ -79,7 +79,7 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 	size_t line_len, off_last = 0;
 	ssize_t ret;
 	int err = 0;
-	u64 addr;
+	u64 addr, last_addr = start_addr;
 
 	while (off_last < *len) {
 		size_t off, read_bytes, written_bytes;
@@ -101,6 +101,11 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 
 		if (sscanf(line, "%"PRIx64, &addr) != 1)
 			continue;
+		if (addr < last_addr) {
+			pr_debug("addr going backwards, read beyond section?\n");
+			break;
+		}
+		last_addr = addr;
 
 		/* copy it from temporary buffer to 'buf' according
 		 * to address on current objdump line */
