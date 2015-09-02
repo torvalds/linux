@@ -366,7 +366,18 @@ lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
 			return err;
 	}
 
-	hdr.payload_len = htons(skb->len);
+	switch (lowpan_priv(dev)->lltype) {
+	case LOWPAN_LLTYPE_IEEE802154:
+		if (lowpan_802154_cb(skb)->d_size)
+			hdr.payload_len = htons(lowpan_802154_cb(skb)->d_size -
+						sizeof(struct ipv6hdr));
+		else
+			hdr.payload_len = htons(skb->len);
+		break;
+	default:
+		hdr.payload_len = htons(skb->len);
+		break;
+	}
 
 	pr_debug("skb headroom size = %d, data length = %d\n",
 		 skb_headroom(skb), skb->len);

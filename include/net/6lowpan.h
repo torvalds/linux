@@ -126,13 +126,19 @@
 	 (((a)[6]) == 0xFF) &&	\
 	 (((a)[7]) == 0xFF))
 
-#define LOWPAN_DISPATCH_IPV6	0x41 /* 01000001 = 65 */
-#define LOWPAN_DISPATCH_HC1	0x42 /* 01000010 = 66 */
-#define LOWPAN_DISPATCH_IPHC	0x60 /* 011xxxxx = ... */
-#define LOWPAN_DISPATCH_FRAG1	0xc0 /* 11000xxx */
-#define LOWPAN_DISPATCH_FRAGN	0xe0 /* 11100xxx */
+#define LOWPAN_DISPATCH_IPV6		0x41 /* 01000001 = 65 */
+#define LOWPAN_DISPATCH_IPHC		0x60 /* 011xxxxx = ... */
+#define LOWPAN_DISPATCH_IPHC_MASK	0xe0
 
-#define LOWPAN_DISPATCH_MASK	0xf8 /* 11111000 */
+static inline bool lowpan_is_ipv6(u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_IPV6;
+}
+
+static inline bool lowpan_is_iphc(u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_IPHC_MASK) == LOWPAN_DISPATCH_IPHC;
+}
 
 #define LOWPAN_FRAG_TIMEOUT	(HZ * 60)	/* time-out 60 sec */
 
@@ -216,6 +222,19 @@ static inline
 struct lowpan_priv *lowpan_priv(const struct net_device *dev)
 {
 	return netdev_priv(dev);
+}
+
+struct lowpan_802154_cb {
+	u16 d_tag;
+	unsigned int d_size;
+	u8 d_offset;
+};
+
+static inline
+struct lowpan_802154_cb *lowpan_802154_cb(const struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(skb->cb));
+	return (struct lowpan_802154_cb *)skb->cb;
 }
 
 #ifdef DEBUG

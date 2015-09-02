@@ -32,17 +32,6 @@
 
 static const char lowpan_frags_cache_name[] = "lowpan-frags";
 
-struct lowpan_frag_info {
-	u16 d_tag;
-	u16 d_size;
-	u8 d_offset;
-};
-
-static struct lowpan_frag_info *lowpan_cb(struct sk_buff *skb)
-{
-	return (struct lowpan_frag_info *)skb->cb;
-}
-
 static struct inet_frags lowpan_frags;
 
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
@@ -111,7 +100,7 @@ out:
 }
 
 static inline struct lowpan_frag_queue *
-fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
+fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 	const struct ieee802154_addr *src,
 	const struct ieee802154_addr *dst)
 {
@@ -121,12 +110,12 @@ fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
 
-	arg.tag = frag_info->d_tag;
-	arg.d_size = frag_info->d_size;
+	arg.tag = cb->d_tag;
+	arg.d_size = cb->d_size;
 	arg.src = src;
 	arg.dst = dst;
 
-	hash = lowpan_hash_frag(frag_info->d_tag, frag_info->d_size, src, dst);
+	hash = lowpan_hash_frag(cb->d_tag, cb->d_size, src, dst);
 
 	q = inet_frag_find(&ieee802154_lowpan->frags,
 			   &lowpan_frags, &arg, hash);
@@ -138,7 +127,7 @@ fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
 }
 
 static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
-			     struct sk_buff *skb, const u8 frag_type)
+			     struct sk_buff *skb, u8 frag_type)
 {
 	struct sk_buff *prev, *next;
 	struct net_device *ldev;
@@ -147,8 +136,8 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
-	offset = lowpan_cb(skb)->d_offset << 3;
-	end = lowpan_cb(skb)->d_size;
+	offset = lowpan_802154_cb(skb)->d_offset << 3;
+	end = lowpan_802154_cb(skb)->d_size;
 
 	/* Is this the final fragment? */
 	if (offset + skb->len == end) {
@@ -174,13 +163,16 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	 * this fragment, right?
 	 */
 	prev = fq->q.fragments_tail;
-	if (!prev || lowpan_cb(prev)->d_offset < lowpan_cb(skb)->d_offset) {
+	if (!prev ||
+	    lowpan_802154_cb(prev)->d_offset <
+	    lowpan_802154_cb(skb)->d_offset) {
 		next = NULL;
 		goto found;
 	}
 	prev = NULL;
 	for (next = fq->q.fragments; next != NULL; next = next->next) {
-		if (lowpan_cb(next)->d_offset >= lowpan_cb(skb)->d_offset)
+		if (lowpan_802154_cb(next)->d_offset >=
+		    lowpan_802154_cb(skb)->d_offset)
 			break;	/* bingo! */
 		prev = next;
 	}
@@ -200,13 +192,10 @@ found:
 		skb->dev = NULL;
 
 	fq->q.stamp = skb->tstamp;
-	if (frag_type == LOWPAN_DISPATCH_FRAG1) {
-		/* Calculate uncomp. 6lowpan header to estimate full size */
-		fq->q.meat += lowpan_uncompress_size(skb, NULL);
+	if (frag_type == LOWPAN_DISPATCH_FRAG1)
 		fq->q.flags |= INET_FRAG_FIRST_IN;
-	} else {
-		fq->q.meat += skb->len;
-	}
+
+	fq->q.meat += skb->len;
 	add_frag_mem_limit(fq->q.net, skb->truesize);
 
 	if (fq->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
@@ -325,24 +314,87 @@ out_oom:
 	return -1;
 }
 
-static int lowpan_get_frag_info(struct sk_buff *skb, const u8 frag_type,
-				struct lowpan_frag_info *frag_info)
+static int lowpan_frag_rx_handlers_result(struct sk_buff *skb,
+					  lowpan_rx_result res)
+{
+	switch (res) {
+	case RX_QUEUED:
+		return NET_RX_SUCCESS;
+	case RX_CONTINUE:
+		/* nobody cared about this packet */
+		net_warn_ratelimited("%s: received unknown dispatch\n",
+				     __func__);
+
+		/* fall-through */
+	default:
+		/* all others failure */
+		return NET_RX_DROP;
+	}
+}
+
+static lowpan_rx_result lowpan_frag_rx_h_iphc(struct sk_buff *skb)
+{
+	int ret;
+
+	if (!lowpan_is_iphc(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	ret = lowpan_iphc_decompress(skb);
+	if (ret < 0)
+		return RX_DROP;
+
+	return RX_QUEUED;
+}
+
+static int lowpan_invoke_frag_rx_handlers(struct sk_buff *skb)
+{
+	lowpan_rx_result res;
+
+#define CALL_RXH(rxh)			\
+	do {				\
+		res = rxh(skb);	\
+		if (res != RX_CONTINUE)	\
+			goto rxh_next;	\
+	} while (0)
+
+	/* likely at first */
+	CALL_RXH(lowpan_frag_rx_h_iphc);
+	CALL_RXH(lowpan_rx_h_ipv6);
+
+rxh_next:
+	return lowpan_frag_rx_handlers_result(skb, res);
+#undef CALL_RXH
+}
+
+#define LOWPAN_FRAG_DGRAM_SIZE_HIGH_MASK	0x07
+#define LOWPAN_FRAG_DGRAM_SIZE_HIGH_SHIFT	8
+
+static int lowpan_get_cb(struct sk_buff *skb, u8 frag_type,
+			 struct lowpan_802154_cb *cb)
 {
 	bool fail;
-	u8 pattern = 0, low = 0;
+	u8 high = 0, low = 0;
 	__be16 d_tag = 0;
 
-	fail = lowpan_fetch_skb(skb, &pattern, 1);
+	fail = lowpan_fetch_skb(skb, &high, 1);
 	fail |= lowpan_fetch_skb(skb, &low, 1);
-	frag_info->d_size = (pattern & 7) << 8 | low;
+	/* remove the dispatch value and use first three bits as high value
+	 * for the datagram size
+	 */
+	cb->d_size = (high & LOWPAN_FRAG_DGRAM_SIZE_HIGH_MASK) <<
+		LOWPAN_FRAG_DGRAM_SIZE_HIGH_SHIFT | low;
 	fail |= lowpan_fetch_skb(skb, &d_tag, 2);
-	frag_info->d_tag = ntohs(d_tag);
+	cb->d_tag = ntohs(d_tag);
 
 	if (frag_type == LOWPAN_DISPATCH_FRAGN) {
-		fail |= lowpan_fetch_skb(skb, &frag_info->d_offset, 1);
+		fail |= lowpan_fetch_skb(skb, &cb->d_offset, 1);
 	} else {
 		skb_reset_network_header(skb);
-		frag_info->d_offset = 0;
+		cb->d_offset = 0;
+		/* check if datagram_size has ipv6hdr on FRAG1 */
+		fail |= cb->d_size < sizeof(struct ipv6hdr);
+		/* check if we can dereference the dispatch value */
+		fail |= !skb->len;
 	}
 
 	if (unlikely(fail))
@@ -351,27 +403,33 @@ static int lowpan_get_frag_info(struct sk_buff *skb, const u8 frag_type,
 	return 0;
 }
 
-int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
+int lowpan_frag_rcv(struct sk_buff *skb, u8 frag_type)
 {
 	struct lowpan_frag_queue *fq;
 	struct net *net = dev_net(skb->dev);
-	struct lowpan_frag_info *frag_info = lowpan_cb(skb);
-	struct ieee802154_addr source, dest;
+	struct lowpan_802154_cb *cb = lowpan_802154_cb(skb);
+	struct ieee802154_hdr hdr;
 	int err;
 
-	source = mac_cb(skb)->source;
-	dest = mac_cb(skb)->dest;
+	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
+		goto err;
 
-	err = lowpan_get_frag_info(skb, frag_type, frag_info);
+	err = lowpan_get_cb(skb, frag_type, cb);
 	if (err < 0)
 		goto err;
 
-	if (frag_info->d_size > IPV6_MIN_MTU) {
+	if (frag_type == LOWPAN_DISPATCH_FRAG1) {
+		err = lowpan_invoke_frag_rx_handlers(skb);
+		if (err == NET_RX_DROP)
+			goto err;
+	}
+
+	if (cb->d_size > IPV6_MIN_MTU) {
 		net_warn_ratelimited("lowpan_frag_rcv: datagram size exceeds MTU\n");
 		goto err;
 	}
 
-	fq = fq_find(net, frag_info, &source, &dest);
+	fq = fq_find(net, cb, &hdr.source, &hdr.dest);
 	if (fq != NULL) {
 		int ret;
 
