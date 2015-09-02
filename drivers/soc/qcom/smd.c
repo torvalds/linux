@@ -371,20 +371,15 @@ static void qcom_smd_channel_set_state(struct qcom_smd_channel *channel,
 /*
  * Copy count bytes of data using 32bit accesses, if that's required.
  */
-static void smd_copy_to_fifo(void __iomem *_dst,
-			     const void *_src,
+static void smd_copy_to_fifo(void __iomem *dst,
+			     const void *src,
 			     size_t count,
 			     bool word_aligned)
 {
-	u32 *dst = (u32 *)_dst;
-	u32 *src = (u32 *)_src;
-
 	if (word_aligned) {
-		count /= sizeof(u32);
-		while (count--)
-			writel_relaxed(*src++, dst++);
+		__iowrite32_copy(dst, src, count / sizeof(u32));
 	} else {
-		memcpy_toio(_dst, _src, count);
+		memcpy_toio(dst, src, count);
 	}
 }
 
