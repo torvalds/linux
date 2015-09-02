@@ -213,6 +213,7 @@ enum {
 
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
+	FRAME_RELEASE = 0xc3,
 	BA_NOTIF = 0xc5,
 
 	/* Location Aware Regulatory */
