@@ -556,7 +556,7 @@ static int ap_probe(struct usb_interface *interface,
 	int i;
 
 	/* We need to fit a CPort ID in one byte of a message header */
-	BUILD_BUG_ON(CPORT_ID_MAX > U8_MAX);
+	BUILD_BUG_ON(CPORT_COUNT > U8_MAX + 1);
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
