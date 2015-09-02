@@ -39,11 +39,11 @@ This property will make GPIOs 15, 16 and 17 available to the driver under the
 
 	struct gpio_desc *red, *green, *blue, *power;
 
-	red = gpiod_get_index(dev, "led", 0);
-	green = gpiod_get_index(dev, "led", 1);
-	blue = gpiod_get_index(dev, "led", 2);
+	red = gpiod_get_index(dev, "led", 0, GPIOD_OUT_HIGH);
+	green = gpiod_get_index(dev, "led", 1, GPIOD_OUT_HIGH);
+	blue = gpiod_get_index(dev, "led", 2, GPIOD_OUT_HIGH);
 
-	power = gpiod_get(dev, "power");
+	power = gpiod_get(dev, "power", GPIOD_OUT_HIGH);
 
 The led GPIOs will be active-high, while the power GPIO will be active-low (i.e.
 gpiod_is_active_low(power) will be true).
@@ -142,13 +142,14 @@ The driver controlling "foo.0" will then be able to obtain its GPIOs as follows:
 
 	struct gpio_desc *red, *green, *blue, *power;
 
-	red = gpiod_get_index(dev, "led", 0);
-	green = gpiod_get_index(dev, "led", 1);
-	blue = gpiod_get_index(dev, "led", 2);
+	red = gpiod_get_index(dev, "led", 0, GPIOD_OUT_HIGH);
+	green = gpiod_get_index(dev, "led", 1, GPIOD_OUT_HIGH);
+	blue = gpiod_get_index(dev, "led", 2, GPIOD_OUT_HIGH);
 
-	power = gpiod_get(dev, "power");
-	gpiod_direction_output(power, 1);
+	power = gpiod_get(dev, "power", GPIOD_OUT_HIGH);
 
-Since the "power" GPIO is mapped as active-low, its actual signal will be 0
-after this code. Contrary to the legacy integer GPIO interface, the active-low
-property is handled during mapping and is thus transparent to GPIO consumers.
+Since the "led" GPIOs are mapped as active-high, this example will switch their
+signals to 1, i.e. enabling the LEDs. And for the "power" GPIO, which is mapped
+as active-low, its actual signal will be 0 after this code. Contrary to the legacy
+integer GPIO interface, the active-low property is handled during mapping and is
+thus transparent to GPIO consumers.
