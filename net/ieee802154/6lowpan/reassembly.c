@@ -46,7 +46,7 @@ static struct lowpan_frag_info *lowpan_cb(struct sk_buff *skb)
 static struct inet_frags lowpan_frags;
 
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
-			     struct sk_buff *prev, struct net_device *dev);
+			     struct sk_buff *prev, struct net_device *ldev);
 
 static unsigned int lowpan_hash_frag(u16 tag, u16 d_size,
 				     const struct ieee802154_addr *saddr,
@@ -141,7 +141,7 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 			     struct sk_buff *skb, const u8 frag_type)
 {
 	struct sk_buff *prev, *next;
-	struct net_device *dev;
+	struct net_device *ldev;
 	int end, offset;
 
 	if (fq->q.flags & INET_FRAG_COMPLETE)
@@ -195,8 +195,8 @@ found:
 	else
 		fq->q.fragments = skb;
 
-	dev = skb->dev;
-	if (dev)
+	ldev = skb->dev;
+	if (ldev)
 		skb->dev = NULL;
 
 	fq->q.stamp = skb->tstamp;
@@ -215,7 +215,7 @@ found:
 		unsigned long orefdst = skb->_skb_refdst;
 
 		skb->_skb_refdst = 0UL;
-		res = lowpan_frag_reasm(fq, prev, dev);
+		res = lowpan_frag_reasm(fq, prev, ldev);
 		skb->_skb_refdst = orefdst;
 		return res;
 	}
@@ -235,7 +235,7 @@ err:
  *	the last and the first frames arrived and all the bits are here.
  */
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *prev,
-			     struct net_device *dev)
+			     struct net_device *ldev)
 {
 	struct sk_buff *fp, *head = fq->q.fragments;
 	int sum_truesize;
@@ -313,7 +313,7 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *prev,
 	sub_frag_mem_limit(fq->q.net, sum_truesize);
 
 	head->next = NULL;
-	head->dev = dev;
+	head->dev = ldev;
 	head->tstamp = fq->q.stamp;
 
 	fq->q.fragments = NULL;

@@ -40,7 +40,7 @@ static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
 
 /* private device info */
 struct lowpan_dev_info {
-	struct net_device	*real_dev; /* real WPAN device ptr */
+	struct net_device	*wdev; /* wpan device ptr */
 	u16			fragment_tag;
 };
 
