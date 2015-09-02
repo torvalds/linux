@@ -628,7 +628,8 @@ struct drm_encoder *sti_hdmi_best_encoder(struct drm_connector *connector)
 	return hdmi_connector->encoder;
 }
 
-static struct drm_connector_helper_funcs sti_hdmi_connector_helper_funcs = {
+static const
+struct drm_connector_helper_funcs sti_hdmi_connector_helper_funcs = {
 	.get_modes = sti_hdmi_connector_get_modes,
 	.mode_valid = sti_hdmi_connector_mode_valid,
 	.best_encoder = sti_hdmi_best_encoder,
@@ -663,7 +664,7 @@ static void sti_hdmi_connector_destroy(struct drm_connector *connector)
 	kfree(hdmi_connector);
 }
 
-static struct drm_connector_funcs sti_hdmi_connector_funcs = {
+static const struct drm_connector_funcs sti_hdmi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hdmi_connector_detect,

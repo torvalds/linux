@@ -107,7 +107,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 	return 0;
 }
 
-static struct drm_mode_config_funcs sti_mode_config_funcs = {
+static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = sti_atomic_commit,

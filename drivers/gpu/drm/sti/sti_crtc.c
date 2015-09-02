@@ -226,7 +226,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
+static const struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
 	.enable = sti_crtc_enable,
 	.disable = sti_crtc_disabling,
 	.mode_fixup = sti_crtc_mode_fixup,
@@ -338,7 +338,7 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 }
 EXPORT_SYMBOL(sti_crtc_disable_vblank);
 
-static struct drm_crtc_funcs sti_crtc_funcs = {
+static const struct drm_crtc_funcs sti_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = sti_crtc_destroy,
