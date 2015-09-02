@@ -387,7 +387,6 @@ err:
 	kfree_skb(skb);
 	return -1;
 }
-EXPORT_SYMBOL(lowpan_frag_rcv);
 
 #ifdef CONFIG_SYSCTL
 static int zero;
