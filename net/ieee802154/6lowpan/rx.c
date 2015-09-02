@@ -326,7 +326,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	    lowpan_is_iphc(*skb_network_header(skb))) {
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb)
-			return RX_DROP;
+			return NET_RX_DROP;
 	}
 
 	return lowpan_invoke_rx_handlers(skb);
