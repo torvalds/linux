@@ -1,6 +1,14 @@
 #ifndef __API_FS__
 #define __API_FS__
 
+/*
+ * On most systems <limits.h> would have given us this, but  not on some systems
+ * (e.g. GNU/Hurd).
+ */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #ifndef SYSFS_MAGIC
 #define SYSFS_MAGIC            0x62656572
 #endif

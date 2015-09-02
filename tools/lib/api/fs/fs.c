@@ -15,6 +15,9 @@
 #include "debugfs.h"
 #include "fs.h"
 
+#define _STR(x) #x
+#define STR(x) _STR(x)
+
 static const char * const sysfs__fs_known_mountpoints[] = {
 	"/sys",
 	0,
