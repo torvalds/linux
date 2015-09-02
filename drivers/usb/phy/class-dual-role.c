@@ -86,7 +86,7 @@ void dual_role_instance_changed(struct dual_role_phy_instance *dual_role)
 	pm_wakeup_event(&dual_role->dev, DUAL_ROLE_NOTIFICATION_TIMEOUT);
 	schedule_work(&dual_role->changed_work);
 }
-EXPORT_SYMBOL_GPL(dual_role_instance_changed)
+EXPORT_SYMBOL_GPL(dual_role_instance_changed);
 
 int dual_role_get_property(struct dual_role_phy_instance *dual_role,
 			   enum dual_role_property prop,
