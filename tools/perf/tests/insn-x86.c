@@ -17,11 +17,15 @@ struct test_data {
 
 struct test_data test_data_32[] = {
 #include "insn-x86-dat-32.c"
+	{{0x0f, 0x01, 0xee}, 3, 0, NULL, NULL, "0f 01 ee             \trdpkru"},
+	{{0x0f, 0x01, 0xef}, 3, 0, NULL, NULL, "0f 01 ef             \twrpkru"},
 	{{0}, 0, 0, NULL, NULL, NULL},
 };
 
 struct test_data test_data_64[] = {
 #include "insn-x86-dat-64.c"
+	{{0x0f, 0x01, 0xee}, 3, 0, NULL, NULL, "0f 01 ee             \trdpkru"},
+	{{0x0f, 0x01, 0xef}, 3, 0, NULL, NULL, "0f 01 ef             \twrpkru"},
 	{{0}, 0, 0, NULL, NULL, NULL},
 };
 
