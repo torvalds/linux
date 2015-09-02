@@ -76,9 +76,27 @@ static int lowpan_dev_init(struct net_device *ldev)
 	return 0;
 }
 
+static int lowpan_open(struct net_device *dev)
+{
+	if (!open_count)
+		lowpan_rx_init();
+	open_count++;
+	return 0;
+}
+
+static int lowpan_stop(struct net_device *dev)
+{
+	open_count--;
+	if (!open_count)
+		lowpan_rx_exit();
+	return 0;
+}
+
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
 	.ndo_start_xmit		= lowpan_xmit,
+	.ndo_open		= lowpan_open,
+	.ndo_stop		= lowpan_stop,
 };
 
 static void lowpan_setup(struct net_device *ldev)
@@ -149,11 +167,6 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	}
 
 	wdev->ieee802154_ptr->lowpan_dev = ldev;
-	if (!open_count)
-		lowpan_rx_init();
-
-	open_count++;
-
 	return 0;
 }
 
@@ -162,11 +175,6 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
 
 	ASSERT_RTNL();
-
-	open_count--;
-
-	if (!open_count)
-		lowpan_rx_exit();
 
 	wdev->ieee802154_ptr->lowpan_dev = NULL;
 	unregister_netdevice(ldev);
