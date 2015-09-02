@@ -1447,7 +1447,7 @@ static int bgmac_fixed_phy_register(struct bgmac *bgmac)
 	struct phy_device *phy_dev;
 	int err;
 
-	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
+	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, -1, NULL);
 	if (!phy_dev || IS_ERR(phy_dev)) {
 		bgmac_err(bgmac, "Failed to register fixed PHY device\n");
 		return -ENODEV;
