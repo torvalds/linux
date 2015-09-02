@@ -127,7 +127,7 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 			placements[c].fpfn =
 				adev->mc.visible_vram_size >> PAGE_SHIFT;
 			placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_VRAM;
+				TTM_PL_FLAG_VRAM | TTM_PL_FLAG_TOPDOWN;
 		}
 		placements[c].fpfn = 0;
 		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
