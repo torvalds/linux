@@ -1111,17 +1111,14 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = state->planes[i];
 		struct drm_plane_state *plane_state = state->plane_states[i];
-		struct drm_framebuffer *fb;
 
 		if (!plane)
 			continue;
 
 		funcs = plane->helper_private;
 
-		fb = plane_state->fb;
-
-		if (fb && funcs->prepare_fb) {
-			ret = funcs->prepare_fb(plane, fb, plane_state);
+		if (funcs->prepare_fb) {
+			ret = funcs->prepare_fb(plane, plane_state);
 			if (ret)
 				goto fail;
 		}
@@ -1134,17 +1131,14 @@ fail:
 		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = state->planes[i];
 		struct drm_plane_state *plane_state = state->plane_states[i];
-		struct drm_framebuffer *fb;
 
 		if (!plane)
 			continue;
 
 		funcs = plane->helper_private;
 
-		fb = state->plane_states[i]->fb;
-
-		if (fb && funcs->cleanup_fb)
-			funcs->cleanup_fb(plane, fb, plane_state);
+		if (funcs->cleanup_fb)
+			funcs->cleanup_fb(plane, plane_state);
 
 	}
 
@@ -1300,14 +1294,11 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 
 	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_framebuffer *old_fb;
 
 		funcs = plane->helper_private;
 
-		old_fb = plane_state->fb;
-
-		if (old_fb && funcs->cleanup_fb)
-			funcs->cleanup_fb(plane, old_fb, plane_state);
+		if (funcs->cleanup_fb)
+			funcs->cleanup_fb(plane, plane_state);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
