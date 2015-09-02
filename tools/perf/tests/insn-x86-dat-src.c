@@ -445,6 +445,30 @@ int main(void)
 	asm volatile("xsaveopt (%r8)");
 	asm volatile("mfence");
 
+	/* xsavec mem */
+
+	asm volatile("xsavec (%rax)");
+	asm volatile("xsavec (%r8)");
+	asm volatile("xsavec (0x12345678)");
+	asm volatile("xsavec 0x12345678(%rax,%rcx,8)");
+	asm volatile("xsavec 0x12345678(%r8,%rcx,8)");
+
+	/* xsaves mem */
+
+	asm volatile("xsaves (%rax)");
+	asm volatile("xsaves (%r8)");
+	asm volatile("xsaves (0x12345678)");
+	asm volatile("xsaves 0x12345678(%rax,%rcx,8)");
+	asm volatile("xsaves 0x12345678(%r8,%rcx,8)");
+
+	/* xrstors mem */
+
+	asm volatile("xrstors (%rax)");
+	asm volatile("xrstors (%r8)");
+	asm volatile("xrstors (0x12345678)");
+	asm volatile("xrstors 0x12345678(%rax,%rcx,8)");
+	asm volatile("xrstors 0x12345678(%r8,%rcx,8)");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bndmk m32, bnd */
@@ -821,6 +845,24 @@ int main(void)
 	/* Also check instructions in the same group encoding as clwb */
 	asm volatile("xsaveopt (%eax)");
 	asm volatile("mfence");
+
+	/* xsavec mem */
+
+	asm volatile("xsavec (%eax)");
+	asm volatile("xsavec (0x12345678)");
+	asm volatile("xsavec 0x12345678(%eax,%ecx,8)");
+
+	/* xsaves mem */
+
+	asm volatile("xsaves (%eax)");
+	asm volatile("xsaves (0x12345678)");
+	asm volatile("xsaves 0x12345678(%eax,%ecx,8)");
+
+	/* xrstors mem */
+
+	asm volatile("xrstors (%eax)");
+	asm volatile("xrstors (0x12345678)");
+	asm volatile("xrstors 0x12345678(%eax,%ecx,8)");
 
 #endif /* #ifndef __x86_64__ */
 
