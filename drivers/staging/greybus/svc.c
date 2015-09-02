@@ -7,8 +7,9 @@
  * Released under the GPLv2 only.
  */
 
-#include "greybus.h"
 #include <linux/workqueue.h>
+
+#include "greybus.h"
 
 #define CPORT_FLAGS_E2EFC       (1)
 #define CPORT_FLAGS_CSD_N       (2)
