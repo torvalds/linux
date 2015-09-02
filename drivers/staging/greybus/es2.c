@@ -33,9 +33,6 @@ static struct dentry *apb1_log_enable_dentry;
 static struct task_struct *apb1_log_task;
 static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
-/* Number of cport present on USB bridge */
-#define CPORT_COUNT		44
-
 /* Number of bulk in and bulk out couple */
 #define NUM_BULKS		7
 
@@ -59,6 +56,9 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
 /* vendor request to map a cport to bulk in and bulk out endpoints */
 #define REQUEST_EP_MAPPING	0x03
+
+/* vendor request to get the number of cports available */
+#define REQUEST_CPORT_COUNT	0x04
 
 /*
  * @endpoint: bulk in endpoint for CPort data
@@ -636,6 +636,39 @@ static const struct file_operations apb1_log_enable_fops = {
 	.write	= apb1_log_enable_write,
 };
 
+static int apb1_get_cport_count(struct usb_device *udev)
+{
+	int retval;
+	__le16 *cport_count;
+
+	cport_count = kmalloc(sizeof(*cport_count), GFP_KERNEL);
+	if (!cport_count)
+		return -ENOMEM;
+
+	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				 REQUEST_CPORT_COUNT,
+				 USB_DIR_IN | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, 0, 0, cport_count,
+				 sizeof(*cport_count), ES1_TIMEOUT);
+	if (retval < 0) {
+		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
+			retval);
+		goto out;
+	}
+
+	retval = le16_to_cpu(*cport_count);
+
+	/* We need to fit a CPort ID in one byte of a message header */
+	if (retval > U8_MAX) {
+		retval = U8_MAX;
+		dev_warn(&udev->dev, "Limiting number of CPorts to U8_MAX\n");
+	}
+
+out:
+	kfree(cport_count);
+	return retval;
+}
+
 /*
  * The ES1 USB Bridge device contains 4 endpoints
  * 1 Control - usual USB stuff + AP -> SVC messages
@@ -655,14 +688,20 @@ static int ap_probe(struct usb_interface *interface,
 	int bulk_out = 0;
 	int retval = -ENOMEM;
 	int i;
-
-	/* We need to fit a CPort ID in one byte of a message header */
-	BUILD_BUG_ON(CPORT_ID_MAX > U8_MAX);
+	int num_cports;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
+	num_cports = apb1_get_cport_count(udev);
+	if (num_cports < 0) {
+		usb_put_dev(udev);
+		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
+			num_cports);
+		return num_cports;
+	}
+
 	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX,
-			       CPORT_COUNT);
+			       num_cports);
 	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
 		return PTR_ERR(hd);
