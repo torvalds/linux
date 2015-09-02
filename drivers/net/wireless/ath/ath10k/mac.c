@@ -4080,11 +4080,27 @@ static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
 	return nsts;
 }
 
+static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
+{
+	int sound_dim = ar->vht_cap_info;
+	sound_dim &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
+	sound_dim >>=IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
+
+	/* If the sounding dimension is not advertised by the firmware,
+	 * let's use a default value of 1
+	 */
+	if (sound_dim == 0)
+		return 1;
+
+	return sound_dim;
+}
+
 static int ath10k_mac_set_txbf_conf(struct ath10k_vif *arvif)
 {
 	u32 value = 0;
 	struct ath10k *ar = arvif->ar;
 	int nsts;
+	int sound_dim;
 
 	if (ath10k_wmi_get_txbf_conf_scheme(ar) != WMI_TXBF_CONF_BEFORE_ASSOC)
 		return 0;
@@ -4094,9 +4110,10 @@ static int ath10k_mac_set_txbf_conf(struct ath10k_vif *arvif)
 				IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE))
 		value |= SM(nsts, WMI_TXBF_STS_CAP_OFFSET);
 
+	sound_dim = ath10k_mac_get_vht_cap_bf_sound_dim(ar);
 	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
 				IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE))
-		value |= SM((ar->num_rf_chains - 1), WMI_BF_SOUND_DIM_OFFSET);
+		value |= SM(sound_dim, WMI_BF_SOUND_DIM_OFFSET);
 
 	if (!value)
 		return 0;
@@ -6831,7 +6848,7 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 
 	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
 				IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)) {
-		val = ar->num_rf_chains - 1;
+		val = ath10k_mac_get_vht_cap_bf_sound_dim(ar);
 		val <<= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
 		val &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
 
