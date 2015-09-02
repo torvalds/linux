@@ -1,0 +1,102 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ul-14x14-ddr3-arm2.dts"
+
+/ {
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_codec_5v: codec_5v {
+			compatible = "regulator-fixed";
+			regulator-name = "CODEC_5V";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+		};
+
+		reg_aud_3v3: aud_3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "AUD_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+		};
+
+		reg_aud_1v8: aud_1v8 {
+			compatible = "regulator-fixed";
+			regulator-name = "AUD_1V8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+		};
+	};
+
+	sound-wm8958 {
+		compatible = "fsl,imx6ul-ddr3-arm2-wm8958",
+			   "fsl,imx-audio-wm8958";
+		model = "wm8958-audio";
+		cpu-dai = <&sai2>;
+		audio-codec = <&codec>;
+		codec-master;
+		gpr = <&gpr>;
+		hp-det-gpios = <&gpio5 0 1>;
+	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <786432000>;
+};
+
+&i2c4 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	status = "okay";
+
+	codec: wm8958@1a {
+		compatible = "wlf,wm8958";
+		reg = <0x1a>;
+		clocks = <&clks IMX6UL_CLK_SAI2>,
+		       <&clks IMX6UL_CLK_DUMMY>;
+		clock-names = "mclk1", "mclk2";
+
+		DBVDD1-supply = <&reg_aud_1v8>;
+		DBVDD2-supply = <&reg_aud_1v8>;
+		DBVDD3-supply = <&reg_aud_3v3>;
+		AVDD2-supply = <&reg_aud_1v8>;
+		CPVDD-supply = <&reg_aud_1v8>;
+		SPKVDD1-supply = <&reg_codec_5v>;
+		SPKVDD2-supply = <&reg_codec_5v>;
+
+		wlf,ldo1ena;
+		wlf,ldo2ena;
+	};
+};
+
+&sai2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai2>;
+	assigned-clocks = <&clks IMX6UL_CLK_SAI2_SEL>,
+			<&clks IMX6UL_CLK_SAI2>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&usdhc1 {
+	status = "disabled";
+};

@@ -1,0 +1,38 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ul-14x14-ddr3-arm2.dts"
+
+/ {
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-in;
+		spdif-out;
+	};
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog1>;
+};
+
+&usdhc1 {
+	no-1-8-v;
+	vmmc-supply = <>;
+};
+
+&usdhc2 {
+	no-1-8-v;
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	status = "okay";
+};
