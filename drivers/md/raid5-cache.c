@@ -215,46 +215,12 @@ static void r5l_compress_stripe_end_list(struct r5l_log *log)
 	list_add_tail(&last->log_sibling, &log->stripe_end_ios);
 }
 
-static void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
 static void __r5l_set_io_unit_state(struct r5l_io_unit *io,
 				    enum r5l_io_unit_state state)
 {
-	struct r5l_log *log = io->log;
-
 	if (WARN_ON(io->state >= state))
 		return;
 	io->state = state;
-	if (state == IO_UNIT_IO_END)
-		r5l_move_io_unit_list(&log->running_ios, &log->io_end_ios,
-				      IO_UNIT_IO_END);
-	if (state == IO_UNIT_STRIPE_END) {
-		struct r5l_io_unit *last;
-		sector_t reclaimable_space;
-
-		r5l_move_io_unit_list(&log->flushed_ios, &log->stripe_end_ios,
-				      IO_UNIT_STRIPE_END);
-
-		last = list_last_entry(&log->stripe_end_ios,
-				       struct r5l_io_unit, log_sibling);
-		reclaimable_space = r5l_ring_distance(log, log->last_checkpoint,
-						      last->log_end);
-		if (reclaimable_space >= log->max_free_space)
-			r5l_wake_reclaim(log, 0);
-
-		r5l_compress_stripe_end_list(log);
-		wake_up(&log->iounit_wait);
-	}
-}
-
-static void r5l_set_io_unit_state(struct r5l_io_unit *io,
-				  enum r5l_io_unit_state state)
-{
-	struct r5l_log *log = io->log;
-	unsigned long flags;
-
-	spin_lock_irqsave(&log->io_list_lock, flags);
-	__r5l_set_io_unit_state(io, state);
-	spin_unlock_irqrestore(&log->io_list_lock, flags);
 }
 
 /* XXX: totally ignores I/O errors */
@@ -262,13 +228,19 @@ static void r5l_log_endio(struct bio *bio)
 {
 	struct r5l_io_unit *io = bio->bi_private;
 	struct r5l_log *log = io->log;
+	unsigned long flags;
 
 	bio_put(bio);
 
 	if (!atomic_dec_and_test(&io->pending_io))
 		return;
 
-	r5l_set_io_unit_state(io, IO_UNIT_IO_END);
+	spin_lock_irqsave(&log->io_list_lock, flags);
+	__r5l_set_io_unit_state(io, IO_UNIT_IO_END);
+	r5l_move_io_unit_list(&log->running_ios, &log->io_end_ios,
+			IO_UNIT_IO_END);
+	spin_unlock_irqrestore(&log->io_list_lock, flags);
+
 	md_wakeup_thread(log->rdev->mddev->thread);
 }
 
@@ -277,6 +249,7 @@ static void r5l_submit_current_io(struct r5l_log *log)
 	struct r5l_io_unit *io = log->current_io;
 	struct r5l_meta_block *block;
 	struct bio *bio;
+	unsigned long flags;
 	u32 crc;
 
 	if (!io)
@@ -288,7 +261,9 @@ static void r5l_submit_current_io(struct r5l_log *log)
 	block->checksum = cpu_to_le32(crc);
 
 	log->current_io = NULL;
-	r5l_set_io_unit_state(io, IO_UNIT_IO_START);
+	spin_lock_irqsave(&log->io_list_lock, flags);
+	__r5l_set_io_unit_state(io, IO_UNIT_IO_START);
+	spin_unlock_irqrestore(&log->io_list_lock, flags);
 
 	while ((bio = bio_list_pop(&io->bios))) {
 		/* all IO must start from rdev->data_offset */
@@ -454,6 +429,7 @@ static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 	sh->log_io = io;
 }
 
+static void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
 /*
  * running in raid5d, where reclaim could wait for raid5d too (when it flushes
  * data from log to raid disks), so we shouldn't wait for reclaim here
@@ -547,18 +523,39 @@ static void r5l_run_no_space_stripes(struct r5l_log *log)
 	spin_unlock(&log->no_space_stripes_lock);
 }
 
+static void __r5l_stripe_write_finished(struct r5l_io_unit *io)
+{
+	struct r5l_log *log = io->log;
+	struct r5l_io_unit *last;
+	sector_t reclaimable_space;
+	unsigned long flags;
+
+	spin_lock_irqsave(&log->io_list_lock, flags);
+	__r5l_set_io_unit_state(io, IO_UNIT_STRIPE_END);
+	r5l_move_io_unit_list(&log->flushed_ios, &log->stripe_end_ios,
+			      IO_UNIT_STRIPE_END);
+
+	last = list_last_entry(&log->stripe_end_ios,
+			       struct r5l_io_unit, log_sibling);
+	reclaimable_space = r5l_ring_distance(log, log->last_checkpoint,
+					      last->log_end);
+	if (reclaimable_space >= log->max_free_space)
+		r5l_wake_reclaim(log, 0);
+
+	r5l_compress_stripe_end_list(log);
+	spin_unlock_irqrestore(&log->io_list_lock, flags);
+	wake_up(&log->iounit_wait);
+}
+
 void r5l_stripe_write_finished(struct stripe_head *sh)
 {
 	struct r5l_io_unit *io;
 
-	/* Don't support stripe batch */
 	io = sh->log_io;
-	if (!io)
-		return;
 	sh->log_io = NULL;
 
-	if (atomic_dec_and_test(&io->pending_stripe))
-		r5l_set_io_unit_state(io, IO_UNIT_STRIPE_END);
+	if (io && atomic_dec_and_test(&io->pending_stripe))
+		__r5l_stripe_write_finished(io);
 }
 
 static void r5l_log_flush_endio(struct bio *bio)
