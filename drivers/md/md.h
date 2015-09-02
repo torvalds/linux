@@ -232,6 +232,7 @@ struct mddev {
 #define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
 				 * md_ioctl checked on it.
 				 */
+#define MD_JOURNAL_CLEAN 5	/* A raid with journal is already clean */
 
 	int				suspended;
 	atomic_t			active_io;
