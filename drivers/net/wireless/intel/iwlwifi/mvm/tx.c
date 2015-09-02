@@ -736,6 +736,37 @@ static void iwl_mvm_hwrate_to_tx_status(u32 rate_n_flags,
 	iwl_mvm_hwrate_to_tx_rate(rate_n_flags, info->band, r);
 }
 
+static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
+					    u32 status)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_tx_status *status_trig;
+	int i;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TX_STATUS))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TX_STATUS);
+	status_trig = (void *)trig->data;
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, NULL, trig))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(status_trig->statuses); i++) {
+		/* don't collect on status 0 */
+		if (!status_trig->statuses[i].status)
+			break;
+
+		if (status_trig->statuses[i].status != (status & TX_STATUS_MSK))
+			continue;
+
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+					    "Tx status %d was received",
+					    status & TX_STATUS_MSK);
+		break;
+	}
+}
+
 static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				     struct iwl_rx_packet *pkt)
 {
@@ -783,6 +814,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		default:
 			break;
 		}
+
+		iwl_mvm_tx_status_check_trigger(mvm, status);
 
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		iwl_mvm_hwrate_to_tx_status(le32_to_cpu(tx_resp->initial_rate),

@@ -750,6 +750,19 @@ struct iwl_fw_dbg_trigger_tdls {
 } __packed;
 
 /**
+ * struct iwl_fw_dbg_trigger_tx_status - configures trigger for tx response
+ *  status.
+ * @statuses: the list of statuses to trigger the collection on
+ */
+struct iwl_fw_dbg_trigger_tx_status {
+	struct tx_status {
+		u8 status;
+		u8 reserved[3];
+	} __packed statuses[16];
+	__le32 reserved[2];
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used
