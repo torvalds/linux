@@ -131,6 +131,12 @@ enum xfeature {
 struct reg_128_bit {
 	u8      regbytes[128/8];
 };
+struct reg_256_bit {
+	u8	regbytes[256/8];
+};
+struct reg_512_bit {
+	u8	regbytes[512/8];
+};
 
 /*
  * State component 2:
@@ -177,6 +183,33 @@ struct mpx_bndcsr_state {
 		struct mpx_bndcsr		bndcsr;
 		u8				pad_to_64_bytes[64];
 	};
+} __packed;
+
+/* AVX-512 Components: */
+
+/*
+ * State component 5 is used for the 8 64-bit opmask registers
+ * k0-k7 (opmask state).
+ */
+struct avx_512_opmask_state {
+	u64				opmask_reg[8];
+} __packed;
+
+/*
+ * State component 6 is used for the upper 256 bits of the
+ * registers ZMM0-ZMM15. These 16 256-bit values are denoted
+ * ZMM0_H-ZMM15_H (ZMM_Hi256 state).
+ */
+struct avx_512_zmm_uppers_state {
+	struct reg_256_bit		zmm_upper[16];
+} __packed;
+
+/*
+ * State component 7 is used for the 16 512-bit registers
+ * ZMM16-ZMM31 (Hi16_ZMM state).
+ */
+struct avx_512_hi16_state {
+	struct reg_512_bit		hi16_zmm[16];
 } __packed;
 
 struct xstate_header {
