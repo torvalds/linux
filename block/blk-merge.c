@@ -67,10 +67,9 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 					 struct bio_set *bs)
 {
 	struct bio *split;
-	struct bio_vec bv, bvprv;
+	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
 	unsigned seg_size = 0, nsegs = 0, sectors = 0;
-	int prev = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
 		sectors += bv.bv_len >> 9;
@@ -82,20 +81,20 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
-		if (prev && bvec_gap_to_prev(q, &bvprv, bv.bv_offset))
+		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
 
-		if (prev && blk_queue_cluster(q)) {
+		if (bvprvp && blk_queue_cluster(q)) {
 			if (seg_size + bv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
-			if (!BIOVEC_PHYS_MERGEABLE(&bvprv, &bv))
+			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
 				goto new_segment;
-			if (!BIOVEC_SEG_BOUNDARY(q, &bvprv, &bv))
+			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
 				goto new_segment;
 
 			seg_size += bv.bv_len;
 			bvprv = bv;
-			prev = 1;
+			bvprvp = &bv;
 			continue;
 		}
 new_segment:
@@ -104,7 +103,7 @@ new_segment:
 
 		nsegs++;
 		bvprv = bv;
-		prev = 1;
+		bvprvp = &bv;
 		seg_size = bv.bv_len;
 	}
 
