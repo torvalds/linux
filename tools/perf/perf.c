@@ -518,7 +518,7 @@ int main(int argc, const char **argv)
 	if (!cmd)
 		cmd = "perf-help";
 	/* get debugfs mount point from /proc/mounts */
-	perf_debugfs_mount(NULL);
+	perf_debugfs_mount();
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *

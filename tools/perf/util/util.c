@@ -398,11 +398,11 @@ static void set_tracing_events_path(const char *tracing, const char *mountpoint)
 		 mountpoint, tracing, "events");
 }
 
-static const char *__perf_tracefs_mount(const char *mountpoint)
+static const char *__perf_tracefs_mount(void)
 {
 	const char *mnt;
 
-	mnt = tracefs_mount(mountpoint);
+	mnt = tracefs_mount(NULL);
 	if (!mnt)
 		return NULL;
 
@@ -411,11 +411,11 @@ static const char *__perf_tracefs_mount(const char *mountpoint)
 	return mnt;
 }
 
-static const char *__perf_debugfs_mount(const char *mountpoint)
+static const char *__perf_debugfs_mount(void)
 {
 	const char *mnt;
 
-	mnt = debugfs_mount(mountpoint);
+	mnt = debugfs_mount(NULL);
 	if (!mnt)
 		return NULL;
 
@@ -424,15 +424,15 @@ static const char *__perf_debugfs_mount(const char *mountpoint)
 	return mnt;
 }
 
-const char *perf_debugfs_mount(const char *mountpoint)
+const char *perf_debugfs_mount(void)
 {
 	const char *mnt;
 
-	mnt = __perf_tracefs_mount(mountpoint);
+	mnt = __perf_tracefs_mount();
 	if (mnt)
 		return mnt;
 
-	mnt = __perf_debugfs_mount(mountpoint);
+	mnt = __perf_debugfs_mount();
 
 	return mnt;
 }
