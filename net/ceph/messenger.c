@@ -2337,13 +2337,6 @@ static int read_partial_message(struct ceph_connection *con)
 			return ret;
 
 		BUG_ON(!con->in_msg ^ skip);
-		if (con->in_msg && data_len > con->in_msg->data_length) {
-			pr_warn("%s skipping long message (%u > %zd)\n",
-				__func__, data_len, con->in_msg->data_length);
-			ceph_msg_put(con->in_msg);
-			con->in_msg = NULL;
-			skip = 1;
-		}
 		if (skip) {
 			/* skip this message */
 			dout("alloc_msg said skip message\n");
