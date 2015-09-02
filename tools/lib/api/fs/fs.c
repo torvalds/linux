@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/mount.h>
 
 #include "debugfs.h"
 #include "fs.h"
@@ -215,16 +216,49 @@ static const char *fs__mountpoint(int idx)
 	return fs__get_mountpoint(fs);
 }
 
-#define FS__MOUNTPOINT(name, idx)	\
+static const char *mount_overload(struct fs *fs)
+{
+	size_t name_len = strlen(fs->name);
+	/* "PERF_" + name + "_ENVIRONMENT" + '\0' */
+	char upper_name[5 + name_len + 12 + 1];
+
+	snprintf(upper_name, name_len, "PERF_%s_ENVIRONMENT", fs->name);
+	mem_toupper(upper_name, name_len);
+
+	return getenv(upper_name) ?: *fs->mounts;
+}
+
+static const char *fs__mount(int idx)
+{
+	struct fs *fs = &fs__entries[idx];
+	const char *mountpoint;
+
+	if (fs__mountpoint(idx))
+		return (const char *)fs->path;
+
+	mountpoint = mount_overload(fs);
+
+	if (mount(NULL, mountpoint, fs->name, 0, NULL) < 0)
+		return NULL;
+
+	return fs__check_mounts(fs) ? fs->path : NULL;
+}
+
+#define FS(name, idx)			\
 const char *name##__mountpoint(void)	\
 {					\
 	return fs__mountpoint(idx);	\
+}					\
+					\
+const char *name##__mount(void)		\
+{					\
+	return fs__mount(idx);		\
 }
 
-FS__MOUNTPOINT(sysfs,   FS__SYSFS);
-FS__MOUNTPOINT(procfs,  FS__PROCFS);
-FS__MOUNTPOINT(debugfs, FS__DEBUGFS);
-FS__MOUNTPOINT(tracefs, FS__TRACEFS);
+FS(sysfs,   FS__SYSFS);
+FS(procfs,  FS__PROCFS);
+FS(debugfs, FS__DEBUGFS);
+FS(tracefs, FS__TRACEFS);
 
 int filename__read_int(const char *filename, int *value)
 {

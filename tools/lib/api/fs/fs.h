@@ -9,10 +9,17 @@
 #define PATH_MAX 4096
 #endif
 
-const char *sysfs__mountpoint(void);
-const char *procfs__mountpoint(void);
-const char *debugfs__mountpoint(void);
-const char *tracefs__mountpoint(void);
+#define FS(name)				\
+	const char *name##__mountpoint(void);	\
+	const char *name##__mount(void);
+
+FS(sysfs)
+FS(procfs)
+FS(debugfs)
+FS(tracefs)
+
+#undef FS
+
 
 int filename__read_int(const char *filename, int *value);
 int sysctl__read_int(const char *sysctl, int *value);
