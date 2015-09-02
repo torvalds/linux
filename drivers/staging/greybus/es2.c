@@ -83,7 +83,6 @@ struct es1_cport_out {
  * @usb_dev: pointer to the USB device we are.
  * @usb_intf: pointer to the USB interface we are bound to.
  * @hd: pointer to our greybus_host_device structure
- * @control_endpoint: endpoint to send data to SVC
 
  * @cport_in: endpoint, urbs and buffer for cport in messages
  * @cport_out: endpoint for for cport out messages
@@ -98,8 +97,6 @@ struct es1_ap_dev {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
 	struct greybus_host_device *hd;
-
-	__u8 control_endpoint;
 
 	struct es1_cport_in cport_in[NUM_BULKS];
 	struct es1_cport_out cport_out[NUM_BULKS];
@@ -169,8 +166,7 @@ int map_cport_to_ep(struct es1_ap_dev *es1,
 	cport_to_ep->endpoint_out = es1->cport_out[bulk_ep_set].endpoint;
 
 	retval = usb_control_msg(es1->usb_dev,
-				 usb_sndctrlpipe(es1->usb_dev,
-						 es1->control_endpoint),
+				 usb_sndctrlpipe(es1->usb_dev, 0),
 				 REQUEST_EP_MAPPING,
 				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				 0x00, 0x00,
@@ -518,8 +514,7 @@ static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
 	/* SVC messages go down our control pipe */
 	do {
 		retval = usb_control_msg(es1->usb_dev,
-					usb_rcvctrlpipe(es1->usb_dev,
-							es1->control_endpoint),
+					usb_rcvctrlpipe(es1->usb_dev, 0),
 					REQUEST_LOG,
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
@@ -713,10 +708,6 @@ static int ap_probe(struct usb_interface *interface,
 	es1->usb_dev = udev;
 	spin_lock_init(&es1->cport_out_urb_lock);
 	usb_set_intfdata(interface, es1);
-
-	/* Control endpoint is the pipe to talk to this AP, so save it off */
-	endpoint = &udev->ep0.desc;
-	es1->control_endpoint = endpoint->bEndpointAddress;
 
 	es1->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es1->cport_to_ep),
 				   GFP_KERNEL);

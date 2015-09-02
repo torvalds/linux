@@ -59,7 +59,6 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
  * @usb_dev: pointer to the USB device we are.
  * @usb_intf: pointer to the USB interface we are bound to.
  * @hd: pointer to our greybus_host_device structure
- * @control_endpoint: endpoint to send data to SVC
  * @cport_in_endpoint: bulk in endpoint for CPort data
  * @cport-out_endpoint: bulk out endpoint for CPort data
  * @cport_in_urb: array of urbs for the CPort in messages
@@ -76,7 +75,6 @@ struct es1_ap_dev {
 	struct usb_interface *usb_intf;
 	struct greybus_host_device *hd;
 
-	__u8 control_endpoint;
 	__u8 cport_in_endpoint;
 	__u8 cport_out_endpoint;
 
@@ -420,8 +418,7 @@ static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
 	/* SVC messages go down our control pipe */
 	do {
 		retval = usb_control_msg(es1->usb_dev,
-					usb_rcvctrlpipe(es1->usb_dev,
-							es1->control_endpoint),
+					usb_rcvctrlpipe(es1->usb_dev, 0),
 					REQUEST_LOG,
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
@@ -576,10 +573,6 @@ static int ap_probe(struct usb_interface *interface,
 	es1->usb_dev = udev;
 	spin_lock_init(&es1->cport_out_urb_lock);
 	usb_set_intfdata(interface, es1);
-
-	/* Control endpoint is the pipe to talk to this AP, so save it off */
-	endpoint = &udev->ep0.desc;
-	es1->control_endpoint = endpoint->bEndpointAddress;
 
 	/* find all 3 of our endpoints */
 	iface_desc = interface->cur_altsetting;
