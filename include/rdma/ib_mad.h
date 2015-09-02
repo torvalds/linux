@@ -157,18 +157,6 @@
 #define IB_NOTICE_TRAP_BAD_QKEY		cpu_to_be16(258)
 
 /*
- * Repress trap/notice flags
- */
-#define IB_NOTICE_REPRESS_LLI_THRESH	(1 << 0)
-#define IB_NOTICE_REPRESS_EBO_THRESH	(1 << 1)
-#define IB_NOTICE_REPRESS_FLOW_UPDATE	(1 << 2)
-#define IB_NOTICE_REPRESS_CAP_MASK_CHG	(1 << 3)
-#define IB_NOTICE_REPRESS_SYS_GUID_CHG	(1 << 4)
-#define IB_NOTICE_REPRESS_BAD_MKEY	(1 << 5)
-#define IB_NOTICE_REPRESS_BAD_PKEY	(1 << 6)
-#define IB_NOTICE_REPRESS_BAD_QKEY	(1 << 7)
-
-/*
  * Generic trap/notice other local changes flags (trap 144).
  */
 #define IB_NOTICE_TRAP_LSE_CHG		0x04	/* Link Speed Enable changed */
