@@ -312,27 +312,190 @@ static void __init setup_init_fpu_buf(void)
 	copy_xregs_to_kernel_booting(&init_fpstate.xsave);
 }
 
+static int xfeature_is_supervisor(int xfeature_nr)
+{
+	/*
+	 * We currently do not support supervisor states, but if
+	 * we did, we could find out like this.
+	 *
+	 * SDM says: If state component i is a user state component,
+	 * ECX[0] return 0; if state component i is a supervisor
+	 * state component, ECX[0] returns 1.
+	u32 eax, ebx, ecx, edx;
+	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx;
+	return !!(ecx & 1);
+	*/
+	return 0;
+}
+/*
+static int xfeature_is_user(int xfeature_nr)
+{
+	return !xfeature_is_supervisor(xfeature_nr);
+}
+*/
+
+/*
+ * This check is important because it is easy to get XSTATE_*
+ * confused with XSTATE_BIT_*.
+ */
+#define CHECK_XFEATURE(nr) do {		\
+	WARN_ON(nr < FIRST_EXTENDED_XFEATURE);	\
+	WARN_ON(nr >= XFEATURE_MAX);	\
+} while (0)
+
+/*
+ * We could cache this like xstate_size[], but we only use
+ * it here, so it would be a waste of space.
+ */
+static int xfeature_is_aligned(int xfeature_nr)
+{
+	u32 eax, ebx, ecx, edx;
+
+	CHECK_XFEATURE(xfeature_nr);
+	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
+	/*
+	 * The value returned by ECX[1] indicates the alignment
+	 * of state component i when the compacted format
+	 * of the extended region of an XSAVE area is used
+	 */
+	return !!(ecx & 2);
+}
+
+static int xfeature_uncompacted_offset(int xfeature_nr)
+{
+	u32 eax, ebx, ecx, edx;
+
+	CHECK_XFEATURE(xfeature_nr);
+	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
+	return ebx;
+}
+
+static int xfeature_size(int xfeature_nr)
+{
+	u32 eax, ebx, ecx, edx;
+
+	CHECK_XFEATURE(xfeature_nr);
+	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
+	return eax;
+}
+
+/*
+ * 'XSAVES' implies two different things:
+ * 1. saving of supervisor/system state
+ * 2. using the compacted format
+ *
+ * Use this function when dealing with the compacted format so
+ * that it is obvious which aspect of 'XSAVES' is being handled
+ * by the calling code.
+ */
+static int using_compacted_format(void)
+{
+	return cpu_has_xsaves;
+}
+
+static void __xstate_dump_leaves(void)
+{
+	int i;
+	u32 eax, ebx, ecx, edx;
+	static int should_dump = 1;
+
+	if (!should_dump)
+		return;
+	should_dump = 0;
+	/*
+	 * Dump out a few leaves past the ones that we support
+	 * just in case there are some goodies up there
+	 */
+	for (i = 0; i < XFEATURE_MAX + 10; i++) {
+		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
+		pr_warn("CPUID[%02x, %02x]: eax=%08x ebx=%08x ecx=%08x edx=%08x\n",
+			XSTATE_CPUID, i, eax, ebx, ecx, edx);
+	}
+}
+
+#define XSTATE_WARN_ON(x) do {							\
+	if (WARN_ONCE(x, "XSAVE consistency problem, dumping leaves")) {	\
+		__xstate_dump_leaves();						\
+	}									\
+} while (0)
+
+/*
+ * This essentially double-checks what the cpu told us about
+ * how large the XSAVE buffer needs to be.  We are recalculating
+ * it to be safe.
+ */
+static void do_extra_xstate_size_checks(void)
+{
+	int paranoid_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	int i;
+
+	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
+		if (!xfeature_enabled(i))
+			continue;
+		/*
+		 * Supervisor state components can be managed only by
+		 * XSAVES, which is compacted-format only.
+		 */
+		if (!using_compacted_format())
+			XSTATE_WARN_ON(xfeature_is_supervisor(i));
+
+		/* Align from the end of the previous feature */
+		if (xfeature_is_aligned(i))
+			paranoid_xstate_size = ALIGN(paranoid_xstate_size, 64);
+		/*
+		 * The offset of a given state in the non-compacted
+		 * format is given to us in a CPUID leaf.  We check
+		 * them for being ordered (increasing offsets) in
+		 * setup_xstate_features().
+		 */
+		if (!using_compacted_format())
+			paranoid_xstate_size = xfeature_uncompacted_offset(i);
+		/*
+		 * The compacted-format offset always depends on where
+		 * the previous state ended.
+		 */
+		paranoid_xstate_size += xfeature_size(i);
+	}
+	XSTATE_WARN_ON(paranoid_xstate_size != xstate_size);
+}
+
 /*
  * Calculate total size of enabled xstates in XCR0/xfeatures_mask.
+ *
+ * Note the SDM's wording here.  "sub-function 0" only enumerates
+ * the size of the *user* states.  If we use it to size a buffer
+ * that we use 'XSAVES' on, we could potentially overflow the
+ * buffer because 'XSAVES' saves system states too.
+ *
+ * Note that we do not currently set any bits on IA32_XSS so
+ * 'XCR0 | IA32_XSS == XCR0' for now.
  */
 static unsigned int __init calculate_xstate_size(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int calculated_xstate_size;
-	int i;
 
 	if (!cpu_has_xsaves) {
+		/*
+		 * - CPUID function 0DH, sub-function 0:
+		 *    EBX enumerates the size (in bytes) required by
+		 *    the XSAVE instruction for an XSAVE area
+		 *    containing all the *user* state components
+		 *    corresponding to bits currently set in XCR0.
+		 */
 		cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
 		calculated_xstate_size = ebx;
-		return calculated_xstate_size;
-	}
-
-	calculated_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
-	for (i = FIRST_EXTENDED_XFEATURE; i < 64; i++) {
-		if (xfeature_enabled(i)) {
-			cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
-			calculated_xstate_size += eax;
-		}
+	} else {
+		/*
+		 * - CPUID function 0DH, sub-function 1:
+		 *    EBX enumerates the size (in bytes) required by
+		 *    the XSAVES instruction for an XSAVE area
+		 *    containing all the state components
+		 *    corresponding to bits currently set in
+		 *    XCR0 | IA32_XSS.
+		 */
+		cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
+		calculated_xstate_size = ebx;
 	}
 	return calculated_xstate_size;
 }
@@ -365,6 +528,7 @@ static int init_xstate_size(void)
 	 * make it known to the world that we need more space.
 	 */
 	xstate_size = possible_xstate_size;
+	do_extra_xstate_size_checks();
 	return 0;
 }
 
