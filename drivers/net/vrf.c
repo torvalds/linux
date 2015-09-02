@@ -320,6 +320,7 @@ static void vrf_rtable_destroy(struct net_vrf *vrf)
 
 static struct rtable *vrf_rtable_create(struct net_device *dev)
 {
+	struct net_vrf *vrf = netdev_priv(dev);
 	struct rtable *rth;
 
 	rth = dst_alloc(&vrf_dst_ops, dev, 2,
@@ -335,6 +336,7 @@ static struct rtable *vrf_rtable_create(struct net_device *dev)
 		rth->rt_pmtu	= 0;
 		rth->rt_gateway	= 0;
 		rth->rt_uses_gateway = 0;
+		rth->rt_table_id = vrf->tb_id;
 		INIT_LIST_HEAD(&rth->rt_uncached);
 		rth->rt_uncached_list = NULL;
 	}
