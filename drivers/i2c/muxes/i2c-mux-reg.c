@@ -160,7 +160,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	return 0;
 }
 #else
-static int i2c_mux_reg_probe_dt(struct gpiomux *mux,
+static int i2c_mux_reg_probe_dt(struct regmux *mux,
 					struct platform_device *pdev)
 {
 	return 0;
