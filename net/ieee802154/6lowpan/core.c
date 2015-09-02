@@ -214,7 +214,7 @@ static int lowpan_device_event(struct notifier_block *unused,
 		 * also delete possible lowpan interfaces which belongs
 		 * to the wpan interface.
 		 */
-		if (wdev->ieee802154_ptr && wdev->ieee802154_ptr->lowpan_dev)
+		if (wdev->ieee802154_ptr->lowpan_dev)
 			lowpan_dellink(wdev->ieee802154_ptr->lowpan_dev, NULL);
 		break;
 	default:
