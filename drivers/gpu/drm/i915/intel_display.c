@@ -4919,12 +4919,10 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
-	if (INTEL_INFO(dev)->gen == 9)
+	if (INTEL_INFO(dev)->gen >= 9)
 		skylake_pfit_enable(intel_crtc);
-	else if (INTEL_INFO(dev)->gen < 9)
-		ironlake_pfit_enable(intel_crtc);
 	else
-		MISSING_CASE(INTEL_INFO(dev)->gen);
+		ironlake_pfit_enable(intel_crtc);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -5056,12 +5054,10 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
-	if (INTEL_INFO(dev)->gen == 9)
+	if (INTEL_INFO(dev)->gen >= 9)
 		skylake_scaler_disable(intel_crtc);
-	else if (INTEL_INFO(dev)->gen < 9)
-		ironlake_pfit_disable(intel_crtc);
 	else
-		MISSING_CASE(INTEL_INFO(dev)->gen);
+		ironlake_pfit_disable(intel_crtc);
 
 	intel_ddi_disable_pipe_clock(intel_crtc);
 
@@ -9784,12 +9780,10 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	if (intel_display_power_is_enabled(dev_priv, pfit_domain)) {
-		if (INTEL_INFO(dev)->gen == 9)
+		if (INTEL_INFO(dev)->gen >= 9)
 			skylake_get_pfit_config(crtc, pipe_config);
-		else if (INTEL_INFO(dev)->gen < 9)
-			ironlake_get_pfit_config(crtc, pipe_config);
 		else
-			MISSING_CASE(INTEL_INFO(dev)->gen);
+			ironlake_get_pfit_config(crtc, pipe_config);
 	}
 
 	if (IS_HASWELL(dev))
