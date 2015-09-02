@@ -377,20 +377,6 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	if (skb_headroom(skb) < BTM_HEADER_LEN) {
-		struct sk_buff *tmp = skb;
-
-		skb = skb_realloc_headroom(skb, BTM_HEADER_LEN);
-		if (!skb) {
-			BT_ERR("Tx Error: realloc_headroom failed %d",
-				BTM_HEADER_LEN);
-			skb = tmp;
-			return -EINVAL;
-		}
-
-		kfree_skb(tmp);
-	}
-
 	skb_push(skb, BTM_HEADER_LEN);
 
 	/* header type: byte[3]
