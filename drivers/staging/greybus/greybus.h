@@ -53,15 +53,9 @@
 	.match_flags	= GREYBUS_DEVICE_ID_MATCH_SERIAL,	\
 	.serial_number	= (s),
 
-/* XXX I couldn't get my Kconfig file to be noticed for out-of-tree build */
-#ifndef CONFIG_CPORT_ID_MAX
-#define CONFIG_CPORT_ID_MAX 128
-#endif /* !CONFIG_CPORT_ID_MAX */
-
-/* Maximum number of CPorts usable by a host device */
-/* XXX This should really be determined by the AP module manifest */
-#define CPORT_ID_MAX	CONFIG_CPORT_ID_MAX
-#define CPORT_ID_BAD	U16_MAX		/* UniPro max id is 4095 */
+/* Maximum number of CPorts */
+#define CPORT_ID_MAX	4095		/* UniPro max id is 4095 */
+#define CPORT_ID_BAD	U16_MAX
 
 /* For SP1 hardware, we are going to "hardcode" each device to have all logical
  * blocks in order to be able to address them as one unified "unit".  Then
