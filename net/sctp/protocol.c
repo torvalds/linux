@@ -511,8 +511,10 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		 */
 		odev = __ip_dev_find(sock_net(sk), laddr->a.v4.sin_addr.s_addr,
 				     false);
-		if (!odev || odev->ifindex != fl4->flowi4_oif)
+		if (!odev || odev->ifindex != fl4->flowi4_oif) {
+			dst_release(&rt->dst);
 			continue;
+		}
 
 		dst = &rt->dst;
 		break;
