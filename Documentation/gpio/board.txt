@@ -48,6 +48,15 @@ This property will make GPIOs 15, 16 and 17 available to the driver under the
 The led GPIOs will be active-high, while the power GPIO will be active-low (i.e.
 gpiod_is_active_low(power) will be true).
 
+The second parameter of the gpiod_get() functions, the con_id string, has to be
+the <function>-prefix of the GPIO suffixes ("gpios" or "gpio", automatically
+looked up by the gpiod functions internally) used in the device tree. With above
+"led-gpios" example, use the prefix without the "-" as con_id parameter: "led".
+
+Internally, the GPIO subsystem prefixes the GPIO suffix ("gpios" or "gpio")
+with the string passed in con_id to get the resulting string
+(snprintf(... "%s-%s", con_id, gpio_suffixes[]).
+
 ACPI
 ----
 ACPI also supports function names for GPIOs in a similar fashion to DT.
