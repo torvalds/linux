@@ -187,7 +187,7 @@ static void __init setup_xstate_features(void)
 		xstate_offsets[leaf] = ebx;
 		xstate_sizes[leaf] = eax;
 
-		printk(KERN_INFO "x86/fpu: xstate_offset[%d]: %04x, xstate_sizes[%d]: %04x\n", leaf, ebx, leaf, eax);
+		printk(KERN_INFO "x86/fpu: xstate_offset[%d]: %4d, xstate_sizes[%d]: %4d\n", leaf, ebx, leaf, eax);
 	}
 }
 
@@ -357,7 +357,7 @@ void __init fpu__init_system_xstate(void)
 	setup_init_fpu_buf();
 	setup_xstate_comp();
 
-	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is 0x%x bytes, using '%s' format.\n",
+	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
 		xfeatures_mask,
 		xstate_size,
 		cpu_has_xsaves ? "compacted" : "standard");
