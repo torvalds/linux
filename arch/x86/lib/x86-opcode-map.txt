@@ -736,6 +736,12 @@ bd: vfnmadd231ss/d Vx,Hx,Wx (66),(v),(v1)
 be: vfnmsub231ps/d Vx,Hx,Wx (66),(v)
 bf: vfnmsub231ss/d Vx,Hx,Wx (66),(v),(v1)
 # 0x0f 0x38 0xc0-0xff
+c8: sha1nexte Vdq,Wdq
+c9: sha1msg1 Vdq,Wdq
+ca: sha1msg2 Vdq,Wdq
+cb: sha256rnds2 Vdq,Wdq
+cc: sha256msg1 Vdq,Wdq
+cd: sha256msg2 Vdq,Wdq
 db: VAESIMC Vdq,Wdq (66),(v1)
 dc: VAESENC Vdq,Hdq,Wdq (66),(v1)
 dd: VAESENCLAST Vdq,Hdq,Wdq (66),(v1)
@@ -794,6 +800,7 @@ AVXcode: 3
 61: vpcmpestri Vdq,Wdq,Ib (66),(v1)
 62: vpcmpistrm Vdq,Wdq,Ib (66),(v1)
 63: vpcmpistri Vdq,Wdq,Ib (66),(v1)
+cc: sha1rnds4 Vdq,Wdq,Ib
 df: VAESKEYGEN Vdq,Wdq,Ib (66),(v1)
 f0: RORX Gy,Ey,Ib (F2),(v)
 EndTable

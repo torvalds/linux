@@ -217,6 +217,210 @@ int main(void)
 	asm volatile("bnd jmp *(%ecx)");  /* Expecting: jmp  indirect      0 */
 	asm volatile("bnd jne label1");   /* Expecting: jcc  conditional   0 */
 
+	/* sha1rnds4 imm8, xmm2/m128, xmm1 */
+
+	asm volatile("sha1rnds4 $0x0, %xmm1, %xmm0");
+	asm volatile("sha1rnds4 $0x91, %xmm7, %xmm2");
+	asm volatile("sha1rnds4 $0x91, %xmm8, %xmm0");
+	asm volatile("sha1rnds4 $0x91, %xmm7, %xmm8");
+	asm volatile("sha1rnds4 $0x91, %xmm15, %xmm8");
+	asm volatile("sha1rnds4 $0x91, (%rax), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%r8), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (0x12345678), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%rax), %xmm3");
+	asm volatile("sha1rnds4 $0x91, (%rcx,%rax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(,%rax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%rax,%rcx,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%rax,%rcx,8), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%rax), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%rbp), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rax), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rbp), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%rax,%rcx,8), %xmm15");
+
+	/* sha1nexte xmm2/m128, xmm1 */
+
+	asm volatile("sha1nexte %xmm1, %xmm0");
+	asm volatile("sha1nexte %xmm7, %xmm2");
+	asm volatile("sha1nexte %xmm8, %xmm0");
+	asm volatile("sha1nexte %xmm7, %xmm8");
+	asm volatile("sha1nexte %xmm15, %xmm8");
+	asm volatile("sha1nexte (%rax), %xmm0");
+	asm volatile("sha1nexte (%r8), %xmm0");
+	asm volatile("sha1nexte (0x12345678), %xmm0");
+	asm volatile("sha1nexte (%rax), %xmm3");
+	asm volatile("sha1nexte (%rcx,%rax,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(,%rax,1), %xmm0");
+	asm volatile("sha1nexte (%rax,%rcx,1), %xmm0");
+	asm volatile("sha1nexte (%rax,%rcx,8), %xmm0");
+	asm volatile("sha1nexte 0x12(%rax), %xmm0");
+	asm volatile("sha1nexte 0x12(%rbp), %xmm0");
+	asm volatile("sha1nexte 0x12(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1nexte 0x12(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1nexte 0x12(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1nexte 0x12(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rax), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rbp), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%rax,%rcx,8), %xmm15");
+
+	/* sha1msg1 xmm2/m128, xmm1 */
+
+	asm volatile("sha1msg1 %xmm1, %xmm0");
+	asm volatile("sha1msg1 %xmm7, %xmm2");
+	asm volatile("sha1msg1 %xmm8, %xmm0");
+	asm volatile("sha1msg1 %xmm7, %xmm8");
+	asm volatile("sha1msg1 %xmm15, %xmm8");
+	asm volatile("sha1msg1 (%rax), %xmm0");
+	asm volatile("sha1msg1 (%r8), %xmm0");
+	asm volatile("sha1msg1 (0x12345678), %xmm0");
+	asm volatile("sha1msg1 (%rax), %xmm3");
+	asm volatile("sha1msg1 (%rcx,%rax,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(,%rax,1), %xmm0");
+	asm volatile("sha1msg1 (%rax,%rcx,1), %xmm0");
+	asm volatile("sha1msg1 (%rax,%rcx,8), %xmm0");
+	asm volatile("sha1msg1 0x12(%rax), %xmm0");
+	asm volatile("sha1msg1 0x12(%rbp), %xmm0");
+	asm volatile("sha1msg1 0x12(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1msg1 0x12(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1msg1 0x12(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1msg1 0x12(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rax), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rbp), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%rax,%rcx,8), %xmm15");
+
+	/* sha1msg2 xmm2/m128, xmm1 */
+
+	asm volatile("sha1msg2 %xmm1, %xmm0");
+	asm volatile("sha1msg2 %xmm7, %xmm2");
+	asm volatile("sha1msg2 %xmm8, %xmm0");
+	asm volatile("sha1msg2 %xmm7, %xmm8");
+	asm volatile("sha1msg2 %xmm15, %xmm8");
+	asm volatile("sha1msg2 (%rax), %xmm0");
+	asm volatile("sha1msg2 (%r8), %xmm0");
+	asm volatile("sha1msg2 (0x12345678), %xmm0");
+	asm volatile("sha1msg2 (%rax), %xmm3");
+	asm volatile("sha1msg2 (%rcx,%rax,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(,%rax,1), %xmm0");
+	asm volatile("sha1msg2 (%rax,%rcx,1), %xmm0");
+	asm volatile("sha1msg2 (%rax,%rcx,8), %xmm0");
+	asm volatile("sha1msg2 0x12(%rax), %xmm0");
+	asm volatile("sha1msg2 0x12(%rbp), %xmm0");
+	asm volatile("sha1msg2 0x12(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1msg2 0x12(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1msg2 0x12(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1msg2 0x12(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rax), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rbp), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rcx,%rax,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rbp,%rax,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rax,%rcx,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rax,%rcx,8), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%rax,%rcx,8), %xmm15");
+
+	/* sha256rnds2 <XMM0>, xmm2/m128, xmm1 */
+	/* Note sha256rnds2 has an implicit operand 'xmm0' */
+
+	asm volatile("sha256rnds2 %xmm4, %xmm1");
+	asm volatile("sha256rnds2 %xmm7, %xmm2");
+	asm volatile("sha256rnds2 %xmm8, %xmm1");
+	asm volatile("sha256rnds2 %xmm7, %xmm8");
+	asm volatile("sha256rnds2 %xmm15, %xmm8");
+	asm volatile("sha256rnds2 (%rax), %xmm1");
+	asm volatile("sha256rnds2 (%r8), %xmm1");
+	asm volatile("sha256rnds2 (0x12345678), %xmm1");
+	asm volatile("sha256rnds2 (%rax), %xmm3");
+	asm volatile("sha256rnds2 (%rcx,%rax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(,%rax,1), %xmm1");
+	asm volatile("sha256rnds2 (%rax,%rcx,1), %xmm1");
+	asm volatile("sha256rnds2 (%rax,%rcx,8), %xmm1");
+	asm volatile("sha256rnds2 0x12(%rax), %xmm1");
+	asm volatile("sha256rnds2 0x12(%rbp), %xmm1");
+	asm volatile("sha256rnds2 0x12(%rcx,%rax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12(%rbp,%rax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12(%rax,%rcx,1), %xmm1");
+	asm volatile("sha256rnds2 0x12(%rax,%rcx,8), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rax), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rbp), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rcx,%rax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rbp,%rax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rax,%rcx,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rax,%rcx,8), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%rax,%rcx,8), %xmm15");
+
+	/* sha256msg1 xmm2/m128, xmm1 */
+
+	asm volatile("sha256msg1 %xmm1, %xmm0");
+	asm volatile("sha256msg1 %xmm7, %xmm2");
+	asm volatile("sha256msg1 %xmm8, %xmm0");
+	asm volatile("sha256msg1 %xmm7, %xmm8");
+	asm volatile("sha256msg1 %xmm15, %xmm8");
+	asm volatile("sha256msg1 (%rax), %xmm0");
+	asm volatile("sha256msg1 (%r8), %xmm0");
+	asm volatile("sha256msg1 (0x12345678), %xmm0");
+	asm volatile("sha256msg1 (%rax), %xmm3");
+	asm volatile("sha256msg1 (%rcx,%rax,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(,%rax,1), %xmm0");
+	asm volatile("sha256msg1 (%rax,%rcx,1), %xmm0");
+	asm volatile("sha256msg1 (%rax,%rcx,8), %xmm0");
+	asm volatile("sha256msg1 0x12(%rax), %xmm0");
+	asm volatile("sha256msg1 0x12(%rbp), %xmm0");
+	asm volatile("sha256msg1 0x12(%rcx,%rax,1), %xmm0");
+	asm volatile("sha256msg1 0x12(%rbp,%rax,1), %xmm0");
+	asm volatile("sha256msg1 0x12(%rax,%rcx,1), %xmm0");
+	asm volatile("sha256msg1 0x12(%rax,%rcx,8), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rax), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rbp), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rcx,%rax,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rbp,%rax,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rax,%rcx,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rax,%rcx,8), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%rax,%rcx,8), %xmm15");
+
+	/* sha256msg2 xmm2/m128, xmm1 */
+
+	asm volatile("sha256msg2 %xmm1, %xmm0");
+	asm volatile("sha256msg2 %xmm7, %xmm2");
+	asm volatile("sha256msg2 %xmm8, %xmm0");
+	asm volatile("sha256msg2 %xmm7, %xmm8");
+	asm volatile("sha256msg2 %xmm15, %xmm8");
+	asm volatile("sha256msg2 (%rax), %xmm0");
+	asm volatile("sha256msg2 (%r8), %xmm0");
+	asm volatile("sha256msg2 (0x12345678), %xmm0");
+	asm volatile("sha256msg2 (%rax), %xmm3");
+	asm volatile("sha256msg2 (%rcx,%rax,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(,%rax,1), %xmm0");
+	asm volatile("sha256msg2 (%rax,%rcx,1), %xmm0");
+	asm volatile("sha256msg2 (%rax,%rcx,8), %xmm0");
+	asm volatile("sha256msg2 0x12(%rax), %xmm0");
+	asm volatile("sha256msg2 0x12(%rbp), %xmm0");
+	asm volatile("sha256msg2 0x12(%rcx,%rax,1), %xmm0");
+	asm volatile("sha256msg2 0x12(%rbp,%rax,1), %xmm0");
+	asm volatile("sha256msg2 0x12(%rax,%rcx,1), %xmm0");
+	asm volatile("sha256msg2 0x12(%rax,%rcx,8), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rax), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rbp), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rcx,%rax,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rbp,%rax,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rax,%rcx,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rax,%rcx,8), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%rax,%rcx,8), %xmm15");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bndmk m32, bnd */
@@ -406,6 +610,175 @@ int main(void)
 	asm volatile("bnd jmp label1");   /* Expecting: jmp  unconditional 0xfffffffc */
 	asm volatile("bnd jmp *(%ecx)");  /* Expecting: jmp  indirect      0 */
 	asm volatile("bnd jne label1");   /* Expecting: jcc  conditional   0xfffffffc */
+
+	/* sha1rnds4 imm8, xmm2/m128, xmm1 */
+
+	asm volatile("sha1rnds4 $0x0, %xmm1, %xmm0");
+	asm volatile("sha1rnds4 $0x91, %xmm7, %xmm2");
+	asm volatile("sha1rnds4 $0x91, (%eax), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (0x12345678), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%eax), %xmm3");
+	asm volatile("sha1rnds4 $0x91, (%ecx,%eax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(,%eax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%eax,%ecx,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, (%eax,%ecx,8), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%eax), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%ebp), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12(%eax,%ecx,8), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%eax), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%ebp), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1rnds4 $0x91, 0x12345678(%eax,%ecx,8), %xmm0");
+
+	/* sha1nexte xmm2/m128, xmm1 */
+
+	asm volatile("sha1nexte %xmm1, %xmm0");
+	asm volatile("sha1nexte %xmm7, %xmm2");
+	asm volatile("sha1nexte (%eax), %xmm0");
+	asm volatile("sha1nexte (0x12345678), %xmm0");
+	asm volatile("sha1nexte (%eax), %xmm3");
+	asm volatile("sha1nexte (%ecx,%eax,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(,%eax,1), %xmm0");
+	asm volatile("sha1nexte (%eax,%ecx,1), %xmm0");
+	asm volatile("sha1nexte (%eax,%ecx,8), %xmm0");
+	asm volatile("sha1nexte 0x12(%eax), %xmm0");
+	asm volatile("sha1nexte 0x12(%ebp), %xmm0");
+	asm volatile("sha1nexte 0x12(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1nexte 0x12(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1nexte 0x12(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1nexte 0x12(%eax,%ecx,8), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%eax), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%ebp), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1nexte 0x12345678(%eax,%ecx,8), %xmm0");
+
+	/* sha1msg1 xmm2/m128, xmm1 */
+
+	asm volatile("sha1msg1 %xmm1, %xmm0");
+	asm volatile("sha1msg1 %xmm7, %xmm2");
+	asm volatile("sha1msg1 (%eax), %xmm0");
+	asm volatile("sha1msg1 (0x12345678), %xmm0");
+	asm volatile("sha1msg1 (%eax), %xmm3");
+	asm volatile("sha1msg1 (%ecx,%eax,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(,%eax,1), %xmm0");
+	asm volatile("sha1msg1 (%eax,%ecx,1), %xmm0");
+	asm volatile("sha1msg1 (%eax,%ecx,8), %xmm0");
+	asm volatile("sha1msg1 0x12(%eax), %xmm0");
+	asm volatile("sha1msg1 0x12(%ebp), %xmm0");
+	asm volatile("sha1msg1 0x12(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1msg1 0x12(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1msg1 0x12(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1msg1 0x12(%eax,%ecx,8), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%eax), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%ebp), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1msg1 0x12345678(%eax,%ecx,8), %xmm0");
+
+	/* sha1msg2 xmm2/m128, xmm1 */
+
+	asm volatile("sha1msg2 %xmm1, %xmm0");
+	asm volatile("sha1msg2 %xmm7, %xmm2");
+	asm volatile("sha1msg2 (%eax), %xmm0");
+	asm volatile("sha1msg2 (0x12345678), %xmm0");
+	asm volatile("sha1msg2 (%eax), %xmm3");
+	asm volatile("sha1msg2 (%ecx,%eax,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(,%eax,1), %xmm0");
+	asm volatile("sha1msg2 (%eax,%ecx,1), %xmm0");
+	asm volatile("sha1msg2 (%eax,%ecx,8), %xmm0");
+	asm volatile("sha1msg2 0x12(%eax), %xmm0");
+	asm volatile("sha1msg2 0x12(%ebp), %xmm0");
+	asm volatile("sha1msg2 0x12(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1msg2 0x12(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1msg2 0x12(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1msg2 0x12(%eax,%ecx,8), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%eax), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%ebp), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%ecx,%eax,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%ebp,%eax,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%eax,%ecx,1), %xmm0");
+	asm volatile("sha1msg2 0x12345678(%eax,%ecx,8), %xmm0");
+
+	/* sha256rnds2 <XMM0>, xmm2/m128, xmm1 */
+	/* Note sha256rnds2 has an implicit operand 'xmm0' */
+
+	asm volatile("sha256rnds2 %xmm4, %xmm1");
+	asm volatile("sha256rnds2 %xmm7, %xmm2");
+	asm volatile("sha256rnds2 (%eax), %xmm1");
+	asm volatile("sha256rnds2 (0x12345678), %xmm1");
+	asm volatile("sha256rnds2 (%eax), %xmm3");
+	asm volatile("sha256rnds2 (%ecx,%eax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(,%eax,1), %xmm1");
+	asm volatile("sha256rnds2 (%eax,%ecx,1), %xmm1");
+	asm volatile("sha256rnds2 (%eax,%ecx,8), %xmm1");
+	asm volatile("sha256rnds2 0x12(%eax), %xmm1");
+	asm volatile("sha256rnds2 0x12(%ebp), %xmm1");
+	asm volatile("sha256rnds2 0x12(%ecx,%eax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12(%ebp,%eax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12(%eax,%ecx,1), %xmm1");
+	asm volatile("sha256rnds2 0x12(%eax,%ecx,8), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%eax), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%ebp), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%ecx,%eax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%ebp,%eax,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%eax,%ecx,1), %xmm1");
+	asm volatile("sha256rnds2 0x12345678(%eax,%ecx,8), %xmm1");
+
+	/* sha256msg1 xmm2/m128, xmm1 */
+
+	asm volatile("sha256msg1 %xmm1, %xmm0");
+	asm volatile("sha256msg1 %xmm7, %xmm2");
+	asm volatile("sha256msg1 (%eax), %xmm0");
+	asm volatile("sha256msg1 (0x12345678), %xmm0");
+	asm volatile("sha256msg1 (%eax), %xmm3");
+	asm volatile("sha256msg1 (%ecx,%eax,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(,%eax,1), %xmm0");
+	asm volatile("sha256msg1 (%eax,%ecx,1), %xmm0");
+	asm volatile("sha256msg1 (%eax,%ecx,8), %xmm0");
+	asm volatile("sha256msg1 0x12(%eax), %xmm0");
+	asm volatile("sha256msg1 0x12(%ebp), %xmm0");
+	asm volatile("sha256msg1 0x12(%ecx,%eax,1), %xmm0");
+	asm volatile("sha256msg1 0x12(%ebp,%eax,1), %xmm0");
+	asm volatile("sha256msg1 0x12(%eax,%ecx,1), %xmm0");
+	asm volatile("sha256msg1 0x12(%eax,%ecx,8), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%eax), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%ebp), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%ecx,%eax,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%ebp,%eax,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%eax,%ecx,1), %xmm0");
+	asm volatile("sha256msg1 0x12345678(%eax,%ecx,8), %xmm0");
+
+	/* sha256msg2 xmm2/m128, xmm1 */
+
+	asm volatile("sha256msg2 %xmm1, %xmm0");
+	asm volatile("sha256msg2 %xmm7, %xmm2");
+	asm volatile("sha256msg2 (%eax), %xmm0");
+	asm volatile("sha256msg2 (0x12345678), %xmm0");
+	asm volatile("sha256msg2 (%eax), %xmm3");
+	asm volatile("sha256msg2 (%ecx,%eax,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(,%eax,1), %xmm0");
+	asm volatile("sha256msg2 (%eax,%ecx,1), %xmm0");
+	asm volatile("sha256msg2 (%eax,%ecx,8), %xmm0");
+	asm volatile("sha256msg2 0x12(%eax), %xmm0");
+	asm volatile("sha256msg2 0x12(%ebp), %xmm0");
+	asm volatile("sha256msg2 0x12(%ecx,%eax,1), %xmm0");
+	asm volatile("sha256msg2 0x12(%ebp,%eax,1), %xmm0");
+	asm volatile("sha256msg2 0x12(%eax,%ecx,1), %xmm0");
+	asm volatile("sha256msg2 0x12(%eax,%ecx,8), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%eax), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%ebp), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%ecx,%eax,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%ebp,%eax,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%eax,%ecx,1), %xmm0");
+	asm volatile("sha256msg2 0x12345678(%eax,%ecx,8), %xmm0");
 
 #endif /* #ifndef __x86_64__ */
 
