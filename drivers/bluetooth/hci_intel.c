@@ -68,6 +68,8 @@ struct intel_device {
 	struct list_head list;
 	struct platform_device *pdev;
 	struct gpio_desc *reset;
+	struct hci_uart *hu;
+	struct mutex hu_lock;
 	int irq;
 };
 
@@ -277,6 +279,11 @@ static irqreturn_t intel_irq(int irq, void *dev_id)
 
 	dev_info(&idev->pdev->dev, "hci_intel irq\n");
 
+	mutex_lock(&idev->hu_lock);
+	if (idev->hu)
+		intel_lpm_host_wake(idev->hu);
+	mutex_unlock(&idev->hu_lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -306,6 +313,15 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 			hu, dev_name(&idev->pdev->dev), powered);
 
 		gpiod_set_value(idev->reset, powered);
+
+		/* Provide to idev a hu reference which is used to run LPM
+		 * transactions (lpm suspend/resume) from PM callbacks.
+		 * hu needs to be protected against concurrent removing during
+		 * these PM ops.
+		 */
+		mutex_lock(&idev->hu_lock);
+		idev->hu = powered ? hu : NULL;
+		mutex_unlock(&idev->hu_lock);
 
 		if (idev->irq < 0)
 			break;
@@ -1087,6 +1103,40 @@ static int intel_acpi_probe(struct intel_device *idev)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int intel_suspend(struct device *dev)
+{
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "intel_suspend");
+
+	mutex_lock(&idev->hu_lock);
+	if (idev->hu)
+		intel_lpm_suspend(idev->hu);
+	mutex_unlock(&idev->hu_lock);
+
+	return 0;
+}
+
+static int intel_resume(struct device *dev)
+{
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "intel_resume");
+
+	mutex_lock(&idev->hu_lock);
+	if (idev->hu)
+		intel_lpm_resume(idev->hu);
+	mutex_unlock(&idev->hu_lock);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops intel_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(intel_suspend, intel_resume)
+};
+
 static int intel_probe(struct platform_device *pdev)
 {
 	struct intel_device *idev;
@@ -1094,6 +1144,8 @@ static int intel_probe(struct platform_device *pdev)
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
 		return -ENOMEM;
+
+	mutex_init(&idev->hu_lock);
 
 	idev->pdev = pdev;
 
@@ -1171,6 +1223,7 @@ static struct platform_driver intel_driver = {
 	.driver = {
 		.name = "hci_intel",
 		.acpi_match_table = ACPI_PTR(intel_acpi_match),
+		.pm = &intel_pm_ops,
 	},
 };
 
