@@ -34,7 +34,7 @@ static struct task_struct *apb1_log_task;
 static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
 /* Number of cport present on USB bridge */
-#define CPORT_MAX		44
+#define CPORT_COUNT		44
 
 /* Number of bulk in and bulk out couple */
 #define NUM_BULKS		7
@@ -108,7 +108,7 @@ struct es1_ap_dev {
 	bool cport_out_urb_cancelled[NUM_CPORT_OUT_URB];
 	spinlock_t cport_out_urb_lock;
 
-	int cport_to_ep[CPORT_MAX];
+	int cport_to_ep[CPORT_COUNT];
 };
 
 struct cport_to_ep {
@@ -128,7 +128,7 @@ static void usb_log_disable(struct es1_ap_dev *es1);
 
 static int cport_to_ep(struct es1_ap_dev *es1, u16 cport_id)
 {
-	if (cport_id >= CPORT_MAX)
+	if (cport_id >= CPORT_COUNT)
 		return 0;
 	return es1->cport_to_ep[cport_id];
 }
@@ -139,7 +139,7 @@ static int ep_in_use(struct es1_ap_dev *es1, int bulk_ep_set)
 {
 	int i;
 
-	for (i = 0; i < CPORT_MAX; i++) {
+	for (i = 0; i < CPORT_COUNT; i++) {
 		if (es1->cport_to_ep[i] == bulk_ep_set)
 			return 1;
 	}
@@ -154,7 +154,7 @@ int map_cport_to_ep(struct es1_ap_dev *es1,
 
 	if (bulk_ep_set == 0 || bulk_ep_set >= NUM_BULKS)
 		return -EINVAL;
-	if (cport_id >= CPORT_MAX)
+	if (cport_id >= CPORT_COUNT)
 		return -EINVAL;
 	if (bulk_ep_set && ep_in_use(es1, bulk_ep_set))
 		return -EINVAL;
