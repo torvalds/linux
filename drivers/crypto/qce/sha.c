@@ -296,7 +296,7 @@ static int qce_ahash_update(struct ahash_request *req)
 	if (rctx->buflen) {
 		sg_init_table(rctx->sg, 2);
 		sg_set_buf(rctx->sg, rctx->tmpbuf, rctx->buflen);
-		scatterwalk_sg_chain(rctx->sg, 2, req->src);
+		sg_chain(rctx->sg, 2, req->src);
 		req->src = rctx->sg;
 	}
 
