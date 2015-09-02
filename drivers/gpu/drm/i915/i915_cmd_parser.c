@@ -124,14 +124,14 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   W,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 2 }    ),
-	CMD(  MI_STORE_REGISTER_MEM,            SMI,    F,  1,     W | B,
+	CMD(  MI_STORE_REGISTER_MEM,            SMI,    F,  3,     W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
 			.offset = 0,
 			.mask = MI_GLOBAL_GTT,
 			.expected = 0,
 	      }},						       ),
-	CMD(  MI_LOAD_REGISTER_MEM,             SMI,    F,  1,     W | B,
+	CMD(  MI_LOAD_REGISTER_MEM,             SMI,    F,  3,     W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
 			.offset = 0,
