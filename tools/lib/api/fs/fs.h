@@ -1,6 +1,8 @@
 #ifndef __API_FS__
 #define __API_FS__
 
+#include <stdbool.h>
+
 /*
  * On most systems <limits.h> would have given us this, but  not on some systems
  * (e.g. GNU/Hurd).
@@ -11,7 +13,8 @@
 
 #define FS(name)				\
 	const char *name##__mountpoint(void);	\
-	const char *name##__mount(void);
+	const char *name##__mount(void);	\
+	bool name##__configured(void);		\
 
 FS(sysfs)
 FS(procfs)

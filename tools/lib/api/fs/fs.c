@@ -244,15 +244,20 @@ static const char *fs__mount(int idx)
 	return fs__check_mounts(fs) ? fs->path : NULL;
 }
 
-#define FS(name, idx)			\
-const char *name##__mountpoint(void)	\
-{					\
-	return fs__mountpoint(idx);	\
-}					\
-					\
-const char *name##__mount(void)		\
-{					\
-	return fs__mount(idx);		\
+#define FS(name, idx)				\
+const char *name##__mountpoint(void)		\
+{						\
+	return fs__mountpoint(idx);		\
+}						\
+						\
+const char *name##__mount(void)			\
+{						\
+	return fs__mount(idx);			\
+}						\
+						\
+bool name##__configured(void)			\
+{						\
+	return name##__mountpoint() != NULL;	\
 }
 
 FS(sysfs,   FS__SYSFS);
