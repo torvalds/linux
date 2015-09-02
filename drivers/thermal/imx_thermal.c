@@ -98,10 +98,10 @@ struct imx_thermal_data {
 	enum thermal_device_mode mode;
 	struct regmap *tempmon;
 	u32 c1, c2; /* See formula in imx_get_sensor_data() */
-	unsigned long temp_passive;
-	unsigned long temp_critical;
-	unsigned long alarm_temp;
-	unsigned long last_temp;
+	int temp_passive;
+	int temp_critical;
+	int alarm_temp;
+	int last_temp;
 	bool irq_enabled;
 	int irq;
 	struct clk *thermal_clk;
@@ -109,7 +109,7 @@ struct imx_thermal_data {
 };
 
 static void imx_set_panic_temp(struct imx_thermal_data *data,
-			       signed long panic_temp)
+			       int panic_temp)
 {
 	struct regmap *map = data->tempmon;
 	int critical_value;
@@ -121,7 +121,7 @@ static void imx_set_panic_temp(struct imx_thermal_data *data,
 }
 
 static void imx_set_alarm_temp(struct imx_thermal_data *data,
-			       signed long alarm_temp)
+			       int alarm_temp)
 {
 	struct regmap *map = data->tempmon;
 	int alarm_value;
@@ -133,7 +133,7 @@ static void imx_set_alarm_temp(struct imx_thermal_data *data,
 			TEMPSENSE0_ALARM_VALUE_SHIFT);
 }
 
-static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
+static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct imx_thermal_data *data = tz->devdata;
 	struct regmap *map = data->tempmon;
@@ -189,13 +189,13 @@ static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 		if (data->alarm_temp == data->temp_critical &&
 			*temp < data->temp_passive) {
 			imx_set_alarm_temp(data, data->temp_passive);
-			dev_dbg(&tz->device, "thermal alarm off: T < %lu\n",
+			dev_dbg(&tz->device, "thermal alarm off: T < %d\n",
 				data->alarm_temp / 1000);
 		}
 	}
 
 	if (*temp != data->last_temp) {
-		dev_dbg(&tz->device, "millicelsius: %ld\n", *temp);
+		dev_dbg(&tz->device, "millicelsius: %d\n", *temp);
 		data->last_temp = *temp;
 	}
 
@@ -262,8 +262,7 @@ static int imx_get_trip_type(struct thermal_zone_device *tz, int trip,
 	return 0;
 }
 
-static int imx_get_crit_temp(struct thermal_zone_device *tz,
-			     unsigned long *temp)
+static int imx_get_crit_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct imx_thermal_data *data = tz->devdata;
 
@@ -272,7 +271,7 @@ static int imx_get_crit_temp(struct thermal_zone_device *tz,
 }
 
 static int imx_get_trip_temp(struct thermal_zone_device *tz, int trip,
-			     unsigned long *temp)
+			     int *temp)
 {
 	struct imx_thermal_data *data = tz->devdata;
 
@@ -282,7 +281,7 @@ static int imx_get_trip_temp(struct thermal_zone_device *tz, int trip,
 }
 
 static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
-			     unsigned long temp)
+			     int temp)
 {
 	struct imx_thermal_data *data = tz->devdata;
 
@@ -434,7 +433,7 @@ static irqreturn_t imx_thermal_alarm_irq_thread(int irq, void *dev)
 {
 	struct imx_thermal_data *data = dev;
 
-	dev_dbg(&data->tz->device, "THERMAL ALARM: T > %lu\n",
+	dev_dbg(&data->tz->device, "THERMAL ALARM: T > %d\n",
 		data->alarm_temp / 1000);
 
 	thermal_zone_device_update(data->tz);
