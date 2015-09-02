@@ -670,8 +670,11 @@
 			};
 
 			dcp: dcp@020fc000 {
+				compatible = "fsl,imx6sl-dcp", "fsl,imx28-dcp";
 				reg = <0x020fc000 0x4000>;
-				interrupts = <0 99 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0 99 IRQ_TYPE_LEVEL_HIGH>,
+					     <0 100 IRQ_TYPE_LEVEL_HIGH>,
+					     <0 101 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
