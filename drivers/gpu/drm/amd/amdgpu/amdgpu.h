@@ -440,12 +440,11 @@ int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
-signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
-				       struct fence **array,
-				       uint32_t count,
-				       bool wait_all,
-				       bool intr,
-				       signed long t);
+signed long amdgpu_fence_wait_any(struct amdgpu_device *adev,
+				  struct fence **array,
+				  uint32_t count,
+				  bool intr,
+				  signed long t);
 struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
 void amdgpu_fence_unref(struct amdgpu_fence **fence);
 
