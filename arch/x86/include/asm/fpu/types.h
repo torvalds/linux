@@ -126,6 +126,8 @@ enum xfeature {
 					 | XFEATURE_MASK_ZMM_Hi256 \
 					 | XFEATURE_MASK_Hi16_ZMM)
 
+#define FIRST_EXTENDED_XFEATURE	XFEATURE_YMM
+
 /*
  * There are 16x 256-bit AVX registers named YMM0-YMM15.
  * The low 128 bits are aliased to the 16 SSE registers (XMM0-XMM15)

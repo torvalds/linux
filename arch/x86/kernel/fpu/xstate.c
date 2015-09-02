@@ -200,7 +200,7 @@ static void __init setup_xstate_features(void)
 
 	xfeatures_nr = fls64(xfeatures_mask);
 
-	for (leaf = 2; leaf < xfeatures_nr; leaf++) {
+	for (leaf = FIRST_EXTENDED_XFEATURE; leaf < xfeatures_nr; leaf++) {
 		cpuid_count(XSTATE_CPUID, leaf, &eax, &ebx, &ecx, &edx);
 
 		xstate_offsets[leaf] = ebx;
@@ -252,7 +252,7 @@ static void __init setup_xstate_comp(void)
 	xstate_comp_offsets[1] = offsetof(struct fxregs_state, xmm_space);
 
 	if (!cpu_has_xsaves) {
-		for (i = 2; i < xfeatures_nr; i++) {
+		for (i = FIRST_EXTENDED_XFEATURE; i < xfeatures_nr; i++) {
 			if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
 				xstate_comp_offsets[i] = xstate_offsets[i];
 				xstate_comp_sizes[i] = xstate_sizes[i];
@@ -261,15 +261,16 @@ static void __init setup_xstate_comp(void)
 		return;
 	}
 
-	xstate_comp_offsets[2] = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	xstate_comp_offsets[FIRST_EXTENDED_XFEATURE] =
+		FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
-	for (i = 2; i < xfeatures_nr; i++) {
+	for (i = FIRST_EXTENDED_XFEATURE; i < xfeatures_nr; i++) {
 		if (test_bit(i, (unsigned long *)&xfeatures_mask))
 			xstate_comp_sizes[i] = xstate_sizes[i];
 		else
 			xstate_comp_sizes[i] = 0;
 
-		if (i > 2)
+		if (i > FIRST_EXTENDED_XFEATURE)
 			xstate_comp_offsets[i] = xstate_comp_offsets[i-1]
 					+ xstate_comp_sizes[i-1];
 
@@ -325,7 +326,7 @@ static unsigned int __init calculate_xstate_size(void)
 	}
 
 	calculated_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
-	for (i = 2; i < 64; i++) {
+	for (i = FIRST_EXTENDED_XFEATURE; i < 64; i++) {
 		if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
 			cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 			calculated_xstate_size += eax;
