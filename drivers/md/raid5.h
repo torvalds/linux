@@ -629,4 +629,5 @@ extern int r5l_write_stripe(struct r5l_log *log, struct stripe_head *head_sh);
 extern void r5l_write_stripe_run(struct r5l_log *log);
 extern void r5l_flush_stripe_to_raid(struct r5l_log *log);
 extern void r5l_stripe_write_finished(struct stripe_head *sh);
+extern int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio);
 #endif

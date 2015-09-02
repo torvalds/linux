@@ -5146,8 +5146,15 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 	bool do_prepare;
 
 	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
-		md_flush_request(mddev, bi);
-		return;
+		int ret = r5l_handle_flush_request(conf->log, bi);
+
+		if (ret == 0)
+			return;
+		if (ret == -ENODEV) {
+			md_flush_request(mddev, bi);
+			return;
+		}
+		/* ret == -EAGAIN, fallback */
 	}
 
 	md_write_start(mddev, bi);

@@ -507,6 +507,24 @@ void r5l_write_stripe_run(struct r5l_log *log)
 	mutex_unlock(&log->io_mutex);
 }
 
+int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio)
+{
+	if (!log)
+		return -ENODEV;
+	/*
+	 * we flush log disk cache first, then write stripe data to raid disks.
+	 * So if bio is finished, the log disk cache is flushed already. The
+	 * recovery guarantees we can recovery the bio from log disk, so we
+	 * don't need to flush again
+	 */
+	if (bio->bi_iter.bi_size == 0) {
+		bio_endio(bio);
+		return 0;
+	}
+	bio->bi_rw &= ~REQ_FLUSH;
+	return -EAGAIN;
+}
+
 /* This will run after log space is reclaimed */
 static void r5l_run_no_space_stripes(struct r5l_log *log)
 {
