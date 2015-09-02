@@ -149,8 +149,6 @@
 #define ST_ACCEL_4_BDU_MASK			0x40
 #define ST_ACCEL_4_DRDY_IRQ_ADDR		0x21
 #define ST_ACCEL_4_DRDY_IRQ_INT1_MASK		0x04
-#define ST_ACCEL_4_IG1_EN_ADDR			0x21
-#define ST_ACCEL_4_IG1_EN_MASK			0x08
 #define ST_ACCEL_4_MULTIREAD_BIT		true
 
 static const struct iio_chan_spec st_accel_12bit_channels[] = {
@@ -446,10 +444,6 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_ACCEL_4_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_4_DRDY_IRQ_INT1_MASK,
-			.ig1 = {
-				.en_addr = ST_ACCEL_4_IG1_EN_ADDR,
-				.en_mask = ST_ACCEL_4_IG1_EN_MASK,
-			},
 		},
 		.multi_read_bit = ST_ACCEL_4_MULTIREAD_BIT,
 		.bootime = 2, /* guess */
