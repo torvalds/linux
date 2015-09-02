@@ -2049,9 +2049,17 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 	struct iommu_table *tbl = NULL;
 	long rc;
 
+	/*
+	 * In memory constrained environments, e.g. kdump kernel, the
+	 * DMA window can be larger than available memory, which will
+	 * cause errors later.
+	 */
+	const u64 window_size = min((u64)pe->table_group.tce32_size,
+				     memory_hotplug_max());
+
 	rc = pnv_pci_ioda2_create_table(&pe->table_group, 0,
 			IOMMU_PAGE_SHIFT_4K,
-			pe->table_group.tce32_size,
+			window_size,
 			POWERNV_IOMMU_DEFAULT_LEVELS, &tbl);
 	if (rc) {
 		pe_err(pe, "Failed to create 32-bit TCE table, err %ld",
