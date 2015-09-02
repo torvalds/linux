@@ -19,6 +19,11 @@
 #define LOWPAN_DISPATCH_FRAG_MASK	0xf8
 
 #define LOWPAN_DISPATCH_NALP		0x00
+#define LOWPAN_DISPATCH_ESC		0x7f
+#define LOWPAN_DISPATCH_HC1		0x42
+#define LOWPAN_DISPATCH_DFF		0x43
+#define LOWPAN_DISPATCH_BC0		0x50
+#define LOWPAN_DISPATCH_MESH		0x80
 
 static int lowpan_give_skb_to_device(struct sk_buff *skb)
 {
@@ -144,6 +149,86 @@ lowpan_rx_result lowpan_rx_h_ipv6(struct sk_buff *skb)
 	return RX_QUEUED;
 }
 
+static inline bool lowpan_is_esc(u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_ESC;
+}
+
+static lowpan_rx_result lowpan_rx_h_esc(struct sk_buff *skb)
+{
+	if (!lowpan_is_esc(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	net_warn_ratelimited("%s: %s\n", skb->dev->name,
+			     "6LoWPAN ESC not supported\n");
+
+	return RX_DROP_UNUSABLE;
+}
+
+static inline bool lowpan_is_hc1(u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_HC1;
+}
+
+static lowpan_rx_result lowpan_rx_h_hc1(struct sk_buff *skb)
+{
+	if (!lowpan_is_hc1(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	net_warn_ratelimited("%s: %s\n", skb->dev->name,
+			     "6LoWPAN HC1 not supported\n");
+
+	return RX_DROP_UNUSABLE;
+}
+
+static inline bool lowpan_is_dff(u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_DFF;
+}
+
+static lowpan_rx_result lowpan_rx_h_dff(struct sk_buff *skb)
+{
+	if (!lowpan_is_dff(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	net_warn_ratelimited("%s: %s\n", skb->dev->name,
+			     "6LoWPAN DFF not supported\n");
+
+	return RX_DROP_UNUSABLE;
+}
+
+static inline bool lowpan_is_bc0(u8 dispatch)
+{
+	return dispatch == LOWPAN_DISPATCH_BC0;
+}
+
+static lowpan_rx_result lowpan_rx_h_bc0(struct sk_buff *skb)
+{
+	if (!lowpan_is_bc0(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	net_warn_ratelimited("%s: %s\n", skb->dev->name,
+			     "6LoWPAN BC0 not supported\n");
+
+	return RX_DROP_UNUSABLE;
+}
+
+static inline bool lowpan_is_mesh(u8 dispatch)
+{
+	return (dispatch & LOWPAN_DISPATCH_FIRST) == LOWPAN_DISPATCH_MESH;
+}
+
+static lowpan_rx_result lowpan_rx_h_mesh(struct sk_buff *skb)
+{
+	if (!lowpan_is_mesh(*skb_network_header(skb)))
+		return RX_CONTINUE;
+
+	net_warn_ratelimited("%s: %s\n", skb->dev->name,
+			     "6LoWPAN MESH not supported\n");
+
+	return RX_DROP_UNUSABLE;
+}
+
 static int lowpan_invoke_rx_handlers(struct sk_buff *skb)
 {
 	lowpan_rx_result res;
@@ -159,6 +244,11 @@ static int lowpan_invoke_rx_handlers(struct sk_buff *skb)
 	CALL_RXH(lowpan_rx_h_iphc);
 	CALL_RXH(lowpan_rx_h_frag);
 	CALL_RXH(lowpan_rx_h_ipv6);
+	CALL_RXH(lowpan_rx_h_esc);
+	CALL_RXH(lowpan_rx_h_hc1);
+	CALL_RXH(lowpan_rx_h_dff);
+	CALL_RXH(lowpan_rx_h_bc0);
+	CALL_RXH(lowpan_rx_h_mesh);
 
 rxh_next:
 	return lowpan_rx_handlers_result(skb, res);
