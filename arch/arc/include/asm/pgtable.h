@@ -38,6 +38,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm-generic/pgtable-nopmd.h>
+#include <linux/const.h>
 
 /**************************************************************************
  * Page Table Flags
@@ -207,13 +208,9 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#ifdef __ASSEMBLY__
-#define	PTRS_PER_PTE	(1 << BITS_FOR_PTE)
-#define	PTRS_PER_PGD	(1 << BITS_FOR_PGD)
-#else
-#define	PTRS_PER_PTE	(1UL << BITS_FOR_PTE)
-#define	PTRS_PER_PGD	(1UL << BITS_FOR_PGD)
-#endif
+#define	PTRS_PER_PTE	_BITUL(BITS_FOR_PTE)
+#define	PTRS_PER_PGD	_BITUL(BITS_FOR_PGD)
+
 /*
  * Number of entries a user land program use.
  * TASK_SIZE is the maximum vaddr that can be used by a userland program.
