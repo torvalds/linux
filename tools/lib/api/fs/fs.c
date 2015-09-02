@@ -1,5 +1,3 @@
-/* TODO merge/factor in debugfs.c here */
-
 #include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -26,6 +24,10 @@
 #define PROC_SUPER_MAGIC       0x9fa0
 #endif
 
+#ifndef DEBUGFS_MAGIC
+#define DEBUGFS_MAGIC          0x64626720
+#endif
+
 static const char * const sysfs__fs_known_mountpoints[] = {
 	"/sys",
 	0,
@@ -33,6 +35,16 @@ static const char * const sysfs__fs_known_mountpoints[] = {
 
 static const char * const procfs__known_mountpoints[] = {
 	"/proc",
+	0,
+};
+
+#ifndef DEBUGFS_DEFAULT_PATH
+#define DEBUGFS_DEFAULT_PATH "/sys/kernel/debug"
+#endif
+
+static const char * const debugfs__known_mountpoints[] = {
+	DEBUGFS_DEFAULT_PATH,
+	"/debug",
 	0,
 };
 
@@ -45,8 +57,9 @@ struct fs {
 };
 
 enum {
-	FS__SYSFS  = 0,
-	FS__PROCFS = 1,
+	FS__SYSFS   = 0,
+	FS__PROCFS  = 1,
+	FS__DEBUGFS = 2,
 };
 
 static struct fs fs__entries[] = {
@@ -59,6 +72,11 @@ static struct fs fs__entries[] = {
 		.name	= "proc",
 		.mounts	= procfs__known_mountpoints,
 		.magic	= PROC_SUPER_MAGIC,
+	},
+	[FS__DEBUGFS] = {
+		.name	= "debugfs",
+		.mounts	= debugfs__known_mountpoints,
+		.magic	= DEBUGFS_MAGIC,
 	},
 };
 
@@ -176,8 +194,9 @@ const char *name##__mountpoint(void)	\
 	return fs__mountpoint(idx);	\
 }
 
-FS__MOUNTPOINT(sysfs,  FS__SYSFS);
-FS__MOUNTPOINT(procfs, FS__PROCFS);
+FS__MOUNTPOINT(sysfs,   FS__SYSFS);
+FS__MOUNTPOINT(procfs,  FS__PROCFS);
+FS__MOUNTPOINT(debugfs, FS__DEBUGFS);
 
 int filename__read_int(const char *filename, int *value)
 {
