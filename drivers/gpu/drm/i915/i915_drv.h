@@ -188,6 +188,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_PORT_DDI_C_4_LANES,
 	POWER_DOMAIN_PORT_DDI_D_2_LANES,
 	POWER_DOMAIN_PORT_DDI_D_4_LANES,
+	POWER_DOMAIN_PORT_DDI_E_2_LANES,
 	POWER_DOMAIN_PORT_DSI,
 	POWER_DOMAIN_PORT_CRT,
 	POWER_DOMAIN_PORT_OTHER,
@@ -220,6 +221,7 @@ enum hpd_pin {
 	HPD_PORT_B,
 	HPD_PORT_C,
 	HPD_PORT_D,
+	HPD_PORT_E,
 	HPD_NUM_PINS
 };
 
@@ -1421,6 +1423,10 @@ enum modeset_restore {
 #define DP_AUX_C 0x20
 #define DP_AUX_D 0x30
 
+#define DDC_PIN_B  0x05
+#define DDC_PIN_C  0x04
+#define DDC_PIN_D  0x06
+
 struct ddi_vbt_port_info {
 	/*
 	 * This is an index in the HDMI/DVI DDI buffer translation table.
@@ -1435,6 +1441,7 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dp:1;
 
 	uint8_t alternate_aux_channel;
+	uint8_t alternate_ddc_pin;
 
 	uint8_t dp_boost_level;
 	uint8_t hdmi_boost_level;
@@ -1875,7 +1882,7 @@ struct drm_i915_private {
 
 	struct drm_i915_gem_object *vlv_pctx;
 
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
 	struct work_struct fbdev_suspend_work;

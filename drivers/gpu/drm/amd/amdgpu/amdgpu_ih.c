@@ -206,6 +206,8 @@ restart_ih:
 		amdgpu_amdkfd_interrupt(adev,
 				(const void *) &adev->irq.ih.ring[ring_index]);
 
+		entry.iv_entry = (const uint32_t *)
+			&adev->irq.ih.ring[ring_index];
 		amdgpu_ih_decode_iv(adev, &entry);
 		adev->irq.ih.rptr &= adev->irq.ih.ptr_mask;
 

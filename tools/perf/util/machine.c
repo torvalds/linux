@@ -1387,6 +1387,24 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 							event->fork.ptid);
 	int err = 0;
 
+	if (dump_trace)
+		perf_event__fprintf_task(event, stdout);
+
+	/*
+	 * There may be an existing thread that is not actually the parent,
+	 * either because we are processing events out of order, or because the
+	 * (fork) event that would have removed the thread was lost. Assume the
+	 * latter case and continue on as best we can.
+	 */
+	if (parent->pid_ != (pid_t)event->fork.ppid) {
+		dump_printf("removing erroneous parent thread %d/%d\n",
+			    parent->pid_, parent->tid);
+		machine__remove_thread(machine, parent);
+		thread__put(parent);
+		parent = machine__findnew_thread(machine, event->fork.ppid,
+						 event->fork.ptid);
+	}
+
 	/* if a thread currently exists for the thread id remove it */
 	if (thread != NULL) {
 		machine__remove_thread(machine, thread);
@@ -1395,8 +1413,6 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 
 	thread = machine__findnew_thread(machine, event->fork.pid,
 					 event->fork.tid);
-	if (dump_trace)
-		perf_event__fprintf_task(event, stdout);
 
 	if (thread == NULL || parent == NULL ||
 	    thread__fork(thread, parent, sample->time) < 0) {

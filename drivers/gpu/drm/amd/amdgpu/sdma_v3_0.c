@@ -53,6 +53,8 @@ MODULE_FIRMWARE("amdgpu/tonga_sdma.bin");
 MODULE_FIRMWARE("amdgpu/tonga_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_sdma.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/fiji_sdma.bin");
+MODULE_FIRMWARE("amdgpu/fiji_sdma1.bin");
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
@@ -75,6 +77,24 @@ static const u32 golden_settings_tonga_a11[] =
 };
 
 static const u32 tonga_mgcg_cgcg_init[] =
+{
+	mmSDMA0_CLK_CTRL, 0xff000ff0, 0x00000100,
+	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
+};
+
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmSDMA0_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA0_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA1_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
 {
 	mmSDMA0_CLK_CTRL, 0xff000ff0, 0x00000100,
 	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
@@ -122,6 +142,14 @@ static const u32 cz_mgcg_cgcg_init[] =
 static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
@@ -166,6 +194,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
 		chip_name = "tonga";
+		break;
+	case CHIP_FIJI:
+		chip_name = "fiji";
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
@@ -763,6 +794,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
+	struct fence *f = NULL;
 	unsigned i;
 	unsigned index;
 	int r;
@@ -778,12 +810,10 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 	gpu_addr = adev->wb.gpu_addr + (index * 4);
 	tmp = 0xCAFEDEAD;
 	adev->wb.wb[index] = cpu_to_le32(tmp);
-
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
-		amdgpu_wb_free(adev, index);
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		return r;
+		goto err0;
 	}
 
 	ib.ptr[0] = SDMA_PKT_HEADER_OP(SDMA_OP_WRITE) |
@@ -797,19 +827,16 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[7] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
 	ib.length_dw = 8;
 
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
+	if (r)
+		goto err1;
+
+	r = fence_wait(f, false);
 	if (r) {
-		amdgpu_ib_free(adev, &ib);
-		amdgpu_wb_free(adev, index);
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-		return r;
-	}
-	r = amdgpu_fence_wait(ib.fence, false);
-	if (r) {
-		amdgpu_ib_free(adev, &ib);
-		amdgpu_wb_free(adev, index);
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		return r;
+		goto err1;
 	}
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = le32_to_cpu(adev->wb.wb[index]);
@@ -819,12 +846,16 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 	}
 	if (i < adev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ib.fence->ring->idx, i);
+			 ring->idx, i);
+		goto err1;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);
 		r = -EINVAL;
 	}
+err1:
+	fence_put(f);
 	amdgpu_ib_free(adev, &ib);
+err0:
 	amdgpu_wb_free(adev, index);
 	return r;
 }
@@ -1509,5 +1540,6 @@ static void sdma_v3_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 	if (adev->vm_manager.vm_pte_funcs == NULL) {
 		adev->vm_manager.vm_pte_funcs = &sdma_v3_0_vm_pte_funcs;
 		adev->vm_manager.vm_pte_funcs_ring = &adev->sdma[0].ring;
+		adev->vm_manager.vm_pte_funcs_ring->is_pte_ring = true;
 	}
 }

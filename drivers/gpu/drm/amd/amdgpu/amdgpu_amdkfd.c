@@ -21,7 +21,7 @@
  */
 
 #include "amdgpu_amdkfd.h"
-#include "amdgpu_family.h"
+#include "amd_shared.h"
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include <linux/module.h>
@@ -50,9 +50,11 @@ bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev)
 #endif
 
 	switch (rdev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_KAVERI:
 		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
 		break;
+#endif
 	case CHIP_CARRIZO:
 		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
 		break;

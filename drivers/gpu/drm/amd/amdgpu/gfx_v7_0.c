@@ -2173,7 +2173,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
 	adev->gfx.config.mem_max_burst_length_bytes = 256;
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		/* Get memory bank mapping mode. */
 		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
 		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
@@ -2648,6 +2648,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
+	struct fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -2662,26 +2663,23 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		return r;
+		goto err1;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
 	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START));
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-		return r;
-	}
-	r = amdgpu_fence_wait(ib.fence, false);
+
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
+	if (r)
+		goto err2;
+
+	r = fence_wait(f, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		return r;
+		goto err2;
 	}
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -2691,14 +2689,19 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	}
 	if (i < adev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ib.fence->ring->idx, i);
+			 ring->idx, i);
+		goto err2;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
-	amdgpu_gfx_scratch_free(adev, scratch);
+
+err2:
+	fence_put(f);
 	amdgpu_ib_free(adev, &ib);
+err1:
+	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;
 }
 
@@ -3758,7 +3761,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 	int r;
 
 	/* allocate rlc buffers */
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		if (adev->asic_type == CHIP_KAVERI) {
 			adev->gfx.rlc.reg_list = spectre_rlc_save_restore_register_list;
 			adev->gfx.rlc.reg_list_size =

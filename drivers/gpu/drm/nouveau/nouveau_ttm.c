@@ -433,10 +433,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 void
 nouveau_ttm_fini(struct nouveau_drm *drm)
 {
-	mutex_lock(&drm->dev->struct_mutex);
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_TT);
-	mutex_unlock(&drm->dev->struct_mutex);
 
 	ttm_bo_device_release(&drm->ttm.bdev);
 

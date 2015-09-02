@@ -95,9 +95,6 @@ static const int bxt_rates[] = { 162000, 216000, 243000, 270000,
 				  324000, 432000, 540000 };
 static const int skl_rates[] = { 162000, 216000, 270000,
 				  324000, 432000, 540000 };
-static const int chv_rates[] = { 162000, 202500, 210000, 216000,
-				 243000, 270000, 324000, 405000,
-				 420000, 432000, 540000 };
 static const int default_rates[] = { 162000, 270000, 540000 };
 
 /**
@@ -1159,7 +1156,7 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config)
 	pipe_config->dpll_hw_state.ctrl1 = ctrl1;
 }
 
-static void
+void
 hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config)
 {
 	memset(&pipe_config->dpll_hw_state, 0,
@@ -1191,30 +1188,40 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
 }
 
+static bool intel_dp_source_supports_hbr2(struct drm_device *dev)
+{
+	/* WaDisableHBR2:skl */
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
+		return false;
+
+	if ((IS_HASWELL(dev) && !IS_HSW_ULX(dev)) || IS_BROADWELL(dev) ||
+	    (INTEL_INFO(dev)->gen >= 9))
+		return true;
+	else
+		return false;
+}
+
 static int
 intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 {
+	int size;
+
 	if (IS_BROXTON(dev)) {
 		*source_rates = bxt_rates;
-		return ARRAY_SIZE(bxt_rates);
+		size = ARRAY_SIZE(bxt_rates);
 	} else if (IS_SKYLAKE(dev)) {
 		*source_rates = skl_rates;
-		return ARRAY_SIZE(skl_rates);
-	} else if (IS_CHERRYVIEW(dev)) {
-		*source_rates = chv_rates;
-		return ARRAY_SIZE(chv_rates);
+		size = ARRAY_SIZE(skl_rates);
+	} else {
+		*source_rates = default_rates;
+		size = ARRAY_SIZE(default_rates);
 	}
 
-	*source_rates = default_rates;
+	/* This depends on the fact that 5.4 is last value in the array */
+	if (!intel_dp_source_supports_hbr2(dev))
+		size--;
 
-	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
-		/* WaDisableHBR2:skl */
-		return (DP_LINK_BW_2_7 >> 3) + 1;
-	else if (INTEL_INFO(dev)->gen >= 8 ||
-	    (IS_HASWELL(dev) && !IS_HSW_ULX(dev)))
-		return (DP_LINK_BW_5_4 >> 3) + 1;
-	else
-		return (DP_LINK_BW_2_7 >> 3) + 1;
+	return size;
 }
 
 static void
@@ -3993,9 +4000,14 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		}
 	}
 
-	/* Training Pattern 3 support, both source and sink */
+	/* Training Pattern 3 support, Intel platforms that support HBR2 alone
+	 * have support for TP3 hence that check is used along with dpcd check
+	 * to ensure TP3 can be enabled.
+	 * SKL < B0: due it's WaDisableHBR2 is the only exception where TP3 is
+	 * supported but still not enabled.
+	 */
 	if (drm_dp_tps3_supported(intel_dp->dpcd) &&
-	    (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)) {
+	    intel_dp_source_supports_hbr2(dev)) {
 		intel_dp->use_tps3 = true;
 		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
 	} else
@@ -5166,9 +5178,12 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 		intel_dp_probe_oui(intel_dp);
 
-		if (!intel_dp_probe_mst(intel_dp))
+		if (!intel_dp_probe_mst(intel_dp)) {
+			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+			intel_dp_check_link_status(intel_dp);
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 			goto mst_fail;
-
+		}
 	} else {
 		if (intel_dp->is_mst) {
 			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
@@ -5176,10 +5191,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		}
 
 		if (!intel_dp->is_mst) {
-			/*
-			 * we'll check the link status via the normal hot plug path later -
-			 * but for short hpds we should check it now
-			 */
 			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 			intel_dp_check_link_status(intel_dp);
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
@@ -5221,16 +5232,17 @@ intel_trans_dp_port_sel(struct drm_crtc *crtc)
 	return -1;
 }
 
-/* check the VBT to see whether the eDP is on DP-D port */
+/* check the VBT to see whether the eDP is on another port */
 bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	union child_device_config *p_child;
 	int i;
 	static const short port_mapping[] = {
-		[PORT_B] = PORT_IDPB,
-		[PORT_C] = PORT_IDPC,
-		[PORT_D] = PORT_IDPD,
+		[PORT_B] = DVO_PORT_DPB,
+		[PORT_C] = DVO_PORT_DPC,
+		[PORT_D] = DVO_PORT_DPD,
+		[PORT_E] = DVO_PORT_DPE,
 	};
 
 	if (port == PORT_A)
@@ -6066,6 +6078,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		break;
 	case PORT_D:
 		intel_encoder->hpd_pin = HPD_PORT_D;
+		break;
+	case PORT_E:
+		intel_encoder->hpd_pin = HPD_PORT_E;
 		break;
 	default:
 		BUG();

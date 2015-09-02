@@ -348,7 +348,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
-	DRM_DEBUG_KMS("Memory reserved for graphics device: %luK, usable: %luK\n",
+	DRM_DEBUG_KMS("Memory reserved for graphics device: %zuK, usable: %luK\n",
 		      dev_priv->gtt.stolen_size >> 10,
 		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
 

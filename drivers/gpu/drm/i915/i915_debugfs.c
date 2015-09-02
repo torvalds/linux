@@ -1863,7 +1863,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct intel_framebuffer *fb;
 	struct drm_framebuffer *drm_fb;
 
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	ifbdev = dev_priv->fbdev;
@@ -2700,6 +2700,8 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "PORT_DDI_D_2_LANES";
 	case POWER_DOMAIN_PORT_DDI_D_4_LANES:
 		return "PORT_DDI_D_4_LANES";
+	case POWER_DOMAIN_PORT_DDI_E_2_LANES:
+		return "PORT_DDI_E_2_LANES";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:

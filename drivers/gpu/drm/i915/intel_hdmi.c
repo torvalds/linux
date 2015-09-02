@@ -2020,6 +2020,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
+	uint8_t alternate_ddc_pin;
 
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
@@ -2059,6 +2060,26 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		else
 			intel_hdmi->ddc_bus = GMBUS_PIN_DPD;
 		intel_encoder->hpd_pin = HPD_PORT_D;
+		break;
+	case PORT_E:
+		/* On SKL PORT E doesn't have seperate GMBUS pin
+		 *  We rely on VBT to set a proper alternate GMBUS pin. */
+		alternate_ddc_pin =
+			dev_priv->vbt.ddi_port_info[PORT_E].alternate_ddc_pin;
+		switch (alternate_ddc_pin) {
+		case DDC_PIN_B:
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPB;
+			break;
+		case DDC_PIN_C:
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPC;
+			break;
+		case DDC_PIN_D:
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPD;
+			break;
+		default:
+			MISSING_CASE(alternate_ddc_pin);
+		}
+		intel_encoder->hpd_pin = HPD_PORT_E;
 		break;
 	case PORT_A:
 		intel_encoder->hpd_pin = HPD_PORT_A;

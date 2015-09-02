@@ -238,22 +238,22 @@ err_free:
 	return ERR_PTR(ret);
 }
 
-struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,
-						int index)
+struct exynos_drm_gem_obj *exynos_drm_fb_gem_obj(struct drm_framebuffer *fb,
+						 int index)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
-	struct exynos_drm_gem_buf *buffer;
+	struct exynos_drm_gem_obj *obj;
 
 	if (index >= MAX_FB_BUFFER)
 		return NULL;
 
-	buffer = exynos_fb->exynos_gem_obj[index]->buffer;
-	if (!buffer)
+	obj = exynos_fb->exynos_gem_obj[index];
+	if (!obj)
 		return NULL;
 
-	DRM_DEBUG_KMS("dma_addr = 0x%lx\n", (unsigned long)buffer->dma_addr);
+	DRM_DEBUG_KMS("dma_addr = 0x%lx\n", (unsigned long)obj->dma_addr);
 
-	return buffer;
+	return obj;
 }
 
 static void exynos_drm_output_poll_changed(struct drm_device *dev)

@@ -745,8 +745,6 @@ struct drm_connector {
 	uint8_t num_h_tile, num_v_tile;
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
-
-	struct list_head destroy_list;
 };
 
 /**
@@ -865,7 +863,7 @@ struct drm_plane {
 
 	uint32_t possible_crtcs;
 	uint32_t *format_types;
-	uint32_t format_count;
+	unsigned int format_count;
 	bool format_default;
 
 	struct drm_crtc *crtc;
@@ -1270,13 +1268,13 @@ extern int drm_universal_plane_init(struct drm_device *dev,
 				    unsigned long possible_crtcs,
 				    const struct drm_plane_funcs *funcs,
 				    const uint32_t *formats,
-				    uint32_t format_count,
+				    unsigned int format_count,
 				    enum drm_plane_type type);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
-			  const uint32_t *formats, uint32_t format_count,
+			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern unsigned int drm_plane_index(struct drm_plane *plane);

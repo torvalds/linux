@@ -88,6 +88,7 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 	ib->fence = NULL;
 	ib->user = NULL;
 	ib->vm = vm;
+	ib->ctx = NULL;
 	ib->gds_base = 0;
 	ib->gds_size = 0;
 	ib->gws_base = 0;
@@ -142,6 +143,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	struct amdgpu_ring *ring;
 	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
+	uint64_t sequence;
 	unsigned i;
 	int r = 0;
 
@@ -165,9 +167,11 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 
 	if (vm) {
 		/* grab a vm id if necessary */
-		struct amdgpu_fence *vm_id_fence = NULL;
-		vm_id_fence = amdgpu_vm_grab_id(ibs->ring, ibs->vm);
-		amdgpu_sync_fence(&ibs->sync, vm_id_fence);
+		r = amdgpu_vm_grab_id(ibs->vm, ibs->ring, &ibs->sync);
+		if (r) {
+			amdgpu_ring_unlock_undo(ring);
+			return r;
+		}
 	}
 
 	r = amdgpu_sync_rings(&ibs->sync, ring);
@@ -212,11 +216,18 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return r;
 	}
 
+	sequence = amdgpu_enable_scheduler ? ib->sequence : 0;
+
+	if (!amdgpu_enable_scheduler && ib->ctx)
+		ib->sequence = amdgpu_ctx_add_fence(ib->ctx, ring,
+						    &ib->fence->base,
+						    sequence);
+
 	/* wrap the last IB with fence */
 	if (ib->user) {
 		uint64_t addr = amdgpu_bo_gpu_offset(ib->user->bo);
 		addr += ib->user->offset;
-		amdgpu_ring_emit_fence(ring, addr, ib->fence->seq,
+		amdgpu_ring_emit_fence(ring, addr, ib->sequence,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
 

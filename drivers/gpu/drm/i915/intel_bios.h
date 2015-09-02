@@ -203,9 +203,11 @@ struct bdb_general_features {
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
-/* We used to keep this struct but without any version control. We should avoid
+/*
+ * We used to keep this struct but without any version control. We should avoid
  * using it in the future, but it should be safe to keep using it in the old
- * code. */
+ * code. Do not change; we rely on its size.
+ */
 struct old_child_dev_config {
 	u16 handle;
 	u16 device_type;
@@ -756,11 +758,6 @@ int intel_parse_bios(struct drm_device *dev);
 #define		DVO_C		2
 #define		DVO_D		3
 
-/* define the PORT for DP output type */
-#define		PORT_IDPB	7
-#define		PORT_IDPC	8
-#define		PORT_IDPD	9
-
 /* Possible values for the "DVO Port" field for versions >= 155: */
 #define DVO_PORT_HDMIA	0
 #define DVO_PORT_HDMIB	1
@@ -773,6 +770,8 @@ int intel_parse_bios(struct drm_device *dev);
 #define DVO_PORT_DPC	8
 #define DVO_PORT_DPD	9
 #define DVO_PORT_DPA	10
+#define DVO_PORT_DPE	11
+#define DVO_PORT_HDMIE	12
 #define DVO_PORT_MIPIA	21
 #define DVO_PORT_MIPIB	22
 #define DVO_PORT_MIPIC	23

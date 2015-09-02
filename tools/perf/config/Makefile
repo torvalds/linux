@@ -638,7 +638,7 @@ ifndef DESTDIR
 prefix ?= $(HOME)
 endif
 bindir_relative = bin
-bindir = $(prefix)/$(bindir_relative)
+bindir = $(abspath $(prefix)/$(bindir_relative))
 mandir = share/man
 infodir = share/info
 perfexecdir = libexec/perf-core

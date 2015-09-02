@@ -1027,6 +1027,8 @@ static int intel_lr_context_pin(struct drm_i915_gem_request *rq)
 		if (ret)
 			goto unpin_ctx_obj;
 
+		ctx_obj->dirty = true;
+
 		/* Invalidate GuC TLB. */
 		if (i915.enable_guc_submission)
 			I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);

@@ -91,6 +91,9 @@ bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port)
 	case HPD_PORT_D:
 		*port = PORT_D;
 		return true;
+	case HPD_PORT_E:
+		*port = PORT_E;
+		return true;
 	default:
 		return false;	/* no hpd */
 	}

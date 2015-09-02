@@ -53,20 +53,24 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 }
 
 /**
- * amdgpu_sync_fence - use the semaphore to sync to a fence
+ * amdgpu_sync_fence - remember to sync to this fence
  *
  * @sync: sync object to add fence to
  * @fence: fence to sync to
  *
- * Sync to the fence using the semaphore objects
  */
-void amdgpu_sync_fence(struct amdgpu_sync *sync,
-		       struct amdgpu_fence *fence)
+int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		      struct fence *f)
 {
+	struct amdgpu_fence *fence;
 	struct amdgpu_fence *other;
 
-	if (!fence)
-		return;
+	if (!f)
+		return 0;
+
+	fence = to_amdgpu_fence(f);
+	if (!fence || fence->ring->adev != adev)
+		return fence_wait(f, true);
 
 	other = sync->sync_to[fence->ring->idx];
 	sync->sync_to[fence->ring->idx] = amdgpu_fence_ref(
@@ -79,6 +83,8 @@ void amdgpu_sync_fence(struct amdgpu_sync *sync,
 			amdgpu_fence_later(fence, other));
 		amdgpu_fence_unref(&other);
 	}
+
+	return 0;
 }
 
 /**
@@ -106,11 +112,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 
 	/* always sync to the exclusive fence */
 	f = reservation_object_get_excl(resv);
-	fence = f ? to_amdgpu_fence(f) : NULL;
-	if (fence && fence->ring->adev == adev)
-		amdgpu_sync_fence(sync, fence);
-	else if (f)
-		r = fence_wait(f, true);
+	r = amdgpu_sync_fence(adev, sync, f);
 
 	flist = reservation_object_get_list(resv);
 	if (!flist || r)
@@ -121,14 +123,26 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 					      reservation_object_held(resv));
 		fence = f ? to_amdgpu_fence(f) : NULL;
 		if (fence && fence->ring->adev == adev) {
-			if (fence->owner != owner ||
-			    fence->owner == AMDGPU_FENCE_OWNER_UNDEFINED)
-				amdgpu_sync_fence(sync, fence);
-		} else if (f) {
-			r = fence_wait(f, true);
-			if (r)
-				break;
+			/* VM updates are only interesting
+			 * for other VM updates and moves.
+			 */
+			if ((owner != AMDGPU_FENCE_OWNER_MOVE) &&
+			    (fence->owner != AMDGPU_FENCE_OWNER_MOVE) &&
+			    ((owner == AMDGPU_FENCE_OWNER_VM) !=
+			     (fence->owner == AMDGPU_FENCE_OWNER_VM)))
+				continue;
+
+			/* Ignore fence from the same owner as
+			 * long as it isn't undefined.
+			 */
+			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
+			    fence->owner == owner)
+				continue;
 		}
+
+		r = amdgpu_sync_fence(adev, sync, f);
+		if (r)
+			break;
 	}
 	return r;
 }
@@ -164,9 +178,9 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 			return -EINVAL;
 		}
 
-		if (count >= AMDGPU_NUM_SYNCS) {
+		if (amdgpu_enable_scheduler || (count >= AMDGPU_NUM_SYNCS)) {
 			/* not enough room, wait manually */
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r)
 				return r;
 			continue;
@@ -186,7 +200,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		if (!amdgpu_semaphore_emit_signal(other, semaphore)) {
 			/* signaling wasn't successful wait manually */
 			amdgpu_ring_undo(other);
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r)
 				return r;
 			continue;
@@ -196,7 +210,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		if (!amdgpu_semaphore_emit_wait(ring, semaphore)) {
 			/* waiting wasn't successful wait manually */
 			amdgpu_ring_undo(other);
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r)
 				return r;
 			continue;

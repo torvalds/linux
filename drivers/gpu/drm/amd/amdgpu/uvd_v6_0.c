@@ -575,7 +575,7 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
  */
 static int uvd_v6_0_ring_test_ib(struct amdgpu_ring *ring)
 {
-	struct amdgpu_fence *fence = NULL;
+	struct fence *fence = NULL;
 	int r;
 
 	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
@@ -590,14 +590,14 @@ static int uvd_v6_0_ring_test_ib(struct amdgpu_ring *ring)
 		goto error;
 	}
 
-	r = amdgpu_fence_wait(fence, false);
+	r = fence_wait(fence, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto error;
 	}
 	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
 error:
-	amdgpu_fence_unref(&fence);
+	fence_put(fence);
 	return r;
 }
 

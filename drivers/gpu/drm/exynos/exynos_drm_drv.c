@@ -21,13 +21,11 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_encoder.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
-#include "exynos_drm_dmabuf.h"
 #include "exynos_drm_g2d.h"
 #include "exynos_drm_ipp.h"
 #include "exynos_drm_iommu.h"
@@ -41,7 +39,9 @@
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
-	int ret;
+	struct drm_encoder *encoder;
+	unsigned int clone_mask;
+	int cnt, ret;
 
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private)
@@ -67,7 +67,13 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	exynos_drm_mode_config_init(dev);
 
 	/* setup possible_clones. */
-	exynos_drm_encoder_setup(dev);
+	cnt = 0;
+	clone_mask = 0;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		clone_mask |= (1 << (cnt++));
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		encoder->possible_clones = clone_mask;
 
 	platform_set_drvdata(dev->platformdev, dev);
 
@@ -297,8 +303,12 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= exynos_dmabuf_prime_export,
-	.gem_prime_import	= exynos_dmabuf_prime_import,
+	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
+	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
+	.gem_prime_vunmap	= exynos_drm_gem_prime_vunmap,
 	.ioctls			= exynos_ioctls,
 	.num_ioctls		= ARRAY_SIZE(exynos_ioctls),
 	.fops			= &exynos_drm_driver_fops,
@@ -345,9 +355,6 @@ static struct platform_driver exynos_drm_platform_driver;
  * because connector requires pipe number of its crtc during initialization.
  */
 static struct platform_driver *const exynos_drm_kms_drivers[] = {
-#ifdef CONFIG_DRM_EXYNOS_VIDI
-	&vidi_driver,
-#endif
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	&fimd_driver,
 #endif
@@ -369,6 +376,9 @@ static struct platform_driver *const exynos_drm_kms_drivers[] = {
 #ifdef CONFIG_DRM_EXYNOS_HDMI
 	&mixer_driver,
 	&hdmi_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	&vidi_driver,
 #endif
 };
 
