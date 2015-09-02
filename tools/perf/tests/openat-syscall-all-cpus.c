@@ -15,6 +15,7 @@ int test__openat_syscall_event_on_all_cpus(void)
 	cpu_set_t cpu_set;
 	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
+	char errbuf[BUFSIZ];
 
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
@@ -31,12 +32,8 @@ int test__openat_syscall_event_on_all_cpus(void)
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
 	if (evsel == NULL) {
-		if (tracefs__configured())
-			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
-		else if (debugfs__configured())
-			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
-		else
-			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");
+		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
+		pr_err("%s\n", errbuf);
 		goto out_thread_map_delete;
 	}
 

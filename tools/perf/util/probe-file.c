@@ -22,7 +22,7 @@
 #include "color.h"
 #include "symbol.h"
 #include "thread.h"
-#include <api/fs/fs.h>
+#include <api/fs/tracing_path.h>
 #include "probe-event.h"
 #include "probe-file.h"
 #include "session.h"
@@ -72,21 +72,11 @@ static void print_both_open_warning(int kerr, int uerr)
 static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
-	const char *__debugfs;
 	const char *tracing_dir = "";
 	int ret;
 
-	__debugfs = tracefs__mountpoint();
-	if (__debugfs == NULL) {
-		tracing_dir = "tracing/";
-
-		__debugfs = debugfs__mountpoint();
-		if (__debugfs == NULL)
-			return -ENOTSUP;
-	}
-
 	ret = e_snprintf(buf, PATH_MAX, "%s/%s%s",
-			 __debugfs, tracing_dir, trace_file);
+			 tracing_path, tracing_dir, trace_file);
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
