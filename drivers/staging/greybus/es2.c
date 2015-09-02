@@ -108,7 +108,7 @@ struct es1_ap_dev {
 	bool cport_out_urb_cancelled[NUM_CPORT_OUT_URB];
 	spinlock_t cport_out_urb_lock;
 
-	int cport_to_ep[CPORT_COUNT];
+	int *cport_to_ep;
 };
 
 struct cport_to_ep {
@@ -443,6 +443,7 @@ static void ap_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	udev = es1->usb_dev;
 	greybus_remove_hd(es1->hd);
+	kfree(es1->cport_to_ep);
 
 	usb_put_dev(udev);
 }
@@ -677,6 +678,13 @@ static int ap_probe(struct usb_interface *interface,
 	/* Control endpoint is the pipe to talk to this AP, so save it off */
 	endpoint = &udev->ep0.desc;
 	es1->control_endpoint = endpoint->bEndpointAddress;
+
+	es1->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es1->cport_to_ep),
+				   GFP_KERNEL);
+	if (!es1->cport_to_ep) {
+		retval = -ENOMEM;
+		goto error;
+	}
 
 	/* find all 3 of our endpoints */
 	iface_desc = interface->cur_altsetting;
