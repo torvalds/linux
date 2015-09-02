@@ -1366,8 +1366,14 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 	case RK3288:
 		spin_lock_irqsave(&bank->slock, flags);
 
-		/* enable the write to the equivalent lower bits */
-		data = ((1 << RK3188_PULL_BITS_PER_PIN) - 1) << (bit + 16);
+		/* enable the write to the equivalent lower bits,
+		 * but gpio0 has not the write_enable bit.
+		 */
+		if (bank->bank_num == 0) {
+			data = readl_relaxed(reg);
+			data &= ~(3 << bit);
+		} else
+			data = ((1 << RK3188_PULL_BITS_PER_PIN) - 1) << (bit + 16);
 
 		switch (pull) {
 		case PIN_CONFIG_BIAS_DISABLE:
@@ -1746,10 +1752,15 @@ static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 
 				spin_lock_irqsave(&bank->slock, flags);
 
-				data = arg << bit;
-				data &= (3<<bit);
-				data |= (3<<(bit+16));
-				
+				if (bank->bank_num == 0) {
+					data = readl_relaxed(reg);
+					data &= ~(3<<bit);
+					data |= arg << bit;
+				} else {
+					data = arg << bit;
+					data |= (3<<(bit+16));
+				}
+
 				writel_relaxed(data, reg);
 				spin_unlock_irqrestore(&bank->slock, flags);
 				
@@ -3368,7 +3379,7 @@ static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
 
 
 static struct rockchip_pin_bank rk3288_pin_banks[] = {
-	PIN_BANK(0, 32, "gpio0"),
+	PIN_BANK(0, 24, "gpio0"),
 	PIN_BANK(1, 32, "gpio1"),
 	PIN_BANK(2, 32, "gpio2"),
 	PIN_BANK(3, 32, "gpio3"),
