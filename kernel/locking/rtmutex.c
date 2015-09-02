@@ -158,7 +158,8 @@ rt_mutex_waiter_less(struct rt_mutex_waiter *left,
 	 * then right waiter has a dl_prio() too.
 	 */
 	if (dl_prio(left->prio))
-		return (left->task->dl.deadline < right->task->dl.deadline);
+		return dl_time_before(left->task->dl.deadline,
+				      right->task->dl.deadline);
 
 	return 0;
 }
