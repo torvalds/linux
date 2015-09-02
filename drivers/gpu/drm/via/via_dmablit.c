@@ -260,7 +260,7 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 /*
  * Allocate DMA capable memory for the blit descriptor chain, and an array that keeps track of the
  * pages we allocate. We don't want to use kmalloc for the descriptor chain because it may be
- * quite large for some blits, and pages don't need to be contingous.
+ * quite large for some blits, and pages don't need to be contiguous.
  */
 
 static int

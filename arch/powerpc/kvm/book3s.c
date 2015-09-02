@@ -902,7 +902,7 @@ int kvmppc_core_check_processor_compat(void)
 {
 	/*
 	 * We always return 0 for book3s. We check
-	 * for compatability while loading the HV
+	 * for compatibility while loading the HV
 	 * or PR module
 	 */
 	return 0;
