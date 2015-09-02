@@ -90,33 +90,39 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 
 	switch (err) {
 	case ENOENT:
-		if (debugfs_configured()) {
+		/*
+		 * We will get here if we can't find the tracepoint, but one of
+		 * debugfs or tracefs is configured, which means you probably
+		 * want some tracepoint which wasn't compiled in your kernel.
+		 * - jirka
+		 */
+		if (debugfs_configured() || tracefs_configured()) {
 			snprintf(buf, size,
 				 "Error:\tFile %s/%s not found.\n"
 				 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
-				 debugfs_mountpoint, filename);
+				 tracing_events_path, filename);
 			break;
 		}
 		snprintf(buf, size, "%s",
-			 "Error:\tUnable to find debugfs\n"
-			 "Hint:\tWas your kernel compiled with debugfs support?\n"
-			 "Hint:\tIs the debugfs filesystem mounted?\n"
+			 "Error:\tUnable to find debugfs/tracefs\n"
+			 "Hint:\tWas your kernel compiled with debugfs/tracefs support?\n"
+			 "Hint:\tIs the debugfs/tracefs filesystem mounted?\n"
 			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
 		break;
 	case EACCES: {
-		const char *mountpoint = debugfs_mountpoint;
+		const char *mountpoint = debugfs_find_mountpoint();
 
-		if (!access(debugfs_mountpoint, R_OK) && strncmp(filename, "tracing/", 8) == 0) {
+		if (!access(mountpoint, R_OK) && strncmp(filename, "tracing/", 8) == 0) {
 			const char *tracefs_mntpoint = tracefs_find_mountpoint();
 
 			if (tracefs_mntpoint)
-				mountpoint = tracefs_mntpoint;
+				mountpoint = tracefs_find_mountpoint();
 		}
 
 		snprintf(buf, size,
 			 "Error:\tNo permissions to read %s/%s\n"
 			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			 debugfs_mountpoint, filename, mountpoint);
+			 tracing_events_path, filename, mountpoint);
 	}
 		break;
 	default:
@@ -131,7 +137,7 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size, const char *
 {
 	char path[PATH_MAX];
 
-	snprintf(path, PATH_MAX, "tracing/events/%s/%s", sys, name ?: "*");
+	snprintf(path, PATH_MAX, "%s/%s", sys, name ?: "*");
 
 	return strerror_open(err, buf, size, path);
 }
