@@ -202,7 +202,6 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 			return -1;
 
 		stats->flag |= RX_FLAG_DECRYPTED;
-		IWL_DEBUG_WEP(mvm, "hw decrypted CCMP successfully\n");
 		*crypt_len = IEEE80211_CCMP_HDR_LEN;
 		return 0;
 
