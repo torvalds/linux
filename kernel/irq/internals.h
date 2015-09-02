@@ -81,7 +81,7 @@ extern void irq_mark_irq(unsigned int irq);
 
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
-irqreturn_t handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action);
+irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event(struct irq_desc *desc);
 
 /* Resending of interrupts :*/
