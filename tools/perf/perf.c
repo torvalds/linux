@@ -214,7 +214,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				fprintf(stderr, "No directory given for --debugfs-dir.\n");
 				usage(perf_usage_string);
 			}
-			perf_debugfs_set_path((*argv)[1]);
+			tracing_path_set((*argv)[1]);
 			if (envchanged)
 				*envchanged = 1;
 			(*argv)++;
@@ -230,7 +230,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argv)++;
 			(*argc)--;
 		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
-			perf_debugfs_set_path(cmd + strlen(CMD_DEBUGFS_DIR));
+			tracing_path_set(cmd + strlen(CMD_DEBUGFS_DIR));
 			fprintf(stderr, "dir: %s\n", tracing_path);
 			if (envchanged)
 				*envchanged = 1;
@@ -517,8 +517,10 @@ int main(int argc, const char **argv)
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
-	/* get debugfs mount point from /proc/mounts */
-	perf_debugfs_mount();
+
+	/* get debugfs/tracefs mount point from /proc/mounts */
+	tracing_path_mount();
+
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *

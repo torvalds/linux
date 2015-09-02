@@ -390,7 +390,7 @@ void set_term_quiet_input(struct termios *old)
 	tcsetattr(0, TCSANOW, &tc);
 }
 
-static void set_tracing_events_path(const char *tracing, const char *mountpoint)
+static void __tracing_path_set(const char *tracing, const char *mountpoint)
 {
 	snprintf(tracing_path, sizeof(tracing_path), "%s/%s",
 		 mountpoint, tracing);
@@ -398,7 +398,7 @@ static void set_tracing_events_path(const char *tracing, const char *mountpoint)
 		 mountpoint, tracing, "events");
 }
 
-static const char *__perf_tracefs_mount(void)
+static const char *tracing_path_tracefs_mount(void)
 {
 	const char *mnt;
 
@@ -406,12 +406,12 @@ static const char *__perf_tracefs_mount(void)
 	if (!mnt)
 		return NULL;
 
-	set_tracing_events_path("", mnt);
+	__tracing_path_set("", mnt);
 
 	return mnt;
 }
 
-static const char *__perf_debugfs_mount(void)
+static const char *tracing_path_debugfs_mount(void)
 {
 	const char *mnt;
 
@@ -419,27 +419,27 @@ static const char *__perf_debugfs_mount(void)
 	if (!mnt)
 		return NULL;
 
-	set_tracing_events_path("tracing/", mnt);
+	__tracing_path_set("tracing/", mnt);
 
 	return mnt;
 }
 
-const char *perf_debugfs_mount(void)
+const char *tracing_path_mount(void)
 {
 	const char *mnt;
 
-	mnt = __perf_tracefs_mount();
+	mnt = tracing_path_tracefs_mount();
 	if (mnt)
 		return mnt;
 
-	mnt = __perf_debugfs_mount();
+	mnt = tracing_path_debugfs_mount();
 
 	return mnt;
 }
 
-void perf_debugfs_set_path(const char *mntpt)
+void tracing_path_set(const char *mntpt)
 {
-	set_tracing_events_path("tracing/", mntpt);
+	__tracing_path_set("tracing/", mntpt);
 }
 
 char *get_tracing_file(const char *name)
