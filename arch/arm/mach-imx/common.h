@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -170,6 +170,7 @@ void imx7d_low_power_idle(void);
 void imx6sx_low_power_idle(void);
 void imx6ul_low_power_idle(void);
 void imx6sl_low_power_idle(void);
+bool imx_gpc_usb_wakeup_enabled(void);
 
 #ifdef CONFIG_SUSPEND
 void v7_cpu_resume(void);
