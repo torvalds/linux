@@ -14,7 +14,7 @@ int snd_hdac_i915_init(struct hdac_bus *bus);
 int snd_hdac_i915_exit(struct hdac_bus *bus);
 int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *);
 #else
-static int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
+static inline int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 {
 	return 0;
 }
