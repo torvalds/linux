@@ -128,7 +128,7 @@ static void usb_log_disable(struct es1_ap_dev *es1);
 
 static int cport_to_ep(struct es1_ap_dev *es1, u16 cport_id)
 {
-	if (cport_id >= CPORT_COUNT)
+	if (cport_id >= es1->hd->num_cports)
 		return 0;
 	return es1->cport_to_ep[cport_id];
 }
@@ -139,7 +139,7 @@ static int ep_in_use(struct es1_ap_dev *es1, int bulk_ep_set)
 {
 	int i;
 
-	for (i = 0; i < CPORT_COUNT; i++) {
+	for (i = 0; i < es1->hd->num_cports; i++) {
 		if (es1->cport_to_ep[i] == bulk_ep_set)
 			return 1;
 	}
@@ -154,7 +154,7 @@ int map_cport_to_ep(struct es1_ap_dev *es1,
 
 	if (bulk_ep_set == 0 || bulk_ep_set >= NUM_BULKS)
 		return -EINVAL;
-	if (cport_id >= CPORT_COUNT)
+	if (cport_id >= es1->hd->num_cports)
 		return -EINVAL;
 	if (bulk_ep_set && ep_in_use(es1, bulk_ep_set))
 		return -EINVAL;
@@ -287,7 +287,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	 * of where the data should be sent.  Do one last check of
 	 * the target CPort id before filling it in.
 	 */
-	if (!cport_id_valid(cport_id)) {
+	if (!cport_id_valid(hd, cport_id)) {
 		pr_err("invalid destination cport 0x%02x\n", cport_id);
 		return -EINVAL;
 	}
@@ -472,7 +472,7 @@ static void cport_in_callback(struct urb *urb)
 	header = urb->transfer_buffer;
 	cport_id = gb_message_cport_unpack(header);
 
-	if (cport_id_valid(cport_id))
+	if (cport_id_valid(hd, cport_id))
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
 	else
@@ -660,7 +660,8 @@ static int ap_probe(struct usb_interface *interface,
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
-	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX);
+	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX,
+			       CPORT_COUNT);
 	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
 		return PTR_ERR(hd);

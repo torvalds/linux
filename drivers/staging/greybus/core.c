@@ -168,7 +168,8 @@ static void free_hd(struct kref *kref)
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver,
 					      struct device *parent,
-					      size_t buffer_size_max)
+					      size_t buffer_size_max,
+					      size_t num_cports)
 {
 	struct greybus_host_device *hd;
 
@@ -184,6 +185,11 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	if (buffer_size_max < GB_OPERATION_MESSAGE_SIZE_MIN) {
 		dev_err(parent, "greybus host-device buffers too small\n");
 		return NULL;
+	}
+
+	if (num_cports == 0 || num_cports > CPORT_ID_MAX) {
+		dev_err(parent, "Invalid number of CPorts: %zu\n", num_cports);
+		return ERR_PTR(-EINVAL);
 	}
 
 	/*
@@ -207,6 +213,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
+	hd->num_cports = num_cports;
 
 	/*
 	 * Initialize AP's SVC protocol connection:

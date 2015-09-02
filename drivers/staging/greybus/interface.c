@@ -84,7 +84,7 @@ int gb_create_bundle_connection(struct gb_interface *intf, u8 class)
 		bundle_id = GB_CONTROL_BUNDLE_ID;
 		cport_id = GB_CONTROL_CPORT_ID;
 		ida_start = 0;
-		ida_end = CPORT_ID_MAX;
+		ida_end = intf->hd->num_cports - 1;
 	} else if (class == GREYBUS_CLASS_SVC) {
 		protocol_id = GREYBUS_PROTOCOL_SVC;
 		bundle_id = GB_SVC_BUNDLE_ID;

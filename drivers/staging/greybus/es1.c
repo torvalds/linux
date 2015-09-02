@@ -33,6 +33,9 @@ static struct dentry *apb1_log_enable_dentry;
 static struct task_struct *apb1_log_task;
 static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
+/* Number of CPorts supported by es1 */
+#define CPORT_COUNT		256
+
 /*
  * Number of CPort IN urbs in flight at any point in time.
  * Adjust if we are having stalls in the USB buffer due to not enough urbs in
@@ -193,7 +196,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	 * of where the data should be sent.  Do one last check of
 	 * the target CPort id before filling it in.
 	 */
-	if (!cport_id_valid(cport_id)) {
+	if (!cport_id_valid(hd, cport_id)) {
 		pr_err("invalid destination cport 0x%02x\n", cport_id);
 		return -EINVAL;
 	}
@@ -372,7 +375,7 @@ static void cport_in_callback(struct urb *urb)
 	header = urb->transfer_buffer;
 	cport_id = gb_message_cport_unpack(header);
 
-	if (cport_id_valid(cport_id))
+	if (cport_id_valid(hd, cport_id))
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
 	else
@@ -560,7 +563,8 @@ static int ap_probe(struct usb_interface *interface,
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
-	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX);
+	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX,
+			       CPORT_COUNT);
 	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
 		return PTR_ERR(hd);

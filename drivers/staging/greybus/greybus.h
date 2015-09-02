@@ -96,6 +96,9 @@ struct greybus_host_device {
 	struct ida cport_id_map;
 	u8 device_id;
 
+	/* Number of CPorts supported by the UniPro IP */
+	size_t num_cports;
+
 	/* Host device buffer constraints */
 	size_t buffer_size_max;
 
@@ -109,7 +112,8 @@ struct greybus_host_device {
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
 					      struct device *parent,
-					      size_t buffer_size_max);
+					      size_t buffer_size_max,
+					      size_t num_cports);
 int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
 			u8 ap_intf_id);
 void greybus_remove_hd(struct greybus_host_device *hd);
@@ -191,9 +195,9 @@ static inline int is_gb_connection(const struct device *dev)
 	return dev->type == &greybus_connection_type;
 }
 
-static inline bool cport_id_valid(u16 cport_id)
+static inline bool cport_id_valid(struct greybus_host_device *hd, u16 cport_id)
 {
-	return cport_id != CPORT_ID_BAD && cport_id <= CPORT_ID_MAX;
+	return cport_id != CPORT_ID_BAD && cport_id < hd->num_cports;
 }
 
 #endif /* __KERNEL__ */
