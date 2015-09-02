@@ -13,6 +13,7 @@
 #include <linux/percpu.h>
 #include <linux/route.h>
 #include <linux/skbuff.h>
+#include <linux/netfilter.h>
 #include <net/checksum.h>
 #include <net/icmp.h>
 #include <net/ip.h>
