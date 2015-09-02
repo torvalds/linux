@@ -39,6 +39,25 @@ static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 static unsigned int xfeatures_nr;
 
 /*
+ * Clear all of the X86_FEATURE_* bits that are unavailable
+ * when the CPU has no XSAVE support.
+ */
+void fpu__xstate_clear_all_cpu_caps(void)
+{
+	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
+	setup_clear_cpu_cap(X86_FEATURE_XSAVEC);
+	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+	setup_clear_cpu_cap(X86_FEATURE_AVX);
+	setup_clear_cpu_cap(X86_FEATURE_AVX2);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
+	setup_clear_cpu_cap(X86_FEATURE_MPX);
+}
+
+/*
  * Return whether the system supports a given xfeature.
  *
  * Also return the name of the (most advanced) feature that the caller requested:
