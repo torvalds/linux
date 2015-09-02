@@ -178,6 +178,14 @@ static struct test {
 		.desc = "Test LLVM searching and compiling",
 		.func = test__llvm,
 	},
+#ifdef HAVE_AUXTRACE_SUPPORT
+#if defined(__x86_64__) || defined(__i386__)
+	{
+		.desc = "Test x86 instruction decoder - new instructions",
+		.func = test__insn_x86,
+	},
+#endif
+#endif
 	{
 		.func = NULL,
 	},

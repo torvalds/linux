@@ -35,6 +35,9 @@ perf-y += thread-map.o
 perf-y += llvm.o
 
 perf-$(CONFIG_X86) += perf-time-to-tsc.o
+ifdef CONFIG_AUXTRACE
+perf-$(CONFIG_X86) += insn-x86.o
+endif
 
 ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
