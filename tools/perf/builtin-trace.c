@@ -17,6 +17,7 @@
  */
 
 #include <traceevent/event-parse.h>
+#include <api/fs/tracing_path.h>
 #include "builtin.h"
 #include "util/color.h"
 #include "util/debug.h"
@@ -2686,11 +2687,11 @@ out_delete_evlist:
 	char errbuf[BUFSIZ];
 
 out_error_sched_stat_runtime:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
 	goto out_error;
 
 out_error_raw_syscalls:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
 	goto out_error;
 
 out_error_mmap:
