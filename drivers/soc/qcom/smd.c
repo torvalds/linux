@@ -989,10 +989,11 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 	spin_lock_init(&channel->recv_lock);
 	init_waitqueue_head(&channel->fblockread_event);
 
-	ret = qcom_smem_get(edge->remote_pid, smem_info_item, (void **)&info,
-			    &info_size);
-	if (ret)
+	info = qcom_smem_get(edge->remote_pid, smem_info_item, &info_size);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto free_name_and_channel;
+	}
 
 	/*
 	 * Use the size of the item to figure out which channel info struct to
@@ -1011,10 +1012,11 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 		goto free_name_and_channel;
 	}
 
-	ret = qcom_smem_get(edge->remote_pid, smem_fifo_item, &fifo_base,
-			    &fifo_size);
-	if (ret)
+	fifo_base = qcom_smem_get(edge->remote_pid, smem_fifo_item, &fifo_size);
+	if (IS_ERR(fifo_base)) {
+		ret =  PTR_ERR(fifo_base);
 		goto free_name_and_channel;
+	}
 
 	/* The channel consist of a rx and tx fifo of equal size */
 	fifo_size /= 2;
@@ -1051,16 +1053,13 @@ static void qcom_discover_channels(struct qcom_smd_edge *edge)
 	unsigned long flags;
 	unsigned fifo_id;
 	unsigned info_id;
-	int ret;
 	int tbl;
 	int i;
 
 	for (tbl = 0; tbl < SMD_ALLOC_TBL_COUNT; tbl++) {
-		ret = qcom_smem_get(edge->remote_pid,
-				    smem_items[tbl].alloc_tbl_id,
-				    (void **)&alloc_tbl,
-				    NULL);
-		if (ret < 0)
+		alloc_tbl = qcom_smem_get(edge->remote_pid,
+				    smem_items[tbl].alloc_tbl_id, NULL);
+		if (IS_ERR(alloc_tbl))
 			continue;
 
 		for (i = 0; i < SMD_ALLOC_TBL_SIZE; i++) {
@@ -1238,11 +1237,12 @@ static int qcom_smd_probe(struct platform_device *pdev)
 	int num_edges;
 	int ret;
 	int i = 0;
+	void *p;
 
 	/* Wait for smem */
-	ret = qcom_smem_get(QCOM_SMEM_HOST_ANY, smem_items[0].alloc_tbl_id, NULL, NULL);
-	if (ret == -EPROBE_DEFER)
-		return ret;
+	p = qcom_smem_get(QCOM_SMEM_HOST_ANY, smem_items[0].alloc_tbl_id, NULL);
+	if (PTR_ERR(p) == -EPROBE_DEFER)
+		return PTR_ERR(p);
 
 	num_edges = of_get_available_child_count(pdev->dev.of_node);
 	array_size = sizeof(*smd) + num_edges * sizeof(struct qcom_smd_edge);

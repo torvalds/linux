@@ -378,10 +378,9 @@ int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 }
 EXPORT_SYMBOL(qcom_smem_alloc);
 
-static int qcom_smem_get_global(struct qcom_smem *smem,
-				unsigned item,
-				void **ptr,
-				size_t *size)
+static void *qcom_smem_get_global(struct qcom_smem *smem,
+				  unsigned item,
+				  size_t *size)
 {
 	struct smem_header *header;
 	struct smem_region *area;
@@ -390,36 +389,32 @@ static int qcom_smem_get_global(struct qcom_smem *smem,
 	unsigned i;
 
 	if (WARN_ON(item >= SMEM_ITEM_COUNT))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	header = smem->regions[0].virt_base;
 	entry = &header->toc[item];
 	if (!entry->allocated)
-		return -ENXIO;
+		return ERR_PTR(-ENXIO);
 
-	if (ptr != NULL) {
-		aux_base = entry->aux_base & AUX_BASE_MASK;
+	aux_base = entry->aux_base & AUX_BASE_MASK;
 
-		for (i = 0; i < smem->num_regions; i++) {
-			area = &smem->regions[i];
+	for (i = 0; i < smem->num_regions; i++) {
+		area = &smem->regions[i];
 
-			if (area->aux_base == aux_base || !aux_base) {
-				*ptr = area->virt_base + entry->offset;
-				break;
-			}
+		if (area->aux_base == aux_base || !aux_base) {
+			if (size != NULL)
+				*size = entry->size;
+			return area->virt_base + entry->offset;
 		}
 	}
-	if (size != NULL)
-		*size = entry->size;
 
-	return 0;
+	return ERR_PTR(-ENOENT);
 }
 
-static int qcom_smem_get_private(struct qcom_smem *smem,
-				 unsigned host,
-				 unsigned item,
-				 void **ptr,
-				 size_t *size)
+static void *qcom_smem_get_private(struct qcom_smem *smem,
+				   unsigned host,
+				   unsigned item,
+				   size_t *size)
 {
 	struct smem_partition_header *phdr;
 	struct smem_private_entry *hdr;
@@ -435,55 +430,54 @@ static int qcom_smem_get_private(struct qcom_smem *smem,
 			dev_err(smem->dev,
 				"Found invalid canary in host %d partition\n",
 				host);
-			return -EINVAL;
+			return ERR_PTR(-EINVAL);
 		}
 
 		if (hdr->item == item) {
-			if (ptr != NULL)
-				*ptr = p + sizeof(*hdr) + hdr->padding_hdr;
-
 			if (size != NULL)
 				*size = hdr->size - hdr->padding_data;
 
-			return 0;
+			return p + sizeof(*hdr) + hdr->padding_hdr;
 		}
 
 		p += sizeof(*hdr) + hdr->padding_hdr + hdr->size;
 	}
 
-	return -ENOENT;
+	return ERR_PTR(-ENOENT);
 }
 
 /**
  * qcom_smem_get() - resolve ptr of size of a smem item
  * @host:	the remote processor, or -1
  * @item:	smem item handle
- * @ptr:	pointer to be filled out with address of the item
  * @size:	pointer to be filled out with size of the item
  *
- * Looks up pointer and size of a smem item.
+ * Looks up smem item and returns pointer to it. Size of smem
+ * item is returned in @size.
  */
-int qcom_smem_get(unsigned host, unsigned item, void **ptr, size_t *size)
+void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 {
 	unsigned long flags;
 	int ret;
+	void *ptr = ERR_PTR(-EPROBE_DEFER);
 
 	if (!__smem)
-		return -EPROBE_DEFER;
+		return ptr;
 
 	ret = hwspin_lock_timeout_irqsave(__smem->hwlock,
 					  HWSPINLOCK_TIMEOUT,
 					  &flags);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	if (host < SMEM_HOST_COUNT && __smem->partitions[host])
-		ret = qcom_smem_get_private(__smem, host, item, ptr, size);
+		ptr = qcom_smem_get_private(__smem, host, item, size);
 	else
-		ret = qcom_smem_get_global(__smem, item, ptr, size);
+		ptr = qcom_smem_get_global(__smem, item, size);
 
 	hwspin_unlock_irqrestore(__smem->hwlock, &flags);
-	return ret;
+
+	return ptr;
 
 }
 EXPORT_SYMBOL(qcom_smem_get);
@@ -520,11 +514,9 @@ static int qcom_smem_get_sbl_version(struct qcom_smem *smem)
 {
 	unsigned *versions;
 	size_t size;
-	int ret;
 
-	ret = qcom_smem_get_global(smem, SMEM_ITEM_VERSION,
-				   (void **)&versions, &size);
-	if (ret < 0) {
+	versions = qcom_smem_get_global(smem, SMEM_ITEM_VERSION, &size);
+	if (IS_ERR(versions)) {
 		dev_err(smem->dev, "Unable to read the version item\n");
 		return -ENOENT;
 	}
