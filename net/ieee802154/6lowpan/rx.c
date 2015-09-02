@@ -18,7 +18,6 @@
 static int lowpan_give_skb_to_device(struct sk_buff *skb,
 				     struct net_device *wdev)
 {
-	skb->dev = wdev->ieee802154_ptr->lowpan_dev;
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->pkt_type = PACKET_HOST;
 
@@ -71,9 +70,11 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (!ldev || !netif_running(ldev))
 		goto drop;
 
+	/* Replacing skb->dev and followed rx handlers will manipulate skb. */
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto drop;
+	skb->dev = ldev;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		goto drop_skb;
