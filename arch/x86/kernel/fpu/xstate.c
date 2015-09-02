@@ -72,7 +72,7 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
 		/*
 		 * So we use FLS here to be able to print the most advanced
 		 * feature that was requested but is missing. So if a driver
-		 * asks about "XSTATE_SSE | XSTATE_YMM" we'll print the
+		 * asks about "XFEATURE_MASK_SSE | XFEATURE_MASK_YMM" we'll print the
 		 * missing AVX feature - this is the most informative message
 		 * to users:
 		 */
@@ -131,7 +131,7 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
 	/*
 	 * FP is in init state
 	 */
-	if (!(xfeatures & XSTATE_FP)) {
+	if (!(xfeatures & XFEATURE_MASK_FP)) {
 		fx->cwd = 0x37f;
 		fx->swd = 0;
 		fx->twd = 0;
@@ -144,7 +144,7 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
 	/*
 	 * SSE is in init state
 	 */
-	if (!(xfeatures & XSTATE_SSE))
+	if (!(xfeatures & XFEATURE_MASK_SSE))
 		memset(&fx->xmm_space[0], 0, 256);
 
 	/*
@@ -223,14 +223,14 @@ static void __init print_xstate_feature(u64 xstate_mask)
  */
 static void __init print_xstate_features(void)
 {
-	print_xstate_feature(XSTATE_FP);
-	print_xstate_feature(XSTATE_SSE);
-	print_xstate_feature(XSTATE_YMM);
-	print_xstate_feature(XSTATE_BNDREGS);
-	print_xstate_feature(XSTATE_BNDCSR);
-	print_xstate_feature(XSTATE_OPMASK);
-	print_xstate_feature(XSTATE_ZMM_Hi256);
-	print_xstate_feature(XSTATE_Hi16_ZMM);
+	print_xstate_feature(XFEATURE_MASK_FP);
+	print_xstate_feature(XFEATURE_MASK_SSE);
+	print_xstate_feature(XFEATURE_MASK_YMM);
+	print_xstate_feature(XFEATURE_MASK_BNDREGS);
+	print_xstate_feature(XFEATURE_MASK_BNDCSR);
+	print_xstate_feature(XFEATURE_MASK_OPMASK);
+	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
+	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
 }
 
 /*
@@ -365,7 +365,11 @@ static int init_xstate_size(void)
 	return 0;
 }
 
-void fpu__init_disable_system_xstate(void)
+/*
+ * We enabled the XSAVE hardware, but something went wrong and
+ * we can not use it.  Disable it.
+ */
+static void fpu__init_disable_system_xstate(void)
 {
 	xfeatures_mask = 0;
 	cr4_clear_bits(X86_CR4_OSXSAVE);
@@ -398,7 +402,7 @@ void __init fpu__init_system_xstate(void)
 	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
 	xfeatures_mask = eax + ((u64)edx << 32);
 
-	if ((xfeatures_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
+	if ((xfeatures_mask & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {
 		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
 		BUG();
 	}
@@ -451,7 +455,7 @@ void fpu__resume_cpu(void)
  * Inputs:
  *	xstate: the thread's storage area for all FPU data
  *	xstate_feature: state which is defined in xsave.h (e.g.
- *	XSTATE_FP, XSTATE_SSE, etc...)
+ *	XFEATURE_MASK_FP, XFEATURE_MASK_SSE, etc...)
  * Output:
  *	address of the state in the xsave area, or NULL if the
  *	field is not present in the xsave buffer.
@@ -502,8 +506,8 @@ EXPORT_SYMBOL_GPL(get_xsave_addr);
  * Note that this only works on the current task.
  *
  * Inputs:
- *	@xsave_state: state which is defined in xsave.h (e.g. XSTATE_FP,
- *	XSTATE_SSE, etc...)
+ *	@xsave_state: state which is defined in xsave.h (e.g. XFEATURE_MASK_FP,
+ *	XFEATURE_MASK_SSE, etc...)
  * Output:
  *	address of the state in the xsave area or NULL if the state
  *	is not present or is in its 'init state'.

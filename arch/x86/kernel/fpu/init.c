@@ -290,11 +290,11 @@ static void __init fpu__init_system_ctx_switch(void)
 	if (cpu_has_xsaveopt && eagerfpu != DISABLE)
 		eagerfpu = ENABLE;
 
-	if (xfeatures_mask & XSTATE_EAGER) {
+	if (xfeatures_mask & XFEATURE_MASK_EAGER) {
 		if (eagerfpu == DISABLE) {
 			pr_err("x86/fpu: eagerfpu switching disabled, disabling the following xstate features: 0x%llx.\n",
-			       xfeatures_mask & XSTATE_EAGER);
-			xfeatures_mask &= ~XSTATE_EAGER;
+			       xfeatures_mask & XFEATURE_MASK_EAGER);
+			xfeatures_mask &= ~XFEATURE_MASK_EAGER;
 		} else {
 			eagerfpu = ENABLE;
 		}
