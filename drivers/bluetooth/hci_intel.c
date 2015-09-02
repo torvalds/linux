@@ -1010,8 +1010,11 @@ static int intel_recv_lpm(struct hci_dev *hdev, struct sk_buff *skb)
 
 	switch (lpm->opcode) {
 	case LPM_OP_TX_NOTIFY:
-		if (lpm->dlen)
-			intel_recv_lpm_notify(hdev, lpm->data[0]);
+		if (lpm->dlen < 1) {
+			bt_dev_err(hu->hdev, "Invalid LPM notification packet");
+			break;
+		}
+		intel_recv_lpm_notify(hdev, lpm->data[0]);
 		break;
 	case LPM_OP_SUSPEND_ACK:
 		set_bit(STATE_SUSPENDED, &intel->flags);
