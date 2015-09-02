@@ -919,14 +919,14 @@ static void defer_writethrough_bio(struct cache *cache, struct bio *bio)
 	wake_worker(cache);
 }
 
-static void writethrough_endio(struct bio *bio, int err)
+static void writethrough_endio(struct bio *bio)
 {
 	struct per_bio_data *pb = get_per_bio_data(bio, PB_DATA_SIZE_WT);
 
 	dm_unhook_bio(&pb->hook_info, bio);
 
-	if (err) {
-		bio_endio(bio, err);
+	if (bio->bi_error) {
+		bio_endio(bio);
 		return;
 	}
 
@@ -1231,7 +1231,7 @@ static void migration_success_post_commit(struct dm_cache_migration *mg)
 			 * The block was promoted via an overwrite, so it's dirty.
 			 */
 			set_dirty(cache, mg->new_oblock, mg->cblock);
-			bio_endio(mg->new_ocell->holder, 0);
+			bio_endio(mg->new_ocell->holder);
 			cell_defer(cache, mg->new_ocell, false);
 		}
 		free_io_migration(mg);
@@ -1284,7 +1284,7 @@ static void issue_copy(struct dm_cache_migration *mg)
 	}
 }
 
-static void overwrite_endio(struct bio *bio, int err)
+static void overwrite_endio(struct bio *bio)
 {
 	struct dm_cache_migration *mg = bio->bi_private;
 	struct cache *cache = mg->cache;
@@ -1294,7 +1294,7 @@ static void overwrite_endio(struct bio *bio, int err)
 
 	dm_unhook_bio(&pb->hook_info, bio);
 
-	if (err)
+	if (bio->bi_error)
 		mg->err = true;
 
 	mg->requeue_holder = false;
@@ -1358,7 +1358,7 @@ static void issue_discard(struct dm_cache_migration *mg)
 		b = to_dblock(from_dblock(b) + 1);
 	}
 
-	bio_endio(bio, 0);
+	bio_endio(bio);
 	cell_defer(mg->cache, mg->new_ocell, false);
 	free_migration(mg);
 }
@@ -1631,7 +1631,7 @@ static void process_discard_bio(struct cache *cache, struct prealloc *structs,
 
 	calc_discard_block_range(cache, bio, &b, &e);
 	if (b == e) {
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return;
 	}
 
@@ -2217,8 +2217,10 @@ static void requeue_deferred_bios(struct cache *cache)
 	bio_list_merge(&bios, &cache->deferred_bios);
 	bio_list_init(&cache->deferred_bios);
 
-	while ((bio = bio_list_pop(&bios)))
-		bio_endio(bio, DM_ENDIO_REQUEUE);
+	while ((bio = bio_list_pop(&bios))) {
+		bio->bi_error = DM_ENDIO_REQUEUE;
+		bio_endio(bio);
+	}
 }
 
 static int more_work(struct cache *cache)
@@ -3123,7 +3125,7 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 			 * This is a duplicate writethrough io that is no
 			 * longer needed because the block has been demoted.
 			 */
-			bio_endio(bio, 0);
+			bio_endio(bio);
 			// FIXME: remap everything as a miss
 			cell_defer(cache, cell, false);
 			r = DM_MAPIO_SUBMITTED;
@@ -3778,26 +3780,6 @@ static int cache_iterate_devices(struct dm_target *ti,
 	return r;
 }
 
-/*
- * We assume I/O is going to the origin (which is the volume
- * more likely to have restrictions e.g. by being striped).
- * (Looking up the exact location of the data would be expensive
- * and could always be out of date by the time the bio is submitted.)
- */
-static int cache_bvec_merge(struct dm_target *ti,
-			    struct bvec_merge_data *bvm,
-			    struct bio_vec *biovec, int max_size)
-{
-	struct cache *cache = ti->private;
-	struct request_queue *q = bdev_get_queue(cache->origin_dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = cache->origin_dev->bdev;
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 {
 	/*
@@ -3841,7 +3823,6 @@ static struct target_type cache_target = {
 	.status = cache_status,
 	.message = cache_message,
 	.iterate_devices = cache_iterate_devices,
-	.merge = cache_bvec_merge,
 	.io_hints = cache_io_hints,
 };
 

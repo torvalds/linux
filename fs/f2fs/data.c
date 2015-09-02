@@ -29,13 +29,13 @@
 static struct kmem_cache *extent_tree_slab;
 static struct kmem_cache *extent_node_slab;
 
-static void f2fs_read_end_io(struct bio *bio, int err)
+static void f2fs_read_end_io(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	int i;
 
 	if (f2fs_bio_encrypted(bio)) {
-		if (err) {
+		if (bio->bi_error) {
 			f2fs_release_crypto_ctx(bio->bi_private);
 		} else {
 			f2fs_end_io_crypto_work(bio->bi_private, bio);
@@ -46,7 +46,7 @@ static void f2fs_read_end_io(struct bio *bio, int err)
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
-		if (!err) {
+		if (!bio->bi_error) {
 			SetPageUptodate(page);
 		} else {
 			ClearPageUptodate(page);
@@ -57,7 +57,7 @@ static void f2fs_read_end_io(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static void f2fs_write_end_io(struct bio *bio, int err)
+static void f2fs_write_end_io(struct bio *bio)
 {
 	struct f2fs_sb_info *sbi = bio->bi_private;
 	struct bio_vec *bvec;
@@ -68,7 +68,7 @@ static void f2fs_write_end_io(struct bio *bio, int err)
 
 		f2fs_restore_and_release_control_page(&page);
 
-		if (unlikely(err)) {
+		if (unlikely(bio->bi_error)) {
 			set_page_dirty(page);
 			set_bit(AS_EIO, &page->mapping->flags);
 			f2fs_stop_checkpoint(sbi);
@@ -1552,7 +1552,7 @@ submit_and_realloc:
 			}
 
 			bio = bio_alloc(GFP_KERNEL,
-				min_t(int, nr_pages, bio_get_nr_vecs(bdev)));
+				min_t(int, nr_pages, BIO_MAX_PAGES));
 			if (!bio) {
 				if (ctx)
 					f2fs_release_crypto_ctx(ctx);

@@ -826,6 +826,8 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 	unsigned long source_addr;
 	unsigned long bytes_done;
 
+	blk_queue_split(q, &bio, q->bio_split);
+
 	bytes_done = 0;
 	dev_info = bio->bi_bdev->bd_disk->private_data;
 	if (dev_info == NULL)
@@ -871,7 +873,7 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		}
 		bytes_done += bvec.bv_len;
 	}
-	bio_endio(bio, 0);
+	bio_endio(bio);
 	return;
 fail:
 	bio_io_error(bio);

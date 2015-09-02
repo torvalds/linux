@@ -53,28 +53,6 @@ void blk_queue_unprep_rq(struct request_queue *q, unprep_rq_fn *ufn)
 }
 EXPORT_SYMBOL(blk_queue_unprep_rq);
 
-/**
- * blk_queue_merge_bvec - set a merge_bvec function for queue
- * @q:		queue
- * @mbfn:	merge_bvec_fn
- *
- * Usually queues have static limitations on the max sectors or segments that
- * we can put in a request. Stacking drivers may have some settings that
- * are dynamic, and thus we have to query the queue whether it is ok to
- * add a new bio_vec to a bio at a given offset or not. If the block device
- * has such limitations, it needs to register a merge_bvec_fn to control
- * the size of bio's sent to it. Note that a block device *must* allow a
- * single page to be added to an empty bio. The block device driver may want
- * to use the bio_split() function to deal with these bio's. By default
- * no merge_bvec_fn is defined for a queue, and only the fixed limits are
- * honored.
- */
-void blk_queue_merge_bvec(struct request_queue *q, merge_bvec_fn *mbfn)
-{
-	q->merge_bvec_fn = mbfn;
-}
-EXPORT_SYMBOL(blk_queue_merge_bvec);
-
 void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
 {
 	q->softirq_done_fn = fn;
@@ -111,11 +89,13 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_segments = BLK_MAX_SEGMENTS;
 	lim->max_integrity_segments = 0;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
+	lim->virt_boundary_mask = 0;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = lim->max_hw_sectors = BLK_SAFE_MAX_SECTORS;
 	lim->chunk_sectors = 0;
 	lim->max_write_same_sectors = 0;
 	lim->max_discard_sectors = 0;
+	lim->max_hw_discard_sectors = 0;
 	lim->discard_granularity = 0;
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
@@ -257,7 +237,9 @@ void blk_limits_max_hw_sectors(struct queue_limits *limits, unsigned int max_hw_
 		       __func__, max_hw_sectors);
 	}
 
-	limits->max_sectors = limits->max_hw_sectors = max_hw_sectors;
+	limits->max_hw_sectors = max_hw_sectors;
+	limits->max_sectors = min_t(unsigned int, max_hw_sectors,
+				    BLK_DEF_MAX_SECTORS);
 }
 EXPORT_SYMBOL(blk_limits_max_hw_sectors);
 
@@ -303,6 +285,7 @@ EXPORT_SYMBOL(blk_queue_chunk_sectors);
 void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors)
 {
+	q->limits.max_hw_discard_sectors = max_discard_sectors;
 	q->limits.max_discard_sectors = max_discard_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_discard_sectors);
@@ -550,6 +533,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
+	t->virt_boundary_mask = min_not_zero(t->virt_boundary_mask,
+					    b->virt_boundary_mask);
 
 	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
 	t->max_integrity_segments = min_not_zero(t->max_integrity_segments,
@@ -641,6 +626,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 		t->max_discard_sectors = min_not_zero(t->max_discard_sectors,
 						      b->max_discard_sectors);
+		t->max_hw_discard_sectors = min_not_zero(t->max_hw_discard_sectors,
+							 b->max_hw_discard_sectors);
 		t->discard_granularity = max(t->discard_granularity,
 					     b->discard_granularity);
 		t->discard_alignment = lcm_not_zero(t->discard_alignment, alignment) %
@@ -786,6 +773,17 @@ void blk_queue_segment_boundary(struct request_queue *q, unsigned long mask)
 	q->limits.seg_boundary_mask = mask;
 }
 EXPORT_SYMBOL(blk_queue_segment_boundary);
+
+/**
+ * blk_queue_virt_boundary - set boundary rules for bio merging
+ * @q:  the request queue for the device
+ * @mask:  the memory boundary mask
+ **/
+void blk_queue_virt_boundary(struct request_queue *q, unsigned long mask)
+{
+	q->limits.virt_boundary_mask = mask;
+}
+EXPORT_SYMBOL(blk_queue_virt_boundary);
 
 /**
  * blk_queue_dma_alignment - set dma length and memory alignment

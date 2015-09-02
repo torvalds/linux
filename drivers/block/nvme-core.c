@@ -1935,7 +1935,7 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	ns->queue->limits.discard_zeroes_data = 0;
 	ns->queue->limits.discard_alignment = logical_block_size;
 	ns->queue->limits.discard_granularity = logical_block_size;
-	ns->queue->limits.max_discard_sectors = 0xffffffff;
+	blk_queue_max_discard_sectors(ns->queue, 0xffffffff);
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 
@@ -2067,7 +2067,6 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 		goto out_free_ns;
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
-	queue_flag_set_unlocked(QUEUE_FLAG_SG_GAPS, ns->queue);
 	ns->dev = dev;
 	ns->queue->queuedata = ns;
 
@@ -2087,6 +2086,7 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 		blk_queue_chunk_sectors(ns->queue, dev->stripe_size >> 9);
 	if (dev->vwc & NVME_CTRL_VWC_PRESENT)
 		blk_queue_flush(ns->queue, REQ_FLUSH | REQ_FUA);
+	blk_queue_virt_boundary(ns->queue, dev->page_size - 1);
 
 	disk->major = nvme_major;
 	disk->first_minor = 0;
