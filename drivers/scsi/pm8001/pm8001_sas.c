@@ -790,6 +790,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 		ccb->device = pm8001_dev;
 		ccb->ccb_tag = ccb_tag;
 		ccb->task = task;
+		ccb->n_elem = 0;
 
 		res = PM8001_CHIP_DISP->task_abort(pm8001_ha,
 			pm8001_dev, flag, task_tag, ccb_tag);
@@ -975,19 +976,27 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	phy = sas_get_local_phy(dev);
 
 	if (dev_is_sata(dev)) {
-		DECLARE_COMPLETION_ONSTACK(completion_setstate);
 		if (scsi_is_sas_phy_local(phy)) {
 			rc = 0;
 			goto out;
 		}
 		rc = sas_phy_reset(phy, 1);
+		if (rc) {
+			PM8001_EH_DBG(pm8001_ha,
+			pm8001_printk("phy reset failed for device %x\n"
+			"with rc %d\n", pm8001_dev->device_id, rc));
+			rc = TMF_RESP_FUNC_FAILED;
+			goto out;
+		}
 		msleep(2000);
 		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
 			dev, 1, 0);
-		pm8001_dev->setds_completion = &completion_setstate;
-		rc = PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
-			pm8001_dev, 0x01);
-		wait_for_completion(&completion_setstate);
+		if (rc) {
+			PM8001_EH_DBG(pm8001_ha,
+			pm8001_printk("task abort failed %x\n"
+			"with rc %d\n", pm8001_dev->device_id, rc));
+			rc = TMF_RESP_FUNC_FAILED;
+		}
 	} else {
 		rc = sas_phy_reset(phy, 1);
 		msleep(2000);
