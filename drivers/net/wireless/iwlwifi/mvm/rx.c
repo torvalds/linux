@@ -298,13 +298,6 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		return;
 	}
 
-	if ((unlikely(phy_info->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP(mvm, "dsp size out of range [0,20]: %d\n",
-			       phy_info->cfg_phy_cnt);
-		kfree_skb(skb);
-		return;
-	}
-
 	/*
 	 * Keep packets with CRC errors (and with overrun) for monitor mode
 	 * (otherwise the firmware discards them) but mark them as bad.
