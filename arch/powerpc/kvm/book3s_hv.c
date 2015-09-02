@@ -2411,7 +2411,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 				break;
 			cpu_relax();
 		}
-		split_info.do_nap = 1;	/* ask secondaries to nap when done */
 	}
 
 	/* Start all the threads */
@@ -2440,6 +2439,15 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 			thr += pvc->num_threads;
 		}
 	}
+
+	/*
+	 * Ensure that split_info.do_nap is set after setting
+	 * the vcore pointer in the PACA of the secondaries.
+	 */
+	smp_mb();
+	if (cmd_bit)
+		split_info.do_nap = 1;	/* ask secondaries to nap when done */
+
 	/*
 	 * When doing micro-threading, poke the inactive threads as well.
 	 * This gets them to the nap instruction after kvm_do_nap,
