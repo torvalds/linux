@@ -205,6 +205,31 @@ enum {
 	IEEE802154_SCAN_IN_PROGRESS = 0xfc,
 };
 
+/* frame control handling */
+#define IEEE802154_FCTL_FTYPE		0x0003
+#define IEEE802154_FCTL_INTRA_PAN	0x0040
+
+#define IEEE802154_FTYPE_DATA		0x0001
+
+/*
+ * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_data(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+		cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
+
+/**
+ * ieee802154_is_intra_pan - check if intra pan id communication
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_intra_pan(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_INTRA_PAN);
+}
+
 /**
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
  * available lengths:

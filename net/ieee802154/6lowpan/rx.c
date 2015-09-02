@@ -11,6 +11,7 @@
 #include <linux/if_arp.h>
 
 #include <net/6lowpan.h>
+#include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 
 #include "6lowpan_i.h"
@@ -280,6 +281,13 @@ static inline bool lowpan_is_reserved(u8 dispatch)
  */
 static inline bool lowpan_rx_h_check(struct sk_buff *skb)
 {
+	__le16 fc = ieee802154_get_fc_from_skb(skb);
+
+	/* check on ieee802154 conform 6LoWPAN header */
+	if (!ieee802154_is_data(fc) ||
+	    !ieee802154_is_intra_pan(fc))
+		return false;
+
 	/* check if we can dereference the dispatch */
 	if (unlikely(!skb->len))
 		return false;
