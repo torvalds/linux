@@ -922,7 +922,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 
 module_param(zv_mode, int, 0644);
-MODULE_PARM_DESC(zv_mode, "Turn on/off ZeeVee modulator compatability mode (default:on).\n"
+MODULE_PARM_DESC(zv_mode, "Turn on/off ZeeVee modulator compatibility mode (default:on).\n"
 	"\t\ton - modified AU8522 QAM256 initialization.\n"
 	"\t\tProvides faster lock when using ZeeVee modulator based sources");
 

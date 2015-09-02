@@ -100,6 +100,15 @@
 			};
 
 			adc0: adc@fc034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					/* external trigger conflicts with USBA_VBUS */
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					>;
 				/* The vref depends on JP22 of EK. If connect 1-2 then use 3.3V. connect 2-3 use 3.0V */
 				atmel,adc-vref = <3300>;
 				/*atmel,adc-ts-wires = <4>;*/	/* Set up ADC touch screen */

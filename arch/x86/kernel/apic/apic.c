@@ -457,45 +457,45 @@ static int lapic_next_deadline(unsigned long delta,
 {
 	u64 tsc;
 
-	rdtscll(tsc);
+	tsc = rdtsc();
 	wrmsrl(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
 	return 0;
 }
 
-/*
- * Setup the lapic timer in periodic or oneshot mode
- */
-static void lapic_timer_setup(enum clock_event_mode mode,
-			      struct clock_event_device *evt)
+static int lapic_timer_shutdown(struct clock_event_device *evt)
 {
-	unsigned long flags;
 	unsigned int v;
 
 	/* Lapic used as dummy for broadcast ? */
 	if (evt->features & CLOCK_EVT_FEAT_DUMMY)
-		return;
+		return 0;
 
-	local_irq_save(flags);
+	v = apic_read(APIC_LVTT);
+	v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
+	apic_write(APIC_LVTT, v);
+	apic_write(APIC_TMICT, 0);
+	return 0;
+}
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-	case CLOCK_EVT_MODE_ONESHOT:
-		__setup_APIC_LVTT(lapic_timer_frequency,
-				  mode != CLOCK_EVT_MODE_PERIODIC, 1);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		v = apic_read(APIC_LVTT);
-		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
-		apic_write(APIC_LVTT, v);
-		apic_write(APIC_TMICT, 0);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		/* Nothing to do here */
-		break;
-	}
+static inline int
+lapic_timer_set_periodic_oneshot(struct clock_event_device *evt, bool oneshot)
+{
+	/* Lapic used as dummy for broadcast ? */
+	if (evt->features & CLOCK_EVT_FEAT_DUMMY)
+		return 0;
 
-	local_irq_restore(flags);
+	__setup_APIC_LVTT(lapic_timer_frequency, oneshot, 1);
+	return 0;
+}
+
+static int lapic_timer_set_periodic(struct clock_event_device *evt)
+{
+	return lapic_timer_set_periodic_oneshot(evt, false);
+}
+
+static int lapic_timer_set_oneshot(struct clock_event_device *evt)
+{
+	return lapic_timer_set_periodic_oneshot(evt, true);
 }
 
 /*
@@ -513,15 +513,18 @@ static void lapic_timer_broadcast(const struct cpumask *mask)
  * The local apic timer can be used for any function which is CPU local.
  */
 static struct clock_event_device lapic_clockevent = {
-	.name		= "lapic",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT
-			| CLOCK_EVT_FEAT_C3STOP | CLOCK_EVT_FEAT_DUMMY,
-	.shift		= 32,
-	.set_mode	= lapic_timer_setup,
-	.set_next_event	= lapic_next_event,
-	.broadcast	= lapic_timer_broadcast,
-	.rating		= 100,
-	.irq		= -1,
+	.name			= "lapic",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP
+				  | CLOCK_EVT_FEAT_DUMMY,
+	.shift			= 32,
+	.set_state_shutdown	= lapic_timer_shutdown,
+	.set_state_periodic	= lapic_timer_set_periodic,
+	.set_state_oneshot	= lapic_timer_set_oneshot,
+	.set_next_event		= lapic_next_event,
+	.broadcast		= lapic_timer_broadcast,
+	.rating			= 100,
+	.irq			= -1,
 };
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
@@ -592,7 +595,7 @@ static void __init lapic_cal_handler(struct clock_event_device *dev)
 	unsigned long pm = acpi_pm_read_early();
 
 	if (cpu_has_tsc)
-		rdtscll(tsc);
+		tsc = rdtsc();
 
 	switch (lapic_cal_loops++) {
 	case 0:
@@ -778,7 +781,7 @@ static int __init calibrate_APIC_clock(void)
 		 * Setup the apic timer manually
 		 */
 		levt->event_handler = lapic_cal_handler;
-		lapic_timer_setup(CLOCK_EVT_MODE_PERIODIC, levt);
+		lapic_timer_set_periodic(levt);
 		lapic_cal_loops = -1;
 
 		/* Let the interrupts run */
@@ -788,7 +791,8 @@ static int __init calibrate_APIC_clock(void)
 			cpu_relax();
 
 		/* Stop the lapic timer */
-		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, levt);
+		local_irq_disable();
+		lapic_timer_shutdown(levt);
 
 		/* Jiffies delta */
 		deltaj = lapic_cal_j2 - lapic_cal_j1;
@@ -799,8 +803,8 @@ static int __init calibrate_APIC_clock(void)
 			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
 		else
 			levt->features |= CLOCK_EVT_FEAT_DUMMY;
-	} else
-		local_irq_enable();
+	}
+	local_irq_enable();
 
 	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
 		pr_warning("APIC timer disabled due to verification failure\n");
@@ -878,7 +882,7 @@ static void local_apic_timer_interrupt(void)
 	if (!evt->event_handler) {
 		pr_warning("Spurious LAPIC timer interrupt on cpu %d\n", cpu);
 		/* Switch it off */
-		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, evt);
+		lapic_timer_shutdown(evt);
 		return;
 	}
 
@@ -1209,7 +1213,7 @@ void setup_local_APIC(void)
 	long long max_loops = cpu_khz ? cpu_khz : 1000000;
 
 	if (cpu_has_tsc)
-		rdtscll(tsc);
+		tsc = rdtsc();
 
 	if (disable_apic) {
 		disable_ioapic_support();
@@ -1293,7 +1297,7 @@ void setup_local_APIC(void)
 		}
 		if (queued) {
 			if (cpu_has_tsc && cpu_khz) {
-				rdtscll(ntsc);
+				ntsc = rdtsc();
 				max_loops = (cpu_khz << 10) - (ntsc - tsc);
 			} else
 				max_loops--;

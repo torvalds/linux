@@ -131,7 +131,7 @@ static int cpu_set_affinity_irq(struct irq_data *d, const struct cpumask *dest,
 	if (cpu_dest < 0)
 		return -1;
 
-	cpumask_copy(d->affinity, dest);
+	cpumask_copy(irq_data_get_affinity_mask(d), dest);
 
 	return 0;
 }
@@ -339,7 +339,7 @@ unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
 #ifdef CONFIG_SMP
 	struct irq_data *d = irq_get_irq_data(irq);
-	cpumask_copy(d->affinity, cpumask_of(cpu));
+	cpumask_copy(irq_data_get_affinity_mask(d), cpumask_of(cpu));
 #endif
 
 	return per_cpu(cpu_data, cpu).txn_addr;
@@ -508,7 +508,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	unsigned long eirr_val;
 	int irq, cpu = smp_processor_id();
 #ifdef CONFIG_SMP
-	struct irq_desc *desc;
+	struct irq_data *irq_data;
 	cpumask_t dest;
 #endif
 
@@ -522,9 +522,9 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	irq = eirr_to_irq(eirr_val);
 
 #ifdef CONFIG_SMP
-	desc = irq_to_desc(irq);
-	cpumask_copy(&dest, desc->irq_data.affinity);
-	if (irqd_is_per_cpu(&desc->irq_data) &&
+	irq_data = irq_get_irq_data(irq);
+	cpumask_copy(&dest, irq_data_get_affinity_mask(irq_data));
+	if (irqd_is_per_cpu(irq_data) &&
 	    !cpumask_test_cpu(smp_processor_id(), &dest)) {
 		int cpu = cpumask_first(&dest);
 

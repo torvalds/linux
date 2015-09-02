@@ -361,7 +361,7 @@ S:	Supported
 F:	drivers/input/touchscreen/ad7879.c
 
 ADDRESS SPACE LAYOUT RANDOMIZATION (ASLR)
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 S:	Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
@@ -752,7 +752,7 @@ S:	Maintained
 F:	sound/aoa/
 
 APM DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 S:	Odd fixes
 F:	arch/x86/kernel/apm_32.c
 F:	include/linux/apm_bios.h
@@ -1471,9 +1471,7 @@ F:	arch/arm/boot/dts/emev2*
 F:	arch/arm/boot/dts/r7s*
 F:	arch/arm/boot/dts/r8a*
 F:	arch/arm/boot/dts/sh*
-F:	arch/arm/configs/armadillo800eva_defconfig
 F:	arch/arm/configs/bockw_defconfig
-F:	arch/arm/configs/kzm9g_defconfig
 F:	arch/arm/configs/marzen_defconfig
 F:	arch/arm/configs/shmobile_defconfig
 F:	arch/arm/include/debug/renesas-scif.S
@@ -1585,7 +1583,10 @@ ARM/UNIPHIER ARCHITECTURE
 M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	arch/arm/boot/dts/uniphier*
 F:	arch/arm/mach-uniphier/
+F:	drivers/pinctrl/uniphier/
+F:	drivers/tty/serial/8250/8250_uniphier.c
 N:	uniphier
 
 ARM/Ux500 ARM ARCHITECTURE
@@ -1680,7 +1681,7 @@ M:	Michal Simek <michal.simek@xilinx.com>
 R:	Sören Brinkmann <soren.brinkmann@xilinx.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://wiki.xilinx.com
-T:	git git://git.xilinx.com/linux-xlnx.git
+T:	git https://github.com/Xilinx/linux-xlnx.git
 S:	Supported
 F:	arch/arm/mach-zynq/
 F:	drivers/cpuidle/cpuidle-zynq.c
@@ -2224,7 +2225,9 @@ F:	drivers/clocksource/bcm_kona_timer.c
 BROADCOM BCM2835 ARM ARCHITECTURE
 M:	Stephen Warren <swarren@wwwdotorg.org>
 M:	Lee Jones <lee@kernel.org>
+M:	Eric Anholt <eric@anholt.net>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rpi/linux-rpi.git
 S:	Maintained
 N:	bcm2835
@@ -4261,7 +4264,7 @@ S:	Maintained
 F:	drivers/block/rsxx/
 
 FLOPPY DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
 S:	Odd fixes
 F:	drivers/block/floppy.c
@@ -4832,7 +4835,7 @@ F:	include/linux/pm.h
 F:	arch/*/include/asm/suspend*.h
 
 HID CORE LAYER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 L:	linux-input@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
@@ -4841,7 +4844,7 @@ F:	include/linux/hid*
 F:	include/uapi/linux/hid*
 
 HID SENSOR HUB DRIVERS
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 M:	Jonathan Cameron <jic23@kernel.org>
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	linux-input@vger.kernel.org
@@ -5594,7 +5597,7 @@ F:	include/uapi/linux/ip_vs.h
 F:	net/netfilter/ipvs/
 
 IPWIRELESS DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 M:	David Sterba <dsterba@suse.com>
 S:	Odd Fixes
 F:	drivers/tty/ipwireless/
@@ -6283,7 +6286,7 @@ F:	drivers/platform/x86/hp_accel.c
 LIVE PATCHING
 M:	Josh Poimboeuf <jpoimboe@redhat.com>
 M:	Seth Jennings <sjenning@redhat.com>
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 M:	Vojtech Pavlik <vojtech@suse.com>
 S:	Maintained
 F:	kernel/livepatch/
@@ -7570,8 +7573,9 @@ F:	Documentation/i2c/busses/i2c-ocores
 F:	drivers/i2c/busses/i2c-ocores.c
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
-M:	Grant Likely <grant.likely@linaro.org>
 M:	Rob Herring <robh+dt@kernel.org>
+M:	Frank Rowand <frowand.list@gmail.com>
+M:	Grant Likely <grant.likely@linaro.org>
 L:	devicetree@vger.kernel.org
 W:	http://www.devicetree.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/glikely/linux.git
@@ -8059,7 +8063,7 @@ S:	Maintained
 F:	drivers/pinctrl/spear/
 
 PKTCDVD DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 S:	Maintained
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
@@ -8610,6 +8614,7 @@ M:	Philipp Zabel <p.zabel@pengutronix.de>
 S:	Maintained
 F:	drivers/reset/
 F:	Documentation/devicetree/bindings/reset/
+F:	include/dt-bindings/reset/
 F:	include/linux/reset.h
 F:	include/linux/reset-controller.h
 
@@ -9911,8 +9916,9 @@ SYNOPSYS ARC ARCHITECTURE
 M:	Vineet Gupta <vgupta@synopsys.com>
 S:	Supported
 F:	arch/arc/
-F:	Documentation/devicetree/bindings/arc/
+F:	Documentation/devicetree/bindings/arc/*
 F:	drivers/tty/serial/arc_uart.c
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vgupta/arc.git
 
 SYNOPSYS ARC SDP platform support
 M:	Alexey Brodkin <abrodkin@synopsys.com>
@@ -10663,7 +10669,7 @@ F:	drivers/usb/gadget/
 F:	include/linux/usb/gadget*
 
 USB HID/HIDBP DRIVERS (USB KEYBOARDS, MICE, REMOTE CONTROLS, ...)
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained

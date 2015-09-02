@@ -17,8 +17,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
-#include "irqchip.h"
 
 #define SUNXI_NMI_SRC_TYPE_MASK	0x00000003
 
@@ -61,7 +61,7 @@ static inline u32 sunxi_sc_nmi_read(struct irq_chip_generic *gc, u32 off)
 static void sunxi_sc_nmi_handle_irq(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int virq = irq_find_mapping(domain, 0);
 
 	chained_irq_enter(chip, desc);
@@ -182,8 +182,7 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	sunxi_sc_nmi_write(gc, reg_offs->enable, 0);
 	sunxi_sc_nmi_write(gc, reg_offs->pend, 0x1);
 
-	irq_set_handler_data(irq, domain);
-	irq_set_chained_handler(irq, sunxi_sc_nmi_handle_irq);
+	irq_set_chained_handler_and_data(irq, sunxi_sc_nmi_handle_irq, domain);
 
 	return 0;
 

@@ -966,5 +966,6 @@ const struct tegra_mc_soc tegra30_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra30_mc_clients),
 	.num_address_bits = 32,
 	.atom_size = 16,
+	.client_id_mask = 0x7f,
 	.smmu = &tegra30_smmu_soc,
 };

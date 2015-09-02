@@ -18,13 +18,12 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
-
-#include "irqchip.h"
 
 /*
  * struct spear_shirq: shared irq structure
@@ -183,9 +182,9 @@ static struct spear_shirq *spear320_shirq_blocks[] = {
 	&spear320_shirq_intrcomm_ras,
 };
 
-static void shirq_handler(unsigned irq, struct irq_desc *desc)
+static void shirq_handler(unsigned __irq, struct irq_desc *desc)
 {
-	struct spear_shirq *shirq = irq_get_handler_data(irq);
+	struct spear_shirq *shirq = irq_desc_get_handler_data(desc);
 	u32 pend;
 
 	pend = readl(shirq->base + shirq->status_reg) & shirq->mask;

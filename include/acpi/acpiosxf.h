@@ -430,4 +430,10 @@ long acpi_os_get_file_offset(ACPI_FILE file);
 acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
 #endif
 
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
+void
+acpi_os_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
+#endif
+
 #endif				/* __ACPIOSXF_H__ */

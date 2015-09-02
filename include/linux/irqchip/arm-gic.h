@@ -95,11 +95,10 @@
 
 struct device_node;
 
-void gic_set_irqchip_flags(unsigned long flags);
 void gic_init_bases(unsigned int, int, void __iomem *, void __iomem *,
 		    u32 offset, struct device_node *);
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
-void gic_cpu_if_down(void);
+int gic_cpu_if_down(unsigned int gic_nr);
 
 static inline void gic_init(unsigned int nr, int start,
 			    void __iomem *dist , void __iomem *cpu)

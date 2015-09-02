@@ -178,26 +178,6 @@ config MACH_OMAP_LDP
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP3530_LV_SOM
-	bool "OMAP3 Logic 3530 LV SOM board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-	help
-	 Support for the LogicPD OMAP3530 SOM Development kit
-	 for full description please see the products webpage at
-	 http://www.logicpd.com/products/development-kits/texas-instruments-zoom%E2%84%A2-omap35x-development-kit
-
-config MACH_OMAP3_TORPEDO
-	bool "OMAP3 Logic 35x Torpedo board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-	help
-	 Support for the LogicPD OMAP35x Torpedo Development kit
-	 for full description please see the products webpage at
-	 http://www.logicpd.com/products/development-kits/zoom-omap35x-torpedo-development-kit
-
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3

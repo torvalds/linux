@@ -14,7 +14,7 @@
 
 #include "smp.h"
 
-static const char *stih41x_dt_match[] __initdata = {
+static const char *const stih41x_dt_match[] __initconst = {
 	"st,stih415",
 	"st,stih416",
 	"st,stih407",

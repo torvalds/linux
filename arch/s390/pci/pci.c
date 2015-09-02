@@ -409,7 +409,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 	/* Request MSI interrupts */
 	hwirq = 0;
-	list_for_each_entry(msi, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(msi, pdev) {
 		rc = -EIO;
 		irq = irq_alloc_desc(0);	/* Alloc irq on node 0 */
 		if (irq < 0)
@@ -435,7 +435,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	return (msi_vecs == nvec) ? 0 : msi_vecs;
 
 out_msi:
-	list_for_each_entry(msi, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(msi, pdev) {
 		if (hwirq-- == 0)
 			break;
 		irq_set_msi_desc(msi->irq, NULL);
@@ -465,7 +465,7 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 		return;
 
 	/* Release MSI interrupts */
-	list_for_each_entry(msi, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(msi, pdev) {
 		if (msi->msi_attrib.is_msix)
 			__pci_msix_desc_mask_irq(msi, 1);
 		else

@@ -26,12 +26,12 @@
 #include "rcar-gen2.h"
 #include "r8a7790.h"
 
-static struct rcar_sysc_ch r8a7790_ca15_scu = {
+static const struct rcar_sysc_ch r8a7790_ca15_scu = {
 	.chan_offs = 0x180, /* PWRSR5 .. PWRER5 */
 	.isr_bit = 12, /* CA15-SCU */
 };
 
-static struct rcar_sysc_ch r8a7790_ca7_scu = {
+static const struct rcar_sysc_ch r8a7790_ca7_scu = {
 	.chan_offs = 0x100, /* PWRSR3 .. PWRER3 */
 	.isr_bit = 21, /* CA7-SCU */
 };

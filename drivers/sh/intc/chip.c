@@ -22,7 +22,7 @@ void _intc_enable(struct irq_data *data, unsigned long handle)
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
 #ifdef CONFIG_SMP
-		if (!cpumask_test_cpu(cpu, data->affinity))
+		if (!cpumask_test_cpu(cpu, irq_data_get_affinity_mask(data)))
 			continue;
 #endif
 		addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
@@ -50,7 +50,7 @@ static void intc_disable(struct irq_data *data)
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
 #ifdef CONFIG_SMP
-		if (!cpumask_test_cpu(cpu, data->affinity))
+		if (!cpumask_test_cpu(cpu, irq_data_get_affinity_mask(data)))
 			continue;
 #endif
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
@@ -72,7 +72,7 @@ static int intc_set_affinity(struct irq_data *data,
 	if (!cpumask_intersects(cpumask, cpu_online_mask))
 		return -1;
 
-	cpumask_copy(data->affinity, cpumask);
+	cpumask_copy(irq_data_get_affinity_mask(data), cpumask);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }

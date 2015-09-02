@@ -319,12 +319,12 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsc2048_pins>;
 
-		ti,x-min = <300>;
-		ti,x-max = <3000>;
-		ti,y-min = <600>;
-		ti,y-max = <3600>;
-		ti,x-plate-ohms = <80>;
-		ti,pressure-max = <255>;
+		ti,x-min = /bits/ 16 <300>;
+		ti,x-max = /bits/ 16 <3000>;
+		ti,y-min = /bits/ 16 <600>;
+		ti,y-max = /bits/ 16 <3600>;
+		ti,x-plate-ohms = /bits/ 16 <80>;
+		ti,pressure-max = /bits/ 16 <255>;
 		ti,swap-xy;
 
 		linux,wakeup;

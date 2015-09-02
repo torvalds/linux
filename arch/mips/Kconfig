@@ -118,6 +118,7 @@ config ATH25
 
 config ATH79
 	bool "Atheros AR71XX/AR724X/AR913X based boards"
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_REQUIRE_GPIOLIB
 	select BOOT_RAW
 	select CEVT_R4K
@@ -1069,10 +1070,6 @@ config HOTPLUG_CPU
 
 config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
-
-config I8259
-	bool
-	select IRQ_DOMAIN
 
 config MIPS_BONITO64
 	bool

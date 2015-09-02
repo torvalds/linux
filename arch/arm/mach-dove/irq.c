@@ -69,8 +69,9 @@ static struct irq_chip pmu_irq_chip = {
 	.irq_ack	= pmu_irq_ack,
 };
 
-static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pmu_irq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned long cause = readl(PMU_INTERRUPT_CAUSE);
 
 	cause &= readl(PMU_INTERRUPT_MASK);
@@ -172,7 +173,7 @@ void __init dove_init_irq(void)
 	for (i = IRQ_DOVE_PMU_START; i < NR_IRQS; i++) {
 		irq_set_chip_and_handler(i, &pmu_irq_chip, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 	irq_set_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
 }

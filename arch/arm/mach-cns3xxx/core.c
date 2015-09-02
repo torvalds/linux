@@ -113,30 +113,33 @@ void cns3xxx_power_off(void)
  */
 static void __iomem *cns3xxx_tmr1;
 
-static void cns3xxx_timer_set_mode(enum clock_event_mode mode,
-				   struct clock_event_device *clk)
+static int cns3xxx_shutdown(struct clock_event_device *clk)
+{
+	writel(0, cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+	return 0;
+}
+
+static int cns3xxx_set_oneshot(struct clock_event_device *clk)
+{
+	unsigned long ctrl = readl(cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+
+	/* period set, and timer enabled in 'next_event' hook */
+	ctrl |= (1 << 2) | (1 << 9);
+	writel(ctrl, cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+	return 0;
+}
+
+static int cns3xxx_set_periodic(struct clock_event_device *clk)
 {
 	unsigned long ctrl = readl(cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
 	int pclk = cns3xxx_cpu_clock() / 8;
 	int reload;
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		reload = pclk * 20 / (3 * HZ) * 0x25000;
-		writel(reload, cns3xxx_tmr1 + TIMER1_AUTO_RELOAD_OFFSET);
-		ctrl |= (1 << 0) | (1 << 2) | (1 << 9);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* period set, and timer enabled in 'next_event' hook */
-		ctrl |= (1 << 2) | (1 << 9);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		ctrl = 0;
-	}
-
+	reload = pclk * 20 / (3 * HZ) * 0x25000;
+	writel(reload, cns3xxx_tmr1 + TIMER1_AUTO_RELOAD_OFFSET);
+	ctrl |= (1 << 0) | (1 << 2) | (1 << 9);
 	writel(ctrl, cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+	return 0;
 }
 
 static int cns3xxx_timer_set_next_event(unsigned long evt,
@@ -151,12 +154,16 @@ static int cns3xxx_timer_set_next_event(unsigned long evt,
 }
 
 static struct clock_event_device cns3xxx_tmr1_clockevent = {
-	.name		= "cns3xxx timer1",
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= cns3xxx_timer_set_mode,
-	.set_next_event	= cns3xxx_timer_set_next_event,
-	.rating		= 350,
-	.cpumask	= cpu_all_mask,
+	.name			= "cns3xxx timer1",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_shutdown	= cns3xxx_shutdown,
+	.set_state_periodic	= cns3xxx_set_periodic,
+	.set_state_oneshot	= cns3xxx_set_oneshot,
+	.tick_resume		= cns3xxx_shutdown,
+	.set_next_event		= cns3xxx_timer_set_next_event,
+	.rating			= 350,
+	.cpumask		= cpu_all_mask,
 };
 
 static void __init cns3xxx_clockevents_init(unsigned int timer_irq)
@@ -339,7 +346,7 @@ static struct usb_ohci_pdata cns3xxx_usb_ohci_pdata = {
 	.power_off	= csn3xxx_usb_power_off,
 };
 
-static struct of_dev_auxdata cns3xxx_auxdata[] __initconst = {
+static const struct of_dev_auxdata const cns3xxx_auxdata[] __initconst = {
 	{ "intel,usb-ehci", CNS3XXX_USB_BASE, "ehci-platform", &cns3xxx_usb_ehci_pdata },
 	{ "intel,usb-ohci", CNS3XXX_USB_OHCI_BASE, "ohci-platform", &cns3xxx_usb_ohci_pdata },
 	{ "cavium,cns3420-ahci", CNS3XXX_SATA2_BASE, "ahci", NULL },
@@ -392,7 +399,7 @@ static void __init cns3xxx_init(void)
                         cns3xxx_auxdata, NULL);
 }
 
-static const char *cns3xxx_dt_compat[] __initdata = {
+static const char *const cns3xxx_dt_compat[] __initconst = {
 	"cavium,cns3410",
 	"cavium,cns3420",
 	NULL,
