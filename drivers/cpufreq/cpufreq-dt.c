@@ -260,7 +260,10 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		 * OPP tables are initialized only for policy->cpu, do it for
 		 * others as well.
 		 */
-		set_cpus_sharing_opps(cpu_dev, policy->cpus);
+		ret = set_cpus_sharing_opps(cpu_dev, policy->cpus);
+		if (ret)
+			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
+				__func__, ret);
 
 		of_property_read_u32(np, "clock-latency", &transition_latency);
 	} else {
