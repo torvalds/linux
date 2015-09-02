@@ -31,8 +31,8 @@ static const char *xfeature_names[] =
  */
 u64 xfeatures_mask __read_mostly;
 
-static unsigned int xstate_offsets[XFEATURES_NR_MAX] = { [ 0 ... XFEATURES_NR_MAX - 1] = -1};
-static unsigned int xstate_sizes[XFEATURES_NR_MAX]   = { [ 0 ... XFEATURES_NR_MAX - 1] = -1};
+static unsigned int xstate_offsets[XFEATURE_MAX] = { [ 0 ... XFEATURE_MAX - 1] = -1};
+static unsigned int xstate_sizes[XFEATURE_MAX]   = { [ 0 ... XFEATURE_MAX - 1] = -1};
 static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 
 /* The number of supported xfeatures in xfeatures_mask: */
