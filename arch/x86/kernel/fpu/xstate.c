@@ -432,6 +432,49 @@ static void __xstate_dump_leaves(void)
 	}									\
 } while (0)
 
+#define XCHECK_SZ(sz, nr, nr_macro, __struct) do {			\
+	if ((nr == nr_macro) &&						\
+	    WARN_ONCE(sz != sizeof(__struct),				\
+		"%s: struct is %zu bytes, cpu state %d bytes\n",	\
+		__stringify(nr_macro), sizeof(__struct), sz)) {		\
+		__xstate_dump_leaves();					\
+	}								\
+} while (0)
+
+/*
+ * We have a C struct for each 'xstate'.  We need to ensure
+ * that our software representation matches what the CPU
+ * tells us about the state's size.
+ */
+static void check_xstate_against_struct(int nr)
+{
+	/*
+	 * Ask the CPU for the size of the state.
+	 */
+	int sz = xfeature_size(nr);
+	/*
+	 * Match each CPU state with the corresponding software
+	 * structure.
+	 */
+	XCHECK_SZ(sz, nr, XFEATURE_YMM,       struct ymmh_struct);
+	XCHECK_SZ(sz, nr, XFEATURE_BNDREGS,   struct mpx_bndreg_state);
+	XCHECK_SZ(sz, nr, XFEATURE_BNDCSR,    struct mpx_bndcsr_state);
+	XCHECK_SZ(sz, nr, XFEATURE_OPMASK,    struct avx_512_opmask_state);
+	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
+	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
+
+	/*
+	 * Make *SURE* to add any feature numbers in below if
+	 * there are "holes" in the xsave state component
+	 * numbers.
+	 */
+	if ((nr < XFEATURE_YMM) ||
+	    (nr >= XFEATURE_MAX)) {
+		WARN_ONCE(1, "no structure for xstate: %d\n", nr);
+		XSTATE_WARN_ON(1);
+	}
+}
+
 /*
  * This essentially double-checks what the cpu told us about
  * how large the XSAVE buffer needs to be.  We are recalculating
@@ -445,6 +488,8 @@ static void do_extra_xstate_size_checks(void)
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
 		if (!xfeature_enabled(i))
 			continue;
+
+		check_xstate_against_struct(i);
 		/*
 		 * Supervisor state components can be managed only by
 		 * XSAVES, which is compacted-format only.
