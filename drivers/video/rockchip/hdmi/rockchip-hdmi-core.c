@@ -485,8 +485,11 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	hdmi->hotplug = HDMI_HPD_REMOVED;
 	hdmi->autoset = HDMI_AUTO_CONFIG;
 	if (uboot_vic > 0) {
-		hdmi->vic = uboot_vic;
-		hdmi->uboot = 1;
+		hdmi->vic = uboot_vic & HDMI_UBOOT_VIC_MASK;
+		if (uboot_vic & HDMI_UBOOT_NOT_INIT)
+			hdmi->uboot = 0;
+		else
+			hdmi->uboot = 1;
 		hdmi->autoset = 0;
 	} else if (hdmi->autoset) {
 		hdmi->vic = 0;

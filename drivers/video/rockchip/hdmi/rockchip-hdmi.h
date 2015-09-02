@@ -17,6 +17,9 @@
 #define HDMI_TYPE_MASK					(0xFF << 8)
 #define HDMI_MAX_ID					4
 
+#define HDMI_UBOOT_NOT_INIT				(1 << 16)
+#define HDMI_UBOOT_VIC_MASK				0xFFFF
+
 /* HDMI video information code according CEA-861-F */
 enum hdmi_video_infomation_code {
 	HDMI_640X480P_60HZ = 1,
