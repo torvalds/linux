@@ -33,14 +33,9 @@ iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	void *sap, *dap;
 
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
-	/* at least two bytes will be used for the encoding */
-	if (skb->len < 2)
-		return -EINVAL;
 
-	if (lowpan_fetch_skb_u8(skb, &iphc0))
-		return -EINVAL;
-
-	if (lowpan_fetch_skb_u8(skb, &iphc1))
+	if (lowpan_fetch_skb_u8(skb, &iphc0) ||
+	    lowpan_fetch_skb_u8(skb, &iphc1))
 		return -EINVAL;
 
 	ieee802154_addr_to_sa(&sa, &hdr->source);
