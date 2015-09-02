@@ -310,6 +310,11 @@
 	orr	r7, r7, #0x6000
 	str	r7, [r10, #0x150]
 
+	/* disconnect vdd_high_in and vdd_snvs_in */
+	ldr	r7, [r10, #0x150]
+	orr	r7, r7, #0x1000
+	str	r7, [r10, #0x150]
+
 	.endm
 
 	.macro anatop_exit_idle
