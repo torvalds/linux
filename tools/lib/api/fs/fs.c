@@ -28,6 +28,10 @@
 #define DEBUGFS_MAGIC          0x64626720
 #endif
 
+#ifndef TRACEFS_MAGIC
+#define TRACEFS_MAGIC          0x74726163
+#endif
+
 static const char * const sysfs__fs_known_mountpoints[] = {
 	"/sys",
 	0,
@@ -48,6 +52,19 @@ static const char * const debugfs__known_mountpoints[] = {
 	0,
 };
 
+
+#ifndef TRACEFS_DEFAULT_PATH
+#define TRACEFS_DEFAULT_PATH "/sys/kernel/tracing"
+#endif
+
+static const char * const tracefs__known_mountpoints[] = {
+	TRACEFS_DEFAULT_PATH,
+	"/sys/kernel/debug/tracing",
+	"/tracing",
+	"/trace",
+	0,
+};
+
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
@@ -60,7 +77,12 @@ enum {
 	FS__SYSFS   = 0,
 	FS__PROCFS  = 1,
 	FS__DEBUGFS = 2,
+	FS__TRACEFS = 3,
 };
+
+#ifndef TRACEFS_MAGIC
+#define TRACEFS_MAGIC 0x74726163
+#endif
 
 static struct fs fs__entries[] = {
 	[FS__SYSFS] = {
@@ -77,6 +99,11 @@ static struct fs fs__entries[] = {
 		.name	= "debugfs",
 		.mounts	= debugfs__known_mountpoints,
 		.magic	= DEBUGFS_MAGIC,
+	},
+	[FS__TRACEFS] = {
+		.name	= "tracefs",
+		.mounts	= tracefs__known_mountpoints,
+		.magic	= TRACEFS_MAGIC,
 	},
 };
 
@@ -197,6 +224,7 @@ const char *name##__mountpoint(void)	\
 FS__MOUNTPOINT(sysfs,   FS__SYSFS);
 FS__MOUNTPOINT(procfs,  FS__PROCFS);
 FS__MOUNTPOINT(debugfs, FS__DEBUGFS);
+FS__MOUNTPOINT(tracefs, FS__TRACEFS);
 
 int filename__read_int(const char *filename, int *value)
 {
