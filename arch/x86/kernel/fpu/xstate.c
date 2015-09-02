@@ -185,18 +185,41 @@ void fpu__init_cpu_xstate(void)
 }
 
 /*
+ * Note that in the future we will likely need a pair of
+ * functions here: one for user xstates and the other for
+ * system xstates.  For now, they are the same.
+ */
+static int xfeature_enabled(enum xfeature xfeature)
+{
+	return !!(xfeatures_mask & (1UL << xfeature));
+}
+
+/*
  * Record the offsets and sizes of various xstates contained
  * in the XSAVE state memory layout.
  */
 static void __init setup_xstate_features(void)
 {
 	u32 eax, ebx, ecx, edx, i;
+	/* start at the beginnning of the "extended state" */
+	unsigned int last_good_offset = offsetof(struct xregs_state,
+						 extended_state_area);
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
+		if (!xfeature_enabled(i))
+			continue;
 
+		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 		xstate_offsets[i] = ebx;
 		xstate_sizes[i] = eax;
+		/*
+		 * In our xstate size checks, we assume that the
+		 * highest-numbered xstate feature has the
+		 * highest offset in the buffer.  Ensure it does.
+		 */
+		WARN_ONCE(last_good_offset > xstate_offsets[i],
+			"x86/fpu: misordered xstate at %d\n", last_good_offset);
+		last_good_offset = xstate_offsets[i];
 
 		printk(KERN_INFO "x86/fpu: xstate_offset[%d]: %4d, xstate_sizes[%d]: %4d\n", i, ebx, i, eax);
 	}
@@ -223,16 +246,6 @@ static void __init print_xstate_features(void)
 	print_xstate_feature(XFEATURE_MASK_OPMASK);
 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
-}
-
-/*
- * Note that in the future we will likely need a pair of
- * functions here: one for user xstates and the other for
- * system xstates.  For now, they are the same.
- */
-static int xfeature_enabled(enum xfeature xfeature)
-{
-	return !!(xfeatures_mask & (1UL << xfeature));
 }
 
 /*
