@@ -135,6 +135,9 @@
 #define INTCR_SDBEIE_ENABLE		(0x1 << 4)
 #define INTCR_SDBEIE_MASK		(0x1 << 4)
 
+/* size * width: 16*4 = 64 bytes */
+#define SPDIF_DMA_BURST_SIZE		(16)
+
 struct rockchip_spdif_info {
 	spinlock_t lock;/*lock parmeter setting.*/
 	void __iomem *regs;
@@ -451,7 +454,7 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spdif->dma_playback.addr = mem_res->start + SMPDR;
 	spdif->dma_playback.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	spdif->dma_playback.maxburst = 4;
+	spdif->dma_playback.maxburst = SPDIF_DMA_BURST_SIZE;
 
 	ret = snd_soc_register_component(&pdev->dev,
 					 &rockchip_spdif_component,
