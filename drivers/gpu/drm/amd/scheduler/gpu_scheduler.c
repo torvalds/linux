@@ -362,6 +362,9 @@ static int amd_sched_main(void *param)
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n", r);
 			fence_put(fence);
+		} else {
+			DRM_ERROR("Failed to run job!\n");
+			amd_sched_process_job(NULL, &job->cb);
 		}
 
 		count = kfifo_out(&entity->job_queue, &job, sizeof(job));
