@@ -2155,7 +2155,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
-	if (IS_GEN9(dev))
+	if (INTEL_INFO(dev_priv)->gen >= 9)
 		aux_mask |=  GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
 			GEN9_AUX_CHANNEL_D;
 
@@ -2238,7 +2238,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 			    intel_pipe_handle_vblank(dev, pipe))
 				intel_check_page_flip(dev, pipe);
 
-			if (IS_GEN9(dev))
+			if (INTEL_INFO(dev_priv)->gen >= 9)
 				flip_done = pipe_iir & GEN9_PIPE_PLANE1_FLIP_DONE;
 			else
 				flip_done = pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE;
@@ -2256,7 +2256,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 								    pipe);
 
 
-			if (IS_GEN9(dev))
+			if (INTEL_INFO(dev_priv)->gen >= 9)
 				fault_errors = pipe_iir & GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
 			else
 				fault_errors = pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -3539,7 +3539,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 de_port_enables;
 	enum pipe pipe;
 
-	if (IS_GEN9(dev_priv)) {
+	if (INTEL_INFO(dev_priv)->gen >= 9) {
 		de_pipe_masked |= GEN9_PIPE_PLANE1_FLIP_DONE |
 				  GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
 		de_port_masked |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
