@@ -2495,17 +2495,26 @@ static inline bool ixgbe_is_sfp(struct ixgbe_hw *hw)
 static void ixgbe_check_sfp_event(struct ixgbe_adapter *adapter, u32 eicr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	u32 eicr_mask = IXGBE_EICR_GPI_SDP2(hw);
 
-	if (eicr & IXGBE_EICR_GPI_SDP2(hw)) {
+	if (!ixgbe_is_sfp(hw))
+		return;
+
+	/* Later MAC's use different SDP */
+	if (hw->mac.type >= ixgbe_mac_X540)
+		eicr_mask = IXGBE_EICR_GPI_SDP0_X540;
+
+	if (eicr & eicr_mask) {
 		/* Clear the interrupt */
-		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP2(hw));
+		IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr_mask);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
 			adapter->flags2 |= IXGBE_FLAG2_SFP_NEEDS_RESET;
 			ixgbe_service_event_schedule(adapter);
 		}
 	}
 
-	if (eicr & IXGBE_EICR_GPI_SDP1(hw)) {
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB &&
+	    (eicr & IXGBE_EICR_GPI_SDP1(hw))) {
 		/* Clear the interrupt */
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1(hw));
 		if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
