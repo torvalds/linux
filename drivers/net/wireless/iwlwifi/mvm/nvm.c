@@ -564,6 +564,10 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 				mvm->nvm_prod_blob.data = temp;
 				mvm->nvm_prod_blob.size  = ret;
 				break;
+			case NVM_SECTION_TYPE_PHY_SKU:
+				mvm->nvm_phy_sku_blob.data = temp;
+				mvm->nvm_phy_sku_blob.size  = ret;
+				break;
 			default:
 				if (section == mvm->cfg->nvm_hw_section_num) {
 					mvm->nvm_hw_blob.data = temp;
