@@ -162,6 +162,18 @@ static int read_via_objdump(const char *filename, u64 addr, void *buf,
 	return ret;
 }
 
+static void dump_buf(unsigned char *buf, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		pr_debug("0x%02x ", buf[i]);
+		if (i % 16 == 15)
+			pr_debug("\n");
+	}
+	pr_debug("\n");
+}
+
 static int read_object_code(u64 addr, size_t len, u8 cpumode,
 			    struct thread *thread, struct state *state)
 {
@@ -264,6 +276,10 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	/* The results should be identical */
 	if (memcmp(buf1, buf2, len)) {
 		pr_debug("Bytes read differ from those read by objdump\n");
+		pr_debug("buf1 (dso):\n");
+		dump_buf(buf1, len);
+		pr_debug("buf2 (objdump):\n");
+		dump_buf(buf2, len);
 		return -1;
 	}
 	pr_debug("Bytes read match those read by objdump\n");
