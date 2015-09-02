@@ -110,7 +110,6 @@ static void lowpan_setup(struct net_device *ldev)
 	ldev->mtu		= IPV6_MIN_MTU;
 	ldev->priv_flags	|= IFF_NO_QUEUE;
 	ldev->flags		= IFF_BROADCAST | IFF_MULTICAST;
-	ldev->watchdog_timeo	= 0;
 
 	ldev->netdev_ops	= &lowpan_netdev_ops;
 	ldev->header_ops	= &lowpan_header_ops;
