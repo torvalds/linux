@@ -132,11 +132,6 @@ struct ymmh_struct {
 	u8				ymmh_space[256];
 };
 
-/* We don't support LWP yet: */
-struct lwp_struct {
-	u8				reserved[128];
-};
-
 /* Intel MPX support: */
 struct bndreg {
 	u64				lower_bound;
