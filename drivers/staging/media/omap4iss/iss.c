@@ -1274,6 +1274,68 @@ done:
 	return ret;
 }
 
+/*
+ * iss_create_pads_links() - Pads links creation for the subdevices
+ * @iss : Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+static int iss_create_pads_links(struct iss_device *iss)
+{
+	int ret;
+
+	ret = omap4iss_csi2_create_pads_links(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "CSI2 pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap4iss_ipipeif_create_pads_links(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "ISP IPIPEIF pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap4iss_resizer_create_pads_links(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "ISP RESIZER pads links creation failed\n");
+		return ret;
+	}
+
+	/* Connect the submodules. */
+	ret = media_create_pad_link(
+			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->csi2b.subdev.entity, CSI2_PAD_SOURCE,
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
+			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
+			&iss->ipipe.subdev.entity, IPIPE_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->ipipe.subdev.entity, IPIPE_PAD_SOURCE_VP,
+			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+};
+
 static void iss_cleanup_modules(struct iss_device *iss)
 {
 	omap4iss_csi2_cleanup(iss);
@@ -1316,41 +1378,8 @@ static int iss_initialize_modules(struct iss_device *iss)
 		goto error_resizer;
 	}
 
-	/* Connect the submodules. */
-	ret = media_create_pad_link(
-			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&iss->csi2b.subdev.entity, CSI2_PAD_SOURCE,
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
-			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
-			&iss->ipipe.subdev.entity, IPIPE_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_create_pad_link(
-			&iss->ipipe.subdev.entity, IPIPE_PAD_SOURCE_VP,
-			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap4iss_resizer_cleanup(iss);
 error_resizer:
 	omap4iss_ipipe_cleanup(iss);
 error_ipipe:
@@ -1464,10 +1493,16 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_modules;
 
+	ret = iss_create_pads_links(iss);
+	if (ret < 0)
+		goto error_entities;
+
 	omap4iss_put(iss);
 
 	return 0;
 
+error_entities:
+	iss_unregister_entities(iss);
 error_modules:
 	iss_cleanup_modules(iss);
 error_iss:

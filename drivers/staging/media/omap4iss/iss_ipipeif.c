@@ -757,18 +757,7 @@ static int ipipeif_init_entities(struct iss_ipipeif_device *ipipeif)
 	ipipeif->video_out.bpl_zero_padding = 1;
 	ipipeif->video_out.bpl_max = 0x1ffe0;
 
-	ret = omap4iss_video_init(&ipipeif->video_out, "ISP IPIPEIF");
-	if (ret < 0)
-		return ret;
-
-	/* Connect the IPIPEIF subdev to the video node. */
-	ret = media_create_pad_link(&ipipeif->subdev.entity,
-				       IPIPEIF_PAD_SOURCE_ISIF_SF,
-				       &ipipeif->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return omap4iss_video_init(&ipipeif->video_out, "ISP IPIPEIF");
 }
 
 void omap4iss_ipipeif_unregister_entities(struct iss_ipipeif_device *ipipeif)
@@ -818,6 +807,22 @@ int omap4iss_ipipeif_init(struct iss_device *iss)
 	init_waitqueue_head(&ipipeif->wait);
 
 	return ipipeif_init_entities(ipipeif);
+}
+
+/*
+ * omap4iss_ipipeif_create_pads_links() - IPIPEIF pads links creation
+ * @iss: Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+int omap4iss_ipipeif_create_pads_links(struct iss_device *iss)
+{
+	struct iss_ipipeif_device *ipipeif = &iss->ipipeif;
+
+	/* Connect the IPIPEIF subdev to the video node. */
+	return media_create_pad_link(&ipipeif->subdev.entity,
+				     IPIPEIF_PAD_SOURCE_ISIF_SF,
+				     &ipipeif->video_out.video.entity, 0, 0);
 }
 
 /*

@@ -799,18 +799,7 @@ static int resizer_init_entities(struct iss_resizer_device *resizer)
 	resizer->video_out.bpl_zero_padding = 1;
 	resizer->video_out.bpl_max = 0x1ffe0;
 
-	ret = omap4iss_video_init(&resizer->video_out, "ISP resizer a");
-	if (ret < 0)
-		return ret;
-
-	/* Connect the RESIZER subdev to the video node. */
-	ret = media_create_pad_link(&resizer->subdev.entity,
-				       RESIZER_PAD_SOURCE_MEM,
-				       &resizer->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return omap4iss_video_init(&resizer->video_out, "ISP resizer a");
 }
 
 void omap4iss_resizer_unregister_entities(struct iss_resizer_device *resizer)
@@ -860,6 +849,22 @@ int omap4iss_resizer_init(struct iss_device *iss)
 	init_waitqueue_head(&resizer->wait);
 
 	return resizer_init_entities(resizer);
+}
+
+/*
+ * omap4iss_resizer_create_pads_links() - RESIZER pads links creation
+ * @iss: Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+int omap4iss_resizer_create_pads_links(struct iss_device *iss)
+{
+	struct iss_resizer_device *resizer = &iss->resizer;
+
+	/* Connect the RESIZER subdev to the video node. */
+	return media_create_pad_link(&resizer->subdev.entity,
+				     RESIZER_PAD_SOURCE_MEM,
+				     &resizer->video_out.video.entity, 0, 0);
 }
 
 /*

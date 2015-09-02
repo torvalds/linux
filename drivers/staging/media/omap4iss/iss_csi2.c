@@ -1290,16 +1290,8 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	if (ret < 0)
 		goto error_video;
 
-	/* Connect the CSI2 subdev to the video node. */
-	ret = media_create_pad_link(&csi2->subdev.entity, CSI2_PAD_SOURCE,
-				       &csi2->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap4iss_video_cleanup(&csi2->video_out);
 error_video:
 	media_entity_cleanup(&csi2->subdev.entity);
 	return ret;
@@ -1335,6 +1327,33 @@ int omap4iss_csi2_init(struct iss_device *iss)
 	init_waitqueue_head(&csi2b->wait);
 
 	ret = csi2_init_entities(csi2b, "b");
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * omap4iss_csi2_create_pads_links() - CSI2 pads links creation
+ * @iss: Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+int omap4iss_csi2_create_pads_links(struct iss_device *iss)
+{
+	struct iss_csi2_device *csi2a = &iss->csi2a;
+	struct iss_csi2_device *csi2b = &iss->csi2b;
+	int ret;
+
+	/* Connect the CSI2a subdev to the video node. */
+	ret = media_create_pad_link(&csi2a->subdev.entity, CSI2_PAD_SOURCE,
+				    &csi2a->video_out.video.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Connect the CSI2b subdev to the video node. */
+	ret = media_create_pad_link(&csi2b->subdev.entity, CSI2_PAD_SOURCE,
+				    &csi2b->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		return ret;
 
