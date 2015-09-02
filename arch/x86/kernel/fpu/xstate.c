@@ -226,6 +226,16 @@ static void __init print_xstate_features(void)
 }
 
 /*
+ * Note that in the future we will likely need a pair of
+ * functions here: one for user xstates and the other for
+ * system xstates.  For now, they are the same.
+ */
+static int xfeature_enabled(enum xfeature xfeature)
+{
+	return !!(xfeatures_mask & (1UL << xfeature));
+}
+
+/*
  * This function sets up offsets and sizes of all extended states in
  * xsave area. This supports both standard format and compacted format
  * of the xsave aread.
@@ -245,7 +255,7 @@ static void __init setup_xstate_comp(void)
 
 	if (!cpu_has_xsaves) {
 		for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-			if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
+			if (xfeature_enabled(i)) {
 				xstate_comp_offsets[i] = xstate_offsets[i];
 				xstate_comp_sizes[i] = xstate_sizes[i];
 			}
@@ -257,7 +267,7 @@ static void __init setup_xstate_comp(void)
 		FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (test_bit(i, (unsigned long *)&xfeatures_mask))
+		if (xfeature_enabled(i))
 			xstate_comp_sizes[i] = xstate_sizes[i];
 		else
 			xstate_comp_sizes[i] = 0;
@@ -319,7 +329,7 @@ static unsigned int __init calculate_xstate_size(void)
 
 	calculated_xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	for (i = FIRST_EXTENDED_XFEATURE; i < 64; i++) {
-		if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
+		if (xfeature_enabled(i)) {
 			cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 			calculated_xstate_size += eax;
 		}
