@@ -1741,8 +1741,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 
 check_stop:
 	transport_lun_remove_cmd(cmd);
-	if (!transport_cmd_check_stop_to_fabric(cmd))
-		;
+	transport_cmd_check_stop_to_fabric(cmd);
 	return;
 
 queue_full:
