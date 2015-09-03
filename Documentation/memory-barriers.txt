@@ -2327,9 +2327,7 @@ about the state (old or new) implies an SMP-conditional general memory barrier
 explicit lock operations, described later).  These include:
 
 	xchg();
-	cmpxchg();
 	atomic_xchg();			atomic_long_xchg();
-	atomic_cmpxchg();		atomic_long_cmpxchg();
 	atomic_inc_return();		atomic_long_inc_return();
 	atomic_dec_return();		atomic_long_dec_return();
 	atomic_add_return();		atomic_long_add_return();
@@ -2342,7 +2340,9 @@ explicit lock operations, described later).  These include:
 	test_and_clear_bit();
 	test_and_change_bit();
 
-	/* when succeeds (returns 1) */
+	/* when succeeds */
+	cmpxchg();
+	atomic_cmpxchg();		atomic_long_cmpxchg();
 	atomic_add_unless();		atomic_long_add_unless();
 
 These are used for such things as implementing ACQUIRE-class and RELEASE-class
