@@ -603,7 +603,7 @@ void rtl8723be_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VIQEN);
 				break;
 			case AC3_VO:
-				acm_ctrl &= (~ACMHW_BEQEN);
+				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
@@ -1558,7 +1558,7 @@ static int _rtl8723be_set_media_status(struct ieee80211_hw *hw,
 			 mode);
 	}
 
-	rtl_write_byte(rtlpriv, (MSR), bt_msr | mode);
+	rtl_write_byte(rtlpriv, MSR, bt_msr | mode);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
 	if (mode == MSR_AP)
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x00);
@@ -1634,27 +1634,10 @@ void rtl8723be_set_qos(struct ieee80211_hw *hw, int aci)
 	}
 }
 
-static void rtl8723be_clear_interrupt(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 tmp;
-
-	tmp = rtl_read_dword(rtlpriv, REG_HISR);
-	rtl_write_dword(rtlpriv, REG_HISR, tmp);
-
-	tmp = rtl_read_dword(rtlpriv, REG_HISRE);
-	rtl_write_dword(rtlpriv, REG_HISRE, tmp);
-
-	tmp = rtl_read_dword(rtlpriv, REG_HSISR);
-	rtl_write_dword(rtlpriv, REG_HSISR, tmp);
-}
-
 void rtl8723be_enable_interrupt(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-	rtl8723be_clear_interrupt(hw);/*clear it here first*/
 
 	rtl_write_dword(rtlpriv, REG_HIMR, rtlpci->irq_mask[0] & 0xFFFFFFFF);
 	rtl_write_dword(rtlpriv, REG_HIMRE, rtlpci->irq_mask[1] & 0xFFFFFFFF);
@@ -2139,8 +2122,8 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "EEPROM Customer ID: 0x%2x\n", rtlefuse->eeprom_oemid);
 
-	/* set channel plan to world wide 13 */
-	rtlefuse->channel_plan = COUNTRY_CODE_WORLD_WIDE_13;
+	/* set channel plan from efuse */
+	rtlefuse->channel_plan = rtlefuse->eeprom_channelplan;
 
 	if (rtlhal->oem_id == RT_CID_DEFAULT) {
 		/* Does this one have a Toshiba SMID from group 1? */

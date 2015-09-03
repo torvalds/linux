@@ -22,8 +22,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_PRM7XX_H
 #define __ARCH_ARM_MACH_OMAP2_PRM7XX_H
 
-#include "prm44xx_54xx.h"
 #include "prcm-common.h"
+#include "prm44xx_54xx.h"
 #include "prm.h"
 
 #define DRA7XX_PRM_BASE		0x4ae06000

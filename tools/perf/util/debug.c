@@ -20,6 +20,7 @@ int verbose;
 bool dump_trace = false, quiet = false;
 int debug_ordered_events;
 static int redirect_to_stderr;
+int debug_data_convert;
 
 static int _eprintf(int level, int var, const char *fmt, va_list args)
 {
@@ -147,6 +148,7 @@ static struct debug_variable {
 	{ .name = "verbose",		.ptr = &verbose },
 	{ .name = "ordered-events",	.ptr = &debug_ordered_events},
 	{ .name = "stderr",		.ptr = &redirect_to_stderr},
+	{ .name = "data-convert",	.ptr = &debug_data_convert },
 	{ .name = NULL, }
 };
 

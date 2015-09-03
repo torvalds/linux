@@ -186,7 +186,7 @@ static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops arizona_domain_ops = {
+static const struct irq_domain_ops arizona_domain_ops = {
 	.map	= arizona_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
@@ -211,6 +211,7 @@ int arizona_irq_init(struct arizona *arizona)
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
+	case WM8280:
 		aod = &wm5110_aod;
 
 		switch (arizona->rev) {

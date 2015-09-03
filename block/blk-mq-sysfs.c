@@ -436,6 +436,7 @@ int blk_mq_register_disk(struct gendisk *disk)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_mq_register_disk);
 
 void blk_mq_sysfs_unregister(struct request_queue *q)
 {

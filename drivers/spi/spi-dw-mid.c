@@ -23,29 +23,31 @@
 #include "spi-dw.h"
 
 #ifdef CONFIG_SPI_DW_MID_DMA
-#include <linux/intel_mid_dma.h>
 #include <linux/pci.h>
+#include <linux/platform_data/dma-dw.h>
 
 #define RX_BUSY		0
 #define TX_BUSY		1
 
-struct mid_dma {
-	struct intel_mid_dma_slave	dmas_tx;
-	struct intel_mid_dma_slave	dmas_rx;
-};
+static struct dw_dma_slave mid_dma_tx = { .dst_id = 1 };
+static struct dw_dma_slave mid_dma_rx = { .src_id = 0 };
 
 static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 {
-	struct dw_spi *dws = param;
+	struct dw_dma_slave *s = param;
 
-	return dws->dma_dev == chan->device->dev;
+	if (s->dma_dev != chan->device->dev)
+		return false;
+
+	chan->private = s;
+	return true;
 }
 
 static int mid_spi_dma_init(struct dw_spi *dws)
 {
-	struct mid_dma *dw_dma = dws->dma_priv;
 	struct pci_dev *dma_dev;
-	struct intel_mid_dma_slave *rxs, *txs;
+	struct dw_dma_slave *tx = dws->dma_tx;
+	struct dw_dma_slave *rx = dws->dma_rx;
 	dma_cap_mask_t mask;
 
 	/*
@@ -56,28 +58,22 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 	if (!dma_dev)
 		return -ENODEV;
 
-	dws->dma_dev = &dma_dev->dev;
-
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* 1. Init rx channel */
-	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
+	rx->dma_dev = &dma_dev->dev;
+	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, rx);
 	if (!dws->rxchan)
 		goto err_exit;
-	rxs = &dw_dma->dmas_rx;
-	rxs->hs_mode = LNW_DMA_HW_HS;
-	rxs->cfg_mode = LNW_DMA_PER_TO_MEM;
-	dws->rxchan->private = rxs;
+	dws->master->dma_rx = dws->rxchan;
 
 	/* 2. Init tx channel */
-	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
+	tx->dma_dev = &dma_dev->dev;
+	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, tx);
 	if (!dws->txchan)
 		goto free_rxchan;
-	txs = &dw_dma->dmas_tx;
-	txs->hs_mode = LNW_DMA_HW_HS;
-	txs->cfg_mode = LNW_DMA_MEM_TO_PER;
-	dws->txchan->private = txs;
+	dws->master->dma_tx = dws->txchan;
 
 	dws->dma_inited = 1;
 	return 0;
@@ -100,6 +96,42 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 	dma_release_channel(dws->rxchan);
 }
 
+static irqreturn_t dma_transfer(struct dw_spi *dws)
+{
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+
+	if (!irq_status)
+		return IRQ_NONE;
+
+	dw_readl(dws, DW_SPI_ICR);
+	spi_reset_chip(dws);
+
+	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun\n", __func__);
+	dws->master->cur_msg->status = -EIO;
+	spi_finalize_current_transfer(dws->master);
+	return IRQ_HANDLED;
+}
+
+static bool mid_spi_can_dma(struct spi_master *master, struct spi_device *spi,
+		struct spi_transfer *xfer)
+{
+	struct dw_spi *dws = spi_master_get_devdata(master);
+
+	if (!dws->dma_inited)
+		return false;
+
+	return xfer->len > dws->fifo_len;
+}
+
+static enum dma_slave_buswidth convert_dma_width(u32 dma_width) {
+	if (dma_width == 1)
+		return DMA_SLAVE_BUSWIDTH_1_BYTE;
+	else if (dma_width == 2)
+		return DMA_SLAVE_BUSWIDTH_2_BYTES;
+
+	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
+}
+
 /*
  * dws->dma_chan_busy is set before the dma transfer starts, callback for tx
  * channel will clear a corresponding bit.
@@ -111,33 +143,30 @@ static void dw_spi_dma_tx_done(void *arg)
 	clear_bit(TX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
-	dw_spi_xfer_done(dws);
+	spi_finalize_current_transfer(dws->master);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
+		struct spi_transfer *xfer)
 {
 	struct dma_slave_config txconf;
 	struct dma_async_tx_descriptor *txdesc;
 
-	if (!dws->tx_dma)
+	if (!xfer->tx_buf)
 		return NULL;
 
 	txconf.direction = DMA_MEM_TO_DEV;
 	txconf.dst_addr = dws->dma_addr;
-	txconf.dst_maxburst = LNW_DMA_MSIZE_16;
+	txconf.dst_maxburst = 16;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	txconf.dst_addr_width = dws->dma_width;
+	txconf.dst_addr_width = convert_dma_width(dws->dma_width);
 	txconf.device_fc = false;
 
 	dmaengine_slave_config(dws->txchan, &txconf);
 
-	memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
-	dws->tx_sgl.dma_address = dws->tx_dma;
-	dws->tx_sgl.length = dws->len;
-
 	txdesc = dmaengine_prep_slave_sg(dws->txchan,
-				&dws->tx_sgl,
-				1,
+				xfer->tx_sg.sgl,
+				xfer->tx_sg.nents,
 				DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
@@ -160,33 +189,30 @@ static void dw_spi_dma_rx_done(void *arg)
 	clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
-	dw_spi_xfer_done(dws);
+	spi_finalize_current_transfer(dws->master);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
+		struct spi_transfer *xfer)
 {
 	struct dma_slave_config rxconf;
 	struct dma_async_tx_descriptor *rxdesc;
 
-	if (!dws->rx_dma)
+	if (!xfer->rx_buf)
 		return NULL;
 
 	rxconf.direction = DMA_DEV_TO_MEM;
 	rxconf.src_addr = dws->dma_addr;
-	rxconf.src_maxburst = LNW_DMA_MSIZE_16;
+	rxconf.src_maxburst = 16;
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.src_addr_width = dws->dma_width;
+	rxconf.src_addr_width = convert_dma_width(dws->dma_width);
 	rxconf.device_fc = false;
 
 	dmaengine_slave_config(dws->rxchan, &rxconf);
 
-	memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
-	dws->rx_sgl.dma_address = dws->rx_dma;
-	dws->rx_sgl.length = dws->len;
-
 	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
-				&dws->rx_sgl,
-				1,
+				xfer->rx_sg.sgl,
+				xfer->rx_sg.nents,
 				DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
@@ -198,37 +224,36 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
 	return rxdesc;
 }
 
-static void dw_spi_dma_setup(struct dw_spi *dws)
+static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 dma_ctrl = 0;
 
-	spi_enable_chip(dws, 0);
+	dw_writel(dws, DW_SPI_DMARDLR, 0xf);
+	dw_writel(dws, DW_SPI_DMATDLR, 0x10);
 
-	dw_writew(dws, DW_SPI_DMARDLR, 0xf);
-	dw_writew(dws, DW_SPI_DMATDLR, 0x10);
-
-	if (dws->tx_dma)
+	if (xfer->tx_buf)
 		dma_ctrl |= SPI_DMA_TDMAE;
-	if (dws->rx_dma)
+	if (xfer->rx_buf)
 		dma_ctrl |= SPI_DMA_RDMAE;
-	dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
+	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
 
-	spi_enable_chip(dws, 1);
+	/* Set the interrupt mask */
+	spi_umask_intr(dws, SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI);
+
+	dws->transfer_handler = dma_transfer;
+
+	return 0;
 }
 
-static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
+static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 
-	/* 1. setup DMA related registers */
-	if (cs_change)
-		dw_spi_dma_setup(dws);
+	/* Prepare the TX dma transfer */
+	txdesc = dw_spi_dma_prepare_tx(dws, xfer);
 
-	/* 2. Prepare the TX dma transfer */
-	txdesc = dw_spi_dma_prepare_tx(dws);
-
-	/* 3. Prepare the RX dma transfer */
-	rxdesc = dw_spi_dma_prepare_rx(dws);
+	/* Prepare the RX dma transfer */
+	rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
 
 	/* rx must be started before tx due to spi instinct */
 	if (rxdesc) {
@@ -246,10 +271,25 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	return 0;
 }
 
+static void mid_spi_dma_stop(struct dw_spi *dws)
+{
+	if (test_bit(TX_BUSY, &dws->dma_chan_busy)) {
+		dmaengine_terminate_all(dws->txchan);
+		clear_bit(TX_BUSY, &dws->dma_chan_busy);
+	}
+	if (test_bit(RX_BUSY, &dws->dma_chan_busy)) {
+		dmaengine_terminate_all(dws->rxchan);
+		clear_bit(RX_BUSY, &dws->dma_chan_busy);
+	}
+}
+
 static struct dw_spi_dma_ops mid_dma_ops = {
 	.dma_init	= mid_spi_dma_init,
 	.dma_exit	= mid_spi_dma_exit,
+	.dma_setup	= mid_spi_dma_setup,
+	.can_dma	= mid_spi_can_dma,
 	.dma_transfer	= mid_spi_dma_transfer,
+	.dma_stop	= mid_spi_dma_stop,
 };
 #endif
 
@@ -282,9 +322,8 @@ int dw_spi_mid_init(struct dw_spi *dws)
 	iounmap(clk_reg);
 
 #ifdef CONFIG_SPI_DW_MID_DMA
-	dws->dma_priv = kzalloc(sizeof(struct mid_dma), GFP_KERNEL);
-	if (!dws->dma_priv)
-		return -ENOMEM;
+	dws->dma_tx = &mid_dma_tx;
+	dws->dma_rx = &mid_dma_rx;
 	dws->dma_ops = &mid_dma_ops;
 #endif
 	return 0;

@@ -267,7 +267,16 @@ static struct platform_driver gpio_wdt_driver = {
 	.probe	= gpio_wdt_probe,
 	.remove	= gpio_wdt_remove,
 };
+
+#ifdef CONFIG_GPIO_WATCHDOG_ARCH_INITCALL
+static int __init gpio_wdt_init(void)
+{
+	return platform_driver_register(&gpio_wdt_driver);
+}
+arch_initcall(gpio_wdt_init);
+#else
 module_platform_driver(gpio_wdt_driver);
+#endif
 
 MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
 MODULE_DESCRIPTION("GPIO Watchdog");

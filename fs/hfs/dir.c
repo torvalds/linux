@@ -197,7 +197,7 @@ static int hfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	inode = hfs_new_inode(dir, &dentry->d_name, mode);
 	if (!inode)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	res = hfs_cat_create(inode->i_ino, dir, &dentry->d_name, inode);
 	if (res) {
@@ -226,7 +226,7 @@ static int hfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	inode = hfs_new_inode(dir, &dentry->d_name, S_IFDIR | mode);
 	if (!inode)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	res = hfs_cat_create(inode->i_ino, dir, &dentry->d_name, inode);
 	if (res) {
@@ -253,7 +253,7 @@ static int hfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
  */
 static int hfs_remove(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int res;
 
 	if (S_ISDIR(inode->i_mode) && inode->i_size != 2)
@@ -285,18 +285,18 @@ static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int res;
 
 	/* Unlink destination if it already exists */
-	if (new_dentry->d_inode) {
+	if (d_really_is_positive(new_dentry)) {
 		res = hfs_remove(new_dir, new_dentry);
 		if (res)
 			return res;
 	}
 
-	res = hfs_cat_move(old_dentry->d_inode->i_ino,
+	res = hfs_cat_move(d_inode(old_dentry)->i_ino,
 			   old_dir, &old_dentry->d_name,
 			   new_dir, &new_dentry->d_name);
 	if (!res)
 		hfs_cat_build_key(old_dir->i_sb,
-				  (btree_key *)&HFS_I(old_dentry->d_inode)->cat_key,
+				  (btree_key *)&HFS_I(d_inode(old_dentry))->cat_key,
 				  new_dir->i_ino, &new_dentry->d_name);
 	return res;
 }

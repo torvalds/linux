@@ -30,6 +30,7 @@ config ARM_GIC_V3_ITS
 config ARM_NVIC
 	bool
 	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_CHIP
 
 config ARM_VIC
@@ -60,6 +61,11 @@ config ATMEL_AIC5_IRQ
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 
+config BCM7038_L1_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config BCM7120_L2_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
@@ -76,6 +82,11 @@ config DW_APB_ICTL
 	select IRQ_DOMAIN
 
 config IMGPDC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
@@ -109,6 +120,13 @@ config RENESAS_INTC_IRQPIN
 config RENESAS_IRQC
 	bool
 	select IRQ_DOMAIN
+
+config ST_IRQCHIP
+	bool
+	select REGMAP
+	select MFD_SYSCON
+	help
+	  Enables SysCfg Controlled IRQs on STi based platforms.
 
 config TB10X_IRQC
 	bool
@@ -146,3 +164,16 @@ config KEYSTONE_IRQ
 config MIPS_GIC
 	bool
 	select MIPS_CM
+
+config INGENIC_IRQ
+	bool
+	depends on MACH_INGENIC
+	default y
+
+config RENESAS_H8300H_INTC
+        bool
+	select IRQ_DOMAIN
+
+config RENESAS_H8S_INTC
+        bool
+	select IRQ_DOMAIN

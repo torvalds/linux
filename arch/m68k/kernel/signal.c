@@ -863,12 +863,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (fsize)
 		err |= copy_to_user (frame + 1, regs + 1, fsize);
 
-	err |= __put_user((current_thread_info()->exec_domain
-			   && current_thread_info()->exec_domain->signal_invmap
-			   && sig < 32
-			   ? current_thread_info()->exec_domain->signal_invmap[sig]
-			   : sig),
-			  &frame->sig);
+	err |= __put_user(sig, &frame->sig);
 
 	err |= __put_user(regs->vector, &frame->code);
 	err |= __put_user(&frame->sc, &frame->psc);
@@ -948,12 +943,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (fsize)
 		err |= copy_to_user (&frame->uc.uc_extra, regs + 1, fsize);
 
-	err |= __put_user((current_thread_info()->exec_domain
-			   && current_thread_info()->exec_domain->signal_invmap
-			   && sig < 32
-			   ? current_thread_info()->exec_domain->signal_invmap[sig]
-			   : sig),
-			  &frame->sig);
+	err |= __put_user(sig, &frame->sig);
 	err |= __put_user(&frame->info, &frame->pinfo);
 	err |= __put_user(&frame->uc, &frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);

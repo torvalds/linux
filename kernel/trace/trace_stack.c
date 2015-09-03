@@ -327,11 +327,11 @@ static void t_stop(struct seq_file *m, void *p)
 	local_irq_enable();
 }
 
-static int trace_lookup_stack(struct seq_file *m, long i)
+static void trace_lookup_stack(struct seq_file *m, long i)
 {
 	unsigned long addr = stack_dump_trace[i];
 
-	return seq_printf(m, "%pS\n", (void *)addr);
+	seq_printf(m, "%pS\n", (void *)addr);
 }
 
 static void print_disabled(struct seq_file *m)

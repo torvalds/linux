@@ -28,7 +28,7 @@ Example:
 --------
 
 Example configuration for a single TS1003 tilt switch that rotates around
-one axis in 4 steps and emitts the current tilt via two GPIOs.
+one axis in 4 steps and emits the current tilt via two GPIOs.
 
 static int sg060_tilt_enable(struct device *dev) {
 	/* code to enable the sensors */

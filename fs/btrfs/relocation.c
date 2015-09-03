@@ -1847,8 +1847,10 @@ again:
 			}
 
 			eb = read_tree_block(dest, old_bytenr, old_ptr_gen);
-			if (!eb || !extent_buffer_uptodate(eb)) {
-				ret = (!eb) ? -ENOMEM : -EIO;
+			if (IS_ERR(eb)) {
+				ret = PTR_ERR(eb);
+			} else if (!extent_buffer_uptodate(eb)) {
+				ret = -EIO;
 				free_extent_buffer(eb);
 				break;
 			}
@@ -2002,7 +2004,9 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 
 		bytenr = btrfs_node_blockptr(eb, path->slots[i]);
 		eb = read_tree_block(root, bytenr, ptr_gen);
-		if (!eb || !extent_buffer_uptodate(eb)) {
+		if (IS_ERR(eb)) {
+			return PTR_ERR(eb);
+		} else if (!extent_buffer_uptodate(eb)) {
 			free_extent_buffer(eb);
 			return -EIO;
 		}
@@ -2710,7 +2714,10 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		blocksize = root->nodesize;
 		generation = btrfs_node_ptr_generation(upper->eb, slot);
 		eb = read_tree_block(root, bytenr, generation);
-		if (!eb || !extent_buffer_uptodate(eb)) {
+		if (IS_ERR(eb)) {
+			err = PTR_ERR(eb);
+			goto next;
+		} else if (!extent_buffer_uptodate(eb)) {
 			free_extent_buffer(eb);
 			err = -EIO;
 			goto next;
@@ -2873,7 +2880,9 @@ static int get_tree_block_key(struct reloc_control *rc,
 	BUG_ON(block->key_ready);
 	eb = read_tree_block(rc->extent_root, block->bytenr,
 			     block->key.offset);
-	if (!eb || !extent_buffer_uptodate(eb)) {
+	if (IS_ERR(eb)) {
+		return PTR_ERR(eb);
+	} else if (!extent_buffer_uptodate(eb)) {
 		free_extent_buffer(eb);
 		return -EIO;
 	}
@@ -3027,7 +3036,7 @@ int prealloc_file_extent_cluster(struct inode *inode,
 	mutex_lock(&inode->i_mutex);
 
 	ret = btrfs_check_data_free_space(inode, cluster->end +
-					  1 - cluster->start);
+					  1 - cluster->start, 0);
 	if (ret)
 		goto out;
 
@@ -3430,7 +3439,9 @@ static int block_use_full_backref(struct reloc_control *rc,
 }
 
 static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
-				    struct inode *inode, u64 ino)
+				    struct btrfs_block_group_cache *block_group,
+				    struct inode *inode,
+				    u64 ino)
 {
 	struct btrfs_key key;
 	struct btrfs_root *root = fs_info->tree_root;
@@ -3463,7 +3474,7 @@ truncate:
 		goto out;
 	}
 
-	ret = btrfs_truncate_free_space_cache(root, trans, inode);
+	ret = btrfs_truncate_free_space_cache(root, trans, block_group, inode);
 
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root);
@@ -3509,6 +3520,7 @@ static int find_data_references(struct reloc_control *rc,
 	 */
 	if (ref_root == BTRFS_ROOT_TREE_OBJECTID) {
 		ret = delete_block_group_cache(rc->extent_root->fs_info,
+					       rc->block_group,
 					       NULL, ref_objectid);
 		if (ret != -ENOENT)
 			return ret;
@@ -4037,7 +4049,7 @@ restart:
 	if (trans && progress && err == -ENOSPC) {
 		ret = btrfs_force_chunk_alloc(trans, rc->extent_root,
 					      rc->block_group->flags);
-		if (ret == 0) {
+		if (ret == 1) {
 			err = 0;
 			progress = 0;
 			goto restart;
@@ -4223,7 +4235,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	btrfs_free_path(path);
 
 	if (!IS_ERR(inode))
-		ret = delete_block_group_cache(fs_info, inode, 0);
+		ret = delete_block_group_cache(fs_info, rc->block_group, inode, 0);
 	else
 		ret = PTR_ERR(inode);
 

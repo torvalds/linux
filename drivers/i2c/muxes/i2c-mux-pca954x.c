@@ -134,7 +134,7 @@ static int pca954x_reg_write(struct i2c_adapter *adap,
 		msg.len = 1;
 		buf[0] = val;
 		msg.buf = buf;
-		ret = adap->algo->master_xfer(adap, &msg, 1);
+		ret = __i2c_transfer(adap, &msg, 1);
 	} else {
 		union i2c_smbus_data data;
 		ret = adap->algo->smbus_xfer(adap, client->addr,
@@ -204,9 +204,9 @@ static int pca954x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 
 	/* Get the mux out of reset if a reset GPIO is specified. */
-	gpio = devm_gpiod_get(&client->dev, "reset");
-	if (!IS_ERR(gpio))
-		gpiod_direction_output(gpio, 0);
+	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
 
 	/* Write the mux register at addr to verify
 	 * that the mux is in fact present. This also

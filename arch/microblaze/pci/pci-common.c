@@ -1382,6 +1382,10 @@ static int __init pcibios_init(void)
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		if (hose->bus)
+			pci_bus_add_devices(hose->bus);
+	}
 
 	return 0;
 }

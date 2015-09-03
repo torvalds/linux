@@ -1157,10 +1157,11 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 			max_power = 1;
 	} else if (!bf->bf_state.bfs_paprd) {
 		if (rateidx < 8 && (info->flags & IEEE80211_TX_CTL_STBC))
-			max_power = min(ah->tx_power_stbc[rateidx],
-					fi->tx_power);
+			max_power = min_t(u8, ah->tx_power_stbc[rateidx],
+					  fi->tx_power);
 		else
-			max_power = min(ah->tx_power[rateidx], fi->tx_power);
+			max_power = min_t(u8, ah->tx_power[rateidx],
+					  fi->tx_power);
 	} else {
 		max_power = ah->paprd_training_power;
 	}
@@ -2115,6 +2116,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 	struct ath_node *an = NULL;
 	enum ath9k_key_type keytype;
 	bool short_preamble = false;
+	u8 txpower;
 
 	/*
 	 * We check if Short Preamble is needed for the CTS rate by
@@ -2131,6 +2133,16 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 	if (sta)
 		an = (struct ath_node *) sta->drv_priv;
 
+	if (tx_info->control.vif) {
+		struct ieee80211_vif *vif = tx_info->control.vif;
+
+		txpower = 2 * vif->bss_conf.txpower;
+	} else {
+		struct ath_softc *sc = hw->priv;
+
+		txpower = sc->cur_chan->cur_txpower;
+	}
+
 	memset(fi, 0, sizeof(*fi));
 	fi->txq = -1;
 	if (hw_key)
@@ -2141,7 +2153,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
 	fi->keytype = keytype;
 	fi->framelen = framelen;
-	fi->tx_power = MAX_RATE_POWER;
+	fi->tx_power = txpower;
 
 	if (!rate)
 		return;

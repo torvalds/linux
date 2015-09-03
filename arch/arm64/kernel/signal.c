@@ -287,17 +287,10 @@ static void setup_restart_syscall(struct pt_regs *regs)
  */
 static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
-	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = current;
 	sigset_t *oldset = sigmask_to_save();
 	int usig = ksig->sig;
 	int ret;
-
-	/*
-	 * translate the signal
-	 */
-	if (usig < 32 && thread->exec_domain && thread->exec_domain->signal_invmap)
-		usig = thread->exec_domain->signal_invmap[usig];
 
 	/*
 	 * Set up the stack frame

@@ -29,7 +29,6 @@ extern int notify_parent(union pipe write_pipe);
 extern int notify_parent_of_error(union pipe write_pipe);
 extern pid_t eat_cpu(int (test_function)(void));
 extern bool require_paranoia_below(int level);
-extern void *get_auxv_entry(int type);
 
 struct addr_range {
 	uint64_t first, last;

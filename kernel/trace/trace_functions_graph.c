@@ -6,7 +6,6 @@
  * is Copyright (c) Steven Rostedt <srostedt@redhat.com>
  *
  */
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/slab.h>
@@ -151,7 +150,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
 	 * The curr_ret_stack is initialized to -1 and get increased
 	 * in this function.  So it can be less than -1 only if it was
 	 * filtered out via ftrace_graph_notrace_addr() which can be
-	 * set from set_graph_notrace file in debugfs by user.
+	 * set from set_graph_notrace file in tracefs by user.
 	 */
 	if (current->curr_ret_stack < -1)
 		return -EBUSY;
@@ -279,7 +278,7 @@ int __trace_graph_entry(struct trace_array *tr,
 				unsigned long flags,
 				int pc)
 {
-	struct ftrace_event_call *call = &event_funcgraph_entry;
+	struct trace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ent_entry *entry;
@@ -394,7 +393,7 @@ void __trace_graph_return(struct trace_array *tr,
 				unsigned long flags,
 				int pc)
 {
-	struct ftrace_event_call *call = &event_funcgraph_exit;
+	struct trace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ret_entry *entry;
@@ -1309,15 +1308,19 @@ void graph_trace_open(struct trace_iterator *iter)
 {
 	/* pid and depth on the last trace processed */
 	struct fgraph_data *data;
+	gfp_t gfpflags;
 	int cpu;
 
 	iter->private = NULL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	/* We can be called in atomic context via ftrace_dump() */
+	gfpflags = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL;
+
+	data = kzalloc(sizeof(*data), gfpflags);
 	if (!data)
 		goto out_err;
 
-	data->cpu_data = alloc_percpu(struct fgraph_cpu_data);
+	data->cpu_data = alloc_percpu_gfp(struct fgraph_cpu_data, gfpflags);
 	if (!data->cpu_data)
 		goto out_err_free;
 
@@ -1432,7 +1435,7 @@ static const struct file_operations graph_depth_fops = {
 	.llseek		= generic_file_llseek,
 };
 
-static __init int init_graph_debugfs(void)
+static __init int init_graph_tracefs(void)
 {
 	struct dentry *d_tracer;
 
@@ -1445,18 +1448,18 @@ static __init int init_graph_debugfs(void)
 
 	return 0;
 }
-fs_initcall(init_graph_debugfs);
+fs_initcall(init_graph_tracefs);
 
 static __init int init_graph_trace(void)
 {
 	max_bytes_for_cpu = snprintf(NULL, 0, "%d", nr_cpu_ids - 1);
 
-	if (!register_ftrace_event(&graph_trace_entry_event)) {
+	if (!register_trace_event(&graph_trace_entry_event)) {
 		pr_warning("Warning: could not register graph trace events\n");
 		return 1;
 	}
 
-	if (!register_ftrace_event(&graph_trace_ret_event)) {
+	if (!register_trace_event(&graph_trace_ret_event)) {
 		pr_warning("Warning: could not register graph trace events\n");
 		return 1;
 	}

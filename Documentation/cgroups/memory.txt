@@ -275,11 +275,6 @@ When oom event notifier is registered, event will be delivered.
 
 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
 
-WARNING: Current implementation lacks reclaim support. That means allocation
-	 attempts will fail when close to the limit even if there are plenty of
-	 kmem available for reclaim. That makes this option unusable in real
-	 life so DO NOT SELECT IT unless for development purposes.
-
 With the Kernel memory extension, the Memory Controller is able to limit
 the amount of kernel memory used by the system. Kernel memory is fundamentally
 different than user memory, since it can't be swapped out, which makes it
@@ -345,6 +340,9 @@ set:
     In this case, the admin could set up K so that the sum of all groups is
     never greater than the total memory, and freely set U at the cost of his
     QoS.
+    WARNING: In the current implementation, memory reclaim will NOT be
+    triggered for a cgroup when it hits K while staying below U, which makes
+    this setup impractical.
 
     U != 0, K >= U:
     Since kmem charges will also be fed to the user counter and reclaim will be
@@ -495,6 +493,7 @@ pgpgin		- # of charging events to the memory cgroup. The charging
 pgpgout		- # of uncharging events to the memory cgroup. The uncharging
 		event happens each time a page is unaccounted from the cgroup.
 swap		- # of bytes of swap usage
+dirty		- # of bytes that are waiting to get written back to the disk.
 writeback	- # of bytes of file/anon cache that are queued for syncing to
 		disk.
 inactive_anon	- # of bytes of anonymous and swap cache memory on inactive

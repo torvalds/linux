@@ -55,9 +55,9 @@ static void tegra_atomic_complete(struct tegra_drm *tegra,
 	 * current layout.
 	 */
 
-	drm_atomic_helper_commit_pre_planes(drm, state);
+	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_planes(drm, state);
-	drm_atomic_helper_commit_post_planes(drm, state);
+	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
 
@@ -124,14 +124,22 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		return -ENOMEM;
 
 	if (iommu_present(&platform_bus_type)) {
+		struct iommu_domain_geometry *geometry;
+		u64 start, end;
+
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tegra->domain) {
 			err = -ENOMEM;
 			goto free;
 		}
 
-		DRM_DEBUG("IOMMU context initialized\n");
-		drm_mm_init(&tegra->mm, 0, SZ_2G);
+		geometry = &tegra->domain->geometry;
+		start = geometry->aperture_start;
+		end = geometry->aperture_end;
+
+		DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
+			  start, end);
+		drm_mm_init(&tegra->mm, start, end - start + 1);
 	}
 
 	mutex_init(&tegra->clients_lock);
@@ -171,6 +179,9 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	 * DRM_IOCTL_WAIT_VBLANK to operate correctly.
 	 */
 	drm->irq_enabled = true;
+
+	/* syncpoints are used for full 32-bit hardware VBLANK counters */
+	drm->max_vblank_count = 0xffffffff;
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)
@@ -813,12 +824,12 @@ static struct drm_crtc *tegra_crtc_from_pipe(struct drm_device *drm,
 static u32 tegra_drm_get_vblank_counter(struct drm_device *drm, int pipe)
 {
 	struct drm_crtc *crtc = tegra_crtc_from_pipe(drm, pipe);
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 
 	if (!crtc)
 		return 0;
 
-	/* TODO: implement real hardware counter using syncpoints */
-	return drm_crtc_vblank_count(crtc);
+	return tegra_dc_get_vblank_counter(dc);
 }
 
 static int tegra_drm_enable_vblank(struct drm_device *drm, int pipe)
@@ -879,8 +890,18 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int tegra_debugfs_iova(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)s->private;
+	struct drm_device *drm = node->minor->dev;
+	struct tegra_drm *tegra = drm->dev_private;
+
+	return drm_mm_dump_table(s, &tegra->mm);
+}
+
 static struct drm_info_list tegra_debugfs_list[] = {
 	{ "framebuffers", tegra_debugfs_framebuffers, 0 },
+	{ "iova", tegra_debugfs_iova, 0 },
 };
 
 static int tegra_debugfs_init(struct drm_minor *minor)

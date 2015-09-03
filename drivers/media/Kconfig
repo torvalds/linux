@@ -87,12 +87,21 @@ config MEDIA_RC_SUPPORT
 
 config MEDIA_CONTROLLER
 	bool "Media Controller API"
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
 	---help---
 	  Enable the media controller API used to query media devices internal
 	  topology and configure it dynamically.
 
 	  This API is mostly used by camera interfaces in embedded platforms.
+
+config MEDIA_CONTROLLER_DVB
+	bool "Enable Media controller for DVB (EXPERIMENTAL)"
+	depends on MEDIA_CONTROLLER
+	depends on BROKEN
+	---help---
+	  Enable the media controller API support for DVB.
+
+	  This is currently experimental.
 
 #
 # Video4Linux support

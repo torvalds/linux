@@ -16,6 +16,7 @@
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <asm/cdmm.h>
 #include <asm/maar.h>
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
@@ -53,6 +54,12 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 		pr_warn("memsize not set in YAMON, set to default (32Mb)\n");
 		physical_memsize = 0x02000000;
 	} else {
+		if (memsize > (256 << 20)) { /* memsize should be capped to 256M */
+			pr_warn("Unsupported memsize value (0x%lx) detected! "
+				"Using 0x10000000 (256M) instead\n",
+				memsize);
+			memsize = 256 << 20;
+		}
 		/* If ememsize is set, then set physical_memsize to that */
 		physical_memsize = ememsize ? : memsize;
 	}
@@ -195,4 +202,10 @@ unsigned platform_maar_init(unsigned num_pairs)
 	}
 
 	return maar_config(cfg, num_cfg, num_pairs);
+}
+
+phys_addr_t mips_cdmm_phys_base(void)
+{
+	/* This address is "typically unused" */
+	return 0x1fc10000;
 }

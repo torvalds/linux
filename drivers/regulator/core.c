@@ -648,10 +648,12 @@ static int drms_uA_update(struct regulator_dev *rdev)
 	if (err < 0)
 		return 0;
 
-	if (!rdev->desc->ops->get_optimum_mode)
+	if (!rdev->desc->ops->get_optimum_mode &&
+	    !rdev->desc->ops->set_load)
 		return 0;
 
-	if (!rdev->desc->ops->set_mode)
+	if (!rdev->desc->ops->set_mode &&
+	    !rdev->desc->ops->set_load)
 		return -EINVAL;
 
 	/* get output voltage */
@@ -676,21 +678,30 @@ static int drms_uA_update(struct regulator_dev *rdev)
 	list_for_each_entry(sibling, &rdev->consumer_list, list)
 		current_uA += sibling->uA_load;
 
-	/* now get the optimum mode for our new total regulator load */
-	mode = rdev->desc->ops->get_optimum_mode(rdev, input_uV,
-						  output_uV, current_uA);
+	current_uA += rdev->constraints->system_load;
 
-	/* check the new mode is allowed */
-	err = regulator_mode_constrain(rdev, &mode);
-	if (err < 0) {
-		rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
-			 current_uA, input_uV, output_uV);
-		return err;
+	if (rdev->desc->ops->set_load) {
+		/* set the optimum mode for our new total regulator load */
+		err = rdev->desc->ops->set_load(rdev, current_uA);
+		if (err < 0)
+			rdev_err(rdev, "failed to set load %d\n", current_uA);
+	} else {
+		/* now get the optimum mode for our new total regulator load */
+		mode = rdev->desc->ops->get_optimum_mode(rdev, input_uV,
+							 output_uV, current_uA);
+
+		/* check the new mode is allowed */
+		err = regulator_mode_constrain(rdev, &mode);
+		if (err < 0) {
+			rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
+				 current_uA, input_uV, output_uV);
+			return err;
+		}
+
+		err = rdev->desc->ops->set_mode(rdev, mode);
+		if (err < 0)
+			rdev_err(rdev, "failed to set optimum mode %x\n", mode);
 	}
-
-	err = rdev->desc->ops->set_mode(rdev, mode);
-	if (err < 0)
-		rdev_err(rdev, "failed to set optimum mode %x\n", mode);
 
 	return err;
 }
@@ -770,59 +781,64 @@ static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 static void print_constraints(struct regulator_dev *rdev)
 {
 	struct regulation_constraints *constraints = rdev->constraints;
-	char buf[80] = "";
+	char buf[160] = "";
+	size_t len = sizeof(buf) - 1;
 	int count = 0;
 	int ret;
 
 	if (constraints->min_uV && constraints->max_uV) {
 		if (constraints->min_uV == constraints->max_uV)
-			count += sprintf(buf + count, "%d mV ",
-					 constraints->min_uV / 1000);
+			count += scnprintf(buf + count, len - count, "%d mV ",
+					   constraints->min_uV / 1000);
 		else
-			count += sprintf(buf + count, "%d <--> %d mV ",
-					 constraints->min_uV / 1000,
-					 constraints->max_uV / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "%d <--> %d mV ",
+					   constraints->min_uV / 1000,
+					   constraints->max_uV / 1000);
 	}
 
 	if (!constraints->min_uV ||
 	    constraints->min_uV != constraints->max_uV) {
 		ret = _regulator_get_voltage(rdev);
 		if (ret > 0)
-			count += sprintf(buf + count, "at %d mV ", ret / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "at %d mV ", ret / 1000);
 	}
 
 	if (constraints->uV_offset)
-		count += sprintf(buf, "%dmV offset ",
-				 constraints->uV_offset / 1000);
+		count += scnprintf(buf + count, len - count, "%dmV offset ",
+				   constraints->uV_offset / 1000);
 
 	if (constraints->min_uA && constraints->max_uA) {
 		if (constraints->min_uA == constraints->max_uA)
-			count += sprintf(buf + count, "%d mA ",
-					 constraints->min_uA / 1000);
+			count += scnprintf(buf + count, len - count, "%d mA ",
+					   constraints->min_uA / 1000);
 		else
-			count += sprintf(buf + count, "%d <--> %d mA ",
-					 constraints->min_uA / 1000,
-					 constraints->max_uA / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "%d <--> %d mA ",
+					   constraints->min_uA / 1000,
+					   constraints->max_uA / 1000);
 	}
 
 	if (!constraints->min_uA ||
 	    constraints->min_uA != constraints->max_uA) {
 		ret = _regulator_get_current_limit(rdev);
 		if (ret > 0)
-			count += sprintf(buf + count, "at %d mA ", ret / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "at %d mA ", ret / 1000);
 	}
 
 	if (constraints->valid_modes_mask & REGULATOR_MODE_FAST)
-		count += sprintf(buf + count, "fast ");
+		count += scnprintf(buf + count, len - count, "fast ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_NORMAL)
-		count += sprintf(buf + count, "normal ");
+		count += scnprintf(buf + count, len - count, "normal ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_IDLE)
-		count += sprintf(buf + count, "idle ");
+		count += scnprintf(buf + count, len - count, "idle ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
-		count += sprintf(buf + count, "standby");
+		count += scnprintf(buf + count, len - count, "standby");
 
 	if (!count)
-		sprintf(buf, "no parameters");
+		scnprintf(buf, len, "no parameters");
 
 	rdev_dbg(rdev, "%s\n", buf);
 
@@ -997,6 +1013,15 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (ret != 0)
 		goto out;
 
+	if (rdev->constraints->ilim_uA && ops->set_input_current_limit) {
+		ret = ops->set_input_current_limit(rdev,
+						   rdev->constraints->ilim_uA);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set input limit\n");
+			goto out;
+		}
+	}
+
 	/* do we need to setup our suspend state */
 	if (rdev->constraints->initial_state) {
 		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
@@ -1036,6 +1061,22 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set ramp_delay\n");
+			goto out;
+		}
+	}
+
+	if (rdev->constraints->pull_down && ops->set_pull_down) {
+		ret = ops->set_pull_down(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set pull down\n");
+			goto out;
+		}
+	}
+
+	if (rdev->constraints->soft_start && ops->set_soft_start) {
+		ret = ops->set_soft_start(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set soft start\n");
 			goto out;
 		}
 	}
@@ -1183,10 +1224,10 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		if (regulator->supply_name == NULL)
 			goto overflow_err;
 
-		err = sysfs_create_link(&rdev->dev.kobj, &dev->kobj,
+		err = sysfs_create_link_nowarn(&rdev->dev.kobj, &dev->kobj,
 					buf);
 		if (err) {
-			rdev_warn(rdev, "could not add device link %s err %d\n",
+			rdev_dbg(rdev, "could not add device link %s err %d\n",
 				  dev->kobj.name, err);
 			/* non-fatal */
 		}
@@ -1316,6 +1357,54 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	return NULL;
 }
 
+static int regulator_resolve_supply(struct regulator_dev *rdev)
+{
+	struct regulator_dev *r;
+	struct device *dev = rdev->dev.parent;
+	int ret;
+
+	/* No supply to resovle? */
+	if (!rdev->supply_name)
+		return 0;
+
+	/* Supply already resolved? */
+	if (rdev->supply)
+		return 0;
+
+	r = regulator_dev_lookup(dev, rdev->supply_name, &ret);
+	if (ret == -ENODEV) {
+		/*
+		 * No supply was specified for this regulator and
+		 * there will never be one.
+		 */
+		return 0;
+	}
+
+	if (!r) {
+		dev_err(dev, "Failed to resolve %s-supply for %s\n",
+			rdev->supply_name, rdev->desc->name);
+		return -EPROBE_DEFER;
+	}
+
+	/* Recursively resolve the supply of the supply */
+	ret = regulator_resolve_supply(r);
+	if (ret < 0)
+		return ret;
+
+	ret = set_supply(rdev, r);
+	if (ret < 0)
+		return ret;
+
+	/* Cascade always-on state to supply */
+	if (_regulator_is_enabled(rdev)) {
+		ret = regulator_enable(rdev->supply);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 /* Internal regulator request function */
 static struct regulator *_regulator_get(struct device *dev, const char *id,
 					bool exclusive, bool allow_dummy)
@@ -1382,6 +1471,12 @@ found:
 
 	if (exclusive && rdev->open_count) {
 		regulator = ERR_PTR(-EBUSY);
+		goto out;
+	}
+
+	ret = regulator_resolve_supply(rdev);
+	if (ret < 0) {
+		regulator = ERR_PTR(ret);
 		goto out;
 	}
 
@@ -2998,7 +3093,7 @@ unsigned int regulator_get_mode(struct regulator *regulator)
 EXPORT_SYMBOL_GPL(regulator_get_mode);
 
 /**
- * regulator_set_optimum_mode - set regulator optimum operating mode
+ * regulator_set_load - set regulator load
  * @regulator: regulator source
  * @uA_load: load current
  *
@@ -3021,9 +3116,9 @@ EXPORT_SYMBOL_GPL(regulator_get_mode);
  * DRMS will sum the total requested load on the regulator and change
  * to the most efficient operating mode if platform constraints allow.
  *
- * Returns the new regulator mode or error.
+ * On error a negative errno is returned.
  */
-int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
+int regulator_set_load(struct regulator *regulator, int uA_load)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
@@ -3035,7 +3130,7 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
+EXPORT_SYMBOL_GPL(regulator_set_load);
 
 /**
  * regulator_allow_bypass - allow the regulator to go into bypass mode
@@ -3499,7 +3594,18 @@ static struct class regulator_class = {
 
 static void rdev_init_debugfs(struct regulator_dev *rdev)
 {
-	rdev->debugfs = debugfs_create_dir(rdev_get_name(rdev), debugfs_root);
+	struct device *parent = rdev->dev.parent;
+	const char *rname = rdev_get_name(rdev);
+	char name[NAME_MAX];
+
+	/* Avoid duplicate debugfs directory names */
+	if (parent && rname == rdev->desc->name) {
+		snprintf(name, sizeof(name), "%s-%s", dev_name(parent),
+			 rname);
+		rname = name;
+	}
+
+	rdev->debugfs = debugfs_create_dir(rname, debugfs_root);
 	if (!rdev->debugfs) {
 		rdev_warn(rdev, "Failed to create debugfs directory\n");
 		return;
@@ -3533,7 +3639,6 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	struct regulator_dev *rdev;
 	struct device *dev;
 	int ret, i;
-	const char *supply = NULL;
 
 	if (regulator_desc == NULL || cfg == NULL)
 		return ERR_PTR(-EINVAL);
@@ -3641,41 +3746,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		goto scrub;
 
 	if (init_data && init_data->supply_regulator)
-		supply = init_data->supply_regulator;
+		rdev->supply_name = init_data->supply_regulator;
 	else if (regulator_desc->supply_name)
-		supply = regulator_desc->supply_name;
+		rdev->supply_name = regulator_desc->supply_name;
 
-	if (supply) {
-		struct regulator_dev *r;
-
-		r = regulator_dev_lookup(dev, supply, &ret);
-
-		if (ret == -ENODEV) {
-			/*
-			 * No supply was specified for this regulator and
-			 * there will never be one.
-			 */
-			ret = 0;
-			goto add_dev;
-		} else if (!r) {
-			dev_err(dev, "Failed to find supply %s\n", supply);
-			ret = -EPROBE_DEFER;
-			goto scrub;
-		}
-
-		ret = set_supply(rdev, r);
-		if (ret < 0)
-			goto scrub;
-
-		/* Enable supply if rail is enabled */
-		if (_regulator_is_enabled(rdev)) {
-			ret = regulator_enable(rdev->supply);
-			if (ret < 0)
-				goto scrub;
-		}
-	}
-
-add_dev:
 	/* add consumers devices */
 	if (init_data) {
 		for (i = 0; i < init_data->num_consumer_supplies; i++) {
@@ -3702,8 +3776,6 @@ unset_supplies:
 	unset_regulator_supplies(rdev);
 
 scrub:
-	if (rdev->supply)
-		_regulator_put(rdev->supply);
 	regulator_ena_gpio_free(rdev);
 	kfree(rdev->constraints);
 wash:
@@ -3936,6 +4008,110 @@ static const struct file_operations supply_map_fops = {
 #endif
 };
 
+#ifdef CONFIG_DEBUG_FS
+static void regulator_summary_show_subtree(struct seq_file *s,
+					   struct regulator_dev *rdev,
+					   int level)
+{
+	struct list_head *list = s->private;
+	struct regulator_dev *child;
+	struct regulation_constraints *c;
+	struct regulator *consumer;
+
+	if (!rdev)
+		return;
+
+	seq_printf(s, "%*s%-*s %3d %4d %6d ",
+		   level * 3 + 1, "",
+		   30 - level * 3, rdev_get_name(rdev),
+		   rdev->use_count, rdev->open_count, rdev->bypass_count);
+
+	seq_printf(s, "%5dmV ", _regulator_get_voltage(rdev) / 1000);
+	seq_printf(s, "%5dmA ", _regulator_get_current_limit(rdev) / 1000);
+
+	c = rdev->constraints;
+	if (c) {
+		switch (rdev->desc->type) {
+		case REGULATOR_VOLTAGE:
+			seq_printf(s, "%5dmV %5dmV ",
+				   c->min_uV / 1000, c->max_uV / 1000);
+			break;
+		case REGULATOR_CURRENT:
+			seq_printf(s, "%5dmA %5dmA ",
+				   c->min_uA / 1000, c->max_uA / 1000);
+			break;
+		}
+	}
+
+	seq_puts(s, "\n");
+
+	list_for_each_entry(consumer, &rdev->consumer_list, list) {
+		if (consumer->dev->class == &regulator_class)
+			continue;
+
+		seq_printf(s, "%*s%-*s ",
+			   (level + 1) * 3 + 1, "",
+			   30 - (level + 1) * 3, dev_name(consumer->dev));
+
+		switch (rdev->desc->type) {
+		case REGULATOR_VOLTAGE:
+			seq_printf(s, "%37dmV %5dmV",
+				   consumer->min_uV / 1000,
+				   consumer->max_uV / 1000);
+			break;
+		case REGULATOR_CURRENT:
+			break;
+		}
+
+		seq_puts(s, "\n");
+	}
+
+	list_for_each_entry(child, list, list) {
+		/* handle only non-root regulators supplied by current rdev */
+		if (!child->supply || child->supply->rdev != rdev)
+			continue;
+
+		regulator_summary_show_subtree(s, child, level + 1);
+	}
+}
+
+static int regulator_summary_show(struct seq_file *s, void *data)
+{
+	struct list_head *list = s->private;
+	struct regulator_dev *rdev;
+
+	seq_puts(s, " regulator                      use open bypass voltage current     min     max\n");
+	seq_puts(s, "-------------------------------------------------------------------------------\n");
+
+	mutex_lock(&regulator_list_mutex);
+
+	list_for_each_entry(rdev, list, list) {
+		if (rdev->supply)
+			continue;
+
+		regulator_summary_show_subtree(s, rdev, 0);
+	}
+
+	mutex_unlock(&regulator_list_mutex);
+
+	return 0;
+}
+
+static int regulator_summary_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, regulator_summary_show, inode->i_private);
+}
+#endif
+
+static const struct file_operations regulator_summary_fops = {
+#ifdef CONFIG_DEBUG_FS
+	.open		= regulator_summary_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+#endif
+};
+
 static int __init regulator_init(void)
 {
 	int ret;
@@ -3948,6 +4124,9 @@ static int __init regulator_init(void)
 
 	debugfs_create_file("supply_map", 0444, debugfs_root, NULL,
 			    &supply_map_fops);
+
+	debugfs_create_file("regulator_summary", 0444, debugfs_root,
+			    &regulator_list, &regulator_summary_fops);
 
 	regulator_dummy_init();
 

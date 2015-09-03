@@ -158,13 +158,9 @@ not come for free:
 	to the need to inform kernel subsystems (such as RCU) about
 	the change in mode.
 
-3.	POSIX CPU timers on adaptive-tick CPUs may miss their deadlines
-	(perhaps indefinitely) because they currently rely on
-	scheduling-tick interrupts.  This will likely be fixed in
-	one of two ways: (1) Prevent CPUs with POSIX CPU timers from
-	entering adaptive-tick mode, or (2) Use hrtimers or other
-	adaptive-ticks-immune mechanism to cause the POSIX CPU timer to
-	fire properly.
+3.	POSIX CPU timers prevent CPUs from entering adaptive-tick mode.
+	Real-time applications needing to take actions based on CPU time
+	consumption need to use other means of doing so.
 
 4.	If there are more perf events pending than the hardware can
 	accommodate, they are normally round-robined so as to collect

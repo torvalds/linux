@@ -151,7 +151,7 @@ static int mc33880_remove(struct spi_device *spi)
 	struct mc33880 *mc;
 
 	mc = spi_get_drvdata(spi);
-	if (mc == NULL)
+	if (!mc)
 		return -ENODEV;
 
 	gpiochip_remove(&mc->chip);

@@ -26,6 +26,7 @@
 #include <linux/etherdevice.h>
 #include <linux/leds.h>
 #include <linux/idr.h>
+#include <linux/rhashtable.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
@@ -180,8 +181,6 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 
 /**
  * enum ieee80211_packet_rx_flags - packet RX flags
- * @IEEE80211_RX_RA_MATCH: frame is destined to interface currently processed
- *	(incl. multicast frames)
  * @IEEE80211_RX_FRAGMENTED: fragmented frame
  * @IEEE80211_RX_AMSDU: a-MSDU packet
  * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
@@ -191,7 +190,6 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
  * @rx_flags field of &struct ieee80211_rx_status.
  */
 enum ieee80211_packet_rx_flags {
-	IEEE80211_RX_RA_MATCH			= BIT(1),
 	IEEE80211_RX_FRAGMENTED			= BIT(2),
 	IEEE80211_RX_AMSDU			= BIT(3),
 	IEEE80211_RX_MALFORMED_ACTION_FRM	= BIT(4),
@@ -204,6 +202,8 @@ enum ieee80211_packet_rx_flags {
  * @IEEE80211_RX_CMNTR: received on cooked monitor already
  * @IEEE80211_RX_BEACON_REPORTED: This frame was already reported
  *	to cfg80211_report_obss_beacon().
+ * @IEEE80211_RX_REORDER_TIMER: this frame is released by the
+ *	reorder buffer timeout timer, not the normal RX path
  *
  * These flags are used across handling multiple interfaces
  * for a single frame.
@@ -211,6 +211,7 @@ enum ieee80211_packet_rx_flags {
 enum ieee80211_rx_flags {
 	IEEE80211_RX_CMNTR		= BIT(0),
 	IEEE80211_RX_BEACON_REPORTED	= BIT(1),
+	IEEE80211_RX_REORDER_TIMER	= BIT(2),
 };
 
 struct ieee80211_rx_data {
@@ -323,12 +324,6 @@ struct mesh_preq_queue {
 	u8 dst[ETH_ALEN];
 	u8 flags;
 };
-
-#if HZ/100 == 0
-#define IEEE80211_ROC_MIN_LEFT	1
-#else
-#define IEEE80211_ROC_MIN_LEFT	(HZ/100)
-#endif
 
 struct ieee80211_roc_work {
 	struct list_head list;
@@ -724,7 +719,6 @@ struct ieee80211_if_mesh {
  * enum ieee80211_sub_if_data_flags - virtual interface flags
  *
  * @IEEE80211_SDATA_ALLMULTI: interface wants all multicast packets
- * @IEEE80211_SDATA_PROMISC: interface is promisc
  * @IEEE80211_SDATA_OPERATING_GMODE: operating in G-only mode
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
@@ -734,7 +728,6 @@ struct ieee80211_if_mesh {
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
-	IEEE80211_SDATA_PROMISC			= BIT(1),
 	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
@@ -810,6 +803,19 @@ struct mac80211_qos_map {
 	struct rcu_head rcu_head;
 };
 
+enum txq_info_flags {
+	IEEE80211_TXQ_STOP,
+	IEEE80211_TXQ_AMPDU,
+};
+
+struct txq_info {
+	struct sk_buff_head queue;
+	unsigned long flags;
+
+	/* keep last! */
+	struct ieee80211_txq txq;
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -829,8 +835,6 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	unsigned long state;
-
-	int drop_unencrypted;
 
 	char name[IFNAMSIZ];
 
@@ -854,6 +858,7 @@ struct ieee80211_sub_if_data {
 	bool control_port_no_encrypt;
 	int encrypt_headroom;
 
+	atomic_t txqs_len[IEEE80211_NUM_ACS];
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 	struct mac80211_qos_map __rcu *qos_map;
 
@@ -1030,7 +1035,6 @@ enum queue_stop_reason {
 
 #ifdef CONFIG_MAC80211_LEDS
 struct tpt_led_trigger {
-	struct led_trigger trig;
 	char name[32];
 	const struct ieee80211_tpt_blink *blink_table;
 	unsigned int blink_table_len;
@@ -1041,24 +1045,6 @@ struct tpt_led_trigger {
 	bool running;
 };
 #endif
-
-/*
- * struct ieee80211_tx_latency_bin_ranges - Tx latency statistics bins ranges
- *
- * Measuring Tx latency statistics. Counts how many Tx frames transmitted in a
- * certain latency range (in Milliseconds). Each station that uses these
- * ranges will have bins to count the amount of frames received in that range.
- * The user can configure the ranges via debugfs.
- * If ranges is NULL then Tx latency statistics bins are disabled for all
- * stations.
- *
- * @n_ranges: number of ranges that are taken in account
- * @ranges: the ranges that the user requested or NULL if disabled.
- */
-struct ieee80211_tx_latency_bin_ranges {
-	int n_ranges;
-	u32 ranges[];
-};
 
 /**
  * mac80211 scan flags - currently active scan mode
@@ -1207,23 +1193,17 @@ struct ieee80211_local {
 	spinlock_t tim_lock;
 	unsigned long num_sta;
 	struct list_head sta_list;
-	struct sta_info __rcu *sta_hash[STA_HASH_SIZE];
+	struct rhashtable sta_hash;
 	struct timer_list sta_cleanup;
 	int sta_generation;
-
-	/*
-	 * Tx latency statistics parameters for all stations.
-	 * Can enable via debugfs (NULL when disabled).
-	 */
-	struct ieee80211_tx_latency_bin_ranges __rcu *tx_latency;
 
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 
 	atomic_t agg_queue_stop[IEEE80211_MAX_QUEUES];
 
-	/* number of interfaces with corresponding IFF_ flags */
-	atomic_t iff_allmultis, iff_promiscs;
+	/* number of interfaces with allmulti RX */
+	atomic_t iff_allmultis;
 
 	struct rate_control_ref *rate_ctrl;
 
@@ -1275,6 +1255,15 @@ struct ieee80211_local {
 	struct list_head chanctx_list;
 	struct mutex chanctx_mtx;
 
+#ifdef CONFIG_MAC80211_LEDS
+	struct led_trigger tx_led, rx_led, assoc_led, radio_led;
+	struct led_trigger tpt_led;
+	atomic_t tx_led_active, rx_led_active, assoc_led_active;
+	atomic_t radio_led_active, tpt_led_active;
+	struct tpt_led_trigger *tpt_led_trigger;
+#endif
+
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* SNMP counters */
 	/* dot11CountersTable */
 	u32 dot11TransmittedFragmentCount;
@@ -1287,19 +1276,9 @@ struct ieee80211_local {
 	u32 dot11MulticastReceivedFrameCount;
 	u32 dot11TransmittedFrameCount;
 
-#ifdef CONFIG_MAC80211_LEDS
-	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
-	struct tpt_led_trigger *tpt_led_trigger;
-	char tx_led_name[32], rx_led_name[32],
-	     assoc_led_name[32], radio_led_name[32];
-#endif
-
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* TX/RX handler statistics */
 	unsigned int tx_handlers_drop;
 	unsigned int tx_handlers_queued;
-	unsigned int tx_handlers_drop_unencrypted;
-	unsigned int tx_handlers_drop_fragment;
 	unsigned int tx_handlers_drop_wep;
 	unsigned int tx_handlers_drop_not_assoc;
 	unsigned int tx_handlers_drop_unauth_port;
@@ -1310,8 +1289,7 @@ struct ieee80211_local {
 	unsigned int rx_handlers_drop_short;
 	unsigned int tx_expand_skb_head;
 	unsigned int tx_expand_skb_head_cloned;
-	unsigned int rx_expand_skb_head;
-	unsigned int rx_expand_skb_head2;
+	unsigned int rx_expand_skb_head_defrag;
 	unsigned int rx_handlers_fragments;
 	unsigned int tx_status_drop;
 #define I802_DEBUG_INC(c) (c)++
@@ -1476,6 +1454,10 @@ static inline struct ieee80211_local *hw_to_local(
 	return container_of(hw, struct ieee80211_local, hw);
 }
 
+static inline struct txq_info *to_txq_info(struct ieee80211_txq *txq)
+{
+	return container_of(txq, struct txq_info, txq);
+}
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
@@ -1568,7 +1550,8 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata);
 void ieee80211_scan_work(struct work_struct *work);
 int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				const u8 *ssid, u8 ssid_len,
-				struct ieee80211_channel *chan,
+				struct ieee80211_channel **channels,
+				unsigned int n_channels,
 				enum nl80211_bss_scan_width scan_width);
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req);
@@ -1617,6 +1600,7 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 int ieee80211_iface_init(void);
 void ieee80211_iface_exit(void);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
+		     unsigned char name_assign_type,
 		     struct wireless_dev **new_wdev, enum nl80211_iftype type,
 		     struct vif_params *params);
 int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
@@ -1656,6 +1640,11 @@ void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
 struct sk_buff *
 ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
 			      struct sk_buff *skb, u32 info_flags);
+
+void ieee80211_check_fast_xmit(struct sta_info *sta);
+void ieee80211_check_fast_xmit_all(struct ieee80211_local *local);
+void ieee80211_check_fast_xmit_iface(struct ieee80211_sub_if_data *sdata);
+void ieee80211_clear_fast_xmit(struct sta_info *sta);
 
 /* HT */
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
@@ -1784,7 +1773,8 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 				     gfp_t gfp);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			       bool bss_notify);
-void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
+void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
+		    struct sta_info *sta, struct sk_buff *skb);
 
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
@@ -1929,6 +1919,9 @@ static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
 	return true;
 }
 
+void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
+			     struct sta_info *sta,
+			     struct txq_info *txq, int tid);
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *bssid,
@@ -1967,10 +1960,6 @@ int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
 void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata);
 
-size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
-			      const u8 *ids, int n_ids,
-			      const u8 *after_ric, int n_after_ric,
-			      size_t offset);
 size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);
 u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			      u16 cap);
@@ -1979,6 +1968,8 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       u16 prot_mode);
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
+u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
+				const struct cfg80211_chan_def *chandef);
 int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);
@@ -1994,6 +1985,9 @@ u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
 void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
 				  const struct ieee80211_ht_operation *ht_oper,
 				  struct cfg80211_chan_def *chandef);
+void ieee80211_vht_oper_to_chandef(struct ieee80211_channel *control_chan,
+				   const struct ieee80211_vht_operation *oper,
+				   struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check

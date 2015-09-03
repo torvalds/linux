@@ -324,7 +324,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 
 		/* Acquire DMA channels */
 		sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				   (void *)sdd->rx_dma.dmach, dev, "rx");
+				   (void *)(long)sdd->rx_dma.dmach, dev, "rx");
 		if (!sdd->rx_dma.ch) {
 			dev_err(dev, "Failed to get RX DMA channel\n");
 			ret = -EBUSY;
@@ -333,7 +333,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 		spi->dma_rx = sdd->rx_dma.ch;
 
 		sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				   (void *)sdd->tx_dma.dmach, dev, "tx");
+				   (void *)(long)sdd->tx_dma.dmach, dev, "tx");
 		if (!sdd->tx_dma.ch) {
 			dev_err(dev, "Failed to get TX DMA channel\n");
 			ret = -EBUSY;
@@ -1347,7 +1347,7 @@ static struct s3c64xx_spi_port_config exynos7_spi_port_config = {
 	.quirks		= S3C64XX_SPI_QUIRK_CS_AUTO,
 };
 
-static struct platform_device_id s3c64xx_spi_driver_ids[] = {
+static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	{
 		.name		= "s3c2443-spi",
 		.driver_data	= (kernel_ulong_t)&s3c2443_spi_port_config,

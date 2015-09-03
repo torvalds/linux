@@ -139,7 +139,7 @@ static int r8192_wx_force_reset(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk("%s(): force reset ! extra is %d\n", __func__, *extra);
+	netdev_dbg(dev, "%s(): force reset ! extra is %d\n", __func__, *extra);
 	priv->force_reset = *extra;
 	up(&priv->wx_sem);
 	return 0;
@@ -335,7 +335,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	if (!priv->up)
 		return -ENETDOWN;
 
-	if (priv->ieee80211->LinkDetectInfo.bBusyTraffic == true)
+	if (priv->ieee80211->LinkDetectInfo.bBusyTraffic)
 		return -EAGAIN;
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		struct iw_scan_req *req = (struct iw_scan_req *)b;

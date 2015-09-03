@@ -130,26 +130,26 @@ static struct mdesc_mem_ops memblock_mdesc_ops = {
 static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 {
 	unsigned int handle_size;
+	struct mdesc_handle *hp;
+	unsigned long addr;
 	void *base;
 
 	handle_size = (sizeof(struct mdesc_handle) -
 		       sizeof(struct mdesc_hdr) +
 		       mdesc_size);
 
+	/*
+	 * Allocation has to succeed because mdesc update would be missed
+	 * and such events are not retransmitted.
+	 */
 	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_NOFAIL);
-	if (base) {
-		struct mdesc_handle *hp;
-		unsigned long addr;
+	addr = (unsigned long)base;
+	addr = (addr + 15UL) & ~15UL;
+	hp = (struct mdesc_handle *) addr;
 
-		addr = (unsigned long)base;
-		addr = (addr + 15UL) & ~15UL;
-		hp = (struct mdesc_handle *) addr;
+	mdesc_handle_init(hp, handle_size, base);
 
-		mdesc_handle_init(hp, handle_size, base);
-		return hp;
-	}
-
-	return NULL;
+	return hp;
 }
 
 static void mdesc_kfree(struct mdesc_handle *hp)
@@ -614,37 +614,56 @@ static void fill_in_one_cache(cpuinfo_sparc *c, struct mdesc_handle *hp, u64 mp)
 	}
 }
 
-static void mark_core_ids(struct mdesc_handle *hp, u64 mp, int core_id)
+static void find_back_node_value(struct mdesc_handle *hp, u64 node,
+				 char *srch_val,
+				 void (*func)(struct mdesc_handle *, u64, int),
+				 u64 val, int depth)
 {
-	u64 a;
+	u64 arc;
 
-	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
-		u64 t = mdesc_arc_target(hp, a);
-		const char *name;
-		const u64 *id;
+	/* Since we have an estimate of recursion depth, do a sanity check. */
+	if (depth == 0)
+		return;
 
-		name = mdesc_node_name(hp, t);
-		if (!strcmp(name, "cpu")) {
-			id = mdesc_get_property(hp, t, "id", NULL);
-			if (*id < NR_CPUS)
-				cpu_data(*id).core_id = core_id;
-		} else {
-			u64 j;
+	mdesc_for_each_arc(arc, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 n = mdesc_arc_target(hp, arc);
+		const char *name = mdesc_node_name(hp, n);
 
-			mdesc_for_each_arc(j, hp, t, MDESC_ARC_TYPE_BACK) {
-				u64 n = mdesc_arc_target(hp, j);
-				const char *n_name;
+		if (!strcmp(srch_val, name))
+			(*func)(hp, n, val);
 
-				n_name = mdesc_node_name(hp, n);
-				if (strcmp(n_name, "cpu"))
-					continue;
-
-				id = mdesc_get_property(hp, n, "id", NULL);
-				if (*id < NR_CPUS)
-					cpu_data(*id).core_id = core_id;
-			}
-		}
+		find_back_node_value(hp, n, srch_val, func, val, depth-1);
 	}
+}
+
+static void __mark_core_id(struct mdesc_handle *hp, u64 node,
+			   int core_id)
+{
+	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
+
+	if (*id < num_possible_cpus())
+		cpu_data(*id).core_id = core_id;
+}
+
+static void __mark_sock_id(struct mdesc_handle *hp, u64 node,
+			   int sock_id)
+{
+	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
+
+	if (*id < num_possible_cpus())
+		cpu_data(*id).sock_id = sock_id;
+}
+
+static void mark_core_ids(struct mdesc_handle *hp, u64 mp,
+			  int core_id)
+{
+	find_back_node_value(hp, mp, "cpu", __mark_core_id, core_id, 10);
+}
+
+static void mark_sock_ids(struct mdesc_handle *hp, u64 mp,
+			  int sock_id)
+{
+	find_back_node_value(hp, mp, "cpu", __mark_sock_id, sock_id, 10);
 }
 
 static void set_core_ids(struct mdesc_handle *hp)
@@ -653,6 +672,10 @@ static void set_core_ids(struct mdesc_handle *hp)
 	u64 mp;
 
 	idx = 1;
+
+	/* Identify unique cores by looking for cpus backpointed to by
+	 * level 1 instruction caches.
+	 */
 	mdesc_for_each_node_by_name(hp, mp, "cache") {
 		const u64 *level;
 		const char *type;
@@ -667,9 +690,70 @@ static void set_core_ids(struct mdesc_handle *hp)
 			continue;
 
 		mark_core_ids(hp, mp, idx);
-
 		idx++;
 	}
+}
+
+static int set_sock_ids_by_cache(struct mdesc_handle *hp, int level)
+{
+	u64 mp;
+	int idx = 1;
+	int fnd = 0;
+
+	/* Identify unique sockets by looking for cpus backpointed to by
+	 * shared level n caches.
+	 */
+	mdesc_for_each_node_by_name(hp, mp, "cache") {
+		const u64 *cur_lvl;
+
+		cur_lvl = mdesc_get_property(hp, mp, "level", NULL);
+		if (*cur_lvl != level)
+			continue;
+
+		mark_sock_ids(hp, mp, idx);
+		idx++;
+		fnd = 1;
+	}
+	return fnd;
+}
+
+static void set_sock_ids_by_socket(struct mdesc_handle *hp, u64 mp)
+{
+	int idx = 1;
+
+	mdesc_for_each_node_by_name(hp, mp, "socket") {
+		u64 a;
+
+		mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
+			u64 t = mdesc_arc_target(hp, a);
+			const char *name;
+			const u64 *id;
+
+			name = mdesc_node_name(hp, t);
+			if (strcmp(name, "cpu"))
+				continue;
+
+			id = mdesc_get_property(hp, t, "id", NULL);
+			if (*id < num_possible_cpus())
+				cpu_data(*id).sock_id = idx;
+		}
+		idx++;
+	}
+}
+
+static void set_sock_ids(struct mdesc_handle *hp)
+{
+	u64 mp;
+
+	/* If machine description exposes sockets data use it.
+	 * Otherwise fallback to use shared L3 or L2 caches.
+	 */
+	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "sockets");
+	if (mp != MDESC_NODE_NULL)
+		return set_sock_ids_by_socket(hp, mp);
+
+	if (!set_sock_ids_by_cache(hp, 3))
+		set_sock_ids_by_cache(hp, 2);
 }
 
 static void mark_proc_ids(struct mdesc_handle *hp, u64 mp, int proc_id)
@@ -707,7 +791,6 @@ static void __set_proc_ids(struct mdesc_handle *hp, const char *exec_unit_name)
 			continue;
 
 		mark_proc_ids(hp, mp, idx);
-
 		idx++;
 	}
 }
@@ -900,6 +983,7 @@ void mdesc_fill_in_cpu_data(cpumask_t *mask)
 
 	set_core_ids(hp);
 	set_proc_ids(hp);
+	set_sock_ids(hp);
 
 	mdesc_release(hp);
 

@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 static unsigned int psmouse_max_proto = PSMOUSE_AUTO;
 static int psmouse_set_maxproto(const char *val, const struct kernel_param *);
 static int psmouse_get_maxproto(char *buffer, const struct kernel_param *kp);
-static struct kernel_param_ops param_ops_proto_abbrev = {
+static const struct kernel_param_ops param_ops_proto_abbrev = {
 	.set = psmouse_set_maxproto,
 	.get = psmouse_get_maxproto,
 };
@@ -1539,6 +1539,10 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	error = serio_open(serio, drv);
 	if (error)
 		goto err_clear_drvdata;
+
+	/* give PT device some time to settle down before probing */
+	if (serio->id.type == SERIO_PS_PSTHRU)
+		usleep_range(10000, 15000);
 
 	if (psmouse_probe(psmouse) < 0) {
 		error = -ENODEV;

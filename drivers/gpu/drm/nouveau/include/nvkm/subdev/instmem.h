@@ -45,4 +45,5 @@ nvkm_instmem(void *obj)
 extern struct nvkm_oclass *nv04_instmem_oclass;
 extern struct nvkm_oclass *nv40_instmem_oclass;
 extern struct nvkm_oclass *nv50_instmem_oclass;
+extern struct nvkm_oclass *gk20a_instmem_oclass;
 #endif

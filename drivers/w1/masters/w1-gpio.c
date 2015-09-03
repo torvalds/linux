@@ -68,7 +68,7 @@ static u8 w1_gpio_read_bit(void *data)
 }
 
 #if defined(CONFIG_OF)
-static struct of_device_id w1_gpio_dt_ids[] = {
+static const struct of_device_id w1_gpio_dt_ids[] = {
 	{ .compatible = "w1-gpio" },
 	{}
 };

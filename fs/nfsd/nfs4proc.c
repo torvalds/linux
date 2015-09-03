@@ -52,7 +52,7 @@
 static inline void
 nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
 {
-	struct inode *inode = resfh->fh_dentry->d_inode;
+	struct inode *inode = d_inode(resfh->fh_dentry);
 	int status;
 
 	mutex_lock(&inode->i_mutex);
@@ -110,7 +110,7 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * in current environment or not.
 	 */
 	if (bmval[0] & FATTR4_WORD0_ACL) {
-		if (!IS_POSIXACL(dentry->d_inode))
+		if (!IS_POSIXACL(d_inode(dentry)))
 			return nfserr_attrnotsupp;
 	}
 
@@ -209,7 +209,7 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 
 static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 {
-	umode_t mode = fh->fh_dentry->d_inode->i_mode;
+	umode_t mode = d_inode(fh->fh_dentry)->i_mode;
 
 	if (S_ISREG(mode))
 		return nfs_ok;
@@ -470,7 +470,7 @@ out:
 		fh_put(resfh);
 		kfree(resfh);
 	}
-	nfsd4_cleanup_open_state(cstate, open, status);
+	nfsd4_cleanup_open_state(cstate, open);
 	nfsd4_bump_seqid(cstate, status);
 	return status;
 }
@@ -760,8 +760,6 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	__be32 status;
 
-	/* no need to check permission - this will be done in nfsd_read() */
-
 	read->rd_filp = NULL;
 	if (read->rd_offset >= OFFSET_MAX)
 		return nfserr_inval;
@@ -778,9 +776,9 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 
 	/* check stateid */
-	if ((status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),
-						 cstate, &read->rd_stateid,
-						 RD_STATE, &read->rd_filp))) {
+	status = nfs4_preprocess_stateid_op(rqstp, cstate, &read->rd_stateid,
+			RD_STATE, &read->rd_filp, &read->rd_tmp_file);
+	if (status) {
 		dprintk("NFSD: nfsd4_read: couldn't process stateid!\n");
 		goto out;
 	}
@@ -881,7 +879,7 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    &exp, &dentry);
 	if (err)
 		return err;
-	if (dentry->d_inode == NULL) {
+	if (d_really_is_negative(dentry)) {
 		exp_put(exp);
 		err = nfserr_noent;
 	} else
@@ -924,8 +922,8 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int err;
 
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
-		status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
-			&setattr->sa_stateid, WR_STATE, NULL);
+		status = nfs4_preprocess_stateid_op(rqstp, cstate,
+			&setattr->sa_stateid, WR_STATE, NULL, NULL);
 		if (status) {
 			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!\n");
 			return status;
@@ -986,13 +984,11 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	unsigned long cnt;
 	int nvecs;
 
-	/* no need to check permission - this will be done in nfsd_write() */
-
 	if (write->wr_offset >= OFFSET_MAX)
 		return nfserr_inval;
 
-	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),
-					cstate, stateid, WR_STATE, &filp);
+	status = nfs4_preprocess_stateid_op(rqstp, cstate, stateid, WR_STATE,
+			&filp, NULL);
 	if (status) {
 		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
 		return status;
@@ -1005,11 +1001,10 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nvecs = fill_in_write_vector(rqstp->rq_vec, write);
 	WARN_ON_ONCE(nvecs > ARRAY_SIZE(rqstp->rq_vec));
 
-	status =  nfsd_write(rqstp, &cstate->current_fh, filp,
-			     write->wr_offset, rqstp->rq_vec, nvecs,
-			     &cnt, &write->wr_how_written);
-	if (filp)
-		fput(filp);
+	status = nfsd_vfs_write(rqstp, &cstate->current_fh, filp,
+				write->wr_offset, rqstp->rq_vec, nvecs, &cnt,
+				&write->wr_how_written);
+	fput(filp);
 
 	write->wr_bytes_written = cnt;
 
@@ -1023,9 +1018,9 @@ nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status = nfserr_notsupp;
 	struct file *file;
 
-	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
+	status = nfs4_preprocess_stateid_op(rqstp, cstate,
 					    &fallocate->falloc_stateid,
-					    WR_STATE, &file);
+					    WR_STATE, &file, NULL);
 	if (status != nfs_ok) {
 		dprintk("NFSD: nfsd4_fallocate: couldn't process stateid!\n");
 		return status;
@@ -1062,9 +1057,9 @@ nfsd4_seek(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 	struct file *file;
 
-	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
+	status = nfs4_preprocess_stateid_op(rqstp, cstate,
 					    &seek->seek_stateid,
-					    RD_STATE, &file);
+					    RD_STATE, &file, NULL);
 	if (status) {
 		dprintk("NFSD: nfsd4_seek: couldn't process stateid!\n");
 		return status;
@@ -1308,7 +1303,7 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	if (atomic_read(&ls->ls_stid.sc_file->fi_lo_recalls))
 		goto out_put_stid;
 
-	nfserr = ops->proc_layoutget(current_fh->fh_dentry->d_inode,
+	nfserr = ops->proc_layoutget(d_inode(current_fh->fh_dentry),
 				     current_fh, lgp);
 	if (nfserr)
 		goto out_put_stid;
@@ -1342,7 +1337,7 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	ops = nfsd4_layout_verify(current_fh->fh_export, lcp->lc_layout_type);
 	if (!ops)
 		goto out;
-	inode = current_fh->fh_dentry->d_inode;
+	inode = d_inode(current_fh->fh_dentry);
 
 	nfserr = nfserr_inval;
 	if (new_size <= seg->offset) {
@@ -1728,10 +1723,6 @@ encode_op:
 			be32_to_cpu(status));
 
 		nfsd4_cstate_clear_replay(cstate);
-		/* XXX Ugh, we need to get rid of this kind of special case: */
-		if (op->opnum == OP_READ && op->u.read.rd_filp)
-			fput(op->u.read.rd_filp);
-
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
@@ -1815,7 +1806,7 @@ static inline u32 nfsd4_getattr_rsize(struct svc_rqst *rqstp,
 		bmap0 &= ~FATTR4_WORD0_FILEHANDLE;
 	}
 	if (bmap2 & FATTR4_WORD2_SECURITY_LABEL) {
-		ret += NFSD4_MAX_SEC_LABEL_LEN + 12;
+		ret += NFS4_MAXLABELLEN + 12;
 		bmap2 &= ~FATTR4_WORD2_SECURITY_LABEL;
 	}
 	/*
@@ -2282,13 +2273,13 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_allocate,
 		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
 		.op_name = "OP_ALLOCATE",
-		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_DEALLOCATE] = {
 		.op_func = (nfsd4op_func)nfsd4_deallocate,
 		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
 		.op_name = "OP_DEALLOCATE",
-		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SEEK] = {
 		.op_func = (nfsd4op_func)nfsd4_seek,

@@ -1,0 +1,1 @@
+liblockdep-y += common.o lockdep.o preload.o rbtree.o

@@ -240,6 +240,11 @@ static int stk1160_stop_streaming(struct stk1160 *dev)
 	if (mutex_lock_interruptible(&dev->v4l_lock))
 		return -ERESTARTSYS;
 
+	/*
+	 * Once URBs are cancelled, the URB complete handler
+	 * won't be running. This is required to safely release the
+	 * current buffer (dev->isoc_ctl.buf).
+	 */
 	stk1160_cancel_isoc(dev);
 
 	/*
@@ -495,6 +500,7 @@ static const struct v4l2_ioctl_ops stk1160_ioctl_ops = {
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
+	.vidioc_expbuf        = vb2_ioctl_expbuf,
 
 	.vidioc_log_status  = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
@@ -620,8 +626,16 @@ void stk1160_clear_queue(struct stk1160 *dev)
 		stk1160_info("buffer [%p/%d] aborted\n",
 				buf, buf->vb.v4l2_buf.index);
 	}
-	/* It's important to clear current buffer */
-	dev->isoc_ctl.buf = NULL;
+
+	/* It's important to release the current buffer */
+	if (dev->isoc_ctl.buf) {
+		buf = dev->isoc_ctl.buf;
+		dev->isoc_ctl.buf = NULL;
+
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		stk1160_info("buffer [%p/%d] aborted\n",
+				buf, buf->vb.v4l2_buf.index);
+	}
 	spin_unlock_irqrestore(&dev->buf_lock, flags);
 }
 
@@ -632,7 +646,7 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct stk1160_buffer);
 	q->ops = &stk1160_video_qops;

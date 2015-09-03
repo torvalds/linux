@@ -72,7 +72,6 @@ static struct pinctrl_desc foo_desc = {
 	.name = "foo",
 	.pins = foo_pins,
 	.npins = ARRAY_SIZE(foo_pins),
-	.maxpin = 63,
 	.owner = THIS_MODULE,
 };
 
@@ -164,8 +163,8 @@ static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-			       unsigned ** const pins,
-			       unsigned * const num_pins)
+			       const unsigned **pins,
+			       unsigned *num_pins)
 {
 	*pins = (unsigned *) foo_groups[selector].pins;
 	*num_pins = foo_groups[selector].num_pins;
@@ -570,9 +569,8 @@ is possible to perform the requested mux setting, poke the hardware so that
 this happens.
 
 Pinmux drivers are required to supply a few callback functions, some are
-optional. Usually the enable() and disable() functions are implemented,
-writing values into some certain registers to activate a certain mux setting
-for a certain pin.
+optional. Usually the set_mux() function is implemented, writing values into
+some certain registers to activate a certain mux setting for a certain pin.
 
 A simple driver for the above example will work by setting bits 0, 1, 2, 3 or 4
 into some register named MUX to select a certain function with a certain
@@ -683,12 +681,12 @@ static const struct foo_pmx_func foo_functions[] = {
 	},
 };
 
-int foo_get_functions_count(struct pinctrl_dev *pctldev)
+static int foo_get_functions_count(struct pinctrl_dev *pctldev)
 {
 	return ARRAY_SIZE(foo_functions);
 }
 
-const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
+static const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
 {
 	return foo_functions[selector].name;
 }
@@ -702,7 +700,7 @@ static int foo_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
+static int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 		unsigned group)
 {
 	u8 regbit = (1 << selector + group);
@@ -711,11 +709,12 @@ int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-struct pinmux_ops foo_pmxops = {
+static struct pinmux_ops foo_pmxops = {
 	.get_functions_count = foo_get_functions_count,
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
 	.set_mux = foo_set_mux,
+	.strict = true,
 };
 
 /* Pinmux operations are handled by some pin controller */
@@ -832,6 +831,11 @@ separate memory range only intended for GPIO driving, and the register
 range dealing with pin config and pin multiplexing get placed into a
 different memory range and a separate section of the data sheet.
 
+A flag "strict" in struct pinctrl_desc is available to check and deny
+simultaneous access to the same pin from GPIO and pin multiplexing
+consumers on hardware of this type. The pinctrl driver should set this flag
+accordingly.
+
 (B)
 
                        pin config
@@ -851,6 +855,11 @@ wrong things on the GPIO block, as it is never really disconnected. It is
 possible that the GPIO, pin config and pin multiplex registers are placed into
 the same memory range and the same section of the data sheet, although that
 need not be the case.
+
+In some pin controllers, although the physical pins are designed in the same
+way as (B), the GPIO function still can't be enabled at the same time as the
+peripheral functions. So again the "strict" flag should be set, denying
+simultaneous activation by GPIO and other muxed in devices.
 
 From a kernel point of view, however, these are different aspects of the
 hardware and shall be put into different subsystems:
@@ -1266,7 +1275,7 @@ The semantics of the pinctrl APIs are:
 
 Usually the pin control core handled the get/put pair and call out to the
 device drivers bookkeeping operations, like checking available functions and
-the associated pins, whereas the enable/disable pass on to the pin controller
+the associated pins, whereas select_state pass on to the pin controller
 driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
@@ -1363,8 +1372,9 @@ function, but with different named in the mapping as described under
 "Advanced mapping" above. So that for an SPI device, we have two states named
 "pos-A" and "pos-B".
 
-This snippet first muxes the function in the pins defined by group A, enables
-it, disables and releases it, and muxes it in on the pins defined by group B:
+This snippet first initializes a state object for both groups (in foo_probe()),
+then muxes the function in the pins defined by group A, and finally muxes it in
+on the pins defined by group B:
 
 #include <linux/pinctrl/consumer.h>
 

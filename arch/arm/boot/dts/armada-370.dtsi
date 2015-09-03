@@ -129,6 +129,7 @@
 				compatible = "marvell,aurora-outer-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
+				cache-level = <2>;
 				cache-unified;
 				wt-override;
 			};
@@ -138,11 +139,15 @@
 			 * board level if a different configuration is used.
 			 */
 			spi0: spi@10600 {
+				compatible = "marvell,armada-370-spi",
+						"marvell,orion-spi";
 				pinctrl-0 = <&spi0_pins1>;
 				pinctrl-names = "default";
 			};
 
 			spi1: spi@10680 {
+				compatible = "marvell,armada-370-spi",
+						"marvell,orion-spi";
 				pinctrl-0 = <&spi1_pins>;
 				pinctrl-names = "default";
 			};
@@ -232,7 +237,7 @@
 				reg = <0x18330 0x4>;
 			};
 
-			interrupt-controller@20000 {
+			interrupt-controller@20a00 {
 				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
 			};
 
@@ -305,6 +310,14 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
+			};
+
+			ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-370-neta";
 			};
 		};
 	};

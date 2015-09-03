@@ -673,7 +673,7 @@ int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
 	if (!chunk)
 		return 0;
 
-	if (iov_iter_count(&msg->msg_iter) < chunk) {
+	if (msg_data_left(msg) < chunk) {
 		if (__skb_checksum_complete(skb))
 			goto csum_error;
 		if (skb_copy_datagram_msg(skb, hlen, msg, chunk))

@@ -37,34 +37,6 @@
 
 static struct rdma_cm_id *rds_rdma_listen_id;
 
-static char *rds_cm_event_strings[] = {
-#define RDS_CM_EVENT_STRING(foo) \
-		[RDMA_CM_EVENT_##foo] = __stringify(RDMA_CM_EVENT_##foo)
-	RDS_CM_EVENT_STRING(ADDR_RESOLVED),
-	RDS_CM_EVENT_STRING(ADDR_ERROR),
-	RDS_CM_EVENT_STRING(ROUTE_RESOLVED),
-	RDS_CM_EVENT_STRING(ROUTE_ERROR),
-	RDS_CM_EVENT_STRING(CONNECT_REQUEST),
-	RDS_CM_EVENT_STRING(CONNECT_RESPONSE),
-	RDS_CM_EVENT_STRING(CONNECT_ERROR),
-	RDS_CM_EVENT_STRING(UNREACHABLE),
-	RDS_CM_EVENT_STRING(REJECTED),
-	RDS_CM_EVENT_STRING(ESTABLISHED),
-	RDS_CM_EVENT_STRING(DISCONNECTED),
-	RDS_CM_EVENT_STRING(DEVICE_REMOVAL),
-	RDS_CM_EVENT_STRING(MULTICAST_JOIN),
-	RDS_CM_EVENT_STRING(MULTICAST_ERROR),
-	RDS_CM_EVENT_STRING(ADDR_CHANGE),
-	RDS_CM_EVENT_STRING(TIMEWAIT_EXIT),
-#undef RDS_CM_EVENT_STRING
-};
-
-static char *rds_cm_event_str(enum rdma_cm_event_type type)
-{
-	return rds_str_array(rds_cm_event_strings,
-			     ARRAY_SIZE(rds_cm_event_strings), type);
-};
-
 int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 			      struct rdma_cm_event *event)
 {
@@ -74,7 +46,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 	int ret = 0;
 
 	rdsdebug("conn %p id %p handling event %u (%s)\n", conn, cm_id,
-		 event->event, rds_cm_event_str(event->event));
+		 event->event, rdma_event_msg(event->event));
 
 	if (cm_id->device->node_type == RDMA_NODE_RNIC)
 		trans = &rds_iw_transport;
@@ -139,7 +111,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 	default:
 		/* things like device disconnect? */
 		printk(KERN_ERR "RDS: unknown event %u (%s)!\n",
-		       event->event, rds_cm_event_str(event->event));
+		       event->event, rdma_event_msg(event->event));
 		break;
 	}
 
@@ -148,7 +120,7 @@ out:
 		mutex_unlock(&conn->c_cm_lock);
 
 	rdsdebug("id %p event %u (%s) handling ret %d\n", cm_id, event->event,
-		 rds_cm_event_str(event->event), ret);
+		 rdma_event_msg(event->event), ret);
 
 	return ret;
 }

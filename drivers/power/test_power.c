@@ -153,12 +153,12 @@ static char *test_power_ac_supplied_to[] = {
 	"test_battery",
 };
 
-static struct power_supply test_power_supplies[] = {
+static struct power_supply *test_power_supplies[TEST_POWER_NUM];
+
+static const struct power_supply_desc test_power_desc[] = {
 	[TEST_AC] = {
 		.name = "test_ac",
 		.type = POWER_SUPPLY_TYPE_MAINS,
-		.supplied_to = test_power_ac_supplied_to,
-		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
 		.properties = test_power_ac_props,
 		.num_properties = ARRAY_SIZE(test_power_ac_props),
 		.get_property = test_power_get_ac_property,
@@ -173,14 +173,25 @@ static struct power_supply test_power_supplies[] = {
 	[TEST_USB] = {
 		.name = "test_usb",
 		.type = POWER_SUPPLY_TYPE_USB,
-		.supplied_to = test_power_ac_supplied_to,
-		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
 		.properties = test_power_ac_props,
 		.num_properties = ARRAY_SIZE(test_power_ac_props),
 		.get_property = test_power_get_usb_property,
 	},
 };
 
+static const struct power_supply_config test_power_configs[] = {
+	{
+		/* test_ac */
+		.supplied_to = test_power_ac_supplied_to,
+		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
+	}, {
+		/* test_battery */
+	}, {
+		/* test_usb */
+		.supplied_to = test_power_ac_supplied_to,
+		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
+	},
+};
 
 static int __init test_power_init(void)
 {
@@ -188,12 +199,16 @@ static int __init test_power_init(void)
 	int ret;
 
 	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_supplies));
+	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_configs));
 
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++) {
-		ret = power_supply_register(NULL, &test_power_supplies[i]);
-		if (ret) {
+		test_power_supplies[i] = power_supply_register(NULL,
+						&test_power_desc[i],
+						&test_power_configs[i]);
+		if (IS_ERR(test_power_supplies[i])) {
 			pr_err("%s: failed to register %s\n", __func__,
-				test_power_supplies[i].name);
+				test_power_desc[i].name);
+			ret = PTR_ERR(test_power_supplies[i]);
 			goto failed;
 		}
 	}
@@ -202,7 +217,7 @@ static int __init test_power_init(void)
 	return 0;
 failed:
 	while (--i >= 0)
-		power_supply_unregister(&test_power_supplies[i]);
+		power_supply_unregister(test_power_supplies[i]);
 	return ret;
 }
 module_init(test_power_init);
@@ -216,13 +231,13 @@ static void __exit test_power_exit(void)
 	usb_online = 0;
 	battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++)
-		power_supply_changed(&test_power_supplies[i]);
+		power_supply_changed(test_power_supplies[i]);
 	pr_info("%s: 'changed' event sent, sleeping for 10 seconds...\n",
 		__func__);
 	ssleep(10);
 
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++)
-		power_supply_unregister(&test_power_supplies[i]);
+		power_supply_unregister(test_power_supplies[i]);
 
 	module_initialized = false;
 }
@@ -320,7 +335,7 @@ static inline void signal_power_supply_changed(struct power_supply *psy)
 static int param_set_ac_online(const char *key, const struct kernel_param *kp)
 {
 	ac_online = map_get_value(map_ac_online, key, ac_online);
-	signal_power_supply_changed(&test_power_supplies[TEST_AC]);
+	signal_power_supply_changed(test_power_supplies[TEST_AC]);
 	return 0;
 }
 
@@ -333,7 +348,7 @@ static int param_get_ac_online(char *buffer, const struct kernel_param *kp)
 static int param_set_usb_online(const char *key, const struct kernel_param *kp)
 {
 	usb_online = map_get_value(map_ac_online, key, usb_online);
-	signal_power_supply_changed(&test_power_supplies[TEST_USB]);
+	signal_power_supply_changed(test_power_supplies[TEST_USB]);
 	return 0;
 }
 
@@ -347,7 +362,7 @@ static int param_set_battery_status(const char *key,
 					const struct kernel_param *kp)
 {
 	battery_status = map_get_value(map_status, key, battery_status);
-	signal_power_supply_changed(&test_power_supplies[TEST_BATTERY]);
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
 	return 0;
 }
 
@@ -361,7 +376,7 @@ static int param_set_battery_health(const char *key,
 					const struct kernel_param *kp)
 {
 	battery_health = map_get_value(map_health, key, battery_health);
-	signal_power_supply_changed(&test_power_supplies[TEST_BATTERY]);
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
 	return 0;
 }
 
@@ -375,7 +390,7 @@ static int param_set_battery_present(const char *key,
 					const struct kernel_param *kp)
 {
 	battery_present = map_get_value(map_present, key, battery_present);
-	signal_power_supply_changed(&test_power_supplies[TEST_AC]);
+	signal_power_supply_changed(test_power_supplies[TEST_AC]);
 	return 0;
 }
 
@@ -391,7 +406,7 @@ static int param_set_battery_technology(const char *key,
 {
 	battery_technology = map_get_value(map_technology, key,
 						battery_technology);
-	signal_power_supply_changed(&test_power_supplies[TEST_BATTERY]);
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
 	return 0;
 }
 
@@ -412,7 +427,7 @@ static int param_set_battery_capacity(const char *key,
 		return -EINVAL;
 
 	battery_capacity = tmp;
-	signal_power_supply_changed(&test_power_supplies[TEST_BATTERY]);
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
 	return 0;
 }
 
@@ -427,48 +442,48 @@ static int param_set_battery_voltage(const char *key,
 		return -EINVAL;
 
 	battery_voltage = tmp;
-	signal_power_supply_changed(&test_power_supplies[TEST_BATTERY]);
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
 	return 0;
 }
 
 #define param_get_battery_voltage param_get_int
 
-static struct kernel_param_ops param_ops_ac_online = {
+static const struct kernel_param_ops param_ops_ac_online = {
 	.set = param_set_ac_online,
 	.get = param_get_ac_online,
 };
 
-static struct kernel_param_ops param_ops_usb_online = {
+static const struct kernel_param_ops param_ops_usb_online = {
 	.set = param_set_usb_online,
 	.get = param_get_usb_online,
 };
 
-static struct kernel_param_ops param_ops_battery_status = {
+static const struct kernel_param_ops param_ops_battery_status = {
 	.set = param_set_battery_status,
 	.get = param_get_battery_status,
 };
 
-static struct kernel_param_ops param_ops_battery_present = {
+static const struct kernel_param_ops param_ops_battery_present = {
 	.set = param_set_battery_present,
 	.get = param_get_battery_present,
 };
 
-static struct kernel_param_ops param_ops_battery_technology = {
+static const struct kernel_param_ops param_ops_battery_technology = {
 	.set = param_set_battery_technology,
 	.get = param_get_battery_technology,
 };
 
-static struct kernel_param_ops param_ops_battery_health = {
+static const struct kernel_param_ops param_ops_battery_health = {
 	.set = param_set_battery_health,
 	.get = param_get_battery_health,
 };
 
-static struct kernel_param_ops param_ops_battery_capacity = {
+static const struct kernel_param_ops param_ops_battery_capacity = {
 	.set = param_set_battery_capacity,
 	.get = param_get_battery_capacity,
 };
 
-static struct kernel_param_ops param_ops_battery_voltage = {
+static const struct kernel_param_ops param_ops_battery_voltage = {
 	.set = param_set_battery_voltage,
 	.get = param_get_battery_voltage,
 };

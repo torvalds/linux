@@ -33,7 +33,7 @@ bl_free_deviceid_node(struct nfs4_deviceid_node *d)
 		container_of(d, struct pnfs_block_dev, node);
 
 	bl_free_device(dev);
-	kfree(dev);
+	kfree_rcu(dev, node.rcu);
 }
 
 static int

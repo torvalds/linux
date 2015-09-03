@@ -21,6 +21,7 @@
 #include <drm/drm_fb_helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
 
@@ -129,6 +130,7 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	struct rockchip_drm_private *private;
 	struct dma_iommu_mapping *mapping;
 	struct device *dev = drm_dev->dev;
+	struct drm_connector *connector;
 	int ret;
 
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
@@ -171,6 +173,23 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	if (ret)
 		goto err_detach_device;
 
+	/*
+	 * All components are now added, we can publish the connector sysfs
+	 * entries to userspace.  This will generate hotplug events and so
+	 * userspace will expect to be able to access DRM at this point.
+	 */
+	list_for_each_entry(connector, &drm_dev->mode_config.connector_list,
+			head) {
+		ret = drm_connector_register(connector);
+		if (ret) {
+			dev_err(drm_dev->dev,
+				"[CONNECTOR:%d:%s] drm_connector_register failed: %d\n",
+				connector->base.id,
+				connector->name, ret);
+			goto err_unbind;
+		}
+	}
+
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm_dev);
 
@@ -200,6 +219,7 @@ err_vblank_cleanup:
 	drm_vblank_cleanup(drm_dev);
 err_kms_helper_poll_fini:
 	drm_kms_helper_poll_fini(drm_dev);
+err_unbind:
 	component_unbind_all(dev, drm_dev);
 err_detach_device:
 	arm_iommu_detach_device(dev);
@@ -366,7 +386,7 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 int rockchip_drm_encoder_get_mux_id(struct device_node *node,
 				    struct drm_encoder *encoder)
 {
-	struct device_node *ep = NULL;
+	struct device_node *ep;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct of_endpoint endpoint;
 	struct device_node *port;
@@ -375,18 +395,15 @@ int rockchip_drm_encoder_get_mux_id(struct device_node *node,
 	if (!node || !crtc)
 		return -EINVAL;
 
-	do {
-		ep = of_graph_get_next_endpoint(node, ep);
-		if (!ep)
-			break;
-
+	for_each_endpoint_of_node(node, ep) {
 		port = of_graph_get_remote_port(ep);
 		of_node_put(port);
 		if (port == crtc->port) {
 			ret = of_graph_parse_endpoint(ep, &endpoint);
+			of_node_put(ep);
 			return ret ?: endpoint.id;
 		}
-	} while (ep);
+	}
 
 	return -EINVAL;
 }
@@ -538,7 +555,6 @@ static struct platform_driver rockchip_drm_platform_driver = {
 	.probe = rockchip_drm_platform_probe,
 	.remove = rockchip_drm_platform_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "rockchip-drm",
 		.of_match_table = rockchip_drm_dt_ids,
 		.pm = &rockchip_drm_pm_ops,

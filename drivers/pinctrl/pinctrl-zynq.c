@@ -101,6 +101,8 @@ enum zynq_pinmux_functions {
 	ZYNQ_PMUX_qspi_cs1,
 	ZYNQ_PMUX_spi0,
 	ZYNQ_PMUX_spi1,
+	ZYNQ_PMUX_spi0_ss,
+	ZYNQ_PMUX_spi1_ss,
 	ZYNQ_PMUX_sdio0,
 	ZYNQ_PMUX_sdio0_pc,
 	ZYNQ_PMUX_sdio0_cd,
@@ -123,7 +125,7 @@ enum zynq_pinmux_functions {
 	ZYNQ_PMUX_MAX_FUNC
 };
 
-const struct pinctrl_pin_desc zynq_pins[] = {
+static const struct pinctrl_pin_desc zynq_pins[] = {
 	PINCTRL_PIN(0,  "MIO0"),
 	PINCTRL_PIN(1,  "MIO1"),
 	PINCTRL_PIN(2,  "MIO2"),
@@ -196,13 +198,35 @@ static const unsigned int qspi0_0_pins[] = {1, 2, 3, 4, 5, 6};
 static const unsigned int qspi1_0_pins[] = {9, 10, 11, 12, 13};
 static const unsigned int qspi_cs1_pins[] = {0};
 static const unsigned int qspi_fbclk_pins[] = {8};
-static const unsigned int spi0_0_pins[] = {16, 17, 18, 19, 20, 21};
-static const unsigned int spi0_1_pins[] = {28, 29, 30, 31, 32, 33};
-static const unsigned int spi0_2_pins[] = {40, 41, 42, 43, 44, 45};
-static const unsigned int spi1_0_pins[] = {10, 11, 12, 13, 14, 15};
-static const unsigned int spi1_1_pins[] = {22, 23, 24, 25, 26, 27};
-static const unsigned int spi1_2_pins[] = {34, 35, 36, 37, 38, 39};
-static const unsigned int spi1_3_pins[] = {46, 47, 48, 49, 40, 51};
+static const unsigned int spi0_0_pins[] = {16, 17, 21};
+static const unsigned int spi0_0_ss0_pins[] = {18};
+static const unsigned int spi0_0_ss1_pins[] = {19};
+static const unsigned int spi0_0_ss2_pins[] = {20,};
+static const unsigned int spi0_1_pins[] = {28, 29, 33};
+static const unsigned int spi0_1_ss0_pins[] = {30};
+static const unsigned int spi0_1_ss1_pins[] = {31};
+static const unsigned int spi0_1_ss2_pins[] = {32};
+static const unsigned int spi0_2_pins[] = {40, 41, 45};
+static const unsigned int spi0_2_ss0_pins[] = {42};
+static const unsigned int spi0_2_ss1_pins[] = {43};
+static const unsigned int spi0_2_ss2_pins[] = {44};
+static const unsigned int spi1_0_pins[] = {10, 11, 12};
+static const unsigned int spi1_0_ss0_pins[] = {13};
+static const unsigned int spi1_0_ss1_pins[] = {14};
+static const unsigned int spi1_0_ss2_pins[] = {15};
+static const unsigned int spi1_1_pins[] = {22, 23, 24};
+static const unsigned int spi1_1_ss0_pins[] = {25};
+static const unsigned int spi1_1_ss1_pins[] = {26};
+static const unsigned int spi1_1_ss2_pins[] = {27};
+static const unsigned int spi1_2_pins[] = {34, 35, 36};
+static const unsigned int spi1_2_ss0_pins[] = {37};
+static const unsigned int spi1_2_ss1_pins[] = {38};
+static const unsigned int spi1_2_ss2_pins[] = {39};
+static const unsigned int spi1_3_pins[] = {46, 47, 48, 49};
+static const unsigned int spi1_3_ss0_pins[] = {49};
+static const unsigned int spi1_3_ss1_pins[] = {50};
+static const unsigned int spi1_3_ss2_pins[] = {51};
+
 static const unsigned int sdio0_0_pins[] = {16, 17, 18, 19, 20, 21};
 static const unsigned int sdio0_1_pins[] = {28, 29, 30, 31, 32, 33};
 static const unsigned int sdio0_2_pins[] = {40, 41, 42, 43, 44, 45};
@@ -369,7 +393,7 @@ static const unsigned int usb1_0_pins[] = {40, 41, 42, 43, 44, 45, 46, 47, 48,
 		.npins = ARRAY_SIZE(nm ## _pins), \
 	}
 
-struct zynq_pctrl_group zynq_pctrl_groups[] = {
+static const struct zynq_pctrl_group zynq_pctrl_groups[] = {
 	DEFINE_ZYNQ_PINCTRL_GRP(ethernet0_0),
 	DEFINE_ZYNQ_PINCTRL_GRP(ethernet1_0),
 	DEFINE_ZYNQ_PINCTRL_GRP(mdio0_0),
@@ -379,12 +403,33 @@ struct zynq_pctrl_group zynq_pctrl_groups[] = {
 	DEFINE_ZYNQ_PINCTRL_GRP(qspi_fbclk),
 	DEFINE_ZYNQ_PINCTRL_GRP(qspi_cs1),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi0_0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_0_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_0_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_0_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi0_1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_1_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_1_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_1_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi0_2),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_2_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_2_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi0_2_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi1_0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_0_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_0_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_0_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi1_1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_1_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_1_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_1_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi1_2),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_2_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_2_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_2_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(spi1_3),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_3_ss0),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_3_ss1),
+	DEFINE_ZYNQ_PINCTRL_GRP(spi1_3_ss2),
 	DEFINE_ZYNQ_PINCTRL_GRP(sdio0_0),
 	DEFINE_ZYNQ_PINCTRL_GRP(sdio0_1),
 	DEFINE_ZYNQ_PINCTRL_GRP(sdio0_2),
@@ -552,6 +597,15 @@ static const char * const spi0_groups[] = {"spi0_0_grp", "spi0_1_grp",
 					   "spi0_2_grp"};
 static const char * const spi1_groups[] = {"spi1_0_grp", "spi1_1_grp",
 					   "spi1_2_grp", "spi1_3_grp"};
+static const char * const spi0_ss_groups[] = {"spi0_0_ss0_grp",
+		"spi0_0_ss1_grp", "spi0_0_ss2_grp", "spi0_1_ss0_grp",
+		"spi0_1_ss1_grp", "spi0_1_ss2_grp", "spi0_2_ss0_grp",
+		"spi0_2_ss1_grp", "spi0_2_ss2_grp"};
+static const char * const spi1_ss_groups[] = {"spi1_0_ss0_grp",
+		"spi1_0_ss1_grp", "spi1_0_ss2_grp", "spi1_1_ss0_grp",
+		"spi1_1_ss1_grp", "spi1_1_ss2_grp", "spi1_2_ss0_grp",
+		"spi1_2_ss1_grp", "spi1_2_ss2_grp", "spi1_3_ss0_grp",
+		"spi1_3_ss1_grp", "spi1_3_ss2_grp"};
 static const char * const sdio0_groups[] = {"sdio0_0_grp", "sdio0_1_grp",
 					    "sdio0_2_grp"};
 static const char * const sdio1_groups[] = {"sdio1_0_grp", "sdio1_1_grp",
@@ -714,12 +768,13 @@ static const char * const gpio0_groups[] = {"gpio0_0_grp",
 		.mux_val = mval,			\
 	}
 
-#define DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(fname, mval, mux, mask, shift)	\
+#define DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(fname, mval, offset, mask, shift)\
 	[ZYNQ_PMUX_##fname] = {				\
 		.name = #fname,				\
 		.groups = fname##_groups,		\
 		.ngroups = ARRAY_SIZE(fname##_groups),	\
 		.mux_val = mval,			\
+		.mux = offset,				\
 		.mux_mask = mask,			\
 		.mux_shift = shift,			\
 	}
@@ -742,17 +797,19 @@ static const struct zynq_pinmux_function zynq_pmux_functions[] = {
 	DEFINE_ZYNQ_PINMUX_FUNCTION(qspi_cs1, 1),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(spi0, 0x50),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(spi1, 0x50),
+	DEFINE_ZYNQ_PINMUX_FUNCTION(spi0_ss, 0x50),
+	DEFINE_ZYNQ_PINMUX_FUNCTION(spi1_ss, 0x50),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(sdio0, 0x40),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(sdio0_pc, 0xc),
-	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio0_wp, 0, 130, ZYNQ_SDIO_WP_MASK,
+	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio0_wp, 0, 0x130, ZYNQ_SDIO_WP_MASK,
 					ZYNQ_SDIO_WP_SHIFT),
-	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio0_cd, 0, 130, ZYNQ_SDIO_CD_MASK,
+	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio0_cd, 0, 0x130, ZYNQ_SDIO_CD_MASK,
 					ZYNQ_SDIO_CD_SHIFT),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(sdio1, 0x40),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(sdio1_pc, 0xc),
-	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio1_wp, 0, 134, ZYNQ_SDIO_WP_MASK,
+	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio1_wp, 0, 0x134, ZYNQ_SDIO_WP_MASK,
 					ZYNQ_SDIO_WP_SHIFT),
-	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio1_cd, 0, 134, ZYNQ_SDIO_CD_MASK,
+	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio1_cd, 0, 0x134, ZYNQ_SDIO_CD_MASK,
 					ZYNQ_SDIO_CD_SHIFT),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_nor, 4),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_nor_cs1, 8),
@@ -1139,8 +1196,8 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	pctrl->nfuncs = ARRAY_SIZE(zynq_pmux_functions);
 
 	pctrl->pctrl = pinctrl_register(&zynq_desc, &pdev->dev, pctrl);
-	if (!pctrl->pctrl)
-		return -ENOMEM;
+	if (IS_ERR(pctrl->pctrl))
+		return PTR_ERR(pctrl->pctrl);
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -1149,7 +1206,7 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int zynq_pinctrl_remove(struct platform_device *pdev)
+static int zynq_pinctrl_remove(struct platform_device *pdev)
 {
 	struct zynq_pinctrl *pctrl = platform_get_drvdata(pdev);
 

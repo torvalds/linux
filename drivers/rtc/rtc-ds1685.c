@@ -16,6 +16,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -799,7 +801,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
 	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
-	char *model = '\0';
+	char *model;
 #ifdef CONFIG_RTC_DS1685_PROC_REGS
 	char bits[NUM_REGS][(NUM_BITS * NUM_SPACES) + NUM_BITS + 1];
 #endif
@@ -2139,7 +2141,6 @@ ds1685_rtc_remove(struct platform_device *pdev)
 static struct platform_driver ds1685_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-ds1685",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1685_rtc_probe,
 	.remove		= ds1685_rtc_remove,
@@ -2175,7 +2176,7 @@ module_exit(ds1685_rtc_exit);
  * ds1685_rtc_poweroff - uses the RTC chip to power the system off.
  * @pdev: pointer to platform_device structure.
  */
-extern void __noreturn
+void __noreturn
 ds1685_rtc_poweroff(struct platform_device *pdev)
 {
 	u8 ctrla, ctrl4a, ctrl4b;
@@ -2183,7 +2184,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 
 	/* Check for valid RTC data, else, spin forever. */
 	if (unlikely(!pdev)) {
-		pr_emerg("rtc-ds1685: platform device data not available, spinning forever ...\n");
+		pr_emerg("platform device data not available, spinning forever ...\n");
 		unreachable();
 	} else {
 		/* Get the rtc data. */

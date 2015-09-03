@@ -469,7 +469,7 @@ static inline int test_and_change_bit(unsigned long nr,
  */
 static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *addr)
 {
-	smp_mb();
+	smp_mb__before_llsc();
 	__clear_bit(nr, addr);
 }
 
@@ -481,7 +481,7 @@ static inline unsigned long __fls(unsigned long word)
 {
 	int num;
 
-	if (BITS_PER_LONG == 32 &&
+	if (BITS_PER_LONG == 32 && !__builtin_constant_p(word) &&
 	    __builtin_constant_p(cpu_has_clo_clz) && cpu_has_clo_clz) {
 		__asm__(
 		"	.set	push					\n"
@@ -494,7 +494,7 @@ static inline unsigned long __fls(unsigned long word)
 		return 31 - num;
 	}
 
-	if (BITS_PER_LONG == 64 &&
+	if (BITS_PER_LONG == 64 && !__builtin_constant_p(word) &&
 	    __builtin_constant_p(cpu_has_mips64) && cpu_has_mips64) {
 		__asm__(
 		"	.set	push					\n"
@@ -559,7 +559,8 @@ static inline int fls(int x)
 {
 	int r;
 
-	if (__builtin_constant_p(cpu_has_clo_clz) && cpu_has_clo_clz) {
+	if (!__builtin_constant_p(x) &&
+	    __builtin_constant_p(cpu_has_clo_clz) && cpu_has_clo_clz) {
 		__asm__(
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_LEVEL"			\n"

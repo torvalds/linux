@@ -116,7 +116,7 @@ alpha_rtc_set_time(struct device *dev, struct rtc_time *tm)
 }
 
 static int
-alpha_rtc_set_mmss(struct device *dev, unsigned long nowtime)
+alpha_rtc_set_mmss(struct device *dev, time64_t nowtime)
 {
 	int retval = 0;
 	int real_seconds, real_minutes, cmos_minutes;
@@ -211,7 +211,7 @@ alpha_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 static const struct rtc_class_ops alpha_rtc_ops = {
 	.read_time = alpha_rtc_read_time,
 	.set_time = alpha_rtc_set_time,
-	.set_mmss = alpha_rtc_set_mmss,
+	.set_mmss64 = alpha_rtc_set_mmss,
 	.ioctl = alpha_rtc_ioctl,
 };
 
@@ -276,7 +276,7 @@ do_remote_mmss(void *data)
 }
 
 static int
-remote_set_mmss(struct device *dev, unsigned long now)
+remote_set_mmss(struct device *dev, time64_t now)
 {
 	union remote_data x;
 	if (smp_processor_id() != boot_cpuid) {
@@ -290,7 +290,7 @@ remote_set_mmss(struct device *dev, unsigned long now)
 static const struct rtc_class_ops remote_rtc_ops = {
 	.read_time = remote_read_time,
 	.set_time = remote_set_time,
-	.set_mmss = remote_set_mmss,
+	.set_mmss64 = remote_set_mmss,
 	.ioctl = alpha_rtc_ioctl,
 };
 #endif

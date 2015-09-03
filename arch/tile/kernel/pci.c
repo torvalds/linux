@@ -339,6 +339,8 @@ int __init pcibios_init(void)
 			struct pci_bus *next_bus;
 			struct pci_dev *dev;
 
+			pci_bus_add_devices(root_bus);
+
 			list_for_each_entry(dev, &root_bus->devices, bus_list) {
 				/*
 				 * Find the PCI host controller, ie. the 1st

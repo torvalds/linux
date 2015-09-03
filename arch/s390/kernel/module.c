@@ -38,13 +38,8 @@
 #define DEBUGP(fmt , ...)
 #endif
 
-#ifndef CONFIG_64BIT
-#define PLT_ENTRY_SIZE 12
-#else /* CONFIG_64BIT */
 #define PLT_ENTRY_SIZE 20
-#endif /* CONFIG_64BIT */
 
-#ifdef CONFIG_64BIT
 void *module_alloc(unsigned long size)
 {
 	if (PAGE_ALIGN(size) > MODULES_LEN)
@@ -53,7 +48,6 @@ void *module_alloc(unsigned long size)
 				    GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
-#endif
 
 void module_arch_freeing_init(struct module *mod)
 {
@@ -323,17 +317,11 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			unsigned int *ip;
 			ip = me->module_core + me->arch.plt_offset +
 				info->plt_offset;
-#ifndef CONFIG_64BIT
-			ip[0] = 0x0d105810; /* basr 1,0; l 1,6(1); br 1 */
-			ip[1] = 0x100607f1;
-			ip[2] = val;
-#else /* CONFIG_64BIT */
 			ip[0] = 0x0d10e310; /* basr 1,0; lg 1,10(1); br 1 */
 			ip[1] = 0x100a0004;
 			ip[2] = 0x07f10000;
 			ip[3] = (unsigned int) (val >> 32);
 			ip[4] = (unsigned int) val;
-#endif /* CONFIG_64BIT */
 			info->plt_initialized = 1;
 		}
 		if (r_type == R_390_PLTOFF16 ||

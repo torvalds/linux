@@ -72,7 +72,7 @@ struct cxd2820r_config {
 };
 
 
-#if IS_ENABLED(CONFIG_DVB_CXD2820R)
+#if IS_REACHABLE(CONFIG_DVB_CXD2820R)
 extern struct dvb_frontend *cxd2820r_attach(
 	const struct cxd2820r_config *config,
 	struct i2c_adapter *i2c,

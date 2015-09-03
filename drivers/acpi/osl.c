@@ -214,7 +214,7 @@ static int __init acpi_reserve_resources(void)
 
 	return 0;
 }
-device_initcall(acpi_reserve_resources);
+fs_initcall_sync(acpi_reserve_resources);
 
 void acpi_os_printf(const char *fmt, ...)
 {
@@ -336,11 +336,11 @@ acpi_map_lookup_virt(void __iomem *virt, acpi_size size)
 	return NULL;
 }
 
-#ifndef CONFIG_IA64
-#define should_use_kmap(pfn)   page_is_ram(pfn)
-#else
+#if defined(CONFIG_IA64) || defined(CONFIG_ARM64)
 /* ioremap will take care of cache attributes */
 #define should_use_kmap(pfn)   0
+#else
+#define should_use_kmap(pfn)   page_is_ram(pfn)
 #endif
 
 static void __iomem *acpi_map(acpi_physical_address pg_off, unsigned long pg_sz)
@@ -537,13 +537,26 @@ acpi_os_get_physical_address(void *virt, acpi_physical_address * phys)
 }
 #endif
 
+#ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
+static bool acpi_rev_override;
+
+int __init acpi_rev_override_setup(char *str)
+{
+	acpi_rev_override = true;
+	return 1;
+}
+__setup("acpi_rev_override", acpi_rev_override_setup);
+#else
+#define acpi_rev_override	false
+#endif
+
 #define ACPI_MAX_OVERRIDE_LEN 100
 
 static char acpi_os_name[ACPI_MAX_OVERRIDE_LEN];
 
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    acpi_string * new_val)
+			    char **new_val)
 {
 	if (!init_val || !new_val)
 		return AE_BAD_PARAMETER;
@@ -553,6 +566,11 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 		printk(KERN_INFO PREFIX "Overriding _OS definition to '%s'\n",
 		       acpi_os_name);
 		*new_val = acpi_os_name;
+	}
+
+	if (!memcmp(init_val->name, "_REV", 4) && acpi_rev_override) {
+		printk(KERN_INFO PREFIX "Overriding _REV return value to 5\n");
+		*new_val = (char *)5;
 	}
 
 	return AE_OK;
@@ -1686,6 +1704,12 @@ int acpi_resources_are_enforced(void)
 	return acpi_enforce_resources == ENFORCE_RESOURCES_STRICT;
 }
 EXPORT_SYMBOL(acpi_resources_are_enforced);
+
+bool acpi_osi_is_win8(void)
+{
+	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
+}
+EXPORT_SYMBOL(acpi_osi_is_win8);
 
 /*
  * Deallocate the memory for a spinlock.

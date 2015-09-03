@@ -1501,7 +1501,7 @@ static void pcs_free_resources(struct pcs_device *pcs)
 		}							\
 	} while (0);
 
-static struct of_device_id pcs_of_match[];
+static const struct of_device_id pcs_of_match[];
 
 static int pcs_add_gpio_func(struct device_node *node, struct pcs_device *pcs)
 {
@@ -1726,7 +1726,7 @@ static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops pcs_irqdomain_ops = {
+static const struct irq_domain_ops pcs_irqdomain_ops = {
 	.map = pcs_irqdomain_map,
 	.xlate = irq_domain_xlate_onecell,
 };
@@ -1921,9 +1921,9 @@ static int pcs_probe(struct platform_device *pdev)
 		goto free;
 
 	pcs->pctl = pinctrl_register(&pcs->desc, pcs->dev, pcs);
-	if (!pcs->pctl) {
+	if (IS_ERR(pcs->pctl)) {
 		dev_err(pcs->dev, "could not register single pinctrl driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(pcs->pctl);
 		goto free;
 	}
 
@@ -2000,7 +2000,7 @@ static const struct pcs_soc_data pinconf_single = {
 	.flags = PCS_FEAT_PINCONF,
 };
 
-static struct of_device_id pcs_of_match[] = {
+static const struct of_device_id pcs_of_match[] = {
 	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },

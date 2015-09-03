@@ -1657,7 +1657,6 @@ static int xgene_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct xgene_phy_ctx *ctx;
 	struct resource *res;
-	int rc = 0;
 	u32 default_spd[] = DEFAULT_SATA_SPD_SEL;
 	u32 default_txboost_gain[] = DEFAULT_SATA_TXBOOST_GAIN;
 	u32 default_txeye_direction[] = DEFAULT_SATA_TXEYEDIRECTION;
@@ -1676,10 +1675,8 @@ static int xgene_phy_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ctx->sds_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ctx->sds_base)) {
-		rc = PTR_ERR(ctx->sds_base);
-		goto error;
-	}
+	if (IS_ERR(ctx->sds_base))
+		return PTR_ERR(ctx->sds_base);
 
 	/* Retrieve optional clock */
 	ctx->clk = clk_get(&pdev->dev, NULL);
@@ -1709,22 +1706,12 @@ static int xgene_phy_probe(struct platform_device *pdev)
 	ctx->phy = devm_phy_create(ctx->dev, NULL, &xgene_phy_ops);
 	if (IS_ERR(ctx->phy)) {
 		dev_dbg(&pdev->dev, "Failed to create PHY\n");
-		rc = PTR_ERR(ctx->phy);
-		goto error;
+		return PTR_ERR(ctx->phy);
 	}
 	phy_set_drvdata(ctx->phy, ctx);
 
-	phy_provider = devm_of_phy_provider_register(ctx->dev,
-						     xgene_phy_xlate);
-	if (IS_ERR(phy_provider)) {
-		rc = PTR_ERR(phy_provider);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	return rc;
+	phy_provider = devm_of_phy_provider_register(ctx->dev, xgene_phy_xlate);
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id xgene_phy_of_match[] = {

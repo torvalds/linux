@@ -676,7 +676,6 @@ static struct platform_driver sun3_scsi_driver = {
 	.remove = __exit_p(sun3_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

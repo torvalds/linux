@@ -393,6 +393,28 @@ static int rpm_reg_is_enabled(struct regulator_dev *rdev)
 	return vreg->is_enabled;
 }
 
+static int rpm_reg_set_load(struct regulator_dev *rdev, int load_uA)
+{
+	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
+	const struct rpm_reg_parts *parts = vreg->parts;
+	const struct request_member *req = &parts->ia;
+	int load_mA = load_uA / 1000;
+	int max_mA = req->mask >> req->shift;
+	int ret;
+
+	if (req->mask == 0)
+		return -EINVAL;
+
+	if (load_mA > max_mA)
+		load_mA = max_mA;
+
+	mutex_lock(&vreg->lock);
+	ret = rpm_reg_write(vreg, req, load_mA);
+	mutex_unlock(&vreg->lock);
+
+	return ret;
+}
+
 static struct regulator_ops uV_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 
@@ -402,6 +424,8 @@ static struct regulator_ops uV_ops = {
 	.enable = rpm_reg_uV_enable,
 	.disable = rpm_reg_uV_disable,
 	.is_enabled = rpm_reg_is_enabled,
+
+	.set_load = rpm_reg_set_load,
 };
 
 static struct regulator_ops mV_ops = {
@@ -413,6 +437,8 @@ static struct regulator_ops mV_ops = {
 	.enable = rpm_reg_mV_enable,
 	.disable = rpm_reg_mV_disable,
 	.is_enabled = rpm_reg_is_enabled,
+
+	.set_load = rpm_reg_set_load,
 };
 
 static struct regulator_ops switch_ops = {
@@ -581,31 +607,6 @@ static const struct qcom_rpm_reg smb208_smps = {
 	.supports_force_mode_bypass = false,
 };
 
-static const struct of_device_id rpm_of_match[] = {
-	{ .compatible = "qcom,rpm-pm8058-pldo",     .data = &pm8058_pldo },
-	{ .compatible = "qcom,rpm-pm8058-nldo",     .data = &pm8058_nldo },
-	{ .compatible = "qcom,rpm-pm8058-smps",     .data = &pm8058_smps },
-	{ .compatible = "qcom,rpm-pm8058-ncp",      .data = &pm8058_ncp },
-	{ .compatible = "qcom,rpm-pm8058-switch",   .data = &pm8058_switch },
-
-	{ .compatible = "qcom,rpm-pm8901-pldo",     .data = &pm8901_pldo },
-	{ .compatible = "qcom,rpm-pm8901-nldo",     .data = &pm8901_nldo },
-	{ .compatible = "qcom,rpm-pm8901-ftsmps",   .data = &pm8901_ftsmps },
-	{ .compatible = "qcom,rpm-pm8901-switch",   .data = &pm8901_switch },
-
-	{ .compatible = "qcom,rpm-pm8921-pldo",     .data = &pm8921_pldo },
-	{ .compatible = "qcom,rpm-pm8921-nldo",     .data = &pm8921_nldo },
-	{ .compatible = "qcom,rpm-pm8921-nldo1200", .data = &pm8921_nldo1200 },
-	{ .compatible = "qcom,rpm-pm8921-smps",     .data = &pm8921_smps },
-	{ .compatible = "qcom,rpm-pm8921-ftsmps",   .data = &pm8921_ftsmps },
-	{ .compatible = "qcom,rpm-pm8921-ncp",      .data = &pm8921_ncp },
-	{ .compatible = "qcom,rpm-pm8921-switch",   .data = &pm8921_switch },
-
-	{ .compatible = "qcom,rpm-smb208", .data = &smb208_smps },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, rpm_of_match);
-
 static int rpm_reg_set(struct qcom_rpm_reg *vreg,
 		       const struct request_member *req,
 		       const int value)
@@ -619,7 +620,9 @@ static int rpm_reg_set(struct qcom_rpm_reg *vreg,
 	return 0;
 }
 
-static int rpm_reg_of_parse_freq(struct device *dev, struct qcom_rpm_reg *vreg)
+static int rpm_reg_of_parse_freq(struct device *dev,
+				 struct device_node *node,
+				 struct qcom_rpm_reg *vreg)
 {
 	static const int freq_table[] = {
 		19200000, 9600000, 6400000, 4800000, 3840000, 3200000, 2740000,
@@ -633,7 +636,7 @@ static int rpm_reg_of_parse_freq(struct device *dev, struct qcom_rpm_reg *vreg)
 	int i;
 
 	key = "qcom,switch-mode-frequency";
-	ret = of_property_read_u32(dev->of_node, key, &freq);
+	ret = of_property_read_u32(node, key, &freq);
 	if (ret) {
 		dev_err(dev, "regulator requires %s property\n", key);
 		return -EINVAL;
@@ -650,84 +653,40 @@ static int rpm_reg_of_parse_freq(struct device *dev, struct qcom_rpm_reg *vreg)
 	return -EINVAL;
 }
 
-static int rpm_reg_probe(struct platform_device *pdev)
+static int rpm_reg_of_parse(struct device_node *node,
+			    const struct regulator_desc *desc,
+			    struct regulator_config *config)
 {
-	struct regulator_init_data *initdata;
-	const struct qcom_rpm_reg *template;
-	const struct of_device_id *match;
-	struct regulator_config config = { };
-	struct regulator_dev *rdev;
-	struct qcom_rpm_reg *vreg;
+	struct qcom_rpm_reg *vreg = config->driver_data;
+	struct device *dev = config->dev;
 	const char *key;
 	u32 force_mode;
 	bool pwm;
 	u32 val;
 	int ret;
 
-	match = of_match_device(rpm_of_match, &pdev->dev);
-	template = match->data;
-
-	vreg = devm_kmalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
-	if (!vreg) {
-		dev_err(&pdev->dev, "failed to allocate vreg\n");
-		return -ENOMEM;
-	}
-	memcpy(vreg, template, sizeof(*vreg));
-	mutex_init(&vreg->lock);
-	vreg->dev = &pdev->dev;
-	vreg->desc.id = -1;
-	vreg->desc.owner = THIS_MODULE;
-	vreg->desc.type = REGULATOR_VOLTAGE;
-	vreg->desc.name = pdev->dev.of_node->name;
-	vreg->desc.supply_name = "vin";
-
-	vreg->rpm = dev_get_drvdata(pdev->dev.parent);
-	if (!vreg->rpm) {
-		dev_err(&pdev->dev, "unable to retrieve handle to rpm\n");
-		return -ENODEV;
-	}
-
-	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
-					      &vreg->desc);
-	if (!initdata)
-		return -EINVAL;
-
-	key = "reg";
-	ret = of_property_read_u32(pdev->dev.of_node, key, &val);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to read %s\n", key);
-		return ret;
-	}
-	vreg->resource = val;
-
-	if ((vreg->parts->uV.mask || vreg->parts->mV.mask) &&
-	    (!initdata->constraints.min_uV || !initdata->constraints.max_uV)) {
-		dev_err(&pdev->dev, "no voltage specified for regulator\n");
-		return -EINVAL;
-	}
-
 	key = "bias-pull-down";
-	if (of_property_read_bool(pdev->dev.of_node, key)) {
+	if (of_property_read_bool(node, key)) {
 		ret = rpm_reg_set(vreg, &vreg->parts->pd, 1);
 		if (ret) {
-			dev_err(&pdev->dev, "%s is invalid", key);
+			dev_err(dev, "%s is invalid", key);
 			return ret;
 		}
 	}
 
 	if (vreg->parts->freq.mask) {
-		ret = rpm_reg_of_parse_freq(&pdev->dev, vreg);
+		ret = rpm_reg_of_parse_freq(dev, node, vreg);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (vreg->parts->pm.mask) {
 		key = "qcom,power-mode-hysteretic";
-		pwm = !of_property_read_bool(pdev->dev.of_node, key);
+		pwm = !of_property_read_bool(node, key);
 
 		ret = rpm_reg_set(vreg, &vreg->parts->pm, pwm);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to set power mode\n");
+			dev_err(dev, "failed to set power mode\n");
 			return ret;
 		}
 	}
@@ -736,11 +695,11 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		force_mode = -1;
 
 		key = "qcom,force-mode";
-		ret = of_property_read_u32(pdev->dev.of_node, key, &val);
+		ret = of_property_read_u32(node, key, &val);
 		if (ret == -EINVAL) {
 			val = QCOM_RPM_FORCE_MODE_NONE;
 		} else if (ret < 0) {
-			dev_err(&pdev->dev, "failed to read %s\n", key);
+			dev_err(dev, "failed to read %s\n", key);
 			return ret;
 		}
 
@@ -775,25 +734,192 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		}
 
 		if (force_mode == -1) {
-			dev_err(&pdev->dev, "invalid force mode\n");
+			dev_err(dev, "invalid force mode\n");
 			return -EINVAL;
 		}
 
 		ret = rpm_reg_set(vreg, &vreg->parts->fm, force_mode);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to set force mode\n");
+			dev_err(dev, "failed to set force mode\n");
 			return ret;
 		}
 	}
 
-	config.dev = &pdev->dev;
-	config.init_data = initdata;
-	config.driver_data = vreg;
-	config.of_node = pdev->dev.of_node;
-	rdev = devm_regulator_register(&pdev->dev, &vreg->desc, &config);
-	if (IS_ERR(rdev)) {
-		dev_err(&pdev->dev, "can't register regulator\n");
-		return PTR_ERR(rdev);
+	return 0;
+}
+
+struct rpm_regulator_data {
+	const char *name;
+	int resource;
+	const struct qcom_rpm_reg *template;
+	const char *supply;
+};
+
+static const struct rpm_regulator_data rpm_pm8058_regulators[] = {
+	{ "l0",   QCOM_RPM_PM8058_LDO0,   &pm8058_nldo, "vdd_l0_l1_lvs"	},
+	{ "l1",   QCOM_RPM_PM8058_LDO1,   &pm8058_nldo, "vdd_l0_l1_lvs" },
+	{ "l2",   QCOM_RPM_PM8058_LDO2,   &pm8058_pldo, "vdd_l2_l11_l12" },
+	{ "l3",   QCOM_RPM_PM8058_LDO3,   &pm8058_pldo, "vdd_l3_l4_l5" },
+	{ "l4",   QCOM_RPM_PM8058_LDO4,   &pm8058_pldo, "vdd_l3_l4_l5" },
+	{ "l5",   QCOM_RPM_PM8058_LDO5,   &pm8058_pldo, "vdd_l3_l4_l5" },
+	{ "l6",   QCOM_RPM_PM8058_LDO6,   &pm8058_pldo, "vdd_l6_l7" },
+	{ "l7",   QCOM_RPM_PM8058_LDO7,   &pm8058_pldo, "vdd_l6_l7" },
+	{ "l8",   QCOM_RPM_PM8058_LDO8,   &pm8058_pldo, "vdd_l8" },
+	{ "l9",   QCOM_RPM_PM8058_LDO9,   &pm8058_pldo, "vdd_l9" },
+	{ "l10",  QCOM_RPM_PM8058_LDO10,  &pm8058_pldo, "vdd_l10" },
+	{ "l11",  QCOM_RPM_PM8058_LDO11,  &pm8058_pldo, "vdd_l2_l11_l12" },
+	{ "l12",  QCOM_RPM_PM8058_LDO12,  &pm8058_pldo, "vdd_l2_l11_l12" },
+	{ "l13",  QCOM_RPM_PM8058_LDO13,  &pm8058_pldo, "vdd_l13_l16" },
+	{ "l14",  QCOM_RPM_PM8058_LDO14,  &pm8058_pldo, "vdd_l14_l15" },
+	{ "l15",  QCOM_RPM_PM8058_LDO15,  &pm8058_pldo, "vdd_l14_l15" },
+	{ "l16",  QCOM_RPM_PM8058_LDO16,  &pm8058_pldo, "vdd_l13_l16" },
+	{ "l17",  QCOM_RPM_PM8058_LDO17,  &pm8058_pldo, "vdd_l17_l18" },
+	{ "l18",  QCOM_RPM_PM8058_LDO18,  &pm8058_pldo, "vdd_l17_l18" },
+	{ "l19",  QCOM_RPM_PM8058_LDO19,  &pm8058_pldo, "vdd_l19_l20" },
+	{ "l20",  QCOM_RPM_PM8058_LDO20,  &pm8058_pldo, "vdd_l19_l20" },
+	{ "l21",  QCOM_RPM_PM8058_LDO21,  &pm8058_nldo, "vdd_l21" },
+	{ "l22",  QCOM_RPM_PM8058_LDO22,  &pm8058_nldo, "vdd_l22" },
+	{ "l23",  QCOM_RPM_PM8058_LDO23,  &pm8058_nldo, "vdd_l23_l24_l25" },
+	{ "l24",  QCOM_RPM_PM8058_LDO24,  &pm8058_nldo, "vdd_l23_l24_l25" },
+	{ "l25",  QCOM_RPM_PM8058_LDO25,  &pm8058_nldo, "vdd_l23_l24_l25" },
+
+	{ "s0",   QCOM_RPM_PM8058_SMPS0,  &pm8058_smps, "vdd_s0" },
+	{ "s1",   QCOM_RPM_PM8058_SMPS1,  &pm8058_smps, "vdd_s1" },
+	{ "s2",   QCOM_RPM_PM8058_SMPS2,  &pm8058_smps, "vdd_s2" },
+	{ "s3",   QCOM_RPM_PM8058_SMPS3,  &pm8058_smps, "vdd_s3" },
+	{ "s4",   QCOM_RPM_PM8058_SMPS4,  &pm8058_smps, "vdd_s4" },
+
+	{ "lvs0", QCOM_RPM_PM8058_LVS0, &pm8058_switch, "vdd_l0_l1_lvs" },
+	{ "lvs1", QCOM_RPM_PM8058_LVS1, &pm8058_switch, "vdd_l0_l1_lvs" },
+
+	{ "ncp",  QCOM_RPM_PM8058_NCP, &pm8058_ncp, "vdd_ncp" },
+	{ }
+};
+
+static const struct rpm_regulator_data rpm_pm8901_regulators[] = {
+	{ "l0",   QCOM_RPM_PM8901_LDO0, &pm8901_nldo, "vdd_l0" },
+	{ "l1",   QCOM_RPM_PM8901_LDO1, &pm8901_pldo, "vdd_l1" },
+	{ "l2",   QCOM_RPM_PM8901_LDO2, &pm8901_pldo, "vdd_l2" },
+	{ "l3",   QCOM_RPM_PM8901_LDO3, &pm8901_pldo, "vdd_l3" },
+	{ "l4",   QCOM_RPM_PM8901_LDO4, &pm8901_pldo, "vdd_l4" },
+	{ "l5",   QCOM_RPM_PM8901_LDO5, &pm8901_pldo, "vdd_l5" },
+	{ "l6",   QCOM_RPM_PM8901_LDO6, &pm8901_pldo, "vdd_l6" },
+
+	{ "s0",   QCOM_RPM_PM8901_SMPS0, &pm8901_ftsmps, "vdd_s0" },
+	{ "s1",   QCOM_RPM_PM8901_SMPS1, &pm8901_ftsmps, "vdd_s1" },
+	{ "s2",   QCOM_RPM_PM8901_SMPS2, &pm8901_ftsmps, "vdd_s2" },
+	{ "s3",   QCOM_RPM_PM8901_SMPS3, &pm8901_ftsmps, "vdd_s3" },
+	{ "s4",   QCOM_RPM_PM8901_SMPS4, &pm8901_ftsmps, "vdd_s4" },
+
+	{ "lvs0", QCOM_RPM_PM8901_LVS0, &pm8901_switch, "lvs0_in" },
+	{ "lvs1", QCOM_RPM_PM8901_LVS1, &pm8901_switch, "lvs1_in" },
+	{ "lvs2", QCOM_RPM_PM8901_LVS2, &pm8901_switch, "lvs2_in" },
+	{ "lvs3", QCOM_RPM_PM8901_LVS3, &pm8901_switch, "lvs3_in" },
+
+	{ "mvs", QCOM_RPM_PM8901_MVS, &pm8901_switch, "mvs_in" },
+	{ }
+};
+
+static const struct rpm_regulator_data rpm_pm8921_regulators[] = {
+	{ "s1",  QCOM_RPM_PM8921_SMPS1, &pm8921_smps, "vdd_s1" },
+	{ "s2",  QCOM_RPM_PM8921_SMPS2, &pm8921_smps, "vdd_s2" },
+	{ "s3",  QCOM_RPM_PM8921_SMPS3, &pm8921_smps },
+	{ "s4",  QCOM_RPM_PM8921_SMPS4, &pm8921_smps, "vdd_s4" },
+	{ "s7",  QCOM_RPM_PM8921_SMPS7, &pm8921_smps, "vdd_s7" },
+	{ "s8",  QCOM_RPM_PM8921_SMPS8, &pm8921_smps, "vdd_s8"  },
+
+	{ "l1",  QCOM_RPM_PM8921_LDO1, &pm8921_nldo, "vdd_l1_l2_l12_l18" },
+	{ "l2",  QCOM_RPM_PM8921_LDO2, &pm8921_nldo, "vdd_l1_l2_l12_l18" },
+	{ "l3",  QCOM_RPM_PM8921_LDO3, &pm8921_pldo, "vdd_l3_l15_l17" },
+	{ "l4",  QCOM_RPM_PM8921_LDO4, &pm8921_pldo, "vdd_l4_l14" },
+	{ "l5",  QCOM_RPM_PM8921_LDO5, &pm8921_pldo, "vdd_l5_l8_l16" },
+	{ "l6",  QCOM_RPM_PM8921_LDO6, &pm8921_pldo, "vdd_l6_l7" },
+	{ "l7",  QCOM_RPM_PM8921_LDO7, &pm8921_pldo, "vdd_l6_l7" },
+	{ "l8",  QCOM_RPM_PM8921_LDO8, &pm8921_pldo, "vdd_l5_l8_l16" },
+	{ "l9",  QCOM_RPM_PM8921_LDO9, &pm8921_pldo, "vdd_l9_l11" },
+	{ "l10", QCOM_RPM_PM8921_LDO10, &pm8921_pldo, "vdd_l10_l22" },
+	{ "l11", QCOM_RPM_PM8921_LDO11, &pm8921_pldo, "vdd_l9_l11" },
+	{ "l12", QCOM_RPM_PM8921_LDO12, &pm8921_nldo, "vdd_l1_l2_l12_l18" },
+	{ "l14", QCOM_RPM_PM8921_LDO14, &pm8921_pldo, "vdd_l4_l14" },
+	{ "l15", QCOM_RPM_PM8921_LDO15, &pm8921_pldo, "vdd_l3_l15_l17" },
+	{ "l16", QCOM_RPM_PM8921_LDO16, &pm8921_pldo, "vdd_l5_l8_l16" },
+	{ "l17", QCOM_RPM_PM8921_LDO17, &pm8921_pldo, "vdd_l3_l15_l17" },
+	{ "l18", QCOM_RPM_PM8921_LDO18, &pm8921_nldo, "vdd_l1_l2_l12_l18" },
+	{ "l21", QCOM_RPM_PM8921_LDO21, &pm8921_pldo, "vdd_l21_l23_l29" },
+	{ "l22", QCOM_RPM_PM8921_LDO22, &pm8921_pldo, "vdd_l10_l22" },
+	{ "l23", QCOM_RPM_PM8921_LDO23, &pm8921_pldo, "vdd_l21_l23_l29" },
+	{ "l24", QCOM_RPM_PM8921_LDO24, &pm8921_nldo1200, "vdd_l24" },
+	{ "l25", QCOM_RPM_PM8921_LDO25, &pm8921_nldo1200, "vdd_l25" },
+	{ "l26", QCOM_RPM_PM8921_LDO26, &pm8921_nldo1200, "vdd_l26" },
+	{ "l27", QCOM_RPM_PM8921_LDO27, &pm8921_nldo1200, "vdd_l27" },
+	{ "l28", QCOM_RPM_PM8921_LDO28, &pm8921_nldo1200, "vdd_l28" },
+	{ "l29", QCOM_RPM_PM8921_LDO29, &pm8921_pldo, "vdd_l21_l23_l29" },
+
+	{ "lvs1", QCOM_RPM_PM8921_LVS1, &pm8921_switch, "vin_lvs1_3_6" },
+	{ "lvs2", QCOM_RPM_PM8921_LVS2, &pm8921_switch, "vin_lvs2" },
+	{ "lvs3", QCOM_RPM_PM8921_LVS3, &pm8921_switch, "vin_lvs1_3_6" },
+	{ "lvs4", QCOM_RPM_PM8921_LVS4, &pm8921_switch, "vin_lvs4_5_7" },
+	{ "lvs5", QCOM_RPM_PM8921_LVS5, &pm8921_switch, "vin_lvs4_5_7" },
+	{ "lvs6", QCOM_RPM_PM8921_LVS6, &pm8921_switch, "vin_lvs1_3_6" },
+	{ "lvs7", QCOM_RPM_PM8921_LVS7, &pm8921_switch, "vin_lvs4_5_7" },
+
+	{ "usb-switch", QCOM_RPM_USB_OTG_SWITCH, &pm8921_switch, "vin_5vs" },
+	{ "hdmi-switch", QCOM_RPM_HDMI_SWITCH, &pm8921_switch, "vin_5vs" },
+	{ "ncp", QCOM_RPM_PM8921_NCP, &pm8921_ncp, "vdd_ncp" },
+	{ }
+};
+
+static const struct of_device_id rpm_of_match[] = {
+	{ .compatible = "qcom,rpm-pm8058-regulators", .data = &rpm_pm8058_regulators },
+	{ .compatible = "qcom,rpm-pm8901-regulators", .data = &rpm_pm8901_regulators },
+	{ .compatible = "qcom,rpm-pm8921-regulators", .data = &rpm_pm8921_regulators },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rpm_of_match);
+
+static int rpm_reg_probe(struct platform_device *pdev)
+{
+	const struct rpm_regulator_data *reg;
+	const struct of_device_id *match;
+	struct regulator_config config = { };
+	struct regulator_dev *rdev;
+	struct qcom_rpm_reg *vreg;
+	struct qcom_rpm *rpm;
+
+	rpm = dev_get_drvdata(pdev->dev.parent);
+	if (!rpm) {
+		dev_err(&pdev->dev, "unable to retrieve handle to rpm\n");
+		return -ENODEV;
+	}
+
+	match = of_match_device(rpm_of_match, &pdev->dev);
+	for (reg = match->data; reg->name; reg++) {
+		vreg = devm_kmalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
+		if (!vreg)
+			return -ENOMEM;
+
+		memcpy(vreg, reg->template, sizeof(*vreg));
+		mutex_init(&vreg->lock);
+
+		vreg->dev = &pdev->dev;
+		vreg->resource = reg->resource;
+		vreg->rpm = rpm;
+
+		vreg->desc.id = -1;
+		vreg->desc.owner = THIS_MODULE;
+		vreg->desc.type = REGULATOR_VOLTAGE;
+		vreg->desc.name = reg->name;
+		vreg->desc.supply_name = reg->supply;
+		vreg->desc.of_match = reg->name;
+		vreg->desc.of_parse_cb = rpm_reg_of_parse;
+
+		config.dev = &pdev->dev;
+		config.driver_data = vreg;
+		rdev = devm_regulator_register(&pdev->dev, &vreg->desc, &config);
+		if (IS_ERR(rdev)) {
+			dev_err(&pdev->dev, "failed to register %s\n", reg->name);
+			return PTR_ERR(rdev);
+		}
 	}
 
 	return 0;

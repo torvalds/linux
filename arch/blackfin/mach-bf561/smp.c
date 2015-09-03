@@ -124,7 +124,7 @@ void platform_send_ipi(cpumask_t callmap, int irq)
 	unsigned int cpu;
 	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 
-	for_each_cpu_mask(cpu, callmap) {
+	for_each_cpu(cpu, &callmap) {
 		BUG_ON(cpu >= 2);
 		SSYNC();
 		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));

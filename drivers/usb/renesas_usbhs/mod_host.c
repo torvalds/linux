@@ -1229,7 +1229,7 @@ static int __usbhsh_hub_get_status(struct usbhsh_hpriv *hpriv,
 		break;
 
 	case GetHubDescriptor:
-		desc->bDescriptorType		= 0x29;
+		desc->bDescriptorType		= USB_DT_HUB;
 		desc->bHubContrCurrent		= 0;
 		desc->bNbrPorts			= roothub_id;
 		desc->bDescLength		= 9;

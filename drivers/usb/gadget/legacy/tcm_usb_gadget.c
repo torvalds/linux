@@ -16,20 +16,16 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/storage.h>
-#include <scsi/scsi.h>
 #include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
 #include "tcm_usb_gadget.h"
 
 USB_GADGET_COMPOSITE_OPTIONS();
-
-static struct target_fabric_configfs *usbg_fabric_configfs;
 
 static inline struct f_uas *to_f_uas(struct usb_function *f)
 {
@@ -1112,6 +1108,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
 	cmd->tag = be16_to_cpup(&cmd_iu->tag);
+	cmd->se_cmd.tag = cmd->tag;
 	if (fu->flags & USBG_USE_STREAMS) {
 		if (cmd->tag > UASP_SS_EP_COMP_NUM_STREAMS)
 			goto err;
@@ -1245,6 +1242,7 @@ static int bot_submit_command(struct f_uas *fu,
 	cmd->unpacked_lun = cbw->Lun;
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;
 	cmd->data_len = le32_to_cpu(cbw->DataTransferLength);
+	cmd->se_cmd.tag = le32_to_cpu(cmd->bot_tag);
 
 	INIT_WORK(&cmd->work, bot_cmd_work);
 	ret = queue_work(tpg->workqueue, &cmd->work);
@@ -1274,23 +1272,6 @@ static char *usbg_get_fabric_name(void)
 	return "usb_gadget";
 }
 
-static u8 usbg_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	u8 proto_id;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		proto_id = sas_get_fabric_proto_ident(se_tpg);
-		break;
-	}
-
-	return proto_id;
-}
-
 static char *usbg_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct usbg_tpg *tpg = container_of(se_tpg,
@@ -1305,97 +1286,6 @@ static u16 usbg_get_tag(struct se_portal_group *se_tpg)
 	struct usbg_tpg *tpg = container_of(se_tpg,
 				struct usbg_tpg, se_tpg);
 	return tpg->tport_tpgt;
-}
-
-static u32 usbg_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
-static u32 usbg_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	int ret = 0;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		ret = sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-		break;
-	}
-
-	return ret;
-}
-
-static u32 usbg_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	int ret = 0;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		ret = sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-		break;
-	}
-
-	return ret;
-}
-
-static char *usbg_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	char *tid = NULL;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		tid = sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	}
-
-	return tid;
-}
-
-static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	struct usbg_nacl *nacl;
-
-	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
-	if (!nacl)
-		return NULL;
-
-	return &nacl->se_node_acl;
-}
-
-static void usbg_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	struct usbg_nacl *nacl = container_of(se_nacl,
-			struct usbg_nacl, se_node_acl);
-	kfree(nacl);
 }
 
 static u32 usbg_tpg_get_inst_index(struct se_portal_group *se_tpg)
@@ -1448,18 +1338,6 @@ static void usbg_set_default_node_attrs(struct se_node_acl *nacl)
 	return;
 }
 
-static u32 usbg_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd,
-			se_cmd);
-	struct f_uas *fu = cmd->fu;
-
-	if (fu->flags & USBG_IS_BOT)
-		return le32_to_cpu(cmd->bot_tag);
-	else
-		return cmd->tag;
-}
-
 static int usbg_get_cmd_state(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -1489,50 +1367,11 @@ static const char *usbg_check_wwn(const char *name)
 	return n;
 }
 
-static struct se_node_acl *usbg_make_nodeacl(
-	struct se_portal_group *se_tpg,
-	struct config_group *group,
-	const char *name)
+static int usbg_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 {
-	struct se_node_acl *se_nacl, *se_nacl_new;
-	struct usbg_nacl *nacl;
-	u64 wwpn = 0;
-	u32 nexus_depth;
-	const char *wnn_name;
-
-	wnn_name = usbg_check_wwn(name);
-	if (!wnn_name)
-		return ERR_PTR(-EINVAL);
-	se_nacl_new = usbg_alloc_fabric_acl(se_tpg);
-	if (!(se_nacl_new))
-		return ERR_PTR(-ENOMEM);
-
-	nexus_depth = 1;
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NodeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-				name, nexus_depth);
-	if (IS_ERR(se_nacl)) {
-		usbg_release_fabric_acl(se_tpg, se_nacl_new);
-		return se_nacl;
-	}
-	/*
-	 * Locate our struct usbg_nacl and set the FC Nport WWPN
-	 */
-	nacl = container_of(se_nacl, struct usbg_nacl, se_node_acl);
-	nacl->iport_wwpn = wwpn;
-	snprintf(nacl->iport_name, sizeof(nacl->iport_name), "%s", name);
-	return se_nacl;
-}
-
-static void usbg_drop_nodeacl(struct se_node_acl *se_acl)
-{
-	struct usbg_nacl *nacl = container_of(se_acl,
-				struct usbg_nacl, se_node_acl);
-	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(nacl);
+	if (!usbg_check_wwn(name))
+		return -EINVAL;
+	return 0;
 }
 
 struct usbg_tpg *the_only_tpg_I_currently_have;
@@ -1572,9 +1411,11 @@ static struct se_portal_group *usbg_make_tpg(
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&usbg_fabric_configfs->tf_ops, wwn,
-				&tpg->se_tpg, tpg,
-				TRANSPORT_TPG_TYPE_NORMAL);
+	/*
+	 * SPC doesn't assign a protocol identifier for USB-SCSI, so we
+	 * pretend to be SAS..
+	 */
+	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_SAS);
 	if (ret < 0) {
 		destroy_workqueue(tpg->workqueue);
 		kfree(tpg);
@@ -1864,21 +1705,16 @@ static int usbg_check_stop_free(struct se_cmd *se_cmd)
 	return 1;
 }
 
-static struct target_core_fabric_ops usbg_ops = {
+static const struct target_core_fabric_ops usbg_ops = {
+	.module				= THIS_MODULE,
+	.name				= "usb_gadget",
 	.get_fabric_name		= usbg_get_fabric_name,
-	.get_fabric_proto_ident		= usbg_get_fabric_proto_ident,
 	.tpg_get_wwn			= usbg_get_fabric_wwn,
 	.tpg_get_tag			= usbg_get_tag,
-	.tpg_get_default_depth		= usbg_get_default_depth,
-	.tpg_get_pr_transport_id	= usbg_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= usbg_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= usbg_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= usbg_check_true,
 	.tpg_check_demo_mode_cache	= usbg_check_false,
 	.tpg_check_demo_mode_write_protect = usbg_check_false,
 	.tpg_check_prod_mode_write_protect = usbg_check_false,
-	.tpg_alloc_fabric_acl		= usbg_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= usbg_release_fabric_acl,
 	.tpg_get_inst_index		= usbg_tpg_get_inst_index,
 	.release_cmd			= usbg_release_cmd,
 	.shutdown_session		= usbg_shutdown_session,
@@ -1888,7 +1724,6 @@ static struct target_core_fabric_ops usbg_ops = {
 	.write_pending			= usbg_send_write_request,
 	.write_pending_status		= usbg_write_pending_status,
 	.set_default_node_attributes	= usbg_set_default_node_attrs,
-	.get_task_tag			= usbg_get_task_tag,
 	.get_cmd_state			= usbg_get_cmd_state,
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,
@@ -1902,50 +1737,10 @@ static struct target_core_fabric_ops usbg_ops = {
 	.fabric_drop_tpg		= usbg_drop_tpg,
 	.fabric_post_link		= usbg_port_link,
 	.fabric_pre_unlink		= usbg_port_unlink,
-	.fabric_make_np			= NULL,
-	.fabric_drop_np			= NULL,
-	.fabric_make_nodeacl		= usbg_make_nodeacl,
-	.fabric_drop_nodeacl		= usbg_drop_nodeacl,
-};
+	.fabric_init_nodeacl		= usbg_init_nodeacl,
 
-static int usbg_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-
-	fabric = target_fabric_configfs_init(THIS_MODULE, "usb_gadget");
-	if (IS_ERR(fabric)) {
-		printk(KERN_ERR "target_fabric_configfs_init() failed\n");
-		return PTR_ERR(fabric);
-	}
-
-	fabric->tf_ops = usbg_ops;
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = usbg_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = usbg_base_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		printk(KERN_ERR "target_fabric_configfs_register() failed"
-				" for usb-gadget\n");
-		return ret;
-	}
-	usbg_fabric_configfs = fabric;
-	return 0;
-};
-
-static void usbg_deregister_configfs(void)
-{
-	if (!(usbg_fabric_configfs))
-		return;
-
-	target_fabric_configfs_deregister(usbg_fabric_configfs);
-	usbg_fabric_configfs = NULL;
+	.tfc_wwn_attrs			= usbg_wwn_attrs,
+	.tfc_tpg_base_attrs		= usbg_base_attrs,
 };
 
 /* Start gadget.c code */
@@ -2433,7 +2228,7 @@ static int usb_target_bind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static __refdata struct usb_composite_driver usbg_driver = {
+static struct usb_composite_driver usbg_driver = {
 	.name           = "g_target",
 	.dev            = &usbg_device_desc,
 	.strings        = usbg_strings,
@@ -2454,16 +2249,13 @@ static void usbg_detach(struct usbg_tpg *tpg)
 
 static int __init usb_target_gadget_init(void)
 {
-	int ret;
-
-	ret = usbg_register_configfs();
-	return ret;
+	return target_register_template(&usbg_ops);
 }
 module_init(usb_target_gadget_init);
 
 static void __exit usb_target_gadget_exit(void)
 {
-	usbg_deregister_configfs();
+	target_unregister_template(&usbg_ops);
 }
 module_exit(usb_target_gadget_exit);
 

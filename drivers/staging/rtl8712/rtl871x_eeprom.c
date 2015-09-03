@@ -64,7 +64,7 @@ static void shift_out_bits(struct _adapter *padapter, u16 data, u16 count)
 		udelay(CLOCK_RATE);
 		up_clk(padapter, &x);
 		down_clk(padapter, &x);
-		mask = mask >> 1;
+		mask >>= 1;
 	} while (mask);
 	if (padapter->bSurpriseRemoved == true)
 		goto out;
@@ -83,7 +83,7 @@ static u16 shift_in_bits(struct _adapter *padapter)
 	x &= ~(_EEDO | _EEDI);
 	d = 0;
 	for (i = 0; i < 16; i++) {
-		d = d << 1;
+		d <<= 1;
 		up_clk(padapter, &x);
 		if (padapter->bSurpriseRemoved == true)
 			goto out;

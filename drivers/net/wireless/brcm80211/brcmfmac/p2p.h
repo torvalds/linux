@@ -149,6 +149,7 @@ struct brcmf_p2p_info {
 s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg);
 void brcmf_p2p_detach(struct brcmf_p2p_info *p2p);
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
+				       unsigned char name_assign_type,
 				       enum nl80211_iftype type, u32 *flags,
 				       struct vif_params *params);
 int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev);

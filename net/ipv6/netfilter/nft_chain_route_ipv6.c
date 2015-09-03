@@ -24,9 +24,7 @@
 
 static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
+					const struct nf_hook_state *state)
 {
 	unsigned int ret;
 	struct nft_pktinfo pkt;
@@ -35,7 +33,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	u32 mark, flowlabel;
 
 	/* malformed packet, drop it */
-	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out) < 0)
+	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, state) < 0)
 		return NF_DROP;
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority */

@@ -25,7 +25,6 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
-#include <asm/rtas.h>
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
@@ -250,18 +249,6 @@ static struct smp_ops_t pnv_smp_ops = {
 void __init pnv_smp_init(void)
 {
 	smp_ops = &pnv_smp_ops;
-
-	/* XXX We don't yet have a proper entry point from HAL, for
-	 * now we rely on kexec-style entry from BML
-	 */
-
-#ifdef CONFIG_PPC_RTAS
-	/* Non-lpar has additional take/give timebase */
-	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {
-		smp_ops->give_timebase = rtas_give_timebase;
-		smp_ops->take_timebase = rtas_take_timebase;
-	}
-#endif /* CONFIG_PPC_RTAS */
 
 #ifdef CONFIG_HOTPLUG_CPU
 	ppc_md.cpu_die	= pnv_smp_cpu_kill_self;

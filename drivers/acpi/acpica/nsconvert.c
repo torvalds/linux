@@ -187,8 +187,8 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 		 * Copy the raw buffer data with no transform. String is already NULL
 		 * terminated at Length+1.
 		 */
-		ACPI_MEMCPY(new_object->string.pointer,
-			    original_object->buffer.pointer, length);
+		memcpy(new_object->string.pointer,
+		       original_object->buffer.pointer, length);
 		break;
 
 	default:
@@ -251,9 +251,9 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 			return (AE_NO_MEMORY);
 		}
 
-		ACPI_MEMCPY(new_object->buffer.pointer,
-			    original_object->string.pointer,
-			    original_object->string.length);
+		memcpy(new_object->buffer.pointer,
+		       original_object->string.pointer,
+		       original_object->string.length);
 		break;
 
 	case ACPI_TYPE_PACKAGE:

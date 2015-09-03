@@ -71,7 +71,7 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	rk_obj = rockchip_gem_create_object(dev, size);
+	rk_obj = rockchip_gem_create_object(dev, size, true);
 	if (IS_ERR(rk_obj))
 		return -ENOMEM;
 
@@ -106,7 +106,7 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	fb = helper->fb;
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
+	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	offset = fbi->var.xoffset * bytes_per_pixel;
 	offset += fbi->var.yoffset * fb->pitches[0];
@@ -119,6 +119,9 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	DRM_DEBUG_KMS("FB [%dx%d]-%d kvaddr=%p offset=%ld size=%d\n",
 		      fb->width, fb->height, fb->depth, rk_obj->kvaddr,
 		      offset, size);
+
+	fbi->skip_vt_switch = true;
+
 	return 0;
 
 err_drm_framebuffer_unref:

@@ -2691,8 +2691,6 @@ void __init trap_init(void)
 					       fault_address) ||
 		     TI_KREGS != offsetof(struct thread_info, kregs) ||
 		     TI_UTRAPS != offsetof(struct thread_info, utraps) ||
-		     TI_EXEC_DOMAIN != offsetof(struct thread_info,
-						exec_domain) ||
 		     TI_REG_WINDOW != offsetof(struct thread_info,
 					       reg_window) ||
 		     TI_RWIN_SPTRS != offsetof(struct thread_info,

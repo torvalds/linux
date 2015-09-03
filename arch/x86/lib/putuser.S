@@ -11,7 +11,6 @@
  * return value.
  */
 #include <linux/linkage.h>
-#include <asm/dwarf2.h>
 #include <asm/thread_info.h>
 #include <asm/errno.h>
 #include <asm/asm.h>
@@ -30,11 +29,9 @@
  * as they get called from within inline assembly.
  */
 
-#define ENTER	CFI_STARTPROC ; \
-		GET_THREAD_INFO(%_ASM_BX)
+#define ENTER	GET_THREAD_INFO(%_ASM_BX)
 #define EXIT	ASM_CLAC ;	\
-		ret ;		\
-		CFI_ENDPROC
+		ret
 
 .text
 ENTRY(__put_user_1)
@@ -87,7 +84,6 @@ ENTRY(__put_user_8)
 ENDPROC(__put_user_8)
 
 bad_put_user:
-	CFI_STARTPROC
 	movl $-EFAULT,%eax
 	EXIT
 END(bad_put_user)

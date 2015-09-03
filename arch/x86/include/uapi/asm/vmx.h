@@ -67,6 +67,7 @@
 #define EXIT_REASON_EPT_VIOLATION       48
 #define EXIT_REASON_EPT_MISCONFIG       49
 #define EXIT_REASON_INVEPT              50
+#define EXIT_REASON_RDTSCP              51
 #define EXIT_REASON_PREEMPTION_TIMER    52
 #define EXIT_REASON_INVVPID             53
 #define EXIT_REASON_WBINVD              54

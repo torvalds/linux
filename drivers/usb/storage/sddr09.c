@@ -52,6 +52,9 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
+#include "scsiglue.h"
+
+#define DRV_NAME "ums-sddr09"
 
 MODULE_DESCRIPTION("Driver for SanDisk SDDR-09 SmartMedia reader");
 MODULE_AUTHOR("Andries Brouwer <aeb@cwi.nl>, Robert Baruch <autophile@starband.net>");
@@ -1738,6 +1741,8 @@ usb_stor_sddr09_init(struct us_data *us) {
 	return sddr09_common_init(us);
 }
 
+static struct scsi_host_template sddr09_host_template;
+
 static int sddr09_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1745,7 +1750,8 @@ static int sddr09_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - sddr09_usb_ids) + sddr09_unusual_dev_list);
+			(id - sddr09_usb_ids) + sddr09_unusual_dev_list,
+			&sddr09_host_template);
 	if (result)
 		return result;
 
@@ -1766,7 +1772,7 @@ static int sddr09_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver sddr09_driver = {
-	.name =		"ums-sddr09",
+	.name =		DRV_NAME,
 	.probe =	sddr09_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1779,4 +1785,4 @@ static struct usb_driver sddr09_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(sddr09_driver);
+module_usb_stor_driver(sddr09_driver, sddr09_host_template, DRV_NAME);

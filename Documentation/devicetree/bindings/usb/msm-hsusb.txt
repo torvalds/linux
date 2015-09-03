@@ -69,6 +69,17 @@ Optional properties:
                 (no, min, max) where each value represents either a voltage
                 in microvolts or a value corresponding to voltage corner.
 
+- qcom,manual-pullup: If present, vbus is not routed to USB controller/phy
+                and controller driver therefore enables pull-up explicitly
+                before starting controller using usbcmd run/stop bit.
+
+- extcon:       phandles to external connector devices. First phandle
+                should point to external connector, which provide "USB"
+                cable events, the second should point to external connector
+                device, which provide "USB-HOST" cable events. If one of
+                the external connector devices is not required empty <0>
+                phandle should be specified.
+
 Example HSUSB OTG controller device node:
 
     usb@f9a55000 {

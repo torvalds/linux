@@ -5,7 +5,7 @@ struct nvkm_pll_vals;
 
 struct nv04_devinit_priv {
 	struct nvkm_devinit base;
-	u8 owner;
+	int owner;
 };
 
 int  nv04_devinit_ctor(struct nvkm_object *, struct nvkm_object *,

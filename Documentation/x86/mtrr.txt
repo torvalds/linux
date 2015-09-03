@@ -1,7 +1,19 @@
 MTRR (Memory Type Range Register) control
-3 Jun 1999
-Richard Gooch
-<rgooch@atnf.csiro.au>
+
+Richard Gooch <rgooch@atnf.csiro.au> - 3 Jun 1999
+Luis R. Rodriguez <mcgrof@do-not-panic.com> - April 9, 2015
+
+===============================================================================
+Phasing out MTRR use
+
+MTRR use is replaced on modern x86 hardware with PAT. Over time the only type
+of effective MTRR that is expected to be supported will be for write-combining.
+As MTRR use is phased out device drivers should use arch_phys_wc_add() to make
+MTRR effective on non-PAT systems while a no-op on PAT enabled systems.
+
+For details refer to Documentation/x86/pat.txt.
+
+===============================================================================
 
   On Intel P6 family processors (Pentium Pro, Pentium II and later)
   the Memory Type Range Registers (MTRRs) may be used to control

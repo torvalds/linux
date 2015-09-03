@@ -11,21 +11,6 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
- *
- *	This is shared code between Digi's CVS archive and the
- *	Linux Kernel sources.
- *	Changing the source just for reformatting needlessly breaks
- *	our CVS diff history.
- *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
- *	Thank you.
  */
 
 /************************************************************************
@@ -44,6 +29,7 @@
 #include <linux/ctype.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/types.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/delay.h>	/* For udelay */
@@ -51,23 +37,16 @@
 #include <linux/pci.h>
 #include "dgnc_driver.h"
 #include "dgnc_tty.h"
-#include "dgnc_types.h"
 #include "dgnc_neo.h"
 #include "dgnc_cls.h"
-#include "dpacompat.h"
 #include "dgnc_sysfs.h"
 #include "dgnc_utils.h"
-
-#define init_MUTEX(sem)	 sema_init(sem, 1)
-#define DECLARE_MUTEX(name)     \
-	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
 
 /*
  * internal variables
  */
 static struct dgnc_board	*dgnc_BoardsByMajor[256];
 static unsigned char		*dgnc_TmpWriteBuf;
-static DECLARE_MUTEX(dgnc_TmpWriteSem);
 
 /*
  * Default transparent print information.
@@ -236,7 +215,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 				"Can't register tty device (%d)\n", rc);
 			return rc;
 		}
-		brd->dgnc_Major_Serial_Registered = TRUE;
+		brd->dgnc_Major_Serial_Registered = true;
 	}
 
 	/*
@@ -286,7 +265,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 				rc);
 			return rc;
 		}
-		brd->dgnc_Major_TransparentPrint_Registered = TRUE;
+		brd->dgnc_Major_TransparentPrint_Registered = true;
 	}
 
 	dgnc_BoardsByMajor[brd->SerialDriver.major] = brd;
@@ -320,19 +299,15 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	brd->nasync = brd->maxports;
 
-	/*
-	 * Allocate channel memory that might not have been allocated
-	 * when the driver was first loaded.
-	 */
 	for (i = 0; i < brd->nasync; i++) {
-		if (!brd->channels[i]) {
-
-			/*
-			 * Okay to malloc with GFP_KERNEL, we are not at
-			 * interrupt context, and there are no locks held.
-			 */
-			brd->channels[i] = kzalloc(sizeof(*brd->channels[i]), GFP_KERNEL);
-		}
+		/*
+		 * Okay to malloc with GFP_KERNEL, we are not at
+		 * interrupt context, and there are no locks held.
+		 */
+		brd->channels[i] = kzalloc(sizeof(*brd->channels[i]),
+					   GFP_KERNEL);
+		if (!brd->channels[i])
+			goto err_free_channels;
 	}
 
 	ch = brd->channels[0];
@@ -340,10 +315,6 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	/* Set up channel variables */
 	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i]) {
-
-		if (!brd->channels[i])
-			continue;
-
 		spin_lock_init(&ch->ch_lock);
 
 		/* Store all our magic numbers */
@@ -391,6 +362,13 @@ int dgnc_tty_init(struct dgnc_board *brd)
 	}
 
 	return 0;
+
+err_free_channels:
+	for (i = i - 1; i >= 0; --i) {
+		kfree(brd->channels[i]);
+		brd->channels[i] = NULL;
+	}
+	return -ENOMEM;
 }
 
 
@@ -420,32 +398,37 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 		dgnc_BoardsByMajor[brd->SerialDriver.major] = NULL;
 		brd->dgnc_Serial_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
-			dgnc_remove_tty_sysfs(brd->channels[i]->ch_tun.un_sysfs);
+			if (brd->channels[i])
+				dgnc_remove_tty_sysfs(brd->channels[i]->
+						      ch_tun.un_sysfs);
 			tty_unregister_device(&brd->SerialDriver, i);
 		}
 		tty_unregister_driver(&brd->SerialDriver);
-		brd->dgnc_Major_Serial_Registered = FALSE;
+		brd->dgnc_Major_Serial_Registered = false;
 	}
 
 	if (brd->dgnc_Major_TransparentPrint_Registered) {
 		dgnc_BoardsByMajor[brd->PrintDriver.major] = NULL;
 		brd->dgnc_TransparentPrint_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
-			dgnc_remove_tty_sysfs(brd->channels[i]->ch_pun.un_sysfs);
+			if (brd->channels[i])
+				dgnc_remove_tty_sysfs(brd->channels[i]->
+						      ch_pun.un_sysfs);
 			tty_unregister_device(&brd->PrintDriver, i);
 		}
 		tty_unregister_driver(&brd->PrintDriver);
-		brd->dgnc_Major_TransparentPrint_Registered = FALSE;
+		brd->dgnc_Major_TransparentPrint_Registered = false;
 	}
 
 	kfree(brd->SerialDriver.ttys);
 	brd->SerialDriver.ttys = NULL;
+	kfree(brd->SerialDriver.termios);
+	brd->SerialDriver.termios = NULL;
 	kfree(brd->PrintDriver.ttys);
 	brd->PrintDriver.ttys = NULL;
+	kfree(brd->PrintDriver.termios);
+	brd->PrintDriver.termios = NULL;
 }
-
-
-#define TMPBUFLEN (1024)
 
 /*=======================================================================
  *
@@ -507,7 +490,7 @@ void dgnc_input(struct channel_t *ch)
 {
 	struct dgnc_board *bd;
 	struct tty_struct *tp;
-	struct tty_ldisc *ld;
+	struct tty_ldisc *ld = NULL;
 	uint	rmask;
 	ushort	head;
 	ushort	tail;
@@ -539,10 +522,8 @@ void dgnc_input(struct channel_t *ch)
 	tail = ch->ch_r_tail & rmask;
 	data_len = (head - tail) & rmask;
 
-	if (data_len == 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (data_len == 0)
+		goto exit_unlock;
 
 	/*
 	 * If the device is not open, or CREAD is off,
@@ -556,17 +537,14 @@ void dgnc_input(struct channel_t *ch)
 		/* Force queue flow control to be released, if needed */
 		dgnc_check_queue_flow_control(ch);
 
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
+		goto exit_unlock;
 	}
 
 	/*
 	 * If we are throttled, simply don't read any data.
 	 */
-	if (ch->ch_flags & CH_FORCED_STOPI) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (ch->ch_flags & CH_FORCED_STOPI)
+		goto exit_unlock;
 
 	flip_len = TTY_FLIPBUF_SIZE;
 
@@ -575,15 +553,6 @@ void dgnc_input(struct channel_t *ch)
 	len = min(len, (N_TTY_BUF_SIZE - 1));
 
 	ld = tty_ldisc_ref(tp);
-
-#ifdef TTY_DONT_FLIP
-	/*
-	 * If the DONT_FLIP flag is on, don't flush our buffer, and act
-	 * like the ld doesn't have any space to put the data right now.
-	 */
-	if (test_bit(TTY_DONT_FLIP, &tp->flags))
-		len = 0;
-#endif
 
 	/*
 	 * If we were unable to get a reference to the ld,
@@ -604,12 +573,8 @@ void dgnc_input(struct channel_t *ch)
 		}
 	}
 
-	if (len <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		if (ld)
-			tty_ldisc_deref(ld);
-		return;
-	}
+	if (len <= 0)
+		goto exit_unlock;
 
 	/*
 	 * The tty layer in the kernel has changed in 2.6.16+.
@@ -675,6 +640,12 @@ void dgnc_input(struct channel_t *ch)
 	/* Tell the tty layer its okay to "eat" the data now */
 	tty_flip_buffer_push(tp->port);
 
+	if (ld)
+		tty_ldisc_deref(ld);
+	return;
+
+exit_unlock:
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 	if (ld)
 		tty_ldisc_deref(ld);
 }
@@ -886,10 +857,6 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 				ch->ch_stops_sent++;
 			}
 		}
-		/* No FLOW */
-		else {
-			/* Empty... Can't do anything about the impending overflow... */
-		}
 	}
 
 	/*
@@ -919,10 +886,6 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 		else if (ch->ch_c_iflag & IXOFF && ch->ch_stops_sent) {
 			ch->ch_stops_sent = 0;
 			ch->ch_bd->bd_ops->send_start_character(ch);
-		}
-		/* No FLOW */
-		else {
-			/* Nothing needed. */
 		}
 	}
 }
@@ -1064,7 +1027,7 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	spin_lock_irqsave(&brd->bd_lock, flags);
 
 	/* If opened device is greater than our number of ports, bail. */
-	if (PORT_NUM(minor) > brd->nasync) {
+	if (PORT_NUM(minor) >= brd->nasync) {
 		spin_unlock_irqrestore(&brd->bd_lock, flags);
 		return -ENXIO;
 	}
@@ -1728,7 +1691,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	ushort tail;
 	ushort tmask;
 	uint remain;
-	int from_user = 0;
 
 	if (tty == NULL || dgnc_TmpWriteBuf == NULL)
 		return 0;
@@ -1777,10 +1739,8 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	/*
 	 * Bail if no space left.
 	 */
-	if (count <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return 0;
-	}
+	if (count <= 0)
+		goto exit_retry;
 
 	/*
 	 * Output the printer ON string, if we are in terminal mode, but
@@ -1802,46 +1762,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 			(int) ch->ch_digi.digi_offlen);
 		head = (ch->ch_w_head) & tmask;
 		ch->ch_flags &= ~CH_PRON;
-	}
-
-	/*
-	 * If there is nothing left to copy, or I can't handle any more data, leave.
-	 */
-	if (count <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return 0;
-	}
-
-	if (from_user) {
-
-		count = min(count, WRITEBUFLEN);
-
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-		/*
-		 * If data is coming from user space, copy it into a temporary
-		 * buffer so we don't get swapped out while doing the copy to
-		 * the board.
-		 */
-		/* we're allowed to block if it's from_user */
-		if (down_interruptible(&dgnc_TmpWriteSem))
-			return -EINTR;
-
-		/*
-		 * copy_from_user() returns the number
-		 * of bytes that could *NOT* be copied.
-		 */
-		count -= copy_from_user(dgnc_TmpWriteBuf, (const unsigned char __user *) buf, count);
-
-		if (!count) {
-			up(&dgnc_TmpWriteSem);
-			return -EFAULT;
-		}
-
-		spin_lock_irqsave(&ch->ch_lock, flags);
-
-		buf = dgnc_TmpWriteBuf;
-
 	}
 
 	n = count;
@@ -1880,12 +1800,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
-	if (from_user) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		up(&dgnc_TmpWriteSem);
-	} else {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-	}
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	if (count) {
 		/*
@@ -1896,6 +1811,11 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	}
 
 	return count;
+
+exit_retry:
+
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
+	return 0;
 }
 
 

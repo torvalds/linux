@@ -9,11 +9,7 @@
 #include <uapi/asm/unistd.h>
 
 
-#ifndef CONFIG_64BIT
-#define __IGNORE_select
-#else
 #define __IGNORE_time
-#endif
 
 /* Ignore NUMA system calls. Not wired up on s390. */
 #define __IGNORE_mbind
@@ -43,10 +39,6 @@
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
-# ifndef CONFIG_64BIT
-#   define __ARCH_WANT_STAT64
-#   define __ARCH_WANT_SYS_TIME
-# endif
 # ifdef CONFIG_COMPAT
 #   define __ARCH_WANT_COMPAT_SYS_TIME
 # endif

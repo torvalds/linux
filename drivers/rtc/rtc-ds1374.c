@@ -18,6 +18,8 @@
  * "Sending and receiving", using SMBus level communication is preferred.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -406,7 +408,7 @@ static int ds1374_wdt_settimeout(unsigned int timeout)
 	/* Set new watchdog time */
 	ret = ds1374_write_rtc(save_client, timeout, DS1374_REG_WDALM0, 3);
 	if (ret) {
-		pr_info("rtc-ds1374 - couldn't set new watchdog time\n");
+		pr_info("couldn't set new watchdog time\n");
 		goto out;
 	}
 
@@ -539,12 +541,12 @@ static long ds1374_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
-			pr_info("rtc-ds1374: disable watchdog\n");
+			pr_info("disable watchdog\n");
 			ds1374_wdt_disable();
 		}
 
 		if (options & WDIOS_ENABLECARD) {
-			pr_info("rtc-ds1374: enable watchdog\n");
+			pr_info("enable watchdog\n");
 			ds1374_wdt_settimeout(wdt_margin);
 			ds1374_wdt_ping();
 		}

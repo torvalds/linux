@@ -52,7 +52,7 @@ acpi_read_fast(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 	u32 start = offset & ~0x00000fff;
 	u32 fetch = limit - start;
 
-	if (nvbios_extend(bios, limit) > 0) {
+	if (nvbios_extend(bios, limit) >= 0) {
 		int ret = nouveau_acpi_get_bios_chunk(bios->data, start, fetch);
 		if (ret == fetch)
 			return fetch;
@@ -73,7 +73,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 	u32 start = offset & ~0xfff;
 	u32 fetch = 0;
 
-	if (nvbios_extend(bios, limit) > 0) {
+	if (nvbios_extend(bios, limit) >= 0) {
 		while (start + fetch < limit) {
 			int ret = nouveau_acpi_get_bios_chunk(bios->data,
 							      start + fetch,

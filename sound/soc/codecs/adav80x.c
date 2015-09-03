@@ -539,7 +539,7 @@ static int adav80x_set_sysclk(struct snd_soc_codec *codec,
 			      unsigned int freq, int dir)
 {
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	if (dir == SND_SOC_CLOCK_IN) {
 		switch (clk_id) {
@@ -622,6 +622,7 @@ static int adav80x_set_sysclk(struct snd_soc_codec *codec,
 static int adav80x_set_pll(struct snd_soc_codec *codec, int pll_id,
 		int source, unsigned int freq_in, unsigned int freq_out)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 	unsigned int pll_ctrl1 = 0;
 	unsigned int pll_ctrl2 = 0;
@@ -687,7 +688,7 @@ static int adav80x_set_pll(struct snd_soc_codec *codec, int pll_id,
 
 		adav80x->pll_src = source;
 
-		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_dapm_sync(dapm);
 	}
 
 	return 0;
@@ -714,7 +715,6 @@ static int adav80x_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -801,11 +801,12 @@ static struct snd_soc_dai_driver adav80x_dais[] = {
 
 static int adav80x_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 
 	/* Force PLLs on for SYSCLK output */
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "PLL1");
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "PLL2");
+	snd_soc_dapm_force_enable_pin(dapm, "PLL1");
+	snd_soc_dapm_force_enable_pin(dapm, "PLL2");
 
 	/* Power down S/PDIF receiver, since it is currently not supported */
 	regmap_write(adav80x->regmap, ADAV80X_PLL_OUTE, 0x20);

@@ -71,11 +71,11 @@ SOURCE:
   HDMI/DP	(either HDMI or DisplayPort)
 
 Exceptions (deprecated):
-  [Digital] Capture Source
-  [Digital] Capture Switch	(aka input gain switch)
-  [Digital] Capture Volume	(aka input gain volume)
-  [Digital] Playback Switch	(aka output gain switch)
-  [Digital] Playback Volume	(aka output gain volume)
+  [Analogue|Digital] Capture Source
+  [Analogue|Digital] Capture Switch	(aka input gain switch)
+  [Analogue|Digital] Capture Volume	(aka input gain volume)
+  [Analogue|Digital] Playback Switch	(aka output gain switch)
+  [Analogue|Digital] Playback Volume	(aka output gain volume)
   Tone Control - Switch
   Tone Control - Bass
   Tone Control - Treble

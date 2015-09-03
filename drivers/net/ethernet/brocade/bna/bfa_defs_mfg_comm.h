@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 #ifndef __BFA_DEFS_MFG_COMM_H__
 #define __BFA_DEFS_MFG_COMM_H__
@@ -58,8 +59,6 @@ enum {
 	BFA_MFG_TYPE_INVALID = 0,	 /*!< Invalid card type		*/
 };
 
-#pragma pack(1)
-
 /* Check if Mezz card */
 #define bfa_mfg_is_mezz(type) (( \
 	(type) == BFA_MFG_TYPE_JAYHAWK || \
@@ -76,7 +75,7 @@ enum {
 	CB_GPIO_FC4P2   = (4),		/*!< 4G 2port FC card		*/
 	CB_GPIO_FC4P1   = (5),		/*!< 4G 1port FC card		*/
 	CB_GPIO_DFLY    = (6),		/*!< 8G 2port FC mezzanine card	*/
-	CB_GPIO_PROTO   = (1 << 7)	/*!< 8G 2port FC prototypes	*/
+	CB_GPIO_PROTO   = BIT(7)	/*!< 8G 2port FC prototypes	*/
 };
 
 #define bfa_mfg_adapter_prop_init_gpio(gpio, card_type, prop)	\
@@ -85,7 +84,7 @@ do {								\
 		(prop) |= BFI_ADAPTER_PROTO;			\
 		(gpio) &= ~CB_GPIO_PROTO;			\
 	}							\
-	switch ((gpio)) {					\
+	switch (gpio) {						\
 	case CB_GPIO_TTV:					\
 		(prop) |= BFI_ADAPTER_TTV;			\
 	case CB_GPIO_DFLY:					\
@@ -147,8 +146,6 @@ struct bfa_mfg_vpd {
 	u8	len;		/*!< vpd data length excluding header */
 	u8	rsv;
 	u8		data[BFA_MFG_VPD_LEN];	/*!< vpd data */
-};
-
-#pragma pack()
+} __packed;
 
 #endif /* __BFA_DEFS_MFG_H__ */

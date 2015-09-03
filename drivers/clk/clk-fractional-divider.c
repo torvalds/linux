@@ -36,6 +36,9 @@ static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
 	m = (val & fd->mmask) >> fd->mshift;
 	n = (val & fd->nmask) >> fd->nshift;
 
+	if (!n || !m)
+		return parent_rate;
+
 	ret = (u64)parent_rate * m;
 	do_div(ret, n);
 
@@ -106,10 +109,8 @@ struct clk *clk_register_fractional_divider(struct device *dev,
 	struct clk *clk;
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
-	if (!fd) {
-		dev_err(dev, "could not allocate fractional divider clk\n");
+	if (!fd)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &clk_fractional_divider_ops;

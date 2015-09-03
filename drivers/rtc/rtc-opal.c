@@ -16,8 +16,9 @@
  * along with this program.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DRVNAME		"rtc-opal"
-#define pr_fmt(fmt)	DRVNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/err.h>

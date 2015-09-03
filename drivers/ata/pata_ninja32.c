@@ -122,10 +122,10 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		return rc;
 
 	host->iomap = pcim_iomap_table(dev);
-	rc = pci_set_dma_mask(dev, ATA_DMA_MASK);
+	rc = dma_set_mask(&dev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
-	rc = pci_set_consistent_dma_mask(dev, ATA_DMA_MASK);
+	rc = dma_set_coherent_mask(&dev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 	pci_set_master(dev);

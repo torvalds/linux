@@ -205,7 +205,7 @@ struct mwifiex_pcie_device {
 	const struct mwifiex_pcie_card_reg *reg;
 	u16 blksz_fw_dl;
 	u16 tx_buf_size;
-	bool supports_fw_dump;
+	bool can_dump_fw;
 	bool can_ext_scan;
 };
 
@@ -214,7 +214,7 @@ static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 	.reg            = &mwifiex_reg_8766,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
-	.supports_fw_dump = false,
+	.can_dump_fw = false,
 	.can_ext_scan = true,
 };
 
@@ -223,7 +223,7 @@ static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
 	.reg            = &mwifiex_reg_8897,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
-	.supports_fw_dump = true,
+	.can_dump_fw = true,
 	.can_ext_scan = true,
 };
 

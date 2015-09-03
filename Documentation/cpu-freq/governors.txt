@@ -36,7 +36,7 @@ Contents:
 1. What Is A CPUFreq Governor?
 ==============================
 
-Most cpufreq drivers (in fact, all except one, longrun) or even most
+Most cpufreq drivers (except the intel_pstate and longrun) or even most
 cpu frequency scaling algorithms only offer the CPU to be set to one
 frequency. In order to offer dynamic frequency scaling, the cpufreq
 core must be able to tell these drivers of a "target frequency". So

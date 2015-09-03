@@ -207,18 +207,8 @@ module_param_named(start, synth_apollo.startup, short, S_IRUGO);
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init apollo_init(void)
-{
-	return synth_add(&synth_apollo);
-}
+module_spk_synth(synth_apollo);
 
-static void __exit apollo_exit(void)
-{
-	synth_remove(&synth_apollo);
-}
-
-module_init(apollo_init);
-module_exit(apollo_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for Apollo II synthesizer");

@@ -25,7 +25,7 @@ static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 
 	if (dentry) {
 		struct unix_diag_vfs uv = {
-			.udiag_vfs_ino = dentry->d_inode->i_ino,
+			.udiag_vfs_ino = d_backing_inode(dentry)->i_ino,
 			.udiag_vfs_dev = dentry->d_sb->s_dev,
 		};
 

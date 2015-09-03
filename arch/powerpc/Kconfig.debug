@@ -19,6 +19,14 @@ config PPC_WERROR
 	depends on !PPC_DISABLE_WERROR
 	default y
 
+config STRICT_MM_TYPECHECKS
+	bool "Do extra type checking on mm types"
+	default n
+	help
+	  This option turns on extra type checking for some mm related types.
+
+	  If you don't know what this means, say N.
+
 config PRINT_STACK_DEPTH
 	int "Stack depth to print" if DEBUG_KERNEL
 	default 64
@@ -117,7 +125,7 @@ config BDI_SWITCH
 
 config BOOTX_TEXT
 	bool "Support for early boot text console (BootX or OpenFirmware only)"
-	depends on PPC_OF && PPC_BOOK3S
+	depends on PPC_BOOK3S
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.
@@ -192,13 +200,6 @@ config PPC_EARLY_DEBUG_PAS_REALMODE
 	help
 	  Select this to enable early debugging for PA Semi.
 	  Output will be on UART0.
-
-config PPC_EARLY_DEBUG_BEAT
-	bool "Beat HV Console"
-	depends on PPC_CELLEB
-	select PPC_UDBG_BEAT
-	help
-	  Select this to enable early debugging for Celleb with Beat.
 
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"

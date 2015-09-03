@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include "gcov.h"
 
 static int gcov_events_enabled;
@@ -91,6 +92,12 @@ void __gcov_merge_time_profile(gcov_type *counters, unsigned int n_counters)
 }
 EXPORT_SYMBOL(__gcov_merge_time_profile);
 
+void __gcov_merge_icall_topn(gcov_type *counters, unsigned int n_counters)
+{
+	/* Unused. */
+}
+EXPORT_SYMBOL(__gcov_merge_icall_topn);
+
 /**
  * gcov_enable_events - enable event reporting through gcov_event()
  *
@@ -107,8 +114,10 @@ void gcov_enable_events(void)
 	gcov_events_enabled = 1;
 
 	/* Perform event callback for previously registered entries. */
-	while ((info = gcov_info_next(info)))
+	while ((info = gcov_info_next(info))) {
 		gcov_event(GCOV_ADD, info);
+		cond_resched();
+	}
 
 	mutex_unlock(&gcov_lock);
 }

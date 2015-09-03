@@ -169,12 +169,18 @@
 		clock-names = "sclk";
 	};
 
+	pfc: pfc@e0140200 {
+		compatible = "renesas,pfc-emev2";
+		reg = <0xe0140200 0x100>;
+	};
+
 	gpio0: gpio@e0050000 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050000 0x2c>, <0xe0050040 0x20>;
 		interrupts = <0 67 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 68 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
+		gpio-ranges = <&pfc 0 0 32>;
 		#gpio-cells = <2>;
 		ngpios = <32>;
 		interrupt-controller;
@@ -186,6 +192,7 @@
 		interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 70 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
+		gpio-ranges = <&pfc 0 32 32>;
 		#gpio-cells = <2>;
 		ngpios = <32>;
 		interrupt-controller;
@@ -197,6 +204,7 @@
 		interrupts = <0 71 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 72 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
+		gpio-ranges = <&pfc 0 64 32>;
 		#gpio-cells = <2>;
 		ngpios = <32>;
 		interrupt-controller;
@@ -208,6 +216,7 @@
 		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 74 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
+		gpio-ranges = <&pfc 0 96 32>;
 		#gpio-cells = <2>;
 		ngpios = <32>;
 		interrupt-controller;
@@ -219,6 +228,7 @@
 		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 76 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
+		gpio-ranges = <&pfc 0 128 31>;
 		#gpio-cells = <2>;
 		ngpios = <31>;
 		interrupt-controller;

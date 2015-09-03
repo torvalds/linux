@@ -148,7 +148,7 @@ static void cache_shared_cpu_map_setup(unsigned int cpu,
 
 	if (cpu_data(cpu)->threads_per_core <= 1 &&
 		cpu_data(cpu)->cores_per_socket <= 1) {
-		cpu_set(cpu, this_leaf->shared_cpu_map);
+		cpumask_set_cpu(cpu, &this_leaf->shared_cpu_map);
 		return;
 	}
 
@@ -164,7 +164,7 @@ static void cache_shared_cpu_map_setup(unsigned int cpu,
 			if (cpu_data(cpu)->socket_id == cpu_data(j)->socket_id
 				&& cpu_data(j)->core_id == csi.log1_cid
 				&& cpu_data(j)->thread_id == csi.log1_tid)
-				cpu_set(j, this_leaf->shared_cpu_map);
+				cpumask_set_cpu(j, &this_leaf->shared_cpu_map);
 
 		i++;
 	} while (i < num_shared &&
@@ -177,7 +177,7 @@ static void cache_shared_cpu_map_setup(unsigned int cpu,
 static void cache_shared_cpu_map_setup(unsigned int cpu,
 		struct cache_info * this_leaf)
 {
-	cpu_set(cpu, this_leaf->shared_cpu_map);
+	cpumask_set_cpu(cpu, &this_leaf->shared_cpu_map);
 	return;
 }
 #endif

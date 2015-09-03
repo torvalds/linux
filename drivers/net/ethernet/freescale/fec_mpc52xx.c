@@ -1057,7 +1057,7 @@ static int mpc52xx_fec_of_resume(struct platform_device *op)
 }
 #endif
 
-static struct of_device_id mpc52xx_fec_match[] = {
+static const struct of_device_id mpc52xx_fec_match[] = {
 	{ .compatible = "fsl,mpc5200b-fec", },
 	{ .compatible = "fsl,mpc5200-fec", },
 	{ .compatible = "mpc5200-fec", },

@@ -4,7 +4,7 @@ Required properties:
 
 - compatible: has to be "renesas,irqc-<soctype>", "renesas,irqc" as fallback.
   Examples with soctypes are:
-    - "renesas,irqc-r8a73a4" (R-Mobile AP6)
+    - "renesas,irqc-r8a73a4" (R-Mobile APE6)
     - "renesas,irqc-r8a7790" (R-Car H2)
     - "renesas,irqc-r8a7791" (R-Car M2-W)
     - "renesas,irqc-r8a7792" (R-Car V2H)
@@ -12,6 +12,7 @@ Required properties:
     - "renesas,irqc-r8a7794" (R-Car E2)
 - #interrupt-cells: has to be <2>: an interrupt index and flags, as defined in
   interrupts.txt in this directory
+- clocks: Must contain a reference to the functional clock.
 
 Optional properties:
 
@@ -29,4 +30,5 @@ Example:
 			     <0 1 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 2 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 3 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp4_clks R8A7790_CLK_IRQC>;
 	};

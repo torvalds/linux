@@ -53,6 +53,8 @@ enum otg_fsm_timer {
 	B_SE0_SRP,
 	B_SRP_FAIL,
 	A_WAIT_ENUM,
+	B_DATA_PLS,
+	B_SSEND_SRP,
 
 	NUM_OTG_FSM_TIMERS,
 };

@@ -16,8 +16,26 @@
 
 	ahb {
 		apb {
+			spi0: spi@f0000000 {
+				status = "disabled";
+			};
+
+			mmc1: mmc@f000c000 {
+				status = "disabled";
+			};
+
+			i2c0: i2c@f8010000 {
+				ov2640: camera@0x30 {
+					status = "okay";
+				};
+			};
+
 			macb0: ethernet@f802c000 {
 				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			isi: isi@f8048000 {
 				status = "okay";
 			};
 		};

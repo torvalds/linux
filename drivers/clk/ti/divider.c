@@ -530,8 +530,8 @@ static int __init ti_clk_divider_populate(struct device_node *node,
 	u32 val;
 
 	*reg = ti_clk_get_reg_addr(node, 0);
-	if (!*reg)
-		return -EINVAL;
+	if (IS_ERR(*reg))
+		return PTR_ERR(*reg);
 
 	if (!of_property_read_u32(node, "ti,bit-shift", &val))
 		*shift = val;

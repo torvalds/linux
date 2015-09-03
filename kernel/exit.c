@@ -436,7 +436,7 @@ static void exit_mm(struct task_struct *tsk)
 	mm_update_next_owner(mm);
 	mmput(mm);
 	if (test_thread_flag(TIF_MEMDIE))
-		unmark_oom_victim();
+		exit_oom_victim();
 }
 
 static struct task_struct *find_alive_thread(struct task_struct *p)
@@ -711,10 +711,10 @@ void do_exit(long code)
 			current->comm, task_pid_nr(current),
 			preempt_count());
 
-	acct_update_integrals(tsk);
 	/* sync mm's RSS info before statistics gathering */
 	if (tsk->mm)
 		sync_mm_rss(tsk->mm);
+	acct_update_integrals(tsk);
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
 		hrtimer_cancel(&tsk->signal->real_timer);
@@ -755,8 +755,6 @@ void do_exit(long code)
 	perf_event_exit_task(tsk);
 
 	cgroup_exit(tsk);
-
-	module_put(task_thread_info(tsk)->exec_domain->module);
 
 	/*
 	 * FIXME: do that only when needed, using sched_exit tracepoint

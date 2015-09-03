@@ -210,7 +210,7 @@ static int em_sti_clocksource_enable(struct clocksource *cs)
 
 	ret = em_sti_start(p, USER_CLOCKSOURCE);
 	if (!ret)
-		__clocksource_updatefreq_hz(cs, p->rate);
+		__clocksource_update_freq_hz(cs, p->rate);
 	return ret;
 }
 

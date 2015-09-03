@@ -382,16 +382,16 @@ static void set_dma_cmds(struct fsc_state *state, struct scsi_cmnd *cmd)
 		if (dma_len > 0xffff)
 			panic("mac53c94: scatterlist element >= 64k");
 		total += dma_len;
-		st_le16(&dcmds->req_count, dma_len);
-		st_le16(&dcmds->command, dma_cmd);
-		st_le32(&dcmds->phy_addr, dma_addr);
+		dcmds->req_count = cpu_to_le16(dma_len);
+		dcmds->command = cpu_to_le16(dma_cmd);
+		dcmds->phy_addr = cpu_to_le32(dma_addr);
 		dcmds->xfer_status = 0;
 		++dcmds;
 	}
 
 	dma_cmd += OUTPUT_LAST - OUTPUT_MORE;
-	st_le16(&dcmds[-1].command, dma_cmd);
-	st_le16(&dcmds->command, DBDMA_STOP);
+	dcmds[-1].command = cpu_to_le16(dma_cmd);
+	dcmds->command = cpu_to_le16(DBDMA_STOP);
 	cmd->SCp.this_residual = total;
 }
 
@@ -403,7 +403,6 @@ static struct scsi_host_template mac53c94_template = {
 	.can_queue	= 1,
 	.this_id	= 7,
 	.sg_tablesize	= SG_ALL,
-	.cmd_per_lun	= 1,
 	.use_clustering	= DISABLE_CLUSTERING,
 };
 

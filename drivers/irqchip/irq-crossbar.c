@@ -11,11 +11,12 @@
  */
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/slab.h>
-#include <linux/irqchip/arm-gic.h>
-#include <linux/irqchip/irq-crossbar.h>
+
+#include "irqchip.h"
 
 #define IRQ_FREE	-1
 #define IRQ_RESERVED	-2
@@ -24,6 +25,7 @@
 
 /**
  * struct crossbar_device - crossbar device description
+ * @lock: spinlock serializing access to @irq_map
  * @int_max: maximum number of supported interrupts
  * @safe_map: safe default value to initialize the crossbar
  * @max_crossbar_sources: Maximum number of crossbar sources
@@ -33,6 +35,7 @@
  * @write: register write function pointer
  */
 struct crossbar_device {
+	raw_spinlock_t lock;
 	uint int_max;
 	uint safe_map;
 	uint max_crossbar_sources;
@@ -44,72 +47,101 @@ struct crossbar_device {
 
 static struct crossbar_device *cb;
 
-static inline void crossbar_writel(int irq_no, int cb_no)
+static void crossbar_writel(int irq_no, int cb_no)
 {
 	writel(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
 }
 
-static inline void crossbar_writew(int irq_no, int cb_no)
+static void crossbar_writew(int irq_no, int cb_no)
 {
 	writew(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
 }
 
-static inline void crossbar_writeb(int irq_no, int cb_no)
+static void crossbar_writeb(int irq_no, int cb_no)
 {
 	writeb(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
 }
 
-static inline int get_prev_map_irq(int cb_no)
+static struct irq_chip crossbar_chip = {
+	.name			= "CBAR",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_wake		= irq_chip_set_wake_parent,
+#ifdef CONFIG_SMP
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+#endif
+};
+
+static int allocate_gic_irq(struct irq_domain *domain, unsigned virq,
+			    irq_hw_number_t hwirq)
 {
+	struct of_phandle_args args;
 	int i;
+	int err;
 
-	for (i = cb->int_max - 1; i >= 0; i--)
-		if (cb->irq_map[i] == cb_no)
-			return i;
-
-	return -ENODEV;
-}
-
-static inline int allocate_free_irq(int cb_no)
-{
-	int i;
-
+	raw_spin_lock(&cb->lock);
 	for (i = cb->int_max - 1; i >= 0; i--) {
 		if (cb->irq_map[i] == IRQ_FREE) {
-			cb->irq_map[i] = cb_no;
-			return i;
+			cb->irq_map[i] = hwirq;
+			break;
 		}
 	}
+	raw_spin_unlock(&cb->lock);
 
-	return -ENODEV;
+	if (i < 0)
+		return -ENODEV;
+
+	args.np = domain->parent->of_node;
+	args.args_count = 3;
+	args.args[0] = 0;	/* SPI */
+	args.args[1] = i;
+	args.args[2] = IRQ_TYPE_LEVEL_HIGH;
+
+	err = irq_domain_alloc_irqs_parent(domain, virq, 1, &args);
+	if (err)
+		cb->irq_map[i] = IRQ_FREE;
+	else
+		cb->write(i, hwirq);
+
+	return err;
 }
 
-static inline bool needs_crossbar_write(irq_hw_number_t hw)
+static int crossbar_domain_alloc(struct irq_domain *d, unsigned int virq,
+				 unsigned int nr_irqs, void *data)
 {
-	int cb_no;
+	struct of_phandle_args *args = data;
+	irq_hw_number_t hwirq;
+	int i;
 
-	if (hw > GIC_IRQ_START) {
-		cb_no = cb->irq_map[hw - GIC_IRQ_START];
-		if (cb_no != IRQ_RESERVED && cb_no != IRQ_SKIP)
-			return true;
+	if (args->args_count != 3)
+		return -EINVAL;	/* Not GIC compliant */
+	if (args->args[0] != 0)
+		return -EINVAL;	/* No PPI should point to this domain */
+
+	hwirq = args->args[1];
+	if ((hwirq + nr_irqs) > cb->max_crossbar_sources)
+		return -EINVAL;	/* Can't deal with this */
+
+	for (i = 0; i < nr_irqs; i++) {
+		int err = allocate_gic_irq(d, virq + i, hwirq + i);
+
+		if (err)
+			return err;
+
+		irq_domain_set_hwirq_and_chip(d, virq + i, hwirq + i,
+					      &crossbar_chip, NULL);
 	}
-
-	return false;
-}
-
-static int crossbar_domain_map(struct irq_domain *d, unsigned int irq,
-			       irq_hw_number_t hw)
-{
-	if (needs_crossbar_write(hw))
-		cb->write(hw - GIC_IRQ_START, cb->irq_map[hw - GIC_IRQ_START]);
 
 	return 0;
 }
 
 /**
- * crossbar_domain_unmap - unmap a crossbar<->irq connection
- * @d: domain of irq to unmap
- * @irq: virq number
+ * crossbar_domain_free - unmap/free a crossbar<->irq connection
+ * @domain: domain of irq to unmap
+ * @virq: virq number
+ * @nr_irqs: number of irqs to free
  *
  * We do not maintain a use count of total number of map/unmap
  * calls for a particular irq to find out if a irq can be really
@@ -117,14 +149,20 @@ static int crossbar_domain_map(struct irq_domain *d, unsigned int irq,
  * after which irq is anyways unusable. So an explicit map has to be called
  * after that.
  */
-static void crossbar_domain_unmap(struct irq_domain *d, unsigned int irq)
+static void crossbar_domain_free(struct irq_domain *domain, unsigned int virq,
+				 unsigned int nr_irqs)
 {
-	irq_hw_number_t hw = irq_get_irq_data(irq)->hwirq;
+	int i;
 
-	if (needs_crossbar_write(hw)) {
-		cb->irq_map[hw - GIC_IRQ_START] = IRQ_FREE;
-		cb->write(hw - GIC_IRQ_START, cb->safe_map);
+	raw_spin_lock(&cb->lock);
+	for (i = 0; i < nr_irqs; i++) {
+		struct irq_data *d = irq_domain_get_irq_data(domain, virq + i);
+
+		irq_domain_reset_irq_data(d);
+		cb->irq_map[d->hwirq] = IRQ_FREE;
+		cb->write(d->hwirq, cb->safe_map);
 	}
+	raw_spin_unlock(&cb->lock);
 }
 
 static int crossbar_domain_xlate(struct irq_domain *d,
@@ -133,44 +171,22 @@ static int crossbar_domain_xlate(struct irq_domain *d,
 				 unsigned long *out_hwirq,
 				 unsigned int *out_type)
 {
-	int ret;
-	int req_num = intspec[1];
-	int direct_map_num;
+	if (d->of_node != controller)
+		return -EINVAL;	/* Shouldn't happen, really... */
+	if (intsize != 3)
+		return -EINVAL;	/* Not GIC compliant */
+	if (intspec[0] != 0)
+		return -EINVAL;	/* No PPI should point to this domain */
 
-	if (req_num >= cb->max_crossbar_sources) {
-		direct_map_num = req_num - cb->max_crossbar_sources;
-		if (direct_map_num < cb->int_max) {
-			ret = cb->irq_map[direct_map_num];
-			if (ret == IRQ_RESERVED || ret == IRQ_SKIP) {
-				/* We use the interrupt num as h/w irq num */
-				ret = direct_map_num;
-				goto found;
-			}
-		}
-
-		pr_err("%s: requested crossbar number %d > max %d\n",
-		       __func__, req_num, cb->max_crossbar_sources);
-		return -EINVAL;
-	}
-
-	ret = get_prev_map_irq(req_num);
-	if (ret >= 0)
-		goto found;
-
-	ret = allocate_free_irq(req_num);
-
-	if (ret < 0)
-		return ret;
-
-found:
-	*out_hwirq = ret + GIC_IRQ_START;
+	*out_hwirq = intspec[1];
+	*out_type = intspec[2];
 	return 0;
 }
 
-static const struct irq_domain_ops routable_irq_domain_ops = {
-	.map = crossbar_domain_map,
-	.unmap = crossbar_domain_unmap,
-	.xlate = crossbar_domain_xlate
+static const struct irq_domain_ops crossbar_domain_ops = {
+	.alloc	= crossbar_domain_alloc,
+	.free	= crossbar_domain_free,
+	.xlate	= crossbar_domain_xlate,
 };
 
 static int __init crossbar_of_init(struct device_node *node)
@@ -293,7 +309,8 @@ static int __init crossbar_of_init(struct device_node *node)
 		cb->write(i, cb->safe_map);
 	}
 
-	register_routable_domain_ops(&routable_irq_domain_ops);
+	raw_spin_lock_init(&cb->lock);
+
 	return 0;
 
 err_reg_offset:
@@ -309,18 +326,37 @@ err_cb:
 	return ret;
 }
 
-static const struct of_device_id crossbar_match[] __initconst = {
-	{ .compatible = "ti,irq-crossbar" },
-	{}
-};
-
-int __init irqcrossbar_init(void)
+static int __init irqcrossbar_init(struct device_node *node,
+				   struct device_node *parent)
 {
-	struct device_node *np;
-	np = of_find_matching_node(NULL, crossbar_match);
-	if (!np)
-		return -ENODEV;
+	struct irq_domain *parent_domain, *domain;
+	int err;
 
-	crossbar_of_init(np);
+	if (!parent) {
+		pr_err("%s: no parent, giving up\n", node->full_name);
+		return -ENODEV;
+	}
+
+	parent_domain = irq_find_host(parent);
+	if (!parent_domain) {
+		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		return -ENXIO;
+	}
+
+	err = crossbar_of_init(node);
+	if (err)
+		return err;
+
+	domain = irq_domain_add_hierarchy(parent_domain, 0,
+					  cb->max_crossbar_sources,
+					  node, &crossbar_domain_ops,
+					  NULL);
+	if (!domain) {
+		pr_err("%s: failed to allocated domain\n", node->full_name);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
+
+IRQCHIP_DECLARE(ti_irqcrossbar, "ti,irq-crossbar", irqcrossbar_init);

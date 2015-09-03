@@ -29,10 +29,10 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-static const char *palmas_extcon_cable[] = {
-	[0] = "USB",
-	[1] = "USB-HOST",
-	NULL,
+static const unsigned int palmas_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
 };
 
 static const int mutually_exclusive[] = {0x3, 0x0};
@@ -49,6 +49,7 @@ static void palmas_usb_wakeup(struct palmas *palmas, int enable)
 static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 {
 	struct palmas_usb *palmas_usb = _palmas_usb;
+	struct extcon_dev *edev = palmas_usb->edev;
 	unsigned int vbus_line_state;
 
 	palmas_read(palmas_usb->palmas, PALMAS_INTERRUPT_BASE,
@@ -57,7 +58,7 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 	if (vbus_line_state & PALMAS_INT3_LINE_STATE_VBUS) {
 		if (palmas_usb->linkstat != PALMAS_USB_STATE_VBUS) {
 			palmas_usb->linkstat = PALMAS_USB_STATE_VBUS;
-			extcon_set_cable_state(palmas_usb->edev, "USB", true);
+			extcon_set_cable_state_(edev, EXTCON_USB, true);
 			dev_info(palmas_usb->dev, "USB cable is attached\n");
 		} else {
 			dev_dbg(palmas_usb->dev,
@@ -66,7 +67,7 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 	} else if (!(vbus_line_state & PALMAS_INT3_LINE_STATE_VBUS)) {
 		if (palmas_usb->linkstat == PALMAS_USB_STATE_VBUS) {
 			palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-			extcon_set_cable_state(palmas_usb->edev, "USB", false);
+			extcon_set_cable_state_(edev, EXTCON_USB, false);
 			dev_info(palmas_usb->dev, "USB cable is detached\n");
 		} else {
 			dev_dbg(palmas_usb->dev,
@@ -81,6 +82,7 @@ static irqreturn_t palmas_id_irq_handler(int irq, void *_palmas_usb)
 {
 	unsigned int set, id_src;
 	struct palmas_usb *palmas_usb = _palmas_usb;
+	struct extcon_dev *edev = palmas_usb->edev;
 
 	palmas_read(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 		PALMAS_USB_ID_INT_LATCH_SET, &set);
@@ -93,7 +95,7 @@ static irqreturn_t palmas_id_irq_handler(int irq, void *_palmas_usb)
 			PALMAS_USB_ID_INT_LATCH_CLR,
 			PALMAS_USB_ID_INT_EN_HI_CLR_ID_GND);
 		palmas_usb->linkstat = PALMAS_USB_STATE_ID;
-		extcon_set_cable_state(palmas_usb->edev, "USB-HOST", true);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
 		dev_info(palmas_usb->dev, "USB-HOST cable is attached\n");
 	} else if ((set & PALMAS_USB_ID_INT_SRC_ID_FLOAT) &&
 				(id_src & PALMAS_USB_ID_INT_SRC_ID_FLOAT)) {
@@ -101,17 +103,17 @@ static irqreturn_t palmas_id_irq_handler(int irq, void *_palmas_usb)
 			PALMAS_USB_ID_INT_LATCH_CLR,
 			PALMAS_USB_ID_INT_EN_HI_CLR_ID_FLOAT);
 		palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-		extcon_set_cable_state(palmas_usb->edev, "USB-HOST", false);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, false);
 		dev_info(palmas_usb->dev, "USB-HOST cable is detached\n");
 	} else if ((palmas_usb->linkstat == PALMAS_USB_STATE_ID) &&
 				(!(set & PALMAS_USB_ID_INT_SRC_ID_GND))) {
 		palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-		extcon_set_cable_state(palmas_usb->edev, "USB-HOST", false);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, false);
 		dev_info(palmas_usb->dev, "USB-HOST cable is detached\n");
 	} else if ((palmas_usb->linkstat == PALMAS_USB_STATE_DISCONNECT) &&
 				(id_src & PALMAS_USB_ID_INT_SRC_ID_GND)) {
 		palmas_usb->linkstat = PALMAS_USB_STATE_ID;
-		extcon_set_cable_state(palmas_usb->edev, "USB-HOST", true);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
 		dev_info(palmas_usb->dev, " USB-HOST cable is attached\n");
 	}
 
@@ -193,7 +195,6 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
-	palmas_usb->edev->name = kstrdup(node->name, GFP_KERNEL);
 	palmas_usb->edev->mutually_exclusive = mutually_exclusive;
 
 	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);

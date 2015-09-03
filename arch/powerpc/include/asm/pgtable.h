@@ -247,28 +247,16 @@ extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 #define pmd_large(pmd)		0
 #define has_transparent_hugepage() 0
 #endif
-pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 				 unsigned *shift);
-
-static inline pte_t *lookup_linux_ptep(pgd_t *pgdir, unsigned long hva,
-				     unsigned long *pte_sizep)
+static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+					       unsigned *shift)
 {
-	pte_t *ptep;
-	unsigned long ps = *pte_sizep;
-	unsigned int shift;
-
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift);
-	if (!ptep)
-		return NULL;
-	if (shift)
-		*pte_sizep = 1ul << shift;
-	else
-		*pte_sizep = PAGE_SIZE;
-
-	if (ps > *pte_sizep)
-		return NULL;
-
-	return ptep;
+	if (!arch_irqs_disabled()) {
+		pr_info("%s called with irq enabled\n", __func__);
+		dump_stack();
+	}
+	return __find_linux_pte_or_hugepte(pgdir, ea, shift);
 }
 #endif /* __ASSEMBLY__ */
 

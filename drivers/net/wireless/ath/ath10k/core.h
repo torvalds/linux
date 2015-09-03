@@ -35,6 +35,7 @@
 #include "../dfs_pattern_detector.h"
 #include "spectral.h"
 #include "thermal.h"
+#include "wow.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -43,15 +44,16 @@
 #define ATH10K_SCAN_ID 0
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5*HZ)
-#define ATH10K_NUM_CHANS 38
+#define ATH10K_CONNECTION_LOSS_HZ (3*HZ)
+#define ATH10K_NUM_CHANS 39
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
-/* number of failed packets */
-#define ATH10K_KICKOUT_THRESHOLD 50
+/* number of failed packets (20 packets with 16 sw reties each) */
+#define ATH10K_KICKOUT_THRESHOLD (20 * 16)
 
 /*
  * Use insanely high numbers to make sure that the firmware implementation
@@ -82,6 +84,8 @@ struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	u8 eid;
 	u8 vdev_id;
+	enum ath10k_hw_txrx_mode txmode;
+	bool is_protected;
 
 	struct {
 		u8 tid;
@@ -159,6 +163,25 @@ struct ath10k_fw_stats_peer {
 	u32 peer_rx_rate; /* 10x only */
 };
 
+struct ath10k_fw_stats_vdev {
+	struct list_head list;
+
+	u32 vdev_id;
+	u32 beacon_snr;
+	u32 data_snr;
+	u32 num_tx_frames[4];
+	u32 num_rx_frames;
+	u32 num_tx_frames_retries[4];
+	u32 num_tx_frames_failures[4];
+	u32 num_rts_fail;
+	u32 num_rts_success;
+	u32 num_rx_err;
+	u32 num_rx_discard;
+	u32 num_tx_not_acked;
+	u32 tx_rate_history[10];
+	u32 beacon_rssi_history[10];
+};
+
 struct ath10k_fw_stats_pdev {
 	struct list_head list;
 
@@ -220,6 +243,7 @@ struct ath10k_fw_stats_pdev {
 
 struct ath10k_fw_stats {
 	struct list_head pdevs;
+	struct list_head vdevs;
 	struct list_head peers;
 };
 
@@ -281,6 +305,7 @@ struct ath10k_vif {
 	enum ath10k_beacon_state beacon_state;
 	void *beacon_buf;
 	dma_addr_t beacon_paddr;
+	unsigned long tx_paused; /* arbitrary values defined by target */
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
@@ -288,6 +313,7 @@ struct ath10k_vif {
 	bool is_started;
 	bool is_up;
 	bool spectral_enabled;
+	bool ps;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
@@ -313,13 +339,13 @@ struct ath10k_vif {
 		} ap;
 	} u;
 
-	u8 fixed_rate;
-	u8 fixed_nss;
-	u8 force_sgi;
 	bool use_cts_prot;
 	int num_legacy_stations;
 	int txpower;
 	struct wmi_wmm_params_all_arg wmm_params;
+	struct work_struct ap_csa_work;
+	struct delayed_work connection_loss_work;
+	struct cfg80211_bitrate_mask bitrate_mask;
 };
 
 struct ath10k_vif_iter {
@@ -413,6 +439,29 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_WMI_10_2 = 4,
 
+	/* Some firmware revisions lack proper multi-interface client powersave
+	 * implementation. Enabling PS could result in connection drops,
+	 * traffic stalls, etc.
+	 */
+	ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT = 5,
+
+	/* Some firmware revisions have an incomplete WoWLAN implementation
+	 * despite WMI service bit being advertised. This feature flag is used
+	 * to distinguish whether WoWLAN is really supported or not.
+	 */
+	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
+
+	/* Don't trust error code from otp.bin */
+	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT,
+
+	/* Some firmware revisions pad 4th hw address to 4 byte boundary making
+	 * it 8 bytes long in Native Wifi Rx decap.
+	 */
+	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
+
+	/* Firmware supports bypassing PLL setting on init. */
+	ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT = 9,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -471,6 +520,11 @@ static inline const char *ath10k_scan_state_str(enum ath10k_scan_state state)
 	return "unknown";
 }
 
+enum ath10k_tx_pause_reason {
+	ATH10K_TX_PAUSE_Q_FULL,
+	ATH10K_TX_PAUSE_MAX,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -484,12 +538,15 @@ struct ath10k {
 	u32 fw_version_minor;
 	u16 fw_version_release;
 	u16 fw_version_build;
+	u32 fw_stats_req_mask;
 	u32 phy_capability;
 	u32 hw_min_tx_power;
 	u32 hw_max_tx_power;
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
+	/* protected by conf_mutex */
+	bool ani_enabled;
 
 	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
@@ -514,6 +571,13 @@ struct ath10k {
 		u32 patch_load_addr;
 		int uart_pin;
 
+		/* This is true if given HW chip has a quirky Cycle Counter
+		 * wraparound which resets to 0x7fffffff instead of 0. All
+		 * other CC related counters (e.g. Rx Clear Count) are divided
+		 * by 2 so they never wraparound themselves.
+		 */
+		bool has_shifted_cc_wraparound;
+
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;
@@ -537,6 +601,9 @@ struct ath10k {
 	size_t firmware_len;
 
 	const struct firmware *cal_file;
+
+	char spec_board_id[100];
+	bool spec_board_loaded;
 
 	int fw_api;
 	enum ath10k_cal_mode cal_mode;
@@ -566,6 +633,7 @@ struct ath10k {
 	struct cfg80211_chan_def chandef;
 
 	unsigned long long free_vdev_map;
+	struct ath10k_vif *monitor_arvif;
 	bool monitor;
 	int monitor_vdev_id;
 	bool monitor_started;
@@ -606,6 +674,7 @@ struct ath10k {
 	int max_num_peers;
 	int max_num_stations;
 	int max_num_vdevs;
+	int max_num_tdls_vdevs;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
@@ -626,7 +695,17 @@ struct ath10k {
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
 
+	/* Channel info events are expected to come in pairs without and with
+	 * COMPLETE flag set respectively for each channel visit during scan.
+	 *
+	 * However there are deviations from this rule. This flag is used to
+	 * avoid reporting garbage data.
+	 */
+	bool ch_info_can_report_survey;
+
 	struct dfs_pattern_detector *dfs_detector;
+
+	unsigned long tx_paused; /* see ATH10K_TX_PAUSE_ */
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
@@ -659,6 +738,7 @@ struct ath10k {
 	} stats;
 
 	struct ath10k_thermal thermal;
+	struct ath10k_wow wow;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

@@ -151,6 +151,17 @@ enum {
 	UBI_BAD_FASTMAP,
 };
 
+/*
+ * Flags for emulate_power_cut in ubi_debug_info
+ *
+ * POWER_CUT_EC_WRITE: Emulate a power cut when writing an EC header
+ * POWER_CUT_VID_WRITE: Emulate a power cut when writing a VID header
+ */
+enum {
+	POWER_CUT_EC_WRITE = 0x01,
+	POWER_CUT_VID_WRITE = 0x02,
+};
+
 /**
  * struct ubi_wl_entry - wear-leveling entry.
  * @u.rb: link in the corresponding (free/used) RB-tree
@@ -356,30 +367,48 @@ struct ubi_wl_entry;
  *
  * @chk_gen: if UBI general extra checks are enabled
  * @chk_io: if UBI I/O extra checks are enabled
+ * @chk_fastmap: if UBI fastmap extra checks are enabled
  * @disable_bgt: disable the background task for testing purposes
  * @emulate_bitflips: emulate bit-flips for testing purposes
  * @emulate_io_failures: emulate write/erase failures for testing purposes
+ * @emulate_power_cut: emulate power cut for testing purposes
+ * @power_cut_counter: count down for writes left until emulated power cut
+ * @power_cut_min: minimum number of writes before emulating a power cut
+ * @power_cut_max: maximum number of writes until emulating a power cut
  * @dfs_dir_name: name of debugfs directory containing files of this UBI device
  * @dfs_dir: direntry object of the UBI device debugfs directory
  * @dfs_chk_gen: debugfs knob to enable UBI general extra checks
  * @dfs_chk_io: debugfs knob to enable UBI I/O extra checks
+ * @dfs_chk_fastmap: debugfs knob to enable UBI fastmap extra checks
  * @dfs_disable_bgt: debugfs knob to disable the background task
  * @dfs_emulate_bitflips: debugfs knob to emulate bit-flips
  * @dfs_emulate_io_failures: debugfs knob to emulate write/erase failures
+ * @dfs_emulate_power_cut: debugfs knob to emulate power cuts
+ * @dfs_power_cut_min: debugfs knob for minimum writes before power cut
+ * @dfs_power_cut_max: debugfs knob for maximum writes until power cut
  */
 struct ubi_debug_info {
 	unsigned int chk_gen:1;
 	unsigned int chk_io:1;
+	unsigned int chk_fastmap:1;
 	unsigned int disable_bgt:1;
 	unsigned int emulate_bitflips:1;
 	unsigned int emulate_io_failures:1;
+	unsigned int emulate_power_cut:2;
+	unsigned int power_cut_counter;
+	unsigned int power_cut_min;
+	unsigned int power_cut_max;
 	char dfs_dir_name[UBI_DFS_DIR_LEN + 1];
 	struct dentry *dfs_dir;
 	struct dentry *dfs_chk_gen;
 	struct dentry *dfs_chk_io;
+	struct dentry *dfs_chk_fastmap;
 	struct dentry *dfs_disable_bgt;
 	struct dentry *dfs_emulate_bitflips;
 	struct dentry *dfs_emulate_io_failures;
+	struct dentry *dfs_emulate_power_cut;
+	struct dentry *dfs_power_cut_min;
+	struct dentry *dfs_power_cut_max;
 };
 
 /**
@@ -426,11 +455,13 @@ struct ubi_debug_info {
  * @fm_pool: in-memory data structure of the fastmap pool
  * @fm_wl_pool: in-memory data structure of the fastmap pool used by the WL
  *		sub-system
- * @fm_mutex: serializes ubi_update_fastmap() and protects @fm_buf
+ * @fm_protect: serializes ubi_update_fastmap(), protects @fm_buf and makes sure
+ * that critical sections cannot be interrupted by ubi_update_fastmap()
  * @fm_buf: vmalloc()'d buffer which holds the raw fastmap
  * @fm_size: fastmap size in bytes
- * @fm_sem: allows ubi_update_fastmap() to block EBA table changes
+ * @fm_eba_sem: allows ubi_update_fastmap() to block EBA table changes
  * @fm_work: fastmap work queue
+ * @fm_work_scheduled: non-zero if fastmap work was scheduled
  *
  * @used: RB-tree of used physical eraseblocks
  * @erroneous: RB-tree of erroneous used physical eraseblocks
@@ -442,7 +473,8 @@ struct ubi_debug_info {
  * @pq_head: protection queue head
  * @wl_lock: protects the @used, @free, @pq, @pq_head, @lookuptbl, @move_from,
  *	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
- *	     @erroneous, and @erroneous_peb_count fields
+ *	     @erroneous, @erroneous_peb_count, @fm_work_scheduled, @fm_pool,
+ *	     and @fm_wl_pool fields
  * @move_mutex: serializes eraseblock moves
  * @work_sem: used to wait for all the scheduled works to finish and prevent
  * new works from being submitted
@@ -479,7 +511,7 @@ struct ubi_debug_info {
  * @vid_hdr_offset: starting offset of the volume identifier header (might be
  *                  unaligned)
  * @vid_hdr_aloffset: starting offset of the VID header aligned to
- * @hdrs_min_io_size
+ *                    @hdrs_min_io_size
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  *               not
@@ -532,11 +564,12 @@ struct ubi_device {
 	struct ubi_fastmap_layout *fm;
 	struct ubi_fm_pool fm_pool;
 	struct ubi_fm_pool fm_wl_pool;
-	struct rw_semaphore fm_sem;
-	struct mutex fm_mutex;
+	struct rw_semaphore fm_eba_sem;
+	struct rw_semaphore fm_protect;
 	void *fm_buf;
 	size_t fm_size;
 	struct work_struct fm_work;
+	int fm_work_scheduled;
 
 	/* Wear-leveling sub-system's stuff */
 	struct rb_root used;
@@ -742,7 +775,7 @@ extern struct kmem_cache *ubi_wl_entry_slab;
 extern const struct file_operations ubi_ctrl_cdev_operations;
 extern const struct file_operations ubi_cdev_operations;
 extern const struct file_operations ubi_vol_cdev_operations;
-extern struct class *ubi_class;
+extern struct class ubi_class;
 extern struct mutex ubi_devices_mutex;
 extern struct blocking_notifier_head ubi_notifiers;
 
@@ -868,10 +901,14 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 		      int pnum, const struct ubi_vid_hdr *vid_hdr);
 
 /* fastmap.c */
+#ifdef CONFIG_MTD_UBI_FASTMAP
 size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		     int fm_anchor);
+#else
+static inline int ubi_update_fastmap(struct ubi_device *ubi) { return 0; }
+#endif
 
 /* block.c */
 #ifdef CONFIG_MTD_UBI_BLOCK
@@ -892,6 +929,42 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
 }
 #endif
 
+/*
+ * ubi_for_each_free_peb - walk the UBI free RB tree.
+ * @ubi: UBI device description object
+ * @e: a pointer to a ubi_wl_entry to use as cursor
+ * @pos: a pointer to RB-tree entry type to use as a loop counter
+ */
+#define ubi_for_each_free_peb(ubi, e, tmp_rb)	\
+	ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->free, u.rb)
+
+/*
+ * ubi_for_each_used_peb - walk the UBI used RB tree.
+ * @ubi: UBI device description object
+ * @e: a pointer to a ubi_wl_entry to use as cursor
+ * @pos: a pointer to RB-tree entry type to use as a loop counter
+ */
+#define ubi_for_each_used_peb(ubi, e, tmp_rb)	\
+	ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->used, u.rb)
+
+/*
+ * ubi_for_each_scub_peb - walk the UBI scub RB tree.
+ * @ubi: UBI device description object
+ * @e: a pointer to a ubi_wl_entry to use as cursor
+ * @pos: a pointer to RB-tree entry type to use as a loop counter
+ */
+#define ubi_for_each_scrub_peb(ubi, e, tmp_rb)	\
+	ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->scrub, u.rb)
+
+/*
+ * ubi_for_each_protected_peb - walk the UBI protection queue.
+ * @ubi: UBI device description object
+ * @i: a integer used as counter
+ * @e: a pointer to a ubi_wl_entry to use as cursor
+ */
+#define ubi_for_each_protected_peb(ubi, i, e)	\
+	for ((i) = 0; (i) < UBI_PROT_QUEUE_LEN; (i)++)	\
+		list_for_each_entry((e), &(ubi->pq[(i)]), u.list)
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.

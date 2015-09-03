@@ -84,7 +84,6 @@
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 
 #include <linux/firmware.h>
 #include <linux/types.h>
@@ -99,8 +98,7 @@
 #include "slic.h"
 
 static uint slic_first_init = 1;
-static char *slic_banner = "Alacritech SLIC Technology(tm) Server "
-		"and Storage Accelerator (Non-Accelerated)";
+static char *slic_banner = "Alacritech SLIC Technology(tm) Server and Storage Accelerator (Non-Accelerated)";
 
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 
@@ -146,17 +144,14 @@ static inline void slic_reg64_write(struct adapter *adapter, void __iomem *reg,
 				    u32 value, void __iomem *regh, u32 paddrh,
 				    bool flush)
 {
-	spin_lock_irqsave(&adapter->bit64reglock.lock,
-				adapter->bit64reglock.flags);
-	if (paddrh != adapter->curaddrupper) {
-		adapter->curaddrupper = paddrh;
-		writel(paddrh, regh);
-	}
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->bit64reglock, flags);
+	writel(paddrh, regh);
 	writel(value, reg);
 	if (flush)
 		mb();
-	spin_unlock_irqrestore(&adapter->bit64reglock.lock,
-				adapter->bit64reglock.flags);
+	spin_unlock_irqrestore(&adapter->bit64reglock, flags);
 }
 
 static void slic_mcast_set_bit(struct adapter *adapter, char *address)
@@ -166,7 +161,7 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 	/* Get the CRC polynomial for the mac address */
 	/* we use bits 1-8 (lsb), bitwise reversed,
 	 * msb (= lsb bit 0 before bitrev) is automatically discarded */
-	crcpoly = (ether_crc(ETH_ALEN, address)>>23);
+	crcpoly = ether_crc(ETH_ALEN, address)>>23;
 
 	/* We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
@@ -938,9 +933,10 @@ static int slic_upr_request(struct adapter *adapter,
 		     u32 upr_data_h,
 		     u32 upr_buffer, u32 upr_buffer_h)
 {
+	unsigned long flags;
 	int rc;
 
-	spin_lock_irqsave(&adapter->upr_lock.lock, adapter->upr_lock.flags);
+	spin_lock_irqsave(&adapter->upr_lock, flags);
 	rc = slic_upr_queue_request(adapter,
 					upr_request,
 					upr_data,
@@ -950,8 +946,7 @@ static int slic_upr_request(struct adapter *adapter,
 
 	slic_upr_start(adapter);
 err_unlock_irq:
-	spin_unlock_irqrestore(&adapter->upr_lock.lock,
-				adapter->upr_lock.flags);
+	spin_unlock_irqrestore(&adapter->upr_lock, flags);
 	return rc;
 }
 
@@ -1031,12 +1026,12 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 {
 	struct sliccard *card = adapter->card;
 	struct slic_upr *upr;
+	unsigned long flags;
 
-	spin_lock_irqsave(&adapter->upr_lock.lock, adapter->upr_lock.flags);
+	spin_lock_irqsave(&adapter->upr_lock, flags);
 	upr = adapter->upr_list;
 	if (!upr) {
-		spin_unlock_irqrestore(&adapter->upr_lock.lock,
-					adapter->upr_lock.flags);
+		spin_unlock_irqrestore(&adapter->upr_lock, flags);
 		return;
 	}
 	adapter->upr_list = upr->next;
@@ -1129,8 +1124,7 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 	}
 	kfree(upr);
 	slic_upr_start(adapter);
-	spin_unlock_irqrestore(&adapter->upr_lock.lock,
-				adapter->upr_lock.flags);
+	spin_unlock_irqrestore(&adapter->upr_lock, flags);
 }
 
 static int slic_config_get(struct adapter *adapter, u32 config, u32 config_h)
@@ -1312,6 +1306,7 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 	u32 phys_addrl;
 	u32 phys_addrh;
 	struct slic_handle *pslic_handle;
+	unsigned long flags;
 
 	cmdaddr = page;
 	cmd = (struct slic_hostcmd *)cmdaddr;
@@ -1326,12 +1321,10 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 	while ((cmdcnt < SLIC_CMDQ_CMDSINPAGE) &&
 	       (adapter->slic_handle_ix < 256)) {
 		/* Allocate and initialize a SLIC_HANDLE for this command */
-		spin_lock_irqsave(&adapter->handle_lock.lock,
-				adapter->handle_lock.flags);
+		spin_lock_irqsave(&adapter->handle_lock, flags);
 		pslic_handle  =  adapter->pfree_slic_handles;
 		adapter->pfree_slic_handles = pslic_handle->next;
-		spin_unlock_irqrestore(&adapter->handle_lock.lock,
-				adapter->handle_lock.flags);
+		spin_unlock_irqrestore(&adapter->handle_lock, flags);
 		pslic_handle->type = SLIC_HANDLE_CMD;
 		pslic_handle->address = (void *) cmd;
 		pslic_handle->offset = (ushort) adapter->slic_handle_ix++;
@@ -1358,11 +1351,11 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 	tail->next_all = cmdq->head;
 	cmdq->head = prev;
 	cmdq = &adapter->cmdq_free;
-	spin_lock_irqsave(&cmdq->lock.lock, cmdq->lock.flags);
+	spin_lock_irqsave(&cmdq->lock, flags);
 	cmdq->count += cmdcnt;	/*  SLIC_CMDQ_CMDSINPAGE;   mooktodo */
 	tail->next = cmdq->head;
 	cmdq->head = prev;
-	spin_unlock_irqrestore(&cmdq->lock.lock, cmdq->lock.flags);
+	spin_unlock_irqrestore(&cmdq->lock, flags);
 }
 
 static int slic_cmdq_init(struct adapter *adapter)
@@ -1373,9 +1366,9 @@ static int slic_cmdq_init(struct adapter *adapter)
 	memset(&adapter->cmdq_all, 0, sizeof(struct slic_cmdqueue));
 	memset(&adapter->cmdq_free, 0, sizeof(struct slic_cmdqueue));
 	memset(&adapter->cmdq_done, 0, sizeof(struct slic_cmdqueue));
-	spin_lock_init(&adapter->cmdq_all.lock.lock);
-	spin_lock_init(&adapter->cmdq_free.lock.lock);
-	spin_lock_init(&adapter->cmdq_done.lock.lock);
+	spin_lock_init(&adapter->cmdq_all.lock);
+	spin_lock_init(&adapter->cmdq_free.lock);
+	spin_lock_init(&adapter->cmdq_done.lock);
 	memset(&adapter->cmdqmem, 0, sizeof(struct slic_cmdqmem));
 	adapter->slic_handle_ix = 1;
 	for (i = 0; i < SLIC_CMDQ_INITPAGES; i++) {
@@ -1396,11 +1389,10 @@ static void slic_cmdq_reset(struct adapter *adapter)
 	struct slic_hostcmd *hcmd;
 	struct sk_buff *skb;
 	u32 outstanding;
+	unsigned long flags;
 
-	spin_lock_irqsave(&adapter->cmdq_free.lock.lock,
-			adapter->cmdq_free.lock.flags);
-	spin_lock_irqsave(&adapter->cmdq_done.lock.lock,
-			adapter->cmdq_done.lock.flags);
+	spin_lock_irqsave(&adapter->cmdq_free.lock, flags);
+	spin_lock(&adapter->cmdq_done.lock);
 	outstanding = adapter->cmdq_all.count - adapter->cmdq_done.count;
 	outstanding -= adapter->cmdq_free.count;
 	hcmd = adapter->cmdq_all.head;
@@ -1431,40 +1423,40 @@ static void slic_cmdq_reset(struct adapter *adapter)
 			"free_count %d != all count %d\n",
 			adapter->cmdq_free.count, adapter->cmdq_all.count);
 	}
-	spin_unlock_irqrestore(&adapter->cmdq_done.lock.lock,
-				adapter->cmdq_done.lock.flags);
-	spin_unlock_irqrestore(&adapter->cmdq_free.lock.lock,
-				adapter->cmdq_free.lock.flags);
+	spin_unlock(&adapter->cmdq_done.lock);
+	spin_unlock_irqrestore(&adapter->cmdq_free.lock, flags);
 }
 
 static void slic_cmdq_getdone(struct adapter *adapter)
 {
 	struct slic_cmdqueue *done_cmdq = &adapter->cmdq_done;
 	struct slic_cmdqueue *free_cmdq = &adapter->cmdq_free;
+	unsigned long flags;
 
-	spin_lock_irqsave(&done_cmdq->lock.lock, done_cmdq->lock.flags);
+	spin_lock_irqsave(&done_cmdq->lock, flags);
 
 	free_cmdq->head = done_cmdq->head;
 	free_cmdq->count = done_cmdq->count;
 	done_cmdq->head = NULL;
 	done_cmdq->tail = NULL;
 	done_cmdq->count = 0;
-	spin_unlock_irqrestore(&done_cmdq->lock.lock, done_cmdq->lock.flags);
+	spin_unlock_irqrestore(&done_cmdq->lock, flags);
 }
 
 static struct slic_hostcmd *slic_cmdq_getfree(struct adapter *adapter)
 {
 	struct slic_cmdqueue *cmdq = &adapter->cmdq_free;
 	struct slic_hostcmd *cmd = NULL;
+	unsigned long flags;
 
 lock_and_retry:
-	spin_lock_irqsave(&cmdq->lock.lock, cmdq->lock.flags);
+	spin_lock_irqsave(&cmdq->lock, flags);
 retry:
 	cmd = cmdq->head;
 	if (cmd) {
 		cmdq->head = cmd->next;
 		cmdq->count--;
-		spin_unlock_irqrestore(&cmdq->lock.lock, cmdq->lock.flags);
+		spin_unlock_irqrestore(&cmdq->lock, flags);
 	} else {
 		slic_cmdq_getdone(adapter);
 		cmd = cmdq->head;
@@ -1473,8 +1465,7 @@ retry:
 		} else {
 			u32 *pageaddr;
 
-			spin_unlock_irqrestore(&cmdq->lock.lock,
-						cmdq->lock.flags);
+			spin_unlock_irqrestore(&cmdq->lock, flags);
 			pageaddr = slic_cmdqmem_addpage(adapter);
 			if (pageaddr) {
 				slic_cmdq_addcmdpage(adapter, pageaddr);
@@ -1490,14 +1481,14 @@ static void slic_cmdq_putdone_irq(struct adapter *adapter,
 {
 	struct slic_cmdqueue *cmdq = &adapter->cmdq_done;
 
-	spin_lock(&cmdq->lock.lock);
+	spin_lock(&cmdq->lock);
 	cmd->busy = 0;
 	cmd->next = cmdq->head;
 	cmdq->head = cmd;
 	cmdq->count++;
 	if ((adapter->xmitq_full) && (cmdq->count > 10))
 		netif_wake_queue(adapter->netdev);
-	spin_unlock(&cmdq->lock.lock);
+	spin_unlock(&cmdq->lock);
 }
 
 static int slic_rcvqueue_fill(struct adapter *adapter)
@@ -1852,7 +1843,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 
 	ihcmd = &hcmd->cmd64;
 
-	ihcmd->flags = (adapter->port << IHFLG_IFSHFT);
+	ihcmd->flags = adapter->port << IHFLG_IFSHFT;
 	ihcmd->command = IHCMD_XMT_REQ;
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
@@ -1864,8 +1855,8 @@ static void slic_xmit_build_request(struct adapter *adapter,
 	hcmd->cmdsize = (u32) ((((u64)&ihcmd->u.slic_buffers.bufs[1] -
 				     (u64) hcmd) + 31) >> 5);
 #else
-	hcmd->cmdsize = ((((u32) &ihcmd->u.slic_buffers.bufs[1] -
-			   (u32) hcmd) + 31) >> 5);
+	hcmd->cmdsize = (((u32)&ihcmd->u.slic_buffers.bufs[1] -
+				       (u32)hcmd) + 31) >> 5;
 #endif
 }
 
@@ -2252,21 +2243,20 @@ static void slic_adapter_freeresources(struct adapter *adapter)
 	adapter->rcv_unicasts = 0;
 }
 
-static int slic_adapter_allocresources(struct adapter *adapter)
+static int slic_adapter_allocresources(struct adapter *adapter,
+				       unsigned long *flags)
 {
 	if (!adapter->intrregistered) {
 		int retval;
 
-		spin_unlock_irqrestore(&slic_global.driver_lock.lock,
-					slic_global.driver_lock.flags);
+		spin_unlock_irqrestore(&slic_global.driver_lock, *flags);
 
 		retval = request_irq(adapter->netdev->irq,
 				     &slic_interrupt,
 				     IRQF_SHARED,
 				     adapter->netdev->name, adapter->netdev);
 
-		spin_lock_irqsave(&slic_global.driver_lock.lock,
-					slic_global.driver_lock.flags);
+		spin_lock_irqsave(&slic_global.driver_lock, *flags);
 
 		if (retval) {
 			dev_err(&adapter->netdev->dev,
@@ -2285,7 +2275,7 @@ static int slic_adapter_allocresources(struct adapter *adapter)
  *  Perform initialization of our slic interface.
  *
  */
-static int slic_if_init(struct adapter *adapter)
+static int slic_if_init(struct adapter *adapter, unsigned long *flags)
 {
 	struct sliccard *card = adapter->card;
 	struct net_device *dev = adapter->netdev;
@@ -2313,11 +2303,10 @@ static int slic_if_init(struct adapter *adapter)
 		if (dev->flags & IFF_MULTICAST)
 			adapter->macopts |= MAC_MCAST;
 	}
-	rc = slic_adapter_allocresources(adapter);
+	rc = slic_adapter_allocresources(adapter, flags);
 	if (rc) {
-		dev_err(&dev->dev,
-			"%s: slic_adapter_allocresources FAILED %x\n",
-			__func__, rc);
+		dev_err(&dev->dev, "slic_adapter_allocresources FAILED %x\n",
+			rc);
 		slic_adapter_freeresources(adapter);
 		goto err;
 	}
@@ -2339,11 +2328,11 @@ static int slic_if_init(struct adapter *adapter)
 	mdelay(1);
 
 	if (!adapter->isp_initialized) {
+		unsigned long flags;
 		pshmem = (struct slic_shmem *)(unsigned long)
 			 adapter->phys_shmem;
 
-		spin_lock_irqsave(&adapter->bit64reglock.lock,
-					adapter->bit64reglock.flags);
+		spin_lock_irqsave(&adapter->bit64reglock, flags);
 
 #if BITS_PER_LONG == 64
 		slic_reg32_write(&slic_regs->slic_addr_upper,
@@ -2355,29 +2344,25 @@ static int slic_if_init(struct adapter *adapter)
 		slic_reg32_write(&slic_regs->slic_isp, (u32)&pshmem->isr,
 				FLUSH);
 #endif
-		spin_unlock_irqrestore(&adapter->bit64reglock.lock,
-					adapter->bit64reglock.flags);
+		spin_unlock_irqrestore(&adapter->bit64reglock, flags);
 		adapter->isp_initialized = 1;
 	}
 
 	adapter->state = ADAPT_UP;
 	if (!card->loadtimerset) {
-		init_timer(&card->loadtimer);
+		setup_timer(&card->loadtimer, &slic_timer_load_check,
+			    (ulong)card);
 		card->loadtimer.expires =
 		    jiffies + (SLIC_LOADTIMER_PERIOD * HZ);
-		card->loadtimer.data = (ulong) card;
-		card->loadtimer.function = &slic_timer_load_check;
 		add_timer(&card->loadtimer);
 
 		card->loadtimerset = 1;
 	}
 
 	if (!adapter->pingtimerset) {
-		init_timer(&adapter->pingtimer);
+		setup_timer(&adapter->pingtimer, &slic_timer_ping, (ulong)dev);
 		adapter->pingtimer.expires =
 		    jiffies + (PING_TIMER_INTERVAL * HZ);
-		adapter->pingtimer.data = (ulong) dev;
-		adapter->pingtimer.function = &slic_timer_ping;
 		add_timer(&adapter->pingtimer);
 		adapter->pingtimerset = 1;
 		adapter->card->pingstatus = ISR_PINGMASK;
@@ -2402,18 +2387,18 @@ static int slic_entry_open(struct net_device *dev)
 {
 	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card = adapter->card;
+	unsigned long flags;
 	int status;
 
 	netif_stop_queue(adapter->netdev);
 
-	spin_lock_irqsave(&slic_global.driver_lock.lock,
-				slic_global.driver_lock.flags);
+	spin_lock_irqsave(&slic_global.driver_lock, flags);
 	if (!adapter->activated) {
 		card->adapters_activated++;
 		slic_global.num_slic_ports_active++;
 		adapter->activated = 1;
 	}
-	status = slic_if_init(adapter);
+	status = slic_if_init(adapter, &flags);
 
 	if (status != 0) {
 		if (adapter->activated) {
@@ -2427,8 +2412,7 @@ static int slic_entry_open(struct net_device *dev)
 		card->master = adapter;
 
 spin_unlock:
-	spin_unlock_irqrestore(&slic_global.driver_lock.lock,
-			       slic_global.driver_lock.flags);
+	spin_unlock_irqrestore(&slic_global.driver_lock, flags);
 	return status;
 }
 
@@ -2487,9 +2471,9 @@ static int slic_entry_halt(struct net_device *dev)
 	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card = adapter->card;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
+	unsigned long flags;
 
-	spin_lock_irqsave(&slic_global.driver_lock.lock,
-				slic_global.driver_lock.flags);
+	spin_lock_irqsave(&slic_global.driver_lock, flags);
 	netif_stop_queue(adapter->netdev);
 	adapter->state = ADAPT_DOWN;
 	adapter->linkstate = LINK_DOWN;
@@ -2518,8 +2502,7 @@ static int slic_entry_halt(struct net_device *dev)
 		slic_card_init(card, adapter);
 #endif
 
-	spin_unlock_irqrestore(&slic_global.driver_lock.lock,
-				slic_global.driver_lock.flags);
+	spin_unlock_irqrestore(&slic_global.driver_lock, flags);
 	return 0;
 }
 
@@ -2554,46 +2537,11 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (copy_from_user(data, rq->ifr_data, 28))
 			return -EFAULT;
 		intagg = data[0];
-		dev_err(&dev->dev, "%s: set interrupt aggregation to %d\n",
-			__func__, intagg);
+		dev_err(&dev->dev, "set interrupt aggregation to %d\n",
+			intagg);
 		slic_intagg_set(adapter, intagg);
 		return 0;
 
-#ifdef SLIC_TRACE_DUMP_ENABLED
-	case SIOCSLICTRACEDUMP:
-		{
-			u32 value;
-
-			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
-
-			if (copy_from_user(data, rq->ifr_data, 28)) {
-				PRINT_ERROR
-				    ("slic: copy_from_user FAILED getting initial simba param\n");
-				return -EFAULT;
-			}
-
-			value = data[0];
-			if (tracemon_request == SLIC_DUMP_DONE) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			} else if ((tracemon_request == SLIC_DUMP_REQUESTED) ||
-				   (tracemon_request ==
-				    SLIC_DUMP_IN_PROGRESS)) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested but already in progress... ignore\n");
-			} else {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			}
-			return 0;
-		}
-#endif
 	case SIOCETHTOOL:
 		if (copy_from_user(&ecmd, rq->ifr_data, sizeof(ecmd)))
 			return -EFAULT;
@@ -2704,6 +2652,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	unsigned char oemfruformat;
 	struct atk_fru *patkfru;
 	union oemfru *poemfru;
+	unsigned long flags;
 
 	/* Reset everything except PCI configuration space */
 	slic_soft_reset(adapter);
@@ -2734,14 +2683,12 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		pshmem = (struct slic_shmem *)(unsigned long)
 			 adapter->phys_shmem;
 
-		spin_lock_irqsave(&adapter->bit64reglock.lock,
-					adapter->bit64reglock.flags);
+		spin_lock_irqsave(&adapter->bit64reglock, flags);
 		slic_reg32_write(&slic_regs->slic_addr_upper,
 				 SLIC_GET_ADDR_HIGH(&pshmem->isr), DONT_FLUSH);
 		slic_reg32_write(&slic_regs->slic_isp,
 				 SLIC_GET_ADDR_LOW(&pshmem->isr), FLUSH);
-		spin_unlock_irqrestore(&adapter->bit64reglock.lock,
-					adapter->bit64reglock.flags);
+		spin_unlock_irqrestore(&adapter->bit64reglock, flags);
 
 		status = slic_config_get(adapter, phys_configl, phys_configh);
 		if (status) {
@@ -2895,7 +2842,7 @@ static void slic_init_driver(void)
 {
 	if (slic_first_init) {
 		slic_first_init = 0;
-		spin_lock_init(&slic_global.driver_lock.lock);
+		spin_lock_init(&slic_global.driver_lock);
 	}
 }
 
@@ -2921,11 +2868,11 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->chipid = chip_idx;
 	adapter->port = 0;	/*adapter->functionnumber;*/
 	adapter->cardindex = adapter->port;
-	spin_lock_init(&adapter->upr_lock.lock);
-	spin_lock_init(&adapter->bit64reglock.lock);
-	spin_lock_init(&adapter->adapter_lock.lock);
-	spin_lock_init(&adapter->reset_lock.lock);
-	spin_lock_init(&adapter->handle_lock.lock);
+	spin_lock_init(&adapter->upr_lock);
+	spin_lock_init(&adapter->bit64reglock);
+	spin_lock_init(&adapter->adapter_lock);
+	spin_lock_init(&adapter->reset_lock);
+	spin_lock_init(&adapter->handle_lock);
 
 	adapter->card_size = 1;
 	/*

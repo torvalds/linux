@@ -76,14 +76,6 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 
 	/* Lets see if this is an O32 ELF */
 	if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
-		/* FR = 1 for N32 */
-		if (ehdr32->e_flags & EF_MIPS_ABI2)
-			state->overall_fp_mode = FP_FR1;
-		else
-			/* Set a good default FPU mode for O32 */
-			state->overall_fp_mode = cpu_has_mips_r6 ?
-				FP_FRE : FP_FR0;
-
 		if (ehdr32->e_flags & EF_MIPS_FP64) {
 			/*
 			 * Set MIPS_ABI_FP_OLD_64 for EF_MIPS_FP64. We will override it
@@ -104,9 +96,6 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 				  (char *)&abiflags,
 				  sizeof(abiflags));
 	} else {
-		/* FR=1 is really the only option for 64-bit */
-		state->overall_fp_mode = FP_FR1;
-
 		if (phdr64->p_type != PT_MIPS_ABIFLAGS)
 			return 0;
 		if (phdr64->p_filesz < sizeof(abiflags))
@@ -131,30 +120,21 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 	return 0;
 }
 
-static inline unsigned get_fp_abi(int in_abi)
-{
-	/* If the ABI requirement is provided, simply return that */
-	if (in_abi != MIPS_ABI_FP_UNKNOWN)
-		return in_abi;
-
-	/* Unknown ABI */
-	return MIPS_ABI_FP_UNKNOWN;
-}
-
 int arch_check_elf(void *_ehdr, bool has_interpreter,
 		   struct arch_elf_state *state)
 {
 	struct elf32_hdr *ehdr = _ehdr;
 	struct mode_req prog_req, interp_req;
 	int fp_abi, interp_fp_abi, abi0, abi1, max_abi;
+	bool is_mips64;
 
 	if (!config_enabled(CONFIG_MIPS_O32_FP64_SUPPORT))
 		return 0;
 
-	fp_abi = get_fp_abi(state->fp_abi);
+	fp_abi = state->fp_abi;
 
 	if (has_interpreter) {
-		interp_fp_abi = get_fp_abi(state->interp_fp_abi);
+		interp_fp_abi = state->interp_fp_abi;
 
 		abi0 = min(fp_abi, interp_fp_abi);
 		abi1 = max(fp_abi, interp_fp_abi);
@@ -162,10 +142,22 @@ int arch_check_elf(void *_ehdr, bool has_interpreter,
 		abi0 = abi1 = fp_abi;
 	}
 
-	/* ABI limits. O32 = FP_64A, N32/N64 = FP_SOFT */
-	max_abi = ((ehdr->e_ident[EI_CLASS] == ELFCLASS32) &&
-		   (!(ehdr->e_flags & EF_MIPS_ABI2))) ?
-		MIPS_ABI_FP_64A : MIPS_ABI_FP_SOFT;
+	is_mips64 = (ehdr->e_ident[EI_CLASS] == ELFCLASS64) ||
+		    (ehdr->e_flags & EF_MIPS_ABI2);
+
+	if (is_mips64) {
+		/* MIPS64 code always uses FR=1, thus the default is easy */
+		state->overall_fp_mode = FP_FR1;
+
+		/* Disallow access to the various FPXX & FP64 ABIs */
+		max_abi = MIPS_ABI_FP_SOFT;
+	} else {
+		/* Default to a mode capable of running code expecting FR=0 */
+		state->overall_fp_mode = cpu_has_mips_r6 ? FP_FRE : FP_FR0;
+
+		/* Allow all ABIs we know about */
+		max_abi = MIPS_ABI_FP_64A;
+	}
 
 	if ((abi0 > max_abi && abi0 != MIPS_ABI_FP_UNKNOWN) ||
 	    (abi1 > max_abi && abi1 != MIPS_ABI_FP_UNKNOWN))

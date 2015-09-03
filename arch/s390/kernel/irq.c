@@ -56,7 +56,7 @@ static const struct irq_class irqclass_main_desc[NR_IRQS_BASE] = {
  * /proc/interrupts.
  * In addition this list contains non external / I/O events like NMIs.
  */
-static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
+static const struct irq_class irqclass_sub_desc[] = {
 	{.irq = IRQEXT_CLK, .name = "CLK", .desc = "[EXT] Clock Comparator"},
 	{.irq = IRQEXT_EXC, .name = "EXC", .desc = "[EXT] External Call"},
 	{.irq = IRQEXT_EMS, .name = "EMS", .desc = "[EXT] Emergency Signal"},
@@ -79,7 +79,6 @@ static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
 	{.irq = IRQIO_TAP,  .name = "TAP", .desc = "[I/O] Tape"},
 	{.irq = IRQIO_VMR,  .name = "VMR", .desc = "[I/O] Unit Record Devices"},
 	{.irq = IRQIO_LCS,  .name = "LCS", .desc = "[I/O] LCS"},
-	{.irq = IRQIO_CLW,  .name = "CLW", .desc = "[I/O] CLAW"},
 	{.irq = IRQIO_CTC,  .name = "CTC", .desc = "[I/O] CTC"},
 	{.irq = IRQIO_APB,  .name = "APB", .desc = "[I/O] AP Bus"},
 	{.irq = IRQIO_ADM,  .name = "ADM", .desc = "[I/O] EADM Subchannel"},
@@ -94,6 +93,7 @@ static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
 
 void __init init_IRQ(void)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(irqclass_sub_desc) != NR_ARCH_IRQS);
 	init_cio_interrupts();
 	init_airq_interrupts();
 	init_ext_interrupts();

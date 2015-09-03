@@ -197,7 +197,17 @@ be muted when playing back at a non-standard speed.
 this command does nothing. This command has two flags:
 if <constant>V4L2_DEC_CMD_STOP_TO_BLACK</constant> is set, then the decoder will
 set the picture to black after it stopped decoding. Otherwise the last image will
-repeat. If <constant>V4L2_DEC_CMD_STOP_IMMEDIATELY</constant> is set, then the decoder
+repeat. mem2mem decoders will stop producing new frames altogether. They will send
+a <constant>V4L2_EVENT_EOS</constant> event when the last frame has been decoded
+and all frames are ready to be dequeued and will set the
+<constant>V4L2_BUF_FLAG_LAST</constant> buffer flag on the last buffer of the
+capture queue to indicate there will be no new buffers produced to dequeue. This
+buffer may be empty, indicated by the driver setting the
+<structfield>bytesused</structfield> field to 0. Once the
+<constant>V4L2_BUF_FLAG_LAST</constant> flag was set, the
+<link linkend="vidioc-qbuf">VIDIOC_DQBUF</link> ioctl will not block anymore,
+but return an &EPIPE;.
+If <constant>V4L2_DEC_CMD_STOP_IMMEDIATELY</constant> is set, then the decoder
 stops immediately (ignoring the <structfield>pts</structfield> value), otherwise it
 will keep decoding until timestamp >= pts or until the last of the pending data from
 its internal buffers was decoded.

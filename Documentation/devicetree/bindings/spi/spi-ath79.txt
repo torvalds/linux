@@ -1,0 +1,24 @@
+Binding for Qualcomm Atheros AR7xxx/AR9xxx SPI controller
+
+Required properties:
+- compatible: has to be "qca,<soc-type>-spi", "qca,ar7100-spi" as fallback.
+- reg: Base address and size of the controllers memory area
+- clocks: phandle to the AHB clock.
+- clock-names: has to be "ahb".
+- #address-cells: <1>, as required by generic SPI binding.
+- #size-cells: <0>, also as required by generic SPI binding.
+
+Child nodes as per the generic SPI binding.
+
+Example:
+
+	spi@1F000000 {
+		compatible = "qca,ar9132-spi", "qca,ar7100-spi";
+		reg = <0x1F000000 0x10>;
+
+		clocks = <&pll 2>;
+		clock-names = "ahb";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};

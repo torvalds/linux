@@ -1478,9 +1478,9 @@ static int rtl8187_probe(struct usb_interface *intf,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 
-	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_SIGNAL_DBM |
-		     IEEE80211_HW_RX_INCLUDES_FCS;
+	ieee80211_hw_set(dev, RX_INCLUDES_FCS);
+	ieee80211_hw_set(dev, HOST_BROADCAST_PS_BUFFERING);
+	ieee80211_hw_set(dev, SIGNAL_DBM);
 	/* Initialize rate-control variables */
 	dev->max_rates = 1;
 	dev->max_rate_tries = RETRY_COUNT;

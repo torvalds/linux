@@ -60,21 +60,21 @@
 
 /* MSC_CTRL */
 /* Self-test at power-on: 1 = disabled, 0 = enabled */
-#define ADIS16209_MSC_CTRL_PWRUP_SELF_TEST	(1 << 10)
+#define ADIS16209_MSC_CTRL_PWRUP_SELF_TEST	BIT(10)
 /* Self-test enable */
-#define ADIS16209_MSC_CTRL_SELF_TEST_EN	        (1 << 8)
+#define ADIS16209_MSC_CTRL_SELF_TEST_EN	        BIT(8)
 /* Data-ready enable: 1 = enabled, 0 = disabled */
-#define ADIS16209_MSC_CTRL_DATA_RDY_EN	        (1 << 2)
+#define ADIS16209_MSC_CTRL_DATA_RDY_EN	        BIT(2)
 /* Data-ready polarity: 1 = active high, 0 = active low */
-#define ADIS16209_MSC_CTRL_ACTIVE_HIGH	        (1 << 1)
+#define ADIS16209_MSC_CTRL_ACTIVE_HIGH	        BIT(1)
 /* Data-ready line selection: 1 = DIO2, 0 = DIO1 */
-#define ADIS16209_MSC_CTRL_DATA_RDY_DIO2	(1 << 0)
+#define ADIS16209_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
 
 /* DIAG_STAT */
 /* Alarm 2 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16209_DIAG_STAT_ALARM2        (1<<9)
+#define ADIS16209_DIAG_STAT_ALARM2        BIT(9)
 /* Alarm 1 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16209_DIAG_STAT_ALARM1        (1<<8)
+#define ADIS16209_DIAG_STAT_ALARM1        BIT(8)
 /* Self-test diagnostic error flag: 1 = error condition, 0 = normal operation */
 #define ADIS16209_DIAG_STAT_SELFTEST_FAIL_BIT	5
 /* SPI communications failure */
@@ -87,11 +87,11 @@
 #define ADIS16209_DIAG_STAT_POWER_LOW_BIT	0
 
 /* GLOB_CMD */
-#define ADIS16209_GLOB_CMD_SW_RESET	(1<<7)
-#define ADIS16209_GLOB_CMD_CLEAR_STAT	(1<<4)
-#define ADIS16209_GLOB_CMD_FACTORY_CAL	(1<<1)
+#define ADIS16209_GLOB_CMD_SW_RESET	BIT(7)
+#define ADIS16209_GLOB_CMD_CLEAR_STAT	BIT(4)
+#define ADIS16209_GLOB_CMD_FACTORY_CAL	BIT(1)
 
-#define ADIS16209_ERROR_ACTIVE          (1<<14)
+#define ADIS16209_ERROR_ACTIVE          BIT(14)
 
 #define ADIS16209_SCAN_SUPPLY	0
 #define ADIS16209_SCAN_ACC_X	1

@@ -26,9 +26,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
-#include "../comedidev.h"
+
+#include "../comedi_pci.h"
 
 /* Registers present in BAR0 memory region */
 #define MF624_GPIOC_R					0x54
@@ -236,7 +236,6 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 		devpriv->gpioc_R = devpriv->bar2_mem + MF634_GPIOC_R;
 	else
 		devpriv->gpioc_R = devpriv->bar0_mem + MF624_GPIOC_R;
-
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

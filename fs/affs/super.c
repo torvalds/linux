@@ -227,22 +227,22 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			if (match_octal(&args[0], &option))
 				return 0;
 			*mode = option & 0777;
-			*mount_opts |= SF_SETMODE;
+			affs_set_opt(*mount_opts, SF_SETMODE);
 			break;
 		case Opt_mufs:
-			*mount_opts |= SF_MUFS;
+			affs_set_opt(*mount_opts, SF_MUFS);
 			break;
 		case Opt_notruncate:
-			*mount_opts |= SF_NO_TRUNCATE;
+			affs_set_opt(*mount_opts, SF_NO_TRUNCATE);
 			break;
 		case Opt_prefix:
 			*prefix = match_strdup(&args[0]);
 			if (!*prefix)
 				return 0;
-			*mount_opts |= SF_PREFIX;
+			affs_set_opt(*mount_opts, SF_PREFIX);
 			break;
 		case Opt_protect:
-			*mount_opts |= SF_IMMUTABLE;
+			affs_set_opt(*mount_opts, SF_IMMUTABLE);
 			break;
 		case Opt_reserved:
 			if (match_int(&args[0], reserved))
@@ -258,7 +258,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			*gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(*gid))
 				return 0;
-			*mount_opts |= SF_SETGID;
+			affs_set_opt(*mount_opts, SF_SETGID);
 			break;
 		case Opt_setuid:
 			if (match_int(&args[0], &option))
@@ -266,10 +266,10 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			*uid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(*uid))
 				return 0;
-			*mount_opts |= SF_SETUID;
+			affs_set_opt(*mount_opts, SF_SETUID);
 			break;
 		case Opt_verbose:
-			*mount_opts |= SF_VERBOSE;
+			affs_set_opt(*mount_opts, SF_VERBOSE);
 			break;
 		case Opt_volume: {
 			char *vol = match_strdup(&args[0]);
@@ -435,30 +435,31 @@ got_root:
 	case MUFS_FS:
 	case MUFS_INTLFFS:
 	case MUFS_DCFFS:
-		sbi->s_flags |= SF_MUFS;
+		affs_set_opt(sbi->s_flags, SF_MUFS);
 		/* fall thru */
 	case FS_INTLFFS:
 	case FS_DCFFS:
-		sbi->s_flags |= SF_INTL;
+		affs_set_opt(sbi->s_flags, SF_INTL);
 		break;
 	case MUFS_FFS:
-		sbi->s_flags |= SF_MUFS;
+		affs_set_opt(sbi->s_flags, SF_MUFS);
 		break;
 	case FS_FFS:
 		break;
 	case MUFS_OFS:
-		sbi->s_flags |= SF_MUFS;
+		affs_set_opt(sbi->s_flags, SF_MUFS);
 		/* fall thru */
 	case FS_OFS:
-		sbi->s_flags |= SF_OFS;
+		affs_set_opt(sbi->s_flags, SF_OFS);
 		sb->s_flags |= MS_NOEXEC;
 		break;
 	case MUFS_DCOFS:
 	case MUFS_INTLOFS:
-		sbi->s_flags |= SF_MUFS;
+		affs_set_opt(sbi->s_flags, SF_MUFS);
 	case FS_DCOFS:
 	case FS_INTLOFS:
-		sbi->s_flags |= SF_INTL | SF_OFS;
+		affs_set_opt(sbi->s_flags, SF_INTL);
+		affs_set_opt(sbi->s_flags, SF_OFS);
 		sb->s_flags |= MS_NOEXEC;
 		break;
 	default:
@@ -467,7 +468,7 @@ got_root:
 		return -EINVAL;
 	}
 
-	if (mount_flags & SF_VERBOSE) {
+	if (affs_test_opt(mount_flags, SF_VERBOSE)) {
 		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
 		pr_notice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
 			len > 31 ? 31 : len,
@@ -478,7 +479,7 @@ got_root:
 	sb->s_flags |= MS_NODEV | MS_NOSUID;
 
 	sbi->s_data_blksize = sb->s_blocksize;
-	if (sbi->s_flags & SF_OFS)
+	if (affs_test_opt(sbi->s_flags, SF_OFS))
 		sbi->s_data_blksize -= 24;
 
 	tmp_flags = sb->s_flags;
@@ -493,7 +494,7 @@ got_root:
 	if (IS_ERR(root_inode))
 		return PTR_ERR(root_inode);
 
-	if (AFFS_SB(sb)->s_flags & SF_INTL)
+	if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_INTL))
 		sb->s_d_op = &affs_intl_dentry_operations;
 	else
 		sb->s_d_op = &affs_dentry_operations;
@@ -520,9 +521,13 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	int			 root_block;
 	unsigned long		 mount_flags;
 	int			 res = 0;
-	char			*new_opts = kstrdup(data, GFP_KERNEL);
+	char			*new_opts;
 	char			 volume[32];
 	char			*prefix = NULL;
+
+	new_opts = kstrdup(data, GFP_KERNEL);
+	if (!new_opts)
+		return -ENOMEM;
 
 	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
 

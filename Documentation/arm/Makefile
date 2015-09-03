@@ -1,1 +1,0 @@
-subdir-y := SH-Mobile

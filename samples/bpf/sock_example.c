@@ -56,7 +56,7 @@ static int test_sock(void)
 	};
 
 	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, prog, sizeof(prog),
-				"GPL");
+				"GPL", 0);
 	if (prog_fd < 0) {
 		printf("failed to load prog '%s'\n", strerror(errno));
 		goto cleanup;

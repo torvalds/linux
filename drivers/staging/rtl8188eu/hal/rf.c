@@ -201,7 +201,7 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 			break;
 		case 2:	/*  Better regulatory */
 				/*  don't increase any power diff */
-			write_val = ((index < 2) ? powerbase0[rf] : powerbase1[rf]);
+			write_val = (index < 2) ? powerbase0[rf] : powerbase1[rf];
 			break;
 		case 3:	/*  Customer defined power diff. */
 				/*  increase power diff defined by customer. */

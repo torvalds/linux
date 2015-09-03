@@ -220,9 +220,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	cf = kzalloc(sizeof *cf, GFP_KERNEL);
 	if (!cf)
 		return -ENOMEM;
-	init_timer(&cf->timer);
-	cf->timer.function = omap_cf_timer;
-	cf->timer.data = (unsigned long) cf;
+	setup_timer(&cf->timer, omap_cf_timer, (unsigned long)cf);
 
 	cf->pdev = pdev;
 	platform_set_drvdata(pdev, cf);

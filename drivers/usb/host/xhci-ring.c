@@ -238,7 +238,7 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
-				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+				ring->cycle_state ^= 1;
 			}
 		}
 		ring->enq_seg = ring->enq_seg->next;
@@ -1574,7 +1574,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		} else {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			bus_state->resume_done[faked_port_index] = jiffies +
-				msecs_to_jiffies(20);
+				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			set_bit(faked_port_index, &bus_state->resuming_ports);
 			mod_timer(&hcd->rh_timer,
 				  bus_state->resume_done[faked_port_index]);
@@ -1934,7 +1934,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			td->urb->actual_length =
 				td->urb->transfer_buffer_length -
 				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
-		else
+		else if (!td->urb_length_set)
 			td->urb->actual_length = 0;
 
 		return finish_td(xhci, td, event_trb, event, ep, status, false);
@@ -2026,8 +2026,13 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		break;
 	case COMP_DEV_ERR:
 	case COMP_STALL:
+		frame->status = -EPROTO;
+		skip_td = true;
+		break;
 	case COMP_TX_ERR:
 		frame->status = -EPROTO;
+		if (event_trb != td->last_trb)
+			return 0;
 		skip_td = true;
 		break;
 	case COMP_STOP:
@@ -2640,7 +2645,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		xhci_halt(xhci);
 hw_died:
 		spin_unlock(&xhci->lock);
-		return -ESHUTDOWN;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -2809,7 +2814,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
-				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+				ring->cycle_state ^= 1;
 			}
 			ring->enq_seg = ring->enq_seg->next;
 			ring->enqueue = ring->enq_seg->trbs;
@@ -3776,8 +3781,11 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 {
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
 	int ret;
-	if (xhci->xhc_state & XHCI_STATE_DYING)
+
+	if (xhci->xhc_state) {
+		xhci_dbg(xhci, "xHCI dying or halted, can't queue_command\n");
 		return -ESHUTDOWN;
+	}
 
 	if (!command_must_succeed)
 		reserved_trbs++;

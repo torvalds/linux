@@ -39,36 +39,14 @@ EXPORT_SYMBOL(rtl_query_rxpwrpercentage);
 
 u8 rtl_evm_db_to_percentage(char value)
 {
-	char ret_val;
-	ret_val = value;
+	char ret_val = clamp(-value, 0, 33) * 3;
 
-	if (ret_val >= 0)
-		ret_val = 0;
-	if (ret_val <= -33)
-		ret_val = -33;
-	ret_val = 0 - ret_val;
-	ret_val *= 3;
 	if (ret_val == 99)
 		ret_val = 100;
 
 	return ret_val;
 }
 EXPORT_SYMBOL(rtl_evm_db_to_percentage);
-
-u8 rtl_evm_dbm_jaguar(char value)
-{
-	char ret_val = value;
-
-	/* -33dB~0dB to 33dB ~ 0dB*/
-	if (ret_val == -128)
-		ret_val = 127;
-	else if (ret_val < 0)
-		ret_val = 0 - ret_val;
-
-	ret_val  = ret_val >> 1;
-	return ret_val;
-}
-EXPORT_SYMBOL(rtl_evm_dbm_jaguar);
 
 static long rtl_translate_todbm(struct ieee80211_hw *hw,
 			 u8 signal_strength_index)

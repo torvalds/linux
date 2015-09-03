@@ -103,7 +103,7 @@ extern unsigned char WMM_PARA_OUI23A[];
 /*  Note: */
 /*	We just add new channel plan when the new channel plan is different from any of the following */
 /*	channel plan. */
-/*	If you just wnat to customize the acitions(scan period or join actions) about one of the channel plan, */
+/*	If you just want to customize the actions(scan period or join actions) about one of the channel plan, */
 /*	customize them in struct rt_channel_info in the RT_CHANNEL_LIST. */
 /*  */
 enum  { /* _RT_CHANNEL_DOMAIN */

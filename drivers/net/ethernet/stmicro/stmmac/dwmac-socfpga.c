@@ -91,7 +91,9 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 						  STMMAC_RESOURCE_NAME);
 	if (IS_ERR(dwmac->stmmac_rst)) {
 		dev_info(dev, "Could not get reset control!\n");
-		return -EINVAL;
+		if (PTR_ERR(dwmac->stmmac_rst) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dwmac->stmmac_rst = NULL;
 	}
 
 	dwmac->interface = of_get_phy_mode(np);
@@ -255,9 +257,28 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 	return ret;
 }
 
-const struct stmmac_of_data socfpga_gmac_data = {
+static const struct stmmac_of_data socfpga_gmac_data = {
 	.setup = socfpga_dwmac_probe,
 	.init = socfpga_dwmac_init,
 	.exit = socfpga_dwmac_exit,
 	.fix_mac_speed = socfpga_dwmac_fix_mac_speed,
 };
+
+static const struct of_device_id socfpga_dwmac_match[] = {
+	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gmac_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);
+
+static struct platform_driver socfpga_dwmac_driver = {
+	.probe  = stmmac_pltfr_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "socfpga-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = socfpga_dwmac_match,
+	},
+};
+module_platform_driver(socfpga_dwmac_driver);
+
+MODULE_LICENSE("GPL v2");

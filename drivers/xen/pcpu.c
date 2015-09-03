@@ -132,6 +132,33 @@ static ssize_t __ref store_online(struct device *dev,
 }
 static DEVICE_ATTR(online, S_IRUGO | S_IWUSR, show_online, store_online);
 
+static struct attribute *pcpu_dev_attrs[] = {
+	&dev_attr_online.attr,
+	NULL
+};
+
+static umode_t pcpu_dev_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	/*
+	 * Xen never offline cpu0 due to several restrictions
+	 * and assumptions. This basically doesn't add a sys control
+	 * to user, one cannot attempt to offline BSP.
+	 */
+	return dev->id ? attr->mode : 0;
+}
+
+static const struct attribute_group pcpu_dev_group = {
+	.attrs = pcpu_dev_attrs,
+	.is_visible = pcpu_dev_is_visible,
+};
+
+static const struct attribute_group *pcpu_dev_groups[] = {
+	&pcpu_dev_group,
+	NULL
+};
+
 static bool xen_pcpu_online(uint32_t flags)
 {
 	return !!(flags & XEN_PCPU_FLAGS_ONLINE);
@@ -181,9 +208,6 @@ static void unregister_and_remove_pcpu(struct pcpu *pcpu)
 		return;
 
 	dev = &pcpu->dev;
-	if (dev->id)
-		device_remove_file(dev, &dev_attr_online);
-
 	/* pcpu remove would be implicitly done */
 	device_unregister(dev);
 }
@@ -200,24 +224,12 @@ static int register_pcpu(struct pcpu *pcpu)
 	dev->bus = &xen_pcpu_subsys;
 	dev->id = pcpu->cpu_id;
 	dev->release = pcpu_release;
+	dev->groups = pcpu_dev_groups;
 
 	err = device_register(dev);
 	if (err) {
 		pcpu_release(dev);
 		return err;
-	}
-
-	/*
-	 * Xen never offline cpu0 due to several restrictions
-	 * and assumptions. This basically doesn't add a sys control
-	 * to user, one cannot attempt to offline BSP.
-	 */
-	if (dev->id) {
-		err = device_create_file(dev, &dev_attr_online);
-		if (err) {
-			device_unregister(dev);
-			return err;
-		}
 	}
 
 	return 0;

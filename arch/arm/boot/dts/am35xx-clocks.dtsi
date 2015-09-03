@@ -7,12 +7,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-&scrm_clocks {
+&scm_clocks {
 	emac_ick: emac_ick {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&ipss_ick>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <1>;
 	};
 
@@ -20,7 +20,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&rmii_ck>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <9>;
 	};
 
@@ -28,7 +28,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&ipss_ick>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <2>;
 	};
 
@@ -36,7 +36,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&pclk_ck>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <10>;
 	};
 
@@ -44,7 +44,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&ipss_ick>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <0>;
 	};
 
@@ -52,7 +52,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&sys_ck>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <8>;
 	};
 
@@ -60,7 +60,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&sys_ck>;
-		reg = <0x059c>;
+		reg = <0x032c>;
 		ti,bit-shift = <3>;
 	};
 };

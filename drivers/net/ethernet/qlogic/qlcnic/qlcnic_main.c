@@ -507,6 +507,7 @@ static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
 					       struct net_device *dev,
 					       netdev_features_t features)
 {
+	features = vlan_features_check(skb, features);
 	return vxlan_features_check(skb, features);
 }
 #endif
@@ -1030,7 +1031,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		pfn = pci_info[i].id;
 
 		if (pfn >= ahw->max_vnic_func) {
-			ret = QL_STATUS_INVALID_PARAM;
+			ret = -EINVAL;
 			dev_err(&adapter->pdev->dev, "%s: Invalid function 0x%x, max 0x%x\n",
 				__func__, pfn, ahw->max_vnic_func);
 			goto err_eswitch;

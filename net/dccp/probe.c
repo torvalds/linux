@@ -72,8 +72,7 @@ static void printl(const char *fmt, ...)
 	wake_up(&dccpw.wait);
 }
 
-static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
-			 struct msghdr *msg, size_t size)
+static int jdccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct ccid3_hc_tx_sock *hc = NULL;

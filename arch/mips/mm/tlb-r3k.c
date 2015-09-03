@@ -36,30 +36,33 @@ extern void build_tlb_refill_handler(void);
 		"nop\n\t"		\
 		".set	pop\n\t")
 
-int r3k_have_wired_reg;		/* should be in cpu_data? */
+static int r3k_have_wired_reg;			/* Should be in cpu_data? */
 
 /* TLB operations. */
+static void local_flush_tlb_from(int entry)
+{
+	unsigned long old_ctx;
+
+	old_ctx = read_c0_entryhi() & ASID_MASK;
+	write_c0_entrylo0(0);
+	while (entry < current_cpu_data.tlbsize) {
+		write_c0_index(entry << 8);
+		write_c0_entryhi((entry | 0x80000) << 12);
+		entry++;				/* BARRIER */
+		tlb_write_indexed();
+	}
+	write_c0_entryhi(old_ctx);
+}
+
 void local_flush_tlb_all(void)
 {
 	unsigned long flags;
-	unsigned long old_ctx;
-	int entry;
 
 #ifdef DEBUG_TLB
 	printk("[tlball]");
 #endif
-
 	local_irq_save(flags);
-	old_ctx = read_c0_entryhi() & ASID_MASK;
-	write_c0_entrylo0(0);
-	entry = r3k_have_wired_reg ? read_c0_wired() : 8;
-	for (; entry < current_cpu_data.tlbsize; entry++) {
-		write_c0_index(entry << 8);
-		write_c0_entryhi((entry | 0x80000) << 12);
-		BARRIER;
-		tlb_write_indexed();
-	}
-	write_c0_entryhi(old_ctx);
+	local_flush_tlb_from(r3k_have_wired_reg ? read_c0_wired() : 8);
 	local_irq_restore(flags);
 }
 
@@ -277,7 +280,13 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 void tlb_init(void)
 {
-	local_flush_tlb_all();
-
+	switch (current_cpu_type()) {
+	case CPU_TX3922:
+	case CPU_TX3927:
+		r3k_have_wired_reg = 1;
+		write_c0_wired(0);		/* Set to 8 on reset... */
+		break;
+	}
+	local_flush_tlb_from(0);
 	build_tlb_refill_handler();
 }

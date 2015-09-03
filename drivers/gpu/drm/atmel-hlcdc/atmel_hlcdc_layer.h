@@ -120,6 +120,7 @@
 #define ATMEL_HLCDC_LAYER_DISCEN		BIT(11)
 #define ATMEL_HLCDC_LAYER_GA_SHIFT		16
 #define ATMEL_HLCDC_LAYER_GA_MASK		GENMASK(23, ATMEL_HLCDC_LAYER_GA_SHIFT)
+#define ATMEL_HLCDC_LAYER_GA(x)			((x) << ATMEL_HLCDC_LAYER_GA_SHIFT)
 
 #define ATMEL_HLCDC_LAYER_CSC_CFG(p, o)		ATMEL_HLCDC_LAYER_CFG(p, (p)->desc->layout.csc + o)
 
@@ -376,7 +377,7 @@ int atmel_hlcdc_layer_init(struct drm_device *dev,
 void atmel_hlcdc_layer_cleanup(struct drm_device *dev,
 			       struct atmel_hlcdc_layer *layer);
 
-int atmel_hlcdc_layer_disable(struct atmel_hlcdc_layer *layer);
+void atmel_hlcdc_layer_disable(struct atmel_hlcdc_layer *layer);
 
 int atmel_hlcdc_layer_update_start(struct atmel_hlcdc_layer *layer);
 

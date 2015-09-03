@@ -53,9 +53,8 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "mite.h"
 
 /* defines for the PCI-DIO-32HS */
@@ -304,7 +303,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 	devpriv->di_mite_chan =
 	    mite_request_channel_in_range(devpriv->mite,
 					  devpriv->di_mite_ring, 1, 2);
-	if (devpriv->di_mite_chan == NULL) {
+	if (!devpriv->di_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev, "failed to reserve mite dma channel\n");
 		return -EBUSY;
@@ -354,8 +353,9 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->di_mite_chan) {
 		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
 		mite_dma_arm(devpriv->di_mite_chan);
-	} else
+	} else {
 		retval = -EIO;
+	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	return retval;
@@ -547,21 +547,21 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -570,13 +570,13 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 #define MAX_SPEED	(TIMER_BASE)	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    MAX_SPEED);
 		/* no minimum speed */
 	} else {
 		/* TRIG_EXT */
@@ -587,13 +587,14 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 		}
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -603,7 +604,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		ni_pcidio_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -924,7 +925,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->di_mite_ring == NULL)
+	if (!devpriv->di_mite_ring)
 		return -ENOMEM;
 
 	if (board->uses_firmware) {

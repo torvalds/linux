@@ -6,14 +6,15 @@
  *
  *  ebtables.c,v 2.0, April, 2002
  *
- *  This code is stongly inspired on the iptables code which is
+ *  This code is strongly inspired by the iptables code which is
  *  Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
  */
 #ifndef __LINUX_BRIDGE_EFF_H
 #define __LINUX_BRIDGE_EFF_H
 
+#include <linux/if.h>
+#include <linux/if_ether.h>
 #include <uapi/linux/netfilter_bridge/ebtables.h>
-
 
 /* return values for match() functions */
 #define EBT_MATCH 0

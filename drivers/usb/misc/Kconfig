@@ -255,3 +255,16 @@ config USB_LINK_LAYER_TEST
 	  This driver is for generating specific traffic for Super Speed Link
 	  Layer Test Device. Say Y only when you want to conduct USB Super Speed
 	  Link Layer Test for host controllers.
+
+config USB_CHAOSKEY
+	tristate "ChaosKey random number generator driver support"
+	depends on HW_RANDOM
+	help
+	  Say Y here if you want to connect an AltusMetrum ChaosKey to
+	  your computer's USB port. The ChaosKey is a hardware random
+	  number generator which hooks into the kernel entropy pool to
+	  ensure a large supply of entropy for /dev/random and
+	  /dev/urandom and also provides direct access via /dev/chaoskeyX
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called chaoskey.

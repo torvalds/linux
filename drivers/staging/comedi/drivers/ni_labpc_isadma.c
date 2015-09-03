@@ -23,7 +23,6 @@
 #include "../comedidev.h"
 
 #include "comedi_isadma.h"
-#include "comedi_fc.h"
 #include "ni_labpc.h"
 #include "ni_labpc_regs.h"
 #include "ni_labpc_isadma.h"

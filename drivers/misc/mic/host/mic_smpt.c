@@ -174,8 +174,7 @@ static int mic_get_smpt_ref_count(struct mic_device *mdev, dma_addr_t dma_addr,
  *
  * returns a DMA address.
  */
-static dma_addr_t
-mic_to_dma_addr(struct mic_device *mdev, dma_addr_t mic_addr)
+dma_addr_t mic_to_dma_addr(struct mic_device *mdev, dma_addr_t mic_addr)
 {
 	struct mic_smpt_info *smpt_info = mdev->smpt;
 	int spt;
@@ -214,7 +213,7 @@ dma_addr_t mic_map(struct mic_device *mdev, dma_addr_t dma_addr, size_t size)
 	if (!size || size > mic_max_system_memory(mdev))
 		return mic_addr;
 
-	ref = kmalloc(mdev->smpt->info.num_reg * sizeof(s64), GFP_KERNEL);
+	ref = kmalloc_array(mdev->smpt->info.num_reg, sizeof(s64), GFP_ATOMIC);
 	if (!ref)
 		return mic_addr;
 
@@ -271,7 +270,7 @@ void mic_unmap(struct mic_device *mdev, dma_addr_t mic_addr, size_t size)
 	}
 
 	spt = mic_sys_addr_to_smpt(mdev, mic_addr);
-	ref = kmalloc(mdev->smpt->info.num_reg * sizeof(s64), GFP_KERNEL);
+	ref = kmalloc_array(mdev->smpt->info.num_reg, sizeof(s64), GFP_ATOMIC);
 	if (!ref)
 		return;
 

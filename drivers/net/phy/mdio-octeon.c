@@ -252,7 +252,7 @@ static int octeon_mdiobus_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_mdiobus_match[] = {
+static const struct of_device_id octeon_mdiobus_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-mdio",
 	},

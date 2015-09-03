@@ -371,6 +371,17 @@ config SENSORS_DS1621
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1621.
 
+config SENSORS_DELL_SMM
+	tristate "Dell laptop SMM BIOS hwmon driver"
+	depends on X86
+	help
+	  This hwmon driver adds support for reporting temperature of different
+	  sensors and controls the fans on Dell laptops via System Management
+	  Mode provided by Dell BIOS.
+
+	  When option I8K is also enabled this driver provides legacy /proc/i8k
+	  userspace interface for i8kutils package.
+
 config SENSORS_DA9052_ADC
 	tristate "Dialog DA9052/DA9053 ADC"
 	depends on PMIC_DA9052
@@ -509,7 +520,8 @@ config SENSORS_G762
 
 config SENSORS_GPIO_FAN
 	tristate "GPIO fan"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
+	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to GPIO lines.
 
@@ -599,8 +611,8 @@ config SENSORS_IT87
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
 	  IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
-	  IT8771E, IT8772E, IT8782F, IT8783E/F and IT8603E sensor chips,
-	  and the SiS950 clone.
+	  IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E,
+	  IT8603E, IT8620E, and IT8623E sensor chips, and the SiS950 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -624,7 +636,7 @@ config SENSORS_JC42
 	  mobile devices and servers.  Support will include, but not be limited
 	  to, ADT7408, AT30TS00, CAT34TS02, CAT6095, MAX6604, MCP9804, MCP9805,
 	  MCP98242, MCP98243, MCP98244, MCP9843, SE97, SE98, STTS424(E),
-	  STTS2002, STTS3000, TSE2002B3, TSE2002GB2, TS3000B3, and TS3000GB2.
+	  STTS2002, STTS3000, TSE2002, TSE2004, TS3000, and TS3001.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
@@ -1105,8 +1117,8 @@ config SENSORS_NTC_THERMISTOR
 	  send notifications about the temperature.
 
 	  Currently, this driver supports
-	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, and NCP15WL333
-	  from Murata and B57330V2103 from EPCOS.
+	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, NCP15WL333,
+	  and NCP03WF104 from Murata and B57330V2103 from EPCOS.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
@@ -1145,6 +1157,16 @@ config SENSORS_NCT7802
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct7802.
 
+config SENSORS_NCT7904
+	tristate "Nuvoton NCT7904"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Nuvoton NCT7904
+	  hardware monitoring chip, including manual fan speed control.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called nct7904.
+
 config SENSORS_PCF8591
 	tristate "Philips PCF8591 ADC/DAC"
 	depends on I2C
@@ -1164,6 +1186,7 @@ source drivers/hwmon/pmbus/Kconfig
 config SENSORS_PWM_FAN
 	tristate "PWM fan"
 	depends on (PWM && OF) || COMPILE_TEST
+	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to PWM lines.
 	  The driver uses the generic PWM interface, thus it will work on a
@@ -1174,7 +1197,7 @@ config SENSORS_PWM_FAN
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  If you say yes here you get support for the Sensiron SHT10, SHT11,
 	  SHT15, SHT71, SHT75 humidity and temperature sensors.
@@ -1439,6 +1462,16 @@ config SENSORS_INA2XX
 	  Default value for Rshunt is 10 mOhms.
 	  This driver can also be built as a module.  If so, the module
 	  will be called ina2xx.
+
+config SENSORS_TC74
+	tristate "Microchip TC74"
+	depends on I2C
+	help
+	  If you say yes here you get support for Microchip TC74 single
+	  input temperature sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tc74.
 
 config SENSORS_THMC50
 	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"

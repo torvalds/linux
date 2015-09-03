@@ -22,12 +22,9 @@
 #include <linux/mfd/max14577.h>
 
 struct max14577_charger {
-	struct device *dev;
-	struct max14577	*max14577;
-	struct power_supply	charger;
-
-	unsigned int		charging_state;
-	unsigned int		battery_state;
+	struct device		*dev;
+	struct max14577		*max14577;
+	struct power_supply	*charger;
 
 	struct max14577_charger_platform_data	*pdata;
 };
@@ -57,10 +54,10 @@ static enum max14577_muic_charger_type maxim_get_charger_type(
 	}
 }
 
-static int max14577_get_charger_state(struct max14577_charger *chg)
+static int max14577_get_charger_state(struct max14577_charger *chg, int *val)
 {
 	struct regmap *rmap = chg->max14577->regmap;
-	int state = POWER_SUPPLY_STATUS_DISCHARGING;
+	int ret;
 	u8 reg_data;
 
 	/*
@@ -74,23 +71,32 @@ static int max14577_get_charger_state(struct max14577_charger *chg)
 	 *  - handle properly dead-battery charging (respect timer)
 	 *  - handle timers (fast-charge and prequal) /MBCCHGERR/
 	 */
-	max14577_read_reg(rmap, MAX14577_CHG_REG_CHG_CTRL2, &reg_data);
-	if ((reg_data & CHGCTRL2_MBCHOSTEN_MASK) == 0)
-		goto state_set;
+	ret = max14577_read_reg(rmap, MAX14577_CHG_REG_CHG_CTRL2, &reg_data);
+	if (ret < 0)
+		goto out;
 
-	max14577_read_reg(rmap, MAX14577_CHG_REG_STATUS3, &reg_data);
+	if ((reg_data & CHGCTRL2_MBCHOSTEN_MASK) == 0) {
+		*val = POWER_SUPPLY_STATUS_DISCHARGING;
+		goto out;
+	}
+
+	ret = max14577_read_reg(rmap, MAX14577_CHG_REG_STATUS3, &reg_data);
+	if (ret < 0)
+		goto out;
+
 	if (reg_data & STATUS3_CGMBC_MASK) {
 		/* Charger or USB-cable is connected */
 		if (reg_data & STATUS3_EOC_MASK)
-			state = POWER_SUPPLY_STATUS_FULL;
+			*val = POWER_SUPPLY_STATUS_FULL;
 		else
-			state = POWER_SUPPLY_STATUS_CHARGING;
-		goto state_set;
+			*val = POWER_SUPPLY_STATUS_CHARGING;
+		goto out;
 	}
 
-state_set:
-	chg->charging_state = state;
-	return state;
+	*val = POWER_SUPPLY_STATUS_DISCHARGING;
+
+out:
+	return ret;
 }
 
 /*
@@ -98,8 +104,10 @@ state_set:
  *  - POWER_SUPPLY_CHARGE_TYPE_NONE
  *  - POWER_SUPPLY_CHARGE_TYPE_FAST
  */
-static int max14577_get_charge_type(struct max14577_charger *chg)
+static int max14577_get_charge_type(struct max14577_charger *chg, int *val)
 {
+	int ret, charging;
+
 	/*
 	 * TODO: CHARGE_TYPE_TRICKLE (VCHGR_RC or EOC)?
 	 * As spec says:
@@ -108,18 +116,29 @@ static int max14577_get_charge_type(struct max14577_charger *chg)
 	 *  top-off timer starts. The device continues to trickle
 	 *  charge the battery until the top-off timer runs out."
 	 */
-	if (max14577_get_charger_state(chg) == POWER_SUPPLY_STATUS_CHARGING)
-		return POWER_SUPPLY_CHARGE_TYPE_FAST;
-	return POWER_SUPPLY_CHARGE_TYPE_NONE;
+	ret = max14577_get_charger_state(chg, &charging);
+	if (ret < 0)
+		return ret;
+
+	if (charging == POWER_SUPPLY_STATUS_CHARGING)
+		*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
+	else
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+
+	return 0;
 }
 
-static int max14577_get_online(struct max14577_charger *chg)
+static int max14577_get_online(struct max14577_charger *chg, int *val)
 {
 	struct regmap *rmap = chg->max14577->regmap;
 	u8 reg_data;
+	int ret;
 	enum max14577_muic_charger_type chg_type;
 
-	max14577_read_reg(rmap, MAX14577_MUIC_REG_STATUS2, &reg_data);
+	ret = max14577_read_reg(rmap, MAX14577_MUIC_REG_STATUS2, &reg_data);
+	if (ret < 0)
+		return ret;
+
 	reg_data = ((reg_data & STATUS2_CHGTYP_MASK) >> STATUS2_CHGTYP_SHIFT);
 	chg_type = maxim_get_charger_type(chg->max14577->dev_type, reg_data);
 	switch (chg_type) {
@@ -129,14 +148,17 @@ static int max14577_get_online(struct max14577_charger *chg)
 	case MAX14577_CHARGER_TYPE_SPECIAL_1A:
 	case MAX14577_CHARGER_TYPE_DEAD_BATTERY:
 	case MAX77836_CHARGER_TYPE_SPECIAL_BIAS:
-		return 1;
+		*val = 1;
+		break;
 	case MAX14577_CHARGER_TYPE_NONE:
 	case MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT:
 	case MAX14577_CHARGER_TYPE_RESERVED:
 	case MAX77836_CHARGER_TYPE_RESERVED:
 	default:
-		return 0;
+		*val = 0;
 	}
+
+	return 0;
 }
 
 /*
@@ -145,30 +167,38 @@ static int max14577_get_online(struct max14577_charger *chg)
  *  - POWER_SUPPLY_HEALTH_OVERVOLTAGE
  *  - POWER_SUPPLY_HEALTH_GOOD
  */
-static int max14577_get_battery_health(struct max14577_charger *chg)
+static int max14577_get_battery_health(struct max14577_charger *chg, int *val)
 {
 	struct regmap *rmap = chg->max14577->regmap;
-	int state = POWER_SUPPLY_HEALTH_GOOD;
+	int ret;
 	u8 reg_data;
 	enum max14577_muic_charger_type chg_type;
 
-	max14577_read_reg(rmap, MAX14577_MUIC_REG_STATUS2, &reg_data);
+	ret = max14577_read_reg(rmap, MAX14577_MUIC_REG_STATUS2, &reg_data);
+	if (ret < 0)
+		goto out;
+
 	reg_data = ((reg_data & STATUS2_CHGTYP_MASK) >> STATUS2_CHGTYP_SHIFT);
 	chg_type = maxim_get_charger_type(chg->max14577->dev_type, reg_data);
 	if (chg_type == MAX14577_CHARGER_TYPE_DEAD_BATTERY) {
-		state = POWER_SUPPLY_HEALTH_DEAD;
-		goto state_set;
+		*val = POWER_SUPPLY_HEALTH_DEAD;
+		goto out;
 	}
 
-	max14577_read_reg(rmap, MAX14577_CHG_REG_STATUS3, &reg_data);
+	ret = max14577_read_reg(rmap, MAX14577_CHG_REG_STATUS3, &reg_data);
+	if (ret < 0)
+		goto out;
+
 	if (reg_data & STATUS3_OVP_MASK) {
-		state = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-		goto state_set;
+		*val = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		goto out;
 	}
 
-state_set:
-	chg->battery_state = state;
-	return state;
+	/* Not dead, not overvoltage */
+	*val = POWER_SUPPLY_HEALTH_GOOD;
+
+out:
+	return ret;
 }
 
 /*
@@ -176,9 +206,11 @@ state_set:
  * The max14577 chip doesn't report any status of battery presence.
  * Lets assume that it will always be used with some battery.
  */
-static int max14577_get_present(struct max14577_charger *chg)
+static int max14577_get_present(struct max14577_charger *chg, int *val)
 {
-	return 1;
+	*val = 1;
+
+	return 0;
 }
 
 static int max14577_set_fast_charge_timer(struct max14577_charger *chg,
@@ -389,26 +421,24 @@ static int max14577_charger_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct max14577_charger *chg = container_of(psy,
-						  struct max14577_charger,
-						  charger);
+	struct max14577_charger *chg = power_supply_get_drvdata(psy);
 	int ret = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = max14577_get_charger_state(chg);
+		ret = max14577_get_charger_state(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		val->intval = max14577_get_charge_type(chg);
+		ret = max14577_get_charge_type(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		val->intval = max14577_get_battery_health(chg);
+		ret = max14577_get_battery_health(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = max14577_get_present(chg);
+		ret = max14577_get_present(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = max14577_get_online(chg);
+		ret = max14577_get_online(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		BUILD_BUG_ON(ARRAY_SIZE(model_names) != MAXIM_DEVICE_TYPE_NUM);
@@ -423,6 +453,14 @@ static int max14577_charger_get_property(struct power_supply *psy,
 
 	return ret;
 }
+
+static const struct power_supply_desc max14577_charger_desc = {
+	.name = "max14577-charger",
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = max14577_charger_props,
+	.num_properties = ARRAY_SIZE(max14577_charger_props),
+	.get_property = max14577_charger_get_property,
+};
 
 #ifdef CONFIG_OF
 static struct max14577_charger_platform_data *max14577_charger_dt_init(
@@ -531,6 +569,7 @@ static DEVICE_ATTR(fast_charge_timer, S_IRUGO | S_IWUSR,
 static int max14577_charger_probe(struct platform_device *pdev)
 {
 	struct max14577_charger *chg;
+	struct power_supply_config psy_cfg = {};
 	struct max14577 *max14577 = dev_get_drvdata(pdev->dev.parent);
 	int ret;
 
@@ -550,21 +589,18 @@ static int max14577_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	chg->charger.name = "max14577-charger",
-	chg->charger.type = POWER_SUPPLY_TYPE_BATTERY,
-	chg->charger.properties = max14577_charger_props,
-	chg->charger.num_properties = ARRAY_SIZE(max14577_charger_props),
-	chg->charger.get_property = max14577_charger_get_property,
-
 	ret = device_create_file(&pdev->dev, &dev_attr_fast_charge_timer);
 	if (ret) {
 		dev_err(&pdev->dev, "failed: create sysfs entry\n");
 		return ret;
 	}
 
-	ret = power_supply_register(&pdev->dev, &chg->charger);
-	if (ret) {
+	psy_cfg.drv_data = chg;
+	chg->charger = power_supply_register(&pdev->dev, &max14577_charger_desc,
+						&psy_cfg);
+	if (IS_ERR(chg->charger)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
+		ret = PTR_ERR(chg->charger);
 		goto err;
 	}
 
@@ -585,7 +621,7 @@ static int max14577_charger_remove(struct platform_device *pdev)
 	struct max14577_charger *chg = platform_get_drvdata(pdev);
 
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
-	power_supply_unregister(&chg->charger);
+	power_supply_unregister(chg->charger);
 
 	return 0;
 }

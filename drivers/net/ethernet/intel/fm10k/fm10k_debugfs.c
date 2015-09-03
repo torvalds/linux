@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -36,14 +36,16 @@ static void *fm10k_dbg_desc_seq_start(struct seq_file *s, loff_t *pos)
 	return (*pos < ring->count) ? pos : NULL;
 }
 
-static void *fm10k_dbg_desc_seq_next(struct seq_file *s, void *v, loff_t *pos)
+static void *fm10k_dbg_desc_seq_next(struct seq_file *s,
+				     void __always_unused *v, loff_t *pos)
 {
 	struct fm10k_ring *ring = s->private;
 
 	return (++(*pos) < ring->count) ? pos : NULL;
 }
 
-static void fm10k_dbg_desc_seq_stop(struct seq_file *s, void *v)
+static void fm10k_dbg_desc_seq_stop(struct seq_file __always_unused *s,
+				    __always_unused void *v)
 {
 	/* Do nothing. */
 }

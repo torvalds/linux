@@ -100,7 +100,7 @@ WEAK(__copy_to_user)
 ENDPROC(__copy_to_user)
 ENDPROC(__copy_to_user_std)
 
-	.pushsection .fixup,"ax"
+	.pushsection .text.fixup,"ax"
 	.align 0
 	copy_abort_preamble
 	ldmfd	sp!, {r1, r2, r3}

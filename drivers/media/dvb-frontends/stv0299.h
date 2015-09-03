@@ -95,7 +95,7 @@ struct stv0299_config
 	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV0299)
+#if IS_REACHABLE(CONFIG_DVB_STV0299)
 extern struct dvb_frontend *stv0299_attach(const struct stv0299_config *config,
 					   struct i2c_adapter *i2c);
 #else

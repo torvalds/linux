@@ -382,6 +382,7 @@ static int amd_pmu_cpu_prepare(int cpu)
 static void amd_pmu_cpu_starting(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	void **onln = &cpuc->kfree_on_online[X86_PERF_KFREE_SHARED];
 	struct amd_nb *nb;
 	int i, nb_id;
 
@@ -399,7 +400,7 @@ static void amd_pmu_cpu_starting(int cpu)
 			continue;
 
 		if (nb->nb_id == nb_id) {
-			cpuc->kfree_on_online = cpuc->amd_nb;
+			*onln = cpuc->amd_nb;
 			cpuc->amd_nb = nb;
 			break;
 		}
@@ -429,7 +430,8 @@ static void amd_pmu_cpu_dead(int cpu)
 }
 
 static struct event_constraint *
-amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+amd_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
 {
 	/*
 	 * if not NB event or no NB, then no constraints
@@ -537,7 +539,8 @@ static struct event_constraint amd_f15_PMC50 = EVENT_CONSTRAINT(0, 0x3F, 0);
 static struct event_constraint amd_f15_PMC53 = EVENT_CONSTRAINT(0, 0x38, 0);
 
 static struct event_constraint *
-amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, struct perf_event *event)
+amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, int idx,
+			       struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned int event_code = amd_get_event_code(hwc);

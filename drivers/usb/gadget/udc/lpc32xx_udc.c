@@ -1803,23 +1803,14 @@ static int lpc32xx_ep_queue(struct usb_ep *_ep,
 	req = container_of(_req, struct lpc32xx_request, req);
 	ep = container_of(_ep, struct lpc32xx_ep, ep);
 
-	if (!_req || !_req->complete || !_req->buf ||
+	if (!_ep || !_req || !_req->complete || !_req->buf ||
 	    !list_empty(&req->queue))
 		return -EINVAL;
 
 	udc = ep->udc;
 
-	if (!_ep) {
-		dev_dbg(udc->dev, "invalid ep\n");
-		return -EINVAL;
-	}
-
-
-	if ((!udc) || (!udc->driver) ||
-	    (udc->gadget.speed == USB_SPEED_UNKNOWN)) {
-		dev_dbg(udc->dev, "invalid device\n");
-		return -EINVAL;
-	}
+	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
+		return -EPIPE;
 
 	if (ep->lep) {
 		struct lpc32xx_usbd_dd_gad *dd;

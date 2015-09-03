@@ -139,6 +139,7 @@ void pci_stop_root_bus(struct pci_bus *bus)
 	/* stop the host bridge */
 	device_release_driver(&host_bridge->dev);
 }
+EXPORT_SYMBOL_GPL(pci_stop_root_bus);
 
 void pci_remove_root_bus(struct pci_bus *bus)
 {
@@ -158,3 +159,4 @@ void pci_remove_root_bus(struct pci_bus *bus)
 	/* remove the host bridge */
 	device_unregister(&host_bridge->dev);
 }
+EXPORT_SYMBOL_GPL(pci_remove_root_bus);

@@ -168,7 +168,7 @@ static int platinumfb_blank(int blank,  struct fb_info *fb)
 	struct fb_info_platinum *info = (struct fb_info_platinum *) fb;
 	int	ctrl;
 
-	ctrl = ld_le32(&info->platinum_regs->ctrl.r) | 0x33;
+	ctrl = le32_to_cpup(&info->platinum_regs->ctrl.r) | 0x33;
 	if (blank)
 		--blank_mode;
 	if (blank & VESA_VSYNC_SUSPEND)

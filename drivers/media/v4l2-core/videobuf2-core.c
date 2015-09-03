@@ -182,6 +182,7 @@ module_param(debug, int, 0644);
 				 V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_TIMECODE)
 
 static void __vb2_queue_cancel(struct vb2_queue *q);
+static void __enqueue_in_driver(struct vb2_buffer *vb);
 
 /**
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
@@ -1153,8 +1154,9 @@ EXPORT_SYMBOL_GPL(vb2_plane_cookie);
 /**
  * vb2_buffer_done() - inform videobuf that an operation on a buffer is finished
  * @vb:		vb2_buffer returned from the driver
- * @state:	either VB2_BUF_STATE_DONE if the operation finished successfully
- *		or VB2_BUF_STATE_ERROR if the operation finished with an error.
+ * @state:	either VB2_BUF_STATE_DONE if the operation finished successfully,
+ *		VB2_BUF_STATE_ERROR if the operation finished with an error or
+ *		VB2_BUF_STATE_QUEUED if the driver wants to requeue buffers.
  *		If start_streaming fails then it should return buffers with state
  *		VB2_BUF_STATE_QUEUED to put them back into the queue.
  *
@@ -1205,8 +1207,11 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	atomic_dec(&q->owned_by_drv_count);
 	spin_unlock_irqrestore(&q->done_lock, flags);
 
-	if (state == VB2_BUF_STATE_QUEUED)
+	if (state == VB2_BUF_STATE_QUEUED) {
+		if (q->start_streaming_called)
+			__enqueue_in_driver(vb);
 		return;
+	}
 
 	/* Inform any processes that may be waiting for buffers */
 	wake_up(&q->done_wq);
@@ -1236,6 +1241,23 @@ void vb2_discard_done(struct vb2_queue *q)
 	spin_unlock_irqrestore(&q->done_lock, flags);
 }
 EXPORT_SYMBOL_GPL(vb2_discard_done);
+
+static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
+{
+	static bool __check_once __read_mostly;
+
+	if (__check_once)
+		return;
+
+	__check_once = true;
+	__WARN();
+
+	pr_warn_once("use of bytesused == 0 is deprecated and will be removed in the future,\n");
+	if (vb->vb2_queue->allow_zero_bytesused)
+		pr_warn_once("use VIDIOC_DECODER_CMD(V4L2_DEC_CMD_STOP) instead.\n");
+	else
+		pr_warn_once("use the actual size instead.\n");
+}
 
 /**
  * __fill_vb2_buffer() - fill a vb2_buffer with information provided in a
@@ -1276,13 +1298,25 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 			 * userspace clearly never bothered to set it and
 			 * it's a safe assumption that they really meant to
 			 * use the full plane sizes.
+			 *
+			 * Some drivers, e.g. old codec drivers, use bytesused == 0
+			 * as a way to indicate that streaming is finished.
+			 * In that case, the driver should use the
+			 * allow_zero_bytesused flag to keep old userspace
+			 * applications working.
 			 */
 			for (plane = 0; plane < vb->num_planes; ++plane) {
 				struct v4l2_plane *pdst = &v4l2_planes[plane];
 				struct v4l2_plane *psrc = &b->m.planes[plane];
 
-				pdst->bytesused = psrc->bytesused ?
-					psrc->bytesused : pdst->length;
+				if (psrc->bytesused == 0)
+					vb2_warn_zero_bytesused(vb);
+
+				if (vb->vb2_queue->allow_zero_bytesused)
+					pdst->bytesused = psrc->bytesused;
+				else
+					pdst->bytesused = psrc->bytesused ?
+						psrc->bytesused : pdst->length;
 				pdst->data_offset = psrc->data_offset;
 			}
 		}
@@ -1295,6 +1329,11 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 		 *
 		 * If bytesused == 0 for the output buffer, then fall back
 		 * to the full buffer size as that's a sensible default.
+		 *
+		 * Some drivers, e.g. old codec drivers, use bytesused == 0 as
+		 * a way to indicate that streaming is finished. In that case,
+		 * the driver should use the allow_zero_bytesused flag to keep
+		 * old userspace applications working.
 		 */
 		if (b->memory == V4L2_MEMORY_USERPTR) {
 			v4l2_planes[0].m.userptr = b->m.userptr;
@@ -1306,10 +1345,16 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 			v4l2_planes[0].length = b->length;
 		}
 
-		if (V4L2_TYPE_IS_OUTPUT(b->type))
-			v4l2_planes[0].bytesused = b->bytesused ?
-				b->bytesused : v4l2_planes[0].length;
-		else
+		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+			if (b->bytesused == 0)
+				vb2_warn_zero_bytesused(vb);
+
+			if (vb->vb2_queue->allow_zero_bytesused)
+				v4l2_planes[0].bytesused = b->bytesused;
+			else
+				v4l2_planes[0].bytesused = b->bytesused ?
+					b->bytesused : v4l2_planes[0].length;
+		} else
 			v4l2_planes[0].bytesused = 0;
 
 	}
@@ -1918,6 +1963,11 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 			return -EIO;
 		}
 
+		if (q->last_buffer_dequeued) {
+			dprintk(3, "last buffer dequeued already, will not wait for buffers\n");
+			return -EPIPE;
+		}
+
 		if (!list_empty(&q->done_list)) {
 			/*
 			 * Found a buffer that we were waiting for.
@@ -2073,6 +2123,9 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool n
 	/* Remove from videobuf queue */
 	list_del(&vb->queued_entry);
 	q->queued_count--;
+	if (!V4L2_TYPE_IS_OUTPUT(q->type) &&
+	    vb->v4l2_buf.flags & V4L2_BUF_FLAG_LAST)
+		q->last_buffer_dequeued = true;
 	/* go back to dequeued state */
 	__vb2_dqbuf(vb);
 
@@ -2286,6 +2339,7 @@ static int vb2_internal_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 	 */
 	__vb2_queue_cancel(q);
 	q->waiting_for_buffers = !V4L2_TYPE_IS_OUTPUT(q->type);
+	q->last_buffer_dequeued = false;
 
 	dprintk(3, "successful\n");
 	return 0;
@@ -2628,8 +2682,16 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	if (V4L2_TYPE_IS_OUTPUT(q->type) && q->queued_count < q->num_buffers)
 		return res | POLLOUT | POLLWRNORM;
 
-	if (list_empty(&q->done_list))
+	if (list_empty(&q->done_list)) {
+		/*
+		 * If the last buffer was dequeued from a capture queue,
+		 * return immediately. DQBUF will return -EPIPE.
+		 */
+		if (q->last_buffer_dequeued)
+			return res | POLLIN | POLLRDNORM;
+
 		poll_wait(file, &q->done_wq, wait);
+	}
 
 	/*
 	 * Take first buffer available for dequeuing.
@@ -2760,7 +2822,8 @@ struct vb2_fileio_data {
 	unsigned int initial_index;
 	unsigned int q_count;
 	unsigned int dq_count;
-	unsigned int flags;
+	unsigned read_once:1;
+	unsigned write_immediately:1;
 };
 
 /**
@@ -2798,14 +2861,16 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	 */
 	count = 1;
 
-	dprintk(3, "setting up file io: mode %s, count %d, flags %08x\n",
-		(read) ? "read" : "write", count, q->io_flags);
+	dprintk(3, "setting up file io: mode %s, count %d, read_once %d, write_immediately %d\n",
+		(read) ? "read" : "write", count, q->fileio_read_once,
+		q->fileio_write_immediately);
 
 	fileio = kzalloc(sizeof(struct vb2_fileio_data), GFP_KERNEL);
 	if (fileio == NULL)
 		return -ENOMEM;
 
-	fileio->flags = q->io_flags;
+	fileio->read_once = q->fileio_read_once;
+	fileio->write_immediately = q->fileio_write_immediately;
 
 	/*
 	 * Request buffers and use MMAP type to force driver
@@ -3028,13 +3093,11 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	/*
 	 * Queue next buffer if required.
 	 */
-	if (buf->pos == buf->size ||
-	   (!read && (fileio->flags & VB2_FILEIO_WRITE_IMMEDIATELY))) {
+	if (buf->pos == buf->size || (!read && fileio->write_immediately)) {
 		/*
 		 * Check if this is the last buffer to read.
 		 */
-		if (read && (fileio->flags & VB2_FILEIO_READ_ONCE) &&
-		    fileio->dq_count == 1) {
+		if (read && fileio->read_once && fileio->dq_count == 1) {
 			dprintk(3, "read limit reached\n");
 			return __vb2_cleanup_fileio(q);
 		}
@@ -3225,23 +3288,17 @@ EXPORT_SYMBOL_GPL(vb2_thread_start);
 int vb2_thread_stop(struct vb2_queue *q)
 {
 	struct vb2_threadio_data *threadio = q->threadio;
-	struct vb2_fileio_data *fileio = q->fileio;
 	int err;
 
 	if (threadio == NULL)
 		return 0;
-	call_void_qop(q, wait_finish, q);
 	threadio->stop = true;
-	vb2_internal_streamoff(q, q->type);
-	call_void_qop(q, wait_prepare, q);
+	/* Wake up all pending sleeps in the thread */
+	vb2_queue_error(q);
 	err = kthread_stop(threadio->thread);
-	q->fileio = NULL;
-	fileio->req.count = 0;
-	vb2_reqbufs(q, &fileio->req);
-	kfree(fileio);
+	__vb2_cleanup_fileio(q);
 	threadio->thread = NULL;
 	kfree(threadio);
-	q->fileio = NULL;
 	q->threadio = NULL;
 	return err;
 }
@@ -3416,6 +3473,8 @@ ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
 	int err = -EBUSY;
 
+	if (!(vdev->queue->io_modes & VB2_WRITE))
+		return -EINVAL;
 	if (lock && mutex_lock_interruptible(lock))
 		return -ERESTARTSYS;
 	if (vb2_queue_is_busy(vdev, file))
@@ -3438,6 +3497,8 @@ ssize_t vb2_fop_read(struct file *file, char __user *buf,
 	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
 	int err = -EBUSY;
 
+	if (!(vdev->queue->io_modes & VB2_READ))
+		return -EINVAL;
 	if (lock && mutex_lock_interruptible(lock))
 		return -ERESTARTSYS;
 	if (vb2_queue_is_busy(vdev, file))

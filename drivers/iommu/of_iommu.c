@@ -133,19 +133,25 @@ struct iommu_ops *of_iommu_get_ops(struct device_node *np)
 	return ops;
 }
 
-struct iommu_ops *of_iommu_configure(struct device *dev)
+struct iommu_ops *of_iommu_configure(struct device *dev,
+				     struct device_node *master_np)
 {
 	struct of_phandle_args iommu_spec;
 	struct device_node *np;
 	struct iommu_ops *ops = NULL;
 	int idx = 0;
 
+	if (dev_is_pci(dev)) {
+		dev_err(dev, "IOMMU is currently not supported for PCI\n");
+		return NULL;
+	}
+
 	/*
 	 * We don't currently walk up the tree looking for a parent IOMMU.
 	 * See the `Notes:' section of
 	 * Documentation/devicetree/bindings/iommu/iommu.txt
 	 */
-	while (!of_parse_phandle_with_args(dev->of_node, "iommus",
+	while (!of_parse_phandle_with_args(master_np, "iommus",
 					   "#iommu-cells", idx,
 					   &iommu_spec)) {
 		np = iommu_spec.np;

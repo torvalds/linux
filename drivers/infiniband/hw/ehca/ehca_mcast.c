@@ -77,7 +77,7 @@ int ehca_attach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		return -EINVAL;
 	}
 
-	memcpy(&my_gid.raw, gid->raw, sizeof(union ib_gid));
+	memcpy(&my_gid, gid->raw, sizeof(union ib_gid));
 
 	subnet_prefix = be64_to_cpu(my_gid.global.subnet_prefix);
 	interface_id = be64_to_cpu(my_gid.global.interface_id);
@@ -114,7 +114,7 @@ int ehca_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		return -EINVAL;
 	}
 
-	memcpy(&my_gid.raw, gid->raw, sizeof(union ib_gid));
+	memcpy(&my_gid, gid->raw, sizeof(union ib_gid));
 
 	subnet_prefix = be64_to_cpu(my_gid.global.subnet_prefix);
 	interface_id = be64_to_cpu(my_gid.global.interface_id);

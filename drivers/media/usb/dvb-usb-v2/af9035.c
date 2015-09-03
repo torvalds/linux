@@ -1234,10 +1234,6 @@ static int af9035_frontend_detach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct tua9001_config af9035_tua9001_config = {
-	.i2c_addr = 0x60,
-};
-
 static const struct fc0011_config af9035_fc0011_config = {
 	.i2c_address = 0x60,
 };
@@ -1263,11 +1259,6 @@ static struct mxl5007t_config af9035_mxl5007t_config[] = {
 static struct tda18218_config af9035_tda18218_config = {
 	.i2c_address = 0x60,
 	.i2c_wr_max = 21,
-};
-
-static const struct fc2580_config af9035_fc2580_config = {
-	.i2c_addr = 0x56,
-	.clock = 16384000,
 };
 
 static const struct fc0012_config af9035_fc0012_config[] = {
@@ -1301,9 +1292,15 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 	 */
 
 	switch (state->af9033_config[adap->id].tuner) {
-	case AF9033_TUNER_TUA9001:
-		/* AF9035 gpiot3 = TUA9001 RESETN
-		   AF9035 gpiot2 = TUA9001 RXEN */
+	case AF9033_TUNER_TUA9001: {
+		struct tua9001_platform_data tua9001_pdata = {
+			.dvb_frontend = adap->fe[0],
+		};
+
+		/*
+		 * AF9035 gpiot3 = TUA9001 RESETN
+		 * AF9035 gpiot2 = TUA9001 RXEN
+		 */
 
 		/* configure gpiot2 and gpiot2 as output */
 		ret = af9035_wr_reg_mask(d, 0x00d8ec, 0x01, 0x01);
@@ -1323,9 +1320,14 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 			goto err;
 
 		/* attach tuner */
-		fe = dvb_attach(tua9001_attach, adap->fe[0],
-				&d->i2c_adap, &af9035_tua9001_config);
+		ret = af9035_add_i2c_dev(d, "tua9001", 0x60, &tua9001_pdata,
+					 &d->i2c_adap);
+		if (ret)
+			goto err;
+
+		fe = adap->fe[0];
 		break;
+	}
 	case AF9033_TUNER_FC0011:
 		fe = dvb_attach(fc0011_attach, adap->fe[0],
 				&d->i2c_adap, &af9035_fc0011_config);
@@ -1390,7 +1392,11 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		fe = dvb_attach(tda18218_attach, adap->fe[0],
 				&d->i2c_adap, &af9035_tda18218_config);
 		break;
-	case AF9033_TUNER_FC2580:
+	case AF9033_TUNER_FC2580: {
+		struct fc2580_platform_data fc2580_pdata = {
+			.dvb_frontend = adap->fe[0],
+		};
+
 		/* Tuner enable using gpiot2_o, gpiot2_en and gpiot2_on  */
 		ret = af9035_wr_reg_mask(d, 0xd8eb, 0x01, 0x01);
 		if (ret < 0)
@@ -1406,9 +1412,14 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 
 		usleep_range(10000, 50000);
 		/* attach tuner */
-		fe = dvb_attach(fc2580_attach, adap->fe[0],
-				&d->i2c_adap, &af9035_fc2580_config);
+		ret = af9035_add_i2c_dev(d, "fc2580", 0x56, &fc2580_pdata,
+					 &d->i2c_adap);
+		if (ret)
+			goto err;
+
+		fe = adap->fe[0];
 		break;
+	}
 	case AF9033_TUNER_FC0012:
 		/*
 		 * AF9035 gpiot2 = FC0012 enable
@@ -1569,6 +1580,7 @@ static int it930x_tuner_attach(struct dvb_usb_adapter *adap)
 
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
+	si2157_config.if_port = 1;
 	ret = af9035_add_i2c_dev(d, "si2157", 0x63,
 			&si2157_config, state->i2c_adapter_demod);
 
@@ -1611,6 +1623,8 @@ static int af9035_tuner_detach(struct dvb_usb_adapter *adap)
 	dev_dbg(&d->udev->dev, "%s: adap->id=%d\n", __func__, adap->id);
 
 	switch (state->af9033_config[adap->id].tuner) {
+	case AF9033_TUNER_TUA9001:
+	case AF9033_TUNER_FC2580:
 	case AF9033_TUNER_IT9135_38:
 	case AF9033_TUNER_IT9135_51:
 	case AF9033_TUNER_IT9135_52:
@@ -2021,6 +2035,9 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "Asus U3100Mini Plus", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x00aa,
 		&af9035_props, "TerraTec Cinergy T Stick (rev. 2)", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, 0x0337,
+		&af9035_props, "AVerMedia HD Volar (A867)", NULL) },
+
 	/* IT9135 devices */
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135,
 		&af9035_props, "ITE 9135 Generic", RC_MAP_IT913X_V1) },
@@ -2046,9 +2063,6 @@ static const struct usb_device_id af9035_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CTVDIGDUAL_V2,
 		&af9035_props, "Digital Dual TV Receiver CTVDIGDUAL_V2",
 							RC_MAP_IT913X_V1) },
-	/* IT930x devices */
-	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
-		&it930x_props, "ITE 9303 Generic", NULL) },
 	/* XXX: that same ID [0ccd:0099] is used by af9015 driver too */
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x0099,
 		&af9035_props, "TerraTec Cinergy T Stick Dual RC (rev. 2)",
@@ -2061,6 +2075,10 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "PCTV AndroiDTV (78e)", RC_MAP_IT913X_V1) },
 	{ DVB_USB_DEVICE(USB_VID_PCTV, USB_PID_PCTV_79E,
 		&af9035_props, "PCTV microStick (79e)", RC_MAP_IT913X_V2) },
+
+	/* IT930x devices */
+	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
+		&it930x_props, "ITE 9303 Generic", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);

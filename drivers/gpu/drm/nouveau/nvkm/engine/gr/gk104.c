@@ -34,8 +34,8 @@
 
 static struct nvkm_oclass
 gk104_gr_sclass[] = {
-	{ 0x902d, &nvkm_object_ofuncs },
-	{ 0xa040, &nvkm_object_ofuncs },
+	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
+	{ KEPLER_INLINE_TO_MEMORY_A, &nvkm_object_ofuncs },
 	{ KEPLER_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
 	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
 	{}
@@ -310,6 +310,17 @@ gk104_gr_init(struct nvkm_object *object)
 	return gf100_gr_init_ctxctl(priv);
 }
 
+int
+gk104_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
+{
+	struct nvkm_pmu *pmu = nvkm_pmu(parent);
+	if (pmu)
+		pmu->pgob(pmu, false);
+	return gf100_gr_ctor(parent, engine, oclass, data, size, pobject);
+}
+
 #include "fuc/hubgk104.fuc3.h"
 
 static struct gf100_gr_ucode
@@ -334,7 +345,7 @@ struct nvkm_oclass *
 gk104_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xe4),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
+		.ctor = gk104_gr_ctor,
 		.dtor = gf100_gr_dtor,
 		.init = gk104_gr_init,
 		.fini = _nvkm_gr_fini,

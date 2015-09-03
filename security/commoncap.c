@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -51,11 +51,6 @@ static void warn_setuid_and_fcaps_mixed(const char *fname)
 			" capabilities.\n", fname);
 		warned = 1;
 	}
-}
-
-int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
-{
-	return 0;
 }
 
 /**
@@ -297,7 +292,7 @@ static inline void bprm_clear_caps(struct linux_binprm *bprm)
  */
 int cap_inode_need_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	int error;
 
 	if (!inode->i_op->getxattr)
@@ -319,7 +314,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
  */
 int cap_inode_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 
 	if (!inode->i_op->removexattr)
 	       return 0;
@@ -375,7 +370,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
  */
 int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	__u32 magic_etc;
 	unsigned tocopy, i;
 	int size;
@@ -941,7 +936,7 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
  * @pages: The size of the mapping
  *
  * Determine whether the allocation of a new virtual mapping by the current
- * task is permitted, returning 0 if permission is granted, -ve if not.
+ * task is permitted, returning 1 if permission is granted, 0 if not.
  */
 int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 {
@@ -950,7 +945,7 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 	if (cap_capable(current_cred(), &init_user_ns, CAP_SYS_ADMIN,
 			SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
-	return __vm_enough_memory(mm, pages, cap_sys_admin);
+	return cap_sys_admin;
 }
 
 /*
@@ -981,3 +976,33 @@ int cap_mmap_file(struct file *file, unsigned long reqprot,
 {
 	return 0;
 }
+
+#ifdef CONFIG_SECURITY
+
+struct security_hook_list capability_hooks[] = {
+	LSM_HOOK_INIT(capable, cap_capable),
+	LSM_HOOK_INIT(settime, cap_settime),
+	LSM_HOOK_INIT(ptrace_access_check, cap_ptrace_access_check),
+	LSM_HOOK_INIT(ptrace_traceme, cap_ptrace_traceme),
+	LSM_HOOK_INIT(capget, cap_capget),
+	LSM_HOOK_INIT(capset, cap_capset),
+	LSM_HOOK_INIT(bprm_set_creds, cap_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_secureexec, cap_bprm_secureexec),
+	LSM_HOOK_INIT(inode_need_killpriv, cap_inode_need_killpriv),
+	LSM_HOOK_INIT(inode_killpriv, cap_inode_killpriv),
+	LSM_HOOK_INIT(mmap_addr, cap_mmap_addr),
+	LSM_HOOK_INIT(mmap_file, cap_mmap_file),
+	LSM_HOOK_INIT(task_fix_setuid, cap_task_fix_setuid),
+	LSM_HOOK_INIT(task_prctl, cap_task_prctl),
+	LSM_HOOK_INIT(task_setscheduler, cap_task_setscheduler),
+	LSM_HOOK_INIT(task_setioprio, cap_task_setioprio),
+	LSM_HOOK_INIT(task_setnice, cap_task_setnice),
+	LSM_HOOK_INIT(vm_enough_memory, cap_vm_enough_memory),
+};
+
+void __init capability_add_hooks(void)
+{
+	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks));
+}
+
+#endif /* CONFIG_SECURITY */

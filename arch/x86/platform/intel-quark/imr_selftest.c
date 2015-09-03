@@ -11,6 +11,7 @@
  */
 
 #include <asm-generic/sections.h>
+#include <asm/cpu_device_id.h>
 #include <asm/imr.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -101,6 +102,12 @@ static void __init imr_self_test(void)
 	}
 }
 
+static const struct x86_cpu_id imr_ids[] __initconst = {
+	{ X86_VENDOR_INTEL, 5, 9 },	/* Intel Quark SoC X1000. */
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, imr_ids);
+
 /**
  * imr_self_test_init - entry point for IMR driver.
  *
@@ -108,7 +115,8 @@ static void __init imr_self_test(void)
  */
 static int __init imr_self_test_init(void)
 {
-	imr_self_test();
+	if (x86_match_cpu(imr_ids))
+		imr_self_test();
 	return 0;
 }
 

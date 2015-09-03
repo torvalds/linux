@@ -57,7 +57,6 @@ enum interruption_class {
 	IRQIO_TAP,
 	IRQIO_VMR,
 	IRQIO_LCS,
-	IRQIO_CLW,
 	IRQIO_CTC,
 	IRQIO_APB,
 	IRQIO_ADM,

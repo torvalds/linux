@@ -468,6 +468,8 @@ void acpi_ex_eisa_id_to_string(char *dest, u64 compressed_id);
 
 void acpi_ex_integer_to_string(char *dest, u64 value);
 
+void acpi_ex_pci_cls_to_string(char *dest, u8 class_code[3]);
+
 u8 acpi_is_valid_space_id(u8 space_id);
 
 /*

@@ -182,7 +182,7 @@ static inline void *pcan_usb_fd_cmd_buffer(struct peak_usb_device *dev)
 static int pcan_usb_fd_send_cmd(struct peak_usb_device *dev, void *cmd_tail)
 {
 	void *cmd_head = pcan_usb_fd_cmd_buffer(dev);
-	int err;
+	int err = 0;
 	u8 *packet_ptr;
 	int i, n = 1, packet_len;
 	ptrdiff_t cmd_len;

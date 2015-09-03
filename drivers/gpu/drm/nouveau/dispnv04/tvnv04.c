@@ -122,7 +122,7 @@ static void nv04_tv_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	int head = nouveau_crtc(encoder->crtc)->index;
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
@@ -164,7 +164,7 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 

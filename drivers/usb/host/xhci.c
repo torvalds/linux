@@ -660,12 +660,6 @@ static void xhci_only_stop_hcd(struct usb_hcd *hcd)
 
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
-
-	/* The shared_hcd is going to be deallocated shortly (the USB core only
-	 * calls this function when allocation fails in usb_add_hcd(), or
-	 * usb_remove_hcd() is called).  So we need to unset xHCI's pointer.
-	 */
-	xhci->shared_hcd = NULL;
 	spin_unlock_irq(&xhci->lock);
 }
 
@@ -897,6 +891,9 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
 
+	if (!hcd->state)
+		return 0;
+
 	if (hcd->state != HC_STATE_SUSPENDED ||
 			xhci->shared_hcd->state != HC_STATE_SUSPENDED)
 		return -EINVAL;
@@ -982,6 +979,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	struct usb_hcd		*secondary_hcd;
 	int			retval = 0;
 	bool			comp_timer_running = false;
+
+	if (!hcd->state)
+		return 0;
 
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
@@ -3682,18 +3682,21 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
-	int ret;
+	int ret, slot_id;
 	struct xhci_command *command;
 
 	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 	if (!command)
 		return 0;
 
+	/* xhci->slot_id and xhci->addr_dev are not thread-safe */
+	mutex_lock(&xhci->mutex);
 	spin_lock_irqsave(&xhci->lock, flags);
 	command->completion = &xhci->addr_dev;
 	ret = xhci_queue_slot_control(xhci, command, TRB_ENABLE_SLOT, 0);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
+		mutex_unlock(&xhci->mutex);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
 		kfree(command);
 		return 0;
@@ -3702,8 +3705,10 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	wait_for_completion(command->completion);
+	slot_id = xhci->slot_id;
+	mutex_unlock(&xhci->mutex);
 
-	if (!xhci->slot_id || command->status != COMP_SUCCESS) {
+	if (!slot_id || command->status != COMP_SUCCESS) {
 		xhci_err(xhci, "Error while assigning device slot ID\n");
 		xhci_err(xhci, "Max number of devices this xHCI host supports is %u.\n",
 				HCS_MAX_SLOTS(
@@ -3728,11 +3733,11 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	 * xhci_discover_or_reset_device(), which may be called as part of
 	 * mass storage driver error handling.
 	 */
-	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_NOIO)) {
+	if (!xhci_alloc_virt_device(xhci, slot_id, udev, GFP_NOIO)) {
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
 		goto disable_slot;
 	}
-	udev->slot_id = xhci->slot_id;
+	udev->slot_id = slot_id;
 
 #ifndef CONFIG_USB_DEFAULT_PERSIST
 	/*
@@ -3764,8 +3769,6 @@ disable_slot:
 /*
  * Issue an Address Device command and optionally send a corresponding
  * SetAddress request to the device.
- * We should be protected by the usb_address0_mutex in hub_wq's hub_port_init,
- * so we should only issue and wait on one address command at the same time.
  */
 static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 			     enum xhci_setup_dev setup)
@@ -3778,12 +3781,15 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_slot_ctx *slot_ctx;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	u64 temp_64;
-	struct xhci_command *command;
+	struct xhci_command *command = NULL;
+
+	mutex_lock(&xhci->mutex);
 
 	if (!udev->slot_id) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 				"Bad Slot ID %d", udev->slot_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	virt_dev = xhci->devs[udev->slot_id];
@@ -3796,7 +3802,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		 */
 		xhci_warn(xhci, "Virt dev invalid for slot_id 0x%x!\n",
 			udev->slot_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (setup == SETUP_CONTEXT_ONLY) {
@@ -3804,13 +3811,15 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
 		    SLOT_STATE_DEFAULT) {
 			xhci_dbg(xhci, "Slot already in default state\n");
-			return 0;
+			goto out;
 		}
 	}
 
 	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
-	if (!command)
-		return -ENOMEM;
+	if (!command) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	command->in_ctx = virt_dev->in_ctx;
 	command->completion = &xhci->addr_dev;
@@ -3820,8 +3829,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
 				__func__);
-		kfree(command);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	/*
 	 * If this is the first Set Address since device plug-in or
@@ -3848,8 +3857,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 				"FIXME: allocate a command ring segment");
-		kfree(command);
-		return ret;
+		goto out;
 	}
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -3896,10 +3904,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		ret = -EINVAL;
 		break;
 	}
-	if (ret) {
-		kfree(command);
-		return ret;
-	}
+	if (ret)
+		goto out;
 	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Op regs DCBAA ptr = %#016llx", temp_64);
@@ -3932,8 +3938,10 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 		       "Internal device address = %d",
 		       le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK);
+out:
+	mutex_unlock(&xhci->mutex);
 	kfree(command);
-	return 0;
+	return ret;
 }
 
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
@@ -4832,10 +4840,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	hcd->self.no_stop_on_short = 1;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
-		if (!xhci)
-			return -ENOMEM;
-		*((struct xhci_hcd **) hcd->hcd_priv) = xhci;
+		xhci = hcd_to_xhci(hcd);
 		xhci->main_hcd = hcd;
 		/* Mark the first roothub as being USB 2.0.
 		 * The xHCI driver will register the USB 3.0 roothub.
@@ -4855,6 +4860,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		return 0;
 	}
 
+	mutex_init(&xhci->mutex);
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
 		HC_LENGTH(readl(&xhci->cap_regs->hc_capbase));
@@ -4883,13 +4889,13 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
 	if (retval)
-		goto error;
+		return retval;
 
 	xhci_dbg(xhci, "Resetting HCD\n");
 	/* Reset the internal HC memory state and registers. */
 	retval = xhci_reset(xhci);
 	if (retval)
-		goto error;
+		return retval;
 	xhci_dbg(xhci, "Reset complete\n");
 
 	/* Set dma_mask and coherent_dma_mask to 64-bits,
@@ -4904,16 +4910,13 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	/* Initialize HCD and host controller data structures. */
 	retval = xhci_init(hcd);
 	if (retval)
-		goto error;
+		return retval;
 	xhci_dbg(xhci, "Called HCD init\n");
 
 	xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%08x\n",
 		  xhci->hcc_params, xhci->hci_version, xhci->quirks);
 
 	return 0;
-error:
-	kfree(xhci);
-	return retval;
 }
 EXPORT_SYMBOL_GPL(xhci_gen_setup);
 
@@ -4978,11 +4981,21 @@ static const struct hc_driver xhci_hc_driver = {
 	.find_raw_port_number =	xhci_find_raw_port_number,
 };
 
-void xhci_init_driver(struct hc_driver *drv, int (*setup_fn)(struct usb_hcd *))
+void xhci_init_driver(struct hc_driver *drv,
+		      const struct xhci_driver_overrides *over)
 {
-	BUG_ON(!setup_fn);
+	BUG_ON(!over);
+
+	/* Copy the generic table to drv then apply the overrides */
 	*drv = xhci_hc_driver;
-	drv->reset = setup_fn;
+
+	if (over) {
+		drv->hcd_priv_size += over->extra_priv_size;
+		if (over->reset)
+			drv->reset = over->reset;
+		if (over->start)
+			drv->start = over->start;
+	}
 }
 EXPORT_SYMBOL_GPL(xhci_init_driver);
 
@@ -5011,4 +5024,12 @@ static int __init xhci_hcd_init(void)
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
 	return 0;
 }
+
+/*
+ * If an init function is provided, an exit function must also be provided
+ * to allow module unload.
+ */
+static void __exit xhci_hcd_fini(void) { }
+
 module_init(xhci_hcd_init);
+module_exit(xhci_hcd_fini);

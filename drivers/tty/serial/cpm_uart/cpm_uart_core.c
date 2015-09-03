@@ -1435,7 +1435,7 @@ static int cpm_uart_remove(struct platform_device *ofdev)
 	return uart_remove_one_port(&cpm_reg, &pinfo->port);
 }
 
-static struct of_device_id cpm_uart_match[] = {
+static const struct of_device_id cpm_uart_match[] = {
 	{
 		.compatible = "fsl,cpm1-smc-uart",
 	},

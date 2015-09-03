@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs_idmap.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -57,6 +56,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
+#include "nfs4idmap.h"
 #include "nfs4session.h"
 #include "pnfs.h"
 #include "netns.h"
@@ -309,7 +309,6 @@ int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 
 	if (test_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state))
 		goto do_confirm;
-	nfs4_begin_drain_session(clp);
 	status = nfs4_proc_exchange_id(clp, cred);
 	if (status != 0)
 		goto out;
@@ -1482,6 +1481,8 @@ restart:
 					spin_unlock(&state->state_lock);
 				}
 				nfs4_put_open_state(state);
+				clear_bit(NFS4CLNT_RECLAIM_NOGRACE,
+					&state->flags);
 				spin_lock(&sp->so_lock);
 				goto restart;
 			}
@@ -1830,6 +1831,7 @@ static int nfs4_establish_lease(struct nfs_client *clp)
 		clp->cl_mvops->reboot_recovery_ops;
 	int status;
 
+	nfs4_begin_drain_session(clp);
 	cred = nfs4_get_clid_cred(clp);
 	if (cred == NULL)
 		return -ENOENT;
@@ -1902,7 +1904,7 @@ static int nfs4_try_migration(struct nfs_server *server, struct rpc_cred *cred)
 		goto out;
 	}
 
-	inode = server->super->s_root->d_inode;
+	inode = d_inode(server->super->s_root);
 	result = nfs4_proc_get_locations(inode, locations, page, cred);
 	if (result) {
 		dprintk("<-- %s: failed to retrieve fs_locations: %d\n",
@@ -2021,7 +2023,7 @@ restart:
 
 		rcu_read_unlock();
 
-		inode = server->super->s_root->d_inode;
+		inode = d_inode(server->super->s_root);
 		status = nfs4_proc_fsid_present(inode, cred);
 		if (status != -NFS4ERR_MOVED)
 			goto restart;	/* wasn't this one */

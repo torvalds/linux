@@ -59,6 +59,38 @@
 #define ACPI_EC_FLAG_BURST	0x10	/* burst mode */
 #define ACPI_EC_FLAG_SCI	0x20	/* EC-SCI occurred */
 
+/*
+ * The SCI_EVT clearing timing is not defined by the ACPI specification.
+ * This leads to lots of practical timing issues for the host EC driver.
+ * The following variations are defined (from the target EC firmware's
+ * perspective):
+ * STATUS: After indicating SCI_EVT edge triggered IRQ to the host, the
+ *         target can clear SCI_EVT at any time so long as the host can see
+ *         the indication by reading the status register (EC_SC). So the
+ *         host should re-check SCI_EVT after the first time the SCI_EVT
+ *         indication is seen, which is the same time the query request
+ *         (QR_EC) is written to the command register (EC_CMD). SCI_EVT set
+ *         at any later time could indicate another event. Normally such
+ *         kind of EC firmware has implemented an event queue and will
+ *         return 0x00 to indicate "no outstanding event".
+ * QUERY: After seeing the query request (QR_EC) written to the command
+ *        register (EC_CMD) by the host and having prepared the responding
+ *        event value in the data register (EC_DATA), the target can safely
+ *        clear SCI_EVT because the target can confirm that the current
+ *        event is being handled by the host. The host then should check
+ *        SCI_EVT right after reading the event response from the data
+ *        register (EC_DATA).
+ * EVENT: After seeing the event response read from the data register
+ *        (EC_DATA) by the host, the target can clear SCI_EVT. As the
+ *        target requires time to notice the change in the data register
+ *        (EC_DATA), the host may be required to wait additional guarding
+ *        time before checking the SCI_EVT again. Such guarding may not be
+ *        necessary if the host is notified via another IRQ.
+ */
+#define ACPI_EC_EVT_TIMING_STATUS	0x00
+#define ACPI_EC_EVT_TIMING_QUERY	0x01
+#define ACPI_EC_EVT_TIMING_EVENT	0x02
+
 /* EC commands */
 enum ec_command {
 	ACPI_EC_COMMAND_READ = 0x80,
@@ -70,13 +102,13 @@ enum ec_command {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_MSI_UDELAY	550	/* Wait 550us for MSI EC */
-#define ACPI_EC_UDELAY_POLL	1000	/* Wait 1ms for EC transaction polling */
+#define ACPI_EC_UDELAY_POLL	550	/* Wait 1ms for EC transaction polling */
 #define ACPI_EC_CLEAR_MAX	100	/* Maximum number of events to query
 					 * when trying to clear the EC */
 
 enum {
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
+	EC_FLAGS_QUERY_GUARDING,	/* Guard for SCI_EVT check */
 	EC_FLAGS_HANDLERS_INSTALLED,	/* Handlers for GPE and
 					 * OpReg are installed */
 	EC_FLAGS_STARTED,		/* Driver is started */
@@ -92,6 +124,16 @@ enum {
 static unsigned int ec_delay __read_mostly = ACPI_EC_DELAY;
 module_param(ec_delay, uint, 0644);
 MODULE_PARM_DESC(ec_delay, "Timeout(ms) waited until an EC command completes");
+
+static bool ec_busy_polling __read_mostly;
+module_param(ec_busy_polling, bool, 0644);
+MODULE_PARM_DESC(ec_busy_polling, "Use busy polling to advance EC transaction");
+
+static unsigned int ec_polling_guard __read_mostly = ACPI_EC_UDELAY_POLL;
+module_param(ec_polling_guard, uint, 0644);
+MODULE_PARM_DESC(ec_polling_guard, "Guard time(us) between EC accesses in polling modes");
+
+static unsigned int ec_event_clearing __read_mostly = ACPI_EC_EVT_TIMING_QUERY;
 
 /*
  * If the number of false interrupts per one transaction exceeds
@@ -121,7 +163,6 @@ struct transaction {
 	u8 wlen;
 	u8 rlen;
 	u8 flags;
-	unsigned long timestamp;
 };
 
 static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
@@ -130,11 +171,54 @@ static void advance_transaction(struct acpi_ec *ec);
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
 
-static int EC_FLAGS_MSI; /* Out-of-spec MSI controller */
 static int EC_FLAGS_VALIDATE_ECDT; /* ASUStec ECDTs need to be validated */
 static int EC_FLAGS_SKIP_DSDT_SCAN; /* Not all BIOS survive early DSDT scan */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
+
+/* --------------------------------------------------------------------------
+ *                           Logging/Debugging
+ * -------------------------------------------------------------------------- */
+
+/*
+ * Splitters used by the developers to track the boundary of the EC
+ * handling processes.
+ */
+#ifdef DEBUG
+#define EC_DBG_SEP	" "
+#define EC_DBG_DRV	"+++++"
+#define EC_DBG_STM	"====="
+#define EC_DBG_REQ	"*****"
+#define EC_DBG_EVT	"#####"
+#else
+#define EC_DBG_SEP	""
+#define EC_DBG_DRV
+#define EC_DBG_STM
+#define EC_DBG_REQ
+#define EC_DBG_EVT
+#endif
+
+#define ec_log_raw(fmt, ...) \
+	pr_info(fmt "\n", ##__VA_ARGS__)
+#define ec_dbg_raw(fmt, ...) \
+	pr_debug(fmt "\n", ##__VA_ARGS__)
+#define ec_log(filter, fmt, ...) \
+	ec_log_raw(filter EC_DBG_SEP fmt EC_DBG_SEP filter, ##__VA_ARGS__)
+#define ec_dbg(filter, fmt, ...) \
+	ec_dbg_raw(filter EC_DBG_SEP fmt EC_DBG_SEP filter, ##__VA_ARGS__)
+
+#define ec_log_drv(fmt, ...) \
+	ec_log(EC_DBG_DRV, fmt, ##__VA_ARGS__)
+#define ec_dbg_drv(fmt, ...) \
+	ec_dbg(EC_DBG_DRV, fmt, ##__VA_ARGS__)
+#define ec_dbg_stm(fmt, ...) \
+	ec_dbg(EC_DBG_STM, fmt, ##__VA_ARGS__)
+#define ec_dbg_req(fmt, ...) \
+	ec_dbg(EC_DBG_REQ, fmt, ##__VA_ARGS__)
+#define ec_dbg_evt(fmt, ...) \
+	ec_dbg(EC_DBG_EVT, fmt, ##__VA_ARGS__)
+#define ec_dbg_ref(ec, fmt, ...) \
+	ec_dbg_raw("%lu: " fmt, ec->reference_count, ## __VA_ARGS__)
 
 /* --------------------------------------------------------------------------
  *                           Device Flags
@@ -159,14 +243,14 @@ static inline u8 acpi_ec_read_status(struct acpi_ec *ec)
 {
 	u8 x = inb(ec->command_addr);
 
-	pr_debug("EC_SC(R) = 0x%2.2x "
-		 "SCI_EVT=%d BURST=%d CMD=%d IBF=%d OBF=%d\n",
-		 x,
-		 !!(x & ACPI_EC_FLAG_SCI),
-		 !!(x & ACPI_EC_FLAG_BURST),
-		 !!(x & ACPI_EC_FLAG_CMD),
-		 !!(x & ACPI_EC_FLAG_IBF),
-		 !!(x & ACPI_EC_FLAG_OBF));
+	ec_dbg_raw("EC_SC(R) = 0x%2.2x "
+		   "SCI_EVT=%d BURST=%d CMD=%d IBF=%d OBF=%d",
+		   x,
+		   !!(x & ACPI_EC_FLAG_SCI),
+		   !!(x & ACPI_EC_FLAG_BURST),
+		   !!(x & ACPI_EC_FLAG_CMD),
+		   !!(x & ACPI_EC_FLAG_IBF),
+		   !!(x & ACPI_EC_FLAG_OBF));
 	return x;
 }
 
@@ -174,23 +258,23 @@ static inline u8 acpi_ec_read_data(struct acpi_ec *ec)
 {
 	u8 x = inb(ec->data_addr);
 
-	ec->curr->timestamp = jiffies;
-	pr_debug("EC_DATA(R) = 0x%2.2x\n", x);
+	ec->timestamp = jiffies;
+	ec_dbg_raw("EC_DATA(R) = 0x%2.2x", x);
 	return x;
 }
 
 static inline void acpi_ec_write_cmd(struct acpi_ec *ec, u8 command)
 {
-	pr_debug("EC_SC(W) = 0x%2.2x\n", command);
+	ec_dbg_raw("EC_SC(W) = 0x%2.2x", command);
 	outb(command, ec->command_addr);
-	ec->curr->timestamp = jiffies;
+	ec->timestamp = jiffies;
 }
 
 static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 {
-	pr_debug("EC_DATA(W) = 0x%2.2x\n", data);
+	ec_dbg_raw("EC_DATA(W) = 0x%2.2x", data);
 	outb(data, ec->data_addr);
-	ec->curr->timestamp = jiffies;
+	ec->timestamp = jiffies;
 }
 
 #ifdef DEBUG
@@ -223,7 +307,7 @@ static inline bool acpi_ec_is_gpe_raised(struct acpi_ec *ec)
 	acpi_event_status gpe_status = 0;
 
 	(void)acpi_get_gpe_status(NULL, ec->gpe, &gpe_status);
-	return (gpe_status & ACPI_EVENT_FLAG_SET) ? true : false;
+	return (gpe_status & ACPI_EVENT_FLAG_STATUS_SET) ? true : false;
 }
 
 static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
@@ -240,7 +324,7 @@ static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
 		 * software need to manually trigger a pseudo GPE event on
 		 * EN=1 writes.
 		 */
-		pr_debug("***** Polling quirk *****\n");
+		ec_dbg_raw("Polling quirk");
 		advance_transaction(ec);
 	}
 }
@@ -299,7 +383,7 @@ static void acpi_ec_set_storm(struct acpi_ec *ec, u8 flag)
 {
 	if (!test_bit(flag, &ec->flags)) {
 		acpi_ec_disable_gpe(ec, false);
-		pr_debug("+++++ Polling enabled +++++\n");
+		ec_dbg_drv("Polling enabled");
 		set_bit(flag, &ec->flags);
 	}
 }
@@ -309,7 +393,7 @@ static void acpi_ec_clear_storm(struct acpi_ec *ec, u8 flag)
 	if (test_bit(flag, &ec->flags)) {
 		clear_bit(flag, &ec->flags);
 		acpi_ec_enable_gpe(ec, false);
-		pr_debug("+++++ Polling disabled +++++\n");
+		ec_dbg_drv("Polling disabled");
 	}
 }
 
@@ -335,17 +419,47 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 static void acpi_ec_submit_query(struct acpi_ec *ec)
 {
 	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
-		pr_debug("***** Event started *****\n");
+		ec_dbg_evt("Command(%s) submitted/blocked",
+			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+		ec->nr_pending_queries++;
 		schedule_work(&ec->work);
 	}
 }
 
 static void acpi_ec_complete_query(struct acpi_ec *ec)
 {
-	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
+	if (test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
 		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
-		pr_debug("***** Event stopped *****\n");
+		ec_dbg_evt("Command(%s) unblocked",
+			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 	}
+}
+
+static bool acpi_ec_guard_event(struct acpi_ec *ec)
+{
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
+	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY ||
+	    !test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags) ||
+	    (ec->curr && ec->curr->command == ACPI_EC_COMMAND_QUERY))
+		return false;
+
+	/*
+	 * Postpone the query submission to allow the firmware to proceed,
+	 * we shouldn't check SCI_EVT before the firmware reflagging it.
+	 */
+	return true;
+}
+
+static int ec_transaction_polled(struct acpi_ec *ec)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	if (ec->curr && (ec->curr->flags & ACPI_EC_COMMAND_POLL))
+		ret = 1;
+	spin_unlock_irqrestore(&ec->lock, flags);
+	return ret;
 }
 
 static int ec_transaction_completed(struct acpi_ec *ec)
@@ -360,14 +474,30 @@ static int ec_transaction_completed(struct acpi_ec *ec)
 	return ret;
 }
 
+static inline void ec_transaction_transition(struct acpi_ec *ec, unsigned long flag)
+{
+	ec->curr->flags |= flag;
+	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
+		if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS &&
+		    flag == ACPI_EC_COMMAND_POLL)
+			acpi_ec_complete_query(ec);
+		if (ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY &&
+		    flag == ACPI_EC_COMMAND_COMPLETE)
+			acpi_ec_complete_query(ec);
+		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
+		    flag == ACPI_EC_COMMAND_COMPLETE)
+			set_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
+	}
+}
+
 static void advance_transaction(struct acpi_ec *ec)
 {
 	struct transaction *t;
 	u8 status;
 	bool wakeup = false;
 
-	pr_debug("===== %s (%d) =====\n",
-		 in_interrupt() ? "IRQ" : "TASK", smp_processor_id());
+	ec_dbg_stm("%s (%d)", in_interrupt() ? "IRQ" : "TASK",
+		   smp_processor_id());
 	/*
 	 * By always clearing STS before handling all indications, we can
 	 * ensure a hardware STS 0->1 change after this clearing can always
@@ -376,6 +506,18 @@ static void advance_transaction(struct acpi_ec *ec)
 	acpi_ec_clear_gpe(ec);
 	status = acpi_ec_read_status(ec);
 	t = ec->curr;
+	/*
+	 * Another IRQ or a guarded polling mode advancement is detected,
+	 * the next QR_EC submission is then allowed.
+	 */
+	if (!t || !(t->flags & ACPI_EC_COMMAND_POLL)) {
+		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
+		    (!ec->nr_pending_queries ||
+		     test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags))) {
+			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
+			acpi_ec_complete_query(ec);
+		}
+	}
 	if (!t)
 		goto err;
 	if (t->flags & ACPI_EC_COMMAND_POLL) {
@@ -388,17 +530,17 @@ static void advance_transaction(struct acpi_ec *ec)
 			if ((status & ACPI_EC_FLAG_OBF) == 1) {
 				t->rdata[t->ri++] = acpi_ec_read_data(ec);
 				if (t->rlen == t->ri) {
-					t->flags |= ACPI_EC_COMMAND_COMPLETE;
+					ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
 					if (t->command == ACPI_EC_COMMAND_QUERY)
-						pr_debug("***** Command(%s) hardware completion *****\n",
-							 acpi_ec_cmd_string(t->command));
+						ec_dbg_evt("Command(%s) completed by hardware",
+							   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 					wakeup = true;
 				}
 			} else
 				goto err;
 		} else if (t->wlen == t->wi &&
 			   (status & ACPI_EC_FLAG_IBF) == 0) {
-			t->flags |= ACPI_EC_COMMAND_COMPLETE;
+			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
 			wakeup = true;
 		}
 		goto out;
@@ -406,17 +548,15 @@ static void advance_transaction(struct acpi_ec *ec)
 		if (EC_FLAGS_QUERY_HANDSHAKE &&
 		    !(status & ACPI_EC_FLAG_SCI) &&
 		    (t->command == ACPI_EC_COMMAND_QUERY)) {
-			t->flags |= ACPI_EC_COMMAND_POLL;
-			acpi_ec_complete_query(ec);
+			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
 			t->rdata[t->ri++] = 0x00;
-			t->flags |= ACPI_EC_COMMAND_COMPLETE;
-			pr_debug("***** Command(%s) software completion *****\n",
-				 acpi_ec_cmd_string(t->command));
+			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
+			ec_dbg_evt("Command(%s) completed by software",
+				   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 			wakeup = true;
 		} else if ((status & ACPI_EC_FLAG_IBF) == 0) {
 			acpi_ec_write_cmd(ec, t->command);
-			t->flags |= ACPI_EC_COMMAND_POLL;
-			acpi_ec_complete_query(ec);
+			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
 		} else
 			goto err;
 		goto out;
@@ -446,8 +586,39 @@ static void start_transaction(struct acpi_ec *ec)
 {
 	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
 	ec->curr->flags = 0;
-	ec->curr->timestamp = jiffies;
-	advance_transaction(ec);
+}
+
+static int ec_guard(struct acpi_ec *ec)
+{
+	unsigned long guard = usecs_to_jiffies(ec_polling_guard);
+	unsigned long timeout = ec->timestamp + guard;
+
+	do {
+		if (ec_busy_polling) {
+			/* Perform busy polling */
+			if (ec_transaction_completed(ec))
+				return 0;
+			udelay(jiffies_to_usecs(guard));
+		} else {
+			/*
+			 * Perform wait polling
+			 *
+			 * For SCI_EVT clearing timing of "event",
+			 * performing guarding before re-checking the
+			 * SCI_EVT. Otherwise, such guarding is not needed
+			 * due to the old practices.
+			 */
+			if (!ec_transaction_polled(ec) &&
+			    !acpi_ec_guard_event(ec))
+				break;
+			if (wait_event_timeout(ec->wait,
+					       ec_transaction_completed(ec),
+					       guard))
+				return 0;
+		}
+		/* Guard the register accesses for the polling modes */
+	} while (time_before(jiffies, timeout));
+	return -ETIME;
 }
 
 static int ec_poll(struct acpi_ec *ec)
@@ -458,25 +629,11 @@ static int ec_poll(struct acpi_ec *ec)
 	while (repeat--) {
 		unsigned long delay = jiffies +
 			msecs_to_jiffies(ec_delay);
-		unsigned long usecs = ACPI_EC_UDELAY_POLL;
 		do {
-			/* don't sleep with disabled interrupts */
-			if (EC_FLAGS_MSI || irqs_disabled()) {
-				usecs = ACPI_EC_MSI_UDELAY;
-				udelay(usecs);
-				if (ec_transaction_completed(ec))
-					return 0;
-			} else {
-				if (wait_event_timeout(ec->wait,
-						ec_transaction_completed(ec),
-						usecs_to_jiffies(usecs)))
-					return 0;
-			}
+			if (!ec_guard(ec))
+				return 0;
 			spin_lock_irqsave(&ec->lock, flags);
-			if (time_after(jiffies,
-					ec->curr->timestamp +
-					usecs_to_jiffies(usecs)))
-				advance_transaction(ec);
+			advance_transaction(ec);
 			spin_unlock_irqrestore(&ec->lock, flags);
 		} while (time_before(jiffies, delay));
 		pr_debug("controller reset, restart transaction\n");
@@ -493,8 +650,6 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	unsigned long tmp;
 	int ret = 0;
 
-	if (EC_FLAGS_MSI)
-		udelay(ACPI_EC_MSI_UDELAY);
 	/* start transaction */
 	spin_lock_irqsave(&ec->lock, tmp);
 	/* Enable GPE for command processing (IBF=0/OBF=1) */
@@ -502,21 +657,23 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 		ret = -EINVAL;
 		goto unlock;
 	}
+	ec_dbg_ref(ec, "Increase command");
 	/* following two actions should be kept atomic */
 	ec->curr = t;
-	pr_debug("***** Command(%s) started *****\n",
-		 acpi_ec_cmd_string(t->command));
+	ec_dbg_req("Command(%s) started", acpi_ec_cmd_string(t->command));
 	start_transaction(ec);
 	spin_unlock_irqrestore(&ec->lock, tmp);
+
 	ret = ec_poll(ec);
+
 	spin_lock_irqsave(&ec->lock, tmp);
 	if (t->irq_count == ec_storm_threshold)
 		acpi_ec_clear_storm(ec, EC_FLAGS_COMMAND_STORM);
-	pr_debug("***** Command(%s) stopped *****\n",
-		 acpi_ec_cmd_string(t->command));
+	ec_dbg_req("Command(%s) stopped", acpi_ec_cmd_string(t->command));
 	ec->curr = NULL;
 	/* Disable GPE for command processing (IBF=0/OBF=1) */
 	acpi_ec_complete_request(ec);
+	ec_dbg_ref(ec, "Decrease command");
 unlock:
 	spin_unlock_irqrestore(&ec->lock, tmp);
 	return ret;
@@ -531,6 +688,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 		return -EINVAL;
 	if (t->rdata)
 		memset(t->rdata, 0, t->rlen);
+
 	mutex_lock(&ec->mutex);
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
@@ -542,8 +700,6 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 
 	status = acpi_ec_transaction_unlocked(ec, t);
 
-	if (test_bit(EC_FLAGS_COMMAND_STORM, &ec->flags))
-		msleep(1);
 	if (ec->global_lock)
 		acpi_release_global_lock(glk);
 unlock:
@@ -676,11 +832,13 @@ static void acpi_ec_start(struct acpi_ec *ec, bool resuming)
 
 	spin_lock_irqsave(&ec->lock, flags);
 	if (!test_and_set_bit(EC_FLAGS_STARTED, &ec->flags)) {
-		pr_debug("+++++ Starting EC +++++\n");
+		ec_dbg_drv("Starting EC");
 		/* Enable GPE for event processing (SCI_EVT=1) */
-		if (!resuming)
+		if (!resuming) {
 			acpi_ec_submit_request(ec);
-		pr_debug("EC started\n");
+			ec_dbg_ref(ec, "Increase driver");
+		}
+		ec_log_drv("EC started");
 	}
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
@@ -702,17 +860,19 @@ static void acpi_ec_stop(struct acpi_ec *ec, bool suspending)
 
 	spin_lock_irqsave(&ec->lock, flags);
 	if (acpi_ec_started(ec)) {
-		pr_debug("+++++ Stopping EC +++++\n");
+		ec_dbg_drv("Stopping EC");
 		set_bit(EC_FLAGS_STOPPED, &ec->flags);
 		spin_unlock_irqrestore(&ec->lock, flags);
 		wait_event(ec->wait, acpi_ec_stopped(ec));
 		spin_lock_irqsave(&ec->lock, flags);
 		/* Disable GPE for event processing (SCI_EVT=1) */
-		if (!suspending)
+		if (!suspending) {
 			acpi_ec_complete_request(ec);
+			ec_dbg_ref(ec, "Decrease driver");
+		}
 		clear_bit(EC_FLAGS_STARTED, &ec->flags);
 		clear_bit(EC_FLAGS_STOPPED, &ec->flags);
-		pr_debug("EC stopped\n");
+		ec_log_drv("EC stopped");
 	}
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
@@ -813,7 +973,7 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 		}
 	}
 	mutex_unlock(&ec->mutex);
-	list_for_each_entry(handler, &free_list, node)
+	list_for_each_entry_safe(handler, tmp, &free_list, node)
 		acpi_ec_put_query_handler(handler);
 }
 EXPORT_SYMBOL_GPL(acpi_ec_remove_query_handler);
@@ -824,12 +984,12 @@ static void acpi_ec_run(void *cxt)
 
 	if (!handler)
 		return;
-	pr_debug("##### Query(0x%02x) started #####\n", handler->query_bit);
+	ec_dbg_evt("Query(0x%02x) started", handler->query_bit);
 	if (handler->func)
 		handler->func(handler->data);
 	else if (handler->handle)
 		acpi_evaluate_object(handler->handle, NULL, NULL, NULL);
-	pr_debug("##### Query(0x%02x) stopped #####\n", handler->query_bit);
+	ec_dbg_evt("Query(0x%02x) stopped", handler->query_bit);
 	acpi_ec_put_query_handler(handler);
 }
 
@@ -861,8 +1021,8 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 		if (value == handler->query_bit) {
 			/* have custom handler for this bit */
 			handler = acpi_ec_get_query_handler(handler);
-			pr_debug("##### Query(0x%02x) scheduled #####\n",
-				 handler->query_bit);
+			ec_dbg_evt("Query(0x%02x) scheduled",
+				   handler->query_bit);
 			status = acpi_os_execute((handler->func) ?
 				OSL_NOTIFY_HANDLER : OSL_GPE_HANDLER,
 				acpi_ec_run, handler);
@@ -875,11 +1035,54 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	return result;
 }
 
-static void acpi_ec_gpe_poller(struct work_struct *work)
+static void acpi_ec_check_event(struct acpi_ec *ec)
 {
+	unsigned long flags;
+
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT) {
+		if (ec_guard(ec)) {
+			spin_lock_irqsave(&ec->lock, flags);
+			/*
+			 * Take care of the SCI_EVT unless no one else is
+			 * taking care of it.
+			 */
+			if (!ec->curr)
+				advance_transaction(ec);
+			spin_unlock_irqrestore(&ec->lock, flags);
+		}
+	}
+}
+
+static void acpi_ec_event_handler(struct work_struct *work)
+{
+	unsigned long flags;
 	struct acpi_ec *ec = container_of(work, struct acpi_ec, work);
 
-	acpi_ec_query(ec, NULL);
+	ec_dbg_evt("Event started");
+
+	spin_lock_irqsave(&ec->lock, flags);
+	while (ec->nr_pending_queries) {
+		spin_unlock_irqrestore(&ec->lock, flags);
+		(void)acpi_ec_query(ec, NULL);
+		spin_lock_irqsave(&ec->lock, flags);
+		ec->nr_pending_queries--;
+		/*
+		 * Before exit, make sure that this work item can be
+		 * scheduled again. There might be QR_EC failures, leaving
+		 * EC_FLAGS_QUERY_PENDING uncleared and preventing this work
+		 * item from being scheduled again.
+		 */
+		if (!ec->nr_pending_queries) {
+			if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
+			    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
+				acpi_ec_complete_query(ec);
+		}
+	}
+	spin_unlock_irqrestore(&ec->lock, flags);
+
+	ec_dbg_evt("Event stopped");
+
+	acpi_ec_check_event(ec);
 }
 
 static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
@@ -913,7 +1116,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 	if (function != ACPI_READ && function != ACPI_WRITE)
 		return AE_BAD_PARAMETER;
 
-	if (EC_FLAGS_MSI || bits > 8)
+	if (ec_busy_polling || bits > 8)
 		acpi_ec_burst_enable(ec);
 
 	for (i = 0; i < bytes; ++i, ++address, ++value)
@@ -921,7 +1124,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 			acpi_ec_read(ec, address, value) :
 			acpi_ec_write(ec, address, *value);
 
-	if (EC_FLAGS_MSI || bits > 8)
+	if (ec_busy_polling || bits > 8)
 		acpi_ec_burst_disable(ec);
 
 	switch (result) {
@@ -954,7 +1157,8 @@ static struct acpi_ec *make_acpi_ec(void)
 	init_waitqueue_head(&ec->wait);
 	INIT_LIST_HEAD(&ec->list);
 	spin_lock_init(&ec->lock);
-	INIT_WORK(&ec->work, acpi_ec_gpe_poller);
+	INIT_WORK(&ec->work, acpi_ec_event_handler);
+	ec->timestamp = jiffies;
 	return ec;
 }
 
@@ -1099,6 +1303,9 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	ret = ec_install_handlers(ec);
 
+	/* Reprobe devices depending on the EC */
+	acpi_walk_dep_device_list(ec->handle);
+
 	/* EC is fully operational, allow queries */
 	clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 
@@ -1186,30 +1393,13 @@ static int ec_validate_ecdt(const struct dmi_system_id *id)
 	return 0;
 }
 
-/* MSI EC needs special treatment, enable it */
-static int ec_flag_msi(const struct dmi_system_id *id)
-{
-	pr_debug("Detected MSI hardware, enabling workarounds.\n");
-	EC_FLAGS_MSI = 1;
-	EC_FLAGS_VALIDATE_ECDT = 1;
-	return 0;
-}
-
+#if 0
 /*
- * Clevo M720 notebook actually works ok with IRQ mode, if we lifted
- * the GPE storm threshold back to 20
- */
-static int ec_enlarge_storm_threshold(const struct dmi_system_id *id)
-{
-	pr_debug("Setting the EC GPE storm threshold to 20\n");
-	ec_storm_threshold  = 20;
-	return 0;
-}
-
-/*
- * Acer EC firmware refuses to respond QR_EC when SCI_EVT is not set, for
- * which case, we complete the QR_EC without issuing it to the firmware.
- * https://bugzilla.kernel.org/show_bug.cgi?id=86211
+ * Some EC firmware variations refuses to respond QR_EC when SCI_EVT is not
+ * set, for which case, we complete the QR_EC without issuing it to the
+ * firmware.
+ * https://bugzilla.kernel.org/show_bug.cgi?id=82611
+ * https://bugzilla.kernel.org/show_bug.cgi?id=97381
  */
 static int ec_flag_query_handshake(const struct dmi_system_id *id)
 {
@@ -1217,6 +1407,7 @@ static int ec_flag_query_handshake(const struct dmi_system_id *id)
 	EC_FLAGS_QUERY_HANDSHAKE = 1;
 	return 0;
 }
+#endif
 
 /*
  * On some hardware it is necessary to clear events accumulated by the EC during
@@ -1239,6 +1430,7 @@ static int ec_clear_on_resume(const struct dmi_system_id *id)
 {
 	pr_debug("Detected system needing EC poll on resume.\n");
 	EC_FLAGS_CLEAR_ON_RESUME = 1;
+	ec_event_clearing = ACPI_EC_EVT_TIMING_STATUS;
 	return 0;
 }
 
@@ -1248,39 +1440,15 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
 	DMI_MATCH(DMI_BOARD_NAME, "JFL92") }, NULL},
 	{
-	ec_flag_msi, "MSI hardware", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Micro-Star")}, NULL},
-	{
-	ec_flag_msi, "MSI hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star")}, NULL},
-	{
-	ec_flag_msi, "MSI hardware", {
-	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-Star")}, NULL},
-	{
-	ec_flag_msi, "MSI hardware", {
-	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR")}, NULL},
-	{
-	ec_flag_msi, "Quanta hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "TW8/SW8/DW8"),}, NULL},
-	{
-	ec_flag_msi, "Quanta hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "TW9/SW9"),}, NULL},
-	{
-	ec_flag_msi, "Clevo W350etq", {
-	DMI_MATCH(DMI_SYS_VENDOR, "CLEVO CO."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "W35_37ET"),}, NULL},
+	ec_validate_ecdt, "MSI MS-171F", {
+	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
 	{
 	ec_validate_ecdt, "ASUS hardware", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "ASUS") }, NULL},
 	{
 	ec_validate_ecdt, "ASUS hardware", {
 	DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc.") }, NULL},
-	{
-	ec_enlarge_storm_threshold, "CLEVO hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "CLEVO Co."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "M720T/M730T"),}, NULL},
 	{
 	ec_skip_dsdt_scan, "HP Folio 13", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1292,9 +1460,6 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
 	ec_clear_on_resume, "Samsung hardware", {
 	DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD.")}, NULL},
-	{
-	ec_flag_query_handshake, "Acer hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Acer"), }, NULL},
 	{},
 };
 
@@ -1375,6 +1540,43 @@ error:
 	boot_ec = NULL;
 	return -ENODEV;
 }
+
+static int param_set_event_clearing(const char *val, struct kernel_param *kp)
+{
+	int result = 0;
+
+	if (!strncmp(val, "status", sizeof("status") - 1)) {
+		ec_event_clearing = ACPI_EC_EVT_TIMING_STATUS;
+		pr_info("Assuming SCI_EVT clearing on EC_SC accesses\n");
+	} else if (!strncmp(val, "query", sizeof("query") - 1)) {
+		ec_event_clearing = ACPI_EC_EVT_TIMING_QUERY;
+		pr_info("Assuming SCI_EVT clearing on QR_EC writes\n");
+	} else if (!strncmp(val, "event", sizeof("event") - 1)) {
+		ec_event_clearing = ACPI_EC_EVT_TIMING_EVENT;
+		pr_info("Assuming SCI_EVT clearing on event reads\n");
+	} else
+		result = -EINVAL;
+	return result;
+}
+
+static int param_get_event_clearing(char *buffer, struct kernel_param *kp)
+{
+	switch (ec_event_clearing) {
+	case ACPI_EC_EVT_TIMING_STATUS:
+		return sprintf(buffer, "status");
+	case ACPI_EC_EVT_TIMING_QUERY:
+		return sprintf(buffer, "query");
+	case ACPI_EC_EVT_TIMING_EVENT:
+		return sprintf(buffer, "event");
+	default:
+		return sprintf(buffer, "invalid");
+	}
+	return 0;
+}
+
+module_param_call(ec_event_clearing, param_set_event_clearing, param_get_event_clearing,
+		  NULL, 0644);
+MODULE_PARM_DESC(ec_event_clearing, "Assumed SCI_EVT clearing timing");
 
 static struct acpi_driver acpi_ec_driver = {
 	.name = "ec",

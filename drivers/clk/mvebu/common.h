@@ -30,6 +30,7 @@ struct coreclk_soc_desc {
 	u32 (*get_tclk_freq)(void __iomem *sar);
 	u32 (*get_cpu_freq)(void __iomem *sar);
 	void (*get_clk_ratio)(void __iomem *sar, int id, int *mult, int *div);
+	u32 (*get_refclk_freq)(void __iomem *sar);
 	bool (*is_sscg_enabled)(void __iomem *sar);
 	u32 (*fix_sscg_deviation)(u32 system_clk);
 	const struct coreclk_ratio *ratios;

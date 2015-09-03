@@ -62,7 +62,7 @@ static int dmam_match(struct device *dev, void *res, void *match_data)
  * RETURNS:
  * Pointer to allocated memory on success, NULL on failure.
  */
-void * dmam_alloc_coherent(struct device *dev, size_t size,
+void *dmam_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t gfp)
 {
 	struct dma_devres *dr;

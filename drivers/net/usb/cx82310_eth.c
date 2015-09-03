@@ -172,7 +172,7 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 		if (!ret && link[0] == 1 && link[2] == 1)
 			break;
 		msleep(500);
-	};
+	}
 	if (!timeout) {
 		dev_err(&udev->dev, "firmware not ready in time\n");
 		return -ETIMEDOUT;

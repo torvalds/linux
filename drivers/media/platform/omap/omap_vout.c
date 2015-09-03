@@ -445,7 +445,7 @@ static int omapvid_init(struct omap_vout_device *vout, u32 addr)
 	int ret = 0, i;
 	struct v4l2_window *win;
 	struct omap_overlay *ovl;
-	int posx, posy, outw, outh, temp;
+	int posx, posy, outw, outh;
 	struct omap_video_timings *timing;
 	struct omapvideo_info *ovid = &vout->vid_info;
 
@@ -468,9 +468,7 @@ static int omapvid_init(struct omap_vout_device *vout, u32 addr)
 			/* Invert the height and width for 90
 			 * and 270 degree rotation
 			 */
-			temp = outw;
-			outw = outh;
-			outh = temp;
+			swap(outw, outh);
 			posy = (timing->y_res - win->w.width) - win->w.left;
 			posx = win->w.top;
 			break;
@@ -481,9 +479,7 @@ static int omapvid_init(struct omap_vout_device *vout, u32 addr)
 			break;
 
 		case dss_rotation_270_degree:
-			temp = outw;
-			outw = outh;
-			outh = temp;
+			swap(outw, outh);
 			posy = win->w.left;
 			posx = (timing->x_res - win->w.height) - win->w.top;
 			break;
@@ -1978,7 +1974,7 @@ static int __init omap_vout_setup_video_bufs(struct platform_device *pdev,
 	vout->cropped_offset = 0;
 
 	if (ovid->rotation_type == VOUT_ROT_VRFB) {
-		int static_vrfb_allocation = (vid_num == 0) ?
+		bool static_vrfb_allocation = (vid_num == 0) ?
 			vid1_static_vrfb_alloc : vid2_static_vrfb_alloc;
 		ret = omap_vout_setup_vrfb_bufs(pdev, vid_num,
 				static_vrfb_allocation);

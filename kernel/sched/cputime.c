@@ -567,7 +567,7 @@ static void cputime_advance(cputime_t *counter, cputime_t new)
 {
 	cputime_t old;
 
-	while (new > (old = ACCESS_ONCE(*counter)))
+	while (new > (old = READ_ONCE(*counter)))
 		cmpxchg_cputime(counter, old, new);
 }
 

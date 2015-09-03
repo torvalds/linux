@@ -15,10 +15,21 @@ each. A function can consume one or more of these fixed-size register regions.
 
 Required properties:
 - compatible:      Should contain one of:
-                     "qcom,pm8941"
-                     "qcom,pm8841"
-                     "qcom,pma8084"
-                     or generalized "qcom,spmi-pmic".
+                   "qcom,pm8941",
+                   "qcom,pm8841",
+                   "qcom,pma8084",
+                   "qcom,pm8019",
+                   "qcom,pm8226",
+                   "qcom,pm8110",
+                   "qcom,pma8084",
+                   "qcom,pmi8962",
+                   "qcom,pmd9635",
+                   "qcom,pm8994",
+                   "qcom,pmi8994",
+                   "qcom,pm8916",
+                   "qcom,pm8004",
+                   "qcom,pm8909",
+                   or generalized "qcom,spmi-pmic".
 - reg:             Specifies the SPMI USID slave address for this device.
                    For more information see:
                    Documentation/devicetree/bindings/spmi/spmi.txt

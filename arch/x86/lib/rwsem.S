@@ -15,7 +15,6 @@
 
 #include <linux/linkage.h>
 #include <asm/alternative-asm.h>
-#include <asm/dwarf2.h>
 
 #define __ASM_HALF_REG(reg)	__ASM_SEL(reg, e##reg)
 #define __ASM_HALF_SIZE(inst)	__ASM_SEL(inst##w, inst##l)
@@ -34,10 +33,10 @@
  */
 
 #define save_common_regs \
-	pushl_cfi %ecx; CFI_REL_OFFSET ecx, 0
+	pushl %ecx
 
 #define restore_common_regs \
-	popl_cfi %ecx; CFI_RESTORE ecx
+	popl %ecx
 
 	/* Avoid uglifying the argument copying x86-64 needs to do. */
 	.macro movq src, dst
@@ -64,52 +63,45 @@
  */
 
 #define save_common_regs \
-	pushq_cfi %rdi; CFI_REL_OFFSET rdi, 0; \
-	pushq_cfi %rsi; CFI_REL_OFFSET rsi, 0; \
-	pushq_cfi %rcx; CFI_REL_OFFSET rcx, 0; \
-	pushq_cfi %r8;  CFI_REL_OFFSET r8,  0; \
-	pushq_cfi %r9;  CFI_REL_OFFSET r9,  0; \
-	pushq_cfi %r10; CFI_REL_OFFSET r10, 0; \
-	pushq_cfi %r11; CFI_REL_OFFSET r11, 0
+	pushq %rdi; \
+	pushq %rsi; \
+	pushq %rcx; \
+	pushq %r8;  \
+	pushq %r9;  \
+	pushq %r10; \
+	pushq %r11
 
 #define restore_common_regs \
-	popq_cfi %r11; CFI_RESTORE r11; \
-	popq_cfi %r10; CFI_RESTORE r10; \
-	popq_cfi %r9;  CFI_RESTORE r9; \
-	popq_cfi %r8;  CFI_RESTORE r8; \
-	popq_cfi %rcx; CFI_RESTORE rcx; \
-	popq_cfi %rsi; CFI_RESTORE rsi; \
-	popq_cfi %rdi; CFI_RESTORE rdi
+	popq %r11; \
+	popq %r10; \
+	popq %r9; \
+	popq %r8; \
+	popq %rcx; \
+	popq %rsi; \
+	popq %rdi
 
 #endif
 
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_down_read_failed)
-	CFI_STARTPROC
 	save_common_regs
-	__ASM_SIZE(push,_cfi) %__ASM_REG(dx)
-	CFI_REL_OFFSET __ASM_REG(dx), 0
+	__ASM_SIZE(push,) %__ASM_REG(dx)
 	movq %rax,%rdi
 	call rwsem_down_read_failed
-	__ASM_SIZE(pop,_cfi) %__ASM_REG(dx)
-	CFI_RESTORE __ASM_REG(dx)
+	__ASM_SIZE(pop,) %__ASM_REG(dx)
 	restore_common_regs
 	ret
-	CFI_ENDPROC
 ENDPROC(call_rwsem_down_read_failed)
 
 ENTRY(call_rwsem_down_write_failed)
-	CFI_STARTPROC
 	save_common_regs
 	movq %rax,%rdi
 	call rwsem_down_write_failed
 	restore_common_regs
 	ret
-	CFI_ENDPROC
 ENDPROC(call_rwsem_down_write_failed)
 
 ENTRY(call_rwsem_wake)
-	CFI_STARTPROC
 	/* do nothing if still outstanding active readers */
 	__ASM_HALF_SIZE(dec) %__ASM_HALF_REG(dx)
 	jnz 1f
@@ -118,19 +110,14 @@ ENTRY(call_rwsem_wake)
 	call rwsem_wake
 	restore_common_regs
 1:	ret
-	CFI_ENDPROC
 ENDPROC(call_rwsem_wake)
 
 ENTRY(call_rwsem_downgrade_wake)
-	CFI_STARTPROC
 	save_common_regs
-	__ASM_SIZE(push,_cfi) %__ASM_REG(dx)
-	CFI_REL_OFFSET __ASM_REG(dx), 0
+	__ASM_SIZE(push,) %__ASM_REG(dx)
 	movq %rax,%rdi
 	call rwsem_downgrade_wake
-	__ASM_SIZE(pop,_cfi) %__ASM_REG(dx)
-	CFI_RESTORE __ASM_REG(dx)
+	__ASM_SIZE(pop,) %__ASM_REG(dx)
 	restore_common_regs
 	ret
-	CFI_ENDPROC
 ENDPROC(call_rwsem_downgrade_wake)

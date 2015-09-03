@@ -79,7 +79,7 @@ void coda_sysctl_clean(void);
 
 static inline struct coda_inode_info *ITOC(struct inode *inode)
 {
-	return list_entry(inode, struct coda_inode_info, vfs_inode);
+	return container_of(inode, struct coda_inode_info, vfs_inode);
 }
 
 static __inline__ struct CodaFid *coda_i2f(struct inode *inode)

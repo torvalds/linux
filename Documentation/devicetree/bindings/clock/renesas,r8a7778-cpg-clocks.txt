@@ -1,0 +1,25 @@
+* Renesas R8A7778 Clock Pulse Generator (CPG)
+
+The CPG generates core clocks for the R8A7778. It includes two PLLs and
+several fixed ratio dividers
+
+Required Properties:
+
+  - compatible: Must be "renesas,r8a7778-cpg-clocks"
+  - reg: Base address and length of the memory resource used by the CPG
+  - #clock-cells: Must be 1
+  - clock-output-names: The names of the clocks. Supported clocks are
+    "plla", "pllb", "b", "out", "p", "s", and "s1".
+
+
+Example
+-------
+
+	cpg_clocks: cpg_clocks@ffc80000 {
+		compatible = "renesas,r8a7778-cpg-clocks";
+		reg = <0xffc80000 0x80>;
+		#clock-cells = <1>;
+		clocks = <&extal_clk>;
+		clock-output-names = "plla", "pllb", "b",
+				     "out", "p", "s", "s1";
+	};

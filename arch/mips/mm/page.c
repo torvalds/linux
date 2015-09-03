@@ -157,6 +157,7 @@ static void set_prefetch_parameters(void)
 		case CPU_R10000:
 		case CPU_R12000:
 		case CPU_R14000:
+		case CPU_R16000:
 			/*
 			 * Those values have been experimentally tuned for an
 			 * Origin 200.

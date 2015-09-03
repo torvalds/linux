@@ -203,7 +203,7 @@ error:
 }
 
 static int tda10071_set_tone(struct dvb_frontend *fe,
-	fe_sec_tone_mode_t fe_sec_tone_mode)
+	enum fe_sec_tone_mode fe_sec_tone_mode)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct tda10071_cmd cmd;
@@ -249,7 +249,7 @@ error:
 }
 
 static int tda10071_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t fe_sec_voltage)
+	enum fe_sec_voltage fe_sec_voltage)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct tda10071_cmd cmd;
@@ -413,7 +413,7 @@ error:
 }
 
 static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
-	fe_sec_mini_cmd_t fe_sec_mini_cmd)
+	enum fe_sec_mini_cmd fe_sec_mini_cmd)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct tda10071_cmd cmd;
@@ -476,7 +476,7 @@ error:
 	return ret;
 }
 
-static int tda10071_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int tda10071_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	int ret;
@@ -668,7 +668,7 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u8 mode, rolloff, pilot, inversion, div;
-	fe_modulation_t modulation;
+	enum fe_modulation modulation;
 
 	dev_dbg(&priv->i2c->dev,
 			"%s: delivery_system=%d modulation=%d frequency=%d symbol_rate=%d inversion=%d pilot=%d rolloff=%d\n",
@@ -1312,6 +1312,113 @@ static struct dvb_frontend_ops tda10071_ops = {
 	.set_tone = tda10071_set_tone,
 	.set_voltage = tda10071_set_voltage,
 };
+
+static struct dvb_frontend *tda10071_get_dvb_frontend(struct i2c_client *client)
+{
+	struct tda10071_priv *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &dev->fe;
+}
+
+static int tda10071_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct tda10071_priv *dev;
+	struct tda10071_platform_data *pdata = client->dev.platform_data;
+	int ret;
+	u8 u8tmp;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	dev->client = client;
+	dev->i2c = client->adapter;
+	dev->cfg.demod_i2c_addr = client->addr;
+	dev->cfg.i2c_wr_max = pdata->i2c_wr_max;
+	dev->cfg.ts_mode = pdata->ts_mode;
+	dev->cfg.spec_inv = pdata->spec_inv;
+	dev->cfg.xtal = pdata->clk;
+	dev->cfg.pll_multiplier = pdata->pll_multiplier;
+	dev->cfg.tuner_i2c_addr = pdata->tuner_i2c_addr;
+
+	/* chip ID */
+	ret = tda10071_rd_reg(dev, 0xff, &u8tmp);
+	if (ret)
+		goto err_kfree;
+	if (u8tmp != 0x0f) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
+
+	/* chip type */
+	ret = tda10071_rd_reg(dev, 0xdd, &u8tmp);
+	if (ret)
+		goto err_kfree;
+	if (u8tmp != 0x00) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
+
+	/* chip version */
+	ret = tda10071_rd_reg(dev, 0xfe, &u8tmp);
+	if (ret)
+		goto err_kfree;
+	if (u8tmp != 0x01) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
+
+	/* create dvb_frontend */
+	memcpy(&dev->fe.ops, &tda10071_ops, sizeof(struct dvb_frontend_ops));
+	dev->fe.ops.release = NULL;
+	dev->fe.demodulator_priv = dev;
+	i2c_set_clientdata(client, dev);
+
+	/* setup callbacks */
+	pdata->get_dvb_frontend = tda10071_get_dvb_frontend;
+
+	dev_info(&client->dev, "NXP TDA10071 successfully identified\n");
+	return 0;
+err_kfree:
+	kfree(dev);
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int tda10071_remove(struct i2c_client *client)
+{
+	struct tda10071_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	kfree(dev);
+	return 0;
+}
+
+static const struct i2c_device_id tda10071_id_table[] = {
+	{"tda10071_cx24118", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, tda10071_id_table);
+
+static struct i2c_driver tda10071_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tda10071",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= tda10071_probe,
+	.remove		= tda10071_remove,
+	.id_table	= tda10071_id_table,
+};
+
+module_i2c_driver(tda10071_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("NXP TDA10071 DVB-S/S2 demodulator driver");

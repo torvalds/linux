@@ -68,17 +68,17 @@ static const struct berlin_desc_group berlin2cd_soc_pinctrl_groups[] = {
 		BERLIN_PINCTRL_FUNCTION(0x1, "twsi1"),
 		BERLIN_PINCTRL_FUNCTION(0x2, "gpio")),
 	BERLIN_PINCTRL_GROUP("G8", 0x00, 0x3, 0x10,
-		BERLIN_PINCTRL_FUNCTION(0x0, "ss0"),
+		BERLIN_PINCTRL_FUNCTION(0x0, "spi1"), /* SS0n */
 		BERLIN_PINCTRL_FUNCTION(0x1, "gpio")),
 	BERLIN_PINCTRL_GROUP("G9", 0x00, 0x3, 0x13,
 		BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
-		BERLIN_PINCTRL_FUNCTION(0x1, "spi1"),
+		BERLIN_PINCTRL_FUNCTION(0x1, "spi1"), /* SS1n/SS2n */
 		BERLIN_PINCTRL_FUNCTION(0x2, "twsi0")),
 	BERLIN_PINCTRL_GROUP("G10", 0x00, 0x2, 0x16,
-		BERLIN_PINCTRL_FUNCTION(0x0, "spi1"),
+		BERLIN_PINCTRL_FUNCTION(0x0, "spi1"), /* CLK */
 		BERLIN_PINCTRL_FUNCTION(0x1, "gpio")),
 	BERLIN_PINCTRL_GROUP("G11", 0x00, 0x2, 0x18,
-		BERLIN_PINCTRL_FUNCTION(0x0, "spi1"),
+		BERLIN_PINCTRL_FUNCTION(0x0, "spi1"), /* SDI/SDO */
 		BERLIN_PINCTRL_FUNCTION(0x1, "gpio")),
 	BERLIN_PINCTRL_GROUP("G12", 0x00, 0x3, 0x1a,
 		BERLIN_PINCTRL_FUNCTION(0x0, "usb1"),
@@ -161,11 +161,11 @@ static const struct berlin_pinctrl_desc berlin2cd_sysmgr_pinctrl_data = {
 
 static const struct of_device_id berlin2cd_pinctrl_match[] = {
 	{
-		.compatible = "marvell,berlin2cd-chip-ctrl",
+		.compatible = "marvell,berlin2cd-soc-pinctrl",
 		.data = &berlin2cd_soc_pinctrl_data
 	},
 	{
-		.compatible = "marvell,berlin2cd-system-ctrl",
+		.compatible = "marvell,berlin2cd-system-pinctrl",
 		.data = &berlin2cd_sysmgr_pinctrl_data
 	},
 	{}
@@ -176,28 +176,6 @@ static int berlin2cd_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(berlin2cd_pinctrl_match, &pdev->dev);
-	struct regmap_config *rmconfig;
-	struct regmap *regmap;
-	struct resource *res;
-	void __iomem *base;
-
-	rmconfig = devm_kzalloc(&pdev->dev, sizeof(*rmconfig), GFP_KERNEL);
-	if (!rmconfig)
-		return -ENOMEM;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	rmconfig->reg_bits = 32,
-	rmconfig->val_bits = 32,
-	rmconfig->reg_stride = 4,
-	rmconfig->max_register = resource_size(res);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, base, rmconfig);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
 
 	return berlin_pinctrl_probe(pdev, match->data);
 }

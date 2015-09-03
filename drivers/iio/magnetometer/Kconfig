@@ -8,7 +8,7 @@ menu "Magnetometer sensors"
 config AK8975
 	tristate "Asahi Kasei AK 3-Axis Magnetometer"
 	depends on I2C
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say yes here to build support for Asahi Kasei AK8975, AK8963,
 	  AK09911 or AK09912 3-Axis Magnetometer.
@@ -19,7 +19,7 @@ config AK8975
 config AK09911
 	tristate "Asahi Kasei AK09911 3-axis Compass"
 	depends on I2C
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select AK8975
 	help
 	  Deprecated: AK09911 is now supported by AK8975 driver.
@@ -46,6 +46,17 @@ config HID_SENSOR_MAGNETOMETER_3D
 	help
 	  Say yes here to build support for the HID SENSOR
 	  Magnetometer 3D.
+
+config MMC35240
+	tristate "MEMSIC MMC35240 3-axis magnetic sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say yes here to build support for the MEMSIC MMC35240 3-axis
+	  magnetic sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mmc35240.
 
 config IIO_ST_MAGN_3AXIS
 	tristate "STMicroelectronics magnetometers 3-Axis Driver"
@@ -75,5 +86,19 @@ config IIO_ST_MAGN_SPI_3AXIS
 	tristate
 	depends on IIO_ST_MAGN_3AXIS
 	depends on IIO_ST_SENSORS_SPI
+
+config BMC150_MAGN
+	tristate "Bosch BMC150 Magnetometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the BMC150 magnetometer.
+
+	  Currently this only supports the device via an i2c interface.
+
+	  This is a combo module with both accelerometer and magnetometer.
+	  This driver is only implementing magnetometer part, which has
+	  its own address and register map.
 
 endmenu

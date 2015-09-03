@@ -24,14 +24,14 @@
 
 #include "ad7780.h"
 
-#define AD7780_RDY	(1 << 7)
-#define AD7780_FILTER	(1 << 6)
-#define AD7780_ERR	(1 << 5)
-#define AD7780_ID1	(1 << 4)
-#define AD7780_ID0	(1 << 3)
-#define AD7780_GAIN	(1 << 2)
-#define AD7780_PAT1	(1 << 1)
-#define AD7780_PAT0	(1 << 0)
+#define AD7780_RDY	BIT(7)
+#define AD7780_FILTER	BIT(6)
+#define AD7780_ERR	BIT(5)
+#define AD7780_ID1	BIT(4)
+#define AD7780_ID0	BIT(3)
+#define AD7780_GAIN	BIT(2)
+#define AD7780_PAT1	BIT(1)
+#define AD7780_PAT0	BIT(0)
 
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
@@ -169,7 +169,7 @@ static int ad7780_probe(struct spi_device *spi)
 	int ret, voltage_uv = 0;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);

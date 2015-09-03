@@ -42,7 +42,7 @@ static int urb_zero_packet_chk(struct rtw_adapter *padapter, int sz)
 
 static void rtl8192cu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
-		u16	*usPtr = (u16 *)ptxdesc;
+		__le16	*usPtr = (__le16 *)ptxdesc;
 		u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
 		u32 index;
 		u16 checksum = 0;
@@ -130,7 +130,7 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 	}
 }
 
-static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
+static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 {
 	int	pull = 0;
 	uint	qsel;
@@ -143,7 +143,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	int	bmcst = is_multicast_ether_addr(pattrib->ra);
 
-	if ((!bagg_pkt) && (urb_zero_packet_chk(padapter, sz) == 0)) {
+	if (urb_zero_packet_chk(padapter, sz) == 0) {
 		ptxdesc = (struct tx_desc *)(pmem+PACKET_OFFSET_SZ);
 		pull = 1;
 		pxmitframe->pkt_offset--;
@@ -252,7 +252,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	}
 
 	/*  (1) The sequence number of each non-Qos frame / broadcast / multicast / */
-	/*  mgnt frame should be controled by Hw because Fw will also send null data */
+	/*  mgnt frame should be controlled by Hw because Fw will also send null data */
 	/*  which we cannot control when Fw LPS enable. */
 	/*  --> default enable non-Qos data sequense number. 2010.06.23. by tynli. */
 	/*  (2) Enable HW SEQ control for beacon packet, because we use Hw beacon. */
@@ -272,7 +272,8 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	if (bmcst)
 		ptxdesc->txdw0 |= cpu_to_le32(BIT(24));
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("offset0-txdesc = 0x%x\n", ptxdesc->txdw0));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+		 "offset0-txdesc = 0x%x\n", ptxdesc->txdw0);
 
 	/* offset 4 */
 	/*  pkt_offset, unit:8 bytes padding */
@@ -303,7 +304,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 
 	mem_addr = pxmitframe->buf_addr;
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("rtw_dump_xframe()\n"));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, "rtw_dump_xframe()\n");
 
 	for (t = 0; t < pattrib->nr_frags; t++) {
 		if (inner_ret != _SUCCESS && ret == _SUCCESS)
@@ -311,7 +312,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 
 		if (t != (pattrib->nr_frags - 1)) {
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
-				 ("pattrib->nr_frags =%d\n", pattrib->nr_frags));
+				 "pattrib->nr_frags =%d\n", pattrib->nr_frags);
 
 			sz = pxmitpriv->frag_len;
 			sz = sz - 4 - pattrib->icv_len;
@@ -320,7 +321,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 			sz = pattrib->last_txcmdsz;
 		}
 
-		pull = update_txdesc(pxmitframe, mem_addr, sz, false);
+		pull = update_txdesc(pxmitframe, mem_addr, sz);
 
 		if (pull) {
 			mem_addr += PACKET_OFFSET_SZ; /* pull txdesc head */
@@ -338,7 +339,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 		rtw_count_tx_stats23a(padapter, pxmitframe, sz);
 
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-			 ("rtw_write_port, w_sz =%d\n", w_sz));
+			 "rtw_write_port, w_sz =%d\n", w_sz);
 
 		mem_addr += w_sz;
 
@@ -365,7 +366,7 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 	phwxmits = pxmitpriv->hwxmits;
 	hwentry = pxmitpriv->hwxmit_entry;
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("xmitframe_complete()\n"));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, "xmitframe_complete()\n");
 
 	if (pxmitbuf == NULL) {
 		pxmitbuf = rtw_alloc_xmitbuf23a(pxmitpriv);
@@ -388,7 +389,8 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 			rtw_os_xmit_complete23a(padapter, pxmitframe);/* always return ndis_packet after rtw_xmitframe_coalesce23a */
 		}
 
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("xmitframe_complete(): rtw_dump_xframe\n"));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 "xmitframe_complete(): rtw_dump_xframe\n");
 
 		if (res == _SUCCESS) {
 			rtw_dump_xframe(padapter, pxmitframe);
@@ -481,7 +483,7 @@ enqueue:
 
 	if (res != _SUCCESS) {
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_,
-			 ("pre_xmitframe: enqueue xmitframe fail\n"));
+			 "pre_xmitframe: enqueue xmitframe fail\n");
 		rtw_free_xmitframe23a(pxmitpriv, pxmitframe);
 
 		/*  Trick, make the statistics correct */

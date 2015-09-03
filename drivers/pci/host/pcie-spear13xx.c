@@ -4,8 +4,8 @@
  * SPEAr13xx PCIe Glue Layer Source Code
  *
  * Copyright (C) 2010-2014 ST Microelectronics
- * Pratyush Anand <pratyush.anand@st.com>
- * Mohit Kumar <mohit.kumar@st.com>
+ * Pratyush Anand <pratyush.anand@gmail.com>
+ * Mohit Kumar <mohit.kumar.dhaka@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -146,10 +146,10 @@ struct pcie_app_reg {
 static int spear13xx_pcie_establish_link(struct pcie_port *pp)
 {
 	u32 val;
-	int count = 0;
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pp);
 	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
 	u32 exp_cap_off = EXP_CAP_ID_OFFSET;
+	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "link already up\n");
@@ -201,17 +201,16 @@ static int spear13xx_pcie_establish_link(struct pcie_port *pp)
 			&app_reg->app_ctrl_0);
 
 	/* check if the link is up or not */
-	while (!dw_pcie_link_up(pp)) {
-		mdelay(100);
-		count++;
-		if (count == 10) {
-			dev_err(pp->dev, "link Fail\n");
-			return -EINVAL;
+	for (retries = 0; retries < 10; retries++) {
+		if (dw_pcie_link_up(pp)) {
+			dev_info(pp->dev, "link up\n");
+			return 0;
 		}
+		mdelay(100);
 	}
-	dev_info(pp->dev, "link up\n");
 
-	return 0;
+	dev_err(pp->dev, "link Fail\n");
+	return -EINVAL;
 }
 
 static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
@@ -269,7 +268,7 @@ static struct pcie_host_ops spear13xx_pcie_host_ops = {
 	.host_init = spear13xx_pcie_host_init,
 };
 
-static int __init spear13xx_add_pcie_port(struct pcie_port *pp,
+static int spear13xx_add_pcie_port(struct pcie_port *pp,
 					 struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -299,7 +298,7 @@ static int __init spear13xx_add_pcie_port(struct pcie_port *pp,
 	return 0;
 }
 
-static int __init spear13xx_pcie_probe(struct platform_device *pdev)
+static int spear13xx_pcie_probe(struct platform_device *pdev)
 {
 	struct spear13xx_pcie *spear13xx_pcie;
 	struct pcie_port *pp;
@@ -370,7 +369,7 @@ static const struct of_device_id spear13xx_pcie_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, spear13xx_pcie_of_match);
 
-static struct platform_driver spear13xx_pcie_driver __initdata = {
+static struct platform_driver spear13xx_pcie_driver = {
 	.probe		= spear13xx_pcie_probe,
 	.driver = {
 		.name	= "spear-pcie",
@@ -387,5 +386,5 @@ static int __init spear13xx_pcie_init(void)
 module_init(spear13xx_pcie_init);
 
 MODULE_DESCRIPTION("ST Microelectronics SPEAr13xx PCIe host controller driver");
-MODULE_AUTHOR("Pratyush Anand <pratyush.anand@st.com>");
+MODULE_AUTHOR("Pratyush Anand <pratyush.anand@gmail.com>");
 MODULE_LICENSE("GPL v2");

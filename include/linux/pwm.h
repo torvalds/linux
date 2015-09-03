@@ -182,6 +182,8 @@ struct pwm_chip {
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
+int pwmchip_add_with_polarity(struct pwm_chip *chip,
+			      enum pwm_polarity polarity);
 int pwmchip_add(struct pwm_chip *chip);
 int pwmchip_remove(struct pwm_chip *chip);
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
@@ -213,6 +215,11 @@ static inline void *pwm_get_chip_data(struct pwm_device *pwm)
 }
 
 static inline int pwmchip_add(struct pwm_chip *chip)
+{
+	return -EINVAL;
+}
+
+static inline int pwmchip_add_inversed(struct pwm_chip *chip)
 {
 	return -EINVAL;
 }
@@ -290,8 +297,13 @@ struct pwm_lookup {
 
 #if IS_ENABLED(CONFIG_PWM)
 void pwm_add_table(struct pwm_lookup *table, size_t num);
+void pwm_remove_table(struct pwm_lookup *table, size_t num);
 #else
 static inline void pwm_add_table(struct pwm_lookup *table, size_t num)
+{
+}
+
+static inline void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
 }
 #endif

@@ -2,11 +2,8 @@
 #define _FAT_H
 
 #include <linux/buffer_head.h>
-#include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/fs.h>
 #include <linux/hash.h>
-#include <linux/mutex.h>
 #include <linux/ratelimit.h>
 #include <linux/msdos_fs.h>
 
@@ -66,7 +63,7 @@ struct msdos_sb_info {
 	unsigned short sec_per_clus;  /* sectors/cluster */
 	unsigned short cluster_bits;  /* log2(cluster_size) */
 	unsigned int cluster_size;    /* cluster size */
-	unsigned char fats, fat_bits; /* number of FATs, FAT bits (12 or 16) */
+	unsigned char fats, fat_bits; /* number of FATs, FAT bits (12,16 or 32) */
 	unsigned short fat_start;
 	unsigned long fat_length;     /* FAT start & length (sec.) */
 	unsigned long dir_start;

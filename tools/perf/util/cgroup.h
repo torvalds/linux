@@ -1,12 +1,14 @@
 #ifndef __CGROUP_H__
 #define __CGROUP_H__
 
+#include <linux/atomic.h>
+
 struct option;
 
 struct cgroup_sel {
 	char *name;
 	int fd;
-	int refcnt;
+	atomic_t refcnt;
 };
 
 

@@ -592,6 +592,7 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 		ret_code = i40e_aq_get_firmware_version(hw,
 							&hw->aq.fw_maj_ver,
 							&hw->aq.fw_min_ver,
+							&hw->aq.fw_build,
 							&hw->aq.api_maj_ver,
 							&hw->aq.api_min_ver,
 							NULL);
@@ -605,7 +606,8 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 		goto init_adminq_free_arq;
 
 	/* get the NVM version info */
-	i40e_read_nvm_word(hw, I40E_SR_NVM_IMAGE_VERSION, &hw->nvm.version);
+	i40e_read_nvm_word(hw, I40E_SR_NVM_DEV_STARTER_VERSION,
+			   &hw->nvm.version);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_LO, &eetrack_lo);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_HI, &eetrack_hi);
 	hw->nvm.eetrack = (eetrack_hi << 16) | eetrack_lo;

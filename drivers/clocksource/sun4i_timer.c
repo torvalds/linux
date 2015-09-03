@@ -170,7 +170,15 @@ static void __init sun4i_timer_init(struct device_node *node)
 	       TIMER_CTL_CLK_SRC(TIMER_CTL_CLK_SRC_OSC24M),
 	       timer_base + TIMER_CTL_REG(1));
 
-	sched_clock_register(sun4i_timer_sched_read, 32, rate);
+	/*
+	 * sched_clock_register does not have priorities, and on sun6i and
+	 * later there is a better sched_clock registered by arm_arch_timer.c
+	 */
+	if (of_machine_is_compatible("allwinner,sun4i-a10") ||
+	    of_machine_is_compatible("allwinner,sun5i-a13") ||
+	    of_machine_is_compatible("allwinner,sun5i-a10s"))
+		sched_clock_register(sun4i_timer_sched_read, 32, rate);
+
 	clocksource_mmio_init(timer_base + TIMER_CNTVAL_REG(1), node->name,
 			      rate, 350, 32, clocksource_mmio_readl_down);
 

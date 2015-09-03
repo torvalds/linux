@@ -20,7 +20,7 @@
 
 void exynos3250_jpeg_reset(void __iomem *regs)
 {
-	u32 reg = 0;
+	u32 reg = 1;
 	int count = 1000;
 
 	writel(1, regs + EXYNOS3250_SW_RESET);

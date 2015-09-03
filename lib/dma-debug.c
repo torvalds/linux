@@ -361,7 +361,7 @@ static struct dma_debug_entry *bucket_find_contain(struct hash_bucket **bucket,
 	unsigned int range = 0;
 
 	while (range <= max_range) {
-		entry = __hash_bucket_find(*bucket, &index, containing_match);
+		entry = __hash_bucket_find(*bucket, ref, containing_match);
 
 		if (entry)
 			return entry;
@@ -573,6 +573,9 @@ void debug_dma_assert_idle(struct page *page)
 	unsigned int nents, i;
 	unsigned long flags;
 	phys_addr_t cln;
+
+	if (dma_debug_disabled())
+		return;
 
 	if (!page)
 		return;

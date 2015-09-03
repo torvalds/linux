@@ -145,8 +145,6 @@ struct bpf_prog_aux;
 		.off   = 0,					\
 		.imm   = ((__u64) (IMM)) >> 32 })
 
-#define BPF_PSEUDO_MAP_FD	1
-
 /* pseudo BPF_LD_IMM64 insn used to refer to process-local map_fd */
 #define BPF_LD_MAP_FD(DST, MAP_FD)				\
 	BPF_LD_IMM64_RAW(DST, BPF_PSEUDO_MAP_FD, MAP_FD)
@@ -204,6 +202,16 @@ struct bpf_prog_aux;
 #define BPF_STX_MEM(SIZE, DST, SRC, OFF)			\
 	((struct bpf_insn) {					\
 		.code  = BPF_STX | BPF_SIZE(SIZE) | BPF_MEM,	\
+		.dst_reg = DST,					\
+		.src_reg = SRC,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+/* Atomic memory add, *(uint *)(dst_reg + off16) += src_reg */
+
+#define BPF_STX_XADD(SIZE, DST, SRC, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_STX | BPF_SIZE(SIZE) | BPF_XADD,	\
 		.dst_reg = DST,					\
 		.src_reg = SRC,					\
 		.off   = OFF,					\
@@ -269,6 +277,14 @@ struct bpf_prog_aux;
 		.off   = 0,					\
 		.imm   = 0 })
 
+/* Internal classic blocks for direct assignment */
+
+#define __BPF_STMT(CODE, K)					\
+	((struct sock_filter) BPF_STMT(CODE, K))
+
+#define __BPF_JUMP(CODE, K, JT, JF)				\
+	((struct sock_filter) BPF_JUMP(CODE, K, JT, JF))
+
 #define bytes_to_bpf_size(bytes)				\
 ({								\
 	int bpf_size = -EINVAL;					\
@@ -310,9 +326,11 @@ struct bpf_binary_header {
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	bool			jited;		/* Is our filter JIT'ed? */
+	bool			gpl_compatible;	/* Is our filter GPL compatible? */
 	u32			len;		/* Number of filter blocks */
-	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
+	enum bpf_prog_type	type;		/* Type of BPF program */
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
+	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct bpf_insn *filter);
 	/* Instructions for interpreter */
@@ -360,11 +378,8 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 
 int sk_filter(struct sock *sk, struct sk_buff *skb);
 
-void bpf_prog_select_runtime(struct bpf_prog *fp);
+int bpf_prog_select_runtime(struct bpf_prog *fp);
 void bpf_prog_free(struct bpf_prog *fp);
-
-int bpf_convert_filter(struct sock_filter *prog, int len,
-		       struct bpf_insn *new_prog, int *new_len);
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
@@ -377,14 +392,17 @@ static inline void bpf_prog_unlock_free(struct bpf_prog *fp)
 	__bpf_prog_free(fp);
 }
 
+typedef int (*bpf_aux_classic_check_t)(struct sock_filter *filter,
+				       unsigned int flen);
+
 int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog);
+int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
+			      bpf_aux_classic_check_t trans);
 void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
-
-int bpf_check_classic(const struct sock_filter *filter, unsigned int flen);
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
 
@@ -454,6 +472,7 @@ static inline u16 bpf_anc_helper(const struct sock_filter *ftest)
 		BPF_ANCILLARY(VLAN_TAG_PRESENT);
 		BPF_ANCILLARY(PAY_OFFSET);
 		BPF_ANCILLARY(RANDOM);
+		BPF_ANCILLARY(VLAN_TPID);
 		}
 		/* Fallthrough. */
 	default:

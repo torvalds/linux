@@ -91,7 +91,7 @@ struct devfreq_event_desc {
 	const char *name;
 	void *driver_data;
 
-	struct devfreq_event_ops *ops;
+	const struct devfreq_event_ops *ops;
 };
 
 #if defined(CONFIG_PM_DEVFREQ_EVENT)

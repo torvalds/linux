@@ -67,8 +67,7 @@ static int sproc_load_segments(struct rproc *rproc, const struct firmware *fw)
 static const struct ste_toc_entry *sproc_find_rsc_entry(const void *data)
 {
 	int i;
-	const struct ste_toc *toc;
-	toc = data;
+	const struct ste_toc *toc = data;
 
 	/* Search the table for the resource table */
 	for (i = 0; i < SPROC_MAX_TOC_ENTRIES &&
@@ -230,6 +229,7 @@ static int sproc_start(struct rproc *rproc)
 static int sproc_stop(struct rproc *rproc)
 {
 	struct sproc *sproc = rproc->priv;
+
 	sproc_dbg(sproc, "stop ste-modem\n");
 
 	return sproc->mdev->ops.power(sproc->mdev, false);
@@ -289,6 +289,7 @@ static int sproc_probe(struct platform_device *pdev)
 	sproc = rproc->priv;
 	sproc->mdev = mdev;
 	sproc->rproc = rproc;
+	rproc->has_iommu = false;
 	mdev->drv_data = sproc;
 
 	/* Provide callback functions to modem device */

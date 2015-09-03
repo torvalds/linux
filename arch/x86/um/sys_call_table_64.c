@@ -16,7 +16,7 @@
  */
 
 /* Not going to be implemented by UML, since we have no hardware. */
-#define stub_iopl sys_ni_syscall
+#define sys_iopl sys_ni_syscall
 #define sys_ioperm sys_ni_syscall
 
 /*

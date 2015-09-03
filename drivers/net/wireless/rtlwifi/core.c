@@ -195,7 +195,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	if (!(support_remote_wakeup &&
 	      rtlhal->enter_pnp_sleep)) {
 		mac->link_state = MAC80211_NOLINK;
-		memset(mac->bssid, 0, 6);
+		eth_zero_addr(mac->bssid);
 		mac->vendor = PEER_UNKNOWN;
 
 		/* reset sec info */
@@ -357,7 +357,7 @@ static void rtl_op_remove_interface(struct ieee80211_hw *hw,
 	mac->p2p = 0;
 	mac->vif = NULL;
 	mac->link_state = MAC80211_NOLINK;
-	memset(mac->bssid, 0, ETH_ALEN);
+	eth_zero_addr(mac->bssid);
 	mac->vendor = PEER_UNKNOWN;
 	mac->opmode = NL80211_IFTYPE_UNSPECIFIED;
 	rtlpriv->cfg->ops->set_network_type(hw, mac->opmode);
@@ -1157,7 +1157,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
 			mac->link_state = MAC80211_NOLINK;
-			memset(mac->bssid, 0, ETH_ALEN);
+			eth_zero_addr(mac->bssid);
 			mac->vendor = PEER_UNKNOWN;
 			mac->mode = 0;
 

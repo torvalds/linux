@@ -125,7 +125,7 @@ static struct gpio_keys_platform_data *gpio_keys_polled_get_devtree_pdata(struct
 	device_for_each_child_node(dev, child) {
 		struct gpio_desc *desc;
 
-		desc = devm_get_gpiod_from_child(dev, child);
+		desc = devm_get_gpiod_from_child(dev, NULL, child);
 		if (IS_ERR(desc)) {
 			error = PTR_ERR(desc);
 			if (error != -EPROBE_DEFER)
@@ -152,7 +152,10 @@ static struct gpio_keys_platform_data *gpio_keys_polled_get_devtree_pdata(struct
 					     &button->type))
 			button->type = EV_KEY;
 
-		button->wakeup = fwnode_property_present(child, "gpio-key,wakeup");
+		button->wakeup =
+			fwnode_property_read_bool(child, "wakeup-source") ||
+			/* legacy name */
+			fwnode_property_read_bool(child, "gpio-key,wakeup");
 
 		if (fwnode_property_read_u32(child, "debounce-interval",
 					     &button->debounce_interval))

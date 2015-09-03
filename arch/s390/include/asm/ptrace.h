@@ -40,12 +40,8 @@ struct psw_bits {
 	unsigned long long ri	: 1; /* Runtime Instrumentation */
 	unsigned long long	: 6;
 	unsigned long long eaba : 2; /* Addressing Mode */
-#ifdef CONFIG_64BIT
 	unsigned long long	: 31;
 	unsigned long long ia	: 64;/* Instruction Address */
-#else
-	unsigned long long ia	: 31;/* Instruction Address */
-#endif
 };
 
 enum {

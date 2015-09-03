@@ -963,8 +963,8 @@ static void exofs_invalidatepage(struct page *page, unsigned int offset,
 
 
  /* TODO: Should be easy enough to do proprly */
-static ssize_t exofs_direct_IO(int rw, struct kiocb *iocb,
-		struct iov_iter *iter, loff_t offset)
+static ssize_t exofs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+			       loff_t offset)
 {
 	return 0;
 }
@@ -1028,7 +1028,7 @@ static int _do_truncate(struct inode *inode, loff_t newsize)
  */
 int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	/* if we are about to modify an object, and it hasn't been
@@ -1222,10 +1222,11 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_fop = &exofs_dir_operations;
 		inode->i_mapping->a_ops = &exofs_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
-		if (exofs_inode_is_fast_symlink(inode))
-			inode->i_op = &exofs_fast_symlink_inode_operations;
-		else {
-			inode->i_op = &exofs_symlink_inode_operations;
+		if (exofs_inode_is_fast_symlink(inode)) {
+			inode->i_op = &simple_symlink_inode_operations;
+			inode->i_link = (char *)oi->i_data;
+		} else {
+			inode->i_op = &page_symlink_inode_operations;
 			inode->i_mapping->a_ops = &exofs_aops;
 		}
 	} else {

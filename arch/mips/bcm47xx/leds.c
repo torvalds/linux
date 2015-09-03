@@ -292,6 +292,13 @@ bcm47xx_leds_linksys_wrt160nv3[] __initconst = {
 };
 
 static const struct gpio_led
+bcm47xx_leds_linksys_wrt300n_v1[] __initconst = {
+	BCM47XX_GPIO_LED(1, "green", "power", 0, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(3, "amber", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(5, "green", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
 bcm47xx_leds_linksys_wrt300nv11[] __initconst = {
 	BCM47XX_GPIO_LED(1, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(3, "amber", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
@@ -361,6 +368,16 @@ bcm47xx_leds_linksys_wrtsl54gs[] __initconst = {
 	BCM47XX_GPIO_LED(1, "green", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(5, "white", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(7, "orange", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+/* Luxul */
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xwr_1750_v1[] __initconst = {
+	BCM47XX_GPIO_LED(5, "green", "5ghz", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(12, "green", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED_TRIGGER(13, "green", "status", 0, "timer"),
+	BCM47XX_GPIO_LED(15, "green", "wps", 0, LEDS_GPIO_DEFSTATE_OFF),
 };
 
 /* Microsoft */
@@ -585,6 +602,9 @@ void __init bcm47xx_leds_register(void)
 	case BCM47XX_BOARD_LINKSYS_WRT160NV3:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt160nv3);
 		break;
+	case BCM47XX_BOARD_LINKSYS_WRT300N_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt300n_v1);
+		break;
 	case BCM47XX_BOARD_LINKSYS_WRT300NV11:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt300nv11);
 		break;
@@ -611,6 +631,10 @@ void __init bcm47xx_leds_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRTSL54GS:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrtsl54gs);
+		break;
+
+	case BCM47XX_BOARD_LUXUL_XWR_1750_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xwr_1750_v1);
 		break;
 
 	case BCM47XX_BOARD_MICROSOFT_MN700:

@@ -171,8 +171,12 @@ typedef struct _drm_i915_sarea {
 #define I915_BOX_TEXTURE_LOAD  0x8
 #define I915_BOX_LOST_CONTEXT  0x10
 
-/* I915 specific ioctls
- * The device specific ioctl range is 0x40 to 0x79.
+/*
+ * i915 specific ioctls.
+ *
+ * The device specific ioctl range is [DRM_COMMAND_BASE, DRM_COMMAND_END) ie
+ * [0x40, 0xa0) (a0 is excluded). The numbers below are defined as offset
+ * against DRM_COMMAND_BASE and should be between [0x0, 0x60).
  */
 #define DRM_I915_INIT		0x00
 #define DRM_I915_FLUSH		0x01
@@ -270,7 +274,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_OVERLAY_PUT_IMAGE	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_OVERLAY_PUT_IMAGE, struct drm_intel_overlay_put_image)
 #define DRM_IOCTL_I915_OVERLAY_ATTRS	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_OVERLAY_ATTRS, struct drm_intel_overlay_attrs)
 #define DRM_IOCTL_I915_SET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
-#define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
+#define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
 #define DRM_IOCTL_I915_GEM_WAIT		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_WAIT, struct drm_i915_gem_wait)
 #define DRM_IOCTL_I915_GEM_CONTEXT_CREATE	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_CREATE, struct drm_i915_gem_context_create)
 #define DRM_IOCTL_I915_GEM_CONTEXT_DESTROY	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_DESTROY, struct drm_i915_gem_context_destroy)
@@ -347,6 +351,9 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_COHERENT_PHYS_GTT 29
 #define I915_PARAM_MMAP_VERSION          30
 #define I915_PARAM_HAS_BSD2		 31
+#define I915_PARAM_REVISION              32
+#define I915_PARAM_SUBSLICE_TOTAL	 33
+#define I915_PARAM_EU_TOTAL		 34
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -993,6 +1000,7 @@ struct drm_intel_overlay_put_image {
 /* flags */
 #define I915_OVERLAY_UPDATE_ATTRS	(1<<0)
 #define I915_OVERLAY_UPDATE_GAMMA	(1<<1)
+#define I915_OVERLAY_DISABLE_DEST_COLORKEY	(1<<2)
 struct drm_intel_overlay_attrs {
 	__u32 flags;
 	__u32 color_key;

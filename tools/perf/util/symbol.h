@@ -78,6 +78,7 @@ static inline size_t symbol__size(const struct symbol *sym)
 }
 
 struct strlist;
+struct intlist;
 
 struct symbol_conf {
 	unsigned short	priv_size;
@@ -87,6 +88,7 @@ struct symbol_conf {
 			ignore_vmlinux_buildid,
 			show_kernel_path,
 			use_modules,
+			allow_aliases,
 			sort_by_name,
 			show_nr_samples,
 			show_total_period,
@@ -103,7 +105,8 @@ struct symbol_conf {
 			demangle_kernel,
 			filter_relative,
 			show_hist_headers,
-			branch_callstack;
+			branch_callstack,
+			has_filter;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -114,6 +117,8 @@ struct symbol_conf {
 	const char	*guestmount;
 	const char	*dso_list_str,
 			*comm_list_str,
+			*pid_list_str,
+			*tid_list_str,
 			*sym_list_str,
 			*col_width_list_str;
        struct strlist	*dso_list,
@@ -123,6 +128,8 @@ struct symbol_conf {
 			*dso_to_list,
 			*sym_from_list,
 			*sym_to_list;
+	struct intlist	*pid_list,
+			*tid_list;
 	const char	*symfs;
 };
 
@@ -152,8 +159,6 @@ struct ref_reloc_sym {
 struct map_symbol {
 	struct map    *map;
 	struct symbol *sym;
-	bool	      unfolded;
-	bool	      has_children;
 };
 
 struct addr_map_symbol {
@@ -294,5 +299,17 @@ int compare_proc_modules(const char *from, const char *to);
 
 int setup_list(struct strlist **list, const char *list_str,
 	       const char *list_name);
+int setup_intlist(struct intlist **list, const char *list_str,
+		  const char *list_name);
+
+#ifdef HAVE_LIBELF_SUPPORT
+bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
+void arch__elf_sym_adjust(GElf_Sym *sym);
+#endif
+
+#define SYMBOL_A 0
+#define SYMBOL_B 1
+
+int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
 
 #endif /* __PERF_SYMBOL */

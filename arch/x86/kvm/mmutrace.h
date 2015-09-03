@@ -2,7 +2,7 @@
 #define _TRACE_KVMMMU_H
 
 #include <linux/tracepoint.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvmmmu

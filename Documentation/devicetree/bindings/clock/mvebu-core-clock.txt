@@ -23,6 +23,14 @@ The following is a list of provided IDs and clock names on Armada 380/385:
  2 = l2clk   (L2 Cache clock)
  3 = ddrclk  (DDR clock)
 
+The following is a list of provided IDs and clock names on Armada 39x:
+ 0 = tclk    (Internal Bus clock)
+ 1 = cpuclk  (CPU clock)
+ 2 = nbclk   (Coherent Fabric clock)
+ 3 = hclk    (SDRAM Controller Internal Clock)
+ 4 = dclk    (SDRAM Interface Clock)
+ 5 = refclk  (Reference Clock)
+
 The following is a list of provided IDs and clock names on Kirkwood and Dove:
  0 = tclk   (Internal Bus clock)
  1 = cpuclk (CPU0 clock)
@@ -39,6 +47,7 @@ Required properties:
 	"marvell,armada-370-core-clock" - For Armada 370 SoC core clocks
 	"marvell,armada-375-core-clock" - For Armada 375 SoC core clocks
 	"marvell,armada-380-core-clock" - For Armada 380/385 SoC core clocks
+	"marvell,armada-390-core-clock" - For Armada 39x SoC core clocks
 	"marvell,armada-xp-core-clock" - For Armada XP SoC core clocks
 	"marvell,dove-core-clock" - for Dove SoC core clocks
 	"marvell,kirkwood-core-clock" - for Kirkwood SoC (except mv88f6180)

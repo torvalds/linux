@@ -96,7 +96,7 @@ extern void _tlbia(void);
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
-		   unsigned int size, int flags);
+		   unsigned int size, pgprot_t prot);
 
 extern int __map_without_bats;
 extern int __allow_ioremap_reserved;

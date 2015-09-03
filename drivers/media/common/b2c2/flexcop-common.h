@@ -91,6 +91,7 @@ struct flexcop_device {
 	int feedcount;
 	int pid_filtering;
 	int fullts_streaming_state;
+	int skip_6_hw_pid_filter;
 
 	/* bus specific callbacks */
 	flexcop_ibi_value(*read_ibi_reg) (struct flexcop_device *,

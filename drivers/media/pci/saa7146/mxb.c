@@ -151,8 +151,8 @@ static struct mxb_routing TEA6420_line[MXB_AUDIOS + 1][2] = {
 
 struct mxb
 {
-	struct video_device	*video_dev;
-	struct video_device	*vbi_dev;
+	struct video_device	video_dev;
+	struct video_device	vbi_dev;
 
 	struct i2c_adapter	i2c_adapter;
 

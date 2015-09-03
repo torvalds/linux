@@ -1076,7 +1076,8 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
 			fast_path = 1;
 	}
-	if (!test_bit(GLF_LFLUSH, &gl->gl_flags) && demote_ok(gl))
+	if (!test_bit(GLF_LFLUSH, &gl->gl_flags) && demote_ok(gl) &&
+	    (glops->go_flags & GLOF_LRU))
 		gfs2_glock_add_to_lru(gl);
 
 	trace_gfs2_glock_queue(gh, 0);
@@ -2047,34 +2048,41 @@ static const struct file_operations gfs2_sbstats_fops = {
 
 int gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
 {
-	sdp->debugfs_dir = debugfs_create_dir(sdp->sd_table_name, gfs2_root);
-	if (!sdp->debugfs_dir)
-		return -ENOMEM;
-	sdp->debugfs_dentry_glocks = debugfs_create_file("glocks",
-							 S_IFREG | S_IRUGO,
-							 sdp->debugfs_dir, sdp,
-							 &gfs2_glocks_fops);
-	if (!sdp->debugfs_dentry_glocks)
-		goto fail;
+	struct dentry *dent;
 
-	sdp->debugfs_dentry_glstats = debugfs_create_file("glstats",
-							S_IFREG | S_IRUGO,
-							sdp->debugfs_dir, sdp,
-							&gfs2_glstats_fops);
-	if (!sdp->debugfs_dentry_glstats)
+	dent = debugfs_create_dir(sdp->sd_table_name, gfs2_root);
+	if (IS_ERR_OR_NULL(dent))
 		goto fail;
+	sdp->debugfs_dir = dent;
 
-	sdp->debugfs_dentry_sbstats = debugfs_create_file("sbstats",
-							S_IFREG | S_IRUGO,
-							sdp->debugfs_dir, sdp,
-							&gfs2_sbstats_fops);
-	if (!sdp->debugfs_dentry_sbstats)
+	dent = debugfs_create_file("glocks",
+				   S_IFREG | S_IRUGO,
+				   sdp->debugfs_dir, sdp,
+				   &gfs2_glocks_fops);
+	if (IS_ERR_OR_NULL(dent))
 		goto fail;
+	sdp->debugfs_dentry_glocks = dent;
+
+	dent = debugfs_create_file("glstats",
+				   S_IFREG | S_IRUGO,
+				   sdp->debugfs_dir, sdp,
+				   &gfs2_glstats_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto fail;
+	sdp->debugfs_dentry_glstats = dent;
+
+	dent = debugfs_create_file("sbstats",
+				   S_IFREG | S_IRUGO,
+				   sdp->debugfs_dir, sdp,
+				   &gfs2_sbstats_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto fail;
+	sdp->debugfs_dentry_sbstats = dent;
 
 	return 0;
 fail:
 	gfs2_delete_debugfs_file(sdp);
-	return -ENOMEM;
+	return dent ? PTR_ERR(dent) : -ENOMEM;
 }
 
 void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp)
@@ -2100,6 +2108,8 @@ void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp)
 int gfs2_register_debugfs(void)
 {
 	gfs2_root = debugfs_create_dir("gfs2", NULL);
+	if (IS_ERR(gfs2_root))
+		return PTR_ERR(gfs2_root);
 	return gfs2_root ? 0 : -ENOMEM;
 }
 

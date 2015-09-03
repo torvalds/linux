@@ -34,7 +34,7 @@ struct tda8261_config {
 	enum tda8261_step	step_size;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TDA8261)
+#if IS_REACHABLE(CONFIG_DVB_TDA8261)
 
 extern struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
 					   const struct tda8261_config *config,

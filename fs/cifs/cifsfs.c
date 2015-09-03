@@ -469,6 +469,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",nouser_xattr");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
 		seq_puts(s, ",mapchars");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SFM_CHR)
+		seq_puts(s, ",mapposix");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
 		seq_puts(s, ",sfu");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
@@ -607,7 +609,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	p = s = full_path;
 
 	do {
-		struct inode *dir = dentry->d_inode;
+		struct inode *dir = d_inode(dentry);
 		struct dentry *child;
 
 		if (!dir) {
@@ -906,8 +908,6 @@ const struct inode_operations cifs_symlink_inode_ops = {
 };
 
 const struct file_operations cifs_file_ops = {
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = cifs_loose_read_iter,
 	.write_iter = cifs_file_write_iter,
 	.open = cifs_open,
@@ -926,8 +926,6 @@ const struct file_operations cifs_file_ops = {
 };
 
 const struct file_operations cifs_file_strict_ops = {
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = cifs_strict_readv,
 	.write_iter = cifs_strict_writev,
 	.open = cifs_open,
@@ -947,8 +945,6 @@ const struct file_operations cifs_file_strict_ops = {
 
 const struct file_operations cifs_file_direct_ops = {
 	/* BB reevaluate whether they can be done with directio, no cache */
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = cifs_user_readv,
 	.write_iter = cifs_user_writev,
 	.open = cifs_open,
@@ -967,8 +963,6 @@ const struct file_operations cifs_file_direct_ops = {
 };
 
 const struct file_operations cifs_file_nobrl_ops = {
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = cifs_loose_read_iter,
 	.write_iter = cifs_file_write_iter,
 	.open = cifs_open,
@@ -986,8 +980,6 @@ const struct file_operations cifs_file_nobrl_ops = {
 };
 
 const struct file_operations cifs_file_strict_nobrl_ops = {
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = cifs_strict_readv,
 	.write_iter = cifs_strict_writev,
 	.open = cifs_open,
@@ -1006,8 +998,6 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 
 const struct file_operations cifs_file_direct_nobrl_ops = {
 	/* BB reevaluate whether they can be done with directio, no cache */
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = cifs_user_readv,
 	.write_iter = cifs_user_writev,
 	.open = cifs_open,

@@ -55,15 +55,17 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
+	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
+	  Each event is separated by commas and the group should be quoted to
+	  prevent the shell interpretation.  You also need to use --group on
+	  "perf report" to view group events together.
+
 --filter=<filter>::
         Event filter.
 
 -a::
 --all-cpus::
         System-wide collection from all CPUs.
-
--l::
-        Scale counter values.
 
 -p::
 --pid=::
@@ -106,6 +108,12 @@ OPTIONS
 	Number of mmap data pages (must be a power of two) or size
 	specification with appended unit character - B/K/M/G. The
 	size is rounded up to have nearest pages power of two value.
+	Also, by adding a comma, the number of mmap pages for AUX
+	area tracing can be specified.
+
+--group::
+	Put all events in a single event group.  This precedes the --event
+	option and remains only for backward compatibility.  See --event.
 
 -g::
 	Enables call-graph (stack chain/backtrace) recording.
@@ -115,13 +123,19 @@ OPTIONS
 	implies -g.
 
 	Allows specifying "fp" (frame pointer) or "dwarf"
-	(DWARF's CFI - Call Frame Information) as the method to collect
+	(DWARF's CFI - Call Frame Information) or "lbr"
+	(Hardware Last Branch Record facility) as the method to collect
 	the information used to show the call graphs.
 
 	In some systems, where binaries are build with gcc
 	--fomit-frame-pointer, using the "fp" method will produce bogus
 	call graphs, using "dwarf", if available (perf tools linked to
 	the libunwind library) should be used instead.
+	Using the "lbr" method doesn't require any compiler options. It
+	will produce call graphs from the hardware LBR registers. The
+	main limition is that it is only available on new Intel
+	platforms, such as Haswell. It can only get user call chain. It
+	doesn't work with branch stack sampling at the same time.
 
 -q::
 --quiet::
@@ -133,16 +147,21 @@ OPTIONS
 
 -s::
 --stat::
-	Per thread counts.
+	Record per-thread event counts.  Use it with 'perf report -T' to see
+	the values.
 
 -d::
 --data::
-	Sample addresses.
+	Record the sample addresses.
 
 -T::
 --timestamp::
-	Sample timestamps. Use it with 'perf report -D' to see the timestamps,
-	for instance.
+	Record the sample timestamps. Use it with 'perf report -D' to see the
+	timestamps, for instance.
+
+-P::
+--period::
+	Record the sample period.
 
 -n::
 --no-samples::
@@ -234,6 +253,28 @@ filter out the startup phase of the program, which is often very different.
 Capture machine state (registers) at interrupt, i.e., on counter overflows for
 each sample. List of captured registers depends on the architecture. This option
 is off by default.
+
+--running-time::
+Record running and enabled time for read events (:S)
+
+-k::
+--clockid::
+Sets the clock id to use for the various time fields in the perf_event_type
+records. See clock_gettime(). In particular CLOCK_MONOTONIC and
+CLOCK_MONOTONIC_RAW are supported, some events might also allow
+CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
+
+-S::
+--snapshot::
+Select AUX area tracing Snapshot Mode. This option is valid only with an
+AUX area tracing event. Optionally the number of bytes to capture per
+snapshot can be specified. In Snapshot Mode, trace data is captured only when
+signal SIGUSR2 is received.
+
+--proc-map-timeout::
+When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+because the file may be huge. A time out is needed in such cases.
+This option sets the time out limit. The default value is 500 ms.
 
 SEE ALSO
 --------

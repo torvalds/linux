@@ -42,7 +42,7 @@ static inline unsigned long iop13xx_core_freq(void)
 	case IOP13XX_CORE_FREQ_1200:
 		return 1200000000;
 	default:
-		printk("%s: warning unknown frequency, defaulting to 800Mhz\n",
+		printk("%s: warning unknown frequency, defaulting to 800MHz\n",
 			__func__);
 	}
 

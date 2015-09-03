@@ -30,7 +30,7 @@
 struct charger_data {
 	struct device *dev;
 	struct max8997_dev *iodev;
-	struct power_supply battery;
+	struct power_supply *battery;
 };
 
 static enum power_supply_property max8997_battery_props[] = {
@@ -44,8 +44,7 @@ static int max8997_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct charger_data *charger = container_of(psy,
-			struct charger_data, battery);
+	struct charger_data *charger = power_supply_get_drvdata(psy);
 	struct i2c_client *i2c = charger->iodev->i2c;
 	int ret;
 	u8 reg;
@@ -86,12 +85,21 @@ static int max8997_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static const struct power_supply_desc max8997_battery_desc = {
+	.name		= "max8997_pmic",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max8997_battery_get_property,
+	.properties	= max8997_battery_props,
+	.num_properties	= ARRAY_SIZE(max8997_battery_props),
+};
+
 static int max8997_battery_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct charger_data *charger;
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8997_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct power_supply_config psy_cfg = {};
 
 	if (!pdata)
 		return -EINVAL;
@@ -147,19 +155,18 @@ static int max8997_battery_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, charger);
 
-	charger->battery.name = "max8997_pmic";
-	charger->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	charger->battery.get_property = max8997_battery_get_property;
-	charger->battery.properties = max8997_battery_props;
-	charger->battery.num_properties = ARRAY_SIZE(max8997_battery_props);
 
 	charger->dev = &pdev->dev;
 	charger->iodev = iodev;
 
-	ret = power_supply_register(&pdev->dev, &charger->battery);
-	if (ret) {
+	psy_cfg.drv_data = charger;
+
+	charger->battery = power_supply_register(&pdev->dev,
+						 &max8997_battery_desc,
+						 &psy_cfg);
+	if (IS_ERR(charger->battery)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
-		return ret;
+		return PTR_ERR(charger->battery);
 	}
 
 	return 0;
@@ -169,7 +176,7 @@ static int max8997_battery_remove(struct platform_device *pdev)
 {
 	struct charger_data *charger = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&charger->battery);
+	power_supply_unregister(charger->battery);
 	return 0;
 }
 

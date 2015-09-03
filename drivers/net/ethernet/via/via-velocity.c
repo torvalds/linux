@@ -392,7 +392,7 @@ MODULE_DEVICE_TABLE(pci, velocity_pci_id_table);
  *	Describe the OF device identifiers that we support in this
  *	device driver. Used for devicetree nodes.
  */
-static struct of_device_id velocity_of_ids[] = {
+static const struct of_device_id velocity_of_ids[] = {
 	{ .compatible = "via,velocity-vt6110", .data = &chip_info_table[0] },
 	{ /* Sentinel */ },
 };

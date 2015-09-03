@@ -191,8 +191,8 @@ static int __import_wp_info(struct kvm_vcpu *vcpu,
 	if (!wp_info->old_data)
 		return -ENOMEM;
 	/* try to backup the original value */
-	ret = read_guest(vcpu, wp_info->phys_addr, wp_info->old_data,
-			 wp_info->len);
+	ret = read_guest_abs(vcpu, wp_info->phys_addr, wp_info->old_data,
+			     wp_info->len);
 	if (ret) {
 		kfree(wp_info->old_data);
 		wp_info->old_data = NULL;
@@ -362,8 +362,8 @@ static struct kvm_hw_wp_info_arch *any_wp_changed(struct kvm_vcpu *vcpu)
 			continue;
 
 		/* refetch the wp data and compare it to the old value */
-		if (!read_guest(vcpu, wp_info->phys_addr, temp,
-				wp_info->len)) {
+		if (!read_guest_abs(vcpu, wp_info->phys_addr, temp,
+				    wp_info->len)) {
 			if (memcmp(temp, wp_info->old_data, wp_info->len)) {
 				kfree(temp);
 				return wp_info;

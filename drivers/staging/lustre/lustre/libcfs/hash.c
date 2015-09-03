@@ -427,31 +427,31 @@ cfs_hash_dd_hnode_del(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 }
 
 static cfs_hash_hlist_ops_t cfs_hash_hh_hops = {
-       .hop_hhead      = cfs_hash_hh_hhead,
-       .hop_hhead_size = cfs_hash_hh_hhead_size,
-       .hop_hnode_add  = cfs_hash_hh_hnode_add,
-       .hop_hnode_del  = cfs_hash_hh_hnode_del,
+	.hop_hhead      = cfs_hash_hh_hhead,
+	.hop_hhead_size = cfs_hash_hh_hhead_size,
+	.hop_hnode_add  = cfs_hash_hh_hnode_add,
+	.hop_hnode_del  = cfs_hash_hh_hnode_del,
 };
 
 static cfs_hash_hlist_ops_t cfs_hash_hd_hops = {
-       .hop_hhead      = cfs_hash_hd_hhead,
-       .hop_hhead_size = cfs_hash_hd_hhead_size,
-       .hop_hnode_add  = cfs_hash_hd_hnode_add,
-       .hop_hnode_del  = cfs_hash_hd_hnode_del,
+	.hop_hhead      = cfs_hash_hd_hhead,
+	.hop_hhead_size = cfs_hash_hd_hhead_size,
+	.hop_hnode_add  = cfs_hash_hd_hnode_add,
+	.hop_hnode_del  = cfs_hash_hd_hnode_del,
 };
 
 static cfs_hash_hlist_ops_t cfs_hash_dh_hops = {
-       .hop_hhead      = cfs_hash_dh_hhead,
-       .hop_hhead_size = cfs_hash_dh_hhead_size,
-       .hop_hnode_add  = cfs_hash_dh_hnode_add,
-       .hop_hnode_del  = cfs_hash_dh_hnode_del,
+	.hop_hhead      = cfs_hash_dh_hhead,
+	.hop_hhead_size = cfs_hash_dh_hhead_size,
+	.hop_hnode_add  = cfs_hash_dh_hnode_add,
+	.hop_hnode_del  = cfs_hash_dh_hnode_del,
 };
 
 static cfs_hash_hlist_ops_t cfs_hash_dd_hops = {
-       .hop_hhead      = cfs_hash_dd_hhead,
-       .hop_hhead_size = cfs_hash_dd_hhead_size,
-       .hop_hnode_add  = cfs_hash_dd_hnode_add,
-       .hop_hnode_del  = cfs_hash_dd_hnode_del,
+	.hop_hhead      = cfs_hash_dd_hhead,
+	.hop_hhead_size = cfs_hash_dd_hhead_size,
+	.hop_hnode_add  = cfs_hash_dd_hnode_add,
+	.hop_hnode_del  = cfs_hash_dd_hnode_del,
 };
 
 static void
@@ -2008,13 +2008,10 @@ void cfs_hash_rehash_key(struct cfs_hash *hs, const void *old_key,
 }
 EXPORT_SYMBOL(cfs_hash_rehash_key);
 
-int cfs_hash_debug_header(struct seq_file *m)
+void cfs_hash_debug_header(struct seq_file *m)
 {
-	return seq_printf(m, "%-*s%6s%6s%6s%6s%6s%6s%6s%7s%8s%8s%8s%s\n",
-		 CFS_HASH_BIGNAME_LEN,
-		 "name", "cur", "min", "max", "theta", "t-min", "t-max",
-		 "flags", "rehash", "count", "maxdep", "maxdepb",
-		 " distribution");
+	seq_printf(m, "%-*s   cur   min   max theta t-min t-max flags rehash   count  maxdep maxdepb distribution\n",
+		   CFS_HASH_BIGNAME_LEN, "name");
 }
 EXPORT_SYMBOL(cfs_hash_debug_header);
 
@@ -2042,7 +2039,7 @@ cfs_hash_full_nbkt(struct cfs_hash *hs)
 	       CFS_HASH_RH_NBKT(hs) : CFS_HASH_NBKT(hs);
 }
 
-int cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m)
+void cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m)
 {
 	int		    dist[8] = { 0, };
 	int		    maxdep  = -1;
@@ -2097,7 +2094,5 @@ int cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m)
 		seq_printf(m, "%d%c",  dist[i], (i == 7) ? '\n' : '/');
 
 	cfs_hash_unlock(hs, 0);
-
-	return 0;
 }
 EXPORT_SYMBOL(cfs_hash_debug_str);

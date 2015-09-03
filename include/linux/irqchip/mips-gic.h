@@ -165,6 +165,8 @@
 #define GIC_VPE_PEND_SWINT0_MSK		(MSK(1) << GIC_VPE_PEND_SWINT0_SHF)
 #define GIC_VPE_PEND_SWINT1_SHF		5
 #define GIC_VPE_PEND_SWINT1_MSK		(MSK(1) << GIC_VPE_PEND_SWINT1_SHF)
+#define GIC_VPE_PEND_FDC_SHF		6
+#define GIC_VPE_PEND_FDC_MSK		(MSK(1) << GIC_VPE_PEND_FDC_SHF)
 
 /* GIC_VPE_RMASK Masks */
 #define GIC_VPE_RMASK_WD_SHF		0
@@ -179,6 +181,8 @@
 #define GIC_VPE_RMASK_SWINT0_MSK	(MSK(1) << GIC_VPE_RMASK_SWINT0_SHF)
 #define GIC_VPE_RMASK_SWINT1_SHF	5
 #define GIC_VPE_RMASK_SWINT1_MSK	(MSK(1) << GIC_VPE_RMASK_SWINT1_SHF)
+#define GIC_VPE_RMASK_FDC_SHF		6
+#define GIC_VPE_RMASK_FDC_MSK		(MSK(1) << GIC_VPE_RMASK_FDC_SHF)
 
 /* GIC_VPE_SMASK Masks */
 #define GIC_VPE_SMASK_WD_SHF		0
@@ -193,6 +197,8 @@
 #define GIC_VPE_SMASK_SWINT0_MSK	(MSK(1) << GIC_VPE_SMASK_SWINT0_SHF)
 #define GIC_VPE_SMASK_SWINT1_SHF	5
 #define GIC_VPE_SMASK_SWINT1_MSK	(MSK(1) << GIC_VPE_SMASK_SWINT1_SHF)
+#define GIC_VPE_SMASK_FDC_SHF		6
+#define GIC_VPE_SMASK_FDC_MSK		(MSK(1) << GIC_VPE_SMASK_FDC_SHF)
 
 /* GIC nomenclature for Core Interrupt Pins. */
 #define GIC_CPU_INT0		0 /* Core Interrupt 2 */
@@ -240,9 +246,12 @@ extern unsigned int gic_get_count_width(void);
 extern cycle_t gic_read_compare(void);
 extern void gic_write_compare(cycle_t cnt);
 extern void gic_write_cpu_compare(cycle_t cnt, int cpu);
+extern void gic_start_count(void);
+extern void gic_stop_count(void);
 extern void gic_send_ipi(unsigned int intr);
 extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
 extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
+extern int gic_get_c0_fdc_int(void);
 #endif /* __LINUX_IRQCHIP_MIPS_GIC_H */

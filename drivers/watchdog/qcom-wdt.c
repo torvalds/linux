@@ -20,9 +20,9 @@
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
 
-#define WDT_RST		0x0
-#define WDT_EN		0x8
-#define WDT_BITE_TIME	0x24
+#define WDT_RST		0x38
+#define WDT_EN		0x40
+#define WDT_BITE_TIME	0x5C
 
 struct qcom_wdt {
 	struct watchdog_device	wdd;
@@ -117,6 +117,8 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 {
 	struct qcom_wdt *wdt;
 	struct resource *res;
+	struct device_node *np = pdev->dev.of_node;
+	u32 percpu_offset;
 	int ret;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
@@ -124,6 +126,14 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	/* We use CPU0's DGT for the watchdog */
+	if (of_property_read_u32(np, "cpu-offset", &percpu_offset))
+		percpu_offset = 0;
+
+	res->start += percpu_offset;
+	res->end += percpu_offset;
+
 	wdt->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
@@ -203,9 +213,8 @@ static int qcom_wdt_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id qcom_wdt_of_table[] = {
-	{ .compatible = "qcom,kpss-wdt-msm8960", },
-	{ .compatible = "qcom,kpss-wdt-apq8064", },
-	{ .compatible = "qcom,kpss-wdt-ipq8064", },
+	{ .compatible = "qcom,kpss-timer" },
+	{ .compatible = "qcom,scss-timer" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);

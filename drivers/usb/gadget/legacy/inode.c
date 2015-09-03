@@ -26,6 +26,7 @@
 #include <linux/poll.h>
 #include <linux/mmu_context.h>
 #include <linux/aio.h>
+#include <linux/uio.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -469,7 +470,7 @@ static void ep_user_copy_worker(struct work_struct *work)
 		ret = -EFAULT;
 
 	/* completing the iocb can drop the ctx and mm, don't touch mm after */
-	aio_complete(iocb, ret, ret);
+	iocb->ki_complete(iocb, ret, ret);
 
 	kfree(priv->buf);
 	kfree(priv->to_free);
@@ -497,7 +498,8 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 		kfree(priv);
 		iocb->private = NULL;
 		/* aio_complete() reports bytes-transferred _and_ faults */
-		aio_complete(iocb, req->actual ? req->actual : req->status,
+
+		iocb->ki_complete(iocb, req->actual ? req->actual : req->status,
 				req->status);
 	} else {
 		/* ep_copy_to_user() won't report both; we hide some faults */
@@ -697,8 +699,6 @@ static const struct file_operations ep_io_operations = {
 	.open =		ep_open,
 	.release =	ep_release,
 	.llseek =	no_llseek,
-	.read =		new_sync_read,
-	.write =	new_sync_write,
 	.unlocked_ioctl = ep_ioctl,
 	.read_iter =	ep_read_iter,
 	.write_iter =	ep_write_iter,
@@ -769,9 +769,12 @@ ep_config (struct ep_data *data, const char *buf, size_t len)
 	if (data->dev->state == STATE_DEV_UNBOUND) {
 		value = -ENOENT;
 		goto gone;
-	} else if ((ep = data->ep) == NULL) {
-		value = -ENODEV;
-		goto gone;
+	} else {
+		ep = data->ep;
+		if (ep == NULL) {
+			value = -ENODEV;
+			goto gone;
+		}
 	}
 	switch (data->dev->gadget->speed) {
 	case USB_SPEED_LOW:
@@ -1505,7 +1508,7 @@ static void destroy_ep_files (struct dev_data *dev)
 		list_del_init (&ep->epfiles);
 		dentry = ep->dentry;
 		ep->dentry = NULL;
-		parent = dentry->d_parent->d_inode;
+		parent = d_inode(dentry->d_parent);
 
 		/* break link to controller */
 		if (ep->state == STATE_EP_ENABLED)

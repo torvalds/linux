@@ -28,20 +28,21 @@
 struct tda10071_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
+	struct i2c_client *client;
 	struct tda10071_config cfg;
 
 	u8 meas_count[2];
 	u32 ber;
 	u32 ucb;
-	fe_status_t fe_status;
-	fe_delivery_system_t delivery_system;
+	enum fe_status fe_status;
+	enum fe_delivery_system delivery_system;
 	bool warm; /* FW running */
 };
 
 static struct tda10071_modcod {
-	fe_delivery_system_t delivery_system;
-	fe_modulation_t modulation;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delivery_system;
+	enum fe_modulation modulation;
+	enum fe_code_rate fec;
 	u8 val;
 } TDA10071_MODCOD[] = {
 	/* NBC-QPSK */
@@ -99,7 +100,7 @@ struct tda10071_reg_val_mask {
 #define CMD_BER_CONTROL         0x3e
 #define CMD_BER_UPDATE_COUNTERS 0x3f
 
-/* firmare command struct */
+/* firmware command struct */
 #define TDA10071_ARGLEN      30
 struct tda10071_cmd {
 	u8 args[TDA10071_ARGLEN];

@@ -2001,7 +2001,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		if (entry == NULL)
 			goto out;
 		memcpy(entry->atm_addr, ioc_data->atm_addr, ATM_ESA_LEN);
-		memset(entry->mac_addr, 0, ETH_ALEN);
+		eth_zero_addr(entry->mac_addr);
 		entry->recv_vcc = vcc;
 		entry->old_recv_push = old_push;
 		entry->status = ESI_UNKNOWN;
@@ -2086,7 +2086,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 	entry->vcc = vcc;
 	entry->old_push = old_push;
 	memcpy(entry->atm_addr, ioc_data->atm_addr, ATM_ESA_LEN);
-	memset(entry->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(entry->mac_addr);
 	entry->status = ESI_UNKNOWN;
 	hlist_add_head(&entry->next, &priv->lec_arp_empty_ones);
 	entry->timer.expires = jiffies + priv->vcc_timeout_period;

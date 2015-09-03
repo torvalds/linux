@@ -407,7 +407,8 @@ static struct ed *ed_get (
 
 	spin_lock_irqsave (&ohci->lock, flags);
 
-	if (!(ed = ep->hcpriv)) {
+	ed = ep->hcpriv;
+	if (!ed) {
 		struct td	*td;
 		int		is_out;
 		u32		info;

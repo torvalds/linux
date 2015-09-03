@@ -82,6 +82,34 @@ struct wl12xx_priv {
 	struct wl127x_rx_mem_pool_addr *rx_mem_addr;
 };
 
+/* Reference clock values */
+enum {
+	WL12XX_REFCLOCK_19	= 0, /* 19.2 MHz */
+	WL12XX_REFCLOCK_26	= 1, /* 26 MHz */
+	WL12XX_REFCLOCK_38	= 2, /* 38.4 MHz */
+	WL12XX_REFCLOCK_52	= 3, /* 52 MHz */
+	WL12XX_REFCLOCK_38_XTAL = 4, /* 38.4 MHz, XTAL */
+	WL12XX_REFCLOCK_26_XTAL = 5, /* 26 MHz, XTAL */
+};
+
+/* TCXO clock values */
+enum {
+	WL12XX_TCXOCLOCK_19_2	= 0, /* 19.2MHz */
+	WL12XX_TCXOCLOCK_26	= 1, /* 26 MHz */
+	WL12XX_TCXOCLOCK_38_4	= 2, /* 38.4MHz */
+	WL12XX_TCXOCLOCK_52	= 3, /* 52 MHz */
+	WL12XX_TCXOCLOCK_16_368	= 4, /* 16.368 MHz */
+	WL12XX_TCXOCLOCK_32_736	= 5, /* 32.736 MHz */
+	WL12XX_TCXOCLOCK_16_8	= 6, /* 16.8 MHz */
+	WL12XX_TCXOCLOCK_33_6	= 7, /* 33.6 MHz */
+};
+
+struct wl12xx_clock {
+	u32	freq;
+	bool	xtal;
+	u8	hw_idx;
+};
+
 struct wl12xx_fw_packet_counters {
 	/* Cumulative counter of released packets per AC */
 	u8 tx_released_pkts[NUM_TX_QUEUES];

@@ -29,10 +29,10 @@
 &dm816x_pinmux {
 	mcspi1_pins: pinmux_mcspi1_pins {
 		pinctrl-single,pins = <
-			DM816X_IOPAD(0x0a94, PIN_INPUT | MUX_MODE0)	/* SPI_SCLK */
-			DM816X_IOPAD(0x0a98, PIN_OUTPUT | MUX_MODE0)	/* SPI_SCS0 */
-			DM816X_IOPAD(0x0aa8, PIN_INPUT | MUX_MODE0)	/* SPI_D0 */
-			DM816X_IOPAD(0x0aac, PIN_INPUT | MUX_MODE0)	/* SPI_D1 */
+			DM816X_IOPAD(0x0a94, MUX_MODE0)			/* SPI_SCLK */
+			DM816X_IOPAD(0x0a98, MUX_MODE0)			/* SPI_SCS0 */
+			DM816X_IOPAD(0x0aa8, MUX_MODE0)			/* SPI_D0 */
+			DM816X_IOPAD(0x0aac, MUX_MODE0)			/* SPI_D1 */
 		>;
 	};
 
@@ -52,13 +52,13 @@
 
 	usb0_pins: pinmux_usb0_pins {
 		pinctrl-single,pins = <
-			DM816X_IOPAD(0x0d00, MUX_MODE0)			/* USB0_DRVVBUS */
+			DM816X_IOPAD(0x0d04, MUX_MODE0)			/* USB0_DRVVBUS */
 		>;
 	};
 
-	usb1_pins: pinmux_usb0_pins {
+	usb1_pins: pinmux_usb1_pins {
 		pinctrl-single,pins = <
-			DM816X_IOPAD(0x0d04, MUX_MODE0)			/* USB1_DRVVBUS */
+			DM816X_IOPAD(0x0d08, MUX_MODE0)			/* USB1_DRVVBUS */
 		>;
 	};
 };

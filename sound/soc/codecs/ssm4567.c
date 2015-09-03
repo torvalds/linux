@@ -353,7 +353,7 @@ static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			ret = ssm4567_set_power(ssm4567, true);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -361,12 +361,7 @@ static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	codec->dapm.bias_level = level;
-
-	return 0;
+	return ret;
 }
 
 static const struct snd_soc_dai_ops ssm4567_dai_ops = {

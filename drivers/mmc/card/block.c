@@ -913,6 +913,9 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 		if (!err)
 			break;
 
+		/* Re-tune if needed */
+		mmc_retune_recheck(card->host);
+
 		prev_cmd_status_valid = false;
 		pr_err("%s: error %d sending status command, %sing\n",
 		       req->rq_disk->disk_name, err, retry ? "retry" : "abort");
@@ -1027,6 +1030,18 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 static inline void mmc_blk_reset_success(struct mmc_blk_data *md, int type)
 {
 	md->reset_done &= ~type;
+}
+
+int mmc_access_rpmb(struct mmc_queue *mq)
+{
+	struct mmc_blk_data *md = mq->data;
+	/*
+	 * If this is a RPMB partition access, return ture
+	 */
+	if (md && md->part_type == EXT_CSD_PART_CONFIG_ACC_RPMB)
+		return true;
+
+	return false;
 }
 
 static int mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
@@ -1192,6 +1207,7 @@ static int mmc_blk_err_check(struct mmc_card *card,
 						    mmc_active);
 	struct mmc_blk_request *brq = &mq_mrq->brq;
 	struct request *req = mq_mrq->req;
+	int need_retune = card->host->need_retune;
 	int ecc_err = 0, gen_err = 0;
 
 	/*
@@ -1259,6 +1275,12 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	}
 
 	if (brq->data.error) {
+		if (need_retune && !brq->retune_retry_done) {
+			pr_info("%s: retrying because a re-tune was needed\n",
+				req->rq_disk->disk_name);
+			brq->retune_retry_done = 1;
+			return MMC_BLK_RETRY;
+		}
 		pr_err("%s: error %d transferring data, sector %u, nr %u, cmd response %#x, card status %#x\n",
 		       req->rq_disk->disk_name, brq->data.error,
 		       (unsigned)blk_rq_pos(req),
@@ -1818,7 +1840,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request *brq = &mq->mqrq_cur->brq;
-	int ret = 1, disable_multi = 0, retry = 0, type;
+	int ret = 1, disable_multi = 0, retry = 0, type, retune_retry_done = 0;
 	enum mmc_blk_status status;
 	struct mmc_queue_req *mq_rq;
 	struct request *req = rqc;
@@ -1898,10 +1920,13 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			break;
 		case MMC_BLK_CMD_ERR:
 			ret = mmc_blk_cmd_err(md, card, brq, req, ret);
-			if (!mmc_blk_reset(md, card->host, type))
-				break;
-			goto cmd_abort;
+			if (mmc_blk_reset(md, card->host, type))
+				goto cmd_abort;
+			if (!ret)
+				goto start_new_req;
+			break;
 		case MMC_BLK_RETRY:
+			retune_retry_done = brq->retune_retry_done;
 			if (retry++ < 5)
 				break;
 			/* Fall through */
@@ -1964,6 +1989,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 				mmc_start_req(card->host,
 						&mq_rq->mmc_active, NULL);
 			}
+			mq_rq->brq.retune_retry_done = retune_retry_done;
 		}
 	} while (ret);
 
@@ -2205,7 +2231,8 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 		 * The CSD capacity field is in units of read_blkbits.
 		 * set_capacity takes units of 512 bytes.
 		 */
-		size = card->csd.capacity << (card->csd.read_blkbits - 9);
+		size = (typeof(sector_t))card->csd.capacity
+			<< (card->csd.read_blkbits - 9);
 	}
 
 	return mmc_blk_alloc_req(card, &card->dev, size, false, NULL,
@@ -2230,7 +2257,7 @@ static int mmc_blk_alloc_part(struct mmc_card *card,
 	part_md->part_type = part_type;
 	list_add(&part_md->part, &md->part);
 
-	string_get_size((u64)get_capacity(part_md->disk) << 9, STRING_UNITS_2,
+	string_get_size((u64)get_capacity(part_md->disk), 512, STRING_UNITS_2,
 			cap_str, sizeof(cap_str));
 	pr_info("%s: %s %s partition %u %s\n",
 	       part_md->disk->disk_name, mmc_card_id(card),
@@ -2418,9 +2445,8 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
-static int mmc_blk_probe(struct device *dev)
+static int mmc_blk_probe(struct mmc_card *card)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
 
@@ -2436,7 +2462,7 @@ static int mmc_blk_probe(struct device *dev)
 	if (IS_ERR(md))
 		return PTR_ERR(md);
 
-	string_get_size((u64)get_capacity(md->disk) << 9, STRING_UNITS_2,
+	string_get_size((u64)get_capacity(md->disk), 512, STRING_UNITS_2,
 			cap_str, sizeof(cap_str));
 	pr_info("%s: %s %s %s %s\n",
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
@@ -2445,7 +2471,7 @@ static int mmc_blk_probe(struct device *dev)
 	if (mmc_blk_alloc_parts(card, md))
 		goto out;
 
-	dev_set_drvdata(dev, md);
+	dev_set_drvdata(&card->dev, md);
 
 	if (mmc_add_disk(md))
 		goto out;
@@ -2475,10 +2501,9 @@ static int mmc_blk_probe(struct device *dev)
 	return 0;
 }
 
-static int mmc_blk_remove(struct device *dev)
+static void mmc_blk_remove(struct mmc_card *card)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
-	struct mmc_blk_data *md = dev_get_drvdata(dev);
+	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
 
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
@@ -2489,15 +2514,13 @@ static int mmc_blk_remove(struct device *dev)
 		pm_runtime_disable(&card->dev);
 	pm_runtime_put_noidle(&card->dev);
 	mmc_blk_remove_req(md);
-	dev_set_drvdata(dev, NULL);
-
-	return 0;
+	dev_set_drvdata(&card->dev, NULL);
 }
 
-static int _mmc_blk_suspend(struct device *dev)
+static int _mmc_blk_suspend(struct mmc_card *card)
 {
 	struct mmc_blk_data *part_md;
-	struct mmc_blk_data *md = dev_get_drvdata(dev);
+	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
 
 	if (md) {
 		mmc_queue_suspend(&md->queue);
@@ -2508,15 +2531,17 @@ static int _mmc_blk_suspend(struct device *dev)
 	return 0;
 }
 
-static void mmc_blk_shutdown(struct device *dev)
+static void mmc_blk_shutdown(struct mmc_card *card)
 {
-	_mmc_blk_suspend(dev);
+	_mmc_blk_suspend(card);
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int mmc_blk_suspend(struct device *dev)
 {
-	return _mmc_blk_suspend(dev);
+	struct mmc_card *card = mmc_dev_to_card(dev);
+
+	return _mmc_blk_suspend(card);
 }
 
 static int mmc_blk_resume(struct device *dev)
@@ -2541,9 +2566,11 @@ static int mmc_blk_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(mmc_blk_pm_ops, mmc_blk_suspend, mmc_blk_resume);
 
-static struct device_driver mmc_driver = {
-	.name		= "mmcblk",
-	.pm		= &mmc_blk_pm_ops,
+static struct mmc_driver mmc_driver = {
+	.drv		= {
+		.name	= "mmcblk",
+		.pm	= &mmc_blk_pm_ops,
+	},
 	.probe		= mmc_blk_probe,
 	.remove		= mmc_blk_remove,
 	.shutdown	= mmc_blk_shutdown,

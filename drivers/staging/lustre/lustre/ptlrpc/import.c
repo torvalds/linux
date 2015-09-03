@@ -63,6 +63,19 @@ struct ptlrpc_connect_async_args {
 static void __import_set_state(struct obd_import *imp,
 			       enum lustre_imp_state state)
 {
+	switch (state) {
+	case LUSTRE_IMP_CLOSED:
+	case LUSTRE_IMP_NEW:
+	case LUSTRE_IMP_DISCON:
+	case LUSTRE_IMP_CONNECTING:
+		break;
+	case LUSTRE_IMP_REPLAY_WAIT:
+		imp->imp_replay_state = LUSTRE_IMP_REPLAY_LOCKS;
+		break;
+	default:
+		imp->imp_replay_state = LUSTRE_IMP_REPLAY;
+	}
+
 	imp->imp_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_time =
@@ -106,7 +119,7 @@ int ptlrpc_init_import(struct obd_import *imp)
 	spin_lock(&imp->imp_lock);
 
 	imp->imp_generation++;
-	imp->imp_state =  LUSTRE_IMP_NEW;
+	imp->imp_state = LUSTRE_IMP_NEW;
 
 	spin_unlock(&imp->imp_lock);
 
@@ -356,7 +369,7 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 						   imp_unregistering));
 			}
 			spin_unlock(&imp->imp_lock);
-		  }
+		}
 	} while (rc != 0);
 
 	/*
@@ -546,7 +559,7 @@ static int import_select_connection(struct obd_import *imp)
 		ptlrpc_connection_put(imp->imp_connection);
 	imp->imp_connection = ptlrpc_connection_addref(imp_conn->oic_conn);
 
-	dlmexp =  class_conn2export(&imp->imp_dlm_handle);
+	dlmexp = class_conn2export(&imp->imp_dlm_handle);
 	LASSERT(dlmexp != NULL);
 	if (dlmexp->exp_connection)
 		ptlrpc_connection_put(dlmexp->exp_connection);
@@ -966,7 +979,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			imp->imp_resend_replay = 1;
 			spin_unlock(&imp->imp_lock);
 
-			IMPORT_SET_STATE(imp, LUSTRE_IMP_REPLAY);
+			IMPORT_SET_STATE(imp, imp->imp_replay_state);
 		} else {
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_RECOVER);
 		}
@@ -1477,7 +1490,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 					INITIAL_CONNECT_TIMEOUT);
 
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_CONNECTING);
-		req->rq_send_state =  LUSTRE_IMP_CONNECTING;
+		req->rq_send_state = LUSTRE_IMP_CONNECTING;
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		ptlrpc_req_finished(req);

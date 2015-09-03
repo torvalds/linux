@@ -825,6 +825,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	int i;
 
 	spin_lock_init(&dev->pci_irqmask_lock);
+	spin_lock_init(&dev->slock);
 
 	mutex_init(&dev->lock);
 	mutex_init(&dev->gpio_lock);

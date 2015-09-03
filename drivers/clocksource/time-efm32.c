@@ -111,7 +111,7 @@ static irqreturn_t efm32_clock_event_handler(int irq, void *dev_id)
 static struct efm32_clock_event_ddata clock_event_ddata = {
 	.evtdev = {
 		.name = "efm32 clockevent",
-		.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_MODE_PERIODIC,
+		.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 		.set_mode = efm32_clock_event_set_mode,
 		.set_next_event = efm32_clock_event_set_next_event,
 		.rating = 200,

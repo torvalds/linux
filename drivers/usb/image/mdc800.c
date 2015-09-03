@@ -347,7 +347,8 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 {
 	mdc800->camera_request_ready=1+mode;
 
-	wait_event_timeout(mdc800->irq_wait, mdc800->irq_woken, msec*HZ/1000);
+	wait_event_timeout(mdc800->irq_wait, mdc800->irq_woken,
+			   msecs_to_jiffies(msec));
 	mdc800->irq_woken = 0;
 
 	if (mdc800->camera_request_ready>0)
@@ -743,8 +744,9 @@ static ssize_t mdc800_device_read (struct file *file, char __user *buf, size_t l
 					mutex_unlock(&mdc800->io_lock);
 					return len-left;
 				}
-				wait_event_timeout(mdc800->download_wait, mdc800->downloaded,
-										TO_DOWNLOAD_GET_READY*HZ/1000);
+				wait_event_timeout(mdc800->download_wait,
+				     mdc800->downloaded,
+				     msecs_to_jiffies(TO_DOWNLOAD_GET_READY));
 				mdc800->downloaded = 0;
 				if (mdc800->download_urb->status != 0)
 				{
@@ -867,7 +869,8 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 				mutex_unlock(&mdc800->io_lock);
 				return -EIO;
 			}
-			wait_event_timeout(mdc800->write_wait, mdc800->written, TO_WRITE_GET_READY*HZ/1000);
+			wait_event_timeout(mdc800->write_wait, mdc800->written,
+					msecs_to_jiffies(TO_WRITE_GET_READY));
 			mdc800->written = 0;
 			if (mdc800->state == WORKING)
 			{

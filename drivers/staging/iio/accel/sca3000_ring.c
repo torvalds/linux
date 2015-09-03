@@ -129,9 +129,9 @@ error_ret:
 	return ret ? ret : num_read;
 }
 
-static bool sca3000_ring_buf_data_available(struct iio_buffer *r)
+static size_t sca3000_ring_buf_data_available(struct iio_buffer *r)
 {
-	return r->stufftoread;
+	return r->stufftoread ? r->watermark : 0;
 }
 
 /**
@@ -258,6 +258,8 @@ static const struct iio_buffer_access_funcs sca3000_ring_access_funcs = {
 	.read_first_n = &sca3000_read_first_n_hw_rb,
 	.data_available = sca3000_ring_buf_data_available,
 	.release = sca3000_ring_release,
+
+	.modes = INDIO_BUFFER_HARDWARE,
 };
 
 int sca3000_configure_ring(struct iio_dev *indio_dev)

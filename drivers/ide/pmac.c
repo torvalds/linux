@@ -1497,9 +1497,9 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 				       drive->name);
 				return 0;
 			}
-			st_le16(&table->command, wr? OUTPUT_MORE: INPUT_MORE);
-			st_le16(&table->req_count, tc);
-			st_le32(&table->phy_addr, cur_addr);
+			table->command = cpu_to_le16(wr? OUTPUT_MORE: INPUT_MORE);
+			table->req_count = cpu_to_le16(tc);
+			table->phy_addr = cpu_to_le32(cur_addr);
 			table->cmd_dep = 0;
 			table->xfer_status = 0;
 			table->res_count = 0;
@@ -1513,10 +1513,10 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	/* convert the last command to an input/output last command */
 	if (count) {
-		st_le16(&table[-1].command, wr? OUTPUT_LAST: INPUT_LAST);
+		table[-1].command = cpu_to_le16(wr? OUTPUT_LAST: INPUT_LAST);
 		/* add the stop command to the end of the list */
 		memset(table, 0, sizeof(struct dbdma_cmd));
-		st_le16(&table->command, DBDMA_STOP);
+		table->command = cpu_to_le16(DBDMA_STOP);
 		mb();
 		writel(hwif->dmatable_dma, &dma->cmdptr);
 		return 1;
@@ -1689,10 +1689,9 @@ static int pmac_ide_init_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	 * The +2 is +1 for the stop command and +1 to allow for
 	 * aligning the start address to a multiple of 16 bytes.
 	 */
-	pmif->dma_table_cpu = pci_alloc_consistent(
-		dev,
+	pmif->dma_table_cpu = dma_alloc_coherent(&dev->dev,
 		(MAX_DCMDS + 2) * sizeof(struct dbdma_cmd),
-		&hwif->dmatable_dma);
+		&hwif->dmatable_dma, GFP_KERNEL);
 	if (pmif->dma_table_cpu == NULL) {
 		printk(KERN_ERR "%s: unable to allocate DMA command list\n",
 		       hwif->name);

@@ -952,7 +952,7 @@ static void uea_load_page_e1(struct work_struct *work)
 	int i;
 
 	/* reload firmware when reboot start and it's loaded already */
-	if (ovl == 0 && pageno == 0 && sc->dsp_firm) {
+	if (ovl == 0 && pageno == 0) {
 		release_firmware(sc->dsp_firm);
 		sc->dsp_firm = NULL;
 	}
@@ -1074,7 +1074,7 @@ static void uea_load_page_e4(struct work_struct *work)
 	uea_dbg(INS_TO_USBDEV(sc), "sending DSP page %u\n", pageno);
 
 	/* reload firmware when reboot start and it's loaded already */
-	if (pageno == 0 && sc->dsp_firm) {
+	if (pageno == 0) {
 		release_firmware(sc->dsp_firm);
 		sc->dsp_firm = NULL;
 	}
@@ -1599,7 +1599,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	char file_arr[] = "CMVxy.bin";
 	char *file;
 
-	kparam_block_sysfs_write(cmv_file);
+	kernel_param_lock(THIS_MODULE);
 	/* set proper name corresponding modem version and line type */
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
@@ -1618,7 +1618,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	strlcat(cmv_name, file, UEA_FW_NAME_MAX);
 	if (ver == 2)
 		strlcat(cmv_name, ".v2", UEA_FW_NAME_MAX);
-	kparam_unblock_sysfs_write(cmv_file);
+	kernel_param_unlock(THIS_MODULE);
 }
 
 static int request_cmvs_old(struct uea_softc *sc,

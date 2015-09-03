@@ -34,7 +34,7 @@ struct drx39xxj_state {
 	const struct firmware *fw;
 };
 
-#if IS_ENABLED(CONFIG_DVB_DRX39XYJ)
+#if IS_REACHABLE(CONFIG_DVB_DRX39XYJ)
 struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c);
 #else
 static inline struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c) {

@@ -18,9 +18,6 @@ static inline int test_fp_ctl(u32 fpc)
 	u32 orig_fpc;
 	int rc;
 
-	if (!MACHINE_HAS_IEEE)
-		return 0;
-
 	asm volatile(
 		"	efpc    %1\n"
 		"	sfpc	%2\n"
@@ -35,9 +32,6 @@ static inline int test_fp_ctl(u32 fpc)
 
 static inline void save_fp_ctl(u32 *fpc)
 {
-	if (!MACHINE_HAS_IEEE)
-		return;
-
 	asm volatile(
 		"       stfpc   %0\n"
 		: "+Q" (*fpc));
@@ -46,9 +40,6 @@ static inline void save_fp_ctl(u32 *fpc)
 static inline int restore_fp_ctl(u32 *fpc)
 {
 	int rc;
-
-	if (!MACHINE_HAS_IEEE)
-		return 0;
 
 	asm volatile(
 		"	lfpc    %1\n"
@@ -65,8 +56,6 @@ static inline void save_fp_regs(freg_t *fprs)
 	asm volatile("std 2,%0" : "=Q" (fprs[2]));
 	asm volatile("std 4,%0" : "=Q" (fprs[4]));
 	asm volatile("std 6,%0" : "=Q" (fprs[6]));
-	if (!MACHINE_HAS_IEEE)
-		return;
 	asm volatile("std 1,%0" : "=Q" (fprs[1]));
 	asm volatile("std 3,%0" : "=Q" (fprs[3]));
 	asm volatile("std 5,%0" : "=Q" (fprs[5]));
@@ -87,8 +76,6 @@ static inline void restore_fp_regs(freg_t *fprs)
 	asm volatile("ld 2,%0" : : "Q" (fprs[2]));
 	asm volatile("ld 4,%0" : : "Q" (fprs[4]));
 	asm volatile("ld 6,%0" : : "Q" (fprs[6]));
-	if (!MACHINE_HAS_IEEE)
-		return;
 	asm volatile("ld 1,%0" : : "Q" (fprs[1]));
 	asm volatile("ld 3,%0" : : "Q" (fprs[3]));
 	asm volatile("ld 5,%0" : : "Q" (fprs[5]));
@@ -140,22 +127,18 @@ static inline void restore_vx_regs(__vector128 *vxrs)
 
 static inline void save_fp_vx_regs(struct task_struct *task)
 {
-#ifdef CONFIG_64BIT
 	if (task->thread.vxrs)
 		save_vx_regs(task->thread.vxrs);
 	else
-#endif
-	save_fp_regs(task->thread.fp_regs.fprs);
+		save_fp_regs(task->thread.fp_regs.fprs);
 }
 
 static inline void restore_fp_vx_regs(struct task_struct *task)
 {
-#ifdef CONFIG_64BIT
 	if (task->thread.vxrs)
 		restore_vx_regs(task->thread.vxrs);
 	else
-#endif
-	restore_fp_regs(task->thread.fp_regs.fprs);
+		restore_fp_regs(task->thread.fp_regs.fprs);
 }
 
 static inline void save_access_regs(unsigned int *acrs)

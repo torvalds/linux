@@ -622,7 +622,7 @@ static int ulite_release(struct device *dev)
 
 #if defined(CONFIG_OF)
 /* Match table for of_platform binding */
-static struct of_device_id ulite_of_match[] = {
+static const struct of_device_id ulite_of_match[] = {
 	{ .compatible = "xlnx,opb-uartlite-1.00.b", },
 	{ .compatible = "xlnx,xps-uartlite-1.00.a", },
 	{}
@@ -632,7 +632,8 @@ MODULE_DEVICE_TABLE(of, ulite_of_match);
 
 static int ulite_probe(struct platform_device *pdev)
 {
-	struct resource *res, *res2;
+	struct resource *res;
+	int irq;
 	int id = pdev->id;
 #ifdef CONFIG_OF
 	const __be32 *prop;
@@ -646,11 +647,11 @@ static int ulite_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	res2 = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res2)
-		return -ENODEV;
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return -ENXIO;
 
-	return ulite_assign(&pdev->dev, id, res->start, res2->start);
+	return ulite_assign(&pdev->dev, id, res->start, irq);
 }
 
 static int ulite_remove(struct platform_device *pdev)

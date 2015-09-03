@@ -61,7 +61,6 @@ static struct platform_driver vmmc_driver = {
 	.probe = vmmc_probe,
 	.driver = {
 		.name = "lantiq,vmmc",
-		.owner = THIS_MODULE,
 		.of_match_table = vmmc_match,
 	},
 };

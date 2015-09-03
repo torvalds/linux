@@ -40,6 +40,7 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{COUNTRY_CODE_GLOBAL_DOMAIN, "JP"},
 	{COUNTRY_CODE_WORLD_WIDE_13, "EC"},
 	{COUNTRY_CODE_TELEC_NETGEAR, "EC"},
+	{COUNTRY_CODE_WORLD_WIDE_13_5G_ALL, "US"},
 };
 
 /*
@@ -122,6 +123,17 @@ static const struct ieee80211_regdomain rtl_regdom_14_60_64 = {
 			  RTL819x_2GHZ_CH14,
 			  RTL819x_5GHZ_5725_5850,
 		      }
+};
+
+static const struct ieee80211_regdomain rtl_regdom_12_13_5g_all = {
+	.n_reg_rules = 4,
+	.alpha2 = "99",
+	.reg_rules = {
+			RTL819x_2GHZ_CH01_11,
+			RTL819x_2GHZ_CH12_13,
+			RTL819x_5GHZ_5150_5350,
+			RTL819x_5GHZ_5470_5850,
+		}
 };
 
 static const struct ieee80211_regdomain rtl_regdom_14 = {
@@ -348,6 +360,8 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 		return &rtl_regdom_14_60_64;
 	case COUNTRY_CODE_GLOBAL_DOMAIN:
 		return &rtl_regdom_14;
+	case COUNTRY_CODE_WORLD_WIDE_13_5G_ALL:
+		return &rtl_regdom_12_13_5g_all;
 	default:
 		return &rtl_regdom_no_midband;
 	}
@@ -384,6 +398,25 @@ static struct country_code_to_enum_rd *_rtl_regd_find_country(u16 countrycode)
 	return NULL;
 }
 
+static u8 channel_plan_to_country_code(u8 channelplan)
+{
+	switch (channelplan) {
+	case 0x20:
+	case 0x21:
+		return COUNTRY_CODE_WORLD_WIDE_13;
+	case 0x22:
+		return COUNTRY_CODE_IC;
+	case 0x32:
+		return COUNTRY_CODE_TELEC_NETGEAR;
+	case 0x41:
+		return COUNTRY_CODE_GLOBAL_DOMAIN;
+	case 0x7f:
+		return COUNTRY_CODE_WORLD_WIDE_13_5G_ALL;
+	default:
+		return COUNTRY_CODE_MAX; /*Error*/
+	}
+}
+
 int rtl_regd_init(struct ieee80211_hw *hw,
 		  void (*reg_notifier)(struct wiphy *wiphy,
 				       struct regulatory_request *request))
@@ -396,11 +429,12 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	/* init country_code from efuse channel plan */
-	rtlpriv->regd.country_code = rtlpriv->efuse.channel_plan;
+	rtlpriv->regd.country_code =
+		channel_plan_to_country_code(rtlpriv->efuse.channel_plan);
 
-	RT_TRACE(rtlpriv, COMP_REGD, DBG_TRACE,
-		 "rtl: EEPROM regdomain: 0x%0x\n",
-		  rtlpriv->regd.country_code);
+	RT_TRACE(rtlpriv, COMP_REGD, DBG_DMESG,
+		 "rtl: EEPROM regdomain: 0x%0x conuntry code: %d\n",
+		 rtlpriv->efuse.channel_plan, rtlpriv->regd.country_code);
 
 	if (rtlpriv->regd.country_code >= COUNTRY_CODE_MAX) {
 		RT_TRACE(rtlpriv, COMP_REGD, DBG_DMESG,

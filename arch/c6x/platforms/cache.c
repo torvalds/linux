@@ -350,6 +350,7 @@ void L1P_cache_block_invalidate(unsigned int start, unsigned int end)
 			      (unsigned int *) end,
 			      IMCR_L1PIBAR, IMCR_L1PIWC);
 }
+EXPORT_SYMBOL(L1P_cache_block_invalidate);
 
 void L1D_cache_block_invalidate(unsigned int start, unsigned int end)
 {
@@ -371,6 +372,7 @@ void L1D_cache_block_writeback(unsigned int start, unsigned int end)
 			      (unsigned int *) end,
 			      IMCR_L1DWBAR, IMCR_L1DWWC);
 }
+EXPORT_SYMBOL(L1D_cache_block_writeback);
 
 /*
  *  L2 block operations

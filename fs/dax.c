@@ -98,9 +98,9 @@ static bool buffer_size_valid(struct buffer_head *bh)
 	return bh->b_state != 0;
 }
 
-static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
-			loff_t start, loff_t end, get_block_t get_block,
-			struct buffer_head *bh)
+static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+		      loff_t start, loff_t end, get_block_t get_block,
+		      struct buffer_head *bh)
 {
 	ssize_t retval = 0;
 	loff_t pos = start;
@@ -109,7 +109,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 	void *addr;
 	bool hole = false;
 
-	if (rw != WRITE)
+	if (iov_iter_rw(iter) != WRITE)
 		end = min(end, i_size_read(inode));
 
 	while (pos < end) {
@@ -124,7 +124,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 				bh->b_size = PAGE_ALIGN(end - pos);
 				bh->b_state = 0;
 				retval = get_block(inode, block, bh,
-								rw == WRITE);
+						   iov_iter_rw(iter) == WRITE);
 				if (retval)
 					break;
 				if (!buffer_size_valid(bh))
@@ -137,7 +137,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 				bh->b_size -= done;
 			}
 
-			hole = (rw != WRITE) && !buffer_written(bh);
+			hole = iov_iter_rw(iter) != WRITE && !buffer_written(bh);
 			if (hole) {
 				addr = NULL;
 				size = bh->b_size - first;
@@ -154,8 +154,8 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 			max = min(pos + size, end);
 		}
 
-		if (rw == WRITE)
-			len = copy_from_iter(addr, max - pos, iter);
+		if (iov_iter_rw(iter) == WRITE)
+			len = copy_from_iter_nocache(addr, max - pos, iter);
 		else if (!hole)
 			len = copy_to_iter(addr, max - pos, iter);
 		else
@@ -173,7 +173,6 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 
 /**
  * dax_do_io - Perform I/O to a DAX file
- * @rw: READ to read or WRITE to write
  * @iocb: The control block for this I/O
  * @inode: The file which the I/O is directed at
  * @iter: The addresses to do I/O from or to
@@ -189,9 +188,9 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
  * As with do_blockdev_direct_IO(), we increment i_dio_count while the I/O
  * is in progress.
  */
-ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
-			struct iov_iter *iter, loff_t pos,
-			get_block_t get_block, dio_iodone_t end_io, int flags)
+ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
+		  struct iov_iter *iter, loff_t pos, get_block_t get_block,
+		  dio_iodone_t end_io, int flags)
 {
 	struct buffer_head bh;
 	ssize_t retval = -EINVAL;
@@ -199,7 +198,7 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 
 	memset(&bh, 0, sizeof(bh));
 
-	if ((flags & DIO_LOCKING) && (rw == READ)) {
+	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ) {
 		struct address_space *mapping = inode->i_mapping;
 		mutex_lock(&inode->i_mutex);
 		retval = filemap_write_and_wait_range(mapping, pos, end - 1);
@@ -210,17 +209,19 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 	}
 
 	/* Protects against truncate */
-	atomic_inc(&inode->i_dio_count);
+	if (!(flags & DIO_SKIP_DIO_COUNT))
+		inode_dio_begin(inode);
 
-	retval = dax_io(rw, inode, iter, pos, end, get_block, &bh);
+	retval = dax_io(inode, iter, pos, end, get_block, &bh);
 
-	if ((flags & DIO_LOCKING) && (rw == READ))
+	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ)
 		mutex_unlock(&inode->i_mutex);
 
 	if ((retval > 0) && end_io)
 		end_io(iocb, pos, retval, bh.b_private);
 
-	inode_dio_done(inode);
+	if (!(flags & DIO_SKIP_DIO_COUNT))
+		inode_dio_end(inode);
  out:
 	return retval;
 }
@@ -310,14 +311,21 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
  out:
 	i_mmap_unlock_read(mapping);
 
-	if (bh->b_end_io)
-		bh->b_end_io(bh, 1);
-
 	return error;
 }
 
-static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			get_block_t get_block)
+/**
+ * __dax_fault - handle a page fault on a DAX file
+ * @vma: The virtual memory area where the fault occurred
+ * @vmf: The description of the fault
+ * @get_block: The filesystem method used to translate file offsets to blocks
+ *
+ * When a page fault occurs, filesystems may call this helper in their
+ * fault handler for DAX files. __dax_fault() assumes the caller has done all
+ * the necessary locking for the page fault to proceed successfully.
+ */
+int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+			get_block_t get_block, dax_iodone_t complete_unwritten)
 {
 	struct file *file = vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
@@ -418,7 +426,19 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		page_cache_release(page);
 	}
 
+	/*
+	 * If we successfully insert the new mapping over an unwritten extent,
+	 * we need to ensure we convert the unwritten extent. If there is an
+	 * error inserting the mapping, the filesystem needs to leave it as
+	 * unwritten to prevent exposure of the stale underlying data to
+	 * userspace, but we still need to call the completion function so
+	 * the private resources on the mapping buffer can be released. We
+	 * indicate what the callback should do via the uptodate variable, same
+	 * as for normal BH based IO completions.
+	 */
 	error = dax_insert_mapping(inode, &bh, vma, vmf);
+	if (buffer_unwritten(&bh))
+		complete_unwritten(&bh, !error);
 
  out:
 	if (error == -ENOMEM)
@@ -435,6 +455,7 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	}
 	goto out;
 }
+EXPORT_SYMBOL(__dax_fault);
 
 /**
  * dax_fault - handle a page fault on a DAX file
@@ -446,7 +467,7 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
  * fault handler for DAX files.
  */
 int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			get_block_t get_block)
+	      get_block_t get_block, dax_iodone_t complete_unwritten)
 {
 	int result;
 	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
@@ -455,13 +476,30 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		sb_start_pagefault(sb);
 		file_update_time(vma->vm_file);
 	}
-	result = do_dax_fault(vma, vmf, get_block);
+	result = __dax_fault(vma, vmf, get_block, complete_unwritten);
 	if (vmf->flags & FAULT_FLAG_WRITE)
 		sb_end_pagefault(sb);
 
 	return result;
 }
 EXPORT_SYMBOL_GPL(dax_fault);
+
+/**
+ * dax_pfn_mkwrite - handle first write to DAX page
+ * @vma: The virtual memory area where the fault occurred
+ * @vmf: The description of the fault
+ *
+ */
+int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+
+	sb_start_pagefault(sb);
+	file_update_time(vma->vm_file);
+	sb_end_pagefault(sb);
+	return VM_FAULT_NOPAGE;
+}
+EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
 
 /**
  * dax_zero_page_range - zero a range within a page of a DAX file

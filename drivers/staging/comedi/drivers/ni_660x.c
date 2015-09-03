@@ -35,12 +35,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "mite.h"
 #include "ni_tio.h"
 
@@ -195,7 +193,6 @@ static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
 }
 
 struct NI_660xRegisterData {
-
 	const char *name;	/*  Register Name */
 	int offset;		/*  Offset from base address from GPCT chip */
 	enum ni_660x_register_direction direction;
@@ -702,7 +699,7 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	BUG_ON(counter->mite_chan);
 	mite_chan = mite_request_channel(devpriv->mite,
 					 mite_ring(devpriv, counter));
-	if (mite_chan == NULL) {
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for counter\n");
@@ -861,7 +858,7 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 		for (j = 0; j < counters_per_chip; ++j) {
 			devpriv->mite_rings[i][j] =
 			    mite_alloc_ring(devpriv->mite);
-			if (devpriv->mite_rings[i][j] == NULL)
+			if (!devpriv->mite_rings[i][j])
 				return -ENOMEM;
 		}
 	}
@@ -1107,7 +1104,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 						     ni_gpct_variant_660x,
 						     ni_660x_num_counters
 						     (dev));
-	if (devpriv->counter_dev == NULL)
+	if (!devpriv->counter_dev)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
 		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];

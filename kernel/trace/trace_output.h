@@ -32,7 +32,7 @@ extern int
 trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry);
 
 /* used by module unregistering */
-extern int __unregister_ftrace_event(struct trace_event *event);
+extern int __unregister_trace_event(struct trace_event *event);
 extern struct rw_semaphore trace_event_sem;
 
 #define SEQ_PUT_FIELD(s, x)				\

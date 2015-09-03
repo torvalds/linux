@@ -79,7 +79,7 @@ static void __init twr_p1025_setup_arch(void)
 	mpc85xx_qe_init();
 	mpc85xx_qe_par_io_init();
 
-#if defined(CONFIG_UCC_GETH) || defined(CONFIG_SERIAL_QE)
+#if IS_ENABLED(CONFIG_UCC_GETH) || IS_ENABLED(CONFIG_SERIAL_QE)
 	if (machine_is(twr_p1025)) {
 		struct ccsr_guts __iomem *guts;
 
@@ -101,7 +101,7 @@ static void __init twr_p1025_setup_arch(void)
 					MPC85xx_PMUXCR_QE(12));
 			iounmap(guts);
 
-#if defined(CONFIG_SERIAL_QE)
+#if IS_ENABLED(CONFIG_SERIAL_QE)
 			/* On P1025TWR board, the UCC7 acted as UART port.
 			 * However, The UCC7's CTS pin is low level in default,
 			 * it will impact the transmission in full duplex

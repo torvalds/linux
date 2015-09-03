@@ -94,8 +94,6 @@ void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
 	memset(pDM_Odm, 0, sizeof(*pDM_Odm));
 
 	pDM_Odm->Adapter = Adapter;
-	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_PLATFORM, 0x04);
-	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_INTERFACE, RTW_USB);/* RTL871X_HCI_TYPE */
 
 	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8723A);
 
@@ -119,15 +117,7 @@ void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
 		ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_EXT_LNA, true);
 		ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_EXT_PA, true);
 	}
-	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_PATCH_ID, pHalData->CustomerID);
 	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_BWIFI_TEST, Adapter->registrypriv.wifi_spec);
-
-	if (pHalData->rf_type == RF_1T1R)
-		ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T1R);
-	else if (pHalData->rf_type == RF_2T2R)
-		ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T2R);
-	else if (pHalData->rf_type == RF_1T2R)
-		ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T2R);
 }
 
 static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
@@ -136,16 +126,7 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	int i;
-	pdmpriv->InitODMFlag =	ODM_BB_DIG		|
-				ODM_BB_RA_MASK		|
-				ODM_BB_DYNAMIC_TXPWR	|
-				ODM_BB_FA_CNT		|
-				ODM_BB_RSSI_MONITOR	|
-				ODM_BB_CCK_PD		|
-				ODM_BB_PWR_SAVE		|
-				ODM_MAC_EDCA_TURBO	|
-				ODM_RF_TX_PWR_TRACK	|
-				ODM_RF_CALIBRATION;
+	pdmpriv->InitODMFlag = 0;
 	/*  Pointer reference */
 	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);
 

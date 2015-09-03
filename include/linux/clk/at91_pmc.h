@@ -20,10 +20,10 @@
 extern void __iomem *at91_pmc_base;
 
 #define at91_pmc_read(field) \
-	__raw_readl(at91_pmc_base + field)
+	readl_relaxed(at91_pmc_base + field)
 
 #define at91_pmc_write(field, value) \
-	__raw_writel(value, at91_pmc_base + field)
+	writel_relaxed(value, at91_pmc_base + field)
 #else
 .extern at91_pmc_base
 #endif

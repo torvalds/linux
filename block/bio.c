@@ -270,8 +270,8 @@ void bio_init(struct bio *bio)
 {
 	memset(bio, 0, sizeof(*bio));
 	bio->bi_flags = 1 << BIO_UPTODATE;
-	atomic_set(&bio->bi_remaining, 1);
-	atomic_set(&bio->bi_cnt, 1);
+	atomic_set(&bio->__bi_remaining, 1);
+	atomic_set(&bio->__bi_cnt, 1);
 }
 EXPORT_SYMBOL(bio_init);
 
@@ -292,8 +292,8 @@ void bio_reset(struct bio *bio)
 	__bio_free(bio);
 
 	memset(bio, 0, BIO_RESET_BYTES);
-	bio->bi_flags = flags|(1 << BIO_UPTODATE);
-	atomic_set(&bio->bi_remaining, 1);
+	bio->bi_flags = flags | (1 << BIO_UPTODATE);
+	atomic_set(&bio->__bi_remaining, 1);
 }
 EXPORT_SYMBOL(bio_reset);
 
@@ -301,6 +301,17 @@ static void bio_chain_endio(struct bio *bio, int error)
 {
 	bio_endio(bio->bi_private, error);
 	bio_put(bio);
+}
+
+/*
+ * Increment chain count for the bio. Make sure the CHAIN flag update
+ * is visible before the raised count.
+ */
+static inline void bio_inc_remaining(struct bio *bio)
+{
+	bio->bi_flags |= (1 << BIO_CHAIN);
+	smp_mb__before_atomic();
+	atomic_inc(&bio->__bi_remaining);
 }
 
 /**
@@ -320,7 +331,7 @@ void bio_chain(struct bio *bio, struct bio *parent)
 
 	bio->bi_private = parent;
 	bio->bi_end_io	= bio_chain_endio;
-	atomic_inc(&parent->bi_remaining);
+	bio_inc_remaining(parent);
 }
 EXPORT_SYMBOL(bio_chain);
 
@@ -524,13 +535,17 @@ EXPORT_SYMBOL(zero_fill_bio);
  **/
 void bio_put(struct bio *bio)
 {
-	BIO_BUG_ON(!atomic_read(&bio->bi_cnt));
-
-	/*
-	 * last put frees it
-	 */
-	if (atomic_dec_and_test(&bio->bi_cnt))
+	if (!bio_flagged(bio, BIO_REFFED))
 		bio_free(bio);
+	else {
+		BIO_BUG_ON(!atomic_read(&bio->__bi_cnt));
+
+		/*
+		 * last put frees it
+		 */
+		if (atomic_dec_and_test(&bio->__bi_cnt))
+			bio_free(bio);
+	}
 }
 EXPORT_SYMBOL(bio_put);
 
@@ -1741,6 +1756,25 @@ void bio_flush_dcache_pages(struct bio *bi)
 EXPORT_SYMBOL(bio_flush_dcache_pages);
 #endif
 
+static inline bool bio_remaining_done(struct bio *bio)
+{
+	/*
+	 * If we're not chaining, then ->__bi_remaining is always 1 and
+	 * we always end io on the first invocation.
+	 */
+	if (!bio_flagged(bio, BIO_CHAIN))
+		return true;
+
+	BUG_ON(atomic_read(&bio->__bi_remaining) <= 0);
+
+	if (atomic_dec_and_test(&bio->__bi_remaining)) {
+		clear_bit(BIO_CHAIN, &bio->bi_flags);
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * bio_endio - end I/O on a bio
  * @bio:	bio
@@ -1758,15 +1792,13 @@ EXPORT_SYMBOL(bio_flush_dcache_pages);
 void bio_endio(struct bio *bio, int error)
 {
 	while (bio) {
-		BUG_ON(atomic_read(&bio->bi_remaining) <= 0);
-
 		if (error)
 			clear_bit(BIO_UPTODATE, &bio->bi_flags);
 		else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
 			error = -EIO;
 
-		if (!atomic_dec_and_test(&bio->bi_remaining))
-			return;
+		if (unlikely(!bio_remaining_done(bio)))
+			break;
 
 		/*
 		 * Need to have a real endio function for chained bios,
@@ -1788,21 +1820,6 @@ void bio_endio(struct bio *bio, int error)
 	}
 }
 EXPORT_SYMBOL(bio_endio);
-
-/**
- * bio_endio_nodec - end I/O on a bio, without decrementing bi_remaining
- * @bio:	bio
- * @error:	error, if any
- *
- * For code that has saved and restored bi_end_io; thing hard before using this
- * function, probably you should've cloned the entire bio.
- **/
-void bio_endio_nodec(struct bio *bio, int error)
-{
-	atomic_inc(&bio->bi_remaining);
-	bio_endio(bio, error);
-}
-EXPORT_SYMBOL(bio_endio_nodec);
 
 /**
  * bio_split - split a bio
@@ -1971,6 +1988,28 @@ struct bio_set *bioset_create_nobvec(unsigned int pool_size, unsigned int front_
 EXPORT_SYMBOL(bioset_create_nobvec);
 
 #ifdef CONFIG_BLK_CGROUP
+
+/**
+ * bio_associate_blkcg - associate a bio with the specified blkcg
+ * @bio: target bio
+ * @blkcg_css: css of the blkcg to associate
+ *
+ * Associate @bio with the blkcg specified by @blkcg_css.  Block layer will
+ * treat @bio as if it were issued by a task which belongs to the blkcg.
+ *
+ * This function takes an extra reference of @blkcg_css which will be put
+ * when @bio is released.  The caller must own @bio and is responsible for
+ * synchronizing calls to this function.
+ */
+int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css)
+{
+	if (unlikely(bio->bi_css))
+		return -EBUSY;
+	css_get(blkcg_css);
+	bio->bi_css = blkcg_css;
+	return 0;
+}
+
 /**
  * bio_associate_current - associate a bio with %current
  * @bio: target bio
@@ -1987,26 +2026,17 @@ EXPORT_SYMBOL(bioset_create_nobvec);
 int bio_associate_current(struct bio *bio)
 {
 	struct io_context *ioc;
-	struct cgroup_subsys_state *css;
 
-	if (bio->bi_ioc)
+	if (bio->bi_css)
 		return -EBUSY;
 
 	ioc = current->io_context;
 	if (!ioc)
 		return -ENOENT;
 
-	/* acquire active ref on @ioc and associate */
 	get_io_context_active(ioc);
 	bio->bi_ioc = ioc;
-
-	/* associate blkcg if exists */
-	rcu_read_lock();
-	css = task_css(current, blkio_cgrp_id);
-	if (css && css_tryget_online(css))
-		bio->bi_css = css;
-	rcu_read_unlock();
-
+	bio->bi_css = task_get_css(current, blkio_cgrp_id);
 	return 0;
 }
 

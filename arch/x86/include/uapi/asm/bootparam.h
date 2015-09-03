@@ -15,6 +15,7 @@
 
 /* loadflags */
 #define LOADED_HIGH	(1<<0)
+#define KASLR_FLAG	(1<<1)
 #define QUIET_FLAG	(1<<5)
 #define KEEP_SEGMENTS	(1<<6)
 #define CAN_USE_HEAP	(1<<7)

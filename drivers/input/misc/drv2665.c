@@ -74,7 +74,7 @@ static const u8 drv2665_sine_wave_form[] = {
 	0x9b, 0x9f, 0xa5, 0xad, 0xb8, 0xc4, 0xd2, 0xe0, 0xf0, 0x00,
 };
 
-static struct reg_default drv2665_reg_defs[] = {
+static const struct reg_default drv2665_reg_defs[] = {
 	{ DRV2665_STATUS, 0x02 },
 	{ DRV2665_CTRL_1, 0x28 },
 	{ DRV2665_CTRL_2, 0x40 },
@@ -309,7 +309,6 @@ static struct i2c_driver drv2665_driver = {
 	.probe		= drv2665_probe,
 	.driver		= {
 		.name	= "drv2665-haptics",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(drv2665_of_match),
 		.pm	= &drv2665_pm_ops,
 	},

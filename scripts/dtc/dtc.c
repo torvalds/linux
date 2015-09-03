@@ -48,6 +48,8 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 }
 
 /* Usage related data. */
+#define FDT_VERSION(version)	_FDT_VERSION(version)
+#define _FDT_VERSION(version)	#version
 static const char usage_synopsis[] = "dtc [options] <input file>";
 static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:fb:i:H:sW:E:hv";
 static struct option const usage_long_opts[] = {
@@ -82,9 +84,9 @@ static const char * const usage_opts_help[] = {
 	 "\t\tdts - device tree source text\n"
 	 "\t\tdtb - device tree blob\n"
 	 "\t\tasm - assembler source",
-	"\n\tBlob version to produce, defaults to %d (for dtb and asm output)", //, DEFAULT_FDT_VERSION);
+	"\n\tBlob version to produce, defaults to "FDT_VERSION(DEFAULT_FDT_VERSION)" (for dtb and asm output)",
 	"\n\tOutput dependency file",
-	"\n\ttMake space for <number> reserve map entries (for dtb and asm output)",
+	"\n\tMake space for <number> reserve map entries (for dtb and asm output)",
 	"\n\tMake the blob at least <bytes> long (extra space)",
 	"\n\tAdd padding to the blob of <bytes> long (extra space)",
 	"\n\tSet the physical boot cpu",
@@ -109,7 +111,7 @@ int main(int argc, char *argv[])
 	const char *outform = "dts";
 	const char *outname = "-";
 	const char *depname = NULL;
-	int force = 0, sort = 0;
+	bool force = false, sort = false;
 	const char *arg;
 	int opt;
 	FILE *outf = NULL;
@@ -148,7 +150,7 @@ int main(int argc, char *argv[])
 			padsize = strtol(optarg, NULL, 0);
 			break;
 		case 'f':
-			force = 1;
+			force = true;
 			break;
 		case 'q':
 			quiet++;
@@ -174,7 +176,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 's':
-			sort = 1;
+			sort = true;
 			break;
 
 		case 'W':
@@ -237,7 +239,7 @@ int main(int argc, char *argv[])
 	if (streq(outname, "-")) {
 		outf = stdout;
 	} else {
-		outf = fopen(outname, "w");
+		outf = fopen(outname, "wb");
 		if (! outf)
 			die("Couldn't open output file %s: %s\n",
 			    outname, strerror(errno));

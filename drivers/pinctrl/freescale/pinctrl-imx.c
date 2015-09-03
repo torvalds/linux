@@ -542,10 +542,13 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 		struct imx_pin_reg *pin_reg;
 		struct imx_pin *pin = &grp->pins[i];
 
-		if (info->flags & SHARE_MUX_CONF_REG)
+		if (info->flags & SHARE_MUX_CONF_REG) {
 			conf_reg = mux_reg;
-		else
+		} else {
 			conf_reg = be32_to_cpu(*list++);
+			if (!conf_reg)
+				conf_reg = -1;
+		}
 
 		pin_id = mux_reg ? mux_reg / 4 : conf_reg / 4;
 		pin_reg = &info->pin_regs[pin_id];
@@ -603,6 +606,29 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	return 0;
 }
 
+/*
+ * Check if the DT contains pins in the direct child nodes. This indicates the
+ * newer DT format to store pins. This function returns true if the first found
+ * fsl,pins property is in a child of np. Otherwise false is returned.
+ */
+static bool imx_pinctrl_dt_is_flat_functions(struct device_node *np)
+{
+	struct device_node *function_np;
+	struct device_node *pinctrl_np;
+
+	for_each_child_of_node(np, function_np) {
+		if (of_property_read_bool(function_np, "fsl,pins"))
+			return true;
+
+		for_each_child_of_node(function_np, pinctrl_np) {
+			if (of_property_read_bool(pinctrl_np, "fsl,pins"))
+				return false;
+		}
+	}
+
+	return true;
+}
+
 static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 				struct imx_pinctrl_soc_info *info)
 {
@@ -610,14 +636,20 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 	struct device_node *child;
 	u32 nfuncs = 0;
 	u32 i = 0;
+	bool flat_funcs;
 
 	if (!np)
 		return -ENODEV;
 
-	nfuncs = of_get_child_count(np);
-	if (nfuncs <= 0) {
-		dev_err(&pdev->dev, "no functions defined\n");
-		return -EINVAL;
+	flat_funcs = imx_pinctrl_dt_is_flat_functions(np);
+	if (flat_funcs) {
+		nfuncs = 1;
+	} else {
+		nfuncs = of_get_child_count(np);
+		if (nfuncs <= 0) {
+			dev_err(&pdev->dev, "no functions defined\n");
+			return -EINVAL;
+		}
 	}
 
 	info->nfunctions = nfuncs;
@@ -626,16 +658,24 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 	if (!info->functions)
 		return -ENOMEM;
 
-	info->ngroups = 0;
-	for_each_child_of_node(np, child)
-		info->ngroups += of_get_child_count(child);
+	if (flat_funcs) {
+		info->ngroups = of_get_child_count(np);
+	} else {
+		info->ngroups = 0;
+		for_each_child_of_node(np, child)
+			info->ngroups += of_get_child_count(child);
+	}
 	info->groups = devm_kzalloc(&pdev->dev, info->ngroups * sizeof(struct imx_pin_group),
 					GFP_KERNEL);
 	if (!info->groups)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child)
-		imx_pinctrl_parse_functions(child, info, i++);
+	if (flat_funcs) {
+		imx_pinctrl_parse_functions(np, info, 0);
+	} else {
+		for_each_child_of_node(np, child)
+			imx_pinctrl_parse_functions(child, info, i++);
+	}
 
 	return 0;
 }
@@ -645,7 +685,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 {
 	struct imx_pinctrl *ipctl;
 	struct resource *res;
-	int ret;
+	int ret, i;
 
 	if (!info || !info->pins || !info->npins) {
 		dev_err(&pdev->dev, "wrong pinctrl info\n");
@@ -662,7 +702,11 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 				      info->npins, GFP_KERNEL);
 	if (!info->pin_regs)
 		return -ENOMEM;
-	memset(info->pin_regs, 0xff, sizeof(*info->pin_regs) * info->npins);
+
+	for (i = 0; i < info->npins; i++) {
+		info->pin_regs[i].mux_reg = -1;
+		info->pin_regs[i].conf_reg = -1;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ipctl->base = devm_ioremap_resource(&pdev->dev, res);
@@ -683,9 +727,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	ipctl->dev = info->dev;
 	platform_set_drvdata(pdev, ipctl);
 	ipctl->pctl = pinctrl_register(&imx_pinctrl_desc, &pdev->dev, ipctl);
-	if (!ipctl->pctl) {
+	if (IS_ERR(ipctl->pctl)) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(ipctl->pctl);
 	}
 
 	dev_info(&pdev->dev, "initialized IMX pinctrl driver\n");

@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "tick-internal.h"
+#include "timekeeping.h"
 
 /* The Jiffies based clocksource is the lowest common
  * denominator clock source which should function on
@@ -71,6 +71,7 @@ static struct clocksource clocksource_jiffies = {
 	.mask		= 0xffffffff, /*32bits*/
 	.mult		= NSEC_PER_JIFFY << JIFFIES_SHIFT, /* details above */
 	.shift		= JIFFIES_SHIFT,
+	.max_cycles	= 10,
 };
 
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(jiffies_lock);
@@ -94,7 +95,7 @@ EXPORT_SYMBOL(jiffies);
 
 static int __init init_jiffies_clocksource(void)
 {
-	return clocksource_register(&clocksource_jiffies);
+	return __clocksource_register(&clocksource_jiffies);
 }
 
 core_initcall(init_jiffies_clocksource);
@@ -130,6 +131,6 @@ int register_refined_jiffies(long cycles_per_second)
 
 	refined_jiffies.mult = ((u32)nsec_per_tick) << JIFFIES_SHIFT;
 
-	clocksource_register(&refined_jiffies);
+	__clocksource_register(&refined_jiffies);
 	return 0;
 }

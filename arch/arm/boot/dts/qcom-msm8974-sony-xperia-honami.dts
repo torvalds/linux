@@ -1,4 +1,6 @@
 #include "qcom-msm8974.dtsi"
+#include "qcom-pm8841.dtsi"
+#include "qcom-pm8941.dtsi"
 
 / {
 	model = "Sony Xperia Z1";

@@ -16,6 +16,5 @@ extern int iscsi_post_login_handler(struct iscsi_np *, struct iscsi_conn *, u8);
 extern void iscsi_target_login_sess_out(struct iscsi_conn *, struct iscsi_np *,
 				bool, bool);
 extern int iscsi_target_login_thread(void *);
-extern int iscsi_login_disable_FIM_keys(struct iscsi_param_list *, struct iscsi_conn *);
 
 #endif   /*** ISCSI_TARGET_LOGIN_H ***/

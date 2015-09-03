@@ -24,6 +24,7 @@
 *.order
 *.elf
 *.bin
+*.tar
 *.gz
 *.bz2
 *.lzma

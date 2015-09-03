@@ -16,6 +16,7 @@
 #define IOPTE_WRITE   0x0000000000000002UL
 
 #define IOMMU_NUM_CTXS	4096
+#include <linux/iommu-common.h>
 
 struct iommu_arena {
 	unsigned long	*map;
@@ -24,11 +25,10 @@ struct iommu_arena {
 };
 
 struct iommu {
+	struct iommu_map_table	tbl;
 	spinlock_t		lock;
-	struct iommu_arena	arena;
-	void			(*flush_all)(struct iommu *);
+	u32			dma_addr_mask;
 	iopte_t			*page_table;
-	u32			page_table_map_base;
 	unsigned long		iommu_control;
 	unsigned long		iommu_tsbbase;
 	unsigned long		iommu_flush;
@@ -40,7 +40,6 @@ struct iommu {
 	unsigned long		dummy_page_pa;
 	unsigned long		ctx_lowest_free;
 	DECLARE_BITMAP(ctx_bitmap, IOMMU_NUM_CTXS);
-	u32			dma_addr_mask;
 };
 
 struct strbuf {

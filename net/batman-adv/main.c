@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -15,31 +15,53 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/crc32c.h>
-#include <linux/highmem.h>
-#include <linux/if_vlan.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
-#include <net/dsfield.h>
 #include "main.h"
-#include "sysfs.h"
+
+#include <linux/atomic.h>
+#include <linux/bug.h>
+#include <linux/byteorder/generic.h>
+#include <linux/crc32c.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
+#include <linux/init.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/netdevice.h>
+#include <linux/pkt_sched.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
+#include <net/dsfield.h>
+#include <net/rtnetlink.h>
+
+#include "bat_algo.h"
+#include "bridge_loop_avoidance.h"
 #include "debugfs.h"
+#include "distributed-arp-table.h"
+#include "gateway_client.h"
+#include "gateway_common.h"
+#include "hard-interface.h"
+#include "icmp_socket.h"
+#include "multicast.h"
+#include "network-coding.h"
+#include "originator.h"
+#include "packet.h"
 #include "routing.h"
 #include "send.h"
-#include "originator.h"
 #include "soft-interface.h"
-#include "icmp_socket.h"
 #include "translation-table.h"
-#include "hard-interface.h"
-#include "gateway_client.h"
-#include "bridge_loop_avoidance.h"
-#include "distributed-arp-table.h"
-#include "multicast.h"
-#include "gateway_common.h"
-#include "hash.h"
-#include "bat_algo.h"
-#include "network-coding.h"
-#include "fragmentation.h"
 
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
  * list traversals just rcu-locked
@@ -209,10 +231,13 @@ void batadv_mesh_free(struct net_device *soft_iface)
  * interfaces in the current mesh
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address to check
+ *
+ * Returns 'true' if the mac address was found, false otherwise.
  */
-int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr)
+bool batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr)
 {
 	const struct batadv_hard_iface *hard_iface;
+	bool is_my_mac = false;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -223,12 +248,12 @@ int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr)
 			continue;
 
 		if (batadv_compare_eth(hard_iface->net_dev->dev_addr, addr)) {
-			rcu_read_unlock();
-			return 1;
+			is_my_mac = true;
+			break;
 		}
 	}
 	rcu_read_unlock();
-	return 0;
+	return is_my_mac;
 }
 
 /**
@@ -510,14 +535,12 @@ static struct batadv_algo_ops *batadv_algo_get(char *name)
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 {
 	struct batadv_algo_ops *bat_algo_ops_tmp;
-	int ret;
 
 	bat_algo_ops_tmp = batadv_algo_get(bat_algo_ops->name);
 	if (bat_algo_ops_tmp) {
 		pr_info("Trying to register already registered routing algorithm: %s\n",
 			bat_algo_ops->name);
-		ret = -EEXIST;
-		goto out;
+		return -EEXIST;
 	}
 
 	/* all algorithms must implement all ops (for now) */
@@ -531,32 +554,26 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 	    !bat_algo_ops->bat_neigh_is_equiv_or_better) {
 		pr_info("Routing algo '%s' does not implement required ops\n",
 			bat_algo_ops->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	INIT_HLIST_NODE(&bat_algo_ops->list);
 	hlist_add_head(&bat_algo_ops->list, &batadv_algo_list);
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 
 int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 {
 	struct batadv_algo_ops *bat_algo_ops;
-	int ret = -EINVAL;
 
 	bat_algo_ops = batadv_algo_get(name);
 	if (!bat_algo_ops)
-		goto out;
+		return -EINVAL;
 
 	bat_priv->bat_algo_ops = bat_algo_ops;
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
@@ -819,15 +836,15 @@ static bool batadv_tvlv_realloc_packet_buff(unsigned char **packet_buff,
 	new_buff = kmalloc(min_packet_len + additional_packet_len, GFP_ATOMIC);
 
 	/* keep old buffer if kmalloc should fail */
-	if (new_buff) {
-		memcpy(new_buff, *packet_buff, min_packet_len);
-		kfree(*packet_buff);
-		*packet_buff = new_buff;
-		*packet_buff_len = min_packet_len + additional_packet_len;
-		return true;
-	}
+	if (!new_buff)
+		return false;
 
-	return false;
+	memcpy(new_buff, *packet_buff, min_packet_len);
+	kfree(*packet_buff);
+	*packet_buff = new_buff;
+	*packet_buff_len = min_packet_len + additional_packet_len;
+
+	return true;
 }
 
 /**

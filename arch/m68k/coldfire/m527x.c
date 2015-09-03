@@ -92,7 +92,6 @@ static void __init m527x_uarts_init(void)
 
 static void __init m527x_fec_init(void)
 {
-	u16 par;
 	u8 v;
 
 	/* Set multi-function pins to ethernet mode for fec0 */
@@ -100,6 +99,8 @@ static void __init m527x_fec_init(void)
 	v = readb(MCFGPIO_PAR_FECI2C);
 	writeb(v | 0xf0, MCFGPIO_PAR_FECI2C);
 #else
+	u16 par;
+
 	par = readw(MCFGPIO_PAR_FECI2C);
 	writew(par | 0xf00, MCFGPIO_PAR_FECI2C);
 	v = readb(MCFGPIO_PAR_FEC0HL);

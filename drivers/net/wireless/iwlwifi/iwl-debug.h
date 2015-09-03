@@ -157,6 +157,7 @@ do {                                            			\
 /* 0x0000F000 - 0x00001000 */
 #define IWL_DL_ASSOC		0x00001000
 #define IWL_DL_DROP		0x00002000
+#define IWL_DL_LAR		0x00004000
 #define IWL_DL_COEX		0x00008000
 /* 0x000F0000 - 0x00010000 */
 #define IWL_DL_FW		0x00010000
@@ -219,5 +220,6 @@ do {                                            			\
 #define IWL_DEBUG_POWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_POWER, f, ## a)
 #define IWL_DEBUG_11H(p, f, a...)	IWL_DEBUG(p, IWL_DL_11H, f, ## a)
 #define IWL_DEBUG_RPM(p, f, a...)	IWL_DEBUG(p, IWL_DL_RPM, f, ## a)
+#define IWL_DEBUG_LAR(p, f, a...)	IWL_DEBUG(p, IWL_DL_LAR, f, ## a)
 
 #endif

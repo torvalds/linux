@@ -76,8 +76,10 @@ struct nilfs_bmap_operations {
 			  union nilfs_binfo *);
 	int (*bop_mark)(struct nilfs_bmap *, __u64, int);
 
-	/* The following functions are internal use only. */
+	int (*bop_seek_key)(const struct nilfs_bmap *, __u64, __u64 *);
 	int (*bop_last_key)(const struct nilfs_bmap *, __u64 *);
+
+	/* The following functions are internal use only. */
 	int (*bop_check_insert)(const struct nilfs_bmap *, __u64);
 	int (*bop_check_delete)(struct nilfs_bmap *, __u64);
 	int (*bop_gather_data)(struct nilfs_bmap *, __u64 *, __u64 *, int);
@@ -153,10 +155,11 @@ int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
 int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
 void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_inode *);
 int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned);
-int nilfs_bmap_insert(struct nilfs_bmap *, unsigned long, unsigned long);
-int nilfs_bmap_delete(struct nilfs_bmap *, unsigned long);
-int nilfs_bmap_last_key(struct nilfs_bmap *, unsigned long *);
-int nilfs_bmap_truncate(struct nilfs_bmap *, unsigned long);
+int nilfs_bmap_insert(struct nilfs_bmap *bmap, __u64 key, unsigned long rec);
+int nilfs_bmap_delete(struct nilfs_bmap *bmap, __u64 key);
+int nilfs_bmap_seek_key(struct nilfs_bmap *bmap, __u64 start, __u64 *keyp);
+int nilfs_bmap_last_key(struct nilfs_bmap *bmap, __u64 *keyp);
+int nilfs_bmap_truncate(struct nilfs_bmap *bmap, __u64 key);
 void nilfs_bmap_clear(struct nilfs_bmap *);
 int nilfs_bmap_propagate(struct nilfs_bmap *, struct buffer_head *);
 void nilfs_bmap_lookup_dirty_buffers(struct nilfs_bmap *, struct list_head *);

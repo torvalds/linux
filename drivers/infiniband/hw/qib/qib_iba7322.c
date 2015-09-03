@@ -5502,7 +5502,8 @@ static void try_7322_ipg(struct qib_pportdata *ppd)
 		goto retry;
 
 	send_buf = ib_create_send_mad(agent, 0, 0, 0, IB_MGMT_MAD_HDR,
-				      IB_MGMT_MAD_DATA, GFP_ATOMIC);
+				      IB_MGMT_MAD_DATA, GFP_ATOMIC,
+				      IB_MGMT_BASE_VERSION);
 	if (IS_ERR(send_buf))
 		goto retry;
 
@@ -6429,6 +6430,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	unsigned features, pidx, sbufcnt;
 	int ret, mtu;
 	u32 sbufs, updthresh;
+	resource_size_t vl15off;
 
 	/* pport structs are contiguous, allocated after devdata */
 	ppd = (struct qib_pportdata *)(dd + 1);
@@ -6677,29 +6679,27 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	qib_7322_config_ctxts(dd);
 	qib_set_ctxtcnt(dd);
 
-	if (qib_wc_pat) {
-		resource_size_t vl15off;
-		/*
-		 * We do not set WC on the VL15 buffers to avoid
-		 * a rare problem with unaligned writes from
-		 * interrupt-flushed store buffers, so we need
-		 * to map those separately here.  We can't solve
-		 * this for the rarely used mtrr case.
-		 */
-		ret = init_chip_wc_pat(dd, 0);
-		if (ret)
-			goto bail;
+	/*
+	 * We do not set WC on the VL15 buffers to avoid
+	 * a rare problem with unaligned writes from
+	 * interrupt-flushed store buffers, so we need
+	 * to map those separately here.  We can't solve
+	 * this for the rarely used mtrr case.
+	 */
+	ret = init_chip_wc_pat(dd, 0);
+	if (ret)
+		goto bail;
 
-		/* vl15 buffers start just after the 4k buffers */
-		vl15off = dd->physaddr + (dd->piobufbase >> 32) +
-			dd->piobcnt4k * dd->align4k;
-		dd->piovl15base	= ioremap_nocache(vl15off,
-						  NUM_VL15_BUFS * dd->align4k);
-		if (!dd->piovl15base) {
-			ret = -ENOMEM;
-			goto bail;
-		}
+	/* vl15 buffers start just after the 4k buffers */
+	vl15off = dd->physaddr + (dd->piobufbase >> 32) +
+		  dd->piobcnt4k * dd->align4k;
+	dd->piovl15base	= ioremap_nocache(vl15off,
+					  NUM_VL15_BUFS * dd->align4k);
+	if (!dd->piovl15base) {
+		ret = -ENOMEM;
+		goto bail;
 	}
+
 	qib_7322_set_baseaddrs(dd); /* set chip access pointers now */
 
 	ret = 0;

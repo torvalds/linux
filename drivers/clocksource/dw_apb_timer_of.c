@@ -108,7 +108,7 @@ static void __init add_clocksource(struct device_node *source_timer)
 
 static u64 notrace read_sched_clock(void)
 {
-	return ~__raw_readl(sched_io_base);
+	return ~readl_relaxed(sched_io_base);
 }
 
 static const struct of_device_id sptimer_ids[] __initconst = {

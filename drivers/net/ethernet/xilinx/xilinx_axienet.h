@@ -11,16 +11,16 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/if_vlan.h>
 
 /* Packet size info */
 #define XAE_HDR_SIZE			14 /* Size of Ethernet header */
-#define XAE_HDR_VLAN_SIZE		18 /* Size of an Ethernet hdr + VLAN */
 #define XAE_TRL_SIZE			 4 /* Size of Ethernet trailer (FCS) */
 #define XAE_MTU			      1500 /* Max MTU of an Ethernet frame */
 #define XAE_JUMBO_MTU		      9000 /* Max MTU of a jumbo Eth. frame */
 
 #define XAE_MAX_FRAME_SIZE	 (XAE_MTU + XAE_HDR_SIZE + XAE_TRL_SIZE)
-#define XAE_MAX_VLAN_FRAME_SIZE  (XAE_MTU + XAE_HDR_VLAN_SIZE + XAE_TRL_SIZE)
+#define XAE_MAX_VLAN_FRAME_SIZE  (XAE_MTU + VLAN_ETH_HLEN + XAE_TRL_SIZE)
 #define XAE_MAX_JUMBO_FRAME_SIZE (XAE_JUMBO_MTU + XAE_HDR_SIZE + XAE_TRL_SIZE)
 
 /* Configuration options */
@@ -38,18 +38,21 @@
 #define XAE_OPTION_FLOW_CONTROL			(1 << 4)
 
 /* Strip FCS and PAD from incoming frames. Note: PAD from VLAN frames is not
- * stripped. Default: disabled (set) */
+ * stripped. Default: disabled (set)
+ */
 #define XAE_OPTION_FCS_STRIP			(1 << 5)
 
 /* Generate FCS field and add PAD automatically for outgoing frames.
- * Default: enabled (set) */
+ * Default: enabled (set)
+ */
 #define XAE_OPTION_FCS_INSERT			(1 << 6)
 
 /* Enable Length/Type error checking for incoming frames. When this option is
  * set, the MAC will filter frames that have a mismatched type/length field
  * and if XAE_OPTION_REPORT_RXERR is set, the user is notified when these
  * types of frames are encountered. When this option is cleared, the MAC will
- * allow these types of frames to be received. Default: enabled (set) */
+ * allow these types of frames to be received. Default: enabled (set)
+ */
 #define XAE_OPTION_LENTYPE_ERR			(1 << 7)
 
 /* Enable the transmitter. Default: enabled (set) */
@@ -159,12 +162,12 @@
 #define XAE_MDIO_MWD_OFFSET	0x00000508 /* MII Management Write Data */
 #define XAE_MDIO_MRD_OFFSET	0x0000050C /* MII Management Read Data */
 #define XAE_MDIO_MIS_OFFSET	0x00000600 /* MII Management Interrupt Status */
-#define XAE_MDIO_MIP_OFFSET	0x00000620 /* MII Mgmt Interrupt Pending
-					    * register offset */
-#define XAE_MDIO_MIE_OFFSET	0x00000640 /* MII Management Interrupt Enable
-					    * register offset */
-#define XAE_MDIO_MIC_OFFSET	0x00000660 /* MII Management Interrupt Clear
-					    * register offset. */
+/* MII Mgmt Interrupt Pending register offset */
+#define XAE_MDIO_MIP_OFFSET	0x00000620
+/* MII Management Interrupt Enable register offset */
+#define XAE_MDIO_MIE_OFFSET	0x00000640
+/* MII Management Interrupt Clear register offset. */
+#define XAE_MDIO_MIC_OFFSET	0x00000660
 #define XAE_UAW0_OFFSET		0x00000700 /* Unicast address word 0 */
 #define XAE_UAW1_OFFSET		0x00000704 /* Unicast address word 1 */
 #define XAE_FMI_OFFSET		0x00000708 /* Filter Mask Index */
@@ -176,18 +179,17 @@
 #define XAE_MCAST_TABLE_OFFSET	0x00020000 /* Multicast table address */
 
 /* Bit Masks for Axi Ethernet RAF register */
-#define XAE_RAF_MCSTREJ_MASK		0x00000002 /* Reject receive multicast
-						    * destination address */
-#define XAE_RAF_BCSTREJ_MASK		0x00000004 /* Reject receive broadcast
-						    * destination address */
+/* Reject receive multicast destination address */
+#define XAE_RAF_MCSTREJ_MASK		0x00000002
+/* Reject receive broadcast destination address */
+#define XAE_RAF_BCSTREJ_MASK		0x00000004
 #define XAE_RAF_TXVTAGMODE_MASK		0x00000018 /* Tx VLAN TAG mode */
 #define XAE_RAF_RXVTAGMODE_MASK		0x00000060 /* Rx VLAN TAG mode */
 #define XAE_RAF_TXVSTRPMODE_MASK	0x00000180 /* Tx VLAN STRIP mode */
 #define XAE_RAF_RXVSTRPMODE_MASK	0x00000600 /* Rx VLAN STRIP mode */
 #define XAE_RAF_NEWFNCENBL_MASK		0x00000800 /* New function mode */
-#define XAE_RAF_EMULTIFLTRENBL_MASK	0x00001000 /* Exteneded Multicast
-						    * Filtering mode
-						    */
+/* Exteneded Multicast Filtering mode */
+#define XAE_RAF_EMULTIFLTRENBL_MASK	0x00001000
 #define XAE_RAF_STATSRST_MASK		0x00002000 /* Stats. Counter Reset */
 #define XAE_RAF_RXBADFRMEN_MASK		0x00004000 /* Recv Bad Frame Enable */
 #define XAE_RAF_TXVTAGMODE_SHIFT	3 /* Tx Tag mode shift bits */
@@ -197,15 +199,16 @@
 
 /* Bit Masks for Axi Ethernet TPF and IFGP registers */
 #define XAE_TPF_TPFV_MASK		0x0000FFFF /* Tx pause frame value */
-#define XAE_IFGP0_IFGP_MASK		0x0000007F /* Transmit inter-frame
-						    * gap adjustment value */
+/* Transmit inter-frame gap adjustment value */
+#define XAE_IFGP0_IFGP_MASK		0x0000007F
 
 /* Bit Masks for Axi Ethernet IS, IE and IP registers, Same masks apply
- * for all 3 registers. */
-#define XAE_INT_HARDACSCMPLT_MASK	0x00000001 /* Hard register access
-						    * complete */
-#define XAE_INT_AUTONEG_MASK		0x00000002 /* Auto negotiation
-						    * complete */
+ * for all 3 registers.
+ */
+/* Hard register access complete */
+#define XAE_INT_HARDACSCMPLT_MASK	0x00000001
+/* Auto negotiation complete */
+#define XAE_INT_AUTONEG_MASK		0x00000002
 #define XAE_INT_RXCMPIT_MASK		0x00000004 /* Rx complete */
 #define XAE_INT_RXRJECT_MASK		0x00000008 /* Rx frame rejected */
 #define XAE_INT_RXFIFOOVR_MASK		0x00000010 /* Rx fifo overrun */
@@ -215,10 +218,9 @@
 #define XAE_INT_PHYRSTCMPLT_MASK	0x00000100 /* Phy Reset complete */
 #define XAE_INT_ALL_MASK		0x0000003F /* All the ints */
 
+/* INT bits that indicate receive errors */
 #define XAE_INT_RECV_ERROR_MASK				\
-	(XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK) /* INT bits that
-							 * indicate receive
-							 * errors */
+	(XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK)
 
 /* Bit masks for Axi Ethernet VLAN TPID Word 0 register */
 #define XAE_TPID_0_MASK		0x0000FFFF /* TPID 0 */
@@ -231,27 +233,28 @@
 /* Bit masks for Axi Ethernet RCW1 register */
 #define XAE_RCW1_RST_MASK	0x80000000 /* Reset */
 #define XAE_RCW1_JUM_MASK	0x40000000 /* Jumbo frame enable */
-#define XAE_RCW1_FCS_MASK	0x20000000 /* In-Band FCS enable
-					    * (FCS not stripped) */
+/* In-Band FCS enable (FCS not stripped) */
+#define XAE_RCW1_FCS_MASK	0x20000000
 #define XAE_RCW1_RX_MASK	0x10000000 /* Receiver enable */
 #define XAE_RCW1_VLAN_MASK	0x08000000 /* VLAN frame enable */
-#define XAE_RCW1_LT_DIS_MASK	0x02000000 /* Length/type field valid check
-					    * disable */
-#define XAE_RCW1_CL_DIS_MASK	0x01000000 /* Control frame Length check
-					    * disable */
-#define XAE_RCW1_PAUSEADDR_MASK 0x0000FFFF /* Pause frame source address
-					    * bits [47:32]. Bits [31:0] are
-					    * stored in register RCW0 */
+/* Length/type field valid check disable */
+#define XAE_RCW1_LT_DIS_MASK	0x02000000
+/* Control frame Length check disable */
+#define XAE_RCW1_CL_DIS_MASK	0x01000000
+/* Pause frame source address bits [47:32]. Bits [31:0] are
+ * stored in register RCW0
+ */
+#define XAE_RCW1_PAUSEADDR_MASK 0x0000FFFF
 
 /* Bit masks for Axi Ethernet TC register */
 #define XAE_TC_RST_MASK		0x80000000 /* Reset */
 #define XAE_TC_JUM_MASK		0x40000000 /* Jumbo frame enable */
-#define XAE_TC_FCS_MASK		0x20000000 /* In-Band FCS enable
-					    * (FCS not generated) */
+/* In-Band FCS enable (FCS not generated) */
+#define XAE_TC_FCS_MASK		0x20000000
 #define XAE_TC_TX_MASK		0x10000000 /* Transmitter enable */
 #define XAE_TC_VLAN_MASK	0x08000000 /* VLAN frame enable */
-#define XAE_TC_IFG_MASK		0x02000000 /* Inter-frame gap adjustment
-					    * enable */
+/* Inter-frame gap adjustment enable */
+#define XAE_TC_IFG_MASK		0x02000000
 
 /* Bit masks for Axi Ethernet FCC register */
 #define XAE_FCC_FCRX_MASK	0x20000000 /* Rx flow control enable */
@@ -301,10 +304,10 @@
 #define XAE_MDIO_INT_MIIM_RDY_MASK	0x00000001 /* MIIM Interrupt */
 
 /* Bit masks for Axi Ethernet UAW1 register */
-#define XAE_UAW1_UNICASTADDR_MASK	0x0000FFFF /* Station address bits
-						    * [47:32]; Station address
-						    * bits [31:0] are stored in
-						    * register UAW0 */
+/* Station address bits [47:32]; Station address
+ * bits [31:0] are stored in register UAW0
+ */
+#define XAE_UAW1_UNICASTADDR_MASK	0x0000FFFF
 
 /* Bit masks for Axi Ethernet FMI register */
 #define XAE_FMI_PM_MASK			0x80000000 /* Promis. mode enable */
@@ -320,8 +323,8 @@
 #define XAE_PHY_TYPE_SGMII		4
 #define XAE_PHY_TYPE_1000BASE_X		5
 
-#define XAE_MULTICAST_CAM_TABLE_NUM	4 /* Total number of entries in the
-					   * hardware multicast table. */
+ /* Total number of entries in the hardware multicast table. */
+#define XAE_MULTICAST_CAM_TABLE_NUM	4
 
 /* Axi Ethernet Synthesis features */
 #define XAE_FEATURE_PARTIAL_RX_CSUM	(1 << 0)
@@ -407,8 +410,11 @@ struct axidma_bd {
  *		  Txed/Rxed in the existing hardware. If jumbo option is
  *		  supported, the maximum frame size would be 9k. Else it is
  *		  1522 bytes (assuming support for basic VLAN)
- * @jumbo_support: Stores hardware configuration for jumbo support. If hardware
- *		   can handle jumbo packets, this entry will be 1, else 0.
+ * @rxmem:	Stores rx memory size for jumbo frame handling.
+ * @csum_offload_on_tx_path:	Stores the checksum selection on TX side.
+ * @csum_offload_on_rx_path:	Stores the checksum selection on RX side.
+ * @coalesce_count_rx:	Store the irq coalesce on RX side.
+ * @coalesce_count_tx:	Store the irq coalesce on TX side.
  */
 struct axienet_local {
 	struct net_device *ndev;
@@ -446,7 +452,7 @@ struct axienet_local {
 	u32 rx_bd_ci;
 
 	u32 max_frm_size;
-	u32 jumbo_support;
+	u32 rxmem;
 
 	int csum_offload_on_tx_path;
 	int csum_offload_on_rx_path;
@@ -472,7 +478,7 @@ struct axienet_option {
  * @lp:         Pointer to axienet local structure
  * @offset:     Address offset from the base address of Axi Ethernet core
  *
- * returns: The contents of the Axi Ethernet register
+ * Return: The contents of the Axi Ethernet register
  *
  * This function returns the contents of the corresponding register.
  */

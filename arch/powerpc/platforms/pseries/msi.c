@@ -18,6 +18,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
 
+#include "pseries.h"
+
 static int query_token, change_token;
 
 #define RTAS_QUERY_FN		0
@@ -195,6 +197,7 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 {
 	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
@@ -204,10 +207,11 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 		return NULL;
 
 	/* Get the top level device in the PE */
-	edev = of_node_to_eeh_dev(dn);
+	edev = pdn_to_eeh_dev(PCI_DN(dn));
 	if (edev->pe)
 		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev, list);
-	dn = eeh_dev_to_of_node(edev);
+	pdn = eeh_dev_to_pdn(edev);
+	dn = pdn ? pdn->node : NULL;
 	if (!dn)
 		return NULL;
 
@@ -503,6 +507,8 @@ static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 
 static int rtas_msi_init(void)
 {
+	struct pci_controller *phb;
+
 	query_token  = rtas_token("ibm,query-interrupt-source-number");
 	change_token = rtas_token("ibm,change-msi");
 
@@ -514,9 +520,15 @@ static int rtas_msi_init(void)
 
 	pr_debug("rtas_msi: Registering RTAS MSI callbacks.\n");
 
-	WARN_ON(ppc_md.setup_msi_irqs);
-	ppc_md.setup_msi_irqs = rtas_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = rtas_teardown_msi_irqs;
+	WARN_ON(pseries_pci_controller_ops.setup_msi_irqs);
+	pseries_pci_controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;
+	pseries_pci_controller_ops.teardown_msi_irqs = rtas_teardown_msi_irqs;
+
+	list_for_each_entry(phb, &hose_list, list_node) {
+		WARN_ON(phb->controller_ops.setup_msi_irqs);
+		phb->controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;
+		phb->controller_ops.teardown_msi_irqs = rtas_teardown_msi_irqs;
+	}
 
 	WARN_ON(ppc_md.pci_irq_fixup);
 	ppc_md.pci_irq_fixup = rtas_msi_pci_irq_fixup;

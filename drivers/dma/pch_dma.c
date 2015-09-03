@@ -949,6 +949,7 @@ err_free_res:
 err_disable_pdev:
 	pci_disable_device(pdev);
 err_free_mem:
+	kfree(pd);
 	return err;
 }
 

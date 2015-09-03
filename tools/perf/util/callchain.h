@@ -11,6 +11,7 @@ enum perf_call_graph_mode {
 	CALLCHAIN_NONE,
 	CALLCHAIN_FP,
 	CALLCHAIN_DWARF,
+	CALLCHAIN_LBR,
 	CALLCHAIN_MAX
 };
 
@@ -71,6 +72,10 @@ extern struct callchain_param callchain_param;
 struct callchain_list {
 	u64			ip;
 	struct map_symbol	ms;
+	struct /* for TUI */ {
+		bool		unfolded;
+		bool		has_children;
+	};
 	char		       *srcline;
 	struct list_head	list;
 };

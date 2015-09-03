@@ -7,18 +7,20 @@ Optional properties:
 - regulator-microvolt-offset: Offset applied to voltages to compensate for voltage drops
 - regulator-min-microamp: smallest current consumers may set
 - regulator-max-microamp: largest current consumers may set
+- regulator-input-current-limit-microamp: maximum input current regulator allows
 - regulator-always-on: boolean, regulator should never be disabled
 - regulator-boot-on: bootloader/firmware enabled regulator
 - regulator-allow-bypass: allow the regulator to go into bypass mode
 - <name>-supply: phandle to the parent supply/regulator node
 - regulator-ramp-delay: ramp delay for regulator(in uV/uS)
   For hardware which supports disabling ramp rate, it should be explicitly
-  intialised to zero (regulator-ramp-delay = <0>) for disabling ramp delay.
+  initialised to zero (regulator-ramp-delay = <0>) for disabling ramp delay.
 - regulator-enable-ramp-delay: The time taken, in microseconds, for the supply
   rail to reach the target voltage, plus/minus whatever tolerance the board
   design requires. This property describes the total system ramp time
   required due to the combination of internal ramping of the regulator itself,
   and board design issues such as trace capacitance and load on the supply.
+- regulator-soft-start: Enable soft start so that voltage ramps slowly
 - regulator-state-mem sub-root node for Suspend-to-RAM mode
   : suspend to memory, the device goes to sleep, but all data stored in memory,
   only some external interrupt can wake the device.
@@ -37,6 +39,9 @@ Optional properties:
 - regulator-initial-mode: initial operating mode. The set of possible operating
   modes depends on the capabilities of every hardware so each device binding
   documentation explains which values the regulator supports.
+- regulator-system-load: Load in uA present on regulator that is not captured by
+  any consumer request.
+- regulator-pull-down: Enable pull down resistor when the regulator is disabled.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple

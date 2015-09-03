@@ -1,6 +1,14 @@
 /* Nehalem/SandBridge/Haswell uncore support */
 #include "perf_event_intel_uncore.h"
 
+/* Uncore IMC PCI IDs */
+#define PCI_DEVICE_ID_INTEL_SNB_IMC	0x0100
+#define PCI_DEVICE_ID_INTEL_IVB_IMC	0x0154
+#define PCI_DEVICE_ID_INTEL_IVB_E3_IMC	0x0150
+#define PCI_DEVICE_ID_INTEL_HSW_IMC	0x0c00
+#define PCI_DEVICE_ID_INTEL_HSW_U_IMC	0x0a04
+#define PCI_DEVICE_ID_INTEL_BDW_IMC	0x1604
+
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
 #define SNB_UNC_CTL_UMASK_MASK			0x0000ff00
@@ -472,6 +480,18 @@ static const struct pci_device_id hsw_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HSW_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HSW_U_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* end: all zeroes */ },
+};
+
+static const struct pci_device_id bdw_uncore_pci_ids[] = {
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BDW_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
 	{ /* end: all zeroes */ },
 };
 
@@ -490,6 +510,11 @@ static struct pci_driver hsw_uncore_pci_driver = {
 	.id_table	= hsw_uncore_pci_ids,
 };
 
+static struct pci_driver bdw_uncore_pci_driver = {
+	.name		= "bdw_uncore",
+	.id_table	= bdw_uncore_pci_ids,
+};
+
 struct imc_uncore_pci_dev {
 	__u32 pci_id;
 	struct pci_driver *driver;
@@ -502,6 +527,8 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(IVB_IMC, &ivb_uncore_pci_driver),    /* 3rd Gen Core processor */
 	IMC_DEV(IVB_E3_IMC, &ivb_uncore_pci_driver), /* Xeon E3-1200 v2/3rd Gen Core processor */
 	IMC_DEV(HSW_IMC, &hsw_uncore_pci_driver),    /* 4th Gen Core Processor */
+	IMC_DEV(HSW_U_IMC, &hsw_uncore_pci_driver),  /* 4th Gen Core ULT Mobile Processor */
+	IMC_DEV(BDW_IMC, &bdw_uncore_pci_driver),    /* 5th Gen Core U */
 	{  /* end marker */ }
 };
 
@@ -545,6 +572,11 @@ int ivb_uncore_pci_init(void)
 	return imc_uncore_pci_init();
 }
 int hsw_uncore_pci_init(void)
+{
+	return imc_uncore_pci_init();
+}
+
+int bdw_uncore_pci_init(void)
 {
 	return imc_uncore_pci_init();
 }

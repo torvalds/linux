@@ -350,7 +350,7 @@ V.  Recent Changes
     incorrectly defined and corrected (as per Michel Mueller).
 
 02/23/1999 EPK Corrected the Tx full check to check that at least 4 slots
-    were available before reseting the tbusy and tx_full flags
+    were available before resetting the tbusy and tx_full flags
     (as per Michel Mueller).
 
 03/11/1999 EPK Added Pete Wyckoff's hardware checksumming support.

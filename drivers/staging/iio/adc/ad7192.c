@@ -41,32 +41,32 @@
 				   * (RW, 16-bit (AD7792)/24-bit (AD7192)) */
 
 /* Communications Register Bit Designations (AD7192_REG_COMM) */
-#define AD7192_COMM_WEN		(1 << 7) /* Write Enable */
-#define AD7192_COMM_WRITE	(0 << 6) /* Write Operation */
-#define AD7192_COMM_READ	(1 << 6) /* Read Operation */
+#define AD7192_COMM_WEN		BIT(7) /* Write Enable */
+#define AD7192_COMM_WRITE	0 /* Write Operation */
+#define AD7192_COMM_READ	BIT(6) /* Read Operation */
 #define AD7192_COMM_ADDR(x)	(((x) & 0x7) << 3) /* Register Address */
-#define AD7192_COMM_CREAD	(1 << 2) /* Continuous Read of Data Register */
+#define AD7192_COMM_CREAD	BIT(2) /* Continuous Read of Data Register */
 
 /* Status Register Bit Designations (AD7192_REG_STAT) */
-#define AD7192_STAT_RDY		(1 << 7) /* Ready */
-#define AD7192_STAT_ERR		(1 << 6) /* Error (Overrange, Underrange) */
-#define AD7192_STAT_NOREF	(1 << 5) /* Error no external reference */
-#define AD7192_STAT_PARITY	(1 << 4) /* Parity */
-#define AD7192_STAT_CH3		(1 << 2) /* Channel 3 */
-#define AD7192_STAT_CH2		(1 << 1) /* Channel 2 */
-#define AD7192_STAT_CH1		(1 << 0) /* Channel 1 */
+#define AD7192_STAT_RDY		BIT(7) /* Ready */
+#define AD7192_STAT_ERR		BIT(6) /* Error (Overrange, Underrange) */
+#define AD7192_STAT_NOREF	BIT(5) /* Error no external reference */
+#define AD7192_STAT_PARITY	BIT(4) /* Parity */
+#define AD7192_STAT_CH3		BIT(2) /* Channel 3 */
+#define AD7192_STAT_CH2		BIT(1) /* Channel 2 */
+#define AD7192_STAT_CH1		BIT(0) /* Channel 1 */
 
 /* Mode Register Bit Designations (AD7192_REG_MODE) */
 #define AD7192_MODE_SEL(x)	(((x) & 0x7) << 21) /* Operation Mode Select */
 #define AD7192_MODE_SEL_MASK	(0x7 << 21) /* Operation Mode Select Mask */
-#define AD7192_MODE_DAT_STA	(1 << 20) /* Status Register transmission */
+#define AD7192_MODE_DAT_STA	BIT(20) /* Status Register transmission */
 #define AD7192_MODE_CLKSRC(x)	(((x) & 0x3) << 18) /* Clock Source Select */
-#define AD7192_MODE_SINC3	(1 << 15) /* SINC3 Filter Select */
-#define AD7192_MODE_ACX		(1 << 14) /* AC excitation enable(AD7195 only)*/
-#define AD7192_MODE_ENPAR	(1 << 13) /* Parity Enable */
-#define AD7192_MODE_CLKDIV	(1 << 12) /* Clock divide by 2 (AD7190/2 only)*/
-#define AD7192_MODE_SCYCLE	(1 << 11) /* Single cycle conversion */
-#define AD7192_MODE_REJ60	(1 << 10) /* 50/60Hz notch filter */
+#define AD7192_MODE_SINC3	BIT(15) /* SINC3 Filter Select */
+#define AD7192_MODE_ACX		BIT(14) /* AC excitation enable(AD7195 only)*/
+#define AD7192_MODE_ENPAR	BIT(13) /* Parity Enable */
+#define AD7192_MODE_CLKDIV	BIT(12) /* Clock divide by 2 (AD7190/2 only)*/
+#define AD7192_MODE_SCYCLE	BIT(11) /* Single cycle conversion */
+#define AD7192_MODE_REJ60	BIT(10) /* 50/60Hz notch filter */
 #define AD7192_MODE_RATE(x)	((x) & 0x3FF) /* Filter Update Rate Select */
 
 /* Mode Register: AD7192_MODE_SEL options */
@@ -91,14 +91,14 @@
 
 /* Configuration Register Bit Designations (AD7192_REG_CONF) */
 
-#define AD7192_CONF_CHOP	(1 << 23) /* CHOP enable */
-#define AD7192_CONF_REFSEL	(1 << 20) /* REFIN1/REFIN2 Reference Select */
+#define AD7192_CONF_CHOP	BIT(23) /* CHOP enable */
+#define AD7192_CONF_REFSEL	BIT(20) /* REFIN1/REFIN2 Reference Select */
 #define AD7192_CONF_CHAN(x)	(((1 << (x)) & 0xFF) << 8) /* Channel select */
 #define AD7192_CONF_CHAN_MASK	(0xFF << 8) /* Channel select mask */
-#define AD7192_CONF_BURN	(1 << 7) /* Burnout current enable */
-#define AD7192_CONF_REFDET	(1 << 6) /* Reference detect enable */
-#define AD7192_CONF_BUF		(1 << 4) /* Buffered Mode Enable */
-#define AD7192_CONF_UNIPOLAR	(1 << 3) /* Unipolar/Bipolar Enable */
+#define AD7192_CONF_BURN	BIT(7) /* Burnout current enable */
+#define AD7192_CONF_REFDET	BIT(6) /* Reference detect enable */
+#define AD7192_CONF_BUF		BIT(4) /* Buffered Mode Enable */
+#define AD7192_CONF_UNIPOLAR	BIT(3) /* Unipolar/Bipolar Enable */
 #define AD7192_CONF_GAIN(x)	((x) & 0x7) /* Gain Select */
 
 #define AD7192_CH_AIN1P_AIN2M	0 /* AIN1(+) - AIN2(-) */
@@ -117,13 +117,13 @@
 #define AD7192_ID_MASK		0x0F
 
 /* GPOCON Register Bit Designations (AD7192_REG_GPOCON) */
-#define AD7192_GPOCON_BPDSW	(1 << 6) /* Bridge power-down switch enable */
-#define AD7192_GPOCON_GP32EN	(1 << 5) /* Digital Output P3 and P2 enable */
-#define AD7192_GPOCON_GP10EN	(1 << 4) /* Digital Output P1 and P0 enable */
-#define AD7192_GPOCON_P3DAT	(1 << 3) /* P3 state */
-#define AD7192_GPOCON_P2DAT	(1 << 2) /* P2 state */
-#define AD7192_GPOCON_P1DAT	(1 << 1) /* P1 state */
-#define AD7192_GPOCON_P0DAT	(1 << 0) /* P0 state */
+#define AD7192_GPOCON_BPDSW	BIT(6) /* Bridge power-down switch enable */
+#define AD7192_GPOCON_GP32EN	BIT(5) /* Digital Output P3 and P2 enable */
+#define AD7192_GPOCON_GP10EN	BIT(4) /* Digital Output P1 and P0 enable */
+#define AD7192_GPOCON_P3DAT	BIT(3) /* P3 state */
+#define AD7192_GPOCON_P2DAT	BIT(2) /* P2 state */
+#define AD7192_GPOCON_P1DAT	BIT(1) /* P1 state */
+#define AD7192_GPOCON_P0DAT	BIT(0) /* P0 state */
 
 #define AD7192_INT_FREQ_MHz	4915200
 

@@ -16,8 +16,12 @@
 struct tcf_bpf {
 	struct tcf_common	common;
 	struct bpf_prog		*filter;
+	union {
+		u32		bpf_fd;
+		u16		bpf_num_ops;
+	};
 	struct sock_filter	*bpf_ops;
-	u16			bpf_num_ops;
+	const char		*bpf_name;
 };
 #define to_bpf(a) \
 	container_of(a->priv, struct tcf_bpf, common)

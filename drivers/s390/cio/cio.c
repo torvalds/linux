@@ -143,13 +143,11 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	orb->cmd.spnd = priv->options.suspend;
 	orb->cmd.ssic = priv->options.suspend && priv->options.inter;
 	orb->cmd.lpm = (lpm != 0) ? lpm : sch->lpm;
-#ifdef CONFIG_64BIT
 	/*
 	 * for 64 bit we always support 64 bit IDAWs with 4k page size only
 	 */
 	orb->cmd.c64 = 1;
 	orb->cmd.i2k = 0;
-#endif
 	orb->cmd.key = key >> 4;
 	/* issue "Start Subchannel" */
 	orb->cmd.cpa = (__u32) __pa(cpa);

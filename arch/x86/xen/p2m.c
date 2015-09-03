@@ -67,6 +67,7 @@
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/cache.h>
 #include <asm/setup.h>

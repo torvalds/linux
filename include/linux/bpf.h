@@ -32,23 +32,19 @@ struct bpf_map {
 	u32 key_size;
 	u32 value_size;
 	u32 max_entries;
-	struct bpf_map_ops *ops;
+	const struct bpf_map_ops *ops;
 	struct work_struct work;
 };
 
 struct bpf_map_type_list {
 	struct list_head list_node;
-	struct bpf_map_ops *ops;
+	const struct bpf_map_ops *ops;
 	enum bpf_map_type type;
 };
 
-void bpf_register_map_type(struct bpf_map_type_list *tl);
-void bpf_map_put(struct bpf_map *map);
-struct bpf_map *bpf_map_get(struct fd f);
-
 /* function argument constraints */
 enum bpf_arg_type {
-	ARG_ANYTHING = 0,	/* any argument is ok */
+	ARG_DONTCARE = 0,	/* unused argument in helper function */
 
 	/* the following constraints used to prototype
 	 * bpf_map_lookup/update/delete_elem() functions
@@ -62,6 +58,9 @@ enum bpf_arg_type {
 	 */
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
+
+	ARG_PTR_TO_CTX,		/* pointer to context */
+	ARG_ANYTHING,		/* any (initialized) argument is ok */
 };
 
 /* type of values returned from helper functions */
@@ -105,41 +104,93 @@ struct bpf_verifier_ops {
 	 * with 'type' (read or write) is allowed
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type);
+
+	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
+				  int src_reg, int ctx_off,
+				  struct bpf_insn *insn);
 };
 
 struct bpf_prog_type_list {
 	struct list_head list_node;
-	struct bpf_verifier_ops *ops;
+	const struct bpf_verifier_ops *ops;
 	enum bpf_prog_type type;
 };
-
-void bpf_register_prog_type(struct bpf_prog_type_list *tl);
 
 struct bpf_prog;
 
 struct bpf_prog_aux {
 	atomic_t refcnt;
-	bool is_gpl_compatible;
-	enum bpf_prog_type prog_type;
-	struct bpf_verifier_ops *ops;
-	struct bpf_map **used_maps;
 	u32 used_map_cnt;
+	const struct bpf_verifier_ops *ops;
+	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
-	struct work_struct work;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 };
 
+struct bpf_array {
+	struct bpf_map map;
+	u32 elem_size;
+	/* 'ownership' of prog_array is claimed by the first program that
+	 * is going to use this map or by the first program which FD is stored
+	 * in the map to make sure that all callers and callees have the same
+	 * prog_type and JITed flag
+	 */
+	enum bpf_prog_type owner_prog_type;
+	bool owner_jited;
+	union {
+		char value[0] __aligned(8);
+		struct bpf_prog *prog[0] __aligned(8);
+	};
+};
+#define MAX_TAIL_CALL_CNT 32
+
+u64 bpf_tail_call(u64 ctx, u64 r2, u64 index, u64 r4, u64 r5);
+void bpf_prog_array_map_clear(struct bpf_map *map);
+bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *fp);
+const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
+
 #ifdef CONFIG_BPF_SYSCALL
-void bpf_prog_put(struct bpf_prog *prog);
-#else
-static inline void bpf_prog_put(struct bpf_prog *prog) {}
-#endif
+void bpf_register_prog_type(struct bpf_prog_type_list *tl);
+void bpf_register_map_type(struct bpf_map_type_list *tl);
+
 struct bpf_prog *bpf_prog_get(u32 ufd);
+void bpf_prog_put(struct bpf_prog *prog);
+void bpf_prog_put_rcu(struct bpf_prog *prog);
+
+struct bpf_map *bpf_map_get(struct fd f);
+void bpf_map_put(struct bpf_map *map);
+
 /* verify correctness of eBPF program */
-int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
+int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
+#else
+static inline void bpf_register_prog_type(struct bpf_prog_type_list *tl)
+{
+}
+
+static inline struct bpf_prog *bpf_prog_get(u32 ufd)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void bpf_prog_put(struct bpf_prog *prog)
+{
+}
+#endif /* CONFIG_BPF_SYSCALL */
 
 /* verifier prototypes for helper functions called from eBPF programs */
-extern struct bpf_func_proto bpf_map_lookup_elem_proto;
-extern struct bpf_func_proto bpf_map_update_elem_proto;
-extern struct bpf_func_proto bpf_map_delete_elem_proto;
+extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
+extern const struct bpf_func_proto bpf_map_update_elem_proto;
+extern const struct bpf_func_proto bpf_map_delete_elem_proto;
+
+extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
+extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
+extern const struct bpf_func_proto bpf_tail_call_proto;
+extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
+extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
+extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
+extern const struct bpf_func_proto bpf_get_current_comm_proto;
 
 #endif /* _LINUX_BPF_H */

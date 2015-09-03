@@ -7,9 +7,7 @@ config NET_VENDOR_FUJITSU
 	default y
 	depends on PCMCIA
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  the questions about Fujitsu cards. If you say Y, you will be asked for

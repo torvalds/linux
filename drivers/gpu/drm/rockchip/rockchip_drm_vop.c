@@ -19,6 +19,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -81,7 +82,7 @@ struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
 	struct drm_device *drm_dev;
-	unsigned int dpms;
+	bool is_enabled;
 
 	int connector_type;
 	int connector_out_mode;
@@ -89,6 +90,7 @@ struct vop {
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
+	struct completion dsp_hold_completion;
 
 	const struct vop_data *data;
 
@@ -168,6 +170,7 @@ struct vop_win_phy {
 
 	struct vop_reg enable;
 	struct vop_reg format;
+	struct vop_reg rb_swap;
 	struct vop_reg act_info;
 	struct vop_reg dsp_info;
 	struct vop_reg dsp_st;
@@ -197,8 +200,12 @@ struct vop_data {
 static const uint32_t formats_01[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_NV16,
 	DRM_FORMAT_NV24,
@@ -207,8 +214,12 @@ static const uint32_t formats_01[] = {
 static const uint32_t formats_234[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
 };
 
 static const struct vop_win_phy win01_data = {
@@ -216,6 +227,7 @@ static const struct vop_win_phy win01_data = {
 	.nformats = ARRAY_SIZE(formats_01),
 	.enable = VOP_REG(WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(WIN0_CTRL0, 0x7, 1),
+	.rb_swap = VOP_REG(WIN0_CTRL0, 0x1, 12),
 	.act_info = VOP_REG(WIN0_ACT_INFO, 0x1fff1fff, 0),
 	.dsp_info = VOP_REG(WIN0_DSP_INFO, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(WIN0_DSP_ST, 0x1fff1fff, 0),
@@ -232,21 +244,13 @@ static const struct vop_win_phy win23_data = {
 	.nformats = ARRAY_SIZE(formats_234),
 	.enable = VOP_REG(WIN2_CTRL0, 0x1, 0),
 	.format = VOP_REG(WIN2_CTRL0, 0x7, 1),
+	.rb_swap = VOP_REG(WIN2_CTRL0, 0x1, 12),
 	.dsp_info = VOP_REG(WIN2_DSP_INFO0, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(WIN2_DSP_ST0, 0x1fff1fff, 0),
 	.yrgb_mst = VOP_REG(WIN2_MST0, 0xffffffff, 0),
 	.yrgb_vir = VOP_REG(WIN2_VIR0_1, 0x1fff, 0),
 	.src_alpha_ctl = VOP_REG(WIN2_SRC_ALPHA_CTRL, 0xff, 0),
 	.dst_alpha_ctl = VOP_REG(WIN2_DST_ALPHA_CTRL, 0xff, 0),
-};
-
-static const struct vop_win_phy cursor_data = {
-	.data_formats = formats_234,
-	.nformats = ARRAY_SIZE(formats_234),
-	.enable = VOP_REG(HWC_CTRL0, 0x1, 0),
-	.format = VOP_REG(HWC_CTRL0, 0x7, 1),
-	.dsp_st = VOP_REG(HWC_DSP_ST, 0x1fff1fff, 0),
-	.yrgb_mst = VOP_REG(HWC_MST, 0xffffffff, 0),
 };
 
 static const struct vop_ctrl ctrl_data = {
@@ -280,14 +284,14 @@ static const struct vop_reg_data vop_init_reg_table[] = {
 /*
  * Note: rk3288 has a dedicated 'cursor' window, however, that window requires
  * special support to get alpha blending working.  For now, just use overlay
- * window 1 for the drm cursor.
+ * window 3 for the drm cursor.
+ *
  */
 static const struct vop_win_data rk3288_vop_win_data[] = {
 	{ .base = 0x00, .phy = &win01_data, .type = DRM_PLANE_TYPE_PRIMARY },
-	{ .base = 0x40, .phy = &win01_data, .type = DRM_PLANE_TYPE_CURSOR },
+	{ .base = 0x40, .phy = &win01_data, .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x00, .phy = &win23_data, .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x50, .phy = &win23_data, .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x00, .phy = &cursor_data, .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x50, .phy = &win23_data, .type = DRM_PLANE_TYPE_CURSOR },
 };
 
 static const struct vop_data rk3288_vop = {
@@ -350,15 +354,32 @@ static inline void vop_mask_write_relaxed(struct vop *vop, uint32_t offset,
 	}
 }
 
+static bool has_rb_swapped(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_BGR565:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static enum vop_data_format vop_convert_format(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
 		return VOP_FMT_ARGB8888;
 	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
 		return VOP_FMT_RGB888;
 	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
 		return VOP_FMT_RGB565;
 	case DRM_FORMAT_NV12:
 		return VOP_FMT_YUV420SP;
@@ -376,16 +397,56 @@ static bool is_alpha_support(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
 		return true;
 	default:
 		return false;
 	}
 }
 
+static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
+		       DSP_HOLD_VALID_INTR_EN(1));
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
+		       DSP_HOLD_VALID_INTR_EN(0));
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
 static void vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	int ret;
+
+	if (vop->is_enabled)
+		return;
+
+	ret = pm_runtime_get_sync(vop->dev);
+	if (ret < 0) {
+		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
+		return;
+	}
 
 	ret = clk_enable(vop->hclk);
 	if (ret < 0) {
@@ -417,6 +478,11 @@ static void vop_enable(struct drm_crtc *crtc)
 		goto err_disable_aclk;
 	}
 
+	/*
+	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
+	 */
+	vop->is_enabled = true;
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_CTRL_SET(vop, standby, 0);
@@ -441,28 +507,44 @@ static void vop_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 
+	if (!vop->is_enabled)
+		return;
+
 	drm_vblank_off(crtc->dev, vop->pipe);
 
-	disable_irq(vop->irq);
-
 	/*
-	 * TODO: Since standby doesn't take effect until the next vblank,
-	 * when we turn off dclk below, the vop is probably still active.
+	 * Vop standby will take effect at end of current frame,
+	 * if dsp hold valid irq happen, it means standby complete.
+	 *
+	 * we must wait standby complete when we want to disable aclk,
+	 * if not, memory bus maybe dead.
 	 */
+	reinit_completion(&vop->dsp_hold_completion);
+	vop_dsp_hold_valid_irq_enable(vop);
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_CTRL_SET(vop, standby, 1);
 
 	spin_unlock(&vop->reg_lock);
-	/*
-	 * disable dclk to stop frame scan, so we can safely detach iommu,
-	 */
-	clk_disable(vop->dclk);
 
+	wait_for_completion(&vop->dsp_hold_completion);
+
+	vop_dsp_hold_valid_irq_disable(vop);
+
+	disable_irq(vop->irq);
+
+	vop->is_enabled = false;
+
+	/*
+	 * vop standby complete, so iommu detach is safe.
+	 */
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
+	clk_disable(vop->dclk);
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
+	pm_runtime_put(vop->dev);
 }
 
 /*
@@ -526,6 +608,7 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	enum vop_data_format format;
 	uint32_t val;
 	bool is_alpha;
+	bool rb_swap;
 	bool visible;
 	int ret;
 	struct drm_rect dest = {
@@ -559,6 +642,7 @@ static int vop_update_plane_event(struct drm_plane *plane,
 		return 0;
 
 	is_alpha = is_alpha_support(fb->pixel_format);
+	rb_swap = has_rb_swapped(fb->pixel_format);
 	format = vop_convert_format(fb->pixel_format);
 	if (format < 0)
 		return format;
@@ -627,6 +711,7 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	val = (dsp_sty - 1) << 16;
 	val |= (dsp_stx - 1) & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_st, val);
+	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
 	if (is_alpha) {
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
@@ -742,7 +827,7 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (vop->dpms != DRM_MODE_DPMS_ON)
+	if (!vop->is_enabled)
 		return -EPERM;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
@@ -759,8 +844,9 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (vop->dpms != DRM_MODE_DPMS_ON)
+	if (!vop->is_enabled)
 		return;
+
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop_mask_write(vop, INTR_CTRL0, FS_INTR_MASK, FS_INTR_EN(0));
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
@@ -773,14 +859,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 
 static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct vop *vop = to_vop(crtc);
-
 	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
-
-	if (vop->dpms == mode) {
-		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
-		return;
-	}
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -795,8 +874,6 @@ static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
 		break;
 	}
-
-	vop->dpms = mode;
 }
 
 static void vop_crtc_prepare(struct drm_crtc *crtc)
@@ -847,7 +924,7 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	int ret;
+	int ret, ret_clk;
 	uint32_t val;
 
 	/*
@@ -869,13 +946,14 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n",
 			  vop->connector_type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	};
 	VOP_CTRL_SET(vop, out_mode, vop->connector_out_mode);
 
 	val = 0x8;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 1 : 0;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? (1 << 1) : 0;
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
 	VOP_CTRL_SET(vop, pin_pol, val);
 
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
@@ -892,7 +970,7 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = vop_crtc_mode_set_base(crtc, x, y, fb);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * reset dclk, take all mode config affect, so the clk would run in
@@ -903,13 +981,14 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	reset_control_deassert(vop->dclk_rst);
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
-	ret = clk_enable(vop->dclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable dclk - %d\n", ret);
-		return ret;
+out:
+	ret_clk = clk_enable(vop->dclk);
+	if (ret_clk < 0) {
+		dev_err(vop->dev, "failed to enable dclk - %d\n", ret_clk);
+		return ret_clk;
 	}
 
-	return 0;
+	return ret;
 }
 
 static void vop_crtc_commit(struct drm_crtc *crtc)
@@ -934,9 +1013,9 @@ static int vop_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	int ret;
 
-	/* when the page flip is requested, crtc's dpms should be on */
-	if (vop->dpms > DRM_MODE_DPMS_ON) {
-		DRM_DEBUG("failed page flip request at dpms[%d].\n", vop->dpms);
+	/* when the page flip is requested, crtc should be on */
+	if (!vop->is_enabled) {
+		DRM_DEBUG("page flip request rejected because crtc is off.\n");
 		return 0;
 	}
 
@@ -1081,6 +1160,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 	struct vop *vop = data;
 	uint32_t intr0_reg, active_irqs;
 	unsigned long flags;
+	int ret = IRQ_NONE;
 
 	/*
 	 * INTR_CTRL0 register has interrupt status, enable and clear bits, we
@@ -1099,15 +1179,23 @@ static irqreturn_t vop_isr(int irq, void *data)
 	if (!active_irqs)
 		return IRQ_NONE;
 
-	/* Only Frame Start Interrupt is enabled; other irqs are spurious. */
-	if (!(active_irqs & FS_INTR)) {
-		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
-		return IRQ_NONE;
+	if (active_irqs & DSP_HOLD_VALID_INTR) {
+		complete(&vop->dsp_hold_completion);
+		active_irqs &= ~DSP_HOLD_VALID_INTR;
+		ret = IRQ_HANDLED;
 	}
 
-	drm_handle_vblank(vop->drm_dev, vop->pipe);
+	if (active_irqs & FS_INTR) {
+		drm_handle_vblank(vop->drm_dev, vop->pipe);
+		active_irqs &= ~FS_INTR;
+		ret = (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	}
 
-	return (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	/* Unhandled irqs are spurious. */
+	if (active_irqs)
+		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
+
+	return ret;
 }
 
 static int vop_create_crtc(struct vop *vop)
@@ -1189,6 +1277,7 @@ static int vop_create_crtc(struct vop *vop)
 		goto err_cleanup_crtc;
 	}
 
+	init_completion(&vop->dsp_hold_completion);
 	crtc->port = port;
 	vop->pipe = drm_crtc_index(crtc);
 	rockchip_register_crtc_funcs(drm_dev, &private_crtc_funcs, vop->pipe);
@@ -1302,7 +1391,7 @@ static int vop_initial(struct vop *vop)
 
 	clk_disable(vop->hclk);
 
-	vop->dpms = DRM_MODE_DPMS_OFF;
+	vop->is_enabled = false;
 
 	return 0;
 
@@ -1344,7 +1433,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	struct vop *vop;
 	struct resource *res;
 	size_t alloc_size;
-	int ret;
+	int ret, irq;
 
 	of_id = of_match_device(vop_driver_dt_match, dev);
 	vop_data = of_id->data;
@@ -1380,11 +1469,12 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	vop->irq = platform_get_irq(pdev, 0);
-	if (vop->irq < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		dev_err(dev, "cannot find irq for vop\n");
-		return vop->irq;
+		return irq;
 	}
+	vop->irq = (unsigned int)irq;
 
 	spin_lock_init(&vop->reg_lock);
 	spin_lock_init(&vop->irq_lock);

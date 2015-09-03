@@ -143,18 +143,8 @@ module_param_named(start, synth_acntsa.startup, short, S_IRUGO);
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init acntsa_init(void)
-{
-	return synth_add(&synth_acntsa);
-}
+module_spk_synth(synth_acntsa);
 
-static void __exit acntsa_exit(void)
-{
-	synth_remove(&synth_acntsa);
-}
-
-module_init(acntsa_init);
-module_exit(acntsa_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for Accent SA synthesizer");

@@ -185,9 +185,14 @@ struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 				struct drm_gem_object *obj, int flags)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
-	return dma_buf_export(obj, &exynos_dmabuf_ops,
-				exynos_gem_obj->base.size, flags, NULL);
+	exp_info.ops = &exynos_dmabuf_ops;
+	exp_info.size = exynos_gem_obj->base.size;
+	exp_info.flags = flags;
+	exp_info.priv = obj;
+
+	return dma_buf_export(&exp_info);
 }
 
 struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,

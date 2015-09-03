@@ -333,9 +333,17 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		ptep = pte_offset_map(pmdp, address);
 
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+#ifdef CONFIG_XPA
+		write_c0_entrylo0(pte_to_entrylo(ptep->pte_high));
+		writex_c0_entrylo0(ptep->pte_low & _PFNX_MASK);
+		ptep++;
+		write_c0_entrylo1(pte_to_entrylo(ptep->pte_high));
+		writex_c0_entrylo1(ptep->pte_low & _PFNX_MASK);
+#else
 		write_c0_entrylo0(ptep->pte_high);
 		ptep++;
 		write_c0_entrylo1(ptep->pte_high);
+#endif
 #else
 		write_c0_entrylo0(pte_to_entrylo(pte_val(*ptep++)));
 		write_c0_entrylo1(pte_to_entrylo(pte_val(*ptep)));
@@ -355,6 +363,9 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 		     unsigned long entryhi, unsigned long pagemask)
 {
+#ifdef CONFIG_XPA
+	panic("Broken for XPA kernels");
+#else
 	unsigned long flags;
 	unsigned long wired;
 	unsigned long old_pagemask;
@@ -383,6 +394,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	write_c0_pagemask(old_pagemask);
 	local_flush_tlb_all();
 	local_irq_restore(flags);
+#endif
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -411,7 +423,7 @@ int __init has_transparent_hugepage(void)
  * lifetime of the system
  */
 
-int temp_tlb_entry __cpuinitdata;
+int temp_tlb_entry;
 
 __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 			       unsigned long entryhi, unsigned long pagemask)
@@ -477,12 +489,13 @@ static void r4k_tlb_configure(void)
 	write_c0_wired(0);
 	if (current_cpu_type() == CPU_R10000 ||
 	    current_cpu_type() == CPU_R12000 ||
-	    current_cpu_type() == CPU_R14000)
+	    current_cpu_type() == CPU_R14000 ||
+	    current_cpu_type() == CPU_R16000)
 		write_c0_framemask(0);
 
 	if (cpu_has_rixi) {
 		/*
-		 * Enable the no read, no exec bits, and enable large virtual
+		 * Enable the no read, no exec bits, and enable large physical
 		 * address.
 		 */
 #ifdef CONFIG_64BIT

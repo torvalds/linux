@@ -133,12 +133,12 @@ static const struct dw_hdmi_curr_ctrl rockchip_cur_ctr[] = {
 	}
 };
 
-static const struct dw_hdmi_sym_term rockchip_sym_term[] = {
-	/*pixelclk   symbol   term*/
-	{ 74250000,  0x8009, 0x0004 },
-	{ 148500000, 0x8029, 0x0004 },
-	{ 297000000, 0x8039, 0x0005 },
-	{ ~0UL,	     0x0000, 0x0000 }
+static const struct dw_hdmi_phy_config rockchip_phy_config[] = {
+	/*pixelclk   symbol   term   vlev*/
+	{ 74250000,  0x8009, 0x0004, 0x0272},
+	{ 148500000, 0x802b, 0x0004, 0x028d},
+	{ 297000000, 0x8039, 0x0005, 0x028d},
+	{ ~0UL,	     0x0000, 0x0000, 0x0000}
 };
 
 static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
@@ -230,7 +230,7 @@ static const struct dw_hdmi_plat_data rockchip_hdmi_drv_data = {
 	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.mpll_cfg   = rockchip_mpll_cfg,
 	.cur_ctr    = rockchip_cur_ctr,
-	.sym_term   = rockchip_sym_term,
+	.phy_config = rockchip_phy_config,
 	.dev_type   = RK3288_HDMI,
 };
 

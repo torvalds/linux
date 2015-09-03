@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/average.h>
 #include <linux/etherdevice.h>
+#include <linux/rhashtable.h>
 #include "key.h"
 
 /**
@@ -236,28 +237,37 @@ struct sta_ampdu_mlme {
 	u8 dialog_token_allocator;
 };
 
-/*
- * struct ieee80211_tx_latency_stat - Tx latency statistics
- *
- * Measures TX latency and jitter for a station per TID.
- *
- * @max: worst case latency
- * @sum: sum of all latencies
- * @counter: amount of Tx frames sent from interface
- * @bins: each bin counts how many frames transmitted within a certain
- * latency range. when disabled it is NULL.
- * @bin_count: amount of bins.
- */
-struct ieee80211_tx_latency_stat {
-	u32 max;
-	u32 sum;
-	u32 counter;
-	u32 *bins;
-	u32 bin_count;
-};
 
 /* Value to indicate no TID reservation */
 #define IEEE80211_TID_UNRESERVED	0xff
+
+#define IEEE80211_FAST_XMIT_MAX_IV	18
+
+/**
+ * struct ieee80211_fast_tx - TX fastpath information
+ * @key: key to use for hw crypto
+ * @hdr: the 802.11 header to put with the frame
+ * @hdr_len: actual 802.11 header length
+ * @sa_offs: offset of the SA
+ * @da_offs: offset of the DA
+ * @pn_offs: offset where to put PN for crypto (or 0 if not needed)
+ * @band: band this will be transmitted on, for tx_info
+ * @rcu_head: RCU head to free this struct
+ *
+ * This struct is small enough so that the common case (maximum crypto
+ * header length of 8 like for CCMP/GCMP) fits into a single 64-byte
+ * cache line.
+ */
+struct ieee80211_fast_tx {
+	struct ieee80211_key *key;
+	u8 hdr_len;
+	u8 sa_offs, da_offs, pn_offs;
+	u8 band;
+	u8 hdr[30 + 2 + IEEE80211_FAST_XMIT_MAX_IV +
+	       sizeof(rfc1042_header)];
+
+	struct rcu_head rcu_head;
+};
 
 /**
  * struct sta_info - STA information
@@ -267,7 +277,7 @@ struct ieee80211_tx_latency_stat {
  *
  * @list: global linked list entry
  * @free_list: list entry for keeping track of stations to free
- * @hnext: hash table linked list pointer
+ * @hash_node: hash node for rhashtable
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
  * @ptk: peer keys negotiated with this station, if any
@@ -275,6 +285,8 @@ struct ieee80211_tx_latency_stat {
  * @gtk: group keys negotiated with this station, if any
  * @gtk_idx: last installed group key index
  * @rate_ctrl: rate control algorithm reference
+ * @rate_ctrl_lock: spinlock used to protect rate control data
+ *	(data inside the algorithm, so serializes calls there)
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
  *	"the" transmit rate
@@ -295,6 +307,7 @@ struct ieee80211_tx_latency_stat {
  *	entered power saving state, these are also delivered to
  *	the station when it leaves powersave or polls for frames
  * @driver_buffered_tids: bitmap of TIDs the driver has data buffered on
+ * @txq_buffered_tids: bitmap of TIDs that mac80211 has txq data buffered on
  * @rx_packets: Number of MSDUs received from this STA
  * @rx_bytes: Number of bytes received from this STA
  * @last_rx: time (in jiffies) when last frame was received from this STA
@@ -312,11 +325,10 @@ struct ieee80211_tx_latency_stat {
  * @fail_avg: moving percentage of failed MSDUs
  * @tx_packets: number of RX/TX MSDUs
  * @tx_bytes: number of bytes transmitted to this STA
- * @tx_fragments: number of transmitted MPDUs
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
- * @tx_lat: Tx latency statistics
+ * @plink_lock: serialize access to plink fields
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
@@ -356,12 +368,15 @@ struct ieee80211_tx_latency_stat {
  *	using IEEE80211_NUM_TID entry for non-QoS frames
  * @rx_msdu: MSDUs received from this station, using IEEE80211_NUM_TID
  *	entry for non-QoS frames
+ * @fast_tx: TX fastpath information
+ * @processed_beacon: set to true after peer rates and capabilities are
+ *	processed
  */
 struct sta_info {
 	/* General information, mostly static */
 	struct list_head list, free_list;
 	struct rcu_head rcu_head;
-	struct sta_info __rcu *hnext;
+	struct rhash_head hash_node;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
@@ -370,7 +385,10 @@ struct sta_info {
 	u8 ptk_idx;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
+	spinlock_t rate_ctrl_lock;
 	spinlock_t lock;
+
+	struct ieee80211_fast_tx __rcu *fast_tx;
 
 	struct work_struct drv_deliver_wk;
 
@@ -390,6 +408,7 @@ struct sta_info {
 	struct sk_buff_head ps_tx_buf[IEEE80211_NUM_ACS];
 	struct sk_buff_head tx_filtered[IEEE80211_NUM_ACS];
 	unsigned long driver_buffered_tids;
+	unsigned long txq_buffered_tids;
 
 	/* Updated from RX path only, no locking requirements */
 	unsigned long rx_packets;
@@ -417,7 +436,6 @@ struct sta_info {
 	unsigned int fail_avg;
 
 	/* Updated from TX path only, no locking requirements */
-	u32 tx_fragments;
 	u64 tx_packets[IEEE80211_NUM_ACS];
 	u64 tx_bytes[IEEE80211_NUM_ACS];
 	struct ieee80211_tx_rate last_tx_rate;
@@ -437,13 +455,12 @@ struct sta_info {
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[IEEE80211_NUM_TIDS];
 
-	struct ieee80211_tx_latency_stat *tx_lat;
-
 #ifdef CONFIG_MAC80211_MESH
 	/*
-	 * Mesh peer link attributes
+	 * Mesh peer link attributes, protected by plink_lock.
 	 * TODO: move to a sub-structure that is referenced with pointer?
 	 */
+	spinlock_t plink_lock;
 	u16 llid;
 	u16 plid;
 	u16 reason;
@@ -451,12 +468,14 @@ struct sta_info {
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
+
 	s64 t_offset;
 	s64 t_offset_setpoint;
 	/* mesh power save */
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
 	enum nl80211_mesh_power_mode nonpeer_pm;
+	bool processed_beacon;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -559,10 +578,6 @@ rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
 					 lockdep_is_held(&sta->ampdu_mlme.mtx));
 }
 
-#define STA_HASH_SIZE 256
-#define STA_HASH(sta) (sta[5])
-
-
 /* Maximum number of frames to buffer per power saving station per AC */
 #define STA_MAX_TX_BUFFER	64
 
@@ -583,26 +598,15 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr);
 
-static inline
-void for_each_sta_info_type_check(struct ieee80211_local *local,
-				  const u8 *addr,
-				  struct sta_info *sta,
-				  struct sta_info *nxt)
-{
-}
+u32 sta_addr_hash(const void *key, u32 length, u32 seed);
 
-#define for_each_sta_info(local, _addr, _sta, nxt)			\
-	for (	/* initialise loop */					\
-		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
-		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
-		/* typecheck */						\
-		for_each_sta_info_type_check(local, (_addr), _sta, nxt),\
-		/* continue condition */				\
-		_sta;							\
-		/* advance loop */					\
-		_sta = nxt,						\
-		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
-	     )								\
+#define _sta_bucket_idx(_tbl, _a)					\
+	rht_bucket_index(_tbl, sta_addr_hash(_a, ETH_ALEN, (_tbl)->hash_rnd))
+
+#define for_each_sta_info(local, tbl, _addr, _sta, _tmp)		\
+	rht_for_each_entry_rcu(_sta, _tmp, tbl, 			\
+			       _sta_bucket_idx(tbl, _addr),		\
+			       hash_node)				\
 	/* compare address and run code only if it matches */		\
 	if (ether_addr_equal(_sta->sta.addr, (_addr)))
 
@@ -639,7 +643,7 @@ int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 
 void sta_info_recalc_tim(struct sta_info *sta);
 
-void sta_info_init(struct ieee80211_local *local);
+int sta_info_init(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
 
 /**

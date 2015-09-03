@@ -25,12 +25,12 @@
 
 static inline void scr_writew(u16 val, volatile u16 *addr)
 {
-    st_le16(addr, val);
+	*addr = cpu_to_le16(val);
 }
 
 static inline u16 scr_readw(volatile const u16 *addr)
 {
-    return ld_le16(addr);
+	return le16_to_cpu(*addr);
 }
 
 #define VT_BUF_HAVE_MEMCPYW

@@ -134,7 +134,7 @@
  */
 
 #define VMW_IOCTL_DEF(ioctl, func, flags) \
-  [DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {DRM_##ioctl, flags, func, DRM_IOCTL_##ioctl}
+  [DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {DRM_IOCTL_##ioctl, flags, func}
 
 /**
  * Ioctl definitions.
@@ -1044,7 +1044,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 		const struct drm_ioctl_desc *ioctl =
 			&vmw_ioctls[nr - DRM_COMMAND_BASE];
 
-		if (unlikely(ioctl->cmd_drv != cmd)) {
+		if (unlikely(ioctl->cmd != cmd)) {
 			DRM_ERROR("Invalid command format, ioctl %d\n",
 				  nr - DRM_COMMAND_BASE);
 			return -EINVAL;

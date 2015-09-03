@@ -457,12 +457,8 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	if (host->mmc->pm_caps & MMC_PM_KEEP_POWER) {
+	if (host->mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ)
 		device_init_wakeup(&pdev->dev, 1);
-		host->mmc->pm_flags |= MMC_PM_WAKE_SDIO_IRQ;
-	} else {
-		device_init_wakeup(&pdev->dev, 0);
-	}
 
 	pm_runtime_put_autosuspend(&pdev->dev);
 
@@ -578,9 +574,7 @@ static const struct dev_pm_ops sdhci_pxav3_pmops = {
 static struct platform_driver sdhci_pxav3_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav3",
-#ifdef CONFIG_OF
-		.of_match_table = sdhci_pxav3_of_match,
-#endif
+		.of_match_table = of_match_ptr(sdhci_pxav3_of_match),
 		.pm	= SDHCI_PXAV3_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,

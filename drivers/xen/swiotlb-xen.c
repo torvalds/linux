@@ -235,7 +235,7 @@ retry:
 #define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
 		while ((SLABS_PER_PAGE << order) > IO_TLB_MIN_SLABS) {
-			xen_io_tlb_start = (void *)__get_free_pages(__GFP_NOWARN, order);
+			xen_io_tlb_start = (void *)xen_get_swiotlb_free_pages(order);
 			if (xen_io_tlb_start)
 				break;
 			order--;

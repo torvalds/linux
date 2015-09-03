@@ -248,7 +248,7 @@ Required properties for peripheral clocks:
 - #address-cells : shall be 1 (reg is used to encode clk id).
 - clocks : shall be the master clock phandle.
 	e.g. clocks = <&mck>;
-- name: device tree node describing a specific system clock.
+- name: device tree node describing a specific peripheral clock.
 	* #clock-cells : from common clock binding; shall be set to 0.
 	* reg: peripheral id. See Atmel's datasheets to get a full
 	  list of peripheral ids.

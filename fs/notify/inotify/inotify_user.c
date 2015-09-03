@@ -26,7 +26,7 @@
 #include <linux/fs.h> /* struct inode */
 #include <linux/fsnotify_backend.h>
 #include <linux/idr.h>
-#include <linux/init.h> /* module_init */
+#include <linux/init.h> /* fs_initcall */
 #include <linux/inotify.h>
 #include <linux/kernel.h> /* roundup() */
 #include <linux/namei.h> /* LOOKUP_FOLLOW */
@@ -812,4 +812,4 @@ static int __init inotify_user_setup(void)
 
 	return 0;
 }
-module_init(inotify_user_setup);
+fs_initcall(inotify_user_setup);

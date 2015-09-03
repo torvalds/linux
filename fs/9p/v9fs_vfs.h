@@ -68,14 +68,10 @@ int v9fs_file_open(struct inode *inode, struct file *file);
 void v9fs_inode2stat(struct inode *inode, struct p9_wstat *stat);
 int v9fs_uflags2omode(int uflags, int extended);
 
-ssize_t v9fs_file_readn(struct file *, char *, char __user *, u32, u64);
-ssize_t v9fs_fid_readn(struct p9_fid *, char *, char __user *, u32, u64);
 void v9fs_blank_wstat(struct p9_wstat *wstat);
 int v9fs_vfs_setattr_dotl(struct dentry *, struct iattr *);
 int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
 			 int datasync);
-ssize_t v9fs_file_write_internal(struct inode *, struct p9_fid *,
-				 const char __user *, size_t, loff_t *, int);
 int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode);
 int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode);
 static inline void v9fs_invalidate_inode_attr(struct inode *inode)

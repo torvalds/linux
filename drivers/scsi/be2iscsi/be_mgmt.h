@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Avago Technologies
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,12 +7,12 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@emulex.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
- * Emulex
+ * Avago Technologies
  * 3333 Susan Street
  * Costa Mesa, CA 92626
  */
@@ -337,5 +337,8 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 void beiscsi_ue_detect(struct beiscsi_hba *phba);
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 			 struct be_set_eqd *, int num);
+
+int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
+			    uint32_t fw_sess_handle);
 
 #endif

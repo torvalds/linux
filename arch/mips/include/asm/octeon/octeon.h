@@ -335,4 +335,6 @@ void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
 
 extern void octeon_fixup_irqs(void);
 
+extern struct semaphore octeon_bootbus_sem;
+
 #endif /* __ASM_OCTEON_OCTEON_H */

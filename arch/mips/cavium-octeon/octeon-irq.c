@@ -698,7 +698,9 @@ static void octeon_irq_ciu_gpio_ack(struct irq_data *data)
 
 static void octeon_irq_handle_trigger(unsigned int irq, struct irq_desc *desc)
 {
-	if (irq_get_trigger_type(irq) & IRQ_TYPE_EDGE_BOTH)
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+
+	if (irqd_get_trigger_type(data) & IRQ_TYPE_EDGE_BOTH)
 		handle_edge_irq(irq, desc);
 	else
 		handle_level_irq(irq, desc);

@@ -57,7 +57,7 @@ int rodata_test(void)
 	/* test 3: check the value hasn't changed */
 	/* If this test fails, we managed to overwrite the data */
 	if (!rodata_test_data) {
-		printk(KERN_ERR "rodata_test: Test 3 failes (end data)\n");
+		printk(KERN_ERR "rodata_test: Test 3 fails (end data)\n");
 		return -ENODEV;
 	}
 	/* test 4: check if the rodata section is 4Kb aligned */

@@ -54,9 +54,6 @@ extern char etext[], _stext[];
 #ifdef HAVE_BATS
 extern phys_addr_t v_mapped_by_bats(unsigned long va);
 extern unsigned long p_mapped_by_bats(phys_addr_t pa);
-void setbat(int index, unsigned long virt, phys_addr_t phys,
-	    unsigned int size, int flags);
-
 #else /* !HAVE_BATS */
 #define v_mapped_by_bats(x)	(0UL)
 #define p_mapped_by_bats(x)	(0UL)
@@ -110,9 +107,8 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	pte_t *pte;
-	extern int mem_init_done;
 
-	if (mem_init_done) {
+	if (slab_is_available()) {
 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
 	} else {
 		pte = __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
@@ -192,7 +188,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 
 	/* Make sure we have the base flags */
 	if ((flags & _PAGE_PRESENT) == 0)
-		flags |= PAGE_KERNEL;
+		flags |= pgprot_val(PAGE_KERNEL);
 
 	/* Non-cacheable page cannot be coherent */
 	if (flags & _PAGE_NO_CACHE)
@@ -219,9 +215,9 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	 * Don't allow anybody to remap normal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
-	if (mem_init_done && (p < virt_to_phys(high_memory)) &&
+	if (slab_is_available() && (p < virt_to_phys(high_memory)) &&
 	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, size))) {
-		printk("__ioremap(): phys addr 0x%llx is RAM lr %pf\n",
+		printk("__ioremap(): phys addr 0x%llx is RAM lr %ps\n",
 		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;
 	}
@@ -247,7 +243,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	if ((v = p_mapped_by_tlbcam(p)))
 		goto out;
 
-	if (mem_init_done) {
+	if (slab_is_available()) {
 		struct vm_struct *area;
 		area = get_vm_area_caller(size, VM_IOREMAP, caller);
 		if (area == 0)
@@ -266,7 +262,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	for (i = 0; i < size && err == 0; i += PAGE_SIZE)
 		err = map_page(v+i, p+i, flags);
 	if (err) {
-		if (mem_init_done)
+		if (slab_is_available())
 			vunmap((void *)v);
 		return NULL;
 	}
@@ -327,7 +323,7 @@ void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 	p = memstart_addr + s;
 	for (; s < top; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
-		f = ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL;
+		f = ktext ? pgprot_val(PAGE_KERNEL_TEXT) : pgprot_val(PAGE_KERNEL);
 		map_page(v, p, f);
 #ifdef CONFIG_PPC_STD_MMU_32
 		if (ktext)

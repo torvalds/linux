@@ -1,5 +1,5 @@
 # Built-in dtb
-builtindtb-y		:= angel4
+builtindtb-y		:= nsim_700
 
 ifneq ($(CONFIG_ARC_BUILTIN_DTB_NAME),"")
 	builtindtb-y	:= $(patsubst "%",%,$(CONFIG_ARC_BUILTIN_DTB_NAME))

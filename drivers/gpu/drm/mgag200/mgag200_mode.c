@@ -1222,7 +1222,7 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	u8 tmp;
 
 	if (mdev->type == G200_WB)
@@ -1524,6 +1524,11 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 		(mga_vga_calculate_mode_bandwidth(mode,
 			bpp) > (55000 * 1024))) {
 		return MODE_BANDWIDTH;
+	}
+
+	if ((mode->hdisplay % 8) != 0 || (mode->hsync_start % 8) != 0 ||
+	    (mode->hsync_end % 8) != 0 || (mode->htotal % 8) != 0) {
+		return MODE_H_ILLEGAL;
 	}
 
 	if (mode->crtc_hdisplay > 2048 || mode->crtc_hsync_start > 4096 ||

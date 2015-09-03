@@ -1846,7 +1846,7 @@ static int __init pmz_register(void)
 
 #ifdef CONFIG_PPC_PMAC
 
-static struct of_device_id pmz_match[] = 
+static const struct of_device_id pmz_match[] =
 {
 	{
 	.name		= "ch-a",

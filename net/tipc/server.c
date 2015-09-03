@@ -37,11 +37,13 @@
 #include "core.h"
 #include "socket.h"
 #include <net/sock.h>
+#include <linux/module.h>
 
 /* Number of messages to send before rescheduling */
 #define MAX_SEND_MSG_COUNT	25
 #define MAX_RECV_MSG_COUNT	25
 #define CF_CONNECTED		1
+#define CF_SERVER		2
 
 #define sock2con(x) ((struct tipc_conn *)(x)->sk_user_data)
 
@@ -88,9 +90,19 @@ static void tipc_clean_outqueues(struct tipc_conn *con);
 static void tipc_conn_kref_release(struct kref *kref)
 {
 	struct tipc_conn *con = container_of(kref, struct tipc_conn, kref);
+	struct sockaddr_tipc *saddr = con->server->saddr;
+	struct socket *sock = con->sock;
+	struct sock *sk;
 
-	if (con->sock) {
-		tipc_sock_release_local(con->sock);
+	if (sock) {
+		sk = sock->sk;
+		if (test_bit(CF_SERVER, &con->flags)) {
+			__module_get(sock->ops->owner);
+			__module_get(sk->sk_prot_creator->owner);
+		}
+		saddr->scope = -TIPC_NODE_SCOPE;
+		kernel_bind(sock, (struct sockaddr *)saddr, sizeof(*saddr));
+		sock_release(sock);
 		con->sock = NULL;
 	}
 
@@ -281,7 +293,7 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	struct tipc_conn *newcon;
 	int ret;
 
-	ret = tipc_sock_accept_local(sock, &newsock, O_NONBLOCK);
+	ret = kernel_accept(sock, &newsock, O_NONBLOCK);
 	if (ret < 0)
 		return ret;
 
@@ -297,6 +309,10 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 
 	/* Notify that new connection is incoming */
 	newcon->usr_data = s->tipc_conn_new(newcon->conid);
+	if (!newcon->usr_data) {
+		sock_release(newsock);
+		return -ENOMEM;
+	}
 
 	/* Wake up receive process in case of 'SYN+' message */
 	newsock->sk->sk_data_ready(newsock->sk);
@@ -309,7 +325,7 @@ static struct socket *tipc_create_listen_sock(struct tipc_conn *con)
 	struct socket *sock = NULL;
 	int ret;
 
-	ret = tipc_sock_create_local(s->net, s->type, &sock);
+	ret = sock_create_kern(s->net, AF_TIPC, SOCK_SEQPACKET, 0, &sock);
 	if (ret < 0)
 		return NULL;
 	ret = kernel_setsockopt(sock, SOL_TIPC, TIPC_IMPORTANCE,
@@ -337,11 +353,31 @@ static struct socket *tipc_create_listen_sock(struct tipc_conn *con)
 		pr_err("Unknown socket type %d\n", s->type);
 		goto create_err;
 	}
+
+	/* As server's listening socket owner and creator is the same module,
+	 * we have to decrease TIPC module reference count to guarantee that
+	 * it remains zero after the server socket is created, otherwise,
+	 * executing "rmmod" command is unable to make TIPC module deleted
+	 * after TIPC module is inserted successfully.
+	 *
+	 * However, the reference count is ever increased twice in
+	 * sock_create_kern(): one is to increase the reference count of owner
+	 * of TIPC socket's proto_ops struct; another is to increment the
+	 * reference count of owner of TIPC proto struct. Therefore, we must
+	 * decrement the module reference count twice to ensure that it keeps
+	 * zero after server's listening socket is created. Of course, we
+	 * must bump the module reference count twice as well before the socket
+	 * is closed.
+	 */
+	module_put(sock->ops->owner);
+	module_put(sock->sk->sk_prot_creator->owner);
+	set_bit(CF_SERVER, &con->flags);
+
 	return sock;
 
 create_err:
+	kernel_sock_shutdown(sock, SHUT_RDWR);
 	sock_release(sock);
-	con->sock = NULL;
 	return NULL;
 }
 

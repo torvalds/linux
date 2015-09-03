@@ -203,7 +203,7 @@ static void __init of_dra7_apll_setup(struct device_node *node)
 	ad->control_reg = ti_clk_get_reg_addr(node, 0);
 	ad->idlest_reg = ti_clk_get_reg_addr(node, 1);
 
-	if (!ad->control_reg || !ad->idlest_reg)
+	if (IS_ERR(ad->control_reg) || IS_ERR(ad->idlest_reg))
 		goto cleanup;
 
 	ad->idlest_mask = 0x1;
@@ -384,7 +384,8 @@ static void __init of_omap2_apll_setup(struct device_node *node)
 	ad->autoidle_reg = ti_clk_get_reg_addr(node, 1);
 	ad->idlest_reg = ti_clk_get_reg_addr(node, 2);
 
-	if (!ad->control_reg || !ad->autoidle_reg || !ad->idlest_reg)
+	if (IS_ERR(ad->control_reg) || IS_ERR(ad->autoidle_reg) ||
+	    IS_ERR(ad->idlest_reg))
 		goto cleanup;
 
 	clk = clk_register(NULL, &clk_hw->hw);

@@ -643,15 +643,6 @@ config BLK_DEV_TC86C001
 	help
 	This driver adds support for Toshiba TC86C001 GOKU-S chip.
 
-config BLK_DEV_CELLEB
-	tristate "Toshiba's Cell Reference Set IDE support"
-	depends on PPC_CELLEB
-	select BLK_DEV_IDEDMA_PCI
-	help
-	  This driver provides support for the on-board IDE controller on
-	  Toshiba Cell Reference Board.
-	  If unsure, say Y.
-
 endif
 
 # TODO: BLK_DEV_IDEDMA_PCI -> BLK_DEV_IDEDMA_SFF

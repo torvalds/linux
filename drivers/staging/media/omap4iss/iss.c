@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -1160,8 +1161,8 @@ iss_register_subdev_group(struct iss_device *iss,
 		subdev = v4l2_i2c_new_subdev_board(&iss->v4l2_dev, adapter,
 				board_info->board_info, NULL);
 		if (subdev == NULL) {
-			dev_err(iss->dev, "%s: Unable to register subdev %s\n",
-				__func__, board_info->board_info->type);
+			dev_err(iss->dev, "Unable to register subdev %s\n",
+				board_info->board_info->type);
 			continue;
 		}
 
@@ -1185,16 +1186,16 @@ static int iss_register_entities(struct iss_device *iss)
 	iss->media_dev.link_notify = iss_pipeline_link_notify;
 	ret = media_device_register(&iss->media_dev);
 	if (ret < 0) {
-		dev_err(iss->dev, "%s: Media device registration failed (%d)\n",
-			__func__, ret);
+		dev_err(iss->dev, "Media device registration failed (%d)\n",
+			ret);
 		return ret;
 	}
 
 	iss->v4l2_dev.mdev = &iss->media_dev;
 	ret = v4l2_device_register(iss->dev, &iss->v4l2_dev);
 	if (ret < 0) {
-		dev_err(iss->dev, "%s: V4L2 device registration failed (%d)\n",
-			__func__, ret);
+		dev_err(iss->dev, "V4L2 device registration failed (%d)\n",
+			ret);
 		goto done;
 	}
 
@@ -1252,8 +1253,8 @@ static int iss_register_entities(struct iss_device *iss)
 			break;
 
 		default:
-			dev_err(iss->dev, "%s: invalid interface type %u\n",
-				__func__, subdevs->interface);
+			dev_err(iss->dev, "invalid interface type %u\n",
+				subdevs->interface);
 			ret = -EINVAL;
 			goto done;
 		}
@@ -1386,6 +1387,16 @@ static int iss_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, iss);
 
+	/*
+	 * TODO: When implementing DT support switch to syscon regmap lookup by
+	 * phandle.
+	 */
+	iss->syscon = syscon_regmap_lookup_by_compatible("syscon");
+	if (IS_ERR(iss->syscon)) {
+		ret = PTR_ERR(iss->syscon);
+		goto error;
+	}
+
 	/* Clocks */
 	ret = iss_map_mem_resource(pdev, iss, OMAP4_ISS_MEM_TOP);
 	if (ret < 0)
@@ -1478,7 +1489,7 @@ static int iss_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id omap4iss_id_table[] = {
+static const struct platform_device_id omap4iss_id_table[] = {
 	{ "omap4iss", 0 },
 	{ },
 };

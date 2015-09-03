@@ -11,3 +11,14 @@ config DRM_PTN3460
 	select DRM_PANEL
 	---help---
 	  ptn3460 eDP-LVDS bridge chip driver.
+
+config DRM_PS8622
+	tristate "Parade eDP/LVDS bridge"
+	depends on DRM
+	depends on OF
+	select DRM_PANEL
+	select DRM_KMS_HELPER
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  parade eDP-LVDS bridge chip driver.

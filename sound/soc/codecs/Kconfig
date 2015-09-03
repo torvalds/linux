@@ -16,7 +16,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_88PM860X if MFD_88PM860X
 	select SND_SOC_L3
 	select SND_SOC_AB8500_CODEC if ABX500_CORE
-	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
+	select SND_SOC_AC97_CODEC
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD193X_SPI if SPI_MASTER
 	select SND_SOC_AD193X_I2C if I2C
@@ -54,7 +54,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CX20442 if TTY
-	select SND_SOC_DA7210 if I2C
+	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
@@ -70,6 +70,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX98357A if GPIOLIB
+	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
@@ -103,6 +104,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TAS2552 if I2C
 	select SND_SOC_TAS5086 if I2C
+	select SND_SOC_TAS571X if I2C
 	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
@@ -141,7 +143,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8770 if SPI_MASTER
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8782
-	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8804_I2C if I2C
+	select SND_SOC_WM8804_SPI if SPI_MASTER
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8904 if I2C
@@ -209,8 +212,9 @@ config SND_SOC_AB8500_CODEC
 	tristate
 
 config SND_SOC_AC97_CODEC
-	tristate
+	tristate "Build generic ASoC AC97 CODEC driver"
 	select SND_AC97_CODEC
+	select SND_SOC_AC97_BUS
 
 config SND_SOC_AD1836
 	tristate
@@ -460,6 +464,9 @@ config SND_SOC_MAX98095
 config SND_SOC_MAX98357A
        tristate
 
+config SND_SOC_MAX98925
+       tristate
+
 config SND_SOC_MAX9850
 	tristate
 
@@ -501,6 +508,11 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5651=m
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
+
+config SND_SOC_RL6347A
+	tristate
+	default y if SND_SOC_RT286=y
+	default m if SND_SOC_RT286=m
 
 config SND_SOC_RT286
 	tristate
@@ -604,6 +616,10 @@ config SND_SOC_TAS2552
 
 config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"
+	depends on I2C
+
+config SND_SOC_TAS571X
+	tristate "Texas Instruments TAS5711/TAS5717/TAS5719 power amplifiers"
 	depends on I2C
 
 config SND_SOC_TFA9879
@@ -744,8 +760,19 @@ config SND_SOC_WM8782
 	tristate
 
 config SND_SOC_WM8804
-	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver"
-	depends on SND_SOC_I2C_AND_SPI
+	tristate
+
+config SND_SOC_WM8804_I2C
+	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver I2C"
+	depends on I2C
+	select SND_SOC_WM8804
+	select REGMAP_I2C
+
+config SND_SOC_WM8804_SPI
+	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver SPI"
+	depends on SPI_MASTER
+	select SND_SOC_WM8804
+	select REGMAP_SPI
 
 config SND_SOC_WM8900
 	tristate

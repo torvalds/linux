@@ -339,7 +339,7 @@ int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 	commandbuf = kmalloc(size + 2, GFP_KERNEL);
 	if (!commandbuf)
 		return -ENOMEM;
-	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
+	memcpy((void *)commandbuf + 2, ptempbuffer, size);
 
 	if (temp & 0x0100)
 		usleep_range(900, 1100);
@@ -399,8 +399,8 @@ int dsp_reload(struct ft1000_usb *ft1000dev)
 	card_reset_dsp(ft1000dev, 0);
 	msleep(1000);
 
-	status =
-		ft1000_write_register(ft1000dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
+	status = ft1000_write_register(ft1000dev, HOST_INTF_BE,
+				       FT1000_REG_SUP_CTRL);
 
 	/* Let's check for FEFE */
 	status =
@@ -429,7 +429,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 	/* Let's use the register provided by the Magnemite ASIC to reset the
 	 * ASIC and DSP.
 	 */
-	ft1000_write_register(ft1000dev, (DSP_RESET_BIT | ASIC_RESET_BIT),
+	ft1000_write_register(ft1000dev, DSP_RESET_BIT | ASIC_RESET_BIT,
 			      FT1000_REG_RESET);
 
 	mdelay(1);
@@ -451,16 +451,15 @@ static int ft1000_reset_card(struct net_device *dev)
 	struct ft1000_usb *ft1000dev = info->priv;
 	u16 tempword;
 	struct prov_record *ptr;
+	struct prov_record *tmp;
 
 	ft1000dev->fCondResetPend = true;
 	info->CardReady = 0;
 	ft1000dev->fProvComplete = false;
 
 	/* Make sure we free any memory reserve for provisioning */
-	while (list_empty(&info->prov_list) == 0) {
+	list_for_each_entry_safe(ptr, tmp, &info->prov_list, list) {
 		pr_debug("deleting provisioning record\n");
-		ptr =
-			list_entry(info->prov_list.next, struct prov_record, list);
 		list_del(&ptr->list);
 		kfree(ptr->pprov_data);
 		kfree(ptr);
@@ -542,7 +541,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 		hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^ hdr.control;
 
 	memcpy(&pFt1000Dev->tx_buf[0], &hdr, sizeof(hdr));
-	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
+	memcpy(&pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)], packet, len);
 
 	netif_stop_queue(netdev);
 
@@ -551,7 +550,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 			  usb_sndbulkpipe(pFt1000Dev->dev,
 					  pFt1000Dev->bulk_out_endpointAddr),
 			  pFt1000Dev->tx_buf, count,
-			  ft1000_usb_transmit_complete, (void *)pFt1000Dev);
+			  ft1000_usb_transmit_complete, pFt1000Dev);
 
 	t = (u8 *)pFt1000Dev->tx_urb->transfer_buffer;
 
@@ -588,8 +587,8 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 
-	pipe =
-		usb_sndbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_out_endpointAddr);
+	pipe = usb_sndbulkpipe(pFt1000Dev->dev,
+			       pFt1000Dev->bulk_out_endpointAddr);
 	maxlen = usb_maxpacket(pFt1000Dev->dev, pipe, usb_pipeout(pipe));
 
 	pdata = (u8 *)skb->data;
@@ -606,7 +605,7 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 
-	ft1000_copy_down_pkt(dev, (pdata + ENET_HEADER_SIZE - 2),
+	ft1000_copy_down_pkt(dev, pdata + ENET_HEADER_SIZE - 2,
 			     skb->len - ENET_HEADER_SIZE + 2);
 
 err:
@@ -1050,8 +1049,8 @@ static int ft1000_dsp_prov(void *arg)
 
 		/* Check if doorbell is available */
 		pr_debug("check if doorbell is cleared\n");
-		status =
-			ft1000_read_register(dev, &tempword, FT1000_REG_DOORBELL);
+		status = ft1000_read_register(dev, &tempword,
+					      FT1000_REG_DOORBELL);
 		if (status) {
 			pr_debug("ft1000_read_register error\n");
 			break;
@@ -1072,9 +1071,8 @@ static int ft1000_dsp_prov(void *arg)
 			pr_debug("*** Provision Data Sent to DSP\n");
 
 			/* Send provisioning data */
-			ptr =
-				list_entry(info->prov_list.next, struct prov_record,
-					   list);
+			ptr = list_entry(info->prov_list.next,
+					 struct prov_record, list);
 			len = *(u16 *)ptr->pprov_data;
 			len = htons(len);
 			len += PSEUDOSZ;
@@ -1262,7 +1260,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			if (tempword & FT1000_DB_DPRAM_TX) {
 				mdelay(10);
 				status = ft1000_read_register(dev, &tempword,
-							      FT1000_REG_DOORBELL);
+							FT1000_REG_DOORBELL);
 				if (tempword & FT1000_DB_DPRAM_TX)
 					break;
 			}
@@ -1296,8 +1294,8 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 		info->DSPInfoBlk[10] = 0x7200;
 		info->DSPInfoBlk[11] = htons(info->DSPInfoBlklen);
 		status = ft1000_write_dpram32(dev, 0,
-					      (u8 *)&info->DSPInfoBlk[0],
-					      (unsigned short)(info->DSPInfoBlklen + 22));
+				(u8 *)&info->DSPInfoBlk[0],
+				(unsigned short)(info->DSPInfoBlklen + 22));
 		status = ft1000_write_register(dev, FT1000_DB_DPRAM_TX,
 					       FT1000_REG_DOORBELL);
 		dev->DrvMsgPend = 0;
@@ -1356,8 +1354,9 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			*pmsg++ = convert.wrd;
 			*pmsg++ = htons(info->DrvErrNum);
 
-			status = card_send_command(dev, (unsigned char *)&tempbuffer[0],
-						   (u16)(0x0012 + PSEUDOSZ));
+			status = card_send_command(dev,
+					(unsigned char *)&tempbuffer[0],
+					(u16)(0x0012 + PSEUDOSZ));
 			if (status)
 				goto out;
 			info->DrvErrNum = 0;
@@ -1527,7 +1526,7 @@ int ft1000_poll(void *dev_id)
 			usleep_range(9000, 11000);
 			/* Program WMARK register */
 			status = ft1000_write_register(dev, 0x600,
-						       FT1000_REG_MAG_WATERMARK);
+					       FT1000_REG_MAG_WATERMARK);
 			/* clear ASIC reset doorbell */
 			status = ft1000_write_register(dev,
 						       FT1000_DSP_ASIC_RESET,
@@ -1543,9 +1542,9 @@ int ft1000_poll(void *dev_id)
 						       FT1000_REG_SUP_CTRL);
 			/* copy dsp session record from Adapter block */
 			status = ft1000_write_dpram32(dev, 0,
-						      (u8 *)&info->DSPSess.Rec[0], 1024);
+				      (u8 *)&info->DSPSess.Rec[0], 1024);
 			status = ft1000_write_register(dev, 0x600,
-						       FT1000_REG_MAG_WATERMARK);
+					       FT1000_REG_MAG_WATERMARK);
 			/* ring doorbell to tell DSP that
 			 * ASIC is out of reset
 			 * */
@@ -1557,21 +1556,21 @@ int ft1000_poll(void *dev_id)
 			if (!dev->fAppMsgPend) {
 				/* Reset ASIC and DSP */
 				status = ft1000_read_dpram16(dev,
-							     FT1000_MAG_DSP_TIMER0,
-							     (u8 *)&(info->DSP_TIME[0]),
-							     FT1000_MAG_DSP_TIMER0_INDX);
+						FT1000_MAG_DSP_TIMER0,
+						(u8 *)&info->DSP_TIME[0],
+						FT1000_MAG_DSP_TIMER0_INDX);
 				status = ft1000_read_dpram16(dev,
-							     FT1000_MAG_DSP_TIMER1,
-							     (u8 *)&(info->DSP_TIME[1]),
-							     FT1000_MAG_DSP_TIMER1_INDX);
+						FT1000_MAG_DSP_TIMER1,
+						(u8 *)&info->DSP_TIME[1],
+						FT1000_MAG_DSP_TIMER1_INDX);
 				status = ft1000_read_dpram16(dev,
-							     FT1000_MAG_DSP_TIMER2,
-							     (u8 *)&(info->DSP_TIME[2]),
-							     FT1000_MAG_DSP_TIMER2_INDX);
+						FT1000_MAG_DSP_TIMER2,
+						(u8 *)&info->DSP_TIME[2],
+						FT1000_MAG_DSP_TIMER2_INDX);
 				status = ft1000_read_dpram16(dev,
-							     FT1000_MAG_DSP_TIMER3,
-							     (u8 *)&(info->DSP_TIME[3]),
-							     FT1000_MAG_DSP_TIMER3_INDX);
+						FT1000_MAG_DSP_TIMER3,
+						(u8 *)&info->DSP_TIME[3],
+						FT1000_MAG_DSP_TIMER3_INDX);
 				info->CardReady = 0;
 				info->DrvErrNum = DSP_CONDRESET_INFO;
 				pr_debug("DSP conditional reset requested\n");

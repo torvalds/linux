@@ -343,24 +343,14 @@ __arm946_setup:
 	mcr	p15, 0, r0, c6,	c0, 0		@ set region 0, default
 
 	ldr	r0, =(CONFIG_DRAM_BASE & 0xFFFFF000) @ base[31:12] of RAM
-	ldr	r1, =(CONFIG_DRAM_SIZE >> 12)	@ size of RAM (must be >= 4KB)
-	mov	r2, #10				@ 11 is the minimum (4KB)
-1:	add	r2, r2, #1			@ area size *= 2
-	mov	r1, r1, lsr #1
-	bne	1b				@ count not zero r-shift
-	orr	r0, r0, r2, lsl #1		@ the region register value
-	orr	r0, r0, #1			@ set enable bit
-	mcr	p15, 0, r0, c6,	c1, 0		@ set region 1, RAM
+	ldr	r7, =CONFIG_DRAM_SIZE		@ size of RAM (must be >= 4KB)
+	pr_val	r3, r0, r7, #1
+	mcr	p15, 0, r3, c6, c1, 0
 
 	ldr	r0, =(CONFIG_FLASH_MEM_BASE & 0xFFFFF000) @ base[31:12] of FLASH
-	ldr	r1, =(CONFIG_FLASH_SIZE >> 12)	@ size of FLASH (must be >= 4KB)
-	mov	r2, #10				@ 11 is the minimum (4KB)
-1:	add	r2, r2, #1			@ area size *= 2
-	mov	r1, r1, lsr #1
-	bne	1b				@ count not zero r-shift
-	orr	r0, r0, r2, lsl #1		@ the region register value
-	orr	r0, r0, #1			@ set enable bit
-	mcr	p15, 0, r0, c6,	c2, 0		@ set region 2, ROM/FLASH
+	ldr	r7, =CONFIG_FLASH_SIZE		@ size of FLASH (must be >= 4KB)
+	pr_val	r3, r0, r7, #1
+	mcr	p15, 0, r3, c6, c2, 0
 
 	mov	r0, #0x06
 	mcr	p15, 0, r0, c2, c0, 0		@ region 1,2 d-cacheable
@@ -409,14 +399,14 @@ __arm946_setup:
 
 	.align
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 	.type	__arm946_proc_info,#object
 __arm946_proc_info:
 	.long	0x41009460
 	.long	0xff00fff0
 	.long	0
 	.long	0
-	b	__arm946_setup
+	initfn	__arm946_setup, __arm946_proc_info
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB

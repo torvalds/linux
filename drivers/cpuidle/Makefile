@@ -17,14 +17,11 @@ obj-$(CONFIG_ARM_ZYNQ_CPUIDLE)		+= cpuidle-zynq.o
 obj-$(CONFIG_ARM_U8500_CPUIDLE)         += cpuidle-ux500.o
 obj-$(CONFIG_ARM_AT91_CPUIDLE)          += cpuidle-at91.o
 obj-$(CONFIG_ARM_EXYNOS_CPUIDLE)        += cpuidle-exynos.o
+obj-$(CONFIG_ARM_CPUIDLE)		+= cpuidle-arm.o
 
 ###############################################################################
 # MIPS drivers
 obj-$(CONFIG_MIPS_CPS_CPUIDLE)		+= cpuidle-cps.o
-
-###############################################################################
-# ARM64 drivers
-obj-$(CONFIG_ARM64_CPUIDLE)		+= cpuidle-arm64.o
 
 ###############################################################################
 # POWERPC drivers

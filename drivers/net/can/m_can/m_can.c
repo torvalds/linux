@@ -312,8 +312,8 @@ static inline u32 m_can_fifo_read(const struct m_can_priv *priv,
 static inline void m_can_fifo_write(const struct m_can_priv *priv,
 				    u32 fpi, unsigned int offset, u32 val)
 {
-	return writel(val, priv->mram_base + priv->mcfg[MRAM_TXB].off +
-		      fpi * TXB_ELEMENT_SIZE + offset);
+	writel(val, priv->mram_base + priv->mcfg[MRAM_TXB].off +
+	       fpi * TXB_ELEMENT_SIZE + offset);
 }
 
 static inline void m_can_config_endisable(const struct m_can_priv *priv,

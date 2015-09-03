@@ -77,7 +77,9 @@ config SPI_ATMEL
 
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
+	depends on GPIOLIB
 	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on GPIOLIB
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
 
@@ -159,10 +161,9 @@ config SPI_BUTTERFLY
 
 config SPI_CADENCE
 	tristate "Cadence SPI controller"
-	depends on ARM
 	help
 	  This selects the Cadence SPI controller master driver
-	  used by Xilinx Zynq.
+	  used by Xilinx Zynq and ZynqMP.
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
@@ -221,7 +222,7 @@ config SPI_FALCON
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  This simple GPIO bitbanging SPI master uses the arch-neutral GPIO
@@ -303,7 +304,7 @@ config SPI_FSL_SPI
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
-	depends on SOC_VF610 || COMPILE_TEST
+	depends on SOC_VF610 || SOC_LS1021A || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.
@@ -327,7 +328,7 @@ config SPI_MESON_SPIFC
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  This is the driver for OpenCores tiny SPI master controller.
@@ -394,16 +395,9 @@ config SPI_PPC4xx
 	help
 	  This selects a driver for the PPC4xx SPI Controller.
 
-config SPI_PXA2XX_PXADMA
-	bool "PXA2xx SSP legacy PXA DMA API support"
-	depends on SPI_PXA2XX && ARCH_PXA
-	help
-	  Enable PXA private legacy DMA API support. Note that this is
-	  deprecated in favor of generic DMA engine API.
-
 config SPI_PXA2XX_DMA
 	def_bool y
-	depends on SPI_PXA2XX && !SPI_PXA2XX_PXADMA
+	depends on SPI_PXA2XX
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
@@ -428,6 +422,12 @@ config SPI_ROCKCHIP
 	  Rockchip SPI controller support DMA transport and PIO mode.
 	  The main usecase of this controller is to use spi flash as boot
 	  device.
+
+config SPI_RB4XX
+	tristate "Mikrotik RB4XX SPI master"
+	depends on SPI_MASTER && ATH79
+	help
+	  SPI controller driver for the Mikrotik RB4xx series boards.
 
 config SPI_RSPI
 	tristate "Renesas RSPI/QSPI controller"
@@ -610,6 +610,12 @@ config SPI_XTENSA_XTFPGA
 	  16 bit words in SPI mode 0, automatically asserting CS on transfer
 	  start and deasserting on end.
 
+config SPI_ZYNQMP_GQSPI
+	tristate "Xilinx ZynqMP GQSPI controller"
+	depends on SPI_MASTER
+	help
+	  Enables Xilinx GQSPI controller driver for Zynq UltraScale+ MPSoC.
+
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900
@@ -632,7 +638,7 @@ config SPI_DW_PCI
 
 config SPI_DW_MID_DMA
 	bool "DMA support for DW SPI controller on Intel MID platform"
-	depends on SPI_DW_PCI && INTEL_MID_DMAC
+	depends on SPI_DW_PCI && DW_DMAC_PCI
 
 config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"

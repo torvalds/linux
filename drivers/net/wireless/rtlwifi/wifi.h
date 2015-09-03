@@ -1665,6 +1665,7 @@ struct rtl_dm {
 	u8 last_dtp_lvl;
 	u8 thermalvalue_avg[AVG_THERMAL_NUM];
 	u8 thermalvalue_avg_index;
+	u8 tm_trigger;
 	bool done_txpower;
 	u8 dynamic_txhighpower_lvl;	/*Tx high power level */
 	u8 dm_flag;		/*Indicate each dynamic mechanism's status. */

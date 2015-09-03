@@ -32,12 +32,12 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_4KC:
 	case CPU_ALCHEMY:
 	case CPU_PR4450:
-	case CPU_JZRISC:
 #endif
 
 #if defined(CONFIG_SYS_HAS_CPU_MIPS32_R1) || \
     defined(CONFIG_SYS_HAS_CPU_MIPS32_R2)
 	case CPU_4KEC:
+	case CPU_JZRISC:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_MIPS32_R2
@@ -157,6 +157,7 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 #endif
 #ifdef CONFIG_SYS_HAS_CPU_RM7000
 	case CPU_RM7000:

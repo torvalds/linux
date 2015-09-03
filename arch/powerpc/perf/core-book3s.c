@@ -124,14 +124,23 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 
 static inline void power_pmu_bhrb_enable(struct perf_event *event) {}
 static inline void power_pmu_bhrb_disable(struct perf_event *event) {}
-static void power_pmu_flush_branch_stack(void) {}
+static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in) {}
 static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 static void pmao_restore_workaround(bool ebb) { }
 #endif /* CONFIG_PPC32 */
 
 static bool regs_use_siar(struct pt_regs *regs)
 {
-	return !!regs->result;
+	/*
+	 * When we take a performance monitor exception the regs are setup
+	 * using perf_read_regs() which overloads some fields, in particular
+	 * regs->result to tell us whether to use SIAR.
+	 *
+	 * However if the regs are from another exception, eg. a syscall, then
+	 * they have not been setup using perf_read_regs() and so regs->result
+	 * is something random.
+	 */
+	return ((TRAP(regs) == 0xf00) && regs->result);
 }
 
 /*
@@ -350,6 +359,7 @@ static void power_pmu_bhrb_enable(struct perf_event *event)
 		cpuhw->bhrb_context = event->ctx;
 	}
 	cpuhw->bhrb_users++;
+	perf_sched_cb_inc(event->ctx->pmu);
 }
 
 static void power_pmu_bhrb_disable(struct perf_event *event)
@@ -361,6 +371,7 @@ static void power_pmu_bhrb_disable(struct perf_event *event)
 
 	cpuhw->bhrb_users--;
 	WARN_ON_ONCE(cpuhw->bhrb_users < 0);
+	perf_sched_cb_dec(event->ctx->pmu);
 
 	if (!cpuhw->disabled && !cpuhw->bhrb_users) {
 		/* BHRB cannot be turned off when other
@@ -375,9 +386,12 @@ static void power_pmu_bhrb_disable(struct perf_event *event)
 /* Called from ctxsw to prevent one process's branch entries to
  * mingle with the other process's entries during context switch.
  */
-static void power_pmu_flush_branch_stack(void)
+static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
-	if (ppmu->bhrb_nr)
+	if (!ppmu->bhrb_nr)
+		return;
+
+	if (sched_in)
 		power_pmu_bhrb_reset();
 }
 /* Calculate the to address for a branch */
@@ -1832,8 +1846,10 @@ static int power_pmu_event_init(struct perf_event *event)
 		cpuhw->bhrb_filter = ppmu->bhrb_filter_map(
 					event->attr.branch_sample_type);
 
-		if(cpuhw->bhrb_filter == -1)
+		if (cpuhw->bhrb_filter == -1) {
+			put_cpu_var(cpu_hw_events);
 			return -EOPNOTSUPP;
+		}
 	}
 
 	put_cpu_var(cpu_hw_events);
@@ -1901,7 +1917,7 @@ static struct pmu power_pmu = {
 	.cancel_txn	= power_pmu_cancel_txn,
 	.commit_txn	= power_pmu_commit_txn,
 	.event_idx	= power_pmu_event_idx,
-	.flush_branch_stack = power_pmu_flush_branch_stack,
+	.sched_task	= power_pmu_sched_task,
 };
 
 /*

@@ -392,11 +392,6 @@ int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 	list_for_each_entry(a, actions, list) {
 repeat:
 		ret = a->ops->act(skb, a, res);
-		if (TC_MUNGED & skb->tc_verd) {
-			/* copied already, allow trampling */
-			skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
-			skb->tc_verd = CLR_TC_MUNGED(skb->tc_verd);
-		}
 		if (ret == TC_ACT_REPEAT)
 			goto repeat;	/* we need a ttl - JHS */
 		if (ret != TC_ACT_PIPE)

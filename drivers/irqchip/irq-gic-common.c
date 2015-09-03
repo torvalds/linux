@@ -24,11 +24,8 @@
 int gic_configure_irq(unsigned int irq, unsigned int type,
 		       void __iomem *base, void (*sync_access)(void))
 {
-	u32 enablemask = 1 << (irq % 32);
-	u32 enableoff = (irq / 32) * 4;
 	u32 confmask = 0x2 << ((irq % 16) * 2);
 	u32 confoff = (irq / 16) * 4;
-	bool enabled = false;
 	u32 val, oldval;
 	int ret = 0;
 
@@ -43,17 +40,6 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 		val |= confmask;
 
 	/*
-	 * As recommended by the spec, disable the interrupt before changing
-	 * the configuration
-	 */
-	if (readl_relaxed(base + GIC_DIST_ENABLE_SET + enableoff) & enablemask) {
-		writel_relaxed(enablemask, base + GIC_DIST_ENABLE_CLEAR + enableoff);
-		if (sync_access)
-			sync_access();
-		enabled = true;
-	}
-
-	/*
 	 * Write back the new configuration, and possibly re-enable
 	 * the interrupt. If we tried to write a new configuration and failed,
 	 * return an error.
@@ -61,9 +47,6 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	writel_relaxed(val, base + GIC_DIST_CONFIG + confoff);
 	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val && val != oldval)
 		ret = -EINVAL;
-
-	if (enabled)
-		writel_relaxed(enablemask, base + GIC_DIST_ENABLE_SET + enableoff);
 
 	if (sync_access)
 		sync_access();

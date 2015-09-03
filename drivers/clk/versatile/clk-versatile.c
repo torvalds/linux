@@ -69,7 +69,7 @@ static void __init cm_osc_setup(struct device_node *np,
 		struct device_node *parent;
 
 		parent = of_get_parent(np);
-		if (!np) {
+		if (!parent) {
 			pr_err("no parent on core module clock\n");
 			return;
 		}

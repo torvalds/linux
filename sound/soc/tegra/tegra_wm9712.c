@@ -46,11 +46,7 @@ static const struct snd_soc_dapm_widget tegra_wm9712_dapm_widgets[] = {
 
 static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	return snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
+	return snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
 }
 
 static struct snd_soc_dai_link tegra_wm9712_dai = {

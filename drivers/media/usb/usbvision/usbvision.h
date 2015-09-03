@@ -357,8 +357,8 @@ extern struct usb_device_id usbvision_table[];
 
 struct usb_usbvision {
 	struct v4l2_device v4l2_dev;
-	struct video_device *vdev;					/* Video Device */
-	struct video_device *rdev;					/* Radio Device */
+	struct video_device vdev;					/* Video Device */
+	struct video_device rdev;					/* Radio Device */
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;

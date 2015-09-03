@@ -54,7 +54,7 @@ static int addi_watchdog_insn_config(struct comedi_device *dev,
 
 		/* Time base is 20ms, let the user know the timeout */
 		dev_info(dev->class_dev, "watchdog enabled, timeout:%dms\n",
-			20 * reload + 20);
+			 20 * reload + 20);
 		break;
 	case INSN_CONFIG_DISARM:
 		spriv->wdog_ctrl = 0;

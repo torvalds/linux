@@ -55,7 +55,7 @@ static int param_set_bufsize(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_bufsize = {
+static const struct kernel_param_ops param_ops_bufsize = {
 	.set = param_set_bufsize,
 	.get = param_get_uint,
 };

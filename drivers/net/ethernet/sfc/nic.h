@@ -381,6 +381,7 @@ enum {
  * @efx: Pointer back to main interface structure
  * @wol_filter_id: Wake-on-LAN packet filter id
  * @stats: Hardware statistics
+ * @vf: Array of &struct siena_vf objects
  * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
  * @vfdi_status: Common VFDI status page to be dmad to VF address space.
  * @local_addr_list: List of local addresses. Protected by %local_lock.
@@ -394,6 +395,7 @@ struct siena_nic_data {
 	int wol_filter_id;
 	u64 stats[SIENA_STAT_COUNT];
 #ifdef CONFIG_SFC_SRIOV
+	struct siena_vf *vf;
 	struct efx_channel *vfdi_channel;
 	unsigned vf_buftbl_base;
 	struct efx_buffer vfdi_status;
@@ -405,59 +407,77 @@ struct siena_nic_data {
 };
 
 enum {
-	EF10_STAT_tx_bytes = GENERIC_STAT_COUNT,
-	EF10_STAT_tx_packets,
-	EF10_STAT_tx_pause,
-	EF10_STAT_tx_control,
-	EF10_STAT_tx_unicast,
-	EF10_STAT_tx_multicast,
-	EF10_STAT_tx_broadcast,
-	EF10_STAT_tx_lt64,
-	EF10_STAT_tx_64,
-	EF10_STAT_tx_65_to_127,
-	EF10_STAT_tx_128_to_255,
-	EF10_STAT_tx_256_to_511,
-	EF10_STAT_tx_512_to_1023,
-	EF10_STAT_tx_1024_to_15xx,
-	EF10_STAT_tx_15xx_to_jumbo,
-	EF10_STAT_rx_bytes,
-	EF10_STAT_rx_bytes_minus_good_bytes,
-	EF10_STAT_rx_good_bytes,
-	EF10_STAT_rx_bad_bytes,
-	EF10_STAT_rx_packets,
-	EF10_STAT_rx_good,
-	EF10_STAT_rx_bad,
-	EF10_STAT_rx_pause,
-	EF10_STAT_rx_control,
+	EF10_STAT_port_tx_bytes = GENERIC_STAT_COUNT,
+	EF10_STAT_port_tx_packets,
+	EF10_STAT_port_tx_pause,
+	EF10_STAT_port_tx_control,
+	EF10_STAT_port_tx_unicast,
+	EF10_STAT_port_tx_multicast,
+	EF10_STAT_port_tx_broadcast,
+	EF10_STAT_port_tx_lt64,
+	EF10_STAT_port_tx_64,
+	EF10_STAT_port_tx_65_to_127,
+	EF10_STAT_port_tx_128_to_255,
+	EF10_STAT_port_tx_256_to_511,
+	EF10_STAT_port_tx_512_to_1023,
+	EF10_STAT_port_tx_1024_to_15xx,
+	EF10_STAT_port_tx_15xx_to_jumbo,
+	EF10_STAT_port_rx_bytes,
+	EF10_STAT_port_rx_bytes_minus_good_bytes,
+	EF10_STAT_port_rx_good_bytes,
+	EF10_STAT_port_rx_bad_bytes,
+	EF10_STAT_port_rx_packets,
+	EF10_STAT_port_rx_good,
+	EF10_STAT_port_rx_bad,
+	EF10_STAT_port_rx_pause,
+	EF10_STAT_port_rx_control,
+	EF10_STAT_port_rx_unicast,
+	EF10_STAT_port_rx_multicast,
+	EF10_STAT_port_rx_broadcast,
+	EF10_STAT_port_rx_lt64,
+	EF10_STAT_port_rx_64,
+	EF10_STAT_port_rx_65_to_127,
+	EF10_STAT_port_rx_128_to_255,
+	EF10_STAT_port_rx_256_to_511,
+	EF10_STAT_port_rx_512_to_1023,
+	EF10_STAT_port_rx_1024_to_15xx,
+	EF10_STAT_port_rx_15xx_to_jumbo,
+	EF10_STAT_port_rx_gtjumbo,
+	EF10_STAT_port_rx_bad_gtjumbo,
+	EF10_STAT_port_rx_overflow,
+	EF10_STAT_port_rx_align_error,
+	EF10_STAT_port_rx_length_error,
+	EF10_STAT_port_rx_nodesc_drops,
+	EF10_STAT_port_rx_pm_trunc_bb_overflow,
+	EF10_STAT_port_rx_pm_discard_bb_overflow,
+	EF10_STAT_port_rx_pm_trunc_vfifo_full,
+	EF10_STAT_port_rx_pm_discard_vfifo_full,
+	EF10_STAT_port_rx_pm_trunc_qbb,
+	EF10_STAT_port_rx_pm_discard_qbb,
+	EF10_STAT_port_rx_pm_discard_mapping,
+	EF10_STAT_port_rx_dp_q_disabled_packets,
+	EF10_STAT_port_rx_dp_di_dropped_packets,
+	EF10_STAT_port_rx_dp_streaming_packets,
+	EF10_STAT_port_rx_dp_hlb_fetch,
+	EF10_STAT_port_rx_dp_hlb_wait,
 	EF10_STAT_rx_unicast,
+	EF10_STAT_rx_unicast_bytes,
 	EF10_STAT_rx_multicast,
+	EF10_STAT_rx_multicast_bytes,
 	EF10_STAT_rx_broadcast,
-	EF10_STAT_rx_lt64,
-	EF10_STAT_rx_64,
-	EF10_STAT_rx_65_to_127,
-	EF10_STAT_rx_128_to_255,
-	EF10_STAT_rx_256_to_511,
-	EF10_STAT_rx_512_to_1023,
-	EF10_STAT_rx_1024_to_15xx,
-	EF10_STAT_rx_15xx_to_jumbo,
-	EF10_STAT_rx_gtjumbo,
-	EF10_STAT_rx_bad_gtjumbo,
+	EF10_STAT_rx_broadcast_bytes,
+	EF10_STAT_rx_bad,
+	EF10_STAT_rx_bad_bytes,
 	EF10_STAT_rx_overflow,
-	EF10_STAT_rx_align_error,
-	EF10_STAT_rx_length_error,
-	EF10_STAT_rx_nodesc_drops,
-	EF10_STAT_rx_pm_trunc_bb_overflow,
-	EF10_STAT_rx_pm_discard_bb_overflow,
-	EF10_STAT_rx_pm_trunc_vfifo_full,
-	EF10_STAT_rx_pm_discard_vfifo_full,
-	EF10_STAT_rx_pm_trunc_qbb,
-	EF10_STAT_rx_pm_discard_qbb,
-	EF10_STAT_rx_pm_discard_mapping,
-	EF10_STAT_rx_dp_q_disabled_packets,
-	EF10_STAT_rx_dp_di_dropped_packets,
-	EF10_STAT_rx_dp_streaming_packets,
-	EF10_STAT_rx_dp_hlb_fetch,
-	EF10_STAT_rx_dp_hlb_wait,
+	EF10_STAT_tx_unicast,
+	EF10_STAT_tx_unicast_bytes,
+	EF10_STAT_tx_multicast,
+	EF10_STAT_tx_multicast_bytes,
+	EF10_STAT_tx_broadcast,
+	EF10_STAT_tx_broadcast_bytes,
+	EF10_STAT_tx_bad,
+	EF10_STAT_tx_bad_bytes,
+	EF10_STAT_tx_overflow,
 	EF10_STAT_COUNT
 };
 
@@ -483,12 +503,21 @@ enum {
  * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
  *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
+ * @rx_rss_context_exclusive: Whether our RSS context is exclusive or shared
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
  * @must_check_datapath_caps: Flag: @datapath_caps needs to be revalidated
  *	after MC reboot
  * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of
  *	%MC_CMD_GET_CAPABILITIES response)
+ * @rx_dpcpu_fw_id: Firmware ID of the RxDPCPU
+ * @tx_dpcpu_fw_id: Firmware ID of the TxDPCPU
+ * @vport_id: The function's vport ID, only relevant for PFs
+ * @must_probe_vswitching: Flag: vswitching has yet to be setup after MC reboot
+ * @pf_index: The number for this PF, or the parent PF if this is a VF
+#ifdef CONFIG_SFC_SRIOV
+ * @vf: Pointer to VF data structure
+#endif
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;
@@ -503,125 +532,26 @@ struct efx_ef10_nic_data {
 	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
 	bool must_restore_piobufs;
 	u32 rx_rss_context;
+	bool rx_rss_context_exclusive;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
 	bool must_check_datapath_caps;
 	u32 datapath_caps;
+	unsigned int rx_dpcpu_fw_id;
+	unsigned int tx_dpcpu_fw_id;
+	unsigned int vport_id;
+	bool must_probe_vswitching;
+	unsigned int pf_index;
+	u8 port_id[ETH_ALEN];
+#ifdef CONFIG_SFC_SRIOV
+	unsigned int vf_index;
+	struct ef10_vf *vf;
+#endif
+	u8 vport_mac[ETH_ALEN];
 };
 
-/*
- * On the SFC9000 family each port is associated with 1 PCI physical
- * function (PF) handled by sfc and a configurable number of virtual
- * functions (VFs) that may be handled by some other driver, often in
- * a VM guest.  The queue pointer registers are mapped in both PF and
- * VF BARs such that an 8K region provides access to a single RX, TX
- * and event queue (collectively a Virtual Interface, VI or VNIC).
- *
- * The PF has access to all 1024 VIs while VFs are mapped to VIs
- * according to VI_BASE and VI_SCALE: VF i has access to VIs numbered
- * in range [VI_BASE + i << VI_SCALE, VI_BASE + i + 1 << VI_SCALE).
- * The number of VIs and the VI_SCALE value are configurable but must
- * be established at boot time by firmware.
- */
-
-/* Maximum VI_SCALE parameter supported by Siena */
-#define EFX_VI_SCALE_MAX 6
-/* Base VI to use for SR-IOV. Must be aligned to (1 << EFX_VI_SCALE_MAX),
- * so this is the smallest allowed value. */
-#define EFX_VI_BASE 128U
-/* Maximum number of VFs allowed */
-#define EFX_VF_COUNT_MAX 127
-/* Limit EVQs on VFs to be only 8k to reduce buffer table reservation */
-#define EFX_MAX_VF_EVQ_SIZE 8192UL
-/* The number of buffer table entries reserved for each VI on a VF */
-#define EFX_VF_BUFTBL_PER_VI					\
-	((EFX_MAX_VF_EVQ_SIZE + 2 * EFX_MAX_DMAQ_SIZE) *	\
-	 sizeof(efx_qword_t) / EFX_BUF_SIZE)
-
-#ifdef CONFIG_SFC_SRIOV
-
-/* SIENA */
-static inline bool efx_siena_sriov_wanted(struct efx_nic *efx)
-{
-	return efx->vf_count != 0;
-}
-
-static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
-{
-	return efx->vf_init_count != 0;
-}
-
-static inline unsigned int efx_vf_size(struct efx_nic *efx)
-{
-	return 1 << efx->vi_scale;
-}
-
 int efx_init_sriov(void);
-void efx_siena_sriov_probe(struct efx_nic *efx);
-int efx_siena_sriov_init(struct efx_nic *efx);
-void efx_siena_sriov_mac_address_changed(struct efx_nic *efx);
-void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);
-void efx_siena_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event);
-void efx_siena_sriov_event(struct efx_channel *channel, efx_qword_t *event);
-void efx_siena_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq);
-void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr);
-void efx_siena_sriov_reset(struct efx_nic *efx);
-void efx_siena_sriov_fini(struct efx_nic *efx);
 void efx_fini_sriov(void);
-
-/* EF10 */
-static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx) { return false; }
-static inline int efx_ef10_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
-static inline void efx_ef10_sriov_mac_address_changed(struct efx_nic *efx) {}
-static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
-static inline void efx_ef10_sriov_fini(struct efx_nic *efx) {}
-
-#else
-
-/* SIENA */
-static inline bool efx_siena_sriov_wanted(struct efx_nic *efx) { return false; }
-static inline bool efx_siena_sriov_enabled(struct efx_nic *efx) { return false; }
-static inline unsigned int efx_vf_size(struct efx_nic *efx) { return 0; }
-static inline int efx_init_sriov(void) { return 0; }
-static inline void efx_siena_sriov_probe(struct efx_nic *efx) {}
-static inline int efx_siena_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
-static inline void efx_siena_sriov_mac_address_changed(struct efx_nic *efx) {}
-static inline void efx_siena_sriov_tx_flush_done(struct efx_nic *efx,
-						 efx_qword_t *event) {}
-static inline void efx_siena_sriov_rx_flush_done(struct efx_nic *efx,
-						 efx_qword_t *event) {}
-static inline void efx_siena_sriov_event(struct efx_channel *channel,
-					 efx_qword_t *event) {}
-static inline void efx_siena_sriov_desc_fetch_err(struct efx_nic *efx,
-						  unsigned dmaq) {}
-static inline void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr) {}
-static inline void efx_siena_sriov_reset(struct efx_nic *efx) {}
-static inline void efx_siena_sriov_fini(struct efx_nic *efx) {}
-static inline void efx_fini_sriov(void) {}
-
-/* EF10 */
-static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx) { return false; }
-static inline int efx_ef10_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
-static inline void efx_ef10_sriov_mac_address_changed(struct efx_nic *efx) {}
-static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
-static inline void efx_ef10_sriov_fini(struct efx_nic *efx) {}
-
-#endif
-
-/* FALCON */
-static inline bool efx_falcon_sriov_wanted(struct efx_nic *efx) { return false; }
-static inline int efx_falcon_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
-static inline void efx_falcon_sriov_mac_address_changed(struct efx_nic *efx) {}
-static inline void efx_falcon_sriov_reset(struct efx_nic *efx) {}
-static inline void efx_falcon_sriov_fini(struct efx_nic *efx) {}
-
-int efx_siena_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
-int efx_siena_sriov_set_vf_vlan(struct net_device *dev, int vf,
-				u16 vlan, u8 qos);
-int efx_siena_sriov_get_vf_config(struct net_device *dev, int vf,
-				  struct ifla_vf_info *ivf);
-int efx_siena_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
-				    bool spoofchk);
 
 struct ethtool_ts_info;
 int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel);
@@ -654,6 +584,7 @@ extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
 extern const struct efx_nic_type siena_a0_nic_type;
 extern const struct efx_nic_type efx_hunt_a0_nic_type;
+extern const struct efx_nic_type efx_hunt_a0_vf_nic_type;
 
 /**************************************************************************
  *

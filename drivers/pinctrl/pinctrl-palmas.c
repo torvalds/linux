@@ -987,7 +987,7 @@ static struct palmas_pinctrl_data tps80036_pinctrl_data = {
 	.num_pin_groups = ARRAY_SIZE(tps80036_pingroups),
 };
 
-static struct of_device_id palmas_pinctrl_of_match[] = {
+static const struct of_device_id palmas_pinctrl_of_match[] = {
 	{ .compatible = "ti,palmas-pinctrl", .data = &tps65913_pinctrl_data},
 	{ .compatible = "ti,tps65913-pinctrl", .data = &tps65913_pinctrl_data},
 	{ .compatible = "ti,tps80036-pinctrl", .data = &tps80036_pinctrl_data},
@@ -1044,9 +1044,9 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	palmas_pinctrl_desc.pins = palmas_pins_desc;
 	palmas_pinctrl_desc.npins = ARRAY_SIZE(palmas_pins_desc);
 	pci->pctl = pinctrl_register(&palmas_pinctrl_desc, &pdev->dev, pci);
-	if (!pci->pctl) {
+	if (IS_ERR(pci->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pci->pctl);
 	}
 	return 0;
 }

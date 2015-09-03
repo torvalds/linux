@@ -67,10 +67,12 @@
 #define SJPEG_SUBSAMPLING_420	0x22
 
 /* Version numbers */
-
-#define SJPEG_S5P		1
-#define SJPEG_EXYNOS3250	2
-#define SJPEG_EXYNOS4		3
+enum sjpeg_version {
+	SJPEG_S5P,
+	SJPEG_EXYNOS3250,
+	SJPEG_EXYNOS4,
+	SJPEG_EXYNOS5420,
+};
 
 enum exynos4_jpeg_result {
 	OK_ENC_OR_DEC,
@@ -130,6 +132,8 @@ struct s5p_jpeg {
 struct s5p_jpeg_variant {
 	unsigned int		version;
 	unsigned int		fmt_ver_flag;
+	unsigned int		hw3250_compat:1;
+	unsigned int		htbl_reinit:1;
 	struct v4l2_m2m_ops	*m2m_ops;
 	irqreturn_t		(*jpeg_irq)(int irq, void *priv);
 };

@@ -2,7 +2,7 @@
  * SPEAr platform shared irq layer source file
  *
  * Copyright (C) 2009-2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * Copyright (C) 2012 ST Microelectronics
  * Shiraz Hashim <shiraz.linux.kernel@gmail.com>
@@ -207,8 +207,7 @@ static void __init spear_shirq_register(struct spear_shirq *shirq,
 	if (!shirq->irq_chip)
 		return;
 
-	irq_set_chained_handler(parent_irq, shirq_handler);
-	irq_set_handler_data(parent_irq, shirq);
+	irq_set_chained_handler_and_data(parent_irq, shirq_handler, shirq);
 
 	for (i = 0; i < shirq->nr_irqs; i++) {
 		irq_set_chip_and_handler(shirq->virq_base + i,

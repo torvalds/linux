@@ -1,12 +1,14 @@
 #ifndef __PERF_THREAD_H
 #define __PERF_THREAD_H
 
+#include <linux/atomic.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include "symbol.h"
 #include <strlist.h>
+#include <intlist.h>
 
 struct thread_stack;
 
@@ -20,11 +22,12 @@ struct thread {
 	pid_t			tid;
 	pid_t			ppid;
 	int			cpu;
+	atomic_t		refcnt;
 	char			shortname[3];
 	bool			comm_set;
+	int			comm_len;
 	bool			dead; /* if set thread has exited */
 	struct list_head	comm_list;
-	int			comm_len;
 	u64			db_id;
 
 	void			*priv;
@@ -37,6 +40,18 @@ struct comm;
 struct thread *thread__new(pid_t pid, pid_t tid);
 int thread__init_map_groups(struct thread *thread, struct machine *machine);
 void thread__delete(struct thread *thread);
+
+struct thread *thread__get(struct thread *thread);
+void thread__put(struct thread *thread);
+
+static inline void __thread__zput(struct thread **thread)
+{
+	thread__put(*thread);
+	*thread = NULL;
+}
+
+#define thread__zput(thread) __thread__zput(&thread)
+
 static inline void thread__exited(struct thread *thread)
 {
 	thread->dead = true;
@@ -84,6 +99,16 @@ static inline bool thread__is_filtered(struct thread *thread)
 {
 	if (symbol_conf.comm_list &&
 	    !strlist__has_entry(symbol_conf.comm_list, thread__comm_str(thread))) {
+		return true;
+	}
+
+	if (symbol_conf.pid_list &&
+	    !intlist__has_entry(symbol_conf.pid_list, thread->pid_)) {
+		return true;
+	}
+
+	if (symbol_conf.tid_list &&
+	    !intlist__has_entry(symbol_conf.tid_list, thread->tid)) {
 		return true;
 	}
 

@@ -184,7 +184,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 	nv_debug(clk, "setting performance state %d\n", pstatei);
 	clk->pstate = pstatei;
 
-	if (pfb->ram->calc) {
+	if (pfb->ram && pfb->ram->calc) {
 		int khz = pstate->base.domain[nv_clk_src_mem];
 		do {
 			ret = pfb->ram->calc(pfb, khz);

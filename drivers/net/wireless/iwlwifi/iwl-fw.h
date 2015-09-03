@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-fw-file.h"
+#include "iwl-fw-error-dump.h"
 
 /**
  * enum iwl_ucode_type
@@ -104,9 +105,23 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
-	u32 api[IWL_API_ARRAY_SIZE];
-	u32 capa[IWL_CAPABILITIES_ARRAY_SIZE];
+	unsigned long _api[BITS_TO_LONGS(IWL_API_MAX_BITS)];
+	unsigned long _capa[BITS_TO_LONGS(IWL_CAPABILITIES_MAX_BITS)];
 };
+
+static inline bool
+fw_has_api(const struct iwl_ucode_capabilities *capabilities,
+	   iwl_ucode_tlv_api_t api)
+{
+	return test_bit((__force long)api, capabilities->_api);
+}
+
+static inline bool
+fw_has_capa(const struct iwl_ucode_capabilities *capabilities,
+	    iwl_ucode_tlv_capa_t capa)
+{
+	return test_bit((__force long)capa, capabilities->_capa);
+}
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct fw_desc {
@@ -157,6 +172,8 @@ struct iwl_fw_cscheme_list {
  * @dbg_dest_tlv: points to the destination TLV for debug
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
  * @dbg_conf_tlv_len: lengths of the @dbg_conf_tlv entries
+ * @dbg_trigger_tlv: array of pointers to triggers TLVs
+ * @dbg_trigger_tlv_len: lengths of the @dbg_trigger_tlv entries
  * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_fw {
@@ -186,9 +203,10 @@ struct iwl_fw {
 	u32 sdio_adma_addr;
 
 	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
-	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
-	size_t dbg_conf_tlv_len[FW_DBG_MAX];
-
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
+	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	u8 dbg_dest_reg_num;
 };
 
@@ -201,40 +219,11 @@ static inline const char *get_fw_dbg_mode_string(int mode)
 		return "EXTERNAL_DRAM";
 	case MARBH_MODE:
 		return "MARBH";
+	case MIPI_MODE:
+		return "MIPI";
 	default:
 		return "UNKNOWN";
 	}
-}
-
-static inline const struct iwl_fw_dbg_trigger *
-iwl_fw_dbg_conf_get_trigger(const struct iwl_fw *fw, u8 id)
-{
-	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
-	u8 *ptr;
-	int i;
-
-	if (!conf_tlv)
-		return NULL;
-
-	ptr = (void *)&conf_tlv->hcmd;
-	for (i = 0; i < conf_tlv->num_of_hcmds; i++) {
-		ptr += sizeof(conf_tlv->hcmd);
-		ptr += le16_to_cpu(conf_tlv->hcmd.len);
-	}
-
-	return (const struct iwl_fw_dbg_trigger *)ptr;
-}
-
-static inline bool
-iwl_fw_dbg_conf_enabled(const struct iwl_fw *fw, u8 id)
-{
-	const struct iwl_fw_dbg_trigger *trigger =
-		iwl_fw_dbg_conf_get_trigger(fw, id);
-
-	if (!trigger)
-		return false;
-
-	return trigger->enabled;
 }
 
 static inline bool
@@ -246,6 +235,20 @@ iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 		return false;
 
 	return conf_tlv->usniffer;
+}
+
+#define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
+	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
+	unlikely(__dbg_trigger);				\
+})
+
+static inline struct iwl_fw_dbg_trigger_tlv*
+iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, u8 id)
+{
+	if (WARN_ON(id >= ARRAY_SIZE(fw->dbg_trigger_tlv)))
+		return NULL;
+
+	return fw->dbg_trigger_tlv[id];
 }
 
 #endif  /* __iwl_fw_h__ */

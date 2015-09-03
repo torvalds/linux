@@ -204,6 +204,8 @@ iscsi_create_endpoint(int dd_size)
 					iscsi_match_epid);
 		if (!dev)
 			break;
+		else
+			put_device(dev);
 	}
 	if (id == ISCSI_MAX_EPID) {
 		printk(KERN_ERR "Too many connections. Max supported %u\n",

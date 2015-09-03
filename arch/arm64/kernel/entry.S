@@ -21,8 +21,10 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 
+#include <asm/alternative.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
+#include <asm/cpufeature.h>
 #include <asm/errno.h>
 #include <asm/esr.h>
 #include <asm/thread_info.h>
@@ -120,6 +122,27 @@
 	ct_user_enter
 	ldr	x23, [sp, #S_SP]		// load return stack pointer
 	msr	sp_el0, x23
+
+#ifdef CONFIG_ARM64_ERRATUM_845719
+
+#undef SEQUENCE_ORG
+#undef SEQUENCE_ALT
+
+#ifdef CONFIG_PID_IN_CONTEXTIDR
+
+#define SEQUENCE_ORG	"nop ; nop ; nop"
+#define SEQUENCE_ALT	"tbz x22, #4, 1f ; mrs x29, contextidr_el1; msr contextidr_el1, x29; 1:"
+
+#else
+
+#define SEQUENCE_ORG	"nop ; nop"
+#define SEQUENCE_ALT	"tbz x22, #4, 1f ; msr contextidr_el1, xzr; 1:"
+
+#endif
+
+	alternative_insn SEQUENCE_ORG, SEQUENCE_ALT, ARM64_WORKAROUND_845719
+
+#endif
 	.endif
 	msr	elr_el1, x21			// set up the return data
 	msr	spsr_el1, x22
@@ -329,8 +352,8 @@ el1_inv:
 	// TODO: add support for undefined instructions in kernel mode
 	enable_dbg
 	mov	x0, sp
+	mov	x2, x1
 	mov	x1, #BAD_SYNC
-	mrs	x2, esr_el1
 	b	bad_mode
 ENDPROC(el1_sync)
 
@@ -497,6 +520,7 @@ el0_sp_pc:
 	mrs	x26, far_el1
 	// enable interrupts before calling the main handler
 	enable_dbg_and_irq
+	ct_user_exit
 	mov	x0, x26
 	mov	x1, x25
 	mov	x2, sp
@@ -529,7 +553,7 @@ el0_inv:
 	ct_user_exit
 	mov	x0, sp
 	mov	x1, #BAD_SYNC
-	mrs	x2, esr_el1
+	mov	x2, x25
 	bl	bad_mode
 	b	ret_to_user
 ENDPROC(el0_sync)
@@ -588,11 +612,16 @@ ENDPROC(cpu_switch_to)
  */
 ret_fast_syscall:
 	disable_irq				// disable interrupts
-	ldr	x1, [tsk, #TI_FLAGS]
+	ldr	x1, [tsk, #TI_FLAGS]		// re-check for syscall tracing
+	and	x2, x1, #_TIF_SYSCALL_WORK
+	cbnz	x2, ret_fast_syscall_trace
 	and	x2, x1, #_TIF_WORK_MASK
 	cbnz	x2, fast_work_pending
 	enable_step_tsk x1, x2
 	kernel_exit 0, ret = 1
+ret_fast_syscall_trace:
+	enable_irq				// enable interrupts
+	b	__sys_trace_return
 
 /*
  * Ok, we need to do extra processing, enter the slow path.

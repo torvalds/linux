@@ -26,7 +26,6 @@
  */
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	unsigned long		status;		/* thread-synchronous flags */
 	__u32			homecache_cpu;	/* CPU we are homecached on */
@@ -43,6 +42,7 @@ struct thread_info {
 	unsigned long		unalign_jit_tmp[4]; /* temp r0..r3 storage */
 	void __user		*unalign_jit_base; /* unalign fixup JIT base */
 #endif
+	bool in_backtrace;			/* currently doing backtrace? */
 };
 
 /*
@@ -51,7 +51,6 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
@@ -126,6 +125,7 @@ extern void _cpu_idle(void);
 #define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
 #define TIF_SYSCALL_TRACEPOINT	9	/* syscall tracepoint instrumentation */
 #define TIF_POLLING_NRFLAG	10	/* idle is polling for TIF_NEED_RESCHED */
+#define TIF_NOHZ		11	/* in adaptive nohz mode */
 
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
@@ -138,14 +138,16 @@ extern void _cpu_idle(void);
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_NOHZ		(1<<TIF_NOHZ)
 
 /* Work to do on any return to user space. */
 #define _TIF_ALLWORK_MASK \
-  (_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_SINGLESTEP|\
-   _TIF_ASYNC_TLB|_TIF_NOTIFY_RESUME)
+	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_SINGLESTEP | \
+	 _TIF_ASYNC_TLB | _TIF_NOTIFY_RESUME | _TIF_NOHZ)
 
 /* Work to do at syscall entry. */
-#define _TIF_SYSCALL_ENTRY_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
+#define _TIF_SYSCALL_ENTRY_WORK \
+	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_NOHZ)
 
 /* Work to do at syscall exit. */
 #define _TIF_SYSCALL_EXIT_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)

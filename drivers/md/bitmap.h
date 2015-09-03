@@ -130,8 +130,9 @@ typedef struct bitmap_super_s {
 	__le32 write_behind; /* 60  number of outstanding write-behind writes */
 	__le32 sectors_reserved; /* 64 number of 512-byte sectors that are
 				  * reserved for the bitmap. */
-
-	__u8  pad[256 - 68]; /* set to zero */
+	__le32 nodes;        /* 68 the maximum number of nodes in cluster. */
+	__u8 cluster_name[64]; /* 72 cluster name to which this md belongs */
+	__u8  pad[256 - 136]; /* set to zero */
 } bitmap_super_t;
 
 /* notes:
@@ -226,12 +227,13 @@ struct bitmap {
 	wait_queue_head_t behind_wait;
 
 	struct kernfs_node *sysfs_can_clear;
+	int cluster_slot;		/* Slot offset for clustered env */
 };
 
 /* the bitmap API */
 
 /* these are used only by md/bitmap */
-int  bitmap_create(struct mddev *mddev);
+struct bitmap *bitmap_create(struct mddev *mddev, int slot);
 int bitmap_load(struct mddev *mddev);
 void bitmap_flush(struct mddev *mddev);
 void bitmap_destroy(struct mddev *mddev);
@@ -260,6 +262,8 @@ void bitmap_daemon_work(struct mddev *mddev);
 
 int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 		  int chunksize, int init);
+int bitmap_copy_from_slot(struct mddev *mddev, int slot,
+				sector_t *lo, sector_t *hi, bool clear_bits);
 #endif
 
 #endif

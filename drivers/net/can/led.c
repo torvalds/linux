@@ -30,20 +30,28 @@ void can_led_event(struct net_device *netdev, enum can_led_event event)
 	case CAN_LED_EVENT_OPEN:
 		led_trigger_event(priv->tx_led_trig, LED_FULL);
 		led_trigger_event(priv->rx_led_trig, LED_FULL);
+		led_trigger_event(priv->rxtx_led_trig, LED_FULL);
 		break;
 	case CAN_LED_EVENT_STOP:
 		led_trigger_event(priv->tx_led_trig, LED_OFF);
 		led_trigger_event(priv->rx_led_trig, LED_OFF);
+		led_trigger_event(priv->rxtx_led_trig, LED_OFF);
 		break;
 	case CAN_LED_EVENT_TX:
-		if (led_delay)
+		if (led_delay) {
 			led_trigger_blink_oneshot(priv->tx_led_trig,
 						  &led_delay, &led_delay, 1);
+			led_trigger_blink_oneshot(priv->rxtx_led_trig,
+						  &led_delay, &led_delay, 1);
+		}
 		break;
 	case CAN_LED_EVENT_RX:
-		if (led_delay)
+		if (led_delay) {
 			led_trigger_blink_oneshot(priv->rx_led_trig,
 						  &led_delay, &led_delay, 1);
+			led_trigger_blink_oneshot(priv->rxtx_led_trig,
+						  &led_delay, &led_delay, 1);
+		}
 		break;
 	}
 }
@@ -55,6 +63,7 @@ static void can_led_release(struct device *gendev, void *res)
 
 	led_trigger_unregister_simple(priv->tx_led_trig);
 	led_trigger_unregister_simple(priv->rx_led_trig);
+	led_trigger_unregister_simple(priv->rxtx_led_trig);
 }
 
 /* Register CAN LED triggers for a CAN device
@@ -76,11 +85,15 @@ void devm_can_led_init(struct net_device *netdev)
 		 "%s-tx", netdev->name);
 	snprintf(priv->rx_led_trig_name, sizeof(priv->rx_led_trig_name),
 		 "%s-rx", netdev->name);
+	snprintf(priv->rxtx_led_trig_name, sizeof(priv->rxtx_led_trig_name),
+		 "%s-rxtx", netdev->name);
 
 	led_trigger_register_simple(priv->tx_led_trig_name,
 				    &priv->tx_led_trig);
 	led_trigger_register_simple(priv->rx_led_trig_name,
 				    &priv->rx_led_trig);
+	led_trigger_register_simple(priv->rxtx_led_trig_name,
+				    &priv->rxtx_led_trig);
 
 	devres_add(&netdev->dev, res);
 }
@@ -97,7 +110,7 @@ static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
 	if (!priv)
 		return NOTIFY_DONE;
 
-	if (!priv->tx_led_trig || !priv->rx_led_trig)
+	if (!priv->tx_led_trig || !priv->rx_led_trig || !priv->rxtx_led_trig)
 		return NOTIFY_DONE;
 
 	if (msg == NETDEV_CHANGENAME) {
@@ -106,6 +119,9 @@ static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
 
 		snprintf(name, sizeof(name), "%s-rx", netdev->name);
 		led_trigger_rename_static(name, priv->rx_led_trig);
+
+		snprintf(name, sizeof(name), "%s-rxtx", netdev->name);
+		led_trigger_rename_static(name, priv->rxtx_led_trig);
 	}
 
 	return NOTIFY_DONE;

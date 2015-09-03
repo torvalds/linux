@@ -18,7 +18,7 @@ LDS_EXTRA		:= -Ui386
 export LDS_EXTRA
 
 # First of all, tune CFLAGS for the specific CPU. This actually sets cflags-y.
-include $(srctree)/arch/x86/Makefile_32.cpu
+include arch/x86/Makefile_32.cpu
 
 # prevent gcc from keeping the stack 16 byte aligned. Taken from i386.
 cflags-y += $(call cc-option,-mpreferred-stack-boundary=2)

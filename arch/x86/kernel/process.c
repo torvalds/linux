@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/pm.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 #include <linux/random.h>
 #include <linux/user-return-notifier.h>
 #include <linux/dmi.h>
@@ -24,8 +24,8 @@
 #include <asm/syscalls.h>
 #include <asm/idle.h>
 #include <asm/uaccess.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/mwait.h>
+#include <asm/fpu/internal.h>
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
@@ -37,7 +37,26 @@
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
  */
-__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss) = INIT_TSS;
+__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
+	.x86_tss = {
+		.sp0 = TOP_OF_INIT_STACK,
+#ifdef CONFIG_X86_32
+		.ss0 = __KERNEL_DS,
+		.ss1 = __KERNEL_CS,
+		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
+#endif
+	 },
+#ifdef CONFIG_X86_32
+	 /*
+	  * Note that the .io_bitmap member must be extra-big. This is because
+	  * the CPU will access an additional byte beyond the end of the IO
+	  * permission bitmap. The extra byte must be all 1 bits, and must
+	  * be within the limit.
+	  */
+	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },
+#endif
+};
+EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
@@ -56,47 +75,15 @@ void idle_notifier_unregister(struct notifier_block *n)
 EXPORT_SYMBOL_GPL(idle_notifier_unregister);
 #endif
 
-struct kmem_cache *task_xstate_cachep;
-EXPORT_SYMBOL_GPL(task_xstate_cachep);
-
 /*
  * this gets called so that we can store lazy state into memory and copy the
  * current task into the new thread.
  */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	*dst = *src;
+	memcpy(dst, src, arch_task_struct_size);
 
-	dst->thread.fpu_counter = 0;
-	dst->thread.fpu.has_fpu = 0;
-	dst->thread.fpu.last_cpu = ~0;
-	dst->thread.fpu.state = NULL;
-	if (tsk_used_math(src)) {
-		int err = fpu_alloc(&dst->thread.fpu);
-		if (err)
-			return err;
-		fpu_copy(dst, src);
-	}
-	return 0;
-}
-
-void free_thread_xstate(struct task_struct *tsk)
-{
-	fpu_free(&tsk->thread.fpu);
-}
-
-void arch_release_task_struct(struct task_struct *tsk)
-{
-	free_thread_xstate(tsk);
-}
-
-void arch_task_cache_init(void)
-{
-        task_xstate_cachep =
-        	kmem_cache_create("task_xstate", xstate_size,
-				  __alignof__(union thread_xstate),
-				  SLAB_PANIC | SLAB_NOTRACK, NULL);
-	setup_xstate_comp();
+	return fpu__copy(&dst->thread.fpu, &src->thread.fpu);
 }
 
 /*
@@ -107,9 +94,10 @@ void exit_thread(void)
 	struct task_struct *me = current;
 	struct thread_struct *t = &me->thread;
 	unsigned long *bp = t->io_bitmap_ptr;
+	struct fpu *fpu = &t->fpu;
 
 	if (bp) {
-		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
+		struct tss_struct *tss = &per_cpu(cpu_tss, get_cpu());
 
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);
@@ -122,7 +110,7 @@ void exit_thread(void)
 		kfree(bp);
 	}
 
-	drop_fpu(me);
+	fpu__drop(fpu);
 }
 
 void flush_thread(void)
@@ -131,13 +119,8 @@ void flush_thread(void)
 
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
-	drop_init_fpu(tsk);
-	/*
-	 * Free the FPU state for non xsave platforms. They get reallocated
-	 * lazily at the first use.
-	 */
-	if (!use_eager_fpu())
-		free_thread_xstate(tsk);
+
+	fpu__clear(&tsk->thread.fpu);
 }
 
 static void hard_disable_TSC(void)
@@ -377,14 +360,11 @@ static void amd_e400_idle(void)
 
 		if (!cpumask_test_cpu(cpu, amd_e400_c1e_mask)) {
 			cpumask_set_cpu(cpu, amd_e400_c1e_mask);
-			/*
-			 * Force broadcast so ACPI can not interfere.
-			 */
-			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
-					   &cpu);
+			/* Force broadcast so ACPI can not interfere. */
+			tick_broadcast_force();
 			pr_info("Switch to broadcast mode on CPU%d\n", cpu);
 		}
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
+		tick_broadcast_enter();
 
 		default_idle();
 
@@ -393,10 +373,56 @@ static void amd_e400_idle(void)
 		 * called with interrupts disabled.
 		 */
 		local_irq_disable();
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+		tick_broadcast_exit();
 		local_irq_enable();
 	} else
 		default_idle();
+}
+
+/*
+ * Intel Core2 and older machines prefer MWAIT over HALT for C1.
+ * We can't rely on cpuidle installing MWAIT, because it will not load
+ * on systems that support only C1 -- so the boot default must be MWAIT.
+ *
+ * Some AMD machines are the opposite, they depend on using HALT.
+ *
+ * So for default C1, which is used during boot until cpuidle loads,
+ * use MWAIT-C1 on Intel HW that has it, else use HALT.
+ */
+static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
+{
+	if (c->x86_vendor != X86_VENDOR_INTEL)
+		return 0;
+
+	if (!cpu_has(c, X86_FEATURE_MWAIT))
+		return 0;
+
+	return 1;
+}
+
+/*
+ * MONITOR/MWAIT with no hints, used for default C1 state. This invokes MWAIT
+ * with interrupts enabled and no flags, which is backwards compatible with the
+ * original MWAIT implementation.
+ */
+static void mwait_idle(void)
+{
+	if (!current_set_polling_and_test()) {
+		if (this_cpu_has(X86_BUG_CLFLUSH_MONITOR)) {
+			smp_mb(); /* quirk */
+			clflush((void *)&current_thread_info()->flags);
+			smp_mb(); /* quirk */
+		}
+
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		if (!need_resched())
+			__sti_mwait(0, 0);
+		else
+			local_irq_enable();
+	} else {
+		local_irq_enable();
+	}
+	__current_clr_polling();
 }
 
 void select_idle_routine(const struct cpuinfo_x86 *c)
@@ -412,6 +438,9 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 		/* E400: APIC timer interrupt does not wake up CPU from C1e */
 		pr_info("using AMD E400 aware idle routine\n");
 		x86_idle = amd_e400_idle;
+	} else if (prefer_mwait_c1_over_halt(c)) {
+		pr_info("using mwait in idle threads\n");
+		x86_idle = mwait_idle;
 	} else
 		x86_idle = default_idle;
 }

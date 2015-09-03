@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <linux/pid.h>
 #include <asm/cputable.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include "cxl.h"
 #include "trace.h"
@@ -416,9 +416,8 @@ void afu_irq_name_free(struct cxl_context *ctx)
 	}
 }
 
-int afu_register_irqs(struct cxl_context *ctx, u32 count)
+int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 {
-	irq_hw_number_t hwirq;
 	int rc, r, i, j = 1;
 	struct cxl_irq_name *irq_name;
 
@@ -458,6 +457,18 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count)
 			j++;
 		}
 	}
+	return 0;
+
+out:
+	afu_irq_name_free(ctx);
+	return -ENOMEM;
+}
+
+void afu_register_hwirqs(struct cxl_context *ctx)
+{
+	irq_hw_number_t hwirq;
+	struct cxl_irq_name *irq_name;
+	int r,i;
 
 	/* We've allocated all memory now, so let's do the irq allocations */
 	irq_name = list_first_entry(&ctx->irq_names, struct cxl_irq_name, list);
@@ -469,15 +480,21 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count)
 			irq_name = list_next_entry(irq_name, list);
 		}
 	}
-
-	return 0;
-
-out:
-	afu_irq_name_free(ctx);
-	return -ENOMEM;
 }
 
-void afu_release_irqs(struct cxl_context *ctx)
+int afu_register_irqs(struct cxl_context *ctx, u32 count)
+{
+	int rc;
+
+	rc = afu_allocate_irqs(ctx, count);
+	if (rc)
+		return rc;
+
+	afu_register_hwirqs(ctx);
+	return 0;
+ }
+
+void afu_release_irqs(struct cxl_context *ctx, void *cookie)
 {
 	irq_hw_number_t hwirq;
 	unsigned int virq;
@@ -488,7 +505,7 @@ void afu_release_irqs(struct cxl_context *ctx)
 		for (i = 0; i < ctx->irqs.range[r]; hwirq++, i++) {
 			virq = irq_find_mapping(NULL, hwirq);
 			if (virq)
-				cxl_unmap_irq(virq, ctx);
+				cxl_unmap_irq(virq, cookie);
 		}
 	}
 

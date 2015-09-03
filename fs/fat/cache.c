@@ -8,9 +8,7 @@
  *  May 1999. AV. Fixed the bogosity with FAT32 (read "FAT28"). Fscking lusers.
  */
 
-#include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include "fat.h"
 
 /* this must be > 0. */

@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
@@ -278,7 +279,6 @@ static void _ceph_msgr_exit(void)
 	ceph_msgr_slab_exit();
 
 	BUG_ON(zero_page == NULL);
-	kunmap(zero_page);
 	page_cache_release(zero_page);
 	zero_page = NULL;
 }
@@ -480,11 +480,11 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
-			       IPPROTO_TCP, &sock);
+	ret = sock_create_kern(read_pnet(&con->msgr->net), paddr->ss_family,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
-	sock->sk->sk_allocation = GFP_NOFS | __GFP_MEMALLOC;
+	sock->sk->sk_allocation = GFP_NOFS;
 
 #ifdef CONFIG_LOCKDEP
 	lockdep_set_class(&sock->sk->sk_lock, &socket_class);
@@ -505,8 +505,6 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 		pr_err("connect %s error %d\n",
 		       ceph_pr_addr(&con->peer_addr.in_addr), ret);
 		sock_release(sock);
-		con->error_msg = "connect error";
-
 		return ret;
 	}
 
@@ -519,8 +517,6 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 			pr_err("kernel_setsockopt(TCP_NODELAY) failed: %d",
 			       ret);
 	}
-
-	sk_set_memalloc(sock->sk);
 
 	con->sock = sock;
 	return 0;
@@ -1549,7 +1545,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 		page = ceph_msg_data_next(&msg->cursor, &page_offset, &length,
 							&last_piece);
 		ret = ceph_tcp_sendpage(con->sock, page, page_offset,
-				      length, last_piece);
+					length, !last_piece);
 		if (ret <= 0) {
 			if (do_datacrc)
 				msg->footer.data_crc = cpu_to_le32(crc);
@@ -1736,17 +1732,17 @@ static int verify_hello(struct ceph_connection *con)
 
 static bool addr_is_blank(struct sockaddr_storage *ss)
 {
+	struct in_addr *addr = &((struct sockaddr_in *)ss)->sin_addr;
+	struct in6_addr *addr6 = &((struct sockaddr_in6 *)ss)->sin6_addr;
+
 	switch (ss->ss_family) {
 	case AF_INET:
-		return ((struct sockaddr_in *)ss)->sin_addr.s_addr == 0;
+		return addr->s_addr == htonl(INADDR_ANY);
 	case AF_INET6:
-		return
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[0] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[1] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[2] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[3] == 0;
+		return ipv6_addr_any(addr6);
+	default:
+		return true;
 	}
-	return false;
 }
 
 static int addr_port(struct sockaddr_storage *ss)
@@ -2147,12 +2143,10 @@ static int process_connect(struct ceph_connection *con)
 		 * to WAIT.  This shouldn't happen if we are the
 		 * client.
 		 */
-		pr_err("process_connect got WAIT as client\n");
 		con->error_msg = "protocol error, got WAIT as client";
 		return -1;
 
 	default:
-		pr_err("connect protocol error, will retry\n");
 		con->error_msg = "protocol error, garbage tag during connect";
 		return -1;
 	}
@@ -2284,8 +2278,7 @@ static int read_partial_message(struct ceph_connection *con)
 
 	crc = crc32c(0, &con->in_hdr, offsetof(struct ceph_msg_header, crc));
 	if (cpu_to_le32(crc) != con->in_hdr.crc) {
-		pr_err("read_partial_message bad hdr "
-		       " crc %u != expected %u\n",
+		pr_err("read_partial_message bad hdr crc %u != expected %u\n",
 		       crc, con->in_hdr.crc);
 		return -EBADMSG;
 	}
@@ -2315,7 +2308,7 @@ static int read_partial_message(struct ceph_connection *con)
 		pr_err("read_partial_message bad seq %lld expected %lld\n",
 		       seq, con->in_seq + 1);
 		con->error_msg = "bad message sequence # for incoming message";
-		return -EBADMSG;
+		return -EBADE;
 	}
 
 	/* allocate message? */
@@ -2662,6 +2655,8 @@ more:
 			switch (ret) {
 			case -EBADMSG:
 				con->error_msg = "bad crc";
+				/* fall through */
+			case -EBADE:
 				ret = -EIO;
 				break;
 			case -EIO:
@@ -2808,10 +2803,7 @@ static void con_work(struct work_struct *work)
 {
 	struct ceph_connection *con = container_of(work, struct ceph_connection,
 						   work.work);
-	unsigned long pflags = current->flags;
 	bool fault;
-
-	current->flags |= PF_MEMALLOC;
 
 	mutex_lock(&con->mutex);
 	while (true) {
@@ -2843,7 +2835,8 @@ static void con_work(struct work_struct *work)
 		if (ret < 0) {
 			if (ret == -EAGAIN)
 				continue;
-			con->error_msg = "socket error on read";
+			if (!con->error_msg)
+				con->error_msg = "socket error on read";
 			fault = true;
 			break;
 		}
@@ -2852,7 +2845,8 @@ static void con_work(struct work_struct *work)
 		if (ret < 0) {
 			if (ret == -EAGAIN)
 				continue;
-			con->error_msg = "socket error on write";
+			if (!con->error_msg)
+				con->error_msg = "socket error on write";
 			fault = true;
 		}
 
@@ -2866,8 +2860,6 @@ static void con_work(struct work_struct *work)
 		con_fault_finish(con);
 
 	con->ops->put(con);
-
-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
 }
 
 /*
@@ -2876,10 +2868,12 @@ static void con_work(struct work_struct *work)
  */
 static void con_fault(struct ceph_connection *con)
 {
-	pr_warn("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
-		ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
 	dout("fault %p state %lu to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
+
+	pr_warn("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
+		ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
+	con->error_msg = NULL;
 
 	WARN_ON(con->state != CON_STATE_CONNECTING &&
 	       con->state != CON_STATE_NEGOTIATING &&
@@ -2951,10 +2945,17 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	msgr->tcp_nodelay = tcp_nodelay;
 
 	atomic_set(&msgr->stopping, 0);
+	write_pnet(&msgr->net, get_net(current->nsproxy->net_ns));
 
 	dout("%s %p\n", __func__, msgr);
 }
 EXPORT_SYMBOL(ceph_messenger_init);
+
+void ceph_messenger_fini(struct ceph_messenger *msgr)
+{
+	put_net(read_pnet(&msgr->net));
+}
+EXPORT_SYMBOL(ceph_messenger_fini);
 
 static void clear_standby(struct ceph_connection *con)
 {
@@ -3302,8 +3303,8 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 		 */
 		if (*skip)
 			return 0;
-		con->error_msg = "error allocating memory for incoming message";
 
+		con->error_msg = "error allocating memory for incoming message";
 		return -ENOMEM;
 	}
 	memcpy(&con->in_msg->hdr, &con->in_hdr, sizeof(con->in_hdr));

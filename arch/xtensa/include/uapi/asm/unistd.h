@@ -715,7 +715,7 @@ __SYSCALL(323, sys_process_vm_writev, 6)
 __SYSCALL(324, sys_name_to_handle_at, 5)
 #define __NR_open_by_handle_at			325
 __SYSCALL(325, sys_open_by_handle_at, 3)
-#define __NR_sync_file_range			326
+#define __NR_sync_file_range2			326
 __SYSCALL(326, sys_sync_file_range2, 6)
 #define __NR_perf_event_open			327
 __SYSCALL(327, sys_perf_event_open, 5)
@@ -749,8 +749,12 @@ __SYSCALL(337, sys_seccomp, 3)
 __SYSCALL(338, sys_getrandom, 3)
 #define __NR_memfd_create			339
 __SYSCALL(339, sys_memfd_create, 2)
+#define __NR_bpf				340
+__SYSCALL(340, sys_bpf, 3)
+#define __NR_execveat				341
+__SYSCALL(341, sys_execveat, 5)
 
-#define __NR_syscall_count			340
+#define __NR_syscall_count			342
 
 /*
  * sysxtensa syscall handler

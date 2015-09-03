@@ -747,7 +747,7 @@ snd_ad1889_proc_init(struct snd_ad1889 *chip)
 		snd_info_set_text_ops(entry, chip, snd_ad1889_proc_read);
 }
 
-static struct ac97_quirk ac97_quirks[] = {
+static const struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x11d4,	/* AD */
 		.subdevice = 0x1889,	/* AD1889 */
@@ -898,8 +898,8 @@ snd_ad1889_create(struct snd_card *card,
 		return err;
 
 	/* check PCI availability (32bit DMA) */
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
+	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0 ||
+	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(card->dev, "error setting 32-bit DMA mask.\n");
 		pci_disable_device(pci);
 		return -ENXIO;

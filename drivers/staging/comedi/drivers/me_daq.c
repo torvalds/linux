@@ -30,11 +30,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "plx9052.h"
 
@@ -174,8 +173,7 @@ struct me_private_data {
 
 static inline void sleep(unsigned sec)
 {
-	__set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(sec * HZ);
+	schedule_timeout_interruptible(sec * HZ);
 }
 
 static int me_dio_insn_config(struct comedi_device *dev,

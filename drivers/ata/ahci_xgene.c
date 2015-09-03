@@ -22,10 +22,12 @@
  * NOTE: PM support is not currently available.
  *
  */
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/ahci_platform.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/phy/phy.h>
 #include "ahci.h"
@@ -82,6 +84,11 @@
 
 /* Max retry for link down */
 #define MAX_LINK_DOWN_RETRY 3
+
+enum xgene_ahci_version {
+	XGENE_AHCI_V1 = 1,
+	XGENE_AHCI_V2,
+};
 
 struct xgene_ahci_context {
 	struct ahci_host_priv *hpriv;
@@ -541,7 +548,7 @@ softreset_retry:
 	return rc;
 }
 
-static struct ata_port_operations xgene_ahci_ops = {
+static struct ata_port_operations xgene_ahci_v1_ops = {
 	.inherits = &ahci_ops,
 	.host_stop = xgene_ahci_host_stop,
 	.hardreset = xgene_ahci_hardreset,
@@ -551,11 +558,25 @@ static struct ata_port_operations xgene_ahci_ops = {
 	.pmp_softreset = xgene_ahci_pmp_softreset
 };
 
-static const struct ata_port_info xgene_ahci_port_info = {
+static const struct ata_port_info xgene_ahci_v1_port_info = {
 	.flags = AHCI_FLAG_COMMON | ATA_FLAG_PMP,
 	.pio_mask = ATA_PIO4,
 	.udma_mask = ATA_UDMA6,
-	.port_ops = &xgene_ahci_ops,
+	.port_ops = &xgene_ahci_v1_ops,
+};
+
+static struct ata_port_operations xgene_ahci_v2_ops = {
+	.inherits = &ahci_ops,
+	.host_stop = xgene_ahci_host_stop,
+	.hardreset = xgene_ahci_hardreset,
+	.read_id = xgene_ahci_read_id,
+};
+
+static const struct ata_port_info xgene_ahci_v2_port_info = {
+	.flags = AHCI_FLAG_COMMON | ATA_FLAG_PMP,
+	.pio_mask = ATA_PIO4,
+	.udma_mask = ATA_UDMA6,
+	.port_ops = &xgene_ahci_v2_ops,
 };
 
 static int xgene_ahci_hw_init(struct ahci_host_priv *hpriv)
@@ -628,12 +649,32 @@ static struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_ahci_acpi_match[] = {
+	{ "APMC0D0D", XGENE_AHCI_V1},
+	{ "APMC0D32", XGENE_AHCI_V2},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, xgene_ahci_acpi_match);
+#endif
+
+static const struct of_device_id xgene_ahci_of_match[] = {
+	{.compatible = "apm,xgene-ahci", .data = (void *) XGENE_AHCI_V1},
+	{.compatible = "apm,xgene-ahci-v2", .data = (void *) XGENE_AHCI_V2},
+	{},
+};
+MODULE_DEVICE_TABLE(of, xgene_ahci_of_match);
+
 static int xgene_ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
 	struct xgene_ahci_context *ctx;
 	struct resource *res;
+	const struct of_device_id *of_devid;
+	enum xgene_ahci_version version = XGENE_AHCI_V1;
+	const struct ata_port_info *ppi[] = { &xgene_ahci_v1_port_info,
+					      &xgene_ahci_v2_port_info };
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
@@ -676,6 +717,35 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 		ctx->csr_mux = csr;
 	}
 
+	of_devid = of_match_device(xgene_ahci_of_match, dev);
+	if (of_devid) {
+		if (of_devid->data)
+			version = (enum xgene_ahci_version) of_devid->data;
+	}
+#ifdef CONFIG_ACPI
+	else {
+		const struct acpi_device_id *acpi_id;
+		struct acpi_device_info *info;
+		acpi_status status;
+
+		acpi_id = acpi_match_device(xgene_ahci_acpi_match, &pdev->dev);
+		if (!acpi_id) {
+			dev_warn(&pdev->dev, "No node entry in ACPI table. Assume version1\n");
+			version = XGENE_AHCI_V1;
+		} else if (acpi_id->driver_data) {
+			version = (enum xgene_ahci_version) acpi_id->driver_data;
+			status = acpi_get_object_info(ACPI_HANDLE(&pdev->dev), &info);
+			if (ACPI_FAILURE(status)) {
+				dev_warn(&pdev->dev, "%s: Error reading device info. Assume version1\n",
+					__func__);
+				version = XGENE_AHCI_V1;
+			}
+			if (info->valid & ACPI_VALID_CID)
+				version = XGENE_AHCI_V2;
+		}
+	}
+#endif
+
 	dev_dbg(dev, "VAddr 0x%p Mmio VAddr 0x%p\n", ctx->csr_core,
 		hpriv->mmio);
 
@@ -703,9 +773,19 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	/* Configure the host controller */
 	xgene_ahci_hw_init(hpriv);
 skip_clk_phy:
-	hpriv->flags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_NO_NCQ;
 
-	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info,
+	switch (version) {
+	case XGENE_AHCI_V1:
+		hpriv->flags = AHCI_HFLAG_NO_NCQ;
+		break;
+	case XGENE_AHCI_V2:
+		hpriv->flags |= AHCI_HFLAG_YES_FBS | AHCI_HFLAG_EDGE_IRQ;
+		break;
+	default:
+		break;
+	}
+
+	rc = ahci_platform_init_host(pdev, hpriv, ppi[version - 1],
 				     &ahci_platform_sht);
 	if (rc)
 		goto disable_resources;
@@ -718,18 +798,13 @@ disable_resources:
 	return rc;
 }
 
-static const struct of_device_id xgene_ahci_of_match[] = {
-	{.compatible = "apm,xgene-ahci"},
-	{},
-};
-MODULE_DEVICE_TABLE(of, xgene_ahci_of_match);
-
 static struct platform_driver xgene_ahci_driver = {
 	.probe = xgene_ahci_probe,
 	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = xgene_ahci_of_match,
+		.acpi_match_table = ACPI_PTR(xgene_ahci_acpi_match),
 	},
 };
 

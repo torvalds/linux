@@ -163,6 +163,21 @@
 #define  EN_CHIP_RST			(1 << 6)
 #define  EN_SW_RESET			(1 << 4)
 
+#define CORE_FAST_AGE_CTRL		0x00220
+#define  EN_FAST_AGE_STATIC		(1 << 0)
+#define  EN_AGE_DYNAMIC			(1 << 1)
+#define  EN_AGE_PORT			(1 << 2)
+#define  EN_AGE_VLAN			(1 << 3)
+#define  EN_AGE_SPT			(1 << 4)
+#define  EN_AGE_MCAST			(1 << 5)
+#define  FAST_AGE_STR_DONE		(1 << 7)
+
+#define CORE_FAST_AGE_PORT		0x00224
+#define  AGE_PORT_MASK			0xf
+
+#define CORE_FAST_AGE_VID		0x00228
+#define  AGE_VID_MASK			0x3fff
+
 #define CORE_LNKSTS			0x00400
 #define  LNK_STS_MASK			0x1ff
 

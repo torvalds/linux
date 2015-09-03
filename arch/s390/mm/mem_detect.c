@@ -31,15 +31,11 @@ void __init detect_memory_memblock(void)
 	unsigned long addr, size;
 	int type;
 
-	rzm = sclp_get_rzm();
-	rnmax = sclp_get_rnmax();
+	rzm = sclp.rzm;
+	rnmax = sclp.rnmax;
 	memsize = rzm * rnmax;
 	if (!rzm)
 		rzm = 1ULL << 17;
-	if (IS_ENABLED(CONFIG_32BIT)) {
-		rzm = min(ADDR2G, rzm);
-		memsize = min(ADDR2G, memsize);
-	}
 	max_physmem_end = memsize;
 	addr = 0;
 	/* keep memblock lists close to the kernel */

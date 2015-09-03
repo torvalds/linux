@@ -269,7 +269,7 @@ static int qlcnic_83xx_idc_clear_registers(struct qlcnic_adapter *adapter,
 	}
 
 	QLCWRX(adapter->ahw, QLC_83XX_IDC_DRV_ACK, 0);
-	/* Clear gracefull reset bit */
+	/* Clear graceful reset bit */
 	val = QLCRDX(adapter->ahw, QLC_83XX_IDC_CTRL);
 	val &= ~QLC_83XX_IDC_GRACEFULL_RESET;
 	QLCWRX(adapter->ahw, QLC_83XX_IDC_CTRL, val);
@@ -889,7 +889,7 @@ static int qlcnic_83xx_idc_ready_state(struct qlcnic_adapter *adapter)
  * @adapter: adapter structure
  *
  * Device will remain in this state until:
- *	Reset request ACK's are recieved from all the functions
+ *	Reset request ACK's are received from all the functions
  *	Wait time exceeds max time limit
  *
  * Returns: Error code or Success(0)

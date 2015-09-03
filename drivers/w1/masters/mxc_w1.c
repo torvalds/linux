@@ -166,7 +166,7 @@ static int mxc_w1_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mxc_w1_dt_ids[] = {
+static const struct of_device_id mxc_w1_dt_ids[] = {
 	{ .compatible = "fsl,imx21-owire" },
 	{ /* sentinel */ }
 };

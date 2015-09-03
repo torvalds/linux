@@ -151,13 +151,13 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	at = G_TC_AT(skb->tc_verd);
-	skb2 = skb_act_clone(skb, GFP_ATOMIC, m->tcf_action);
+	skb2 = skb_clone(skb, GFP_ATOMIC);
 	if (skb2 == NULL)
 		goto out;
 
 	if (!(at & AT_EGRESS)) {
 		if (m->tcfm_ok_push)
-			skb_push(skb2, skb2->dev->hard_header_len);
+			skb_push(skb2, skb->mac_len);
 	}
 
 	/* mirror is always swallowed */

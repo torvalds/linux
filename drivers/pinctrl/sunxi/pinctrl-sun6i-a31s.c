@@ -794,7 +794,7 @@ static int sun6i_a31s_pinctrl_probe(struct platform_device *pdev)
 				  &sun6i_a31s_pinctrl_data);
 }
 
-static struct of_device_id sun6i_a31s_pinctrl_match[] = {
+static const struct of_device_id sun6i_a31s_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun6i-a31s-pinctrl", },
 	{}
 };
@@ -804,7 +804,6 @@ static struct platform_driver sun6i_a31s_pinctrl_driver = {
 	.probe	= sun6i_a31s_pinctrl_probe,
 	.driver	= {
 		.name		= "sun6i-a31s-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sun6i_a31s_pinctrl_match,
 	},
 };
