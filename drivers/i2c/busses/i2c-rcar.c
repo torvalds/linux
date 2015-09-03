@@ -266,6 +266,13 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
 }
 
+static void rcar_i2c_next_msg(struct rcar_i2c_priv *priv)
+{
+	priv->msg++;
+	priv->msgs_left--;
+	rcar_i2c_prepare_msg(priv);
+}
+
 /*
  *		interrupt functions
  */
@@ -308,21 +315,17 @@ static int rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 		 * [ICRXTX] -> [SHIFT] -> [I2C bus]
 		 */
 
-		if (priv->flags & ID_LAST_MSG)
+		if (priv->flags & ID_LAST_MSG) {
 			/*
 			 * If current msg is the _LAST_ msg,
 			 * prepare stop condition here.
 			 * ID_DONE will be set on STOP irq.
 			 */
 			rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
-		else
-			/*
-			 * If current msg is _NOT_ last msg,
-			 * it doesn't call stop phase.
-			 * thus, there is no STOP irq.
-			 * return ID_DONE here.
-			 */
-			return ID_DONE;
+		} else {
+			rcar_i2c_next_msg(priv);
+			return 0;
+		}
 	}
 
 	rcar_i2c_write(priv, ICMSR, RCAR_IRQ_ACK_SEND);
@@ -366,7 +369,10 @@ static int rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 	else
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
 
-	rcar_i2c_write(priv, ICMSR, RCAR_IRQ_ACK_RECV);
+	if (priv->pos == msg->len && !(priv->flags & ID_LAST_MSG))
+		rcar_i2c_next_msg(priv);
+	else
+		rcar_i2c_write(priv, ICMSR, RCAR_IRQ_ACK_RECV);
 
 	return 0;
 }
@@ -461,6 +467,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 	/* Stop */
 	if (msr & MST) {
+		priv->msgs_left--; /* The last message also made it */
 		rcar_i2c_flags_set(priv, ID_DONE);
 		goto out;
 	}
@@ -500,35 +507,28 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		/* This HW can't send STOP after address phase */
 		if (msgs[i].len == 0) {
 			ret = -EOPNOTSUPP;
-			break;
+			goto out;
 		}
+	}
 
-		/* init each data */
-		priv->msg = &msgs[i];
-		priv->msgs_left = num - i;
+	/* init data */
+	priv->msg = msgs;
+	priv->msgs_left = num;
 
-		rcar_i2c_prepare_msg(priv);
+	rcar_i2c_prepare_msg(priv);
 
-		time_left = wait_event_timeout(priv->wait,
-					     rcar_i2c_flags_has(priv, ID_DONE),
-					     adap->timeout);
-		if (!time_left) {
-			rcar_i2c_init(priv);
-			ret = -ETIMEDOUT;
-			break;
-		}
-
-		if (rcar_i2c_flags_has(priv, ID_NACK)) {
-			ret = -ENXIO;
-			break;
-		}
-
-		if (rcar_i2c_flags_has(priv, ID_ARBLOST)) {
-			ret = -EAGAIN;
-			break;
-		}
-
-		ret = i + 1; /* The number of transfer */
+	time_left = wait_event_timeout(priv->wait,
+				     rcar_i2c_flags_has(priv, ID_DONE),
+				     num * adap->timeout);
+	if (!time_left) {
+		rcar_i2c_init(priv);
+		ret = -ETIMEDOUT;
+	} else if (rcar_i2c_flags_has(priv, ID_NACK)) {
+		ret = -ENXIO;
+	} else if (rcar_i2c_flags_has(priv, ID_ARBLOST)) {
+		ret = -EAGAIN;
+	} else {
+		ret = num - priv->msgs_left; /* The number of transfer */
 	}
 out:
 	pm_runtime_put(dev);
