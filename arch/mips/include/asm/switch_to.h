@@ -16,29 +16,21 @@
 #include <asm/watch.h>
 #include <asm/dsp.h>
 #include <asm/cop2.h>
-#include <asm/msa.h>
+#include <asm/fpu.h>
 
 struct task_struct;
-
-enum {
-	FP_SAVE_NONE	= 0,
-	FP_SAVE_VECTOR	= -1,
-	FP_SAVE_SCALAR	= 1,
-};
 
 /**
  * resume - resume execution of a task
  * @prev:	The task previously executed.
  * @next:	The task to begin executing.
  * @next_ti:	task_thread_info(next).
- * @fp_save:	Which, if any, FP context to save for prev.
  *
  * This function is used whilst scheduling to save the context of prev & load
  * the context of next. Returns prev.
  */
 extern asmlinkage struct task_struct *resume(struct task_struct *prev,
-		struct task_struct *next, struct thread_info *next_ti,
-		s32 fp_save);
+		struct task_struct *next, struct thread_info *next_ti);
 
 extern unsigned int ll_bit;
 extern struct task_struct *ll_task;
@@ -91,8 +83,8 @@ do {	if (cpu_has_rw_llb) {						\
  */
 #define switch_to(prev, next, last)					\
 do {									\
-	s32 __fpsave = FP_SAVE_NONE;					\
 	__mips_mt_fpaff_switch_to(prev);				\
+	lose_fpu_inatomic(1, prev);					\
 	if (cpu_has_dsp) {						\
 		__save_dsp(prev);					\
 		__restore_dsp(next);					\
@@ -111,15 +103,10 @@ do {									\
 		clear_c0_status(ST0_CU2);				\
 	}								\
 	__clear_software_ll_bit();					\
-	if (test_and_clear_tsk_thread_flag(prev, TIF_USEDFPU))		\
-		__fpsave = FP_SAVE_SCALAR;				\
-	if (test_and_clear_tsk_thread_flag(prev, TIF_USEDMSA))		\
-		__fpsave = FP_SAVE_VECTOR;				\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(task_thread_info(next)->tp_value);	\
 	__restore_watch();						\
-	disable_msa();							\
-	(last) = resume(prev, next, task_thread_info(next), __fpsave);	\
+	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
 #endif /* _ASM_SWITCH_TO_H */

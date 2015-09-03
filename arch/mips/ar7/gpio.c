@@ -21,7 +21,10 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 
-#include <asm/mach-ar7/gpio.h>
+#include <asm/mach-ar7/ar7.h>
+
+#define AR7_GPIO_MAX 32
+#define TITAN_GPIO_MAX 51
 
 struct ar7_gpio_chip {
 	void __iomem		*regs;

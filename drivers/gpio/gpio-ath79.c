@@ -24,8 +24,6 @@
 #include <linux/of_device.h>
 
 #include <asm/mach-ath79/ar71xx_regs.h>
-#include <asm/mach-ath79/ath79.h>
-#include "common.h"
 
 static void __iomem *ath79_gpio_base;
 static u32 ath79_gpio_count;
@@ -139,47 +137,6 @@ static struct gpio_chip ath79_gpio_chip = {
 	.base			= 0,
 };
 
-static void __iomem *ath79_gpio_get_function_reg(void)
-{
-	u32 reg = 0;
-
-	if (soc_is_ar71xx() ||
-	    soc_is_ar724x() ||
-	    soc_is_ar913x() ||
-	    soc_is_ar933x())
-		reg = AR71XX_GPIO_REG_FUNC;
-	else if (soc_is_ar934x())
-		reg = AR934X_GPIO_REG_FUNC;
-	else
-		BUG();
-
-	return ath79_gpio_base + reg;
-}
-
-void ath79_gpio_function_setup(u32 set, u32 clear)
-{
-	void __iomem *reg = ath79_gpio_get_function_reg();
-	unsigned long flags;
-
-	spin_lock_irqsave(&ath79_gpio_lock, flags);
-
-	__raw_writel((__raw_readl(reg) & ~clear) | set, reg);
-	/* flush write */
-	__raw_readl(reg);
-
-	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
-}
-
-void ath79_gpio_function_enable(u32 mask)
-{
-	ath79_gpio_function_setup(mask, 0);
-}
-
-void ath79_gpio_function_disable(u32 mask)
-{
-	ath79_gpio_function_setup(0, mask);
-}
-
 static const struct of_device_id ath79_gpio_of_match[] = {
 	{ .compatible = "qca,ar7100-gpio" },
 	{ .compatible = "qca,ar9340-gpio" },
@@ -245,35 +202,3 @@ static struct platform_driver ath79_gpio_driver = {
 };
 
 module_platform_driver(ath79_gpio_driver);
-
-int gpio_get_value(unsigned gpio)
-{
-	if (gpio < ath79_gpio_count)
-		return __ath79_gpio_get_value(gpio);
-
-	return __gpio_get_value(gpio);
-}
-EXPORT_SYMBOL(gpio_get_value);
-
-void gpio_set_value(unsigned gpio, int value)
-{
-	if (gpio < ath79_gpio_count)
-		__ath79_gpio_set_value(gpio, value);
-	else
-		__gpio_set_value(gpio, value);
-}
-EXPORT_SYMBOL(gpio_set_value);
-
-int gpio_to_irq(unsigned gpio)
-{
-	/* FIXME */
-	return -EINVAL;
-}
-EXPORT_SYMBOL(gpio_to_irq);
-
-int irq_to_gpio(unsigned irq)
-{
-	/* FIXME */
-	return -EINVAL;
-}
-EXPORT_SYMBOL(irq_to_gpio);
