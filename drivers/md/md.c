@@ -257,13 +257,17 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
 	unsigned int sectors;
 	int cpu;
 
+	blk_queue_split(q, &bio, q->bio_split);
+
 	if (mddev == NULL || mddev->pers == NULL
 	    || !mddev->ready) {
 		bio_io_error(bio);
 		return;
 	}
 	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
-		bio_endio(bio, bio_sectors(bio) == 0 ? 0 : -EROFS);
+		if (bio_sectors(bio) != 0)
+			bio->bi_error = -EROFS;
+		bio_endio(bio);
 		return;
 	}
 	smp_rmb(); /* Ensure implications of  'active' are visible */
@@ -350,34 +354,11 @@ static int md_congested(void *data, int bits)
 	return mddev_congested(mddev, bits);
 }
 
-static int md_mergeable_bvec(struct request_queue *q,
-			     struct bvec_merge_data *bvm,
-			     struct bio_vec *biovec)
-{
-	struct mddev *mddev = q->queuedata;
-	int ret;
-	rcu_read_lock();
-	if (mddev->suspended) {
-		/* Must always allow one vec */
-		if (bvm->bi_size == 0)
-			ret = biovec->bv_len;
-		else
-			ret = 0;
-	} else {
-		struct md_personality *pers = mddev->pers;
-		if (pers && pers->mergeable_bvec)
-			ret = pers->mergeable_bvec(mddev, bvm, biovec);
-		else
-			ret = biovec->bv_len;
-	}
-	rcu_read_unlock();
-	return ret;
-}
 /*
  * Generic flush handling for md
  */
 
-static void md_end_flush(struct bio *bio, int err)
+static void md_end_flush(struct bio *bio)
 {
 	struct md_rdev *rdev = bio->bi_private;
 	struct mddev *mddev = rdev->mddev;
@@ -433,7 +414,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 
 	if (bio->bi_iter.bi_size == 0)
 		/* an empty barrier - all done */
-		bio_endio(bio, 0);
+		bio_endio(bio);
 	else {
 		bio->bi_rw &= ~REQ_FLUSH;
 		mddev->pers->make_request(mddev, bio);
@@ -728,15 +709,13 @@ void md_rdev_clear(struct md_rdev *rdev)
 }
 EXPORT_SYMBOL_GPL(md_rdev_clear);
 
-static void super_written(struct bio *bio, int error)
+static void super_written(struct bio *bio)
 {
 	struct md_rdev *rdev = bio->bi_private;
 	struct mddev *mddev = rdev->mddev;
 
-	if (error || !test_bit(BIO_UPTODATE, &bio->bi_flags)) {
-		printk("md: super_written gets error=%d, uptodate=%d\n",
-		       error, test_bit(BIO_UPTODATE, &bio->bi_flags));
-		WARN_ON(test_bit(BIO_UPTODATE, &bio->bi_flags));
+	if (bio->bi_error) {
+		printk("md: super_written gets error=%d\n", bio->bi_error);
 		md_error(mddev, rdev);
 	}
 
@@ -791,7 +770,7 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 	bio_add_page(bio, page, size, 0);
 	submit_bio_wait(rw, bio);
 
-	ret = test_bit(BIO_UPTODATE, &bio->bi_flags);
+	ret = !bio->bi_error;
 	bio_put(bio);
 	return ret;
 }
@@ -5186,7 +5165,6 @@ int md_run(struct mddev *mddev)
 	if (mddev->queue) {
 		mddev->queue->backing_dev_info.congested_data = mddev;
 		mddev->queue->backing_dev_info.congested_fn = md_congested;
-		blk_queue_merge_bvec(mddev->queue, md_mergeable_bvec);
 	}
 	if (pers->sync_request) {
 		if (mddev->kobj.sd &&
@@ -5315,7 +5293,6 @@ static void md_clean(struct mddev *mddev)
 	mddev->degraded = 0;
 	mddev->safemode = 0;
 	mddev->private = NULL;
-	mddev->merge_check_needed = 0;
 	mddev->bitmap_info.offset = 0;
 	mddev->bitmap_info.default_offset = 0;
 	mddev->bitmap_info.default_space = 0;
@@ -5514,7 +5491,6 @@ static int do_md_stop(struct mddev *mddev, int mode,
 
 		__md_stop_writes(mddev);
 		__md_stop(mddev);
-		mddev->queue->merge_bvec_fn = NULL;
 		mddev->queue->backing_dev_info.congested_fn = NULL;
 
 		/* tell userspace to handle 'inactive' */

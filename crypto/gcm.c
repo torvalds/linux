@@ -206,14 +206,14 @@ static void crypto_gcm_init_common(struct aead_request *req)
 	sg_set_buf(pctx->src, pctx->auth_tag, sizeof(pctx->auth_tag));
 	sg = scatterwalk_ffwd(pctx->src + 1, req->src, req->assoclen);
 	if (sg != pctx->src + 1)
-		scatterwalk_sg_chain(pctx->src, 2, sg);
+		sg_chain(pctx->src, 2, sg);
 
 	if (req->src != req->dst) {
 		sg_init_table(pctx->dst, 3);
 		sg_set_buf(pctx->dst, pctx->auth_tag, sizeof(pctx->auth_tag));
 		sg = scatterwalk_ffwd(pctx->dst + 1, req->dst, req->assoclen);
 		if (sg != pctx->dst + 1)
-			scatterwalk_sg_chain(pctx->dst, 2, sg);
+			sg_chain(pctx->dst, 2, sg);
 	}
 }
 

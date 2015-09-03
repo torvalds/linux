@@ -38,8 +38,8 @@
 #define E1000_FEXTNVM4	0x00024	/* Future Extended NVM 4 - RW */
 #define E1000_FEXTNVM6	0x00010	/* Future Extended NVM 6 - RW */
 #define E1000_FEXTNVM7	0x000E4	/* Future Extended NVM 7 - RW */
-#define E1000_FEXTNVM9	0x5BB4  /* Future Extended NVM 9 - RW */
-#define E1000_FEXTNVM11	0x5BBC  /* Future Extended NVM 11 - RW */
+#define E1000_FEXTNVM9	0x5BB4	/* Future Extended NVM 9 - RW */
+#define E1000_FEXTNVM11	0x5BBC	/* Future Extended NVM 11 - RW */
 #define E1000_PCIEANACFG	0x00F18	/* PCIE Analog Config */
 #define E1000_FCT	0x00030	/* Flow Control Type - RW */
 #define E1000_VET	0x00038	/* VLAN Ether Type - RW */
@@ -125,7 +125,6 @@
 				 (0x054E4 + ((_i - 16) * 8)))
 #define E1000_SHRAL(_i)		(0x05438 + ((_i) * 8))
 #define E1000_SHRAH(_i)		(0x0543C + ((_i) * 8))
-#define E1000_TARC0_CB_MULTIQ_3_REQ	(1 << 28 | 1 << 29)
 #define E1000_TDFH		0x03410	/* Tx Data FIFO Head - RW */
 #define E1000_TDFT		0x03418	/* Tx Data FIFO Tail - RW */
 #define E1000_TDFHS		0x03420	/* Tx Data FIFO Head Saved - RW */

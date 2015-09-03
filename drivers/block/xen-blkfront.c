@@ -82,7 +82,6 @@ struct blk_shadow {
 struct split_bio {
 	struct bio *bio;
 	atomic_t pending;
-	int err;
 };
 
 static DEFINE_MUTEX(blkfront_mutex);
@@ -1481,16 +1480,14 @@ static int blkfront_probe(struct xenbus_device *dev,
 	return 0;
 }
 
-static void split_bio_end(struct bio *bio, int error)
+static void split_bio_end(struct bio *bio)
 {
 	struct split_bio *split_bio = bio->bi_private;
 
-	if (error)
-		split_bio->err = error;
-
 	if (atomic_dec_and_test(&split_bio->pending)) {
 		split_bio->bio->bi_phys_segments = 0;
-		bio_endio(split_bio->bio, split_bio->err);
+		split_bio->bio->bi_error = bio->bi_error;
+		bio_endio(split_bio->bio);
 		kfree(split_bio);
 	}
 	bio_put(bio);

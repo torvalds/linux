@@ -60,3 +60,44 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
 	return ret ? -EFAULT : 0;
 }
 EXPORT_SYMBOL_GPL(probe_kernel_write);
+
+/**
+ * strncpy_from_unsafe: - Copy a NUL terminated string from unsafe address.
+ * @dst:   Destination address, in kernel space.  This buffer must be at
+ *         least @count bytes long.
+ * @src:   Unsafe address.
+ * @count: Maximum number of bytes to copy, including the trailing NUL.
+ *
+ * Copies a NUL-terminated string from unsafe address to kernel buffer.
+ *
+ * On success, returns the length of the string INCLUDING the trailing NUL.
+ *
+ * If access fails, returns -EFAULT (some data may have been copied
+ * and the trailing NUL added).
+ *
+ * If @count is smaller than the length of the string, copies @count-1 bytes,
+ * sets the last byte of @dst buffer to NUL and returns @count.
+ */
+long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count)
+{
+	mm_segment_t old_fs = get_fs();
+	const void *src = unsafe_addr;
+	long ret;
+
+	if (unlikely(count <= 0))
+		return 0;
+
+	set_fs(KERNEL_DS);
+	pagefault_disable();
+
+	do {
+		ret = __copy_from_user_inatomic(dst++,
+						(const void __user __force *)src++, 1);
+	} while (dst[-1] && ret == 0 && src - unsafe_addr < count);
+
+	dst[-1] = '\0';
+	pagefault_enable();
+	set_fs(old_fs);
+
+	return ret < 0 ? ret : src - unsafe_addr;
+}

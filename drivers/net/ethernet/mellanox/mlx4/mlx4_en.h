@@ -95,6 +95,7 @@
  */
 
 #define MLX4_EN_PRIV_FLAGS_BLUEFLAME 1
+#define MLX4_EN_PRIV_FLAGS_PHV	     2
 
 #define MLX4_EN_WATCHDOG_TIMEOUT	(15 * HZ)
 

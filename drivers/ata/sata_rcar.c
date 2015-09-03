@@ -861,10 +861,6 @@ MODULE_DEVICE_TABLE(of, sata_rcar_match);
 static const struct platform_device_id sata_rcar_id_table[] = {
 	{ "sata_rcar", RCAR_GEN1_SATA }, /* Deprecated by "sata-r8a7779" */
 	{ "sata-r8a7779", RCAR_GEN1_SATA },
-	{ "sata-r8a7790", RCAR_GEN2_SATA },
-	{ "sata-r8a7790-es1", RCAR_R8A7790_ES1_SATA },
-	{ "sata-r8a7791", RCAR_GEN2_SATA },
-	{ "sata-r8a7793", RCAR_GEN2_SATA },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, sata_rcar_id_table);

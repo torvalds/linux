@@ -468,41 +468,40 @@ void br_recalculate_fwd_mask(struct net_bridge *br)
 					      ~(1u << br->group_addr[5]);
 }
 
-int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
-	if (!rtnl_trylock())
-		return restart_syscall();
-
 	if (br->vlan_enabled == val)
-		goto unlock;
+		return 0;
 
 	br->vlan_enabled = val;
 	br_manage_promisc(br);
 	recalculate_group_addr(br);
 	br_recalculate_fwd_mask(br);
 
-unlock:
-	rtnl_unlock();
 	return 0;
 }
 
-int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
+int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+{
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	__br_vlan_filter_toggle(br, val);
+	rtnl_unlock();
+
+	return 0;
+}
+
+int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
 {
 	int err = 0;
 	struct net_bridge_port *p;
 	struct net_port_vlans *pv;
-	__be16 proto, oldproto;
+	__be16 oldproto;
 	u16 vid, errvid;
 
-	if (val != ETH_P_8021Q && val != ETH_P_8021AD)
-		return -EPROTONOSUPPORT;
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	proto = htons(val);
 	if (br->vlan_proto == proto)
-		goto unlock;
+		return 0;
 
 	/* Add VLANs for the new proto to the device filter. */
 	list_for_each_entry(p, &br->port_list, list) {
@@ -533,9 +532,7 @@ int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
 			vlan_vid_del(p->dev, oldproto, vid);
 	}
 
-unlock:
-	rtnl_unlock();
-	return err;
+	return 0;
 
 err_filt:
 	errvid = vid;
@@ -551,7 +548,23 @@ err_filt:
 			vlan_vid_del(p->dev, proto, vid);
 	}
 
-	goto unlock;
+	return err;
+}
+
+int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
+{
+	int err;
+
+	if (val != ETH_P_8021Q && val != ETH_P_8021AD)
+		return -EPROTONOSUPPORT;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	err = __br_vlan_set_proto(br, htons(val));
+	rtnl_unlock();
+
+	return err;
 }
 
 static bool vlan_default_pvid(struct net_port_vlans *pv, u16 vid)
