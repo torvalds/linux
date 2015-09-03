@@ -12439,16 +12439,16 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(pipe_src_w);
 	PIPE_CONF_CHECK_I(pipe_src_h);
 
-	PIPE_CONF_CHECK_I(gmch_pfit.control);
+	PIPE_CONF_CHECK_X(gmch_pfit.control);
 	/* pfit ratios are autocomputed by the hw on gen4+ */
 	if (INTEL_INFO(dev)->gen < 4)
 		PIPE_CONF_CHECK_I(gmch_pfit.pgm_ratios);
-	PIPE_CONF_CHECK_I(gmch_pfit.lvds_border_bits);
+	PIPE_CONF_CHECK_X(gmch_pfit.lvds_border_bits);
 
 	PIPE_CONF_CHECK_I(pch_pfit.enabled);
 	if (current_config->pch_pfit.enabled) {
-		PIPE_CONF_CHECK_I(pch_pfit.pos);
-		PIPE_CONF_CHECK_I(pch_pfit.size);
+		PIPE_CONF_CHECK_X(pch_pfit.pos);
+		PIPE_CONF_CHECK_X(pch_pfit.size);
 	}
 
 	PIPE_CONF_CHECK_I(scaler_state.scaler_id);
