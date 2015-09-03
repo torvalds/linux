@@ -1918,8 +1918,9 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
 
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	int val = vcpu->halt_poll_ns;
+	int old, val;
 
+	old = val = vcpu->halt_poll_ns;
 	/* 10us base */
 	if (val == 0 && halt_poll_ns_grow)
 		val = 10000;
@@ -1927,18 +1928,21 @@ static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 		val *= halt_poll_ns_grow;
 
 	vcpu->halt_poll_ns = val;
+	trace_kvm_halt_poll_ns_grow(vcpu->vcpu_id, val, old);
 }
 
 static void shrink_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	int val = vcpu->halt_poll_ns;
+	int old, val;
 
+	old = val = vcpu->halt_poll_ns;
 	if (halt_poll_ns_shrink == 0)
 		val = 0;
 	else
 		val /= halt_poll_ns_shrink;
 
 	vcpu->halt_poll_ns = val;
+	trace_kvm_halt_poll_ns_shrink(vcpu->vcpu_id, val, old);
 }
 
 static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
