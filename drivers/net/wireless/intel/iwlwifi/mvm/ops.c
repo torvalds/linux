@@ -836,9 +836,9 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
-		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
+		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
 	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
-		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
+		iwl_mvm_rx_phy_cmd_mq(mvm, rxb);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
@@ -1489,7 +1489,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
+	iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, queue);
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops_mq = {
