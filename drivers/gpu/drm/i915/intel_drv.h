@@ -746,7 +746,6 @@ struct intel_dp {
 	enum pipe pps_pipe;
 	struct edp_power_seq pps_delays;
 
-	bool use_tps3;
 	bool can_mst; /* this port supports mst */
 	bool is_mst;
 	int active_mst_links;

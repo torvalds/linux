@@ -3812,13 +3812,25 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 void
 intel_dp_complete_link_train(struct intel_dp *intel_dp)
 {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
 	bool channel_eq = false;
 	int tries, cr_tries;
 	uint32_t DP = intel_dp->DP;
 	uint32_t training_pattern = DP_TRAINING_PATTERN_2;
 
-	/* Training Pattern 3 for HBR2 or 1.2 devices that support it*/
-	if (intel_dp->link_rate == 540000 || intel_dp->use_tps3)
+	/*
+	 * Training Pattern 3 for HBR2 or 1.2 devices that support it.
+	 *
+	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
+	 * also mandatory for downstream devices that support HBR2.
+	 *
+	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
+	 * supported but still not enabled.
+	 */
+	if (intel_dp->link_rate == 540000 ||
+	    (intel_dp_source_supports_hbr2(dev) &&
+	     drm_dp_tps3_supported(intel_dp->dpcd)))
 		training_pattern = DP_TRAINING_PATTERN_3;
 
 	/* channel equalization */
@@ -4000,18 +4012,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		}
 	}
 
-	/* Training Pattern 3 support, Intel platforms that support HBR2 alone
-	 * have support for TP3 hence that check is used along with dpcd check
-	 * to ensure TP3 can be enabled.
-	 * SKL < B0: due it's WaDisableHBR2 is the only exception where TP3 is
-	 * supported but still not enabled.
-	 */
-	if (drm_dp_tps3_supported(intel_dp->dpcd) &&
-	    intel_dp_source_supports_hbr2(dev)) {
-		intel_dp->use_tps3 = true;
-		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
-	} else
-		intel_dp->use_tps3 = false;
+	DRM_DEBUG_KMS("Display Port TPS3 support: source %s, sink %s\n",
+		      intel_dp_source_supports_hbr2(dev) ? "yes" : "no",
+		      drm_dp_tps3_supported(intel_dp->dpcd) ? "yes" : "no");
 
 	/* Intermediate frequency support */
 	if (is_edp(intel_dp) &&
