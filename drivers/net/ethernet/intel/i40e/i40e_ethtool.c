@@ -90,9 +90,6 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("tx_linearize", tx_linearize),
 };
 
-static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
-				 struct ethtool_rxnfc *cmd);
-
 /* These PF_STATs might look like duplicates of some NETDEV_STATs,
  * but they are separate.  This device supports Virtualization, and
  * as such might have several netdevs supporting VMDq and FCoE going

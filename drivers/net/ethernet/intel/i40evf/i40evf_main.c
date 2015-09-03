@@ -1628,7 +1628,7 @@ static void i40evf_reset_task(struct work_struct *work)
 	/* extra wait to make sure minimum wait is met */
 	msleep(I40EVF_RESET_WAIT_MS);
 	if (i == I40EVF_RESET_WAIT_COUNT) {
-		struct i40evf_mac_filter *f, *ftmp;
+		struct i40evf_mac_filter *ftmp;
 		struct i40evf_vlan_filter *fv, *fvtmp;
 
 		/* reset never finished */
