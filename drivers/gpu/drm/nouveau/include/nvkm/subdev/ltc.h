@@ -35,5 +35,6 @@ void nvkm_ltc_flush(struct nvkm_ltc *);
 
 int gf100_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
 int gk104_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
+int gk20a_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
 int gm107_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
 #endif
