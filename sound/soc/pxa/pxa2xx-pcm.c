@@ -132,6 +132,7 @@ static const struct of_device_id snd_soc_pxa_audio_match[] = {
 	{ .compatible   = "mrvl,pxa-pcm-audio" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, snd_soc_pxa_audio_match);
 #endif
 
 static struct platform_driver pxa_pcm_driver = {
