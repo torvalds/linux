@@ -3846,8 +3846,8 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	struct nand_flash_dev *type;
 	int ret;
 
-	if (chip->dn) {
-		ret = nand_dt_init(mtd, chip, chip->dn);
+	if (chip->flash_node) {
+		ret = nand_dt_init(mtd, chip, chip->flash_node);
 		if (ret)
 			return ret;
 	}

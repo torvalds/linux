@@ -1792,7 +1792,8 @@ static int brcmnand_setup_dev(struct brcmnand_host *host)
 
 	memset(cfg, 0, sizeof(*cfg));
 
-	ret = of_property_read_u32(chip->dn, "brcm,nand-oob-sector-size",
+	ret = of_property_read_u32(chip->flash_node,
+				   "brcm,nand-oob-sector-size",
 				   &oob_sector);
 	if (ret) {
 		/* Use detected size */
@@ -1899,7 +1900,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host)
 	mtd = &host->mtd;
 	chip = &host->chip;
 
-	chip->dn = dn;
+	chip->flash_node = dn;
 	chip->priv = host;
 	mtd->priv = chip;
 	mtd->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "brcmnand.%d",
