@@ -1368,6 +1368,26 @@ static inline bool bvec_gap_to_prev(struct request_queue *q,
 		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
 }
 
+static inline bool bio_will_gap(struct request_queue *q, struct bio *prev,
+			 struct bio *next)
+{
+	if (!bio_has_data(prev))
+		return false;
+
+	return bvec_gap_to_prev(q, &prev->bi_io_vec[prev->bi_vcnt - 1],
+				next->bi_io_vec[0].bv_offset);
+}
+
+static inline bool req_gap_back_merge(struct request *req, struct bio *bio)
+{
+	return bio_will_gap(req->q, req->biotail, bio);
+}
+
+static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
+{
+	return bio_will_gap(req->q, bio, req->bio);
+}
+
 struct work_struct;
 int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_delayed_work(struct delayed_work *dwork, unsigned long delay);
