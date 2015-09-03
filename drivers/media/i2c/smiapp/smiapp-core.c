@@ -2495,23 +2495,23 @@ static int smiapp_register_subdevs(struct smiapp_sensor *sensor)
 			return rval;
 		}
 
-		rval = media_create_pad_link(&this->sd.entity,
-						this->source_pad,
-						&last->sd.entity,
-						last->sink_pad,
-						MEDIA_LNK_FL_ENABLED |
-						MEDIA_LNK_FL_IMMUTABLE);
-		if (rval) {
-			dev_err(&client->dev,
-				"media_create_pad_link failed\n");
-			return rval;
-		}
-
 		rval = v4l2_device_register_subdev(sensor->src->sd.v4l2_dev,
 						   &this->sd);
 		if (rval) {
 			dev_err(&client->dev,
 				"v4l2_device_register_subdev failed\n");
+			return rval;
+		}
+
+		rval = media_create_pad_link(&this->sd.entity,
+					     this->source_pad,
+					     &last->sd.entity,
+					     last->sink_pad,
+					     MEDIA_LNK_FL_ENABLED |
+					     MEDIA_LNK_FL_IMMUTABLE);
+		if (rval) {
+			dev_err(&client->dev,
+				"media_create_pad_link failed\n");
 			return rval;
 		}
 	}
