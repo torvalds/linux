@@ -873,6 +873,7 @@ static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,imx6sx-sai", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, fsl_sai_ids);
 
 #ifdef CONFIG_PM
 static int fsl_sai_runtime_resume(struct device *dev)
