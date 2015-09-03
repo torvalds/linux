@@ -543,9 +543,11 @@ static int i915_audio_component_bind(struct device *i915_dev,
 	if (WARN_ON(acomp->ops || acomp->dev))
 		return -EEXIST;
 
+	drm_modeset_lock_all(dev_priv->dev);
 	acomp->ops = &i915_audio_component_ops;
 	acomp->dev = i915_dev;
 	dev_priv->audio_component = acomp;
+	drm_modeset_unlock_all(dev_priv->dev);
 
 	return 0;
 }
@@ -556,9 +558,11 @@ static void i915_audio_component_unbind(struct device *i915_dev,
 	struct i915_audio_component *acomp = data;
 	struct drm_i915_private *dev_priv = dev_to_i915(i915_dev);
 
+	drm_modeset_lock_all(dev_priv->dev);
 	acomp->ops = NULL;
 	acomp->dev = NULL;
 	dev_priv->audio_component = NULL;
+	drm_modeset_unlock_all(dev_priv->dev);
 }
 
 static const struct component_ops i915_audio_component_bind_ops = {
