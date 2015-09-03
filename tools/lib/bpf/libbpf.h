@@ -28,12 +28,14 @@ struct bpf_object;
 
 struct bpf_object *bpf_object__open(const char *path);
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
-					   size_t obj_buf_sz);
+					   size_t obj_buf_sz,
+					   const char *name);
 void bpf_object__close(struct bpf_object *object);
 
 /* Load/unload object into/from kernel */
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
+const char *bpf_object__get_name(struct bpf_object *obj);
 
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\

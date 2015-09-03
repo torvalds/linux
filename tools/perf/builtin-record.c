@@ -27,8 +27,10 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/data.h"
+#include "util/perf_regs.h"
 #include "util/auxtrace.h"
 #include "util/parse-branch-options.h"
+#include "util/parse-regs-options.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -279,7 +281,7 @@ static int record__open(struct record *rec)
 
 	evlist__for_each(evlist, pos) {
 try_again:
-		if (perf_evsel__open(pos, evlist->cpus, evlist->threads) < 0) {
+		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
 				if (verbose)
 					ui__warning("%s\n", msg);
@@ -1080,8 +1082,9 @@ struct option __record_options[] = {
 		    "sample transaction flags (special events only)"),
 	OPT_BOOLEAN(0, "per-thread", &record.opts.target.per_thread,
 		    "use per-thread mmaps"),
-	OPT_BOOLEAN('I', "intr-regs", &record.opts.sample_intr_regs,
-		    "Sample machine registers on interrupt"),
+	OPT_CALLBACK_OPTARG('I', "intr-regs", &record.opts.sample_intr_regs, NULL, "any register",
+		    "sample selected machine registers on interrupt,"
+		    " use -I ? to list register names", parse_regs),
 	OPT_BOOLEAN(0, "running-time", &record.opts.running_time,
 		    "Record running/enabled time of read (:S) events"),
 	OPT_CALLBACK('k', "clockid", &record.opts,
