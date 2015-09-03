@@ -1849,7 +1849,7 @@ static int lmv_early_cancel(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device      *obd = exp->exp_obd;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc    *tgt;
-	ldlm_policy_data_t      policy = {{0}};
+	ldlm_policy_data_t      policy = { {0} };
 	int		     rc = 0;
 
 	if (!fid_is_sane(fid))

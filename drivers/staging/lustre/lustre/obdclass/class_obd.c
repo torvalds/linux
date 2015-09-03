@@ -138,7 +138,7 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 	if (ptr == NULL ||
 	    (cfs_rand() & OBD_ALLOC_FAIL_MASK) < obd_alloc_fail_rate) {
 		CERROR("%s%salloc of %s (%llu bytes) failed at %s:%d\n",
-		       ptr ? "force " :"", type, name, (__u64)size, file,
+		       ptr ? "force " : "", type, name, (__u64)size, file,
 		       line);
 		CERROR("%llu total bytes and %llu total pages"
 			" (%llu bytes) allocated by Lustre\n",
@@ -470,7 +470,7 @@ int obd_init_checks(void)
 		return -EOVERFLOW;
 	}
 	if (do_div(div64val, 256) != (u64val & 255)) {
-		CERROR("do_div(%#llx,256) != %llu\n", u64val, u64val &255);
+		CERROR("do_div(%#llx,256) != %llu\n", u64val, u64val & 255);
 		return -EOVERFLOW;
 	}
 	if (u64val >> 8 != div64val) {

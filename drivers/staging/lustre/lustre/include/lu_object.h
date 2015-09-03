@@ -790,7 +790,7 @@ do {								      \
 									  \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
-		CDEBUG(mask, format , ## __VA_ARGS__);		    \
+		CDEBUG(mask, format, ## __VA_ARGS__);		    \
 	}								 \
 } while (0)
 
@@ -805,7 +805,7 @@ do {								    \
 		lu_object_header_print(env, &msgdata, lu_cdebug_printer,\
 				       (object)->lo_header);	    \
 		lu_cdebug_printer(env, &msgdata, "\n");		 \
-		CDEBUG(mask, format , ## __VA_ARGS__);		  \
+		CDEBUG(mask, format, ## __VA_ARGS__);		  \
 	}							       \
 } while (0)
 
@@ -1131,7 +1131,7 @@ struct lu_context_key {
 								  \
 		return value;				     \
 	}							 \
-	struct __##mod##__dummy_init {;} /* semicolon catcher */
+	struct __##mod##__dummy_init {; } /* semicolon catcher */
 
 #define LU_KEY_FINI(mod, type)					      \
 	static void mod##_key_fini(const struct lu_context *ctx,	    \
@@ -1141,7 +1141,7 @@ struct lu_context_key {
 									    \
 		OBD_FREE_PTR(info);					 \
 	}								   \
-	struct __##mod##__dummy_fini {;} /* semicolon catcher */
+	struct __##mod##__dummy_fini {; } /* semicolon catcher */
 
 #define LU_KEY_INIT_FINI(mod, type)   \
 	LU_KEY_INIT(mod, type);	\
@@ -1193,28 +1193,28 @@ void  lu_context_key_revive  (struct lu_context_key *key);
 		mod##_key_init_generic(__VA_ARGS__, NULL);	      \
 		return lu_context_key_register_many(__VA_ARGS__, NULL); \
 	}							       \
-	struct __##mod##_dummy_type_init {;}
+	struct __##mod##_dummy_type_init {; }
 
 #define LU_TYPE_FINI(mod, ...)					  \
 	static void mod##_type_fini(struct lu_device_type *t)	   \
 	{							       \
 		lu_context_key_degister_many(__VA_ARGS__, NULL);	\
 	}							       \
-	struct __##mod##_dummy_type_fini {;}
+	struct __##mod##_dummy_type_fini {; }
 
 #define LU_TYPE_START(mod, ...)				 \
 	static void mod##_type_start(struct lu_device_type *t)  \
 	{						       \
 		lu_context_key_revive_many(__VA_ARGS__, NULL);  \
 	}						       \
-	struct __##mod##_dummy_type_start {;}
+	struct __##mod##_dummy_type_start {; }
 
 #define LU_TYPE_STOP(mod, ...)				  \
 	static void mod##_type_stop(struct lu_device_type *t)   \
 	{						       \
 		lu_context_key_quiesce_many(__VA_ARGS__, NULL); \
 	}						       \
-	struct __##mod##_dummy_type_stop {;}
+	struct __##mod##_dummy_type_stop {; }
 
 
 

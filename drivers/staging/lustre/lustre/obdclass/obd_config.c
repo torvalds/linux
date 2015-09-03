@@ -1451,7 +1451,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		lustre_cfg_bufs_init(&bufs, lcfg);
 
 		if (clli && clli->cfg_instance &&
-		    LUSTRE_CFG_BUFLEN(lcfg, 0) > 0){
+		    LUSTRE_CFG_BUFLEN(lcfg, 0) > 0) {
 			inst = 1;
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;

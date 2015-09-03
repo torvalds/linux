@@ -714,7 +714,7 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	LASSERT(tx->tx_resid == tx->tx_nob);
 
 	CDEBUG (D_NET, "Packet %p type %d, nob %d niov %d nkiov %d\n",
-		tx, (tx->tx_lnetmsg != NULL) ? tx->tx_lnetmsg->msg_hdr.type:
+		tx, (tx->tx_lnetmsg != NULL) ? tx->tx_lnetmsg->msg_hdr.type :
 					       KSOCK_MSG_NOOP,
 		tx->tx_nob, tx->tx_niov, tx->tx_nkiov);
 
@@ -1092,7 +1092,7 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 		conn->ksnc_rx_iov[niov].iov_len  = nob;
 		niov++;
 		skipped += nob;
-		nob_to_skip -=nob;
+		nob_to_skip -= nob;
 
 	} while (nob_to_skip != 0 &&    /* mustn't overflow conn's rx iov */
 		 niov < sizeof(conn->ksnc_rx_iov_space) / sizeof (struct iovec));

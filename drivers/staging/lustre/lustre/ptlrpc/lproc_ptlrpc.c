@@ -54,7 +54,7 @@ static struct ll_rpc_opcode {
 	{ OST_SETATTR,      "ost_setattr" },
 	{ OST_READ,	 "ost_read" },
 	{ OST_WRITE,	"ost_write" },
-	{ OST_CREATE ,      "ost_create" },
+	{ OST_CREATE,       "ost_create" },
 	{ OST_DESTROY,      "ost_destroy" },
 	{ OST_GET_INFO,     "ost_get_info" },
 	{ OST_CONNECT,      "ost_connect" },

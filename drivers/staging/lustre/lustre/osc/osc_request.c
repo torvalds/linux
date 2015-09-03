@@ -1586,7 +1586,7 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 		char *router;
 		cksum_type_t cksum_type;
 
-		cksum_type = cksum_type_unpack(body->oa.o_valid &OBD_MD_FLFLAGS?
+		cksum_type = cksum_type_unpack(body->oa.o_valid&OBD_MD_FLFLAGS ?
 					       body->oa.o_flags : 0);
 		client_cksum = osc_checksum_bulk(rc, aa->aa_page_count,
 						 aa->aa_ppga, OST_READ,
@@ -1654,7 +1654,7 @@ static int osc_brw_redo_request(struct ptlrpc_request *request,
 		  "redo for recoverable error %d", rc);
 
 	rc = osc_brw_prep_request(lustre_msg_get_opc(request->rq_reqmsg) ==
-					OST_WRITE ? OBD_BRW_WRITE :OBD_BRW_READ,
+					OST_WRITE ? OBD_BRW_WRITE : OBD_BRW_READ,
 				  aa->aa_cli, aa->aa_oa,
 				  NULL /* lsm unused by osc currently */,
 				  aa->aa_page_count, aa->aa_ppga,
@@ -3101,7 +3101,7 @@ static int osc_import_event(struct obd_device *obd,
 
 		/* See bug 7198 */
 		if (ocd->ocd_connect_flags & OBD_CONNECT_REQPORTAL)
-			imp->imp_client->cli_request_portal =OST_REQUEST_PORTAL;
+			imp->imp_client->cli_request_portal = OST_REQUEST_PORTAL;
 
 		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_OCD, NULL);
 		break;

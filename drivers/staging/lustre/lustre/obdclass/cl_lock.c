@@ -2027,7 +2027,7 @@ static struct cl_lock *cl_lock_hold_mutex(const struct lu_env *env,
 		cl_lock_mutex_get(env, lock);
 		if (lock->cll_state < CLS_FREEING &&
 		    !(lock->cll_flags & CLF_CANCELLED)) {
-			cl_lock_hold_mod(env, lock, +1);
+			cl_lock_hold_mod(env, lock, 1);
 			lu_ref_add(&lock->cll_holders, scope, source);
 			lu_ref_add(&lock->cll_reference, scope, source);
 			break;
@@ -2115,7 +2115,7 @@ void cl_lock_hold_add(const struct lu_env *env, struct cl_lock *lock,
 	LINVRNT(cl_lock_invariant(env, lock));
 	LASSERT(lock->cll_state != CLS_FREEING);
 
-	cl_lock_hold_mod(env, lock, +1);
+	cl_lock_hold_mod(env, lock, 1);
 	cl_lock_get(lock);
 	lu_ref_add(&lock->cll_holders, scope, source);
 	lu_ref_add(&lock->cll_reference, scope, source);
@@ -2157,7 +2157,7 @@ void cl_lock_user_add(const struct lu_env *env, struct cl_lock *lock)
 	LINVRNT(cl_lock_is_mutexed(lock));
 	LINVRNT(cl_lock_invariant(env, lock));
 
-	cl_lock_used_mod(env, lock, +1);
+	cl_lock_used_mod(env, lock, 1);
 }
 EXPORT_SYMBOL(cl_lock_user_add);
 

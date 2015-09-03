@@ -545,7 +545,7 @@ struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
 			     strlen(typ_name)) == 0)) {
 			if (obd_uuid_equals(tgt_uuid,
 					    &obd->u.cli.cl_target_uuid) &&
-			    ((grp_uuid)? obd_uuid_equals(grp_uuid,
+			    ((grp_uuid) ? obd_uuid_equals(grp_uuid,
 							 &obd->obd_uuid) : 1)) {
 				read_unlock(&obd_dev_lock);
 				return obd;
@@ -1078,7 +1078,7 @@ void __class_export_add_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 		LCONSOLE_WARN("setting export %p for lock %p which already has export %p\n",
 			      exp, lock, lock->l_exp_refs_target);
 	}
-	if ((lock->l_exp_refs_nr ++) == 0) {
+	if ((lock->l_exp_refs_nr++) == 0) {
 		list_add(&lock->l_exp_refs_link, &exp->exp_locks_list);
 		lock->l_exp_refs_target = exp;
 	}
@@ -1488,7 +1488,7 @@ int obd_export_evict_by_uuid(struct obd_device *obd, const char *uuid)
 EXPORT_SYMBOL(obd_export_evict_by_uuid);
 
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
-void (*class_export_dump_hook)(struct obd_export*) = NULL;
+void (*class_export_dump_hook)(struct obd_export *) = NULL;
 EXPORT_SYMBOL(class_export_dump_hook);
 #endif
 

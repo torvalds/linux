@@ -1325,7 +1325,7 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 		lprocfs_oh_clear(&io_extents->pp_extents[cur].pp_w_hist);
 	}
 
-	for(i = 0; (count >= (1 << LL_HIST_START << i)) &&
+	for (i = 0; (count >= (1 << LL_HIST_START << i)) &&
 	     (i < (LL_HIST_MAX - 1)); i++);
 	if (rw == 0) {
 		io_extents->pp_extents[cur].pp_r_hist.oh_buckets[i]++;

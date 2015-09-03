@@ -71,7 +71,7 @@ struct ll_dentry_data {
 	struct rcu_head			lld_rcu_head;
 };
 
-#define ll_d2d(de) ((struct ll_dentry_data*)((de)->d_fsdata))
+#define ll_d2d(de) ((struct ll_dentry_data *)((de)->d_fsdata))
 
 #define LLI_INODE_MAGIC		 0x111d0de5
 #define LLI_INODE_DEAD		  0xdeadd00d

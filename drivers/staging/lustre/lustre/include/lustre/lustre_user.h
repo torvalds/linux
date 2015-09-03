@@ -799,14 +799,14 @@ struct changelog_ext_rec {
 
 static inline int changelog_rec_size(struct changelog_rec *rec)
 {
-	return CHANGELOG_REC_EXTENDED(rec) ? sizeof(struct changelog_ext_rec):
+	return CHANGELOG_REC_EXTENDED(rec) ? sizeof(struct changelog_ext_rec) :
 					     sizeof(*rec);
 }
 
 static inline char *changelog_rec_name(struct changelog_rec *rec)
 {
 	return CHANGELOG_REC_EXTENDED(rec) ?
-		((struct changelog_ext_rec *)rec)->cr_name: rec->cr_name;
+		((struct changelog_ext_rec *)rec)->cr_name : rec->cr_name;
 }
 
 static inline int changelog_rec_snamelen(struct changelog_ext_rec *rec)

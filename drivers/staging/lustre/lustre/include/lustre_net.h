@@ -2065,7 +2065,7 @@ struct ptlrpc_service_part {
 	 * rqbd list and incoming requests waiting for preprocess,
 	 * threads starting & stopping are also protected by this lock.
 	 */
-	spinlock_t			scp_lock  __cfs_cacheline_aligned;
+	spinlock_t scp_lock __cfs_cacheline_aligned;
 	/** total # req buffer descs allocated */
 	int				scp_nrqbds_total;
 	/** # posted request buffers for receiving */

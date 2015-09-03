@@ -698,7 +698,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 		/* return +1 to stop cl_io_loop() and ll_fault() will catch
 		 * and retry. */
-		result = +1;
+		result = 1;
 		goto out;
 	}
 

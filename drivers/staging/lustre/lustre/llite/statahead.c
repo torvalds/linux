@@ -659,7 +659,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		 * revalidate.
 		 */
 		/* unlinked and re-created with the same name */
-		if (unlikely(!lu_fid_eq(&minfo->mi_data.op_fid2, &body->fid1))){
+		if (unlikely(!lu_fid_eq(&minfo->mi_data.op_fid2, &body->fid1))) {
 			entry->se_inode = NULL;
 			iput(child);
 			child = NULL;
@@ -1215,7 +1215,7 @@ do_it:
 			while (1) {
 				l_wait_event(thread->t_ctl_waitq,
 					     !sa_received_empty(sai) ||
-					     sai->sai_sent == sai->sai_replied||
+					     sai->sai_sent == sai->sai_replied ||
 					     !thread_is_running(thread),
 					     &lwi);
 

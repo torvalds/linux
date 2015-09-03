@@ -326,7 +326,7 @@ repeat:
 		 * swabbing is done at the beginning of the loop. */
 		for (rec = (struct llog_rec_hdr *)buf;
 		     (char *)rec < buf + LLOG_CHUNK_SIZE;
-		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)){
+		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)) {
 
 			CDEBUG(D_OTHER, "processing rec 0x%p type %#x\n",
 			       rec, rec->lrh_type);
@@ -522,7 +522,7 @@ int llog_reverse_process(const struct lu_env *env,
 			rec = (void *)rec + rec->lrh_len;
 			if (LLOG_REC_HDR_NEEDS_SWABBING(rec))
 				lustre_swab_llog_rec(rec);
-			idx ++;
+			idx++;
 		}
 		LASSERT(idx == index);
 		tail = (void *)rec + rec->lrh_len - sizeof(*tail);

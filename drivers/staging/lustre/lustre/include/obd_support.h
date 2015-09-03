@@ -585,7 +585,7 @@ do {									      \
 		   (!HAS_FAIL_ALLOC_FLAG || obd_alloc_fail_rate == 0 ||       \
 		    !obd_alloc_fail(ptr, #ptr, "km", size,		    \
 				    __FILE__, __LINE__) ||		    \
-		    OBD_FREE_RTN0(ptr)))){				    \
+		    OBD_FREE_RTN0(ptr)))) {				    \
 		OBD_ALLOC_POST(ptr, size, "kmalloced");		       \
 	}								     \
 } while (0)

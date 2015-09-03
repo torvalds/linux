@@ -171,7 +171,7 @@ CDEBUG(level, fmt " capability key@%p seq %llu keyid %u\n",		 \
        ##args, k, capa_key_seq(k), capa_key_keyid(k));			 \
 } while (0)
 
-typedef int (* renew_capa_cb_t)(struct obd_capa *, struct lustre_capa *);
+typedef int (*renew_capa_cb_t)(struct obd_capa *, struct lustre_capa *);
 
 /* obdclass/capa.c */
 extern struct list_head capa_list[];

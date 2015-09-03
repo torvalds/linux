@@ -827,7 +827,7 @@ static inline int lu_fid_eq(const struct lu_fid *f0, const struct lu_fid *f1)
 	typeof(val0) __val0 = (val0);			   \
 	typeof(val1) __val1 = (val1);			   \
 								\
-	(__val0 == __val1 ? 0 : __val0 > __val1 ? +1 : -1);     \
+	(__val0 == __val1 ? 0 : __val0 > __val1 ? 1 : -1);     \
 })
 
 static inline int lu_fid_cmp(const struct lu_fid *f0,
@@ -1404,9 +1404,9 @@ void lustre_swab_connect(struct obd_connect_data *ocd);
  * algorithm and also the OBD_FL_CKSUM* flags.
  */
 typedef enum {
-	OBD_CKSUM_CRC32 = 0x00000001,
-	OBD_CKSUM_ADLER = 0x00000002,
-	OBD_CKSUM_CRC32C= 0x00000004,
+	OBD_CKSUM_CRC32  = 0x00000001,
+	OBD_CKSUM_ADLER  = 0x00000002,
+	OBD_CKSUM_CRC32C = 0x00000004,
 } cksum_type_t;
 
 /*
@@ -1444,7 +1444,7 @@ enum obdo_flags {
 	OBD_FL_DELORPHAN    = 0x00000004, /* if set in o_flags delete orphans */
 	OBD_FL_NORPC	= 0x00000008, /* set in o_flags do in OSC not OST */
 	OBD_FL_IDONLY       = 0x00000010, /* set in o_flags only adjust obj id*/
-	OBD_FL_RECREATE_OBJS= 0x00000020, /* recreate missing obj */
+	OBD_FL_RECREATE_OBJS = 0x00000020, /* recreate missing obj */
 	OBD_FL_DEBUG_CHECK  = 0x00000040, /* echo client/server debug check */
 	OBD_FL_NO_USRQUOTA  = 0x00000100, /* the object's owner is over quota */
 	OBD_FL_NO_GRPQUOTA  = 0x00000200, /* the object's group is over quota */
@@ -3574,7 +3574,7 @@ struct link_ea_entry {
 	unsigned char      lee_reclen[2];
 	unsigned char      lee_parent_fid[sizeof(struct lu_fid)];
 	char	       lee_name[0];
-}__attribute__((packed));
+} __attribute__((packed));
 
 /** fid2path request/reply structure */
 struct getinfo_fid2path {

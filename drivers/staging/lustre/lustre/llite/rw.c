@@ -656,7 +656,7 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 						page_idx, mapping);
 			if (rc == 1) {
 				(*reserved_pages)--;
-				count ++;
+				count++;
 			} else if (rc == -ENOLCK)
 				break;
 		} else if (stride_ria) {
@@ -890,7 +890,7 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 	if (!stride_io_mode(ras) && (stride_gap != 0 ||
 	     ras->ras_consecutive_stride_requests == 0)) {
 		ras->ras_stride_pages = ras->ras_consecutive_pages;
-		ras->ras_stride_length = stride_gap +ras->ras_consecutive_pages;
+		ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
 	}
 	LASSERT(ras->ras_request_index == 0);
 	LASSERT(ras->ras_consecutive_stride_requests == 0);
@@ -902,7 +902,7 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 	}
 
 	ras->ras_stride_pages = ras->ras_consecutive_pages;
-	ras->ras_stride_length = stride_gap +ras->ras_consecutive_pages;
+	ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
 
 	RAS_CDEBUG(ras);
 	return;

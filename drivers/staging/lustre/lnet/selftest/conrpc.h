@@ -105,8 +105,8 @@ typedef struct lstcon_rpc_trans {
 
 #define LST_TRANS_STATQRY       0x21
 
-typedef int (* lstcon_rpc_cond_func_t)(int, struct lstcon_node *, void *);
-typedef int (* lstcon_rpc_readent_func_t)(int, srpc_msg_t *, lstcon_rpc_ent_t *);
+typedef int (*lstcon_rpc_cond_func_t)(int, struct lstcon_node *, void *);
+typedef int (*lstcon_rpc_readent_func_t)(int, srpc_msg_t *, lstcon_rpc_ent_t *);
 
 int  lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 			unsigned version, lstcon_rpc_t **crpc);

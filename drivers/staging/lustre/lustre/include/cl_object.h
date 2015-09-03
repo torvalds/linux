@@ -1095,7 +1095,7 @@ do {								    \
 									\
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		   \
 		cl_page_print(env, &msgdata, lu_cdebug_printer, page);  \
-		CDEBUG(mask, format , ## __VA_ARGS__);		  \
+		CDEBUG(mask, format, ## __VA_ARGS__);		  \
 	}							       \
 } while (0)
 
@@ -1108,7 +1108,7 @@ do {									  \
 									      \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {			 \
 		cl_page_header_print(env, &msgdata, lu_cdebug_printer, page); \
-		CDEBUG(mask, format , ## __VA_ARGS__);			\
+		CDEBUG(mask, format, ## __VA_ARGS__);			\
 	}								     \
 } while (0)
 
@@ -1475,13 +1475,13 @@ enum cl_lock_flags {
 	 * lock has been cancelled. This flag is never cleared once set (by
 	 * cl_lock_cancel0()).
 	 */
-	CLF_CANCELLED  = 1 << 0,
+	CLF_CANCELLED	= 1 << 0,
 	/** cancellation is pending for this lock. */
-	CLF_CANCELPEND = 1 << 1,
+	CLF_CANCELPEND	= 1 << 1,
 	/** destruction is pending for this lock. */
-	CLF_DOOMED     = 1 << 2,
+	CLF_DOOMED	= 1 << 2,
 	/** from enqueue RPC reply upcall. */
-	CLF_FROM_UPCALL= 1 << 3,
+	CLF_FROM_UPCALL	= 1 << 3,
 };
 
 /**
@@ -1833,7 +1833,7 @@ do {								    \
 									\
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		   \
 		cl_lock_print(env, &msgdata, lu_cdebug_printer, lock);  \
-		CDEBUG(mask, format , ## __VA_ARGS__);		  \
+		CDEBUG(mask, format, ## __VA_ARGS__);		  \
 	}							       \
 } while (0)
 

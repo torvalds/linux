@@ -562,7 +562,7 @@ static inline const char *
 swi_state2str (int state)
 {
 #define STATE2STR(x) case x: return #x
-	switch(state) {
+	switch (state) {
 		default:
 			LBUG();
 		STATE2STR(SWI_STATE_NEWBORN);

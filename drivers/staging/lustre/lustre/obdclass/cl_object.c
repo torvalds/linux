@@ -662,7 +662,7 @@ static int cl_env_store_init(void)
 				      CFS_HASH_MAX_THETA,
 				      &cl_env_hops,
 				      CFS_HASH_RW_BKTLOCK);
-	return cl_env_hash != NULL ? 0 :-ENOMEM;
+	return cl_env_hash != NULL ? 0 : -ENOMEM;
 }
 
 static void cl_env_store_fini(void)

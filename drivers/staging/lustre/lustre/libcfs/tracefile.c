@@ -124,7 +124,7 @@ int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 	 * from here: this will lead to infinite recursion.
 	 */
 
-	for (i = 0; i + tcd->tcd_cur_stock_pages < TCD_STOCK_PAGES ; ++ i) {
+	for (i = 0; i + tcd->tcd_cur_stock_pages < TCD_STOCK_PAGES ; ++i) {
 		struct cfs_trace_page *tage;
 
 		tage = cfs_tage_alloc(gfp);
@@ -370,7 +370,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	/* indent message according to the nesting level */
 	while (depth-- > 0) {
 		*(debug_buf++) = '.';
-		++ tage->used;
+		++tage->used;
 	}
 
 	strcpy(debug_buf, file);

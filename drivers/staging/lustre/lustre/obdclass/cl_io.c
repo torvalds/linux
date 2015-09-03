@@ -307,7 +307,7 @@ static void cl_io_locks_sort(struct cl_io *io)
 					 */
 				default:
 					LBUG();
-				case +1:
+				case 1:
 					list_move_tail(&curr->cill_linkage,
 							   &prev->cill_linkage);
 					done = 0;
@@ -335,7 +335,7 @@ int cl_queue_match(const struct list_head *queue,
 
        list_for_each_entry(scan, queue, cill_linkage) {
 	       if (cl_lock_descr_match(&scan->cill_descr, need))
-		       return +1;
+		       return 1;
        }
        return 0;
 }
@@ -353,7 +353,7 @@ static int cl_queue_merge(const struct list_head *queue,
 	       CDEBUG(D_VFSTRACE, "lock: %d: [%lu, %lu]\n",
 		      scan->cill_descr.cld_mode, scan->cill_descr.cld_start,
 		      scan->cill_descr.cld_end);
-	       return +1;
+	       return 1;
        }
        return 0;
 
@@ -600,7 +600,7 @@ int cl_io_lock_add(const struct lu_env *env, struct cl_io *io,
 	int result;
 
 	if (cl_lockset_merge(&io->ci_lockset, &link->cill_descr))
-		result = +1;
+		result = 1;
 	else {
 		list_add(&link->cill_linkage, &io->ci_lockset.cls_todo);
 		result = 0;
@@ -918,7 +918,7 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 		 */
 		 cl_page_list_for_each(pg, &queue->c2_qin) {
 			pg->cp_sync_io = NULL;
-			cl_sync_io_note(anchor, +1);
+			cl_sync_io_note(anchor, 1);
 		 }
 
 		 /* wait for the IO to be finished. */

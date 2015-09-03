@@ -1025,7 +1025,7 @@ char *ldlm_it2str(int it);
  * with a debugging message that is ldlm-related
  */
 #define LDLM_DEBUG_NOLOCK(format, a...)			\
-	CDEBUG(D_DLMTRACE, "### " format "\n" , ##a)
+	CDEBUG(D_DLMTRACE, "### " format "\n", ##a)
 
 /**
  * Support function for lock information printing into debug logs.
@@ -1051,7 +1051,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 #define LDLM_DEBUG_LIMIT(mask, lock, fmt, a...) do {			 \
 	static struct cfs_debug_limit_state _ldlm_cdls;			   \
 	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, &_ldlm_cdls);	      \
-	ldlm_lock_debug(&msgdata, mask, &_ldlm_cdls, lock, "### " fmt , ##a);\
+	ldlm_lock_debug(&msgdata, mask, &_ldlm_cdls, lock, "### " fmt, ##a);\
 } while (0)
 
 #define LDLM_ERROR(lock, fmt, a...) LDLM_DEBUG_LIMIT(D_ERROR, lock, fmt, ## a)
@@ -1062,7 +1062,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 	if (likely(lock != NULL)) {					    \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_DLMTRACE, NULL);      \
 		ldlm_lock_debug(&msgdata, D_DLMTRACE, NULL, lock,	    \
-				"### " fmt , ##a);			    \
+				"### " fmt, ##a);			    \
 	} else {							    \
 		LDLM_DEBUG_NOLOCK("no dlm lock: " fmt, ##a);		    \
 	}								    \

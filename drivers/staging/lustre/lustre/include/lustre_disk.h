@@ -365,7 +365,7 @@ static inline void check_lcd(char *obd_name, int index,
 			     struct lsd_client_data *lcd)
 {
 	int length = sizeof(lcd->lcd_uuid);
-	if (strnlen((char*)lcd->lcd_uuid, length) == length) {
+	if (strnlen((char *)lcd->lcd_uuid, length) == length) {
 		lcd->lcd_uuid[length - 1] = '\0';
 
 		LCONSOLE_ERROR("the client UUID (%s) on %s for exports stored in last_rcvd(index = %d) is bad!\n",
