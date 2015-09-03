@@ -217,6 +217,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
 	vcpu->pid = NULL;
+	vcpu->halt_poll_ns = 0;
 	init_waitqueue_head(&vcpu->wq);
 	kvm_async_pf_vcpu_init(vcpu);
 
@@ -1930,8 +1931,8 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	bool waited = false;
 
 	start = cur = ktime_get();
-	if (halt_poll_ns) {
-		ktime_t stop = ktime_add_ns(ktime_get(), halt_poll_ns);
+	if (vcpu->halt_poll_ns) {
+		ktime_t stop = ktime_add_ns(ktime_get(), vcpu->halt_poll_ns);
 
 		do {
 			/*
