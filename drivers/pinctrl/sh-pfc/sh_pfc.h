@@ -173,7 +173,7 @@ struct sh_pfc_soc_info {
 #define PINMUX_IPSR_NOFN(ipsr, fn, ms)					\
 	PINMUX_DATA(fn##_MARK, FN_##ipsr, FN_##ms)
 #define PINMUX_IPSR_MSEL(ipsr, fn, ms)					\
-	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr, FN_##ms)
+	PINMUX_DATA(fn##_MARK, FN_##ms, FN_##ipsr, FN_##fn)
 #define PINMUX_IPSR_MODSEL_DATA(ipsr, fn, ms)				\
 	PINMUX_DATA(fn##_MARK, FN_##ms, FN_##ipsr, FN_##fn)
 
