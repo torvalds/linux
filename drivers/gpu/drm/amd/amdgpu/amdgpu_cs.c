@@ -321,25 +321,17 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 	return max(bytes_moved_threshold, 1024*1024ull);
 }
 
-int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p)
+int amdgpu_cs_list_validate(struct amdgpu_device *adev,
+			    struct amdgpu_vm *vm,
+			    struct list_head *validated)
 {
-	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_vm *vm = &fpriv->vm;
-	struct amdgpu_device *adev = p->adev;
 	struct amdgpu_bo_list_entry *lobj;
-	struct list_head duplicates;
 	struct amdgpu_bo *bo;
 	u64 bytes_moved = 0, initial_bytes_moved;
 	u64 bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(adev);
 	int r;
 
-	INIT_LIST_HEAD(&duplicates);
-	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true, &duplicates);
-	if (unlikely(r != 0)) {
-		return r;
-	}
-
-	list_for_each_entry(lobj, &p->validated, tv.head) {
+	list_for_each_entry(lobj, validated, tv.head) {
 		bo = lobj->robj;
 		if (!bo->pin_count) {
 			u32 domain = lobj->prefered_domains;
@@ -373,7 +365,6 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p)
 					domain = lobj->allowed_domains;
 					goto retry;
 				}
-				ttm_eu_backoff_reservation(&p->ticket, &p->validated);
 				return r;
 			}
 		}
@@ -386,6 +377,7 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_cs_buckets buckets;
+	struct list_head duplicates;
 	bool need_mmap_lock = false;
 	int i, r;
 
@@ -405,8 +397,22 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 	if (need_mmap_lock)
 		down_read(&current->mm->mmap_sem);
 
-	r = amdgpu_cs_list_validate(p);
+	INIT_LIST_HEAD(&duplicates);
+	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true, &duplicates);
+	if (unlikely(r != 0))
+		goto error_reserve;
 
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
+	if (r)
+		goto error_validate;
+
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
+
+error_validate:
+	if (r)
+		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
+
+error_reserve:
 	if (need_mmap_lock)
 		up_read(&current->mm->mmap_sem);
 
