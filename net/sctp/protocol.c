@@ -506,14 +506,22 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		if (IS_ERR(rt))
 			continue;
 
+		if (!dst)
+			dst = &rt->dst;
+
 		/* Ensure the src address belongs to the output
 		 * interface.
 		 */
 		odev = __ip_dev_find(sock_net(sk), laddr->a.v4.sin_addr.s_addr,
 				     false);
-		if (!odev || odev->ifindex != fl4->flowi4_oif)
+		if (!odev || odev->ifindex != fl4->flowi4_oif) {
+			if (&rt->dst != dst)
+				dst_release(&rt->dst);
 			continue;
+		}
 
+		if (dst != &rt->dst)
+			dst_release(dst);
 		dst = &rt->dst;
 		break;
 	}
