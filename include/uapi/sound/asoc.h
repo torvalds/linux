@@ -110,7 +110,7 @@
 
 /*
  * Block Header.
- * This header preceeds all object and object arrays below.
+ * This header precedes all object and object arrays below.
  */
 struct snd_soc_tplg_hdr {
 	__le32 magic;		/* magic number */
@@ -222,7 +222,7 @@ struct snd_soc_tplg_stream_config {
 /*
  * Manifest. List totals for each payload type. Not used in parsing, but will
  * be passed to the component driver before any other objects in order for any
- * global componnent resource allocations.
+ * global component resource allocations.
  *
  * File block representation for manifest :-
  * +-----------------------------------+----+

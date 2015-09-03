@@ -867,7 +867,7 @@ static int azx_suspend(struct device *dev)
 
 	chip = card->private_data;
 	hda = container_of(chip, struct hda_intel, chip);
-	if (chip->disabled || hda->init_failed)
+	if (chip->disabled || hda->init_failed || !chip->running)
 		return 0;
 
 	bus = azx_bus(chip);
@@ -902,7 +902,7 @@ static int azx_resume(struct device *dev)
 
 	chip = card->private_data;
 	hda = container_of(chip, struct hda_intel, chip);
-	if (chip->disabled || hda->init_failed)
+	if (chip->disabled || hda->init_failed || !chip->running)
 		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
@@ -1027,7 +1027,7 @@ static int azx_runtime_idle(struct device *dev)
 		return 0;
 
 	if (!power_save_controller || !azx_has_pm_runtime(chip) ||
-	    azx_bus(chip)->codec_powered)
+	    azx_bus(chip)->codec_powered || !chip->running)
 		return -EBUSY;
 
 	return 0;

@@ -1202,23 +1202,40 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event)
 }
 
 /* Must be invoked inside of an RCU protected region.  */
-void fib_select_default(struct fib_result *res)
+void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 {
 	struct fib_info *fi = NULL, *last_resort = NULL;
 	struct hlist_head *fa_head = res->fa_head;
 	struct fib_table *tb = res->table;
+	u8 slen = 32 - res->prefixlen;
 	int order = -1, last_idx = -1;
-	struct fib_alias *fa;
+	struct fib_alias *fa, *fa1 = NULL;
+	u32 last_prio = res->fi->fib_priority;
+	u8 last_tos = 0;
 
 	hlist_for_each_entry_rcu(fa, fa_head, fa_list) {
 		struct fib_info *next_fi = fa->fa_info;
 
+		if (fa->fa_slen != slen)
+			continue;
+		if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
+			continue;
+		if (fa->tb_id != tb->tb_id)
+			continue;
+		if (next_fi->fib_priority > last_prio &&
+		    fa->fa_tos == last_tos) {
+			if (last_tos)
+				continue;
+			break;
+		}
+		if (next_fi->fib_flags & RTNH_F_DEAD)
+			continue;
+		last_tos = fa->fa_tos;
+		last_prio = next_fi->fib_priority;
+
 		if (next_fi->fib_scope != res->scope ||
 		    fa->fa_type != RTN_UNICAST)
 			continue;
-
-		if (next_fi->fib_priority > res->fi->fib_priority)
-			break;
 		if (!next_fi->fib_nh[0].nh_gw ||
 		    next_fi->fib_nh[0].nh_scope != RT_SCOPE_LINK)
 			continue;
@@ -1228,10 +1245,11 @@ void fib_select_default(struct fib_result *res)
 		if (!fi) {
 			if (next_fi != res->fi)
 				break;
+			fa1 = fa;
 		} else if (!fib_detect_death(fi, order, &last_resort,
-					     &last_idx, tb->tb_default)) {
+					     &last_idx, fa1->fa_default)) {
 			fib_result_assign(res, fi);
-			tb->tb_default = order;
+			fa1->fa_default = order;
 			goto out;
 		}
 		fi = next_fi;
@@ -1239,20 +1257,21 @@ void fib_select_default(struct fib_result *res)
 	}
 
 	if (order <= 0 || !fi) {
-		tb->tb_default = -1;
+		if (fa1)
+			fa1->fa_default = -1;
 		goto out;
 	}
 
 	if (!fib_detect_death(fi, order, &last_resort, &last_idx,
-				tb->tb_default)) {
+			      fa1->fa_default)) {
 		fib_result_assign(res, fi);
-		tb->tb_default = order;
+		fa1->fa_default = order;
 		goto out;
 	}
 
 	if (last_idx >= 0)
 		fib_result_assign(res, last_resort);
-	tb->tb_default = last_idx;
+	fa1->fa_default = last_idx;
 out:
 	return;
 }

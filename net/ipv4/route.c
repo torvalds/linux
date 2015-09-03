@@ -2176,7 +2176,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	if (!res.prefixlen &&
 	    res.table->tb_num_default > 1 &&
 	    res.type == RTN_UNICAST && !fl4->flowi4_oif)
-		fib_select_default(&res);
+		fib_select_default(fl4, &res);
 
 	if (!fl4->saddr)
 		fl4->saddr = FIB_RES_PREFSRC(net, res);

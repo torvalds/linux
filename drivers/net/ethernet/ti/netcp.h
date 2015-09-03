@@ -223,6 +223,7 @@ void *netcp_device_find_module(struct netcp_device *netcp_device,
 
 /* SGMII functions */
 int netcp_sgmii_reset(void __iomem *sgmii_ofs, int port);
+bool netcp_sgmii_rtreset(void __iomem *sgmii_ofs, int port, bool set);
 int netcp_sgmii_get_port_link(void __iomem *sgmii_ofs, int port);
 int netcp_sgmii_config(void __iomem *sgmii_ofs, int port, u32 interface);
 

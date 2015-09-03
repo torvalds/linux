@@ -2112,6 +2112,7 @@ probe_quit:
 static int netcp_remove(struct platform_device *pdev)
 {
 	struct netcp_device *netcp_device = platform_get_drvdata(pdev);
+	struct netcp_intf *netcp_intf, *netcp_tmp;
 	struct netcp_inst_modpriv *inst_modpriv, *tmp;
 	struct netcp_module *module;
 
@@ -2123,10 +2124,17 @@ static int netcp_remove(struct platform_device *pdev)
 		list_del(&inst_modpriv->inst_list);
 		kfree(inst_modpriv);
 	}
-	WARN(!list_empty(&netcp_device->interface_head), "%s interface list not empty!\n",
-	     pdev->name);
 
-	devm_kfree(&pdev->dev, netcp_device);
+	/* now that all modules are removed, clean up the interfaces */
+	list_for_each_entry_safe(netcp_intf, netcp_tmp,
+				 &netcp_device->interface_head,
+				 interface_list) {
+		netcp_delete_interface(netcp_device, netcp_intf->ndev);
+	}
+
+	WARN(!list_empty(&netcp_device->interface_head),
+	     "%s interface list not empty!\n", pdev->name);
+
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);

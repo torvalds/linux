@@ -2943,6 +2943,9 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 {
 	int val, btn_type, gpio_state = 0, report = 0;
 
+	if (!rt5645->codec)
+		return -EINVAL;
+
 	switch (rt5645->pdata.jd_mode) {
 	case 0: /* Not using rt5645 JD */
 		if (rt5645->gpiod_hp_det) {

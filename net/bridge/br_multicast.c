@@ -1416,13 +1416,37 @@ br_multicast_leave_group(struct net_bridge *br,
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) ||
-	    (port && port->state == BR_STATE_DISABLED) ||
-	    timer_pending(&other_query->timer))
+	    (port && port->state == BR_STATE_DISABLED))
 		goto out;
 
 	mdb = mlock_dereference(br->mdb, br);
 	mp = br_mdb_ip_get(mdb, group);
 	if (!mp)
+		goto out;
+
+	if (port && (port->flags & BR_MULTICAST_FAST_LEAVE)) {
+		struct net_bridge_port_group __rcu **pp;
+
+		for (pp = &mp->ports;
+		     (p = mlock_dereference(*pp, br)) != NULL;
+		     pp = &p->next) {
+			if (p->port != port)
+				continue;
+
+			rcu_assign_pointer(*pp, p->next);
+			hlist_del_init(&p->mglist);
+			del_timer(&p->timer);
+			call_rcu_bh(&p->rcu, br_multicast_free_pg);
+			br_mdb_notify(br->dev, port, group, RTM_DELMDB);
+
+			if (!mp->ports && !mp->mglist &&
+			    netif_running(br->dev))
+				mod_timer(&mp->timer, jiffies);
+		}
+		goto out;
+	}
+
+	if (timer_pending(&other_query->timer))
 		goto out;
 
 	if (br->multicast_querier) {
@@ -1448,28 +1472,6 @@ br_multicast_leave_group(struct net_bridge *br,
 
 			break;
 		}
-	}
-
-	if (port && (port->flags & BR_MULTICAST_FAST_LEAVE)) {
-		struct net_bridge_port_group __rcu **pp;
-
-		for (pp = &mp->ports;
-		     (p = mlock_dereference(*pp, br)) != NULL;
-		     pp = &p->next) {
-			if (p->port != port)
-				continue;
-
-			rcu_assign_pointer(*pp, p->next);
-			hlist_del_init(&p->mglist);
-			del_timer(&p->timer);
-			call_rcu_bh(&p->rcu, br_multicast_free_pg);
-			br_mdb_notify(br->dev, port, group, RTM_DELMDB);
-
-			if (!mp->ports && !mp->mglist &&
-			    netif_running(br->dev))
-				mod_timer(&mp->timer, jiffies);
-		}
-		goto out;
 	}
 
 	now = jiffies;

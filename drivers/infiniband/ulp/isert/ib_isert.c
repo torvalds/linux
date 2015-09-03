@@ -775,6 +775,17 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	ret = isert_rdma_post_recvl(isert_conn);
 	if (ret)
 		goto out_conn_dev;
+	/*
+	 * Obtain the second reference now before isert_rdma_accept() to
+	 * ensure that any initiator generated REJECT CM event that occurs
+	 * asynchronously won't drop the last reference until the error path
+	 * in iscsi_target_login_sess_out() does it's ->iscsit_free_conn() ->
+	 * isert_free_conn() -> isert_put_conn() -> kref_put().
+	 */
+	if (!kref_get_unless_zero(&isert_conn->kref)) {
+		isert_warn("conn %p connect_release is running\n", isert_conn);
+		goto out_conn_dev;
+	}
 
 	ret = isert_rdma_accept(isert_conn);
 	if (ret)
@@ -835,11 +846,6 @@ isert_connected_handler(struct rdma_cm_id *cma_id)
 	struct isert_conn *isert_conn = cma_id->qp->qp_context;
 
 	isert_info("conn %p\n", isert_conn);
-
-	if (!kref_get_unless_zero(&isert_conn->kref)) {
-		isert_warn("conn %p connect_release is running\n", isert_conn);
-		return;
-	}
 
 	mutex_lock(&isert_conn->mutex);
 	if (isert_conn->state != ISER_CONN_FULL_FEATURE)

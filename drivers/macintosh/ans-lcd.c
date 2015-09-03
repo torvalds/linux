@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 

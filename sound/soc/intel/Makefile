@@ -7,4 +7,4 @@ obj-$(CONFIG_SND_SOC_INTEL_BAYTRAIL) += baytrail/
 obj-$(CONFIG_SND_SST_MFLD_PLATFORM) += atom/
 
 # Machine support
-obj-$(CONFIG_SND_SOC_INTEL_SST) += boards/
+obj-$(CONFIG_SND_SOC) += boards/
