@@ -95,7 +95,8 @@ static inline void btintel_hw_error(struct hci_dev *hdev, u8 code)
 {
 }
 
-static void btintel_version_info(struct hci_dev *hdev, struct intel_version *ver)
+static inline void btintel_version_info(struct hci_dev *hdev,
+					struct intel_version *ver)
 {
 }
 
