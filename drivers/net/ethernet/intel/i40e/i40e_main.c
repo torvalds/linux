@@ -7949,12 +7949,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
-		if (!(pf->flags & I40E_FLAG_MFP_ENABLED)) {
-			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
-		} else {
+		if (pf->flags & I40E_FLAG_MFP_ENABLED &&
+		    pf->hw.num_partitions > 1)
 			dev_info(&pf->pdev->dev,
 				 "Flow Director Sideband mode Disabled in MFP mode\n");
-		}
+		else
+			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
 		pf->fdir_pf_filter_count =
 				 pf->hw.func_caps.fd_filters_guaranteed;
 		pf->hw.fdir_shared_filter_count =
