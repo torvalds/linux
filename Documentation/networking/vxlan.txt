@@ -16,8 +16,8 @@ to point. A VXLAN device can either dynamically learn the IP address
 of the other end, in a manner similar to a learning bridge, or the
 forwarding entries can be configured statically.
 
-The management of vxlan is done in a similar fashion to it's
-too closest neighbors GRE and VLAN. Configuring VXLAN requires
+The management of vxlan is done in a similar fashion to its
+two closest neighbors GRE and VLAN. Configuring VXLAN requires
 the version of iproute2 that matches the kernel release
 where VXLAN was first merged upstream.
 
