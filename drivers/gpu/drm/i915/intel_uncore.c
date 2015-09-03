@@ -1202,8 +1202,6 @@ void intel_uncore_init(struct drm_device *dev)
 
 	switch (INTEL_INFO(dev)->gen) {
 	default:
-		MISSING_CASE(INTEL_INFO(dev)->gen);
-		return;
 	case 9:
 		ASSIGN_WRITE_MMIO_VFUNCS(gen9);
 		ASSIGN_READ_MMIO_VFUNCS(gen9);
