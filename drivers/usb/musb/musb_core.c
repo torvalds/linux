@@ -2449,6 +2449,9 @@ static int musb_suspend(struct device *dev)
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
 
+	musb_platform_disable(musb);
+	musb_generic_disable(musb);
+
 	spin_lock_irqsave(&musb->lock, flags);
 
 	if (is_peripheral_active(musb)) {
@@ -2502,6 +2505,9 @@ static int musb_resume(struct device *dev)
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+	musb_start(musb);
+
 	return 0;
 }
 
