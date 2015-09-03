@@ -432,8 +432,17 @@
 				};
 
 				ldo3_reg: ldo3 {
-					/* VDDA_1V8_PHY */
+					/* VDDA_1V8_PHYA */
 					regulator-name = "ldo3";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo4_reg: ldo4 {
+					/* VDDA_1V8_PHYB */
+					regulator-name = "ldo4";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
@@ -681,7 +690,7 @@
 
 &hdmi {
 	status = "ok";
-	vdda-supply = <&ldo3_reg>;
+	vdda-supply = <&ldo4_reg>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_pins>;
