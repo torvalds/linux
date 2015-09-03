@@ -171,7 +171,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 16,
 	.width = WIDTH,
@@ -188,6 +187,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "samsung,s6d1121", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

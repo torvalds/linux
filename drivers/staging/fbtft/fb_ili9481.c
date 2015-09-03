@@ -98,6 +98,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9481", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

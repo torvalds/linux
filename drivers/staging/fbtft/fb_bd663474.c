@@ -175,6 +175,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "hitachi,bd663474", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

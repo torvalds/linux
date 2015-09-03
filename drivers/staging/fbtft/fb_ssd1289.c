@@ -33,7 +33,6 @@ static unsigned reg11 = 0x6040;
 module_param(reg11, uint, 0);
 MODULE_PARM_DESC(reg11, "Register 11h value");
 
-
 static int init_display(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
@@ -171,7 +170,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 16,
 	.width = WIDTH,
@@ -186,6 +184,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "solomon,ssd1289", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

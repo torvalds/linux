@@ -132,7 +132,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	return 0;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = 128,
@@ -147,6 +146,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "himax,hx8353d", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

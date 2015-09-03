@@ -111,7 +111,6 @@ module_param(verbose, uint, 0);
 MODULE_PARM_DESC(verbose,
 "0 silent, >0 show gpios, >1 show devices, >2 show devices before (default=3)");
 
-
 struct fbtft_device_display {
 	char *name;
 	struct spi_board_info *spi;

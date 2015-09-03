@@ -29,7 +29,6 @@
 #define DEFAULT_GAMMA	"07 07 6 0 0 0 5 5 4 0\n" \
 			"07 08 4 7 5 1 2 0 7 7"
 
-
 static unsigned read_devicecode(struct fbtft_par *par)
 {
 	int ret;
@@ -91,7 +90,6 @@ static int init_display(struct fbtft_par *par)
 
 	/* RGB interface polarity */
 	write_reg(par, 0x000F, 0x0000);
-
 
 	/* ***********Power On sequence *************** */
 	/* SAP, BT[3:0], AP, DSTB, SLP, STB */
@@ -258,7 +256,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 16,
 	.width = WIDTH,
@@ -273,6 +270,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9320", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

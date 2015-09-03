@@ -30,7 +30,6 @@
 #define WIDTH		320
 #define HEIGHT		480
 
-
 static int init_display(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
@@ -204,6 +203,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "himax,hx8357d", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

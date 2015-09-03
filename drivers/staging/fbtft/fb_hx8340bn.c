@@ -35,11 +35,9 @@
 #define DEFAULT_GAMMA	"1 3 0E 5 0 2 09 0 6 1 7 1 0 2 2\n" \
 			"3 3 17 8 4 7 05 7 6 0 3 1 6 0 0 "
 
-
 static bool emulate;
 module_param(emulate, bool, 0);
 MODULE_PARM_DESC(emulate, "Force emulation in 9-bit mode");
-
 
 static int init_display(struct fbtft_par *par)
 {
@@ -188,7 +186,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -204,6 +201,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "himax,hx8340bn", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

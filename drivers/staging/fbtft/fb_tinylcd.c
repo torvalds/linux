@@ -25,7 +25,6 @@
 #define WIDTH		320
 #define HEIGHT		480
 
-
 static int init_display(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
@@ -96,7 +95,6 @@ static int set_var(struct fbtft_par *par)
 	return 0;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -107,6 +105,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "neosec,tinylcd", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

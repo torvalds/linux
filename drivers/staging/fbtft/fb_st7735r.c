@@ -24,7 +24,6 @@
 #define DEFAULT_GAMMA   "0F 1A 0F 18 2F 28 20 22 1F 1B 23 37 00 07 02 10\n" \
 			"0F 1B 0F 17 33 2C 29 2E 30 30 39 3F 00 07 03 10"
 
-
 static int default_init_sequence[] = {
 	/* SWRESET - Software reset */
 	-1, 0x01,
@@ -161,7 +160,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = 128,
@@ -176,6 +174,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "sitronix,st7735r", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

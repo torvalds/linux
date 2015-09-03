@@ -20,7 +20,6 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 
-
 #define FBTFT_NOP		0x00
 #define FBTFT_SWRESET	0x01
 #define FBTFT_RDDID		0x04
@@ -291,7 +290,6 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus8(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus16(struct fbtft_par *par, int len, ...);
 
-
 #define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \
 									   \
 static int fbtft_driver_probe_spi(struct spi_device *spi)                  \
@@ -365,7 +363,6 @@ static void __exit fbtft_driver_module_exit(void)                          \
 module_init(fbtft_driver_module_init);                                     \
 module_exit(fbtft_driver_module_exit);
 
-
 /* Debug macros */
 
 /* shorthand debug levels */
@@ -411,7 +408,6 @@ module_exit(fbtft_driver_module_exit);
 #define DEBUG_REQUEST_GPIOS_MATCH   (1<<30)
 #define DEBUG_VERIFY_GPIOS          (1<<31)
 
-
 #define fbtft_init_dbg(dev, format, arg...)                  \
 do {                                                         \
 	if (unlikely((dev)->platform_data &&                 \
@@ -424,7 +420,6 @@ do {                                                         \
 	if (unlikely(par->debug & level))                    \
 		dev_info(par->info->device, format, ##arg);  \
 } while (0)
-
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \
 do {                                                                       \

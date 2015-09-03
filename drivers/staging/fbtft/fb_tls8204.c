@@ -147,7 +147,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	return 0;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -164,6 +163,7 @@ static struct fbtft_display display = {
 	},
 	.backlight = 1,
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "teralane,tls8204", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

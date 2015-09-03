@@ -29,7 +29,6 @@
 #define DEFAULT_GAMMA	"0 0 0 0 0 0 0 0 0 0 0 0 0 0\n" \
 			"0 0 0 0 0 0 0 0 0 0 0 0 0 0"
 
-
 static int init_display(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
@@ -147,7 +146,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -161,6 +159,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "himax,hx8347d", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

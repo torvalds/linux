@@ -40,7 +40,6 @@ static unsigned bs = 4;
 module_param(bs, uint, 0);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
-
 static int init_display(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
@@ -155,7 +154,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	return 0;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -172,6 +170,7 @@ static struct fbtft_display display = {
 	},
 	.backlight = 1,
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "philips,pdc8544", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

@@ -49,7 +49,6 @@ module_param(dma, bool, 0);
 MODULE_PARM_DESC(dma, "Use DMA buffer");
 #endif
 
-
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 			void *buf, size_t len, const char *fmt, ...)
 {
@@ -336,7 +335,6 @@ static void fbtft_set_addr_win(struct fbtft_par *par, int xs, int ys, int xe,
 	write_reg(par, 0x2C);
 }
 
-
 static void fbtft_reset(struct fbtft_par *par)
 {
 	if (par->gpio.reset == -1)
@@ -347,7 +345,6 @@ static void fbtft_reset(struct fbtft_par *par)
 	gpio_set_value(par->gpio.reset, 1);
 	mdelay(120);
 }
-
 
 static void fbtft_update_display(struct fbtft_par *par, unsigned start_line,
 				 unsigned end_line)
@@ -427,7 +424,6 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned start_line,
 	}
 }
 
-
 static void fbtft_mkdirty(struct fb_info *info, int y, int height)
 {
 	struct fbtft_par *par = info->par;
@@ -488,7 +484,6 @@ static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagelist)
 	par->fbtftops.update_display(info->par,
 					dirty_lines_start, dirty_lines_end);
 }
-
 
 static void fbtft_fb_fillrect(struct fb_info *info,
 			      const struct fb_fillrect *rect)

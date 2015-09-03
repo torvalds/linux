@@ -26,7 +26,6 @@
 #define WIDTH		128
 #define HEIGHT		64
 
-
 /*
   write_reg() caveat:
 
@@ -192,7 +191,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -208,7 +206,6 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
-
 
 FBTFT_REGISTER_DRIVER(DRVNAME, "solomon,ssd1306", &display);
 

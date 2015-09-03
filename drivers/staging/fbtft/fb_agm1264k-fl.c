@@ -41,7 +41,6 @@
 #define CS0			gpio.aux[0]
 #define CS1			gpio.aux[1]
 
-
 /* diffusing error (Floyd-Steinberg) */
 #define DIFFUSING_MATRIX_WIDTH	2
 #define DIFFUSING_MATRIX_HEIGHT	2
@@ -416,7 +415,6 @@ static int write(struct fbtft_par *par, void *buf, size_t len)
 
 	gpio_set_value(par->RW, 0); /* set write mode */
 
-
 	while (len--) {
 		u8 i, data;
 
@@ -452,6 +450,7 @@ static struct fbtft_display display = {
 		.write_vmem = write_vmem,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "displaytronic,fb_agm1264k-fl", &display);
 
 MODULE_ALIAS("platform:" DRVNAME);

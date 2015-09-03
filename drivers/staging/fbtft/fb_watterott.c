@@ -39,7 +39,6 @@
 #define COLOR_RGB233		10
 #define COLOR_RGB565		16
 
-
 static short mode = 565;
 module_param(mode, short, 0);
 MODULE_PARM_DESC(mode, "RGB color transfer mode: 332, 565 (default)");
@@ -286,7 +285,6 @@ static void register_chip_backlight(struct fbtft_par *par)
 #define register_chip_backlight NULL
 #endif
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.buswidth = 8,
@@ -304,6 +302,7 @@ static struct fbtft_display display = {
 		.register_backlight = register_chip_backlight,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "watterott,openlcd", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

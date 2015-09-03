@@ -32,7 +32,6 @@
 #define DEFAULT_GAMMA	"0F 00 7 2 0 0 6 5 4 1\n" \
 			"04 16 2 7 6 3 2 1 7 7"
 
-
 static unsigned bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
 module_param(bt, uint, 0);
 MODULE_PARM_DESC(bt, "Sets the factor used in the step-up circuits");
@@ -55,7 +54,6 @@ MODULE_PARM_DESC(vdv,
 static unsigned vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
 module_param(vcm, uint, 0);
 MODULE_PARM_DESC(vcm, "Set the internal VcomH voltage");
-
 
 /*
 Verify that this configuration is within the Voltage limits
@@ -255,7 +253,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 16,
 	.width = WIDTH,
@@ -272,6 +269,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9325", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

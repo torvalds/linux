@@ -24,7 +24,6 @@
 #define WIDTH		320
 #define HEIGHT		480
 
-
 /* this init sequence matches PiScreen */
 static int default_init_sequence[] = {
 	/* Interface Mode Control */
@@ -91,7 +90,6 @@ static int set_var(struct fbtft_par *par)
 	return 0;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -102,6 +100,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9486", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

@@ -305,6 +305,7 @@ static struct fbtft_display display = {
 		.write = write_spi,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "raio,ra8875", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

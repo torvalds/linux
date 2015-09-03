@@ -4,9 +4,6 @@
 #include <linux/spi/spi.h>
 #include "fbtft.h"
 
-
-
-
 /*****************************************************************************
  *
  *   void (*write_reg)(struct fbtft_par *par, int len, ...);
@@ -116,9 +113,6 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 	}
 }
 EXPORT_SYMBOL(fbtft_write_reg8_bus9);
-
-
-
 
 /*****************************************************************************
  *

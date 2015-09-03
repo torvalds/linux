@@ -69,7 +69,6 @@
 /* column offset for bottom view orientation */
 #define SHIFT_ADDR_TOPVIEW    30
 
-
 static int init_display(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
@@ -183,7 +182,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -195,6 +193,7 @@ static struct fbtft_display display = {
 	},
 	.backlight = 1,
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "UltraChip,uc1701", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

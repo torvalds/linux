@@ -188,6 +188,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "nec,upd161704", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);
