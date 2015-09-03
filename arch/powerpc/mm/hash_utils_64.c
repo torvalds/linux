@@ -640,7 +640,7 @@ extern u32 ht64_call_hpte_updatepp[];
 
 static void __init htab_finish_init(void)
 {
-#ifdef CONFIG_PPC_HAS_HASH_64K
+#ifdef CONFIG_PPC_64K_PAGES
 	patch_branch(ht64_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
@@ -653,7 +653,7 @@ static void __init htab_finish_init(void)
 	patch_branch(ht64_call_hpte_updatepp,
 		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
-#endif /* CONFIG_PPC_HAS_HASH_64K */
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	patch_branch(htab_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
@@ -1151,12 +1151,12 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		check_paca_psize(ea, mm, psize, user_region);
 #endif /* CONFIG_PPC_64K_PAGES */
 
-#ifdef CONFIG_PPC_HAS_HASH_64K
+#ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
 				     flags, ssize);
 	else
-#endif /* CONFIG_PPC_HAS_HASH_64K */
+#endif /* CONFIG_PPC_64K_PAGES */
 	{
 		int spp = subpage_protection(mm, ea);
 		if (access & spp)
@@ -1264,12 +1264,12 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 		update_flags |= HPTE_LOCAL_UPDATE;
 
 	/* Hash it in */
-#ifdef CONFIG_PPC_HAS_HASH_64K
+#ifdef CONFIG_PPC_64K_PAGES
 	if (mm->context.user_psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
 				     update_flags, ssize);
 	else
-#endif /* CONFIG_PPC_HAS_HASH_64K */
+#endif /* CONFIG_PPC_64K_PAGES */
 		rc = __hash_page_4K(ea, access, vsid, ptep, trap, update_flags,
 				    ssize, subpage_protection(mm, ea));
 

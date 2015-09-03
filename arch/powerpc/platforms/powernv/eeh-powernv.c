@@ -1394,11 +1394,19 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 			 */
 			if (pnv_eeh_get_pe(hose,
 				be64_to_cpu(frozen_pe_no), pe)) {
-				/* Try best to clear it */
 				pr_info("EEH: Clear non-existing PHB#%x-PE#%llx\n",
-					hose->global_number, frozen_pe_no);
+					hose->global_number, be64_to_cpu(frozen_pe_no));
 				pr_info("EEH: PHB location: %s\n",
 					eeh_pe_loc_get(phb_pe));
+
+				/* Dump PHB diag-data */
+				rc = opal_pci_get_phb_diag_data2(phb->opal_id,
+					phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+				if (rc == OPAL_SUCCESS)
+					pnv_pci_dump_phb_diag_data(hose,
+							phb->diag.blob);
+
+				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
 					frozen_pe_no,
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
