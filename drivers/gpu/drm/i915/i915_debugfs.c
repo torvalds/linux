@@ -1382,17 +1382,16 @@ static int ironlake_drpc_info(struct seq_file *m)
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-	seq_printf(m, "HD boost: %s\n", (rgvmodectl & MEMMODE_BOOST_EN) ?
-		   "yes" : "no");
+	seq_printf(m, "HD boost: %s\n", yesno(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
 		   (rgvmodectl & MEMMODE_BOOST_FREQ_MASK) >>
 		   MEMMODE_BOOST_FREQ_SHIFT);
 	seq_printf(m, "HW control enabled: %s\n",
-		   rgvmodectl & MEMMODE_HWIDLE_EN ? "yes" : "no");
+		   yesno(rgvmodectl & MEMMODE_HWIDLE_EN));
 	seq_printf(m, "SW control enabled: %s\n",
-		   rgvmodectl & MEMMODE_SWMODE_EN ? "yes" : "no");
+		   yesno(rgvmodectl & MEMMODE_SWMODE_EN));
 	seq_printf(m, "Gated voltage change: %s\n",
-		   rgvmodectl & MEMMODE_RCLK_GATE ? "yes" : "no");
+		   yesno(rgvmodectl & MEMMODE_RCLK_GATE));
 	seq_printf(m, "Starting frequency: P%d\n",
 		   (rgvmodectl & MEMMODE_FSTART_MASK) >> MEMMODE_FSTART_SHIFT);
 	seq_printf(m, "Max P-state: P%d\n",
@@ -1401,7 +1400,7 @@ static int ironlake_drpc_info(struct seq_file *m)
 	seq_printf(m, "RS1 VID: %d\n", (crstandvid & 0x3f));
 	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
 	seq_printf(m, "Render standby enabled: %s\n",
-		   (rstdbyctl & RCX_SW_EXIT) ? "no" : "yes");
+		   yesno(!(rstdbyctl & RCX_SW_EXIT)));
 	seq_puts(m, "Current RS state: ");
 	switch (rstdbyctl & RSX_STATUS_MASK) {
 	case RSX_STATUS_ON:
@@ -2844,8 +2843,7 @@ static void intel_dp_info(struct seq_file *m,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
 
 	seq_printf(m, "\tDPCD rev: %x\n", intel_dp->dpcd[DP_DPCD_REV]);
-	seq_printf(m, "\taudio support: %s\n", intel_dp->has_audio ? "yes" :
-		   "no");
+	seq_printf(m, "\taudio support: %s\n", yesno(intel_dp->has_audio));
 	if (intel_encoder->type == INTEL_OUTPUT_EDP)
 		intel_panel_info(m, &intel_connector->panel);
 }
@@ -2856,8 +2854,7 @@ static void intel_hdmi_info(struct seq_file *m,
 	struct intel_encoder *intel_encoder = intel_connector->encoder;
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
 
-	seq_printf(m, "\taudio support: %s\n", intel_hdmi->has_audio ? "yes" :
-		   "no");
+	seq_printf(m, "\taudio support: %s\n", yesno(intel_hdmi->has_audio));
 }
 
 static void intel_lvds_info(struct seq_file *m,

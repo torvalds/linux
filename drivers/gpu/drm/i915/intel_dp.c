@@ -4014,8 +4014,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	}
 
 	DRM_DEBUG_KMS("Display Port TPS3 support: source %s, sink %s\n",
-		      intel_dp_source_supports_hbr2(dev) ? "yes" : "no",
-		      drm_dp_tps3_supported(intel_dp->dpcd) ? "yes" : "no");
+		      yesno(intel_dp_source_supports_hbr2(dev)),
+		      yesno(drm_dp_tps3_supported(intel_dp->dpcd)));
 
 	/* Intermediate frequency support */
 	if (is_edp(intel_dp) &&
