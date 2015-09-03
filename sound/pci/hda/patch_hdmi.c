@@ -2324,7 +2324,7 @@ static void haswell_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	snd_hda_codec_set_power_to_all(codec, fg, power_state);
 }
 
-static void intel_pin_eld_notify(void *audio_ptr, int port, int port_mst_index)
+static void intel_pin_eld_notify(void *audio_ptr, int port)
 {
 	struct hda_codec *codec = audio_ptr;
 	int pin_nid = port + 0x04;

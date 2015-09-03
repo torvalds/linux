@@ -42,9 +42,8 @@ struct i915_audio_component {
 		 * pin sense and/or ELD information has changed.
 		 * @audio_ptr:		HDA driver object
 		 * @port:		Which port has changed (PORTA / PORTB / PORTC etc)
-		 * @port_mst_index:	Index within that port, for DisplayPort multistreaming
 		 */
-		void (*pin_eld_notify)(void *audio_ptr, int port, int port_mst_index);
+		void (*pin_eld_notify)(void *audio_ptr, int port);
 	} *audio_ops;
 };
 
