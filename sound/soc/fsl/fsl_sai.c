@@ -801,6 +801,7 @@ static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,imx6sx-sai", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, fsl_sai_ids);
 
 static struct platform_driver fsl_sai_driver = {
 	.probe = fsl_sai_probe,
