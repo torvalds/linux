@@ -843,6 +843,7 @@ static const struct of_device_id ux500_msp_i2s_match[] = {
 	{ .compatible = "stericsson,ux500-msp-i2s", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ux500_msp_i2s_match);
 
 static struct platform_driver msp_i2s_driver = {
 	.driver = {
