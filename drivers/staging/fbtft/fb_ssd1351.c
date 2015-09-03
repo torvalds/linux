@@ -208,25 +208,22 @@ static int update_onboard_backlight(struct backlight_device *bd)
 	return 0;
 }
 
+static const struct backlight_ops bl_ops = {
+	.update_status = update_onboard_backlight,
+};
+
 static void register_onboard_backlight(struct fbtft_par *par)
 {
 	struct backlight_device *bd;
 	struct backlight_properties bl_props = { 0, };
-	struct backlight_ops *bl_ops;
 
 	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
 
-	bl_ops = devm_kzalloc(par->info->device, sizeof(struct backlight_ops),
-				GFP_KERNEL);
-	if (!bl_ops)
-		return;
-
-	bl_ops->update_status = update_onboard_backlight;
 	bl_props.type = BACKLIGHT_RAW;
 	bl_props.power = FB_BLANK_POWERDOWN;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
-				par->info->device, par, bl_ops, &bl_props);
+				par->info->device, par, &bl_ops, &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
 			"cannot register backlight device (%ld)\n",
