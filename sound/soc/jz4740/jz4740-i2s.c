@@ -485,6 +485,7 @@ static const struct of_device_id jz4740_of_matches[] = {
 	{ .compatible = "ingenic,jz4780-i2s", .data = (void *)JZ_I2S_JZ4780 },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, jz4740_of_matches);
 #endif
 
 static int jz4740_i2s_dev_probe(struct platform_device *pdev)
