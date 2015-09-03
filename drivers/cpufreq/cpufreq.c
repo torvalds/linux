@@ -239,7 +239,7 @@ int cpufreq_generic_init(struct cpufreq_policy *policy,
 EXPORT_SYMBOL_GPL(cpufreq_generic_init);
 
 /* Only for cpufreq core internal use */
-struct cpufreq_policy *cpufreq_cpu_get_raw(unsigned int cpu)
+static struct cpufreq_policy *cpufreq_cpu_get_raw(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = per_cpu(cpufreq_cpu_data, cpu);
 
