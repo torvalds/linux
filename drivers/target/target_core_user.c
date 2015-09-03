@@ -577,7 +577,6 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 {
 	struct tcmu_mailbox *mb;
-	LIST_HEAD(cpl_cmds);
 	unsigned long flags;
 	int handled = 0;
 
