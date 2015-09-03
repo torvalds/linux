@@ -8330,6 +8330,7 @@ static int i40e_ndo_bridge_setlink(struct net_device *dev,
  * @seq: RTNL message seq #
  * @dev: the netdev being configured
  * @filter_mask: unused
+ * @nlflags: netlink flags passed in
  *
  * Return the mode in which the hardware bridge is operating in
  * i.e VEB or VEPA.
