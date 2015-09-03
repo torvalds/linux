@@ -4,7 +4,7 @@
  * Copyright (c) 2013 ELAN Microelectronics Corp.
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
- * Version: 1.5.9
+ * Version: 1.6.0
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -40,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.5.9"
+#define ELAN_DRIVER_VERSION	"1.6.0"
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -94,10 +94,10 @@ struct elan_tp_data {
 	bool			baseline_ready;
 };
 
-static int elan_get_fwinfo(u8 ic_type, u16 *validpage_count,
+static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
 			   u16 *signature_address)
 {
-	switch(ic_type) {
+	switch (iap_version) {
 	case 0x08:
 		*validpage_count = 512;
 		break;
@@ -264,11 +264,11 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = elan_get_fwinfo(data->ic_type, &data->fw_validpage_count,
+	error = elan_get_fwinfo(data->iap_version, &data->fw_validpage_count,
 				&data->fw_signature_address);
 	if (error) {
 		dev_err(&data->client->dev,
-			"unknown ic type %d\n", data->ic_type);
+			"unknown iap version %d\n", data->iap_version);
 		return error;
 	}
 
