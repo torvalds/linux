@@ -1101,7 +1101,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 				     AMDGPU_GPU_PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
-				     NULL, &pt);
+				     NULL, NULL, &pt);
 		if (r)
 			goto error_free;
 
@@ -1303,7 +1303,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	r = amdgpu_bo_create(adev, pd_size, align, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
-			     NULL, &vm->page_directory);
+			     NULL, NULL, &vm->page_directory);
 	if (r)
 		return r;
 

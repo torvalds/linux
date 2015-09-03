@@ -246,7 +246,7 @@ static int amdgpu_vram_scratch_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev, AMDGPU_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-				     NULL, &adev->vram_scratch.robj);
+				     NULL, NULL, &adev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}
@@ -449,7 +449,8 @@ static int amdgpu_wb_init(struct amdgpu_device *adev)
 
 	if (adev->wb.wb_obj == NULL) {
 		r = amdgpu_bo_create(adev, AMDGPU_MAX_WB * 4, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,  NULL, &adev->wb.wb_obj);
+				     AMDGPU_GEM_DOMAIN_GTT, 0,  NULL, NULL,
+				     &adev->wb.wb_obj);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create WB bo failed\n", r);
 			return r;

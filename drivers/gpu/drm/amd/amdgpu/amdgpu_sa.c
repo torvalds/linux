@@ -64,8 +64,8 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 		INIT_LIST_HEAD(&sa_manager->flist[i]);
 	}
 
-	r = amdgpu_bo_create(adev, size, align, true,
-			     domain, 0, NULL, &sa_manager->bo);
+	r = amdgpu_bo_create(adev, size, align, true, domain,
+			     0, NULL, NULL, &sa_manager->bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate bo for manager\n", r);
 		return r;

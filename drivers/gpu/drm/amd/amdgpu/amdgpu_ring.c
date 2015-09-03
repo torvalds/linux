@@ -407,7 +407,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create(adev, ring->ring_size, PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, &ring->ring_obj);
+				     NULL, NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;

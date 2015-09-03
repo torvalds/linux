@@ -3206,7 +3206,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev,
 				     adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2,
 				     PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
+				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create HDP EOP bo failed\n", r);
@@ -3373,7 +3373,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev,
 					     sizeof(struct bonaire_mqd),
 					     PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
+					     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 					     &ring->mqd_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
@@ -3788,7 +3788,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-					     NULL, &adev->gfx.rlc.save_restore_obj);
+					     NULL, NULL,
+					     &adev->gfx.rlc.save_restore_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC sr bo failed\n", r);
 				return r;
@@ -3831,7 +3832,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-					     NULL, &adev->gfx.rlc.clear_state_obj);
+					     NULL, NULL,
+					     &adev->gfx.rlc.clear_state_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
 				gfx_v7_0_rlc_fini(adev);
@@ -3870,7 +3872,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-					     NULL, &adev->gfx.rlc.cp_table_obj);
+					     NULL, NULL,
+					     &adev->gfx.rlc.cp_table_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
 				gfx_v7_0_rlc_fini(adev);
@@ -4851,21 +4854,21 @@ static int gfx_v7_0_sw_init(void *handle)
 	r = amdgpu_bo_create(adev, adev->gds.mem.gfx_partition_size,
 			PAGE_SIZE, true,
 			AMDGPU_GEM_DOMAIN_GDS, 0,
-			NULL, &adev->gds.gds_gfx_bo);
+			NULL, NULL, &adev->gds.gds_gfx_bo);
 	if (r)
 		return r;
 
 	r = amdgpu_bo_create(adev, adev->gds.gws.gfx_partition_size,
 		PAGE_SIZE, true,
 		AMDGPU_GEM_DOMAIN_GWS, 0,
-		NULL, &adev->gds.gws_gfx_bo);
+		NULL, NULL, &adev->gds.gws_gfx_bo);
 	if (r)
 		return r;
 
 	r = amdgpu_bo_create(adev, adev->gds.oa.gfx_partition_size,
 			PAGE_SIZE, true,
 			AMDGPU_GEM_DOMAIN_OA, 0,
-			NULL, &adev->gds.oa_gfx_bo);
+			NULL, NULL, &adev->gds.oa_gfx_bo);
 	if (r)
 		return r;
 

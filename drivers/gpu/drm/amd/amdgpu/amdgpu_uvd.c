@@ -156,7 +156,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	r = amdgpu_bo_create(adev, bo_size, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, &adev->uvd.vcpu_bo);
+			     NULL, NULL, &adev->uvd.vcpu_bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
@@ -905,7 +905,7 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, &bo);
+			     NULL, NULL, &bo);
 	if (r)
 		return r;
 
@@ -954,7 +954,7 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, &bo);
+			     NULL, NULL, &bo);
 	if (r)
 		return r;
 

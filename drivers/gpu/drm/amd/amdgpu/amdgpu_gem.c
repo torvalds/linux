@@ -69,7 +69,8 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 		}
 	}
 retry:
-	r = amdgpu_bo_create(adev, size, alignment, kernel, initial_domain, flags, NULL, &robj);
+	r = amdgpu_bo_create(adev, size, alignment, kernel, initial_domain,
+			     flags, NULL, NULL, &robj);
 	if (r) {
 		if (r != -ERESTARTSYS) {
 			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
