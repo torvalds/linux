@@ -1164,13 +1164,8 @@ unwind_out:
 }
 
 static void
-free_gen8_temp_bitmaps(unsigned long *new_pds, unsigned long **new_pts,
-		       uint32_t pdpes)
+free_gen8_temp_bitmaps(unsigned long *new_pds, unsigned long *new_pts)
 {
-	int i;
-
-	for (i = 0; i < pdpes; i++)
-		kfree(new_pts[i]);
 	kfree(new_pts);
 	kfree(new_pds);
 }
@@ -1180,29 +1175,20 @@ free_gen8_temp_bitmaps(unsigned long *new_pds, unsigned long **new_pts,
  */
 static
 int __must_check alloc_gen8_temp_bitmaps(unsigned long **new_pds,
-					 unsigned long ***new_pts,
+					 unsigned long **new_pts,
 					 uint32_t pdpes)
 {
-	int i;
 	unsigned long *pds;
-	unsigned long **pts;
+	unsigned long *pts;
 
-	pds = kcalloc(BITS_TO_LONGS(pdpes), sizeof(unsigned long), GFP_KERNEL);
+	pds = kcalloc(BITS_TO_LONGS(pdpes), sizeof(unsigned long), GFP_TEMPORARY);
 	if (!pds)
 		return -ENOMEM;
 
-	pts = kcalloc(pdpes, sizeof(unsigned long *), GFP_KERNEL);
-	if (!pts) {
-		kfree(pds);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < pdpes; i++) {
-		pts[i] = kcalloc(BITS_TO_LONGS(I915_PDES),
-				 sizeof(unsigned long), GFP_KERNEL);
-		if (!pts[i])
-			goto err_out;
-	}
+	pts = kcalloc(pdpes, BITS_TO_LONGS(I915_PDES) * sizeof(unsigned long),
+		      GFP_TEMPORARY);
+	if (!pts)
+		goto err_out;
 
 	*new_pds = pds;
 	*new_pts = pts;
@@ -1210,7 +1196,7 @@ int __must_check alloc_gen8_temp_bitmaps(unsigned long **new_pds,
 	return 0;
 
 err_out:
-	free_gen8_temp_bitmaps(pds, pts, pdpes);
+	free_gen8_temp_bitmaps(pds, pts);
 	return -ENOMEM;
 }
 
@@ -1231,7 +1217,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
-	unsigned long *new_page_dirs, **new_page_tables;
+	unsigned long *new_page_dirs, *new_page_tables;
 	struct drm_device *dev = vm->dev;
 	struct i915_page_directory *pd;
 	const uint64_t orig_start = start;
@@ -1258,14 +1244,14 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 	ret = gen8_ppgtt_alloc_page_directories(vm, pdp, start, length,
 						new_page_dirs);
 	if (ret) {
-		free_gen8_temp_bitmaps(new_page_dirs, new_page_tables, pdpes);
+		free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
 		return ret;
 	}
 
 	/* For every page directory referenced, allocate page tables */
 	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
 		ret = gen8_ppgtt_alloc_pagetabs(vm, pd, start, length,
-						new_page_tables[pdpe]);
+						new_page_tables + pdpe * BITS_TO_LONGS(I915_PDES));
 		if (ret)
 			goto err_out;
 	}
@@ -1316,20 +1302,21 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 		gen8_setup_page_directory(ppgtt, pdp, pd, pdpe);
 	}
 
-	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables, pdpes);
+	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
 	mark_tlbs_dirty(ppgtt);
 	return 0;
 
 err_out:
 	while (pdpe--) {
-		for_each_set_bit(temp, new_page_tables[pdpe], I915_PDES)
+		for_each_set_bit(temp, new_page_tables + pdpe *
+				BITS_TO_LONGS(I915_PDES), I915_PDES)
 			free_pt(dev, pdp->page_directory[pdpe]->page_table[temp]);
 	}
 
 	for_each_set_bit(pdpe, new_page_dirs, pdpes)
 		free_pd(dev, pdp->page_directory[pdpe]);
 
-	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables, pdpes);
+	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
 	mark_tlbs_dirty(ppgtt);
 	return ret;
 }
@@ -1481,7 +1468,7 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 
 static int gen8_preallocate_top_level_pdps(struct i915_hw_ppgtt *ppgtt)
 {
-	unsigned long *new_page_dirs, **new_page_tables;
+	unsigned long *new_page_dirs, *new_page_tables;
 	uint32_t pdpes = I915_PDPES_PER_PDP(dev);
 	int ret;
 
@@ -1501,7 +1488,7 @@ static int gen8_preallocate_top_level_pdps(struct i915_hw_ppgtt *ppgtt)
 	if (!ret)
 		*ppgtt->pdp.used_pdpes = *new_page_dirs;
 
-	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables, pdpes);
+	free_gen8_temp_bitmaps(new_page_dirs, new_page_tables);
 
 	return ret;
 }
