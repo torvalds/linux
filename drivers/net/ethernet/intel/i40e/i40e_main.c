@@ -6593,9 +6593,9 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	/* make sure our flow control settings are restored */
 	ret = i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
 	if (ret)
-		dev_info(&pf->pdev->dev, "set fc fail, err %s aq_err %s\n",
-			 i40e_stat_str(&pf->hw, ret),
-			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+		dev_dbg(&pf->pdev->dev, "setting flow control: ret = %s last_status = %s\n",
+			i40e_stat_str(&pf->hw, ret),
+			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 
 	/* Rebuild the VSIs and VEBs that existed before reset.
 	 * They are still in our local switch element arrays, so only
@@ -9847,8 +9847,14 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	}
 
 	pf->queues_left = queues_left;
+	dev_dbg(&pf->pdev->dev,
+		"qs_avail=%d FD SB=%d lan_qs=%d lan_tc0=%d vf=%d*%d vmdq=%d*%d, remaining=%d\n",
+		pf->hw.func_caps.num_tx_qp,
+		!!(pf->flags & I40E_FLAG_FD_SB_ENABLED),
+		pf->num_lan_qps, pf->rss_size, pf->num_req_vfs, pf->num_vf_qps,
+		pf->num_vmdq_vsis, pf->num_vmdq_qps, queues_left);
 #ifdef I40E_FCOE
-	dev_info(&pf->pdev->dev, "fcoe queues = %d\n", pf->num_fcoe_qps);
+	dev_dbg(&pf->pdev->dev, "fcoe queues = %d\n", pf->num_fcoe_qps);
 #endif
 }
 
@@ -10333,10 +10339,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* get the requested speeds from the fw */
 	err = i40e_aq_get_phy_capabilities(hw, false, false, &abilities, NULL);
 	if (err)
-		dev_info(&pf->pdev->dev,
-			 "get phy capabilities failed, err %s aq_err %s, advertised speed settings may not be correct\n",
-			 i40e_stat_str(&pf->hw, err),
-			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+		dev_dbg(&pf->pdev->dev, "get requested speeds ret =  %s last_status =  %s\n",
+			i40e_stat_str(&pf->hw, err),
+			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 	pf->hw.phy.link_info.requested_speeds = abilities.link_speed;
 
 	/* get the supported phy types from the fw */
