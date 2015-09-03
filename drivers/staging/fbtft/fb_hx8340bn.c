@@ -113,9 +113,9 @@ static int set_var(struct fbtft_par *par)
 {
 	/* MADCTL - Memory data access control */
 	/* RGB/BGR can be set with H/W pin SRGB and MADCTL BGR bit */
-#define MY (1 << 7)
-#define MX (1 << 6)
-#define MV (1 << 5)
+#define MY BIT(7)
+#define MX BIT(6)
+#define MV BIT(5)
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, 0x36, par->bgr << 3);
