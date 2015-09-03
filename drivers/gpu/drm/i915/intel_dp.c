@@ -3828,10 +3828,11 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
 	 * supported but still not enabled.
 	 */
-	if (intel_dp->link_rate == 540000 ||
-	    (intel_dp_source_supports_hbr2(dev) &&
-	     drm_dp_tps3_supported(intel_dp->dpcd)))
+	if (intel_dp_source_supports_hbr2(dev) &&
+	    drm_dp_tps3_supported(intel_dp->dpcd))
 		training_pattern = DP_TRAINING_PATTERN_3;
+	else if (intel_dp->link_rate == 540000)
+		DRM_ERROR("5.4 Gbps link rate without HBR2/TPS3 support\n");
 
 	/* channel equalization */
 	if (!intel_dp_set_link_train(intel_dp, &DP,
