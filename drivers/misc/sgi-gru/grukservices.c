@@ -1002,7 +1002,6 @@ static int quicktest1(unsigned long arg)
 {
 	struct gru_message_queue_desc mqd;
 	void *p, *mq;
-	unsigned long *dw;
 	int i, ret = -EIO;
 	char mes[GRU_CACHE_LINE_BYTES], *m;
 
@@ -1012,7 +1011,6 @@ static int quicktest1(unsigned long arg)
 		return -ENOMEM;
 	mq = ALIGNUP(p, 1024);
 	memset(mes, 0xee, sizeof(mes));
-	dw = mq;
 
 	gru_create_message_queue(&mqd, mq, 8 * GRU_CACHE_LINE_BYTES, 0, 0, 0);
 	for (i = 0; i < 6; i++) {
