@@ -72,6 +72,10 @@ static const uint32_t skl_primary_formats[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
 };
 
 /* Cursor formats */
