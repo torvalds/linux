@@ -105,7 +105,7 @@ static int set_var(struct fbtft_par *par)
 		break;
 	case 270:
 		write_reg(par, 0x36,
-			(1<<MEM_V) | (1 << MEM_L) | (par->bgr << MEM_BGR));
+			(1 << MEM_V) | (1 << MEM_L) | (par->bgr << MEM_BGR));
 		break;
 	case 180:
 		write_reg(par, 0x36, (1 << MEM_Y) | (par->bgr << MEM_BGR));
@@ -124,7 +124,7 @@ static int set_var(struct fbtft_par *par)
     Positive: Par1 Par2 [...] Par15
     Negative: Par1 Par2 [...] Par15
 */
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	int i;

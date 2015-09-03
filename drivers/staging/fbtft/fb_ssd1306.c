@@ -175,7 +175,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		for (y = 0; y < par->info->var.yres/8; y++) {
 			*buf = 0x00;
 			for (i = 0; i < 8; i++)
-				*buf |= (vmem16[(y*8+i)*par->info->var.xres+x] ? 1 : 0) << i;
+				*buf |= (vmem16[(y * 8 + i) *
+						par->info->var.xres + x] ?
+					 1 : 0) << i;
 			buf++;
 		}
 	}
@@ -183,7 +185,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	/* Write data */
 	gpio_set_value(par->gpio.dc, 1);
 	ret = par->fbtftops.write(par, par->txbuf.buf,
-				par->info->var.xres*par->info->var.yres/8);
+				  par->info->var.xres * par->info->var.yres /
+				  8);
 	if (ret < 0)
 		dev_err(par->info->device, "write failed and returned: %d\n",
 			ret);

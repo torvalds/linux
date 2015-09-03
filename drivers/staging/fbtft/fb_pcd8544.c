@@ -29,7 +29,7 @@
 #define DRVNAME	       "fb_pcd8544"
 #define WIDTH          84
 #define HEIGHT         48
-#define TXBUFLEN       (84*6)
+#define TXBUFLEN       (84 * 6)
 #define DEFAULT_GAMMA  "40" /* gamma controls the contrast in this driver */
 
 static unsigned tc;
@@ -125,14 +125,15 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		for (y = 0; y < 6; y++) {
 			*buf = 0x00;
 			for (i = 0; i < 8; i++)
-				*buf |= (vmem16[(y*8+i)*84+x] ? 1 : 0) << i;
+				*buf |= (vmem16[(y * 8 + i) * 84 + x] ?
+					 1 : 0) << i;
 			buf++;
 		}
 	}
 
 	/* Write data */
 	gpio_set_value(par->gpio.dc, 1);
-	ret = par->fbtftops.write(par, par->txbuf.buf, 6*84);
+	ret = par->fbtftops.write(par, par->txbuf.buf, 6 * 84);
 	if (ret < 0)
 		dev_err(par->info->device, "write failed and returned: %d\n",
 			ret);

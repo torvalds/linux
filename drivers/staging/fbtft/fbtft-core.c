@@ -385,7 +385,7 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned start_line,
 
 	if (par->fbtftops.set_addr_win)
 		par->fbtftops.set_addr_win(par, 0, start_line,
-				par->info->var.xres-1, end_line);
+				par->info->var.xres - 1, end_line);
 
 	offset = start_line * par->info->fix.line_length;
 	len = (end_line - start_line + 1) * par->info->fix.line_length;
@@ -785,7 +785,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	info->fix.xpanstep =	   0;
 	info->fix.ypanstep =	   0;
 	info->fix.ywrapstep =	   0;
-	info->fix.line_length =    width*bpp/8;
+	info->fix.line_length =    width * bpp / 8;
 	info->fix.accel =          FB_ACCEL_NONE;
 	info->fix.smem_len =       vmem_size;
 
@@ -981,12 +981,12 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 			par->txbuf.len >> 10, par->txbuf.dma ? "DMA " : "");
 	if (spi)
 		sprintf(text2, ", spi%d.%d at %d MHz", spi->master->bus_num,
-				spi->chip_select, spi->max_speed_hz/1000000);
+			spi->chip_select, spi->max_speed_hz / 1000000);
 	dev_info(fb_info->dev,
 		"%s frame buffer, %dx%d, %d KiB video memory%s, fps=%lu%s\n",
 		fb_info->fix.id, fb_info->var.xres, fb_info->var.yres,
 		fb_info->fix.smem_len >> 10, text1,
-		HZ/fb_info->fbdefio->delay, text2);
+		HZ / fb_info->fbdefio->delay, text2);
 
 #ifdef CONFIG_FB_BACKLIGHT
 	/* Turn on backlight if available */
@@ -1168,7 +1168,7 @@ int fbtft_init_display(struct fbtft_par *par)
 				"missing delimiter at position %d\n", i);
 			return -EINVAL;
 		}
-		if (par->init_sequence[i+1] < 0) {
+		if (par->init_sequence[i + 1] < 0) {
 			dev_err(par->info->device,
 				"missing value after delimiter %d at position %d\n",
 				par->init_sequence[i], i);

@@ -102,7 +102,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
-	for (y = 0; y < HEIGHT/8; y++) {
+	for (y = 0; y < HEIGHT / 8; y++) {
 		u8 *buf = par->txbuf.buf;
 		/* The display is 102x68 but the LCD is 84x48.  Set
 		   the write pointer at the start of each row. */
@@ -113,9 +113,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		for (x = 0; x < WIDTH; x++) {
 			u8 ch = 0;
 
-			for (i = 0; i < 8*WIDTH; i += WIDTH) {
+			for (i = 0; i < 8 * WIDTH; i += WIDTH) {
 				ch >>= 1;
-				if (vmem16[(y*8*WIDTH)+i+x])
+				if (vmem16[(y * 8 * WIDTH) + i + x])
 					ch |= 0x80;
 			}
 			*buf++ = ch;

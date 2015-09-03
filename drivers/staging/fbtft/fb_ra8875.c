@@ -186,10 +186,10 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	write_reg(par, 0x31, (xs & 0xFF00) >> 8);
 	write_reg(par, 0x32, ys & 0x00FF);
 	write_reg(par, 0x33, (ys & 0xFF00) >> 8);
-	write_reg(par, 0x34, (xs+xe) & 0x00FF);
-	write_reg(par, 0x35, ((xs+xe) & 0xFF00) >> 8);
-	write_reg(par, 0x36, (ys+ye) & 0x00FF);
-	write_reg(par, 0x37, ((ys+ye) & 0xFF00) >> 8);
+	write_reg(par, 0x34, (xs + xe) & 0x00FF);
+	write_reg(par, 0x35, ((xs + xe) & 0xFF00) >> 8);
+	write_reg(par, 0x36, (ys + ye) & 0x00FF);
+	write_reg(par, 0x37, ((ys + ye) & 0xFF00) >> 8);
 
 	/* Set_Memory_Write_Cursor */
 	write_reg(par, 0x46,  xs & 0xff);

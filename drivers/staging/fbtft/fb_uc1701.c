@@ -29,7 +29,7 @@
 #define DRVNAME	"fb_uc1701"
 #define WIDTH	  102
 #define HEIGHT	 64
-#define PAGES	  (HEIGHT/8)
+#define PAGES	  (HEIGHT / 8)
 
 /* 1: Display on/off */
 #define LCD_DISPLAY_ENABLE    0xAE
@@ -116,7 +116,7 @@ static int init_display(struct fbtft_par *par)
 
 	/* advanced program control */
 	write_reg(par, LCD_ADV_PROG_CTRL);
-	write_reg(par, LCD_ADV_PROG_CTRL2|LCD_TEMPCOMP_HIGH);
+	write_reg(par, LCD_ADV_PROG_CTRL2 | LCD_TEMPCOMP_HIGH);
 
 	/* enable display */
 	write_reg(par, LCD_DISPLAY_ENABLE | 1);
@@ -155,13 +155,15 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		for (x = 0; x < WIDTH; x++) {
 			*buf = 0x00;
 			for (i = 0; i < 8; i++)
-				*buf |= (vmem16[((y*8*WIDTH)+(i*WIDTH))+x] ? 1 : 0) << i;
+				*buf |= (vmem16[((y * 8 * WIDTH) +
+						 (i * WIDTH)) + x] ?
+					 1 : 0) << i;
 			buf++;
 		}
 		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
 		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
 		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
-		write_reg(par, LCD_PAGE_ADDRESS|(u8)y);
+		write_reg(par, LCD_PAGE_ADDRESS | (u8)y);
 		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
 		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
 		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */

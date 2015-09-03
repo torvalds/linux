@@ -133,7 +133,7 @@ static int set_var(struct fbtft_par *par)
     PKP0 PKP1 PKP2 PKP3 PKP4 PKP5 PKP6 PKP7 PKP8 PKP9 PKP10 PKP11 VRP0 VRP1
     PKN0 PKN1 PKN2 PKN3 PKN4 PKN5 PKN6 PKN7 PRN8 PRN9 PRN10 PRN11 VRN0 VRN1
 */
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
@@ -148,7 +148,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	/* apply mask */
 	for (i = 0; i < 2; i++)
 		for (j = 0; j < 14; j++)
-			CURVE(i, j) &= mask[i*par->gamma.num_values + j];
+			CURVE(i, j) &= mask[i * par->gamma.num_values + j];
 
 	write_reg(par, 0x0030, CURVE(0, 1) << 8 | CURVE(0, 0));
 	write_reg(par, 0x0031, CURVE(0, 3) << 8 | CURVE(0, 2));

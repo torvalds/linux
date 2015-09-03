@@ -1202,7 +1202,7 @@ static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 }
 
 /* used if gpios parameter is present */
-static struct fbtft_gpio fbtft_device_param_gpios[MAX_GPIOS+1] = { };
+static struct fbtft_gpio fbtft_device_param_gpios[MAX_GPIOS + 1] = { };
 
 static void fbtft_device_pdev_release(struct device *dev)
 {
@@ -1216,7 +1216,7 @@ static int spi_device_found(struct device *dev, void *data)
 	struct spi_device *spi = container_of(dev, struct spi_device, dev);
 
 	pr_info(DRVNAME":      %s %s %dkHz %d bits mode=0x%02X\n",
-		spi->modalias, dev_name(dev), spi->max_speed_hz/1000,
+		spi->modalias, dev_name(dev), spi->max_speed_hz / 1000,
 		spi->bits_per_word, spi->mode);
 
 	return 0;
