@@ -1098,7 +1098,6 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	} else {
 		bank->chip.label = "gpio";
 		bank->chip.base = gpio;
-		gpio += bank->width;
 	}
 	bank->chip.ngpio = bank->width;
 
@@ -1107,6 +1106,9 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 		dev_err(bank->dev, "Could not register gpio chip %d\n", ret);
 		return ret;
 	}
+
+	if (!bank->is_mpuio)
+		gpio += bank->width;
 
 #ifdef CONFIG_ARCH_OMAP1
 	/*
