@@ -35,12 +35,18 @@
 			status = "okay";
 		};
 
-		i2c@9842000 {
+		ssc2: i2c@9842000 {
 			status = "okay";
+			clock-frequency = <100000>;
+			st,i2c-min-scl-pulse-width-us = <0>;
+			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
-		i2c@9843000 {
+		ssc3: i2c@9843000 {
 			status = "okay";
+			clock-frequency = <100000>;
+			st,i2c-min-scl-pulse-width-us = <0>;
+			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
 		i2c@9844000 {
