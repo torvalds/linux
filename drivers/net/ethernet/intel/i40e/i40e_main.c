@@ -4844,8 +4844,8 @@ out:
  */
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 {
-	char speed[SPEED_SIZE] = "Unknown";
-	char fc[FC_SIZE] = "RX/TX";
+	char *speed = "Unknown";
+	char *fc = "Unknown";
 
 	if (vsi->current_isup == isup)
 		return;
@@ -4866,19 +4866,19 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
-		strlcpy(speed, "40 Gbps", SPEED_SIZE);
+		speed = "40 G";
 		break;
 	case I40E_LINK_SPEED_20GB:
-		strncpy(speed, "20 Gbps", SPEED_SIZE);
+		speed = "20 G";
 		break;
 	case I40E_LINK_SPEED_10GB:
-		strlcpy(speed, "10 Gbps", SPEED_SIZE);
+		speed = "10 G";
 		break;
 	case I40E_LINK_SPEED_1GB:
-		strlcpy(speed, "1000 Mbps", SPEED_SIZE);
+		speed = "1000 M";
 		break;
 	case I40E_LINK_SPEED_100MB:
-		strncpy(speed, "100 Mbps", SPEED_SIZE);
+		speed = "100 M";
 		break;
 	default:
 		break;
@@ -4886,20 +4886,20 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 
 	switch (vsi->back->hw.fc.current_mode) {
 	case I40E_FC_FULL:
-		strlcpy(fc, "RX/TX", FC_SIZE);
+		fc = "RX/TX";
 		break;
 	case I40E_FC_TX_PAUSE:
-		strlcpy(fc, "TX", FC_SIZE);
+		fc = "TX";
 		break;
 	case I40E_FC_RX_PAUSE:
-		strlcpy(fc, "RX", FC_SIZE);
+		fc = "RX";
 		break;
 	default:
-		strlcpy(fc, "None", FC_SIZE);
+		fc = "None";
 		break;
 	}
 
-	netdev_info(vsi->netdev, "NIC Link is Up %s Full Duplex, Flow Control: %s\n",
+	netdev_info(vsi->netdev, "NIC Link is Up %sbps Full Duplex, Flow Control: %s\n",
 		    speed, fc);
 }
 
