@@ -246,17 +246,23 @@ static int rcu_gp_in_progress(struct rcu_state *rsp)
  */
 void rcu_sched_qs(void)
 {
+	unsigned long flags;
+
 	if (__this_cpu_read(rcu_sched_data.cpu_no_qs.s)) {
 		trace_rcu_grace_period(TPS("rcu_sched"),
 				       __this_cpu_read(rcu_sched_data.gpnum),
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_sched_data.cpu_no_qs.b.norm, false);
+		if (!__this_cpu_read(rcu_sched_data.cpu_no_qs.b.exp))
+			return;
+		local_irq_save(flags);
 		if (__this_cpu_read(rcu_sched_data.cpu_no_qs.b.exp)) {
 			__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, false);
 			rcu_report_exp_rdp(&rcu_sched_state,
 					   this_cpu_ptr(&rcu_sched_data),
 					   true);
 		}
+		local_irq_restore(flags);
 	}
 }
 
@@ -3553,7 +3559,10 @@ static void rcu_report_exp_cpu_mult(struct rcu_state *rsp, struct rcu_node *rnp,
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	smp_mb__after_unlock_lock();
-	WARN_ON_ONCE((rnp->expmask & mask) != mask);
+	if (!(rnp->expmask & mask)) {
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		return;
+	}
 	rnp->expmask &= ~mask;
 	__rcu_report_exp_rnp(rsp, rnp, wake, flags); /* Releases rnp->lock. */
 }
@@ -3644,10 +3653,35 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 }
 
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
-static void synchronize_sched_expedited_cpu_stop(void *data)
+static void sync_sched_exp_handler(void *data)
 {
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+	struct rcu_state *rsp = data;
+
+	rdp = this_cpu_ptr(rsp->rda);
+	rnp = rdp->mynode;
+	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
+	    __this_cpu_read(rcu_sched_data.cpu_no_qs.b.exp))
+		return;
 	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, true);
 	resched_cpu(smp_processor_id());
+}
+
+/* Send IPI for expedited cleanup if needed at end of CPU-hotplug operation. */
+static void sync_sched_exp_online_cleanup(int cpu)
+{
+	struct rcu_data *rdp;
+	int ret;
+	struct rcu_node *rnp;
+	struct rcu_state *rsp = &rcu_sched_state;
+
+	rdp = per_cpu_ptr(rsp->rda, cpu);
+	rnp = rdp->mynode;
+	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask))
+		return;
+	ret = smp_call_function_single(cpu, sync_sched_exp_handler, rsp, 0);
+	WARN_ON_ONCE(ret);
 }
 
 /*
@@ -3677,7 +3711,6 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 
 			if (raw_smp_processor_id() == cpu ||
-			    cpu_is_offline(cpu) ||
 			    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
 				mask_ofl_test |= rdp->grpmask;
 		}
@@ -3697,9 +3730,28 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
 			if (!(mask_ofl_ipi & mask))
 				continue;
+retry_ipi:
 			ret = smp_call_function_single(cpu, func, rsp, 0);
-			if (!ret)
+			if (!ret) {
 				mask_ofl_ipi &= ~mask;
+			} else {
+				/* Failed, raced with offline. */
+				raw_spin_lock_irqsave(&rnp->lock, flags);
+				if (cpu_online(cpu) &&
+				    (rnp->expmask & mask)) {
+					raw_spin_unlock_irqrestore(&rnp->lock,
+								   flags);
+					schedule_timeout_uninterruptible(1);
+					if (cpu_online(cpu) &&
+					    (rnp->expmask & mask))
+						goto retry_ipi;
+					raw_spin_lock_irqsave(&rnp->lock,
+							      flags);
+				}
+				if (!(rnp->expmask & mask))
+					mask_ofl_ipi &= ~mask;
+				raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			}
 		}
 		/* Report quiescent states for those that went offline. */
 		mask_ofl_test |= mask_ofl_ipi;
@@ -3796,7 +3848,7 @@ void synchronize_sched_expedited(void)
 		return;  /* Someone else did our work for us. */
 
 	rcu_exp_gp_seq_start(rsp);
-	sync_rcu_exp_select_cpus(rsp, synchronize_sched_expedited_cpu_stop);
+	sync_rcu_exp_select_cpus(rsp, sync_sched_exp_handler);
 	synchronize_sched_expedited_wait(rsp);
 
 	rcu_exp_gp_seq_end(rsp);
@@ -4183,6 +4235,7 @@ int rcu_cpu_notify(struct notifier_block *self,
 		break;
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
+		sync_sched_exp_online_cleanup(cpu);
 		rcu_boost_kthread_setaffinity(rnp, -1);
 		break;
 	case CPU_DOWN_PREPARE:
@@ -4195,7 +4248,10 @@ int rcu_cpu_notify(struct notifier_block *self,
 		break;
 	case CPU_DYING_IDLE:
 		/* QS for any half-done expedited RCU-sched GP. */
-		rcu_sched_qs();
+		preempt_disable();
+		rcu_report_exp_rdp(&rcu_sched_state,
+				   this_cpu_ptr(rcu_sched_state.rda), true);
+		preempt_enable();
 
 		for_each_rcu_flavor(rsp) {
 			rcu_cleanup_dying_idle_cpu(cpu, rsp);
