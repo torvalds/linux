@@ -1,6 +1,8 @@
 .PHONY: build-greybus
 
+ifneq ($(TARGET_NO_KERNEL), true)
 $(PRODUCT_OUT)/ramdisk.img: build-greybus
+endif
 
 GREYBUS_MODULE_OUT_PATH := $(PRODUCT_OUT)/root/lib/modules
 
