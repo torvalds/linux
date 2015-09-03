@@ -266,14 +266,11 @@ static int fbtft_backlight_get_brightness(struct backlight_device *bd)
 
 void fbtft_unregister_backlight(struct fbtft_par *par)
 {
-	const struct backlight_ops *bl_ops;
-
 	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
 
 	if (par->info->bl_dev) {
 		par->info->bl_dev->props.power = FB_BLANK_POWERDOWN;
 		backlight_update_status(par->info->bl_dev);
-		bl_ops = par->info->bl_dev->ops;
 		backlight_device_unregister(par->info->bl_dev);
 		par->info->bl_dev = NULL;
 	}
