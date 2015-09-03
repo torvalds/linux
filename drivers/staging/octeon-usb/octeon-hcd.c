@@ -3743,6 +3743,7 @@ static const struct of_device_id octeon_usb_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, octeon_usb_match);
 
 static struct platform_driver octeon_usb_driver = {
 	.driver = {
