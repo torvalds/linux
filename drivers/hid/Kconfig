@@ -672,9 +672,8 @@ config HID_SAITEK
 
 	Supported devices:
 	- PS1000 Dual Analog Pad
-	- R.A.T.9 Gaming Mouse
-	- R.A.T.7 Gaming Mouse
-	- M.M.O.7 Gaming Mouse
+	- Saitek R.A.T.7, R.A.T.9, M.M.O.7 Gaming Mice
+	- Mad Catz R.A.T.5, R.A.T.9 Gaming Mice
 
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"
