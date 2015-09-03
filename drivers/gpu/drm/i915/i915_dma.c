@@ -997,8 +997,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_setup_gmbus(dev);
 	intel_opregion_setup(dev);
 
-	intel_setup_bios(dev);
-
 	i915_gem_load(dev);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the

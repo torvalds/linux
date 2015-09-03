@@ -985,6 +985,18 @@ void intel_lvds_init(struct drm_device *dev)
 		DRM_DEBUG_KMS("LVDS is not present in VBT, but enabled anyway\n");
 	}
 
+	 /* Set the Panel Power On/Off timings if uninitialized. */
+	if (INTEL_INFO(dev_priv)->gen < 5 &&
+	    I915_READ(PP_ON_DELAYS) == 0 && I915_READ(PP_OFF_DELAYS) == 0) {
+		/* Set T2 to 40ms and T5 to 200ms */
+		I915_WRITE(PP_ON_DELAYS, 0x019007d0);
+
+		/* Set T3 to 35ms and Tx to 200ms */
+		I915_WRITE(PP_OFF_DELAYS, 0x015e07d0);
+
+		DRM_DEBUG_KMS("Panel power timings uninitialized, setting defaults\n");
+	}
+
 	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);
 	if (!lvds_encoder)
 		return;
