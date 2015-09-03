@@ -245,10 +245,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	addr_win.ys_page = ys / 8;
 	addr_win.xe = xe;
 	addr_win.ye_page = ye / 8;
-
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys_page=%d, xe=%d, ye_page=%d)\n", __func__,
-		addr_win.xs, addr_win.ys_page, addr_win.xe, addr_win.ye_page);
 }
 
 static void

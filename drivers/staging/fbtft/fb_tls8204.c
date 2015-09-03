@@ -82,10 +82,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
-		      __func__, xs, ys, xe, ye);
-
 	/* H=0 Set X address of RAM */
 	write_reg(par, 0x80); /* 7:1  1
 				 6-0: X[6:0] - 0x00

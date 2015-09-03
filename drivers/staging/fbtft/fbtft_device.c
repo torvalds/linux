@@ -1197,8 +1197,6 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 						int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
 	write_reg(par, 0x2A, 0, xs + 2, 0, xe + 2);
 	write_reg(par, 0x2B, 0, ys + 1, 0, ye + 1);
 	write_reg(par, 0x2C);

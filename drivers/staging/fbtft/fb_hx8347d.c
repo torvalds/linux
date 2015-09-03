@@ -88,9 +88,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	write_reg(par, 0x02, (xs >> 8) & 0xFF);
 	write_reg(par, 0x03, xs & 0xFF);
 	write_reg(par, 0x04, (xe >> 8) & 0xFF);
