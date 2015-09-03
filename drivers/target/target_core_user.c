@@ -538,14 +538,8 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
 		pr_warn("TCMU: Userspace set UNKNOWN_OP flag on se_cmd %p\n",
 			cmd->se_cmd);
-		transport_generic_request_failure(cmd->se_cmd,
-			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE);
-		cmd->se_cmd = NULL;
-		kmem_cache_free(tcmu_cmd_cache, cmd);
-		return;
-	}
-
-	if (entry->rsp.scsi_status == SAM_STAT_CHECK_CONDITION) {
+		entry->rsp.scsi_status = SAM_STAT_CHECK_CONDITION;
+	} else if (entry->rsp.scsi_status == SAM_STAT_CHECK_CONDITION) {
 		memcpy(se_cmd->sense_buffer, entry->rsp.sense_buffer,
 			       se_cmd->scsi_sense_length);
 
