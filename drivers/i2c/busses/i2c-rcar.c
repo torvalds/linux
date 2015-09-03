@@ -34,7 +34,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 
 /* register offsets */
 #define ICSCR	0x00	/* slave ctrl */
@@ -110,7 +109,6 @@ struct rcar_i2c_priv {
 	struct i2c_msg	*msg;
 	struct clk *clk;
 
-	spinlock_t lock;
 	wait_queue_head_t wait;
 
 	int pos;
@@ -428,9 +426,6 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	irqreturn_t result = IRQ_HANDLED;
 	u32 msr;
 
-	/*-------------- spin lock -----------------*/
-	spin_lock(&priv->lock);
-
 	if (rcar_i2c_slave_irq(priv))
 		goto exit;
 
@@ -477,9 +472,6 @@ out:
 	}
 
 exit:
-	spin_unlock(&priv->lock);
-	/*-------------- spin unlock -----------------*/
-
 	return result;
 }
 
@@ -489,9 +481,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 {
 	struct rcar_i2c_priv *priv = i2c_get_adapdata(adap);
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
-	unsigned long flags;
 	int i, ret;
-	long timeout;
+	long time_left;
 
 	pm_runtime_get_sync(dev);
 
@@ -506,9 +497,6 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 			break;
 		}
 
-		/*-------------- spin lock -----------------*/
-		spin_lock_irqsave(&priv->lock, flags);
-
 		/* init each data */
 		priv->msg	= &msgs[i];
 		priv->pos	= 0;
@@ -518,13 +506,11 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 		rcar_i2c_prepare_msg(priv);
 
-		spin_unlock_irqrestore(&priv->lock, flags);
-		/*-------------- spin unlock -----------------*/
-
-		timeout = wait_event_timeout(priv->wait,
+		time_left = wait_event_timeout(priv->wait,
 					     rcar_i2c_flags_has(priv, ID_DONE),
 					     adap->timeout);
-		if (!timeout) {
+		if (!time_left) {
+			rcar_i2c_init(priv);
 			ret = -ETIMEDOUT;
 			break;
 		}
@@ -658,7 +644,6 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
-	spin_lock_init(&priv->lock);
 
 	adap = &priv->adap;
 	adap->nr = pdev->id;
