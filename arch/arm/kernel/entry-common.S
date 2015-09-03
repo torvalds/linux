@@ -81,6 +81,7 @@ slow_work_pending:
 	movlt	scno, #(__NR_restart_syscall - __NR_SYSCALL_BASE)
 	ldmia	sp, {r0 - r6}			@ have to reload r0 - r6
 	b	local_restart			@ ... and off we go
+ENDPROC(ret_fast_syscall)
 
 /*
  * "slow" syscall return path.  "why" tells us if this was a real syscall.
@@ -195,6 +196,8 @@ ENTRY(vector_swi)
 	/* Legacy ABI only. */
  USER(	ldr	scno, [lr, #-4]		)	@ get SWI instruction
 #endif
+
+	uaccess_disable tbl
 
 	adr	tbl, sys_call_table		@ load syscall table pointer
 

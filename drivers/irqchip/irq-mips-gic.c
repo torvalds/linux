@@ -257,16 +257,6 @@ int gic_get_c0_fdc_int(void)
 		return MIPS_CPU_IRQ_BASE + cp0_fdc_irq;
 	}
 
-	/*
-	 * Some cores claim the FDC is routable but it doesn't actually seem to
-	 * be connected.
-	 */
-	switch (current_cpu_type()) {
-	case CPU_INTERAPTIV:
-	case CPU_PROAPTIV:
-		return -1;
-	}
-
 	return irq_create_mapping(gic_irq_domain,
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_FDC));
 }

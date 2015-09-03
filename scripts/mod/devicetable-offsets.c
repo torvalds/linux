@@ -63,6 +63,8 @@ int main(void)
 
 	DEVID(acpi_device_id);
 	DEVID_FIELD(acpi_device_id, id);
+	DEVID_FIELD(acpi_device_id, cls);
+	DEVID_FIELD(acpi_device_id, cls_msk);
 
 	DEVID(pnp_device_id);
 	DEVID_FIELD(pnp_device_id, id);

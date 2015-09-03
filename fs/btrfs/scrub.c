@@ -3571,7 +3571,6 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
-	int ret = 0;
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 
@@ -3584,34 +3583,36 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 			fs_info->scrub_workers =
 				btrfs_alloc_workqueue("btrfs-scrub", flags,
 						      max_active, 4);
-		if (!fs_info->scrub_workers) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!fs_info->scrub_workers)
+			goto fail_scrub_workers;
+
 		fs_info->scrub_wr_completion_workers =
 			btrfs_alloc_workqueue("btrfs-scrubwrc", flags,
 					      max_active, 2);
-		if (!fs_info->scrub_wr_completion_workers) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!fs_info->scrub_wr_completion_workers)
+			goto fail_scrub_wr_completion_workers;
+
 		fs_info->scrub_nocow_workers =
 			btrfs_alloc_workqueue("btrfs-scrubnc", flags, 1, 0);
-		if (!fs_info->scrub_nocow_workers) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!fs_info->scrub_nocow_workers)
+			goto fail_scrub_nocow_workers;
 		fs_info->scrub_parity_workers =
 			btrfs_alloc_workqueue("btrfs-scrubparity", flags,
 					      max_active, 2);
-		if (!fs_info->scrub_parity_workers) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!fs_info->scrub_parity_workers)
+			goto fail_scrub_parity_workers;
 	}
 	++fs_info->scrub_workers_refcnt;
-out:
-	return ret;
+	return 0;
+
+fail_scrub_parity_workers:
+	btrfs_destroy_workqueue(fs_info->scrub_nocow_workers);
+fail_scrub_nocow_workers:
+	btrfs_destroy_workqueue(fs_info->scrub_wr_completion_workers);
+fail_scrub_wr_completion_workers:
+	btrfs_destroy_workqueue(fs_info->scrub_workers);
+fail_scrub_workers:
+	return -ENOMEM;
 }
 
 static noinline_for_stack void scrub_workers_put(struct btrfs_fs_info *fs_info)

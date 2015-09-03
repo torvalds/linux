@@ -795,8 +795,10 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 
 	/* Don't bother with PPIs; they're already affine */
 	irq = platform_get_irq(pdev, 0);
-	if (irq >= 0 && irq_is_percpu(irq))
+	if (irq >= 0 && irq_is_percpu(irq)) {
+		cpumask_setall(&pmu->supported_cpus);
 		return 0;
+	}
 
 	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 	if (!irqs)
@@ -818,12 +820,13 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
 				break;
 
-		of_node_put(dn);
 		if (cpu >= nr_cpu_ids) {
 			pr_warn("Failed to find logical CPU for %s\n",
 				dn->name);
+			of_node_put(dn);
 			break;
 		}
+		of_node_put(dn);
 
 		irqs[i] = cpu;
 		cpumask_set_cpu(cpu, &pmu->supported_cpus);

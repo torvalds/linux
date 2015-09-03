@@ -3403,19 +3403,25 @@ static int dce_v10_0_crtc_irq(struct amdgpu_device *adev,
 
 	switch (entry->src_data) {
 	case 0: /* vblank */
-		if (disp_int & interrupt_status_offsets[crtc].vblank) {
+		if (disp_int & interrupt_status_offsets[crtc].vblank)
 			dce_v10_0_crtc_vblank_int_ack(adev, crtc);
-			if (amdgpu_irq_enabled(adev, source, irq_type)) {
-				drm_handle_vblank(adev->ddev, crtc);
-			}
-			DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
+		else
+			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+
+		if (amdgpu_irq_enabled(adev, source, irq_type)) {
+			drm_handle_vblank(adev->ddev, crtc);
 		}
+		DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
+
 		break;
 	case 1: /* vline */
-		if (disp_int & interrupt_status_offsets[crtc].vline) {
+		if (disp_int & interrupt_status_offsets[crtc].vline)
 			dce_v10_0_crtc_vline_int_ack(adev, crtc);
-			DRM_DEBUG("IH: D%d vline\n", crtc + 1);
-		}
+		else
+			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+
+		DRM_DEBUG("IH: D%d vline\n", crtc + 1);
+
 		break;
 	default:
 		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data);

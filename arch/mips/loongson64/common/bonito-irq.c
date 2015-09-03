@@ -3,7 +3,7 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  * Copyright (C) 2000, 2001 Ralf Baechle (ralf@gnu.org)
  *
- * Copyright (C) 2007 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  *  This program is free software; you can redistribute	 it and/or modify it
