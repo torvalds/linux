@@ -42,7 +42,7 @@
 #define CS1			gpio.aux[1]
 
 
-/* diffusing error (“Floyd-Steinberg”) */
+/* diffusing error (Floyd-Steinberg) */
 #define DIFFUSING_MATRIX_WIDTH	2
 #define DIFFUSING_MATRIX_HEIGHT	2
 
