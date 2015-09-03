@@ -276,11 +276,15 @@ void fbtft_unregister_backlight(struct fbtft_par *par)
 	}
 }
 
+static const struct backlight_ops fbtft_bl_ops = {
+	.get_brightness	= fbtft_backlight_get_brightness,
+	.update_status	= fbtft_backlight_update_status,
+};
+
 void fbtft_register_backlight(struct fbtft_par *par)
 {
 	struct backlight_device *bd;
 	struct backlight_properties bl_props = { 0, };
-	struct backlight_ops *bl_ops;
 
 	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
 
@@ -290,13 +294,6 @@ void fbtft_register_backlight(struct fbtft_par *par)
 		return;
 	}
 
-	bl_ops = devm_kzalloc(par->info->device, sizeof(struct backlight_ops),
-				GFP_KERNEL);
-	if (!bl_ops)
-		return;
-
-	bl_ops->get_brightness = fbtft_backlight_get_brightness;
-	bl_ops->update_status = fbtft_backlight_update_status;
 	bl_props.type = BACKLIGHT_RAW;
 	/* Assume backlight is off, get polarity from current state of pin */
 	bl_props.power = FB_BLANK_POWERDOWN;
@@ -304,7 +301,7 @@ void fbtft_register_backlight(struct fbtft_par *par)
 		bl_props.state |= BL_CORE_DRIVER1;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
-				par->info->device, par, bl_ops, &bl_props);
+				par->info->device, par, &fbtft_bl_ops, &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
 			"cannot register backlight device (%ld)\n",
