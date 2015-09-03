@@ -189,6 +189,15 @@ static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd)
 }
 #endif
 
+#ifdef CONFIG_OMAP_INTERCONNECT_BARRIER
+void omap_barrier_reserve_memblock(void);
+void omap_barriers_init(void);
+#else
+static inline void omap_barrier_reserve_memblock(void)
+{
+}
+#endif
+
 /* This gets called from mach-omap2/io.c, do not call this */
 void __init omap2_set_globals_tap(u32 class, void __iomem *tap);
 
