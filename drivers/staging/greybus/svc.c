@@ -15,8 +15,15 @@
 #define CPORT_FLAGS_CSD_N       (2)
 #define CPORT_FLAGS_CSV_N       (4)
 
+enum gb_svc_state {
+	GB_SVC_STATE_RESET,
+	GB_SVC_STATE_PROTOCOL_VERSION,
+	GB_SVC_STATE_SVC_HELLO,
+};
+
 struct gb_svc {
 	struct gb_connection	*connection;
+	enum gb_svc_state	state;
 };
 
 struct svc_hotplug {
@@ -225,9 +232,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	u16 endo_id;
 	u8 interface_id;
 	int ret;
-
-	/* Hello message should be received only during early bootup */
-	WARN_ON(hd->initial_svc_connection != connection);
 
 	/*
 	 * SVC sends information about the endo and interface-id on the hello
@@ -452,11 +456,53 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 
 static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 {
+	struct gb_connection *connection = op->connection;
+	struct gb_svc *svc = connection->private;
+	int ret = 0;
+
+	/*
+	 * SVC requests need to follow a specific order (at least initially) and
+	 * below code takes care of enforcing that. The expected order is:
+	 * - PROTOCOL_VERSION
+	 * - SVC_HELLO
+	 * - Any other request, but the earlier two.
+	 *
+	 * Incoming requests are guaranteed to be serialized and so we don't
+	 * need to protect 'state' for any races.
+	 */
 	switch (type) {
 	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
-		return gb_svc_version_request(op);
+		if (svc->state != GB_SVC_STATE_RESET)
+			ret = -EINVAL;
+		break;
 	case GB_SVC_TYPE_SVC_HELLO:
-		return gb_svc_hello(op);
+		if (svc->state != GB_SVC_STATE_PROTOCOL_VERSION)
+			ret = -EINVAL;
+		break;
+	default:
+		if (svc->state != GB_SVC_STATE_SVC_HELLO)
+			ret = -EINVAL;
+		break;
+	}
+
+	if (ret) {
+		dev_warn(&connection->dev,
+			 "unexpected SVC request 0x%02x received (state %u)\n",
+			 type, svc->state);
+		return ret;
+	}
+
+	switch (type) {
+	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
+		ret = gb_svc_version_request(op);
+		if (!ret)
+			svc->state = GB_SVC_STATE_PROTOCOL_VERSION;
+		return ret;
+	case GB_SVC_TYPE_SVC_HELLO:
+		ret = gb_svc_hello(op);
+		if (!ret)
+			svc->state = GB_SVC_STATE_SVC_HELLO;
+		return ret;
 	case GB_SVC_TYPE_INTF_HOTPLUG:
 		return gb_svc_intf_hotplug_recv(op);
 	case GB_SVC_TYPE_INTF_HOT_UNPLUG:
@@ -479,6 +525,7 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	connection->hd->svc = svc;
+	svc->state = GB_SVC_STATE_RESET;
 	svc->connection = connection;
 	connection->private = svc;
 
