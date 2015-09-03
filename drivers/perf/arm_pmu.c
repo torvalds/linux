@@ -15,7 +15,8 @@
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/perf/arm_pmu.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -24,7 +25,6 @@
 
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
-#include <asm/pmu.h>
 
 static int
 armpmu_map_cache_event(const unsigned (*cache_map)
@@ -790,54 +790,77 @@ static int probe_current_pmu(struct arm_pmu *pmu,
 
 static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 {
-	int i, irq, *irqs;
+	int *irqs, i = 0;
+	bool using_spi = false;
 	struct platform_device *pdev = pmu->plat_device;
-
-	/* Don't bother with PPIs; they're already affine */
-	irq = platform_get_irq(pdev, 0);
-	if (irq >= 0 && irq_is_percpu(irq)) {
-		cpumask_setall(&pmu->supported_cpus);
-		return 0;
-	}
 
 	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 	if (!irqs)
 		return -ENOMEM;
 
-	for (i = 0; i < pdev->num_resources; ++i) {
+	do {
 		struct device_node *dn;
-		int cpu;
+		int cpu, irq;
 
-		dn = of_parse_phandle(pdev->dev.of_node, "interrupt-affinity",
-				      i);
-		if (!dn) {
-			pr_warn("Failed to parse %s/interrupt-affinity[%d]\n",
-				of_node_full_name(pdev->dev.of_node), i);
+		/* See if we have an affinity entry */
+		dn = of_parse_phandle(pdev->dev.of_node, "interrupt-affinity", i);
+		if (!dn)
 			break;
+
+		/* Check the IRQ type and prohibit a mix of PPIs and SPIs */
+		irq = platform_get_irq(pdev, i);
+		if (irq >= 0) {
+			bool spi = !irq_is_percpu(irq);
+
+			if (i > 0 && spi != using_spi) {
+				pr_err("PPI/SPI IRQ type mismatch for %s!\n",
+					dn->name);
+				kfree(irqs);
+				return -EINVAL;
+			}
+
+			using_spi = spi;
 		}
 
+		/* Now look up the logical CPU number */
 		for_each_possible_cpu(cpu)
-			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
+			if (dn == of_cpu_device_node_get(cpu))
 				break;
 
 		if (cpu >= nr_cpu_ids) {
 			pr_warn("Failed to find logical CPU for %s\n",
 				dn->name);
 			of_node_put(dn);
+			cpumask_setall(&pmu->supported_cpus);
 			break;
 		}
 		of_node_put(dn);
 
-		irqs[i] = cpu;
-		cpumask_set_cpu(cpu, &pmu->supported_cpus);
-	}
+		/* For SPIs, we need to track the affinity per IRQ */
+		if (using_spi) {
+			if (i >= pdev->num_resources) {
+				of_node_put(dn);
+				break;
+			}
 
-	if (i == pdev->num_resources) {
-		pmu->irq_affinity = irqs;
-	} else {
-		kfree(irqs);
+			irqs[i] = cpu;
+		}
+
+		/* Keep track of the CPUs containing this PMU type */
+		cpumask_set_cpu(cpu, &pmu->supported_cpus);
+		of_node_put(dn);
+		i++;
+	} while (1);
+
+	/* If we didn't manage to parse anything, claim to support all CPUs */
+	if (cpumask_weight(&pmu->supported_cpus) == 0)
 		cpumask_setall(&pmu->supported_cpus);
-	}
+
+	/* If we matched up the IRQ affinities, use them to route the SPIs */
+	if (using_spi && i == pdev->num_resources)
+		pmu->irq_affinity = irqs;
+	else
+		kfree(irqs);
 
 	return 0;
 }
