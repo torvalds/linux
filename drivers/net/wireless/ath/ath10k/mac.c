@@ -6408,12 +6408,52 @@ ath10k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&ar->conf_mutex);
 }
 
+struct ath10k_mac_change_chanctx_arg {
+	struct ieee80211_chanctx_conf *ctx;
+	struct ieee80211_vif_chanctx_switch *vifs;
+	int n_vifs;
+	int next_vif;
+};
+
+static void
+ath10k_mac_change_chanctx_cnt_iter(void *data, u8 *mac,
+				   struct ieee80211_vif *vif)
+{
+	struct ath10k_mac_change_chanctx_arg *arg = data;
+
+	if (rcu_access_pointer(vif->chanctx_conf) != arg->ctx)
+		return;
+
+	arg->n_vifs++;
+}
+
+static void
+ath10k_mac_change_chanctx_fill_iter(void *data, u8 *mac,
+				    struct ieee80211_vif *vif)
+{
+	struct ath10k_mac_change_chanctx_arg *arg = data;
+	struct ieee80211_chanctx_conf *ctx;
+
+	ctx = rcu_access_pointer(vif->chanctx_conf);
+	if (ctx != arg->ctx)
+		return;
+
+	if (WARN_ON(arg->next_vif == arg->n_vifs))
+		return;
+
+	arg->vifs[arg->next_vif].vif = vif;
+	arg->vifs[arg->next_vif].old_ctx = ctx;
+	arg->vifs[arg->next_vif].new_ctx = ctx;
+	arg->next_vif++;
+}
+
 static void
 ath10k_mac_op_change_chanctx(struct ieee80211_hw *hw,
 			     struct ieee80211_chanctx_conf *ctx,
 			     u32 changed)
 {
 	struct ath10k *ar = hw->priv;
+	struct ath10k_mac_change_chanctx_arg arg = { .ctx = ctx };
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -6427,6 +6467,30 @@ ath10k_mac_op_change_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(changed & IEEE80211_CHANCTX_CHANGE_CHANNEL))
 		goto unlock;
 
+	if (changed & IEEE80211_CHANCTX_CHANGE_WIDTH) {
+		ieee80211_iterate_active_interfaces_atomic(
+					hw,
+					IEEE80211_IFACE_ITER_NORMAL,
+					ath10k_mac_change_chanctx_cnt_iter,
+					&arg);
+		if (arg.n_vifs == 0)
+			goto radar;
+
+		arg.vifs = kcalloc(arg.n_vifs, sizeof(arg.vifs[0]),
+				   GFP_KERNEL);
+		if (!arg.vifs)
+			goto radar;
+
+		ieee80211_iterate_active_interfaces_atomic(
+					hw,
+					IEEE80211_IFACE_ITER_NORMAL,
+					ath10k_mac_change_chanctx_fill_iter,
+					&arg);
+		ath10k_mac_update_vif_chan(ar, arg.vifs, arg.n_vifs);
+		kfree(arg.vifs);
+	}
+
+radar:
 	ath10k_recalc_radar_detection(ar);
 
 	/* FIXME: How to configure Rx chains properly? */
