@@ -1080,11 +1080,11 @@ static int machines__deliver_event(struct machines *machines,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_sample(evsel, event, sample);
 		if (evsel == NULL) {
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
+		dump_sample(evsel, event, sample);
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
 			return 0;
