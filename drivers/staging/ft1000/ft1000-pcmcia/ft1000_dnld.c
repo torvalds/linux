@@ -82,13 +82,6 @@
 #define  STATE_DONE_PROV         0x06
 #define  STATE_DONE_FILE         0x07
 
-u16 get_handshake(struct net_device *dev, u16 expected_value);
-void put_handshake(struct net_device *dev, u16 handshake_value);
-u16 get_request_type(struct net_device *dev);
-long get_request_value(struct net_device *dev);
-void put_request_value(struct net_device *dev, long lvalue);
-u16 hdr_checksum(struct pseudo_hdr *pHdr);
-
 struct dsp_file_hdr {
 	u32  version_id;	/* Version ID of this image format. */
 	u32  package_id;	/* Package ID of code release. */
@@ -146,7 +139,7 @@ void card_bootload(struct net_device *dev)
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 }
 
-u16 get_handshake(struct net_device *dev, u16 expected_value)
+static u16 get_handshake(struct net_device *dev, u16 expected_value)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 handshake;
@@ -180,7 +173,7 @@ u16 get_handshake(struct net_device *dev, u16 expected_value)
 
 }
 
-void put_handshake(struct net_device *dev, u16 handshake_value)
+static void put_handshake(struct net_device *dev, u16 handshake_value)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u32 tempx;
@@ -196,7 +189,7 @@ void put_handshake(struct net_device *dev, u16 handshake_value)
 	}
 }
 
-u16 get_request_type(struct net_device *dev)
+static u16 get_request_type(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 request_type;
@@ -215,7 +208,7 @@ u16 get_request_type(struct net_device *dev)
 
 }
 
-long get_request_value(struct net_device *dev)
+static long get_request_value(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	long value;
@@ -244,7 +237,7 @@ long get_request_value(struct net_device *dev)
 
 }
 
-void put_request_value(struct net_device *dev, long lvalue)
+static void put_request_value(struct net_device *dev, long lvalue)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 size;
@@ -271,7 +264,7 @@ void put_request_value(struct net_device *dev, long lvalue)
 
 }
 
-u16 hdr_checksum(struct pseudo_hdr *pHdr)
+static u16 hdr_checksum(struct pseudo_hdr *pHdr)
 {
 	u16 *usPtr = (u16 *)pHdr;
 	u16 chksum;
