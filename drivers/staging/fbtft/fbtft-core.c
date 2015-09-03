@@ -123,33 +123,34 @@ static int fbtft_request_gpios(struct fbtft_par *par)
 	unsigned long flags;
 	int ret;
 
-	if (pdata && pdata->gpios) {
-		gpio = pdata->gpios;
-		while (gpio->name[0]) {
-			flags = FBTFT_GPIO_NO_MATCH;
-			/* if driver provides match function, try it first,
-			   if no match use our own */
-			if (par->fbtftops.request_gpios_match)
-				flags = par->fbtftops.request_gpios_match(par, gpio);
-			if (flags == FBTFT_GPIO_NO_MATCH)
-				flags = fbtft_request_gpios_match(par, gpio);
-			if (flags != FBTFT_GPIO_NO_MATCH) {
-				ret = devm_gpio_request_one(par->info->device,
-						gpio->gpio, flags,
-						par->info->device->driver->name);
-				if (ret < 0) {
-					dev_err(par->info->device,
-						"%s: gpio_request_one('%s'=%d) failed with %d\n",
-						__func__, gpio->name,
-						gpio->gpio, ret);
-					return ret;
-				}
-				fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par,
-					"%s: '%s' = GPIO%d\n",
-					__func__, gpio->name, gpio->gpio);
+	if (!(pdata && pdata->gpios))
+		return 0;
+
+	gpio = pdata->gpios;
+	while (gpio->name[0]) {
+		flags = FBTFT_GPIO_NO_MATCH;
+		/* if driver provides match function, try it first,
+		   if no match use our own */
+		if (par->fbtftops.request_gpios_match)
+			flags = par->fbtftops.request_gpios_match(par, gpio);
+		if (flags == FBTFT_GPIO_NO_MATCH)
+			flags = fbtft_request_gpios_match(par, gpio);
+		if (flags != FBTFT_GPIO_NO_MATCH) {
+			ret = devm_gpio_request_one(par->info->device,
+					gpio->gpio, flags,
+					par->info->device->driver->name);
+			if (ret < 0) {
+				dev_err(par->info->device,
+					"%s: gpio_request_one('%s'=%d) failed with %d\n",
+					__func__, gpio->name,
+					gpio->gpio, ret);
+				return ret;
 			}
-			gpio++;
+			fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par,
+				"%s: '%s' = GPIO%d\n",
+				__func__, gpio->name, gpio->gpio);
 		}
+		gpio++;
 	}
 
 	return 0;
