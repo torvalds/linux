@@ -26,6 +26,15 @@
 static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 	struct uvc_entity *entity)
 {
+	if (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
+		return 0;
+
+	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
+}
+
+static int uvc_mc_create_pads_links(struct uvc_video_chain *chain,
+				    struct uvc_entity *entity)
+{
 	const u32 flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
 	struct media_entity *sink;
 	unsigned int i;
@@ -62,10 +71,7 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 			return ret;
 	}
 
-	if (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
-		return 0;
-
-	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
+	return 0;
 }
 
 static struct v4l2_subdev_ops uvc_subdev_ops = {
@@ -119,6 +125,15 @@ int uvc_mc_register_entities(struct uvc_video_chain *chain)
 		ret = uvc_mc_register_entity(chain, entity);
 		if (ret < 0) {
 			uvc_printk(KERN_INFO, "Failed to register entity for "
+				   "entity %u\n", entity->id);
+			return ret;
+		}
+	}
+
+	list_for_each_entry(entity, &chain->entities, chain) {
+		ret = uvc_mc_create_pads_links(chain, entity);
+		if (ret < 0) {
+			uvc_printk(KERN_INFO, "Failed to create pads links for "
 				   "entity %u\n", entity->id);
 			return ret;
 		}
