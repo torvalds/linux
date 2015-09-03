@@ -177,9 +177,6 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
-	if (IWL_MVM_RS_DISABLE_P2P_MIMO &&
-	    iwl_mvm_vif_low_latency(mvmvif) && mvmsta->vif->p2p)
-		return false;
 
 	if (mvm->nvm_data->sku_cap_mimo_disabled)
 		return false;
@@ -3070,9 +3067,6 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		rs_ht_init(mvm, sta, lq_sta, ht_cap);
 	else
 		rs_vht_init(mvm, sta, lq_sta, vht_cap);
-
-	if (IWL_MVM_RS_DISABLE_P2P_MIMO && sta_priv->vif->p2p)
-		lq_sta->active_mimo2_rate = 0;
 
 	lq_sta->max_legacy_rate_idx =
 		rs_get_max_rate_from_mask(lq_sta->active_legacy_rate);
