@@ -6,8 +6,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <dt-bindings/clock/stih407-clks.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/media/c8sectpfe.h>
 / {
 	soc {
@@ -131,7 +131,7 @@
 				tsin-num	= <0>;
 				serial-not-parallel;
 				i2c-bus		= <&ssc2>;
-				rst-gpio	= <&pio15 4 GPIO_ACTIVE_HIGH>;
+				reset-gpios	= <&pio15 4 GPIO_ACTIVE_HIGH>;
 				dvb-card	= <STV0367_TDA18212_NIMA_1>;
 			};
 		};
