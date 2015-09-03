@@ -2102,10 +2102,14 @@ intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size)
 	int ret;
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
-	if (ring == NULL)
+	if (ring == NULL) {
+		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s\n",
+				 engine->name);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	ring->ring = engine;
+	list_add(&ring->link, &engine->buffers);
 
 	ring->size = size;
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -2121,8 +2125,9 @@ intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size)
 
 	ret = intel_alloc_ringbuffer_obj(engine->dev, ring);
 	if (ret) {
-		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n",
-			  engine->name, ret);
+		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s: %d\n",
+				 engine->name, ret);
+		list_del(&ring->link);
 		kfree(ring);
 		return ERR_PTR(ret);
 	}
@@ -2134,6 +2139,7 @@ void
 intel_ringbuffer_free(struct intel_ringbuffer *ring)
 {
 	intel_destroy_ringbuffer_obj(ring);
+	list_del(&ring->link);
 	kfree(ring);
 }
 
@@ -2149,6 +2155,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->execlist_queue);
+	INIT_LIST_HEAD(&ring->buffers);
 	i915_gem_batch_pool_init(dev, &ring->batch_pool);
 	memset(ring->semaphore.sync_seqno, 0, sizeof(ring->semaphore.sync_seqno));
 

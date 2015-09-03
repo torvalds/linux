@@ -100,6 +100,7 @@ struct intel_ringbuffer {
 	void __iomem *virtual_start;
 
 	struct intel_engine_cs *ring;
+	struct list_head link;
 
 	u32 head;
 	u32 tail;
@@ -157,6 +158,7 @@ struct  intel_engine_cs {
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;
+	struct list_head buffers;
 
 	/*
 	 * A pool of objects to use as shadow copies of client batch buffers

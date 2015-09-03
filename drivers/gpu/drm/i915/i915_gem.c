@@ -2738,6 +2738,8 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					struct intel_engine_cs *ring)
 {
+	struct intel_ringbuffer *buffer;
+
 	while (!list_empty(&ring->active_list)) {
 		struct drm_i915_gem_object *obj;
 
@@ -2787,6 +2789,18 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					   list);
 
 		i915_gem_request_retire(request);
+	}
+
+	/* Having flushed all requests from all queues, we know that all
+	 * ringbuffers must now be empty. However, since we do not reclaim
+	 * all space when retiring the request (to prevent HEADs colliding
+	 * with rapid ringbuffer wraparound) the amount of available space
+	 * upon reset is less than when we start. Do one more pass over
+	 * all the ringbuffers to reset last_retired_head.
+	 */
+	list_for_each_entry(buffer, &ring->buffers, link) {
+		buffer->last_retired_head = buffer->tail;
+		intel_ring_update_space(buffer);
 	}
 }
 

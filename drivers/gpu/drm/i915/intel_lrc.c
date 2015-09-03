@@ -1897,6 +1897,7 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	i915_gem_batch_pool_init(dev, &ring->batch_pool);
 	init_waitqueue_head(&ring->irq_queue);
 
+	INIT_LIST_HEAD(&ring->buffers);
 	INIT_LIST_HEAD(&ring->execlist_queue);
 	INIT_LIST_HEAD(&ring->execlist_retired_req_list);
 	spin_lock_init(&ring->execlist_lock);
