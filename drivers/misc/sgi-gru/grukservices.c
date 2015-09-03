@@ -429,8 +429,8 @@ int gru_get_cb_exception_detail(void *cb,
 	return 0;
 }
 
-char *gru_get_cb_exception_detail_str(int ret, void *cb,
-				      char *buf, int size)
+static char *gru_get_cb_exception_detail_str(int ret, void *cb,
+					     char *buf, int size)
 {
 	struct gru_control_block_status *gen = (void *)cb;
 	struct control_block_extended_exc_detail excdet;
@@ -505,7 +505,7 @@ int gru_wait_proc(void *cb)
 	return ret;
 }
 
-void gru_abort(int ret, void *cb, char *str)
+static void gru_abort(int ret, void *cb, char *str)
 {
 	char buf[GRU_EXC_STR_SIZE];
 
