@@ -2013,8 +2013,7 @@ int mac_open(struct net_device *ndev)
 	Set_machw_change_vir_if(false);
 
 	host_int_get_MacAddress(priv->hWILCWFIDrv, mac_add);
-	PRINT_D(INIT_DBG, "Mac address: %x:%x:%x:%x:%x:%x\n", mac_add[0], mac_add[1], mac_add[2],
-		mac_add[3], mac_add[4], mac_add[5]);
+	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
 
 	/* loop through the NUM of supported devices and set the MAC address */
 	for (i = 0; i < g_linux_wlan->u8NoIfcs; i++) {
