@@ -250,6 +250,14 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&wpf->entity.list_dev, &vsp1->entities);
 	}
 
+	/* Register all subdevs. */
+	list_for_each_entry(entity, &vsp1->entities, list_dev) {
+		ret = v4l2_device_register_subdev(&vsp1->v4l2_dev,
+						  &entity->subdev);
+		if (ret < 0)
+			goto done;
+	}
+
 	/* Create links. */
 	list_for_each_entry(entity, &vsp1->entities, list_dev) {
 		if (entity->type == VSP1_ENTITY_LIF ||
@@ -267,14 +275,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			&vsp1->lif->entity.subdev.entity, LIF_PAD_SINK, 0);
 		if (ret < 0)
 			return ret;
-	}
-
-	/* Register all subdevs. */
-	list_for_each_entry(entity, &vsp1->entities, list_dev) {
-		ret = v4l2_device_register_subdev(&vsp1->v4l2_dev,
-						  &entity->subdev);
-		if (ret < 0)
-			goto done;
 	}
 
 	ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
