@@ -343,7 +343,6 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw = NULL;
-	int twrefcnt = 0;
 
 	spin_lock(lock);
 
@@ -371,21 +370,17 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	if (tw) {
-		twrefcnt = inet_twsk_unhash(tw);
+		sk_nulls_del_node_init_rcu((struct sock *)tw);
 		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
-	if (twrefcnt)
-		inet_twsk_put(tw);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 	if (twp) {
 		*twp = tw;
 	} else if (tw) {
 		/* Silly. Should hash-dance instead... */
-		inet_twsk_deschedule(tw);
-
-		inet_twsk_put(tw);
+		inet_twsk_deschedule_put(tw);
 	}
 	return 0;
 
@@ -403,13 +398,12 @@ static u32 inet_sk_port_offset(const struct sock *sk)
 					  inet->inet_dport);
 }
 
-int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
+void __inet_hash_nolisten(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct hlist_nulls_head *list;
 	struct inet_ehash_bucket *head;
 	spinlock_t *lock;
-	int twrefcnt = 0;
 
 	WARN_ON(!sk_unhashed(sk));
 
@@ -420,23 +414,22 @@ int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
 
 	spin_lock(lock);
 	__sk_nulls_add_node_rcu(sk, list);
-	if (tw) {
-		WARN_ON(sk->sk_hash != tw->tw_hash);
-		twrefcnt = inet_twsk_unhash(tw);
+	if (osk) {
+		WARN_ON(sk->sk_hash != osk->sk_hash);
+		sk_nulls_del_node_init_rcu(osk);
 	}
 	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	return twrefcnt;
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
-int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw)
+void __inet_hash(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
 
 	if (sk->sk_state != TCP_LISTEN)
-		return __inet_hash_nolisten(sk, tw);
+		return __inet_hash_nolisten(sk, osk);
 
 	WARN_ON(!sk_unhashed(sk));
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
@@ -445,7 +438,6 @@ int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw)
 	__sk_nulls_add_node_rcu(sk, &ilb->head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	spin_unlock(&ilb->lock);
-	return 0;
 }
 EXPORT_SYMBOL(__inet_hash);
 
@@ -492,7 +484,6 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	struct inet_bind_bucket *tb;
 	int ret;
 	struct net *net = sock_net(sk);
-	int twrefcnt = 1;
 
 	if (!snum) {
 		int i, remaining, low, high, port;
@@ -560,19 +551,14 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->inet_sport = htons(port);
-			twrefcnt += __inet_hash_nolisten(sk, tw);
+			__inet_hash_nolisten(sk, (struct sock *)tw);
 		}
 		if (tw)
-			twrefcnt += inet_twsk_bind_unhash(tw, hinfo);
+			inet_twsk_bind_unhash(tw, hinfo);
 		spin_unlock(&head->lock);
 
-		if (tw) {
-			inet_twsk_deschedule(tw);
-			while (twrefcnt) {
-				twrefcnt--;
-				inet_twsk_put(tw);
-			}
-		}
+		if (tw)
+			inet_twsk_deschedule_put(tw);
 
 		ret = 0;
 		goto out;

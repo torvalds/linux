@@ -171,6 +171,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    !xenvif_schedulable(vif))
 		goto drop;
 
+	if (vif->multicast_control && skb->pkt_type == PACKET_MULTICAST) {
+		struct ethhdr *eth = (struct ethhdr *)skb->data;
+
+		if (!xenvif_mcast_match(vif, eth->h_dest))
+			goto drop;
+	}
+
 	cb = XENVIF_RX_CB(skb);
 	cb->expires = jiffies + vif->drain_timeout;
 
@@ -427,6 +434,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->num_queues = 0;
 
 	spin_lock_init(&vif->lock);
+	INIT_LIST_HEAD(&vif->fe_mcast_addr);
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
@@ -661,6 +669,8 @@ void xenvif_disconnect(struct xenvif *vif)
 
 		xenvif_unmap_frontend_rings(queue);
 	}
+
+	xenvif_mcast_addr_list_free(vif);
 }
 
 /* Reverse the relevant parts of xenvif_init_queue().

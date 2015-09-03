@@ -52,6 +52,8 @@
 		    NETIF_MSG_PKTDATA	| NETIF_MSG_TX_QUEUED	|	\
 		    NETIF_MSG_RX_STATUS)
 
+#define NETCP_EFUSE_ADDR_SWAP	2
+
 #define knav_queue_get_id(q)	knav_queue_device_control(q, \
 				KNAV_QUEUE_GET_ID, (unsigned long)NULL)
 
@@ -173,12 +175,21 @@ static void set_words(u32 *words, int num_words, u32 *desc)
 }
 
 /* Read the e-fuse value as 32 bit values to be endian independent */
-static int emac_arch_get_mac_addr(char *x, void __iomem *efuse_mac)
+static int emac_arch_get_mac_addr(char *x, void __iomem *efuse_mac, u32 swap)
 {
 	unsigned int addr0, addr1;
 
 	addr1 = readl(efuse_mac + 4);
 	addr0 = readl(efuse_mac);
+
+	switch (swap) {
+	case NETCP_EFUSE_ADDR_SWAP:
+		addr0 = addr1;
+		addr1 = readl(efuse_mac);
+		break;
+	default:
+		break;
+	}
 
 	x[0] = (addr1 & 0x0000ff00) >> 8;
 	x[1] = addr1 & 0x000000ff;
@@ -1901,7 +1912,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 			goto quit;
 		}
 
-		emac_arch_get_mac_addr(efuse_mac_addr, efuse);
+		emac_arch_get_mac_addr(efuse_mac_addr, efuse, efuse_mac);
 		if (is_valid_ether_addr(efuse_mac_addr))
 			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
 		else
@@ -2141,7 +2152,6 @@ MODULE_DEVICE_TABLE(of, of_match);
 static struct platform_driver netcp_driver = {
 	.driver = {
 		.name		= "netcp-1.0",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match,
 	},
 	.probe = netcp_probe,

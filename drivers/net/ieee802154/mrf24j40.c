@@ -812,7 +812,6 @@ MODULE_DEVICE_TABLE(spi, mrf24j40_ids);
 static struct spi_driver mrf24j40_driver = {
 	.driver = {
 		.name = "mrf24j40",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.id_table = mrf24j40_ids,

@@ -176,7 +176,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 	return 0;
 }
 
-static inline __pure
+static inline
 struct ebt_entry *ebt_next_entry(const struct ebt_entry *entry)
 {
 	return (void *)entry + entry->next_offset;

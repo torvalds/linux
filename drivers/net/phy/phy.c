@@ -353,6 +353,8 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	phydev->duplex = cmd->duplex;
 
+	phydev->mdix = cmd->eth_tp_mdix_ctrl;
+
 	/* Restart the PHY */
 	phy_start_aneg(phydev);
 
@@ -377,6 +379,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	cmd->transceiver = phy_is_internal(phydev) ?
 		XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->autoneg = phydev->autoneg;
+	cmd->eth_tp_mdix_ctrl = phydev->mdix;
 
 	return 0;
 }
@@ -1037,7 +1040,7 @@ int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	struct phy_driver *phydrv = phydev->drv;
 	int value = -1;
 
-	if (phydrv->read_mmd_indirect == NULL) {
+	if (!phydrv->read_mmd_indirect) {
 		struct mii_bus *bus = phydev->bus;
 
 		mutex_lock(&bus->mdio_lock);
@@ -1074,7 +1077,7 @@ void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 {
 	struct phy_driver *phydrv = phydev->drv;
 
-	if (phydrv->write_mmd_indirect == NULL) {
+	if (!phydrv->write_mmd_indirect) {
 		struct mii_bus *bus = phydev->bus;
 
 		mutex_lock(&bus->mdio_lock);

@@ -480,7 +480,7 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 	/* dev->destructor = free_netdev; */
 	PRINT_INFO(CORECONFIG_DBG, "In Ethernet setup function\n");
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	eth_zero_addr(dev->dev_addr);
 

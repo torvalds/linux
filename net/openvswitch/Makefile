@@ -15,6 +15,8 @@ openvswitch-y := \
 	vport-internal_dev.o \
 	vport-netdev.o
 
+openvswitch-$(CONFIG_OPENVSWITCH_CONNTRACK) += conntrack.o
+
+obj-$(CONFIG_OPENVSWITCH_VXLAN)+= vport-vxlan.o
 obj-$(CONFIG_OPENVSWITCH_GENEVE)+= vport-geneve.o
-obj-$(CONFIG_OPENVSWITCH_VXLAN)	+= vport-vxlan.o
 obj-$(CONFIG_OPENVSWITCH_GRE)	+= vport-gre.o
