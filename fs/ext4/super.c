@@ -84,7 +84,7 @@ static void ext4_unregister_li_request(struct super_block *sb);
 static void ext4_clear_request_list(void);
 static int ext4_reserve_clusters(struct ext4_sb_info *, ext4_fsblk_t);
 
-#if !defined(CONFIG_EXT2_FS) && !defined(CONFIG_EXT2_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT23)
+#if !defined(CONFIG_EXT2_FS) && !defined(CONFIG_EXT2_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT2)
 static struct file_system_type ext2_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ext2",
@@ -100,7 +100,6 @@ MODULE_ALIAS("ext2");
 #endif
 
 
-#if !defined(CONFIG_EXT3_FS) && !defined(CONFIG_EXT3_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT23)
 static struct file_system_type ext3_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ext3",
@@ -111,9 +110,6 @@ static struct file_system_type ext3_fs_type = {
 MODULE_ALIAS_FS("ext3");
 MODULE_ALIAS("ext3");
 #define IS_EXT3_SB(sb) ((sb)->s_bdev->bd_holder == &ext3_fs_type)
-#else
-#define IS_EXT3_SB(sb) (0)
-#endif
 
 static int ext4_verify_csum_type(struct super_block *sb,
 				 struct ext4_super_block *es)
@@ -5500,7 +5496,7 @@ static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
 	return mount_bdev(fs_type, flags, dev_name, data, ext4_fill_super);
 }
 
-#if !defined(CONFIG_EXT2_FS) && !defined(CONFIG_EXT2_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT23)
+#if !defined(CONFIG_EXT2_FS) && !defined(CONFIG_EXT2_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT2)
 static inline void register_as_ext2(void)
 {
 	int err = register_filesystem(&ext2_fs_type);
@@ -5530,7 +5526,6 @@ static inline void unregister_as_ext2(void) { }
 static inline int ext2_feature_set_ok(struct super_block *sb) { return 0; }
 #endif
 
-#if !defined(CONFIG_EXT3_FS) && !defined(CONFIG_EXT3_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT23)
 static inline void register_as_ext3(void)
 {
 	int err = register_filesystem(&ext3_fs_type);
@@ -5556,11 +5551,6 @@ static inline int ext3_feature_set_ok(struct super_block *sb)
 		return 0;
 	return 1;
 }
-#else
-static inline void register_as_ext3(void) { }
-static inline void unregister_as_ext3(void) { }
-static inline int ext3_feature_set_ok(struct super_block *sb) { return 0; }
-#endif
 
 static struct file_system_type ext4_fs_type = {
 	.owner		= THIS_MODULE,
