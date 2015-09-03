@@ -2340,8 +2340,7 @@ void intel_lr_context_free(struct intel_context *ctx)
 				i915_gem_object_ggtt_unpin(ctx_obj);
 			}
 			WARN_ON(ctx->engine[ring->id].pin_count);
-			intel_destroy_ringbuffer_obj(ringbuf);
-			kfree(ringbuf);
+			intel_ringbuffer_free(ringbuf);
 			drm_gem_object_unreference(&ctx_obj->base);
 		}
 	}
@@ -2442,42 +2441,20 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 			I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 	}
 
-	ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
-	if (!ringbuf) {
-		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s\n",
-				ring->name);
-		ret = -ENOMEM;
+	ringbuf = intel_engine_create_ringbuffer(ring, 4 * PAGE_SIZE);
+	if (IS_ERR(ringbuf)) {
+		ret = PTR_ERR(ringbuf);
 		goto error_unpin_ctx;
 	}
 
-	ringbuf->ring = ring;
-
-	ringbuf->size = 4 * PAGE_SIZE;
-	ringbuf->effective_size = ringbuf->size;
-	ringbuf->head = 0;
-	ringbuf->tail = 0;
-	ringbuf->last_retired_head = -1;
-	intel_ring_update_space(ringbuf);
-
-	if (ringbuf->obj == NULL) {
-		ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
+	if (is_global_default_ctx) {
+		ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
 		if (ret) {
-			DRM_DEBUG_DRIVER(
-				"Failed to allocate ringbuffer obj %s: %d\n",
-				ring->name, ret);
-			goto error_free_rbuf;
+			DRM_ERROR(
+				  "Failed to pin and map ringbuffer %s: %d\n",
+				  ring->name, ret);
+			goto error_ringbuf;
 		}
-
-		if (is_global_default_ctx) {
-			ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
-			if (ret) {
-				DRM_ERROR(
-					"Failed to pin and map ringbuffer %s: %d\n",
-					ring->name, ret);
-				goto error_destroy_rbuf;
-			}
-		}
-
 	}
 
 	ret = populate_lr_context(ctx, ctx_obj, ring, ringbuf);
@@ -2519,10 +2496,8 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 error:
 	if (is_global_default_ctx)
 		intel_unpin_ringbuffer_obj(ringbuf);
-error_destroy_rbuf:
-	intel_destroy_ringbuffer_obj(ringbuf);
-error_free_rbuf:
-	kfree(ringbuf);
+error_ringbuf:
+	intel_ringbuffer_free(ringbuf);
 error_unpin_ctx:
 	if (is_global_default_ctx)
 		i915_gem_object_ggtt_unpin(ctx_obj);
