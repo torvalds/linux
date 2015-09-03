@@ -194,7 +194,7 @@ int gru_dump_chiplet_request(unsigned long arg)
 		return -EFAULT;
 
 	/* Currently, only dump by gid is implemented */
-	if (req.gid >= gru_max_gids || req.gid < 0)
+	if (req.gid >= gru_max_gids)
 		return -EINVAL;
 
 	gru = GID_TO_GRU(req.gid);
