@@ -1455,14 +1455,13 @@ int class_config_llog_handler(const struct lu_env *env,
 			inst = 1;
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;
-			inst_name = kzalloc(inst_len, GFP_NOFS);
+			inst_name = kasprintf(GFP_NOFS, "%s-%p",
+					      lustre_cfg_string(lcfg, 0),
+					      clli->cfg_instance);
 			if (!inst_name) {
 				rc = -ENOMEM;
 				goto out;
 			}
-			sprintf(inst_name, "%s-%p",
-				lustre_cfg_string(lcfg, 0),
-				clli->cfg_instance);
 			lustre_cfg_bufs_set_string(&bufs, 0, inst_name);
 			CDEBUG(D_CONFIG, "cmd %x, instance name: %s\n",
 			       lcfg->lcfg_command, inst_name);
