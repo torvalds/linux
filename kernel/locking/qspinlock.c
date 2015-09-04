@@ -289,7 +289,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	if (pv_enabled())
 		goto queue;
 
-	if (virt_queued_spin_lock(lock))
+	if (virt_spin_lock(lock))
 		return;
 
 	/*
