@@ -3284,14 +3284,14 @@ static int nbu2ss_drv_probe(struct platform_device *pdev)
 	/* USB Function Controller Interrupt */
 	if (status != 0) {
 		dev_err(udc->dev, "request_irq(USB_UDC_IRQ_1) failed\n");
-		goto cleanup1;
+		return status;
 	}
 
 	/* Driver Initialization */
 	status = nbu2ss_drv_contest_init(pdev, udc);
 	if (status < 0) {
 		/* Error */
-		goto cleanup1;
+		return status;
 	}
 
 	/* VBUS Interrupt */
@@ -3304,12 +3304,9 @@ static int nbu2ss_drv_probe(struct platform_device *pdev)
 
 	if (status != 0) {
 		dev_err(udc->dev, "request_irq(INT_VBUS) failed\n");
-		goto cleanup1;
+		return status;
 	}
 
-	return status;
-
-cleanup1:
 	return status;
 }
 
