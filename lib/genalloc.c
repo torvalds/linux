@@ -571,23 +571,46 @@ static void devm_gen_pool_release(struct device *dev, void *res)
 }
 
 /**
+ * gen_pool_get - Obtain the gen_pool (if any) for a device
+ * @dev: device to retrieve the gen_pool from
+ * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
+ *
+ * Returns the gen_pool for the device if one is present, or NULL.
+ */
+struct gen_pool *gen_pool_get(struct device *dev, const char *name)
+{
+	struct gen_pool **p;
+
+	p = devres_find(dev, devm_gen_pool_release, NULL, NULL);
+	if (!p)
+		return NULL;
+	return *p;
+}
+EXPORT_SYMBOL_GPL(gen_pool_get);
+
+/**
  * devm_gen_pool_create - managed gen_pool_create
  * @dev: device that provides the gen_pool
  * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
- * @nid: node id of the node the pool structure should be allocated on, or -1
+ * @nid: node selector for allocated gen_pool, %NUMA_NO_NODE for all nodes
+ * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
  *
  * Create a new special memory pool that can be used to manage special purpose
  * memory not managed by the regular kmalloc/kfree interface. The pool will be
  * automatically destroyed by the device management code.
  */
 struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
-		int nid)
+				      int nid, const char *name)
 {
 	struct gen_pool **ptr, *pool;
 
+	/* Check that genpool to be created is uniquely addressed on device */
+	if (gen_pool_get(dev, name))
+		return ERR_PTR(-EINVAL);
+
 	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	pool = gen_pool_create(min_alloc_order, nid);
 	if (pool) {
@@ -595,28 +618,12 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 		devres_add(dev, ptr);
 	} else {
 		devres_free(ptr);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	return pool;
 }
 EXPORT_SYMBOL(devm_gen_pool_create);
-
-/**
- * gen_pool_get - Obtain the gen_pool (if any) for a device
- * @dev: device to retrieve the gen_pool from
- *
- * Returns the gen_pool for the device if one is present, or NULL.
- */
-struct gen_pool *gen_pool_get(struct device *dev)
-{
-	struct gen_pool **p = devres_find(dev, devm_gen_pool_release, NULL,
-					NULL);
-
-	if (!p)
-		return NULL;
-	return *p;
-}
-EXPORT_SYMBOL_GPL(gen_pool_get);
 
 #ifdef CONFIG_OF
 /**
@@ -642,7 +649,7 @@ struct gen_pool *of_gen_pool_get(struct device_node *np,
 	of_node_put(np_pool);
 	if (!pdev)
 		return NULL;
-	return gen_pool_get(&pdev->dev);
+	return gen_pool_get(&pdev->dev, NULL);
 }
 EXPORT_SYMBOL_GPL(of_gen_pool_get);
 #endif /* CONFIG_OF */
