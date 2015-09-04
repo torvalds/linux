@@ -373,14 +373,16 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe);
 void media_entity_pipeline_stop(struct media_entity *entity);
 
-struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
-						u32 type, u32 flags,
-						u32 major, u32 minor,
-						gfp_t gfp_flags);
+struct media_intf_devnode *
+__must_check media_devnode_create(struct media_device *mdev,
+				  u32 type, u32 flags,
+				  u32 major, u32 minor,
+				  gfp_t gfp_flags);
 void media_devnode_remove(struct media_intf_devnode *devnode);
-struct media_link *media_create_intf_link(struct media_entity *entity,
-					    struct media_interface *intf,
-					    u32 flags);
+struct media_link *
+__must_check media_create_intf_link(struct media_entity *entity,
+				    struct media_interface *intf,
+				    u32 flags);
 void __media_remove_intf_link(struct media_link *link);
 void media_remove_intf_link(struct media_link *link);
 void __media_remove_intf_links(struct media_interface *intf);
