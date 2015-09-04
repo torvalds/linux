@@ -918,6 +918,7 @@ static void dma_rx_callback(void *data)
 				sport->port.icount.buf_overrun++;
 		}
 		tty_flip_buffer_push(port);
+		sport->port.icount.rx += count;
 	}
 
 	/*
