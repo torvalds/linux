@@ -1532,20 +1532,7 @@ static int vlv_setup_backlight(struct intel_connector *connector, enum pipe pipe
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
-	enum pipe p;
 	u32 ctl, ctl2, val;
-
-	for_each_pipe(dev_priv, p) {
-		u32 cur_val = I915_READ(VLV_BLC_PWM_CTL(p));
-
-		/* Skip if the modulation freq is already set */
-		if (cur_val & ~BACKLIGHT_DUTY_CYCLE_MASK)
-			continue;
-
-		cur_val &= BACKLIGHT_DUTY_CYCLE_MASK;
-		I915_WRITE(VLV_BLC_PWM_CTL(p), (0xf42 << 16) |
-			   cur_val);
-	}
 
 	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
 		return -ENODEV;
