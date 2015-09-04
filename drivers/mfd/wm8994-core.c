@@ -677,7 +677,6 @@ static const struct dev_pm_ops wm8994_pm_ops = {
 static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {
 		.name = "wm8994",
-		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
 		.of_match_table = of_match_ptr(wm8994_of_match),
 	},

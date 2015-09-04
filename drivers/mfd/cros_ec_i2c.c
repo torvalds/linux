@@ -353,7 +353,6 @@ MODULE_DEVICE_TABLE(i2c, cros_ec_i2c_id);
 static struct i2c_driver cros_ec_driver = {
 	.driver	= {
 		.name	= "cros-ec-i2c",
-		.owner	= THIS_MODULE,
 		.pm	= &cros_ec_i2c_pm_ops,
 	},
 	.probe		= cros_ec_i2c_probe,

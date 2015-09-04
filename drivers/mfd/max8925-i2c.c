@@ -245,7 +245,6 @@ MODULE_DEVICE_TABLE(of, max8925_dt_ids);
 static struct i2c_driver max8925_driver = {
 	.driver	= {
 		.name	= "max8925",
-		.owner	= THIS_MODULE,
 		.pm     = &max8925_pm_ops,
 		.of_match_table = max8925_dt_ids,
 	},
