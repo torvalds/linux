@@ -669,6 +669,7 @@ struct intel_hdmi {
 	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
 	enum hdmi_picture_aspect aspect_ratio;
+	struct intel_connector *attached_connector;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				enum hdmi_infoframe_type type,
 				const void *frame, ssize_t len);
