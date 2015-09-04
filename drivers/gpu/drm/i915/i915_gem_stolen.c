@@ -416,7 +416,6 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	if (obj->pages == NULL)
 		goto cleanup;
 
-	obj->has_dma_mapping = true;
 	i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
 

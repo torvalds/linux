@@ -246,7 +246,7 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 		 * convert it to descriptor.
 		 */
 		if (!button->gpiod && gpio_is_valid(button->gpio)) {
-			unsigned flags = 0;
+			unsigned flags = GPIOF_IN;
 
 			if (button->active_low)
 				flags |= GPIOF_ACTIVE_LOW;

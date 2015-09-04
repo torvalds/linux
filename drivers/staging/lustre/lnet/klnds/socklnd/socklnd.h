@@ -31,7 +31,6 @@
 #define DEBUG_PORTAL_ALLOC
 #define DEBUG_SUBSYSTEM S_LND
 
-#include <asm/irq.h>
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/if.h>

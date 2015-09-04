@@ -374,7 +374,7 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 	unsigned height_in_mb = ALIGN(height / 16, 2);
 	unsigned fs_in_mb = width_in_mb * height_in_mb;
 
-	unsigned image_size, tmp, min_dpb_size, num_dpb_buffer;
+	unsigned image_size, tmp, min_dpb_size, num_dpb_buffer, min_ctx_size;
 
 	image_size = width * height;
 	image_size += image_size / 2;
@@ -466,6 +466,8 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 
 		num_dpb_buffer = (le32_to_cpu(msg[59]) & 0xff) + 2;
 		min_dpb_size = image_size * num_dpb_buffer;
+		min_ctx_size = ((width + 255) / 16) * ((height + 255) / 16)
+					   * 16 * num_dpb_buffer + 52 * 1024;
 		break;
 
 	default:
@@ -486,6 +488,7 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 
 	buf_sizes[0x1] = dpb_size;
 	buf_sizes[0x2] = image_size;
+	buf_sizes[0x4] = min_ctx_size;
 	return 0;
 }
 
@@ -628,6 +631,13 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 			return -EINVAL;
 		}
 
+	} else if (cmd == 0x206) {
+		if ((end - start) < ctx->buf_sizes[4]) {
+			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
+					  (unsigned)(end - start),
+					  ctx->buf_sizes[4]);
+			return -EINVAL;
+		}
 	} else if ((cmd != 0x100) && (cmd != 0x204)) {
 		DRM_ERROR("invalid UVD command %X!\n", cmd);
 		return -EINVAL;
@@ -755,9 +765,10 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	struct amdgpu_uvd_cs_ctx ctx = {};
 	unsigned buf_sizes[] = {
 		[0x00000000]	=	2048,
-		[0x00000001]	=	32 * 1024 * 1024,
-		[0x00000002]	=	2048 * 1152 * 3,
+		[0x00000001]	=	0xFFFFFFFF,
+		[0x00000002]	=	0xFFFFFFFF,
 		[0x00000003]	=	2048,
+		[0x00000004]	=	0xFFFFFFFF,
 	};
 	struct amdgpu_ib *ib = &parser->ibs[ib_idx];
 	int r;

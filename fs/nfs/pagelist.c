@@ -1100,8 +1100,6 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 		mirror->pg_base = 0;
 		mirror->pg_recoalesce = 0;
 
-		desc->pg_moreio = 0;
-
 		while (!list_empty(&head)) {
 			struct nfs_page *req;
 
@@ -1109,8 +1107,11 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 			nfs_list_remove_request(req);
 			if (__nfs_pageio_add_request(desc, req))
 				continue;
-			if (desc->pg_error < 0)
+			if (desc->pg_error < 0) {
+				list_splice_tail(&head, &mirror->pg_list);
+				mirror->pg_recoalesce = 1;
 				return 0;
+			}
 			break;
 		}
 	} while (mirror->pg_recoalesce);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  *  This program is free software; you can redistribute	 it and/or modify it

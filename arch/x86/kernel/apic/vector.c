@@ -322,7 +322,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip = &lapic_controller;
 		irq_data->chip_data = data;
 		irq_data->hwirq = virq + i;
-		err = assign_irq_vector_policy(virq, irq_data->node, data,
+		err = assign_irq_vector_policy(virq + i, irq_data->node, data,
 					       info);
 		if (err)
 			goto error;
@@ -409,12 +409,6 @@ static void __setup_vector_irq(int cpu)
 	int irq, vector;
 	struct apic_chip_data *data;
 
-	/*
-	 * vector_lock will make sure that we don't run into irq vector
-	 * assignments that might be happening on another cpu in parallel,
-	 * while we setup our initial vector to irq mappings.
-	 */
-	raw_spin_lock(&vector_lock);
 	/* Mark the inuse vectors */
 	for_each_active_irq(irq) {
 		data = apic_chip_data(irq_get_irq_data(irq));
@@ -436,16 +430,16 @@ static void __setup_vector_irq(int cpu)
 		if (!cpumask_test_cpu(cpu, data->domain))
 			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 	}
-	raw_spin_unlock(&vector_lock);
 }
 
 /*
- * Setup the vector to irq mappings.
+ * Setup the vector to irq mappings. Must be called with vector_lock held.
  */
 void setup_vector_irq(int cpu)
 {
 	int irq;
 
+	lockdep_assert_held(&vector_lock);
 	/*
 	 * On most of the platforms, legacy PIC delivers the interrupts on the
 	 * boot cpu. But there are certain platforms where PIC interrupts are

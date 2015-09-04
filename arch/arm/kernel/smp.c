@@ -578,7 +578,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	if ((unsigned)ipinr < NR_IPI) {
-		trace_ipi_entry(ipi_types[ipinr]);
+		trace_ipi_entry_rcuidle(ipi_types[ipinr]);
 		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
 	}
 
@@ -637,7 +637,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	}
 
 	if ((unsigned)ipinr < NR_IPI)
-		trace_ipi_exit(ipi_types[ipinr]);
+		trace_ipi_exit_rcuidle(ipi_types[ipinr]);
 	set_irq_regs(old_regs);
 }
 

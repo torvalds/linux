@@ -1171,7 +1171,7 @@ static int fotg210_udc_probe(struct platform_device *pdev)
 			  udc_name, fotg210);
 	if (ret < 0) {
 		pr_err("request_irq error (%d)\n", ret);
-		goto err_irq;
+		goto err_req;
 	}
 
 	ret = usb_add_gadget_udc(&pdev->dev, &fotg210->gadget);
@@ -1183,7 +1183,6 @@ static int fotg210_udc_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
-err_irq:
 	free_irq(ires->start, fotg210);
 
 err_req:

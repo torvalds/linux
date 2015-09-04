@@ -2074,14 +2074,8 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			ret = gpmc_probe_nand_child(pdev, child);
 		else if (of_node_cmp(child->name, "onenand") == 0)
 			ret = gpmc_probe_onenand_child(pdev, child);
-		else if (of_node_cmp(child->name, "ethernet") == 0 ||
-			 of_node_cmp(child->name, "nor") == 0 ||
-			 of_node_cmp(child->name, "uart") == 0)
+		else
 			ret = gpmc_probe_generic_child(pdev, child);
-
-		if (WARN(ret < 0, "%s: probing gpmc child %s failed\n",
-			 __func__, child->full_name))
-			of_node_put(child);
 	}
 
 	return 0;
@@ -2251,6 +2245,9 @@ void omap3_gpmc_save_context(void)
 {
 	int i;
 
+	if (!gpmc_base)
+		return;
+
 	gpmc_context.sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
 	gpmc_context.irqenable = gpmc_read_reg(GPMC_IRQENABLE);
 	gpmc_context.timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
@@ -2282,6 +2279,9 @@ void omap3_gpmc_save_context(void)
 void omap3_gpmc_restore_context(void)
 {
 	int i;
+
+	if (!gpmc_base)
+		return;
 
 	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context.sysconfig);
 	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context.irqenable);

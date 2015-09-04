@@ -84,10 +84,10 @@
 #define MMC35240_OTP_START_ADDR		0x1B
 
 enum mmc35240_resolution {
-	MMC35240_16_BITS_SLOW = 0, /* 100 Hz */
-	MMC35240_16_BITS_FAST,     /* 200 Hz */
-	MMC35240_14_BITS,          /* 333 Hz */
-	MMC35240_12_BITS,          /* 666 Hz */
+	MMC35240_16_BITS_SLOW = 0, /* 7.92 ms */
+	MMC35240_16_BITS_FAST,     /* 4.08 ms */
+	MMC35240_14_BITS,          /* 2.16 ms */
+	MMC35240_12_BITS,          /* 1.20 ms */
 };
 
 enum mmc35240_axis {
@@ -100,22 +100,22 @@ static const struct {
 	int sens[3]; /* sensitivity per X, Y, Z axis */
 	int nfo; /* null field output */
 } mmc35240_props_table[] = {
-	/* 16 bits, 100Hz ODR */
+	/* 16 bits, 125Hz ODR */
 	{
 		{1024, 1024, 1024},
 		32768,
 	},
-	/* 16 bits, 200Hz ODR */
+	/* 16 bits, 250Hz ODR */
 	{
 		{1024, 1024, 770},
 		32768,
 	},
-	/* 14 bits, 333Hz ODR */
+	/* 14 bits, 450Hz ODR */
 	{
 		{256, 256, 193},
 		8192,
 	},
-	/* 12 bits, 666Hz ODR */
+	/* 12 bits, 800Hz ODR */
 	{
 		{64, 64, 48},
 		2048,
@@ -133,9 +133,15 @@ struct mmc35240_data {
 	int axis_scale[3];
 };
 
-static const int mmc35240_samp_freq[] = {100, 200, 333, 666};
+static const struct {
+	int val;
+	int val2;
+} mmc35240_samp_freq[] = { {1, 500000},
+			   {13, 0},
+			   {25, 0},
+			   {50, 0} };
 
-static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100 200 333 666");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("1.5 13 25 50");
 
 #define MMC35240_CHANNEL(_axis) { \
 	.type = IIO_MAGN, \
@@ -168,7 +174,8 @@ static int mmc35240_get_samp_freq_index(struct mmc35240_data *data,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mmc35240_samp_freq); i++)
-		if (mmc35240_samp_freq[i] == val)
+		if (mmc35240_samp_freq[i].val == val &&
+		    mmc35240_samp_freq[i].val2 == val2)
 			return i;
 	return -EINVAL;
 }
@@ -195,8 +202,8 @@ static int mmc35240_hw_set(struct mmc35240_data *data, bool set)
 		coil_bit = MMC35240_CTRL0_RESET_BIT;
 
 	return regmap_update_bits(data->regmap, MMC35240_REG_CTRL0,
-				  MMC35240_CTRL0_REFILL_BIT,
-				  coil_bit);
+				  coil_bit, coil_bit);
+
 }
 
 static int mmc35240_init(struct mmc35240_data *data)
@@ -215,14 +222,15 @@ static int mmc35240_init(struct mmc35240_data *data)
 
 	/*
 	 * make sure we restore sensor characteristics, by doing
-	 * a RESET/SET sequence
+	 * a SET/RESET sequence, the axis polarity being naturally
+	 * aligned after RESET
 	 */
-	ret = mmc35240_hw_set(data, false);
+	ret = mmc35240_hw_set(data, true);
 	if (ret < 0)
 		return ret;
 	usleep_range(MMC53240_WAIT_SET_RESET, MMC53240_WAIT_SET_RESET + 1);
 
-	ret = mmc35240_hw_set(data, true);
+	ret = mmc35240_hw_set(data, false);
 	if (ret < 0)
 		return ret;
 
@@ -378,9 +386,9 @@ static int mmc35240_read_raw(struct iio_dev *indio_dev,
 		if (i < 0 || i >= ARRAY_SIZE(mmc35240_samp_freq))
 			return -EINVAL;
 
-		*val = mmc35240_samp_freq[i];
-		*val2 = 0;
-		return IIO_VAL_INT;
+		*val = mmc35240_samp_freq[i].val;
+		*val2 = mmc35240_samp_freq[i].val2;
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
@@ -496,6 +504,7 @@ static int mmc35240_probe(struct i2c_client *client,
 	}
 
 	data = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	data->regmap = regmap;
 	data->res = MMC35240_16_BITS_SLOW;

@@ -826,6 +826,7 @@ struct intel_context {
 	struct kref ref;
 	int user_handle;
 	uint8_t remap_slice;
+	struct drm_i915_private *i915;
 	struct drm_i915_file_private *file_priv;
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_hw_ppgtt *ppgtt;
@@ -2036,8 +2037,6 @@ struct drm_i915_gem_object {
 	unsigned int cache_level:3;
 	unsigned int cache_dirty:1;
 
-	unsigned int has_dma_mapping:1;
-
 	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
 
 	unsigned int pin_display;
@@ -3116,7 +3115,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor);
 int i915_debugfs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_device *dev);
 #else
-static inline int i915_debugfs_connector_add(struct drm_connector *connector) {}
+static inline int i915_debugfs_connector_add(struct drm_connector *connector)
+{ return 0; }
 static inline void intel_display_crc_init(struct drm_device *dev) {}
 #endif
 
@@ -3303,15 +3303,14 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 
 #define I915_READ64_2x32(lower_reg, upper_reg) ({			\
-		u32 upper = I915_READ(upper_reg);			\
-		u32 lower = I915_READ(lower_reg);			\
-		u32 tmp = I915_READ(upper_reg);				\
-		if (upper != tmp) {					\
-			upper = tmp;					\
-			lower = I915_READ(lower_reg);			\
-			WARN_ON(I915_READ(upper_reg) != upper);		\
-		}							\
-		(u64)upper << 32 | lower; })
+	u32 upper, lower, tmp;						\
+	tmp = I915_READ(upper_reg);					\
+	do {								\
+		upper = tmp;						\
+		lower = I915_READ(lower_reg);				\
+		tmp = I915_READ(upper_reg);				\
+	} while (upper != tmp);						\
+	(u64)upper << 32 | lower; })
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)

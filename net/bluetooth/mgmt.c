@@ -7820,7 +7820,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 	/* Make sure we copy only the significant bytes based on the
 	 * encryption key size, and set the rest of the value to zeroes.
 	 */
-	memcpy(ev.key.val, key->val, sizeof(key->enc_size));
+	memcpy(ev.key.val, key->val, key->enc_size);
 	memset(ev.key.val + key->enc_size, 0,
 	       sizeof(ev.key.val) - key->enc_size);
 

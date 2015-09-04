@@ -20,20 +20,6 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/mpx.h>
 
-static const char *mpx_mapping_name(struct vm_area_struct *vma)
-{
-	return "[mpx]";
-}
-
-static struct vm_operations_struct mpx_vma_ops = {
-	.name = mpx_mapping_name,
-};
-
-static int is_mpx_vma(struct vm_area_struct *vma)
-{
-	return (vma->vm_ops == &mpx_vma_ops);
-}
-
 static inline unsigned long mpx_bd_size_bytes(struct mm_struct *mm)
 {
 	if (is_64bit_mm(mm))
@@ -53,9 +39,6 @@ static inline unsigned long mpx_bt_size_bytes(struct mm_struct *mm)
 /*
  * This is really a simplified "vm_mmap". it only handles MPX
  * bounds tables (the bounds directory is user-allocated).
- *
- * Later on, we use the vma->vm_ops to uniquely identify these
- * VMAs.
  */
 static unsigned long mpx_mmap(unsigned long len)
 {
@@ -101,7 +84,6 @@ static unsigned long mpx_mmap(unsigned long len)
 		ret = -ENOMEM;
 		goto out;
 	}
-	vma->vm_ops = &mpx_vma_ops;
 
 	if (vm_flags & VM_LOCKED) {
 		up_write(&mm->mmap_sem);
@@ -812,7 +794,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
 		 * so stop immediately and return an error.  This
 		 * probably results in a SIGSEGV.
 		 */
-		if (!is_mpx_vma(vma))
+		if (!(vma->vm_flags & VM_MPX))
 			return -EINVAL;
 
 		len = min(vma->vm_end, end) - addr;
@@ -945,9 +927,9 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 	 * lots of tables even though we have no actual table
 	 * entries in use.
 	 */
-	while (next && is_mpx_vma(next))
+	while (next && (next->vm_flags & VM_MPX))
 		next = next->vm_next;
-	while (prev && is_mpx_vma(prev))
+	while (prev && (prev->vm_flags & VM_MPX))
 		prev = prev->vm_prev;
 	/*
 	 * We know 'start' and 'end' lie within an area controlled

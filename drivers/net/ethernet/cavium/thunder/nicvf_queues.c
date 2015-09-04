@@ -103,9 +103,11 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 
 	/* Allocate a new page */
 	if (!nic->rb_page) {
-		nic->rb_page = alloc_pages(gfp | __GFP_COMP, order);
+		nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
+					   order);
 		if (!nic->rb_page) {
-			netdev_err(nic->netdev, "Failed to allocate new rcv buffer\n");
+			netdev_err(nic->netdev,
+				   "Failed to allocate new rcv buffer\n");
 			return -ENOMEM;
 		}
 		nic->rb_page_offset = 0;
@@ -382,7 +384,8 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 		return;
 
 	if (sq->tso_hdrs)
-		dma_free_coherent(&nic->pdev->dev, sq->dmem.q_len,
+		dma_free_coherent(&nic->pdev->dev,
+				  sq->dmem.q_len * TSO_HEADER_SIZE,
 				  sq->tso_hdrs, sq->tso_hdrs_phys);
 
 	kfree(sq->skbuff);
@@ -863,10 +866,11 @@ void nicvf_sq_free_used_descs(struct net_device *netdev, struct snd_queue *sq,
 			continue;
 		}
 		skb = (struct sk_buff *)sq->skbuff[sq->head];
+		if (skb)
+			dev_kfree_skb_any(skb);
 		atomic64_add(1, (atomic64_t *)&netdev->stats.tx_packets);
 		atomic64_add(hdr->tot_len,
 			     (atomic64_t *)&netdev->stats.tx_bytes);
-		dev_kfree_skb_any(skb);
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
 }
@@ -992,7 +996,7 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 
 	memset(gather, 0, SND_QUEUE_DESC_SIZE);
 	gather->subdesc_type = SQ_DESC_TYPE_GATHER;
-	gather->ld_type = NIC_SEND_LD_TYPE_E_LDWB;
+	gather->ld_type = NIC_SEND_LD_TYPE_E_LDD;
 	gather->size = size;
 	gather->addr = data;
 }
@@ -1048,7 +1052,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 		}
 		nicvf_sq_add_hdr_subdesc(sq, hdr_qentry,
 					 seg_subdescs - 1, skb, seg_len);
-		sq->skbuff[hdr_qentry] = 0;
+		sq->skbuff[hdr_qentry] = (u64)NULL;
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
 
 		desc_cnt += seg_subdescs;
@@ -1062,6 +1066,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	/* Inform HW to xmit all TSO segments */
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
 			      skb_get_queue_mapping(skb), desc_cnt);
+	nic->drv_stats.tx_tso++;
 	return 1;
 }
 

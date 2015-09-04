@@ -110,7 +110,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 }
 
 #define FEC_NAPI_RX_EVENT_MSK	(FEC_ENET_RXF | FEC_ENET_RXB)
-#define FEC_NAPI_TX_EVENT_MSK	(FEC_ENET_TXF | FEC_ENET_TXB)
+#define FEC_NAPI_TX_EVENT_MSK	(FEC_ENET_TXF)
 #define FEC_RX_EVENT		(FEC_ENET_RXF)
 #define FEC_TX_EVENT		(FEC_ENET_TXF)
 #define FEC_ERR_EVENT_MSK	(FEC_ENET_HBERR | FEC_ENET_BABR | \

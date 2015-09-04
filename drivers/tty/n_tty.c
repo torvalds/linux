@@ -1108,18 +1108,28 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	Locking: ctrl_lock
  */
 
-static void isig(int sig, struct tty_struct *tty)
+static void __isig(int sig, struct tty_struct *tty)
 {
-	struct n_tty_data *ldata = tty->disc_data;
 	struct pid *tty_pgrp = tty_get_pgrp(tty);
 	if (tty_pgrp) {
 		kill_pgrp(tty_pgrp, sig, 1);
 		put_pid(tty_pgrp);
 	}
+}
 
-	if (!L_NOFLSH(tty)) {
+static void isig(int sig, struct tty_struct *tty)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	if (L_NOFLSH(tty)) {
+		/* signal only */
+		__isig(sig, tty);
+
+	} else { /* signal and flush */
 		up_read(&tty->termios_rwsem);
 		down_write(&tty->termios_rwsem);
+
+		__isig(sig, tty);
 
 		/* clear echo buffer */
 		mutex_lock(&ldata->output_lock);

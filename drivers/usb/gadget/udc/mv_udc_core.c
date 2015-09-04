@@ -2167,7 +2167,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	udc->phy_regs = ioremap(r->start, resource_size(r));
+	udc->phy_regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (udc->phy_regs == NULL) {
 		dev_err(&pdev->dev, "failed to map phy I/O memory\n");
 		return -EBUSY;

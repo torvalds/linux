@@ -2,7 +2,7 @@
  * SPEAr platform shared irq layer source file
  *
  * Copyright (C) 2009-2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * Copyright (C) 2012 ST Microelectronics
  * Shiraz Hashim <shiraz.linux.kernel@gmail.com>

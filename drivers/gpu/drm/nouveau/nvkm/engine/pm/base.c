@@ -332,9 +332,12 @@ static void
 nvkm_perfctx_dtor(struct nvkm_object *object)
 {
 	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_perfctx *ctx = (void *)object;
+
 	mutex_lock(&nv_subdev(ppm)->mutex);
-	nvkm_engctx_destroy(&ppm->context->base);
-	ppm->context = NULL;
+	nvkm_engctx_destroy(&ctx->base);
+	if (ppm->context == ctx)
+		ppm->context = NULL;
 	mutex_unlock(&nv_subdev(ppm)->mutex);
 }
 
@@ -355,12 +358,11 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mutex_lock(&nv_subdev(ppm)->mutex);
 	if (ppm->context == NULL)
 		ppm->context = ctx;
+	if (ctx != ppm->context)
+		ret = -EBUSY;
 	mutex_unlock(&nv_subdev(ppm)->mutex);
 
-	if (ctx != ppm->context)
-		return -EBUSY;
-
-	return 0;
+	return ret;
 }
 
 struct nvkm_oclass

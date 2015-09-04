@@ -183,7 +183,7 @@
 };
 
 &esdhc1 {
-	cd-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
 	fsl,wp-controller;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
@@ -191,7 +191,7 @@
 };
 
 &esdhc2 {
-	cd-gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 	fsl,wp-controller;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc2>;

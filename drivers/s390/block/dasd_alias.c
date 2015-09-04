@@ -699,7 +699,8 @@ struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *base_device)
 					       struct dasd_device, alias_list);
 	spin_unlock_irqrestore(&lcu->lock, flags);
 	alias_priv = (struct dasd_eckd_private *) alias_device->private;
-	if ((alias_priv->count < private->count) && !alias_device->stopped)
+	if ((alias_priv->count < private->count) && !alias_device->stopped &&
+	    !test_bit(DASD_FLAG_OFFLINE, &alias_device->flags))
 		return alias_device;
 	else
 		return NULL;
