@@ -311,6 +311,52 @@ static void pr_err_with_code(const char *msg, int err)
 	pr_err("\n");
 }
 
+static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
+{
+	int ret;
+	int i, k;
+	const char *event = NULL, *group = NULL;
+
+	ret = convert_perf_probe_events(pevs, npevs);
+	if (ret < 0)
+		goto out_cleanup;
+
+	ret = apply_perf_probe_events(pevs, npevs);
+	if (ret < 0)
+		goto out_cleanup;
+
+	for (i = k = 0; i < npevs; i++)
+		k += pevs[i].ntevs;
+
+	pr_info("Added new event%s\n", (k > 1) ? "s:" : ":");
+	for (i = 0; i < npevs; i++) {
+		struct perf_probe_event *pev = &pevs[i];
+
+		for (k = 0; k < pev->ntevs; k++) {
+			struct probe_trace_event *tev = &pev->tevs[k];
+
+			/* We use tev's name for showing new events */
+			show_perf_probe_event(tev->group, tev->event, pev,
+					      tev->point.module, false);
+
+			/* Save the last valid name */
+			event = tev->event;
+			group = tev->group;
+		}
+	}
+
+	/* Note that it is possible to skip all events because of blacklist */
+	if (event) {
+		/* Show how to use the event. */
+		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
+		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
+	}
+
+out_cleanup:
+	cleanup_perf_probe_events(pevs, npevs);
+	return ret;
+}
+
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -496,7 +542,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			usage_with_options(probe_usage, options);
 		}
 
-		ret = add_perf_probe_events(params.events, params.nevents);
+		ret = perf_add_probe_events(params.events, params.nevents);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to add events.", ret);
 			return ret;

@@ -2180,9 +2180,9 @@ out:
 }
 
 /* Show an event */
-static int show_perf_probe_event(const char *group, const char *event,
-				 struct perf_probe_event *pev,
-				 const char *module, bool use_stdout)
+int show_perf_probe_event(const char *group, const char *event,
+			  struct perf_probe_event *pev,
+			  const char *module, bool use_stdout)
 {
 	struct strbuf buf = STRBUF_INIT;
 	int ret;
@@ -2399,7 +2399,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 {
 	int i, fd, ret;
 	struct probe_trace_event *tev = NULL;
-	const char *event = NULL, *group = NULL;
 	struct strlist *namelist;
 
 	fd = probe_file__open(PF_FL_RW | (pev->uprobes ? PF_FL_UPROBE : 0));
@@ -2415,7 +2414,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	}
 
 	ret = 0;
-	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
 		/* Skip if the symbol is out of .text or blacklisted */
@@ -2432,13 +2430,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		if (ret < 0)
 			break;
 
-		/* We use tev's name for showing new events */
-		show_perf_probe_event(tev->group, tev->event, pev,
-				      tev->point.module, false);
-		/* Save the last valid name */
-		event = tev->event;
-		group = tev->group;
-
 		/*
 		 * Probes after the first probe which comes from same
 		 * user input are always allowed to add suffix, because
@@ -2449,13 +2440,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	}
 	if (ret == -EINVAL && pev->uprobes)
 		warn_uprobe_event_compat(tev);
-
-	/* Note that it is possible to skip all events because of blacklist */
-	if (ret >= 0 && event) {
-		/* Show how to use the event. */
-		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
-		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
-	}
 
 	strlist__delete(namelist);
 close_out:
