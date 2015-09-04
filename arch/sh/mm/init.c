@@ -488,7 +488,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 int arch_add_memory(int nid, u64 start, u64 size)
 {
 	pg_data_t *pgdat;
-	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
@@ -517,7 +517,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #ifdef CONFIG_MEMORY_HOTREMOVE
 int arch_remove_memory(u64 start, u64 size)
 {
-	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	struct zone *zone;
 	int ret;
