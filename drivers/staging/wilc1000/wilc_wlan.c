@@ -189,7 +189,7 @@ static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
 
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 	if (p->txq_head) {
 		tqe = p->txq_head;
 		p->txq_head = tqe->next;
@@ -205,7 +205,7 @@ static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 	} else {
 		tqe = NULL;
 	}
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 	return tqe;
 }
 
@@ -214,7 +214,7 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	if (p->txq_head == NULL) {
 		tqe->next = NULL;
@@ -231,7 +231,7 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 
 	/**
 	 *      wake up TX queue
@@ -249,7 +249,7 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	if (p->os_func.os_wait(p->txq_add_to_head_lock, CFG_PKTS_TIMEOUT))
 		return -1;
 
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	if (p->txq_head == NULL) {
 		tqe->next = NULL;
@@ -266,7 +266,7 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 	up(p->txq_add_to_head_lock);
 
 
@@ -368,9 +368,9 @@ static __inline int remove_TCP_related(void)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
 
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 	return 0;
 }
 
@@ -384,7 +384,7 @@ static __inline int tcp_process(struct txq_entry_t *tqe)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
 
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	eth_hdr_ptr = &buffer[0];
 	h_proto = ntohs(*((unsigned short *)&eth_hdr_ptr[12]));
@@ -432,7 +432,7 @@ static __inline int tcp_process(struct txq_entry_t *tqe)
 	} else {
 		ret = 0;
 	}
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 	return ret;
 }
 
@@ -444,7 +444,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 	uint32_t Dropped = 0;
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 
-	p->os_func.os_spin_lock(p->txq_spinlock, &p->txq_spinlock_flags);
+	spin_lock_irqsave(p->txq_spinlock, p->txq_spinlock_flags);
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
 		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].Bigger_Ack_num) {
 			struct txq_entry_t *tqe;
@@ -471,7 +471,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 		PendingAcks_arrBase = 0;
 
 
-	p->os_func.os_spin_unlock(p->txq_spinlock, &p->txq_spinlock_flags);
+	spin_unlock_irqrestore(p->txq_spinlock, p->txq_spinlock_flags);
 
 	while (Dropped > 0) {
 		/*consume the semaphore count of the removed packet*/
@@ -624,12 +624,12 @@ static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 	unsigned long flags;
 
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	tqe = p->txq_head;
 
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 
 
 	return tqe;
@@ -640,11 +640,11 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct txq_entry_t *tqe)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
+	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	tqe = tqe->next;
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
+	spin_unlock_irqrestore(p->txq_spinlock, flags);
 
 
 	return tqe;

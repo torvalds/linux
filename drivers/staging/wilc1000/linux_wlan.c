@@ -555,31 +555,6 @@ static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 	return error;
 }
 
-static void linux_wlan_spin_lock(void *vp, unsigned long *flags)
-{
-	unsigned long lflags;
-
-	PRINT_D(SPIN_DEBUG, "Lock spin %p\n", vp);
-	if (vp != NULL) {
-		spin_lock_irqsave((spinlock_t *)vp, lflags);
-		*flags = lflags;
-	} else {
-		PRINT_ER("Failed, spin lock is NULL\n");
-	}
-}
-static void linux_wlan_spin_unlock(void *vp, unsigned long *flags)
-{
-	unsigned long lflags = *flags;
-
-	PRINT_D(SPIN_DEBUG, "Unlock spin %p\n", vp);
-	if (vp != NULL) {
-		spin_unlock_irqrestore((spinlock_t *)vp, lflags);
-		*flags = lflags;
-	} else {
-		PRINT_ER("Failed, spin lock is NULL\n");
-	}
-}
-
 static void linux_wlan_mac_indicate(int flag)
 {
 	/*I have to do it that way becuase there is no mean to encapsulate device pointer
@@ -1338,10 +1313,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_func.os_sleep = linux_wlan_msleep;
 	nwi->os_func.os_debug = linux_wlan_dbg;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
-
-	/*Added by Amr - BugID_4720*/
-	nwi->os_func.os_spin_lock = linux_wlan_spin_lock;
-	nwi->os_func.os_spin_unlock = linux_wlan_spin_unlock;
 
 #ifdef WILC_SDIO
 	nwi->io_func.io_type = HIF_SDIO;

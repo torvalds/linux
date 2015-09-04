@@ -87,11 +87,6 @@ typedef struct {
 	void (*os_sleep)(uint32_t);
 	void (*os_debug)(uint8_t *);
 	int (*os_wait)(void *, u32);
-
-	/*Added by Amr - BugID_4720*/
-	void (*os_spin_lock)(void *, unsigned long *);
-	void (*os_spin_unlock)(void *, unsigned long *);
-
 } wilc_wlan_os_func_t;
 
 typedef struct {
