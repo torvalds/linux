@@ -62,6 +62,7 @@ struct report {
 	float			min_percent;
 	u64			nr_entries;
 	u64			queue_size;
+	int			socket_filter;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
@@ -286,6 +287,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	char buf[512];
 	size_t size = sizeof(buf);
+	int socket = hists->socket_filter;
 
 	if (symbol_conf.filter_relative) {
 		nr_samples = hists->stats.nr_non_filtered_samples;
@@ -326,6 +328,10 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		ret += fprintf(fp, "\n# Sort order   : %s", sort_order ? : default_mem_sort_order);
 	} else
 		ret += fprintf(fp, "\n# Event count (approx.): %" PRIu64, nr_events);
+
+	if (socket > -1)
+		ret += fprintf(fp, "\n# Processor Socket: %d", socket);
+
 	return ret + fprintf(fp, "\n#\n");
 }
 
@@ -449,6 +455,8 @@ static void report__collapse_hists(struct report *rep)
 
 		if (pos->idx == 0)
 			hists->symbol_filter_str = rep->symbol_filter_str;
+
+		hists->socket_filter = rep->socket_filter;
 
 		hists__collapse_resort(hists, &prog);
 
@@ -635,6 +643,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		},
 		.max_stack		 = PERF_MAX_STACK_DEPTH,
 		.pretty_printing_style	 = "normal",
+		.socket_filter		 = -1,
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -747,6 +756,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			"Show full source file name path for source lines"),
 	OPT_BOOLEAN(0, "show-ref-call-graph", &symbol_conf.show_ref_callgraph,
 		    "Show callgraph from reference event"),
+	OPT_INTEGER(0, "socket-filter", &report.socket_filter,
+		    "only show processor socket that match with this filter"),
 	OPT_END()
 	};
 	struct perf_data_file file = {

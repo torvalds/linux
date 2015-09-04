@@ -1261,6 +1261,7 @@ static int hists__browser_title(struct hists *hists,
 	int printed;
 	const struct dso *dso = hists->dso_filter;
 	const struct thread *thread = hists->thread_filter;
+	int socket = hists->socket_filter;
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
 	struct perf_evsel *evsel = hists_to_evsel(hists);
@@ -1314,6 +1315,9 @@ static int hists__browser_title(struct hists *hists,
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
+	if (socket > -1)
+		printed += scnprintf(bf + printed, size - printed,
+				    ", Processor Socket: %d", socket);
 	if (!is_report_browser(hbt)) {
 		struct perf_top *top = hbt->arg;
 
