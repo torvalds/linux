@@ -277,10 +277,18 @@ u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
 	return lrca >> 12;
 }
 
+static bool disable_lite_restore_wa(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+
+	return ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
+		(IS_BROXTON(dev) && INTEL_REVID(dev) == BXT_REVID_A0)) &&
+	       (ring->id == VCS || ring->id == VCS2);
+}
+
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *ring)
 {
-	struct drm_device *dev = ring->dev;
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
 	uint64_t desc;
 	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj) +
@@ -302,9 +310,7 @@ uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 
 	/* WaEnableForceRestoreInCtxtDescForVCS:skl */
 	/* WaEnableForceRestoreInCtxtDescForVCS:bxt */
-	if (((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
-	     (IS_BROXTON(dev) && INTEL_REVID(dev) == BXT_REVID_A0)) &&
-	    (ring->id == VCS || ring->id == VCS2))
+	if (disable_lite_restore_wa(ring))
 		desc |= GEN8_CTX_FORCE_RESTORE;
 
 	return desc;
@@ -495,7 +501,7 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	u32 status_pointer;
 	u8 read_pointer;
 	u8 write_pointer;
-	u32 status;
+	u32 status = 0;
 	u32 status_id;
 	u32 submit_contexts = 0;
 
@@ -533,8 +539,14 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 		}
 	}
 
-	if (submit_contexts != 0)
+	if (disable_lite_restore_wa(ring)) {
+		/* Prevent a ctx to preempt itself */
+		if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) &&
+		    (submit_contexts != 0))
+			execlists_context_unqueue(ring);
+	} else if (submit_contexts != 0) {
 		execlists_context_unqueue(ring);
+	}
 
 	spin_unlock(&ring->execlist_lock);
 
