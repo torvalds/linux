@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/leds.h>
+#include <linux/backlight.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -76,29 +76,28 @@ struct pm8941_wled_config {
 };
 
 struct pm8941_wled {
+	const char *name;
 	struct regmap *regmap;
 	u16 addr;
-
-	struct led_classdev cdev;
 
 	struct pm8941_wled_config cfg;
 };
 
-static int pm8941_wled_set(struct led_classdev *cdev,
-			   enum led_brightness value)
+static int pm8941_wled_update_status(struct backlight_device *bl)
 {
-	struct pm8941_wled *wled;
+	struct pm8941_wled *wled = bl_get_data(bl);
+	u16 val = bl->props.brightness;
 	u8 ctrl = 0;
-	u16 val;
 	int rc;
 	int i;
 
-	wled = container_of(cdev, struct pm8941_wled, cdev);
+	if (bl->props.power != FB_BLANK_UNBLANK ||
+	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
+	    bl->props.state & BL_CORE_FBBLANK)
+		val = 0;
 
-	if (value != 0)
+	if (val != 0)
 		ctrl = PM8941_WLED_REG_MOD_EN_BIT;
-
-	val = value * PM8941_WLED_REG_VAL_MAX / LED_FULL;
 
 	rc = regmap_update_bits(wled->regmap,
 			wled->addr + PM8941_WLED_REG_MOD_EN,
@@ -126,16 +125,6 @@ static int pm8941_wled_set(struct led_classdev *cdev,
 			wled->addr + PM8941_WLED_REG_SYNC,
 			PM8941_WLED_REG_SYNC_MASK, PM8941_WLED_REG_SYNC_CLEAR);
 	return rc;
-}
-
-static void pm8941_wled_set_brightness(struct led_classdev *cdev,
-				       enum led_brightness value)
-{
-	if (pm8941_wled_set(cdev, value)) {
-		dev_err(cdev->dev, "Unable to set brightness\n");
-		return;
-	}
-	cdev->brightness = value;
 }
 
 static int pm8941_wled_setup(struct pm8941_wled *wled)
@@ -336,12 +325,9 @@ static int pm8941_wled_configure(struct pm8941_wled *wled, struct device *dev)
 	}
 	wled->addr = val;
 
-	rc = of_property_read_string(dev->of_node, "label", &wled->cdev.name);
+	rc = of_property_read_string(dev->of_node, "label", &wled->name);
 	if (rc)
-		wled->cdev.name = dev->of_node->name;
-
-	wled->cdev.default_trigger = of_get_property(dev->of_node,
-			"linux,default-trigger", NULL);
+		wled->name = dev->of_node->name;
 
 	*cfg = pm8941_wled_config_defaults;
 	for (i = 0; i < ARRAY_SIZE(u32_opts); ++i) {
@@ -377,8 +363,14 @@ static int pm8941_wled_configure(struct pm8941_wled *wled, struct device *dev)
 	return 0;
 }
 
+static const struct backlight_ops pm8941_wled_ops = {
+	.update_status = pm8941_wled_update_status,
+};
+
 static int pm8941_wled_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
+	struct backlight_device *bl;
 	struct pm8941_wled *wled;
 	struct regmap *regmap;
 	int rc;
@@ -403,13 +395,14 @@ static int pm8941_wled_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	wled->cdev.brightness_set = pm8941_wled_set_brightness;
-
-	rc = devm_led_classdev_register(&pdev->dev, &wled->cdev);
-	if (rc)
-		return rc;
-
-	platform_set_drvdata(pdev, wled);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = PM8941_WLED_REG_VAL_MAX;
+	bl = devm_backlight_device_register(&pdev->dev, wled->name,
+					    &pdev->dev, wled,
+					    &pm8941_wled_ops, &props);
+	if (IS_ERR(bl))
+		return PTR_ERR(bl);
 
 	return 0;
 };
@@ -432,4 +425,3 @@ module_platform_driver(pm8941_wled_driver);
 
 MODULE_DESCRIPTION("pm8941 wled driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:pm8941-wled");

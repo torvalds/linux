@@ -5,10 +5,7 @@ Required properties:
 - reg: slave address
 
 Optional properties:
-- label: The label for this led
-  See Documentation/devicetree/bindings/leds/common.txt
-- linux,default-trigger: Default trigger assigned to the LED
-  See Documentation/devicetree/bindings/leds/common.txt
+- label: The name of the backlight device
 - qcom,cs-out: bool; enable current sink output
 - qcom,cabc: bool; enable content adaptive backlight control
 - qcom,ext-gen: bool; use externally generated modulator signal to dim
