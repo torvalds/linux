@@ -93,6 +93,9 @@ bool regmap_writeable(struct regmap *map, unsigned int reg)
 
 bool regmap_readable(struct regmap *map, unsigned int reg)
 {
+	if (!map->reg_read)
+		return false;
+
 	if (map->max_register && reg > map->max_register)
 		return false;
 
@@ -573,8 +576,13 @@ struct regmap *regmap_init(struct device *dev,
 		map->reg_stride = config->reg_stride;
 	else
 		map->reg_stride = 1;
-	map->use_single_rw = config->use_single_rw;
-	map->can_multi_write = config->can_multi_write;
+	map->use_single_read = config->use_single_rw || !bus || !bus->read;
+	map->use_single_write = config->use_single_rw || !bus || !bus->write;
+	map->can_multi_write = config->can_multi_write && bus && bus->write;
+	if (bus) {
+		map->max_raw_read = bus->max_raw_read;
+		map->max_raw_write = bus->max_raw_write;
+	}
 	map->dev = dev;
 	map->bus = bus;
 	map->bus_context = bus_context;
@@ -763,7 +771,7 @@ struct regmap *regmap_init(struct device *dev,
 		if ((reg_endian != REGMAP_ENDIAN_BIG) ||
 		    (val_endian != REGMAP_ENDIAN_BIG))
 			goto err_map;
-		map->use_single_rw = true;
+		map->use_single_write = true;
 	}
 
 	if (!map->format.format_write &&
@@ -1382,9 +1390,32 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
  */
 bool regmap_can_raw_write(struct regmap *map)
 {
-	return map->bus && map->format.format_val && map->format.format_reg;
+	return map->bus && map->bus->write && map->format.format_val &&
+		map->format.format_reg;
 }
 EXPORT_SYMBOL_GPL(regmap_can_raw_write);
+
+/**
+ * regmap_get_raw_read_max - Get the maximum size we can read
+ *
+ * @map: Map to check.
+ */
+size_t regmap_get_raw_read_max(struct regmap *map)
+{
+	return map->max_raw_read;
+}
+EXPORT_SYMBOL_GPL(regmap_get_raw_read_max);
+
+/**
+ * regmap_get_raw_write_max - Get the maximum size we can read
+ *
+ * @map: Map to check.
+ */
+size_t regmap_get_raw_write_max(struct regmap *map)
+{
+	return map->max_raw_write;
+}
+EXPORT_SYMBOL_GPL(regmap_get_raw_write_max);
 
 static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 				       unsigned int val)
@@ -1555,6 +1586,8 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 		return -EINVAL;
 	if (val_len % map->format.val_bytes)
 		return -EINVAL;
+	if (map->max_raw_write && map->max_raw_write > val_len)
+		return -E2BIG;
 
 	map->lock(map->lock_arg);
 
@@ -1669,6 +1702,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 {
 	int ret = 0, i;
 	size_t val_bytes = map->format.val_bytes;
+	size_t total_size = val_bytes * val_count;
 
 	if (map->bus && !map->format.parse_inplace)
 		return -EINVAL;
@@ -1677,9 +1711,15 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 
 	/*
 	 * Some devices don't support bulk write, for
-	 * them we have a series of single write operations.
+	 * them we have a series of single write operations in the first two if
+	 * blocks.
+	 *
+	 * The first if block is used for memory mapped io. It does not allow
+	 * val_bytes of 3 for example.
+	 * The second one is used for busses which do not have this limitation
+	 * and can write arbitrary value lengths.
 	 */
-	if (!map->bus || map->use_single_rw) {
+	if (!map->bus) {
 		map->lock(map->lock_arg);
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
@@ -1711,6 +1751,38 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		}
 out:
 		map->unlock(map->lock_arg);
+	} else if (map->use_single_write ||
+		   (map->max_raw_write && map->max_raw_write < total_size)) {
+		int chunk_stride = map->reg_stride;
+		size_t chunk_size = val_bytes;
+		size_t chunk_count = val_count;
+
+		if (!map->use_single_write) {
+			chunk_size = map->max_raw_write;
+			if (chunk_size % val_bytes)
+				chunk_size -= chunk_size % val_bytes;
+			chunk_count = total_size / chunk_size;
+			chunk_stride *= chunk_size / val_bytes;
+		}
+
+		map->lock(map->lock_arg);
+		/* Write as many bytes as possible with chunk_size */
+		for (i = 0; i < chunk_count; i++) {
+			ret = _regmap_raw_write(map,
+						reg + (i * chunk_stride),
+						val + (i * chunk_size),
+						chunk_size);
+			if (ret)
+				break;
+		}
+
+		/* Write remaining bytes */
+		if (!ret && chunk_size * i < total_size) {
+			ret = _regmap_raw_write(map, reg + (i * chunk_stride),
+						val + (i * chunk_size),
+						total_size - i * chunk_size);
+		}
+		map->unlock(map->lock_arg);
 	} else {
 		void *wval;
 
@@ -1740,7 +1812,7 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
  *
  * the (register,newvalue) pairs in regs have not been formatted, but
  * they are all in the same page and have been changed to being page
- * relative. The page register has been written if that was neccessary.
+ * relative. The page register has been written if that was necessary.
  */
 static int _regmap_raw_multi_reg_write(struct regmap *map,
 				       const struct reg_default *regs,
@@ -2050,7 +2122,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 
 	/*
 	 * Some buses or devices flag reads by setting the high bits in the
-	 * register addresss; since it's always the high bits for all
+	 * register address; since it's always the high bits for all
 	 * current formats we can do this here rather than in
 	 * formatting.  This may break if we get interesting formats.
 	 */
@@ -2096,8 +2168,6 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 {
 	int ret;
 	void *context = _regmap_map_get_context(map);
-
-	WARN_ON(!map->reg_read);
 
 	if (!map->cache_bypass) {
 		ret = regcache_read(map, reg, val);
@@ -2179,6 +2249,8 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
+	if (val_count == 0)
+		return -EINVAL;
 
 	map->lock(map->lock_arg);
 
@@ -2186,6 +2258,10 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	    map->cache_type == REGCACHE_NONE) {
 		if (!map->bus->read) {
 			ret = -ENOTSUPP;
+			goto out;
+		}
+		if (map->max_raw_read && map->max_raw_read < val_len) {
+			ret = -E2BIG;
 			goto out;
 		}
 
@@ -2297,20 +2373,51 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		 * Some devices does not support bulk read, for
 		 * them we have a series of single read operations.
 		 */
-		if (map->use_single_rw) {
-			for (i = 0; i < val_count; i++) {
-				ret = regmap_raw_read(map,
-						reg + (i * map->reg_stride),
-						val + (i * val_bytes),
-						val_bytes);
-				if (ret != 0)
-					return ret;
-			}
-		} else {
+		size_t total_size = val_bytes * val_count;
+
+		if (!map->use_single_read &&
+		    (!map->max_raw_read || map->max_raw_read > total_size)) {
 			ret = regmap_raw_read(map, reg, val,
 					      val_bytes * val_count);
 			if (ret != 0)
 				return ret;
+		} else {
+			/*
+			 * Some devices do not support bulk read or do not
+			 * support large bulk reads, for them we have a series
+			 * of read operations.
+			 */
+			int chunk_stride = map->reg_stride;
+			size_t chunk_size = val_bytes;
+			size_t chunk_count = val_count;
+
+			if (!map->use_single_read) {
+				chunk_size = map->max_raw_read;
+				if (chunk_size % val_bytes)
+					chunk_size -= chunk_size % val_bytes;
+				chunk_count = total_size / chunk_size;
+				chunk_stride *= chunk_size / val_bytes;
+			}
+
+			/* Read bytes that fit into a multiple of chunk_size */
+			for (i = 0; i < chunk_count; i++) {
+				ret = regmap_raw_read(map,
+						      reg + (i * chunk_stride),
+						      val + (i * chunk_size),
+						      chunk_size);
+				if (ret != 0)
+					return ret;
+			}
+
+			/* Read remaining bytes */
+			if (chunk_size * i < total_size) {
+				ret = regmap_raw_read(map,
+						      reg + (i * chunk_stride),
+						      val + (i * chunk_size),
+						      total_size - i * chunk_size);
+				if (ret != 0)
+					return ret;
+			}
 		}
 
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
@@ -2322,7 +2429,34 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 					  &ival);
 			if (ret != 0)
 				return ret;
-			map->format.format_val(val + (i * val_bytes), ival, 0);
+
+			if (map->format.format_val) {
+				map->format.format_val(val + (i * val_bytes), ival, 0);
+			} else {
+				/* Devices providing read and write
+				 * operations can use the bulk I/O
+				 * functions if they define a val_bytes,
+				 * we assume that the values are native
+				 * endian.
+				 */
+				u32 *u32 = val;
+				u16 *u16 = val;
+				u8 *u8 = val;
+
+				switch (map->format.val_bytes) {
+				case 4:
+					u32[i] = ival;
+					break;
+				case 2:
+					u16[i] = ival;
+					break;
+				case 1:
+					u8[i] = ival;
+					break;
+				default:
+					return -EINVAL;
+				}
+			}
 		}
 	}
 
