@@ -1309,6 +1309,11 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 	parents_locked = 1;
 
+	if (!new_dir->i_nlink) {
+		status = -EACCES;
+		goto bail;
+	}
+
 	/* make sure both dirs have bhs
 	 * get an extra ref on old_dir_bh if old==new */
 	if (!new_dir_bh) {
