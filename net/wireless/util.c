@@ -1382,6 +1382,25 @@ static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
 	return false;
 }
 
+static size_t skip_ie(const u8 *ies, size_t ielen, size_t pos)
+{
+	/* we assume a validly formed IEs buffer */
+	u8 len = ies[pos + 1];
+
+	pos += 2 + len;
+
+	/* the IE itself must have 255 bytes for fragments to follow */
+	if (len < 255)
+		return pos;
+
+	while (pos < ielen && ies[pos] == WLAN_EID_FRAGMENT) {
+		len = ies[pos + 1];
+		pos += 2 + len;
+	}
+
+	return pos;
+}
+
 size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 			      const u8 *ids, int n_ids,
 			      const u8 *after_ric, int n_after_ric,
@@ -1391,14 +1410,14 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 
 	while (pos < ielen && ieee80211_id_in_list(ids, n_ids, ies[pos])) {
 		if (ies[pos] == WLAN_EID_RIC_DATA && n_after_ric) {
-			pos += 2 + ies[pos + 1];
+			pos = skip_ie(ies, ielen, pos);
 
 			while (pos < ielen &&
 			       !ieee80211_id_in_list(after_ric, n_after_ric,
 						     ies[pos]))
-				pos += 2 + ies[pos + 1];
+				pos = skip_ie(ies, ielen, pos);
 		} else {
-			pos += 2 + ies[pos + 1];
+			pos = skip_ie(ies, ielen, pos);
 		}
 	}
 
