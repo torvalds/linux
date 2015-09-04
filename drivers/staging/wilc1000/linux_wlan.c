@@ -152,7 +152,6 @@ void linux_wlan_unlock(void *vp);
 extern void WILC_WFI_monitor_rx(uint8_t *buff, uint32_t size);
 extern void WILC_WFI_p2p_rx(struct net_device *dev, uint8_t *buff, uint32_t size);
 
-static void *internal_alloc(uint32_t size, uint32_t flag);
 static void linux_wlan_tx_complete(void *priv, int status);
 void frmw_to_linux(uint8_t *buff, uint32_t size, uint32_t pkt_offset);
 static int  mac_init_fn(struct net_device *ndev);
@@ -556,15 +555,6 @@ void linux_wlan_free(void *vp)
 		PRINT_D(MEM_DBG, "Freeing %p\n", vp);
 		kfree(vp);
 	}
-}
-
-static void *internal_alloc(uint32_t size, uint32_t flag)
-{
-	char *pntr = NULL;
-
-	pntr = kmalloc(size, flag);
-	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", size, pntr);
-	return (void *)pntr;
 }
 
 static void linux_wlan_init_lock(char *lockName, void *plock, int count)
@@ -2145,7 +2135,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 		return 0;
 	}
 
-	tx_data = (struct tx_complete_data *)internal_alloc(sizeof(struct tx_complete_data), GFP_ATOMIC);
+	tx_data = kmalloc(sizeof(struct tx_complete_data), GFP_ATOMIC);
 	if (tx_data == NULL) {
 		PRINT_ER("Failed to allocate memory for tx_data structure\n");
 		dev_kfree_skb(skb);
