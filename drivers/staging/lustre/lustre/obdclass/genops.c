@@ -523,7 +523,6 @@ void class_obd_list(void)
 			 atomic_read(&obd->obd_refcount));
 	}
 	read_unlock(&obd_dev_lock);
-	return;
 }
 
 /* Search for a client OBD connected to tgt_uuid.  If grp_uuid is
