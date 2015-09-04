@@ -181,7 +181,7 @@ static void deregister_from_lirc(struct sasem_context *context)
 	if (retval)
 		dev_err(&context->dev->dev,
 			"%s: unable to deregister from lirc (%d)\n",
-		       __func__, retval);
+			__func__, retval);
 	else
 		dev_info(&context->dev->dev,
 			 "Deregistered Sasem driver (minor:%d)\n", minor);
