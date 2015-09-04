@@ -141,6 +141,7 @@ static int intel_wait_booting(struct hci_uart *hu)
 	return err;
 }
 
+#ifdef CONFIG_PM
 static int intel_wait_lpm_transaction(struct hci_uart *hu)
 {
 	struct intel_data *intel = hu->priv;
@@ -249,6 +250,7 @@ static int intel_lpm_resume(struct hci_uart *hu)
 
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 static int intel_lpm_host_wake(struct hci_uart *hu)
 {
