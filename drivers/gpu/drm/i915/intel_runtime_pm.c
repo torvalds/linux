@@ -297,6 +297,7 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_E_2_LANES) |		\
 	BIT(POWER_DOMAIN_AUX_B) |                       \
 	BIT(POWER_DOMAIN_AUX_C) |			\
 	BIT(POWER_DOMAIN_AUX_D) |			\
@@ -316,6 +317,7 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 #define SKL_DISPLAY_DDI_A_E_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_A_2_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_DDI_A_4_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_E_2_LANES) |		\
 	BIT(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_DDI_B_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |		\

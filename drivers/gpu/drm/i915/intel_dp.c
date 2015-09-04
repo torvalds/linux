@@ -48,28 +48,28 @@
 #define INTEL_DP_RESOLUTION_FAILSAFE	(3 << INTEL_DP_RESOLUTION_SHIFT_MASK)
 
 struct dp_link_dpll {
-	int link_bw;
+	int clock;
 	struct dpll dpll;
 };
 
 static const struct dp_link_dpll gen4_dpll[] = {
-	{ DP_LINK_BW_1_62,
+	{ 162000,
 		{ .p1 = 2, .p2 = 10, .n = 2, .m1 = 23, .m2 = 8 } },
-	{ DP_LINK_BW_2_7,
+	{ 270000,
 		{ .p1 = 1, .p2 = 10, .n = 1, .m1 = 14, .m2 = 2 } }
 };
 
 static const struct dp_link_dpll pch_dpll[] = {
-	{ DP_LINK_BW_1_62,
+	{ 162000,
 		{ .p1 = 2, .p2 = 10, .n = 1, .m1 = 12, .m2 = 9 } },
-	{ DP_LINK_BW_2_7,
+	{ 270000,
 		{ .p1 = 1, .p2 = 10, .n = 2, .m1 = 14, .m2 = 8 } }
 };
 
 static const struct dp_link_dpll vlv_dpll[] = {
-	{ DP_LINK_BW_1_62,
+	{ 162000,
 		{ .p1 = 3, .p2 = 2, .n = 5, .m1 = 3, .m2 = 81 } },
-	{ DP_LINK_BW_2_7,
+	{ 270000,
 		{ .p1 = 2, .p2 = 2, .n = 1, .m1 = 2, .m2 = 27 } }
 };
 
@@ -83,11 +83,11 @@ static const struct dp_link_dpll chv_dpll[] = {
 	 * m2 is stored in fixed point format using formula below
 	 * (m2_int << 22) | m2_fraction
 	 */
-	{ DP_LINK_BW_1_62,	/* m2_int = 32, m2_fraction = 1677722 */
+	{ 162000,	/* m2_int = 32, m2_fraction = 1677722 */
 		{ .p1 = 4, .p2 = 2, .n = 1, .m1 = 2, .m2 = 0x819999a } },
-	{ DP_LINK_BW_2_7,	/* m2_int = 27, m2_fraction = 0 */
+	{ 270000,	/* m2_int = 27, m2_fraction = 0 */
 		{ .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } },
-	{ DP_LINK_BW_5_4,	/* m2_int = 27, m2_fraction = 0 */
+	{ 540000,	/* m2_int = 27, m2_fraction = 0 */
 		{ .p1 = 2, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } }
 };
 
@@ -1130,7 +1130,7 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 }
 
 static void
-skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
+skl_edp_set_pll_config(struct intel_crtc_state *pipe_config)
 {
 	u32 ctrl1;
 
@@ -1142,7 +1142,7 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 	pipe_config->dpll_hw_state.cfgcr2 = 0;
 
 	ctrl1 = DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
-	switch (link_clock / 2) {
+	switch (pipe_config->port_clock / 2) {
 	case 81000:
 		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810,
 					      SKL_DPLL0);
@@ -1175,20 +1175,20 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 	pipe_config->dpll_hw_state.ctrl1 = ctrl1;
 }
 
-static void
-hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
+void
+hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config)
 {
 	memset(&pipe_config->dpll_hw_state, 0,
 	       sizeof(pipe_config->dpll_hw_state));
 
-	switch (link_bw) {
-	case DP_LINK_BW_1_62:
+	switch (pipe_config->port_clock / 2) {
+	case 81000:
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
 		break;
-	case DP_LINK_BW_2_7:
+	case 135000:
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_1350;
 		break;
-	case DP_LINK_BW_5_4:
+	case 270000:
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_2700;
 		break;
 	}
@@ -1245,7 +1245,7 @@ intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 
 static void
 intel_dp_set_clock(struct intel_encoder *encoder,
-		   struct intel_crtc_state *pipe_config, int link_bw)
+		   struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	const struct dp_link_dpll *divisor = NULL;
@@ -1267,7 +1267,7 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 
 	if (divisor && count) {
 		for (i = 0; i < count; i++) {
-			if (link_bw == divisor[i].link_bw) {
+			if (pipe_config->port_clock == divisor[i].clock) {
 				pipe_config->dpll = divisor[i].dpll;
 				pipe_config->clock_set = true;
 				break;
@@ -1544,13 +1544,13 @@ found:
 	}
 
 	if (IS_SKYLAKE(dev) && is_edp(intel_dp))
-		skl_edp_set_pll_config(pipe_config, common_rates[clock]);
+		skl_edp_set_pll_config(pipe_config);
 	else if (IS_BROXTON(dev))
 		/* handled in ddi */;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
+		hsw_dp_set_ddi_pll_sel(pipe_config);
 	else
-		intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
+		intel_dp_set_clock(encoder, pipe_config);
 
 	return true;
 }
@@ -4961,9 +4961,12 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 		intel_dp_probe_oui(intel_dp);
 
-		if (!intel_dp_probe_mst(intel_dp))
+		if (!intel_dp_probe_mst(intel_dp)) {
+			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+			intel_dp_check_link_status(intel_dp);
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 			goto mst_fail;
-
+		}
 	} else {
 		if (intel_dp->is_mst) {
 			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
@@ -4971,10 +4974,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		}
 
 		if (!intel_dp->is_mst) {
-			/*
-			 * we'll check the link status via the normal hot plug path later -
-			 * but for short hpds we should check it now
-			 */
 			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 			intel_dp_check_link_status(intel_dp);
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
@@ -5016,16 +5015,17 @@ intel_trans_dp_port_sel(struct drm_crtc *crtc)
 	return -1;
 }
 
-/* check the VBT to see whether the eDP is on DP-D port */
+/* check the VBT to see whether the eDP is on another port */
 bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	union child_device_config *p_child;
 	int i;
 	static const short port_mapping[] = {
-		[PORT_B] = PORT_IDPB,
-		[PORT_C] = PORT_IDPC,
-		[PORT_D] = PORT_IDPD,
+		[PORT_B] = DVO_PORT_DPB,
+		[PORT_C] = DVO_PORT_DPC,
+		[PORT_D] = DVO_PORT_DPD,
+		[PORT_E] = DVO_PORT_DPE,
 	};
 
 	if (port == PORT_A)

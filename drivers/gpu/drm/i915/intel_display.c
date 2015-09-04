@@ -5150,7 +5150,6 @@ static enum intel_display_power_domain port_to_power_domain(enum port port)
 {
 	switch (port) {
 	case PORT_A:
-	case PORT_E:
 		return POWER_DOMAIN_PORT_DDI_A_4_LANES;
 	case PORT_B:
 		return POWER_DOMAIN_PORT_DDI_B_4_LANES;
@@ -5158,6 +5157,8 @@ static enum intel_display_power_domain port_to_power_domain(enum port port)
 		return POWER_DOMAIN_PORT_DDI_C_4_LANES;
 	case PORT_D:
 		return POWER_DOMAIN_PORT_DDI_D_4_LANES;
+	case PORT_E:
+		return POWER_DOMAIN_PORT_DDI_E_2_LANES;
 	default:
 		WARN_ON_ONCE(1);
 		return POWER_DOMAIN_PORT_OTHER;
@@ -5712,15 +5713,12 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 	/* enable PG1 and Misc I/O */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
 
-	/* DPLL0 already enabed !? */
-	if (I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE) {
-		DRM_DEBUG_DRIVER("DPLL0 already running\n");
-		return;
+	/* DPLL0 not enabled (happens on early BIOS versions) */
+	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
+		/* enable DPLL0 */
+		required_vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
+		skl_dpll0_enable(dev_priv, required_vco);
 	}
-
-	/* enable DPLL0 */
-	required_vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
-	skl_dpll0_enable(dev_priv, required_vco);
 
 	/* set CDCLK to the frequency the BIOS chose */
 	skl_set_cdclk(dev_priv, dev_priv->skl_boot_cdclk);
@@ -13963,6 +13961,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_ddi_init(dev, PORT_C);
 		if (found & SFUSE_STRAP_DDID_DETECTED)
 			intel_ddi_init(dev, PORT_D);
+		/*
+		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
+		 */
+		if (IS_SKYLAKE(dev) &&
+		    (dev_priv->vbt.ddi_port_info[PORT_E].supports_dp ||
+		     dev_priv->vbt.ddi_port_info[PORT_E].supports_dvi ||
+		     dev_priv->vbt.ddi_port_info[PORT_E].supports_hdmi))
+			intel_ddi_init(dev, PORT_E);
+
 	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
 		dpd_is_edp = intel_dp_is_edp(dev, PORT_D);
@@ -14733,6 +14740,24 @@ void intel_modeset_init(struct drm_device *dev)
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return;
 
+	/*
+	 * There may be no VBT; and if the BIOS enabled SSC we can
+	 * just keep using it to avoid unnecessary flicker.  Whereas if the
+	 * BIOS isn't using it, don't assume it will work even if the VBT
+	 * indicates as much.
+	 */
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+		bool bios_lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
+					    DREF_SSC1_ENABLE);
+
+		if (dev_priv->vbt.lvds_use_ssc != bios_lvds_use_ssc) {
+			DRM_DEBUG_KMS("SSC %sabled by BIOS, overriding VBT which says %sabled\n",
+				     bios_lvds_use_ssc ? "en" : "dis",
+				     dev_priv->vbt.lvds_use_ssc ? "en" : "dis");
+			dev_priv->vbt.lvds_use_ssc = bios_lvds_use_ssc;
+		}
+	}
+
 	intel_init_display(dev);
 	intel_init_audio(dev);
 
@@ -15292,7 +15317,6 @@ err:
 
 void intel_modeset_gem_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -15300,16 +15324,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
 	mutex_unlock(&dev->struct_mutex);
-
-	/*
-	 * There may be no VBT; and if the BIOS enabled SSC we can
-	 * just keep using it to avoid unnecessary flicker.  Whereas if the
-	 * BIOS isn't using it, don't assume it will work even if the VBT
-	 * indicates as much.
-	 */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
-		dev_priv->vbt.lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
-						DREF_SSC1_ENABLE);
 
 	intel_modeset_init_hw(dev);
 

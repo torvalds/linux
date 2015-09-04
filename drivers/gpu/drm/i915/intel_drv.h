@@ -1185,6 +1185,7 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp);
 void intel_edp_drrs_invalidate(struct drm_device *dev,
 		unsigned frontbuffer_bits);
 void intel_edp_drrs_flush(struct drm_device *dev, unsigned frontbuffer_bits);
+void hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config);
 
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);

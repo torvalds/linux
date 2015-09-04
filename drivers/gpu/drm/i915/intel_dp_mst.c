@@ -33,6 +33,7 @@
 static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 					struct intel_crtc_state *pipe_config)
 {
+	struct drm_device *dev = encoder->base.dev;
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
@@ -97,6 +98,10 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 			       &pipe_config->dp_m_n);
 
 	pipe_config->dp_m_n.tu = slots;
+
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		hsw_dp_set_ddi_pll_sel(pipe_config);
+
 	return true;
 
 }
