@@ -479,6 +479,11 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 		return -EINVAL;
 
 	set_bit(STRIPE_LOG_TRAPPED, &sh->state);
+	/*
+	 * The stripe must enter state machine again to finish the write, so
+	 * don't delay.
+	 */
+	clear_bit(STRIPE_DELAYED, &sh->state);
 	atomic_inc(&sh->count);
 
 	mutex_lock(&log->io_mutex);
