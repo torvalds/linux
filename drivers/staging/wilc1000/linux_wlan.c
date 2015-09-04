@@ -527,17 +527,6 @@ static void deinit_irq(linux_wlan_t *nic)
 /*
  *      OS functions
  */
-static void linux_wlan_msleep(uint32_t msc)
-{
-	if (msc <= 4000000) {
-		u32 u32Temp = msc * 1000;
-
-		usleep_range(u32Temp, u32Temp);
-	} else {
-		msleep(msc);
-	}
-}
-
 static void linux_wlan_dbg(uint8_t *buff)
 {
 	PRINT_D(INIT_DBG, "%d\n", *buff);
@@ -1310,7 +1299,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_context.rxq_wait_event = (void *)&g_linux_wlan->rxq_event;
 	nwi->os_context.cfg_wait_event = (void *)&g_linux_wlan->cfg_event;
 
-	nwi->os_func.os_sleep = linux_wlan_msleep;
 	nwi->os_func.os_debug = linux_wlan_dbg;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
 

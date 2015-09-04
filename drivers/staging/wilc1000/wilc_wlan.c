@@ -999,7 +999,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 				 **/
 				PRINT_WRN(GENERIC_DBG, "[wilc txq]: warn, vmm table not clear yet, wait...\n");
 				release_bus(RELEASE_ALLOW_SLEEP);
-				p->os_func.os_sleep(3); /* wait 3 ms */
+				usleep_range(3000, 3000);
 				acquire_bus(ACQUIRE_AND_WAKEUP);
 			}
 		} while (!p->quit);
@@ -1049,7 +1049,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 					break;
 				} else {
 					release_bus(RELEASE_ALLOW_SLEEP);
-					p->os_func.os_sleep(3); /* wait 3 ms */
+					usleep_range(3000, 3000);
 					acquire_bus(ACQUIRE_AND_WAKEUP);
 					PRINT_WRN(GENERIC_DBG, "Can't get VMM entery - reg = %2x\n", reg);
 				}
