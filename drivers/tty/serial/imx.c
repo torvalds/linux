@@ -927,23 +927,20 @@ static void dma_rx_callback(void *data)
 				sport->port.icount.buf_overrun++;
 		}
 		tty_flip_buffer_push(port);
-
-		start_rx_dma(sport);
-	} else if (readl(sport->port.membase + USR2) & USR2_RDR) {
-		/*
-		 * start rx_dma directly once data in RXFIFO, more efficient
-		 * than before:
-		 *	1. call imx_rx_dma_done to stop dma if no data received
-		 *	2. wait next  RDR interrupt to start dma transfer.
-		 */
-		start_rx_dma(sport);
-	} else {
-		/*
-		 * stop dma to prevent too many IDLE event trigged if no data
-		 * in RXFIFO
-		 */
-		imx_rx_dma_done(sport);
 	}
+
+	/*
+	 * Restart RX DMA directly if more data is available in order to skip
+	 * the roundtrip through the IRQ handler. If there is some data already
+	 * in the FIFO, DMA needs to be restarted soon anyways.
+	 *
+	 * Otherwise stop the DMA and reactivate FIFO IRQs to restart DMA once
+	 * data starts to arrive again.
+	 */
+	if (readl(sport->port.membase + USR2) & USR2_RDR)
+		start_rx_dma(sport);
+	else
+		imx_rx_dma_done(sport);
 }
 
 static int start_rx_dma(struct imx_port *sport)
