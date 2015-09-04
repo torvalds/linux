@@ -318,10 +318,12 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 
 		adap->num_frontends_initialized++;
 	}
+	if (ret)
+		return ret;
 
-	dvb_create_media_graph(&adap->dvb_adap);
+	ret = dvb_create_media_graph(&adap->dvb_adap);
 
-	return 0;
+	return ret;
 }
 
 int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)

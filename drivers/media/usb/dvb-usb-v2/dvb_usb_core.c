@@ -698,7 +698,9 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	dvb_create_media_graph(&adap->dvb_adap);
+	ret = dvb_create_media_graph(&adap->dvb_adap);
+	if (ret < 0)
+		goto err_dvb_unregister_frontend;
 
 	return 0;
 

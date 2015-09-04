@@ -1183,7 +1183,11 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	if (smsdvb_debugfs_create(client) < 0)
 		pr_info("failed to create debugfs node\n");
 
-	dvb_create_media_graph(&client->adapter);
+	rc = dvb_create_media_graph(&client->adapter);
+	if (rc < 0) {
+		pr_err("dvb_create_media_graph failed %d\n", rc);
+		goto client_error;
+	}
 
 	pr_info("DVB interface registered.\n");
 	return 0;
