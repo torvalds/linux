@@ -668,7 +668,23 @@ static int __ocfs2_journal_access(handle_t *handle,
 		mlog(ML_ERROR, "giving me a buffer that's not uptodate!\n");
 		mlog(ML_ERROR, "b_blocknr=%llu\n",
 		     (unsigned long long)bh->b_blocknr);
-		BUG();
+
+		lock_buffer(bh);
+		/*
+		 * A previous attempt to write this buffer head failed.
+		 * Nothing we can do but to retry the write and hope for
+		 * the best.
+		 */
+		if (buffer_write_io_error(bh) && !buffer_uptodate(bh)) {
+			clear_buffer_write_io_error(bh);
+			set_buffer_uptodate(bh);
+		}
+
+		if (!buffer_uptodate(bh)) {
+			unlock_buffer(bh);
+			return -EIO;
+		}
+		unlock_buffer(bh);
 	}
 
 	/* Set the current transaction information on the ci so
