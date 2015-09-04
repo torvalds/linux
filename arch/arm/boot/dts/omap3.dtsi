@@ -203,7 +203,7 @@
 		};
 
 		pbias_regulator: pbias_regulator {
-			compatible = "ti,pbias-omap";
+			compatible = "ti,pbias-omap3", "ti,pbias-omap";
 			reg = <0x2b0 0x4>;
 			syscon = <&scm_conf>;
 			pbias_mmc_reg: pbias_mmc_omap2430 {
