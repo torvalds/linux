@@ -1846,8 +1846,6 @@ static int dlm_register_domain_handlers(struct dlm_ctxt *dlm)
 					sizeof(struct dlm_exit_domain),
 					dlm_begin_exit_domain_handler,
 					dlm, NULL, &dlm->dlm_domain_handlers);
-	if (status)
-		goto bail;
 
 bail:
 	if (status)
