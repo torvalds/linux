@@ -737,6 +737,10 @@ static int intel_setup(struct hci_uart *hu)
 
 	bt_dev_info(hdev, "Found device firmware: %s", fwname);
 
+	/* Save the DDC file name for later */
+	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.ddc",
+		 le16_to_cpu(params->dev_revid));
+
 	kfree_skb(skb);
 
 	if (fw->size < 644) {
@@ -929,6 +933,9 @@ done:
 	set_bit(STATE_LPM_ENABLED, &intel->flags);
 
 no_lpm:
+	/* Ignore errors, device can work without DDC parameters */
+	btintel_load_ddc_config(hdev, fwname);
+
 	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
