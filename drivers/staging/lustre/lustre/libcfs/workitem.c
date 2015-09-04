@@ -45,7 +45,7 @@
 
 #define CFS_WS_NAME_LEN	 16
 
-typedef struct cfs_wi_sched {
+struct cfs_wi_sched {
 	struct list_head		ws_list;	/* chain on global list */
 	/** serialised workitems */
 	spinlock_t		ws_lock;
@@ -73,7 +73,7 @@ typedef struct cfs_wi_sched {
 	unsigned int		ws_starting:1;
 	/** scheduler name */
 	char			ws_name[CFS_WS_NAME_LEN];
-} cfs_wi_sched_t;
+};
 
 static struct cfs_workitem_data {
 	/** serialize */
@@ -87,19 +87,19 @@ static struct cfs_workitem_data {
 } cfs_wi_data;
 
 static inline void
-cfs_wi_sched_lock(cfs_wi_sched_t *sched)
+cfs_wi_sched_lock(struct cfs_wi_sched *sched)
 {
 	spin_lock(&sched->ws_lock);
 }
 
 static inline void
-cfs_wi_sched_unlock(cfs_wi_sched_t *sched)
+cfs_wi_sched_unlock(struct cfs_wi_sched *sched)
 {
 	spin_unlock(&sched->ws_lock);
 }
 
 static inline int
-cfs_wi_sched_cansleep(cfs_wi_sched_t *sched)
+cfs_wi_sched_cansleep(struct cfs_wi_sched *sched)
 {
 	cfs_wi_sched_lock(sched);
 	if (sched->ws_stopping) {
@@ -221,7 +221,7 @@ EXPORT_SYMBOL(cfs_wi_schedule);
 static int
 cfs_wi_scheduler (void *arg)
 {
-	struct cfs_wi_sched	*sched = (cfs_wi_sched_t *)arg;
+	struct cfs_wi_sched	*sched = (struct cfs_wi_sched *)arg;
 
 	cfs_block_allsigs();
 
