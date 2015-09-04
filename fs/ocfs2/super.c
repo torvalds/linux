@@ -2600,7 +2600,7 @@ int __ocfs2_error(struct super_block *sb, const char *function,
 
 	/* Not using mlog here because we want to show the actual
 	 * function the error came from. */
-	printk(KERN_CRIT "OCFS2: ERROR (device %s): %s: %pV\n",
+	printk(KERN_CRIT "OCFS2: ERROR (device %s): %s: %pV",
 	       sb->s_id, function, &vaf);
 
 	va_end(args);
@@ -2622,7 +2622,7 @@ void __ocfs2_abort(struct super_block *sb, const char *function,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_CRIT "OCFS2: abort (device %s): %s: %pV\n",
+	printk(KERN_CRIT "OCFS2: abort (device %s): %s: %pV",
 	       sb->s_id, function, &vaf);
 
 	va_end(args);

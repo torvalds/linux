@@ -103,27 +103,25 @@ static int ocfs2_validate_refcount_block(struct super_block *sb,
 
 	if (!OCFS2_IS_VALID_REFCOUNT_BLOCK(rb)) {
 		rc = ocfs2_error(sb,
-			    "Refcount block #%llu has bad signature %.*s",
-			    (unsigned long long)bh->b_blocknr, 7,
-			    rb->rf_signature);
+				 "Refcount block #%llu has bad signature %.*s\n",
+				 (unsigned long long)bh->b_blocknr, 7,
+				 rb->rf_signature);
 		goto out;
 	}
 
 	if (le64_to_cpu(rb->rf_blkno) != bh->b_blocknr) {
 		rc = ocfs2_error(sb,
-			    "Refcount block #%llu has an invalid rf_blkno "
-			    "of %llu",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)le64_to_cpu(rb->rf_blkno));
+				 "Refcount block #%llu has an invalid rf_blkno of %llu\n",
+				 (unsigned long long)bh->b_blocknr,
+				 (unsigned long long)le64_to_cpu(rb->rf_blkno));
 		goto out;
 	}
 
 	if (le32_to_cpu(rb->rf_fs_generation) != OCFS2_SB(sb)->fs_generation) {
 		rc = ocfs2_error(sb,
-			    "Refcount block #%llu has an invalid "
-			    "rf_fs_generation of #%u",
-			    (unsigned long long)bh->b_blocknr,
-			    le32_to_cpu(rb->rf_fs_generation));
+				 "Refcount block #%llu has an invalid rf_fs_generation of #%u\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le32_to_cpu(rb->rf_fs_generation));
 		goto out;
 	}
 out:
@@ -1103,10 +1101,9 @@ static int ocfs2_get_refcount_rec(struct ocfs2_caching_info *ci,
 
 		if (el->l_tree_depth) {
 			ret = ocfs2_error(sb,
-				"refcount tree %llu has non zero tree "
-				"depth in leaf btree tree block %llu\n",
-				(unsigned long long)ocfs2_metadata_cache_owner(ci),
-				(unsigned long long)eb_bh->b_blocknr);
+					  "refcount tree %llu has non zero tree depth in leaf btree tree block %llu\n",
+					  (unsigned long long)ocfs2_metadata_cache_owner(ci),
+					  (unsigned long long)eb_bh->b_blocknr);
 			goto out;
 		}
 	}
@@ -2358,9 +2355,8 @@ static int ocfs2_mark_extent_refcounted(struct inode *inode,
 					   cpos, len, phys);
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
-		ret = ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
-			    "tree, but the feature bit is not set in the "
-			    "super block.", inode->i_ino);
+		ret = ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
+				  inode->i_ino);
 		goto out;
 	}
 
@@ -2543,9 +2539,8 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 	u64 start_cpos = ocfs2_blocks_to_clusters(inode->i_sb, phys_blkno);
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
-		ret = ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
-			    "tree, but the feature bit is not set in the "
-			    "super block.", inode->i_ino);
+		ret = ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
+				  inode->i_ino);
 		goto out;
 	}
 
@@ -2670,9 +2665,9 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 
 		if (el->l_tree_depth) {
 			ret = ocfs2_error(inode->i_sb,
-				    "Inode %lu has non zero tree depth in "
-				    "leaf block %llu\n", inode->i_ino,
-				    (unsigned long long)eb_bh->b_blocknr);
+					  "Inode %lu has non zero tree depth in leaf block %llu\n",
+					  inode->i_ino,
+					  (unsigned long long)eb_bh->b_blocknr);
 			goto out;
 		}
 	}
@@ -3103,9 +3098,8 @@ static int ocfs2_clear_ext_refcount(handle_t *handle,
 	index = ocfs2_search_extent_list(el, cpos);
 	if (index == -1) {
 		ret = ocfs2_error(sb,
-			    "Inode %llu has an extent at cpos %u which can no "
-			    "longer be found.\n",
-			    (unsigned long long)ino, cpos);
+				  "Inode %llu has an extent at cpos %u which can no longer be found\n",
+				  (unsigned long long)ino, cpos);
 		goto out;
 	}
 
@@ -3371,9 +3365,8 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
-		return ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
-			    "tree, but the feature bit is not set in the "
-			    "super block.", inode->i_ino);
+		return ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
+				   inode->i_ino);
 	}
 
 	ocfs2_init_dealloc_ctxt(&context->dealloc);
