@@ -885,6 +885,8 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	if (rc < 0)
 		return rc;
 	rc = register_driver_attributes(drv);
+	if (rc < 0)
+		driver_unregister(&drv->driver);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
