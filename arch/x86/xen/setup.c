@@ -531,7 +531,7 @@ static unsigned long __init xen_get_pages_limit(void)
 #ifdef CONFIG_X86_32
 	limit = GB(64) / PAGE_SIZE;
 #else
-	limit = ~0ul;
+	limit = MAXMEM / PAGE_SIZE;
 	if (!xen_initial_domain() && xen_512gb_limit)
 		limit = GB(512) / PAGE_SIZE;
 #endif
