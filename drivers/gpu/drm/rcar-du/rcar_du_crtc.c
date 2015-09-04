@@ -571,7 +571,7 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 {
 	static const unsigned int mmio_offsets[] = {
-		DU0_REG_OFFSET, DU1_REG_OFFSET, DU2_REG_OFFSET
+		DU0_REG_OFFSET, DU1_REG_OFFSET, DU2_REG_OFFSET, DU3_REG_OFFSET
 	};
 
 	struct rcar_du_device *rcdu = rgrp->dev;

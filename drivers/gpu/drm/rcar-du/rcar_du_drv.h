@@ -67,7 +67,7 @@ struct rcar_du_device_info {
 	unsigned int num_lvds;
 };
 
-#define RCAR_DU_MAX_CRTCS		3
+#define RCAR_DU_MAX_CRTCS		4
 #define RCAR_DU_MAX_GROUPS		DIV_ROUND_UP(RCAR_DU_MAX_CRTCS, 2)
 #define RCAR_DU_MAX_LVDS		2
 #define RCAR_DU_MAX_VSPS		4

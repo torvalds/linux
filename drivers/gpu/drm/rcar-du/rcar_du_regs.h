@@ -16,6 +16,7 @@
 #define DU0_REG_OFFSET		0x00000
 #define DU1_REG_OFFSET		0x30000
 #define DU2_REG_OFFSET		0x40000
+#define DU3_REG_OFFSET		0x70000
 
 /* -----------------------------------------------------------------------------
  * Display Control Registers
