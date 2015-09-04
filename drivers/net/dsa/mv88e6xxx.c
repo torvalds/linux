@@ -1116,6 +1116,31 @@ static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
 	return _mv88e6xxx_atu_flush(ds, fid, false);
 }
 
+static int _mv88e6xxx_atu_move(struct dsa_switch *ds, u16 fid, int from_port,
+			       int to_port, bool static_too)
+{
+	struct mv88e6xxx_atu_entry entry = {
+		.trunk = false,
+		.fid = fid,
+	};
+
+	/* EntryState bits must be 0xF */
+	entry.state = GLOBAL_ATU_DATA_STATE_MASK;
+
+	/* ToPort and FromPort are respectively in PortVec bits 7:4 and 3:0 */
+	entry.portv_trunkid = (to_port & 0x0f) << 4;
+	entry.portv_trunkid |= from_port & 0x0f;
+
+	return _mv88e6xxx_atu_flush_move(ds, &entry, static_too);
+}
+
+static int _mv88e6xxx_atu_remove(struct dsa_switch *ds, u16 fid, int port,
+				 bool static_too)
+{
+	/* Destination port 0xF means remove the entries */
+	return _mv88e6xxx_atu_move(ds, fid, port, 0x0f, static_too);
+}
+
 static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -1705,6 +1730,10 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	vlan.valid = keep;
 	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_atu_remove(ds, vlan.fid, port, false);
 	if (err)
 		goto unlock;
 
