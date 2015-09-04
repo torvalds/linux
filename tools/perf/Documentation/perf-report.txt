@@ -68,7 +68,7 @@ OPTIONS
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
-	pid, comm, dso, symbol, parent, cpu, srcline, weight, local_weight.
+	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight, local_weight.
 
 	Each key has following meaning:
 
@@ -79,6 +79,7 @@ OPTIONS
 	- parent: name of function matched to the parent regex filter. Unmatched
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
+	- socket: processor socket number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
 	DWARF debugging info must be provided.
 	- srcfile: file name of the source file of the same. Requires dwarf
