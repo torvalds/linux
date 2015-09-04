@@ -209,7 +209,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_driver_unregister);
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
 			 int container_id, uint16_t *icid)
 {
-	uint16_t dprc_handle;
+	u16 dprc_handle;
 	struct dprc_attributes attr;
 	int error;
 
@@ -234,7 +234,7 @@ common_cleanup:
 	return error;
 }
 
-static int translate_mc_addr(uint64_t mc_addr, phys_addr_t *phys_addr)
+static int translate_mc_addr(u64 mc_addr, phys_addr_t *phys_addr)
 {
 	int i;
 	struct fsl_mc *mc = dev_get_drvdata(fsl_mc_bus_type.dev_root->parent);
@@ -600,7 +600,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	struct fsl_mc_io *mc_io = NULL;
 	int container_id;
 	phys_addr_t mc_portal_phys_addr;
-	uint32_t mc_portal_size;
+	u32 mc_portal_size;
 	struct mc_version mc_version;
 	struct resource res;
 
