@@ -90,6 +90,7 @@ struct hist_entry {
 	struct comm		*comm;
 	u64			ip;
 	u64			transaction;
+	s32			socket;
 	s32			cpu;
 	u8			cpumode;
 
