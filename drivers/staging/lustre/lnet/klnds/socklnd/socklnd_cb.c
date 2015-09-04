@@ -1313,7 +1313,7 @@ ksocknal_recv (lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	       unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
 	       unsigned int offset, unsigned int mlen, unsigned int rlen)
 {
-	ksock_conn_t *conn = (ksock_conn_t *)private;
+	ksock_conn_t *conn = private;
 	ksock_sched_t *sched = conn->ksnc_scheduler;
 
 	LASSERT(mlen <= rlen);
