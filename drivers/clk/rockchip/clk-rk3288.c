@@ -780,6 +780,7 @@ static const char *const rk3288_critical_clocks[] __initconst = {
 	"aclk_cpu",
 	"aclk_peri",
 	"hclk_peri",
+	"pclk_pd_pmu",
 };
 
 #ifdef CONFIG_PM_SLEEP

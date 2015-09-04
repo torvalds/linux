@@ -177,26 +177,8 @@ static void bounce_end_io_read_isa(struct bio *bio)
 	__bounce_end_io_read(bio, isa_page_pool);
 }
 
-#ifdef CONFIG_NEED_BOUNCE_POOL
-static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
-{
-	if (bio_data_dir(bio) != WRITE)
-		return 0;
-
-	if (!bdi_cap_stable_pages_required(&q->backing_dev_info))
-		return 0;
-
-	return bio_flagged(bio, BIO_SNAP_STABLE);
-}
-#else
-static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
-{
-	return 0;
-}
-#endif /* CONFIG_NEED_BOUNCE_POOL */
-
 static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
-			       mempool_t *pool, int force)
+			       mempool_t *pool)
 {
 	struct bio *bio;
 	int rw = bio_data_dir(*bio_orig);
@@ -204,8 +186,6 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	struct bvec_iter iter;
 	unsigned i;
 
-	if (force)
-		goto bounce;
 	bio_for_each_segment(from, *bio_orig, iter)
 		if (page_to_pfn(from.bv_page) > queue_bounce_pfn(q))
 			goto bounce;
@@ -217,7 +197,7 @@ bounce:
 	bio_for_each_segment_all(to, bio, i) {
 		struct page *page = to->bv_page;
 
-		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
+		if (page_to_pfn(page) <= queue_bounce_pfn(q))
 			continue;
 
 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
@@ -255,7 +235,6 @@ bounce:
 
 void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 {
-	int must_bounce;
 	mempool_t *pool;
 
 	/*
@@ -264,15 +243,13 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	if (!bio_has_data(*bio_orig))
 		return;
 
-	must_bounce = must_snapshot_stable_pages(q, *bio_orig);
-
 	/*
 	 * for non-isa bounce case, just check if the bounce pfn is equal
 	 * to or bigger than the highest pfn in the system -- in that case,
 	 * don't waste time iterating over bio segments
 	 */
 	if (!(q->bounce_gfp & GFP_DMA)) {
-		if (queue_bounce_pfn(q) >= blk_max_pfn && !must_bounce)
+		if (queue_bounce_pfn(q) >= blk_max_pfn)
 			return;
 		pool = page_pool;
 	} else {
@@ -283,7 +260,7 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	/*
 	 * slow path
 	 */
-	__blk_queue_bounce(q, bio_orig, pool, must_bounce);
+	__blk_queue_bounce(q, bio_orig, pool);
 }
 
 EXPORT_SYMBOL(blk_queue_bounce);

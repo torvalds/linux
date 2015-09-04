@@ -294,7 +294,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <0>;
-
+			gpio-ranges = <&pinctrl 0 0 32>;
 			clocks = <&prcc_pclk 1 9>;
 		};
 
@@ -309,7 +309,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <1>;
-
+			gpio-ranges = <&pinctrl 0 32 5>;
 			clocks = <&prcc_pclk 1 9>;
 		};
 
@@ -324,7 +324,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <2>;
-
+			gpio-ranges = <&pinctrl 0 64 32>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -339,7 +339,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <3>;
-
+			gpio-ranges = <&pinctrl 0 96 2>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -354,7 +354,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <4>;
-
+			gpio-ranges = <&pinctrl 0 128 32>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -369,7 +369,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <5>;
-
+			gpio-ranges = <&pinctrl 0 160 12>;
 			clocks = <&prcc_pclk 3 8>;
 		};
 
@@ -384,7 +384,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
-
+			gpio-ranges = <&pinctrl 0 192 32>;
 			clocks = <&prcc_pclk 2 11>;
 		};
 
@@ -399,7 +399,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
-
+			gpio-ranges = <&pinctrl 0 224 7>;
 			clocks = <&prcc_pclk 2 11>;
 		};
 
@@ -414,12 +414,15 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
-
+			gpio-ranges = <&pinctrl 0 256 12>;
 			clocks = <&prcc_pclk 5 1>;
 		};
 
-		pinctrl {
+		pinctrl: pinctrl {
 			compatible = "stericsson,db8500-pinctrl";
+			nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>,
+						<&gpio4>, <&gpio5>, <&gpio6>, <&gpio7>,
+						<&gpio8>;
 			prcm = <&prcmu>;
 		};
 

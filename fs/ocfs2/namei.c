@@ -200,11 +200,12 @@ bail:
 static struct inode *ocfs2_get_init_inode(struct inode *dir, umode_t mode)
 {
 	struct inode *inode;
+	int status;
 
 	inode = new_inode(dir->i_sb);
 	if (!inode) {
 		mlog(ML_ERROR, "new_inode failed!\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* populate as many fields early on as possible - many of
@@ -213,7 +214,10 @@ static struct inode *ocfs2_get_init_inode(struct inode *dir, umode_t mode)
 	if (S_ISDIR(mode))
 		set_nlink(inode, 2);
 	inode_init_owner(inode, dir, mode);
-	dquot_initialize(inode);
+	status = dquot_initialize(inode);
+	if (status)
+		return ERR_PTR(status);
+
 	return inode;
 }
 
@@ -264,7 +268,11 @@ static int ocfs2_mknod(struct inode *dir,
 			  (unsigned long long)OCFS2_I(dir)->ip_blkno,
 			  (unsigned long)dev, mode);
 
-	dquot_initialize(dir);
+	status = dquot_initialize(dir);
+	if (status) {
+		mlog_errno(status);
+		return status;
+	}
 
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
@@ -311,8 +319,9 @@ static int ocfs2_mknod(struct inode *dir,
 	}
 
 	inode = ocfs2_get_init_inode(dir, mode);
-	if (!inode) {
-		status = -ENOMEM;
+	if (IS_ERR(inode)) {
+		status = PTR_ERR(inode);
+		inode = NULL;
 		mlog_errno(status);
 		goto leave;
 	}
@@ -708,7 +717,11 @@ static int ocfs2_link(struct dentry *old_dentry,
 	if (S_ISDIR(inode->i_mode))
 		return -EPERM;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err) {
+		mlog_errno(err);
+		return err;
+	}
 
 	err = ocfs2_double_lock(osb, &old_dir_bh, old_dir,
 			&parent_fe_bh, dir, 0);
@@ -896,7 +909,11 @@ static int ocfs2_unlink(struct inode *dir,
 			   (unsigned long long)OCFS2_I(dir)->ip_blkno,
 			   (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	dquot_initialize(dir);
+	status = dquot_initialize(dir);
+	if (status) {
+		mlog_errno(status);
+		return status;
+	}
 
 	BUG_ON(d_inode(dentry->d_parent) != dir);
 
@@ -1230,8 +1247,16 @@ static int ocfs2_rename(struct inode *old_dir,
 			   old_dentry->d_name.len, old_dentry->d_name.name,
 			   new_dentry->d_name.len, new_dentry->d_name.name);
 
-	dquot_initialize(old_dir);
-	dquot_initialize(new_dir);
+	status = dquot_initialize(old_dir);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
+	status = dquot_initialize(new_dir);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
 
 	osb = OCFS2_SB(old_dir->i_sb);
 
@@ -1786,7 +1811,11 @@ static int ocfs2_symlink(struct inode *dir,
 	trace_ocfs2_symlink_begin(dir, dentry, symname,
 				  dentry->d_name.len, dentry->d_name.name);
 
-	dquot_initialize(dir);
+	status = dquot_initialize(dir);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
 
 	sb = dir->i_sb;
 	osb = OCFS2_SB(sb);
@@ -1831,8 +1860,9 @@ static int ocfs2_symlink(struct inode *dir,
 	}
 
 	inode = ocfs2_get_init_inode(dir, S_IFLNK | S_IRWXUGO);
-	if (!inode) {
-		status = -ENOMEM;
+	if (IS_ERR(inode)) {
+		status = PTR_ERR(inode);
+		inode = NULL;
 		mlog_errno(status);
 		goto bail;
 	}
@@ -2485,8 +2515,9 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 	}
 
 	inode = ocfs2_get_init_inode(dir, mode);
-	if (!inode) {
-		status = -ENOMEM;
+	if (IS_ERR(inode)) {
+		status = PTR_ERR(inode);
+		inode = NULL;
 		mlog_errno(status);
 		goto leave;
 	}

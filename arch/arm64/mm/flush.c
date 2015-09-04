@@ -60,14 +60,10 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long uaddr, void *dst, const void *src,
 		       unsigned long len)
 {
-#ifdef CONFIG_SMP
 	preempt_disable();
-#endif
 	memcpy(dst, src, len);
 	flush_ptrace_access(vma, page, uaddr, dst, len);
-#ifdef CONFIG_SMP
 	preempt_enable();
-#endif
 }
 
 void __sync_icache_dcache(pte_t pte, unsigned long addr)

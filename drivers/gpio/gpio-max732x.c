@@ -685,9 +685,14 @@ static int max732x_probe(struct i2c_client *client,
 
 	mutex_init(&chip->lock);
 
-	max732x_readb(chip, is_group_a(chip, 0), &chip->reg_out[0]);
-	if (nr_port > 8)
-		max732x_readb(chip, is_group_a(chip, 8), &chip->reg_out[1]);
+	ret = max732x_readb(chip, is_group_a(chip, 0), &chip->reg_out[0]);
+	if (ret)
+		goto out_failed;
+	if (nr_port > 8) {
+		ret = max732x_readb(chip, is_group_a(chip, 8), &chip->reg_out[1]);
+		if (ret)
+			goto out_failed;
+	}
 
 	ret = gpiochip_add(&chip->gpio_chip);
 	if (ret)

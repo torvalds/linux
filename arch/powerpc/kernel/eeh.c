@@ -308,11 +308,26 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	if (!(pe->type & EEH_PE_PHB)) {
 		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG))
 			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
-		eeh_ops->configure_bridge(pe);
-		eeh_pe_restore_bars(pe);
 
-		pci_regs_buf[0] = 0;
-		eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
+		/*
+		 * The config space of some PCI devices can't be accessed
+		 * when their PEs are in frozen state. Otherwise, fenced
+		 * PHB might be seen. Those PEs are identified with flag
+		 * EEH_PE_CFG_RESTRICTED, indicating EEH_PE_CFG_BLOCKED
+		 * is set automatically when the PE is put to EEH_PE_ISOLATED.
+		 *
+		 * Restoring BARs possibly triggers PCI config access in
+		 * (OPAL) firmware and then causes fenced PHB. If the
+		 * PCI config is blocked with flag EEH_PE_CFG_BLOCKED, it's
+		 * pointless to restore BARs and dump config space.
+		 */
+		eeh_ops->configure_bridge(pe);
+		if (!(pe->state & EEH_PE_CFG_BLOCKED)) {
+			eeh_pe_restore_bars(pe);
+
+			pci_regs_buf[0] = 0;
+			eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
+		}
 	}
 
 	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
@@ -750,14 +765,14 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
 		break;
 	case pcie_hot_reset:
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		eeh_pe_state_mark_with_cfg(pe, EEH_PE_ISOLATED);
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		eeh_pe_state_mark_with_cfg(pe, EEH_PE_ISOLATED);
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
@@ -1116,9 +1131,6 @@ void eeh_add_device_late(struct pci_dev *dev)
 		return;
 	}
 
-	if (eeh_has_flag(EEH_PROBE_MODE_DEV))
-		eeh_ops->probe(pdn, NULL);
-
 	/*
 	 * The EEH cache might not be removed correctly because of
 	 * unbalanced kref to the device during unplug time, which
@@ -1141,6 +1153,9 @@ void eeh_add_device_late(struct pci_dev *dev)
 		edev->pdev = NULL;
 		dev->dev.archdata.edev = NULL;
 	}
+
+	if (eeh_has_flag(EEH_PROBE_MODE_DEV))
+		eeh_ops->probe(pdn, NULL);
 
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
