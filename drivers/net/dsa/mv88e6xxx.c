@@ -1163,7 +1163,7 @@ static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 		 */
 		if (oldstate >= PORT_CONTROL_STATE_LEARNING &&
 		    state <= PORT_CONTROL_STATE_BLOCKING) {
-			ret = _mv88e6xxx_flush_fid(ds, ps->fid[port]);
+			ret = _mv88e6xxx_atu_remove(ds, 0, port, false);
 			if (ret)
 				goto abort;
 		}
