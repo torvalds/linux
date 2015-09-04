@@ -471,14 +471,14 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 {
 	struct iwl_device_power_cmd cmd = {
-		.flags = cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
+		.flags = 0,
 	};
 
 	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
 		mvm->ps_disabled = true;
 
-	if (mvm->ps_disabled)
-		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_CAM_MSK);
+	if (!mvm->ps_disabled)
+		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if ((mvm->cur_ucode == IWL_UCODE_WOWLAN) ? mvm->disable_power_off_d3 :
