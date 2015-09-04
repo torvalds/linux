@@ -17,7 +17,7 @@
 
 #include "arizona.h"
 
-static const struct reg_default wm8997_reva_patch[] = {
+static const struct reg_sequence wm8997_reva_patch[] = {
 	{ 0x80, 0x0003 },
 	{ 0x214, 0x0008 },
 	{ 0x458, 0x0000 },
