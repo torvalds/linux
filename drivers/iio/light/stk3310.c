@@ -469,15 +469,11 @@ static int stk3310_gpio_probe(struct i2c_client *client)
 	dev = &client->dev;
 
 	/* gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, STK3310_GPIO, 0);
+	gpio = devm_gpiod_get_index(dev, STK3310_GPIO, 0, GPIOD_IN);
 	if (IS_ERR(gpio)) {
 		dev_err(dev, "acpi gpio get index failed\n");
 		return PTR_ERR(gpio);
 	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
 
 	ret = gpiod_to_irq(gpio);
 	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);

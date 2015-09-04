@@ -6,6 +6,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/lockdep.h>
 #include <linux/pinctrl/pinctrl.h>
 
 struct device;
@@ -64,6 +65,17 @@ struct seq_file;
  *	registers.
  * @irq_not_threaded: flag must be set if @can_sleep is set but the
  *	IRQs don't need to be threaded
+ * @irqchip: GPIO IRQ chip impl, provided by GPIO driver
+ * @irqdomain: Interrupt translation domain; responsible for mapping
+ *	between GPIO hwirq number and linux irq number
+ * @irq_base: first linux IRQ number assigned to GPIO IRQ chip (deprecated)
+ * @irq_handler: the irq handler to use (often a predefined irq core function)
+ *	for GPIO IRQs, provided by GPIO driver
+ * @irq_default_type: default IRQ triggering type applied during GPIO driver
+ *	initialization, provided by GPIO driver
+ * @irq_parent: GPIO IRQ chip parent/bank linux irq number,
+ *	provided by GPIO driver
+ * @lock_key: per GPIO IRQ chip lockdep class
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -126,6 +138,7 @@ struct gpio_chip {
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
 	int			irq_parent;
+	struct lock_class_key	*lock_key;
 #endif
 
 #if defined(CONFIG_OF_GPIO)
@@ -171,11 +184,25 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		int parent_irq,
 		irq_flow_handler_t parent_handler);
 
-int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
-		struct irq_chip *irqchip,
-		unsigned int first_irq,
-		irq_flow_handler_t handler,
-		unsigned int type);
+int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+			  struct irq_chip *irqchip,
+			  unsigned int first_irq,
+			  irq_flow_handler_t handler,
+			  unsigned int type,
+			  struct lock_class_key *lock_key);
+
+#ifdef CONFIG_LOCKDEP
+#define gpiochip_irqchip_add(...)				\
+(								\
+	({							\
+		static struct lock_class_key _key;		\
+		_gpiochip_irqchip_add(__VA_ARGS__, &_key);	\
+	})							\
+)
+#else
+#define gpiochip_irqchip_add(...)				\
+	_gpiochip_irqchip_add(__VA_ARGS__, NULL)
+#endif
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
