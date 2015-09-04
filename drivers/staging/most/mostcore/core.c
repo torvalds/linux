@@ -190,8 +190,7 @@ static void flush_channel_fifos(struct most_c_obj *c)
 	list_for_each_entry_safe(mbo, tmp, &c->fifo, list) {
 		list_del(&mbo->list);
 		spin_unlock_irqrestore(&c->fifo_lock, flags);
-		if (likely(mbo))
-			most_free_mbo_coherent(mbo);
+		most_free_mbo_coherent(mbo);
 		spin_lock_irqsave(&c->fifo_lock, flags);
 	}
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
@@ -200,8 +199,7 @@ static void flush_channel_fifos(struct most_c_obj *c)
 	list_for_each_entry_safe(mbo, tmp, &c->halt_fifo, list) {
 		list_del(&mbo->list);
 		spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
-		if (likely(mbo))
-			most_free_mbo_coherent(mbo);
+		most_free_mbo_coherent(mbo);
 		spin_lock_irqsave(&c->fifo_lock, hf_flags);
 	}
 	spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
