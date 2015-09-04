@@ -3199,6 +3199,7 @@ static void __perf_event_read(void *info)
 	struct perf_event *sub, *event = data->event;
 	struct perf_event_context *ctx = event->ctx;
 	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
+	struct pmu *pmu = event->pmu;
 
 	/*
 	 * If this is a task context, we need to check whether it is
@@ -3217,18 +3218,31 @@ static void __perf_event_read(void *info)
 	}
 
 	update_event_times(event);
-	if (event->state == PERF_EVENT_STATE_ACTIVE)
-		event->pmu->read(event);
-
-	if (!data->group)
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
 		goto unlock;
+
+	if (!data->group) {
+		pmu->read(event);
+		data->ret = 0;
+		goto unlock;
+	}
+
+	pmu->start_txn(pmu, PERF_PMU_TXN_READ);
+
+	pmu->read(event);
 
 	list_for_each_entry(sub, &event->sibling_list, group_entry) {
 		update_event_times(sub);
-		if (sub->state == PERF_EVENT_STATE_ACTIVE)
+		if (sub->state == PERF_EVENT_STATE_ACTIVE) {
+			/*
+			 * Use sibling's PMU rather than @event's since
+			 * sibling could be on different (eg: software) PMU.
+			 */
 			sub->pmu->read(sub);
+		}
 	}
-	data->ret = 0;
+
+	data->ret = pmu->commit_txn(pmu);
 
 unlock:
 	raw_spin_unlock(&ctx->lock);
