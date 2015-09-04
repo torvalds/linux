@@ -166,7 +166,6 @@ MODULE_DEVICE_TABLE(of, ar1021_i2c_of_match);
 static struct i2c_driver ar1021_i2c_driver = {
 	.driver	= {
 		.name	= "ar1021_i2c",
-		.owner	= THIS_MODULE,
 		.pm	= &ar1021_i2c_pm,
 		.of_match_table = ar1021_i2c_of_match,
 	},

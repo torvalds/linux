@@ -1234,7 +1234,8 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 	of_property_read_u32(node, "ti,pendown-gpio-debounce",
 			     &pdata->gpio_pendown_debounce);
 
-	pdata->wakeup = of_property_read_bool(node, "linux,wakeup");
+	pdata->wakeup = of_property_read_bool(node, "wakeup-source") ||
+			of_property_read_bool(node, "linux,wakeup");
 
 	pdata->gpio_pendown = of_get_named_gpio(dev->of_node, "pendown-gpio", 0);
 

@@ -223,7 +223,6 @@ MODULE_DEVICE_TABLE(i2c, lm8333_id);
 static struct i2c_driver lm8333_driver = {
 	.driver = {
 		.name		= "lm8333",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= lm8333_probe,
 	.remove		= lm8333_remove,

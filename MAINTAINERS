@@ -1932,6 +1932,14 @@ W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 F:	drivers/net/wireless/atmel*
 
+ATMEL MAXTOUCH DRIVER
+M:	Nick Dyer <nick.dyer@itdev.co.uk>
+T:	git git://github.com/atmel-maxtouch/linux.git
+S:	Supported
+F:	Documentation/devicetree/bindings/input/atmel,maxtouch.txt
+F:	drivers/input/touchscreen/atmel_mxt_ts.c
+F:	include/linux/platform_data/atmel_mxt_ts.h
+
 ATTO EXPRESSSAS SAS/SATA RAID SCSI DRIVER
 M:	Bradley Grove <linuxdrivers@attotech.com>
 L:	linux-scsi@vger.kernel.org

@@ -23,7 +23,7 @@
 #include <asm/unaligned.h>
 
 #define WDT87XX_NAME		"wdt87xx_i2c"
-#define WDT87XX_DRV_VER		"0.9.6"
+#define WDT87XX_DRV_VER		"0.9.7"
 #define WDT87XX_FW_NAME		"wdt87xx_fw.bin"
 #define WDT87XX_CFG_NAME	"wdt87xx_cfg.bin"
 
@@ -84,6 +84,11 @@
 #define CTL_PARAM_OFFSET_PHY_W		22
 #define CTL_PARAM_OFFSET_PHY_H		24
 #define CTL_PARAM_OFFSET_FACTOR		32
+
+/* The definition of the device descriptor */
+#define WDT_GD_DEVICE			1
+#define DEV_DESC_OFFSET_VID		8
+#define DEV_DESC_OFFSET_PID		10
 
 /* Communication commands */
 #define PACKET_SIZE			56
@@ -152,6 +157,7 @@
 /* Controller requires minimum 300us between commands */
 #define WDT_COMMAND_DELAY_MS		2
 #define WDT_FLASH_WRITE_DELAY_MS	4
+#define WDT_FW_RESET_TIME		2500
 
 struct wdt87xx_sys_param {
 	u16	fw_id;
@@ -165,6 +171,8 @@ struct wdt87xx_sys_param {
 	u16	scaling_factor;
 	u32	max_x;
 	u32	max_y;
+	u16	vendor_id;
+	u16	product_id;
 };
 
 struct wdt87xx_data {
@@ -204,6 +212,32 @@ static int wdt87xx_i2c_xfer(struct i2c_client *client,
 			__func__, error);
 		return error;
 	}
+
+	return 0;
+}
+
+static int wdt87xx_get_desc(struct i2c_client *client, u8 desc_idx,
+			    u8 *buf, size_t len)
+{
+	u8 tx_buf[] = { 0x22, 0x00, 0x10, 0x0E, 0x23, 0x00 };
+	int error;
+
+	tx_buf[2] |= desc_idx & 0xF;
+
+	error = wdt87xx_i2c_xfer(client, tx_buf, sizeof(tx_buf),
+				 buf, len);
+	if (error) {
+		dev_err(&client->dev, "get desc failed: %d\n", error);
+		return error;
+	}
+
+	if (buf[0] != len) {
+		dev_err(&client->dev, "unexpected response to get desc: %d\n",
+			buf[0]);
+		return -EINVAL;
+	}
+
+	mdelay(WDT_COMMAND_DELAY_MS);
 
 	return 0;
 }
@@ -373,7 +407,7 @@ static int wdt87xx_sw_reset(struct i2c_client *client)
 	}
 
 	/* Wait the device to be ready */
-	msleep(200);
+	msleep(WDT_FW_RESET_TIME);
 
 	return 0;
 }
@@ -402,6 +436,15 @@ static int wdt87xx_get_sysparam(struct i2c_client *client,
 {
 	u8 buf[PKT_READ_SIZE];
 	int error;
+
+	error = wdt87xx_get_desc(client, WDT_GD_DEVICE, buf, 18);
+	if (error) {
+		dev_err(&client->dev, "failed to get device desc\n");
+		return error;
+	}
+
+	param->vendor_id = get_unaligned_le16(buf + DEV_DESC_OFFSET_VID);
+	param->product_id = get_unaligned_le16(buf + DEV_DESC_OFFSET_PID);
 
 	error = wdt87xx_get_string(client, STRIDX_PARAMETERS, buf, 34);
 	if (error) {
@@ -994,6 +1037,8 @@ static int wdt87xx_ts_create_input_device(struct wdt87xx_data *wdt)
 
 	input->name = "WDT87xx Touchscreen";
 	input->id.bustype = BUS_I2C;
+	input->id.vendor = wdt->param.vendor_id;
+	input->id.product = wdt->param.product_id;
 	input->phys = wdt->phys;
 
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0,
