@@ -12,8 +12,8 @@
 #include <linux/types.h>
 
 #define UFFD_API ((__u64)0xAA)
-/* FIXME: add "|UFFD_BIT_WP" to UFFD_API_BITS after implementing it */
-#define UFFD_API_BITS (UFFD_BIT_WRITE)
+/* FIXME: add "|UFFD_FEATURE_WP" to UFFD_API_FEATURES after implementing it */
+#define UFFD_API_FEATURES (UFFD_FEATURE_WRITE_BIT)
 #define UFFD_API_IOCTLS				\
 	((__u64)1 << _UFFDIO_REGISTER |		\
 	 (__u64)1 << _UFFDIO_UNREGISTER |	\
@@ -53,12 +53,18 @@
 #define UFFD_BIT_WP	(1<<1)	/* handle_userfault() reason VM_UFFD_WP */
 #define UFFD_BITS	2	/* two above bits used for UFFD_BIT_* mask */
 
+/*
+ * Features reported in uffdio_api.features field
+ */
+#define UFFD_FEATURE_WRITE_BIT	(1<<0) /* Corresponds to UFFD_BIT_WRITE */
+#define UFFD_FEATURE_WP_BIT	(1<<1) /* Corresponds to UFFD_BIT_WP */
+
 struct uffdio_api {
 	/* userland asks for an API number */
 	__u64 api;
 
 	/* kernel answers below with the available features for the API */
-	__u64 bits;
+	__u64 features;
 	__u64 ioctls;
 };
 
