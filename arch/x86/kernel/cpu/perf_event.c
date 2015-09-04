@@ -1748,9 +1748,21 @@ static inline void x86_pmu_read(struct perf_event *event)
  * Start group events scheduling transaction
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
+ *
+ * We only support PERF_PMU_TXN_ADD transactions. Save the
+ * transaction flags but otherwise ignore non-PERF_PMU_TXN_ADD
+ * transactions.
  */
-static void x86_pmu_start_txn(struct pmu *pmu)
+static void x86_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	WARN_ON_ONCE(cpuc->txn_flags);		/* txn already in flight */
+
+	cpuc->txn_flags = txn_flags;
+	if (txn_flags & ~PERF_PMU_TXN_ADD)
+		return;
+
 	perf_pmu_disable(pmu);
 	__this_cpu_or(cpu_hw_events.group_flag, PERF_EVENT_TXN);
 	__this_cpu_write(cpu_hw_events.n_txn, 0);
@@ -1763,6 +1775,16 @@ static void x86_pmu_start_txn(struct pmu *pmu)
  */
 static void x86_pmu_cancel_txn(struct pmu *pmu)
 {
+	unsigned int txn_flags;
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+
+	txn_flags = cpuc->txn_flags;
+	cpuc->txn_flags = 0;
+	if (txn_flags & ~PERF_PMU_TXN_ADD)
+		return;
+
 	__this_cpu_and(cpu_hw_events.group_flag, ~PERF_EVENT_TXN);
 	/*
 	 * Truncate collected array by the number of events added in this
@@ -1786,6 +1808,13 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	int assign[X86_PMC_IDX_MAX];
 	int n, ret;
 
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+
+	if (cpuc->txn_flags & ~PERF_PMU_TXN_ADD) {
+		cpuc->txn_flags = 0;
+		return 0;
+	}
+
 	n = cpuc->n_events;
 
 	if (!x86_pmu_initialized())
@@ -1802,6 +1831,7 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN;
+	cpuc->txn_flags = 0;
 	perf_pmu_enable(pmu);
 	return 0;
 }
