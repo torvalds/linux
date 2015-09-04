@@ -138,7 +138,7 @@ static int ICACRT_msg_to_type4CRT_msg(struct zcrypt_device *zdev,
 	int mod_len, short_len, long_len;
 
 	mod_len = crt->inputdatalength;
-	short_len = mod_len / 2;
+	short_len = (mod_len + 1) / 2;
 	long_len = mod_len / 2 + 8;
 
 	if (mod_len <= 128) {

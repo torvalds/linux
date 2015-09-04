@@ -248,7 +248,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 	unsigned char *p, *q, *dp, *dq, *u, *inp;
 
 	mod_len = crt->inputdatalength;
-	short_len = mod_len / 2;
+	short_len = (mod_len + 1) / 2;
 
 	/*
 	 * CEX2A and CEX3A w/o FW update can handle requests up to
