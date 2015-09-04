@@ -75,6 +75,8 @@ struct greybus_host_device;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
+	void (*connection_create)(struct gb_connection *connection);
+	void (*connection_destroy)(struct gb_connection *connection);
 	int (*message_send)(struct greybus_host_device *hd, u16 dest_cport_id,
 			struct gb_message *message, gfp_t gfp_mask);
 	void (*message_cancel)(struct gb_message *message);
