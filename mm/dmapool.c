@@ -242,7 +242,7 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
 	return page;
 }
 
-static inline int is_page_busy(struct dma_page *page)
+static inline bool is_page_busy(struct dma_page *page)
 {
 	return page->in_use != 0;
 }
