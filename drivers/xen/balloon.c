@@ -638,9 +638,9 @@ static int __init balloon_init(void)
 	 * regions (see arch/x86/xen/setup.c).
 	 */
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
-		if (xen_extra_mem[i].size)
-			balloon_add_region(PFN_UP(xen_extra_mem[i].start),
-					   PFN_DOWN(xen_extra_mem[i].size));
+		if (xen_extra_mem[i].n_pfns)
+			balloon_add_region(xen_extra_mem[i].start_pfn,
+					   xen_extra_mem[i].n_pfns);
 
 	return 0;
 }

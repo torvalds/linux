@@ -90,62 +90,69 @@ static void __init xen_parse_512gb(void)
 	xen_512gb_limit = val;
 }
 
-static void __init xen_add_extra_mem(phys_addr_t start, phys_addr_t size)
+static void __init xen_add_extra_mem(unsigned long start_pfn,
+				     unsigned long n_pfns)
 {
 	int i;
 
+	/*
+	 * No need to check for zero size, should happen rarely and will only
+	 * write a new entry regarded to be unused due to zero size.
+	 */
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
 		/* Add new region. */
-		if (xen_extra_mem[i].size == 0) {
-			xen_extra_mem[i].start = start;
-			xen_extra_mem[i].size  = size;
+		if (xen_extra_mem[i].n_pfns == 0) {
+			xen_extra_mem[i].start_pfn = start_pfn;
+			xen_extra_mem[i].n_pfns = n_pfns;
 			break;
 		}
 		/* Append to existing region. */
-		if (xen_extra_mem[i].start + xen_extra_mem[i].size == start) {
-			xen_extra_mem[i].size += size;
+		if (xen_extra_mem[i].start_pfn + xen_extra_mem[i].n_pfns ==
+		    start_pfn) {
+			xen_extra_mem[i].n_pfns += n_pfns;
 			break;
 		}
 	}
 	if (i == XEN_EXTRA_MEM_MAX_REGIONS)
 		printk(KERN_WARNING "Warning: not enough extra memory regions\n");
 
-	memblock_reserve(start, size);
+	memblock_reserve(PFN_PHYS(start_pfn), PFN_PHYS(n_pfns));
 }
 
-static void __init xen_del_extra_mem(phys_addr_t start, phys_addr_t size)
+static void __init xen_del_extra_mem(unsigned long start_pfn,
+				     unsigned long n_pfns)
 {
 	int i;
-	phys_addr_t start_r, size_r;
+	unsigned long start_r, size_r;
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
-		start_r = xen_extra_mem[i].start;
-		size_r = xen_extra_mem[i].size;
+		start_r = xen_extra_mem[i].start_pfn;
+		size_r = xen_extra_mem[i].n_pfns;
 
 		/* Start of region. */
-		if (start_r == start) {
-			BUG_ON(size > size_r);
-			xen_extra_mem[i].start += size;
-			xen_extra_mem[i].size -= size;
+		if (start_r == start_pfn) {
+			BUG_ON(n_pfns > size_r);
+			xen_extra_mem[i].start_pfn += n_pfns;
+			xen_extra_mem[i].n_pfns -= n_pfns;
 			break;
 		}
 		/* End of region. */
-		if (start_r + size_r == start + size) {
-			BUG_ON(size > size_r);
-			xen_extra_mem[i].size -= size;
+		if (start_r + size_r == start_pfn + n_pfns) {
+			BUG_ON(n_pfns > size_r);
+			xen_extra_mem[i].n_pfns -= n_pfns;
 			break;
 		}
 		/* Mid of region. */
-		if (start > start_r && start < start_r + size_r) {
-			BUG_ON(start + size > start_r + size_r);
-			xen_extra_mem[i].size = start - start_r;
+		if (start_pfn > start_r && start_pfn < start_r + size_r) {
+			BUG_ON(start_pfn + n_pfns > start_r + size_r);
+			xen_extra_mem[i].n_pfns = start_pfn - start_r;
 			/* Calling memblock_reserve() again is okay. */
-			xen_add_extra_mem(start + size, start_r + size_r -
-					  (start + size));
+			xen_add_extra_mem(start_pfn + n_pfns, start_r + size_r -
+					  (start_pfn + n_pfns));
 			break;
 		}
 	}
-	memblock_free(start, size);
+	memblock_free(PFN_PHYS(start_pfn), PFN_PHYS(n_pfns));
 }
 
 /*
@@ -156,11 +163,10 @@ static void __init xen_del_extra_mem(phys_addr_t start, phys_addr_t size)
 unsigned long __ref xen_chk_extra_mem(unsigned long pfn)
 {
 	int i;
-	phys_addr_t addr = PFN_PHYS(pfn);
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
-		if (addr >= xen_extra_mem[i].start &&
-		    addr < xen_extra_mem[i].start + xen_extra_mem[i].size)
+		if (pfn >= xen_extra_mem[i].start_pfn &&
+		    pfn < xen_extra_mem[i].start_pfn + xen_extra_mem[i].n_pfns)
 			return INVALID_P2M_ENTRY;
 	}
 
@@ -176,10 +182,10 @@ void __init xen_inv_extra_mem(void)
 	int i;
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
-		if (!xen_extra_mem[i].size)
+		if (!xen_extra_mem[i].n_pfns)
 			continue;
-		pfn_s = PFN_DOWN(xen_extra_mem[i].start);
-		pfn_e = PFN_UP(xen_extra_mem[i].start + xen_extra_mem[i].size);
+		pfn_s = xen_extra_mem[i].start_pfn;
+		pfn_e = pfn_s + xen_extra_mem[i].n_pfns;
 		for (pfn = pfn_s; pfn < pfn_e; pfn++)
 			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 	}
@@ -507,7 +513,7 @@ void __init xen_remap_memory(void)
 		} else if (pfn_s + len == xen_remap_buf.target_pfn) {
 			len += xen_remap_buf.size;
 		} else {
-			xen_del_extra_mem(PFN_PHYS(pfn_s), PFN_PHYS(len));
+			xen_del_extra_mem(pfn_s, len);
 			pfn_s = xen_remap_buf.target_pfn;
 			len = xen_remap_buf.size;
 		}
@@ -517,7 +523,7 @@ void __init xen_remap_memory(void)
 	}
 
 	if (pfn_s != ~0UL && len)
-		xen_del_extra_mem(PFN_PHYS(pfn_s), PFN_PHYS(len));
+		xen_del_extra_mem(pfn_s, len);
 
 	set_pte_mfn(buf, mfn_save, PAGE_KERNEL);
 
@@ -744,7 +750,7 @@ static void __init xen_reserve_xen_mfnlist(void)
  **/
 char * __init xen_memory_setup(void)
 {
-	unsigned long max_pfn;
+	unsigned long max_pfn, pfn_s, n_pfns;
 	phys_addr_t mem_end, addr, size, chunk_size;
 	u32 type;
 	int rc;
@@ -831,9 +837,11 @@ char * __init xen_memory_setup(void)
 				chunk_size = min(size, mem_end - addr);
 			} else if (extra_pages) {
 				chunk_size = min(size, PFN_PHYS(extra_pages));
-				extra_pages -= PFN_DOWN(chunk_size);
-				xen_add_extra_mem(addr, chunk_size);
-				xen_max_p2m_pfn = PFN_DOWN(addr + chunk_size);
+				pfn_s = PFN_UP(addr);
+				n_pfns = PFN_DOWN(addr + chunk_size) - pfn_s;
+				extra_pages -= n_pfns;
+				xen_add_extra_mem(pfn_s, n_pfns);
+				xen_max_p2m_pfn = pfn_s + n_pfns;
 			} else
 				type = E820_UNUSABLE;
 		}
