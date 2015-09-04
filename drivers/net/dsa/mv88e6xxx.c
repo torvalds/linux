@@ -1070,19 +1070,50 @@ static int _mv88e6xxx_atu_data_write(struct dsa_switch *ds,
 	return _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_DATA, data);
 }
 
+static int _mv88e6xxx_atu_flush_move(struct dsa_switch *ds,
+				     struct mv88e6xxx_atu_entry *entry,
+				     bool static_too)
+{
+	int op;
+	int err;
+
+	err = _mv88e6xxx_atu_wait(ds);
+	if (err)
+		return err;
+
+	err = _mv88e6xxx_atu_data_write(ds, entry);
+	if (err)
+		return err;
+
+	if (entry->fid) {
+		err = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID,
+					   entry->fid);
+		if (err)
+			return err;
+
+		op = static_too ? GLOBAL_ATU_OP_FLUSH_MOVE_ALL_DB :
+			GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC_DB;
+	} else {
+		op = static_too ? GLOBAL_ATU_OP_FLUSH_MOVE_ALL :
+			GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC;
+	}
+
+	return _mv88e6xxx_atu_cmd(ds, op);
+}
+
+static int _mv88e6xxx_atu_flush(struct dsa_switch *ds, u16 fid, bool static_too)
+{
+	struct mv88e6xxx_atu_entry entry = {
+		.fid = fid,
+		.state = 0, /* EntryState bits must be 0 */
+	};
+
+	return _mv88e6xxx_atu_flush_move(ds, &entry, static_too);
+}
+
 static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
 {
-	int ret;
-
-	ret = _mv88e6xxx_atu_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID, fid);
-	if (ret < 0)
-		return ret;
-
-	return _mv88e6xxx_atu_cmd(ds, GLOBAL_ATU_OP_FLUSH_NON_STATIC_DB);
+	return _mv88e6xxx_atu_flush(ds, fid, false);
 }
 
 static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
