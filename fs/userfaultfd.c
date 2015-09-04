@@ -180,6 +180,67 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
 }
 
 /*
+ * Verify the pagetables are still not ok after having reigstered into
+ * the fault_pending_wqh to avoid userland having to UFFDIO_WAKE any
+ * userfault that has already been resolved, if userfaultfd_read and
+ * UFFDIO_COPY|ZEROPAGE are being run simultaneously on two different
+ * threads.
+ */
+static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
+					 unsigned long address,
+					 unsigned long flags,
+					 unsigned long reason)
+{
+	struct mm_struct *mm = ctx->mm;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd, _pmd;
+	pte_t *pte;
+	bool ret = true;
+
+	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+
+	pgd = pgd_offset(mm, address);
+	if (!pgd_present(*pgd))
+		goto out;
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud))
+		goto out;
+	pmd = pmd_offset(pud, address);
+	/*
+	 * READ_ONCE must function as a barrier with narrower scope
+	 * and it must be equivalent to:
+	 *	_pmd = *pmd; barrier();
+	 *
+	 * This is to deal with the instability (as in
+	 * pmd_trans_unstable) of the pmd.
+	 */
+	_pmd = READ_ONCE(*pmd);
+	if (!pmd_present(_pmd))
+		goto out;
+
+	ret = false;
+	if (pmd_trans_huge(_pmd))
+		goto out;
+
+	/*
+	 * the pmd is stable (as in !pmd_trans_unstable) so we can re-read it
+	 * and use the standard pte_offset_map() instead of parsing _pmd.
+	 */
+	pte = pte_offset_map(pmd, address);
+	/*
+	 * Lockless access: we're in a wait_event so it's ok if it
+	 * changes under us.
+	 */
+	if (pte_none(*pte))
+		ret = true;
+	pte_unmap(pte);
+
+out:
+	return ret;
+}
+
+/*
  * The locking rules involved in returning VM_FAULT_RETRY depending on
  * FAULT_FLAG_ALLOW_RETRY, FAULT_FLAG_RETRY_NOWAIT and
  * FAULT_FLAG_KILLABLE are not straightforward. The "Caution"
@@ -201,6 +262,7 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	struct userfaultfd_ctx *ctx;
 	struct userfaultfd_wait_queue uwq;
 	int ret;
+	bool must_wait;
 
 	BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
@@ -260,9 +322,6 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	/* take the reference before dropping the mmap_sem */
 	userfaultfd_ctx_get(ctx);
 
-	/* be gentle and immediately relinquish the mmap_sem */
-	up_read(&mm->mmap_sem);
-
 	init_waitqueue_func_entry(&uwq.wq, userfaultfd_wake_function);
 	uwq.wq.private = current;
 	uwq.msg = userfault_msg(address, flags, reason);
@@ -282,7 +341,10 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	set_current_state(TASK_KILLABLE);
 	spin_unlock(&ctx->fault_pending_wqh.lock);
 
-	if (likely(!ACCESS_ONCE(ctx->released) &&
+	must_wait = userfaultfd_must_wait(ctx, address, flags, reason);
+	up_read(&mm->mmap_sem);
+
+	if (likely(must_wait && !ACCESS_ONCE(ctx->released) &&
 		   !fatal_signal_pending(current))) {
 		wake_up_poll(&ctx->fd_wqh, POLLIN);
 		schedule();
@@ -886,17 +948,6 @@ out:
 }
 
 /*
- * userfaultfd_wake is needed in case an userfault is in flight by the
- * time a UFFDIO_COPY (or other ioctl variants) completes. The page
- * may be well get mapped and the page fault if repeated wouldn't lead
- * to a userfault anymore, but before scheduling in TASK_KILLABLE mode
- * handle_userfault() doesn't recheck the pagetables and it doesn't
- * serialize against UFFDO_COPY (or other ioctl variants). Ultimately
- * the knowledge of which pages are mapped is left to userland who is
- * responsible for handling the race between read() userfaults and
- * background UFFDIO_COPY (or other ioctl variants), if done by
- * separate concurrent threads.
- *
  * userfaultfd_wake may be used in combination with the
  * UFFDIO_*_MODE_DONTWAKE to wakeup userfaults in batches.
  */
