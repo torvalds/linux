@@ -41,6 +41,7 @@
 #include "util/parse-options.h"
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
+#include "util/probe-file.h"
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define DEFAULT_FUNC_FILTER "!_*"
@@ -357,6 +358,65 @@ out_cleanup:
 	return ret;
 }
 
+static int perf_del_probe_events(struct strfilter *filter)
+{
+	int ret, ret2, ufd = -1, kfd = -1;
+	char *str = strfilter__string(filter);
+	struct strlist *klist = NULL, *ulist = NULL;
+	struct str_node *ent;
+
+	if (!str)
+		return -EINVAL;
+
+	pr_debug("Delete filter: \'%s\'\n", str);
+
+	/* Get current event names */
+	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);
+	if (ret < 0)
+		goto out;
+
+	klist = strlist__new(NULL, NULL);
+	if (!klist)
+		return -ENOMEM;
+
+	ret = probe_file__get_events(kfd, filter, klist);
+	if (ret == 0) {
+		strlist__for_each(ent, klist)
+			pr_info("Removed event: %s\n", ent->s);
+
+		ret = probe_file__del_strlist(kfd, klist);
+		if (ret < 0)
+			goto error;
+	}
+
+	ret2 = probe_file__get_events(ufd, filter, ulist);
+	if (ret2 == 0) {
+		strlist__for_each(ent, ulist)
+			pr_info("Removed event: %s\n", ent->s);
+
+		ret2 = probe_file__del_strlist(ufd, ulist);
+		if (ret2 < 0)
+			goto error;
+	}
+
+	if (ret == -ENOENT && ret2 == -ENOENT)
+		pr_debug("\"%s\" does not hit any event.\n", str);
+		/* Note that this is silently ignored */
+	ret = 0;
+
+error:
+	if (kfd >= 0)
+		close(kfd);
+	if (ufd >= 0)
+		close(ufd);
+out:
+	strlist__delete(klist);
+	strlist__delete(ulist);
+	free(str);
+
+	return ret;
+}
+
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -529,7 +589,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 #endif
 	case 'd':
-		ret = del_perf_probe_events(params.filter);
+		ret = perf_del_probe_events(params.filter);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to delete events.", ret);
 			return ret;

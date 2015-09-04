@@ -267,7 +267,6 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 		goto error;
 	}
 
-	pr_info("Removed event: %s\n", ent->s);
 	return 0;
 error:
 	pr_warning("Failed to delete event: %s\n",
@@ -275,8 +274,8 @@ error:
 	return ret;
 }
 
-static int probe_file__get_events(int fd, struct strfilter *filter,
-				  struct strlist *plist)
+int probe_file__get_events(int fd, struct strfilter *filter,
+			   struct strlist *plist)
 {
 	struct strlist *namelist;
 	struct str_node *ent;
@@ -300,7 +299,7 @@ static int probe_file__get_events(int fd, struct strfilter *filter,
 	return ret;
 }
 
-static int probe_file__del_strlist(int fd, struct strlist *namelist)
+int probe_file__del_strlist(int fd, struct strlist *namelist)
 {
 	int ret = 0;
 	struct str_node *ent;

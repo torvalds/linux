@@ -14,5 +14,9 @@ struct strlist *probe_file__get_namelist(int fd);
 struct strlist *probe_file__get_rawlist(int fd);
 int probe_file__add_event(int fd, struct probe_trace_event *tev);
 int probe_file__del_events(int fd, struct strfilter *filter);
+int probe_file__get_events(int fd, struct strfilter *filter,
+				  struct strlist *plist);
+int probe_file__del_strlist(int fd, struct strlist *namelist);
+
 
 #endif

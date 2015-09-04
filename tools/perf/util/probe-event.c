@@ -2819,8 +2819,6 @@ int del_perf_probe_events(struct strfilter *filter)
 	if (!str)
 		return -EINVAL;
 
-	pr_debug("Delete filter: \'%s\'\n", str);
-
 	/* Get current event names */
 	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);
 	if (ret < 0)
@@ -2835,9 +2833,6 @@ int del_perf_probe_events(struct strfilter *filter)
 		ret = ret2;
 		goto error;
 	}
-	if (ret == -ENOENT && ret2 == -ENOENT)
-		pr_debug("\"%s\" does not hit any event.\n", str);
-		/* Note that this is silently ignored */
 	ret = 0;
 
 error:
