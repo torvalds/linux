@@ -509,9 +509,8 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(&drm->device.object,
-					       NVDRM_DISPLAY, oclass[i],
-					       NULL, 0, &disp->disp);
+			ret = nvif_object_init(&drm->device.object, 0,
+					       oclass[i], NULL, 0, &disp->disp);
 		}
 
 		if (ret == 0) {

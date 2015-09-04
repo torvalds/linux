@@ -682,7 +682,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	list_for_each_entry(temp, &abi16->channels, head) {
-		if (temp->chan->user.handle == (NVDRM_CHAN | req->channel)) {
+		if (temp->chan->chid == req->channel) {
 			chan = temp->chan;
 			break;
 		}

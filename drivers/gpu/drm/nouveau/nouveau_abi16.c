@@ -51,8 +51,7 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 			 * device (ie. the one that belongs to the fd it
 			 * opened)
 			 */
-			if (nvif_device_init(&cli->base.object,
-					     NOUVEAU_ABI16_DEVICE, NV_DEVICE,
+			if (nvif_device_init(&cli->base.object, 0, NV_DEVICE,
 					     &args, sizeof(args),
 					     &abi16->device) == 0)
 				return cli->abi16;
@@ -133,7 +132,6 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		abi16->handles &= ~(1ULL << (chan->chan->user.handle & 0xffff));
 		nouveau_channel_idle(chan->chan);
 		nouveau_channel_del(&chan->chan);
 	}
@@ -268,25 +266,20 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
-	init->channel = __ffs64(~abi16->handles);
-	if (~abi16->handles == 0)
-		return nouveau_abi16_put(abi16, -ENOSPC);
-
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOMEM);
 
 	INIT_LIST_HEAD(&chan->notifiers);
 	list_add(&chan->head, &abi16->channels);
-	abi16->handles |= (1ULL << init->channel);
 
 	/* create channel object and initialise dma and fence management */
-	ret = nouveau_channel_new(drm, device,
-				  NOUVEAU_ABI16_CHAN(init->channel),
-				  init->fb_ctxdma_handle,
+	ret = nouveau_channel_new(drm, device, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
 	if (ret)
 		goto done;
+
+	init->channel = chan->chan->chid;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA)
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
@@ -338,7 +331,7 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 	struct nouveau_abi16_chan *chan;
 
 	list_for_each_entry(chan, &abi16->channels, head) {
-		if (chan->chan->user.handle == NOUVEAU_ABI16_CHAN(channel))
+		if (chan->chan->chid == channel)
 			return chan;
 	}
 
