@@ -330,7 +330,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 		return cachep;
 
 	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
-	       __func__, cachep->name, s->name);
+	       __func__, s->name, cachep->name);
 	WARN_ON_ONCE(1);
 	return s;
 }
