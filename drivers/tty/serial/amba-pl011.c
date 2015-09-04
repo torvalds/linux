@@ -74,10 +74,6 @@
 /* There is by now at least one vendor with differing details, so handle it */
 struct vendor_data {
 	unsigned int		ifls;
-	unsigned int		fr_busy;
-	unsigned int		fr_dsr;
-	unsigned int		fr_cts;
-	unsigned int		fr_ri;
 	unsigned int		lcrh_tx;
 	unsigned int		lcrh_rx;
 	u16			*reg_lut;
@@ -131,7 +127,6 @@ static u16 arm_reg[] = {
 	[REG_DMACR]		= UART011_DMACR,
 };
 
-#ifdef CONFIG_ARM_AMBA
 static unsigned int get_fifosize_arm(struct amba_device *dev)
 {
 	return amba_rev(dev) < 3 ? 16 : 32;
@@ -139,10 +134,6 @@ static unsigned int get_fifosize_arm(struct amba_device *dev)
 
 static struct vendor_data vendor_arm = {
 	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
-	.fr_busy		= UART01x_FR_BUSY,
-	.fr_dsr			= UART01x_FR_DSR,
-	.fr_cts			= UART01x_FR_CTS,
-	.fr_ri			= UART011_FR_RI,
 	.lcrh_tx		= REG_LCRH,
 	.lcrh_rx		= REG_LCRH,
 	.reg_lut		= arm_reg,
@@ -153,13 +144,8 @@ static struct vendor_data vendor_arm = {
 	.fixed_options		= false,
 	.get_fifosize		= get_fifosize_arm,
 };
-#endif
 
 static struct vendor_data vendor_sbsa = {
-	.fr_busy		= UART01x_FR_BUSY,
-	.fr_dsr			= UART01x_FR_DSR,
-	.fr_cts			= UART01x_FR_CTS,
-	.fr_ri			= UART011_FR_RI,
 	.reg_lut		= arm_reg,
 	.oversampling		= false,
 	.dma_threshold		= false,
@@ -168,7 +154,6 @@ static struct vendor_data vendor_sbsa = {
 	.fixed_options		= true,
 };
 
-#ifdef CONFIG_ARM_AMBA
 static u16 st_reg[] = {
 	[REG_DR]		= UART01x_DR,
 	[REG_RSR]		= UART01x_RSR,
@@ -195,10 +180,6 @@ static unsigned int get_fifosize_st(struct amba_device *dev)
 
 static struct vendor_data vendor_st = {
 	.ifls			= UART011_IFLS_RX_HALF|UART011_IFLS_TX_HALF,
-	.fr_busy		= UART01x_FR_BUSY,
-	.fr_dsr			= UART01x_FR_DSR,
-	.fr_cts			= UART01x_FR_CTS,
-	.fr_ri			= UART011_FR_RI,
 	.lcrh_tx		= REG_LCRH,
 	.lcrh_rx		= REG_ST_LCRH_RX,
 	.reg_lut		= st_reg,
@@ -209,43 +190,6 @@ static struct vendor_data vendor_st = {
 	.fixed_options		= false,
 	.get_fifosize		= get_fifosize_st,
 };
-#endif
-
-#ifdef CONFIG_SOC_ZX296702
-static u16 zte_reg[] = {
-	[REG_DR]		= ZX_UART01x_DR,
-	[REG_RSR]		= UART01x_RSR,
-	[REG_ST_DMAWM]		= ST_UART011_DMAWM,
-	[REG_FR]		= ZX_UART01x_FR,
-	[REG_ST_LCRH_RX]	= ST_UART011_LCRH_RX,
-	[REG_ILPR]		= UART01x_ILPR,
-	[REG_IBRD]		= UART011_IBRD,
-	[REG_FBRD]		= UART011_FBRD,
-	[REG_LCRH]		= ZX_UART011_LCRH_TX,
-	[REG_CR]		= ZX_UART011_CR,
-	[REG_IFLS]		= ZX_UART011_IFLS,
-	[REG_IMSC]		= ZX_UART011_IMSC,
-	[REG_RIS]		= ZX_UART011_RIS,
-	[REG_MIS]		= ZX_UART011_MIS,
-	[REG_ICR]		= ZX_UART011_ICR,
-	[REG_DMACR]		= ZX_UART011_DMACR,
-};
-
-static struct vendor_data vendor_zte = {
-	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
-	.fr_busy		= ZX_UART01x_FR_BUSY,
-	.fr_dsr			= ZX_UART01x_FR_DSR,
-	.fr_cts			= ZX_UART01x_FR_CTS,
-	.fr_ri			= ZX_UART011_FR_RI,
-	.lcrh_tx		= REG_LCRH,
-	.lcrh_rx		= REG_ST_LCRH_RX,
-	.reg_lut		= zte_reg,
-	.oversampling		= false,
-	.dma_threshold		= false,
-	.cts_event_workaround	= false,
-	.fixed_options		= false,
-};
-#endif
 
 /* Deals with DMA transactions */
 
@@ -289,10 +233,6 @@ struct uart_amba_port {
 	unsigned int		im;		/* interrupt mask */
 	unsigned int		old_status;
 	unsigned int		fifosize;	/* vendor-specific */
-	unsigned int		fr_busy;        /* vendor-specific */
-	unsigned int		fr_dsr;		/* vendor-specific */
-	unsigned int		fr_cts;         /* vendor-specific */
-	unsigned int		fr_ri;		/* vendor-specific */
 	unsigned int		lcrh_tx;	/* vendor-specific */
 	unsigned int		lcrh_rx;	/* vendor-specific */
 	unsigned int		old_cr;		/* state during shutdown */
@@ -1223,7 +1163,7 @@ static void pl011_dma_shutdown(struct uart_amba_port *uap)
 		return;
 
 	/* Disable RX and TX DMA */
-	while (pl011_readw(uap, REG_FR) & uap->fr_busy)
+	while (pl011_readw(uap, REG_FR) & UART01x_FR_BUSY)
 		barrier();
 
 	spin_lock_irq(&uap->port.lock);
@@ -1472,11 +1412,11 @@ static void pl011_modem_status(struct uart_amba_port *uap)
 	if (delta & UART01x_FR_DCD)
 		uart_handle_dcd_change(&uap->port, status & UART01x_FR_DCD);
 
-	if (delta & uap->fr_dsr)
+	if (delta & UART01x_FR_DSR)
 		uap->port.icount.dsr++;
 
-	if (delta & uap->fr_cts)
-		uart_handle_cts_change(&uap->port, status & uap->fr_cts);
+	if (delta & UART01x_FR_CTS)
+		uart_handle_cts_change(&uap->port, status & UART01x_FR_CTS);
 
 	wake_up_interruptible(&uap->port.state->port.delta_msr_wait);
 }
@@ -1547,7 +1487,7 @@ static unsigned int pl011_tx_empty(struct uart_port *port)
 	struct uart_amba_port *uap =
 	    container_of(port, struct uart_amba_port, port);
 	unsigned int status = pl011_readw(uap, REG_FR);
-	return status & (uap->fr_busy|UART01x_FR_TXFF) ? 0 : TIOCSER_TEMT;
+	return status & (UART01x_FR_BUSY|UART01x_FR_TXFF) ? 0 : TIOCSER_TEMT;
 }
 
 static unsigned int pl011_get_mctrl(struct uart_port *port)
@@ -1562,9 +1502,9 @@ static unsigned int pl011_get_mctrl(struct uart_port *port)
 		result |= tiocmbit
 
 	TIOCMBIT(UART01x_FR_DCD, TIOCM_CAR);
-	TIOCMBIT(uap->fr_dsr, TIOCM_DSR);
-	TIOCMBIT(uap->fr_cts, TIOCM_CTS);
-	TIOCMBIT(uap->fr_ri, TIOCM_RNG);
+	TIOCMBIT(UART01x_FR_DSR, TIOCM_DSR);
+	TIOCMBIT(UART01x_FR_CTS, TIOCM_CTS);
+	TIOCMBIT(UART011_FR_RI, TIOCM_RNG);
 #undef TIOCMBIT
 	return result;
 }
@@ -1780,7 +1720,8 @@ static int pl011_startup(struct uart_port *port)
 	/*
 	 * initialise the old status of the modem signals
 	 */
-	uap->old_status = pl011_readw(uap, REG_FR) & UART01x_FR_MODEM_ANY;
+	uap->old_status = pl011_readw(uap, REG_FR) &
+			UART01x_FR_MODEM_ANY;
 
 	/* Startup DMA */
 	pl011_dma_startup(uap);
@@ -1859,7 +1800,7 @@ static void pl011_disable_interrupts(struct uart_amba_port *uap)
 	/* mask all interrupts and clear all pending ones */
 	uap->im = 0;
 	pl011_writew(uap, uap->im, REG_IMSC);
-	pl011_writew(uap, 0xffff, REG_ICR);
+	pl011_writew(0xffff, REG_ICR);
 
 	spin_unlock_irq(&uap->port.lock);
 }
@@ -2237,7 +2178,7 @@ pl011_console_write(struct console *co, const char *s, unsigned int count)
 	 */
 	do {
 		status = pl011_readw(uap, REG_FR);
-	} while (status & uap->fr_busy);
+	} while (status & UART01x_FR_BUSY);
 	if (!uap->vendor->always_enabled)
 		pl011_writew(uap, old_cr, REG_CR);
 
@@ -2354,7 +2295,7 @@ static void pl011_putc(struct uart_port *port, int c)
 	while (pl011_readw(uap, REG_FR) & UART01x_FR_TXFF)
 		;
 	pl011_writeb(uap, c, REG_DR);
-	while (pl011_readw(uap, REG_FR) & uap->fr_busy)
+	while (pl011_readw(uap, REG_FR) & UART01x_FR_BUSY)
 		;
 }
 
@@ -2500,7 +2441,6 @@ static int pl011_register_port(struct uart_amba_port *uap)
 	return ret;
 }
 
-#ifdef CONFIG_ARM_AMBA
 static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct uart_amba_port *uap;
@@ -2524,10 +2464,6 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->reg_lut = vendor->reg_lut;
 	uap->lcrh_rx = vendor->lcrh_rx;
 	uap->lcrh_tx = vendor->lcrh_tx;
-	uap->fr_busy = vendor->fr_busy;
-	uap->fr_dsr = vendor->fr_dsr;
-	uap->fr_cts = vendor->fr_cts;
-	uap->fr_ri = vendor->fr_ri;
 	uap->fifosize = vendor->get_fifosize(dev);
 	uap->port.irq = dev->irq[0];
 	uap->port.ops = &amba_pl011_pops;
@@ -2551,67 +2487,6 @@ static int pl011_remove(struct amba_device *dev)
 	pl011_unregister_port(uap);
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_SOC_ZX296702
-static int zx_uart_probe(struct platform_device *pdev)
-{
-	struct uart_amba_port *uap;
-	struct vendor_data *vendor = &vendor_zte;
-	struct resource *res;
-	int portnr, ret;
-
-	portnr = pl011_find_free_port();
-	if (portnr < 0)
-		return portnr;
-
-	uap = devm_kzalloc(&pdev->dev, sizeof(struct uart_amba_port),
-			GFP_KERNEL);
-	if (!uap) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	uap->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(uap->clk)) {
-		ret = PTR_ERR(uap->clk);
-		goto out;
-	}
-
-	uap->vendor	= vendor;
-	uap->reg_lut	= vendor->reg_lut;
-	uap->lcrh_rx	= vendor->lcrh_rx;
-	uap->lcrh_tx	= vendor->lcrh_tx;
-	uap->fr_busy	= vendor->fr_busy;
-	uap->fr_dsr	= vendor->fr_dsr;
-	uap->fr_cts	= vendor->fr_cts;
-	uap->fr_ri	= vendor->fr_ri;
-	uap->fifosize	= 16;
-	uap->port.irq	= platform_get_irq(pdev, 0);
-	uap->port.ops	= &amba_pl011_pops;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	ret = pl011_setup_port(&pdev->dev, uap, res, portnr);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, uap);
-
-	return pl011_register_port(uap);
-out:
-	return ret;
-}
-
-static int zx_uart_remove(struct platform_device *pdev)
-{
-	struct uart_amba_port *uap = platform_get_drvdata(pdev);
-
-	uart_remove_one_port(&amba_reg, &uap->port);
-	pl011_unregister_port(uap);
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int pl011_suspend(struct device *dev)
@@ -2669,10 +2544,6 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 
 	uap->vendor	= &vendor_sbsa;
 	uap->reg_lut	= vendor_sbsa.reg_lut;
-	uap->fr_busy	= vendor_sbsa.fr_busy;
-	uap->fr_dsr	= vendor_sbsa.fr_dsr;
-	uap->fr_cts	= vendor_sbsa.fr_cts;
-	uap->fr_ri	= vendor_sbsa.fr_ri;
 	uap->fifosize	= 32;
 	uap->port.irq	= platform_get_irq(pdev, 0);
 	uap->port.ops	= &sbsa_uart_pops;
@@ -2722,7 +2593,6 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
 	},
 };
 
-#ifdef CONFIG_ARM_AMBA
 static struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
@@ -2748,57 +2618,20 @@ static struct amba_driver pl011_driver = {
 	.probe		= pl011_probe,
 	.remove		= pl011_remove,
 };
-#endif
-
-#ifdef CONFIG_SOC_ZX296702
-static const struct of_device_id zx_uart_dt_ids[] = {
-	{ .compatible = "zte,zx296702-uart", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, zx_uart_dt_ids);
-
-static struct platform_driver zx_uart_driver = {
-	.driver = {
-		.name	= "zx-uart",
-		.owner	= THIS_MODULE,
-		.pm	= &pl011_dev_pm_ops,
-		.of_match_table = zx_uart_dt_ids,
-	},
-	.probe		= zx_uart_probe,
-	.remove		= zx_uart_remove,
-};
-#endif
-
 
 static int __init pl011_init(void)
 {
-	int ret;
 	printk(KERN_INFO "Serial: AMBA PL011 UART driver\n");
 
 	if (platform_driver_register(&arm_sbsa_uart_platform_driver))
 		pr_warn("could not register SBSA UART platform driver\n");
-
-#ifdef CONFIG_SOC_ZX296702
-	ret = platform_driver_register(&zx_uart_driver);
-	if (ret)
-		pr_warn("could not register ZX UART platform driver\n");
-#endif
-
-#ifdef CONFIG_ARM_AMBA
-	ret = amba_driver_register(&pl011_driver);
-#endif
-	return ret;
+	return amba_driver_register(&pl011_driver);
 }
 
 static void __exit pl011_exit(void)
 {
 	platform_driver_unregister(&arm_sbsa_uart_platform_driver);
-#ifdef CONFIG_SOC_ZX296702
-	platform_driver_unregister(&zx_uart_driver);
-#endif
-#ifdef CONFIG_ARM_AMBA
 	amba_driver_unregister(&pl011_driver);
-#endif
 }
 
 /*
