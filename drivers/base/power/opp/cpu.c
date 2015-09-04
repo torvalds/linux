@@ -1,5 +1,5 @@
 /*
- * Generic OPP helper interface for CPUFreq drivers
+ * Generic OPP helper interface for CPU device
  *
  * Copyright (C) 2009-2014 Texas Instruments Incorporated.
  *	Nishanth Menon
@@ -20,6 +20,7 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 
+#ifdef CONFIG_CPU_FREQ
 /**
  * dev_pm_opp_init_cpufreq_table() - create a cpufreq table for a device
  * @dev:	device for which we do this operation
@@ -112,3 +113,4 @@ void dev_pm_opp_free_cpufreq_table(struct device *dev,
 	*table = NULL;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_free_cpufreq_table);
+#endif	/* CONFIG_CPU_FREQ */
