@@ -149,10 +149,8 @@ void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
 	brelse(ac->ac_bh);
 	ac->ac_bh = NULL;
 	ac->ac_resv = NULL;
-	if (ac->ac_find_loc_priv) {
-		kfree(ac->ac_find_loc_priv);
-		ac->ac_find_loc_priv = NULL;
-	}
+	kfree(ac->ac_find_loc_priv);
+	ac->ac_find_loc_priv = NULL;
 }
 
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac)
