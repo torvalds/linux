@@ -15,7 +15,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -548,5 +548,4 @@ static struct platform_driver scpsys_drv = {
 		.of_match_table = of_match_ptr(of_scpsys_match_tbl),
 	},
 };
-
-module_platform_driver_probe(scpsys_drv, scpsys_probe);
+builtin_platform_driver_probe(scpsys_drv, scpsys_probe);
