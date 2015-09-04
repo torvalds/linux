@@ -8,10 +8,13 @@ BINARIES += hugetlbfstest
 BINARIES += map_hugetlb
 BINARIES += thuge-gen
 BINARIES += transhuge-stress
+BINARIES += userfaultfd
 
 all: $(BINARIES)
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^ -lrt
+userfaultfd: userfaultfd.c
+	$(CC) $(CFLAGS) -O2 -o $@ $^ -lpthread
 
 TEST_PROGS := run_vmtests
 TEST_FILES := $(BINARIES)
