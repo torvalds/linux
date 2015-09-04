@@ -821,7 +821,7 @@ void intel_panel_disable_backlight(struct intel_connector *connector)
 		return;
 
 	/*
-	 * Do not disable backlight on the vgaswitcheroo path. When switching
+	 * Do not disable backlight on the vga_switcheroo path. When switching
 	 * away from i915, the other client may depend on i915 to handle the
 	 * backlight. This will leave the backlight on unnecessarily when
 	 * another client is not activated.
