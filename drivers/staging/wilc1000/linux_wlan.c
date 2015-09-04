@@ -589,18 +589,6 @@ void linux_wlan_unlock(void *vp)
 		PRINT_ER("Failed, mutex is NULL\n");
 }
 
-static void linux_wlan_init_mutex(char *lockName, void *plock, int count)
-{
-	mutex_init((struct mutex *)plock);
-	PRINT_D(LOCK_DBG, "Initializing mutex [%s][%p]\n", lockName, plock);
-
-}
-
-static void linux_wlan_deinit_mutex(void *plock)
-{
-	mutex_destroy((struct mutex *)plock);
-}
-
 static void linux_wlan_spin_lock(void *vp, unsigned long *flags)
 {
 	unsigned long lflags;
@@ -1317,10 +1305,9 @@ int wlan_init_locks(linux_wlan_t *p_nic)
 
 	PRINT_D(INIT_DBG, "Initializing Locks ...\n");
 
-	/*initialize mutexes*/
-	linux_wlan_init_mutex("hif_lock/hif_cs", &g_linux_wlan->hif_cs, 1);
-	linux_wlan_init_mutex("rxq_lock/rxq_cs", &g_linux_wlan->rxq_cs, 1);
-	linux_wlan_init_mutex("txq_lock/txq_cs", &g_linux_wlan->txq_cs, 1);
+	mutex_init(&g_linux_wlan->hif_cs);
+	mutex_init(&g_linux_wlan->rxq_cs);
+	mutex_init(&g_linux_wlan->txq_cs);
 
 	/*Added by Amr - BugID_4720*/
 	spin_lock_init(&g_linux_wlan->txq_spinlock);
@@ -1349,13 +1336,13 @@ static int wlan_deinit_locks(linux_wlan_t *nic)
 	PRINT_D(INIT_DBG, "De-Initializing Locks\n");
 
 	if (&g_linux_wlan->hif_cs != NULL)
-		linux_wlan_deinit_mutex(&g_linux_wlan->hif_cs);
+		mutex_destroy(&g_linux_wlan->hif_cs);
 
 	if (&g_linux_wlan->rxq_cs != NULL)
-		linux_wlan_deinit_mutex(&g_linux_wlan->rxq_cs);
+		mutex_destroy(&g_linux_wlan->rxq_cs);
 
 	if (&g_linux_wlan->txq_cs != NULL)
-		linux_wlan_deinit_mutex(&g_linux_wlan->txq_cs);
+		mutex_destroy(&g_linux_wlan->txq_cs);
 
 	if (&g_linux_wlan->rxq_event != NULL)
 		linux_wlan_deinit_lock(&g_linux_wlan->rxq_event);
