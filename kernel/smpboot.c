@@ -113,7 +113,8 @@ static int smpboot_thread_fn(void *data)
 		if (kthread_should_stop()) {
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
-			if (ht->cleanup)
+			/* cleanup must mirror setup */
+			if (ht->cleanup && td->status != HP_THREAD_NONE)
 				ht->cleanup(td->cpu, cpu_online(td->cpu));
 			kfree(td);
 			return 0;
@@ -258,15 +259,6 @@ void smpboot_park_threads(unsigned int cpu)
 static void smpboot_destroy_threads(struct smp_hotplug_thread *ht)
 {
 	unsigned int cpu;
-
-	/* Unpark any threads that were voluntarily parked. */
-	for_each_cpu_not(cpu, ht->cpumask) {
-		if (cpu_online(cpu)) {
-			struct task_struct *tsk = *per_cpu_ptr(ht->store, cpu);
-			if (tsk)
-				kthread_unpark(tsk);
-		}
-	}
 
 	/* We need to destroy also the parked threads of offline cpus */
 	for_each_possible_cpu(cpu) {
