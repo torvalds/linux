@@ -2671,13 +2671,14 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 	if (!(iter->iter_flags & TRACE_FILE_ANNOTATE))
 		return;
 
-	if (cpumask_test_cpu(iter->cpu, iter->started))
+	if (iter->started && cpumask_test_cpu(iter->cpu, iter->started))
 		return;
 
 	if (per_cpu_ptr(iter->trace_buffer->data, iter->cpu)->skipped_entries)
 		return;
 
-	cpumask_set_cpu(iter->cpu, iter->started);
+	if (iter->started)
+		cpumask_set_cpu(iter->cpu, iter->started);
 
 	/* Don't print started cpu buffer for the first entry of the trace */
 	if (iter->idx > 1)
