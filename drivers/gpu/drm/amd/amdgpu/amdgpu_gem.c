@@ -455,11 +455,12 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	struct ttm_validate_buffer tv, *entry;
 	struct amdgpu_bo_list_entry *vm_bos;
 	struct ww_acquire_ctx ticket;
-	struct list_head list;
+	struct list_head list, duplicates;
 	unsigned domain;
 	int r;
 
 	INIT_LIST_HEAD(&list);
+	INIT_LIST_HEAD(&duplicates);
 
 	tv.bo = &bo_va->bo->tbo;
 	tv.shared = true;
@@ -469,7 +470,8 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	if (!vm_bos)
 		return;
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
+	/* Provide duplicates to avoid -EALREADY */
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r)
 		goto error_free;
 
