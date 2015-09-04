@@ -67,6 +67,7 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 #define for_each_watchdog_cpu(cpu) \
 	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
 
+static int __read_mostly watchdog_suspended;
 static int __read_mostly watchdog_running;
 static u64 __read_mostly sample_period;
 
@@ -700,6 +701,50 @@ static void watchdog_unpark_threads(void)
 	put_online_cpus();
 }
 
+/*
+ * Suspend the hard and soft lockup detector by parking the watchdog threads.
+ */
+int watchdog_suspend(void)
+{
+	int ret = 0;
+
+	mutex_lock(&watchdog_proc_mutex);
+	/*
+	 * Multiple suspend requests can be active in parallel (counted by
+	 * the 'watchdog_suspended' variable). If the watchdog threads are
+	 * running, the first caller takes care that they will be parked.
+	 * The state of 'watchdog_running' cannot change while a suspend
+	 * request is active (see related changes in 'proc' handlers).
+	 */
+	if (watchdog_running && !watchdog_suspended)
+		ret = watchdog_park_threads();
+
+	if (ret == 0)
+		watchdog_suspended++;
+
+	mutex_unlock(&watchdog_proc_mutex);
+
+	return ret;
+}
+
+/*
+ * Resume the hard and soft lockup detector by unparking the watchdog threads.
+ */
+void watchdog_resume(void)
+{
+	mutex_lock(&watchdog_proc_mutex);
+
+	watchdog_suspended--;
+	/*
+	 * The watchdog threads are unparked if they were previously running
+	 * and if there is no more active suspend request.
+	 */
+	if (watchdog_running && !watchdog_suspended)
+		watchdog_unpark_threads();
+
+	mutex_unlock(&watchdog_proc_mutex);
+}
+
 static void restart_watchdog_hrtimer(void *info)
 {
 	struct hrtimer *hrtimer = raw_cpu_ptr(&watchdog_hrtimer);
@@ -818,6 +863,12 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 
 	mutex_lock(&watchdog_proc_mutex);
 
+	if (watchdog_suspended) {
+		/* no parameter changes allowed while watchdog is suspended */
+		err = -EAGAIN;
+		goto out;
+	}
+
 	/*
 	 * If the parameter is being read return the state of the corresponding
 	 * bit(s) in 'watchdog_enabled', else update 'watchdog_enabled' and the
@@ -903,6 +954,12 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 
 	mutex_lock(&watchdog_proc_mutex);
 
+	if (watchdog_suspended) {
+		/* no parameter changes allowed while watchdog is suspended */
+		err = -EAGAIN;
+		goto out;
+	}
+
 	old = ACCESS_ONCE(watchdog_thresh);
 	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
@@ -934,6 +991,13 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 	int err;
 
 	mutex_lock(&watchdog_proc_mutex);
+
+	if (watchdog_suspended) {
+		/* no parameter changes allowed while watchdog is suspended */
+		err = -EAGAIN;
+		goto out;
+	}
+
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
 	if (!err && write) {
 		/* Remove impossible cpus to keep sysctl output cleaner. */
@@ -951,6 +1015,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 				pr_err("cpumask update failed\n");
 		}
 	}
+out:
 	mutex_unlock(&watchdog_proc_mutex);
 	return err;
 }

@@ -82,6 +82,8 @@ extern int proc_watchdog_thresh(struct ctl_table *, int ,
 				void __user *, size_t *, loff_t *);
 extern int proc_watchdog_cpumask(struct ctl_table *, int,
 				 void __user *, size_t *, loff_t *);
+extern int watchdog_suspend(void);
+extern void watchdog_resume(void);
 #endif
 
 #ifdef CONFIG_HAVE_ACPI_APEI_NMI
