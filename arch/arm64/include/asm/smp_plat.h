@@ -56,6 +56,4 @@ static inline int get_logical_index(u64 mpidr)
 	return -EINVAL;
 }
 
-void __init do_post_cpus_up_work(void);
-
 #endif /* __ASM_SMP_PLAT_H */

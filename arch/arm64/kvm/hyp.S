@@ -810,7 +810,11 @@
  * Call into the vgic backend for state saving
  */
 .macro save_vgic_state
-	alternative_insn "bl __save_vgic_v2_state", "bl __save_vgic_v3_state", ARM64_HAS_SYSREG_GIC_CPUIF
+alternative_if_not ARM64_HAS_SYSREG_GIC_CPUIF
+	bl	__save_vgic_v2_state
+alternative_else
+	bl	__save_vgic_v3_state
+alternative_endif
 	mrs	x24, hcr_el2
 	mov	x25, #HCR_INT_OVERRIDE
 	neg	x25, x25
@@ -827,7 +831,11 @@
 	orr	x24, x24, #HCR_INT_OVERRIDE
 	orr	x24, x24, x25
 	msr	hcr_el2, x24
-	alternative_insn "bl __restore_vgic_v2_state", "bl __restore_vgic_v3_state", ARM64_HAS_SYSREG_GIC_CPUIF
+alternative_if_not ARM64_HAS_SYSREG_GIC_CPUIF
+	bl	__restore_vgic_v2_state
+alternative_else
+	bl	__restore_vgic_v3_state
+alternative_endif
 .endm
 
 .macro save_timer_state

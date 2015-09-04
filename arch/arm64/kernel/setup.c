@@ -62,7 +62,6 @@
 #include <asm/traps.h>
 #include <asm/memblock.h>
 #include <asm/efi.h>
-#include <asm/virt.h>
 #include <asm/xen/hypervisor.h>
 
 unsigned long elf_hwcap __read_mostly;
@@ -130,7 +129,6 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 }
 
 struct mpidr_hash mpidr_hash;
-#ifdef CONFIG_SMP
 /**
  * smp_build_mpidr_hash - Pre-compute shifts required at each affinity
  *			  level in order to build a linear index from an
@@ -196,35 +194,11 @@ static void __init smp_build_mpidr_hash(void)
 		pr_warn("Large number of MPIDR hash buckets detected\n");
 	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
 }
-#endif
-
-static void __init hyp_mode_check(void)
-{
-	if (is_hyp_mode_available())
-		pr_info("CPU: All CPU(s) started at EL2\n");
-	else if (is_hyp_mode_mismatched())
-		WARN_TAINT(1, TAINT_CPU_OUT_OF_SPEC,
-			   "CPU: CPUs started in inconsistent modes");
-	else
-		pr_info("CPU: All CPU(s) started at EL1\n");
-}
-
-void __init do_post_cpus_up_work(void)
-{
-	hyp_mode_check();
-	apply_alternatives_all();
-}
-
-#ifdef CONFIG_UP_LATE_INIT
-void __init up_late_init(void)
-{
-	do_post_cpus_up_work();
-}
-#endif /* CONFIG_UP_LATE_INIT */
 
 static void __init setup_processor(void)
 {
-	u64 features, block;
+	u64 features;
+	s64 block;
 	u32 cwg;
 	int cls;
 
@@ -254,8 +228,8 @@ static void __init setup_processor(void)
 	 * for non-negative values. Negative values are reserved.
 	 */
 	features = read_cpuid(ID_AA64ISAR0_EL1);
-	block = (features >> 4) & 0xf;
-	if (!(block & 0x8)) {
+	block = cpuid_feature_extract_field(features, 4);
+	if (block > 0) {
 		switch (block) {
 		default:
 		case 2:
@@ -267,26 +241,36 @@ static void __init setup_processor(void)
 		}
 	}
 
-	block = (features >> 8) & 0xf;
-	if (block && !(block & 0x8))
+	if (cpuid_feature_extract_field(features, 8) > 0)
 		elf_hwcap |= HWCAP_SHA1;
 
-	block = (features >> 12) & 0xf;
-	if (block && !(block & 0x8))
+	if (cpuid_feature_extract_field(features, 12) > 0)
 		elf_hwcap |= HWCAP_SHA2;
 
-	block = (features >> 16) & 0xf;
-	if (block && !(block & 0x8))
+	if (cpuid_feature_extract_field(features, 16) > 0)
 		elf_hwcap |= HWCAP_CRC32;
+
+	block = cpuid_feature_extract_field(features, 20);
+	if (block > 0) {
+		switch (block) {
+		default:
+		case 2:
+			elf_hwcap |= HWCAP_ATOMICS;
+		case 1:
+			/* RESERVED */
+		case 0:
+			break;
+		}
+	}
 
 #ifdef CONFIG_COMPAT
 	/*
 	 * ID_ISAR5_EL1 carries similar information as above, but pertaining to
-	 * the Aarch32 32-bit execution state.
+	 * the AArch32 32-bit execution state.
 	 */
 	features = read_cpuid(ID_ISAR5_EL1);
-	block = (features >> 4) & 0xf;
-	if (!(block & 0x8)) {
+	block = cpuid_feature_extract_field(features, 4);
+	if (block > 0) {
 		switch (block) {
 		default:
 		case 2:
@@ -298,16 +282,13 @@ static void __init setup_processor(void)
 		}
 	}
 
-	block = (features >> 8) & 0xf;
-	if (block && !(block & 0x8))
+	if (cpuid_feature_extract_field(features, 8) > 0)
 		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA1;
 
-	block = (features >> 12) & 0xf;
-	if (block && !(block & 0x8))
+	if (cpuid_feature_extract_field(features, 12) > 0)
 		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA2;
 
-	block = (features >> 16) & 0xf;
-	if (block && !(block & 0x8))
+	if (cpuid_feature_extract_field(features, 16) > 0)
 		compat_elf_hwcap2 |= COMPAT_HWCAP2_CRC32;
 #endif
 }
@@ -404,10 +385,8 @@ void __init setup_arch(char **cmdline_p)
 	xen_early_init();
 
 	cpu_read_bootcpu_ops();
-#ifdef CONFIG_SMP
 	smp_init_cpus();
 	smp_build_mpidr_hash();
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
@@ -426,8 +405,13 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init arm64_device_init(void)
 {
-	of_iommu_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	if (of_have_populated_dt()) {
+		of_iommu_init();
+		of_platform_populate(NULL, of_default_bus_match_table,
+				     NULL, NULL);
+	} else if (acpi_disabled) {
+		pr_crit("Device tree not populated\n");
+	}
 	return 0;
 }
 arch_initcall_sync(arm64_device_init);
@@ -455,6 +439,7 @@ static const char *hwcap_str[] = {
 	"sha1",
 	"sha2",
 	"crc32",
+	"atomics",
 	NULL
 };
 
@@ -507,9 +492,7 @@ static int c_show(struct seq_file *m, void *v)
 		 * online processors, looking for lines beginning with
 		 * "processor".  Give glibc what it expects.
 		 */
-#ifdef CONFIG_SMP
 		seq_printf(m, "processor\t: %d\n", i);
-#endif
 
 		/*
 		 * Dump out the common processor features in a single line.

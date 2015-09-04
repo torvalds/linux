@@ -27,5 +27,6 @@
 #define HWCAP_SHA1		(1 << 5)
 #define HWCAP_SHA2		(1 << 6)
 #define HWCAP_CRC32		(1 << 7)
+#define HWCAP_ATOMICS		(1 << 8)
 
 #endif /* _UAPI__ASM_HWCAP_H */
