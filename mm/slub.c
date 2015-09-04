@@ -5283,7 +5283,7 @@ static int sysfs_slab_add(struct kmem_cache *s)
 	s->kobj.kset = cache_kset(s);
 	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
 	if (err)
-		goto out_put_kobj;
+		goto out;
 
 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
 	if (err)
@@ -5310,8 +5310,6 @@ out:
 	return err;
 out_del_kobj:
 	kobject_del(&s->kobj);
-out_put_kobj:
-	kobject_put(&s->kobj);
 	goto out;
 }
 
