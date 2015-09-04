@@ -142,6 +142,18 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	return 0;
 }
 
+static void *amdgpu_sync_get_owner(struct fence *f)
+{
+	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
+	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+
+	if (s_fence)
+		return s_fence->owner;
+	else if (a_fence)
+		return a_fence->owner;
+	return AMDGPU_FENCE_OWNER_UNDEFINED;
+}
+
 /**
  * amdgpu_sync_resv - use the semaphores to sync to a reservation object
  *
@@ -158,7 +170,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 {
 	struct reservation_object_list *flist;
 	struct fence *f;
-	struct amdgpu_fence *fence;
+	void *fence_owner;
 	unsigned i;
 	int r = 0;
 
@@ -176,22 +188,22 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 	for (i = 0; i < flist->shared_count; ++i) {
 		f = rcu_dereference_protected(flist->shared[i],
 					      reservation_object_held(resv));
-		fence = f ? to_amdgpu_fence(f) : NULL;
-		if (fence && fence->ring->adev == adev) {
+		if (amdgpu_sync_same_dev(adev, f)) {
 			/* VM updates are only interesting
 			 * for other VM updates and moves.
 			 */
+			fence_owner = amdgpu_sync_get_owner(f);
 			if ((owner != AMDGPU_FENCE_OWNER_MOVE) &&
-			    (fence->owner != AMDGPU_FENCE_OWNER_MOVE) &&
+			    (fence_owner != AMDGPU_FENCE_OWNER_MOVE) &&
 			    ((owner == AMDGPU_FENCE_OWNER_VM) !=
-			     (fence->owner == AMDGPU_FENCE_OWNER_VM)))
+			     (fence_owner == AMDGPU_FENCE_OWNER_VM)))
 				continue;
 
 			/* Ignore fence from the same owner as
 			 * long as it isn't undefined.
 			 */
 			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
-			    fence->owner == owner)
+			    fence_owner == owner)
 				continue;
 		}
 
@@ -200,6 +212,28 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			break;
 	}
 	return r;
+}
+
+struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
+{
+	struct amdgpu_sync_entry *e;
+	struct hlist_node *tmp;
+	struct fence *f;
+	int i;
+
+	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+
+		f = e->fence;
+
+		hash_del(&e->node);
+		kfree(e);
+
+		if (!fence_is_signaled(f))
+			return f;
+
+		fence_put(f);
+	}
+	return NULL;
 }
 
 int amdgpu_sync_wait(struct amdgpu_sync *sync)

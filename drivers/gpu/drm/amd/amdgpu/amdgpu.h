@@ -98,6 +98,9 @@ extern int amdgpu_sched_hw_submission;
 #define AMDGPU_MAX_COMPUTE_RINGS		8
 #define AMDGPU_MAX_VCE_RINGS			2
 
+/* max number of IP instances */
+#define AMDGPU_MAX_SDMA_INSTANCES		2
+
 /* number of hw syncs before falling back on blocking */
 #define AMDGPU_NUM_SYNCS			4
 
@@ -262,7 +265,7 @@ struct amdgpu_buffer_funcs {
 	unsigned	fill_num_dw;
 
 	/* used for buffer clearing */
-	void (*emit_fill_buffer)(struct amdgpu_ring *ring,
+	void (*emit_fill_buffer)(struct amdgpu_ib *ib,
 				 /* value to write to memory */
 				 uint32_t src_data,
 				 /* dst addr in bytes */
@@ -340,6 +343,8 @@ struct amdgpu_ring_funcs {
 	int (*test_ring)(struct amdgpu_ring *ring);
 	int (*test_ib)(struct amdgpu_ring *ring);
 	bool (*is_lockup)(struct amdgpu_ring *ring);
+	/* insert NOP packets */
+	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
 };
 
 /*
@@ -440,12 +445,11 @@ int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
-signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
-				       struct fence **array,
-				       uint32_t count,
-				       bool wait_all,
-				       bool intr,
-				       signed long t);
+signed long amdgpu_fence_wait_any(struct amdgpu_device *adev,
+				  struct fence **array,
+				  uint32_t count,
+				  bool intr,
+				  signed long t);
 struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
 void amdgpu_fence_unref(struct amdgpu_fence **fence);
 
@@ -717,6 +721,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     void *owner);
 int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		      struct amdgpu_ring *ring);
+struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
 int amdgpu_sync_wait(struct amdgpu_sync *sync);
 void amdgpu_sync_free(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		      struct fence *fence);
@@ -1214,6 +1219,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
 void amdgpu_ring_free_size(struct amdgpu_ring *ring);
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
 int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw);
+void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_unlock_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
@@ -1665,7 +1671,6 @@ struct amdgpu_uvd {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
-	void			*saved_bo;
 	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
 	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;
@@ -1709,6 +1714,7 @@ struct amdgpu_sdma {
 	uint32_t		feature_version;
 
 	struct amdgpu_ring	ring;
+	bool			burst_nop;
 };
 
 /*
@@ -2057,7 +2063,7 @@ struct amdgpu_device {
 	struct amdgpu_gfx		gfx;
 
 	/* sdma */
-	struct amdgpu_sdma		sdma[2];
+	struct amdgpu_sdma		sdma[AMDGPU_MAX_SDMA_INSTANCES];
 	struct amdgpu_irq_src		sdma_trap_irq;
 	struct amdgpu_irq_src		sdma_illegal_inst_irq;
 
@@ -2196,6 +2202,21 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 	ring->ring_free_dw--;
 }
 
+static inline struct amdgpu_sdma * amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int i;
+
+	for (i = 0; i < AMDGPU_MAX_SDMA_INSTANCES; i++)
+		if (&adev->sdma[i].ring == ring)
+			break;
+
+	if (i < AMDGPU_MAX_SDMA_INSTANCES)
+		return &adev->sdma[i];
+	else
+		return NULL;
+}
+
 /*
  * ASICs macro.
  */
@@ -2248,7 +2269,7 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 #define amdgpu_display_stop_mc_access(adev, s) (adev)->mode_info.funcs->stop_mc_access((adev), (s))
 #define amdgpu_display_resume_mc_access(adev, s) (adev)->mode_info.funcs->resume_mc_access((adev), (s))
 #define amdgpu_emit_copy_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b))
-#define amdgpu_emit_fill_buffer(adev, r, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((r), (s), (d), (b))
+#define amdgpu_emit_fill_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((ib), (s), (d), (b))
 #define amdgpu_dpm_get_temperature(adev) (adev)->pm.funcs->get_temperature((adev))
 #define amdgpu_dpm_pre_set_power_state(adev) (adev)->pm.funcs->pre_set_power_state((adev))
 #define amdgpu_dpm_set_power_state(adev) (adev)->pm.funcs->set_power_state((adev))

@@ -851,22 +851,6 @@ static bool amdgpu_test_signaled_any(struct fence **fences, uint32_t count)
 	return false;
 }
 
-static bool amdgpu_test_signaled_all(struct fence **fences, uint32_t count)
-{
-	int idx;
-	struct fence *fence;
-
-	for (idx = 0; idx < count; ++idx) {
-		fence = fences[idx];
-		if (fence) {
-			if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-				return false;
-		}
-	}
-
-	return true;
-}
-
 struct amdgpu_wait_cb {
 	struct fence_cb base;
 	struct task_struct *task;
@@ -885,7 +869,7 @@ static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
 	struct amdgpu_fence *fence = to_amdgpu_fence(f);
 	struct amdgpu_device *adev = fence->ring->adev;
 
-	return amdgpu_fence_wait_multiple(adev, &f, 1, false, intr, t);
+	return amdgpu_fence_wait_any(adev, &f, 1, intr, t);
 }
 
 /**
@@ -894,23 +878,18 @@ static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
  * @adev:     amdgpu device
  * @array:    the fence array with amdgpu fence pointer
  * @count:    the number of the fence array
- * @wait_all: the flag of wait all(true) or wait any(false)
  * @intr:     when sleep, set the current task interruptable or not
  * @t:        timeout to wait
  *
- * If wait_all is true, it will return when all fences are signaled or timeout.
- * If wait_all is false, it will return when any fence is signaled or timeout.
+ * It will return when any fence is signaled or timeout.
  */
-signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
-				       struct fence **array,
-				       uint32_t count,
-				       bool wait_all,
-				       bool intr,
-				       signed long t)
+signed long amdgpu_fence_wait_any(struct amdgpu_device *adev,
+				  struct fence **array, uint32_t count,
+				  bool intr, signed long t)
 {
-	long idx = 0;
 	struct amdgpu_wait_cb *cb;
 	struct fence *fence;
+	unsigned idx;
 
 	BUG_ON(!array);
 
@@ -927,10 +906,7 @@ signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
 			if (fence_add_callback(fence,
 					&cb[idx].base, amdgpu_fence_wait_cb)) {
 				/* The fence is already signaled */
-				if (wait_all)
-					continue;
-				else
-					goto fence_rm_cb;
+				goto fence_rm_cb;
 			}
 		}
 	}
@@ -945,9 +921,7 @@ signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
 		 * amdgpu_test_signaled_any must be called after
 		 * set_current_state to prevent a race with wake_up_process
 		 */
-		if (!wait_all && amdgpu_test_signaled_any(array, count))
-			break;
-		if (wait_all && amdgpu_test_signaled_all(array, count))
+		if (amdgpu_test_signaled_any(array, count))
 			break;
 
 		if (adev->needs_reset) {

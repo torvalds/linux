@@ -131,6 +131,21 @@ int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw)
 	return 0;
 }
 
+/** amdgpu_ring_insert_nop - insert NOP packets
+ *
+ * @ring: amdgpu_ring structure holding ring information
+ * @count: the number of NOP packets to insert
+ *
+ * This is the generic insert_nop function for rings except SDMA
+ */
+void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		amdgpu_ring_write(ring, ring->nop);
+}
+
 /**
  * amdgpu_ring_commit - tell the GPU to execute the new
  * commands on the ring buffer
@@ -143,10 +158,13 @@ int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw)
  */
 void amdgpu_ring_commit(struct amdgpu_ring *ring)
 {
+	uint32_t count;
+
 	/* We pad to match fetch size */
-	while (ring->wptr & ring->align_mask) {
-		amdgpu_ring_write(ring, ring->nop);
-	}
+	count = ring->align_mask + 1 - (ring->wptr & ring->align_mask);
+	count %= ring->align_mask + 1;
+	ring->funcs->insert_nop(ring, count);
+
 	mb();
 	amdgpu_ring_set_wptr(ring);
 }
