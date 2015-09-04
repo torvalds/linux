@@ -923,7 +923,6 @@ static struct platform_driver dim2_driver = {
 	.id_table = dim2_id,
 	.driver = {
 		.name = "hdm_dim2",
-		.owner = THIS_MODULE,
 	},
 };
 
