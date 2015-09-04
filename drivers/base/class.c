@@ -406,7 +406,7 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  *
  * Note, you will need to drop the reference with put_device() after use.
  *
- * @fn is allowed to do anything including calling back into class
+ * @match is allowed to do anything including calling back into class
  * code.  There's no locking restriction.
  */
 struct device *class_find_device(struct class *class, struct device *start,
