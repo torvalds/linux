@@ -160,7 +160,12 @@ static void gru_load_kernel_context(struct gru_blade_state *bs, int blade_id)
 	down_write(&bs->bs_kgts_sema);
 
 	if (!bs->bs_kgts) {
-		bs->bs_kgts = gru_alloc_gts(NULL, 0, 0, 0, 0, 0);
+		do {
+			bs->bs_kgts = gru_alloc_gts(NULL, 0, 0, 0, 0, 0);
+			if (!IS_ERR(bs->bs_kgts))
+				break;
+			msleep(1);
+		} while (true);
 		bs->bs_kgts->ts_user_blade_id = blade_id;
 	}
 	kgts = bs->bs_kgts;
