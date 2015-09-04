@@ -33,31 +33,30 @@ static int precopy_buffers(struct pvfs2_bufmap *bufmap,
 			   int buffer_index,
 			   const struct iovec *vec,
 			   unsigned long nr_segs,
-			   size_t total_size,
-			   int from_user)
+			   size_t total_size)
 {
 	int ret = 0;
+	struct iov_iter iter;
 
 	/*
 	 * copy data from application/kernel by pulling it out
 	 * of the iovec.
 	 */
-	/* Are we copying from User Virtual Addresses? */
-	if (from_user)
-		ret = pvfs_bufmap_copy_iovec_from_user(
-			bufmap,
-			buffer_index,
-			vec,
-			nr_segs,
-			total_size);
-	/* Are we copying from Kernel Virtual Addresses? */
-	else
-		ret = pvfs_bufmap_copy_iovec_from_kernel(
-			bufmap,
-			buffer_index,
-			vec,
-			nr_segs,
-			total_size);
+
+
+	if (total_size) {
+		iov_iter_init(&iter, WRITE, vec, nr_segs, total_size);
+		ret = pvfs_bufmap_copy_from_iovec(bufmap,
+						&iter,
+						buffer_index,
+						total_size);
+		if (ret < 0)
+		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
+			   __func__,
+			   (long)ret);
+		
+	}
+
 	if (ret < 0)
 		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
 			__func__,
@@ -76,10 +75,11 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
 			    int buffer_index,
 			    const struct iovec *vec,
 			    int nr_segs,
-			    size_t total_size,
-			    int to_user)
+			    size_t total_size)
 {
 	int ret = 0;
+
+	struct iov_iter iter;
 
 	/*
 	 * copy data to application/kernel by pushing it out to
@@ -87,24 +87,12 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
 	 * struct page pointers.
 	 */
 	if (total_size) {
-		/* Are we copying to User Virtual Addresses? */
-		if (to_user)
-			ret = pvfs_bufmap_copy_to_user_iovec(
-				bufmap,
-				buffer_index,
-				vec,
-				nr_segs,
-				total_size);
-		/* Are we copying to Kern Virtual Addresses? */
-		else
-			ret = pvfs_bufmap_copy_to_kernel_iovec(
-				bufmap,
-				buffer_index,
-				vec,
-				nr_segs,
-				total_size);
+		iov_iter_init(&iter, READ, vec, nr_segs, total_size);
+		ret = pvfs_bufmap_copy_to_iovec(bufmap,
+						&iter,
+						buffer_index);
 		if (ret < 0)
-			gossip_err("%s: Failed to copy-out buffers.  Please make sure that the pvfs2-client is running (%ld)\n",
+			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
 				__func__,
 				(long)ret);
 	}
@@ -116,7 +104,7 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
  */
 static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
 		loff_t *offset, struct iovec *vec, unsigned long nr_segs,
-		size_t total_size, loff_t readahead_size, int to_user)
+		size_t total_size, loff_t readahead_size)
 {
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
@@ -158,10 +146,9 @@ populate_shared_memory:
 	new_op->upcall.req.io.offset = *offset;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%pU): copy_to_user %d nr_segs %lu, offset: %llu total_size: %zd\n",
+		     "%s(%pU): nr_segs %lu, offset: %llu total_size: %zd\n",
 		     __func__,
 		     handle,
-		     to_user,
 		     nr_segs,
 		     llu(*offset),
 		     total_size);
@@ -174,8 +161,7 @@ populate_shared_memory:
 				      buffer_index,
 				      vec,
 				      nr_segs,
-				      total_size,
-				      to_user);
+				      total_size);
 		if (ret < 0)
 			goto out;
 	}
@@ -239,8 +225,7 @@ populate_shared_memory:
 				       buffer_index,
 				       vec,
 				       nr_segs,
-				       new_op->downcall.resp.io.amt_complete,
-				       to_user);
+				       new_op->downcall.resp.io.amt_complete);
 		if (ret < 0) {
 			/*
 			 * put error codes in downcall so that handle_io_error()
@@ -606,7 +591,7 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 			     (int)*offset);
 
 		ret = wait_for_direct_io(type, inode, offset, ptr,
-				seg_array[seg], each_count, 0, 1);
+				seg_array[seg], each_count, 0);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
@@ -699,7 +684,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 		     llu(*offset));
 
 	ret = wait_for_direct_io(PVFS_IO_READ, inode, offset, &vec, 1,
-			count, readahead_size, 0);
+			count, readahead_size);
 	if (ret > 0)
 		*offset += ret;
 
