@@ -87,6 +87,8 @@ struct perf_probe_event {
 	bool			uprobes;	/* Uprobe event flag */
 	char			*target;	/* Target binary */
 	struct perf_probe_arg	*args;	/* Arguments */
+	struct probe_trace_event *tevs;
+	int			ntevs;
 };
 
 /* Line range */
@@ -138,6 +140,9 @@ extern void line_range__clear(struct line_range *lr);
 extern int line_range__init(struct line_range *lr);
 
 extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs);
+extern int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
+extern int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
+extern void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 extern int del_perf_probe_events(struct strfilter *filter);
 extern int show_perf_probe_events(struct strfilter *filter);
 extern int show_line_range(struct line_range *lr, const char *module,

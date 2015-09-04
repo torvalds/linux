@@ -2759,59 +2759,39 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 	return find_probe_trace_events_from_map(pev, tevs);
 }
 
-struct __event_package {
-	struct perf_probe_event		*pev;
-	struct probe_trace_event	*tevs;
-	int				ntevs;
-};
-
-static int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-				     struct __event_package **ppkgs)
+int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int i, ret;
-	struct __event_package *pkgs;
-
-	ret = 0;
-	pkgs = zalloc(sizeof(struct __event_package) * npevs);
-
-	if (pkgs == NULL)
-		return -ENOMEM;
 
 	ret = init_symbol_maps(pevs->uprobes);
-	if (ret < 0) {
-		free(pkgs);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Loop 1: convert all events */
 	for (i = 0; i < npevs; i++) {
-		pkgs[i].pev = &pevs[i];
 		/* Init kprobe blacklist if needed */
-		if (!pkgs[i].pev->uprobes)
+		if (!pevs[i].uprobes)
 			kprobe_blacklist__init();
 		/* Convert with or without debuginfo */
-		ret  = convert_to_probe_trace_events(pkgs[i].pev,
-						     &pkgs[i].tevs);
+		ret  = convert_to_probe_trace_events(&pevs[i], &pevs[i].tevs);
 		if (ret < 0)
 			return ret;
-		pkgs[i].ntevs = ret;
+		pevs[i].ntevs = ret;
 	}
 	/* This just release blacklist only if allocated */
 	kprobe_blacklist__release();
 
-	*ppkgs = pkgs;
-
 	return 0;
 }
 
-static int apply_perf_probe_events(struct __event_package *pkgs, int npevs)
+int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int i, ret = 0;
 
 	/* Loop 2: add all events */
 	for (i = 0; i < npevs; i++) {
-		ret = __add_probe_trace_events(pkgs[i].pev, pkgs[i].tevs,
-					       pkgs[i].ntevs,
+		ret = __add_probe_trace_events(&pevs[i], pevs[i].tevs,
+					       pevs[i].ntevs,
 					       probe_conf.force_add);
 		if (ret < 0)
 			break;
@@ -2819,33 +2799,30 @@ static int apply_perf_probe_events(struct __event_package *pkgs, int npevs)
 	return ret;
 }
 
-static void cleanup_perf_probe_events(struct __event_package *pkgs, int npevs)
+void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int i, j;
 
-	if (pkgs == NULL)
-		return;
-
 	/* Loop 3: cleanup and free trace events  */
 	for (i = 0; i < npevs; i++) {
-		for (j = 0; j < pkgs[i].ntevs; j++)
-			clear_probe_trace_event(&pkgs[i].tevs[j]);
-		zfree(&pkgs[i].tevs);
+		for (j = 0; j < pevs[i].ntevs; j++)
+			clear_probe_trace_event(&pevs[i].tevs[j]);
+		zfree(&pevs[i].tevs);
+		pevs[i].ntevs = 0;
 	}
-	free(pkgs);
+
 	exit_symbol_maps();
 }
 
 int add_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int ret;
-	struct __event_package *pkgs = NULL;
 
-	ret = convert_perf_probe_events(pevs, npevs, &pkgs);
+	ret = convert_perf_probe_events(pevs, npevs);
 	if (ret == 0)
-		ret = apply_perf_probe_events(pkgs, npevs);
+		ret = apply_perf_probe_events(pevs, npevs);
 
-	cleanup_perf_probe_events(pkgs, npevs);
+	cleanup_perf_probe_events(pevs, npevs);
 
 	return ret;
 }
