@@ -745,7 +745,6 @@ static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
 static void fimd_enable(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	int ret;
 
 	if (!ctx->suspended)
 		return;
@@ -753,18 +752,6 @@ static void fimd_enable(struct exynos_drm_crtc *crtc)
 	ctx->suspended = false;
 
 	pm_runtime_get_sync(ctx->dev);
-
-	ret = clk_prepare_enable(ctx->bus_clk);
-	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
-		return;
-	}
-
-	ret = clk_prepare_enable(ctx->lcd_clk);
-	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
-		return;
-	}
 
 	/* if vblank was enabled status, enable it again. */
 	if (test_and_clear_bit(0, &ctx->irq_flags))
@@ -795,11 +782,7 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 
 	writel(0, ctx->regs + VIDCON0);
 
-	clk_disable_unprepare(ctx->lcd_clk);
-	clk_disable_unprepare(ctx->bus_clk);
-
 	pm_runtime_put_sync(ctx->dev);
-
 	ctx->suspended = true;
 }
 
@@ -1121,12 +1104,49 @@ static int fimd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int exynos_fimd_suspend(struct device *dev)
+{
+	struct fimd_context *ctx = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(ctx->lcd_clk);
+	clk_disable_unprepare(ctx->bus_clk);
+
+	return 0;
+}
+
+static int exynos_fimd_resume(struct device *dev)
+{
+	struct fimd_context *ctx = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(ctx->bus_clk);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(ctx->lcd_clk);
+	if  (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops exynos_fimd_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos_fimd_suspend, exynos_fimd_resume, NULL)
+};
+
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= fimd_remove,
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
+		.pm	= &exynos_fimd_pm_ops,
 		.of_match_table = fimd_driver_dt_match,
 	},
 };
