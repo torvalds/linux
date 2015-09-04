@@ -745,46 +745,10 @@ void watchdog_resume(void)
 	mutex_unlock(&watchdog_proc_mutex);
 }
 
-static void restart_watchdog_hrtimer(void *info)
-{
-	struct hrtimer *hrtimer = raw_cpu_ptr(&watchdog_hrtimer);
-	int ret;
-
-	/*
-	 * No need to cancel and restart hrtimer if it is currently executing
-	 * because it will reprogram itself with the new period now.
-	 * We should never see it unqueued here because we are running per-cpu
-	 * with interrupts disabled.
-	 */
-	ret = hrtimer_try_to_cancel(hrtimer);
-	if (ret == 1)
-		hrtimer_start(hrtimer, ns_to_ktime(sample_period),
-				HRTIMER_MODE_REL_PINNED);
-}
-
-static void update_watchdog(int cpu)
-{
-	/*
-	 * Make sure that perf event counter will adopt to a new
-	 * sampling period. Updating the sampling period directly would
-	 * be much nicer but we do not have an API for that now so
-	 * let's use a big hammer.
-	 * Hrtimer will adopt the new period on the next tick but this
-	 * might be late already so we have to restart the timer as well.
-	 */
-	watchdog_nmi_disable(cpu);
-	smp_call_function_single(cpu, restart_watchdog_hrtimer, NULL, 1);
-	watchdog_nmi_enable(cpu);
-}
-
 static void update_watchdog_all_cpus(void)
 {
-	int cpu;
-
-	get_online_cpus();
-	for_each_watchdog_cpu(cpu)
-		update_watchdog(cpu);
-	put_online_cpus();
+	watchdog_park_threads();
+	watchdog_unpark_threads();
 }
 
 static int watchdog_enable_all_cpus(void)
