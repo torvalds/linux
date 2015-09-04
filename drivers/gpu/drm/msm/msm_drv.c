@@ -116,6 +116,65 @@ u32 msm_readl(const void __iomem *addr)
 	return val;
 }
 
+struct vblank_event {
+	struct list_head node;
+	int crtc_id;
+	bool enable;
+};
+
+static void vblank_ctrl_worker(struct work_struct *work)
+{
+	struct msm_vblank_ctrl *vbl_ctrl = container_of(work,
+						struct msm_vblank_ctrl, work);
+	struct msm_drm_private *priv = container_of(vbl_ctrl,
+					struct msm_drm_private, vblank_ctrl);
+	struct msm_kms *kms = priv->kms;
+	struct vblank_event *vbl_ev, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
+		list_del(&vbl_ev->node);
+		spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+
+		if (vbl_ev->enable)
+			kms->funcs->enable_vblank(kms,
+						priv->crtcs[vbl_ev->crtc_id]);
+		else
+			kms->funcs->disable_vblank(kms,
+						priv->crtcs[vbl_ev->crtc_id]);
+
+		kfree(vbl_ev);
+
+		spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+}
+
+static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
+					int crtc_id, bool enable)
+{
+	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
+	struct vblank_event *vbl_ev;
+	unsigned long flags;
+
+	vbl_ev = kzalloc(sizeof(*vbl_ev), GFP_ATOMIC);
+	if (!vbl_ev)
+		return -ENOMEM;
+
+	vbl_ev->crtc_id = crtc_id;
+	vbl_ev->enable = enable;
+
+	spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	list_add_tail(&vbl_ev->node, &vbl_ctrl->event_list);
+	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+
+	queue_work(priv->wq, &vbl_ctrl->work);
+
+	return 0;
+}
+
 /*
  * DRM operations:
  */
@@ -125,6 +184,18 @@ static int msm_unload(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	struct msm_gpu *gpu = priv->gpu;
+	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
+	struct vblank_event *vbl_ev, *tmp;
+
+	/* We must cancel and cleanup any pending vblank enable/disable
+	 * work before drm_irq_uninstall() to avoid work re-enabling an
+	 * irq after uninstall has disabled it.
+	 */
+	cancel_work_sync(&vbl_ctrl->work);
+	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
+		list_del(&vbl_ev->node);
+		kfree(vbl_ev);
+	}
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -282,6 +353,9 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->fence_cbs);
+	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
+	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
+	spin_lock_init(&priv->vblank_ctrl.lock);
 
 	drm_mode_config_init(dev);
 
@@ -331,10 +405,6 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = 2048;
-	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 
 	ret = drm_vblank_init(dev, priv->num_crtcs);
@@ -468,7 +538,7 @@ static int msm_enable_vblank(struct drm_device *dev, int crtc_id)
 	if (!kms)
 		return -ENXIO;
 	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	return kms->funcs->enable_vblank(kms, priv->crtcs[crtc_id]);
+	return vblank_ctrl_queue_work(priv, crtc_id, true);
 }
 
 static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
@@ -478,7 +548,7 @@ static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
 	if (!kms)
 		return;
 	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	kms->funcs->disable_vblank(kms, priv->crtcs[crtc_id]);
+	vblank_ctrl_queue_work(priv, crtc_id, false);
 }
 
 /*

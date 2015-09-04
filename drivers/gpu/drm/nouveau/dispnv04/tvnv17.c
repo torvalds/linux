@@ -62,8 +62,8 @@ static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 	head = (dacclk & 0x100) >> 8;
 
 	/* Save the previous state. */
-	gpio1 = gpio->get(gpio, 0, DCB_GPIO_TVDAC1, 0xff);
-	gpio0 = gpio->get(gpio, 0, DCB_GPIO_TVDAC0, 0xff);
+	gpio1 = nvkm_gpio_get(gpio, 0, DCB_GPIO_TVDAC1, 0xff);
+	gpio0 = nvkm_gpio_get(gpio, 0, DCB_GPIO_TVDAC0, 0xff);
 	fp_htotal = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_HTOTAL);
 	fp_hsync_start = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_START);
 	fp_hsync_end = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_END);
@@ -74,8 +74,8 @@ static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 	ctv_6c = NVReadRAMDAC(dev, head, 0x680c6c);
 
 	/* Prepare the DAC for load detection.  */
-	gpio->set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, true);
-	gpio->set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, true);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, true);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, true);
 
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HTOTAL, 1343);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_START, 1047);
@@ -120,8 +120,8 @@ static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_END, fp_hsync_end);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_START, fp_hsync_start);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HTOTAL, fp_htotal);
-	gpio->set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, gpio1);
-	gpio->set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, gpio0);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, gpio1);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, gpio0);
 
 	return sample;
 }
@@ -130,18 +130,10 @@ static bool
 get_tv_detect_quirks(struct drm_device *dev, uint32_t *pin_mask)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvkm_device *device = nvxx_device(&drm->device);
 
-	/* Zotac FX5200 */
-	if (nv_device_match(nvxx_object(device), 0x0322, 0x19da, 0x1035) ||
-	    nv_device_match(nvxx_object(device), 0x0322, 0x19da, 0x2035)) {
-		*pin_mask = 0xc;
-		return false;
-	}
-
-	/* MSI nForce2 IGP */
-	if (nv_device_match(nvxx_object(device), 0x01f0, 0x1462, 0x5710)) {
-		*pin_mask = 0xc;
+	if (device->quirk && device->quirk->tv_pin_mask) {
+		*pin_mask = device->quirk->tv_pin_mask;
 		return false;
 	}
 
@@ -395,8 +387,8 @@ static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 
 	nv_load_ptv(dev, regs, 200);
 
-	gpio->set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, mode == DRM_MODE_DPMS_ON);
-	gpio->set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, mode == DRM_MODE_DPMS_ON);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC1, 0xff, mode == DRM_MODE_DPMS_ON);
+	nvkm_gpio_set(gpio, 0, DCB_GPIO_TVDAC0, 0xff, mode == DRM_MODE_DPMS_ON);
 
 	nv04_dac_update_dacclk(encoder, mode == DRM_MODE_DPMS_ON);
 }

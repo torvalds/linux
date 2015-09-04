@@ -91,13 +91,14 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	 */
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	drm_for_each_connector(connector, dev) {
 		if (connector->encoder && connector->encoder->crtc == crtc) {
 			if (connector_list != NULL && count < num_connectors)
 				*(connector_list++) = connector;
 
 			count++;
 		}
+	}
 
 	return count;
 }
@@ -436,7 +437,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 
 	for (i = 0; i < 2; i++) {
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_begin)
-			crtc_funcs[i]->atomic_begin(crtc[i]);
+			crtc_funcs[i]->atomic_begin(crtc[i], crtc[i]->state);
 	}
 
 	/*
@@ -451,7 +452,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 
 	for (i = 0; i < 2; i++) {
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_flush)
-			crtc_funcs[i]->atomic_flush(crtc[i]);
+			crtc_funcs[i]->atomic_flush(crtc[i], crtc[i]->state);
 	}
 
 	/*
@@ -525,10 +526,12 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (plane->funcs->atomic_duplicate_state)
 		plane_state = plane->funcs->atomic_duplicate_state(plane);
-	else if (plane->state)
+	else {
+		if (!plane->state)
+			drm_atomic_helper_plane_reset(plane);
+
 		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
-	else
-		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	}
 	if (!plane_state)
 		return -ENOMEM;
 	plane_state->plane = plane;
@@ -572,10 +575,12 @@ int drm_plane_helper_disable(struct drm_plane *plane)
 
 	if (plane->funcs->atomic_duplicate_state)
 		plane_state = plane->funcs->atomic_duplicate_state(plane);
-	else if (plane->state)
+	else {
+		if (!plane->state)
+			drm_atomic_helper_plane_reset(plane);
+
 		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
-	else
-		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	}
 	if (!plane_state)
 		return -ENOMEM;
 	plane_state->plane = plane;

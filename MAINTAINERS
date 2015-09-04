@@ -643,9 +643,14 @@ M:	Oded Gabbay <oded.gabbay@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~gabbayo/linux.git
 S:	Supported
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.c
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.h
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
 F:	drivers/gpu/drm/amd/amdkfd/
 F:	drivers/gpu/drm/amd/include/cik_structs.h
 F:	drivers/gpu/drm/amd/include/kgd_kfd_interface.h
+F:	drivers/gpu/drm/amd/include/vi_structs.h
 F:	drivers/gpu/drm/radeon/radeon_kfd.c
 F:	drivers/gpu/drm/radeon/radeon_kfd.h
 F:	include/uapi/linux/kfd_ioctl.h
@@ -3576,6 +3581,15 @@ S:	Supported
 F:	drivers/gpu/drm/exynos/
 F:	include/drm/exynos*
 F:	include/uapi/drm/exynos*
+
+DRM DRIVERS FOR FREESCALE DCU
+M:	Jianwei Wang <jianwei.wang.chn@gmail.com>
+M:	Alison Wang <alison.wang@freescale.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/fsl-dcu/
+F:	Documentation/devicetree/bindings/video/fsl,dcu.txt
+F:	Documentation/devicetree/bindings/panel/nec,nl4827hc19_05b.txt
 
 DRM DRIVERS FOR FREESCALE IMX
 M:	Philipp Zabel <p.zabel@pengutronix.de>
