@@ -63,11 +63,9 @@ static void _nbu2ss_fifo_flush(struct nbu2ss_udc *, struct nbu2ss_ep *);
 #define	_nbu2ss_zero_len_pkt(udc, epnum)	\
 	_nbu2ss_ep_in_end(udc, epnum, 0, 0)
 
-
 /*===========================================================================*/
 /* Global */
 struct nbu2ss_udc udc_controller;
-
 
 /*-------------------------------------------------------------------------*/
 /* Read */
@@ -1394,7 +1392,6 @@ static void _nbu2ss_set_endpoint_stall(
 	}
 }
 
-
 /*-------------------------------------------------------------------------*/
 /* Device Descriptor */
 static struct usb_device_descriptor device_desc = {
@@ -2195,7 +2192,6 @@ static void _nbu2ss_ep0_enable(struct nbu2ss_udc *udc)
 	_nbu2ss_writel(&udc->p_regs->EP0_INT_ENA, EP0_INT_EN_BIT);
 }
 
-
 /*-------------------------------------------------------------------------*/
 static int _nbu2ss_nuke(struct nbu2ss_udc *udc,
 			struct nbu2ss_ep *ep,
@@ -2330,7 +2326,6 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 
 	return 0;
 }
-
 
 /*-------------------------------------------------------------------------*/
 static void _nbu2ss_reset_controller(struct nbu2ss_udc *udc)
@@ -2985,7 +2980,6 @@ static struct usb_ep_ops nbu2ss_ep_ops = {
 	.fifo_flush	= nbu2ss_ep_fifo_flush,
 };
 
-
 /*-------------------------------------------------------------------------*/
 /* usb_gadget_ops */
 
@@ -3137,7 +3131,6 @@ static int nbu2ss_gad_ioctl(
 {
 	return 0;
 }
-
 
 static const struct usb_gadget_ops nbu2ss_gadget_ops = {
 	.get_frame		= nbu2ss_gad_get_frame,
@@ -3403,7 +3396,6 @@ static int nbu2ss_drv_resume(struct platform_device *pdev)
 	return 0;
 }
 
-
 static struct platform_driver udc_driver = {
 	.probe		= nbu2ss_drv_probe,
 	.shutdown	= nbu2ss_drv_shutdown,
@@ -3420,5 +3412,4 @@ module_platform_driver(udc_driver);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Renesas Electronics Corporation");
 MODULE_LICENSE("GPL");
-
 
