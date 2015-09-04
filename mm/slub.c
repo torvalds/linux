@@ -2779,8 +2779,22 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 	for (i = 0; i < size; i++) {
 		void *object = c->freelist;
 
-		if (!object)
-			break;
+		if (unlikely(!object)) {
+			local_irq_enable();
+			/*
+			 * Invoking slow path likely have side-effect
+			 * of re-populating per CPU c->freelist
+			 */
+			p[i] = __slab_alloc(s, flags, NUMA_NO_NODE,
+					    _RET_IP_, c);
+			if (unlikely(!p[i])) {
+				__kmem_cache_free_bulk(s, i, p);
+				return false;
+			}
+			local_irq_disable();
+			c = this_cpu_ptr(s->cpu_slab);
+			continue; /* goto for-loop */
+		}
 
 		c->freelist = get_freepointer(s, object);
 		p[i] = object;
@@ -2796,14 +2810,6 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 			memset(p[j], 0, s->object_size);
 	}
 
-	/* Fallback to single elem alloc */
-	for (; i < size; i++) {
-		void *x = p[i] = kmem_cache_alloc(s, flags);
-		if (unlikely(!x)) {
-			__kmem_cache_free_bulk(s, i, p);
-			return false;
-		}
-	}
 	return true;
 }
 EXPORT_SYMBOL(kmem_cache_alloc_bulk);
