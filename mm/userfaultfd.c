@@ -21,26 +21,39 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 			    pmd_t *dst_pmd,
 			    struct vm_area_struct *dst_vma,
 			    unsigned long dst_addr,
-			    unsigned long src_addr)
+			    unsigned long src_addr,
+			    struct page **pagep)
 {
 	struct mem_cgroup *memcg;
 	pte_t _dst_pte, *dst_pte;
 	spinlock_t *ptl;
-	struct page *page;
 	void *page_kaddr;
 	int ret;
+	struct page *page;
 
-	ret = -ENOMEM;
-	page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, dst_vma, dst_addr);
-	if (!page)
-		goto out;
+	if (!*pagep) {
+		ret = -ENOMEM;
+		page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, dst_vma, dst_addr);
+		if (!page)
+			goto out;
 
-	page_kaddr = kmap(page);
-	ret = -EFAULT;
-	if (copy_from_user(page_kaddr, (const void __user *) src_addr,
-			   PAGE_SIZE))
-		goto out_kunmap_release;
-	kunmap(page);
+		page_kaddr = kmap_atomic(page);
+		ret = copy_from_user(page_kaddr,
+				     (const void __user *) src_addr,
+				     PAGE_SIZE);
+		kunmap_atomic(page_kaddr);
+
+		/* fallback to copy_from_user outside mmap_sem */
+		if (unlikely(ret)) {
+			ret = -EFAULT;
+			*pagep = page;
+			/* don't free the page */
+			goto out;
+		}
+	} else {
+		page = *pagep;
+		*pagep = NULL;
+	}
 
 	/*
 	 * The memory barrier inside __SetPageUptodate makes sure that
@@ -82,9 +95,6 @@ out_release_uncharge_unlock:
 out_release:
 	page_cache_release(page);
 	goto out;
-out_kunmap_release:
-	kunmap(page);
-	goto out_release;
 }
 
 static int mfill_zeropage_pte(struct mm_struct *dst_mm,
@@ -139,7 +149,8 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	ssize_t err;
 	pmd_t *dst_pmd;
 	unsigned long src_addr, dst_addr;
-	long copied = 0;
+	long copied;
+	struct page *page;
 
 	/*
 	 * Sanitize the command parameters:
@@ -151,6 +162,11 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	BUG_ON(src_start + len <= src_start);
 	BUG_ON(dst_start + len <= dst_start);
 
+	src_addr = src_start;
+	dst_addr = dst_start;
+	copied = 0;
+	page = NULL;
+retry:
 	down_read(&dst_mm->mmap_sem);
 
 	/*
@@ -160,10 +176,10 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	err = -EINVAL;
 	dst_vma = find_vma(dst_mm, dst_start);
 	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
-		goto out;
+		goto out_unlock;
 	if (dst_start < dst_vma->vm_start ||
 	    dst_start + len > dst_vma->vm_end)
-		goto out;
+		goto out_unlock;
 
 	/*
 	 * Be strict and only allow __mcopy_atomic on userfaultfd
@@ -175,14 +191,14 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	 * belonging to the userfaultfd and not syscalls.
 	 */
 	if (!dst_vma->vm_userfaultfd_ctx.ctx)
-		goto out;
+		goto out_unlock;
 
 	/*
 	 * FIXME: only allow copying on anonymous vmas, tmpfs should
 	 * be added.
 	 */
 	if (dst_vma->vm_ops)
-		goto out;
+		goto out_unlock;
 
 	/*
 	 * Ensure the dst_vma has a anon_vma or this page
@@ -191,12 +207,13 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	 */
 	err = -ENOMEM;
 	if (unlikely(anon_vma_prepare(dst_vma)))
-		goto out;
+		goto out_unlock;
 
-	for (src_addr = src_start, dst_addr = dst_start;
-	     src_addr < src_start + len; ) {
+	while (src_addr < src_start + len) {
 		pmd_t dst_pmdval;
+
 		BUG_ON(dst_addr >= dst_start + len);
+
 		dst_pmd = mm_alloc_pmd(dst_mm, dst_addr);
 		if (unlikely(!dst_pmd)) {
 			err = -ENOMEM;
@@ -229,12 +246,31 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 
 		if (!zeropage)
 			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
-					       dst_addr, src_addr);
+					       dst_addr, src_addr, &page);
 		else
 			err = mfill_zeropage_pte(dst_mm, dst_pmd, dst_vma,
 						 dst_addr);
 
 		cond_resched();
+
+		if (unlikely(err == -EFAULT)) {
+			void *page_kaddr;
+
+			up_read(&dst_mm->mmap_sem);
+			BUG_ON(!page);
+
+			page_kaddr = kmap(page);
+			err = copy_from_user(page_kaddr,
+					     (const void __user *) src_addr,
+					     PAGE_SIZE);
+			kunmap(page);
+			if (unlikely(err)) {
+				err = -EFAULT;
+				goto out;
+			}
+			goto retry;
+		} else
+			BUG_ON(page);
 
 		if (!err) {
 			dst_addr += PAGE_SIZE;
@@ -248,8 +284,11 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 			break;
 	}
 
-out:
+out_unlock:
 	up_read(&dst_mm->mmap_sem);
+out:
+	if (page)
+		page_cache_release(page);
 	BUG_ON(copied < 0);
 	BUG_ON(err > 0);
 	BUG_ON(!copied && !err);
