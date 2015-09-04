@@ -52,6 +52,10 @@ struct userfaultfd_ctx {
 struct userfaultfd_wait_queue {
 	struct uffd_msg msg;
 	wait_queue_t wq;
+	/*
+	 * Only relevant when queued in fault_wqh and only used by the
+	 * read operation to avoid reading the same userfault twice.
+	 */
 	bool pending;
 	struct userfaultfd_ctx *ctx;
 };
@@ -71,9 +75,6 @@ static int userfaultfd_wake_function(wait_queue_t *wq, unsigned mode,
 
 	uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
 	ret = 0;
-	/* don't wake the pending ones to avoid reads to block */
-	if (uwq->pending && !ACCESS_ONCE(uwq->ctx->released))
-		goto out;
 	/* len == 0 means wake all */
 	start = range->start;
 	len = range->len;
@@ -196,12 +197,14 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	struct mm_struct *mm = vma->vm_mm;
 	struct userfaultfd_ctx *ctx;
 	struct userfaultfd_wait_queue uwq;
+	int ret;
 
 	BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
+	ret = VM_FAULT_SIGBUS;
 	ctx = vma->vm_userfaultfd_ctx.ctx;
 	if (!ctx)
-		return VM_FAULT_SIGBUS;
+		goto out;
 
 	BUG_ON(ctx->mm != mm);
 
@@ -214,7 +217,7 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	 * caller of handle_userfault to release the mmap_sem.
 	 */
 	if (unlikely(ACCESS_ONCE(ctx->released)))
-		return VM_FAULT_SIGBUS;
+		goto out;
 
 	/*
 	 * Check that we can return VM_FAULT_RETRY.
@@ -240,15 +243,16 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 			dump_stack();
 		}
 #endif
-		return VM_FAULT_SIGBUS;
+		goto out;
 	}
 
 	/*
 	 * Handle nowait, not much to do other than tell it to retry
 	 * and wait.
 	 */
+	ret = VM_FAULT_RETRY;
 	if (flags & FAULT_FLAG_RETRY_NOWAIT)
-		return VM_FAULT_RETRY;
+		goto out;
 
 	/* take the reference before dropping the mmap_sem */
 	userfaultfd_ctx_get(ctx);
@@ -268,21 +272,23 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	 * through poll/read().
 	 */
 	__add_wait_queue(&ctx->fault_wqh, &uwq.wq);
-	for (;;) {
-		set_current_state(TASK_KILLABLE);
-		if (!uwq.pending || ACCESS_ONCE(ctx->released) ||
-		    fatal_signal_pending(current))
-			break;
-		spin_unlock(&ctx->fault_wqh.lock);
+	set_current_state(TASK_KILLABLE);
+	spin_unlock(&ctx->fault_wqh.lock);
 
+	if (likely(!ACCESS_ONCE(ctx->released) &&
+		   !fatal_signal_pending(current))) {
 		wake_up_poll(&ctx->fd_wqh, POLLIN);
 		schedule();
-
-		spin_lock(&ctx->fault_wqh.lock);
+		ret |= VM_FAULT_MAJOR;
 	}
-	__remove_wait_queue(&ctx->fault_wqh, &uwq.wq);
+
 	__set_current_state(TASK_RUNNING);
-	spin_unlock(&ctx->fault_wqh.lock);
+	/* see finish_wait() comment for why list_empty_careful() */
+	if (!list_empty_careful(&uwq.wq.task_list)) {
+		spin_lock(&ctx->fault_wqh.lock);
+		list_del_init(&uwq.wq.task_list);
+		spin_unlock(&ctx->fault_wqh.lock);
+	}
 
 	/*
 	 * ctx may go away after this if the userfault pseudo fd is
@@ -290,7 +296,8 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 	 */
 	userfaultfd_ctx_put(ctx);
 
-	return VM_FAULT_RETRY;
+out:
+	return ret;
 }
 
 static int userfaultfd_release(struct inode *inode, struct file *file)
@@ -404,6 +411,12 @@ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
 	case UFFD_STATE_WAIT_API:
 		return POLLERR;
 	case UFFD_STATE_RUNNING:
+		/*
+		 * poll() never guarantees that read won't block.
+		 * userfaults can be waken before they're read().
+		 */
+		if (unlikely(!(file->f_flags & O_NONBLOCK)))
+			return POLLERR;
 		spin_lock(&ctx->fault_wqh.lock);
 		ret = find_userfault(ctx, NULL);
 		spin_unlock(&ctx->fault_wqh.lock);
@@ -834,11 +847,19 @@ out:
 }
 
 /*
- * This is mostly needed to re-wakeup those userfaults that were still
- * pending when userland wake them up the first time. We don't wake
- * the pending one to avoid blocking reads to block, or non blocking
- * read to return -EAGAIN, if used with POLLIN, to avoid userland
- * doubts on why POLLIN wasn't reliable.
+ * userfaultfd_wake is needed in case an userfault is in flight by the
+ * time a UFFDIO_COPY (or other ioctl variants) completes. The page
+ * may be well get mapped and the page fault if repeated wouldn't lead
+ * to a userfault anymore, but before scheduling in TASK_KILLABLE mode
+ * handle_userfault() doesn't recheck the pagetables and it doesn't
+ * serialize against UFFDO_COPY (or other ioctl variants). Ultimately
+ * the knowledge of which pages are mapped is left to userland who is
+ * responsible for handling the race between read() userfaults and
+ * background UFFDIO_COPY (or other ioctl variants), if done by
+ * separate concurrent threads.
+ *
+ * userfaultfd_wake may be used in combination with the
+ * UFFDIO_*_MODE_DONTWAKE to wakeup userfaults in batches.
  */
 static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
 			    unsigned long arg)
