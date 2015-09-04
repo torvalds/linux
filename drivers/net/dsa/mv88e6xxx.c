@@ -1630,7 +1630,8 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 			return -ENOSPC;
 		}
 
-		err = _mv88e6xxx_flush_fid(ds, vlan.fid);
+		/* Clear all MAC addresses from the new database */
+		err = _mv88e6xxx_atu_flush(ds, vlan.fid, true);
 		if (err)
 			return err;
 
