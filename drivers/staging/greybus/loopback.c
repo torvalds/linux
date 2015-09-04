@@ -944,18 +944,23 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	struct gb_loopback *gb = connection->private;
 	struct kobject *kobj = &connection->bundle->intf->module->dev.kobj;
 
-	gb_dev.count--;
-	connection->private = NULL;
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
 
+	mutex_lock(&gb_dev.mutex);
+
+	connection->private = NULL;
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
 	if (!gb_dev.count)
 		sysfs_remove_groups(kobj, loopback_dev_groups);
 	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
 	debugfs_remove(gb->file);
+	list_del(&gb->entry);
 	kfree(gb);
+	gb_dev.count--;
+
+	mutex_unlock(&gb_dev.mutex);
 }
 
 static struct gb_protocol loopback_protocol = {
