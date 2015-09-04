@@ -43,6 +43,7 @@
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
+#define CURSOR_WIN		1
 
 /* The pixelformats that are natively supported by the mixer. */
 #define MXR_FORMAT_RGB565	4
@@ -1196,8 +1197,6 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 		const uint32_t *formats;
 		unsigned int fcount;
 
-		type = (zpos == DEFAULT_WIN) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
 		if (zpos < VP_DEFAULT_WIN) {
 			formats = mixer_formats;
 			fcount = ARRAY_SIZE(mixer_formats);
@@ -1206,6 +1205,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 			fcount = ARRAY_SIZE(vp_formats);
 		}
 
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, formats, fcount,
 					zpos);

@@ -24,6 +24,7 @@
 #include "exynos_drm_iommu.h"
 
 #define WINDOWS_NR	3
+#define CURSOR_WIN	2
 #define MIN_FB_WIDTH_FOR_16WORD_BURST	128
 
 struct decon_context {
@@ -500,8 +501,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	ctx->pipe = priv->pipe++;
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == DEFAULT_WIN) ? DRM_PLANE_TYPE_PRIMARY :
-							DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 				1 << ctx->pipe, type, decon_formats,
 				ARRAY_SIZE(decon_formats), zpos);

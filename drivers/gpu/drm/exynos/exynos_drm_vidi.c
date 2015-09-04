@@ -29,6 +29,7 @@
 
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3
+#define CURSOR_WIN		2
 
 #define ctx_from_connector(c)	container_of(c, struct vidi_context, \
 					connector)
@@ -445,8 +446,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	vidi_ctx_initialize(ctx, drm_dev);
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == DEFAULT_WIN) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, formats,
 					ARRAY_SIZE(formats), zpos);
