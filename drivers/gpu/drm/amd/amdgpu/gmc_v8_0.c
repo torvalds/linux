@@ -653,19 +653,12 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = RREG32(mmVM_CONTEXT1_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PDE0_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, VALID_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, VALID_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, READ_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, READ_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_BLOCK_SIZE,
 			    amdgpu_vm_block_size - 9);
@@ -852,6 +845,13 @@ static int gmc_v8_0_early_init(void *handle)
 	return 0;
 }
 
+static int gmc_v8_0_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+}
+
 static int gmc_v8_0_sw_init(void *handle)
 {
 	int r;
@@ -978,6 +978,7 @@ static int gmc_v8_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_irq_put(adev, &adev->mc.vm_fault, 0);
 	gmc_v8_0_gart_disable(adev);
 
 	return 0;
@@ -1288,7 +1289,7 @@ static int gmc_v8_0_set_powergating_state(void *handle,
 
 const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.early_init = gmc_v8_0_early_init,
-	.late_init = NULL,
+	.late_init = gmc_v8_0_late_init,
 	.sw_init = gmc_v8_0_sw_init,
 	.sw_fini = gmc_v8_0_sw_fini,
 	.hw_init = gmc_v8_0_hw_init,
