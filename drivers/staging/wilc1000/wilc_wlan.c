@@ -1517,15 +1517,7 @@ static int wilc_wlan_firmware_download(const uint8_t *buffer, uint32_t buffer_si
 	blksz = (1ul << 12); /* Bug 4703: 4KB Good enough size for most platforms = PAGE_SIZE. */
 	/* Allocate a DMA coherent  buffer. */
 
-#if (defined WILC_PREALLOC_AT_BOOT)
-	{
-		extern void *get_fw_buffer(void);
-		dma_buffer = (uint8_t *)get_fw_buffer();
-		PRINT_D(TX_DBG, "fw_buffer = 0x%x\n", dma_buffer);
-	}
-#else
 	dma_buffer = (uint8_t *)g_wlan.os_func.os_malloc(blksz);
-#endif
 	if (dma_buffer == NULL) {
 		/*EIO	5*/
 		ret = -5;
@@ -1575,12 +1567,8 @@ static int wilc_wlan_firmware_download(const uint8_t *buffer, uint32_t buffer_si
 
 _fail_:
 
-#if (defined WILC_PREALLOC_AT_BOOT)
-
-#else
 	if (dma_buffer)
 		g_wlan.os_func.os_free(dma_buffer);
-#endif
 
 _fail_1:
 
@@ -1829,9 +1817,6 @@ static void wilc_wlan_cleanup(void)
 	 *      clean up buffer
 	 **/
 
-#if (defined WILC_PREALLOC_AT_BOOT)
-
-#else
 	#ifdef MEMORY_STATIC
 	if (p->rx_buffer) {
 		p->os_func.os_free(p->rx_buffer);
@@ -1842,7 +1827,6 @@ static void wilc_wlan_cleanup(void)
 		p->os_func.os_free(p->tx_buffer);
 		p->tx_buffer = NULL;
 	}
-#endif
 
 	acquire_bus(ACQUIRE_AND_WAKEUP);
 
@@ -2189,21 +2173,8 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      alloc tx, rx buffer
 	 **/
-#if (defined WILC_PREALLOC_AT_BOOT)
-	extern void *get_tx_buffer(void);
-	extern void *get_rx_buffer(void);
-
-	PRINT_D(TX_DBG, "malloc before, g_wlan.tx_buffer = 0x%x, g_wlan.rx_buffer = 0x%x\n", g_wlan.tx_buffer, g_wlan.rx_buffer);
-#endif
-
-
-
 	if (g_wlan.tx_buffer == NULL)
-#if (defined WILC_PREALLOC_AT_BOOT)
-		g_wlan.tx_buffer = (uint8_t *)get_tx_buffer();
-#else
 		g_wlan.tx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.tx_buffer_size);
-#endif
 	PRINT_D(TX_DBG, "g_wlan.tx_buffer = %p\n", g_wlan.tx_buffer);
 
 	if (g_wlan.tx_buffer == NULL) {
@@ -2216,11 +2187,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 /* rx_buffer is not used unless we activate USE_MEM STATIC which is not applicable, allocating such memory is useless*/
 #if defined (MEMORY_STATIC)
 	if (g_wlan.rx_buffer == NULL)
-  #if (defined WILC_PREALLOC_AT_BOOT)
-		g_wlan.rx_buffer = (uint8_t *)get_rx_buffer();
-  #else
 		g_wlan.rx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.rx_buffer_size);
-  #endif
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
 	if (g_wlan.rx_buffer == NULL) {
 		/* ENOBUFS	105 */
@@ -2272,9 +2239,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 _fail_:
 
-#if (defined WILC_PREALLOC_AT_BOOT)
-
-#else
   #ifdef MEMORY_STATIC
 	if (g_wlan.rx_buffer) {
 		g_wlan.os_func.os_free(g_wlan.rx_buffer);
@@ -2285,7 +2249,6 @@ _fail_:
 		g_wlan.os_func.os_free(g_wlan.tx_buffer);
 		g_wlan.tx_buffer = NULL;
 	}
-#endif
 
 #if defined(PLAT_RK3026_TCHIP) /* AMR : 0422 RK3026 Crash issue */
 	if (!g_wilc_initialized)
