@@ -459,7 +459,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 				tqe->status = 1;                                /* mark the packet send */
 				if (tqe->tx_complete_func)
 					tqe->tx_complete_func(tqe->priv, tqe->status);
-				p->os_func.os_free(tqe);
+				kfree(tqe);
 				Dropped++;
 			}
 		}
@@ -1160,7 +1160,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 					Pending_Acks_info[tqe->tcp_PendingAck_index].txqe = NULL;
 				}
 				#endif
-				p->os_func.os_free(tqe);
+				kfree(tqe);
 			} else {
 				break;
 			}
@@ -1321,11 +1321,9 @@ static void wilc_wlan_handle_rxq(void)
 
 
 #ifndef MEMORY_STATIC
-		if (buffer != NULL)
-			p->os_func.os_free((void *)buffer);
+		kfree(buffer);
 #endif
-		if (rqe != NULL)
-			p->os_func.os_free((void *)rqe);
+		kfree(rqe);
 
 		if (has_packet) {
 			if (p->net_func.rx_complete)
@@ -1458,8 +1456,7 @@ _end_:
 			}
 		} else {
 #ifndef MEMORY_STATIC
-			if (buffer != NULL)
-				p->os_func.os_free(buffer);
+			kfree(buffer);
 #endif
 		}
 	}
@@ -1567,8 +1564,7 @@ static int wilc_wlan_firmware_download(const uint8_t *buffer, uint32_t buffer_si
 
 _fail_:
 
-	if (dma_buffer)
-		g_wlan.os_func.os_free(dma_buffer);
+	kfree(dma_buffer);
 
 _fail_1:
 
@@ -1800,7 +1796,7 @@ static void wilc_wlan_cleanup(void)
 			break;
 		if (tqe->tx_complete_func)
 			tqe->tx_complete_func(tqe->priv, 0);
-		p->os_func.os_free((void *)tqe);
+		kfree(tqe);
 	} while (1);
 
 	do {
@@ -1808,9 +1804,9 @@ static void wilc_wlan_cleanup(void)
 		if (rqe == NULL)
 			break;
 #ifdef MEMORY_DYNAMIC
-		p->os_func.os_free((void *)tqe->buffer);
+		kfree(tqe->buffer);
 #endif
-		p->os_func.os_free((void *)rqe);
+		kfree(rqe);
 	} while (1);
 
 	/**
@@ -1818,15 +1814,10 @@ static void wilc_wlan_cleanup(void)
 	 **/
 
 	#ifdef MEMORY_STATIC
-	if (p->rx_buffer) {
-		p->os_func.os_free(p->rx_buffer);
-		p->rx_buffer = NULL;
-	}
+	kfree(p->rx_buffer);
+	p->rx_buffer = NULL;
 	#endif
-	if (p->tx_buffer) {
-		p->os_func.os_free(p->tx_buffer);
-		p->tx_buffer = NULL;
-	}
+	kfree(p->tx_buffer);
 
 	acquire_bus(ACQUIRE_AND_WAKEUP);
 
@@ -2240,15 +2231,11 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 _fail_:
 
   #ifdef MEMORY_STATIC
-	if (g_wlan.rx_buffer) {
-		g_wlan.os_func.os_free(g_wlan.rx_buffer);
-		g_wlan.rx_buffer = NULL;
-	}
+	kfree(g_wlan.rx_buffer);
+	g_wlan.rx_buffer = NULL;
   #endif
-	if (g_wlan.tx_buffer) {
-		g_wlan.os_func.os_free(g_wlan.tx_buffer);
-		g_wlan.tx_buffer = NULL;
-	}
+	kfree(g_wlan.tx_buffer);
+	g_wlan.tx_buffer = NULL;
 
 #if defined(PLAT_RK3026_TCHIP) /* AMR : 0422 RK3026 Crash issue */
 	if (!g_wilc_initialized)

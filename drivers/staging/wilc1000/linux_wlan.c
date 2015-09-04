@@ -549,14 +549,6 @@ static void linux_wlan_dbg(uint8_t *buff)
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
-void linux_wlan_free(void *vp)
-{
-	if (vp != NULL) {
-		PRINT_D(MEM_DBG, "Freeing %p\n", vp);
-		kfree(vp);
-	}
-}
-
 static void linux_wlan_init_lock(char *lockName, void *plock, int count)
 {
 	sema_init((struct semaphore *)plock, count);
@@ -1470,7 +1462,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_func.os_sleep = linux_wlan_msleep;
 	nwi->os_func.os_atomic_sleep = linux_wlan_atomic_msleep;
 	nwi->os_func.os_debug = linux_wlan_dbg;
-	nwi->os_func.os_free = linux_wlan_free;
 	nwi->os_func.os_lock = linux_wlan_lock;
 	nwi->os_func.os_unlock = linux_wlan_unlock;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
@@ -2112,7 +2103,7 @@ static void linux_wlan_tx_complete(void *priv, int status)
 		PRINT_D(TX_DBG, "Couldn't send packet - Size = %d - Address = %p - SKB = %p\n", pv_data->size, pv_data->buff, pv_data->skb);
 	/* Free the SK Buffer, its work is done */
 	dev_kfree_skb(pv_data->skb);
-	linux_wlan_free(pv_data);
+	kfree(pv_data);
 }
 
 int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
