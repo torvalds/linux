@@ -24,6 +24,7 @@
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
 #include <linux/perf_event.h>
+#include <linux/kthread.h>
 
 /*
  * The run state of the lockup detectors is controlled by the content of the
@@ -663,6 +664,41 @@ static struct smp_hotplug_thread watchdog_threads = {
 	.park			= watchdog_disable,
 	.unpark			= watchdog_enable,
 };
+
+/*
+ * park all watchdog threads that are specified in 'watchdog_cpumask'
+ */
+static int watchdog_park_threads(void)
+{
+	int cpu, ret = 0;
+
+	get_online_cpus();
+	for_each_watchdog_cpu(cpu) {
+		ret = kthread_park(per_cpu(softlockup_watchdog, cpu));
+		if (ret)
+			break;
+	}
+	if (ret) {
+		for_each_watchdog_cpu(cpu)
+			kthread_unpark(per_cpu(softlockup_watchdog, cpu));
+	}
+	put_online_cpus();
+
+	return ret;
+}
+
+/*
+ * unpark all watchdog threads that are specified in 'watchdog_cpumask'
+ */
+static void watchdog_unpark_threads(void)
+{
+	int cpu;
+
+	get_online_cpus();
+	for_each_watchdog_cpu(cpu)
+		kthread_unpark(per_cpu(softlockup_watchdog, cpu));
+	put_online_cpus();
+}
 
 static void restart_watchdog_hrtimer(void *info)
 {
