@@ -26,10 +26,12 @@ static inline void touch_nmi_watchdog(void)
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR)
 extern void hardlockup_detector_disable(void);
+void watchdog_nmi_disable_all(void);
+void watchdog_nmi_enable_all(void);
 #else
-static inline void hardlockup_detector_disable(void)
-{
-}
+static inline void hardlockup_detector_disable(void) {}
+static inline void watchdog_nmi_disable_all(void) {}
+static inline void watchdog_nmi_enable_all(void) {}
 #endif
 
 /*
