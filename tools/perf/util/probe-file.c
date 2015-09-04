@@ -275,7 +275,8 @@ error:
 	return ret;
 }
 
-int probe_file__del_events(int fd, struct strfilter *filter)
+static int probe_file__get_events(int fd, struct strfilter *filter,
+				  struct strlist *plist)
 {
 	struct strlist *namelist;
 	struct str_node *ent;
@@ -290,11 +291,42 @@ int probe_file__del_events(int fd, struct strfilter *filter)
 		p = strchr(ent->s, ':');
 		if ((p && strfilter__compare(filter, p + 1)) ||
 		    strfilter__compare(filter, ent->s)) {
-			ret = __del_trace_probe_event(fd, ent);
-			if (ret < 0)
-				break;
+			strlist__add(plist, ent->s);
+			ret = 0;
 		}
 	}
+	strlist__delete(namelist);
+
+	return ret;
+}
+
+static int probe_file__del_strlist(int fd, struct strlist *namelist)
+{
+	int ret = 0;
+	struct str_node *ent;
+
+	strlist__for_each(ent, namelist) {
+		ret = __del_trace_probe_event(fd, ent);
+		if (ret < 0)
+			break;
+	}
+	return ret;
+}
+
+int probe_file__del_events(int fd, struct strfilter *filter)
+{
+	struct strlist *namelist;
+	int ret;
+
+	namelist = strlist__new(NULL, NULL);
+	if (!namelist)
+		return -ENOMEM;
+
+	ret = probe_file__get_events(fd, filter, namelist);
+	if (ret < 0)
+		return ret;
+
+	ret = probe_file__del_strlist(fd, namelist);
 	strlist__delete(namelist);
 
 	return ret;
