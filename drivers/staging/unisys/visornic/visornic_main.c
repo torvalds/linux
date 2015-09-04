@@ -2131,8 +2131,9 @@ static int visornic_init(void)
 	if (!dev_num_pool)
 		goto cleanup_workqueue;
 
-	visorbus_register_visor_driver(&visornic_driver);
-	return 0;
+	err = visorbus_register_visor_driver(&visornic_driver);
+	if (!err)
+		return 0;
 
 cleanup_workqueue:
 	if (visornic_timeout_reset_workqueue) {
