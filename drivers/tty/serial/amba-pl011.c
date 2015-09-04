@@ -76,7 +76,6 @@ struct vendor_data {
 	unsigned int		ifls;
 	unsigned int		lcrh_tx;
 	unsigned int		lcrh_rx;
-	u16			*reg_lut;
 	bool			oversampling;
 	bool			dma_threshold;
 	bool			cts_event_workaround;
@@ -108,25 +107,6 @@ enum reg_idx {
 	REG_DMACR	= IDX(UART011_DMACR),
 };
 
-static u16 arm_reg[] = {
-	[REG_DR]		= UART01x_DR,
-	[REG_RSR]		= UART01x_RSR,
-	[REG_ST_DMAWM]		= ~0,
-	[REG_FR]		= UART01x_FR,
-	[REG_ST_LCRH_RX]	= ~0,
-	[REG_ILPR]		= UART01x_ILPR,
-	[REG_IBRD]		= UART011_IBRD,
-	[REG_FBRD]		= UART011_FBRD,
-	[REG_LCRH]		= UART011_LCRH,
-	[REG_CR]		= UART011_CR,
-	[REG_IFLS]		= UART011_IFLS,
-	[REG_IMSC]		= UART011_IMSC,
-	[REG_RIS]		= UART011_RIS,
-	[REG_MIS]		= UART011_MIS,
-	[REG_ICR]		= UART011_ICR,
-	[REG_DMACR]		= UART011_DMACR,
-};
-
 static unsigned int get_fifosize_arm(struct amba_device *dev)
 {
 	return amba_rev(dev) < 3 ? 16 : 32;
@@ -136,7 +116,6 @@ static struct vendor_data vendor_arm = {
 	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
 	.lcrh_tx		= REG_LCRH,
 	.lcrh_rx		= REG_LCRH,
-	.reg_lut		= arm_reg,
 	.oversampling		= false,
 	.dma_threshold		= false,
 	.cts_event_workaround	= false,
@@ -146,31 +125,11 @@ static struct vendor_data vendor_arm = {
 };
 
 static struct vendor_data vendor_sbsa = {
-	.reg_lut		= arm_reg,
 	.oversampling		= false,
 	.dma_threshold		= false,
 	.cts_event_workaround	= false,
 	.always_enabled		= true,
 	.fixed_options		= true,
-};
-
-static u16 st_reg[] = {
-	[REG_DR]		= UART01x_DR,
-	[REG_RSR]		= UART01x_RSR,
-	[REG_ST_DMAWM]		= ST_UART011_DMAWM,
-	[REG_FR]		= UART01x_FR,
-	[REG_ST_LCRH_RX]	= ST_UART011_LCRH_RX,
-	[REG_ILPR]		= UART01x_ILPR,
-	[REG_IBRD]		= UART011_IBRD,
-	[REG_FBRD]		= UART011_FBRD,
-	[REG_LCRH]		= UART011_LCRH,
-	[REG_CR]		= UART011_CR,
-	[REG_IFLS]		= UART011_IFLS,
-	[REG_IMSC]		= UART011_IMSC,
-	[REG_RIS]		= UART011_RIS,
-	[REG_MIS]		= UART011_MIS,
-	[REG_ICR]		= UART011_ICR,
-	[REG_DMACR]		= UART011_DMACR,
 };
 
 static unsigned int get_fifosize_st(struct amba_device *dev)
@@ -182,7 +141,6 @@ static struct vendor_data vendor_st = {
 	.ifls			= UART011_IFLS_RX_HALF|UART011_IFLS_TX_HALF,
 	.lcrh_tx		= REG_LCRH,
 	.lcrh_rx		= REG_ST_LCRH_RX,
-	.reg_lut		= st_reg,
 	.oversampling		= true,
 	.dma_threshold		= true,
 	.cts_event_workaround	= true,
@@ -228,7 +186,6 @@ struct uart_amba_port {
 	struct uart_port	port;
 	struct clk		*clk;
 	const struct vendor_data *vendor;
-	u16			*reg_lut;
 	unsigned int		dmacr;		/* dma control reg */
 	unsigned int		im;		/* interrupt mask */
 	unsigned int		old_status;
@@ -252,19 +209,19 @@ struct uart_amba_port {
 static unsigned int pl011_readw(struct uart_amba_port *uap, int index)
 {
 	WARN_ON(index > REG_NR);
-	return readw_relaxed(uap->port.membase + uap->reg_lut[index]);
+	return readw_relaxed(uap->port.membase + (index << 2));
 }
 
 static void pl011_writew(struct uart_amba_port *uap, int val, int index)
 {
 	WARN_ON(index > REG_NR);
-	writew_relaxed(val, uap->port.membase + uap->reg_lut[index]);
+	writew_relaxed(val, uap->port.membase + (index << 2));
 }
 
 static void pl011_writeb(struct uart_amba_port *uap, u8 val, int index)
 {
 	WARN_ON(index > REG_NR);
-	writeb_relaxed(val, uap->port.membase + uap->reg_lut[index]);
+	writeb_relaxed(val, uap->port.membase + (index << 2));
 }
 
 /*
@@ -367,7 +324,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 	struct amba_pl011_data *plat = dev_get_platdata(uap->port.dev);
 	struct device *dev = uap->port.dev;
 	struct dma_slave_config tx_conf = {
-		.dst_addr = uap->port.mapbase + uap->reg_lut[REG_DR],
+		.dst_addr = uap->port.mapbase + REG_DR,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 		.direction = DMA_MEM_TO_DEV,
 		.dst_maxburst = uap->fifosize >> 1,
@@ -422,7 +379,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 
 	if (chan) {
 		struct dma_slave_config rx_conf = {
-			.src_addr = uap->port.mapbase + uap->reg_lut[REG_DR],
+			.src_addr = uap->port.mapbase + REG_DR,
 			.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 			.direction = DMA_DEV_TO_MEM,
 			.src_maxburst = uap->fifosize >> 2,
@@ -2456,7 +2413,6 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 		return PTR_ERR(uap->clk);
 
 	uap->vendor = vendor;
-	uap->reg_lut = vendor->reg_lut;
 	uap->lcrh_rx = vendor->lcrh_rx;
 	uap->lcrh_tx = vendor->lcrh_tx;
 	uap->fifosize = vendor->get_fifosize(dev);
@@ -2538,7 +2494,6 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	uap->vendor	= &vendor_sbsa;
-	uap->reg_lut	= vendor_sbsa.reg_lut;
 	uap->fifosize	= 32;
 	uap->port.irq	= platform_get_irq(pdev, 0);
 	uap->port.ops	= &sbsa_uart_pops;
