@@ -11,9 +11,15 @@
 
 #include <linux/types.h>
 
+#include <linux/compiler.h>
+
 #define UFFD_API ((__u64)0xAA)
-/* FIXME: add "|UFFD_FEATURE_WP" to UFFD_API_FEATURES after implementing it */
-#define UFFD_API_FEATURES (UFFD_FEATURE_WRITE_BIT)
+/*
+ * After implementing the respective features it will become:
+ * #define UFFD_API_FEATURES (UFFD_FEATURE_PAGEFAULT_FLAG_WP | \
+ *			      UFFD_FEATURE_EVENT_FORK)
+ */
+#define UFFD_API_FEATURES (0)
 #define UFFD_API_IOCTLS				\
 	((__u64)1 << _UFFDIO_REGISTER |		\
 	 (__u64)1 << _UFFDIO_UNREGISTER |	\
@@ -45,26 +51,60 @@
 #define UFFDIO_WAKE		_IOR(UFFDIO, _UFFDIO_WAKE,	\
 				     struct uffdio_range)
 
-/*
- * Valid bits below PAGE_SHIFT in the userfault address read through
- * the read() syscall.
- */
-#define UFFD_BIT_WRITE	(1<<0)	/* this was a write fault, MISSING or WP */
-#define UFFD_BIT_WP	(1<<1)	/* handle_userfault() reason VM_UFFD_WP */
-#define UFFD_BITS	2	/* two above bits used for UFFD_BIT_* mask */
+/* read() structure */
+struct uffd_msg {
+	__u8	event;
+
+	__u8	reserved1;
+	__u16	reserved2;
+	__u32	reserved3;
+
+	union {
+		struct {
+			__u64	flags;
+			__u64	address;
+		} pagefault;
+
+		struct {
+			/* unused reserved fields */
+			__u64	reserved1;
+			__u64	reserved2;
+			__u64	reserved3;
+		} reserved;
+	} arg;
+} __packed;
 
 /*
- * Features reported in uffdio_api.features field
+ * Start at 0x12 and not at 0 to be more strict against bugs.
  */
-#define UFFD_FEATURE_WRITE_BIT	(1<<0) /* Corresponds to UFFD_BIT_WRITE */
-#define UFFD_FEATURE_WP_BIT	(1<<1) /* Corresponds to UFFD_BIT_WP */
+#define UFFD_EVENT_PAGEFAULT	0x12
+#if 0 /* not available yet */
+#define UFFD_EVENT_FORK		0x13
+#endif
+
+/* flags for UFFD_EVENT_PAGEFAULT */
+#define UFFD_PAGEFAULT_FLAG_WRITE	(1<<0)	/* If this was a write fault */
+#define UFFD_PAGEFAULT_FLAG_WP		(1<<1)	/* If reason is VM_UFFD_WP */
 
 struct uffdio_api {
-	/* userland asks for an API number */
+	/* userland asks for an API number and the features to enable */
 	__u64 api;
-
-	/* kernel answers below with the available features for the API */
+	/*
+	 * Kernel answers below with the all available features for
+	 * the API, this notifies userland of which events and/or
+	 * which flags for each event are enabled in the current
+	 * kernel.
+	 *
+	 * Note: UFFD_EVENT_PAGEFAULT and UFFD_PAGEFAULT_FLAG_WRITE
+	 * are to be considered implicitly always enabled in all kernels as
+	 * long as the uffdio_api.api requested matches UFFD_API.
+	 */
+#if 0 /* not available yet */
+#define UFFD_FEATURE_PAGEFAULT_FLAG_WP		(1<<0)
+#define UFFD_FEATURE_EVENT_FORK			(1<<1)
+#endif
 	__u64 features;
+
 	__u64 ioctls;
 };
 

@@ -46,11 +46,13 @@ is a corner case that would currently return -EBUSY).
 When first opened the userfaultfd must be enabled invoking the
 UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
 a later API version) which will specify the read/POLLIN protocol
-userland intends to speak on the UFFD. The UFFDIO_API ioctl if
-successful (i.e. if the requested uffdio_api.api is spoken also by the
-running kernel), will return into uffdio_api.features and
-uffdio_api.ioctls two 64bit bitmasks of respectively the activated
-feature of the read(2) protocol and the generic ioctl available.
+userland intends to speak on the UFFD and the uffdio_api.features
+userland requires. The UFFDIO_API ioctl if successful (i.e. if the
+requested uffdio_api.api is spoken also by the running kernel and the
+requested features are going to be enabled) will return into
+uffdio_api.features and uffdio_api.ioctls two 64bit bitmasks of
+respectively all the available features of the read(2) protocol and
+the generic ioctl available.
 
 Once the userfaultfd has been enabled the UFFDIO_REGISTER ioctl should
 be invoked (if present in the returned uffdio_api.ioctls bitmask) to
