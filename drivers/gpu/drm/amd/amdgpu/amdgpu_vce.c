@@ -838,6 +838,10 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 	struct fence *fence = NULL;
 	int r;
 
+	/* skip vce ring1 ib test for now, since it's not reliable */
+	if (ring == &ring->adev->vce.ring[1])
+		return 0;
+
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get create msg (%d).\n", r);
