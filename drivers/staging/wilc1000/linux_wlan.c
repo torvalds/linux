@@ -601,39 +601,6 @@ static void linux_wlan_deinit_mutex(void *plock)
 	mutex_destroy((struct mutex *)plock);
 }
 
-static void linux_wlan_lock_mutex(void *vp)
-{
-	PRINT_D(LOCK_DBG, "Locking mutex %p\n", vp);
-	if (vp != NULL)	{
-		/*
-		 *      if(mutex_is_locked((struct mutex*)vp))
-		 *      {
-		 *              //PRINT_ER("Mutex already locked - %p \n",vp);
-		 *      }
-		 */
-		mutex_lock((struct mutex *)vp);
-
-	} else {
-		PRINT_ER("Failed, mutex is NULL\n");
-	}
-}
-
-static void linux_wlan_unlock_mutex(void *vp)
-{
-	PRINT_D(LOCK_DBG, "Unlocking mutex %p\n", vp);
-	if (vp != NULL) {
-
-		if (mutex_is_locked((struct mutex *)vp)) {
-			mutex_unlock((struct mutex *)vp);
-		} else {
-			/* PRINT_ER("Mutex already unlocked  - %p\n",vp); */
-		}
-
-	} else {
-		PRINT_ER("Failed, mutex is NULL\n");
-	}
-}
-
 /*Added by Amr - BugID_4720*/
 static void linux_wlan_init_spin_lock(char *lockName, void *plock, int count)
 {
@@ -1297,9 +1264,9 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 		  #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 
 		  #else
-		linux_wlan_lock_mutex((void *)&g_linux_wlan->hif_cs);
+		mutex_lock(&g_linux_wlan->hif_cs);
 		disable_sdio_interrupt();
-		linux_wlan_unlock_mutex((void *)&g_linux_wlan->hif_cs);
+		mutex_unlock(&g_linux_wlan->hif_cs);
 		  #endif
 		#endif
 
@@ -1337,9 +1304,9 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
   #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 		PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
 
-		linux_wlan_lock_mutex((void *)&g_linux_wlan->hif_cs);
+		mutex_lock(&g_linux_wlan->hif_cs);
 		disable_sdio_interrupt();
-		linux_wlan_unlock_mutex((void *)&g_linux_wlan->hif_cs);
+		mutex_unlock(&g_linux_wlan->hif_cs);
   #endif
 #endif
 
@@ -1461,8 +1428,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_func.os_unlock = linux_wlan_unlock;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
 	nwi->os_func.os_signal = linux_wlan_unlock;
-	nwi->os_func.os_enter_cs = linux_wlan_lock_mutex;
-	nwi->os_func.os_leave_cs = linux_wlan_unlock_mutex;
 
 	/*Added by Amr - BugID_4720*/
 	nwi->os_func.os_spin_lock = linux_wlan_spin_lock;

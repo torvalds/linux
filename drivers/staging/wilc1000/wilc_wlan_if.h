@@ -90,8 +90,6 @@ typedef struct {
 	void (*os_unlock)(void *);
 	int (*os_wait)(void *, u32);
 	void (*os_signal)(void *);
-	void (*os_enter_cs)(void *);
-	void (*os_leave_cs)(void *);
 
 	/*Added by Amr - BugID_4720*/
 	void (*os_spin_lock)(void *, unsigned long *);
@@ -137,7 +135,7 @@ typedef struct {
 typedef struct {
 	void *os_private;
 
-	void *hif_critical_section;
+	struct mutex *hif_critical_section;
 
 	uint32_t tx_buffer_size;
 	void *txq_critical_section;

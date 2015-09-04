@@ -43,7 +43,7 @@ typedef struct {
 	 *      host interface functions
 	 **/
 	wilc_hif_func_t hif_func;
-	void *hif_lock;
+	struct mutex *hif_lock;
 
 	/**
 	 *      configuration interface functions
@@ -89,7 +89,7 @@ typedef struct {
 	/**
 	 *      RX queue
 	 **/
-	void *rxq_lock;
+	struct mutex *rxq_lock;
 	struct rxq_entry_t *rxq_head;
 	struct rxq_entry_t *rxq_tail;
 	int rxq_entries;
@@ -135,7 +135,7 @@ static CHIP_PS_STATE_T genuChipPSstate = CHIP_WAKEDUP;
 INLINE void acquire_bus(BUS_ACQUIRE_T acquire)
 {
 
-	g_wlan.os_func.os_enter_cs(g_wlan.hif_lock);
+	mutex_lock(g_wlan.hif_lock);
 	#ifndef WILC_OPTIMIZE_SLEEP_INT
 	if (genuChipPSstate != CHIP_WAKEDUP)
 	#endif
@@ -151,7 +151,7 @@ INLINE void release_bus(BUS_RELEASE_T release)
 	if (release == RELEASE_ALLOW_SLEEP)
 		chip_allow_sleep();
 	#endif
-	g_wlan.os_func.os_leave_cs(g_wlan.hif_lock);
+	mutex_unlock(g_wlan.hif_lock);
 }
 /********************************************
  *
@@ -659,7 +659,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 	if (p->quit)
 		return 0;
 
-	p->os_func.os_enter_cs(p->rxq_lock);
+	mutex_lock(p->rxq_lock);
 	if (p->rxq_head == NULL) {
 		PRINT_D(RX_DBG, "Add to Queue head\n");
 		rqe->next = NULL;
@@ -673,7 +673,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 	}
 	p->rxq_entries += 1;
 	PRINT_D(RX_DBG, "Number of queue entries: %d\n", p->rxq_entries);
-	p->os_func.os_leave_cs(p->rxq_lock);
+	mutex_unlock(p->rxq_lock);
 	return p->rxq_entries;
 }
 
@@ -685,12 +685,12 @@ static struct rxq_entry_t *wilc_wlan_rxq_remove(void)
 	if (p->rxq_head) {
 		struct rxq_entry_t *rqe;
 
-		p->os_func.os_enter_cs(p->rxq_lock);
+		mutex_lock(p->rxq_lock);
 		rqe = p->rxq_head;
 		p->rxq_head = p->rxq_head->next;
 		p->rxq_entries -= 1;
 		PRINT_D(RX_DBG, "RXQ entries decreased\n");
-		p->os_func.os_leave_cs(p->rxq_lock);
+		mutex_unlock(p->rxq_lock);
 		return rqe;
 	}
 	PRINT_D(RX_DBG, "Nothing to get from Q\n");
@@ -2253,7 +2253,7 @@ u16 Set_machw_change_vir_if(bool bValue)
 	u32 reg;
 
 	/*Reset WILC_CHANGING_VIR_IF register to allow adding futrue keys to CE H/W*/
-	(&g_wlan)->os_func.os_enter_cs((&g_wlan)->hif_lock);
+	mutex_lock((&g_wlan)->hif_lock);
 	ret = (&g_wlan)->hif_func.hif_read_reg(WILC_CHANGING_VIR_IF, &reg);
 	if (!ret) {
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
@@ -2269,7 +2269,7 @@ u16 Set_machw_change_vir_if(bool bValue)
 	if (!ret) {
 		PRINT_ER("Error while writing reg WILC_CHANGING_VIR_IF\n");
 	}
-	(&g_wlan)->os_func.os_leave_cs((&g_wlan)->hif_lock);
+	mutex_unlock((&g_wlan)->hif_lock);
 
 	return ret;
 }
