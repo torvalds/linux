@@ -126,7 +126,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	if (!state->fb)
 		return 0;
 
-	nr = exynos_drm_fb_get_buf_cnt(state->fb);
+	nr = drm_format_num_planes(state->fb->pixel_format);
 	for (i = 0; i < nr; i++) {
 		struct exynos_drm_gem_obj *obj =
 					exynos_drm_fb_gem_obj(state->fb, i);
