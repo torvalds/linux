@@ -203,24 +203,34 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 	mutex_unlock(&group->mark_mutex);
 }
 
-/*
- * Destroy all marks in the given list. The marks must be already detached from
- * the original inode / vfsmount.
- */
-void fsnotify_destroy_marks(struct list_head *to_free)
+void fsnotify_destroy_marks(struct hlist_head *head, spinlock_t *lock)
 {
-	struct fsnotify_mark *mark, *lmark;
-	struct fsnotify_group *group;
+	struct fsnotify_mark *mark;
 
-	list_for_each_entry_safe(mark, lmark, to_free, free_list) {
-		spin_lock(&mark->lock);
-		fsnotify_get_group(mark->group);
-		group = mark->group;
-		spin_unlock(&mark->lock);
-
-		fsnotify_destroy_mark(mark, group);
+	while (1) {
+		/*
+		 * We have to be careful since we can race with e.g.
+		 * fsnotify_clear_marks_by_group() and once we drop 'lock',
+		 * mark can get removed from the obj_list and destroyed. But
+		 * we are holding mark reference so mark cannot be freed and
+		 * calling fsnotify_destroy_mark() more than once is fine.
+		 */
+		spin_lock(lock);
+		if (hlist_empty(head)) {
+			spin_unlock(lock);
+			break;
+		}
+		mark = hlist_entry(head->first, struct fsnotify_mark, obj_list);
+		/*
+		 * We don't update i_fsnotify_mask / mnt_fsnotify_mask here
+		 * since inode / mount is going away anyway. So just remove
+		 * mark from the list.
+		 */
+		hlist_del_init_rcu(&mark->obj_list);
+		fsnotify_get_mark(mark);
+		spin_unlock(lock);
+		fsnotify_destroy_mark(mark, mark->group);
 		fsnotify_put_mark(mark);
-		fsnotify_put_group(group);
 	}
 }
 
