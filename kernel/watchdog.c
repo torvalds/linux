@@ -929,10 +929,8 @@ void __init lockup_detector_init(void)
 
 #ifdef CONFIG_NO_HZ_FULL
 	if (tick_nohz_full_enabled()) {
-		if (!cpumask_empty(tick_nohz_full_mask))
-			pr_info("Disabling watchdog on nohz_full cores by default\n");
-		cpumask_andnot(&watchdog_cpumask, cpu_possible_mask,
-			       tick_nohz_full_mask);
+		pr_info("Disabling watchdog on nohz_full cores by default\n");
+		cpumask_copy(&watchdog_cpumask, housekeeping_mask);
 	} else
 		cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
 #else
