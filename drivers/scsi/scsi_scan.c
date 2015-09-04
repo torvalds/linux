@@ -55,6 +55,7 @@
  * Default timeout
  */
 #define SCSI_TIMEOUT (2*HZ)
+#define SCSI_REPORT_LUNS_TIMEOUT (30*HZ)
 
 /*
  * Prefix values for the SCSI id's (stored in sysfs name field)
@@ -1383,7 +1384,7 @@ retry:
 
 		result = scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE,
 					  lun_data, length, &sshdr,
-					  SCSI_TIMEOUT + 4 * HZ, 3, NULL);
+					  SCSI_REPORT_LUNS_TIMEOUT, 3, NULL);
 
 		SCSI_LOG_SCAN_BUS(3, sdev_printk (KERN_INFO, sdev,
 				"scsi scan: REPORT LUNS"
