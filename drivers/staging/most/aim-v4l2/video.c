@@ -430,7 +430,7 @@ static struct most_video_dev *get_aim_dev(
 		}
 	}
 	spin_unlock(&list_lock);
-	return 0;
+	return NULL;
 }
 
 static int aim_rx_data(struct mbo *mbo)
