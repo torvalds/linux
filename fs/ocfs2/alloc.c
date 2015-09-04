@@ -908,32 +908,32 @@ static int ocfs2_validate_extent_block(struct super_block *sb,
 	 */
 
 	if (!OCFS2_IS_VALID_EXTENT_BLOCK(eb)) {
-		ocfs2_error(sb,
+		rc = ocfs2_error(sb,
 			    "Extent block #%llu has bad signature %.*s",
 			    (unsigned long long)bh->b_blocknr, 7,
 			    eb->h_signature);
-		return -EINVAL;
+		goto bail;
 	}
 
 	if (le64_to_cpu(eb->h_blkno) != bh->b_blocknr) {
-		ocfs2_error(sb,
+		rc = ocfs2_error(sb,
 			    "Extent block #%llu has an invalid h_blkno "
 			    "of %llu",
 			    (unsigned long long)bh->b_blocknr,
 			    (unsigned long long)le64_to_cpu(eb->h_blkno));
-		return -EINVAL;
+		goto bail;
 	}
 
 	if (le32_to_cpu(eb->h_fs_generation) != OCFS2_SB(sb)->fs_generation) {
-		ocfs2_error(sb,
+		rc = ocfs2_error(sb,
 			    "Extent block #%llu has an invalid "
 			    "h_fs_generation of #%u",
 			    (unsigned long long)bh->b_blocknr,
 			    le32_to_cpu(eb->h_fs_generation));
-		return -EINVAL;
+		goto bail;
 	}
-
-	return 0;
+bail:
+	return rc;
 }
 
 int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkno,

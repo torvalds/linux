@@ -1352,21 +1352,21 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 	rc = -EINVAL;
 
 	if (!OCFS2_IS_VALID_DINODE(di)) {
-		ocfs2_error(sb, "Invalid dinode #%llu: signature = %.*s\n",
+		rc = ocfs2_error(sb, "Invalid dinode #%llu: signature = %.*s\n",
 			    (unsigned long long)bh->b_blocknr, 7,
 			    di->i_signature);
 		goto bail;
 	}
 
 	if (le64_to_cpu(di->i_blkno) != bh->b_blocknr) {
-		ocfs2_error(sb, "Invalid dinode #%llu: i_blkno is %llu\n",
+		rc = ocfs2_error(sb, "Invalid dinode #%llu: i_blkno is %llu\n",
 			    (unsigned long long)bh->b_blocknr,
 			    (unsigned long long)le64_to_cpu(di->i_blkno));
 		goto bail;
 	}
 
 	if (!(di->i_flags & cpu_to_le32(OCFS2_VALID_FL))) {
-		ocfs2_error(sb,
+		rc = ocfs2_error(sb,
 			    "Invalid dinode #%llu: OCFS2_VALID_FL not set\n",
 			    (unsigned long long)bh->b_blocknr);
 		goto bail;
@@ -1374,7 +1374,7 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 
 	if (le32_to_cpu(di->i_fs_generation) !=
 	    OCFS2_SB(sb)->fs_generation) {
-		ocfs2_error(sb,
+		rc = ocfs2_error(sb,
 			    "Invalid dinode #%llu: fs_generation is %u\n",
 			    (unsigned long long)bh->b_blocknr,
 			    le32_to_cpu(di->i_fs_generation));

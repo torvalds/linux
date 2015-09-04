@@ -171,7 +171,7 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 		if (resize)					\
 			mlog(ML_ERROR, fmt "\n", ##__VA_ARGS__);	\
 		else							\
-			ocfs2_error(sb, fmt, ##__VA_ARGS__);		\
+			return ocfs2_error(sb, fmt, ##__VA_ARGS__);		\
 	} while (0)
 
 static int ocfs2_validate_gd_self(struct super_block *sb,
@@ -184,7 +184,6 @@ static int ocfs2_validate_gd_self(struct super_block *sb,
 		do_error("Group descriptor #%llu has bad signature %.*s",
 			 (unsigned long long)bh->b_blocknr, 7,
 			 gd->bg_signature);
-		return -EINVAL;
 	}
 
 	if (le64_to_cpu(gd->bg_blkno) != bh->b_blocknr) {
@@ -192,7 +191,6 @@ static int ocfs2_validate_gd_self(struct super_block *sb,
 			 "of %llu",
 			 (unsigned long long)bh->b_blocknr,
 			 (unsigned long long)le64_to_cpu(gd->bg_blkno));
-		return -EINVAL;
 	}
 
 	if (le32_to_cpu(gd->bg_generation) != OCFS2_SB(sb)->fs_generation) {
@@ -200,7 +198,6 @@ static int ocfs2_validate_gd_self(struct super_block *sb,
 			 "fs_generation of #%u",
 			 (unsigned long long)bh->b_blocknr,
 			 le32_to_cpu(gd->bg_generation));
-		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
@@ -209,7 +206,6 @@ static int ocfs2_validate_gd_self(struct super_block *sb,
 			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_bits),
 			 le16_to_cpu(gd->bg_free_bits_count));
-		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
@@ -218,7 +214,6 @@ static int ocfs2_validate_gd_self(struct super_block *sb,
 			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_bits),
 			 8 * le16_to_cpu(gd->bg_size));
-		return -EINVAL;
 	}
 
 	return 0;
@@ -238,7 +233,6 @@ static int ocfs2_validate_gd_parent(struct super_block *sb,
 			 (unsigned long long)bh->b_blocknr,
 			 (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
 			 (unsigned long long)le64_to_cpu(di->i_blkno));
-		return -EINVAL;
 	}
 
 	max_bits = le16_to_cpu(di->id2.i_chain.cl_cpg) * le16_to_cpu(di->id2.i_chain.cl_bpc);
@@ -246,7 +240,6 @@ static int ocfs2_validate_gd_parent(struct super_block *sb,
 		do_error("Group descriptor #%llu has bit count of %u",
 			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_bits));
-		return -EINVAL;
 	}
 
 	/* In resize, we may meet the case bg_chain == cl_next_free_rec. */
@@ -257,7 +250,6 @@ static int ocfs2_validate_gd_parent(struct super_block *sb,
 		do_error("Group descriptor #%llu has bad chain %u",
 			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_chain));
-		return -EINVAL;
 	}
 
 	return 0;
@@ -384,11 +376,10 @@ static int ocfs2_block_group_fill(handle_t *handle,
 	struct super_block * sb = alloc_inode->i_sb;
 
 	if (((unsigned long long) bg_bh->b_blocknr) != group_blkno) {
-		ocfs2_error(alloc_inode->i_sb, "group block (%llu) != "
+		status = ocfs2_error(alloc_inode->i_sb, "group block (%llu) != "
 			    "b_blocknr (%llu)",
 			    (unsigned long long)group_blkno,
 			    (unsigned long long) bg_bh->b_blocknr);
-		status = -EIO;
 		goto bail;
 	}
 
@@ -834,9 +825,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 
 	if (!(fe->i_flags & cpu_to_le32(OCFS2_CHAIN_FL))) {
-		ocfs2_error(alloc_inode->i_sb, "Invalid chain allocator %llu",
+		status = ocfs2_error(alloc_inode->i_sb, "Invalid chain allocator %llu",
 			    (unsigned long long)le64_to_cpu(fe->i_blkno));
-		status = -EIO;
 		goto bail;
 	}
 
@@ -1370,12 +1360,11 @@ int ocfs2_block_group_set_bits(handle_t *handle,
 
 	le16_add_cpu(&bg->bg_free_bits_count, -num_bits);
 	if (le16_to_cpu(bg->bg_free_bits_count) > le16_to_cpu(bg->bg_bits)) {
-		ocfs2_error(alloc_inode->i_sb, "Group descriptor # %llu has bit"
+		return ocfs2_error(alloc_inode->i_sb, "Group descriptor # %llu has bit"
 			    " count %u but claims %u are freed. num_bits %d",
 			    (unsigned long long)le64_to_cpu(bg->bg_blkno),
 			    le16_to_cpu(bg->bg_bits),
 			    le16_to_cpu(bg->bg_free_bits_count), num_bits);
-		return -EROFS;
 	}
 	while(num_bits--)
 		ocfs2_set_bit(bit_off++, bitmap);
@@ -1905,13 +1894,12 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 
 	if (le32_to_cpu(fe->id1.bitmap1.i_used) >=
 	    le32_to_cpu(fe->id1.bitmap1.i_total)) {
-		ocfs2_error(ac->ac_inode->i_sb,
+		status = ocfs2_error(ac->ac_inode->i_sb,
 			    "Chain allocator dinode %llu has %u used "
 			    "bits but only %u total.",
 			    (unsigned long long)le64_to_cpu(fe->i_blkno),
 			    le32_to_cpu(fe->id1.bitmap1.i_used),
 			    le32_to_cpu(fe->id1.bitmap1.i_total));
-		status = -EIO;
 		goto bail;
 	}
 
@@ -2429,12 +2417,11 @@ static int ocfs2_block_group_clear_bits(handle_t *handle,
 	}
 	le16_add_cpu(&bg->bg_free_bits_count, num_bits);
 	if (le16_to_cpu(bg->bg_free_bits_count) > le16_to_cpu(bg->bg_bits)) {
-		ocfs2_error(alloc_inode->i_sb, "Group descriptor # %llu has bit"
+		return ocfs2_error(alloc_inode->i_sb, "Group descriptor # %llu has bit"
 			    " count %u but claims %u are freed. num_bits %d",
 			    (unsigned long long)le64_to_cpu(bg->bg_blkno),
 			    le16_to_cpu(bg->bg_bits),
 			    le16_to_cpu(bg->bg_free_bits_count), num_bits);
-		return -EROFS;
 	}
 
 	if (undo_fn)
