@@ -181,22 +181,22 @@ static void check_sync_rss_stat(struct task_struct *task)
 
 #ifdef HAVE_GENERIC_MMU_GATHER
 
-static int tlb_next_batch(struct mmu_gather *tlb)
+static bool tlb_next_batch(struct mmu_gather *tlb)
 {
 	struct mmu_gather_batch *batch;
 
 	batch = tlb->active;
 	if (batch->next) {
 		tlb->active = batch->next;
-		return 1;
+		return true;
 	}
 
 	if (tlb->batch_count == MAX_GATHER_BATCH_COUNT)
-		return 0;
+		return false;
 
 	batch = (void *)__get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
 	if (!batch)
-		return 0;
+		return false;
 
 	tlb->batch_count++;
 	batch->next = NULL;
@@ -206,7 +206,7 @@ static int tlb_next_batch(struct mmu_gather *tlb)
 	tlb->active->next = batch;
 	tlb->active = batch;
 
-	return 1;
+	return true;
 }
 
 /* tlb_gather_mmu
