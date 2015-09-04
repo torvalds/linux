@@ -548,7 +548,7 @@ static unsigned long __init xen_get_max_pages(void)
 {
 	unsigned long max_pages, limit;
 	domid_t domid = DOMID_SELF;
-	int ret;
+	long ret;
 
 	limit = xen_get_pages_limit();
 	max_pages = limit;
