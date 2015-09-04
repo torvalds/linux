@@ -308,7 +308,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 
 	mutex_lock(&mdev->io_mutex);
 	free_anchored_buffers(mdev, channel);
-	if (mdev->padding_active[channel] == true)
+	if (mdev->padding_active[channel])
 		mdev->padding_active[channel] = false;
 
 	if (mdev->conf[channel].data_type == MOST_CH_ASYNC) {
@@ -411,7 +411,7 @@ static void hdm_write_completion(struct urb *urb)
 	dev = &mdev->usb_device->dev;
 
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
-	    (mdev->is_channel_healthy[channel] == false)) {
+	    (!mdev->is_channel_healthy[channel])) {
 		complete(&anchor->urb_compl);
 		return;
 	}
@@ -576,7 +576,7 @@ static void hdm_read_completion(struct urb *urb)
 	dev = &mdev->usb_device->dev;
 
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
-	    (mdev->is_channel_healthy[channel] == false)) {
+	    (!mdev->is_channel_healthy[channel])) {
 		complete(&anchor->urb_compl);
 		return;
 	}
@@ -605,7 +605,7 @@ static void hdm_read_completion(struct urb *urb)
 		}
 	} else {
 		mbo->processed_length = urb->actual_length;
-		if (mdev->padding_active[channel] == false) {
+		if (!mdev->padding_active[channel]) {
 			mbo->status = MBO_SUCCESS;
 		} else {
 			if (hdm_remove_padding(mdev, channel, mbo)) {
@@ -685,7 +685,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mb
 	list_add_tail(&anchor->list, &mdev->anchor_list[channel]);
 	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
 
-	if ((mdev->padding_active[channel] == true) &&
+	if ((mdev->padding_active[channel]) &&
 	    (conf->direction & MOST_CH_TX))
 		if (hdm_add_padding(mdev, channel, mbo)) {
 			retval = -EIO;
