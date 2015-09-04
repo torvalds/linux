@@ -536,7 +536,7 @@ static int cpumf_pmu_add(struct perf_event *event, int flags)
 	 * For group events transaction, the authorization check is
 	 * done in cpumf_pmu_commit_txn().
 	 */
-	if (!(cpuhw->flags & PERF_EVENT_TXN))
+	if (!(cpuhw->txn_flags & PERF_PMU_TXN_ADD))
 		if (validate_ctr_auth(&event->hw))
 			return -EPERM;
 
@@ -590,7 +590,6 @@ static void cpumf_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 		return;
 
 	perf_pmu_disable(pmu);
-	cpuhw->flags |= PERF_EVENT_TXN;
 	cpuhw->tx_state = cpuhw->state;
 }
 
@@ -613,7 +612,6 @@ static void cpumf_pmu_cancel_txn(struct pmu *pmu)
 
 	WARN_ON(cpuhw->tx_state != cpuhw->state);
 
-	cpuhw->flags &= ~PERF_EVENT_TXN;
 	perf_pmu_enable(pmu);
 }
 
@@ -640,7 +638,6 @@ static int cpumf_pmu_commit_txn(struct pmu *pmu)
 	if ((state & cpuhw->info.auth_ctl) != state)
 		return -EPERM;
 
-	cpuhw->flags &= ~PERF_EVENT_TXN;
 	cpuhw->txn_flags = 0;
 	perf_pmu_enable(pmu);
 	return 0;

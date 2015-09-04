@@ -1175,7 +1175,7 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	 * skip the schedulability test here, it will be performed
 	 * at commit time (->commit_txn) as a whole.
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN)
+	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		goto done_collect;
 
 	ret = x86_pmu.schedule_events(cpuc, n, assign);
@@ -1326,7 +1326,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	 * XXX assumes any ->del() called during a TXN will only be on
 	 * an event added during that same TXN.
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN)
+	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		return;
 
 	/*
@@ -1764,7 +1764,6 @@ static void x86_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 		return;
 
 	perf_pmu_disable(pmu);
-	__this_cpu_or(cpu_hw_events.group_flag, PERF_EVENT_TXN);
 	__this_cpu_write(cpu_hw_events.n_txn, 0);
 }
 
@@ -1785,7 +1784,6 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 	if (txn_flags & ~PERF_PMU_TXN_ADD)
 		return;
 
-	__this_cpu_and(cpu_hw_events.group_flag, ~PERF_EVENT_TXN);
 	/*
 	 * Truncate collected array by the number of events added in this
 	 * transaction. See x86_pmu_add() and x86_pmu_*_txn().
@@ -1830,7 +1828,6 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
-	cpuc->group_flag &= ~PERF_EVENT_TXN;
 	cpuc->txn_flags = 0;
 	perf_pmu_enable(pmu);
 	return 0;
