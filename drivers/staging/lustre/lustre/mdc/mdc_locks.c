@@ -826,7 +826,7 @@ resend:
 		LASSERT(lmm && lmmsize == 0);
 		LASSERTF(einfo->ei_type == LDLM_FLOCK, "lock type %d\n",
 			 einfo->ei_type);
-		policy = (ldlm_policy_data_t *)lmm;
+		policy = lmm;
 		res_id.name[3] = LDLM_FLOCK;
 		req = NULL;
 	} else if (it->it_op & IT_OPEN) {
