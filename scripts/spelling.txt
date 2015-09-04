@@ -990,6 +990,7 @@ unexpectd||unexpected
 unexpeted||unexpected
 unfortunatelly||unfortunately
 unifiy||unify
+unintialized||uninitialized
 unknonw||unknown
 unknow||unknown
 unkown||unknown
