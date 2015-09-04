@@ -512,9 +512,9 @@ source "lib/fonts/Kconfig"
 config SG_SPLIT
 	def_bool n
 	help
-	 Provides a heler to split scatterlists into chunks, each chunk being a
-	 scatterlist. This should be selected by a driver or an API which
-	 whishes to split a scatterlist amongst multiple DMA channel.
+	 Provides a helper to split scatterlists into chunks, each chunk being
+	 a scatterlist. This should be selected by a driver or an API which
+	 whishes to split a scatterlist amongst multiple DMA channels.
 
 #
 # sg chaining option
