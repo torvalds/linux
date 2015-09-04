@@ -238,7 +238,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 *
 	 * OPPs might be populated at runtime, don't check for error here
 	 */
-	of_cpumask_init_opp_table(policy->cpus);
+	of_cpumask_add_opp_table(policy->cpus);
 
 	/*
 	 * But we need OPP table to function so if it is not there let's
@@ -368,7 +368,7 @@ out_free_cpufreq_table:
 out_free_priv:
 	kfree(priv);
 out_free_opp:
-	of_cpumask_free_opp_table(policy->cpus);
+	of_cpumask_remove_opp_table(policy->cpus);
 out_node_put:
 	of_node_put(np);
 out_put_reg_clk:
@@ -385,7 +385,7 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 
 	cpufreq_cooling_unregister(priv->cdev);
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
-	of_cpumask_free_opp_table(policy->related_cpus);
+	of_cpumask_remove_opp_table(policy->related_cpus);
 	clk_put(policy->clk);
 	if (!IS_ERR(priv->cpu_reg))
 		regulator_put(priv->cpu_reg);

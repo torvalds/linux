@@ -828,8 +828,8 @@ static int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  * The opp is made available by default and it can be controlled using
  * dev_pm_opp_enable/disable functions and may be removed by dev_pm_opp_remove.
  *
- * NOTE: "dynamic" parameter impacts OPPs added by the of_init_opp_table and
- * freed by of_free_opp_table.
+ * NOTE: "dynamic" parameter impacts OPPs added by the of_add_opp_table and
+ * freed by of_remove_opp_table.
  *
  * Locking: The internal device_opp and opp structures are RCU protected.
  * Hence this function internally uses RCU updater strategy with mutex locks
@@ -1213,7 +1213,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
 
 #ifdef CONFIG_OF
 /**
- * of_free_opp_table() - Free OPP table entries created from static DT entries
+ * of_remove_opp_table() - Free OPP table entries created from static DT entries
  * @dev:	device pointer used to lookup device OPPs.
  *
  * Free OPPs created using static entries present in DT.
@@ -1224,7 +1224,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-void of_free_opp_table(struct device *dev)
+void of_remove_opp_table(struct device *dev)
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp, *tmp;
@@ -1259,9 +1259,9 @@ void of_free_opp_table(struct device *dev)
 unlock:
 	mutex_unlock(&dev_opp_list_lock);
 }
-EXPORT_SYMBOL_GPL(of_free_opp_table);
+EXPORT_SYMBOL_GPL(of_remove_opp_table);
 
-void of_cpumask_free_opp_table(cpumask_var_t cpumask)
+void of_cpumask_remove_opp_table(cpumask_var_t cpumask)
 {
 	struct device *cpu_dev;
 	int cpu;
@@ -1276,10 +1276,10 @@ void of_cpumask_free_opp_table(cpumask_var_t cpumask)
 			continue;
 		}
 
-		of_free_opp_table(cpu_dev);
+		of_remove_opp_table(cpu_dev);
 	}
 }
-EXPORT_SYMBOL_GPL(of_cpumask_free_opp_table);
+EXPORT_SYMBOL_GPL(of_cpumask_remove_opp_table);
 
 /* Returns opp descriptor node for a device, caller must do of_node_put() */
 static struct device_node *_of_get_opp_desc_node(struct device *dev)
@@ -1295,8 +1295,7 @@ static struct device_node *_of_get_opp_desc_node(struct device *dev)
 }
 
 /* Initializes OPP tables based on new bindings */
-static int _of_init_opp_table_v2(struct device *dev,
-				 struct device_node *opp_np)
+static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 {
 	struct device_node *np;
 	struct device_opp *dev_opp;
@@ -1338,13 +1337,13 @@ static int _of_init_opp_table_v2(struct device *dev,
 	return 0;
 
 free_table:
-	of_free_opp_table(dev);
+	of_remove_opp_table(dev);
 
 	return ret;
 }
 
 /* Initializes OPP tables based on old-deprecated bindings */
-static int _of_init_opp_table_v1(struct device *dev)
+static int _of_add_opp_table_v1(struct device *dev)
 {
 	const struct property *prop;
 	const __be32 *val;
@@ -1381,7 +1380,7 @@ static int _of_init_opp_table_v1(struct device *dev)
 }
 
 /**
- * of_init_opp_table() - Initialize opp table from device tree
+ * of_add_opp_table() - Initialize opp table from device tree
  * @dev:	device pointer used to lookup device OPPs.
  *
  * Register the initial OPP table with the OPP library for given device.
@@ -1403,7 +1402,7 @@ static int _of_init_opp_table_v1(struct device *dev)
  * -ENODATA	when empty 'operating-points' property is found
  * -EINVAL	when invalid entries are found in opp-v2 table
  */
-int of_init_opp_table(struct device *dev)
+int of_add_opp_table(struct device *dev)
 {
 	struct device_node *opp_np;
 	int ret;
@@ -1418,17 +1417,17 @@ int of_init_opp_table(struct device *dev)
 		 * Try old-deprecated bindings for backward compatibility with
 		 * older dtbs.
 		 */
-		return _of_init_opp_table_v1(dev);
+		return _of_add_opp_table_v1(dev);
 	}
 
-	ret = _of_init_opp_table_v2(dev, opp_np);
+	ret = _of_add_opp_table_v2(dev, opp_np);
 	of_node_put(opp_np);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(of_init_opp_table);
+EXPORT_SYMBOL_GPL(of_add_opp_table);
 
-int of_cpumask_init_opp_table(cpumask_var_t cpumask)
+int of_cpumask_add_opp_table(cpumask_var_t cpumask)
 {
 	struct device *cpu_dev;
 	int cpu, ret = 0;
@@ -1443,20 +1442,20 @@ int of_cpumask_init_opp_table(cpumask_var_t cpumask)
 			continue;
 		}
 
-		ret = of_init_opp_table(cpu_dev);
+		ret = of_add_opp_table(cpu_dev);
 		if (ret) {
 			pr_err("%s: couldn't find opp table for cpu:%d, %d\n",
 			       __func__, cpu, ret);
 
 			/* Free all other OPPs */
-			of_cpumask_free_opp_table(cpumask);
+			of_cpumask_remove_opp_table(cpumask);
 			break;
 		}
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(of_cpumask_init_opp_table);
+EXPORT_SYMBOL_GPL(of_cpumask_add_opp_table);
 
 /* Required only for V1 bindings, as v2 can manage it from DT itself */
 int set_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
