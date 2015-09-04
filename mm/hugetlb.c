@@ -3779,7 +3779,7 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
 	return saddr;
 }
 
-static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
+static bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
 {
 	unsigned long base = addr & PUD_MASK;
 	unsigned long end = base + PUD_SIZE;
@@ -3789,8 +3789,8 @@ static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
 	 */
 	if (vma->vm_flags & VM_MAYSHARE &&
 	    vma->vm_start <= base && end <= vma->vm_end)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 /*
