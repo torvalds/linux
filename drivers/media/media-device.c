@@ -576,6 +576,10 @@ void media_device_unregister(struct media_device *mdev)
 	struct media_entity *next;
 	struct media_interface *intf, *tmp_intf;
 
+	/* Remove all entities from the media device */
+	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
+		media_device_unregister_entity(entity);
+
 	/* Remove all interfaces from the media device */
 	spin_lock(&mdev->lock);
 	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
@@ -585,9 +589,6 @@ void media_device_unregister(struct media_device *mdev)
 		kfree(intf);
 	}
 	spin_unlock(&mdev->lock);
-
-	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
-		media_device_unregister_entity(entity);
 
 	device_remove_file(&mdev->devnode.dev, &dev_attr_model);
 	media_devnode_unregister(&mdev->devnode);
@@ -654,8 +655,7 @@ void media_device_unregister_entity(struct media_entity *entity)
 	/* Remove all interface links pointing to this entity */
 	list_for_each_entry(intf, &mdev->interfaces, graph_obj.list) {
 		list_for_each_entry_safe(link, tmp, &intf->links, list) {
-			if (media_type(link->gobj1) == MEDIA_GRAPH_ENTITY
-			    && link->entity == entity)
+			if (link->entity == entity)
 				__media_remove_intf_link(link);
 		}
 	}
