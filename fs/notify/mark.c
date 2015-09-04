@@ -122,26 +122,27 @@ u32 fsnotify_recalc_mask(struct hlist_head *head)
 }
 
 /*
- * Any time a mark is getting freed we end up here.
- * The caller had better be holding a reference to this mark so we don't actually
- * do the final put under the mark->lock
+ * Remove mark from inode / vfsmount list, group list, drop inode reference
+ * if we got one.
+ *
+ * Must be called with group->mark_mutex held.
  */
-void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
-				  struct fsnotify_group *group)
+void fsnotify_detach_mark(struct fsnotify_mark *mark)
 {
 	struct inode *inode = NULL;
+	struct fsnotify_group *group = mark->group;
 
 	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 
 	spin_lock(&mark->lock);
 
 	/* something else already called this function on this mark */
-	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
+	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
 		spin_unlock(&mark->lock);
 		return;
 	}
 
-	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
+	mark->flags &= ~FSNOTIFY_MARK_FLAG_ATTACHED;
 
 	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE) {
 		inode = mark->inode;
@@ -150,6 +151,12 @@ void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
 		fsnotify_destroy_vfsmount_mark(mark);
 	else
 		BUG();
+	/*
+	 * Note that we didn't update flags telling whether inode cares about
+	 * what's happening with children. We update these flags from
+	 * __fsnotify_parent() lazily when next event happens on one of our
+	 * children.
+	 */
 
 	list_del_init(&mark->g_list);
 
@@ -157,18 +164,32 @@ void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
 
 	if (inode && (mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED))
 		iput(inode);
-	/* release lock temporarily */
-	mutex_unlock(&group->mark_mutex);
+
+	atomic_dec(&group->num_marks);
+}
+
+/*
+ * Free fsnotify mark. The freeing is actually happening from a kthread which
+ * first waits for srcu period end. Caller must have a reference to the mark
+ * or be protected by fsnotify_mark_srcu.
+ */
+void fsnotify_free_mark(struct fsnotify_mark *mark)
+{
+	struct fsnotify_group *group = mark->group;
+
+	spin_lock(&mark->lock);
+	/* something else already called this function on this mark */
+	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
+		spin_unlock(&mark->lock);
+		return;
+	}
+	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
+	spin_unlock(&mark->lock);
 
 	spin_lock(&destroy_lock);
 	list_add(&mark->g_list, &destroy_list);
 	spin_unlock(&destroy_lock);
 	wake_up(&destroy_waitq);
-	/*
-	 * We don't necessarily have a ref on mark from caller so the above destroy
-	 * may have actually freed it, unless this group provides a 'freeing_mark'
-	 * function which must be holding a reference.
-	 */
 
 	/*
 	 * Some groups like to know that marks are being freed.  This is a
@@ -177,30 +198,15 @@ void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
 	 */
 	if (group->ops->freeing_mark)
 		group->ops->freeing_mark(mark, group);
-
-	/*
-	 * __fsnotify_update_child_dentry_flags(inode);
-	 *
-	 * I really want to call that, but we can't, we have no idea if the inode
-	 * still exists the second we drop the mark->lock.
-	 *
-	 * The next time an event arrive to this inode from one of it's children
-	 * __fsnotify_parent will see that the inode doesn't care about it's
-	 * children and will update all of these flags then.  So really this
-	 * is just a lazy update (and could be a perf win...)
-	 */
-
-	atomic_dec(&group->num_marks);
-
-	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
 }
 
 void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 			   struct fsnotify_group *group)
 {
 	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
-	fsnotify_destroy_mark_locked(mark, group);
+	fsnotify_detach_mark(mark);
 	mutex_unlock(&group->mark_mutex);
+	fsnotify_free_mark(mark);
 }
 
 void fsnotify_destroy_marks(struct hlist_head *head, spinlock_t *lock)
@@ -342,7 +348,7 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	 * inode->i_lock
 	 */
 	spin_lock(&mark->lock);
-	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE;
+	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE | FSNOTIFY_MARK_FLAG_ATTACHED;
 
 	fsnotify_get_group(group);
 	mark->group = group;
@@ -448,8 +454,9 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 		}
 		mark = list_first_entry(&to_free, struct fsnotify_mark, g_list);
 		fsnotify_get_mark(mark);
-		fsnotify_destroy_mark_locked(mark, group);
+		fsnotify_detach_mark(mark);
 		mutex_unlock(&group->mark_mutex);
+		fsnotify_free_mark(mark);
 		fsnotify_put_mark(mark);
 	}
 }

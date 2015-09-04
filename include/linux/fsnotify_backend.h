@@ -236,6 +236,7 @@ struct fsnotify_mark {
 #define FSNOTIFY_MARK_FLAG_OBJECT_PINNED	0x04
 #define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x08
 #define FSNOTIFY_MARK_FLAG_ALIVE		0x10
+#define FSNOTIFY_MARK_FLAG_ATTACHED		0x20
 	unsigned int flags;		/* flags [mark->lock] */
 	void (*free_mark)(struct fsnotify_mark *mark); /* called on final put+free */
 };
@@ -353,8 +354,10 @@ extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark, struct fsnotify_
 /* given a group and a mark, flag mark to be freed when all references are dropped */
 extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 				  struct fsnotify_group *group);
-extern void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
-					 struct fsnotify_group *group);
+/* detach mark from inode / mount list, group list, drop inode reference */
+extern void fsnotify_detach_mark(struct fsnotify_mark *mark);
+/* free mark */
+extern void fsnotify_free_mark(struct fsnotify_mark *mark);
 /* run all the marks in a group, and clear all of the vfsmount marks */
 extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the inode marks */
