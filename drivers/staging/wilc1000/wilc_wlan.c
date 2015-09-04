@@ -1352,12 +1352,12 @@ static void wilc_pllupdate_isr_ext(uint32_t int_stats)
 	g_wlan.hif_func.hif_clear_int_ext(PLL_INT_CLR);
 
 	/* Waiting for PLL */
-	g_wlan.os_func.os_atomic_sleep(WILC_PLL_TO);
+	mdelay(WILC_PLL_TO);
 
 	/* poll till read a valid data */
 	while (!(ISWILC1000(wilc_get_chipid(true)) && --trials)) {
 		PRINT_D(TX_DBG, "PLL update retrying\n");
-		g_wlan.os_func.os_atomic_sleep(1);
+		mdelay(1);
 	}
 }
 
