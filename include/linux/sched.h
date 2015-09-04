@@ -1354,6 +1354,13 @@ struct tlbflush_unmap_batch {
 
 	/* True if any bit in cpumask is set */
 	bool flush_required;
+
+	/*
+	 * If true then the PTE was dirty when unmapped. The entry must be
+	 * flushed before IO is initiated or a stale TLB entry potentially
+	 * allows an update without redirtying the page.
+	 */
+	bool writable;
 };
 
 struct task_struct {
