@@ -971,6 +971,7 @@ static void ocfs2_delete_inode(struct inode *inode)
 	int wipe, status;
 	sigset_t oldset;
 	struct buffer_head *di_bh = NULL;
+	struct ocfs2_dinode *di = NULL;
 
 	trace_ocfs2_delete_inode(inode->i_ino,
 				 (unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -1023,6 +1024,14 @@ static void ocfs2_delete_inode(struct inode *inode)
 			mlog_errno(status);
 		ocfs2_cleanup_delete_inode(inode, 0);
 		goto bail_unlock_nfs_sync;
+	}
+
+	di = (struct ocfs2_dinode *)di_bh->b_data;
+	/* Skip inode deletion and wait for dio orphan entry recovered
+	 * first */
+	if (unlikely(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL))) {
+		ocfs2_cleanup_delete_inode(inode, 0);
+		goto bail_unlock_inode;
 	}
 
 	/* Query the cluster. This will be the final decision made

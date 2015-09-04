@@ -2210,7 +2210,9 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 			 * ocfs2_delete_inode. */
 			oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
 			spin_unlock(&oi->ip_lock);
-		} else if ((orphan_reco_type == ORPHAN_NEED_TRUNCATE) &&
+		}
+
+		if ((orphan_reco_type == ORPHAN_NEED_TRUNCATE) &&
 				(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL))) {
 			ret = ocfs2_truncate_file(inode, di_bh,
 					i_size_read(inode));
