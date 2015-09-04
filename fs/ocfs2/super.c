@@ -192,6 +192,7 @@ enum {
 	Opt_resv_level,
 	Opt_dir_resv_level,
 	Opt_journal_async_commit,
+	Opt_err_cont,
 	Opt_err,
 };
 
@@ -224,6 +225,7 @@ static const match_table_t tokens = {
 	{Opt_resv_level, "resv_level=%u"},
 	{Opt_dir_resv_level, "dir_resv_level=%u"},
 	{Opt_journal_async_commit, "journal_async_commit"},
+	{Opt_err_cont, "errors=continue"},
 	{Opt_err, NULL}
 };
 
@@ -1330,10 +1332,19 @@ static int ocfs2_parse_options(struct super_block *sb,
 			mopt->mount_opt |= OCFS2_MOUNT_NOINTR;
 			break;
 		case Opt_err_panic:
+			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_CONT;
+			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_ROFS;
 			mopt->mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
 			break;
 		case Opt_err_ro:
+			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_CONT;
 			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_PANIC;
+			mopt->mount_opt |= OCFS2_MOUNT_ERRORS_ROFS;
+			break;
+		case Opt_err_cont:
+			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_ROFS;
+			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_PANIC;
+			mopt->mount_opt |= OCFS2_MOUNT_ERRORS_CONT;
 			break;
 		case Opt_data_ordered:
 			mopt->mount_opt &= ~OCFS2_MOUNT_DATA_WRITEBACK;
@@ -1530,6 +1541,8 @@ static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
 
 	if (opts & OCFS2_MOUNT_ERRORS_PANIC)
 		seq_printf(s, ",errors=panic");
+	else if (opts & OCFS2_MOUNT_ERRORS_CONT)
+		seq_printf(s, ",errors=continue");
 	else
 		seq_printf(s, ",errors=remount-ro");
 
@@ -2539,31 +2552,43 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	memset(osb, 0, sizeof(struct ocfs2_super));
 }
 
-/* Put OCFS2 into a readonly state, or (if the user specifies it),
- * panic(). We do not support continue-on-error operation. */
-static void ocfs2_handle_error(struct super_block *sb)
+/* Depending on the mount option passed, perform one of the following:
+ * Put OCFS2 into a readonly state (default)
+ * Return EIO so that only the process errs
+ * Fix the error as if fsck.ocfs2 -y
+ * panic
+ */
+static int ocfs2_handle_error(struct super_block *sb)
 {
 	struct ocfs2_super *osb = OCFS2_SB(sb);
-
-	if (osb->s_mount_opt & OCFS2_MOUNT_ERRORS_PANIC)
-		panic("OCFS2: (device %s): panic forced after error\n",
-		      sb->s_id);
+	int rv = 0;
 
 	ocfs2_set_osb_flag(osb, OCFS2_OSB_ERROR_FS);
+	pr_crit("On-disk corruption discovered. "
+		"Please run fsck.ocfs2 once the filesystem is unmounted.\n");
 
-	if (sb->s_flags & MS_RDONLY &&
-	    (ocfs2_is_soft_readonly(osb) ||
-	     ocfs2_is_hard_readonly(osb)))
-		return;
+	if (osb->s_mount_opt & OCFS2_MOUNT_ERRORS_PANIC) {
+		panic("OCFS2: (device %s): panic forced after error\n",
+		      sb->s_id);
+	} else if (osb->s_mount_opt & OCFS2_MOUNT_ERRORS_CONT) {
+		pr_crit("OCFS2: Returning error to the calling process.\n");
+		rv = -EIO;
+	} else { /* default option */
+		rv = -EROFS;
+		if (sb->s_flags & MS_RDONLY &&
+				(ocfs2_is_soft_readonly(osb) ||
+				 ocfs2_is_hard_readonly(osb)))
+			return rv;
 
-	printk(KERN_CRIT "File system is now read-only due to the potential "
-	       "of on-disk corruption. Please run fsck.ocfs2 once the file "
-	       "system is unmounted.\n");
-	sb->s_flags |= MS_RDONLY;
-	ocfs2_set_ro_flag(osb, 0);
+		pr_crit("OCFS2: File system is now read-only.\n");
+		sb->s_flags |= MS_RDONLY;
+		ocfs2_set_ro_flag(osb, 0);
+	}
+
+	return rv;
 }
 
-void __ocfs2_error(struct super_block *sb, const char *function,
+int __ocfs2_error(struct super_block *sb, const char *function,
 		  const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -2580,7 +2605,7 @@ void __ocfs2_error(struct super_block *sb, const char *function,
 
 	va_end(args);
 
-	ocfs2_handle_error(sb);
+	return ocfs2_handle_error(sb);
 }
 
 /* Handle critical errors. This is intentionally more drastic than
