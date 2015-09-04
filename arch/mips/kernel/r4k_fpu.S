@@ -13,6 +13,7 @@
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
  */
 #include <asm/asm.h>
+#include <asm/asmmacro.h>
 #include <asm/errno.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
@@ -35,6 +36,14 @@
 
 	.set	noreorder
 
+/**
+ * _save_fp_context() - save FP context from the FPU
+ * @a0 - pointer to fpregs field of sigcontext
+ * @a1 - pointer to fpc_csr field of sigcontext
+ *
+ * Save FP context, including the 32 FP data registers and the FP
+ * control & status register, from the FPU to signal context.
+ */
 LEAF(_save_fp_context)
 	.set	push
 	SET_HARDFLOAT
@@ -54,117 +63,60 @@ LEAF(_save_fp_context)
 	 nop
 #endif
 	/* Store the 16 odd double precision registers */
-	EX	sdc1 $f1, SC_FPREGS+8(a0)
-	EX	sdc1 $f3, SC_FPREGS+24(a0)
-	EX	sdc1 $f5, SC_FPREGS+40(a0)
-	EX	sdc1 $f7, SC_FPREGS+56(a0)
-	EX	sdc1 $f9, SC_FPREGS+72(a0)
-	EX	sdc1 $f11, SC_FPREGS+88(a0)
-	EX	sdc1 $f13, SC_FPREGS+104(a0)
-	EX	sdc1 $f15, SC_FPREGS+120(a0)
-	EX	sdc1 $f17, SC_FPREGS+136(a0)
-	EX	sdc1 $f19, SC_FPREGS+152(a0)
-	EX	sdc1 $f21, SC_FPREGS+168(a0)
-	EX	sdc1 $f23, SC_FPREGS+184(a0)
-	EX	sdc1 $f25, SC_FPREGS+200(a0)
-	EX	sdc1 $f27, SC_FPREGS+216(a0)
-	EX	sdc1 $f29, SC_FPREGS+232(a0)
-	EX	sdc1 $f31, SC_FPREGS+248(a0)
+	EX	sdc1 $f1, 8(a0)
+	EX	sdc1 $f3, 24(a0)
+	EX	sdc1 $f5, 40(a0)
+	EX	sdc1 $f7, 56(a0)
+	EX	sdc1 $f9, 72(a0)
+	EX	sdc1 $f11, 88(a0)
+	EX	sdc1 $f13, 104(a0)
+	EX	sdc1 $f15, 120(a0)
+	EX	sdc1 $f17, 136(a0)
+	EX	sdc1 $f19, 152(a0)
+	EX	sdc1 $f21, 168(a0)
+	EX	sdc1 $f23, 184(a0)
+	EX	sdc1 $f25, 200(a0)
+	EX	sdc1 $f27, 216(a0)
+	EX	sdc1 $f29, 232(a0)
+	EX	sdc1 $f31, 248(a0)
 1:	.set	pop
 #endif
 
 	.set push
 	SET_HARDFLOAT
 	/* Store the 16 even double precision registers */
-	EX	sdc1 $f0, SC_FPREGS+0(a0)
-	EX	sdc1 $f2, SC_FPREGS+16(a0)
-	EX	sdc1 $f4, SC_FPREGS+32(a0)
-	EX	sdc1 $f6, SC_FPREGS+48(a0)
-	EX	sdc1 $f8, SC_FPREGS+64(a0)
-	EX	sdc1 $f10, SC_FPREGS+80(a0)
-	EX	sdc1 $f12, SC_FPREGS+96(a0)
-	EX	sdc1 $f14, SC_FPREGS+112(a0)
-	EX	sdc1 $f16, SC_FPREGS+128(a0)
-	EX	sdc1 $f18, SC_FPREGS+144(a0)
-	EX	sdc1 $f20, SC_FPREGS+160(a0)
-	EX	sdc1 $f22, SC_FPREGS+176(a0)
-	EX	sdc1 $f24, SC_FPREGS+192(a0)
-	EX	sdc1 $f26, SC_FPREGS+208(a0)
-	EX	sdc1 $f28, SC_FPREGS+224(a0)
-	EX	sdc1 $f30, SC_FPREGS+240(a0)
-	EX	sw t1, SC_FPC_CSR(a0)
+	EX	sdc1 $f0, 0(a0)
+	EX	sdc1 $f2, 16(a0)
+	EX	sdc1 $f4, 32(a0)
+	EX	sdc1 $f6, 48(a0)
+	EX	sdc1 $f8, 64(a0)
+	EX	sdc1 $f10, 80(a0)
+	EX	sdc1 $f12, 96(a0)
+	EX	sdc1 $f14, 112(a0)
+	EX	sdc1 $f16, 128(a0)
+	EX	sdc1 $f18, 144(a0)
+	EX	sdc1 $f20, 160(a0)
+	EX	sdc1 $f22, 176(a0)
+	EX	sdc1 $f24, 192(a0)
+	EX	sdc1 $f26, 208(a0)
+	EX	sdc1 $f28, 224(a0)
+	EX	sdc1 $f30, 240(a0)
+	EX	sw t1, 0(a1)
 	jr	ra
 	 li	v0, 0					# success
 	.set pop
 	END(_save_fp_context)
 
-#ifdef CONFIG_MIPS32_COMPAT
-	/* Save 32-bit process floating point context */
-LEAF(_save_fp_context32)
-	.set push
-	.set MIPS_ISA_ARCH_LEVEL_RAW
-	SET_HARDFLOAT
-	cfc1	t1, fcr31
-
-#ifndef CONFIG_CPU_MIPS64_R6
-	mfc0	t0, CP0_STATUS
-	sll	t0, t0, 5
-	bgez	t0, 1f			# skip storing odd if FR=0
-	 nop
-#endif
-
-	/* Store the 16 odd double precision registers */
-	EX      sdc1 $f1, SC32_FPREGS+8(a0)
-	EX      sdc1 $f3, SC32_FPREGS+24(a0)
-	EX      sdc1 $f5, SC32_FPREGS+40(a0)
-	EX      sdc1 $f7, SC32_FPREGS+56(a0)
-	EX      sdc1 $f9, SC32_FPREGS+72(a0)
-	EX      sdc1 $f11, SC32_FPREGS+88(a0)
-	EX      sdc1 $f13, SC32_FPREGS+104(a0)
-	EX      sdc1 $f15, SC32_FPREGS+120(a0)
-	EX      sdc1 $f17, SC32_FPREGS+136(a0)
-	EX      sdc1 $f19, SC32_FPREGS+152(a0)
-	EX      sdc1 $f21, SC32_FPREGS+168(a0)
-	EX      sdc1 $f23, SC32_FPREGS+184(a0)
-	EX      sdc1 $f25, SC32_FPREGS+200(a0)
-	EX      sdc1 $f27, SC32_FPREGS+216(a0)
-	EX      sdc1 $f29, SC32_FPREGS+232(a0)
-	EX      sdc1 $f31, SC32_FPREGS+248(a0)
-
-	/* Store the 16 even double precision registers */
-1:	EX	sdc1 $f0, SC32_FPREGS+0(a0)
-	EX	sdc1 $f2, SC32_FPREGS+16(a0)
-	EX	sdc1 $f4, SC32_FPREGS+32(a0)
-	EX	sdc1 $f6, SC32_FPREGS+48(a0)
-	EX	sdc1 $f8, SC32_FPREGS+64(a0)
-	EX	sdc1 $f10, SC32_FPREGS+80(a0)
-	EX	sdc1 $f12, SC32_FPREGS+96(a0)
-	EX	sdc1 $f14, SC32_FPREGS+112(a0)
-	EX	sdc1 $f16, SC32_FPREGS+128(a0)
-	EX	sdc1 $f18, SC32_FPREGS+144(a0)
-	EX	sdc1 $f20, SC32_FPREGS+160(a0)
-	EX	sdc1 $f22, SC32_FPREGS+176(a0)
-	EX	sdc1 $f24, SC32_FPREGS+192(a0)
-	EX	sdc1 $f26, SC32_FPREGS+208(a0)
-	EX	sdc1 $f28, SC32_FPREGS+224(a0)
-	EX	sdc1 $f30, SC32_FPREGS+240(a0)
-	EX	sw t1, SC32_FPC_CSR(a0)
-	cfc1	t0, $0				# implementation/version
-	EX	sw t0, SC32_FPC_EIR(a0)
-	.set pop
-
-	jr	ra
-	 li	v0, 0					# success
-	END(_save_fp_context32)
-#endif
-
-/*
- * Restore FPU state:
- *  - fp gp registers
- *  - cp1 status/control register
+/**
+ * _restore_fp_context() - restore FP context to the FPU
+ * @a0 - pointer to fpregs field of sigcontext
+ * @a1 - pointer to fpc_csr field of sigcontext
+ *
+ * Restore FP context, including the 32 FP data registers and the FP
+ * control & status register, from signal context to the FPU.
  */
 LEAF(_restore_fp_context)
-	EX	lw t1, SC_FPC_CSR(a0)
+	EX	lw t1, 0(a1)
 
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)  || \
 		defined(CONFIG_CPU_MIPS32_R6)
@@ -178,101 +130,231 @@ LEAF(_restore_fp_context)
 	bgez	t0, 1f			# skip loading odd if FR=0
 	 nop
 #endif
-	EX	ldc1 $f1, SC_FPREGS+8(a0)
-	EX	ldc1 $f3, SC_FPREGS+24(a0)
-	EX	ldc1 $f5, SC_FPREGS+40(a0)
-	EX	ldc1 $f7, SC_FPREGS+56(a0)
-	EX	ldc1 $f9, SC_FPREGS+72(a0)
-	EX	ldc1 $f11, SC_FPREGS+88(a0)
-	EX	ldc1 $f13, SC_FPREGS+104(a0)
-	EX	ldc1 $f15, SC_FPREGS+120(a0)
-	EX	ldc1 $f17, SC_FPREGS+136(a0)
-	EX	ldc1 $f19, SC_FPREGS+152(a0)
-	EX	ldc1 $f21, SC_FPREGS+168(a0)
-	EX	ldc1 $f23, SC_FPREGS+184(a0)
-	EX	ldc1 $f25, SC_FPREGS+200(a0)
-	EX	ldc1 $f27, SC_FPREGS+216(a0)
-	EX	ldc1 $f29, SC_FPREGS+232(a0)
-	EX	ldc1 $f31, SC_FPREGS+248(a0)
+	EX	ldc1 $f1, 8(a0)
+	EX	ldc1 $f3, 24(a0)
+	EX	ldc1 $f5, 40(a0)
+	EX	ldc1 $f7, 56(a0)
+	EX	ldc1 $f9, 72(a0)
+	EX	ldc1 $f11, 88(a0)
+	EX	ldc1 $f13, 104(a0)
+	EX	ldc1 $f15, 120(a0)
+	EX	ldc1 $f17, 136(a0)
+	EX	ldc1 $f19, 152(a0)
+	EX	ldc1 $f21, 168(a0)
+	EX	ldc1 $f23, 184(a0)
+	EX	ldc1 $f25, 200(a0)
+	EX	ldc1 $f27, 216(a0)
+	EX	ldc1 $f29, 232(a0)
+	EX	ldc1 $f31, 248(a0)
 1:	.set pop
 #endif
 	.set push
 	SET_HARDFLOAT
-	EX	ldc1 $f0, SC_FPREGS+0(a0)
-	EX	ldc1 $f2, SC_FPREGS+16(a0)
-	EX	ldc1 $f4, SC_FPREGS+32(a0)
-	EX	ldc1 $f6, SC_FPREGS+48(a0)
-	EX	ldc1 $f8, SC_FPREGS+64(a0)
-	EX	ldc1 $f10, SC_FPREGS+80(a0)
-	EX	ldc1 $f12, SC_FPREGS+96(a0)
-	EX	ldc1 $f14, SC_FPREGS+112(a0)
-	EX	ldc1 $f16, SC_FPREGS+128(a0)
-	EX	ldc1 $f18, SC_FPREGS+144(a0)
-	EX	ldc1 $f20, SC_FPREGS+160(a0)
-	EX	ldc1 $f22, SC_FPREGS+176(a0)
-	EX	ldc1 $f24, SC_FPREGS+192(a0)
-	EX	ldc1 $f26, SC_FPREGS+208(a0)
-	EX	ldc1 $f28, SC_FPREGS+224(a0)
-	EX	ldc1 $f30, SC_FPREGS+240(a0)
+	EX	ldc1 $f0, 0(a0)
+	EX	ldc1 $f2, 16(a0)
+	EX	ldc1 $f4, 32(a0)
+	EX	ldc1 $f6, 48(a0)
+	EX	ldc1 $f8, 64(a0)
+	EX	ldc1 $f10, 80(a0)
+	EX	ldc1 $f12, 96(a0)
+	EX	ldc1 $f14, 112(a0)
+	EX	ldc1 $f16, 128(a0)
+	EX	ldc1 $f18, 144(a0)
+	EX	ldc1 $f20, 160(a0)
+	EX	ldc1 $f22, 176(a0)
+	EX	ldc1 $f24, 192(a0)
+	EX	ldc1 $f26, 208(a0)
+	EX	ldc1 $f28, 224(a0)
+	EX	ldc1 $f30, 240(a0)
 	ctc1	t1, fcr31
 	.set pop
 	jr	ra
 	 li	v0, 0					# success
 	END(_restore_fp_context)
 
-#ifdef CONFIG_MIPS32_COMPAT
-LEAF(_restore_fp_context32)
-	/* Restore an o32 sigcontext.  */
-	.set push
-	SET_HARDFLOAT
-	EX	lw t1, SC32_FPC_CSR(a0)
+#ifdef CONFIG_CPU_HAS_MSA
 
-#ifndef CONFIG_CPU_MIPS64_R6
-	mfc0	t0, CP0_STATUS
-	sll	t0, t0, 5
-	bgez	t0, 1f			# skip loading odd if FR=0
-	 nop
-#endif
-
-	EX      ldc1 $f1, SC32_FPREGS+8(a0)
-	EX      ldc1 $f3, SC32_FPREGS+24(a0)
-	EX      ldc1 $f5, SC32_FPREGS+40(a0)
-	EX      ldc1 $f7, SC32_FPREGS+56(a0)
-	EX      ldc1 $f9, SC32_FPREGS+72(a0)
-	EX      ldc1 $f11, SC32_FPREGS+88(a0)
-	EX      ldc1 $f13, SC32_FPREGS+104(a0)
-	EX      ldc1 $f15, SC32_FPREGS+120(a0)
-	EX      ldc1 $f17, SC32_FPREGS+136(a0)
-	EX      ldc1 $f19, SC32_FPREGS+152(a0)
-	EX      ldc1 $f21, SC32_FPREGS+168(a0)
-	EX      ldc1 $f23, SC32_FPREGS+184(a0)
-	EX      ldc1 $f25, SC32_FPREGS+200(a0)
-	EX      ldc1 $f27, SC32_FPREGS+216(a0)
-	EX      ldc1 $f29, SC32_FPREGS+232(a0)
-	EX      ldc1 $f31, SC32_FPREGS+248(a0)
-
-1:	EX	ldc1 $f0, SC32_FPREGS+0(a0)
-	EX	ldc1 $f2, SC32_FPREGS+16(a0)
-	EX	ldc1 $f4, SC32_FPREGS+32(a0)
-	EX	ldc1 $f6, SC32_FPREGS+48(a0)
-	EX	ldc1 $f8, SC32_FPREGS+64(a0)
-	EX	ldc1 $f10, SC32_FPREGS+80(a0)
-	EX	ldc1 $f12, SC32_FPREGS+96(a0)
-	EX	ldc1 $f14, SC32_FPREGS+112(a0)
-	EX	ldc1 $f16, SC32_FPREGS+128(a0)
-	EX	ldc1 $f18, SC32_FPREGS+144(a0)
-	EX	ldc1 $f20, SC32_FPREGS+160(a0)
-	EX	ldc1 $f22, SC32_FPREGS+176(a0)
-	EX	ldc1 $f24, SC32_FPREGS+192(a0)
-	EX	ldc1 $f26, SC32_FPREGS+208(a0)
-	EX	ldc1 $f28, SC32_FPREGS+224(a0)
-	EX	ldc1 $f30, SC32_FPREGS+240(a0)
-	ctc1	t1, fcr31
+	.macro	op_one_wr	op, idx, base
+	.align	4
+\idx:	\op	\idx, 0, \base
 	jr	ra
-	 li	v0, 0					# success
-	.set pop
-	END(_restore_fp_context32)
+	 nop
+	.endm
+
+	.macro	op_msa_wr	name, op
+LEAF(\name)
+	.set		push
+	.set		noreorder
+	sll		t0, a0, 4
+	PTR_LA		t1, 0f
+	PTR_ADDU	t0, t0, t1
+	jr		t0
+	  nop
+	op_one_wr	\op, 0, a1
+	op_one_wr	\op, 1, a1
+	op_one_wr	\op, 2, a1
+	op_one_wr	\op, 3, a1
+	op_one_wr	\op, 4, a1
+	op_one_wr	\op, 5, a1
+	op_one_wr	\op, 6, a1
+	op_one_wr	\op, 7, a1
+	op_one_wr	\op, 8, a1
+	op_one_wr	\op, 9, a1
+	op_one_wr	\op, 10, a1
+	op_one_wr	\op, 11, a1
+	op_one_wr	\op, 12, a1
+	op_one_wr	\op, 13, a1
+	op_one_wr	\op, 14, a1
+	op_one_wr	\op, 15, a1
+	op_one_wr	\op, 16, a1
+	op_one_wr	\op, 17, a1
+	op_one_wr	\op, 18, a1
+	op_one_wr	\op, 19, a1
+	op_one_wr	\op, 20, a1
+	op_one_wr	\op, 21, a1
+	op_one_wr	\op, 22, a1
+	op_one_wr	\op, 23, a1
+	op_one_wr	\op, 24, a1
+	op_one_wr	\op, 25, a1
+	op_one_wr	\op, 26, a1
+	op_one_wr	\op, 27, a1
+	op_one_wr	\op, 28, a1
+	op_one_wr	\op, 29, a1
+	op_one_wr	\op, 30, a1
+	op_one_wr	\op, 31, a1
+	.set		pop
+	END(\name)
+	.endm
+
+	op_msa_wr	read_msa_wr_b, st_b
+	op_msa_wr	read_msa_wr_h, st_h
+	op_msa_wr	read_msa_wr_w, st_w
+	op_msa_wr	read_msa_wr_d, st_d
+
+	op_msa_wr	write_msa_wr_b, ld_b
+	op_msa_wr	write_msa_wr_h, ld_h
+	op_msa_wr	write_msa_wr_w, ld_w
+	op_msa_wr	write_msa_wr_d, ld_d
+
+#endif /* CONFIG_CPU_HAS_MSA */
+
+#ifdef CONFIG_CPU_HAS_MSA
+
+	.macro	save_msa_upper	wr, off, base
+	.set	push
+	.set	noat
+#ifdef CONFIG_64BIT
+	copy_u_d \wr, 1
+	EX sd	$1, \off(\base)
+#elif defined(CONFIG_CPU_LITTLE_ENDIAN)
+	copy_u_w \wr, 2
+	EX sw	$1, \off(\base)
+	copy_u_w \wr, 3
+	EX sw	$1, (\off+4)(\base)
+#else /* CONFIG_CPU_BIG_ENDIAN */
+	copy_u_w \wr, 2
+	EX sw	$1, (\off+4)(\base)
+	copy_u_w \wr, 3
+	EX sw	$1, \off(\base)
 #endif
+	.set	pop
+	.endm
+
+LEAF(_save_msa_all_upper)
+	save_msa_upper	0, 0x00, a0
+	save_msa_upper	1, 0x08, a0
+	save_msa_upper	2, 0x10, a0
+	save_msa_upper	3, 0x18, a0
+	save_msa_upper	4, 0x20, a0
+	save_msa_upper	5, 0x28, a0
+	save_msa_upper	6, 0x30, a0
+	save_msa_upper	7, 0x38, a0
+	save_msa_upper	8, 0x40, a0
+	save_msa_upper	9, 0x48, a0
+	save_msa_upper	10, 0x50, a0
+	save_msa_upper	11, 0x58, a0
+	save_msa_upper	12, 0x60, a0
+	save_msa_upper	13, 0x68, a0
+	save_msa_upper	14, 0x70, a0
+	save_msa_upper	15, 0x78, a0
+	save_msa_upper	16, 0x80, a0
+	save_msa_upper	17, 0x88, a0
+	save_msa_upper	18, 0x90, a0
+	save_msa_upper	19, 0x98, a0
+	save_msa_upper	20, 0xa0, a0
+	save_msa_upper	21, 0xa8, a0
+	save_msa_upper	22, 0xb0, a0
+	save_msa_upper	23, 0xb8, a0
+	save_msa_upper	24, 0xc0, a0
+	save_msa_upper	25, 0xc8, a0
+	save_msa_upper	26, 0xd0, a0
+	save_msa_upper	27, 0xd8, a0
+	save_msa_upper	28, 0xe0, a0
+	save_msa_upper	29, 0xe8, a0
+	save_msa_upper	30, 0xf0, a0
+	save_msa_upper	31, 0xf8, a0
+	jr	ra
+	 li	v0, 0
+	END(_save_msa_all_upper)
+
+	.macro	restore_msa_upper	wr, off, base
+	.set	push
+	.set	noat
+#ifdef CONFIG_64BIT
+	EX ld	$1, \off(\base)
+	insert_d \wr, 1
+#elif defined(CONFIG_CPU_LITTLE_ENDIAN)
+	EX lw	$1, \off(\base)
+	insert_w \wr, 2
+	EX lw	$1, (\off+4)(\base)
+	insert_w \wr, 3
+#else /* CONFIG_CPU_BIG_ENDIAN */
+	EX lw	$1, (\off+4)(\base)
+	insert_w \wr, 2
+	EX lw	$1, \off(\base)
+	insert_w \wr, 3
+#endif
+	.set	pop
+	.endm
+
+LEAF(_restore_msa_all_upper)
+	restore_msa_upper	0, 0x00, a0
+	restore_msa_upper	1, 0x08, a0
+	restore_msa_upper	2, 0x10, a0
+	restore_msa_upper	3, 0x18, a0
+	restore_msa_upper	4, 0x20, a0
+	restore_msa_upper	5, 0x28, a0
+	restore_msa_upper	6, 0x30, a0
+	restore_msa_upper	7, 0x38, a0
+	restore_msa_upper	8, 0x40, a0
+	restore_msa_upper	9, 0x48, a0
+	restore_msa_upper	10, 0x50, a0
+	restore_msa_upper	11, 0x58, a0
+	restore_msa_upper	12, 0x60, a0
+	restore_msa_upper	13, 0x68, a0
+	restore_msa_upper	14, 0x70, a0
+	restore_msa_upper	15, 0x78, a0
+	restore_msa_upper	16, 0x80, a0
+	restore_msa_upper	17, 0x88, a0
+	restore_msa_upper	18, 0x90, a0
+	restore_msa_upper	19, 0x98, a0
+	restore_msa_upper	20, 0xa0, a0
+	restore_msa_upper	21, 0xa8, a0
+	restore_msa_upper	22, 0xb0, a0
+	restore_msa_upper	23, 0xb8, a0
+	restore_msa_upper	24, 0xc0, a0
+	restore_msa_upper	25, 0xc8, a0
+	restore_msa_upper	26, 0xd0, a0
+	restore_msa_upper	27, 0xd8, a0
+	restore_msa_upper	28, 0xe0, a0
+	restore_msa_upper	29, 0xe8, a0
+	restore_msa_upper	30, 0xf0, a0
+	restore_msa_upper	31, 0xf8, a0
+	jr	ra
+	 li	v0, 0
+	END(_restore_msa_all_upper)
+
+#endif /* CONFIG_CPU_HAS_MSA */
 
 	.set	reorder
 

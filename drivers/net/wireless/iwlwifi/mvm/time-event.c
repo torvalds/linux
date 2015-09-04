@@ -410,9 +410,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 /*
  * The Rx handler for time event notifications
  */
-int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_time_event_notif *notif = (void *)pkt->data;
@@ -433,8 +432,6 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 	}
 unlock:
 	spin_unlock_bh(&mvm->time_event_lock);
-
-	return 0;
 }
 
 static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,
@@ -503,7 +500,7 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 				       struct iwl_mvm_time_event_data *te_data,
 				       struct iwl_time_event_cmd *te_cmd)
 {
-	static const u8 time_event_response[] = { TIME_EVENT_CMD };
+	static const u16 time_event_response[] = { TIME_EVENT_CMD };
 	struct iwl_notification_wait wait_time_event;
 	int ret;
 
@@ -566,7 +563,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u8 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
+	const u16 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
 	struct iwl_notification_wait wait_te_notif;
 	struct iwl_time_event_cmd time_cmd = {};
 
@@ -599,8 +596,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 	time_cmd.id = cpu_to_le32(TE_BSS_STA_AGGRESSIVE_ASSOC);
 
-	time_cmd.apply_time =
-		cpu_to_le32(iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG));
+	time_cmd.apply_time = cpu_to_le32(0);
 
 	time_cmd.max_frags = TE_V2_FRAG_NONE;
 	time_cmd.max_delay = cpu_to_le32(max_delay);

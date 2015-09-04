@@ -77,7 +77,7 @@ static void pmem_make_request(struct request_queue *q, struct bio *bio)
 	if (bio_data_dir(bio))
 		wmb_pmem();
 
-	bio_endio(bio, 0);
+	bio_endio(bio);
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,

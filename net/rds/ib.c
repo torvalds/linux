@@ -317,7 +317,7 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
  * allowed to influence which paths have priority.  We could call userspace
  * asserting this policy "routing".
  */
-static int rds_ib_laddr_check(__be32 addr)
+static int rds_ib_laddr_check(struct net *net, __be32 addr)
 {
 	int ret;
 	struct rdma_cm_id *cm_id;
@@ -366,6 +366,7 @@ void rds_ib_exit(void)
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();
 	rds_trans_unregister(&rds_ib_transport);
+	rds_ib_fmr_exit();
 }
 
 struct rds_transport rds_ib_transport = {
@@ -401,9 +402,13 @@ int rds_ib_init(void)
 
 	INIT_LIST_HEAD(&rds_ib_devices);
 
-	ret = ib_register_client(&rds_ib_client);
+	ret = rds_ib_fmr_init();
 	if (ret)
 		goto out;
+
+	ret = ib_register_client(&rds_ib_client);
+	if (ret)
+		goto out_fmr_exit;
 
 	ret = rds_ib_sysctl_init();
 	if (ret)
@@ -427,6 +432,8 @@ out_sysctl:
 	rds_ib_sysctl_exit();
 out_ibreg:
 	rds_ib_unregister_client();
+out_fmr_exit:
+	rds_ib_fmr_exit();
 out:
 	return ret;
 }

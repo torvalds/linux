@@ -188,6 +188,7 @@ static void __init ms_hyperv_init_platform(void)
 
 	machine_ops.shutdown = hv_machine_shutdown;
 	machine_ops.crash_shutdown = hv_machine_crash_shutdown;
+	mark_tsc_unstable("running on Hyper-V");
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {

@@ -303,12 +303,12 @@ void mdiobus_unregister(struct mii_bus *bus)
 	BUG_ON(bus->state != MDIOBUS_REGISTERED);
 	bus->state = MDIOBUS_UNREGISTERED;
 
-	device_del(&bus->dev);
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		if (bus->phy_map[i])
 			device_unregister(&bus->phy_map[i]->dev);
 		bus->phy_map[i] = NULL;
 	}
+	device_del(&bus->dev);
 }
 EXPORT_SYMBOL(mdiobus_unregister);
 

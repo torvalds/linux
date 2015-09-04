@@ -239,8 +239,16 @@ do {								\
 	net_ratelimited_function(pr_warn, fmt, ##__VA_ARGS__)
 #define net_info_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_info, fmt, ##__VA_ARGS__)
+#if defined(DEBUG)
 #define net_dbg_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
+#else
+#define net_dbg_ratelimited(fmt, ...)				\
+	do {							\
+		if (0)						\
+			no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
+	} while (0)
+#endif
 
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
 			   struct static_key *done_key);

@@ -340,6 +340,8 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 	int rw = bio_rw(old_bio);
 	int inactive;
 
+	blk_queue_split(q, &old_bio, q->bio_split);
+
 	if (!lo)
 		goto err;
 
@@ -376,7 +378,8 @@ static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 	while (bio) {
 		struct bio *tmp = bio->bi_next;
 		bio->bi_next = NULL;
-		bio_endio(bio, ret);
+		bio->bi_error = ret;
+		bio_endio(bio);
 		bio = tmp;
 	}
 }

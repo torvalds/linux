@@ -4,6 +4,7 @@
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
 #include <linux/ktime.h>
+#include <linux/seq_file.h>
 
 static struct vfsmount *nsfs_mnt;
 
@@ -136,9 +137,18 @@ out_invalid:
 	return ERR_PTR(-EINVAL);
 }
 
+static int nsfs_show_path(struct seq_file *seq, struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
+
+	return seq_printf(seq, "%s:[%lu]", ns_ops->name, inode->i_ino);
+}
+
 static const struct super_operations nsfs_ops = {
 	.statfs = simple_statfs,
 	.evict_inode = nsfs_evict,
+	.show_path = nsfs_show_path,
 };
 static struct dentry *nsfs_mount(struct file_system_type *fs_type,
 			int flags, const char *dev_name, void *data)

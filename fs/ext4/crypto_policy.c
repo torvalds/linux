@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+#include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
 
@@ -49,7 +50,8 @@ static int ext4_create_encryption_context_from_policy(
 	struct inode *inode, const struct ext4_encryption_policy *policy)
 {
 	struct ext4_encryption_context ctx;
-	int res = 0;
+	handle_t *handle;
+	int res, res2;
 
 	res = ext4_convert_inline_data(inode);
 	if (res)
@@ -78,11 +80,22 @@ static int ext4_create_encryption_context_from_policy(
 	BUILD_BUG_ON(sizeof(ctx.nonce) != EXT4_KEY_DERIVATION_NONCE_SIZE);
 	get_random_bytes(ctx.nonce, EXT4_KEY_DERIVATION_NONCE_SIZE);
 
+	handle = ext4_journal_start(inode, EXT4_HT_MISC,
+				    ext4_jbd2_credits_xattr(inode));
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
 	res = ext4_xattr_set(inode, EXT4_XATTR_INDEX_ENCRYPTION,
 			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, &ctx,
 			     sizeof(ctx), 0);
-	if (!res)
+	if (!res) {
 		ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
+		res = ext4_mark_inode_dirty(handle, inode);
+		if (res)
+			EXT4_ERROR_INODE(inode, "Failed to mark inode dirty");
+	}
+	res2 = ext4_journal_stop(handle);
+	if (!res)
+		res = res2;
 	return res;
 }
 

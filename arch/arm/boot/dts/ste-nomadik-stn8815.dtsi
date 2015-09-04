@@ -21,6 +21,13 @@
 		interrupts = <30>;
 		cache-unified;
 		cache-level = <2>;
+		cache-size = <131072>;
+		cache-sets = <512>;
+		cache-line-size = <32>;
+		/* At full speed latency must be >=2 */
+		arm,tag-latency = <2>;
+		arm,data-latency = <2 2>;
+		arm,dirty-latency = <2>;
 	};
 
 	mtu0: mtu@101e2000 {
@@ -97,14 +104,6 @@
 	pinctrl {
 		compatible = "stericsson,stn8815-pinctrl";
 		/* Pin configurations */
-		uart0 {
-			uart0_default_mux: uart0_mux {
-				u0_default_mux {
-					function = "u0";
-					groups = "u0_a_1";
-				};
-			};
-		};
 		uart1 {
 			uart1_default_mux: uart1_mux {
 				u1_default_mux {
@@ -721,11 +720,6 @@
 			   compatible = "st,stw5095";
 			   reg = <0x1a>;
 		};
-		lis3lv02dl@1d {
-			/* Accelerometer */
-			compatible = "st,lis3lv02dl-accel";
-			reg = <0x1d>;
-		};
 	};
 
 	amba {
@@ -755,8 +749,6 @@
 			interrupts = <12>;
 			clocks = <&uart0clk>, <&pclkuart0>;
 			clock-names = "uartclk", "apb_pclk";
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_default_mux>;
 			status = "disabled";
 		};
 

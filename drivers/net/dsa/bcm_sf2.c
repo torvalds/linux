@@ -901,15 +901,11 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 					 struct fixed_phy_status *status)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
-	u32 duplex, pause, speed;
+	u32 duplex, pause;
 	u32 reg;
 
 	duplex = core_readl(priv, CORE_DUPSTS);
 	pause = core_readl(priv, CORE_PAUSESTS);
-	speed = core_readl(priv, CORE_SPDSTS);
-
-	speed >>= (port * SPDSTS_SHIFT);
-	speed &= SPDSTS_MASK;
 
 	status->link = 0;
 
@@ -943,18 +939,6 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 	else
 		reg &= ~LINK_STS;
 	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
-
-	switch (speed) {
-	case SPDSTS_10:
-		status->speed = SPEED_10;
-		break;
-	case SPDSTS_100:
-		status->speed = SPEED_100;
-		break;
-	case SPDSTS_1000:
-		status->speed = SPEED_1000;
-		break;
-	}
 
 	if ((pause & (1 << port)) &&
 	    (pause & (1 << (port + PAUSESTS_TX_PAUSE_SHIFT)))) {

@@ -444,7 +444,7 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 			if (p->pte & 0x1)
 				if (is_tr_overlap(p, va, log_size)) {
 					printk(KERN_DEBUG "Overlapped Entry"
-						"Inserted for TR Reigster!!\n");
+						"Inserted for TR Register!!\n");
 					goto out;
 			}
 		}
@@ -456,7 +456,7 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 			if (p->pte & 0x1)
 				if (is_tr_overlap(p, va, log_size)) {
 					printk(KERN_DEBUG "Overlapped Entry"
-						"Inserted for TR Reigster!!\n");
+						"Inserted for TR Register!!\n");
 					goto out;
 				}
 		}

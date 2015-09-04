@@ -84,6 +84,7 @@ struct listeners {
 #define NETLINK_F_BROADCAST_SEND_ERROR	0x4
 #define NETLINK_F_RECV_NO_ENOBUFS	0x8
 #define NETLINK_F_LISTEN_ALL_NSID	0x10
+#define NETLINK_F_CAP_ACK		0x20
 
 static inline int netlink_is_kernel(struct sock *sk)
 {
@@ -593,16 +594,6 @@ netlink_current_frame(const struct netlink_ring *ring,
 	return netlink_lookup_frame(ring, ring->head, status);
 }
 
-static struct nl_mmap_hdr *
-netlink_previous_frame(const struct netlink_ring *ring,
-		       enum nl_mmap_status status)
-{
-	unsigned int prev;
-
-	prev = ring->head ? ring->head - 1 : ring->frame_max;
-	return netlink_lookup_frame(ring, prev, status);
-}
-
 static void netlink_increment_head(struct netlink_ring *ring)
 {
 	ring->head = ring->head != ring->frame_max ? ring->head + 1 : 0;
@@ -610,17 +601,32 @@ static void netlink_increment_head(struct netlink_ring *ring)
 
 static void netlink_forward_ring(struct netlink_ring *ring)
 {
-	unsigned int head = ring->head, pos = head;
+	unsigned int head = ring->head;
 	const struct nl_mmap_hdr *hdr;
 
 	do {
-		hdr = __netlink_lookup_frame(ring, pos);
+		hdr = __netlink_lookup_frame(ring, ring->head);
 		if (hdr->nm_status == NL_MMAP_STATUS_UNUSED)
 			break;
 		if (hdr->nm_status != NL_MMAP_STATUS_SKIP)
 			break;
 		netlink_increment_head(ring);
 	} while (ring->head != head);
+}
+
+static bool netlink_has_valid_frame(struct netlink_ring *ring)
+{
+	unsigned int head = ring->head, pos = head;
+	const struct nl_mmap_hdr *hdr;
+
+	do {
+		hdr = __netlink_lookup_frame(ring, pos);
+		if (hdr->nm_status == NL_MMAP_STATUS_VALID)
+			return true;
+		pos = pos != 0 ? pos - 1 : ring->frame_max;
+	} while (pos != head);
+
+	return false;
 }
 
 static bool netlink_dump_space(struct netlink_sock *nlk)
@@ -670,8 +676,7 @@ static unsigned int netlink_poll(struct file *file, struct socket *sock,
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	if (nlk->rx_ring.pg_vec) {
-		netlink_forward_ring(&nlk->rx_ring);
-		if (!netlink_previous_frame(&nlk->rx_ring, NL_MMAP_STATUS_UNUSED))
+		if (netlink_has_valid_frame(&nlk->rx_ring))
 			mask |= POLLIN | POLLRDNORM;
 	}
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
@@ -2258,6 +2263,13 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 			nlk->flags &= ~NETLINK_F_LISTEN_ALL_NSID;
 		err = 0;
 		break;
+	case NETLINK_CAP_ACK:
+		if (val)
+			nlk->flags |= NETLINK_F_CAP_ACK;
+		else
+			nlk->flags &= ~NETLINK_F_CAP_ACK;
+		err = 0;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -2332,6 +2344,16 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 		netlink_table_ungrab();
 		break;
 	}
+	case NETLINK_CAP_ACK:
+		if (len < sizeof(int))
+			return -EINVAL;
+		len = sizeof(int);
+		val = nlk->flags & NETLINK_F_CAP_ACK ? 1 : 0;
+		if (put_user(len, optlen) ||
+		    put_user(val, optval))
+			return -EFAULT;
+		err = 0;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -2873,9 +2895,12 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	struct nlmsghdr *rep;
 	struct nlmsgerr *errmsg;
 	size_t payload = sizeof(*errmsg);
+	struct netlink_sock *nlk = nlk_sk(NETLINK_CB(in_skb).sk);
 
-	/* error messages get the original request appened */
-	if (err)
+	/* Error messages get the original request appened, unless the user
+	 * requests to cap the error message.
+	 */
+	if (!(nlk->flags & NETLINK_F_CAP_ACK) && err)
 		payload += nlmsg_len(nlh);
 
 	skb = netlink_alloc_skb(in_skb->sk, nlmsg_total_size(payload),
@@ -2898,7 +2923,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 			  NLMSG_ERROR, payload, 0);
 	errmsg = nlmsg_data(rep);
 	errmsg->error = err;
-	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(*nlh));
+	memcpy(&errmsg->msg, nlh, payload > sizeof(*errmsg) ? nlh->nlmsg_len : sizeof(*nlh));
 	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).portid, MSG_DONTWAIT);
 }
 EXPORT_SYMBOL(netlink_ack);

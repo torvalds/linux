@@ -53,6 +53,8 @@ extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
 extern void read_decode_cache_bcr(void);
 
+extern int ioc_exists;
+
 #endif	/* !__ASSEMBLY__ */
 
 /* Instruction cache related Auxiliary registers */
@@ -93,5 +95,11 @@ extern void read_decode_cache_bcr(void);
 #define SLC_CTRL_DISABLE	0x001
 #define SLC_CTRL_BUSY		0x100
 #define SLC_CTRL_RGN_OP_INV	0x200
+
+/* IO coherency related Auxiliary registers */
+#define ARC_REG_IO_COH_ENABLE	0x500
+#define ARC_REG_IO_COH_PARTIAL	0x501
+#define ARC_REG_IO_COH_AP0_BASE	0x508
+#define ARC_REG_IO_COH_AP0_SIZE	0x509
 
 #endif /* _ASM_CACHE_H */

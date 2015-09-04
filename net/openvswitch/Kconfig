@@ -31,10 +31,21 @@ config OPENVSWITCH
 
 	  If unsure, say N.
 
+config OPENVSWITCH_CONNTRACK
+	bool "Open vSwitch conntrack action support"
+	depends on OPENVSWITCH
+	depends on NF_CONNTRACK
+	default OPENVSWITCH
+	---help---
+	  If you say Y here, then Open vSwitch module will be able to pass
+	  packets through conntrack.
+
+	  Say N to exclude this support and reduce the binary size.
+
 config OPENVSWITCH_GRE
 	tristate "Open vSwitch GRE tunneling support"
 	depends on OPENVSWITCH
-	depends on NET_IPGRE_DEMUX
+	depends on NET_IPGRE
 	default OPENVSWITCH
 	---help---
 	  If you say Y here, then the Open vSwitch will be able create GRE
@@ -59,7 +70,7 @@ config OPENVSWITCH_VXLAN
 config OPENVSWITCH_GENEVE
 	tristate "Open vSwitch Geneve tunneling support"
 	depends on OPENVSWITCH
-	depends on GENEVE_CORE
+	depends on GENEVE
 	default OPENVSWITCH
 	---help---
 	  If you say Y here, then the Open vSwitch will be able create geneve vport.

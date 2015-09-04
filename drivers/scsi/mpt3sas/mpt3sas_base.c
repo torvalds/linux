@@ -1843,7 +1843,8 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		goto out_fail;
 	}
 
-	for (i = 0, memap_sz = 0, pio_sz = 0 ; i < DEVICE_COUNT_RESOURCE; i++) {
+	for (i = 0, memap_sz = 0, pio_sz = 0; (i < DEVICE_COUNT_RESOURCE) &&
+	     (!memap_sz || !pio_sz); i++) {
 		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
 			if (pio_sz)
 				continue;
@@ -1856,13 +1857,14 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 			chip_phys = (u64)ioc->chip_phys;
 			memap_sz = pci_resource_len(pdev, i);
 			ioc->chip = ioremap(ioc->chip_phys, memap_sz);
-			if (ioc->chip == NULL) {
-				pr_err(MPT3SAS_FMT "unable to map adapter memory!\n",
-					ioc->name);
-				r = -EINVAL;
-				goto out_fail;
-			}
 		}
+	}
+
+	if (ioc->chip == NULL) {
+		pr_err(MPT3SAS_FMT "unable to map adapter memory! "
+			" or resource not found\n", ioc->name);
+		r = -EINVAL;
+		goto out_fail;
 	}
 
 	_base_mask_interrupts(ioc);

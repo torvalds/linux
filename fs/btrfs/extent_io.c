@@ -2486,7 +2486,7 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
  * Scheduling is not allowed, so the extent state tree is expected
  * to have one and only one object corresponding to this IO.
  */
-static void end_bio_extent_writepage(struct bio *bio, int err)
+static void end_bio_extent_writepage(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	u64 start;
@@ -2516,7 +2516,7 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
-		if (end_extent_writepage(page, err, start, end))
+		if (end_extent_writepage(page, bio->bi_error, start, end))
 			continue;
 
 		end_page_writeback(page);
@@ -2548,10 +2548,10 @@ endio_readpage_release_extent(struct extent_io_tree *tree, u64 start, u64 len,
  * Scheduling is not allowed, so the extent state tree is expected
  * to have one and only one object corresponding to this IO.
  */
-static void end_bio_extent_readpage(struct bio *bio, int err)
+static void end_bio_extent_readpage(struct bio *bio)
 {
 	struct bio_vec *bvec;
-	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
+	int uptodate = !bio->bi_error;
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	struct extent_io_tree *tree;
 	u64 offset = 0;
@@ -2564,16 +2564,13 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	int ret;
 	int i;
 
-	if (err)
-		uptodate = 0;
-
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
 
 		pr_debug("end_bio_extent_readpage: bi_sector=%llu, err=%d, "
-			 "mirror=%u\n", (u64)bio->bi_iter.bi_sector, err,
-			 io_bio->mirror_num);
+			 "mirror=%u\n", (u64)bio->bi_iter.bi_sector,
+			 bio->bi_error, io_bio->mirror_num);
 		tree = &BTRFS_I(inode)->io_tree;
 
 		/* We always issue full-page reads, but if some block
@@ -2614,8 +2611,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 
 		if (tree->ops && tree->ops->readpage_io_failed_hook) {
 			ret = tree->ops->readpage_io_failed_hook(page, mirror);
-			if (!ret && !err &&
-			    test_bit(BIO_UPTODATE, &bio->bi_flags))
+			if (!ret && !bio->bi_error)
 				uptodate = 1;
 		} else {
 			/*
@@ -2631,10 +2627,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			ret = bio_readpage_error(bio, offset, page, start, end,
 						 mirror);
 			if (ret == 0) {
-				uptodate =
-					test_bit(BIO_UPTODATE, &bio->bi_flags);
-				if (err)
-					uptodate = 0;
+				uptodate = !bio->bi_error;
 				offset += len;
 				continue;
 			}
@@ -2684,7 +2677,7 @@ readpage_ok:
 		endio_readpage_release_extent(tree, extent_start, extent_len,
 					      uptodate);
 	if (io_bio->end_io)
-		io_bio->end_io(io_bio, err);
+		io_bio->end_io(io_bio, bio->bi_error);
 	bio_put(bio);
 }
 
@@ -2802,9 +2795,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 {
 	int ret = 0;
 	struct bio *bio;
-	int nr;
 	int contig = 0;
-	int this_compressed = bio_flags & EXTENT_BIO_COMPRESSED;
 	int old_compressed = prev_bio_flags & EXTENT_BIO_COMPRESSED;
 	size_t page_size = min_t(size_t, size, PAGE_CACHE_SIZE);
 
@@ -2829,12 +2820,9 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			return 0;
 		}
 	}
-	if (this_compressed)
-		nr = BIO_MAX_PAGES;
-	else
-		nr = bio_get_nr_vecs(bdev);
 
-	bio = btrfs_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
+	bio = btrfs_bio_alloc(bdev, sector, BIO_MAX_PAGES,
+			GFP_NOFS | __GFP_HIGH);
 	if (!bio)
 		return -ENOMEM;
 
@@ -3696,7 +3684,7 @@ static void set_btree_ioerr(struct page *page)
 	}
 }
 
-static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
+static void end_bio_extent_buffer_writepage(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	struct extent_buffer *eb;
@@ -3709,7 +3697,8 @@ static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 		BUG_ON(!eb);
 		done = atomic_dec_and_test(&eb->io_pages);
 
-		if (err || test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
+		if (bio->bi_error ||
+		    test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
 			ClearPageUptodate(page);
 			set_btree_ioerr(page);
 		}

@@ -59,12 +59,12 @@
 #include <plat/pm.h>
 
 #include <plat/iic-core.h>
-#include <plat/fb-core.h>
-#include <plat/nand-core.h>
 #include <plat/adc-core.h>
-#include <plat/spi-core.h>
 
 #include "common.h"
+#include "fb-core.h"
+#include "nand-core.h"
+#include "spi-core.h"
 
 static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),

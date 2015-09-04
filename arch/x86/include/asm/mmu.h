@@ -9,7 +9,9 @@
  * we put the segment information here.
  */
 typedef struct {
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
 	struct ldt_struct *ldt;
+#endif
 
 #ifdef CONFIG_X86_64
 	/* True if mm supports a task running in 32 bit compatibility mode. */

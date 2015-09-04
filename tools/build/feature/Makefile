@@ -33,7 +33,8 @@ FILES=					\
 	test-compile-32.bin		\
 	test-compile-x32.bin		\
 	test-zlib.bin			\
-	test-lzma.bin
+	test-lzma.bin			\
+	test-bpf.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -69,8 +70,13 @@ test-libelf.bin:
 test-glibc.bin:
 	$(BUILD)
 
+DWARFLIBS := -ldw
+ifeq ($(findstring -static,${LDFLAGS}),-static)
+DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
+endif
+
 test-dwarf.bin:
-	$(BUILD) -ldw
+	$(BUILD) $(DWARFLIBS)
 
 test-libelf-mmap.bin:
 	$(BUILD) -lelf
@@ -155,6 +161,9 @@ test-zlib.bin:
 
 test-lzma.bin:
 	$(BUILD) -llzma
+
+test-bpf.bin:
+	$(BUILD)
 
 -include *.d
 

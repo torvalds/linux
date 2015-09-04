@@ -29,7 +29,9 @@ struct ipv6_devconf {
 	__s32		max_desync_factor;
 	__s32		max_addresses;
 	__s32		accept_ra_defrtr;
+	__s32		accept_ra_min_hop_limit;
 	__s32		accept_ra_pinfo;
+	__s32		ignore_routes_with_linkdown;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	__s32		accept_ra_rtr_pref;
 	__s32		rtr_probe_interval;
@@ -57,6 +59,7 @@ struct ipv6_devconf {
 		bool initialized;
 		struct in6_addr secret;
 	} stable_secret;
+	__s32		use_oif_addrs_only;
 	void		*sysctl;
 };
 
@@ -94,7 +97,6 @@ static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
 struct inet6_skb_parm {
 	int			iif;
 	__be16			ra;
-	__u16			hop;
 	__u16			dst0;
 	__u16			srcrt;
 	__u16			dst1;
@@ -111,6 +113,7 @@ struct inet6_skb_parm {
 #define IP6SKB_REROUTED		4
 #define IP6SKB_ROUTERALERT	8
 #define IP6SKB_FRAGMENTED      16
+#define IP6SKB_HOPBYHOP        32
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))

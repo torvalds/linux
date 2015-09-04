@@ -20,7 +20,7 @@
 #include "prm-regbits-24xx.h"
 #include "wd_timer.h"
 
-struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
+static struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
 	{ .name = "dispc", .dma_req = 5 },
 	{ .dma_req = -1, },
 };

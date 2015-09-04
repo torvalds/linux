@@ -1157,6 +1157,80 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	return false;
 }
 
+/* No locking is required in xenvif_mcast_add/del() as they are
+ * only ever invoked from NAPI poll. An RCU list is used because
+ * xenvif_mcast_match() is called asynchronously, during start_xmit.
+ */
+
+static int xenvif_mcast_add(struct xenvif *vif, const u8 *addr)
+{
+	struct xenvif_mcast_addr *mcast;
+
+	if (vif->fe_mcast_count == XEN_NETBK_MCAST_MAX) {
+		if (net_ratelimit())
+			netdev_err(vif->dev,
+				   "Too many multicast addresses\n");
+		return -ENOSPC;
+	}
+
+	mcast = kzalloc(sizeof(*mcast), GFP_ATOMIC);
+	if (!mcast)
+		return -ENOMEM;
+
+	ether_addr_copy(mcast->addr, addr);
+	list_add_tail_rcu(&mcast->entry, &vif->fe_mcast_addr);
+	vif->fe_mcast_count++;
+
+	return 0;
+}
+
+static void xenvif_mcast_del(struct xenvif *vif, const u8 *addr)
+{
+	struct xenvif_mcast_addr *mcast;
+
+	list_for_each_entry_rcu(mcast, &vif->fe_mcast_addr, entry) {
+		if (ether_addr_equal(addr, mcast->addr)) {
+			--vif->fe_mcast_count;
+			list_del_rcu(&mcast->entry);
+			kfree_rcu(mcast, rcu);
+			break;
+		}
+	}
+}
+
+bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr)
+{
+	struct xenvif_mcast_addr *mcast;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(mcast, &vif->fe_mcast_addr, entry) {
+		if (ether_addr_equal(addr, mcast->addr)) {
+			rcu_read_unlock();
+			return true;
+		}
+	}
+	rcu_read_unlock();
+
+	return false;
+}
+
+void xenvif_mcast_addr_list_free(struct xenvif *vif)
+{
+	/* No need for locking or RCU here. NAPI poll and TX queue
+	 * are stopped.
+	 */
+	while (!list_empty(&vif->fe_mcast_addr)) {
+		struct xenvif_mcast_addr *mcast;
+
+		mcast = list_first_entry(&vif->fe_mcast_addr,
+					 struct xenvif_mcast_addr,
+					 entry);
+		--vif->fe_mcast_count;
+		list_del(&mcast->entry);
+		kfree(mcast);
+	}
+}
+
 static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 				     int budget,
 				     unsigned *copy_ops,
@@ -1213,6 +1287,31 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			idx = queue->tx.req_cons;
 			if (unlikely(work_to_do < 0))
 				break;
+		}
+
+		if (extras[XEN_NETIF_EXTRA_TYPE_MCAST_ADD - 1].type) {
+			struct xen_netif_extra_info *extra;
+
+			extra = &extras[XEN_NETIF_EXTRA_TYPE_MCAST_ADD - 1];
+			ret = xenvif_mcast_add(queue->vif, extra->u.mcast.addr);
+
+			make_tx_response(queue, &txreq,
+					 (ret == 0) ?
+					 XEN_NETIF_RSP_OKAY :
+					 XEN_NETIF_RSP_ERROR);
+			push_tx_responses(queue);
+			continue;
+		}
+
+		if (extras[XEN_NETIF_EXTRA_TYPE_MCAST_DEL - 1].type) {
+			struct xen_netif_extra_info *extra;
+
+			extra = &extras[XEN_NETIF_EXTRA_TYPE_MCAST_DEL - 1];
+			xenvif_mcast_del(queue->vif, extra->u.mcast.addr);
+
+			make_tx_response(queue, &txreq, XEN_NETIF_RSP_OKAY);
+			push_tx_responses(queue);
+			continue;
 		}
 
 		ret = xenvif_count_requests(queue, &txreq, txfrags, work_to_do);

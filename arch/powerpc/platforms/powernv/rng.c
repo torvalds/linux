@@ -128,7 +128,7 @@ static __init int rng_create(struct device_node *dn)
 
 	pr_info_once("Registering arch random hook.\n");
 
-	ppc_md.get_random_long = powernv_get_random_long;
+	ppc_md.get_random_seed = powernv_get_random_long;
 
 	return 0;
 }

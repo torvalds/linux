@@ -175,7 +175,7 @@ static int sn_set_msi_irq_affinity(struct irq_data *data,
 	 * Release XIO resources for the old MSI PCI address
 	 */
 
-	__get_cached_msi_msg(data->msi_desc, &msg);
+	__get_cached_msi_msg(irq_data_get_msi_desc(data), &msg);
 	sn_pdev = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	pdev = sn_pdev->pdi_linux_pcidev;
 	provider = SN_PCIDEV_BUSPROVIDER(pdev);
@@ -206,7 +206,7 @@ static int sn_set_msi_irq_affinity(struct irq_data *data,
 	msg.address_lo = (u32)(bus_addr & 0x00000000ffffffff);
 
 	pci_write_msi_msg(irq, &msg);
-	cpumask_copy(data->affinity, cpu_mask);
+	cpumask_copy(irq_data_get_affinity_mask(data), cpu_mask);
 
 	return 0;
 }

@@ -415,7 +415,7 @@ static __init int armada_38x_cpuidle_init(void)
 	void __iomem *mpsoc_base;
 	u32 reg;
 
-	pr_warn("CPU idle is currently broken on Armada 38x: disabling");
+	pr_warn("CPU idle is currently broken on Armada 38x: disabling\n");
 	return 0;
 
 	np = of_find_compatible_node(NULL, NULL,
@@ -486,7 +486,7 @@ static int __init mvebu_v7_cpu_pm_init(void)
 	 */
 	if (of_machine_is_compatible("marvell,armada380")) {
 		cpu_hotplug_disable();
-		pr_warn("CPU hotplug support is currently broken on Armada 38x: disabling");
+		pr_warn("CPU hotplug support is currently broken on Armada 38x: disabling\n");
 	}
 
 	if (of_machine_is_compatible("marvell,armadaxp"))

@@ -27,7 +27,7 @@ struct bpf_map_def SEC("maps") my_map = {
 SEC("kprobe/kmem_cache_free")
 int bpf_prog1(struct pt_regs *ctx)
 {
-	long ptr = ctx->si;
+	long ptr = PT_REGS_PARM2(ctx);
 
 	bpf_map_delete_elem(&my_map, &ptr);
 	return 0;
@@ -36,11 +36,11 @@ int bpf_prog1(struct pt_regs *ctx)
 SEC("kretprobe/kmem_cache_alloc_node")
 int bpf_prog2(struct pt_regs *ctx)
 {
-	long ptr = ctx->ax;
+	long ptr = PT_REGS_RC(ctx);
 	long ip = 0;
 
 	/* get ip address of kmem_cache_alloc_node() caller */
-	bpf_probe_read(&ip, sizeof(ip), (void *)(ctx->bp + sizeof(ip)));
+	bpf_probe_read(&ip, sizeof(ip), (void *)(PT_REGS_FP(ctx) + sizeof(ip)));
 
 	struct pair v = {
 		.val = bpf_ktime_get_ns(),

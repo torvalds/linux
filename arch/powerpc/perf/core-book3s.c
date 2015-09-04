@@ -53,7 +53,7 @@ struct cpu_hw_events {
 
 	/* BHRB bits */
 	u64				bhrb_filter;	/* BHRB HW branch filter */
-	int				bhrb_users;
+	unsigned int			bhrb_users;
 	void				*bhrb_context;
 	struct	perf_branch_stack	bhrb_stack;
 	struct	perf_branch_entry	bhrb_entries[BHRB_MAX_ENTRIES];
@@ -369,8 +369,8 @@ static void power_pmu_bhrb_disable(struct perf_event *event)
 	if (!ppmu->bhrb_nr)
 		return;
 
+	WARN_ON_ONCE(!cpuhw->bhrb_users);
 	cpuhw->bhrb_users--;
-	WARN_ON_ONCE(cpuhw->bhrb_users < 0);
 	perf_sched_cb_dec(event->ctx->pmu);
 
 	if (!cpuhw->disabled && !cpuhw->bhrb_users) {

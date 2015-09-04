@@ -33,6 +33,8 @@ Required properties:
 - compatible: should be one of:
   - "rockchip,rk3188-io-voltage-domain" for rk3188
   - "rockchip,rk3288-io-voltage-domain" for rk3288
+  - "rockchip,rk3368-io-voltage-domain" for rk3368
+  - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
 - rockchip,grf: phandle to the syscon managing the "general register files"
 
 
@@ -64,6 +66,18 @@ Possible supplies for rk3288:
 - sdcard-supply: The supply connected to SDMMC0_VDD.
 - wifi-supply:   The supply connected to APIO3_VDD.  Also known as SDIO0.
 
+Possible supplies for rk3368:
+- audio-supply:  The supply connected to APIO3_VDD.
+- dvp-supply:    The supply connected to DVPIO_VDD.
+- flash0-supply: The supply connected to FLASH0_VDD.  Typically for eMMC
+- gpio30-supply: The supply connected to APIO1_VDD.
+- gpio1830       The supply connected to APIO4_VDD.
+- sdcard-supply: The supply connected to SDMMC0_VDD.
+- wifi-supply:   The supply connected to APIO2_VDD.  Also known as SDIO0.
+
+Possible supplies for rk3368 pmu-domains:
+- pmu-supply:    The supply connected to PMUIO_VDD.
+- vop-supply:    The supply connected to LCDC_VDD.
 
 Example:
 

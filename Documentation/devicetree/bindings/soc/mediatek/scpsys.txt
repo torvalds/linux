@@ -1,0 +1,41 @@
+MediaTek SCPSYS
+===============
+
+The System Control Processor System (SCPSYS) has several power management
+related tasks in the system. The tasks include thermal measurement, dynamic
+voltage frequency scaling (DVFS), interrupt filter and lowlevel sleep control.
+The System Power Manager (SPM) inside the SCPSYS is for the MTCMOS power
+domain control.
+
+The driver implements the Generic PM domain bindings described in
+power/power_domain.txt. It provides the power domains defined in
+include/dt-bindings/power/mt8173-power.h.
+
+Required properties:
+- compatible: Must be "mediatek,mt8173-scpsys"
+- #power-domain-cells: Must be 1
+- reg: Address range of the SCPSYS unit
+- infracfg: must contain a phandle to the infracfg controller
+- clock, clock-names: clocks according to the common clock binding.
+                      The clocks needed "mm" and "mfg". These are the
+		      clocks which hardware needs to be enabled before
+		      enabling certain power domains.
+
+Example:
+
+	scpsys: scpsys@10006000 {
+		#power-domain-cells = <1>;
+		compatible = "mediatek,mt8173-scpsys";
+		reg = <0 0x10006000 0 0x1000>;
+		infracfg = <&infracfg>;
+		clocks = <&clk26m>,
+			 <&topckgen CLK_TOP_MM_SEL>;
+		clock-names = "mfg", "mm";
+	};
+
+Example consumer:
+
+	afe: mt8173-afe-pcm@11220000 {
+		compatible = "mediatek,mt8173-afe-pcm";
+		power-domains = <&scpsys MT8173_POWER_DOMAIN_AUDIO>;
+	};

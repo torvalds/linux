@@ -12,6 +12,7 @@
 #include <linux/linkage.h>
 #include <linux/printk.h>
 #include <linux/workqueue.h>
+#include <linux/sched.h>
 
 #include <asm/cacheflush.h>
 
@@ -354,6 +355,16 @@ static inline unsigned int bpf_prog_size(unsigned int proglen)
 		   offsetof(struct bpf_prog, insns[proglen]));
 }
 
+static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
+{
+	/* When classic BPF programs have been loaded and the arch
+	 * does not have a classic BPF JIT (anymore), they have been
+	 * converted via bpf_migrate_filter() to eBPF and thus always
+	 * have an unspec program type.
+	 */
+	return prog->type == BPF_PROG_TYPE_UNSPEC;
+}
+
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
 
 #ifdef CONFIG_DEBUG_SET_MODULE_RONX
@@ -411,6 +422,7 @@ void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 void bpf_int_jit_compile(struct bpf_prog *fp);
+bool bpf_helper_changes_skb_data(void *func);
 
 #ifdef CONFIG_BPF_JIT
 typedef void (*bpf_jit_fill_hole_t)(void *area, unsigned int size);
@@ -427,8 +439,9 @@ void bpf_jit_free(struct bpf_prog *fp);
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
 {
-	pr_err("flen=%u proglen=%u pass=%u image=%pK\n",
-	       flen, proglen, pass, image);
+	pr_err("flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n", flen,
+	       proglen, pass, image, current->comm, task_pid_nr(current));
+
 	if (image)
 		print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_OFFSET,
 			       16, 1, image, proglen, false);

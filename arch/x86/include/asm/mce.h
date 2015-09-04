@@ -151,10 +151,12 @@ extern int mce_p5_enabled;
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
+void mcheck_cpu_clear(struct cpuinfo_x86 *c);
 void mcheck_vendor_init_severity(void);
 #else
 static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
+static inline void mcheck_cpu_clear(struct cpuinfo_x86 *c) {}
 static inline void mcheck_vendor_init_severity(void) {}
 #endif
 
@@ -181,20 +183,18 @@ DECLARE_PER_CPU(struct device *, mce_device);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void mce_intel_feature_clear(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
 void cmci_rediscover(void);
 void cmci_recheck(void);
-void lmce_clear(void);
-void lmce_enable(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void mce_intel_feature_clear(struct cpuinfo_x86 *c) { }
 static inline void cmci_clear(void) {}
 static inline void cmci_reenable(void) {}
 static inline void cmci_rediscover(void) {}
 static inline void cmci_recheck(void) {}
-static inline void lmce_clear(void) {}
-static inline void lmce_enable(void) {}
 #endif
 
 #ifdef CONFIG_X86_MCE_AMD

@@ -8,6 +8,7 @@ Required properties:
 			    Wakeup generation for event Alarm. It can also be
 			    used to control an external PMIC via the
 			    pmic_power_en pin.
+	- "ti,am4372-rtc" - for RTC IP used similar to that on AM437X SoC family.
 - reg: Address range of rtc register set
 - interrupts: rtc timer, alarm interrupts in order
 - interrupt-parent: phandle for the interrupt controller

@@ -262,6 +262,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	}
 
 	efx->max_channels = EFX_MAX_CHANNELS;
+	efx->max_tx_channels = EFX_MAX_CHANNELS;
 
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
 	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
@@ -1042,9 +1043,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
 	.hwtstamp_filters = (1 << HWTSTAMP_FILTER_NONE |
 			     1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT |
-			     1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC |
-			     1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ |
-			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT |
-			     1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC |
-			     1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ),
+			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
 };

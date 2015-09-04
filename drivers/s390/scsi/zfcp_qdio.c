@@ -349,7 +349,7 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
 	spin_lock_irq(&qdio->req_q_lock);
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
+	atomic_andnot(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
 	spin_unlock_irq(&qdio->req_q_lock);
 
 	wake_up(&qdio->req_q_wq);
@@ -384,7 +384,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
 		return -EIO;
 
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
+	atomic_andnot(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
 			  &qdio->adapter->status);
 
 	zfcp_qdio_setup_init_data(&init_data, qdio);
@@ -396,14 +396,14 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 		goto failed_qdio;
 
 	if (ssqd.qdioac2 & CHSC_AC2_DATA_DIV_ENABLED)
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED,
+		atomic_or(ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED,
 				&qdio->adapter->status);
 
 	if (ssqd.qdioac2 & CHSC_AC2_MULTI_BUFFER_ENABLED) {
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
+		atomic_or(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
 		qdio->max_sbale_per_sbal = QDIO_MAX_ELEMENTS_PER_BUFFER;
 	} else {
-		atomic_clear_mask(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
+		atomic_andnot(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
 		qdio->max_sbale_per_sbal = QDIO_MAX_ELEMENTS_PER_BUFFER - 1;
 	}
 
@@ -427,7 +427,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	/* set index of first available SBALS / number of available SBALS */
 	qdio->req_q_idx = 0;
 	atomic_set(&qdio->req_q_free, QDIO_MAX_BUFFERS_PER_Q);
-	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
+	atomic_or(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
 
 	if (adapter->scsi_host) {
 		adapter->scsi_host->sg_tablesize = qdio->max_sbale_per_req;
@@ -499,6 +499,6 @@ void zfcp_qdio_siosl(struct zfcp_adapter *adapter)
 
 	rc = ccw_device_siosl(adapter->ccw_device);
 	if (!rc)
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
+		atomic_or(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
 				&adapter->status);
 }

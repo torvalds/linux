@@ -2446,7 +2446,7 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 			kobject_uevent_env(&dev->primary->kdev->kobj,
 					   KOBJ_CHANGE, reset_done_event);
 		} else {
-			atomic_set_mask(I915_WEDGED, &error->reset_counter);
+			atomic_or(I915_WEDGED, &error->reset_counter);
 		}
 
 		/*
@@ -2574,7 +2574,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
-		atomic_set_mask(I915_RESET_IN_PROGRESS_FLAG,
+		atomic_or(I915_RESET_IN_PROGRESS_FLAG,
 				&dev_priv->gpu_error.reset_counter);
 
 		/*

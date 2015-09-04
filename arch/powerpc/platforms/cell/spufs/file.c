@@ -239,23 +239,6 @@ spufs_mem_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long address = (unsigned long)vmf->virtual_address;
 	unsigned long pfn, offset;
 
-#ifdef CONFIG_SPU_FS_64K_LS
-	struct spu_state *csa = &ctx->csa;
-	int psize;
-
-	/* Check what page size we are using */
-	psize = get_slice_psize(vma->vm_mm, address);
-
-	/* Some sanity checking */
-	BUG_ON(csa->use_big_pages != (psize == MMU_PAGE_64K));
-
-	/* Wow, 64K, cool, we need to align the address though */
-	if (csa->use_big_pages) {
-		BUG_ON(vma->vm_start & 0xffff);
-		address &= ~0xfffful;
-	}
-#endif /* CONFIG_SPU_FS_64K_LS */
-
 	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset >= LS_SIZE)
 		return VM_FAULT_SIGBUS;
@@ -310,22 +293,6 @@ static const struct vm_operations_struct spufs_mem_mmap_vmops = {
 
 static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 {
-#ifdef CONFIG_SPU_FS_64K_LS
-	struct spu_context	*ctx = file->private_data;
-	struct spu_state	*csa = &ctx->csa;
-
-	/* Sanity check VMA alignment */
-	if (csa->use_big_pages) {
-		pr_debug("spufs_mem_mmap 64K, start=0x%lx, end=0x%lx,"
-			 " pgoff=0x%lx\n", vma->vm_start, vma->vm_end,
-			 vma->vm_pgoff);
-		if (vma->vm_start & 0xffff)
-			return -EINVAL;
-		if (vma->vm_pgoff & 0xf)
-			return -EINVAL;
-	}
-#endif /* CONFIG_SPU_FS_64K_LS */
-
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
@@ -336,25 +303,6 @@ static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-#ifdef CONFIG_SPU_FS_64K_LS
-static unsigned long spufs_get_unmapped_area(struct file *file,
-		unsigned long addr, unsigned long len, unsigned long pgoff,
-		unsigned long flags)
-{
-	struct spu_context	*ctx = file->private_data;
-	struct spu_state	*csa = &ctx->csa;
-
-	/* If not using big pages, fallback to normal MM g_u_a */
-	if (!csa->use_big_pages)
-		return current->mm->get_unmapped_area(file, addr, len,
-						      pgoff, flags);
-
-	/* Else, try to obtain a 64K pages slice */
-	return slice_get_unmapped_area(addr, len, flags,
-				       MMU_PAGE_64K, 1);
-}
-#endif /* CONFIG_SPU_FS_64K_LS */
-
 static const struct file_operations spufs_mem_fops = {
 	.open			= spufs_mem_open,
 	.release		= spufs_mem_release,
@@ -362,9 +310,6 @@ static const struct file_operations spufs_mem_fops = {
 	.write			= spufs_mem_write,
 	.llseek			= generic_file_llseek,
 	.mmap			= spufs_mem_mmap,
-#ifdef CONFIG_SPU_FS_64K_LS
-	.get_unmapped_area	= spufs_get_unmapped_area,
-#endif
 };
 
 static int spufs_ps_fault(struct vm_area_struct *vma,
