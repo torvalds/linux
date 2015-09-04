@@ -87,7 +87,6 @@ typedef struct {
 	void (*os_sleep)(uint32_t);
 	void (*os_atomic_sleep)(uint32_t);
 	void (*os_debug)(uint8_t *);
-	void *(*os_malloc)(uint32_t);
 	void *(*os_malloc_atomic)(uint32_t);
 	void (*os_free)(void *);
 	void (*os_lock)(void *);

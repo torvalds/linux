@@ -1414,7 +1414,7 @@ static void wilc_wlan_handle_isr_ext(uint32_t int_status)
 		}
 
 #else
-		buffer = p->os_func.os_malloc(size);
+		buffer = kmalloc(size, GFP_KERNEL);
 		if (buffer == NULL) {
 			wilc_debug(N_ERR, "[wilc isr]: fail alloc host memory...drop the packets (%d)\n", size);
 			usleep_range(100 * 1000, 100 * 1000);
@@ -1448,7 +1448,7 @@ _end_:
 			/**
 			 *      add to rx queue
 			 **/
-			rqe = (struct rxq_entry_t *)p->os_func.os_malloc(sizeof(struct rxq_entry_t));
+			rqe = kmalloc(sizeof(struct rxq_entry_t), GFP_KERNEL);
 			if (rqe != NULL) {
 				rqe->buffer = buffer;
 				rqe->buffer_size = size;
@@ -1517,7 +1517,7 @@ static int wilc_wlan_firmware_download(const uint8_t *buffer, uint32_t buffer_si
 	blksz = (1ul << 12); /* Bug 4703: 4KB Good enough size for most platforms = PAGE_SIZE. */
 	/* Allocate a DMA coherent  buffer. */
 
-	dma_buffer = (uint8_t *)g_wlan.os_func.os_malloc(blksz);
+	dma_buffer = kmalloc(blksz, GFP_KERNEL);
 	if (dma_buffer == NULL) {
 		/*EIO	5*/
 		ret = -5;
@@ -2174,7 +2174,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	 *      alloc tx, rx buffer
 	 **/
 	if (g_wlan.tx_buffer == NULL)
-		g_wlan.tx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.tx_buffer_size);
+		g_wlan.tx_buffer = kmalloc(g_wlan.tx_buffer_size, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.tx_buffer = %p\n", g_wlan.tx_buffer);
 
 	if (g_wlan.tx_buffer == NULL) {
@@ -2187,7 +2187,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 /* rx_buffer is not used unless we activate USE_MEM STATIC which is not applicable, allocating such memory is useless*/
 #if defined (MEMORY_STATIC)
 	if (g_wlan.rx_buffer == NULL)
-		g_wlan.rx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.rx_buffer_size);
+		g_wlan.rx_buffer = kmalloc(g_wlan.rx_buffer_size, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
 	if (g_wlan.rx_buffer == NULL) {
 		/* ENOBUFS	105 */
