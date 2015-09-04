@@ -1224,10 +1224,149 @@ static void intel_backlight_device_unregister(struct intel_connector *connector)
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
 /*
- * Note: The setup hooks can't assume pipe is set!
+ * SPT: This value represents the period of the PWM stream in clock periods
+ * multiplied by 16 (default increment) or 128 (alternate increment selected in
+ * SCHICKEN_1 bit 0). PWM clock is 24 MHz.
+ */
+static u32 spt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 mul, clock;
+
+	if (I915_READ(SOUTH_CHICKEN1) & SPT_PWM_GRANULARITY)
+		mul = 128;
+	else
+		mul = 16;
+
+	clock = MHz(24);
+
+	return clock / (pwm_freq_hz * mul);
+}
+
+/*
+ * LPT: This value represents the period of the PWM stream in clock periods
+ * multiplied by 128 (default increment) or 16 (alternate increment, selected in
+ * LPT SOUTH_CHICKEN2 register bit 5).
+ */
+static u32 lpt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 mul, clock;
+
+	if (I915_READ(SOUTH_CHICKEN2) & LPT_PWM_GRANULARITY)
+		mul = 16;
+	else
+		mul = 128;
+
+	if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE)
+		clock = MHz(135); /* LPT:H */
+	else
+		clock = MHz(24); /* LPT:LP */
+
+	return clock / (pwm_freq_hz * mul);
+}
+
+/*
+ * ILK/SNB/IVB: This value represents the period of the PWM stream in PCH
+ * display raw clocks multiplied by 128.
+ */
+static u32 pch_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_device *dev = connector->base.dev;
+	int clock = MHz(intel_pch_rawclk(dev));
+
+	return clock / (pwm_freq_hz * 128);
+}
+
+/*
+ * Gen2: This field determines the number of time base events (display core
+ * clock frequency/32) in total for a complete cycle of modulated backlight
+ * control.
  *
- * XXX: Query mode clock or hardware clock and program PWM modulation frequency
- * appropriately when it's 0. Use VBT and/or sane defaults.
+ * Gen3: A time base event equals the display core clock ([DevPNV] HRAW clock)
+ * divided by 32.
+ */
+static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int clock;
+
+	if (IS_PINEVIEW(dev))
+		clock = intel_hrawclk(dev);
+	else
+		clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
+
+	return clock / (pwm_freq_hz * 32);
+}
+
+/*
+ * Gen4: This value represents the period of the PWM stream in display core
+ * clocks multiplied by 128.
+ */
+static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
+
+	return clock / (pwm_freq_hz * 128);
+}
+
+/*
+ * VLV: This value represents the period of the PWM stream in display core
+ * clocks ([DevCTG] 200MHz HRAW clocks) multiplied by 128 or 25MHz S0IX clocks
+ * multiplied by 16. CHV uses a 19.2MHz S0IX clock.
+ */
+static u32 vlv_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int clock;
+
+	if ((I915_READ(CBR1_VLV) & CBR_PWM_CLOCK_MUX_SELECT) == 0) {
+		if (IS_CHERRYVIEW(dev))
+			return KHz(19200) / (pwm_freq_hz * 16);
+		else
+			return MHz(25) / (pwm_freq_hz * 16);
+	} else {
+		clock = intel_hrawclk(dev);
+		return MHz(clock) / (pwm_freq_hz * 128);
+	}
+}
+
+static u32 get_backlight_max_vbt(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u16 pwm_freq_hz = dev_priv->vbt.backlight.pwm_freq_hz;
+	u32 pwm;
+
+	if (!pwm_freq_hz) {
+		DRM_DEBUG_KMS("backlight frequency not specified in VBT\n");
+		return 0;
+	}
+
+	if (!dev_priv->display.backlight_hz_to_pwm) {
+		DRM_DEBUG_KMS("backlight frequency setting from VBT currently not supported on this platform\n");
+		return 0;
+	}
+
+	pwm = dev_priv->display.backlight_hz_to_pwm(connector, pwm_freq_hz);
+	if (!pwm) {
+		DRM_DEBUG_KMS("backlight frequency conversion failed\n");
+		return 0;
+	}
+
+	DRM_DEBUG_KMS("backlight frequency %u Hz from VBT\n", pwm_freq_hz);
+
+	return pwm;
+}
+
+/*
+ * Note: The setup hooks can't assume pipe is set!
  */
 static u32 get_backlight_min_vbt(struct intel_connector *connector)
 {
@@ -1267,6 +1406,10 @@ static int lpt_setup_backlight(struct intel_connector *connector, enum pipe unus
 
 	pch_ctl2 = I915_READ(BLC_PWM_PCH_CTL2);
 	panel->backlight.max = pch_ctl2 >> 16;
+
+	if (!panel->backlight.max)
+		panel->backlight.max = get_backlight_max_vbt(connector);
+
 	if (!panel->backlight.max)
 		return -ENODEV;
 
@@ -1293,6 +1436,10 @@ static int pch_setup_backlight(struct intel_connector *connector, enum pipe unus
 
 	pch_ctl2 = I915_READ(BLC_PWM_PCH_CTL2);
 	panel->backlight.max = pch_ctl2 >> 16;
+
+	if (!panel->backlight.max)
+		panel->backlight.max = get_backlight_max_vbt(connector);
+
 	if (!panel->backlight.max)
 		return -ENODEV;
 
@@ -1324,11 +1471,17 @@ static int i9xx_setup_backlight(struct intel_connector *connector, enum pipe unu
 		panel->backlight.active_low_pwm = ctl & BLM_POLARITY_PNV;
 
 	panel->backlight.max = ctl >> 17;
-	if (panel->backlight.combination_mode)
-		panel->backlight.max *= 0xff;
+
+	if (!panel->backlight.max) {
+		panel->backlight.max = get_backlight_max_vbt(connector);
+		panel->backlight.max >>= 1;
+	}
 
 	if (!panel->backlight.max)
 		return -ENODEV;
+
+	if (panel->backlight.combination_mode)
+		panel->backlight.max *= 0xff;
 
 	panel->backlight.min = get_backlight_min_vbt(connector);
 
@@ -1353,11 +1506,15 @@ static int i965_setup_backlight(struct intel_connector *connector, enum pipe unu
 
 	ctl = I915_READ(BLC_PWM_CTL);
 	panel->backlight.max = ctl >> 16;
-	if (panel->backlight.combination_mode)
-		panel->backlight.max *= 0xff;
+
+	if (!panel->backlight.max)
+		panel->backlight.max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.max)
 		return -ENODEV;
+
+	if (panel->backlight.combination_mode)
+		panel->backlight.max *= 0xff;
 
 	panel->backlight.min = get_backlight_min_vbt(connector);
 
@@ -1398,6 +1555,10 @@ static int vlv_setup_backlight(struct intel_connector *connector, enum pipe pipe
 
 	ctl = I915_READ(VLV_BLC_PWM_CTL(pipe));
 	panel->backlight.max = ctl >> 16;
+
+	if (!panel->backlight.max)
+		panel->backlight.max = get_backlight_max_vbt(connector);
+
 	if (!panel->backlight.max)
 		return -ENODEV;
 
@@ -1424,6 +1585,10 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	panel->backlight.active_low_pwm = pwm_ctl & BXT_BLC_PWM_POLARITY;
 
 	panel->backlight.max = I915_READ(BXT_BLC_PWM_FREQ1);
+
+	if (!panel->backlight.max)
+		panel->backlight.max = get_backlight_max_vbt(connector);
+
 	if (!panel->backlight.max)
 		return -ENODEV;
 
@@ -1537,12 +1702,17 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 		dev_priv->display.disable_backlight = lpt_disable_backlight;
 		dev_priv->display.set_backlight = lpt_set_backlight;
 		dev_priv->display.get_backlight = lpt_get_backlight;
+		if (HAS_PCH_LPT(dev))
+			dev_priv->display.backlight_hz_to_pwm = lpt_hz_to_pwm;
+		else
+			dev_priv->display.backlight_hz_to_pwm = spt_hz_to_pwm;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.setup_backlight = pch_setup_backlight;
 		dev_priv->display.enable_backlight = pch_enable_backlight;
 		dev_priv->display.disable_backlight = pch_disable_backlight;
 		dev_priv->display.set_backlight = pch_set_backlight;
 		dev_priv->display.get_backlight = pch_get_backlight;
+		dev_priv->display.backlight_hz_to_pwm = pch_hz_to_pwm;
 	} else if (IS_VALLEYVIEW(dev)) {
 		if (dev_priv->vbt.has_mipi) {
 			dev_priv->display.setup_backlight = pwm_setup_backlight;
@@ -1556,6 +1726,7 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 			dev_priv->display.disable_backlight = vlv_disable_backlight;
 			dev_priv->display.set_backlight = vlv_set_backlight;
 			dev_priv->display.get_backlight = vlv_get_backlight;
+			dev_priv->display.backlight_hz_to_pwm = vlv_hz_to_pwm;
 		}
 	} else if (IS_GEN4(dev)) {
 		dev_priv->display.setup_backlight = i965_setup_backlight;
@@ -1563,12 +1734,14 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 		dev_priv->display.disable_backlight = i965_disable_backlight;
 		dev_priv->display.set_backlight = i9xx_set_backlight;
 		dev_priv->display.get_backlight = i9xx_get_backlight;
+		dev_priv->display.backlight_hz_to_pwm = i965_hz_to_pwm;
 	} else {
 		dev_priv->display.setup_backlight = i9xx_setup_backlight;
 		dev_priv->display.enable_backlight = i9xx_enable_backlight;
 		dev_priv->display.disable_backlight = i9xx_disable_backlight;
 		dev_priv->display.set_backlight = i9xx_set_backlight;
 		dev_priv->display.get_backlight = i9xx_get_backlight;
+		dev_priv->display.backlight_hz_to_pwm = i9xx_hz_to_pwm;
 	}
 }
 
