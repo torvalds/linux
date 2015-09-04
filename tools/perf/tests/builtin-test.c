@@ -187,6 +187,10 @@ static struct test {
 #endif
 #endif
 	{
+		.desc = "Test topology in session",
+		.func = test_session_topology,
+	},
+	{
 		.func = NULL,
 	},
 };
