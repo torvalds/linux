@@ -149,7 +149,7 @@ int map_cport_to_ep(struct es1_ap_dev *es1,
 	int retval;
 	struct cport_to_ep *cport_to_ep;
 
-	if (bulk_ep_set == 0 || bulk_ep_set >= NUM_BULKS)
+	if (bulk_ep_set < 0 || bulk_ep_set >= NUM_BULKS)
 		return -EINVAL;
 	if (cport_id >= es1->hd->num_cports)
 		return -EINVAL;
