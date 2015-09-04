@@ -545,18 +545,6 @@ static void linux_wlan_dbg(uint8_t *buff)
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
-static void linux_wlan_init_lock(char *lockName, void *plock, int count)
-{
-	sema_init((struct semaphore *)plock, count);
-	PRINT_D(LOCK_DBG, "Initializing [%s][%p]\n", lockName, plock);
-
-}
-
-static void linux_wlan_deinit_lock(void *plock)
-{
-	/* mutex_destroy((struct mutex*)plock); */
-}
-
 static void linux_wlan_lock(void *vp)
 {
 	PRINT_D(LOCK_DBG, "Locking %p\n", vp);
@@ -1311,21 +1299,19 @@ int wlan_init_locks(linux_wlan_t *p_nic)
 
 	/*Added by Amr - BugID_4720*/
 	spin_lock_init(&g_linux_wlan->txq_spinlock);
+	sema_init(&g_linux_wlan->txq_add_to_head_cs, 1);
 
-	/*Added by Amr - BugID_4720*/
-	linux_wlan_init_lock("txq_add_to_head_lock/txq_cs", &g_linux_wlan->txq_add_to_head_cs, 1);
+	sema_init(&g_linux_wlan->txq_event, 0);
+	sema_init(&g_linux_wlan->rxq_event, 0);
 
-	linux_wlan_init_lock("txq_wait/txq_event", &g_linux_wlan->txq_event, 0);
-	linux_wlan_init_lock("rxq_wait/rxq_event", &g_linux_wlan->rxq_event, 0);
+	sema_init(&g_linux_wlan->cfg_event, 0);
+	sema_init(&g_linux_wlan->sync_event, 0);
 
-	linux_wlan_init_lock("cfg_wait/cfg_event", &g_linux_wlan->cfg_event, 0);
-	linux_wlan_init_lock("sync_event", &g_linux_wlan->sync_event, 0);
-
-	linux_wlan_init_lock("rxq_lock/rxq_started", &g_linux_wlan->rxq_thread_started, 0);
-	linux_wlan_init_lock("rxq_lock/txq_started", &g_linux_wlan->txq_thread_started, 0);
+	sema_init(&g_linux_wlan->rxq_thread_started, 0);
+	sema_init(&g_linux_wlan->txq_thread_started, 0);
 
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
-	linux_wlan_init_lock("BH_SEM", &g_linux_wlan->rx_sem, 0);
+	sema_init(&g_linux_wlan->rx_sem, 0);
 	#endif
 
 	return 0;
@@ -1343,28 +1329,6 @@ static int wlan_deinit_locks(linux_wlan_t *nic)
 
 	if (&g_linux_wlan->txq_cs != NULL)
 		mutex_destroy(&g_linux_wlan->txq_cs);
-
-	if (&g_linux_wlan->rxq_event != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->rxq_event);
-
-	if (&g_linux_wlan->txq_event != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->txq_event);
-
-	/*Added by Amr - BugID_4720*/
-	if (&g_linux_wlan->txq_add_to_head_cs != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->txq_add_to_head_cs);
-
-	if (&g_linux_wlan->rxq_thread_started != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->rxq_thread_started);
-
-	if (&g_linux_wlan->txq_thread_started != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->txq_thread_started);
-
-	if (&g_linux_wlan->cfg_event != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->cfg_event);
-
-	if (&g_linux_wlan->sync_event != NULL)
-		linux_wlan_deinit_lock(&g_linux_wlan->sync_event);
 
 	return 0;
 }
@@ -2370,7 +2334,7 @@ int wilc_netdev_init(void)
 	perInterface_wlan_t *nic;
 	struct net_device *ndev;
 
-	linux_wlan_init_lock("close_exit_sync", &close_exit_sync, 0);
+	sema_init(&close_exit_sync, 0);
 
 	/*create the common structure*/
 	g_linux_wlan = WILC_MALLOC(sizeof(linux_wlan_t));
@@ -2566,7 +2530,6 @@ static void __exit exit_wilc_driver(void)
 		sdio_unregister_driver(&wilc_bus);
 	#endif
 
-		linux_wlan_deinit_lock(&close_exit_sync);
 		if (g_linux_wlan != NULL) {
 			kfree(g_linux_wlan);
 			g_linux_wlan = NULL;

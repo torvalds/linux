@@ -193,7 +193,7 @@ typedef struct {
 	struct mutex txq_cs;
 
 	/*Added by Amr - BugID_4720*/
-	struct mutex txq_add_to_head_cs;
+	struct semaphore txq_add_to_head_cs;
 	spinlock_t txq_spinlock;
 
 	struct mutex rxq_cs;
