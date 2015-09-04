@@ -21,6 +21,7 @@
  * NOTE: PM support is currently not available.
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -151,7 +152,6 @@
 #define XGENE_DMA_PQ_CHANNEL		1
 #define XGENE_DMA_MAX_BYTE_CNT		0x4000	/* 16 KB */
 #define XGENE_DMA_MAX_64B_DESC_BYTE_CNT	0x14000	/* 80 KB */
-#define XGENE_DMA_XOR_ALIGNMENT		6	/* 64 Bytes */
 #define XGENE_DMA_MAX_XOR_SRC		5
 #define XGENE_DMA_16K_BUFFER_LEN_CODE	0x0
 #define XGENE_DMA_INVALID_LEN_CODE	0x7800000000000000ULL
@@ -764,12 +764,17 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	struct xgene_dma_ring *ring = &chan->rx_ring;
 	struct xgene_dma_desc_sw *desc_sw, *_desc_sw;
 	struct xgene_dma_desc_hw *desc_hw;
+	struct list_head ld_completed;
 	u8 status;
+
+	INIT_LIST_HEAD(&ld_completed);
+
+	spin_lock_bh(&chan->lock);
 
 	/* Clean already completed and acked descriptors */
 	xgene_dma_clean_completed_descriptor(chan);
 
-	/* Run the callback for each descriptor, in order */
+	/* Move all completed descriptors to ld completed queue, in order */
 	list_for_each_entry_safe(desc_sw, _desc_sw, &chan->ld_running, node) {
 		/* Get subsequent hw descriptor from DMA rx ring */
 		desc_hw = &ring->desc_hw[ring->head];
@@ -812,15 +817,17 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 		/* Mark this hw descriptor as processed */
 		desc_hw->m0 = cpu_to_le64(XGENE_DMA_DESC_EMPTY_SIGNATURE);
 
-		xgene_dma_run_tx_complete_actions(chan, desc_sw);
-
-		xgene_dma_clean_running_descriptor(chan, desc_sw);
-
 		/*
 		 * Decrement the pending transaction count
 		 * as we have processed one
 		 */
 		chan->pending--;
+
+		/*
+		 * Delete this node from ld running queue and append it to
+		 * ld completed queue for further processing
+		 */
+		list_move_tail(&desc_sw->node, &ld_completed);
 	}
 
 	/*
@@ -829,6 +836,14 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	 * ahead and free the descriptors below.
 	 */
 	xgene_chan_xfer_ld_pending(chan);
+
+	spin_unlock_bh(&chan->lock);
+
+	/* Run the callback for each descriptor, in order */
+	list_for_each_entry_safe(desc_sw, _desc_sw, &ld_completed, node) {
+		xgene_dma_run_tx_complete_actions(chan, desc_sw);
+		xgene_dma_clean_running_descriptor(chan, desc_sw);
+	}
 }
 
 static int xgene_dma_alloc_chan_resources(struct dma_chan *dchan)
@@ -877,10 +892,10 @@ static void xgene_dma_free_chan_resources(struct dma_chan *dchan)
 	if (!chan->desc_pool)
 		return;
 
-	spin_lock_bh(&chan->lock);
-
 	/* Process all running descriptor */
 	xgene_dma_cleanup_descriptors(chan);
+
+	spin_lock_bh(&chan->lock);
 
 	/* Clean all link descriptor queues */
 	xgene_dma_free_desc_list(chan, &chan->ld_pending);
@@ -1201,15 +1216,11 @@ static void xgene_dma_tasklet_cb(unsigned long data)
 {
 	struct xgene_dma_chan *chan = (struct xgene_dma_chan *)data;
 
-	spin_lock_bh(&chan->lock);
-
 	/* Run all cleanup for descriptors which have been completed */
 	xgene_dma_cleanup_descriptors(chan);
 
 	/* Re-enable DMA channel IRQ */
 	enable_irq(chan->rx_irq);
-
-	spin_unlock_bh(&chan->lock);
 }
 
 static irqreturn_t xgene_dma_chan_ring_isr(int irq, void *id)
@@ -1741,13 +1752,13 @@ static void xgene_dma_set_caps(struct xgene_dma_chan *chan,
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_xor = xgene_dma_prep_xor;
 		dma_dev->max_xor = XGENE_DMA_MAX_XOR_SRC;
-		dma_dev->xor_align = XGENE_DMA_XOR_ALIGNMENT;
+		dma_dev->xor_align = DMAENGINE_ALIGN_64_BYTES;
 	}
 
 	if (dma_has_cap(DMA_PQ, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_pq = xgene_dma_prep_pq;
 		dma_dev->max_pq = XGENE_DMA_MAX_XOR_SRC;
-		dma_dev->pq_align = XGENE_DMA_XOR_ALIGNMENT;
+		dma_dev->pq_align = DMAENGINE_ALIGN_64_BYTES;
 	}
 }
 
@@ -1944,16 +1955,18 @@ static int xgene_dma_probe(struct platform_device *pdev)
 		return ret;
 
 	pdma->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pdma->clk)) {
+	if (IS_ERR(pdma->clk) && !ACPI_COMPANION(&pdev->dev)) {
 		dev_err(&pdev->dev, "Failed to get clk\n");
 		return PTR_ERR(pdma->clk);
 	}
 
 	/* Enable clk before accessing registers */
-	ret = clk_prepare_enable(pdma->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to enable clk %d\n", ret);
-		return ret;
+	if (!IS_ERR(pdma->clk)) {
+		ret = clk_prepare_enable(pdma->clk);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to enable clk %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* Remove DMA RAM out of shutdown */
@@ -1998,7 +2011,8 @@ err_request_irq:
 
 err_dma_mask:
 err_clk_enable:
-	clk_disable_unprepare(pdma->clk);
+	if (!IS_ERR(pdma->clk))
+		clk_disable_unprepare(pdma->clk);
 
 	return ret;
 }
@@ -2022,10 +2036,19 @@ static int xgene_dma_remove(struct platform_device *pdev)
 		xgene_dma_delete_chan_rings(chan);
 	}
 
-	clk_disable_unprepare(pdma->clk);
+	if (!IS_ERR(pdma->clk))
+		clk_disable_unprepare(pdma->clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_dma_acpi_match_ptr[] = {
+	{"APMC0D43", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, xgene_dma_acpi_match_ptr);
+#endif
 
 static const struct of_device_id xgene_dma_of_match_ptr[] = {
 	{.compatible = "apm,xgene-storm-dma",},
@@ -2039,6 +2062,7 @@ static struct platform_driver xgene_dma_driver = {
 	.driver = {
 		.name = "X-Gene-DMA",
 		.of_match_table = xgene_dma_of_match_ptr,
+		.acpi_match_table = ACPI_PTR(xgene_dma_acpi_match_ptr),
 	},
 };
 

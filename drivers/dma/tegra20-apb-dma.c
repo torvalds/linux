@@ -155,7 +155,6 @@ struct tegra_dma_sg_req {
 	int				req_len;
 	bool				configured;
 	bool				last_sg;
-	bool				half_done;
 	struct list_head		node;
 	struct tegra_dma_desc		*dma_desc;
 };
@@ -188,7 +187,7 @@ struct tegra_dma_channel {
 	bool			config_init;
 	int			id;
 	int			irq;
-	unsigned long		chan_base_offset;
+	void __iomem		*chan_addr;
 	spinlock_t		lock;
 	bool			busy;
 	struct tegra_dma	*tdma;
@@ -203,8 +202,6 @@ struct tegra_dma_channel {
 	/* ISR handler and tasklet for bottom half of isr handling */
 	dma_isr_handler		isr_handler;
 	struct tasklet_struct	tasklet;
-	dma_async_tx_callback	callback;
-	void			*callback_param;
 
 	/* Channel-slave specific configuration */
 	unsigned int slave_id;
@@ -221,6 +218,13 @@ struct tegra_dma {
 	spinlock_t			global_lock;
 	void __iomem			*base_addr;
 	const struct tegra_dma_chip_data *chip_data;
+
+	/*
+	 * Counter for managing global pausing of the DMA controller.
+	 * Only applicable for devices that don't support individual
+	 * channel pausing.
+	 */
+	u32				global_pause_count;
 
 	/* Some register need to be cache before suspend */
 	u32				reg_gen;
@@ -242,12 +246,12 @@ static inline u32 tdma_read(struct tegra_dma *tdma, u32 reg)
 static inline void tdc_write(struct tegra_dma_channel *tdc,
 		u32 reg, u32 val)
 {
-	writel(val, tdc->tdma->base_addr + tdc->chan_base_offset + reg);
+	writel(val, tdc->chan_addr + reg);
 }
 
 static inline u32 tdc_read(struct tegra_dma_channel *tdc, u32 reg)
 {
-	return readl(tdc->tdma->base_addr + tdc->chan_base_offset + reg);
+	return readl(tdc->chan_addr + reg);
 }
 
 static inline struct tegra_dma_channel *to_tegra_dma_chan(struct dma_chan *dc)
@@ -361,16 +365,32 @@ static void tegra_dma_global_pause(struct tegra_dma_channel *tdc,
 	struct tegra_dma *tdma = tdc->tdma;
 
 	spin_lock(&tdma->global_lock);
-	tdma_write(tdma, TEGRA_APBDMA_GENERAL, 0);
-	if (wait_for_burst_complete)
-		udelay(TEGRA_APBDMA_BURST_COMPLETE_TIME);
+
+	if (tdc->tdma->global_pause_count == 0) {
+		tdma_write(tdma, TEGRA_APBDMA_GENERAL, 0);
+		if (wait_for_burst_complete)
+			udelay(TEGRA_APBDMA_BURST_COMPLETE_TIME);
+	}
+
+	tdc->tdma->global_pause_count++;
+
+	spin_unlock(&tdma->global_lock);
 }
 
 static void tegra_dma_global_resume(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma *tdma = tdc->tdma;
 
-	tdma_write(tdma, TEGRA_APBDMA_GENERAL, TEGRA_APBDMA_GENERAL_ENABLE);
+	spin_lock(&tdma->global_lock);
+
+	if (WARN_ON(tdc->tdma->global_pause_count == 0))
+		goto out;
+
+	if (--tdc->tdma->global_pause_count == 0)
+		tdma_write(tdma, TEGRA_APBDMA_GENERAL,
+			   TEGRA_APBDMA_GENERAL_ENABLE);
+
+out:
 	spin_unlock(&tdma->global_lock);
 }
 
@@ -601,7 +621,6 @@ static void handle_once_dma_done(struct tegra_dma_channel *tdc,
 		return;
 
 	tdc_start_head_req(tdc);
-	return;
 }
 
 static void handle_cont_sngl_cycle_dma_done(struct tegra_dma_channel *tdc,
@@ -628,7 +647,6 @@ static void handle_cont_sngl_cycle_dma_done(struct tegra_dma_channel *tdc,
 		if (!st)
 			dma_desc->dma_status = DMA_ERROR;
 	}
-	return;
 }
 
 static void tegra_dma_tasklet(unsigned long data)
@@ -720,7 +738,6 @@ static void tegra_dma_issue_pending(struct dma_chan *dc)
 	}
 end:
 	spin_unlock_irqrestore(&tdc->lock, flags);
-	return;
 }
 
 static int tegra_dma_terminate_all(struct dma_chan *dc)
@@ -932,7 +949,6 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 	struct tegra_dma_sg_req  *sg_req = NULL;
 	u32 burst_size;
 	enum dma_slave_buswidth slave_bw;
-	int ret;
 
 	if (!tdc->config_init) {
 		dev_err(tdc2dev(tdc), "dma channel is not configured\n");
@@ -943,9 +959,8 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	ret = get_transfer_param(tdc, direction, &apb_ptr, &apb_seq, &csr,
-				&burst_size, &slave_bw);
-	if (ret < 0)
+	if (get_transfer_param(tdc, direction, &apb_ptr, &apb_seq, &csr,
+				&burst_size, &slave_bw) < 0)
 		return NULL;
 
 	INIT_LIST_HEAD(&req_list);
@@ -1048,7 +1063,6 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 	dma_addr_t mem = buf_addr;
 	u32 burst_size;
 	enum dma_slave_buswidth slave_bw;
-	int ret;
 
 	if (!buf_len || !period_len) {
 		dev_err(tdc2dev(tdc), "Invalid buffer/period len\n");
@@ -1087,11 +1101,9 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	ret = get_transfer_param(tdc, direction, &apb_ptr, &apb_seq, &csr,
-				&burst_size, &slave_bw);
-	if (ret < 0)
+	if (get_transfer_param(tdc, direction, &apb_ptr, &apb_seq, &csr,
+				&burst_size, &slave_bw) < 0)
 		return NULL;
-
 
 	ahb_seq = TEGRA_APBDMA_AHBSEQ_INTR_ENB;
 	ahb_seq |= TEGRA_APBDMA_AHBSEQ_WRAP_NONE <<
@@ -1136,7 +1148,6 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 		sg_req->ch_regs.apb_seq = apb_seq;
 		sg_req->ch_regs.ahb_seq = ahb_seq;
 		sg_req->configured = false;
-		sg_req->half_done = false;
 		sg_req->last_sg = false;
 		sg_req->dma_desc = dma_desc;
 		sg_req->req_len = len;
@@ -1377,8 +1388,9 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < cdata->nr_channels; i++) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
 
-		tdc->chan_base_offset = TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET +
-					i * cdata->channel_reg_size;
+		tdc->chan_addr = tdma->base_addr +
+				 TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET +
+				 (i * cdata->channel_reg_size);
 
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (!res) {
@@ -1418,6 +1430,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_PRIVATE, tdma->dma_dev.cap_mask);
 	dma_cap_set(DMA_CYCLIC, tdma->dma_dev.cap_mask);
 
+	tdma->global_pause_count = 0;
 	tdma->dma_dev.dev = &pdev->dev;
 	tdma->dma_dev.device_alloc_chan_resources =
 					tegra_dma_alloc_chan_resources;

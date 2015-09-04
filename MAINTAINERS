@@ -735,6 +735,12 @@ X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
 F:	staging/iio/trigger/iio-trig-bfin-timer.c
 
+ANALOG DEVICES INC DMA DRIVERS
+M:	Lars-Peter Clausen <lars@metafoo.de>
+W:	http://ez.analog.com/community/linux-device-drivers
+S:	Supported
+F:	drivers/dma/dma-axi-dmac.c
+
 ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Arve Hjønnevåg <arve@android.com>
