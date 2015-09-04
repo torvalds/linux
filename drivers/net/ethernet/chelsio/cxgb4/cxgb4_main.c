@@ -4568,28 +4568,23 @@ static void free_some_resources(struct adapter *adapter)
 
 static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 {
-	int ver, chip;
 	u16 device_id;
 
 	/* Retrieve adapter's device ID */
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
-	ver = device_id >> 12;
-	switch (ver) {
+
+	switch (device_id >> 12) {
 	case CHELSIO_T4:
-		chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
-		break;
+		return CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
 	case CHELSIO_T5:
-		chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
-		break;
+		return CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
 	case CHELSIO_T6:
-		chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
-		break;
+		return CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
 	default:
 		dev_err(&pdev->dev, "Device %d is not supported\n",
 			device_id);
-		return -EINVAL;
 	}
-	return chip;
+	return -EINVAL;
 }
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
