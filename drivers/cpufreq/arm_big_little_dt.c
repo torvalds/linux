@@ -54,7 +54,7 @@ static int dt_init_opp_table(struct device *cpu_dev)
 		return -ENOENT;
 	}
 
-	ret = of_add_opp_table(cpu_dev);
+	ret = dev_pm_opp_of_add_table(cpu_dev);
 	of_node_put(np);
 
 	return ret;
@@ -82,7 +82,7 @@ static struct cpufreq_arm_bL_ops dt_bL_ops = {
 	.name	= "dt-bl",
 	.get_transition_latency = dt_get_transition_latency,
 	.init_opp_table = dt_init_opp_table,
-	.free_opp_table = of_remove_opp_table,
+	.free_opp_table = dev_pm_opp_of_remove_table,
 };
 
 static int generic_bL_probe(struct platform_device *pdev)

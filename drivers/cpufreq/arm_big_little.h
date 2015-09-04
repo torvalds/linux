@@ -28,7 +28,7 @@ struct cpufreq_arm_bL_ops {
 
 	/*
 	 * This must set opp table for cpu_dev in a similar way as done by
-	 * of_add_opp_table().
+	 * dev_pm_opp_of_add_table().
 	 */
 	int (*init_opp_table)(struct device *cpu_dev);
 
