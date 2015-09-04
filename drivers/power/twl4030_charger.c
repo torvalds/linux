@@ -91,7 +91,7 @@
 #define TWL4030_MSTATEC_COMPLETE1	0x0b
 #define TWL4030_MSTATEC_COMPLETE4	0x0e
 
-#if IS_ENABLED(CONFIG_TWL4030_MADC)
+#if IS_REACHABLE(CONFIG_TWL4030_MADC)
 /*
  * If AC (Accessory Charger) voltage exceeds 4.5V (MADC 11)
  * then AC is available.
