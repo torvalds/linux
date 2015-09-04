@@ -78,15 +78,15 @@ extern int proc_watchdog_thresh(struct ctl_table *, int ,
 				void __user *, size_t *, loff_t *);
 extern int proc_watchdog_cpumask(struct ctl_table *, int,
 				 void __user *, size_t *, loff_t *);
-extern int watchdog_suspend(void);
-extern void watchdog_resume(void);
+extern int lockup_detector_suspend(void);
+extern void lockup_detector_resume(void);
 #else
-static inline int watchdog_suspend(void)
+static inline int lockup_detector_suspend(void)
 {
 	return 0;
 }
 
-static inline void watchdog_resume(void)
+static inline void lockup_detector_resume(void)
 {
 }
 #endif

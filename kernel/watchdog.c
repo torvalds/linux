@@ -67,8 +67,26 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 #define for_each_watchdog_cpu(cpu) \
 	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
 
-static int __read_mostly watchdog_suspended;
+/*
+ * The 'watchdog_running' variable is set to 1 when the watchdog threads
+ * are registered/started and is set to 0 when the watchdog threads are
+ * unregistered/stopped, so it is an indicator whether the threads exist.
+ */
 static int __read_mostly watchdog_running;
+/*
+ * If a subsystem has a need to deactivate the watchdog temporarily, it
+ * can use the suspend/resume interface to achieve this. The content of
+ * the 'watchdog_suspended' variable reflects this state. Existing threads
+ * are parked/unparked by the lockup_detector_{suspend|resume} functions
+ * (see comment blocks pertaining to those functions for further details).
+ *
+ * 'watchdog_suspended' also prevents threads from being registered/started
+ * or unregistered/stopped via parameters in /proc/sys/kernel, so the state
+ * of 'watchdog_running' cannot change while the watchdog is deactivated
+ * temporarily (see related code in 'proc' handlers).
+ */
+static int __read_mostly watchdog_suspended;
+
 static u64 __read_mostly sample_period;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
@@ -669,7 +687,7 @@ static void watchdog_unpark_threads(void)
 /*
  * Suspend the hard and soft lockup detector by parking the watchdog threads.
  */
-int watchdog_suspend(void)
+int lockup_detector_suspend(void)
 {
 	int ret = 0;
 
@@ -679,7 +697,7 @@ int watchdog_suspend(void)
 	 * the 'watchdog_suspended' variable). If the watchdog threads are
 	 * running, the first caller takes care that they will be parked.
 	 * The state of 'watchdog_running' cannot change while a suspend
-	 * request is active (see related changes in 'proc' handlers).
+	 * request is active (see related code in 'proc' handlers).
 	 */
 	if (watchdog_running && !watchdog_suspended)
 		ret = watchdog_park_threads();
@@ -695,7 +713,7 @@ int watchdog_suspend(void)
 /*
  * Resume the hard and soft lockup detector by unparking the watchdog threads.
  */
-void watchdog_resume(void)
+void lockup_detector_resume(void)
 {
 	mutex_lock(&watchdog_proc_mutex);
 
