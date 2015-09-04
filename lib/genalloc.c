@@ -160,6 +160,7 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 		pool->min_alloc_order = min_alloc_order;
 		pool->algo = gen_pool_first_fit;
 		pool->data = NULL;
+		pool->name = NULL;
 	}
 	return pool;
 }
@@ -252,8 +253,8 @@ void gen_pool_destroy(struct gen_pool *pool)
 
 		kfree(chunk);
 	}
+	kfree_const(pool->name);
 	kfree(pool);
-	return;
 }
 EXPORT_SYMBOL(gen_pool_destroy);
 
@@ -570,6 +571,20 @@ static void devm_gen_pool_release(struct device *dev, void *res)
 	gen_pool_destroy(*(struct gen_pool **)res);
 }
 
+static int devm_gen_pool_match(struct device *dev, void *res, void *data)
+{
+	struct gen_pool **p = res;
+
+	/* NULL data matches only a pool without an assigned name */
+	if (!data && !(*p)->name)
+		return 1;
+
+	if (!data || !(*p)->name)
+		return 0;
+
+	return !strcmp((*p)->name, data);
+}
+
 /**
  * gen_pool_get - Obtain the gen_pool (if any) for a device
  * @dev: device to retrieve the gen_pool from
@@ -581,7 +596,8 @@ struct gen_pool *gen_pool_get(struct device *dev, const char *name)
 {
 	struct gen_pool **p;
 
-	p = devres_find(dev, devm_gen_pool_release, NULL, NULL);
+	p = devres_find(dev, devm_gen_pool_release, devm_gen_pool_match,
+			(void *)name);
 	if (!p)
 		return NULL;
 	return *p;
@@ -603,25 +619,38 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 				      int nid, const char *name)
 {
 	struct gen_pool **ptr, *pool;
+	const char *pool_name = NULL;
 
 	/* Check that genpool to be created is uniquely addressed on device */
 	if (gen_pool_get(dev, name))
 		return ERR_PTR(-EINVAL);
 
-	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	pool = gen_pool_create(min_alloc_order, nid);
-	if (pool) {
-		*ptr = pool;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-		return ERR_PTR(-ENOMEM);
+	if (name) {
+		pool_name = kstrdup_const(name, GFP_KERNEL);
+		if (!pool_name)
+			return ERR_PTR(-ENOMEM);
 	}
 
+	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		goto free_pool_name;
+
+	pool = gen_pool_create(min_alloc_order, nid);
+	if (!pool)
+		goto free_devres;
+
+	*ptr = pool;
+	pool->name = pool_name;
+	devres_add(dev, ptr);
+
 	return pool;
+
+free_devres:
+	devres_free(ptr);
+free_pool_name:
+	kfree_const(pool_name);
+
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL(devm_gen_pool_create);
 
@@ -640,16 +669,30 @@ struct gen_pool *of_gen_pool_get(struct device_node *np,
 	const char *propname, int index)
 {
 	struct platform_device *pdev;
-	struct device_node *np_pool;
+	struct device_node *np_pool, *parent;
+	const char *name = NULL;
+	struct gen_pool *pool = NULL;
 
 	np_pool = of_parse_phandle(np, propname, index);
 	if (!np_pool)
 		return NULL;
+
 	pdev = of_find_device_by_node(np_pool);
+	if (!pdev) {
+		/* Check if named gen_pool is created by parent node device */
+		parent = of_get_parent(np_pool);
+		pdev = of_find_device_by_node(parent);
+		of_node_put(parent);
+
+		of_property_read_string(np_pool, "label", &name);
+		if (!name)
+			name = np_pool->name;
+	}
+	if (pdev)
+		pool = gen_pool_get(&pdev->dev, name);
 	of_node_put(np_pool);
-	if (!pdev)
-		return NULL;
-	return gen_pool_get(&pdev->dev, NULL);
+
+	return pool;
 }
 EXPORT_SYMBOL_GPL(of_gen_pool_get);
 #endif /* CONFIG_OF */

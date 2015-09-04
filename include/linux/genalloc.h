@@ -59,6 +59,8 @@ struct gen_pool {
 
 	genpool_algo_t algo;		/* allocation function */
 	void *data;
+
+	const char *name;
 };
 
 /*
