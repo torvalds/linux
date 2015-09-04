@@ -1185,8 +1185,6 @@ static void cx231xx_unregister_media_device(struct cx231xx *dev)
 */
 void cx231xx_release_resources(struct cx231xx *dev)
 {
-	cx231xx_unregister_media_device(dev);
-
 	cx231xx_release_analog_resources(dev);
 
 	cx231xx_remove_from_devlist(dev);
@@ -1198,6 +1196,8 @@ void cx231xx_release_resources(struct cx231xx *dev)
 
 	/* delete v4l2 device */
 	v4l2_device_unregister(&dev->v4l2_dev);
+
+	cx231xx_unregister_media_device(dev);
 
 	usb_put_dev(dev->udev);
 
@@ -1237,15 +1237,16 @@ static void cx231xx_media_device_register(struct cx231xx *dev,
 #endif
 }
 
-static void cx231xx_create_media_graph(struct cx231xx *dev)
+static int cx231xx_create_media_graph(struct cx231xx *dev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev = dev->media_dev;
 	struct media_entity *entity;
 	struct media_entity *tuner = NULL, *decoder = NULL;
+	int ret;
 
 	if (!mdev)
-		return;
+		return 0;
 
 	media_device_for_each_entity(entity, mdev) {
 		switch (entity->type) {
@@ -1261,16 +1262,24 @@ static void cx231xx_create_media_graph(struct cx231xx *dev)
 	/* Analog setup, using tuner as a link */
 
 	if (!decoder)
-		return;
+		return 0;
 
-	if (tuner)
-		media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT, decoder, 0,
-					 MEDIA_LNK_FL_ENABLED);
-	media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
-				 MEDIA_LNK_FL_ENABLED);
-	media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
-				 MEDIA_LNK_FL_ENABLED);
+	if (tuner) {
+		ret = media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT, decoder, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret < 0)
+			return ret;
+	}
+	ret = media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret < 0)
+		return ret;
+	ret = media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret < 0)
+		return ret;
 #endif
+	return 0;
 }
 
 /*
@@ -1732,9 +1741,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* load other modules required */
 	request_modules(dev);
 
-	cx231xx_create_media_graph(dev);
+	retval = cx231xx_create_media_graph(dev);
+	if (retval < 0) {
+		cx231xx_release_resources(dev);
+	}
 
-	return 0;
+	return retval;
 err_video_alt:
 	/* cx231xx_uninit_dev: */
 	cx231xx_close_extension(dev);
