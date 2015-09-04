@@ -338,7 +338,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct nvkm_pci *pci = device->pci;
 	struct drm_device *dev = drm->dev;
-	u32 bits;
+	u8 bits;
 	int ret;
 
 	if (pci && pci->agp.bridge) {
@@ -351,18 +351,16 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	bits = nvxx_mmu(&drm->device)->dma_bits;
 	if (nvxx_device(&drm->device)->func->pci) {
 		if (drm->agp.bridge ||
-		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
+		     !dma_supported(dev->dev, DMA_BIT_MASK(bits)))
 			bits = 32;
 
-		ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(bits));
+		ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
 		if (ret)
 			return ret;
 
-		ret = pci_set_consistent_dma_mask(dev->pdev,
-						  DMA_BIT_MASK(bits));
+		ret = dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(bits));
 		if (ret)
-			pci_set_consistent_dma_mask(dev->pdev,
-						    DMA_BIT_MASK(32));
+			dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(32));
 	}
 
 	ret = nouveau_ttm_global_init(drm);
