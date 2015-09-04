@@ -332,7 +332,7 @@ static int amd_sched_main(void *param)
 {
 	struct sched_param sparam = {.sched_priority = 1};
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
-	int r;
+	int r, count;
 
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
@@ -361,7 +361,8 @@ static int amd_sched_main(void *param)
 			fence_put(fence);
 		}
 
-		kfifo_out(&entity->job_queue, &job, sizeof(job));
+		count = kfifo_out(&entity->job_queue, &job, sizeof(job));
+		WARN_ON(count != sizeof(job));
 		wake_up(&sched->job_scheduled);
 	}
 	return 0;

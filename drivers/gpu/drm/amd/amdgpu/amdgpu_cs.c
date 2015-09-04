@@ -354,7 +354,7 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p)
 			 * into account. We don't want to disallow buffer moves
 			 * completely.
 			 */
-			if (current_domain != AMDGPU_GEM_DOMAIN_CPU &&
+			if ((lobj->allowed_domains & current_domain) != 0 &&
 			    (domain & current_domain) == 0 && /* will be moved */
 			    bytes_moved > bytes_moved_threshold) {
 				/* don't move it */

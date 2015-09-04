@@ -656,7 +656,8 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 
 	r = amdgpu_gem_object_create(adev, args->size, 0,
 				     AMDGPU_GEM_DOMAIN_VRAM,
-				     0, ttm_bo_type_device,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+				     ttm_bo_type_device,
 				     &gobj);
 	if (r)
 		return -ENOMEM;
