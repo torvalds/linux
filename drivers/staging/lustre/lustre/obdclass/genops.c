@@ -442,6 +442,7 @@ EXPORT_SYMBOL(class_uuid2dev);
 struct obd_device *class_uuid2obd(struct obd_uuid *uuid)
 {
 	int dev = class_uuid2dev(uuid);
+
 	if (dev < 0)
 		return NULL;
 	return class_num2obd(dev);
@@ -489,6 +490,7 @@ int get_devices_count(void)
 	read_lock(&obd_dev_lock);
 	for (index = 0; index <= max_index; index++) {
 		struct obd_device *obd = class_num2obd(index);
+
 		if (obd != NULL)
 			dev_count++;
 	}
@@ -722,9 +724,11 @@ EXPORT_SYMBOL(class_exp2obd);
 struct obd_device *class_conn2obd(struct lustre_handle *conn)
 {
 	struct obd_export *export;
+
 	export = class_conn2export(conn);
 	if (export) {
 		struct obd_device *obd = export->exp_obd;
+
 		class_export_put(export);
 		return obd;
 	}
@@ -735,6 +739,7 @@ EXPORT_SYMBOL(class_conn2obd);
 struct obd_import *class_exp2cliimp(struct obd_export *exp)
 {
 	struct obd_device *obd = exp->exp_obd;
+
 	if (obd == NULL)
 		return NULL;
 	return obd->u.cli.cl_import;
@@ -744,6 +749,7 @@ EXPORT_SYMBOL(class_exp2cliimp);
 struct obd_import *class_conn2cliimp(struct lustre_handle *conn)
 {
 	struct obd_device *obd = class_conn2obd(conn);
+
 	if (obd == NULL)
 		return NULL;
 	return obd->u.cli.cl_import;
@@ -1000,6 +1006,7 @@ EXPORT_SYMBOL(class_import_put);
 static void init_imp_at(struct imp_at *at)
 {
 	int i;
+
 	at_init(&at->iat_net_latency, 0, 0);
 	for (i = 0; i < IMP_AT_MAX_PORTALS; i++) {
 		/* max service estimates are tracked on the server side, so
@@ -1114,6 +1121,7 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 		  struct obd_uuid *cluuid)
 {
 	struct obd_export *export;
+
 	LASSERT(conn != NULL);
 	LASSERT(obd != NULL);
 	LASSERT(cluuid != NULL);
@@ -1225,6 +1233,7 @@ int class_connected_export(struct obd_export *exp)
 {
 	if (exp) {
 		int connected;
+
 		spin_lock(&exp->exp_lock);
 		connected = exp->exp_conn_cnt > 0;
 		spin_unlock(&exp->exp_lock);
@@ -1544,6 +1553,7 @@ EXPORT_SYMBOL(dump_exports);
 void obd_exports_barrier(struct obd_device *obd)
 {
 	int waited = 2;
+
 	LASSERT(list_empty(&obd->obd_exports));
 	spin_lock(&obd->obd_dev_lock);
 	while (!list_empty(&obd->obd_unlinked_exports)) {
@@ -1791,6 +1801,7 @@ EXPORT_SYMBOL(kuc_len);
 struct kuc_hdr *kuc_ptr(void *p)
 {
 	struct kuc_hdr *lh = ((struct kuc_hdr *)p) - 1;
+
 	LASSERT(lh->kuc_magic == KUC_MAGIC);
 	return lh;
 }
@@ -1836,6 +1847,7 @@ EXPORT_SYMBOL(kuc_alloc);
 inline void kuc_free(void *p, int payload_len)
 {
 	struct kuc_hdr *lh = kuc_ptr(p);
+
 	kfree(lh);
 }
 EXPORT_SYMBOL(kuc_free);
