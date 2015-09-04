@@ -550,8 +550,13 @@ static void __r5l_stripe_write_finished(struct r5l_io_unit *io)
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	__r5l_set_io_unit_state(io, IO_UNIT_STRIPE_END);
+	/* might move 0 entry */
 	r5l_move_io_unit_list(&log->flushed_ios, &log->stripe_end_ios,
 			      IO_UNIT_STRIPE_END);
+	if (list_empty(&log->stripe_end_ios)) {
+		spin_unlock_irqrestore(&log->io_list_lock, flags);
+		return;
+	}
 
 	last = list_last_entry(&log->stripe_end_ios,
 			       struct r5l_io_unit, log_sibling);
