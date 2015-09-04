@@ -533,10 +533,14 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 	inode_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 
+	down_read(&OCFS2_I(inode)->ip_alloc_sem);
+
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
 	ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
 					  &contig_blocks, &ext_flags);
+	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+
 	if (ret) {
 		mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",
 		     (unsigned long long)iblock);
@@ -557,6 +561,8 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 		alloc_locked = 1;
 
+		down_write(&OCFS2_I(inode)->ip_alloc_sem);
+
 		/* fill hole, allocate blocks can't be larger than the size
 		 * of the hole */
 		clusters_to_alloc = ocfs2_clusters_for_bytes(inode->i_sb, len);
@@ -569,6 +575,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		ret = ocfs2_extend_allocation(inode, cpos,
 				clusters_to_alloc, 0);
 		if (ret < 0) {
+			up_write(&OCFS2_I(inode)->ip_alloc_sem);
 			mlog_errno(ret);
 			goto bail;
 		}
@@ -576,11 +583,13 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
 				&contig_blocks, &ext_flags);
 		if (ret < 0) {
+			up_write(&OCFS2_I(inode)->ip_alloc_sem);
 			mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",
 					(unsigned long long)iblock);
 			ret = -EIO;
 			goto bail;
 		}
+		up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	}
 
 	/*
@@ -835,12 +844,17 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 
 		/* zeroing out the previously allocated cluster tail
 		 * that but not zeroed */
-		if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+		if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
+			down_read(&OCFS2_I(inode)->ip_alloc_sem);
 			ret = ocfs2_direct_IO_zero_extend(osb, inode, offset,
 					zero_len_tail, cluster_align_tail);
-		else
+			up_read(&OCFS2_I(inode)->ip_alloc_sem);
+		} else {
+			down_write(&OCFS2_I(inode)->ip_alloc_sem);
 			ret = ocfs2_direct_IO_extend_no_holes(osb, inode,
 					offset);
+			up_write(&OCFS2_I(inode)->ip_alloc_sem);
+		}
 		if (ret < 0) {
 			mlog_errno(ret);
 			ocfs2_inode_unlock(inode, 1);
