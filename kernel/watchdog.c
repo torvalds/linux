@@ -713,15 +713,12 @@ static int watchdog_enable_all_cpus(void)
 	int err = 0;
 
 	if (!watchdog_running) {
-		err = smpboot_register_percpu_thread(&watchdog_threads);
+		err = smpboot_register_percpu_thread_cpumask(&watchdog_threads,
+							     &watchdog_cpumask);
 		if (err)
 			pr_err("Failed to create watchdog threads, disabled\n");
-		else {
-			if (smpboot_update_cpumask_percpu_thread(
-				    &watchdog_threads, &watchdog_cpumask))
-				pr_err("Failed to set cpumask for watchdog threads\n");
+		else
 			watchdog_running = 1;
-		}
 	} else {
 		/*
 		 * Enable/disable the lockup detectors or
