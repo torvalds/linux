@@ -199,13 +199,10 @@ typedef struct {
 	struct mutex rxq_cs;
 	struct mutex hif_cs;
 
-	/* struct mutex txq_event; */
 	struct semaphore rxq_event;
 	struct semaphore cfg_event;
 	struct semaphore sync_event;
-
 	struct semaphore txq_event;
-	/* struct completion txq_event; */
 
 #if (RX_BH_TYPE == RX_BH_WORK_QUEUE)
 	struct work_struct rx_work_queue;

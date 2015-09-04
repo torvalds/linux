@@ -147,8 +147,6 @@ unsigned int int_clrd;
 
 static int wlan_deinit_locks(linux_wlan_t *nic);
 static void wlan_deinitialize_threads(linux_wlan_t *nic);
-static void linux_wlan_lock(void *vp);
-void linux_wlan_unlock(void *vp);
 extern void WILC_WFI_monitor_rx(uint8_t *buff, uint32_t size);
 extern void WILC_WFI_p2p_rx(struct net_device *dev, uint8_t *buff, uint32_t size);
 
@@ -387,7 +385,7 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 	schedule_work(&g_linux_wlan->rx_work_queue);
 	return IRQ_HANDLED;
 #elif (RX_BH_TYPE == RX_BH_KTHREAD)
-	linux_wlan_unlock(&g_linux_wlan->rx_sem);
+	up(&g_linux_wlan->rx_sem);
 	return IRQ_HANDLED;
 #elif (RX_BH_TYPE == RX_BH_THREADED_IRQ)
 	return IRQ_WAKE_THREAD;
@@ -441,7 +439,7 @@ static int isr_bh_routine(void *vp)
 	nic = (linux_wlan_t *)vp;
 
 	while (1) {
-		linux_wlan_lock(&nic->rx_sem);
+		down(&nic->rx_sem);
 		if (g_linux_wlan->close) {
 
 			while (!kthread_should_stop())
@@ -545,17 +543,6 @@ static void linux_wlan_dbg(uint8_t *buff)
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
-static void linux_wlan_lock(void *vp)
-{
-	PRINT_D(LOCK_DBG, "Locking %p\n", vp);
-	if (vp != NULL) {
-		while (down_interruptible((struct semaphore *) vp))
-			;
-	} else {
-		PRINT_ER("Failed, mutex is NULL\n");
-	}
-}
-
 static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 {
 	int error = -1;
@@ -566,15 +553,6 @@ static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 	else
 		PRINT_ER("Failed, mutex is NULL\n");
 	return error;
-}
-
-void linux_wlan_unlock(void *vp)
-{
-	PRINT_D(LOCK_DBG, "Unlocking %p\n", vp);
-	if (vp != NULL)
-		up((struct semaphore *)vp);
-	else
-		PRINT_ER("Failed, mutex is NULL\n");
 }
 
 static void linux_wlan_spin_lock(void *vp, unsigned long *flags)
@@ -614,7 +592,7 @@ static void linux_wlan_mac_indicate(int flag)
 		pd->oup.wlan_cfg_get_value(WID_STATUS, (unsigned char *)&status, 4);
 		if (pd->mac_status == WILC_MAC_STATUS_INIT) {
 			pd->mac_status = status;
-			linux_wlan_unlock(&pd->sync_event);
+			up(&pd->sync_event);
 		} else {
 			pd->mac_status = status;
 		}
@@ -695,14 +673,14 @@ static int linux_wlan_rxq_task(void *vp)
 {
 
 	/* inform wilc1000_wlan_init that RXQ task is started. */
-	linux_wlan_unlock(&g_linux_wlan->rxq_thread_started);
+	up(&g_linux_wlan->rxq_thread_started);
 	while (1) {
-		linux_wlan_lock(&g_linux_wlan->rxq_event);
+		down(&g_linux_wlan->rxq_event);
 		/* wait_for_completion(&g_linux_wlan->rxq_event); */
 
 		if (g_linux_wlan->close) {
 			/*Unlock the mutex in the mac_close function to indicate the exiting of the RX thread */
-			linux_wlan_unlock(&g_linux_wlan->rxq_thread_started);
+			up(&g_linux_wlan->rxq_thread_started);
 
 			while (!kthread_should_stop())
 				schedule();
@@ -733,17 +711,17 @@ static int linux_wlan_txq_task(void *vp)
 #endif
 
 	/* inform wilc1000_wlan_init that TXQ task is started. */
-	linux_wlan_unlock(&g_linux_wlan->txq_thread_started);
+	up(&g_linux_wlan->txq_thread_started);
 	while (1) {
 
 		PRINT_D(TX_DBG, "txq_task Taking a nap :)\n");
-		linux_wlan_lock(&g_linux_wlan->txq_event);
+		down(&g_linux_wlan->txq_event);
 		/* wait_for_completion(&pd->txq_event); */
 		PRINT_D(TX_DBG, "txq_task Who waked me up :$\n");
 
 		if (g_linux_wlan->close) {
 			/*Unlock the mutex in the mac_close function to indicate the exiting of the TX thread */
-			linux_wlan_unlock(&g_linux_wlan->txq_thread_started);
+			up(&g_linux_wlan->txq_thread_started);
 
 			while (!kthread_should_stop())
 				schedule();
@@ -1236,10 +1214,10 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 
 		/* not sure if the following unlocks are needed or not*/
 		if (&g_linux_wlan->rxq_event != NULL)
-			linux_wlan_unlock(&g_linux_wlan->rxq_event);
+			up(&g_linux_wlan->rxq_event);
 
 		if (&g_linux_wlan->txq_event != NULL)
-			linux_wlan_unlock(&g_linux_wlan->txq_event);
+			up(&g_linux_wlan->txq_event);
 
 	#if (RX_BH_TYPE == RX_BH_WORK_QUEUE)
 		/*Removing the work struct from the linux kernel workqueue*/
@@ -1248,7 +1226,7 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 
 	#elif (RX_BH_TYPE == RX_BH_KTHREAD)
 		/* if(&nic->rx_sem != NULL) */
-		/* linux_wlan_unlock(&nic->rx_sem); */
+		/* up(&nic->rx_sem); */
 	#endif
 
 		PRINT_D(INIT_DBG, "Deinitializing Threads\n");
@@ -1359,10 +1337,7 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 
 	nwi->os_func.os_sleep = linux_wlan_msleep;
 	nwi->os_func.os_debug = linux_wlan_dbg;
-	nwi->os_func.os_lock = linux_wlan_lock;
-	nwi->os_func.os_unlock = linux_wlan_unlock;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
-	nwi->os_func.os_signal = linux_wlan_unlock;
 
 	/*Added by Amr - BugID_4720*/
 	nwi->os_func.os_spin_lock = linux_wlan_spin_lock;
@@ -1428,7 +1403,7 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 	}
 
 	/* wait for RXQ task to start. */
-	linux_wlan_lock(&g_linux_wlan->rxq_thread_started);
+	down(&g_linux_wlan->rxq_thread_started);
 
 #endif
 
@@ -1450,14 +1425,14 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 	}
 #endif
 	/* wait for TXQ task to start. */
-	linux_wlan_lock(&g_linux_wlan->txq_thread_started);
+	down(&g_linux_wlan->txq_thread_started);
 
 	return 0;
 
 _fail_2:
 	/*De-Initialize 2nd thread*/
 	g_linux_wlan->close = 1;
-	linux_wlan_unlock(&g_linux_wlan->rxq_event);
+	up(&g_linux_wlan->rxq_event);
 	kthread_stop(g_linux_wlan->rxq_thread);
 
 #ifndef TCP_ENHANCEMENTS
@@ -1466,7 +1441,7 @@ _fail_1:
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
 	/*De-Initialize 1st thread*/
 	g_linux_wlan->close = 1;
-	linux_wlan_unlock(&g_linux_wlan->rx_sem);
+	up(&g_linux_wlan->rx_sem);
 	kthread_stop(g_linux_wlan->rx_bh_thread);
 _fail_:
 	#endif
@@ -1480,7 +1455,7 @@ static void wlan_deinitialize_threads(linux_wlan_t *nic)
 	g_linux_wlan->close = 1;
 	PRINT_D(INIT_DBG, "Deinitializing Threads\n");
 	if (&g_linux_wlan->rxq_event != NULL)
-		linux_wlan_unlock(&g_linux_wlan->rxq_event);
+		up(&g_linux_wlan->rxq_event);
 
 	if (g_linux_wlan->rxq_thread != NULL) {
 		kthread_stop(g_linux_wlan->rxq_thread);
@@ -1488,7 +1463,7 @@ static void wlan_deinitialize_threads(linux_wlan_t *nic)
 	}
 
 	if (&g_linux_wlan->txq_event != NULL)
-		linux_wlan_unlock(&g_linux_wlan->txq_event);
+		up(&g_linux_wlan->txq_event);
 
 	if (g_linux_wlan->txq_thread != NULL) {
 		kthread_stop(g_linux_wlan->txq_thread);
@@ -1497,7 +1472,7 @@ static void wlan_deinitialize_threads(linux_wlan_t *nic)
 
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
 	if (&g_linux_wlan->rx_sem != NULL)
-		linux_wlan_unlock(&g_linux_wlan->rx_sem);
+		up(&g_linux_wlan->rx_sem);
 
 	if (g_linux_wlan->rx_bh_thread != NULL) {
 		kthread_stop(g_linux_wlan->rx_bh_thread);
@@ -1919,7 +1894,7 @@ int mac_open(struct net_device *ndev)
 	/* Start the network interface queue for this device */
 	PRINT_D(INIT_DBG, "Starting netifQ\n");
 	netif_start_queue(ndev);
-/*	linux_wlan_lock(&close_exit_sync); */
+/*	down(&close_exit_sync); */
 	return 0;
 }
 #endif
@@ -2133,7 +2108,7 @@ int mac_close(struct net_device *ndev)
 		#endif
 	}
 
-	linux_wlan_unlock(&close_exit_sync);
+	up(&close_exit_sync);
 	nic->mac_opened = 0;
 
 	return 0;

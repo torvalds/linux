@@ -76,7 +76,7 @@ typedef struct {
 	void *txq_lock;
 
 	/*Added by Amr - BugID_4720*/
-	void *txq_add_to_head_lock;
+	struct semaphore *txq_add_to_head_lock;
 	void *txq_spinlock;
 	unsigned long txq_spinlock_flags;
 
@@ -238,9 +238,7 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 	 **/
 	PRINT_D(TX_DBG, "Wake the txq_handling\n");
 
-	p->os_func.os_signal(p->txq_wait);
-
-
+	up(p->txq_wait);
 }
 
 static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
@@ -269,13 +267,13 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 
 	/*Added by Amr - BugID_4720*/
 	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
-	p->os_func.os_signal(p->txq_add_to_head_lock);
+	up(p->txq_add_to_head_lock);
 
 
 	/**
 	 *      wake up TX queue
 	 **/
-	p->os_func.os_signal(p->txq_wait);
+	up(p->txq_wait);
 	PRINT_D(TX_DBG, "Wake up the txq_handler\n");
 
 	/*Added by Amr - BugID_4720*/
@@ -507,7 +505,7 @@ static int wilc_wlan_txq_add_cfg_pkt(uint8_t *buffer, uint32_t buffer_size)
 	PRINT_D(TX_DBG, "Adding config packet ...\n");
 	if (p->quit) {
 		PRINT_D(TX_DBG, "Return due to clear function\n");
-		p->os_func.os_signal(p->cfg_wait);
+		up(p->cfg_wait);
 		return 0;
 	}
 
@@ -1193,7 +1191,7 @@ _end_:
 			break;
 	} while (0);
 	/*Added by Amr - BugID_4720*/
-	p->os_func.os_signal(p->txq_add_to_head_lock);
+	up(p->txq_add_to_head_lock);
 
 	p->txq_exit = 1;
 	PRINT_D(TX_DBG, "THREAD: Exiting txq\n");
@@ -1217,7 +1215,7 @@ static void wilc_wlan_handle_rxq(void)
 	do {
 		if (p->quit) {
 			PRINT_D(RX_DBG, "exit 1st do-while due to Clean_UP function\n");
-			p->os_func.os_signal(p->cfg_wait);
+			up(p->cfg_wait);
 			break;
 		}
 		rqe = wilc_wlan_rxq_remove();
@@ -1298,7 +1296,7 @@ static void wilc_wlan_handle_rxq(void)
 						 **/
 						PRINT_D(RX_DBG, "p->cfg_seq_no = %d - rsp.seq_no = %d\n", p->cfg_seq_no, rsp.seq_no);
 						if (p->cfg_seq_no == rsp.seq_no) {
-							p->os_func.os_signal(p->cfg_wait);
+							up(p->cfg_wait);
 						}
 					} else if (rsp.type == WILC_CFG_RSP_STATUS) {
 						/**
@@ -1452,7 +1450,7 @@ _end_:
 				rqe->buffer_size = size;
 				PRINT_D(RX_DBG, "rxq entery Size= %d - Address = %p\n", rqe->buffer_size, rqe->buffer);
 				wilc_wlan_rxq_add(rqe);
-				p->os_func.os_signal(p->rxq_wait);
+				up(p->rxq_wait);
 			}
 		} else {
 #ifndef MEMORY_STATIC

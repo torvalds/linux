@@ -23,7 +23,6 @@
 #define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
 extern int linux_wlan_get_firmware(perInterface_wlan_t *p_nic);
-extern void linux_wlan_unlock(void *vp);
 extern u16 Set_machw_change_vir_if(bool bValue);
 
 extern int mac_open(struct net_device *ndev);
@@ -2898,7 +2897,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 
 			/*BugID_5213*/
 			/*Eliminate host interface blocking state*/
-			linux_wlan_unlock((void *)&g_linux_wlan->cfg_event);
+			up(&g_linux_wlan->cfg_event);
 
 			wilc1000_wlan_deinit(g_linux_wlan);
 			wilc1000_wlan_init(dev, nic);

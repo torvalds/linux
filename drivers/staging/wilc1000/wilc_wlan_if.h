@@ -86,10 +86,7 @@ typedef struct {
 typedef struct {
 	void (*os_sleep)(uint32_t);
 	void (*os_debug)(uint8_t *);
-	void (*os_lock)(void *);
-	void (*os_unlock)(void *);
 	int (*os_wait)(void *, u32);
-	void (*os_signal)(void *);
 
 	/*Added by Amr - BugID_4720*/
 	void (*os_spin_lock)(void *, unsigned long *);
@@ -152,7 +149,7 @@ typedef struct {
 	void *rxq_critical_section;
 	void *rxq_wait_event;
 
-	void *cfg_wait_event;
+	struct semaphore *cfg_wait_event;
 } wilc_wlan_os_context_t;
 
 typedef struct {
