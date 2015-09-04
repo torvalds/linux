@@ -1191,17 +1191,19 @@ void ocfs2_evict_inode(struct inode *inode)
 int ocfs2_drop_inode(struct inode *inode)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	int res;
 
 	trace_ocfs2_drop_inode((unsigned long long)oi->ip_blkno,
 				inode->i_nlink, oi->ip_flags);
 
-	if (oi->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)
-		res = 1;
-	else
-		res = generic_drop_inode(inode);
+	assert_spin_locked(&inode->i_lock);
+	inode->i_state |= I_WILL_FREE;
+	spin_unlock(&inode->i_lock);
+	write_inode_now(inode, 1);
+	spin_lock(&inode->i_lock);
+	WARN_ON(inode->i_state & I_NEW);
+	inode->i_state &= ~I_WILL_FREE;
 
-	return res;
+	return 1;
 }
 
 /*
