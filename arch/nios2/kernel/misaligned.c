@@ -71,7 +71,7 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 	u32 isn, addr, val;
 	int in_kernel;
 	u8 a, b, d0, d1, d2, d3;
-	u16 imm16;
+	s16 imm16;
 	unsigned int fault;
 
 	/* back up one instruction */
