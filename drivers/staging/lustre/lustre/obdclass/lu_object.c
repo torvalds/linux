@@ -1784,15 +1784,15 @@ int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 EXPORT_SYMBOL(lu_env_refill_by_tags);
 
 
-typedef struct lu_site_stats{
+struct lu_site_stats {
 	unsigned	lss_populated;
 	unsigned	lss_max_search;
 	unsigned	lss_total;
 	unsigned	lss_busy;
-} lu_site_stats_t;
+};
 
 static void lu_site_stats_get(struct cfs_hash *hs,
-			      lu_site_stats_t *stats, int populated)
+			      struct lu_site_stats *stats, int populated)
 {
 	struct cfs_hash_bd bd;
 	int	   i;
@@ -1841,7 +1841,7 @@ static void lu_site_stats_get(struct cfs_hash *hs,
 static unsigned long lu_cache_shrink_count(struct shrinker *sk,
 					   struct shrink_control *sc)
 {
-	lu_site_stats_t stats;
+	struct lu_site_stats stats;
 	struct lu_site *s;
 	struct lu_site *tmp;
 	unsigned long cached = 0;
@@ -2001,7 +2001,7 @@ static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
  */
 int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 {
-	lu_site_stats_t stats;
+	struct lu_site_stats stats;
 
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
