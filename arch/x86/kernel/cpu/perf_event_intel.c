@@ -3627,7 +3627,10 @@ static __init int fixup_ht_bug(void)
 		return 0;
 	}
 
-	watchdog_nmi_disable_all();
+	if (watchdog_suspend() != 0) {
+		pr_debug("failed to disable PMU erratum BJ122, BV98, HSD29 workaround\n");
+		return 0;
+	}
 
 	x86_pmu.flags &= ~(PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED);
 
@@ -3635,7 +3638,7 @@ static __init int fixup_ht_bug(void)
 	x86_pmu.commit_scheduling = NULL;
 	x86_pmu.stop_scheduling = NULL;
 
-	watchdog_nmi_enable_all();
+	watchdog_resume();
 
 	get_online_cpus();
 

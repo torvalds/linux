@@ -615,41 +615,6 @@ static void watchdog_nmi_disable(unsigned int cpu)
 	}
 }
 
-void watchdog_nmi_enable_all(void)
-{
-	int cpu;
-
-	mutex_lock(&watchdog_proc_mutex);
-
-	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
-		goto unlock;
-
-	get_online_cpus();
-	for_each_watchdog_cpu(cpu)
-		watchdog_nmi_enable(cpu);
-	put_online_cpus();
-
-unlock:
-	mutex_unlock(&watchdog_proc_mutex);
-}
-
-void watchdog_nmi_disable_all(void)
-{
-	int cpu;
-
-	mutex_lock(&watchdog_proc_mutex);
-
-	if (!watchdog_running)
-		goto unlock;
-
-	get_online_cpus();
-	for_each_watchdog_cpu(cpu)
-		watchdog_nmi_disable(cpu);
-	put_online_cpus();
-
-unlock:
-	mutex_unlock(&watchdog_proc_mutex);
-}
 #else
 static int watchdog_nmi_enable(unsigned int cpu) { return 0; }
 static void watchdog_nmi_disable(unsigned int cpu) { return; }
