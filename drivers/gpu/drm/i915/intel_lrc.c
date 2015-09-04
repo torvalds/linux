@@ -301,10 +301,10 @@ uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 	/* desc |= GEN8_CTX_FORCE_RESTORE; */
 
 	/* WaEnableForceRestoreInCtxtDescForVCS:skl */
-	if (IS_GEN9(dev) &&
-	    INTEL_REVID(dev) <= SKL_REVID_B0 &&
-	    (ring->id == BCS || ring->id == VCS ||
-	    ring->id == VECS || ring->id == VCS2))
+	/* WaEnableForceRestoreInCtxtDescForVCS:bxt */
+	if (((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
+	     (IS_BROXTON(dev) && INTEL_REVID(dev) == BXT_REVID_A0)) &&
+	    (ring->id == VCS || ring->id == VCS2))
 		desc |= GEN8_CTX_FORCE_RESTORE;
 
 	return desc;
