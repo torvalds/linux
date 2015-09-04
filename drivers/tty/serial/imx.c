@@ -139,6 +139,7 @@
 #define USR1_ESCF	(1<<11) /* Escape seq interrupt flag */
 #define USR1_FRAMERR	(1<<10) /* Frame error interrupt flag */
 #define USR1_RRDY	(1<<9)	 /* Receiver ready interrupt/dma flag */
+#define USR1_AGTIM	(1<<8)	 /* Ageing timer interrupt flag */
 #define USR1_TIMEOUT	(1<<7)	 /* Receive timeout interrupt status */
 #define USR1_RXDS	 (1<<6)	 /* Receiver idle interrupt flag */
 #define USR1_AIRINT	 (1<<5)	 /* Async IR wake interrupt flag */
@@ -728,10 +729,14 @@ static void imx_dma_rxint(struct imx_port *sport)
 	if ((temp & USR2_RDR) && !sport->dma_is_rxing) {
 		sport->dma_is_rxing = 1;
 
-		/* disable the `Recerver Ready Interrrupt` */
+		/* disable the receiver ready and aging timer interrupts */
 		temp = readl(sport->port.membase + UCR1);
 		temp &= ~(UCR1_RRDYEN);
 		writel(temp, sport->port.membase + UCR1);
+
+		temp = readl(sport->port.membase + UCR2);
+		temp &= ~(UCR2_ATEN);
+		writel(temp, sport->port.membase + UCR2);
 
 		/* tell the DMA to receive the data. */
 		start_rx_dma(sport);
@@ -749,7 +754,7 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 	sts = readl(sport->port.membase + USR1);
 	sts2 = readl(sport->port.membase + USR2);
 
-	if (sts & USR1_RRDY) {
+	if (sts & (USR1_RRDY | USR1_AGTIM)) {
 		if (sport->dma_is_enabled)
 			imx_dma_rxint(sport);
 		else
@@ -860,10 +865,14 @@ static void imx_rx_dma_done(struct imx_port *sport)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
-	/* Enable this interrupt when the RXFIFO is empty. */
+	/* re-enable interrupts to get notified when new symbols are incoming */
 	temp = readl(sport->port.membase + UCR1);
 	temp |= UCR1_RRDYEN;
 	writel(temp, sport->port.membase + UCR1);
+
+	temp = readl(sport->port.membase + UCR2);
+	temp |= UCR2_ATEN;
+	writel(temp, sport->port.membase + UCR2);
 
 	sport->dma_is_rxing = 0;
 
@@ -1068,6 +1077,10 @@ static void imx_enable_dma(struct imx_port *sport)
 		UCR1_ICD_REG(3);
 	writel(temp, sport->port.membase + UCR1);
 
+	temp = readl(sport->port.membase + UCR2);
+	temp |= UCR2_ATEN;
+	writel(temp, sport->port.membase + UCR2);
+
 	/* set UCR4 */
 	temp = readl(sport->port.membase + UCR4);
 	temp |= UCR4_IDDMAEN;
@@ -1087,7 +1100,7 @@ static void imx_disable_dma(struct imx_port *sport)
 
 	/* clear UCR2 */
 	temp = readl(sport->port.membase + UCR2);
-	temp &= ~(UCR2_CTSC | UCR2_CTS);
+	temp &= ~(UCR2_CTSC | UCR2_CTS | UCR2_ATEN);
 	writel(temp, sport->port.membase + UCR2);
 
 	/* clear UCR4 */
@@ -1279,7 +1292,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long flags;
-	unsigned int ucr2, old_ucr1, old_txrxen, baud, quot;
+	unsigned int ucr2, old_ucr1, old_ucr2, baud, quot;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
 	unsigned int div, ufcr;
 	unsigned long num, denom;
@@ -1388,10 +1401,10 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 		barrier();
 
 	/* then, disable everything */
-	old_txrxen = readl(sport->port.membase + UCR2);
-	writel(old_txrxen & ~(UCR2_TXEN | UCR2_RXEN),
+	old_ucr2 = readl(sport->port.membase + UCR2);
+	writel(old_ucr2 & ~(UCR2_TXEN | UCR2_RXEN),
 			sport->port.membase + UCR2);
-	old_txrxen &= (UCR2_TXEN | UCR2_RXEN);
+	old_ucr2 &= (UCR2_TXEN | UCR2_RXEN | UCR2_ATEN);
 
 	/* custom-baudrate handling */
 	div = sport->port.uartclk / (baud * 16);
@@ -1432,7 +1445,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	writel(old_ucr1, sport->port.membase + UCR1);
 
 	/* set the parity, stop bits and data size */
-	writel(ucr2 | old_txrxen, sport->port.membase + UCR2);
+	writel(ucr2 | old_ucr2, sport->port.membase + UCR2);
 
 	if (UART_ENABLE_MS(&sport->port, termios->c_cflag))
 		imx_enable_ms(&sport->port);
