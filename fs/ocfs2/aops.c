@@ -627,10 +627,13 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 		mutex_unlock(&OCFS2_I(inode)->ip_unaligned_aio);
 	}
 
-	ocfs2_iocb_clear_rw_locked(iocb);
+	/* Let rw unlock to be done later to protect append direct io write */
+	if (offset + bytes <= i_size_read(inode)) {
+		ocfs2_iocb_clear_rw_locked(iocb);
 
-	level = ocfs2_iocb_rw_locked_level(iocb);
-	ocfs2_rw_unlock(inode, level);
+		level = ocfs2_iocb_rw_locked_level(iocb);
+		ocfs2_rw_unlock(inode, level);
+	}
 }
 
 static int ocfs2_releasepage(struct page *page, gfp_t wait)

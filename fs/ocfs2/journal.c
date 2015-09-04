@@ -2170,6 +2170,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		iter = oi->ip_next_orphan;
 		oi->ip_next_orphan = NULL;
 
+		mutex_lock(&inode->i_mutex);
 		ret = ocfs2_rw_lock(inode, 1);
 		if (ret < 0) {
 			mlog_errno(ret);
@@ -2206,17 +2207,16 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 			ret = ocfs2_del_inode_from_orphan(osb, inode, di_bh, 0, 0);
 			if (ret)
 				mlog_errno(ret);
-
-			wake_up(&OCFS2_I(inode)->append_dio_wq);
 		} /* else if ORPHAN_NO_NEED_TRUNCATE, do nothing */
 unlock_inode:
 		ocfs2_inode_unlock(inode, 1);
+		brelse(di_bh);
+		di_bh = NULL;
 unlock_rw:
 		ocfs2_rw_unlock(inode, 1);
 next:
+		mutex_unlock(&inode->i_mutex);
 		iput(inode);
-		brelse(di_bh);
-		di_bh = NULL;
 		inode = iter;
 	}
 

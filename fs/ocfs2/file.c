@@ -2416,7 +2416,7 @@ relock:
 	}
 
 no_sync:
-	if (unaligned_dio) {
+	if (unaligned_dio && ocfs2_iocb_is_unaligned_aio(iocb)) {
 		ocfs2_iocb_clear_unaligned_aio(iocb);
 		mutex_unlock(&OCFS2_I(inode)->ip_unaligned_aio);
 	}
