@@ -797,7 +797,8 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 		struct media_link *link;
 
 		link = media_create_intf_link(&vdev->entity,
-					      &vdev->intf_devnode->intf, 0);
+					      &vdev->intf_devnode->intf,
+					      MEDIA_LNK_FL_ENABLED);
 		if (!link) {
 			media_devnode_remove(vdev->intf_devnode);
 			media_device_unregister_entity(&vdev->entity);

@@ -265,7 +265,7 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 
 			link = media_create_intf_link(&sd->entity,
 						      &vdev->intf_devnode->intf,
-						      0);
+						      MEDIA_LNK_FL_ENABLED);
 			if (!link)
 				goto clean_up;
 		}
