@@ -287,7 +287,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	char buf[512];
 	size_t size = sizeof(buf);
-	int socket = hists->socket_filter;
+	int socked_id = hists->socket_filter;
 
 	if (symbol_conf.filter_relative) {
 		nr_samples = hists->stats.nr_non_filtered_samples;
@@ -329,8 +329,8 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	} else
 		ret += fprintf(fp, "\n# Event count (approx.): %" PRIu64, nr_events);
 
-	if (socket > -1)
-		ret += fprintf(fp, "\n# Processor Socket: %d", socket);
+	if (socked_id > -1)
+		ret += fprintf(fp, "\n# Processor Socket: %d", socked_id);
 
 	return ret + fprintf(fp, "\n#\n");
 }

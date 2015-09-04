@@ -1310,6 +1310,25 @@ static bool hists__filter_entry_by_socket(struct hists *hists,
 	return false;
 }
 
+void hists__filter_by_socket(struct hists *hists)
+{
+	struct rb_node *nd;
+
+	hists->stats.nr_non_filtered_samples = 0;
+
+	hists__reset_filter_stats(hists);
+	hists__reset_col_len(hists);
+
+	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (hists__filter_entry_by_socket(hists, h))
+			continue;
+
+		hists__remove_entry_filter(hists, h, HIST_FILTER__SOCKET);
+	}
+}
+
 void events_stats__inc(struct events_stats *stats, u32 type)
 {
 	++stats->nr_events[0];

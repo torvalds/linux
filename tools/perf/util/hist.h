@@ -147,6 +147,7 @@ size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp);
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
+void hists__filter_by_socket(struct hists *hists);
 
 static inline bool hists__has_filter(struct hists *hists)
 {
