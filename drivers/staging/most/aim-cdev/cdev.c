@@ -166,7 +166,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 
 	mbo = most_get_mbo(channel->iface, channel->channel_id);
 
-	if (!mbo && channel->dev) {
+	if (!mbo) {
 		if ((filp->f_flags & O_NONBLOCK))
 			return -EAGAIN;
 		if (wait_event_interruptible(
