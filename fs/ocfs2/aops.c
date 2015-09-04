@@ -860,7 +860,8 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 	written = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
 				       offset, ocfs2_direct_IO_get_blocks,
 				       ocfs2_dio_end_io, NULL, 0);
-	if (unlikely(written < 0)) {
+	/* overwrite aio may return -EIOCBQUEUED, and it is not an error */
+	if ((written < 0) && (written != -EIOCBQUEUED)) {
 		loff_t i_size = i_size_read(inode);
 
 		if (offset + count > i_size) {
@@ -879,12 +880,14 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 
 					ocfs2_inode_unlock(inode, 1);
 					brelse(di_bh);
+					di_bh = NULL;
 					goto clean_orphan;
 				}
 			}
 
 			ocfs2_inode_unlock(inode, 1);
 			brelse(di_bh);
+			di_bh = NULL;
 
 			ret = jbd2_journal_force_commit(journal);
 			if (ret < 0)
@@ -939,10 +942,12 @@ clean_orphan:
 		if (tmp_ret < 0) {
 			ret = tmp_ret;
 			mlog_errno(ret);
+			brelse(di_bh);
 			goto out;
 		}
 
 		ocfs2_inode_unlock(inode, 1);
+		brelse(di_bh);
 
 		tmp_ret = jbd2_journal_force_commit(journal);
 		if (tmp_ret < 0) {
