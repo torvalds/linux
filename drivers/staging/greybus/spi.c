@@ -299,7 +299,7 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	if (ret)
 		goto out_err;
 
-	master->bus_num = 0;		/* How do we get controller id here? */
+	master->bus_num = -1; /* Allow spi-core to allocate it dynamically */
 	master->num_chipselect = spi->num_chipselect;
 	master->mode_bits = spi->mode;
 	master->flags = spi->flags;
