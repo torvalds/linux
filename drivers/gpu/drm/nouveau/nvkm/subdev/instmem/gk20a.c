@@ -103,6 +103,7 @@ struct gk20a_instmem {
 	struct nvkm_mm *mm;
 	struct iommu_domain *domain;
 	unsigned long iommu_pgshift;
+	u16 iommu_bit;
 
 	/* Only used by DMA API */
 	struct dma_attrs attrs;
@@ -332,8 +333,8 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 	r = list_first_entry(&node->base.mem.regions, struct nvkm_mm_node,
 			     rl_entry);
 
-	/* clear bit 34 to unmap pages */
-	r->offset &= ~BIT(34 - imem->iommu_pgshift);
+	/* clear IOMMU bit to unmap pages */
+	r->offset &= ~BIT(imem->iommu_bit - imem->iommu_pgshift);
 
 	/* Unmap pages from GPU address space and free them */
 	for (i = 0; i < node->base.mem.size; i++) {
@@ -489,8 +490,8 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 		}
 	}
 
-	/* Bit 34 tells that an address is to be resolved through the IOMMU */
-	r->offset |= BIT(34 - imem->iommu_pgshift);
+	/* IOMMU bit tells that an address is to be resolved through the IOMMU */
+	r->offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
 
 	node->base.mem.offset = ((u64)r->offset) << imem->iommu_pgshift;
 
@@ -603,6 +604,7 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 		imem->domain = tdev->iommu.domain;
 		imem->iommu_pgshift = tdev->iommu.pgshift;
 		imem->cpu_map = gk20a_instobj_cpu_map_iommu;
+		imem->iommu_bit = tdev->func->iommu_bit;
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {
