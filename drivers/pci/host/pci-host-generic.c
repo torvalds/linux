@@ -210,7 +210,6 @@ static int gen_pci_probe(struct platform_device *pdev)
 	int err;
 	const char *type;
 	const struct of_device_id *of_id;
-	const int *prop;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct gen_pci *pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
@@ -225,13 +224,7 @@ static int gen_pci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	prop = of_get_property(of_chosen, "linux,pci-probe-only", NULL);
-	if (prop) {
-		if (*prop)
-			pci_add_flags(PCI_PROBE_ONLY);
-		else
-			pci_clear_flags(PCI_PROBE_ONLY);
-	}
+	of_pci_check_probe_only();
 
 	of_id = of_match_node(gen_pci_of_match, np);
 	pci->cfg.ops = of_id->data;
