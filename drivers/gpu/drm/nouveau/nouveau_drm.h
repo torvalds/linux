@@ -178,8 +178,11 @@ nouveau_drm(struct drm_device *dev)
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
+#include <nvkm/core/tegra.h>
+
 struct drm_device *
-nouveau_platform_device_create(struct platform_device *, struct nvkm_device **);
+nouveau_platform_device_create(const struct nvkm_device_tegra_func *,
+			       struct platform_device *, struct nvkm_device **);
 void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \

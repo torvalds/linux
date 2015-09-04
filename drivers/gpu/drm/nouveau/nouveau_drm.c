@@ -1028,13 +1028,14 @@ nouveau_drm_pci_driver = {
 };
 
 struct drm_device *
-nouveau_platform_device_create(struct platform_device *pdev,
+nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
+			       struct platform_device *pdev,
 			       struct nvkm_device **pdevice)
 {
 	struct drm_device *drm;
 	int err;
 
-	err = nvkm_device_tegra_new(pdev, nouveau_config, nouveau_debug,
+	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_debug,
 				    true, true, ~0ULL, pdevice);
 	if (err)
 		goto err_free;
