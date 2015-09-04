@@ -1924,12 +1924,15 @@ static int visornic_probe(struct visor_device *dev)
 			"%s debugfs_create_dir %s failed\n",
 			__func__, netdev->name);
 		err = -ENOMEM;
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_register_netdev;
 	}
 
 	dev_info(&dev->device, "%s success netdev=%s\n",
 		 __func__, netdev->name);
 	return 0;
+
+cleanup_register_netdev:
+	unregister_netdev(netdev);
 
 cleanup_napi_add:
 	del_timer_sync(&devdata->irq_poll_timer);
