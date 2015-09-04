@@ -550,15 +550,6 @@ static void linux_wlan_dbg(uint8_t *buff)
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
-static void *linux_wlan_malloc_atomic(uint32_t sz)
-{
-	char *pntr = NULL;
-
-	pntr = kmalloc(sz, GFP_ATOMIC);
-	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", sz, pntr);
-	return (void *)pntr;
-
-}
 void linux_wlan_free(void *vp)
 {
 	if (vp != NULL) {
@@ -1489,7 +1480,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_func.os_sleep = linux_wlan_msleep;
 	nwi->os_func.os_atomic_sleep = linux_wlan_atomic_msleep;
 	nwi->os_func.os_debug = linux_wlan_dbg;
-	nwi->os_func.os_malloc_atomic = linux_wlan_malloc_atomic;
 	nwi->os_func.os_free = linux_wlan_free;
 	nwi->os_func.os_lock = linux_wlan_lock;
 	nwi->os_func.os_unlock = linux_wlan_unlock;

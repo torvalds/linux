@@ -511,7 +511,7 @@ static int wilc_wlan_txq_add_cfg_pkt(uint8_t *buffer, uint32_t buffer_size)
 		return 0;
 	}
 
-	tqe = (struct txq_entry_t *)p->os_func.os_malloc_atomic(sizeof(struct txq_entry_t));
+	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_ATOMIC);
 	if (tqe == NULL) {
 		PRINT_ER("Failed to allocate memory\n");
 		return 0;
@@ -544,7 +544,7 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffe
 	if (p->quit)
 		return 0;
 
-	tqe = (struct txq_entry_t *)p->os_func.os_malloc_atomic(sizeof(struct txq_entry_t));
+	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_ATOMIC);
 
 	if (tqe == NULL)
 		return 0;
@@ -577,7 +577,7 @@ int wilc_wlan_txq_add_mgmt_pkt(void *priv, uint8_t *buffer, uint32_t buffer_size
 	if (p->quit)
 		return 0;
 
-	tqe = (struct txq_entry_t *)p->os_func.os_malloc_atomic(sizeof(struct txq_entry_t));
+	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_KERNEL);
 
 	if (tqe == NULL)
 		return 0;
@@ -603,7 +603,7 @@ int wilc_FH_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffer_si
 	if (p->quit)
 		return 0;
 
-	tqe = (struct txq_entry_t *)p->os_func.os_malloc_atomic(sizeof(struct txq_entry_t));
+	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_ATOMIC);
 
 	if (tqe == NULL)
 		return 0;
