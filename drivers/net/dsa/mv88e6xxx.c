@@ -2685,6 +2685,11 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 	if (ret < 0)
 		goto unlock;
 
+	/* Clear all ATU entries */
+	ret = _mv88e6xxx_atu_flush(ds, 0, true);
+	if (ret < 0)
+		goto unlock;
+
 	/* Clear all the VTU and STU entries */
 	ret = _mv88e6xxx_vtu_stu_flush(ds);
 unlock:
