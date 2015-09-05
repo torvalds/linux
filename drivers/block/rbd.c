@@ -523,6 +523,7 @@ void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
 #  define rbd_assert(expr)	((void) 0)
 #endif /* !RBD_DEBUG */
 
+static void rbd_osd_copyup_callback(struct rbd_obj_request *obj_request);
 static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request);
 static void rbd_img_parent_read(struct rbd_obj_request *obj_request);
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev);
@@ -1818,6 +1819,16 @@ static void rbd_osd_stat_callback(struct rbd_obj_request *obj_request)
 	obj_request_done_set(obj_request);
 }
 
+static void rbd_osd_call_callback(struct rbd_obj_request *obj_request)
+{
+	dout("%s: obj %p\n", __func__, obj_request);
+
+	if (obj_request_img_data_test(obj_request))
+		rbd_osd_copyup_callback(obj_request);
+	else
+		obj_request_done_set(obj_request);
+}
+
 static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 				struct ceph_msg *msg)
 {
@@ -1866,6 +1877,8 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 		rbd_osd_discard_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_CALL:
+		rbd_osd_call_callback(obj_request);
+		break;
 	case CEPH_OSD_OP_NOTIFY_ACK:
 	case CEPH_OSD_OP_WATCH:
 		rbd_osd_trivial_callback(obj_request);
@@ -2530,12 +2543,14 @@ out_unwind:
 }
 
 static void
-rbd_img_obj_copyup_callback(struct rbd_obj_request *obj_request)
+rbd_osd_copyup_callback(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request;
 	struct rbd_device *rbd_dev;
 	struct page **pages;
 	u32 page_count;
+
+	dout("%s: obj %p\n", __func__, obj_request);
 
 	rbd_assert(obj_request->type == OBJ_REQUEST_BIO ||
 		obj_request->type == OBJ_REQUEST_NODATA);
@@ -2563,9 +2578,7 @@ rbd_img_obj_copyup_callback(struct rbd_obj_request *obj_request)
 	if (!obj_request->result)
 		obj_request->xferred = obj_request->length;
 
-	/* Finish up with the normal image object callback */
-
-	rbd_img_obj_callback(obj_request);
+	obj_request_done_set(obj_request);
 }
 
 static void
@@ -2650,7 +2663,6 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 
 	/* All set, send it off. */
 
-	orig_request->callback = rbd_img_obj_copyup_callback;
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	img_result = rbd_obj_request_submit(osdc, orig_request);
 	if (!img_result)
@@ -3462,52 +3474,6 @@ static int rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-/*
- * a queue callback. Makes sure that we don't create a bio that spans across
- * multiple osd objects. One exception would be with a single page bios,
- * which we handle later at bio_chain_clone_range()
- */
-static int rbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bmd,
-			  struct bio_vec *bvec)
-{
-	struct rbd_device *rbd_dev = q->queuedata;
-	sector_t sector_offset;
-	sector_t sectors_per_obj;
-	sector_t obj_sector_offset;
-	int ret;
-
-	/*
-	 * Find how far into its rbd object the partition-relative
-	 * bio start sector is to offset relative to the enclosing
-	 * device.
-	 */
-	sector_offset = get_start_sect(bmd->bi_bdev) + bmd->bi_sector;
-	sectors_per_obj = 1 << (rbd_dev->header.obj_order - SECTOR_SHIFT);
-	obj_sector_offset = sector_offset & (sectors_per_obj - 1);
-
-	/*
-	 * Compute the number of bytes from that offset to the end
-	 * of the object.  Account for what's already used by the bio.
-	 */
-	ret = (int) (sectors_per_obj - obj_sector_offset) << SECTOR_SHIFT;
-	if (ret > bmd->bi_size)
-		ret -= bmd->bi_size;
-	else
-		ret = 0;
-
-	/*
-	 * Don't send back more than was asked for.  And if the bio
-	 * was empty, let the whole thing through because:  "Note
-	 * that a block device *must* allow a single page to be
-	 * added to an empty bio."
-	 */
-	rbd_assert(bvec->bv_len <= PAGE_SIZE);
-	if (ret > (int) bvec->bv_len || !bmd->bi_size)
-		ret = (int) bvec->bv_len;
-
-	return ret;
-}
-
 static void rbd_free_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk = rbd_dev->disk;
@@ -3803,10 +3769,9 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 	q->limits.discard_granularity = segment_size;
 	q->limits.discard_alignment = segment_size;
-	q->limits.max_discard_sectors = segment_size / SECTOR_SIZE;
+	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
 	q->limits.discard_zeroes_data = 1;
 
-	blk_queue_merge_bvec(q, rbd_merge_bvec);
 	disk->queue = q;
 
 	q->queuedata = rbd_dev;

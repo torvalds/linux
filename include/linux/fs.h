@@ -55,7 +55,8 @@ struct vm_fault;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
-extern void __init files_init(unsigned long);
+extern void __init files_init(void);
+extern void __init files_maxfiles_init(void);
 
 extern struct files_stat_struct files_stat;
 extern unsigned long get_max_files(void);
@@ -1259,6 +1260,7 @@ struct mm_struct;
 
 /* sb->s_iflags */
 #define SB_I_CGROUPWB	0x00000001	/* cgroup-aware writeback enabled */
+#define SB_I_NOEXEC	0x00000002	/* Ignore executables on this fs */
 
 /* Possible states of 'frozen' field */
 enum {
@@ -2245,7 +2247,7 @@ extern int ioctl_preallocate(struct file *filp, void __user *argp);
 
 /* fs/dcache.c */
 extern void __init vfs_caches_init_early(void);
-extern void __init vfs_caches_init(unsigned long);
+extern void __init vfs_caches_init(void);
 
 extern struct kmem_cache *names_cachep;
 
@@ -3039,5 +3041,7 @@ static inline bool dir_relax(struct inode *inode)
 	mutex_lock(&inode->i_mutex);
 	return !IS_DEADDIR(inode);
 }
+
+extern bool path_noexec(const struct path *path);
 
 #endif /* _LINUX_FS_H */

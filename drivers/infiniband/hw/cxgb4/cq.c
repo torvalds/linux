@@ -814,7 +814,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			printk(KERN_ERR MOD
 			       "Unexpected cqe_status 0x%x for QPID=0x%0x\n",
 			       CQE_STATUS(&cqe), CQE_QPID(&cqe));
-			ret = -EINVAL;
+			wc->status = IB_WC_FATAL_ERR;
 		}
 	}
 out:

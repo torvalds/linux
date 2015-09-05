@@ -42,7 +42,7 @@
 #define NSS_COMMON_CLK_DIV_MASK			0x7f
 
 #define NSS_COMMON_CLK_SRC_CTRL			0x14
-#define NSS_COMMON_CLK_SRC_CTRL_OFFSET(x)	(1 << x)
+#define NSS_COMMON_CLK_SRC_CTRL_OFFSET(x)	(x)
 /* Mode is coded on 1 bit but is different depending on the MAC ID:
  * MAC0: QSGMII=0 RGMII=1
  * MAC1: QSGMII=0 SGMII=0 RGMII=1
@@ -291,7 +291,7 @@ static void *ipq806x_gmac_setup(struct platform_device *pdev)
 
 	/* Configure the clock src according to the mode */
 	regmap_read(gmac->nss_common, NSS_COMMON_CLK_SRC_CTRL, &val);
-	val &= ~NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id);
+	val &= ~(1 << NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id));
 	switch (gmac->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
 		val |= NSS_COMMON_CLK_SRC_CTRL_RGMII(gmac->id) <<

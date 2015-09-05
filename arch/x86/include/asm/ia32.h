@@ -22,15 +22,6 @@ struct ucontext_ia32 {
 	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-struct ucontext_x32 {
-	unsigned int	  uc_flags;
-	unsigned int 	  uc_link;
-	compat_stack_t	  uc_stack;
-	unsigned int	  uc__pad0;     /* needed for alignment */
-	struct sigcontext uc_mcontext;  /* the 64-bit sigcontext type */
-	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
-};
-
 /* This matches struct stat64 in glibc2.2, hence the absolutely
  * insane amounts of padding around dev_t's.
  */

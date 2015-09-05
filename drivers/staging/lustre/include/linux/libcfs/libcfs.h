@@ -134,7 +134,7 @@ void cfs_get_random_bytes(void *buf, int size);
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
 {
-	if (unlikely(IS_ERR(ptr) || ptr == NULL))
+	if (IS_ERR_OR_NULL(ptr))
 		return ptr;
 	return (char *)ptr - shift;
 }
@@ -147,5 +147,18 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 void *libcfs_kvzalloc(size_t size, gfp_t flags);
 void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
 			  gfp_t flags);
+
+extern struct miscdevice libcfs_dev;
+/**
+ * The path of debug log dump upcall script.
+ */
+extern char lnet_upcall[1024];
+extern char lnet_debug_log_upcall[1024];
+
+extern void libcfs_init_nidstrings(void);
+
+extern struct cfs_psdev_ops libcfs_psdev_ops;
+
+extern struct cfs_wi_sched *cfs_sched_rehash;
 
 #endif /* _LIBCFS_H */

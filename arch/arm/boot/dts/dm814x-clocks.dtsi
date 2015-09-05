@@ -1,0 +1,109 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+&scm_clocks {
+
+	tclkin_ck: tclkin_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+	devosc_ck: devosc_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+	};
+
+	/* Optional auxosc, 20 - 30 MHz range, assume 27 MHz by default */
+	auxosc_ck: auxosc_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <27000000>;
+	};
+
+	mpu_ck: mpu_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <1000000000>;
+	};
+
+	sysclk4_ck: sysclk4_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <222000000>;
+	};
+
+	sysclk6_ck: sysclk6_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <100000000>;
+	};
+
+	sysclk10_ck: sysclk10_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <48000000>;
+	};
+
+	sysclk18_ck: sysclk18_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+        cpsw_125mhz_gclk: cpsw_125mhz_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+	};
+
+	cpsw_cpts_rft_clk: cpsw_cpts_rft_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <250000000>;
+	};
+
+};
+
+&pllss_clocks {
+
+	aud_clkin0_ck: aud_clkin0_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+	};
+
+	aud_clkin1_ck: aud_clkin1_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+	};
+
+	aud_clkin2_ck: aud_clkin2_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+	};
+
+	timer1_mux_ck: timer1_mux_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
+			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
+		ti,bit-shift = <3>;
+		reg = <0x2e0>;
+	};
+
+	timer2_mux_ck: timer2_mux_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
+			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
+		ti,bit-shift = <6>;
+		reg = <0x2e0>;
+	};
+};

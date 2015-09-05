@@ -438,9 +438,6 @@ static ssize_t at24_bin_write(struct file *filp, struct kobject *kobj,
 {
 	struct at24_data *at24;
 
-	if (unlikely(off >= attr->size))
-		return -EFBIG;
-
 	at24 = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	return at24_write(at24, buf, off, count);
 }
@@ -689,7 +686,6 @@ static int at24_remove(struct i2c_client *client)
 static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
-		.owner = THIS_MODULE,
 	},
 	.probe = at24_probe,
 	.remove = at24_remove,

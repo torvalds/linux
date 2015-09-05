@@ -853,9 +853,8 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			/* Enable zlps by default for NCM conformance;
 			 * override for musb_hdrc (avoids txdma ovhead)
 			 */
-			ncm->port.is_zlp_ok = !(
-				gadget_is_musbhdrc(cdev->gadget)
-				);
+			ncm->port.is_zlp_ok =
+				gadget_is_zlp_supported(cdev->gadget);
 			ncm->port.cdc_filter = DEFAULT_FILTER;
 			DBG(cdev, "activate ncm\n");
 			net = gether_connect(&ncm->port);

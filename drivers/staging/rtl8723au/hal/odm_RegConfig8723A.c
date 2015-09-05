@@ -21,7 +21,7 @@ odm_ConfigRFReg_8723A(
 	struct dm_odm_t *pDM_Odm,
 	u32					Addr,
 	u32					Data,
-  enum RF_RADIO_PATH     RF_PATH,
+	enum RF_RADIO_PATH     RF_PATH,
 	u32				    RegAddr
 	)
 {

@@ -46,7 +46,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.2.1.3-k");
+MODULE_VERSION("1.3.0.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -110,8 +110,17 @@ MODULE_LICENSE("GPL");
  */
 #define VMW_BALLOON_HV_PORT		0x5670
 #define VMW_BALLOON_HV_MAGIC		0x456c6d6f
-#define VMW_BALLOON_PROTOCOL_VERSION	2
 #define VMW_BALLOON_GUEST_ID		1	/* Linux */
+
+enum vmwballoon_capabilities {
+	/*
+	 * Bit 0 is reserved and not associated to any capability.
+	 */
+	VMW_BALLOON_BASIC_CMDS		= (1 << 1),
+	VMW_BALLOON_BATCHED_CMDS	= (1 << 2)
+};
+
+#define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_BASIC_CMDS)
 
 #define VMW_BALLOON_CMD_START		0
 #define VMW_BALLOON_CMD_GET_TARGET	1
@@ -120,32 +129,36 @@ MODULE_LICENSE("GPL");
 #define VMW_BALLOON_CMD_GUEST_ID	4
 
 /* error codes */
-#define VMW_BALLOON_SUCCESS		0
-#define VMW_BALLOON_FAILURE		-1
-#define VMW_BALLOON_ERROR_CMD_INVALID	1
-#define VMW_BALLOON_ERROR_PPN_INVALID	2
-#define VMW_BALLOON_ERROR_PPN_LOCKED	3
-#define VMW_BALLOON_ERROR_PPN_UNLOCKED	4
-#define VMW_BALLOON_ERROR_PPN_PINNED	5
-#define VMW_BALLOON_ERROR_PPN_NOTNEEDED	6
-#define VMW_BALLOON_ERROR_RESET		7
-#define VMW_BALLOON_ERROR_BUSY		8
+#define VMW_BALLOON_SUCCESS		        0
+#define VMW_BALLOON_FAILURE		        -1
+#define VMW_BALLOON_ERROR_CMD_INVALID	        1
+#define VMW_BALLOON_ERROR_PPN_INVALID	        2
+#define VMW_BALLOON_ERROR_PPN_LOCKED	        3
+#define VMW_BALLOON_ERROR_PPN_UNLOCKED	        4
+#define VMW_BALLOON_ERROR_PPN_PINNED	        5
+#define VMW_BALLOON_ERROR_PPN_NOTNEEDED	        6
+#define VMW_BALLOON_ERROR_RESET		        7
+#define VMW_BALLOON_ERROR_BUSY		        8
 
-#define VMWARE_BALLOON_CMD(cmd, data, result)		\
-({							\
-	unsigned long __stat, __dummy1, __dummy2;	\
-	__asm__ __volatile__ ("inl %%dx" :		\
-		"=a"(__stat),				\
-		"=c"(__dummy1),				\
-		"=d"(__dummy2),				\
-		"=b"(result) :				\
-		"0"(VMW_BALLOON_HV_MAGIC),		\
-		"1"(VMW_BALLOON_CMD_##cmd),		\
-		"2"(VMW_BALLOON_HV_PORT),		\
-		"3"(data) :				\
-		"memory");				\
-	result &= -1UL;					\
-	__stat & -1UL;					\
+#define VMW_BALLOON_SUCCESS_WITH_CAPABILITIES	(0x03000000)
+
+#define VMWARE_BALLOON_CMD(cmd, data, result)			\
+({								\
+	unsigned long __status, __dummy1, __dummy2;		\
+	__asm__ __volatile__ ("inl %%dx" :			\
+		"=a"(__status),					\
+		"=c"(__dummy1),					\
+		"=d"(__dummy2),					\
+		"=b"(result) :					\
+		"0"(VMW_BALLOON_HV_MAGIC),			\
+		"1"(VMW_BALLOON_CMD_##cmd),			\
+		"2"(VMW_BALLOON_HV_PORT),			\
+		"3"(data) :					\
+		"memory");					\
+	if (VMW_BALLOON_CMD_##cmd == VMW_BALLOON_CMD_START)	\
+		result = __dummy1;				\
+	result &= -1UL;						\
+	__status & -1UL;					\
 })
 
 #ifdef CONFIG_DEBUG_FS
@@ -223,11 +236,12 @@ static struct vmballoon balloon;
  */
 static bool vmballoon_send_start(struct vmballoon *b)
 {
-	unsigned long status, dummy;
+	unsigned long status, capabilities;
 
 	STATS_INC(b->stats.start);
 
-	status = VMWARE_BALLOON_CMD(START, VMW_BALLOON_PROTOCOL_VERSION, dummy);
+	status = VMWARE_BALLOON_CMD(START, VMW_BALLOON_CAPABILITIES,
+				capabilities);
 	if (status == VMW_BALLOON_SUCCESS)
 		return true;
 
@@ -402,55 +416,37 @@ static void vmballoon_reset(struct vmballoon *b)
 }
 
 /*
- * Allocate (or reserve) a page for the balloon and notify the host.  If host
- * refuses the page put it on "refuse" list and allocate another one until host
- * is satisfied. "Refused" pages are released at the end of inflation cycle
- * (when we allocate b->rate_alloc pages).
+ * Notify the host of a ballooned page. If host rejects the page put it on the
+ * refuse list, those refused page are then released at the end of the
+ * inflation cycle.
  */
-static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
+static int vmballoon_lock_page(struct vmballoon *b, struct page *page)
 {
-	struct page *page;
-	gfp_t flags;
-	unsigned int hv_status;
-	int locked;
-	flags = can_sleep ? VMW_PAGE_ALLOC_CANSLEEP : VMW_PAGE_ALLOC_NOSLEEP;
+	int locked, hv_status;
 
-	do {
-		if (!can_sleep)
-			STATS_INC(b->stats.alloc);
-		else
-			STATS_INC(b->stats.sleep_alloc);
+	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
+	if (locked > 0) {
+		STATS_INC(b->stats.refused_alloc);
 
-		page = alloc_page(flags);
-		if (!page) {
-			if (!can_sleep)
-				STATS_INC(b->stats.alloc_fail);
-			else
-				STATS_INC(b->stats.sleep_alloc_fail);
-			return -ENOMEM;
+		if (hv_status == VMW_BALLOON_ERROR_RESET ||
+				hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED) {
+			__free_page(page);
+			return -EIO;
 		}
 
-		/* inform monitor */
-		locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
-		if (locked > 0) {
-			STATS_INC(b->stats.refused_alloc);
-
-			if (hv_status == VMW_BALLOON_ERROR_RESET ||
-			    hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED) {
-				__free_page(page);
-				return -EIO;
-			}
-
-			/*
-			 * Place page on the list of non-balloonable pages
-			 * and retry allocation, unless we already accumulated
-			 * too many of them, in which case take a breather.
-			 */
+		/*
+		 * Place page on the list of non-balloonable pages
+		 * and retry allocation, unless we already accumulated
+		 * too many of them, in which case take a breather.
+		 */
+		if (b->n_refused_pages < VMW_BALLOON_MAX_REFUSED) {
+			b->n_refused_pages++;
 			list_add(&page->lru, &b->refused_pages);
-			if (++b->n_refused_pages >= VMW_BALLOON_MAX_REFUSED)
-				return -EIO;
+		} else {
+			__free_page(page);
 		}
-	} while (locked != 0);
+		return -EIO;
+	}
 
 	/* track allocated page */
 	list_add(&page->lru, &b->pages);
@@ -512,7 +508,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 	unsigned int i;
 	unsigned int allocations = 0;
 	int error = 0;
-	bool alloc_can_sleep = false;
+	gfp_t flags = VMW_PAGE_ALLOC_NOSLEEP;
 
 	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
 
@@ -543,19 +539,16 @@ static void vmballoon_inflate(struct vmballoon *b)
 		 __func__, goal, rate, b->rate_alloc);
 
 	for (i = 0; i < goal; i++) {
+		struct page *page;
 
-		error = vmballoon_reserve_page(b, alloc_can_sleep);
-		if (error) {
-			if (error != -ENOMEM) {
-				/*
-				 * Not a page allocation failure, stop this
-				 * cycle. Maybe we'll get new target from
-				 * the host soon.
-				 */
-				break;
-			}
+		if (flags == VMW_PAGE_ALLOC_NOSLEEP)
+			STATS_INC(b->stats.alloc);
+		else
+			STATS_INC(b->stats.sleep_alloc);
 
-			if (alloc_can_sleep) {
+		page = alloc_page(flags);
+		if (!page) {
+			if (flags == VMW_PAGE_ALLOC_CANSLEEP) {
 				/*
 				 * CANSLEEP page allocation failed, so guest
 				 * is under severe memory pressure. Quickly
@@ -563,8 +556,10 @@ static void vmballoon_inflate(struct vmballoon *b)
 				 */
 				b->rate_alloc = max(b->rate_alloc / 2,
 						    VMW_BALLOON_RATE_ALLOC_MIN);
+				STATS_INC(b->stats.sleep_alloc_fail);
 				break;
 			}
+			STATS_INC(b->stats.alloc_fail);
 
 			/*
 			 * NOSLEEP page allocation failed, so the guest is
@@ -579,10 +574,15 @@ static void vmballoon_inflate(struct vmballoon *b)
 			if (i >= b->rate_alloc)
 				break;
 
-			alloc_can_sleep = true;
+			flags = VMW_PAGE_ALLOC_CANSLEEP;
 			/* Lower rate for sleeping allocations. */
 			rate = b->rate_alloc;
+			continue;
 		}
+
+		error = vmballoon_lock_page(b, page);
+		if (error)
+			break;
 
 		if (++allocations > VMW_BALLOON_YIELD_THRESHOLD) {
 			cond_resched();

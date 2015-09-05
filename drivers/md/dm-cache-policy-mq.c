@@ -1471,5 +1471,3 @@ module_exit(mq_exit);
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("mq cache policy");
-
-MODULE_ALIAS("dm-cache-default");

@@ -22,23 +22,16 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 	local_irq_restore(flags);
 }
 
-static void itimer_set_mode(enum clock_event_mode mode,
-			    struct clock_event_device *evt)
+static int itimer_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		set_interval();
-		break;
+	disable_timer();
+	return 0;
+}
 
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_ONESHOT:
-		disable_timer();
-		break;
-
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+static int itimer_set_periodic(struct clock_event_device *evt)
+{
+	set_interval();
+	return 0;
 }
 
 static int itimer_next_event(unsigned long delta,
@@ -48,14 +41,17 @@ static int itimer_next_event(unsigned long delta,
 }
 
 static struct clock_event_device itimer_clockevent = {
-	.name		= "itimer",
-	.rating		= 250,
-	.cpumask	= cpu_all_mask,
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= itimer_set_mode,
-	.set_next_event = itimer_next_event,
-	.shift		= 32,
-	.irq		= 0,
+	.name			= "itimer",
+	.rating			= 250,
+	.cpumask		= cpu_all_mask,
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_shutdown	= itimer_shutdown,
+	.set_state_periodic	= itimer_set_periodic,
+	.set_state_oneshot	= itimer_shutdown,
+	.set_next_event		= itimer_next_event,
+	.shift			= 32,
+	.irq			= 0,
 };
 
 static irqreturn_t um_timer(int irq, void *dev)

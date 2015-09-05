@@ -202,22 +202,22 @@ static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
  *
  */
 
-static void gfs2_end_log_write(struct bio *bio, int error)
+static void gfs2_end_log_write(struct bio *bio)
 {
 	struct gfs2_sbd *sdp = bio->bi_private;
 	struct bio_vec *bvec;
 	struct page *page;
 	int i;
 
-	if (error) {
-		sdp->sd_log_error = error;
-		fs_err(sdp, "Error %d writing to log\n", error);
+	if (bio->bi_error) {
+		sdp->sd_log_error = bio->bi_error;
+		fs_err(sdp, "Error %d writing to log\n", bio->bi_error);
 	}
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		page = bvec->bv_page;
 		if (page_has_buffers(page))
-			gfs2_end_log_write_bh(sdp, bvec, error);
+			gfs2_end_log_write_bh(sdp, bvec, bio->bi_error);
 		else
 			mempool_free(page, gfs2_page_pool);
 	}
@@ -261,18 +261,11 @@ void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
 static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno)
 {
 	struct super_block *sb = sdp->sd_vfs;
-	unsigned nrvecs = bio_get_nr_vecs(sb->s_bdev);
 	struct bio *bio;
 
 	BUG_ON(sdp->sd_log_bio);
 
-	while (1) {
-		bio = bio_alloc(GFP_NOIO, nrvecs);
-		if (likely(bio))
-			break;
-		nrvecs = max(nrvecs/2, 1U);
-	}
-
+	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	bio->bi_iter.bi_sector = blkno * (sb->s_blocksize >> 9);
 	bio->bi_bdev = sb->s_bdev;
 	bio->bi_end_io = gfs2_end_log_write;

@@ -1837,12 +1837,6 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 		oap2 = list_first_entry(&tmp->oe_pages, struct osc_async_page,
 					oap_pending_item);
 		EASSERT(tmp->oe_owner == current, tmp);
-#if 0
-		if (overlapped(tmp, ext)) {
-			OSC_EXTENT_DUMP(D_ERROR, tmp, "overlapped %p.\n", ext);
-			EASSERT(0, ext);
-		}
-#endif
 		if (oap2cl_page(oap)->cp_type != oap2cl_page(oap2)->cp_type) {
 			CDEBUG(D_CACHE, "Do not permit different type of IO"
 					" for a same RPC\n");

@@ -61,7 +61,6 @@ static void buffer_io_error(struct buffer_head *bh)
 static void ext4_finish_bio(struct bio *bio)
 {
 	int i;
-	int error = !test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec;
 
 	bio_for_each_segment_all(bvec, bio, i) {
@@ -88,7 +87,7 @@ static void ext4_finish_bio(struct bio *bio)
 		}
 #endif
 
-		if (error) {
+		if (bio->bi_error) {
 			SetPageError(page);
 			set_bit(AS_EIO, &page->mapping->flags);
 		}
@@ -107,7 +106,7 @@ static void ext4_finish_bio(struct bio *bio)
 				continue;
 			}
 			clear_buffer_async_write(bh);
-			if (error)
+			if (bio->bi_error)
 				buffer_io_error(bh);
 		} while ((bh = bh->b_this_page) != head);
 		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
@@ -310,27 +309,25 @@ ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
 }
 
 /* BIO completion function for page writeback */
-static void ext4_end_bio(struct bio *bio, int error)
+static void ext4_end_bio(struct bio *bio)
 {
 	ext4_io_end_t *io_end = bio->bi_private;
 	sector_t bi_sector = bio->bi_iter.bi_sector;
 
 	BUG_ON(!io_end);
 	bio->bi_end_io = NULL;
-	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
-		error = 0;
 
-	if (error) {
+	if (bio->bi_error) {
 		struct inode *inode = io_end->inode;
 
 		ext4_warning(inode->i_sb, "I/O error %d writing to inode %lu "
 			     "(offset %llu size %ld starting block %llu)",
-			     error, inode->i_ino,
+			     bio->bi_error, inode->i_ino,
 			     (unsigned long long) io_end->offset,
 			     (long) io_end->size,
 			     (unsigned long long)
 			     bi_sector >> (inode->i_blkbits - 9));
-		mapping_set_error(inode->i_mapping, error);
+		mapping_set_error(inode->i_mapping, bio->bi_error);
 	}
 
 	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
@@ -375,10 +372,9 @@ void ext4_io_submit_init(struct ext4_io_submit *io,
 static int io_submit_init_bio(struct ext4_io_submit *io,
 			      struct buffer_head *bh)
 {
-	int nvecs = bio_get_nr_vecs(bh->b_bdev);
 	struct bio *bio;
 
-	bio = bio_alloc(GFP_NOIO, min(nvecs, BIO_MAX_PAGES));
+	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	if (!bio)
 		return -ENOMEM;
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);

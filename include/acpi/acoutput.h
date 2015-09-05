@@ -88,7 +88,8 @@
 #define ACPI_LV_DEBUG_OBJECT        0x00000002
 #define ACPI_LV_INFO                0x00000004
 #define ACPI_LV_REPAIR              0x00000008
-#define ACPI_LV_ALL_EXCEPTIONS      0x0000000F
+#define ACPI_LV_TRACE_POINT         0x00000010
+#define ACPI_LV_ALL_EXCEPTIONS      0x0000001F
 
 /* Trace verbosity level 1 [Standard Trace Level] */
 
@@ -147,6 +148,7 @@
 #define ACPI_DB_DEBUG_OBJECT        ACPI_DEBUG_LEVEL (ACPI_LV_DEBUG_OBJECT)
 #define ACPI_DB_INFO                ACPI_DEBUG_LEVEL (ACPI_LV_INFO)
 #define ACPI_DB_REPAIR              ACPI_DEBUG_LEVEL (ACPI_LV_REPAIR)
+#define ACPI_DB_TRACE_POINT         ACPI_DEBUG_LEVEL (ACPI_LV_TRACE_POINT)
 #define ACPI_DB_ALL_EXCEPTIONS      ACPI_DEBUG_LEVEL (ACPI_LV_ALL_EXCEPTIONS)
 
 /* Trace level -- also used in the global "DebugLevel" */
@@ -181,6 +183,20 @@
 #define ACPI_DEBUG_DEFAULT          (ACPI_LV_INFO | ACPI_LV_REPAIR)
 #define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
 #define ACPI_DEBUG_ALL              (ACPI_LV_AML_DISASSEMBLE | ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_ALL)
+
+/*
+ * Global trace flags
+ */
+#define ACPI_TRACE_ENABLED          ((u32) 4)
+#define ACPI_TRACE_ONESHOT          ((u32) 2)
+#define ACPI_TRACE_OPCODE           ((u32) 1)
+
+/* Defaults for trace debugging level/layer */
+
+#define ACPI_TRACE_LEVEL_ALL        ACPI_LV_ALL
+#define ACPI_TRACE_LAYER_ALL        0x000001FF
+#define ACPI_TRACE_LEVEL_DEFAULT    ACPI_LV_TRACE_POINT
+#define ACPI_TRACE_LAYER_DEFAULT    ACPI_EXECUTER
 
 #if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
 /*
@@ -432,6 +448,8 @@
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  acpi_ns_dump_pathname(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)          acpi_ut_debug_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
+#define ACPI_TRACE_POINT(a, b, c, d)    acpi_trace_point (a, b, c, d)
+
 #else				/* ACPI_DEBUG_OUTPUT */
 /*
  * This is the non-debug case -- make everything go away,
@@ -453,6 +471,7 @@
 #define ACPI_DUMP_PATHNAME(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)
 #define ACPI_IS_DEBUG_ENABLED(level, component) 0
+#define ACPI_TRACE_POINT(a, b, c, d)
 
 /* Return macros must have a return statement at the minimum */
 

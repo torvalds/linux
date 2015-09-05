@@ -3219,6 +3219,11 @@ S: 69 rue Dunois
 S: 75013 Paris
 S: France
 
+N: Aleksa Sarai
+E: cyphar@cyphar.com
+W: https://www.cyphar.com/
+D: `pids` cgroup subsystem
+
 N: Dipankar Sarma
 E: dipankar@in.ibm.com
 D: RCU

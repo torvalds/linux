@@ -312,7 +312,7 @@ acpi_ut_read_table_from_file(char *filename, struct acpi_table_header ** table)
 	/* Get the entire file */
 
 	fprintf(stderr,
-		"Reading ACPI table from file %10s - Length %.8u (0x%06X)\n",
+		"Reading ACPI table from file %12s - Length %.8u (0x%06X)\n",
 		filename, file_size, file_size);
 
 	status = acpi_ut_read_table(file, table, &table_length);

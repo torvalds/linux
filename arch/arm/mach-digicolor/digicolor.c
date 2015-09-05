@@ -8,7 +8,7 @@
 
 #include <asm/mach/arch.h>
 
-static const char *digicolor_dt_compat[] __initconst = {
+static const char *const digicolor_dt_compat[] __initconst = {
 	"cnxt,cx92755",
 	NULL,
 };

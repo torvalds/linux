@@ -14,6 +14,7 @@ obj-$(CONFIG_HSU_DMA) += hsu/
 obj-$(CONFIG_MPC512X_DMA) += mpc512x_dma.o
 obj-$(CONFIG_PPC_BESTCOMM) += bestcomm/
 obj-$(CONFIG_MV_XOR) += mv_xor.o
+obj-$(CONFIG_IDMA64) += idma64.o
 obj-$(CONFIG_DW_DMAC_CORE) += dw/
 obj-$(CONFIG_AT_HDMAC) += at_hdmac.o
 obj-$(CONFIG_AT_XDMAC) += at_xdmac.o

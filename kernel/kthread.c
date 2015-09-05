@@ -97,6 +97,7 @@ bool kthread_should_park(void)
 {
 	return test_bit(KTHREAD_SHOULD_PARK, &to_kthread(current)->flags);
 }
+EXPORT_SYMBOL_GPL(kthread_should_park);
 
 /**
  * kthread_freezable_should_stop - should this freezable kthread return now?
@@ -171,6 +172,7 @@ void kthread_parkme(void)
 {
 	__kthread_parkme(to_kthread(current));
 }
+EXPORT_SYMBOL_GPL(kthread_parkme);
 
 static int kthread(void *_create)
 {
@@ -325,16 +327,30 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 }
 EXPORT_SYMBOL(kthread_create_on_node);
 
-static void __kthread_bind(struct task_struct *p, unsigned int cpu, long state)
+static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mask, long state)
 {
-	/* Must have done schedule() in kthread() before we set_task_cpu */
+	unsigned long flags;
+
 	if (!wait_task_inactive(p, state)) {
 		WARN_ON(1);
 		return;
 	}
+
 	/* It's safe because the task is inactive. */
-	do_set_cpus_allowed(p, cpumask_of(cpu));
+	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	do_set_cpus_allowed(p, mask);
 	p->flags |= PF_NO_SETAFFINITY;
+	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+}
+
+static void __kthread_bind(struct task_struct *p, unsigned int cpu, long state)
+{
+	__kthread_bind_mask(p, cpumask_of(cpu), state);
+}
+
+void kthread_bind_mask(struct task_struct *p, const struct cpumask *mask)
+{
+	__kthread_bind_mask(p, mask, TASK_UNINTERRUPTIBLE);
 }
 
 /**
@@ -411,6 +427,7 @@ void kthread_unpark(struct task_struct *k)
 	if (kthread)
 		__kthread_unpark(k, kthread);
 }
+EXPORT_SYMBOL_GPL(kthread_unpark);
 
 /**
  * kthread_park - park a thread created by kthread_create().
@@ -441,6 +458,7 @@ int kthread_park(struct task_struct *k)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(kthread_park);
 
 /**
  * kthread_stop - stop a thread created by kthread_create().

@@ -1,4 +1,3 @@
-#include "../libslang.h"
 #include <elf.h>
 #include <inttypes.h>
 #include <sys/ttydefaults.h>
@@ -26,13 +25,13 @@ static void map_browser__write(struct ui_browser *browser, void *nd, int row)
 	int width;
 
 	ui_browser__set_percent_color(browser, 0, current_entry);
-	slsmg_printf("%*" PRIx64 " %*" PRIx64 " %c ",
-		     mb->addrlen, sym->start, mb->addrlen, sym->end,
-		     sym->binding == STB_GLOBAL ? 'g' :
-		     sym->binding == STB_LOCAL  ? 'l' : 'w');
+	ui_browser__printf(browser, "%*" PRIx64 " %*" PRIx64 " %c ",
+			   mb->addrlen, sym->start, mb->addrlen, sym->end,
+			   sym->binding == STB_GLOBAL ? 'g' :
+				sym->binding == STB_LOCAL  ? 'l' : 'w');
 	width = browser->width - ((mb->addrlen * 2) + 4);
 	if (width > 0)
-		slsmg_write_nstring(sym->name, width);
+		ui_browser__write_nstring(browser, sym->name, width);
 }
 
 /* FIXME uber-kludgy, see comment on cmd_report... */

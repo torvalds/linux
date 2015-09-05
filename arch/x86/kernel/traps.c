@@ -62,6 +62,7 @@
 #include <asm/fpu/xstate.h>
 #include <asm/trace/mpx.h>
 #include <asm/mpx.h>
+#include <asm/vm86.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
@@ -108,13 +109,10 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	preempt_count_dec();
 }
 
-enum ctx_state ist_enter(struct pt_regs *regs)
+void ist_enter(struct pt_regs *regs)
 {
-	enum ctx_state prev_state;
-
 	if (user_mode(regs)) {
-		/* Other than that, we're just an exception. */
-		prev_state = exception_enter();
+		RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	} else {
 		/*
 		 * We might have interrupted pretty much anything.  In
@@ -123,32 +121,25 @@ enum ctx_state ist_enter(struct pt_regs *regs)
 		 * but we need to notify RCU.
 		 */
 		rcu_nmi_enter();
-		prev_state = CONTEXT_KERNEL;  /* the value is irrelevant. */
 	}
 
 	/*
-	 * We are atomic because we're on the IST stack (or we're on x86_32,
-	 * in which case we still shouldn't schedule).
-	 *
-	 * This must be after exception_enter(), because exception_enter()
-	 * won't do anything if in_interrupt() returns true.
+	 * We are atomic because we're on the IST stack; or we're on
+	 * x86_32, in which case we still shouldn't schedule; or we're
+	 * on x86_64 and entered from user mode, in which case we're
+	 * still atomic unless ist_begin_non_atomic is called.
 	 */
 	preempt_count_add(HARDIRQ_OFFSET);
 
 	/* This code is a bit fragile.  Test it. */
-	rcu_lockdep_assert(rcu_is_watching(), "ist_enter didn't work");
-
-	return prev_state;
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "ist_enter didn't work");
 }
 
-void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
+void ist_exit(struct pt_regs *regs)
 {
-	/* Must be before exception_exit. */
 	preempt_count_sub(HARDIRQ_OFFSET);
 
-	if (user_mode(regs))
-		return exception_exit(prev_state);
-	else
+	if (!user_mode(regs))
 		rcu_nmi_exit();
 }
 
@@ -162,7 +153,7 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
  * a double fault, it can be safe to schedule.  ist_begin_non_atomic()
  * begins a non-atomic section within an ist_enter()/ist_exit() region.
  * Callers are responsible for enabling interrupts themselves inside
- * the non-atomic section, and callers must call is_end_non_atomic()
+ * the non-atomic section, and callers must call ist_end_non_atomic()
  * before ist_exit().
  */
 void ist_begin_non_atomic(struct pt_regs *regs)
@@ -289,8 +280,9 @@ NOKPROBE_SYMBOL(do_trap);
 static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 			  unsigned long trapnr, int signr)
 {
-	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
+
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
@@ -298,8 +290,6 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 		do_trap(trapnr, signr, str, regs, error_code,
 			fill_trap_info(regs, signr, trapnr, &info));
 	}
-
-	exception_exit(prev_state);
 }
 
 #define DO_ERROR(trapnr, signr, str, name)				\
@@ -351,7 +341,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	}
 #endif
 
-	ist_enter(regs);  /* Discard prev_state because we won't return. */
+	ist_enter(regs);
 	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
 	tsk->thread.error_code = error_code;
@@ -371,14 +361,13 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
-	enum ctx_state prev_state;
 	const struct bndcsr *bndcsr;
 	siginfo_t *info;
 
-	prev_state = exception_enter();
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
-		goto exit;
+		return;
 	conditional_sti(regs);
 
 	if (!user_mode(regs))
@@ -435,9 +424,8 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		die("bounds", regs, error_code);
 	}
 
-exit:
-	exception_exit(prev_state);
 	return;
+
 exit_trap:
 	/*
 	 * This path out is for all the cases where we could not
@@ -447,35 +435,33 @@ exit_trap:
 	 * time..
 	 */
 	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, NULL);
-	exception_exit(prev_state);
 }
 
 dotraplinkage void
 do_general_protection(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk;
-	enum ctx_state prev_state;
 
-	prev_state = exception_enter();
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	conditional_sti(regs);
 
 	if (v8086_mode(regs)) {
 		local_irq_enable();
 		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
-		goto exit;
+		return;
 	}
 
 	tsk = current;
 	if (!user_mode(regs)) {
 		if (fixup_exception(regs))
-			goto exit;
+			return;
 
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_nr = X86_TRAP_GP;
 		if (notify_die(DIE_GPF, "general protection fault", regs, error_code,
 			       X86_TRAP_GP, SIGSEGV) != NOTIFY_STOP)
 			die("general protection fault", regs, error_code);
-		goto exit;
+		return;
 	}
 
 	tsk->thread.error_code = error_code;
@@ -491,16 +477,12 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	}
 
 	force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
-exit:
-	exception_exit(prev_state);
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
 /* May run on IST stack. */
 dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 {
-	enum ctx_state prev_state;
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/*
 	 * ftrace must be first, everything else may cause a recursive crash.
@@ -513,7 +495,8 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	if (poke_int3_handler(regs))
 		return;
 
-	prev_state = ist_enter(regs);
+	ist_enter(regs);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -539,7 +522,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	preempt_conditional_cli(regs);
 	debug_stack_usage_dec();
 exit:
-	ist_exit(regs, prev_state);
+	ist_exit(regs);
 }
 NOKPROBE_SYMBOL(do_int3);
 
@@ -615,12 +598,11 @@ NOKPROBE_SYMBOL(fixup_bad_iret);
 dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
-	enum ctx_state prev_state;
 	int user_icebp = 0;
 	unsigned long dr6;
 	int si_code;
 
-	prev_state = ist_enter(regs);
+	ist_enter(regs);
 
 	get_debugreg(dr6, 6);
 
@@ -695,7 +677,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
-	ist_exit(regs, prev_state);
+	ist_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug);
 
@@ -747,21 +729,15 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
-	enum ctx_state prev_state;
-
-	prev_state = exception_enter();
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	math_error(regs, error_code, X86_TRAP_MF);
-	exception_exit(prev_state);
 }
 
 dotraplinkage void
 do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
-	enum ctx_state prev_state;
-
-	prev_state = exception_enter();
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	math_error(regs, error_code, X86_TRAP_XF);
-	exception_exit(prev_state);
 }
 
 dotraplinkage void
@@ -773,9 +749,7 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
-	enum ctx_state prev_state;
-
-	prev_state = exception_enter();
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	BUG_ON(use_eager_fpu());
 
 #ifdef CONFIG_MATH_EMULATION
@@ -786,7 +760,6 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 
 		info.regs = regs;
 		math_emulate(&info);
-		exception_exit(prev_state);
 		return;
 	}
 #endif
@@ -794,7 +767,6 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 #ifdef CONFIG_X86_32
 	conditional_sti(regs);
 #endif
-	exception_exit(prev_state);
 }
 NOKPROBE_SYMBOL(do_device_not_available);
 
@@ -802,9 +774,8 @@ NOKPROBE_SYMBOL(do_device_not_available);
 dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 {
 	siginfo_t info;
-	enum ctx_state prev_state;
 
-	prev_state = exception_enter();
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	local_irq_enable();
 
 	info.si_signo = SIGILL;
@@ -816,7 +787,6 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 		do_trap(X86_TRAP_IRET, SIGILL, "iret exception", regs, error_code,
 			&info);
 	}
-	exception_exit(prev_state);
 }
 #endif
 

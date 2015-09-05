@@ -443,7 +443,7 @@ static int fw_add_devm_name(struct device *dev, const char *name)
 		return -ENOMEM;
 	fwn->name = kstrdup_const(name, GFP_KERNEL);
 	if (!fwn->name) {
-		kfree(fwn);
+		devres_free(fwn);
 		return -ENOMEM;
 	}
 

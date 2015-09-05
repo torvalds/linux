@@ -2206,6 +2206,11 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	}
 
 	kvm->vcpus[atomic_read(&kvm->online_vcpus)] = vcpu;
+
+	/*
+	 * Pairs with smp_rmb() in kvm_get_vcpu.  Write kvm->vcpus
+	 * before kvm->online_vcpu's incremented value.
+	 */
 	smp_wmb();
 	atomic_inc(&kvm->online_vcpus);
 
@@ -2618,9 +2623,6 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 	case KVM_CAP_JOIN_MEMORY_REGIONS_WORKS:
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	case KVM_CAP_SET_BOOT_CPU_ID:
-#endif
 	case KVM_CAP_INTERNAL_ERROR_DATA:
 #ifdef CONFIG_HAVE_KVM_MSI
 	case KVM_CAP_SIGNAL_MSI:
@@ -2716,17 +2718,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		r = kvm_ioeventfd(kvm, &data);
 		break;
 	}
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	case KVM_SET_BOOT_CPU_ID:
-		r = 0;
-		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus) != 0)
-			r = -EBUSY;
-		else
-			kvm->bsp_vcpu_id = arg;
-		mutex_unlock(&kvm->lock);
-		break;
-#endif
 #ifdef CONFIG_HAVE_KVM_MSI
 	case KVM_SIGNAL_MSI: {
 		struct kvm_msi msi;

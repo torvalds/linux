@@ -484,12 +484,11 @@ static void __init intel_pstate_sysfs_expose_params(void)
 }
 /************************** sysfs end ************************/
 
-static void intel_pstate_hwp_enable(void)
+static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 {
-	hwp_active++;
 	pr_info("intel_pstate: HWP enabled\n");
 
-	wrmsrl( MSR_PM_ENABLE, 0x1);
+	wrmsrl_on_cpu(cpudata->cpu, MSR_PM_ENABLE, 0x1);
 }
 
 static int byt_get_min_pstate(void)
@@ -522,7 +521,7 @@ static void byt_set_pstate(struct cpudata *cpudata, int pstate)
 	int32_t vid_fp;
 	u32 vid;
 
-	val = pstate << 8;
+	val = (u64)pstate << 8;
 	if (limits.no_turbo && !limits.turbo_disabled)
 		val |= (u64)1 << 32;
 
@@ -611,7 +610,7 @@ static void core_set_pstate(struct cpudata *cpudata, int pstate)
 {
 	u64 val;
 
-	val = pstate << 8;
+	val = (u64)pstate << 8;
 	if (limits.no_turbo && !limits.turbo_disabled)
 		val |= (u64)1 << 32;
 
@@ -766,7 +765,7 @@ static inline void intel_pstate_sample(struct cpudata *cpu)
 	local_irq_save(flags);
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
-	tsc = native_read_tsc();
+	tsc = rdtsc();
 	local_irq_restore(flags);
 
 	cpu->last_sample_time = cpu->sample.time;
@@ -909,6 +908,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x4c, byt_params),
 	ICPU(0x4e, core_params),
 	ICPU(0x4f, core_params),
+	ICPU(0x5e, core_params),
 	ICPU(0x56, core_params),
 	ICPU(0x57, knl_params),
 	{}
@@ -933,6 +933,10 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	cpu->cpu = cpunum;
+
+	if (hwp_active)
+		intel_pstate_hwp_enable(cpu);
+
 	intel_pstate_get_cpu_pstates(cpu);
 
 	init_timer_deferrable(&cpu->timer);
@@ -1170,6 +1174,10 @@ static struct hw_vendor_info vendor_info[] = {
 	{1, "ORACLE", "X4270M3 ", PPC},
 	{1, "ORACLE", "X4270M2 ", PPC},
 	{1, "ORACLE", "X4170M2 ", PPC},
+	{1, "ORACLE", "X4170 M3", PPC},
+	{1, "ORACLE", "X4275 M3", PPC},
+	{1, "ORACLE", "X6-2    ", PPC},
+	{1, "ORACLE", "Sudbury ", PPC},
 	{0, "", ""},
 };
 
@@ -1246,7 +1254,7 @@ static int __init intel_pstate_init(void)
 		return -ENOMEM;
 
 	if (static_cpu_has_safe(X86_FEATURE_HWP) && !no_hwp)
-		intel_pstate_hwp_enable();
+		hwp_active++;
 
 	if (!hwp_active && hwp_only)
 		goto out;

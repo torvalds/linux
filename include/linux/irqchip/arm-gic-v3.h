@@ -360,6 +360,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/stringify.h>
+#include <asm/msi.h>
 
 /*
  * We need a value to serve as a irq-type for LPIs. Choose one that will

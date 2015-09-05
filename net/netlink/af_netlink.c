@@ -1096,6 +1096,11 @@ static int netlink_insert(struct sock *sk, u32 portid)
 
 	err = __netlink_insert(table, sk);
 	if (err) {
+		/* In case the hashtable backend returns with -EBUSY
+		 * from here, it must not escape to the caller.
+		 */
+		if (unlikely(err == -EBUSY))
+			err = -EOVERFLOW;
 		if (err == -EEXIST)
 			err = -EADDRINUSE;
 		nlk_sk(sk)->portid = 0;
@@ -2396,7 +2401,7 @@ static int netlink_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	 * sendmsg(), but that's what we've got...
 	 */
 	if (netlink_tx_is_mmaped(sk) &&
-	    msg->msg_iter.type == ITER_IOVEC &&
+	    iter_is_iovec(&msg->msg_iter) &&
 	    msg->msg_iter.nr_segs == 1 &&
 	    msg->msg_iter.iov->iov_base == NULL) {
 		err = netlink_mmap_sendmsg(sk, msg, dst_portid, dst_group,

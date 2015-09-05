@@ -1096,11 +1096,13 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(0x3f, rapl_defaults_hsw_server),/* Haswell servers */
 	RAPL_CPU(0x4f, rapl_defaults_hsw_server),/* Broadwell servers */
 	RAPL_CPU(0x45, rapl_defaults_core),/* Haswell ULT */
+	RAPL_CPU(0x47, rapl_defaults_core),/* Broadwell-H */
 	RAPL_CPU(0x4E, rapl_defaults_core),/* Skylake */
 	RAPL_CPU(0x4C, rapl_defaults_cht),/* Braswell/Cherryview */
 	RAPL_CPU(0x4A, rapl_defaults_tng),/* Tangier */
 	RAPL_CPU(0x56, rapl_defaults_core),/* Future Xeon */
 	RAPL_CPU(0x5A, rapl_defaults_ann),/* Annidale */
+	RAPL_CPU(0x5E, rapl_defaults_core),/* Skylake-H/S */
 	RAPL_CPU(0x57, rapl_defaults_hsw_server),/* Knights Landing */
 	{}
 };
@@ -1145,9 +1147,11 @@ static int rapl_unregister_powercap(void)
 			pr_debug("remove package, undo power limit on %d: %s\n",
 				rp->id, rd->name);
 			rapl_write_data_raw(rd, PL1_ENABLE, 0);
-			rapl_write_data_raw(rd, PL2_ENABLE, 0);
 			rapl_write_data_raw(rd, PL1_CLAMP, 0);
-			rapl_write_data_raw(rd, PL2_CLAMP, 0);
+			if (find_nr_power_limit(rd) > 1) {
+				rapl_write_data_raw(rd, PL2_ENABLE, 0);
+				rapl_write_data_raw(rd, PL2_CLAMP, 0);
+			}
 			if (rd->id == RAPL_DOMAIN_PACKAGE) {
 				rd_package = rd;
 				continue;

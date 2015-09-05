@@ -203,9 +203,6 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		}
 		dev[j] = rdev1;
 
-		if (rdev1->bdev->bd_disk->queue->merge_bvec_fn)
-			conf->has_merge_bvec = 1;
-
 		if (!smallest || (rdev1->sectors < smallest->sectors))
 			smallest = rdev1;
 		cnt++;
@@ -335,58 +332,6 @@ static struct md_rdev *map_sector(struct mddev *mddev, struct strip_zone *zone,
 	*sector_offset = (chunk * chunk_sects) + sect_in_chunk;
 	return conf->devlist[(zone - conf->strip_zone)*raid_disks
 			     + sector_div(sector, zone->nb_dev)];
-}
-
-/**
- *	raid0_mergeable_bvec -- tell bio layer if two requests can be merged
- *	@mddev: the md device
- *	@bvm: properties of new bio
- *	@biovec: the request that could be merged to it.
- *
- *	Return amount of bytes we can accept at this offset
- */
-static int raid0_mergeable_bvec(struct mddev *mddev,
-				struct bvec_merge_data *bvm,
-				struct bio_vec *biovec)
-{
-	struct r0conf *conf = mddev->private;
-	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
-	sector_t sector_offset = sector;
-	int max;
-	unsigned int chunk_sectors = mddev->chunk_sectors;
-	unsigned int bio_sectors = bvm->bi_size >> 9;
-	struct strip_zone *zone;
-	struct md_rdev *rdev;
-	struct request_queue *subq;
-
-	if (is_power_of_2(chunk_sectors))
-		max =  (chunk_sectors - ((sector & (chunk_sectors-1))
-						+ bio_sectors)) << 9;
-	else
-		max =  (chunk_sectors - (sector_div(sector, chunk_sectors)
-						+ bio_sectors)) << 9;
-	if (max < 0)
-		max = 0; /* bio_add cannot handle a negative return */
-	if (max <= biovec->bv_len && bio_sectors == 0)
-		return biovec->bv_len;
-	if (max < biovec->bv_len)
-		/* too small already, no need to check further */
-		return max;
-	if (!conf->has_merge_bvec)
-		return max;
-
-	/* May need to check subordinate device */
-	sector = sector_offset;
-	zone = find_zone(mddev->private, &sector_offset);
-	rdev = map_sector(mddev, zone, sector, &sector_offset);
-	subq = bdev_get_queue(rdev->bdev);
-	if (subq->merge_bvec_fn) {
-		bvm->bi_bdev = rdev->bdev;
-		bvm->bi_sector = sector_offset + zone->dev_start +
-			rdev->data_offset;
-		return min(max, subq->merge_bvec_fn(subq, bvm, biovec));
-	} else
-		return max;
 }
 
 static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks)
@@ -546,7 +491,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 		if (unlikely((split->bi_rw & REQ_DISCARD) &&
 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
 			/* Just ignore it */
-			bio_endio(split, 0);
+			bio_endio(split);
 		} else
 			generic_make_request(split);
 	} while (split != bio);
@@ -730,7 +675,6 @@ static struct md_personality raid0_personality=
 	.takeover	= raid0_takeover,
 	.quiesce	= raid0_quiesce,
 	.congested	= raid0_congested,
-	.mergeable_bvec	= raid0_mergeable_bvec,
 };
 
 static int __init raid0_init (void)

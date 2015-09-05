@@ -26,7 +26,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
-#include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -421,6 +420,10 @@ static void scsi_report_sense(struct scsi_device *sdev,
 			evt_type = SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED;
 			sdev_printk(KERN_WARNING, sdev,
 				    "Mode parameters changed");
+		} else if (sshdr->asc == 0x2a && sshdr->ascq == 0x06) {
+			evt_type = SDEV_EVT_ALUA_STATE_CHANGE_REPORTED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Asymmetric access state changed");
 		} else if (sshdr->asc == 0x2a && sshdr->ascq == 0x09) {
 			evt_type = SDEV_EVT_CAPACITY_CHANGE_REPORTED;
 			sdev_printk(KERN_WARNING, sdev,
@@ -1156,8 +1159,13 @@ int scsi_eh_get_sense(struct list_head *work_q,
 	struct Scsi_Host *shost;
 	int rtn;
 
+	/*
+	 * If SCSI_EH_ABORT_SCHEDULED has been set, it is timeout IO,
+	 * should not get sense.
+	 */
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		if ((scmd->eh_eflags & SCSI_EH_CANCEL_CMD) ||
+		    (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) ||
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
@@ -2523,33 +2531,3 @@ void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq)
 	}
 }
 EXPORT_SYMBOL(scsi_build_sense_buffer);
-
-/**
- * scsi_set_sense_information - set the information field in a
- *		formatted sense data buffer
- * @buf:	Where to build sense data
- * @info:	64-bit information value to be set
- *
- **/
-void scsi_set_sense_information(u8 *buf, u64 info)
-{
-	if ((buf[0] & 0x7f) == 0x72) {
-		u8 *ucp, len;
-
-		len = buf[7];
-		ucp = (char *)scsi_sense_desc_find(buf, len + 8, 0);
-		if (!ucp) {
-			buf[7] = len + 0xa;
-			ucp = buf + 8 + len;
-		}
-		ucp[0] = 0;
-		ucp[1] = 0xa;
-		ucp[2] = 0x80; /* Valid bit */
-		ucp[3] = 0;
-		put_unaligned_be64(info, &ucp[4]);
-	} else if ((buf[0] & 0x7f) == 0x70) {
-		buf[0] |= 0x80;
-		put_unaligned_be64(info, &buf[3]);
-	}
-}
-EXPORT_SYMBOL(scsi_set_sense_information);

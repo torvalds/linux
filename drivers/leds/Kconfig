@@ -43,7 +43,7 @@ config LEDS_AAT1290
 	tristate "LED support for the AAT1290"
 	depends on LEDS_CLASS_FLASH
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	depends on OF
 	depends on PINCTRL
 	help
@@ -419,7 +419,7 @@ config LEDS_INTEL_SS4200
 config LEDS_LT3593
 	tristate "LED driver for LT3593 controllers"
 	depends on LEDS_CLASS
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This option enables support for LEDs driven by a Linear Technology
 	  LT3593 controller. This controller uses a special one-wire pulse
@@ -455,12 +455,16 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || MACH_ARMADA_370
 	default y
 	help
-	  This option enable support for the dual-GPIO LED found on the
-	  Network Space v2 board (and parents). This include Internet Space v2,
-	  Network Space (Max) v2 and d2 Network v2 boards.
+	  This option enables support for the dual-GPIO LEDs found on the
+	  following LaCie/Seagate boards:
+
+		Network Space v2 (and parents: Max, Mini)
+		Internet Space v2
+		d2 Network v2
+		n090401 (Seagate NAS 4-Bay)
 
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
@@ -543,7 +547,8 @@ config LEDS_MENF21BMC
 
 config LEDS_KTD2692
 	tristate "LED support for KTD2692 flash LED controller"
-	depends on LEDS_CLASS_FLASH && GPIOLIB && OF
+	depends on LEDS_CLASS_FLASH && OF
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This option enables support for KTD2692 LED flash connected
 	  through ExpressWire interface.

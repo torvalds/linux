@@ -146,16 +146,16 @@ static void put_io_block(struct log_writes_c *lc)
 	}
 }
 
-static void log_end_io(struct bio *bio, int err)
+static void log_end_io(struct bio *bio)
 {
 	struct log_writes_c *lc = bio->bi_private;
 	struct bio_vec *bvec;
 	int i;
 
-	if (err) {
+	if (bio->bi_error) {
 		unsigned long flags;
 
-		DMERR("Error writing log block, error=%d", err);
+		DMERR("Error writing log block, error=%d", bio->bi_error);
 		spin_lock_irqsave(&lc->blocks_lock, flags);
 		lc->logging_enabled = false;
 		spin_unlock_irqrestore(&lc->blocks_lock, flags);
@@ -205,7 +205,6 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
 	bio->bi_bdev = lc->logdev->bdev;
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
@@ -270,7 +269,6 @@ static int log_one_block(struct log_writes_c *lc,
 	bio->bi_bdev = lc->logdev->bdev;
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 	for (i = 0; i < block->vec_cnt; i++) {
 		/*
@@ -292,7 +290,6 @@ static int log_one_block(struct log_writes_c *lc,
 			bio->bi_bdev = lc->logdev->bdev;
 			bio->bi_end_io = log_end_io;
 			bio->bi_private = lc;
-			set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 			ret = bio_add_page(bio, block->vecs[i].bv_page,
 					   block->vecs[i].bv_len, 0);
@@ -606,7 +603,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		WARN_ON(flush_bio || fua_bio);
 		if (lc->device_supports_discard)
 			goto map_bio;
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
 	}
 
@@ -728,21 +725,6 @@ static int log_writes_ioctl(struct dm_target *ti, unsigned int cmd,
 	return r ? : __blkdev_driver_ioctl(dev->bdev, dev->mode, cmd, arg);
 }
 
-static int log_writes_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-			    struct bio_vec *biovec, int max_size)
-{
-	struct log_writes_c *lc = ti->private;
-	struct request_queue *q = bdev_get_queue(lc->dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = lc->dev->bdev;
-	bvm->bi_sector = dm_target_offset(ti, bvm->bi_sector);
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int log_writes_iterate_devices(struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
 				      void *data)
@@ -796,7 +778,6 @@ static struct target_type log_writes_target = {
 	.end_io = normal_end_io,
 	.status = log_writes_status,
 	.ioctl	= log_writes_ioctl,
-	.merge	= log_writes_merge,
 	.message = log_writes_message,
 	.iterate_devices = log_writes_iterate_devices,
 	.io_hints = log_writes_io_hints,

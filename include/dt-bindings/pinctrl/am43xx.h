@@ -14,6 +14,7 @@
 #define MUX_MODE6	6
 #define MUX_MODE7	7
 #define MUX_MODE8	8
+#define MUX_MODE9	9
 
 #define PULL_DISABLE		(1 << 16)
 #define PULL_UP			(1 << 17)

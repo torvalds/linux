@@ -86,8 +86,8 @@ static inline struct file *__fcheck_files(struct files_struct *files, unsigned i
 
 static inline struct file *fcheck_files(struct files_struct *files, unsigned int fd)
 {
-	rcu_lockdep_assert(rcu_read_lock_held() ||
-			   lockdep_is_held(&files->file_lock),
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&
+			   !lockdep_is_held(&files->file_lock),
 			   "suspicious rcu_dereference_check() usage");
 	return __fcheck_files(files, fd);
 }

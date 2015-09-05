@@ -1490,7 +1490,7 @@ out:
 		error_bios(snapshot_bios);
 	} else {
 		if (full_bio)
-			bio_endio(full_bio, 0);
+			bio_endio(full_bio);
 		flush_bios(snapshot_bios);
 	}
 
@@ -1580,11 +1580,11 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dm_kcopyd_copy(s->kcopyd_client, &src, 1, &dest, 0, copy_callback, pe);
 }
 
-static void full_bio_end_io(struct bio *bio, int error)
+static void full_bio_end_io(struct bio *bio)
 {
 	void *callback_data = bio->bi_private;
 
-	dm_kcopyd_do_callback(callback_data, 0, error ? 1 : 0);
+	dm_kcopyd_do_callback(callback_data, 0, bio->bi_error ? 1 : 0);
 }
 
 static void start_full_bio(struct dm_snap_pending_exception *pe,
@@ -2330,20 +2330,6 @@ static void origin_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-			struct bio_vec *biovec, int max_size)
-{
-	struct dm_origin *o = ti->private;
-	struct request_queue *q = bdev_get_queue(o->dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = o->dev->bdev;
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int origin_iterate_devices(struct dm_target *ti,
 				  iterate_devices_callout_fn fn, void *data)
 {
@@ -2362,7 +2348,6 @@ static struct target_type origin_target = {
 	.resume  = origin_resume,
 	.postsuspend = origin_postsuspend,
 	.status  = origin_status,
-	.merge	 = origin_merge,
 	.iterate_devices = origin_iterate_devices,
 };
 

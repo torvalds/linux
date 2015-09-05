@@ -53,7 +53,7 @@ static int tusb1210_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_ops = {
+static const struct phy_ops phy_ops = {
 	.power_on = tusb1210_power_on,
 	.power_off = tusb1210_power_off,
 	.owner = THIS_MODULE,

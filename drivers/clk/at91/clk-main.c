@@ -614,17 +614,12 @@ void __init of_at91sam9x5_clk_main_setup(struct device_node *np,
 	int num_parents;
 	unsigned int irq;
 	const char *name = np->name;
-	int i;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents <= 0 || num_parents > 2)
 		return;
 
-	for (i = 0; i < num_parents; ++i) {
-		parent_names[i] = of_clk_get_parent_name(np, i);
-		if (!parent_names[i])
-			return;
-	}
+	of_clk_parent_fill(np, parent_names, num_parents);
 
 	of_property_read_string(np, "clock-output-names", &name);
 

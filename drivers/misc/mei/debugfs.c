@@ -154,6 +154,12 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 		pos += scnprintf(buf + pos, bufsz - pos, "hbm features:\n");
 		pos += scnprintf(buf + pos, bufsz - pos, "\tPG: %01d\n",
 				 dev->hbm_f_pg_supported);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tDC: %01d\n",
+				 dev->hbm_f_dc_supported);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tDOT: %01d\n",
+				 dev->hbm_f_dot_supported);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tEV: %01d\n",
+				 dev->hbm_f_ev_supported);
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",

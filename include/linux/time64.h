@@ -12,11 +12,18 @@ typedef __s64 time64_t;
  */
 #if __BITS_PER_LONG == 64
 # define timespec64 timespec
+#define itimerspec64 itimerspec
 #else
 struct timespec64 {
 	time64_t	tv_sec;			/* seconds */
 	long		tv_nsec;		/* nanoseconds */
 };
+
+struct itimerspec64 {
+	struct timespec64 it_interval;
+	struct timespec64 it_value;
+};
+
 #endif
 
 /* Parameters used to convert the timespec values: */
@@ -43,6 +50,16 @@ static inline struct timespec timespec64_to_timespec(const struct timespec64 ts6
 static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
 {
 	return ts;
+}
+
+static inline struct itimerspec itimerspec64_to_itimerspec(struct itimerspec64 *its64)
+{
+	return *its64;
+}
+
+static inline struct itimerspec64 itimerspec_to_itimerspec64(struct itimerspec *its)
+{
+	return *its;
 }
 
 # define timespec64_equal		timespec_equal
@@ -74,6 +91,24 @@ static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
 
 	ret.tv_sec = ts.tv_sec;
 	ret.tv_nsec = ts.tv_nsec;
+	return ret;
+}
+
+static inline struct itimerspec itimerspec64_to_itimerspec(struct itimerspec64 *its64)
+{
+	struct itimerspec ret;
+
+	ret.it_interval = timespec64_to_timespec(its64->it_interval);
+	ret.it_value = timespec64_to_timespec(its64->it_value);
+	return ret;
+}
+
+static inline struct itimerspec64 itimerspec_to_itimerspec64(struct itimerspec *its)
+{
+	struct itimerspec64 ret;
+
+	ret.it_interval = timespec_to_timespec64(its->it_interval);
+	ret.it_value = timespec_to_timespec64(its->it_value);
 	return ret;
 }
 

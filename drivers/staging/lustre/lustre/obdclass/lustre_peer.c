@@ -105,7 +105,7 @@ int class_add_uuid(const char *uuid, __u64 nid)
 		return -EOVERFLOW;
 
 	data = kzalloc(sizeof(*data), GFP_NOFS);
-	if (data == NULL)
+	if (!data)
 		return -ENOMEM;
 
 	obd_str2uuid(&data->un_uuid, uuid);

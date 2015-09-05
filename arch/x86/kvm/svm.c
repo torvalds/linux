@@ -1139,7 +1139,7 @@ static u64 svm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 {
 	u64 tsc;
 
-	tsc = svm_scale_tsc(vcpu, native_read_tsc());
+	tsc = svm_scale_tsc(vcpu, rdtsc());
 
 	return target_tsc - tsc;
 }
@@ -1172,6 +1172,10 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	 */
 	if (!is_mmio && !kvm_arch_has_assigned_device(vcpu->kvm))
 		return 0;
+
+	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED) &&
+	    kvm_read_cr0(vcpu) & X86_CR0_CD)
+		return _PAGE_NOCACHE;
 
 	mtrr = kvm_mtrr_get_guest_memory_type(vcpu, gfn);
 	return mtrr2protval[mtrr];
@@ -1667,13 +1671,10 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	if (!vcpu->fpu_active)
 		cr0 |= X86_CR0_TS;
-	/*
-	 * re-enable caching here because the QEMU bios
-	 * does not do it - this results in some delay at
-	 * reboot
-	 */
-	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED))
-		cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
+
+	/* These are emulated via page tables.  */
+	cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
+
 	svm->vmcb->save.cr0 = cr0;
 	mark_dirty(svm->vmcb, VMCB_CR);
 	update_cr0_intercept(svm);
@@ -2106,6 +2107,7 @@ static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.get_pdptr         = nested_svm_get_tdp_pdptr;
 	vcpu->arch.mmu.inject_page_fault = nested_svm_inject_npf_exit;
 	vcpu->arch.mmu.shadow_root_level = get_npt_level();
+	reset_shadow_zero_bits_mask(vcpu, &vcpu->arch.mmu);
 	vcpu->arch.walk_mmu              = &vcpu->arch.nested_mmu;
 }
 
@@ -3172,7 +3174,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	switch (msr_info->index) {
 	case MSR_IA32_TSC: {
 		msr_info->data = svm->vmcb->control.tsc_offset +
-			svm_scale_tsc(vcpu, native_read_tsc());
+			svm_scale_tsc(vcpu, rdtsc());
 
 		break;
 	}

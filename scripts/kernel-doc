@@ -133,6 +133,30 @@ use strict;
 #
 # All descriptions can be multiline, except the short function description.
 #
+# For really longs structs, you can also describe arguments inside the
+# body of the struct.
+# eg.
+# /**
+#  * struct my_struct - short description
+#  * @a: first member
+#  * @b: second member
+#  *
+#  * Longer description
+#  */
+# struct my_struct {
+#     int a;
+#     int b;
+#     /**
+#      * @c: This is longer description of C
+#      *
+#      * You can use paragraphs to describe arguments
+#      * using this method.
+#      */
+#     int c;
+# };
+#
+# This should be use only for struct/enum members.
+#
 # You can also add additional sections. When documenting kernel functions you
 # should document the "Context:" of the function, e.g. whether the functions
 # can be called form interrupts. Unlike other sections you can end it with an
@@ -253,11 +277,20 @@ my %highlights = %highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
 my $function_only = 0;
+my $show_not_found = 0;
+
+my @build_time;
+if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
+    (my $seconds = `date -d"${ENV{'KBUILD_BUILD_TIMESTAMP'}}" +%s`) ne '') {
+    @build_time = gmtime($seconds);
+} else {
+    @build_time = localtime;
+}
+
 my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October',
-		'November', 'December')[(localtime)[4]] .
-  " " . ((localtime)[5]+1900);
-my $show_not_found = 0;
+		'November', 'December')[$build_time[4]] .
+  " " . ($build_time[5]+1900);
 
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
@@ -287,8 +320,18 @@ my $lineprefix="";
 # 2 - scanning field start.
 # 3 - scanning prototype.
 # 4 - documentation block
+# 5 - gathering documentation outside main block
 my $state;
 my $in_doc_sect;
+
+# Split Doc State
+# 0 - Invalid (Before start or after finish)
+# 1 - Is started (the /** was found inside a struct)
+# 2 - The @parameter header was found, start accepting multi paragraph text.
+# 3 - Finished (the */ was found)
+# 4 - Error - Comment without header was found. Spit a warning as it's not
+#     proper kernel-doc and ignore the rest.
+my $split_doc_state;
 
 #declaration types: can be
 # 'function', 'struct', 'union', 'enum', 'typedef'
@@ -304,6 +347,9 @@ my $doc_decl = $doc_com . '(\w+)';
 my $doc_sect = $doc_com . '([' . $doc_special . ']?[\w\s]+):(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
+my $doc_split_start = '^\s*/\*\*\s*$';
+my $doc_split_sect = '\s*\*\s*(@[\w\s]+):(.*)';
+my $doc_split_end = '^\s*\*/\s*$';
 
 my %constants;
 my %parameterdescs;
@@ -1753,7 +1799,9 @@ sub dump_struct($$) {
 	# strip kmemcheck_bitfield_{begin,end}.*;
 	$members =~ s/kmemcheck_bitfield_.*?;//gos;
 	# strip attributes
+	$members =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//i;
 	$members =~ s/__aligned\s*\([^;]*\)//gos;
+	$members =~ s/\s*CRYPTO_MINALIGN_ATTR//gos;
 
 	create_parameterlist($members, ';', $file);
 	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
@@ -2181,6 +2229,7 @@ sub reset_state {
     $prototype = "";
 
     $state = 0;
+    $split_doc_state = 0;
 }
 
 sub tracepoint_munge($) {
@@ -2453,7 +2502,6 @@ sub process_file($) {
 		}
 		$section = $newsection;
 	    } elsif (/$doc_end/) {
-
 		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
@@ -2494,8 +2542,44 @@ sub process_file($) {
 		print STDERR "Warning(${file}:$.): bad line: $_";
 		++$warnings;
 	    }
+	} elsif ($state == 5) { # scanning for split parameters
+	    # First line (state 1) needs to be a @parameter
+	    if ($split_doc_state == 1 && /$doc_split_sect/o) {
+		$section = $1;
+		$contents = $2;
+		if ($contents ne "") {
+		    while ((substr($contents, 0, 1) eq " ") ||
+		           substr($contents, 0, 1) eq "\t") {
+			$contents = substr($contents, 1);
+		    }
+		$contents .= "\n";
+		}
+		$split_doc_state = 2;
+	    # Documentation block end */
+	    } elsif (/$doc_split_end/) {
+		if (($contents ne "") && ($contents ne "\n")) {
+		    dump_section($file, $section, xml_escape($contents));
+		    $section = $section_default;
+		    $contents = "";
+		}
+		$state = 3;
+		$split_doc_state = 0;
+	    # Regular text
+	    } elsif (/$doc_content/) {
+		if ($split_doc_state == 2) {
+		    $contents .= $1 . "\n";
+		} elsif ($split_doc_state == 1) {
+		    $split_doc_state = 4;
+		    print STDERR "Warning(${file}:$.): ";
+		    print STDERR "Incorrect use of kernel-doc format: $_";
+		    ++$warnings;
+		}
+	    }
 	} elsif ($state == 3) {	# scanning for function '{' (end of prototype)
-	    if ($decl_type eq 'function') {
+	    if (/$doc_split_start/) {
+		$state = 5;
+		$split_doc_state = 1;
+	    } elsif ($decl_type eq 'function') {
 		process_state3_function($_, $file);
 	    } else {
 		process_state3_type($_, $file);
@@ -2587,7 +2671,7 @@ $kernelversion = get_kernel_version();
 
 # generate a sequence of code that will splice in highlighting information
 # using the s// operator.
-foreach my $pattern (keys %highlights) {
+foreach my $pattern (sort keys %highlights) {
 #   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
     $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
 }
