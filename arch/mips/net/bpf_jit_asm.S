@@ -151,9 +151,10 @@ NESTED(bpf_slow_path_word, (6 * SZREG), $r_sp)
 	wsbh	t0, $r_s0
 	jr	$r_ra
 	 rotr	$r_A, t0, 16
-#endif
+#else
 	jr	$r_ra
-	move	$r_A, $r_s0
+	 move	$r_A, $r_s0
+#endif
 
 	END(bpf_slow_path_word)
 
@@ -162,9 +163,10 @@ NESTED(bpf_slow_path_half, (6 * SZREG), $r_sp)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 	jr	$r_ra
 	 wsbh	$r_A, $r_s0
-#endif
+#else
 	jr	$r_ra
 	 move	$r_A, $r_s0
+#endif
 
 	END(bpf_slow_path_half)
 
