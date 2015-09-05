@@ -1,7 +1,5 @@
 /*
- * Copyright 2014 Chen-Yu Tsai
- *
- * Chen-Yu Tsai <wens@csie.org>
+ * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,34 +39,39 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-
-/dts-v1/;
-#include "sun8i-a23.dtsi"
-#include "sun8i-q8-common.dtsi"
+#include "sunxi-q8-common.dtsi"
 
 / {
-	model = "Ippo Q8H Dual Core Tablet (v5)";
-	compatible = "ippo,q8h-v5", "allwinner,sun8i-a23";
+	aliases {
+		serial0 = &r_uart;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
-&i2c2 {
+&mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	/* pull-ups and devices require PMIC regulator */
-	status = "failed";
-};
-
-/*
- * FIXME for now we only support host mode and rely on u-boot to have
- * turned on Vbus which is controlled by the axp223 pmic on the board.
- *
- * Once we have axp223 support we should switch to fully supporting otg.
- */
-&usb_otg {
-	dr_mode = "host";
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_q8>;
+	vmmc-supply = <&reg_vcc3v0>;
+	bus-width = <4>;
+	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
+	cd-inverted;
 	status = "okay";
 };
 
-&usbphy {
+&pio {
+	mmc0_cd_pin_q8: mmc0_cd_pin@0 {
+		allwinner,pins = "PB4";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+};
+
+&r_uart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_uart_pins_a>;
 	status = "okay";
 };
