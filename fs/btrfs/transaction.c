@@ -258,6 +258,8 @@ loop:
 	mutex_init(&cur_trans->cache_write_mutex);
 	cur_trans->num_dirty_bgs = 0;
 	spin_lock_init(&cur_trans->dirty_bgs_lock);
+	INIT_LIST_HEAD(&cur_trans->deleted_bgs);
+	spin_lock_init(&cur_trans->deleted_bgs_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
 			     fs_info->btree_inode->i_mapping);
@@ -1301,7 +1303,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_set_skip_qgroup(trans, objectid);
 
-	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
+	btrfs_reloc_pre_snapshot(pending, &to_reserve);
 
 	if (to_reserve > 0) {
 		pending->error = btrfs_block_rsv_add(root,
@@ -1893,8 +1895,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			spin_unlock(&root->fs_info->trans_lock);
 
 			wait_for_commit(root, prev_trans);
+			ret = prev_trans->aborted;
 
 			btrfs_put_transaction(prev_trans);
+			if (ret)
+				goto cleanup_transaction;
 		} else {
 			spin_unlock(&root->fs_info->trans_lock);
 		}

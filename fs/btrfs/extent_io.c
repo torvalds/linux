@@ -2723,6 +2723,12 @@ struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask)
 		btrfs_bio->csum = NULL;
 		btrfs_bio->csum_allocated = NULL;
 		btrfs_bio->end_io = NULL;
+
+#ifdef CONFIG_BLK_CGROUP
+		/* FIXME, put this into bio_clone_bioset */
+		if (bio->bi_css)
+			bio_associate_blkcg(new, bio->bi_css);
+#endif
 	}
 	return new;
 }
@@ -2783,6 +2789,7 @@ static int merge_bio(int rw, struct extent_io_tree *tree, struct page *page,
 }
 
 static int submit_extent_page(int rw, struct extent_io_tree *tree,
+			      struct writeback_control *wbc,
 			      struct page *page, sector_t sector,
 			      size_t size, unsigned long offset,
 			      struct block_device *bdev,
@@ -2817,6 +2824,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			}
 			bio = NULL;
 		} else {
+			if (wbc)
+				wbc_account_io(wbc, page, page_size);
 			return 0;
 		}
 	}
@@ -2829,6 +2838,10 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = tree;
+	if (wbc) {
+		wbc_init_bio(wbc, bio);
+		wbc_account_io(wbc, page, page_size);
+	}
 
 	if (bio_ret)
 		*bio_ret = bio;
@@ -3039,7 +3052,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 		}
 
 		pnr -= page->index;
-		ret = submit_extent_page(rw, tree, page,
+		ret = submit_extent_page(rw, tree, NULL, page,
 					 sector, disk_io_size, pg_offset,
 					 bdev, bio, pnr,
 					 end_bio_extent_readpage, mirror_num,
@@ -3434,7 +3447,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 				       page->index, cur, end);
 			}
 
-			ret = submit_extent_page(write_flags, tree, page,
+			ret = submit_extent_page(write_flags, tree, wbc, page,
 						 sector, iosize, pg_offset,
 						 bdev, &epd->bio, max_nr,
 						 end_bio_extent_writepage,
@@ -3738,7 +3751,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
-		ret = submit_extent_page(rw, tree, p, offset >> 9,
+		ret = submit_extent_page(rw, tree, wbc, p, offset >> 9,
 					 PAGE_CACHE_SIZE, 0, bdev, &epd->bio,
 					 -1, end_bio_extent_buffer_writepage,
 					 0, epd->bio_flags, bio_flags);
@@ -4603,9 +4616,7 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 {
 	struct extent_buffer *eb = NULL;
 
-	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS);
-	if (eb == NULL)
-		return NULL;
+	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS|__GFP_NOFAIL);
 	eb->start = start;
 	eb->len = len;
 	eb->fs_info = fs_info;
@@ -4863,7 +4874,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		return NULL;
 
 	for (i = 0; i < num_pages; i++, index++) {
-		p = find_or_create_page(mapping, index, GFP_NOFS);
+		p = find_or_create_page(mapping, index, GFP_NOFS|__GFP_NOFAIL);
 		if (!p)
 			goto free_eb;
 
