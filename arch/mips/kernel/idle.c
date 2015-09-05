@@ -165,6 +165,7 @@ void __init check_wait(void)
 	case CPU_4KEC:
 	case CPU_4KSC:
 	case CPU_5KC:
+	case CPU_5KE:
 	case CPU_25KF:
 	case CPU_PR4450:
 	case CPU_BMIPS3300:
