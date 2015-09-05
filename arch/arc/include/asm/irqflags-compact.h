@@ -91,7 +91,19 @@ static inline void arch_local_irq_restore(unsigned long flags)
 /*
  * Unconditionally Enable IRQs
  */
-extern void arch_local_irq_enable(void);
+static inline void arch_local_irq_enable(void)
+{
+	unsigned long temp;
+
+	__asm__ __volatile__(
+	"	lr   %0, [status32]	\n"
+	"	or   %0, %0, %1		\n"
+	"	flag %0			\n"
+	: "=&r"(temp)
+	: "n"((STATUS_E1_MASK | STATUS_E2_MASK))
+	: "cc", "memory");
+}
+
 
 /*
  * Unconditionally Disable IRQs
