@@ -195,7 +195,7 @@ static struct test {
 	},
 };
 
-static bool perf_test__matches(int curr, int argc, const char *argv[])
+static bool perf_test__matches(struct test *test, int curr, int argc, const char *argv[])
 {
 	int i;
 
@@ -212,7 +212,7 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 			continue;
 		}
 
-		if (strstr(tests[curr].desc, argv[i]))
+		if (strstr(test->desc, argv[i]))
 			return true;
 	}
 
@@ -249,27 +249,28 @@ static int run_test(struct test *test)
 	return err;
 }
 
+#define for_each_test(t)	 for (t = &tests[0]; t->func; t++)
+
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
+	struct test *t;
 	int i = 0;
 	int width = 0;
 
-	while (tests[i].func) {
-		int len = strlen(tests[i].desc);
+	for_each_test(t) {
+		int len = strlen(t->desc);
 
 		if (width < len)
 			width = len;
-		++i;
 	}
 
-	i = 0;
-	while (tests[i].func) {
+	for_each_test(t) {
 		int curr = i++, err;
 
-		if (!perf_test__matches(curr, argc, argv))
+		if (!perf_test__matches(t, curr, argc, argv))
 			continue;
 
-		pr_info("%2d: %-*s:", i, width, tests[curr].desc);
+		pr_info("%2d: %-*s:", i, width, t->desc);
 
 		if (intlist__find(skiplist, i)) {
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
@@ -277,8 +278,8 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 
 		pr_debug("\n--- start ---\n");
-		err = run_test(&tests[curr]);
-		pr_debug("---- end ----\n%s:", tests[curr].desc);
+		err = run_test(t);
+		pr_debug("---- end ----\n%s:", t->desc);
 
 		switch (err) {
 		case TEST_OK:
@@ -299,15 +300,14 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 static int perf_test__list(int argc, const char **argv)
 {
+	struct test *t;
 	int i = 0;
 
-	while (tests[i].func) {
-		int curr = i++;
-
-		if (argc > 1 && !strstr(tests[curr].desc, argv[1]))
+	for_each_test(t) {
+		if (argc > 1 && !strstr(t->desc, argv[1]))
 			continue;
 
-		pr_info("%2d: %s\n", i, tests[curr].desc);
+		pr_info("%2d: %s\n", ++i, t->desc);
 	}
 
 	return 0;
