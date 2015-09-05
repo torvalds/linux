@@ -223,6 +223,8 @@ struct sigcontext_32 {
 	__u32				cr2;
 };
 
+#define sigcontext_ia32 sigcontext_32
+
 struct sigcontext_64 {
 	__u64				r8;
 	__u64				r9;

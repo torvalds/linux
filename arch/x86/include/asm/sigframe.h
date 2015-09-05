@@ -9,7 +9,6 @@
 #ifdef CONFIG_X86_32
 #define sigframe_ia32		sigframe
 #define rt_sigframe_ia32	rt_sigframe
-#define sigcontext_ia32		sigcontext
 #define ucontext_ia32		ucontext
 #else /* !CONFIG_X86_32 */
 
