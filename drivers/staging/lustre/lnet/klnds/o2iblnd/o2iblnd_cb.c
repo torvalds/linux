@@ -253,11 +253,10 @@ kiblnd_handle_completion(kib_conn_t *conn, int txtype, int status, __u64 cookie)
 	}
 
 	if (tx->tx_status == 0) {	       /* success so far */
-		if (status < 0) {	       /* failed? */
+		if (status < 0) /* failed? */
 			tx->tx_status = status;
-		} else if (txtype == IBLND_MSG_GET_REQ) {
+		else if (txtype == IBLND_MSG_GET_REQ)
 			lnet_set_reply_msg_len(ni, tx->tx_lntmsg[1], status);
-		}
 	}
 
 	tx->tx_waiting = 0;
