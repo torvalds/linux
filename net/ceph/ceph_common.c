@@ -517,8 +517,11 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 	struct ceph_options *opt = client->options;
 	size_t pos = m->count;
 
-	if (opt->name)
-		seq_printf(m, "name=%s,", opt->name);
+	if (opt->name) {
+		seq_puts(m, "name=");
+		seq_escape(m, opt->name, ", \t\n\\");
+		seq_putc(m, ',');
+	}
 	if (opt->key)
 		seq_puts(m, "secret=<hidden>,");
 

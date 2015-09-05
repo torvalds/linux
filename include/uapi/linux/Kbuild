@@ -456,3 +456,4 @@ header-y += xfrm.h
 header-y += xilinx-v4l2-controls.h
 header-y += zorro.h
 header-y += zorro_ids.h
+header-y += userfaultfd.h

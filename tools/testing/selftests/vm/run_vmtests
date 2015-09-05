@@ -86,6 +86,17 @@ else
 	echo "[PASS]"
 fi
 
+echo "--------------------"
+echo "running userfaultfd"
+echo "--------------------"
+./userfaultfd 128 32
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
 #cleanup
 umount $mnt
 rm -rf $mnt

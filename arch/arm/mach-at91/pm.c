@@ -369,7 +369,7 @@ static void __init at91_pm_sram_init(void)
 		return;
 	}
 
-	sram_pool = gen_pool_get(&pdev->dev);
+	sram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!sram_pool) {
 		pr_warn("%s: sram pool unavailable!\n", __func__);
 		return;

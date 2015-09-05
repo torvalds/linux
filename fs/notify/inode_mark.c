@@ -65,26 +65,6 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 }
 
 /*
- * Given an inode, destroy all of the marks associated with that inode.
- */
-void fsnotify_clear_marks_by_inode(struct inode *inode)
-{
-	struct fsnotify_mark *mark;
-	struct hlist_node *n;
-	LIST_HEAD(free_list);
-
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry_safe(mark, n, &inode->i_fsnotify_marks, obj_list) {
-		list_add(&mark->free_list, &free_list);
-		hlist_del_init_rcu(&mark->obj_list);
-		fsnotify_get_mark(mark);
-	}
-	spin_unlock(&inode->i_lock);
-
-	fsnotify_destroy_marks(&free_list);
-}
-
-/*
  * Given a group clear all of the inode marks associated with that group.
  */
 void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
