@@ -778,7 +778,7 @@ int dt_index_walk(const struct lu_env *env, struct dt_object *obj,
 		return PTR_ERR(it);
 
 	rc = iops->load(env, it, rdpg->rp_hash);
-	if (rc == 0) {
+	if (rc == 0)
 		/*
 		 * Iterator didn't find record with exactly the key requested.
 		 *
@@ -790,9 +790,8 @@ int dt_index_walk(const struct lu_env *env, struct dt_object *obj,
 		 *     state)---position it on the next item.
 		 */
 		rc = iops->next(env, it);
-	} else if (rc > 0) {
+	else if (rc > 0)
 		rc = 0;
-	}
 
 	/* Fill containers one after the other. There might be multiple
 	 * containers per physical page.
