@@ -334,10 +334,9 @@ static int rtl8192_wx_get_range(struct net_device *dev,
 	/* ~130 Mb/s real (802.11n) */
 	range->throughput = 130 * 1000 * 1000;
 
-	if (priv->rf_set_sens != NULL) {
+	if (priv->rf_set_sens != NULL)
 		/* signal level threshold range */
 		range->sensitivity = priv->max_sens;
-	}
 
 	range->max_qual.qual = 100;
 	range->max_qual.level = 0;
