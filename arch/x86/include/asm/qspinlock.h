@@ -39,8 +39,8 @@ static inline void queued_spin_unlock(struct qspinlock *lock)
 }
 #endif
 
+#ifdef CONFIG_PARAVIRT
 #define virt_spin_lock virt_spin_lock
-
 static inline bool virt_spin_lock(struct qspinlock *lock)
 {
 	if (!static_cpu_has(X86_FEATURE_HYPERVISOR))
@@ -59,6 +59,7 @@ static inline bool virt_spin_lock(struct qspinlock *lock)
 
 	return true;
 }
+#endif /* CONFIG_PARAVIRT */
 
 #include <asm-generic/qspinlock.h>
 
