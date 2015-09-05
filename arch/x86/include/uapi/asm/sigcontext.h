@@ -218,7 +218,7 @@ struct sigcontext_32 {
 	 * of extended memory layout. See comments at the definition of
 	 * (struct _fpx_sw_bytes)
 	 */
-	void __user			*fpstate; /* Zero when no FPU/extended context */
+	__u32				fpstate; /* Zero when no FPU/extended context */
 	__u32				oldmask;
 	__u32				cr2;
 };
@@ -258,7 +258,7 @@ struct sigcontext_64 {
 	 * of extended memory layout. See comments at the definition of
 	 * (struct _fpx_sw_bytes)
 	 */
-	void __user			*fpstate; /* Zero when no FPU/extended context */
+	__u64				fpstate; /* Zero when no FPU/extended context */
 	__u64				reserved1[8];
 };
 

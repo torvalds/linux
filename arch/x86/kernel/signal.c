@@ -63,6 +63,7 @@
 
 int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
+	unsigned long buf_val;
 	void __user *buf;
 	unsigned int tmpflags;
 	unsigned int err = 0;
@@ -107,7 +108,8 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
 		regs->orig_ax = -1;		/* disable syscall checks */
 
-		get_user_ex(buf, &sc->fpstate);
+		get_user_ex(buf_val, &sc->fpstate);
+		buf = (void __user *)buf_val;
 	} get_user_catch(err);
 
 	err |= fpu__restore_sig(buf, config_enabled(CONFIG_X86_32));
