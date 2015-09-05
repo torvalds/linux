@@ -4059,7 +4059,8 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
-				 WRITE_DATA_DST_SEL(0)));
+				 WRITE_DATA_DST_SEL(0)) |
+				 WR_CONFIRM);
 	if (vm_id < 8) {
 		amdgpu_ring_write(ring,
 				  (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
