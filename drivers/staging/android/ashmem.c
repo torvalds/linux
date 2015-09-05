@@ -311,10 +311,9 @@ static ssize_t ashmem_read(struct file *file, char __user *buf,
 	 * ashmem_release is called.
 	 */
 	ret = __vfs_read(asma->file, buf, len, pos);
-	if (ret >= 0) {
+	if (ret >= 0)
 		/** Update backing file pos, since f_ops->read() doesn't */
 		asma->file->f_pos = *pos;
-	}
 	return ret;
 
 out_unlock:
