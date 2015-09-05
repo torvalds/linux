@@ -6,7 +6,9 @@
 #include <linux/fs.h>
 #include <linux/falloc.h>
 #include <linux/nfs_fs.h>
+#include "delegation.h"
 #include "internal.h"
+#include "iostat.h"
 #include "fscache.h"
 #include "pnfs.h"
 
@@ -99,6 +101,31 @@ out_drop:
 	goto out_put_ctx;
 }
 
+/*
+ * Flush all dirty pages, and check for write errors.
+ */
+static int
+nfs4_file_flush(struct file *file, fl_owner_t id)
+{
+	struct inode	*inode = file_inode(file);
+
+	dprintk("NFS: flush(%pD2)\n", file);
+
+	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
+	if ((file->f_mode & FMODE_WRITE) == 0)
+		return 0;
+
+	/*
+	 * If we're holding a write delegation, then check if we're required
+	 * to flush the i/o on close. If not, then just start the i/o now.
+	 */
+	if (!nfs4_delegation_flush_on_close(inode))
+		return filemap_fdatawrite(file->f_mapping);
+
+	/* Flush writes to the server and return any errors */
+	return vfs_fsync(file, 0);
+}
+
 static int
 nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
@@ -177,7 +204,7 @@ const struct file_operations nfs4_file_operations = {
 	.write_iter	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
 	.open		= nfs4_file_open,
-	.flush		= nfs_file_flush,
+	.flush		= nfs4_file_flush,
 	.release	= nfs_file_release,
 	.fsync		= nfs4_file_fsync,
 	.lock		= nfs_lock,
