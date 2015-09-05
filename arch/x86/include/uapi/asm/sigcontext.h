@@ -78,48 +78,48 @@ struct _fpx_sw_bytes {
 
 /* 10-byte legacy floating point register: */
 struct _fpreg {
-	unsigned short			significand[4];
-	unsigned short			exponent;
+	__u16				significand[4];
+	__u16				exponent;
 };
 
 /* 16-byte floating point register: */
 struct _fpxreg {
-	unsigned short			significand[4];
-	unsigned short			exponent;
-	unsigned short			padding[3];
+	__u16				significand[4];
+	__u16				exponent;
+	__u16				padding[3];
 };
 
 /* 16-byte XMM register: */
 struct _xmmreg {
-	unsigned long			element[4];
+	__u32				element[4];
 };
 
 #define X86_FXSR_MAGIC			0x0000
 
 struct _fpstate {
 	/* Legacy FPU environment: */
-	unsigned long			cw;
-	unsigned long			sw;
-	unsigned long			tag;
-	unsigned long			ipoff;
-	unsigned long			cssel;
-	unsigned long			dataoff;
-	unsigned long			datasel;
+	__u32				cw;
+	__u32				sw;
+	__u32				tag;
+	__u32				ipoff;
+	__u32				cssel;
+	__u32				dataoff;
+	__u32				datasel;
 	struct _fpreg			_st[8];
-	unsigned short			status;
-	unsigned short			magic;		/* 0xffff: regular FPU data only */
+	__u16				status;
+	__u16				magic;		/* 0xffff: regular FPU data only */
 							/* 0x0000: FXSR FPU data */
 
 	/* FXSR FPU environment */
-	unsigned long			_fxsr_env[6];	/* FXSR FPU env is ignored */
-	unsigned long			mxcsr;
-	unsigned long			reserved;
+	__u32				_fxsr_env[6];	/* FXSR FPU env is ignored */
+	__u32				mxcsr;
+	__u32				reserved;
 	struct _fpxreg			_fxsr_st[8];	/* FXSR FPU reg data is ignored */
 	struct _xmmreg			_xmm[8];	/* First 8 XMM registers */
-	unsigned long			padding1[44];	/* Second 8 XMM registers plus padding */
+	__u32				padding1[44];	/* Second 8 XMM registers plus padding */
 
 	union {
-		unsigned long		padding2[12];
+		__u32			padding2[12];
 		struct _fpx_sw_bytes	sw_reserved;	/* Potential extended state is encoded here */
 	};
 };
@@ -191,28 +191,28 @@ struct _xstate {
 #ifndef __KERNEL__
 # ifdef __i386__
 struct sigcontext {
-	unsigned short			gs, __gsh;
-	unsigned short			fs, __fsh;
-	unsigned short			es, __esh;
-	unsigned short			ds, __dsh;
-	unsigned long			edi;
-	unsigned long			esi;
-	unsigned long			ebp;
-	unsigned long			esp;
-	unsigned long			ebx;
-	unsigned long			edx;
-	unsigned long			ecx;
-	unsigned long			eax;
-	unsigned long			trapno;
-	unsigned long			err;
-	unsigned long			eip;
-	unsigned short			cs, __csh;
-	unsigned long			eflags;
-	unsigned long			esp_at_signal;
-	unsigned short			ss, __ssh;
+	__u16				gs, __gsh;
+	__u16				fs, __fsh;
+	__u16				es, __esh;
+	__u16				ds, __dsh;
+	__u32				edi;
+	__u32				esi;
+	__u32				ebp;
+	__u32				esp;
+	__u32				ebx;
+	__u32				edx;
+	__u32				ecx;
+	__u32				eax;
+	__u32				trapno;
+	__u32				err;
+	__u32				eip;
+	__u16				cs, __csh;
+	__u32				eflags;
+	__u32				esp_at_signal;
+	__u16				ss, __ssh;
 	struct _fpstate __user		*fpstate;
-	unsigned long			oldmask;
-	unsigned long			cr2;
+	__u32				oldmask;
+	__u32				cr2;
 };
 # else /* __x86_64__: */
 struct sigcontext {

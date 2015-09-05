@@ -9,15 +9,15 @@
 
 /* 10-byte legacy floating point register: */
 struct _fpreg {
-	unsigned short			significand[4];
-	unsigned short			exponent;
+	__u16				significand[4];
+	__u16				exponent;
 };
 
 /* 16-byte floating point register: */
 struct _fpxreg {
-	unsigned short			significand[4];
-	unsigned short			exponent;
-	unsigned short			padding[3];
+	__u16				significand[4];
+	__u16				exponent;
+	__u16				padding[3];
 };
 
 /* 16-byte XMM vector register: */
@@ -38,8 +38,8 @@ struct _fpstate_ia32 {
 	__u32				dataoff;
 	__u32				datasel;
 	struct _fpreg			_st[8];
-	unsigned short			status;
-	unsigned short			magic;		/* 0xffff: regular FPU data only */
+	__u16				status;
+	__u16				magic;		/* 0xffff: regular FPU data only */
 							/* 0x0000: FXSR data */
 
 	/* Extended FXSR FPU environment: */
@@ -58,28 +58,28 @@ struct _fpstate_ia32 {
 
 /* 32-bit compat sigcontext: */
 struct sigcontext_ia32 {
-       unsigned short			gs, __gsh;
-       unsigned short			fs, __fsh;
-       unsigned short			es, __esh;
-       unsigned short			ds, __dsh;
-       unsigned int			di;
-       unsigned int			si;
-       unsigned int			bp;
-       unsigned int			sp;
-       unsigned int			bx;
-       unsigned int			dx;
-       unsigned int			cx;
-       unsigned int			ax;
-       unsigned int			trapno;
-       unsigned int			err;
-       unsigned int			ip;
-       unsigned short			cs, __csh;
-       unsigned int			flags;
-       unsigned int			sp_at_signal;
-       unsigned short			ss, __ssh;
-       unsigned int			fpstate;	/* Pointer to 'struct _fpstate_ia32' */
-       unsigned int			oldmask;
-       unsigned int			cr2;
+       __u16				gs, __gsh;
+       __u16				fs, __fsh;
+       __u16				es, __esh;
+       __u16				ds, __dsh;
+       __u32				di;
+       __u32				si;
+       __u32				bp;
+       __u32				sp;
+       __u32				bx;
+       __u32				dx;
+       __u32				cx;
+       __u32				ax;
+       __u32				trapno;
+       __u32				err;
+       __u32				ip;
+       __u16				cs, __csh;
+       __u32				flags;
+       __u32				sp_at_signal;
+       __u16				ss, __ssh;
+       __u32				fpstate;	/* Pointer to 'struct _fpstate_ia32' */
+       __u32				oldmask;
+       __u32				cr2;
 };
 
 #endif /* _ASM_X86_SIGCONTEXT32_H */
