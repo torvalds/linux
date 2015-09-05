@@ -82,6 +82,7 @@ extern int amdgpu_vm_block_size;
 extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
+extern int amdgpu_enable_semaphores;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
