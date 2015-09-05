@@ -935,6 +935,13 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 		}
 		goto restart;
 	}
+
+	if (si_sm_result == SI_SM_IDLE && smi_info->timer_running) {
+		/* Ok it if fails, the timer will just go off. */
+		if (del_timer(&smi_info->si_timer))
+			smi_info->timer_running = false;
+	}
+
  out:
 	return si_sm_result;
 }
