@@ -1342,7 +1342,8 @@ static int __init fbtft_device_init(void)
 				p_name, p_num);
 			return -EINVAL;
 		}
-		strcpy(fbtft_device_param_gpios[i].name, p_name);
+		strncpy(fbtft_device_param_gpios[i].name, p_name,
+			FBTFT_GPIO_NAME_SIZE - 1);
 		fbtft_device_param_gpios[i++].gpio = (int) val;
 		if (i == MAX_GPIOS) {
 			pr_err(DRVNAME
