@@ -26,7 +26,7 @@
 #include <asm/ptrace.h>
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
-#include <asm/sigcontext.h>
+#include <uapi/asm/sigcontext.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
 #include <asm/sigframe.h>
