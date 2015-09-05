@@ -30,19 +30,17 @@
 
 #define pr_fmt(fmt) "vga_switcheroo: " fmt
 
-#include <linux/module.h>
-#include <linux/seq_file.h>
-#include <linux/uaccess.h>
-#include <linux/fs.h>
+#include <linux/console.h>
 #include <linux/debugfs.h>
 #include <linux/fb.h>
-
+#include <linux/fs.h>
+#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/console.h>
-#include <linux/vga_switcheroo.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/seq_file.h>
+#include <linux/uaccess.h>
 #include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 
 /**
  * DOC: Overview
