@@ -5,35 +5,6 @@
 
 #include <asm/sigcontext.h>
 
-/* FXSAVE frame: FSAVE frame with extensions */
-struct _fpstate_ia32 {
-	/* Regular FPU environment: */
-	__u32				cw;
-	__u32				sw;
-	__u32				tag;		/* Not compatible with the 64-bit frame */
-	__u32				ipoff;
-	__u32				cssel;
-	__u32				dataoff;
-	__u32				datasel;
-	struct _fpreg			_st[8];
-	__u16				status;
-	__u16				magic;		/* 0xffff: regular FPU data only */
-							/* 0x0000: FXSR data */
-
-	/* Extended FXSR FPU environment: */
-	__u32				_fxsr_env[6];
-	__u32				mxcsr;
-	__u32				reserved;
-	struct _fpxreg			_fxsr_st[8];
-	struct _xmmreg			_xmm[8];	/* The first  8 XMM registers */
-	__u32				padding[44];	/* The second 8 XMM registers plus padding */
-	union {
-		__u32			padding2[12];
-		/* Might encode xstate extensions, see asm/sigcontext.h: */
-		struct _fpx_sw_bytes	sw_reserved;
-	};
-};
-
 /* 32-bit compat sigcontext: */
 struct sigcontext_ia32 {
        __u16				gs, __gsh;

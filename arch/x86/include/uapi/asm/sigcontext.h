@@ -95,9 +95,10 @@ struct _xmmreg {
 
 #define X86_FXSR_MAGIC			0x0000
 
-#ifdef __i386__
-
-struct _fpstate {
+/*
+ * The 32-bit FPU frame:
+ */
+struct _fpstate_32 {
 	/* Legacy FPU environment: */
 	__u32				cw;
 	__u32				sw;
@@ -117,7 +118,10 @@ struct _fpstate {
 	__u32				reserved;
 	struct _fpxreg			_fxsr_st[8];	/* FXSR FPU reg data is ignored */
 	struct _xmmreg			_xmm[8];	/* First 8 XMM registers */
-	__u32				padding1[44];	/* Second 8 XMM registers plus padding */
+	union {
+		__u32			padding1[44];	/* Second 8 XMM registers plus padding */
+		__u32			padding[44];	/* Alias name for old user-space */
+	};
 
 	union {
 		__u32			padding2[12];
@@ -125,10 +129,8 @@ struct _fpstate {
 	};
 };
 
-#else /* __x86_64__: */
-
 /*
- * The FXSAVE frame.
+ * The 64-bit FPU frame. (FXSAVE format and later)
  *
  * Note1: If sw_reserved.magic1 == FP_XSTATE_MAGIC1 then the structure is
  *        larger: 'struct _xstate'. Note that 'struct _xstate' embedds
@@ -138,7 +140,7 @@ struct _fpstate {
  * Note2: Reserved fields may someday contain valuable data. Always save/restore
  *        them when you change signal frames.
  */
-struct _fpstate {
+struct _fpstate_64 {
 	__u16				cwd;
 	__u16				swd;
 	/* Note this is not the same as the 32-bit/x87/FSAVE twd: */
@@ -157,7 +159,13 @@ struct _fpstate {
 	};
 };
 
-#endif /* __x86_64__ */
+#ifdef __i386__
+# define _fpstate _fpstate_32
+#else
+# define _fpstate _fpstate_64
+#endif
+
+#define _fpstate_ia32 _fpstate_32
 
 struct _header {
 	__u64				xfeatures;
