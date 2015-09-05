@@ -406,8 +406,8 @@ struct nfs_openres {
 	const struct nfs_server *server;
 	fmode_t			delegation_type;
 	nfs4_stateid		delegation;
+	unsigned long		pagemod_limit;
 	__u32			do_recall;
-	__u64			maxsize;
 	__u32			attrset[NFS4_BITMAP_SIZE];
 	struct nfs4_string	*owner;
 	struct nfs4_string	*group_owner;

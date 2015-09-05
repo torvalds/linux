@@ -18,7 +18,7 @@ struct nfs_delegation {
 	struct inode *inode;
 	nfs4_stateid stateid;
 	fmode_t type;
-	loff_t maxsize;
+	unsigned long pagemod_limit;
 	__u64 change_attr;
 	unsigned long flags;
 	spinlock_t lock;

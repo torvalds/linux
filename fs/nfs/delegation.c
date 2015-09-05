@@ -175,7 +175,7 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 		if (delegation->inode != NULL) {
 			nfs4_stateid_copy(&delegation->stateid, &res->delegation);
 			delegation->type = res->delegation_type;
-			delegation->maxsize = res->maxsize;
+			delegation->pagemod_limit = res->pagemod_limit;
 			oldcred = delegation->cred;
 			delegation->cred = get_rpccred(cred);
 			clear_bit(NFS_DELEGATION_NEED_RECLAIM,
@@ -337,7 +337,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 		return -ENOMEM;
 	nfs4_stateid_copy(&delegation->stateid, &res->delegation);
 	delegation->type = res->delegation_type;
-	delegation->maxsize = res->maxsize;
+	delegation->pagemod_limit = res->pagemod_limit;
 	delegation->change_attr = inode->i_version;
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;

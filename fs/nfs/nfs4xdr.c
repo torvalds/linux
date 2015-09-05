@@ -4932,24 +4932,28 @@ static int decode_lookup(struct xdr_stream *xdr)
 }
 
 /* This is too sick! */
-static int decode_space_limit(struct xdr_stream *xdr, u64 *maxsize)
+static int decode_space_limit(struct xdr_stream *xdr,
+		unsigned long *pagemod_limit)
 {
 	__be32 *p;
 	uint32_t limit_type, nblocks, blocksize;
+	u64 maxsize = 0;
 
 	p = xdr_inline_decode(xdr, 12);
 	if (unlikely(!p))
 		goto out_overflow;
 	limit_type = be32_to_cpup(p++);
 	switch (limit_type) {
-	case 1:
-		xdr_decode_hyper(p, maxsize);
+	case NFS4_LIMIT_SIZE:
+		xdr_decode_hyper(p, &maxsize);
 		break;
-	case 2:
+	case NFS4_LIMIT_BLOCKS:
 		nblocks = be32_to_cpup(p++);
 		blocksize = be32_to_cpup(p);
-		*maxsize = (uint64_t)nblocks * (uint64_t)blocksize;
+		maxsize = (uint64_t)nblocks * (uint64_t)blocksize;
 	}
+	maxsize >>= PAGE_CACHE_SHIFT;
+	*pagemod_limit = min_t(u64, maxsize, ULONG_MAX);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -4977,7 +4981,7 @@ static int decode_rw_delegation(struct xdr_stream *xdr,
 		break;
 	case NFS4_OPEN_DELEGATE_WRITE:
 		res->delegation_type = FMODE_WRITE|FMODE_READ;
-		if (decode_space_limit(xdr, &res->maxsize) < 0)
+		if (decode_space_limit(xdr, &res->pagemod_limit) < 0)
 				return -EIO;
 	}
 	return decode_ace(xdr, NULL, res->server->nfs_client);
