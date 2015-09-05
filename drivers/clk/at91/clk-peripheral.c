@@ -134,7 +134,7 @@ at91_clk_register_peripheral(struct at91_pmc *pmc, const char *name,
 
 static void clk_sam9x5_peripheral_autodiv(struct clk_sam9x5_peripheral *periph)
 {
-	struct clk *parent;
+	struct clk_hw *parent;
 	unsigned long parent_rate;
 	int shift = 0;
 
@@ -142,8 +142,8 @@ static void clk_sam9x5_peripheral_autodiv(struct clk_sam9x5_peripheral *periph)
 		return;
 
 	if (periph->range.max) {
-		parent = clk_get_parent_by_index(periph->hw.clk, 0);
-		parent_rate = __clk_get_rate(parent);
+		parent = clk_hw_get_parent_by_index(&periph->hw, 0);
+		parent_rate = clk_hw_get_rate(parent);
 		if (!parent_rate)
 			return;
 

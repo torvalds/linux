@@ -2236,7 +2236,7 @@ static u64 guest_read_tsc(void)
 {
 	u64 host_tsc, tsc_offset;
 
-	rdtscll(host_tsc);
+	host_tsc = rdtsc();
 	tsc_offset = vmcs_read64(TSC_OFFSET);
 	return host_tsc + tsc_offset;
 }
@@ -2317,7 +2317,7 @@ static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 
 static u64 vmx_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 {
-	return target_tsc - native_read_tsc();
+	return target_tsc - rdtsc();
 }
 
 static bool guest_cpuid_has_vmx(struct kvm_vcpu *vcpu)
@@ -2443,10 +2443,10 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		CPU_BASED_CR8_LOAD_EXITING | CPU_BASED_CR8_STORE_EXITING |
 #endif
 		CPU_BASED_MOV_DR_EXITING | CPU_BASED_UNCOND_IO_EXITING |
-		CPU_BASED_USE_IO_BITMAPS | CPU_BASED_MONITOR_EXITING |
-		CPU_BASED_RDPMC_EXITING | CPU_BASED_RDTSC_EXITING |
-		CPU_BASED_PAUSE_EXITING | CPU_BASED_TPR_SHADOW |
-		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
+		CPU_BASED_USE_IO_BITMAPS | CPU_BASED_MONITOR_TRAP_FLAG |
+		CPU_BASED_MONITOR_EXITING | CPU_BASED_RDPMC_EXITING |
+		CPU_BASED_RDTSC_EXITING | CPU_BASED_PAUSE_EXITING |
+		CPU_BASED_TPR_SHADOW | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	/*
 	 * We can allow some features even when not supported by the
 	 * hardware. For example, L1 can specify an MSR bitmap - and we
@@ -3423,12 +3423,12 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 	vmx_segment_cache_clear(to_vmx(vcpu));
 
 	guest_tr_ar = vmcs_read32(GUEST_TR_AR_BYTES);
-	if ((guest_tr_ar & AR_TYPE_MASK) != AR_TYPE_BUSY_64_TSS) {
+	if ((guest_tr_ar & VMX_AR_TYPE_MASK) != VMX_AR_TYPE_BUSY_64_TSS) {
 		pr_debug_ratelimited("%s: tss fixup for long mode. \n",
 				     __func__);
 		vmcs_write32(GUEST_TR_AR_BYTES,
-			     (guest_tr_ar & ~AR_TYPE_MASK)
-			     | AR_TYPE_BUSY_64_TSS);
+			     (guest_tr_ar & ~VMX_AR_TYPE_MASK)
+			     | VMX_AR_TYPE_BUSY_64_TSS);
 	}
 	vmx_set_efer(vcpu, vcpu->arch.efer | EFER_LMA);
 }
@@ -3719,7 +3719,7 @@ static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 		return 0;
 	else {
 		int ar = vmx_read_guest_seg_ar(vmx, VCPU_SREG_SS);
-		return AR_DPL(ar);
+		return VMX_AR_DPL(ar);
 	}
 }
 
@@ -3847,11 +3847,11 @@ static bool code_segment_valid(struct kvm_vcpu *vcpu)
 
 	if (cs.unusable)
 		return false;
-	if (~cs.type & (AR_TYPE_CODE_MASK|AR_TYPE_ACCESSES_MASK))
+	if (~cs.type & (VMX_AR_TYPE_CODE_MASK|VMX_AR_TYPE_ACCESSES_MASK))
 		return false;
 	if (!cs.s)
 		return false;
-	if (cs.type & AR_TYPE_WRITEABLE_MASK) {
+	if (cs.type & VMX_AR_TYPE_WRITEABLE_MASK) {
 		if (cs.dpl > cs_rpl)
 			return false;
 	} else {
@@ -3901,7 +3901,7 @@ static bool data_segment_valid(struct kvm_vcpu *vcpu, int seg)
 		return false;
 	if (!var.present)
 		return false;
-	if (~var.type & (AR_TYPE_CODE_MASK|AR_TYPE_WRITEABLE_MASK)) {
+	if (~var.type & (VMX_AR_TYPE_CODE_MASK|VMX_AR_TYPE_WRITEABLE_MASK)) {
 		if (var.dpl < rpl) /* DPL < RPL */
 			return false;
 	}
@@ -5759,73 +5759,9 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
 }
 
-static u64 ept_rsvd_mask(u64 spte, int level)
-{
-	int i;
-	u64 mask = 0;
-
-	for (i = 51; i > boot_cpu_data.x86_phys_bits; i--)
-		mask |= (1ULL << i);
-
-	if (level == 4)
-		/* bits 7:3 reserved */
-		mask |= 0xf8;
-	else if (spte & (1ULL << 7))
-		/*
-		 * 1GB/2MB page, bits 29:12 or 20:12 reserved respectively,
-		 * level == 1 if the hypervisor is using the ignored bit 7.
-		 */
-		mask |= (PAGE_SIZE << ((level - 1) * 9)) - PAGE_SIZE;
-	else if (level > 1)
-		/* bits 6:3 reserved */
-		mask |= 0x78;
-
-	return mask;
-}
-
-static void ept_misconfig_inspect_spte(struct kvm_vcpu *vcpu, u64 spte,
-				       int level)
-{
-	printk(KERN_ERR "%s: spte 0x%llx level %d\n", __func__, spte, level);
-
-	/* 010b (write-only) */
-	WARN_ON((spte & 0x7) == 0x2);
-
-	/* 110b (write/execute) */
-	WARN_ON((spte & 0x7) == 0x6);
-
-	/* 100b (execute-only) and value not supported by logical processor */
-	if (!cpu_has_vmx_ept_execute_only())
-		WARN_ON((spte & 0x7) == 0x4);
-
-	/* not 000b */
-	if ((spte & 0x7)) {
-		u64 rsvd_bits = spte & ept_rsvd_mask(spte, level);
-
-		if (rsvd_bits != 0) {
-			printk(KERN_ERR "%s: rsvd_bits = 0x%llx\n",
-					 __func__, rsvd_bits);
-			WARN_ON(1);
-		}
-
-		/* bits 5:3 are _not_ reserved for large page or leaf page */
-		if ((rsvd_bits & 0x38) == 0) {
-			u64 ept_mem_type = (spte & 0x38) >> 3;
-
-			if (ept_mem_type == 2 || ept_mem_type == 3 ||
-			    ept_mem_type == 7) {
-				printk(KERN_ERR "%s: ept_mem_type=0x%llx\n",
-						__func__, ept_mem_type);
-				WARN_ON(1);
-			}
-		}
-	}
-}
-
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
-	u64 sptes[4];
-	int nr_sptes, i, ret;
+	int ret;
 	gpa_t gpa;
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
@@ -5846,13 +5782,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/* It is the real ept misconfig */
-	printk(KERN_ERR "EPT: Misconfiguration.\n");
-	printk(KERN_ERR "EPT: GPA: 0x%llx\n", gpa);
-
-	nr_sptes = kvm_mmu_get_spte_hierarchy(vcpu, gpa, sptes);
-
-	for (i = PT64_ROOT_LEVEL; i > PT64_ROOT_LEVEL - nr_sptes; --i)
-		ept_misconfig_inspect_spte(vcpu, sptes[i-1], i);
+	WARN_ON(1);
 
 	vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
 	vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_MISCONFIG;
@@ -6246,6 +6176,11 @@ static int handle_mwait(struct kvm_vcpu *vcpu)
 	return handle_nop(vcpu);
 }
 
+static int handle_monitor_trap(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 static int handle_monitor(struct kvm_vcpu *vcpu)
 {
 	printk_once(KERN_WARNING "kvm: MONITOR instruction emulated as NOP!\n");
@@ -6408,8 +6343,12 @@ static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
  */
 static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 				 unsigned long exit_qualification,
-				 u32 vmx_instruction_info, gva_t *ret)
+				 u32 vmx_instruction_info, bool wr, gva_t *ret)
 {
+	gva_t off;
+	bool exn;
+	struct kvm_segment s;
+
 	/*
 	 * According to Vol. 3B, "Information for VM Exits Due to Instruction
 	 * Execution", on an exit, vmx_instruction_info holds most of the
@@ -6434,22 +6373,63 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 
 	/* Addr = segment_base + offset */
 	/* offset = base + [index * scale] + displacement */
-	*ret = vmx_get_segment_base(vcpu, seg_reg);
+	off = exit_qualification; /* holds the displacement */
 	if (base_is_valid)
-		*ret += kvm_register_read(vcpu, base_reg);
+		off += kvm_register_read(vcpu, base_reg);
 	if (index_is_valid)
-		*ret += kvm_register_read(vcpu, index_reg)<<scaling;
-	*ret += exit_qualification; /* holds the displacement */
+		off += kvm_register_read(vcpu, index_reg)<<scaling;
+	vmx_get_segment(vcpu, &s, seg_reg);
+	*ret = s.base + off;
 
 	if (addr_size == 1) /* 32 bit */
 		*ret &= 0xffffffff;
 
-	/*
-	 * TODO: throw #GP (and return 1) in various cases that the VM*
-	 * instructions require it - e.g., offset beyond segment limit,
-	 * unusable or unreadable/unwritable segment, non-canonical 64-bit
-	 * address, and so on. Currently these are not checked.
-	 */
+	/* Checks for #GP/#SS exceptions. */
+	exn = false;
+	if (is_protmode(vcpu)) {
+		/* Protected mode: apply checks for segment validity in the
+		 * following order:
+		 * - segment type check (#GP(0) may be thrown)
+		 * - usability check (#GP(0)/#SS(0))
+		 * - limit check (#GP(0)/#SS(0))
+		 */
+		if (wr)
+			/* #GP(0) if the destination operand is located in a
+			 * read-only data segment or any code segment.
+			 */
+			exn = ((s.type & 0xa) == 0 || (s.type & 8));
+		else
+			/* #GP(0) if the source operand is located in an
+			 * execute-only code segment
+			 */
+			exn = ((s.type & 0xa) == 8);
+	}
+	if (exn) {
+		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+		return 1;
+	}
+	if (is_long_mode(vcpu)) {
+		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
+		 * non-canonical form. This is an only check for long mode.
+		 */
+		exn = is_noncanonical_address(*ret);
+	} else if (is_protmode(vcpu)) {
+		/* Protected mode: #GP(0)/#SS(0) if the segment is unusable.
+		 */
+		exn = (s.unusable != 0);
+		/* Protected mode: #GP(0)/#SS(0) if the memory
+		 * operand is outside the segment limit.
+		 */
+		exn = exn || (off + sizeof(u64) > s.limit);
+	}
+	if (exn) {
+		kvm_queue_exception_e(vcpu,
+				      seg_reg == VCPU_SREG_SS ?
+						SS_VECTOR : GP_VECTOR,
+				      0);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -6471,7 +6451,7 @@ static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason,
 	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 
 	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
-			vmcs_read32(VMX_INSTRUCTION_INFO), &gva))
+			vmcs_read32(VMX_INSTRUCTION_INFO), false, &gva))
 		return 1;
 
 	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vmptr,
@@ -6999,7 +6979,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 			field_value);
 	} else {
 		if (get_vmx_mem_address(vcpu, exit_qualification,
-				vmx_instruction_info, &gva))
+				vmx_instruction_info, true, &gva))
 			return 1;
 		/* _system ok, as nested_vmx_check_permission verified cpl=0 */
 		kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, gva,
@@ -7036,7 +7016,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 			(((vmx_instruction_info) >> 3) & 0xf));
 	else {
 		if (get_vmx_mem_address(vcpu, exit_qualification,
-				vmx_instruction_info, &gva))
+				vmx_instruction_info, false, &gva))
 			return 1;
 		if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva,
 			   &field_value, (is_64_bit_mode(vcpu) ? 8 : 4), &e)) {
@@ -7128,7 +7108,7 @@ static int handle_vmptrst(struct kvm_vcpu *vcpu)
 		return 1;
 
 	if (get_vmx_mem_address(vcpu, exit_qualification,
-			vmx_instruction_info, &vmcs_gva))
+			vmx_instruction_info, true, &vmcs_gva))
 		return 1;
 	/* ok to use *_system, as nested_vmx_check_permission verified cpl=0 */
 	if (kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, vmcs_gva,
@@ -7184,7 +7164,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	 * operand is read even if it isn't needed (e.g., for type==global)
 	 */
 	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
-			vmx_instruction_info, &gva))
+			vmx_instruction_info, false, &gva))
 		return 1;
 	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &operand,
 				sizeof(operand), &e)) {
@@ -7282,6 +7262,7 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
 	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
 	[EXIT_REASON_MWAIT_INSTRUCTION]	      = handle_mwait,
+	[EXIT_REASON_MONITOR_TRAP_FLAG]       = handle_monitor_trap,
 	[EXIT_REASON_MONITOR_INSTRUCTION]     = handle_monitor,
 	[EXIT_REASON_INVEPT]                  = handle_invept,
 	[EXIT_REASON_INVVPID]                 = handle_invvpid,
@@ -7542,6 +7523,8 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		return true;
 	case EXIT_REASON_MWAIT_INSTRUCTION:
 		return nested_cpu_has(vmcs12, CPU_BASED_MWAIT_EXITING);
+	case EXIT_REASON_MONITOR_TRAP_FLAG:
+		return nested_cpu_has(vmcs12, CPU_BASED_MONITOR_TRAP_FLAG);
 	case EXIT_REASON_MONITOR_INSTRUCTION:
 		return nested_cpu_has(vmcs12, CPU_BASED_MONITOR_EXITING);
 	case EXIT_REASON_PAUSE_INSTRUCTION:

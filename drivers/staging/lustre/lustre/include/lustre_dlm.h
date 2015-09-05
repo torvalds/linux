@@ -1017,7 +1017,7 @@ extern struct obd_ops ldlm_obd_ops;
 
 extern char *ldlm_lockname[];
 extern char *ldlm_typename[];
-extern char *ldlm_it2str(int it);
+char *ldlm_it2str(int it);
 
 /**
  * Just a fancy CDEBUG call with log level preset to LDLM_DEBUG.

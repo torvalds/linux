@@ -227,18 +227,16 @@ static struct pci_ops xilinx_pcie_ops = {
  */
 static void xilinx_pcie_destroy_msi(unsigned int irq)
 {
-	struct irq_desc *desc;
 	struct msi_desc *msi;
 	struct xilinx_pcie_port *port;
 
-	desc = irq_to_desc(irq);
-	msi = irq_desc_get_msi_desc(desc);
-	port = sys_to_pcie(msi->dev->bus->sysdata);
-
-	if (!test_bit(irq, msi_irq_in_use))
+	if (!test_bit(irq, msi_irq_in_use)) {
+		msi = irq_get_msi_desc(irq);
+		port = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
 		dev_err(port->dev, "Trying to free unused MSI#%d\n", irq);
-	else
+	} else {
 		clear_bit(irq, msi_irq_in_use);
+	}
 }
 
 /**
@@ -338,7 +336,6 @@ static int xilinx_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &xilinx_msi_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
@@ -377,7 +374,6 @@ static int xilinx_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
@@ -449,14 +445,17 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 			return IRQ_HANDLED;
 		}
 
-		/* Clear interrupt FIFO register 1 */
-		pcie_write(port, XILINX_PCIE_RPIFR1_ALL_MASK,
-			   XILINX_PCIE_REG_RPIFR1);
+		if (!(val & XILINX_PCIE_RPIFR1_MSI_INTR)) {
+			/* Clear interrupt FIFO register 1 */
+			pcie_write(port, XILINX_PCIE_RPIFR1_ALL_MASK,
+				   XILINX_PCIE_REG_RPIFR1);
 
-		/* Handle INTx Interrupt */
-		val = ((val & XILINX_PCIE_RPIFR1_INTR_MASK) >>
-			XILINX_PCIE_RPIFR1_INTR_SHIFT) + 1;
-		generic_handle_irq(irq_find_mapping(port->irq_domain, val));
+			/* Handle INTx Interrupt */
+			val = ((val & XILINX_PCIE_RPIFR1_INTR_MASK) >>
+				XILINX_PCIE_RPIFR1_INTR_SHIFT) + 1;
+			generic_handle_irq(irq_find_mapping(port->irq_domain,
+							    val));
+		}
 	}
 
 	if (status & XILINX_PCIE_INTR_MSI) {
@@ -647,9 +646,15 @@ static struct pci_bus *xilinx_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	struct pci_bus *bus;
 
 	port->root_busno = sys->busnr;
-	bus = pci_scan_root_bus(port->dev, sys->busnr, &xilinx_pcie_ops,
-				sys, &sys->resources);
 
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		bus = pci_scan_root_bus_msi(port->dev, sys->busnr,
+					    &xilinx_pcie_ops, sys,
+					    &sys->resources,
+					    &xilinx_pcie_msi_chip);
+	else
+		bus = pci_scan_root_bus(port->dev, sys->busnr,
+					&xilinx_pcie_ops, sys, &sys->resources);
 	return bus;
 }
 
@@ -847,7 +852,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_PCI_MSI
 	xilinx_pcie_msi_chip.dev = port->dev;
-	hw.msi_ctrl = &xilinx_pcie_msi_chip;
 #endif
 	pci_common_init_dev(dev, &hw);
 

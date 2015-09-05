@@ -124,7 +124,6 @@ static struct i2c_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
 		.pm = ADT7316_PM_OPS,
-		.owner  = THIS_MODULE,
 	},
 	.probe = adt7316_i2c_probe,
 	.id_table = adt7316_i2c_id,

@@ -8,8 +8,7 @@
 #define pr_fmt(fmt) "Nomadik SRC clocks: " fmt
 
 #include <linux/bitops.h>
-#include <linux/clk.h>
-#include <linux/clkdev.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/clk-provider.h>

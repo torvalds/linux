@@ -844,14 +844,15 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 	struct wb_iter iter;
 
 	might_sleep();
-
-	if (!bdi_has_dirty_io(bdi))
-		return;
 restart:
 	rcu_read_lock();
 	bdi_for_each_wb(wb, bdi, &iter, next_blkcg_id) {
-		if (!wb_has_dirty_io(wb) ||
-		    (skip_if_busy && writeback_in_progress(wb)))
+		/* SYNC_ALL writes out I_DIRTY_TIME too */
+		if (!wb_has_dirty_io(wb) &&
+		    (base_work->sync_mode == WB_SYNC_NONE ||
+		     list_empty(&wb->b_dirty_time)))
+			continue;
+		if (skip_if_busy && writeback_in_progress(wb))
 			continue;
 
 		base_work->nr_pages = wb_split_bdi_pages(wb, nr_pages);
@@ -899,8 +900,7 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 {
 	might_sleep();
 
-	if (bdi_has_dirty_io(bdi) &&
-	    (!skip_if_busy || !writeback_in_progress(&bdi->wb))) {
+	if (!skip_if_busy || !writeback_in_progress(&bdi->wb)) {
 		base_work->auto_free = 0;
 		base_work->single_wait = 0;
 		base_work->single_done = 0;
@@ -2275,8 +2275,12 @@ void sync_inodes_sb(struct super_block *sb)
 	};
 	struct backing_dev_info *bdi = sb->s_bdi;
 
-	/* Nothing to do? */
-	if (!bdi_has_dirty_io(bdi) || bdi == &noop_backing_dev_info)
+	/*
+	 * Can't skip on !bdi_has_dirty() because we should wait for !dirty
+	 * inodes under writeback and I_DIRTY_TIME inodes ignored by
+	 * bdi_has_dirty() need to be written out too.
+	 */
+	if (bdi == &noop_backing_dev_info)
 		return;
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 

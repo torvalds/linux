@@ -23,11 +23,12 @@
 
 #include "clock.h"
 #include "clock3xxx.h"
-#include "clock34xx.h"
 #include "sdrc.h"
 #include "sram.h"
 
 #define CYCLES_PER_MHZ			1000000
+
+struct clk *sdrc_ick_p, *arm_fck_p;
 
 /*
  * CORE DPLL (DPLL3) M2 divider rate programming functions
@@ -60,12 +61,14 @@ int omap3_core_dpll_m2_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!clk || !rate)
 		return -EINVAL;
 
-	validrate = omap2_clksel_round_rate_div(clk, rate, &new_div);
+	new_div = DIV_ROUND_UP(parent_rate, rate);
+	validrate = parent_rate / new_div;
+
 	if (validrate != rate)
 		return -EINVAL;
 
-	sdrcrate = __clk_get_rate(sdrc_ick_p);
-	clkrate = __clk_get_rate(hw->clk);
+	sdrcrate = clk_get_rate(sdrc_ick_p);
+	clkrate = clk_hw_get_rate(hw);
 	if (rate > clkrate)
 		sdrcrate <<= ((rate / clkrate) >> 1);
 	else
@@ -83,7 +86,7 @@ int omap3_core_dpll_m2_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * XXX This only needs to be done when the CPU frequency changes
 	 */
-	_mpurate = __clk_get_rate(arm_fck_p) / CYCLES_PER_MHZ;
+	_mpurate = clk_get_rate(arm_fck_p) / CYCLES_PER_MHZ;
 	c = (_mpurate << SDRC_MPURATE_SCALE) >> SDRC_MPURATE_BASE_SHIFT;
 	c += 1;  /* for safety */
 	c *= SDRC_MPURATE_LOOPS;

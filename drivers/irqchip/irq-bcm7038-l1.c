@@ -29,9 +29,8 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/types.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
-
-#include "irqchip.h"
 
 #define IRQS_PER_WORD		32
 #define REG_BYTES_PER_IRQ_WORD	(sizeof(u32) * 4)
@@ -257,8 +256,8 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 		pr_err("failed to map parent interrupt %d\n", parent_irq);
 		return -EINVAL;
 	}
-	irq_set_handler_data(parent_irq, intc);
-	irq_set_chained_handler(parent_irq, bcm7038_l1_irq_handle);
+	irq_set_chained_handler_and_data(parent_irq, bcm7038_l1_irq_handle,
+					 intc);
 
 	return 0;
 }

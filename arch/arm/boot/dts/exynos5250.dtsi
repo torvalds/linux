@@ -19,7 +19,6 @@
 
 #include <dt-bindings/clock/exynos5250.h>
 #include "exynos5.dtsi"
-#include "exynos5250-pinctrl.dtsi"
 #include "exynos4-cpu-thermal.dtsi"
 #include <dt-bindings/clock/exynos-audss-clk.h>
 
@@ -1062,3 +1061,5 @@
 	clocks = <&clock CLK_UART3>, <&clock CLK_SCLK_UART3>;
 	clock-names = "uart", "clk_uart_baud0";
 };
+
+#include "exynos5250-pinctrl.dtsi"

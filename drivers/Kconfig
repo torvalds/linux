@@ -184,4 +184,6 @@ source "drivers/android/Kconfig"
 
 source "drivers/nvdimm/Kconfig"
 
+source "drivers/nvmem/Kconfig"
+
 endmenu

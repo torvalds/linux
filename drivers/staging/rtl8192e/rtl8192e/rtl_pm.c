@@ -23,7 +23,7 @@
 #include "rtl_pm.h"
 
 
-int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
+int rtl92e_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -45,16 +45,16 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(dev);
 
 	if (!priv->rtllib->bSupportRemoteWakeUp) {
-		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_INIT, true);
-		ulRegRead = read_nic_dword(dev, CPU_GEN);
+		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_INIT);
+		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
-		write_nic_dword(dev, CPU_GEN, ulRegRead);
+		rtl92e_writel(dev, CPU_GEN, ulRegRead);
 	} else {
-		write_nic_dword(dev, WFCRC0, 0xffffffff);
-		write_nic_dword(dev, WFCRC1, 0xffffffff);
-		write_nic_dword(dev, WFCRC2, 0xffffffff);
-		write_nic_byte(dev, PMR, 0x5);
-		write_nic_byte(dev, MacBlkCtrl, 0xa);
+		rtl92e_writel(dev, WFCRC0, 0xffffffff);
+		rtl92e_writel(dev, WFCRC1, 0xffffffff);
+		rtl92e_writel(dev, WFCRC2, 0xffffffff);
+		rtl92e_writeb(dev, PMR, 0x5);
+		rtl92e_writeb(dev, MacBlkCtrl, 0xa);
 	}
 out_pci_suspend:
 	netdev_info(dev, "WOL is %s\n", priv->rtllib->bSupportRemoteWakeUp ?
@@ -70,7 +70,7 @@ out_pci_suspend:
 	return 0;
 }
 
-int rtl8192E_resume(struct pci_dev *pdev)
+int rtl92e_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -95,7 +95,7 @@ int rtl8192E_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D0, 0);
 
 	if (priv->polling_timer_on == 0)
-		check_rfctrl_gpio_timer((unsigned long)dev);
+		rtl92e_check_rfctrl_gpio_timer((unsigned long)dev);
 
 	if (!netif_running(dev)) {
 		netdev_info(dev,
@@ -108,7 +108,7 @@ int rtl8192E_resume(struct pci_dev *pdev)
 		dev->netdev_ops->ndo_open(dev);
 
 	if (!priv->rtllib->bSupportRemoteWakeUp)
-		MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_INIT, true);
+		rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_INIT);
 
 out:
 	RT_TRACE(COMP_POWER, "<================r8192E resume call.\n");

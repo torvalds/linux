@@ -1,7 +1,9 @@
 * Renesas R8A7778 Clock Pulse Generator (CPG)
 
 The CPG generates core clocks for the R8A7778. It includes two PLLs and
-several fixed ratio dividers
+several fixed ratio dividers.
+The CPG also provides a Clock Domain for SoC devices, in combination with the
+CPG Module Stop (MSTP) Clocks.
 
 Required Properties:
 
@@ -10,10 +12,18 @@ Required Properties:
   - #clock-cells: Must be 1
   - clock-output-names: The names of the clocks. Supported clocks are
     "plla", "pllb", "b", "out", "p", "s", and "s1".
+  - #power-domain-cells: Must be 0
+
+SoC devices that are part of the CPG/MSTP Clock Domain and can be power-managed
+through an MSTP clock should refer to the CPG device node in their
+"power-domains" property, as documented by the generic PM domain bindings in
+Documentation/devicetree/bindings/power/power_domain.txt.
 
 
-Example
--------
+Examples
+--------
+
+  - CPG device node:
 
 	cpg_clocks: cpg_clocks@ffc80000 {
 		compatible = "renesas,r8a7778-cpg-clocks";
@@ -22,4 +32,17 @@ Example
 		clocks = <&extal_clk>;
 		clock-output-names = "plla", "pllb", "b",
 				     "out", "p", "s", "s1";
+		#power-domain-cells = <0>;
+	};
+
+
+  - CPG/MSTP Clock Domain member device node:
+
+	sdhi0: sd@ffe4c000 {
+		compatible = "renesas,sdhi-r8a7778";
+		reg = <0xffe4c000 0x100>;
+		interrupts = <0 87 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7778_CLK_SDHI0>;
+		power-domains = <&cpg_clocks>;
+		status = "disabled";
 	};

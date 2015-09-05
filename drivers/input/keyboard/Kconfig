@@ -401,6 +401,17 @@ config KEYBOARD_MPR121
 	  To compile this driver as a module, choose M here: the
 	  module will be called mpr121_touchkey.
 
+config KEYBOARD_SNVS_PWRKEY
+	tristate "IMX SNVS Power Key Driver"
+	depends on SOC_IMX6SX
+	depends on OF
+	help
+	  This is the snvs powerkey driver for the Freescale i.MX application
+	  processors that are newer than i.MX6 SX.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called snvs_pwrkey.
+
 config KEYBOARD_IMX
 	tristate "IMX keypad support"
 	depends on ARCH_MXC

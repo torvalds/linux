@@ -290,6 +290,15 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 		return ERR_PTR(-EINVAL);
 	}
 
+	/* propagate the fixed link values to struct phy_device */
+	phy->link = status->link;
+	if (status->link) {
+		phy->speed = status->speed;
+		phy->duplex = status->duplex;
+		phy->pause = status->pause;
+		phy->asym_pause = status->asym_pause;
+	}
+
 	of_node_get(np);
 	phy->dev.of_node = np;
 

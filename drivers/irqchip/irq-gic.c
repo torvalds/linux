@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/irqchip/arm-gic-acpi.h>
@@ -48,7 +49,6 @@
 #include <asm/smp_plat.h>
 
 #include "irq-gic-common.h"
-#include "irqchip.h"
 
 union gic_base {
 	void __iomem *common_base;
@@ -288,8 +288,8 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 
 static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct gic_chip_data *chip_data = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct gic_chip_data *chip_data = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq, gic_irq;
 	unsigned long status;
 
@@ -324,16 +324,17 @@ static struct irq_chip gic_chip = {
 #endif
 	.irq_get_irqchip_state	= gic_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gic_irq_set_irqchip_state,
-	.flags			= IRQCHIP_SET_TYPE_MASKED,
+	.flags			= IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE |
+				  IRQCHIP_MASK_ON_SUSPEND,
 };
 
 void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 {
 	if (gic_nr >= MAX_GIC_NR)
 		BUG();
-	if (irq_set_handler_data(irq, &gic_data[gic_nr]) != 0)
-		BUG();
-	irq_set_chained_handler(irq, gic_handle_cascade_irq);
+	irq_set_chained_handler_and_data(irq, gic_handle_cascade_irq,
+					 &gic_data[gic_nr]);
 }
 
 static u8 gic_get_cpumask(struct gic_chip_data *gic)
@@ -355,9 +356,9 @@ static u8 gic_get_cpumask(struct gic_chip_data *gic)
 	return mask;
 }
 
-static void gic_cpu_if_up(void)
+static void gic_cpu_if_up(struct gic_chip_data *gic)
 {
-	void __iomem *cpu_base = gic_data_cpu_base(&gic_data[0]);
+	void __iomem *cpu_base = gic_data_cpu_base(gic);
 	u32 bypass = 0;
 
 	/*
@@ -401,34 +402,47 @@ static void gic_cpu_init(struct gic_chip_data *gic)
 	int i;
 
 	/*
-	 * Get what the GIC says our CPU mask is.
+	 * Setting up the CPU map is only relevant for the primary GIC
+	 * because any nested/secondary GICs do not directly interface
+	 * with the CPU(s).
 	 */
-	BUG_ON(cpu >= NR_GIC_CPU_IF);
-	cpu_mask = gic_get_cpumask(gic);
-	gic_cpu_map[cpu] = cpu_mask;
+	if (gic == &gic_data[0]) {
+		/*
+		 * Get what the GIC says our CPU mask is.
+		 */
+		BUG_ON(cpu >= NR_GIC_CPU_IF);
+		cpu_mask = gic_get_cpumask(gic);
+		gic_cpu_map[cpu] = cpu_mask;
 
-	/*
-	 * Clear our mask from the other map entries in case they're
-	 * still undefined.
-	 */
-	for (i = 0; i < NR_GIC_CPU_IF; i++)
-		if (i != cpu)
-			gic_cpu_map[i] &= ~cpu_mask;
+		/*
+		 * Clear our mask from the other map entries in case they're
+		 * still undefined.
+		 */
+		for (i = 0; i < NR_GIC_CPU_IF; i++)
+			if (i != cpu)
+				gic_cpu_map[i] &= ~cpu_mask;
+	}
 
 	gic_cpu_config(dist_base, NULL);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, base + GIC_CPU_PRIMASK);
-	gic_cpu_if_up();
+	gic_cpu_if_up(gic);
 }
 
-void gic_cpu_if_down(void)
+int gic_cpu_if_down(unsigned int gic_nr)
 {
-	void __iomem *cpu_base = gic_data_cpu_base(&gic_data[0]);
+	void __iomem *cpu_base;
 	u32 val = 0;
 
+	if (gic_nr >= MAX_GIC_NR)
+		return -EINVAL;
+
+	cpu_base = gic_data_cpu_base(&gic_data[gic_nr]);
 	val = readl(cpu_base + GIC_CPU_CTRL);
 	val &= ~GICC_ENABLE;
 	writel_relaxed(val, cpu_base + GIC_CPU_CTRL);
+
+	return 0;
 }
 
 #ifdef CONFIG_CPU_PM
@@ -564,7 +578,7 @@ static void gic_cpu_restore(unsigned int gic_nr)
 					dist_base + GIC_DIST_PRI + i * 4);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, cpu_base + GIC_CPU_PRIMASK);
-	gic_cpu_if_up();
+	gic_cpu_if_up(&gic_data[gic_nr]);
 }
 
 static int gic_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
@@ -880,11 +894,6 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.xlate = gic_irq_domain_xlate,
 };
 
-void gic_set_irqchip_flags(unsigned long flags)
-{
-	gic_chip.flags |= flags;
-}
-
 void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 			   void __iomem *dist_base, void __iomem *cpu_base,
 			   u32 percpu_offset, struct device_node *node)
@@ -928,13 +937,6 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 		gic->cpu_base.common_base = cpu_base;
 		gic_set_base_accessor(gic, gic_get_common_base);
 	}
-
-	/*
-	 * Initialize the CPU interface map to all CPUs.
-	 * It will be refined as each CPU probes its ID.
-	 */
-	for (i = 0; i < NR_GIC_CPU_IF; i++)
-		gic_cpu_map[i] = 0xff;
 
 	/*
 	 * Find out how many interrupts are supported.
@@ -981,6 +983,13 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 		return;
 
 	if (gic_nr == 0) {
+		/*
+		 * Initialize the CPU interface map to all CPUs.
+		 * It will be refined as each CPU probes its ID.
+		 * This is only necessary for the primary GIC.
+		 */
+		for (i = 0; i < NR_GIC_CPU_IF; i++)
+			gic_cpu_map[i] = 0xff;
 #ifdef CONFIG_SMP
 		set_smp_cross_call(gic_raise_softirq);
 		register_cpu_notifier(&gic_cpu_notifier);

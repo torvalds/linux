@@ -248,7 +248,7 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 
 	data = cyc2ns_write_begin(cpu);
 
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 	ns_now = cycles_2_ns(tsc_now);
 
 	/*
@@ -290,10 +290,18 @@ u64 native_sched_clock(void)
 	}
 
 	/* read the Time Stamp Counter: */
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 
 	/* return the value in ns */
 	return cycles_2_ns(tsc_now);
+}
+
+/*
+ * Generate a sched_clock if you already have a TSC value.
+ */
+u64 native_sched_clock_from_tsc(u64 tsc)
+{
+	return cycles_2_ns(tsc);
 }
 
 /* We need to define a real function for sched_clock, to override the
@@ -307,12 +315,6 @@ unsigned long long sched_clock(void)
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
 #endif
-
-unsigned long long native_read_tsc(void)
-{
-	return __native_read_tsc();
-}
-EXPORT_SYMBOL(native_read_tsc);
 
 int check_tsc_unstable(void)
 {
@@ -976,7 +978,7 @@ static struct clocksource clocksource_tsc;
  */
 static cycle_t read_tsc(struct clocksource *cs)
 {
-	return (cycle_t)get_cycles();
+	return (cycle_t)rdtsc_ordered();
 }
 
 /*

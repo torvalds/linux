@@ -11,8 +11,6 @@
  * Common Clock Framework support for all S5PC110/S5PV210 SoCs.
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -827,6 +825,8 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 						ARRAY_SIZE(s5pv210_aliases));
 
 	s5pv210_clk_sleep_init();
+
+	samsung_clk_of_add_provider(np, ctx);
 
 	pr_info("%s clocks: mout_apll = %ld, mout_mpll = %ld\n"
 		"\tmout_epll = %ld, mout_vpll = %ld\n",

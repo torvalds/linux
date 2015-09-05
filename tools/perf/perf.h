@@ -51,11 +51,14 @@ struct record_opts {
 	bool	     sample_address;
 	bool	     sample_weight;
 	bool	     sample_time;
+	bool	     sample_time_set;
+	bool	     callgraph_set;
 	bool	     period;
 	bool	     sample_intr_regs;
 	bool	     running_time;
 	bool	     full_auxtrace;
 	bool	     auxtrace_snapshot_mode;
+	bool	     record_switch_events;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int auxtrace_mmap_pages;

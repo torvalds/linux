@@ -106,60 +106,63 @@ orion_clkevt_next_event(unsigned long delta, struct clock_event_device *dev)
 	return 0;
 }
 
-static void
-orion_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
+static int orion_clkevt_shutdown(struct clock_event_device *evt)
 {
 	unsigned long flags;
 	u32 u;
 
 	local_irq_save(flags);
-	if (mode == CLOCK_EVT_MODE_PERIODIC) {
-		/*
-		 * Setup timer to fire at 1/HZ intervals.
-		 */
-		writel(ticks_per_jiffy - 1, timer_base + TIMER1_RELOAD_OFF);
-		writel(ticks_per_jiffy - 1, timer_base + TIMER1_VAL_OFF);
 
-		/*
-		 * Enable timer interrupt.
-		 */
-		u = readl(bridge_base + BRIDGE_MASK_OFF);
-		writel(u | BRIDGE_INT_TIMER1, bridge_base + BRIDGE_MASK_OFF);
+	/* Disable timer */
+	u = readl(timer_base + TIMER_CTRL_OFF);
+	writel(u & ~TIMER1_EN, timer_base + TIMER_CTRL_OFF);
 
-		/*
-		 * Enable timer.
-		 */
-		u = readl(timer_base + TIMER_CTRL_OFF);
-		writel(u | TIMER1_EN | TIMER1_RELOAD_EN,
-		       timer_base + TIMER_CTRL_OFF);
-	} else {
-		/*
-		 * Disable timer.
-		 */
-		u = readl(timer_base + TIMER_CTRL_OFF);
-		writel(u & ~TIMER1_EN, timer_base + TIMER_CTRL_OFF);
+	/* Disable timer interrupt */
+	u = readl(bridge_base + BRIDGE_MASK_OFF);
+	writel(u & ~BRIDGE_INT_TIMER1, bridge_base + BRIDGE_MASK_OFF);
 
-		/*
-		 * Disable timer interrupt.
-		 */
-		u = readl(bridge_base + BRIDGE_MASK_OFF);
-		writel(u & ~BRIDGE_INT_TIMER1, bridge_base + BRIDGE_MASK_OFF);
+	/* ACK pending timer interrupt */
+	writel(bridge_timer1_clr_mask, bridge_base + BRIDGE_CAUSE_OFF);
 
-		/*
-		 * ACK pending timer interrupt.
-		 */
-		writel(bridge_timer1_clr_mask, bridge_base + BRIDGE_CAUSE_OFF);
-
-	}
 	local_irq_restore(flags);
+
+	return 0;
+}
+
+static int orion_clkevt_set_periodic(struct clock_event_device *evt)
+{
+	unsigned long flags;
+	u32 u;
+
+	local_irq_save(flags);
+
+	/* Setup timer to fire at 1/HZ intervals */
+	writel(ticks_per_jiffy - 1, timer_base + TIMER1_RELOAD_OFF);
+	writel(ticks_per_jiffy - 1, timer_base + TIMER1_VAL_OFF);
+
+	/* Enable timer interrupt */
+	u = readl(bridge_base + BRIDGE_MASK_OFF);
+	writel(u | BRIDGE_INT_TIMER1, bridge_base + BRIDGE_MASK_OFF);
+
+	/* Enable timer */
+	u = readl(timer_base + TIMER_CTRL_OFF);
+	writel(u | TIMER1_EN | TIMER1_RELOAD_EN, timer_base + TIMER_CTRL_OFF);
+
+	local_irq_restore(flags);
+
+	return 0;
 }
 
 static struct clock_event_device orion_clkevt = {
-	.name		= "orion_tick",
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.rating		= 300,
-	.set_next_event	= orion_clkevt_next_event,
-	.set_mode	= orion_clkevt_mode,
+	.name			= "orion_tick",
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC,
+	.rating			= 300,
+	.set_next_event		= orion_clkevt_next_event,
+	.set_state_shutdown	= orion_clkevt_shutdown,
+	.set_state_periodic	= orion_clkevt_set_periodic,
+	.set_state_oneshot	= orion_clkevt_shutdown,
+	.tick_resume		= orion_clkevt_shutdown,
 };
 
 static irqreturn_t orion_timer_interrupt(int irq, void *dev_id)

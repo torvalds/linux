@@ -148,12 +148,6 @@ static ssize_t ds1682_eeprom_read(struct file *filp, struct kobject *kobj,
 	dev_dbg(&client->dev, "ds1682_eeprom_read(p=%p, off=%lli, c=%zi)\n",
 		buf, off, count);
 
-	if (off >= DS1682_EEPROM_SIZE)
-		return 0;
-
-	if (off + count > DS1682_EEPROM_SIZE)
-		count = DS1682_EEPROM_SIZE - off;
-
 	rc = i2c_smbus_read_i2c_block_data(client, DS1682_REG_EEPROM + off,
 					   count, buf);
 	if (rc < 0)
@@ -170,12 +164,6 @@ static ssize_t ds1682_eeprom_write(struct file *filp, struct kobject *kobj,
 
 	dev_dbg(&client->dev, "ds1682_eeprom_write(p=%p, off=%lli, c=%zi)\n",
 		buf, off, count);
-
-	if (off >= DS1682_EEPROM_SIZE)
-		return -ENOSPC;
-
-	if (off + count > DS1682_EEPROM_SIZE)
-		count = DS1682_EEPROM_SIZE - off;
 
 	/* Write out to the device */
 	if (i2c_smbus_write_i2c_block_data(client, DS1682_REG_EEPROM + off,

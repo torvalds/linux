@@ -9,6 +9,7 @@
 
 #include <crypto/internal/hash.h>
 #include <linux/module.h>
+#include <linux/cpufeature.h>
 
 #include "crypt_s390.h"
 
@@ -158,7 +159,7 @@ static void __exit ghash_mod_exit(void)
 	crypto_unregister_shash(&ghash_alg);
 }
 
-module_init(ghash_mod_init);
+module_cpu_feature_match(MSA, ghash_mod_init);
 module_exit(ghash_mod_exit);
 
 MODULE_ALIAS_CRYPTO("ghash");

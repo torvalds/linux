@@ -71,6 +71,18 @@
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
 		};
+
+		uart_clk: uart_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <36864000>;
+		};
+
+		iobus_clk: iobus_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+		};
 	};
 
 	soc {
@@ -108,10 +120,120 @@
 			      <0x20000100 0x100>;
 		};
 
+		serial0: serial@54006800 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006800 0x40>;
+			interrupts = <0 33 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial1: serial@54006900 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006900 0x40>;
+			interrupts = <0 35 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial2: serial@54006a00 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006a00 0x40>;
+			interrupts = <0 37 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		i2c0: i2c@58400000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58400000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 41 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c1: i2c@58480000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58480000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 42 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c2: i2c@58500000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58500000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 43 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c3: i2c@58580000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58580000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 44 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
+		};
+
+		/* chip-internal connection for DMD */
+		i2c4: i2c@58600000 {
+			compatible = "socionext,uniphier-i2c";
+			reg = <0x58600000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 45 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <400000>;
+		};
+
 		system-bus-controller-misc@59800000 {
 			compatible = "socionext,uniphier-system-bus-controller-misc",
 				     "syscon";
 			reg = <0x59800000 0x2000>;
+		};
+
+		usb0: usb@5a800100 {
+			compatible = "socionext,uniphier-ehci", "generic-ehci";
+			status = "disabled";
+			reg = <0x5a800100 0x100>;
+			interrupts = <0 80 4>;
+		};
+
+		usb1: usb@5a810100 {
+			compatible = "socionext,uniphier-ehci", "generic-ehci";
+			status = "disabled";
+			reg = <0x5a810100 0x100>;
+			interrupts = <0 81 4>;
+		};
+
+		usb2: usb@5a820100 {
+			compatible = "socionext,uniphier-ehci", "generic-ehci";
+			status = "disabled";
+			reg = <0x5a820100 0x100>;
+			interrupts = <0 82 4>;
+		};
+
+		usb3: usb@5a830100 {
+			compatible = "socionext,uniphier-ehci", "generic-ehci";
+			status = "disabled";
+			reg = <0x5a830100 0x100>;
+			interrupts = <0 83 4>;
 		};
 	};
 };

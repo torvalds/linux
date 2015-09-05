@@ -97,8 +97,9 @@
 #define ADF_RING_SIZE_IN_BYTES_TO_SIZE(SIZE) ((1 << (SIZE - 1)) >> 7)
 
 /* Minimum ring bufer size for memory allocation */
-#define ADF_RING_SIZE_BYTES_MIN(SIZE) ((SIZE < ADF_RING_SIZE_4K) ? \
-				ADF_RING_SIZE_4K : SIZE)
+#define ADF_RING_SIZE_BYTES_MIN(SIZE) \
+	((SIZE < ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K)) ? \
+		ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K) : SIZE)
 #define ADF_RING_SIZE_MODULO(SIZE) (SIZE + 0x6)
 #define ADF_SIZE_TO_POW(SIZE) ((((SIZE & 0x4) >> 1) | ((SIZE & 0x4) >> 2) | \
 				SIZE) & ~0x4)

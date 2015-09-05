@@ -93,9 +93,6 @@ static const struct dp_link_dpll chv_dpll[] = {
 
 static const int skl_rates[] = { 162000, 216000, 270000,
 				  324000, 432000, 540000 };
-static const int chv_rates[] = { 162000, 202500, 210000, 216000,
-				 243000, 270000, 324000, 405000,
-				 420000, 432000, 540000 };
 static const int default_rates[] = { 162000, 270000, 540000 };
 
 /**
@@ -1169,24 +1166,31 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
 }
 
+static bool intel_dp_source_supports_hbr2(struct drm_device *dev)
+{
+	/* WaDisableHBR2:skl */
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
+		return false;
+
+	if ((IS_HASWELL(dev) && !IS_HSW_ULX(dev)) || IS_BROADWELL(dev) ||
+	    (INTEL_INFO(dev)->gen >= 9))
+		return true;
+	else
+		return false;
+}
+
 static int
 intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 {
 	if (IS_SKYLAKE(dev)) {
 		*source_rates = skl_rates;
 		return ARRAY_SIZE(skl_rates);
-	} else if (IS_CHERRYVIEW(dev)) {
-		*source_rates = chv_rates;
-		return ARRAY_SIZE(chv_rates);
 	}
 
 	*source_rates = default_rates;
 
-	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
-		/* WaDisableHBR2:skl */
-		return (DP_LINK_BW_2_7 >> 3) + 1;
-	else if (INTEL_INFO(dev)->gen >= 8 ||
-	    (IS_HASWELL(dev) && !IS_HSW_ULX(dev)))
+	/* This depends on the fact that 5.4 is last value in the array */
+	if (intel_dp_source_supports_hbr2(dev))
 		return (DP_LINK_BW_5_4 >> 3) + 1;
 	else
 		return (DP_LINK_BW_2_7 >> 3) + 1;
@@ -3941,10 +3945,15 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		}
 	}
 
-	/* Training Pattern 3 support, both source and sink */
+	/* Training Pattern 3 support, Intel platforms that support HBR2 alone
+	 * have support for TP3 hence that check is used along with dpcd check
+	 * to ensure TP3 can be enabled.
+	 * SKL < B0: due it's WaDisableHBR2 is the only exception where TP3 is
+	 * supported but still not enabled.
+	 */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x12 &&
 	    intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED &&
-	    (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)) {
+	    intel_dp_source_supports_hbr2(dev)) {
 		intel_dp->use_tps3 = true;
 		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
 	} else

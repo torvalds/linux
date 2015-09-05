@@ -16,28 +16,28 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
 
-		cpu@2 {
+		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
-		cpu@3 {
+		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
@@ -75,13 +75,102 @@
 				};
 			};
 
-			/* funnel input port 0~3 is reserved for ETMs */
+			/* funnel input port 0-4 */
 			port@1 {
+				reg = <0>;
+				funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etm0_out>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&etm1_out>;
+				};
+			};
+
+			port@3 {
+				reg = <2>;
+				funnel_in_port2: endpoint {
+					slave-mode;
+					remote-endpoint = <&etm2_out>;
+				};
+			};
+
+			port@4 {
+				reg = <3>;
+				funnel_in_port3: endpoint {
+					slave-mode;
+					remote-endpoint = <&etm3_out>;
+				};
+			};
+
+			port@5 {
 				reg = <4>;
 				funnel_in_port4: endpoint {
 					slave-mode;
 					remote-endpoint = <&stm_out>;
 				};
+			};
+			/* Other input ports aren't connected to anyone */
+		};
+	};
+
+	etm@10440000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x10440000 0 0x1000>;
+
+		cpu = <&cpu0>;
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		port {
+			etm0_out: endpoint {
+				remote-endpoint = <&funnel_in_port0>;
+			};
+		};
+	};
+
+	etm@10540000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x10540000 0 0x1000>;
+
+		cpu = <&cpu1>;
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		port {
+			etm1_out: endpoint {
+				remote-endpoint = <&funnel_in_port1>;
+			};
+		};
+	};
+
+	etm@10640000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x10640000 0 0x1000>;
+
+		cpu = <&cpu2>;
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		port {
+			etm2_out: endpoint {
+				remote-endpoint = <&funnel_in_port2>;
+			};
+		};
+	};
+
+	etm@10740000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x10740000 0 0x1000>;
+
+		cpu = <&cpu3>;
+		clocks = <&clk26mhz>;
+		clock-names = "apb_pclk";
+		port {
+			etm3_out: endpoint {
+				remote-endpoint = <&funnel_in_port3>;
 			};
 		};
 	};
