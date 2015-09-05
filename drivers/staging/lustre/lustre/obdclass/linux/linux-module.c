@@ -73,8 +73,6 @@
 #include "../../include/lustre_ver.h"
 #include "../../include/lustre/lustre_build_version.h"
 
-int proc_version;
-
 /* buffer MUST be at least the size of obd_ioctl_hdr */
 int obd_ioctl_getdata(char **buf, int *len, void *arg)
 {
