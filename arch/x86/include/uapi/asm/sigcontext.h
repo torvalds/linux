@@ -124,36 +124,6 @@ struct _fpstate {
 	};
 };
 
-# ifndef __KERNEL__
-/*
- * User-space might still rely on the old definition:
- */
-struct sigcontext {
-	unsigned short			gs, __gsh;
-	unsigned short			fs, __fsh;
-	unsigned short			es, __esh;
-	unsigned short			ds, __dsh;
-	unsigned long			edi;
-	unsigned long			esi;
-	unsigned long			ebp;
-	unsigned long			esp;
-	unsigned long			ebx;
-	unsigned long			edx;
-	unsigned long			ecx;
-	unsigned long			eax;
-	unsigned long			trapno;
-	unsigned long			err;
-	unsigned long			eip;
-	unsigned short			cs, __csh;
-	unsigned long			eflags;
-	unsigned long			esp_at_signal;
-	unsigned short			ss, __ssh;
-	struct _fpstate __user		*fpstate;
-	unsigned long			oldmask;
-	unsigned long			cr2;
-};
-# endif /* !__KERNEL__ */
-
 #else /* __x86_64__: */
 
 /*
@@ -186,10 +156,65 @@ struct _fpstate {
 	};
 };
 
-# ifndef __KERNEL__
+#endif /* __x86_64__ */
+
+struct _header {
+	__u64				xfeatures;
+	__u64				reserved1[2];
+	__u64				reserved2[5];
+};
+
+struct _ymmh_state {
+	/* 16x YMM registers, 16 bytes each: */
+	__u32				ymmh_space[64];
+};
+
 /*
- * User-space might still rely on the old definition:
+ * Extended state pointed to by sigcontext::fpstate.
+ *
+ * In addition to the fpstate, information encoded in _xstate::xstate_hdr
+ * indicates the presence of other extended state information supported
+ * by the CPU and kernel:
  */
+struct _xstate {
+	struct _fpstate			fpstate;
+	struct _header			xstate_hdr;
+	struct _ymmh_state		ymmh;
+	/* New processor state extensions go here: */
+};
+
+/*
+ * The old user-space sigcontext definition, just in case user-space still
+ * relies on it. The kernel definition (in asm/sigcontext.h) has unified
+ * field names but otherwise the same layout.
+ */
+#ifndef __KERNEL__
+# ifdef __i386__
+struct sigcontext {
+	unsigned short			gs, __gsh;
+	unsigned short			fs, __fsh;
+	unsigned short			es, __esh;
+	unsigned short			ds, __dsh;
+	unsigned long			edi;
+	unsigned long			esi;
+	unsigned long			ebp;
+	unsigned long			esp;
+	unsigned long			ebx;
+	unsigned long			edx;
+	unsigned long			ecx;
+	unsigned long			eax;
+	unsigned long			trapno;
+	unsigned long			err;
+	unsigned long			eip;
+	unsigned short			cs, __csh;
+	unsigned long			eflags;
+	unsigned long			esp_at_signal;
+	unsigned short			ss, __ssh;
+	struct _fpstate __user		*fpstate;
+	unsigned long			oldmask;
+	unsigned long			cr2;
+};
+# else /* __x86_64__: */
 struct sigcontext {
 	__u64				r8;
 	__u64				r9;
@@ -223,33 +248,7 @@ struct sigcontext {
 #  endif
 	__u64				reserved1[8];
 };
-# endif /* !__KERNEL__ */
-
-#endif /* __x86_64__ */
-
-struct _header {
-	__u64				xfeatures;
-	__u64				reserved1[2];
-	__u64				reserved2[5];
-};
-
-struct _ymmh_state {
-	/* 16x YMM registers, 16 bytes each: */
-	__u32				ymmh_space[64];
-};
-
-/*
- * Extended state pointed to by sigcontext::fpstate.
- *
- * In addition to the fpstate, information encoded in _xstate::xstate_hdr
- * indicates the presence of other extended state information supported
- * by the CPU and kernel:
- */
-struct _xstate {
-	struct _fpstate			fpstate;
-	struct _header			xstate_hdr;
-	struct _ymmh_state		ymmh;
-	/* New processor state extensions go here: */
-};
+# endif /* __x86_64__ */
+#endif /* !__KERNEL__ */
 
 #endif /* _UAPI_ASM_X86_SIGCONTEXT_H */
