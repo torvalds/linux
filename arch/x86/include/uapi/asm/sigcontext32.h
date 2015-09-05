@@ -3,6 +3,8 @@
 
 #include <linux/types.h>
 
+#include <asm/sigcontext.h>
+
 /* signal context for 32bit programs. */
 
 #define X86_FXSR_MAGIC		0x0000
