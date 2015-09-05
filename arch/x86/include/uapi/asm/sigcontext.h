@@ -190,6 +190,9 @@ struct _xstate {
 	/* New processor state extensions go here: */
 };
 
+/*
+ * The 32-bit signal frame:
+ */
 struct sigcontext_32 {
 	__u16				gs, __gsh;
 	__u16				fs, __fsh;
@@ -223,8 +226,9 @@ struct sigcontext_32 {
 	__u32				cr2;
 };
 
-#define sigcontext_ia32 sigcontext_32
-
+/*
+ * The 64-bit signal frame:
+ */
 struct sigcontext_64 {
 	__u64				r8;
 	__u64				r9;
@@ -282,7 +286,9 @@ struct sigcontext_64 {
  */
 #ifndef __KERNEL__
 
-#define _fpstate_ia32 _fpstate_32
+#define _fpstate_ia32			_fpstate_32
+#define sigcontext_ia32			sigcontext_32
+
 
 # ifdef __i386__
 struct sigcontext {

@@ -18,7 +18,7 @@ struct ucontext_ia32 {
 	unsigned int	  uc_flags;
 	unsigned int 	  uc_link;
 	compat_stack_t	  uc_stack;
-	struct sigcontext_ia32 uc_mcontext;
+	struct sigcontext_32 uc_mcontext;
 	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 

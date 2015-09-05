@@ -22,7 +22,7 @@
 struct sigframe_ia32 {
 	u32 pretcode;
 	int sig;
-	struct sigcontext_ia32 sc;
+	struct sigcontext_32 sc;
 	/*
 	 * fpstate is unused. fpstate is moved/allocated after
 	 * retcode[] below. This movement allows to have the FP state and the

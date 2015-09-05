@@ -68,7 +68,7 @@
 }
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
-				   struct sigcontext_ia32 __user *sc)
+				   struct sigcontext_32 __user *sc)
 {
 	unsigned int tmpflags, err = 0;
 	void __user *buf;
@@ -170,7 +170,7 @@ badframe:
  * Set up a signal frame.
  */
 
-static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
+static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
 				 void __user *fpstate,
 				 struct pt_regs *regs, unsigned int mask)
 {
