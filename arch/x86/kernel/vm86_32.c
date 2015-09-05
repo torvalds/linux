@@ -45,6 +45,7 @@
 #include <linux/audit.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
+#include <linux/security.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -231,6 +232,32 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	struct kernel_vm86_regs vm86regs;
 	struct pt_regs *regs = current_pt_regs();
 	unsigned long err = 0;
+
+	err = security_mmap_addr(0);
+	if (err) {
+		/*
+		 * vm86 cannot virtualize the address space, so vm86 users
+		 * need to manage the low 1MB themselves using mmap.  Given
+		 * that BIOS places important data in the first page, vm86
+		 * is essentially useless if mmap_min_addr != 0.  DOSEMU,
+		 * for example, won't even bother trying to use vm86 if it
+		 * can't map a page at virtual address 0.
+		 *
+		 * To reduce the available kernel attack surface, simply
+		 * disallow vm86(old) for users who cannot mmap at va 0.
+		 *
+		 * The implementation of security_mmap_addr will allow
+		 * suitably privileged users to map va 0 even if
+		 * vm.mmap_min_addr is set above 0, and we want this
+		 * behavior for vm86 as well, as it ensures that legacy
+		 * tools like vbetool will not fail just because of
+		 * vm.mmap_min_addr.
+		 */
+		pr_info_once("Denied a call to vm86(old) from %s[%d] (uid: %d).  Set the vm.mmap_min_addr sysctl to 0 and/or adjust LSM mmap_min_addr policy to enable vm86 if you are using a vm86-based DOS emulator.\n",
+			     current->comm, task_pid_nr(current),
+			     from_kuid_munged(&init_user_ns, current_uid()));
+		return -EPERM;
+	}
 
 	if (!vm86) {
 		if (!(vm86 = kzalloc(sizeof(*vm86), GFP_KERNEL)))
