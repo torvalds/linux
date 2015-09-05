@@ -1022,7 +1022,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
  * amdgpu_switcheroo_set_state - set switcheroo state
  *
  * @pdev: pci dev pointer
- * @state: vga switcheroo state
+ * @state: vga_switcheroo state
  *
  * Callback for the switcheroo driver.  Suspends or resumes the
  * the asics before or after it is powered up using ACPI methods.
