@@ -63,7 +63,6 @@ struct _fpx_sw_bytes {
 	__u32				padding[7];
 };
 
-#ifdef __i386__
 /*
  * As documented in the iBCS2 standard:
  *
@@ -95,6 +94,8 @@ struct _xmmreg {
 };
 
 #define X86_FXSR_MAGIC			0x0000
+
+#ifdef __i386__
 
 struct _fpstate {
 	/* Legacy FPU environment: */

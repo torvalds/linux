@@ -3,29 +3,7 @@
 
 /* Signal context definitions for compat 32-bit programs: */
 
-#include <linux/types.h>
-
 #include <asm/sigcontext.h>
-
-/* 10-byte legacy floating point register: */
-struct _fpreg {
-	__u16				significand[4];
-	__u16				exponent;
-};
-
-/* 16-byte floating point register: */
-struct _fpxreg {
-	__u16				significand[4];
-	__u16				exponent;
-	__u16				padding[3];
-};
-
-/* 16-byte XMM vector register: */
-struct _xmmreg {
-	__u32	element[4];
-};
-
-#define X86_FXSR_MAGIC			0x0000
 
 /* FXSAVE frame: FSAVE frame with extensions */
 struct _fpstate_ia32 {
