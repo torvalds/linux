@@ -32,7 +32,7 @@ struct sigframe_ia32 {
 	 * the offset of extramask[] in the sigframe and thus prevent any
 	 * legacy application accessing/modifying it.
 	 */
-	struct _fpstate_ia32 fpstate_unused;
+	struct _fpstate_32 fpstate_unused;
 #ifdef CONFIG_IA32_EMULATION
 	unsigned int extramask[_COMPAT_NSIG_WORDS-1];
 #else /* !CONFIG_IA32_EMULATION */

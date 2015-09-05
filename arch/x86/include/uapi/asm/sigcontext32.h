@@ -26,7 +26,7 @@ struct sigcontext_ia32 {
        __u32				flags;
        __u32				sp_at_signal;
        __u16				ss, __ssh;
-       __u32				fpstate;	/* Pointer to 'struct _fpstate_ia32' */
+       __u32				fpstate;	/* Pointer to 'struct _fpstate_32' */
        __u32				oldmask;
        __u32				cr2;
 };

@@ -165,8 +165,6 @@ struct _fpstate_64 {
 # define _fpstate _fpstate_64
 #endif
 
-#define _fpstate_ia32 _fpstate_32
-
 struct _header {
 	__u64				xfeatures;
 	__u64				reserved1[2];
@@ -198,6 +196,9 @@ struct _xstate {
  * field names but otherwise the same layout.
  */
 #ifndef __KERNEL__
+
+#define _fpstate_ia32 _fpstate_32
+
 # ifdef __i386__
 struct sigcontext {
 	__u16				gs, __gsh;
