@@ -10,7 +10,7 @@
  * 32 bit structures for IA32 support.
  */
 
-#include <asm/sigcontext32.h>
+#include <asm/sigcontext.h>
 
 /* signal.h */
 
