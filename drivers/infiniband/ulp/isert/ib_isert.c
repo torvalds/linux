@@ -238,8 +238,6 @@ isert_alloc_rx_descriptors(struct isert_conn *isert_conn)
 		rx_sg->lkey = device->pd->local_dma_lkey;
 	}
 
-	isert_conn->rx_desc_head = 0;
-
 	return 0;
 
 dma_map_fail:
@@ -1002,35 +1000,51 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 }
 
 static int
-isert_post_recv(struct isert_conn *isert_conn, u32 count)
+isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 {
 	struct ib_recv_wr *rx_wr, *rx_wr_failed;
 	int i, ret;
-	unsigned int rx_head = isert_conn->rx_desc_head;
 	struct iser_rx_desc *rx_desc;
 
 	for (rx_wr = isert_conn->rx_wr, i = 0; i < count; i++, rx_wr++) {
-		rx_desc		= &isert_conn->rx_descs[rx_head];
-		rx_wr->wr_id	= (uintptr_t)rx_desc;
-		rx_wr->sg_list	= &rx_desc->rx_sg;
-		rx_wr->num_sge	= 1;
-		rx_wr->next	= rx_wr + 1;
-		rx_head = (rx_head + 1) & (ISERT_QP_MAX_RECV_DTOS - 1);
+		rx_desc = &isert_conn->rx_descs[i];
+		rx_wr->wr_id = (uintptr_t)rx_desc;
+		rx_wr->sg_list = &rx_desc->rx_sg;
+		rx_wr->num_sge = 1;
+		rx_wr->next = rx_wr + 1;
 	}
-
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
 
 	isert_conn->post_recv_buf_count += count;
 	ret = ib_post_recv(isert_conn->qp, isert_conn->rx_wr,
-				&rx_wr_failed);
+			   &rx_wr_failed);
 	if (ret) {
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
 		isert_conn->post_recv_buf_count -= count;
-	} else {
-		isert_dbg("Posted %d RX buffers\n", count);
-		isert_conn->rx_desc_head = rx_head;
 	}
+
+	return ret;
+}
+
+static int
+isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
+{
+	struct ib_recv_wr *rx_wr_failed, rx_wr;
+	int ret;
+
+	rx_wr.wr_id = (uintptr_t)rx_desc;
+	rx_wr.sg_list = &rx_desc->rx_sg;
+	rx_wr.num_sge = 1;
+	rx_wr.next = NULL;
+
+	isert_conn->post_recv_buf_count++;
+	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_failed);
+	if (ret) {
+		isert_err("ib_post_recv() failed with ret: %d\n", ret);
+		isert_conn->post_recv_buf_count--;
+	}
+
 	return ret;
 }
 
@@ -1201,7 +1215,8 @@ isert_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 			if (ret)
 				return ret;
 
-			ret = isert_post_recv(isert_conn, ISERT_MIN_POSTED_RX);
+			ret = isert_post_recvm(isert_conn,
+					       ISERT_QP_MAX_RECV_DTOS);
 			if (ret)
 				return ret;
 
@@ -1274,7 +1289,7 @@ isert_rx_login_req(struct isert_conn *isert_conn)
 }
 
 static struct iscsi_cmd
-*isert_allocate_cmd(struct iscsi_conn *conn)
+*isert_allocate_cmd(struct iscsi_conn *conn, struct iser_rx_desc *rx_desc)
 {
 	struct isert_conn *isert_conn = conn->context;
 	struct isert_cmd *isert_cmd;
@@ -1288,6 +1303,7 @@ static struct iscsi_cmd
 	isert_cmd = iscsit_priv_cmd(cmd);
 	isert_cmd->conn = isert_conn;
 	isert_cmd->iscsi_cmd = cmd;
+	isert_cmd->rx_desc = rx_desc;
 
 	return cmd;
 }
@@ -1403,6 +1419,15 @@ isert_handle_iscsi_dataout(struct isert_conn *isert_conn,
 	if (rc < 0)
 		return rc;
 
+	/*
+	 * multiple data-outs on the same command can arrive -
+	 * so post the buffer before hand
+	 */
+	rc = isert_post_recv(isert_conn, rx_desc);
+	if (rc) {
+		isert_err("ib_post_recv failed with %d\n", rc);
+		return rc;
+	}
 	return 0;
 }
 
@@ -1475,7 +1500,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 
 	switch (opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		cmd = isert_allocate_cmd(conn);
+		cmd = isert_allocate_cmd(conn, rx_desc);
 		if (!cmd)
 			break;
 
@@ -1489,7 +1514,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 					rx_desc, (unsigned char *)hdr);
 		break;
 	case ISCSI_OP_NOOP_OUT:
-		cmd = isert_allocate_cmd(conn);
+		cmd = isert_allocate_cmd(conn, rx_desc);
 		if (!cmd)
 			break;
 
@@ -1502,7 +1527,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						(unsigned char *)hdr);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
-		cmd = isert_allocate_cmd(conn);
+		cmd = isert_allocate_cmd(conn, rx_desc);
 		if (!cmd)
 			break;
 
@@ -1510,22 +1535,20 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						(unsigned char *)hdr);
 		break;
 	case ISCSI_OP_LOGOUT:
-		cmd = isert_allocate_cmd(conn);
+		cmd = isert_allocate_cmd(conn, rx_desc);
 		if (!cmd)
 			break;
 
 		ret = iscsit_handle_logout_cmd(conn, cmd, (unsigned char *)hdr);
 		break;
 	case ISCSI_OP_TEXT:
-		if (be32_to_cpu(hdr->ttt) != 0xFFFFFFFF) {
+		if (be32_to_cpu(hdr->ttt) != 0xFFFFFFFF)
 			cmd = iscsit_find_cmd_from_itt(conn, hdr->itt);
-			if (!cmd)
-				break;
-		} else {
-			cmd = isert_allocate_cmd(conn);
-			if (!cmd)
-				break;
-		}
+		else
+			cmd = isert_allocate_cmd(conn, rx_desc);
+
+		if (!cmd)
+			break;
 
 		isert_cmd = iscsit_priv_cmd(cmd);
 		ret = isert_handle_text_cmd(isert_conn, isert_cmd, cmd,
@@ -1585,7 +1608,7 @@ isert_rcv_completion(struct iser_rx_desc *desc,
 	struct ib_device *ib_dev = isert_conn->cm_id->device;
 	struct iscsi_hdr *hdr;
 	u64 rx_dma;
-	int rx_buflen, outstanding;
+	int rx_buflen;
 
 	if ((char *)desc == isert_conn->login_req_buf) {
 		rx_dma = isert_conn->login_req_dma;
@@ -1625,22 +1648,6 @@ isert_rcv_completion(struct iser_rx_desc *desc,
 				      DMA_FROM_DEVICE);
 
 	isert_conn->post_recv_buf_count--;
-	isert_dbg("Decremented post_recv_buf_count: %d\n",
-		  isert_conn->post_recv_buf_count);
-
-	if ((char *)desc == isert_conn->login_req_buf)
-		return;
-
-	outstanding = isert_conn->post_recv_buf_count;
-	if (outstanding + ISERT_MIN_POSTED_RX <= ISERT_QP_MAX_RECV_DTOS) {
-		int err, count = min(ISERT_QP_MAX_RECV_DTOS - outstanding,
-				ISERT_MIN_POSTED_RX);
-		err = isert_post_recv(isert_conn, count);
-		if (err) {
-			isert_err("isert_post_recv() count: %d failed, %d\n",
-			       count, err);
-		}
-	}
 }
 
 static int
@@ -2151,6 +2158,12 @@ isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 {
 	struct ib_send_wr *wr_failed;
 	int ret;
+
+	ret = isert_post_recv(isert_conn, isert_cmd->rx_desc);
+	if (ret) {
+		isert_err("ib_post_recv failed with %d\n", ret);
+		return ret;
+	}
 
 	ret = ib_post_send(isert_conn->qp, &isert_cmd->tx_desc.send_wr,
 			   &wr_failed);
@@ -2946,6 +2959,12 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 				   &isert_cmd->tx_desc.send_wr);
 		isert_cmd->rdma_wr.s_send_wr.next = &isert_cmd->tx_desc.send_wr;
 		wr->send_wr_num += 1;
+
+		rc = isert_post_recv(isert_conn, isert_cmd->rx_desc);
+		if (rc) {
+			isert_err("ib_post_recv failed with %d\n", rc);
+			return rc;
+		}
 	}
 
 	rc = ib_post_send(isert_conn->qp, wr->send_wr, &wr_failed);

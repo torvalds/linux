@@ -136,6 +136,7 @@ struct isert_cmd {
 	struct isert_conn	*conn;
 	struct iscsi_cmd	*iscsi_cmd;
 	struct iser_tx_desc	tx_desc;
+	struct iser_rx_desc	*rx_desc;
 	struct isert_rdma_wr	rdma_wr;
 	struct work_struct	comp_work;
 };
@@ -155,9 +156,8 @@ struct isert_conn {
 	u64			login_req_dma;
 	int			login_req_len;
 	u64			login_rsp_dma;
-	unsigned int		rx_desc_head;
 	struct iser_rx_desc	*rx_descs;
-	struct ib_recv_wr	rx_wr[ISERT_MIN_POSTED_RX];
+	struct ib_recv_wr	rx_wr[ISERT_QP_MAX_RECV_DTOS];
 	struct iscsi_conn	*conn;
 	struct list_head	node;
 	struct completion	login_comp;
