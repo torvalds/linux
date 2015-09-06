@@ -2999,9 +2999,16 @@ isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 static int
 isert_immediate_queue(struct iscsi_conn *conn, struct iscsi_cmd *cmd, int state)
 {
-	int ret;
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
+	int ret = 0;
 
 	switch (state) {
+	case ISTATE_REMOVE:
+		spin_lock_bh(&conn->cmd_lock);
+		list_del_init(&cmd->i_conn_node);
+		spin_unlock_bh(&conn->cmd_lock);
+		isert_put_cmd(isert_cmd, true);
+		break;
 	case ISTATE_SEND_NOPIN_WANT_RESPONSE:
 		ret = isert_put_nopin(cmd, conn, false);
 		break;
