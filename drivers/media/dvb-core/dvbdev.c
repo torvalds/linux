@@ -637,7 +637,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap)
 		}
 	}
 
-	/* Create indirect interface links for FE->tuner, DVR->demux and CA->ca */
+	/* Create interface links for FE->tuner, DVR->demux and CA->ca */
 	media_device_for_each_intf(intf, mdev) {
 		if (intf->type == MEDIA_INTF_T_DVB_CA && ca) {
 			link = media_create_intf_link(ca, intf,
@@ -652,13 +652,19 @@ int dvb_create_media_graph(struct dvb_adapter *adap)
 			if (!link)
 				return -ENOMEM;
 		}
-
+#if 0
+		/*
+		 * Indirect link - let's not create yet, as we don't know how
+		 *		   to handle indirect links, nor if this will
+		 *		   actually be needed.
+		 */
 		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux) {
 			link = media_create_intf_link(demux, intf,
 						      MEDIA_LNK_FL_ENABLED);
 			if (!link)
 				return -ENOMEM;
 		}
+#endif
 		if (intf->type == MEDIA_INTF_T_DVB_DVR) {
 			ret = dvb_create_io_intf_links(adap, intf, DVR_TSOUT);
 			if (ret)
