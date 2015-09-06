@@ -1525,6 +1525,7 @@ F:	drivers/clocksource/arm_global_timer.c
 F:	drivers/clocksource/clksrc_st_lpc.c
 F:	drivers/i2c/busses/i2c-st.c
 F:	drivers/media/rc/st_rc.c
+F:	drivers/media/platform/sti/c8sectpfe/
 F:	drivers/mmc/host/sdhci-st.c
 F:	drivers/phy/phy-miphy28lp.c
 F:	drivers/phy/phy-miphy365x.c
@@ -5819,6 +5820,12 @@ S:	Maintained
 F:	fs/jbd2/
 F:	include/linux/jbd2.h
 
+JPU V4L2 MEM2MEM DRIVER FOR RENESAS
+M:	Mikhail Ulyanov <mikhail.ulyanov@cogentembedded.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/platform/rcar_jpu.c
+
 JSM Neo PCI based serial card
 M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
 L:	linux-serial@vger.kernel.org
@@ -6661,6 +6668,51 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Supported
 F:	Documentation/devicetree/bindings/media/renesas,vsp1.txt
 F:	drivers/media/platform/vsp1/
+
+MEDIA DRIVERS FOR ASCOT2E
+M:	Sergey Kozlov <serjk@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/ascot2e*
+
+MEDIA DRIVERS FOR CXD2841ER
+M:	Sergey Kozlov <serjk@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/cxd2841er*
+
+MEDIA DRIVERS FOR HORUS3A
+M:	Sergey Kozlov <serjk@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/horus3a*
+
+MEDIA DRIVERS FOR LNBH25
+M:	Sergey Kozlov <serjk@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/lnbh25*
+
+MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
+M:	Sergey Kozlov <serjk@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/pci/netup_unidvb/*
 
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
@@ -10427,6 +10479,13 @@ S:	Maintained
 F:	drivers/char/toshiba.c
 F:	include/linux/toshiba.h
 F:	include/uapi/linux/toshiba.h
+
+TOSHIBA TC358743 DRIVER
+M:	Mats Randgaard <matrandg@cisco.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/tc358743*
+F:	include/media/tc358743.h
 
 TMIO MMC DRIVER
 M:	Ian Molton <ian@mnementh.co.uk>

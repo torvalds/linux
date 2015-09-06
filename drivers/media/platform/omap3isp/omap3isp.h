@@ -1,7 +1,7 @@
 /*
  * omap3isp.h
  *
- * TI OMAP3 ISP - Platform data
+ * TI OMAP3 ISP - Bus Configuration
  *
  * Copyright (C) 2011 Nokia Corporation
  *
@@ -16,18 +16,10 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
-#ifndef __MEDIA_OMAP3ISP_H__
-#define __MEDIA_OMAP3ISP_H__
-
-struct i2c_board_info;
-struct isp_device;
+#ifndef __OMAP3ISP_H__
+#define __OMAP3ISP_H__
 
 enum isp_interface_type {
 	ISP_INTERFACE_PARALLEL,
@@ -37,20 +29,13 @@ enum isp_interface_type {
 	ISP_INTERFACE_CSI2C_PHY1,
 };
 
-enum {
-	ISP_LANE_SHIFT_0 = 0,
-	ISP_LANE_SHIFT_2 = 1,
-	ISP_LANE_SHIFT_4 = 2,
-	ISP_LANE_SHIFT_6 = 3,
-};
-
 /**
  * struct isp_parallel_cfg - Parallel interface configuration
  * @data_lane_shift: Data lane shifter
- *		ISP_LANE_SHIFT_0 - CAMEXT[13:0] -> CAM[13:0]
- *		ISP_LANE_SHIFT_2 - CAMEXT[13:2] -> CAM[11:0]
- *		ISP_LANE_SHIFT_4 - CAMEXT[13:4] -> CAM[9:0]
- *		ISP_LANE_SHIFT_6 - CAMEXT[13:6] -> CAM[7:0]
+ *		0 - CAMEXT[13:0] -> CAM[13:0]
+ *		1 - CAMEXT[13:2] -> CAM[11:0]
+ *		2 - CAMEXT[13:4] -> CAM[9:0]
+ *		3 - CAMEXT[13:6] -> CAM[7:0]
  * @clk_pol: Pixel clock polarity
  *		0 - Sample on rising edge, 1 - Sample on falling edge
  * @hs_pol: Horizontal synchronization polarity
@@ -144,15 +129,4 @@ struct isp_bus_cfg {
 	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
 };
 
-struct isp_platform_subdev {
-	struct i2c_board_info *board_info;
-	int i2c_adapter_id;
-	struct isp_bus_cfg *bus;
-};
-
-struct isp_platform_data {
-	struct isp_platform_subdev *subdevs;
-	void (*set_constraints)(struct isp_device *isp, bool enable);
-};
-
-#endif	/* __MEDIA_OMAP3ISP_H__ */
+#endif	/* __OMAP3ISP_H__ */

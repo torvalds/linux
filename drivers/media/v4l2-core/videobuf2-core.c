@@ -30,6 +30,8 @@
 #include <media/v4l2-common.h>
 #include <media/videobuf2-core.h>
 
+#include <trace/events/v4l2.h>
+
 static int debug;
 module_param(debug, int, 0644);
 
@@ -1213,6 +1215,8 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	atomic_dec(&q->owned_by_drv_count);
 	spin_unlock_irqrestore(&q->done_lock, flags);
 
+	trace_vb2_buf_done(q, vb);
+
 	switch (state) {
 	case VB2_BUF_STATE_QUEUED:
 		return;
@@ -1639,6 +1643,8 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 	vb->state = VB2_BUF_STATE_ACTIVE;
 	atomic_inc(&q->owned_by_drv_count);
 
+	trace_vb2_buf_queue(q, vb);
+
 	/* sync buffers */
 	for (plane = 0; plane < vb->num_planes; ++plane)
 		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
@@ -1888,6 +1894,8 @@ static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 			vb->v4l2_buf.timecode = b->timecode;
 	}
 
+	trace_vb2_qbuf(q, vb);
+
 	/*
 	 * If already streaming, give the buffer to driver for processing.
 	 * If not, the buffer will be given to driver on next streamon.
@@ -2133,6 +2141,9 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool n
 	/* Remove from videobuf queue */
 	list_del(&vb->queued_entry);
 	q->queued_count--;
+
+	trace_vb2_dqbuf(q, vb);
+
 	if (!V4L2_TYPE_IS_OUTPUT(q->type) &&
 	    vb->v4l2_buf.flags & V4L2_BUF_FLAG_LAST)
 		q->last_buffer_dequeued = true;

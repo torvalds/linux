@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include <media/atmel-isi.h>
@@ -34,7 +35,6 @@
 #define VID_LIMIT_BYTES			(16 * 1024 * 1024)
 #define MIN_FRAME_RATE			15
 #define FRAME_INTERVAL_MILLI_SEC	(1000 / MIN_FRAME_RATE)
-#define ISI_DEFAULT_MCLK_FREQ		25000000
 
 /* Frame buffer descriptor */
 struct fbd {
@@ -82,8 +82,6 @@ struct atmel_isi {
 	struct completion		complete;
 	/* ISI peripherial clock */
 	struct clk			*pclk;
-	/* ISI_MCK, feed to camera sensor to generate pixel clock */
-	struct clk			*mck;
 	unsigned int			irq;
 
 	struct isi_platform_data	pdata;
@@ -386,10 +384,13 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct atmel_isi *isi = ici->priv;
 	int ret;
 
+	pm_runtime_get_sync(ici->v4l2_dev.dev);
+
 	/* Reset ISI */
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
 	if (ret < 0) {
 		dev_err(icd->parent, "Reset ISI timed out\n");
+		pm_runtime_put(ici->v4l2_dev.dev);
 		return ret;
 	}
 	/* Disable all interrupts */
@@ -431,11 +432,9 @@ static void stop_streaming(struct vb2_queue *vq)
 			time_before(jiffies, timeout))
 		msleep(1);
 
-	if (time_after(jiffies, timeout)) {
+	if (time_after(jiffies, timeout))
 		dev_err(icd->parent,
 			"Timeout waiting for finishing codec request\n");
-		return;
-	}
 
 	/* Disable interrupts */
 	isi_writel(isi, ISI_INTDIS,
@@ -445,6 +444,8 @@ static void stop_streaming(struct vb2_queue *vq)
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_DISABLE);
 	if (ret < 0)
 		dev_err(icd->parent, "Disable ISI timed out\n");
+
+	pm_runtime_put(ici->v4l2_dev.dev);
 }
 
 static struct vb2_ops isi_video_qops = {
@@ -516,7 +517,13 @@ static int isi_camera_set_fmt(struct soc_camera_device *icd,
 	if (mf->code != xlate->code)
 		return -EINVAL;
 
+	/* Enable PM and peripheral clock before operate isi registers */
+	pm_runtime_get_sync(ici->v4l2_dev.dev);
+
 	ret = configure_geometry(isi, pix->width, pix->height, xlate->code);
+
+	pm_runtime_put(ici->v4l2_dev.dev);
+
 	if (ret < 0)
 		return ret;
 
@@ -730,37 +737,6 @@ static void isi_camera_remove_device(struct soc_camera_device *icd)
 		 icd->devnum);
 }
 
-/* Called with .host_lock held */
-static int isi_camera_clock_start(struct soc_camera_host *ici)
-{
-	struct atmel_isi *isi = ici->priv;
-	int ret;
-
-	ret = clk_prepare_enable(isi->pclk);
-	if (ret)
-		return ret;
-
-	if (!IS_ERR(isi->mck)) {
-		ret = clk_prepare_enable(isi->mck);
-		if (ret) {
-			clk_disable_unprepare(isi->pclk);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-/* Called with .host_lock held */
-static void isi_camera_clock_stop(struct soc_camera_host *ici)
-{
-	struct atmel_isi *isi = ici->priv;
-
-	if (!IS_ERR(isi->mck))
-		clk_disable_unprepare(isi->mck);
-	clk_disable_unprepare(isi->pclk);
-}
-
 static unsigned int isi_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
@@ -855,8 +831,13 @@ static int isi_camera_set_bus_param(struct soc_camera_device *icd)
 
 	cfg1 |= ISI_CFG1_THMASK_BEATS_16;
 
+	/* Enable PM and peripheral clock before operate isi registers */
+	pm_runtime_get_sync(ici->v4l2_dev.dev);
+
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 	isi_writel(isi, ISI_CFG1, cfg1);
+
+	pm_runtime_put(ici->v4l2_dev.dev);
 
 	return 0;
 }
@@ -865,8 +846,6 @@ static struct soc_camera_host_ops isi_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= isi_camera_add_device,
 	.remove		= isi_camera_remove_device,
-	.clock_start	= isi_camera_clock_start,
-	.clock_stop	= isi_camera_clock_stop,
 	.set_fmt	= isi_camera_set_fmt,
 	.try_fmt	= isi_camera_try_fmt,
 	.get_formats	= isi_camera_get_formats,
@@ -889,6 +868,7 @@ static int atmel_isi_remove(struct platform_device *pdev)
 			sizeof(struct fbd) * MAX_BUFFER_NUM,
 			isi->p_fb_descriptors,
 			isi->fb_descriptors_phys);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -902,7 +882,6 @@ static int atmel_isi_probe_dt(struct atmel_isi *isi,
 
 	/* Default settings for ISI */
 	isi->pdata.full_mode = 1;
-	isi->pdata.mck_hz = ISI_DEFAULT_MCLK_FREQ;
 	isi->pdata.frate = ISI_CFG1_FRATE_CAPTURE_ALL;
 
 	np = of_graph_get_next_endpoint(np, NULL);
@@ -978,21 +957,6 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&isi->video_buffer_list);
 	INIT_LIST_HEAD(&isi->dma_desc_head);
 
-	/* ISI_MCK is the sensor master clock. It should be handled by the
-	 * sensor driver directly, as the ISI has no use for that clock. Make
-	 * the clock optional here while platforms transition to the correct
-	 * model.
-	 */
-	isi->mck = devm_clk_get(dev, "isi_mck");
-	if (!IS_ERR(isi->mck)) {
-		/* Set ISI_MCK's frequency, it should be faster than pixel
-		 * clock.
-		 */
-		ret = clk_set_rate(isi->mck, isi->pdata.mck_hz);
-		if (ret < 0)
-			return ret;
-	}
-
 	isi->p_fb_descriptors = dma_alloc_coherent(&pdev->dev,
 				sizeof(struct fbd) * MAX_BUFFER_NUM,
 				&isi->fb_descriptors_phys,
@@ -1027,8 +991,6 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	if (isi->pdata.data_width_flags & ISI_DATAWIDTH_10)
 		isi->width_flags |= 1 << 9;
 
-	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
-
 	irq = platform_get_irq(pdev, 0);
 	if (IS_ERR_VALUE(irq)) {
 		ret = irq;
@@ -1049,6 +1011,9 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	soc_host->v4l2_dev.dev	= &pdev->dev;
 	soc_host->nr		= pdev->id;
 
+	pm_suspend_ignore_children(&pdev->dev, true);
+	pm_runtime_enable(&pdev->dev);
+
 	if (isi->pdata.asd_sizes) {
 		soc_host->asd = isi->pdata.asd;
 		soc_host->asd_sizes = isi->pdata.asd_sizes;
@@ -1062,6 +1027,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_soc_camera_host:
+	pm_runtime_disable(&pdev->dev);
 err_req_irq:
 err_ioremap:
 	vb2_dma_contig_cleanup_ctx(isi->alloc_ctx);
@@ -1074,6 +1040,30 @@ err_alloc_ctx:
 	return ret;
 }
 
+static int atmel_isi_runtime_suspend(struct device *dev)
+{
+	struct soc_camera_host *soc_host = to_soc_camera_host(dev);
+	struct atmel_isi *isi = container_of(soc_host,
+					struct atmel_isi, soc_host);
+
+	clk_disable_unprepare(isi->pclk);
+
+	return 0;
+}
+static int atmel_isi_runtime_resume(struct device *dev)
+{
+	struct soc_camera_host *soc_host = to_soc_camera_host(dev);
+	struct atmel_isi *isi = container_of(soc_host,
+					struct atmel_isi, soc_host);
+
+	return clk_prepare_enable(isi->pclk);
+}
+
+static const struct dev_pm_ops atmel_isi_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(atmel_isi_runtime_suspend,
+				atmel_isi_runtime_resume, NULL)
+};
+
 static const struct of_device_id atmel_isi_of_match[] = {
 	{ .compatible = "atmel,at91sam9g45-isi" },
 	{ }
@@ -1085,6 +1075,7 @@ static struct platform_driver atmel_isi_driver = {
 	.driver		= {
 		.name = "atmel_isi",
 		.of_match_table = of_match_ptr(atmel_isi_of_match),
+		.pm	= &atmel_isi_dev_pm_ops,
 	},
 };
 
