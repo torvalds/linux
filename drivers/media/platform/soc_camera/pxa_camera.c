@@ -272,8 +272,6 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
 	videobuf_waiton(vq, &buf->vb, 0, 0);
-	videobuf_dma_unmap(vq->dev, dma);
-	videobuf_dma_free(dma);
 
 	for (i = 0; i < ARRAY_SIZE(buf->dmas); i++) {
 		if (buf->dmas[i].sg_cpu)
@@ -283,6 +281,8 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 					  buf->dmas[i].sg_dma);
 		buf->dmas[i].sg_cpu = NULL;
 	}
+	videobuf_dma_unmap(vq->dev, dma);
+	videobuf_dma_free(dma);
 
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
@@ -479,7 +479,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 
 		ret = videobuf_iolock(vq, vb, NULL);
 		if (ret)
-			goto fail;
+			goto out;
 
 		if (pcdev->channels == 3) {
 			size_y = size / 2;
@@ -504,7 +504,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 						   size_u, &sg, &next_ofs);
 		if (ret) {
 			dev_err(dev, "DMA initialization for U failed\n");
-			goto fail_u;
+			goto fail;
 		}
 
 		/* init DMA for V channel */
@@ -513,7 +513,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 						   size_v, &sg, &next_ofs);
 		if (ret) {
 			dev_err(dev, "DMA initialization for V failed\n");
-			goto fail_v;
+			goto fail;
 		}
 
 		vb->state = VIDEOBUF_PREPARED;
@@ -524,12 +524,6 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 
 	return 0;
 
-fail_v:
-	dma_free_coherent(dev, buf->dmas[1].sg_size,
-			  buf->dmas[1].sg_cpu, buf->dmas[1].sg_dma);
-fail_u:
-	dma_free_coherent(dev, buf->dmas[0].sg_size,
-			  buf->dmas[0].sg_cpu, buf->dmas[0].sg_dma);
 fail:
 	free_buffer(vq, buf);
 out:
