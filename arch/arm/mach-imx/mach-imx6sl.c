@@ -77,6 +77,9 @@ static void __init imx6sl_map_io(void)
 {
 	debug_ll_io_init();
 	imx6_pm_map_io();
+#ifdef CONFIG_CPU_FREQ
+	imx_busfreq_map_io();
+#endif
 }
 
 static const char * const imx6sl_dt_compat[] __initconst = {
