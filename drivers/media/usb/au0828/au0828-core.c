@@ -265,7 +265,7 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 		return 0;
 
 	media_device_for_each_entity(entity, mdev) {
-		switch (entity->type) {
+		switch (entity->function) {
 		case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
 			tuner = entity;
 			break;

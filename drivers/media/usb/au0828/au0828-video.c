@@ -1832,18 +1832,18 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 
 		switch (AUVI_INPUT(i).type) {
 		case AU0828_VMUX_COMPOSITE:
-			ent->type = MEDIA_ENT_T_CONN_COMPOSITE;
+			ent->function = MEDIA_ENT_T_CONN_COMPOSITE;
 			break;
 		case AU0828_VMUX_SVIDEO:
-			ent->type = MEDIA_ENT_T_CONN_SVIDEO;
+			ent->function = MEDIA_ENT_T_CONN_SVIDEO;
 			break;
 		case AU0828_VMUX_CABLE:
 		case AU0828_VMUX_TELEVISION:
 		case AU0828_VMUX_DVB:
-			ent->type = MEDIA_ENT_T_CONN_RF;
+			ent->function = MEDIA_ENT_T_CONN_RF;
 			break;
 		default: /* AU0828_VMUX_DEBUG */
-			ent->type = MEDIA_ENT_T_CONN_TEST;
+			ent->function = MEDIA_ENT_T_CONN_TEST;
 			break;
 		}
 

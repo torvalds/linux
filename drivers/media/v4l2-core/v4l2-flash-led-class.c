@@ -655,7 +655,7 @@ struct v4l2_flash *v4l2_flash_init(
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+	sd->entity.function = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
 
 	ret = v4l2_flash_init_controls(v4l2_flash, config);
 	if (ret < 0)

@@ -152,7 +152,8 @@ struct media_entity_operations {
  *
  * @graph_obj:	Embedded structure containing the media object common data.
  * @name:	Entity name.
- * @type:	Entity type, as defined in uapi/media.h (MEDIA_ENT_T_*)
+ * @function:	Entity main function, as defined in uapi/media.h
+ *		(MEDIA_ENT_F_*)
  * @revision:	Entity revision - OBSOLETE - should be removed soon.
  * @flags:	Entity flags, as defined in uapi/media.h (MEDIA_ENT_FL_*)
  * @group_id:	Entity group ID - OBSOLETE - should be removed soon.
@@ -179,7 +180,7 @@ struct media_entity_operations {
 struct media_entity {
 	struct media_gobj graph_obj;	/* must be first field in struct */
 	const char *name;
-	u32 type;
+	u32 function;
 	u32 revision;
 	unsigned long flags;
 	u32 group_id;
@@ -272,7 +273,7 @@ static inline bool is_media_entity_v4l2_io(struct media_entity *entity)
 	if (!entity)
 		return false;
 
-	switch (entity->type) {
+	switch (entity->function) {
 	case MEDIA_ENT_T_V4L2_VIDEO:
 	case MEDIA_ENT_T_V4L2_VBI:
 	case MEDIA_ENT_T_V4L2_SWRADIO:
@@ -287,7 +288,7 @@ static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
 	if (!entity)
 		return false;
 
-	switch (entity->type) {
+	switch (entity->function) {
 	case MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN:
 	case MEDIA_ENT_T_V4L2_SUBDEV_SENSOR:
 	case MEDIA_ENT_T_V4L2_SUBDEV_FLASH:

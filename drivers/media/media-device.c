@@ -108,7 +108,7 @@ static long media_device_enum_entities(struct media_device *mdev,
 	u_ent.id = media_entity_id(ent);
 	if (ent->name)
 		strlcpy(u_ent.name, ent->name, sizeof(u_ent.name));
-	u_ent.type = ent->type;
+	u_ent.type = ent->function;
 	u_ent.revision = ent->revision;
 	u_ent.flags = ent->flags;
 	u_ent.group_id = ent->group_id;
@@ -610,8 +610,8 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 {
 	int i;
 
-	if (entity->type == MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN ||
-	    entity->type == MEDIA_ENT_T_UNKNOWN)
+	if (entity->function == MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN ||
+	    entity->function == MEDIA_ENT_T_UNKNOWN)
 		dev_warn(mdev->dev,
 			 "Entity type for entity %s was not initialized!\n",
 			 entity->name);

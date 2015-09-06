@@ -197,7 +197,7 @@ static void v4l2_device_release(struct device *cd)
 	if (v4l2_dev->mdev) {
 		/* Remove interfaces and interface links */
 		media_devnode_remove(vdev->intf_devnode);
-		if (vdev->entity.type != MEDIA_ENT_T_UNKNOWN)
+		if (vdev->entity.function != MEDIA_ENT_T_UNKNOWN)
 			media_device_unregister_entity(&vdev->entity);
 	}
 #endif
@@ -735,20 +735,20 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 	if (!vdev->v4l2_dev->mdev)
 		return 0;
 
-	vdev->entity.type = MEDIA_ENT_T_UNKNOWN;
+	vdev->entity.function = MEDIA_ENT_T_UNKNOWN;
 
 	switch (type) {
 	case VFL_TYPE_GRABBER:
 		intf_type = MEDIA_INTF_T_V4L_VIDEO;
-		vdev->entity.type = MEDIA_ENT_T_V4L2_VIDEO;
+		vdev->entity.function = MEDIA_ENT_T_V4L2_VIDEO;
 		break;
 	case VFL_TYPE_VBI:
 		intf_type = MEDIA_INTF_T_V4L_VBI;
-		vdev->entity.type = MEDIA_ENT_T_V4L2_VBI;
+		vdev->entity.function = MEDIA_ENT_T_V4L2_VBI;
 		break;
 	case VFL_TYPE_SDR:
 		intf_type = MEDIA_INTF_T_V4L_SWRADIO;
-		vdev->entity.type = MEDIA_ENT_T_V4L2_SWRADIO;
+		vdev->entity.function = MEDIA_ENT_T_V4L2_SWRADIO;
 		break;
 	case VFL_TYPE_RADIO:
 		intf_type = MEDIA_INTF_T_V4L_RADIO;
@@ -766,7 +766,7 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 		return 0;
 	}
 
-	if (vdev->entity.type != MEDIA_ENT_T_UNKNOWN) {
+	if (vdev->entity.function != MEDIA_ENT_T_UNKNOWN) {
 		vdev->entity.name = vdev->name;
 
 		/* Needed just for backward compatibility with legacy MC API */
@@ -793,7 +793,7 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 		return -ENOMEM;
 	}
 
-	if (vdev->entity.type != MEDIA_ENT_T_UNKNOWN) {
+	if (vdev->entity.function != MEDIA_ENT_T_UNKNOWN) {
 		struct media_link *link;
 
 		link = media_create_intf_link(&vdev->entity,

@@ -535,9 +535,9 @@ v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 		return v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);
 	}
 
-	WARN(pad->entity->type != MEDIA_ENT_T_V4L2_VIDEO,
+	WARN(pad->entity->function != MEDIA_ENT_T_V4L2_VIDEO,
 	     "Driver bug! Wrong media entity type 0x%08x, entity %s\n",
-	     pad->entity->type, pad->entity->name);
+	     pad->entity->function, pad->entity->name);
 
 	return -EINVAL;
 }
@@ -584,7 +584,7 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 	sd->host_priv = NULL;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	sd->entity.name = sd->name;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN;
+	sd->entity.function = MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN;
 #endif
 }
 EXPORT_SYMBOL(v4l2_subdev_init);

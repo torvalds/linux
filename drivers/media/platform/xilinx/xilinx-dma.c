@@ -191,7 +191,7 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 		struct xvip_dma *dma;
 
-		if (entity->type != MEDIA_ENT_T_V4L2_VIDEO)
+		if (entity->function != MEDIA_ENT_T_V4L2_VIDEO)
 			continue;
 
 		dma = to_xvip_dma(media_entity_to_video_device(entity));

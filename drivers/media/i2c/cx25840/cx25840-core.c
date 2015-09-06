@@ -5211,7 +5211,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->pads[CX25840_PAD_INPUT].flags = MEDIA_PAD_FL_SINK;
 	state->pads[CX25840_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
 	state->pads[CX25840_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+	sd->entity.function = MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
 
 	ret = media_entity_init(&sd->entity, ARRAY_SIZE(state->pads),
 				state->pads);
