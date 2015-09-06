@@ -165,7 +165,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 /*
  * the following table value depends on datasheet
  */
-int CHRG_V_LMT[] = {4050, 4100, 4150, 4200, 4300, 4350};
+int CHRG_V_LMT[] = {4050, 4100, 4150, 4200, 4250, 4300, 4350};
 
 int CHRG_I_CUR[] = {1000, 1200, 1400, 1600, 1800, 2000,
 		   2250, 2400, 2600, 2800, 3000};
