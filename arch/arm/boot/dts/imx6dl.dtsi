@@ -64,6 +64,22 @@
 	};
 
 	soc {
+		busfreq {
+			compatible = "fsl,imx_busfreq";
+			clocks = <&clks IMX6QDL_CLK_PLL2_BUS>, <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				<&clks IMX6QDL_CLK_PLL2_198M>, <&clks IMX6QDL_CLK_ARM>,
+				<&clks IMX6QDL_CLK_PLL3_USB_OTG>, <&clks IMX6QDL_CLK_PERIPH>,
+				<&clks IMX6QDL_CLK_PERIPH_PRE>, <&clks IMX6QDL_CLK_PERIPH_CLK2>,
+				<&clks IMX6QDL_CLK_PERIPH_CLK2_SEL>, <&clks IMX6QDL_CLK_OSC>,
+				<&clks IMX6QDL_CLK_AXI_ALT_SEL>, <&clks IMX6QDL_CLK_AXI_SEL> ,
+				<&clks IMX6QDL_CLK_PLL3_PFD1_540M>;
+			clock-names = "pll2_bus", "pll2_pfd2_396m", "pll2_198m", "arm", "pll3_usb_otg", "periph",
+				"periph_pre", "periph_clk2", "periph_clk2_sel", "osc", "axi_alt_sel", "axi_sel", "pll3_pfd1_540m";
+			interrupts = <0 107 0x04>, <0 112 0x4>;
+			interrupt-names = "irq_busfreq_0", "irq_busfreq_1";
+			fsl,max_ddr_freq = <400000000>;
+		};
+
 		ocram: sram@00905000 {
 			compatible = "mmio-sram";
 			reg = <0x00905000 0x1B000>;
