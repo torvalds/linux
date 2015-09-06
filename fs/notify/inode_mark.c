@@ -143,17 +143,17 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 /**
  * fsnotify_unmount_inodes - an sb is unmounting.  handle any watched inodes.
- * @list: list of inodes being unmounted (sb->s_inodes)
+ * @sb: superblock being unmounted.
  *
  * Called during unmount with no locks held, so needs to be safe against
- * concurrent modifiers. We temporarily drop inode_sb_list_lock and CAN block.
+ * concurrent modifiers. We temporarily drop sb->s_inode_list_lock and CAN block.
  */
-void fsnotify_unmount_inodes(struct list_head *list)
+void fsnotify_unmount_inodes(struct super_block *sb)
 {
 	struct inode *inode, *next_i, *need_iput = NULL;
 
-	spin_lock(&inode_sb_list_lock);
-	list_for_each_entry_safe(inode, next_i, list, i_sb_list) {
+	spin_lock(&sb->s_inode_list_lock);
+	list_for_each_entry_safe(inode, next_i, &sb->s_inodes, i_sb_list) {
 		struct inode *need_iput_tmp;
 
 		/*
@@ -189,7 +189,7 @@ void fsnotify_unmount_inodes(struct list_head *list)
 		spin_unlock(&inode->i_lock);
 
 		/* In case the dropping of a reference would nuke next_i. */
-		while (&next_i->i_sb_list != list) {
+		while (&next_i->i_sb_list != &sb->s_inodes) {
 			spin_lock(&next_i->i_lock);
 			if (!(next_i->i_state & (I_FREEING | I_WILL_FREE)) &&
 						atomic_read(&next_i->i_count)) {
@@ -204,12 +204,12 @@ void fsnotify_unmount_inodes(struct list_head *list)
 		}
 
 		/*
-		 * We can safely drop inode_sb_list_lock here because either
+		 * We can safely drop s_inode_list_lock here because either
 		 * we actually hold references on both inode and next_i or
 		 * end of list.  Also no new inodes will be added since the
 		 * umount has begun.
 		 */
-		spin_unlock(&inode_sb_list_lock);
+		spin_unlock(&sb->s_inode_list_lock);
 
 		if (need_iput_tmp)
 			iput(need_iput_tmp);
@@ -221,7 +221,7 @@ void fsnotify_unmount_inodes(struct list_head *list)
 
 		iput(inode);
 
-		spin_lock(&inode_sb_list_lock);
+		spin_lock(&sb->s_inode_list_lock);
 	}
-	spin_unlock(&inode_sb_list_lock);
+	spin_unlock(&sb->s_inode_list_lock);
 }
