@@ -24,6 +24,8 @@
 
 #define RDS_IB_RECYCLE_BATCH_COUNT	32
 
+#define RDS_IB_WC_MAX			32
+
 extern struct rw_semaphore rds_ib_devices_lock;
 extern struct list_head rds_ib_devices;
 
@@ -89,6 +91,20 @@ struct rds_ib_work_ring {
 	atomic_t	w_free_ctr;
 };
 
+/* Rings are posted with all the allocations they'll need to queue the
+ * incoming message to the receiving socket so this can't fail.
+ * All fragments start with a header, so we can make sure we're not receiving
+ * garbage, and we can tell a small 8 byte fragment from an ACK frame.
+ */
+struct rds_ib_ack_state {
+	u64		ack_next;
+	u64		ack_recv;
+	unsigned int	ack_required:1;
+	unsigned int	ack_next_valid:1;
+	unsigned int	ack_recv_valid:1;
+};
+
+
 struct rds_ib_device;
 
 struct rds_ib_connection {
@@ -102,6 +118,10 @@ struct rds_ib_connection {
 	struct ib_pd		*i_pd;
 	struct ib_cq		*i_send_cq;
 	struct ib_cq		*i_recv_cq;
+	struct ib_wc		i_recv_wc[RDS_IB_WC_MAX];
+
+	/* interrupt handling */
+	struct tasklet_struct	i_recv_tasklet;
 
 	/* tx */
 	struct rds_ib_work_ring	i_send_ring;
@@ -112,7 +132,6 @@ struct rds_ib_connection {
 	atomic_t		i_signaled_sends;
 
 	/* rx */
-	struct tasklet_struct	i_recv_tasklet;
 	struct mutex		i_recv_mutex;
 	struct rds_ib_work_ring	i_recv_ring;
 	struct rds_ib_incoming	*i_ibinc;
@@ -199,13 +218,14 @@ struct rds_ib_statistics {
 	uint64_t	s_ib_connect_raced;
 	uint64_t	s_ib_listen_closed_stale;
 	uint64_t	s_ib_tx_cq_call;
+	uint64_t	s_ib_evt_handler_call;
+	uint64_t	s_ib_tasklet_call;
 	uint64_t	s_ib_tx_cq_event;
 	uint64_t	s_ib_tx_ring_full;
 	uint64_t	s_ib_tx_throttle;
 	uint64_t	s_ib_tx_sg_mapping_failure;
 	uint64_t	s_ib_tx_stalled;
 	uint64_t	s_ib_tx_credit_updates;
-	uint64_t	s_ib_rx_cq_call;
 	uint64_t	s_ib_rx_cq_event;
 	uint64_t	s_ib_rx_ring_empty;
 	uint64_t	s_ib_rx_refill_from_cq;
@@ -324,7 +344,8 @@ void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp);
 void rds_ib_inc_free(struct rds_incoming *inc);
 int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
-void rds_ib_recv_cq_comp_handler(struct ib_cq *cq, void *context);
+void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc,
+			     struct rds_ib_ack_state *state);
 void rds_ib_recv_tasklet_fn(unsigned long data);
 void rds_ib_recv_init_ring(struct rds_ib_connection *ic);
 void rds_ib_recv_clear_ring(struct rds_ib_connection *ic);
@@ -332,6 +353,7 @@ void rds_ib_recv_init_ack(struct rds_ib_connection *ic);
 void rds_ib_attempt_ack(struct rds_ib_connection *ic);
 void rds_ib_ack_send_complete(struct rds_ib_connection *ic);
 u64 rds_ib_piggyb_ack(struct rds_ib_connection *ic);
+void rds_ib_set_ack(struct rds_ib_connection *ic, u64 seq, int ack_required);
 
 /* ib_ring.c */
 void rds_ib_ring_init(struct rds_ib_work_ring *ring, u32 nr);
