@@ -17,8 +17,26 @@
 #ifndef HTC_USB_H
 #define HTC_USB_H
 
+/* old firmware images */
+#define FIRMWARE_AR7010_1_1     "htc_7010.fw"
+#define FIRMWARE_AR9271         "htc_9271.fw"
+
+/* supported Major FW version */
 #define MAJOR_VERSION_REQ 1
 #define MINOR_VERSION_REQ 3
+/* minimal and maximal supported Minor FW version. */
+#define FIRMWARE_MINOR_IDX_MAX  4
+#define FIRMWARE_MINOR_IDX_MIN  3
+#define HTC_FW_PATH	"ath9k_htc"
+
+#define HTC_9271_MODULE_FW  HTC_FW_PATH "/htc_9271-" \
+			__stringify(MAJOR_VERSION_REQ) \
+			"." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
+#define HTC_7010_MODULE_FW  HTC_FW_PATH "/htc_7010-" \
+			__stringify(MAJOR_VERSION_REQ) \
+			"." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
+
+extern int htc_use_dev_fw;
 
 #define IS_AR7010_DEVICE(_v) (((_v) == AR9280_USB) || ((_v) == AR9287_USB))
 
@@ -101,7 +119,8 @@ struct hif_device_usb {
 	struct usb_anchor reg_in_submitted;
 	struct usb_anchor mgmt_submitted;
 	struct sk_buff *remain_skb;
-	const char *fw_name;
+	char fw_name[32];
+	int fw_minor_index;
 	int rx_remain_len;
 	int rx_pkt_len;
 	int rx_transfer_len;
