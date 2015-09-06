@@ -148,7 +148,7 @@ static int mhu_probe(struct amba_device *adev, const struct amba_id *id)
 	mhu->mbox.ops = &mhu_ops;
 	mhu->mbox.txdone_irq = false;
 	mhu->mbox.txdone_poll = true;
-	mhu->mbox.txpoll_period = 10;
+	mhu->mbox.txpoll_period = 1;
 
 	amba_set_drvdata(adev, mhu);
 
