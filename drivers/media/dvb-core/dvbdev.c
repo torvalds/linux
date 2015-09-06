@@ -540,6 +540,28 @@ EXPORT_SYMBOL(dvb_unregister_device);
 
 
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
+
+static int dvb_create_io_intf_links(struct dvb_adapter *adap,
+				    struct media_interface *intf,
+				    char *name)
+{
+	struct media_device *mdev = adap->mdev;
+	struct media_entity *entity;
+	struct media_link *link;
+
+	media_device_for_each_entity(entity, mdev) {
+		if (entity->function == MEDIA_ENT_F_IO_DTV) {
+			if (strncmp(entity->name, name, strlen(name)))
+				continue;
+			link = media_create_intf_link(entity, intf,
+						      MEDIA_LNK_FL_ENABLED);
+			if (!link)
+				return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
 int dvb_create_media_graph(struct dvb_adapter *adap)
 {
 	struct media_device *mdev = adap->mdev;
@@ -637,25 +659,15 @@ int dvb_create_media_graph(struct dvb_adapter *adap)
 			if (!link)
 				return -ENOMEM;
 		}
-
-		media_device_for_each_entity(entity, mdev) {
-			if (entity->function == MEDIA_ENT_F_IO_DTV) {
-				if (!strcmp(entity->name, DVR_TSOUT)) {
-					link = media_create_intf_link(entity,
-							intf,
-							MEDIA_LNK_FL_ENABLED);
-					if (!link)
-						return -ENOMEM;
-				}
-				if (!strcmp(entity->name, DEMUX_TSOUT)) {
-					link = media_create_intf_link(entity,
-							intf,
-							MEDIA_LNK_FL_ENABLED);
-					if (!link)
-						return -ENOMEM;
-				}
-				break;
-			}
+		if (intf->type == MEDIA_INTF_T_DVB_DVR) {
+			ret = dvb_create_io_intf_links(adap, intf, DVR_TSOUT);
+			if (ret)
+				return ret;
+		}
+		if (intf->type == MEDIA_INTF_T_DVB_DEMUX) {
+			ret = dvb_create_io_intf_links(adap, intf, DEMUX_TSOUT);
+			if (ret)
+				return ret;
 		}
 	}
 	return 0;
