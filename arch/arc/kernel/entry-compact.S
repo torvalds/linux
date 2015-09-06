@@ -175,12 +175,25 @@ ENTRY(handle_interrupt_level2)
 
 	;------------------------------------------------------
 	; if L2 IRQ interrupted a L1 ISR, disable preemption
+	;
+	; This is to avoid a potential L1-L2-L1 scenario
+	;  -L1 IRQ taken
+	;  -L2 interrupts L1 (before L1 ISR could run)
+	;  -preemption off IRQ, user task in syscall picked to run
+	;  -RTIE to userspace
+	;	Returns from L2 context fine
+	;	But both L1 and L2 re-enabled, so another L1 can be taken
+	;	while prev L1 is still unserviced
+	;
 	;------------------------------------------------------
+
+	; L2 interrupting L1 implies both L2 and L1 active
+	; However both A2 and A1 are NOT set in STATUS32, thus
+	; need to check STATUS32_L2 to determine if L1 was active
 
 	ld r9, [sp, PT_status32]        ; get statu32_l2 (saved in pt_regs)
 	bbit0 r9, STATUS_A1_BIT, 1f     ; L1 not active when L2 IRQ, so normal
 
-	; A1 is set in status32_l2
 	; bump thread_info->preempt_count (Disable preemption)
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
