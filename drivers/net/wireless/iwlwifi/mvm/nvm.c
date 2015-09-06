@@ -316,7 +316,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
 				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant,
-				  lar_enabled, mac_addr0, mac_addr1);
+				  lar_enabled, mac_addr0, mac_addr1,
+				  mvm->trans->hw_id);
 }
 
 #define MAX_NVM_FILE_LEN	16384
