@@ -857,16 +857,12 @@ static void amdgpu_fence_wait_cb(struct fence *fence, struct fence_cb *cb)
 static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
 					     signed long t)
 {
-	struct amdgpu_fence *fence = to_amdgpu_fence(f);
-	struct amdgpu_device *adev = fence->ring->adev;
-
-	return amdgpu_fence_wait_any(adev, &f, 1, intr, t);
+	return amdgpu_fence_wait_any(&f, 1, intr, t);
 }
 
 /**
  * Wait the fence array with timeout
  *
- * @adev:     amdgpu device
  * @array:    the fence array with amdgpu fence pointer
  * @count:    the number of the fence array
  * @intr:     when sleep, set the current task interruptable or not
@@ -874,8 +870,7 @@ static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
  *
  * It will return when any fence is signaled or timeout.
  */
-signed long amdgpu_fence_wait_any(struct amdgpu_device *adev,
-				  struct fence **array, uint32_t count,
+signed long amdgpu_fence_wait_any(struct fence **array, uint32_t count,
 				  bool intr, signed long t)
 {
 	struct amdgpu_wait_cb *cb;
