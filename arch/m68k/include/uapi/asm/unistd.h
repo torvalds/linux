@@ -378,5 +378,6 @@
 #define __NR_shutdown		370
 #define __NR_recvmmsg		371
 #define __NR_sendmmsg		372
+#define __NR_userfaultfd	373
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */

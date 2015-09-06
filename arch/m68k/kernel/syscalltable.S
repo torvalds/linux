@@ -393,3 +393,4 @@ ENTRY(sys_call_table)
 	.long sys_shutdown		/* 370 */
 	.long sys_recvmmsg
 	.long sys_sendmmsg
+	.long sys_userfaultfd
