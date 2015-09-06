@@ -263,6 +263,7 @@ static long __media_device_get_topology(struct media_device *mdev,
 		/* Copy fields to userspace struct if not error */
 		memset(&uentity, 0, sizeof(uentity));
 		uentity.id = entity->graph_obj.id;
+		uentity.function = entity->function;
 		strncpy(uentity.name, entity->name,
 			sizeof(uentity.name));
 

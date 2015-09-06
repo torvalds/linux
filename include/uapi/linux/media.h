@@ -276,7 +276,8 @@ struct media_links_enum {
 struct media_v2_entity {
 	__u32 id;
 	char name[64];		/* FIXME: move to a property? (RFC says so) */
-	__u16 reserved[14];
+	__u32 function;		/* Main function of the entity */
+	__u16 reserved[12];
 };
 
 /* Should match the specific fields at media_intf_devnode */
