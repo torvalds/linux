@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/busfreq-imx.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
@@ -146,46 +147,39 @@ static int imx6sl_get_arm_divider_for_wait(void)
 	}
 }
 
-static void imx6sl_enable_pll_arm(bool enable)
-{
-	static u32 saved_pll_arm;
-	u32 val;
-
-	if (enable) {
-		saved_pll_arm = val = readl_relaxed(anatop_base + PLL_ARM);
-		val |= BM_PLL_ARM_ENABLE;
-		val &= ~BM_PLL_ARM_POWERDOWN;
-		writel_relaxed(val, anatop_base + PLL_ARM);
-		while (!(__raw_readl(anatop_base + PLL_ARM) & BM_PLL_ARM_LOCK))
-			;
-	} else {
-		 writel_relaxed(saved_pll_arm, anatop_base + PLL_ARM);
-	}
-}
-
 void imx6sl_set_wait_clk(bool enter)
 {
 	static unsigned long saved_arm_div;
+	u32 val;
 	int arm_div_for_wait = imx6sl_get_arm_divider_for_wait();
-
-	/*
-	 * According to hardware design, arm podf change need
-	 * PLL1 clock enabled.
-	 */
-	if (arm_div_for_wait == ARM_WAIT_DIV_396M)
-		imx6sl_enable_pll_arm(true);
+	int mode = get_bus_freq_mode();
 
 	if (enter) {
-		saved_arm_div = readl_relaxed(ccm_base + CACRR);
-		writel_relaxed(arm_div_for_wait, ccm_base + CACRR);
+		/*
+		 * If in this mode, the IPG clock is at 12MHz, we can
+		 * only run ARM at a max 28.8MHz, so we need to run
+		 * from the 24MHz OSC, as there is no way to get
+		 * 28.8MHz, when ARM is sourced from PLl1.
+		 */
+		if (mode == BUS_FREQ_LOW) {
+			val = readl_relaxed(ccm_base + CCSR);
+			val |= BM_CCSR_PLL1_SW_CLK_SEL;
+			writel_relaxed(val, ccm_base + CCSR);
+		} else {
+			saved_arm_div = readl_relaxed(ccm_base + CACRR);
+			writel_relaxed(arm_div_for_wait, ccm_base + CACRR);
+		}
 	} else {
-		writel_relaxed(saved_arm_div, ccm_base + CACRR);
+		if (mode == BUS_FREQ_LOW) {
+			val = readl_relaxed(ccm_base + CCSR);
+			val &= ~BM_CCSR_PLL1_SW_CLK_SEL;
+			writel_relaxed(val, ccm_base + CCSR);
+		} else {
+			writel_relaxed(saved_arm_div, ccm_base + CACRR);
+		}
 	}
 	while (__raw_readl(ccm_base + CDHIPR) & BM_CDHIPR_ARM_PODF_BUSY)
 		;
-
-	if (arm_div_for_wait == ARM_WAIT_DIV_396M)
-		imx6sl_enable_pll_arm(false);
 }
 
 static void __init imx6sl_clocks_init(struct device_node *ccm_node)
