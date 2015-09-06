@@ -25,6 +25,7 @@
 #define RDS_IB_RECYCLE_BATCH_COUNT	32
 
 #define RDS_IB_WC_MAX			32
+#define RDS_IB_SEND_OP			BIT_ULL(63)
 
 extern struct rw_semaphore rds_ib_devices_lock;
 extern struct list_head rds_ib_devices;
@@ -118,9 +119,11 @@ struct rds_ib_connection {
 	struct ib_pd		*i_pd;
 	struct ib_cq		*i_send_cq;
 	struct ib_cq		*i_recv_cq;
+	struct ib_wc		i_send_wc[RDS_IB_WC_MAX];
 	struct ib_wc		i_recv_wc[RDS_IB_WC_MAX];
 
 	/* interrupt handling */
+	struct tasklet_struct	i_send_tasklet;
 	struct tasklet_struct	i_recv_tasklet;
 
 	/* tx */
@@ -217,7 +220,6 @@ struct rds_ib_device {
 struct rds_ib_statistics {
 	uint64_t	s_ib_connect_raced;
 	uint64_t	s_ib_listen_closed_stale;
-	uint64_t	s_ib_tx_cq_call;
 	uint64_t	s_ib_evt_handler_call;
 	uint64_t	s_ib_tasklet_call;
 	uint64_t	s_ib_tx_cq_event;
@@ -371,7 +373,7 @@ extern wait_queue_head_t rds_ib_ring_empty_wait;
 void rds_ib_xmit_complete(struct rds_connection *conn);
 int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		unsigned int hdr_off, unsigned int sg, unsigned int off);
-void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context);
+void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);
 void rds_ib_send_init_ring(struct rds_ib_connection *ic);
 void rds_ib_send_clear_ring(struct rds_ib_connection *ic);
 int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op);

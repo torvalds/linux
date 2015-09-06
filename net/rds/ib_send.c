@@ -195,7 +195,7 @@ void rds_ib_send_init_ring(struct rds_ib_connection *ic)
 
 		send->s_op = NULL;
 
-		send->s_wr.wr_id = i;
+		send->s_wr.wr_id = i | RDS_IB_SEND_OP;
 		send->s_wr.sg_list = send->s_sge;
 		send->s_wr.ex.imm_data = 0;
 
@@ -237,81 +237,73 @@ static void rds_ib_sub_signaled(struct rds_ib_connection *ic, int nr)
  * unallocs the next free entry in the ring it doesn't alter which is
  * the next to be freed, which is what this is concerned with.
  */
-void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
+void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 {
-	struct rds_connection *conn = context;
-	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_message *rm = NULL;
-	struct ib_wc wc;
+	struct rds_connection *conn = ic->conn;
 	struct rds_ib_send_work *send;
 	u32 completed;
 	u32 oldest;
 	u32 i = 0;
-	int ret;
 	int nr_sig = 0;
 
-	rdsdebug("cq %p conn %p\n", cq, conn);
-	rds_ib_stats_inc(s_ib_tx_cq_call);
-	ret = ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
-	if (ret)
-		rdsdebug("ib_req_notify_cq send failed: %d\n", ret);
 
-	while (ib_poll_cq(cq, 1, &wc) > 0) {
-		rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
-			 (unsigned long long)wc.wr_id, wc.status,
-			 ib_wc_status_msg(wc.status), wc.byte_len,
-			 be32_to_cpu(wc.ex.imm_data));
-		rds_ib_stats_inc(s_ib_tx_cq_event);
+	rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
+		 (unsigned long long)wc->wr_id, wc->status,
+		 ib_wc_status_msg(wc->status), wc->byte_len,
+		 be32_to_cpu(wc->ex.imm_data));
+	rds_ib_stats_inc(s_ib_tx_cq_event);
 
-		if (wc.wr_id == RDS_IB_ACK_WR_ID) {
-			if (time_after(jiffies, ic->i_ack_queued + HZ/2))
-				rds_ib_stats_inc(s_ib_tx_stalled);
-			rds_ib_ack_send_complete(ic);
-			continue;
-		}
+	if (wc->wr_id == RDS_IB_ACK_WR_ID) {
+		if (time_after(jiffies, ic->i_ack_queued + HZ / 2))
+			rds_ib_stats_inc(s_ib_tx_stalled);
+		rds_ib_ack_send_complete(ic);
+		return;
+	}
 
-		oldest = rds_ib_ring_oldest(&ic->i_send_ring);
+	oldest = rds_ib_ring_oldest(&ic->i_send_ring);
 
-		completed = rds_ib_ring_completed(&ic->i_send_ring, wc.wr_id, oldest);
+	completed = rds_ib_ring_completed(&ic->i_send_ring,
+					  (wc->wr_id & ~RDS_IB_SEND_OP),
+					  oldest);
 
-		for (i = 0; i < completed; i++) {
-			send = &ic->i_sends[oldest];
-			if (send->s_wr.send_flags & IB_SEND_SIGNALED)
-				nr_sig++;
+	for (i = 0; i < completed; i++) {
+		send = &ic->i_sends[oldest];
+		if (send->s_wr.send_flags & IB_SEND_SIGNALED)
+			nr_sig++;
 
-			rm = rds_ib_send_unmap_op(ic, send, wc.status);
+		rm = rds_ib_send_unmap_op(ic, send, wc->status);
 
-			if (time_after(jiffies, send->s_queued + HZ/2))
-				rds_ib_stats_inc(s_ib_tx_stalled);
+		if (time_after(jiffies, send->s_queued + HZ / 2))
+			rds_ib_stats_inc(s_ib_tx_stalled);
 
-			if (send->s_op) {
-				if (send->s_op == rm->m_final_op) {
-					/* If anyone waited for this message to get flushed out, wake
-					 * them up now */
-					rds_message_unmapped(rm);
-				}
-				rds_message_put(rm);
-				send->s_op = NULL;
+		if (send->s_op) {
+			if (send->s_op == rm->m_final_op) {
+				/* If anyone waited for this message to get
+				 * flushed out, wake them up now
+				 */
+				rds_message_unmapped(rm);
 			}
-
-			oldest = (oldest + 1) % ic->i_send_ring.w_nr;
+			rds_message_put(rm);
+			send->s_op = NULL;
 		}
 
-		rds_ib_ring_free(&ic->i_send_ring, completed);
-		rds_ib_sub_signaled(ic, nr_sig);
-		nr_sig = 0;
+		oldest = (oldest + 1) % ic->i_send_ring.w_nr;
+	}
 
-		if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
-		    test_bit(0, &conn->c_map_queued))
-			queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+	rds_ib_ring_free(&ic->i_send_ring, completed);
+	rds_ib_sub_signaled(ic, nr_sig);
+	nr_sig = 0;
 
-		/* We expect errors as the qp is drained during shutdown */
-		if (wc.status != IB_WC_SUCCESS && rds_conn_up(conn)) {
-			rds_ib_conn_error(conn, "send completion on %pI4 had status "
-					  "%u (%s), disconnecting and reconnecting\n",
-					  &conn->c_faddr, wc.status,
-					  ib_wc_status_msg(wc.status));
-		}
+	if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
+	    test_bit(0, &conn->c_map_queued))
+		queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+
+	/* We expect errors as the qp is drained during shutdown */
+	if (wc->status != IB_WC_SUCCESS && rds_conn_up(conn)) {
+		rds_ib_conn_error(conn, "send completion on %pI4 had status %u (%s), disconnecting and reconnecting\n",
+				  &conn->c_faddr, wc->status,
+				  ib_wc_status_msg(wc->status));
 	}
 }
 
