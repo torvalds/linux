@@ -1350,9 +1350,20 @@
 		design_capacity = <2100>;
 		design_qmax = <2200>;
 		max_overcharge = <100>;
-		max_charge_currentma = <1500>;
-		max_charge_voltagemv = <4260>;
-		max_bat_voltagemv = <4200>;
+		bat_res = <80>;
+		max_input_currentmA  = <2000>;
+		max_chrg_currentmA = <1800>;
+		max_charge_voltagemV = <4200>;
+		max_bat_voltagemV = <4200>;
+		sleep_enter_current = <300>;
+		sleep_exit_current = <300>;
+		power_off_thresd = <3400>;
+		chrg_diff_voltagemV = <0>;
+		virtual_power = <1>;
+		support_usb_adp = <0>;
+		support_dc_adp = <1>;
+		power_dc2otg = <0>;
+		dc_det_gpio = <&gpio0 GPIO_B0 GPIO_ACTIVE_LOW>;
         };
 };
 
