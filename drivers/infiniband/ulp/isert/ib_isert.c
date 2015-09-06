@@ -1315,9 +1315,9 @@ isert_handle_scsi_cmd(struct isert_conn *isert_conn,
 {
 	struct iscsi_conn *conn = isert_conn->conn;
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)buf;
-	struct scatterlist *sg;
 	int imm_data, imm_data_len, unsol_data, sg_nents, rc;
 	bool dump_payload = false;
+	unsigned int data_len;
 
 	rc = iscsit_setup_scsi_cmd(conn, cmd, buf);
 	if (rc < 0)
@@ -1326,7 +1326,10 @@ isert_handle_scsi_cmd(struct isert_conn *isert_conn,
 	imm_data = cmd->immediate_data;
 	imm_data_len = cmd->first_burst_len;
 	unsol_data = cmd->unsolicited_data;
+	data_len = cmd->se_cmd.data_length;
 
+	if (imm_data && imm_data_len == data_len)
+		cmd->se_cmd.se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
 	rc = iscsit_process_scsi_cmd(conn, cmd, hdr);
 	if (rc < 0) {
 		return 0;
@@ -1338,13 +1341,20 @@ isert_handle_scsi_cmd(struct isert_conn *isert_conn,
 	if (!imm_data)
 		return 0;
 
-	sg = &cmd->se_cmd.t_data_sg[0];
-	sg_nents = max(1UL, DIV_ROUND_UP(imm_data_len, PAGE_SIZE));
-
-	isert_dbg("Copying Immediate SG: %p sg_nents: %u from %p imm_data_len: %d\n",
-		  sg, sg_nents, &rx_desc->data[0], imm_data_len);
-
-	sg_copy_from_buffer(sg, sg_nents, &rx_desc->data[0], imm_data_len);
+	if (imm_data_len != data_len) {
+		sg_nents = max(1UL, DIV_ROUND_UP(imm_data_len, PAGE_SIZE));
+		sg_copy_from_buffer(cmd->se_cmd.t_data_sg, sg_nents,
+				    &rx_desc->data[0], imm_data_len);
+		isert_dbg("Copy Immediate sg_nents: %u imm_data_len: %d\n",
+			  sg_nents, imm_data_len);
+	} else {
+		sg_init_table(&isert_cmd->sg, 1);
+		cmd->se_cmd.t_data_sg = &isert_cmd->sg;
+		cmd->se_cmd.t_data_nents = 1;
+		sg_set_buf(&isert_cmd->sg, &rx_desc->data[0], imm_data_len);
+		isert_dbg("Transfer Immediate imm_data_len: %d\n",
+			  imm_data_len);
+	}
 
 	cmd->write_data_done += imm_data_len;
 

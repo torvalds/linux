@@ -139,6 +139,7 @@ struct isert_cmd {
 	struct iser_rx_desc	*rx_desc;
 	struct isert_rdma_wr	rdma_wr;
 	struct work_struct	comp_work;
+	struct scatterlist	sg;
 };
 
 struct isert_device;
