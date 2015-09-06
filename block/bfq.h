@@ -183,6 +183,8 @@ struct bfq_group;
  *                    ioprio_class value.
  * @new_bfqq: shared bfq_queue if queue is cooperating with
  *           one or more other queues.
+ * @pos_node: request-position tree member (see bfq_group's @rq_pos_tree).
+ * @pos_root: request-position tree root (see bfq_group's @rq_pos_tree).
  * @sort_list: sorted list of pending requests.
  * @next_rq: if fifo isn't expired, next request to serve.
  * @queued: nr of requests queued in @sort_list.
@@ -304,6 +306,26 @@ struct bfq_ttime {
  * @ttime: associated @bfq_ttime struct
  * @ioprio: per (request_queue, blkcg) ioprio.
  * @blkcg_id: id of the blkcg the related io_cq belongs to.
+ * @wr_time_left: snapshot of the time left before weight raising ends
+ *                for the sync queue associated to this process; this
+ *		  snapshot is taken to remember this value while the weight
+ *		  raising is suspended because the queue is merged with a
+ *		  shared queue, and is used to set @raising_cur_max_time
+ *		  when the queue is split from the shared queue and its
+ *		  weight is raised again
+ * @saved_idle_window: same purpose as the previous field for the idle
+ *                     window
+ * @saved_IO_bound: same purpose as the previous two fields for the I/O
+ *                  bound classification of a queue
+ * @saved_in_large_burst: same purpose as the previous fields for the
+ *                        value of the field keeping the queue's belonging
+ *                        to a large burst
+ * @was_in_burst_list: true if the queue belonged to a burst list
+ *                     before its merge with another cooperating queue
+ * @cooperations: counter of consecutive successful queue merges underwent
+ *                by any of the process' @bfq_queues
+ * @failed_cooperations: counter of consecutive failed queue merges of any
+ *                       of the process' @bfq_queues
  */
 struct bfq_io_cq {
 	struct io_cq icq; /* must be the first member */
@@ -314,6 +336,16 @@ struct bfq_io_cq {
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	uint64_t blkcg_id; /* the current blkcg ID */
 #endif
+
+	unsigned int wr_time_left;
+	bool saved_idle_window;
+	bool saved_IO_bound;
+
+	bool saved_in_large_burst;
+	bool was_in_burst_list;
+
+	unsigned int cooperations;
+	unsigned int failed_cooperations;
 };
 
 enum bfq_device_speed {
@@ -557,6 +589,9 @@ enum bfqq_state_flags {
 					 * may need softrt-next-start
 					 * update
 					 */
+	BFQ_BFQQ_FLAG_coop,		/* bfqq is shared */
+	BFQ_BFQQ_FLAG_split_coop,	/* shared bfqq will be split */
+	BFQ_BFQQ_FLAG_just_split,	/* queue has just been split */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -583,6 +618,9 @@ BFQ_BFQQ_FNS(budget_new);
 BFQ_BFQQ_FNS(IO_bound);
 BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(constantly_seeky);
+BFQ_BFQQ_FNS(coop);
+BFQ_BFQQ_FNS(split_coop);
+BFQ_BFQQ_FNS(just_split);
 BFQ_BFQQ_FNS(softrt_update);
 #undef BFQ_BFQQ_FNS
 
@@ -675,6 +713,9 @@ struct bfq_group_data {
  *                   are groups with more than one active @bfq_entity
  *                   (see the comments to the function
  *                   bfq_bfqq_must_not_expire()).
+ * @rq_pos_tree: rbtree sorted by next_request position, used when
+ *               determining if two or more queues have interleaving
+ *               requests (see bfq_find_close_cooperator()).
  *
  * Each (device, cgroup) pair has its own bfq_group, i.e., for each cgroup
  * there is a set of bfq_groups, each one collecting the lower-level
@@ -701,6 +742,8 @@ struct bfq_group {
 
 	int active_entities;
 
+	struct rb_root rq_pos_tree;
+
 	struct bfqg_stats stats;
 	struct bfqg_stats dead_stats;	/* stats pushed from dead children */
 };
@@ -711,6 +754,8 @@ struct bfq_group {
 
 	struct bfq_queue *async_bfqq[2][IOPRIO_BE_NR];
 	struct bfq_queue *async_idle_bfqq;
+
+	struct rb_root rq_pos_tree;
 };
 #endif
 
@@ -786,6 +831,27 @@ static void bfq_put_bfqd_unlock(struct bfq_data *bfqd, unsigned long *flags)
 {
 	spin_unlock_irqrestore(bfqd->queue->queue_lock, *flags);
 }
+
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+
+static struct bfq_group *bfq_bfqq_to_bfqg(struct bfq_queue *bfqq)
+{
+	struct bfq_entity *group_entity = bfqq->entity.parent;
+
+	if (!group_entity)
+		group_entity = &bfqq->bfqd->root_group->entity;
+
+	return container_of(group_entity, struct bfq_group, entity);
+}
+
+#else
+
+static struct bfq_group *bfq_bfqq_to_bfqg(struct bfq_queue *bfqq)
+{
+	return bfqq->bfqd->root_group;
+}
+
+#endif
 
 static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio);
 static void bfq_put_queue(struct bfq_queue *bfqq);
