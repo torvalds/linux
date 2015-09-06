@@ -346,7 +346,7 @@ struct batadv_gw_node {
 };
 
 /**
- * batadv_hardif_neigh_node - unique neighbor per hard interface
+ * struct batadv_hardif_neigh_node - unique neighbor per hard interface
  * @list: list node for batadv_hard_iface::neigh_list
  * @addr: the MAC address of the neighboring interface
  * @if_incoming: pointer to incoming hard interface
