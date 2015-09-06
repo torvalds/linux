@@ -1263,7 +1263,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	};
 	struct iwl_wowlan_status *status;
 	int ret;
-	u32 handled_reasons, wakeup_reasons;
+	u32 handled_reasons, wakeup_reasons = 0;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
@@ -1294,6 +1294,9 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	}
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+
+	IWL_DEBUG_INFO(mvm, "d0i3 exit completed (wakeup reasons: 0x%x)\n",
+		       wakeup_reasons);
 
 	/* qos_seq might point inside resp_pkt, so free it only now */
 	if (get_status_cmd.resp_pkt)
