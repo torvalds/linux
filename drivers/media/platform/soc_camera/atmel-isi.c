@@ -1040,6 +1040,7 @@ err_alloc_ctx:
 	return ret;
 }
 
+#ifdef CONFIG_PM
 static int atmel_isi_runtime_suspend(struct device *dev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(dev);
@@ -1058,6 +1059,7 @@ static int atmel_isi_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(isi->pclk);
 }
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops atmel_isi_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(atmel_isi_runtime_suspend,
