@@ -3469,7 +3469,7 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 
 	down(&priv->wx_sem);
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	schedule_work(&priv->reset_wq);
 	up(&priv->wx_sem);
