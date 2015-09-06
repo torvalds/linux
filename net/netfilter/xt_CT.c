@@ -255,7 +255,7 @@ out:
 	return 0;
 
 err3:
-	nf_conntrack_free(ct);
+	nf_ct_tmpl_free(ct);
 err2:
 	nf_ct_l3proto_module_put(par->family);
 err1:
