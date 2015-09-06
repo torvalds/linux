@@ -311,6 +311,30 @@ static int calculate_dma_sglen(struct scatterlist *sglist, int sglen,
 	return i + 1;
 }
 
+static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
+			       enum pxa_camera_active_dma act_dma);
+
+static void pxa_camera_dma_irq_y(int channel, void *data)
+{
+	struct pxa_camera_dev *pcdev = data;
+
+	pxa_camera_dma_irq(channel, pcdev, DMA_Y);
+}
+
+static void pxa_camera_dma_irq_u(int channel, void *data)
+{
+	struct pxa_camera_dev *pcdev = data;
+
+	pxa_camera_dma_irq(channel, pcdev, DMA_U);
+}
+
+static void pxa_camera_dma_irq_v(int channel, void *data)
+{
+	struct pxa_camera_dev *pcdev = data;
+
+	pxa_camera_dma_irq(channel, pcdev, DMA_V);
+}
+
 /**
  * pxa_init_dma_channel - init dma descriptors
  * @pcdev: pxa camera device
@@ -800,24 +824,6 @@ static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
 
 out:
 	spin_unlock_irqrestore(&pcdev->lock, flags);
-}
-
-static void pxa_camera_dma_irq_y(int channel, void *data)
-{
-	struct pxa_camera_dev *pcdev = data;
-	pxa_camera_dma_irq(channel, pcdev, DMA_Y);
-}
-
-static void pxa_camera_dma_irq_u(int channel, void *data)
-{
-	struct pxa_camera_dev *pcdev = data;
-	pxa_camera_dma_irq(channel, pcdev, DMA_U);
-}
-
-static void pxa_camera_dma_irq_v(int channel, void *data)
-{
-	struct pxa_camera_dev *pcdev = data;
-	pxa_camera_dma_irq(channel, pcdev, DMA_V);
 }
 
 static struct videobuf_queue_ops pxa_videobuf_ops = {
