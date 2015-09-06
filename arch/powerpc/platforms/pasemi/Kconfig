@@ -1,5 +1,5 @@
 config PPC_PASEMI
-	depends on PPC64 && PPC_BOOK3S
+	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	bool "PA Semi SoC-based platforms"
 	default n
 	select MPIC
