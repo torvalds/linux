@@ -480,7 +480,7 @@ out:
 /**
  * batadv_softif_vlan_free_ref - decrease the vlan object refcounter and
  *  possibly free it
- * @softif_vlan: the vlan object to release
+ * @vlan: the vlan object to release
  */
 void batadv_softif_vlan_free_ref(struct batadv_softif_vlan *vlan)
 {
