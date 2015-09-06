@@ -218,8 +218,8 @@ struct isert_device {
 
 struct isert_np {
 	struct iscsi_np         *np;
-	struct semaphore	np_sem;
-	struct rdma_cm_id	*np_cm_id;
-	struct mutex		np_accept_mutex;
-	struct list_head	np_accept_list;
+	struct semaphore	sem;
+	struct rdma_cm_id	*cm_id;
+	struct mutex		mutex;
+	struct list_head	accept_list;
 };
