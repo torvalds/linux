@@ -904,7 +904,6 @@ rx_success:
  * batadv_recv_unicast_tvlv - receive and process unicast tvlv packets
  * @skb: unicast tvlv packet to process
  * @recv_if: pointer to interface this packet was received on
- * @dst_addr: the payload destination
  *
  * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
  * otherwise.
