@@ -24,7 +24,7 @@
 #include "hardware.h"
 
 u32 g_diag_reg;
-static void __iomem *imx_scu_base;
+void __iomem *imx_scu_base;
 
 static struct map_desc scu_io_desc __initdata = {
 	/* .virtual and .pfn are run-time assigned */
