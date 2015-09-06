@@ -409,6 +409,8 @@ unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 	if (!et)
 		return false;
 
+	trace_f2fs_update_extent_tree_range(inode, fofs, blkaddr, len);
+
 	write_lock(&et->lock);
 
 	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT)) {
