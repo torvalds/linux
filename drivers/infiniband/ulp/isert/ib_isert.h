@@ -159,7 +159,7 @@ struct isert_conn {
 	struct iser_rx_desc	*rx_descs;
 	struct ib_recv_wr	rx_wr[ISERT_MIN_POSTED_RX];
 	struct iscsi_conn	*conn;
-	struct list_head	accept_node;
+	struct list_head	node;
 	struct completion	login_comp;
 	struct completion	login_req_comp;
 	struct iser_tx_desc	login_tx_desc;
@@ -221,5 +221,6 @@ struct isert_np {
 	struct semaphore	sem;
 	struct rdma_cm_id	*cm_id;
 	struct mutex		mutex;
-	struct list_head	accept_list;
+	struct list_head	accepted;
+	struct list_head	pending;
 };

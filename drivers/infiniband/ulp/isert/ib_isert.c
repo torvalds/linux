@@ -634,7 +634,7 @@ static void
 isert_init_conn(struct isert_conn *isert_conn)
 {
 	isert_conn->state = ISER_CONN_INIT;
-	INIT_LIST_HEAD(&isert_conn->accept_node);
+	INIT_LIST_HEAD(&isert_conn->node);
 	init_completion(&isert_conn->login_comp);
 	init_completion(&isert_conn->login_req_comp);
 	init_completion(&isert_conn->wait);
@@ -762,28 +762,15 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	ret = isert_rdma_post_recvl(isert_conn);
 	if (ret)
 		goto out_conn_dev;
-	/*
-	 * Obtain the second reference now before isert_rdma_accept() to
-	 * ensure that any initiator generated REJECT CM event that occurs
-	 * asynchronously won't drop the last reference until the error path
-	 * in iscsi_target_login_sess_out() does it's ->iscsit_free_conn() ->
-	 * isert_free_conn() -> isert_put_conn() -> kref_put().
-	 */
-	if (!kref_get_unless_zero(&isert_conn->kref)) {
-		isert_warn("conn %p connect_release is running\n", isert_conn);
-		goto out_conn_dev;
-	}
 
 	ret = isert_rdma_accept(isert_conn);
 	if (ret)
 		goto out_conn_dev;
 
 	mutex_lock(&isert_np->mutex);
-	list_add_tail(&isert_conn->accept_node, &isert_np->accept_list);
+	list_add_tail(&isert_conn->node, &isert_np->accepted);
 	mutex_unlock(&isert_np->mutex);
 
-	isert_info("np %p: Allow accept_np to continue\n", np);
-	up(&isert_np->sem);
 	return 0;
 
 out_conn_dev:
@@ -831,13 +818,21 @@ static void
 isert_connected_handler(struct rdma_cm_id *cma_id)
 {
 	struct isert_conn *isert_conn = cma_id->qp->qp_context;
+	struct isert_np *isert_np = cma_id->context;
 
 	isert_info("conn %p\n", isert_conn);
 
 	mutex_lock(&isert_conn->mutex);
-	if (isert_conn->state != ISER_CONN_FULL_FEATURE)
-		isert_conn->state = ISER_CONN_UP;
+	isert_conn->state = ISER_CONN_UP;
+	kref_get(&isert_conn->kref);
 	mutex_unlock(&isert_conn->mutex);
+
+	mutex_lock(&isert_np->mutex);
+	list_move_tail(&isert_conn->node, &isert_np->pending);
+	mutex_unlock(&isert_np->mutex);
+
+	isert_info("np %p: Allow accept_np to continue\n", isert_np);
+	up(&isert_np->sem);
 }
 
 static void
@@ -946,8 +941,8 @@ isert_disconnected_handler(struct rdma_cm_id *cma_id,
 		goto out;
 
 	mutex_lock(&isert_np->mutex);
-	if (!list_empty(&isert_conn->accept_node)) {
-		list_del_init(&isert_conn->accept_node);
+	if (!list_empty(&isert_conn->node)) {
+		list_del_init(&isert_conn->node);
 		isert_put_conn(isert_conn);
 		queue_work(isert_release_wq, &isert_conn->release_work);
 	}
@@ -962,6 +957,7 @@ isert_connect_error(struct rdma_cm_id *cma_id)
 {
 	struct isert_conn *isert_conn = cma_id->qp->qp_context;
 
+	list_del_init(&isert_conn->node);
 	isert_conn->cm_id = NULL;
 	isert_put_conn(isert_conn);
 
@@ -3115,7 +3111,8 @@ isert_setup_np(struct iscsi_np *np,
 	}
 	sema_init(&isert_np->sem, 0);
 	mutex_init(&isert_np->mutex);
-	INIT_LIST_HEAD(&isert_np->accept_list);
+	INIT_LIST_HEAD(&isert_np->accepted);
+	INIT_LIST_HEAD(&isert_np->pending);
 	isert_np->np = np;
 
 	/*
@@ -3238,13 +3235,13 @@ accept_wait:
 	spin_unlock_bh(&np->np_thread_lock);
 
 	mutex_lock(&isert_np->mutex);
-	if (list_empty(&isert_np->accept_list)) {
+	if (list_empty(&isert_np->pending)) {
 		mutex_unlock(&isert_np->mutex);
 		goto accept_wait;
 	}
-	isert_conn = list_first_entry(&isert_np->accept_list,
-			struct isert_conn, accept_node);
-	list_del_init(&isert_conn->accept_node);
+	isert_conn = list_first_entry(&isert_np->pending,
+			struct isert_conn, node);
+	list_del_init(&isert_conn->node);
 	mutex_unlock(&isert_np->mutex);
 
 	conn->context = isert_conn;
@@ -3271,14 +3268,25 @@ isert_free_np(struct iscsi_np *np)
 	 * that at this point we don't have hanging connections that
 	 * completed RDMA establishment but didn't start iscsi login
 	 * process. So work-around this by cleaning up what ever piled
-	 * up in accept_list.
+	 * up in accepted and pending lists.
 	 */
 	mutex_lock(&isert_np->mutex);
-	if (!list_empty(&isert_np->accept_list)) {
-		isert_info("Still have isert connections, cleaning up...\n");
+	if (!list_empty(&isert_np->pending)) {
+		isert_info("Still have isert pending connections\n");
 		list_for_each_entry_safe(isert_conn, n,
-					 &isert_np->accept_list,
-					 accept_node) {
+					 &isert_np->pending,
+					 node) {
+			isert_info("cleaning isert_conn %p state (%d)\n",
+				   isert_conn, isert_conn->state);
+			isert_connect_release(isert_conn);
+		}
+	}
+
+	if (!list_empty(&isert_np->accepted)) {
+		isert_info("Still have isert accepted connections\n");
+		list_for_each_entry_safe(isert_conn, n,
+					 &isert_np->accepted,
+					 node) {
 			isert_info("cleaning isert_conn %p state (%d)\n",
 				   isert_conn, isert_conn->state);
 			isert_connect_release(isert_conn);
