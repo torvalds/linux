@@ -3116,7 +3116,6 @@ isert_setup_np(struct iscsi_np *np,
 	sema_init(&isert_np->np_sem, 0);
 	mutex_init(&isert_np->np_accept_mutex);
 	INIT_LIST_HEAD(&isert_np->np_accept_list);
-	init_completion(&isert_np->np_login_comp);
 	isert_np->np = np;
 
 	/*

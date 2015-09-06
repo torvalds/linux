@@ -113,7 +113,6 @@ enum {
 };
 
 struct isert_rdma_wr {
-	struct list_head	wr_list;
 	struct isert_cmd	*isert_cmd;
 	enum iser_ib_op_code	iser_ib_op;
 	struct ib_sge		*ib_sge;
@@ -134,9 +133,6 @@ struct isert_cmd {
 	uint64_t		write_va;
 	u64			pdu_buf_dma;
 	u32			pdu_buf_len;
-	u32			read_va_off;
-	u32			write_va_off;
-	u32			rdma_wr_num;
 	struct isert_conn	*conn;
 	struct iscsi_cmd	*iscsi_cmd;
 	struct iser_tx_desc	tx_desc;
@@ -226,5 +222,4 @@ struct isert_np {
 	struct rdma_cm_id	*np_cm_id;
 	struct mutex		np_accept_mutex;
 	struct list_head	np_accept_list;
-	struct completion	np_login_comp;
 };
