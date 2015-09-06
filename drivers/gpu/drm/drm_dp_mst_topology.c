@@ -53,8 +53,8 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_dp_mst_port *port,
 				  int offset, int size, u8 *bytes);
 
-static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
-				    struct drm_dp_mst_branch *mstb);
+static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
+				     struct drm_dp_mst_branch *mstb);
 static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_dp_mst_branch *mstb,
 					   struct drm_dp_mst_port *port);
@@ -1109,10 +1109,8 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		drm_dp_port_teardown_pdt(port, old_pdt);
 
 		ret = drm_dp_port_setup_pdt(port);
-		if (ret == true) {
+		if (ret == true)
 			drm_dp_send_link_address(mstb->mgr, port->mstb);
-			port->mstb->link_address_sent = true;
-		}
 	}
 
 	if (created && !port->input) {
@@ -1216,10 +1214,9 @@ static void drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *m
 {
 	struct drm_dp_mst_port *port;
 	struct drm_dp_mst_branch *mstb_child;
-	if (!mstb->link_address_sent) {
+	if (!mstb->link_address_sent)
 		drm_dp_send_link_address(mgr, mstb);
-		mstb->link_address_sent = true;
-	}
+
 	list_for_each_entry(port, &mstb->ports, next) {
 		if (port->input)
 			continue;
@@ -1472,8 +1469,8 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_unlock(&mgr->qlock);
 }
 
-static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
-				    struct drm_dp_mst_branch *mstb)
+static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
+				     struct drm_dp_mst_branch *mstb)
 {
 	int len;
 	struct drm_dp_sideband_msg_tx *txmsg;
@@ -1481,11 +1478,12 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
 	if (!txmsg)
-		return -ENOMEM;
+		return;
 
 	txmsg->dst = mstb;
 	len = build_link_address(txmsg);
 
+	mstb->link_address_sent = true;
 	drm_dp_queue_down_tx(mgr, txmsg);
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
@@ -1513,11 +1511,12 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 			}
 			(*mgr->cbs->hotplug)(mgr);
 		}
-	} else
+	} else {
+		mstb->link_address_sent = false;
 		DRM_DEBUG_KMS("link address failed %d\n", ret);
+	}
 
 	kfree(txmsg);
-	return 0;
 }
 
 static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
