@@ -318,6 +318,9 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 	if (connection->hd_cport_id == GB_SVC_CPORT_ID)
 		return;
 
+	if (connection->hd->driver->connection_destroy)
+		connection->hd->driver->connection_destroy(connection);
+
 	gb_svc_connection_destroy(connection->hd->svc,
 				  connection->hd->endo->ap_intf_id,
 				  connection->hd_cport_id,
@@ -461,9 +464,6 @@ void gb_connection_destroy(struct gb_connection *connection)
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
 	spin_unlock_irq(&gb_connections_lock);
-
-	if (connection->hd->driver->connection_destroy)
-		connection->hd->driver->connection_destroy(connection);
 
 	if (connection->protocol)
 		gb_protocol_put(connection->protocol);
