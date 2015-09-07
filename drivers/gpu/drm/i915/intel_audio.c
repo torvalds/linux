@@ -401,7 +401,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	connector = drm_select_eld(encoder, mode);
+	connector = drm_select_eld(encoder);
 	if (!connector)
 		return;
 
