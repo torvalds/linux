@@ -1171,22 +1171,27 @@ static ssize_t cmb_enable_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	return sprintf(buf, "%d\n", to_ccwdev(dev)->private->cmb ? 1 : 0);
+	struct ccw_device *cdev = to_ccwdev(dev);
+	int enabled;
+
+	spin_lock_irq(cdev->ccwlock);
+	enabled = !!cdev->private->cmb;
+	spin_unlock_irq(cdev->ccwlock);
+
+	return sprintf(buf, "%d\n", enabled);
 }
 
 static ssize_t cmb_enable_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t c)
 {
-	struct ccw_device *cdev;
-	int ret;
+	struct ccw_device *cdev = to_ccwdev(dev);
 	unsigned long val;
+	int ret;
 
 	ret = kstrtoul(buf, 16, &val);
 	if (ret)
 		return ret;
-
-	cdev = to_ccwdev(dev);
 
 	switch (val) {
 	case 0:
@@ -1195,12 +1200,13 @@ static ssize_t cmb_enable_store(struct device *dev,
 	case 1:
 		ret = enable_cmf(cdev);
 		break;
+	default:
+		ret = -EINVAL;
 	}
 
-	return c;
+	return ret ? ret : c;
 }
-
-DEVICE_ATTR(cmb_enable, 0644, cmb_enable_show, cmb_enable_store);
+DEVICE_ATTR_RW(cmb_enable);
 
 int ccw_set_cmf(struct ccw_device *cdev, int enable)
 {
