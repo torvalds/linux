@@ -11,6 +11,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -20,6 +21,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_dl.h"
 #include "vsp1_entity.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
@@ -197,8 +199,12 @@ void vsp1_pipeline_run(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 
-	vsp1_write(vsp1, VI6_CMD(pipe->output->entity.index), VI6_CMD_STRCMD);
-	pipe->state = VSP1_PIPELINE_RUNNING;
+	if (pipe->state == VSP1_PIPELINE_STOPPED) {
+		vsp1_write(vsp1, VI6_CMD(pipe->output->entity.index),
+			   VI6_CMD_STRCMD);
+		pipe->state = VSP1_PIPELINE_RUNNING;
+	}
+
 	pipe->buffers_ready = 0;
 }
 
@@ -220,14 +226,28 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&pipe->irqlock, flags);
-	if (pipe->state == VSP1_PIPELINE_RUNNING)
-		pipe->state = VSP1_PIPELINE_STOPPING;
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
+	if (pipe->dl) {
+		/* When using display lists in continuous frame mode the only
+		 * way to stop the pipeline is to reset the hardware.
+		 */
+		ret = vsp1_reset_wpf(pipe->output->entity.vsp1,
+				     pipe->output->entity.index);
+		if (ret == 0) {
+			spin_lock_irqsave(&pipe->irqlock, flags);
+			pipe->state = VSP1_PIPELINE_STOPPED;
+			spin_unlock_irqrestore(&pipe->irqlock, flags);
+		}
+	} else {
+		/* Otherwise just request a stop and wait. */
+		spin_lock_irqsave(&pipe->irqlock, flags);
+		if (pipe->state == VSP1_PIPELINE_RUNNING)
+			pipe->state = VSP1_PIPELINE_STOPPING;
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
 
-	ret = wait_event_timeout(pipe->wq, vsp1_pipeline_stopped(pipe),
-				 msecs_to_jiffies(500));
-	ret = ret == 0 ? -ETIMEDOUT : 0;
+		ret = wait_event_timeout(pipe->wq, vsp1_pipeline_stopped(pipe),
+					 msecs_to_jiffies(500));
+		ret = ret == 0 ? -ETIMEDOUT : 0;
+	}
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->route && entity->route->reg)
@@ -251,6 +271,12 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
 	return pipe->buffers_ready == mask;
 }
 
+void vsp1_pipeline_display_start(struct vsp1_pipeline *pipe)
+{
+	if (pipe->dl)
+		vsp1_dl_irq_display_start(pipe->dl);
+}
+
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
 	enum vsp1_pipeline_state state;
@@ -259,13 +285,21 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	if (pipe == NULL)
 		return;
 
+	if (pipe->dl)
+		vsp1_dl_irq_frame_end(pipe->dl);
+
 	/* Signal frame end to the pipeline handler. */
 	pipe->frame_end(pipe);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
 	state = pipe->state;
-	pipe->state = VSP1_PIPELINE_STOPPED;
+
+	/* When using display lists in continuous frame mode the pipeline is
+	 * automatically restarted by the hardware.
+	 */
+	if (!pipe->dl)
+		pipe->state = VSP1_PIPELINE_STOPPED;
 
 	/* If a stop has been requested, mark the pipeline as stopped and
 	 * return.

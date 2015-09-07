@@ -20,6 +20,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_dl.h"
 #include "vsp1_drm.h"
 #include "vsp1_lif.h"
 #include "vsp1_pipe.h"
@@ -29,55 +30,13 @@
  * Runtime Handling
  */
 
-static int vsp1_drm_pipeline_run(struct vsp1_pipeline *pipe)
-{
-	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
-	int ret;
-
-	if (vsp1->drm->update) {
-		struct vsp1_entity *entity;
-
-		list_for_each_entry(entity, &pipe->entities, list_pipe) {
-			/* Disconnect unused RPFs from the pipeline. */
-			if (entity->type == VSP1_ENTITY_RPF) {
-				struct vsp1_rwpf *rpf =
-					to_rwpf(&entity->subdev);
-
-				if (!pipe->inputs[rpf->entity.index]) {
-					vsp1_write(entity->vsp1,
-						   entity->route->reg,
-						   VI6_DPR_NODE_UNUSED);
-					continue;
-				}
-			}
-
-			vsp1_entity_route_setup(entity);
-
-			ret = v4l2_subdev_call(&entity->subdev, video,
-					       s_stream, 1);
-			if (ret < 0) {
-				dev_err(vsp1->dev,
-					"DRM pipeline start failure on entity %s\n",
-					entity->subdev.name);
-				return ret;
-			}
-		}
-
-		vsp1->drm->update = false;
-	}
-
-	vsp1_pipeline_run(pipe);
-
-	return 0;
-}
-
 static void vsp1_drm_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 	if (pipe->num_inputs)
-		vsp1_drm_pipeline_run(pipe);
+		vsp1_pipeline_run(pipe);
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 }
 
@@ -150,6 +109,8 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 
 		return 0;
 	}
+
+	vsp1_dl_reset(vsp1->drm->dl);
 
 	/* Configure the format at the BRU sinks and propagate it through the
 	 * pipeline.
@@ -266,9 +227,11 @@ void vsp1_du_atomic_begin(struct device *dev)
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
 	vsp1->drm->num_inputs = pipe->num_inputs;
-	vsp1->drm->update = false;
 
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
+
+	/* Prepare the display list. */
+	vsp1_dl_begin(vsp1->drm->dl);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -489,23 +452,54 @@ void vsp1_du_atomic_flush(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
+	struct vsp1_entity *entity;
 	unsigned long flags;
 	bool stop = false;
+	int ret;
+
+	list_for_each_entry(entity, &pipe->entities, list_pipe) {
+		/* Disconnect unused RPFs from the pipeline. */
+		if (entity->type == VSP1_ENTITY_RPF) {
+			struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
+
+			if (!pipe->inputs[rpf->entity.index]) {
+				vsp1_mod_write(entity, entity->route->reg,
+					   VI6_DPR_NODE_UNUSED);
+				continue;
+			}
+		}
+
+		vsp1_entity_route_setup(entity);
+
+		ret = v4l2_subdev_call(&entity->subdev, video,
+				       s_stream, 1);
+		if (ret < 0) {
+			dev_err(vsp1->dev,
+				"DRM pipeline start failure on entity %s\n",
+				entity->subdev.name);
+			return;
+		}
+	}
+
+	vsp1_dl_commit(vsp1->drm->dl);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	vsp1->drm->update = true;
-
 	/* Start or stop the pipeline if needed. */
-	if (!vsp1->drm->num_inputs && pipe->num_inputs)
-		vsp1_drm_pipeline_run(pipe);
-	else if (vsp1->drm->num_inputs && !pipe->num_inputs)
+	if (!vsp1->drm->num_inputs && pipe->num_inputs) {
+		vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
+		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, VI6_DISP_IRQ_ENB_DSTE);
+		vsp1_pipeline_run(pipe);
+	} else if (vsp1->drm->num_inputs && !pipe->num_inputs) {
 		stop = true;
+	}
 
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
-	if (stop)
+	if (stop) {
+		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
 		vsp1_pipeline_stop(pipe);
+	}
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 
@@ -568,6 +562,10 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	if (!vsp1->drm)
 		return -ENOMEM;
 
+	vsp1->drm->dl = vsp1_dl_create(vsp1);
+	if (!vsp1->drm->dl)
+		return -ENOMEM;
+
 	pipe = &vsp1->drm->pipe;
 
 	vsp1_pipeline_init(pipe);
@@ -588,5 +586,12 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe->lif = &vsp1->lif->entity;
 	pipe->output = vsp1->wpf[0];
 
+	pipe->dl = vsp1->drm->dl;
+
 	return 0;
+}
+
+void vsp1_drm_cleanup(struct vsp1_device *vsp1)
+{
+	vsp1_dl_destroy(vsp1->drm->dl);
 }

@@ -34,8 +34,8 @@ static inline u32 vsp1_wpf_read(struct vsp1_rwpf *wpf, u32 reg)
 
 static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf, u32 reg, u32 data)
 {
-	vsp1_write(wpf->entity.vsp1,
-		   reg + wpf->entity.index * VI6_WPF_OFFSET, data);
+	vsp1_mod_write(&wpf->entity,
+		       reg + wpf->entity.index * VI6_WPF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -88,7 +88,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (!enable) {
 		vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
-		vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, 0);
+		vsp1_write(vsp1, wpf->entity.index * VI6_WPF_OFFSET +
+			   VI6_WPF_SRCRPF, 0);
 		return 0;
 	}
 
@@ -161,10 +162,10 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (vsp1->pdata.uapi)
 		mutex_unlock(wpf->ctrls.lock);
 
-	vsp1_write(vsp1, VI6_DPR_WPF_FPORCH(wpf->entity.index),
-		   VI6_DPR_WPF_FPORCH_FP_WPFN);
+	vsp1_mod_write(&wpf->entity, VI6_DPR_WPF_FPORCH(wpf->entity.index),
+		       VI6_DPR_WPF_FPORCH_FP_WPFN);
 
-	vsp1_write(vsp1, VI6_WPF_WRBCK_CTRL, 0);
+	vsp1_mod_write(&wpf->entity, VI6_WPF_WRBCK_CTRL, 0);
 
 	/* Enable interrupts */
 	vsp1_write(vsp1, VI6_WPF_IRQ_STA(wpf->entity.index), 0);

@@ -28,7 +28,7 @@
 
 static inline void vsp1_lif_write(struct vsp1_lif *lif, u32 reg, u32 data)
 {
-	vsp1_write(lif->entity.vsp1, reg, data);
+	vsp1_mod_write(&lif->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -44,7 +44,7 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
 	unsigned int lbth = 200;
 
 	if (!enable) {
-		vsp1_lif_write(lif, VI6_LIF_CTRL, 0);
+		vsp1_write(lif->entity.vsp1, VI6_LIF_CTRL, 0);
 		return 0;
 	}
 

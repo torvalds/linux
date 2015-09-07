@@ -30,7 +30,7 @@
 
 static inline void vsp1_bru_write(struct vsp1_bru *bru, u32 reg, u32 data)
 {
-	vsp1_write(bru->entity.vsp1, reg, data);
+	vsp1_mod_write(&bru->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------

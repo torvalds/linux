@@ -66,8 +66,8 @@ void vsp1_entity_route_setup(struct vsp1_entity *source)
 		return;
 
 	sink = container_of(source->sink, struct vsp1_entity, subdev.entity);
-	vsp1_write(source->vsp1, source->route->reg,
-		   sink->route->inputs[source->sink_pad]);
+	vsp1_mod_write(source, source->route->reg,
+		       sink->route->inputs[source->sink_pad]);
 }
 
 /* -----------------------------------------------------------------------------

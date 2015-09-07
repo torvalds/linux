@@ -28,8 +28,8 @@
 
 static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
 {
-	vsp1_write(rpf->entity.vsp1,
-		   reg + rpf->entity.index * VI6_RPF_OFFSET, data);
+	vsp1_mod_write(&rpf->entity, reg + rpf->entity.index * VI6_RPF_OFFSET,
+		       data);
 }
 
 /* -----------------------------------------------------------------------------

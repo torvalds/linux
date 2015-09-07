@@ -25,6 +25,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_dl.h"
 #include "vsp1_drm.h"
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
@@ -44,11 +45,11 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	struct vsp1_device *vsp1 = data;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i;
+	u32 status;
 
 	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
-		u32 status;
 
 		if (wpf == NULL)
 			continue;
@@ -61,6 +62,21 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 			vsp1_pipeline_frame_end(pipe);
 			ret = IRQ_HANDLED;
 		}
+	}
+
+	status = vsp1_read(vsp1, VI6_DISP_IRQ_STA);
+	vsp1_write(vsp1, VI6_DISP_IRQ_STA, ~status & VI6_DISP_IRQ_STA_DST);
+
+	if (status & VI6_DISP_IRQ_STA_DST) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[0];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf) {
+			pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+			vsp1_pipeline_display_start(pipe);
+		}
+
+		ret = IRQ_HANDLED;
 	}
 
 	return ret;
@@ -198,6 +214,9 @@ static void vsp1_destroy_entities(struct vsp1_device *vsp1)
 	v4l2_device_unregister(&vsp1->v4l2_dev);
 	media_device_unregister(&vsp1->media_dev);
 	media_device_cleanup(&vsp1->media_dev);
+
+	if (!vsp1->pdata.uapi)
+		vsp1_drm_cleanup(vsp1);
 }
 
 static int vsp1_create_entities(struct vsp1_device *vsp1)
@@ -368,10 +387,13 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	/* Register subdev nodes if the userspace API is enabled or initialize
 	 * the DRM pipeline otherwise.
 	 */
-	if (vsp1->pdata.uapi)
+	if (vsp1->pdata.uapi) {
+		vsp1->use_dl = false;
 		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
-	else
+	} else {
+		vsp1->use_dl = true;
 		ret = vsp1_drm_init(vsp1);
+	}
 	if (ret < 0)
 		goto done;
 
@@ -384,33 +406,42 @@ done:
 	return ret;
 }
 
+int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
+{
+	unsigned int timeout;
+	u32 status;
+
+	status = vsp1_read(vsp1, VI6_STATUS);
+	if (!(status & VI6_STATUS_SYS_ACT(index)))
+		return 0;
+
+	vsp1_write(vsp1, VI6_SRESET, VI6_SRESET_SRTS(index));
+	for (timeout = 10; timeout > 0; --timeout) {
+		status = vsp1_read(vsp1, VI6_STATUS);
+		if (!(status & VI6_STATUS_SYS_ACT(index)))
+			break;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!timeout) {
+		dev_err(vsp1->dev, "failed to reset wpf.%u\n", index);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int vsp1_device_init(struct vsp1_device *vsp1)
 {
 	unsigned int i;
-	u32 status;
+	int ret;
 
 	/* Reset any channel that might be running. */
-	status = vsp1_read(vsp1, VI6_STATUS);
-
 	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
-		unsigned int timeout;
-
-		if (!(status & VI6_STATUS_SYS_ACT(i)))
-			continue;
-
-		vsp1_write(vsp1, VI6_SRESET, VI6_SRESET_SRTS(i));
-		for (timeout = 10; timeout > 0; --timeout) {
-			status = vsp1_read(vsp1, VI6_STATUS);
-			if (!(status & VI6_STATUS_SYS_ACT(i)))
-				break;
-
-			usleep_range(1000, 2000);
-		}
-
-		if (!timeout) {
-			dev_err(vsp1->dev, "failed to reset wpf.%u\n", i);
-			return -ETIMEDOUT;
-		}
+		ret = vsp1_reset_wpf(vsp1, i);
+		if (ret < 0)
+			return ret;
 	}
 
 	vsp1_write(vsp1, VI6_CLK_DCSWT, (8 << VI6_CLK_DCSWT_CSTPW_SHIFT) |
@@ -433,6 +464,9 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+
+	if (vsp1->use_dl)
+		vsp1_dl_setup(vsp1);
 
 	return 0;
 }

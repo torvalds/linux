@@ -19,6 +19,7 @@
 
 #include <media/media-entity.h>
 
+struct vsp1_dl;
 struct vsp1_rwpf;
 
 /*
@@ -73,6 +74,7 @@ enum vsp1_pipeline_state {
  * @uds: UDS entity, if present
  * @uds_input: entity at the input of the UDS, if the UDS is present
  * @entities: list of entities in the pipeline
+ * @dl: display list associated with the pipeline
  */
 struct vsp1_pipeline {
 	struct media_pipeline pipe;
@@ -97,6 +99,8 @@ struct vsp1_pipeline {
 	struct vsp1_entity *uds_input;
 
 	struct list_head entities;
+
+	struct vsp1_dl *dl;
 };
 
 static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
@@ -115,6 +119,7 @@ bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe);
 int vsp1_pipeline_stop(struct vsp1_pipeline *pipe);
 bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe);
 
+void vsp1_pipeline_display_start(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
 
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
