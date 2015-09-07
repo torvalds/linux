@@ -132,15 +132,24 @@
 		model = "wm8962-audio";
 		cpu-dai = <&ssi2>;
 		audio-codec = <&codec>;
+		asrc-controller = <&asrc>;
 		audio-routing =
 			"Headphone Jack", "HPOUTL",
 			"Headphone Jack", "HPOUTR",
 			"Ext Spk", "SPKOUTL",
 			"Ext Spk", "SPKOUTR",
 			"AMIC", "MICBIAS",
-			"IN3R", "AMIC";
+			"IN3R", "AMIC",
+			"DMIC", "MICBIAS",
+			"DMICDAT", "DMIC",
+			"CPU-Playback", "ASRC-Playback",
+			"Playback", "CPU-Playback",
+			"ASRC-Capture", "CPU-Capture",
+			"CPU-Capture", "Capture";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
+		hp-det-gpios = <&gpio7 8 1>;
+		mic-det-gpios = <&gpio1 9 1>;
 	};
 
 	sound-hdmi {
@@ -300,6 +309,7 @@
 			0x8014 /* 4:FN_DMICCDAT */
 			0x0000 /* 5:Default */
 		>;
+		amic-mono;
        };
 
 	mma8451@1c {
@@ -488,6 +498,8 @@
 				MX6QDL_PAD_SD1_CMD__GPIO1_IO18 0x80000000
 				MX6QDL_PAD_EIM_D16__GPIO3_IO16 0x80000000
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x80000000
+				MX6QDL_PAD_GPIO_9__GPIO1_IO09	0x80000000
+				MX6QDL_PAD_SD3_RST__GPIO7_IO08	0x80000000
 			>;
 		};
 
