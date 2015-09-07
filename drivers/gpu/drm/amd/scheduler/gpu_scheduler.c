@@ -27,6 +27,9 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
+#define CREATE_TRACE_POINTS
+#include "gpu_sched_trace.h"
+
 static struct amd_sched_job *
 amd_sched_entity_pop_job(struct amd_sched_entity *entity);
 static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
@@ -273,7 +276,7 @@ int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 
 	wait_event(entity->scheduler->job_scheduled,
 		   amd_sched_entity_in(sched_job));
-
+	trace_amd_sched_job(sched_job);
 	return 0;
 }
 
