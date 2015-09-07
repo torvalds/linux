@@ -186,9 +186,8 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 		     unsigned long address)
 {
-	struct subchannel *sch;
-
-	sch = to_subchannel(cdev->dev.parent);
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int ret;
 
 	sch->config.mme = mme;
 	sch->config.mbfc = mbfc;
@@ -198,7 +197,15 @@ static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 	else
 		sch->config.mbi = address;
 
-	return cio_commit_config(sch);
+	ret = cio_commit_config(sch);
+	if (!mme && ret == -ENODEV) {
+		/*
+		 * The task was to disable measurement block updates but
+		 * the subchannel is already gone. Report success.
+		 */
+		ret = 0;
+	}
+	return ret;
 }
 
 struct set_schib_struct {
@@ -606,12 +613,6 @@ static void free_cmb(struct ccw_device *cdev)
 	spin_lock_irq(cdev->ccwlock);
 
 	priv = cdev->private;
-
-	if (list_empty(&priv->cmb_list)) {
-		/* already freed */
-		goto out;
-	}
-
 	cmb_data = priv->cmb;
 	priv->cmb = NULL;
 	if (cmb_data)
@@ -626,7 +627,6 @@ static void free_cmb(struct ccw_device *cdev)
 		free_pages((unsigned long)cmb_area.mem, get_order(size));
 		cmb_area.mem = NULL;
 	}
-out:
 	spin_unlock_irq(cdev->ccwlock);
 	spin_unlock(&cmb_area.lock);
 }
@@ -1227,6 +1227,7 @@ int enable_cmf(struct ccw_device *cdev)
 	int ret;
 
 	device_lock(&cdev->dev);
+	get_device(&cdev->dev);
 	ret = cmbops->alloc(cdev);
 	if (ret)
 		goto out;
@@ -1242,6 +1243,9 @@ int enable_cmf(struct ccw_device *cdev)
 		cmbops->free(cdev);
 	}
 out:
+	if (ret)
+		put_device(&cdev->dev);
+
 	device_unlock(&cdev->dev);
 	return ret;
 }
@@ -1265,6 +1269,7 @@ int __disable_cmf(struct ccw_device *cdev)
 
 	sysfs_remove_group(&cdev->dev.kobj, cmbops->attr_group);
 	cmbops->free(cdev);
+	put_device(&cdev->dev);
 
 	return ret;
 }

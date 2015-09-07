@@ -1787,6 +1787,8 @@ static int ccw_device_remove(struct device *dev)
 	cdev->drv = NULL;
 	cdev->private->int_class = IRQIO_CIO;
 	spin_unlock_irq(cdev->ccwlock);
+	__disable_cmf(cdev);
+
 	return 0;
 }
 
