@@ -28,6 +28,7 @@
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdsenc.h"
 #include "rcar_du_regs.h"
+#include "rcar_du_vsp.h"
 
 /* -----------------------------------------------------------------------------
  * Format helpers
@@ -195,11 +196,15 @@ static void rcar_du_output_poll_changed(struct drm_device *dev)
 static int rcar_du_atomic_check(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
+	struct rcar_du_device *rcdu = dev->dev_private;
 	int ret;
 
 	ret = drm_atomic_helper_check(dev, state);
 	if (ret < 0)
 		return ret;
+
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))
+		return 0;
 
 	return rcar_du_atomic_check_planes(dev, state);
 }
@@ -544,9 +549,26 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		 */
 		rgrp->dptsr_planes = rgrp->num_crtcs > 1 ? 0xf0 : 0;
 
-		ret = rcar_du_planes_init(rgrp);
-		if (ret < 0)
-			return ret;
+		if (!rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
+			ret = rcar_du_planes_init(rgrp);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	/* Initialize the compositors. */
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
+		for (i = 0; i < rcdu->num_crtcs; ++i) {
+			struct rcar_du_vsp *vsp = &rcdu->vsps[i];
+
+			vsp->index = i;
+			vsp->dev = rcdu;
+			rcdu->crtcs[i].vsp = vsp;
+
+			ret = rcar_du_vsp_init(vsp);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	/* Create the CRTCs. */

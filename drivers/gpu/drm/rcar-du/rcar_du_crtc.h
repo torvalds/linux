@@ -21,6 +21,7 @@
 #include <drm/drm_crtc.h>
 
 struct rcar_du_group;
+struct rcar_du_vsp;
 
 /**
  * struct rcar_du_crtc - the CRTC, representing a DU superposition processor
@@ -50,6 +51,7 @@ struct rcar_du_crtc {
 	unsigned int outputs;
 
 	struct rcar_du_group *group;
+	struct rcar_du_vsp *vsp;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)

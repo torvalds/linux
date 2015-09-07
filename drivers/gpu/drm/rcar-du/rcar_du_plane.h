@@ -76,6 +76,15 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 
 int rcar_du_planes_init(struct rcar_du_group *rgrp);
 
-void rcar_du_plane_setup(struct rcar_du_plane *plane);
+void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
+			   const struct rcar_du_plane_state *state);
+
+static inline void rcar_du_plane_setup(struct rcar_du_plane *plane)
+{
+	struct rcar_du_plane_state *state =
+		to_rcar_plane_state(plane->plane.state);
+
+	return __rcar_du_plane_setup(plane->group, state);
+}
 
 #endif /* __RCAR_DU_PLANE_H__ */

@@ -28,6 +28,7 @@
 #include "rcar_du_kms.h"
 #include "rcar_du_plane.h"
 #include "rcar_du_regs.h"
+#include "rcar_du_vsp.h"
 
 static u32 rcar_du_crtc_read(struct rcar_du_crtc *rcrtc, u32 reg)
 {
@@ -207,6 +208,7 @@ plane_format(struct rcar_du_plane *plane)
 static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 {
 	struct rcar_du_plane *planes[RCAR_DU_NUM_HW_PLANES];
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	unsigned int num_planes = 0;
 	unsigned int dptsr_planes;
 	unsigned int hwplanes = 0;
@@ -248,6 +250,12 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 			dspr |= (index + 1) << prio;
 			hwplanes |= 1 << index;
 		}
+	}
+
+	/* If VSP+DU integration is enabled the plane assignment is fixed. */
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
+		dspr = (rcrtc->index % 2) + 1;
+		hwplanes = 1 << (rcrtc->index % 2);
 	}
 
 	/* Update the planes to display timing and dot clock generator
@@ -369,6 +377,10 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 	rcar_du_group_start_stop(rcrtc->group, true);
 
+	/* Enable the VSP compositor. */
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+		rcar_du_vsp_enable(rcrtc);
+
 	/* Turn vertical blanking interrupt reporting back on. */
 	drm_crtc_vblank_on(crtc);
 
@@ -402,6 +414,10 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_wait_page_flip(rcrtc);
 	drm_crtc_vblank_off(crtc);
 
+	/* Disable the VSP compositor. */
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+		rcar_du_vsp_disable(rcrtc);
+
 	/* Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
 	 */
@@ -414,6 +430,9 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 
 void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc)
 {
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+		rcar_du_vsp_disable(rcrtc);
+
 	rcar_du_crtc_stop(rcrtc);
 	rcar_du_crtc_put(rcrtc);
 }
@@ -429,13 +448,17 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_start(rcrtc);
 
 	/* Commit the planes state. */
-	for (i = 0; i < rcrtc->group->num_planes; ++i) {
-		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE)) {
+		rcar_du_vsp_enable(rcrtc);
+	} else {
+		for (i = 0; i < rcrtc->group->num_planes; ++i) {
+			struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 
-		if (plane->plane.state->crtc != &rcrtc->crtc)
-			continue;
+			if (plane->plane.state->crtc != &rcrtc->crtc)
+				continue;
 
-		rcar_du_plane_setup(plane);
+			rcar_du_plane_setup(plane);
+		}
 	}
 
 	rcar_du_crtc_update_planes(rcrtc);
@@ -486,6 +509,9 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 		rcrtc->event = event;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
+
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+		rcar_du_vsp_atomic_begin(rcrtc);
 }
 
 static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -494,6 +520,9 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
 	rcar_du_crtc_update_planes(rcrtc);
+
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+		rcar_du_vsp_atomic_flush(rcrtc);
 }
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
@@ -549,6 +578,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	struct platform_device *pdev = to_platform_device(rcdu->dev);
 	struct rcar_du_crtc *rcrtc = &rcdu->crtcs[index];
 	struct drm_crtc *crtc = &rcrtc->crtc;
+	struct drm_plane *primary;
 	unsigned int irqflags;
 	struct clk *clk;
 	char clk_name[9];
@@ -585,8 +615,12 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->mmio_offset = mmio_offsets[index];
 	rcrtc->index = index;
 
-	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc,
-					&rgrp->planes[index % 2].plane,
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))
+		primary = &rcrtc->vsp->planes[0].plane;
+	else
+		primary = &rgrp->planes[index % 2].plane;
+
+	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc, primary,
 					NULL, &crtc_funcs, NULL);
 	if (ret < 0)
 		return ret;

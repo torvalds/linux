@@ -505,12 +505,9 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 	rcar_du_plane_write(rgrp, index, PnMLR, 0);
 }
 
-void rcar_du_plane_setup(struct rcar_du_plane *plane)
+void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
+			   const struct rcar_du_plane_state *state)
 {
-	struct rcar_du_plane_state *state =
-		to_rcar_plane_state(plane->plane.state);
-	struct rcar_du_group *rgrp = plane->group;
-
 	rcar_du_plane_setup_format(rgrp, state->hwindex, state);
 	if (state->format->planes == 2)
 		rcar_du_plane_setup_format(rgrp, (state->hwindex + 1) % 8,
