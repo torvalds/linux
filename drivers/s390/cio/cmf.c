@@ -876,8 +876,10 @@ static void free_cmbe(struct ccw_device *cdev)
 	spin_lock_irq(cdev->ccwlock);
 	cmb_data = cdev->private->cmb;
 	cdev->private->cmb = NULL;
-	if (cmb_data)
+	if (cmb_data) {
 		kfree(cmb_data->last_block);
+		kfree(cmb_data->hw_block);
+	}
 	kfree(cmb_data);
 
 	/* deactivate global measurement if this is the last channel */
