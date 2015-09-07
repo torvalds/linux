@@ -163,6 +163,24 @@ static int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 				 &request, sizeof(request), NULL, 0);
 }
 
+/* Destroys bi-directional routes between the devices */
+static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
+{
+	struct gb_svc_route_destroy_request request;
+	int ret;
+
+	request.intf1_id = intf1_id;
+	request.intf2_id = intf2_id;
+
+	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_DESTROY,
+				&request, sizeof(request), NULL, 0);
+	if (ret) {
+		dev_err(&svc->connection->dev,
+			"failed to destroy route (%hhx %hhx) %d\n",
+			intf1_id, intf2_id, ret);
+	}
+}
+
 static int gb_svc_version_request(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
@@ -303,18 +321,20 @@ static void svc_process_hotplug(struct work_struct *work)
 	if (ret) {
 		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
 			__func__, intf_id, device_id, ret);
-		goto ida_put;
+		goto svc_id_free;
 	}
 
 	ret = gb_interface_init(intf, device_id);
 	if (ret) {
 		dev_err(dev, "%s: Failed to initialize interface, interface %hhu device_id %hhu (%d)\n",
 			__func__, intf_id, device_id, ret);
-		goto svc_id_free;
+		goto destroy_route;
 	}
 
 	goto free_svc_hotplug;
 
+destroy_route:
+	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
 svc_id_free:
 	/*
 	 * XXX Should we tell SVC that this id doesn't belong to interface
@@ -369,6 +389,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
 	struct greybus_host_device *hd = op->connection->hd;
 	struct device *dev = &op->connection->dev;
+	struct gb_svc *svc = op->connection->private;
 	u8 device_id;
 	struct gb_interface *intf;
 	u8 intf_id;
@@ -391,6 +412,12 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 
 	device_id = intf->device_id;
 	gb_interface_remove(hd, intf_id);
+
+	/*
+	 * Destroy the two-way route between the AP and the interface.
+	 */
+	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
+
 	ida_simple_remove(&greybus_svc_device_id_map, device_id);
 
 	return 0;
