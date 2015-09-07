@@ -855,7 +855,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	int r;
 
 	if (mem) {
-		addr = mem->start << PAGE_SHIFT;
+		addr = (u64)mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_TT)
 			addr += adev->vm_manager.vram_base_offset;
 	} else {
