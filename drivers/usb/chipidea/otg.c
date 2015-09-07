@@ -30,7 +30,44 @@
  */
 u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 {
-	return hw_read(ci, OP_OTGSC, mask);
+	struct ci_hdrc_cable *cable;
+	u32 val = hw_read(ci, OP_OTGSC, mask);
+
+	/*
+	 * If using extcon framework for VBUS and/or ID signal
+	 * detection overwrite OTGSC register value
+	 */
+	cable = &ci->platdata->vbus_extcon;
+	if (!IS_ERR(cable->edev)) {
+		if (cable->changed)
+			val |= OTGSC_BSVIS;
+		else
+			val &= ~OTGSC_BSVIS;
+
+		cable->changed = false;
+
+		if (cable->state)
+			val |= OTGSC_BSV;
+		else
+			val &= ~OTGSC_BSV;
+	}
+
+	cable = &ci->platdata->id_extcon;
+	if (!IS_ERR(cable->edev)) {
+		if (cable->changed)
+			val |= OTGSC_IDIS;
+		else
+			val &= ~OTGSC_IDIS;
+
+		cable->changed = false;
+
+		if (cable->state)
+			val |= OTGSC_ID;
+		else
+			val &= ~OTGSC_ID;
+	}
+
+	return val;
 }
 
 /**

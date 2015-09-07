@@ -46,6 +46,11 @@ Optional properties:
   (4 bytes), This register represents the maximum length of a the burst
   in 32-bit words while moving data from the USB bus to system memory,
   changing this value takes effect only the SBUSCFG.AHBBRST is 0.
+- extcon: phandles to external connector devices. First phandle should point to
+  external connector, which provide "USB" cable events, the second should point
+  to external connector device, which provide "USB-HOST" cable events. If one
+  of the external connector devices is not required, empty <0> phandle should
+  be specified.
 
 Example:
 
@@ -62,4 +67,5 @@ Example:
 		ahb-burst-config = <0x0>;
 		tx-burst-size-dword = <0x10>; /* 64 bytes */
 		rx-burst-size-dword = <0x10>;
+		extcon = <0>, <&usb_id>;
 	};
