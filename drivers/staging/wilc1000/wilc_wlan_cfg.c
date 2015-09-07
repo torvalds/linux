@@ -12,11 +12,6 @@
 #include "wilc_wlan_cfg.h"
 #include "coreconfigurator.h"
 
-#ifdef WILC_FULLY_HOSTING_AP
-#include "wilc_host_ap.h"
-void WILC_mgm_HOSTAPD_ACK(void *priv, bool bStatus);
-#endif
-
 /********************************************
  *
  *      Global Data
@@ -514,17 +509,6 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 	int ret = 1;
 	uint8_t msg_type;
 	uint8_t msg_id;
-	#ifdef WILC_FULLY_HOSTING_AP
-	u32 *ptru32Frame;
-	bool bStatus = frame[2];
-
-	#ifdef BIG_ENDIAN
-	ptru32Frame = (frame[4] << 24) | (frame[5] << 16) | (frame[6] << 8) | frame[7];
-	#else
-	ptru32Frame = (frame[7] << 24) | (frame[6] << 16) | (frame[5] << 8) | frame[4];
-	#endif  /* BIG_ENDIAN */
-
-	#endif  /* WILC_FULLY_HOSTING_AP */
 
 	msg_type = frame[0];
 	msg_id = frame[1];      /* seq no */
@@ -570,18 +554,6 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 		PRINT_INFO(RX_DBG, "Scan Notification Received\n");
 		host_int_ScanCompleteReceived(frame - 4, size + 4);
 		break;
-
-#ifdef WILC_FULLY_HOSTING_AP
-	case 'T':
-		PRINT_INFO(RX_DBG, "TBTT Notification Received\n");
-		process_tbtt_isr();
-		break;
-
-	case 'A':
-		PRINT_INFO(RX_DBG, "HOSTAPD ACK Notification Received\n");
-		WILC_mgm_HOSTAPD_ACK(ptru32Frame, bStatus);
-		break;
-#endif
 
 	default:
 		PRINT_INFO(RX_DBG, "Receive unknown message type[%d-%d-%d-%d-%d-%d-%d-%d]\n",

@@ -39,10 +39,6 @@
 #include "linux_wlan_spi.h"
 #endif
 
-#ifdef WILC_FULLY_HOSTING_AP
-#include "wilc_host_ap.h"
-#endif
-
 #ifdef STATIC_MACADDRESS /* brandy_0724 [[ */
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
@@ -1321,12 +1317,7 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 #endif
 
 	/*for now - to be revised*/
-	#ifdef WILC_FULLY_HOSTING_AP
-	/* incase of Fully hosted AP, all non cfg pkts are processed here*/
-	nwi->net_func.rx_indicate = WILC_Process_rx_frame;
-	#else
 	nwi->net_func.rx_indicate = frmw_to_linux;
-	#endif
 	nwi->net_func.rx_complete = linux_wlan_rx_complete;
 	nwi->indicate_func.mac_indicate = linux_wlan_mac_indicate;
 }
@@ -1989,14 +1980,10 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	nic->netstats.tx_packets++;
 	nic->netstats.tx_bytes += tx_data->size;
 	tx_data->pBssid = g_linux_wlan->strInterfaceInfo[nic->u8IfIdx].aBSSID;
-	#ifndef WILC_FULLY_HOSTING_AP
 	QueueCount = g_linux_wlan->oup.wlan_add_to_tx_que((void *)tx_data,
 							  tx_data->buff,
 							  tx_data->size,
 							  linux_wlan_tx_complete);
-	#else
-	QueueCount = WILC_Xmit_data((void *)tx_data, HOST_TO_WLAN);
-	#endif /* WILC_FULLY_HOSTING_AP */
 
 	if (QueueCount > FLOW_CONTROL_UPPER_THRESHOLD) {
 		netif_stop_queue(g_linux_wlan->strInterfaceInfo[0].wilc_netdev);

@@ -10,11 +10,6 @@
 #define NM_WFI_CFGOPERATIONS
 #include "wilc_wfi_netdevice.h"
 
-#ifdef WILC_FULLY_HOSTING_AP
-#include "wilc_host_ap.h"
-#endif
-
-
 /* The following macros describe the bitfield map used by the firmware to determine its 11i mode */
 #define NO_ENCRYPT			0
 #define ENCRYPT_ENABLED	(1 << 0)

@@ -591,31 +591,6 @@ int wilc_wlan_txq_add_mgmt_pkt(void *priv, uint8_t *buffer, uint32_t buffer_size
 	wilc_wlan_txq_add_to_tail(tqe);
 	return 1;
 }
-
-#ifdef WILC_FULLY_HOSTING_AP
-int wilc_FH_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffer_size, wilc_tx_complete_func_t func)
-{
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
-	struct txq_entry_t *tqe;
-
-	if (p->quit)
-		return 0;
-
-	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_ATOMIC);
-
-	if (tqe == NULL)
-		return 0;
-	tqe->type = WILC_FH_DATA_PKT;
-	tqe->buffer = buffer;
-	tqe->buffer_size = buffer_size;
-	tqe->tx_complete_func = func;
-	tqe->priv = priv;
-	PRINT_D(TX_DBG, "Adding mgmt packet at the Queue tail\n");
-	wilc_wlan_txq_add_to_tail(tqe);
-	/*return number of itemes in the queue*/
-	return p->txq_entries;
-}
-#endif  /* WILC_FULLY_HOSTING_AP*/
 #endif /*WILC_AP_EXTERNAL_MLME*/
 static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 {
@@ -924,11 +899,6 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 				else if (tqe->type == WILC_NET_PKT) {
 					vmm_sz = ETH_ETHERNET_HDR_OFFSET;
 				}
-#ifdef WILC_FULLY_HOSTING_AP
-				else if (tqe->type == WILC_FH_DATA_PKT)	{
-					vmm_sz = FH_TX_HOST_HDR_OFFSET;
-				}
-#endif
 #ifdef WILC_AP_EXTERNAL_MLME
 				else {
 					vmm_sz = HOST_HDR_OFFSET;
@@ -1138,11 +1108,6 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 					/* copy the bssid at the sart of the buffer */
 					memcpy(&txb[offset + 4], pBSSID, 6);
 				}
-#ifdef WILC_FULLY_HOSTING_AP
-				else if (tqe->type == WILC_FH_DATA_PKT)	{
-					buffer_offset = FH_TX_HOST_HDR_OFFSET;
-				}
-#endif
 				else {
 					buffer_offset = HOST_HDR_OFFSET;
 				}
@@ -2204,10 +2169,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/*Bug3959: transmitting mgmt frames received from host*/
 	#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
 	oup->wlan_add_mgmt_to_tx_que = wilc_wlan_txq_add_mgmt_pkt;
-
-	#ifdef WILC_FULLY_HOSTING_AP
-	oup->wlan_add_data_to_tx_que = wilc_FH_wlan_txq_add_net_pkt;
-	#endif
 	#endif
 
 	if (!init_chip()) {
@@ -2271,12 +2232,3 @@ u16 Set_machw_change_vir_if(bool bValue)
 
 	return ret;
 }
-
-#ifdef WILC_FULLY_HOSTING_AP
-wilc_wlan_dev_t *Get_wlan_context(u16 *pu16size)
-{
-	*pu16size = sizeof(wilc_wlan_dev_t);
-	return &g_wlan;
-}
-#endif
-

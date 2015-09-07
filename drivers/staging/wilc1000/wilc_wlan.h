@@ -36,9 +36,6 @@
 				   ETH_CONFIG_PKT_HDR_LEN)
 #define   ACTION         0xD0
 #define   PROBE_REQ   0x40
-#ifdef WILC_FULLY_HOSTING_AP
-#define	FH_TX_HOST_HDR_OFFSET	24
-#endif
 
 /********************************************
  *
@@ -144,10 +141,6 @@
 /*Bug3959: transmitting mgmt frames received from host*/
 #ifdef WILC_AP_EXTERNAL_MLME
 #define WILC_MGMT_PKT 2
-
-#ifdef WILC_FULLY_HOSTING_AP
-#define WILC_FH_DATA_PKT 4
-#endif
 
 #endif /*WILC_AP_EXTERNAL_MLME*/
 #define WILC_CFG_SET 1

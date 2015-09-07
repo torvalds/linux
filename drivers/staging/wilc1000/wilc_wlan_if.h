@@ -16,7 +16,6 @@
 #define WILC_P2P
 #define TCP_ENHANCEMENTS
 /* #define MEMORY_STATIC */
-/* #define WILC_FULLY_HOSTING_AP */
 /* #define USE_OLD_SPI_SW */
 
 
@@ -155,9 +154,6 @@ typedef struct {
 } wilc_wlan_inp_t;
 
 struct tx_complete_data {
-	#ifdef WILC_FULLY_HOSTING_AP
-	struct tx_complete_data *next;
-	#endif
 	int size;
 	void *buff;
 	uint8_t *pBssid;
@@ -184,11 +180,6 @@ typedef struct {
 	/*Bug3959: transmitting mgmt frames received from host*/
 	#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
 	int (*wlan_add_mgmt_to_tx_que)(void *, uint8_t *, uint32_t, wilc_tx_complete_func_t);
-
-	#ifdef WILC_FULLY_HOSTING_AP
-	int (*wlan_add_data_to_tx_que)(void *, uint8_t *, uint32_t, wilc_tx_complete_func_t);
-	#endif
-
 	#endif
 } wilc_wlan_oup_t;
 

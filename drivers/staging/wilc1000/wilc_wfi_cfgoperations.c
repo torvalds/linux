@@ -3236,19 +3236,11 @@ static int WILC_WFI_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	linux_wlan_set_bssid(dev, g_linux_wlan->strInterfaceInfo[0].aSrcAddress);
 
-	#ifndef WILC_FULLY_HOSTING_AP
 	s32Error = host_int_add_beacon(priv->hWILCWFIDrv,
 					settings->beacon_interval,
 					settings->dtim_period,
 					beacon->head_len, (u8 *)beacon->head,
 					beacon->tail_len, (u8 *)beacon->tail);
-	#else
-	s32Error = host_add_beacon(priv->hWILCWFIDrv,
-					settings->beacon_interval,
-					settings->dtim_period,
-					beacon->head_len, (u8 *)beacon->head,
-					beacon->tail_len, (u8 *)beacon->tail);
-	#endif
 
 	return s32Error;
 }
@@ -3275,19 +3267,11 @@ static int  WILC_WFI_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	PRINT_D(HOSTAPD_DBG, "Setting beacon\n");
 
 
-#ifndef WILC_FULLY_HOSTING_AP
 	s32Error = host_int_add_beacon(priv->hWILCWFIDrv,
 					0,
 					0,
 					beacon->head_len, (u8 *)beacon->head,
 					beacon->tail_len, (u8 *)beacon->tail);
-#else
-	s32Error = host_add_beacon(priv->hWILCWFIDrv,
-					0,
-					0,
-					beacon->head_len, (u8 *)beacon->head,
-					beacon->tail_len, (u8 *)beacon->tail);
-#endif
 
 	return s32Error;
 }
@@ -3317,11 +3301,7 @@ static int  WILC_WFI_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	/*BugID_5188*/
 	linux_wlan_set_bssid(dev, NullBssid);
 
-	#ifndef WILC_FULLY_HOSTING_AP
 	s32Error = host_int_del_beacon(priv->hWILCWFIDrv);
-	#else
-	s32Error = host_del_beacon(priv->hWILCWFIDrv);
-	#endif
 
 	WILC_ERRORCHECK(s32Error);
 
@@ -3355,8 +3335,6 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 	nic = netdev_priv(dev);
 
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
-		#ifndef WILC_FULLY_HOSTING_AP
-
 		memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
 		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
 		strStaParams.u16AssocID = params->aid;
@@ -3396,18 +3374,6 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 		s32Error = host_int_add_station(priv->hWILCWFIDrv, &strStaParams);
 		WILC_ERRORCHECK(s32Error);
-
-		#else
-		PRINT_D(CFG80211_DBG, "Adding station parameters %d\n", params->aid);
-		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
-
-		PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n", priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][0], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][1], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][2], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][3], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][4],
-			priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][5]);
-
-		WILC_AP_AddSta(mac, params);
-		WILC_ERRORCHECK(s32Error);
-		#endif /* WILC_FULLY_HOSTING_AP */
-
 	}
 
 	WILC_CATCH(s32Error)
@@ -3449,11 +3415,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 			PRINT_D(HOSTAPD_DBG, "With mac address: %x%x%x%x%x%x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 		}
 
-		#ifndef WILC_FULLY_HOSTING_AP
 		s32Error = host_int_del_station(priv->hWILCWFIDrv, mac);
-		#else
-		WILC_AP_RemoveSta(mac);
-		#endif /* WILC_FULLY_HOSTING_AP */
 
 		WILC_ERRORCHECK(s32Error);
 	}
@@ -3489,8 +3451,6 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 	nic = netdev_priv(dev);
 
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
-		#ifndef WILC_FULLY_HOSTING_AP
-
 		memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
 		strStaParams.u16AssocID = params->aid;
 		strStaParams.u8NumRates = params->supported_rates_len;
@@ -3528,12 +3488,6 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 
 		s32Error = host_int_edit_station(priv->hWILCWFIDrv, &strStaParams);
 		WILC_ERRORCHECK(s32Error);
-
-		#else
-		WILC_AP_EditSta(mac, params);
-		WILC_ERRORCHECK(s32Error);
-		#endif /* WILC_FULLY_HOSTING_AP */
-
 	}
 	WILC_CATCH(s32Error)
 	{
@@ -3623,9 +3577,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.del_station = WILC_WFI_del_station,
 	.change_station = WILC_WFI_change_station,
 	#endif /* WILC_AP_EXTERNAL_MLME*/
-	#ifndef WILC_FULLY_HOSTING_AP
 	.get_station = WILC_WFI_get_station,
-	#endif
 	.dump_station = WILC_WFI_dump_station,
 	.change_bss = WILC_WFI_change_bss,
 	.set_wiphy_params = WILC_WFI_set_wiphy_params,
