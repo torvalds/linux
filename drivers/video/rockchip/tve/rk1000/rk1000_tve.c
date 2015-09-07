@@ -291,10 +291,8 @@ static int rk1000_tve_probe(struct i2c_client *client,
 	enum of_gpio_flags flags;
 	int rc;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		rc = -ENODEV;
-		goto failout;
-	}
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -ENODEV;
 
 	memset(&rk1000_tve, 0, sizeof(struct rk1000_tve));
 	rk1000_tve.client = client;
@@ -322,15 +320,16 @@ static int rk1000_tve_probe(struct i2c_client *client,
 	pr_err("video src is lcdc%d, prop is %d\n", rk1000_tve.video_source,
 	       rk1000_tve.property);
 #endif
-	if (cvbsformat >= 0)
+	if (cvbsformat >= 0) {
 		rk1000_tve.mode = cvbsformat + 1;
-	else
+	} else {
 		rk1000_tve.mode = RK1000_TVOUT_DEAULT;
-
-	rc = rk1000_tve_initial();
-	if (rc) {
-		dev_err(&client->dev, "rk1000 tvencoder probe error %d\n", rc);
-		return -EINVAL;
+		rc = rk1000_tve_initial();
+		if (rc) {
+			dev_err(&client->dev,
+				"rk1000 tvencoder probe error %d\n", rc);
+			return -EINVAL;
+		}
 	}
 
 #ifdef CONFIG_RK1000_TVOUT_YPBPR
@@ -349,10 +348,6 @@ static int rk1000_tve_probe(struct i2c_client *client,
 	fb_register_client(&rk1000_fb_notifier);
 	pr_info("rk1000 tvencoder ver 2.0 probe ok\n");
 	return 0;
-failout:
-	kfree(client);
-	client = NULL;
-	return rc;
 }
 
 static int rk1000_tve_remove(struct i2c_client *client)
