@@ -2251,6 +2251,8 @@ int wilc_netdev_init(void)
 
 	/*create the common structure*/
 	g_linux_wlan = kzalloc(sizeof(linux_wlan_t), GFP_KERNEL);
+	if (!g_linux_wlan)
+		return -ENOMEM;
 
 	/*Reset interrupt count debug*/
 	int_rcvdU = 0;
