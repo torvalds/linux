@@ -209,6 +209,7 @@ config VIDEO_ADV7604
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
+	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -217,6 +218,13 @@ config VIDEO_ADV7604
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7604.
+
+config VIDEO_ADV7604_CEC
+	bool "Enable Analog Devices ADV7604 CEC support"
+	depends on VIDEO_ADV7604 && MEDIA_CEC
+	---help---
+	  When selected the adv7604 will support the optional
+	  HDMI CEC feature.
 
 config VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
