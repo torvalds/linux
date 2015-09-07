@@ -821,42 +821,45 @@ static inline struct cmbe *cmbe_align(struct cmbe *c)
 
 static int alloc_cmbe(struct ccw_device *cdev)
 {
-	struct cmbe *cmbe;
 	struct cmb_data *cmb_data;
-	int ret;
+	struct cmbe *cmbe;
+	int ret = -ENOMEM;
 
 	cmbe = kzalloc (sizeof (*cmbe) * 2, GFP_KERNEL);
 	if (!cmbe)
-		return -ENOMEM;
+		return ret;
+
 	cmb_data = kzalloc(sizeof(struct cmb_data), GFP_KERNEL);
-	if (!cmb_data) {
-		ret = -ENOMEM;
+	if (!cmb_data)
 		goto out_free;
-	}
+
 	cmb_data->last_block = kzalloc(sizeof(struct cmbe), GFP_KERNEL);
-	if (!cmb_data->last_block) {
-		ret = -ENOMEM;
+	if (!cmb_data->last_block)
 		goto out_free;
-	}
+
 	cmb_data->size = sizeof(struct cmbe);
-	spin_lock_irq(cdev->ccwlock);
-	if (cdev->private->cmb) {
-		spin_unlock_irq(cdev->ccwlock);
-		ret = -EBUSY;
-		goto out_free;
-	}
 	cmb_data->hw_block = cmbe;
+
+	spin_lock(&cmb_area.lock);
+	spin_lock_irq(cdev->ccwlock);
+	if (cdev->private->cmb)
+		goto out_unlock;
+
 	cdev->private->cmb = cmb_data;
-	spin_unlock_irq(cdev->ccwlock);
 
 	/* activate global measurement if this is the first channel */
-	spin_lock(&cmb_area.lock);
 	if (list_empty(&cmb_area.list))
 		cmf_activate(NULL, 1);
 	list_add_tail(&cdev->private->cmb_list, &cmb_area.list);
-	spin_unlock(&cmb_area.lock);
 
+	spin_unlock_irq(cdev->ccwlock);
+	spin_unlock(&cmb_area.lock);
 	return 0;
+
+out_unlock:
+	spin_unlock_irq(cdev->ccwlock);
+	spin_unlock(&cmb_area.lock);
+	ret = -EBUSY;
 out_free:
 	if (cmb_data)
 		kfree(cmb_data->last_block);
@@ -869,19 +872,19 @@ static void free_cmbe(struct ccw_device *cdev)
 {
 	struct cmb_data *cmb_data;
 
+	spin_lock(&cmb_area.lock);
 	spin_lock_irq(cdev->ccwlock);
 	cmb_data = cdev->private->cmb;
 	cdev->private->cmb = NULL;
 	if (cmb_data)
 		kfree(cmb_data->last_block);
 	kfree(cmb_data);
-	spin_unlock_irq(cdev->ccwlock);
 
 	/* deactivate global measurement if this is the last channel */
-	spin_lock(&cmb_area.lock);
 	list_del_init(&cdev->private->cmb_list);
 	if (list_empty(&cmb_area.list))
 		cmf_activate(NULL, 0);
+	spin_unlock_irq(cdev->ccwlock);
 	spin_unlock(&cmb_area.lock);
 }
 
