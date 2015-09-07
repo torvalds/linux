@@ -16,8 +16,6 @@ Required properties:
   - "snps,dwc-ahci"
   - "snps,exynos5440-ahci"
   - "snps,spear-ahci"
-  - "fsl,qoriq-ahci" : for qoriq series socs which include ls1021, ls2085, etc.
-  - "fsl,<chip>-ahci" : chip could be ls1021, ls2085 etc.
   - "generic-ahci"
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
