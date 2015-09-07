@@ -91,6 +91,7 @@ enum imx_thermal_trip {
  * that will trigger cooling action when crossed.
  */
 #define IMX_TEMP_PASSIVE		85000
+#define IMX_TEMP_PASSIVE_COOL_DELTA	10000
 
 #define IMX_POLLING_DELAY		2000 /* millisecond */
 #define IMX_PASSIVE_DELAY		1000
@@ -490,6 +491,23 @@ static int imx_unbind(struct thermal_zone_device *tz,
 	return 0;
 }
 
+static int imx_get_trend(struct thermal_zone_device *tz,
+	int trip, enum thermal_trend *trend)
+{
+	int ret;
+	unsigned long trip_temp;
+
+	ret = imx_get_trip_temp(tz, trip, &trip_temp);
+	if (ret < 0)
+		return ret;
+
+	if (tz->temperature >= (trip_temp - IMX_TEMP_PASSIVE_COOL_DELTA))
+		*trend = THERMAL_TREND_RAISE_FULL;
+	else
+		*trend = THERMAL_TREND_DROP_FULL;
+
+	return 0;
+}
 static struct thermal_zone_device_ops imx_tz_ops = {
 	.bind = imx_bind,
 	.unbind = imx_unbind,
@@ -500,6 +518,7 @@ static struct thermal_zone_device_ops imx_tz_ops = {
 	.get_trip_temp = imx_get_trip_temp,
 	.get_crit_temp = imx_get_crit_temp,
 	.set_trip_temp = imx_set_trip_temp,
+	.get_trend = imx_get_trend,
 };
 
 static inline void imx6_calibrate_data(struct imx_thermal_data *data, u32 val)
