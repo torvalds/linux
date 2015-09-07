@@ -111,7 +111,7 @@ static int micro_leds_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = led_classdev_register(&pdev->dev, &micro_led);
+	ret = devm_led_classdev_register(&pdev->dev, &micro_led);
 	if (ret) {
 		dev_err(&pdev->dev, "registering led failed: %d\n", ret);
 		return ret;
@@ -121,18 +121,11 @@ static int micro_leds_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int micro_leds_remove(struct platform_device *pdev)
-{
-	led_classdev_unregister(&micro_led);
-	return 0;
-}
-
 static struct platform_driver micro_leds_device_driver = {
 	.driver = {
 		.name    = "ipaq-micro-leds",
 	},
 	.probe   = micro_leds_probe,
-	.remove  = micro_leds_remove,
 };
 module_platform_driver(micro_leds_device_driver);
 
