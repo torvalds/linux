@@ -504,6 +504,11 @@ ENTRY(imx7_suspend)
 	orr	r7, r7, #0x60
 	str	r7, [r11, #0x38]
 wait_shutdown:
+	wfi
+	nop
+	nop
+	nop
+	nop
 	b	wait_shutdown
 
 ddr_only_self_refresh:
