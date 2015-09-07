@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.h  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -53,6 +53,7 @@ struct rcar_du_output_routing {
 
 /*
  * struct rcar_du_device_info - DU model-specific information
+ * @gen: device generation (2 or 3)
  * @features: device features (RCAR_DU_FEATURE_*)
  * @quirks: device quirks (RCAR_DU_QUIRK_*)
  * @num_crtcs: total number of CRTCs
@@ -60,6 +61,7 @@ struct rcar_du_output_routing {
  * @num_lvds: number of internal LVDS encoders
  */
 struct rcar_du_device_info {
+	unsigned int gen;
 	unsigned int features;
 	unsigned int quirks;
 	unsigned int num_crtcs;

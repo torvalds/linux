@@ -1,7 +1,7 @@
 /*
  * rcar_du_plane.c  --  R-Car Display Unit Planes
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -454,9 +454,9 @@ static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
 	}
 }
 
-static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
-				       unsigned int index,
-				       const struct rcar_du_plane_state *state)
+static void rcar_du_plane_setup_format_gen2(struct rcar_du_group *rgrp,
+					    unsigned int index,
+					    const struct rcar_du_plane_state *state)
 {
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
@@ -491,6 +491,29 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 		ddcr4 |= PnDDCR4_VSPS;
 
 	rcar_du_plane_write(rgrp, index, PnDDCR4, ddcr4);
+}
+
+static void rcar_du_plane_setup_format_gen3(struct rcar_du_group *rgrp,
+					    unsigned int index,
+					    const struct rcar_du_plane_state *state)
+{
+	rcar_du_plane_write(rgrp, index, PnMR,
+			    PnMR_SPIM_TP_OFF | state->format->pnmr);
+
+	rcar_du_plane_write(rgrp, index, PnDDCR4,
+			    state->format->edf | PnDDCR4_CODE);
+}
+
+static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
+				       unsigned int index,
+				       const struct rcar_du_plane_state *state)
+{
+	struct rcar_du_device *rcdu = rgrp->dev;
+
+	if (rcdu->info->gen < 3)
+		rcar_du_plane_setup_format_gen2(rgrp, index, state);
+	else
+		rcar_du_plane_setup_format_gen3(rgrp, index, state);
 
 	/* Destination position and size */
 	rcar_du_plane_write(rgrp, index, PnDSXR, state->state.crtc_w);
@@ -498,26 +521,30 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 	rcar_du_plane_write(rgrp, index, PnDPXR, state->state.crtc_x);
 	rcar_du_plane_write(rgrp, index, PnDPYR, state->state.crtc_y);
 
-	/* Wrap-around and blinking, disabled */
-	rcar_du_plane_write(rgrp, index, PnWASPR, 0);
-	rcar_du_plane_write(rgrp, index, PnWAMWR, 4095);
-	rcar_du_plane_write(rgrp, index, PnBTR, 0);
-	rcar_du_plane_write(rgrp, index, PnMLR, 0);
+	if (rcdu->info->gen < 3) {
+		/* Wrap-around and blinking, disabled */
+		rcar_du_plane_write(rgrp, index, PnWASPR, 0);
+		rcar_du_plane_write(rgrp, index, PnWAMWR, 4095);
+		rcar_du_plane_write(rgrp, index, PnBTR, 0);
+		rcar_du_plane_write(rgrp, index, PnMLR, 0);
+	}
 }
 
 void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 			   const struct rcar_du_plane_state *state)
 {
+	struct rcar_du_device *rcdu = rgrp->dev;
+
 	rcar_du_plane_setup_format(rgrp, state->hwindex, state);
 	if (state->format->planes == 2)
 		rcar_du_plane_setup_format(rgrp, (state->hwindex + 1) % 8,
 					   state);
 
-	rcar_du_plane_setup_scanout(rgrp, state);
+	if (rcdu->info->gen < 3)
+		rcar_du_plane_setup_scanout(rgrp, state);
 
 	if (state->source == RCAR_DU_PLANE_VSPD1) {
 		unsigned int vspd1_sink = rgrp->index ? 2 : 0;
-		struct rcar_du_device *rcdu = rgrp->dev;
 
 		if (rcdu->vspd1_sink != vspd1_sink) {
 			rcdu->vspd1_sink = vspd1_sink;

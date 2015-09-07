@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.c  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -36,6 +36,7 @@
  */
 
 static const struct rcar_du_device_info rcar_du_r8a7779_info = {
+	.gen = 2,
 	.features = 0,
 	.num_crtcs = 2,
 	.routes = {
@@ -57,6 +58,7 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
+	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
@@ -86,6 +88,7 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 
 /* M2-W (r8a7791) and M2-N (r8a7793) are identical */
 static const struct rcar_du_device_info rcar_du_r8a7791_info = {
+	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
@@ -108,6 +111,7 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7794_info = {
+	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
@@ -129,12 +133,31 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 	.num_lvds = 0,
 };
 
+static const struct rcar_du_device_info rcar_du_r8a7795_info = {
+	.gen = 3,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
+	.num_crtcs = 4,
+	.routes = {
+		/* R8A7795 has one RGB output, and two HDMI and one LVDS
+		 * (currently unsupported) outputs
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(3),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+	},
+};
+
 static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
 	{ .compatible = "renesas,du-r8a7790", .data = &rcar_du_r8a7790_info },
 	{ .compatible = "renesas,du-r8a7791", .data = &rcar_du_r8a7791_info },
 	{ .compatible = "renesas,du-r8a7793", .data = &rcar_du_r8a7791_info },
 	{ .compatible = "renesas,du-r8a7794", .data = &rcar_du_r8a7794_info },
+	{ .compatible = "renesas,du-r8a7795", .data = &rcar_du_r8a7795_info },
 	{ }
 };
 

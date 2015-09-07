@@ -1,7 +1,7 @@
 /*
  * rcar_du_kms.c  --  R-Car Display Unit Mode Setting
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -544,10 +544,13 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->num_crtcs = min(rcdu->num_crtcs - 2 * i, 2U);
 
 		/* If we have more than one CRTCs in this group pre-associate
-		 * planes 0-3 with CRTC 0 and planes 4-7 with CRTC 1 to minimize
-		 * flicker occurring when the association is changed.
+		 * the low-order planes with CRTC 0 and the high-order planes
+		 * with CRTC 1 to minimize flicker occurring when the
+		 * association is changed.
 		 */
-		rgrp->dptsr_planes = rgrp->num_crtcs > 1 ? 0xf0 : 0;
+		rgrp->dptsr_planes = rgrp->num_crtcs > 1
+				   ? (rcdu->info->gen >= 3 ? 0x04 : 0xf0)
+				   : 0;
 
 		if (!rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
 			ret = rcar_du_planes_init(rgrp);
