@@ -96,7 +96,7 @@
 	sound {
 		compatible = "fsl,imx6sl-evk-wm8962", "fsl,imx-audio-wm8962";
 		model = "wm8962-audio";
-		ssi-controller = <&ssi2>;
+		cpu-dai = <&ssi2>;
 		audio-codec = <&codec>;
 		audio-routing =
 			"Headphone Jack", "HPOUTL",
@@ -107,6 +107,7 @@
 			"IN3R", "AMIC";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
+		hp-det-gpios = <&gpio4 19 1>;
 	};
 };
 
@@ -270,6 +271,7 @@
 		PLLVDD-supply = <&vgen3_reg>;
 		SPKVDD1-supply = <&reg_aud4v>;
 		SPKVDD2-supply = <&reg_aud4v>;
+		amic-mono;
 	};
 };
 
@@ -288,6 +290,7 @@
 				MX6SL_PAD_KEY_COL4__GPIO4_IO00	0x80000000
 				MX6SL_PAD_KEY_COL5__GPIO4_IO02	0x80000000
 				MX6SL_PAD_AUD_MCLK__AUDIO_CLK_OUT 0x4130b0
+				MX6SL_PAD_FEC_RX_ER__GPIO4_IO19	  0x1b0b0
 			>;
 		};
 
@@ -610,6 +613,10 @@
 };
 
 &ssi2 {
+	fsl,mode = "i2s-slave";
+	assigned-clocks = <&clks IMX6SL_CLK_SSI2_SEL>,
+			  <&clks IMX6SL_CLK_SSI2>;
+	assigned-clock-rates = <0>, <24000000>;
 	status = "okay";
 };
 
