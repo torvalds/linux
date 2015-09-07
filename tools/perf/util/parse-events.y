@@ -371,28 +371,30 @@ event_legacy_tracepoint:
 PE_NAME '-' PE_NAME ':' PE_NAME
 {
 	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
 	struct list_head *list;
 	char sys_name[128];
 	snprintf(&sys_name, 128, "%s-%s", $1, $3);
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_tracepoint(list, &data->idx, &sys_name, $5, data->error));
+	if (parse_events_add_tracepoint(list, &data->idx, &sys_name, $5, error)) {
+		if (error)
+			error->idx = @1.first_column;
+		return -1;
+	}
 	$$ = list;
 }
 |
 PE_NAME ':' PE_NAME
 {
 	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	if (parse_events_add_tracepoint(list, &data->idx, $1, $3, data->error)) {
-		struct parse_events_error *error = data->error;
-
-		if (error) {
+	if (parse_events_add_tracepoint(list, &data->idx, $1, $3, error)) {
+		if (error)
 			error->idx = @1.first_column;
-			error->str = strdup("unknown tracepoint");
-		}
 		return -1;
 	}
 	$$ = list;

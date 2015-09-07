@@ -387,6 +387,33 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	return add_event(list, idx, &attr, name, NULL);
 }
 
+static void tracepoint_error(struct parse_events_error *error, int err,
+			     char *sys, char *name)
+{
+	char help[BUFSIZ];
+
+	/*
+	 * We get error directly from syscall errno ( > 0),
+	 * or from encoded pointer's error ( < 0).
+	 */
+	err = abs(err);
+
+	switch (err) {
+	case EACCES:
+		error->str = strdup("can't access trace events");
+		break;
+	case ENOENT:
+		error->str = strdup("unknown tracepoint");
+		break;
+	default:
+		error->str = strdup("failed to add tracepoint");
+		break;
+	}
+
+	tracing_path__strerror_open_tp(err, help, sizeof(help), sys, name);
+	error->help = strdup(help);
+}
+
 static int add_tracepoint(struct list_head *list, int *idx,
 			  char *sys_name, char *evt_name,
 			  struct parse_events_error *error __maybe_unused)
@@ -394,8 +421,10 @@ static int add_tracepoint(struct list_head *list, int *idx,
 	struct perf_evsel *evsel;
 
 	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
-	if (IS_ERR(evsel))
+	if (IS_ERR(evsel)) {
+		tracepoint_error(error, PTR_ERR(evsel), sys_name, evt_name);
 		return PTR_ERR(evsel);
+	}
 
 	list_add_tail(&evsel->node, list);
 	return 0;
@@ -413,7 +442,7 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 	snprintf(evt_path, MAXPATHLEN, "%s/%s", tracing_events_path, sys_name);
 	evt_dir = opendir(evt_path);
 	if (!evt_dir) {
-		perror("Can't open event dir");
+		tracepoint_error(error, errno, sys_name, evt_name);
 		return -1;
 	}
 
@@ -453,7 +482,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 
 	events_dir = opendir(tracing_events_path);
 	if (!events_dir) {
-		perror("Can't open event dir");
+		tracepoint_error(error, errno, sys_name, evt_name);
 		return -1;
 	}
 
