@@ -24,8 +24,8 @@ struct rb_page {
 static int wakeup_interval = 100;
 
 static int reader_finish;
-static struct completion read_start;
-static struct completion read_done;
+static DECLARE_COMPLETION(read_start);
+static DECLARE_COMPLETION(read_done);
 
 static struct ring_buffer *buffer;
 static struct task_struct *producer;
@@ -178,10 +178,14 @@ static void ring_buffer_consumer(void)
 	read_events ^= 1;
 
 	read = 0;
-	while (!reader_finish && !kill_test) {
-		int found;
+	/*
+	 * Continue running until the producer specifically asks to stop
+	 * and is ready for the completion.
+	 */
+	while (!READ_ONCE(reader_finish)) {
+		int found = 1;
 
-		do {
+		while (found && !kill_test) {
 			int cpu;
 
 			found = 0;
@@ -195,17 +199,23 @@ static void ring_buffer_consumer(void)
 
 				if (kill_test)
 					break;
+
 				if (stat == EVENT_FOUND)
 					found = 1;
-			}
-		} while (found && !kill_test);
 
+			}
+		}
+
+		/* Wait till the producer wakes us up when there is more data
+		 * available or when the producer wants us to finish reading.
+		 */
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (reader_finish)
 			break;
 
 		schedule();
 	}
+	__set_current_state(TASK_RUNNING);
 	reader_finish = 0;
 	complete(&read_done);
 }
@@ -389,13 +399,10 @@ static int ring_buffer_consumer_thread(void *arg)
 
 static int ring_buffer_producer_thread(void *arg)
 {
-	init_completion(&read_start);
-
 	while (!kthread_should_stop() && !kill_test) {
 		ring_buffer_reset(buffer);
 
 		if (consumer) {
-			smp_wmb();
 			wake_up_process(consumer);
 			wait_for_completion(&read_start);
 		}
