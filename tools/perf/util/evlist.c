@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/hash.h>
 #include <linux/log2.h>
+#include <linux/err.h>
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx);
 static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx);
@@ -265,7 +266,7 @@ int perf_evlist__add_newtp(struct perf_evlist *evlist,
 {
 	struct perf_evsel *evsel = perf_evsel__newtp(sys, name);
 
-	if (evsel == NULL)
+	if (IS_ERR(evsel))
 		return -1;
 
 	evsel->handler = handler;

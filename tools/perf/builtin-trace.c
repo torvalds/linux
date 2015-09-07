@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
+#include <linux/err.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -245,13 +246,14 @@ static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void 
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
-	if (evsel == NULL)
+	if (IS_ERR(evsel))
 		evsel = perf_evsel__newtp("syscalls", direction);
 
-	if (evsel) {
-		if (perf_evsel__init_syscall_tp(evsel, handler))
-			goto out_delete;
-	}
+	if (IS_ERR(evsel))
+		return NULL;
+
+	if (perf_evsel__init_syscall_tp(evsel, handler))
+		goto out_delete;
 
 	return evsel;
 
@@ -1705,12 +1707,12 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
 	sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 
-	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
+	if (IS_ERR(sc->tp_format) && sc->fmt && sc->fmt->alias) {
 		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
 		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
-	if (sc->tp_format == NULL)
+	if (IS_ERR(sc->tp_format))
 		return -1;
 
 	sc->args = sc->tp_format->format.fields;
@@ -2390,7 +2392,8 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
-	if (evsel == NULL)
+
+	if (IS_ERR(evsel))
 		return false;
 
 	if (perf_evsel__field(evsel, "pathname") == NULL) {

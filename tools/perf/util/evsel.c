@@ -13,6 +13,7 @@
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <linux/err.h>
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
@@ -225,11 +226,17 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx)
 {
 	struct perf_evsel *evsel = zalloc(perf_evsel__object.size);
+	int err = -ENOMEM;
 
-	if (evsel != NULL) {
+	if (evsel == NULL) {
+		goto out_err;
+	} else {
 		struct perf_event_attr attr = {
 			.type	       = PERF_TYPE_TRACEPOINT,
 			.sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
@@ -240,8 +247,10 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 			goto out_free;
 
 		evsel->tp_format = trace_event__tp_format(sys, name);
-		if (evsel->tp_format == NULL)
+		if (IS_ERR(evsel->tp_format)) {
+			err = PTR_ERR(evsel->tp_format);
 			goto out_free;
+		}
 
 		event_attr_init(&attr);
 		attr.config = evsel->tp_format->id;
@@ -254,7 +263,8 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 out_free:
 	zfree(&evsel->name);
 	free(evsel);
-	return NULL;
+out_err:
+	return ERR_PTR(err);
 }
 
 const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {

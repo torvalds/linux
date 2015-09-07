@@ -1,4 +1,5 @@
 #include <linux/hw_breakpoint.h>
+#include <linux/err.h>
 #include "util.h"
 #include "../perf.h"
 #include "evlist.h"
@@ -393,11 +394,10 @@ static int add_tracepoint(struct list_head *list, int *idx,
 	struct perf_evsel *evsel;
 
 	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
-	if (!evsel)
-		return -ENOMEM;
+	if (IS_ERR(evsel))
+		return PTR_ERR(evsel);
 
 	list_add_tail(&evsel->node, list);
-
 	return 0;
 }
 

@@ -160,6 +160,9 @@ static inline struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
 
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name)
 {
 	return perf_evsel__newtp_idx(sys, name, 0);
