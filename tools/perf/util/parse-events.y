@@ -376,7 +376,7 @@ PE_NAME '-' PE_NAME ':' PE_NAME
 	snprintf(&sys_name, 128, "%s-%s", $1, $3);
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_tracepoint(list, &data->idx, &sys_name, $5));
+	ABORT_ON(parse_events_add_tracepoint(list, &data->idx, &sys_name, $5, data->error));
 	$$ = list;
 }
 |
@@ -386,7 +386,7 @@ PE_NAME ':' PE_NAME
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	if (parse_events_add_tracepoint(list, &data->idx, $1, $3)) {
+	if (parse_events_add_tracepoint(list, &data->idx, $1, $3, data->error)) {
 		struct parse_events_error *error = data->error;
 
 		if (error) {
