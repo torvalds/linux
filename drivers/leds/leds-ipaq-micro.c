@@ -16,9 +16,9 @@
 #define LED_YELLOW	0x00
 #define LED_GREEN	0x01
 
-#define LED_EN          (1 << 4)        /* LED ON/OFF 0:off, 1:on                       */
-#define LED_AUTOSTOP    (1 << 5)        /* LED ON/OFF auto stop set 0:disable, 1:enable */
-#define LED_ALWAYS      (1 << 6)        /* LED Interrupt Mask 0:No mask, 1:mask         */
+#define LED_EN       (1 << 4) /* LED ON/OFF 0:off, 1:on                       */
+#define LED_AUTOSTOP (1 << 5) /* LED ON/OFF auto stop set 0:disable, 1:enable */
+#define LED_ALWAYS   (1 << 6) /* LED Interrupt Mask 0:No mask, 1:mask         */
 
 static void micro_leds_brightness_set(struct led_classdev *led_cdev,
 				      enum led_brightness value)
@@ -79,14 +79,14 @@ static int micro_leds_blink_set(struct led_classdev *led_cdev,
 	};
 
 	msg.tx_data[0] = LED_GREEN;
-        if (*delay_on > IPAQ_LED_MAX_DUTY ||
+	if (*delay_on > IPAQ_LED_MAX_DUTY ||
 	    *delay_off > IPAQ_LED_MAX_DUTY)
-                return -EINVAL;
+		return -EINVAL;
 
-        if (*delay_on == 0 && *delay_off == 0) {
-                *delay_on = 100;
-                *delay_off = 100;
-        }
+	if (*delay_on == 0 && *delay_off == 0) {
+		*delay_on = 100;
+		*delay_off = 100;
+	}
 
 	msg.tx_data[1] = 0;
 	if (*delay_on >= IPAQ_LED_MAX_DUTY)
