@@ -22,7 +22,7 @@
  * DEFINE_STATIC_KEY_TRUE(key);
  * DEFINE_STATIC_KEY_FALSE(key);
  * static_key_likely()
- * statick_key_unlikely()
+ * static_key_unlikely()
  *
  * Jump labels provide an interface to generate dynamic branches using
  * self-modifying code. Assuming toolchain and architecture support, if we
