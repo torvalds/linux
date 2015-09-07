@@ -26,8 +26,13 @@
 #include <linux/mdio.h>
 #include <linux/usb/cdc.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v1.08.1 (2015/07/28)"
+/* Information for net-next */
+#define NETNEXT_VERSION		"08"
+
+/* Information for net */
+#define NET_VERSION		"1"
+
+#define DRIVER_VERSION		"v1." NETNEXT_VERSION "." NET_VERSION
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
 #define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
