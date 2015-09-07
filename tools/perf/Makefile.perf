@@ -459,7 +459,7 @@ INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
 $(DOC_TARGETS):
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:doc=all)
 
-TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol
+TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include
 TAG_FILES= ../../include/uapi/linux/perf_event.h
 
 TAGS:
