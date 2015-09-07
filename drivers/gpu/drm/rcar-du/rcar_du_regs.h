@@ -187,7 +187,7 @@
 
 #define DEFR6			0x000e8
 #define DEFR6_CODE		(0x7778 << 16)
-#define DEFR6_ODPM22_D2SMR	(0 << 10)
+#define DEFR6_ODPM22_DSMR	(0 << 10)
 #define DEFR6_ODPM22_DISP	(2 << 10)
 #define DEFR6_ODPM22_CDE	(3 << 10)
 #define DEFR6_ODPM22_MASK	(3 << 10)

@@ -44,6 +44,16 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 	rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg, data);
 }
 
+static void rcar_du_group_setup_pins(struct rcar_du_group *rgrp)
+{
+	u32 defr6 = DEFR6_CODE | DEFR6_ODPM12_DISP;
+
+	if (rgrp->num_crtcs > 1)
+		defr6 |= DEFR6_ODPM22_DISP;
+
+	rcar_du_group_write(rgrp, DEFR6, defr6);
+}
+
 static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 {
 	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
@@ -70,6 +80,8 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
 	rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
 	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
+
+	rcar_du_group_setup_pins(rgrp);
 
 	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS)) {
 		rcar_du_group_setup_defr8(rgrp);
