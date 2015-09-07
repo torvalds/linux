@@ -2250,8 +2250,7 @@ int wilc_netdev_init(void)
 	sema_init(&close_exit_sync, 0);
 
 	/*create the common structure*/
-	g_linux_wlan = WILC_MALLOC(sizeof(linux_wlan_t));
-	memset(g_linux_wlan, 0, sizeof(linux_wlan_t));
+	g_linux_wlan = kzalloc(sizeof(linux_wlan_t), GFP_KERNEL);
 
 	/*Reset interrupt count debug*/
 	int_rcvdU = 0;
