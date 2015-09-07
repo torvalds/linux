@@ -317,24 +317,33 @@ xfs_file_read_iter(
 		return -EIO;
 
 	/*
-	 * Locking is a bit tricky here. If we take an exclusive lock
-	 * for direct IO, we effectively serialise all new concurrent
-	 * read IO to this file and block it behind IO that is currently in
-	 * progress because IO in progress holds the IO lock shared. We only
-	 * need to hold the lock exclusive to blow away the page cache, so
-	 * only take lock exclusively if the page cache needs invalidation.
-	 * This allows the normal direct IO case of no page cache pages to
-	 * proceeed concurrently without serialisation.
+	 * Locking is a bit tricky here. If we take an exclusive lock for direct
+	 * IO, we effectively serialise all new concurrent read IO to this file
+	 * and block it behind IO that is currently in progress because IO in
+	 * progress holds the IO lock shared. We only need to hold the lock
+	 * exclusive to blow away the page cache, so only take lock exclusively
+	 * if the page cache needs invalidation. This allows the normal direct
+	 * IO case of no page cache pages to proceeed concurrently without
+	 * serialisation.
 	 */
 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
 	if ((ioflags & XFS_IO_ISDIRECT) && inode->i_mapping->nrpages) {
 		xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
+		/*
+		 * The generic dio code only flushes the range of the particular
+		 * I/O. Because we take an exclusive lock here, this whole
+		 * sequence is considerably more expensive for us. This has a
+		 * noticeable performance impact for any file with cached pages,
+		 * even when outside of the range of the particular I/O.
+		 *
+		 * Hence, amortize the cost of the lock against a full file
+		 * flush and reduce the chances of repeated iolock cycles going
+		 * forward.
+		 */
 		if (inode->i_mapping->nrpages) {
-			ret = filemap_write_and_wait_range(
-							VFS_I(ip)->i_mapping,
-							pos, pos + size - 1);
+			ret = filemap_write_and_wait(VFS_I(ip)->i_mapping);
 			if (ret) {
 				xfs_rw_iunlock(ip, XFS_IOLOCK_EXCL);
 				return ret;
@@ -345,9 +354,7 @@ xfs_file_read_iter(
 			 * we fail to invalidate a page, but this should never
 			 * happen on XFS. Warn if it does fail.
 			 */
-			ret = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
-					pos >> PAGE_CACHE_SHIFT,
-					(pos + size - 1) >> PAGE_CACHE_SHIFT);
+			ret = invalidate_inode_pages2(VFS_I(ip)->i_mapping);
 			WARN_ON_ONCE(ret);
 			ret = 0;
 		}
@@ -733,19 +740,19 @@ xfs_file_dio_aio_write(
 	pos = iocb->ki_pos;
 	end = pos + count - 1;
 
+	/*
+	 * See xfs_file_read_iter() for why we do a full-file flush here.
+	 */
 	if (mapping->nrpages) {
-		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-						   pos, end);
+		ret = filemap_write_and_wait(VFS_I(ip)->i_mapping);
 		if (ret)
 			goto out;
 		/*
-		 * Invalidate whole pages. This can return an error if
-		 * we fail to invalidate a page, but this should never
-		 * happen on XFS. Warn if it does fail.
+		 * Invalidate whole pages. This can return an error if we fail
+		 * to invalidate a page, but this should never happen on XFS.
+		 * Warn if it does fail.
 		 */
-		ret = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
-					pos >> PAGE_CACHE_SHIFT,
-					end >> PAGE_CACHE_SHIFT);
+		ret = invalidate_inode_pages2(VFS_I(ip)->i_mapping);
 		WARN_ON_ONCE(ret);
 		ret = 0;
 	}

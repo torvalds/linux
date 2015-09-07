@@ -353,7 +353,8 @@ xfs_end_bio(
 {
 	xfs_ioend_t		*ioend = bio->bi_private;
 
-	ioend->io_error = bio->bi_error;
+	if (!ioend->io_error)
+		ioend->io_error = bio->bi_error;
 
 	/* Toss bio and pass work off to an xfsdatad thread */
 	bio->bi_private = NULL;
