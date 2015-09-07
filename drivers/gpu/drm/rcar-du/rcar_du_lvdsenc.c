@@ -140,6 +140,15 @@ int rcar_du_lvdsenc_enable(struct rcar_du_lvdsenc *lvds, struct drm_crtc *crtc,
 		return -EINVAL;
 }
 
+void rcar_du_lvdsenc_atomic_check(struct rcar_du_lvdsenc *lvds,
+				  struct drm_display_mode *mode)
+{
+	/* The internal LVDS encoder has a clock frequency operating range of
+	 * 30MHz to 150MHz. Clamp the clock accordingly.
+	 */
+	mode->clock = clamp(mode->clock, 30000, 150000);
+}
+
 static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,
 					 struct platform_device *pdev)
 {

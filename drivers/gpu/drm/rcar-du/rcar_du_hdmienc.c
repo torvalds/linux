@@ -71,12 +71,9 @@ static int rcar_du_hdmienc_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	const struct drm_display_mode *mode = &crtc_state->mode;
 
-	/* The internal LVDS encoder has a clock frequency operating range of
-	 * 30MHz to 150MHz. Clamp the clock accordingly.
-	 */
 	if (hdmienc->renc->lvds)
-		adjusted_mode->clock = clamp(adjusted_mode->clock,
-					     30000, 150000);
+		rcar_du_lvdsenc_atomic_check(hdmienc->renc->lvds,
+					     adjusted_mode);
 
 	if (sfuncs->mode_fixup == NULL)
 		return 0;
