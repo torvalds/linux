@@ -109,6 +109,14 @@
 		mux-ext-port = <3>;
 		hp-det-gpios = <&gpio4 19 1>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif",
+			   "fsl,imx6sl-evk-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
 };
 
 &audmux {
@@ -410,6 +418,12 @@
 			>;
 		};
 
+		pinctrl_spdif: spdifgrp {
+			fsl,pins = <
+				MX6SL_PAD_SD2_DAT4__SPDIF_OUT 0x80000000
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX6SL_PAD_UART1_RXD__UART1_RX_DATA	0x1b0b1
@@ -609,6 +623,16 @@
 };
 
 &snvs_poweroff {
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	assigned-clocks = <&clks IMX6SL_CLK_SPDIF0_SEL>,
+		<&clks IMX6SL_CLK_SPDIF0_PODF>;
+	assigned-clock-parents = <&clks IMX6SL_CLK_PLL3_PFD3>;
+	assigned-clock-rates = <0>, <227368421>;
 	status = "okay";
 };
 
