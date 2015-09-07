@@ -579,6 +579,7 @@ static int vsp1_probe(struct platform_device *pdev)
 	struct vsp1_device *vsp1;
 	struct resource *irq;
 	struct resource *io;
+	u32 version;
 	int ret;
 
 	vsp1 = devm_kzalloc(&pdev->dev, sizeof(*vsp1), GFP_KERNEL);
@@ -619,6 +620,29 @@ static int vsp1_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Configure device parameters based on the version register. */
+	ret = clk_prepare_enable(vsp1->clock);
+	if (ret < 0)
+		return ret;
+
+	version = vsp1_read(vsp1, VI6_IP_VERSION);
+	clk_disable_unprepare(vsp1->clock);
+
+	dev_dbg(&pdev->dev, "IP version 0x%08x\n", version);
+
+	switch (version & VI6_IP_VERSION_MODEL_MASK) {
+	case VI6_IP_VERSION_MODEL_VSPD_GEN3:
+		vsp1->pdata.num_bru_inputs = 5;
+		vsp1->pdata.uapi = false;
+		break;
+
+	case VI6_IP_VERSION_MODEL_VSPI_GEN3:
+	case VI6_IP_VERSION_MODEL_VSPBD_GEN3:
+	case VI6_IP_VERSION_MODEL_VSPBC_GEN3:
+		vsp1->pdata.features &= ~VSP1_HAS_BRU;
+		break;
+	}
+
 	/* Instanciate entities */
 	ret = vsp1_create_entities(vsp1);
 	if (ret < 0) {
@@ -642,6 +666,7 @@ static int vsp1_remove(struct platform_device *pdev)
 
 static const struct of_device_id vsp1_of_match[] = {
 	{ .compatible = "renesas,vsp1" },
+	{ .compatible = "renesas,vsp2" },
 	{ },
 };
 
