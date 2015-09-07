@@ -116,9 +116,18 @@ protocol_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(protocol_id);
 
+static ssize_t
+ap_cport_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct gb_connection *connection = to_gb_connection(dev);
+	return sprintf(buf, "%hu\n", connection->hd_cport_id);
+}
+static DEVICE_ATTR_RO(ap_cport_id);
+
 static struct attribute *connection_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_protocol_id.attr,
+	&dev_attr_ap_cport_id.attr,
 	NULL,
 };
 

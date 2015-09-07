@@ -126,6 +126,14 @@ Description:
 		3 - error
 		4 - destroying
 
+What:		/sys/bus/greybus/device/.../ap_cport_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The cport ID of the AP, to which cport of the module is
+		connected.
+
 What:		/sys/bus/greybus/device/.../protocol_id
 Date:		October 2015
 KernelVersion:	4.XX
