@@ -191,9 +191,10 @@ implementations:
   be called again, rearmed, to fill the buffer.
 
 - On write(2), sysfs expects the entire buffer to be passed during the
-  first write. Sysfs then passes the entire buffer to the store()
-  method. 
-  
+  first write. Sysfs then passes the entire buffer to the store() method.
+  A terminating null is added after the data on stores. This makes
+  functions like sysfs_streq() safe to use.
+
   When writing sysfs files, userspace processes should first read the
   entire file, modify the values it wishes to change, then write the
   entire buffer back. 
