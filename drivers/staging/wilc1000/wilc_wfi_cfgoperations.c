@@ -2533,6 +2533,7 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 		mgmt_tx->buff = WILC_MALLOC(buf_len);
 		if (mgmt_tx->buff == NULL) {
 			PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
+			kfree(mgmt_tx);
 			return WILC_FAIL;
 		}
 		memcpy(mgmt_tx->buff, buf, len);
