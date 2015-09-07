@@ -273,6 +273,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 	struct gb_bundle *bundle;
 	struct gb_bundle *bundle_next;
 	u32 count = 0;
+	u8 bundle_id;
 
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_bundle *desc_bundle;
@@ -282,9 +283,10 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 
 		/* Found one.  Set up its bundle structure*/
 		desc_bundle = desc->data;
+		bundle_id = desc_bundle->id;
 
 		/* Don't recreate bundle for control cport */
-		if (desc_bundle->id == GB_CONTROL_BUNDLE_ID) {
+		if (bundle_id == GB_CONTROL_BUNDLE_ID) {
 			/* This should have class set to control class */
 			if (desc_bundle->class != GREYBUS_CLASS_CONTROL) {
 				dev_err(&intf->dev,
@@ -301,22 +303,47 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		if (desc_bundle->class == GREYBUS_CLASS_CONTROL) {
 			dev_err(&intf->dev,
 				"bundle 0x%02x cannot use control class\n",
-				desc_bundle->id);
+				bundle_id);
 			goto cleanup;
 		}
 
-		bundle = gb_bundle_create(intf, desc_bundle->id,
-					  desc_bundle->class);
+		bundle = gb_bundle_create(intf, bundle_id, desc_bundle->class);
 		if (!bundle)
 			goto cleanup;
 
 parse_cports:
-		/* Now go set up this bundle's functions and cports */
-		if (!gb_manifest_parse_cports(bundle))
-			goto cleanup;
-
 		/* Done with this bundle descriptor */
 		release_manifest_descriptor(desc);
+
+		/*
+		 * Now go set up this bundle's functions and cports.
+		 *
+		 * A 'bundle' represents a device in greybus. It may require
+		 * multiple cports for its functioning. If we fail to setup any
+		 * cport of a bundle, we better reject the complete bundle as
+		 * the device may not be able to function properly then.
+		 *
+		 * But, failing to setup a cport of bundle X doesn't mean that
+		 * the device corresponding to bundle Y will not work properly.
+		 * Bundles should be treated as separate independent devices.
+		 *
+		 * While parsing manifest for an interface, treat bundles as
+		 * separate entities and don't reject entire interface and its
+		 * bundles on failing to initialize a cport. But make sure the
+		 * bundle which needs the cport, gets destroyed properly.
+		 *
+		 * The control bundle and its connections are special. The
+		 * entire manifest should be rejected if we failed to initialize
+		 * the control bundle/connections.
+		 */
+		if (!gb_manifest_parse_cports(bundle)) {
+			if (bundle_id == GB_CONTROL_BUNDLE_ID)
+				goto cleanup;
+
+			gb_bundle_destroy(bundle);
+			continue;
+		}
+
 		count++;
 	}
 
