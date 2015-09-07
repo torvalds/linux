@@ -102,7 +102,7 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	/* Turn the PLL on, wait for the startup delay, and turn the output
 	 * on.
 	 */
-	lvdcr0 |= LVDCR0_PLLEN;
+	lvdcr0 |= LVDCR0_PLLON;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 
 	usleep_range(100, 150);
