@@ -952,6 +952,12 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
+	if (iocb->ki_flags & IOCB_APPEND) {
+		err = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
+		if (err < 0)
+			goto out;
+	}
+
 	err = generic_write_checks(iocb, from);
 	if (err <= 0)
 		goto out;
