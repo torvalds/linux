@@ -312,6 +312,19 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 	spin_unlock_irq(&connection->lock);
 }
 
+static void
+gb_connection_svc_connection_destroy(struct gb_connection *connection)
+{
+	if (connection->hd_cport_id == GB_SVC_CPORT_ID)
+		return;
+
+	gb_svc_connection_destroy(connection->hd->svc,
+				  connection->hd->endo->ap_intf_id,
+				  connection->hd_cport_id,
+				  connection->bundle->intf->interface_id,
+				  connection->intf_cport_id);
+}
+
 static void gb_connection_disconnected(struct gb_connection *connection)
 {
 	struct gb_control *control;
@@ -373,7 +386,7 @@ static int gb_connection_init(struct gb_connection *connection)
 			dev_err(&connection->dev,
 				"Failed to connect CPort-%d (%d)\n",
 				cport_id, ret);
-			return ret;
+			goto svc_destroy;
 		}
 	}
 
@@ -406,6 +419,9 @@ disconnect:
 	spin_unlock_irq(&connection->lock);
 
 	gb_connection_disconnected(connection);
+svc_destroy:
+	gb_connection_svc_connection_destroy(connection);
+
 	return ret;
 }
 
@@ -426,6 +442,7 @@ static void gb_connection_exit(struct gb_connection *connection)
 
 	connection->protocol->connection_exit(connection);
 	gb_connection_disconnected(connection);
+	gb_connection_svc_connection_destroy(connection);
 }
 
 /*
