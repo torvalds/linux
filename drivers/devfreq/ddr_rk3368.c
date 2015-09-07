@@ -17,44 +17,27 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/platform_device.h>
-#include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
-
-#include <linux/kernel.h>
-#include <linux/io.h>
-#include <linux/module.h>
-#include <linux/clk.h>
-#include <linux/delay.h>
-
-#include <asm/cacheflush.h>
-#include <asm/tlbflush.h>
-#include <linux/cpu.h>
-#include <dt-bindings/clock/ddr.h>
-#include <linux/rockchip/common.h>
-#include <linux/rockchip/cpu.h>
-#include <linux/rockchip/cru.h>
-#include <linux/rockchip/dvfs.h>
-#include <linux/rockchip/grf.h>
-#include <linux/rockchip/iomap.h>
-#include <linux/rockchip/pmu.h>
-#include <linux/rk_fb.h>
-#include <linux/scpi_protocol.h>
 #include <asm/compiler.h>
+#include <dt-bindings/clock/ddr.h>
+#include <linux/delay.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/rk_fb.h>
+#include <linux/rockchip/common.h>
+#include <linux/rockchip/psci.h>
+#include <linux/scpi_protocol.h>
 
 #define GRF_DDRC0_CON0    0x600
 #define GRF_SOC_STATUS5  0x494
 #define DDR_PCTL_TOGCNT_1U  0xc0
 
-#define PSCI_SIP_RKTF_VER		(0x82000001)
 #define FIQ_CPU_TGT_BOOT		0x0 /* to booting cpu */
-#define RKSIP_EL3FIQ_CFG		(0x82000006)
 #define FIQ_NUM_FOR_DCF		(143)  /*NA irq map to fiq for dcf*/
 
 
-#define DDR_VERSION			"V1.01 20150819"
+#define DDR_VERSION			"V1.02 20150907"
 
 enum ddr_bandwidth_id {
 	ddrbw_wr_num = 0,
@@ -72,24 +55,6 @@ struct rockchip_ddr {
 };
 
 static struct rockchip_ddr *ddr_data = NULL;
-
-static noinline int __invoke_reg_dcf_fn_smc(u64 function_id, u64 arg0, u64 arg1,
-					    u64 arg2)
-{
-	asm volatile(
-			__asmeq("%0", "x0")
-			__asmeq("%1", "x1")
-			__asmeq("%2", "x2")
-			__asmeq("%3", "x3")
-			"smc	#0\n"
-		: "+r" (function_id)
-		: "r" (arg0), "r" (arg1), "r" (arg2));
-
-	return function_id;
-}
-
-static int (*invoke_reg_dcf_fn_smc)(u64, u64 , u64, u64) =
-	    __invoke_reg_dcf_fn_smc;
 
 static int _ddr_recalc_rate(void)
 {
@@ -319,10 +284,10 @@ static int __init rockchip_tf_ver_check(void)
 {
 	u32 version;
 
-	version = invoke_reg_dcf_fn_smc(PSCI_SIP_RKTF_VER, 0, 0, 0);
-
-	if ((RKTF_VER_MAJOR(version) >= RKTF_VLDVER_MAJOR) &&
-	    (RKTF_VER_MINOR(version) >= RKTF_VLDVER_MINOR))
+	version = rockchip_psci_smc_get_tf_ver();
+	if (((RKTF_VER_MAJOR(version) == RKTF_VLDVER_MAJOR) &&
+	     (RKTF_VER_MINOR(version) >= RKTF_VLDVER_MINOR)) ||
+	    (RKTF_VER_MAJOR(version) > RKTF_VLDVER_MAJOR))
 		return 0;
 
 	pr_err("read tf version 0x%x!\n", version);
@@ -383,8 +348,9 @@ static int __init rockchip_ddr_probe(struct platform_device *pdev)
 	ddr_bandwidth_get = _ddr_bandwidth_get;
 	ddr_recalc_rate = _ddr_recalc_rate;
 	rockchip_tf_ver_check();
-	addr_mcu_el3 = invoke_reg_dcf_fn_smc(RKSIP_EL3FIQ_CFG, FIQ_NUM_FOR_DCF,
-					     FIQ_CPU_TGT_BOOT, 0);
+	addr_mcu_el3 = rockchip_psci_smc_write(PSCI_SIP_EL3FIQ_CFG,
+					       FIQ_NUM_FOR_DCF,
+					       FIQ_CPU_TGT_BOOT, 0);
 	if ((addr_mcu_el3 == 0) || (addr_mcu_el3 > 0x80000))
 		pr_info("Trust version error, pls check trust version\n");
 	ddr_init(DDR3_DEFAULT, 0, addr_mcu_el3);
