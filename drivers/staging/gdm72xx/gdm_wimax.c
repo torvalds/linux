@@ -62,7 +62,7 @@ static inline int gdm_wimax_header(struct sk_buff **pskb)
 		struct sk_buff *skb2;
 
 		skb2 = skb_realloc_headroom(skb, HCI_HEADER_SIZE);
-		if (skb2 == NULL)
+		if (!skb2)
 			return -ENOMEM;
 		if (skb->sk)
 			skb_set_owner_w(skb2, skb->sk);
@@ -397,7 +397,7 @@ static int gdm_wimax_ioctl_set_data(struct data_s *dst, struct data_s *src)
 	if (!(dst->buf && dst->size == src->size)) {
 		kdelete(&dst->buf);
 		dst->buf = kmalloc(src->size, GFP_KERNEL);
-		if (dst->buf == NULL)
+		if (!dst->buf)
 			return -ENOMEM;
 	}
 

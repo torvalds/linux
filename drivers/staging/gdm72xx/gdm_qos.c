@@ -190,7 +190,7 @@ static int get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 	int ip_ver, i;
 	struct qos_cb_s *qcb = &nic->qos;
 
-	if (iph == NULL || tcpudph == NULL)
+	if (!iph || !tcpudph)
 		return -1;
 
 	ip_ver = (iph[0]>>4)&0xf;
