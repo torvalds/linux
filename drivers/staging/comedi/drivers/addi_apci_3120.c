@@ -502,11 +502,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	if (int_amcc & TARGET_ABORT_INT)
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 
-	if ((status & APCI3120_STATUS_EOC_INT) == 0 &&
-	    (devpriv->mode & APCI3120_MODE_EOC_IRQ_ENA)) {
-		/* nothing to do... EOC mode is not currently used */
-	}
-
 	if ((status & APCI3120_STATUS_EOS_INT) &&
 	    (devpriv->mode & APCI3120_MODE_EOS_IRQ_ENA)) {
 		unsigned short val;
