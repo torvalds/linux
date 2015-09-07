@@ -56,11 +56,11 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 		return ret;
 
 	/* PLL clock configuration */
-	if (freq <= 38000)
+	if (freq < 39000)
 		pllcr = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_38M;
-	else if (freq <= 60000)
+	else if (freq < 61000)
 		pllcr = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_60M;
-	else if (freq <= 121000)
+	else if (freq < 121000)
 		pllcr = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_121M;
 	else
 		pllcr = LVDPLLCR_PLLDLYCNT_150M;
