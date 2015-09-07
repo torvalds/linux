@@ -148,6 +148,7 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
+/* Creates bi-directional routes between the devices */
 static int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 			       u8 intf2_id, u8 dev2_id)
 {
@@ -299,14 +300,6 @@ static void svc_process_hotplug(struct work_struct *work)
 	 */
 	ret = gb_svc_route_create(svc, hd->endo->ap_intf_id, GB_DEVICE_ID_AP,
 				  intf_id, device_id);
-	if (ret) {
-		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
-			__func__, intf_id, device_id, ret);
-		goto ida_put;
-	}
-
-	ret = gb_svc_route_create(svc, intf_id, device_id, hd->endo->ap_intf_id,
-				  GB_DEVICE_ID_AP);
 	if (ret) {
 		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
 			__func__, intf_id, device_id, ret);
