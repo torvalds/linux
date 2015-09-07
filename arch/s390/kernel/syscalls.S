@@ -364,3 +364,4 @@ SYSCALL(sys_s390_pci_mmio_write,compat_sys_s390_pci_mmio_write)
 SYSCALL(sys_s390_pci_mmio_read,compat_sys_s390_pci_mmio_read)
 SYSCALL(sys_execveat,compat_sys_execveat)
 SYSCALL(sys_userfaultfd,sys_userfaultfd)		/* 355 */
+SYSCALL(sys_membarrier,sys_membarrier)

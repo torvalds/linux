@@ -291,7 +291,8 @@
 #define __NR_s390_pci_mmio_read		353
 #define __NR_execveat		354
 #define __NR_userfaultfd	355
-#define NR_syscalls 356
+#define __NR_membarrier		356
+#define NR_syscalls 357
 
 /* 
  * There are some system calls that are not present on 64 bit, some
