@@ -315,7 +315,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 static void
 gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
-	if (connection->hd_cport_id == GB_SVC_CPORT_ID)
+	if (connection->protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)
 		return;
 
 	if (connection->hd->driver->connection_destroy)
@@ -334,12 +334,8 @@ static void gb_connection_disconnected(struct gb_connection *connection)
 	int cport_id = connection->intf_cport_id;
 	int ret;
 
-	/*
-	 * Inform Interface about In-active CPorts. We don't need to do this
-	 * operation for control cport.
-	 */
-	if ((cport_id == GB_CONTROL_CPORT_ID) ||
-	    (connection->hd_cport_id == GB_SVC_CPORT_ID))
+	/* Inform Interface about inactive CPorts */
+	if (connection->protocol->flags & GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED)
 		return;
 
 	control = connection->bundle->intf->control;
@@ -354,13 +350,14 @@ static int gb_connection_init(struct gb_connection *connection)
 {
 	int cport_id = connection->intf_cport_id;
 	struct greybus_host_device *hd = connection->hd;
+	struct gb_protocol *protocol = connection->protocol;
 	int ret;
 
 	/*
 	 * Request the SVC to create a connection from AP's cport to interface's
 	 * cport.
 	 */
-	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
+	if (!(protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)) {
 		ret = gb_svc_connection_create(hd->svc,
 				hd->endo->ap_intf_id, connection->hd_cport_id,
 				connection->bundle->intf->interface_id,
@@ -375,13 +372,8 @@ static int gb_connection_init(struct gb_connection *connection)
 		if (hd->driver->connection_create)
 			hd->driver->connection_create(connection);
 	}
-
-	/*
-	 * Inform Interface about Active CPorts. We don't need to do this
-	 * operation for control cport.
-	 */
-	if (cport_id != GB_CONTROL_CPORT_ID &&
-	    connection->hd_cport_id != GB_SVC_CPORT_ID) {
+	/* Inform Interface about active CPorts */
+	if (!(protocol->flags & GB_PROTOCOL_SKIP_CONTROL_CONNECTED)) {
 		struct gb_control *control = connection->bundle->intf->control;
 
 		ret = gb_control_connected_operation(control, cport_id);
@@ -402,7 +394,7 @@ static int gb_connection_init(struct gb_connection *connection)
 	 * Request protocol version supported by the module. We don't need to do
 	 * this for SVC as that is initiated by the SVC.
 	 */
-	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
+	if (!(protocol->flags & GB_PROTOCOL_SKIP_VERSION)) {
 		ret = gb_protocol_get_version(connection);
 		if (ret) {
 			dev_err(&connection->dev,
@@ -412,7 +404,7 @@ static int gb_connection_init(struct gb_connection *connection)
 		}
 	}
 
-	ret = connection->protocol->connection_init(connection);
+	ret = protocol->connection_init(connection);
 	if (!ret)
 		return 0;
 
@@ -505,7 +497,7 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 	 * active device, so bring up the connection at the same time.
 	 */
 	if ((!connection->bundle &&
-	     connection->hd_cport_id == GB_SVC_CPORT_ID) ||
+	     protocol->flags & GB_PROTOCOL_NO_BUNDLE) ||
 	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD) {
 		ret = gb_connection_init(connection);
 		if (ret) {

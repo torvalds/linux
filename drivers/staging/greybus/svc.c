@@ -524,5 +524,10 @@ static struct gb_protocol svc_protocol = {
 	.connection_init	= gb_svc_connection_init,
 	.connection_exit	= gb_svc_connection_exit,
 	.request_recv		= gb_svc_request_recv,
+	.flags			= GB_PROTOCOL_SKIP_CONTROL_CONNECTED |
+				  GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED |
+				  GB_PROTOCOL_NO_BUNDLE |
+				  GB_PROTOCOL_SKIP_VERSION |
+				  GB_PROTOCOL_SKIP_SVC_CONNECTION,
 };
 gb_builtin_protocol_driver(svc_protocol);
