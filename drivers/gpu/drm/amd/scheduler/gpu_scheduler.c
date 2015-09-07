@@ -326,7 +326,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 {
 	struct amd_sched_fence *s_fence =
 		container_of(cb, struct amd_sched_fence, cb);
-	struct amd_gpu_scheduler *sched = s_fence->scheduler;
+	struct amd_gpu_scheduler *sched = s_fence->sched;
 
 	atomic_dec(&sched->hw_rq_count);
 	amd_sched_fence_signal(s_fence);

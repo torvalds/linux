@@ -146,7 +146,7 @@ static uint32_t amdgpu_sa_get_ring_from_fence(struct fence *f)
 
 	s_fence = to_amd_sched_fence(f);
 	if (s_fence)
-		return s_fence->scheduler->ring_id;
+		return s_fence->sched->ring_id;
 	a_fence = to_amdgpu_fence(f);
 	if (a_fence)
 		return a_fence->ring->idx;
@@ -437,7 +437,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 			if (s_fence)
 				seq_printf(m, " protected by 0x%016x on ring %d",
 					   s_fence->base.seqno,
-					   s_fence->scheduler->ring_id);
+					   s_fence->sched->ring_id);
 
 		}
 		seq_printf(m, "\n");

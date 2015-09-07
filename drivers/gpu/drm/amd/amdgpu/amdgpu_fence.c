@@ -626,11 +626,11 @@ void amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 	ring->fence_drv.ring = ring;
 
 	if (amdgpu_enable_scheduler) {
-		ring->scheduler = amd_sched_create(&amdgpu_sched_ops,
-						   ring->idx,
-						   amdgpu_sched_hw_submission,
-						   (void *)ring->adev);
-		if (!ring->scheduler)
+		ring->sched = amd_sched_create(&amdgpu_sched_ops,
+					       ring->idx,
+					       amdgpu_sched_hw_submission,
+					       (void *)ring->adev);
+		if (!ring->sched)
 			DRM_ERROR("Failed to create scheduler on ring %d.\n",
 				  ring->idx);
 	}
@@ -681,8 +681,8 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		wake_up_all(&ring->fence_drv.fence_queue);
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
-		if (ring->scheduler)
-			amd_sched_destroy(ring->scheduler);
+		if (ring->sched)
+			amd_sched_destroy(ring->sched);
 		ring->fence_drv.initialized = false;
 	}
 	mutex_unlock(&adev->ring_lock);

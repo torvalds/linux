@@ -891,7 +891,7 @@ struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
-	struct amd_gpu_scheduler 	*scheduler;
+	struct amd_gpu_scheduler 	*sched;
 
 	spinlock_t              fence_lock;
 	struct mutex		*ring_lock;

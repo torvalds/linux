@@ -65,7 +65,7 @@ struct amd_sched_rq {
 struct amd_sched_fence {
 	struct fence                    base;
 	struct fence_cb                 cb;
-	struct amd_gpu_scheduler	*scheduler;
+	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
 };
