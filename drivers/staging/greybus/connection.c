@@ -258,14 +258,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	spin_unlock_irq(&gb_connections_lock);
 
-	if (hd_cport_id != GB_SVC_CPORT_ID) {
-		gb_svc_connection_create(hd->svc,
-					 hd->endo->ap_intf_id, hd_cport_id,
-					 bundle->intf->interface_id, cport_id);
-		if (hd->driver->connection_create)
-			hd->driver->connection_create(connection);
-	}
-
 	gb_connection_bind_protocol(connection);
 	if (!connection->protocol)
 		dev_warn(&connection->dev,
@@ -345,7 +337,28 @@ static void gb_connection_disconnected(struct gb_connection *connection)
 static int gb_connection_init(struct gb_connection *connection)
 {
 	int cport_id = connection->intf_cport_id;
+	struct greybus_host_device *hd = connection->hd;
 	int ret;
+
+	/*
+	 * Request the SVC to create a connection from AP's cport to interface's
+	 * cport.
+	 */
+	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
+		ret = gb_svc_connection_create(hd->svc,
+				hd->endo->ap_intf_id, connection->hd_cport_id,
+				connection->bundle->intf->interface_id,
+				cport_id);
+		if (ret) {
+			dev_err(&connection->dev,
+				"%s: Failed to create svc connection (%d)\n",
+				__func__, ret);
+			return ret;
+		}
+
+		if (hd->driver->connection_create)
+			hd->driver->connection_create(connection);
+	}
 
 	/*
 	 * Inform Interface about Active CPorts. We don't need to do this
