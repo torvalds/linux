@@ -118,23 +118,27 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_rq *rq,
 			  uint32_t jobs)
 {
+	int r;
+
 	if (!(sched && entity && rq))
 		return -EINVAL;
 
 	memset(entity, 0, sizeof(struct amd_sched_entity));
-	entity->belongto_rq = rq;
-	entity->scheduler = sched;
-	entity->fence_context = fence_context_alloc(1);
-	if(kfifo_alloc(&entity->job_queue,
-		       jobs * sizeof(void *),
-		       GFP_KERNEL))
-		return -EINVAL;
+	INIT_LIST_HEAD(&entity->list);
+	entity->rq = rq;
+	entity->sched = sched;
 
 	spin_lock_init(&entity->queue_lock);
+	r = kfifo_alloc(&entity->job_queue, jobs * sizeof(void *), GFP_KERNEL);
+	if (r)
+		return r;
+
 	atomic_set(&entity->fence_seq, 0);
+	entity->fence_context = fence_context_alloc(1);
 
 	/* Add the entity to the run queue */
 	amd_sched_rq_add_entity(rq, entity);
+
 	return 0;
 }
 
@@ -149,8 +153,8 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 static bool amd_sched_entity_is_initialized(struct amd_gpu_scheduler *sched,
 					    struct amd_sched_entity *entity)
 {
-	return entity->scheduler == sched &&
-		entity->belongto_rq != NULL;
+	return entity->sched == sched &&
+		entity->rq != NULL;
 }
 
 /**
@@ -180,7 +184,7 @@ static bool amd_sched_entity_is_idle(struct amd_sched_entity *entity)
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity)
 {
-	struct amd_sched_rq *rq = entity->belongto_rq;
+	struct amd_sched_rq *rq = entity->rq;
 
 	if (!amd_sched_entity_is_initialized(sched, entity))
 		return;
@@ -201,13 +205,13 @@ static void amd_sched_entity_wakeup(struct fence *f, struct fence_cb *cb)
 		container_of(cb, struct amd_sched_entity, cb);
 	entity->dependency = NULL;
 	fence_put(f);
-	amd_sched_wakeup(entity->scheduler);
+	amd_sched_wakeup(entity->sched);
 }
 
 static struct amd_sched_job *
 amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 {
-	struct amd_gpu_scheduler *sched = entity->scheduler;
+	struct amd_gpu_scheduler *sched = entity->sched;
 	struct amd_sched_job *sched_job;
 
 	if (ACCESS_ONCE(entity->dependency))
@@ -275,7 +279,7 @@ int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	fence_get(&fence->base);
 	sched_job->s_fence = fence;
 
-	wait_event(entity->scheduler->job_scheduled,
+	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
 	trace_amd_sched_job(sched_job);
 	return 0;

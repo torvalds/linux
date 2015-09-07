@@ -38,13 +38,15 @@ struct amd_sched_rq;
 */
 struct amd_sched_entity {
 	struct list_head		list;
-	struct amd_sched_rq		*belongto_rq;
-	atomic_t			fence_seq;
-	/* the job_queue maintains the jobs submitted by clients */
-	struct kfifo                    job_queue;
+	struct amd_sched_rq		*rq;
+	struct amd_gpu_scheduler	*sched;
+
 	spinlock_t			queue_lock;
-	struct amd_gpu_scheduler	*scheduler;
+	struct kfifo                    job_queue;
+
+	atomic_t			fence_seq;
 	uint64_t                        fence_context;
+
 	struct fence			*dependency;
 	struct fence_cb			cb;
 };

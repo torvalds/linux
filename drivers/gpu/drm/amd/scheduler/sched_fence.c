@@ -36,7 +36,7 @@ struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity
 	if (fence == NULL)
 		return NULL;
 	fence->owner = owner;
-	fence->scheduler = s_entity->scheduler;
+	fence->scheduler = s_entity->sched;
 	spin_lock_init(&fence->lock);
 
 	seq = atomic_inc_return(&s_entity->fence_seq);
