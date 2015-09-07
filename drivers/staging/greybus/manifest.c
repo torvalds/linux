@@ -258,6 +258,19 @@ print_error_exit:
 		GREYBUS_PROTOCOL_CONTROL);
 exit:
 
+	/*
+	 * Free all cports for this bundle to avoid 'excess descriptors'
+	 * warnings.
+	 */
+	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
+		struct greybus_descriptor_cport *desc_cport = desc->data;
+
+		if (desc->type != GREYBUS_TYPE_CPORT)
+			continue;
+		if (desc_cport->bundle == bundle_id)
+			release_manifest_descriptor(desc);
+	}
+
 	return 0;	/* Error; count should also be 0 */
 }
 
