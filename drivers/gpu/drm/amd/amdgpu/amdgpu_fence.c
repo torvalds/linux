@@ -625,6 +625,8 @@ void amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 			amdgpu_fence_check_lockup);
 	ring->fence_drv.ring = ring;
 
+	init_waitqueue_head(&ring->fence_drv.fence_queue);
+
 	if (amdgpu_enable_scheduler) {
 		ring->sched = amd_sched_create(&amdgpu_sched_ops,
 					       ring->idx,

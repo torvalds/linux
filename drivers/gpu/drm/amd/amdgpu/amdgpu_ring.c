@@ -360,8 +360,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		amdgpu_fence_driver_init_ring(ring);
 	}
 
-	init_waitqueue_head(&ring->fence_drv.fence_queue);
-
 	r = amdgpu_wb_get(adev, &ring->rptr_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
