@@ -421,12 +421,10 @@ static int usb_unbind_interface(struct device *dev)
 		if (ep->streams == 0)
 			continue;
 		if (j == 0) {
-			eps = kmalloc(USB_MAXENDPOINTS * sizeof(void *),
+			eps = kmalloc_array(USB_MAXENDPOINTS, sizeof(void *),
 				      GFP_KERNEL);
-			if (!eps) {
-				dev_warn(dev, "oom, leaking streams\n");
+			if (!eps)
 				break;
-			}
 		}
 		eps[j++] = ep;
 	}
