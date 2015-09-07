@@ -22,7 +22,7 @@ bl_free_device(struct pnfs_block_dev *dev)
 		kfree(dev->children);
 	} else {
 		if (dev->bdev)
-			blkdev_put(dev->bdev, FMODE_READ);
+			blkdev_put(dev->bdev, FMODE_READ | FMODE_WRITE);
 	}
 }
 
@@ -65,6 +65,11 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 				return -EIO;
 			p = xdr_decode_hyper(p, &b->simple.sigs[i].offset);
 			b->simple.sigs[i].sig_len = be32_to_cpup(p++);
+			if (b->simple.sigs[i].sig_len > PNFS_BLOCK_UUID_LEN) {
+				pr_info("signature too long: %d\n",
+					b->simple.sigs[i].sig_len);
+				return -EIO;
+			}
 
 			p = xdr_inline_decode(xdr, b->simple.sigs[i].sig_len);
 			if (!p)
@@ -195,7 +200,7 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 	if (!dev)
 		return -EIO;
 
-	d->bdev = blkdev_get_by_dev(dev, FMODE_READ, NULL);
+	d->bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_WRITE, NULL);
 	if (IS_ERR(d->bdev)) {
 		printk(KERN_WARNING "pNFS: failed to open device %d:%d (%ld)\n",
 			MAJOR(dev), MINOR(dev), PTR_ERR(d->bdev));
