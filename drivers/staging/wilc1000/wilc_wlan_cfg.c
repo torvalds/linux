@@ -534,14 +534,6 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 		GnrlAsyncInfoReceived(frame - 4, size + 4);
 		break;
 
-	case 'L':
-#ifndef SWITCH_LOG_TERMINAL
-		PRINT_ER("Unexpected firmware log message received\n");
-#else
-		PRINT_D(FIRM_DBG, "\nFIRMWARE LOGS :\n<<\n%s\n>>\n", frame);
-		break;
-
-#endif
 #if 1
 	case 'N':
 		NetworkInfoReceived(frame - 4, size + 4);

@@ -926,12 +926,6 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_11N_PROT_MECH, c_val, 1, 0, 0))
 		goto _fail_;
 
-#ifdef SWITCH_LOG_TERMINAL
-	c_val[0] = AUTO_PROT;
-	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_LOGTerminal_Switch, c_val, 1, 0, 0))
-		goto _fail_;
-#endif
-
 	c_val[0] = ACTIVE_SCAN;
 	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_SCAN_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
