@@ -356,13 +356,12 @@ static void p9_read_work(struct work_struct *work)
 		}
 
 		if (m->req->rc == NULL) {
-			m->req->rc = kmalloc(sizeof(struct p9_fcall) +
-						m->client->msize, GFP_NOFS);
-			if (!m->req->rc) {
-				m->req = NULL;
-				err = -ENOMEM;
-				goto error;
-			}
+			p9_debug(P9_DEBUG_ERROR,
+				 "No recv fcall for tag %d (req %p), disconnecting!\n",
+				 m->rc.tag, m->req);
+			m->req = NULL;
+			err = -EIO;
+			goto error;
 		}
 		m->rc.sdata = (char *)m->req->rc + sizeof(struct p9_fcall);
 		memcpy(m->rc.sdata, m->tmp_buf, m->rc.capacity);
