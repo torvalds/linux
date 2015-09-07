@@ -72,7 +72,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 	WILC_NULLCHECK(s32RetStatus, pstrMessage);
 	pstrMessage->u32Length = u32SendBufferSize;
 	pstrMessage->pstrNext = NULL;
-	pstrMessage->pvBuffer = WILC_MALLOC(u32SendBufferSize);
+	pstrMessage->pvBuffer = kmalloc(u32SendBufferSize, GFP_ATOMIC);
 	WILC_NULLCHECK(s32RetStatus, pstrMessage->pvBuffer);
 	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
