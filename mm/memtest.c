@@ -89,16 +89,18 @@ static void __init do_one_pass(u64 pattern, phys_addr_t start, phys_addr_t end)
 }
 
 /* default is disabled */
-static int memtest_pattern __initdata;
+static unsigned int memtest_pattern __initdata;
 
 static int __init parse_memtest(char *arg)
 {
+	int ret = 0;
+
 	if (arg)
-		memtest_pattern = simple_strtoul(arg, NULL, 0);
+		ret = kstrtouint(arg, 0, &memtest_pattern);
 	else
 		memtest_pattern = ARRAY_SIZE(patterns);
 
-	return 0;
+	return ret;
 }
 
 early_param("memtest", parse_memtest);
