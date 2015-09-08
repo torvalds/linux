@@ -356,8 +356,6 @@ enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *pdev)
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (!client)
 		ret = VGA_SWITCHEROO_NOT_FOUND;
-	else if (!vgasr_priv.active)
-		ret = VGA_SWITCHEROO_INIT;
 	else
 		ret = client->pwr_state;
 	mutex_unlock(&vgasr_mutex);

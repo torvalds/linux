@@ -39,10 +39,6 @@ struct pci_dev;
  * enum vga_switcheroo_state - client power state
  * @VGA_SWITCHEROO_OFF: off
  * @VGA_SWITCHEROO_ON: on
- * @VGA_SWITCHEROO_INIT: client has registered with vga_switcheroo but
- * 	vga_switcheroo is not enabled, i.e. no second client or no handler
- * 	has registered. Only used in vga_switcheroo_get_client_state() which
- * 	in turn is only called from hda_intel.c
  * @VGA_SWITCHEROO_NOT_FOUND: client has not registered with vga_switcheroo.
  * 	Only used in vga_switcheroo_get_client_state() which in turn is only
  * 	called from hda_intel.c
@@ -53,7 +49,6 @@ enum vga_switcheroo_state {
 	VGA_SWITCHEROO_OFF,
 	VGA_SWITCHEROO_ON,
 	/* below are referred only from vga_switcheroo_get_client_state() */
-	VGA_SWITCHEROO_INIT,
 	VGA_SWITCHEROO_NOT_FOUND,
 };
 
