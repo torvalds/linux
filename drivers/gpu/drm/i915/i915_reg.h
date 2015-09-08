@@ -6943,6 +6943,9 @@ enum skl_disp_power_wells {
 #define HSW_ROW_CHICKEN3		0xe49c
 #define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
 
+#define HALF_SLICE_CHICKEN2		0xe180
+#define   GEN8_ST_PO_DISABLE		(1<<13)
+
 #define HALF_SLICE_CHICKEN3		0xe184
 #define   HSW_SAMPLE_C_PERFORMANCE	(1<<9)
 #define   GEN8_CENTROID_PIXEL_OPT_DIS	(1<<8)

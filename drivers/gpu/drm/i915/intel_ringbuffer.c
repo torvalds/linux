@@ -990,6 +990,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 				  GEN8_SAMPLER_POWER_BYPASS_DIS);
 	}
 
+	/* WaDisableSTUnitPowerOptimization:skl,bxt */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
+
 	return 0;
 }
 
