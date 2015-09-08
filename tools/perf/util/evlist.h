@@ -42,6 +42,7 @@ struct perf_evlist {
 	int		 nr_mmaps;
 	bool		 overwrite;
 	bool		 enabled;
+	bool		 has_user_cpus;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;

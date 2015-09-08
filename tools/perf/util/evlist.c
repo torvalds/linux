@@ -1103,8 +1103,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_ex(evlist, pages, overwrite, 0, false);
 }
 
-static void perf_evlist__propagate_maps(struct perf_evlist *evlist,
-					bool has_user_cpus)
+static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
@@ -1113,7 +1112,7 @@ static void perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		 * We already have cpus for evsel (via PMU sysfs) so
 		 * keep it, if there's no target cpu list defined.
 		 */
-		if (!evsel->cpus || has_user_cpus) {
+		if (!evsel->cpus || evlist->has_user_cpus) {
 			cpu_map__put(evsel->cpus);
 			evsel->cpus = cpu_map__get(evlist->cpus);
 		}
@@ -1138,7 +1137,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 	if (evlist->cpus == NULL)
 		goto out_delete_threads;
 
-	perf_evlist__propagate_maps(evlist, !!target->cpu_list);
+	evlist->has_user_cpus = !!target->cpu_list;
+
+	perf_evlist__propagate_maps(evlist);
 
 	return 0;
 
@@ -1157,7 +1158,7 @@ void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 	thread_map__put(evlist->threads);
 	evlist->threads = threads;
 
-	perf_evlist__propagate_maps(evlist, false);
+	perf_evlist__propagate_maps(evlist);
 }
 
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
