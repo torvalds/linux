@@ -1116,6 +1116,7 @@ static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 			evsel->cpus = cpu_map__get(evlist->cpus);
 		}
 
+		thread_map__put(evsel->threads);
 		evsel->threads = thread_map__get(evlist->threads);
 	}
 }
