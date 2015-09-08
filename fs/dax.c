@@ -572,18 +572,24 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
 
 	if (!write && !buffer_mapped(&bh) && buffer_uptodate(&bh)) {
-		bool set;
 		spinlock_t *ptl;
-		struct mm_struct *mm = vma->vm_mm;
+		pmd_t entry;
 		struct page *zero_page = get_huge_zero_page();
+
 		if (unlikely(!zero_page))
 			goto fallback;
 
-		ptl = pmd_lock(mm, pmd);
-		set = set_huge_zero_page(NULL, mm, vma, pmd_addr, pmd,
-								zero_page);
-		spin_unlock(ptl);
+		ptl = pmd_lock(vma->vm_mm, pmd);
+		if (!pmd_none(*pmd)) {
+			spin_unlock(ptl);
+			goto fallback;
+		}
+
+		entry = mk_pmd(zero_page, vma->vm_page_prot);
+		entry = pmd_mkhuge(entry);
+		set_pmd_at(vma->vm_mm, pmd_addr, pmd, entry);
 		result = VM_FAULT_NOPAGE;
+		spin_unlock(ptl);
 	} else {
 		sector = bh.b_blocknr << (blkbits - 9);
 		length = bdev_direct_access(bh.b_bdev, sector, &kaddr, &pfn,
