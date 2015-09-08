@@ -16,21 +16,21 @@ TRACE_EVENT(amd_sched_job,
 	    TP_ARGS(sched_job),
 	    TP_STRUCT__entry(
 			     __field(struct amd_sched_entity *, entity)
-			     __field(u32, ring_id)
+			     __field(const char *, name)
 			     __field(u32, job_count)
 			     __field(int, hw_job_count)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->entity = sched_job->s_entity;
-			   __entry->ring_id = sched_job->sched->ring_id;
+			   __entry->name = sched_job->sched->name;
 			   __entry->job_count = kfifo_len(
 				   &sched_job->s_entity->job_queue) / sizeof(sched_job);
 			   __entry->hw_job_count = atomic_read(
 				   &sched_job->sched->hw_rq_count);
 			   ),
-	    TP_printk("entity=%p, ring=%u, job count:%u, hw job count:%d",
-		      __entry->entity, __entry->ring_id, __entry->job_count,
+	    TP_printk("entity=%p, ring=%s, job count:%u, hw job count:%d",
+		      __entry->entity, __entry->name, __entry->job_count,
 		      __entry->hw_job_count)
 );
 #endif

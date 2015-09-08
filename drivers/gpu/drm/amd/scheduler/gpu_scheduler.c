@@ -381,56 +381,45 @@ static int amd_sched_main(void *param)
 }
 
 /**
- * Create a gpu scheduler
+ * Init a gpu scheduler instance
  *
+ * @sched		The pointer to the scheduler
  * @ops			The backend operations for this scheduler.
- * @ring		The the ring id for the scheduler.
  * @hw_submissions	Number of hw submissions to do.
+ * @name		Name used for debugging
  *
- * Return the pointer to scheduler for success, otherwise return NULL
+ * Return 0 on success, otherwise error code.
 */
-struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
-					   unsigned ring, unsigned hw_submission,
-					   void *priv)
+int amd_sched_init(struct amd_gpu_scheduler *sched,
+		   struct amd_sched_backend_ops *ops,
+		   unsigned hw_submission, const char *name)
 {
-	struct amd_gpu_scheduler *sched;
-
-	sched = kzalloc(sizeof(struct amd_gpu_scheduler), GFP_KERNEL);
-	if (!sched)
-		return NULL;
-
 	sched->ops = ops;
-	sched->ring_id = ring;
 	sched->hw_submission_limit = hw_submission;
-	sched->priv = priv;
-	snprintf(sched->name, sizeof(sched->name), "amdgpu[%d]", ring);
+	sched->name = name;
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);
 	atomic_set(&sched->hw_rq_count, 0);
+
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_run(amd_sched_main, sched, sched->name);
 	if (IS_ERR(sched->thread)) {
-		DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
-		kfree(sched);
-		return NULL;
+		DRM_ERROR("Failed to create scheduler for %s.\n", name);
+		return PTR_ERR(sched->thread);
 	}
 
-	return sched;
+	return 0;
 }
 
 /**
  * Destroy a gpu scheduler
  *
  * @sched	The pointer to the scheduler
- *
- * return 0 if succeed. -1 if failed.
  */
-int amd_sched_destroy(struct amd_gpu_scheduler *sched)
+void amd_sched_fini(struct amd_gpu_scheduler *sched)
 {
 	kthread_stop(sched->thread);
-	kfree(sched);
-	return  0;
 }

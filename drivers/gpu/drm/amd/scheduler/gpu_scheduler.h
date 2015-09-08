@@ -101,23 +101,21 @@ struct amd_sched_backend_ops {
  * One scheduler is implemented for each hardware ring
 */
 struct amd_gpu_scheduler {
-	struct task_struct		*thread;
+	struct amd_sched_backend_ops	*ops;
+	uint32_t			hw_submission_limit;
+	const char			*name;
 	struct amd_sched_rq		sched_rq;
 	struct amd_sched_rq		kernel_rq;
-	atomic_t			hw_rq_count;
-	struct amd_sched_backend_ops	*ops;
-	uint32_t			ring_id;
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
-	uint32_t                        hw_submission_limit;
-	char                            name[20];
-	void                            *priv;
+	atomic_t			hw_rq_count;
+	struct task_struct		*thread;
 };
 
-struct amd_gpu_scheduler *
-amd_sched_create(struct amd_sched_backend_ops *ops,
-		 uint32_t ring, uint32_t hw_submission, void *priv);
-int amd_sched_destroy(struct amd_gpu_scheduler *sched);
+int amd_sched_init(struct amd_gpu_scheduler *sched,
+		   struct amd_sched_backend_ops *ops,
+		   uint32_t hw_submission, const char *name);
+void amd_sched_fini(struct amd_gpu_scheduler *sched);
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,

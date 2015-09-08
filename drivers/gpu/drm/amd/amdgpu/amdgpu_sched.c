@@ -85,7 +85,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
 		if (!job)
 			return -ENOMEM;
-		job->base.sched = ring->sched;
+		job->base.sched = &ring->sched;
 		job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
 		job->adev = adev;
 		job->ibs = ibs;

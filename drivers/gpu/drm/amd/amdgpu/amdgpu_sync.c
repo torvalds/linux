@@ -65,8 +65,14 @@ static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
 
 	if (a_fence)
 		return a_fence->ring->adev == adev;
-	if (s_fence)
-		return (struct amdgpu_device *)s_fence->sched->priv == adev;
+
+	if (s_fence) {
+		struct amdgpu_ring *ring;
+
+		ring = container_of(s_fence->sched, struct amdgpu_ring, sched);
+		return ring->adev == adev;
+	}
+
 	return false;
 }
 
