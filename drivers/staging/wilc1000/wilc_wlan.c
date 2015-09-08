@@ -1230,11 +1230,7 @@ static void wilc_wlan_handle_rxq(void)
 				/* reset mgmt indicator bit, to use pkt_offeset in furthur calculations */
 				pkt_offset &= ~(IS_MANAGMEMENT | IS_MANAGMEMENT_CALLBACK | IS_MGMT_STATUS_SUCCES);
 
-#ifdef USE_WIRELESS
 				WILC_WFI_mgmt_rx(&buffer[offset + HOST_HDR_OFFSET], pkt_len);
-
-#endif
-
 			}
 			/* BUG4530 fix */
 			else

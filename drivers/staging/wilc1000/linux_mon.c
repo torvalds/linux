@@ -31,9 +31,7 @@ extern linux_wlan_t *g_linux_wlan;
 
 static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 
-#if USE_WIRELESS
 extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
-#endif
 
 
 u8 srcAdd[6];
@@ -346,7 +344,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	PRINT_INFO(HOSTAPD_DBG, "SKB netdevice name = %s\n", skb->dev->name);
 	PRINT_INFO(HOSTAPD_DBG, "MONITOR real dev name = %s\n", mon_priv->real_ndev->name);
 
-	#if USE_WIRELESS
 	/* Identify if Ethernet or MAC header (data or mgmt) */
 	memcpy(srcAdd, &skb->data[10], 6);
 	memcpy(bssid, &skb->data[16], 6);
@@ -357,7 +354,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 	} else
 		ret = mac_xmit(skb, mon_priv->real_ndev);
-	#endif
 
 	/* return NETDEV_TX_OK; */
 	return ret;
@@ -388,7 +384,6 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	eth_zero_addr(dev->dev_addr);
 
-	#ifdef USE_WIRELESS
 	{
 		/* u8 * mac_add; */
 		unsigned char mac_add[] = {0x00, 0x50, 0xc2, 0x5e, 0x10, 0x8f};
@@ -398,9 +393,6 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 		/* mac_add[ETH_ALEN-1]+=1; */
 		memcpy(dev->dev_addr, mac_add, ETH_ALEN);
 	}
-	#else
-	dev->dev_addr[0] = 0x12;
-	#endif
 
 }
 

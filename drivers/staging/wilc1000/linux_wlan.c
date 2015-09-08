@@ -2,9 +2,7 @@
 #include "linux_wlan_common.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
-#ifdef USE_WIRELESS
 #include "wilc_wfi_cfgoperations.h"
-#endif
 
 #include "linux_wlan_common.h"
 
@@ -947,12 +945,6 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 	/*                    ( In BSS Station Set SSID to "" (null string)      */
 	/*                      to enable Broadcast SSID suppport )              */
 	/*  --------------------------------------------------------------       */
-#ifndef USE_WIRELESS
-	strcpy(c_val, "nwifi");
-	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_SSID, c_val, (strlen(c_val) + 1), 0, 0))
-		goto _fail_;
-#endif
-
 	c_val[0] = 0;
 	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_BCAST_SSID, c_val, 1, 0, 0))
 		goto _fail_;
@@ -1747,14 +1739,12 @@ int mac_open(struct net_device *ndev)
 	priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
 	PRINT_D(INIT_DBG, "MAC OPEN[%p]\n", ndev);
 
-	#ifdef USE_WIRELESS
 	ret = WILC_WFI_InitHostInt(ndev);
 	if (ret < 0) {
 		PRINT_ER("Failed to initialize host interface\n");
 
 		return ret;
 	}
-	#endif
 
 	/*initialize platform*/
 	PRINT_D(INIT_DBG, "*** re-init ***\n");
@@ -1992,19 +1982,15 @@ int mac_close(struct net_device *ndev)
 		/* Stop the network interface queue */
 		netif_stop_queue(nic->wilc_netdev);
 
-		#ifdef USE_WIRELESS
 		WILC_WFI_DeInitHostInt(nic->wilc_netdev);
-		#endif
 	}
 
 	if (g_linux_wlan->open_ifcs == 0) {
 		PRINT_D(GENERIC_DBG, "Deinitializing wilc1000\n");
 		g_linux_wlan->close = 1;
 		wilc1000_wlan_deinit(g_linux_wlan);
-		#ifdef USE_WIRELESS
 		#ifdef WILC_AP_EXTERNAL_MLME
 		WILC_WFI_deinit_mon_interface();
-		#endif
 		#endif
 	}
 
@@ -2025,13 +2011,10 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	s32 s32Error = WILC_SUCCESS;
 
 	/* struct iwreq *wrq = (struct iwreq *) req;	// tony moved to case SIOCSIWPRIV */
-	#ifdef USE_WIRELESS
 	nic = netdev_priv(ndev);
 
 	if (!g_linux_wlan->wilc1000_initialized)
 		return 0;
-
-	#endif
 
 	switch (cmd) {
 
@@ -2049,13 +2032,10 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 				return PTR_ERR(buff);
 
 			if (strncasecmp(buff, "RSSI", length) == 0) {
-
-					#ifdef USE_WIRELESS
 				priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
 				s32Error = host_int_get_rssi(priv->hWILCWFIDrv, &(rssi));
 				if (s32Error)
 					PRINT_ER("Failed to send get rssi param's message queue ");
-					#endif
 				PRINT_INFO(GENERIC_DBG, "RSSI :%d\n", rssi);
 
 				/*Rounding up the rssi negative value*/
@@ -2143,13 +2123,6 @@ void frmw_to_linux(uint8_t *buff, uint32_t size, uint32_t pkt_offset)
 
 		/* nic = netdev_priv(wilc_netdev); */
 
-#ifdef USE_WIRELESS
-		/*	if(nic->monitor_flag)
-		 *      {
-		 *              WILC_WFI_monitor_rx(nic->wilc_netdev,skb);
-		 *              return;
-		 *      }*/
-#endif
 		skb->protocol = eth_type_trans(skb, wilc_netdev);
 			#ifndef TCP_ENHANCEMENTS
 		/*get source and dest ip addresses*/
@@ -2249,7 +2222,6 @@ int wilc_netdev_init(void)
 		g_linux_wlan->u8NoIfcs++;
 		ndev->netdev_ops = &wilc_netdev_ops;
 
-		#ifdef USE_WIRELESS
 		{
 			struct wireless_dev *wdev;
 			/*Register WiFi*/
@@ -2275,7 +2247,6 @@ int wilc_netdev_init(void)
 			nic->netstats.tx_bytes = 0;
 
 		}
-		#endif
 
 		if (register_netdev(ndev)) {
 			PRINT_ER("Device couldn't be registered - %s\n", ndev->name);
@@ -2376,20 +2347,16 @@ static void __exit exit_wilc_driver(void)
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
 			PRINT_D(INIT_DBG, "Unregistering netdev %p\n", g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 			unregister_netdev(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
-			#ifdef USE_WIRELESS
 			PRINT_D(INIT_DBG, "Freeing Wiphy...\n");
 			WILC_WFI_WiphyFree(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
-			#endif
 			PRINT_D(INIT_DBG, "Freeing netdev...\n");
 			free_netdev(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 		}
 	}
 
-#ifdef USE_WIRELESS
 #ifdef WILC_AP_EXTERNAL_MLME
 	/* Bug 4600 : WILC_WFI_deinit_mon_interface was already called at mac_close */
 	/* WILC_WFI_deinit_mon_interface(); */
-#endif
 #endif
 
 	/* if(g_linux_wlan->open_ifcs==0) */
