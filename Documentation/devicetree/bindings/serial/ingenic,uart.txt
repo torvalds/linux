@@ -1,7 +1,8 @@
 * Ingenic SoC UART
 
 Required properties:
-- compatible : "ingenic,jz4740-uart" or "ingenic,jz4780-uart"
+- compatible : "ingenic,jz4740-uart", "ingenic,jz4760-uart",
+	"ingenic,jz4775-uart" or "ingenic,jz4780-uart"
 - reg : offset and length of the register set for the device.
 - interrupts : should contain uart interrupt.
 - clocks : phandles to the module & baud clocks.
