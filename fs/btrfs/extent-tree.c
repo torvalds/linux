@@ -5715,6 +5715,44 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 }
 
 /**
+ * __btrfs_delalloc_reserve_space - reserve data and metadata space for
+ * delalloc
+ * @inode: inode we're writing to
+ * @start: start range we are writing to
+ * @len: how long the range we are writing to
+ *
+ * TODO: This function will finally replace old btrfs_delalloc_reserve_space()
+ *
+ * This will do the following things
+ *
+ * o reserve space in data space info for num bytes
+ *   and reserve precious corresponding qgroup space
+ *   (Done in check_data_free_space)
+ *
+ * o reserve space for metadata space, based on the number of outstanding
+ *   extents and how much csums will be needed
+ *   also reserve metadata space in a per root over-reserve method.
+ * o add to the inodes->delalloc_bytes
+ * o add it to the fs_info's delalloc inodes list.
+ *   (Above 3 all done in delalloc_reserve_metadata)
+ *
+ * Return 0 for success
+ * Return <0 for error(-ENOSPC or -EQUOT)
+ */
+int __btrfs_delalloc_reserve_space(struct inode *inode, u64 start, u64 len)
+{
+	int ret;
+
+	ret = __btrfs_check_data_free_space(inode, start, len);
+	if (ret < 0)
+		return ret;
+	ret = btrfs_delalloc_reserve_metadata(inode, len);
+	if (ret < 0)
+		__btrfs_free_reserved_data_space(inode, start, len);
+	return ret;
+}
+
+/**
  * btrfs_delalloc_reserve_space - reserve data and metadata space for delalloc
  * @inode: inode we're writing to
  * @num_bytes: the number of bytes we want to allocate
@@ -5744,6 +5782,27 @@ int btrfs_delalloc_reserve_space(struct inode *inode, u64 num_bytes)
 	}
 
 	return 0;
+}
+
+/**
+ * __btrfs_delalloc_release_space - release data and metadata space for delalloc
+ * @inode: inode we're releasing space for
+ * @start: start position of the space already reserved
+ * @len: the len of the space already reserved
+ *
+ * This must be matched with a call to btrfs_delalloc_reserve_space.  This is
+ * called in the case that we don't need the metadata AND data reservations
+ * anymore.  So if there is an error or we insert an inline extent.
+ *
+ * This function will release the metadata space that was not used and will
+ * decrement ->delalloc_bytes and remove it from the fs_info delalloc_inodes
+ * list if there are no delalloc bytes left.
+ * Also it will handle the qgroup reserved space.
+ */
+void __btrfs_delalloc_release_space(struct inode *inode, u64 start, u64 len)
+{
+	btrfs_delalloc_release_metadata(inode, len);
+	__btrfs_free_reserved_data_space(inode, start, len);
 }
 
 /**
