@@ -54,26 +54,14 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 
 #define mfn_to_local_pfn(mfn) mfn_to_pfn(mfn)
 
-static inline xmaddr_t phys_to_machine(xpaddr_t phys)
-{
-	unsigned offset = phys.paddr & ~PAGE_MASK;
-	return XMADDR(PFN_PHYS(pfn_to_mfn(PFN_DOWN(phys.paddr))) | offset);
-}
-
-static inline xpaddr_t machine_to_phys(xmaddr_t machine)
-{
-	unsigned offset = machine.maddr & ~PAGE_MASK;
-	return XPADDR(PFN_PHYS(mfn_to_pfn(PFN_DOWN(machine.maddr))) | offset);
-}
 /* VIRT <-> MACHINE conversion */
-#define virt_to_machine(v)	(phys_to_machine(XPADDR(__pa(v))))
 #define virt_to_mfn(v)		(pfn_to_mfn(virt_to_pfn(v)))
 #define mfn_to_virt(m)		(__va(mfn_to_pfn(m) << PAGE_SHIFT))
 
+/* Only used in PV code. But ARM guests are always HVM. */
 static inline xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 {
-	/* TODO: assuming it is mapped in the kernel 1:1 */
-	return virt_to_machine(vaddr);
+	BUG();
 }
 
 /* TODO: this shouldn't be here but it is because the frontend drivers

@@ -217,6 +217,13 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
 	return (__force void *)__early_ioremap(phys_addr, size,
 					       FIXMAP_PAGE_NORMAL);
 }
+#ifdef FIXMAP_PAGE_RO
+void __init *
+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+{
+	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
+}
+#endif
 #else /* CONFIG_MMU */
 
 void __init __iomem *
@@ -228,6 +235,11 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
 /* Remap memory */
 void __init *
 early_memremap(resource_size_t phys_addr, unsigned long size)
+{
+	return (void *)phys_addr;
+}
+void __init *
+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
 {
 	return (void *)phys_addr;
 }
