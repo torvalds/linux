@@ -993,6 +993,22 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
  * object. This can still fail when e.g. the framebuffer reservation fails. For
  * now this doesn't implement asynchronous commits.
  *
+ * Note that right now this function does not support async commits, and hence
+ * driver writers must implement their own version for now. Also note that the
+ * default ordering of how the various stages are called is to match the legacy
+ * modeset helper library closest. One peculiarity of that is that it doesn't
+ * mesh well with runtime PM at all.
+ *
+ * For drivers supporting runtime PM the recommended sequence is
+ *
+ *     drm_atomic_helper_commit_modeset_disables(dev, state);
+ *
+ *     drm_atomic_helper_commit_modeset_enables(dev, state);
+ *
+ *     drm_atomic_helper_commit_planes(dev, state, true);
+ *
+ * See the kerneldoc entries for these three functions for more details.
+ *
  * RETURNS
  * Zero for success or -errno.
  */
@@ -1168,6 +1184,22 @@ bool plane_crtc_active(struct drm_plane_state *state)
  * Note that this function does all plane updates across all CRTCs in one step.
  * If the hardware can't support this approach look at
  * drm_atomic_helper_commit_planes_on_crtc() instead.
+ *
+ * Plane parameters can be updated by applications while the associated CRTC is
+ * disabled. The DRM/KMS core will store the parameters in the plane state,
+ * which will be available to the driver when the CRTC is turned on. As a result
+ * most drivers don't need to be immediately notified of plane updates for a
+ * disabled CRTC.
+ *
+ * Unless otherwise needed, drivers are advised to set the @active_only
+ * parameters to true in order not to receive plane update notifications related
+ * to a disabled CRTC. This avoids the need to manually ignore plane updates in
+ * driver code when the driver and/or hardware can't or just don't need to deal
+ * with updates on disabled CRTCs, for example when supporting runtime PM.
+ *
+ * The drm_atomic_helper_commit() default implementation only sets @active_only
+ * to false to most closely match the behaviour of the legacy helpers. This should
+ * not be copied blindly by drivers.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *old_state,
