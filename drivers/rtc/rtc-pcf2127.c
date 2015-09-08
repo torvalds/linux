@@ -33,11 +33,14 @@
 #define PCF2127_REG_MO          (0x08)
 #define PCF2127_REG_YR          (0x09)
 
+#define PCF2127_OSF             BIT(7)  /* Oscillator Fail flag */
+
 static struct i2c_driver pcf2127_driver;
 
 struct pcf2127 {
 	struct rtc_device *rtc;
 	int voltage_low; /* indicates if a low_voltage was detected */
+	int oscillator_failed; /* OSF was detected and date is unreliable */
 };
 
 /*
@@ -59,7 +62,18 @@ static int pcf2127_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if (buf[PCF2127_REG_CTRL3] & 0x04) {
 		pcf2127->voltage_low = 1;
 		dev_info(&client->dev,
-			"low voltage detected, date/time is not reliable.\n");
+			"low voltage detected, check/replace RTC battery.\n");
+	}
+
+	if (buf[PCF2127_REG_SC] & PCF2127_OSF) {
+		/*
+		 * no need clear the flag here,
+		 * it will be cleared once the new date is saved
+		 */
+		pcf2127->oscillator_failed = 1;
+		dev_warn(&client->dev,
+			 "oscillator stop detected, date/time is not reliable\n");
+		return -EINVAL;
 	}
 
 	dev_dbg(&client->dev,
@@ -88,17 +102,12 @@ static int pcf2127_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* the clock can give out invalid datetime, but we cannot return
-	 * -EINVAL otherwise hwclock will refuse to set the time on bootup.
-	 */
-	if (rtc_valid_tm(tm) < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
-
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int pcf2127_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
+	struct pcf2127 *pcf2127 = i2c_get_clientdata(client);
 	unsigned char buf[8];
 	int i = 0, err;
 
@@ -112,7 +121,7 @@ static int pcf2127_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[i++] = PCF2127_REG_SC;
 
 	/* hours, minutes and seconds */
-	buf[i++] = bin2bcd(tm->tm_sec);
+	buf[i++] = bin2bcd(tm->tm_sec);	/* this will also clear OSF flag */
 	buf[i++] = bin2bcd(tm->tm_min);
 	buf[i++] = bin2bcd(tm->tm_hour);
 	buf[i++] = bin2bcd(tm->tm_mday);
@@ -132,6 +141,9 @@ static int pcf2127_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
+	/* clear OSF flag in client data */
+	pcf2127->oscillator_failed = 0;
+
 	return 0;
 }
 
@@ -144,7 +156,9 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 	switch (cmd) {
 	case RTC_VL_READ:
 		if (pcf2127->voltage_low)
-			dev_info(dev, "low voltage detected, date/time is not reliable.\n");
+			dev_info(dev, "low voltage detected, check/replace battery\n");
+		if (pcf2127->oscillator_failed)
+			dev_info(dev, "oscillator stop detected, date/time is not reliable\n");
 
 		if (copy_to_user((void __user *)arg, &pcf2127->voltage_low,
 					sizeof(int)))
@@ -217,7 +231,6 @@ MODULE_DEVICE_TABLE(of, pcf2127_of_match);
 static struct i2c_driver pcf2127_driver = {
 	.driver		= {
 		.name	= "rtc-pcf2127",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcf2127_of_match),
 	},
 	.probe		= pcf2127_probe,
