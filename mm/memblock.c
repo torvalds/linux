@@ -569,6 +569,7 @@ repeat:
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 			WARN_ON(nid != memblock_get_region_node(rgn));
 #endif
+			WARN_ON(flags != rgn->flags);
 			nr_new++;
 			if (insert)
 				memblock_insert_region(type, i++, base,
