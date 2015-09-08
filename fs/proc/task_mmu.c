@@ -1229,40 +1229,33 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
 static ssize_t pagemap_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	struct task_struct *task = get_proc_task(file_inode(file));
-	struct mm_struct *mm;
+	struct mm_struct *mm = file->private_data;
 	struct pagemapread pm;
-	int ret = -ESRCH;
 	struct mm_walk pagemap_walk = {};
 	unsigned long src;
 	unsigned long svpfn;
 	unsigned long start_vaddr;
 	unsigned long end_vaddr;
-	int copied = 0;
+	int ret = 0, copied = 0;
 
-	if (!task)
+	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
 		goto out;
 
 	ret = -EINVAL;
 	/* file position must be aligned */
 	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
-		goto out_task;
+		goto out_mm;
 
 	ret = 0;
 	if (!count)
-		goto out_task;
+		goto out_mm;
 
 	pm.v2 = soft_dirty_cleared;
 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
 	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
 	ret = -ENOMEM;
 	if (!pm.buffer)
-		goto out_task;
-
-	mm = mm_access(task, PTRACE_MODE_READ);
-	ret = PTR_ERR(mm);
-	if (!mm || IS_ERR(mm))
-		goto out_free;
+		goto out_mm;
 
 	pagemap_walk.pmd_entry = pagemap_pte_range;
 	pagemap_walk.pte_hole = pagemap_pte_hole;
@@ -1275,10 +1268,10 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	src = *ppos;
 	svpfn = src / PM_ENTRY_BYTES;
 	start_vaddr = svpfn << PAGE_SHIFT;
-	end_vaddr = TASK_SIZE_OF(task);
+	end_vaddr = mm->task_size;
 
 	/* watch out for wraparound */
-	if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
+	if (svpfn > mm->task_size >> PAGE_SHIFT)
 		start_vaddr = end_vaddr;
 
 	/*
@@ -1305,7 +1298,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		len = min(count, PM_ENTRY_BYTES * pm.pos);
 		if (copy_to_user(buf, pm.buffer, len)) {
 			ret = -EFAULT;
-			goto out_mm;
+			goto out_free;
 		}
 		copied += len;
 		buf += len;
@@ -1315,24 +1308,38 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (!ret || ret == PM_END_OF_BUFFER)
 		ret = copied;
 
-out_mm:
-	mmput(mm);
 out_free:
 	kfree(pm.buffer);
-out_task:
-	put_task_struct(task);
+out_mm:
+	mmput(mm);
 out:
 	return ret;
 }
 
 static int pagemap_open(struct inode *inode, struct file *file)
 {
+	struct mm_struct *mm;
+
 	/* do not disclose physical addresses: attack vector */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	pr_warn_once("Bits 55-60 of /proc/PID/pagemap entries are about "
 			"to stop being page-shift some time soon. See the "
 			"linux/Documentation/vm/pagemap.txt for details.\n");
+
+	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+	if (IS_ERR(mm))
+		return PTR_ERR(mm);
+	file->private_data = mm;
+	return 0;
+}
+
+static int pagemap_release(struct inode *inode, struct file *file)
+{
+	struct mm_struct *mm = file->private_data;
+
+	if (mm)
+		mmdrop(mm);
 	return 0;
 }
 
@@ -1340,6 +1347,7 @@ const struct file_operations proc_pagemap_operations = {
 	.llseek		= mem_lseek, /* borrow this */
 	.read		= pagemap_read,
 	.open		= pagemap_open,
+	.release	= pagemap_release,
 };
 #endif /* CONFIG_PROC_PAGE_MONITOR */
 
