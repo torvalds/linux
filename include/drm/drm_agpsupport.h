@@ -102,19 +102,7 @@ static inline int drm_agp_acquire(struct drm_device *dev)
 	return -ENODEV;
 }
 
-static inline int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
-					struct drm_file *file_priv)
-{
-	return -ENODEV;
-}
-
 static inline int drm_agp_release(struct drm_device *dev)
-{
-	return -ENODEV;
-}
-
-static inline int drm_agp_release_ioctl(struct drm_device *dev, void *data,
-					struct drm_file *file_priv)
 {
 	return -ENODEV;
 }
@@ -125,20 +113,8 @@ static inline int drm_agp_enable(struct drm_device *dev,
 	return -ENODEV;
 }
 
-static inline int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file_priv)
-{
-	return -ENODEV;
-}
-
 static inline int drm_agp_info(struct drm_device *dev,
 			       struct drm_agp_info *info)
-{
-	return -ENODEV;
-}
-
-static inline int drm_agp_info_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv)
 {
 	return -ENODEV;
 }
@@ -149,20 +125,8 @@ static inline int drm_agp_alloc(struct drm_device *dev,
 	return -ENODEV;
 }
 
-static inline int drm_agp_alloc_ioctl(struct drm_device *dev, void *data,
-				      struct drm_file *file_priv)
-{
-	return -ENODEV;
-}
-
 static inline int drm_agp_free(struct drm_device *dev,
 			       struct drm_agp_buffer *request)
-{
-	return -ENODEV;
-}
-
-static inline int drm_agp_free_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv)
 {
 	return -ENODEV;
 }
@@ -173,20 +137,8 @@ static inline int drm_agp_unbind(struct drm_device *dev,
 	return -ENODEV;
 }
 
-static inline int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file_priv)
-{
-	return -ENODEV;
-}
-
 static inline int drm_agp_bind(struct drm_device *dev,
 			       struct drm_agp_binding *request)
-{
-	return -ENODEV;
-}
-
-static inline int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv)
 {
 	return -ENODEV;
 }
