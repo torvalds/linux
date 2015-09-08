@@ -2035,7 +2035,7 @@ out:
 	return ret;
 }
 
-int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
+static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 {
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *qgroup;
@@ -2168,6 +2168,11 @@ out:
 	spin_unlock(&fs_info->qgroup_lock);
 }
 
+static inline void qgroup_free(struct btrfs_root *root, u64 num_bytes)
+{
+	return btrfs_qgroup_free_refroot(root->fs_info, root->objectid,
+					 num_bytes);
+}
 void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
@@ -2517,7 +2522,7 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
 			&changeset);
 	if (ret < 0)
 		goto cleanup;
-	ret = btrfs_qgroup_reserve(root, changeset.bytes_changed);
+	ret = qgroup_reserve(root, changeset.bytes_changed);
 	if (ret < 0)
 		goto cleanup;
 
@@ -2553,8 +2558,7 @@ static int __btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len,
 		goto out;
 
 	if (free)
-		btrfs_qgroup_free(BTRFS_I(inode)->root,
-				  changeset.bytes_changed);
+		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
 out:
 	ulist_free(changeset.range_changed);
 	return ret;
@@ -2604,7 +2608,7 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes)
 		return 0;
 
 	BUG_ON(num_bytes != round_down(num_bytes, root->nodesize));
-	ret = btrfs_qgroup_reserve(root, num_bytes);
+	ret = qgroup_reserve(root, num_bytes);
 	if (ret < 0)
 		return ret;
 	atomic_add(num_bytes, &root->qgroup_meta_rsv);
@@ -2621,7 +2625,7 @@ void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
 	reserved = atomic_xchg(&root->qgroup_meta_rsv, 0);
 	if (reserved == 0)
 		return;
-	btrfs_qgroup_free(root, reserved);
+	qgroup_free(root, reserved);
 }
 
 void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
@@ -2632,5 +2636,5 @@ void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 	BUG_ON(num_bytes != round_down(num_bytes, root->nodesize));
 	WARN_ON(atomic_read(&root->qgroup_meta_rsv) < num_bytes);
 	atomic_sub(num_bytes, &root->qgroup_meta_rsv);
-	btrfs_qgroup_free(root, num_bytes);
+	qgroup_free(root, num_bytes);
 }
