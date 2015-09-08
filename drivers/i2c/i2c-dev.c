@@ -235,7 +235,7 @@ static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 	return result;
 }
 
-static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
+static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		unsigned long arg)
 {
 	struct i2c_rdwr_ioctl_data rdwr_arg;
@@ -250,7 +250,7 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 
 	/* Put an arbitrary limit on the number of messages that can
 	 * be sent at once */
-	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
+	if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
 	rdwr_pa = memdup_user(rdwr_arg.msgs,
@@ -456,7 +456,7 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(funcs, (unsigned long __user *)arg);
 
 	case I2C_RDWR:
-		return i2cdev_ioctl_rdrw(client, arg);
+		return i2cdev_ioctl_rdwr(client, arg);
 
 	case I2C_SMBUS:
 		return i2cdev_ioctl_smbus(client, arg);
