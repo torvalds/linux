@@ -835,7 +835,7 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
 	synchronize_rcu_expedited();
 }
 
-void bdi_destroy(struct backing_dev_info *bdi)
+void bdi_unregister(struct backing_dev_info *bdi)
 {
 	/* make sure nobody finds us on the bdi_list anymore */
 	bdi_remove_from_list(bdi);
@@ -847,8 +847,18 @@ void bdi_destroy(struct backing_dev_info *bdi)
 		device_unregister(bdi->dev);
 		bdi->dev = NULL;
 	}
+}
 
+void bdi_exit(struct backing_dev_info *bdi)
+{
+	WARN_ON_ONCE(bdi->dev);
 	wb_exit(&bdi->wb);
+}
+
+void bdi_destroy(struct backing_dev_info *bdi)
+{
+	bdi_unregister(bdi);
+	bdi_exit(bdi);
 }
 EXPORT_SYMBOL(bdi_destroy);
 
