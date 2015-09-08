@@ -53,4 +53,15 @@ struct v4l2_mxc_offset {
 	uint32_t v_offset;
 };
 
+/*
+ * Private IOCTLs
+ *
+ * VIDIOC_S_INOUT_CROP: Set input stream crop size
+ * VIDIOC_G_INOUT_CROP: Get input stream crop size
+ */
+#define VIDIOC_S_INPUT_CROP \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct v4l2_crop)
+#define VIDIOC_G_INPUT_CROP \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 2, struct v4l2_crop)
+
 #endif
