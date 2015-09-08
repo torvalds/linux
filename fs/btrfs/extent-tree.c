@@ -3356,7 +3356,7 @@ again:
 	num_pages *= 16;
 	num_pages *= PAGE_CACHE_SIZE;
 
-	ret = btrfs_check_data_free_space(inode, num_pages, num_pages);
+	ret = __btrfs_check_data_free_space(inode, 0, num_pages);
 	if (ret)
 		goto out_put;
 
@@ -3365,7 +3365,7 @@ again:
 					      &alloc_hint);
 	if (!ret)
 		dcs = BTRFS_DC_SETUP;
-	btrfs_free_reserved_data_space(inode, num_pages);
+	__btrfs_free_reserved_data_space(inode, 0, num_pages);
 
 out_put:
 	iput(inode);
