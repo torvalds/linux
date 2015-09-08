@@ -136,15 +136,14 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 }
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
-				   struct list_head *list,
-				   int nr_entries)
+				   struct list_head *list)
 {
-	bool set_id_pos = !evlist->nr_entries;
+	struct perf_evsel *evsel, *temp;
 
-	list_splice_tail(list, &evlist->entries);
-	evlist->nr_entries += nr_entries;
-	if (set_id_pos)
-		perf_evlist__set_id_pos(evlist);
+	__evlist__for_each_safe(list, temp, evsel) {
+		list_del_init(&evsel->node);
+		perf_evlist__add(evlist, evsel);
+	}
 }
 
 void __perf_evlist__set_leader(struct list_head *list)
@@ -210,7 +209,7 @@ static int perf_evlist__add_attrs(struct perf_evlist *evlist,
 		list_add_tail(&evsel->node, &head);
 	}
 
-	perf_evlist__splice_list_tail(evlist, &head, nr_attrs);
+	perf_evlist__splice_list_tail(evlist, &head);
 
 	return 0;
 

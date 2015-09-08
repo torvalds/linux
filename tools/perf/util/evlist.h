@@ -179,8 +179,7 @@ bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist);
 bool perf_evlist__valid_read_format(struct perf_evlist *evlist);
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
-				   struct list_head *list,
-				   int nr_entries);
+				   struct list_head *list);
 
 static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
 {
