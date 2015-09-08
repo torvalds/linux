@@ -178,10 +178,9 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 	const char **parent_names;
 	struct clk_init_data init;
 	struct div6_clock *clock;
-	const char *name;
+	const char *clk_name = np->name;
 	struct clk *clk;
 	unsigned int i;
-	int ret;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
 	if (!clock)
@@ -215,13 +214,7 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 	clock->div = (clk_readl(clock->reg) & CPG_DIV6_DIV_MASK) + 1;
 
 	/* Parse the DT properties. */
-	ret = of_property_read_string(np, "clock-output-names", &name);
-	if (ret < 0) {
-		pr_err("%s: failed to get %s DIV6 clock output name\n",
-		       __func__, np->name);
-		goto error;
-	}
-
+	of_property_read_string(np, "clock-output-names", &clk_name);
 
 	for (i = 0, valid_parents = 0; i < num_parents; i++) {
 		const char *name = of_clk_get_parent_name(np, i);
@@ -255,7 +248,7 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 	}
 
 	/* Register the clock. */
-	init.name = name;
+	init.name = clk_name;
 	init.ops = &cpg_div6_clock_ops;
 	init.flags = CLK_IS_BASIC;
 	init.parent_names = parent_names;
