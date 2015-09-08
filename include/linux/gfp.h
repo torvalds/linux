@@ -303,20 +303,28 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
 }
 
+/*
+ * Allocate pages, preferring the node given as nid. The node must be valid and
+ * online. For more general interface, see alloc_pages_node().
+ */
+static inline struct page *
+__alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+{
+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+
+	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+}
+
+/*
+ * Allocate pages, preferring the node given as nid. When nid == NUMA_NO_NODE,
+ * prefer the current CPU's node.
+ */
 static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
 	/* Unknown node is current node */
 	if (nid < 0)
 		nid = numa_node_id();
-
-	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-}
-
-static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
-						unsigned int order)
-{
-	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
 
 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
 }
@@ -357,7 +365,6 @@ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
 
 void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
 void free_pages_exact(void *virt, size_t size);
-/* This is different from alloc_pages_exact_node !!! */
 void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
 
 #define __get_free_page(gfp_mask) \

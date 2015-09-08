@@ -1195,7 +1195,7 @@ static struct page *new_page_node(struct page *p, unsigned long private,
 		return alloc_huge_page_node(page_hstate(compound_head(p)),
 					pm->node);
 	else
-		return alloc_pages_exact_node(pm->node,
+		return __alloc_pages_node(pm->node,
 				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
 }
 
@@ -1555,7 +1555,7 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 	int nid = (int) data;
 	struct page *newpage;
 
-	newpage = alloc_pages_exact_node(nid,
+	newpage = __alloc_pages_node(nid,
 					 (GFP_HIGHUSER_MOVABLE |
 					  __GFP_THISNODE | __GFP_NOMEMALLOC |
 					  __GFP_NORETRY | __GFP_NOWARN) &

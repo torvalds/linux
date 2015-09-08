@@ -3511,8 +3511,6 @@ EXPORT_SYMBOL(alloc_pages_exact);
  *
  * Like alloc_pages_exact(), but try to allocate on node nid first before falling
  * back.
- * Note this is not alloc_pages_exact_node() which allocates on a specific node,
- * but is not exact.
  */
 void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
 {

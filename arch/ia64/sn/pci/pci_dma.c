@@ -92,7 +92,7 @@ static void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	 */
 	node = pcibus_to_node(pdev->bus);
 	if (likely(node >=0)) {
-		struct page *p = alloc_pages_exact_node(node,
+		struct page *p = __alloc_pages_node(node,
 						flags, get_order(size));
 
 		if (likely(p))
