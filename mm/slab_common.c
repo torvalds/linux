@@ -640,6 +640,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	bool need_rcu_barrier = false;
 	bool busy = false;
 
+	if (unlikely(!s))
+		return;
+
 	BUG_ON(!is_root_cache(s));
 
 	get_online_cpus();
