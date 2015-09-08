@@ -160,6 +160,8 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 
 	if (!evlist->nr_entries++)
 		perf_evlist__set_id_pos(evlist);
+
+	__perf_evlist__propagate_maps(evlist, entry);
 }
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
