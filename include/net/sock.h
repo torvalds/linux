@@ -1045,11 +1045,6 @@ struct proto {
 int proto_register(struct proto *prot, int alloc_slab);
 void proto_unregister(struct proto *prot);
 
-static inline bool memcg_proto_active(struct cg_proto *cg_proto)
-{
-	return test_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
-}
-
 #ifdef SOCK_REFCNT_DEBUG
 static inline void sk_refcnt_debug_inc(struct sock *sk)
 {
