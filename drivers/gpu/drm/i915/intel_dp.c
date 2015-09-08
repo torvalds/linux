@@ -3417,11 +3417,6 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 	}
 
-	/* LRC Bypass */
-	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
-	val |= DPIO_LRC_BYPASS;
-	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, val);
-
 	mutex_unlock(&dev_priv->sb_lock);
 
 	return 0;
