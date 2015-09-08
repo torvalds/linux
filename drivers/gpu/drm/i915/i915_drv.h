@@ -3190,13 +3190,13 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 
 #define I915_READ64_2x32(lower_reg, upper_reg) ({			\
-	u32 upper, lower, tmp;						\
-	tmp = I915_READ(upper_reg);					\
+	u32 upper, lower, old_upper, loop = 0;				\
+	upper = I915_READ(upper_reg);					\
 	do {								\
-		upper = tmp;						\
+		old_upper = upper;					\
 		lower = I915_READ(lower_reg);				\
-		tmp = I915_READ(upper_reg);				\
-	} while (upper != tmp);						\
+		upper = I915_READ(upper_reg);				\
+	} while (upper != old_upper && loop++ < 2);			\
 	(u64)upper << 32 | lower; })
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
