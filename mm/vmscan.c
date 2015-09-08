@@ -1359,7 +1359,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 	unsigned long nr_taken = 0;
 	unsigned long scan;
 
-	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
+					!list_empty(src); scan++) {
 		struct page *page;
 		int nr_pages;
 
