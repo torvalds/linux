@@ -135,12 +135,7 @@ extern atomic_t DEBUG_LEVEL;
 
 #define WILC_MULTICAST_TABLE_SIZE	8
 
-#if defined (NM73131_0_BOARD)
-
-#define MODALIAS "wilc_spi"
-#define GPIO_NUM	IRQ_WILC1000_GPIO
-
-#elif defined (BEAGLE_BOARD)
+#if defined (BEAGLE_BOARD)
 	#define SPI_CHANNEL	4
 
 	#if SPI_CHANNEL == 4

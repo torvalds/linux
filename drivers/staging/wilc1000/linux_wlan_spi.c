@@ -113,45 +113,7 @@ int linux_spi_init(void *vp)
 #define TXRX_PHASE_SIZE (4096)
 #endif
 
-#if defined (NM73131_0_BOARD)
-
-int linux_spi_write(uint8_t *b, uint32_t len)
-{
-
-	int ret;
-
-	if (len > 0 && b != NULL) {
-		struct spi_message msg;
-
-		PRINT_D(BUS_DBG, "Request writing %d bytes\n", len);
-		struct spi_transfer tr = {
-			.tx_buf = b,
-			.len = len,
-			.speed_hz = SPEED,
-			.delay_usecs = 0,
-		};
-
-		spi_message_init(&msg);
-		spi_message_add_tail(&tr, &msg);
-		ret = spi_sync(wilc_spi_dev, &msg);
-		if (ret < 0) {
-			PRINT_ER("SPI transaction failed\n");
-		}
-
-	} else {
-		PRINT_ER("can't write data with the following length: %d\n", len);
-		PRINT_ER("FAILED due to NULL buffer or ZERO length check the following length: %d\n", len);
-		ret = -1;
-	}
-
-	/* change return value to match WILC interface */
-	(ret < 0) ? (ret = 0) : (ret = 1);
-
-
-	return ret;
-}
-
-#elif defined(TXRX_PHASE_SIZE)
+#if defined(TXRX_PHASE_SIZE)
 
 int linux_spi_write(uint8_t *b, uint32_t len)
 {
@@ -282,40 +244,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 
 #endif
 
-#if defined (NM73131_0_BOARD)
-
-int linux_spi_read(unsigned char *rb, unsigned long rlen)
-{
-
-	int ret;
-
-	if (rlen > 0) {
-		struct spi_message msg;
-		struct spi_transfer tr = {
-			.rx_buf = rb,
-			.len = rlen,
-			.speed_hz = SPEED,
-			.delay_usecs = 0,
-
-		};
-
-		spi_message_init(&msg);
-		spi_message_add_tail(&tr, &msg);
-		ret = spi_sync(wilc_spi_dev, &msg);
-		if (ret < 0) {
-			PRINT_ER("SPI transaction failed\n");
-		}
-	} else {
-		PRINT_ER("can't read data with the following length: %ld\n", rlen);
-		ret = -1;
-	}
-	/* change return value to match WILC interface */
-	(ret < 0) ? (ret = 0) : (ret = 1);
-
-	return ret;
-}
-
-#elif defined(TXRX_PHASE_SIZE)
+#if defined(TXRX_PHASE_SIZE)
 
 int linux_spi_read(unsigned char *rb, unsigned long rlen)
 {

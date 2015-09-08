@@ -471,8 +471,6 @@ static int init_irq(linux_wlan_t *p_nic)
  *
  * ex) nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
  */
-#elif defined(NM73131_0_BOARD)
-		nic->dev_irq_num = IRQ_WILC1000;
 #elif defined(PANDA_BOARD)
 		gpio_export(GPIO_NUM, 1);
 		nic->dev_irq_num = OMAP_GPIO_IRQ(GPIO_NUM);
@@ -1719,7 +1717,6 @@ _fail_locks_:
  *      - this function will be called automatically by OS when module inserted.
  */
 
-#if !defined(NM73131_0_BOARD)
 int mac_init_fn(struct net_device *ndev)
 {
 
@@ -1729,28 +1726,11 @@ int mac_init_fn(struct net_device *ndev)
 
 	return 0;
 }
-#else
-int mac_init_fn(struct net_device *ndev)
-{
-
-	unsigned char mac_add[] = {0x00, 0x50, 0xc2, 0x5e, 0x10, 0x00};
-	/* TODO: get MAC address whenever the source is EPROM - hardcoded and copy it to ndev*/
-	memcpy(ndev->dev_addr, mac_add, 6);
-
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		PRINT_ER("Error: Wrong MAC address\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#endif
 
 void    WILC_WFI_frame_register(struct wiphy *wiphy, struct net_device *dev,
 				u16 frame_type, bool reg);
 
 /* This fn is called, when this device is setup using ifconfig */
-#if !defined(NM73131_0_BOARD)
 int mac_open(struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
@@ -1822,26 +1802,6 @@ _err_:
 	wilc1000_wlan_deinit(g_linux_wlan);
 	return ret;
 }
-#else
-int mac_open(struct net_device *ndev)
-{
-
-	linux_wlan_t *nic;
-
-	nic = netdev_priv(ndev);
-
-	/*initialize platform*/
-	if (wilc1000_wlan_init(nic)) {
-		PRINT_ER("Failed to initialize platform\n");
-		return 1;
-	}
-	/* Start the network interface queue for this device */
-	PRINT_D(INIT_DBG, "Starting netifQ\n");
-	netif_start_queue(ndev);
-/*	down(&close_exit_sync); */
-	return 0;
-}
-#endif
 
 struct net_device_stats *mac_stats(struct net_device *dev)
 {
