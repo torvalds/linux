@@ -309,18 +309,6 @@ struct inode;
 #define page_private(page)		((page)->private)
 #define set_page_private(page, v)	((page)->private = (v))
 
-/* It's valid only if the page is free path or free_list */
-static inline void set_freepage_migratetype(struct page *page, int migratetype)
-{
-	page->index = migratetype;
-}
-
-/* It's valid only if the page is free path or free_list */
-static inline int get_freepage_migratetype(struct page *page)
-{
-	return page->index;
-}
-
 /*
  * FIXME: take this include out, include page-flags.h in
  * files which need it (119 of them)
