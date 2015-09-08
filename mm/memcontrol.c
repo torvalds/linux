@@ -1545,6 +1545,13 @@ static unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
 static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 				     int order)
 {
+	struct oom_control oc = {
+		.zonelist = NULL,
+		.nodemask = NULL,
+		.gfp_mask = gfp_mask,
+		.order = order,
+		.force_kill = false,
+	};
 	struct mem_cgroup *iter;
 	unsigned long chosen_points = 0;
 	unsigned long totalpages;
@@ -1563,7 +1570,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 		goto unlock;
 	}
 
-	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL, memcg);
+	check_panic_on_oom(&oc, CONSTRAINT_MEMCG, memcg);
 	totalpages = mem_cgroup_get_limit(memcg) ? : 1;
 	for_each_mem_cgroup_tree(iter, memcg) {
 		struct css_task_iter it;
@@ -1571,8 +1578,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 
 		css_task_iter_start(&iter->css, &it);
 		while ((task = css_task_iter_next(&it))) {
-			switch (oom_scan_process_thread(task, totalpages, NULL,
-							false)) {
+			switch (oom_scan_process_thread(&oc, task, totalpages)) {
 			case OOM_SCAN_SELECT:
 				if (chosen)
 					put_task_struct(chosen);
@@ -1610,8 +1616,8 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 
 	if (chosen) {
 		points = chosen_points * 1000 / totalpages;
-		oom_kill_process(chosen, gfp_mask, order, points, totalpages,
-				 memcg, NULL, "Memory cgroup out of memory");
+		oom_kill_process(&oc, chosen, points, totalpages, memcg,
+				 "Memory cgroup out of memory");
 	}
 unlock:
 	mutex_unlock(&oom_lock);

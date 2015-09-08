@@ -2693,6 +2693,13 @@ static inline struct page *
 __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	const struct alloc_context *ac, unsigned long *did_some_progress)
 {
+	struct oom_control oc = {
+		.zonelist = ac->zonelist,
+		.nodemask = ac->nodemask,
+		.gfp_mask = gfp_mask,
+		.order = order,
+		.force_kill = false,
+	};
 	struct page *page;
 
 	*did_some_progress = 0;
@@ -2744,8 +2751,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 			goto out;
 	}
 	/* Exhausted what can be done so it's blamo time */
-	if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false)
-			|| WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
 		*did_some_progress = 1;
 out:
 	mutex_unlock(&oom_lock);
