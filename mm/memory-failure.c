@@ -934,6 +934,27 @@ int get_hwpoison_page(struct page *page)
 }
 EXPORT_SYMBOL_GPL(get_hwpoison_page);
 
+/**
+ * put_hwpoison_page() - Put refcount for memory error handling:
+ * @page:	raw error page (hit by memory error)
+ */
+void put_hwpoison_page(struct page *page)
+{
+	struct page *head = compound_head(page);
+
+	if (PageHuge(head)) {
+		put_page(head);
+		return;
+	}
+
+	if (PageTransHuge(head))
+		if (page != head)
+			put_page(head);
+
+	put_page(page);
+}
+EXPORT_SYMBOL_GPL(put_hwpoison_page);
+
 /*
  * Do all that is necessary to remove user space mappings. Unmap
  * the pages and send SIGBUS to the processes if the data was dirty.
