@@ -128,9 +128,8 @@ static const char *normalize_arch(char *arch)
 	return arch;
 }
 
-static int perf_session_env__lookup_binutils_path(struct perf_env *env,
-						  const char *name,
-						  const char **path)
+static int perf_env__lookup_binutils_path(struct perf_env *env,
+					  const char *name, const char **path)
 {
 	int idx;
 	const char *arch, *cross_env;
@@ -206,7 +205,7 @@ out_error:
 	return -1;
 }
 
-int perf_session_env__lookup_objdump(struct perf_env *env)
+int perf_env__lookup_objdump(struct perf_env *env)
 {
 	/*
 	 * For live mode, env->arch will be NULL and we can use
@@ -215,6 +214,5 @@ int perf_session_env__lookup_objdump(struct perf_env *env)
 	if (env->arch == NULL)
 		return 0;
 
-	return perf_session_env__lookup_binutils_path(env, "objdump",
-						      &objdump_path);
+	return perf_env__lookup_binutils_path(env, "objdump", &objdump_path);
 }

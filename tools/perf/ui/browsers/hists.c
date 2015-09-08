@@ -1437,7 +1437,7 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 	struct hist_entry *he;
 	int err;
 
-	if (!objdump_path && perf_session_env__lookup_objdump(browser->env))
+	if (!objdump_path && perf_env__lookup_objdump(browser->env))
 		return 0;
 
 	notes = symbol__annotation(act->ms.sym);
