@@ -495,6 +495,12 @@ static struct ssd1307fb_deviceinfo ssd1307fb_ssd1307_deviceinfo = {
 	.need_pwm = 1,
 };
 
+static struct ssd1307fb_deviceinfo ssd1307fb_ssd1309_deviceinfo = {
+	.default_vcomh = 0x34,
+	.default_dclk_div = 1,
+	.default_dclk_frq = 10,
+};
+
 static const struct of_device_id ssd1307fb_of_match[] = {
 	{
 		.compatible = "solomon,ssd1305fb-i2c",
@@ -507,6 +513,10 @@ static const struct of_device_id ssd1307fb_of_match[] = {
 	{
 		.compatible = "solomon,ssd1307fb-i2c",
 		.data = (void *)&ssd1307fb_ssd1307_deviceinfo,
+	},
+	{
+		.compatible = "solomon,ssd1309fb-i2c",
+		.data = (void *)&ssd1307fb_ssd1309_deviceinfo,
 	},
 	{},
 };
@@ -709,6 +719,7 @@ static const struct i2c_device_id ssd1307fb_i2c_id[] = {
 	{ "ssd1305fb", 0 },
 	{ "ssd1306fb", 0 },
 	{ "ssd1307fb", 0 },
+	{ "ssd1309fb", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssd1307fb_i2c_id);

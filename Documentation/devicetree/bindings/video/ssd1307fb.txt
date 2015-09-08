@@ -2,7 +2,8 @@
 
 Required properties:
   - compatible: Should be "solomon,<chip>fb-<bus>". The only supported bus for
-    now is i2c, and the supported chips are ssd1305, ssd1306 and ssd1307.
+    now is i2c, and the supported chips are ssd1305, ssd1306, ssd1307 and
+    ssd1309.
   - reg: Should contain address of the controller on the I2C bus. Most likely
          0x3c or 0x3d
   - pwm: Should contain the pwm to use according to the OF device tree PWM
