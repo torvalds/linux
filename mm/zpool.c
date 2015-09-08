@@ -320,20 +320,6 @@ u64 zpool_get_total_size(struct zpool *zpool)
 	return zpool->driver->total_size(zpool->pool);
 }
 
-static int __init init_zpool(void)
-{
-	pr_info("loaded\n");
-	return 0;
-}
-
-static void __exit exit_zpool(void)
-{
-	pr_info("unloaded\n");
-}
-
-module_init(init_zpool);
-module_exit(exit_zpool);
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
 MODULE_DESCRIPTION("Common API for compressed memory storage");
