@@ -35,6 +35,9 @@ struct resv_map {
 	struct kref refs;
 	spinlock_t lock;
 	struct list_head regions;
+	long adds_in_progress;
+	struct list_head region_cache;
+	long region_cache_count;
 };
 extern struct resv_map *resv_map_alloc(void);
 void resv_map_release(struct kref *ref);
