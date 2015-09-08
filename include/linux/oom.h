@@ -12,11 +12,25 @@ struct notifier_block;
 struct mem_cgroup;
 struct task_struct;
 
+/*
+ * Details of the page allocation that triggered the oom killer that are used to
+ * determine what should be killed.
+ */
 struct oom_control {
+	/* Used to determine cpuset */
 	struct zonelist *zonelist;
-	nodemask_t	*nodemask;
-	gfp_t		gfp_mask;
-	int		order;
+
+	/* Used to determine mempolicy */
+	nodemask_t *nodemask;
+
+	/* Used to determine cpuset and node locality requirement */
+	const gfp_t gfp_mask;
+
+	/*
+	 * order == -1 means the oom kill is required by sysrq, otherwise only
+	 * for display purposes.
+	 */
+	const int order;
 };
 
 /*
