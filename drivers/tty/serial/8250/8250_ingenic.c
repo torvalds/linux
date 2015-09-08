@@ -34,6 +34,9 @@ struct ingenic_uart_data {
 
 #define UART_FCR_UME	BIT(4)
 
+#define UART_MCR_MDCE	BIT(7)
+#define UART_MCR_FCM	BIT(6)
+
 static struct earlycon_device *early_device;
 
 static uint8_t __init early_in(struct uart_port *port, int offset)
@@ -129,6 +132,8 @@ OF_EARLYCON_DECLARE(jz4780_uart, "ingenic,jz4780-uart",
 
 static void ingenic_uart_serial_out(struct uart_port *p, int offset, int value)
 {
+	int ier;
+
 	switch (offset) {
 	case UART_FCR:
 		/* UART module enable */
@@ -136,7 +141,20 @@ static void ingenic_uart_serial_out(struct uart_port *p, int offset, int value)
 		break;
 
 	case UART_IER:
+		/* Enable receive timeout interrupt with the
+		 * receive line status interrupt */
 		value |= (value & 0x4) << 2;
+		break;
+
+	case UART_MCR:
+		/* If we have enabled modem status IRQs we should enable modem
+		 * mode. */
+		ier = p->serial_in(p, UART_IER);
+
+		if (ier & UART_IER_MSI)
+			value |= UART_MCR_MDCE | UART_MCR_FCM;
+		else
+			value &= ~(UART_MCR_MDCE | UART_MCR_FCM);
 		break;
 
 	default:
@@ -144,6 +162,28 @@ static void ingenic_uart_serial_out(struct uart_port *p, int offset, int value)
 	}
 
 	writeb(value, p->membase + (offset << p->regshift));
+}
+
+static unsigned int ingenic_uart_serial_in(struct uart_port *p, int offset)
+{
+	unsigned int value;
+
+	value = readb(p->membase + (offset << p->regshift));
+
+	/* Hide non-16550 compliant bits from higher levels */
+	switch (offset) {
+	case UART_FCR:
+		value &= ~UART_FCR_UME;
+		break;
+
+	case UART_MCR:
+		value &= ~(UART_MCR_MDCE | UART_MCR_FCM);
+		break;
+
+	default:
+		break;
+	}
+	return value;
 }
 
 static int ingenic_uart_probe(struct platform_device *pdev)
@@ -170,6 +210,7 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 	uart.port.mapbase = regs->start;
 	uart.port.regshift = 2;
 	uart.port.serial_out = ingenic_uart_serial_out;
+	uart.port.serial_in = ingenic_uart_serial_in;
 	uart.port.irq = irq->start;
 	uart.port.dev = &pdev->dev;
 
