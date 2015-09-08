@@ -1103,8 +1103,8 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_ex(evlist, pages, overwrite, 0, false);
 }
 
-static int perf_evlist__propagate_maps(struct perf_evlist *evlist,
-				       bool has_user_cpus)
+static void perf_evlist__propagate_maps(struct perf_evlist *evlist,
+					bool has_user_cpus)
 {
 	struct perf_evsel *evsel;
 
@@ -1119,13 +1119,7 @@ static int perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		}
 
 		evsel->threads = thread_map__get(evlist->threads);
-
-		if ((evlist->cpus && !evsel->cpus) ||
-		    (evlist->threads && !evsel->threads))
-			return -ENOMEM;
 	}
-
-	return 0;
 }
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
@@ -1144,7 +1138,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 	if (evlist->cpus == NULL)
 		goto out_delete_threads;
 
-	return perf_evlist__propagate_maps(evlist, !!target->cpu_list);
+	perf_evlist__propagate_maps(evlist, !!target->cpu_list);
+
+	return 0;
 
 out_delete_threads:
 	thread_map__put(evlist->threads);
@@ -1152,9 +1148,8 @@ out_delete_threads:
 	return -1;
 }
 
-int perf_evlist__set_maps(struct perf_evlist *evlist,
-			  struct cpu_map *cpus,
-			  struct thread_map *threads)
+void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
+			   struct thread_map *threads)
 {
 	cpu_map__put(evlist->cpus);
 	evlist->cpus = cpus;
@@ -1162,7 +1157,7 @@ int perf_evlist__set_maps(struct perf_evlist *evlist,
 	thread_map__put(evlist->threads);
 	evlist->threads = threads;
 
-	return perf_evlist__propagate_maps(evlist, false);
+	perf_evlist__propagate_maps(evlist, false);
 }
 
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
