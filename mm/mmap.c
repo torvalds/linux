@@ -2884,7 +2884,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 * using the existing file pgoff checks and manipulations.
 	 * Similarly in do_mmap_pgoff and in do_brk.
 	 */
-	if (!vma->vm_file) {
+	if (vma_is_anonymous(vma)) {
 		BUG_ON(vma->anon_vma);
 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
 	}
@@ -3027,21 +3027,13 @@ static int special_mapping_fault(struct vm_area_struct *vma,
 	pgoff_t pgoff;
 	struct page **pages;
 
-	/*
-	 * special mappings have no vm_file, and in that case, the mm
-	 * uses vm_pgoff internally. So we have to subtract it from here.
-	 * We are allowed to do this because we are the mm; do not copy
-	 * this code into drivers!
-	 */
-	pgoff = vmf->pgoff - vma->vm_pgoff;
-
 	if (vma->vm_ops == &legacy_special_mapping_vmops)
 		pages = vma->vm_private_data;
 	else
 		pages = ((struct vm_special_mapping *)vma->vm_private_data)->
 			pages;
 
-	for (; pgoff && *pages; ++pages)
+	for (pgoff = vmf->pgoff; pgoff && *pages; ++pages)
 		pgoff--;
 
 	if (*pages) {
