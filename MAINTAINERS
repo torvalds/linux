@@ -6847,6 +6847,12 @@ T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
 F:	arch/microblaze/
 
+MICROSOFT SURFACE PRO 3 BUTTON DRIVER
+M:	Chen Yu <yu.c.chen@intel.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Supported
+F:	drivers/platform/x86/surfacepro3_button.c
+
 MICROTEK X6 SCANNER
 M:	Oliver Neukum <oliver@neukum.org>
 S:	Maintained
@@ -10489,7 +10495,6 @@ F:	drivers/platform/x86/toshiba_haps.c
 
 TOSHIBA SMM DRIVER
 M:	Jonathan Buzzard <jonathan@buzzard.org.uk>
-L:	tlinux-users@tce.toshiba-dme.co.jp
 W:	http://www.buzzard.org.uk/toshiba/
 S:	Maintained
 F:	drivers/char/toshiba.c
