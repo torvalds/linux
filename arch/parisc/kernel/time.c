@@ -202,7 +202,6 @@ static struct clocksource clocksource_cr16 = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-#ifdef CONFIG_SMP
 int update_cr16_clocksource(void)
 {
 	/* since the cr16 cycle counters are not synchronized across CPUs,
@@ -214,12 +213,6 @@ int update_cr16_clocksource(void)
 
 	return 0;
 }
-#else
-int update_cr16_clocksource(void)
-{
-	return 0; /* no change */
-}
-#endif /*CONFIG_SMP*/
 
 void __init start_cpu_itimer(void)
 {
