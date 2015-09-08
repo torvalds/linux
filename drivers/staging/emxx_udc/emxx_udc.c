@@ -685,7 +685,6 @@ static int EP0_receive_NULL(struct nbu2ss_udc *udc, bool pid_flag)
 /*-------------------------------------------------------------------------*/
 static int _nbu2ss_ep0_in_transfer(
 	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
 	struct nbu2ss_req *req
 )
 {
@@ -743,7 +742,6 @@ static int _nbu2ss_ep0_in_transfer(
 /*-------------------------------------------------------------------------*/
 static int _nbu2ss_ep0_out_transfer(
 	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
 	struct nbu2ss_req *req
 )
 {
@@ -1252,11 +1250,11 @@ static int _nbu2ss_start_transfer(
 		/* EP0 */
 		switch (udc->ep0state) {
 		case EP0_IN_DATA_PHASE:
-			nret = _nbu2ss_ep0_in_transfer(udc, ep, req);
+			nret = _nbu2ss_ep0_in_transfer(udc, req);
 			break;
 
 		case EP0_OUT_DATA_PHASE:
-			nret = _nbu2ss_ep0_out_transfer(udc, ep, req);
+			nret = _nbu2ss_ep0_out_transfer(udc, req);
 			break;
 
 		case EP0_IN_STATUS_PHASE:
@@ -1628,7 +1626,7 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 	if (result >= 0) {
 		memcpy(udc->ep0_buf, &status_data, length);
 		_nbu2ss_create_ep0_packet(udc, udc->ep0_buf, length);
-		_nbu2ss_ep0_in_transfer(udc, &udc->ep[0], &udc->ep0_req);
+		_nbu2ss_ep0_in_transfer(udc, &udc->ep0_req);
 
 	} else {
 		dev_err(udc->dev, " Error GET_STATUS\n");
@@ -1799,7 +1797,7 @@ static inline int _nbu2ss_ep0_in_data_stage(struct nbu2ss_udc *udc)
 	req->req.actual += req->div_len;
 	req->div_len = 0;
 
-	nret = _nbu2ss_ep0_in_transfer(udc, ep, req);
+	nret = _nbu2ss_ep0_in_transfer(udc, req);
 	if (nret == 0) {
 		udc->ep0state = EP0_OUT_STATUS_PAHSE;
 		EP0_receive_NULL(udc, TRUE);
@@ -1823,7 +1821,7 @@ static inline int _nbu2ss_ep0_out_data_stage(struct nbu2ss_udc *udc)
 	if (!req)
 		req = &udc->ep0_req;
 
-	nret = _nbu2ss_ep0_out_transfer(udc, ep, req);
+	nret = _nbu2ss_ep0_out_transfer(udc, req);
 	if (nret == 0) {
 		udc->ep0state = EP0_IN_STATUS_PHASE;
 		EP0_send_NULL(udc, TRUE);
