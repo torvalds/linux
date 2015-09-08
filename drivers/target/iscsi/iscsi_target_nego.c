@@ -366,8 +366,6 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 		return -1;
 
 	login->rsp_length		= 0;
-	login_rsp->exp_cmdsn		= cpu_to_be32(login_rsp->exp_cmdsn);
-	login_rsp->max_cmdsn		= cpu_to_be32(login_rsp->max_cmdsn);
 
 	return 0;
 }
