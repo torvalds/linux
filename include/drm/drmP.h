@@ -910,6 +910,8 @@ extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 /* Misc. IOCTL support (drm_ioctl.c) */
 int drm_noop(struct drm_device *dev, void *data,
 	     struct drm_file *file_priv);
+int drm_invalid_op(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv);
 
 /* Cache management (drm_cache.c) */
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);

@@ -415,6 +415,13 @@ int drm_noop(struct drm_device *dev, void *data,
 }
 EXPORT_SYMBOL(drm_noop);
 
+int drm_invalid_op(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(drm_invalid_op);
+
 /**
  * Copy and IOCTL return string to user space
  */
