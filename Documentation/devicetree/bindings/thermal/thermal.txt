@@ -60,14 +60,6 @@ properties) should be defined in a particular device's binding.
 For more examples of cooling devices, refer to the example sections below.
 
 Required properties:
-- cooling-min-level:	An integer indicating the smallest
-  Type: unsigned	cooling state accepted. Typically 0.
-  Size: one cell
-
-- cooling-max-level:	An integer indicating the largest
-  Type: unsigned	cooling state accepted.
-  Size: one cell
-
 - #cooling-cells:	Used to provide cooling device specific information
   Type: unsigned	while referring to it. Must be at least 2, in order
   Size: one cell      	to specify minimum and maximum cooling state used
@@ -76,6 +68,15 @@ Required properties:
 			the maximum cooling state requested in the reference.
 			See Cooling device maps section below for more details
 			on how consumers refer to cooling devices.
+
+Optional properties:
+- cooling-min-level:	An integer indicating the smallest
+  Type: unsigned	cooling state accepted. Typically 0.
+  Size: one cell
+
+- cooling-max-level:	An integer indicating the largest
+  Type: unsigned	cooling state accepted.
+  Size: one cell
 
 * Trip points
 
