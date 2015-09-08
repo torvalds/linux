@@ -496,7 +496,7 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 {
 	struct parse_opt_ctx_t ctx;
 
-	perf_header__set_cmdline(argc, argv);
+	perf_env__set_cmdline(&perf_env, argc, argv);
 
 	/* build usage string if it's not provided */
 	if (subcommands && !usagestr[0]) {
