@@ -454,9 +454,6 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	union hdmi_infoframe frame;
 	int ret;
 
-	/* Set user selected PAR to incoming mode's member */
-	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
-
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
 						       adjusted_mode);
 	if (ret < 0) {
@@ -1311,6 +1308,9 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		DRM_DEBUG_KMS("unsupported HDMI clock, rejecting mode\n");
 		return false;
 	}
+
+	/* Set user selected PAR to incoming mode's member */
+	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
 
 	return true;
 }
