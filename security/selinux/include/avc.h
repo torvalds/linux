@@ -143,6 +143,7 @@ static inline int avc_audit(u32 ssid, u32 tsid,
 }
 
 #define AVC_STRICT 1 /* Ignore permissive mode. */
+#define AVC_EXTENDED_PERMS 2	/* update extended permissions */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 			 u16 tclass, u32 requested,
 			 unsigned flags,
@@ -156,6 +157,10 @@ int avc_has_perm_flags(u32 ssid, u32 tsid,
 		       struct common_audit_data *auditdata,
 		       int flags);
 
+int avc_has_extended_perms(u32 ssid, u32 tsid, u16 tclass, u32 requested,
+		u8 driver, u8 perm, struct common_audit_data *ad);
+
+
 u32 avc_policy_seqno(void);
 
 #define AVC_CALLBACK_GRANT		1
@@ -166,6 +171,7 @@ u32 avc_policy_seqno(void);
 #define AVC_CALLBACK_AUDITALLOW_DISABLE	32
 #define AVC_CALLBACK_AUDITDENY_ENABLE	64
 #define AVC_CALLBACK_AUDITDENY_DISABLE	128
+#define AVC_CALLBACK_ADD_XPERMS		256
 
 int avc_add_callback(int (*callback)(u32 event), u32 events);
 
