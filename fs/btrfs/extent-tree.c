@@ -3904,11 +3904,7 @@ u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data)
 	return ret;
 }
 
-/*
- * This will check the space that the inode allocates from to make sure we have
- * enough space for bytes.
- */
-int btrfs_check_data_free_space(struct inode *inode, u64 bytes, u64 write_bytes)
+int btrfs_alloc_data_chunk_ondemand(struct inode *inode, u64 bytes)
 {
 	struct btrfs_space_info *data_sinfo;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -4029,15 +4025,51 @@ commit_trans:
 					      data_sinfo->flags, bytes, 1);
 		return -ENOSPC;
 	}
-	ret = btrfs_qgroup_reserve(root, write_bytes);
-	if (ret)
-		goto out;
 	data_sinfo->bytes_may_use += bytes;
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
 				      data_sinfo->flags, bytes, 1);
-out:
 	spin_unlock(&data_sinfo->lock);
 
+	return ret;
+}
+
+/*
+ * This will check the space that the inode allocates from to make sure we have
+ * enough space for bytes.
+ */
+int btrfs_check_data_free_space(struct inode *inode, u64 bytes, u64 write_bytes)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret;
+
+	ret = btrfs_alloc_data_chunk_ondemand(inode, bytes);
+	if (ret < 0)
+		return ret;
+	ret = btrfs_qgroup_reserve(root, write_bytes);
+	return ret;
+}
+
+/*
+ * New check_data_free_space() with ability for precious data reservation
+ * Will replace old btrfs_check_data_free_space(), but for patch split,
+ * add a new function first and then replace it.
+ */
+int __btrfs_check_data_free_space(struct inode *inode, u64 start, u64 len)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret;
+
+	/* align the range */
+	len = round_up(start + len, root->sectorsize) -
+	      round_down(start, root->sectorsize);
+	start = round_down(start, root->sectorsize);
+
+	ret = btrfs_alloc_data_chunk_ondemand(inode, len);
+	if (ret < 0)
+		return ret;
+
+	/* Use new btrfs_qgroup_reserve_data to reserve precious data space */
+	ret = btrfs_qgroup_reserve_data(inode, start, len);
 	return ret;
 }
 
@@ -4058,6 +4090,41 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes)
 	data_sinfo->bytes_may_use -= bytes;
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
 				      data_sinfo->flags, bytes, 0);
+	spin_unlock(&data_sinfo->lock);
+}
+
+/*
+ * Called if we need to clear a data reservation for this inode
+ * Normally in a error case.
+ *
+ * This one will handle the per-indoe data rsv map for accurate reserved
+ * space framework.
+ */
+void __btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_space_info *data_sinfo;
+
+	/* Make sure the range is aligned to sectorsize */
+	len = round_up(start + len, root->sectorsize) -
+	      round_down(start, root->sectorsize);
+	start = round_down(start, root->sectorsize);
+
+	/*
+	 * Free any reserved qgroup data space first
+	 * As it will alloc memory, we can't do it with data sinfo
+	 * spinlock hold.
+	 */
+	btrfs_qgroup_free_data(inode, start, len);
+
+	data_sinfo = root->fs_info->data_sinfo;
+	spin_lock(&data_sinfo->lock);
+	if (WARN_ON(data_sinfo->bytes_may_use < len))
+		data_sinfo->bytes_may_use = 0;
+	else
+		data_sinfo->bytes_may_use -= len;
+	trace_btrfs_space_reservation(root->fs_info, "space_info",
+				      data_sinfo->flags, len, 0);
 	spin_unlock(&data_sinfo->lock);
 }
 
