@@ -146,7 +146,7 @@ static int hwpoison_filter_task(struct page *p)
 	if (!mem)
 		return -EINVAL;
 
-	css = mem_cgroup_css(mem);
+	css = &mem->css;
 	ino = cgroup_ino(css->cgroup);
 	css_put(css);
 
