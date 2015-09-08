@@ -683,7 +683,7 @@ struct intel_hdmi {
 				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       bool enable,
-			       struct drm_display_mode *adjusted_mode);
+			       const struct drm_display_mode *adjusted_mode);
 	bool (*infoframe_enabled)(struct drm_encoder *encoder);
 };
 

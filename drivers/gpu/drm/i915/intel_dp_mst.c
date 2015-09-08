@@ -40,7 +40,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct drm_atomic_state *state;
 	int bpp, i;
 	int lane_count, slots;
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct drm_connector *drm_connector;
 	struct intel_connector *connector, *found = NULL;
 	struct drm_connector_state *connector_state;

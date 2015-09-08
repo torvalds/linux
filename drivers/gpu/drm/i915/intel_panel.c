@@ -105,12 +105,8 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 			struct intel_crtc_state *pipe_config,
 			int fitting_mode)
 {
-	struct drm_display_mode *adjusted_mode;
-	int x, y, width, height;
-
-	adjusted_mode = &pipe_config->base.adjusted_mode;
-
-	x = y = width = height = 0;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int x = 0, y = 0, width = 0, height = 0;
 
 	/* Native modes don't need fitting */
 	if (adjusted_mode->crtc_hdisplay == pipe_config->pipe_src_w &&
@@ -230,7 +226,7 @@ static inline u32 panel_fitter_scaling(u32 source, u32 target)
 static void i965_scale_aspect(struct intel_crtc_state *pipe_config,
 			      u32 *pfit_control)
 {
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	u32 scaled_width = adjusted_mode->crtc_hdisplay *
 		pipe_config->pipe_src_h;
 	u32 scaled_height = pipe_config->pipe_src_w *
@@ -310,9 +306,7 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
-	struct drm_display_mode *adjusted_mode;
-
-	adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	/* Native modes don't need fitting */
 	if (adjusted_mode->crtc_hdisplay == pipe_config->pipe_src_w &&

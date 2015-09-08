@@ -546,8 +546,8 @@ static enum drm_mode_status ns2501_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void ns2501_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	const struct ns2501_configuration *conf;
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
