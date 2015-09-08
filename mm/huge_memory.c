@@ -2978,7 +2978,9 @@ again:
 	if (unlikely(!pmd_trans_huge(*pmd)))
 		goto unlock;
 	if (vma_is_dax(vma)) {
-		pmdp_huge_clear_flush(vma, haddr, pmd);
+		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+		if (is_huge_zero_pmd(_pmd))
+			put_huge_zero_page();
 	} else if (is_huge_zero_pmd(*pmd)) {
 		__split_huge_zero_page_pmd(vma, haddr, pmd);
 	} else {
