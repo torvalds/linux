@@ -2594,3 +2594,43 @@ int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len)
 {
 	return __btrfs_qgroup_release_data(inode, start, len, 0);
 }
+
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes)
+{
+	int ret;
+
+	if (!root->fs_info->quota_enabled || !is_fstree(root->objectid) ||
+	    num_bytes == 0)
+		return 0;
+
+	BUG_ON(num_bytes != round_down(num_bytes, root->nodesize));
+	ret = btrfs_qgroup_reserve(root, num_bytes);
+	if (ret < 0)
+		return ret;
+	atomic_add(num_bytes, &root->qgroup_meta_rsv);
+	return ret;
+}
+
+void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
+{
+	int reserved;
+
+	if (!root->fs_info->quota_enabled || !is_fstree(root->objectid))
+		return;
+
+	reserved = atomic_xchg(&root->qgroup_meta_rsv, 0);
+	if (reserved == 0)
+		return;
+	btrfs_qgroup_free(root, reserved);
+}
+
+void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
+{
+	if (!root->fs_info->quota_enabled || !is_fstree(root->objectid))
+		return;
+
+	BUG_ON(num_bytes != round_down(num_bytes, root->nodesize));
+	WARN_ON(atomic_read(&root->qgroup_meta_rsv) < num_bytes);
+	atomic_sub(num_bytes, &root->qgroup_meta_rsv);
+	btrfs_qgroup_free(root, num_bytes);
+}
