@@ -358,8 +358,7 @@ static void moom_callback(struct work_struct *ignored)
 		.zonelist = node_zonelist(first_memory_node, gfp_mask),
 		.nodemask = NULL,
 		.gfp_mask = gfp_mask,
-		.order = 0,
-		.force_kill = true,
+		.order = -1,
 	};
 
 	mutex_lock(&oom_lock);

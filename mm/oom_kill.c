@@ -265,7 +265,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
 	 * Don't allow any other task to have access to the reserves.
 	 */
 	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-		if (!oc->force_kill)
+		if (oc->order != -1)
 			return OOM_SCAN_ABORT;
 	}
 	if (!task->mm)
@@ -278,7 +278,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
 	if (oom_task_origin(task))
 		return OOM_SCAN_SELECT;
 
-	if (task_will_free_mem(task) && !oc->force_kill)
+	if (task_will_free_mem(task) && oc->order != -1)
 		return OOM_SCAN_ABORT;
 
 	return OOM_SCAN_OK;
@@ -718,7 +718,6 @@ void pagefault_out_of_memory(void)
 		.nodemask = NULL,
 		.gfp_mask = 0,
 		.order = 0,
-		.force_kill = false,
 	};
 
 	if (mem_cgroup_oom_synchronize(true))

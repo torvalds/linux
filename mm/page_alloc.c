@@ -2698,7 +2698,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 		.nodemask = ac->nodemask,
 		.gfp_mask = gfp_mask,
 		.order = order,
-		.force_kill = false,
 	};
 	struct page *page;
 

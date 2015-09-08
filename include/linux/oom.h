@@ -17,7 +17,6 @@ struct oom_control {
 	nodemask_t	*nodemask;
 	gfp_t		gfp_mask;
 	int		order;
-	bool		force_kill;
 };
 
 /*
