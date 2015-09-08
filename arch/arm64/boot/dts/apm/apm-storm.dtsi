@@ -207,6 +207,17 @@
 				clock-output-names = "xge0clk";
 			};
 
+			xge1clk: xge1clk@1f62c000 {
+				compatible = "apm,xgene-device-clock";
+				status = "disabled";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f62c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				csr-mask = <0x3>;
+				clock-output-names = "xge1clk";
+			};
+
 			sataphy1clk: sataphy1clk@1f21c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
@@ -811,6 +822,23 @@
 				     <0x0 0x61 0x4>;
 			dma-coherent;
 			clocks = <&xge0clk 0>;
+			/* mac address will be overwritten by the bootloader */
+			local-mac-address = [00 00 00 00 00 00];
+			phy-connection-type = "xgmii";
+		};
+
+		xgenet1: ethernet@1f620000 {
+			compatible = "apm,xgene1-xgenet";
+			status = "disabled";
+			reg = <0x0 0x1f620000 0x0 0xd100>,
+			      <0x0 0x1f600000 0x0 0Xc300>,
+			      <0x0 0x18000000 0x0 0X8000>;
+			reg-names = "enet_csr", "ring_csr", "ring_cmd";
+			interrupts = <0x0 0x6C 0x4>,
+				     <0x0 0x6D 0x4>;
+			port-id = <1>;
+			dma-coherent;
+			clocks = <&xge1clk 0>;
 			/* mac address will be overwritten by the bootloader */
 			local-mac-address = [00 00 00 00 00 00];
 			phy-connection-type = "xgmii";
