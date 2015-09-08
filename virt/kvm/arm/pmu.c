@@ -149,6 +149,37 @@ void kvm_pmu_disable_counter(struct kvm_vcpu *vcpu, u64 val)
 	}
 }
 
+static u64 kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
+{
+	u64 reg = 0;
+
+	if ((vcpu_sys_reg(vcpu, PMCR_EL0) & ARMV8_PMU_PMCR_E))
+		reg = vcpu_sys_reg(vcpu, PMOVSSET_EL0);
+		reg &= vcpu_sys_reg(vcpu, PMCNTENSET_EL0);
+		reg &= vcpu_sys_reg(vcpu, PMINTENSET_EL1);
+		reg &= kvm_pmu_valid_counter_mask(vcpu);
+
+	return reg;
+}
+
+/**
+ * kvm_pmu_overflow_set - set PMU overflow interrupt
+ * @vcpu: The vcpu pointer
+ * @val: the value guest writes to PMOVSSET register
+ */
+void kvm_pmu_overflow_set(struct kvm_vcpu *vcpu, u64 val)
+{
+	u64 reg;
+
+	if (val == 0)
+		return;
+
+	vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= val;
+	reg = kvm_pmu_overflow_status(vcpu);
+	if (reg != 0)
+		kvm_vcpu_kick(vcpu);
+}
+
 static bool kvm_pmu_counter_is_enabled(struct kvm_vcpu *vcpu, u64 select_idx)
 {
 	return (vcpu_sys_reg(vcpu, PMCR_EL0) & ARMV8_PMU_PMCR_E) &&
