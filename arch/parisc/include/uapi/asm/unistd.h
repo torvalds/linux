@@ -359,8 +359,9 @@
 #define __NR_bpf		(__NR_Linux + 341)
 #define __NR_execveat		(__NR_Linux + 342)
 #define __NR_membarrier		(__NR_Linux + 343)
+#define __NR_userfaultfd	(__NR_Linux + 344)
 
-#define __NR_Linux_syscalls	(__NR_membarrier + 1)
+#define __NR_Linux_syscalls	(__NR_userfaultfd + 1)
 
 
 #define __IGNORE_select		/* newselect */
