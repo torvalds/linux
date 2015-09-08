@@ -1116,15 +1116,18 @@ out:
 	return ret;
 }
 
-static int contains_pending_extent(struct btrfs_trans_handle *trans,
+static int contains_pending_extent(struct btrfs_transaction *transaction,
 				   struct btrfs_device *device,
 				   u64 *start, u64 len)
 {
+	struct btrfs_fs_info *fs_info = device->dev_root->fs_info;
 	struct extent_map *em;
-	struct list_head *search_list = &trans->transaction->pending_chunks;
+	struct list_head *search_list = &fs_info->pinned_chunks;
 	int ret = 0;
 	u64 physical_start = *start;
 
+	if (transaction)
+		search_list = &transaction->pending_chunks;
 again:
 	list_for_each_entry(em, search_list, list) {
 		struct map_lookup *map;
@@ -1159,8 +1162,8 @@ again:
 			}
 		}
 	}
-	if (search_list == &trans->transaction->pending_chunks) {
-		search_list = &trans->root->fs_info->pinned_chunks;
+	if (search_list != &fs_info->pinned_chunks) {
+		search_list = &fs_info->pinned_chunks;
 		goto again;
 	}
 
@@ -1169,12 +1172,13 @@ again:
 
 
 /*
- * find_free_dev_extent - find free space in the specified device
- * @device:	the device which we search the free space in
- * @num_bytes:	the size of the free space that we need
- * @start:	store the start of the free space.
- * @len:	the size of the free space. that we find, or the size of the max
- * 		free space if we don't find suitable free space
+ * find_free_dev_extent_start - find free space in the specified device
+ * @device:	  the device which we search the free space in
+ * @num_bytes:	  the size of the free space that we need
+ * @search_start: the position from which to begin the search
+ * @start:	  store the start of the free space.
+ * @len:	  the size of the free space. that we find, or the size
+ *		  of the max free space if we don't find suitable free space
  *
  * this uses a pretty simple search, the expectation is that it is
  * called very infrequently and that a given device has a small number
@@ -1188,9 +1192,9 @@ again:
  * But if we don't find suitable free space, it is used to store the size of
  * the max free space.
  */
-int find_free_dev_extent(struct btrfs_trans_handle *trans,
-			 struct btrfs_device *device, u64 num_bytes,
-			 u64 *start, u64 *len)
+int find_free_dev_extent_start(struct btrfs_transaction *transaction,
+			       struct btrfs_device *device, u64 num_bytes,
+			       u64 search_start, u64 *start, u64 *len)
 {
 	struct btrfs_key key;
 	struct btrfs_root *root = device->dev_root;
@@ -1200,18 +1204,10 @@ int find_free_dev_extent(struct btrfs_trans_handle *trans,
 	u64 max_hole_start;
 	u64 max_hole_size;
 	u64 extent_end;
-	u64 search_start;
 	u64 search_end = device->total_bytes;
 	int ret;
 	int slot;
 	struct extent_buffer *l;
-
-	/* FIXME use last free of some kind */
-
-	/* we don't want to overwrite the superblock on the drive,
-	 * so we make sure to start at an offset of at least 1MB
-	 */
-	search_start = max(root->fs_info->alloc_start, 1024ull * 1024);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1273,7 +1269,7 @@ again:
 			 * Have to check before we set max_hole_start, otherwise
 			 * we could end up sending back this offset anyway.
 			 */
-			if (contains_pending_extent(trans, device,
+			if (contains_pending_extent(transaction, device,
 						    &search_start,
 						    hole_size)) {
 				if (key.offset >= search_start) {
@@ -1322,7 +1318,7 @@ next:
 	if (search_end > search_start) {
 		hole_size = search_end - search_start;
 
-		if (contains_pending_extent(trans, device, &search_start,
+		if (contains_pending_extent(transaction, device, &search_start,
 					    hole_size)) {
 			btrfs_release_path(path);
 			goto again;
@@ -1346,6 +1342,24 @@ out:
 	if (len)
 		*len = max_hole_size;
 	return ret;
+}
+
+int find_free_dev_extent(struct btrfs_trans_handle *trans,
+			 struct btrfs_device *device, u64 num_bytes,
+			 u64 *start, u64 *len)
+{
+	struct btrfs_root *root = device->dev_root;
+	u64 search_start;
+
+	/* FIXME use last free of some kind */
+
+	/*
+	 * we don't want to overwrite the superblock on the drive,
+	 * so we make sure to start at an offset of at least 1MB
+	 */
+	search_start = max(root->fs_info->alloc_start, 1024ull * 1024);
+	return find_free_dev_extent_start(trans->transaction, device,
+					  num_bytes, search_start, start, len);
 }
 
 static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
@@ -2755,9 +2769,7 @@ out:
 	return ret;
 }
 
-static int btrfs_relocate_chunk(struct btrfs_root *root,
-				u64 chunk_objectid,
-				u64 chunk_offset)
+static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 {
 	struct btrfs_root *extent_root;
 	struct btrfs_trans_handle *trans;
@@ -2785,7 +2797,9 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 		return -ENOSPC;
 
 	/* step one, relocate all the extents inside this chunk */
+	btrfs_scrub_pause(root);
 	ret = btrfs_relocate_block_group(extent_root, chunk_offset);
+	btrfs_scrub_continue(root);
 	if (ret)
 		return ret;
 
@@ -2855,7 +2869,6 @@ again:
 
 		if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM) {
 			ret = btrfs_relocate_chunk(chunk_root,
-						   found_key.objectid,
 						   found_key.offset);
 			if (ret == -ENOSPC)
 				failed++;
@@ -3375,7 +3388,6 @@ again:
 		}
 
 		ret = btrfs_relocate_chunk(chunk_root,
-					   found_key.objectid,
 					   found_key.offset);
 		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 		if (ret && ret != -ENOSPC)
@@ -4077,7 +4089,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	struct btrfs_dev_extent *dev_extent = NULL;
 	struct btrfs_path *path;
 	u64 length;
-	u64 chunk_objectid;
 	u64 chunk_offset;
 	int ret;
 	int slot;
@@ -4154,11 +4165,10 @@ again:
 			break;
 		}
 
-		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
 		chunk_offset = btrfs_dev_extent_chunk_offset(l, dev_extent);
 		btrfs_release_path(path);
 
-		ret = btrfs_relocate_chunk(root, chunk_objectid, chunk_offset);
+		ret = btrfs_relocate_chunk(root, chunk_offset);
 		mutex_unlock(&root->fs_info->delete_unused_bgs_mutex);
 		if (ret && ret != -ENOSPC)
 			goto done;
@@ -4200,7 +4210,8 @@ again:
 		u64 start = new_size;
 		u64 len = old_size - new_size;
 
-		if (contains_pending_extent(trans, device, &start, len)) {
+		if (contains_pending_extent(trans->transaction, device,
+					    &start, len)) {
 			unlock_chunks(root);
 			checked_pending_chunks = true;
 			failed = 0;
@@ -5071,9 +5082,7 @@ static struct btrfs_bio *alloc_btrfs_bio(int total_stripes, int real_stripes)
 		 * and the stripes
 		 */
 		sizeof(u64) * (total_stripes),
-		GFP_NOFS);
-	if (!bbio)
-		return NULL;
+		GFP_NOFS|__GFP_NOFAIL);
 
 	atomic_set(&bbio->error, 0);
 	atomic_set(&bbio->refs, 1);

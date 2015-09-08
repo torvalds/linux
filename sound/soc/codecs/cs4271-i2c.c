@@ -48,7 +48,6 @@ MODULE_DEVICE_TABLE(i2c, cs4271_i2c_id);
 static struct i2c_driver cs4271_i2c_driver = {
 	.driver = {
 		.name = "cs4271",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.probe = cs4271_i2c_probe,

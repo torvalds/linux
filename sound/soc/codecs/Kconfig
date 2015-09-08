@@ -53,6 +53,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_I2C if I2C
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
+	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
@@ -62,6 +63,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_BT_SCO
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_GTM601
+	select SND_SOC_ICS43432
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
@@ -83,6 +86,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RT286 if I2C
+	select SND_SOC_RT298 if I2C
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
 	select SND_SOC_RT5645 if I2C
@@ -102,6 +106,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_STA350 if I2C
 	select SND_SOC_STA529 if I2C
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
+	select SND_SOC_STI_SAS
 	select SND_SOC_TAS2552 if I2C
 	select SND_SOC_TAS5086 if I2C
 	select SND_SOC_TAS571X if I2C
@@ -403,6 +408,11 @@ config SND_SOC_CS42XX8_I2C
 	select SND_SOC_CS42XX8
 	select REGMAP_I2C
 
+# Cirrus Logic CS4349 HiFi DAC
+config SND_SOC_CS4349
+	tristate "Cirrus Logic CS4349 CODEC"
+	depends on I2C
+
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
@@ -445,6 +455,12 @@ config SND_SOC_ES8328_I2C
 config SND_SOC_ES8328_SPI
 	tristate
 	select SND_SOC_ES8328
+
+config SND_SOC_GTM601
+	tristate 'GTM601 UMTS modem audio codec'
+
+config SND_SOC_ICS43432
+	tristate
 
 config SND_SOC_ISABELLE
         tristate
@@ -512,9 +528,15 @@ config SND_SOC_RL6231
 config SND_SOC_RL6347A
 	tristate
 	default y if SND_SOC_RT286=y
+	default y if SND_SOC_RT298=y
 	default m if SND_SOC_RT286=m
+	default m if SND_SOC_RT298=m
 
 config SND_SOC_RT286
+	tristate
+	depends on I2C
+
+config SND_SOC_RT298
 	tristate
 	depends on I2C
 
@@ -609,6 +631,9 @@ config SND_SOC_STA529
 
 config SND_SOC_STAC9766
 	tristate
+
+config SND_SOC_STI_SAS
+	tristate "codec Audio support for STI SAS codec"
 
 config SND_SOC_TAS2552
 	tristate "Texas Instruments TAS2552 Mono Audio amplifier"

@@ -36,24 +36,9 @@ MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1
 #define param_read(codec, nid, parm) \
 	snd_hdac_read_parm_uncached(&(codec)->core, nid, parm)
 
-static char *bits_names(unsigned int bits, char *names[], int size)
-{
-	int i, n;
-	static char buf[128];
-
-	for (i = 0, n = 0; i < size; i++) {
-		if (bits & (1U<<i) && names[i])
-			n += snprintf(buf + n, sizeof(buf) - n, " %s",
-				      names[i]);
-	}
-	buf[n] = '\0';
-
-	return buf;
-}
-
 static const char *get_wid_type_name(unsigned int wid_value)
 {
-	static char *names[16] = {
+	static const char * const names[16] = {
 		[AC_WID_AUD_OUT] = "Audio Output",
 		[AC_WID_AUD_IN] = "Audio Input",
 		[AC_WID_AUD_MIX] = "Audio Mixer",
@@ -241,7 +226,7 @@ static void print_pcm_caps(struct snd_info_buffer *buffer,
 
 static const char *get_jack_connection(u32 cfg)
 {
-	static char *names[16] = {
+	static const char * const names[16] = {
 		"Unknown", "1/8", "1/4", "ATAPI",
 		"RCA", "Optical","Digital", "Analog",
 		"DIN", "XLR", "RJ11", "Comb",
@@ -256,7 +241,7 @@ static const char *get_jack_connection(u32 cfg)
 
 static const char *get_jack_color(u32 cfg)
 {
-	static char *names[16] = {
+	static const char * const names[16] = {
 		"Unknown", "Black", "Grey", "Blue",
 		"Green", "Red", "Orange", "Yellow",
 		"Purple", "Pink", NULL, NULL,
@@ -269,11 +254,74 @@ static const char *get_jack_color(u32 cfg)
 		return "UNKNOWN";
 }
 
+/*
+ * Parse the pin default config value and returns the string of the
+ * jack location, e.g. "Rear", "Front", etc.
+ */
+static const char *get_jack_location(u32 cfg)
+{
+	static const char * const bases[7] = {
+		"N/A", "Rear", "Front", "Left", "Right", "Top", "Bottom",
+	};
+	static const unsigned char specials_idx[] = {
+		0x07, 0x08,
+		0x17, 0x18, 0x19,
+		0x37, 0x38
+	};
+	static const char * const specials[] = {
+		"Rear Panel", "Drive Bar",
+		"Riser", "HDMI", "ATAPI",
+		"Mobile-In", "Mobile-Out"
+	};
+	int i;
+
+	cfg = (cfg & AC_DEFCFG_LOCATION) >> AC_DEFCFG_LOCATION_SHIFT;
+	if ((cfg & 0x0f) < 7)
+		return bases[cfg & 0x0f];
+	for (i = 0; i < ARRAY_SIZE(specials_idx); i++) {
+		if (cfg == specials_idx[i])
+			return specials[i];
+	}
+	return "UNKNOWN";
+}
+
+/*
+ * Parse the pin default config value and returns the string of the
+ * jack connectivity, i.e. external or internal connection.
+ */
+static const char *get_jack_connectivity(u32 cfg)
+{
+	static const char * const jack_locations[4] = {
+		"Ext", "Int", "Sep", "Oth"
+	};
+
+	return jack_locations[(cfg >> (AC_DEFCFG_LOCATION_SHIFT + 4)) & 3];
+}
+
+/*
+ * Parse the pin default config value and returns the string of the
+ * jack type, i.e. the purpose of the jack, such as Line-Out or CD.
+ */
+static const char *get_jack_type(u32 cfg)
+{
+	static const char * const jack_types[16] = {
+		"Line Out", "Speaker", "HP Out", "CD",
+		"SPDIF Out", "Digital Out", "Modem Line", "Modem Hand",
+		"Line In", "Aux", "Mic", "Telephony",
+		"SPDIF In", "Digital In", "Reserved", "Other"
+	};
+
+	return jack_types[(cfg & AC_DEFCFG_DEVICE)
+				>> AC_DEFCFG_DEVICE_SHIFT];
+}
+
 static void print_pin_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid,
 			   int *supports_vref)
 {
-	static char *jack_conns[4] = { "Jack", "N/A", "Fixed", "Both" };
+	static const char * const jack_conns[4] = {
+		"Jack", "N/A", "Fixed", "Both"
+	};
 	unsigned int caps, val;
 
 	caps = param_read(codec, nid, AC_PAR_PIN_CAP);
@@ -340,9 +388,9 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 	caps = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
 	snd_iprintf(buffer, "  Pin Default 0x%08x: [%s] %s at %s %s\n", caps,
 		    jack_conns[(caps & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT],
-		    snd_hda_get_jack_type(caps),
-		    snd_hda_get_jack_connectivity(caps),
-		    snd_hda_get_jack_location(caps));
+		    get_jack_type(caps),
+		    get_jack_connectivity(caps),
+		    get_jack_location(caps));
 	snd_iprintf(buffer, "    Conn = %s, Color = %s\n",
 		    get_jack_connection(caps),
 		    get_jack_color(caps));
@@ -478,7 +526,7 @@ static const char *get_pwr_state(u32 state)
 static void print_power_state(struct snd_info_buffer *buffer,
 			      struct hda_codec *codec, hda_nid_t nid)
 {
-	static char *names[] = {
+	static const char * const names[] = {
 		[ilog2(AC_PWRST_D0SUP)]		= "D0",
 		[ilog2(AC_PWRST_D1SUP)]		= "D1",
 		[ilog2(AC_PWRST_D2SUP)]		= "D2",
@@ -492,9 +540,16 @@ static void print_power_state(struct snd_info_buffer *buffer,
 	int sup = param_read(codec, nid, AC_PAR_POWER_STATE);
 	int pwr = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_POWER_STATE, 0);
-	if (sup != -1)
-		snd_iprintf(buffer, "  Power states: %s\n",
-			    bits_names(sup, names, ARRAY_SIZE(names)));
+	if (sup != -1) {
+		int i;
+
+		snd_iprintf(buffer, "  Power states: ");
+		for (i = 0; i < ARRAY_SIZE(names); i++) {
+			if (sup & (1U << i))
+				snd_iprintf(buffer, " %s", names[i]);
+		}
+		snd_iprintf(buffer, "\n");
+	}
 
 	snd_iprintf(buffer, "  Power: setting=%s, actual=%s",
 		    get_pwr_state(pwr & AC_PWRST_SETTING),

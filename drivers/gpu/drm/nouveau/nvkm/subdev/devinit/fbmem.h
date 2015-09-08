@@ -23,7 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <core/device.h>
 #include <subdev/fb/regsnv04.h>
 
 #define NV04_PFB_DEBUG_0					0x00100080
@@ -48,8 +47,8 @@
 static inline struct io_mapping *
 fbmem_init(struct nvkm_device *dev)
 {
-	return io_mapping_create_wc(nv_device_resource_start(dev, 1),
-				    nv_device_resource_len(dev, 1));
+	return io_mapping_create_wc(dev->func->resource_addr(dev, 1),
+				    dev->func->resource_size(dev, 1));
 }
 
 static inline void

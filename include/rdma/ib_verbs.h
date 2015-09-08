@@ -2760,52 +2760,6 @@ static inline void ib_dma_free_coherent(struct ib_device *dev,
 }
 
 /**
- * ib_reg_phys_mr - Prepares a virtually addressed memory region for use
- *   by an HCA.
- * @pd: The protection domain associated assigned to the registered region.
- * @phys_buf_array: Specifies a list of physical buffers to use in the
- *   memory region.
- * @num_phys_buf: Specifies the size of the phys_buf_array.
- * @mr_access_flags: Specifies the memory access rights.
- * @iova_start: The offset of the region's starting I/O virtual address.
- */
-struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
-			     struct ib_phys_buf *phys_buf_array,
-			     int num_phys_buf,
-			     int mr_access_flags,
-			     u64 *iova_start);
-
-/**
- * ib_rereg_phys_mr - Modifies the attributes of an existing memory region.
- *   Conceptually, this call performs the functions deregister memory region
- *   followed by register physical memory region.  Where possible,
- *   resources are reused instead of deallocated and reallocated.
- * @mr: The memory region to modify.
- * @mr_rereg_mask: A bit-mask used to indicate which of the following
- *   properties of the memory region are being modified.
- * @pd: If %IB_MR_REREG_PD is set in mr_rereg_mask, this field specifies
- *   the new protection domain to associated with the memory region,
- *   otherwise, this parameter is ignored.
- * @phys_buf_array: If %IB_MR_REREG_TRANS is set in mr_rereg_mask, this
- *   field specifies a list of physical buffers to use in the new
- *   translation, otherwise, this parameter is ignored.
- * @num_phys_buf: If %IB_MR_REREG_TRANS is set in mr_rereg_mask, this
- *   field specifies the size of the phys_buf_array, otherwise, this
- *   parameter is ignored.
- * @mr_access_flags: If %IB_MR_REREG_ACCESS is set in mr_rereg_mask, this
- *   field specifies the new memory access rights, otherwise, this
- *   parameter is ignored.
- * @iova_start: The offset of the region's starting I/O virtual address.
- */
-int ib_rereg_phys_mr(struct ib_mr *mr,
-		     int mr_rereg_mask,
-		     struct ib_pd *pd,
-		     struct ib_phys_buf *phys_buf_array,
-		     int num_phys_buf,
-		     int mr_access_flags,
-		     u64 *iova_start);
-
-/**
  * ib_query_mr - Retrieves information about a specific memory region.
  * @mr: The memory region to retrieve information about.
  * @mr_attr: The attributes of the specified memory region.

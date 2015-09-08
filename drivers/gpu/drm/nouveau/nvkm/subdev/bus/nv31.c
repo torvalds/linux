@@ -22,70 +22,67 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
+
+#include <subdev/gpio.h>
+#include <subdev/therm.h>
 
 static void
-nv31_bus_intr(struct nvkm_subdev *subdev)
+nv31_bus_intr(struct nvkm_bus *bus)
 {
-	struct nvkm_bus *pbus = nvkm_bus(subdev);
-	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
-	u32 gpio = nv_rd32(pbus, 0x001104) & nv_rd32(pbus, 0x001144);
+	struct nvkm_subdev *subdev = &bus->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
+	u32 gpio = nvkm_rd32(device, 0x001104) & nvkm_rd32(device, 0x001144);
 
 	if (gpio) {
-		subdev = nvkm_subdev(pbus, NVDEV_SUBDEV_GPIO);
-		if (subdev && subdev->intr)
-			subdev->intr(subdev);
+		struct nvkm_gpio *gpio = device->gpio;
+		if (gpio)
+			nvkm_subdev_intr(&gpio->subdev);
 	}
 
 	if (stat & 0x00000008) {  /* NV41- */
-		u32 addr = nv_rd32(pbus, 0x009084);
-		u32 data = nv_rd32(pbus, 0x009088);
+		u32 addr = nvkm_rd32(device, 0x009084);
+		u32 data = nvkm_rd32(device, 0x009088);
 
-		nv_error(pbus, "MMIO %s of 0x%08x FAULT at 0x%06x\n",
-			 (addr & 0x00000002) ? "write" : "read", data,
-			 (addr & 0x00fffffc));
+		nvkm_error(subdev, "MMIO %s of %08x FAULT at %06x\n",
+			   (addr & 0x00000002) ? "write" : "read", data,
+			   (addr & 0x00fffffc));
 
 		stat &= ~0x00000008;
-		nv_wr32(pbus, 0x001100, 0x00000008);
+		nvkm_wr32(device, 0x001100, 0x00000008);
 	}
 
 	if (stat & 0x00070000) {
-		subdev = nvkm_subdev(pbus, NVDEV_SUBDEV_THERM);
-		if (subdev && subdev->intr)
-			subdev->intr(subdev);
+		struct nvkm_therm *therm = device->therm;
+		if (therm)
+			nvkm_subdev_intr(&therm->subdev);
 		stat &= ~0x00070000;
-		nv_wr32(pbus, 0x001100, 0x00070000);
+		nvkm_wr32(device, 0x001100, 0x00070000);
 	}
 
 	if (stat) {
-		nv_error(pbus, "unknown intr 0x%08x\n", stat);
-		nv_mask(pbus, 0x001140, stat, 0x00000000);
+		nvkm_error(subdev, "intr %08x\n", stat);
+		nvkm_mask(device, 0x001140, stat, 0x00000000);
 	}
 }
 
-static int
-nv31_bus_init(struct nvkm_object *object)
+static void
+nv31_bus_init(struct nvkm_bus *bus)
 {
-	struct nv04_bus_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_bus_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x001100, 0xffffffff);
-	nv_wr32(priv, 0x001140, 0x00070008);
-	return 0;
+	struct nvkm_device *device = bus->subdev.device;
+	nvkm_wr32(device, 0x001100, 0xffffffff);
+	nvkm_wr32(device, 0x001140, 0x00070008);
 }
 
-struct nvkm_oclass *
-nv31_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0x31),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = nv31_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
+static const struct nvkm_bus_func
+nv31_bus = {
+	.init = nv31_bus_init,
 	.intr = nv31_bus_intr,
-}.base;
+};
+
+int
+nv31_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+{
+	return nvkm_bus_new_(&nv31_bus, device, index, pbus);
+}

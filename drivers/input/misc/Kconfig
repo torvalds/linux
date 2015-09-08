@@ -247,7 +247,7 @@ config INPUT_APANEL
 config INPUT_GP2A
 	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
 	depends on I2C
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have a Sharp GP2AP002A00F proximity/als combo-chip
 	  hooked to an I2C bus.
@@ -257,7 +257,7 @@ config INPUT_GP2A
 
 config INPUT_GPIO_BEEPER
 	tristate "Generic GPIO Beeper support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have a beeper connected to a GPIO pin.
 
@@ -266,7 +266,7 @@ config INPUT_GPIO_BEEPER
 
 config INPUT_GPIO_TILT_POLLED
 	tristate "Polled GPIO tilt switch"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select INPUT_POLLDEV
 	help
 	  This driver implements support for tilt switches connected
@@ -557,7 +557,7 @@ config INPUT_PWM_BEEPER
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to add support for rotary encoders connected to GPIO lines.
 	  Check file:Documentation/input/rotary-encoder.txt for more
@@ -764,7 +764,8 @@ config INPUT_SOC_BUTTON_ARRAY
 
 config INPUT_DRV260X_HAPTICS
 	tristate "TI DRV260X haptics support"
-	depends on INPUT && I2C && GPIOLIB
+	depends on INPUT && I2C
+	depends on GPIOLIB || COMPILE_TEST
 	select INPUT_FF_MEMLESS
 	select REGMAP_I2C
 	help

@@ -1,32 +1,31 @@
 #ifndef __NVKM_DEVINIT_H__
 #define __NVKM_DEVINIT_H__
 #include <core/subdev.h>
+struct nvkm_devinit;
 
 struct nvkm_devinit {
-	struct nvkm_subdev base;
+	const struct nvkm_devinit_func *func;
+	struct nvkm_subdev subdev;
 	bool post;
-	void (*meminit)(struct nvkm_devinit *);
-	int  (*pll_set)(struct nvkm_devinit *, u32 type, u32 freq);
-	u32  (*mmio)(struct nvkm_devinit *, u32 addr);
 };
 
-static inline struct nvkm_devinit *
-nvkm_devinit(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_DEVINIT);
-}
+u32 nvkm_devinit_mmio(struct nvkm_devinit *, u32 addr);
+int nvkm_devinit_pll_set(struct nvkm_devinit *, u32 type, u32 khz);
+void nvkm_devinit_meminit(struct nvkm_devinit *);
+u64 nvkm_devinit_disable(struct nvkm_devinit *);
+int nvkm_devinit_post(struct nvkm_devinit *, u64 *disable);
 
-extern struct nvkm_oclass *nv04_devinit_oclass;
-extern struct nvkm_oclass *nv05_devinit_oclass;
-extern struct nvkm_oclass *nv10_devinit_oclass;
-extern struct nvkm_oclass *nv1a_devinit_oclass;
-extern struct nvkm_oclass *nv20_devinit_oclass;
-extern struct nvkm_oclass *nv50_devinit_oclass;
-extern struct nvkm_oclass *g84_devinit_oclass;
-extern struct nvkm_oclass *g98_devinit_oclass;
-extern struct nvkm_oclass *gt215_devinit_oclass;
-extern struct nvkm_oclass *mcp89_devinit_oclass;
-extern struct nvkm_oclass *gf100_devinit_oclass;
-extern struct nvkm_oclass *gm107_devinit_oclass;
-extern struct nvkm_oclass *gm204_devinit_oclass;
+int nv04_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int nv05_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int nv10_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int nv1a_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int nv20_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int nv50_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int g84_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int g98_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int gt215_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int mcp89_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int gf100_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int gm107_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int gm204_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 #endif

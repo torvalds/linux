@@ -71,9 +71,10 @@ struct nvkm_domain {
 };
 
 struct nvkm_clk {
-	struct nvkm_subdev base;
+	const struct nvkm_clk_func *func;
+	struct nvkm_subdev subdev;
 
-	struct nvkm_domain *domains;
+	const struct nvkm_domain *domains;
 	struct nvkm_pstate bstate;
 
 	struct list_head states;
@@ -94,68 +95,27 @@ struct nvkm_clk {
 
 	bool allow_reclock;
 
-	int  (*read)(struct nvkm_clk *, enum nv_clk_src);
-	int  (*calc)(struct nvkm_clk *, struct nvkm_cstate *);
-	int  (*prog)(struct nvkm_clk *);
-	void (*tidy)(struct nvkm_clk *);
-
 	/*XXX: die, these are here *only* to support the completely
-	 *     bat-shit insane what-was-nvkm_hw.c code
+	 *     bat-shit insane what-was-nouveau_hw.c code
 	 */
 	int (*pll_calc)(struct nvkm_clk *, struct nvbios_pll *, int clk,
 			struct nvkm_pll_vals *pv);
 	int (*pll_prog)(struct nvkm_clk *, u32 reg1, struct nvkm_pll_vals *pv);
 };
 
-static inline struct nvkm_clk *
-nvkm_clk(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_CLK);
-}
-
-#define nvkm_clk_create(p,e,o,i,r,s,n,d)                                  \
-	nvkm_clk_create_((p), (e), (o), (i), (r), (s), (n), sizeof(**d),  \
-			      (void **)d)
-#define nvkm_clk_destroy(p) ({                                            \
-	struct nvkm_clk *clk = (p);                                       \
-	_nvkm_clk_dtor(nv_object(clk));                                   \
-})
-#define nvkm_clk_init(p) ({                                               \
-	struct nvkm_clk *clk = (p);                                       \
-	_nvkm_clk_init(nv_object(clk));                                   \
-})
-#define nvkm_clk_fini(p,s) ({                                             \
-	struct nvkm_clk *clk = (p);                                       \
-	_nvkm_clk_fini(nv_object(clk), (s));                              \
-})
-
-int  nvkm_clk_create_(struct nvkm_object *, struct nvkm_object *,
-			   struct nvkm_oclass *,
-			   struct nvkm_domain *, struct nvkm_pstate *,
-			   int, bool, int, void **);
-void _nvkm_clk_dtor(struct nvkm_object *);
-int  _nvkm_clk_init(struct nvkm_object *);
-int  _nvkm_clk_fini(struct nvkm_object *, bool);
-
-extern struct nvkm_oclass nv04_clk_oclass;
-extern struct nvkm_oclass nv40_clk_oclass;
-extern struct nvkm_oclass *nv50_clk_oclass;
-extern struct nvkm_oclass *g84_clk_oclass;
-extern struct nvkm_oclass *mcp77_clk_oclass;
-extern struct nvkm_oclass gt215_clk_oclass;
-extern struct nvkm_oclass gf100_clk_oclass;
-extern struct nvkm_oclass gk104_clk_oclass;
-extern struct nvkm_oclass gk20a_clk_oclass;
-
-int nv04_clk_pll_set(struct nvkm_clk *, u32 type, u32 freq);
-int nv04_clk_pll_calc(struct nvkm_clk *, struct nvbios_pll *, int clk,
-		      struct nvkm_pll_vals *);
-int nv04_clk_pll_prog(struct nvkm_clk *, u32 reg1, struct nvkm_pll_vals *);
-int gt215_clk_pll_calc(struct nvkm_clk *, struct nvbios_pll *,
-		       int clk, struct nvkm_pll_vals *);
-
+int nvkm_clk_read(struct nvkm_clk *, enum nv_clk_src);
 int nvkm_clk_ustate(struct nvkm_clk *, int req, int pwr);
 int nvkm_clk_astate(struct nvkm_clk *, int req, int rel, bool wait);
 int nvkm_clk_dstate(struct nvkm_clk *, int req, int rel);
 int nvkm_clk_tstate(struct nvkm_clk *, int req, int rel);
+
+int nv04_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int nv40_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int nv50_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int g84_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int mcp77_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int gt215_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int gf100_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int gk104_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int gk20a_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
 #endif

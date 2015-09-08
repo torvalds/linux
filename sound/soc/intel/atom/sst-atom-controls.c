@@ -132,7 +132,7 @@ static int sst_send_slot_map(struct sst_data *drv)
 			      sizeof(cmd.header) + cmd.header.length);
 }
 
-int sst_slot_enum_info(struct snd_kcontrol *kcontrol,
+static int sst_slot_enum_info(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_info *uinfo)
 {
 	struct sst_enum *e = (struct sst_enum *)kcontrol->private_value;
@@ -1298,7 +1298,7 @@ int sst_send_pipe_gains(struct snd_soc_dai *dai, int stream, int mute)
 		dev_dbg(dai->dev, "Stream name=%s\n",
 				dai->playback_widget->name);
 		w = dai->playback_widget;
-		list_for_each_entry(p, &w->sinks, list_source) {
+		snd_soc_dapm_widget_for_each_sink_path(w, p) {
 			if (p->connected && !p->connected(w, p->sink))
 				continue;
 
@@ -1317,7 +1317,7 @@ int sst_send_pipe_gains(struct snd_soc_dai *dai, int stream, int mute)
 		dev_dbg(dai->dev, "Stream name=%s\n",
 				dai->capture_widget->name);
 		w = dai->capture_widget;
-		list_for_each_entry(p, &w->sources, list_sink) {
+		snd_soc_dapm_widget_for_each_source_path(w, p) {
 			if (p->connected && !p->connected(w, p->sink))
 				continue;
 

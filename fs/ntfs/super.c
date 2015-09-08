@@ -2204,17 +2204,12 @@ get_ctx_vol_failed:
 	return true;
 #ifdef NTFS_RW
 iput_usnjrnl_err_out:
-	if (vol->usnjrnl_j_ino)
-		iput(vol->usnjrnl_j_ino);
-	if (vol->usnjrnl_max_ino)
-		iput(vol->usnjrnl_max_ino);
-	if (vol->usnjrnl_ino)
-		iput(vol->usnjrnl_ino);
+	iput(vol->usnjrnl_j_ino);
+	iput(vol->usnjrnl_max_ino);
+	iput(vol->usnjrnl_ino);
 iput_quota_err_out:
-	if (vol->quota_q_ino)
-		iput(vol->quota_q_ino);
-	if (vol->quota_ino)
-		iput(vol->quota_ino);
+	iput(vol->quota_q_ino);
+	iput(vol->quota_ino);
 	iput(vol->extend_ino);
 #endif /* NTFS_RW */
 iput_sec_err_out:
@@ -2223,8 +2218,7 @@ iput_root_err_out:
 	iput(vol->root_ino);
 iput_logfile_err_out:
 #ifdef NTFS_RW
-	if (vol->logfile_ino)
-		iput(vol->logfile_ino);
+	iput(vol->logfile_ino);
 iput_vol_err_out:
 #endif /* NTFS_RW */
 	iput(vol->vol_ino);
@@ -2254,8 +2248,7 @@ iput_mftbmp_err_out:
 	iput(vol->mftbmp_ino);
 iput_mirr_err_out:
 #ifdef NTFS_RW
-	if (vol->mftmirr_ino)
-		iput(vol->mftmirr_ino);
+	iput(vol->mftmirr_ino);
 #endif /* NTFS_RW */
 	return false;
 }

@@ -1,5 +1,6 @@
 #ifndef __NVKM_BIOS_PRIV_H__
 #define __NVKM_BIOS_PRIV_H__
+#define nvkm_bios(p) container_of((p), struct nvkm_bios, subdev)
 #include <subdev/bios.h>
 
 struct nvbios_source {

@@ -379,16 +379,6 @@ static const struct v4l2_ctrl_ops bt819_ctrl_ops = {
 	.s_ctrl = bt819_s_ctrl,
 };
 
-static const struct v4l2_subdev_core_ops bt819_core_ops = {
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
-};
-
 static const struct v4l2_subdev_video_ops bt819_video_ops = {
 	.s_std = bt819_s_std,
 	.s_routing = bt819_s_routing,
@@ -398,7 +388,6 @@ static const struct v4l2_subdev_video_ops bt819_video_ops = {
 };
 
 static const struct v4l2_subdev_ops bt819_ops = {
-	.core = &bt819_core_ops,
 	.video = &bt819_video_ops,
 };
 
@@ -492,7 +481,6 @@ MODULE_DEVICE_TABLE(i2c, bt819_id);
 
 static struct i2c_driver bt819_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "bt819",
 	},
 	.probe		= bt819_probe,
