@@ -1608,7 +1608,7 @@ again:
 				btrfs_delalloc_release_metadata(inode,
 								release_bytes);
 			else
-				btrfs_delalloc_release_space(inode,
+				__btrfs_delalloc_release_space(inode, pos,
 							     release_bytes);
 		}
 
@@ -1661,7 +1661,8 @@ again:
 			btrfs_end_write_no_snapshoting(root);
 			btrfs_delalloc_release_metadata(inode, release_bytes);
 		} else {
-			btrfs_delalloc_release_space(inode, release_bytes);
+			__btrfs_delalloc_release_space(inode, pos,
+						       release_bytes);
 		}
 	}
 
