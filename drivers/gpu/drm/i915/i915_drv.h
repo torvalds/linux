@@ -1953,6 +1953,9 @@ struct drm_i915_private {
 
 	bool edp_low_vswing;
 
+	/* perform PHY state sanity checks? */
+	bool chv_phy_assert[2];
+
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
