@@ -1305,10 +1305,17 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 			pdata->ring_num = START_RING_NUM_0;
 			break;
 		case 1:
-			pdata->cpu_bufnum = START_CPU_BUFNUM_1;
-			pdata->eth_bufnum = START_ETH_BUFNUM_1;
-			pdata->bp_bufnum = START_BP_BUFNUM_1;
-			pdata->ring_num = START_RING_NUM_1;
+			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+				pdata->cpu_bufnum = XG_START_CPU_BUFNUM_1;
+				pdata->eth_bufnum = XG_START_ETH_BUFNUM_1;
+				pdata->bp_bufnum = XG_START_BP_BUFNUM_1;
+				pdata->ring_num = XG_START_RING_NUM_1;
+			} else {
+				pdata->cpu_bufnum = START_CPU_BUFNUM_1;
+				pdata->eth_bufnum = START_ETH_BUFNUM_1;
+				pdata->bp_bufnum = START_BP_BUFNUM_1;
+				pdata->ring_num = START_RING_NUM_1;
+			}
 			break;
 		default:
 			break;
@@ -1478,6 +1485,7 @@ static const struct acpi_device_id xgene_enet_acpi_match[] = {
 	{ "APMC0D05", XGENE_ENET1},
 	{ "APMC0D30", XGENE_ENET1},
 	{ "APMC0D31", XGENE_ENET1},
+	{ "APMC0D3F", XGENE_ENET1},
 	{ "APMC0D26", XGENE_ENET2},
 	{ "APMC0D25", XGENE_ENET2},
 	{ }
