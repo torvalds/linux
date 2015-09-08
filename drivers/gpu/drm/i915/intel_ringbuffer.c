@@ -983,6 +983,13 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
 	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
 
+	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt */
+	if (IS_SKYLAKE(dev) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_B0)) {
+		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+				  GEN8_SAMPLER_POWER_BYPASS_DIS);
+	}
+
 	return 0;
 }
 
