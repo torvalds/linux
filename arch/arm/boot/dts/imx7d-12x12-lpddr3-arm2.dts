@@ -839,8 +839,9 @@
 };
 
 &usdhc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1_1>;
+	pinctrl-1 = <&pinctrl_usdhc1_1>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 	no-1-8-v;
@@ -851,10 +852,11 @@
 };
 
 &usdhc2 {
-	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc2_1>;
 	pinctrl-1 = <&pinctrl_usdhc2_1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_1_200mhz>;
+	pinctrl-3 = <&pinctrl_usdhc2_1>;
 	cd-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio5 10 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
@@ -865,10 +867,11 @@
 };
 
 &usdhc3 {
-	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc3_1>;
 	pinctrl-1 = <&pinctrl_usdhc3_1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_1_200mhz>;
+	pinctrl-3 = <&pinctrl_usdhc3_1>;
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
