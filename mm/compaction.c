@@ -1115,6 +1115,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 					struct compact_control *cc)
 {
 	unsigned long low_pfn, end_pfn;
+	unsigned long isolate_start_pfn;
 	struct page *page;
 	const isolate_mode_t isolate_mode =
 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
@@ -1163,6 +1164,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 			continue;
 
 		/* Perform the isolation */
+		isolate_start_pfn = low_pfn;
 		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
 								isolate_mode);
 
@@ -1170,6 +1172,15 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 			acct_isolated(zone, cc);
 			return ISOLATE_ABORT;
 		}
+
+		/*
+		 * Record where we could have freed pages by migration and not
+		 * yet flushed them to buddy allocator.
+		 * - this is the lowest page that could have been isolated and
+		 * then freed by migration.
+		 */
+		if (cc->nr_migratepages && !cc->last_migrated_pfn)
+			cc->last_migrated_pfn = isolate_start_pfn;
 
 		/*
 		 * Either we isolated something and proceed with migration. Or
@@ -1342,7 +1353,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	unsigned long end_pfn = zone_end_pfn(zone);
 	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
 	const bool sync = cc->mode != MIGRATE_ASYNC;
-	unsigned long last_migrated_pfn = 0;
 
 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
 							cc->classzone_idx);
@@ -1380,6 +1390,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
 		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
 	}
+	cc->last_migrated_pfn = 0;
 
 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
 				cc->free_pfn, end_pfn, sync);
@@ -1389,7 +1400,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	while ((ret = compact_finished(zone, cc, migratetype)) ==
 						COMPACT_CONTINUE) {
 		int err;
-		unsigned long isolate_start_pfn = cc->migrate_pfn;
 
 		switch (isolate_migratepages(zone, cc)) {
 		case ISOLATE_ABORT:
@@ -1429,16 +1439,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 			}
 		}
 
-		/*
-		 * Record where we could have freed pages by migration and not
-		 * yet flushed them to buddy allocator. We use the pfn that
-		 * isolate_migratepages() started from in this loop iteration
-		 * - this is the lowest page that could have been isolated and
-		 * then freed by migration.
-		 */
-		if (!last_migrated_pfn)
-			last_migrated_pfn = isolate_start_pfn;
-
 check_drain:
 		/*
 		 * Has the migration scanner moved away from the previous
@@ -1447,18 +1447,18 @@ check_drain:
 		 * compact_finished() can detect immediately if allocation
 		 * would succeed.
 		 */
-		if (cc->order > 0 && last_migrated_pfn) {
+		if (cc->order > 0 && cc->last_migrated_pfn) {
 			int cpu;
 			unsigned long current_block_start =
 				cc->migrate_pfn & ~((1UL << cc->order) - 1);
 
-			if (last_migrated_pfn < current_block_start) {
+			if (cc->last_migrated_pfn < current_block_start) {
 				cpu = get_cpu();
 				lru_add_drain_cpu(cpu);
 				drain_local_pages(zone);
 				put_cpu();
 				/* No more flushing until we migrate again */
-				last_migrated_pfn = 0;
+				cc->last_migrated_pfn = 0;
 			}
 		}
 
