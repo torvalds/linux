@@ -284,10 +284,10 @@ static void i2c_au1550_setup(struct i2c_au1550_data *priv)
 	/* Set the protocol timer values.  See Table 71 in the
 	 * Au1550 Data Book for standard timing values.
 	 */
-	WR(priv, PSC_SMBTMR, PSC_SMBTMR_SET_TH(0) | PSC_SMBTMR_SET_PS(15) | \
-		PSC_SMBTMR_SET_PU(15) | PSC_SMBTMR_SET_SH(15) | \
-		PSC_SMBTMR_SET_SU(15) | PSC_SMBTMR_SET_CL(15) | \
-		PSC_SMBTMR_SET_CH(15));
+	WR(priv, PSC_SMBTMR, PSC_SMBTMR_SET_TH(0) | PSC_SMBTMR_SET_PS(20) | \
+		PSC_SMBTMR_SET_PU(20) | PSC_SMBTMR_SET_SH(20) | \
+		PSC_SMBTMR_SET_SU(20) | PSC_SMBTMR_SET_CL(20) | \
+		PSC_SMBTMR_SET_CH(20));
 
 	cfg |= PSC_SMBCFG_DE_ENABLE;
 	WR(priv, PSC_SMBCFG, cfg);
