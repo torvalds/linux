@@ -935,7 +935,7 @@
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 	vmmc-supply = <&reg_sd1_vmmc>;
-	status = "disabled";
+	status = "okay";
 };
 
 &usdhc2 {
@@ -950,7 +950,7 @@
 	enable-sdio-wakeup;
 	fsl,tuning-step = <2>;
 	vmmc-supply = <&reg_sd2_vmmc>;
-	status = "disabled";
+	status = "okay";
 };
 
 &usdhc3 {
@@ -965,7 +965,7 @@
 	fsl,tuning-step = <2>;
 	non-removable;
 	keep-power-in-suspend;
-	status = "disabled";
+	status = "okay";
 };
 
 &sim1 {
