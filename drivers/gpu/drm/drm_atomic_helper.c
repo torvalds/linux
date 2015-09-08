@@ -1037,7 +1037,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state);
+	drm_atomic_helper_commit_planes(dev, state, false);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -1146,10 +1146,16 @@ fail:
 }
 EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
 
+bool plane_crtc_active(struct drm_plane_state *state)
+{
+	return state->crtc && state->crtc->state->active;
+}
+
 /**
  * drm_atomic_helper_commit_planes - commit plane state
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
+ * @active_only: Only commit on active CRTC if set
  *
  * This function commits the new plane state using the plane and atomic helper
  * functions for planes and crtcs. It assumes that the atomic state has already
@@ -1164,7 +1170,8 @@ EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
  * drm_atomic_helper_commit_planes_on_crtc() instead.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
-				     struct drm_atomic_state *old_state)
+				     struct drm_atomic_state *old_state,
+				     bool active_only)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -1180,6 +1187,9 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_begin)
 			continue;
 
+		if (active_only && !crtc->state->active)
+			continue;
+
 		funcs->atomic_begin(crtc, old_crtc_state);
 	}
 
@@ -1189,6 +1199,9 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		funcs = plane->helper_private;
 
 		if (!funcs)
+			continue;
+
+		if (active_only && !plane_crtc_active(plane->state))
 			continue;
 
 		/*
@@ -1208,6 +1221,9 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		funcs = crtc->helper_private;
 
 		if (!funcs || !funcs->atomic_flush)
+			continue;
+
+		if (active_only && !crtc->state->active)
 			continue;
 
 		funcs->atomic_flush(crtc, old_crtc_state);
