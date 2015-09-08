@@ -76,17 +76,6 @@ else
 fi
 
 echo "--------------------"
-echo "running hugetlbfstest"
-echo "--------------------"
-./hugetlbfstest
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-
-echo "--------------------"
 echo "running userfaultfd"
 echo "--------------------"
 ./userfaultfd 128 32
