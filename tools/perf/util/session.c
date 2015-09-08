@@ -170,31 +170,13 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session_env__exit(struct perf_env *env)
-{
-	zfree(&env->hostname);
-	zfree(&env->os_release);
-	zfree(&env->version);
-	zfree(&env->arch);
-	zfree(&env->cpu_desc);
-	zfree(&env->cpuid);
-
-	zfree(&env->cmdline);
-	zfree(&env->cmdline_argv);
-	zfree(&env->sibling_cores);
-	zfree(&env->sibling_threads);
-	zfree(&env->numa_nodes);
-	zfree(&env->pmu_mappings);
-	zfree(&env->cpu);
-}
-
 void perf_session__delete(struct perf_session *session)
 {
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
-	perf_session_env__exit(&session->header.env);
+	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
 	if (session->file)
 		perf_data_file__close(session->file);
