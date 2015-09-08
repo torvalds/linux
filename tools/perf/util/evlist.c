@@ -1126,29 +1126,30 @@ static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 {
-	evlist->threads = thread_map__new_str(target->pid, target->tid,
-					      target->uid);
+	struct cpu_map *cpus;
+	struct thread_map *threads;
 
-	if (evlist->threads == NULL)
+	threads = thread_map__new_str(target->pid, target->tid, target->uid);
+
+	if (!threads)
 		return -1;
 
 	if (target__uses_dummy_map(target))
-		evlist->cpus = cpu_map__dummy_new();
+		cpus = cpu_map__dummy_new();
 	else
-		evlist->cpus = cpu_map__new(target->cpu_list);
+		cpus = cpu_map__new(target->cpu_list);
 
-	if (evlist->cpus == NULL)
+	if (!cpus)
 		goto out_delete_threads;
 
 	evlist->has_user_cpus = !!target->cpu_list;
 
-	perf_evlist__propagate_maps(evlist);
+	perf_evlist__set_maps(evlist, cpus, threads);
 
 	return 0;
 
 out_delete_threads:
-	thread_map__put(evlist->threads);
-	evlist->threads = NULL;
+	thread_map__put(threads);
 	return -1;
 }
 
