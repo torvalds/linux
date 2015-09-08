@@ -1928,6 +1928,8 @@ struct drm_i915_private {
 			struct skl_wm_values skl_hw;
 			struct vlv_wm_values vlv;
 		};
+
+		uint8_t max_level;
 	} wm;
 
 	struct i915_runtime_pm pm;
