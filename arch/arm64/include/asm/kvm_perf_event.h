@@ -45,6 +45,8 @@
 #define	ARMV8_PMU_EVTYPE_MASK	0xc80003ff	/* Mask for writable bits */
 #define	ARMV8_PMU_EVTYPE_EVENT	0x3ff		/* Mask for EVENT bits */
 
+#define ARMV8_PMU_EVTYPE_EVENT_SW_INCR	0	/* Software increment event */
+
 /*
  * Event filters for PMUv3
  */
