@@ -19,4 +19,8 @@ struct nvkm_volt_func {
 int nvkm_voltgpio_init(struct nvkm_volt *);
 int nvkm_voltgpio_get(struct nvkm_volt *);
 int nvkm_voltgpio_set(struct nvkm_volt *, u8);
+
+int nvkm_voltpwm_init(struct nvkm_volt *volt);
+int nvkm_voltpwm_get(struct nvkm_volt *volt);
+int nvkm_voltpwm_set(struct nvkm_volt *volt, u32 uv);
 #endif
