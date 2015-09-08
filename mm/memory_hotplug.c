@@ -778,7 +778,10 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 
 	start = phys_start_pfn << PAGE_SHIFT;
 	size = nr_pages * PAGE_SIZE;
-	ret = release_mem_region_adjustable(&iomem_resource, start, size);
+
+	/* in the ZONE_DEVICE case device driver owns the memory region */
+	if (!is_dev_zone(zone))
+		ret = release_mem_region_adjustable(&iomem_resource, start, size);
 	if (ret) {
 		resource_size_t endres = start + size - 1;
 
@@ -1215,8 +1218,13 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
 	return 0;
 }
 
-int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
+int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+		bool for_device)
 {
+#ifdef CONFIG_ZONE_DEVICE
+	if (for_device)
+		return ZONE_DEVICE;
+#endif
 	if (should_add_memory_movable(nid, start, size))
 		return ZONE_MOVABLE;
 
@@ -1265,7 +1273,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	}
 
 	/* call arch's memory hotadd */
-	ret = arch_add_memory(nid, start, size);
+	ret = arch_add_memory(nid, start, size, false);
 
 	if (ret < 0)
 		goto error;

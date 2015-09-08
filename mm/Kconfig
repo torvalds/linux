@@ -648,3 +648,20 @@ config DEFERRED_STRUCT_PAGE_INIT
 	  when kswapd starts. This has a potential performance impact on
 	  processes running early in the lifetime of the systemm until kswapd
 	  finishes the initialisation.
+
+config ZONE_DEVICE
+	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
+	default !ZONE_DMA
+	depends on !ZONE_DMA
+	depends on MEMORY_HOTPLUG
+	depends on MEMORY_HOTREMOVE
+	depends on X86_64 #arch_add_memory() comprehends device memory
+
+	help
+	  Device memory hotplug support allows for establishing pmem,
+	  or other device driver discovered memory regions, in the
+	  memmap. This allows pfn_to_page() lookups of otherwise
+	  "device-physical" addresses which is needed for using a DAX
+	  mapping in an O_DIRECT operation, among other things.
+
+	  If FS_DAX is enabled, then say Y.
