@@ -289,7 +289,7 @@ static const struct fb_videomode modedb[] = {
 };
 
 #ifdef CONFIG_FB_MODE_HELPERS
-const struct fb_videomode cea_modes[64] = {
+const struct fb_videomode cea_modes[65] = {
 	/* #1: 640x480p@59.94/60Hz */
 	[1] = {
 		NULL, 60, 640, 480, 39722, 48, 16, 33, 10, 96, 2, 0,
