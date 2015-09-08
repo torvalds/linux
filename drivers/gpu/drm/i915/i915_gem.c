@@ -3230,10 +3230,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 	ret = i915_gem_object_wait_rendering(obj, false);
 	if (ret)
 		return ret;
-	/* Continue on if we fail due to EIO, the GPU is hung so we
-	 * should be safe and we need to cleanup or else we might
-	 * cause memory corruption through use-after-free.
-	 */
 
 	if (i915_is_ggtt(vma->vm) &&
 	    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
