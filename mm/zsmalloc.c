@@ -643,13 +643,22 @@ static void insert_zspage(struct page *page, struct size_class *class,
 	if (fullness >= _ZS_NR_FULLNESS_GROUPS)
 		return;
 
-	head = &class->fullness_list[fullness];
-	if (*head)
-		list_add_tail(&page->lru, &(*head)->lru);
-
-	*head = page;
 	zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
 			CLASS_ALMOST_EMPTY : CLASS_ALMOST_FULL, 1);
+
+	head = &class->fullness_list[fullness];
+	if (!*head) {
+		*head = page;
+		return;
+	}
+
+	/*
+	 * We want to see more ZS_FULL pages and less almost
+	 * empty/full. Put pages with higher ->inuse first.
+	 */
+	list_add_tail(&page->lru, &(*head)->lru);
+	if (page->inuse >= (*head)->inuse)
+		*head = page;
 }
 
 /*
