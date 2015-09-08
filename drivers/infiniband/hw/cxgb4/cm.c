@@ -3260,6 +3260,10 @@ static int create_server4(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 				sin->sin_addr.s_addr, sin->sin_port, 0,
 				ep->com.dev->rdev.lldi.rxq_ids[0], 0, 0);
 			if (err == -EBUSY) {
+				if (c4iw_fatal_error(&ep->com.dev->rdev)) {
+					err = -EIO;
+					break;
+				}
 				set_current_state(TASK_UNINTERRUPTIBLE);
 				schedule_timeout(usecs_to_jiffies(100));
 			}
