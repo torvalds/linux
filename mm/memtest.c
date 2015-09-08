@@ -1,11 +1,6 @@
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
 #include <linux/types.h>
-#include <linux/mm.h>
-#include <linux/smp.h>
 #include <linux/init.h>
-#include <linux/pfn.h>
 #include <linux/memblock.h>
 
 static u64 patterns[] __initdata = {
