@@ -207,19 +207,19 @@ static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
 
 static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext4_get_block_write, ext4_end_io_unwritten);
+	return dax_fault(vma, vmf, ext4_get_block_dax, ext4_end_io_unwritten);
 }
 
 static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 						pmd_t *pmd, unsigned int flags)
 {
-	return dax_pmd_fault(vma, addr, pmd, flags, ext4_get_block_write,
+	return dax_pmd_fault(vma, addr, pmd, flags, ext4_get_block_dax,
 				ext4_end_io_unwritten);
 }
 
 static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext4_get_block_write,
+	return dax_mkwrite(vma, vmf, ext4_get_block_dax,
 				ext4_end_io_unwritten);
 }
 
