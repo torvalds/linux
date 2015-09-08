@@ -99,7 +99,7 @@ struct zbud_pool {
 	struct zbud_ops *ops;
 #ifdef CONFIG_ZPOOL
 	struct zpool *zpool;
-	struct zpool_ops *zpool_ops;
+	const struct zpool_ops *zpool_ops;
 #endif
 };
 
@@ -138,7 +138,7 @@ static struct zbud_ops zbud_zpool_ops = {
 };
 
 static void *zbud_zpool_create(char *name, gfp_t gfp,
-			       struct zpool_ops *zpool_ops,
+			       const struct zpool_ops *zpool_ops,
 			       struct zpool *zpool)
 {
 	struct zbud_pool *pool;
