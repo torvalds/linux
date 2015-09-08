@@ -1400,6 +1400,8 @@ void perf_evlist__close(struct perf_evlist *evlist)
 
 static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
 {
+	struct cpu_map	  *cpus;
+	struct thread_map *threads;
 	int err = -ENOMEM;
 
 	/*
@@ -1411,20 +1413,19 @@ static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
 	 * error, and we may not want to do that fallback to a
 	 * default cpu identity map :-\
 	 */
-	evlist->cpus = cpu_map__new(NULL);
-	if (evlist->cpus == NULL)
+	cpus = cpu_map__new(NULL);
+	if (!cpus)
 		goto out;
 
-	evlist->threads = thread_map__new_dummy();
-	if (evlist->threads == NULL)
-		goto out_free_cpus;
+	threads = thread_map__new_dummy();
+	if (!threads)
+		goto out_put;
 
-	err = 0;
+	perf_evlist__set_maps(evlist, cpus, threads);
 out:
 	return err;
-out_free_cpus:
-	cpu_map__put(evlist->cpus);
-	evlist->cpus = NULL;
+out_put:
+	cpu_map__put(cpus);
 	goto out;
 }
 
