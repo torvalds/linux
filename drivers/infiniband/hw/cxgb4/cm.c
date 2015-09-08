@@ -1196,6 +1196,8 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 	if ((status == 0) || (status == -ECONNREFUSED)) {
 		if (!ep->tried_with_mpa_v1) {
 			/* this means MPA_v2 is used */
+			event.ord = ep->ird;
+			event.ird = ep->ord;
 			event.private_data_len = ep->plen -
 				sizeof(struct mpa_v2_conn_params);
 			event.private_data = ep->mpa_pkt +
@@ -1203,6 +1205,8 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 				sizeof(struct mpa_v2_conn_params);
 		} else {
 			/* this means MPA_v1 is used */
+			event.ord = cur_max_read_depth(ep->com.dev);
+			event.ird = cur_max_read_depth(ep->com.dev);
 			event.private_data_len = ep->plen;
 			event.private_data = ep->mpa_pkt +
 				sizeof(struct mpa_message);
