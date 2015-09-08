@@ -271,6 +271,9 @@ void dma_pool_destroy(struct dma_pool *pool)
 {
 	bool empty = false;
 
+	if (unlikely(!pool))
+		return;
+
 	mutex_lock(&pools_reg_lock);
 	mutex_lock(&pools_lock);
 	list_del(&pool->pools);
