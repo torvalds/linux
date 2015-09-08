@@ -1725,6 +1725,8 @@ int soft_offline_page(struct page *page, int flags)
 		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
 			pr_info("soft offline: %#lx: failed to split THP\n",
 				pfn);
+			if (flags & MF_COUNT_INCREASED)
+				put_page(page);
 			return -EBUSY;
 		}
 	}
