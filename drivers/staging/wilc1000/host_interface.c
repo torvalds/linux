@@ -754,7 +754,7 @@ static s32 Handle_SetOperationMode(tstrWILC_WFIDrv *drvHandler, tstrHostIfSetOpe
 				 get_id_from_handler(pstrWFIDrv));
 
 
-	if ((pstrHostIfSetOperationMode->u32Mode) == (u32)NULL)
+	if ((pstrHostIfSetOperationMode->u32Mode) == IDLE_MODE)
 		up(&hSemDeinitDrvHandle);
 
 

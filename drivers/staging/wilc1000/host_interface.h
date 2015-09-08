@@ -23,6 +23,7 @@
 #define BIT1                    ((u32)(1 << 1))
 #define BIT0                    ((u32)(1 << 0))
 
+#define IDLE_MODE	0x00
 #define AP_MODE		0x01
 #define STATION_MODE	0x02
 #define GO_MODE	0x03
