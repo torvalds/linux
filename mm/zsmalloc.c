@@ -1676,6 +1676,29 @@ static struct page *isolate_source_page(struct size_class *class)
 	return page;
 }
 
+/*
+ *
+ * Based on the number of unused allocated objects calculate
+ * and return the number of pages that we can free.
+ *
+ * Should be called under class->lock.
+ */
+static unsigned long zs_can_compact(struct size_class *class)
+{
+	unsigned long obj_wasted;
+
+	if (!zs_stat_get(class, CLASS_ALMOST_EMPTY))
+		return 0;
+
+	obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
+		zs_stat_get(class, OBJ_USED);
+
+	obj_wasted /= get_maxobj_per_zspage(class->size,
+			class->pages_per_zspage);
+
+	return obj_wasted * get_pages_per_zspage(class->size);
+}
+
 static unsigned long __zs_compact(struct zs_pool *pool,
 				struct size_class *class)
 {
@@ -1688,6 +1711,9 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 	while ((src_page = isolate_source_page(class))) {
 
 		BUG_ON(!is_first_page(src_page));
+
+		if (!zs_can_compact(class))
+			break;
 
 		cc.index = 0;
 		cc.s_page = src_page;
