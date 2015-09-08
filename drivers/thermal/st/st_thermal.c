@@ -214,7 +214,7 @@ int st_thermal_register(struct platform_device *pdev,
 
 	sensor->ops = sensor->cdata->ops;
 
-	ret = sensor->ops->regmap_init(sensor);
+	ret = (sensor->ops->regmap_init)(sensor);
 	if (ret)
 		return ret;
 
