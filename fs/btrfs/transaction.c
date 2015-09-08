@@ -480,13 +480,10 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	 * the appropriate flushing if need be.
 	 */
 	if (num_items > 0 && root != root->fs_info->chunk_root) {
-		if (root->fs_info->quota_enabled &&
-		    is_fstree(root->root_key.objectid)) {
-			qgroup_reserved = num_items * root->nodesize;
-			ret = btrfs_qgroup_reserve(root, qgroup_reserved);
-			if (ret)
-				return ERR_PTR(ret);
-		}
+		qgroup_reserved = num_items * root->nodesize;
+		ret = btrfs_qgroup_reserve_meta(root, qgroup_reserved);
+		if (ret)
+			return ERR_PTR(ret);
 
 		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
 		/*
@@ -547,6 +544,7 @@ again:
 	h->transaction = cur_trans;
 	h->root = root;
 	h->use_count = 1;
+
 	h->type = type;
 	h->can_flush_pending_bgs = true;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
@@ -568,7 +566,6 @@ again:
 		h->bytes_reserved = num_bytes;
 		h->reloc_reserved = reloc_reserved;
 	}
-	h->qgroup_reserved = qgroup_reserved;
 
 got_it:
 	btrfs_record_root_in_trans(h, root);
@@ -586,8 +583,7 @@ alloc_fail:
 		btrfs_block_rsv_release(root, &root->fs_info->trans_block_rsv,
 					num_bytes);
 reserve_fail:
-	if (qgroup_reserved)
-		btrfs_qgroup_free(root, qgroup_reserved);
+	btrfs_qgroup_free_meta(root, qgroup_reserved);
 	return ERR_PTR(ret);
 }
 
@@ -803,15 +799,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		if (must_run_delayed_refs == 1 &&
 		    (trans->type & (__TRANS_JOIN_NOLOCK | __TRANS_ATTACH)))
 			must_run_delayed_refs = 2;
-	}
-
-	if (trans->qgroup_reserved) {
-		/*
-		 * the same root has to be passed here between start_transaction
-		 * and end_transaction. Subvolume quota depends on this.
-		 */
-		btrfs_qgroup_free(trans->root, trans->qgroup_reserved);
-		trans->qgroup_reserved = 0;
 	}
 
 	btrfs_trans_release_metadata(trans, root);
@@ -1231,6 +1218,7 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			spin_lock(&fs_info->fs_roots_radix_lock);
 			if (err)
 				break;
+			btrfs_qgroup_free_meta_all(root);
 		}
 	}
 	spin_unlock(&fs_info->fs_roots_radix_lock);
@@ -1835,10 +1823,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
-	if (trans->qgroup_reserved) {
-		btrfs_qgroup_free(root, trans->qgroup_reserved);
-		trans->qgroup_reserved = 0;
-	}
 
 	cur_trans = trans->transaction;
 
@@ -2191,10 +2175,6 @@ cleanup_transaction:
 	btrfs_trans_release_metadata(trans, root);
 	btrfs_trans_release_chunk_metadata(trans);
 	trans->block_rsv = NULL;
-	if (trans->qgroup_reserved) {
-		btrfs_qgroup_free(root, trans->qgroup_reserved);
-		trans->qgroup_reserved = 0;
-	}
 	btrfs_warn(root->fs_info, "Skipping commit of aborted transaction.");
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
