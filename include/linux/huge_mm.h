@@ -155,6 +155,16 @@ static inline bool is_huge_zero_page(struct page *page)
 	return ACCESS_ONCE(huge_zero_page) == page;
 }
 
+static inline bool is_huge_zero_pmd(pmd_t pmd)
+{
+	return is_huge_zero_page(pmd_page(pmd));
+}
+
+struct page *get_huge_zero_page(void);
+bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+		struct vm_area_struct *vma, unsigned long haddr,
+		pmd_t *pmd, struct page *zero_page);
+
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
 #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })

@@ -173,12 +173,7 @@ fail:
 static atomic_t huge_zero_refcount;
 struct page *huge_zero_page __read_mostly;
 
-static inline bool is_huge_zero_pmd(pmd_t pmd)
-{
-	return is_huge_zero_page(pmd_page(pmd));
-}
-
-static struct page *get_huge_zero_page(void)
+struct page *get_huge_zero_page(void)
 {
 	struct page *zero_page;
 retry:
