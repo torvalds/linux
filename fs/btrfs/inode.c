@@ -2119,6 +2119,16 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_alloc_reserved_file_extent(trans, root,
 					root->root_key.objectid,
 					btrfs_ino(inode), file_pos, &ins);
+	if (ret < 0)
+		goto out;
+	/*
+	 * Release the reserved range from inode dirty range map, and
+	 * move it to delayed ref codes, as now accounting only happens at
+	 * commit_transaction() time.
+	 */
+	btrfs_qgroup_release_data(inode, file_pos, ram_bytes);
+	ret = btrfs_add_delayed_qgroup_reserve(root->fs_info, trans,
+			root->objectid, disk_bytenr, ram_bytes);
 out:
 	btrfs_free_path(path);
 
