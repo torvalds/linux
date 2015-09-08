@@ -356,6 +356,8 @@ TRACE_EVENT(
 		  __entry->address)
 );
 
+#endif
+
 TRACE_EVENT(kvm_halt_poll_ns,
 	TP_PROTO(bool grow, unsigned int vcpu_id, int new, int old),
 	TP_ARGS(grow, vcpu_id, new, old),
@@ -385,8 +387,6 @@ TRACE_EVENT(kvm_halt_poll_ns,
 	trace_kvm_halt_poll_ns(true, vcpu_id, new, old)
 #define trace_kvm_halt_poll_ns_shrink(vcpu_id, new, old) \
 	trace_kvm_halt_poll_ns(false, vcpu_id, new, old)
-
-#endif
 
 #endif /* _TRACE_KVM_MAIN_H */
 
