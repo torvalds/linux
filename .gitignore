@@ -36,6 +36,7 @@
 modules.builtin
 Module.symvers
 *.dwo
+*.su
 
 #
 # Top-level generic files
@@ -44,6 +45,7 @@ Module.symvers
 /TAGS
 /linux
 /vmlinux
+/vmlinux.32
 /vmlinux-gdb.py
 /vmlinuz
 /System.map
@@ -88,6 +90,9 @@ GPATH
 GRTAGS
 GSYMS
 GTAGS
+
+# id-utils files
+ID
 
 *.orig
 *~
