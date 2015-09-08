@@ -1406,6 +1406,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	struct symsrc ss_[2];
 	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
 	bool kmod;
+	unsigned char build_id[BUILD_ID_SIZE];
 
 	pthread_mutex_lock(&dso->lock);
 
@@ -1460,6 +1461,14 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE ||
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
+
+
+	/*
+	 * Read the build id if possible. This is required for
+	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
+	 */
+	if (filename__read_build_id(dso->name, build_id, BUILD_ID_SIZE) > 0)
+		dso__set_build_id(dso, build_id);
 
 	/*
 	 * Iterate over candidate debug images.
