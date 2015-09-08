@@ -102,7 +102,7 @@ not every application needs SDIO irq, e.g. MMC cards.
 		pinctrl-1 = <&mmc1_idle>;
 		pinctrl-2 = <&mmc1_sleep>;
 		...
-		interrupts-extended = <&intc 64 &gpio2 28 0>;
+		interrupts-extended = <&intc 64 &gpio2 28 GPIO_ACTIVE_LOW>;
 	};
 
 	mmc1_idle : pinmux_cirq_pin {
