@@ -185,6 +185,7 @@ static void perf_session_env__exit(struct perf_env *env)
 	zfree(&env->sibling_threads);
 	zfree(&env->numa_nodes);
 	zfree(&env->pmu_mappings);
+	zfree(&env->cpu);
 }
 
 void perf_session__delete(struct perf_session *session)
@@ -1079,11 +1080,11 @@ static int machines__deliver_event(struct machines *machines,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_sample(evsel, event, sample);
 		if (evsel == NULL) {
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
+		dump_sample(evsel, event, sample);
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
 			return 0;

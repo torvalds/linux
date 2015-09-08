@@ -225,17 +225,12 @@ void cpu_map__put(struct cpu_map *map)
 		cpu_map__delete(map);
 }
 
-int cpu_map__get_socket(struct cpu_map *map, int idx)
+int cpu_map__get_socket_id(int cpu)
 {
 	FILE *fp;
 	const char *mnt;
 	char path[PATH_MAX];
-	int cpu, ret;
-
-	if (idx > map->nr)
-		return -1;
-
-	cpu = map->map[idx];
+	int socket_id, ret;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
@@ -248,9 +243,22 @@ int cpu_map__get_socket(struct cpu_map *map, int idx)
 	fp = fopen(path, "r");
 	if (!fp)
 		return -1;
-	ret = fscanf(fp, "%d", &cpu);
+	ret = fscanf(fp, "%d", &socket_id);
 	fclose(fp);
-	return ret == 1 ? cpu : -1;
+
+	return ret == 1 ? socket_id : -1;
+}
+
+int cpu_map__get_socket(struct cpu_map *map, int idx)
+{
+	int cpu;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	return cpu_map__get_socket_id(cpu);
 }
 
 static int cmp_ids(const void *a, const void *b)
@@ -289,17 +297,12 @@ static int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	return 0;
 }
 
-int cpu_map__get_core(struct cpu_map *map, int idx)
+int cpu_map__get_core_id(int cpu)
 {
 	FILE *fp;
 	const char *mnt;
 	char path[PATH_MAX];
-	int cpu, ret, s;
-
-	if (idx > map->nr)
-		return -1;
-
-	cpu = map->map[idx];
+	int core_id, ret;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
@@ -312,10 +315,22 @@ int cpu_map__get_core(struct cpu_map *map, int idx)
 	fp = fopen(path, "r");
 	if (!fp)
 		return -1;
-	ret = fscanf(fp, "%d", &cpu);
+	ret = fscanf(fp, "%d", &core_id);
 	fclose(fp);
-	if (ret != 1)
+
+	return ret == 1 ? core_id : -1;
+}
+
+int cpu_map__get_core(struct cpu_map *map, int idx)
+{
+	int cpu, s;
+
+	if (idx > map->nr)
 		return -1;
+
+	cpu = map->map[idx];
+
+	cpu = cpu_map__get_core_id(cpu);
 
 	s = cpu_map__get_socket(map, idx);
 	if (s == -1)

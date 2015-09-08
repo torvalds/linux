@@ -66,6 +66,11 @@ struct perf_header;
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd);
 
+struct cpu_topology_map {
+	int	socket_id;
+	int	core_id;
+};
+
 struct perf_env {
 	char			*hostname;
 	char			*os_release;
@@ -89,6 +94,7 @@ struct perf_env {
 	char			*sibling_threads;
 	char			*numa_nodes;
 	char			*pmu_mappings;
+	struct cpu_topology_map	*cpu;
 };
 
 struct perf_header {

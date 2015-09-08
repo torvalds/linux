@@ -88,6 +88,9 @@ int write_padded(int fd, const void *bf, size_t count, size_t count_aligned)
 	return err;
 }
 
+#define string_size(str)						\
+	(PERF_ALIGN((strlen(str) + 1), NAME_ALIGN) + sizeof(u32))
+
 static int do_write_string(int fd, const char *str)
 {
 	u32 len, olen;
@@ -441,10 +444,13 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list"
 
 struct cpu_topo {
+	u32 cpu_nr;
 	u32 core_sib;
 	u32 thread_sib;
 	char **core_siblings;
 	char **thread_siblings;
+	int *core_id;
+	int *phy_pkg_id;
 };
 
 static int build_cpu_topo(struct cpu_topo *tp, int cpu)
@@ -507,6 +513,9 @@ try_threads:
 	}
 	ret = 0;
 done:
+	tp->core_id[cpu] = cpu_map__get_core_id(cpu);
+	tp->phy_pkg_id[cpu] = cpu_map__get_socket_id(cpu);
+
 	if(fp)
 		fclose(fp);
 	free(buf);
@@ -534,7 +543,7 @@ static struct cpu_topo *build_cpu_topology(void)
 	struct cpu_topo *tp;
 	void *addr;
 	u32 nr, i;
-	size_t sz;
+	size_t sz, sz_id;
 	long ncpus;
 	int ret = -1;
 
@@ -545,17 +554,22 @@ static struct cpu_topo *build_cpu_topology(void)
 	nr = (u32)(ncpus & UINT_MAX);
 
 	sz = nr * sizeof(char *);
+	sz_id = nr * sizeof(int);
 
-	addr = calloc(1, sizeof(*tp) + 2 * sz);
+	addr = calloc(1, sizeof(*tp) + 2 * sz + 2 * sz_id);
 	if (!addr)
 		return NULL;
 
 	tp = addr;
-
+	tp->cpu_nr = nr;
 	addr += sizeof(*tp);
 	tp->core_siblings = addr;
 	addr += sz;
 	tp->thread_siblings = addr;
+	addr += sz;
+	tp->core_id = addr;
+	addr += sz_id;
+	tp->phy_pkg_id = addr;
 
 	for (i = 0; i < nr; i++) {
 		ret = build_cpu_topo(tp, i);
@@ -597,6 +611,15 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 		ret = do_write_string(fd, tp->thread_siblings[i]);
 		if (ret < 0)
 			break;
+	}
+
+	for (i = 0; i < tp->cpu_nr; i++) {
+		ret = do_write(fd, &tp->core_id[i], sizeof(int));
+		if (ret < 0)
+			return ret;
+		ret = do_write(fd, &tp->phy_pkg_id[i], sizeof(int));
+		if (ret < 0)
+			return ret;
 	}
 done:
 	free_cpu_topo(tp);
@@ -938,6 +961,7 @@ static void print_cpu_topology(struct perf_header *ph, int fd __maybe_unused,
 {
 	int nr, i;
 	char *str;
+	int cpu_nr = ph->env.nr_cpus_online;
 
 	nr = ph->env.nr_sibling_cores;
 	str = ph->env.sibling_cores;
@@ -954,6 +978,13 @@ static void print_cpu_topology(struct perf_header *ph, int fd __maybe_unused,
 		fprintf(fp, "# sibling threads : %s\n", str);
 		str += strlen(str) + 1;
 	}
+
+	if (ph->env.cpu != NULL) {
+		for (i = 0; i < cpu_nr; i++)
+			fprintf(fp, "# CPU %d: Core ID %d, Socket ID %d\n", i,
+				ph->env.cpu[i].core_id, ph->env.cpu[i].socket_id);
+	} else
+		fprintf(fp, "# Core ID and Socket ID information is not available\n");
 }
 
 static void free_event_desc(struct perf_evsel *events)
@@ -1582,7 +1613,7 @@ error:
 	return -1;
 }
 
-static int process_cpu_topology(struct perf_file_section *section __maybe_unused,
+static int process_cpu_topology(struct perf_file_section *section,
 				struct perf_header *ph, int fd,
 				void *data __maybe_unused)
 {
@@ -1590,15 +1621,22 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 	u32 nr, i;
 	char *str;
 	struct strbuf sb;
+	int cpu_nr = ph->env.nr_cpus_online;
+	u64 size = 0;
+
+	ph->env.cpu = calloc(cpu_nr, sizeof(*ph->env.cpu));
+	if (!ph->env.cpu)
+		return -1;
 
 	ret = readn(fd, &nr, sizeof(nr));
 	if (ret != sizeof(nr))
-		return -1;
+		goto free_cpu;
 
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
 	ph->env.nr_sibling_cores = nr;
+	size += sizeof(u32);
 	strbuf_init(&sb, 128);
 
 	for (i = 0; i < nr; i++) {
@@ -1608,6 +1646,7 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 
 		/* include a NULL character at the end */
 		strbuf_add(&sb, str, strlen(str) + 1);
+		size += string_size(str);
 		free(str);
 	}
 	ph->env.sibling_cores = strbuf_detach(&sb, NULL);
@@ -1620,6 +1659,7 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 		nr = bswap_32(nr);
 
 	ph->env.nr_sibling_threads = nr;
+	size += sizeof(u32);
 
 	for (i = 0; i < nr; i++) {
 		str = do_read_string(fd, ph);
@@ -1628,13 +1668,57 @@ static int process_cpu_topology(struct perf_file_section *section __maybe_unused
 
 		/* include a NULL character at the end */
 		strbuf_add(&sb, str, strlen(str) + 1);
+		size += string_size(str);
 		free(str);
 	}
 	ph->env.sibling_threads = strbuf_detach(&sb, NULL);
+
+	/*
+	 * The header may be from old perf,
+	 * which doesn't include core id and socket id information.
+	 */
+	if (section->size <= size) {
+		zfree(&ph->env.cpu);
+		return 0;
+	}
+
+	for (i = 0; i < (u32)cpu_nr; i++) {
+		ret = readn(fd, &nr, sizeof(nr));
+		if (ret != sizeof(nr))
+			goto free_cpu;
+
+		if (ph->needs_swap)
+			nr = bswap_32(nr);
+
+		if (nr > (u32)cpu_nr) {
+			pr_debug("core_id number is too big."
+				 "You may need to upgrade the perf tool.\n");
+			goto free_cpu;
+		}
+		ph->env.cpu[i].core_id = nr;
+
+		ret = readn(fd, &nr, sizeof(nr));
+		if (ret != sizeof(nr))
+			goto free_cpu;
+
+		if (ph->needs_swap)
+			nr = bswap_32(nr);
+
+		if (nr > (u32)cpu_nr) {
+			pr_debug("socket_id number is too big."
+				 "You may need to upgrade the perf tool.\n");
+			goto free_cpu;
+		}
+
+		ph->env.cpu[i].socket_id = nr;
+	}
+
 	return 0;
 
 error:
 	strbuf_release(&sb);
+free_cpu:
+	zfree(&ph->env.cpu);
 	return -1;
 }
 

@@ -83,12 +83,6 @@
 extern const char *graph_line;
 extern const char *graph_dotted_line;
 extern char buildid_dir[];
-extern char tracing_path[];
-extern char tracing_events_path[];
-extern void perf_debugfs_set_path(const char *mountpoint);
-const char *perf_debugfs_mount(const char *mountpoint);
-char *get_tracing_file(const char *name);
-void put_tracing_file(char *file);
 
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).
@@ -321,6 +315,8 @@ struct symbol;
 extern bool srcline_full_filename;
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 		  bool show_sym);
+char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
+		  bool show_sym, bool unwind_inlines);
 void free_srcline(char *srcline);
 
 int filename__read_str(const char *filename, char **buf, size_t *sizep);

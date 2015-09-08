@@ -11,7 +11,7 @@
 #include "cache.h"
 #include "header.h"
 #include "debug.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include "parse-events-bison.h"
 #define YY_EXTRA_TYPE int
 #include "parse-events-flex.h"
