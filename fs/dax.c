@@ -644,7 +644,7 @@ int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	return result;
 }
 EXPORT_SYMBOL_GPL(dax_pmd_fault);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGES */
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /**
  * dax_pfn_mkwrite - handle first write to DAX page
