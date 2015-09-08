@@ -3013,9 +3013,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		} else {
 			/*
 			 * The fault handler has no page to lock, so it holds
-			 * i_mmap_lock for read to protect against truncate.
+			 * i_mmap_lock for write to protect against truncate.
 			 */
-			i_mmap_unlock_read(vma->vm_file->f_mapping);
+			i_mmap_unlock_write(vma->vm_file->f_mapping);
 		}
 		goto uncharge_out;
 	}
@@ -3029,9 +3029,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	} else {
 		/*
 		 * The fault handler has no page to lock, so it holds
-		 * i_mmap_lock for read to protect against truncate.
+		 * i_mmap_lock for write to protect against truncate.
 		 */
-		i_mmap_unlock_read(vma->vm_file->f_mapping);
+		i_mmap_unlock_write(vma->vm_file->f_mapping);
 	}
 	return ret;
 uncharge_out:
