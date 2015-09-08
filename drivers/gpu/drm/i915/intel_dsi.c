@@ -774,8 +774,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 	enum port port;
 	unsigned int bpp = intel_crtc->config->pipe_bpp;
 	u32 val, tmp;
@@ -880,14 +879,14 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 			intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 			I915_WRITE(MIPI_HS_TX_TIMEOUT(port),
 				txbyteclkhs(adjusted_mode->htotal, bpp,
-					intel_dsi->lane_count,
-					intel_dsi->burst_mode_ratio) + 1);
+					    intel_dsi->lane_count,
+					    intel_dsi->burst_mode_ratio) + 1);
 		} else {
 			I915_WRITE(MIPI_HS_TX_TIMEOUT(port),
 				txbyteclkhs(adjusted_mode->vtotal *
-					adjusted_mode->htotal,
-					bpp, intel_dsi->lane_count,
-					intel_dsi->burst_mode_ratio) + 1);
+					    adjusted_mode->htotal,
+					    bpp, intel_dsi->lane_count,
+					    intel_dsi->burst_mode_ratio) + 1);
 		}
 		I915_WRITE(MIPI_LP_RX_TIMEOUT(port), intel_dsi->lp_rx_timeout);
 		I915_WRITE(MIPI_TURN_AROUND_TIMEOUT(port),

@@ -139,8 +139,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	int pipe = crtc->pipe;
 	u32 temp;
 

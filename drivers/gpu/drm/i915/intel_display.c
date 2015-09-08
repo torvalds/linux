@@ -4392,8 +4392,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 int skl_update_scaler_crtc(struct intel_crtc_state *state)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
-	struct drm_display_mode *adjusted_mode =
-		&state->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &state->base.adjusted_mode;
 
 	DRM_DEBUG_KMS("Updating scaler for [CRTC:%i] scaler_user index %u.%u\n",
 		      intel_crtc->base.base.id, intel_crtc->pipe, SKL_CRTC_INDEX);
@@ -7625,8 +7624,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 	uint32_t crtc_vtotal, crtc_vblank_end;
 	int vsyncshift = 0;
 
@@ -12821,11 +12819,11 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 	 * one to the value.
 	 */
 	if (IS_GEN2(dev)) {
-		const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
+		const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 		int vtotal;
 
-		vtotal = mode->crtc_vtotal;
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vtotal = adjusted_mode->crtc_vtotal;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 			vtotal /= 2;
 
 		crtc->scanline_offset = vtotal - 1;

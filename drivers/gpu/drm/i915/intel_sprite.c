@@ -79,19 +79,19 @@ static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
 void intel_pipe_update_start(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	DEFINE_WAIT(wait);
 
-	vblank_start = mode->crtc_vblank_start;
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+	vblank_start = adjusted_mode->crtc_vblank_start;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vblank_start = DIV_ROUND_UP(vblank_start, 2);
 
 	/* FIXME needs to be calibrated sensibly */
-	min = vblank_start - usecs_to_scanlines(mode, 100);
+	min = vblank_start - usecs_to_scanlines(adjusted_mode, 100);
 	max = vblank_start - 1;
 
 	local_irq_disable();

@@ -1537,8 +1537,7 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 
 	intel_hdmi_prepare(encoder);
 
@@ -1555,8 +1554,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 	u32 val;
@@ -1822,8 +1820,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 	int data, i, stagger;
