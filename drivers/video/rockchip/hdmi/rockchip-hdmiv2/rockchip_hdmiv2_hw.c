@@ -317,6 +317,7 @@ static const struct phy_mpll_config_tab *get_phy_mpll_tab(
 
 static void rockchip_hdmiv2_powerdown(struct hdmi_dev *hdmi_dev)
 {
+	hdmi_msk_reg(hdmi_dev, PHY_MASK, m_PHY_LOCK, v_PHY_LOCK(1));
 	hdmi_msk_reg(hdmi_dev, PHY_CONF0,
 		     m_PDDQ_SIG | m_TXPWRON_SIG |
 		     m_ENHPD_RXSENSE_SIG | m_SVSRET_SIG,
@@ -409,6 +410,7 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 
 	hdmi_msk_reg(hdmi_dev, PHY_I2CM_DIV,
 		     m_PHY_I2CM_FAST_STD, v_PHY_I2CM_FAST_STD(0));
+	hdmi_msk_reg(hdmi_dev, PHY_MASK, m_PHY_LOCK, v_PHY_LOCK(1));
 	/* power off PHY */
 	/* hdmi_writel(hdmi_dev, PHY_CONF0, 0x1e); */
 	hdmi_msk_reg(hdmi_dev, PHY_CONF0,
@@ -514,7 +516,7 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 			(stat & m_PCLK_ON) >> 6, (stat & m_TMDSCLK_ON) >> 5);
 		return -1;
 	}
-
+	hdmi_msk_reg(hdmi_dev, PHY_MASK, m_PHY_LOCK, v_PHY_LOCK(0));
 	return 0;
 }
 
@@ -1330,6 +1332,8 @@ static int hdmi_dev_config_video(struct hdmi *hdmi, struct hdmi_video *vpara)
 
 	if (!hdmi->uboot)
 		rockchip_hdmiv2_config_phy(hdmi_dev);
+	else
+		hdmi_msk_reg(hdmi_dev, PHY_MASK, m_PHY_LOCK, v_PHY_LOCK(0));
 	return 0;
 }
 
@@ -1702,7 +1706,7 @@ void rockchip_hdmiv2_dev_initial(struct hdmi_dev *hdmi_dev)
 	hdmi_writel(hdmi_dev, IH_MUTE_FC_STAT1, 0xff);
 	hdmi_writel(hdmi_dev, IH_MUTE_FC_STAT2, 0xff);
 	hdmi_writel(hdmi_dev, IH_MUTE_AS_STAT0, 0xff);
-	hdmi_writel(hdmi_dev, IH_MUTE_PHY_STAT0, 0xfe);
+	hdmi_writel(hdmi_dev, IH_MUTE_PHY_STAT0, 0xfc);
 	hdmi_writel(hdmi_dev, IH_MUTE_I2CM_STAT0, 0xff);
 	hdmi_writel(hdmi_dev, IH_MUTE_CEC_STAT0, 0xff);
 	hdmi_writel(hdmi_dev, IH_MUTE_VP_STAT0, 0xff);
@@ -1744,6 +1748,11 @@ irqreturn_t rockchip_hdmiv2_dev_irq(int irq, void *priv)
 	hdmi_writel(hdmi_dev, IH_VP_STAT0, vp_stat0);
 
 	if (phy_int0 || phy_int) {
+		if ((phy_int0 & m_PHY_LOCK) &&
+		    (phy_pol & m_PHY_LOCK) == 0) {
+			pr_info("hdmi phy pll unlock\n");
+			hdmi_submit_work(hdmi, HDMI_SET_VIDEO, 0, 0);
+		}
 		phy_pol = (phy_int0 & (~phy_status)) | ((~phy_int0) & phy_pol);
 		hdmi_writel(hdmi_dev, PHY_POL0, phy_pol);
 		hdmi_writel(hdmi_dev, IH_PHY_STAT0, phy_int);
