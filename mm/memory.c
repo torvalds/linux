@@ -3232,6 +3232,27 @@ out:
 	return 0;
 }
 
+static int create_huge_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, pmd_t *pmd, unsigned int flags)
+{
+	if (!vma->vm_ops)
+		return do_huge_pmd_anonymous_page(mm, vma, address, pmd, flags);
+	if (vma->vm_ops->pmd_fault)
+		return vma->vm_ops->pmd_fault(vma, address, pmd, flags);
+	return VM_FAULT_FALLBACK;
+}
+
+static int wp_huge_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, pmd_t *pmd, pmd_t orig_pmd,
+			unsigned int flags)
+{
+	if (!vma->vm_ops)
+		return do_huge_pmd_wp_page(mm, vma, address, pmd, orig_pmd);
+	if (vma->vm_ops->pmd_fault)
+		return vma->vm_ops->pmd_fault(vma, address, pmd, flags);
+	return VM_FAULT_FALLBACK;
+}
+
 /*
  * These routines also need to handle stuff like marking pages dirty
  * and/or accessed for architectures that don't do it in hardware (most
@@ -3334,10 +3355,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pmd)
 		return VM_FAULT_OOM;
 	if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
-		int ret = VM_FAULT_FALLBACK;
-		if (!vma->vm_ops)
-			ret = do_huge_pmd_anonymous_page(mm, vma, address,
-					pmd, flags);
+		int ret = create_huge_pmd(mm, vma, address, pmd, flags);
 		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
 	} else {
@@ -3361,8 +3379,8 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 							     orig_pmd, pmd);
 
 			if (dirty && !pmd_write(orig_pmd)) {
-				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
-							  orig_pmd);
+				ret = wp_huge_pmd(mm, vma, address, pmd,
+							orig_pmd, flags);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
 			} else {
