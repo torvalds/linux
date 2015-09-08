@@ -6897,6 +6897,7 @@ enum skl_disp_power_wells {
 #define   GEN7_DOP_CLOCK_GATE_ENABLE		(1<<0)
 #define   GEN8_DOP_CLOCK_GATE_CFCLK_ENABLE	(1<<2)
 #define   GEN8_DOP_CLOCK_GATE_GUC_ENABLE	(1<<4)
+#define   GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE     (1<<6)
 
 #define GEN8_GARBCNTL                   0xB004
 #define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)

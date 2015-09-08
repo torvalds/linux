@@ -134,6 +134,12 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 		 */
 		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
 	}
+
+	/* WaSetClckGatingDisableMedia:bxt */
+	if (INTEL_REVID(dev) == BXT_REVID_A0) {
+		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
+					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
+	}
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
