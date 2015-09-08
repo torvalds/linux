@@ -6,16 +6,16 @@
  * Licensed under the GPLv2 or later.
  */
 
-#include <linux/module.h>
 #include <linux/backlight.h>
-#include <linux/kernel.h>
-#include <linux/i2c.h>
+#include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/uaccess.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pwm.h>
-#include <linux/delay.h>
+#include <linux/uaccess.h>
 
 #define SSD1307FB_DATA			0x40
 #define SSD1307FB_COMMAND		0x80
