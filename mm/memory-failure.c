@@ -1445,6 +1445,22 @@ int unpoison_memory(unsigned long pfn)
 		return 0;
 	}
 
+	if (page_count(page) > 1) {
+		pr_info("MCE: Someone grabs the hwpoison page %#lx\n", pfn);
+		return 0;
+	}
+
+	if (page_mapped(page)) {
+		pr_info("MCE: Someone maps the hwpoison page %#lx\n", pfn);
+		return 0;
+	}
+
+	if (page_mapping(page)) {
+		pr_info("MCE: the hwpoison page has non-NULL mapping %#lx\n",
+			pfn);
+		return 0;
+	}
+
 	/*
 	 * unpoison_memory() can encounter thp only when the thp is being
 	 * worked by memory_failure() and the page lock is not held yet.
