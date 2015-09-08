@@ -939,6 +939,7 @@ typedef struct {
 struct pagemapread {
 	int pos, len;		/* units: PM_ENTRY_BYTES, not bytes */
 	pagemap_entry_t *buffer;
+	bool show_pfn;
 };
 
 #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
@@ -1015,7 +1016,8 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
 	struct page *page = NULL;
 
 	if (pte_present(pte)) {
-		frame = pte_pfn(pte);
+		if (pm->show_pfn)
+			frame = pte_pfn(pte);
 		flags |= PM_PRESENT;
 		page = vm_normal_page(vma, addr, pte);
 		if (pte_soft_dirty(pte))
@@ -1065,8 +1067,9 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		 */
 		if (pmd_present(pmd)) {
 			flags |= PM_PRESENT;
-			frame = pmd_pfn(pmd) +
-				((addr & ~PMD_MASK) >> PAGE_SHIFT);
+			if (pm->show_pfn)
+				frame = pmd_pfn(pmd) +
+					((addr & ~PMD_MASK) >> PAGE_SHIFT);
 		}
 
 		for (; addr != end; addr += PAGE_SIZE) {
@@ -1075,7 +1078,7 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 			err = add_to_pagemap(addr, &pme, pm);
 			if (err)
 				break;
-			if (flags & PM_PRESENT)
+			if (pm->show_pfn && (flags & PM_PRESENT))
 				frame++;
 		}
 		spin_unlock(ptl);
@@ -1129,8 +1132,9 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
 			flags |= PM_FILE;
 
 		flags |= PM_PRESENT;
-		frame = pte_pfn(pte) +
-			((addr & ~hmask) >> PAGE_SHIFT);
+		if (pm->show_pfn)
+			frame = pte_pfn(pte) +
+				((addr & ~hmask) >> PAGE_SHIFT);
 	}
 
 	for (; addr != end; addr += PAGE_SIZE) {
@@ -1139,7 +1143,7 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
 		err = add_to_pagemap(addr, &pme, pm);
 		if (err)
 			return err;
-		if (flags & PM_PRESENT)
+		if (pm->show_pfn && (flags & PM_PRESENT))
 			frame++;
 	}
 
@@ -1197,6 +1201,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	ret = 0;
 	if (!count)
 		goto out_mm;
+
+	/* do not disclose physical addresses: attack vector */
+	pm.show_pfn = file_ns_capable(file, &init_user_ns, CAP_SYS_ADMIN);
 
 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
 	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
@@ -1266,10 +1273,6 @@ out:
 static int pagemap_open(struct inode *inode, struct file *file)
 {
 	struct mm_struct *mm;
-
-	/* do not disclose physical addresses: attack vector */
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	mm = proc_mem_open(inode, PTRACE_MODE_READ);
 	if (IS_ERR(mm))
