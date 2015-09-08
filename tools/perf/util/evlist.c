@@ -1155,11 +1155,22 @@ out_delete_threads:
 void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 			   struct thread_map *threads)
 {
-	cpu_map__put(evlist->cpus);
-	evlist->cpus = cpus;
+	/*
+	 * Allow for the possibility that one or another of the maps isn't being
+	 * changed i.e. don't put it.  Note we are assuming the maps that are
+	 * being applied are brand new and evlist is taking ownership of the
+	 * original reference count of 1.  If that is not the case it is up to
+	 * the caller to increase the reference count.
+	 */
+	if (cpus != evlist->cpus) {
+		cpu_map__put(evlist->cpus);
+		evlist->cpus = cpus;
+	}
 
-	thread_map__put(evlist->threads);
-	evlist->threads = threads;
+	if (threads != evlist->threads) {
+		thread_map__put(evlist->threads);
+		evlist->threads = threads;
+	}
 
 	perf_evlist__propagate_maps(evlist);
 }
