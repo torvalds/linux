@@ -2455,7 +2455,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	      unsigned long addr, int new_below)
 {
 	struct vm_area_struct *new;
-	int err = -ENOMEM;
+	int err;
 
 	if (is_vm_hugetlb_page(vma) && (addr &
 					~(huge_page_mask(hstate_vma(vma)))))
@@ -2463,7 +2463,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!new)
-		goto out_err;
+		return -ENOMEM;
 
 	/* most fields are the same, copy all, and then fixup */
 	*new = *vma;
@@ -2511,7 +2511,6 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	mpol_put(vma_policy(new));
  out_free_vma:
 	kmem_cache_free(vm_area_cachep, new);
- out_err:
 	return err;
 }
 
@@ -2952,30 +2951,31 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
 	} else {
 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-		if (new_vma) {
-			*new_vma = *vma;
-			new_vma->vm_start = addr;
-			new_vma->vm_end = addr + len;
-			new_vma->vm_pgoff = pgoff;
-			if (vma_dup_policy(vma, new_vma))
-				goto out_free_vma;
-			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
-			if (anon_vma_clone(new_vma, vma))
-				goto out_free_mempol;
-			if (new_vma->vm_file)
-				get_file(new_vma->vm_file);
-			if (new_vma->vm_ops && new_vma->vm_ops->open)
-				new_vma->vm_ops->open(new_vma);
-			vma_link(mm, new_vma, prev, rb_link, rb_parent);
-			*need_rmap_locks = false;
-		}
+		if (!new_vma)
+			goto out;
+		*new_vma = *vma;
+		new_vma->vm_start = addr;
+		new_vma->vm_end = addr + len;
+		new_vma->vm_pgoff = pgoff;
+		if (vma_dup_policy(vma, new_vma))
+			goto out_free_vma;
+		INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+		if (anon_vma_clone(new_vma, vma))
+			goto out_free_mempol;
+		if (new_vma->vm_file)
+			get_file(new_vma->vm_file);
+		if (new_vma->vm_ops && new_vma->vm_ops->open)
+			new_vma->vm_ops->open(new_vma);
+		vma_link(mm, new_vma, prev, rb_link, rb_parent);
+		*need_rmap_locks = false;
 	}
 	return new_vma;
 
- out_free_mempol:
+out_free_mempol:
 	mpol_put(vma_policy(new_vma));
- out_free_vma:
+out_free_vma:
 	kmem_cache_free(vm_area_cachep, new_vma);
+out:
 	return NULL;
 }
 
