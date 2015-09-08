@@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
 }
 
-static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
+static bool __init_memblock memblock_overlaps_region(struct memblock_type *type,
 					phys_addr_t base, phys_addr_t size)
 {
 	unsigned long i;
@@ -103,7 +103,7 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
 			break;
 	}
 
-	return (i < type->cnt) ? i : -1;
+	return i < type->cnt;
 }
 
 /*
@@ -1566,12 +1566,12 @@ int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size
  * Check if the region [@base, @base+@size) intersects a reserved memory block.
  *
  * RETURNS:
- * 0 if false, non-zero if true
+ * True if they intersect, false if not.
  */
-int __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)
+bool __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)
 {
 	memblock_cap_size(base, &size);
-	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
+	return memblock_overlaps_region(&memblock.reserved, base, size);
 }
 
 void __init_memblock memblock_trim_memory(phys_addr_t align)
