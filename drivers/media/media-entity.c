@@ -222,6 +222,7 @@ int
 media_entity_init(struct media_entity *entity, u16 num_pads,
 		  struct media_pad *pads)
 {
+	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int i;
 
 	entity->group_id = 0;
@@ -230,10 +231,19 @@ media_entity_init(struct media_entity *entity, u16 num_pads,
 	entity->num_pads = num_pads;
 	entity->pads = pads;
 
+	if (mdev)
+		spin_lock(&mdev->lock);
+
 	for (i = 0; i < num_pads; i++) {
 		pads[i].entity = entity;
 		pads[i].index = i;
+		if (mdev)
+			media_gobj_init(mdev, MEDIA_GRAPH_PAD,
+					&entity->pads[i].graph_obj);
 	}
+
+	if (mdev)
+		spin_unlock(&mdev->lock);
 
 	return 0;
 }
