@@ -1184,11 +1184,9 @@ static int intel_acpi_probe(struct intel_device *idev)
 #endif
 
 #ifdef CONFIG_PM
-static int intel_suspend(struct device *dev)
+static int intel_suspend_device(struct device *dev)
 {
 	struct intel_device *idev = dev_get_drvdata(dev);
-
-	dev_dbg(dev, "intel_suspend");
 
 	mutex_lock(&idev->hu_lock);
 	if (idev->hu)
@@ -1198,11 +1196,9 @@ static int intel_suspend(struct device *dev)
 	return 0;
 }
 
-static int intel_resume(struct device *dev)
+static int intel_resume_device(struct device *dev)
 {
 	struct intel_device *idev = dev_get_drvdata(dev);
-
-	dev_dbg(dev, "intel_resume");
 
 	mutex_lock(&idev->hu_lock);
 	if (idev->hu)
@@ -1213,9 +1209,31 @@ static int intel_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int intel_suspend(struct device *dev)
+{
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(idev->irq);
+
+	return intel_suspend_device(dev);
+}
+
+static int intel_resume(struct device *dev)
+{
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(idev->irq);
+
+	return intel_resume_device(dev);
+}
+#endif
+
 static const struct dev_pm_ops intel_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(intel_suspend, intel_resume)
-	SET_RUNTIME_PM_OPS(intel_suspend, intel_resume, NULL)
+	SET_RUNTIME_PM_OPS(intel_suspend_device, intel_resume_device, NULL)
 };
 
 static int intel_probe(struct platform_device *pdev)
