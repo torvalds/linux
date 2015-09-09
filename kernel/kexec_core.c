@@ -439,11 +439,10 @@ static struct page *kimage_alloc_crash_control_pages(struct kimage *image,
 		/* If I don't overlap any segments I have found my hole! */
 		if (i == image->nr_segments) {
 			pages = pfn_to_page(hole_start >> PAGE_SHIFT);
+			image->control_page = hole_end;
 			break;
 		}
 	}
-	if (pages)
-		image->control_page = hole_end;
 
 	return pages;
 }
