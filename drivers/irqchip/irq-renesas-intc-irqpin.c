@@ -332,6 +332,12 @@ static irqreturn_t intc_irqpin_shared_irq_handler(int irq, void *dev_id)
 	return status;
 }
 
+/*
+ * This lock class tells lockdep that INTC External IRQ Pin irqs are in a
+ * different category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key intc_irqpin_irq_lock_class;
+
 static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 				      irq_hw_number_t hw)
 {
@@ -342,6 +348,7 @@ static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 	intc_irqpin_dbg(&p->irq[hw], "map");
 	irq_set_chip_data(virq, h->host_data);
+	irq_set_lockdep_class(virq, &intc_irqpin_irq_lock_class);
 	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
 	set_irq_flags(virq, IRQF_VALID); /* kill me now */
 	return 0;
