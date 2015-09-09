@@ -227,6 +227,9 @@ static const struct of_device_id atmel_hlcdc_dt_ids[] = {
 		.data = &atmel_hlcdc_pwm_at91sam9x5_errata,
 	},
 	{
+		.compatible = "atmel,sama5d2-hlcdc",
+	},
+	{
 		.compatible = "atmel,sama5d3-hlcdc",
 		.data = &atmel_hlcdc_pwm_sama5d3_errata,
 	},
