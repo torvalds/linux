@@ -66,6 +66,16 @@ struct mmu_notifier_ops {
 				 unsigned long end);
 
 	/*
+	 * clear_young is a lightweight version of clear_flush_young. Like the
+	 * latter, it is supposed to test-and-clear the young/accessed bitflag
+	 * in the secondary pte, but it may omit flushing the secondary tlb.
+	 */
+	int (*clear_young)(struct mmu_notifier *mn,
+			   struct mm_struct *mm,
+			   unsigned long start,
+			   unsigned long end);
+
+	/*
 	 * test_young is called to check the young/accessed bitflag in
 	 * the secondary pte. This is used to know if the page is
 	 * frequently used without actually clearing the flag or tearing
@@ -203,6 +213,9 @@ extern void __mmu_notifier_release(struct mm_struct *mm);
 extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 					  unsigned long start,
 					  unsigned long end);
+extern int __mmu_notifier_clear_young(struct mm_struct *mm,
+				      unsigned long start,
+				      unsigned long end);
 extern int __mmu_notifier_test_young(struct mm_struct *mm,
 				     unsigned long address);
 extern void __mmu_notifier_change_pte(struct mm_struct *mm,
@@ -228,6 +241,15 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
 {
 	if (mm_has_notifiers(mm))
 		return __mmu_notifier_clear_flush_young(mm, start, end);
+	return 0;
+}
+
+static inline int mmu_notifier_clear_young(struct mm_struct *mm,
+					   unsigned long start,
+					   unsigned long end)
+{
+	if (mm_has_notifiers(mm))
+		return __mmu_notifier_clear_young(mm, start, end);
 	return 0;
 }
 
@@ -308,6 +330,28 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 						  ___address,		\
 						  ___address +		\
 							PMD_SIZE);	\
+	__young;							\
+})
+
+#define ptep_clear_young_notify(__vma, __address, __ptep)		\
+({									\
+	int __young;							\
+	struct vm_area_struct *___vma = __vma;				\
+	unsigned long ___address = __address;				\
+	__young = ptep_test_and_clear_young(___vma, ___address, __ptep);\
+	__young |= mmu_notifier_clear_young(___vma->vm_mm, ___address,	\
+					    ___address + PAGE_SIZE);	\
+	__young;							\
+})
+
+#define pmdp_clear_young_notify(__vma, __address, __pmdp)		\
+({									\
+	int __young;							\
+	struct vm_area_struct *___vma = __vma;				\
+	unsigned long ___address = __address;				\
+	__young = pmdp_test_and_clear_young(___vma, ___address, __pmdp);\
+	__young |= mmu_notifier_clear_young(___vma->vm_mm, ___address,	\
+					    ___address + PMD_SIZE);	\
 	__young;							\
 })
 
