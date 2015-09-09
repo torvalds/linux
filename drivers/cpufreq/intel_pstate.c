@@ -260,24 +260,31 @@ static inline void update_turbo_state(void)
 		 cpu->pstate.max_pstate == cpu->pstate.turbo_pstate);
 }
 
-#define PCT_TO_HWP(x) (x * 255 / 100)
 static void intel_pstate_hwp_set(void)
 {
-	int min, max, cpu;
-	u64 value, freq;
+	int min, hw_min, max, hw_max, cpu, range, adj_range;
+	u64 value, cap;
+
+	rdmsrl(MSR_HWP_CAPABILITIES, cap);
+	hw_min = HWP_LOWEST_PERF(cap);
+	hw_max = HWP_HIGHEST_PERF(cap);
+	range = hw_max - hw_min;
 
 	get_online_cpus();
 
 	for_each_online_cpu(cpu) {
 		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
-		min = PCT_TO_HWP(limits.min_perf_pct);
+		adj_range = limits.min_perf_pct * range / 100;
+		min = hw_min + adj_range;
 		value &= ~HWP_MIN_PERF(~0L);
 		value |= HWP_MIN_PERF(min);
 
-		max = PCT_TO_HWP(limits.max_perf_pct);
+		adj_range = limits.max_perf_pct * range / 100;
+		max = hw_min + adj_range;
 		if (limits.no_turbo) {
-			rdmsrl( MSR_HWP_CAPABILITIES, freq);
-			max = HWP_GUARANTEED_PERF(freq);
+			hw_max = HWP_GUARANTEED_PERF(cap);
+			if (hw_max < max)
+				max = hw_max;
 		}
 
 		value &= ~HWP_MAX_PERF(~0L);
