@@ -17,6 +17,7 @@
 #include <linux/atomic.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
+#include <linux/dax.h>
 #include <linux/fs.h>
 #include <linux/genhd.h>
 #include <linux/highmem.h>
@@ -527,7 +528,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	unsigned long pmd_addr = address & PMD_MASK;
 	bool write = flags & FAULT_FLAG_WRITE;
 	long length;
-	void *kaddr;
+	void __pmem *kaddr;
 	pgoff_t size, pgoff;
 	sector_t block, sector;
 	unsigned long pfn;
@@ -570,7 +571,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	if (buffer_unwritten(&bh) || buffer_new(&bh)) {
 		int i;
 		for (i = 0; i < PTRS_PER_PMD; i++)
-			clear_page(kaddr + i * PAGE_SIZE);
+			clear_pmem(kaddr + i * PAGE_SIZE, PAGE_SIZE);
+		wmb_pmem();
 		count_vm_event(PGMAJFAULT);
 		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
 		result |= VM_FAULT_MAJOR;
