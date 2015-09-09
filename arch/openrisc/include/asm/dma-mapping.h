@@ -35,13 +35,14 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &or1k_dma_map_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
+#define HAVE_ARCH_DMA_SUPPORTED 1
 static inline int dma_supported(struct device *dev, u64 dma_mask)
 {
 	/* Support 32 bit DMA mask exclusively */
 	return dma_mask == DMA_BIT_MASK(32);
 }
+
+#include <asm-generic/dma-mapping-common.h>
 
 static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 {

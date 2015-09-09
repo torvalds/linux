@@ -27,15 +27,6 @@ static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (dma_ops->dma_supported == NULL)
-		return 1;
-	return dma_ops->dma_supported(dev, mask);
-}
-
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	if (!dev->dma_mask)

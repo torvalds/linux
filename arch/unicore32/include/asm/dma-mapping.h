@@ -28,16 +28,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &swiotlb_dma_map_ops;
 }
 
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (unlikely(dma_ops == NULL))
-		return 0;
-
-	return dma_ops->dma_supported(dev, mask);
-}
-
 #include <asm-generic/dma-mapping-common.h>
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)

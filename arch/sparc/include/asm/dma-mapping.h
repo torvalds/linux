@@ -7,6 +7,7 @@
 
 #define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
 
+#define HAVE_ARCH_DMA_SUPPORTED 1
 int dma_supported(struct device *dev, u64 mask);
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,

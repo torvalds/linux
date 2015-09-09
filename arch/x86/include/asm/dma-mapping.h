@@ -43,9 +43,11 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp);
 #define arch_dma_alloc_attrs arch_dma_alloc_attrs
 
+#define HAVE_ARCH_DMA_SUPPORTED 1
+extern int dma_supported(struct device *hwdev, u64 mask);
+
 #include <asm-generic/dma-mapping-common.h>
 
-extern int dma_supported(struct device *hwdev, u64 mask);
 extern int dma_set_mask(struct device *dev, u64 mask);
 
 extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,

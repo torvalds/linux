@@ -124,17 +124,6 @@ static inline void set_dma_offset(struct device *dev, dma_addr_t off)
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (unlikely(dma_ops == NULL))
-		return 0;
-	if (dma_ops->dma_supported == NULL)
-		return 1;
-	return dma_ops->dma_supported(dev, mask);
-}
-
 extern int dma_set_mask(struct device *dev, u64 dma_mask);
 extern int __dma_set_mask(struct device *dev, u64 dma_mask);
 extern u64 __dma_get_required_mask(struct device *dev);

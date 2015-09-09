@@ -44,16 +44,7 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &dma_direct_ops;
 }
 
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	if (unlikely(!ops))
-		return 0;
-	if (!ops->dma_supported)
-		return 1;
-	return ops->dma_supported(dev, mask);
-}
+#include <asm-generic/dma-mapping-common.h>
 
 static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 {
@@ -68,8 +59,6 @@ static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 	*dev->dma_mask = dma_mask;
 	return 0;
 }
-
-#include <asm-generic/dma-mapping-common.h>
 
 static inline void __dma_sync(unsigned long paddr,
 			      size_t size, enum dma_data_direction direction)

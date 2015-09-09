@@ -27,12 +27,6 @@ extern void machvec_dma_sync_sg(struct device *, struct scatterlist *, int,
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->dma_supported(dev, mask);
-}
-
 static inline int
 dma_set_mask (struct device *dev, u64 mask)
 {

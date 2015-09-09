@@ -75,12 +75,6 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 }
 
 static inline int
-dma_supported(struct device *dev, u64 mask)
-{
-	return get_dma_ops(dev)->dma_supported(dev, mask);
-}
-
-static inline int
 dma_set_mask(struct device *dev, u64 mask)
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
