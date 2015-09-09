@@ -5742,7 +5742,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_remove(fb);
+		drm_framebuffer_free(&fb->refcount);
 	}
 
 	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
