@@ -493,7 +493,7 @@ static void gntalloc_vma_close(struct vm_area_struct *vma)
 	mutex_unlock(&gref_mutex);
 }
 
-static struct vm_operations_struct gntalloc_vmops = {
+static const struct vm_operations_struct gntalloc_vmops = {
 	.open = gntalloc_vma_open,
 	.close = gntalloc_vma_close,
 };

@@ -872,7 +872,7 @@ static void omap_vout_vm_close(struct vm_area_struct *vma)
 	vout->mmap_count--;
 }
 
-static struct vm_operations_struct omap_vout_vm_ops = {
+static const struct vm_operations_struct omap_vout_vm_ops = {
 	.open	= omap_vout_vm_open,
 	.close	= omap_vout_vm_close,
 };
