@@ -1898,6 +1898,9 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU: The driver supports receiving A-MSDUs
  *	within A-MPDU.
  *
+ * @IEEE80211_HW_BEACON_TX_STATUS: The device/driver provides TX status
+ *	for sent beacons.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -1932,6 +1935,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS,
 	IEEE80211_HW_TDLS_WIDER_BW,
 	IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU,
+	IEEE80211_HW_BEACON_TX_STATUS,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
