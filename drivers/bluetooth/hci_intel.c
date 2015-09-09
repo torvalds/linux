@@ -190,7 +190,8 @@ static int intel_lpm_suspend(struct hci_uart *hu)
 
 	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
 
-	skb_queue_tail(&intel->txq, skb);
+	/* LPM flow is a priority, enqueue packet at list head */
+	skb_queue_head(&intel->txq, skb);
 	hci_uart_tx_wakeup(hu);
 
 	intel_wait_lpm_transaction(hu);
@@ -233,7 +234,8 @@ static int intel_lpm_resume(struct hci_uart *hu)
 
 	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
 
-	skb_queue_tail(&intel->txq, skb);
+	/* LPM flow is a priority, enqueue packet at list head */
+	skb_queue_head(&intel->txq, skb);
 	hci_uart_tx_wakeup(hu);
 
 	intel_wait_lpm_transaction(hu);
@@ -272,7 +274,8 @@ static int intel_lpm_host_wake(struct hci_uart *hu)
 	       sizeof(lpm_resume_ack));
 	bt_cb(skb)->pkt_type = HCI_LPM_PKT;
 
-	skb_queue_tail(&intel->txq, skb);
+	/* LPM flow is a priority, enqueue packet at list head */
+	skb_queue_head(&intel->txq, skb);
 	hci_uart_tx_wakeup(hu);
 
 	bt_dev_dbg(hu->hdev, "Resumed by controller");
