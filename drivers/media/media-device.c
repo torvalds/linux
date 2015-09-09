@@ -243,7 +243,8 @@ static long __media_device_get_topology(struct media_device *mdev,
 	struct media_v2_interface uintf;
 	struct media_v2_pad upad;
 	struct media_v2_link ulink;
-	int ret = 0, i;
+	unsigned int i;
+	int ret = 0;
 
 	topo->topology_version = mdev->topology_version;
 
@@ -609,7 +610,7 @@ EXPORT_SYMBOL_GPL(media_device_unregister);
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity)
 {
-	int i;
+	unsigned int i;
 
 	if (entity->function == MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN ||
 	    entity->function == MEDIA_ENT_F_UNKNOWN)
@@ -646,10 +647,10 @@ EXPORT_SYMBOL_GPL(media_device_register_entity);
  */
 void media_device_unregister_entity(struct media_entity *entity)
 {
-	int i;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_link *link, *tmp;
 	struct media_interface *intf;
+	unsigned int i;
 
 	if (mdev == NULL)
 		return;
