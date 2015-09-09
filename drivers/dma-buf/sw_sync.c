@@ -234,6 +234,13 @@ static bool timeline_fence_enable_signaling(struct fence *fence)
 	return true;
 }
 
+static void timeline_fence_disable_signaling(struct fence *fence)
+{
+	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
+
+	list_del_init(&pt->active_list);
+}
+
 static void timeline_fence_value_str(struct fence *fence,
 				    char *str, int size)
 {
@@ -252,6 +259,7 @@ static const struct fence_ops timeline_fence_ops = {
 	.get_driver_name = timeline_fence_get_driver_name,
 	.get_timeline_name = timeline_fence_get_timeline_name,
 	.enable_signaling = timeline_fence_enable_signaling,
+	.disable_signaling = timeline_fence_disable_signaling,
 	.signaled = timeline_fence_signaled,
 	.wait = fence_default_wait,
 	.release = timeline_fence_release,
