@@ -7377,7 +7377,7 @@ F:	drivers/scsi/nsp32*
 NIOS2 ARCHITECTURE
 M:	Ley Foon Tan <lftan@altera.com>
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
-T:	git git://git.rocketboards.org/linux-socfpga-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lftan/nios2.git
 S:	Maintained
 F:	arch/nios2/
 
