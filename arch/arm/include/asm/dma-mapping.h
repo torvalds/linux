@@ -38,6 +38,12 @@ static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 	dev->archdata.dma_ops = ops;
 }
 
+/*
+ * Note that while the generic code provides dummy dma_{alloc,free}_noncoherent
+ * implementations, we don't provide a dma_cache_sync function so drivers using
+ * this API are highlighted with build warnings.
+ */
+
 #include <asm-generic/dma-mapping-common.h>
 
 static inline int dma_set_mask(struct device *dev, u64 mask)
@@ -173,21 +179,6 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	debug_dma_mapping_error(dev, dma_addr);
 	return dma_addr == DMA_ERROR_CODE;
-}
-
-/*
- * Dummy noncoherent implementation.  We don't provide a dma_cache_sync
- * function so drivers using this API are highlighted with build warnings.
- */
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-		dma_addr_t *handle, gfp_t gfp)
-{
-	return NULL;
-}
-
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
-		void *cpu_addr, dma_addr_t handle)
-{
 }
 
 extern int dma_supported(struct device *dev, u64 mask);

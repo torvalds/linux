@@ -37,26 +37,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-					  dma_addr_t *dma_handle, gfp_t gfp)
-{
-	struct dma_attrs attrs;
-
-	dma_set_attr(DMA_ATTR_NON_CONSISTENT, &attrs);
-
-	return dma_alloc_attrs(dev, size, dma_handle, gfp, &attrs);
-}
-
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
-					 void *cpu_addr, dma_addr_t dma_handle)
-{
-	struct dma_attrs attrs;
-
-	dma_set_attr(DMA_ATTR_NON_CONSISTENT, &attrs);
-
-	dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
-}
-
 static inline int dma_supported(struct device *dev, u64 dma_mask)
 {
 	/* Support 32 bit DMA mask exclusively */

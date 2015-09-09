@@ -116,9 +116,6 @@ dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_attrs(d, s, h, f, NULL)
-#define dma_free_noncoherent(d, s, v, h) dma_free_attrs(d, s, v, h, NULL)
-
 /*
  * dma_alloc_noncoherent() is #defined to return coherent memory,
  * so there's no need to do any flushing here.
