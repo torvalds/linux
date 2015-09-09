@@ -27,13 +27,6 @@ extern void machvec_dma_sync_sg(struct device *, struct scatterlist *, int,
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_mapping_error(struct device *dev, dma_addr_t daddr)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	debug_dma_mapping_error(dev, daddr);
-	return ops->mapping_error(dev, daddr);
-}
-
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);

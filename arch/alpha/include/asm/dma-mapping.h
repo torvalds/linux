@@ -12,11 +12,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return get_dma_ops(dev)->mapping_error(dev, dma_addr);
-}
-
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	return get_dma_ops(dev)->dma_supported(dev, mask);

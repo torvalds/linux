@@ -31,6 +31,7 @@
 
 struct device;
 extern int bad_dma_address;
+#define DMA_ERROR_CODE bad_dma_address
 
 extern struct dma_map_ops *dma_ops;
 
@@ -55,16 +56,6 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 	if (!dev->dma_mask)
 		return 0;
 	return addr + size - 1 <= *dev->dma_mask;
-}
-
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (dma_ops->mapping_error)
-		return dma_ops->mapping_error(dev, dma_addr);
-
-	return (dma_addr == bad_dma_address);
 }
 
 #endif

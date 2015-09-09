@@ -18,7 +18,9 @@
 #include <asm/io.h>
 #include <asm/swiotlb.h>
 
+#ifdef CONFIG_PPC64
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
+#endif
 
 /* Some dma direct funcs must be visible for use in other dma_ops */
 extern void *__dma_direct_alloc_coherent(struct device *dev, size_t size,
@@ -136,21 +138,6 @@ static inline int dma_supported(struct device *dev, u64 mask)
 extern int dma_set_mask(struct device *dev, u64 dma_mask);
 extern int __dma_set_mask(struct device *dev, u64 dma_mask);
 extern u64 __dma_get_required_mask(struct device *dev);
-
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	debug_dma_mapping_error(dev, dma_addr);
-	if (dma_ops->mapping_error)
-		return dma_ops->mapping_error(dev, dma_addr);
-
-#ifdef CONFIG_PPC64
-	return (dma_addr == DMA_ERROR_CODE);
-#else
-	return 0;
-#endif
-}
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
