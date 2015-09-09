@@ -27,42 +27,42 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-static struct fence *amdgpu_sched_dependency(struct amd_sched_job *job)
+static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 {
-	struct amdgpu_job *sched_job = (struct amdgpu_job *)job;
-	return amdgpu_sync_get_fence(&sched_job->ibs->sync);
+	struct amdgpu_job *job = (struct amdgpu_job *)sched_job;
+	return amdgpu_sync_get_fence(&job->ibs->sync);
 }
 
-static struct fence *amdgpu_sched_run_job(struct amd_sched_job *job)
+static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_fence *fence = NULL;
-	struct amdgpu_job *sched_job;
+	struct amdgpu_job *job;
 	int r;
 
-	if (!job) {
+	if (!sched_job) {
 		DRM_ERROR("job is null\n");
 		return NULL;
 	}
-	sched_job = (struct amdgpu_job *)job;
-	mutex_lock(&sched_job->job_lock);
-	r = amdgpu_ib_schedule(sched_job->adev,
-			       sched_job->num_ibs,
-			       sched_job->ibs,
-			       sched_job->base.owner);
+	job = (struct amdgpu_job *)sched_job;
+	mutex_lock(&job->job_lock);
+	r = amdgpu_ib_schedule(job->adev,
+			       job->num_ibs,
+			       job->ibs,
+			       job->base.owner);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;
 	}
 
-	fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs - 1].fence);
+	fence = amdgpu_fence_ref(job->ibs[job->num_ibs - 1].fence);
 
 err:
-	if (sched_job->free_job)
-		sched_job->free_job(sched_job);
+	if (job->free_job)
+		job->free_job(job);
 
-	mutex_unlock(&sched_job->job_lock);
-	fence_put(&sched_job->base.s_fence->base);
-	kfree(sched_job);
+	mutex_unlock(&job->job_lock);
+	fence_put(&job->base.s_fence->base);
+	kfree(job);
 	return fence ? &fence->base : NULL;
 }
 

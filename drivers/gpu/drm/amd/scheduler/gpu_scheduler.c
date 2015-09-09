@@ -68,29 +68,29 @@ static struct amd_sched_job *
 amd_sched_rq_select_job(struct amd_sched_rq *rq)
 {
 	struct amd_sched_entity *entity;
-	struct amd_sched_job *job;
+	struct amd_sched_job *sched_job;
 
 	spin_lock(&rq->lock);
 
 	entity = rq->current_entity;
 	if (entity) {
 		list_for_each_entry_continue(entity, &rq->entities, list) {
-			job = amd_sched_entity_pop_job(entity);
-			if (job) {
+			sched_job = amd_sched_entity_pop_job(entity);
+			if (sched_job) {
 				rq->current_entity = entity;
 				spin_unlock(&rq->lock);
-				return job;
+				return sched_job;
 			}
 		}
 	}
 
 	list_for_each_entry(entity, &rq->entities, list) {
 
-		job = amd_sched_entity_pop_job(entity);
-		if (job) {
+		sched_job = amd_sched_entity_pop_job(entity);
+		if (sched_job) {
 			rq->current_entity = entity;
 			spin_unlock(&rq->lock);
-			return job;
+			return sched_job;
 		}
 
 		if (entity == rq->current_entity)
@@ -208,15 +208,15 @@ static struct amd_sched_job *
 amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = entity->scheduler;
-	struct amd_sched_job *job;
+	struct amd_sched_job *sched_job;
 
 	if (ACCESS_ONCE(entity->dependency))
 		return NULL;
 
-	if (!kfifo_out_peek(&entity->job_queue, &job, sizeof(job)))
+	if (!kfifo_out_peek(&entity->job_queue, &sched_job, sizeof(sched_job)))
 		return NULL;
 
-	while ((entity->dependency = sched->ops->dependency(job))) {
+	while ((entity->dependency = sched->ops->dependency(sched_job))) {
 
 		if (fence_add_callback(entity->dependency, &entity->cb,
 				       amd_sched_entity_wakeup))
@@ -225,32 +225,33 @@ amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 			return NULL;
 	}
 
-	return job;
+	return sched_job;
 }
 
 /**
  * Helper to submit a job to the job queue
  *
- * @job		The pointer to job required to submit
+ * @sched_job		The pointer to job required to submit
  *
  * Returns true if we could submit the job.
  */
-static bool amd_sched_entity_in(struct amd_sched_job *job)
+static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 {
-	struct amd_sched_entity *entity = job->s_entity;
+	struct amd_sched_entity *entity = sched_job->s_entity;
 	bool added, first = false;
 
 	spin_lock(&entity->queue_lock);
-	added = kfifo_in(&entity->job_queue, &job, sizeof(job)) == sizeof(job);
+	added = kfifo_in(&entity->job_queue, &sched_job,
+			sizeof(sched_job)) == sizeof(sched_job);
 
-	if (added && kfifo_len(&entity->job_queue) == sizeof(job))
+	if (added && kfifo_len(&entity->job_queue) == sizeof(sched_job))
 		first = true;
 
 	spin_unlock(&entity->queue_lock);
 
 	/* first job wakes up scheduler */
 	if (first)
-		amd_sched_wakeup(job->sched);
+		amd_sched_wakeup(sched_job->sched);
 
 	return added;
 }
@@ -258,7 +259,7 @@ static bool amd_sched_entity_in(struct amd_sched_job *job)
 /**
  * Submit a job to the job queue
  *
- * @job		The pointer to job required to submit
+ * @sched_job		The pointer to job required to submit
  *
  * Returns 0 for success, negative error code otherwise.
  */
@@ -304,17 +305,17 @@ static void amd_sched_wakeup(struct amd_gpu_scheduler *sched)
 static struct amd_sched_job *
 amd_sched_select_job(struct amd_gpu_scheduler *sched)
 {
-	struct amd_sched_job *job;
+	struct amd_sched_job *sched_job;
 
 	if (!amd_sched_ready(sched))
 		return NULL;
 
 	/* Kernel run queue has higher priority than normal run queue*/
-	job = amd_sched_rq_select_job(&sched->kernel_rq);
-	if (job == NULL)
-		job = amd_sched_rq_select_job(&sched->sched_rq);
+	sched_job = amd_sched_rq_select_job(&sched->kernel_rq);
+	if (sched_job == NULL)
+		sched_job = amd_sched_rq_select_job(&sched->sched_rq);
 
-	return job;
+	return sched_job;
 }
 
 static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
@@ -340,20 +341,20 @@ static int amd_sched_main(void *param)
 	while (!kthread_should_stop()) {
 		struct amd_sched_entity *entity;
 		struct amd_sched_fence *s_fence;
-		struct amd_sched_job *job;
+		struct amd_sched_job *sched_job;
 		struct fence *fence;
 
 		wait_event_interruptible(sched->wake_up_worker,
 			kthread_should_stop() ||
-			(job = amd_sched_select_job(sched)));
+			(sched_job = amd_sched_select_job(sched)));
 
-		if (!job)
+		if (!sched_job)
 			continue;
 
-		entity = job->s_entity;
-		s_fence = job->s_fence;
+		entity = sched_job->s_entity;
+		s_fence = sched_job->s_fence;
 		atomic_inc(&sched->hw_rq_count);
-		fence = sched->ops->run_job(job);
+		fence = sched->ops->run_job(sched_job);
 		if (fence) {
 			r = fence_add_callback(fence, &s_fence->cb,
 					       amd_sched_process_job);
@@ -367,8 +368,9 @@ static int amd_sched_main(void *param)
 			amd_sched_process_job(NULL, &s_fence->cb);
 		}
 
-		count = kfifo_out(&entity->job_queue, &job, sizeof(job));
-		WARN_ON(count != sizeof(job));
+		count = kfifo_out(&entity->job_queue, &sched_job,
+				sizeof(sched_job));
+		WARN_ON(count != sizeof(sched_job));
 		wake_up(&sched->job_scheduled);
 	}
 	return 0;

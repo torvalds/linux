@@ -778,15 +778,15 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_cs_free_job(struct amdgpu_job *sched_job)
+static int amdgpu_cs_free_job(struct amdgpu_job *job)
 {
 	int i;
-	if (sched_job->ibs)
-		for (i = 0; i < sched_job->num_ibs; i++)
-			amdgpu_ib_free(sched_job->adev, &sched_job->ibs[i]);
-	kfree(sched_job->ibs);
-	if (sched_job->uf.bo)
-		drm_gem_object_unreference_unlocked(&sched_job->uf.bo->gem_base);
+	if (job->ibs)
+		for (i = 0; i < job->num_ibs; i++)
+			amdgpu_ib_free(job->adev, &job->ibs[i]);
+	kfree(job->ibs);
+	if (job->uf.bo)
+		drm_gem_object_unreference_unlocked(&job->uf.bo->gem_base);
 	return 0;
 }
 

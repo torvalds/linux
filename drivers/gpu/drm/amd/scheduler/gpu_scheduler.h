@@ -91,8 +91,8 @@ static inline struct amd_sched_fence *to_amd_sched_fence(struct fence *f)
  * these functions should be implemented in driver side
 */
 struct amd_sched_backend_ops {
-	struct fence *(*dependency)(struct amd_sched_job *job);
-	struct fence *(*run_job)(struct amd_sched_job *job);
+	struct fence *(*dependency)(struct amd_sched_job *sched_job);
+	struct fence *(*run_job)(struct amd_sched_job *sched_job);
 };
 
 /**

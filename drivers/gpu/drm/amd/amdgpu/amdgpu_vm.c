@@ -316,12 +316,12 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 	}
 }
 
-int amdgpu_vm_free_job(struct amdgpu_job *sched_job)
+int amdgpu_vm_free_job(struct amdgpu_job *job)
 {
 	int i;
-	for (i = 0; i < sched_job->num_ibs; i++)
-		amdgpu_ib_free(sched_job->adev, &sched_job->ibs[i]);
-	kfree(sched_job->ibs);
+	for (i = 0; i < job->num_ibs; i++)
+		amdgpu_ib_free(job->adev, &job->ibs[i]);
+	kfree(job->ibs);
 	return 0;
 }
 
