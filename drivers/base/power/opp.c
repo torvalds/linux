@@ -345,7 +345,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_clock_latency);
  * @dev:	device for which we do this operation
  *
  * Return: This function returns pointer to the suspend opp if it is
- * defined, otherwise it returns NULL.
+ * defined and available, otherwise it returns NULL.
  *
  * Locking: This function must be called under rcu_read_lock(). opp is a rcu
  * protected pointer. The reason for the same is that the opp pointer which is
@@ -356,17 +356,15 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_clock_latency);
 struct dev_pm_opp *dev_pm_opp_get_suspend_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
-	struct dev_pm_opp *opp;
 
 	opp_rcu_lockdep_assert();
 
 	dev_opp = _find_device_opp(dev);
-	if (IS_ERR(dev_opp))
-		opp = NULL;
-	else
-		opp = dev_opp->suspend_opp;
+	if (IS_ERR(dev_opp) || !dev_opp->suspend_opp ||
+	    !dev_opp->suspend_opp->available)
+		return NULL;
 
-	return opp;
+	return dev_opp->suspend_opp;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp);
 
