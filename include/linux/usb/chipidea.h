@@ -71,6 +71,7 @@ struct ci_hdrc_platform_data {
 	/* VBUS and ID signal state tracking, using extcon framework */
 	struct ci_hdrc_cable		vbus_extcon;
 	struct ci_hdrc_cable		id_extcon;
+	u32			phy_clkgate_delay_us;
 };
 
 /* Default offset of capability registers */

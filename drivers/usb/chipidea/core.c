@@ -688,6 +688,10 @@ static int ci_get_platdata(struct device *dev,
 	if (of_usb_get_maximum_speed(dev->of_node) == USB_SPEED_FULL)
 		platdata->flags |= CI_HDRC_FORCE_FULLSPEED;
 
+	if (of_find_property(dev->of_node, "phy-clkgate-delay-us", NULL))
+		of_property_read_u32(dev->of_node, "phy-clkgate-delay-us",
+				     &platdata->phy_clkgate_delay_us);
+
 	platdata->itc_setting = 1;
 	if (of_find_property(dev->of_node, "itc-setting", NULL)) {
 		ret = of_property_read_u32(dev->of_node, "itc-setting",
@@ -1121,6 +1125,9 @@ static void ci_controller_suspend(struct ci_hdrc *ci)
 {
 	disable_irq(ci->irq);
 	ci_hdrc_enter_lpm(ci, true);
+	if (ci->platdata->phy_clkgate_delay_us)
+		usleep_range(ci->platdata->phy_clkgate_delay_us,
+			     ci->platdata->phy_clkgate_delay_us + 50);
 	usb_phy_set_suspend(ci->usb_phy, 1);
 	ci->in_lpm = true;
 	enable_irq(ci->irq);
