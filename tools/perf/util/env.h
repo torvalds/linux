@@ -39,4 +39,6 @@ void perf_env__exit(struct perf_env *env);
 
 int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[]);
 
+int perf_env__read_cpu_topology_map(struct perf_env *env);
+
 #endif /* __PERF_ENV_H */

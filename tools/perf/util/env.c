@@ -1,3 +1,4 @@
+#include "cpumap.h"
 #include "env.h"
 #include "util.h"
 
@@ -55,4 +56,31 @@ out_free:
 	zfree(&env->cmdline_argv);
 out_enomem:
 	return -ENOMEM;
+}
+
+int perf_env__read_cpu_topology_map(struct perf_env *env)
+{
+	int cpu, nr_cpus;
+
+	if (env->cpu != NULL)
+		return 0;
+
+	if (env->nr_cpus_avail == 0)
+		env->nr_cpus_avail = sysconf(_SC_NPROCESSORS_CONF);
+
+	nr_cpus = env->nr_cpus_avail;
+	if (nr_cpus == -1)
+		return -EINVAL;
+
+	env->cpu = calloc(nr_cpus, sizeof(env->cpu[0]));
+	if (env->cpu == NULL)
+		return -ENOMEM;
+
+	for (cpu = 0; cpu < nr_cpus; ++cpu) {
+		env->cpu[cpu].core_id	= cpu_map__get_core_id(cpu);
+		env->cpu[cpu].socket_id	= cpu_map__get_socket_id(cpu);
+	}
+
+	env->nr_cpus_avail = nr_cpus;
+	return 0;
 }

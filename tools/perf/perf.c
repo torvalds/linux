@@ -8,6 +8,7 @@
  */
 #include "builtin.h"
 
+#include "util/env.h"
 #include "util/exec_cmd.h"
 #include "util/cache.h"
 #include "util/quote.h"
@@ -369,6 +370,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 	status = p->fn(argc, argv, prefix);
 	exit_browser(status);
+	perf_env__exit(&perf_env);
 
 	if (status)
 		return status & 0xff;

@@ -415,8 +415,6 @@ struct cpu_topo {
 	u32 thread_sib;
 	char **core_siblings;
 	char **thread_siblings;
-	int *core_id;
-	int *phy_pkg_id;
 };
 
 static int build_cpu_topo(struct cpu_topo *tp, int cpu)
@@ -479,9 +477,6 @@ try_threads:
 	}
 	ret = 0;
 done:
-	tp->core_id[cpu] = cpu_map__get_core_id(cpu);
-	tp->phy_pkg_id[cpu] = cpu_map__get_socket_id(cpu);
-
 	if(fp)
 		fclose(fp);
 	free(buf);
@@ -509,7 +504,7 @@ static struct cpu_topo *build_cpu_topology(void)
 	struct cpu_topo *tp;
 	void *addr;
 	u32 nr, i;
-	size_t sz, sz_id;
+	size_t sz;
 	long ncpus;
 	int ret = -1;
 
@@ -520,9 +515,8 @@ static struct cpu_topo *build_cpu_topology(void)
 	nr = (u32)(ncpus & UINT_MAX);
 
 	sz = nr * sizeof(char *);
-	sz_id = nr * sizeof(int);
 
-	addr = calloc(1, sizeof(*tp) + 2 * sz + 2 * sz_id);
+	addr = calloc(1, sizeof(*tp) + 2 * sz);
 	if (!addr)
 		return NULL;
 
@@ -532,10 +526,6 @@ static struct cpu_topo *build_cpu_topology(void)
 	tp->core_siblings = addr;
 	addr += sz;
 	tp->thread_siblings = addr;
-	addr += sz;
-	tp->core_id = addr;
-	addr += sz_id;
-	tp->phy_pkg_id = addr;
 
 	for (i = 0; i < nr; i++) {
 		ret = build_cpu_topo(tp, i);
@@ -554,7 +544,7 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 {
 	struct cpu_topo *tp;
 	u32 i;
-	int ret;
+	int ret, j;
 
 	tp = build_cpu_topology();
 	if (!tp)
@@ -579,11 +569,17 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 			break;
 	}
 
-	for (i = 0; i < tp->cpu_nr; i++) {
-		ret = do_write(fd, &tp->core_id[i], sizeof(int));
+	ret = perf_env__read_cpu_topology_map(&perf_env);
+	if (ret < 0)
+		goto done;
+
+	for (j = 0; j < perf_env.nr_cpus_avail; j++) {
+		ret = do_write(fd, &perf_env.cpu[j].core_id,
+			       sizeof(perf_env.cpu[j].core_id));
 		if (ret < 0)
 			return ret;
-		ret = do_write(fd, &tp->phy_pkg_id[i], sizeof(int));
+		ret = do_write(fd, &perf_env.cpu[j].socket_id,
+			       sizeof(perf_env.cpu[j].socket_id));
 		if (ret < 0)
 			return ret;
 	}
