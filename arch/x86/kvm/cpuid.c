@@ -348,7 +348,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
 		F(BMI2) | F(ERMS) | f_invpcid | F(RTM) | f_mpx | F(RDSEED) |
 		F(ADX) | F(SMAP) | F(AVX512F) | F(AVX512PF) | F(AVX512ER) |
-		F(AVX512CD);
+		F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB);
 
 	/* cpuid 0xD.1.eax */
 	const u32 kvm_supported_word10_x86_features =
