@@ -497,13 +497,21 @@ static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
 static int intel_iommu_ecs = 1;
+static int intel_iommu_pasid28;
+static int iommu_identity_mapping;
+
+#define IDENTMAP_ALL		1
+#define IDENTMAP_GFX		2
+#define IDENTMAP_AZALIA		4
 
 /* We only actually use ECS when PASID support (on the new bit 40)
  * is also advertised. Some early implementations — the ones with
  * PASID support on bit 28 — have issues even when we *only* use
  * extended root/context tables. */
+#define pasid_enabled(iommu) (ecap_pasid(iommu->ecap) || \
+			      (intel_iommu_pasid28 && ecap_broken_pasid(iommu->ecap)))
 #define ecs_enabled(iommu) (intel_iommu_ecs && ecap_ecs(iommu->ecap) && \
-			    ecap_pasid(iommu->ecap))
+			    pasid_enabled(iommu))
 
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
@@ -566,6 +574,11 @@ static int __init intel_iommu_setup(char *str)
 			printk(KERN_INFO
 				"Intel-IOMMU: disable extended context table support\n");
 			intel_iommu_ecs = 0;
+		} else if (!strncmp(str, "pasid28", 7)) {
+			printk(KERN_INFO
+				"Intel-IOMMU: enable pre-production PASID support\n");
+			intel_iommu_pasid28 = 1;
+			iommu_identity_mapping |= IDENTMAP_GFX;
 		}
 
 		str += strcspn(str, ",");
@@ -2402,11 +2415,6 @@ found_domain:
 
 	return domain;
 }
-
-static int iommu_identity_mapping;
-#define IDENTMAP_ALL		1
-#define IDENTMAP_GFX		2
-#define IDENTMAP_AZALIA		4
 
 static int iommu_domain_identity_map(struct dmar_domain *domain,
 				     unsigned long long start,
