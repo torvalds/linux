@@ -747,6 +747,19 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	if (!ret && val)
 		config->multipoint = true;
 
+	config->maximum_speed = of_usb_get_maximum_speed(dn);
+	switch (config->maximum_speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		break;
+	case USB_SPEED_SUPER:
+		dev_warn(dev, "ignore incorrect maximum_speed "
+				"(super-speed) setting in dts");
+		/* fall through */
+	default:
+		config->maximum_speed = USB_SPEED_HIGH;
+	}
+
 	ret = platform_device_add_data(musb, &pdata, sizeof(pdata));
 	if (ret) {
 		dev_err(dev, "failed to add platform_data\n");
