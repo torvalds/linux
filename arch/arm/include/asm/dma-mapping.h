@@ -48,11 +48,6 @@ extern int dma_supported(struct device *dev, u64 mask);
  */
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_set_mask(struct device *dev, u64 mask)
-{
-	return get_dma_ops(dev)->set_dma_mask(dev, mask);
-}
-
 #ifdef __arch_page_to_dma
 #error Please update to __arch_pfn_to_dma
 #endif

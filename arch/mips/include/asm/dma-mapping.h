@@ -31,22 +31,6 @@ static inline void dma_mark_clean(void *addr, size_t size) {}
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int
-dma_set_mask(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	if(!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-
-	if (ops->set_dma_mask)
-		return ops->set_dma_mask(dev, mask);
-
-	*dev->dma_mask = mask;
-
-	return 0;
-}
-
 extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction);
 

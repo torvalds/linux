@@ -18,8 +18,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &s390_dma_ops;
 }
 
-extern int dma_set_mask(struct device *dev, u64 mask);
-
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction direction)
 {

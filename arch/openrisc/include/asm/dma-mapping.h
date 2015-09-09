@@ -44,13 +44,4 @@ static inline int dma_supported(struct device *dev, u64 dma_mask)
 
 #include <asm-generic/dma-mapping-common.h>
 
-static inline int dma_set_mask(struct device *dev, u64 dma_mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
-		return -EIO;
-
-	*dev->dma_mask = dma_mask;
-
-	return 0;
-}
 #endif	/* __ASM_OPENRISC_DMA_MAPPING_H */

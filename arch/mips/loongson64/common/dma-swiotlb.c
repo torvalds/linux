@@ -85,6 +85,9 @@ static void loongson_dma_sync_sg_for_device(struct device *dev,
 
 static int loongson_dma_set_mask(struct device *dev, u64 mask)
 {
+	if (!dev->dma_mask || !dma_supported(dev, mask))
+		return -EIO;
+
 	if (mask > DMA_BIT_MASK(loongson_sysconf.dma_mask_bits)) {
 		*dev->dma_mask = DMA_BIT_MASK(loongson_sysconf.dma_mask_bits);
 		return -EIO;

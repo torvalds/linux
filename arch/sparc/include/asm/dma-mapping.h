@@ -37,7 +37,7 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return dma_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
+#define HAVE_ARCH_DMA_SET_MASK 1
 
 static inline int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -51,5 +51,7 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
 #endif
 	return -EINVAL;
 }
+
+#include <asm-generic/dma-mapping-common.h>
 
 #endif

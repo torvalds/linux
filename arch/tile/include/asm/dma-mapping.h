@@ -59,8 +59,6 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
-#include <asm-generic/dma-mapping-common.h>
-
 static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 {
 	dev->archdata.dma_ops = ops;
@@ -73,6 +71,10 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 
 	return addr + size - 1 <= *dev->dma_mask;
 }
+
+#define HAVE_ARCH_DMA_SET_MASK 1
+
+#include <asm-generic/dma-mapping-common.h>
 
 static inline int
 dma_set_mask(struct device *dev, u64 mask)
