@@ -1243,11 +1243,7 @@ static inline void perf_event__state_init(struct perf_event *event)
 					      PERF_EVENT_STATE_INACTIVE;
 }
 
-/*
- * Called at perf_event creation and when events are attached/detached from a
- * group.
- */
-static void perf_event__read_size(struct perf_event *event)
+static void __perf_event_read_size(struct perf_event *event, int nr_siblings)
 {
 	int entry = sizeof(u64); /* value */
 	int size = 0;
@@ -1263,7 +1259,7 @@ static void perf_event__read_size(struct perf_event *event)
 		entry += sizeof(u64);
 
 	if (event->attr.read_format & PERF_FORMAT_GROUP) {
-		nr += event->group_leader->nr_siblings;
+		nr += nr_siblings;
 		size += sizeof(u64);
 	}
 
@@ -1271,13 +1267,10 @@ static void perf_event__read_size(struct perf_event *event)
 	event->read_size = size;
 }
 
-static void perf_event__header_size(struct perf_event *event)
+static void __perf_event_header_size(struct perf_event *event, u64 sample_type)
 {
 	struct perf_sample_data *data;
-	u64 sample_type = event->attr.sample_type;
 	u16 size = 0;
-
-	perf_event__read_size(event);
 
 	if (sample_type & PERF_SAMPLE_IP)
 		size += sizeof(data->ip);
@@ -1301,6 +1294,17 @@ static void perf_event__header_size(struct perf_event *event)
 		size += sizeof(data->txn);
 
 	event->header_size = size;
+}
+
+/*
+ * Called at perf_event creation and when events are attached/detached from a
+ * group.
+ */
+static void perf_event__header_size(struct perf_event *event)
+{
+	__perf_event_read_size(event,
+			       event->group_leader->nr_siblings);
+	__perf_event_header_size(event, event->attr.sample_type);
 }
 
 static void perf_event__id_header_size(struct perf_event *event)
@@ -1328,6 +1332,27 @@ static void perf_event__id_header_size(struct perf_event *event)
 		size += sizeof(data->cpu_entry);
 
 	event->id_header_size = size;
+}
+
+static bool perf_event_validate_size(struct perf_event *event)
+{
+	/*
+	 * The values computed here will be over-written when we actually
+	 * attach the event.
+	 */
+	__perf_event_read_size(event, event->group_leader->nr_siblings + 1);
+	__perf_event_header_size(event, event->attr.sample_type & ~PERF_SAMPLE_READ);
+	perf_event__id_header_size(event);
+
+	/*
+	 * Sum the lot; should not exceed the 64k limit we have on records.
+	 * Conservative limit to allow for callchains and other variable fields.
+	 */
+	if (event->read_size + event->header_size +
+	    event->id_header_size + sizeof(struct perf_event_header) >= 16*1024)
+		return false;
+
+	return true;
 }
 
 static void perf_group_attach(struct perf_event *event)
@@ -8300,6 +8325,11 @@ SYSCALL_DEFINE5(perf_event_open,
 		mutex_lock_double(&gctx->mutex, &ctx->mutex);
 	} else {
 		mutex_lock(&ctx->mutex);
+	}
+
+	if (!perf_event_validate_size(event)) {
+		err = -E2BIG;
+		goto err_locked;
 	}
 
 	/*
