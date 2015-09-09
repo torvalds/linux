@@ -114,7 +114,7 @@ static noinline void __init kmalloc_oob_krealloc_less(void)
 		kfree(ptr1);
 		return;
 	}
-	ptr2[size1] = 'x';
+	ptr2[size2] = 'x';
 	kfree(ptr2);
 }
 
