@@ -27,7 +27,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 {
 	struct gb_connection *connection = firmware->connection;
 	struct gb_interface *intf = connection->bundle->intf;
-	char firmware_name[28];
+	char firmware_name[32];
 
 	/* Already have a firmware, free it */
 	if (firmware->fw)
