@@ -621,7 +621,7 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	{
 		.procname	= "kexec_load_disabled",
 		.data		= &kexec_load_disabled,

@@ -1754,6 +1754,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
+	select KEXEC_CORE
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -1770,8 +1771,8 @@ config KEXEC
 
 config KEXEC_FILE
 	bool "kexec file based system call"
+	select KEXEC_CORE
 	select BUILD_BIN2C
-	depends on KEXEC
 	depends on X86_64
 	depends on CRYPTO=y
 	depends on CRYPTO_SHA256=y

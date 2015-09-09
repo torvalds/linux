@@ -16,7 +16,7 @@
 
 #include <uapi/linux/kexec.h>
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 #include <linux/list.h>
 #include <linux/linkage.h>
 #include <linux/compat.h>
@@ -329,13 +329,13 @@ int __weak arch_kexec_apply_relocations_add(const Elf_Ehdr *ehdr,
 int __weak arch_kexec_apply_relocations(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 					unsigned int relsec);
 
-#else /* !CONFIG_KEXEC */
+#else /* !CONFIG_KEXEC_CORE */
 struct pt_regs;
 struct task_struct;
 static inline void crash_kexec(struct pt_regs *regs) { }
 static inline int kexec_should_crash(struct task_struct *p) { return 0; }
 #define kexec_in_progress false
-#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_KEXEC_CORE */
 
 #endif /* !defined(__ASSEBMLY__) */
 
