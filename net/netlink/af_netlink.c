@@ -674,12 +674,19 @@ static unsigned int netlink_poll(struct file *file, struct socket *sock,
 
 	mask = datagram_poll(file, sock, wait);
 
-	spin_lock_bh(&sk->sk_receive_queue.lock);
-	if (nlk->rx_ring.pg_vec) {
-		if (netlink_has_valid_frame(&nlk->rx_ring))
-			mask |= POLLIN | POLLRDNORM;
+	/* We could already have received frames in the normal receive
+	 * queue, that will show up as NL_MMAP_STATUS_COPY in the ring,
+	 * so if mask contains pollin/etc already, there's no point
+	 * walking the ring.
+	 */
+	if ((mask & (POLLIN | POLLRDNORM)) != (POLLIN | POLLRDNORM)) {
+		spin_lock_bh(&sk->sk_receive_queue.lock);
+		if (nlk->rx_ring.pg_vec) {
+			if (netlink_has_valid_frame(&nlk->rx_ring))
+				mask |= POLLIN | POLLRDNORM;
+		}
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
 	}
-	spin_unlock_bh(&sk->sk_receive_queue.lock);
 
 	spin_lock_bh(&sk->sk_write_queue.lock);
 	if (nlk->tx_ring.pg_vec) {
