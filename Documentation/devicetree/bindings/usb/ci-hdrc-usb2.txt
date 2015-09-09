@@ -51,6 +51,8 @@ Optional properties:
   to external connector device, which provide "USB-HOST" cable events. If one
   of the external connector devices is not required, empty <0> phandle should
   be specified.
+- phy-clkgate-delay-us: the delay time (us) between putting the PHY into
+  low power mode and gating the PHY clock.
 
 Example:
 
@@ -68,4 +70,5 @@ Example:
 		tx-burst-size-dword = <0x10>; /* 64 bytes */
 		rx-burst-size-dword = <0x10>;
 		extcon = <0>, <&usb_id>;
+		phy-clkgate-delay-us = <400>;
 	};
