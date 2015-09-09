@@ -682,7 +682,7 @@ void init_entity_runnable_average(struct sched_entity *se)
 	sa->load_avg = scale_load_down(se->load.weight);
 	sa->load_sum = sa->load_avg * LOAD_AVG_MAX;
 	sa->util_avg = scale_load_down(SCHED_LOAD_SCALE);
-	sa->util_sum = LOAD_AVG_MAX;
+	sa->util_sum = sa->util_avg * LOAD_AVG_MAX;
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 }
 
@@ -2515,6 +2515,10 @@ static u32 __compute_runnable_contrib(u64 n)
 	return contrib + runnable_avg_yN_sum[n];
 }
 
+#if (SCHED_LOAD_SHIFT - SCHED_LOAD_RESOLUTION) != 10 || SCHED_CAPACITY_SHIFT != 10
+#error "load tracking assumes 2^10 as unit"
+#endif
+
 #define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
 
 /*
@@ -2599,7 +2603,7 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 			}
 		}
 		if (running)
-			sa->util_sum += cap_scale(scaled_delta_w, scale_cpu);
+			sa->util_sum += scaled_delta_w * scale_cpu;
 
 		delta -= delta_w;
 
@@ -2623,7 +2627,7 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 				cfs_rq->runnable_load_sum += weight * contrib;
 		}
 		if (running)
-			sa->util_sum += cap_scale(contrib, scale_cpu);
+			sa->util_sum += contrib * scale_cpu;
 	}
 
 	/* Remainder of delta accrued against u_0` */
@@ -2634,7 +2638,7 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 			cfs_rq->runnable_load_sum += weight * scaled_delta;
 	}
 	if (running)
-		sa->util_sum += cap_scale(scaled_delta, scale_cpu);
+		sa->util_sum += scaled_delta * scale_cpu;
 
 	sa->period_contrib += delta;
 
@@ -2644,7 +2648,7 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 			cfs_rq->runnable_load_avg =
 				div_u64(cfs_rq->runnable_load_sum, LOAD_AVG_MAX);
 		}
-		sa->util_avg = (sa->util_sum << SCHED_LOAD_SHIFT) / LOAD_AVG_MAX;
+		sa->util_avg = sa->util_sum / LOAD_AVG_MAX;
 	}
 
 	return decayed;
@@ -2686,8 +2690,7 @@ static inline int update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
 		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
 		sa->util_avg = max_t(long, sa->util_avg - r, 0);
-		sa->util_sum = max_t(s32, sa->util_sum -
-			((r * LOAD_AVG_MAX) >> SCHED_LOAD_SHIFT), 0);
+		sa->util_sum = max_t(s32, sa->util_sum - r * LOAD_AVG_MAX, 0);
 	}
 
 	decayed = __update_load_avg(now, cpu_of(rq_of(cfs_rq)), sa,
