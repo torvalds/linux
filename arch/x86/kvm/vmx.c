@@ -6636,7 +6636,6 @@ static int nested_vmx_check_permission(struct kvm_vcpu *vcpu)
 
 static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 {
-	u32 exec_control;
 	if (vmx->nested.current_vmptr == -1ull)
 		return;
 
@@ -6649,9 +6648,8 @@ static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 		   they were modified */
 		copy_shadow_to_vmcs12(vmx);
 		vmx->nested.sync_shadow_vmcs = false;
-		exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
-		exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
-		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+		vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL,
+				SECONDARY_EXEC_SHADOW_VMCS);
 		vmcs_write64(VMCS_LINK_POINTER, -1ull);
 	}
 	vmx->nested.posted_intr_nv = -1;
@@ -7047,7 +7045,6 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	gpa_t vmptr;
-	u32 exec_control;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -7079,9 +7076,8 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		vmx->nested.current_vmcs12 = new_vmcs12;
 		vmx->nested.current_vmcs12_page = page;
 		if (enable_shadow_vmcs) {
-			exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
-			exec_control |= SECONDARY_EXEC_SHADOW_VMCS;
-			vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+			vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
+				      SECONDARY_EXEC_SHADOW_VMCS);
 			vmcs_write64(VMCS_LINK_POINTER,
 				     __pa(vmx->nested.current_shadow_vmcs));
 			vmx->nested.sync_shadow_vmcs = true;
@@ -7591,7 +7587,6 @@ static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 static int vmx_enable_pml(struct vcpu_vmx *vmx)
 {
 	struct page *pml_pg;
-	u32 exec_control;
 
 	pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!pml_pg)
@@ -7602,24 +7597,18 @@ static int vmx_enable_pml(struct vcpu_vmx *vmx)
 	vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 
-	exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
-	exec_control |= SECONDARY_EXEC_ENABLE_PML;
-	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+	vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL, SECONDARY_EXEC_ENABLE_PML);
 
 	return 0;
 }
 
 static void vmx_disable_pml(struct vcpu_vmx *vmx)
 {
-	u32 exec_control;
-
 	ASSERT(vmx->pml_pg);
 	__free_page(vmx->pml_pg);
 	vmx->pml_pg = NULL;
 
-	exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
-	exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
-	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+	vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL, SECONDARY_EXEC_ENABLE_PML);
 }
 
 static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
