@@ -2166,7 +2166,11 @@ sub process {
 		if ($showfile) {
 			$prefix = "$realfile:$realline: "
 		} elsif ($emacs) {
-			$prefix = "$filename:$linenr: ";
+			if ($file) {
+				$prefix = "$filename:$realline: ";
+			} else {
+				$prefix = "$filename:$linenr: ";
+			}
 		}
 
 		if ($found_file) {
