@@ -2611,6 +2611,12 @@ static void _ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_inf
 	u64 temp64;
 	uint32 i;
 	uint32 ddr_bw;
+	uint32 bl;
+
+	if (p_ddr_reg->mem_type == DDR3)
+		bl = 8;
+	else
+		bl = ((pDDR_Reg->MCFG >> 20) & 0x3) << 2;
 
 	ddr_bw = READ_BW_INFO();
 	ddr_dfi_monitor_stop();
@@ -2621,15 +2627,20 @@ static void _ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_inf
 		goto end;
 
 	ddr_freq = pDDR_Reg->TOGCNT1U;
-	temp64 = ((u64)ddr_bw_val[ddrbw_wr_num] + (u64)ddr_bw_val[ddrbw_rd_num])*4*100;
+	temp64 = ((u64)ddr_bw_val[ddrbw_wr_num] + (u64)ddr_bw_val[ddrbw_rd_num])
+		 * bl / 2 * 100;
 	do_div(temp64, ddr_bw_val[ddrbw_time_num]);
 
 	ddr_bw_ch0->ddr_percent = (uint32)temp64;
-	ddr_bw_ch0->ddr_time = ddr_bw_val[ddrbw_time_num]/(ddr_freq*1000); /*ms*/
-	ddr_bw_ch0->ddr_wr = (ddr_bw_val[ddrbw_wr_num]*8*ddr_bw*2)*ddr_freq/ddr_bw_val[ddrbw_time_num];/*Byte/us,MB/s*/
-	ddr_bw_ch0->ddr_rd = (ddr_bw_val[ddrbw_rd_num]*8*ddr_bw*2)*ddr_freq/ddr_bw_val[ddrbw_time_num];
+	ddr_bw_ch0->ddr_time = ddr_bw_val[ddrbw_time_num] / (ddr_freq * 1000);
+	temp64 = ((u64)ddr_bw_val[ddrbw_wr_num] * bl * ddr_bw * 2) * ddr_freq;
+	do_div(temp64, ddr_bw_val[ddrbw_time_num]);
+	ddr_bw_ch0->ddr_wr = (uint32)temp64;
+	temp64 = ((u64)ddr_bw_val[ddrbw_rd_num] * bl * ddr_bw * 2) * ddr_freq;
+	do_div(temp64, ddr_bw_val[ddrbw_time_num]);
+	ddr_bw_ch0->ddr_rd = (uint32)temp64;
 	ddr_bw_ch0->ddr_act = ddr_bw_val[ddrbw_act_num];
-	ddr_bw_ch0->ddr_total = ddr_freq*2*ddr_bw*2;
+	ddr_bw_ch0->ddr_total = ddr_freq * 2 * ddr_bw * 2;
 end:
 	ddr_dfi_monitor_strat();
 }
