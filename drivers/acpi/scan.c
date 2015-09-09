@@ -1472,7 +1472,7 @@ bool acpi_device_is_present(struct acpi_device *adev)
 }
 
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
-				       char *idstr,
+				       const char *idstr,
 				       const struct acpi_device_id **matchid)
 {
 	const struct acpi_device_id *devid;
@@ -1491,7 +1491,7 @@ static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 	return false;
 }
 
-static struct acpi_scan_handler *acpi_scan_match_handler(char *idstr,
+static struct acpi_scan_handler *acpi_scan_match_handler(const char *idstr,
 					const struct acpi_device_id **matchid)
 {
 	struct acpi_scan_handler *handler;

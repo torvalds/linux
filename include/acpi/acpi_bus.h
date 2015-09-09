@@ -227,7 +227,7 @@ typedef char acpi_device_class[20];
 
 struct acpi_hardware_id {
 	struct list_head list;
-	char *id;
+	const char *id;
 };
 
 struct acpi_pnp_type {
