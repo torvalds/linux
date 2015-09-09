@@ -432,8 +432,8 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
- * @esc:	NULL-terminated string containing characters used to limit
- *		the selected escape class. If characters are included in @esc
+ * @only:	NULL-terminated string containing characters used to limit
+ *		the selected escape class. If characters are included in @only
  *		that would not normally be escaped by the classes selected
  *		in @flags, they will be copied to @dst unescaped.
  *
@@ -442,7 +442,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * in the following sequence.
  *	1. The character is matched to the printable class, if asked, and in
  *	   case of match it passes through to the output.
- *	2. The character is not matched to the one from @esc string and thus
+ *	2. The character is not matched to the one from @only string and thus
  *	   must go as-is to the output.
  *	3. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
@@ -460,11 +460,11 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * dst for a '\0' terminator if and only if ret < osz.
  */
 int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
-		      unsigned int flags, const char *esc)
+		      unsigned int flags, const char *only)
 {
 	char *p = dst;
 	char *end = p + osz;
-	bool is_dict = esc && *esc;
+	bool is_dict = only && *only;
 
 	while (isz--) {
 		unsigned char c = *src++;
@@ -473,7 +473,7 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		 * Apply rules in the following sequence:
 		 *	- the character is printable, when @flags has
 		 *	  %ESCAPE_NP bit set
-		 *	- the @esc string is supplied and does not contain a
+		 *	- the @only string is supplied and does not contain a
 		 *	  character under question
 		 *	- the character doesn't fall into a class of symbols
 		 *	  defined by given @flags
@@ -481,7 +481,7 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		 * output buffer.
 		 */
 		if ((flags & ESCAPE_NP && isprint(c)) ||
-		    (is_dict && !strchr(esc, c))) {
+		    (is_dict && !strchr(only, c))) {
 			/* do nothing */
 		} else {
 			if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
