@@ -271,8 +271,8 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 
 static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 {
-	/* Set Fast Mode speed */
-	hdmi_writeb(hdmi, 0x0b, HDMI_I2CM_DIV);
+	/* Set Standard Mode speed */
+	hdmi_writeb(hdmi, 0x03, HDMI_I2CM_DIV);
 
 	/* Software reset */
 	hdmi_writeb(hdmi, 0x00, HDMI_I2CM_SOFTRSTZ);
