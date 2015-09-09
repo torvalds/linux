@@ -76,27 +76,27 @@ static unsigned long xen_io_tlb_nslabs;
 static u64 start_dma_addr;
 
 /*
- * Both of these functions should avoid PFN_PHYS because phys_addr_t
+ * Both of these functions should avoid XEN_PFN_PHYS because phys_addr_t
  * can be 32bit when dma_addr_t is 64bit leading to a loss in
  * information if the shift is done before casting to 64bit.
  */
 static inline dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 {
-	unsigned long bfn = pfn_to_bfn(PFN_DOWN(paddr));
-	dma_addr_t dma = (dma_addr_t)bfn << PAGE_SHIFT;
+	unsigned long bfn = pfn_to_bfn(XEN_PFN_DOWN(paddr));
+	dma_addr_t dma = (dma_addr_t)bfn << XEN_PAGE_SHIFT;
 
-	dma |= paddr & ~PAGE_MASK;
+	dma |= paddr & ~XEN_PAGE_MASK;
 
 	return dma;
 }
 
 static inline phys_addr_t xen_bus_to_phys(dma_addr_t baddr)
 {
-	unsigned long pfn = bfn_to_pfn(PFN_DOWN(baddr));
-	dma_addr_t dma = (dma_addr_t)pfn << PAGE_SHIFT;
+	unsigned long xen_pfn = bfn_to_pfn(XEN_PFN_DOWN(baddr));
+	dma_addr_t dma = (dma_addr_t)xen_pfn << XEN_PAGE_SHIFT;
 	phys_addr_t paddr = dma;
 
-	paddr |= baddr & ~PAGE_MASK;
+	paddr |= baddr & ~XEN_PAGE_MASK;
 
 	return paddr;
 }
@@ -106,7 +106,7 @@ static inline dma_addr_t xen_virt_to_bus(void *address)
 	return xen_phys_to_bus(virt_to_phys(address));
 }
 
-static int check_pages_physically_contiguous(unsigned long pfn,
+static int check_pages_physically_contiguous(unsigned long xen_pfn,
 					     unsigned int offset,
 					     size_t length)
 {
@@ -114,11 +114,11 @@ static int check_pages_physically_contiguous(unsigned long pfn,
 	int i;
 	int nr_pages;
 
-	next_bfn = pfn_to_bfn(pfn);
-	nr_pages = (offset + length + PAGE_SIZE-1) >> PAGE_SHIFT;
+	next_bfn = pfn_to_bfn(xen_pfn);
+	nr_pages = (offset + length + XEN_PAGE_SIZE-1) >> XEN_PAGE_SHIFT;
 
 	for (i = 1; i < nr_pages; i++) {
-		if (pfn_to_bfn(++pfn) != ++next_bfn)
+		if (pfn_to_bfn(++xen_pfn) != ++next_bfn)
 			return 0;
 	}
 	return 1;
@@ -126,28 +126,27 @@ static int check_pages_physically_contiguous(unsigned long pfn,
 
 static inline int range_straddles_page_boundary(phys_addr_t p, size_t size)
 {
-	unsigned long pfn = PFN_DOWN(p);
-	unsigned int offset = p & ~PAGE_MASK;
+	unsigned long xen_pfn = XEN_PFN_DOWN(p);
+	unsigned int offset = p & ~XEN_PAGE_MASK;
 
-	if (offset + size <= PAGE_SIZE)
+	if (offset + size <= XEN_PAGE_SIZE)
 		return 0;
-	if (check_pages_physically_contiguous(pfn, offset, size))
+	if (check_pages_physically_contiguous(xen_pfn, offset, size))
 		return 0;
 	return 1;
 }
 
 static int is_xen_swiotlb_buffer(dma_addr_t dma_addr)
 {
-	unsigned long bfn = PFN_DOWN(dma_addr);
-	unsigned long pfn = bfn_to_local_pfn(bfn);
-	phys_addr_t paddr;
+	unsigned long bfn = XEN_PFN_DOWN(dma_addr);
+	unsigned long xen_pfn = bfn_to_local_pfn(bfn);
+	phys_addr_t paddr = XEN_PFN_PHYS(xen_pfn);
 
 	/* If the address is outside our domain, it CAN
 	 * have the same virtual address as another address
 	 * in our domain. Therefore _only_ check address within our domain.
 	 */
-	if (pfn_valid(pfn)) {
-		paddr = PFN_PHYS(pfn);
+	if (pfn_valid(PFN_DOWN(paddr))) {
 		return paddr >= virt_to_phys(xen_io_tlb_start) &&
 		       paddr < virt_to_phys(xen_io_tlb_end);
 	}
