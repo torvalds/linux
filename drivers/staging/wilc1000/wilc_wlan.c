@@ -19,9 +19,6 @@
 extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
 extern wilc_cfg_func_t mac_cfg;
-#if defined(PLAT_RK3026_TCHIP)
-extern u8 g_wilc_initialized; /* AMR : 0422 RK3026 Crash issue */
-#endif
 extern void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size);
 uint32_t wilc_get_chipid(uint8_t update);
 u16 Set_machw_change_vir_if(bool bValue);
@@ -1943,11 +1940,7 @@ uint32_t init_chip(void)
 	uint32_t chipid;
 	uint32_t reg, ret = 0;
 
-#if defined(PLAT_RK3026_TCHIP)
-	acquire_bus(ACQUIRE_AND_WAKEUP); /* AMR : 0422 RK3026 Crash issue */
-#else
 	acquire_bus(ACQUIRE_ONLY);
-#endif
 
 	chipid = wilc_get_chipid(true);
 
@@ -2077,13 +2070,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/***
 	 *      host interface init
 	 **/
-#if defined(PLAT_RK3026_TCHIP) /* AMR : 0422 RK3026 Crash issue */
-	if (!g_wilc_initialized) {
-		custom_lock_bus(g_mac_open);
-		custom_wakeup(g_mac_open);
-	}
-#endif
-
 	if ((inp->io_func.io_type & 0x1) == HIF_SDIO) {
 		if (!hif_sdio.hif_init(inp, wilc_debug)) {
 			/* EIO	5 */
@@ -2176,11 +2162,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	Init_TCP_tracking();
 #endif
 
-#if defined(PLAT_RK3026_TCHIP) /* AMR : 0422 RK3026 Crash issue */
-	if (!g_wilc_initialized)
-		custom_unlock_bus(g_mac_open);
-#endif
-
 	return 1;
 
 _fail_:
@@ -2191,11 +2172,6 @@ _fail_:
   #endif
 	kfree(g_wlan.tx_buffer);
 	g_wlan.tx_buffer = NULL;
-
-#if defined(PLAT_RK3026_TCHIP) /* AMR : 0422 RK3026 Crash issue */
-	if (!g_wilc_initialized)
-		custom_unlock_bus(g_mac_open);
-#endif
 
 	return ret;
 
