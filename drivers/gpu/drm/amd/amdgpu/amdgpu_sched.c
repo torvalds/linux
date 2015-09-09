@@ -29,7 +29,7 @@
 
 static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 {
-	struct amdgpu_job *job = (struct amdgpu_job *)sched_job;
+	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	return amdgpu_sync_get_fence(&job->ibs->sync);
 }
 
@@ -43,7 +43,7 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 		DRM_ERROR("job is null\n");
 		return NULL;
 	}
-	job = (struct amdgpu_job *)sched_job;
+	job = to_amdgpu_job(sched_job);
 	mutex_lock(&job->job_lock);
 	r = amdgpu_ib_schedule(job->adev,
 			       job->num_ibs,
@@ -94,7 +94,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 		mutex_init(&job->job_lock);
 		job->free_job = free_job;
 		mutex_lock(&job->job_lock);
-		r = amd_sched_entity_push_job((struct amd_sched_job *)job);
+		r = amd_sched_entity_push_job(&job->base);
 		if (r) {
 			mutex_unlock(&job->job_lock);
 			kfree(job);

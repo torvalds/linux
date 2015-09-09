@@ -863,7 +863,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		job->free_job = amdgpu_cs_free_job;
 		mutex_lock(&job->job_lock);
-		r = amd_sched_entity_push_job((struct amd_sched_job *)job);
+		r = amd_sched_entity_push_job(&job->base);
 		if (r) {
 			mutex_unlock(&job->job_lock);
 			amdgpu_cs_free_job(job);

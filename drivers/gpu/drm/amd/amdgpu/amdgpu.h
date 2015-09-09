@@ -1277,6 +1277,8 @@ struct amdgpu_job {
 	struct amdgpu_user_fence uf;
 	int (*free_job)(struct amdgpu_job *job);
 };
+#define to_amdgpu_job(sched_job)		\
+		container_of((sched_job), struct amdgpu_job, base)
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
 {
