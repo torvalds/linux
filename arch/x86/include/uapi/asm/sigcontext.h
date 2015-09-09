@@ -2,16 +2,16 @@
 #define _UAPI_ASM_X86_SIGCONTEXT_H
 
 /*
- * Linux signal context definitions. The sigcontext includes a complex hierarchy of CPU
- * and FPU state, available to user-space (on the stack) when a signal handler is
- * executed.
+ * Linux signal context definitions. The sigcontext includes a complex
+ * hierarchy of CPU and FPU state, available to user-space (on the stack) when
+ * a signal handler is executed.
  *
- * As over the years this ABI grew from its very simple roots towards supporting more and
- * more CPU state organically, some of the details (which were rather clever hacks back
- * in the days) became a bit quirky by today.
+ * As over the years this ABI grew from its very simple roots towards
+ * supporting more and more CPU state organically, some of the details (which
+ * were rather clever hacks back in the days) became a bit quirky by today.
  *
- * The current ABI includes flexible provisions for future extensions, so we won't have
- * to grow new quirks for quite some time. Promise!
+ * The current ABI includes flexible provisions for future extensions, so we
+ * won't have to grow new quirks for quite some time. Promise!
  */
 
 #include <linux/compiler.h>
@@ -23,27 +23,32 @@
 
 /*
  * Bytes 464..511 in the current 512-byte layout of the FXSAVE/FXRSTOR frame
- * are reserved for SW usage. On CPUs supporting XSAVE/XRSTOR, these bytes
- * are used to extend the fpstate pointer in the sigcontext, which now
- * includes the extended state information along with fpstate information.
+ * are reserved for SW usage. On CPUs supporting XSAVE/XRSTOR, these bytes are
+ * used to extend the fpstate pointer in the sigcontext, which now includes the
+ * extended state information along with fpstate information.
  *
- * If sw_reserved.magic1 == FP_XSTATE_MAGIC1 then there's a sw_reserved.extended_size
- * bytes large extended context area present. (The last 32-bit word of this extended
- * area (at the fpstate+extended_size-FP_XSTATE_MAGIC2_SIZE address) is set to
+ * If sw_reserved.magic1 == FP_XSTATE_MAGIC1 then there's a
+ * sw_reserved.extended_size bytes large extended context area present. (The
+ * last 32-bit word of this extended area (at the
+ * fpstate+extended_size-FP_XSTATE_MAGIC2_SIZE address) is set to
  * FP_XSTATE_MAGIC2 so that you can sanity check your size calculations.)
  *
- * This extended area typically grows with newer CPUs that have larger and larger
- * XSAVE areas.
+ * This extended area typically grows with newer CPUs that have larger and
+ * larger XSAVE areas.
  */
 struct _fpx_sw_bytes {
-	/* If set to FP_XSTATE_MAGIC1 then this is an xstate context. 0 if a legacy frame. */
+	/*
+	 * If set to FP_XSTATE_MAGIC1 then this is an xstate context.
+	 * 0 if a legacy frame.
+	 */
 	__u32				magic1;
 
 	/*
 	 * Total size of the fpstate area:
 	 *
 	 *  - if magic1 == 0 then it's sizeof(struct _fpstate)
-	 *  - if magic1 == FP_XSTATE_MAGIC1 then it's sizeof(struct _xstate) plus extensions (if any)
+	 *  - if magic1 == FP_XSTATE_MAGIC1 then it's sizeof(struct _xstate)
+	 *    plus extensions (if any)
 	 */
 	__u32				extended_size;
 
@@ -66,13 +71,13 @@ struct _fpx_sw_bytes {
 /*
  * As documented in the iBCS2 standard:
  *
- * The first part of "struct _fpstate" is just the normal i387
- * hardware setup, the extra "status" word is used to save the
- * coprocessor status word before entering the handler.
+ * The first part of "struct _fpstate" is just the normal i387 hardware setup,
+ * the extra "status" word is used to save the coprocessor status word before
+ * entering the handler.
  *
- * The FPU state data structure has had to grow to accommodate the
- * extended FPU state required by the Streaming SIMD Extensions.
- * There is no documented standard to accomplish this at the moment.
+ * The FPU state data structure has had to grow to accommodate the extended FPU
+ * state required by the Streaming SIMD Extensions.  There is no documented
+ * standard to accomplish this at the moment.
  */
 
 /* 10-byte legacy floating point register: */
@@ -137,8 +142,8 @@ struct _fpstate_32 {
  *        'struct _fpstate' so that you can always assume the _fpstate portion
  *        exists so that you can check the magic value.
  *
- * Note2: Reserved fields may someday contain valuable data. Always save/restore
- *        them when you change signal frames.
+ * Note2: Reserved fields may someday contain valuable data. Always
+ *	  save/restore them when you change signal frames.
  */
 struct _fpstate_64 {
 	__u16				cwd;
