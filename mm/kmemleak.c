@@ -302,23 +302,14 @@ static void hex_dump_object(struct seq_file *seq,
 			    struct kmemleak_object *object)
 {
 	const u8 *ptr = (const u8 *)object->pointer;
-	int i, len, remaining;
-	unsigned char linebuf[HEX_ROW_SIZE * 5];
+	size_t len;
 
 	/* limit the number of lines to HEX_MAX_LINES */
-	remaining = len =
-		min(object->size, (size_t)(HEX_MAX_LINES * HEX_ROW_SIZE));
+	len = min_t(size_t, object->size, HEX_MAX_LINES * HEX_ROW_SIZE);
 
-	seq_printf(seq, "  hex dump (first %d bytes):\n", len);
-	for (i = 0; i < len; i += HEX_ROW_SIZE) {
-		int linelen = min(remaining, HEX_ROW_SIZE);
-
-		remaining -= HEX_ROW_SIZE;
-		hex_dump_to_buffer(ptr + i, linelen, HEX_ROW_SIZE,
-				   HEX_GROUP_SIZE, linebuf, sizeof(linebuf),
-				   HEX_ASCII);
-		seq_printf(seq, "    %s\n", linebuf);
-	}
+	seq_printf(seq, "  hex dump (first %zu bytes):\n", len);
+	seq_hex_dump(seq, "    ", DUMP_PREFIX_NONE, HEX_ROW_SIZE,
+		     HEX_GROUP_SIZE, ptr, len, HEX_ASCII);
 }
 
 /*
