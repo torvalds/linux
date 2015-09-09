@@ -8668,23 +8668,38 @@ static int vmx_get_lpage_level(void)
 		return PT_PDPE_LEVEL;
 }
 
+static void vmcs_set_secondary_exec_control(u32 new_ctl)
+{
+	/*
+	 * These bits in the secondary execution controls field
+	 * are dynamic, the others are mostly based on the hypervisor
+	 * architecture and the guest's CPUID.  Do not touch the
+	 * dynamic bits.
+	 */
+	u32 mask =
+		SECONDARY_EXEC_SHADOW_VMCS |
+		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+
+	u32 cur_ctl = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
+
+	vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+		     (new_ctl & ~mask) | (cur_ctl & mask));
+}
+
 static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 exec_control;
+	u32 secondary_exec_ctl = vmx_secondary_exec_control(vmx);
 
 	vmx->rdtscp_enabled = false;
 	if (vmx_rdtscp_supported()) {
-		exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
 		best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
 		if (best && (best->edx & bit(X86_FEATURE_RDTSCP)))
 			vmx->rdtscp_enabled = true;
-		else {
-			exec_control &= ~SECONDARY_EXEC_RDTSCP;
-			vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
-					exec_control);
-		}
+		else
+			secondary_exec_ctl &= ~SECONDARY_EXEC_RDTSCP;
 
 		if (nested) {
 			if (vmx->rdtscp_enabled)
@@ -8701,13 +8716,13 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	if (vmx_invpcid_supported() &&
 	    (!best || !(best->ebx & bit(X86_FEATURE_INVPCID)) ||
 	    !guest_cpuid_has_pcid(vcpu))) {
-		exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
-		exec_control &= ~SECONDARY_EXEC_ENABLE_INVPCID;
-		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+		secondary_exec_ctl &= ~SECONDARY_EXEC_ENABLE_INVPCID;
 
 		if (best)
 			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
+
+	vmcs_set_secondary_exec_control(secondary_exec_ctl);
 
 	if (static_cpu_has(X86_FEATURE_PCOMMIT) && nested) {
 		if (guest_cpuid_has_pcommit(vcpu))
