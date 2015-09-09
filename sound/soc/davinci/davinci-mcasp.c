@@ -1298,6 +1298,7 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 		.ops 		= &davinci_mcasp_dai_ops,
 
 		.symmetric_samplebits	= 1,
+		.symmetric_rates	= 1,
 	},
 	{
 		.name		= "davinci-mcasp.1",
