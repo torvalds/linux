@@ -1669,10 +1669,10 @@ static ssize_t available_kbd_modes_show(struct device *dev,
 	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
 
 	if (toshiba->kbd_type == 1)
-		return sprintf(buf, "%x %x\n",
+		return sprintf(buf, "0x%x 0x%x\n",
 			       SCI_KBD_MODE_FNZ, SCI_KBD_MODE_AUTO);
 
-	return sprintf(buf, "%x %x %x\n",
+	return sprintf(buf, "0x%x 0x%x 0x%x\n",
 		       SCI_KBD_MODE_AUTO, SCI_KBD_MODE_ON, SCI_KBD_MODE_OFF);
 }
 static DEVICE_ATTR_RO(available_kbd_modes);
