@@ -2942,8 +2942,7 @@ cleanup:
 	list_for_each_entry_safe(nh, nh_safe, &rt6_nh_list, next) {
 		if (nh->rt6_info)
 			dst_free(&nh->rt6_info->dst);
-		if (nh->mxc.mx)
-			kfree(nh->mxc.mx);
+		kfree(nh->mxc.mx);
 		list_del(&nh->next);
 		kfree(nh);
 	}
