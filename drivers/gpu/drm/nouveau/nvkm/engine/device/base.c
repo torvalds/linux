@@ -1952,6 +1952,7 @@ nv117_chipset = {
 	.pmu = gm107_pmu_new,
 	.therm = gm107_therm_new,
 	.timer = gk20a_timer_new,
+	.volt = gk104_volt_new,
 	.ce[0] = gk104_ce_new,
 	.ce[2] = gk104_ce_new,
 	.disp = gm107_disp_new,
