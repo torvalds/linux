@@ -298,8 +298,8 @@ void make_lowmem_page_readwrite(void *vaddr);
 #define xen_unmap(cookie) iounmap((cookie))
 
 static inline bool xen_arch_need_swiotlb(struct device *dev,
-					 unsigned long pfn,
-					 unsigned long bfn)
+					 phys_addr_t phys,
+					 dma_addr_t dev_addr)
 {
 	return false;
 }

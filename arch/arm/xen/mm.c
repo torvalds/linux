@@ -138,9 +138,12 @@ void __xen_dma_sync_single_for_device(struct device *hwdev,
 }
 
 bool xen_arch_need_swiotlb(struct device *dev,
-			   unsigned long pfn,
-			   unsigned long bfn)
+			   phys_addr_t phys,
+			   dma_addr_t dev_addr)
 {
+	unsigned long pfn = PFN_DOWN(phys);
+	unsigned long bfn = PFN_DOWN(dev_addr);
+
 	return (!hypercall_cflush && (pfn != bfn) && !is_device_dma_coherent(dev));
 }
 
