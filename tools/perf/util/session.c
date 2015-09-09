@@ -138,6 +138,8 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			perf_session__set_id_hdr_size(session);
 			perf_session__set_comm_exec(session);
 		}
+	} else  {
+		session->machines.host.env = &perf_env;
 	}
 
 	if (!file || perf_data_file__is_write(file)) {
