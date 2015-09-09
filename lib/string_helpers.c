@@ -410,7 +410,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * @dst:	destination buffer (escaped)
  * @osz:	destination buffer size
  * @flags:	combination of the flags (bitwise OR):
- *	%ESCAPE_SPACE:
+ *	%ESCAPE_SPACE: (special white space, not space itself)
  *		'\f' - form feed
  *		'\n' - new line
  *		'\r' - carriage return
@@ -432,8 +432,10 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
- * @esc:	NULL-terminated string of characters any of which, if found in
- *		the source, has to be escaped
+ * @esc:	NULL-terminated string containing characters used to limit
+ *		the selected escape class. If characters are included in @esc
+ *		that would not normally be escaped by the classes selected
+ *		in @flags, they will be copied to @dst unescaped.
  *
  * Description:
  * The process of escaping byte buffer includes several parts. They are applied
@@ -441,7 +443,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *	1. The character is matched to the printable class, if asked, and in
  *	   case of match it passes through to the output.
  *	2. The character is not matched to the one from @esc string and thus
- *	   must go as is to the output.
+ *	   must go as-is to the output.
  *	3. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
  *	   character. Note that they actually can't go together, otherwise
