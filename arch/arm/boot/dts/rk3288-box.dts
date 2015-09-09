@@ -766,14 +766,32 @@
 
 		rk808_dcdc1_reg: regulator@0{
 			regulator-name= "vdd_arm";
+			regulator-min-microvolt = <700000>;
+			regulator-max-microvolt = <1500000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-disabled;
+				regulator-state-uv = <900000>;
+			};
 		};
 
 		rk808_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_gpu";
+			regulator-min-microvolt = <700000>;
+			regulator-max-microvolt = <1500000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-disabled;
+				regulator-state-uv = <900000>;
+			};
 		};
 
 		rk808_dcdc3_reg: regulator@2 {
@@ -782,6 +800,13 @@
 			regulator-max-microvolt = <1200000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <1200000>;
+			};
 		};
 
 		rk808_dcdc4_reg: regulator@3 {
@@ -790,6 +815,13 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <2800000>;
+			};
 		};
 
     /* NO USED, 3.3V*/
@@ -799,6 +831,11 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
 		};
 
     /* BOX:RK1000s, 3.3V  */
@@ -808,6 +845,11 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
 		};
 
     /* RK3288 PLL,USB PHY, 1.0V */
@@ -817,6 +859,11 @@
 			regulator-max-microvolt = <1000000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1000000>;
+			};
 		};
 
     /* BOX:RK1000S CORE, 1.8V  */
@@ -826,6 +873,11 @@
 			regulator-max-microvolt = <1800000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-disabled;
+				regulator-state-uv = <1800000>;
+			};
 		};
 
     /* SDMMC IO, 3.3V*/
@@ -835,6 +887,11 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
 		};
 
     /* CAMERA, 1.8V  box modify*/
@@ -844,6 +901,11 @@
 			regulator-max-microvolt = <1800000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-disabled;
+				regulator-state-uv = <1000000>;
+			};
 		};
 
     /* RK3288 USB PHY, SAR-ADC, WIFI IO, 1.8V */
@@ -853,6 +915,11 @@
 			regulator-max-microvolt = <1800000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1800000>;
+			};
 		};
 
     /* DTV, 3.3V  box modify*/
@@ -862,18 +929,31 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
 		};
 
 		rk808_ldo9_reg: regulator@12 {
 			regulator-name= "rk_ldo9";
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+			};
 		};
 
 		rk808_ldo10_reg: regulator@13 {
 			regulator-name= "rk_ldo10";
 			regulator-always-on;
 			regulator-boot-on;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-disabled;
+			};
 		};
 	};
 };
