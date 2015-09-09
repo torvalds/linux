@@ -342,6 +342,11 @@
 		renesas,function = "msiof1";
 	};
 
+	iic0_pins: iic0 {
+		renesas,groups = "iic0";
+		renesas,function = "iic0";
+	};
+
 	iic1_pins: iic1 {
 		renesas,groups = "iic1";
 		renesas,function = "iic1";
@@ -517,6 +522,8 @@
 
 &iic0	{
 	status = "okay";
+	pinctrl-0 = <&iic0_pins>;
+	pinctrl-names = "default";
 };
 
 &iic1	{
