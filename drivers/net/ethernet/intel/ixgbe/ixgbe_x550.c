@@ -1617,7 +1617,7 @@ static s32 ixgbe_handle_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	if (lsc)
+	if (lsc && phy->ops.setup_internal_link)
 		return phy->ops.setup_internal_link(hw);
 
 	return 0;
