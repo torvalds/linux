@@ -205,6 +205,7 @@ static struct extra_reg intel_skl_extra_regs[] __read_mostly = {
 	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x3fffff8fffull, RSP_0),
 	INTEL_UEVENT_EXTRA_REG(0x01bb, MSR_OFFCORE_RSP_1, 0x3fffff8fffull, RSP_1),
 	INTEL_UEVENT_PEBS_LDLAT_EXTRA_REG(0x01cd),
+	INTEL_UEVENT_EXTRA_REG(0x01c6, MSR_PEBS_FRONTEND, 0x3fff17, FE),
 	EVENT_EXTRA_END
 };
 
@@ -2891,6 +2892,8 @@ PMU_FORMAT_ATTR(offcore_rsp, "config1:0-63");
 
 PMU_FORMAT_ATTR(ldlat, "config1:0-15");
 
+PMU_FORMAT_ATTR(frontend, "config1:0-23");
+
 static struct attribute *intel_arch3_formats_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_umask.attr,
@@ -2904,6 +2907,11 @@ static struct attribute *intel_arch3_formats_attr[] = {
 
 	&format_attr_offcore_rsp.attr, /* XXX do NHM/WSM + SNB breakout */
 	&format_attr_ldlat.attr, /* PEBS load latency */
+	NULL,
+};
+
+static struct attribute *skl_format_attr[] = {
+	&format_attr_frontend.attr,
 	NULL,
 };
 
@@ -3516,7 +3524,8 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = hsw_get_event_constraints;
-		x86_pmu.cpu_events = hsw_events_attrs;
+		x86_pmu.format_attrs = merge_attr(intel_arch3_formats_attr,
+						  skl_format_attr);
 		WARN_ON(!x86_pmu.format_attrs);
 		x86_pmu.cpu_events = hsw_events_attrs;
 		pr_cont("Skylake events, ");
