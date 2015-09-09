@@ -225,8 +225,8 @@ static int call_usermodehelper_exec_async(void *data)
 	spin_unlock_irq(&current->sighand->siglock);
 
 	/*
-	 * Our parent is keventd, which runs with elevated scheduling priority.
-	 * Avoid propagating that into the userspace child.
+	 * Our parent is khelper which runs with elevated scheduling
+	 * priority. Avoid propagating that into the userspace child.
 	 */
 	set_user_nice(current, 0);
 
@@ -267,7 +267,11 @@ out:
 	do_exit(0);
 }
 
-/* Keventd can't block, but this (a child) can. */
+/*
+ * Handles UMH_WAIT_PROC. Our parent khelper can't wait for usermodehelper
+ * completion without blocking every other pending requests. That's why
+ * we use a kernel thread dedicated for that purpose.
+ */
 static int call_usermodehelper_exec_sync(void *data)
 {
 	struct subprocess_info *sub_info = data;
@@ -283,8 +287,8 @@ static int call_usermodehelper_exec_sync(void *data)
 		/*
 		 * Normally it is bogus to call wait4() from in-kernel because
 		 * wait4() wants to write the exit code to a userspace address.
-		 * But call_usermodehelper_exec_sync() always runs as keventd,
-		 * and put_user() to a kernel address works OK for kernel
+		 * But call_usermodehelper_exec_sync() always runs as kernel
+		 * thread and put_user() to a kernel address works OK for kernel
 		 * threads, due to their having an mm_segment_t which spans the
 		 * entire address space.
 		 *
@@ -305,7 +309,19 @@ static int call_usermodehelper_exec_sync(void *data)
 	do_exit(0);
 }
 
-/* This is run by khelper thread  */
+/*
+ * This function doesn't strictly needs to be called asynchronously. But we
+ * need to create the usermodehelper kernel threads from a task that is affine
+ * to all CPUs (or nohz housekeeping ones) such that they inherit a widest
+ * affinity irrespective of call_usermodehelper() callers with possibly reduced
+ * affinity (eg: per-cpu workqueues). We don't want usermodehelper targets to
+ * contend any busy CPU.
+ * Khelper provides such wide affinity.
+ *
+ * Besides, khelper provides the privilege level that caller might not have to
+ * perform the usermodehelper request.
+ *
+ */
 static void call_usermodehelper_exec_work(struct work_struct *work)
 {
 	struct subprocess_info *sub_info =
@@ -533,8 +549,8 @@ EXPORT_SYMBOL(call_usermodehelper_setup);
  *        from interrupt context.
  *
  * Runs a user-space application.  The application is started
- * asynchronously if wait is not set, and runs as a child of keventd.
- * (ie. it runs with full root capabilities).
+ * asynchronously if wait is not set, and runs as a child of khelper.
+ * (ie. it runs with full root capabilities and wide affinity).
  */
 int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 {
