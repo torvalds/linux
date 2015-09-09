@@ -150,12 +150,17 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_IGNORE_OTP_RESULT] = "ignore-otp",
 	[ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING] = "no-4addr-pad",
 	[ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT] = "skip-clock-init",
+	[ATH10K_FW_FEATURE_RAW_MODE_SUPPORT] = "raw-mode",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
 						   size_t buf_len,
 						   enum ath10k_fw_features feat)
 {
+	/* make sure that ath10k_core_fw_feature_str[] gets updated */
+	BUILD_BUG_ON(ARRAY_SIZE(ath10k_core_fw_feature_str) !=
+		     ATH10K_FW_FEATURE_COUNT);
+
 	if (feat >= ARRAY_SIZE(ath10k_core_fw_feature_str) ||
 	    WARN_ON(!ath10k_core_fw_feature_str[feat])) {
 		return scnprintf(buf, buf_len, "bit%d", feat);
