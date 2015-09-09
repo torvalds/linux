@@ -3320,9 +3320,6 @@ int drm_mode_rmfb(struct drm_device *dev,
 	if (!found)
 		goto fail_lookup;
 
-	/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
-	__drm_framebuffer_unregister(dev, fb);
-
 	list_del_init(&fb->filp_head);
 	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
@@ -3494,7 +3491,6 @@ out_err1:
  */
 void drm_fb_release(struct drm_file *priv)
 {
-	struct drm_device *dev = priv->minor->dev;
 	struct drm_framebuffer *fb, *tfb;
 
 	/*
@@ -3508,15 +3504,9 @@ void drm_fb_release(struct drm_file *priv)
 	 * at it any more.
 	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-
-		mutex_lock(&dev->mode_config.fb_lock);
-		/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
-		__drm_framebuffer_unregister(dev, fb);
-		mutex_unlock(&dev->mode_config.fb_lock);
-
 		list_del_init(&fb->filp_head);
 
-		/* This will also drop the fpriv->fbs reference. */
+		/* This drops the fpriv->fbs reference. */
 		drm_framebuffer_unreference(fb);
 	}
 }
