@@ -223,6 +223,7 @@ static int vhost_blk_bio_make(struct vhost_blk_req *req,
 		int pages_nr = iov_num_pages(&iov[i]);
 		unsigned long iov_base, iov_len;
 		struct req_page_list *pl;
+		int pages_nr_max = pages_nr;
 
 		iov_base = (unsigned long)iov[i].iov_base;
 		iov_len  = (unsigned long)iov[i].iov_len;
@@ -243,6 +244,10 @@ static int vhost_blk_bio_make(struct vhost_blk_req *req,
 		if (ret != pages_nr)
 			goto fail;
 
+bio_alloc:
+		if (pages_nr > BIO_MAX_PAGES)
+			pages_nr = BIO_MAX_PAGES;
+
 		for (j = 0; j < pages_nr; j++) {
 			unsigned int off, len;
 			page = pages[j];
@@ -252,7 +257,7 @@ static int vhost_blk_bio_make(struct vhost_blk_req *req,
 				len = iov_len;
 
 			while (!bio || bio_add_page(bio, page, len, off) <= 0) {
-				bio = bio_alloc(GFP_KERNEL, pages_nr_total);
+				bio = bio_alloc(GFP_KERNEL, pages_nr);
 				if (!bio)
 					goto fail;
 				bio->bi_sector  = req->sector;
@@ -266,7 +271,14 @@ static int vhost_blk_bio_make(struct vhost_blk_req *req,
 			iov_len		-= len;
 		}
 
+		bio = NULL;
 		pages += pages_nr;
+
+		if (pages_nr_max != pages_nr) {
+			pages_nr = pages_nr_max - pages_nr;
+			pages_nr_max = pages_nr;
+			goto bio_alloc;
+		}
 	}
 out:
 	atomic_set(&req->bio_nr, bio_nr);
