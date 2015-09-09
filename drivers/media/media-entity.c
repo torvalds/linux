@@ -866,12 +866,11 @@ static void media_interface_init(struct media_device *mdev,
 
 struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
 						u32 type, u32 flags,
-						u32 major, u32 minor,
-						gfp_t gfp_flags)
+						u32 major, u32 minor)
 {
 	struct media_intf_devnode *devnode;
 
-	devnode = kzalloc(sizeof(*devnode), gfp_flags);
+	devnode = kzalloc(sizeof(*devnode), GFP_KERNEL);
 	if (!devnode)
 		return NULL;
 

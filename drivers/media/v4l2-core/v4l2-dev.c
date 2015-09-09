@@ -786,8 +786,7 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 	vdev->intf_devnode = media_devnode_create(vdev->v4l2_dev->mdev,
 						  intf_type,
 						  0, VIDEO_MAJOR,
-						  vdev->minor,
-						  GFP_KERNEL);
+						  vdev->minor);
 	if (!vdev->intf_devnode) {
 		media_device_unregister_entity(&vdev->entity);
 		return -ENOMEM;

@@ -394,8 +394,7 @@ static int dvb_register_media_device(struct dvb_device *dvbdev,
 
 	dvbdev->intf_devnode = media_devnode_create(dvbdev->adapter->mdev,
 						    intf_type, 0,
-						    DVB_MAJOR, minor,
-						    GFP_KERNEL);
+						    DVB_MAJOR, minor);
 
 	if (!dvbdev->intf_devnode)
 		return -ENOMEM;

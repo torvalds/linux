@@ -71,7 +71,6 @@ struct media_gobj {
 	struct list_head	list;
 };
 
-
 struct media_pipeline {
 };
 
@@ -378,8 +377,7 @@ void media_entity_pipeline_stop(struct media_entity *entity);
 struct media_intf_devnode *
 __must_check media_devnode_create(struct media_device *mdev,
 				  u32 type, u32 flags,
-				  u32 major, u32 minor,
-				  gfp_t gfp_flags);
+				  u32 major, u32 minor);
 void media_devnode_remove(struct media_intf_devnode *devnode);
 struct media_link *
 __must_check media_create_intf_link(struct media_entity *entity,
