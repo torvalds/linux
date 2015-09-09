@@ -141,4 +141,12 @@ static inline bool guest_cpuid_has_pcommit(struct kvm_vcpu *vcpu)
 	best = kvm_find_cpuid_entry(vcpu, 7, 0);
 	return best && (best->ebx & bit(X86_FEATURE_PCOMMIT));
 }
+
+static inline bool guest_cpuid_has_rdtscp(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+	return best && (best->edx & bit(X86_FEATURE_RDTSCP));
+}
 #endif

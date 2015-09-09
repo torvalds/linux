@@ -532,8 +532,6 @@ struct vcpu_vmx {
 	s64 vnmi_blocked_time;
 	u32 exit_reason;
 
-	bool rdtscp_enabled;
-
 	/* Posted interrupt descriptor */
 	struct pi_desc pi_desc;
 
@@ -2208,7 +2206,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		if (index >= 0)
 			move_msr_up(vmx, index, save_nmsrs++);
 		index = __find_msr_index(vmx, MSR_TSC_AUX);
-		if (index >= 0 && vmx->rdtscp_enabled)
+		if (index >= 0 && guest_cpuid_has_rdtscp(&vmx->vcpu))
 			move_msr_up(vmx, index, save_nmsrs++);
 		/*
 		 * MSR_STAR is only needed on long mode guests, and only
@@ -2675,7 +2673,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.ia32_xss;
 		break;
 	case MSR_TSC_AUX:
-		if (!to_vmx(vcpu)->rdtscp_enabled)
+		if (!guest_cpuid_has_rdtscp(vcpu))
 			return 1;
 		/* Otherwise falls through */
 	default:
@@ -2781,7 +2779,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
 		break;
 	case MSR_TSC_AUX:
-		if (!vmx->rdtscp_enabled)
+		if (!guest_cpuid_has_rdtscp(vcpu))
 			return 1;
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
@@ -8682,16 +8680,13 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 secondary_exec_ctl = vmx_secondary_exec_control(vmx);
 
-	vmx->rdtscp_enabled = false;
 	if (vmx_rdtscp_supported()) {
-		best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
-		if (best && (best->edx & bit(X86_FEATURE_RDTSCP)))
-			vmx->rdtscp_enabled = true;
-		else
+		bool rdtscp_enabled = guest_cpuid_has_rdtscp(vcpu);
+		if (!rdtscp_enabled)
 			secondary_exec_ctl &= ~SECONDARY_EXEC_RDTSCP;
 
 		if (nested) {
-			if (vmx->rdtscp_enabled)
+			if (rdtscp_enabled)
 				vmx->nested.nested_vmx_secondary_ctls_high |=
 					SECONDARY_EXEC_RDTSCP;
 			else
