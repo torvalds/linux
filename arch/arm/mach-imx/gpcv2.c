@@ -116,6 +116,8 @@ static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 	unsigned long flags;
 	u32 mask;
 
+	BUG_ON(idx >= IMR_NUM);
+
 	mask = 1 << d->hwirq % 32;
 	spin_lock_irqsave(&gpcv2_lock, flags);
 	gpcv2_wake_irqs[idx] = on ? gpcv2_wake_irqs[idx] | mask :
@@ -432,11 +434,14 @@ static void imx_gpcv2_mf_mix_off(void)
 
 int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on)
 {
-	unsigned int idx = irq / 32 - 1;
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long hwirq = desc->irq_data.hwirq;
+	unsigned int idx = hwirq / 32;
 	unsigned long flags;
-	u32 mask;
+	u32 mask = 1 << (hwirq % 32);
 
-	mask = 1 << (irq % 32);
+	BUG_ON(idx >= IMR_NUM);
+
 	spin_lock_irqsave(&gpcv2_lock, flags);
 	gpcv2_mf_request_on[idx] = on ? gpcv2_mf_request_on[idx] | mask :
 				  gpcv2_mf_request_on[idx] & ~mask;
