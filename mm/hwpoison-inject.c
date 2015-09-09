@@ -58,7 +58,7 @@ inject:
 	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
 	return memory_failure(pfn, 18, MF_COUNT_INCREASED);
 put_out:
-	put_page(p);
+	put_hwpoison_page(p);
 	return 0;
 }
 

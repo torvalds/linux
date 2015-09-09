@@ -37,7 +37,7 @@ enum zpool_mapmode {
 };
 
 struct zpool *zpool_create_pool(char *type, char *name,
-			gfp_t gfp, struct zpool_ops *ops);
+			gfp_t gfp, const struct zpool_ops *ops);
 
 char *zpool_get_type(struct zpool *pool);
 
@@ -81,7 +81,7 @@ struct zpool_driver {
 	atomic_t refcount;
 	struct list_head list;
 
-	void *(*create)(char *name, gfp_t gfp, struct zpool_ops *ops,
+	void *(*create)(char *name, gfp_t gfp, const struct zpool_ops *ops,
 			struct zpool *zpool);
 	void (*destroy)(void *pool);
 
