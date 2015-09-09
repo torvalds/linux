@@ -612,6 +612,8 @@ static unsigned long count_vma_pages_range(struct mm_struct *mm,
 void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
 		struct rb_node **rb_link, struct rb_node *rb_parent)
 {
+	WARN_ONCE(vma->vm_file && !vma->vm_ops, "missing vma->vm_ops");
+
 	/* Update tracking information for the gap following the new vma. */
 	if (vma->vm_next)
 		vma_gap_update(vma->vm_next);
@@ -1635,6 +1637,12 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		 *      be updated for vma_link()
 		 */
 		WARN_ON_ONCE(addr != vma->vm_start);
+
+		/* All file mapping must have ->vm_ops set */
+		if (!vma->vm_ops) {
+			static const struct vm_operations_struct dummy_ops = {};
+			vma->vm_ops = &dummy_ops;
+		}
 
 		addr = vma->vm_start;
 		vm_flags = vma->vm_flags;
