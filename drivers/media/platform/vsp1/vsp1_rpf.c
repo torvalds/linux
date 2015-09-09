@@ -26,12 +26,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_rpf_read(struct vsp1_rwpf *rpf, u32 reg)
-{
-	return vsp1_read(rpf->entity.vsp1,
-			 reg + rpf->entity.index * VI6_RPF_OFFSET);
-}
-
 static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
 {
 	vsp1_write(rpf->entity.vsp1,

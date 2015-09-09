@@ -27,11 +27,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_lut_read(struct vsp1_lut *lut, u32 reg)
-{
-	return vsp1_read(lut->entity.vsp1, reg);
-}
-
 static inline void vsp1_lut_write(struct vsp1_lut *lut, u32 reg, u32 data)
 {
 	vsp1_write(lut->entity.vsp1, reg, data);

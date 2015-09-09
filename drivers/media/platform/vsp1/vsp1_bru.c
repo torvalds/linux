@@ -28,11 +28,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_bru_read(struct vsp1_bru *bru, u32 reg)
-{
-	return vsp1_read(bru->entity.vsp1, reg);
-}
-
 static inline void vsp1_bru_write(struct vsp1_bru *bru, u32 reg, u32 data)
 {
 	vsp1_write(bru->entity.vsp1, reg, data);

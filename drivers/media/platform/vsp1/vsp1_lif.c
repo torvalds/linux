@@ -26,11 +26,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_lif_read(struct vsp1_lif *lif, u32 reg)
-{
-	return vsp1_read(lif->entity.vsp1, reg);
-}
-
 static inline void vsp1_lif_write(struct vsp1_lif *lif, u32 reg, u32 data)
 {
 	vsp1_write(lif->entity.vsp1, reg, data);

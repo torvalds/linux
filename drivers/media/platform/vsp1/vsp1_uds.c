@@ -29,12 +29,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_uds_read(struct vsp1_uds *uds, u32 reg)
-{
-	return vsp1_read(uds->entity.vsp1,
-			 reg + uds->entity.index * VI6_UDS_OFFSET);
-}
-
 static inline void vsp1_uds_write(struct vsp1_uds *uds, u32 reg, u32 data)
 {
 	vsp1_write(uds->entity.vsp1,
