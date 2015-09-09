@@ -156,7 +156,7 @@ err_out:
  */
 void drm_sysfs_destroy(void)
 {
-	if ((drm_class == NULL) || (IS_ERR(drm_class)))
+	if (IS_ERR_OR_NULL(drm_class))
 		return;
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
