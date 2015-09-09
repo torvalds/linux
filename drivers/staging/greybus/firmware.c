@@ -165,6 +165,7 @@ static int gb_firmware_request_recv(u8 type, struct gb_operation *op)
 static int gb_firmware_connection_init(struct gb_connection *connection)
 {
 	struct gb_firmware *firmware;
+	int ret;
 
 	firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware)
@@ -172,6 +173,20 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 
 	firmware->connection = connection;
 	connection->private = firmware;
+
+	/*
+	 * Module's Bootrom needs a way to know (currently), when to start
+	 * sending requests to the AP. The version request is sent before this
+	 * routine is called, and if the module sends the request right after
+	 * receiving version request, the connection->private field will be
+	 * NULL.
+	 *
+	 * Fix this TEMPORARILY by sending an AP_READY request.
+	 */
+	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_AP_READY, NULL, 0,
+				NULL, 0);
+	if (ret)
+		dev_err(&connection->dev, "Failed to send AP READY (%d)\n", ret);
 
 	return 0;
 }

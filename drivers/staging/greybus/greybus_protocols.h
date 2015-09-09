@@ -155,6 +155,7 @@ struct gb_control_disconnected_request {
 #define GB_FIRMWARE_TYPE_FIRMWARE_SIZE		0x02
 #define GB_FIRMWARE_TYPE_GET_FIRMWARE		0x03
 #define GB_FIRMWARE_TYPE_READY_TO_BOOT		0x04
+#define GB_FIRMWARE_TYPE_AP_READY		0x05	/* Request with no-payload */
 
 /* Greybus firmware boot stages */
 #define GB_FIRMWARE_BOOT_STAGE_ONE		0x01 /* Reserved for the boot ROM */
