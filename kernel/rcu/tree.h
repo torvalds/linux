@@ -412,13 +412,6 @@ struct rcu_data {
 	struct rcu_state *rsp;
 };
 
-/* Values for fqs_state field in struct rcu_state. */
-#define RCU_GP_IDLE		0	/* No grace period in progress. */
-#define RCU_GP_INIT		1	/* Grace period being initialized. */
-#define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
-#define RCU_FORCE_QS		3	/* Need to force quiescent state. */
-#define RCU_SIGNAL_INIT		RCU_SAVE_DYNTICK
-
 /* Values for nocb_defer_wakeup field in struct rcu_data. */
 #define RCU_NOGP_WAKE_NOT	0
 #define RCU_NOGP_WAKE		1
@@ -468,9 +461,8 @@ struct rcu_state {
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
-	u8	fqs_state ____cacheline_internodealigned_in_smp;
-						/* Force QS state. */
-	u8	boost;				/* Subject to priority boost. */
+	u8	boost ____cacheline_internodealigned_in_smp;
+						/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
@@ -538,7 +530,7 @@ struct rcu_state {
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
 
 /* Values for rcu_state structure's gp_flags field. */
-#define RCU_GP_WAIT_INIT 0	/* Initial state. */
+#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
 #define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
