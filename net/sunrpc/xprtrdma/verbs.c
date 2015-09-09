@@ -611,7 +611,7 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 
 	/* If the pd is still busy, xprtrdma missed freeing a resource */
 	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
-		WARN_ON(ib_dealloc_pd(ia->ri_pd));
+		ib_dealloc_pd(ia->ri_pd);
 }
 
 /*

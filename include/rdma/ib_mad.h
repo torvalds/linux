@@ -127,6 +127,23 @@
 #define IB_DEFAULT_PKEY_PARTIAL 0x7FFF
 #define IB_DEFAULT_PKEY_FULL	0xFFFF
 
+/*
+ * Generic trap/notice types
+ */
+#define IB_NOTICE_TYPE_FATAL	0x80
+#define IB_NOTICE_TYPE_URGENT	0x81
+#define IB_NOTICE_TYPE_SECURITY	0x82
+#define IB_NOTICE_TYPE_SM	0x83
+#define IB_NOTICE_TYPE_INFO	0x84
+
+/*
+ * Generic trap/notice producers
+ */
+#define IB_NOTICE_PROD_CA		cpu_to_be16(1)
+#define IB_NOTICE_PROD_SWITCH		cpu_to_be16(2)
+#define IB_NOTICE_PROD_ROUTER		cpu_to_be16(3)
+#define IB_NOTICE_PROD_CLASS_MGR	cpu_to_be16(4)
+
 enum {
 	IB_MGMT_MAD_HDR = 24,
 	IB_MGMT_MAD_DATA = 232,
@@ -238,6 +255,70 @@ struct ib_class_port_info {
 	__be16			trap_pkey;
 	__be32			trap_hlqp;
 	__be32			trap_qkey;
+};
+
+struct ib_mad_notice_attr {
+	u8 generic_type;
+	u8 prod_type_msb;
+	__be16 prod_type_lsb;
+	__be16 trap_num;
+	__be16 issuer_lid;
+	__be16 toggle_count;
+
+	union {
+		struct {
+			u8	details[54];
+		} raw_data;
+
+		struct {
+			__be16	reserved;
+			__be16	lid;		/* where violation happened */
+			u8	port_num;	/* where violation happened */
+		} __packed ntc_129_131;
+
+		struct {
+			__be16	reserved;
+			__be16	lid;		/* LID where change occurred */
+			u8	reserved2;
+			u8	local_changes;	/* low bit - local changes */
+			__be32	new_cap_mask;	/* new capability mask */
+			u8	reserved3;
+			u8	change_flags;	/* low 3 bits only */
+		} __packed ntc_144;
+
+		struct {
+			__be16	reserved;
+			__be16	lid;		/* lid where sys guid changed */
+			__be16	reserved2;
+			__be64	new_sys_guid;
+		} __packed ntc_145;
+
+		struct {
+			__be16	reserved;
+			__be16	lid;
+			__be16	dr_slid;
+			u8	method;
+			u8	reserved2;
+			__be16	attr_id;
+			__be32	attr_mod;
+			__be64	mkey;
+			u8	reserved3;
+			u8	dr_trunc_hop;
+			u8	dr_rtn_path[30];
+		} __packed ntc_256;
+
+		struct {
+			__be16		reserved;
+			__be16		lid1;
+			__be16		lid2;
+			__be32		key;
+			__be32		sl_qp1;	/* SL: high 4 bits */
+			__be32		qp2;	/* high 8 bits reserved */
+			union ib_gid	gid1;
+			union ib_gid	gid2;
+		} __packed ntc_257_258;
+
+	} details;
 };
 
 /**
@@ -388,7 +469,6 @@ enum {
 struct ib_mad_agent {
 	struct ib_device	*device;
 	struct ib_qp		*qp;
-	struct ib_mr		*mr;
 	ib_mad_recv_handler	recv_handler;
 	ib_mad_send_handler	send_handler;
 	ib_mad_snoop_handler	snoop_handler;

@@ -556,7 +556,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.alloc_mw = c4iw_alloc_mw;
 	dev->ibdev.bind_mw = c4iw_bind_mw;
 	dev->ibdev.dealloc_mw = c4iw_dealloc_mw;
-	dev->ibdev.alloc_fast_reg_mr = c4iw_alloc_fast_reg_mr;
+	dev->ibdev.alloc_mr = c4iw_alloc_mr;
 	dev->ibdev.alloc_fast_reg_page_list = c4iw_alloc_fastreg_pbl;
 	dev->ibdev.free_fast_reg_page_list = c4iw_free_fastreg_pbl;
 	dev->ibdev.attach_mcast = c4iw_multicast_attach;
