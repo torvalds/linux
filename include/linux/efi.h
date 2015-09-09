@@ -596,6 +596,9 @@ void efi_native_runtime_setup(void);
 #define DEVICE_TREE_GUID \
     EFI_GUID(  0xb1b621d5, 0xf19c, 0x41a5, 0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0 )
 
+#define EFI_PROPERTIES_TABLE_GUID \
+    EFI_GUID(  0x880aaca3, 0x4adc, 0x4a04, 0x90, 0x79, 0xb7, 0x47, 0x34, 0x08, 0x25, 0xe5 )
+
 typedef struct {
 	efi_guid_t guid;
 	u64 table;
@@ -809,6 +812,15 @@ typedef struct _efi_file_io_interface {
 #define EFI_FILE_MODE_WRITE	0x0000000000000002
 #define EFI_FILE_MODE_CREATE	0x8000000000000000
 
+typedef struct {
+	u32 version;
+	u32 length;
+	u64 memory_protection_attribute;
+} efi_properties_table_t;
+
+#define EFI_PROPERTIES_TABLE_VERSION	0x00010000
+#define EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA	0x1
+
 #define EFI_INVALID_TABLE_ADDR		(~0UL)
 
 /*
@@ -831,6 +843,7 @@ extern struct efi {
 	unsigned long runtime;		/* runtime table */
 	unsigned long config_table;	/* config tables */
 	unsigned long esrt;		/* ESRT table */
+	unsigned long properties_table;	/* properties table */
 	efi_get_time_t *get_time;
 	efi_set_time_t *set_time;
 	efi_get_wakeup_time_t *get_wakeup_time;
