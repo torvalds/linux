@@ -4,6 +4,14 @@
 	model = "CompuLab CM-QS600";
 	compatible = "qcom,apq8064-cm-qs600", "qcom,apq8064";
 
+	aliases {
+		serial0 = &gsbi7_serial;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	soc {
 		pinctrl@800000 {
 			i2c1_pins: i2c1 {
@@ -64,6 +72,12 @@
 				pm8921_l4: l4 {
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1800000>;
+					bias-pull-down;
+				};
+
+				pm8921_l5: l5 {
+					regulator-min-microvolt = <2750000>;
+					regulator-max-microvolt = <3000000>;
 					bias-pull-down;
 				};
 
@@ -140,19 +154,33 @@
 			status = "okay";
 		};
 
+		/* on board fixed 3.3v supply */
+		v3p3_fixed: v3p3 {
+			compatible = "regulator-fixed";
+			regulator-name = "PCIE V3P3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
 		amba {
 			/* eMMC */
 			sdcc1: sdcc@12400000 {
 				status = "okay";
+				vmmc-supply = <&pm8921_l5>;
+				vqmmc-supply = <&pm8921_s4>;
 			};
 
 			/* External micro SD card */
 			sdcc3: sdcc@12180000 {
 				status = "okay";
+				vmmc-supply = <&v3p3_fixed>;
 			};
 			/* WLAN */
 			sdcc4: sdcc@121c0000 {
 				status = "okay";
+				vmmc-supply = <&v3p3_fixed>;
+				vqmmc-supply = <&v3p3_fixed>;
 			};
 		};
 	};
