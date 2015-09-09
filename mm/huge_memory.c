@@ -25,6 +25,7 @@
 #include <linux/migrate.h>
 #include <linux/hashtable.h>
 #include <linux/userfaultfd_k.h>
+#include <linux/page_idle.h>
 
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
@@ -1757,6 +1758,11 @@ static void __split_huge_page_refcount(struct page *page,
 		/* clear PageTail before overwriting first_page */
 		smp_wmb();
 
+		if (page_is_young(page))
+			set_page_young(page_tail);
+		if (page_is_idle(page))
+			set_page_idle(page_tail);
+
 		/*
 		 * __split_huge_page_splitting() already set the
 		 * splitting bit in all pmd that could map this
@@ -2262,7 +2268,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		VM_BUG_ON_PAGE(PageLRU(page), page);
 
 		/* If there is no mapped pte young don't collapse the page */
-		if (pte_young(pteval) || PageReferenced(page) ||
+		if (pte_young(pteval) ||
+		    page_is_young(page) || PageReferenced(page) ||
 		    mmu_notifier_test_young(vma->vm_mm, address))
 			referenced = true;
 	}
@@ -2693,7 +2700,8 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 		 */
 		if (page_count(page) != 1 + !!PageSwapCache(page))
 			goto out_unmap;
-		if (pte_young(pteval) || PageReferenced(page) ||
+		if (pte_young(pteval) ||
+		    page_is_young(page) || PageReferenced(page) ||
 		    mmu_notifier_test_young(vma->vm_mm, address))
 			referenced = true;
 	}
