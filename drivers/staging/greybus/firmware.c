@@ -27,7 +27,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 {
 	struct gb_connection *connection = firmware->connection;
 	struct gb_interface *intf = connection->bundle->intf;
-	char firmware_name[46];
+	char firmware_name[48];
 
 	/* Already have a firmware, free it */
 	if (firmware->fw)
@@ -39,7 +39,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	 * XXX Name it properly..
 	 */
 	snprintf(firmware_name, sizeof(firmware_name),
-		 "ara:%08x:%08x:%08x:%08x:%02x.fw",
+		 "ara:%08x:%08x:%08x:%08x:%02x.tftf",
 		 intf->unipro_mfg_id, intf->unipro_prod_id,
 		 intf->ara_vend_id, intf->ara_prod_id, stage);
 
