@@ -15,8 +15,7 @@
 
 
 
-/**
- * @file mali_kbase_pm_policy.c
+/*
  * Power policy API implementations
  */
 
@@ -47,7 +46,7 @@ static const struct kbase_pm_policy *const policy_list[] = {
 #endif /* CONFIG_MALI_NO_MALI */
 };
 
-/** The number of policies available in the system.
+/* The number of policies available in the system.
  * This is derived from the number of functions listed in policy_get_functions.
  */
 #define POLICY_COUNT (sizeof(policy_list)/sizeof(*policy_list))
@@ -148,6 +147,38 @@ static inline void kbase_timeline_pm_cores_func(struct kbase_device *kbdev,
 
 #endif /* CONFIG_MALI_TRACE_TIMELINE */
 
+/**
+ * kbasep_pm_do_poweroff_cores - Process a poweroff request and power down any
+ *                               requested shader cores
+ * @kbdev: Device pointer
+ */
+static void kbasep_pm_do_poweroff_cores(struct kbase_device *kbdev)
+{
+	u64 prev_shader_state = kbdev->pm.backend.desired_shader_state;
+
+	lockdep_assert_held(&kbdev->pm.power_change_lock);
+
+	kbdev->pm.backend.desired_shader_state &=
+			~kbdev->pm.backend.shader_poweroff_pending;
+
+	kbdev->pm.backend.shader_poweroff_pending = 0;
+
+	if (prev_shader_state != kbdev->pm.backend.desired_shader_state
+			|| kbdev->pm.backend.ca_in_transition) {
+		bool cores_are_available;
+
+		KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
+			SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_START);
+		cores_are_available = kbase_pm_check_transitions_nolock(kbdev);
+		KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
+			SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_END);
+
+		/* Don't need 'cores_are_available',
+		 * because we don't return anything */
+		CSTD_UNUSED(cores_are_available);
+	}
+}
+
 static enum hrtimer_restart
 kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *timer)
 {
@@ -180,31 +211,8 @@ kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *timer)
 				kbdev->pm.backend.shader_poweroff_pending_time
 									>= 0);
 
-			if (!kbdev->pm.backend.shader_poweroff_pending_time) {
-				u64 prev_shader_state =
-					kbdev->pm.backend.desired_shader_state;
-
-				kbdev->pm.backend.desired_shader_state &=
-				~kbdev->pm.backend.shader_poweroff_pending;
-
-				kbdev->pm.backend.shader_poweroff_pending = 0;
-
-				if (prev_shader_state !=
-					kbdev->pm.backend.desired_shader_state
-					|| kbdev->pm.backend.ca_in_transition) {
-					bool cores_are_available;
-
-					KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_START);
-					cores_are_available =
-					kbase_pm_check_transitions_nolock(
-									kbdev);
-					KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_END);
-
-					/* Don't need 'cores_are_available',
-					 * because we don't return anything */
-					CSTD_UNUSED(cores_are_available);
-				}
-			}
+			if (!kbdev->pm.backend.shader_poweroff_pending_time)
+				kbasep_pm_do_poweroff_cores(kbdev);
 		}
 
 		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
@@ -349,7 +357,9 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 		}
 
 		if (!kbdev->pm.backend.poweroff_timer_needed &&
-					!kbdev->pm.backend.gpu_powered) {
+				!kbdev->pm.backend.gpu_powered &&
+				(kbdev->pm.poweroff_gpu_ticks ||
+				kbdev->pm.poweroff_shader_ticks)) {
 			kbdev->pm.backend.poweroff_timer_needed = true;
 			hrtimer_start(&kbdev->pm.backend.gpu_poweroff_timer,
 					kbdev->pm.gpu_poweroff_time,
@@ -373,18 +383,34 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 
 		/* Request power off */
 		if (kbdev->pm.backend.gpu_powered) {
-			kbdev->pm.backend.gpu_poweroff_pending =
-					kbdev->pm.poweroff_gpu_ticks;
-			if (!kbdev->pm.backend.poweroff_timer_needed) {
-				/* Start timer if not running (eg if power
-				 * policy has been changed from always_on to
-				 * something else). This will ensure the GPU is
-				 * actually powered off */
-				kbdev->pm.backend.poweroff_timer_needed = true;
-				hrtimer_start(
+			if (kbdev->pm.poweroff_gpu_ticks) {
+				kbdev->pm.backend.gpu_poweroff_pending =
+						kbdev->pm.poweroff_gpu_ticks;
+				if (!kbdev->pm.backend.poweroff_timer_needed) {
+					/* Start timer if not running (eg if
+					 * power policy has been changed from
+					 * always_on to something else). This
+					 * will ensure the GPU is actually
+					 * powered off */
+					kbdev->pm.backend.poweroff_timer_needed
+							= true;
+					hrtimer_start(
 					&kbdev->pm.backend.gpu_poweroff_timer,
-					kbdev->pm.gpu_poweroff_time,
-					HRTIMER_MODE_REL);
+						kbdev->pm.gpu_poweroff_time,
+						HRTIMER_MODE_REL);
+				}
+			} else {
+				/* Power off the GPU immediately */
+				if (!kbase_pm_do_poweroff(kbdev, false)) {
+					/* GPU can not be powered off at present
+					 */
+					kbdev->pm.backend.poweroff_timer_needed
+							= true;
+					hrtimer_start(
+					&kbdev->pm.backend.gpu_poweroff_timer,
+						kbdev->pm.gpu_poweroff_time,
+						HRTIMER_MODE_REL);
+				}
 			}
 		}
 	}
@@ -394,6 +420,7 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 {
 	u64 desired_bitmap;
 	bool cores_are_available;
+	bool do_poweroff = false;
 
 	lockdep_assert_held(&kbdev->pm.power_change_lock);
 
@@ -411,7 +438,6 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 	if (kbdev->pm.backend.desired_shader_state != desired_bitmap)
 		KBASE_TRACE_ADD(kbdev, PM_CORES_CHANGE_DESIRED, NULL, NULL, 0u,
 							(u32)desired_bitmap);
-
 	/* Are any cores being powered on? */
 	if (~kbdev->pm.backend.desired_shader_state & desired_bitmap ||
 	    kbdev->pm.backend.ca_in_transition) {
@@ -422,8 +448,12 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 			kbdev->pm.backend.shader_poweroff_pending |=
 				(kbdev->pm.backend.desired_shader_state &
 							~desired_bitmap);
-			kbdev->pm.backend.shader_poweroff_pending_time =
-					kbdev->pm.poweroff_shader_ticks;
+
+			if (kbdev->pm.poweroff_shader_ticks)
+				kbdev->pm.backend.shader_poweroff_pending_time =
+						kbdev->pm.poweroff_shader_ticks;
+			else
+				do_poweroff = true;
 		}
 
 		kbdev->pm.backend.desired_shader_state = desired_bitmap;
@@ -435,8 +465,11 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 		kbdev->pm.backend.shader_poweroff_pending |=
 				(kbdev->pm.backend.desired_shader_state &
 							~desired_bitmap);
-		kbdev->pm.backend.shader_poweroff_pending_time =
+		if (kbdev->pm.poweroff_shader_ticks)
+			kbdev->pm.backend.shader_poweroff_pending_time =
 					kbdev->pm.poweroff_shader_ticks;
+		else
+			kbasep_pm_do_poweroff_cores(kbdev);
 	} else if (kbdev->pm.active_count == 0 && desired_bitmap != 0 &&
 				kbdev->pm.backend.poweroff_timer_needed) {
 		/* If power policy is keeping cores on despite there being no
@@ -457,6 +490,12 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 		if (kbdev->pm.backend.shader_poweroff_pending == 0)
 			kbdev->pm.backend.shader_poweroff_pending_time = 0;
 	}
+
+	/* Shader poweroff is deferred to the end of the function, to eliminate
+	 * issues caused by the core availability policy recursing into this
+	 * function */
+	if (do_poweroff)
+		kbasep_pm_do_poweroff_cores(kbdev);
 
 	/* Don't need 'cores_are_available', because we don't return anything */
 	CSTD_UNUSED(cores_are_available);
@@ -550,7 +589,7 @@ void kbase_pm_set_policy(struct kbase_device *kbdev,
 
 KBASE_EXPORT_TEST_API(kbase_pm_set_policy);
 
-/** Check whether a state change has finished, and trace it as completed */
+/* Check whether a state change has finished, and trace it as completed */
 static void
 kbase_pm_trace_check_and_finish_state_change(struct kbase_device *kbdev)
 {

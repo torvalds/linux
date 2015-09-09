@@ -139,7 +139,7 @@ static void complete_soft_job(struct kbase_jd_atom *katom)
 	mutex_lock(&kctx->jctx.lock);
 	list_del(&katom->dep_item[0]);
 	kbase_finish_soft_job(katom);
-	if (jd_done_nolock(katom))
+	if (jd_done_nolock(katom, NULL))
 		kbase_js_sched_all(kctx->kbdev);
 	mutex_unlock(&kctx->jctx.lock);
 }
@@ -278,7 +278,7 @@ finish_softjob:
 
 	kbase_finish_soft_job(katom);
 
-	if (jd_done_nolock(katom))
+	if (jd_done_nolock(katom, NULL))
 		kbase_js_sched_all(katom->kctx->kbdev);
 }
 #endif /* CONFIG_SYNC */
@@ -443,7 +443,7 @@ void kbase_resume_suspended_soft_jobs(struct kbase_device *kbdev)
 
 		if (kbase_process_soft_job(katom_iter) == 0) {
 			kbase_finish_soft_job(katom_iter);
-			resched |= jd_done_nolock(katom_iter);
+			resched |= jd_done_nolock(katom_iter, NULL);
 		} else {
 			/* The job has not completed */
 			KBASE_DEBUG_ASSERT((katom_iter->core_req &

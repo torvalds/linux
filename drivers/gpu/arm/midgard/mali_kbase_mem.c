@@ -469,7 +469,7 @@ int kbase_region_tracker_init(struct kbase_context *kctx)
 
 	/* all have SAME_VA */
 	same_va_reg = kbase_alloc_free_region(kctx, 1,
-			(1ULL << (same_va_bits - PAGE_SHIFT)) - 2,
+			(1ULL << (same_va_bits - PAGE_SHIFT)) - 1,
 			KBASE_REG_ZONE_SAME_VA);
 
 	if (!same_va_reg)
@@ -525,12 +525,13 @@ int kbase_mem_init(struct kbase_device *kbdev)
 	KBASE_DEBUG_ASSERT(kbdev);
 
 	memdev = &kbdev->memdev;
+	kbdev->mem_pool_max_size_default = KBASE_MEM_POOL_MAX_SIZE_KCTX;
 
 	/* Initialize memory usage */
 	atomic_set(&memdev->used_pages, 0);
 
-	/* nothing to do, zero-inited when struct kbase_device was created */
-	return 0;
+	return kbase_mem_pool_init(&kbdev->mem_pool,
+			KBASE_MEM_POOL_MAX_SIZE_KBDEV, kbdev, NULL);
 }
 
 void kbase_mem_halt(struct kbase_device *kbdev)
@@ -550,6 +551,8 @@ void kbase_mem_term(struct kbase_device *kbdev)
 	pages = atomic_read(&memdev->used_pages);
 	if (pages != 0)
 		dev_warn(kbdev->dev, "%s: %d pages in use!\n", __func__, pages);
+
+	kbase_mem_pool_term(&kbdev->mem_pool);
 }
 
 KBASE_EXPORT_TEST_API(kbase_mem_term);
@@ -589,9 +592,6 @@ struct kbase_va_region *kbase_alloc_free_region(struct kbase_context *kctx, u64 
 	new_reg->flags = zone | KBASE_REG_FREE;
 
 	new_reg->flags |= KBASE_REG_GROWABLE;
-
-	/* Set up default MEMATTR usage */
-	new_reg->flags |= KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_DEFAULT);
 
 	new_reg->start_pfn = start_pfn;
 	new_reg->nr_pages = nr_pages;
@@ -634,6 +634,7 @@ void kbase_mmu_update(struct kbase_context *kctx)
 	 *
 	 * as_nr won't change because the caller has the runpool_irq lock */
 	KBASE_DEBUG_ASSERT(kctx->as_nr != KBASEP_AS_NR_INVALID);
+	lockdep_assert_held(&kctx->kbdev->as[kctx->as_nr].transaction_mutex);
 
 	kctx->kbdev->mmu_mode->update(kctx);
 }
@@ -663,14 +664,15 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 {
 	int err;
 	size_t i = 0;
+	unsigned long attr;
 	unsigned long mask = ~KBASE_REG_MEMATTR_MASK;
-#if defined(CONFIG_MALI_CACHE_COHERENT)
-	unsigned long attr =
-			KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_OUTER_WA);
-#else
-	unsigned long attr =
-			KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_WRITE_ALLOC);
-#endif
+
+	if ((kctx->kbdev->system_coherency == COHERENCY_ACE) &&
+		(reg->flags & KBASE_REG_SHARE_BOTH))
+		attr = KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_OUTER_WA);
+	else
+		attr = KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_WRITE_ALLOC);
+
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	KBASE_DEBUG_ASSERT(NULL != reg);
 
@@ -699,7 +701,7 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 			} else {
 				err = kbase_mmu_insert_single_page(kctx,
 					reg->start_pfn + i * stride,
-					kctx->aliasing_sink_page,
+					page_to_phys(kctx->aliasing_sink_page),
 					alloc->imported.alias.aliased[i].length,
 					(reg->flags & mask) | attr);
 
@@ -986,7 +988,7 @@ int kbase_mem_free_region(struct kbase_context *kctx, struct kbase_va_region *re
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	KBASE_DEBUG_ASSERT(NULL != reg);
-	BUG_ON(!mutex_is_locked(&kctx->reg_lock));
+	lockdep_assert_held(&kctx->reg_lock);
 	err = kbase_gpu_munmap(kctx, reg);
 	if (err) {
 		dev_warn(reg->kctx->kbdev->dev, "Could not unmap from the GPU...\n");
@@ -1072,7 +1074,8 @@ int kbase_mem_free(struct kbase_context *kctx, u64 gpu_addr)
 
 KBASE_EXPORT_TEST_API(kbase_mem_free);
 
-void kbase_update_region_flags(struct kbase_va_region *reg, unsigned long flags)
+void kbase_update_region_flags(struct kbase_context *kctx,
+		struct kbase_va_region *reg, unsigned long flags)
 {
 	KBASE_DEBUG_ASSERT(NULL != reg);
 	KBASE_DEBUG_ASSERT((flags & ~((1ul << BASE_MEM_FLAGS_NR_BITS) - 1)) == 0);
@@ -1104,6 +1107,16 @@ void kbase_update_region_flags(struct kbase_va_region *reg, unsigned long flags)
 		reg->flags |= KBASE_REG_SHARE_BOTH;
 	else if (flags & BASE_MEM_COHERENT_LOCAL)
 		reg->flags |= KBASE_REG_SHARE_IN;
+
+	/* Set up default MEMATTR usage */
+	if (kctx->kbdev->system_coherency == COHERENCY_ACE &&
+		(reg->flags & KBASE_REG_SHARE_BOTH)) {
+		reg->flags |=
+			KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_DEFAULT_ACE);
+	} else {
+		reg->flags |=
+			KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_DEFAULT);
+	}
 }
 KBASE_EXPORT_TEST_API(kbase_update_region_flags);
 
@@ -1125,7 +1138,7 @@ int kbase_alloc_phy_pages_helper(
 	 * allocation is visible to the OOM killer */
 	kbase_process_page_usage_inc(alloc->imported.kctx, nr_pages_requested);
 
-	if (kbase_mem_allocator_alloc(&alloc->imported.kctx->osalloc,
+	if (kbase_mem_pool_alloc_pages(&alloc->imported.kctx->mem_pool,
 			nr_pages_requested, alloc->pages + alloc->nents) != 0)
 		goto no_alloc;
 
@@ -1165,7 +1178,7 @@ int kbase_free_phy_pages_helper(
 
 	syncback = alloc->properties & KBASE_MEM_PHY_ALLOC_ACCESSED_CACHED;
 
-	kbase_mem_allocator_free(&alloc->imported.kctx->osalloc,
+	kbase_mem_pool_free_pages(&alloc->imported.kctx->mem_pool,
 				  nr_pages_to_free,
 				  start_free,
 				  syncback);

@@ -23,6 +23,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
 #include <mali_kbase_config.h>
+#include <mali_kbase_smc.h>
 
 /* Versatile Express (VE) Juno Development Platform */
 
@@ -135,18 +136,44 @@ struct devfreq_cooling_ops juno_model_ops = {
 
 #endif /* CONFIG_DEVFREQ_THERMAL */
 
+/*
+ * Juno Secure Mode integration
+ */
+
+/* SMC Function Numbers */
+#define JUNO_SMC_SECURE_ENABLE_FUNC  0xff06
+#define JUNO_SMC_SECURE_DISABLE_FUNC 0xff07
+
 static int juno_secure_mode_enable(struct kbase_device *kbdev)
 {
-	/* TODO: enable secure mode */
-	/*dev_err(kbdev->dev, "SWITCHING TO SECURE\n");*/
-	return 0; /* all ok */
+	u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
+
+	if (gpu_id == GPU_ID_MAKE(GPU_ID_PI_T62X, 0, 1, 0) &&
+			kbdev->reg_start == 0x2d000000) {
+		/* T62X in SoC detected */
+		u64 ret = kbase_invoke_smc(SMC_OEN_SIP,
+			JUNO_SMC_SECURE_ENABLE_FUNC, false,
+			0, 0, 0);
+		return ret;
+	}
+
+	return -EINVAL; /* Not supported */
 }
 
 static int juno_secure_mode_disable(struct kbase_device *kbdev)
 {
-	/* TODO: Turn off secure mode and reset GPU */
-	/*dev_err(kbdev->dev, "SWITCHING TO NON-SECURE\n");*/
-	return 0; /* all ok */
+	u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
+
+	if (gpu_id == GPU_ID_MAKE(GPU_ID_PI_T62X, 0, 1, 0) &&
+			kbdev->reg_start == 0x2d000000) {
+		/* T62X in SoC detected */
+		u64 ret = kbase_invoke_smc(SMC_OEN_SIP,
+			JUNO_SMC_SECURE_DISABLE_FUNC, false,
+			0, 0, 0);
+		return ret;
+	}
+
+	return -EINVAL; /* Not supported */
 }
 
 struct kbase_secure_ops juno_secure_ops = {

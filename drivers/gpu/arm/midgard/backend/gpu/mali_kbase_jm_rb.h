@@ -16,8 +16,7 @@
 
 
 
-/**
- * @file mali_kbase_hwaccess_gpu.h
+/*
  * Register-based HW access backend specific APIs
  */
 
@@ -27,23 +26,27 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
 /**
+ * kbase_gpu_irq_evict - Evict an atom from a NEXT slot
+ *
+ * @kbdev:         Device pointer
+ * @js:            Job slot to evict from
+ *
  * Evict the atom in the NEXT slot for the specified job slot. This function is
  * called from the job complete IRQ handler when the previous job has failed.
  *
- * @param[in] kbdev         Device pointer
- * @param[in] js            Job slot to evict from
- * @return                  true if job evicted from NEXT registers
- *                          false otherwise
+ * Return: true if job evicted from NEXT registers, false otherwise
  */
 bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js);
 
 /**
- * Complete an atom on job slot js
+ * kbase_gpu_complete_hw - Complete an atom on job slot js
  *
- * @param[in] kbdev         Device pointer
- * @param[in] js            Job slot that has completed
- * @param[in] event_code    Event code from job that has completed
- * @param[in] end_timestamp Time of completion
+ * @kbdev:           Device pointer
+ * @js:              Job slot that has completed
+ * @completion_code: Event code from job that has completed
+ * @job_tail:        The tail address from the hardware if the job has partially
+ *                   completed
+ * @end_timestamp:   Time of completion
  */
 void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 				u32 completion_code,
@@ -51,32 +54,33 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 				ktime_t *end_timestamp);
 
 /**
- * Inspect the contents of the HW access ringbuffer
+ * kbase_gpu_inspect - Inspect the contents of the HW access ringbuffer
  *
- * @param[in] kbdev  Device pointer
- * @param[in] js     Job slot to inspect
- * @param[in] idx    Index into ringbuffer. 0 is the job currently running on
- *                   the slot, 1 is the job waiting, all other values are
- *                   invalid.
- * @return           The atom at that position in the ringbuffer
- *                   NULL if no atom present
+ * @kbdev:  Device pointer
+ * @js:     Job slot to inspect
+ * @idx:    Index into ringbuffer. 0 is the job currently running on
+ *          the slot, 1 is the job waiting, all other values are invalid.
+ * Return:  The atom at that position in the ringbuffer
+ *          or NULL if no atom present
  */
 struct kbase_jd_atom *kbase_gpu_inspect(struct kbase_device *kbdev, int js,
 					int idx);
 
 /**
+ * kbase_gpu_slot_update - Update state based on slot ringbuffers
+ *
+ * @kbdev:  Device pointer
+ *
  * Inspect the jobs in the slot ringbuffers and update state.
  *
  * This will cause jobs to be submitted to hardware if they are unblocked
- *
- * @param[in] kbdev  Device pointer
  */
 void kbase_gpu_slot_update(struct kbase_device *kbdev);
 
 /**
- * Print the contents of the slot ringbuffers
+ * kbase_gpu_dump_slots - Print the contents of the slot ringbuffers
  *
- * @param[in] kbdev  Device pointer
+ * @kbdev:  Device pointer
  */
 void kbase_gpu_dump_slots(struct kbase_device *kbdev);
 

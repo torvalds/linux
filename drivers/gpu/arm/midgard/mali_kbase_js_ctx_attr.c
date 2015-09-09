@@ -50,7 +50,7 @@ static bool kbasep_js_ctx_attr_runpool_retain_attr(struct kbase_device *kbdev, s
 	js_devdata = &kbdev->js_data;
 	js_kctx_info = &kctx->jctx.sched_info;
 
-	BUG_ON(!mutex_is_locked(&js_kctx_info->ctx.jsctx_mutex));
+	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 
 	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.is_scheduled != false);
@@ -96,7 +96,7 @@ static bool kbasep_js_ctx_attr_runpool_release_attr(struct kbase_device *kbdev, 
 	js_devdata = &kbdev->js_data;
 	js_kctx_info = &kctx->jctx.sched_info;
 
-	BUG_ON(!mutex_is_locked(&js_kctx_info->ctx.jsctx_mutex));
+	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.is_scheduled != false);
 
@@ -137,7 +137,7 @@ static bool kbasep_js_ctx_attr_ctx_retain_attr(struct kbase_device *kbdev, struc
 	js_kctx_info = &kctx->jctx.sched_info;
 
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
-	BUG_ON(!mutex_is_locked(&js_kctx_info->ctx.jsctx_mutex));
+	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
 	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.ctx_attr_ref_count[attribute] < U32_MAX);
 
 	++(js_kctx_info->ctx.ctx_attr_ref_count[attribute]);
@@ -173,7 +173,7 @@ static bool kbasep_js_ctx_attr_ctx_release_attr(struct kbase_device *kbdev, stru
 	KBASE_DEBUG_ASSERT(attribute < KBASEP_JS_CTX_ATTR_COUNT);
 	js_kctx_info = &kctx->jctx.sched_info;
 
-	BUG_ON(!mutex_is_locked(&js_kctx_info->ctx.jsctx_mutex));
+	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
 	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.ctx_attr_ref_count[attribute] > 0);
 
 	if (js_kctx_info->ctx.is_scheduled != false && js_kctx_info->ctx.ctx_attr_ref_count[attribute] == 1) {

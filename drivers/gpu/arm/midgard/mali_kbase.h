@@ -55,11 +55,12 @@
 #include "mali_kbase_utility.h"
 #include "mali_kbase_gpu_memory_debugfs.h"
 #include "mali_kbase_mem_profile_debugfs.h"
+#include "mali_kbase_debug_job_fault.h"
 #include "mali_kbase_jd_debugfs.h"
-#include "mali_kbase_cpuprops.h"
 #include "mali_kbase_gpuprops.h"
 #include "mali_kbase_jm.h"
 #include "mali_kbase_vinstr.h"
+#include "mali_kbase_ipa.h"
 #ifdef CONFIG_GPU_TRACEPOINTS
 #include <trace/events/gpu.h>
 #endif
@@ -116,12 +117,33 @@ int kbase_jd_submit(struct kbase_context *kctx,
 int kbase_jd_submit(struct kbase_context *kctx,
 		const struct kbase_uk_job_submit *submit_data);
 #endif
+
+/**
+ * kbase_jd_done_worker - Handle a job completion
+ * @data: a &struct work_struct
+ *
+ * This function requeues the job from the runpool (if it was soft-stopped or
+ * removed from NEXT registers).
+ *
+ * Removes it from the system if it finished/failed/was cancelled.
+ *
+ * Resolves dependencies to add dependent jobs to the context, potentially
+ * starting them if necessary (which may add more references to the context)
+ *
+ * Releases the reference to the context from the no-longer-running job.
+ *
+ * Handles retrying submission outside of IRQ context if it failed from within
+ * IRQ context.
+ */
+void kbase_jd_done_worker(struct work_struct *data);
+
 void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr, ktime_t *end_timestamp,
 		kbasep_js_atom_done_code done_code);
 void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
 void kbase_jd_evict(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
 void kbase_jd_zap_context(struct kbase_context *kctx);
-bool jd_done_nolock(struct kbase_jd_atom *katom);
+bool jd_done_nolock(struct kbase_jd_atom *katom,
+		struct list_head *completed_jobs_ctx);
 void kbase_jd_free_external_resources(struct kbase_jd_atom *katom);
 bool jd_submit_atom(struct kbase_context *kctx,
 			 const struct base_jd_atom_v2 *user_atom,
@@ -129,6 +151,8 @@ bool jd_submit_atom(struct kbase_context *kctx,
 
 void kbase_job_done(struct kbase_device *kbdev, u32 done);
 
+void kbase_gpu_cacheclean(struct kbase_device *kbdev,
+					struct kbase_jd_atom *katom);
 /**
  * kbase_job_slot_ctx_priority_check_locked(): - Check for lower priority atoms
  *                                               and soft stop them
@@ -496,4 +520,18 @@ void kbasep_trace_clear(struct kbase_device *kbdev);
 #endif /* KBASE_TRACE_ENABLE */
 /** PRIVATE - do not use directly. Use KBASE_TRACE_DUMP() instead */
 void kbasep_trace_dump(struct kbase_device *kbdev);
+
+#ifdef CONFIG_MALI_DEBUG
+/**
+ * kbase_set_driver_inactive - Force driver to go inactive
+ * @kbdev:    Device pointer
+ * @inactive: true if driver should go inactive, false otherwise
+ *
+ * Forcing the driver inactive will cause all future IOCTLs to wait until the
+ * driver is made active again. This is intended solely for the use of tests
+ * which require that no jobs are running while the test executes.
+ */
+void kbase_set_driver_inactive(struct kbase_device *kbdev, bool inactive);
+#endif /* CONFIG_MALI_DEBUG */
+
 #endif

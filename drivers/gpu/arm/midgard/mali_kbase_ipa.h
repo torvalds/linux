@@ -15,25 +15,18 @@
 
 
 
-
+struct kbase_ipa_context;
 
 /**
- * @file mali_kbase_pm_metrics_dummy.c
- * Dummy Metrics for power management.
+ * kbase_ipa_init - initialize the kbase ipa core
+ * @kbdev:      kbase device
+ *
+ * Return:      pointer to the IPA context or NULL on failure
  */
+struct kbase_ipa_context *kbase_ipa_init(struct kbase_device *kbdev);
 
-#include <mali_kbase.h>
-#include <mali_kbase_pm.h>
-
-void kbase_pm_register_vsync_callback(struct kbase_device *kbdev)
-{
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-
-	/* no VSync metrics will be available */
-	kbdev->pm.backend.metrics.platform_data = NULL;
-}
-
-void kbase_pm_unregister_vsync_callback(struct kbase_device *kbdev)
-{
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-}
+/**
+ * kbase_ipa_term - terminate the kbase ipa core
+ * @ctx:        pointer to the IPA context
+ */
+void kbase_ipa_term(struct kbase_ipa_context *ctx);

@@ -152,6 +152,29 @@ void kbase_tlstream_tl_summary_new_lpu(void *lpu, u32 nr, u32 fn);
 void kbase_tlstream_tl_summary_lifelink_lpu_gpu(void *lpu, void *gpu);
 
 /**
+ * kbase_tlstream_tl_summary_new_as - create address space object in timeline summary
+ * @as: name of the address space object
+ * @nr: sequential number assigned to this address space
+ *
+ * Function emits a timeline message informing about address space creation.
+ * Address space is created with one attribute: number identifying this
+ * address space.
+ * This message is directed to timeline summary stream.
+ */
+void kbase_tlstream_tl_summary_new_as(void *as, u32 nr);
+
+/**
+ * kbase_tlstream_tl_summary_lifelink_as_gpu - lifelink address space object to GPU
+ * @as:  name of the address space object
+ * @gpu: name of the GPU object
+ *
+ * Function emits a timeline message informing that address space object
+ * shall be deleted along with GPU object.
+ * This message is directed to timeline summary stream.
+ */
+void kbase_tlstream_tl_summary_lifelink_as_gpu(void *as, void *gpu);
+
+/**
  * kbase_tlstream_tl_new_ctx - create context object in timeline
  * @context: name of the context object
  * @nr:      context number
@@ -250,6 +273,79 @@ void kbase_tlstream_tl_nret_atom_ctx(void *atom, void *context);
  * released by LPU.
  */
 void kbase_tlstream_tl_nret_atom_lpu(void *atom, void *lpu);
+
+/**
+ * kbase_tlstream_tl_ret_as_ctx - lifelink address space object to context
+ * @as:  name of the address space object
+ * @ctx: name of the context object
+ *
+ * Function emits a timeline message informing that address space object
+ * is being held by the context object.
+ */
+void kbase_tlstream_tl_ret_as_ctx(void *as, void *ctx);
+
+/**
+ * kbase_tlstream_tl_nret_as_ctx - release address space by context
+ * @as:  name of the address space object
+ * @ctx: name of the context object
+ *
+ * Function emits a timeline message informing that address space object
+ * is being released by atom.
+ */
+void kbase_tlstream_tl_nret_as_ctx(void *as, void *ctx);
+
+/**
+ * kbase_tlstream_tl_ret_atom_as - retain atom by address space
+ * @atom: name of the atom object
+ * @as:   name of the address space object
+ *
+ * Function emits a timeline message informing that atom object is being held
+ * by address space and must not be deleted unless it is released.
+ */
+void kbase_tlstream_tl_ret_atom_as(void *atom, void *as);
+
+/**
+ * kbase_tlstream_tl_nret_atom_as - release atom by address space
+ * @atom: name of the atom object
+ * @as:   name of the address space object
+ *
+ * Function emits a timeline message informing that atom object is being
+ * released by address space.
+ */
+void kbase_tlstream_tl_nret_atom_as(void *atom, void *as);
+
+/**
+ * kbase_tlstream_tl_attrib_atom_config - atom job slot attributes
+ * @atom:     name of the atom object
+ * @jd:       job descriptor address
+ * @affinity: job affinity
+ * @config:   job config
+ *
+ * Function emits a timeline message containing atom attributes.
+ */
+void kbase_tlstream_tl_attrib_atom_config(
+		void *atom, u64 jd, u64 affinity, u32 config);
+
+/**
+ * kbase_tlstream_tl_attrib_as_config - address space attributes
+ * @as:       assigned address space
+ * @transtab: configuration of the TRANSTAB register
+ * @memattr:  configuration of the MEMATTR register
+ * @transcfg: configuration of the TRANSCFG register (or zero if not present)
+ *
+ * Function emits a timeline message containing address space attributes.
+ */
+void kbase_tlstream_tl_attrib_as_config(
+		void *as, u64 transtab, u64 memattr, u64 transcfg);
+
+/**
+ * kbase_tlstream_jd_gpu_soft_reset - The GPU is being soft reset
+ * @gpu:        name of the GPU object
+ *
+ * This imperative tracepoint is specific to job dumping.
+ * Function emits a timeline message indicating GPU soft reset.
+ */
+void kbase_tlstream_jd_gpu_soft_reset(void *gpu);
 
 /**
  * kbase_tlstream_aux_pm_state - timeline message: power management state

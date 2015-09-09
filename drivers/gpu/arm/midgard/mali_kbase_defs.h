@@ -31,7 +31,6 @@
 #include <mali_base_hwconfig_features.h>
 #include <mali_base_hwconfig_issues.h>
 #include <mali_kbase_mem_lowlevel.h>
-#include <mali_kbase_mem_alloc.h>
 #include <mali_kbase_mmu_hw.h>
 #include <mali_kbase_mmu_mode.h>
 #include <mali_kbase_instr.h>
@@ -39,6 +38,11 @@
 #include <linux/atomic.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
+
+#ifdef CONFIG_MALI_FPGA_BUS_LOGGER
+#include <linux/bus_logger.h>
+#endif
+
 
 #ifdef CONFIG_KDS
 #include <linux/kds.h>
@@ -58,6 +62,11 @@
 
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+
+#if defined(CONFIG_PM_RUNTIME) || \
+	(defined(CONFIG_PM) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
+#define KBASE_PM_RUNTIME 1
+#endif
 
 /** Enable SW tracing when set */
 #ifdef CONFIG_MALI_MIDGARD_ENABLE_TRACE
@@ -98,6 +107,7 @@
  * @note if not in use, define this value to 0 instead of \#undef'ing it
  */
 #define KBASE_DISABLE_SCHEDULING_SOFT_STOPS 0
+
 /**
  * Prevent hard-stops from occuring in scheduling situations
  *
@@ -195,6 +205,18 @@
 		(JS_COMMAND_SW_CAUSES_DISJOINT | JS_COMMAND_SOFT_STOP)
 
 #define KBASEP_ATOM_ID_INVALID BASE_JD_ATOM_COUNT
+
+#ifdef CONFIG_DEBUG_FS
+struct base_job_fault_event {
+
+	u32 event_code;
+	struct kbase_jd_atom *katom;
+	struct work_struct job_fault_work;
+	struct list_head head;
+	int reg_offset;
+};
+
+#endif
 
 struct kbase_jd_atom_dependency {
 	struct kbase_jd_atom *atom;
@@ -366,6 +388,9 @@ struct kbase_jd_atom {
 
 
 	struct kbase_jd_atom_backend backend;
+#ifdef CONFIG_DEBUG_FS
+	struct base_job_fault_event fault_event;
+#endif
 };
 
 static inline bool kbase_jd_katom_is_secure(const struct kbase_jd_atom *katom)
@@ -713,6 +738,32 @@ struct kbase_secure_ops {
 };
 
 
+/**
+ * struct kbase_mem_pool - Page based memory pool for kctx/kbdev
+ * @kbdev:     Kbase device where memory is used
+ * @cur_size:  Number of free pages currently in the pool (may exceed @max_size
+ *             in some corner cases)
+ * @max_size:  Maximum number of free pages in the pool
+ * @pool_lock: Lock protecting the pool - must be held when modifying @cur_size
+ *             and @page_list
+ * @page_list: List of free pages in the pool
+ * @reclaim:   Shrinker for kernel reclaim of free pages
+ * @next_pool: Pointer to next pool where pages can be allocated when this pool
+ *             is empty. Pages will spill over to the next pool when this pool
+ *             is full. Can be NULL if there is no next pool.
+ */
+struct kbase_mem_pool {
+	struct kbase_device *kbdev;
+	size_t              cur_size;
+	size_t              max_size;
+	spinlock_t          pool_lock;
+	struct list_head    page_list;
+	struct shrinker     reclaim;
+
+	struct kbase_mem_pool *next_pool;
+};
+
+
 #define DEVNAME_SIZE	16
 
 struct kbase_device {
@@ -721,6 +772,7 @@ struct kbase_device {
 	u32 hw_quirks_sc;
 	u32 hw_quirks_tiler;
 	u32 hw_quirks_mmu;
+	u32 hw_quirks_jm;
 
 	struct list_head entry;
 	struct device *dev;
@@ -753,6 +805,7 @@ struct kbase_device {
 
 	struct kbase_pm_device_data pm;
 	struct kbasep_js_device_data js_data;
+	struct kbase_mem_pool mem_pool;
 	struct kbasep_mem_device memdev;
 	struct kbase_mmu_mode const *mmu_mode;
 
@@ -766,11 +819,6 @@ struct kbase_device {
 	unsigned long hw_issues_mask[(BASE_HW_ISSUE_END + BITS_PER_LONG - 1) / BITS_PER_LONG];
 	/** List of features available */
 	unsigned long hw_features_mask[(BASE_HW_FEATURE_END + BITS_PER_LONG - 1) / BITS_PER_LONG];
-
-	/* Cached present bitmaps - these are the same as the corresponding hardware registers */
-	u64 shader_present_bitmap;
-	u64 tiler_present_bitmap;
-	u64 l2_present_bitmap;
 
 	/* Bitmaps of cores that are currently in use (running jobs).
 	 * These should be kept up to date by the job scheduler.
@@ -899,6 +947,8 @@ struct kbase_device {
 #endif
 #endif
 
+	struct kbase_ipa_context *ipa_ctx;
+
 #ifdef CONFIG_MALI_TRACE_TIMELINE
 	struct kbase_trace_kbdev_timeline timeline;
 #endif
@@ -908,6 +958,15 @@ struct kbase_device {
 	struct dentry *mali_debugfs_directory;
 	/* Root directory for per context entry */
 	struct dentry *debugfs_ctx_directory;
+
+	/* failed job dump, used for separate debug process */
+	bool job_fault_debug;
+	wait_queue_head_t job_fault_wq;
+	wait_queue_head_t job_fault_resume_wq;
+	struct workqueue_struct *job_fault_resume_workq;
+	struct list_head job_fault_event_list;
+	struct kbase_context *kctx_fault;
+
 #endif /* CONFIG_DEBUG_FS */
 
 	/* fbdump profiling controls set by gator */
@@ -931,7 +990,6 @@ struct kbase_device {
 	bool force_replay_random;
 #endif
 
-
 	/* Total number of created contexts */
 	atomic_t ctx_num;
 
@@ -946,12 +1004,36 @@ struct kbase_device {
 
 	/* defaults for new context created for this device */
 	u32 infinite_cache_active_default;
+	size_t mem_pool_max_size_default;
 
 	/* system coherency mode  */
 	u32 system_coherency;
 
 	/* Secure operations */
 	struct kbase_secure_ops *secure_ops;
+
+	/*
+	 * true when GPU is put into secure mode
+	 */
+	bool secure_mode;
+
+	/*
+	 * true if secure mode is supported
+	 */
+	bool secure_mode_support;
+
+
+#ifdef CONFIG_MALI_DEBUG
+	wait_queue_head_t driver_inactive_wait;
+	bool driver_inactive;
+#endif /* CONFIG_MALI_DEBUG */
+
+#ifdef CONFIG_MALI_FPGA_BUS_LOGGER
+	/*
+	 * Bus logger integration.
+	 */
+	struct bus_logger_client *buslogger;
+#endif
 };
 
 /* JSCTX ringbuffer size must always be a power of 2 */
@@ -1014,7 +1096,7 @@ struct kbase_context {
 
 	u64 *mmu_teardown_pages;
 
-	phys_addr_t aliasing_sink_page;
+	struct page *aliasing_sink_page;
 
 	struct mutex            reg_lock; /* To be converted to a rwlock? */
 	struct rb_root          reg_rbtree; /* Red-Black tree of GPU regions (live regions) */
@@ -1030,8 +1112,7 @@ struct kbase_context {
 	atomic_t used_pages;
 	atomic_t         nonmapped_pages;
 
-	struct kbase_mem_allocator osalloc;
-	struct kbase_mem_allocator *pgd_allocator;
+	struct kbase_mem_pool mem_pool;
 
 	struct list_head waiting_soft_jobs;
 #ifdef CONFIG_KDS
@@ -1070,6 +1151,15 @@ struct kbase_context {
 	/* Spinlock guarding data */
 	spinlock_t mem_profile_lock;
 	struct dentry *kctx_dentry;
+
+	/* for job fault debug */
+	unsigned int *reg_dump;
+	atomic_t job_fault_count;
+	/* This list will keep the following atoms during the dump
+	 * in the same context
+	 */
+	struct list_head job_fault_resume_event_list;
+
 #endif /* CONFIG_DEBUG_FS */
 
 	struct jsctx_rb jsctx_rb
@@ -1099,6 +1189,14 @@ struct kbase_context {
 	/* Only one userspace vinstr client per kbase context */
 	struct kbase_vinstr_client *vinstr_cli;
 	struct mutex vinstr_cli_lock;
+
+	/* Must hold queue_mutex when accessing */
+	bool ctx_active;
+
+	/* List of completed jobs waiting for events to be posted */
+	struct list_head completed_jobs;
+	/* Number of work items currently pending on job_done_wq */
+	atomic_t work_count;
 };
 
 enum kbase_reg_access_type {

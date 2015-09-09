@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r6p0-02rel0"
+MALI_RELEASE_NAME ?= "r7p0-02rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -77,10 +77,10 @@ SRC := \
 	mali_kbase_cache_policy.c \
 	mali_kbase_mem.c \
 	mali_kbase_mmu.c \
+	mali_kbase_ipa.c \
 	mali_kbase_jd.c \
 	mali_kbase_jd_debugfs.c \
 	mali_kbase_jm.c \
-	mali_kbase_cpuprops.c \
 	mali_kbase_gpuprops.c \
 	mali_kbase_js.c \
 	mali_kbase_js_ctx_attr.c \
@@ -108,7 +108,10 @@ SRC := \
 	mali_kbase_disjoint_events.c \
 	mali_kbase_gator_api.c \
 	mali_kbase_debug_mem_view.c \
-	mali_kbase_smc.c
+	mali_kbase_debug_job_fault.c \
+	mali_kbase_smc.c \
+	mali_kbase_mem_pool.c \
+	mali_kbase_mem_pool_debugfs.c
 
 ifeq ($(CONFIG_MALI_MIPE_ENABLED),y)
 	SRC += mali_kbase_tlstream.c
@@ -120,22 +123,7 @@ endif
 # Job Scheduler Policy: Completely Fair Scheduler
 SRC += mali_kbase_js_policy_cfs.c
 
-ifeq ($(CONFIG_MACH_MANTA),y)
-	SRC += mali_kbase_mem_alloc_carveout.c
-else
-	SRC += mali_kbase_mem_alloc.c
-endif
-
 ccflags-y += -I$(KBASE_PATH)
-
-# in-tree/out-of-tree logic needs to be slightly different to determine if a file is present
-ifeq ($(KBUILD_EXTMOD),)
-# in-tree
-MALI_METRICS_PATH = $(srctree)/drivers/gpu/arm/midgard
-else
-# out-of-tree
-MALI_METRICS_PATH = $(KBUILD_EXTMOD)
-endif
 
 ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 	SRC += mali_kbase_platform_fake.c

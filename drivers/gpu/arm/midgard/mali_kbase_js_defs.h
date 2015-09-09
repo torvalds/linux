@@ -288,11 +288,6 @@ struct kbasep_js_device_data {
 		 * submitted to a slot, and is de-refcounted immediately after a job
 		 * finishes */
 		s8 slot_affinity_refcount[BASE_JM_MAX_NR_SLOTS][64];
-
-		/*
-		 * true when GPU is put into secure mode
-		 */
-		bool secure_mode;
 	} runpool_irq;
 
 	/**
@@ -368,6 +363,7 @@ struct kbasep_js_device_data {
 	/* Support soft-stop on a single context */
 	bool softstop_always;
 #endif				/* CONFIG_MALI_DEBUG */
+
 	/** The initalized-flag is placed at the end, to avoid cache-pollution (we should
 	 * only be using this during init/term paths).
 	 * @note This is a write-once member, and so no locking is required to read */
@@ -446,8 +442,6 @@ struct kbasep_js_kctx_info {
 		 * list per job slot
 		 */
 		struct list_head ctx_list_entry[BASE_JM_MAX_NR_SLOTS];
-
-		atomic_t fault_count;		/**< The no. of times the context is retained due to the fault job. */
 	} ctx;
 
 	/* The initalized-flag is placed at the end, to avoid cache-pollution (we should

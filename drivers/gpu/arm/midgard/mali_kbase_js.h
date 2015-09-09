@@ -392,21 +392,6 @@ void kbasep_js_runpool_release_ctx(struct kbase_device *kbdev, struct kbase_cont
  */
 void kbasep_js_runpool_release_ctx_and_katom_retained_state(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbasep_js_atom_retained_state *katom_retained_state);
 
-
-/**
- * @brief Release the refcount of the context and allow further submission
- * of the context after the dump on error in user space terminates.
- *
- * Before this function is called, when a fault happens the kernel should
- * have disallowed the context from further submission of jobs and
- * retained the context to avoid it from being removed. This function
- * releases the refcount of the context and allow further submission of
- * jobs.
- *
- * This function should only be called when "instr=2" during compile time.
- */
-void kbasep_js_dump_fault_term(struct kbase_device *kbdev, struct kbase_context *kctx);
-
 /**
  * @brief Variant of kbase_js_runpool_release_ctx() that assumes that
  * kbasep_js_device_data::runpool_mutex and
@@ -556,8 +541,10 @@ void kbase_js_unpull(struct kbase_context *kctx, struct kbase_jd_atom *katom);
  *
  * @param[in] kctx  Context pointer
  * @param[in] katom Pointer to the atom to complete
+ * @return true if the context is now idle (no jobs pulled)
+ *         false otherwise
  */
-void kbase_js_complete_atom_wq(struct kbase_context *kctx,
+bool kbase_js_complete_atom_wq(struct kbase_context *kctx,
 				struct kbase_jd_atom *katom);
 
 /**

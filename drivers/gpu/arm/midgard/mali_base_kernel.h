@@ -36,6 +36,12 @@
 /* NB: To support UK6 we also need to support UK7 */
 #define BASE_LEGACY_UK7_SUPPORT 1
 
+/* Support UK8 IOCTLS */
+#define BASE_LEGACY_UK8_SUPPORT 1
+
+/* Support UK9 IOCTLS */
+#define BASE_LEGACY_UK9_SUPPORT 1
+
 typedef u64 base_mem_handle;
 
 #include "mali_base_mem_priv.h"
@@ -151,10 +157,9 @@ enum {
 /* OUT */
 	BASE_MEM_NEED_MMAP = (1U << 14), /**< Must call mmap to aquire a GPU
 					     address for the alloc */
-
 /* IN */
 	BASE_MEM_COHERENT_SYSTEM_REQUIRED = (1U << 15), /**< Page coherence
-							Outer shareable, required. */
+					     Outer shareable, required. */
 	BASE_MEM_SECURE = (1U << 16)           /**< Secure memory */
 
 };
@@ -197,12 +202,6 @@ typedef enum base_mem_import_type {
 	BASE_MEM_IMPORT_TYPE_UMM = 2
 } base_mem_import_type;
 
-/* legacy API wrappers */
-#define base_tmem_import_type          base_mem_import_type
-#define BASE_TMEM_IMPORT_TYPE_INVALID  BASE_MEM_IMPORT_TYPE_INVALID
-#define BASE_TMEM_IMPORT_TYPE_UMP      BASE_MEM_IMPORT_TYPE_UMP
-#define BASE_TMEM_IMPORT_TYPE_UMM      BASE_MEM_IMPORT_TYPE_UMM
-
 /**
  * @brief Invalid memory handle type.
  * Return value from functions returning @a base_mem_handle on error.
@@ -216,6 +215,9 @@ typedef enum base_mem_import_type {
 #define BASE_MEM_COOKIE_BASE                   (64ul  << 12)
 #define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << 12) + \
 						BASE_MEM_COOKIE_BASE)
+
+/* Mask to detect 4GB boundary alignment */
+#define BASE_MEM_MASK_4GB  0xfffff000UL
 
 /* Bit mask of cookies used for for memory allocation setup */
 #define KBASE_COOKIE_MASK  ~1UL /* bit 0 is reserved */
@@ -622,7 +624,7 @@ typedef struct base_jd_atom_v2 {
 	kbase_pointer extres_list;	    /**< list of external resources */
 	u16 nr_extres;			    /**< nr of external resources */
 	base_jd_core_req core_req;	    /**< core requirements */
-	const struct base_dependency pre_dep[2]; /**< pre-dependencies, one need to use SETTER function to assign this field,
+	struct base_dependency pre_dep[2];  /**< pre-dependencies, one need to use SETTER function to assign this field,
 	this is done in order to reduce possibility of improper assigment of a dependency field */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
 	base_jd_prio prio;                  /**< Atom priority. Refer to @ref base_jd_prio for more details */
@@ -662,16 +664,17 @@ typedef struct base_external_resource {
  * @param     dep_type     The dep_type to be assigned.
  *
  */
-static inline void base_jd_atom_dep_set(const struct base_dependency *const_dep, base_atom_id id, base_jd_dep_type dep_type)
+static inline void base_jd_atom_dep_set(struct base_dependency *dep,
+		base_atom_id id, base_jd_dep_type dep_type)
 {
-	struct base_dependency *dep;
+	LOCAL_ASSERT(dep != NULL);
 
-	LOCAL_ASSERT(const_dep != NULL);
-	/* make sure we don't set not allowed combinations of atom_id/dependency_type */
+	/*
+	 * make sure we don't set not allowed combinations
+	 * of atom_id/dependency_type.
+	 */
 	LOCAL_ASSERT((id == 0 && dep_type == BASE_JD_DEP_TYPE_INVALID) ||
 			(id > 0 && dep_type != BASE_JD_DEP_TYPE_INVALID));
-
-	dep = (struct base_dependency *)const_dep;
 
 	dep->atom_id = id;
 	dep->dependency_type = dep_type;
@@ -684,11 +687,12 @@ static inline void base_jd_atom_dep_set(const struct base_dependency *const_dep,
  * @param[in]     from         The dependency to make a copy from.
  *
  */
-static inline void base_jd_atom_dep_copy(const struct base_dependency *const_dep, const struct base_dependency *from)
+static inline void base_jd_atom_dep_copy(struct base_dependency *dep,
+		const struct base_dependency *from)
 {
-	LOCAL_ASSERT(const_dep != NULL);
+	LOCAL_ASSERT(dep != NULL);
 
-	base_jd_atom_dep_set(const_dep, from->atom_id, from->dependency_type);
+	base_jd_atom_dep_set(dep, from->atom_id, from->dependency_type);
 }
 
 /**
@@ -964,26 +968,7 @@ typedef struct base_dump_cpu_gpu_counters {
 
 /** @} end group base_user_api_job_dispatch */
 
-#ifdef __KERNEL__
-/*
- * The following typedefs should be removed when a midg types header is added.
- * See MIDCOM-1657 for details.
- */
-typedef u32 gpu_product_id;
-typedef u32 gpu_cache_features;
-typedef u32 gpu_tiler_features;
-typedef u32 gpu_mem_features;
-typedef u32 gpu_mmu_features;
-typedef u32 gpu_js_features;
-typedef u32 gpu_as_present;
-typedef u32 gpu_js_present;
-
 #define GPU_MAX_JOB_SLOTS 16
-
-#else
-#include <gpu/mali_gpu_registers.h>
-#include <gpu/mali_gpu_props.h>
-#endif
 
 /**
  * @page page_base_user_api_gpuprops User-side Base GPU Property Query API
@@ -1208,7 +1193,7 @@ struct mali_base_gpu_core_props {
 	/**
 	 * Product specific value.
 	 */
-	gpu_product_id product_id;
+	u32 product_id;
 
 	/**
 	 * Status of the GPU release.
@@ -1350,7 +1335,7 @@ struct mali_base_gpu_coherent_group_info {
 	 * Coherency features of the memory, accessed by @ref gpu_mem_features
 	 * methods
 	 */
-	gpu_mem_features coherency;
+	u32 coherency;
 
 	u32 padding;
 
@@ -1380,18 +1365,19 @@ struct gpu_raw_gpu_props {
 	u64 shader_present;
 	u64 tiler_present;
 	u64 l2_present;
-	u64 unused_1; /* keep for backward compatibility */
+	u32 coherency_enabled;
+	u32 unused_1; /* keep for backward compatibility */
 
-	gpu_cache_features l2_features;
+	u32 l2_features;
 	u32 suspend_size; /* API 8.2+ */
-	gpu_mem_features mem_features;
-	gpu_mmu_features mmu_features;
+	u32 mem_features;
+	u32 mmu_features;
 
-	gpu_as_present as_present;
+	u32 as_present;
 
 	u32 js_present;
-	gpu_js_features js_features[GPU_MAX_JOB_SLOTS];
-	gpu_tiler_features tiler_features;
+	u32 js_features[GPU_MAX_JOB_SLOTS];
+	u32 tiler_features;
 	u32 texture_features[3];
 
 	u32 gpu_id;

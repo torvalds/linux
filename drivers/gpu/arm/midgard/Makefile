@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2014 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -16,6 +16,7 @@
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
 
+BUSLOG_PATH_RELATIVE = $(CURDIR)/../../../..
 UMP_PATH_RELATIVE = $(CURDIR)/../../../base/ump
 KBASE_PATH_RELATIVE = $(CURDIR)
 KDS_PATH_RELATIVE = $(CURDIR)/../../../..
@@ -23,7 +24,15 @@ EXTRA_SYMBOLS = $(UMP_PATH_RELATIVE)/src/Module.symvers
 
 ifeq ($(MALI_UNIT_TEST), 1)
 	EXTRA_SYMBOLS += $(KBASE_PATH_RELATIVE)/tests/internal/src/kernel_assert_module/linux/Module.symvers
-	EXTRA_SYMBOLS += $(KBASE_PATH_RELATIVE)/../../../../tests/kutf/Module.symvers
+endif
+
+ifneq ($(wildcard $(CURDIR)/internal/Makefile.in),)
+include $(CURDIR)/internal/Makefile.in
+endif
+
+ifeq ($(MALI_BUS_LOG), 1)
+#Add bus logger symbols
+EXTRA_SYMBOLS += $(BUSLOG_PATH_RELATIVE)/drivers/base/bus_logger/Module.symvers
 endif
 
 # GPL driver supports KDS

@@ -135,6 +135,7 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 			issues = base_hw_issues_tFRx_r0p2;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_TFRX, 1, 0, 0):
+		case GPU_ID_MAKE(GPU_ID_PI_TFRX, 1, 0, 8):
 			issues = base_hw_issues_tFRx_r1p0;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_TFRX, 2, 0, 0):
@@ -144,6 +145,7 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 			issues = base_hw_issues_t86x_r0p2;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T86X, 1, 0, 0):
+		case GPU_ID_MAKE(GPU_ID_PI_T86X, 1, 0, 8):
 			issues = base_hw_issues_t86x_r1p0;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T86X, 2, 0, 0):
@@ -153,6 +155,7 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 			issues = base_hw_issues_t83x_r0p1;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T83X, 1, 0, 0):
+		case GPU_ID_MAKE(GPU_ID_PI_T83X, 1, 0, 8):
 			issues = base_hw_issues_t83x_r1p0;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T82X, 0, 0, 0):
@@ -162,6 +165,7 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 			issues = base_hw_issues_t82x_r0p1;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T82X, 1, 0, 0):
+		case GPU_ID_MAKE(GPU_ID_PI_T82X, 1, 0, 8):
 			issues = base_hw_issues_t82x_r1p0;
 			break;
 		default:

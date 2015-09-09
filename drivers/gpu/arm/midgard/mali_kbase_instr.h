@@ -27,16 +27,6 @@
 #include <mali_kbase_hwaccess_instr.h>
 
 /**
- * kbase_instr_hwcnt_setup() - Configure HW counters collection
- * @kctx:	Kbase context
- * @setup:	&struct kbase_uk_hwcnt_setup containing configuration
- *
- * Return: 0 on success
- */
-int kbase_instr_hwcnt_setup(struct kbase_context *kctx,
-					struct kbase_uk_hwcnt_setup *setup);
-
-/**
  * kbase_instr_hwcnt_enable() - Enable HW counters collection
  * @kctx:	Kbase context
  * @setup:	&struct kbase_uk_hwcnt_setup containing configuration

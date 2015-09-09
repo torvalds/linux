@@ -15,11 +15,6 @@
 
 
 
-
-/**
- *
- */
-
 #include <mali_kbase.h>
 #include <mali_kbase_hwaccess_time.h>
 #include <backend/gpu/mali_kbase_device_internal.h>

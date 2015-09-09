@@ -63,6 +63,11 @@ struct slot_rb {
  * @scheduling_timer:		The timer tick used for rescheduling jobs
  * @timer_running:		Is the timer running? The runpool_mutex must be
  *				held whilst modifying this.
+ * @reset_gpu:			Set to a KBASE_RESET_xxx value (see comments)
+ * @reset_workq:		Work queue for performing the reset
+ * @reset_work:			Work item for performing the reset
+ * @reset_wait:			Wait event signalled when the reset is complete
+ * @reset_timer:		Timeout for soft-stops before the reset
  *
  * The kbasep_js_device_data::runpool_irq::lock (a spinlock) must be held when
  * accessing this structure
@@ -76,7 +81,6 @@ struct kbase_backend_data {
 
 	bool timer_running;
 
-	/* Set when we're about to reset the GPU */
 	atomic_t reset_gpu;
 
 /* The GPU reset isn't pending */
@@ -90,7 +94,6 @@ struct kbase_backend_data {
  * kbasep_try_reset_gpu_early was called) */
 #define KBASE_RESET_GPU_HAPPENING       3
 
-	/* Work queue and work item for performing the reset in */
 	struct workqueue_struct *reset_workq;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;

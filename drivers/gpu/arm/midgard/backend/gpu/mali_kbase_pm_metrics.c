@@ -17,14 +17,14 @@
 
 
 
-/**
- * @file mali_kbase_pm_metrics.c
+/*
  * Metrics for power management
  */
 
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_jm_rb.h>
 
 /* When VSync is being hit aim for utilisation between 70-90% */
 #define KBASE_PM_VSYNC_MIN_UTILISATION          70
@@ -46,13 +46,12 @@
 static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 {
 	unsigned long flags;
-	enum kbase_pm_dvfs_action action;
 	struct kbasep_pm_metrics_data *metrics;
 
 	KBASE_DEBUG_ASSERT(timer != NULL);
 
 	metrics = container_of(timer, struct kbasep_pm_metrics_data, timer);
-	action = kbase_pm_get_dvfs_action(metrics->kbdev);
+	kbase_pm_get_dvfs_action(metrics->kbdev);
 
 	spin_lock_irqsave(&metrics->lock, flags);
 
@@ -72,11 +71,6 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	kbdev->pm.backend.metrics.kbdev = kbdev;
-	kbdev->pm.backend.metrics.vsync_hit = 0;
-	kbdev->pm.backend.metrics.utilisation = 0;
-	kbdev->pm.backend.metrics.util_cl_share[0] = 0;
-	kbdev->pm.backend.metrics.util_cl_share[1] = 0;
-	kbdev->pm.backend.metrics.util_gl_share = 0;
 
 	kbdev->pm.backend.metrics.time_period_start = ktime_get();
 	kbdev->pm.backend.metrics.time_busy = 0;
@@ -86,11 +80,11 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	kbdev->pm.backend.metrics.gpu_active = false;
 	kbdev->pm.backend.metrics.active_cl_ctx[0] = 0;
 	kbdev->pm.backend.metrics.active_cl_ctx[1] = 0;
-	kbdev->pm.backend.metrics.active_gl_ctx = 0;
+	kbdev->pm.backend.metrics.active_gl_ctx[0] = 0;
+	kbdev->pm.backend.metrics.active_gl_ctx[1] = 0;
 	kbdev->pm.backend.metrics.busy_cl[0] = 0;
 	kbdev->pm.backend.metrics.busy_cl[1] = 0;
 	kbdev->pm.backend.metrics.busy_gl = 0;
-	kbdev->pm.backend.metrics.nr_in_slots = 0;
 
 	spin_lock_init(&kbdev->pm.backend.metrics.lock);
 
@@ -104,8 +98,6 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 			HR_TIMER_DELAY_MSEC(kbdev->pm.dvfs_period),
 			HRTIMER_MODE_REL);
 #endif /* CONFIG_MALI_MIDGARD_DVFS */
-
-	kbase_pm_register_vsync_callback(kbdev);
 
 	return 0;
 }
@@ -125,103 +117,10 @@ void kbasep_pm_metrics_term(struct kbase_device *kbdev)
 
 	hrtimer_cancel(&kbdev->pm.backend.metrics.timer);
 #endif /* CONFIG_MALI_MIDGARD_DVFS */
-
-	kbase_pm_unregister_vsync_callback(kbdev);
 }
 
 KBASE_EXPORT_TEST_API(kbasep_pm_metrics_term);
 
-/**
- * kbasep_pm_record_gpu_active - update metrics tracking GPU active time
- *
- * This function updates the time the GPU was busy executing jobs in
- * general and specifically for CL and GL jobs. Call this function when
- * a job is submitted or removed from the GPU (job issue) slots.
- *
- * The busy time recorded is the time passed since the last time the
- * busy/idle metrics were updated (e.g. by this function,
- * kbasep_pm_record_gpu_idle or others).
- *
- * Note that the time we record towards CL and GL jobs accounts for
- * the total number of CL and GL jobs active at that time. If 20ms
- * has passed and 3 GL jobs were active, we account 3*20 ms towards
- * the GL busy time. The number of CL/GL jobs active is tracked by
- * kbase_pm_metrics_run_atom() / kbase_pm_metrics_release_atom().
- *
- * The kbdev->pm.backend.metrics.lock needs to be held when calling
- * this function.
- *
- * @param kbdev The kbase device structure for the device (must be a valid
- *              pointer)
- */
-static void kbasep_pm_record_gpu_active(struct kbase_device *kbdev)
-{
-	ktime_t now = ktime_get();
-	ktime_t diff;
-	u32 ns_time;
-
-	lockdep_assert_held(&kbdev->pm.backend.metrics.lock);
-
-	/* Record active time */
-	diff = ktime_sub(now, kbdev->pm.backend.metrics.time_period_start);
-	ns_time = (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
-	kbdev->pm.backend.metrics.time_busy += ns_time;
-	kbdev->pm.backend.metrics.busy_gl += ns_time *
-				kbdev->pm.backend.metrics.active_gl_ctx;
-	kbdev->pm.backend.metrics.busy_cl[0] += ns_time *
-				kbdev->pm.backend.metrics.active_cl_ctx[0];
-	kbdev->pm.backend.metrics.busy_cl[1] += ns_time *
-				kbdev->pm.backend.metrics.active_cl_ctx[1];
-	/* Reset time period */
-	kbdev->pm.backend.metrics.time_period_start = now;
-}
-
-/**
- * kbasep_pm_record_gpu_idle - update metrics tracking GPU idle time
- *
- * This function updates the time the GPU was idle (not executing any
- * jobs) based on the time passed when kbasep_pm_record_gpu_active()
- * was called last to record the last job on the GPU finishing.
- *
- * Call this function when no jobs are in the job slots of the GPU and
- * a job is about to be submitted to a job slot.
- *
- * The kbdev->pm.backend.metrics.lock needs to be held when calling
- * this function.
- *
- * @param kbdev The kbase device structure for the device (must be a valid
- *              pointer)
- */
-static void kbasep_pm_record_gpu_idle(struct kbase_device *kbdev)
-{
-	ktime_t now = ktime_get();
-	ktime_t diff;
-	u32 ns_time;
-
-	lockdep_assert_held(&kbdev->pm.backend.metrics.lock);
-
-	/* Record idle time */
-	diff = ktime_sub(now, kbdev->pm.backend.metrics.time_period_start);
-	ns_time = (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
-	kbdev->pm.backend.metrics.time_idle += ns_time;
-	/* Reset time period */
-	kbdev->pm.backend.metrics.time_period_start = now;
-}
-
-void kbase_pm_report_vsync(struct kbase_device *kbdev, int buffer_updated)
-{
-	unsigned long flags;
-
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-
-	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
-	kbdev->pm.backend.metrics.vsync_hit = buffer_updated;
-	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
-}
-
-KBASE_EXPORT_TEST_API(kbase_pm_report_vsync);
-
-#if defined(CONFIG_PM_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS)
 /* caller needs to hold kbdev->pm.backend.metrics.lock before calling this
  * function
  */
@@ -230,26 +129,33 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev,
 {
 	ktime_t diff;
 
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
+	lockdep_assert_held(&kbdev->pm.backend.metrics.lock);
 
 	diff = ktime_sub(now, kbdev->pm.backend.metrics.time_period_start);
+	if (ktime_to_ns(diff) < 0)
+		return;
 
 	if (kbdev->pm.backend.metrics.gpu_active) {
 		u32 ns_time = (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
 
 		kbdev->pm.backend.metrics.time_busy += ns_time;
-		kbdev->pm.backend.metrics.busy_cl[0] += ns_time *
-				kbdev->pm.backend.metrics.active_cl_ctx[0];
-		kbdev->pm.backend.metrics.busy_cl[1] += ns_time *
-				kbdev->pm.backend.metrics.active_cl_ctx[1];
-		kbdev->pm.backend.metrics.busy_gl += ns_time *
-				kbdev->pm.backend.metrics.active_gl_ctx;
+		if (kbdev->pm.backend.metrics.active_cl_ctx[0])
+			kbdev->pm.backend.metrics.busy_cl[0] += ns_time;
+		if (kbdev->pm.backend.metrics.active_cl_ctx[1])
+			kbdev->pm.backend.metrics.busy_cl[1] += ns_time;
+		if (kbdev->pm.backend.metrics.active_gl_ctx[0])
+			kbdev->pm.backend.metrics.busy_gl += ns_time;
+		if (kbdev->pm.backend.metrics.active_gl_ctx[1])
+			kbdev->pm.backend.metrics.busy_gl += ns_time;
 	} else {
 		kbdev->pm.backend.metrics.time_idle += (u32) (ktime_to_ns(diff)
 							>> KBASE_PM_TIME_SHIFT);
 	}
+
+	kbdev->pm.backend.metrics.time_period_start = now;
 }
 
+#if defined(CONFIG_PM_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS)
 /* Caller needs to hold kbdev->pm.backend.metrics.lock before calling this
  * function.
  */
@@ -314,12 +220,12 @@ void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
  * function
  */
 int kbase_pm_get_dvfs_utilisation_old(struct kbase_device *kbdev,
-							int *util_gl_share,
-							int util_cl_share[2])
+					int *util_gl_share,
+					int util_cl_share[2],
+					ktime_t now)
 {
 	int utilisation;
 	int busy;
-	ktime_t now = ktime_get();
 
 	kbase_pm_get_dvfs_utilisation_calc(kbdev, now);
 
@@ -367,28 +273,27 @@ int kbase_pm_get_dvfs_utilisation_old(struct kbase_device *kbdev,
 	}
 
 out:
-	kbase_pm_reset_dvfs_utilisation_unlocked(kbdev, now);
-
 	return utilisation;
 }
 
-enum kbase_pm_dvfs_action kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
+void kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	int utilisation, util_gl_share;
 	int util_cl_share[2];
-	enum kbase_pm_dvfs_action action;
+	ktime_t now;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
 
+	now = ktime_get();
+
 	utilisation = kbase_pm_get_dvfs_utilisation_old(kbdev, &util_gl_share,
-								util_cl_share);
+			util_cl_share, now);
 
 	if (utilisation < 0 || util_gl_share < 0 || util_cl_share[0] < 0 ||
 							util_cl_share[1] < 0) {
-		action = KBASE_PM_DVFS_NOP;
 		utilisation = 0;
 		util_gl_share = 0;
 		util_cl_share[0] = 0;
@@ -396,39 +301,16 @@ enum kbase_pm_dvfs_action kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
 		goto out;
 	}
 
-	if (kbdev->pm.backend.metrics.vsync_hit) {
-		/* VSync is being met */
-		if (utilisation < KBASE_PM_VSYNC_MIN_UTILISATION)
-			action = KBASE_PM_DVFS_CLOCK_DOWN;
-		else if (utilisation > KBASE_PM_VSYNC_MAX_UTILISATION)
-			action = KBASE_PM_DVFS_CLOCK_UP;
-		else
-			action = KBASE_PM_DVFS_NOP;
-	} else {
-		/* VSync is being missed */
-		if (utilisation < KBASE_PM_NO_VSYNC_MIN_UTILISATION)
-			action = KBASE_PM_DVFS_CLOCK_DOWN;
-		else if (utilisation > KBASE_PM_NO_VSYNC_MAX_UTILISATION)
-			action = KBASE_PM_DVFS_CLOCK_UP;
-		else
-			action = KBASE_PM_DVFS_NOP;
-	}
-
-	kbdev->pm.backend.metrics.utilisation = utilisation;
-	kbdev->pm.backend.metrics.util_cl_share[0] = util_cl_share[0];
-	kbdev->pm.backend.metrics.util_cl_share[1] = util_cl_share[1];
-	kbdev->pm.backend.metrics.util_gl_share = util_gl_share;
 out:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	kbase_platform_dvfs_event(kbdev, utilisation, util_gl_share,
 								util_cl_share);
 #endif				/*CONFIG_MALI_MIDGARD_DVFS */
 
-	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
+	kbase_pm_reset_dvfs_utilisation_unlocked(kbdev, now);
 
-	return action;
+	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 }
-KBASE_EXPORT_TEST_API(kbase_pm_get_dvfs_action);
 
 bool kbase_pm_metrics_is_active(struct kbase_device *kbdev)
 {
@@ -447,86 +329,72 @@ KBASE_EXPORT_TEST_API(kbase_pm_metrics_is_active);
 
 #endif /* CONFIG_MALI_MIDGARD_DVFS */
 
-/* called when job is submitted to a GPU slot */
-void kbase_pm_metrics_run_atom(struct kbase_device *kbdev,
-						struct kbase_jd_atom *katom)
+/**
+ * kbase_pm_metrics_active_calc - Update PM active counts based on currently
+ *                                running atoms
+ * @kbdev: Device pointer
+ *
+ * The caller must hold kbdev->pm.backend.metrics.lock
+ */
+static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 {
-	unsigned long flags;
+	int js;
 
-	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
+	lockdep_assert_held(&kbdev->pm.backend.metrics.lock);
 
-	/* We may have been idle before */
-	if (kbdev->pm.backend.metrics.nr_in_slots == 0) {
-		WARN_ON(kbdev->pm.backend.metrics.active_cl_ctx[0] != 0);
-		WARN_ON(kbdev->pm.backend.metrics.active_cl_ctx[1] != 0);
-		WARN_ON(kbdev->pm.backend.metrics.active_gl_ctx != 0);
+	kbdev->pm.backend.metrics.active_gl_ctx[0] = 0;
+	kbdev->pm.backend.metrics.active_gl_ctx[1] = 0;
+	kbdev->pm.backend.metrics.active_cl_ctx[0] = 0;
+	kbdev->pm.backend.metrics.active_cl_ctx[1] = 0;
+	kbdev->pm.backend.metrics.gpu_active = false;
 
-		/* Record idle time */
-		kbasep_pm_record_gpu_idle(kbdev);
+	for (js = 0; js < BASE_JM_MAX_NR_SLOTS; js++) {
+		struct kbase_jd_atom *katom = kbase_gpu_inspect(kbdev, js, 0);
 
-		/* We are now active */
-		WARN_ON(kbdev->pm.backend.metrics.gpu_active);
-		kbdev->pm.backend.metrics.gpu_active = true;
+		/* Head atom may have just completed, so if it isn't running
+		 * then try the next atom */
+		if (katom && katom->gpu_rb_state != KBASE_ATOM_GPU_RB_SUBMITTED)
+			katom = kbase_gpu_inspect(kbdev, js, 1);
 
-	} else {
-		/* Record active time */
-		kbasep_pm_record_gpu_active(kbdev);
+		if (katom && katom->gpu_rb_state ==
+				KBASE_ATOM_GPU_RB_SUBMITTED) {
+			if (katom->core_req & BASE_JD_REQ_ONLY_COMPUTE) {
+				int device_nr = (katom->core_req &
+					BASE_JD_REQ_SPECIFIC_COHERENT_GROUP)
+						? katom->device_nr : 0;
+				WARN_ON(device_nr >= 2);
+				kbdev->pm.backend.metrics.active_cl_ctx[
+						device_nr] = 1;
+			} else {
+				/* Slot 2 should not be running non-compute
+				 * atoms */
+				WARN_ON(js >= 2);
+				kbdev->pm.backend.metrics.active_gl_ctx[js] = 1;
+			}
+			kbdev->pm.backend.metrics.gpu_active = true;
+		}
 	}
-
-	/* Track number of jobs in GPU slots */
-	WARN_ON(kbdev->pm.backend.metrics.nr_in_slots == U8_MAX);
-	kbdev->pm.backend.metrics.nr_in_slots++;
-
-	/* Track if it was a CL or GL one that was submitted to a GPU slot */
-	if (katom->core_req & BASE_JD_REQ_ONLY_COMPUTE) {
-		int device_nr = (katom->core_req &
-				BASE_JD_REQ_SPECIFIC_COHERENT_GROUP)
-				? katom->device_nr : 0;
-		KBASE_DEBUG_ASSERT(device_nr < 2);
-		kbdev->pm.backend.metrics.active_cl_ctx[device_nr]++;
-	} else {
-		kbdev->pm.backend.metrics.active_gl_ctx++;
-	}
-
-	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 }
 
-/* called when job is removed from a GPU slot */
-void kbase_pm_metrics_release_atom(struct kbase_device *kbdev,
-						struct kbase_jd_atom *katom)
+/* called when job is submitted to or removed from a GPU slot */
+void kbase_pm_metrics_update(struct kbase_device *kbdev, ktime_t *timestamp)
 {
 	unsigned long flags;
+	ktime_t now;
+
+	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 
 	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
 
+	if (!timestamp) {
+		now = ktime_get();
+		timestamp = &now;
+	}
+
 	/* Track how long CL and/or GL jobs have been busy for */
-	kbasep_pm_record_gpu_active(kbdev);
+	kbase_pm_get_dvfs_utilisation_calc(kbdev, *timestamp);
 
-	/* Track number of jobs in GPU slots */
-	WARN_ON(kbdev->pm.backend.metrics.nr_in_slots == 0);
-	kbdev->pm.backend.metrics.nr_in_slots--;
-
-	/* We may become idle */
-	if (kbdev->pm.backend.metrics.nr_in_slots == 0) {
-		KBASE_DEBUG_ASSERT(kbdev->pm.backend.metrics.gpu_active);
-		kbdev->pm.backend.metrics.gpu_active = false;
-	}
-
-	/* Track of the GPU jobs that are active which ones are CL and
-	 * which GL */
-	if (katom->core_req & BASE_JD_REQ_ONLY_COMPUTE) {
-		int device_nr = (katom->core_req &
-				BASE_JD_REQ_SPECIFIC_COHERENT_GROUP)
-				? katom->device_nr : 0;
-		KBASE_DEBUG_ASSERT(device_nr < 2);
-
-		WARN_ON(kbdev->pm.backend.metrics.active_cl_ctx[device_nr]
-				== 0);
-		kbdev->pm.backend.metrics.active_cl_ctx[device_nr]--;
-	} else {
-		WARN_ON(kbdev->pm.backend.metrics.active_gl_ctx == 0);
-		kbdev->pm.backend.metrics.active_gl_ctx--;
-	}
+	kbase_pm_metrics_active_calc(kbdev);
 
 	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 }

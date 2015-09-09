@@ -18,6 +18,7 @@ BACKEND += \
 	backend/gpu/mali_kbase_device_hw.c \
 	backend/gpu/mali_kbase_gpu.c \
 	backend/gpu/mali_kbase_gpuprops_backend.c \
+	backend/gpu/mali_kbase_debug_job_fault_backend.c \
 	backend/gpu/mali_kbase_irq_linux.c \
 	backend/gpu/mali_kbase_instr_backend.c \
 	backend/gpu/mali_kbase_jm_as.c \
@@ -55,10 +56,3 @@ ifeq ($(CONFIG_MALI_NO_MALI),y)
 	# HW error simulation
 	BACKEND += backend/gpu/mali_kbase_model_error_generator.c
 endif
-
-ifeq ($(wildcard $(MALI_METRICS_PATH)/backend/gpu/mali_kbase_pm_metrics_linux.c),)
-	BACKEND += backend/gpu/mali_kbase_pm_metrics_dummy.c
-else
-	BACKEND += backend/gpu/mali_kbase_pm_metrics_linux.c
-endif
-

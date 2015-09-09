@@ -39,7 +39,8 @@
 #define SLOT_RB_ENTRIES(rb) (int)(s8)(rb->write_idx - rb->read_idx)
 
 static void kbase_gpu_release_atom(struct kbase_device *kbdev,
-					struct kbase_jd_atom *katom);
+					struct kbase_jd_atom *katom,
+					ktime_t *end_timestamp);
 
 /**
  * kbase_gpu_enqueue_atom - Enqueue an atom in the HW access ringbuffer
@@ -66,15 +67,18 @@ static void kbase_gpu_enqueue_atom(struct kbase_device *kbdev,
 /**
  * kbase_gpu_dequeue_atom - Remove an atom from the HW access ringbuffer, once
  * it has been completed
- * @kbdev: Device pointer
- * @js:    Job slot to remove atom from
+ * @kbdev:         Device pointer
+ * @js:            Job slot to remove atom from
+ * @end_timestamp: Pointer to timestamp of atom completion. May be NULL, in
+ *                 which case current time will be used.
  *
  * Context: Caller must hold the HW access lock
  *
  * Return: Atom removed from ringbuffer
  */
 static struct kbase_jd_atom *kbase_gpu_dequeue_atom(struct kbase_device *kbdev,
-							int js)
+						int js,
+						ktime_t *end_timestamp)
 {
 	struct slot_rb *rb = &kbdev->hwaccess.backend.slot_rb[js];
 	struct kbase_jd_atom *katom;
@@ -88,7 +92,7 @@ static struct kbase_jd_atom *kbase_gpu_dequeue_atom(struct kbase_device *kbdev,
 
 	katom = rb->entries[rb->read_idx & SLOT_RB_MASK].katom;
 
-	kbase_gpu_release_atom(kbdev, katom);
+	kbase_gpu_release_atom(kbdev, katom, end_timestamp);
 
 	rb->read_idx++;
 
@@ -519,9 +523,54 @@ static void kbasep_js_job_check_deref_cores(struct kbase_device *kbdev,
 	katom->coreref_state = KBASE_ATOM_COREREF_STATE_NO_CORES_REQUESTED;
 }
 
+static void kbasep_js_job_check_deref_cores_nokatom(struct kbase_device *kbdev,
+		base_jd_core_req core_req, u64 affinity,
+		enum kbase_atom_coreref_state coreref_state)
+{
+	KBASE_DEBUG_ASSERT(kbdev != NULL);
+
+	switch (coreref_state) {
+	case KBASE_ATOM_COREREF_STATE_READY:
+		/* State where atom was submitted to the HW - just proceed to
+		 * power-down */
+		KBASE_DEBUG_ASSERT(affinity != 0 ||
+					(core_req & BASE_JD_REQ_T));
+
+		/* *** FALLTHROUGH *** */
+
+	case KBASE_ATOM_COREREF_STATE_RECHECK_AFFINITY:
+		/* State where cores were registered */
+		KBASE_DEBUG_ASSERT(affinity != 0 ||
+					(core_req & BASE_JD_REQ_T));
+		kbase_pm_release_cores(kbdev, core_req & BASE_JD_REQ_T,
+							affinity);
+
+		break;
+
+	case KBASE_ATOM_COREREF_STATE_WAITING_FOR_REQUESTED_CORES:
+		/* State where cores were requested, but not registered */
+		KBASE_DEBUG_ASSERT(affinity != 0 ||
+					(core_req & BASE_JD_REQ_T));
+		kbase_pm_unrequest_cores(kbdev, core_req & BASE_JD_REQ_T,
+							affinity);
+		break;
+
+	case KBASE_ATOM_COREREF_STATE_NO_CORES_REQUESTED:
+		/* Initial state - nothing required */
+		KBASE_DEBUG_ASSERT(affinity == 0);
+		break;
+
+	default:
+		KBASE_DEBUG_ASSERT_MSG(false,
+						"Unhandled coreref_state: %d",
+							coreref_state);
+		break;
+	}
+}
 
 static void kbase_gpu_release_atom(struct kbase_device *kbdev,
-					struct kbase_jd_atom *katom)
+					struct kbase_jd_atom *katom,
+					ktime_t *end_timestamp)
 {
 	switch (katom->gpu_rb_state) {
 	case KBASE_ATOM_GPU_RB_NOT_IN_SLOT_RB:
@@ -530,9 +579,11 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 		break;
 
 	case KBASE_ATOM_GPU_RB_SUBMITTED:
-		/* Inform power management at start/finish of atom
-		 * so it can update its GPU utilisation metrics. */
-		kbase_pm_metrics_release_atom(kbdev, katom);
+		/* Inform power management at start/finish of atom so it can
+		 * update its GPU utilisation metrics. Mark atom as not
+		 * submitted beforehand. */
+		katom->gpu_rb_state = KBASE_ATOM_GPU_RB_READY;
+		kbase_pm_metrics_update(kbdev, end_timestamp);
 
 		if (katom->core_req & BASE_JD_REQ_PERMON)
 			kbase_pm_release_gpu_cycle_counter(kbdev);
@@ -550,7 +601,6 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
 	case KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE:
-		kbasep_js_job_check_deref_cores(kbdev, katom);
 		break;
 
 	case KBASE_ATOM_GPU_RB_WAITING_BLOCKED:
@@ -566,7 +616,7 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 static void kbase_gpu_mark_atom_for_return(struct kbase_device *kbdev,
 						struct kbase_jd_atom *katom)
 {
-	kbase_gpu_release_atom(kbdev, katom);
+	kbase_gpu_release_atom(kbdev, katom, NULL);
 	katom->gpu_rb_state = KBASE_ATOM_GPU_RB_RETURN_TO_JS;
 }
 
@@ -606,7 +656,7 @@ static inline bool kbase_gpu_rmu_workaround(struct kbase_device *kbdev, int js)
 
 static bool kbase_gpu_in_secure_mode(struct kbase_device *kbdev)
 {
-	return kbdev->js_data.runpool_irq.secure_mode;
+	return kbdev->secure_mode;
 }
 
 static int kbase_gpu_secure_mode_enable(struct kbase_device *kbdev)
@@ -625,7 +675,7 @@ static int kbase_gpu_secure_mode_enable(struct kbase_device *kbdev)
 		if (err)
 			dev_warn(kbdev->dev, "Failed to enable secure mode: %d\n", err);
 		else
-			kbdev->js_data.runpool_irq.secure_mode = true;
+			kbdev->secure_mode = true;
 	}
 
 	return err;
@@ -647,7 +697,7 @@ static int kbase_gpu_secure_mode_disable(struct kbase_device *kbdev)
 		if (err)
 			dev_warn(kbdev->dev, "Failed to disable secure mode: %d\n", err);
 		else
-			kbdev->js_data.runpool_irq.secure_mode = false;
+			kbdev->secure_mode = false;
 	}
 
 	return err;
@@ -746,6 +796,14 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 						/* Failed to switch secure mode, fail atom */
 						katom[idx]->event_code = BASE_JD_EVENT_JOB_INVALID;
 						kbase_gpu_mark_atom_for_return(kbdev, katom[idx]);
+						/* Only return if head atom or previous atom
+						 * already removed - as atoms must be returned
+						 * in order */
+						if (idx == 0 || katom[0]->gpu_rb_state ==
+								KBASE_ATOM_GPU_RB_NOT_IN_SLOT_RB) {
+							kbase_gpu_dequeue_atom(kbdev, js, NULL);
+							kbase_jm_return_atom_to_js(kbdev, katom[idx]);
+						}
 						break;
 					}
 				}
@@ -781,14 +839,15 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 					kbase_pm_request_gpu_cycle_counter_l2_is_on(
 									kbdev);
 
-				/* Inform power management at start/finish of
-				 * atom so it can update its GPU utilisation
-				 * metrics. */
-				kbase_pm_metrics_run_atom(kbdev, katom[idx]);
-
 				kbase_job_hw_submit(kbdev, katom[idx], js);
 				katom[idx]->gpu_rb_state =
 						KBASE_ATOM_GPU_RB_SUBMITTED;
+
+				/* Inform power management at start/finish of
+				 * atom so it can update its GPU utilisation
+				 * metrics. */
+				kbase_pm_metrics_update(kbdev,
+						&katom[idx]->start_timestamp);
 
 			/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
 
@@ -802,7 +861,7 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 				 * in order */
 				if (idx == 0 || katom[0]->gpu_rb_state ==
 					KBASE_ATOM_GPU_RB_NOT_IN_SLOT_RB) {
-					kbase_gpu_dequeue_atom(kbdev, js);
+					kbase_gpu_dequeue_atom(kbdev, js, NULL);
 					kbase_jm_return_atom_to_js(kbdev,
 								katom[idx]);
 				}
@@ -884,7 +943,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		}
 	}
 
-	katom = kbase_gpu_dequeue_atom(kbdev, js);
+	katom = kbase_gpu_dequeue_atom(kbdev, js, end_timestamp);
 
 	kbase_timeline_job_slot_done(kbdev, katom->kctx, katom, js, 0);
 
@@ -899,7 +958,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		 * the atoms on this slot are returned in the correct order.
 		 */
 		if (next_katom && katom->kctx == next_katom->kctx) {
-			kbase_gpu_dequeue_atom(kbdev, js);
+			kbase_gpu_dequeue_atom(kbdev, js, end_timestamp);
 			kbase_jm_return_atom_to_js(kbdev, next_katom);
 		}
 	} else if (completion_code != BASE_JD_EVENT_DONE) {
@@ -927,14 +986,15 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 				katom_idx0->gpu_rb_state !=
 				KBASE_ATOM_GPU_RB_SUBMITTED) {
 				/* Dequeue katom_idx0 from ringbuffer */
-				kbase_gpu_dequeue_atom(kbdev, i);
+				kbase_gpu_dequeue_atom(kbdev, i, end_timestamp);
 
 				if (katom_idx1 &&
 					katom_idx1->kctx == katom->kctx &&
 					katom_idx0->gpu_rb_state !=
 						KBASE_ATOM_GPU_RB_SUBMITTED) {
 					/* Dequeue katom_idx1 from ringbuffer */
-					kbase_gpu_dequeue_atom(kbdev, i);
+					kbase_gpu_dequeue_atom(kbdev, i,
+							end_timestamp);
 
 					katom_idx1->event_code =
 							BASE_JD_EVENT_STOPPED;
@@ -1043,8 +1103,8 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp)
 				enum kbase_atom_gpu_rb_state gpu_rb_state =
 							katom->gpu_rb_state;
 
-				kbase_gpu_release_atom(kbdev, katom);
-				kbase_gpu_dequeue_atom(kbdev, js);
+				kbase_gpu_release_atom(kbdev, katom, NULL);
+				kbase_gpu_dequeue_atom(kbdev, js, NULL);
 
 				if (gpu_rb_state ==
 						KBASE_ATOM_GPU_RB_SUBMITTED) {
@@ -1156,9 +1216,9 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 	if (katom_idx0_valid) {
 		if (katom_idx0->gpu_rb_state != KBASE_ATOM_GPU_RB_SUBMITTED) {
 			/* Simple case - just dequeue and return */
-			kbase_gpu_dequeue_atom(kbdev, js);
+			kbase_gpu_dequeue_atom(kbdev, js, NULL);
 			if (katom_idx1_valid) {
-				kbase_gpu_dequeue_atom(kbdev, js);
+				kbase_gpu_dequeue_atom(kbdev, js, NULL);
 				katom_idx1->event_code =
 						BASE_JD_EVENT_REMOVED_FROM_NEXT;
 				kbase_jm_return_atom_to_js(kbdev, katom_idx1);
@@ -1303,7 +1363,7 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 	return ret;
 }
 
-static void kbasep_gpu_cacheclean(struct kbase_device *kbdev,
+void kbase_gpu_cacheclean(struct kbase_device *kbdev,
 					struct kbase_jd_atom *katom)
 {
 	/* Limit the number of loops to avoid a hang if the interrupt is missed
@@ -1347,7 +1407,7 @@ void kbase_backend_complete_wq(struct kbase_device *kbdev,
 	 * now
 	 */
 	if (katom->need_cache_flush_cores_retained) {
-		kbasep_gpu_cacheclean(kbdev, katom);
+		kbase_gpu_cacheclean(kbdev, katom);
 		katom->need_cache_flush_cores_retained = 0;
 	}
 
@@ -1367,6 +1427,29 @@ void kbase_backend_complete_wq(struct kbase_device *kbdev,
 			katom->event_code = BASE_JD_EVENT_STOPPED;
 			katom->atom_flags |= KBASE_KATOM_FLAGS_RERUN;
 		}
+	}
+
+	/* Clear the coreref_state now - while check_deref_cores() may not have
+	 * been called yet, the caller will have taken a copy of this field. If
+	 * this is not done, then if the atom is re-scheduled (following a soft
+	 * stop) then the core reference would not be retaken. */
+	katom->coreref_state = KBASE_ATOM_COREREF_STATE_NO_CORES_REQUESTED;
+	katom->affinity = 0;
+}
+
+void kbase_backend_complete_wq_post_sched(struct kbase_device *kbdev,
+		base_jd_core_req core_req, u64 affinity,
+		enum kbase_atom_coreref_state coreref_state)
+{
+	kbasep_js_job_check_deref_cores_nokatom(kbdev, core_req, affinity,
+			coreref_state);
+
+	if (!kbdev->pm.active_count) {
+		mutex_lock(&kbdev->js_data.runpool_mutex);
+		mutex_lock(&kbdev->pm.lock);
+		kbase_pm_update_active(kbdev);
+		mutex_unlock(&kbdev->pm.lock);
+		mutex_unlock(&kbdev->js_data.runpool_mutex);
 	}
 }
 

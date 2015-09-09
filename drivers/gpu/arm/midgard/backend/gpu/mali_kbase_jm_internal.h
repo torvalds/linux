@@ -152,34 +152,4 @@ void kbase_job_slot_halt(struct kbase_device *kbdev);
  */
 void kbase_job_slot_term(struct kbase_device *kbdev);
 
-#if KBASE_GPU_RESET_EN
-/**
- * kbase_prepare_to_reset_gpu_locked - Prepare for resetting the GPU.
- * @kbdev: Device pointer
- *
- * This function just soft-stops all the slots to ensure that as many jobs as
- * possible are saved.
- *
- * Return: a boolean which should be interpreted as follows:
- * - true  - Prepared for reset, kbase_reset_gpu should be called.
- * - false - Another thread is performing a reset, kbase_reset_gpu should
- *                not be called.
- */
-bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev);
-
-/**
- * kbase_reset_gpu_locked - Reset the GPU
- * @kbdev: Device pointer
- *
- * This function should be called after kbase_prepare_to_reset_gpu if it
- * returns true. It should never be called without a corresponding call to
- * kbase_prepare_to_reset_gpu.
- *
- * After this function is called (or not called if kbase_prepare_to_reset_gpu
- * returned false), the caller should wait for kbdev->reset_waitq to be
- * signalled to know when the reset has completed.
- */
-void kbase_reset_gpu_locked(struct kbase_device *kbdev);
-#endif
-
 #endif /* _KBASE_JM_HWACCESS_H_ */

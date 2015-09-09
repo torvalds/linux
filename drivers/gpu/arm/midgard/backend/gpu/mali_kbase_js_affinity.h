@@ -17,8 +17,7 @@
 
 
 
-/**
- * @file mali_kbase_js_affinity.h
+/*
  * Affinity Manager internal APIs.
  */
 
@@ -34,24 +33,11 @@ extern u64 mali_js2_affinity_mask;
 
 
 /**
- * @addtogroup base_api
- * @{
- */
-
-/**
- * @addtogroup base_kbase_api
- * @{
- */
-
-/**
- * @addtogroup kbase_js_affinity Affinity Manager internal APIs.
- * @{
+ * kbase_js_can_run_job_on_slot_no_lock - Decide whether it is possible to
+ * submit a job to a particular job slot in the current status
  *
- */
-
-/**
- * @brief Decide whether it is possible to submit a job to a particular job slot
- * in the current status
+ * @kbdev: The kbase device structure of the device
+ * @js:    Job slot number to check for allowance
  *
  * Will check if submitting to the given job slot is allowed in the current
  * status.  For example using job slot 2 while in soft-stoppable state and only
@@ -59,28 +45,25 @@ extern u64 mali_js2_affinity_mask;
  * called prior to submitting a job to a slot to make sure policy rules are not
  * violated.
  *
- * The following locking conditions are made on the caller:
- * - it must hold kbasep_js_device_data::runpool_irq::lock
- *
- * @param kbdev The kbase device structure of the device
- * @param js    Job slot number to check for allowance
+ * The following locking conditions are made on the caller
+ * - it must hold kbasep_js_device_data.runpool_irq.lock
  */
 bool kbase_js_can_run_job_on_slot_no_lock(struct kbase_device *kbdev,
 									int js);
 
 /**
- * @brief Compute affinity for a given job.
+ * kbase_js_choose_affinity - Compute affinity for a given job.
+ *
+ * @affinity: Affinity bitmap computed
+ * @kbdev:    The kbase device structure of the device
+ * @katom:    Job chain of which affinity is going to be found
+ * @js:       Slot the job chain is being submitted
  *
  * Currently assumes an all-on/all-off power management policy.
  * Also assumes there is at least one core with tiler available.
  *
  * Returns true if a valid affinity was chosen, false if
  * no cores were available.
- *
- * @param[out] affinity       Affinity bitmap computed
- * @param kbdev The kbase device structure of the device
- * @param katom Job chain of which affinity is going to be found
- * @param js    Slot the job chain is being submitted
  */
 bool kbase_js_choose_affinity(u64 * const affinity,
 					struct kbase_device *kbdev,
@@ -88,40 +71,60 @@ bool kbase_js_choose_affinity(u64 * const affinity,
 					int js);
 
 /**
- * @brief Determine whether a proposed \a affinity on job slot \a js would
- * cause a violation of affinity restrictions.
+ * kbase_js_affinity_would_violate - Determine whether a proposed affinity on
+ * job slot @js would cause a violation of affinity restrictions.
  *
- * The following locks must be held by the caller:
- * - kbasep_js_device_data::runpool_irq::lock
+ * @kbdev:    Kbase device structure
+ * @js:       The job slot to test
+ * @affinity: The affinity mask to test
+ *
+ * The following locks must be held by the caller
+ * - kbasep_js_device_data.runpool_irq.lock
+ *
+ * Return: true if the affinity would violate the restrictions
  */
 bool kbase_js_affinity_would_violate(struct kbase_device *kbdev, int js,
 								u64 affinity);
 
 /**
- * @brief Affinity tracking: retain cores used by a slot
+ * kbase_js_affinity_retain_slot_cores - Affinity tracking: retain cores used by
+ *                                       a slot
  *
- * The following locks must be held by the caller:
- * - kbasep_js_device_data::runpool_irq::lock
+ * @kbdev:    Kbase device structure
+ * @js:       The job slot retaining the cores
+ * @affinity: The cores to retain
+ *
+ * The following locks must be held by the caller
+ * - kbasep_js_device_data.runpool_irq.lock
  */
 void kbase_js_affinity_retain_slot_cores(struct kbase_device *kbdev, int js,
 								u64 affinity);
 
 /**
- * @brief Affinity tracking: release cores used by a slot
+ * kbase_js_affinity_release_slot_cores - Affinity tracking: release cores used
+ *                                        by a slot
  *
- * Cores \b must be released as soon as a job is dequeued from a slot's 'submit
+ * @kbdev:    Kbase device structure
+ * @js:       Job slot
+ * @affinity: Bit mask of core to be released
+ *
+ * Cores must be released as soon as a job is dequeued from a slot's 'submit
  * slots', and before another job is submitted to those slots. Otherwise, the
  * refcount could exceed the maximum number submittable to a slot,
- * BASE_JM_SUBMIT_SLOTS.
+ * %BASE_JM_SUBMIT_SLOTS.
  *
- * The following locks must be held by the caller:
- * - kbasep_js_device_data::runpool_irq::lock
+ * The following locks must be held by the caller
+ * - kbasep_js_device_data.runpool_irq.lock
  */
 void kbase_js_affinity_release_slot_cores(struct kbase_device *kbdev, int js,
 								u64 affinity);
 
 /**
- * @brief Output to the Trace log the current tracked affinities on all slots
+ * kbase_js_debug_log_current_affinities - log the current affinities
+ *
+ * @kbdev:  Kbase device structure
+ *
+ * Output to the Trace log the current tracked affinities on all slots
  */
 #if KBASE_TRACE_ENABLE
 void kbase_js_debug_log_current_affinities(struct kbase_device *kbdev);
@@ -131,10 +134,5 @@ kbase_js_debug_log_current_affinities(struct kbase_device *kbdev)
 {
 }
 #endif				/*  KBASE_TRACE_ENABLE  */
-
-	  /** @} *//* end group kbase_js_affinity */
-	  /** @} *//* end group base_kbase_api */
-	  /** @} *//* end group base_api */
-
 
 #endif				/* _KBASE_JS_AFFINITY_H_ */

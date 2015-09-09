@@ -33,15 +33,8 @@ u32 kbase_cache_enabled(u32 flags, u32 nr_pages)
 
 	CSTD_UNUSED(nr_pages);
 
-#ifdef CONFIG_MALI_CACHE_COHERENT
-	/* Cache is completely coherent at hardware level. So always allocate
-	 * cached memory.
-	 */
-	cache_flags |= KBASE_REG_CPU_CACHED;
-#else
 	if (flags & BASE_MEM_CACHED_CPU)
 		cache_flags |= KBASE_REG_CPU_CACHED;
-#endif /* (CONFIG_MALI_CACHE_COHERENT) */
 
 	return cache_flags;
 }

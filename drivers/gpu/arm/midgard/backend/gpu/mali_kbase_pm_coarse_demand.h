@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -17,8 +17,7 @@
 
 
 
-/**
- * @file mali_kbase_pm_coarse_demand.h
+/*
  * "Coarse Demand" power management policy
  */
 
@@ -26,6 +25,7 @@
 #define MALI_KBASE_PM_COARSE_DEMAND_H
 
 /**
+ * DOC:
  * The "Coarse" demand power management policy has the following
  * characteristics:
  * - When KBase indicates that the GPU will be powered up, but we don't yet
@@ -48,13 +48,14 @@
  */
 
 /**
- * Private structure for policy instance data.
+ * struct kbasep_pm_policy_coarse_demand - Private structure for coarse demand
+ *                                         policy
  *
- * This contains data that is private to the particular power policy that is
- * active.
+ * This contains data that is private to the coarse demand power policy.
+ *
+ * @dummy: Dummy member - no state needed
  */
 struct kbasep_pm_policy_coarse_demand {
-	/** No state needed - just have a dummy variable here */
 	int dummy;
 };
 

@@ -147,10 +147,10 @@ void kbase_pm_unrequest_cores(struct kbase_device *kbdev,
  * If the necessary cores are not currently available then the function will
  * return %KBASE_CORES_NOT_READY and have no effect.
  *
- * Return: true if the job can be submitted to the hardware or false
- *         if the job is not ready to run.
  * Return: %KBASE_CORES_NOT_READY if the cores are not immediately ready,
+ *
  *         %KBASE_NEW_AFFINITY if the affinity requested is not allowed,
+ *
  *         %KBASE_CORES_READY if the cores requested are already available
  */
 enum kbase_pm_cores_ready kbase_pm_register_inuse_cores(

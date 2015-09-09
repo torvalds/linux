@@ -932,7 +932,7 @@ out:
 	if (katom->event_code != BASE_JD_EVENT_DONE) {
 		kbase_disjoint_state_down(kctx->kbdev);
 
-		need_to_try_schedule_context |= jd_done_nolock(katom);
+		need_to_try_schedule_context |= jd_done_nolock(katom, NULL);
 	}
 
 	if (need_to_try_schedule_context)
@@ -1079,28 +1079,41 @@ bool kbase_replay_process(struct kbase_jd_atom *katom)
 {
 	struct kbase_context *kctx = katom->kctx;
 	struct kbase_jd_context *jctx = &kctx->jctx;
+	struct kbase_device *kbdev = kctx->kbdev;
+
+	/* Don't replay this atom if these issues are not present in the
+	 * hardware */
+	if (!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_11020) &&
+			!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_11024)) {
+		dev_dbg(kbdev->dev, "Hardware does not need replay workaround");
+
+		/* Signal failure to userspace */
+		katom->event_code = BASE_JD_EVENT_JOB_INVALID;
+
+		return false;
+	}
 
 	if (katom->event_code == BASE_JD_EVENT_DONE) {
-		dev_dbg(kctx->kbdev->dev, "Previous job succeeded - not replaying\n");
+		dev_dbg(kbdev->dev, "Previous job succeeded - not replaying\n");
 
 		if (katom->retry_count)
-			kbase_disjoint_state_down(kctx->kbdev);
+			kbase_disjoint_state_down(kbdev);
 
 		return false;
 	}
 
 	if (jctx->sched_info.ctx.is_dying) {
-		dev_dbg(kctx->kbdev->dev, "Not replaying; context is dying\n");
+		dev_dbg(kbdev->dev, "Not replaying; context is dying\n");
 
 		if (katom->retry_count)
-			kbase_disjoint_state_down(kctx->kbdev);
+			kbase_disjoint_state_down(kbdev);
 
 		return false;
 	}
 
 	/* Check job exception type and source before replaying. */
 	if (!kbase_replay_fault_check(katom)) {
-		dev_dbg(kctx->kbdev->dev,
+		dev_dbg(kbdev->dev,
 			"Replay cancelled on event %x\n", katom->event_code);
 		/* katom->event_code is already set to the failure code of the
 		 * previous job.
@@ -1108,15 +1121,15 @@ bool kbase_replay_process(struct kbase_jd_atom *katom)
 		return false;
 	}
 
-	dev_warn(kctx->kbdev->dev, "Replaying jobs retry=%d\n",
+	dev_warn(kbdev->dev, "Replaying jobs retry=%d\n",
 			katom->retry_count);
 
 	katom->retry_count++;
 
 	if (katom->retry_count > BASEP_JD_REPLAY_LIMIT) {
-		dev_err(kctx->kbdev->dev, "Replay exceeded limit - failing jobs\n");
+		dev_err(kbdev->dev, "Replay exceeded limit - failing jobs\n");
 
-		kbase_disjoint_state_down(kctx->kbdev);
+		kbase_disjoint_state_down(kbdev);
 
 		/* katom->event_code is already set to the failure code of the
 		   previous job */
@@ -1125,7 +1138,7 @@ bool kbase_replay_process(struct kbase_jd_atom *katom)
 
 	/* only enter the disjoint state once for the whole time while the replay is ongoing */
 	if (katom->retry_count == 1)
-		kbase_disjoint_state_up(kctx->kbdev);
+		kbase_disjoint_state_up(kbdev);
 
 	INIT_WORK(&katom->work, kbase_replay_process_worker);
 	queue_work(kctx->event_workq, &katom->work);

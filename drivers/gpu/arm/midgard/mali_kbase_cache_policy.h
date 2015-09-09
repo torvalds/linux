@@ -26,7 +26,7 @@
 
 #include "mali_kbase.h"
 #include "mali_base_kernel.h"
-#include "mali_kbase_device_internal.h"
+
 /**
  * kbase_cache_enabled - Choose the cache policy for a specific region
  * @flags:    flags describing attributes of the region

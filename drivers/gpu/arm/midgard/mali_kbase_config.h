@@ -73,14 +73,10 @@ struct kbase_platform_funcs_conf {
 	 * Returns 0 on success,
          * negative error code otherwise.
 	 *
-	 * Function pointer 
-         *      for platform specific initialization 
-         * or NULL if no initialization function is required.
-         * This function 
-         * will be called 
-         *      before any other callbacks 
-         *              listed in the struct kbase_attribute struct 
-         *                      (such as Power Management callbacks).
+	 * Function pointer for platform specific initialization or NULL if no
+	 * initialization function is required. At the point this the GPU is
+	 * not active and its power and clocks are in unknown (platform specific
+	 * state) as kbase doesn't yet have control of power and clocks.
 	 *
 	 * The platform specific private pointer kbase_device::platform_context 
          * can be accessed (and possibly initialized) in here.
@@ -91,9 +87,8 @@ struct kbase_platform_funcs_conf {
 	 * @kbdev - kbase_device pointer
 	 *
 	 * Function pointer for platform specific termination or NULL if no
-	 * termination function is required. This function will be called
-	 * after any other callbacks listed in the struct kbase_attribute struct
-	 * (such as Power Management callbacks).
+	 * termination function is required. At the point this the GPU will be
+	 * idle but still powered and clocked.
 	 *
 	 * The platform specific private pointer kbase_device::platform_context
 	 * can be accessed (and possibly terminated) in here.

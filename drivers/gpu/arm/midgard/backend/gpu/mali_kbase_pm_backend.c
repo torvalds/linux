@@ -16,8 +16,7 @@
 
 
 
-/**
- * @file mali_kbase_pm_hwaccess.c
+/*
  * GPU backend implementation of base kernel power management APIs
  */
 
@@ -228,7 +227,8 @@ int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
 
 	kbasep_pm_read_present_cores(kbdev);
 
-	kbdev->pm.debug_core_mask = kbdev->shader_present_bitmap;
+	kbdev->pm.debug_core_mask =
+			kbdev->gpu_props.props.raw_props.shader_present;
 
 	/* Pretend the GPU is active to prevent a power policy turning the GPU
 	 * cores off */

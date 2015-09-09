@@ -47,6 +47,7 @@ enum base_hw_feature {
 	BASE_HW_FEATURE_WARPING,
 	BASE_HW_FEATURE_FLUSH_REDUCTION,
 	BASE_HW_FEATURE_V4,
+	BASE_HW_FEATURE_PROTECTED_MODE,
 	BASE_HW_FEATURE_END
 };
 
@@ -159,5 +160,6 @@ static const enum base_hw_feature base_hw_features_t82x[] = {
 	BASE_HW_FEATURE_TEST4_DATUM_MODE,
 	BASE_HW_FEATURE_END
 };
+
 
 #endif /* _BASE_HWCONFIG_FEATURES_H_ */

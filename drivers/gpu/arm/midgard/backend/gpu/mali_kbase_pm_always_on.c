@@ -26,7 +26,7 @@
 
 static u64 always_on_get_core_mask(struct kbase_device *kbdev)
 {
-	return kbdev->shader_present_bitmap;
+	return kbdev->gpu_props.props.raw_props.shader_present;
 }
 
 static bool always_on_get_core_active(struct kbase_device *kbdev)

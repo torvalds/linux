@@ -169,6 +169,7 @@
 #define L2_PWRACTIVE_HI         0x264	/* (RO) Level 2 cache active bitmap, high word */
 
 
+#define JM_CONFIG               0xF00   /* (RW) Job Manager configuration register (Implementation specific register) */
 #define SHADER_CONFIG           0xF04	/* (RW) Shader core configuration settings (Implementation specific register) */
 #define TILER_CONFIG            0xF08   /* (RW) Tiler core configuration settings (Implementation specific register) */
 #define L2_MMU_CONFIG           0xF0C	/* (RW) Configuration of the L2 cache and MMU (Implementation specific register) */
@@ -424,7 +425,10 @@
 #define AS_MEMATTR_LPAE_OUTER_WA              0x8Dull
 
 /* Symbol for default MEMATTR to use */
+
+/* Default is - HW implementation defined caching */
 #define AS_MEMATTR_INDEX_DEFAULT               0
+#define AS_MEMATTR_INDEX_DEFAULT_ACE           3
 
 /* HW implementation defined caching */
 #define AS_MEMATTR_INDEX_IMPL_DEF_CACHE_POLICY 0
@@ -519,7 +523,7 @@
 /* COHERENCY_* values*/
 #define COHERENCY_ACE_LITE 0
 #define COHERENCY_ACE      1
-#define COHERENCY_NONE     0xFFFF
+#define COHERENCY_NONE     31
 #define COHERENCY_FEATURE_BIT(x) (1 << (x))
 /* End COHERENCY_* values */
 

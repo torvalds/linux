@@ -16,6 +16,7 @@
 
 
 #include "mali_kbase.h"
+#include "mali_kbase_hw.h"
 #include "mali_kbase_mem_linux.h"
 #include "mali_kbase_gator_api.h"
 #include "mali_kbase_gator_hwcnt_names.h"
@@ -148,10 +149,8 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 	in_out_info->nr_core_groups = hand->kbdev->gpu_props.num_core_groups;
 	in_out_info->gpu_id = hand->kbdev->gpu_props.props.core_props.product_id;
 
-	/* If we are using a Mali-T6xx or Mali-T72x device */
-	if (in_out_info->gpu_id == GPU_ID_PI_T60X ||
-	    in_out_info->gpu_id == GPU_ID_PI_T62X ||
-	    in_out_info->gpu_id == GPU_ID_PI_T72X) {
+	/* If we are using a v4 device (Mali-T6xx or Mali-T72x) */
+	if (kbase_hw_has_feature(hand->kbdev, BASE_HW_FEATURE_V4)) {
 		uint32_t cg, j;
 		uint64_t core_mask;
 
@@ -227,7 +226,7 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 
 	in_out_info->size = dump_size;
 
-	flags = BASE_MEM_PROT_CPU_RD | BASE_MEM_PROT_GPU_WR;
+	flags = BASE_MEM_PROT_CPU_RD | BASE_MEM_PROT_CPU_WR | BASE_MEM_PROT_GPU_WR;
 	nr_pages = PFN_UP(dump_size);
 	reg = kbase_mem_alloc(hand->kctx, nr_pages, nr_pages, 0,
 			&flags, &hand->hwcnt_gpu_va, &va_alignment);
@@ -241,6 +240,7 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 		goto free_buffer;
 
 	in_out_info->kernel_dump_buffer = hand->hwcnt_cpu_va;
+	memset(in_out_info->kernel_dump_buffer, 0, nr_pages * PAGE_SIZE);
 
 	/*setup.dump_buffer = (uintptr_t)in_out_info->kernel_dump_buffer;*/
 	setup.dump_buffer = hand->hwcnt_gpu_va;

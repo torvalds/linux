@@ -15,8 +15,7 @@
 
 
 
-/**
- * @file mali_kbase_pm_ca_fixed.c
+/*
  * A power policy implementing fixed core availability
  */
 
@@ -35,7 +34,7 @@ static void fixed_term(struct kbase_device *kbdev)
 
 static u64 fixed_get_core_mask(struct kbase_device *kbdev)
 {
-	return kbdev->shader_present_bitmap;
+	return kbdev->gpu_props.props.raw_props.shader_present;
 }
 
 static void fixed_update_core_status(struct kbase_device *kbdev,
@@ -47,7 +46,8 @@ static void fixed_update_core_status(struct kbase_device *kbdev,
 	CSTD_UNUSED(cores_transitioning);
 }
 
-/** The @ref struct kbase_pm_policy structure for the fixed power policy.
+/*
+ * The struct kbase_pm_policy structure for the fixed power policy.
  *
  * This is the static structure that defines the fixed power policy's callback
  * and name.

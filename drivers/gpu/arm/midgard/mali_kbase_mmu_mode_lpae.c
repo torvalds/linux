@@ -68,15 +68,12 @@ static inline void page_table_entry_set(u64 *pte, u64 phy)
 #endif
 }
 
-static void mmu_update(struct kbase_context *kctx)
+static void mmu_get_as_setup(struct kbase_context *kctx,
+		struct kbase_mmu_setup * const setup)
 {
-	struct kbase_device * const kbdev = kctx->kbdev;
-	struct kbase_as * const as = &kbdev->as[kctx->as_nr];
-	struct kbase_mmu_setup * const current_setup = &as->current_setup;
-
 	/* Set up the required caching policies at the correct indices
 	 * in the memattr register. */
-	current_setup->memattr =
+	setup->memattr =
 		(AS_MEMATTR_LPAE_IMPL_DEF_CACHE_POLICY <<
 		(AS_MEMATTR_INDEX_IMPL_DEF_CACHE_POLICY * 8)) |
 		(AS_MEMATTR_LPAE_FORCE_TO_CACHE_ALL    <<
@@ -85,12 +82,21 @@ static void mmu_update(struct kbase_context *kctx)
 		(AS_MEMATTR_INDEX_WRITE_ALLOC * 8)) |
 		0; /* The other indices are unused for now */
 
-	current_setup->transtab = (u64)kctx->pgd &
+	setup->transtab = (u64)kctx->pgd &
 		((0xFFFFFFFFULL << 32) | AS_TRANSTAB_LPAE_ADDR_SPACE_MASK);
 
-	current_setup->transtab |= AS_TRANSTAB_LPAE_ADRMODE_TABLE;
-	current_setup->transtab |= AS_TRANSTAB_LPAE_READ_INNER;
+	setup->transtab |= AS_TRANSTAB_LPAE_ADRMODE_TABLE;
+	setup->transtab |= AS_TRANSTAB_LPAE_READ_INNER;
 
+}
+
+static void mmu_update(struct kbase_context *kctx)
+{
+	struct kbase_device * const kbdev = kctx->kbdev;
+	struct kbase_as * const as = &kbdev->as[kctx->as_nr];
+	struct kbase_mmu_setup * const current_setup = &as->current_setup;
+
+	mmu_get_as_setup(kctx, current_setup);
 
 	/* Apply the address space setting */
 	kbase_mmu_hw_configure(kbdev, as, kctx);
@@ -173,6 +179,7 @@ static void entry_invalidate(u64 *entry)
 
 static struct kbase_mmu_mode const lpae_mode = {
 	.update = mmu_update,
+	.get_as_setup = mmu_get_as_setup,
 	.disable_as = mmu_disable_as,
 	.pte_to_phy_addr = pte_to_phy_addr,
 	.ate_is_valid = ate_is_valid,

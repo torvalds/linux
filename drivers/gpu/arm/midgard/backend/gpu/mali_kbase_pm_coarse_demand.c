@@ -17,8 +17,7 @@
 
 
 
-/**
- * @file mali_kbase_pm_coarse_demand.c
+/*
  * "Coarse Demand" power management policy
  */
 
@@ -30,12 +29,13 @@ static u64 coarse_demand_get_core_mask(struct kbase_device *kbdev)
 	if (kbdev->pm.active_count == 0)
 		return 0;
 
-	return kbdev->shader_present_bitmap;
+	return kbdev->gpu_props.props.raw_props.shader_present;
 }
 
 static bool coarse_demand_get_core_active(struct kbase_device *kbdev)
 {
-	if (kbdev->pm.active_count == 0)
+	if (0 == kbdev->pm.active_count && !(kbdev->shader_needed_bitmap |
+			kbdev->shader_inuse_bitmap))
 		return false;
 
 	return true;
@@ -51,7 +51,7 @@ static void coarse_demand_term(struct kbase_device *kbdev)
 	CSTD_UNUSED(kbdev);
 }
 
-/** The @ref struct kbase_pm_policy structure for the demand power policy.
+/* The struct kbase_pm_policy structure for the demand power policy.
  *
  * This is the static structure that defines the demand power policy's callback
  * and name.

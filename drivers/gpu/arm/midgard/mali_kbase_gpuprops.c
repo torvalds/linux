@@ -228,9 +228,12 @@ static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, str
 
 	gpu_props->l2_props.log2_line_size = KBASE_UBFX32(gpu_props->raw_props.l2_features, 0U, 8);
 	gpu_props->l2_props.log2_cache_size = KBASE_UBFX32(gpu_props->raw_props.l2_features, 16U, 8);
-	gpu_props->l2_props.num_l2_slices = 1;
-	if (gpu_props->core_props.product_id == GPU_ID_PI_T76X)
-		gpu_props->l2_props.num_l2_slices = KBASE_UBFX32(gpu_props->raw_props.mem_features, 8U, 4) + 1;
+
+	/* Field with number of l2 slices is added to MEM_FEATURES register
+	 * since t76x. Below code assumes that for older GPU reserved bits will
+	 * be read as zero. */
+	gpu_props->l2_props.num_l2_slices =
+		KBASE_UBFX32(gpu_props->raw_props.mem_features, 8U, 4) + 1;
 
 	gpu_props->tiler_props.bin_size_bytes = 1 << KBASE_UBFX32(gpu_props->raw_props.tiler_features, 0U, 6);
 	gpu_props->tiler_props.max_active_levels = KBASE_UBFX32(gpu_props->raw_props.tiler_features, 8U, 4);

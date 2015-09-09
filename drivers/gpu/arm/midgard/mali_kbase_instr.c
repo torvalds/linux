@@ -63,7 +63,7 @@ void kbase_instr_hwcnt_resume(struct kbase_device *kbdev)
 }
 
 int kbase_instr_hwcnt_enable(struct kbase_context *kctx,
-					struct kbase_uk_hwcnt_setup *setup)
+		struct kbase_uk_hwcnt_setup *setup)
 {
 	struct kbase_device *kbdev;
 	bool access_allowed;
@@ -122,36 +122,16 @@ out:
 }
 KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_disable);
 
-int kbase_instr_hwcnt_setup(struct kbase_context *kctx,
-					struct kbase_uk_hwcnt_setup *setup)
-{
-	struct kbase_vinstr_context *vinstr_ctx = kctx->kbdev->vinstr_ctx;
-	u32 bitmap[4];
-
-	if (setup == NULL)
-		return -EINVAL;
-
-	bitmap[SHADER_HWCNT_BM] = setup->shader_bm;
-	bitmap[TILER_HWCNT_BM] = setup->tiler_bm;
-	bitmap[MMU_L2_HWCNT_BM] = setup->mmu_l2_bm;
-	bitmap[JM_HWCNT_BM] = setup->jm_bm;
-	if (setup->dump_buffer) {
-		if (kctx->vinstr_cli)
-			return -EBUSY;
-		kctx->vinstr_cli = kbase_vinstr_attach_client(vinstr_ctx, false,
-				setup->dump_buffer, bitmap);
-		if (!kctx->vinstr_cli)
-			return -ENOMEM;
-	} else {
-		kbase_vinstr_detach_client(vinstr_ctx, kctx->vinstr_cli);
-		kctx->vinstr_cli = NULL;
-	}
-
-	return 0;
-}
-
 int kbase_instr_hwcnt_dump(struct kbase_context *kctx)
 {
-	return kbase_vinstr_dump(kctx->kbdev->vinstr_ctx, kctx->vinstr_cli);
+	int err;
+
+	err = kbase_instr_hwcnt_request_dump(kctx);
+	if (err)
+		return err;
+
+	err = kbase_instr_hwcnt_wait_for_dump(kctx);
+	return err;
 }
 KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_dump);
+

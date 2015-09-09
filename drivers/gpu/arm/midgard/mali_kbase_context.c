@@ -25,8 +25,6 @@
 #include <mali_midg_regmap.h>
 #include <mali_kbase_instr.h>
 
-#define MEMPOOL_PAGES 16384
-
 
 /**
  * kbase_create_context() - Create a kernel base context.
@@ -41,7 +39,7 @@ struct kbase_context *
 kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 {
 	struct kbase_context *kctx;
-	int mali_err;
+	int err;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -68,21 +66,24 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	atomic_set(&kctx->nonmapped_pages, 0);
 	kctx->slots_pullable = 0;
 
-	if (kbase_mem_allocator_init(&kctx->osalloc, MEMPOOL_PAGES, kctx->kbdev) != 0)
+	err = kbase_mem_pool_init(&kctx->mem_pool,
+			kbdev->mem_pool_max_size_default,
+			kctx->kbdev, &kbdev->mem_pool);
+	if (err)
 		goto free_kctx;
 
-	kctx->pgd_allocator = &kctx->osalloc;
 	atomic_set(&kctx->used_pages, 0);
 
-	if (kbase_jd_init(kctx))
-		goto free_allocator;
+	err = kbase_jd_init(kctx);
+	if (err)
+		goto free_pool;
 
-	mali_err = kbasep_js_kctx_init(kctx);
-	if (mali_err)
+	err = kbasep_js_kctx_init(kctx);
+	if (err)
 		goto free_jd;	/* safe to call kbasep_js_kctx_term  in this case */
 
-	mali_err = kbase_event_init(kctx);
-	if (mali_err)
+	err = kbase_event_init(kctx);
+	if (err)
 		goto free_jd;
 
 	mutex_init(&kctx->reg_lock);
@@ -92,15 +93,16 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	INIT_LIST_HEAD(&kctx->waiting_kds_resource);
 #endif
 
-	mali_err = kbase_mmu_init(kctx);
-	if (mali_err)
+	err = kbase_mmu_init(kctx);
+	if (err)
 		goto free_event;
 
 	kctx->pgd = kbase_mmu_alloc_pgd(kctx);
 	if (!kctx->pgd)
 		goto free_mmu;
 
-	if (kbase_mem_allocator_alloc(&kctx->osalloc, 1, &kctx->aliasing_sink_page) != 0)
+	kctx->aliasing_sink_page = kbase_mem_pool_alloc(&kctx->mem_pool);
+	if (!kctx->aliasing_sink_page)
 		goto no_sink_page;
 
 	kctx->tgid = current->tgid;
@@ -110,7 +112,8 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	kctx->cookies = KBASE_COOKIE_MASK;
 
 	/* Make sure page 0 is not used... */
-	if (kbase_region_tracker_init(kctx))
+	err = kbase_region_tracker_init(kctx);
+	if (err)
 		goto no_region_tracker;
 #ifdef CONFIG_GPU_TRACEPOINTS
 	atomic_set(&kctx->jctx.work_id, 0);
@@ -126,8 +129,8 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	return kctx;
 
 no_region_tracker:
+	kbase_mem_pool_free(&kctx->mem_pool, kctx->aliasing_sink_page, false);
 no_sink_page:
-	kbase_mem_allocator_free(&kctx->osalloc, 1, &kctx->aliasing_sink_page, 0);
 	/* VM lock needed for the call to kbase_mmu_free_pgd */
 	kbase_gpu_vm_lock(kctx);
 	kbase_mmu_free_pgd(kctx);
@@ -140,8 +143,8 @@ free_jd:
 	/* Safe to call this one even when didn't initialize (assuming kctx was sufficiently zeroed) */
 	kbasep_js_kctx_term(kctx);
 	kbase_jd_exit(kctx);
-free_allocator:
-	kbase_mem_allocator_term(&kctx->osalloc);
+free_pool:
+	kbase_mem_pool_term(&kctx->mem_pool);
 free_kctx:
 	vfree(kctx);
 out:
@@ -191,7 +194,7 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbase_mmu_free_pgd(kctx);
 
 	/* drop the aliasing sink page now that it can't be mapped anymore */
-	kbase_mem_allocator_free(&kctx->osalloc, 1, &kctx->aliasing_sink_page, 0);
+	kbase_mem_pool_free(&kctx->mem_pool, kctx->aliasing_sink_page, false);
 
 	/* free pending region setups */
 	pending_regions_to_clean = (~kctx->cookies) & KBASE_COOKIE_MASK;
@@ -222,7 +225,7 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	if (pages != 0)
 		dev_warn(kbdev->dev, "%s: %d pages in use!\n", __func__, pages);
 
-	kbase_mem_allocator_term(&kctx->osalloc);
+	kbase_mem_pool_term(&kctx->mem_pool);
 	WARN_ON(atomic_read(&kctx->nonmapped_pages) != 0);
 
 	vfree(kctx);

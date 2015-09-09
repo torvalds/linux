@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -102,8 +102,6 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
-
-	WARN_ON(atomic_read(&kctx->atoms_pulled));
 
 	if (kbdev->hwaccess.active_kctx == kctx)
 		kbdev->hwaccess.active_kctx = NULL;

@@ -18,85 +18,87 @@
 #ifndef _KBASE_VINSTR_H_
 #define _KBASE_VINSTR_H_
 
-enum {
-	SHADER_HWCNT_BM,
-	TILER_HWCNT_BM,
-	MMU_L2_HWCNT_BM,
-	JM_HWCNT_BM
-};
+#include <mali_kbase.h>
+#include <mali_kbase_hwcnt_reader.h>
+
+/*****************************************************************************/
 
 struct kbase_vinstr_context;
 struct kbase_vinstr_client;
 
+/*****************************************************************************/
+
 /**
- * kbase_vinstr_init() - Initialize the vinstr core
- * @kbdev:	Kbase device
+ * kbase_vinstr_init() - initialize the vinstr core
+ * @kbdev: kbase device
  *
- * Return:	A pointer to the vinstr context on success or NULL on failure
+ * Return: pointer to the vinstr context on success or NULL on failure
  */
 struct kbase_vinstr_context *kbase_vinstr_init(struct kbase_device *kbdev);
 
 /**
- * kbase_vinstr_term() - Terminate the vinstr core
- * @ctx:	Vinstr context
+ * kbase_vinstr_term() - terminate the vinstr core
+ * @vinstr_ctx: vinstr context
  */
-void kbase_vinstr_term(struct kbase_vinstr_context *ctx);
+void kbase_vinstr_term(struct kbase_vinstr_context *vinstr_ctx);
 
 /**
- * kbase_vinstr_attach_client - Attach a client to the vinstr core
- * @ctx:		Vinstr context
- * @kernel:		True if this client is a kernel-side client, false
- *                      otherwise
- * @dump_buffer:	Client's dump buffer
- * @bitmap:		Bitmaps describing which counters should be enabled
+ * kbase_vinstr_hwcnt_reader_setup - configure hw counters reader
+ * @vinstr_ctx: vinstr context
+ * @setup:      reader's configuration
  *
- * Return:		A vinstr opaque client handle or NULL or failure
+ * Return: zero on success
  */
-struct kbase_vinstr_client *kbase_vinstr_attach_client(struct kbase_vinstr_context *ctx,
-		bool kernel,
-		u64 dump_buffer,
-		u32 bitmap[4]);
+int kbase_vinstr_hwcnt_reader_setup(
+		struct kbase_vinstr_context        *vinstr_ctx,
+		struct kbase_uk_hwcnt_reader_setup *setup);
 
 /**
- * kbase_vinstr_detach_client - Detach a client from the vinstr core
- * @ctx:	Vinstr context
- * @cli:	Pointer to vinstr client
+ * kbase_vinstr_legacy_hwc_setup - configure hw counters for dumping
+ * @vinstr_ctx: vinstr context
+ * @cli:        pointer where to store pointer to new vinstr client structure
+ * @setup:      hwc configuration
+ *
+ * Return: zero on success
  */
-void kbase_vinstr_detach_client(struct kbase_vinstr_context *ctx,
-		struct kbase_vinstr_client *cli);
+int kbase_vinstr_legacy_hwc_setup(
+		struct kbase_vinstr_context *vinstr_ctx,
+		struct kbase_vinstr_client  **cli,
+		struct kbase_uk_hwcnt_setup *setup);
 
 /**
- * kbase_vinstr_dump_size - Get the size of the dump buffer
- * @ctx:	Vinstr context
+ * kbase_vinstr_hwc_dump - issue counter dump for vinstr client
+ * @cli:      pointer to vinstr client
+ * @event_id: id of event that triggered hwcnt dump
  *
- * This is only useful for kernel-side clients to know how much
- * memory they need to allocate to receive the performance counter
- * memory block.
- *
- * Return:	Returns the size of the client side buffer
+ * Return: zero on success
  */
-size_t kbase_vinstr_dump_size(struct kbase_vinstr_context *ctx);
+int kbase_vinstr_hwc_dump(
+		struct kbase_vinstr_client   *cli,
+		enum base_hwcnt_reader_event event_id);
 
 /**
- * kbase_vinstr_dump - Performs a synchronous hardware counter dump for a given
- *                     kbase context
- * @ctx:	Vinstr context
- * @cli:	Pointer to vinstr client
+ * kbase_vinstr_hwc_clear - performs a reset of the hardware counters for
+ *                          a given kbase context
+ * @cli: pointer to vinstr client
  *
- * Return:	0 on success
+ * Return: zero on success
  */
-int kbase_vinstr_dump(struct kbase_vinstr_context *ctx,
-		struct kbase_vinstr_client *cli);
+int kbase_vinstr_hwc_clear(struct kbase_vinstr_client *cli);
 
 /**
- * kbase_vinstr_clear - Performs a reset of the hardware counters for a given
- *                      kbase context
- * @ctx:	Vinstr context
- * @cli:	Pointer to vinstr client
- *
- * Return:	0 on success
+ * kbase_vinstr_hwc_suspend - suspends hardware counter collection for
+ *                            a given kbase context
+ * @vinstr_ctx: vinstr context
  */
-int kbase_vinstr_clear(struct kbase_vinstr_context *ctx,
-		struct kbase_vinstr_client *cli);
+void kbase_vinstr_hwc_suspend(struct kbase_vinstr_context *vinstr_ctx);
+
+/**
+ * kbase_vinstr_hwc_resume - resumes hardware counter collection for
+ *                            a given kbase context
+ * @vinstr_ctx: vinstr context
+ */
+void kbase_vinstr_hwc_resume(struct kbase_vinstr_context *vinstr_ctx);
 
 #endif /* _KBASE_VINSTR_H_ */
+

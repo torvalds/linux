@@ -25,6 +25,7 @@
 #include <mali_kbase.h>
 
 #define SMC_FAST_CALL (1 << 31)
+#define SMC_64 (1 << 30)
 
 #define SMC_OEN_OFFSET 24
 #define SMC_OEN_MASK (0x3F << SMC_OEN_OFFSET) /* 6 bits */
@@ -33,25 +34,33 @@
 
 
 /**
-  * kbase_invoke_smc_fid - Does a secure monitor call with the given function_id
-  * @function_id: The SMC function to call, see SMC Calling convention.
+  * kbase_invoke_smc_fid - Perform a secure monitor call
+  * @fid: The SMC function to call, see SMC Calling convention.
+  * @arg0: First argument to the SMC.
+  * @arg1: Second argument to the SMC.
+  * @arg2: Third argument to the SMC.
+  *
+  * See SMC Calling Convention for details.
+  *
+  * Return: the return value from the SMC.
   */
-void kbase_invoke_smc_fid(u32 function_id);
+u64 kbase_invoke_smc_fid(u32 fid, u64 arg0, u64 arg1, u64 arg2);
 
 /**
-  * kbase_invoke_smc_fid - Does a secure monitor call with the given parameters.
-  * see SMC Calling Convention for details
+  * kbase_invoke_smc_fid - Perform a secure monitor call
   * @oen: Owning Entity number (SIP, STD etc).
-  * @function_number: ID specifiy which function within the OEN.
-  * @arg0: argument 0 to pass in the SMC call.
-  * @arg1: argument 1 to pass in the SMC call.
-  * @arg2: argument 2 to pass in the SMC call.
-  * @res0: result 0 returned from the SMC call.
-  * @res1: result 1 returned from the SMC call.
-  * @res2: result 2 returned from the SMC call.
+  * @function_number: The function number within the OEN.
+  * @smc64: use SMC64 calling convention instead of SMC32.
+  * @arg0: First argument to the SMC.
+  * @arg1: Second argument to the SMC.
+  * @arg2: Third argument to the SMC.
+  *
+  * See SMC Calling Convention for details.
+  *
+  * Return: the return value from the SMC call.
   */
-void kbase_invoke_smc(u32 oen, u16 function_number, u64 arg0, u64 arg1,
-		u64 arg2, u64 *res0, u64 *res1, u64 *res2);
+u64 kbase_invoke_smc(u32 oen, u16 function_number, bool smc64,
+		u64 arg0, u64 arg1, u64 arg2);
 
 #endif /* CONFIG_ARM64 */
 

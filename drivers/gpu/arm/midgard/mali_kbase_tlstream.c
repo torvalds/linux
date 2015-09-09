@@ -126,15 +126,26 @@ enum tl_msg_id {
 	KBASE_TL_NEW_GPU,
 	KBASE_TL_NEW_LPU,
 	KBASE_TL_NEW_ATOM,
+	KBASE_TL_NEW_AS,
 	KBASE_TL_DEL_CTX,
 	KBASE_TL_DEL_ATOM,
 	KBASE_TL_LIFELINK_LPU_GPU,
+	KBASE_TL_LIFELINK_AS_GPU,
 	KBASE_TL_RET_GPU_CTX,
 	KBASE_TL_RET_ATOM_CTX,
 	KBASE_TL_RET_ATOM_LPU,
 	KBASE_TL_NRET_GPU_CTX,
 	KBASE_TL_NRET_ATOM_CTX,
 	KBASE_TL_NRET_ATOM_LPU,
+	KBASE_TL_RET_AS_CTX,
+	KBASE_TL_NRET_AS_CTX,
+	KBASE_TL_RET_ATOM_AS,
+	KBASE_TL_NRET_ATOM_AS,
+	KBASE_TL_ATTRIB_ATOM_CONFIG,
+	KBASE_TL_ATTRIB_AS_CONFIG,
+
+	/* Job dump specific events (part of timeline stream). */
+	KBASE_JD_GPU_SOFT_RESET,
 
 	/* Timeline non-object events. */
 	KBASE_AUX_PM_STATE,
@@ -280,11 +291,18 @@ static const struct tp_desc tp_desc_obj[] = {
 		"atom,atom_nr"
 	},
 	{
+		KBASE_TL_NEW_AS,
+		__stringify(KBASE_TL_NEW_AS),
+		"address space object is created",
+		"@pI",
+		"address_space,as_nr"
+	},
+	{
 		KBASE_TL_DEL_CTX,
 		__stringify(KBASE_TL_DEL_CTX),
 		"context is destroyed",
 		"@p",
-		"context"
+		"ctx"
 	},
 	{
 		KBASE_TL_DEL_ATOM,
@@ -299,6 +317,13 @@ static const struct tp_desc tp_desc_obj[] = {
 		"lpu is deleted with gpu",
 		"@pp",
 		"lpu,gpu"
+	},
+	{
+		KBASE_TL_LIFELINK_AS_GPU,
+		__stringify(KBASE_TL_LIFELINK_AS_GPU),
+		"address space is deleted with gpu",
+		"@pp",
+		"address_space,gpu"
 	},
 	{
 		KBASE_TL_RET_GPU_CTX,
@@ -341,6 +366,55 @@ static const struct tp_desc tp_desc_obj[] = {
 		"atom is released by lpu",
 		"@pp",
 		"atom,lpu"
+	},
+	{
+		KBASE_TL_RET_AS_CTX,
+		__stringify(KBASE_TL_RET_AS_CTX),
+		"address space is retained by context",
+		"@pp",
+		"address_space,ctx"
+	},
+	{
+		KBASE_TL_NRET_AS_CTX,
+		__stringify(KBASE_TL_NRET_AS_CTX),
+		"address space is released by context",
+		"@pp",
+		"address_space,ctx"
+	},
+	{
+		KBASE_TL_RET_ATOM_AS,
+		__stringify(KBASE_TL_RET_ATOM_AS),
+		"atom is retained by address space",
+		"@pp",
+		"atom,address_space"
+	},
+	{
+		KBASE_TL_NRET_ATOM_AS,
+		__stringify(KBASE_TL_NRET_ATOM_AS),
+		"atom is released by address space",
+		"@pp",
+		"atom,address_space"
+	},
+	{
+		KBASE_TL_ATTRIB_ATOM_CONFIG,
+		__stringify(KBASE_TL_ATTRIB_ATOM_CONFIG),
+		"atom job slot attributes",
+		"@pLLI",
+		"atom,descriptor,affinity,config"
+	},
+	{
+		KBASE_TL_ATTRIB_AS_CONFIG,
+		__stringify(KBASE_TL_ATTRIB_AS_CONFIG),
+		"address space attributes",
+		"@pLLL",
+		"address_space,transtab,memattr,transcfg"
+	},
+	{
+		KBASE_JD_GPU_SOFT_RESET,
+		__stringify(KBASE_JD_GPU_SOFT_RESET),
+		"gpu soft reset",
+		"@p",
+		"gpu"
 	},
 };
 
@@ -1349,6 +1423,56 @@ void kbase_tlstream_tl_summary_lifelink_lpu_gpu(void *lpu, void *gpu)
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ_SUMMARY, flags);
 }
 
+void kbase_tlstream_tl_summary_new_as(void *as, u32 nr)
+{
+	const u32     msg_id = KBASE_TL_NEW_AS;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(as) + sizeof(nr);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ_SUMMARY,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &nr, sizeof(nr));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ_SUMMARY, flags);
+}
+
+void kbase_tlstream_tl_summary_lifelink_as_gpu(void *as, void *gpu)
+{
+	const u32     msg_id = KBASE_TL_LIFELINK_AS_GPU;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(as) + sizeof(gpu);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ_SUMMARY,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &gpu, sizeof(gpu));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ_SUMMARY, flags);
+}
+
 /*****************************************************************************/
 
 void kbase_tlstream_tl_new_ctx(void *context, u32 nr)
@@ -1592,6 +1716,191 @@ void kbase_tlstream_tl_nret_atom_lpu(void *atom, void *lpu)
 			buffer, pos, &atom, sizeof(atom));
 	pos = kbasep_tlstream_write_bytes(
 			buffer, pos, &lpu, sizeof(lpu));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_tl_ret_as_ctx(void *as, void *ctx)
+{
+	const u32     msg_id = KBASE_TL_RET_AS_CTX;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(as) + sizeof(ctx);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &ctx, sizeof(ctx));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_tl_nret_as_ctx(void *as, void *ctx)
+{
+	const u32     msg_id = KBASE_TL_NRET_AS_CTX;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(as) + sizeof(ctx);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &ctx, sizeof(ctx));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_tl_ret_atom_as(void *atom, void *as)
+{
+	const u32     msg_id = KBASE_TL_RET_ATOM_AS;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom) + sizeof(as);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_tl_nret_atom_as(void *atom, void *as)
+{
+	const u32     msg_id = KBASE_TL_NRET_ATOM_AS;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom) + sizeof(as);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_tl_attrib_atom_config(
+		void *atom, u64 jd, u64 affinity, u32 config)
+{
+	const u32     msg_id = KBASE_TL_ATTRIB_ATOM_CONFIG;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom) +
+		sizeof(jd) + sizeof(affinity) + sizeof(config);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &jd, sizeof(jd));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &affinity, sizeof(affinity));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &config, sizeof(config));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_tl_attrib_as_config(
+		void *as, u64 transtab, u64 memattr, u64 transcfg)
+{
+	const u32     msg_id = KBASE_TL_ATTRIB_AS_CONFIG;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(as) +
+		sizeof(transtab) + sizeof(memattr) + sizeof(transcfg);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &as, sizeof(as));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &transtab, sizeof(transtab));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &memattr, sizeof(memattr));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &transcfg, sizeof(transcfg));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void kbase_tlstream_jd_gpu_soft_reset(void *gpu)
+{
+	const u32     msg_id = KBASE_JD_GPU_SOFT_RESET;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(gpu);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &gpu, sizeof(gpu));
 	KBASE_DEBUG_ASSERT(msg_size == pos);
 
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);

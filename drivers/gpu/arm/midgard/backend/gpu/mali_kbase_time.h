@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -14,11 +14,6 @@
  */
 
 
-
-
-/**
- *
- */
 
 #ifndef _KBASE_BACKEND_TIME_H_
 #define _KBASE_BACKEND_TIME_H_

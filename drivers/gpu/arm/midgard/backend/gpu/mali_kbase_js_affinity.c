@@ -17,8 +17,7 @@
 
 
 
-/**
- * @file mali_kbase_js_affinity.c
+/*
  * Base kernel affinity manager APIs
  */
 

@@ -42,9 +42,12 @@ kbase_src = [Glob('#kernel/drivers/gpu/arm/midgard/*.c'),
              Glob('#kernel/drivers/gpu/arm/midgard/platform/%s/*.c' % (env['platform_config'])),
              Glob('#kernel/drivers/gpu/arm/midgard/*.h'),
              Glob('#kernel/drivers/gpu/arm/midgard/*.h'),
+             Glob('#kernel/drivers/gpu/arm/midgard/Makefile',
+             Glob('#kernel/drivers/gpu/arm/midgard/K*'))
              ]
 
-kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*.c')]
+kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*.c'),
+              Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*/*.c')]
 
 if Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock') and env['unit'] == '1':
 	kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/*.c')]
@@ -70,8 +73,8 @@ if fake_platform_device==1:
 	
 # Note: cleaning via the Linux kernel build system does not yet work
 if env.GetOption('clean') :
-	makeAction=Action("cd ${SOURCE.dir} && make clean", '$MAKECOMSTR')
-	cmd = env.Command(['$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/mali_platform_fake.ko'], kbase_src, [makeAction])
+	env.Execute(Action("make clean", '[clean] kbase'))
+	cmd = env.Command(['$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/mali_platform_fake.ko'], kbase_src, [])
 else:
 	if env['os'] == 'android':
 		env['android'] = 1
@@ -83,7 +86,25 @@ else:
 	else:
 		env['kernel_test'] = 0
 
-	makeAction=Action("cd ${SOURCE.dir} && make -j%d PLATFORM=${platform} MALI_ERROR_INJECT_ON=${error_inject} MALI_ANDROID=${android} MALI_KERNEL_TEST_API=${kernel_test} MALI_UNIT_TEST=${unit} MALI_RELEASE_NAME=\"${mali_release_name}\" MALI_MOCK_TEST=%s MALI_CUSTOMER_RELEASE=${release} MALI_INSTRUMENTATION_LEVEL=${instr} MALI_COVERAGE=${coverage} %s && cp mali_kbase.ko $STATIC_LIB_PATH/mali_kbase.ko" % (GetOption('num_jobs'), mock_test, env.kernel_get_config_defines(fake_platform_device)), '$MAKECOMSTR')
+	#Extract environment options, note the trailing spaces are important
+	env_options = \
+	"PLATFORM=${platform} " +\
+	"MALI_ERROR_INJECT_ON=${error_inject} " +\
+	"MALI_ANDROID=${android} " +\
+	"MALI_KERNEL_TEST_API=${kernel_test} " +\
+	"MALI_UNIT_TEST=${unit} " +\
+	"MALI_RELEASE_NAME=\"${mali_release_name}\" "+\
+	"MALI_MOCK_TEST=%s " % mock_test +\
+	"MALI_CUSTOMER_RELEASE=${release} " +\
+	"MALI_INSTRUMENTATION_LEVEL=${instr} " +\
+	"MALI_COVERAGE=${coverage} " +\
+	"MALI_BUS_LOG=${buslog} "
+
+	make_action_start = "cd ${SOURCE.dir} && make -j%d " % GetOption('num_jobs')
+	make_action_end = "%s && cp mali_kbase.ko $STATIC_LIB_PATH/mali_kbase.ko" % env.kernel_get_config_defines(fake_platform_device)
+	make_action = make_action_start + env_options + make_action_end
+
+	makeAction=Action(make_action, '$MAKECOMSTR')
 	cmd = env.Command('$STATIC_LIB_PATH/mali_kbase.ko', kbase_src, [makeAction])
 
 # Add a dependency on kds.ko.
@@ -104,20 +125,10 @@ if env['os'] != 'android':
 if int(env['ump']) == 1:
 	env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/ump.ko')
 
-# need Module.symvers from kutf.ko build
-if env['unit'] == '1':
-	env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/kutf.ko')
+if Glob('internal/sconsfrag'):
+	execfile('internal/sconsfrag')
+	get_internal(env)
 
-# Until we fathom out how the invoke the Linux build system to clean, we can use Clean
-# to remove generated files.
-patterns = ['*.mod.c', '*.o', '*.ko', '*.a', '.*.cmd', 'modules.order', '.tmp_versions', 'Module.symvers']
-
-for p in patterns:
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/%s' % p))
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/config/%s' % p))
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/%s' % p))
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/platform/%s/%s' % ((env['platform_config']), p) ))
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/internal/*/%s' % p))
 env.ProgTarget('kbase', cmd)
 
 env.AppendUnique(BASE=['cutils_linked_list'])

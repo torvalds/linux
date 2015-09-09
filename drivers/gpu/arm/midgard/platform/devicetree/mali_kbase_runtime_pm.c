@@ -91,17 +91,17 @@ struct kbase_pm_callback_conf pm_callbacks = {
 	.power_off_callback = pm_callback_power_off,
 	.power_suspend_callback = pm_callback_suspend,
 	.power_resume_callback = pm_callback_resume,
-#ifdef CONFIG_PM_RUNTIME
+#ifdef KBASE_PM_RUNTIME
 	.power_runtime_init_callback = kbase_device_runtime_init,
 	.power_runtime_term_callback = kbase_device_runtime_disable,
 	.power_runtime_on_callback = pm_callback_runtime_on,
 	.power_runtime_off_callback = pm_callback_runtime_off,
-#else				/* CONFIG_PM_RUNTIME */
+#else				/* KBASE_PM_RUNTIME */
 	.power_runtime_init_callback = NULL,
 	.power_runtime_term_callback = NULL,
 	.power_runtime_on_callback = NULL,
 	.power_runtime_off_callback = NULL,
-#endif				/* CONFIG_PM_RUNTIME */
+#endif				/* KBASE_PM_RUNTIME */
 };
 
 

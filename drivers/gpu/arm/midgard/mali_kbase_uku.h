@@ -41,7 +41,7 @@
 
 #include "mali_kbase_gpuprops_types.h"
 
-#define BASE_UK_VERSION_MAJOR 9
+#define BASE_UK_VERSION_MAJOR 10
 #define BASE_UK_VERSION_MINOR 0
 
 struct kbase_uk_mem_alloc {
@@ -112,10 +112,6 @@ struct kbase_uk_post_term {
 	union uk_header header;
 };
 
-struct kbase_uk_dump_fault_term {
-	union uk_header header;
-};
-
 struct kbase_uk_sync_now {
 	union uk_header header;
 
@@ -137,6 +133,33 @@ struct kbase_uk_hwcnt_setup {
 	u32 mmu_l2_bm;
 	u32 padding;
 	/* OUT */
+};
+
+/**
+ * struct kbase_uk_hwcnt_reader_setup - User/Kernel space data exchange structure
+ * @header:       UK structure header
+ * @buffer_count: requested number of dumping buffers
+ * @jm_bm:        counters selection bitmask (JM)
+ * @shader_bm:    counters selection bitmask (Shader)
+ * @tiler_bm:     counters selection bitmask (Tiler)
+ * @mmu_l2_bm:    counters selection bitmask (MMU_L2)
+ * @fd:           dumping notification file descriptor
+ *
+ * This structure sets up HWC dumper/reader for this context.
+ * Multiple instances can be created for single context.
+ */
+struct kbase_uk_hwcnt_reader_setup {
+	union uk_header header;
+
+	/* IN */
+	u32 buffer_count;
+	u32 jm_bm;
+	u32 shader_bm;
+	u32 tiler_bm;
+	u32 mmu_l2_bm;
+
+	/* OUT */
+	s32 fd;
 };
 
 struct kbase_uk_hwcnt_dump {
@@ -163,137 +186,6 @@ struct kbase_uk_stream_create {
 	s32 fd;
 	u32 padding;
 };
-
-#ifdef BASE_LEGACY_UK7_SUPPORT
-/**
- * This structure is kept for the backward compatibility reasons.
- * It shall be removed as soon as KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE
- * (previously KBASE_FUNC_CPU_PROPS_REG_DUMP) ioctl call
- * is removed. Removal of KBASE_FUNC_CPU_PROPS_REG_DUMP is part of having
- * the function for reading cpu properties moved from base to osu.
- */
-#define BASE_CPU_PROPERTY_FLAG_LITTLE_ENDIAN ((u32)0x00000001)
-struct base_cpu_id_props {
-	/**
-	 * CPU ID
-	 */
-	u32 id;
-
-	/**
-	 * CPU Part number
-	 */
-	u16 part;
-	/**
-	 * ASCII code of implementer trademark
-	 */
-	u8 implementer;
-
-	/**
-	 * CPU Variant
-	 */
-	u8 variant;
-	/**
-	 * CPU Architecture
-	 */
-	u8 arch;
-
-	/**
-	 * CPU revision
-	 */
-	u8 rev;
-
-	/**
-	 * Validity of CPU id where 0-invalid and
-	 * 1-valid only if ALL the cpu_id props are valid
-	 */
-	u8 valid;
-
-	u8 padding[1];
-};
-
-/**
- * This structure is kept for the backward compatibility reasons.
- * It shall be removed as soon as KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE
- * (previously KBASE_FUNC_CPU_PROPS_REG_DUMP) ioctl call
- * is removed. Removal of KBASE_FUNC_CPU_PROPS_REG_DUMP is part of having
- * the function for reading cpu properties moved from base to osu.
- */
-struct base_cpu_props {
-	u32 nr_cores;        /**< Number of CPU cores */
-
-	/**
-	 * CPU page size as a Logarithm to Base 2. The compile-time
-	 * equivalent is @ref OSU_CONFIG_CPU_PAGE_SIZE_LOG2
-	 */
-	u32 cpu_page_size_log2;
-
-	/**
-	 * CPU L1 Data cache line size as a Logarithm to Base 2. The compile-time
-	 * equivalent is @ref OSU_CONFIG_CPU_L1_DCACHE_LINE_SIZE_LOG2.
-	 */
-	u32 cpu_l1_dcache_line_size_log2;
-
-	/**
-	 * CPU L1 Data cache size, in bytes. The compile-time equivalient is
-	 * @ref OSU_CONFIG_CPU_L1_DCACHE_SIZE.
-	 *
-	 * This CPU Property is mainly provided to implement OpenCL's
-	 * clGetDeviceInfo(), which allows the CL_DEVICE_GLOBAL_MEM_CACHE_SIZE
-	 * hint to be queried.
-	 */
-	u32 cpu_l1_dcache_size;
-
-	/**
-	 * CPU Property Flags bitpattern.
-	 *
-	 * This is a combination of bits as specified by the macros prefixed with
-	 * 'BASE_CPU_PROPERTY_FLAG_'.
-	 */
-	u32 cpu_flags;
-
-	/**
-	 * Maximum clock speed in MHz.
-	 * @usecase 'Maximum' CPU Clock Speed information is required by OpenCL's
-	 * clGetDeviceInfo() function for the CL_DEVICE_MAX_CLOCK_FREQUENCY hint.
-	 */
-	u32 max_cpu_clock_speed_mhz;
-
-	/**
-	 * @brief Total memory, in bytes.
-	 *
-	 * This is the theoretical maximum memory available to the CPU. It is
-	 * unlikely that a client will be able to allocate all of this memory for
-	 * their own purposes, but this at least provides an upper bound on the
-	 * memory available to the CPU.
-	 *
-	 * This is required for OpenCL's clGetDeviceInfo() call when
-	 * CL_DEVICE_GLOBAL_MEM_SIZE is requested, for OpenCL CPU devices.
-	 */
-	u64 available_memory_size;
-
-	/**
-	 * CPU ID detailed info
-	 */
-	struct base_cpu_id_props cpu_id;
-
-	u32 padding;
-};
-
-/**
- * This structure is kept for the backward compatibility reasons.
- * It shall be removed as soon as KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE
- * (previously KBASE_FUNC_CPU_PROPS_REG_DUMP) ioctl call
- * is removed. Removal of KBASE_FUNC_CPU_PROPS_REG_DUMP is part of having
- * the function for reading cpu properties moved from base to osu.
- */
-struct kbase_uk_cpuprops {
-	union uk_header header;
-
-	/* IN */
-	struct base_cpu_props props;
-	/* OUT */
-};
-#endif /* BASE_LEGACY_UK7_SUPPORT */
 
 struct kbase_uk_gpuprops {
 	union uk_header header;
@@ -405,6 +297,14 @@ struct kbase_uk_ext_buff_kds_data {
 	u32 padding;
 };
 
+#ifdef BASE_LEGACY_UK8_SUPPORT
+struct kbase_uk_keep_gpu_powered {
+	union uk_header header;
+	u32       enabled;
+	u32       padding;
+};
+#endif /* BASE_LEGACY_UK8_SUPPORT */
+
 struct kbase_uk_profiling_controls {
 	union uk_header header;
 	u32 profiling_controls[FBDUMP_CONTROL_MAX];
@@ -514,9 +414,6 @@ enum kbase_uk_function_id {
 	KBASE_FUNC_HWCNT_DUMP = (UK_FUNC_ID + 11),
 	KBASE_FUNC_HWCNT_CLEAR = (UK_FUNC_ID + 12),
 
-#ifdef BASE_LEGACY_UK7_SUPPORT
-	KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE = (UK_FUNC_ID + 13),
-#endif /* BASE_LEGACY_UK7_SUPPORT */
 	KBASE_FUNC_GPU_PROPS_REG_DUMP = (UK_FUNC_ID + 14),
 
 	KBASE_FUNC_FIND_CPU_OFFSET = (UK_FUNC_ID + 15),
@@ -528,6 +425,10 @@ enum kbase_uk_function_id {
 	KBASE_FUNC_SET_TEST_DATA = (UK_FUNC_ID + 19),
 	KBASE_FUNC_INJECT_ERROR = (UK_FUNC_ID + 20),
 	KBASE_FUNC_MODEL_CONTROL = (UK_FUNC_ID + 21),
+
+#ifdef BASE_LEGACY_UK8_SUPPORT
+	KBASE_FUNC_KEEP_GPU_POWERED = (UK_FUNC_ID + 22),
+#endif /* BASE_LEGACY_UK8_SUPPORT */
 
 	KBASE_FUNC_FENCE_VALIDATE = (UK_FUNC_ID + 23),
 	KBASE_FUNC_STREAM_CREATE = (UK_FUNC_ID + 24),
@@ -541,8 +442,6 @@ enum kbase_uk_function_id {
 	KBASE_FUNC_JOB_SUBMIT = (UK_FUNC_ID + 28),
 	KBASE_FUNC_DISJOINT_QUERY = (UK_FUNC_ID + 29),
 
-	KBASE_FUNC_DUMP_FAULT_TERM = (UK_FUNC_ID + 30),
-
 	KBASE_FUNC_GET_CONTEXT_ID = (UK_FUNC_ID + 31),
 
 #if (defined(MALI_KTLSTREAM_ENABLED) && MALI_KTLSTREAM_ENABLED) || \
@@ -554,6 +453,8 @@ enum kbase_uk_function_id {
 #endif /* MALI_UNIT_TEST */
 	KBASE_FUNC_TLSTREAM_FLUSH = (UK_FUNC_ID + 35),
 #endif /* MALI_KTLSTREAM_ENABLED */
+
+	KBASE_FUNC_HWCNT_READER_SETUP = (UK_FUNC_ID + 36),
 
 	KBASE_FUNC_MAX
 };

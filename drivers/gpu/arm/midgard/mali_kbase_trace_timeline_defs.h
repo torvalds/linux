@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -130,5 +130,11 @@
 	/*
 	 * HW Events
 	 */
-	KBASE_TIMELINE_TRACE_CODE(HW_START_GPU_JOB_CHAIN_SW_APPROX,     "HW: Job Chain start (SW approximated)", "%d,%d,%d", "_tgid,job_slot,_consumerof_atom_number_ready"),
-	KBASE_TIMELINE_TRACE_CODE(HW_STOP_GPU_JOB_CHAIN_SW_APPROX,      "HW: Job Chain stop (SW approximated)",  "%d,%d,%d", "_tgid,job_slot,_producerof_atom_number_completed")
+	KBASE_TIMELINE_TRACE_CODE(HW_MMU_FAULT,
+"HW: MMU Fault", "%d,%d,%d", "_tgid,fault_type,fault_stage,asid"),
+	KBASE_TIMELINE_TRACE_CODE(HW_START_GPU_JOB_CHAIN_SW_APPROX,
+"HW: Job Chain start (SW approximated)", "%d,%d,%d",
+"_tgid,job_slot,_consumerof_atom_number_ready"),
+	KBASE_TIMELINE_TRACE_CODE(HW_STOP_GPU_JOB_CHAIN_SW_APPROX,
+"HW: Job Chain stop (SW approximated)",  "%d,%d,%d",
+"_tgid,job_slot,_producerof_atom_number_completed")
