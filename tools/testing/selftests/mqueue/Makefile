@@ -1,4 +1,4 @@
-CFLAGS = -O2
+CFLAGS += -O2
 
 all:
 	$(CC) $(CFLAGS) mq_open_tests.c -o mq_open_tests -lrt
