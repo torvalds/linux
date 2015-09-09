@@ -38,21 +38,19 @@ static LIST_HEAD(ftrace_common_fields);
 static struct kmem_cache *field_cachep;
 static struct kmem_cache *file_cachep;
 
-#define SYSTEM_FL_FREE_NAME		(1 << 31)
-
 static inline int system_refcount(struct event_subsystem *system)
 {
-	return system->ref_count & ~SYSTEM_FL_FREE_NAME;
+	return system->ref_count;
 }
 
 static int system_refcount_inc(struct event_subsystem *system)
 {
-	return (system->ref_count++) & ~SYSTEM_FL_FREE_NAME;
+	return system->ref_count++;
 }
 
 static int system_refcount_dec(struct event_subsystem *system)
 {
-	return (--system->ref_count) & ~SYSTEM_FL_FREE_NAME;
+	return --system->ref_count;
 }
 
 /* Double loops, do not use break, only goto's work */
@@ -461,8 +459,7 @@ static void __put_system(struct event_subsystem *system)
 		kfree(filter->filter_string);
 		kfree(filter);
 	}
-	if (system->ref_count & SYSTEM_FL_FREE_NAME)
-		kfree(system->name);
+	kfree_const(system->name);
 	kfree(system);
 }
 
@@ -1493,13 +1490,9 @@ create_new_subsystem(const char *name)
 	system->ref_count = 1;
 
 	/* Only allocate if dynamic (kprobes and modules) */
-	if (!core_kernel_data((unsigned long)name)) {
-		system->ref_count |= SYSTEM_FL_FREE_NAME;
-		system->name = kstrdup(name, GFP_KERNEL);
-		if (!system->name)
-			goto out_free;
-	} else
-		system->name = name;
+	system->name = kstrdup_const(name, GFP_KERNEL);
+	if (!system->name)
+		goto out_free;
 
 	system->filter = NULL;
 
@@ -1512,8 +1505,7 @@ create_new_subsystem(const char *name)
 	return system;
 
  out_free:
-	if (system->ref_count & SYSTEM_FL_FREE_NAME)
-		kfree(system->name);
+	kfree_const(system->name);
 	kfree(system);
 	return NULL;
 }
