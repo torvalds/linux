@@ -9,7 +9,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return dma_ops;
 }
 
-#include <asm-generic/dma-coherent.h>
 #include <asm-generic/dma-mapping-common.h>
 
 static inline int dma_supported(struct device *dev, u64 mask)
@@ -51,42 +50,6 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 		return ops->mapping_error(dev, dma_addr);
 
 	return dma_addr == 0;
-}
-
-#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *dma_handle, gfp_t gfp,
-				    struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *memory;
-
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
-		return memory;
-	if (!ops->alloc)
-		return NULL;
-
-	memory = ops->alloc(dev, size, dma_handle, gfp, attrs);
-	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
-
-	return memory;
-}
-
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *vaddr, dma_addr_t dma_handle,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	if (dma_release_from_coherent(dev, get_order(size), vaddr))
-		return;
-
-	debug_dma_free_coherent(dev, size, vaddr, dma_handle);
-	if (ops->free)
-		ops->free(dev, size, vaddr, dma_handle, attrs);
 }
 
 /* arch/sh/mm/consistent.c */

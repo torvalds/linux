@@ -12,7 +12,6 @@
 #include <linux/dma-attrs.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
-#include <asm-generic/dma-coherent.h>
 #include <linux/dma-contiguous.h>
 
 #ifdef CONFIG_ISA
@@ -40,6 +39,9 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 		return dev->archdata.dma_ops;
 #endif
 }
+
+bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp);
+#define arch_dma_alloc_attrs arch_dma_alloc_attrs
 
 #include <asm-generic/dma-mapping-common.h>
 
@@ -124,17 +126,5 @@ static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
 #endif
        return gfp;
 }
-
-#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-
-void *
-dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, struct dma_attrs *attrs);
-
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-void dma_free_attrs(struct device *dev, size_t size,
-		    void *vaddr, dma_addr_t bus,
-		    struct dma_attrs *attrs);
 
 #endif

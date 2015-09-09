@@ -23,7 +23,6 @@
  */
 
 #include <linux/dma-debug.h>
-#include <asm-generic/dma-coherent.h>
 #include <linux/kmemcheck.h>
 #include <linux/dma-mapping.h>
 
@@ -37,35 +36,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 }
 
 #include <asm-generic/dma-mapping-common.h>
-
-#define dma_alloc_coherent(d,s,h,f) dma_alloc_attrs(d,s,h,f,NULL) 
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *dma_handle, gfp_t gfp,
-				    struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *memory;
-
-	memory = ops->alloc(dev, size, dma_handle, gfp, attrs);
-
-	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
-
-	return memory;
-}
-
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *cpu_addr, dma_addr_t dma_handle,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-
-	ops->free(dev, size, cpu_addr, dma_handle, attrs);
-}
 
 static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
 					  dma_addr_t *dma_handle, gfp_t gfp)
