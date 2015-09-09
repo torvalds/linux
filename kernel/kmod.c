@@ -114,10 +114,11 @@ out:
  * @...: arguments as specified in the format string
  *
  * Load a module using the user mode module loader. The function returns
- * zero on success or a negative errno code on failure. Note that a
- * successful module load does not mean the module did not then unload
- * and exit on an error of its own. Callers must check that the service
- * they requested is now available not blindly invoke it.
+ * zero on success or a negative errno code or positive exit code from
+ * "modprobe" on failure. Note that a successful module load does not mean
+ * the module did not then unload and exit on an error of its own. Callers
+ * must check that the service they requested is now available not blindly
+ * invoke it.
  *
  * If module auto-loading support is disabled then this function
  * becomes a no-operation.
