@@ -1905,6 +1905,12 @@ L:	linux-mtd@lists.infradead.org
 S:	Supported
 F:	drivers/mtd/nand/atmel_nand*
 
+ATMEL SDMMC DRIVER
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+L:	linux-mmc@vger.kernel.org
+S:	Supported
+F:	drivers/mmc/host/sdhci-of-at91.c
+
 ATMEL SPI DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
@@ -2620,6 +2626,15 @@ T:	git git://github.com/ceph/ceph-client.git
 S:	Supported
 F:	Documentation/filesystems/ceph.txt
 F:	fs/ceph/
+
+CERTIFICATE HANDLING:
+M:	David Howells <dhowells@redhat.com>
+M:	David Woodhouse <dwmw2@infradead.org>
+L:	keyrings@linux-nfs.org
+S:	Maintained
+F:	Documentation/module-signing.txt
+F:	certs/
+F:	scripts/extract-cert.c
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
@@ -5994,7 +6009,7 @@ F:	kernel/kexec.c
 
 KEYS/KEYRINGS:
 M:	David Howells <dhowells@redhat.com>
-L:	keyrings@linux-nfs.org
+L:	keyrings@vger.kernel.org
 S:	Maintained
 F:	Documentation/security/keys.txt
 F:	include/linux/key.h
@@ -6006,7 +6021,7 @@ KEYS-TRUSTED
 M:	David Safford <safford@us.ibm.com>
 M:	Mimi Zohar <zohar@linux.vnet.ibm.com>
 L:	linux-security-module@vger.kernel.org
-L:	keyrings@linux-nfs.org
+L:	keyrings@vger.kernel.org
 S:	Supported
 F:	Documentation/security/keys-trusted-encrypted.txt
 F:	include/keys/trusted-type.h
@@ -6017,7 +6032,7 @@ KEYS-ENCRYPTED
 M:	Mimi Zohar <zohar@linux.vnet.ibm.com>
 M:	David Safford <safford@us.ibm.com>
 L:	linux-security-module@vger.kernel.org
-L:	keyrings@linux-nfs.org
+L:	keyrings@vger.kernel.org
 S:	Supported
 F:	Documentation/security/keys-trusted-encrypted.txt
 F:	include/keys/encrypted-type.h
@@ -6220,6 +6235,7 @@ Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
 F:	drivers/nvdimm/pmem.c
 F:	include/linux/pmem.h
+F:	arch/*/include/asm/pmem.h
 
 LINUX FOR IBM pSERIES (RS/6000)
 M:	Paul Mackerras <paulus@au.ibm.com>
@@ -6836,6 +6852,12 @@ W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
 F:	arch/microblaze/
+
+MICROSOFT SURFACE PRO 3 BUTTON DRIVER
+M:	Chen Yu <yu.c.chen@intel.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Supported
+F:	drivers/platform/x86/surfacepro3_button.c
 
 MICROTEK X6 SCANNER
 M:	Oliver Neukum <oliver@neukum.org>
@@ -9264,6 +9286,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/apparmor-dev.git
 S:	Supported
 F:	security/apparmor/
 
+YAMA SECURITY MODULE
+M:	Kees Cook <keescook@chromium.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git yama/tip
+S:	Supported
+F:	security/yama/
+
 SENSABLE PHANTOM
 M:	Jiri Slaby <jirislaby@gmail.com>
 S:	Maintained
@@ -10473,7 +10501,6 @@ F:	drivers/platform/x86/toshiba_haps.c
 
 TOSHIBA SMM DRIVER
 M:	Jonathan Buzzard <jonathan@buzzard.org.uk>
-L:	tlinux-users@tce.toshiba-dme.co.jp
 W:	http://www.buzzard.org.uk/toshiba/
 S:	Maintained
 F:	drivers/char/toshiba.c

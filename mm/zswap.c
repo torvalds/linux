@@ -446,75 +446,14 @@ enum zswap_get_swap_ret {
 static int zswap_get_swap_cache_page(swp_entry_t entry,
 				struct page **retpage)
 {
-	struct page *found_page, *new_page = NULL;
-	struct address_space *swapper_space = swap_address_space(entry);
-	int err;
+	bool page_was_allocated;
 
-	*retpage = NULL;
-	do {
-		/*
-		 * First check the swap cache.  Since this is normally
-		 * called after lookup_swap_cache() failed, re-calling
-		 * that would confuse statistics.
-		 */
-		found_page = find_get_page(swapper_space, entry.val);
-		if (found_page)
-			break;
-
-		/*
-		 * Get a new page to read into from swap.
-		 */
-		if (!new_page) {
-			new_page = alloc_page(GFP_KERNEL);
-			if (!new_page)
-				break; /* Out of memory */
-		}
-
-		/*
-		 * call radix_tree_preload() while we can wait.
-		 */
-		err = radix_tree_preload(GFP_KERNEL);
-		if (err)
-			break;
-
-		/*
-		 * Swap entry may have been freed since our caller observed it.
-		 */
-		err = swapcache_prepare(entry);
-		if (err == -EEXIST) { /* seems racy */
-			radix_tree_preload_end();
-			continue;
-		}
-		if (err) { /* swp entry is obsolete ? */
-			radix_tree_preload_end();
-			break;
-		}
-
-		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
-		__set_page_locked(new_page);
-		SetPageSwapBacked(new_page);
-		err = __add_to_swap_cache(new_page, entry);
-		if (likely(!err)) {
-			radix_tree_preload_end();
-			lru_cache_add_anon(new_page);
-			*retpage = new_page;
-			return ZSWAP_SWAPCACHE_NEW;
-		}
-		radix_tree_preload_end();
-		ClearPageSwapBacked(new_page);
-		__clear_page_locked(new_page);
-		/*
-		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-		 * clear SWAP_HAS_CACHE flag.
-		 */
-		swapcache_free(entry);
-	} while (err != -ENOMEM);
-
-	if (new_page)
-		page_cache_release(new_page);
-	if (!found_page)
+	*retpage = __read_swap_cache_async(entry, GFP_KERNEL,
+			NULL, 0, &page_was_allocated);
+	if (page_was_allocated)
+		return ZSWAP_SWAPCACHE_NEW;
+	if (!*retpage)
 		return ZSWAP_SWAPCACHE_FAIL;
-	*retpage = found_page;
 	return ZSWAP_SWAPCACHE_EXIST;
 }
 
@@ -816,7 +755,7 @@ static void zswap_frontswap_invalidate_area(unsigned type)
 	zswap_trees[type] = NULL;
 }
 
-static struct zpool_ops zswap_zpool_ops = {
+static const struct zpool_ops zswap_zpool_ops = {
 	.evict = zswap_writeback_entry
 };
 

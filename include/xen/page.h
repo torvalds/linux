@@ -9,8 +9,8 @@ static inline unsigned long page_to_mfn(struct page *page)
 }
 
 struct xen_memory_region {
-	phys_addr_t start;
-	phys_addr_t size;
+	unsigned long start_pfn;
+	unsigned long n_pfns;
 };
 
 #define XEN_EXTRA_MEM_MAX_REGIONS 128 /* == E820MAX */

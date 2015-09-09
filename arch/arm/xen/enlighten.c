@@ -45,13 +45,6 @@ static struct vcpu_info __percpu *xen_vcpu_info;
 unsigned long xen_released_pages;
 struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
-/* TODO: to be removed */
-__read_mostly int xen_have_vector_callback;
-EXPORT_SYMBOL_GPL(xen_have_vector_callback);
-
-int xen_platform_pci_unplug = XEN_UNPLUG_ALL;
-EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
-
 static __read_mostly unsigned int xen_events_irq;
 
 static __initdata struct device_node *xen_node;

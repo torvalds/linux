@@ -69,7 +69,7 @@
 #ifdef __x86_64__
 #define __NR_userfaultfd 323
 #elif defined(__i386__)
-#define __NR_userfaultfd 359
+#define __NR_userfaultfd 374
 #elif defined(__powewrpc__)
 #define __NR_userfaultfd 364
 #else
@@ -147,7 +147,8 @@ static void *locking_thread(void *arg)
 			if (sizeof(page_nr) > sizeof(rand_nr)) {
 				if (random_r(&rand, &rand_nr))
 					fprintf(stderr, "random_r 2 error\n"), exit(1);
-				page_nr |= ((unsigned long) rand_nr) << 32;
+				page_nr |= (((unsigned long) rand_nr) << 16) <<
+					   16;
 			}
 		} else
 			page_nr += 1;
@@ -290,7 +291,8 @@ static void *uffd_poll_thread(void *arg)
 				msg.event), exit(1);
 		if (msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
 			fprintf(stderr, "unexpected write fault\n"), exit(1);
-		offset = (char *)msg.arg.pagefault.address - area_dst;
+		offset = (char *)(unsigned long)msg.arg.pagefault.address -
+			 area_dst;
 		offset &= ~(page_size-1);
 		if (copy_page(offset))
 			userfaults++;
@@ -327,7 +329,8 @@ static void *uffd_read_thread(void *arg)
 		if (bounces & BOUNCE_VERIFY &&
 		    msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
 			fprintf(stderr, "unexpected write fault\n"), exit(1);
-		offset = (char *)msg.arg.pagefault.address - area_dst;
+		offset = (char *)(unsigned long)msg.arg.pagefault.address -
+			 area_dst;
 		offset &= ~(page_size-1);
 		if (copy_page(offset))
 			(*this_cpu_userfaults)++;

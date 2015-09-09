@@ -169,7 +169,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 #endif
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int arch_add_memory(int nid, u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
 	unsigned long normal_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
 	unsigned long dma_end_pfn = PFN_DOWN(MAX_DMA_ADDRESS);

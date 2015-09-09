@@ -391,11 +391,11 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 			VPRBRD_USB_REQUEST_I2C_FREQ, VPRBRD_USB_TYPE_OUT,
 			0x0000, 0x0000, &vb_i2c->bus_freq_param, 1,
 			VPRBRD_USB_TIMEOUT_MS);
-	    if (ret != 1) {
-		dev_err(&pdev->dev,
-			"failure setting i2c_bus_freq to %d\n", i2c_bus_freq);
-		return -EIO;
-	    }
+		if (ret != 1) {
+			dev_err(&pdev->dev, "failure setting i2c_bus_freq to %d\n",
+				i2c_bus_freq);
+			return -EIO;
+		}
 	} else {
 		dev_err(&pdev->dev,
 			"invalid i2c_bus_freq setting:%d\n", i2c_bus_freq);

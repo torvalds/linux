@@ -838,6 +838,7 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
 	}
 
 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
+		crt_early_log++;
 		kmemleak_disable();
 		return;
 	}
@@ -1882,7 +1883,7 @@ void __init kmemleak_init(void)
 	object_cache = KMEM_CACHE(kmemleak_object, SLAB_NOLEAKTRACE);
 	scan_area_cache = KMEM_CACHE(kmemleak_scan_area, SLAB_NOLEAKTRACE);
 
-	if (crt_early_log >= ARRAY_SIZE(early_log))
+	if (crt_early_log > ARRAY_SIZE(early_log))
 		pr_warning("Early log buffer exceeded (%d), please increase "
 			   "DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n", crt_early_log);
 

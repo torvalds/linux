@@ -249,6 +249,8 @@ struct vm_operations_struct {
 	void (*close)(struct vm_area_struct * area);
 	int (*mremap)(struct vm_area_struct * area);
 	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+	int (*pmd_fault)(struct vm_area_struct *, unsigned long address,
+						pmd_t *, unsigned int flags);
 	void (*map_pages)(struct vm_area_struct *vma, struct vm_fault *vmf);
 
 	/* notification that a previously read-only page is about to become
@@ -307,18 +309,6 @@ struct inode;
 #define page_private(page)		((page)->private)
 #define set_page_private(page, v)	((page)->private = (v))
 
-/* It's valid only if the page is free path or free_list */
-static inline void set_freepage_migratetype(struct page *page, int migratetype)
-{
-	page->index = migratetype;
-}
-
-/* It's valid only if the page is free path or free_list */
-static inline int get_freepage_migratetype(struct page *page)
-{
-	return page->index;
-}
-
 /*
  * FIXME: take this include out, include page-flags.h in
  * files which need it (119 of them)
@@ -359,20 +349,15 @@ static inline int get_page_unless_zero(struct page *page)
 	return atomic_inc_not_zero(&page->_count);
 }
 
-/*
- * Try to drop a ref unless the page has a refcount of one, return false if
- * that is the case.
- * This is to make sure that the refcount won't become zero after this drop.
- * This can be called when MMU is off so it must not access
- * any of the virtual mappings.
- */
-static inline int put_page_unless_one(struct page *page)
-{
-	return atomic_add_unless(&page->_count, -1, 1);
-}
-
 extern int page_is_ram(unsigned long pfn);
-extern int region_is_ram(resource_size_t phys_addr, unsigned long size);
+
+enum {
+	REGION_INTERSECTS,
+	REGION_DISJOINT,
+	REGION_MIXED,
+};
+
+int region_intersects(resource_size_t offset, size_t size, const char *type);
 
 /* Support for virtually mapped pages */
 struct page *vmalloc_to_page(const void *addr);
@@ -1258,6 +1243,11 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen);
 static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
 {
 	return vma && (vma->vm_end == addr) && (vma->vm_flags & VM_GROWSDOWN);
+}
+
+static inline bool vma_is_anonymous(struct vm_area_struct *vma)
+{
+	return !vma->vm_ops;
 }
 
 static inline int stack_guard_page_start(struct vm_area_struct *vma,
@@ -2186,6 +2176,7 @@ extern int memory_failure(unsigned long pfn, int trapno, int flags);
 extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
 extern int unpoison_memory(unsigned long pfn);
 extern int get_hwpoison_page(struct page *page);
+extern void put_hwpoison_page(struct page *page);
 extern int sysctl_memory_failure_early_kill;
 extern int sysctl_memory_failure_recovery;
 extern void shake_page(struct page *p, int access);

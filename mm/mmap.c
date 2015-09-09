@@ -2455,7 +2455,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	      unsigned long addr, int new_below)
 {
 	struct vm_area_struct *new;
-	int err = -ENOMEM;
+	int err;
 
 	if (is_vm_hugetlb_page(vma) && (addr &
 					~(huge_page_mask(hstate_vma(vma)))))
@@ -2463,7 +2463,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!new)
-		goto out_err;
+		return -ENOMEM;
 
 	/* most fields are the same, copy all, and then fixup */
 	*new = *vma;
@@ -2511,7 +2511,6 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	mpol_put(vma_policy(new));
  out_free_vma:
 	kmem_cache_free(vm_area_cachep, new);
- out_err:
 	return err;
 }
 
@@ -2872,6 +2871,13 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	struct vm_area_struct *prev;
 	struct rb_node **rb_link, *rb_parent;
 
+	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
+			   &prev, &rb_link, &rb_parent))
+		return -ENOMEM;
+	if ((vma->vm_flags & VM_ACCOUNT) &&
+	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
+		return -ENOMEM;
+
 	/*
 	 * The vm_pgoff of a purely anonymous vma should be irrelevant
 	 * until its first write fault, when page's anon_vma and index
@@ -2884,16 +2890,10 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 * using the existing file pgoff checks and manipulations.
 	 * Similarly in do_mmap_pgoff and in do_brk.
 	 */
-	if (!vma->vm_file) {
+	if (vma_is_anonymous(vma)) {
 		BUG_ON(vma->anon_vma);
 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
 	}
-	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
-			   &prev, &rb_link, &rb_parent))
-		return -ENOMEM;
-	if ((vma->vm_flags & VM_ACCOUNT) &&
-	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
-		return -ENOMEM;
 
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 	return 0;
@@ -2918,7 +2918,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	 * If anonymous vma has not yet been faulted, update new pgoff
 	 * to match new location, to increase its chance of merging.
 	 */
-	if (unlikely(!vma->vm_file && !vma->anon_vma)) {
+	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma)) {
 		pgoff = addr >> PAGE_SHIFT;
 		faulted_in_anon_vma = false;
 	}
@@ -2952,30 +2952,31 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
 	} else {
 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-		if (new_vma) {
-			*new_vma = *vma;
-			new_vma->vm_start = addr;
-			new_vma->vm_end = addr + len;
-			new_vma->vm_pgoff = pgoff;
-			if (vma_dup_policy(vma, new_vma))
-				goto out_free_vma;
-			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
-			if (anon_vma_clone(new_vma, vma))
-				goto out_free_mempol;
-			if (new_vma->vm_file)
-				get_file(new_vma->vm_file);
-			if (new_vma->vm_ops && new_vma->vm_ops->open)
-				new_vma->vm_ops->open(new_vma);
-			vma_link(mm, new_vma, prev, rb_link, rb_parent);
-			*need_rmap_locks = false;
-		}
+		if (!new_vma)
+			goto out;
+		*new_vma = *vma;
+		new_vma->vm_start = addr;
+		new_vma->vm_end = addr + len;
+		new_vma->vm_pgoff = pgoff;
+		if (vma_dup_policy(vma, new_vma))
+			goto out_free_vma;
+		INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+		if (anon_vma_clone(new_vma, vma))
+			goto out_free_mempol;
+		if (new_vma->vm_file)
+			get_file(new_vma->vm_file);
+		if (new_vma->vm_ops && new_vma->vm_ops->open)
+			new_vma->vm_ops->open(new_vma);
+		vma_link(mm, new_vma, prev, rb_link, rb_parent);
+		*need_rmap_locks = false;
 	}
 	return new_vma;
 
- out_free_mempol:
+out_free_mempol:
 	mpol_put(vma_policy(new_vma));
- out_free_vma:
+out_free_vma:
 	kmem_cache_free(vm_area_cachep, new_vma);
+out:
 	return NULL;
 }
 
@@ -3027,21 +3028,13 @@ static int special_mapping_fault(struct vm_area_struct *vma,
 	pgoff_t pgoff;
 	struct page **pages;
 
-	/*
-	 * special mappings have no vm_file, and in that case, the mm
-	 * uses vm_pgoff internally. So we have to subtract it from here.
-	 * We are allowed to do this because we are the mm; do not copy
-	 * this code into drivers!
-	 */
-	pgoff = vmf->pgoff - vma->vm_pgoff;
-
 	if (vma->vm_ops == &legacy_special_mapping_vmops)
 		pages = vma->vm_private_data;
 	else
 		pages = ((struct vm_special_mapping *)vma->vm_private_data)->
 			pages;
 
-	for (; pgoff && *pages; ++pages)
+	for (pgoff = vmf->pgoff; pgoff && *pages; ++pages)
 		pgoff--;
 
 	if (*pages) {
