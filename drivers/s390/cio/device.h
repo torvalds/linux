@@ -145,6 +145,7 @@ void ccw_device_set_timeout(struct ccw_device *, int);
 void retry_set_schib(struct ccw_device *cdev);
 void cmf_retry_copy_block(struct ccw_device *);
 int cmf_reenable(struct ccw_device *);
+void cmf_reactivate(void);
 int ccw_set_cmf(struct ccw_device *cdev, int enable);
 extern struct device_attribute dev_attr_cmb_enable;
 #endif

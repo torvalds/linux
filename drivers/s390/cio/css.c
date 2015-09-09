@@ -1089,6 +1089,7 @@ void channel_subsystem_reinit(void)
 		if (chp)
 			chp_update_desc(chp);
 	}
+	cmf_reactivate();
 }
 
 #ifdef CONFIG_PROC_FS

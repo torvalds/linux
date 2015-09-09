@@ -1312,6 +1312,19 @@ int cmf_reenable(struct ccw_device *cdev)
 	return cmbops->set(cdev, 2);
 }
 
+/**
+ * cmf_reactivate() - reactivate measurement block updates
+ *
+ * Use this during resume from hibernate.
+ */
+void cmf_reactivate(void)
+{
+	spin_lock(&cmb_area.lock);
+	if (!list_empty(&cmb_area.list))
+		cmf_activate(cmb_area.mem, 1);
+	spin_unlock(&cmb_area.lock);
+}
+
 static int __init init_cmbe(void)
 {
 	cmbe_cache = kmem_cache_create("cmbe_cache", sizeof(struct cmbe),
