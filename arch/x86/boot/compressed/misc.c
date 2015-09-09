@@ -424,7 +424,8 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 #endif
 
 	debug_putstr("\nDecompressing Linux... ");
-	decompress(input_data, input_len, NULL, NULL, output, NULL, error);
+	__decompress(input_data, input_len, NULL, NULL, output, output_len,
+			NULL, error);
 	parse_elf(output);
 	/*
 	 * 32-bit always performs relocations. 64-bit relocations are only
