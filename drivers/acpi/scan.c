@@ -1184,7 +1184,7 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
 	if (!id)
 		return;
 
-	id->id = kstrdup(dev_id, GFP_KERNEL);
+	id->id = kstrdup_const(dev_id, GFP_KERNEL);
 	if (!id->id) {
 		kfree(id);
 		return;
@@ -1322,7 +1322,7 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp)
 	struct acpi_hardware_id *id, *tmp;
 
 	list_for_each_entry_safe(id, tmp, &pnp->ids, list) {
-		kfree(id->id);
+		kfree_const(id->id);
 		kfree(id);
 	}
 	kfree(pnp->unique_id);
