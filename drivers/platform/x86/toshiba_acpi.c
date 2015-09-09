@@ -2525,11 +2525,9 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	if (error)
 		return error;
 
-	error = toshiba_hotkey_event_type_get(dev, &events_type);
-	if (error) {
-		pr_err("Unable to query Hotkey Event Type\n");
-		return error;
-	}
+	if (toshiba_hotkey_event_type_get(dev, &events_type))
+		pr_notice("Unable to query Hotkey Event Type\n");
+
 	dev->hotkey_event_type = events_type;
 
 	dev->hotkey_dev = input_allocate_device();
