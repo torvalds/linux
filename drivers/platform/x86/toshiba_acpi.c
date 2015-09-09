@@ -938,7 +938,7 @@ static int toshiba_usb_sleep_music_get(struct toshiba_acpi_dev *dev, u32 *state)
 	else if (result == TOS_NOT_SUPPORTED)
 		return -ENODEV;
 
-	return result = TOS_SUCCESS ? 0 : -EIO;
+	return result == TOS_SUCCESS ? 0 : -EIO;
 }
 
 static int toshiba_usb_sleep_music_set(struct toshiba_acpi_dev *dev, u32 state)
