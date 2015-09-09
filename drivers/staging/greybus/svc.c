@@ -104,6 +104,78 @@ int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id)
 }
 EXPORT_SYMBOL_GPL(gb_svc_intf_reset);
 
+int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
+			u32 *value)
+{
+	struct gb_svc_dme_peer_get_request request;
+	struct gb_svc_dme_peer_get_response response;
+	u16 result;
+	int ret;
+
+	request.intf_id = intf_id;
+	request.attr = cpu_to_le16(attr);
+	request.selector = cpu_to_le16(selector);
+
+	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_DME_PEER_GET,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret) {
+		dev_err(&svc->connection->dev,
+			"failed to get DME attribute (%hhu %hx %hu) %d\n",
+			intf_id, attr, selector, ret);
+		return ret;
+	}
+
+	result = le16_to_cpu(response.result_code);
+	if (result) {
+		dev_err(&svc->connection->dev,
+			"Unipro error %hu while getting DME attribute (%hhu %hx %hu)\n",
+			result, intf_id, attr, selector);
+		return -EINVAL;
+	}
+
+	if (value)
+		*value = le32_to_cpu(response.attr_value);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gb_svc_dme_peer_get);
+
+int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
+			u32 value)
+{
+	struct gb_svc_dme_peer_set_request request;
+	struct gb_svc_dme_peer_set_response response;
+	u16 result;
+	int ret;
+
+	request.intf_id = intf_id;
+	request.attr = cpu_to_le16(attr);
+	request.selector = cpu_to_le16(selector);
+	request.value = cpu_to_le32(value);
+
+	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_DME_PEER_SET,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret) {
+		dev_err(&svc->connection->dev,
+			"failed to set DME attribute (%hhu %hx %hu %u) %d\n",
+			intf_id, attr, selector, value, ret);
+		return ret;
+	}
+
+	result = le16_to_cpu(response.result_code);
+	if (result) {
+		dev_err(&svc->connection->dev,
+			"Unipro error %hu while setting DME attribute (%hhu %hx %hu %u)\n",
+			result, intf_id, attr, selector, value);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gb_svc_dme_peer_set);
+
 int gb_svc_connection_create(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
 				u8 intf2_id, u16 cport2_id)

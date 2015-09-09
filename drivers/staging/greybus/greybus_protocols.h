@@ -742,6 +742,8 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_RESET		0x06
 #define GB_SVC_TYPE_CONN_CREATE		0x07
 #define GB_SVC_TYPE_CONN_DESTROY	0x08
+#define GB_SVC_TYPE_DME_PEER_GET	0x09
+#define GB_SVC_TYPE_DME_PEER_SET	0x0a
 #define GB_SVC_TYPE_ROUTE_CREATE	0x0b
 #define GB_SVC_TYPE_ROUTE_DESTROY	0x0c
 
@@ -798,6 +800,28 @@ struct gb_svc_conn_destroy_request {
 	__u16	cport2_id;
 } __packed;
 /* connection destroy response has no payload */
+
+struct gb_svc_dme_peer_get_request {
+	__u8	intf_id;
+	__u16	attr;
+	__u16	selector;
+} __packed;
+
+struct gb_svc_dme_peer_get_response {
+	__u16	result_code;
+	__u32	attr_value;
+} __packed;
+
+struct gb_svc_dme_peer_set_request {
+	__u8	intf_id;
+	__u16	attr;
+	__u16	selector;
+	__u32	value;
+} __packed;
+
+struct gb_svc_dme_peer_set_response {
+	__u16	result_code;
+} __packed;
 
 struct gb_svc_route_create_request {
 	__u8	intf1_id;
