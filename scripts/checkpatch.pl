@@ -264,6 +264,7 @@ our $Sparse	= qr{
 			__kernel|
 			__force|
 			__iomem|
+			__pmem|
 			__must_check|
 			__init_refok|
 			__kprobes|
