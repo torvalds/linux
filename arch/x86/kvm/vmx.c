@@ -8677,16 +8677,15 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	vmx->rdtscp_enabled = false;
 	if (vmx_rdtscp_supported()) {
 		exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
-		if (exec_control & SECONDARY_EXEC_RDTSCP) {
-			best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
-			if (best && (best->edx & bit(X86_FEATURE_RDTSCP)))
-				vmx->rdtscp_enabled = true;
-			else {
-				exec_control &= ~SECONDARY_EXEC_RDTSCP;
-				vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
-						exec_control);
-			}
+		best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+		if (best && (best->edx & bit(X86_FEATURE_RDTSCP)))
+			vmx->rdtscp_enabled = true;
+		else {
+			exec_control &= ~SECONDARY_EXEC_RDTSCP;
+			vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+					exec_control);
 		}
+
 		if (nested && !vmx->rdtscp_enabled)
 			vmx->nested.nested_vmx_secondary_ctls_high &=
 				~SECONDARY_EXEC_RDTSCP;
