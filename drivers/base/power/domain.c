@@ -53,24 +53,6 @@
 static LIST_HEAD(gpd_list);
 static DEFINE_MUTEX(gpd_list_lock);
 
-static struct generic_pm_domain *pm_genpd_lookup_name(const char *domain_name)
-{
-	struct generic_pm_domain *genpd = NULL, *gpd;
-
-	if (IS_ERR_OR_NULL(domain_name))
-		return NULL;
-
-	mutex_lock(&gpd_list_lock);
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
-		if (!strcmp(gpd->name, domain_name)) {
-			genpd = gpd;
-			break;
-		}
-	}
-	mutex_unlock(&gpd_list_lock);
-	return genpd;
-}
-
 /*
  * Get the generic PM domain for a particular struct device.
  * This validates the struct device pointer, the PM domain pointer,
@@ -293,18 +275,6 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 	ret = __pm_genpd_poweron(genpd);
 	mutex_unlock(&genpd->lock);
 	return ret;
-}
-
-/**
- * pm_genpd_name_poweron - Restore power to a given PM domain and its masters.
- * @domain_name: Name of the PM domain to power up.
- */
-int pm_genpd_name_poweron(const char *domain_name)
-{
-	struct generic_pm_domain *genpd;
-
-	genpd = pm_genpd_lookup_name(domain_name);
-	return genpd ? pm_genpd_poweron(genpd) : -EINVAL;
 }
 
 static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
@@ -1317,18 +1287,6 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 }
 
 /**
- * __pm_genpd_name_add_device - Find I/O PM domain and add a device to it.
- * @domain_name: Name of the PM domain to add the device to.
- * @dev: Device to be added.
- * @td: Set of PM QoS timing parameters to attach to the device.
- */
-int __pm_genpd_name_add_device(const char *domain_name, struct device *dev,
-			       struct gpd_timing_data *td)
-{
-	return __pm_genpd_add_device(pm_genpd_lookup_name(domain_name), dev, td);
-}
-
-/**
  * pm_genpd_remove_device - Remove a device from an I/O PM domain.
  * @genpd: PM domain to remove the device from.
  * @dev: Device to be removed.
@@ -1426,35 +1384,6 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 	mutex_unlock(&genpd->lock);
 
 	return ret;
-}
-
-/**
- * pm_genpd_add_subdomain_names - Add a subdomain to an I/O PM domain.
- * @master_name: Name of the master PM domain to add the subdomain to.
- * @subdomain_name: Name of the subdomain to be added.
- */
-int pm_genpd_add_subdomain_names(const char *master_name,
-				 const char *subdomain_name)
-{
-	struct generic_pm_domain *master = NULL, *subdomain = NULL, *gpd;
-
-	if (IS_ERR_OR_NULL(master_name) || IS_ERR_OR_NULL(subdomain_name))
-		return -EINVAL;
-
-	mutex_lock(&gpd_list_lock);
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
-		if (!master && !strcmp(gpd->name, master_name))
-			master = gpd;
-
-		if (!subdomain && !strcmp(gpd->name, subdomain_name))
-			subdomain = gpd;
-
-		if (master && subdomain)
-			break;
-	}
-	mutex_unlock(&gpd_list_lock);
-
-	return pm_genpd_add_subdomain(master, subdomain);
 }
 
 /**
@@ -1566,16 +1495,6 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 }
 
 /**
- * pm_genpd_name_attach_cpuidle - Find PM domain and connect cpuidle to it.
- * @name: Name of the domain to connect to cpuidle.
- * @state: cpuidle state this domain can manipulate.
- */
-int pm_genpd_name_attach_cpuidle(const char *name, int state)
-{
-	return pm_genpd_attach_cpuidle(pm_genpd_lookup_name(name), state);
-}
-
-/**
  * pm_genpd_detach_cpuidle - Remove the cpuidle connection from a PM domain.
  * @genpd: PM domain to remove the cpuidle connection from.
  *
@@ -1611,15 +1530,6 @@ int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
  out:
 	mutex_unlock(&genpd->lock);
 	return ret;
-}
-
-/**
- * pm_genpd_name_detach_cpuidle - Find PM domain and disconnect cpuidle from it.
- * @name: Name of the domain to disconnect cpuidle from.
- */
-int pm_genpd_name_detach_cpuidle(const char *name)
-{
-	return pm_genpd_detach_cpuidle(pm_genpd_lookup_name(name));
 }
 
 /* Default device callbacks for generic PM domains. */
