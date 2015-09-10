@@ -918,11 +918,10 @@ static void rsnd_src_reconvert_update(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_IFSVR, fsrate);
 }
 
-static int rsnd_src_pcm_new(struct rsnd_mod *mod,
+static int rsnd_src_pcm_new_gen2(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
@@ -930,12 +929,6 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	/*
 	 * enable SRC sync convert if possible
 	 */
-
-	/*
-	 * Gen1 is not supported
-	 */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	/*
 	 * SRC sync convert needs clock master
@@ -975,7 +968,7 @@ static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.start	= rsnd_src_start_gen2,
 	.stop	= rsnd_src_stop_gen2,
 	.hw_params = rsnd_src_hw_params,
-	.pcm_new = rsnd_src_pcm_new,
+	.pcm_new = rsnd_src_pcm_new_gen2,
 };
 
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
