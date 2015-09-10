@@ -1,5 +1,5 @@
 /*
- * Atmel AT91 SAM9 SoCs reset code
+ * Atmel AT91 SAM9 & SAMA5 SoCs reset code
  *
  * Copyright (C) 2007 Atmel Corporation.
  * Copyright (C) BitBox Ltd 2010
