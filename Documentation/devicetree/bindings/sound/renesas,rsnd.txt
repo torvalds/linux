@@ -30,6 +30,8 @@ Required properties:
 - rcar_sound,dai		: DAI contents.
 				  The number of DAI subnode should be same as HW.
 				  see below for detail.
+- #sound-dai-cells		: it must be 0 if your system is using single DAI
+				  it must be 1 if your system is using multi  DAI
 
 SSI subnode properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer
