@@ -214,6 +214,7 @@ struct rsnd_dma {
 };
 #define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
 #define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
+#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
 void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
@@ -224,8 +225,6 @@ int rsnd_dma_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
 					  struct rsnd_mod *mod, char *name);
-
-#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
 /*
  *	R-Car sound mod
