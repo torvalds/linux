@@ -789,17 +789,17 @@ enum rmf_flags {
 	/**
 	 * The field is a string, must be NUL-terminated.
 	 */
-	RMF_F_STRING = 1 << 0,
+	RMF_F_STRING = BIT(0),
 	/**
 	 * The field's buffer size need not match the declared \a rmf_size.
 	 */
-	RMF_F_NO_SIZE_CHECK = 1 << 1,
+	RMF_F_NO_SIZE_CHECK = BIT(1),
 	/**
 	 * The field's buffer size must be a whole multiple of the declared \a
 	 * rmf_size and the \a rmf_swabber function must work on the declared \a
 	 * rmf_size worth of bytes.
 	 */
-	RMF_F_STRUCT_ARRAY = 1 << 2
+	RMF_F_STRUCT_ARRAY = BIT(2)
 };
 
 struct req_capsule;
