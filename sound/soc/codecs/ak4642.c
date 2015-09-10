@@ -584,7 +584,8 @@ static const struct of_device_id ak4642_of_match[];
 static int ak4642_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device *dev = &i2c->dev;
+	struct device_node *np = dev->of_node;
 	const struct ak4642_drvdata *drvdata = NULL;
 	struct regmap *regmap;
 	struct ak4642_priv *priv;
@@ -592,7 +593,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	if (np) {
 		const struct of_device_id *of_id;
 
-		of_id = of_match_device(ak4642_of_match, &i2c->dev);
+		of_id = of_match_device(ak4642_of_match, dev);
 		if (of_id)
 			drvdata = of_id->data;
 	} else {
@@ -600,11 +601,11 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (!drvdata) {
-		dev_err(&i2c->dev, "Unknown device type\n");
+		dev_err(dev, "Unknown device type\n");
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -616,7 +617,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return snd_soc_register_codec(&i2c->dev,
+	return snd_soc_register_codec(dev,
 				      &soc_codec_dev_ak4642, &ak4642_dai, 1);
 }
 
