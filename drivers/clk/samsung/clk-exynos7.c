@@ -789,7 +789,7 @@ CLK_OF_DECLARE(exynos7_clk_peric1, "samsung,exynos7-clock-peric1",
 #define ENABLE_SCLK_PERIS_SECURE_CHIPID	0x0A10
 
 /* List of parent clocks for Muxes in CMU_PERIS */
-PNAME(mout_aclk_peris_66_p) = { "fin_pll", "dout_aclk_peris_66" };
+PNAME(mout_aclk_peris_66_user_p) = { "fin_pll", "aclk_peris_66" };
 
 static unsigned long peris_clk_regs[] __initdata = {
 	MUX_SEL_PERIS,
@@ -801,7 +801,7 @@ static unsigned long peris_clk_regs[] __initdata = {
 
 static struct samsung_mux_clock peris_mux_clks[] __initdata = {
 	MUX(0, "mout_aclk_peris_66_user",
-		mout_aclk_peris_66_p, MUX_SEL_PERIS, 0, 1),
+		mout_aclk_peris_66_user_p, MUX_SEL_PERIS, 0, 1),
 };
 
 static struct samsung_gate_clock peris_gate_clks[] __initdata = {
