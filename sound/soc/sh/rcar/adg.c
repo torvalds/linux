@@ -7,6 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <linux/clk-provider.h>
 #include "rsnd.h"
 
 #define CLKA	0
@@ -14,6 +15,12 @@
 #define CLKC	2
 #define CLKI	3
 #define CLKMAX	4
+
+#define CLKOUT	0
+#define CLKOUT1	1
+#define CLKOUT2	2
+#define CLKOUT3	3
+#define CLKOUTMAX 4
 
 #define BRRx_MASK(x) (0x3FF & x)
 
@@ -23,6 +30,8 @@ static struct rsnd_mod_ops adg_ops = {
 
 struct rsnd_adg {
 	struct clk *clk[CLKMAX];
+	struct clk *clkout[CLKOUTMAX];
+	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
 
 	int rbga_rate_for_441khz; /* RBGA */
@@ -33,6 +42,11 @@ struct rsnd_adg {
 	for (i = 0;				\
 	     (i < CLKMAX) &&			\
 	     ((pos) = adg->clk[i]);		\
+	     i++)
+#define for_each_rsnd_clkout(pos, adg, i)	\
+	for (i = 0;				\
+	     (i < CLKOUTMAX) &&			\
+	     ((pos) = adg->clkout[i]);	\
 	     i++)
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
@@ -416,20 +430,45 @@ static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 		dev_dbg(dev, "clk %d : %p : %ld\n", i, clk, clk_get_rate(clk));
 }
 
-static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
+static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
+				struct rsnd_adg *adg)
 {
 	struct clk *clk;
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	unsigned long rate, div;
+	struct device_node *np = dev->of_node;
 	u32 ckr, rbgx, rbga, rbgb;
+	u32 rate, req_rate, div;
+	uint32_t count = 0;
+	unsigned long req_48kHz_rate, req_441kHz_rate;
 	int i;
+	const char *parent_clk_name = NULL;
+	static const char * const clkout_name[] = {
+		[CLKOUT]  = "audio_clkout",
+		[CLKOUT1] = "audio_clkout1",
+		[CLKOUT2] = "audio_clkout2",
+		[CLKOUT3] = "audio_clkout3",
+	};
 	int brg_table[] = {
 		[CLKA] = 0x0,
 		[CLKB] = 0x1,
 		[CLKC] = 0x4,
 		[CLKI] = 0x2,
 	};
+
+	of_property_read_u32(np, "#clock-cells", &count);
+
+	/*
+	 * ADG supports BRRA/BRRB output only
+	 * this means all clkout0/1/2/3 will be same rate
+	 */
+	of_property_read_u32(np, "clock-frequency", &req_rate);
+	req_48kHz_rate = 0;
+	req_441kHz_rate = 0;
+	if (0 == (req_rate % 44100))
+		req_441kHz_rate = req_rate;
+	if (0 == (req_rate % 48000))
+		req_48kHz_rate = req_rate;
 
 	/*
 	 * This driver is assuming that AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC
@@ -454,22 +493,72 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 		/* RBGA */
 		if (!adg->rbga_rate_for_441khz && (0 == rate % 44100)) {
 			div = 6;
+			if (req_441kHz_rate)
+				div = rate / req_441kHz_rate;
 			rbgx = rsnd_adg_calculate_rbgx(div);
 			if (BRRx_MASK(rbgx) == rbgx) {
 				rbga = rbgx;
 				adg->rbga_rate_for_441khz = rate / div;
 				ckr |= brg_table[i] << 20;
+				if (req_441kHz_rate)
+					parent_clk_name = __clk_get_name(clk);
 			}
 		}
 
 		/* RBGB */
 		if (!adg->rbgb_rate_for_48khz && (0 == rate % 48000)) {
 			div = 6;
+			if (req_48kHz_rate)
+				div = rate / req_48kHz_rate;
 			rbgx = rsnd_adg_calculate_rbgx(div);
 			if (BRRx_MASK(rbgx) == rbgx) {
 				rbgb = rbgx;
 				adg->rbgb_rate_for_48khz = rate / div;
 				ckr |= brg_table[i] << 16;
+				if (req_48kHz_rate) {
+					parent_clk_name = __clk_get_name(clk);
+					ckr |= 0x80000000;
+				}
+			}
+		}
+	}
+
+	/*
+	 * ADG supports BRRA/BRRB output only.
+	 * this means all clkout0/1/2/3 will be * same rate
+	 */
+
+	/*
+	 * for clkout
+	 */
+	if (!count) {
+		clk = clk_register_fixed_rate(dev, clkout_name[i],
+					      parent_clk_name,
+					      (parent_clk_name) ?
+					      0 : CLK_IS_ROOT, req_rate);
+		if (!IS_ERR(clk)) {
+			adg->clkout[CLKOUT] = clk;
+			of_clk_add_provider(np, of_clk_src_simple_get, clk);
+		}
+	}
+	/*
+	 * for clkout0/1/2/3
+	 */
+	else {
+		for (i = 0; i < CLKOUTMAX; i++) {
+			clk = clk_register_fixed_rate(dev, clkout_name[i],
+						      parent_clk_name,
+						      (parent_clk_name) ?
+						      0 : CLK_IS_ROOT,
+						      req_rate);
+			if (!IS_ERR(clk)) {
+				adg->onecell.clks	= adg->clkout;
+				adg->onecell.clk_num	= CLKOUTMAX;
+
+				adg->clkout[i] = clk;
+
+				of_clk_add_provider(np, of_clk_src_onecell_get,
+						    &adg->onecell);
 			}
 		}
 	}
@@ -478,6 +567,8 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 	rsnd_mod_write(adg_mod, BRRA,  rbga);
 	rsnd_mod_write(adg_mod, BRRB,  rbgb);
 
+	for_each_rsnd_clkout(clk, adg, i)
+		dev_dbg(dev, "clkout %d : %p : %ld\n", i, clk, clk_get_rate(clk));
 	dev_dbg(dev, "SSICKR = 0x%08x, BRRA/BRRB = 0x%x/0x%x\n",
 		ckr, rbga, rbgb);
 }
@@ -504,8 +595,7 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	adg->mod.priv = priv;
 
 	rsnd_adg_get_clkin(priv, adg);
-
-	rsnd_adg_ssi_clk_init(priv, adg);
+	rsnd_adg_get_clkout(priv, adg);
 
 	priv->adg = adg;
 
