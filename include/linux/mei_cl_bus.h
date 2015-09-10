@@ -93,5 +93,6 @@ void mei_cl_set_drvdata(struct mei_cl_device *device, void *data);
 
 int mei_cl_enable_device(struct mei_cl_device *device);
 int mei_cl_disable_device(struct mei_cl_device *device);
+bool mei_cldev_enabled(struct mei_cl_device *cldev);
 
 #endif /* _LINUX_MEI_CL_BUS_H */

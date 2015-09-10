@@ -368,6 +368,19 @@ u8 mei_cldev_ver(const struct mei_cl_device *cldev)
 EXPORT_SYMBOL_GPL(mei_cldev_ver);
 
 /**
+ * mei_cldev_enabled - check whether the device is enabled
+ *
+ * @cldev: mei client device
+ *
+ * Return: true if me client is initialized and connected
+ */
+bool mei_cldev_enabled(struct mei_cl_device *cldev)
+{
+	return cldev->cl && mei_cl_is_connected(cldev->cl);
+}
+EXPORT_SYMBOL_GPL(mei_cldev_enabled);
+
+/**
  * mei_cl_enable_device - enable me client device
  *     create connection with me client
  *
