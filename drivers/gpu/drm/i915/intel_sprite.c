@@ -927,8 +927,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 
 	crtc = crtc ? crtc : plane->crtc;
 
-	plane->fb = fb;
-
 	if (!crtc->state->active)
 		return;
 

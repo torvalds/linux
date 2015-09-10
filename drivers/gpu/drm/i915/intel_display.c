@@ -13634,10 +13634,6 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
-	plane->fb = state->base.fb;
-	crtc->cursor_x = state->base.crtc_x;
-	crtc->cursor_y = state->base.crtc_y;
-
 	if (intel_crtc->cursor_bo == obj)
 		goto update;
 
