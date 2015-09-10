@@ -25,6 +25,8 @@
 #include <linux/pm_opp.h>
 #include <linux/thermal.h>
 
+#include <trace/events/thermal.h>
+
 static DEFINE_MUTEX(devfreq_lock);
 static DEFINE_IDR(devfreq_idr);
 
@@ -293,6 +295,9 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 	/* Get static power */
 	static_power = get_static_power(dfc, freq);
 
+	trace_thermal_power_devfreq_get_power(cdev, status, freq, dyn_power,
+					      static_power);
+
 	*power = dyn_power + static_power;
 
 	return 0;
@@ -348,6 +353,7 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 			break;
 
 	*state = i;
+	trace_thermal_power_devfreq_limit(cdev, freq, *state, power);
 	return 0;
 }
 
