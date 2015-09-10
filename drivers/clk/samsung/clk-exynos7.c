@@ -515,6 +515,8 @@ static struct samsung_gate_clock top1_gate_clks[] __initdata = {
 
 	GATE(CLK_ACLK_FSYS0_200, "aclk_fsys0_200", "dout_aclk_fsys0_200",
 		ENABLE_ACLK_TOP13, 28, CLK_SET_RATE_PARENT, 0),
+	GATE(CLK_ACLK_FSYS1_200, "aclk_fsys1_200", "dout_aclk_fsys1_200",
+		ENABLE_ACLK_TOP13, 24, CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_fixed_factor_clock top1_fixed_factor_clks[] __initdata = {
@@ -957,9 +959,9 @@ CLK_OF_DECLARE(exynos7_clk_fsys0, "samsung,exynos7-clock-fsys0",
 /*
  * List of parent clocks for Muxes in CMU_FSYS1
  */
-PNAME(mout_aclk_fsys1_200_p)	= { "fin_pll",  "dout_aclk_fsys1_200" };
-PNAME(mout_sclk_mmc0_p)		= { "fin_pll", "sclk_mmc0" };
-PNAME(mout_sclk_mmc1_p)		= { "fin_pll", "sclk_mmc1" };
+PNAME(mout_aclk_fsys1_200_user_p)	= { "fin_pll", "aclk_fsys1_200" };
+PNAME(mout_sclk_mmc0_user_p)		= { "fin_pll", "sclk_mmc0" };
+PNAME(mout_sclk_mmc1_user_p)		= { "fin_pll", "sclk_mmc1" };
 
 static unsigned long fsys1_clk_regs[] __initdata = {
 	MUX_SEL_FSYS10,
@@ -968,11 +970,13 @@ static unsigned long fsys1_clk_regs[] __initdata = {
 };
 
 static struct samsung_mux_clock fsys1_mux_clks[] __initdata = {
-	MUX(0, "mout_aclk_fsys1_200_user", mout_aclk_fsys1_200_p,
+	MUX(0, "mout_aclk_fsys1_200_user", mout_aclk_fsys1_200_user_p,
 		MUX_SEL_FSYS10, 28, 1),
 
-	MUX(0, "mout_sclk_mmc1_user", mout_sclk_mmc1_p, MUX_SEL_FSYS11, 24, 1),
-	MUX(0, "mout_sclk_mmc0_user", mout_sclk_mmc0_p, MUX_SEL_FSYS11, 28, 1),
+	MUX(0, "mout_sclk_mmc1_user", mout_sclk_mmc1_user_p,
+		MUX_SEL_FSYS11, 24, 1),
+	MUX(0, "mout_sclk_mmc0_user", mout_sclk_mmc0_user_p,
+		MUX_SEL_FSYS11, 28, 1),
 };
 
 static struct samsung_gate_clock fsys1_gate_clks[] __initdata = {
