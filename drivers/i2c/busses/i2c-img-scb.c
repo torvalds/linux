@@ -1179,9 +1179,7 @@ static int img_i2c_init(struct img_i2c *i2c)
 		int_bitrate++;
 
 	/* Setup TCKH value */
-	tckh = timing.tckh / clk_period;
-	if (timing.tckh % clk_period)
-		tckh++;
+	tckh = DIV_ROUND_UP(timing.tckh, clk_period);
 
 	if (tckh > 0)
 		data = tckh - 1;
@@ -1201,9 +1199,7 @@ static int img_i2c_init(struct img_i2c *i2c)
 	img_i2c_writel(i2c, SCB_TIME_TCKL_REG, data);
 
 	/* Setup TSDH value */
-	tsdh = timing.tsdh / clk_period;
-	if (timing.tsdh % clk_period)
-		tsdh++;
+	tsdh = DIV_ROUND_UP(timing.tsdh, clk_period);
 
 	if (tsdh > 1)
 		data = tsdh - 1;
