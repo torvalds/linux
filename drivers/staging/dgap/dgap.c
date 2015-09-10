@@ -1866,7 +1866,6 @@ static int dgap_event(struct board_t *bd)
 	int port;
 	int reason;
 	int modem;
-	int b1;
 
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return -EIO;
@@ -1911,7 +1910,7 @@ static int dgap_event(struct board_t *bd)
 		port   = ioread8(event);
 		reason = ioread8(event + 1);
 		modem  = ioread8(event + 2);
-		b1     = ioread8(event + 3);
+		ioread8(event + 3);
 
 		/*
 		 * Make sure the interrupt is valid.
@@ -4570,7 +4569,6 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
  */
 static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 {
-	struct ktermios *ts;
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
@@ -4590,8 +4588,6 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
-
-	ts = &tty->termios;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
