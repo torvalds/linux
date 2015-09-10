@@ -222,6 +222,17 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
+	emac_pins_b: emac0@1 {
+		allwinner,pins = "PD6", "PD7", "PD10",
+				"PD11", "PD12", "PD13", "PD14",
+				"PD15", "PD18", "PD19", "PD20",
+				"PD21", "PD22", "PD23", "PD24",
+				"PD25", "PD26", "PD27";
+		allwinner,function = "emac";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 	mmc1_pins_a: mmc1@0 {
 		allwinner,pins = "PG3", "PG4", "PG5",
 				 "PG6", "PG7", "PG8";
