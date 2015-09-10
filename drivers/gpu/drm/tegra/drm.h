@@ -279,10 +279,10 @@ void tegra_fb_output_poll_changed(struct drm_device *drm);
 #endif
 
 extern struct platform_driver tegra_dc_driver;
-extern struct platform_driver tegra_dsi_driver;
-extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_hdmi_driver;
+extern struct platform_driver tegra_dsi_driver;
 extern struct platform_driver tegra_dpaux_driver;
+extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;
 

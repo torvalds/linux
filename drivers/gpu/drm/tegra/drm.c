@@ -1076,6 +1076,16 @@ static struct host1x_driver host1x_drm_driver = {
 	.subdevs = host1x_drm_subdevs,
 };
 
+static struct platform_driver * const drivers[] = {
+	&tegra_dc_driver,
+	&tegra_hdmi_driver,
+	&tegra_dsi_driver,
+	&tegra_dpaux_driver,
+	&tegra_sor_driver,
+	&tegra_gr2d_driver,
+	&tegra_gr3d_driver,
+};
+
 static int __init host1x_drm_init(void)
 {
 	int err;
@@ -1084,48 +1094,12 @@ static int __init host1x_drm_init(void)
 	if (err < 0)
 		return err;
 
-	err = platform_driver_register(&tegra_dc_driver);
+	err = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (err < 0)
 		goto unregister_host1x;
 
-	err = platform_driver_register(&tegra_dsi_driver);
-	if (err < 0)
-		goto unregister_dc;
-
-	err = platform_driver_register(&tegra_sor_driver);
-	if (err < 0)
-		goto unregister_dsi;
-
-	err = platform_driver_register(&tegra_hdmi_driver);
-	if (err < 0)
-		goto unregister_sor;
-
-	err = platform_driver_register(&tegra_dpaux_driver);
-	if (err < 0)
-		goto unregister_hdmi;
-
-	err = platform_driver_register(&tegra_gr2d_driver);
-	if (err < 0)
-		goto unregister_dpaux;
-
-	err = platform_driver_register(&tegra_gr3d_driver);
-	if (err < 0)
-		goto unregister_gr2d;
-
 	return 0;
 
-unregister_gr2d:
-	platform_driver_unregister(&tegra_gr2d_driver);
-unregister_dpaux:
-	platform_driver_unregister(&tegra_dpaux_driver);
-unregister_hdmi:
-	platform_driver_unregister(&tegra_hdmi_driver);
-unregister_sor:
-	platform_driver_unregister(&tegra_sor_driver);
-unregister_dsi:
-	platform_driver_unregister(&tegra_dsi_driver);
-unregister_dc:
-	platform_driver_unregister(&tegra_dc_driver);
 unregister_host1x:
 	host1x_driver_unregister(&host1x_drm_driver);
 	return err;
@@ -1134,13 +1108,7 @@ module_init(host1x_drm_init);
 
 static void __exit host1x_drm_exit(void)
 {
-	platform_driver_unregister(&tegra_gr3d_driver);
-	platform_driver_unregister(&tegra_gr2d_driver);
-	platform_driver_unregister(&tegra_dpaux_driver);
-	platform_driver_unregister(&tegra_hdmi_driver);
-	platform_driver_unregister(&tegra_sor_driver);
-	platform_driver_unregister(&tegra_dsi_driver);
-	platform_driver_unregister(&tegra_dc_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 	host1x_driver_unregister(&host1x_drm_driver);
 }
 module_exit(host1x_drm_exit);
