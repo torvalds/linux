@@ -101,18 +101,6 @@ static struct notifier_block g_dev_notifier = {
 		if (g_linux_wlan->oup.wlan_cleanup != NULL) \
 			g_linux_wlan->oup.wlan_cleanup(); }
 
-#ifndef STA_FIRMWARE
-#define STA_FIRMWARE	"wifi_firmware.bin"
-#endif
-
-#ifndef AP_FIRMWARE
-#define AP_FIRMWARE		"wifi_firmware_ap.bin"
-#endif
-
-#ifndef P2P_CONCURRENCY_FIRMWARE
-#define P2P_CONCURRENCY_FIRMWARE	"wifi_firmware_p2p_concurrency.bin"
-#endif
-
 typedef struct android_wifi_priv_cmd {
 	char *buf;
 	int used_len;
