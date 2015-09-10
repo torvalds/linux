@@ -38,13 +38,17 @@ static int vsp1_drm_pipeline_run(struct vsp1_pipeline *pipe)
 		struct vsp1_entity *entity;
 
 		list_for_each_entry(entity, &pipe->entities, list_pipe) {
-			/* Skip unused RPFs. */
+			/* Disconnect unused RPFs from the pipeline. */
 			if (entity->type == VSP1_ENTITY_RPF) {
 				struct vsp1_rwpf *rpf =
 					to_rwpf(&entity->subdev);
 
-				if (!pipe->inputs[rpf->entity.index])
+				if (!pipe->inputs[rpf->entity.index]) {
+					vsp1_write(entity->vsp1,
+						   entity->route->reg,
+						   VI6_DPR_NODE_UNUSED);
 					continue;
+				}
 			}
 
 			vsp1_entity_route_setup(entity);
