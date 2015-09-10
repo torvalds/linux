@@ -1130,9 +1130,6 @@ static int img_i2c_init(struct img_i2c *i2c)
 	/* Fencing enabled by default. */
 	i2c->need_wr_rd_fence = true;
 
-	bitrate_khz = i2c->bitrate / 1000;
-	clk_khz = clk_get_rate(i2c->scb_clk) / 1000;
-
 	/* Determine what mode we're in from the bitrate */
 	timing = timings[0];
 	for (i = 0; i < ARRAY_SIZE(timings); i++) {
@@ -1141,6 +1138,17 @@ static int img_i2c_init(struct img_i2c *i2c)
 			break;
 		}
 	}
+	if (i2c->bitrate > timings[ARRAY_SIZE(timings) - 1].max_bitrate) {
+		dev_warn(i2c->adap.dev.parent,
+			 "requested bitrate (%u) is higher than the max bitrate supported (%u)\n",
+			 i2c->bitrate,
+			 timings[ARRAY_SIZE(timings) - 1].max_bitrate);
+		timing = timings[ARRAY_SIZE(timings) - 1];
+		i2c->bitrate = timing.max_bitrate;
+	}
+
+	bitrate_khz = i2c->bitrate / 1000;
+	clk_khz = clk_get_rate(i2c->scb_clk) / 1000;
 
 	/* Find the prescale that would give us that inc (approx delay = 0) */
 	prescale = SCB_OPT_INC * clk_khz / (256 * 16 * bitrate_khz);
