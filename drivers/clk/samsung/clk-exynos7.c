@@ -32,7 +32,9 @@
 #define DIV_TOPC0		0x0600
 #define DIV_TOPC1		0x0604
 #define DIV_TOPC3		0x060C
+#define ENABLE_ACLK_TOPC0	0x0800
 #define ENABLE_ACLK_TOPC1	0x0804
+#define ENABLE_SCLK_TOPC1	0x0A04
 
 static struct samsung_fixed_factor_clock topc_fixed_factor_clks[] __initdata = {
 	FFACTOR(0, "ffac_topc_bus0_pll_div2", "mout_topc_bus0_pll", 1, 2, 0),
@@ -143,8 +145,33 @@ static struct samsung_pll_rate_table pll1460x_24mhz_tbl[] __initdata = {
 };
 
 static struct samsung_gate_clock topc_gate_clks[] __initdata = {
+	GATE(ACLK_CCORE_133, "aclk_ccore_133", "dout_aclk_ccore_133",
+		ENABLE_ACLK_TOPC0, 4, 0, 0),
+
 	GATE(ACLK_MSCL_532, "aclk_mscl_532", "dout_aclk_mscl_532",
 		ENABLE_ACLK_TOPC1, 20, 0, 0),
+
+	GATE(ACLK_PERIS_66, "aclk_peris_66", "dout_aclk_peris_66",
+		ENABLE_ACLK_TOPC1, 24, 0, 0),
+
+	GATE(SCLK_AUD_PLL, "sclk_aud_pll", "dout_sclk_aud_pll",
+		ENABLE_SCLK_TOPC1, 20, 0, 0),
+	GATE(SCLK_MFC_PLL_B, "sclk_mfc_pll_b", "dout_sclk_mfc_pll",
+		ENABLE_SCLK_TOPC1, 17, 0, 0),
+	GATE(SCLK_MFC_PLL_A, "sclk_mfc_pll_a", "dout_sclk_mfc_pll",
+		ENABLE_SCLK_TOPC1, 16, 0, 0),
+	GATE(SCLK_BUS1_PLL_B, "sclk_bus1_pll_b", "dout_sclk_bus1_pll",
+		ENABLE_SCLK_TOPC1, 13, 0, 0),
+	GATE(SCLK_BUS1_PLL_A, "sclk_bus1_pll_a", "dout_sclk_bus1_pll",
+		ENABLE_SCLK_TOPC1, 12, 0, 0),
+	GATE(SCLK_BUS0_PLL_B, "sclk_bus0_pll_b", "dout_sclk_bus0_pll",
+		ENABLE_SCLK_TOPC1, 5, 0, 0),
+	GATE(SCLK_BUS0_PLL_A, "sclk_bus0_pll_a", "dout_sclk_bus0_pll",
+		ENABLE_SCLK_TOPC1, 4, 0, 0),
+	GATE(SCLK_CC_PLL_B, "sclk_cc_pll_b", "dout_sclk_cc_pll",
+		ENABLE_SCLK_TOPC1, 1, 0, 0),
+	GATE(SCLK_CC_PLL_A, "sclk_cc_pll_a", "dout_sclk_cc_pll",
+		ENABLE_SCLK_TOPC1, 0, 0, 0),
 };
 
 static struct samsung_pll_clock topc_pll_clks[] __initdata = {

@@ -21,7 +21,18 @@
 #define ACLK_MSCL_532			8
 #define DOUT_SCLK_AUD_PLL		9
 #define FOUT_AUD_PLL			10
-#define TOPC_NR_CLK			11
+#define SCLK_AUD_PLL			11
+#define SCLK_MFC_PLL_B			12
+#define SCLK_MFC_PLL_A			13
+#define SCLK_BUS1_PLL_B			14
+#define SCLK_BUS1_PLL_A			15
+#define SCLK_BUS0_PLL_B			16
+#define SCLK_BUS0_PLL_A			17
+#define SCLK_CC_PLL_B			18
+#define SCLK_CC_PLL_A			19
+#define ACLK_CCORE_133			20
+#define ACLK_PERIS_66			21
+#define TOPC_NR_CLK			22
 
 /* TOP0 */
 #define DOUT_ACLK_PERIC1		1
