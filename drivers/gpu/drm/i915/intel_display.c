@@ -14907,8 +14907,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	if (crtc->active) {
 		struct intel_plane *plane;
 
-		drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
-		update_scanline_offset(crtc);
 		drm_crtc_vblank_on(&crtc->base);
 
 		/* Disable everything but the primary plane */
@@ -15204,6 +15202,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * recalculation.
 			 */
 			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
+
+			drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
+			update_scanline_offset(crtc);
 		}
 	}
 }
