@@ -30,7 +30,7 @@
 #define USB8797_PID_2		0x2044
 #define USB8801_PID_1		0x2049
 #define USB8801_PID_2		0x204a
-#define USB8997_PID_1		0x204d
+#define USB8997_PID_1		0x2052
 #define USB8997_PID_2		0x204e
 
 
