@@ -2792,6 +2792,7 @@ void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 			clear_probe_trace_event(&pevs[i].tevs[j]);
 		zfree(&pevs[i].tevs);
 		pevs[i].ntevs = 0;
+		clear_perf_probe_event(&pevs[i]);
 	}
 
 	exit_symbol_maps();
