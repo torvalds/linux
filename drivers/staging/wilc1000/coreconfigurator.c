@@ -87,14 +87,6 @@ typedef enum {
 	FRAME_SUBTYPE_FORCE_32BIT  = 0xFFFFFFFF
 } tenuFrmSubtype;
 
-/* Basic Frame Classes */
-typedef enum {
-	CLASS1_FRAME_TYPE      = 0x00,
-	CLASS2_FRAME_TYPE      = 0x01,
-	CLASS3_FRAME_TYPE      = 0x02,
-	FRAME_CLASS_FORCE_32BIT  = 0xFFFFFFFF
-} tenuFrameClass;
-
 /* Element ID  of various Information Elements */
 typedef enum {
 	ISSID               = 0,   /* Service Set Identifier         */
