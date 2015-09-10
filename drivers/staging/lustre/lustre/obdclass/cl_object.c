@@ -1075,7 +1075,7 @@ static struct lu_kmem_descr cl_object_caches[] = {
 	{
 		.ckd_cache = &cl_env_kmem,
 		.ckd_name  = "cl_env_kmem",
-		.ckd_size  = sizeof (struct cl_env)
+		.ckd_size  = sizeof(struct cl_env)
 	},
 	{
 		.ckd_cache = NULL
