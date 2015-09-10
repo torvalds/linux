@@ -317,8 +317,9 @@ struct gru_mm_struct *gru_register_mmu_notifier(void)
 				goto error;
 		}
 	}
-	gru_dbg(grudev, "gms %p, refcnt %d\n", gms,
-		atomic_read(&gms->ms_refcnt));
+	if (gms)
+		gru_dbg(grudev, "gms %p, refcnt %d\n", gms,
+			atomic_read(&gms->ms_refcnt));
 	return gms;
 error:
 	kfree(gms);
