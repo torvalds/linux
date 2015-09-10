@@ -512,6 +512,9 @@ static struct samsung_gate_clock top1_gate_clks[] __initdata = {
 		ENABLE_SCLK_TOP1_FSYS11, 0, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_MMC0, "sclk_mmc0", "dout_sclk_mmc0",
 		ENABLE_SCLK_TOP1_FSYS11, 12, CLK_SET_RATE_PARENT, 0),
+
+	GATE(CLK_ACLK_FSYS0_200, "aclk_fsys0_200", "dout_aclk_fsys0_200",
+		ENABLE_ACLK_TOP13, 28, CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_fixed_factor_clock top1_fixed_factor_clks[] __initdata = {
@@ -849,13 +852,13 @@ CLK_OF_DECLARE(exynos7_clk_peris, "samsung,exynos7-clock-peris",
 /*
  * List of parent clocks for Muxes in CMU_FSYS0
  */
-PNAME(mout_aclk_fsys0_200_p)	= { "fin_pll", "dout_aclk_fsys0_200" };
-PNAME(mout_sclk_mmc2_p)		= { "fin_pll", "sclk_mmc2" };
+PNAME(mout_aclk_fsys0_200_user_p)	= { "fin_pll", "aclk_fsys0_200" };
+PNAME(mout_sclk_mmc2_user_p)		= { "fin_pll", "sclk_mmc2" };
 
-PNAME(mout_sclk_usbdrd300_p)	= { "fin_pll", "sclk_usbdrd300" };
-PNAME(mout_phyclk_usbdrd300_udrd30_phyclk_p)	= { "fin_pll",
+PNAME(mout_sclk_usbdrd300_user_p)	= { "fin_pll", "sclk_usbdrd300" };
+PNAME(mout_phyclk_usbdrd300_udrd30_phyclk_user_p)	= { "fin_pll",
 				"phyclk_usbdrd300_udrd30_phyclock" };
-PNAME(mout_phyclk_usbdrd300_udrd30_pipe_pclk_p)	= { "fin_pll",
+PNAME(mout_phyclk_usbdrd300_udrd30_pipe_pclk_user_p)	= { "fin_pll",
 				"phyclk_usbdrd300_udrd30_pipe_pclk" };
 
 /* fixed rate clocks used in the FSYS0 block */
@@ -878,18 +881,19 @@ static unsigned long fsys0_clk_regs[] __initdata = {
 };
 
 static struct samsung_mux_clock fsys0_mux_clks[] __initdata = {
-	MUX(0, "mout_aclk_fsys0_200_user", mout_aclk_fsys0_200_p,
+	MUX(0, "mout_aclk_fsys0_200_user", mout_aclk_fsys0_200_user_p,
 		MUX_SEL_FSYS00, 24, 1),
 
-	MUX(0, "mout_sclk_mmc2_user", mout_sclk_mmc2_p, MUX_SEL_FSYS01, 24, 1),
-	MUX(0, "mout_sclk_usbdrd300_user", mout_sclk_usbdrd300_p,
+	MUX(0, "mout_sclk_mmc2_user", mout_sclk_mmc2_user_p,
+		MUX_SEL_FSYS01, 24, 1),
+	MUX(0, "mout_sclk_usbdrd300_user", mout_sclk_usbdrd300_user_p,
 		MUX_SEL_FSYS01, 28, 1),
 
 	MUX(0, "mout_phyclk_usbdrd300_udrd30_pipe_pclk_user",
-		mout_phyclk_usbdrd300_udrd30_pipe_pclk_p,
+		mout_phyclk_usbdrd300_udrd30_pipe_pclk_user_p,
 		MUX_SEL_FSYS02, 24, 1),
 	MUX(0, "mout_phyclk_usbdrd300_udrd30_phyclk_user",
-		mout_phyclk_usbdrd300_udrd30_phyclk_p,
+		mout_phyclk_usbdrd300_udrd30_phyclk_user_p,
 		MUX_SEL_FSYS02, 28, 1),
 };
 

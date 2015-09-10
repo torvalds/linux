@@ -62,7 +62,8 @@
 #define CLK_SCLK_MMC2			6
 #define CLK_SCLK_MMC1			7
 #define CLK_SCLK_MMC0			8
-#define TOP1_NR_CLK			9
+#define CLK_ACLK_FSYS0_200		9
+#define TOP1_NR_CLK			10
 
 /* CCORE */
 #define PCLK_RTC			1
