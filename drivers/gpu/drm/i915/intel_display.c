@@ -3135,24 +3135,20 @@ static void intel_complete_page_flips(struct drm_device *dev)
 
 static void intel_update_primary_planes(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 
 	for_each_crtc(dev, crtc) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		struct intel_plane *plane = to_intel_plane(crtc->primary);
+		struct intel_plane_state *plane_state;
 
-		drm_modeset_lock(&crtc->mutex, NULL);
-		/*
-		 * FIXME: Once we have proper support for primary planes (and
-		 * disabling them without disabling the entire crtc) allow again
-		 * a NULL crtc->primary->fb.
-		 */
-		if (intel_crtc->active && crtc->primary->fb)
-			dev_priv->display.update_primary_plane(crtc,
-							       crtc->primary->fb,
-							       crtc->x,
-							       crtc->y);
-		drm_modeset_unlock(&crtc->mutex);
+		drm_modeset_lock_crtc(crtc, &plane->base);
+
+		plane_state = to_intel_plane_state(plane->base.state);
+
+		if (plane_state->base.fb)
+			plane->commit_plane(&plane->base, plane_state);
+
+		drm_modeset_unlock_crtc(crtc);
 	}
 }
 
@@ -3196,6 +3192,9 @@ void intel_finish_reset(struct drm_device *dev)
 		 * so update the base address of all primary
 		 * planes to the the last fb to make sure we're
 		 * showing the correct fb after a reset.
+		 *
+		 * FIXME: Atomic will make this obsolete since we won't schedule
+		 * CS-based flips (which might get lost in gpu resets) any more.
 		 */
 		intel_update_primary_planes(dev);
 		return;
