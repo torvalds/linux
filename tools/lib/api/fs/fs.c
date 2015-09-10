@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -279,6 +280,50 @@ int filename__read_int(const char *filename, int *value)
 
 	close(fd);
 	return err;
+}
+
+int filename__read_ull(const char *filename, unsigned long long *value)
+{
+	char line[64];
+	int fd = open(filename, O_RDONLY), err = -1;
+
+	if (fd < 0)
+		return -1;
+
+	if (read(fd, line, sizeof(line)) > 0) {
+		*value = strtoull(line, NULL, 10);
+		if (*value != ULLONG_MAX)
+			err = 0;
+	}
+
+	close(fd);
+	return err;
+}
+
+int sysfs__read_ull(const char *entry, unsigned long long *value)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
+
+	return filename__read_ull(path, value);
+}
+
+int sysfs__read_int(const char *entry, int *value)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
+
+	return filename__read_int(path, value);
 }
 
 int sysctl__read_int(const char *sysctl, int *value)

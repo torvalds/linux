@@ -25,5 +25,9 @@ FS(tracefs)
 
 
 int filename__read_int(const char *filename, int *value);
+int filename__read_ull(const char *filename, unsigned long long *value);
+
 int sysctl__read_int(const char *sysctl, int *value);
+int sysfs__read_int(const char *entry, int *value);
+int sysfs__read_ull(const char *entry, unsigned long long *value);
 #endif /* __API_FS__ */
