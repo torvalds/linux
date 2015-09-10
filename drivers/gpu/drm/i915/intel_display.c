@@ -14911,9 +14911,19 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	/* restore vblank interrupts to correct state */
 	drm_crtc_vblank_reset(&crtc->base);
 	if (crtc->active) {
+		struct intel_plane *plane;
+
 		drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
 		update_scanline_offset(crtc);
 		drm_crtc_vblank_on(&crtc->base);
+
+		/* Disable everything but the primary plane */
+		for_each_intel_plane_on_crtc(dev, crtc, plane) {
+			if (plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+				continue;
+
+			plane->disable_plane(&plane->base, &crtc->base);
+		}
 	}
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
@@ -15081,35 +15091,21 @@ void i915_redisable_vga(struct drm_device *dev)
 	i915_redisable_vga_power_on(dev);
 }
 
-static bool primary_get_hw_state(struct intel_crtc *crtc)
+static bool primary_get_hw_state(struct intel_plane *plane)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	return !!(I915_READ(DSPCNTR(crtc->plane)) & DISPLAY_PLANE_ENABLE);
+	return I915_READ(DSPCNTR(plane->plane)) & DISPLAY_PLANE_ENABLE;
 }
 
-static void readout_plane_state(struct intel_crtc *crtc,
-				struct intel_crtc_state *crtc_state)
+/* FIXME read out full plane state for all planes */
+static void readout_plane_state(struct intel_crtc *crtc)
 {
-	struct intel_plane *p;
-	struct intel_plane_state *plane_state;
-	bool active = crtc_state->base.active;
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(crtc->base.primary->state);
 
-	for_each_intel_plane(crtc->base.dev, p) {
-		if (crtc->pipe != p->pipe)
-			continue;
-
-		plane_state = to_intel_plane_state(p->base.state);
-
-		if (p->base.type == DRM_PLANE_TYPE_PRIMARY)
-			plane_state->visible = primary_get_hw_state(crtc);
-		else {
-			if (active)
-				p->disable_plane(&p->base, &crtc->base);
-
-			plane_state->visible = false;
-		}
-	}
+	plane_state->visible =
+		primary_get_hw_state(to_intel_plane(crtc->base.primary));
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
@@ -15132,7 +15128,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 
-		readout_plane_state(crtc, to_intel_crtc_state(crtc->base.state));
+		readout_plane_state(crtc);
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
 			      crtc->base.base.id,
