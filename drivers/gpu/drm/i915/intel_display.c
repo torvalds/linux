@@ -13427,7 +13427,9 @@ intel_commit_primary_plane(struct drm_plane *plane,
 		/* FIXME: kill this fastboot hack */
 		intel_update_pipe_size(intel_crtc);
 
-	dev_priv->display.update_primary_plane(crtc, fb, crtc->x, crtc->y);
+	dev_priv->display.update_primary_plane(crtc, fb,
+					       state->src.x1 >> 16,
+					       state->src.y1 >> 16);
 }
 
 static void
