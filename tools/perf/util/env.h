@@ -16,6 +16,7 @@ struct perf_env {
 	char			*cpu_desc;
 	char			*cpuid;
 	unsigned long long	total_mem;
+	unsigned int		msr_pmu_type;
 
 	int			nr_cmdline;
 	int			nr_sibling_cores;

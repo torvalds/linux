@@ -1787,6 +1787,9 @@ static int process_pmu_mappings(struct perf_file_section *section __maybe_unused
 		/* include a NULL character at the end */
 		strbuf_add(&sb, "", 1);
 
+		if (!strcmp(name, "msr"))
+			ph->env.msr_pmu_type = type;
+
 		free(name);
 		pmu_num--;
 	}
