@@ -249,7 +249,7 @@ static struct grant *get_grant(grant_ref_t *gref_head,
                                struct blkfront_info *info)
 {
 	struct grant *gnt_list_entry;
-	unsigned long buffer_mfn;
+	unsigned long buffer_gfn;
 
 	BUG_ON(list_empty(&info->grants));
 	gnt_list_entry = list_first_entry(&info->grants, struct grant,
@@ -268,10 +268,10 @@ static struct grant *get_grant(grant_ref_t *gref_head,
 		BUG_ON(!pfn);
 		gnt_list_entry->pfn = pfn;
 	}
-	buffer_mfn = pfn_to_mfn(gnt_list_entry->pfn);
+	buffer_gfn = pfn_to_gfn(gnt_list_entry->pfn);
 	gnttab_grant_foreign_access_ref(gnt_list_entry->gref,
 	                                info->xbdev->otherend_id,
-	                                buffer_mfn, 0);
+	                                buffer_gfn, 0);
 	return gnt_list_entry;
 }
 

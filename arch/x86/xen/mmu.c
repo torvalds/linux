@@ -2812,9 +2812,9 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 	return 0;
 }
 
-static int do_remap_mfn(struct vm_area_struct *vma,
+static int do_remap_gfn(struct vm_area_struct *vma,
 			unsigned long addr,
-			xen_pfn_t *mfn, int nr,
+			xen_pfn_t *gfn, int nr,
 			int *err_ptr, pgprot_t prot,
 			unsigned domid,
 			struct page **pages)
@@ -2830,14 +2830,14 @@ static int do_remap_mfn(struct vm_area_struct *vma,
 	if (xen_feature(XENFEAT_auto_translated_physmap)) {
 #ifdef CONFIG_XEN_PVH
 		/* We need to update the local page tables and the xen HAP */
-		return xen_xlate_remap_gfn_array(vma, addr, mfn, nr, err_ptr,
+		return xen_xlate_remap_gfn_array(vma, addr, gfn, nr, err_ptr,
 						 prot, domid, pages);
 #else
 		return -EINVAL;
 #endif
         }
 
-	rmd.mfn = mfn;
+	rmd.mfn = gfn;
 	rmd.prot = prot;
 	/* We use the err_ptr to indicate if there we are doing a contigious
 	 * mapping or a discontigious mapping. */
@@ -2865,8 +2865,8 @@ static int do_remap_mfn(struct vm_area_struct *vma,
 						    batch_left, &done, domid);
 
 			/*
-			 * @err_ptr may be the same buffer as @mfn, so
-			 * only clear it after each chunk of @mfn is
+			 * @err_ptr may be the same buffer as @gfn, so
+			 * only clear it after each chunk of @gfn is
 			 * used.
 			 */
 			if (err_ptr) {
@@ -2896,19 +2896,19 @@ out:
 	return err < 0 ? err : mapped;
 }
 
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t mfn, int nr,
+			       xen_pfn_t gfn, int nr,
 			       pgprot_t prot, unsigned domid,
 			       struct page **pages)
 {
-	return do_remap_mfn(vma, addr, &mfn, nr, NULL, prot, domid, pages);
+	return do_remap_gfn(vma, addr, &gfn, nr, NULL, prot, domid, pages);
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_range);
 
-int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t *mfn, int nr,
+			       xen_pfn_t *gfn, int nr,
 			       int *err_ptr, pgprot_t prot,
 			       unsigned domid, struct page **pages)
 {
@@ -2917,13 +2917,13 @@ int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
 	 * cause of "wrong memory was mapped in".
 	 */
 	BUG_ON(err_ptr == NULL);
-	return do_remap_mfn(vma, addr, mfn, nr, err_ptr, prot, domid, pages);
+	return do_remap_gfn(vma, addr, gfn, nr, err_ptr, prot, domid, pages);
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_array);
 
 
 /* Returns: 0 success */
-int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int numpgs, struct page **pages)
 {
 	if (!pages || !xen_feature(XENFEAT_auto_translated_physmap))
@@ -2935,4 +2935,4 @@ int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 	return -EINVAL;
 #endif
 }
-EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);

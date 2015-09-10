@@ -49,35 +49,35 @@ static __read_mostly unsigned int xen_events_irq;
 
 static __initdata struct device_node *xen_node;
 
-int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t *mfn, int nr,
+			       xen_pfn_t *gfn, int nr,
 			       int *err_ptr, pgprot_t prot,
 			       unsigned domid,
 			       struct page **pages)
 {
-	return xen_xlate_remap_gfn_array(vma, addr, mfn, nr, err_ptr,
+	return xen_xlate_remap_gfn_array(vma, addr, gfn, nr, err_ptr,
 					 prot, domid, pages);
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_array);
 
 /* Not used by XENFEAT_auto_translated guests. */
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
                               unsigned long addr,
-                              xen_pfn_t mfn, int nr,
+                              xen_pfn_t gfn, int nr,
                               pgprot_t prot, unsigned domid,
                               struct page **pages)
 {
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_range);
 
-int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int nr, struct page **pages)
 {
 	return xen_xlate_unmap_gfn_range(vma, nr, pages);
 }
-EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);
 
 static void xen_percpu_init(void)
 {
