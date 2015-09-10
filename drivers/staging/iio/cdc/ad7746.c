@@ -46,10 +46,10 @@
 #define AD7746_REG_VOLT_GAINL		18
 
 /* Status Register Bit Designations (AD7746_REG_STATUS) */
-#define AD7746_STATUS_EXCERR		(1 << 3)
-#define AD7746_STATUS_RDY		(1 << 2)
-#define AD7746_STATUS_RDYVT		(1 << 1)
-#define AD7746_STATUS_RDYCAP		(1 << 0)
+#define AD7746_STATUS_EXCERR		BIT(3)
+#define AD7746_STATUS_RDY		BIT(2)
+#define AD7746_STATUS_RDYVT		BIT(1)
+#define AD7746_STATUS_RDYCAP		BIT(0)
 
 /* Capacitive Channel Setup Register Bit Designations (AD7746_REG_CAP_SETUP) */
 #define AD7746_CAPSETUP_CAPEN		(1 << 7)
