@@ -590,6 +590,19 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RO(uuid);
 
+static ssize_t version_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	u8 version = mei_me_cl_ver(cldev->me_cl);
+	size_t len;
+
+	len = snprintf(buf, PAGE_SIZE, "%02X", version);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+static DEVICE_ATTR_RO(version);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 			     char *buf)
 {
@@ -605,6 +618,7 @@ static DEVICE_ATTR_RO(modalias);
 static struct attribute *mei_cl_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_uuid.attr,
+	&dev_attr_version.attr,
 	&dev_attr_modalias.attr,
 	NULL,
 };
@@ -622,6 +636,10 @@ static int mei_cl_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
+	u8 version = mei_me_cl_ver(cldev->me_cl);
+
+	if (add_uevent_var(env, "MEI_CL_VERSION=%d", version))
+		return -ENOMEM;
 
 	if (add_uevent_var(env, "MEI_CL_UUID=%pUl", uuid))
 		return -ENOMEM;
