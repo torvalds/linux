@@ -1202,16 +1202,18 @@ static int do_cpu_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
 
-/* Looks like: mei:S:uuid */
+/* Looks like: mei:S:uuid:N:* */
 static int do_mei_entry(const char *filename, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, uuid);
+	DEF_FIELD(symval, mei_cl_device_id, version);
 
 	sprintf(alias, MEI_CL_MODULE_PREFIX);
 	sprintf(alias + strlen(alias), "%s:",  (*name)[0]  ? *name : "*");
 	add_uuid(alias, *uuid);
+	ADD(alias, ":", version != MEI_CL_VERSION_ANY, version);
 
 	strcat(alias, ":*");
 

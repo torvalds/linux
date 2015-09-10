@@ -453,17 +453,26 @@ struct mei_cl_device_id *mei_cl_device_find(struct mei_cl_device *cldev,
 {
 	const struct mei_cl_device_id *id;
 	const uuid_le *uuid;
+	u8 version;
+	bool match;
 
 	uuid = mei_me_cl_uuid(cldev->me_cl);
+	version = mei_me_cl_ver(cldev->me_cl);
 
 	id = cldrv->id_table;
 	while (uuid_le_cmp(NULL_UUID_LE, id->uuid)) {
 		if (!uuid_le_cmp(*uuid, id->uuid)) {
+			match = true;
 
-			if (!cldev->name[0])
-				return id;
+			if (cldev->name[0])
+				if (strncmp(cldev->name, id->name,
+					    sizeof(id->name)))
+					match = false;
 
-			if (!strncmp(cldev->name, id->name, sizeof(id->name)))
+			if (id->version != MEI_CL_VERSION_ANY)
+				if (id->version != version)
+					match = false;
+			if (match)
 				return id;
 		}
 
@@ -647,7 +656,8 @@ static int mei_cl_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (add_uevent_var(env, "MEI_CL_NAME=%s", cldev->name))
 		return -ENOMEM;
 
-	if (add_uevent_var(env, "MODALIAS=mei:%s:%pUl:", cldev->name, uuid))
+	if (add_uevent_var(env, "MODALIAS=mei:%s:%pUl:%02X:",
+			   cldev->name, uuid, version))
 		return -ENOMEM;
 
 	return 0;
@@ -737,8 +747,10 @@ static bool mei_cl_dev_setup(struct mei_device *bus,
 	mei_cl_dev_fixup(cldev);
 
 	if (cldev->do_match)
-		dev_set_name(&cldev->dev, "mei:%s:%pUl",
-			     cldev->name, mei_me_cl_uuid(cldev->me_cl));
+		dev_set_name(&cldev->dev, "mei:%s:%pUl:%02X",
+			     cldev->name,
+			     mei_me_cl_uuid(cldev->me_cl),
+			     mei_me_cl_ver(cldev->me_cl));
 
 	return cldev->do_match == 1;
 }
@@ -754,7 +766,9 @@ static int mei_cl_bus_dev_add(struct mei_cl_device *cldev)
 {
 	int ret;
 
-	dev_dbg(cldev->bus->dev, "adding %pUL\n", mei_me_cl_uuid(cldev->me_cl));
+	dev_dbg(cldev->bus->dev, "adding %pUL:%02X\n",
+		mei_me_cl_uuid(cldev->me_cl),
+		mei_me_cl_ver(cldev->me_cl));
 	ret = device_add(&cldev->dev);
 	if (!ret)
 		cldev->is_added = 1;

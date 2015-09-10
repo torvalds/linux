@@ -601,11 +601,13 @@ struct ipack_device_id {
 
 #define MEI_CL_MODULE_PREFIX "mei:"
 #define MEI_CL_NAME_SIZE 32
+#define MEI_CL_VERSION_ANY 0xff
 
 /**
  * struct mei_cl_device_id - MEI client device identifier
  * @name: helper name
  * @uuid: client uuid
+ * @version: client protocol version
  * @driver_info: information used by the driver.
  *
  * identifies mei client device by uuid and name
@@ -613,6 +615,7 @@ struct ipack_device_id {
 struct mei_cl_device_id {
 	char name[MEI_CL_NAME_SIZE];
 	uuid_le uuid;
+	__u8    version;
 	kernel_ulong_t driver_info;
 };
 
