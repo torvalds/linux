@@ -210,8 +210,6 @@ struct drm_framebuffer {
 	int flags;
 	uint32_t pixel_format; /* fourcc format */
 	struct list_head filp_head;
-	/* if you are using the helper */
-	void *helper_private;
 };
 
 struct drm_property_blob {
