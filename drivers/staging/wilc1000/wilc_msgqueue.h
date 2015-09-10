@@ -12,7 +12,6 @@
 
 #include "wilc_platform.h"
 #include "wilc_errorsupport.h"
-#include "wilc_memory.h"
 
 /*!
  *  @brief		Creates a new Message queue

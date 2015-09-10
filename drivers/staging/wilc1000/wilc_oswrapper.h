@@ -19,10 +19,6 @@
 /* Error reporting and handling support */
 #include "wilc_errorsupport.h"
 
-/* Memory support */
-#include "wilc_memory.h"
-
-
 /* Message Queue */
 #include "wilc_msgqueue.h"
 

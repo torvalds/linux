@@ -21,7 +21,7 @@ ccflags-$(CONFIG_WILC1000_DYNAMICALLY_ALLOCATE_MEMROY) += -DWILC_NORMAL_ALLOC
 
 
 wilc1000-objs := wilc_wfi_cfgoperations.o linux_wlan.o linux_mon.o \
-			wilc_memory.o wilc_msgqueue.o \
+			wilc_msgqueue.o \
 			coreconfigurator.o host_interface.o \
 			wilc_sdio.o wilc_spi.o wilc_wlan_cfg.o wilc_debugfs.o
 
