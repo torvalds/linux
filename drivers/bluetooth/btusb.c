@@ -1277,6 +1277,20 @@ static void btusb_work(struct work_struct *work)
 			clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 			usb_kill_anchored_urbs(&data->isoc_anchor);
 
+			/* When isochronous alternate setting needs to be
+			 * changed, because SCO connection has been added
+			 * or removed, a packet fragment may be left in the
+			 * reassembling state. This could lead to wrongly
+			 * assembled fragments.
+			 *
+			 * Clear outstanding fragment when selecting a new
+			 * alternate setting.
+			 */
+			spin_lock(&data->rxlock);
+			kfree_skb(data->sco_skb);
+			data->sco_skb = NULL;
+			spin_unlock(&data->rxlock);
+
 			if (__set_isoc_interface(hdev, new_alts) < 0)
 				return;
 		}
