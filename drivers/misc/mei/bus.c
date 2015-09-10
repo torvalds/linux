@@ -165,7 +165,7 @@ out:
 }
 
 /**
- * mei_cl_send - me device send  (write)
+ * mei_cldev_send - me device send  (write)
  *
  * @cldev: me client device
  * @buf: buffer to send
@@ -173,7 +173,7 @@ out:
  *
  * Return: written size in bytes or < 0 on error
  */
-ssize_t mei_cl_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
+ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
 
@@ -182,10 +182,10 @@ ssize_t mei_cl_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 
 	return __mei_cl_send(cl, buf, length, 1);
 }
-EXPORT_SYMBOL_GPL(mei_cl_send);
+EXPORT_SYMBOL_GPL(mei_cldev_send);
 
 /**
- * mei_cl_recv - client receive (read)
+ * mei_cldev_recv - client receive (read)
  *
  * @cldev: me client device
  * @buf: buffer to send
@@ -193,7 +193,7 @@ EXPORT_SYMBOL_GPL(mei_cl_send);
  *
  * Return: read size in bytes of < 0 on error
  */
-ssize_t mei_cl_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
+ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
 
@@ -202,15 +202,15 @@ ssize_t mei_cl_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
 
 	return __mei_cl_recv(cl, buf, length);
 }
-EXPORT_SYMBOL_GPL(mei_cl_recv);
+EXPORT_SYMBOL_GPL(mei_cldev_recv);
 
 /**
- * mei_bus_event_work  - dispatch rx event for a bus device
+ * mei_cl_bus_event_work  - dispatch rx event for a bus device
  *    and schedule new work
  *
  * @work: work
  */
-static void mei_bus_event_work(struct work_struct *work)
+static void mei_cl_bus_event_work(struct work_struct *work)
 {
 	struct mei_cl_device *cldev;
 
@@ -272,7 +272,7 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
 }
 
 /**
- * mei_cl_register_event_cb - register event callback
+ * mei_cldev_register_event_cb - register event callback
  *
  * @cldev: me client devices
  * @event_cb: callback function
@@ -283,9 +283,9 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
  *         -EALREADY if an callback is already registered
  *         <0 on other errors
  */
-int mei_cl_register_event_cb(struct mei_cl_device *cldev,
-			  unsigned long events_mask,
-			  mei_cl_event_cb_t event_cb, void *context)
+int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
+				unsigned long events_mask,
+				mei_cldev_event_cb_t event_cb, void *context)
 {
 	int ret;
 
@@ -296,7 +296,7 @@ int mei_cl_register_event_cb(struct mei_cl_device *cldev,
 	cldev->events_mask = events_mask;
 	cldev->event_cb = event_cb;
 	cldev->event_context = context;
-	INIT_WORK(&cldev->event_work, mei_bus_event_work);
+	INIT_WORK(&cldev->event_work, mei_cl_bus_event_work);
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
 		ret = mei_cl_read_start(cldev->cl, 0, NULL);
@@ -314,32 +314,32 @@ int mei_cl_register_event_cb(struct mei_cl_device *cldev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mei_cl_register_event_cb);
+EXPORT_SYMBOL_GPL(mei_cldev_register_event_cb);
 
 /**
- * mei_cl_get_drvdata - driver data getter
+ * mei_cldev_get_drvdata - driver data getter
  *
  * @cldev: mei client device
  *
  * Return: driver private data
  */
-void *mei_cl_get_drvdata(const struct mei_cl_device *cldev)
+void *mei_cldev_get_drvdata(const struct mei_cl_device *cldev)
 {
 	return dev_get_drvdata(&cldev->dev);
 }
-EXPORT_SYMBOL_GPL(mei_cl_get_drvdata);
+EXPORT_SYMBOL_GPL(mei_cldev_get_drvdata);
 
 /**
- * mei_cl_set_drvdata - driver data setter
+ * mei_cldev_set_drvdata - driver data setter
  *
  * @cldev: mei client device
  * @data: data to store
  */
-void mei_cl_set_drvdata(struct mei_cl_device *cldev, void *data)
+void mei_cldev_set_drvdata(struct mei_cl_device *cldev, void *data)
 {
 	dev_set_drvdata(&cldev->dev, data);
 }
-EXPORT_SYMBOL_GPL(mei_cl_set_drvdata);
+EXPORT_SYMBOL_GPL(mei_cldev_set_drvdata);
 
 /**
  * mei_cldev_uuid - return uuid of the underlying me client
@@ -381,14 +381,14 @@ bool mei_cldev_enabled(struct mei_cl_device *cldev)
 EXPORT_SYMBOL_GPL(mei_cldev_enabled);
 
 /**
- * mei_cl_enable_device - enable me client device
+ * mei_cldev_enable_device - enable me client device
  *     create connection with me client
  *
  * @cldev: me client device
  *
  * Return: 0 on success and < 0 on error
  */
-int mei_cl_enable_device(struct mei_cl_device *cldev)
+int mei_cldev_enable(struct mei_cl_device *cldev)
 {
 	struct mei_device *bus = cldev->bus;
 	struct mei_cl *cl;
@@ -428,17 +428,17 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mei_cl_enable_device);
+EXPORT_SYMBOL_GPL(mei_cldev_enable);
 
 /**
- * mei_cl_disable_device - disable me client device
+ * mei_cldev_disable - disable me client device
  *     disconnect form the me client
  *
  * @cldev: me client device
  *
  * Return: 0 on success and < 0 on error
  */
-int mei_cl_disable_device(struct mei_cl_device *cldev)
+int mei_cldev_disable(struct mei_cl_device *cldev)
 {
 	struct mei_device *bus;
 	struct mei_cl *cl;
@@ -476,7 +476,7 @@ out:
 	mutex_unlock(&bus->device_lock);
 	return err;
 }
-EXPORT_SYMBOL_GPL(mei_cl_disable_device);
+EXPORT_SYMBOL_GPL(mei_cldev_disable);
 
 /**
  * mei_cl_device_find - find matching entry in the driver id table
@@ -663,14 +663,14 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RO(modalias);
 
-static struct attribute *mei_cl_dev_attrs[] = {
+static struct attribute *mei_cldev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_uuid.attr,
 	&dev_attr_version.attr,
 	&dev_attr_modalias.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(mei_cl_dev);
+ATTRIBUTE_GROUPS(mei_cldev);
 
 /**
  * mei_cl_device_uevent - me client bus uevent handler
@@ -704,7 +704,7 @@ static int mei_cl_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static struct bus_type mei_cl_bus_type = {
 	.name		= "mei",
-	.dev_groups	= mei_cl_dev_groups,
+	.dev_groups	= mei_cldev_groups,
 	.match		= mei_cl_device_match,
 	.probe		= mei_cl_device_probe,
 	.remove		= mei_cl_device_remove,
@@ -937,7 +937,8 @@ void mei_cl_bus_rescan(struct mei_device *bus)
 	dev_dbg(bus->dev, "rescan end");
 }
 
-int __mei_cl_driver_register(struct mei_cl_driver *cldrv, struct module *owner)
+int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
+				struct module *owner)
 {
 	int err;
 
@@ -953,15 +954,15 @@ int __mei_cl_driver_register(struct mei_cl_driver *cldrv, struct module *owner)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__mei_cl_driver_register);
+EXPORT_SYMBOL_GPL(__mei_cldev_driver_register);
 
-void mei_cl_driver_unregister(struct mei_cl_driver *cldrv)
+void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv)
 {
 	driver_unregister(&cldrv->driver);
 
 	pr_debug("mei: driver [%s] unregistered\n", cldrv->driver.name);
 }
-EXPORT_SYMBOL_GPL(mei_cl_driver_unregister);
+EXPORT_SYMBOL_GPL(mei_cldev_driver_unregister);
 
 
 int __init mei_cl_bus_init(void)

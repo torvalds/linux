@@ -55,7 +55,7 @@ static int pn544_mei_probe(struct mei_cl_device *cldev,
 
 static int pn544_mei_remove(struct mei_cl_device *cldev)
 {
-	struct nfc_mei_phy *phy = mei_cl_get_drvdata(cldev);
+	struct nfc_mei_phy *phy = mei_cldev_get_drvdata(cldev);
 
 	pr_info("Removing pn544\n");
 
@@ -88,7 +88,7 @@ static int pn544_mei_init(void)
 
 	pr_debug(DRIVER_DESC ": %s\n", __func__);
 
-	r = mei_cl_driver_register(&pn544_driver);
+	r = mei_cldev_driver_register(&pn544_driver);
 	if (r) {
 		pr_err(PN544_DRIVER_NAME ": driver registration failed\n");
 		return r;
@@ -99,7 +99,7 @@ static int pn544_mei_init(void)
 
 static void pn544_mei_exit(void)
 {
-	mei_cl_driver_unregister(&pn544_driver);
+	mei_cldev_driver_unregister(&pn544_driver);
 }
 
 module_init(pn544_mei_init);
