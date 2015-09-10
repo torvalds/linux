@@ -349,6 +349,8 @@ static int dgap_gettok(char **in)
 
 	if (strstr(dgap_cword, "board")) {
 		w = dgap_getword(in);
+		if (!w)
+			return 0;
 		snprintf(dgap_cword, MAXCWORD, "%s", w);
 		for (t = dgap_brdtype; t->token != 0; t++) {
 			if (!strcmp(w, t->string))
