@@ -29,7 +29,7 @@
 
 #define MICROREAD_DRIVER_NAME "microread"
 
-static int microread_mei_probe(struct mei_cl_device *device,
+static int microread_mei_probe(struct mei_cl_device *cldev,
 			       const struct mei_cl_device_id *id)
 {
 	struct nfc_mei_phy *phy;
@@ -37,7 +37,7 @@ static int microread_mei_probe(struct mei_cl_device *device,
 
 	pr_info("Probing NFC microread\n");
 
-	phy = nfc_mei_phy_alloc(device);
+	phy = nfc_mei_phy_alloc(cldev);
 	if (!phy) {
 		pr_err("Cannot allocate memory for microread mei phy.\n");
 		return -ENOMEM;
@@ -55,9 +55,9 @@ static int microread_mei_probe(struct mei_cl_device *device,
 	return 0;
 }
 
-static int microread_mei_remove(struct mei_cl_device *device)
+static int microread_mei_remove(struct mei_cl_device *cldev)
 {
-	struct nfc_mei_phy *phy = mei_cl_get_drvdata(device);
+	struct nfc_mei_phy *phy = mei_cl_get_drvdata(cldev);
 
 	microread_remove(phy->hdev);
 
