@@ -1137,6 +1137,12 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	/* there's no point in fw dump if the bus is dead */
+	if (test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
+		IWL_ERR(mvm, "Skip fw error dump since bus is dead\n");
+		return;
+	}
+
 	if (mvm->fw_dump_trig &&
 	    mvm->fw_dump_trig->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)
 		monitor_dump_only = true;
