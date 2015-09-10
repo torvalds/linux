@@ -1227,23 +1227,35 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 	for_each_plane_in_state(old_state, plane, old_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
+		bool disabling;
 
 		funcs = plane->helper_private;
 
 		if (!funcs)
 			continue;
 
-		if (active_only && !plane_crtc_active(plane->state))
-			continue;
+		disabling = drm_atomic_plane_disabling(plane, old_plane_state);
+
+		if (active_only) {
+			/*
+			 * Skip planes related to inactive CRTCs. If the plane
+			 * is enabled use the state of the current CRTC. If the
+			 * plane is being disabled use the state of the old
+			 * CRTC to avoid skipping planes being disabled on an
+			 * active CRTC.
+			 */
+			if (!disabling && !plane_crtc_active(plane->state))
+				continue;
+			if (disabling && !plane_crtc_active(old_plane_state))
+				continue;
+		}
 
 		/*
 		 * Special-case disabling the plane if drivers support it.
 		 */
-		if (drm_atomic_plane_disabling(plane, old_plane_state) &&
-		    funcs->atomic_disable)
+		if (disabling && funcs->atomic_disable)
 			funcs->atomic_disable(plane, old_plane_state);
-		else if (plane->state->crtc ||
-			 drm_atomic_plane_disabling(plane, old_plane_state))
+		else if (plane->state->crtc || disabling)
 			funcs->atomic_update(plane, old_plane_state);
 	}
 
