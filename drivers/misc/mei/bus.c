@@ -725,7 +725,7 @@ static void mei_dev_bus_put(struct mei_device *bus)
 		put_device(bus->dev);
 }
 
-static void mei_cl_dev_release(struct device *dev)
+static void mei_cl_bus_dev_release(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 
@@ -738,19 +738,19 @@ static void mei_cl_dev_release(struct device *dev)
 }
 
 static struct device_type mei_cl_device_type = {
-	.release	= mei_cl_dev_release,
+	.release	= mei_cl_bus_dev_release,
 };
 
 /**
- * mei_cl_dev_alloc - initialize and allocate mei client device
+ * mei_cl_bus_dev_alloc - initialize and allocate mei client device
  *
  * @bus: mei device
  * @me_cl: me client
  *
  * Return: allocated device structur or NULL on allocation failure
  */
-static struct mei_cl_device *mei_cl_dev_alloc(struct mei_device *bus,
-					      struct mei_me_client *me_cl)
+static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
+						  struct mei_me_client *me_cl)
 {
 	struct mei_cl_device *cldev;
 
@@ -779,11 +779,11 @@ static struct mei_cl_device *mei_cl_dev_alloc(struct mei_device *bus,
  *
  * Return: true if the device is eligible for enumeration
  */
-static bool mei_cl_dev_setup(struct mei_device *bus,
-			     struct mei_cl_device *cldev)
+static bool mei_cl_bus_dev_setup(struct mei_device *bus,
+				 struct mei_cl_device *cldev)
 {
 	cldev->do_match = 1;
-	mei_cl_dev_fixup(cldev);
+	mei_cl_bus_dev_fixup(cldev);
 
 	if (cldev->do_match)
 		dev_set_name(&cldev->dev, "mei:%s:%pUl:%02X",
@@ -872,13 +872,14 @@ void mei_cl_bus_remove_devices(struct mei_device *bus)
 
 
 /**
- * mei_cl_dev_init - allocate and initializes an mei client devices
+ * mei_cl_bus_dev_init - allocate and initializes an mei client devices
  *     based on me client
  *
  * @bus: mei device
  * @me_cl: me client
  */
-static void mei_cl_dev_init(struct mei_device *bus, struct mei_me_client *me_cl)
+static void mei_cl_bus_dev_init(struct mei_device *bus,
+				struct mei_me_client *me_cl)
 {
 	struct mei_cl_device *cldev;
 
@@ -887,7 +888,7 @@ static void mei_cl_dev_init(struct mei_device *bus, struct mei_me_client *me_cl)
 	if (me_cl->bus_added)
 		return;
 
-	cldev = mei_cl_dev_alloc(bus, me_cl);
+	cldev = mei_cl_bus_dev_alloc(bus, me_cl);
 	if (!cldev)
 		return;
 
@@ -911,7 +912,7 @@ void mei_cl_bus_rescan(struct mei_device *bus)
 
 	down_read(&bus->me_clients_rwsem);
 	list_for_each_entry(me_cl, &bus->me_clients, list)
-		mei_cl_dev_init(bus, me_cl);
+		mei_cl_bus_dev_init(bus, me_cl);
 	up_read(&bus->me_clients_rwsem);
 
 	mutex_lock(&bus->cl_bus_lock);
@@ -925,7 +926,7 @@ void mei_cl_bus_rescan(struct mei_device *bus)
 		if (cldev->is_added)
 			continue;
 
-		if (mei_cl_dev_setup(bus, cldev))
+		if (mei_cl_bus_dev_setup(bus, cldev))
 			mei_cl_bus_dev_add(cldev);
 		else {
 			list_del_init(&cldev->bus_list);

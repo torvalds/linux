@@ -340,7 +340,7 @@ struct mei_hw_ops {
 
 /* MEI bus API*/
 void mei_cl_bus_rescan(struct mei_device *bus);
-void mei_cl_dev_fixup(struct mei_cl_device *dev);
+void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
