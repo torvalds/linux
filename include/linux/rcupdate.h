@@ -813,6 +813,28 @@ static inline void rcu_preempt_sleep_check(void)
 #define rcu_dereference_sched(p) rcu_dereference_sched_check(p, 0)
 
 /**
+ * rcu_pointer_handoff() - Hand off a pointer from RCU to other mechanism
+ * @p: The pointer to hand off
+ *
+ * This is simply an identity function, but it documents where a pointer
+ * is handed off from RCU to some other synchronization mechanism, for
+ * example, reference counting or locking.  In C11, it would map to
+ * kill_dependency().  It could be used as follows:
+ *
+ *	rcu_read_lock();
+ *	p = rcu_dereference(gp);
+ *	long_lived = is_long_lived(p);
+ *	if (long_lived) {
+ *		if (!atomic_inc_not_zero(p->refcnt))
+ *			long_lived = false;
+ *		else
+ *			p = rcu_pointer_handoff(p);
+ *	}
+ *	rcu_read_unlock();
+ */
+#define rcu_pointer_handoff(p) (p)
+
+/**
  * rcu_read_lock() - mark the beginning of an RCU read-side critical section
  *
  * When synchronize_rcu() is invoked on one CPU while other CPUs
