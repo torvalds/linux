@@ -2616,7 +2616,7 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 
 	if (mvm_sta->vif->type == NL80211_IFTYPE_AP) {
 		mvmvif->ap_assoc_sta_count--;
-		iwl_mvm_mac_ctxt_cmd_ap(mvm, vif, FW_CTXT_ACTION_MODIFY);
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
 	mutex_unlock(&mvm->mutex);

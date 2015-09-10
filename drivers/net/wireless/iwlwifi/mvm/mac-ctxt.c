@@ -1126,9 +1126,9 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 	ctxt_ap->beacon_template = cpu_to_le32(mvmvif->id);
 }
 
-int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
-			    struct ieee80211_vif *vif,
-			    u32 action)
+static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   u32 action)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_ctx_cmd cmd = {};
