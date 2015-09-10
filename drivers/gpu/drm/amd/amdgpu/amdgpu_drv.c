@@ -76,6 +76,7 @@ int amdgpu_deep_color = 0;
 int amdgpu_vm_size = 8;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
+int amdgpu_vm_debug = 0;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 16;
@@ -144,6 +145,9 @@ module_param_named(vm_block_size, amdgpu_vm_block_size, int, 0444);
 
 MODULE_PARM_DESC(vm_fault_stop, "Stop on VM fault (0 = never (default), 1 = print first, 2 = always)");
 module_param_named(vm_fault_stop, amdgpu_vm_fault_stop, int, 0444);
+
+MODULE_PARM_DESC(vm_debug, "Debug VM handling (0 = disabled (default), 1 = enabled)");
+module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
 
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);

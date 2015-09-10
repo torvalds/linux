@@ -80,6 +80,7 @@ extern int amdgpu_deep_color;
 extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
 extern int amdgpu_vm_fault_stop;
+extern int amdgpu_vm_debug;
 extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
