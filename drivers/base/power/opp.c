@@ -217,7 +217,7 @@ static struct device_opp *_find_device_opp(struct device *dev)
 }
 
 /**
- * dev_pm_opp_get_voltage() - Gets the voltage corresponding to an available opp
+ * dev_pm_opp_get_voltage() - Gets the voltage corresponding to an opp
  * @opp:	opp for which voltage has to be returned for
  *
  * Return: voltage in micro volt corresponding to the opp, else
@@ -239,7 +239,7 @@ unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 	opp_rcu_lockdep_assert();
 
 	tmp_opp = rcu_dereference(opp);
-	if (IS_ERR_OR_NULL(tmp_opp) || !tmp_opp->available)
+	if (IS_ERR_OR_NULL(tmp_opp))
 		pr_err("%s: Invalid parameters\n", __func__);
 	else
 		v = tmp_opp->u_volt;
