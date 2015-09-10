@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/rk_system_status.h>
 
 #include "rk3368-clocks.dtsi"
+#include <rk3368_dram_default_timing.dtsi>
 
 / {
 	compatible = "rockchip,rk3368";
@@ -611,12 +612,13 @@
 		chan-nums = <3>;
 	};
 
-	ddr {
+	ddr: ddr {
 		compatible = "rockchip,rk3368-ddr";
 		status = "okay";
 		rockchip,ddrpctl = <&ddrpctl>;
 		rockchip,grf = <&grf>;
 		rockchip,msch = <&msch>;
+		rockchip,ddr_timing = <&ddr_timing>;
 	};
 
 	rockchip_clocks_init: clocks-init{

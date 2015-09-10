@@ -1,0 +1,77 @@
+* rk3368 dram default timing is at arch/arm64/boot/dts/rk3368_dram_default_timing.dtsi
+
+Required properties:
+- compatible : Should be "rockchip,ddr-timing"
+- dram_spd_bin : value is defined at include/dt-bindings/clock/ddr.h
+  it select ddr3 cl-trp-trcd type, default value "DDR3_DEFAULT".it must selected
+  according to "Speed Bin" in ddr3 datasheet, DO NOT use smaller "Speed Bin" than
+  ddr3 exactly is.
+
+- sr_idle : configure the SR_IDLE value, defined the selfrefresh idle period,
+  memories are places into self-refresh mode if bus is idle for SR_IDLE*32 DFI
+  clocks (DFI clocks freq is half of dram's clocks), defaule value is "1"
+
+- pd_idle : config the PD_IDLE value, defined the power-down idle period, memories
+  are places into power-down mode if bus is idle for PD_IDLE DFI clocks.
+
+- dram_dll_disb_freq : it's defined the DDR3 dll bypass frequency in MHz (Mega Hz),
+  when ddr freq less than DRAM_DLL_DISB_FREQ, ddr3 dll will bypssed
+  note: if dll was bypassed, the odt also stop working.
+
+- phy_dll_disb_freq : defined the PHY dll bypass frequency in MHz (Mega Hz),
+  when ddr freq less than DRAM_DLL_DISB_FREQ, phy dll will bypssed
+  note: phy dll and phy odt are independent
+
+- dram_odt_disb_freq : defined the DDR3 and LPDDR3 odt disable frequency in
+  MHz (Mega Hz), when ddr frequency less then DRAM_ODT_DISB_FREQ, the DDR3
+  and LPDDR3 ODT are disabled.
+
+- phy_odt_disb_freq : defined the PHY odt disable frequency in MHz (Mega Hz),
+  when ddr frequency less then PHY_ODT_DISB_FREQ, the PHY ODT are disabled.
+
+- ddr3_drv : define the DDR3 driver stength in ohm, default value is DDR3_DS_40
+
+- ddr3_odt : define the DDR3 ODT in ohm, default value is DDR3_ODT_120
+
+- lpddr3_drv : define the lPDDR3 driver stength in ohm, default value is LP3_DS_34
+
+- lpddr3_odt : define the LPDDR3 ODT in ohm, default value is LP3_ODT_240
+
+- lpddr2_drv : define the LPDDR2 driver stength in ohm, default value is LP2_DS_34
+
+- phy_clk_drv : define the phy clocks driver strength in ohm, default value is
+  PHY_RON_45ohm
+
+- phy_cmd_drv : define the phy commands driver strength in ohm, default value is
+  PHY_RON_34ohm
+
+- phy_dqs_drv : define the phy dqs and dq driver strength in ohm, default value is
+  PHY_RON_34ohm
+
+- phy_odt : define the phy odt in ohm, default value isPHY_RTT_279ohm
+
+the driver strength and odt value are defined at include/dt-bindings/dram/rockchip,rk3368.h
+
+Example:
+
+/ {
+        ddr_timing: ddr_timing {
+                compatible = "rockchip,ddr-timing";
+                dram_spd_bin = <DDR3_DEFAULT>;
+                sr_idle = <1>;
+                pd_idle = <0x20>;
+                dram_dll_disb_freq = <300>;
+                phy_dll_disb_freq = <400>;
+                dram_odt_disb_freq = <333>;
+                phy_odt_disb_freq = <333>;
+                ddr3_drv = <DDR3_DS_40ohm>;
+                ddr3_odt = <DDR3_ODT_120ohm>;
+                lpddr3_drv = <LP3_DS_34ohm>;
+                lpddr3_odt = <LP3_ODT_240ohm>;
+                lpddr2_drv = <LP2_DS_34ohm>;/*lpddr2 not supported odt*/
+                phy_clk_drv = <PHY_RON_45ohm>;
+                phy_cmd_drv = <PHY_RON_34ohm>;
+                phy_dqs_drv = <PHY_RON_34ohm>;
+                phy_odt = <PHY_RTT_279ohm>;
+        };
+};

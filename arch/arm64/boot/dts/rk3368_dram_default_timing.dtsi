@@ -1,0 +1,37 @@
+/*
+ * Copyright (C) 2014-2015 ROCKCHIP, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+#include <dt-bindings/clock/ddr.h>
+#include <dt-bindings/dram/rockchip,rk3368.h>
+
+/ {
+	ddr_timing: ddr_timing {
+		compatible = "rockchip,ddr-timing";
+		dram_spd_bin = <DDR3_DEFAULT>;
+		sr_idle = <1>;
+		pd_idle = <0x20>;
+		dram_dll_disb_freq = <300>;
+		phy_dll_disb_freq = <400>;
+		dram_odt_disb_freq = <333>;
+		phy_odt_disb_freq = <333>;
+		ddr3_drv = <DDR3_DS_40ohm>;
+		ddr3_odt = <DDR3_ODT_120ohm>;
+		lpddr3_drv = <LP3_DS_34ohm>;
+		lpddr3_odt = <LP3_ODT_240ohm>;
+		lpddr2_drv = <LP2_DS_34ohm>;/*lpddr2 not supported odt*/
+		phy_clk_drv = <PHY_RON_45ohm>;
+		phy_cmd_drv = <PHY_RON_34ohm>;
+		phy_dqs_drv = <PHY_RON_34ohm>;
+		phy_odt = <PHY_RTT_279ohm>;
+	};
+};
