@@ -129,10 +129,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
-	int i, j, ret;
-	int adg_clk_div_table[] = {
-		1, 6, /* see adg.c */
-	};
+	int j, ret;
 	int ssi_clk_mul_table[] = {
 		1, 2, 4, 8, 16, 6, 12,
 	};
@@ -142,28 +139,25 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	/*
 	 * Find best clock, and try to start ADG
 	 */
-	for (i = 0; i < ARRAY_SIZE(adg_clk_div_table); i++) {
-		for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
+	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
 
-			/*
-			 * this driver is assuming that
-			 * system word is 64fs (= 2 x 32bit)
-			 * see rsnd_ssi_init()
-			 */
-			main_rate = rate / adg_clk_div_table[i]
-				* 32 * 2 * ssi_clk_mul_table[j];
+		/*
+		 * this driver is assuming that
+		 * system word is 64fs (= 2 x 32bit)
+		 * see rsnd_ssi_init()
+		 */
+		main_rate = rate * 32 * 2 * ssi_clk_mul_table[j];
 
-			ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
-			if (0 == ret) {
-				ssi->cr_clk	= FORCE | SWL_32 |
-						  SCKD | SWSD | CKDV(j);
+		ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
+		if (0 == ret) {
+			ssi->cr_clk	= FORCE | SWL_32 |
+				SCKD | SWSD | CKDV(j);
 
-				dev_dbg(dev, "%s[%d] outputs %u Hz\n",
-					rsnd_mod_name(mod),
-					rsnd_mod_id(mod), rate);
+			dev_dbg(dev, "%s[%d] outputs %u Hz\n",
+				rsnd_mod_name(mod),
+				rsnd_mod_id(mod), rate);
 
-				return 0;
-			}
+			return 0;
 		}
 	}
 
