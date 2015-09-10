@@ -549,7 +549,7 @@ CLK_OF_DECLARE(exynos7_clk_top1, "samsung,exynos7-clock-top1",
 /*
  * List of parent clocks for Muxes in CMU_CCORE
  */
-PNAME(mout_aclk_ccore_133_p)	= { "fin_pll", "dout_aclk_ccore_133" };
+PNAME(mout_aclk_ccore_133_user_p)	= { "fin_pll", "aclk_ccore_133" };
 
 static unsigned long ccore_clk_regs[] __initdata = {
 	MUX_SEL_CCORE,
@@ -557,7 +557,7 @@ static unsigned long ccore_clk_regs[] __initdata = {
 };
 
 static struct samsung_mux_clock ccore_mux_clks[] __initdata = {
-	MUX(0, "mout_aclk_ccore_133_user", mout_aclk_ccore_133_p,
+	MUX(0, "mout_aclk_ccore_133_user", mout_aclk_ccore_133_user_p,
 		MUX_SEL_CCORE, 1, 1),
 };
 
