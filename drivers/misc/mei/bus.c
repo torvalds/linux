@@ -597,9 +597,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
 	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "mei:%s:" MEI_CL_UUID_FMT ":",
-		cldev->name, MEI_CL_UUID_ARGS(uuid->b));
-
+	len = snprintf(buf, PAGE_SIZE, "mei:%s:%pUl:", cldev->name, uuid);
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
 static DEVICE_ATTR_RO(modalias);
@@ -631,8 +629,7 @@ static int mei_cl_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (add_uevent_var(env, "MEI_CL_NAME=%s", cldev->name))
 		return -ENOMEM;
 
-	if (add_uevent_var(env, "MODALIAS=mei:%s:" MEI_CL_UUID_FMT ":",
-		cldev->name, MEI_CL_UUID_ARGS(uuid->b)))
+	if (add_uevent_var(env, "MODALIAS=mei:%s:%pUl:", cldev->name, uuid))
 		return -ENOMEM;
 
 	return 0;

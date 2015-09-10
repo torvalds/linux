@@ -137,10 +137,12 @@ static inline void add_wildcard(char *str)
 static inline void add_uuid(char *str, uuid_le uuid)
 {
 	int len = strlen(str);
-	int i;
 
-	for (i = 0; i < 16; i++)
-		sprintf(str + len + (i << 1), "%02x", uuid.b[i]);
+	sprintf(str + len, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		uuid.b[3], uuid.b[2], uuid.b[1], uuid.b[0],
+		uuid.b[5], uuid.b[4], uuid.b[7], uuid.b[6],
+		uuid.b[8], uuid.b[9], uuid.b[10], uuid.b[11],
+		uuid.b[12], uuid.b[13], uuid.b[14], uuid.b[15]);
 }
 
 /**
