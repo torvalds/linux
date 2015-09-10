@@ -101,12 +101,6 @@ static struct notifier_block g_dev_notifier = {
 		if (g_linux_wlan->oup.wlan_cleanup != NULL) \
 			g_linux_wlan->oup.wlan_cleanup(); }
 
-typedef struct android_wifi_priv_cmd {
-	char *buf;
-	int used_len;
-	int total_len;
-} android_wifi_priv_cmd;
-
 #define IRQ_WAIT	1
 #define IRQ_NO_WAIT	0
 /*
@@ -116,9 +110,6 @@ typedef struct android_wifi_priv_cmd {
  *      deinitialized from mdoule_exit
  */
 static struct semaphore close_exit_sync;
-unsigned int int_rcvdU;
-unsigned int int_rcvdB;
-unsigned int int_clrd;
 
 static int wlan_deinit_locks(linux_wlan_t *nic);
 static void wlan_deinitialize_threads(linux_wlan_t *nic);
@@ -340,7 +331,6 @@ void linux_wlan_disable_irq(int wait)
 #if (defined WILC_SPI) || (defined WILC_SDIO_IRQ_GPIO)
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
-	int_rcvdU++;
 #if (RX_BH_TYPE != RX_BH_THREADED_IRQ)
 	linux_wlan_disable_irq(IRQ_NO_WAIT);
 #endif
@@ -395,7 +385,6 @@ static void isr_bh_routine(struct work_struct *work)
 	#endif
 	}
 
-	int_rcvdB++;
 	PRINT_D(INT_DBG, "Interrupt received BH\n");
 	if (g_linux_wlan->oup.wlan_handle_rx_isr != 0)
 		g_linux_wlan->oup.wlan_handle_rx_isr();
@@ -422,7 +411,6 @@ static int isr_bh_routine(void *vp)
 
 			break;
 		}
-		int_rcvdB++;
 		PRINT_D(INT_DBG, "Interrupt received BH\n");
 		if (g_linux_wlan->oup.wlan_handle_rx_isr != 0)
 			g_linux_wlan->oup.wlan_handle_rx_isr();
@@ -1792,7 +1780,6 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	nic = netdev_priv(ndev);
 
-	PRINT_D(INT_DBG, "\n========\n IntUH: %d - IntBH: %d - IntCld: %d\n========\n", int_rcvdU, int_rcvdB, int_clrd);
 	PRINT_D(TX_DBG, "Sending packet just received from TCP/IP\n");
 
 	/* Stop the network interface queue */
@@ -2096,10 +2083,6 @@ int wilc_netdev_init(void)
 	if (!g_linux_wlan)
 		return -ENOMEM;
 
-	/*Reset interrupt count debug*/
-	int_rcvdU = 0;
-	int_rcvdB = 0;
-	int_clrd = 0;
 	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	register_inetaddr_notifier(&g_dev_notifier);
 	#endif

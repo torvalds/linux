@@ -32,7 +32,6 @@ static wilc_sdio_t g_sdio;
 static int sdio_write_reg(uint32_t addr, uint32_t data);
 static int sdio_read_reg(uint32_t addr, uint32_t *data);
 #endif
-extern unsigned int int_clrd;
 
 /********************************************
  *
@@ -167,7 +166,6 @@ static int sdio_clear_int(void)
 	cmd.address = 0x4;
 	cmd.data = 0;
 	g_sdio.sdio_cmd52(&cmd);
-	int_clrd++;
 
 	return cmd.data;
 #else
@@ -179,7 +177,6 @@ static int sdio_clear_int(void)
 	}
 	reg &= ~0x1;
 	sdio_write_reg(WILC_HOST_RX_CTRL_0, reg);
-	int_clrd++;
 	return 1;
 #endif
 

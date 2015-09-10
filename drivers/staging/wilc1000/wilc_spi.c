@@ -10,8 +10,6 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-extern unsigned int int_clrd;
-
 /*
  * #include <linux/kernel.h>
  * #include <linux/string.h>
@@ -1030,7 +1028,6 @@ static int spi_clear_int(void)
 	}
 	reg &= ~0x1;
 	spi_write_reg(WILC_HOST_RX_CTRL_0, reg);
-	int_clrd++;
 	return 1;
 }
 
