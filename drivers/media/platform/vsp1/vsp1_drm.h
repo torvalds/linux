@@ -15,8 +15,15 @@
 
 #include "vsp1_pipe.h"
 
+/**
+ * vsp1_drm - State for the API exposed to the DRM driver
+ * @pipe: the VSP1 pipeline used for display
+ * @num_inputs: number of active pipeline inputs at the beginning of an update
+ * @update: the pipeline configuration has been updated
+ */
 struct vsp1_drm {
 	struct vsp1_pipeline pipe;
+	unsigned int num_inputs;
 	bool update;
 };
 

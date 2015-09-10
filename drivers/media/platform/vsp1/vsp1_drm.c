@@ -254,7 +254,26 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
 
 /**
- * vsp1_du_setup_rpf - Setup one RPF input of the VSP pipeline
+ * vsp1_du_atomic_begin - Prepare for an atomic update
+ * @dev: the VSP device
+ */
+void vsp1_du_atomic_begin(struct device *dev)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pipe->irqlock, flags);
+
+	vsp1->drm->num_inputs = pipe->num_inputs;
+	vsp1->drm->update = false;
+
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
+
+/**
+ * vsp1_du_atomic_update - Setup one RPF input of the VSP pipeline
  * @dev: the VSP device
  * @rpf_index: index of the RPF to setup (0-based)
  * @pixelformat: V4L2 pixel format for the RPF memory input
@@ -288,10 +307,10 @@ EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
  *
  * Return 0 on success or a negative error code on failure.
  */
-int vsp1_du_setup_rpf(struct device *dev, unsigned int rpf_index,
-		      u32 pixelformat, unsigned int pitch,
-		      dma_addr_t mem[2], const struct v4l2_rect *src,
-		      const struct v4l2_rect *dst)
+int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
+			  u32 pixelformat, unsigned int pitch,
+			  dma_addr_t mem[2], const struct v4l2_rect *src,
+			  const struct v4l2_rect *dst)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
@@ -301,7 +320,6 @@ int vsp1_du_setup_rpf(struct device *dev, unsigned int rpf_index,
 	struct vsp1_rwpf_memory memory;
 	struct vsp1_rwpf *rpf;
 	unsigned long flags;
-	bool start_stop = false;
 	int ret;
 
 	if (rpf_index >= vsp1->pdata.rpf_count)
@@ -322,15 +340,10 @@ int vsp1_du_setup_rpf(struct device *dev, unsigned int rpf_index,
 			vsp1->bru->inputs[rpf_index].rpf = NULL;
 			pipe->inputs[rpf_index] = NULL;
 
-			vsp1->drm->update = true;
-			start_stop = --pipe->num_inputs == 0;
+			pipe->num_inputs--;
 		}
 
 		spin_unlock_irqrestore(&pipe->irqlock, flags);
-
-		/* Stop the pipeline if we're the last user. */
-		if (start_stop)
-			vsp1_pipeline_stop(pipe);
 
 		return 0;
 	}
@@ -459,19 +472,42 @@ int vsp1_du_setup_rpf(struct device *dev, unsigned int rpf_index,
 	if (!pipe->inputs[rpf->entity.index]) {
 		vsp1->bru->inputs[rpf_index].rpf = rpf;
 		pipe->inputs[rpf->entity.index] = rpf;
-		start_stop = pipe->num_inputs++ == 0;
+		pipe->num_inputs++;
 	}
-
-	/* Start the pipeline if it's currently stopped. */
-	vsp1->drm->update = true;
-	if (start_stop)
-		vsp1_drm_pipeline_run(pipe);
 
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vsp1_du_setup_rpf);
+EXPORT_SYMBOL_GPL(vsp1_du_atomic_update);
+
+/**
+ * vsp1_du_atomic_flush - Commit an atomic update
+ * @dev: the VSP device
+ */
+void vsp1_du_atomic_flush(struct device *dev)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
+	unsigned long flags;
+	bool stop = false;
+
+	spin_lock_irqsave(&pipe->irqlock, flags);
+
+	vsp1->drm->update = true;
+
+	/* Start or stop the pipeline if needed. */
+	if (!vsp1->drm->num_inputs && pipe->num_inputs)
+		vsp1_drm_pipeline_run(pipe);
+	else if (vsp1->drm->num_inputs && !pipe->num_inputs)
+		stop = true;
+
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
+
+	if (stop)
+		vsp1_pipeline_stop(pipe);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 
 /* -----------------------------------------------------------------------------
  * Initialization
