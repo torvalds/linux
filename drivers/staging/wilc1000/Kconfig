@@ -1,6 +1,5 @@
 config WILC1000
 	tristate "WILC1000 support (WiFi only)"
-	depends on BROKEN
 	depends on !S390
 	depends on CFG80211 && WEXT_CORE && INET
 	depends on MMC || SPI
