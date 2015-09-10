@@ -61,7 +61,7 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 		ret = -EOPNOTSUPP;
 		goto out;
 
-	}else { /* Set the channel */
+	} else { /* Set the channel */
 
 		if (!(GET_DOT11D_INFO(ieee)->channel_map)[fwrq->m]) {
 			ret = -EINVAL;
@@ -283,13 +283,13 @@ int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info 
 	if (wrqu->mode == IW_MODE_MONITOR) {
 
 		ieee->dev->type = ARPHRD_IEEE80211;
-	}else {
+	} else {
 		ieee->dev->type = ARPHRD_ETHER;
 	}
 
 	if (!ieee->proto_started) {
 		ieee->iw_mode = wrqu->mode;
-	}else {
+	} else {
 		ieee80211_stop_protocol(ieee);
 		ieee->iw_mode = wrqu->mode;
 		ieee80211_start_protocol(ieee);
