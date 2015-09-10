@@ -394,6 +394,28 @@ found_clock:
 	return 0;
 }
 
+static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
+			       struct rsnd_adg *adg)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct clk *clk;
+	static const char * const clk_name[] = {
+		[CLKA]	= "clk_a",
+		[CLKB]	= "clk_b",
+		[CLKC]	= "clk_c",
+		[CLKI]	= "clk_i",
+	};
+	int i;
+
+	for (i = 0; i < CLKMAX; i++) {
+		clk = devm_clk_get(dev, clk_name[i]);
+		adg->clk[i] = IS_ERR(clk) ? NULL : clk;
+	}
+
+	for_each_rsnd_clk(clk, adg, i)
+		dev_dbg(dev, "clk %d : %p : %ld\n", i, clk, clk_get_rate(clk));
+}
+
 static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 {
 	struct clk *clk;
@@ -466,8 +488,6 @@ int rsnd_adg_probe(struct platform_device *pdev,
 {
 	struct rsnd_adg *adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct clk *clk;
-	int i;
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
 	if (!adg) {
@@ -483,13 +503,7 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	adg->mod.ops = &adg_ops;
 	adg->mod.priv = priv;
 
-	adg->clk[CLKA]	= devm_clk_get(dev, "clk_a");
-	adg->clk[CLKB]	= devm_clk_get(dev, "clk_b");
-	adg->clk[CLKC]	= devm_clk_get(dev, "clk_c");
-	adg->clk[CLKI]	= devm_clk_get(dev, "clk_i");
-
-	for_each_rsnd_clk(clk, adg, i)
-		dev_dbg(dev, "clk %d : %p : %ld\n", i, clk, clk_get_rate(clk));
+	rsnd_adg_get_clkin(priv, adg);
 
 	rsnd_adg_ssi_clk_init(priv, adg);
 
