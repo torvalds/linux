@@ -4687,19 +4687,22 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_guc_ucode_load(dev);
-	if (ret) {
-		/*
-		 * If we got an error and GuC submission is enabled, map
-		 * the error to -EIO so the GPU will be declared wedged.
-		 * OTOH, if we didn't intend to use the GuC anyway, just
-		 * discard the error and carry on.
-		 */
-		DRM_ERROR("Failed to initialize GuC, error %d%s\n", ret,
-			i915.enable_guc_submission ? "" : " (ignored)");
-		ret = i915.enable_guc_submission ? -EIO : 0;
-		if (ret)
-			goto out;
+	if (HAS_GUC_UCODE(dev)) {
+		ret = intel_guc_ucode_load(dev);
+		if (ret) {
+			/*
+			 * If we got an error and GuC submission is enabled, map
+			 * the error to -EIO so the GPU will be declared wedged.
+			 * OTOH, if we didn't intend to use the GuC anyway, just
+			 * discard the error and carry on.
+			 */
+			DRM_ERROR("Failed to initialize GuC, error %d%s\n", ret,
+				  i915.enable_guc_submission ? "" :
+				  " (ignored)");
+			ret = i915.enable_guc_submission ? -EIO : 0;
+			if (ret)
+				goto out;
+		}
 	}
 
 	/* Now it is safe to go back round and do everything else: */
