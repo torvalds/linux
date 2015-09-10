@@ -25,7 +25,6 @@ struct rsnd_adg {
 
 	int rbga_rate_for_441khz_div_6;	/* RBGA */
 	int rbgb_rate_for_48khz_div_6;	/* RBGB */
-	u32 ckr;
 };
 
 #define for_each_rsnd_clk(pos, adg, i)		\
@@ -323,7 +322,6 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
-	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
 	int i;
@@ -366,11 +364,6 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 
 found_clock:
 
-	/* see rsnd_adg_ssi_clk_init() */
-	rsnd_mod_bset(adg_mod, SSICKR, 0x00FF0000, adg->ckr);
-	rsnd_mod_write(adg_mod, BRRA,  0x00000002); /* 1/6 */
-	rsnd_mod_write(adg_mod, BRRB,  0x00000002); /* 1/6 */
-
 	/*
 	 * This "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
@@ -386,6 +379,7 @@ found_clock:
 static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 {
 	struct clk *clk;
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	unsigned long rate;
 	u32 ckr;
 	int i;
@@ -405,6 +399,7 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 	 * and, BRGB outputs 48.0kHz base parent clock 1/32 here.
 	 * see
 	 *	rsnd_adg_ssi_clk_try_start()
+	 *	rsnd_ssi_master_clk_start()
 	 */
 	ckr = 0;
 	adg->rbga_rate_for_441khz_div_6 = 0;
@@ -428,7 +423,9 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 		}
 	}
 
-	adg->ckr = ckr;
+	rsnd_mod_bset(adg_mod, SSICKR, 0x00FF0000, ckr);
+	rsnd_mod_write(adg_mod, BRRA,  0x00000002); /* 1/6 */
+	rsnd_mod_write(adg_mod, BRRB,  0x00000002); /* 1/6 */
 }
 
 int rsnd_adg_probe(struct platform_device *pdev,
