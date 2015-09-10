@@ -49,7 +49,8 @@
 #define CLK_SCLK_SPDIF			12
 #define CLK_SCLK_PCM1			13
 #define CLK_SCLK_I2S1			14
-#define TOP0_NR_CLK			15
+#define CLK_ACLK_PERIC0_66		15
+#define TOP0_NR_CLK			16
 
 /* TOP1 */
 #define DOUT_ACLK_FSYS1_200		1

@@ -224,6 +224,7 @@ CLK_OF_DECLARE(exynos7_clk_topc, "samsung,exynos7-clock-topc",
 #define DIV_TOP0_PERIC1			0x0634
 #define DIV_TOP0_PERIC2			0x0638
 #define DIV_TOP0_PERIC3			0x063C
+#define ENABLE_ACLK_TOP03		0x080C
 #define ENABLE_SCLK_TOP0_PERIC0		0x0A30
 #define ENABLE_SCLK_TOP0_PERIC1		0x0A34
 #define ENABLE_SCLK_TOP0_PERIC2		0x0A38
@@ -338,6 +339,9 @@ static struct samsung_div_clock top0_div_clks[] __initdata = {
 };
 
 static struct samsung_gate_clock top0_gate_clks[] __initdata = {
+	GATE(CLK_ACLK_PERIC0_66, "aclk_peric0_66", "dout_aclk_peric0_66",
+		ENABLE_ACLK_TOP03, 20, CLK_SET_RATE_PARENT, 0),
+
 	GATE(CLK_SCLK_SPDIF, "sclk_spdif", "dout_sclk_spdif",
 		ENABLE_SCLK_TOP0_PERIC0, 4, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_PCM1, "sclk_pcm1", "dout_sclk_pcm1",
@@ -590,8 +594,8 @@ CLK_OF_DECLARE(exynos7_clk_ccore, "samsung,exynos7-clock-ccore",
 #define ENABLE_SCLK_PERIC0		0x0A00
 
 /* List of parent clocks for Muxes in CMU_PERIC0 */
-PNAME(mout_aclk_peric0_66_p)	= { "fin_pll", "dout_aclk_peric0_66" };
-PNAME(mout_sclk_uart0_p)	= { "fin_pll", "sclk_uart0" };
+PNAME(mout_aclk_peric0_66_user_p)	= { "fin_pll", "aclk_peric0_66" };
+PNAME(mout_sclk_uart0_user_p)	= { "fin_pll", "sclk_uart0" };
 
 static unsigned long peric0_clk_regs[] __initdata = {
 	MUX_SEL_PERIC0,
@@ -600,9 +604,9 @@ static unsigned long peric0_clk_regs[] __initdata = {
 };
 
 static struct samsung_mux_clock peric0_mux_clks[] __initdata = {
-	MUX(0, "mout_aclk_peric0_66_user", mout_aclk_peric0_66_p,
+	MUX(0, "mout_aclk_peric0_66_user", mout_aclk_peric0_66_user_p,
 		MUX_SEL_PERIC0, 0, 1),
-	MUX(0, "mout_sclk_uart0_user", mout_sclk_uart0_p,
+	MUX(0, "mout_sclk_uart0_user", mout_sclk_uart0_user_p,
 		MUX_SEL_PERIC0, 16, 1),
 };
 
