@@ -51,14 +51,12 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		cell-index = <1>;
-		fsl,liodn-reg = <&guts 0x510>; /* RIO1LIODNR */
 	};
 
 	port2 {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		cell-index = <2>;
-		fsl,liodn-reg = <&guts 0x514>; /* RIO2LIODNR */
 	};
 };
 
