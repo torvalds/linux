@@ -180,6 +180,18 @@ config PWM_LP3943
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lp3943.
 
+config PWM_LPC18XX_SCT
+	tristate "LPC18xx/43xx PWM/SCT support"
+	depends on ARCH_LPC18XX
+	help
+	  Generic PWM framework driver for NXP LPC18xx PWM/SCT which
+	  supports 16 channels.
+	  A maximum of 15 channels can be requested simultaneously and
+	  must have the same period.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpc18xx-sct.
+
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
 	depends on ARCH_LPC32XX

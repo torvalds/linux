@@ -393,7 +393,6 @@ struct srpt_port {
 struct srpt_device {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
-	struct ib_mr		*mr;
 	struct ib_srq		*srq;
 	struct ib_cm_id		*cm_id;
 	struct ib_device_attr	dev_attr;

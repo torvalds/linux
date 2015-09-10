@@ -235,7 +235,7 @@ isert_alloc_rx_descriptors(struct isert_conn *isert_conn)
 		rx_sg = &rx_desc->rx_sg;
 		rx_sg->addr = rx_desc->dma_addr;
 		rx_sg->length = ISER_RX_PAYLOAD_SIZE;
-		rx_sg->lkey = device->mr->lkey;
+		rx_sg->lkey = device->pd->local_dma_lkey;
 	}
 
 	isert_conn->rx_desc_head = 0;
@@ -385,22 +385,12 @@ isert_create_device_ib_res(struct isert_device *device)
 		goto out_cq;
 	}
 
-	device->mr = ib_get_dma_mr(device->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(device->mr)) {
-		ret = PTR_ERR(device->mr);
-		isert_err("failed to create dma mr, device %p, ret=%d\n",
-			  device, ret);
-		goto out_mr;
-	}
-
 	/* Check signature cap */
 	device->pi_capable = dev_attr->device_cap_flags &
 			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
 
 	return 0;
 
-out_mr:
-	ib_dealloc_pd(device->pd);
 out_cq:
 	isert_free_comps(device);
 	return ret;
@@ -411,7 +401,6 @@ isert_free_device_ib_res(struct isert_device *device)
 {
 	isert_info("device %p\n", device);
 
-	ib_dereg_mr(device->mr);
 	ib_dealloc_pd(device->pd);
 	isert_free_comps(device);
 }
@@ -491,7 +480,7 @@ isert_conn_free_fastreg_pool(struct isert_conn *isert_conn)
 		if (fr_desc->pi_ctx) {
 			ib_free_fast_reg_page_list(fr_desc->pi_ctx->prot_frpl);
 			ib_dereg_mr(fr_desc->pi_ctx->prot_mr);
-			ib_destroy_mr(fr_desc->pi_ctx->sig_mr);
+			ib_dereg_mr(fr_desc->pi_ctx->sig_mr);
 			kfree(fr_desc->pi_ctx);
 		}
 		kfree(fr_desc);
@@ -508,7 +497,6 @@ isert_create_pi_ctx(struct fast_reg_descriptor *desc,
 		    struct ib_device *device,
 		    struct ib_pd *pd)
 {
-	struct ib_mr_init_attr mr_init_attr;
 	struct pi_context *pi_ctx;
 	int ret;
 
@@ -527,7 +515,8 @@ isert_create_pi_ctx(struct fast_reg_descriptor *desc,
 		goto err_pi_ctx;
 	}
 
-	pi_ctx->prot_mr = ib_alloc_fast_reg_mr(pd, ISCSI_ISER_SG_TABLESIZE);
+	pi_ctx->prot_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+				      ISCSI_ISER_SG_TABLESIZE);
 	if (IS_ERR(pi_ctx->prot_mr)) {
 		isert_err("Failed to allocate prot frmr err=%ld\n",
 			  PTR_ERR(pi_ctx->prot_mr));
@@ -536,10 +525,7 @@ isert_create_pi_ctx(struct fast_reg_descriptor *desc,
 	}
 	desc->ind |= ISERT_PROT_KEY_VALID;
 
-	memset(&mr_init_attr, 0, sizeof(mr_init_attr));
-	mr_init_attr.max_reg_descriptors = 2;
-	mr_init_attr.flags |= IB_MR_SIGNATURE_EN;
-	pi_ctx->sig_mr = ib_create_mr(pd, &mr_init_attr);
+	pi_ctx->sig_mr = ib_alloc_mr(pd, IB_MR_TYPE_SIGNATURE, 2);
 	if (IS_ERR(pi_ctx->sig_mr)) {
 		isert_err("Failed to allocate signature enabled mr err=%ld\n",
 			  PTR_ERR(pi_ctx->sig_mr));
@@ -577,7 +563,8 @@ isert_create_fr_desc(struct ib_device *ib_device, struct ib_pd *pd,
 		return PTR_ERR(fr_desc->data_frpl);
 	}
 
-	fr_desc->data_mr = ib_alloc_fast_reg_mr(pd, ISCSI_ISER_SG_TABLESIZE);
+	fr_desc->data_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+				       ISCSI_ISER_SG_TABLESIZE);
 	if (IS_ERR(fr_desc->data_mr)) {
 		isert_err("Failed to allocate data frmr err=%ld\n",
 			  PTR_ERR(fr_desc->data_mr));
@@ -1092,8 +1079,8 @@ isert_create_send_desc(struct isert_conn *isert_conn,
 	tx_desc->num_sge = 1;
 	tx_desc->isert_cmd = isert_cmd;
 
-	if (tx_desc->tx_sg[0].lkey != device->mr->lkey) {
-		tx_desc->tx_sg[0].lkey = device->mr->lkey;
+	if (tx_desc->tx_sg[0].lkey != device->pd->local_dma_lkey) {
+		tx_desc->tx_sg[0].lkey = device->pd->local_dma_lkey;
 		isert_dbg("tx_desc %p lkey mismatch, fixing\n", tx_desc);
 	}
 }
@@ -1116,7 +1103,7 @@ isert_init_tx_hdrs(struct isert_conn *isert_conn,
 	tx_desc->dma_addr = dma_addr;
 	tx_desc->tx_sg[0].addr	= tx_desc->dma_addr;
 	tx_desc->tx_sg[0].length = ISER_HEADERS_LEN;
-	tx_desc->tx_sg[0].lkey = device->mr->lkey;
+	tx_desc->tx_sg[0].lkey = device->pd->local_dma_lkey;
 
 	isert_dbg("Setup tx_sg[0].addr: 0x%llx length: %u lkey: 0x%x\n",
 		  tx_desc->tx_sg[0].addr, tx_desc->tx_sg[0].length,
@@ -1149,7 +1136,7 @@ isert_rdma_post_recvl(struct isert_conn *isert_conn)
 	memset(&sge, 0, sizeof(struct ib_sge));
 	sge.addr = isert_conn->login_req_dma;
 	sge.length = ISER_RX_LOGIN_SIZE;
-	sge.lkey = isert_conn->device->mr->lkey;
+	sge.lkey = isert_conn->device->pd->local_dma_lkey;
 
 	isert_dbg("Setup sge: addr: %llx length: %d 0x%08x\n",
 		sge.addr, sge.length, sge.lkey);
@@ -1199,7 +1186,7 @@ isert_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 
 		tx_dsg->addr	= isert_conn->login_rsp_dma;
 		tx_dsg->length	= length;
-		tx_dsg->lkey	= isert_conn->device->mr->lkey;
+		tx_dsg->lkey	= isert_conn->device->pd->local_dma_lkey;
 		tx_desc->num_sge = 2;
 	}
 	if (!login->login_failed) {
@@ -2216,7 +2203,7 @@ isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 		isert_cmd->pdu_buf_len = pdu_len;
 		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
 		tx_dsg->length	= pdu_len;
-		tx_dsg->lkey	= device->mr->lkey;
+		tx_dsg->lkey	= device->pd->local_dma_lkey;
 		isert_cmd->tx_desc.num_sge = 2;
 	}
 
@@ -2344,7 +2331,7 @@ isert_put_reject(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 	isert_cmd->pdu_buf_len = ISCSI_HDR_LEN;
 	tx_dsg->addr	= isert_cmd->pdu_buf_dma;
 	tx_dsg->length	= ISCSI_HDR_LEN;
-	tx_dsg->lkey	= device->mr->lkey;
+	tx_dsg->lkey	= device->pd->local_dma_lkey;
 	isert_cmd->tx_desc.num_sge = 2;
 
 	isert_init_send_wr(isert_conn, isert_cmd, send_wr);
@@ -2385,7 +2372,7 @@ isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 		isert_cmd->pdu_buf_len = txt_rsp_len;
 		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
 		tx_dsg->length	= txt_rsp_len;
-		tx_dsg->lkey	= device->mr->lkey;
+		tx_dsg->lkey	= device->pd->local_dma_lkey;
 		isert_cmd->tx_desc.num_sge = 2;
 	}
 	isert_init_send_wr(isert_conn, isert_cmd, send_wr);
@@ -2426,7 +2413,7 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 		ib_sge->addr = ib_sg_dma_address(ib_dev, tmp_sg) + page_off;
 		ib_sge->length = min_t(u32, data_left,
 				ib_sg_dma_len(ib_dev, tmp_sg) - page_off);
-		ib_sge->lkey = device->mr->lkey;
+		ib_sge->lkey = device->pd->local_dma_lkey;
 
 		isert_dbg("RDMA ib_sge: addr: 0x%llx  length: %u lkey: %x\n",
 			  ib_sge->addr, ib_sge->length, ib_sge->lkey);
@@ -2600,7 +2587,7 @@ isert_fast_reg_mr(struct isert_conn *isert_conn,
 	u32 page_off;
 
 	if (mem->dma_nents == 1) {
-		sge->lkey = device->mr->lkey;
+		sge->lkey = device->pd->local_dma_lkey;
 		sge->addr = ib_sg_dma_address(ib_dev, &mem->sg[0]);
 		sge->length = ib_sg_dma_len(ib_dev, &mem->sg[0]);
 		isert_dbg("sge: addr: 0x%llx  length: %u lkey: %x\n",
