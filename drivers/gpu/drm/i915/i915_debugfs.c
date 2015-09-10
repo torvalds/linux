@@ -2817,11 +2817,13 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder;
+	struct drm_plane_state *plane_state = crtc->primary->state;
+	struct drm_framebuffer *fb = plane_state->fb;
 
-	if (crtc->primary->fb)
+	if (fb)
 		seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
-			   crtc->primary->fb->base.id, crtc->x, crtc->y,
-			   crtc->primary->fb->width, crtc->primary->fb->height);
+			   fb->base.id, plane_state->src_x >> 16,
+			   plane_state->src_y >> 16, fb->width, fb->height);
 	else
 		seq_puts(m, "\tprimary plane disabled\n");
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
