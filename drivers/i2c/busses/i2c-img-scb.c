@@ -278,8 +278,6 @@
 #define ISR_COMPLETE(err)	(ISR_COMPLETE_M | (ISR_STATUS_M & (err)))
 #define ISR_FATAL(err)		(ISR_COMPLETE(err) | ISR_FATAL_M)
 
-#define REL_SOC_IP_SCB_2_2_1	0x00020201
-
 enum img_i2c_mode {
 	MODE_INACTIVE,
 	MODE_RAW,
@@ -1120,10 +1118,8 @@ static int img_i2c_init(struct img_i2c *i2c)
 		return -EINVAL;
 	}
 
-	if (rev == REL_SOC_IP_SCB_2_2_1) {
-		i2c->need_wr_rd_fence = true;
-		dev_info(i2c->adap.dev.parent, "fence quirk enabled");
-	}
+	/* Fencing enabled by default. */
+	i2c->need_wr_rd_fence = true;
 
 	bitrate_khz = i2c->bitrate / 1000;
 	clk_khz = clk_get_rate(i2c->scb_clk) / 1000;
