@@ -7,7 +7,6 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/sh_clk.h>
 #include "rsnd.h"
 
 #define CLKA	0
