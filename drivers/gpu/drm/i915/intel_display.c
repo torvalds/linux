@@ -15132,33 +15132,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 
-		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
-		if (crtc->base.state->active) {
-			intel_mode_from_pipe_config(&crtc->base.mode, crtc->config);
-			intel_mode_from_pipe_config(&crtc->base.state->adjusted_mode, crtc->config);
-			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
-
-			/*
-			 * The initial mode needs to be set in order to keep
-			 * the atomic core happy. It wants a valid mode if the
-			 * crtc's enabled, so we do the above call.
-			 *
-			 * At this point some state updated by the connectors
-			 * in their ->detect() callback has not run yet, so
-			 * no recalculation can be done yet.
-			 *
-			 * Even if we could do a recalculation and modeset
-			 * right now it would cause a double modeset if
-			 * fbdev or userspace chooses a different initial mode.
-			 *
-			 * If that happens, someone indicated they wanted a
-			 * mode change, which means it's safe to do a full
-			 * recalculation.
-			 */
-			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
-		}
-
-		crtc->base.hwmode = crtc->config->base.adjusted_mode;
 		readout_plane_state(crtc, to_intel_crtc_state(crtc->base.state));
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
@@ -15217,6 +15190,36 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      connector->base.base.id,
 			      connector->base.name,
 			      connector->base.encoder ? "enabled" : "disabled");
+	}
+
+	for_each_intel_crtc(dev, crtc) {
+		crtc->base.hwmode = crtc->config->base.adjusted_mode;
+
+		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
+		if (crtc->base.state->active) {
+			intel_mode_from_pipe_config(&crtc->base.mode, crtc->config);
+			intel_mode_from_pipe_config(&crtc->base.state->adjusted_mode, crtc->config);
+			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
+
+			/*
+			 * The initial mode needs to be set in order to keep
+			 * the atomic core happy. It wants a valid mode if the
+			 * crtc's enabled, so we do the above call.
+			 *
+			 * At this point some state updated by the connectors
+			 * in their ->detect() callback has not run yet, so
+			 * no recalculation can be done yet.
+			 *
+			 * Even if we could do a recalculation and modeset
+			 * right now it would cause a double modeset if
+			 * fbdev or userspace chooses a different initial mode.
+			 *
+			 * If that happens, someone indicated they wanted a
+			 * mode change, which means it's safe to do a full
+			 * recalculation.
+			 */
+			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
+		}
 	}
 }
 
