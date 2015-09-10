@@ -81,18 +81,20 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_adg_set_src_timsel_gen2(struct rsnd_mod *mod,
+static int rsnd_adg_set_src_timsel_gen2(struct rsnd_mod *src_mod,
 					struct rsnd_dai_stream *io,
 					u32 timsel)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(src_mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	int is_play = rsnd_io_is_play(io);
-	int id = rsnd_mod_id(mod);
+	int id = rsnd_mod_id(src_mod);
 	int shift = (id % 2) ? 16 : 0;
 	u32 mask, ws;
 	u32 in, out;
+
+	rsnd_mod_confirm_src(src_mod);
 
 	ws = rsnd_adg_ssi_ws_timing_gen2(io);
 
@@ -129,12 +131,12 @@ static int rsnd_adg_set_src_timsel_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
-int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
+int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *src_mod,
 				  struct rsnd_dai_stream *io,
 				  unsigned int src_rate,
 				  unsigned int dst_rate)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(src_mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -148,6 +150,8 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		adg->rbga_rate_for_441khz_div_6,/* 0011: RBGA */
 		adg->rbgb_rate_for_48khz_div_6,	/* 0100: RBGB */
 	};
+
+	rsnd_mod_confirm_src(src_mod);
 
 	min = ~0;
 	val = 0;
@@ -186,7 +190,7 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		return -EIO;
 	}
 
-	ret = rsnd_adg_set_src_timsel_gen2(mod, io, val);
+	ret = rsnd_adg_set_src_timsel_gen2(src_mod, io, val);
 	if (ret < 0) {
 		dev_err(dev, "timsel error\n");
 		return ret;
@@ -199,12 +203,14 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
-int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
+int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *src_mod,
 				     struct rsnd_dai_stream *io)
 {
 	u32 val = rsnd_adg_ssi_ws_timing_gen2(io);
 
-	return rsnd_adg_set_src_timsel_gen2(mod, io, val);
+	rsnd_mod_confirm_src(src_mod);
+
+	return rsnd_adg_set_src_timsel_gen2(src_mod, io, val);
 }
 
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
@@ -269,14 +275,16 @@ find_rate:
 	return 0;
 }
 
-static void rsnd_adg_set_ssi_clk(struct rsnd_mod *mod, u32 val)
+static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
-	int id = rsnd_mod_id(mod);
+	int id = rsnd_mod_id(ssi_mod);
 	int shift = (id % 4) * 8;
 	u32 mask = 0xFF << shift;
+
+	rsnd_mod_confirm_ssi(ssi_mod);
 
 	val = val << shift;
 

@@ -627,4 +627,15 @@ void rsnd_dvc_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
 
+#ifdef DEBUG
+void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
+#define rsnd_mod_confirm_ssi(mssi)	rsnd_mod_make_sure(mssi, RSND_MOD_SSI)
+#define rsnd_mod_confirm_src(msrc)	rsnd_mod_make_sure(msrc, RSND_MOD_SRC)
+#define rsnd_mod_confirm_dvc(mdvc)	rsnd_mod_make_sure(mdvc, RSND_MOD_DVC)
+#else
+#define rsnd_mod_confirm_ssi(mssi)
+#define rsnd_mod_confirm_src(msrc)
+#define rsnd_mod_confirm_dvc(mdvc)
+#endif
+
 #endif

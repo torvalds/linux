@@ -127,6 +127,17 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 #define rsnd_info_id(priv, io, name) \
 	((io)->info->name - priv->info->name##_info)
 
+void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
+{
+	if (mod->type != type) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		dev_warn(dev, "%s[%d] is not your expected module\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
+}
+
 /*
  *	rsnd_mod functions
  */
