@@ -1060,6 +1060,15 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		i2c->last_msg = (i == num - 1);
 		reinit_completion(&i2c->msg_complete);
 
+		/*
+		 * Clear line status and all interrupts before starting a
+		 * transfer, as we may have unserviced interrupts from
+		 * previous transfers that might be handled in the context
+		 * of the new transfer.
+		 */
+		img_i2c_writel(i2c, SCB_INT_CLEAR_REG, ~0);
+		img_i2c_writel(i2c, SCB_CLEAR_REG, ~0);
+
 		if (atomic)
 			img_i2c_atomic_start(i2c);
 		else if (msg->flags & I2C_M_RD)
