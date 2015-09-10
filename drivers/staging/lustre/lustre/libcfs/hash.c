@@ -588,13 +588,13 @@ EXPORT_SYMBOL(cfs_hash_bd_move_locked);
 
 enum {
 	/** always set, for sanity (avoid ZERO intent) */
-	CFS_HS_LOOKUP_MASK_FIND     = 1 << 0,
+	CFS_HS_LOOKUP_MASK_FIND     = BIT(0),
 	/** return entry with a ref */
-	CFS_HS_LOOKUP_MASK_REF      = 1 << 1,
+	CFS_HS_LOOKUP_MASK_REF      = BIT(1),
 	/** add entry if not existing */
-	CFS_HS_LOOKUP_MASK_ADD      = 1 << 2,
+	CFS_HS_LOOKUP_MASK_ADD      = BIT(2),
 	/** delete entry, ignore other masks */
-	CFS_HS_LOOKUP_MASK_DEL      = 1 << 3,
+	CFS_HS_LOOKUP_MASK_DEL      = BIT(3),
 };
 
 typedef enum cfs_hash_lookup_intent {
