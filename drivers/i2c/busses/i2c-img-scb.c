@@ -857,7 +857,7 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 	}
 
 	/* Enable transaction halt on start bit */
-	if (!i2c->last_msg && i2c->line_status & LINESTAT_START_BIT_DET) {
+	if (!i2c->last_msg && line_status & LINESTAT_START_BIT_DET) {
 		img_i2c_transaction_halt(i2c, true);
 		/* we're no longer interested in the slave event */
 		i2c->int_enable &= ~INT_SLAVE_EVENT;
