@@ -341,6 +341,8 @@ static struct samsung_div_clock top0_div_clks[] __initdata = {
 static struct samsung_gate_clock top0_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_PERIC0_66, "aclk_peric0_66", "dout_aclk_peric0_66",
 		ENABLE_ACLK_TOP03, 20, CLK_SET_RATE_PARENT, 0),
+	GATE(CLK_ACLK_PERIC1_66, "aclk_peric1_66", "dout_aclk_peric1_66",
+		ENABLE_ACLK_TOP03, 12, CLK_SET_RATE_PARENT, 0),
 
 	GATE(CLK_SCLK_SPDIF, "sclk_spdif", "dout_sclk_spdif",
 		ENABLE_SCLK_TOP0_PERIC0, 4, CLK_SET_RATE_PARENT, 0),
@@ -663,15 +665,15 @@ CLK_OF_DECLARE(exynos7_clk_peric0, "samsung,exynos7-clock-peric0",
 	exynos7_clk_peric0_init);
 
 /* List of parent clocks for Muxes in CMU_PERIC1 */
-PNAME(mout_aclk_peric1_66_p)	= { "fin_pll", "dout_aclk_peric1_66" };
-PNAME(mout_sclk_uart1_p)	= { "fin_pll", "sclk_uart1" };
-PNAME(mout_sclk_uart2_p)	= { "fin_pll", "sclk_uart2" };
-PNAME(mout_sclk_uart3_p)	= { "fin_pll", "sclk_uart3" };
-PNAME(mout_sclk_spi0_p)		= { "fin_pll", "sclk_spi0" };
-PNAME(mout_sclk_spi1_p)		= { "fin_pll", "sclk_spi1" };
-PNAME(mout_sclk_spi2_p)		= { "fin_pll", "sclk_spi2" };
-PNAME(mout_sclk_spi3_p)		= { "fin_pll", "sclk_spi3" };
-PNAME(mout_sclk_spi4_p)		= { "fin_pll", "sclk_spi4" };
+PNAME(mout_aclk_peric1_66_user_p)	= { "fin_pll", "aclk_peric1_66" };
+PNAME(mout_sclk_uart1_user_p)	= { "fin_pll", "sclk_uart1" };
+PNAME(mout_sclk_uart2_user_p)	= { "fin_pll", "sclk_uart2" };
+PNAME(mout_sclk_uart3_user_p)	= { "fin_pll", "sclk_uart3" };
+PNAME(mout_sclk_spi0_user_p)		= { "fin_pll", "sclk_spi0" };
+PNAME(mout_sclk_spi1_user_p)		= { "fin_pll", "sclk_spi1" };
+PNAME(mout_sclk_spi2_user_p)		= { "fin_pll", "sclk_spi2" };
+PNAME(mout_sclk_spi3_user_p)		= { "fin_pll", "sclk_spi3" };
+PNAME(mout_sclk_spi4_user_p)		= { "fin_pll", "sclk_spi4" };
 
 static unsigned long peric1_clk_regs[] __initdata = {
 	MUX_SEL_PERIC10,
@@ -682,24 +684,24 @@ static unsigned long peric1_clk_regs[] __initdata = {
 };
 
 static struct samsung_mux_clock peric1_mux_clks[] __initdata = {
-	MUX(0, "mout_aclk_peric1_66_user", mout_aclk_peric1_66_p,
+	MUX(0, "mout_aclk_peric1_66_user", mout_aclk_peric1_66_user_p,
 		MUX_SEL_PERIC10, 0, 1),
 
-	MUX_F(0, "mout_sclk_spi0_user", mout_sclk_spi0_p,
+	MUX_F(0, "mout_sclk_spi0_user", mout_sclk_spi0_user_p,
 		MUX_SEL_PERIC11, 0, 1, CLK_SET_RATE_PARENT, 0),
-	MUX_F(0, "mout_sclk_spi1_user", mout_sclk_spi1_p,
+	MUX_F(0, "mout_sclk_spi1_user", mout_sclk_spi1_user_p,
 		MUX_SEL_PERIC11, 4, 1, CLK_SET_RATE_PARENT, 0),
-	MUX_F(0, "mout_sclk_spi2_user", mout_sclk_spi2_p,
+	MUX_F(0, "mout_sclk_spi2_user", mout_sclk_spi2_user_p,
 		MUX_SEL_PERIC11, 8, 1, CLK_SET_RATE_PARENT, 0),
-	MUX_F(0, "mout_sclk_spi3_user", mout_sclk_spi3_p,
+	MUX_F(0, "mout_sclk_spi3_user", mout_sclk_spi3_user_p,
 		MUX_SEL_PERIC11, 12, 1, CLK_SET_RATE_PARENT, 0),
-	MUX_F(0, "mout_sclk_spi4_user", mout_sclk_spi4_p,
+	MUX_F(0, "mout_sclk_spi4_user", mout_sclk_spi4_user_p,
 		MUX_SEL_PERIC11, 16, 1, CLK_SET_RATE_PARENT, 0),
-	MUX(0, "mout_sclk_uart1_user", mout_sclk_uart1_p,
+	MUX(0, "mout_sclk_uart1_user", mout_sclk_uart1_user_p,
 		MUX_SEL_PERIC11, 20, 1),
-	MUX(0, "mout_sclk_uart2_user", mout_sclk_uart2_p,
+	MUX(0, "mout_sclk_uart2_user", mout_sclk_uart2_user_p,
 		MUX_SEL_PERIC11, 24, 1),
-	MUX(0, "mout_sclk_uart3_user", mout_sclk_uart3_p,
+	MUX(0, "mout_sclk_uart3_user", mout_sclk_uart3_user_p,
 		MUX_SEL_PERIC11, 28, 1),
 };
 
