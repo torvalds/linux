@@ -32,6 +32,7 @@
 #define BCM63XX_SPI_MAX_PREPEND		15
 
 #define BCM63XX_SPI_MAX_CS		8
+#define BCM63XX_SPI_BUS_NUM		0
 
 struct bcm63xx_spi {
 	struct completion	done;
@@ -369,7 +370,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	master->bus_num = pdata->bus_num;
+	master->bus_num = BCM63XX_SPI_BUS_NUM;
 	master->num_chipselect = BCM63XX_SPI_MAX_CS;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
