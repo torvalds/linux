@@ -85,21 +85,13 @@ intel_connector_atomic_get_property(struct drm_connector *connector,
 struct drm_crtc_state *
 intel_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *crtc_state;
 
-	if (WARN_ON(!intel_crtc->config))
-		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
-	else
-		crtc_state = kmemdup(intel_crtc->config,
-				     sizeof(*intel_crtc->config), GFP_KERNEL);
-
+	crtc_state = kmemdup(crtc->state, sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state)
 		return NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
-
-	crtc_state->base.crtc = crtc;
 
 	return &crtc_state->base;
 }
