@@ -85,6 +85,9 @@ int mei_cl_register_event_cb(struct mei_cl_device *device,
 #define MEI_CL_EVENT_TX 1
 #define MEI_CL_EVENT_NOTIF 2
 
+const uuid_le *mei_cldev_uuid(const struct mei_cl_device *cldev);
+u8 mei_cldev_ver(const struct mei_cl_device *cldev);
+
 void *mei_cl_get_drvdata(const struct mei_cl_device *device);
 void mei_cl_set_drvdata(struct mei_cl_device *device, void *data);
 

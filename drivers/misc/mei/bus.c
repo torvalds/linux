@@ -342,6 +342,32 @@ void mei_cl_set_drvdata(struct mei_cl_device *cldev, void *data)
 EXPORT_SYMBOL_GPL(mei_cl_set_drvdata);
 
 /**
+ * mei_cldev_uuid - return uuid of the underlying me client
+ *
+ * @cldev: mei client device
+ *
+ * Return: me client uuid
+ */
+const uuid_le *mei_cldev_uuid(const struct mei_cl_device *cldev)
+{
+	return mei_me_cl_uuid(cldev->me_cl);
+}
+EXPORT_SYMBOL_GPL(mei_cldev_uuid);
+
+/**
+ * mei_cldev_ver - return protocol version of the underlying me client
+ *
+ * @cldev: mei client device
+ *
+ * Return: me client protocol version
+ */
+u8 mei_cldev_ver(const struct mei_cl_device *cldev)
+{
+	return mei_me_cl_ver(cldev->me_cl);
+}
+EXPORT_SYMBOL_GPL(mei_cldev_ver);
+
+/**
  * mei_cl_enable_device - enable me client device
  *     create connection with me client
  *
