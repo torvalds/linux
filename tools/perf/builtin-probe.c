@@ -317,6 +317,10 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 	int i, k;
 	const char *event = NULL, *group = NULL;
 
+	ret = init_probe_symbol_maps(pevs->uprobes);
+	if (ret < 0)
+		return ret;
+
 	ret = convert_perf_probe_events(pevs, npevs);
 	if (ret < 0)
 		goto out_cleanup;
@@ -354,6 +358,7 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 
 out_cleanup:
 	cleanup_perf_probe_events(pevs, npevs);
+	exit_probe_symbol_maps();
 	return ret;
 }
 

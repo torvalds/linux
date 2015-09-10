@@ -110,6 +110,8 @@ struct variable_list {
 };
 
 struct map;
+int init_probe_symbol_maps(bool user_only);
+void exit_probe_symbol_maps(void);
 
 /* Command string to events */
 extern int parse_perf_probe_command(const char *cmd,
