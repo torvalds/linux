@@ -57,7 +57,7 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 		}
 	}
 
-	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1 ) {
+	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1) {
 		ret = -EOPNOTSUPP;
 		goto out;
 
@@ -344,7 +344,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
 	// To prevent the immediately calling watch_dog after scan.
-	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0 )
+	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0)
 	{
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
