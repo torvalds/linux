@@ -934,6 +934,8 @@ static struct samsung_gate_clock fsys0_gate_clks[] __initdata = {
 };
 
 static struct samsung_cmu_info fsys0_cmu_info __initdata = {
+	.fixed_clks		= fixed_rate_clks_fsys0,
+	.nr_fixed_clks		= ARRAY_SIZE(fixed_rate_clks_fsys0),
 	.mux_clks		= fsys0_mux_clks,
 	.nr_mux_clks		= ARRAY_SIZE(fsys0_mux_clks),
 	.gate_clks		= fsys0_gate_clks,
