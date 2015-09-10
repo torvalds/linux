@@ -387,8 +387,9 @@ found_clock:
 	 */
 	rsnd_adg_set_ssi_clk(mod, data);
 
-	dev_dbg(dev, "ADG: ssi%d selects clk%d = %d",
-		rsnd_mod_id(mod), i, rate);
+	dev_dbg(dev, "ADG: %s[%d] selects 0x%x for %d\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod),
+		data, rate);
 
 	return 0;
 }
