@@ -976,7 +976,7 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_src_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_src *)(priv->src) + id)->mod;
+	return rsnd_mod_get((struct rsnd_src *)(priv->src) + id);
 }
 
 static void rsnd_of_parse_src(struct platform_device *pdev,
@@ -1071,7 +1071,7 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 
-		ret = rsnd_mod_init(priv, &src->mod, ops, clk, RSND_MOD_SRC, i);
+		ret = rsnd_mod_init(priv, rsnd_mod_get(src), ops, clk, RSND_MOD_SRC, i);
 		if (ret)
 			return ret;
 	}
@@ -1086,6 +1086,6 @@ void rsnd_src_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_src(src, priv, i) {
-		rsnd_mod_quit(&src->mod);
+		rsnd_mod_quit(rsnd_mod_get(src));
 	}
 }

@@ -331,6 +331,7 @@ struct rsnd_mod {
 #define rsnd_mod_id(mod) ((mod) ? (mod)->id : -1)
 #define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
 #define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
+#define rsnd_mod_get(ip)	(&(ip)->mod)
 
 int rsnd_mod_init(struct rsnd_priv *priv,
 		  struct rsnd_mod *mod,
