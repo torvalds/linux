@@ -534,6 +534,7 @@ static void img_i2c_read_fifo(struct img_i2c *i2c)
 		u32 fifo_status;
 		u8 data;
 
+		img_i2c_wr_rd_fence(i2c);
 		fifo_status = img_i2c_readl(i2c, SCB_FIFO_STATUS_REG);
 		if (fifo_status & FIFO_READ_EMPTY)
 			break;
@@ -542,7 +543,6 @@ static void img_i2c_read_fifo(struct img_i2c *i2c)
 		*i2c->msg.buf = data;
 
 		img_i2c_writel(i2c, SCB_READ_FIFO_REG, 0xff);
-		img_i2c_wr_rd_fence(i2c);
 		i2c->msg.len--;
 		i2c->msg.buf++;
 	}
@@ -554,12 +554,12 @@ static void img_i2c_write_fifo(struct img_i2c *i2c)
 	while (i2c->msg.len) {
 		u32 fifo_status;
 
+		img_i2c_wr_rd_fence(i2c);
 		fifo_status = img_i2c_readl(i2c, SCB_FIFO_STATUS_REG);
 		if (fifo_status & FIFO_WRITE_FULL)
 			break;
 
 		img_i2c_writel(i2c, SCB_WRITE_DATA_REG, *i2c->msg.buf);
-		img_i2c_wr_rd_fence(i2c);
 		i2c->msg.len--;
 		i2c->msg.buf++;
 	}
