@@ -9916,8 +9916,9 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int x = crtc->cursor_x;
-	int y = crtc->cursor_y;
+	struct drm_plane_state *cursor_state = crtc->cursor->state;
+	int x = cursor_state->crtc_x;
+	int y = cursor_state->crtc_y;
 	u32 base = 0, pos = 0;
 
 	if (on)
@@ -9930,7 +9931,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		base = 0;
 
 	if (x < 0) {
-		if (x + intel_crtc->base.cursor->state->crtc_w <= 0)
+		if (x + cursor_state->crtc_w <= 0)
 			base = 0;
 
 		pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
@@ -9939,7 +9940,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	pos |= x << CURSOR_X_SHIFT;
 
 	if (y < 0) {
-		if (y + intel_crtc->base.cursor->state->crtc_h <= 0)
+		if (y + cursor_state->crtc_h <= 0)
 			base = 0;
 
 		pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
@@ -9955,8 +9956,8 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	/* ILK+ do this automagically */
 	if (HAS_GMCH_DISPLAY(dev) &&
 	    crtc->cursor->state->rotation == BIT(DRM_ROTATE_180)) {
-		base += (intel_crtc->base.cursor->state->crtc_h *
-			intel_crtc->base.cursor->state->crtc_w - 1) * 4;
+		base += (cursor_state->crtc_h *
+			 cursor_state->crtc_w - 1) * 4;
 	}
 
 	if (IS_845G(dev) || IS_I865G(dev))
