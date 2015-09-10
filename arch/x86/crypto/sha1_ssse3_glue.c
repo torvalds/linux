@@ -44,6 +44,10 @@ asmlinkage void sha1_transform_avx(u32 *digest, const char *data,
 asmlinkage void sha1_transform_avx2(u32 *digest, const char *data,
 				    unsigned int rounds);
 #endif
+#ifdef CONFIG_AS_SHA1_NI
+asmlinkage void sha1_ni_transform(u32 *digest, const char *data,
+				   unsigned int rounds);
+#endif
 
 static void (*sha1_transform_asm)(u32 *, const char *, unsigned int);
 
@@ -166,12 +170,18 @@ static int __init sha1_ssse3_mod_init(void)
 #endif
 	}
 #endif
+#ifdef CONFIG_AS_SHA1_NI
+	if (boot_cpu_has(X86_FEATURE_SHA_NI)) {
+		sha1_transform_asm = sha1_ni_transform;
+		algo_name = "SHA-NI";
+	}
+#endif
 
 	if (sha1_transform_asm) {
 		pr_info("Using %s optimized SHA-1 implementation\n", algo_name);
 		return crypto_register_shash(&alg);
 	}
-	pr_info("Neither AVX nor AVX2 nor SSSE3 is available/usable.\n");
+	pr_info("Neither AVX nor AVX2 nor SSSE3/SHA-NI is available/usable.\n");
 
 	return -ENODEV;
 }

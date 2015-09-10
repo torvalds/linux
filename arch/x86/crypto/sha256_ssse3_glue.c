@@ -50,6 +50,10 @@ asmlinkage void sha256_transform_avx(u32 *digest, const char *data,
 asmlinkage void sha256_transform_rorx(u32 *digest, const char *data,
 				      u64 rounds);
 #endif
+#ifdef CONFIG_AS_SHA256_NI
+asmlinkage void sha256_ni_transform(u32 *digest, const char *data,
+				   u64 rounds); /*unsigned int rounds);*/
+#endif
 
 static void (*sha256_transform_asm)(u32 *, const char *, u64);
 
@@ -142,36 +146,40 @@ static bool __init avx_usable(void)
 
 static int __init sha256_ssse3_mod_init(void)
 {
+	char *algo;
+
 	/* test for SSSE3 first */
-	if (cpu_has_ssse3)
+	if (cpu_has_ssse3) {
 		sha256_transform_asm = sha256_transform_ssse3;
+		algo = "SSSE3";
+	}
 
 #ifdef CONFIG_AS_AVX
 	/* allow AVX to override SSSE3, it's a little faster */
 	if (avx_usable()) {
+		sha256_transform_asm = sha256_transform_avx;
+		algo = "AVX";
 #ifdef CONFIG_AS_AVX2
-		if (boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_BMI2))
+		if (boot_cpu_has(X86_FEATURE_AVX2) &&
+		    boot_cpu_has(X86_FEATURE_BMI2)) {
 			sha256_transform_asm = sha256_transform_rorx;
-		else
+			algo = "AVX2";
+		}
 #endif
-			sha256_transform_asm = sha256_transform_avx;
+	}
+#endif
+#ifdef CONFIG_AS_SHA256_NI
+	if (boot_cpu_has(X86_FEATURE_SHA_NI)) {
+		sha256_transform_asm = sha256_ni_transform;
+		algo = "SHA-256-NI";
 	}
 #endif
 
 	if (sha256_transform_asm) {
-#ifdef CONFIG_AS_AVX
-		if (sha256_transform_asm == sha256_transform_avx)
-			pr_info("Using AVX optimized SHA-256 implementation\n");
-#ifdef CONFIG_AS_AVX2
-		else if (sha256_transform_asm == sha256_transform_rorx)
-			pr_info("Using AVX2 optimized SHA-256 implementation\n");
-#endif
-		else
-#endif
-			pr_info("Using SSSE3 optimized SHA-256 implementation\n");
+		pr_info("Using %s optimized SHA-256 implementation\n", algo);
 		return crypto_register_shashes(algs, ARRAY_SIZE(algs));
 	}
-	pr_info("Neither AVX nor SSSE3 is available/usable.\n");
+	pr_info("Neither AVX nor SSSE3/SHA-NI is available/usable.\n");
 
 	return -ENODEV;
 }
