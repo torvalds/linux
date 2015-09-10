@@ -611,13 +611,15 @@ static void *device_get_mac_addr(struct device *dev,
 */
 void *device_get_mac_address(struct device *dev, char *addr, int alen)
 {
-	addr = device_get_mac_addr(dev, "mac-address", addr, alen);
-	if (addr)
-		return addr;
+	char *res;
 
-	addr = device_get_mac_addr(dev, "local-mac-address", addr, alen);
-	if (addr)
-		return addr;
+	res = device_get_mac_addr(dev, "mac-address", addr, alen);
+	if (res)
+		return res;
+
+	res = device_get_mac_addr(dev, "local-mac-address", addr, alen);
+	if (res)
+		return res;
 
 	return device_get_mac_addr(dev, "address", addr, alen);
 }

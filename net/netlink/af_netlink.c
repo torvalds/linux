@@ -674,12 +674,19 @@ static unsigned int netlink_poll(struct file *file, struct socket *sock,
 
 	mask = datagram_poll(file, sock, wait);
 
-	spin_lock_bh(&sk->sk_receive_queue.lock);
-	if (nlk->rx_ring.pg_vec) {
-		if (netlink_has_valid_frame(&nlk->rx_ring))
-			mask |= POLLIN | POLLRDNORM;
+	/* We could already have received frames in the normal receive
+	 * queue, that will show up as NL_MMAP_STATUS_COPY in the ring,
+	 * so if mask contains pollin/etc already, there's no point
+	 * walking the ring.
+	 */
+	if ((mask & (POLLIN | POLLRDNORM)) != (POLLIN | POLLRDNORM)) {
+		spin_lock_bh(&sk->sk_receive_queue.lock);
+		if (nlk->rx_ring.pg_vec) {
+			if (netlink_has_valid_frame(&nlk->rx_ring))
+				mask |= POLLIN | POLLRDNORM;
+		}
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
 	}
-	spin_unlock_bh(&sk->sk_receive_queue.lock);
 
 	spin_lock_bh(&sk->sk_write_queue.lock);
 	if (nlk->tx_ring.pg_vec) {
@@ -1837,15 +1844,16 @@ retry:
 }
 EXPORT_SYMBOL(netlink_unicast);
 
-struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
-				  u32 dst_portid, gfp_t gfp_mask)
+struct sk_buff *__netlink_alloc_skb(struct sock *ssk, unsigned int size,
+				    unsigned int ldiff, u32 dst_portid,
+				    gfp_t gfp_mask)
 {
 #ifdef CONFIG_NETLINK_MMAP
+	unsigned int maxlen, linear_size;
 	struct sock *sk = NULL;
 	struct sk_buff *skb;
 	struct netlink_ring *ring;
 	struct nl_mmap_hdr *hdr;
-	unsigned int maxlen;
 
 	sk = netlink_getsockbyportid(ssk, dst_portid);
 	if (IS_ERR(sk))
@@ -1856,7 +1864,11 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 	if (ring->pg_vec == NULL)
 		goto out_put;
 
-	if (ring->frame_size - NL_MMAP_HDRLEN < size)
+	/* We need to account the full linear size needed as a ring
+	 * slot cannot have non-linear parts.
+	 */
+	linear_size = size + ldiff;
+	if (ring->frame_size - NL_MMAP_HDRLEN < linear_size)
 		goto out_put;
 
 	skb = alloc_skb_head(gfp_mask);
@@ -1870,13 +1882,14 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 
 	/* check again under lock */
 	maxlen = ring->frame_size - NL_MMAP_HDRLEN;
-	if (maxlen < size)
+	if (maxlen < linear_size)
 		goto out_free;
 
 	netlink_forward_ring(ring);
 	hdr = netlink_current_frame(ring, NL_MMAP_STATUS_UNUSED);
 	if (hdr == NULL)
 		goto err2;
+
 	netlink_ring_setup_skb(skb, sk, ring, hdr);
 	netlink_set_status(hdr, NL_MMAP_STATUS_RESERVED);
 	atomic_inc(&ring->pending);
@@ -1902,7 +1915,7 @@ out:
 #endif
 	return alloc_skb(size, gfp_mask);
 }
-EXPORT_SYMBOL_GPL(netlink_alloc_skb);
+EXPORT_SYMBOL_GPL(__netlink_alloc_skb);
 
 int netlink_has_listeners(struct sock *sk, unsigned int group)
 {

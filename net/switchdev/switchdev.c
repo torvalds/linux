@@ -853,12 +853,8 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		.cb = cb,
 		.idx = idx,
 	};
-	int err;
 
-	err = switchdev_port_obj_dump(dev, &dump.obj);
-	if (err)
-		return err;
-
+	switchdev_port_obj_dump(dev, &dump.obj);
 	return dump.idx;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
