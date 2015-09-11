@@ -704,6 +704,10 @@ static int _setup_disp_channel2(struct fb_info *fbi)
 		ipu_base = pre.store_addr;
 		mxc_fbi->store_addr = ipu_base;
 
+		retval = ipu_pre_set_ctrl(mxc_fbi->pre_num, &pre);
+		if (retval < 0)
+			return retval;
+
 		retval = ipu_pre_sdw_update(mxc_fbi->pre_num);
 		if (retval < 0) {
 			dev_err(fbi->device,

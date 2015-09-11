@@ -168,16 +168,7 @@ void ipu_pre_free_double_buffer(unsigned int id)
 EXPORT_SYMBOL(ipu_pre_free_double_buffer);
 
 /* PRE register configurations */
-static int ipu_pre_set_ctrl(unsigned int id,
-			    bool repeat,
-			    bool vflip,
-			    bool handshake_en,
-			    bool hsk_abort_en,
-			    unsigned int hsk_line_num,
-			    bool sdw_update,
-			    unsigned int block_size,
-			    unsigned int interlaced,
-			    unsigned int prefetch_mode)
+int ipu_pre_set_ctrl(unsigned int id, struct ipu_pre_context *config)
 {
 	struct ipu_pre_data *pre = get_pre(id);
 	unsigned long lock_flags;
@@ -186,29 +177,32 @@ static int ipu_pre_set_ctrl(unsigned int id,
 	if (!pre)
 		return -EINVAL;
 
+	if (!pre->enabled)
+		clk_prepare_enable(pre->clk);
+
 	spin_lock_irqsave(&pre->lock, lock_flags);
 	pre_write(pre, BF_PRE_CTRL_TPR_RESET_SEL(1), HW_PRE_CTRL_SET);
 
-	if (repeat)
+	if (config->repeat)
 		pre_write(pre, BF_PRE_CTRL_EN_REPEAT(1), HW_PRE_CTRL_SET);
 	else
 		pre_write(pre, BM_PRE_CTRL_EN_REPEAT, HW_PRE_CTRL_CLR);
 
-	if (vflip)
+	if (config->vflip)
 		pre_write(pre, BF_PRE_CTRL_VFLIP(1), HW_PRE_CTRL_SET);
 	else
 		pre_write(pre, BM_PRE_CTRL_VFLIP, HW_PRE_CTRL_CLR);
 
-	if (handshake_en) {
+	if (config->handshake_en) {
 		pre_write(pre, BF_PRE_CTRL_HANDSHAKE_EN(1), HW_PRE_CTRL_SET);
-		if (hsk_abort_en)
+		if (config->hsk_abort_en)
 			pre_write(pre, BF_PRE_CTRL_HANDSHAKE_ABORT_SKIP_EN(1),
 				  HW_PRE_CTRL_SET);
 		else
 			pre_write(pre, BM_PRE_CTRL_HANDSHAKE_ABORT_SKIP_EN,
 				  HW_PRE_CTRL_CLR);
 
-		switch (hsk_line_num) {
+		switch (config->hsk_line_num) {
 		case 0 /* 4 lines */:
 			pre_write(pre, BM_PRE_CTRL_HANDSHAKE_LINE_NUM,
 				  HW_PRE_CTRL_CLR);
@@ -234,13 +228,13 @@ static int ipu_pre_set_ctrl(unsigned int id,
 		pre_write(pre, BM_PRE_CTRL_HANDSHAKE_EN, HW_PRE_CTRL_CLR);
 
 
-	switch (prefetch_mode) {
+	switch (config->prefetch_mode) {
 	case 0:
 		pre_write(pre, BM_PRE_CTRL_BLOCK_EN, HW_PRE_CTRL_CLR);
 		break;
 	case 1:
 		pre_write(pre, BF_PRE_CTRL_BLOCK_EN(1), HW_PRE_CTRL_SET);
-		switch (block_size) {
+		switch (config->block_size) {
 		case 0:
 			pre_write(pre, BM_PRE_CTRL_BLOCK_16, HW_PRE_CTRL_CLR);
 			break;
@@ -259,7 +253,7 @@ static int ipu_pre_set_ctrl(unsigned int id,
 		goto err;
 	}
 
-	switch (interlaced) {
+	switch (config->interlaced) {
 	case 0: /* progressive mode */
 		pre_write(pre, BM_PRE_CTRL_SO, HW_PRE_CTRL_CLR);
 		break;
@@ -277,7 +271,7 @@ static int ipu_pre_set_ctrl(unsigned int id,
 		goto err;
 	}
 
-	if (sdw_update)
+	if (config->sdw_update)
 		pre_write(pre, BF_PRE_CTRL_SDW_UPDATE(1), HW_PRE_CTRL_SET);
 	else
 		pre_write(pre, BM_PRE_CTRL_SDW_UPDATE, HW_PRE_CTRL_CLR);
@@ -285,8 +279,12 @@ static int ipu_pre_set_ctrl(unsigned int id,
 err:
 	spin_unlock_irqrestore(&pre->lock, lock_flags);
 
+	if (!pre->enabled)
+		clk_disable_unprepare(pre->clk);
+
 	return ret;
 }
+EXPORT_SYMBOL(ipu_pre_set_ctrl);
 
 static void ipu_pre_irq_mask(struct ipu_pre_data *pre,
 			     unsigned long mask, bool clear)
@@ -740,12 +738,6 @@ int ipu_pre_config(int id, struct ipu_pre_context *config)
 			config->store_addr);
 	if (ret < 0)
 		goto out;
-
-	ret = ipu_pre_set_ctrl(id, config->repeat,
-			config->vflip, config->handshake_en,
-			config->hsk_abort_en, config->hsk_line_num,
-			config->sdw_update, config->block_size,
-			config->interlaced, config->prefetch_mode);
 
 	ipu_pre_irq_mask(pre, BM_PRE_IRQ_HANDSHAKE_ABORT_IRQ |
 			      BM_PRE_IRQ_TPR_RD_NUM_BYTES_OVFL_IRQ |

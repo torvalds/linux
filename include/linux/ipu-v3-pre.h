@@ -72,6 +72,7 @@ void ipu_pre_free(unsigned int *id);
 unsigned long ipu_pre_alloc_double_buffer(unsigned int id, unsigned int size);
 void ipu_pre_free_double_buffer(unsigned int id);
 int ipu_pre_config(int id, struct ipu_pre_context *config);
+int ipu_pre_set_ctrl(unsigned int id, struct ipu_pre_context *config);
 int ipu_pre_enable(int id);
 void ipu_pre_disable(int id);
 int ipu_pre_set_fb_buffer(int id, unsigned long fb_paddr,
@@ -100,6 +101,11 @@ void ipu_pre_free_double_buffer(unsigned int id)
 }
 
 int ipu_pre_config(int id, struct ipu_pre_context *config)
+{
+	return -ENODEV;
+}
+
+int ipu_pre_set_ctrl(unsigned int id, struct ipu_pre_context *config)
 {
 	return -ENODEV;
 }
