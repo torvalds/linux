@@ -13,6 +13,7 @@
 
 #define IPU_PRE_MAX_WIDTH	1920
 #define IPU_PRE_MAX_BPP		4
+#define IPU_PRE_SMALL_LINE	9	/* to workaround errata ERR009624*/
 
 struct ipu_rect {
 	int left;
@@ -65,6 +66,20 @@ struct ipu_pre_context {
 	/* return for IPU fb caller */
 	unsigned long store_addr;
 };
+
+/*
+ * In order to workaround the PRE SoC bug recorded by errata ERR009624,
+ * the software cannot write the PRE_CTRL register when the PRE writes
+ * the PRE_CTRL register automatically to set the ENABLE bit(bit0) to 1
+ * in the PRE repeat mode.
+ * The software mechanism to set the PRE_CTRL register is different for
+ * PRE Y resolution higher than 9 lines and lower or equal to 9 lines.
+ * Use this helper to check the Y resolution.
+ */
+static inline bool ipu_pre_yres_is_small(unsigned int yres)
+{
+	return yres <= IPU_PRE_SMALL_LINE;
+}
 
 #ifdef CONFIG_MXC_IPU_V3_PRE
 int ipu_pre_alloc(int ipu_id, ipu_channel_t ipu_ch);
