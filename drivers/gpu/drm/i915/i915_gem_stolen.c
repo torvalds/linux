@@ -281,7 +281,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 int i915_gem_init_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long reserved_total, reserved_base, reserved_size;
+	unsigned long reserved_total, reserved_base = 0, reserved_size;
 	unsigned long stolen_top;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
@@ -306,6 +306,9 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	case 2:
 	case 3:
 	case 4:
+		if (!IS_G4X(dev))
+			break;
+		/* fall through */
 	case 5:
 		/* Assume the gen6 maximum for the older platforms. */
 		reserved_size = 1024 * 1024;
