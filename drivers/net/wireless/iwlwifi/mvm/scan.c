@@ -474,7 +474,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	int ret;
 
 	if (WARN_ON(req->n_match_sets > IWL_SCAN_MAX_PROFILES))
-			return -EIO;
+		return -EIO;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_SHORT_BL)
 		blacklist_len = IWL_SCAN_SHORT_BLACKLIST_LEN;
@@ -842,7 +842,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * plan with one iteration.
 	 */
 	if (!cmd->schedule[i - 1].iterations)
-			cmd->schedule[i - 1].iterations = 0xff;
+		cmd->schedule[i - 1].iterations = 0xff;
 
 	if (iwl_mvm_scan_use_ebs(mvm, vif)) {
 		cmd->channel_opt[0].flags =
@@ -908,7 +908,6 @@ static __le32 iwl_mvm_scan_config_rates(struct iwl_mvm *mvm)
 
 int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 {
-
 	struct iwl_scan_config *scan_config;
 	struct ieee80211_supported_band *band;
 	int num_channels =
