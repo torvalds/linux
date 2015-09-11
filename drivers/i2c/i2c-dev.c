@@ -421,16 +421,6 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case I2C_SLAVE:
 	case I2C_SLAVE_FORCE:
-		/* NOTE:  devices set up to work with "new style" drivers
-		 * can't use I2C_SLAVE, even when the device node is not
-		 * bound to a driver.  Only I2C_SLAVE_FORCE will work.
-		 *
-		 * Setting the PEC flag here won't affect kernel drivers,
-		 * which will be using the i2c_client node registered with
-		 * the driver model core.  Likewise, when that client has
-		 * the PEC flag already set, the i2c-dev driver won't see
-		 * (or use) this setting.
-		 */
 		if ((arg > 0x3ff) ||
 		    (((client->flags & I2C_M_TEN) == 0) && arg > 0x7f))
 			return -EINVAL;
@@ -446,6 +436,13 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			client->flags &= ~I2C_M_TEN;
 		return 0;
 	case I2C_PEC:
+		/*
+		 * Setting the PEC flag here won't affect kernel drivers,
+		 * which will be using the i2c_client node registered with
+		 * the driver model core.  Likewise, when that client has
+		 * the PEC flag already set, the i2c-dev driver won't see
+		 * (or use) this setting.
+		 */
 		if (arg)
 			client->flags |= I2C_CLIENT_PEC;
 		else
