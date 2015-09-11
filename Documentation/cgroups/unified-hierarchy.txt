@@ -27,7 +27,7 @@ CONTENTS
     5-3-1. Format
     5-3-2. Control Knobs
   5-4. Per-Controller Changes
-    5-4-1. blkio
+    5-4-1. io
     5-4-2. cpuset
     5-4-3. memory
 6. Planned Changes
@@ -203,7 +203,7 @@ other issues.  The mapping from nice level to weight isn't obvious or
 universal, and there are various other knobs which simply aren't
 available for tasks.
 
-The blkio controller implicitly creates a hidden leaf node for each
+The io controller implicitly creates a hidden leaf node for each
 cgroup to host the tasks.  The hidden leaf has its own copies of all
 the knobs with "leaf_" prefixed.  While this allows equivalent control
 over internal tasks, it's with serious drawbacks.  It always adds an
@@ -438,9 +438,62 @@ may be specified in any order and not all pairs have to be specified.
 
 5-4. Per-Controller Changes
 
-5-4-1. blkio
+5-4-1. io
 
-- blk-throttle becomes properly hierarchical.
+- blkio is renamed to io.  The interface is overhauled anyway.  The
+  new name is more in line with the other two major controllers, cpu
+  and memory, and better suited given that it may be used for cgroup
+  writeback without involving block layer.
+
+- Everything including stat is always hierarchical making separate
+  recursive stat files pointless and, as no internal node can have
+  tasks, leaf weights are meaningless.  The operation model is
+  simplified and the interface is overhauled accordingly.
+
+  io.stat
+
+	The stat file.  The reported stats are from the point where
+	bio's are issued to request_queue.  The stats are counted
+	independent of which policies are enabled.  Each line in the
+	file follows the following format.  More fields may later be
+	added at the end.
+
+	  $MAJ:$MIN rbytes=$RBYTES wbytes=$WBYTES rios=$RIOS wrios=$WIOS
+
+  io.weight
+
+	The weight setting, currently only available and effective if
+	cfq-iosched is in use for the target device.  The weight is
+	between 1 and 10000 and defaults to 100.  The first line
+	always contains the default weight in the following format to
+	use when per-device setting is missing.
+
+	  default $WEIGHT
+
+	Subsequent lines list per-device weights of the following
+	format.
+
+	  $MAJ:$MIN $WEIGHT
+
+	Writing "$WEIGHT" or "default $WEIGHT" changes the default
+	setting.  Writing "$MAJ:$MIN $WEIGHT" sets per-device weight
+	while "$MAJ:$MIN default" clears it.
+
+	This file is available only on non-root cgroups.
+
+  io.max
+
+	The maximum bandwidth and/or iops setting, only available if
+	blk-throttle is enabled.  The file is of the following format.
+
+	  $MAJ:$MIN rbps=$RBPS wbps=$WBPS riops=$RIOPS wiops=$WIOPS
+
+	${R|W}BPS are read/write bytes per second and ${R|W}IOPS are
+	read/write IOs per second.  "max" indicates no limit.  Writing
+	to the file follows the same format but the individual
+	settings may be ommitted or specified in any order.
+
+	This file is available only on non-root cgroups.
 
 
 5-4-2. cpuset
