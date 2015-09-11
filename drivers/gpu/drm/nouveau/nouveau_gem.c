@@ -84,8 +84,10 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 		}
 
 		ret = pm_runtime_get_sync(dev);
-		if (ret < 0 && ret != -EACCES)
+		if (ret < 0 && ret != -EACCES) {
+			kfree(vma);
 			goto out;
+		}
 
 		ret = nouveau_bo_vma_add(nvbo, cli->vm, vma);
 		if (ret)
