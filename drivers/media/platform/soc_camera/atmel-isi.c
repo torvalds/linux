@@ -102,17 +102,19 @@ static u32 isi_readl(struct atmel_isi *isi, u32 reg)
 	return readl(isi->regs + reg);
 }
 
-static int configure_geometry(struct atmel_isi *isi, u32 width,
+static void configure_geometry(struct atmel_isi *isi, u32 width,
 			u32 height, u32 code)
 {
 	u32 cfg2;
 
 	/* According to sensor's output format to set cfg2 */
 	switch (code) {
-	/* YUV, including grey */
+	default:
+	/* Grey */
 	case MEDIA_BUS_FMT_Y8_1X8:
 		cfg2 = ISI_CFG2_GRAYSCALE | ISI_CFG2_COL_SPACE_YCbCr;
 		break;
+	/* YUV */
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 		cfg2 = ISI_CFG2_YCC_SWAP_MODE_3 | ISI_CFG2_COL_SPACE_YCbCr;
 		break;
@@ -126,8 +128,6 @@ static int configure_geometry(struct atmel_isi *isi, u32 width,
 		cfg2 = ISI_CFG2_YCC_SWAP_DEFAULT | ISI_CFG2_COL_SPACE_YCbCr;
 		break;
 	/* RGB, TODO */
-	default:
-		return -EINVAL;
 	}
 
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
@@ -138,8 +138,23 @@ static int configure_geometry(struct atmel_isi *isi, u32 width,
 	cfg2 |= ((height - 1) << ISI_CFG2_IM_VSIZE_OFFSET)
 			& ISI_CFG2_IM_VSIZE_MASK;
 	isi_writel(isi, ISI_CFG2, cfg2);
+}
 
-	return 0;
+static bool is_supported(struct soc_camera_device *icd,
+		const u32 pixformat)
+{
+	switch (pixformat) {
+	/* YUV, including grey */
+	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_VYUY:
+		return true;
+	/* RGB, TODO */
+	default:
+		return false;
+	}
 }
 
 static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
@@ -390,10 +405,8 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Disable all interrupts */
 	isi_writel(isi, ISI_INTDIS, (u32)~0UL);
 
-	ret = configure_geometry(isi, icd->user_width, icd->user_height,
+	configure_geometry(isi, icd->user_width, icd->user_height,
 				icd->current_fmt->code);
-	if (ret < 0)
-		return ret;
 
 	spin_lock_irq(&isi->lock);
 	/* Clear any pending interrupt */
@@ -491,6 +504,10 @@ static int isi_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_mbus_framefmt *mf = &format.format;
 	int ret;
 
+	/* check with atmel-isi support format, if not support use YUYV */
+	if (!is_supported(icd, pix->pixelformat))
+		pix->pixelformat = V4L2_PIX_FMT_YUYV;
+
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
 		dev_warn(icd->parent, "Format %x not found\n",
@@ -539,6 +556,10 @@ static int isi_camera_try_fmt(struct soc_camera_device *icd,
 	struct v4l2_mbus_framefmt *mf = &format.format;
 	u32 pixfmt = pix->pixelformat;
 	int ret;
+
+	/* check with atmel-isi support format, if not support use YUYV */
+	if (!is_supported(icd, pix->pixelformat))
+		pix->pixelformat = V4L2_PIX_FMT_YUYV;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (pixfmt && !xlate) {
