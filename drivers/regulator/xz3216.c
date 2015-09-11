@@ -1,9 +1,9 @@
 /*
- * Regulator driver for eta3555 DCDC chip for rk32xx
+ * Regulator driver for xz3216 DCDC chip for rk32xx
  *
  * Copyright (C) 2010, 2011 ROCKCHIP, Inc.
 
- * Based on eta3555.c that is work by zhangqing<zhangqing@rock-chips.com>
+ * Based on xz3216.c that is work by zhangqing<zhangqing@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -39,13 +39,13 @@
 #endif
 
 
-#define DBG_ERR(x...)  pr_err(x)
+#define DBG_ERR(x...)   pr_err(x)
 
 #define PM_CONTROL
-#define ETA3555_SPEED (200 * 1000)
-#define ETA3555_NUM_REGULATORS 1
+#define XZ3216_SPEED (200 * 1000)
+#define XZ3216_NUM_REGULATORS 1
 
-struct eta3555 {
+struct xz3216 {
 	struct device *dev;
 	struct mutex io_lock;
 	struct i2c_client *i2c;
@@ -59,48 +59,48 @@ struct eta3555 {
 	struct regmap *regmap;
 };
 
-struct eta3555_regulator {
+struct xz3216_regulator {
 	struct device		*dev;
 	struct regulator_desc	*desc;
 	struct regulator_dev	*rdev;
 };
 
 
-struct eta3555_board {
+struct xz3216_board {
 	int irq;
 	int irq_base;
-	struct regulator_init_data *eta3555_init_data[ETA3555_NUM_REGULATORS];
-	struct device_node *of_node[ETA3555_NUM_REGULATORS];
+	struct regulator_init_data *xz3216_init_data[XZ3216_NUM_REGULATORS];
+	struct device_node *of_node[XZ3216_NUM_REGULATORS];
 	int sleep_gpio; /* */
 	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
 	bool sleep;
 };
 
-struct eta3555_regulator_subdev {
+struct xz3216_regulator_subdev {
 	int id;
 	struct regulator_init_data *initdata;
 	struct device_node *reg_node;
 };
 
-struct eta3555_platform_data {
+struct xz3216_platform_data {
 	int ono;
 	int num_regulators;
-	struct eta3555_regulator_subdev *regulators;
+	struct xz3216_regulator_subdev *regulators;
 	int sleep_gpio; /* */
 	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
 	bool sleep;
 };
 
-static int eta3555_reg_read(struct eta3555 *eta3555, u8 reg);
-static int eta3555_set_bits(struct eta3555 *eta3555, u8 reg, u16 mask, u16 val);
+static int xz3216_reg_read(struct xz3216 *xz3216, u8 reg);
+static int xz3216_set_bits(struct xz3216 *xz3216, u8 reg, u16 mask, u16 val);
 
 
-#define ETA3555_BUCK1_SET_VOL_BASE 0x00
-#define ETA3555_BUCK1_SLP_VOL_BASE 0x01
-#define ETA3555_CONTR_REG1 0x02
-/*#define ETA3555_ID1_REG 0x03*/
-/*#define ETA3555_ID2_REG 0x04*/
-#define ETA3555_CONTR_REG2 0x05
+#define XZ3216_BUCK1_SET_VOL_BASE 0x00
+#define XZ3216_BUCK1_SLP_VOL_BASE 0x01
+#define XZ3216_CONTR_REG1 0x02
+/*#define XZ3216_ID1_REG 0x03*/
+/*#define XZ3216_ID2_REG 0x04*/
+#define XZ3216_CONTR_REG2 0x05
 #define BUCK_VOL_MASK 0x3f
 #define VOL_MIN_IDX 0x00
 #define VOL_MAX_IDX 0x3f
@@ -126,7 +126,7 @@ const static int buck_voltage_map[] = {
 */
 };
 
-static int eta3555_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
+static int xz3216_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 {
 	if (index >= ARRAY_SIZE(buck_voltage_map))
 		return -EINVAL;
@@ -134,13 +134,13 @@ static int eta3555_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 }
 
 
-static int eta3555_dcdc_is_enabled(struct regulator_dev *dev)
+static int xz3216_dcdc_is_enabled(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 val;
 	u16 mask = 0x80;
 
-	val = eta3555_reg_read(eta3555, ETA3555_BUCK1_SET_VOL_BASE);
+	val = xz3216_reg_read(xz3216, XZ3216_BUCK1_SET_VOL_BASE);
 	if (val < 0)
 		return val;
 	val = val&~0x7f;
@@ -151,43 +151,43 @@ static int eta3555_dcdc_is_enabled(struct regulator_dev *dev)
 }
 
 
-static int eta3555_dcdc_enable(struct regulator_dev *dev)
+static int xz3216_dcdc_enable(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x80;
 
-	return eta3555_set_bits(eta3555, ETA3555_BUCK1_SET_VOL_BASE, mask,
+	return xz3216_set_bits(xz3216, XZ3216_BUCK1_SET_VOL_BASE, mask,
 				0x80);
 }
 
 
-static int eta3555_dcdc_disable(struct regulator_dev *dev)
+static int xz3216_dcdc_disable(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x80;
 
-	return eta3555_set_bits(eta3555, ETA3555_BUCK1_SET_VOL_BASE, mask, 0);
+	return xz3216_set_bits(xz3216, XZ3216_BUCK1_SET_VOL_BASE, mask, 0);
 }
 
 
-static int eta3555_dcdc_get_voltage(struct regulator_dev *dev)
+static int xz3216_dcdc_get_voltage(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 reg = 0;
 	int val;
 
-	reg = eta3555_reg_read(eta3555, ETA3555_BUCK1_SET_VOL_BASE);
+	reg = xz3216_reg_read(xz3216, XZ3216_BUCK1_SET_VOL_BASE);
 	reg &= BUCK_VOL_MASK;
 	val = buck_voltage_map[reg];
 	return val;
 }
 
 
-static int eta3555_dcdc_set_voltage(struct regulator_dev *dev,
+static int xz3216_dcdc_set_voltage(struct regulator_dev *dev,
 				    int min_uV, int max_uV,
 				    unsigned *selector)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	const int *vol_map = buck_voltage_map;
 	u16 val;
 	int ret = 0;
@@ -203,7 +203,7 @@ static int eta3555_dcdc_set_voltage(struct regulator_dev *dev,
 		DBG_ERR("WARNING:this voltage is not support!voltage set");
 		DBG_ERR(" is %d mv\n", vol_map[val]);
 	}
-	ret = eta3555_set_bits(eta3555, ETA3555_BUCK1_SET_VOL_BASE,
+	ret = xz3216_set_bits(xz3216, XZ3216_BUCK1_SET_VOL_BASE,
 			       BUCK_VOL_MASK, val);
 	if (ret < 0) {
 		DBG_ERR("###################WARNING:set voltage is error!");
@@ -213,13 +213,13 @@ static int eta3555_dcdc_set_voltage(struct regulator_dev *dev,
 }
 
 
-static unsigned int eta3555_dcdc_get_mode(struct regulator_dev *dev)
+static unsigned int xz3216_dcdc_get_mode(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x40;
 	u16 val;
 
-	val = eta3555_reg_read(eta3555, ETA3555_BUCK1_SET_VOL_BASE);
+	val = xz3216_reg_read(xz3216, XZ3216_BUCK1_SET_VOL_BASE);
 	if (val < 0)
 		return val;
 	val = val & mask;
@@ -230,65 +230,65 @@ static unsigned int eta3555_dcdc_get_mode(struct regulator_dev *dev)
 }
 
 
-static int eta3555_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
+static int xz3216_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x4;
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		return eta3555_set_bits(eta3555, ETA3555_BUCK1_SET_VOL_BASE,
+		return xz3216_set_bits(xz3216, XZ3216_BUCK1_SET_VOL_BASE,
 					mask, mask);
 	case REGULATOR_MODE_NORMAL:
-		return eta3555_set_bits(eta3555, ETA3555_BUCK1_SET_VOL_BASE,
+		return xz3216_set_bits(xz3216, XZ3216_BUCK1_SET_VOL_BASE,
 			mask, 0);
 	default:
-		DBG("error:dcdc_eta3555 only auto and pwm mode\n");
+		DBG("error:dcdc_xz3216 only auto and pwm mode\n");
 		return -EINVAL;
 	}
 }
 
 
-static int eta3555_dcdc_set_voltage_time_sel(struct regulator_dev *dev,
+static int xz3216_dcdc_set_voltage_time_sel(struct regulator_dev *dev,
 					     unsigned int old_selector,
 					     unsigned int new_selector)
 {
 	int old_volt;
 	int new_volt;
 
-	old_volt = eta3555_dcdc_list_voltage(dev, old_selector);
+	old_volt = xz3216_dcdc_list_voltage(dev, old_selector);
 	if (old_volt < 0)
 		return old_volt;
-	new_volt = eta3555_dcdc_list_voltage(dev, new_selector);
+	new_volt = xz3216_dcdc_list_voltage(dev, new_selector);
 	if (new_volt < 0)
 		return new_volt;
 	return DIV_ROUND_UP(abs(old_volt - new_volt)*4, 10000);
 }
 
 
-static int eta3555_dcdc_suspend_enable(struct regulator_dev *dev)
+static int xz3216_dcdc_suspend_enable(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x80;
 
-	return eta3555_set_bits(eta3555, ETA3555_BUCK1_SLP_VOL_BASE,
+	return xz3216_set_bits(xz3216, XZ3216_BUCK1_SLP_VOL_BASE,
 				mask, 0x80);
 }
 
 
-static int eta3555_dcdc_suspend_disable(struct regulator_dev *dev)
+static int xz3216_dcdc_suspend_disable(struct regulator_dev *dev)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x80;
 
-	return eta3555_set_bits(eta3555, ETA3555_BUCK1_SLP_VOL_BASE, mask,
+	return xz3216_set_bits(xz3216, XZ3216_BUCK1_SLP_VOL_BASE, mask,
 				0);
 }
 
-static int eta3555_dcdc_set_sleep_voltage(struct regulator_dev *dev,
+static int xz3216_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 					  int uV)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	const int *vol_map = buck_voltage_map;
 	u16 val;
 	int ret = 0;
@@ -301,63 +301,63 @@ static int eta3555_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 			break;
 	}
 	if (vol_map[val] > uV) {
-		DBG("WARNING:this voltage is not support!voltage set")
-		DBG(" is %d mv\n", vol_map[val]);
+		DBG("WARNING:this voltage is not support!voltage set");
+		DBG("is %d mv\n", vol_map[val]);
 	}
-	ret = eta3555_set_bits(eta3555, ETA3555_BUCK1_SLP_VOL_BASE,
+	ret = xz3216_set_bits(xz3216, XZ3216_BUCK1_SLP_VOL_BASE,
 			       BUCK_VOL_MASK, val);
 	return ret;
 }
 
 
-static int eta3555_dcdc_set_suspend_mode(struct regulator_dev *dev,
+static int xz3216_dcdc_set_suspend_mode(struct regulator_dev *dev,
 					 unsigned int mode)
 {
-	struct eta3555 *eta3555 = rdev_get_drvdata(dev);
+	struct xz3216 *xz3216 = rdev_get_drvdata(dev);
 	u16 mask = 0x40;
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		return eta3555_set_bits(eta3555, ETA3555_BUCK1_SLP_VOL_BASE,
+		return xz3216_set_bits(xz3216, XZ3216_BUCK1_SLP_VOL_BASE,
 					mask, mask);
 	case REGULATOR_MODE_NORMAL:
-		return eta3555_set_bits(eta3555, ETA3555_BUCK1_SLP_VOL_BASE,
+		return xz3216_set_bits(xz3216, XZ3216_BUCK1_SLP_VOL_BASE,
 					mask, 0);
 	default:
-		DBG_ERR("error:dcdc_eta3555 only auto and pwm mode\n");
+		DBG_ERR("error:dcdc_xz3216 only auto and pwm mode\n");
 		return -EINVAL;
 	}
 }
 
-static struct regulator_ops eta3555_dcdc_ops = {
-	.set_voltage = eta3555_dcdc_set_voltage,
-	.get_voltage = eta3555_dcdc_get_voltage,
-	.list_voltage = eta3555_dcdc_list_voltage,
-	.is_enabled = eta3555_dcdc_is_enabled,
-	.enable = eta3555_dcdc_enable,
-	.disable = eta3555_dcdc_disable,
-	.get_mode = eta3555_dcdc_get_mode,
-	.set_mode = eta3555_dcdc_set_mode,
-	.set_suspend_voltage = eta3555_dcdc_set_sleep_voltage,
-	.set_suspend_enable = eta3555_dcdc_suspend_enable,
-	.set_suspend_disable = eta3555_dcdc_suspend_disable,
-	.set_suspend_mode = eta3555_dcdc_set_suspend_mode,
-	.set_voltage_time_sel = eta3555_dcdc_set_voltage_time_sel,
+static struct regulator_ops xz3216_dcdc_ops = {
+	.set_voltage = xz3216_dcdc_set_voltage,
+	.get_voltage = xz3216_dcdc_get_voltage,
+	.list_voltage = xz3216_dcdc_list_voltage,
+	.is_enabled = xz3216_dcdc_is_enabled,
+	.enable = xz3216_dcdc_enable,
+	.disable = xz3216_dcdc_disable,
+	.get_mode = xz3216_dcdc_get_mode,
+	.set_mode = xz3216_dcdc_set_mode,
+	.set_suspend_voltage = xz3216_dcdc_set_sleep_voltage,
+	.set_suspend_enable = xz3216_dcdc_suspend_enable,
+	.set_suspend_disable = xz3216_dcdc_suspend_disable,
+	.set_suspend_mode = xz3216_dcdc_set_suspend_mode,
+	.set_voltage_time_sel = xz3216_dcdc_set_voltage_time_sel,
 };
 
 
 static struct regulator_desc regulators[] = {
 	{
-		.name = "ETA_DCDC1",
+		.name = "XZ_DCDC1",
 		.id = 0,
-		.ops = &eta3555_dcdc_ops,
+		.ops = &xz3216_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck_voltage_map),
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
 };
 
-static int eta3555_i2c_read(struct i2c_client *i2c, char reg, int count,
+static int xz3216_i2c_read(struct i2c_client *i2c, char reg, int count,
 			    u16 *dest)
 {
 	int ret;
@@ -373,19 +373,19 @@ static int eta3555_i2c_read(struct i2c_client *i2c, char reg, int count,
 	msgs[0].buf = &reg;
 	msgs[0].flags = i2c->flags;
 	msgs[0].len = 1;
-	msgs[0].scl_rate = ETA3555_SPEED;
+	msgs[0].scl_rate = XZ3216_SPEED;
 	msgs[1].buf = (u8 *)dest;
 	msgs[1].addr = i2c->addr;
 	msgs[1].flags = i2c->flags | I2C_M_RD;
 	msgs[1].len = 1;
-	msgs[1].scl_rate = ETA3555_SPEED;
+	msgs[1].scl_rate = XZ3216_SPEED;
 	ret = i2c_transfer(adap, msgs, 2);
 	DBG("***run in %s %d msgs[1].buf = %d\n", __func__,
 	    __LINE__, *(msgs[1].buf));
 	return ret;
 }
 
-static int eta3555_i2c_write(struct i2c_client *i2c, char reg,
+static int xz3216_i2c_write(struct i2c_client *i2c, char reg,
 			     int count, const u16 src)
 {
 	int ret = -1;
@@ -404,148 +404,148 @@ static int eta3555_i2c_write(struct i2c_client *i2c, char reg,
 	msg.buf = &tx_buf[0];
 	msg.len = 1 + 1;
 	msg.flags = i2c->flags;
-	msg.scl_rate = ETA3555_SPEED;
+	msg.scl_rate = XZ3216_SPEED;
 	ret = i2c_transfer(adap, &msg, 1);
 	return ret;
 }
 
-static int eta3555_reg_read(struct eta3555 *eta3555, u8 reg)
+static int xz3216_reg_read(struct xz3216 *xz3216, u8 reg)
 {
 	u16 val = 0;
 	int ret;
 
-	mutex_lock(&eta3555->io_lock);
-	ret = eta3555_i2c_read(eta3555->i2c, reg, 1, &val);
+	mutex_lock(&xz3216->io_lock);
+	ret = xz3216_i2c_read(xz3216->i2c, reg, 1, &val);
 	DBG("reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
 	if (ret < 0) {
-		mutex_unlock(&eta3555->io_lock);
+		mutex_unlock(&xz3216->io_lock);
 		return ret;
 	}
-	mutex_unlock(&eta3555->io_lock);
+	mutex_unlock(&xz3216->io_lock);
 	return val & 0xff;
 }
 
-static int eta3555_set_bits(struct eta3555 *eta3555, u8 reg, u16 mask, u16 val)
+static int xz3216_set_bits(struct xz3216 *xz3216, u8 reg, u16 mask, u16 val)
 {
 	u16 tmp;
 	int ret;
 
-	mutex_lock(&eta3555->io_lock);
-	ret = eta3555_i2c_read(eta3555->i2c, reg, 1, &tmp);
+	mutex_lock(&xz3216->io_lock);
+	ret = xz3216_i2c_read(xz3216->i2c, reg, 1, &tmp);
 	DBG("1 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
 	if (ret < 0) {
-		mutex_unlock(&eta3555->io_lock);
+		mutex_unlock(&xz3216->io_lock);
 		return ret;
 	}
 	tmp = (tmp & ~mask) | val;
-	ret = eta3555_i2c_write(eta3555->i2c, reg, 1, tmp);
+	ret = xz3216_i2c_write(xz3216->i2c, reg, 1, tmp);
 	DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val & 0xff);
 	if (ret < 0) {
-		mutex_unlock(&eta3555->io_lock);
+		mutex_unlock(&xz3216->io_lock);
 		return ret;
 	}
-	ret = eta3555_i2c_read(eta3555->i2c, reg, 1, &tmp);
+	ret = xz3216_i2c_read(xz3216->i2c, reg, 1, &tmp);
 	DBG("2 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp & 0xff);
 	if (ret < 0) {
-		mutex_unlock(&eta3555->io_lock);
+		mutex_unlock(&xz3216->io_lock);
 		return ret;
 	}
-	mutex_unlock(&eta3555->io_lock);
+	mutex_unlock(&xz3216->io_lock);
 	return 0;
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id eta3555_of_match[] = {
-	{ .compatible = "eta3555"},
+static struct of_device_id xz3216_of_match[] = {
+	{ .compatible = "xz3216"},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, eta3555_of_match);
+MODULE_DEVICE_TABLE(of, xz3216_of_match);
 #endif
 #ifdef CONFIG_OF
-static struct of_regulator_match eta3555_reg_matches[] = {
-	{ .name = "eta_dcdc1", .driver_data = (void *)0},
+static struct of_regulator_match xz3216_reg_matches[] = {
+	{ .name = "xz_dcdc1", .driver_data = (void *)0},
 };
 
-static struct eta3555_board *eta3555_parse_dt(struct eta3555 *eta3555)
+static struct xz3216_board *xz3216_parse_dt(struct xz3216 *xz3216)
 {
-	struct eta3555_board *pdata;
+	struct xz3216_board *pdata;
 	struct device_node *regs;
-	struct device_node *eta3555_np;
+	struct device_node *xz3216_np;
 	int count;
 
 	DBG("%s,line=%d\n",  __func__, __LINE__);
-	eta3555_np = of_node_get(eta3555->dev->of_node);
-	if (!eta3555_np) {
+	xz3216_np = of_node_get(xz3216->dev->of_node);
+	if (!xz3216_np) {
 		DBG_ERR("could not find pmic sub-node\n");
 		return NULL;
 	}
-	regs = of_find_node_by_name(eta3555_np, "regulators");
+	regs = of_find_node_by_name(xz3216_np, "regulators");
 	if (!regs)
 		return NULL;
-	count = of_regulator_match(eta3555->dev, regs, eta3555_reg_matches,
-				   ETA3555_NUM_REGULATORS);
+	count = of_regulator_match(xz3216->dev, regs, xz3216_reg_matches,
+				   XZ3216_NUM_REGULATORS);
 	of_node_put(regs);
-	pdata = devm_kzalloc(eta3555->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(xz3216->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
-	pdata->eta3555_init_data[0] = eta3555_reg_matches[0].init_data;
-	pdata->of_node[0] = eta3555_reg_matches[0].of_node;
+	pdata->xz3216_init_data[0] = xz3216_reg_matches[0].init_data;
+	pdata->of_node[0] = xz3216_reg_matches[0].of_node;
 	return pdata;
 }
 
 #else
-static struct eta3555_board *eta3555_parse_dt(struct i2c_client *i2c)
+static struct xz3216_board *xz3216_parse_dt(struct i2c_client *i2c)
 {
 	return NULL;
 }
 #endif
 
-static int eta3555_i2c_probe(struct i2c_client *i2c,
+static int xz3216_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
-	struct eta3555 *eta3555;
-	struct eta3555_board *pdev;
+	struct xz3216 *xz3216;
+	struct xz3216_board *pdev;
 	const struct of_device_id *match;
 	struct regulator_config config = { };
-	struct regulator_dev *eta_rdev;
+	struct regulator_dev *xz_rdev;
 	struct regulator_init_data *reg_data;
 	const char *rail_name = NULL;
 	int ret;
 
 	DBG("%s, line=%d\n",  __func__, __LINE__);
 	if (i2c->dev.of_node) {
-		match = of_match_device(eta3555_of_match, &i2c->dev);
+		match = of_match_device(xz3216_of_match, &i2c->dev);
 		if (!match) {
 			DBG_ERR("Failed to find matching dt id\n");
 			return -EINVAL;
 		}
 	}
 
-	eta3555 = devm_kzalloc(&i2c->dev, sizeof(struct eta3555),
+	xz3216 = devm_kzalloc(&i2c->dev, sizeof(struct xz3216),
 			       GFP_KERNEL);
-	if (eta3555 == NULL) {
+	if (xz3216 == NULL) {
 		ret = -ENOMEM;
 		goto err;
 	}
-	eta3555->i2c = i2c;
-	eta3555->dev = &i2c->dev;
-	i2c_set_clientdata(i2c, eta3555);
-	mutex_init(&eta3555->io_lock);
-	if (eta3555->dev->of_node)
-		pdev = eta3555_parse_dt(eta3555);
+	xz3216->i2c = i2c;
+	xz3216->dev = &i2c->dev;
+	i2c_set_clientdata(i2c, xz3216);
+	mutex_init(&xz3216->io_lock);
+	if (xz3216->dev->of_node)
+		pdev = xz3216_parse_dt(xz3216);
 
 	if (pdev) {
-		eta3555->num_regulators = ETA3555_NUM_REGULATORS;
-		eta3555->rdev = kcalloc(ETA3555_NUM_REGULATORS,
+		xz3216->num_regulators = XZ3216_NUM_REGULATORS;
+		xz3216->rdev = kcalloc(XZ3216_NUM_REGULATORS,
 					sizeof(struct regulator_dev *),
 					GFP_KERNEL);
-		if (!eta3555->rdev)
+		if (!xz3216->rdev)
 			return -ENOMEM;
 		/* Instantiate the regulators */
-		reg_data = pdev->eta3555_init_data[0];
-		config.dev = eta3555->dev;
-		config.driver_data = eta3555;
-		if (eta3555->dev->of_node)
+		reg_data = pdev->xz3216_init_data[0];
+		config.dev = xz3216->dev;
+		config.driver_data = xz3216;
+		if (xz3216->dev->of_node)
 			config.of_node = pdev->of_node[0];
 			if (reg_data && reg_data->constraints.name)
 				rail_name = reg_data->constraints.name;
@@ -554,62 +554,62 @@ static int eta3555_i2c_probe(struct i2c_client *i2c,
 			reg_data->supply_regulator = rail_name;
 
 		config.init_data = reg_data;
-		eta_rdev = regulator_register(&regulators[0], &config);
-		if (IS_ERR(eta_rdev)) {
-			DBG_ERR("failed to register eta3555\n");
+		xz_rdev = regulator_register(&regulators[0], &config);
+		if (IS_ERR(xz_rdev)) {
+			DBG_ERR("failed to register xz3216\n");
 			goto err;
 		}
-		eta3555->rdev[0] = eta_rdev;
+		xz3216->rdev[0] = xz_rdev;
 	}
 	return 0;
 err:
 	return ret;
 }
 
-static int  eta3555_i2c_remove(struct i2c_client *i2c)
+static int  xz3216_i2c_remove(struct i2c_client *i2c)
 {
-	struct eta3555 *eta3555 = i2c_get_clientdata(i2c);
+	struct xz3216 *xz3216 = i2c_get_clientdata(i2c);
 
-	if (eta3555->rdev[0])
-		regulator_unregister(eta3555->rdev[0]);
+	if (xz3216->rdev[0])
+		regulator_unregister(xz3216->rdev[0]);
 	i2c_set_clientdata(i2c, NULL);
 	return 0;
 }
 
-static const struct i2c_device_id eta3555_i2c_id[] = {
-	{ "eta3555", 0 },
+static const struct i2c_device_id xz3216_i2c_id[] = {
+	{ "xz3216", 0 },
 };
 
-MODULE_DEVICE_TABLE(i2c, eta3555_i2c_id);
+MODULE_DEVICE_TABLE(i2c, xz3216_i2c_id);
 
-static struct i2c_driver eta3555_i2c_driver = {
+static struct i2c_driver xz3216_i2c_driver = {
 	.driver = {
-		.name = "eta3555",
+		.name = "xz3216",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(eta3555_of_match),
+		.of_match_table = of_match_ptr(xz3216_of_match),
 	},
-	.probe    = eta3555_i2c_probe,
-	.remove   = eta3555_i2c_remove,
-	.id_table = eta3555_i2c_id,
+	.probe    = xz3216_i2c_probe,
+	.remove   = xz3216_i2c_remove,
+	.id_table = xz3216_i2c_id,
 };
 
-static int __init eta3555_module_init(void)
+static int __init xz3216_module_init(void)
 {
 	int ret;
 
-	ret = i2c_add_driver(&eta3555_i2c_driver);
+	ret = i2c_add_driver(&xz3216_i2c_driver);
 	if (ret != 0)
 		pr_err("Failed to register I2C driver: %d\n", ret);
 	return ret;
 }
-subsys_initcall_sync(eta3555_module_init);
+subsys_initcall_sync(xz3216_module_init);
 
-static void __exit eta3555_module_exit(void)
+static void __exit xz3216_module_exit(void)
 {
-	i2c_del_driver(&eta3555_i2c_driver);
+	i2c_del_driver(&xz3216_i2c_driver);
 }
-module_exit(eta3555_module_exit);
+module_exit(xz3216_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("zhangqing <zhangqing@rock-chips.com>");
-MODULE_DESCRIPTION("eta3555 PMIC driver");
+MODULE_DESCRIPTION("xz3216 PMIC driver");
