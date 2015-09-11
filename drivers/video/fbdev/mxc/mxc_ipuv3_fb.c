@@ -106,6 +106,7 @@ struct mxcfb_info {
 	struct completion flip_complete;
 	struct completion alpha_flip_complete;
 	struct completion vsync_complete;
+	struct completion otf_complete;	/* on the fly */
 
 	void *ipu;
 	struct fb_info *ovfbi;
@@ -117,6 +118,7 @@ struct mxcfb_info {
 	uint32_t cur_fb_pfmt;
 	bool cur_prefetch;
 	spinlock_t spin_lock;	/* for PRE small yres cases */
+	struct ipu_pre_context *pre_config;
 };
 
 struct mxcfb_pfmt {
@@ -417,6 +419,8 @@ static irqreturn_t mxcfb_nf_irq_handler(int irq, void *dev_id);
 static int mxcfb_blank(int blank, struct fb_info *info);
 static int mxcfb_map_video_memory(struct fb_info *fbi);
 static int mxcfb_unmap_video_memory(struct fb_info *fbi);
+static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd,
+			unsigned long arg);
 
 /*
  * Set fixed framebuffer parameters based on variable settings.
@@ -566,7 +570,7 @@ static int _setup_disp_channel2(struct fb_info *fbi)
 		pre.handshake_en = true;
 		pre.hsk_abort_en = true;
 		pre.hsk_line_num = 0;
-		pre.sdw_update = false;
+		pre.sdw_update = true;
 		pre.cur_buf = base;
 		pre.next_buf = pre.cur_buf;
 		if (fbi->var.vmode & FB_VMODE_INTERLACED) {
@@ -712,15 +716,41 @@ static int _setup_disp_channel2(struct fb_info *fbi)
 		ipu_base = pre.store_addr;
 		mxc_fbi->store_addr = ipu_base;
 
-		retval = ipu_pre_set_ctrl(mxc_fbi->pre_num, &pre);
-		if (retval < 0)
-			return retval;
+		if (mxc_fbi->cur_prefetch && mxc_fbi->on_the_fly) {
+			/*
+			 * Make sure any pending interrupt is handled so that
+			 * the buffer panned can start to be scanned out.
+			 */
+			if (!ipu_pre_yres_is_small(fbi->var.yres)) {
+				mxcfb_ioctl(fbi, MXCFB_WAIT_FOR_VSYNC,
+						(unsigned long)fbi->par);
+				mxcfb_ioctl(fbi, MXCFB_WAIT_FOR_VSYNC,
+						(unsigned long)fbi->par);
+			}
 
-		retval = ipu_pre_sdw_update(mxc_fbi->pre_num);
-		if (retval < 0) {
-			dev_err(fbi->device,
-				"failed to update PRE shadow reg %d\n", retval);
-			return retval;
+			mxc_fbi->pre_config = &pre;
+
+			/*
+			 * Write the PRE control register in the flip interrupt
+			 * handler in this on-the-fly case to workaround the
+			 * SoC design bug recorded by errata ERR009624.
+			 */
+			init_completion(&mxc_fbi->otf_complete);
+			ipu_clear_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_irq);
+			ipu_enable_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_irq);
+			retval = wait_for_completion_timeout(
+						&mxc_fbi->otf_complete, HZ/2);
+			if (retval == 0) {
+				dev_err(fbi->device, "timeout when waiting "
+						"for on the fly config irq\n");
+				return -ETIMEDOUT;
+			} else {
+				retval = 0;
+			}
+		} else {
+			retval = ipu_pre_set_ctrl(mxc_fbi->pre_num, &pre);
+			if (retval < 0)
+				return retval;
 		}
 
 		if (!mxc_fbi->on_the_fly || !mxc_fbi->cur_prefetch) {
@@ -2649,6 +2679,13 @@ static irqreturn_t mxcfb_irq_handler(int irq, void *dev_id)
 {
 	struct fb_info *fbi = dev_id;
 	struct mxcfb_info *mxc_fbi = fbi->par;
+
+	if (mxc_fbi->pre_config) {
+		ipu_pre_set_ctrl(mxc_fbi->pre_num, mxc_fbi->pre_config);
+		mxc_fbi->pre_config = NULL;
+		complete(&mxc_fbi->otf_complete);
+		return IRQ_HANDLED;
+	}
 
 	if (mxc_fbi->cur_prefetch && ipu_pre_yres_is_small(fbi->var.yres)) {
 		spin_lock(&mxc_fbi->spin_lock);
