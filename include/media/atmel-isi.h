@@ -66,6 +66,8 @@
 
 /* Bitfields in CFG2 */
 #define ISI_CFG2_GRAYSCALE			(1 << 13)
+#define ISI_CFG2_COL_SPACE_YCbCr		(0 << 15)
+#define ISI_CFG2_COL_SPACE_RGB			(1 << 15)
 /* Constants for YCC_SWAP(ISI_V2) */
 #define		ISI_CFG2_YCC_SWAP_DEFAULT	(0 << 28)
 #define		ISI_CFG2_YCC_SWAP_MODE_1	(1 << 28)
