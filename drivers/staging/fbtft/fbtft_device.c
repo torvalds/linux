@@ -1223,7 +1223,7 @@ static int spi_device_found(struct device *dev, void *data)
 
 static void pr_spi_devices(void)
 {
-	pr_info("SPI devices registered:\n");
+	pr_debug("SPI devices registered:\n");
 	bus_for_each_dev(&spi_bus_type, NULL, NULL, spi_device_found);
 }
 
@@ -1241,7 +1241,7 @@ static int p_device_found(struct device *dev, void *data)
 
 static void pr_p_devices(void)
 {
-	pr_info("'fb' Platform devices registered:\n");
+	pr_debug("'fb' Platform devices registered:\n");
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, p_device_found);
 }
 
@@ -1298,8 +1298,6 @@ static int __init fbtft_device_init(void)
 	int i = 0;
 	long val;
 	int ret = 0;
-
-	pr_debug("init\n");
 
 	if (name == NULL) {
 #ifdef MODULE
@@ -1479,8 +1477,6 @@ static int __init fbtft_device_init(void)
 
 static void __exit fbtft_device_exit(void)
 {
-	pr_debug("exit\n");
-
 	if (spi_device) {
 		device_del(&spi_device->dev);
 		kfree(spi_device);
