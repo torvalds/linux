@@ -4637,11 +4637,14 @@ static bool vlv_digital_port_connected(struct drm_i915_private *dev_priv,
 }
 
 static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+				       struct intel_digital_port *intel_dig_port)
 {
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	enum port port;
 	u32 bit;
 
-	switch (port->port) {
+	intel_hpd_pin_to_port(intel_encoder->hpd_pin, &port);
+	switch (port) {
 	case PORT_A:
 		bit = BXT_DE_PORT_HP_DDIA;
 		break;
@@ -4652,7 +4655,7 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 		bit = BXT_DE_PORT_HP_DDIC;
 		break;
 	default:
-		MISSING_CASE(port->port);
+		MISSING_CASE(port);
 		return false;
 	}
 
