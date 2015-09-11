@@ -63,12 +63,12 @@ cfs_percpt_lock_alloc(struct cfs_cpt_table *cptab)
 
 	/* NB: cptab can be NULL, pcl will be for HW CPUs on that case */
 	LIBCFS_ALLOC(pcl, sizeof(*pcl));
-	if (pcl == NULL)
+	if (!pcl)
 		return NULL;
 
 	pcl->pcl_cptab = cptab;
 	pcl->pcl_locks = cfs_percpt_alloc(cptab, sizeof(*lock));
-	if (pcl->pcl_locks == NULL) {
+	if (!pcl->pcl_locks) {
 		LIBCFS_FREE(pcl, sizeof(*pcl));
 		return NULL;
 	}
@@ -164,7 +164,7 @@ cfs_percpt_atomic_alloc(struct cfs_cpt_table *cptab, int init_val)
 	int		i;
 
 	refs = cfs_percpt_alloc(cptab, sizeof(*ref));
-	if (refs == NULL)
+	if (!refs)
 		return NULL;
 
 	cfs_percpt_for_each(ref, i, refs)
