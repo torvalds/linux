@@ -146,7 +146,7 @@ extern struct page *empty_zero_page;
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
 #ifdef CONFIG_ARM64_HW_AFDBM
-#define pte_hw_dirty(pte)	(!(pte_val(pte) & PTE_RDONLY))
+#define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
 #else
 #define pte_hw_dirty(pte)	(0)
 #endif
@@ -238,7 +238,7 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
  * When hardware DBM is not present, the sofware PTE_DIRTY bit is updated via
  * the page fault mechanism. Checking the dirty status of a pte becomes:
  *
- *   PTE_DIRTY || !PTE_RDONLY
+ *   PTE_DIRTY || (PTE_WRITE && !PTE_RDONLY)
  */
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
