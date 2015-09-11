@@ -17,7 +17,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/compiler.h>
 #include <dt-bindings/clock/ddr.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
@@ -28,6 +27,7 @@
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/psci.h>
 #include <linux/scpi_protocol.h>
+#include <asm/compiler.h>
 
 #define GRF_DDRC0_CON0    0x600
 #define GRF_SOC_STATUS5  0x494
@@ -37,7 +37,7 @@
 #define FIQ_NUM_FOR_DCF		(143)  /*NA irq map to fiq for dcf*/
 
 
-#define DDR_VERSION			"V1.02 20150907"
+#define DDR_VERSION			"V1.03 20150910"
 
 enum ddr_bandwidth_id {
 	ddrbw_wr_num = 0,
@@ -48,13 +48,69 @@ enum ddr_bandwidth_id {
 	ddrbw_id_end
 };
 
+struct ddr_timing {
+	u32 dram_spd_bin;
+	u32 sr_idle;
+	u32 pd_idle;
+	u32 dram_dll_dis_freq;
+	u32 phy_dll_dis_freq;
+	u32 dram_odt_dis_freq;
+	u32 phy_odt_dis_freq;
+	u32 ddr3_drv;
+	u32 ddr3_odt;
+	u32 lpddr3_drv;
+	u32 lpddr3_odt;
+	u32 lpddr2_drv;
+	u32 phy_clk_drv;
+	u32 phy_cmd_drv;
+	u32 phy_dqs_drv;
+	u32 phy_odt;
+};
+
 struct rockchip_ddr {
 	struct regmap *ddrpctl_regs;
 	struct regmap *msch_regs;
 	struct regmap *grf_regs;
+	struct ddr_timing dram_timing;
 };
 
 static struct rockchip_ddr *ddr_data = NULL;
+
+static int of_do_get_timings(struct device_node *np, struct ddr_timing *tim)
+{
+	struct device_node *np_tim;
+	int ret;
+
+	ret = 0;
+
+	np_tim = of_parse_phandle(np, "rockchip,ddr_timing", 0);
+	if (!np_tim)
+		return 1;
+
+	ret |= of_property_read_u32(np_tim, "dram_spd_bin",
+				    &tim->dram_spd_bin);
+	ret |= of_property_read_u32(np_tim, "sr_idle", &tim->sr_idle);
+	ret |= of_property_read_u32(np_tim, "pd_idle", &tim->pd_idle);
+	ret |= of_property_read_u32(np_tim, "dram_dll_disb_freq",
+				    &tim->dram_dll_dis_freq);
+	ret |= of_property_read_u32(np_tim, "phy_dll_disb_freq",
+				    &tim->phy_dll_dis_freq);
+	ret |= of_property_read_u32(np_tim, "dram_odt_disb_freq",
+				    &tim->dram_odt_dis_freq);
+	ret |= of_property_read_u32(np_tim, "phy_odt_disb_freq",
+				    &tim->phy_odt_dis_freq);
+	ret |= of_property_read_u32(np_tim, "ddr3_drv", &tim->ddr3_drv);
+	ret |= of_property_read_u32(np_tim, "ddr3_odt", &tim->ddr3_odt);
+	ret |= of_property_read_u32(np_tim, "lpddr3_drv", &tim->lpddr3_drv);
+	ret |= of_property_read_u32(np_tim, "lpddr3_odt", &tim->lpddr3_odt);
+	ret |= of_property_read_u32(np_tim, "lpddr2_drv", &tim->lpddr2_drv);
+	ret |= of_property_read_u32(np_tim, "phy_clk_drv", &tim->phy_clk_drv);
+	ret |= of_property_read_u32(np_tim, "phy_cmd_drv", &tim->phy_cmd_drv);
+	ret |= of_property_read_u32(np_tim, "phy_dqs_drv", &tim->phy_dqs_drv);
+	ret |= of_property_read_u32(np_tim, "phy_odt", &tim->phy_odt);
+
+	return ret;
+}
 
 static int _ddr_recalc_rate(void)
 {
@@ -348,12 +404,20 @@ static int __init rockchip_ddr_probe(struct platform_device *pdev)
 	ddr_bandwidth_get = _ddr_bandwidth_get;
 	ddr_recalc_rate = _ddr_recalc_rate;
 	rockchip_tf_ver_check();
+	if (!of_do_get_timings(np, (struct ddr_timing *)&ddr_data->dram_timing)) {
+		if (scpi_ddr_send_timing((u32 *)&ddr_data->dram_timing,
+					 sizeof(struct ddr_timing)))
+			pr_info("send ddr timing timeout\n");
+	} else {
+		pr_err("get ddr timing from dts error\n");
+		ddr_data->dram_timing.dram_spd_bin = DDR3_DEFAULT;
+	}
 	addr_mcu_el3 = rockchip_psci_smc_write(PSCI_SIP_EL3FIQ_CFG,
 					       FIQ_NUM_FOR_DCF,
 					       FIQ_CPU_TGT_BOOT, 0);
 	if ((addr_mcu_el3 == 0) || (addr_mcu_el3 > 0x80000))
 		pr_info("Trust version error, pls check trust version\n");
-	ddr_init(DDR3_DEFAULT, 0, addr_mcu_el3);
+	ddr_init(ddr_data->dram_timing.dram_spd_bin, 0, addr_mcu_el3);
 	pr_info("%s: success\n", __func__);
 	return 0;
 }
@@ -375,7 +439,6 @@ static struct platform_driver rockchip_ddr_driver = {
 
 static int __init rockchip_ddr_init(void)
 {
-	pr_info("rockchip_ddr_init\n");
 	return platform_driver_probe(&rockchip_ddr_driver, rockchip_ddr_probe);
 }
 

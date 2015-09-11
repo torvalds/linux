@@ -207,6 +207,20 @@ do {						\
 	scpi_buf.timeout_ms = SCPI_CMD_DEFAULT_TIMEOUT_MS; \
 } while (0)
 
+#define SCPI_SETUP_DBUF_BY_SIZE(scpi_buf, mbox_buf, _client_id,		\
+				_cmd, _tx_buf, _tx_size, _rx_buf)	\
+do {									\
+	struct rockchip_mbox_msg *pdata = &mbox_buf;			\
+	pdata->cmd = _cmd;						\
+	pdata->tx_buf = _tx_buf;					\
+	pdata->tx_size = _tx_size;					\
+	pdata->rx_buf = &_rx_buf;					\
+	pdata->rx_size = sizeof(_rx_buf);				\
+	scpi_buf.client_id = _client_id;				\
+	scpi_buf.data = pdata;						\
+	scpi_buf.timeout_ms = SCPI_CMD_DEFAULT_TIMEOUT_MS;		\
+} while (0)
+
 static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 {
 	struct rockchip_mbox_msg *data;
@@ -535,6 +549,19 @@ int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type)
 	return scpi_execute_cmd(&sdata);
 }
 EXPORT_SYMBOL_GPL(scpi_ddr_set_clk_rate);
+
+int scpi_ddr_send_timing(u32 *p, u32 size)
+{
+	struct scpi_data_buf sdata;
+	struct rockchip_mbox_msg mdata;
+	struct __packed2 {
+		u32 status;
+	} rx_buf;
+	SCPI_SETUP_DBUF_BY_SIZE(sdata, mdata, SCPI_CL_DDR,
+				SCPI_DDR_SEND_TIMING, p, size, rx_buf);
+	return scpi_execute_cmd(&sdata);
+}
+EXPORT_SYMBOL_GPL(scpi_ddr_send_timing);
 
 int scpi_ddr_round_rate(u32 m_hz)
 {
