@@ -210,7 +210,7 @@
 					<&clks IMX6QDL_CLK_HDMI_IAHB>,
 					<&clks IMX6QDL_CLK_HSI_TX>;
 			clock-names = "hdmi_isfr", "hdmi_iahb", "mipi_core";
-			dmas = <&sdma 2 24 0>;
+			dmas = <&sdma 2 25 0>;
 			dma-names = "tx";
 			status = "disabled";
 		};
