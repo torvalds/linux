@@ -54,7 +54,11 @@ int of_device_add(struct platform_device *ofdev)
 
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */
+#ifdef CONFIG_ARCH_ROCKCHIP
+	ofdev->name = kasprintf(GFP_KERNEL, "%s", dev_name(&ofdev->dev));
+#else
 	ofdev->name = dev_name(&ofdev->dev);
+#endif
 	ofdev->id = -1;
 
 	/* device_add will assume that this device is on the same node as
