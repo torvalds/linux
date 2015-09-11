@@ -3443,6 +3443,26 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	return 0;
 }
 
+int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
+{
+	if ((flags & (BTRFS_BLOCK_GROUP_DUP |
+		      BTRFS_BLOCK_GROUP_RAID0 |
+		      BTRFS_AVAIL_ALLOC_BIT_SINGLE)) ||
+	    ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0))
+		return 0;
+
+	if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+		     BTRFS_BLOCK_GROUP_RAID5 |
+		     BTRFS_BLOCK_GROUP_RAID10))
+		return 1;
+
+	if (flags & BTRFS_BLOCK_GROUP_RAID6)
+		return 2;
+
+	pr_warn("BTRFS: unknown raid type: %llu\n", flags);
+	return 0;
+}
+
 int btrfs_calc_num_tolerated_disk_barrier_failures(
 	struct btrfs_fs_info *fs_info)
 {
@@ -3452,13 +3472,12 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 		       BTRFS_BLOCK_GROUP_SYSTEM,
 		       BTRFS_BLOCK_GROUP_METADATA,
 		       BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_METADATA};
-	int num_types = 4;
 	int i;
 	int c;
 	int num_tolerated_disk_barrier_failures =
 		(int)fs_info->fs_devices->num_devices;
 
-	for (i = 0; i < num_types; i++) {
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
 		struct btrfs_space_info *tmp;
 
 		sinfo = NULL;
@@ -3476,44 +3495,21 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 
 		down_read(&sinfo->groups_sem);
 		for (c = 0; c < BTRFS_NR_RAID_TYPES; c++) {
-			if (!list_empty(&sinfo->block_groups[c])) {
-				u64 flags;
+			u64 flags;
 
-				btrfs_get_block_group_info(
-					&sinfo->block_groups[c], &space);
-				if (space.total_bytes == 0 ||
-				    space.used_bytes == 0)
-					continue;
-				flags = space.flags;
-				/*
-				 * return
-				 * 0: if dup, single or RAID0 is configured for
-				 *    any of metadata, system or data, else
-				 * 1: if RAID5 is configured, or if RAID1 or
-				 *    RAID10 is configured and only two mirrors
-				 *    are used, else
-				 * 2: if RAID6 is configured, else
-				 * num_mirrors - 1: if RAID1 or RAID10 is
-				 *                  configured and more than
-				 *                  2 mirrors are used.
-				 */
-				if (num_tolerated_disk_barrier_failures > 0 &&
-				    ((flags & (BTRFS_BLOCK_GROUP_DUP |
-					       BTRFS_BLOCK_GROUP_RAID0)) ||
-				     ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK)
-				      == 0)))
-					num_tolerated_disk_barrier_failures = 0;
-				else if (num_tolerated_disk_barrier_failures > 1) {
-					if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
-					    BTRFS_BLOCK_GROUP_RAID5 |
-					    BTRFS_BLOCK_GROUP_RAID10)) {
-						num_tolerated_disk_barrier_failures = 1;
-					} else if (flags &
-						   BTRFS_BLOCK_GROUP_RAID6) {
-						num_tolerated_disk_barrier_failures = 2;
-					}
-				}
-			}
+			if (list_empty(&sinfo->block_groups[c]))
+				continue;
+
+			btrfs_get_block_group_info(&sinfo->block_groups[c],
+						   &space);
+			if (space.total_bytes == 0 || space.used_bytes == 0)
+				continue;
+			flags = space.flags;
+
+			num_tolerated_disk_barrier_failures = min(
+				num_tolerated_disk_barrier_failures,
+				btrfs_get_num_tolerated_disk_barrier_failures(
+					flags));
 		}
 		up_read(&sinfo->groups_sem);
 	}

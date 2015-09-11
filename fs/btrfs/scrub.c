@@ -3267,13 +3267,13 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			scrub_blocked_if_needed(fs_info);
 		}
 
-		/* for raid56, we skip parity stripe */
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 			ret = get_raid56_logic_offset(physical, num, map,
 						      &logical,
 						      &stripe_logical);
 			logical += base;
 			if (ret) {
+				/* it is parity strip */
 				stripe_logical += base;
 				stripe_end = stripe_logical + increment;
 				ret = scrub_raid56_parity(sctx, map, scrub_dev,
@@ -3480,7 +3480,6 @@ out:
 
 static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_device *scrub_dev,
-					  u64 chunk_tree, u64 chunk_objectid,
 					  u64 chunk_offset, u64 length,
 					  u64 dev_offset, int is_dev_replace)
 {
@@ -3531,8 +3530,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	struct btrfs_root *root = sctx->dev_root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 length;
-	u64 chunk_tree;
-	u64 chunk_objectid;
 	u64 chunk_offset;
 	int ret = 0;
 	int slot;
@@ -3596,8 +3593,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (found_key.offset + length <= start)
 			goto skip;
 
-		chunk_tree = btrfs_dev_extent_chunk_tree(l, dev_extent);
-		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
 		chunk_offset = btrfs_dev_extent_chunk_offset(l, dev_extent);
 
 		/*
@@ -3630,9 +3625,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
-		ret = scrub_chunk(sctx, scrub_dev, chunk_tree, chunk_objectid,
-				  chunk_offset, length, found_key.offset,
-				  is_dev_replace);
+		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
+				  found_key.offset, is_dev_replace);
 
 		/*
 		 * flush, submit all pending read and write bios, afterwards
