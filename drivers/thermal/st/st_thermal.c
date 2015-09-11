@@ -111,8 +111,7 @@ static int st_thermal_calibration(struct st_thermal_sensor *sensor)
 }
 
 /* Callback to get temperature from HW*/
-static int st_thermal_get_temp(struct thermal_zone_device *th,
-		unsigned long *temperature)
+static int st_thermal_get_temp(struct thermal_zone_device *th, int *temperature)
 {
 	struct st_thermal_sensor *sensor = th->devdata;
 	struct device *dev = sensor->dev;
@@ -159,7 +158,7 @@ static int st_thermal_get_trip_type(struct thermal_zone_device *th,
 }
 
 static int st_thermal_get_trip_temp(struct thermal_zone_device *th,
-				    int trip, unsigned long *temp)
+				    int trip, int *temp)
 {
 	struct st_thermal_sensor *sensor = th->devdata;
 	struct device *dev = sensor->dev;
