@@ -178,7 +178,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 			return;
 
 		case IPPROTO_ICMPV6:
-			if (!onlyproto && pskb_may_pull(skb, nh + offset + 2 - skb->data)) {
+			if (!onlyproto && (nh + offset + 2 < skb->data ||
+			    pskb_may_pull(skb, nh + offset + 2 - skb->data))) {
 				u8 *icmp;
 
 				nh = skb_network_header(skb);
@@ -192,7 +193,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 		case IPPROTO_MH:
 			offset += ipv6_optlen(exthdr);
-			if (!onlyproto && pskb_may_pull(skb, nh + offset + 3 - skb->data)) {
+			if (!onlyproto && (nh + offset + 3 < skb->data ||
+			    pskb_may_pull(skb, nh + offset + 3 - skb->data))) {
 				struct ip6_mh *mh;
 
 				nh = skb_network_header(skb);
