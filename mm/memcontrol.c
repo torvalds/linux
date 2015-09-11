@@ -4828,7 +4828,7 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup *from;
-	struct task_struct *p;
+	struct task_struct *leader, *p;
 	struct mm_struct *mm;
 	unsigned long move_flags;
 	int ret = 0;
@@ -4842,7 +4842,20 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 	if (!move_flags)
 		return 0;
 
-	p = cgroup_taskset_first(tset);
+	/*
+	 * Multi-process migrations only happen on the default hierarchy
+	 * where charge immigration is not used.  Perform charge
+	 * immigration if @tset contains a leader and whine if there are
+	 * multiple.
+	 */
+	p = NULL;
+	cgroup_taskset_for_each_leader(leader, tset) {
+		WARN_ON_ONCE(p);
+		p = leader;
+	}
+	if (!p)
+		return 0;
+
 	from = mem_cgroup_from_task(p);
 
 	VM_BUG_ON(from == memcg);
