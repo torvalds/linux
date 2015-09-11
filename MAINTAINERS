@@ -1008,6 +1008,9 @@ F:	Documentation/trace/coresight.txt
 F:	Documentation/devicetree/bindings/arm/coresight.txt
 F:	Documentation/ABI/testing/sysfs-bus-coresight-devices-*
 F:	tools/perf/arch/arm/util/pmu.c
+F:	tools/perf/arch/arm/util/auxtrace.c
+F:	tools/perf/arch/arm/util/cs_etm.c
+F:	tools/perf/arch/arm/util/cs_etm.h
 
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
