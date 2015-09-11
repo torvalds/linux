@@ -12,6 +12,7 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/barrier.h>
+#include <asm/thread_info.h>
 #endif
 
 /*
@@ -89,7 +90,8 @@ static inline unsigned int get_domain(void)
 
 	asm(
 	"mrc	p15, 0, %0, c3, c0	@ get domain"
-	 : "=r" (domain));
+	 : "=r" (domain)
+	 : "m" (current_thread_info()->cpu_domain));
 
 	return domain;
 }
@@ -98,7 +100,7 @@ static inline void set_domain(unsigned val)
 {
 	asm volatile(
 	"mcr	p15, 0, %0, c3, c0	@ set domain"
-	  : : "r" (val));
+	  : : "r" (val) : "memory");
 	isb();
 }
 
