@@ -539,7 +539,7 @@ static int __init imx6_add_pcie_port(struct pcie_port *pp,
 				       IRQF_SHARED, "mx6-pcie-msi", pp);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request MSI irq\n");
-			return -ENODEV;
+			return ret;
 		}
 	}
 
