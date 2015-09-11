@@ -90,7 +90,9 @@ int ipu_pre_config(int id, struct ipu_pre_context *config);
 int ipu_pre_set_ctrl(unsigned int id, struct ipu_pre_context *config);
 int ipu_pre_enable(int id);
 void ipu_pre_disable(int id);
-int ipu_pre_set_fb_buffer(int id, unsigned long fb_paddr,
+int ipu_pre_set_fb_buffer(int id, bool resolve,
+			  unsigned long fb_paddr,
+			  unsigned int y_res,
 			  unsigned int x_crop,
 			  unsigned int y_crop,
 			  unsigned int sec_buf_off,
@@ -135,7 +137,9 @@ void ipu_pre_disable(int id)
 	return;
 }
 
-int ipu_pre_set_fb_buffer(int id, unsigned long fb_paddr,
+int ipu_pre_set_fb_buffer(int id, bool resolve,
+			  unsigned long fb_paddr,
+			  unsigned int y_res,
 			  unsigned int x_crop,
 			  unsigned int y_crop,
 			  unsigned int sec_buf_off,

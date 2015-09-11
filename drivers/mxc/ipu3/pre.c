@@ -823,14 +823,18 @@ void ipu_pre_disable(int id)
 }
 EXPORT_SYMBOL(ipu_pre_disable);
 
-int ipu_pre_set_fb_buffer(int id, unsigned long fb_paddr,
+int ipu_pre_set_fb_buffer(int id, bool resolve,
+			  unsigned long fb_paddr,
+			  unsigned int y_res,
 			  unsigned int x_crop,
 			  unsigned int y_crop,
 			  unsigned int sec_buf_off,
 			  unsigned int trd_buf_off)
 {
 	struct ipu_pre_data *pre = get_pre(id);
+	unsigned int store_stat, store_block_y;
 	unsigned long lock_flags;
+	bool update = true;
 
 	if (!pre)
 		return -EINVAL;
@@ -842,7 +846,33 @@ int ipu_pre_set_fb_buffer(int id, unsigned long fb_paddr,
 	pre_write(pre, BF_PRE_PREFETCH_ENGINE_OUTPUT_SIZE_ULC_OUTPUT_SIZE_ULC_X(x_crop) |
 		       BF_PRE_PREFETCH_ENGINE_OUTPUT_SIZE_ULC_OUTPUT_SIZE_ULC_Y(y_crop),
 		  HW_PRE_PREFETCH_ENGINE_OUTPUT_SIZE_ULC);
-	pre_write(pre, BF_PRE_CTRL_SDW_UPDATE(1), HW_PRE_CTRL_SET);
+
+	/*
+	 * Update shadow only when store engine runs out of the problematic
+	 * window to workaround the SoC design bug recorded by errata ERR009624.
+	 */
+	if (y_res > IPU_PRE_SMALL_LINE) {
+		unsigned long timeout = jiffies + msecs_to_jiffies(20);
+
+		do {
+			if (time_after(jiffies, timeout)) {
+				update = false;
+				dev_warn(pre->dev, "timeout waiting for PRE "
+					"to run out of problematic window for "
+					"shadow update\n");
+				break;
+			}
+
+			store_stat = pre_read(pre, HW_PRE_STORE_ENGINE_STATUS);
+			store_block_y = (store_stat &
+				BM_PRE_STORE_ENGINE_STATUS_STORE_BLOCK_Y) >>
+				BP_PRE_STORE_ENGINE_STATUS_STORE_BLOCK_Y;
+		} while (store_block_y >=
+			 (y_res / (resolve ? 4 : 1) - 2) || store_block_y == 0);
+	}
+
+	if (update)
+		pre_write(pre, BF_PRE_CTRL_SDW_UPDATE(1), HW_PRE_CTRL_SET);
 	spin_unlock_irqrestore(&pre->lock, lock_flags);
 
 	return 0;
