@@ -287,28 +287,6 @@ static struct toklist dgap_tlist[] = {
 	{ 0,		NULL }
 };
 
-
-/*
- * dgap_sindex: much like index(), but it looks for a match of any character in
- * the group, and returns that position.
- */
-static char *dgap_sindex(char *string, char *group)
-{
-	char *ptr;
-
-	if (!string || !group)
-		return NULL;
-
-	for (; *string; string++) {
-		for (ptr = group; *ptr; ptr++) {
-			if (*ptr == *string)
-				return string;
-		}
-	}
-
-	return NULL;
-}
-
 /*
  * get a word from the input stream, also keep track of current line number.
  * words are separated by whitespace.
@@ -317,7 +295,7 @@ static char *dgap_getword(char **in)
 {
 	char *ret_ptr = *in;
 
-	char *ptr = dgap_sindex(*in, " \t\n");
+	char *ptr = strpbrk(*in, " \t\n");
 
 	/* If no word found, return null */
 	if (!ptr)
