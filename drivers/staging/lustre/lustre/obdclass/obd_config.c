@@ -61,7 +61,7 @@ int class_find_param(char *buf, char *key, char **valp)
 		return 1;
 
 	ptr = strstr(buf, key);
-	if (ptr == NULL)
+	if (!ptr)
 		return 1;
 
 	if (valp)
@@ -92,11 +92,11 @@ struct cfg_interop_param *class_find_old_param(const char *param,
 	char *value = NULL;
 	int   name_len = 0;
 
-	if (param == NULL || ptr == NULL)
+	if (!param || !ptr)
 		return NULL;
 
 	value = strchr(param, '=');
-	if (value == NULL)
+	if (!value)
 		name_len = strlen(param);
 	else
 		name_len = value - param;
@@ -144,7 +144,7 @@ int class_get_next_param(char **params, char *copy)
 
 	while (1) {
 		q1 = strpbrk(str, " '\"");
-		if (q1 == NULL) {
+		if (!q1) {
 			len = strlen(str);
 			memcpy(copy, str, len);
 			copy[len] = '\0';
@@ -165,7 +165,7 @@ int class_get_next_param(char **params, char *copy)
 		/* search for the matching closing quote */
 		str = q1 + 1;
 		q2 = strchr(str, *q1);
-		if (q2 == NULL) {
+		if (!q2) {
 			CERROR("Unbalanced quota in parameters: \"%s\"\n",
 			       *params);
 			return -EINVAL;
@@ -243,7 +243,7 @@ static int class_parse_value(char *buf, int opc, void *value, char **endh,
 
 	/* nid separators or end of nids */
 	endp = strpbrk(buf, ",: /");
-	if (endp == NULL)
+	if (!endp)
 		endp = buf + strlen(buf);
 
 	tmp = *endp;
@@ -841,14 +841,14 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 
 	LASSERT(proflen == (strlen(prof) + 1));
 	lprof->lp_profile = kmemdup(prof, proflen, GFP_NOFS);
-	if (lprof->lp_profile == NULL) {
+	if (!lprof->lp_profile) {
 		err = -ENOMEM;
 		goto free_lprof;
 	}
 
 	LASSERT(osclen == (strlen(osc) + 1));
 	lprof->lp_dt = kmemdup(osc, osclen, GFP_NOFS);
-	if (lprof->lp_dt == NULL) {
+	if (!lprof->lp_dt) {
 		err = -ENOMEM;
 		goto free_lp_profile;
 	}
@@ -856,7 +856,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	if (mdclen > 0) {
 		LASSERT(mdclen == (strlen(mdc) + 1));
 		lprof->lp_md = kmemdup(mdc, mdclen, GFP_NOFS);
-		if (lprof->lp_md == NULL) {
+		if (!lprof->lp_md) {
 			err = -ENOMEM;
 			goto free_lp_dt;
 		}
@@ -963,15 +963,15 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 	int			 name_len = 0;
 	int			 new_len = 0;
 
-	if (cfg == NULL || new_name == NULL)
+	if (!cfg || !new_name)
 		return ERR_PTR(-EINVAL);
 
 	param = lustre_cfg_string(cfg, 1);
-	if (param == NULL)
+	if (!param)
 		return ERR_PTR(-EINVAL);
 
 	value = strchr(param, '=');
-	if (value == NULL)
+	if (!value)
 		name_len = strlen(param);
 	else
 		name_len = value - param;
@@ -1000,7 +1000,7 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 
 	kfree(new_param);
 	kfree(bufs);
-	if (new_cfg == NULL)
+	if (!new_cfg)
 		return ERR_PTR(-ENOMEM);
 
 	new_cfg->lcfg_num = cfg->lcfg_num;
@@ -1178,7 +1178,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 	}
 	/* Commands that require a device */
 	obd = class_name2obd(lustre_cfg_string(lcfg, 0));
-	if (obd == NULL) {
+	if (!obd) {
 		if (!LUSTRE_CFG_BUFLEN(lcfg, 0))
 			CERROR("this lcfg command requires a device name\n");
 		else
@@ -1481,7 +1481,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		 * moving them to index [1] and [2], and insert MGC's
 		 * obdname at index [0].
 		 */
-		if (clli && clli->cfg_instance == NULL &&
+		if (clli && !clli->cfg_instance &&
 		    lcfg->lcfg_command == LCFG_SPTLRPC_CONF) {
 			lustre_cfg_bufs_set(&bufs, 2, bufs.lcfg_buf[1],
 					    bufs.lcfg_buflen[1]);
