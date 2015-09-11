@@ -23,59 +23,9 @@ extern void machvec_dma_sync_single(struct device *, dma_addr_t, size_t,
 extern void machvec_dma_sync_sg(struct device *, struct scatterlist *, int,
 				enum dma_data_direction);
 
-#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *daddr, gfp_t gfp,
-				    struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	void *caddr;
-
-	caddr = ops->alloc(dev, size, daddr, gfp, attrs);
-	debug_dma_alloc_coherent(dev, size, *daddr, caddr);
-	return caddr;
-}
-
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *caddr, dma_addr_t daddr,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	debug_dma_free_coherent(dev, size, caddr, daddr);
-	ops->free(dev, size, caddr, daddr, attrs);
-}
-
-#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
-#define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
-
 #define get_dma_ops(dev) platform_dma_get_ops(dev)
 
 #include <asm-generic/dma-mapping-common.h>
-
-static inline int dma_mapping_error(struct device *dev, dma_addr_t daddr)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	debug_dma_mapping_error(dev, daddr);
-	return ops->mapping_error(dev, daddr);
-}
-
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->dma_supported(dev, mask);
-}
-
-static inline int
-dma_set_mask (struct device *dev, u64 mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-	*dev->dma_mask = mask;
-	return 0;
-}
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {

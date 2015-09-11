@@ -305,11 +305,9 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
 struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
 
 bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
-
-struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
-
 struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+
 static inline
 struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
@@ -345,6 +343,7 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
 }
 
 struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
+ino_t page_cgroup_ino(struct page *page);
 
 static inline bool mem_cgroup_disabled(void)
 {
@@ -553,11 +552,6 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
 						    struct zone *zone)
 {
 	return &zone->lruvec;
-}
-
-static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-{
-	return NULL;
 }
 
 static inline bool mm_match_cgroup(struct mm_struct *mm,
