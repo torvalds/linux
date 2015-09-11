@@ -2157,7 +2157,7 @@ void task_numa_work(struct callback_head *work)
 	struct vm_area_struct *vma;
 	unsigned long start, end;
 	unsigned long nr_pte_updates = 0;
-	long pages;
+	long pages, virtpages;
 
 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
 
@@ -2203,8 +2203,10 @@ void task_numa_work(struct callback_head *work)
 	start = mm->numa_scan_offset;
 	pages = sysctl_numa_balancing_scan_size;
 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
+	virtpages = pages * 8;	   /* Scan up to this much virtual space */
 	if (!pages)
 		return;
+
 
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, start);
@@ -2240,18 +2242,22 @@ void task_numa_work(struct callback_head *work)
 			start = max(start, vma->vm_start);
 			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
 			end = min(end, vma->vm_end);
-			nr_pte_updates += change_prot_numa(vma, start, end);
+			nr_pte_updates = change_prot_numa(vma, start, end);
 
 			/*
-			 * Scan sysctl_numa_balancing_scan_size but ensure that
-			 * at least one PTE is updated so that unused virtual
-			 * address space is quickly skipped.
+			 * Try to scan sysctl_numa_balancing_size worth of
+			 * hpages that have at least one present PTE that
+			 * is not already pte-numa. If the VMA contains
+			 * areas that are unused or already full of prot_numa
+			 * PTEs, scan up to virtpages, to skip through those
+			 * areas faster.
 			 */
 			if (nr_pte_updates)
 				pages -= (end - start) >> PAGE_SHIFT;
+			virtpages -= (end - start) >> PAGE_SHIFT;
 
 			start = end;
-			if (pages <= 0)
+			if (pages <= 0 || virtpages <= 0)
 				goto out;
 
 			cond_resched();
