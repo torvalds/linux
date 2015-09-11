@@ -47,7 +47,7 @@ static int watch=0;
 static int high_load = 70;
 static int low_load = 60;
 static int auto_freq_interval_ms = 20;
-static long down_rate_delay_ms = 500;
+static int down_rate_delay_ms = 500;
 static unsigned long *auto_freq_table = NULL;
 static int cur_freq_index;
 static int auto_freq_table_size;
@@ -938,6 +938,14 @@ int of_init_ddr_freq_table(void)
 
 	bd_freq_table = of_get_bd_freq_table(clk_ddr_dev_node, "bd-freq-table");
 
+	of_property_read_u32_index(clk_ddr_dev_node, "high_load", 0,
+				   &high_load);
+	of_property_read_u32_index(clk_ddr_dev_node, "low_load", 0, &low_load);
+	of_property_read_u32_index(clk_ddr_dev_node, "auto_freq_interval", 0,
+				   &auto_freq_interval_ms);
+	of_property_read_u32_index(clk_ddr_dev_node, "down_rate_delay", 0,
+				   &down_rate_delay_ms);
+
 	return 0;
 }
 
@@ -1063,7 +1071,7 @@ static ssize_t ddrbw_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
 	str += sprintf(str, "high_load: %d\n", high_load);
 	str += sprintf(str, "low_load: %d\n", low_load);
 	str += sprintf(str, "auto_freq_interval_ms: %d\n", auto_freq_interval_ms);
-	str += sprintf(str, "down_rate_delay_ms: %ld\n", down_rate_delay_ms);
+	str += sprintf(str, "down_rate_delay_ms: %d\n", down_rate_delay_ms);
 //	str += sprintf(str, "low_load_last_ms: %d\n", low_load_last_ms);
 	if (str != buf)
 		*(str - 1) = '\n';
