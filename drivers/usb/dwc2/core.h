@@ -166,6 +166,7 @@ struct dwc2_hsotg_ep {
 	unsigned int            periodic:1;
 	unsigned int            isochronous:1;
 	unsigned int            send_zlp:1;
+	unsigned int            has_correct_parity:1;
 
 	char                    name[10];
 };
