@@ -4609,14 +4609,8 @@ int i915_gem_init_rings(struct drm_device *dev)
 			goto cleanup_vebox_ring;
 	}
 
-	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
-	if (ret)
-		goto cleanup_bsd2_ring;
-
 	return 0;
 
-cleanup_bsd2_ring:
-	intel_cleanup_ring_buffer(&dev_priv->ring[VCS2]);
 cleanup_vebox_ring:
 	intel_cleanup_ring_buffer(&dev_priv->ring[VECS]);
 cleanup_blt_ring:
@@ -4704,6 +4698,14 @@ i915_gem_init_hw(struct drm_device *dev)
 				goto out;
 		}
 	}
+
+	/*
+	 * Increment the next seqno by 0x100 so we have a visible break
+	 * on re-initialisation
+	 */
+	ret = i915_gem_set_seqno(dev, dev_priv->next_seqno+0x100);
+	if (ret)
+		goto out;
 
 	/* Now it is safe to go back round and do everything else: */
 	for_each_ring(ring, dev_priv, i) {
@@ -4905,6 +4907,14 @@ i915_gem_load(struct drm_device *dev)
 	if (intel_vgpu_active(dev))
 		dev_priv->num_fence_regs =
 				I915_READ(vgtif_reg(avail_rs.fence_num));
+
+	/*
+	 * Set initial sequence number for requests.
+	 * Using this number allows the wraparound to happen early,
+	 * catching any obvious problems.
+	 */
+	dev_priv->next_seqno = ((u32)~0 - 0x1100);
+	dev_priv->last_seqno = ((u32)~0 - 0x1101);
 
 	/* Initialize fence registers to zero */
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);

@@ -890,7 +890,6 @@ struct intel_context {
 	} legacy_hw_ctx;
 
 	/* Execlists */
-	bool rcs_initialized;
 	struct {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
