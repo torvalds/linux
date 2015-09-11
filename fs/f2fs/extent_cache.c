@@ -652,6 +652,11 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	}
 	spin_unlock(&sbi->extent_lock);
 
+	/*
+	 * reset ino for searching victims from beginning of global extent tree.
+	 */
+	ino = F2FS_ROOT_INO(sbi);
+
 	while ((found = radix_tree_gang_lookup(root,
 				(void **)treevec, ino, EXT_TREE_VEC_SIZE))) {
 		unsigned i;
