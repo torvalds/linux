@@ -2736,6 +2736,20 @@ choice
 		help
 		  Do not enable appended dtb support.
 
+	config MIPS_ELF_APPENDED_DTB
+		bool "vmlinux"
+		help
+		  With this option, the boot code will look for a device tree binary
+		  DTB) included in the vmlinux ELF section .appended_dtb. By default
+		  it is empty and the DTB can be appended using binutils command
+		  objcopy:
+
+		    objcopy --update-section .appended_dtb=<filename>.dtb vmlinux
+
+		  This is meant as a backward compatiblity convenience for those
+		  systems with a bootloader that can't be upgraded to accommodate
+		  the documented boot protocol using a device tree.
+
 	config MIPS_RAW_APPENDED_DTB
 		bool "vmlinux.bin"
 		help

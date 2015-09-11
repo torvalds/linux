@@ -132,6 +132,11 @@ SECTIONS
 	__appended_dtb = .;
 	/* leave space for appended DTB */
 	. += 0x100000;
+#elif defined(CONFIG_MIPS_ELF_APPENDED_DTB)
+	.appended_dtb : AT(ADDR(.appended_dtb) - LOAD_OFFSET) {
+		*(.appended_dtb)
+		KEEP(*(.appended_dtb))
+	}
 #endif
 	/*
 	 * Align to 64K in attempt to eliminate holes before the

@@ -39,6 +39,10 @@
 #include <asm/smp-ops.h>
 #include <asm/prom.h>
 
+#ifdef CONFIG_MIPS_ELF_APPENDED_DTB
+const char __section(.appended_dtb) __appended_dtb[0x100000];
+#endif /* CONFIG_MIPS_ELF_APPENDED_DTB */
+
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
