@@ -127,6 +127,11 @@ config DP83867_PHY
 	---help---
 	  Currently supports the DP83867 PHY.
 
+config MICROCHIP_PHY
+	tristate "Drivers for Microchip PHYs"
+	help
+	  Supports the LAN88XX PHYs.
+
 config FIXED_PHY
 	tristate "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB

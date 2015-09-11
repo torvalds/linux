@@ -34,7 +34,19 @@ typedef struct xpaddr {
 unsigned long __pfn_to_mfn(unsigned long pfn);
 extern struct rb_root phys_to_mach;
 
-static inline unsigned long pfn_to_mfn(unsigned long pfn)
+/* Pseudo-physical <-> Guest conversion */
+static inline unsigned long pfn_to_gfn(unsigned long pfn)
+{
+	return pfn;
+}
+
+static inline unsigned long gfn_to_pfn(unsigned long gfn)
+{
+	return gfn;
+}
+
+/* Pseudo-physical <-> BUS conversion */
+static inline unsigned long pfn_to_bfn(unsigned long pfn)
 {
 	unsigned long mfn;
 
@@ -47,16 +59,16 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 	return pfn;
 }
 
-static inline unsigned long mfn_to_pfn(unsigned long mfn)
+static inline unsigned long bfn_to_pfn(unsigned long bfn)
 {
-	return mfn;
+	return bfn;
 }
 
-#define mfn_to_local_pfn(mfn) mfn_to_pfn(mfn)
+#define bfn_to_local_pfn(bfn)	bfn_to_pfn(bfn)
 
-/* VIRT <-> MACHINE conversion */
-#define virt_to_mfn(v)		(pfn_to_mfn(virt_to_pfn(v)))
-#define mfn_to_virt(m)		(__va(mfn_to_pfn(m) << PAGE_SHIFT))
+/* VIRT <-> GUEST conversion */
+#define virt_to_gfn(v)		(pfn_to_gfn(virt_to_pfn(v)))
+#define gfn_to_virt(m)		(__va(gfn_to_pfn(m) << PAGE_SHIFT))
 
 /* Only used in PV code. But ARM guests are always HVM. */
 static inline xmaddr_t arbitrary_virt_to_machine(void *vaddr)
@@ -96,7 +108,7 @@ static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 bool xen_arch_need_swiotlb(struct device *dev,
 			   unsigned long pfn,
-			   unsigned long mfn);
+			   unsigned long bfn);
 unsigned long xen_get_swiotlb_free_pages(unsigned int order);
 
 #endif /* _ASM_ARM_XEN_PAGE_H */

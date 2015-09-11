@@ -37,6 +37,12 @@ The edge is described by the following properties:
 	Definition: the identifier of the remote processor in the smd channel
 		    allocation table
 
+- qcom,remote-pid:
+	Usage: optional
+	Value type: <u32>
+	Definition: the identifier for the remote processor as known by the rest
+		    of the system.
+
 = SMD DEVICES
 
 In turn, subnodes of the "edges" represent devices tied to SMD channels on that

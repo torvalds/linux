@@ -217,7 +217,6 @@ static const struct fib_rules_ops __net_initconst ip6mr_rules_ops_template = {
 	.match		= ip6mr_rule_match,
 	.configure	= ip6mr_rule_configure,
 	.compare	= ip6mr_rule_compare,
-	.default_pref	= fib_default_rule_pref,
 	.fill		= ip6mr_rule_fill,
 	.nlgroup	= RTNLGRP_IPV6_RULE,
 	.policy		= ip6mr_rule_policy,
@@ -550,7 +549,7 @@ static void ipmr_mfc_seq_stop(struct seq_file *seq, void *v)
 
 	if (it->cache == &mrt->mfc6_unres_queue)
 		spin_unlock_bh(&mfc_unres_lock);
-	else if (it->cache == mrt->mfc6_cache_array)
+	else if (it->cache == &mrt->mfc6_cache_array[it->ct])
 		read_unlock(&mrt_lock);
 }
 

@@ -523,7 +523,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	int ret = 0;
 
 	memcg = mem_cgroup_from_css(memcg_css);
-	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &blkio_cgrp_subsys);
+	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
 	blkcg = css_to_blkcg(blkcg_css);
 	memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
 	blkcg_cgwb_list = &blkcg->cgwb_list;
@@ -645,7 +645,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 
 			/* see whether the blkcg association has changed */
 			blkcg_css = cgroup_get_e_css(memcg_css->cgroup,
-						     &blkio_cgrp_subsys);
+						     &io_cgrp_subsys);
 			if (unlikely(wb->blkcg_css != blkcg_css ||
 				     !wb_tryget(wb)))
 				wb = NULL;

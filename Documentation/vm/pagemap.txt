@@ -5,7 +5,7 @@ pagemap is a new (as of 2.6.25) set of interfaces in the kernel that allow
 userspace programs to examine the page tables and related information by
 reading files in /proc.
 
-There are three components to pagemap:
+There are four components to pagemap:
 
  * /proc/pid/pagemap.  This file lets a userspace process find out which
    physical frame each virtual page is mapped to.  It contains one 64-bit
@@ -70,6 +70,11 @@ There are three components to pagemap:
     22. THP
     23. BALLOON
     24. ZERO_PAGE
+    25. IDLE
+
+ * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
+   memory cgroup each page is charged to, indexed by PFN. Only available when
+   CONFIG_MEMCG is set.
 
 Short descriptions to the page flags:
 
@@ -115,6 +120,12 @@ Short descriptions to the page flags:
 
 24. ZERO_PAGE
     zero page for pfn_zero or huge_zero page
+
+25. IDLE
+    page has not been accessed since it was marked idle (see
+    Documentation/vm/idle_page_tracking.txt). Note that this flag may be
+    stale in case the page was accessed via a PTE. To make sure the flag
+    is up-to-date one has to read /sys/kernel/mm/page_idle/bitmap first.
 
     [IO related page flags]
  1. ERROR     IO error occurred

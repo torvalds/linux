@@ -48,6 +48,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 
 config KEXEC
 	def_bool y
+	select KEXEC_CORE
 
 config AUDIT_ARCH
 	def_bool y
