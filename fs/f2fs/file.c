@@ -74,7 +74,8 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 		goto mapped;
 
 	/* page is wholly or partially inside EOF */
-	if (((page->index + 1) << PAGE_CACHE_SHIFT) > i_size_read(inode)) {
+	if (((loff_t)(page->index + 1) << PAGE_CACHE_SHIFT) >
+						i_size_read(inode)) {
 		unsigned offset;
 		offset = i_size_read(inode) & ~PAGE_CACHE_MASK;
 		zero_user_segment(page, offset, PAGE_CACHE_SIZE);
@@ -343,7 +344,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 
 	dirty = __get_first_dirty_index(inode->i_mapping, pgofs, whence);
 
-	for (; data_ofs < isize; data_ofs = pgofs << PAGE_CACHE_SHIFT) {
+	for (; data_ofs < isize; data_ofs = (loff_t)pgofs << PAGE_CACHE_SHIFT) {
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, pgofs, LOOKUP_NODE_RA);
 		if (err && err != -ENOENT) {
@@ -802,8 +803,8 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 			f2fs_balance_fs(sbi);
 
-			blk_start = pg_start << PAGE_CACHE_SHIFT;
-			blk_end = pg_end << PAGE_CACHE_SHIFT;
+			blk_start = (loff_t)pg_start << PAGE_CACHE_SHIFT;
+			blk_end = (loff_t)pg_end << PAGE_CACHE_SHIFT;
 			truncate_inode_pages_range(mapping, blk_start,
 					blk_end - 1);
 
@@ -994,7 +995,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 				return ret;
 
 			new_size = max_t(loff_t, new_size,
-						pg_start << PAGE_CACHE_SHIFT);
+					(loff_t)pg_start << PAGE_CACHE_SHIFT);
 		}
 
 		for (index = pg_start; index < pg_end; index++) {
@@ -1030,7 +1031,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 			f2fs_unlock_op(sbi);
 
 			new_size = max_t(loff_t, new_size,
-					(index + 1) << PAGE_CACHE_SHIFT);
+				(loff_t)(index + 1) << PAGE_CACHE_SHIFT);
 		}
 
 		if (off_end) {
@@ -1192,9 +1193,10 @@ noalloc:
 		if (pg_start == pg_end)
 			new_size = offset + len;
 		else if (index == pg_start && off_start)
-			new_size = (index + 1) << PAGE_CACHE_SHIFT;
+			new_size = (loff_t)(index + 1) << PAGE_CACHE_SHIFT;
 		else if (index == pg_end)
-			new_size = (index << PAGE_CACHE_SHIFT) + off_end;
+			new_size = ((loff_t)index << PAGE_CACHE_SHIFT) +
+								off_end;
 		else
 			new_size += PAGE_CACHE_SIZE;
 	}

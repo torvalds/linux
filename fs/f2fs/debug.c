@@ -198,9 +198,9 @@ get_cache:
 
 	si->page_mem = 0;
 	npages = NODE_MAPPING(sbi)->nrpages;
-	si->page_mem += npages << PAGE_CACHE_SHIFT;
+	si->page_mem += (unsigned long long)npages << PAGE_CACHE_SHIFT;
 	npages = META_MAPPING(sbi)->nrpages;
-	si->page_mem += npages << PAGE_CACHE_SHIFT;
+	si->page_mem += (unsigned long long)npages << PAGE_CACHE_SHIFT;
 }
 
 static int stat_show(struct seq_file *s, void *v)
@@ -333,13 +333,13 @@ static int stat_show(struct seq_file *s, void *v)
 
 		/* memory footprint */
 		update_mem_info(si->sbi);
-		seq_printf(s, "\nMemory: %u KB\n",
+		seq_printf(s, "\nMemory: %llu KB\n",
 			(si->base_mem + si->cache_mem + si->page_mem) >> 10);
-		seq_printf(s, "  - static: %u KB\n",
+		seq_printf(s, "  - static: %llu KB\n",
 				si->base_mem >> 10);
-		seq_printf(s, "  - cached: %u KB\n",
+		seq_printf(s, "  - cached: %llu KB\n",
 				si->cache_mem >> 10);
-		seq_printf(s, "  - paged : %u KB\n",
+		seq_printf(s, "  - paged : %llu KB\n",
 				si->page_mem >> 10);
 	}
 	mutex_unlock(&f2fs_stat_mutex);

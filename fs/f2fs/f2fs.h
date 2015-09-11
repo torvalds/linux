@@ -1844,7 +1844,7 @@ struct f2fs_stat_info {
 	unsigned int segment_count[2];
 	unsigned int block_count[2];
 	unsigned int inplace_count;
-	unsigned base_mem, cache_mem, page_mem;
+	unsigned long long base_mem, cache_mem, page_mem;
 };
 
 static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)

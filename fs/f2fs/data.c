@@ -447,9 +447,9 @@ repeat:
 		lock_page(page);
 	}
 got_it:
-	if (new_i_size &&
-		i_size_read(inode) < ((index + 1) << PAGE_CACHE_SHIFT)) {
-		i_size_write(inode, ((index + 1) << PAGE_CACHE_SHIFT));
+	if (new_i_size && i_size_read(inode) <
+				((loff_t)(index + 1) << PAGE_CACHE_SHIFT)) {
+		i_size_write(inode, ((loff_t)(index + 1) << PAGE_CACHE_SHIFT));
 		/* Only the directory inode sets new_i_size */
 		set_inode_flag(F2FS_I(inode), FI_UPDATE_DIR);
 	}
@@ -489,8 +489,9 @@ alloc:
 	/* update i_size */
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
-	if (i_size_read(dn->inode) < ((fofs + 1) << PAGE_CACHE_SHIFT))
-		i_size_write(dn->inode, ((fofs + 1) << PAGE_CACHE_SHIFT));
+	if (i_size_read(dn->inode) < ((loff_t)(fofs + 1) << PAGE_CACHE_SHIFT))
+		i_size_write(dn->inode,
+				((loff_t)(fofs + 1) << PAGE_CACHE_SHIFT));
 
 	/* direct IO doesn't use extent cache to maximize the performance */
 	f2fs_drop_largest_extent(dn->inode, fofs);
