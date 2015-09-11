@@ -741,7 +741,6 @@ int intel_parse_bios(struct drm_device *dev);
  */
 #define DEVICE_TYPE_eDP_BITS \
 	(DEVICE_TYPE_INTERNAL_CONNECTOR | \
-	 DEVICE_TYPE_NOT_HDMI_OUTPUT | \
 	 DEVICE_TYPE_MIPI_OUTPUT | \
 	 DEVICE_TYPE_COMPOSITE_OUTPUT | \
 	 DEVICE_TYPE_DUAL_CHANNEL | \
@@ -749,7 +748,6 @@ int intel_parse_bios(struct drm_device *dev);
 	 DEVICE_TYPE_TMDS_DVI_SIGNALING | \
 	 DEVICE_TYPE_VIDEO_SIGNALING | \
 	 DEVICE_TYPE_DISPLAYPORT_OUTPUT | \
-	 DEVICE_TYPE_DIGITAL_OUTPUT | \
 	 DEVICE_TYPE_ANALOG_OUTPUT)
 
 /* define the DVO port for HDMI output type */
