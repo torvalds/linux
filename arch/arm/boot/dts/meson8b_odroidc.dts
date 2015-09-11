@@ -990,4 +990,16 @@
 		reserve-iomap = "true";
 	};
 
+
+	amlogic-watchdog {
+		compatible = "amlogic,aml-wdt";
+        default_timeout=<10>;
+        reset_watchdog_method=<0>;//0:sysfs,1:kernel
+        reset_watchdog_time=<2>;
+        shutdown_timeout=<10>;
+        firmware_timeout=<6>;
+        suspend_timeout=<6>;
+    };
+
+
 }; /* end of / */
