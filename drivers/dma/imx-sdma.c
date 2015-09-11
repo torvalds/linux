@@ -1410,7 +1410,8 @@ static struct sdma_desc *sdma_transfer_init(struct sdma_channel *sdmac,
 	desc->num_bd = bds;
 	INIT_LIST_HEAD(&desc->node);
 
-	if (sdma_alloc_bd(desc))
+	if (sdmac->peripheral_type != IMX_DMATYPE_HDMI &&
+	    sdma_alloc_bd(desc))
 		goto err_desc_out;
 
 	if (sdma_load_context(sdmac))
@@ -1636,7 +1637,9 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 
 	dev_dbg(sdma->dev, "%s channel: %d\n", __func__, channel);
 
-	num_periods = buf_len / period_len;
+	if (sdmac->peripheral_type != IMX_DMATYPE_HDMI)
+		num_periods = buf_len / period_len;
+
 	/* Now allocate and setup the descriptor. */
 	desc = sdma_transfer_init(sdmac, direction, num_periods);
 	if (!desc)
@@ -1721,8 +1724,8 @@ static int sdma_config(struct dma_chan *chan,
 			SDMA_WATERMARK_LEVEL_HWML;
 		sdmac->word_size = dmaengine_cfg->dst_addr_width;
 	} else if (sdmac->peripheral_type == IMX_DMATYPE_HDMI) {
-			sdmac->per_address = dmaengine_cfg->src_addr;
-			sdmac->per_address2 = dmaengine_cfg->dst_addr;
+			sdmac->per_address = dmaengine_cfg->dst_addr;
+			sdmac->per_address2 = dmaengine_cfg->src_addr;
 			sdmac->watermark_level = 0;
 	} else if (dmaengine_cfg->direction == DMA_MEM_TO_MEM) {
 			sdmac->word_size = dmaengine_cfg->dst_addr_width;
