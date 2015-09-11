@@ -86,7 +86,7 @@ static void write_cert(X509 *x509)
 		ERR(!wb, "%s", cert_dst);
 	}
 	X509_NAME_oneline(X509_get_subject_name(x509), buf, sizeof(buf));
-	ERR(!i2d_X509_bio(wb, x509), cert_dst);
+	ERR(!i2d_X509_bio(wb, x509), "%s", cert_dst);
 	if (kbuild_verbose)
 		fprintf(stderr, "Extracted cert: %s\n", buf);
 }
