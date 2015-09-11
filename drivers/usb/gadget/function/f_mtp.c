@@ -205,7 +205,7 @@ static struct usb_endpoint_descriptor mtp_intr_desc = {
 static struct usb_ss_ep_comp_descriptor mtp_intr_ss_comp_desc = {
 	.bLength                = sizeof(mtp_intr_ss_comp_desc),
 	.bDescriptorType        = USB_DT_SS_ENDPOINT_COMP,
-	.wBytesPerInterval      = cpu_to_le16(2),
+	.wBytesPerInterval      = cpu_to_le16(INTR_BUFFER_SIZE),
 };
 
 static struct usb_descriptor_header *fs_mtp_descs[] = {
