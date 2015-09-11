@@ -63,10 +63,10 @@ enum { CB_IDLE = 0, CB_PENDING, CB_REPLAY };
 #define	rss_lock	gp_wait.lock
 
 #ifdef CONFIG_PROVE_RCU
-bool __rcu_sync_is_idle(struct rcu_sync *rsp)
+void rcu_sync_lockdep_assert(struct rcu_sync *rsp)
 {
-	WARN_ON(!gp_ops[rsp->gp_type].held());
-	return rsp->gp_state == GP_IDLE;
+	RCU_LOCKDEP_WARN(!gp_ops[rsp->gp_type].held(),
+			 "suspicious rcu_sync_is_idle() usage");
 }
 #endif
 

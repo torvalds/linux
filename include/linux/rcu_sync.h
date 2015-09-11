@@ -40,7 +40,7 @@ struct rcu_sync {
 	enum rcu_sync_type	gp_type;
 };
 
-extern bool __rcu_sync_is_idle(struct rcu_sync *);
+extern void rcu_sync_lockdep_assert(struct rcu_sync *);
 
 /**
  * rcu_sync_is_idle() - Are readers permitted to use their fastpaths?
@@ -53,10 +53,9 @@ extern bool __rcu_sync_is_idle(struct rcu_sync *);
 static inline bool rcu_sync_is_idle(struct rcu_sync *rsp)
 {
 #ifdef CONFIG_PROVE_RCU
-	return __rcu_sync_is_idle(rsp);
-#else
-	return !rsp->gp_state; /* GP_IDLE */
+	rcu_sync_lockdep_assert(rsp);
 #endif
+	return !rsp->gp_state; /* GP_IDLE */
 }
 
 extern void rcu_sync_init(struct rcu_sync *, enum rcu_sync_type);
