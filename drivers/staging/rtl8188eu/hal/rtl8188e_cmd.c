@@ -467,7 +467,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 
 	DBG_88E("%s\n", __func__);
 	ReservedPagePacket = kzalloc(1000, GFP_KERNEL);
-	if (ReservedPagePacket == NULL) {
+	if (!ReservedPagePacket) {
 		DBG_88E("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
@@ -537,7 +537,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 
 	TotalPacketLen = BufIndex + QosNullLength;
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
-	if (pmgntframe == NULL)
+	if (!pmgntframe)
 		goto exit;
 
 	/*  update attribute */
