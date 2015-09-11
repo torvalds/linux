@@ -5255,6 +5255,13 @@ bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 		[PORT_E] = DVO_PORT_DPE,
 	};
 
+	/*
+	 * eDP not supported on g4x. so bail out early just
+	 * for a bit extra safety in case the VBT is bonkers.
+	 */
+	if (INTEL_INFO(dev)->gen < 5)
+		return false;
+
 	if (port == PORT_A)
 		return true;
 
