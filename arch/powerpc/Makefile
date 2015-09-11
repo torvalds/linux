@@ -358,14 +358,6 @@ checkbin:
 		echo 'disable kernel modules' ; \
 		false ; \
 	fi
-	@if test "x${CONFIG_CPU_LITTLE_ENDIAN}" = "xy" \
-	    && $(LD) --version | head -1 | grep ' 2\.24$$' >/dev/null ; then \
-		echo -n '*** binutils 2.24 miscompiles weak symbols ' ; \
-		echo 'in some circumstances.' ; \
-		echo -n '*** Please use a different binutils version.' ; \
-		false ; \
-	fi
-
 
 CLEAN_FILES += $(TOUT)
 
