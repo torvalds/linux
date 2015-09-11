@@ -765,9 +765,6 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	loff_t off_start, off_end;
 	int ret = 0;
 
-	if (!S_ISREG(inode->i_mode))
-		return -EOPNOTSUPP;
-
 	if (f2fs_has_inline_data(inode)) {
 		ret = f2fs_convert_inline_inode(inode);
 		if (ret)
@@ -908,9 +905,6 @@ static int f2fs_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	loff_t new_size;
 	int ret;
 
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-
 	if (offset + len >= i_size_read(inode))
 		return -EINVAL;
 
@@ -958,9 +952,6 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 	loff_t new_size = i_size_read(inode);
 	loff_t off_start, off_end;
 	int ret = 0;
-
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
 
 	ret = inode_newsize_ok(inode, (len + offset));
 	if (ret)
@@ -1067,9 +1058,6 @@ static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
 	pgoff_t pg_start, pg_end, delta, nrpages, idx;
 	loff_t new_size;
 	int ret;
-
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
 
 	new_size = i_size_read(inode) + len;
 	if (new_size > inode->i_sb->s_maxbytes)
@@ -1227,6 +1215,10 @@ static long f2fs_fallocate(struct file *file, int mode,
 {
 	struct inode *inode = file_inode(file);
 	long ret = 0;
+
+	/* f2fs only support ->fallocate for regular file */
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
 
 	if (f2fs_encrypted_inode(inode) &&
 		(mode & (FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_INSERT_RANGE)))
