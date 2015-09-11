@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "fbtft_device: " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,8 +21,6 @@
 #include <linux/spi/spi.h>
 
 #include "fbtft.h"
-
-#define DRVNAME "fbtft_device"
 
 #define MAX_GPIOS 32
 
@@ -1224,7 +1223,7 @@ static int spi_device_found(struct device *dev, void *data)
 
 static void pr_spi_devices(void)
 {
-	pr_info(DRVNAME":  SPI devices registered:\n");
+	pr_info("SPI devices registered:\n");
 	bus_for_each_dev(&spi_bus_type, NULL, NULL, spi_device_found);
 }
 
@@ -1242,7 +1241,7 @@ static int p_device_found(struct device *dev, void *data)
 
 static void pr_p_devices(void)
 {
-	pr_info(DRVNAME":  'fb' Platform devices registered:\n");
+	pr_info("'fb' Platform devices registered:\n");
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, p_device_found);
 }
 
@@ -1268,8 +1267,8 @@ static int fbtft_device_spi_device_register(struct spi_board_info *spi)
 
 	master = spi_busnum_to_master(spi->bus_num);
 	if (!master) {
-		pr_err(DRVNAME ":  spi_busnum_to_master(%d) returned NULL\n",
-								spi->bus_num);
+		pr_err("spi_busnum_to_master(%d) returned NULL\n",
+		       spi->bus_num);
 		return -EINVAL;
 	}
 	/* make sure it's available */
@@ -1300,11 +1299,11 @@ static int __init fbtft_device_init(void)
 	long val;
 	int ret = 0;
 
-	pr_debug("\n\n"DRVNAME": init\n");
+	pr_debug("init\n");
 
 	if (name == NULL) {
 #ifdef MODULE
-		pr_err(DRVNAME":  missing module parameter: 'name'\n");
+		pr_err("missing module parameter: 'name'\n");
 		return -EINVAL;
 #else
 		return 0;
@@ -1312,42 +1311,37 @@ static int __init fbtft_device_init(void)
 	}
 
 	if (init_num > FBTFT_MAX_INIT_SEQUENCE) {
-		pr_err(DRVNAME
-			":  init parameter: exceeded max array size: %d\n",
-			FBTFT_MAX_INIT_SEQUENCE);
+		pr_err("init parameter: exceeded max array size: %d\n",
+		       FBTFT_MAX_INIT_SEQUENCE);
 		return -EINVAL;
 	}
 
 	/* parse module parameter: gpios */
 	while ((p_gpio = strsep(&gpios, ","))) {
 		if (strchr(p_gpio, ':') == NULL) {
-			pr_err(DRVNAME
-				":  error: missing ':' in gpios parameter: %s\n",
-				p_gpio);
+			pr_err("error: missing ':' in gpios parameter: %s\n",
+			       p_gpio);
 			return -EINVAL;
 		}
 		p_num = p_gpio;
 		p_name = strsep(&p_num, ":");
 		if (p_name == NULL || p_num == NULL) {
-			pr_err(DRVNAME
-				":  something bad happened parsing gpios parameter: %s\n",
-				p_gpio);
+			pr_err("something bad happened parsing gpios parameter: %s\n",
+			       p_gpio);
 			return -EINVAL;
 		}
 		ret = kstrtol(p_num, 10, &val);
 		if (ret) {
-			pr_err(DRVNAME
-				":  could not parse number in gpios parameter: %s:%s\n",
-				p_name, p_num);
+			pr_err("could not parse number in gpios parameter: %s:%s\n",
+			       p_name, p_num);
 			return -EINVAL;
 		}
 		strncpy(fbtft_device_param_gpios[i].name, p_name,
 			FBTFT_GPIO_NAME_SIZE - 1);
 		fbtft_device_param_gpios[i++].gpio = (int) val;
 		if (i == MAX_GPIOS) {
-			pr_err(DRVNAME
-				":  gpios parameter: exceeded max array size: %d\n",
-				MAX_GPIOS);
+			pr_err("gpios parameter: exceeded max array size: %d\n",
+			       MAX_GPIOS);
 			return -EINVAL;
 		}
 	}
@@ -1360,7 +1354,7 @@ static int __init fbtft_device_init(void)
 	if (verbose > 2)
 		pr_p_devices(); /* print list of 'fb' platform devices */
 
-	pr_debug(DRVNAME":  name='%s', busnum=%d, cs=%d\n", name, busnum, cs);
+	pr_debug("name='%s', busnum=%d, cs=%d\n", name, busnum, cs);
 
 	if (rotate > 0 && rotate < 4) {
 		rotate = (4 - rotate) * 90;
@@ -1375,10 +1369,10 @@ static int __init fbtft_device_init(void)
 
 	/* name=list lists all supported displays */
 	if (strncmp(name, "list", FBTFT_GPIO_NAME_SIZE) == 0) {
-		pr_info(DRVNAME":  Supported displays:\n");
+		pr_info("Supported displays:\n");
 
 		for (i = 0; i < ARRAY_SIZE(displays); i++)
-			pr_info(DRVNAME":      %s\n", displays[i].name);
+			pr_info("%s\n", displays[i].name);
 		return -ECANCELED;
 	}
 
@@ -1409,7 +1403,7 @@ static int __init fbtft_device_init(void)
 				p_device = displays[i].pdev;
 				pdata = p_device->dev.platform_data;
 			} else {
-				pr_err(DRVNAME": broken displays array\n");
+				pr_err("broken displays array\n");
 				return -EINVAL;
 			}
 
@@ -1441,16 +1435,14 @@ static int __init fbtft_device_init(void)
 			if (displays[i].spi) {
 				ret = fbtft_device_spi_device_register(spi);
 				if (ret) {
-					pr_err(DRVNAME
-						": failed to register SPI device\n");
+					pr_err("failed to register SPI device\n");
 					return ret;
 				}
 			} else {
 				ret = platform_device_register(p_device);
 				if (ret < 0) {
-					pr_err(DRVNAME
-						":    platform_device_register() returned %d\n",
-						ret);
+					pr_err("platform_device_register() returned %d\n",
+					       ret);
 					return ret;
 				}
 			}
@@ -1460,22 +1452,21 @@ static int __init fbtft_device_init(void)
 	}
 
 	if (!found) {
-		pr_err(DRVNAME":  display not supported: '%s'\n", name);
+		pr_err("display not supported: '%s'\n", name);
 		return -EINVAL;
 	}
 
 	if (verbose && pdata && pdata->gpios) {
 		gpio = pdata->gpios;
-		pr_info(DRVNAME":  GPIOS used by '%s':\n", name);
+		pr_info("GPIOS used by '%s':\n", name);
 		found = false;
 		while (verbose && gpio->name[0]) {
-			pr_info(DRVNAME":    '%s' = GPIO%d\n",
-				gpio->name, gpio->gpio);
+			pr_info("'%s' = GPIO%d\n", gpio->name, gpio->gpio);
 			gpio++;
 			found = true;
 		}
 		if (!found)
-			pr_info(DRVNAME":    (none)\n");
+			pr_info("(none)\n");
 	}
 
 	if (spi_device && (verbose > 1))
@@ -1488,7 +1479,7 @@ static int __init fbtft_device_init(void)
 
 static void __exit fbtft_device_exit(void)
 {
-	pr_debug(DRVNAME" - exit\n");
+	pr_debug("exit\n");
 
 	if (spi_device) {
 		device_del(&spi_device->dev);
