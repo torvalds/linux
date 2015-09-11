@@ -2609,7 +2609,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	int enable;	/* enable fb:1 enable;0 disable */
 	int ovl;	/* overlay:0 win1 on the top of win0;1,win0 on the top of win1 */
 	int num_buf;	/* buffer_number */
-	int ret;
+	int ret = 0;
 	struct rk_fb_win_cfg_data win_data;
 	unsigned int dsp_addr[4][4];
 	int list_stat;
@@ -2844,7 +2844,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		};
 
 		dev_drv->wait_fs = win_data.wait_fs;
-		rk_fb_set_win_config(info, &win_data);
+		ret = rk_fb_set_win_config(info, &win_data);
 
 		if (copy_to_user((struct rk_fb_win_cfg_data __user *)arg,
 				 &win_data, sizeof(win_data))) {
@@ -2862,7 +2862,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int rk_fb_blank(int blank_mode, struct fb_info *info)
