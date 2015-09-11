@@ -46,6 +46,7 @@ struct iio_dummy_state {
 	int event_irq;
 	int event_val;
 	bool event_en;
+	s64 event_timestamp;
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 };
 
