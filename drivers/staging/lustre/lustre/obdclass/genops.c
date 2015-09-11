@@ -178,9 +178,9 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	type->typ_md_ops = kzalloc(sizeof(*type->typ_md_ops), GFP_NOFS);
 	type->typ_name = kzalloc(strlen(name) + 1, GFP_NOFS);
 
-	if (type->typ_dt_ops == NULL ||
-	    type->typ_md_ops == NULL ||
-	    type->typ_name == NULL)
+	if (!type->typ_dt_ops ||
+	    !type->typ_md_ops ||
+	    !type->typ_name)
 		goto failed;
 
 	*(type->typ_dt_ops) = *dt_ops;
@@ -293,13 +293,13 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 	}
 
 	type = class_get_type(type_name);
-	if (type == NULL) {
+	if (!type) {
 		CERROR("OBD: unknown type: %s\n", type_name);
 		return ERR_PTR(-ENODEV);
 	}
 
 	newdev = obd_device_alloc();
-	if (newdev == NULL) {
+	if (!newdev) {
 		result = ERR_PTR(-ENOMEM);
 		goto out_type;
 	}
@@ -339,7 +339,7 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 	}
 	write_unlock(&obd_dev_lock);
 
-	if (result == NULL && i >= class_devno_max()) {
+	if (!result && i >= class_devno_max()) {
 		CERROR("all %u OBD devices used, increase MAX_OBD_DEVICES\n",
 		       class_devno_max());
 		result = ERR_PTR(-EOVERFLOW);
@@ -463,7 +463,7 @@ struct obd_device *class_num2obd(int num)
 
 	if (num < class_devno_max()) {
 		obd = obd_devs[num];
-		if (obd == NULL)
+		if (!obd)
 			return NULL;
 
 		LASSERTF(obd->obd_magic == OBD_DEVICE_MAGIC,
@@ -509,7 +509,7 @@ void class_obd_list(void)
 	for (i = 0; i < class_devno_max(); i++) {
 		struct obd_device *obd = class_num2obd(i);
 
-		if (obd == NULL)
+		if (!obd)
 			continue;
 		if (obd->obd_stopping)
 			status = "ST";
@@ -540,7 +540,7 @@ struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
 	for (i = 0; i < class_devno_max(); i++) {
 		struct obd_device *obd = class_num2obd(i);
 
-		if (obd == NULL)
+		if (!obd)
 			continue;
 		if ((strncmp(obd->obd_type->typ_name, typ_name,
 			     strlen(typ_name)) == 0)) {
@@ -567,7 +567,7 @@ struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid, int *next)
 {
 	int i;
 
-	if (next == NULL)
+	if (!next)
 		i = 0;
 	else if (*next >= 0 && *next < class_devno_max())
 		i = *next;
@@ -578,10 +578,10 @@ struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid, int *next)
 	for (; i < class_devno_max(); i++) {
 		struct obd_device *obd = class_num2obd(i);
 
-		if (obd == NULL)
+		if (!obd)
 			continue;
 		if (obd_uuid_equals(grp_uuid, &obd->obd_uuid)) {
-			if (next != NULL)
+			if (next)
 				*next = i+1;
 			read_unlock(&obd_dev_lock);
 			return obd;
@@ -609,7 +609,7 @@ int class_notify_sptlrpc_conf(const char *fsname, int namelen)
 	for (i = 0; i < class_devno_max(); i++) {
 		obd = class_num2obd(i);
 
-		if (obd == NULL || obd->obd_set_up == 0 || obd->obd_stopping)
+		if (!obd || obd->obd_set_up == 0 || obd->obd_stopping)
 			continue;
 
 		/* only notify mdc, osc, mdt, ost */
@@ -659,27 +659,27 @@ void obd_cleanup_caches(void)
 
 int obd_init_caches(void)
 {
-	LASSERT(obd_device_cachep == NULL);
+	LASSERT(!obd_device_cachep);
 	obd_device_cachep = kmem_cache_create("ll_obd_dev_cache",
 						 sizeof(struct obd_device),
 						 0, 0, NULL);
 	if (!obd_device_cachep)
 		goto out;
 
-	LASSERT(obdo_cachep == NULL);
+	LASSERT(!obdo_cachep);
 	obdo_cachep = kmem_cache_create("ll_obdo_cache", sizeof(struct obdo),
 					   0, 0, NULL);
 	if (!obdo_cachep)
 		goto out;
 
-	LASSERT(import_cachep == NULL);
+	LASSERT(!import_cachep);
 	import_cachep = kmem_cache_create("ll_import_cache",
 					     sizeof(struct obd_import),
 					     0, 0, NULL);
 	if (!import_cachep)
 		goto out;
 
-	LASSERT(capa_cachep == NULL);
+	LASSERT(!capa_cachep);
 	capa_cachep = kmem_cache_create("capa_cache",
 					   sizeof(struct obd_capa), 0, 0, NULL);
 	if (!capa_cachep)
@@ -740,7 +740,7 @@ struct obd_import *class_exp2cliimp(struct obd_export *exp)
 {
 	struct obd_device *obd = exp->exp_obd;
 
-	if (obd == NULL)
+	if (!obd)
 		return NULL;
 	return obd->u.cli.cl_import;
 }
@@ -750,7 +750,7 @@ struct obd_import *class_conn2cliimp(struct lustre_handle *conn)
 {
 	struct obd_device *obd = class_conn2obd(conn);
 
-	if (obd == NULL)
+	if (!obd)
 		return NULL;
 	return obd->u.cli.cl_import;
 }
@@ -875,7 +875,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	}
 
 	hash = cfs_hash_getref(obd->obd_uuid_hash);
-	if (hash == NULL) {
+	if (!hash) {
 		rc = -ENODEV;
 		goto exit_unlock;
 	}
@@ -959,7 +959,7 @@ static void class_import_destroy(struct obd_import *imp)
 		kfree(imp_conn);
 	}
 
-	LASSERT(imp->imp_sec == NULL);
+	LASSERT(!imp->imp_sec);
 	class_decref(imp->imp_obd, "import", imp);
 	OBD_FREE_RCU(imp, sizeof(*imp), &imp->imp_handle);
 }
@@ -1194,7 +1194,7 @@ int class_disconnect(struct obd_export *export)
 {
 	int already_disconnected;
 
-	if (export == NULL) {
+	if (!export) {
 		CWARN("attempting to free NULL export %p\n", export);
 		return -EINVAL;
 	}
@@ -1343,7 +1343,7 @@ void class_disconnect_stale_exports(struct obd_device *obd,
 		evicted++;
 		CDEBUG(D_HA, "%s: disconnect stale client %s@%s\n",
 		       obd->obd_name, exp->exp_client_uuid.uuid,
-		       exp->exp_connection == NULL ? "<unknown>" :
+		       !exp->exp_connection ? "<unknown>" :
 		       libcfs_nid2str(exp->exp_connection->c_peer.nid));
 		print_export_data(exp, "EVICTING", 0);
 	}
@@ -1426,7 +1426,7 @@ int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 
 	do {
 		doomed_exp = cfs_hash_lookup(nid_hash, &nid_key);
-		if (doomed_exp == NULL)
+		if (!doomed_exp)
 			break;
 
 		LASSERTF(doomed_exp->exp_connection->c_peer.nid == nid_key,
@@ -1479,7 +1479,7 @@ int obd_export_evict_by_uuid(struct obd_device *obd, const char *uuid)
 
 	doomed_exp = cfs_hash_lookup(uuid_hash, &doomed_uuid);
 
-	if (doomed_exp == NULL) {
+	if (!doomed_exp) {
 		CERROR("%s: can't disconnect %s: no exports found\n",
 		       obd->obd_name, uuid);
 	} else {
@@ -1670,8 +1670,8 @@ static void obd_zombie_export_add(struct obd_export *exp)
  */
 static void obd_zombie_import_add(struct obd_import *imp)
 {
-	LASSERT(imp->imp_sec == NULL);
-	LASSERT(imp->imp_rq_pool == NULL);
+	LASSERT(!imp->imp_sec);
+	LASSERT(!imp->imp_rq_pool);
 	spin_lock(&obd_zombie_impexp_lock);
 	LASSERT(list_empty(&imp->imp_zombie_chain));
 	zombies_count++;
