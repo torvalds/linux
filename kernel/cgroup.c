@@ -2799,6 +2799,7 @@ static int cgroup_subtree_control_show(struct seq_file *seq, void *v)
 static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 {
 	LIST_HEAD(preloaded_csets);
+	struct cgroup_taskset tset = CGROUP_TASKSET_INIT(tset);
 	struct cgroup_subsys_state *css;
 	struct css_set *src_cset;
 	int ret;
@@ -2827,50 +2828,21 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 	if (ret)
 		goto out_finish;
 
+	down_write(&css_set_rwsem);
 	list_for_each_entry(src_cset, &preloaded_csets, mg_preload_node) {
-		struct task_struct *last_task = NULL, *task;
+		struct task_struct *task, *ntask;
 
 		/* src_csets precede dst_csets, break on the first dst_cset */
 		if (!src_cset->mg_src_cgrp)
 			break;
 
-		/*
-		 * All tasks in src_cset need to be migrated to the
-		 * matching dst_cset.  Empty it process by process.  We
-		 * walk tasks but migrate processes.  The leader might even
-		 * belong to a different cset but such src_cset would also
-		 * be among the target src_csets because the default
-		 * hierarchy enforces per-process membership.
-		 */
-		while (true) {
-			down_read(&css_set_rwsem);
-			task = list_first_entry_or_null(&src_cset->tasks,
-						struct task_struct, cg_list);
-			if (task) {
-				task = task->group_leader;
-				WARN_ON_ONCE(!task_css_set(task)->mg_src_cgrp);
-				get_task_struct(task);
-			}
-			up_read(&css_set_rwsem);
-
-			if (!task)
-				break;
-
-			/* guard against possible infinite loop */
-			if (WARN(last_task == task,
-				 "cgroup: update_dfl_csses failed to make progress, aborting in inconsistent state\n"))
-				goto out_finish;
-			last_task = task;
-
-			ret = cgroup_migrate(task, true, src_cset->dfl_cgrp);
-
-			put_task_struct(task);
-
-			if (WARN(ret, "cgroup: failed to update controllers for the default hierarchy (%d), further operations may crash or hang\n", ret))
-				goto out_finish;
-		}
+		/* all tasks in src_csets need to be migrated */
+		list_for_each_entry_safe(task, ntask, &src_cset->tasks, cg_list)
+			cgroup_taskset_add(task, &tset);
 	}
+	up_write(&css_set_rwsem);
 
+	ret = cgroup_taskset_migrate(&tset, cgrp);
 out_finish:
 	cgroup_migrate_finish(&preloaded_csets);
 	percpu_up_write(&cgroup_threadgroup_rwsem);
