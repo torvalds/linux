@@ -179,13 +179,13 @@ static inline int acpi_sleep_init(void) { return -ENXIO; }
 #endif
 
 #ifdef CONFIG_ACPI_SLEEP
-int acpi_sleep_proc_init(void);
+void acpi_sleep_proc_init(void);
 int suspend_nvs_alloc(void);
 void suspend_nvs_free(void);
 int suspend_nvs_save(void);
 void suspend_nvs_restore(void);
 #else
-static inline int acpi_sleep_proc_init(void) { return 0; }
+static inline void acpi_sleep_proc_init(void) {}
 static inline int suspend_nvs_alloc(void) { return 0; }
 static inline void suspend_nvs_free(void) {}
 static inline int suspend_nvs_save(void) { return 0; }
