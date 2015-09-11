@@ -1700,6 +1700,21 @@ config HIGHPTE
 	  consumed by page tables.  Setting this option will allow
 	  user-space 2nd level page tables to reside in high memory.
 
+config CPU_SW_DOMAIN_PAN
+	bool "Enable use of CPU domains to implement privileged no-access"
+	depends on MMU && !ARM_LPAE
+	default y
+	help
+	  Increase kernel security by ensuring that normal kernel accesses
+	  are unable to access userspace addresses.  This can help prevent
+	  use-after-free bugs becoming an exploitable privilege escalation
+	  by ensuring that magic values (such as LIST_POISON) will always
+	  fault when dereferenced.
+
+	  CPUs with low-vector mappings use a best-efforts implementation.
+	  Their lower 1MB needs to remain accessible for the vectors, but
+	  the remainder of userspace will become appropriately inaccessible.
+
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
 	depends on PERF_EVENTS

@@ -50,6 +50,35 @@ struct exception_table_entry
 extern int fixup_exception(struct pt_regs *regs);
 
 /*
+ * These two functions allow hooking accesses to userspace to increase
+ * system integrity by ensuring that the kernel can not inadvertantly
+ * perform such accesses (eg, via list poison values) which could then
+ * be exploited for priviledge escalation.
+ */
+static inline unsigned int uaccess_save_and_enable(void)
+{
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+	unsigned int old_domain = get_domain();
+
+	/* Set the current domain access to permit user accesses */
+	set_domain((old_domain & ~domain_mask(DOMAIN_USER)) |
+		   domain_val(DOMAIN_USER, DOMAIN_CLIENT));
+
+	return old_domain;
+#else
+	return 0;
+#endif
+}
+
+static inline void uaccess_restore(unsigned int flags)
+{
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+	/* Restore the user access mask */
+	set_domain(flags);
+#endif
+}
+
+/*
  * These two are intentionally not defined anywhere - if the kernel
  * code generates any references to them, that's a bug.
  */
@@ -165,6 +194,7 @@ extern int __get_user_64t_4(void *);
 		register typeof(x) __r2 asm("r2");			\
 		register unsigned long __l asm("r1") = __limit;		\
 		register int __e asm("r0");				\
+		unsigned int __ua_flags = uaccess_save_and_enable();	\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
 			if (sizeof((x)) >= 8)				\
@@ -192,6 +222,7 @@ extern int __get_user_64t_4(void *);
 			break;						\
 		default: __e = __get_user_bad(); break;			\
 		}							\
+		uaccess_restore(__ua_flags);				\
 		x = (typeof(*(p))) __r2;				\
 		__e;							\
 	})
@@ -224,6 +255,7 @@ extern int __put_user_8(void *, unsigned long long);
 		register const typeof(*(p)) __user *__p asm("r0") = __tmp_p; \
 		register unsigned long __l asm("r1") = __limit;		\
 		register int __e asm("r0");				\
+		unsigned int __ua_flags = uaccess_save_and_enable();	\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
 			__put_user_x(__r2, __p, __e, __l, 1);		\
@@ -239,6 +271,7 @@ extern int __put_user_8(void *, unsigned long long);
 			break;						\
 		default: __e = __put_user_bad(); break;			\
 		}							\
+		uaccess_restore(__ua_flags);				\
 		__e;							\
 	})
 
@@ -300,14 +333,17 @@ static inline void set_fs(mm_segment_t fs)
 do {									\
 	unsigned long __gu_addr = (unsigned long)(ptr);			\
 	unsigned long __gu_val;						\
+	unsigned int __ua_flags;					\
 	__chk_user_ptr(ptr);						\
 	might_fault();							\
+	__ua_flags = uaccess_save_and_enable();				\
 	switch (sizeof(*(ptr))) {					\
 	case 1:	__get_user_asm_byte(__gu_val, __gu_addr, err);	break;	\
 	case 2:	__get_user_asm_half(__gu_val, __gu_addr, err);	break;	\
 	case 4:	__get_user_asm_word(__gu_val, __gu_addr, err);	break;	\
 	default: (__gu_val) = __get_user_bad();				\
 	}								\
+	uaccess_restore(__ua_flags);					\
 	(x) = (__typeof__(*(ptr)))__gu_val;				\
 } while (0)
 
@@ -381,9 +417,11 @@ do {									\
 #define __put_user_err(x, ptr, err)					\
 do {									\
 	unsigned long __pu_addr = (unsigned long)(ptr);			\
+	unsigned int __ua_flags;					\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	__chk_user_ptr(ptr);						\
 	might_fault();							\
+	__ua_flags = uaccess_save_and_enable();				\
 	switch (sizeof(*(ptr))) {					\
 	case 1: __put_user_asm_byte(__pu_val, __pu_addr, err);	break;	\
 	case 2: __put_user_asm_half(__pu_val, __pu_addr, err);	break;	\
@@ -391,6 +429,7 @@ do {									\
 	case 8:	__put_user_asm_dword(__pu_val, __pu_addr, err);	break;	\
 	default: __put_user_bad();					\
 	}								\
+	uaccess_restore(__ua_flags);					\
 } while (0)
 
 #define __put_user_asm_byte(x, __pu_addr, err)			\
@@ -474,11 +513,46 @@ do {									\
 
 
 #ifdef CONFIG_MMU
-extern unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n);
-extern unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n);
-extern unsigned long __must_check __copy_to_user_std(void __user *to, const void *from, unsigned long n);
-extern unsigned long __must_check __clear_user(void __user *addr, unsigned long n);
-extern unsigned long __must_check __clear_user_std(void __user *addr, unsigned long n);
+extern unsigned long __must_check
+arm_copy_from_user(void *to, const void __user *from, unsigned long n);
+
+static inline unsigned long __must_check
+__copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	unsigned int __ua_flags = uaccess_save_and_enable();
+	n = arm_copy_from_user(to, from, n);
+	uaccess_restore(__ua_flags);
+	return n;
+}
+
+extern unsigned long __must_check
+arm_copy_to_user(void __user *to, const void *from, unsigned long n);
+extern unsigned long __must_check
+__copy_to_user_std(void __user *to, const void *from, unsigned long n);
+
+static inline unsigned long __must_check
+__copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	unsigned int __ua_flags = uaccess_save_and_enable();
+	n = arm_copy_to_user(to, from, n);
+	uaccess_restore(__ua_flags);
+	return n;
+}
+
+extern unsigned long __must_check
+arm_clear_user(void __user *addr, unsigned long n);
+extern unsigned long __must_check
+__clear_user_std(void __user *addr, unsigned long n);
+
+static inline unsigned long __must_check
+__clear_user(void __user *addr, unsigned long n)
+{
+	unsigned int __ua_flags = uaccess_save_and_enable();
+	n = arm_clear_user(addr, n);
+	uaccess_restore(__ua_flags);
+	return n;
+}
+
 #else
 #define __copy_from_user(to, from, n)	(memcpy(to, (void __force *)from, n), 0)
 #define __copy_to_user(to, from, n)	(memcpy((void __force *)to, from, n), 0)
@@ -511,6 +585,7 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 	return n;
 }
 
+/* These are from lib/ code, and use __get_user() and friends */
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
 extern __must_check long strlen_user(const char __user *str);
