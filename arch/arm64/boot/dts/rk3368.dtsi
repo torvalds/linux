@@ -1132,6 +1132,10 @@
 						1020           324000
 						720            240000
 						>;
+					high_load = <70>;
+					low_load = <60>;
+					auto_freq_interval = <20>; /* ms */
+					down_rate_delay = <500>;   /* ms */
 					channel = <2>;
 					status = "disabled";
 				};
