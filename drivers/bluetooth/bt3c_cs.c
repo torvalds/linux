@@ -453,7 +453,8 @@ static int bt3c_load_firmware(struct bt3c_info *info,
 {
 	char *ptr = (char *) firmware;
 	char b[9];
-	unsigned int iobase, size, addr, fcs, tmp;
+	unsigned int iobase, tmp;
+	unsigned long size, addr, fcs;
 	int i, err = 0;
 
 	iobase = info->p_dev->resource[0]->start;
@@ -478,15 +479,18 @@ static int bt3c_load_firmware(struct bt3c_info *info,
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + 2, 2);
-		size = simple_strtoul(b, NULL, 16);
+		if (kstrtoul(b, 16, &size) < 0)
+			return -EINVAL;
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + 4, 8);
-		addr = simple_strtoul(b, NULL, 16);
+		if (kstrtoul(b, 16, &addr) < 0)
+			return -EINVAL;
 
 		memset(b, 0, sizeof(b));
 		memcpy(b, ptr + (size * 2) + 2, 2);
-		fcs = simple_strtoul(b, NULL, 16);
+		if (kstrtoul(b, 16, &fcs) < 0)
+			return -EINVAL;
 
 		memset(b, 0, sizeof(b));
 		for (tmp = 0, i = 0; i < size; i++) {
