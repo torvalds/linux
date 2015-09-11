@@ -819,15 +819,8 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ssid_bitmap <<= 1;
 
 	for (i = 0; i < params->n_scan_plans; i++) {
-		struct wiphy *wiphy = mvm->hw->wiphy;
 		struct cfg80211_sched_scan_plan *scan_plan =
 			&params->scan_plans[i];
-
-		if (WARN_ON(scan_plan->iterations >
-			    wiphy->max_sched_scan_plan_iterations ||
-			    scan_plan->interval >
-			    wiphy->max_sched_scan_plan_interval))
-			return -EINVAL;
 
 		cmd->schedule[i].delay =
 			cpu_to_le16(scan_plan->interval);
@@ -1103,15 +1096,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				       params->n_channels, ssid_bitmap, cmd);
 
 	for (i = 0; i < params->n_scan_plans; i++) {
-		struct wiphy *wiphy = mvm->hw->wiphy;
 		struct cfg80211_sched_scan_plan *scan_plan =
 			&params->scan_plans[i];
-
-		if (WARN_ON(scan_plan->iterations >
-			    wiphy->max_sched_scan_plan_iterations ||
-			    scan_plan->interval >
-			    wiphy->max_sched_scan_plan_interval))
-			return -EINVAL;
 
 		sec_part->schedule[i].iter_count = scan_plan->iterations;
 		sec_part->schedule[i].interval =
