@@ -1215,9 +1215,9 @@ static int spi_device_found(struct device *dev, void *data)
 {
 	struct spi_device *spi = container_of(dev, struct spi_device, dev);
 
-	pr_info(DRVNAME":      %s %s %dkHz %d bits mode=0x%02X\n",
-		spi->modalias, dev_name(dev), spi->max_speed_hz / 1000,
-		spi->bits_per_word, spi->mode);
+	dev_info(dev, "%s %s %dkHz %d bits mode=0x%02X\n", spi->modalias,
+		 dev_name(dev), spi->max_speed_hz / 1000, spi->bits_per_word,
+		 spi->mode);
 
 	return 0;
 }
@@ -1234,9 +1234,8 @@ static int p_device_found(struct device *dev, void *data)
 	*pdev = container_of(dev, struct platform_device, dev);
 
 	if (strstr(pdev->name, "fb"))
-		pr_info(DRVNAME":      %s id=%d pdata? %s\n",
-				pdev->name, pdev->id,
-				pdev->dev.platform_data ? "yes" : "no");
+		dev_info(dev, "%s id=%d pdata? %s\n", pdev->name, pdev->id,
+			 pdev->dev.platform_data ? "yes" : "no");
 
 	return 0;
 }
@@ -1258,7 +1257,7 @@ static void fbtft_device_spi_delete(struct spi_master *master, unsigned cs)
 	dev = bus_find_device_by_name(&spi_bus_type, NULL, str);
 	if (dev) {
 		if (verbose)
-			pr_info(DRVNAME": Deleting %s\n", str);
+			dev_info(dev, "Deleting %s\n", str);
 		device_del(dev);
 	}
 }
@@ -1278,7 +1277,7 @@ static int fbtft_device_spi_device_register(struct spi_board_info *spi)
 	spi_device = spi_new_device(master, spi);
 	put_device(&master->dev);
 	if (!spi_device) {
-		pr_err(DRVNAME ":    spi_new_device() returned NULL\n");
+		dev_err(&master->dev, "spi_new_device() returned NULL\n");
 		return -EPERM;
 	}
 	return 0;
