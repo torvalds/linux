@@ -204,6 +204,9 @@ bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 	    q->limits.max_integrity_segments)
 		return false;
 
+	if (integrity_req_gap_back_merge(req, next->bio))
+		return false;
+
 	return true;
 }
 EXPORT_SYMBOL(blk_integrity_merge_rq);

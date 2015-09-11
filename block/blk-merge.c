@@ -440,6 +440,9 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 {
 	if (req_gap_back_merge(req, bio))
 		return 0;
+	if (blk_integrity_rq(req) &&
+	    integrity_req_gap_back_merge(req, bio))
+		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req)) {
 		req->cmd_flags |= REQ_NOMERGE;
@@ -460,6 +463,9 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 {
 
 	if (req_gap_front_merge(req, bio))
+		return 0;
+	if (blk_integrity_rq(req) &&
+	    integrity_req_gap_front_merge(req, bio))
 		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req)) {
