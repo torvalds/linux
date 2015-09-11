@@ -47,7 +47,7 @@ static int clk_utmi_prepare(struct clk_hw *hw)
 {
 	struct clk_utmi *utmi = to_clk_utmi(hw);
 	struct at91_pmc *pmc = utmi->pmc;
-	u32 tmp = at91_pmc_read(AT91_CKGR_UCKR) | AT91_PMC_UPLLEN |
+	u32 tmp = pmc_read(pmc, AT91_CKGR_UCKR) | AT91_PMC_UPLLEN |
 		  AT91_PMC_UPLLCOUNT | AT91_PMC_BIASEN;
 
 	pmc_write(pmc, AT91_CKGR_UCKR, tmp);
@@ -73,7 +73,7 @@ static void clk_utmi_unprepare(struct clk_hw *hw)
 {
 	struct clk_utmi *utmi = to_clk_utmi(hw);
 	struct at91_pmc *pmc = utmi->pmc;
-	u32 tmp = at91_pmc_read(AT91_CKGR_UCKR) & ~AT91_PMC_UPLLEN;
+	u32 tmp = pmc_read(pmc, AT91_CKGR_UCKR) & ~AT91_PMC_UPLLEN;
 
 	pmc_write(pmc, AT91_CKGR_UCKR, tmp);
 }
