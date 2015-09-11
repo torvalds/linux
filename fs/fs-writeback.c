@@ -1546,12 +1546,15 @@ static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 		.range_cyclic	= 1,
 		.reason		= reason,
 	};
+	struct blk_plug plug;
 
+	blk_start_plug(&plug);
 	spin_lock(&wb->list_lock);
 	if (list_empty(&wb->b_io))
 		queue_io(wb, &work);
 	__writeback_inodes_wb(wb, &work);
 	spin_unlock(&wb->list_lock);
+	blk_finish_plug(&plug);
 
 	return nr_pages - work.nr_pages;
 }
@@ -1579,10 +1582,12 @@ static long wb_writeback(struct bdi_writeback *wb,
 	unsigned long oldest_jif;
 	struct inode *inode;
 	long progress;
+	struct blk_plug plug;
 
 	oldest_jif = jiffies;
 	work->older_than_this = &oldest_jif;
 
+	blk_start_plug(&plug);
 	spin_lock(&wb->list_lock);
 	for (;;) {
 		/*
@@ -1662,6 +1667,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		}
 	}
 	spin_unlock(&wb->list_lock);
+	blk_finish_plug(&plug);
 
 	return nr_pages - work->nr_pages;
 }
