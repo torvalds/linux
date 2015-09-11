@@ -171,6 +171,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.ops = &qcom_wdt_ops;
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
+	wdt->wdd.parent = &pdev->dev;
 
 	/*
 	 * If 'timeout-sec' unspecified in devicetree, assume a 30 second
