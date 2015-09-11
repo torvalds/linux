@@ -3496,6 +3496,8 @@ M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/
+F:	scripts/docproc.c
+F:	scripts/kernel-doc*
 X:	Documentation/ABI/
 X:	Documentation/devicetree/
 X:	Documentation/acpi
