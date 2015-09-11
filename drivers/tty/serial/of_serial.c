@@ -21,6 +21,10 @@
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
 
+#ifdef CONFIG_SERIAL_8250_MODULE
+#define CONFIG_SERIAL_8250 CONFIG_SERIAL_8250_MODULE
+#endif
+
 #include "8250/8250.h"
 
 struct of_serial_info {
