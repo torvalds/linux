@@ -237,6 +237,7 @@ endif
 
 header-y += hw_breakpoint.h
 header-y += ipu.h
+header-y += isl29023.h
 header-y += l2tp.h
 header-y += libc-compat.h
 header-y += limits.h
