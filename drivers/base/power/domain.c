@@ -213,6 +213,18 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 }
 
 /**
+ * genpd_queue_power_off_work - Queue up the execution of pm_genpd_poweroff().
+ * @genpd: PM domait to power off.
+ *
+ * Queue up the execution of pm_genpd_poweroff() unless it's already been done
+ * before.
+ */
+static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
+{
+	queue_work(pm_wq, &genpd->power_off_work);
+}
+
+/**
  * __pm_genpd_poweron - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
  *
@@ -259,8 +271,12 @@ static int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	return 0;
 
  err:
-	list_for_each_entry_continue_reverse(link, &genpd->slave_links, slave_node)
+	list_for_each_entry_continue_reverse(link,
+					&genpd->slave_links,
+					slave_node) {
 		genpd_sd_counter_dec(link->master);
+		genpd_queue_power_off_work(link->master);
+	}
 
 	return ret;
 }
@@ -346,18 +362,6 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 	}
 
 	return NOTIFY_DONE;
-}
-
-/**
- * genpd_queue_power_off_work - Queue up the execution of pm_genpd_poweroff().
- * @genpd: PM domait to power off.
- *
- * Queue up the execution of pm_genpd_poweroff() unless it's already been done
- * before.
- */
-static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
-{
-	queue_work(pm_wq, &genpd->power_off_work);
 }
 
 /**
@@ -1469,6 +1473,13 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 
 	mutex_lock(&genpd->lock);
 
+	if (!list_empty(&subdomain->slave_links) || subdomain->device_count) {
+		pr_warn("%s: unable to remove subdomain %s\n", genpd->name,
+			subdomain->name);
+		ret = -EBUSY;
+		goto out;
+	}
+
 	list_for_each_entry(link, &genpd->master_links, master_node) {
 		if (link->slave != subdomain)
 			continue;
@@ -1487,6 +1498,7 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 		break;
 	}
 
+out:
 	mutex_unlock(&genpd->lock);
 
 	return ret;
