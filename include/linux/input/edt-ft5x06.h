@@ -10,9 +10,6 @@
  */
 
 struct edt_ft5x06_platform_data {
-	int irq_pin;
-	int reset_pin;
-
 	/* startup defaults for operational parameters */
 	bool use_parameters;
 	u8 gain;

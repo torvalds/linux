@@ -50,6 +50,6 @@ Example:
 		pinctrl-0 = <&edt_ft5x06_pins>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <5 0>;
-		reset-gpios = <&gpio2 6 1>;
-		wake-gpios = <&gpio4 9 0>;
+		reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		wake-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
 	};
