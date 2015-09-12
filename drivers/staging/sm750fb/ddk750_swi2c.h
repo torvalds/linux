@@ -44,7 +44,7 @@ long sm750_sw_i2c_init(
  *  Return Value:
  *      Register value
  */
-unsigned char swI2CReadReg(
+unsigned char sm750_sw_i2c_read_reg(
 	unsigned char deviceAddress,
 	unsigned char registerIndex
 );

@@ -175,7 +175,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 	/* Customer may NOT use CH7301 DVI chip, which has to be
 	   initialized differently.
 	*/
-	if (swI2CReadReg(0xec, 0x4a) == 0x95) {
+	if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
 		/* The following register values for CH7301 are from
 		   Chrontel app note and our experiment.
 		*/
