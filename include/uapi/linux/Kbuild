@@ -252,6 +252,7 @@ header-y += mdio.h
 header-y += media.h
 header-y += media-bus-format.h
 header-y += mei.h
+header-y += membarrier.h
 header-y += memfd.h
 header-y += mempolicy.h
 header-y += meye.h
