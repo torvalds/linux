@@ -68,25 +68,4 @@ long sm750_sw_i2c_write_reg(
 	unsigned char data
 );
 
-/*
- *  These two functions toggle the data on the SCL and SDA I2C lines.
- *  The use of these two functions is not recommended unless it is necessary.
- */
-
-/*
- *  This function set/reset the SCL GPIO pin
- *
- *  Parameters:
- *      value	- Bit value to set to the SCL or SDA (0 = low, 1 = high)
- */
-void swI2CSCL(unsigned char value);
-
-/*
- *  This function set/reset the SDA GPIO pin
- *
- *  Parameters:
- *      value	- Bit value to set to the SCL or SDA (0 = low, 1 = high)
- */
-void swI2CSDA(unsigned char value);
-
 #endif  /* _SWI2C_H_ */

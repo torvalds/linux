@@ -119,7 +119,7 @@ static void swI2CWait(void)
  *      signal because the i2c will fail when other device try to drive the
  *      signal due to SM50x will drive the signal to always high.
  */
-void swI2CSCL(unsigned char value)
+static void swI2CSCL(unsigned char value)
 {
 	unsigned long ulGPIOData;
 	unsigned long ulGPIODirection;
@@ -153,7 +153,7 @@ void swI2CSCL(unsigned char value)
  *      signal because the i2c will fail when other device try to drive the
  *      signal due to SM50x will drive the signal to always high.
  */
-void swI2CSDA(unsigned char value)
+static void swI2CSDA(unsigned char value)
 {
 	unsigned long ulGPIOData;
 	unsigned long ulGPIODirection;
