@@ -111,17 +111,13 @@ static int ft1000_probe(struct usb_interface *interface,
 		pr_debug("endpoint %d\n", i);
 		pr_debug("bEndpointAddress=%x, bmAttributes=%x\n",
 			 endpoint->bEndpointAddress, endpoint->bmAttributes);
-		if ((endpoint->bEndpointAddress & USB_DIR_IN)
-		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-			USB_ENDPOINT_XFER_BULK)) {
+		if (usb_endpoint_is_bulk_in(endpoint)) {
 			ft1000dev->bulk_in_endpointAddr =
 				endpoint->bEndpointAddress;
 			pr_debug("in: %d\n", endpoint->bEndpointAddress);
 		}
 
-		if (!(endpoint->bEndpointAddress & USB_DIR_IN)
-		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-			USB_ENDPOINT_XFER_BULK)) {
+		if (usb_endpoint_is_bulk_in(endpoint)) {
 			ft1000dev->bulk_out_endpointAddr =
 				endpoint->bEndpointAddress;
 			pr_debug("out: %d\n", endpoint->bEndpointAddress);
