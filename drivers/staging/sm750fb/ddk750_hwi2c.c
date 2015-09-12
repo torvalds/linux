@@ -63,7 +63,8 @@ static long hw_i2c_wait_tx_done(void)
 
 	/* Wait until the transfer is completed. */
 	timeout = HWI2C_WAIT_TIMEOUT;
-	while ((FIELD_GET(PEEK32(I2C_STATUS), I2C_STATUS, TX) != I2C_STATUS_TX_COMPLETED) &&
+	while ((FIELD_GET(PEEK32(I2C_STATUS),
+			  I2C_STATUS, TX) != I2C_STATUS_TX_COMPLETED) &&
 	       (timeout != 0))
 		timeout--;
 
@@ -102,7 +103,10 @@ static unsigned int hw_i2c_write_data(
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
 	do {
-		/* Reset I2C by writing 0 to I2C_RESET register to clear the previous status. */
+		/*
+		 * Reset I2C by writing 0 to I2C_RESET register to
+		 * clear the previous status.
+		 */
 		POKE32(I2C_RESET, 0);
 
 		/* Set the number of bytes to be written */
@@ -117,7 +121,8 @@ static unsigned int hw_i2c_write_data(
 			POKE32(I2C_DATA0 + i, *buf++);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL, FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
+		POKE32(I2C_CTRL,
+		       FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
 
 		/* Wait until the transfer is completed. */
 		if (hw_i2c_wait_tx_done() != 0)
@@ -165,7 +170,10 @@ static unsigned int hw_i2c_read_data(
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
 	do {
-		/* Reset I2C by writing 0 to I2C_RESET register to clear all the status. */
+		/*
+		 * Reset I2C by writing 0 to I2C_RESET register to
+		 * clear all the status.
+		 */
 		POKE32(I2C_RESET, 0);
 
 		/* Set the number of bytes to be read */
@@ -176,7 +184,8 @@ static unsigned int hw_i2c_read_data(
 		POKE32(I2C_BYTE_COUNT, count);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL, FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
+		POKE32(I2C_CTRL,
+		       FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
 
 		/* Wait until transaction done. */
 		if (hw_i2c_wait_tx_done() != 0)

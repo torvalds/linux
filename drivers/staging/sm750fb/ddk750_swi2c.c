@@ -125,7 +125,10 @@ static void sw_i2c_scl(unsigned char value)
 
 	gpio_dir = PEEK32(sw_i2c_clk_gpio_data_dir_reg);
 	if (value) {    /* High */
-		/* Set direction as input. This will automatically pull the signal up. */
+		/*
+		 * Set direction as input. This will automatically
+		 * pull the signal up.
+		 */
 		gpio_dir &= ~(1 << sw_i2c_clk_gpio);
 		POKE32(sw_i2c_clk_gpio_data_dir_reg, gpio_dir);
 	} else {        /* Low */
@@ -159,7 +162,10 @@ static void sw_i2c_sda(unsigned char value)
 
 	gpio_dir = PEEK32(sw_i2c_data_gpio_data_dir_reg);
 	if (value) {    /* High */
-		/* Set direction as input. This will automatically pull the signal up. */
+		/*
+		 * Set direction as input. This will automatically
+		 * pull the signal up.
+		 */
 		gpio_dir &= ~(1 << sw_i2c_data_gpio);
 		POKE32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
 	} else {        /* Low */
@@ -184,10 +190,11 @@ static unsigned char sw_i2c_read_sda(void)
 {
 	unsigned long gpio_dir;
 	unsigned long gpio_data;
+	unsigned long dir_mask = 1 << sw_i2c_data_gpio;
 
 	/* Make sure that the direction is input (High) */
 	gpio_dir = PEEK32(sw_i2c_data_gpio_data_dir_reg);
-	if ((gpio_dir & (1 << sw_i2c_data_gpio)) != (~(1 << sw_i2c_data_gpio))) {
+	if ((gpio_dir & dir_mask) != ~dir_mask) {
 		gpio_dir &= ~(1 << sw_i2c_data_gpio);
 		POKE32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
 	}
@@ -392,7 +399,10 @@ long sm750_sw_i2c_init(
 {
 	int i;
 
-	/* Return 0 if the GPIO pins to be used is out of range. The range is only from [0..63] */
+	/*
+	 * Return 0 if the GPIO pins to be used is out of range. The
+	 * range is only from [0..63]
+	 */
 	if ((clk_gpio > 31) || (data_gpio > 31))
 		return -1;
 
@@ -417,9 +427,9 @@ long sm750_sw_i2c_init(
 
 	/* Enable the GPIO pins for the i2c Clock and Data (GPIO MUX) */
 	POKE32(sw_i2c_clk_gpio_mux_reg,
-			PEEK32(sw_i2c_clk_gpio_mux_reg) & ~(1 << sw_i2c_clk_gpio));
+	       PEEK32(sw_i2c_clk_gpio_mux_reg) & ~(1 << sw_i2c_clk_gpio));
 	POKE32(sw_i2c_data_gpio_mux_reg,
-			PEEK32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
+	       PEEK32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
 
 	/* Enable GPIO power */
 	enableGPIO(1);
