@@ -37,7 +37,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <linux/input/edt-ft5x06.h>
 
 #define MAX_SUPPORT_POINTS		5
 
@@ -809,44 +808,20 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	return 0;
 }
 
-#define EDT_ATTR_CHECKSET(name, reg) \
-do {								\
-	if (pdata->name >= edt_ft5x06_attr_##name.limit_low &&		\
-	    pdata->name <= edt_ft5x06_attr_##name.limit_high)		\
-		edt_ft5x06_register_write(tsdata, reg, pdata->name);	\
-} while (0)
-
 #define EDT_GET_PROP(name, reg) {				\
 	u32 val;						\
 	if (of_property_read_u32(np, #name, &val) == 0)		\
 		edt_ft5x06_register_write(tsdata, reg, val);	\
 }
 
-static void edt_ft5x06_ts_get_dt_defaults(struct device_node *np,
-					struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_get_defaults(struct device_node *np,
+				       struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
 	EDT_GET_PROP(threshold, reg_addr->reg_threshold);
 	EDT_GET_PROP(gain, reg_addr->reg_gain);
 	EDT_GET_PROP(offset, reg_addr->reg_offset);
-}
-
-static void
-edt_ft5x06_ts_get_defaults(struct edt_ft5x06_ts_data *tsdata,
-			   const struct edt_ft5x06_platform_data *pdata)
-{
-	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
-
-	if (!pdata->use_parameters)
-		return;
-
-	/* pick up defaults from the platform data */
-	EDT_ATTR_CHECKSET(threshold, reg_addr->reg_threshold);
-	EDT_ATTR_CHECKSET(gain, reg_addr->reg_gain);
-	EDT_ATTR_CHECKSET(offset, reg_addr->reg_offset);
-	if (reg_addr->reg_report_rate != NO_REGISTER)
-		EDT_ATTR_CHECKSET(report_rate, reg_addr->reg_report_rate);
 }
 
 static void
@@ -893,8 +868,6 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
-	const struct edt_ft5x06_platform_data *pdata =
-						dev_get_platdata(&client->dev);
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
 	int error;
@@ -955,12 +928,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	}
 
 	edt_ft5x06_ts_set_regs(tsdata);
-
-	if (!pdata)
-		edt_ft5x06_ts_get_dt_defaults(client->dev.of_node, tsdata);
-	else
-		edt_ft5x06_ts_get_defaults(tsdata, pdata);
-
+	edt_ft5x06_ts_get_defaults(client->dev.of_node, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
 
 	dev_dbg(&client->dev,
@@ -976,8 +944,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y * 64 - 1, 0, 0);
 
-	if (!pdata)
-		touchscreen_parse_properties(input, true);
+	touchscreen_parse_properties(input, true);
 
 	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, INPUT_MT_DIRECT);
 	if (error) {
