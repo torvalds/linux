@@ -4871,9 +4871,16 @@ static void gen9_enable_rc6(struct drm_device *dev)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
 	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
 			"on" : "off");
-	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-				   GEN6_RC_CTL_EI_MODE(1) |
-				   rc6_mask);
+
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_D0) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A0))
+		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
+			   GEN7_RC_CTL_TO_MODE |
+			   rc6_mask);
+	else
+		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
+			   GEN6_RC_CTL_EI_MODE(1) |
+			   rc6_mask);
 
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
