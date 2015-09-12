@@ -180,9 +180,9 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 		   Chrontel app note and our experiment.
 		*/
 			pr_info("yes,CH7301 DVI chip found\n");
-		swI2CWriteReg(0xec, 0x1d, 0x16);
-		swI2CWriteReg(0xec, 0x21, 0x9);
-		swI2CWriteReg(0xec, 0x49, 0xC0);
+		sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
+		sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
+		sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
 			pr_info("okay,CH7301 DVI chip setup done\n");
 	}
 	}

@@ -62,7 +62,7 @@ unsigned char sm750_sw_i2c_read_reg(
  *          0   - Success
  *         -1   - Fail
  */
-long swI2CWriteReg(
+long sm750_sw_i2c_write_reg(
 	unsigned char deviceAddress,
 	unsigned char registerIndex,
 	unsigned char data
