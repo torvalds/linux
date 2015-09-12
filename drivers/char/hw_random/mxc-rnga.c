@@ -145,8 +145,7 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct mxc_rng *mxc_rng;
 
-	mxc_rng = devm_kzalloc(&pdev->dev, sizeof(struct mxc_rng),
-					GFP_KERNEL);
+	mxc_rng = devm_kzalloc(&pdev->dev, sizeof(*mxc_rng), GFP_KERNEL);
 	if (!mxc_rng)
 		return -ENOMEM;
 
