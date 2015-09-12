@@ -168,16 +168,6 @@ static void device_free_rings(struct vnt_private *pDevice);
 
 /*---------------------  Export Functions  --------------------------*/
 
-static char *get_chip_name(int chip_id)
-{
-	int i;
-
-	for (i = 0; chip_info_table[i].name != NULL; i++)
-		if (chip_info_table[i].chip_id == chip_id)
-			break;
-	return chip_info_table[i].name;
-}
-
 static void vt6655_remove(struct pci_dev *pcid)
 {
 	struct vnt_private *pDevice = pci_get_drvdata(pcid);
@@ -447,8 +437,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 
 static void device_print_info(struct vnt_private *pDevice)
 {
-	dev_info(&pDevice->pcid->dev, "%s\n", get_chip_name(pDevice->chip_id));
-
 	dev_info(&pDevice->pcid->dev, "MAC=%pM IO=0x%lx Mem=0x%lx IRQ=%d\n",
 		 pDevice->abyCurrentNetAddr, (unsigned long)pDevice->ioaddr,
 		 (unsigned long)pDevice->PortOffset, pDevice->pcid->irq);
