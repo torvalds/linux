@@ -212,12 +212,11 @@ static char *
 dbghdr_to_err_string(struct ptldebug_header *hdr)
 {
 	switch (hdr->ph_subsys) {
-
-		case S_LND:
-		case S_LNET:
-			return "LNetError";
-		default:
-			return "LustreError";
+	case S_LND:
+	case S_LNET:
+		return "LNetError";
+	default:
+		return "LustreError";
 	}
 }
 
@@ -225,12 +224,11 @@ static char *
 dbghdr_to_info_string(struct ptldebug_header *hdr)
 {
 	switch (hdr->ph_subsys) {
-
-		case S_LND:
-		case S_LNET:
-			return "LNet";
-		default:
-			return "Lustre";
+	case S_LND:
+	case S_LNET:
+		return "LNet";
+	default:
+		return "Lustre";
 	}
 }
 
