@@ -7396,6 +7396,7 @@ NTB DRIVER CORE
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
 M:	Allen Hubbe <Allen.Hubbe@emc.com>
+L:	linux-ntb@googlegroups.com
 S:	Supported
 W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
@@ -7407,6 +7408,7 @@ F:	include/linux/ntb_transport.h
 NTB INTEL DRIVER
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
+L:	linux-ntb@googlegroups.com
 S:	Supported
 W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
