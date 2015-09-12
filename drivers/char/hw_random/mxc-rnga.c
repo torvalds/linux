@@ -141,7 +141,7 @@ static void mxc_rnga_cleanup(struct hwrng *rng)
 
 static int __init mxc_rnga_probe(struct platform_device *pdev)
 {
-	int err = -ENODEV;
+	int err;
 	struct resource *res;
 	struct mxc_rng *mxc_rng;
 
