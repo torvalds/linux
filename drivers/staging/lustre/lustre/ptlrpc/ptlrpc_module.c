@@ -143,7 +143,8 @@ cleanup:
 		ptlrpc_hr_fini();
 		req_layout_fini();
 		/* Fall through */
-	default: ;
+	default:
+		;
 	}
 
 	return rc;

@@ -655,8 +655,10 @@ do {									  \
 #endif
 
 #ifdef POISON_BULK
-#define POISON_PAGE(page, val) do { memset(kmap(page), val, PAGE_CACHE_SIZE);   \
-				    kunmap(page); } while (0)
+#define POISON_PAGE(page, val) do {		  \
+	memset(kmap(page), val, PAGE_CACHE_SIZE); \
+	kunmap(page);				  \
+} while (0)
 #else
 #define POISON_PAGE(page, val) do { } while (0)
 #endif
