@@ -82,25 +82,25 @@ static long hw_i2c_wait_tx_done(void)
  *  This function writes data to the i2c slave device registers.
  *
  *  Parameters:
- *      deviceAddress   - i2c Slave device address
+ *      addr            - i2c Slave device address
  *      length          - Total number of bytes to be written to the device
- *      pBuffer         - The buffer that contains the data to be written to the
+ *      buf             - The buffer that contains the data to be written to the
  *                     i2c device.
  *
  *  Return Value:
  *      Total number of bytes those are actually written.
  */
 static unsigned int hw_i2c_write_data(
-	unsigned char deviceAddress,
+	unsigned char addr,
 	unsigned int length,
-	unsigned char *pBuffer
+	unsigned char *buf
 )
 {
 	unsigned char count, i;
-	unsigned int totalBytes = 0;
+	unsigned int total_bytes = 0;
 
 	/* Set the Device Address */
-	POKE32(I2C_SLAVE_ADDRESS, deviceAddress & ~0x01);
+	POKE32(I2C_SLAVE_ADDRESS, addr & ~0x01);
 
 	/* Write data.
 	 * Note:
@@ -119,7 +119,7 @@ static unsigned int hw_i2c_write_data(
 
 		/* Move the data to the I2C data register */
 		for (i = 0; i <= count; i++)
-			POKE32(I2C_DATA0 + i, *pBuffer++);
+			POKE32(I2C_DATA0 + i, *buf++);
 
 		/* Start the I2C */
 		POKE32(I2C_CTRL, FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
@@ -132,11 +132,11 @@ static unsigned int hw_i2c_write_data(
 		length -= (count + 1);
 
 		/* Total byte written */
-		totalBytes += (count + 1);
+		total_bytes += (count + 1);
 
 	} while (length > 0);
 
-	return totalBytes;
+	return total_bytes;
 }
 
 
@@ -147,9 +147,9 @@ static unsigned int hw_i2c_write_data(
  *  in the given buffer
  *
  *  Parameters:
- *      deviceAddress   - i2c Slave device address
+ *      addr            - i2c Slave device address
  *      length          - Total number of bytes to be read
- *      pBuffer         - Pointer to a buffer to be filled with the data read
+ *      buf             - Pointer to a buffer to be filled with the data read
  *                     from the slave device. It has to be the same size as the
  *                     length to make sure that it can keep all the data read.
  *
@@ -157,16 +157,16 @@ static unsigned int hw_i2c_write_data(
  *      Total number of actual bytes read from the slave device
  */
 static unsigned int hw_i2c_read_data(
-	unsigned char deviceAddress,
+	unsigned char addr,
 	unsigned int length,
-	unsigned char *pBuffer
+	unsigned char *buf
 )
 {
 	unsigned char count, i;
-	unsigned int totalBytes = 0;
+	unsigned int total_bytes = 0;
 
 	/* Set the Device Address */
-	POKE32(I2C_SLAVE_ADDRESS, deviceAddress | 0x01);
+	POKE32(I2C_SLAVE_ADDRESS, addr | 0x01);
 
 	/* Read data and save them to the buffer.
 	 * Note:
@@ -192,17 +192,17 @@ static unsigned int hw_i2c_read_data(
 
 		/* Save the data to the given buffer */
 		for (i = 0; i <= count; i++)
-			*pBuffer++ = PEEK32(I2C_DATA0 + i);
+			*buf++ = PEEK32(I2C_DATA0 + i);
 
 		/* Substract length by 16 */
 		length -= (count + 1);
 
 		/* Number of bytes read. */
-		totalBytes += (count + 1);
+		total_bytes += (count + 1);
 
 	} while (length > 0);
 
-	return totalBytes;
+	return total_bytes;
 }
 
 
