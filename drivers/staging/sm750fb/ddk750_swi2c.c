@@ -386,7 +386,7 @@ static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
  *      -1   - Fail to initialize the i2c
  *       0   - Success
  */
-long swI2CInit(
+long sm750_sw_i2c_init(
 	unsigned char i2cClkGPIO,
 	unsigned char i2cDataGPIO
 )

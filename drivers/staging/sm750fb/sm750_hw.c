@@ -169,7 +169,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 		/* Set up GPIO for software I2C to program DVI chip in the
 		   Xilinx SP605 board, in order to have video signal.
 		 */
-	swI2CInit(0, 1);
+	sm750_sw_i2c_init(0, 1);
 
 
 	/* Customer may NOT use CH7301 DVI chip, which has to be

@@ -132,7 +132,7 @@ long sii164InitChip(
 	/* Use fast mode. */
 	sm750_hw_i2c_init(1);
 #else
-	swI2CInit(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
+	sm750_sw_i2c_init(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
 #endif
 
 	/* Check if SII164 Chip exists */
