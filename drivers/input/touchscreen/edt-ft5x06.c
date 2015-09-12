@@ -808,20 +808,24 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	return 0;
 }
 
-#define EDT_GET_PROP(name, reg) {				\
-	u32 val;						\
-	if (of_property_read_u32(np, #name, &val) == 0)		\
-		edt_ft5x06_register_write(tsdata, reg, val);	\
-}
-
-static void edt_ft5x06_ts_get_defaults(struct device_node *np,
+static void edt_ft5x06_ts_get_defaults(struct device *dev,
 				       struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
+	u32 val;
+	int error;
 
-	EDT_GET_PROP(threshold, reg_addr->reg_threshold);
-	EDT_GET_PROP(gain, reg_addr->reg_gain);
-	EDT_GET_PROP(offset, reg_addr->reg_offset);
+	error = device_property_read_u32(dev, "threshold", &val);
+	if (!error)
+		reg_addr->reg_threshold = val;
+
+	error = device_property_read_u32(dev, "gain", &val);
+	if (!error)
+		reg_addr->reg_gain = val;
+
+	error = device_property_read_u32(dev, "offset", &val);
+	if (!error)
+		reg_addr->reg_offset = val;
 }
 
 static void
@@ -928,7 +932,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	}
 
 	edt_ft5x06_ts_set_regs(tsdata);
-	edt_ft5x06_ts_get_defaults(client->dev.of_node, tsdata);
+	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
 
 	dev_dbg(&client->dev,
