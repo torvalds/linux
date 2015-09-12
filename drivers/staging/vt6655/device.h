@@ -231,10 +231,7 @@ struct vnt_private {
 	u32                         memaddr;
 	u32                         ioaddr;
 
-	unsigned char byRevId;
 	unsigned char byRxMode;
-	unsigned short SubSystemID;
-	unsigned short SubVendorID;
 
 	spinlock_t                  lock;
 

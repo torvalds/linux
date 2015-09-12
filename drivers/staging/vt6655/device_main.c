@@ -230,9 +230,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	pDevice->byTopOFDMBasicRate = RATE_24M;
 	pDevice->byTopCCKBasicRate = RATE_1M;
 
-	/* Target to IF pin while programming to RF chip. */
-	pDevice->byRevId = 0;
-
 	/* init MAC */
 	MACvInitialize(pDevice->PortOffset);
 
@@ -436,14 +433,8 @@ static void device_print_info(struct vnt_private *pDevice)
 static bool device_get_pci_info(struct vnt_private *pDevice,
 				struct pci_dev *pcid)
 {
-	u16 pci_cmd;
 	u8  b;
 	unsigned int cis_addr;
-
-	pci_read_config_byte(pcid, PCI_REVISION_ID, &pDevice->byRevId);
-	pci_read_config_word(pcid, PCI_SUBSYSTEM_ID, &pDevice->SubSystemID);
-	pci_read_config_word(pcid, PCI_SUBSYSTEM_VENDOR_ID, &pDevice->SubVendorID);
-	pci_read_config_word(pcid, PCI_COMMAND, (u16 *)&(pci_cmd));
 
 	pci_set_master(pcid);
 
