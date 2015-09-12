@@ -55,8 +55,8 @@
  ******************************************************************/
 
 /* GPIO pins used for this I2C. It ranges from 0 to 63. */
-static unsigned char g_i2cClockGPIO = DEFAULT_I2C_SCL;
-static unsigned char g_i2cDataGPIO = DEFAULT_I2C_SDA;
+static unsigned char sw_i2c_clk_gpio = DEFAULT_I2C_SCL;
+static unsigned char sw_i2c_data_gpio = DEFAULT_I2C_SDA;
 
 /*
  *  Below is the variable declaration for the GPIO pin register usage
@@ -70,14 +70,14 @@ static unsigned char g_i2cDataGPIO = DEFAULT_I2C_SDA;
  */
 
 /* i2c Clock GPIO Register usage */
-static unsigned long g_i2cClkGPIOMuxReg = GPIO_MUX;
-static unsigned long g_i2cClkGPIODataReg = GPIO_DATA;
-static unsigned long g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION;
+static unsigned long sw_i2c_clk_gpio_mux_reg = GPIO_MUX;
+static unsigned long sw_i2c_clk_gpio_data_reg = GPIO_DATA;
+static unsigned long sw_i2c_clk_gpio_data_dir_reg = GPIO_DATA_DIRECTION;
 
 /* i2c Data GPIO Register usage */
-static unsigned long g_i2cDataGPIOMuxReg = GPIO_MUX;
-static unsigned long g_i2cDataGPIODataReg = GPIO_DATA;
-static unsigned long g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION;
+static unsigned long sw_i2c_data_gpio_mux_reg = GPIO_MUX;
+static unsigned long sw_i2c_data_gpio_data_reg = GPIO_DATA;
+static unsigned long sw_i2c_data_gpio_data_dir_reg = GPIO_DATA_DIRECTION;
 
 /*
  *  This function puts a delay between command
@@ -124,20 +124,20 @@ static void sw_i2c_scl(unsigned char value)
 	unsigned long ulGPIOData;
 	unsigned long ulGPIODirection;
 
-	ulGPIODirection = PEEK32(g_i2cClkGPIODataDirReg);
+	ulGPIODirection = PEEK32(sw_i2c_clk_gpio_data_dir_reg);
 	if (value) {    /* High */
 		/* Set direction as input. This will automatically pull the signal up. */
-		ulGPIODirection &= ~(1 << g_i2cClockGPIO);
-		POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
+		ulGPIODirection &= ~(1 << sw_i2c_clk_gpio);
+		POKE32(sw_i2c_clk_gpio_data_dir_reg, ulGPIODirection);
 	} else {        /* Low */
 		/* Set the signal down */
-		ulGPIOData = PEEK32(g_i2cClkGPIODataReg);
-		ulGPIOData &= ~(1 << g_i2cClockGPIO);
-		POKE32(g_i2cClkGPIODataReg, ulGPIOData);
+		ulGPIOData = PEEK32(sw_i2c_clk_gpio_data_reg);
+		ulGPIOData &= ~(1 << sw_i2c_clk_gpio);
+		POKE32(sw_i2c_clk_gpio_data_reg, ulGPIOData);
 
 		/* Set direction as output */
-		ulGPIODirection |= (1 << g_i2cClockGPIO);
-		POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
+		ulGPIODirection |= (1 << sw_i2c_clk_gpio);
+		POKE32(sw_i2c_clk_gpio_data_dir_reg, ulGPIODirection);
 	}
 }
 
@@ -158,20 +158,20 @@ static void sw_i2c_sda(unsigned char value)
 	unsigned long ulGPIOData;
 	unsigned long ulGPIODirection;
 
-	ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
+	ulGPIODirection = PEEK32(sw_i2c_data_gpio_data_dir_reg);
 	if (value) {    /* High */
 		/* Set direction as input. This will automatically pull the signal up. */
-		ulGPIODirection &= ~(1 << g_i2cDataGPIO);
-		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
+		ulGPIODirection &= ~(1 << sw_i2c_data_gpio);
+		POKE32(sw_i2c_data_gpio_data_dir_reg, ulGPIODirection);
 	} else {        /* Low */
 		/* Set the signal down */
-		ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
-		ulGPIOData &= ~(1 << g_i2cDataGPIO);
-		POKE32(g_i2cDataGPIODataReg, ulGPIOData);
+		ulGPIOData = PEEK32(sw_i2c_data_gpio_data_reg);
+		ulGPIOData &= ~(1 << sw_i2c_data_gpio);
+		POKE32(sw_i2c_data_gpio_data_reg, ulGPIOData);
 
 		/* Set direction as output */
-		ulGPIODirection |= (1 << g_i2cDataGPIO);
-		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
+		ulGPIODirection |= (1 << sw_i2c_data_gpio);
+		POKE32(sw_i2c_data_gpio_data_dir_reg, ulGPIODirection);
 	}
 }
 
@@ -187,15 +187,15 @@ static unsigned char sw_i2c_read_sda(void)
 	unsigned long ulGPIOData;
 
 	/* Make sure that the direction is input (High) */
-	ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
-	if ((ulGPIODirection & (1 << g_i2cDataGPIO)) != (~(1 << g_i2cDataGPIO))) {
-		ulGPIODirection &= ~(1 << g_i2cDataGPIO);
-		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
+	ulGPIODirection = PEEK32(sw_i2c_data_gpio_data_dir_reg);
+	if ((ulGPIODirection & (1 << sw_i2c_data_gpio)) != (~(1 << sw_i2c_data_gpio))) {
+		ulGPIODirection &= ~(1 << sw_i2c_data_gpio);
+		POKE32(sw_i2c_data_gpio_data_dir_reg, ulGPIODirection);
 	}
 
 	/* Now read the SDA line */
-	ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
-	if (ulGPIOData & (1 << g_i2cDataGPIO))
+	ulGPIOData = PEEK32(sw_i2c_data_gpio_data_reg);
+	if (ulGPIOData & (1 << sw_i2c_data_gpio))
 		return 1;
 	else
 		return 0;
@@ -353,18 +353,18 @@ static long sm750le_i2c_init(unsigned char i2cClkGPIO,
 	int i;
 
 	/* Initialize the GPIO pin for the i2c Clock Register */
-	g_i2cClkGPIODataReg = GPIO_DATA_SM750LE;
-	g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION_SM750LE;
+	sw_i2c_clk_gpio_data_reg = GPIO_DATA_SM750LE;
+	sw_i2c_clk_gpio_data_dir_reg = GPIO_DATA_DIRECTION_SM750LE;
 
 	/* Initialize the Clock GPIO Offset */
-	g_i2cClockGPIO = i2cClkGPIO;
+	sw_i2c_clk_gpio = i2cClkGPIO;
 
 	/* Initialize the GPIO pin for the i2c Data Register */
-	g_i2cDataGPIODataReg = GPIO_DATA_SM750LE;
-	g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION_SM750LE;
+	sw_i2c_data_gpio_data_reg = GPIO_DATA_SM750LE;
+	sw_i2c_data_gpio_data_dir_reg = GPIO_DATA_DIRECTION_SM750LE;
 
 	/* Initialize the Data GPIO Offset */
-	g_i2cDataGPIO = i2cDataGPIO;
+	sw_i2c_data_gpio = i2cDataGPIO;
 
 	/* Note that SM750LE don't have GPIO MUX and power is always on */
 
@@ -401,26 +401,26 @@ long sm750_sw_i2c_init(
 		return sm750le_i2c_init(i2cClkGPIO, i2cDataGPIO);
 
 	/* Initialize the GPIO pin for the i2c Clock Register */
-	g_i2cClkGPIOMuxReg = GPIO_MUX;
-	g_i2cClkGPIODataReg = GPIO_DATA;
-	g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION;
+	sw_i2c_clk_gpio_mux_reg = GPIO_MUX;
+	sw_i2c_clk_gpio_data_reg = GPIO_DATA;
+	sw_i2c_clk_gpio_data_dir_reg = GPIO_DATA_DIRECTION;
 
 	/* Initialize the Clock GPIO Offset */
-	g_i2cClockGPIO = i2cClkGPIO;
+	sw_i2c_clk_gpio = i2cClkGPIO;
 
 	/* Initialize the GPIO pin for the i2c Data Register */
-	g_i2cDataGPIOMuxReg = GPIO_MUX;
-	g_i2cDataGPIODataReg = GPIO_DATA;
-	g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION;
+	sw_i2c_data_gpio_mux_reg = GPIO_MUX;
+	sw_i2c_data_gpio_data_reg = GPIO_DATA;
+	sw_i2c_data_gpio_data_dir_reg = GPIO_DATA_DIRECTION;
 
 	/* Initialize the Data GPIO Offset */
-	g_i2cDataGPIO = i2cDataGPIO;
+	sw_i2c_data_gpio = i2cDataGPIO;
 
 	/* Enable the GPIO pins for the i2c Clock and Data (GPIO MUX) */
-	POKE32(g_i2cClkGPIOMuxReg,
-			PEEK32(g_i2cClkGPIOMuxReg) & ~(1 << g_i2cClockGPIO));
-	POKE32(g_i2cDataGPIOMuxReg,
-			PEEK32(g_i2cDataGPIOMuxReg) & ~(1 << g_i2cDataGPIO));
+	POKE32(sw_i2c_clk_gpio_mux_reg,
+			PEEK32(sw_i2c_clk_gpio_mux_reg) & ~(1 << sw_i2c_clk_gpio));
+	POKE32(sw_i2c_data_gpio_mux_reg,
+			PEEK32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
 
 	/* Enable GPIO power */
 	enableGPIO(1);
