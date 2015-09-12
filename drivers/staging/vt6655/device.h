@@ -256,7 +256,6 @@ struct vnt_private {
 
 	u32                         rx_buf_sz;
 	u8 rx_rate;
-	int                         multicast_limit;
 
 	u32                         rx_bytes;
 

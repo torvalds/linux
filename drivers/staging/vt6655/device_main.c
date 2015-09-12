@@ -442,7 +442,6 @@ static void vt6655_init_info(struct pci_dev *pcid,
 	memset(*ppDevice, 0, sizeof(**ppDevice));
 
 	(*ppDevice)->pcid = pcid;
-	(*ppDevice)->multicast_limit = 32;
 
 	spin_lock_init(&((*ppDevice)->lock));
 }
