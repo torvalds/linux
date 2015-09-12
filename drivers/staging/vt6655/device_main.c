@@ -433,17 +433,12 @@ static void device_print_info(struct vnt_private *pDevice)
 static bool device_get_pci_info(struct vnt_private *pDevice,
 				struct pci_dev *pcid)
 {
-	u8  b;
-
 	pci_set_master(pcid);
 
 	pDevice->memaddr = pci_resource_start(pcid, 0);
 	pDevice->ioaddr = pci_resource_start(pcid, 1);
 
 	pDevice->pcid = pcid;
-
-	pci_read_config_byte(pcid, PCI_COMMAND, &b);
-	pci_write_config_byte(pcid, PCI_COMMAND, (b|PCI_COMMAND_MASTER));
 
 	return true;
 }
