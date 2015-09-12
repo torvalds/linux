@@ -60,7 +60,7 @@ void sm750_hw_i2c_close(void)
 }
 
 
-static long hwI2CWaitTXDone(void)
+static long hw_i2c_wait_tx_done(void)
 {
 	unsigned int timeout;
 
@@ -90,7 +90,7 @@ static long hwI2CWaitTXDone(void)
  *  Return Value:
  *      Total number of bytes those are actually written.
  */
-static unsigned int hwI2CWriteData(
+static unsigned int hw_i2c_write_data(
 	unsigned char deviceAddress,
 	unsigned int length,
 	unsigned char *pBuffer
@@ -125,7 +125,7 @@ static unsigned int hwI2CWriteData(
 		POKE32(I2C_CTRL, FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
 
 		/* Wait until the transfer is completed. */
-		if (hwI2CWaitTXDone() != 0)
+		if (hw_i2c_wait_tx_done() != 0)
 			break;
 
 		/* Substract length */
@@ -156,7 +156,7 @@ static unsigned int hwI2CWriteData(
  *  Return Value:
  *      Total number of actual bytes read from the slave device
  */
-static unsigned int hwI2CReadData(
+static unsigned int hw_i2c_read_data(
 	unsigned char deviceAddress,
 	unsigned int length,
 	unsigned char *pBuffer
@@ -187,7 +187,7 @@ static unsigned int hwI2CReadData(
 		POKE32(I2C_CTRL, FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
 
 		/* Wait until transaction done. */
-		if (hwI2CWaitTXDone() != 0)
+		if (hw_i2c_wait_tx_done() != 0)
 			break;
 
 		/* Save the data to the given buffer */
@@ -226,8 +226,8 @@ unsigned char sm750_hw_i2c_read_reg(
 {
 	unsigned char value = (0xFF);
 
-	if (hwI2CWriteData(deviceAddress, 1, &registerIndex) == 1)
-		hwI2CReadData(deviceAddress, 1, &value);
+	if (hw_i2c_write_data(deviceAddress, 1, &registerIndex) == 1)
+		hw_i2c_read_data(deviceAddress, 1, &value);
 
 	return value;
 }
@@ -259,7 +259,7 @@ int sm750_hw_i2c_write_reg(
 
 	value[0] = registerIndex;
 	value[1] = data;
-	if (hwI2CWriteData(deviceAddress, 2, value) == 2)
+	if (hw_i2c_write_data(deviceAddress, 2, value) == 2)
 		return 0;
 
 	return (-1);
