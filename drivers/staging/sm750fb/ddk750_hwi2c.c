@@ -10,7 +10,7 @@
 
 
 int sm750_hw_i2c_init(
-unsigned char busSpeedMode
+unsigned char bus_speed_mode
 )
 {
 	unsigned int value;
@@ -29,7 +29,7 @@ unsigned char busSpeedMode
 
 	/* Enable the I2C Controller and set the bus speed mode */
 	value = PEEK32(I2C_CTRL);
-	if (busSpeedMode == 0)
+	if (bus_speed_mode == 0)
 		value = FIELD_SET(value, I2C_CTRL, MODE, STANDARD);
 	else
 		value = FIELD_SET(value, I2C_CTRL, MODE, FAST);

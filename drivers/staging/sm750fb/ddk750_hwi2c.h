@@ -2,7 +2,7 @@
 #define DDK750_HWI2C_H__
 
 /* hwi2c functions */
-int sm750_hw_i2c_init(unsigned char busSpeedMode);
+int sm750_hw_i2c_init(unsigned char bus_speed_mode);
 void sm750_hw_i2c_close(void);
 
 unsigned char sm750_hw_i2c_read_reg(unsigned char deviceAddress, unsigned char registerIndex);
