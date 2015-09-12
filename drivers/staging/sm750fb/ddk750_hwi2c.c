@@ -8,7 +8,6 @@
 #define MAX_HWI2C_FIFO                  16
 #define HWI2C_WAIT_TIMEOUT              0xF0000
 
-
 int sm750_hw_i2c_init(
 unsigned char bus_speed_mode
 )
@@ -39,7 +38,6 @@ unsigned char bus_speed_mode
 	return 0;
 }
 
-
 void sm750_hw_i2c_close(void)
 {
 	unsigned int value;
@@ -59,7 +57,6 @@ void sm750_hw_i2c_close(void)
 	POKE32(GPIO_MUX, value);
 }
 
-
 static long hw_i2c_wait_tx_done(void)
 {
 	unsigned int timeout;
@@ -75,8 +72,6 @@ static long hw_i2c_wait_tx_done(void)
 
 	return 0;
 }
-
-
 
 /*
  *  This function writes data to the i2c slave device registers.
@@ -138,9 +133,6 @@ static unsigned int hw_i2c_write_data(
 
 	return total_bytes;
 }
-
-
-
 
 /*
  *  This function reads data from the slave device and stores them
@@ -205,9 +197,6 @@ static unsigned int hw_i2c_read_data(
 	return total_bytes;
 }
 
-
-
-
 /*
  *  This function reads the slave device's register
  *
@@ -231,10 +220,6 @@ unsigned char sm750_hw_i2c_read_reg(
 
 	return value;
 }
-
-
-
-
 
 /*
  *  This function writes a value to the slave device's register
@@ -264,6 +249,5 @@ int sm750_hw_i2c_write_reg(
 
 	return (-1);
 }
-
 
 #endif
