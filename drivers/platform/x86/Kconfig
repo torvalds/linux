@@ -309,8 +309,8 @@ config COMPAL_LAPTOP
 	  This is a driver for laptops built by Compal, and some models by
 	  other brands (e.g. Dell, Toshiba).
 
-	  It adds support for rfkill, Bluetooth, WLAN and LCD brightness
-	  control.
+	  It adds support for rfkill, Bluetooth, WLAN, LCD brightness, hwmon
+	  and battery charging level control.
 
 	  For a (possibly incomplete) list of supported laptops, please refer
 	  to: Documentation/platform/x86-laptop-drivers.txt
