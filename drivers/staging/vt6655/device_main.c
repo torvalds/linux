@@ -438,8 +438,6 @@ static bool device_get_pci_info(struct vnt_private *pDevice,
 	pDevice->memaddr = pci_resource_start(pcid, 0);
 	pDevice->ioaddr = pci_resource_start(pcid, 1);
 
-	pDevice->pcid = pcid;
-
 	return true;
 }
 
