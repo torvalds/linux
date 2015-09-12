@@ -2488,6 +2488,11 @@ struct drm_i915_cmd_table {
 #define IS_SKL_ULX(dev)		(INTEL_DEVID(dev) == 0x190E || \
 				 INTEL_DEVID(dev) == 0x1915 || \
 				 INTEL_DEVID(dev) == 0x191E)
+#define IS_SKL_GT3(dev)		(IS_SKYLAKE(dev) && \
+				 (INTEL_DEVID(dev) & 0x00F0) == 0x0020)
+#define IS_SKL_GT4(dev)		(IS_SKYLAKE(dev) && \
+				 (INTEL_DEVID(dev) & 0x00F0) == 0x0030)
+
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 #define SKL_REVID_A0		(0x0)
