@@ -484,8 +484,8 @@ static sense_reason_t
 spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
-	int have_tp = 0;
-	int opt, min;
+	u32 mtl = 0;
+	int have_tp = 0, opt, min;
 
 	/*
 	 * Following spc3r22 section 6.5.3 Block Limits VPD page, when
@@ -516,8 +516,15 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
+	 *
+	 * XXX: Currently assumes single PAGE_SIZE per scatterlist for fabrics
+	 * enforcing maximum HW scatter-gather-list entry limit
 	 */
-	put_unaligned_be32(dev->dev_attrib.hw_max_sectors, &buf[8]);
+	if (cmd->se_tfo->max_data_sg_nents) {
+		mtl = (cmd->se_tfo->max_data_sg_nents * PAGE_SIZE) /
+		       dev->dev_attrib.block_size;
+	}
+	put_unaligned_be32(min_not_zero(mtl, dev->dev_attrib.hw_max_sectors), &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
@@ -768,7 +775,12 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	if (pc == 1)
 		goto out;
 
-	p[2] = 2;
+	/* GLTSD: No implicit save of log parameters */
+	p[2] = (1 << 1);
+	if (target_sense_desc_format(dev))
+		/* D_SENSE: Descriptor format sense data for 64bit sectors */
+		p[2] |= (1 << 2);
+
 	/*
 	 * From spc4r23, 7.4.7 Control mode page
 	 *
@@ -1151,6 +1163,7 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	unsigned char *rbuf;
 	u8 ua_asc = 0, ua_ascq = 0;
 	unsigned char buf[SE_SENSE_BUF];
+	bool desc_format = target_sense_desc_format(cmd->se_dev);
 
 	memset(buf, 0, SE_SENSE_BUF);
 
@@ -1164,32 +1177,11 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	if (!rbuf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
-		/*
-		 * CURRENT ERROR, UNIT ATTENTION
-		 */
-		buf[0] = 0x70;
-		buf[SPC_SENSE_KEY_OFFSET] = UNIT_ATTENTION;
-
-		/*
-		 * The Additional Sense Code (ASC) from the UNIT ATTENTION
-		 */
-		buf[SPC_ASC_KEY_OFFSET] = ua_asc;
-		buf[SPC_ASCQ_KEY_OFFSET] = ua_ascq;
-		buf[7] = 0x0A;
-	} else {
-		/*
-		 * CURRENT ERROR, NO SENSE
-		 */
-		buf[0] = 0x70;
-		buf[SPC_SENSE_KEY_OFFSET] = NO_SENSE;
-
-		/*
-		 * NO ADDITIONAL SENSE INFORMATION
-		 */
-		buf[SPC_ASC_KEY_OFFSET] = 0x00;
-		buf[7] = 0x0A;
-	}
+	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq))
+		scsi_build_sense_buffer(desc_format, buf, UNIT_ATTENTION,
+					ua_asc, ua_ascq);
+	else
+		scsi_build_sense_buffer(desc_format, buf, NO_SENSE, 0x0, 0x0);
 
 	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
 	transport_kunmap_data_sg(cmd);
@@ -1418,9 +1410,6 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		}
 		break;
 	default:
-		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
-			" 0x%02x, sending CHECK_CONDITION.\n",
-			cmd->se_tfo->get_fabric_name(), cdb[0]);
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
