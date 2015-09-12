@@ -439,8 +439,6 @@ static void device_print_info(struct vnt_private *pDevice)
 static void vt6655_init_info(struct pci_dev *pcid,
 			     struct vnt_private **ppDevice)
 {
-	memset(*ppDevice, 0, sizeof(**ppDevice));
-
 	(*ppDevice)->pcid = pcid;
 
 	spin_lock_init(&((*ppDevice)->lock));
