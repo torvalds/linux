@@ -160,13 +160,12 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	mxc_rng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mxc_rng->clk)) {
 		dev_err(&pdev->dev, "Could not get rng_clk!\n");
-		err = PTR_ERR(mxc_rng->clk);
-		goto out;
+		return PTR_ERR(mxc_rng->clk);
 	}
 
 	err = clk_prepare_enable(mxc_rng->clk);
 	if (err)
-		goto out;
+		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mxc_rng->mem = devm_ioremap_resource(&pdev->dev, res);
@@ -187,8 +186,6 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 
 err_ioremap:
 	clk_disable_unprepare(mxc_rng->clk);
-
-out:
 	return err;
 }
 
