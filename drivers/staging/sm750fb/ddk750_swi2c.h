@@ -29,33 +29,33 @@
  *       0   - Success
  */
 long sm750_sw_i2c_init(
-	unsigned char i2cClkGPIO,
-	unsigned char i2cDataGPIO
+	unsigned char clk_gpio,
+	unsigned char data_gpio
 );
 
 /*
  *  This function reads the slave device's register
  *
  *  Parameters:
- *      deviceAddress   - i2c Slave device address which register
+ *      addr   - i2c Slave device address which register
  *                        to be read from
- *      registerIndex   - Slave device's register to be read
+ *      reg    - Slave device's register to be read
  *
  *  Return Value:
  *      Register value
  */
 unsigned char sm750_sw_i2c_read_reg(
-	unsigned char deviceAddress,
-	unsigned char registerIndex
+	unsigned char addr,
+	unsigned char reg
 );
 
 /*
  *  This function writes a value to the slave device's register
  *
  *  Parameters:
- *      deviceAddress   - i2c Slave device address which register
+ *      addr            - i2c Slave device address which register
  *                        to be written
- *      registerIndex   - Slave device's register to be written
+ *      reg             - Slave device's register to be written
  *      data            - Data to be written to the register
  *
  *  Result:
@@ -63,8 +63,8 @@ unsigned char sm750_sw_i2c_read_reg(
  *         -1   - Fail
  */
 long sm750_sw_i2c_write_reg(
-	unsigned char deviceAddress,
-	unsigned char registerIndex,
+	unsigned char addr,
+	unsigned char reg,
 	unsigned char data
 );
 
