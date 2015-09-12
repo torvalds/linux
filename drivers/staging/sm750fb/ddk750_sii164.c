@@ -130,7 +130,7 @@ long sii164InitChip(
 	/* Initialize the i2c bus */
 #ifdef USE_HW_I2C
 	/* Use fast mode. */
-	hwI2CInit(1);
+	sm750_hw_i2c_init(1);
 #else
 	swI2CInit(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
 #endif

@@ -9,7 +9,7 @@
 #define HWI2C_WAIT_TIMEOUT              0xF0000
 
 
-int hwI2CInit(
+int sm750_hw_i2c_init(
 unsigned char busSpeedMode
 )
 {
