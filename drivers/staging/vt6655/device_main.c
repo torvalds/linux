@@ -28,7 +28,6 @@
  *
  *   vt6655_probe - module initial (insmod) driver entry
  *   vt6655_remove - module remove entry
- *   vt6655_init_info - device structure resource allocation function
  *   device_free_info - device structure resource free function
  *   device_get_pci_info - get allocated pci io/mem resource
  *   device_print_info - print out resource
@@ -136,8 +135,6 @@ static const struct pci_device_id vt6655_pci_id_table[] = {
 /*---------------------  Static Functions  --------------------------*/
 
 static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
-static void vt6655_init_info(struct pci_dev *pcid,
-			     struct vnt_private **ppDevice);
 static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
@@ -434,14 +431,6 @@ static void device_print_info(struct vnt_private *pDevice)
 	dev_info(&pDevice->pcid->dev, "MAC=%pM IO=0x%lx Mem=0x%lx IRQ=%d\n",
 		 pDevice->abyCurrentNetAddr, (unsigned long)pDevice->ioaddr,
 		 (unsigned long)pDevice->PortOffset, pDevice->pcid->irq);
-}
-
-static void vt6655_init_info(struct pci_dev *pcid,
-			     struct vnt_private **ppDevice)
-{
-	(*ppDevice)->pcid = pcid;
-
-	spin_lock_init(&((*ppDevice)->lock));
 }
 
 static bool device_get_pci_info(struct vnt_private *pDevice,
@@ -1643,8 +1632,9 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	}
 
 	priv = hw->priv;
+	priv->pcid = pcid;
 
-	vt6655_init_info(pcid, &priv);
+	spin_lock_init(&priv->lock);
 
 	priv->hw = hw;
 
