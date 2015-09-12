@@ -219,7 +219,7 @@ static unsigned int hwI2CReadData(
  *  Return Value:
  *      Register value
  */
-unsigned char hwI2CReadReg(
+unsigned char sm750_hw_i2c_read_reg(
 	unsigned char deviceAddress,
 	unsigned char registerIndex
 )

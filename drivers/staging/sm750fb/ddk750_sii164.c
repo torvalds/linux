@@ -12,7 +12,7 @@
 
 #ifdef USE_HW_I2C
     #define i2cWriteReg hwI2CWriteReg
-    #define i2cReadReg  hwI2CReadReg
+    #define i2cReadReg  sm750_hw_i2c_read_reg
 #else
     #define i2cWriteReg swI2CWriteReg
     #define i2cReadReg  swI2CReadReg
