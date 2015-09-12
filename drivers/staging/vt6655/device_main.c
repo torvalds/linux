@@ -1692,52 +1692,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-#ifdef	DEBUG
-	dev_dbg(&pcid->dev,
-		"after get pci_info memaddr is %x, io addr is %x,io_size is %d\n",
-		priv->memaddr, priv->ioaddr, priv->io_size);
-	{
-		int i;
-		u32 bar, len;
-		u32 address[] = {
-			PCI_BASE_ADDRESS_0,
-			PCI_BASE_ADDRESS_1,
-			PCI_BASE_ADDRESS_2,
-			PCI_BASE_ADDRESS_3,
-			PCI_BASE_ADDRESS_4,
-			PCI_BASE_ADDRESS_5,
-			0};
-		for (i = 0; address[i]; i++) {
-			pci_read_config_dword(pcid, address[i], &bar);
-
-			dev_dbg(&pcid->dev, "bar %d is %x\n", i, bar);
-
-			if (!bar) {
-				dev_dbg(&pcid->dev,
-					"bar %d not implemented\n", i);
-				continue;
-			}
-
-			if (bar & PCI_BASE_ADDRESS_SPACE_IO) {
-				/* This is IO */
-
-				len = bar & (PCI_BASE_ADDRESS_IO_MASK & 0xffff);
-				len = len & ~(len - 1);
-
-				dev_dbg(&pcid->dev,
-					"IO space:  len in IO %x, BAR %d\n",
-					len, i);
-			} else {
-				len = bar & 0xfffffff0;
-				len = ~len + 1;
-
-				dev_dbg(&pcid->dev,
-					"len in MEM %x, BAR %d\n", len, i);
-			}
-		}
-	}
-#endif
-
 	priv->PortOffset = ioremap(priv->memaddr & PCI_BASE_ADDRESS_MEM_MASK,
 				   priv->io_size);
 	if (!priv->PortOffset) {
