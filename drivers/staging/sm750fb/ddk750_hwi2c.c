@@ -40,7 +40,7 @@ unsigned char busSpeedMode
 }
 
 
-void hwI2CClose(void)
+void sm750_hw_i2c_close(void)
 {
 	unsigned int value;
 
