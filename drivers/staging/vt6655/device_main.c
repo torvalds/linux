@@ -29,7 +29,6 @@
  *   vt6655_probe - module initial (insmod) driver entry
  *   vt6655_remove - module remove entry
  *   device_free_info - device structure resource free function
- *   device_get_pci_info - get allocated pci io/mem resource
  *   device_print_info - print out resource
  *   device_rx_srv - rx service function
  *   device_alloc_rx_buf - rx buffer pre-allocated function
@@ -136,7 +135,6 @@ static const struct pci_device_id vt6655_pci_id_table[] = {
 
 static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
 static void device_free_info(struct vnt_private *pDevice);
-static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
 
 static void device_init_rd0_ring(struct vnt_private *pDevice);
@@ -428,17 +426,6 @@ static void device_print_info(struct vnt_private *pDevice)
 	dev_info(&pDevice->pcid->dev, "MAC=%pM IO=0x%lx Mem=0x%lx IRQ=%d\n",
 		 pDevice->abyCurrentNetAddr, (unsigned long)pDevice->ioaddr,
 		 (unsigned long)pDevice->PortOffset, pDevice->pcid->irq);
-}
-
-static bool device_get_pci_info(struct vnt_private *pDevice,
-				struct pci_dev *pcid)
-{
-	pci_set_master(pcid);
-
-	pDevice->memaddr = pci_resource_start(pcid, 0);
-	pDevice->ioaddr = pci_resource_start(pcid, 1);
-
-	return true;
 }
 
 static void device_free_info(struct vnt_private *pDevice)
@@ -1629,12 +1616,10 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	dev_dbg(&pcid->dev,
 		"Before get pci_info memaddr is %x\n", priv->memaddr);
 
-	if (!device_get_pci_info(priv, pcid)) {
-		dev_err(&pcid->dev, ": Failed to find PCI device.\n");
-		device_free_info(priv);
-		return -ENODEV;
-	}
+	pci_set_master(pcid);
 
+	priv->memaddr = pci_resource_start(pcid, 0);
+	priv->ioaddr = pci_resource_start(pcid, 1);
 	priv->PortOffset = ioremap(priv->memaddr & PCI_BASE_ADDRESS_MEM_MASK,
 				   256);
 	if (!priv->PortOffset) {
