@@ -157,14 +157,6 @@
 #define PK_TYPE_11GB    2
 #define PK_TYPE_11GA    3
 
-typedef struct __chip_info_tbl {
-	CHIP_TYPE   chip_id;
-	char *name;
-	int         io_size;
-	int         nTxQueue;
-	u32         flags;
-} CHIP_INFO, *PCHIP_INFO;
-
 typedef enum {
 	OWNED_BY_HOST = 0,
 	OWNED_BY_NIC = 1
@@ -235,12 +227,9 @@ struct vnt_private {
 	unsigned char *tx1_bufs;
 	unsigned char *tx_beacon_bufs;
 
-	CHIP_TYPE                   chip_id;
-
 	void __iomem                *PortOffset;
 	u32                         memaddr;
 	u32                         ioaddr;
-	u32                         io_size;
 
 	unsigned char byRevId;
 	unsigned char byRxMode;
@@ -249,7 +238,6 @@ struct vnt_private {
 
 	spinlock_t                  lock;
 
-	int                         nTxQueues;
 	volatile int                iTDUsed[TYPE_MAXTD];
 
 	struct vnt_tx_desc *apCurrTD[TYPE_MAXTD];

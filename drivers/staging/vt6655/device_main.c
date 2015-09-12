@@ -128,14 +128,8 @@ DEVICE_PARAM(BasebandType, "baseband type");
 /*
  * Static vars definitions
  */
-static CHIP_INFO chip_info_table[] = {
-	{ VT3253,       "VIA Networking Solomon-A/B/G Wireless LAN Adapter ",
-	  256, 1,     DEVICE_FLAGS_IP_ALIGN|DEVICE_FLAGS_TX_ALIGN },
-	{0, NULL}
-};
-
 static const struct pci_device_id vt6655_pci_id_table[] = {
-	{ PCI_VDEVICE(VIA, 0x3253), (kernel_ulong_t)chip_info_table},
+	{ PCI_VDEVICE(VIA, 0x3253) },
 	{ 0, }
 };
 
@@ -143,7 +137,7 @@ static const struct pci_device_id vt6655_pci_id_table[] = {
 
 static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
 static void vt6655_init_info(struct pci_dev *pcid,
-			     struct vnt_private **ppDevice, PCHIP_INFO);
+			     struct vnt_private **ppDevice);
 static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
@@ -443,15 +437,11 @@ static void device_print_info(struct vnt_private *pDevice)
 }
 
 static void vt6655_init_info(struct pci_dev *pcid,
-			     struct vnt_private **ppDevice,
-			     PCHIP_INFO pChip_info)
+			     struct vnt_private **ppDevice)
 {
 	memset(*ppDevice, 0, sizeof(**ppDevice));
 
 	(*ppDevice)->pcid = pcid;
-	(*ppDevice)->chip_id = pChip_info->chip_id;
-	(*ppDevice)->io_size = pChip_info->io_size;
-	(*ppDevice)->nTxQueues = pChip_info->nTxQueue;
 	(*ppDevice)->multicast_limit = 32;
 
 	spin_lock_init(&((*ppDevice)->lock));
@@ -695,10 +685,9 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 		pDesc = &(pDevice->apTD0Rings[i]);
 		pDesc->td_info = alloc_td_info();
 
-		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
-			pDesc->td_info->buf = pDevice->tx0_bufs + (i)*PKT_BUF_SZ;
-			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
-		}
+		pDesc->td_info->buf = pDevice->tx0_bufs + i * PKT_BUF_SZ;
+		pDesc->td_info->buf_dma = pDevice->tx_bufs_dma0 + i * PKT_BUF_SZ;
+
 		pDesc->next = &(pDevice->apTD0Rings[(i+1) % pDevice->sOpts.nTxDescs[0]]);
 		pDesc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
@@ -721,10 +710,9 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 		pDesc = &(pDevice->apTD1Rings[i]);
 		pDesc->td_info = alloc_td_info();
 
-		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
-			pDesc->td_info->buf = pDevice->tx1_bufs + (i) * PKT_BUF_SZ;
-			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
-		}
+		pDesc->td_info->buf = pDevice->tx1_bufs + i * PKT_BUF_SZ;
+		pDesc->td_info->buf_dma = pDevice->tx_bufs_dma1 + i * PKT_BUF_SZ;
+
 		pDesc->next = &(pDevice->apTD1Rings[(i + 1) % pDevice->sOpts.nTxDescs[1]]);
 		pDesc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
@@ -1640,7 +1628,6 @@ static int vnt_init(struct vnt_private *priv)
 static int
 vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 {
-	PCHIP_INFO  pChip_info = (PCHIP_INFO)ent->driver_data;
 	struct vnt_private *priv;
 	struct ieee80211_hw *hw;
 	struct wiphy *wiphy;
@@ -1660,7 +1647,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 	priv = hw->priv;
 
-	vt6655_init_info(pcid, &priv, pChip_info);
+	vt6655_init_info(pcid, &priv);
 
 	priv->hw = hw;
 
@@ -1681,7 +1668,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	}
 
 	priv->PortOffset = ioremap(priv->memaddr & PCI_BASE_ADDRESS_MEM_MASK,
-				   priv->io_size);
+				   256);
 	if (!priv->PortOffset) {
 		dev_err(&pcid->dev, ": Failed to IO remapping ..\n");
 		device_free_info(priv);
@@ -1721,11 +1708,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 	device_get_options(priv);
 	device_set_options(priv);
-	/* Mask out the options cannot be set to the chip */
-	priv->sOpts.flags &= pChip_info->flags;
-
-	/* Enable the chip specified capabilities */
-	priv->flags = priv->sOpts.flags | (pChip_info->flags & 0xff000000UL);
 
 	wiphy = priv->hw->wiphy;
 
