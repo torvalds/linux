@@ -53,6 +53,7 @@
 #define   START_DMA			  (1<<0)
 #define DMA_GUC_WOPCM_OFFSET		0xc340
 #define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
+#define GUC_MAX_IDLE_COUNT		0xC3E4
 
 #define GUC_WOPCM_SIZE			0xc050
 #define   GUC_WOPCM_SIZE_VALUE  	  (0x80 << 12)	/* 512KB */
