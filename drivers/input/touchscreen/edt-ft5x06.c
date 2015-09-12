@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/ratelimit.h>
+#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -874,6 +875,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 {
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
+	unsigned long irq_flags;
 	int error;
 	char fw_version[EDT_NAME_LEN];
 
@@ -959,9 +961,13 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
-	error = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					edt_ft5x06_ts_isr,
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+	irq_flags = irq_get_trigger_type(client->irq);
+	if (irq_flags == IRQF_TRIGGER_NONE)
+		irq_flags = IRQF_TRIGGER_FALLING;
+	irq_flags |= IRQF_ONESHOT;
+
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, edt_ft5x06_ts_isr, irq_flags,
 					client->name, tsdata);
 	if (error) {
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
