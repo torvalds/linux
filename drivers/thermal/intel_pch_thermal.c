@@ -117,8 +117,7 @@ read_trips:
 	return 0;
 }
 
-static int pch_wpt_get_temp(struct pch_thermal_device *ptd,
-			    unsigned long *temp)
+static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 {
 	u8 wpt_temp;
 
@@ -132,7 +131,7 @@ static int pch_wpt_get_temp(struct pch_thermal_device *ptd,
 
 struct pch_dev_ops {
 	int (*hw_init)(struct pch_thermal_device *ptd, int *nr_trips);
-	int (*get_temp)(struct pch_thermal_device *ptd, unsigned long *temp);
+	int (*get_temp)(struct pch_thermal_device *ptd, int *temp);
 };
 
 
@@ -142,8 +141,7 @@ static struct pch_dev_ops pch_dev_ops_wpt = {
 	.get_temp = pch_wpt_get_temp,
 };
 
-static int pch_thermal_get_temp(struct thermal_zone_device *tzd,
-				unsigned long *temp)
+static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
 {
 	struct pch_thermal_device *ptd = tzd->devdata;
 
@@ -165,8 +163,7 @@ static int pch_get_trip_type(struct thermal_zone_device *tzd, int trip,
 	return 0;
 }
 
-static int pch_get_trip_temp(struct thermal_zone_device *tzd, int trip,
-			     unsigned long *temp)
+static int pch_get_trip_temp(struct thermal_zone_device *tzd, int trip, int *temp)
 {
 	struct pch_thermal_device *ptd = tzd->devdata;
 
