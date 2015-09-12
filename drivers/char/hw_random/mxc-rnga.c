@@ -180,8 +180,6 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 		goto err_ioremap;
 	}
 
-	dev_info(&pdev->dev, "MXC RNGA Registered.\n");
-
 	return 0;
 
 err_ioremap:
