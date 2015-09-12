@@ -34,6 +34,7 @@ static unsigned int sdio_default_speed;
 
 static const struct sdio_device_id wilc_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_WILC, SDIO_DEVICE_ID_WILC) },
+	{ },
 };
 
 
