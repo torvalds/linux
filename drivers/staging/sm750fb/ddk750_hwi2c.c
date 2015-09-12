@@ -220,14 +220,14 @@ static unsigned int hw_i2c_read_data(
  *      Register value
  */
 unsigned char sm750_hw_i2c_read_reg(
-	unsigned char deviceAddress,
-	unsigned char registerIndex
+	unsigned char addr,
+	unsigned char reg
 )
 {
 	unsigned char value = (0xFF);
 
-	if (hw_i2c_write_data(deviceAddress, 1, &registerIndex) == 1)
-		hw_i2c_read_data(deviceAddress, 1, &value);
+	if (hw_i2c_write_data(addr, 1, &reg) == 1)
+		hw_i2c_read_data(addr, 1, &value);
 
 	return value;
 }
@@ -250,16 +250,16 @@ unsigned char sm750_hw_i2c_read_reg(
  *         -1   - Fail
  */
 int sm750_hw_i2c_write_reg(
-	unsigned char deviceAddress,
-	unsigned char registerIndex,
+	unsigned char addr,
+	unsigned char reg,
 	unsigned char data
 )
 {
 	unsigned char value[2];
 
-	value[0] = registerIndex;
+	value[0] = reg;
 	value[1] = data;
-	if (hw_i2c_write_data(deviceAddress, 2, value) == 2)
+	if (hw_i2c_write_data(addr, 2, value) == 2)
 		return 0;
 
 	return (-1);
