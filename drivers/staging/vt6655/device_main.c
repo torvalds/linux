@@ -434,14 +434,11 @@ static bool device_get_pci_info(struct vnt_private *pDevice,
 				struct pci_dev *pcid)
 {
 	u8  b;
-	unsigned int cis_addr;
 
 	pci_set_master(pcid);
 
 	pDevice->memaddr = pci_resource_start(pcid, 0);
 	pDevice->ioaddr = pci_resource_start(pcid, 1);
-
-	cis_addr = pci_resource_start(pcid, 2);
 
 	pDevice->pcid = pcid;
 
