@@ -82,7 +82,7 @@ static unsigned long g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION;
 /*
  *  This function puts a delay between command
  */
-static void swI2CWait(void)
+static void sw_i2c_wait(void)
 {
 	/* find a bug:
 	 * peekIO method works well before suspend/resume
@@ -119,7 +119,7 @@ static void swI2CWait(void)
  *      signal because the i2c will fail when other device try to drive the
  *      signal due to SM50x will drive the signal to always high.
  */
-static void swI2CSCL(unsigned char value)
+static void sw_i2c_scl(unsigned char value)
 {
 	unsigned long ulGPIOData;
 	unsigned long ulGPIODirection;
@@ -153,7 +153,7 @@ static void swI2CSCL(unsigned char value)
  *      signal because the i2c will fail when other device try to drive the
  *      signal due to SM50x will drive the signal to always high.
  */
-static void swI2CSDA(unsigned char value)
+static void sw_i2c_sda(unsigned char value)
 {
 	unsigned long ulGPIOData;
 	unsigned long ulGPIODirection;
@@ -181,7 +181,7 @@ static void swI2CSDA(unsigned char value)
  *  Return Value:
  *      The SDA data bit sent by the Slave
  */
-static unsigned char swI2CReadSDA(void)
+static unsigned char sw_i2c_read_sda(void)
 {
 	unsigned long ulGPIODirection;
 	unsigned long ulGPIOData;
@@ -204,7 +204,7 @@ static unsigned char swI2CReadSDA(void)
 /*
  *  This function sends ACK signal
  */
-static void swI2CAck(void)
+static void sw_i2c_ack(void)
 {
 	return;  /* Single byte read is ok without it. */
 }
@@ -212,23 +212,23 @@ static void swI2CAck(void)
 /*
  *  This function sends the start command to the slave device
  */
-static void swI2CStart(void)
+static void sw_i2c_start(void)
 {
 	/* Start I2C */
-	swI2CSDA(1);
-	swI2CSCL(1);
-	swI2CSDA(0);
+	sw_i2c_sda(1);
+	sw_i2c_scl(1);
+	sw_i2c_sda(0);
 }
 
 /*
  *  This function sends the stop command to the slave device
  */
-static void swI2CStop(void)
+static void sw_i2c_stop(void)
 {
 	/* Stop the I2C */
-	swI2CSCL(1);
-	swI2CSDA(0);
-	swI2CSDA(1);
+	sw_i2c_scl(1);
+	sw_i2c_sda(0);
+	sw_i2c_sda(1);
 }
 
 /*
@@ -241,7 +241,7 @@ static void swI2CStop(void)
  *       0   - Success
  *      -1   - Fail to write byte
  */
-static long swI2CWriteByte(unsigned char data)
+static long sw_i2c_write_byte(unsigned char data)
 {
 	unsigned char value = data;
 	int i;
@@ -249,47 +249,47 @@ static long swI2CWriteByte(unsigned char data)
 	/* Sending the data bit by bit */
 	for (i = 0; i < 8; i++) {
 		/* Set SCL to low */
-		swI2CSCL(0);
+		sw_i2c_scl(0);
 
 		/* Send data bit */
 		if ((value & 0x80) != 0)
-			swI2CSDA(1);
+			sw_i2c_sda(1);
 		else
-			swI2CSDA(0);
+			sw_i2c_sda(0);
 
-		swI2CWait();
+		sw_i2c_wait();
 
 		/* Toggle clk line to one */
-		swI2CSCL(1);
-		swI2CWait();
+		sw_i2c_scl(1);
+		sw_i2c_wait();
 
 		/* Shift byte to be sent */
 		value = value << 1;
 	}
 
 	/* Set the SCL Low and SDA High (prepare to get input) */
-	swI2CSCL(0);
-	swI2CSDA(1);
+	sw_i2c_scl(0);
+	sw_i2c_sda(1);
 
 	/* Set the SCL High for ack */
-	swI2CWait();
-	swI2CSCL(1);
-	swI2CWait();
+	sw_i2c_wait();
+	sw_i2c_scl(1);
+	sw_i2c_wait();
 
 	/* Read SDA, until SDA==0 */
 	for (i = 0; i < 0xff; i++) {
-		if (!swI2CReadSDA())
+		if (!sw_i2c_read_sda())
 			break;
 
-		swI2CSCL(0);
-		swI2CWait();
-		swI2CSCL(1);
-		swI2CWait();
+		sw_i2c_scl(0);
+		sw_i2c_wait();
+		sw_i2c_scl(1);
+		sw_i2c_wait();
 	}
 
 	/* Set the SCL Low and SDA High */
-	swI2CSCL(0);
-	swI2CSDA(1);
+	sw_i2c_scl(0);
+	sw_i2c_sda(1);
 
 	if (i < 0xff)
 		return 0;
@@ -307,31 +307,31 @@ static long swI2CWriteByte(unsigned char data)
  *  Return Value:
  *      One byte data read from the Slave device
  */
-static unsigned char swI2CReadByte(unsigned char ack)
+static unsigned char sw_i2c_read_byte(unsigned char ack)
 {
 	int i;
 	unsigned char data = 0;
 
 	for (i = 7; i >= 0; i--) {
 		/* Set the SCL to Low and SDA to High (Input) */
-		swI2CSCL(0);
-		swI2CSDA(1);
-		swI2CWait();
+		sw_i2c_scl(0);
+		sw_i2c_sda(1);
+		sw_i2c_wait();
 
 		/* Set the SCL High */
-		swI2CSCL(1);
-		swI2CWait();
+		sw_i2c_scl(1);
+		sw_i2c_wait();
 
 		/* Read data bits from SDA */
-		data |= (swI2CReadSDA() << i);
+		data |= (sw_i2c_read_sda() << i);
 	}
 
 	if (ack)
-		swI2CAck();
+		sw_i2c_ack();
 
 	/* Set the SCL Low and SDA High */
-	swI2CSCL(0);
-	swI2CSDA(1);
+	sw_i2c_scl(0);
+	sw_i2c_sda(1);
 
 	return data;
 }
@@ -347,7 +347,7 @@ static unsigned char swI2CReadByte(unsigned char ack)
  *      -1   - Fail to initialize the i2c
  *       0   - Success
  */
-static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
+static long sm750le_i2c_init(unsigned char i2cClkGPIO,
 			      unsigned char i2cDataGPIO)
 {
 	int i;
@@ -370,7 +370,7 @@ static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
 
 	/* Clear the i2c lines. */
 	for (i = 0; i < 9; i++)
-		swI2CStop();
+		sw_i2c_stop();
 
 	return 0;
 }
@@ -398,7 +398,7 @@ long sm750_sw_i2c_init(
 		return -1;
 
 	if (getChipType() == SM750LE)
-		return swI2CInit_SM750LE(i2cClkGPIO, i2cDataGPIO);
+		return sm750le_i2c_init(i2cClkGPIO, i2cDataGPIO);
 
 	/* Initialize the GPIO pin for the i2c Clock Register */
 	g_i2cClkGPIOMuxReg = GPIO_MUX;
@@ -427,7 +427,7 @@ long sm750_sw_i2c_init(
 
 	/* Clear the i2c lines. */
 	for (i = 0; i < 9; i++)
-		swI2CStop();
+		sw_i2c_stop();
 
 	return 0;
 }
@@ -451,21 +451,21 @@ unsigned char sm750_sw_i2c_read_reg(
 	unsigned char data;
 
 	/* Send the Start signal */
-	swI2CStart();
+	sw_i2c_start();
 
 	/* Send the device address */
-	swI2CWriteByte(deviceAddress);
+	sw_i2c_write_byte(deviceAddress);
 
 	/* Send the register index */
-	swI2CWriteByte(registerIndex);
+	sw_i2c_write_byte(registerIndex);
 
 	/* Get the bus again and get the data from the device read address */
-	swI2CStart();
-	swI2CWriteByte(deviceAddress + 1);
-	data = swI2CReadByte(1);
+	sw_i2c_start();
+	sw_i2c_write_byte(deviceAddress + 1);
+	data = sw_i2c_read_byte(1);
 
 	/* Stop swI2C and release the bus */
-	swI2CStop();
+	sw_i2c_stop();
 
 	return data;
 }
@@ -492,19 +492,19 @@ long sm750_sw_i2c_write_reg(
 	long returnValue = 0;
 
 	/* Send the Start signal */
-	swI2CStart();
+	sw_i2c_start();
 
 	/* Send the device address and read the data. All should return success
 	   in order for the writing processed to be successful
 	*/
-	if ((swI2CWriteByte(deviceAddress) != 0) ||
-	    (swI2CWriteByte(registerIndex) != 0) ||
-	    (swI2CWriteByte(data) != 0)) {
+	if ((sw_i2c_write_byte(deviceAddress) != 0) ||
+	    (sw_i2c_write_byte(registerIndex) != 0) ||
+	    (sw_i2c_write_byte(data) != 0)) {
 		returnValue = -1;
 	}
 
 	/* Stop i2c and release the bus */
-	swI2CStop();
+	sw_i2c_stop();
 
 	return returnValue;
 }
