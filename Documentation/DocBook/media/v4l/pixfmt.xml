@@ -609,6 +609,10 @@ colorspaces except for BT.2020 which uses limited range R'G'B' quantization.</pa
 	    <entry><constant>V4L2_XFER_FUNC_DCI_P3</constant></entry>
 	    <entry>Use the DCI-P3 transfer function.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_XFER_FUNC_SMPTE2084</constant></entry>
+	    <entry>Use the SMPTE 2084 transfer function.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -1470,6 +1474,41 @@ an abbreviation for <constant>V4L2_COLORSPACE_SRGB</constant>, <constant>V4L2_YC
 and <constant>V4L2_QUANTIZATION_FULL_RANGE</constant>.</para>
     </section>
 
+  </section>
+
+  <section>
+    <title>Detailed Transfer Function Descriptions</title>
+    <section id="xf-smpte-2084">
+      <title>Transfer Function SMPTE 2084 (<constant>V4L2_XFER_FUNC_SMPTE2084</constant>)</title>
+      <para>The <xref linkend="smpte2084" /> standard defines the transfer function used by
+High Dynamic Range content.</para>
+      <variablelist>
+	<varlistentry>
+          <term>Constants:</term>
+	  <listitem>
+            <para>m1 = (2610 / 4096) / 4</para>
+            <para>m2 = (2523 / 4096) * 128</para>
+            <para>c1 = 3424 / 4096</para>
+            <para>c2 = (2413 / 4096) * 32</para>
+            <para>c3 = (2392 / 4096) * 32</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term>Transfer function:</term>
+	  <listitem>
+            <para>L' = ((c1 + c2 * L<superscript>m1</superscript>) / (1 + c3 * L<superscript>m1</superscript>))<superscript>m2</superscript></para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term>Inverse Transfer function:</term>
+	  <listitem>
+            <para>L = (max(L'<superscript>1/m2</superscript> - c1, 0) / (c2 - c3 * L'<superscript>1/m2</superscript>))<superscript>1/m1</superscript></para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </section>
   </section>
 
   <section id="pixfmt-indexed">
