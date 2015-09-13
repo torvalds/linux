@@ -183,18 +183,10 @@ out_sysfs:
 out_debugfs:
 	debugfs_remove(llite_root);
 out_cache:
-	if (ll_inode_cachep != NULL)
-		kmem_cache_destroy(ll_inode_cachep);
-
-	if (ll_file_data_slab != NULL)
-		kmem_cache_destroy(ll_file_data_slab);
-
-	if (ll_remote_perm_cachep != NULL)
-		kmem_cache_destroy(ll_remote_perm_cachep);
-
-	if (ll_rmtperm_hash_cachep != NULL)
-		kmem_cache_destroy(ll_rmtperm_hash_cachep);
-
+	kmem_cache_destroy(ll_inode_cachep);
+	kmem_cache_destroy(ll_file_data_slab);
+	kmem_cache_destroy(ll_remote_perm_cachep);
+	kmem_cache_destroy(ll_rmtperm_hash_cachep);
 	return rc;
 }
 

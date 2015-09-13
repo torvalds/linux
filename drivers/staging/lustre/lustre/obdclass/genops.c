@@ -639,22 +639,14 @@ EXPORT_SYMBOL(class_notify_sptlrpc_conf);
 
 void obd_cleanup_caches(void)
 {
-	if (obd_device_cachep) {
-		kmem_cache_destroy(obd_device_cachep);
-		obd_device_cachep = NULL;
-	}
-	if (obdo_cachep) {
-		kmem_cache_destroy(obdo_cachep);
-		obdo_cachep = NULL;
-	}
-	if (import_cachep) {
-		kmem_cache_destroy(import_cachep);
-		import_cachep = NULL;
-	}
-	if (capa_cachep) {
-		kmem_cache_destroy(capa_cachep);
-		capa_cachep = NULL;
-	}
+	kmem_cache_destroy(obd_device_cachep);
+	obd_device_cachep = NULL;
+	kmem_cache_destroy(obdo_cachep);
+	obdo_cachep = NULL;
+	kmem_cache_destroy(import_cachep);
+	import_cachep = NULL;
+	kmem_cache_destroy(capa_cachep);
+	capa_cachep = NULL;
 }
 
 int obd_init_caches(void)
