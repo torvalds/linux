@@ -217,10 +217,8 @@ void nfsd_reply_cache_shutdown(void)
 	drc_hashtbl = NULL;
 	drc_hashsize = 0;
 
-	if (drc_slab) {
-		kmem_cache_destroy(drc_slab);
-		drc_slab = NULL;
-	}
+	kmem_cache_destroy(drc_slab);
+	drc_slab = NULL;
 }
 
 /*
