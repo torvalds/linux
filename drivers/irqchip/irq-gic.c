@@ -1119,12 +1119,49 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 #ifdef CONFIG_OF
 static int gic_cnt __initdata;
 
+static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
+{
+	struct resource cpuif_res;
+
+	of_address_to_resource(node, 1, &cpuif_res);
+
+	if (!is_hyp_mode_available())
+		return false;
+	if (resource_size(&cpuif_res) < SZ_8K)
+		return false;
+	if (resource_size(&cpuif_res) == SZ_128K) {
+		u32 val_low, val_high;
+
+		/*
+		 * Verify that we have the first 4kB of a GIC400
+		 * aliased over the first 64kB by checking the
+		 * GICC_IIDR register on both ends.
+		 */
+		val_low = readl_relaxed(*base + GIC_CPU_IDENT);
+		val_high = readl_relaxed(*base + GIC_CPU_IDENT + 0xf000);
+		if ((val_low & 0xffff0fff) != 0x0202043B ||
+		    val_low != val_high)
+			return false;
+
+		/*
+		 * Move the base up by 60kB, so that we have a 8kB
+		 * contiguous region, which allows us to use GICC_DIR
+		 * at its normal offset. Please pass me that bucket.
+		 */
+		*base += 0xf000;
+		cpuif_res.start += 0xf000;
+		pr_warn("GIC: Adjusting CPU interface base to %pa",
+			&cpuif_res.start);
+	}
+
+	return true;
+}
+
 static int __init
 gic_of_init(struct device_node *node, struct device_node *parent)
 {
 	void __iomem *cpu_base;
 	void __iomem *dist_base;
-	struct resource cpu_res;
 	u32 percpu_offset;
 	int irq;
 
@@ -1137,14 +1174,11 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	cpu_base = of_iomap(node, 1);
 	WARN(!cpu_base, "unable to map gic cpu registers\n");
 
-	of_address_to_resource(node, 1, &cpu_res);
-
 	/*
 	 * Disable split EOI/Deactivate if either HYP is not available
 	 * or the CPU interface is too small.
 	 */
-	if (gic_cnt == 0 && (!is_hyp_mode_available() ||
-			     resource_size(&cpu_res) < SZ_8K))
+	if (gic_cnt == 0 && !gic_check_eoimode(node, &cpu_base))
 		static_key_slow_dec(&supports_deactivate);
 
 	if (of_property_read_u32(node, "cpu-offset", &percpu_offset))
