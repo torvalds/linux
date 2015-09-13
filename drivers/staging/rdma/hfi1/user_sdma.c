@@ -486,8 +486,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 			}
 			kfree(pq->reqs);
 		}
-		if (pq->txreq_cache)
-			kmem_cache_destroy(pq->txreq_cache);
+		kmem_cache_destroy(pq->txreq_cache);
 		kfree(pq);
 		fd->pq = NULL;
 	}
