@@ -802,8 +802,7 @@ static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
 /**
  * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
  *
- * @request: The request to start some new work for
- * @ctx: Logical ring context whose ringbuffer is being prepared.
+ * @req: The request to start some new work for
  * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
  *
  * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
