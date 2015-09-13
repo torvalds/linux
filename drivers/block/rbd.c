@@ -5663,10 +5663,8 @@ static int rbd_slab_init(void)
 	if (rbd_segment_name_cache)
 		return 0;
 out_err:
-	if (rbd_obj_request_cache) {
-		kmem_cache_destroy(rbd_obj_request_cache);
-		rbd_obj_request_cache = NULL;
-	}
+	kmem_cache_destroy(rbd_obj_request_cache);
+	rbd_obj_request_cache = NULL;
 
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
