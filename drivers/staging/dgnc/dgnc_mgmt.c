@@ -148,7 +148,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		di.info_bdstate = dgnc_Board[brd]->dpastatus;
 		di.info_ioport = 0;
 		di.info_physaddr = (ulong) dgnc_Board[brd]->membase;
-		di.info_physsize = (ulong) dgnc_Board[brd]->membase - dgnc_Board[brd]->membase_end;
+		di.info_physsize = (ulong) dgnc_Board[brd]->membase
+			- dgnc_Board[brd]->membase_end;
 		if (dgnc_Board[brd]->state != BOARD_FAILED)
 			di.info_nports = dgnc_Board[brd]->nasync;
 		else
