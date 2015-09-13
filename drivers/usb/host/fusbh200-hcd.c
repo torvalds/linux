@@ -1927,17 +1927,13 @@ static void fusbh200_mem_cleanup (struct fusbh200_hcd *fusbh200)
 	fusbh200->dummy = NULL;
 
 	/* DMA consistent memory and pools */
-	if (fusbh200->qtd_pool)
-		dma_pool_destroy (fusbh200->qtd_pool);
+	dma_pool_destroy(fusbh200->qtd_pool);
 	fusbh200->qtd_pool = NULL;
 
-	if (fusbh200->qh_pool) {
-		dma_pool_destroy (fusbh200->qh_pool);
-		fusbh200->qh_pool = NULL;
-	}
+	dma_pool_destroy(fusbh200->qh_pool);
+	fusbh200->qh_pool = NULL;
 
-	if (fusbh200->itd_pool)
-		dma_pool_destroy (fusbh200->itd_pool);
+	dma_pool_destroy(fusbh200->itd_pool);
 	fusbh200->itd_pool = NULL;
 
 	if (fusbh200->periodic)
