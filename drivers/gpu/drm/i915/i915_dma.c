@@ -1074,12 +1074,9 @@ out_freecsr:
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
-	if (dev_priv->requests)
-		kmem_cache_destroy(dev_priv->requests);
-	if (dev_priv->vmas)
-		kmem_cache_destroy(dev_priv->vmas);
-	if (dev_priv->objects)
-		kmem_cache_destroy(dev_priv->objects);
+	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->vmas);
+	kmem_cache_destroy(dev_priv->objects);
 	kfree(dev_priv);
 	return ret;
 }
@@ -1170,13 +1167,9 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
-	if (dev_priv->requests)
-		kmem_cache_destroy(dev_priv->requests);
-	if (dev_priv->vmas)
-		kmem_cache_destroy(dev_priv->vmas);
-	if (dev_priv->objects)
-		kmem_cache_destroy(dev_priv->objects);
-
+	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->vmas);
+	kmem_cache_destroy(dev_priv->objects);
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev_priv);
 
