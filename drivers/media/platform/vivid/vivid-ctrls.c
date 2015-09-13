@@ -728,6 +728,7 @@ static const char * const vivid_ctrl_xfer_func_strings[] = {
 	"SMPTE 240M",
 	"None",
 	"DCI-P3",
+	"SMPTE 2084",
 	NULL,
 };
 
