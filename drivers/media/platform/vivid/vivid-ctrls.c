@@ -549,7 +549,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_osd_mode = {
 	.id = VIVID_CID_OSD_TEXT_MODE,
 	.name = "OSD Text Mode",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 2,
+	.max = ARRAY_SIZE(vivid_ctrl_osd_mode_strings) - 2,
 	.qmenu = vivid_ctrl_osd_mode_strings,
 };
 
@@ -641,7 +641,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_tstamp_src = {
 	.id = VIVID_CID_TSTAMP_SRC,
 	.name = "Timestamp Source",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 1,
+	.max = ARRAY_SIZE(vivid_ctrl_tstamp_src_strings) - 2,
 	.qmenu = vivid_ctrl_tstamp_src_strings,
 };
 
@@ -713,7 +713,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_colorspace = {
 	.id = VIVID_CID_COLORSPACE,
 	.name = "Colorspace",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 7,
+	.max = ARRAY_SIZE(vivid_ctrl_colorspace_strings) - 2,
 	.def = 2,
 	.qmenu = vivid_ctrl_colorspace_strings,
 };
@@ -733,7 +733,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_xfer_func = {
 	.id = VIVID_CID_XFER_FUNC,
 	.name = "Transfer Function",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 5,
+	.max = ARRAY_SIZE(vivid_ctrl_xfer_func_strings) - 2,
 	.qmenu = vivid_ctrl_xfer_func_strings,
 };
 
@@ -755,7 +755,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_ycbcr_enc = {
 	.id = VIVID_CID_YCBCR_ENC,
 	.name = "Y'CbCr Encoding",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 8,
+	.max = ARRAY_SIZE(vivid_ctrl_ycbcr_enc_strings) - 2,
 	.qmenu = vivid_ctrl_ycbcr_enc_strings,
 };
 
@@ -771,7 +771,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_quantization = {
 	.id = VIVID_CID_QUANTIZATION,
 	.name = "Quantization",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 2,
+	.max = ARRAY_SIZE(vivid_ctrl_quantization_strings) - 2,
 	.qmenu = vivid_ctrl_quantization_strings,
 };
 
@@ -1089,7 +1089,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_std_signal_mode = {
 	.id = VIVID_CID_STD_SIGNAL_MODE,
 	.name = "Standard Signal Mode",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 5,
+	.max = ARRAY_SIZE(vivid_ctrl_std_signal_mode_strings) - 2,
 	.menu_skip_mask = 1 << 3,
 	.qmenu = vivid_ctrl_std_signal_mode_strings,
 };
