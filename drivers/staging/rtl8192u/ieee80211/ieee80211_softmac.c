@@ -277,7 +277,6 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			printk("%s():insert to waitqueue!\n",__func__);
 			skb_queue_tail(&ieee->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
-			//printk("TX packet!\n");
 			ieee->softmac_hard_start_xmit(skb, ieee->dev);
 			//dev_kfree_skb_any(skb);//edit by thomas
 		}
