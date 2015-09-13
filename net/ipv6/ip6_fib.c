@@ -851,7 +851,7 @@ add:
 		*ins = rt;
 		rt->rt6i_node = fn;
 		atomic_inc(&rt->rt6i_ref);
-		inet6_rt_notify(RTM_NEWROUTE, rt, info);
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, 0);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
 
 		if (!(fn->fn_flags & RTN_RTINFO)) {
@@ -877,7 +877,7 @@ add:
 		rt->rt6i_node = fn;
 		rt->dst.rt6_next = iter->dst.rt6_next;
 		atomic_inc(&rt->rt6i_ref);
-		inet6_rt_notify(RTM_NEWROUTE, rt, info);
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
@@ -1422,7 +1422,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 	fib6_purge_rt(rt, fn, net);
 
-	inet6_rt_notify(RTM_DELROUTE, rt, info);
+	inet6_rt_notify(RTM_DELROUTE, rt, info, 0);
 	rt6_release(rt);
 }
 

@@ -3304,7 +3304,8 @@ errout:
 	return err;
 }
 
-void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
+void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info,
+		     unsigned int nlm_flags)
 {
 	struct sk_buff *skb;
 	struct net *net = info->nl_net;
@@ -3319,7 +3320,7 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 		goto errout;
 
 	err = rt6_fill_node(net, skb, rt, NULL, NULL, 0,
-				event, info->portid, seq, 0, 0, 0);
+				event, info->portid, seq, 0, 0, nlm_flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
