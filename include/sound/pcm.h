@@ -285,8 +285,6 @@ struct snd_pcm_hw_constraint_ranges {
 	unsigned int mask;
 };
 
-struct snd_pcm_hwptr_log;
-
 /*
  * userspace-provided audio timestamp config to kernel,
  * structure is for internal use only and filled with dedicated unpack routine
@@ -427,10 +425,6 @@ struct snd_pcm_runtime {
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
 	struct snd_pcm_oss_runtime oss;
-#endif
-
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	struct snd_pcm_hwptr_log *hwptr_log;
 #endif
 };
 
