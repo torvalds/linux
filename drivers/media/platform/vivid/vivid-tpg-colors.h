@@ -62,7 +62,7 @@ extern const struct color tpg_colors[TPG_COLOR_MAX];
 extern const unsigned short tpg_rec709_to_linear[255 * 16 + 1];
 extern const unsigned short tpg_linear_to_rec709[255 * 16 + 1];
 extern const struct color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1]
-					  [V4L2_XFER_FUNC_DCI_P3 + 1]
+					  [V4L2_XFER_FUNC_SMPTE2084 + 1]
 					  [TPG_COLOR_CSC_BLACK + 1];
 
 #endif
