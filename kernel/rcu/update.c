@@ -62,6 +62,55 @@ MODULE_ALIAS("rcupdate");
 
 module_param(rcu_expedited, int, 0);
 
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_PREEMPT_COUNT)
+/**
+ * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
+ *
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an
+ * RCU-sched read-side critical section.  In absence of
+ * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
+ * critical section unless it can prove otherwise.  Note that disabling
+ * of preemption (including disabling irqs) counts as an RCU-sched
+ * read-side critical section.  This is useful for debug checks in functions
+ * that required that they be called within an RCU-sched read-side
+ * critical section.
+ *
+ * Check debug_lockdep_rcu_enabled() to prevent false positives during boot
+ * and while lockdep is disabled.
+ *
+ * Note that if the CPU is in the idle loop from an RCU point of
+ * view (ie: that we are in the section between rcu_idle_enter() and
+ * rcu_idle_exit()) then rcu_read_lock_held() returns false even if the CPU
+ * did an rcu_read_lock().  The reason for this is that RCU ignores CPUs
+ * that are in such a section, considering these as in extended quiescent
+ * state, so such a CPU is effectively never in an RCU read-side critical
+ * section regardless of what RCU primitives it invokes.  This state of
+ * affairs is required --- we need to keep an RCU-free window in idle
+ * where the CPU may possibly enter into low power mode. This way we can
+ * notice an extended quiescent state to other CPUs that started a grace
+ * period. Otherwise we would delay any grace period as long as we run in
+ * the idle task.
+ *
+ * Similarly, we avoid claiming an SRCU read lock held if the current
+ * CPU is offline.
+ */
+int rcu_read_lock_sched_held(void)
+{
+	int lockdep_opinion = 0;
+
+	if (!debug_lockdep_rcu_enabled())
+		return 1;
+	if (!rcu_is_watching())
+		return 0;
+	if (!rcu_lockdep_current_cpu_online())
+		return 0;
+	if (debug_locks)
+		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
+	return lockdep_opinion || preempt_count() != 0 || irqs_disabled();
+}
+EXPORT_SYMBOL(rcu_read_lock_sched_held);
+#endif
+
 #ifndef CONFIG_TINY_RCU
 
 static atomic_t rcu_expedited_nesting =
@@ -269,20 +318,37 @@ void wakeme_after_rcu(struct rcu_head *head)
 	rcu = container_of(head, struct rcu_synchronize, head);
 	complete(&rcu->completion);
 }
+EXPORT_SYMBOL_GPL(wakeme_after_rcu);
 
-void wait_rcu_gp(call_rcu_func_t crf)
+void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
+		   struct rcu_synchronize *rs_array)
 {
-	struct rcu_synchronize rcu;
+	int i;
 
-	init_rcu_head_on_stack(&rcu.head);
-	init_completion(&rcu.completion);
-	/* Will wake me after RCU finished. */
-	crf(&rcu.head, wakeme_after_rcu);
-	/* Wait for it. */
-	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
+	/* Initialize and register callbacks for each flavor specified. */
+	for (i = 0; i < n; i++) {
+		if (checktiny &&
+		    (crcu_array[i] == call_rcu ||
+		     crcu_array[i] == call_rcu_bh)) {
+			might_sleep();
+			continue;
+		}
+		init_rcu_head_on_stack(&rs_array[i].head);
+		init_completion(&rs_array[i].completion);
+		(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
+	}
+
+	/* Wait for all callbacks to be invoked. */
+	for (i = 0; i < n; i++) {
+		if (checktiny &&
+		    (crcu_array[i] == call_rcu ||
+		     crcu_array[i] == call_rcu_bh))
+			continue;
+		wait_for_completion(&rs_array[i].completion);
+		destroy_rcu_head_on_stack(&rs_array[i].head);
+	}
 }
-EXPORT_SYMBOL_GPL(wait_rcu_gp);
+EXPORT_SYMBOL_GPL(__wait_rcu_gp);
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 void init_rcu_head(struct rcu_head *head)
@@ -523,8 +589,8 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks);
 void synchronize_rcu_tasks(void)
 {
 	/* Complain if the scheduler has not started.  */
-	rcu_lockdep_assert(!rcu_scheduler_active,
-			   "synchronize_rcu_tasks called too soon");
+	RCU_LOCKDEP_WARN(!rcu_scheduler_active,
+			 "synchronize_rcu_tasks called too soon");
 
 	/* Wait for the grace period. */
 	wait_rcu_gp(call_rcu_tasks);

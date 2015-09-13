@@ -113,7 +113,7 @@ WM8962_REGULATOR_EVENT(5)
 WM8962_REGULATOR_EVENT(6)
 WM8962_REGULATOR_EVENT(7)
 
-static struct reg_default wm8962_reg[] = {
+static const struct reg_default wm8962_reg[] = {
 	{ 0, 0x009F },   /* R0     - Left Input volume */
 	{ 1, 0x049F },   /* R1     - Right Input volume */
 	{ 2, 0x0000 },   /* R2     - HPOUTL volume */
@@ -1456,14 +1456,13 @@ static int wm8962_reset(struct wm8962_priv *wm8962)
 
 static const DECLARE_TLV_DB_SCALE(inpga_tlv, -2325, 75, 0);
 static const DECLARE_TLV_DB_SCALE(mixin_tlv, -1500, 300, 0);
-static const unsigned int mixinpga_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static const DECLARE_TLV_DB_RANGE(mixinpga_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(0, 600, 0),
 	2, 2, TLV_DB_SCALE_ITEM(1300, 1300, 0),
 	3, 4, TLV_DB_SCALE_ITEM(1800, 200, 0),
 	5, 5, TLV_DB_SCALE_ITEM(2400, 0, 0),
-	6, 7, TLV_DB_SCALE_ITEM(2700, 300, 0),
-};
+	6, 7, TLV_DB_SCALE_ITEM(2700, 300, 0)
+);
 static const DECLARE_TLV_DB_SCALE(beep_tlv, -9600, 600, 1);
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 static const DECLARE_TLV_DB_SCALE(st_tlv, -3600, 300, 0);
@@ -1471,11 +1470,10 @@ static const DECLARE_TLV_DB_SCALE(inmix_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
 static const DECLARE_TLV_DB_SCALE(hp_tlv, -700, 100, 0);
-static const unsigned int classd_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(classd_tlv,
 	0, 6, TLV_DB_SCALE_ITEM(0, 150, 0),
-	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
-};
+	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
 static int wm8962_dsp2_write_config(struct snd_soc_codec *codec)
@@ -3495,7 +3493,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 };
 
 /* Improve power consumption for IN4 DC measurement mode */
-static const struct reg_default wm8962_dc_measure[] = {
+static const struct reg_sequence wm8962_dc_measure[] = {
 	{ 0xfd, 0x1 },
 	{ 0xcc, 0x40 },
 	{ 0xfd, 0 },
@@ -3859,7 +3857,7 @@ static int wm8962_runtime_suspend(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops wm8962_pm = {
+static const struct dev_pm_ops wm8962_pm = {
 	SET_RUNTIME_PM_OPS(wm8962_runtime_suspend, wm8962_runtime_resume, NULL)
 };
 
@@ -3878,7 +3876,6 @@ MODULE_DEVICE_TABLE(of, wm8962_of_match);
 static struct i2c_driver wm8962_i2c_driver = {
 	.driver = {
 		.name = "wm8962",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},

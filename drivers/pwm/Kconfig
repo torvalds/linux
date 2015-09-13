@@ -111,6 +111,13 @@ config PWM_CLPS711X
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-clps711x.
 
+config PWM_CRC
+	bool "Intel Crystalcove (CRC) PWM support"
+	depends on X86 && INTEL_SOC_PMIC
+	help
+	  Generic PWM framework driver for Crystalcove (CRC) PMIC based PWM
+	  control.
+
 config PWM_EP93XX
 	tristate "Cirrus Logic EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -172,6 +179,18 @@ config PWM_LP3943
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lp3943.
+
+config PWM_LPC18XX_SCT
+	tristate "LPC18xx/43xx PWM/SCT support"
+	depends on ARCH_LPC18XX
+	help
+	  Generic PWM framework driver for NXP LPC18xx PWM/SCT which
+	  supports 16 channels.
+	  A maximum of 15 channels can be requested simultaneously and
+	  must have the same period.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpc18xx-sct.
 
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"

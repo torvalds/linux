@@ -17,6 +17,8 @@
 #include <linux/io.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 #define OMAP5_DPLL_ABE_DEFFREQ				98304000
 
 /*

@@ -124,7 +124,7 @@ static void nf_nat_ipv6_csum_update(struct sk_buff *skb,
 		newip = &t->dst.u3.in6;
 	}
 	inet_proto_csum_replace16(check, skb, oldip->s6_addr32,
-				  newip->s6_addr32, 1);
+				  newip->s6_addr32, true);
 }
 
 static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
@@ -155,7 +155,7 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 		}
 	} else
 		inet_proto_csum_replace2(check, skb,
-					 htons(oldlen), htons(datalen), 1);
+					 htons(oldlen), htons(datalen), true);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

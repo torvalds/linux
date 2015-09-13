@@ -304,7 +304,7 @@ xfs_dinode_verify(
 		return false;
 	if (be64_to_cpu(dip->di_ino) != ip->i_ino)
 		return false;
-	if (!uuid_equal(&dip->di_uuid, &mp->m_sb.sb_uuid))
+	if (!uuid_equal(&dip->di_uuid, &mp->m_sb.sb_meta_uuid))
 		return false;
 	return true;
 }
@@ -366,7 +366,7 @@ xfs_iread(
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
 			ip->i_d.di_version = 3;
 			ip->i_d.di_ino = ip->i_ino;
-			uuid_copy(&ip->i_d.di_uuid, &mp->m_sb.sb_uuid);
+			uuid_copy(&ip->i_d.di_uuid, &mp->m_sb.sb_meta_uuid);
 		} else
 			ip->i_d.di_version = 2;
 		return 0;

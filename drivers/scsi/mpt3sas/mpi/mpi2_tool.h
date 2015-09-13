@@ -6,7 +6,7 @@
  *         Title:  MPI diagnostic tool structures and definitions
  * Creation Date:  March 26, 2007
  *
- *   mpi2_tool.h Version:  02.00.11
+ *   mpi2_tool.h Version:  02.00.12
  *
  * Version History
  * ---------------
@@ -33,6 +33,7 @@
  * 07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
  *                     it uses MPI Chain SGE as well as MPI Simple SGE.
  * 08-19-13  02.00.11  Added MPI2_TOOLBOX_TEXT_DISPLAY_TOOL and related info.
+ * 01-08-14  02.00.12  Added MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC.
  * --------------------------------------------------------------------------
  */
 
@@ -100,6 +101,7 @@ typedef struct _MPI2_TOOLBOX_CLEAN_REQUEST {
 #define MPI2_TOOLBOX_CLEAN_OTHER_PERSIST_PAGES      (0x20000000)
 #define MPI2_TOOLBOX_CLEAN_FW_CURRENT               (0x10000000)
 #define MPI2_TOOLBOX_CLEAN_FW_BACKUP                (0x08000000)
+#define MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC   (0x04000000)
 #define MPI2_TOOLBOX_CLEAN_MEGARAID                 (0x02000000)
 #define MPI2_TOOLBOX_CLEAN_INITIALIZATION           (0x01000000)
 #define MPI2_TOOLBOX_CLEAN_FLASH                    (0x00000004)

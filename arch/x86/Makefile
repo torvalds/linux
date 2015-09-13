@@ -219,6 +219,8 @@ drivers-$(CONFIG_PM) += arch/x86/power/
 
 drivers-$(CONFIG_FB) += arch/x86/video/
 
+drivers-$(CONFIG_RAS) += arch/x86/ras/
+
 ####
 # boot loader support. Several targets are kept for legacy purposes
 

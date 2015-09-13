@@ -13,11 +13,10 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-
-#include "irqchip.h"
 
 #define APB_INT_ENABLE_L	0x00
 #define APB_INT_ENABLE_H	0x04
@@ -25,24 +24,25 @@
 #define APB_INT_MASK_H		0x0c
 #define APB_INT_FINALSTATUS_L	0x30
 #define APB_INT_FINALSTATUS_H	0x34
+#define APB_INT_BASE_OFFSET	0x04
 
 static void dw_apb_ictl_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct irq_chip_generic *gc = irq_get_handler_data(irq);
-	struct irq_domain *d = gc->private;
-	u32 stat;
+	struct irq_domain *d = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int n;
 
 	chained_irq_enter(chip, desc);
 
-	for (n = 0; n < gc->num_ct; n++) {
-		stat = readl_relaxed(gc->reg_base +
-				     APB_INT_FINALSTATUS_L + 4 * n);
+	for (n = 0; n < d->revmap_size; n += 32) {
+		struct irq_chip_generic *gc = irq_get_domain_generic_chip(d, n);
+		u32 stat = readl_relaxed(gc->reg_base + APB_INT_FINALSTATUS_L);
+
 		while (stat) {
 			u32 hwirq = ffs(stat) - 1;
-			generic_handle_irq(irq_find_mapping(d,
-					    gc->irq_base + hwirq + 32 * n));
+			u32 virq = irq_find_mapping(d, gc->irq_base + hwirq);
+
+			generic_handle_irq(virq);
 			stat &= ~(1 << hwirq);
 		}
 	}
@@ -73,7 +73,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
 	void __iomem *iobase;
-	int ret, nrirqs, irq;
+	int ret, nrirqs, irq, i;
 	u32 reg;
 
 	/* Map the parent interrupt for the chained handler */
@@ -128,35 +128,25 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 		goto err_unmap;
 	}
 
-	ret = irq_alloc_domain_generic_chips(domain, 32, (nrirqs > 32) ? 2 : 1,
-					     np->name, handle_level_irq, clr, 0,
-					     IRQ_GC_MASK_CACHE_PER_TYPE |
+	ret = irq_alloc_domain_generic_chips(domain, 32, 1, np->name,
+					     handle_level_irq, clr, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
 		pr_err("%s: unable to alloc irq domain gc\n", np->full_name);
 		goto err_unmap;
 	}
 
-	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->private = domain;
-	gc->reg_base = iobase;
-
-	gc->chip_types[0].regs.mask = APB_INT_MASK_L;
-	gc->chip_types[0].regs.enable = APB_INT_ENABLE_L;
-	gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
-	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
-	gc->chip_types[0].chip.irq_resume = dw_apb_ictl_resume;
-
-	if (nrirqs > 32) {
-		gc->chip_types[1].regs.mask = APB_INT_MASK_H;
-		gc->chip_types[1].regs.enable = APB_INT_ENABLE_H;
-		gc->chip_types[1].chip.irq_mask = irq_gc_mask_set_bit;
-		gc->chip_types[1].chip.irq_unmask = irq_gc_mask_clr_bit;
-		gc->chip_types[1].chip.irq_resume = dw_apb_ictl_resume;
+	for (i = 0; i < DIV_ROUND_UP(nrirqs, 32); i++) {
+		gc = irq_get_domain_generic_chip(domain, i * 32);
+		gc->reg_base = iobase + i * APB_INT_BASE_OFFSET;
+		gc->chip_types[0].regs.mask = APB_INT_MASK_L;
+		gc->chip_types[0].regs.enable = APB_INT_ENABLE_L;
+		gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
+		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
+		gc->chip_types[0].chip.irq_resume = dw_apb_ictl_resume;
 	}
 
-	irq_set_handler_data(irq, gc);
-	irq_set_chained_handler(irq, dw_apb_ictl_handler);
+	irq_set_chained_handler_and_data(irq, dw_apb_ictl_handler, domain);
 
 	return 0;
 

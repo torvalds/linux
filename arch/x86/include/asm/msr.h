@@ -152,6 +152,9 @@ static __always_inline unsigned long long rdtsc_ordered(void)
 	return rdtsc();
 }
 
+/* Deprecated, keep it for a cycle for easier merging: */
+#define rdtscll(now)	do { (now) = rdtsc_ordered(); } while (0)
+
 static inline unsigned long long native_read_pmc(int counter)
 {
 	DECLARE_ARGS(val, low, high);
@@ -185,8 +188,10 @@ static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 #define rdmsrl(msr, val)			\
 	((val) = native_read_msr((msr)))
 
-#define wrmsrl(msr, val)						\
-	native_write_msr((msr), (u32)((u64)(val)), (u32)((u64)(val) >> 32))
+static inline void wrmsrl(unsigned msr, u64 val)
+{
+	native_write_msr(msr, (u32)val, (u32)(val >> 32));
+}
 
 /* wrmsr with exception handling */
 static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)

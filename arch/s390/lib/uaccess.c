@@ -370,22 +370,9 @@ long __strncpy_from_user(char *dst, const char __user *src, long size)
 }
 EXPORT_SYMBOL(__strncpy_from_user);
 
-/*
- * The "old" uaccess variant without mvcos can be enforced with the
- * uaccess_primary kernel parameter. This is mainly for debugging purposes.
- */
-static int uaccess_primary __initdata;
-
-static int __init parse_uaccess_pt(char *__unused)
-{
-	uaccess_primary = 1;
-	return 0;
-}
-early_param("uaccess_primary", parse_uaccess_pt);
-
 static int __init uaccess_init(void)
 {
-	if (!uaccess_primary && test_facility(27))
+	if (test_facility(27))
 		static_branch_enable(&have_mvcos);
 	return 0;
 }

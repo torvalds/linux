@@ -17,8 +17,6 @@
  *
  *
  ******************************************************************************/
-#define _RECV_OSDEP_C_
-
 #include <osdep_service.h>
 #include <drv_types.h>
 
@@ -29,26 +27,22 @@
 #include <usb_ops_linux.h>
 
 /* alloc os related resource in struct recv_frame */
-int rtw_os_recv_resource_alloc(struct adapter *padapter,
-			       struct recv_frame *precvframe)
+void rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
 {
 	precvframe->pkt_newalloc = NULL;
 	precvframe->pkt = NULL;
-	return _SUCCESS;
 }
 
 /* alloc os related resource in struct recv_buf */
 int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 				  struct recv_buf *precvbuf)
 {
-	int res = _SUCCESS;
-
-	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (precvbuf->purb == NULL)
-		res = _FAIL;
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	return res;
+	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!precvbuf->purb)
+		return _FAIL;
+	return _SUCCESS;
 }
 
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)

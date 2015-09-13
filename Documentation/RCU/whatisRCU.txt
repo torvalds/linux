@@ -883,7 +883,7 @@ All:  lockdep-checked RCU-protected pointer access
 
 	rcu_access_pointer
 	rcu_dereference_raw
-	rcu_lockdep_assert
+	RCU_LOCKDEP_WARN
 	rcu_sleep_check
 	RCU_NONIDLE
 

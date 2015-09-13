@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,65 +19,98 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "pad.h"
 
-int
-_nvkm_i2c_pad_fini(struct nvkm_object *object, bool suspend)
+static void
+nvkm_i2c_pad_mode_locked(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
 {
-	struct nvkm_i2c_pad *pad = (void *)object;
-	DBG("-> NULL\n");
-	pad->port = NULL;
-	return nvkm_object_fini(&pad->base, suspend);
+	PAD_TRACE(pad, "-> %s", (mode == NVKM_I2C_PAD_AUX) ? "aux" :
+			      (mode == NVKM_I2C_PAD_I2C) ? "i2c" : "off");
+	if (pad->func->mode)
+		pad->func->mode(pad, mode);
+}
+
+void
+nvkm_i2c_pad_mode(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
+{
+	PAD_TRACE(pad, "mode %d", mode);
+	mutex_lock(&pad->mutex);
+	nvkm_i2c_pad_mode_locked(pad, mode);
+	pad->mode = mode;
+	mutex_unlock(&pad->mutex);
+}
+
+void
+nvkm_i2c_pad_release(struct nvkm_i2c_pad *pad)
+{
+	PAD_TRACE(pad, "release");
+	if (pad->mode == NVKM_I2C_PAD_OFF)
+		nvkm_i2c_pad_mode_locked(pad, pad->mode);
+	mutex_unlock(&pad->mutex);
 }
 
 int
-_nvkm_i2c_pad_init(struct nvkm_object *object)
+nvkm_i2c_pad_acquire(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
 {
-	struct nvkm_i2c_pad *pad = (void *)object;
-	DBG("-> PORT:%02x\n", pad->next->index);
-	pad->port = pad->next;
-	return nvkm_object_init(&pad->base);
-}
-
-int
-nvkm_i2c_pad_create_(struct nvkm_object *parent,
-		     struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, int index,
-		     int size, void **pobject)
-{
-	struct nvkm_i2c *i2c = nvkm_i2c(parent);
-	struct nvkm_i2c_port *port;
-	struct nvkm_i2c_pad *pad;
-	int ret;
-
-	list_for_each_entry(port, &i2c->ports, head) {
-		pad = nvkm_i2c_pad(port);
-		if (pad->index == index) {
-			atomic_inc(&nv_object(pad)->refcount);
-			*pobject = pad;
-			return 1;
+	PAD_TRACE(pad, "acquire");
+	mutex_lock(&pad->mutex);
+	if (pad->mode != mode) {
+		if (pad->mode != NVKM_I2C_PAD_OFF) {
+			mutex_unlock(&pad->mutex);
+			return -EBUSY;
 		}
+		nvkm_i2c_pad_mode_locked(pad, mode);
 	}
-
-	ret = nvkm_object_create_(parent, engine, oclass, 0, size, pobject);
-	pad = *pobject;
-	if (ret)
-		return ret;
-
-	pad->index = index;
 	return 0;
 }
 
-int
-_nvkm_i2c_pad_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		   struct nvkm_oclass *oclass, void *data, u32 index,
-		   struct nvkm_object **pobject)
+void
+nvkm_i2c_pad_fini(struct nvkm_i2c_pad *pad)
 {
-	struct nvkm_i2c_pad *pad;
-	int ret;
-	ret = nvkm_i2c_pad_create(parent, engine, oclass, index, &pad);
-	*pobject = nv_object(pad);
-	return ret;
+	PAD_TRACE(pad, "fini");
+	nvkm_i2c_pad_mode_locked(pad, NVKM_I2C_PAD_OFF);
+}
+
+void
+nvkm_i2c_pad_init(struct nvkm_i2c_pad *pad)
+{
+	PAD_TRACE(pad, "init");
+	nvkm_i2c_pad_mode_locked(pad, pad->mode);
+}
+
+void
+nvkm_i2c_pad_del(struct nvkm_i2c_pad **ppad)
+{
+	struct nvkm_i2c_pad *pad = *ppad;
+	if (pad) {
+		PAD_TRACE(pad, "dtor");
+		list_del(&pad->head);
+		kfree(pad);
+		pad = NULL;
+	}
+}
+
+void
+nvkm_i2c_pad_ctor(const struct nvkm_i2c_pad_func *func, struct nvkm_i2c *i2c,
+		  int id, struct nvkm_i2c_pad *pad)
+{
+	pad->func = func;
+	pad->i2c = i2c;
+	pad->id = id;
+	pad->mode = NVKM_I2C_PAD_OFF;
+	mutex_init(&pad->mutex);
+	list_add_tail(&pad->head, &i2c->pad);
+	PAD_TRACE(pad, "ctor");
+}
+
+int
+nvkm_i2c_pad_new_(const struct nvkm_i2c_pad_func *func, struct nvkm_i2c *i2c,
+		  int id, struct nvkm_i2c_pad **ppad)
+{
+	if (!(*ppad = kzalloc(sizeof(**ppad), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_i2c_pad_ctor(func, i2c, id, *ppad);
+	return 0;
 }

@@ -10,13 +10,12 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-
-#include "irqchip.h"
 
 /*
  * Orion SoC main interrupt controller
@@ -109,7 +108,7 @@ IRQCHIP_DECLARE(orion_intc, "marvell,orion-intc", orion_irq_init);
 
 static void orion_bridge_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_domain *d = irq_get_handler_data(irq);
+	struct irq_domain *d = irq_desc_get_handler_data(desc);
 
 	struct irq_chip_generic *gc = irq_get_domain_generic_chip(d, 0);
 	u32 stat = readl_relaxed(gc->reg_base + ORION_BRIDGE_IRQ_CAUSE) &
@@ -198,8 +197,8 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 	writel(0, gc->reg_base + ORION_BRIDGE_IRQ_MASK);
 	writel(0, gc->reg_base + ORION_BRIDGE_IRQ_CAUSE);
 
-	irq_set_handler_data(irq, domain);
-	irq_set_chained_handler(irq, orion_bridge_irq_handler);
+	irq_set_chained_handler_and_data(irq, orion_bridge_irq_handler,
+					 domain);
 
 	return 0;
 }

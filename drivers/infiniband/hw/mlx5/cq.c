@@ -33,6 +33,7 @@
 #include <linux/kref.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_cache.h>
 #include "mlx5_ib.h"
 #include "user.h"
 
@@ -227,7 +228,14 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	wc->dlid_path_bits = cqe->ml_path;
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	wc->wc_flags |= g ? IB_WC_GRH : 0;
-	wc->pkey_index     = be32_to_cpu(cqe->imm_inval_pkey) & 0xffff;
+	if (unlikely(is_qp1(qp->ibqp.qp_type))) {
+		u16 pkey = be32_to_cpu(cqe->imm_inval_pkey) & 0xffff;
+
+		ib_find_cached_pkey(&dev->ib_dev, qp->port, pkey,
+				    &wc->pkey_index);
+	} else {
+		wc->pkey_index = 0;
+	}
 }
 
 static void dump_cqe(struct mlx5_ib_dev *dev, struct mlx5_err_cqe *cqe)

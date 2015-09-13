@@ -100,9 +100,9 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
  *
  * FUNCTION:    acpi_tb_install_table_with_override
  *
- * PARAMETERS:  table_index             - Index into root table array
- *              new_table_desc          - New table descriptor to install
+ * PARAMETERS:  new_table_desc          - New table descriptor to install
  *              override                - Whether override should be performed
+ *              table_index             - Where the table index is returned
  *
  * RETURN:      None
  *
@@ -114,12 +114,14 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
  ******************************************************************************/
 
 void
-acpi_tb_install_table_with_override(u32 table_index,
-				    struct acpi_table_desc *new_table_desc,
-				    u8 override)
+acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
+				    u8 override, u32 *table_index)
 {
+	u32 i;
+	acpi_status status;
 
-	if (table_index >= acpi_gbl_root_table_list.current_table_count) {
+	status = acpi_tb_get_next_table_descriptor(&i, NULL);
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
 
@@ -134,8 +136,7 @@ acpi_tb_install_table_with_override(u32 table_index,
 		acpi_tb_override_table(new_table_desc);
 	}
 
-	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.
-				      tables[table_index],
+	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.tables[i],
 				      new_table_desc->address,
 				      new_table_desc->flags,
 				      new_table_desc->pointer);
@@ -143,9 +144,13 @@ acpi_tb_install_table_with_override(u32 table_index,
 	acpi_tb_print_table_header(new_table_desc->address,
 				   new_table_desc->pointer);
 
+	/* This synchronizes acpi_gbl_dsdt_index */
+
+	*table_index = i;
+
 	/* Set the global integer width (based upon revision of the DSDT) */
 
-	if (table_index == ACPI_TABLE_INDEX_DSDT) {
+	if (i == acpi_gbl_dsdt_index) {
 		acpi_ut_set_integer_width(new_table_desc->pointer->revision);
 	}
 }
@@ -157,7 +162,7 @@ acpi_tb_install_table_with_override(u32 table_index,
  * PARAMETERS:  address                 - Physical address of DSDT or FACS
  *              signature               - Table signature, NULL if no need to
  *                                        match
- *              table_index             - Index into root table array
+ *              table_index             - Where the table index is returned
  *
  * RETURN:      Status
  *
@@ -168,7 +173,7 @@ acpi_tb_install_table_with_override(u32 table_index,
 
 acpi_status
 acpi_tb_install_fixed_table(acpi_physical_address address,
-			    char *signature, u32 table_index)
+			    char *signature, u32 *table_index)
 {
 	struct acpi_table_desc new_table_desc;
 	acpi_status status;
@@ -200,7 +205,9 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 		goto release_and_exit;
 	}
 
-	acpi_tb_install_table_with_override(table_index, &new_table_desc, TRUE);
+	/* Add the table to the global root table list */
+
+	acpi_tb_install_table_with_override(&new_table_desc, TRUE, table_index);
 
 release_and_exit:
 
@@ -355,13 +362,8 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	/* Add the table to the global root table list */
 
-	status = acpi_tb_get_next_table_descriptor(&i, NULL);
-	if (ACPI_FAILURE(status)) {
-		goto release_and_exit;
-	}
-
-	*table_index = i;
-	acpi_tb_install_table_with_override(i, &new_table_desc, override);
+	acpi_tb_install_table_with_override(&new_table_desc, override,
+					    table_index);
 
 release_and_exit:
 

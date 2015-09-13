@@ -83,7 +83,7 @@ static void rockchip_pwm_set_enable_v2(struct pwm_chip *chip,
 			  PWM_CONTINUOUS;
 	u32 val;
 
-	if (pwm->polarity == PWM_POLARITY_INVERSED)
+	if (pwm_get_polarity(pwm) == PWM_POLARITY_INVERSED)
 		enable_conf |= PWM_DUTY_NEGATIVE | PWM_INACTIVE_POSITIVE;
 	else
 		enable_conf |= PWM_DUTY_POSITIVE | PWM_INACTIVE_NEGATIVE;

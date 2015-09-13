@@ -127,7 +127,7 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 			placements[c].fpfn =
 				adev->mc.visible_vram_size >> PAGE_SHIFT;
 			placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_VRAM;
+				TTM_PL_FLAG_VRAM | TTM_PL_FLAG_TOPDOWN;
 		}
 		placements[c].fpfn = 0;
 		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
@@ -222,18 +222,6 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	unsigned long page_align;
 	size_t acc_size;
 	int r;
-
-	/* VI has a hw bug where VM PTEs have to be allocated in groups of 8.
-	 * do this as a temporary workaround
-	 */
-	if (!(domain & (AMDGPU_GEM_DOMAIN_GDS | AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA))) {
-		if (adev->asic_type >= CHIP_TOPAZ) {
-			if (byte_align & 0x7fff)
-				byte_align = ALIGN(byte_align, 0x8000);
-			if (size & 0x7fff)
-				size = ALIGN(size, 0x8000);
-		}
-	}
 
 	page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
 	size = ALIGN(size, PAGE_SIZE);
@@ -462,7 +450,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 {
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
-	if (0 && (adev->flags & AMDGPU_IS_APU)) {
+	if (0 && (adev->flags & AMD_IS_APU)) {
 		/* Useless to evict on IGP chips */
 		return 0;
 	}
@@ -478,7 +466,6 @@ void amdgpu_bo_force_delete(struct amdgpu_device *adev)
 	}
 	dev_err(adev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &adev->gem.objects, list) {
-		mutex_lock(&adev->ddev->struct_mutex);
 		dev_err(adev->dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
@@ -486,8 +473,7 @@ void amdgpu_bo_force_delete(struct amdgpu_device *adev)
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->adev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference(&bo->gem_base);
-		mutex_unlock(&adev->ddev->struct_mutex);
+		drm_gem_object_unreference_unlocked(&bo->gem_base);
 	}
 }
 
@@ -658,13 +644,13 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
  * @shared: true if fence should be added shared
  *
  */
-void amdgpu_bo_fence(struct amdgpu_bo *bo, struct amdgpu_fence *fence,
+void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 		     bool shared)
 {
 	struct reservation_object *resv = bo->tbo.resv;
 
 	if (shared)
-		reservation_object_add_shared_fence(resv, &fence->base);
+		reservation_object_add_shared_fence(resv, fence);
 	else
-		reservation_object_add_excl_fence(resv, &fence->base);
+		reservation_object_add_excl_fence(resv, fence);
 }

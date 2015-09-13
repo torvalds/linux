@@ -1,24 +1,14 @@
 #ifndef __NVKM_PM_NV40_H__
 #define __NVKM_PM_NV40_H__
+#define nv40_pm(p) container_of((p), struct nv40_pm, base)
 #include "priv.h"
 
-struct nv40_pm_oclass {
-	struct nvkm_oclass base;
-	const struct nvkm_specdom *doms;
-};
-
-struct nv40_pm_priv {
+struct nv40_pm {
 	struct nvkm_pm base;
 	u32 sequence;
 };
 
-int nv40_pm_ctor(struct nvkm_object *, struct nvkm_object *,
-		      struct nvkm_oclass *, void *data, u32 size,
-		      struct nvkm_object **pobject);
-
-struct nv40_pm_cntr {
-	struct nvkm_perfctr base;
-};
-
+int nv40_pm_new_(const struct nvkm_specdom *, struct nvkm_device *,
+		 int index, struct nvkm_pm **);
 extern const struct nvkm_funcdom nv40_perfctr_func;
 #endif

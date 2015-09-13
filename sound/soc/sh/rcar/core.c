@@ -203,9 +203,9 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 }
 
 /*
- *	settting function
+ *	ADINR function
  */
-u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
+u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
@@ -227,6 +227,64 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	return adinr;
 }
 
+u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 chan = runtime->channels;
+
+	switch (chan) {
+	case 1:
+	case 2:
+	case 4:
+	case 6:
+	case 8:
+		break;
+	default:
+		dev_warn(dev, "not supported channel\n");
+		chan = 0;
+		break;
+	}
+
+	return chan;
+}
+
+/*
+ *	DALIGN function
+ */
+u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *target = src ? src : ssi;
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	u32 val = 0x76543210;
+	u32 mask = ~0;
+
+	mask <<= runtime->channels * 4;
+	val = val & mask;
+
+	switch (runtime->sample_bits) {
+	case 16:
+		val |= 0x67452301 & ~mask;
+		break;
+	case 32:
+		val |= 0x76543210 & ~mask;
+		break;
+	}
+
+	/*
+	 * exchange channeles on SRC if possible,
+	 * otherwise, R/L volume settings on DVC
+	 * changes inverted channels
+	 */
+	if (mod == target)
+		return val;
+	else
+		return 0x76543210;
+}
+
 /*
  *	rsnd_dai functions
  */
@@ -242,9 +300,9 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	if (val == __rsnd_mod_call_##func) {				\
 		called = 1;						\
 		ret = (mod)->ops->func(mod, io, param);			\
-		mod->status = (mod->status & ~mask) +			\
-			(add << __rsnd_mod_shift_##func);		\
 	}								\
+	mod->status = (mod->status & ~mask) +				\
+		(add << __rsnd_mod_shift_##func);			\
 	dev_dbg(dev, "%s[%d] 0x%08x %s\n",				\
 		rsnd_mod_name(mod), rsnd_mod_id(mod), mod->status,	\
 		called ? #func : "");					\
@@ -274,20 +332,20 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 static int rsnd_dai_connect(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io)
 {
+	struct rsnd_priv *priv;
+	struct device *dev;
+
 	if (!mod)
 		return -EIO;
 
-	if (io->mod[mod->type]) {
-		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-		struct device *dev = rsnd_priv_to_dev(priv);
-
-		dev_err(dev, "%s[%d] is not empty\n",
-			rsnd_mod_name(mod),
-			rsnd_mod_id(mod));
-		return -EIO;
-	}
+	priv = rsnd_mod_to_priv(mod);
+	dev = rsnd_priv_to_dev(priv);
 
 	io->mod[mod->type] = mod;
+
+	dev_dbg(dev, "%s[%d] is connected to io (%s)\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod),
+		rsnd_io_is_play(io) ? "Playback" : "Capture");
 
 	return 0;
 }
@@ -517,7 +575,7 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 };
 
-#define rsnd_path_parse(priv, io, type)				\
+#define rsnd_path_add(priv, io, type)				\
 ({								\
 	struct rsnd_mod *mod;					\
 	int ret = 0;						\
@@ -533,7 +591,7 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	ret;							\
 })
 
-#define rsnd_path_break(priv, io, type)				\
+#define rsnd_path_remove(priv, io, type)			\
 {								\
 	struct rsnd_mod *mod;					\
 	int id = -1;						\
@@ -545,6 +603,79 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 			rsnd_dai_disconnect(mod, io);		\
 		}						\
 	}							\
+}
+
+void rsnd_path_parse(struct rsnd_priv *priv,
+		     struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
+	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
+	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *cmd;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 data;
+
+	/* Gen1 is not supported */
+	if (rsnd_is_gen1(priv))
+		return;
+
+	if (!mix && !dvc)
+		return;
+
+	if (mix) {
+		struct rsnd_dai *rdai;
+		int i;
+		u32 path[] = {
+			[0] = 0,
+			[1] = 1 << 0,
+			[2] = 0,
+			[3] = 0,
+			[4] = 0,
+			[5] = 1 << 8
+		};
+
+		/*
+		 * it is assuming that integrater is well understanding about
+		 * data path. Here doesn't check impossible connection,
+		 * like src2 + src5
+		 */
+		data = 0;
+		for_each_rsnd_dai(rdai, priv, i) {
+			io = &rdai->playback;
+			if (mix == rsnd_io_to_mod_mix(io))
+				data |= path[rsnd_mod_id(src)];
+
+			io = &rdai->capture;
+			if (mix == rsnd_io_to_mod_mix(io))
+				data |= path[rsnd_mod_id(src)];
+		}
+
+		/*
+		 * We can't use ctu = rsnd_io_ctu() here.
+		 * Since, ID of dvc/mix are 0 or 1 (= same as CMD number)
+		 * but ctu IDs are 0 - 7 (= CTU00 - CTU13)
+		 */
+		cmd = mix;
+	} else {
+		u32 path[] = {
+			[0] = 0x30000,
+			[1] = 0x30001,
+			[2] = 0x40000,
+			[3] = 0x10000,
+			[4] = 0x20000,
+			[5] = 0x40100
+		};
+
+		data = path[rsnd_mod_id(src)];
+
+		cmd = dvc;
+	}
+
+	dev_dbg(dev, "ctu/mix path = 0x%08x", data);
+
+	rsnd_mod_write(cmd, CMD_ROUTE_SLCT, data);
+
+	rsnd_mod_write(cmd, CMD_CTRL, 0x10);
 }
 
 static int rsnd_path_init(struct rsnd_priv *priv,
@@ -564,18 +695,28 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	 * using fixed path.
 	 */
 
-	/* SRC */
-	ret = rsnd_path_parse(priv, io, src);
+	/* SSI */
+	ret = rsnd_path_add(priv, io, ssi);
 	if (ret < 0)
 		return ret;
 
-	/* SSI */
-	ret = rsnd_path_parse(priv, io, ssi);
+	/* SRC */
+	ret = rsnd_path_add(priv, io, src);
+	if (ret < 0)
+		return ret;
+
+	/* CTU */
+	ret = rsnd_path_add(priv, io, ctu);
+	if (ret < 0)
+		return ret;
+
+	/* MIX */
+	ret = rsnd_path_add(priv, io, mix);
 	if (ret < 0)
 		return ret;
 
 	/* DVC */
-	ret = rsnd_path_parse(priv, io, dvc);
+	ret = rsnd_path_add(priv, io, dvc);
 	if (ret < 0)
 		return ret;
 
@@ -589,13 +730,15 @@ static void rsnd_of_parse_dai(struct platform_device *pdev,
 	struct device_node *dai_node,	*dai_np;
 	struct device_node *ssi_node,	*ssi_np;
 	struct device_node *src_node,	*src_np;
+	struct device_node *ctu_node,	*ctu_np;
+	struct device_node *mix_node,	*mix_np;
 	struct device_node *dvc_node,	*dvc_np;
 	struct device_node *playback, *capture;
 	struct rsnd_dai_platform_info *dai_info;
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct device *dev = &pdev->dev;
 	int nr, i;
-	int dai_i, ssi_i, src_i, dvc_i;
+	int dai_i, ssi_i, src_i, ctu_i, mix_i, dvc_i;
 
 	if (!of_data)
 		return;
@@ -621,6 +764,8 @@ static void rsnd_of_parse_dai(struct platform_device *pdev,
 
 	ssi_node = of_get_child_by_name(dev->of_node, "rcar_sound,ssi");
 	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
+	ctu_node = of_get_child_by_name(dev->of_node, "rcar_sound,ctu");
+	mix_node = of_get_child_by_name(dev->of_node, "rcar_sound,mix");
 	dvc_node = of_get_child_by_name(dev->of_node, "rcar_sound,dvc");
 
 #define mod_parse(name)							\
@@ -657,6 +802,8 @@ if (name##_node) {							\
 
 			mod_parse(ssi);
 			mod_parse(src);
+			mod_parse(ctu);
+			mod_parse(mix);
 			mod_parse(dvc);
 
 			of_node_put(playback);
@@ -1033,8 +1180,8 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		/*
 		 * remove SRC/DVC from DAI,
 		 */
-		rsnd_path_break(priv, io, src);
-		rsnd_path_break(priv, io, dvc);
+		rsnd_path_remove(priv, io, src);
+		rsnd_path_remove(priv, io, dvc);
 
 		/*
 		 * fallback
@@ -1069,6 +1216,8 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_dma_probe,
 		rsnd_ssi_probe,
 		rsnd_src_probe,
+		rsnd_ctu_probe,
+		rsnd_mix_probe,
 		rsnd_dvc_probe,
 		rsnd_adg_probe,
 		rsnd_dai_probe,
@@ -1164,6 +1313,8 @@ static int rsnd_remove(struct platform_device *pdev)
 			      struct rsnd_priv *priv) = {
 		rsnd_ssi_remove,
 		rsnd_src_remove,
+		rsnd_ctu_remove,
+		rsnd_mix_remove,
 		rsnd_dvc_remove,
 	};
 	int ret = 0, i;

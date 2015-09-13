@@ -23,122 +23,61 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-#include <subdev/fb.h>
-#include <subdev/mmu.h>
+void
+nvkm_bar_flush(struct nvkm_bar *bar)
+{
+	if (bar && bar->func->flush)
+		bar->func->flush(bar);
+}
 
-struct nvkm_barobj {
-	struct nvkm_object base;
-	struct nvkm_vma vma;
-	void __iomem *iomem;
-};
+struct nvkm_vm *
+nvkm_bar_kmap(struct nvkm_bar *bar)
+{
+	/* disallow kmap() until after vm has been bootstrapped */
+	if (bar && bar->func->kmap && bar->subdev.oneinit)
+		return bar->func->kmap(bar);
+	return NULL;
+}
+
+int
+nvkm_bar_umap(struct nvkm_bar *bar, u64 size, int type, struct nvkm_vma *vma)
+{
+	return bar->func->umap(bar, size, type, vma);
+}
 
 static int
-nvkm_barobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 size,
-		 struct nvkm_object **pobject)
+nvkm_bar_oneinit(struct nvkm_subdev *subdev)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_bar *bar = nvkm_bar(device);
-	struct nvkm_mem *mem = data;
-	struct nvkm_barobj *barobj;
-	int ret;
-
-	ret = nvkm_object_create(parent, engine, oclass, 0, &barobj);
-	*pobject = nv_object(barobj);
-	if (ret)
-		return ret;
-
-	ret = bar->kmap(bar, mem, NV_MEM_ACCESS_RW, &barobj->vma);
-	if (ret)
-		return ret;
-
-	barobj->iomem = ioremap(nv_device_resource_start(device, 3) +
-				(u32)barobj->vma.offset, mem->size << 12);
-	if (!barobj->iomem) {
-		nv_warn(bar, "PRAMIN ioremap failed\n");
-		return -ENOMEM;
-	}
-
-	return 0;
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->oneinit(bar);
 }
 
-static void
-nvkm_barobj_dtor(struct nvkm_object *object)
+static int
+nvkm_bar_init(struct nvkm_subdev *subdev)
 {
-	struct nvkm_bar *bar = nvkm_bar(object);
-	struct nvkm_barobj *barobj = (void *)object;
-	if (barobj->vma.node) {
-		if (barobj->iomem)
-			iounmap(barobj->iomem);
-		bar->unmap(bar, &barobj->vma);
-	}
-	nvkm_object_destroy(&barobj->base);
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->init(bar);
 }
 
-static u32
-nvkm_barobj_rd32(struct nvkm_object *object, u64 addr)
+static void *
+nvkm_bar_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_barobj *barobj = (void *)object;
-	return ioread32_native(barobj->iomem + addr);
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->dtor(bar);
 }
 
-static void
-nvkm_barobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_barobj *barobj = (void *)object;
-	iowrite32_native(data, barobj->iomem + addr);
-}
-
-static struct nvkm_oclass
-nvkm_barobj_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nvkm_barobj_ctor,
-		.dtor = nvkm_barobj_dtor,
-		.init = nvkm_object_init,
-		.fini = nvkm_object_fini,
-		.rd32 = nvkm_barobj_rd32,
-		.wr32 = nvkm_barobj_wr32,
-	},
+static const struct nvkm_subdev_func
+nvkm_bar = {
+	.dtor = nvkm_bar_dtor,
+	.oneinit = nvkm_bar_oneinit,
+	.init = nvkm_bar_init,
 };
 
-int
-nvkm_bar_alloc(struct nvkm_bar *bar, struct nvkm_object *parent,
-	       struct nvkm_mem *mem, struct nvkm_object **pobject)
-{
-	struct nvkm_object *gpuobj;
-	int ret = nvkm_object_ctor(parent, &parent->engine->subdev.object,
-				   &nvkm_barobj_oclass, mem, 0, &gpuobj);
-	if (ret == 0)
-		*pobject = gpuobj;
-	return ret;
-}
-
-int
-nvkm_bar_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
-{
-	struct nvkm_bar *bar;
-	int ret;
-
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "BARCTL",
-				  "bar", length, pobject);
-	bar = *pobject;
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 void
-nvkm_bar_destroy(struct nvkm_bar *bar)
+nvkm_bar_ctor(const struct nvkm_bar_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_bar *bar)
 {
-	nvkm_subdev_destroy(&bar->base);
-}
-
-void
-_nvkm_bar_dtor(struct nvkm_object *object)
-{
-	struct nvkm_bar *bar = (void *)object;
-	nvkm_bar_destroy(bar);
+	nvkm_subdev_ctor(&nvkm_bar, device, index, 0, &bar->subdev);
+	bar->func = func;
+	spin_lock_init(&bar->lock);
 }

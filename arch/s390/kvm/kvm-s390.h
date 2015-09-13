@@ -27,6 +27,13 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 #define TDB_FORMAT1		1
 #define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
+extern debug_info_t *kvm_s390_dbf;
+#define KVM_EVENT(d_loglevel, d_string, d_args...)\
+do { \
+	debug_sprintf_event(kvm_s390_dbf, d_loglevel, d_string "\n", \
+	  d_args); \
+} while (0)
+
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
 	debug_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
@@ -65,6 +72,8 @@ static inline u32 kvm_s390_get_prefix(struct kvm_vcpu *vcpu)
 
 static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 {
+	VCPU_EVENT(vcpu, 3, "set prefix of cpu %03u to 0x%x", vcpu->vcpu_id,
+		   prefix);
 	vcpu->arch.sie_block->prefix = prefix >> GUEST_PREFIX_SHIFT;
 	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
@@ -217,8 +226,6 @@ void exit_sie(struct kvm_vcpu *vcpu);
 void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu);
 int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
-/* is cmma enabled */
-bool kvm_s390_cmma_enabled(struct kvm *kvm);
 unsigned long kvm_s390_fac_list_mask_size(void);
 extern unsigned long kvm_s390_fac_list_mask[];
 

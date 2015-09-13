@@ -3665,19 +3665,19 @@ bfa_cb_sfp_state_query(struct bfa_sfp_s *sfp)
 		if (sfp->state_query_cbfn)
 			sfp->state_query_cbfn(sfp->state_query_cbarg,
 					sfp->status);
-			sfp->media = NULL;
-		}
+		sfp->media = NULL;
+	}
 
-		if (sfp->portspeed) {
-			sfp->status = bfa_sfp_speed_valid(sfp, sfp->portspeed);
-			if (sfp->state_query_cbfn)
-				sfp->state_query_cbfn(sfp->state_query_cbarg,
-						sfp->status);
-				sfp->portspeed = BFA_PORT_SPEED_UNKNOWN;
-		}
+	if (sfp->portspeed) {
+		sfp->status = bfa_sfp_speed_valid(sfp, sfp->portspeed);
+		if (sfp->state_query_cbfn)
+			sfp->state_query_cbfn(sfp->state_query_cbarg,
+					sfp->status);
+		sfp->portspeed = BFA_PORT_SPEED_UNKNOWN;
+	}
 
-		sfp->state_query_lock = 0;
-		sfp->state_query_cbfn = NULL;
+	sfp->state_query_lock = 0;
+	sfp->state_query_cbfn = NULL;
 }
 
 /*
@@ -3878,7 +3878,7 @@ bfa_sfp_show_comp(struct bfa_sfp_s *sfp, struct bfi_mbmsg_s *msg)
 		bfa_trc(sfp, sfp->data_valid);
 		if (sfp->data_valid) {
 			u32	size = sizeof(struct sfp_mem_s);
-			u8 *des = (u8 *) &(sfp->sfpmem);
+			u8 *des = (u8 *)(sfp->sfpmem);
 			memcpy(des, sfp->dbuf_kva, size);
 		}
 		/*

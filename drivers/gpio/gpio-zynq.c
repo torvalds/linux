@@ -441,10 +441,10 @@ static int zynq_gpio_set_irq_type(struct irq_data *irq_data, unsigned int type)
 		       gpio->base_addr + ZYNQ_GPIO_INTANY_OFFSET(bank_num));
 
 	if (type & IRQ_TYPE_LEVEL_MASK) {
-		__irq_set_chip_handler_name_locked(irq_data->irq,
+		irq_set_chip_handler_name_locked(irq_data,
 			&zynq_gpio_level_irqchip, handle_fasteoi_irq, NULL);
 	} else {
-		__irq_set_chip_handler_name_locked(irq_data->irq,
+		irq_set_chip_handler_name_locked(irq_data,
 			&zynq_gpio_edge_irqchip, handle_level_irq, NULL);
 	}
 
@@ -518,7 +518,7 @@ static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
 {
 	u32 int_sts, int_enb;
 	unsigned int bank_num;
-	struct zynq_gpio *gpio = irq_get_handler_data(irq);
+	struct zynq_gpio *gpio = irq_desc_get_handler_data(desc);
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 
 	chained_irq_enter(irqchip, desc);
@@ -781,6 +781,12 @@ static int __init zynq_gpio_init(void)
 	return platform_driver_register(&zynq_gpio_driver);
 }
 postcore_initcall(zynq_gpio_init);
+
+static void __exit zynq_gpio_exit(void)
+{
+	platform_driver_unregister(&zynq_gpio_driver);
+}
+module_exit(zynq_gpio_exit);
 
 MODULE_AUTHOR("Xilinx Inc.");
 MODULE_DESCRIPTION("Zynq GPIO driver");

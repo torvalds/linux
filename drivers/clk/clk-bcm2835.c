@@ -32,11 +32,6 @@ void __init bcm2835_init_clocks(void)
 	struct clk *clk;
 	int ret;
 
-	clk = clk_register_fixed_rate(NULL, "sys_pclk", NULL, CLK_IS_ROOT,
-					250000000);
-	if (IS_ERR(clk))
-		pr_err("sys_pclk not registered\n");
-
 	clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, CLK_IS_ROOT,
 					126000000);
 	if (IS_ERR(clk))

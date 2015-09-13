@@ -34,6 +34,17 @@ struct i915_audio_component {
 		void (*codec_wake_override)(struct device *, bool enable);
 		int (*get_cdclk_freq)(struct device *);
 	} *ops;
+
+	const struct i915_audio_component_audio_ops {
+		void *audio_ptr;
+		/**
+		 * Call from i915 driver, notifying the HDA driver that
+		 * pin sense and/or ELD information has changed.
+		 * @audio_ptr:		HDA driver object
+		 * @port:		Which port has changed (PORTA / PORTB / PORTC etc)
+		 */
+		void (*pin_eld_notify)(void *audio_ptr, int port);
+	} *audio_ops;
 };
 
 #endif /* _I915_COMPONENT_H_ */

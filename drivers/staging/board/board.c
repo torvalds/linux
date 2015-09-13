@@ -135,6 +135,40 @@ int __init board_staging_register_clock(const struct board_staging_clk *bsc)
 	return error;
 }
 
+#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
+static int board_staging_add_dev_domain(struct platform_device *pdev,
+					const char *domain)
+{
+	struct of_phandle_args pd_args;
+	struct generic_pm_domain *pd;
+	struct device_node *np;
+
+	np = of_find_node_by_path(domain);
+	if (!np) {
+		pr_err("Cannot find domain node %s\n", domain);
+		return -ENOENT;
+	}
+
+	pd_args.np = np;
+	pd_args.args_count = 0;
+	pd = of_genpd_get_from_provider(&pd_args);
+	if (IS_ERR(pd)) {
+		pr_err("Cannot find genpd %s (%ld)\n", domain, PTR_ERR(pd));
+		return PTR_ERR(pd);
+
+	}
+	pr_debug("Found genpd %s for device %s\n", pd->name, pdev->name);
+
+	return pm_genpd_add_device(pd, &pdev->dev);
+}
+#else
+static inline int board_staging_add_dev_domain(struct platform_device *pdev,
+					       const char *domain)
+{
+	return 0;
+}
+#endif
+
 int __init board_staging_register_device(const struct board_staging_dev *dev)
 {
 	struct platform_device *pdev = dev->pdev;
@@ -161,7 +195,7 @@ int __init board_staging_register_device(const struct board_staging_dev *dev)
 	}
 
 	if (dev->domain)
-		__pm_genpd_name_add_device(dev->domain, &pdev->dev, NULL);
+		board_staging_add_dev_domain(pdev, dev->domain);
 
 	return error;
 }

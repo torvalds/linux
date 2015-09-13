@@ -176,7 +176,7 @@ static struct phy *phy_berlin_sata_phy_xlate(struct device *dev,
 	return priv->phys[i]->phy;
 }
 
-static struct phy_ops phy_berlin_sata_ops = {
+static const struct phy_ops phy_berlin_sata_ops = {
 	.power_on	= phy_berlin_sata_power_on,
 	.power_off	= phy_berlin_sata_power_off,
 	.owner		= THIS_MODULE,

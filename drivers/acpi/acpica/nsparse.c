@@ -70,13 +70,27 @@ acpi_ns_one_complete_parse(u32 pass_number,
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
-       u32 aml_length;
+	u32 aml_length;
 	u8 *aml_start;
 	struct acpi_walk_state *walk_state;
 	struct acpi_table_header *table;
 	acpi_owner_id owner_id;
 
 	ACPI_FUNCTION_TRACE(ns_one_complete_parse);
+
+	status = acpi_get_table_by_index(table_index, &table);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Table must consist of at least a complete header */
+
+	if (table->length < sizeof(struct acpi_table_header)) {
+		return_ACPI_STATUS(AE_BAD_HEADER);
+	}
+
+	aml_start = (u8 *)table + sizeof(struct acpi_table_header);
+	aml_length = table->length - sizeof(struct acpi_table_header);
 
 	status = acpi_tb_get_owner_id(table_index, &owner_id);
 	if (ACPI_FAILURE(status)) {
@@ -85,7 +99,7 @@ acpi_ns_one_complete_parse(u32 pass_number,
 
 	/* Create and init a Root Node */
 
-	parse_root = acpi_ps_create_scope_op();
+	parse_root = acpi_ps_create_scope_op(aml_start);
 	if (!parse_root) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -98,23 +112,12 @@ acpi_ns_one_complete_parse(u32 pass_number,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	status = acpi_get_table_by_index(table_index, &table);
+	status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
+				       aml_start, aml_length, NULL,
+				       (u8)pass_number);
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
-		acpi_ps_free_op(parse_root);
-		return_ACPI_STATUS(status);
-	}
-
-	/* Table must consist of at least a complete header */
-
-	if (table->length < sizeof(struct acpi_table_header)) {
-		status = AE_BAD_HEADER;
-	} else {
-		aml_start = (u8 *) table + sizeof(struct acpi_table_header);
-		aml_length = table->length - sizeof(struct acpi_table_header);
-		status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
-					       aml_start, aml_length, NULL,
-					       (u8) pass_number);
+		goto cleanup;
 	}
 
 	/* Found OSDT table, enable the namespace override feature */
@@ -122,11 +125,6 @@ acpi_ns_one_complete_parse(u32 pass_number,
 	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT) &&
 	    pass_number == ACPI_IMODE_LOAD_PASS1) {
 		walk_state->namespace_override = TRUE;
-	}
-
-	if (ACPI_FAILURE(status)) {
-		acpi_ds_delete_walk_state(walk_state);
-		goto cleanup;
 	}
 
 	/* start_node is the default location to load the table */

@@ -8,13 +8,12 @@
 #include <linux/dma-attrs.h>
 #include <linux/dma-debug.h>
 
-#include <asm-generic/dma-coherent.h>
 #include <asm/memory.h>
 
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 
-#define DMA_ERROR_CODE	(~0)
+#define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
 extern struct dma_map_ops arm_dma_ops;
 extern struct dma_map_ops arm_coherent_dma_ops;
 
@@ -39,12 +38,15 @@ static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 	dev->archdata.dma_ops = ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
+#define HAVE_ARCH_DMA_SUPPORTED 1
+extern int dma_supported(struct device *dev, u64 mask);
 
-static inline int dma_set_mask(struct device *dev, u64 mask)
-{
-	return get_dma_ops(dev)->set_dma_mask(dev, mask);
-}
+/*
+ * Note that while the generic code provides dummy dma_{alloc,free}_noncoherent
+ * implementations, we don't provide a dma_cache_sync function so drivers using
+ * this API are highlighted with build warnings.
+ */
+#include <asm-generic/dma-mapping-common.h>
 
 #ifdef __arch_page_to_dma
 #error Please update to __arch_pfn_to_dma
@@ -167,32 +169,6 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 
 static inline void dma_mark_clean(void *addr, size_t size) { }
 
-/*
- * DMA errors are defined by all-bits-set in the DMA address.
- */
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	debug_dma_mapping_error(dev, dma_addr);
-	return dma_addr == DMA_ERROR_CODE;
-}
-
-/*
- * Dummy noncoherent implementation.  We don't provide a dma_cache_sync
- * function so drivers using this API are highlighted with build warnings.
- */
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-		dma_addr_t *handle, gfp_t gfp)
-{
-	return NULL;
-}
-
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
-		void *cpu_addr, dma_addr_t handle)
-{
-}
-
-extern int dma_supported(struct device *dev, u64 mask);
-
 extern int arm_dma_set_mask(struct device *dev, u64 dma_mask);
 
 /**
@@ -208,21 +184,6 @@ extern int arm_dma_set_mask(struct device *dev, u64 dma_mask);
  */
 extern void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 			   gfp_t gfp, struct dma_attrs *attrs);
-
-#define dma_alloc_coherent(d, s, h, f) dma_alloc_attrs(d, s, h, f, NULL)
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				       dma_addr_t *dma_handle, gfp_t flag,
-				       struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *cpu_addr;
-	BUG_ON(!ops);
-
-	cpu_addr = ops->alloc(dev, size, dma_handle, flag, attrs);
-	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
-	return cpu_addr;
-}
 
 /**
  * arm_dma_free - free memory allocated by arm_dma_alloc
@@ -240,19 +201,6 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
  */
 extern void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 			 dma_addr_t handle, struct dma_attrs *attrs);
-
-#define dma_free_coherent(d, s, c, h) dma_free_attrs(d, s, c, h, NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				     void *cpu_addr, dma_addr_t dma_handle,
-				     struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	BUG_ON(!ops);
-
-	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-	ops->free(dev, size, cpu_addr, dma_handle, attrs);
-}
 
 /**
  * arm_dma_mmap - map a coherent DMA allocation into user space

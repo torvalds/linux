@@ -2043,16 +2043,9 @@ static bool GetNmodeSupportBySecCfg8192(struct net_device *dev)
 
 static bool GetHalfNmodeSupportByAPs819xUsb(struct net_device *dev)
 {
-	bool			Reval;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device *ieee = priv->ieee80211;
 
-	if (ieee->bHalfWirelessN24GMode == true)
-		Reval = true;
-	else
-		Reval =  false;
-
-	return Reval;
+	return priv->ieee80211->bHalfWirelessN24GMode;
 }
 
 static void rtl8192_refresh_supportrate(struct r8192_priv *priv)
@@ -2762,7 +2755,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 	//
 #ifdef TO_DO_LIST
 	if (Adapter->ResetProgress == RESET_TYPE_NORESET) {
-		if (pMgntInfo->RegRfOff == true) { /* User disable RF via registry. */
+		if (pMgntInfo->RegRfOff) { /* User disable RF via registry. */
 			RT_TRACE((COMP_INIT|COMP_RF), DBG_LOUD, ("InitializeAdapter819xUsb(): Turn off RF for RegRfOff ----------\n"));
 			MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_SW);
 			// Those actions will be discard in MgntActSet_RF_State because of the same state
@@ -4406,7 +4399,8 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	/* RTL8190 set this bit to indicate that Hw does not decrypt packet */
 	stats->Decrypted = !desc->SWDec;
 
-	if ((priv->ieee80211->pHTInfo->bCurrentHTSupport == true) && (priv->ieee80211->pairwise_key_type == KEY_TYPE_CCMP))
+	if ((priv->ieee80211->pHTInfo->bCurrentHTSupport) &&
+	    (priv->ieee80211->pairwise_key_type == KEY_TYPE_CCMP))
 		stats->bHwError = false;
 	else
 		stats->bHwError = stats->bCRC|stats->bICV;

@@ -50,331 +50,119 @@
 #include "../../include/obd_support.h"
 #include "../../include/lprocfs_status.h"
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table_header *obd_table_header;
-#endif
+struct static_lustre_uintvalue_attr {
+	struct {
+		struct attribute attr;
+		ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
+				char *buf);
+		ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
+				 const char *buf, size_t len);
+	} u;
+	int *value;
+};
 
-#ifdef CONFIG_SYSCTL
-static int proc_set_timeout(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t static_uintvalue_show(struct kobject *kobj,
+				    struct attribute *attr,
+				    char *buf)
+{
+	struct static_lustre_uintvalue_attr *lattr = (void *)attr;
+
+	return sprintf(buf, "%d\n", *lattr->value);
+}
+
+static ssize_t static_uintvalue_store(struct kobject *kobj,
+				     struct attribute *attr,
+				     const char *buffer, size_t count)
+{
+	struct static_lustre_uintvalue_attr *lattr  = (void *)attr;
+	int rc;
+	unsigned int val;
+
+	rc = kstrtouint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	*lattr->value = val;
+
+	return count;
+}
+
+#define LUSTRE_STATIC_UINT_ATTR(name, value) \
+static struct static_lustre_uintvalue_attr lustre_sattr_##name =	\
+					{__ATTR(name, 0644,		\
+						static_uintvalue_show,	\
+						static_uintvalue_store),\
+					  value }
+
+LUSTRE_STATIC_UINT_ATTR(timeout, &obd_timeout);
+
+static ssize_t max_dirty_mb_show(struct kobject *kobj, struct attribute *attr,
+				 char *buf)
+{
+	return sprintf(buf, "%ul\n",
+			obd_max_dirty_pages / (1 << (20 - PAGE_CACHE_SHIFT)));
+}
+
+static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,
+				  const char *buffer, size_t count)
 {
 	int rc;
+	unsigned long val;
 
-	rc = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (ldlm_timeout >= obd_timeout)
-		ldlm_timeout = max(obd_timeout / 3, 1U);
-	return rc;
-}
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
 
-static int proc_memory_alloc(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
+	val *= 1 << (20 - PAGE_CACHE_SHIFT); /* convert to pages */
 
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
+	if (val > ((totalram_pages / 10) * 9)) {
+		/* Somebody wants to assign too much memory to dirty pages */
 		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_memory_sum());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
-static int proc_pages_alloc(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
-
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
 	}
-	if (write)
+
+	if (val < 4 << (20 - PAGE_CACHE_SHIFT)) {
+		/* Less than 4 Mb for dirty cache is also bad */
 		return -EINVAL;
+	}
 
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_pages_sum());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
+	obd_max_dirty_pages = val;
+
+	return count;
 }
+LUSTRE_RW_ATTR(max_dirty_mb);
 
-static int proc_mem_max(struct ctl_table *table, int write, void __user *buffer,
-		 size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
+LUSTRE_STATIC_UINT_ATTR(debug_peer_on_timeout, &obd_debug_peer_on_timeout);
+LUSTRE_STATIC_UINT_ATTR(dump_on_timeout, &obd_dump_on_timeout);
+LUSTRE_STATIC_UINT_ATTR(dump_on_eviction, &obd_dump_on_eviction);
+LUSTRE_STATIC_UINT_ATTR(at_min, &at_min);
+LUSTRE_STATIC_UINT_ATTR(at_max, &at_max);
+LUSTRE_STATIC_UINT_ATTR(at_extra, &at_extra);
+LUSTRE_STATIC_UINT_ATTR(at_early_margin, &at_early_margin);
+LUSTRE_STATIC_UINT_ATTR(at_history, &at_history);
 
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
-		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_memory_max());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
-static int proc_pages_max(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char buf[22];
-	int len;
-
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write)
-		return -EINVAL;
-
-	len = snprintf(buf, sizeof(buf), "%llu\n", obd_pages_max());
-	if (len > *lenp)
-		len = *lenp;
-	buf[len] = '\0';
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-	*lenp = len;
-	*ppos += *lenp;
-	return 0;
-}
-
-static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
-			       void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	int rc = 0;
-
-	if (!table->data || !table->maxlen || !*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write) {
-		rc = lprocfs_write_frac_helper(buffer, *lenp,
-					       (unsigned int *)table->data,
-					       1 << (20 - PAGE_CACHE_SHIFT));
-		/* Don't allow them to let dirty pages exceed 90% of system
-		 * memory and set a hard minimum of 4MB. */
-		if (obd_max_dirty_pages > ((totalram_pages / 10) * 9)) {
-			CERROR("Refusing to set max dirty pages to %u, which is more than 90%% of available RAM; setting to %lu\n",
-			       obd_max_dirty_pages,
-			       ((totalram_pages / 10) * 9));
-			obd_max_dirty_pages = (totalram_pages / 10) * 9;
-		} else if (obd_max_dirty_pages < 4 << (20 - PAGE_CACHE_SHIFT)) {
-			obd_max_dirty_pages = 4 << (20 - PAGE_CACHE_SHIFT);
-		}
-	} else {
-		char buf[21];
-		int len;
-
-		len = lprocfs_read_frac_helper(buf, sizeof(buf),
-					       *(unsigned int *)table->data,
-					       1 << (20 - PAGE_CACHE_SHIFT));
-		if (len > *lenp)
-			len = *lenp;
-		buf[len] = '\0';
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-		*lenp = len;
-	}
-	*ppos += *lenp;
-	return rc;
-}
-
-static int proc_alloc_fail_rate(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	int rc	  = 0;
-
-	if (!table->data || !table->maxlen || !*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-	if (write) {
-		rc = lprocfs_write_frac_helper(buffer, *lenp,
-					       (unsigned int *)table->data,
-					       OBD_ALLOC_FAIL_MULT);
-	} else {
-		char buf[21];
-		int  len;
-
-		len = lprocfs_read_frac_helper(buf, 21,
-					       *(unsigned int *)table->data,
-					       OBD_ALLOC_FAIL_MULT);
-		if (len > *lenp)
-			len = *lenp;
-		buf[len] = '\0';
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-		*lenp = len;
-	}
-	*ppos += *lenp;
-	return rc;
-}
-
-static struct ctl_table obd_table[] = {
-	{
-		.procname = "timeout",
-		.data     = &obd_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_set_timeout
-	},
-	{
-		.procname = "debug_peer_on_timeout",
-		.data     = &obd_debug_peer_on_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "dump_on_timeout",
-		.data     = &obd_dump_on_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "dump_on_eviction",
-		.data     = &obd_dump_on_eviction,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec
-	},
-	{
-		.procname = "memused",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_memory_alloc
-	},
-	{
-		.procname = "pagesused",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_pages_alloc
-	},
-	{
-		.procname = "memused_max",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_mem_max
-	},
-	{
-		.procname = "pagesused_max",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0444,
-		.proc_handler = &proc_pages_max
-	},
-	{
-		.procname = "ldlm_timeout",
-		.data     = &ldlm_timeout,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_set_timeout
-	},
-	{
-		.procname = "alloc_fail_rate",
-		.data     = &obd_alloc_fail_rate,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_alloc_fail_rate
-	},
-	{
-		.procname = "max_dirty_mb",
-		.data     = &obd_max_dirty_pages,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_max_dirty_pages_in_mb
-	},
-	{
-		.procname = "at_min",
-		.data     = &at_min,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_max",
-		.data     = &at_max,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_extra",
-		.data     = &at_extra,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_early_margin",
-		.data     = &at_early_margin,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{
-		.procname = "at_history",
-		.data     = &at_history,
-		.maxlen   = sizeof(int),
-		.mode     = 0644,
-		.proc_handler = &proc_dointvec,
-	},
-	{}
+static struct attribute *lustre_attrs[] = {
+	&lustre_sattr_timeout.u.attr,
+	&lustre_attr_max_dirty_mb.attr,
+	&lustre_sattr_debug_peer_on_timeout.u.attr,
+	&lustre_sattr_dump_on_timeout.u.attr,
+	&lustre_sattr_dump_on_eviction.u.attr,
+	&lustre_sattr_at_min.u.attr,
+	&lustre_sattr_at_max.u.attr,
+	&lustre_sattr_at_extra.u.attr,
+	&lustre_sattr_at_early_margin.u.attr,
+	&lustre_sattr_at_history.u.attr,
+	NULL,
 };
 
-static struct ctl_table parent_table[] = {
-	{
-		.procname = "lustre",
-		.data     = NULL,
-		.maxlen   = 0,
-		.mode     = 0555,
-		.child    = obd_table
-	},
-	{}
+static struct attribute_group lustre_attr_group = {
+	.attrs = lustre_attrs,
 };
-#endif
 
-void obd_sysctl_init(void)
+int obd_sysctl_init(void)
 {
-#ifdef CONFIG_SYSCTL
-	if (!obd_table_header)
-		obd_table_header = register_sysctl_table(parent_table);
-#endif
+	return sysfs_create_group(lustre_kobj, &lustre_attr_group);
 }
 
 void obd_sysctl_clean(void)
 {
-#ifdef CONFIG_SYSCTL
-	if (obd_table_header)
-		unregister_sysctl_table(obd_table_header);
-	obd_table_header = NULL;
-#endif
 }

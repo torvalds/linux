@@ -9,7 +9,15 @@ modprobe test_firmware
 
 DIR=/sys/devices/virtual/misc/test_firmware
 
-OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
+# CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
+# These days no one enables CONFIG_FW_LOADER_USER_HELPER so check for that
+# as an indicator for CONFIG_FW_LOADER_USER_HELPER.
+HAS_FW_LOADER_USER_HELPER=$(if [ -d /sys/class/firmware/ ]; then echo yes; else echo no; fi)
+
+if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+	OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
+fi
+
 OLD_FWPATH=$(cat /sys/module/firmware_class/parameters/path)
 
 FWPATH=$(mktemp -d)
@@ -17,7 +25,9 @@ FW="$FWPATH/test-firmware.bin"
 
 test_finish()
 {
-	echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
+	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+		echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
+	fi
 	echo -n "$OLD_PATH" >/sys/module/firmware_class/parameters/path
 	rm -f "$FW"
 	rmdir "$FWPATH"
@@ -25,8 +35,11 @@ test_finish()
 
 trap "test_finish" EXIT
 
-# Turn down the timeout so failures don't take so long.
-echo 1 >/sys/class/firmware/timeout
+if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+	# Turn down the timeout so failures don't take so long.
+	echo 1 >/sys/class/firmware/timeout
+fi
+
 # Set the kernel search path.
 echo -n "$FWPATH" >/sys/module/firmware_class/parameters/path
 
@@ -41,7 +54,9 @@ if diff -q "$FW" /dev/test_firmware >/dev/null ; then
 	echo "$0: firmware was not expected to match" >&2
 	exit 1
 else
-	echo "$0: timeout works"
+	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+		echo "$0: timeout works"
+	fi
 fi
 
 # This should succeed via kernel load or will fail after 1 second after

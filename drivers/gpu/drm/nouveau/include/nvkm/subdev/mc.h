@@ -3,26 +3,19 @@
 #include <core/subdev.h>
 
 struct nvkm_mc {
-	struct nvkm_subdev base;
-	bool use_msi;
-	unsigned int irq;
-	void (*unk260)(struct nvkm_mc *, u32);
+	const struct nvkm_mc_func *func;
+	struct nvkm_subdev subdev;
 };
 
-static inline struct nvkm_mc *
-nvkm_mc(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_MC);
-}
+void nvkm_mc_intr(struct nvkm_mc *, bool *handled);
+void nvkm_mc_intr_unarm(struct nvkm_mc *);
+void nvkm_mc_intr_rearm(struct nvkm_mc *);
+void nvkm_mc_unk260(struct nvkm_mc *, u32 data);
 
-extern struct nvkm_oclass *nv04_mc_oclass;
-extern struct nvkm_oclass *nv40_mc_oclass;
-extern struct nvkm_oclass *nv44_mc_oclass;
-extern struct nvkm_oclass *nv4c_mc_oclass;
-extern struct nvkm_oclass *nv50_mc_oclass;
-extern struct nvkm_oclass *g94_mc_oclass;
-extern struct nvkm_oclass *g98_mc_oclass;
-extern struct nvkm_oclass *gf100_mc_oclass;
-extern struct nvkm_oclass *gf106_mc_oclass;
-extern struct nvkm_oclass *gk20a_mc_oclass;
+int nv04_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int nv44_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int nv50_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int g98_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int gf100_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int gk20a_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 #endif

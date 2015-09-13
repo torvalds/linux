@@ -160,8 +160,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 
 	if (mdp5_crtc->ctl && !crtc->state->enable) {
 		/* set STAGE_UNUSED for all layers */
-		mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, 0x00000000);
-		mdp5_ctl_release(mdp5_crtc->ctl);
+		mdp5_ctl_blend(mdp5_crtc->ctl, NULL, 0, 0);
 		mdp5_crtc->ctl = NULL;
 	}
 }
@@ -196,13 +195,9 @@ static bool mdp5_crtc_mode_fixup(struct drm_crtc *crtc,
 /*
  * blend_setup() - blend all the planes of a CRTC
  *
- * When border is enabled, the border color will ALWAYS be the base layer.
- * Therefore, the first plane (private RGB pipe) will start at STAGE0.
- * If disabled, the first plane starts at STAGE_BASE.
- *
- * Note:
- * Border is not enabled here because the private plane is exactly
- * the CRTC resolution.
+ * If no base layer is available, border will be enabled as the base layer.
+ * Otherwise all layers will be blended based on their stage calculated
+ * in mdp5_crtc_atomic_check.
  */
 static void blend_setup(struct drm_crtc *crtc)
 {
@@ -210,9 +205,14 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	const struct mdp5_cfg_hw *hw_cfg;
-	uint32_t lm = mdp5_crtc->lm, blend_cfg = 0;
+	struct mdp5_plane_state *pstate, *pstates[STAGE_MAX + 1] = {NULL};
+	const struct mdp_format *format;
+	uint32_t lm = mdp5_crtc->lm;
+	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
 	unsigned long flags;
-#define blender(stage)	((stage) - STAGE_BASE)
+	uint8_t stage[STAGE_MAX + 1];
+	int i, plane_cnt = 0;
+#define blender(stage)	((stage) - STAGE0)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
@@ -222,33 +222,73 @@ static void blend_setup(struct drm_crtc *crtc)
 	if (!mdp5_crtc->ctl)
 		goto out;
 
+	/* Collect all plane information */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		enum mdp_mixer_stage_id stage =
-			to_mdp5_plane_state(plane->state)->stage;
-
-		/*
-		 * Note: This cannot happen with current implementation but
-		 * we need to check this condition once z property is added
-		 */
-		BUG_ON(stage > hw_cfg->lm.nb_stages);
-
-		/* LM */
-		mdp5_write(mdp5_kms,
-				REG_MDP5_LM_BLEND_OP_MODE(lm, blender(stage)),
-				MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
-				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST));
-		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_FG_ALPHA(lm,
-				blender(stage)), 0xff);
-		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_BG_ALPHA(lm,
-				blender(stage)), 0x00);
-		/* CTL */
-		blend_cfg |= mdp_ctl_blend_mask(mdp5_plane_pipe(plane), stage);
-		DBG("%s: blending pipe %s on stage=%d", mdp5_crtc->name,
-				pipe2name(mdp5_plane_pipe(plane)), stage);
+		pstate = to_mdp5_plane_state(plane->state);
+		pstates[pstate->stage] = pstate;
+		stage[pstate->stage] = mdp5_plane_pipe(plane);
+		plane_cnt++;
 	}
 
-	DBG("%s: lm%d: blend config = 0x%08x", mdp5_crtc->name, lm, blend_cfg);
-	mdp5_ctl_blend(mdp5_crtc->ctl, lm, blend_cfg);
+	/*
+	* If there is no base layer, enable border color.
+	* Although it's not possbile in current blend logic,
+	* put it here as a reminder.
+	*/
+	if (!pstates[STAGE_BASE] && plane_cnt) {
+		ctl_blend_flags |= MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT;
+		DBG("Border Color is enabled");
+	}
+
+	/* The reset for blending */
+	for (i = STAGE0; i <= STAGE_MAX; i++) {
+		if (!pstates[i])
+			continue;
+
+		format = to_mdp_format(
+			msm_framebuffer_format(pstates[i]->base.fb));
+		plane = pstates[i]->base.plane;
+		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
+			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
+		fg_alpha = pstates[i]->alpha;
+		bg_alpha = 0xFF - pstates[i]->alpha;
+		DBG("Stage %d fg_alpha %x bg_alpha %x", i, fg_alpha, bg_alpha);
+
+		if (format->alpha_enable && pstates[i]->premultiplied) {
+			blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
+				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
+			if (fg_alpha != 0xff) {
+				bg_alpha = fg_alpha;
+				blend_op |=
+					MDP5_LM_BLEND_OP_MODE_BG_MOD_ALPHA |
+					MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA;
+			} else {
+				blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
+			}
+		} else if (format->alpha_enable) {
+			blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_PIXEL) |
+				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
+			if (fg_alpha != 0xff) {
+				bg_alpha = fg_alpha;
+				blend_op |=
+				       MDP5_LM_BLEND_OP_MODE_FG_MOD_ALPHA |
+				       MDP5_LM_BLEND_OP_MODE_FG_INV_MOD_ALPHA |
+				       MDP5_LM_BLEND_OP_MODE_BG_MOD_ALPHA |
+				       MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA;
+			} else {
+				blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
+			}
+		}
+
+		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_OP_MODE(lm,
+				blender(i)), blend_op);
+		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_FG_ALPHA(lm,
+				blender(i)), fg_alpha);
+		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_BG_ALPHA(lm,
+				blender(i)), bg_alpha);
+	}
+
+	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
 
 out:
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
@@ -339,25 +379,19 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
-	struct plane_state pstates[STAGE3 + 1];
+	struct plane_state pstates[STAGE_MAX + 1];
+	const struct mdp5_cfg_hw *hw_cfg;
 	int cnt = 0, i;
 
 	DBG("%s: check", mdp5_crtc->name);
 
-	/* request a free CTL, if none is already allocated for this CRTC */
-	if (state->enable && !mdp5_crtc->ctl) {
-		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
-		if (WARN_ON(!mdp5_crtc->ctl))
-			return -EINVAL;
-	}
-
 	/* verify that there are not too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:
 	 */
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 	drm_atomic_crtc_state_for_each_plane(plane, state) {
 		struct drm_plane_state *pstate;
-
-		if (cnt >= ARRAY_SIZE(pstates)) {
+		if (cnt >= (hw_cfg->lm.nb_stages)) {
 			dev_err(dev->dev, "too many planes!\n");
 			return -EINVAL;
 		}
@@ -369,13 +403,13 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		 */
 		if (!pstate)
 			pstate = plane->state;
-
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
 		cnt++;
 	}
 
+	/* assign a stage based on sorted zpos property */
 	sort(pstates, cnt, sizeof(pstates[0]), pstate_cmp, NULL);
 
 	for (i = 0; i < cnt; i++) {
@@ -388,13 +422,15 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc)
+static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	DBG("%s: begin", mdp5_crtc->name);
 }
 
-static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
+static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -691,8 +727,8 @@ void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
 	complete_flip(crtc, file);
 }
 
-/* set interface for routing crtc->encoder: */
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
+void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
@@ -715,19 +751,14 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 
 	mdp_irq_update(&mdp5_kms->base);
 
-	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
+	mdp5_crtc->ctl = ctl;
+	mdp5_ctl_set_pipeline(ctl, intf, lm);
 }
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	return WARN_ON(!crtc) ? -EINVAL : mdp5_crtc->lm;
-}
-
-struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	return WARN_ON(!crtc) ? NULL : mdp5_crtc->ctl;
 }
 
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
@@ -773,8 +804,6 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 
 	drm_crtc_helper_add(crtc, &mdp5_crtc_helper_funcs);
 	plane->crtc = crtc;
-
-	mdp5_plane_install_properties(plane, &crtc->base);
 
 	return crtc;
 }

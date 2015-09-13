@@ -188,6 +188,9 @@ config ARCH_HAS_ILOG2_U64
 config ARCH_HAS_BANDGAP
 	bool
 
+config FIX_EARLYCON_MEM
+	def_bool y if MMU
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -268,7 +271,6 @@ config PHYS_OFFSET
 	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_EBSA110 || \
-			EP93XX_SDCE3_SYNC_PHYS_OFFSET || \
 			ARCH_FOOTBRIDGE || \
 			ARCH_INTEGRATOR || \
 			ARCH_IOP13XX || \
@@ -277,10 +279,7 @@ config PHYS_OFFSET
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
 	default 0x70000000 if REALVIEW_HIGH_PHYS_OFFSET
-	default 0xc0000000 if EP93XX_SDCE0_PHYS_OFFSET || ARCH_SA1100
-	default 0xd0000000 if EP93XX_SDCE1_PHYS_OFFSET
-	default 0xe0000000 if EP93XX_SDCE2_PHYS_OFFSET
-	default 0xf0000000 if EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	default 0xc0000000 if ARCH_SA1100
 	help
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
@@ -418,11 +417,14 @@ config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_USES_GETTIMEOFFSET
 	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
+	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select CPU_ARM920T
+	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -536,6 +538,7 @@ config ARCH_ORION5X
 	select MVEBU_MBUS
 	select PCI
 	select PLAT_ORION_LEGACY
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
@@ -1496,6 +1499,7 @@ config HOTPLUG_CPU
 config ARM_PSCI
 	bool "Support for the ARM Power State Coordination Interface (PSCI)"
 	depends on CPU_V7
+	select ARM_PSCI_FW
 	help
 	  Say Y here if you want Linux to communicate with system firmware
 	  implementing the PSCI specification for CPU-centric power
@@ -1700,13 +1704,24 @@ config HIGHPTE
 	  consumed by page tables.  Setting this option will allow
 	  user-space 2nd level page tables to reside in high memory.
 
-config HW_PERF_EVENTS
-	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS
+config CPU_SW_DOMAIN_PAN
+	bool "Enable use of CPU domains to implement privileged no-access"
+	depends on MMU && !ARM_LPAE
 	default y
 	help
-	  Enable hardware performance counter support for perf events. If
-	  disabled, perf events will use software events only.
+	  Increase kernel security by ensuring that normal kernel accesses
+	  are unable to access userspace addresses.  This can help prevent
+	  use-after-free bugs becoming an exploitable privilege escalation
+	  by ensuring that magic values (such as LIST_POISON) will always
+	  fault when dereferenced.
+
+	  CPUs with low-vector mappings use a best-efforts implementation.
+	  Their lower 1MB needs to remain accessible for the vectors, but
+	  the remainder of userspace will become appropriately inaccessible.
+
+config HW_PERF_EVENTS
+	def_bool y
+	depends on ARM_PMU
 
 config SYS_SUPPORTS_HUGETLBFS
        def_bool y
@@ -2005,6 +2020,7 @@ config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"
 	depends on (!SMP || PM_SLEEP_SMP)
 	depends on !CPU_V7M
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

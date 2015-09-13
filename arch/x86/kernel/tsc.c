@@ -294,6 +294,14 @@ u64 native_sched_clock(void)
 	return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 }
 
+/*
+ * Generate a sched_clock if you already have a TSC value.
+ */
+u64 native_sched_clock_from_tsc(u64 tsc)
+{
+	return cycles_2_ns(tsc);
+}
+
 /* We need to define a real function for sched_clock, to override the
    weak default version */
 #ifdef CONFIG_PARAVIRT

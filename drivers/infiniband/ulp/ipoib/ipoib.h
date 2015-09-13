@@ -342,7 +342,6 @@ struct ipoib_dev_priv {
 	u16		  pkey;
 	u16		  pkey_index;
 	struct ib_pd	 *pd;
-	struct ib_mr	 *mr;
 	struct ib_cq	 *recv_cq;
 	struct ib_cq	 *send_cq;
 	struct ib_qp	 *qp;

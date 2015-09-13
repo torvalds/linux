@@ -457,29 +457,6 @@ static struct kobj_type port_type = {
 	.default_attrs = port_default_attrs
 };
 
-static void ib_device_release(struct device *device)
-{
-	struct ib_device *dev = container_of(device, struct ib_device, dev);
-
-	kfree(dev->port_immutable);
-	kfree(dev);
-}
-
-static int ib_device_uevent(struct device *device,
-			    struct kobj_uevent_env *env)
-{
-	struct ib_device *dev = container_of(device, struct ib_device, dev);
-
-	if (add_uevent_var(env, "NAME=%s", dev->name))
-		return -ENOMEM;
-
-	/*
-	 * It would be nice to pass the node GUID with the event...
-	 */
-
-	return 0;
-}
-
 static struct attribute **
 alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 				  struct port_attribute *, char *buf),
@@ -702,12 +679,6 @@ static struct device_attribute *ib_class_attributes[] = {
 	&dev_attr_node_desc
 };
 
-static struct class ib_class = {
-	.name    = "infiniband",
-	.dev_release = ib_device_release,
-	.dev_uevent = ib_device_uevent,
-};
-
 /* Show a given an attribute in the statistics group */
 static ssize_t show_protocol_stat(const struct device *device,
 			    struct device_attribute *attr, char *buf,
@@ -846,14 +817,12 @@ int ib_device_register_sysfs(struct ib_device *device,
 	int ret;
 	int i;
 
-	class_dev->class      = &ib_class;
-	class_dev->parent     = device->dma_device;
-	dev_set_name(class_dev, "%s", device->name);
-	dev_set_drvdata(class_dev, device);
+	device->dev.parent = device->dma_device;
+	ret = dev_set_name(class_dev, "%s", device->name);
+	if (ret)
+		return ret;
 
-	INIT_LIST_HEAD(&device->port_list);
-
-	ret = device_register(class_dev);
+	ret = device_add(class_dev);
 	if (ret)
 		goto err;
 
@@ -915,14 +884,4 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 		device_remove_file(&device->dev, ib_class_attributes[i]);
 
 	device_unregister(&device->dev);
-}
-
-int ib_sysfs_setup(void)
-{
-	return class_register(&ib_class);
-}
-
-void ib_sysfs_cleanup(void)
-{
-	class_unregister(&ib_class);
 }

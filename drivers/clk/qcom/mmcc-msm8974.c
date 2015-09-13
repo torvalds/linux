@@ -56,7 +56,7 @@ static const struct parent_map mmcc_xo_mmpll0_mmpll1_gpll0_map[] = {
 	{ P_GPLL0, 5 }
 };
 
-static const char *mmcc_xo_mmpll0_mmpll1_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_mmpll1_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -72,7 +72,7 @@ static const struct parent_map mmcc_xo_mmpll0_dsi_hdmi_gpll0_map[] = {
 	{ P_DSI1PLL, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"hdmipll",
@@ -89,7 +89,7 @@ static const struct parent_map mmcc_xo_mmpll0_1_2_gpll0_map[] = {
 	{ P_MMPLL2, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_2_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_2_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -105,7 +105,7 @@ static const struct parent_map mmcc_xo_mmpll0_1_3_gpll0_map[] = {
 	{ P_MMPLL3, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_3_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_3_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -121,7 +121,7 @@ static const struct parent_map mmcc_xo_mmpll0_1_gpll1_0_map[] = {
 	{ P_GPLL1, 4 }
 };
 
-static const char *mmcc_xo_mmpll0_1_gpll1_0[] = {
+static const char * const mmcc_xo_mmpll0_1_gpll1_0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -138,7 +138,7 @@ static const struct parent_map mmcc_xo_dsi_hdmi_edp_map[] = {
 	{ P_DSI1PLL, 2 }
 };
 
-static const char *mmcc_xo_dsi_hdmi_edp[] = {
+static const char * const mmcc_xo_dsi_hdmi_edp[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -156,7 +156,7 @@ static const struct parent_map mmcc_xo_dsi_hdmi_edp_gpll0_map[] = {
 	{ P_DSI1PLL, 2 }
 };
 
-static const char *mmcc_xo_dsi_hdmi_edp_gpll0[] = {
+static const char * const mmcc_xo_dsi_hdmi_edp_gpll0[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -174,7 +174,7 @@ static const struct parent_map mmcc_xo_dsibyte_hdmi_edp_gpll0_map[] = {
 	{ P_DSI1PLL_BYTE, 2 }
 };
 
-static const char *mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
+static const char * const mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",

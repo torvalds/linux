@@ -6,6 +6,7 @@
  * as published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -26,7 +27,7 @@
 struct lmac {
 	struct bgx		*bgx;
 	int			dmac;
-	unsigned char		mac[ETH_ALEN];
+	u8			mac[ETH_ALEN];
 	bool			link_up;
 	int			lmacid; /* ID within BGX */
 	int			lmacid_bd; /* ID on board */
@@ -327,6 +328,37 @@ static void bgx_flush_dmac_addrs(struct bgx *bgx, int lmac)
 		bgx->lmac[lmac].dmac--;
 	}
 }
+
+/* Configure BGX LMAC in internal loopback mode */
+void bgx_lmac_internal_loopback(int node, int bgx_idx,
+				int lmac_idx, bool enable)
+{
+	struct bgx *bgx;
+	struct lmac *lmac;
+	u64    cfg;
+
+	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	if (!bgx)
+		return;
+
+	lmac = &bgx->lmac[lmac_idx];
+	if (lmac->is_sgmii) {
+		cfg = bgx_reg_read(bgx, lmac_idx, BGX_GMP_PCS_MRX_CTL);
+		if (enable)
+			cfg |= PCS_MRX_CTL_LOOPBACK1;
+		else
+			cfg &= ~PCS_MRX_CTL_LOOPBACK1;
+		bgx_reg_write(bgx, lmac_idx, BGX_GMP_PCS_MRX_CTL, cfg);
+	} else {
+		cfg = bgx_reg_read(bgx, lmac_idx, BGX_SPUX_CONTROL1);
+		if (enable)
+			cfg |= SPU_CTL_LOOPBACK;
+		else
+			cfg &= ~SPU_CTL_LOOPBACK;
+		bgx_reg_write(bgx, lmac_idx, BGX_SPUX_CONTROL1, cfg);
+	}
+}
+EXPORT_SYMBOL(bgx_lmac_internal_loopback);
 
 static int bgx_lmac_sgmii_init(struct bgx *bgx, int lmacid)
 {
@@ -835,18 +867,108 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 	}
 }
 
-static void bgx_init_of(struct bgx *bgx, struct device_node *np)
+#ifdef CONFIG_ACPI
+
+static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
 {
+	u8 mac[ETH_ALEN];
+	int ret;
+
+	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
+					    "mac-address", mac, ETH_ALEN);
+	if (ret)
+		goto out;
+
+	if (!is_valid_ether_addr(mac)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	memcpy(dst, mac, ETH_ALEN);
+out:
+	return ret;
+}
+
+/* Currently only sets the MAC address. */
+static acpi_status bgx_acpi_register_phy(acpi_handle handle,
+					 u32 lvl, void *context, void **rv)
+{
+	struct bgx *bgx = context;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		goto out;
+
+	acpi_get_mac_address(adev, bgx->lmac[bgx->lmac_count].mac);
+
+	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, &bgx->pdev->dev);
+
+	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
+out:
+	bgx->lmac_count++;
+	return AE_OK;
+}
+
+static acpi_status bgx_acpi_match_id(acpi_handle handle, u32 lvl,
+				     void *context, void **ret_val)
+{
+	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct bgx *bgx = context;
+	char bgx_sel[5];
+
+	snprintf(bgx_sel, 5, "BGX%d", bgx->bgx_id);
+	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &string))) {
+		pr_warn("Invalid link device\n");
+		return AE_OK;
+	}
+
+	if (strncmp(string.pointer, bgx_sel, 4))
+		return AE_OK;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+			    bgx_acpi_register_phy, NULL, bgx, NULL);
+
+	kfree(string.pointer);
+	return AE_CTRL_TERMINATE;
+}
+
+static int bgx_init_acpi_phy(struct bgx *bgx)
+{
+	acpi_get_devices(NULL, bgx_acpi_match_id, bgx, (void **)NULL);
+	return 0;
+}
+
+#else
+
+static int bgx_init_acpi_phy(struct bgx *bgx)
+{
+	return -ENODEV;
+}
+
+#endif /* CONFIG_ACPI */
+
+#if IS_ENABLED(CONFIG_OF_MDIO)
+
+static int bgx_init_of_phy(struct bgx *bgx)
+{
+	struct device_node *np;
 	struct device_node *np_child;
 	u8 lmac = 0;
+	char bgx_sel[5];
+	const char *mac;
+
+	/* Get BGX node from DT */
+	snprintf(bgx_sel, 5, "bgx%d", bgx->bgx_id);
+	np = of_find_node_by_name(NULL, bgx_sel);
+	if (!np)
+		return -ENODEV;
 
 	for_each_child_of_node(np, np_child) {
-		struct device_node *phy_np;
-		const char *mac;
-
-		phy_np = of_parse_phandle(np_child, "phy-handle", 0);
-		if (phy_np)
-			bgx->lmac[lmac].phydev = of_phy_find_device(phy_np);
+		struct device_node *phy_np = of_parse_phandle(np_child,
+							      "phy-handle", 0);
+		if (!phy_np)
+			continue;
+		bgx->lmac[lmac].phydev = of_phy_find_device(phy_np);
 
 		mac = of_get_mac_address(np_child);
 		if (mac)
@@ -858,6 +980,24 @@ static void bgx_init_of(struct bgx *bgx, struct device_node *np)
 		if (lmac == MAX_LMAC_PER_BGX)
 			break;
 	}
+	return 0;
+}
+
+#else
+
+static int bgx_init_of_phy(struct bgx *bgx)
+{
+	return -ENODEV;
+}
+
+#endif /* CONFIG_OF_MDIO */
+
+static int bgx_init_phy(struct bgx *bgx)
+{
+	if (!acpi_disabled)
+		return bgx_init_acpi_phy(bgx);
+
+	return bgx_init_of_phy(bgx);
 }
 
 static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -865,8 +1005,6 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 	struct device *dev = &pdev->dev;
 	struct bgx *bgx = NULL;
-	struct device_node *np;
-	char bgx_sel[5];
 	u8 lmac;
 
 	bgx = devm_kzalloc(dev, sizeof(*bgx), GFP_KERNEL);
@@ -902,10 +1040,9 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bgx_vnic[bgx->bgx_id] = bgx;
 	bgx_get_qlm_mode(bgx);
 
-	snprintf(bgx_sel, 5, "bgx%d", bgx->bgx_id);
-	np = of_find_node_by_name(NULL, bgx_sel);
-	if (np)
-		bgx_init_of(bgx, np);
+	err = bgx_init_phy(bgx);
+	if (err)
+		goto err_enable;
 
 	bgx_init_hw(bgx);
 

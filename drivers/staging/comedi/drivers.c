@@ -820,7 +820,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			 "driver '%s' does not support attach using comedi_config\n",
 			 driv->driver_name);
 		module_put(driv->module);
-		ret = -ENOSYS;
+		ret = -EIO;
 		goto out;
 	}
 	dev->driver = driv;

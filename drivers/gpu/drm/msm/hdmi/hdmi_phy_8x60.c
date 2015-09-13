@@ -29,37 +29,6 @@ static void hdmi_phy_8x60_destroy(struct hdmi_phy *phy)
 	kfree(phy_8x60);
 }
 
-static void hdmi_phy_8x60_reset(struct hdmi_phy *phy)
-{
-	struct hdmi_phy_8x60 *phy_8x60 = to_hdmi_phy_8x60(phy);
-	struct hdmi *hdmi = phy_8x60->hdmi;
-	unsigned int val;
-
-	val = hdmi_read(hdmi, REG_HDMI_PHY_CTRL);
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET);
-	} else {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET);
-	}
-
-	msleep(100);
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET);
-	} else {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET);
-	}
-}
-
 static void hdmi_phy_8x60_powerup(struct hdmi_phy *phy,
 		unsigned long int pixclock)
 {
@@ -182,7 +151,6 @@ static void hdmi_phy_8x60_powerdown(struct hdmi_phy *phy)
 
 static const struct hdmi_phy_funcs hdmi_phy_8x60_funcs = {
 		.destroy = hdmi_phy_8x60_destroy,
-		.reset = hdmi_phy_8x60_reset,
 		.powerup = hdmi_phy_8x60_powerup,
 		.powerdown = hdmi_phy_8x60_powerdown,
 };

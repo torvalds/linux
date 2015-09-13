@@ -160,13 +160,13 @@ static int mp_start_test(struct _adapter *padapter)
 	struct mp_priv *pmppriv = &padapter->mppriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
-	struct ndis_wlan_bssid_ex bssid;
+	struct wlan_bssid_ex bssid;
 	struct sta_info *psta;
 	unsigned long length;
 	unsigned long irqL;
 	int res = _SUCCESS;
 
-	/* 3 1. initialize a new struct ndis_wlan_bssid_ex */
+	/* 3 1. initialize a new struct wlan_bssid_ex */
 	memcpy(bssid.MacAddress, pmppriv->network_macaddr, ETH_ALEN);
 	bssid.Ssid.SsidLength = 16;
 	memcpy(bssid.Ssid.Ssid, (unsigned char *)"mp_pseudo_adhoc",
@@ -174,7 +174,7 @@ static int mp_start_test(struct _adapter *padapter)
 	bssid.InfrastructureMode = Ndis802_11IBSS;
 	bssid.NetworkTypeInUse = Ndis802_11DS;
 	bssid.IELength = 0;
-	length = r8712_get_ndis_wlan_bssid_ex_sz(&bssid);
+	length = r8712_get_wlan_bssid_ex_sz(&bssid);
 	if (length % 4) {
 		/*round up to multiple of 4 bytes.*/
 		bssid.Length = ((length >> 2) + 1) << 2;

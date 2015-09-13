@@ -140,7 +140,6 @@ MODULE_DEVICE_TABLE(of, adc081c_of_match);
 static struct i2c_driver adc081c_driver = {
 	.driver = {
 		.name = "adc081c",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(adc081c_of_match),
 	},
 	.probe = adc081c_probe,

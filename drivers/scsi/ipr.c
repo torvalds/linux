@@ -1165,7 +1165,8 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 
 	if (ioa_cfg->sis64) {
 		proto = cfgtew->u.cfgte64->proto;
-		res->res_flags = cfgtew->u.cfgte64->res_flags;
+		res->flags = be16_to_cpu(cfgtew->u.cfgte64->flags);
+		res->res_flags = be16_to_cpu(cfgtew->u.cfgte64->res_flags);
 		res->qmodel = IPR_QUEUEING_MODEL64(res);
 		res->type = cfgtew->u.cfgte64->res_type;
 
@@ -1313,8 +1314,8 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 	int new_path = 0;
 
 	if (res->ioa_cfg->sis64) {
-		res->flags = cfgtew->u.cfgte64->flags;
-		res->res_flags = cfgtew->u.cfgte64->res_flags;
+		res->flags = be16_to_cpu(cfgtew->u.cfgte64->flags);
+		res->res_flags = be16_to_cpu(cfgtew->u.cfgte64->res_flags);
 		res->type = cfgtew->u.cfgte64->res_type;
 
 		memcpy(&res->std_inq_data, &cfgtew->u.cfgte64->std_inq_data,
@@ -1900,7 +1901,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
  * Return value:
  * 	none
  **/
-static void ipr_log_hex_data(struct ipr_ioa_cfg *ioa_cfg, u32 *data, int len)
+static void ipr_log_hex_data(struct ipr_ioa_cfg *ioa_cfg, __be32 *data, int len)
 {
 	int i;
 
@@ -2270,7 +2271,7 @@ static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 			((unsigned long)fabric + be16_to_cpu(fabric->length));
 	}
 
-	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
+	ipr_log_hex_data(ioa_cfg, (__be32 *)fabric, add_len);
 }
 
 /**
@@ -2364,7 +2365,7 @@ static void ipr_log_sis64_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 			((unsigned long)fabric + be16_to_cpu(fabric->length));
 	}
 
-	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
+	ipr_log_hex_data(ioa_cfg, (__be32 *)fabric, add_len);
 }
 
 /**
@@ -4455,7 +4456,7 @@ static ssize_t ipr_show_device_id(struct device *dev, struct device_attribute *a
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
 	if (res && ioa_cfg->sis64)
-		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->dev_id);
+		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", be64_to_cpu(res->dev_id));
 	else if (res)
 		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->lun_wwn);
 
@@ -4554,7 +4555,7 @@ static ssize_t ipr_store_raw_mode(struct device *dev,
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
 	if (res) {
-		if (ioa_cfg->sis64 && ipr_is_af_dasd_device(res)) {
+		if (ipr_is_af_dasd_device(res)) {
 			res->raw_mode = simple_strtoul(buf, NULL, 10);
 			len = strlen(buf);
 			if (res->sdev)
@@ -6382,8 +6383,12 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
 	}
-	if (res->raw_mode && ipr_is_af_dasd_device(res))
+	if (res->raw_mode && ipr_is_af_dasd_device(res)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_PIPE;
+
+		if (scsi_cmd->underflow == 0)
+			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
+	}
 
 	if (ioa_cfg->sis64)
 		rc = ipr_build_ioadl64(ioa_cfg, ipr_cmd);

@@ -41,7 +41,7 @@
  * =======
  *
  * Each ICS has a spin lock protecting the information about the IRQ
- * sources and avoiding simultaneous deliveries if the same interrupt.
+ * sources and avoiding simultaneous deliveries of the same interrupt.
  *
  * ICP operations are done via a single compare & swap transaction
  * (most ICP state fits in the union kvmppc_icp_state)

@@ -327,6 +327,14 @@ static int netback_probe(struct xenbus_device *dev,
 			goto abort_transaction;
 		}
 
+		/* We support multicast-control. */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "feature-multicast-control", "%d", 1);
+		if (err) {
+			message = "writing feature-multicast-control";
+			goto abort_transaction;
+		}
+
 		err = xenbus_transaction_end(xbt, 0);
 	} while (err == -EAGAIN);
 
@@ -1015,6 +1023,11 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 			 "%d", &val) < 0)
 		val = 0;
 	vif->ipv6_csum = !!val;
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "request-multicast-control",
+			 "%d", &val) < 0)
+		val = 0;
+	vif->multicast_control = !!val;
 
 	return 0;
 }

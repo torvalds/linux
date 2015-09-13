@@ -114,7 +114,7 @@ static int sun9i_usb_phy_exit(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops sun9i_usb_phy_ops = {
+static const struct phy_ops sun9i_usb_phy_ops = {
 	.init		= sun9i_usb_phy_init,
 	.exit		= sun9i_usb_phy_exit,
 	.owner		= THIS_MODULE,

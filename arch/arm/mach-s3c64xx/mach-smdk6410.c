@@ -68,9 +68,9 @@
 #include <plat/adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/keypad.h>
-#include <plat/backlight.h>
 #include <plat/samsung-time.h>
 
+#include "backlight.h"
 #include "common.h"
 #include "regs-modem.h"
 #include "regs-srom.h"

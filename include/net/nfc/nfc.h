@@ -203,6 +203,7 @@ struct nfc_dev {
 	int n_vendor_cmds;
 
 	struct nfc_ops *ops;
+	struct genl_info *cur_cmd_info;
 };
 #define to_nfc_dev(_dev) container_of(_dev, struct nfc_dev, dev)
 
@@ -316,6 +317,46 @@ static inline int nfc_set_vendor_cmds(struct nfc_dev *dev,
 	dev->n_vendor_cmds = n_cmds;
 
 	return 0;
+}
+
+struct sk_buff *__nfc_alloc_vendor_cmd_reply_skb(struct nfc_dev *dev,
+						 enum nfc_attrs attr,
+						 u32 oui, u32 subcmd,
+						 int approxlen);
+int nfc_vendor_cmd_reply(struct sk_buff *skb);
+
+/**
+ * nfc_vendor_cmd_alloc_reply_skb - allocate vendor command reply
+ * @dev: nfc device
+ * @oui: vendor oui
+ * @approxlen: an upper bound of the length of the data that will
+ *      be put into the skb
+ *
+ * This function allocates and pre-fills an skb for a reply to
+ * a vendor command. Since it is intended for a reply, calling
+ * it outside of a vendor command's doit() operation is invalid.
+ *
+ * The returned skb is pre-filled with some identifying data in
+ * a way that any data that is put into the skb (with skb_put(),
+ * nla_put() or similar) will end up being within the
+ * %NFC_ATTR_VENDOR_DATA attribute, so all that needs to be done
+ * with the skb is adding data for the corresponding userspace tool
+ * which can then read that data out of the vendor data attribute.
+ * You must not modify the skb in any other way.
+ *
+ * When done, call nfc_vendor_cmd_reply() with the skb and return
+ * its error code as the result of the doit() operation.
+ *
+ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+ */
+static inline struct sk_buff *
+nfc_vendor_cmd_alloc_reply_skb(struct nfc_dev *dev,
+				u32 oui, u32 subcmd, int approxlen)
+{
+	return __nfc_alloc_vendor_cmd_reply_skb(dev,
+						NFC_ATTR_VENDOR_DATA,
+						oui,
+						subcmd, approxlen);
 }
 
 #endif /* __NET_NFC_H */

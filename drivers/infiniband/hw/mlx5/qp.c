@@ -76,11 +76,6 @@ static int is_qp0(enum ib_qp_type qp_type)
 	return qp_type == IB_QPT_SMI;
 }
 
-static int is_qp1(enum ib_qp_type qp_type)
-{
-	return qp_type == IB_QPT_GSI;
-}
-
 static int is_sqp(enum ib_qp_type qp_type)
 {
 	return is_qp0(qp_type) || is_qp1(qp_type);

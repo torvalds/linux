@@ -20,7 +20,7 @@ Optional subnode-properties:
 	  If not specified defaults to <1> == EV_KEY.
 	- debounce-interval: Debouncing interval time in milliseconds.
 	  If not specified defaults to 5.
-	- gpio-key,wakeup: Boolean, button can wake-up the system.
+	- wakeup-source: Boolean, button can wake-up the system.
 
 Example nodes:
 

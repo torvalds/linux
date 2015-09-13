@@ -112,7 +112,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 void ist_enter(struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
-		CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+		RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	} else {
 		/*
 		 * We might have interrupted pretty much anything.  In
@@ -132,7 +132,7 @@ void ist_enter(struct pt_regs *regs)
 	preempt_count_add(HARDIRQ_OFFSET);
 
 	/* This code is a bit fragile.  Test it. */
-	rcu_lockdep_assert(rcu_is_watching(), "ist_enter didn't work");
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "ist_enter didn't work");
 }
 
 void ist_exit(struct pt_regs *regs)
@@ -282,7 +282,7 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 {
 	siginfo_t info;
 
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
@@ -364,7 +364,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	const struct bndcsr *bndcsr;
 	siginfo_t *info;
 
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
 		return;
@@ -442,7 +442,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk;
 
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	conditional_sti(regs);
 
 	if (v8086_mode(regs)) {
@@ -496,7 +496,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 		return;
 
 	ist_enter(regs);
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -729,14 +729,14 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	math_error(regs, error_code, X86_TRAP_MF);
 }
 
 dotraplinkage void
 do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	math_error(regs, error_code, X86_TRAP_XF);
 }
 
@@ -749,7 +749,7 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	BUG_ON(use_eager_fpu());
 
 #ifdef CONFIG_MATH_EMULATION
@@ -775,7 +775,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 {
 	siginfo_t info;
 
-	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	local_irq_enable();
 
 	info.si_signo = SIGILL;

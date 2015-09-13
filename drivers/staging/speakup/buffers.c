@@ -63,7 +63,8 @@ void synth_buffer_add(char ch)
 {
 	if (!synth->alive) {
 		/* This makes sure that we won't stop TTYs if there is no synth
-		 * to restart them */
+		 * to restart them
+		 */
 		return;
 	}
 	if (synth_buffer_free() <= 100) {

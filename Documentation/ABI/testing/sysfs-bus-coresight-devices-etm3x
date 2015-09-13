@@ -112,7 +112,7 @@ KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Mask to apply to all the context ID comparator.
 
-What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_val
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_pid
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>

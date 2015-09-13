@@ -50,7 +50,12 @@ static inline struct mpls_entry_decoded mpls_entry_decode(struct mpls_shim_hdr *
 	return result;
 }
 
-int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels, const u32 label[]);
-int nla_get_labels(const struct nlattr *nla, u32 max_labels, u32 *labels, u32 label[]);
+int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels,
+		   const u32 label[]);
+int nla_get_labels(const struct nlattr *nla, u32 max_labels, u32 *labels,
+		   u32 label[]);
+bool mpls_output_possible(const struct net_device *dev);
+unsigned int mpls_dev_mtu(const struct net_device *dev);
+bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu);
 
 #endif /* MPLS_INTERNAL_H */

@@ -92,7 +92,7 @@ static unsigned int fq_codel_classify(struct sk_buff *skb, struct Qdisc *sch,
 		return fq_codel_hash(q, skb) + 1;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tc_classify(skb, filter, &res);
+	result = tc_classify(skb, filter, &res, false);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
@@ -288,10 +288,26 @@ begin:
 
 static void fq_codel_reset(struct Qdisc *sch)
 {
-	struct sk_buff *skb;
+	struct fq_codel_sched_data *q = qdisc_priv(sch);
+	int i;
 
-	while ((skb = fq_codel_dequeue(sch)) != NULL)
-		kfree_skb(skb);
+	INIT_LIST_HEAD(&q->new_flows);
+	INIT_LIST_HEAD(&q->old_flows);
+	for (i = 0; i < q->flows_cnt; i++) {
+		struct fq_codel_flow *flow = q->flows + i;
+
+		while (flow->head) {
+			struct sk_buff *skb = dequeue_head(flow);
+
+			qdisc_qstats_backlog_dec(sch, skb);
+			kfree_skb(skb);
+		}
+
+		INIT_LIST_HEAD(&flow->flowchain);
+		codel_vars_init(&flow->cvars);
+	}
+	memset(q->backlogs, 0, q->flows_cnt * sizeof(u32));
+	sch->q.qlen = 0;
 }
 
 static const struct nla_policy fq_codel_policy[TCA_FQ_CODEL_MAX + 1] = {

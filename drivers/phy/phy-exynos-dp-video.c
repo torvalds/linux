@@ -48,7 +48,7 @@ static int exynos_dp_video_phy_power_off(struct phy *phy)
 				  EXYNOS5_PHY_ENABLE, 0);
 }
 
-static struct phy_ops exynos_dp_video_phy_ops = {
+static const struct phy_ops exynos_dp_video_phy_ops = {
 	.power_on	= exynos_dp_video_phy_power_on,
 	.power_off	= exynos_dp_video_phy_power_off,
 	.owner		= THIS_MODULE,

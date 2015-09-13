@@ -318,18 +318,14 @@ static int nxp_nci_i2c_acpi_config(struct nxp_nci_i2c_phy *phy)
 	struct i2c_client *client = phy->i2c_dev;
 	struct gpio_desc *gpiod_en, *gpiod_fw, *gpiod_irq;
 
-	gpiod_en = devm_gpiod_get_index(&client->dev, NULL, 2);
-	gpiod_fw = devm_gpiod_get_index(&client->dev, NULL, 1);
-	gpiod_irq = devm_gpiod_get_index(&client->dev, NULL, 0);
+	gpiod_en = devm_gpiod_get_index(&client->dev, NULL, 2, GPIOD_OUT_LOW);
+	gpiod_fw = devm_gpiod_get_index(&client->dev, NULL, 1, GPIOD_OUT_LOW);
+	gpiod_irq = devm_gpiod_get_index(&client->dev, NULL, 0, GPIOD_IN);
 
 	if (IS_ERR(gpiod_en) || IS_ERR(gpiod_fw) || IS_ERR(gpiod_irq)) {
 		nfc_err(&client->dev, "No GPIOs\n");
 		return -EINVAL;
 	}
-
-	gpiod_direction_output(gpiod_en, 0);
-	gpiod_direction_output(gpiod_fw, 0);
-	gpiod_direction_input(gpiod_irq);
 
 	client->irq = gpiod_to_irq(gpiod_irq);
 	if (client->irq < 0) {

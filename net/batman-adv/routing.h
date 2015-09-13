@@ -22,10 +22,6 @@
 
 #include <linux/types.h>
 
-struct batadv_hard_iface;
-struct batadv_neigh_node;
-struct batadv_orig_node;
-struct batadv_priv;
 struct sk_buff;
 
 bool batadv_check_management_packet(struct sk_buff *skb,
@@ -55,7 +51,7 @@ struct batadv_neigh_node *
 batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
 		   struct batadv_hard_iface *recv_if);
-int batadv_window_protected(struct batadv_priv *bat_priv, int32_t seq_num_diff,
+int batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
 			    unsigned long *last_reset);
 
 #endif /* _NET_BATMAN_ADV_ROUTING_H_ */
