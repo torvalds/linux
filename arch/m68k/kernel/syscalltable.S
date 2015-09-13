@@ -394,3 +394,4 @@ ENTRY(sys_call_table)
 	.long sys_recvmmsg
 	.long sys_sendmmsg
 	.long sys_userfaultfd
+	.long sys_membarrier
