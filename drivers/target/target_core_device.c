@@ -427,8 +427,6 @@ void core_disable_device_list_for_node(
 
 	hlist_del_rcu(&orig->link);
 	clear_bit(DEF_PR_REG_ACTIVE, &orig->deve_flags);
-	rcu_assign_pointer(orig->se_lun, NULL);
-	rcu_assign_pointer(orig->se_lun_acl, NULL);
 	orig->lun_flags = 0;
 	orig->creation_time = 0;
 	orig->attach_count--;
@@ -438,6 +436,9 @@ void core_disable_device_list_for_node(
 	 */
 	kref_put(&orig->pr_kref, target_pr_kref_release);
 	wait_for_completion(&orig->pr_comp);
+
+	rcu_assign_pointer(orig->se_lun, NULL);
+	rcu_assign_pointer(orig->se_lun_acl, NULL);
 
 	kfree_rcu(orig, rcu_head);
 
