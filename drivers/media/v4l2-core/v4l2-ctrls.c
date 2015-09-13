@@ -1678,21 +1678,6 @@ static int validate_new(const struct v4l2_ctrl *ctrl, union v4l2_ctrl_ptr p_new)
 	unsigned idx;
 	int err = 0;
 
-	if (!ctrl->is_ptr) {
-		switch (ctrl->type) {
-		case V4L2_CTRL_TYPE_INTEGER:
-		case V4L2_CTRL_TYPE_INTEGER_MENU:
-		case V4L2_CTRL_TYPE_MENU:
-		case V4L2_CTRL_TYPE_BITMASK:
-		case V4L2_CTRL_TYPE_BOOLEAN:
-		case V4L2_CTRL_TYPE_BUTTON:
-		case V4L2_CTRL_TYPE_CTRL_CLASS:
-		case V4L2_CTRL_TYPE_INTEGER64:
-			return ctrl->type_ops->validate(ctrl, 0, p_new);
-		default:
-			break;
-		}
-	}
 	for (idx = 0; !err && idx < ctrl->elems; idx++)
 		err = ctrl->type_ops->validate(ctrl, idx, p_new);
 	return err;

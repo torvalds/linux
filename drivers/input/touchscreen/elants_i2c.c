@@ -38,6 +38,8 @@
 #include <linux/input/mt.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 #include <asm/unaligned.h>
 
 /* Device, Driver information */
@@ -100,7 +102,10 @@
 #define ELAN_FW_PAGESIZE	132
 
 /* calibration timeout definition */
-#define ELAN_CALI_TIMEOUT_MSEC	10000
+#define ELAN_CALI_TIMEOUT_MSEC	12000
+
+#define ELAN_POWERON_DELAY_USEC	500
+#define ELAN_RESET_DELAY_MSEC	20
 
 enum elants_state {
 	ELAN_STATE_NORMAL,
@@ -117,6 +122,10 @@ enum elants_iap_mode {
 struct elants_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+
+	struct regulator *vcc33;
+	struct regulator *vccio;
+	struct gpio_desc *reset_gpio;
 
 	u16 fw_version;
 	u8 test_version;
@@ -141,6 +150,7 @@ struct elants_data {
 	u8 buf[MAX_PACKET_SIZE];
 
 	bool wake_irq_enabled;
+	bool keep_power_in_suspend;
 };
 
 static int elants_i2c_send(struct i2c_client *client,
@@ -605,6 +615,7 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 	const u8 enter_iap[] = { 0x45, 0x49, 0x41, 0x50 };
 	const u8 enter_iap2[] = { 0x54, 0x00, 0x12, 0x34 };
 	const u8 iap_ack[] = { 0x55, 0xaa, 0x33, 0xcc };
+	const u8 close_idle[] = {0x54, 0x2c, 0x01, 0x01};
 	u8 buf[HEADER_SIZE];
 	u16 send_id;
 	int page, n_fw_pages;
@@ -617,8 +628,13 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 	} else {
 		/* Start IAP Procedure */
 		dev_dbg(&client->dev, "Normal IAP procedure\n");
+		/* Close idle mode */
+		error = elants_i2c_send(client, close_idle, sizeof(close_idle));
+		if (error)
+			dev_err(&client->dev, "Failed close idle: %d\n", error);
+		msleep(60);
 		elants_i2c_sw_reset(client);
-
+		msleep(20);
 		error = elants_i2c_send(client, enter_iap, sizeof(enter_iap));
 	}
 
@@ -1052,6 +1068,67 @@ static void elants_i2c_remove_sysfs_group(void *_data)
 	sysfs_remove_group(&ts->client->dev.kobj, &elants_attribute_group);
 }
 
+static int elants_i2c_power_on(struct elants_data *ts)
+{
+	int error;
+
+	/*
+	 * If we do not have reset gpio assume platform firmware
+	 * controls regulators and does power them on for us.
+	 */
+	if (IS_ERR_OR_NULL(ts->reset_gpio))
+		return 0;
+
+	gpiod_set_value_cansleep(ts->reset_gpio, 1);
+
+	error = regulator_enable(ts->vcc33);
+	if (error) {
+		dev_err(&ts->client->dev,
+			"failed to enable vcc33 regulator: %d\n",
+			error);
+		goto release_reset_gpio;
+	}
+
+	error = regulator_enable(ts->vccio);
+	if (error) {
+		dev_err(&ts->client->dev,
+			"failed to enable vccio regulator: %d\n",
+			error);
+		regulator_disable(ts->vcc33);
+		goto release_reset_gpio;
+	}
+
+	/*
+	 * We need to wait a bit after powering on controller before
+	 * we are allowed to release reset GPIO.
+	 */
+	udelay(ELAN_POWERON_DELAY_USEC);
+
+release_reset_gpio:
+	gpiod_set_value_cansleep(ts->reset_gpio, 0);
+	if (error)
+		return error;
+
+	msleep(ELAN_RESET_DELAY_MSEC);
+
+	return 0;
+}
+
+static void elants_i2c_power_off(void *_data)
+{
+	struct elants_data *ts = _data;
+
+	if (!IS_ERR_OR_NULL(ts->reset_gpio)) {
+		/*
+		 * Activate reset gpio to prevent leakage through the
+		 * pin once we shut off power to the controller.
+		 */
+		gpiod_set_value_cansleep(ts->reset_gpio, 1);
+		regulator_disable(ts->vccio);
+		regulator_disable(ts->vcc33);
+	}
+}
+
 static int elants_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
@@ -1066,13 +1143,6 @@ static int elants_i2c_probe(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	/* Make sure there is something at this address */
-	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
-			I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&client->dev, "nothing at this address\n");
-		return -ENXIO;
-	}
-
 	ts = devm_kzalloc(&client->dev, sizeof(struct elants_data), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
@@ -1082,6 +1152,62 @@ static int elants_i2c_probe(struct i2c_client *client,
 
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
+
+	ts->vcc33 = devm_regulator_get(&client->dev, "vcc33");
+	if (IS_ERR(ts->vcc33)) {
+		error = PTR_ERR(ts->vcc33);
+		if (error != -EPROBE_DEFER)
+			dev_err(&client->dev,
+				"Failed to get 'vcc33' regulator: %d\n",
+				error);
+		return error;
+	}
+
+	ts->vccio = devm_regulator_get(&client->dev, "vccio");
+	if (IS_ERR(ts->vccio)) {
+		error = PTR_ERR(ts->vccio);
+		if (error != -EPROBE_DEFER)
+			dev_err(&client->dev,
+				"Failed to get 'vccio' regulator: %d\n",
+				error);
+		return error;
+	}
+
+	ts->reset_gpio = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(ts->reset_gpio)) {
+		error = PTR_ERR(ts->reset_gpio);
+
+		if (error == -EPROBE_DEFER)
+			return error;
+
+		if (error != -ENOENT && error != -ENOSYS) {
+			dev_err(&client->dev,
+				"failed to get reset gpio: %d\n",
+				error);
+			return error;
+		}
+
+		ts->keep_power_in_suspend = true;
+	}
+
+	error = elants_i2c_power_on(ts);
+	if (error)
+		return error;
+
+	error = devm_add_action(&client->dev, elants_i2c_power_off, ts);
+	if (error) {
+		dev_err(&client->dev,
+			"failed to install power off action: %d\n", error);
+		elants_i2c_power_off(ts);
+		return error;
+	}
+
+	/* Make sure there is something at this address */
+	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
+			   I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
+		dev_err(&client->dev, "nothing at this address\n");
+		return -ENXIO;
+	}
 
 	error = elants_i2c_initialize(ts);
 	if (error) {
@@ -1190,17 +1316,23 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 
 	disable_irq(client->irq);
 
-	for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
-		error = elants_i2c_send(client, set_sleep_cmd,
-					sizeof(set_sleep_cmd));
-		if (!error)
-			break;
+	if (device_may_wakeup(dev) || ts->keep_power_in_suspend) {
+		for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
+			error = elants_i2c_send(client, set_sleep_cmd,
+						sizeof(set_sleep_cmd));
+			if (!error)
+				break;
 
-		dev_err(&client->dev, "suspend command failed: %d\n", error);
+			dev_err(&client->dev,
+				"suspend command failed: %d\n", error);
+		}
+
+		if (device_may_wakeup(dev))
+			ts->wake_irq_enabled =
+					(enable_irq_wake(client->irq) == 0);
+	} else {
+		elants_i2c_power_off(ts);
 	}
-
-	if (device_may_wakeup(dev))
-		ts->wake_irq_enabled = (enable_irq_wake(client->irq) == 0);
 
 	return 0;
 }
@@ -1216,13 +1348,19 @@ static int __maybe_unused elants_i2c_resume(struct device *dev)
 	if (device_may_wakeup(dev) && ts->wake_irq_enabled)
 		disable_irq_wake(client->irq);
 
-	for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
-		error = elants_i2c_send(client, set_active_cmd,
-					sizeof(set_active_cmd));
-		if (!error)
-			break;
+	if (ts->keep_power_in_suspend) {
+		for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
+			error = elants_i2c_send(client, set_active_cmd,
+						sizeof(set_active_cmd));
+			if (!error)
+				break;
 
-		dev_err(&client->dev, "resume command failed: %d\n", error);
+			dev_err(&client->dev,
+				"resume command failed: %d\n", error);
+		}
+	} else {
+		elants_i2c_power_on(ts);
+		elants_i2c_initialize(ts);
 	}
 
 	ts->state = ELAN_STATE_NORMAL;
@@ -1261,10 +1399,10 @@ static struct i2c_driver elants_i2c_driver = {
 	.id_table = elants_i2c_id,
 	.driver = {
 		.name = DEVICE_NAME,
-		.owner = THIS_MODULE,
 		.pm = &elants_i2c_pm_ops,
 		.acpi_match_table = ACPI_PTR(elants_acpi_id),
 		.of_match_table = of_match_ptr(elants_of_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 module_i2c_driver(elants_i2c_driver);

@@ -1,6 +1,9 @@
 #!/bin/sh
 PARAM="-npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1"
 RES=`indent --version`
+if [ "$RES" = "" ]; then
+	exit 1
+fi
 V1=`echo $RES | cut -d' ' -f3 | cut -d'.' -f1`
 V2=`echo $RES | cut -d' ' -f3 | cut -d'.' -f2`
 V3=`echo $RES | cut -d' ' -f3 | cut -d'.' -f3`

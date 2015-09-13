@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,6 +28,7 @@
 #include "vmwgfx_drv.h"
 #include <drm/vmwgfx_drm.h>
 #include "vmwgfx_kms.h"
+#include "device_include/svga3d_caps.h"
 
 struct svga_3d_compat_cap {
 	SVGA3dCapsRecordHeader header;
@@ -63,7 +64,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
-		__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		u32 __iomem *fifo_mem = dev_priv->mmio_virt;
 		const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
 		if ((dev_priv->capabilities & SVGA_CAP_GBOBJECTS)) {
@@ -104,6 +105,13 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_VMW_PARAM_MAX_MOB_SIZE:
 		param->value = dev_priv->max_mob_size;
+		break;
+	case DRM_VMW_PARAM_SCREEN_TARGET:
+		param->value =
+			(dev_priv->active_display_unit == vmw_du_screen_target);
+		break;
+	case DRM_VMW_PARAM_DX:
+		param->value = dev_priv->has_dx;
 		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
@@ -154,7 +162,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_get_3d_cap_arg *) data;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t size;
-	__le32 __iomem *fifo_mem;
+	u32 __iomem *fifo_mem;
 	void __user *buffer = (void __user *)((unsigned long)(arg->buffer));
 	void *bounce;
 	int ret;
@@ -235,7 +243,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	num_clips = arg->num_clips;
-	clips_ptr = (struct drm_vmw_rect *)(unsigned long)arg->clips_ptr;
+	clips_ptr = (struct drm_vmw_rect __user *)(unsigned long)arg->clips_ptr;
 
 	if (unlikely(num_clips == 0))
 		return 0;
@@ -318,7 +326,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	num_clips = arg->num_clips;
-	clips_ptr = (struct drm_vmw_rect *)(unsigned long)arg->clips_ptr;
+	clips_ptr = (struct drm_vmw_rect __user *)(unsigned long)arg->clips_ptr;
 
 	if (unlikely(num_clips == 0))
 		return 0;

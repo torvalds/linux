@@ -97,6 +97,7 @@ config MFD_CROS_EC
 	select MFD_CORE
 	select CHROME_PLATFORMS
 	select CROS_EC_PROTO
+	depends on X86 || ARM || COMPILE_TEST
 	help
 	  If you say Y here you get support for the ChromeOS Embedded
 	  Controller (EC) providing keyboard, battery and power services.
@@ -105,7 +106,7 @@ config MFD_CROS_EC
 
 config MFD_CROS_EC_I2C
 	tristate "ChromeOS Embedded Controller (I2C)"
-	depends on MFD_CROS_EC && CROS_EC_PROTO && I2C
+	depends on MFD_CROS_EC && I2C
 
 	help
 	  If you say Y here, you get support for talking to the ChromeOS
@@ -115,7 +116,7 @@ config MFD_CROS_EC_I2C
 
 config MFD_CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && CROS_EC_PROTO && SPI
+	depends on MFD_CROS_EC && SPI
 
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC
@@ -185,6 +186,18 @@ config MFD_DA9055
 
 	  This driver can be built as a module. If built as a module it will be
 	  called "da9055"
+
+config MFD_DA9062
+	tristate "Dialog Semiconductor DA9062 PMIC Support"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  Say yes here for support for the Dialog Semiconductor DA9062 PMIC.
+	  This includes the I2C driver and core APIs.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 config MFD_DA9063
 	bool "Dialog Semiconductor DA9063 PMIC Support"
@@ -318,6 +331,7 @@ config LPC_SCH
 
 config INTEL_SOC_PMIC
 	bool "Support for Intel Atom SoC PMIC"
+	depends on GPIOLIB
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
@@ -327,6 +341,29 @@ config INTEL_SOC_PMIC
 	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
 	  thermal, charger and related power management functions
 	  on these systems.
+
+config MFD_INTEL_LPSS
+	tristate
+	select COMMON_CLK
+	select MFD_CORE
+
+config MFD_INTEL_LPSS_ACPI
+	tristate "Intel Low Power Subsystem support in ACPI mode"
+	select MFD_INTEL_LPSS
+	depends on X86 && ACPI
+	help
+	  This driver supports Intel Low Power Subsystem (LPSS) devices such as
+	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
+	  PCH) in ACPI mode.
+
+config MFD_INTEL_LPSS_PCI
+	tristate "Intel Low Power Subsystem support in PCI mode"
+	select MFD_INTEL_LPSS
+	depends on X86 && PCI
+	help
+	  This driver supports Intel Low Power Subsystem (LPSS) devices such as
+	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
+	  PCH) in PCI mode.
 
 config MFD_INTEL_MSIC
 	bool "Intel MSIC"
@@ -375,12 +412,14 @@ config MFD_KEMPLD
 	  device may provide functions like watchdog, GPIO, UART and I2C bus.
 
 	  The following modules are supported:
+		* COMe-bBL6
 		* COMe-bHL6
 		* COMe-bIP#
 		* COMe-bPC2 (ETXexpress-PC)
 		* COMe-bSC# (ETXexpress-SC T#)
 		* COMe-cBL6
 		* COMe-cBT6
+		* COMe-cBW6
 		* COMe-cCT6
 		* COMe-cDC2 (microETXexpress-DC)
 		* COMe-cHL6
@@ -1355,6 +1394,12 @@ config MFD_WM8997
 	depends on MFD_ARIZONA
 	help
 	  Support for Wolfson Microelectronics WM8997 low power audio SoC
+
+config MFD_WM8998
+	bool "Wolfson Microelectronics WM8998"
+	depends on MFD_ARIZONA
+	help
+	  Support for Wolfson Microelectronics WM8998 low power audio SoC
 
 config MFD_WM8400
 	bool "Wolfson Microelectronics WM8400"

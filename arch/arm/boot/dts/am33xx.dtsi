@@ -717,7 +717,7 @@
 		};
 
 		mac: ethernet@4a100000 {
-			compatible = "ti,cpsw";
+			compatible = "ti,am335x-cpsw","ti,cpsw";
 			ti,hwmods = "cpgmac0";
 			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
 			clock-names = "fck", "cpts";

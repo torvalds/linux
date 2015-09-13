@@ -184,19 +184,18 @@ static unsigned int pxad_drcmr(unsigned int line)
 
 static int dbg_show_requester_chan(struct seq_file *s, void *p)
 {
-	int pos = 0;
 	struct pxad_phy *phy = s->private;
 	int i;
 	u32 drcmr;
 
-	pos += seq_printf(s, "DMA channel %d requester :\n", phy->idx);
+	seq_printf(s, "DMA channel %d requester :\n", phy->idx);
 	for (i = 0; i < 70; i++) {
 		drcmr = readl_relaxed(phy->base + pxad_drcmr(i));
 		if ((drcmr & DRCMR_CHLNUM) == phy->idx)
-			pos += seq_printf(s, "\tRequester %d (MAPVLD=%d)\n", i,
-					  !!(drcmr & DRCMR_MAPVLD));
+			seq_printf(s, "\tRequester %d (MAPVLD=%d)\n", i,
+				   !!(drcmr & DRCMR_MAPVLD));
 	}
-	return pos;
+	return 0;
 }
 
 static inline int dbg_burst_from_dcmd(u32 dcmd)
@@ -906,21 +905,21 @@ static void pxad_get_config(struct pxad_chan *chan,
 	enum dma_slave_buswidth width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 
 	*dcmd = 0;
-	if (chan->cfg.direction == DMA_DEV_TO_MEM) {
+	if (dir == DMA_DEV_TO_MEM) {
 		maxburst = chan->cfg.src_maxburst;
 		width = chan->cfg.src_addr_width;
 		dev_addr = chan->cfg.src_addr;
 		*dev_src = dev_addr;
 		*dcmd |= PXA_DCMD_INCTRGADDR | PXA_DCMD_FLOWSRC;
 	}
-	if (chan->cfg.direction == DMA_MEM_TO_DEV) {
+	if (dir == DMA_MEM_TO_DEV) {
 		maxburst = chan->cfg.dst_maxburst;
 		width = chan->cfg.dst_addr_width;
 		dev_addr = chan->cfg.dst_addr;
 		*dev_dst = dev_addr;
 		*dcmd |= PXA_DCMD_INCSRCADDR | PXA_DCMD_FLOWTRG;
 	}
-	if (chan->cfg.direction == DMA_MEM_TO_MEM)
+	if (dir == DMA_MEM_TO_MEM)
 		*dcmd |= PXA_DCMD_BURST32 | PXA_DCMD_INCTRGADDR |
 			PXA_DCMD_INCSRCADDR;
 

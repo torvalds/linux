@@ -299,6 +299,13 @@ config BACKLIGHT_TOSA
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its backlight
 
+config BACKLIGHT_PM8941_WLED
+	tristate "Qualcomm PM8941 WLED Driver"
+	select REGMAP
+	help
+	  If you have the Qualcomm PM8941, say Y to enable a driver for the
+	  WLED block.
+
 config BACKLIGHT_SAHARA
 	tristate "Tabletkiosk Sahara Touch-iT Backlight Driver"
 	depends on X86

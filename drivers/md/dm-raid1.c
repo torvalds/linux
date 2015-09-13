@@ -490,9 +490,11 @@ static void hold_bio(struct mirror_set *ms, struct bio *bio)
 		 * If device is suspended, complete the bio.
 		 */
 		if (dm_noflush_suspending(ms->ti))
-			bio_endio(bio, DM_ENDIO_REQUEUE);
+			bio->bi_error = DM_ENDIO_REQUEUE;
 		else
-			bio_endio(bio, -EIO);
+			bio->bi_error = -EIO;
+
+		bio_endio(bio);
 		return;
 	}
 
@@ -515,7 +517,7 @@ static void read_callback(unsigned long error, void *context)
 	bio_set_m(bio, NULL);
 
 	if (likely(!error)) {
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return;
 	}
 
@@ -531,7 +533,7 @@ static void read_callback(unsigned long error, void *context)
 
 	DMERR_LIMIT("Read failure on mirror device %s.  Failing I/O.",
 		    m->dev->name);
-	bio_endio(bio, -EIO);
+	bio_io_error(bio);
 }
 
 /* Asynchronous read. */
@@ -580,7 +582,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 		if (likely(m))
 			read_async_bio(m, bio);
 		else
-			bio_endio(bio, -EIO);
+			bio_io_error(bio);
 	}
 }
 
@@ -598,7 +600,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 
 static void write_callback(unsigned long error, void *context)
 {
-	unsigned i, ret = 0;
+	unsigned i;
 	struct bio *bio = (struct bio *) context;
 	struct mirror_set *ms;
 	int should_wake = 0;
@@ -614,7 +616,7 @@ static void write_callback(unsigned long error, void *context)
 	 * regions with the same code.
 	 */
 	if (likely(!error)) {
-		bio_endio(bio, ret);
+		bio_endio(bio);
 		return;
 	}
 
@@ -623,7 +625,8 @@ static void write_callback(unsigned long error, void *context)
 	 * degrade the array.
 	 */
 	if (bio->bi_rw & REQ_DISCARD) {
-		bio_endio(bio, -EOPNOTSUPP);
+		bio->bi_error = -EOPNOTSUPP;
+		bio_endio(bio);
 		return;
 	}
 
@@ -828,13 +831,12 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 		 * be wrong if the failed leg returned after reboot and
 		 * got replicated back to the good legs.)
 		 */
-
 		if (unlikely(!get_valid_mirror(ms) || (keep_log(ms) && ms->log_failure)))
-			bio_endio(bio, -EIO);
+			bio_io_error(bio);
 		else if (errors_handled(ms) && !keep_log(ms))
 			hold_bio(ms, bio);
 		else
-			bio_endio(bio, 0);
+			bio_endio(bio);
 	}
 }
 
@@ -943,16 +945,18 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 {
 	unsigned long long offset;
 	char dummy;
+	int ret;
 
 	if (sscanf(argv[1], "%llu%c", &offset, &dummy) != 1) {
 		ti->error = "Invalid offset";
 		return -EINVAL;
 	}
 
-	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
-			  &ms->mirror[mirror].dev)) {
+	ret = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
+			    &ms->mirror[mirror].dev);
+	if (ret) {
 		ti->error = "Device lookup failure";
-		return -ENXIO;
+		return ret;
 	}
 
 	ms->mirror[mirror].ms = ms;

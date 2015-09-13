@@ -146,6 +146,9 @@ static void intel_pt_insn_decoder(struct insn *insn,
 		case 4:
 			intel_pt_insn->rel = bswap_32(insn->immediate.value);
 			break;
+		default:
+			intel_pt_insn->rel = 0;
+			break;
 		}
 #else
 		intel_pt_insn->rel = insn->immediate.value;

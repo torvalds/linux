@@ -182,4 +182,7 @@ struct btt {
 	int init_state;
 	int num_arenas;
 };
+
+bool nd_btt_arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super);
+
 #endif

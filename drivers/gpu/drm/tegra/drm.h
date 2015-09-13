@@ -12,6 +12,7 @@
 
 #include <uapi/drm/tegra_drm.h>
 #include <linux/host1x.h>
+#include <linux/of_gpio.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -104,6 +105,13 @@ int tegra_drm_exit(struct tegra_drm *tegra);
 struct tegra_dc_soc_info;
 struct tegra_output;
 
+struct tegra_dc_stats {
+	unsigned long frames;
+	unsigned long vblank;
+	unsigned long underflow;
+	unsigned long overflow;
+};
+
 struct tegra_dc {
 	struct host1x_client client;
 	struct host1x_syncpt *syncpt;
@@ -121,6 +129,7 @@ struct tegra_dc {
 
 	struct tegra_output *rgb;
 
+	struct tegra_dc_stats stats;
 	struct list_head list;
 
 	struct drm_info_list *debugfs_files;
@@ -200,6 +209,7 @@ struct tegra_output {
 	const struct edid *edid;
 	unsigned int hpd_irq;
 	int hpd_gpio;
+	enum of_gpio_flags hpd_gpio_flags;
 
 	struct drm_encoder encoder;
 	struct drm_connector connector;

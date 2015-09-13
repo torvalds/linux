@@ -12,10 +12,13 @@ XOR engine has. Those sub-nodes have the following required
 properties:
 - interrupts: interrupt of the XOR channel
 
-And the following optional properties:
+The sub-nodes used to contain one or several of the following
+properties, but they are now deprecated:
 - dmacap,memcpy to indicate that the XOR channel is capable of memcpy operations
 - dmacap,memset to indicate that the XOR channel is capable of memset operations
 - dmacap,xor to indicate that the XOR channel is capable of xor operations
+- dmacap,interrupt to indicate that the XOR channel is capable of
+  generating interrupts
 
 Example:
 
@@ -28,13 +31,8 @@ xor@d0060900 {
 
 	xor00 {
 	      interrupts = <51>;
-	      dmacap,memcpy;
-	      dmacap,xor;
 	};
 	xor01 {
 	      interrupts = <52>;
-	      dmacap,memcpy;
-	      dmacap,xor;
-	      dmacap,memset;
 	};
 };

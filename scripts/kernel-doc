@@ -469,7 +469,7 @@ sub dump_section {
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
-		print STDERR "Error(${file}:$.): duplicate section name '$name'\n";
+		print STDERR "${file}:$.: error: duplicate section name '$name'\n";
 		++$errors;
 	}
 	$sections{$name} = $contents;
@@ -1820,7 +1820,7 @@ sub dump_struct($$) {
 			   });
     }
     else {
-	print STDERR "Error(${file}:$.): Cannot parse struct or union!\n";
+	print STDERR "${file}:$.: error: Cannot parse struct or union!\n";
 	++$errors;
     }
 }
@@ -1841,7 +1841,7 @@ sub dump_enum($$) {
 	    push @parameterlist, $arg;
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
-		print STDERR "Warning(${file}:$.): Enum value '$arg' ".
+		print STDERR "${file}:$.: warning: Enum value '$arg' ".
 		    "not described in enum '$declaration_name'\n";
 	    }
 
@@ -1859,7 +1859,7 @@ sub dump_enum($$) {
 			   });
     }
     else {
-	print STDERR "Error(${file}:$.): Cannot parse enum!\n";
+	print STDERR "${file}:$.: error: Cannot parse enum!\n";
 	++$errors;
     }
 }
@@ -1887,7 +1887,7 @@ sub dump_typedef($$) {
 			   });
     }
     else {
-	print STDERR "Error(${file}:$.): Cannot parse typedef!\n";
+	print STDERR "${file}:$.: error: Cannot parse typedef!\n";
 	++$errors;
     }
 }
@@ -2019,11 +2019,11 @@ sub push_parameter($$$) {
 	    $parameterdescs{$param_name} = $undescribed;
 
 	    if (($type eq 'function') || ($type eq 'enum')) {
-		print STDERR "Warning(${file}:$.): Function parameter ".
+		print STDERR "${file}:$.: warning: Function parameter ".
 		    "or member '$param' not " .
 		    "described in '$declaration_name'\n";
 	    }
-	    print STDERR "Warning(${file}:$.):" .
+	    print STDERR "${file}:$.: warning:" .
 			 " No description found for parameter '$param'\n";
 	    ++$warnings;
 	}
@@ -2074,14 +2074,14 @@ sub check_sections($$$$$$) {
 		}
 		if ($err) {
 			if ($decl_type eq "function") {
-				print STDERR "Warning(${file}:$.): " .
+				print STDERR "${file}:$.: warning: " .
 					"Excess function parameter " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n";
 				++$warnings;
 			} else {
 				if ($nested !~ m/\Q$sects[$sx]\E/) {
-				    print STDERR "Warning(${file}:$.): " .
+				    print STDERR "${file}:$.: warning: " .
 					"Excess struct/union/enum/typedef member " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n";
@@ -2107,7 +2107,7 @@ sub check_return_section {
 
         if (!defined($sections{$section_return}) ||
             $sections{$section_return} eq "") {
-                print STDERR "Warning(${file}:$.): " .
+                print STDERR "${file}:$.: warning: " .
                         "No description found for return value of " .
                         "'$declaration_name'\n";
                 ++$warnings;
@@ -2186,7 +2186,7 @@ sub dump_function($$) {
 
 	create_parameterlist($args, ',', $file);
     } else {
-	print STDERR "Warning(${file}:$.): cannot understand function prototype: '$prototype'\n";
+	print STDERR "${file}:$.: warning: cannot understand function prototype: '$prototype'\n";
 	return;
     }
 
@@ -2251,7 +2251,7 @@ sub tracepoint_munge($) {
 		$tracepointargs = $1;
 	}
 	if (($tracepointname eq 0) || ($tracepointargs eq 0)) {
-		print STDERR "Warning(${file}:$.): Unrecognized tracepoint format: \n".
+		print STDERR "${file}:$.: warning: Unrecognized tracepoint format: \n".
 			     "$prototype\n";
 	} else {
 		$prototype = "static inline void trace_$tracepointname($tracepointargs)";
@@ -2450,7 +2450,7 @@ sub process_file($) {
 		}
 
 		if (($declaration_purpose eq "") && $verbose) {
-			print STDERR "Warning(${file}:$.): missing initial short description on line:\n";
+			print STDERR "${file}:$.: warning: missing initial short description on line:\n";
 			print STDERR $_;
 			++$warnings;
 		}
@@ -2468,10 +2468,10 @@ sub process_file($) {
 		}
 
 		if ($verbose) {
-		    print STDERR "Info(${file}:$.): Scanning doc for $identifier\n";
+		    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
 		}
 	    } else {
-		print STDERR "Warning(${file}:$.): Cannot understand $_ on line $.",
+		print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
 		" - I thought it was a doc line\n";
 		++$warnings;
 		$state = 0;
@@ -2483,7 +2483,7 @@ sub process_file($) {
 
 		if (($contents ne "") && ($contents ne "\n")) {
 		    if (!$in_doc_sect && $verbose) {
-			print STDERR "Warning(${file}:$.): contents before sections\n";
+			print STDERR "${file}:$.: warning: contents before sections\n";
 			++$warnings;
 		    }
 		    dump_section($file, $section, xml_escape($contents));
@@ -2509,7 +2509,7 @@ sub process_file($) {
 		}
 		# look for doc_com + <text> + doc_end:
 		if ($_ =~ m'\s*\*\s*[a-zA-Z_0-9:\.]+\*/') {
-		    print STDERR "Warning(${file}:$.): suspicious ending line: $_";
+		    print STDERR "${file}:$.: warning: suspicious ending line: $_";
 		    ++$warnings;
 		}
 
@@ -2539,7 +2539,7 @@ sub process_file($) {
 		}
 	    } else {
 		# i dont know - bad line?  ignore.
-		print STDERR "Warning(${file}:$.): bad line: $_";
+		print STDERR "${file}:$.: warning: bad line: $_";
 		++$warnings;
 	    }
 	} elsif ($state == 5) { # scanning for split parameters
@@ -2631,7 +2631,7 @@ sub process_file($) {
 	}
     }
     if ($initial_section_counter == $section_counter) {
-	print STDERR "Warning(${file}): no structured comments found\n";
+	print STDERR "${file}:1: warning: no structured comments found\n";
 	if (($function_only == 1) && ($show_not_found == 1)) {
 	    print STDERR "    Was looking for '$_'.\n" for keys %function_table;
 	}

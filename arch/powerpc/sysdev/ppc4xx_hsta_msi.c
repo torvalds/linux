@@ -132,7 +132,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 	struct pci_controller *phb;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (IS_ERR(mem)) {
+	if (!mem) {
 		dev_err(dev, "Unable to get mmio space\n");
 		return -EINVAL;
 	}
@@ -157,7 +157,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 		goto out;
 
 	ppc4xx_hsta_msi.irq_map = kmalloc(sizeof(int) * irq_count, GFP_KERNEL);
-	if (IS_ERR(ppc4xx_hsta_msi.irq_map)) {
+	if (!ppc4xx_hsta_msi.irq_map) {
 		ret = -ENOMEM;
 		goto out1;
 	}

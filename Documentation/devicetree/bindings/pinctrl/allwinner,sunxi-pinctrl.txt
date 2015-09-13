@@ -48,7 +48,7 @@ Optional subnode-properties:
 
 Examples:
 
-pinctrl@01c20800 {
+pio: pinctrl@01c20800 {
 	compatible = "allwinner,sun5i-a13-pinctrl";
 	reg = <0x01c20800 0x400>;
 	#address-cells = <1>;
@@ -67,4 +67,39 @@ pinctrl@01c20800 {
 		allwinner,drive = <0>;
 		allwinner,pull = <0>;
 	};
+};
+
+
+GPIO and interrupt controller
+-----------------------------
+
+This hardware also acts as a GPIO controller and an interrupt
+controller.
+
+Consumers that would want to refer to one or the other (or both)
+should provide through the usual *-gpios and interrupts properties a
+cell with 3 arguments, first the number of the bank, then the pin
+inside that bank, and finally the flags for the GPIO/interrupts.
+
+Example:
+
+xio: gpio@38 {
+	compatible = "nxp,pcf8574a";
+	reg = <0x38>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	interrupt-parent = <&pio>;
+	interrupts = <6 0 IRQ_TYPE_EDGE_FALLING>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+};
+
+reg_usb1_vbus: usb1-vbus {
+	compatible = "regulator-fixed";
+	regulator-name = "usb1-vbus";
+	regulator-min-microvolt = <5000000>;
+	regulator-max-microvolt = <5000000>;
+	gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>;
 };

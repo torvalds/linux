@@ -76,6 +76,14 @@ to_tegra_plane_state(struct drm_plane_state *state)
 	return NULL;
 }
 
+static void tegra_dc_stats_reset(struct tegra_dc_stats *stats)
+{
+	stats->frames = 0;
+	stats->vblank = 0;
+	stats->underflow = 0;
+	stats->overflow = 0;
+}
+
 /*
  * Reads the active copy of a register. This takes the dc->lock spinlock to
  * prevent races with the VBLANK processing which also needs access to the
@@ -759,7 +767,6 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 	/* position the cursor */
 	value = (state->crtc_y & 0x3fff) << 16 | (state->crtc_x & 0x3fff);
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
-
 }
 
 static void tegra_cursor_atomic_disable(struct drm_plane *plane,
@@ -809,9 +816,11 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	/*
-	 * We'll treat the cursor as an overlay plane with index 6 here so
-	 * that the update and activation request bits in DC_CMD_STATE_CONTROL
-	 * match up.
+	 * This index is kind of fake. The cursor isn't a regular plane, but
+	 * its update and activation request bits in DC_CMD_STATE_CONTROL do
+	 * use the same programming. Setting this fake index here allows the
+	 * code in tegra_add_plane_state() to do the right thing without the
+	 * need to special-casing the cursor plane.
 	 */
 	plane->index = 6;
 
@@ -1015,6 +1024,8 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 		crtc->state = &state->base;
 		crtc->state->crtc = crtc;
 	}
+
+	drm_crtc_vblank_reset(crtc);
 }
 
 static struct drm_crtc_state *
@@ -1051,90 +1062,6 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
 };
-
-static void tegra_dc_stop(struct tegra_dc *dc)
-{
-	u32 value;
-
-	/* stop the display controller */
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
-	value &= ~DISP_CTRL_MODE_MASK;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
-
-	tegra_dc_commit(dc);
-}
-
-static bool tegra_dc_idle(struct tegra_dc *dc)
-{
-	u32 value;
-
-	value = tegra_dc_readl_active(dc, DC_CMD_DISPLAY_COMMAND);
-
-	return (value & DISP_CTRL_MODE_MASK) == 0;
-}
-
-static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
-{
-	timeout = jiffies + msecs_to_jiffies(timeout);
-
-	while (time_before(jiffies, timeout)) {
-		if (tegra_dc_idle(dc))
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	dev_dbg(dc->dev, "timeout waiting for DC to become idle\n");
-	return -ETIMEDOUT;
-}
-
-static void tegra_crtc_disable(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	u32 value;
-
-	if (!tegra_dc_idle(dc)) {
-		tegra_dc_stop(dc);
-
-		/*
-		 * Ignore the return value, there isn't anything useful to do
-		 * in case this fails.
-		 */
-		tegra_dc_wait_idle(dc, 100);
-	}
-
-	/*
-	 * This should really be part of the RGB encoder driver, but clearing
-	 * these bits has the side-effect of stopping the display controller.
-	 * When that happens no VBLANK interrupts will be raised. At the same
-	 * time the encoder is disabled before the display controller, so the
-	 * above code is always going to timeout waiting for the controller
-	 * to go idle.
-	 *
-	 * Given the close coupling between the RGB encoder and the display
-	 * controller doing it here is still kind of okay. None of the other
-	 * encoder drivers require these bits to be cleared.
-	 *
-	 * XXX: Perhaps given that the display controller is switched off at
-	 * this point anyway maybe clearing these bits isn't even useful for
-	 * the RGB encoder?
-	 */
-	if (dc->rgb) {
-		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
-		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
-		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-	}
-
-	drm_crtc_vblank_off(crtc);
-}
-
-static bool tegra_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted)
-{
-	return true;
-}
 
 static int tegra_dc_set_timings(struct tegra_dc *dc,
 				struct drm_display_mode *mode)
@@ -1229,7 +1156,85 @@ static void tegra_dc_commit_state(struct tegra_dc *dc,
 	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
 }
 
-static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void tegra_dc_stop(struct tegra_dc *dc)
+{
+	u32 value;
+
+	/* stop the display controller */
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	tegra_dc_commit(dc);
+}
+
+static bool tegra_dc_idle(struct tegra_dc *dc)
+{
+	u32 value;
+
+	value = tegra_dc_readl_active(dc, DC_CMD_DISPLAY_COMMAND);
+
+	return (value & DISP_CTRL_MODE_MASK) == 0;
+}
+
+static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
+{
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, timeout)) {
+		if (tegra_dc_idle(dc))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_dbg(dc->dev, "timeout waiting for DC to become idle\n");
+	return -ETIMEDOUT;
+}
+
+static void tegra_crtc_disable(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	u32 value;
+
+	if (!tegra_dc_idle(dc)) {
+		tegra_dc_stop(dc);
+
+		/*
+		 * Ignore the return value, there isn't anything useful to do
+		 * in case this fails.
+		 */
+		tegra_dc_wait_idle(dc, 100);
+	}
+
+	/*
+	 * This should really be part of the RGB encoder driver, but clearing
+	 * these bits has the side-effect of stopping the display controller.
+	 * When that happens no VBLANK interrupts will be raised. At the same
+	 * time the encoder is disabled before the display controller, so the
+	 * above code is always going to timeout waiting for the controller
+	 * to go idle.
+	 *
+	 * Given the close coupling between the RGB encoder and the display
+	 * controller doing it here is still kind of okay. None of the other
+	 * encoder drivers require these bits to be cleared.
+	 *
+	 * XXX: Perhaps given that the display controller is switched off at
+	 * this point anyway maybe clearing these bits isn't even useful for
+	 * the RGB encoder?
+	 */
+	if (dc->rgb) {
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+	}
+
+	tegra_dc_stats_reset(&dc->stats);
+	drm_crtc_vblank_off(crtc);
+}
+
+static void tegra_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
@@ -1259,15 +1264,7 @@ static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
 	tegra_dc_commit(dc);
-}
 
-static void tegra_crtc_prepare(struct drm_crtc *crtc)
-{
-	drm_crtc_vblank_off(crtc);
-}
-
-static void tegra_crtc_commit(struct drm_crtc *crtc)
-{
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -1277,7 +1274,8 @@ static int tegra_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void tegra_crtc_atomic_begin(struct drm_crtc *crtc)
+static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 
@@ -1291,7 +1289,8 @@ static void tegra_crtc_atomic_begin(struct drm_crtc *crtc)
 	}
 }
 
-static void tegra_crtc_atomic_flush(struct drm_crtc *crtc)
+static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
@@ -1302,10 +1301,7 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
-	.mode_fixup = tegra_crtc_mode_fixup,
-	.mode_set_nofb = tegra_crtc_mode_set_nofb,
-	.prepare = tegra_crtc_prepare,
-	.commit = tegra_crtc_commit,
+	.enable = tegra_crtc_enable,
 	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
@@ -1323,6 +1319,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		/*
 		dev_dbg(dc->dev, "%s(): frame end\n", __func__);
 		*/
+		dc->stats.frames++;
 	}
 
 	if (status & VBLANK_INT) {
@@ -1331,12 +1328,21 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		*/
 		drm_crtc_handle_vblank(&dc->base);
 		tegra_dc_finish_page_flip(dc);
+		dc->stats.vblank++;
 	}
 
 	if (status & (WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT)) {
 		/*
 		dev_dbg(dc->dev, "%s(): underflow\n", __func__);
 		*/
+		dc->stats.underflow++;
+	}
+
+	if (status & (WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT)) {
+		/*
+		dev_dbg(dc->dev, "%s(): overflow\n", __func__);
+		*/
+		dc->stats.overflow++;
 	}
 
 	return IRQ_HANDLED;
@@ -1346,6 +1352,14 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_dc *dc = node->info_ent->data;
+	int err = 0;
+
+	drm_modeset_lock_crtc(&dc->base, NULL);
+
+	if (!dc->base.state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 #define DUMP_REG(name)						\
 	seq_printf(s, "%-40s %#05x %08x\n", #name, name,	\
@@ -1566,11 +1580,59 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 
 #undef DUMP_REG
 
+unlock:
+	drm_modeset_unlock_crtc(&dc->base);
+	return err;
+}
+
+static int tegra_dc_show_crc(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_dc *dc = node->info_ent->data;
+	int err = 0;
+	u32 value;
+
+	drm_modeset_lock_crtc(&dc->base, NULL);
+
+	if (!dc->base.state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	value = DC_COM_CRC_CONTROL_ACTIVE_DATA | DC_COM_CRC_CONTROL_ENABLE;
+	tegra_dc_writel(dc, value, DC_COM_CRC_CONTROL);
+	tegra_dc_commit(dc);
+
+	drm_crtc_wait_one_vblank(&dc->base);
+	drm_crtc_wait_one_vblank(&dc->base);
+
+	value = tegra_dc_readl(dc, DC_COM_CRC_CHECKSUM);
+	seq_printf(s, "%08x\n", value);
+
+	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
+
+unlock:
+	drm_modeset_unlock_crtc(&dc->base);
+	return err;
+}
+
+static int tegra_dc_show_stats(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_dc *dc = node->info_ent->data;
+
+	seq_printf(s, "frames: %lu\n", dc->stats.frames);
+	seq_printf(s, "vblank: %lu\n", dc->stats.vblank);
+	seq_printf(s, "underflow: %lu\n", dc->stats.underflow);
+	seq_printf(s, "overflow: %lu\n", dc->stats.overflow);
+
 	return 0;
 }
 
 static struct drm_info_list debugfs_files[] = {
 	{ "regs", tegra_dc_show_regs, 0, NULL },
+	{ "crc", tegra_dc_show_crc, 0, NULL },
+	{ "stats", tegra_dc_show_stats, 0, NULL },
 };
 
 static int tegra_dc_debugfs_init(struct tegra_dc *dc, struct drm_minor *minor)
@@ -1716,7 +1778,8 @@ static int tegra_dc_init(struct host1x_client *client)
 		tegra_dc_writel(dc, value, DC_CMD_CONT_SYNCPT_VSYNC);
 	}
 
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT;
+	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
 
 	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
@@ -1732,14 +1795,18 @@ static int tegra_dc_init(struct host1x_client *client)
 		WINDOW_B_THRESHOLD(1) | WINDOW_C_THRESHOLD(1);
 	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
 
-	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
+	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
 
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
+	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 
 	if (dc->soc->supports_border_color)
 		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
+
+	tegra_dc_stats_reset(&dc->stats);
 
 	return 0;
 
@@ -1826,8 +1893,20 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.has_powergate = true,
 };
 
+static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
+	.supports_border_color = false,
+	.supports_interlacing = true,
+	.supports_cursor = true,
+	.supports_block_linear = true,
+	.pitch_align = 64,
+	.has_powergate = true,
+};
+
 static const struct of_device_id tegra_dc_of_match[] = {
 	{
+		.compatible = "nvidia,tegra210-dc",
+		.data = &tegra210_dc_soc_info,
+	}, {
 		.compatible = "nvidia,tegra124-dc",
 		.data = &tegra124_dc_soc_info,
 	}, {
@@ -1957,6 +2036,10 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
+	if (!dc->syncpt)
+		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
+
 	INIT_LIST_HEAD(&dc->client.list);
 	dc->client.ops = &dc_client_ops;
 	dc->client.dev = &pdev->dev;
@@ -1973,10 +2056,6 @@ static int tegra_dc_probe(struct platform_device *pdev)
 			err);
 		return err;
 	}
-
-	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
-	if (!dc->syncpt)
-		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
 
 	platform_set_drvdata(pdev, dc);
 
@@ -2016,7 +2095,6 @@ static int tegra_dc_remove(struct platform_device *pdev)
 struct platform_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegra-dc",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra_dc_of_match,
 	},
 	.probe = tegra_dc_probe,

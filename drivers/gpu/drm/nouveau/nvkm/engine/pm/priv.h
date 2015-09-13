@@ -1,39 +1,64 @@
 #ifndef __NVKM_PM_PRIV_H__
 #define __NVKM_PM_PRIV_H__
+#define nvkm_pm(p) container_of((p), struct nvkm_pm, engine)
 #include <engine/pm.h>
 
+int nvkm_pm_ctor(const struct nvkm_pm_func *, struct nvkm_device *,
+		 int index, struct nvkm_pm *);
+
+struct nvkm_pm_func {
+	void (*fini)(struct nvkm_pm *);
+};
+
 struct nvkm_perfctr {
-	struct nvkm_object base;
 	struct list_head head;
-	struct nvkm_perfsig *signal[4];
+	u8 domain;
+	u8  signal[4];
+	u64 source[4][8];
 	int slot;
 	u32 logic_op;
-	u32 clk;
 	u32 ctr;
 };
 
-extern struct nvkm_oclass nvkm_pm_sclass[];
-
-#include <core/engctx.h>
-
-struct nvkm_perfctx {
-	struct nvkm_engctx base;
+struct nvkm_specmux {
+	u32 mask;
+	u8 shift;
+	const char *name;
+	bool enable;
 };
 
-extern struct nvkm_oclass nvkm_pm_cclass;
+struct nvkm_specsrc {
+	u32 addr;
+	const struct nvkm_specmux *mux;
+	const char *name;
+};
+
+struct nvkm_perfsrc {
+	struct list_head head;
+	char *name;
+	u32 addr;
+	u32 mask;
+	u8 shift;
+	bool enable;
+};
+
+extern const struct nvkm_specsrc nv50_zcull_sources[];
+extern const struct nvkm_specsrc nv50_zrop_sources[];
+extern const struct nvkm_specsrc g84_vfetch_sources[];
+extern const struct nvkm_specsrc gt200_crop_sources[];
+extern const struct nvkm_specsrc gt200_prop_sources[];
+extern const struct nvkm_specsrc gt200_tex_sources[];
 
 struct nvkm_specsig {
 	u8 signal;
 	const char *name;
+	const struct nvkm_specsrc *source;
 };
 
 struct nvkm_perfsig {
 	const char *name;
+	u8 source[8];
 };
-
-struct nvkm_perfdom;
-struct nvkm_perfctr *
-nvkm_perfsig_wrap(struct nvkm_pm *, const char *, struct nvkm_perfdom **);
 
 struct nvkm_specdom {
 	u16 signal_nr;
@@ -41,18 +66,20 @@ struct nvkm_specdom {
 	const struct nvkm_funcdom *func;
 };
 
-extern const struct nvkm_specdom gt215_pm_pwr[];
-extern const struct nvkm_specdom gf100_pm_pwr[];
-extern const struct nvkm_specdom gk104_pm_pwr[];
+#define nvkm_perfdom(p) container_of((p), struct nvkm_perfdom, object)
 
 struct nvkm_perfdom {
+	struct nvkm_object object;
+	struct nvkm_perfmon *perfmon;
 	struct list_head head;
 	struct list_head list;
 	const struct nvkm_funcdom *func;
+	struct nvkm_perfctr *ctr[4];
 	char name[32];
 	u32 addr;
-	u8  quad;
-	u32 signal_nr;
+	u8  mode;
+	u32 clk;
+	u16 signal_nr;
 	struct nvkm_perfsig signal[];
 };
 
@@ -67,24 +94,10 @@ struct nvkm_funcdom {
 int nvkm_perfdom_new(struct nvkm_pm *, const char *, u32, u32, u32, u32,
 		     const struct nvkm_specdom *);
 
-#define nvkm_pm_create(p,e,o,d)                                        \
-	nvkm_pm_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nvkm_pm_dtor(p) ({                                             \
-	struct nvkm_pm *c = (p);                                       \
-	_nvkm_pm_dtor(nv_object(c));                                   \
-})
-#define nvkm_pm_init(p) ({                                             \
-	struct nvkm_pm *c = (p);                                       \
-	_nvkm_pm_init(nv_object(c));                                   \
-})
-#define nvkm_pm_fini(p,s) ({                                           \
-	struct nvkm_pm *c = (p);                                       \
-	_nvkm_pm_fini(nv_object(c), (s));                              \
-})
+#define nvkm_perfmon(p) container_of((p), struct nvkm_perfmon, object)
 
-int nvkm_pm_create_(struct nvkm_object *, struct nvkm_object *,
-			    struct nvkm_oclass *, int, void **);
-void _nvkm_pm_dtor(struct nvkm_object *);
-int  _nvkm_pm_init(struct nvkm_object *);
-int  _nvkm_pm_fini(struct nvkm_object *, bool);
+struct nvkm_perfmon {
+	struct nvkm_object object;
+	struct nvkm_pm *pm;
+};
 #endif

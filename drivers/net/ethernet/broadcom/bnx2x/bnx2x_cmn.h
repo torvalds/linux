@@ -1,6 +1,8 @@
-/* bnx2x_cmn.h: Broadcom Everest network driver.
+/* bnx2x_cmn.h: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -620,6 +622,14 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features);
  */
 void bnx2x_tx_timeout(struct net_device *dev);
 
+/** bnx2x_get_c2s_mapping - read inner-to-outer vlan configuration
+ * c2s_map should have BNX2X_MAX_PRIORITY entries.
+ * @bp:			driver handle
+ * @c2s_map:		should have BNX2X_MAX_PRIORITY entries for mapping
+ * @c2s_default:	entry for non-tagged configuration
+ */
+void bnx2x_get_c2s_mapping(struct bnx2x *bp, u8 *c2s_map, u8 *c2s_default);
+
 /*********************** Inlines **********************************/
 /*********************** Fast path ********************************/
 static inline void bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
@@ -931,14 +941,35 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	start_params->mf_mode = bp->mf_mode;
 	start_params->sd_vlan_tag = bp->mf_ov;
 
+	/* Configure Ethertype for BD mode */
+	if (IS_MF_BD(bp)) {
+		DP(NETIF_MSG_IFUP, "Configuring ethertype 0x88a8 for BD\n");
+		start_params->sd_vlan_eth_type = ETH_P_8021AD;
+		REG_WR(bp, PRS_REG_VLAN_TYPE_0, ETH_P_8021AD);
+		REG_WR(bp, PBF_REG_VLAN_TYPE_0, ETH_P_8021AD);
+		REG_WR(bp, NIG_REG_LLH_E1HOV_TYPE_1, ETH_P_8021AD);
+
+		bnx2x_get_c2s_mapping(bp, start_params->c2s_pri,
+				      &start_params->c2s_pri_default);
+		start_params->c2s_pri_valid = 1;
+
+		DP(NETIF_MSG_IFUP,
+		   "Inner-to-Outer priority: %02x %02x %02x %02x %02x %02x %02x %02x [Default %02x]\n",
+		   start_params->c2s_pri[0], start_params->c2s_pri[1],
+		   start_params->c2s_pri[2], start_params->c2s_pri[3],
+		   start_params->c2s_pri[4], start_params->c2s_pri[5],
+		   start_params->c2s_pri[6], start_params->c2s_pri[7],
+		   start_params->c2s_pri_default);
+	}
+
 	if (CHIP_IS_E2(bp) || CHIP_IS_E3(bp))
 		start_params->network_cos_mode = STATIC_COS;
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
 
-	start_params->tunnel_mode	= TUNN_MODE_GRE;
-	start_params->gre_tunnel_type	= IPGRE_TUNNEL;
-	start_params->inner_gre_rss_en	= 1;
+	start_params->vxlan_dst_port = bp->vxlan_dst_port;
+
+	start_params->inner_rss = 1;
 
 	if (IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {
 		start_params->class_fail_ethtype = ETH_P_FIP;
@@ -1037,6 +1068,15 @@ static inline void bnx2x_init_vlan_mac_fp_objs(struct bnx2x_fastpath *fp,
 			   BNX2X_FILTER_MAC_PENDING,
 			   &bp->sp_state, obj_type,
 			   &bp->macs_pool);
+
+	if (!CHIP_IS_E1x(bp))
+		bnx2x_init_vlan_obj(bp, &bnx2x_sp_obj(bp, fp).vlan_obj,
+				    fp->cl_id, fp->cid, BP_FUNC(bp),
+				    bnx2x_sp(bp, vlan_rdata),
+				    bnx2x_sp_mapping(bp, vlan_rdata),
+				    BNX2X_FILTER_VLAN_PENDING,
+				    &bp->sp_state, obj_type,
+				    &bp->vlans_pool);
 }
 
 /**
@@ -1096,7 +1136,7 @@ static inline void bnx2x_init_bp_objs(struct bnx2x *bp)
 	bnx2x_init_mac_credit_pool(bp, &bp->macs_pool, BP_FUNC(bp),
 				   bnx2x_get_path_func_num(bp));
 
-	bnx2x_init_vlan_credit_pool(bp, &bp->vlans_pool, BP_ABS_FUNC(bp)>>1,
+	bnx2x_init_vlan_credit_pool(bp, &bp->vlans_pool, BP_FUNC(bp),
 				    bnx2x_get_path_func_num(bp));
 
 	/* RSS configuration object */
@@ -1106,6 +1146,8 @@ static inline void bnx2x_init_bp_objs(struct bnx2x *bp)
 				  bnx2x_sp_mapping(bp, rss_rdata),
 				  BNX2X_FILTER_RSS_CONF_PENDING, &bp->sp_state,
 				  BNX2X_OBJ_TYPE_RX);
+
+	bp->vlan_credit = PF_VLAN_CREDIT_E2(bp, bnx2x_get_path_func_num(bp));
 }
 
 static inline u8 bnx2x_fp_qzone_id(struct bnx2x_fastpath *fp)
@@ -1338,5 +1380,24 @@ void bnx2x_squeeze_objects(struct bnx2x *bp);
 
 void bnx2x_schedule_sp_rtnl(struct bnx2x*, enum sp_rtnl_flag,
 			    u32 verbose);
+
+/**
+ * bnx2x_set_os_driver_state - write driver state for management FW usage
+ *
+ * @bp:		driver handle
+ * @state:	OS_DRIVER_STATE_* value reflecting current driver state
+ */
+void bnx2x_set_os_driver_state(struct bnx2x *bp, u32 state);
+
+/**
+ * bnx2x_nvram_read - reads data from nvram [might sleep]
+ *
+ * @bp:		driver handle
+ * @offset:	byte offset in nvram
+ * @ret_buf:	pointer to buffer where data is to be stored
+ * @buf_size:   Length of 'ret_buf' in bytes
+ */
+int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
+		     int buf_size);
 
 #endif /* BNX2X_CMN_H */

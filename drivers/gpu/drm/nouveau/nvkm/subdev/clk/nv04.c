@@ -21,23 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/clk.h>
+#include "priv.h"
 #include "pll.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/devinit/nv04.h>
 
-struct nv04_clk_priv {
-	struct nvkm_clk base;
-};
-
 int
 nv04_clk_pll_calc(struct nvkm_clk *clock, struct nvbios_pll *info,
 		  int clk, struct nvkm_pll_vals *pv)
 {
 	int N1, M1, N2, M2, P;
-	int ret = nv04_pll_calc(nv_subdev(clock), info, clk, &N1, &M1, &N2, &M2, &P);
+	int ret = nv04_pll_calc(&clock->subdev, info, clk, &N1, &M1, &N2, &M2, &P);
 	if (ret) {
 		pv->refclk = info->refclk;
 		pv->N1 = N1;
@@ -52,8 +48,9 @@ nv04_clk_pll_calc(struct nvkm_clk *clock, struct nvbios_pll *info,
 int
 nv04_clk_pll_prog(struct nvkm_clk *clk, u32 reg1, struct nvkm_pll_vals *pv)
 {
-	struct nvkm_devinit *devinit = nvkm_devinit(clk);
-	int cv = nvkm_bios(clk)->version.chip;
+	struct nvkm_device *device = clk->subdev.device;
+	struct nvkm_devinit *devinit = device->devinit;
+	int cv = device->bios->version.chip;
 
 	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
 	    cv >= 0x40) {
@@ -67,37 +64,20 @@ nv04_clk_pll_prog(struct nvkm_clk *clk, u32 reg1, struct nvkm_pll_vals *pv)
 	return 0;
 }
 
-static struct nvkm_domain
-nv04_domain[] = {
-	{ nv_clk_src_max }
+static const struct nvkm_clk_func
+nv04_clk = {
+	.domains = {
+		{ nv_clk_src_max }
+	}
 };
 
-static int
-nv04_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+int
+nv04_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
-	struct nv04_clk_priv *priv;
-	int ret;
-
-	ret = nvkm_clk_create(parent, engine, oclass, nv04_domain,
-			      NULL, 0, false, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.pll_calc = nv04_clk_pll_calc;
-	priv->base.pll_prog = nv04_clk_pll_prog;
-	return 0;
+	int ret = nvkm_clk_new_(&nv04_clk, device, index, false, pclk);
+	if (ret == 0) {
+		(*pclk)->pll_calc = nv04_clk_pll_calc;
+		(*pclk)->pll_prog = nv04_clk_pll_prog;
+	}
+	return ret;
 }
-
-struct nvkm_oclass
-nv04_clk_oclass = {
-	.handle = NV_SUBDEV(CLK, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_clk_ctor,
-		.dtor = _nvkm_clk_dtor,
-		.init = _nvkm_clk_init,
-		.fini = _nvkm_clk_fini,
-	},
-};

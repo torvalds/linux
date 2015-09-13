@@ -808,10 +808,6 @@ static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
 	.gate = TDA18271_GATE_DIGITAL,
 };
 
-static const struct a8293_config em28xx_a8293_config = {
-	.i2c_addr = 0x08, /* (0x10 >> 1) */
-};
-
 static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
 	.demod_address = (0x1e >> 1),
 	.disable_i2c_gate_ctrl = 1,

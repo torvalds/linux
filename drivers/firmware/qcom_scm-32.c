@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/qcom_scm.h>
 
-#include <asm/outercache.h>
 #include <asm/cacheflush.h>
 
 #include "qcom_scm.h"
@@ -219,8 +218,7 @@ static int __qcom_scm_call(const struct qcom_scm_command *cmd)
 	 * Flush the command buffer so that the secure world sees
 	 * the correct data.
 	 */
-	__cpuc_flush_dcache_area((void *)cmd, cmd->len);
-	outer_flush_range(cmd_addr, cmd_addr + cmd->len);
+	secure_flush_area(cmd, cmd->len);
 
 	ret = smc(cmd_addr);
 	if (ret < 0)

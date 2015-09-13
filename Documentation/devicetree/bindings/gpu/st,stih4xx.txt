@@ -52,10 +52,9 @@ STMicroelectronics stih4xx platforms
     See ../reset/reset.txt for details.
   - reset-names: names of the resets listed in resets property in the same
     order.
-  - ranges: to allow probing of subdevices
 
 - sti-hdmi: hdmi output block
-  must be a child of sti-tvout
+  must be a child of sti-display-subsystem
   Required properties:
   - compatible: "st,stih<chip>-hdmi";
   - reg: Physical base address of the IP registers and length of memory mapped region.
@@ -72,7 +71,7 @@ STMicroelectronics stih4xx platforms
 
 sti-hda:
   Required properties:
-  must be a child of sti-tvout
+  must be a child of sti-display-subsystem
   - compatible: "st,stih<chip>-hda"
   - reg: Physical base address of the IP registers and length of memory mapped region.
   - reg-names: names of the mapped memory regions listed in regs property in
@@ -85,7 +84,7 @@ sti-hda:
 
 sti-dvo:
   Required properties:
-  must be a child of sti-tvout
+  must be a child of sti-display-subsystem
   - compatible: "st,stih<chip>-dvo"
   - reg: Physical base address of the IP registers and length of memory mapped region.
   - reg-names: names of the mapped memory regions listed in regs property in
@@ -195,38 +194,37 @@ Example:
 			reg-names	= "tvout-reg", "hda-reg", "syscfg";
 			reset-names     = "tvout";
 			resets          = <&softreset STIH416_HDTVOUT_SOFTRESET>;
-			ranges;
+		};
 
-			sti-hdmi@fe85c000 {
-				compatible	= "st,stih416-hdmi";
-				reg		= <0xfe85c000 0x1000>, <0xfe830000 0x10000>;
-				reg-names	= "hdmi-reg", "syscfg";
-				interrupts	= <GIC_SPI 173 IRQ_TYPE_NONE>;
-				interrupt-names	= "irq";
-				clock-names	= "pix", "tmds", "phy", "audio";
-				clocks          = <&clockgen_c_vcc CLK_S_PIX_HDMI>, <&clockgen_c_vcc CLK_S_TMDS_HDMI>, <&clockgen_c_vcc CLK_S_HDMI_REJECT_PLL>, <&clockgen_b1 CLK_S_PCM_0>;
-			};
+		sti-hdmi@fe85c000 {
+			compatible	= "st,stih416-hdmi";
+			reg		= <0xfe85c000 0x1000>, <0xfe830000 0x10000>;
+			reg-names	= "hdmi-reg", "syscfg";
+			interrupts	= <GIC_SPI 173 IRQ_TYPE_NONE>;
+			interrupt-names	= "irq";
+			clock-names	= "pix", "tmds", "phy", "audio";
+			clocks          = <&clockgen_c_vcc CLK_S_PIX_HDMI>, <&clockgen_c_vcc CLK_S_TMDS_HDMI>, <&clockgen_c_vcc CLK_S_HDMI_REJECT_PLL>, <&clockgen_b1 CLK_S_PCM_0>;
+		};
 
-			sti-hda@fe85a000 {
-				compatible	= "st,stih416-hda";
-				reg		= <0xfe85a000 0x400>, <0xfe83085c 0x4>;
-				reg-names	= "hda-reg", "video-dacs-ctrl";
-				clock-names	= "pix", "hddac";
-				clocks          = <&clockgen_c_vcc CLK_S_PIX_HD>, <&clockgen_c_vcc CLK_S_HDDAC>;
-			};
+		sti-hda@fe85a000 {
+			compatible	= "st,stih416-hda";
+			reg		= <0xfe85a000 0x400>, <0xfe83085c 0x4>;
+			reg-names	= "hda-reg", "video-dacs-ctrl";
+			clock-names	= "pix", "hddac";
+			clocks          = <&clockgen_c_vcc CLK_S_PIX_HD>, <&clockgen_c_vcc CLK_S_HDDAC>;
+		};
 
-			sti-dvo@8d00400 {
-				compatible	= "st,stih407-dvo";
-				reg		= <0x8d00400 0x200>;
-				reg-names	= "dvo-reg";
-				clock-names	= "dvo_pix", "dvo",
-						  "main_parent", "aux_parent";
-				clocks		= <&clk_s_d2_flexgen CLK_PIX_DVO>, <&clk_s_d2_flexgen CLK_DVO>,
-						  <&clk_s_d2_quadfs 0>, <&clk_s_d2_quadfs 1>;
-				pinctrl-names	= "default";
-				pinctrl-0	= <&pinctrl_dvo>;
-				sti,panel	= <&panel_dvo>;
-			};
+		sti-dvo@8d00400 {
+			compatible	= "st,stih407-dvo";
+			reg		= <0x8d00400 0x200>;
+			reg-names	= "dvo-reg";
+			clock-names	= "dvo_pix", "dvo",
+					  "main_parent", "aux_parent";
+			clocks		= <&clk_s_d2_flexgen CLK_PIX_DVO>, <&clk_s_d2_flexgen CLK_DVO>,
+					  <&clk_s_d2_quadfs 0>, <&clk_s_d2_quadfs 1>;
+			pinctrl-names	= "default";
+			pinctrl-0	= <&pinctrl_dvo>;
+			sti,panel	= <&panel_dvo>;
 		};
 
 		sti-hqvdp@9c000000 {
@@ -237,7 +235,7 @@ Example:
 				reset-names     = "hqvdp";
 				resets          = <&softreset STIH407_HDQVDP_SOFTRESET>;
 				st,vtg		= <&vtg_main>;
-			};
+		};
 	};
 	...
 };

@@ -30,6 +30,7 @@
 DEFINE_MUTEX(event_mutex);
 
 LIST_HEAD(ftrace_events);
+static LIST_HEAD(ftrace_generic_fields);
 static LIST_HEAD(ftrace_common_fields);
 
 #define GFP_TRACE (GFP_KERNEL | __GFP_ZERO)
@@ -94,6 +95,10 @@ trace_find_event_field(struct trace_event_call *call, char *name)
 	struct ftrace_event_field *field;
 	struct list_head *head;
 
+	field = __find_event_field(&ftrace_generic_fields, name);
+	if (field)
+		return field;
+
 	field = __find_event_field(&ftrace_common_fields, name);
 	if (field)
 		return field;
@@ -144,6 +149,13 @@ int trace_define_field(struct trace_event_call *call, const char *type,
 }
 EXPORT_SYMBOL_GPL(trace_define_field);
 
+#define __generic_field(type, item, filter_type)			\
+	ret = __trace_define_field(&ftrace_generic_fields, #type,	\
+				   #item, 0, 0, is_signed_type(type),	\
+				   filter_type);			\
+	if (ret)							\
+		return ret;
+
 #define __common_field(type, item)					\
 	ret = __trace_define_field(&ftrace_common_fields, #type,	\
 				   "common_" #item,			\
@@ -152,6 +164,16 @@ EXPORT_SYMBOL_GPL(trace_define_field);
 				   is_signed_type(type), FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
+
+static int trace_define_generic_fields(void)
+{
+	int ret;
+
+	__generic_field(int, cpu, FILTER_OTHER);
+	__generic_field(char *, comm, FILTER_PTR_STRING);
+
+	return ret;
+}
 
 static int trace_define_common_fields(void)
 {
@@ -2670,6 +2692,9 @@ static __init int event_trace_init(void)
 				    tr, &ftrace_avail_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'available_events' entry\n");
+
+	if (trace_define_generic_fields())
+		pr_warn("tracing: Failed to allocated generic fields");
 
 	if (trace_define_common_fields())
 		pr_warn("tracing: Failed to allocate common fields");

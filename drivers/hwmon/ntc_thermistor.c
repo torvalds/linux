@@ -477,7 +477,7 @@ static int ntc_thermistor_get_ohm(struct ntc_data *data)
 	return -EINVAL;
 }
 
-static int ntc_read_temp(void *dev, long *temp)
+static int ntc_read_temp(void *dev, int *temp)
 {
 	struct ntc_data *data = dev_get_drvdata(dev);
 	int ohm;

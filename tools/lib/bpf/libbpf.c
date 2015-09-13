@@ -880,15 +880,26 @@ struct bpf_object *bpf_object__open(const char *path)
 }
 
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
-					   size_t obj_buf_sz)
+					   size_t obj_buf_sz,
+					   const char *name)
 {
+	char tmp_name[64];
+
 	/* param validation */
 	if (!obj_buf || obj_buf_sz <= 0)
 		return NULL;
 
-	pr_debug("loading object from buffer\n");
+	if (!name) {
+		snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
+			 (unsigned long)obj_buf,
+			 (unsigned long)obj_buf_sz);
+		tmp_name[sizeof(tmp_name) - 1] = '\0';
+		name = tmp_name;
+	}
+	pr_debug("loading object '%s' from buffer\n",
+		 name);
 
-	return __bpf_object__open("[buffer]", obj_buf, obj_buf_sz);
+	return __bpf_object__open(name, obj_buf, obj_buf_sz);
 }
 
 int bpf_object__unload(struct bpf_object *obj)
@@ -973,6 +984,14 @@ bpf_object__next(struct bpf_object *prev)
 		return NULL;
 
 	return next;
+}
+
+const char *
+bpf_object__get_name(struct bpf_object *obj)
+{
+	if (!obj)
+		return NULL;
+	return obj->path;
 }
 
 struct bpf_program *

@@ -25,6 +25,8 @@ enum arizona_type {
 	WM5110 = 2,
 	WM8997 = 3,
 	WM8280 = 4,
+	WM8998 = 5,
+	WM1814 = 6,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -165,6 +167,7 @@ static inline int wm5102_patch(struct arizona *arizona)
 
 int wm5110_patch(struct arizona *arizona);
 int wm8997_patch(struct arizona *arizona);
+int wm8998_patch(struct arizona *arizona);
 
 extern int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
 				     bool mandatory);

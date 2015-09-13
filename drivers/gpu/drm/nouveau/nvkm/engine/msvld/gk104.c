@@ -21,89 +21,23 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/msvld.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
-struct gk104_msvld_priv {
-	struct nvkm_falcon base;
+#include <nvif/class.h>
+
+static const struct nvkm_falcon_func
+gk104_msvld = {
+	.pmc_enable = 0x00008000,
+	.init = gf100_msvld_init,
+	.sclass = {
+		{ -1, -1, GK104_MSVLD },
+		{}
+	}
 };
 
-/*******************************************************************************
- * MSVLD object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_msvld_sclass[] = {
-	{ 0x95b1, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSVLD context
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_msvld_cclass = {
-	.handle = NV_ENGCTX(MSVLD, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSVLD engine/subdev functions
- ******************************************************************************/
-
-static int
-gk104_msvld_init(struct nvkm_object *object)
+int
+gk104_msvld_new(struct nvkm_device *device, int index,
+		struct nvkm_engine **pengine)
 {
-	struct gk104_msvld_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_falcon_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x084010, 0x0000fff2);
-	nv_wr32(priv, 0x08401c, 0x0000fff2);
-	return 0;
+	return nvkm_msvld_new_(&gk104_msvld, device, index, pengine);
 }
-
-static int
-gk104_msvld_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 size,
-		 struct nvkm_object **pobject)
-{
-	struct gk104_msvld_priv *priv;
-	int ret;
-
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x084000, true,
-				 "PMSVLD", "msvld", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00008000;
-	nv_subdev(priv)->intr = nvkm_falcon_intr;
-	nv_engine(priv)->cclass = &gk104_msvld_cclass;
-	nv_engine(priv)->sclass = gk104_msvld_sclass;
-	return 0;
-}
-
-struct nvkm_oclass
-gk104_msvld_oclass = {
-	.handle = NV_ENGINE(MSVLD, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_msvld_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = gk104_msvld_init,
-		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
-	},
-};

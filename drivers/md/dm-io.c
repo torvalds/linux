@@ -134,12 +134,13 @@ static void dec_count(struct io *io, unsigned int region, int error)
 		complete_io(io);
 }
 
-static void endio(struct bio *bio, int error)
+static void endio(struct bio *bio)
 {
 	struct io *io;
 	unsigned region;
+	int error;
 
-	if (error && bio_data_dir(bio) == READ)
+	if (bio->bi_error && bio_data_dir(bio) == READ)
 		zero_fill_bio(bio);
 
 	/*
@@ -147,6 +148,7 @@ static void endio(struct bio *bio, int error)
 	 */
 	retrieve_io_and_region_from_bio(bio, &io, &region);
 
+	error = bio->bi_error;
 	bio_put(bio);
 
 	dec_count(io, region, error);
@@ -314,7 +316,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		if ((rw & REQ_DISCARD) || (rw & REQ_WRITE_SAME))
 			num_bvecs = 1;
 		else
-			num_bvecs = min_t(int, bio_get_nr_vecs(where->bdev),
+			num_bvecs = min_t(int, BIO_MAX_PAGES,
 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);

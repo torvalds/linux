@@ -336,12 +336,9 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	else
 		wil_dbg_misc(wil, "Scan has no IE's\n");
 
-	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ, request->ie_len,
-			request->ie);
-	if (rc) {
-		wil_err(wil, "Aborting scan, set_ie failed: %d\n", rc);
+	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ, request->ie_len, request->ie);
+	if (rc)
 		goto out;
-	}
 
 	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
@@ -462,10 +459,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	 * ies in FW.
 	 */
 	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_REQ, sme->ie_len, sme->ie);
-	if (rc) {
-		wil_err(wil, "WMI_SET_APPIE_CMD failed\n");
+	if (rc)
 		goto out;
-	}
 
 	/* WMI_CONNECT_CMD */
 	memset(&conn, 0, sizeof(conn));
@@ -722,113 +717,58 @@ static int wil_fix_bcon(struct wil6210_priv *wil,
 {
 	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
 	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-	int rc = 0;
 
 	if (bcon->probe_resp_len <= hlen)
 		return 0;
 
+/* always use IE's from full probe frame, they has more info
+ * notable RSN
+ */
+	bcon->proberesp_ies = f->u.probe_resp.variable;
+	bcon->proberesp_ies_len = bcon->probe_resp_len - hlen;
 	if (!bcon->assocresp_ies) {
-		bcon->assocresp_ies = f->u.probe_resp.variable;
-		bcon->assocresp_ies_len = bcon->probe_resp_len - hlen;
-		rc = 1;
+		bcon->assocresp_ies = bcon->proberesp_ies;
+		bcon->assocresp_ies_len = bcon->proberesp_ies_len;
 	}
+
+	return 1;
+}
+
+/* internal functions for device reset and starting AP */
+static int _wil_cfg80211_set_ies(struct wiphy *wiphy,
+				 struct cfg80211_beacon_data *bcon)
+{
+	int rc;
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, bcon->proberesp_ies_len,
+			bcon->proberesp_ies);
+	if (rc)
+		return rc;
+
+	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
+			bcon->assocresp_ies);
+#if 0 /* to use beacon IE's, remove this #if 0 */
+	if (rc)
+		return rc;
+
+	rc = wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->tail_len, bcon->tail);
+#endif
 
 	return rc;
 }
 
-static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
-				      struct net_device *ndev,
-				      struct cfg80211_beacon_data *bcon)
+static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
+				  struct net_device *ndev,
+				  const u8 *ssid, size_t ssid_len, u32 privacy,
+				  int bi, u8 chan,
+				  struct cfg80211_beacon_data *bcon,
+				  u8 hidden_ssid)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
-	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-	const u8 *pr_ies = NULL;
-	size_t pr_ies_len = 0;
 	int rc;
-
-	wil_dbg_misc(wil, "%s()\n", __func__);
-	wil_print_bcon_data(bcon);
-
-	if (bcon->probe_resp_len > hlen) {
-		pr_ies = f->u.probe_resp.variable;
-		pr_ies_len = bcon->probe_resp_len - hlen;
-	}
-
-	if (wil_fix_bcon(wil, bcon)) {
-		wil_dbg_misc(wil, "Fixed bcon\n");
-		wil_print_bcon_data(bcon);
-	}
-
-	/* FW do not form regular beacon, so bcon IE's are not set
-	 * For the DMG bcon, when it will be supported, bcon IE's will
-	 * be reused; add something like:
-	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
-	 * bcon->beacon_ies);
-	 */
-	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, pr_ies_len, pr_ies);
-	if (rc) {
-		wil_err(wil, "set_ie(PROBE_RESP) failed\n");
-		return rc;
-	}
-
-	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP,
-			bcon->assocresp_ies_len,
-			bcon->assocresp_ies);
-	if (rc) {
-		wil_err(wil, "set_ie(ASSOC_RESP) failed\n");
-		return rc;
-	}
-
-	return 0;
-}
-
-static int wil_cfg80211_start_ap(struct wiphy *wiphy,
-				 struct net_device *ndev,
-				 struct cfg80211_ap_settings *info)
-{
-	int rc = 0;
-	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
-	struct ieee80211_channel *channel = info->chandef.chan;
-	struct cfg80211_beacon_data *bcon = &info->beacon;
-	struct cfg80211_crypto_settings *crypto = &info->crypto;
 	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
-	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
-	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-	const u8 *pr_ies = NULL;
-	size_t pr_ies_len = 0;
-	u8 hidden_ssid;
-
-	wil_dbg_misc(wil, "%s()\n", __func__);
-
-	if (!channel) {
-		wil_err(wil, "AP: No channel???\n");
-		return -EINVAL;
-	}
-
-	wil_dbg_misc(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
-		     channel->center_freq, info->privacy ? "secure" : "open");
-	wil_dbg_misc(wil, "Privacy: %d auth_type %d\n",
-		     info->privacy, info->auth_type);
-	wil_dbg_misc(wil, "Hidden SSID mode: %d\n",
-		     info->hidden_ssid);
-	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
-		     info->dtim_period);
-	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
-			     info->ssid, info->ssid_len);
-	wil_print_bcon_data(bcon);
-	wil_print_crypto(wil, crypto);
-
-	if (bcon->probe_resp_len > hlen) {
-		pr_ies = f->u.probe_resp.variable;
-		pr_ies_len = bcon->probe_resp_len - hlen;
-	}
-
-	if (wil_fix_bcon(wil, bcon)) {
-		wil_dbg_misc(wil, "Fixed bcon\n");
-		wil_print_bcon_data(bcon);
-	}
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
 
@@ -839,24 +779,96 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		goto out;
 
-	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
+	rc = wmi_set_ssid(wil, ssid_len, ssid);
 	if (rc)
 		goto out;
 
-	/* IE's */
-	/* bcon 'head IE's are not relevant for 60g band */
-	/*
-	 * FW do not form regular beacon, so bcon IE's are not set
-	 * For the DMG bcon, when it will be supported, bcon IE's will
-	 * be reused; add something like:
-	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
-	 * bcon->beacon_ies);
-	 */
-	wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, pr_ies_len, pr_ies);
-	wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
-		   bcon->assocresp_ies);
+	rc = _wil_cfg80211_set_ies(wiphy, bcon);
+	if (rc)
+		goto out;
 
-	wil->privacy = info->privacy;
+	wil->privacy = privacy;
+	wil->channel = chan;
+	wil->hidden_ssid = hidden_ssid;
+
+	netif_carrier_on(ndev);
+
+	rc = wmi_pcp_start(wil, bi, wmi_nettype, chan, hidden_ssid);
+	if (rc)
+		goto err_pcp_start;
+
+	rc = wil_bcast_init(wil);
+	if (rc)
+		goto err_bcast;
+
+	goto out; /* success */
+
+err_bcast:
+	wmi_pcp_stop(wil);
+err_pcp_start:
+	netif_carrier_off(ndev);
+out:
+	mutex_unlock(&wil->mutex);
+	return rc;
+}
+
+static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
+				      struct net_device *ndev,
+				      struct cfg80211_beacon_data *bcon)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+	u32 privacy = 0;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_print_bcon_data(bcon);
+
+	if (wil_fix_bcon(wil, bcon)) {
+		wil_dbg_misc(wil, "Fixed bcon\n");
+		wil_print_bcon_data(bcon);
+	}
+
+	if (bcon->proberesp_ies &&
+	    cfg80211_find_ie(WLAN_EID_RSN, bcon->proberesp_ies,
+			     bcon->proberesp_ies_len))
+		privacy = 1;
+
+	/* in case privacy has changed, need to restart the AP */
+	if (wil->privacy != privacy) {
+		struct wireless_dev *wdev = ndev->ieee80211_ptr;
+
+		wil_dbg_misc(wil, "privacy changed %d=>%d. Restarting AP\n",
+			     wil->privacy, privacy);
+
+		rc = _wil_cfg80211_start_ap(wiphy, ndev, wdev->ssid,
+					    wdev->ssid_len, privacy,
+					    wdev->beacon_interval,
+					    wil->channel, bcon,
+					    wil->hidden_ssid);
+	} else {
+		rc = _wil_cfg80211_set_ies(wiphy, bcon);
+	}
+
+	return rc;
+}
+
+static int wil_cfg80211_start_ap(struct wiphy *wiphy,
+				 struct net_device *ndev,
+				 struct cfg80211_ap_settings *info)
+{
+	int rc;
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct ieee80211_channel *channel = info->chandef.chan;
+	struct cfg80211_beacon_data *bcon = &info->beacon;
+	struct cfg80211_crypto_settings *crypto = &info->crypto;
+	u8 hidden_ssid;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	if (!channel) {
+		wil_err(wil, "AP: No channel???\n");
+		return -EINVAL;
+	}
 
 	switch (info->hidden_ssid) {
 	case NL80211_HIDDEN_SSID_NOT_IN_USE:
@@ -872,28 +884,32 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		break;
 
 	default:
-		rc = -EOPNOTSUPP;
-		goto out;
+		wil_err(wil, "AP: Invalid hidden SSID %d\n", info->hidden_ssid);
+		return -EOPNOTSUPP;
+	}
+	wil_dbg_misc(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
+		     channel->center_freq, info->privacy ? "secure" : "open");
+	wil_dbg_misc(wil, "Privacy: %d auth_type %d\n",
+		     info->privacy, info->auth_type);
+	wil_dbg_misc(wil, "Hidden SSID mode: %d\n",
+		     info->hidden_ssid);
+	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
+		     info->dtim_period);
+	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
+			     info->ssid, info->ssid_len);
+	wil_print_bcon_data(bcon);
+	wil_print_crypto(wil, crypto);
+
+	if (wil_fix_bcon(wil, bcon)) {
+		wil_dbg_misc(wil, "Fixed bcon\n");
+		wil_print_bcon_data(bcon);
 	}
 
-	netif_carrier_on(ndev);
+	rc = _wil_cfg80211_start_ap(wiphy, ndev,
+				    info->ssid, info->ssid_len, info->privacy,
+				    info->beacon_interval, channel->hw_value,
+				    bcon, hidden_ssid);
 
-	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
-			   channel->hw_value, hidden_ssid);
-	if (rc)
-		goto err_pcp_start;
-
-	rc = wil_bcast_init(wil);
-	if (rc)
-		goto err_bcast;
-
-	goto out; /* success */
-err_bcast:
-	wmi_pcp_stop(wil);
-err_pcp_start:
-	netif_carrier_off(ndev);
-out:
-	mutex_unlock(&wil->mutex);
 	return rc;
 }
 

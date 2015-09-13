@@ -1929,7 +1929,7 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 		sg_init_table(req_ctx->bufsl, nsg);
 		sg_set_buf(req_ctx->bufsl, req_ctx->buf, req_ctx->nbuf);
 		if (nsg > 1)
-			scatterwalk_sg_chain(req_ctx->bufsl, 2, areq->src);
+			sg_chain(req_ctx->bufsl, 2, areq->src);
 		req_ctx->psrc = req_ctx->bufsl;
 	} else
 		req_ctx->psrc = areq->src;

@@ -26,7 +26,7 @@
  *
  * Return:	The number of MAAR pairs configured.
  */
-unsigned __weak platform_maar_init(unsigned num_pairs);
+unsigned platform_maar_init(unsigned num_pairs);
 
 /**
  * write_maar_pair() - write to a pair of MAARs

@@ -4,6 +4,7 @@ inat_tables_script = util/intel-pt-decoder/gen-insn-attr-x86.awk
 inat_tables_maps = util/intel-pt-decoder/x86-opcode-map.txt
 
 $(OUTPUT)util/intel-pt-decoder/inat-tables.c: $(inat_tables_script) $(inat_tables_maps)
+	$(call rule_mkdir)
 	@$(call echo-cmd,gen)$(AWK) -f $(inat_tables_script) $(inat_tables_maps) > $@ || rm -f $@
 
 $(OUTPUT)util/intel-pt-decoder/intel-pt-insn-decoder.o: util/intel-pt-decoder/inat.c $(OUTPUT)util/intel-pt-decoder/inat-tables.c

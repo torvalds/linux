@@ -79,10 +79,6 @@ int ceph_crypto_key_unarmor(struct ceph_crypto_key *key, const char *inkey)
 	return 0;
 }
 
-
-
-#define AES_KEY_SIZE 16
-
 static struct crypto_blkcipher *ceph_crypto_alloc_cipher(void)
 {
 	return crypto_alloc_blkcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC);

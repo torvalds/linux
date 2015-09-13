@@ -807,7 +807,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	 * message or, if we're doing a Large Send Offload, an LSO CPL message
 	 * with an embedded TX Packet Write CPL message.
 	 */
-	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1) + 4;
+	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 	if (skb_shinfo(skb)->gso_size)
 		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
 			  sizeof(struct cpl_tx_pkt_lso_core) +
@@ -1137,7 +1137,7 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
  */
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	u32 wr_mid;
+	u32 wr_mid, ctrl0;
 	u64 cntrl, *end;
 	int qidx, credits;
 	unsigned int flits, ndesc;
@@ -1274,9 +1274,15 @@ out_free:	dev_kfree_skb_any(skb);
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	}
 
-	cpl->ctrl0 = htonl(TXPKT_OPCODE_V(CPL_TX_PKT_XT) |
-			   TXPKT_INTF_V(pi->tx_chan) |
-			   TXPKT_PF_V(adap->pf));
+	ctrl0 = TXPKT_OPCODE_V(CPL_TX_PKT_XT) | TXPKT_INTF_V(pi->tx_chan) |
+		TXPKT_PF_V(adap->pf);
+#ifdef CONFIG_CHELSIO_T4_DCB
+	if (is_t4(adap->params.chip))
+		ctrl0 |= TXPKT_OVLAN_IDX_V(q->dcb_prio);
+	else
+		ctrl0 |= TXPKT_T5_OVLAN_IDX_V(q->dcb_prio);
+#endif
+	cpl->ctrl0 = htonl(ctrl0);
 	cpl->pack = htons(0);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
@@ -1418,18 +1424,17 @@ static void restart_ctrlq(unsigned long data)
 		struct fw_wr_hdr *wr;
 		unsigned int ndesc = skb->priority;     /* previously saved */
 
-		/*
-		 * Write descriptors and free skbs outside the lock to limit
+		written += ndesc;
+		/* Write descriptors and free skbs outside the lock to limit
 		 * wait times.  q->full is still set so new skbs will be queued.
 		 */
+		wr = (struct fw_wr_hdr *)&q->q.desc[q->q.pidx];
+		txq_advance(&q->q, ndesc);
 		spin_unlock(&q->sendq.lock);
 
-		wr = (struct fw_wr_hdr *)&q->q.desc[q->q.pidx];
 		inline_tx_skb(skb, &q->q, wr);
 		kfree_skb(skb);
 
-		written += ndesc;
-		txq_advance(&q->q, ndesc);
 		if (unlikely(txq_avail(&q->q) < TXQ_STOP_THRES)) {
 			unsigned long old = q->q.stops;
 

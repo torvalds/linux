@@ -24,15 +24,11 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-
-struct nv50_therm_priv {
-	struct nvkm_therm_priv base;
-};
-
 static int
 pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 {
+	struct nvkm_subdev *subdev = &therm->subdev;
+
 	if (*line == 0x04) {
 		*ctrl = 0x00e100;
 		*line = 4;
@@ -48,7 +44,7 @@ pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 		*line = 0;
 		*indx = 0;
 	} else {
-		nv_error(therm, "unknown pwm ctrl for gpio %d\n", *line);
+		nvkm_error(subdev, "unknown pwm ctrl for gpio %d\n", *line);
 		return -ENODEV;
 	}
 
@@ -58,23 +54,25 @@ pwm_info(struct nvkm_therm *therm, int *line, int *ctrl, int *indx)
 int
 nv50_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 {
+	struct nvkm_device *device = therm->subdev.device;
 	u32 data = enable ? 0x00000001 : 0x00000000;
 	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
 	if (ret == 0)
-		nv_mask(therm, ctrl, 0x00010001 << line, data << line);
+		nvkm_mask(device, ctrl, 0x00010001 << line, data << line);
 	return ret;
 }
 
 int
 nv50_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 {
+	struct nvkm_device *device = therm->subdev.device;
 	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
 	if (ret)
 		return ret;
 
-	if (nv_rd32(therm, ctrl) & (1 << line)) {
-		*divs = nv_rd32(therm, 0x00e114 + (id * 8));
-		*duty = nv_rd32(therm, 0x00e118 + (id * 8));
+	if (nvkm_rd32(device, ctrl) & (1 << line)) {
+		*divs = nvkm_rd32(device, 0x00e114 + (id * 8));
+		*duty = nvkm_rd32(device, 0x00e118 + (id * 8));
 		return 0;
 	}
 
@@ -84,36 +82,36 @@ nv50_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 int
 nv50_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 {
+	struct nvkm_device *device = therm->subdev.device;
 	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
 	if (ret)
 		return ret;
 
-	nv_wr32(therm, 0x00e114 + (id * 8), divs);
-	nv_wr32(therm, 0x00e118 + (id * 8), duty | 0x80000000);
+	nvkm_wr32(device, 0x00e114 + (id * 8), divs);
+	nvkm_wr32(device, 0x00e118 + (id * 8), duty | 0x80000000);
 	return 0;
 }
 
 int
 nv50_fan_pwm_clock(struct nvkm_therm *therm, int line)
 {
-	int chipset = nv_device(therm)->chipset;
-	int crystal = nv_device(therm)->crystal;
+	struct nvkm_device *device = therm->subdev.device;
 	int pwm_clock;
 
 	/* determine the PWM source clock */
-	if (chipset > 0x50 && chipset < 0x94) {
-		u8 pwm_div = nv_rd32(therm, 0x410c);
-		if (nv_rd32(therm, 0xc040) & 0x800000) {
+	if (device->chipset > 0x50 && device->chipset < 0x94) {
+		u8 pwm_div = nvkm_rd32(device, 0x410c);
+		if (nvkm_rd32(device, 0xc040) & 0x800000) {
 			/* Use the HOST clock (100 MHz)
 			* Where does this constant(2.4) comes from? */
 			pwm_clock = (100000000 >> pwm_div) * 10 / 24;
 		} else {
 			/* Where does this constant(20) comes from? */
-			pwm_clock = (crystal * 1000) >> pwm_div;
+			pwm_clock = (device->crystal * 1000) >> pwm_div;
 			pwm_clock /= 20;
 		}
 	} else {
-		pwm_clock = (crystal * 1000) / 20;
+		pwm_clock = (device->crystal * 1000) / 20;
 	}
 
 	return pwm_clock;
@@ -122,18 +120,19 @@ nv50_fan_pwm_clock(struct nvkm_therm *therm, int line)
 static void
 nv50_sensor_setup(struct nvkm_therm *therm)
 {
-	nv_mask(therm, 0x20010, 0x40000000, 0x0);
+	struct nvkm_device *device = therm->subdev.device;
+	nvkm_mask(device, 0x20010, 0x40000000, 0x0);
 	mdelay(20); /* wait for the temperature to stabilize */
 }
 
 static int
 nv50_temp_get(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+	struct nvkm_device *device = therm->subdev.device;
+	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 	int core_temp;
 
-	core_temp = nv_rd32(therm, 0x20014) & 0x3fff;
+	core_temp = nvkm_rd32(device, 0x20014) & 0x3fff;
 
 	/* if the slope or the offset is unset, do no use the sensor */
 	if (!sensor->slope_div || !sensor->slope_mult ||
@@ -151,48 +150,27 @@ nv50_temp_get(struct nvkm_therm *therm)
 	return core_temp;
 }
 
-static int
-nv50_therm_ctor(struct nvkm_object *parent,
-		struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+static void
+nv50_therm_init(struct nvkm_therm *therm)
 {
-	struct nv50_therm_priv *priv;
-	int ret;
-
-	ret = nvkm_therm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.base.pwm_ctrl = nv50_fan_pwm_ctrl;
-	priv->base.base.pwm_get = nv50_fan_pwm_get;
-	priv->base.base.pwm_set = nv50_fan_pwm_set;
-	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
-	priv->base.base.temp_get = nv50_temp_get;
-	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	nv_subdev(priv)->intr = nv40_therm_intr;
-
-	return nvkm_therm_preinit(&priv->base.base);
-}
-
-static int
-nv50_therm_init(struct nvkm_object *object)
-{
-	struct nvkm_therm *therm = (void *)object;
-
 	nv50_sensor_setup(therm);
-
-	return _nvkm_therm_init(object);
 }
 
-struct nvkm_oclass
-nv50_therm_oclass = {
-	.handle = NV_SUBDEV(THERM, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_therm_ctor,
-		.dtor = _nvkm_therm_dtor,
-		.init = nv50_therm_init,
-		.fini = _nvkm_therm_fini,
-	},
+static const struct nvkm_therm_func
+nv50_therm = {
+	.init = nv50_therm_init,
+	.intr = nv40_therm_intr,
+	.pwm_ctrl = nv50_fan_pwm_ctrl,
+	.pwm_get = nv50_fan_pwm_get,
+	.pwm_set = nv50_fan_pwm_set,
+	.pwm_clock = nv50_fan_pwm_clock,
+	.temp_get = nv50_temp_get,
+	.program_alarms = nvkm_therm_program_alarms_polling,
 };
+
+int
+nv50_therm_new(struct nvkm_device *device, int index,
+	       struct nvkm_therm **ptherm)
+{
+	return nvkm_therm_new_(&nv50_therm, device, index, ptherm);
+}
