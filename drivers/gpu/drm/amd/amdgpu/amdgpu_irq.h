@@ -40,6 +40,7 @@ struct amdgpu_irq_src {
 	unsigned				num_types;
 	atomic_t				*enabled_types;
 	const struct amdgpu_irq_src_funcs	*funcs;
+	void *data;
 };
 
 /* provided by interrupt generating IP blocks */

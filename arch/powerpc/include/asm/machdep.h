@@ -249,7 +249,7 @@ struct machdep_calls {
 #endif
 
 #ifdef CONFIG_ARCH_RANDOM
-	int (*get_random_long)(unsigned long *v);
+	int (*get_random_seed)(unsigned long *v);
 #endif
 };
 

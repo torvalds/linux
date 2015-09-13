@@ -22,6 +22,7 @@
  *
  * Authors:
  *    Eric Anholt <eric@anholt.net>
+ *    Thomas Richter <thor@math.tu-berlin.de>
  *
  * Minor modifications (Dithering enable):
  *    Thomas Richter <thor@math.tu-berlin.de>
@@ -90,7 +91,7 @@
 /*
  * LCD Vertical Display Size
  */
-#define VR21	0x20
+#define VR21	0x21
 
 /*
  * Panel power down status
@@ -155,16 +156,33 @@
 # define VR8F_POWER_MASK		(0x3c)
 # define VR8F_POWER_POS			(2)
 
+/* Some Bios implementations do not restore the DVO state upon
+ * resume from standby. Thus, this driver has to handle it
+ * instead. The following list contains all registers that
+ * require saving.
+ */
+static const uint16_t backup_addresses[] = {
+	0x11, 0x12,
+	0x18, 0x19, 0x1a, 0x1f,
+	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+	0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+	0x8e, 0x8f,
+	0x10		/* this must come last */
+};
+
 
 struct ivch_priv {
 	bool quiet;
 
 	uint16_t width, height;
+
+	/* Register backup */
+
+	uint16_t reg_backup[ARRAY_SIZE(backup_addresses)];
 };
 
 
 static void ivch_dump_regs(struct intel_dvo_device *dvo);
-
 /**
  * Reads a register on the ivch.
  *
@@ -246,6 +264,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 {
 	struct ivch_priv *priv;
 	uint16_t temp;
+	int i;
 
 	priv = kzalloc(sizeof(struct ivch_priv), GFP_KERNEL);
 	if (priv == NULL)
@@ -273,6 +292,14 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 	ivch_read(dvo, VR20, &priv->width);
 	ivch_read(dvo, VR21, &priv->height);
 
+	/* Make a backup of the registers to be able to restore them
+	 * upon suspend.
+	 */
+	for (i = 0; i < ARRAY_SIZE(backup_addresses); i++)
+		ivch_read(dvo, backup_addresses[i], priv->reg_backup + i);
+
+	ivch_dump_regs(dvo);
+
 	return true;
 
 out:
@@ -294,11 +321,30 @@ static enum drm_mode_status ivch_mode_valid(struct intel_dvo_device *dvo,
 	return MODE_OK;
 }
 
+/* Restore the DVO registers after a resume
+ * from RAM. Registers have been saved during
+ * the initialization.
+ */
+static void ivch_reset(struct intel_dvo_device *dvo)
+{
+	struct ivch_priv *priv = dvo->dev_priv;
+	int i;
+
+	DRM_DEBUG_KMS("Resetting the IVCH registers\n");
+
+	ivch_write(dvo, VR10, 0x0000);
+
+	for (i = 0; i < ARRAY_SIZE(backup_addresses); i++)
+		ivch_write(dvo, backup_addresses[i], priv->reg_backup[i]);
+}
+
 /** Sets the power state of the panel connected to the ivch */
 static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	int i;
 	uint16_t vr01, vr30, backlight;
+
+	ivch_reset(dvo);
 
 	/* Set the new power state of the panel. */
 	if (!ivch_read(dvo, VR01, &vr01))
@@ -308,6 +354,7 @@ static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 		backlight = 1;
 	else
 		backlight = 0;
+
 	ivch_write(dvo, VR80, backlight);
 
 	if (enable)
@@ -334,6 +381,8 @@ static bool ivch_get_hw_state(struct intel_dvo_device *dvo)
 {
 	uint16_t vr01;
 
+	ivch_reset(dvo);
+
 	/* Set the new power state of the panel. */
 	if (!ivch_read(dvo, VR01, &vr01))
 		return false;
@@ -348,11 +397,15 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 			  struct drm_display_mode *mode,
 			  struct drm_display_mode *adjusted_mode)
 {
+	struct ivch_priv *priv = dvo->dev_priv;
 	uint16_t vr40 = 0;
 	uint16_t vr01 = 0;
 	uint16_t vr10;
 
-	ivch_read(dvo, VR10, &vr10);
+	ivch_reset(dvo);
+
+	vr10 = priv->reg_backup[ARRAY_SIZE(backup_addresses) - 1];
+
 	/* Enable dithering for 18 bpp pipelines */
 	vr10 &= VR10_INTERFACE_DEPTH_MASK;
 	if (vr10 == VR10_INTERFACE_2X18 || vr10 == VR10_INTERFACE_1X18)
@@ -366,7 +419,7 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 		uint16_t x_ratio, y_ratio;
 
 		vr01 |= VR01_PANEL_FIT_ENABLE;
-		vr40 |= VR40_CLOCK_GATING_ENABLE | VR40_ENHANCED_PANEL_FITTING;
+		vr40 |= VR40_CLOCK_GATING_ENABLE;
 		x_ratio = (((mode->hdisplay - 1) << 16) /
 			   (adjusted_mode->hdisplay - 1)) >> 2;
 		y_ratio = (((mode->vdisplay - 1) << 16) /
@@ -381,8 +434,6 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 
 	ivch_write(dvo, VR01, vr01);
 	ivch_write(dvo, VR40, vr40);
-
-	ivch_dump_regs(dvo);
 }
 
 static void ivch_dump_regs(struct intel_dvo_device *dvo)

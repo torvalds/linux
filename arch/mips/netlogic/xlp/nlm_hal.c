@@ -91,6 +91,8 @@ static int xlp9xx_irq_to_irt(int irq)
 		return 134;
 	case PIC_SATA_IRQ:
 		return 143;
+	case PIC_NAND_IRQ:
+		return 151;
 	case PIC_SPI_IRQ:
 		return 152;
 	case PIC_MMC_IRQ:

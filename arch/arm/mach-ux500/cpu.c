@@ -56,7 +56,6 @@ void __init ux500_init_irq(void)
 	struct device_node *np;
 	struct resource r;
 
-	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND);
 	irqchip_init();
 	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
 	of_address_to_resource(np, 0, &r);

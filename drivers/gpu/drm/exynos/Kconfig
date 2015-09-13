@@ -56,7 +56,7 @@ config DRM_EXYNOS_DSI
 
 config DRM_EXYNOS_DP
 	bool "EXYNOS DRM DP driver support"
-	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON) && (DRM_PTN3460=n || DRM_PTN3460=y || DRM_PTN3460=DRM_EXYNOS)
+	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON)
 	default DRM_EXYNOS
 	select DRM_PANEL
 	help
@@ -77,6 +77,7 @@ config DRM_EXYNOS_VIDI
 config DRM_EXYNOS_G2D
 	bool "Exynos DRM G2D"
 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_G2D
+	select FRAME_VECTOR
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
 

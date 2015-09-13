@@ -266,7 +266,9 @@ with the given old and new values. Like all atomic_xxx operations,
 atomic_cmpxchg will only satisfy its atomicity semantics as long as all
 other accesses of *v are performed through atomic_xxx operations.
 
-atomic_cmpxchg must provide explicit memory barriers around the operation.
+atomic_cmpxchg must provide explicit memory barriers around the operation,
+although if the comparison fails then no memory ordering guarantees are
+required.
 
 The semantics for atomic_cmpxchg are the same as those defined for 'cas'
 below.

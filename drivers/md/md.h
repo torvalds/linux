@@ -134,10 +134,6 @@ enum flag_bits {
 	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
 				 * bitmap-based recovery to get fully in sync
 				 */
-	Unmerged,		/* device is being added to array and should
-				 * be considerred for bvec_merge_fn but not
-				 * yet for actual IO
-				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
 	Blocked,		/* An error occurred but has not yet
@@ -374,10 +370,6 @@ struct mddev {
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */
-	int				merge_check_needed; /* at least one
-							     * member device
-							     * has a
-							     * merge_bvec_fn */
 
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
@@ -532,10 +524,6 @@ struct md_personality
 	/* congested implements bdi.congested_fn().
 	 * Will not be called while array is 'suspended' */
 	int (*congested)(struct mddev *mddev, int bits);
-	/* mergeable_bvec is use to implement ->merge_bvec_fn */
-	int (*mergeable_bvec)(struct mddev *mddev,
-			      struct bvec_merge_data *bvm,
-			      struct bio_vec *biovec);
 };
 
 struct md_sysfs_entry {

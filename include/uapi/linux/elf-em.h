@@ -38,6 +38,9 @@
 #define EM_ALTERA_NIOS2	113	/* Altera Nios II soft-core processor */
 #define EM_TI_C6000	140	/* TI C6X DSPs */
 #define EM_AARCH64	183	/* ARM 64 bit */
+#define EM_TILEPRO	188	/* Tilera TILEPro */
+#define EM_MICROBLAZE	189	/* Xilinx MicroBlaze */
+#define EM_TILEGX	191	/* Tilera TILE-Gx */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */
 #define EM_AVR32	0x18ad	/* Atmel AVR32 */
 

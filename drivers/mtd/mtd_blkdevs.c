@@ -97,14 +97,13 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	if (req->cmd_flags & REQ_DISCARD)
 		return tr->discard(dev, block, nsect);
 
-	switch(rq_data_dir(req)) {
-	case READ:
+	if (rq_data_dir(req) == READ) {
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->readsect(dev, block, buf))
 				return -EIO;
 		rq_flush_dcache_pages(req);
 		return 0;
-	case WRITE:
+	} else {
 		if (!tr->writesect)
 			return -EIO;
 
@@ -113,9 +112,6 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 			if (tr->writesect(dev, block, buf))
 				return -EIO;
 		return 0;
-	default:
-		printk(KERN_NOTICE "Unknown request %u\n", rq_data_dir(req));
-		return -EIO;
 	}
 }
 
@@ -423,7 +419,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	if (tr->discard) {
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, new->rq);
-		new->rq->limits.max_discard_sectors = UINT_MAX;
+		blk_queue_max_discard_sectors(new->rq, UINT_MAX);
 	}
 
 	gd->queue = new->rq;

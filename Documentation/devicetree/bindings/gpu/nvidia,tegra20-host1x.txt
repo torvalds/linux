@@ -197,9 +197,11 @@ of the following host1x client modules:
 - sor: serial output resource
 
   Required properties:
-  - compatible: For Tegra124, must contain "nvidia,tegra124-sor".  Otherwise,
-    must contain '"nvidia,<chip>-sor", "nvidia,tegra124-sor"', where <chip>
-    is tegra132.
+  - compatible: Should be:
+    - "nvidia,tegra124-sor": for Tegra124 and Tegra132
+    - "nvidia,tegra132-sor": for Tegra132
+    - "nvidia,tegra210-sor": for Tegra210
+    - "nvidia,tegra210-sor1": for Tegra210
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
   - clocks: Must contain an entry for each entry in clock-names.

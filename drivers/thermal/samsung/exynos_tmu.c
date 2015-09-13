@@ -207,8 +207,7 @@ struct exynos_tmu_data {
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
 	int (*tmu_read)(struct exynos_tmu_data *data);
-	void (*tmu_set_emulation)(struct exynos_tmu_data *data,
-				  unsigned long temp);
+	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
 	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
 };
 
@@ -216,7 +215,7 @@ static void exynos_report_trigger(struct exynos_tmu_data *p)
 {
 	char data[10], *envp[] = { data, NULL };
 	struct thermal_zone_device *tz = p->tzd;
-	unsigned long temp;
+	int temp;
 	unsigned int i;
 
 	if (!tz) {
@@ -517,7 +516,7 @@ static int exynos5433_tmu_initialize(struct platform_device *pdev)
 	struct thermal_zone_device *tz = data->tzd;
 	unsigned int status, trim_info;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
-	unsigned long temp, temp_hist;
+	int temp, temp_hist;
 	int ret = 0, threshold_code, i, sensor_id, cal_type;
 
 	status = readb(data->base + EXYNOS_TMU_REG_STATUS);
@@ -610,7 +609,7 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info = 0, con, rising_threshold;
 	int ret = 0, threshold_code;
-	unsigned long crit_temp = 0;
+	int crit_temp = 0;
 
 	/*
 	 * For exynos5440 soc triminfo value is swapped between TMU0 and
@@ -663,7 +662,7 @@ static int exynos7_tmu_initialize(struct platform_device *pdev)
 	unsigned int status, trim_info;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
 	int ret = 0, threshold_code, i;
-	unsigned long temp, temp_hist;
+	int temp, temp_hist;
 	unsigned int reg_off, bit_off;
 
 	status = readb(data->base + EXYNOS_TMU_REG_STATUS);
@@ -876,7 +875,7 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 }
 
-static int exynos_get_temp(void *p, long *temp)
+static int exynos_get_temp(void *p, int *temp)
 {
 	struct exynos_tmu_data *data = p;
 
@@ -896,7 +895,7 @@ static int exynos_get_temp(void *p, long *temp)
 
 #ifdef CONFIG_THERMAL_EMULATION
 static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
-			    unsigned long temp)
+			    int temp)
 {
 	if (temp) {
 		temp /= MCELSIUS;
@@ -926,7 +925,7 @@ static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
 }
 
 static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
-					 unsigned long temp)
+					 int temp)
 {
 	unsigned int val;
 	u32 emul_con;
@@ -946,7 +945,7 @@ static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
 }
 
 static void exynos5440_tmu_set_emulation(struct exynos_tmu_data *data,
-					 unsigned long temp)
+					 int temp)
 {
 	unsigned int val;
 
@@ -955,7 +954,7 @@ static void exynos5440_tmu_set_emulation(struct exynos_tmu_data *data,
 	writel(val, data->base + EXYNOS5440_TMU_S0_7_DEBUG);
 }
 
-static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
+static int exynos_tmu_set_emulation(void *drv_data, int temp)
 {
 	struct exynos_tmu_data *data = drv_data;
 	int ret = -EINVAL;
@@ -978,7 +977,7 @@ out:
 #else
 #define exynos4412_tmu_set_emulation NULL
 #define exynos5440_tmu_set_emulation NULL
-static int exynos_tmu_set_emulation(void *drv_data,	unsigned long temp)
+static int exynos_tmu_set_emulation(void *drv_data, int temp)
 	{ return -EINVAL; }
 #endif /* CONFIG_THERMAL_EMULATION */
 

@@ -12,9 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <asm/sun3x.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/dvma.h>
 

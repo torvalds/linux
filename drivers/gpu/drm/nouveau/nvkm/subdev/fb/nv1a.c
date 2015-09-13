@@ -23,21 +23,21 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
+#include "ram.h"
 
-struct nvkm_oclass *
-nv1a_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x1a),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = _nvkm_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv1a_ram_oclass,
+static const struct nvkm_fb_func
+nv1a_fb = {
 	.tile.regions = 8,
 	.tile.init = nv10_fb_tile_init,
 	.tile.fini = nv10_fb_tile_fini,
 	.tile.prog = nv10_fb_tile_prog,
-}.base.base;
+	.ram_new = nv1a_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv1a_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv1a_fb, device, index, pfb);
+}

@@ -238,6 +238,14 @@ static const char * const reg_type_str[] = {
 	[CONST_IMM]		= "imm",
 };
 
+static const struct {
+	int map_type;
+	int func_id;
+} func_limit[] = {
+	{BPF_MAP_TYPE_PROG_ARRAY, BPF_FUNC_tail_call},
+	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_read},
+};
+
 static void print_verifier_state(struct verifier_env *env)
 {
 	enum bpf_reg_type t;
@@ -275,7 +283,7 @@ static const char *const bpf_class_string[] = {
 	[BPF_ALU64] = "alu64",
 };
 
-static const char *const bpf_alu_string[] = {
+static const char *const bpf_alu_string[16] = {
 	[BPF_ADD >> 4]  = "+=",
 	[BPF_SUB >> 4]  = "-=",
 	[BPF_MUL >> 4]  = "*=",
@@ -299,7 +307,7 @@ static const char *const bpf_ldst_string[] = {
 	[BPF_DW >> 3] = "u64",
 };
 
-static const char *const bpf_jmp_string[] = {
+static const char *const bpf_jmp_string[16] = {
 	[BPF_JA >> 4]   = "jmp",
 	[BPF_JEQ >> 4]  = "==",
 	[BPF_JGT >> 4]  = ">",
@@ -648,6 +656,9 @@ static int check_mem_access(struct verifier_env *env, u32 regno, int off,
 	struct verifier_state *state = &env->cur_state;
 	int size, err = 0;
 
+	if (state->regs[regno].type == PTR_TO_STACK)
+		off += state->regs[regno].imm;
+
 	size = bpf_size_to_bytes(bpf_size);
 	if (size < 0)
 		return size;
@@ -667,7 +678,8 @@ static int check_mem_access(struct verifier_env *env, u32 regno, int off,
 		if (!err && t == BPF_READ && value_regno >= 0)
 			mark_reg_unknown_value(state->regs, value_regno);
 
-	} else if (state->regs[regno].type == FRAME_PTR) {
+	} else if (state->regs[regno].type == FRAME_PTR ||
+		   state->regs[regno].type == PTR_TO_STACK) {
 		if (off >= 0 || off < -MAX_BPF_STACK) {
 			verbose("invalid stack off=%d size=%d\n", off, size);
 			return -EACCES;
@@ -833,6 +845,28 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 	return err;
 }
 
+static int check_map_func_compatibility(struct bpf_map *map, int func_id)
+{
+	bool bool_map, bool_func;
+	int i;
+
+	if (!map)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(func_limit); i++) {
+		bool_map = (map->map_type == func_limit[i].map_type);
+		bool_func = (func_id == func_limit[i].func_id);
+		/* only when map & func pair match it can continue.
+		 * don't allow any other map type to be passed into
+		 * the special func;
+		 */
+		if (bool_map != bool_func)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int check_call(struct verifier_env *env, int func_id)
 {
 	struct verifier_state *state = &env->cur_state;
@@ -908,21 +942,9 @@ static int check_call(struct verifier_env *env, int func_id)
 		return -EINVAL;
 	}
 
-	if (map && map->map_type == BPF_MAP_TYPE_PROG_ARRAY &&
-	    func_id != BPF_FUNC_tail_call)
-		/* prog_array map type needs extra care:
-		 * only allow to pass it into bpf_tail_call() for now.
-		 * bpf_map_delete_elem() can be allowed in the future,
-		 * while bpf_map_update_elem() must only be done via syscall
-		 */
-		return -EINVAL;
-
-	if (func_id == BPF_FUNC_tail_call &&
-	    map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
-		/* don't allow any other map type to be passed into
-		 * bpf_tail_call()
-		 */
-		return -EINVAL;
+	err = check_map_func_compatibility(map, func_id);
+	if (err)
+		return err;
 
 	return 0;
 }

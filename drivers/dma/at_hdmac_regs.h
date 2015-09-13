@@ -200,6 +200,11 @@ struct at_desc {
 	size_t				boundary;
 	size_t				dst_hole;
 	size_t				src_hole;
+
+	/* Memset temporary buffer */
+	bool				memset;
+	dma_addr_t			memset_paddr;
+	int				*memset_vaddr;
 };
 
 static inline struct at_desc *
@@ -330,6 +335,7 @@ struct at_dma {
 	u8			all_chan_mask;
 
 	struct dma_pool		*dma_desc_pool;
+	struct dma_pool		*memset_pool;
 	/* AT THE END channels table */
 	struct at_dma_chan	chan[0];
 };

@@ -110,7 +110,7 @@ static void nmi_max_handler(struct irq_work *w)
 		a->handler, whole_msecs, decimal_msecs);
 }
 
-static int nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
+static int nmi_handle(unsigned int type, struct pt_regs *regs)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *a;
@@ -213,7 +213,7 @@ static void
 pci_serr_error(unsigned char reason, struct pt_regs *regs)
 {
 	/* check to see if anyone registered against these types of errors */
-	if (nmi_handle(NMI_SERR, regs, false))
+	if (nmi_handle(NMI_SERR, regs))
 		return;
 
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
@@ -247,7 +247,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	unsigned long i;
 
 	/* check to see if anyone registered against these types of errors */
-	if (nmi_handle(NMI_IO_CHECK, regs, false))
+	if (nmi_handle(NMI_IO_CHECK, regs))
 		return;
 
 	pr_emerg(
@@ -284,7 +284,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 	 * as only the first one is ever run (unless it can actually determine
 	 * if it caused the NMI)
 	 */
-	handled = nmi_handle(NMI_UNKNOWN, regs, false);
+	handled = nmi_handle(NMI_UNKNOWN, regs);
 	if (handled) {
 		__this_cpu_add(nmi_stats.unknown, handled);
 		return;
@@ -332,7 +332,7 @@ static void default_do_nmi(struct pt_regs *regs)
 
 	__this_cpu_write(last_nmi_rip, regs->ip);
 
-	handled = nmi_handle(NMI_LOCAL, regs, b2b);
+	handled = nmi_handle(NMI_LOCAL, regs);
 	__this_cpu_add(nmi_stats.normal, handled);
 	if (handled) {
 		/*

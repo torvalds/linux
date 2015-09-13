@@ -32,7 +32,3 @@
 		>;
 	};
 };
-
-&mcbsp2 {
-	status = "okay";
-};

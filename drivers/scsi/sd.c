@@ -647,7 +647,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	switch (mode) {
 
 	case SD_LBP_DISABLE:
-		q->limits.max_discard_sectors = 0;
+		blk_queue_max_discard_sectors(q, 0);
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
 		return;
 
@@ -675,7 +675,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		break;
 	}
 
-	q->limits.max_discard_sectors = max_blocks * (logical_block_size >> 9);
+	blk_queue_max_discard_sectors(q, max_blocks * (logical_block_size >> 9));
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 }
 

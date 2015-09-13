@@ -512,11 +512,9 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt)
 
 	if (tb[TCA_GRED_LIMIT])
 		sch->limit = nla_get_u32(tb[TCA_GRED_LIMIT]);
-	else {
-		u32 qlen = qdisc_dev(sch)->tx_queue_len ? : 1;
-
-		sch->limit = qlen * psched_mtu(qdisc_dev(sch));
-	}
+	else
+		sch->limit = qdisc_dev(sch)->tx_queue_len
+		             * psched_mtu(qdisc_dev(sch));
 
 	return gred_change_table_def(sch, tb[TCA_GRED_DPS]);
 }

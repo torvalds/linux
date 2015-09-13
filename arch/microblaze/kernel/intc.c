@@ -11,11 +11,10 @@
 
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/bug.h>
-
-#include "../../drivers/irqchip/irqchip.h"
 
 static void __iomem *intc_baseaddr;
 

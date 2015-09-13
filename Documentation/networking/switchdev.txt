@@ -279,8 +279,18 @@ and unknown unicast packets to all ports in domain, if allowed by port's
 current STP state.  The switch driver, knowing which ports are within which
 vlan L2 domain, can program the switch device for flooding.  The packet should
 also be sent to the port netdev for processing by the bridge driver.  The
-bridge should not reflood the packet to the same ports the device flooded.
-XXX: the mechanism to avoid duplicate flood packets is being discuseed.
+bridge should not reflood the packet to the same ports the device flooded,
+otherwise there will be duplicate packets on the wire.
+
+To avoid duplicate packets, the device/driver should mark a packet as already
+forwarded using skb->offload_fwd_mark.  The same mark is set on the device
+ports in the domain using dev->offload_fwd_mark.  If the skb->offload_fwd_mark
+is non-zero and matches the forwarding egress port's dev->skb_mark, the kernel
+will drop the skb right before transmit on the egress port, with the
+understanding that the device already forwarded the packet on same egress port.
+The driver can use switchdev_port_fwd_mark_set() to set a globally unique mark
+for port's dev->offload_fwd_mark, based on the port's parent ID (switch ID) and
+a group ifindex.
 
 It is possible for the switch device to not handle flooding and push the
 packets up to the bridge driver for flooding.  This is not ideal as the number
@@ -357,4 +367,5 @@ driver's rocker_port_ipv4_resolve() for an example.
 
 The driver can monitor for updates to arp_tbl using the netevent notifier
 NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
-for the routes as arp_tbl updates.
+for the routes as arp_tbl updates.  The driver implements ndo_neigh_destroy
+to know when arp_tbl neighbor entries are purged from the port.

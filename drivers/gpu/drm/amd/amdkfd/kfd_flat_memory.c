@@ -33,7 +33,7 @@
 #include <linux/time.h>
 #include "kfd_priv.h"
 #include <linux/mm.h>
-#include <uapi/asm-generic/mman-common.h>
+#include <linux/mman.h>
 #include <asm/processor.h>
 
 /*

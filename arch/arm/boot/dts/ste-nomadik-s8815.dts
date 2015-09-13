@@ -16,7 +16,18 @@
 	};
 
 	aliases {
+		serial0 = &uart0;
 		serial1 = &uart1;
+	};
+
+	gpio3: gpio@101e7000 {
+		/* This hog will bias the MMC/SD card detect line */
+		mmcsd-gpio {
+			gpio-hog;
+			gpios = <16 0x0>;
+			output-low;
+			line-name = "card detect bias";
+		};
 	};
 
 	src@101e0000 {
@@ -30,6 +41,15 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cd_default_mode>;
 
+		uart0 {
+			/* Only use RX/TX pins */
+			uart0_s8815_mode: uart0_mux {
+				u0_default_mux {
+					function = "u0";
+					groups = "u0txrx_a_1";
+				};
+			};
+		};
 		mmcsd-cd {
 			cd_default_mode: cd_default {
 				cd_default_cfg1 {
@@ -85,6 +105,14 @@
 		};
 	};
 
+	i2c1 {
+		lis3lv02dl@1d {
+			/* Accelerometer */
+			compatible = "st,lis3lv02dl-accel";
+			reg = <0x1d>;
+		};
+	};
+
 	/* GPIO I2C connected to the USB portions of the STw4811 only */
 	gpio-i2c {
 		compatible = "i2c-gpio";
@@ -102,18 +130,16 @@
 	};
 
 
-	/* Configure card detect for the uSD slot */
 	amba {
+		/* Activate RXTX on UART 0 */
+		uart0: uart@101fd000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_s8815_mode>;
+			status = "okay";
+		};
+		/* Configure card detect for the uSD slot */
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
-		};
-	};
-
-	/* Custom board node with GPIO pins to active etc */
-	usb-s8815 {
-		/* This will bias the MMC/SD card detect line */
-		mmcsd-gpio {
-			gpios = <&gpio3 16 0x1>;
 		};
 	};
 

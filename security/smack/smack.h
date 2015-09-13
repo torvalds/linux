@@ -17,10 +17,25 @@
 #include <linux/spinlock.h>
 #include <linux/lsm_hooks.h>
 #include <linux/in.h>
+#if IS_ENABLED(CONFIG_IPV6)
+#include <linux/in6.h>
+#endif /* CONFIG_IPV6 */
 #include <net/netlabel.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/lsm_audit.h>
+
+/*
+ * Use IPv6 port labeling if IPv6 is enabled and secmarks
+ * are not being used.
+ */
+#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#define SMACK_IPV6_PORT_LABELING 1
+#endif
+
+#if IS_ENABLED(CONFIG_IPV6) && defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#define SMACK_IPV6_SECMARK_LABELING 1
+#endif
 
 /*
  * Smack labels were limited to 23 characters for a long time.
@@ -118,15 +133,30 @@ struct smack_rule {
 };
 
 /*
- * An entry in the table identifying hosts.
+ * An entry in the table identifying IPv4 hosts.
  */
-struct smk_netlbladdr {
+struct smk_net4addr {
 	struct list_head	list;
-	struct sockaddr_in	smk_host;	/* network address */
+	struct in_addr		smk_host;	/* network address */
 	struct in_addr		smk_mask;	/* network mask */
+	int			smk_masks;	/* mask size */
 	struct smack_known	*smk_label;	/* label */
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
+/*
+ * An entry in the table identifying IPv6 hosts.
+ */
+struct smk_net6addr {
+	struct list_head	list;
+	struct in6_addr		smk_host;	/* network address */
+	struct in6_addr		smk_mask;	/* network mask */
+	int			smk_masks;	/* mask size */
+	struct smack_known	*smk_label;	/* label */
+};
+#endif /* CONFIG_IPV6 */
+
+#ifdef SMACK_IPV6_PORT_LABELING
 /*
  * An entry in the table identifying ports.
  */
@@ -137,10 +167,29 @@ struct smk_port_label {
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
 };
+#endif /* SMACK_IPV6_PORT_LABELING */
 
 struct smack_onlycap {
 	struct list_head	list;
 	struct smack_known	*smk_label;
+};
+
+/* Super block security struct flags for mount options */
+#define FSDEFAULT_MNT	0x01
+#define FSFLOOR_MNT	0x02
+#define FSHAT_MNT	0x04
+#define FSROOT_MNT	0x08
+#define FSTRANS_MNT	0x10
+
+#define NUM_SMK_MNT_OPTS	5
+
+enum {
+	Opt_error = -1,
+	Opt_fsdefault = 1,
+	Opt_fsfloor = 2,
+	Opt_fshat = 3,
+	Opt_fsroot = 4,
+	Opt_fstransmute = 5,
 };
 
 /*
@@ -152,6 +201,7 @@ struct smack_onlycap {
 #define SMK_FSROOT	"smackfsroot="
 #define SMK_FSTRANS	"smackfstransmute="
 
+#define SMACK_DELETE_OPTION	"-DELETE"
 #define SMACK_CIPSO_OPTION 	"-CIPSO"
 
 /*
@@ -234,10 +284,6 @@ struct smk_audit_info {
 	struct smack_audit_data sad;
 #endif
 };
-/*
- * These functions are in smack_lsm.c
- */
-struct inode_smack *new_inode_smack(struct smack_known *);
 
 /*
  * These functions are in smack_access.c
@@ -267,7 +313,6 @@ extern struct smack_known *smack_syslog_label;
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 extern struct smack_known *smack_unconfined;
 #endif
-extern struct smack_known smack_cipso_option;
 extern int smack_ptrace_rule;
 
 extern struct smack_known smack_known_floor;
@@ -279,7 +324,10 @@ extern struct smack_known smack_known_web;
 
 extern struct mutex	smack_known_lock;
 extern struct list_head smack_known_list;
-extern struct list_head smk_netlbladdr_list;
+extern struct list_head smk_net4addr_list;
+#if IS_ENABLED(CONFIG_IPV6)
+extern struct list_head smk_net6addr_list;
+#endif /* CONFIG_IPV6 */
 
 extern struct mutex     smack_onlycap_lock;
 extern struct list_head smack_onlycap_list;

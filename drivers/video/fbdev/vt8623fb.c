@@ -26,13 +26,9 @@
 #include <linux/console.h> /* Why should fb driver call console functions? because console_lock() */
 #include <video/vga.h>
 
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 struct vt8623fb_info {
 	char __iomem *mmio_base;
-	int mtrr_reg;
+	int wc_cookie;
 	struct vgastate state;
 	struct mutex open_lock;
 	unsigned int ref_count;
@@ -99,10 +95,7 @@ static struct svga_timing_regs vt8623_timing_regs     = {
 /* Module parameters */
 
 static char *mode_option = "640x480-8@60";
-
-#ifdef CONFIG_MTRR
 static int mtrr = 1;
-#endif
 
 MODULE_AUTHOR("(c) 2006 Ondrej Zajicek <santiago@crfreenet.org>");
 MODULE_LICENSE("GPL");
@@ -112,11 +105,8 @@ module_param(mode_option, charp, 0644);
 MODULE_PARM_DESC(mode_option, "Default video mode ('640x480-8@60', etc)");
 module_param_named(mode, mode_option, charp, 0);
 MODULE_PARM_DESC(mode, "Default video mode e.g. '648x480-8@60' (deprecated)");
-
-#ifdef CONFIG_MTRR
 module_param(mtrr, int, 0444);
 MODULE_PARM_DESC(mtrr, "Enable write-combining with MTRR (1=enable, 0=disable, default=1)");
-#endif
 
 
 /* ------------------------------------------------------------------------- */
@@ -710,7 +700,7 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	info->fix.mmio_len = pci_resource_len(dev, 1);
 
 	/* Map physical IO memory address into kernel space */
-	info->screen_base = pci_iomap(dev, 0, 0);
+	info->screen_base = pci_iomap_wc(dev, 0, 0);
 	if (! info->screen_base) {
 		rc = -ENOMEM;
 		dev_err(info->device, "iomap for framebuffer failed\n");
@@ -781,12 +771,9 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Record a reference to the driver data */
 	pci_set_drvdata(dev, info);
 
-#ifdef CONFIG_MTRR
-	if (mtrr) {
-		par->mtrr_reg = -1;
-		par->mtrr_reg = mtrr_add(info->fix.smem_start, info->fix.smem_len, MTRR_TYPE_WRCOMB, 1);
-	}
-#endif
+	if (mtrr)
+		par->wc_cookie = arch_phys_wc_add(info->fix.smem_start,
+						  info->fix.smem_len);
 
 	return 0;
 
@@ -816,13 +803,7 @@ static void vt8623_pci_remove(struct pci_dev *dev)
 	if (info) {
 		struct vt8623fb_info *par = info->par;
 
-#ifdef CONFIG_MTRR
-		if (par->mtrr_reg >= 0) {
-			mtrr_del(par->mtrr_reg, 0, 0);
-			par->mtrr_reg = -1;
-		}
-#endif
-
+		arch_phys_wc_del(par->wc_cookie);
 		unregister_framebuffer(info);
 		fb_dealloc_cmap(&info->cmap);
 

@@ -522,13 +522,15 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 		return err;
 	}
 
-	if (drm_rgb_quant_range_selectable(radeon_connector_edid(connector))) {
-		if (radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB)
-			frame.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
-		else
-			frame.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
-	} else {
-		frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
+	if (radeon_encoder->output_csc != RADEON_OUTPUT_CSC_BYPASS) {
+		if (drm_rgb_quant_range_selectable(radeon_connector_edid(connector))) {
+			if (radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB)
+				frame.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+			else
+				frame.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
+		} else {
+			frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
+		}
 	}
 
 	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));

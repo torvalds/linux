@@ -1441,20 +1441,8 @@ EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
 static cycle_t read_tsc(void)
 {
-	cycle_t ret;
-	u64 last;
-
-	/*
-	 * Empirically, a fence (of type that depends on the CPU)
-	 * before rdtsc is enough to ensure that rdtsc is ordered
-	 * with respect to loads.  The various CPU manuals are unclear
-	 * as to whether rdtsc can be reordered with later loads,
-	 * but no one has ever seen it happen.
-	 */
-	rdtsc_barrier();
-	ret = (cycle_t)vget_cycles();
-
-	last = pvclock_gtod_data.clock.cycle_last;
+	cycle_t ret = (cycle_t)rdtsc_ordered();
+	u64 last = pvclock_gtod_data.clock.cycle_last;
 
 	if (likely(ret >= last))
 		return ret;
@@ -1643,7 +1631,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		return 1;
 	}
 	if (!use_master_clock) {
-		host_tsc = native_read_tsc();
+		host_tsc = rdtsc();
 		kernel_ns = get_kernel_ns();
 	}
 
@@ -2620,7 +2608,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
 		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
-				native_read_tsc() - vcpu->arch.last_host_tsc;
+				rdtsc() - vcpu->arch.last_host_tsc;
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
@@ -2648,7 +2636,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops->vcpu_put(vcpu);
 	kvm_put_guest_fpu(vcpu);
-	vcpu->arch.last_host_tsc = native_read_tsc();
+	vcpu->arch.last_host_tsc = rdtsc();
 }
 
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
@@ -5955,6 +5943,7 @@ static void process_smi_save_seg_32(struct kvm_vcpu *vcpu, char *buf, int n)
 	put_smstate(u32, buf, offset, process_smi_get_segment_flags(&seg));
 }
 
+#ifdef CONFIG_X86_64
 static void process_smi_save_seg_64(struct kvm_vcpu *vcpu, char *buf, int n)
 {
 	struct kvm_segment seg;
@@ -5970,6 +5959,7 @@ static void process_smi_save_seg_64(struct kvm_vcpu *vcpu, char *buf, int n)
 	put_smstate(u32, buf, offset + 4, seg.limit);
 	put_smstate(u64, buf, offset + 8, seg.base);
 }
+#endif
 
 static void process_smi_save_state_32(struct kvm_vcpu *vcpu, char *buf)
 {
@@ -6387,7 +6377,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		hw_breakpoint_restore();
 
 	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu,
-							   native_read_tsc());
+							   rdtsc());
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
@@ -7196,7 +7186,7 @@ int kvm_arch_hardware_enable(void)
 	if (ret != 0)
 		return ret;
 
-	local_tsc = native_read_tsc();
+	local_tsc = rdtsc();
 	stable = !check_tsc_unstable();
 	list_for_each_entry(kvm, &vm_list, vm_list) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {

@@ -227,18 +227,16 @@ static struct pci_ops xilinx_pcie_ops = {
  */
 static void xilinx_pcie_destroy_msi(unsigned int irq)
 {
-	struct irq_desc *desc;
 	struct msi_desc *msi;
 	struct xilinx_pcie_port *port;
 
-	desc = irq_to_desc(irq);
-	msi = irq_desc_get_msi_desc(desc);
-	port = sys_to_pcie(msi->dev->bus->sysdata);
-
-	if (!test_bit(irq, msi_irq_in_use))
+	if (!test_bit(irq, msi_irq_in_use)) {
+		msi = irq_get_msi_desc(irq);
+		port = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
 		dev_err(port->dev, "Trying to free unused MSI#%d\n", irq);
-	else
+	} else {
 		clear_bit(irq, msi_irq_in_use);
+	}
 }
 
 /**

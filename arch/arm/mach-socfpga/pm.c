@@ -56,7 +56,7 @@ static int socfpga_setup_ocram_self_refresh(void)
 		goto put_node;
 	}
 
-	ocram_pool = gen_pool_get(&pdev->dev);
+	ocram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!ocram_pool) {
 		pr_warn("%s: ocram pool unavailable!\n", __func__);
 		ret = -ENODEV;

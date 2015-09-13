@@ -13,6 +13,7 @@
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/stackprotector.h>
 #include <asm/perf_event.h>
@@ -1185,10 +1186,10 @@ void syscall_init(void)
 	 * set CS/DS but only a 32bit target. LSTAR sets the 64bit rip.
 	 */
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32);
-	wrmsrl(MSR_LSTAR, entry_SYSCALL_64);
+	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
-	wrmsrl(MSR_CSTAR, entry_SYSCALL_compat);
+	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
 	/*
 	 * This only works on Intel CPUs.
 	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
@@ -1199,7 +1200,7 @@ void syscall_init(void)
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
-	wrmsrl(MSR_CSTAR, ignore_sysret);
+	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
@@ -1488,3 +1489,20 @@ inline bool __static_cpu_has_safe(u16 bit)
 	return boot_cpu_has(bit);
 }
 EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
+
+static void bsp_resume(void)
+{
+	if (this_cpu->c_bsp_resume)
+		this_cpu->c_bsp_resume(&boot_cpu_data);
+}
+
+static struct syscore_ops cpu_syscore_ops = {
+	.resume		= bsp_resume,
+};
+
+static int __init init_cpu_syscore(void)
+{
+	register_syscore_ops(&cpu_syscore_ops);
+	return 0;
+}
+core_initcall(init_cpu_syscore);

@@ -307,7 +307,7 @@ static int calculate_v_scale_registers(struct saa7146_dev *dev, enum v4l2_field 
 /* simple bubble-sort algorithm with duplicate elimination */
 static int sort_and_eliminate(u32* values, int* count)
 {
-	int low = 0, high = 0, top = 0, temp = 0;
+	int low = 0, high = 0, top = 0;
 	int cur = 0, next = 0;
 
 	/* sanity checks */
@@ -318,11 +318,8 @@ static int sort_and_eliminate(u32* values, int* count)
 	/* bubble sort the first @count items of the array @values */
 	for( top = *count; top > 0; top--) {
 		for( low = 0, high = 1; high < top; low++, high++) {
-			if( values[low] > values[high] ) {
-				temp = values[low];
-				values[low] = values[high];
-				values[high] = temp;
-			}
+			if( values[low] > values[high] )
+				swap(values[low], values[high]);
 		}
 	}
 

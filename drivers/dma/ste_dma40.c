@@ -2853,7 +2853,7 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 		 * This controller can only access address at even
 		 * 32bit boundaries, i.e. 2^2
 		 */
-		dev->copy_align = 2;
+		dev->copy_align = DMAENGINE_ALIGN_4_BYTES;
 	}
 
 	if (dma_has_cap(DMA_SG, dev->cap_mask))

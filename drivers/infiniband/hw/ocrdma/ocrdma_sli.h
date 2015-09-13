@@ -140,6 +140,8 @@ enum {
 	OCRDMA_DB_RQ_SHIFT		= 24
 };
 
+#define OCRDMA_ROUDP_FLAGS_SHIFT	0x03
+
 #define OCRDMA_DB_CQ_RING_ID_MASK       0x3FF	/* bits 0 - 9 */
 #define OCRDMA_DB_CQ_RING_ID_EXT_MASK  0x0C00	/* bits 10-11 of qid at 12-11 */
 /* qid #2 msbits at 12-11 */

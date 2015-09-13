@@ -1113,7 +1113,7 @@ static int fsl_pci_pme_probe(struct pci_controller *hose)
 			IRQF_SHARED,
 			"[PCI] PME", hose);
 	if (res < 0) {
-		dev_err(&dev->dev, "Unable to requiest irq %d for PME\n", pme_irq);
+		dev_err(&dev->dev, "Unable to request irq %d for PME\n", pme_irq);
 		irq_dispose_mapping(pme_irq);
 
 		return -ENODEV;

@@ -1,4 +1,4 @@
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
@@ -163,6 +163,5 @@ static int start_periodic_check_for_corruption(void)
 	schedule_delayed_work(&bios_check_work, 0);
 	return 0;
 }
-
-module_init(start_periodic_check_for_corruption);
+device_initcall(start_periodic_check_for_corruption);
 

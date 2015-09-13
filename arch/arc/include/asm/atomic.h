@@ -172,9 +172,13 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
-ATOMIC_OP(and, &=, and)
 
-#define atomic_clear_mask(mask, v) atomic_and(~(mask), (v))
+#define atomic_andnot atomic_andnot
+
+ATOMIC_OP(and, &=, and)
+ATOMIC_OP(andnot, &= ~, bic)
+ATOMIC_OP(or, |=, or)
+ATOMIC_OP(xor, ^=, xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN

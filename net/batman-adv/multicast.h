@@ -20,8 +20,6 @@
 
 #include "main.h"
 
-struct batadv_orig_node;
-struct batadv_priv;
 struct sk_buff;
 
 /**

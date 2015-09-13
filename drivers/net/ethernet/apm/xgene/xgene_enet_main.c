@@ -147,17 +147,26 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 {
 	struct sk_buff *skb;
 	struct device *dev;
+	skb_frag_t *frag;
+	dma_addr_t *frag_dma_addr;
 	u16 skb_index;
 	u8 status;
-	int ret = 0;
+	int i, ret = 0;
 
 	skb_index = GET_VAL(USERINFO, le64_to_cpu(raw_desc->m0));
 	skb = cp_ring->cp_skb[skb_index];
+	frag_dma_addr = &cp_ring->frag_dma_addr[skb_index * MAX_SKB_FRAGS];
 
 	dev = ndev_to_dev(cp_ring->ndev);
 	dma_unmap_single(dev, GET_VAL(DATAADDR, le64_to_cpu(raw_desc->m1)),
-			 GET_VAL(BUFDATALEN, le64_to_cpu(raw_desc->m1)),
+			 skb_headlen(skb),
 			 DMA_TO_DEVICE);
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		frag = &skb_shinfo(skb)->frags[i];
+		dma_unmap_page(dev, frag_dma_addr[i], skb_frag_size(frag),
+			       DMA_TO_DEVICE);
+	}
 
 	/* Checking for error */
 	status = GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
@@ -179,12 +188,16 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 
 static u64 xgene_enet_work_msg(struct sk_buff *skb)
 {
+	struct net_device *ndev = skb->dev;
+	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct iphdr *iph;
-	u8 l3hlen, l4hlen = 0;
-	u8 csum_enable = 0;
-	u8 proto = 0;
-	u8 ethhdr;
-	u64 hopinfo;
+	u8 l3hlen = 0, l4hlen = 0;
+	u8 ethhdr, proto = 0, csum_enable = 0;
+	u64 hopinfo = 0;
+	u32 hdr_len, mss = 0;
+	u32 i, len, nr_frags;
+
+	ethhdr = xgene_enet_hdr_len(skb->data);
 
 	if (unlikely(skb->protocol != htons(ETH_P_IP)) &&
 	    unlikely(skb->protocol != htons(ETH_P_8021Q)))
@@ -201,14 +214,40 @@ static u64 xgene_enet_work_msg(struct sk_buff *skb)
 		l4hlen = tcp_hdrlen(skb) >> 2;
 		csum_enable = 1;
 		proto = TSO_IPPROTO_TCP;
+		if (ndev->features & NETIF_F_TSO) {
+			hdr_len = ethhdr + ip_hdrlen(skb) + tcp_hdrlen(skb);
+			mss = skb_shinfo(skb)->gso_size;
+
+			if (skb_is_nonlinear(skb)) {
+				len = skb_headlen(skb);
+				nr_frags = skb_shinfo(skb)->nr_frags;
+
+				for (i = 0; i < 2 && i < nr_frags; i++)
+					len += skb_shinfo(skb)->frags[i].size;
+
+				/* HW requires header must reside in 3 buffer */
+				if (unlikely(hdr_len > len)) {
+					if (skb_linearize(skb))
+						return 0;
+				}
+			}
+
+			if (!mss || ((skb->len - hdr_len) <= mss))
+				goto out;
+
+			if (mss != pdata->mss) {
+				pdata->mss = mss;
+				pdata->mac_ops->set_mss(pdata);
+			}
+			hopinfo |= SET_BIT(ET);
+		}
 	} else if (iph->protocol == IPPROTO_UDP) {
 		l4hlen = UDP_HDR_SIZE;
 		csum_enable = 1;
 	}
 out:
 	l3hlen = ip_hdrlen(skb) >> 2;
-	ethhdr = xgene_enet_hdr_len(skb->data);
-	hopinfo = SET_VAL(TCPHDR, l4hlen) |
+	hopinfo |= SET_VAL(TCPHDR, l4hlen) |
 		  SET_VAL(IPHDR, l3hlen) |
 		  SET_VAL(ETHHDR, ethhdr) |
 		  SET_VAL(EC, csum_enable) |
@@ -219,35 +258,170 @@ out:
 	return hopinfo;
 }
 
+static u16 xgene_enet_encode_len(u16 len)
+{
+	return (len == BUFLEN_16K) ? 0 : len;
+}
+
+static void xgene_set_addr_len(__le64 *desc, u32 idx, dma_addr_t addr, u32 len)
+{
+	desc[idx ^ 1] = cpu_to_le64(SET_VAL(DATAADDR, addr) |
+				    SET_VAL(BUFDATALEN, len));
+}
+
+static __le64 *xgene_enet_get_exp_bufs(struct xgene_enet_desc_ring *ring)
+{
+	__le64 *exp_bufs;
+
+	exp_bufs = &ring->exp_bufs[ring->exp_buf_tail * MAX_EXP_BUFFS];
+	memset(exp_bufs, 0, sizeof(__le64) * MAX_EXP_BUFFS);
+	ring->exp_buf_tail = (ring->exp_buf_tail + 1) & ((ring->slots / 2) - 1);
+
+	return exp_bufs;
+}
+
+static dma_addr_t *xgene_get_frag_dma_array(struct xgene_enet_desc_ring *ring)
+{
+	return &ring->cp_ring->frag_dma_addr[ring->tail * MAX_SKB_FRAGS];
+}
+
 static int xgene_enet_setup_tx_desc(struct xgene_enet_desc_ring *tx_ring,
 				    struct sk_buff *skb)
 {
 	struct device *dev = ndev_to_dev(tx_ring->ndev);
 	struct xgene_enet_raw_desc *raw_desc;
-	dma_addr_t dma_addr;
+	__le64 *exp_desc = NULL, *exp_bufs = NULL;
+	dma_addr_t dma_addr, pbuf_addr, *frag_dma_addr;
+	skb_frag_t *frag;
 	u16 tail = tx_ring->tail;
 	u64 hopinfo;
+	u32 len, hw_len;
+	u8 ll = 0, nv = 0, idx = 0;
+	bool split = false;
+	u32 size, offset, ell_bytes = 0;
+	u32 i, fidx, nr_frags, count = 1;
 
 	raw_desc = &tx_ring->raw_desc[tail];
+	tail = (tail + 1) & (tx_ring->slots - 1);
 	memset(raw_desc, 0, sizeof(struct xgene_enet_raw_desc));
 
-	dma_addr = dma_map_single(dev, skb->data, skb->len, DMA_TO_DEVICE);
+	hopinfo = xgene_enet_work_msg(skb);
+	if (!hopinfo)
+		return -EINVAL;
+	raw_desc->m3 = cpu_to_le64(SET_VAL(HENQNUM, tx_ring->dst_ring_num) |
+				   hopinfo);
+
+	len = skb_headlen(skb);
+	hw_len = xgene_enet_encode_len(len);
+
+	dma_addr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
 		netdev_err(tx_ring->ndev, "DMA mapping error\n");
 		return -EINVAL;
 	}
 
 	/* Hardware expects descriptor in little endian format */
-	raw_desc->m0 = cpu_to_le64(tail);
 	raw_desc->m1 = cpu_to_le64(SET_VAL(DATAADDR, dma_addr) |
-				   SET_VAL(BUFDATALEN, skb->len) |
+				   SET_VAL(BUFDATALEN, hw_len) |
 				   SET_BIT(COHERENT));
-	hopinfo = xgene_enet_work_msg(skb);
-	raw_desc->m3 = cpu_to_le64(SET_VAL(HENQNUM, tx_ring->dst_ring_num) |
-				   hopinfo);
-	tx_ring->cp_ring->cp_skb[tail] = skb;
 
-	return 0;
+	if (!skb_is_nonlinear(skb))
+		goto out;
+
+	/* scatter gather */
+	nv = 1;
+	exp_desc = (void *)&tx_ring->raw_desc[tail];
+	tail = (tail + 1) & (tx_ring->slots - 1);
+	memset(exp_desc, 0, sizeof(struct xgene_enet_raw_desc));
+
+	nr_frags = skb_shinfo(skb)->nr_frags;
+	for (i = nr_frags; i < 4 ; i++)
+		exp_desc[i ^ 1] = cpu_to_le64(LAST_BUFFER);
+
+	frag_dma_addr = xgene_get_frag_dma_array(tx_ring);
+
+	for (i = 0, fidx = 0; split || (fidx < nr_frags); i++) {
+		if (!split) {
+			frag = &skb_shinfo(skb)->frags[fidx];
+			size = skb_frag_size(frag);
+			offset = 0;
+
+			pbuf_addr = skb_frag_dma_map(dev, frag, 0, size,
+						     DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, pbuf_addr))
+				return -EINVAL;
+
+			frag_dma_addr[fidx] = pbuf_addr;
+			fidx++;
+
+			if (size > BUFLEN_16K)
+				split = true;
+		}
+
+		if (size > BUFLEN_16K) {
+			len = BUFLEN_16K;
+			size -= BUFLEN_16K;
+		} else {
+			len = size;
+			split = false;
+		}
+
+		dma_addr = pbuf_addr + offset;
+		hw_len = xgene_enet_encode_len(len);
+
+		switch (i) {
+		case 0:
+		case 1:
+		case 2:
+			xgene_set_addr_len(exp_desc, i, dma_addr, hw_len);
+			break;
+		case 3:
+			if (split || (fidx != nr_frags)) {
+				exp_bufs = xgene_enet_get_exp_bufs(tx_ring);
+				xgene_set_addr_len(exp_bufs, idx, dma_addr,
+						   hw_len);
+				idx++;
+				ell_bytes += len;
+			} else {
+				xgene_set_addr_len(exp_desc, i, dma_addr,
+						   hw_len);
+			}
+			break;
+		default:
+			xgene_set_addr_len(exp_bufs, idx, dma_addr, hw_len);
+			idx++;
+			ell_bytes += len;
+			break;
+		}
+
+		if (split)
+			offset += BUFLEN_16K;
+	}
+	count++;
+
+	if (idx) {
+		ll = 1;
+		dma_addr = dma_map_single(dev, exp_bufs,
+					  sizeof(u64) * MAX_EXP_BUFFS,
+					  DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, dma_addr)) {
+			dev_kfree_skb_any(skb);
+			return -EINVAL;
+		}
+		i = ell_bytes >> LL_BYTES_LSB_LEN;
+		exp_desc[2] = cpu_to_le64(SET_VAL(DATAADDR, dma_addr) |
+					  SET_VAL(LL_BYTES_MSB, i) |
+					  SET_VAL(LL_LEN, idx));
+		raw_desc->m2 = cpu_to_le64(SET_VAL(LL_BYTES_LSB, ell_bytes));
+	}
+
+out:
+	raw_desc->m0 = cpu_to_le64(SET_VAL(LL, ll) | SET_VAL(NV, nv) |
+				   SET_VAL(USERINFO, tx_ring->tail));
+	tx_ring->cp_ring->cp_skb[tx_ring->tail] = skb;
+	tx_ring->tail = tail;
+
+	return count;
 }
 
 static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
@@ -257,6 +431,7 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 	struct xgene_enet_desc_ring *tx_ring = pdata->tx_ring;
 	struct xgene_enet_desc_ring *cp_ring = tx_ring->cp_ring;
 	u32 tx_level, cq_level;
+	int count;
 
 	tx_level = pdata->ring_ops->len(tx_ring);
 	cq_level = pdata->ring_ops->len(cp_ring);
@@ -266,14 +441,17 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (xgene_enet_setup_tx_desc(tx_ring, skb)) {
+	if (skb_padto(skb, XGENE_MIN_ENET_FRAME_SIZE))
+		return NETDEV_TX_OK;
+
+	count = xgene_enet_setup_tx_desc(tx_ring, skb);
+	if (count <= 0) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
-	pdata->ring_ops->wr_cmd(tx_ring, 1);
+	pdata->ring_ops->wr_cmd(tx_ring, count);
 	skb_tx_timestamp(skb);
-	tx_ring->tail = (tx_ring->tail + 1) & (tx_ring->slots - 1);
 
 	pdata->stats.tx_packets++;
 	pdata->stats.tx_bytes += skb->len;
@@ -326,7 +504,7 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 
 	/* strip off CRC as HW isn't doing this */
 	datalen = GET_VAL(BUFDATALEN, le64_to_cpu(raw_desc->m1));
-	datalen -= 4;
+	datalen = (datalen & DATALEN_MASK) - 4;
 	prefetch(skb->data - NET_IP_ALIGN);
 	skb_put(skb, datalen);
 
@@ -358,26 +536,41 @@ static int xgene_enet_process_ring(struct xgene_enet_desc_ring *ring,
 				   int budget)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ring->ndev);
-	struct xgene_enet_raw_desc *raw_desc;
+	struct xgene_enet_raw_desc *raw_desc, *exp_desc;
 	u16 head = ring->head;
 	u16 slots = ring->slots - 1;
-	int ret, count = 0;
+	int ret, count = 0, processed = 0;
 
 	do {
 		raw_desc = &ring->raw_desc[head];
+		exp_desc = NULL;
 		if (unlikely(xgene_enet_is_desc_slot_empty(raw_desc)))
 			break;
 
 		/* read fpqnum field after dataaddr field */
 		dma_rmb();
+		if (GET_BIT(NV, le64_to_cpu(raw_desc->m0))) {
+			head = (head + 1) & slots;
+			exp_desc = &ring->raw_desc[head];
+
+			if (unlikely(xgene_enet_is_desc_slot_empty(exp_desc))) {
+				head = (head - 1) & slots;
+				break;
+			}
+			dma_rmb();
+			count++;
+		}
 		if (is_rx_desc(raw_desc))
 			ret = xgene_enet_rx_frame(ring, raw_desc);
 		else
 			ret = xgene_enet_tx_completion(ring, raw_desc);
 		xgene_enet_mark_desc_slot_empty(raw_desc);
+		if (exp_desc)
+			xgene_enet_mark_desc_slot_empty(exp_desc);
 
 		head = (head + 1) & slots;
 		count++;
+		processed++;
 
 		if (ret)
 			break;
@@ -393,7 +586,7 @@ static int xgene_enet_process_ring(struct xgene_enet_desc_ring *ring,
 		}
 	}
 
-	return count;
+	return processed;
 }
 
 static int xgene_enet_napi(struct napi_struct *napi, const int budget)
@@ -738,12 +931,13 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 	struct xgene_enet_desc_ring *rx_ring, *tx_ring, *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool = NULL;
 	enum xgene_ring_owner owner;
+	dma_addr_t dma_exp_bufs;
 	u8 cpu_bufnum = pdata->cpu_bufnum;
 	u8 eth_bufnum = pdata->eth_bufnum;
 	u8 bp_bufnum = pdata->bp_bufnum;
 	u16 ring_num = pdata->ring_num;
 	u16 ring_id;
-	int ret;
+	int ret, size;
 
 	/* allocate rx descriptor ring */
 	owner = xgene_derive_ring_owner(pdata);
@@ -794,6 +988,15 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	size = (tx_ring->slots / 2) * sizeof(__le64) * MAX_EXP_BUFFS;
+	tx_ring->exp_bufs = dma_zalloc_coherent(dev, size, &dma_exp_bufs,
+						GFP_KERNEL);
+	if (!tx_ring->exp_bufs) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	pdata->tx_ring = tx_ring;
 
 	if (!pdata->cq_cnt) {
@@ -818,6 +1021,16 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	size = sizeof(dma_addr_t) * MAX_SKB_FRAGS;
+	cp_ring->frag_dma_addr = devm_kcalloc(dev, tx_ring->slots,
+					      size, GFP_KERNEL);
+	if (!cp_ring->frag_dma_addr) {
+		devm_kfree(dev, cp_ring->cp_skb);
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	pdata->tx_ring->cp_ring = cp_ring;
 	pdata->tx_ring->dst_ring_num = xgene_enet_dst_ring_num(cp_ring);
 
@@ -905,40 +1118,6 @@ static int xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pda
 	return ret;
 }
 
-static int xgene_get_mac_address(struct device *dev,
-				 unsigned char *addr)
-{
-	int ret;
-
-	ret = device_property_read_u8_array(dev, "local-mac-address", addr, 6);
-	if (ret)
-		ret = device_property_read_u8_array(dev, "mac-address",
-						    addr, 6);
-	if (ret)
-		return -ENODEV;
-
-	return ETH_ALEN;
-}
-
-static int xgene_get_phy_mode(struct device *dev)
-{
-	int i, ret;
-	char *modestr;
-
-	ret = device_property_read_string(dev, "phy-connection-type",
-					  (const char **)&modestr);
-	if (ret)
-		ret = device_property_read_string(dev, "phy-mode",
-						  (const char **)&modestr);
-	if (ret)
-		return -ENODEV;
-
-	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++) {
-		if (!strcasecmp(modestr, phy_modes(i)))
-			return i;
-	}
-	return -ENODEV;
-}
 
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
@@ -998,12 +1177,12 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (ret)
 		return ret;
 
-	if (xgene_get_mac_address(dev, ndev->dev_addr) != ETH_ALEN)
+	if (!device_get_mac_address(dev, ndev->dev_addr, ETH_ALEN))
 		eth_hw_addr_random(ndev);
 
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
-	pdata->phy_mode = xgene_get_phy_mode(dev);
+	pdata->phy_mode = device_get_phy_mode(dev);
 	if (pdata->phy_mode < 0) {
 		dev_err(dev, "Unable to get phy-connection-type\n");
 		return pdata->phy_mode;
@@ -1207,7 +1386,8 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	xgene_enet_set_ethtool_ops(ndev);
 	ndev->features |= NETIF_F_IP_CSUM |
 			  NETIF_F_GSO |
-			  NETIF_F_GRO;
+			  NETIF_F_GRO |
+			  NETIF_F_SG;
 
 	of_id = of_match_device(xgene_enet_of_match, &pdev->dev);
 	if (of_id) {
@@ -1232,6 +1412,12 @@ static int xgene_enet_probe(struct platform_device *pdev)
 		goto err;
 
 	xgene_enet_setup_ops(pdata);
+
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+		ndev->features |= NETIF_F_TSO;
+		pdata->mss = XGENE_ENET_MSS;
+	}
+	ndev->hw_features = ndev->features;
 
 	ret = register_netdev(ndev);
 	if (ret) {

@@ -62,7 +62,7 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 static __always_inline
 u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
 {
-	u64 delta = __native_read_tsc() - src->tsc_timestamp;
+	u64 delta = rdtsc_ordered() - src->tsc_timestamp;
 	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
 				   src->tsc_shift);
 }
@@ -76,13 +76,7 @@ unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
 	u8 ret_flags;
 
 	version = src->version;
-	/* Note: emulated platforms which do not advertise SSE2 support
-	 * result in kvmclock not using the necessary RDTSC barriers.
-	 * Without barriers, it is possible that RDTSC instruction reads from
-	 * the time stamp counter outside rdtsc_barrier protected section
-	 * below, resulting in violation of monotonicity.
-	 */
-	rdtsc_barrier();
+
 	offset = pvclock_get_nsec_offset(src);
 	ret = src->system_time + offset;
 	ret_flags = src->flags;

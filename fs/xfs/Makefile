@@ -33,6 +33,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_attr.o \
 				   xfs_attr_leaf.o \
 				   xfs_attr_remote.o \
+				   xfs_bit.o \
 				   xfs_bmap.o \
 				   xfs_bmap_btree.o \
 				   xfs_btree.o \
@@ -63,7 +64,6 @@ xfs-$(CONFIG_XFS_RT)		+= $(addprefix libxfs/, \
 xfs-y				+= xfs_aops.o \
 				   xfs_attr_inactive.o \
 				   xfs_attr_list.o \
-				   xfs_bit.o \
 				   xfs_bmap_util.o \
 				   xfs_buf.o \
 				   xfs_dir2_readdir.o \

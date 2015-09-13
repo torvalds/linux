@@ -152,7 +152,7 @@ static void cvm_oct_configure_common_hw(void)
 			     num_packet_buffers);
 	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
 		cvm_oct_mem_fill_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL,
-				     CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
+				     CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 1024);
 
 #ifdef __LITTLE_ENDIAN
 	{
@@ -860,7 +860,10 @@ static int cvm_oct_remove(struct platform_device *pdev)
 	int port;
 
 	/* Disable POW interrupt */
-	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group), 0);
+	else
+		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
 	cvmx_ipd_disable();
 

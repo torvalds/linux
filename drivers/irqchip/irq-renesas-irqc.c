@@ -53,7 +53,6 @@
 struct irqc_irq {
 	int hw_irq;
 	int requested_irq;
-	int domain_irq;
 	struct irqc_priv *p;
 };
 
@@ -70,8 +69,8 @@ struct irqc_priv {
 
 static void irqc_dbg(struct irqc_irq *i, char *str)
 {
-	dev_dbg(&i->p->pdev->dev, "%s (%d:%d:%d)\n",
-		str, i->requested_irq, i->hw_irq, i->domain_irq);
+	dev_dbg(&i->p->pdev->dev, "%s (%d:%d)\n",
+		str, i->requested_irq, i->hw_irq);
 }
 
 static void irqc_irq_enable(struct irq_data *d)
@@ -145,7 +144,7 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 	if (ioread32(p->iomem + DETECT_STATUS) & bit) {
 		iowrite32(bit, p->iomem + DETECT_STATUS);
 		irqc_dbg(i, "demux2");
-		generic_handle_irq(i->domain_irq);
+		generic_handle_irq(irq_find_mapping(p->irq_domain, i->hw_irq));
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -156,13 +155,9 @@ static int irqc_irq_domain_map(struct irq_domain *h, unsigned int virq,
 {
 	struct irqc_priv *p = h->host_data;
 
-	p->irq[hw].domain_irq = virq;
-	p->irq[hw].hw_irq = hw;
-
 	irqc_dbg(&p->irq[hw], "map");
 	irq_set_chip_data(virq, h->host_data);
 	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID); /* kill me now */
 	return 0;
 }
 
@@ -215,6 +210,7 @@ static int irqc_probe(struct platform_device *pdev)
 			break;
 
 		p->irq[k].p = p;
+		p->irq[k].hw_irq = k;
 		p->irq[k].requested_irq = irq->start;
 	}
 
@@ -243,8 +239,8 @@ static int irqc_probe(struct platform_device *pdev)
 	irq_chip->irq_set_wake = irqc_irq_set_wake;
 	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
-					      p->number_of_irqs, 0,
+	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
+					      p->number_of_irqs,
 					      &irqc_irq_domain_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;

@@ -117,7 +117,7 @@ static int qpnp_tm_update_temp_no_adc(struct qpnp_tm_chip *chip)
 	return 0;
 }
 
-static int qpnp_tm_get_temp(void *data, long *temp)
+static int qpnp_tm_get_temp(void *data, int *temp)
 {
 	struct qpnp_tm_chip *chip = data;
 	int ret, mili_celsius;

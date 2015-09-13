@@ -14,6 +14,7 @@
 
 #include <sound/rt5677.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 
 /* Info */
 #define RT5677_RESET				0x00
@@ -1775,8 +1776,8 @@ struct rt5677_priv {
 	int pll_src;
 	int pll_in;
 	int pll_out;
-	int pow_ldo2; /* POW_LDO2 pin */
-	int reset_pin; /* RESET pin */
+	struct gpio_desc *pow_ldo2; /* POW_LDO2 pin */
+	struct gpio_desc *reset_pin; /* RESET pin */
 	enum rt5677_type type;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;

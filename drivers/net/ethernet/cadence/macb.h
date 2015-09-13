@@ -399,7 +399,7 @@
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
 #define MACB_CAPS_SG_DISABLED			0x40000000
 #define MACB_CAPS_MACB_IS_GEM			0x80000000
-#define MACB_CAPS_JUMBO				0x00000008
+#define MACB_CAPS_JUMBO				0x00000010
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\

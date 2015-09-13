@@ -1665,6 +1665,8 @@ static int sh_mobile_ceu_querycap(struct soc_camera_host *ici,
 				  struct v4l2_capability *cap)
 {
 	strlcpy(cap->card, "SuperH_Mobile_CEU", sizeof(cap->card));
+	strlcpy(cap->driver, "sh_mobile_ceu", sizeof(cap->driver));
+	strlcpy(cap->bus_info, "platform:sh_mobile_ceu", sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
@@ -1773,6 +1775,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		pcdev->max_height = pcdev->pdata->max_height;
 		pcdev->flags = pcdev->pdata->flags;
 	}
+	pcdev->field = V4L2_FIELD_NONE;
 
 	if (!pcdev->max_width) {
 		unsigned int v;

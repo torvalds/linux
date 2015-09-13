@@ -135,6 +135,9 @@ Boards:
 - AM335X OrionLXm : Substation Automation Platform
   compatible = "novatech,am335x-lxm", "ti,am33xx"
 
+- AM335X phyBOARD-WEGA: Single Board Computer dev kit
+  compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx"
+
 - OMAP5 EVM : Evaluation Module
   compatible = "ti,omap5-evm", "ti,omap5"
 

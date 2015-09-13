@@ -120,6 +120,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
 	struct ieee80211_sta_vht_cap own_cap;
 	u32 cap_info, i;
+	bool have_80mhz;
 
 	memset(vht_cap, 0, sizeof(*vht_cap));
 
@@ -127,6 +128,20 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (!vht_cap_ie || !sband->vht_cap.vht_supported)
+		return;
+
+	/* Allow VHT if at least one channel on the sband supports 80 MHz */
+	have_80mhz = false;
+	for (i = 0; i < sband->n_channels; i++) {
+		if (sband->channels[i].flags & (IEEE80211_CHAN_DISABLED |
+						IEEE80211_CHAN_NO_80MHZ))
+			continue;
+
+		have_80mhz = true;
+		break;
+	}
+
+	if (!have_80mhz)
 		return;
 
 	/*
@@ -308,10 +323,14 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	enum ieee80211_sta_rx_bandwidth bw;
+	enum nl80211_chan_width bss_width = sdata->vif.bss_conf.chandef.width;
 
-	bw = ieee80211_chan_width_to_rx_bw(sdata->vif.bss_conf.chandef.width);
-	bw = min(bw, ieee80211_sta_cap_rx_bw(sta));
+	bw = ieee80211_sta_cap_rx_bw(sta);
 	bw = min(bw, sta->cur_max_bandwidth);
+
+	/* do not cap the BW of TDLS WIDER_BW peers by the bss */
+	if (!test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
+		bw = min(bw, ieee80211_chan_width_to_rx_bw(bss_width));
 
 	return bw;
 }
@@ -421,4 +440,30 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	if (changed > 0)
 		rate_control_rate_update(local, sband, sta, changed);
+}
+
+void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
+				     u16 vht_mask[NL80211_VHT_NSS_MAX])
+{
+	int i;
+	u16 mask, cap = le16_to_cpu(vht_cap);
+
+	for (i = 0; i < NL80211_VHT_NSS_MAX; i++) {
+		mask = (cap >> i * 2) & IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		switch (mask) {
+		case IEEE80211_VHT_MCS_SUPPORT_0_7:
+			vht_mask[i] = 0x00FF;
+			break;
+		case IEEE80211_VHT_MCS_SUPPORT_0_8:
+			vht_mask[i] = 0x01FF;
+			break;
+		case IEEE80211_VHT_MCS_SUPPORT_0_9:
+			vht_mask[i] = 0x03FF;
+			break;
+		case IEEE80211_VHT_MCS_NOT_SUPPORTED:
+		default:
+			vht_mask[i] = 0;
+			break;
+		}
+	}
 }

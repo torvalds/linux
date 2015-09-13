@@ -769,7 +769,7 @@ struct address_space_operations {
 	to stall to allow flushers a chance to complete some IO. Ordinarily
 	it can use PageDirty and PageWriteback but some filesystems have
 	more complex state (unstable pages in NFS prevent reclaim) or
-	do not set those flags due to locking problems (jbd). This callback
+	do not set those flags due to locking problems. This callback
 	allows a filesystem to indicate to the VM if a page should be
 	treated as dirty or writeback for the purposes of stalling.
 
