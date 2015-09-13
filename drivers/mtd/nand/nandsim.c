@@ -649,8 +649,7 @@ static void free_device(struct nandsim *ns)
 				kmem_cache_free(ns->nand_pages_slab,
 						ns->pages[i].byte);
 		}
-		if (ns->nand_pages_slab)
-			kmem_cache_destroy(ns->nand_pages_slab);
+		kmem_cache_destroy(ns->nand_pages_slab);
 		vfree(ns->pages);
 	}
 }
