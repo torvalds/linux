@@ -343,6 +343,7 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		V4L2_COLORSPACE_SRGB,
 		V4L2_COLORSPACE_ADOBERGB,
 		V4L2_COLORSPACE_BT2020,
+		V4L2_COLORSPACE_DCI_P3,
 		V4L2_COLORSPACE_SMPTE240M,
 		V4L2_COLORSPACE_470_SYSTEM_M,
 		V4L2_COLORSPACE_470_SYSTEM_BG,
@@ -702,6 +703,7 @@ static const char * const vivid_ctrl_colorspace_strings[] = {
 	"sRGB",
 	"AdobeRGB",
 	"BT.2020",
+	"DCI-P3",
 	"SMPTE 240M",
 	"470 System M",
 	"470 System BG",
@@ -725,6 +727,7 @@ static const char * const vivid_ctrl_xfer_func_strings[] = {
 	"AdobeRGB",
 	"SMPTE 240M",
 	"None",
+	"DCI-P3",
 	NULL,
 };
 
