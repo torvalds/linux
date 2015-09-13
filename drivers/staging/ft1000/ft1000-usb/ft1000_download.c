@@ -131,7 +131,7 @@ static int check_usb_db(struct ft1000_usb *ft1000dev)
 			break;
 		}
 		loopcnt++;
-		msleep(10);
+		usleep_range(10000, 11000);
 
 	}
 
@@ -142,7 +142,7 @@ static int check_usb_db(struct ft1000_usb *ft1000dev)
 		pr_debug("Doorbell = 0x%x\n", temp);
 		if (temp & 0x8000) {
 			loopcnt++;
-			msleep(10);
+			usleep_range(10000, 11000);
 		} else	{
 			pr_debug("door bell is cleared, return 0\n");
 			return 0;
@@ -191,7 +191,7 @@ static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 			return handshake;
 		}
 		loopcnt++;
-		msleep(10);
+		usleep_range(10000, 11000);
 	}
 
 	return HANDSHAKE_TIMEOUT_VALUE;
@@ -254,7 +254,7 @@ static u16 get_handshake_usb(struct ft1000_usb *ft1000dev, u16 expected_value)
 		}
 
 		loopcnt++;
-		msleep(10);
+		usleep_range(10000, 11000);
 		handshake = ntohs(handshake);
 		if ((handshake == expected_value) ||
 		    (handshake == HANDSHAKE_RESET_VALUE_USB))
