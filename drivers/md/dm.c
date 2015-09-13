@@ -2254,10 +2254,8 @@ static void cleanup_mapped_device(struct mapped_device *md)
 		destroy_workqueue(md->wq);
 	if (md->kworker_task)
 		kthread_stop(md->kworker_task);
-	if (md->io_pool)
-		mempool_destroy(md->io_pool);
-	if (md->rq_pool)
-		mempool_destroy(md->rq_pool);
+	mempool_destroy(md->io_pool);
+	mempool_destroy(md->rq_pool);
 	if (md->bs)
 		bioset_free(md->bs);
 
@@ -3542,11 +3540,8 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 	if (!pools)
 		return;
 
-	if (pools->io_pool)
-		mempool_destroy(pools->io_pool);
-
-	if (pools->rq_pool)
-		mempool_destroy(pools->rq_pool);
+	mempool_destroy(pools->io_pool);
+	mempool_destroy(pools->rq_pool);
 
 	if (pools->bs)
 		bioset_free(pools->bs);

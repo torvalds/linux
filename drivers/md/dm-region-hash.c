@@ -249,9 +249,7 @@ void dm_region_hash_destroy(struct dm_region_hash *rh)
 	if (rh->log)
 		dm_dirty_log_destroy(rh->log);
 
-	if (rh->region_pool)
-		mempool_destroy(rh->region_pool);
-
+	mempool_destroy(rh->region_pool);
 	vfree(rh->buckets);
 	kfree(rh);
 }
