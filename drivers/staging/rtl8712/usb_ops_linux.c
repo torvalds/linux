@@ -268,7 +268,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 		return _FAIL;
 	if (!precvbuf->reuse == false || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
-		if (NULL != precvbuf->pskb)
+		if (precvbuf->pskb != NULL)
 			precvbuf->reuse = true;
 	}
 	if (precvbuf != NULL) {
