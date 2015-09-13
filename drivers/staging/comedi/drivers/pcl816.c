@@ -305,7 +305,7 @@ static int check_channel_list(struct comedi_device *dev,
 		chansegment[0] = chanlist[0];
 		for (i = 1, seglen = 1; i < chanlen; i++, seglen++) {
 			/*  we detect loop, this must by finish */
-			    if (chanlist[0] == chanlist[i])
+			if (chanlist[0] == chanlist[i])
 				break;
 			nowmustbechan =
 			    (CR_CHAN(chansegment[i - 1]) + 1) % chanlen;

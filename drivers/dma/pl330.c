@@ -1198,6 +1198,9 @@ static inline int _loop(unsigned dry_run, u8 buf[],
 	unsigned lcnt0, lcnt1, ljmp0, ljmp1;
 	struct _arg_LPEND lpend;
 
+	if (*bursts == 1)
+		return _bursts(dry_run, buf, pxs, 1);
+
 	/* Max iterations possible in DMALP is 256 */
 	if (*bursts >= 256*256) {
 		lcnt1 = 256;
@@ -2328,7 +2331,7 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 			desc->txd.callback = last->txd.callback;
 			desc->txd.callback_param = last->txd.callback_param;
 		}
-		last->last = false;
+		desc->last = false;
 
 		dma_cookie_assign(&desc->txd);
 
@@ -2623,6 +2626,7 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 		desc->rqcfg.brst_len = 1;
 
 	desc->rqcfg.brst_len = get_burst_len(desc, len);
+	desc->bytes_requested = len;
 
 	desc->txd.flags = flags;
 

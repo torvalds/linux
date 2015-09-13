@@ -34,17 +34,17 @@ nvbios_boostTe(struct nvkm_bios *bios,
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2)
-			boost = nv_ro16(bios, bit_P.offset + 0x30);
+			boost = nvbios_rd16(bios, bit_P.offset + 0x30);
 
 		if (boost) {
-			*ver = nv_ro08(bios, boost + 0);
+			*ver = nvbios_rd08(bios, boost + 0);
 			switch (*ver) {
 			case 0x11:
-				*hdr = nv_ro08(bios, boost + 1);
-				*cnt = nv_ro08(bios, boost + 5);
-				*len = nv_ro08(bios, boost + 2);
-				*snr = nv_ro08(bios, boost + 4);
-				*ssz = nv_ro08(bios, boost + 3);
+				*hdr = nvbios_rd08(bios, boost + 1);
+				*cnt = nvbios_rd08(bios, boost + 5);
+				*len = nvbios_rd08(bios, boost + 2);
+				*snr = nvbios_rd08(bios, boost + 4);
+				*ssz = nvbios_rd08(bios, boost + 3);
 				return boost;
 			default:
 				break;
@@ -78,9 +78,9 @@ nvbios_boostEp(struct nvkm_bios *bios, int idx,
 	u16 data = nvbios_boostEe(bios, idx, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
 	if (data) {
-		info->pstate = (nv_ro16(bios, data + 0x00) & 0x01e0) >> 5;
-		info->min    =  nv_ro16(bios, data + 0x02) * 1000;
-		info->max    =  nv_ro16(bios, data + 0x04) * 1000;
+		info->pstate = (nvbios_rd16(bios, data + 0x00) & 0x01e0) >> 5;
+		info->min    =  nvbios_rd16(bios, data + 0x02) * 1000;
+		info->max    =  nvbios_rd16(bios, data + 0x04) * 1000;
 	}
 	return data;
 }
@@ -117,10 +117,10 @@ nvbios_boostSp(struct nvkm_bios *bios, int idx,
 	data = nvbios_boostSe(bios, idx, data, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
 	if (data) {
-		info->domain  = nv_ro08(bios, data + 0x00);
-		info->percent = nv_ro08(bios, data + 0x01);
-		info->min     = nv_ro16(bios, data + 0x02) * 1000;
-		info->max     = nv_ro16(bios, data + 0x04) * 1000;
+		info->domain  = nvbios_rd08(bios, data + 0x00);
+		info->percent = nvbios_rd08(bios, data + 0x01);
+		info->min     = nvbios_rd16(bios, data + 0x02) * 1000;
+		info->max     = nvbios_rd16(bios, data + 0x04) * 1000;
 	}
 	return data;
 }

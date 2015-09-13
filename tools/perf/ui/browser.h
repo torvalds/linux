@@ -37,6 +37,9 @@ void ui_browser__refresh_dimensions(struct ui_browser *browser);
 void ui_browser__reset_index(struct ui_browser *browser);
 
 void ui_browser__gotorc(struct ui_browser *browser, int y, int x);
+void ui_browser__write_nstring(struct ui_browser *browser, const char *msg,
+			       unsigned int width);
+void ui_browser__printf(struct ui_browser *browser, const char *fmt, ...);
 void ui_browser__write_graph(struct ui_browser *browser, int graph);
 void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
 			      u64 start, u64 end);
@@ -58,8 +61,8 @@ int ui_browser__help_window(struct ui_browser *browser, const char *text);
 bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text);
 int ui_browser__input_window(const char *title, const char *text, char *input,
 			     const char *exit_msg, int delay_sec);
-struct perf_session_env;
-int tui__header_window(struct perf_session_env *env);
+struct perf_env;
+int tui__header_window(struct perf_env *env);
 
 void ui_browser__argv_seek(struct ui_browser *browser, off_t offset, int whence);
 unsigned int ui_browser__argv_refresh(struct ui_browser *browser);

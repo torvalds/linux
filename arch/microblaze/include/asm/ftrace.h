@@ -3,7 +3,7 @@
 
 #ifdef CONFIG_FUNCTION_TRACER
 
-#define MCOUNT_ADDR		((long)(_mcount))
+#define MCOUNT_ADDR		((unsigned long)(_mcount))
 #define MCOUNT_INSN_SIZE	8 /* sizeof mcount call */
 
 #ifndef __ASSEMBLY__

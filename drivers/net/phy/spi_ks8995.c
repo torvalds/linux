@@ -209,8 +209,6 @@ static int ks8995_reset(struct ks8995_switch *ks)
 	return ks8995_start(ks);
 }
 
-/* ------------------------------------------------------------------------ */
-
 static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
 	struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
 {
@@ -220,18 +218,8 @@ static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
 	dev = container_of(kobj, struct device, kobj);
 	ks8995 = dev_get_drvdata(dev);
 
-	if (unlikely(off > ks8995->regs_attr.size))
-		return 0;
-
-	if ((off + count) > ks8995->regs_attr.size)
-		count = ks8995->regs_attr.size - off;
-
-	if (unlikely(!count))
-		return count;
-
 	return ks8995_read(ks8995, buf, off, count);
 }
-
 
 static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
 	struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
@@ -242,18 +230,8 @@ static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
 	dev = container_of(kobj, struct device, kobj);
 	ks8995 = dev_get_drvdata(dev);
 
-	if (unlikely(off >= ks8995->regs_attr.size))
-		return -EFBIG;
-
-	if ((off + count) > ks8995->regs_attr.size)
-		count = ks8995->regs_attr.size - off;
-
-	if (unlikely(!count))
-		return count;
-
 	return ks8995_write(ks8995, buf, off, count);
 }
-
 
 static const struct bin_attribute ks8995_registers_attr = {
 	.attr = {

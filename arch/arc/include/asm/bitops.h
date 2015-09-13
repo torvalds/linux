@@ -50,8 +50,7 @@ static inline void op##_bit(unsigned long nr, volatile unsigned long *m)\
 	 * done for const @nr, but no code is generated due to gcc	\
 	 * const prop.							\
 	 */								\
-	if (__builtin_constant_p(nr))					\
-		nr &= 0x1f;						\
+	nr &= 0x1f;							\
 									\
 	__asm__ __volatile__(						\
 	"1:	llock       %0, [%1]		\n"			\
@@ -82,8 +81,7 @@ static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *
 									\
 	m += nr >> 5;							\
 									\
-	if (__builtin_constant_p(nr))					\
-		nr &= 0x1f;						\
+	nr &= 0x1f;							\
 									\
 	/*								\
 	 * Explicit full memory barrier needed before/after as		\
@@ -129,16 +127,13 @@ static inline void op##_bit(unsigned long nr, volatile unsigned long *m)\
 	unsigned long temp, flags;					\
 	m += nr >> 5;							\
 									\
-	if (__builtin_constant_p(nr))					\
-		nr &= 0x1f;						\
-									\
 	/*								\
 	 * spin lock/unlock provide the needed smp_mb() before/after	\
 	 */								\
 	bitops_lock(flags);						\
 									\
 	temp = *m;							\
-	*m = temp c_op (1UL << nr);					\
+	*m = temp c_op (1UL << (nr & 0x1f));					\
 									\
 	bitops_unlock(flags);						\
 }
@@ -149,17 +144,14 @@ static inline int test_and_##op##_bit(unsigned long nr, volatile unsigned long *
 	unsigned long old, flags;					\
 	m += nr >> 5;							\
 									\
-	if (__builtin_constant_p(nr))					\
-		nr &= 0x1f;						\
-									\
 	bitops_lock(flags);						\
 									\
 	old = *m;							\
-	*m = old c_op (1 << nr);					\
+	*m = old c_op (1UL << (nr & 0x1f));				\
 									\
 	bitops_unlock(flags);						\
 									\
-	return (old & (1 << nr)) != 0;					\
+	return (old & (1UL << (nr & 0x1f))) != 0;			\
 }
 
 #endif /* CONFIG_ARC_HAS_LLSC */
@@ -174,11 +166,8 @@ static inline void __##op##_bit(unsigned long nr, volatile unsigned long *m)	\
 	unsigned long temp;						\
 	m += nr >> 5;							\
 									\
-	if (__builtin_constant_p(nr))					\
-		nr &= 0x1f;						\
-									\
 	temp = *m;							\
-	*m = temp c_op (1UL << nr);					\
+	*m = temp c_op (1UL << (nr & 0x1f));				\
 }
 
 #define __TEST_N_BIT_OP(op, c_op, asm_op)				\
@@ -187,13 +176,10 @@ static inline int __test_and_##op##_bit(unsigned long nr, volatile unsigned long
 	unsigned long old;						\
 	m += nr >> 5;							\
 									\
-	if (__builtin_constant_p(nr))					\
-		nr &= 0x1f;						\
-									\
 	old = *m;							\
-	*m = old c_op (1 << nr);					\
+	*m = old c_op (1UL << (nr & 0x1f));				\
 									\
-	return (old & (1 << nr)) != 0;					\
+	return (old & (1UL << (nr & 0x1f))) != 0;			\
 }
 
 #define BIT_OPS(op, c_op, asm_op)					\
@@ -224,10 +210,7 @@ test_bit(unsigned int nr, const volatile unsigned long *addr)
 
 	addr += nr >> 5;
 
-	if (__builtin_constant_p(nr))
-		nr &= 0x1f;
-
-	mask = 1 << nr;
+	mask = 1UL << (nr & 0x1f);
 
 	return ((mask & *addr) != 0);
 }

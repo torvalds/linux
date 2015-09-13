@@ -1058,9 +1058,8 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
 }
 
-int iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
-				 struct iwl_rx_cmd_buffer *rxb,
-				 struct iwl_device_cmd *dev_cmd)
+void iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
+				  struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif_old *notif = (void *)pkt->data;
@@ -1083,12 +1082,6 @@ int iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
 	memcpy(&mvm->last_bt_notif_old, notif, sizeof(mvm->last_bt_notif_old));
 
 	iwl_mvm_bt_coex_notif_handle(mvm);
-
-	/*
-	 * This is an async handler for a notification, returning anything other
-	 * than 0 doesn't make sense even if HCMD failed.
-	 */
-	return 0;
 }
 
 static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
@@ -1250,14 +1243,12 @@ void iwl_mvm_bt_coex_vif_change_old(struct iwl_mvm *mvm)
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }
 
-int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
-				      struct iwl_rx_cmd_buffer *rxb,
-				      struct iwl_device_cmd *dev_cmd)
+void iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
+				       struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
 	u8 __maybe_unused lower_bound, upper_bound;
-	int ret;
 	u8 lut;
 
 	struct iwl_bt_coex_cmd_old *bt_cmd;
@@ -1268,16 +1259,16 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 	};
 
 	if (!iwl_mvm_bt_is_plcr_supported(mvm))
-		return 0;
+		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Ignore updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
-		return 0;
+		return;
 
 	if (ant_isolation ==  mvm->last_ant_isol)
-		return 0;
+		return;
 
 	for (lut = 0; lut < ARRAY_SIZE(antenna_coupling_ranges) - 1; lut++)
 		if (ant_isolation < antenna_coupling_ranges[lut + 1].range)
@@ -1296,13 +1287,13 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 	mvm->last_ant_isol = ant_isolation;
 
 	if (mvm->last_corun_lut == lut)
-		return 0;
+		return;
 
 	mvm->last_corun_lut = lut;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
 	if (!bt_cmd)
-		return 0;
+		return;
 	cmd.data[0] = bt_cmd;
 
 	bt_cmd->flags = cpu_to_le32(BT_COEX_NW_OLD);
@@ -1317,8 +1308,8 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 	memcpy(bt_cmd->bt4_corun_lut40, antenna_coupling_ranges[lut].lut20,
 	       sizeof(bt_cmd->bt4_corun_lut40));
 
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (iwl_mvm_send_cmd(mvm, &cmd))
+		IWL_ERR(mvm, "failed to send BT_CONFIG command\n");
 
 	kfree(bt_cmd);
-	return ret;
 }

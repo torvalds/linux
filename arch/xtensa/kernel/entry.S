@@ -1,6 +1,4 @@
 /*
- * arch/xtensa/kernel/entry.S
- *
  * Low-level exception handling
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -8,6 +6,7 @@
  * for more details.
  *
  * Copyright (C) 2004 - 2008 by Tensilica Inc.
+ * Copyright (C) 2015 Cadence Design Systems Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -75,6 +74,27 @@
 #endif
 	.endm
 
+
+	.macro	irq_save flags tmp
+#if XTENSA_FAKE_NMI
+#if defined(CONFIG_DEBUG_KERNEL) && (LOCKLEVEL | TOPLEVEL) >= XCHAL_DEBUGLEVEL
+	rsr	\flags, ps
+	extui	\tmp, \flags, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei	\tmp, LOCKLEVEL, 99f
+	rsil	\tmp, LOCKLEVEL
+99:
+#else
+	movi	\tmp, LOCKLEVEL
+	rsr	\flags, ps
+	or	\flags, \flags, \tmp
+	xsr	\flags, ps
+	rsync
+#endif
+#else
+	rsil	\flags, LOCKLEVEL
+#endif
+	.endm
+
 /* ----------------- DEFAULT FIRST LEVEL EXCEPTION HANDLERS ----------------- */
 
 /*
@@ -122,6 +142,7 @@ _user_exception:
 	/* Save SAR and turn off single stepping */
 
 	movi	a2, 0
+	wsr	a2, depc		# terminate user stack trace with 0
 	rsr	a3, sar
 	xsr	a2, icountlevel
 	s32i	a3, a1, PT_SAR
@@ -301,7 +322,18 @@ _kernel_exception:
 	s32i	a14, a1, PT_AREG14
 	s32i	a15, a1, PT_AREG15
 
+	_bnei	a2, 1, 1f
+
+	/* Copy spill slots of a0 and a1 to imitate movsp
+	 * in order to keep exception stack continuous
+	 */
+	l32i	a3, a1, PT_SIZE
+	l32i	a0, a1, PT_SIZE + 4
+	s32e	a3, a1, -16
+	s32e	a0, a1, -12
 1:
+	l32i	a0, a1, PT_AREG0	# restore saved a0
+	wsr	a0, depc
 
 #ifdef KERNEL_STACK_OVERFLOW_CHECK
 
@@ -340,75 +372,88 @@ common_exception:
 
 	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
 
-	rsr	a0, exccause
+	rsr	a2, exccause
 	movi	a3, 0
-	rsr	a2, excsave1
-	s32i	a0, a1, PT_EXCCAUSE
-	s32i	a3, a2, EXC_TABLE_FIXUP
+	rsr	a0, excsave1
+	s32i	a2, a1, PT_EXCCAUSE
+	s32i	a3, a0, EXC_TABLE_FIXUP
 
-	/* All unrecoverable states are saved on stack, now, and a1 is valid,
-	 * so we can allow exceptions and interrupts (*) again.
-	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
+	/* All unrecoverable states are saved on stack, now, and a1 is valid.
+	 * Now we can allow exceptions again. In case we've got an interrupt
+	 * PS.INTLEVEL is set to LOCKLEVEL disabling furhter interrupts,
+	 * otherwise it's left unchanged.
 	 *
-	 * (*) We only allow interrupts if they were previously enabled and
-	 *     we're not handling an IRQ
+	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
 	 */
 
 	rsr	a3, ps
-	addi	a0, a0, -EXCCAUSE_LEVEL1_INTERRUPT
-	movi	a2, LOCKLEVEL
+	s32i	a3, a1, PT_PS		# save ps
+
+#if XTENSA_FAKE_NMI
+	/* Correct PS needs to be saved in the PT_PS:
+	 * - in case of exception or level-1 interrupt it's in the PS,
+	 *   and is already saved.
+	 * - in case of medium level interrupt it's in the excsave2.
+	 */
+	movi	a0, EXCCAUSE_MAPPED_NMI
+	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	beq	a2, a0, .Lmedium_level_irq
+	bnei	a2, EXCCAUSE_LEVEL1_INTERRUPT, .Lexception
+	beqz	a3, .Llevel1_irq	# level-1 IRQ sets ps.intlevel to 0
+
+.Lmedium_level_irq:
+	rsr	a0, excsave2
+	s32i	a0, a1, PT_PS		# save medium-level interrupt ps
+	bgei	a3, LOCKLEVEL, .Lexception
+
+.Llevel1_irq:
+	movi	a3, LOCKLEVEL
+
+.Lexception:
+	movi	a0, 1 << PS_WOE_BIT
+	or	a3, a3, a0
+#else
+	addi	a2, a2, -EXCCAUSE_LEVEL1_INTERRUPT
+	movi	a0, LOCKLEVEL
 	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 					# a3 = PS.INTLEVEL
-	moveqz	a3, a2, a0		# a3 = LOCKLEVEL iff interrupt
+	moveqz	a3, a0, a2		# a3 = LOCKLEVEL iff interrupt
 	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
-	rsr	a0, exccause
-	xsr	a3, ps
+	rsr	a2, exccause
+#endif
 
-	s32i	a3, a1, PT_PS		# save ps
+	/* restore return address (or 0 if return to userspace) */
+	rsr	a0, depc
+	wsr	a3, ps
+	rsync				# PS.WOE => rsync => overflow
 
 	/* Save lbeg, lend */
 
-	rsr	a2, lbeg
+	rsr	a4, lbeg
 	rsr	a3, lend
-	s32i	a2, a1, PT_LBEG
+	s32i	a4, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
 
 	/* Save SCOMPARE1 */
 
 #if XCHAL_HAVE_S32C1I
-	rsr     a2, scompare1
-	s32i    a2, a1, PT_SCOMPARE1
+	rsr     a3, scompare1
+	s32i    a3, a1, PT_SCOMPARE1
 #endif
 
 	/* Save optional registers. */
 
-	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
+	save_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
 	
-#ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we've just disabled them.
-	 */
-	movi	a4, trace_hardirqs_off
-	callx4	a4
-1:
-#endif
-
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
 
 	rsr	a4, excsave1
 	mov	a6, a1			# pass stack frame
-	mov	a7, a0			# pass EXCCAUSE
-	addx4	a4, a0, a4
+	mov	a7, a2			# pass EXCCAUSE
+	addx4	a4, a2, a4
 	l32i	a4, a4, EXC_TABLE_DEFAULT		# load handler
 
 	/* Call the second-level handler */
@@ -419,8 +464,17 @@ common_exception:
 	.global common_exception_return
 common_exception_return:
 
+#if XTENSA_FAKE_NMI
+	l32i	a2, a1, PT_EXCCAUSE
+	movi	a3, EXCCAUSE_MAPPED_NMI
+	beq	a2, a3, .LNMIexit
+#endif
 1:
-	rsil	a2, LOCKLEVEL
+	irq_save a2, a3
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_off
+	callx4	a4
+#endif
 
 	/* Jump if we are returning from kernel exceptions. */
 
@@ -445,6 +499,10 @@ common_exception_return:
 
 	/* Call do_signal() */
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+#endif
 	rsil	a2, 0
 	movi	a4, do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	mov	a6, a1
@@ -453,6 +511,10 @@ common_exception_return:
 
 3:	/* Reschedule */
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+#endif
 	rsil	a2, 0
 	movi	a4, schedule	# void schedule (void)
 	callx4	a4
@@ -471,6 +533,12 @@ common_exception_return:
 	j	1b
 #endif
 
+#if XTENSA_FAKE_NMI
+.LNMIexit:
+	l32i	a3, a1, PT_PS
+	_bbci.l	a3, PS_UM_BIT, 4f
+#endif
+
 5:
 #ifdef CONFIG_DEBUG_TLB_SANITY
 	l32i	a4, a1, PT_DEPC
@@ -481,16 +549,8 @@ common_exception_return:
 6:
 4:
 #ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we'll reenable them on return.
-	 */
+	extui	a4, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei	a4, LOCKLEVEL, 1f
 	movi	a4, trace_hardirqs_on
 	callx4	a4
 1:
@@ -568,12 +628,13 @@ user_exception_exit:
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
 
+2:
 #if XCHAL_HAVE_THREADPTR
 	l32i	a3, a1, PT_THREADPTR
 	wur	a3, threadptr
 #endif
 
-2:	j	common_exception_exit
+	j	common_exception_exit
 
 	/* This is the kernel exception exit.
 	 * We avoided to do a MOVSP when we entered the exception, but we
@@ -1561,6 +1622,13 @@ ENTRY(fast_second_level_miss)
 	rfde
 
 9:	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
+	bnez	a0, 8b
+
+	/* Even more unlikely case active_mm == 0.
+	 * We can get here with NMI in the middle of context_switch that
+	 * touches vmalloc area.
+	 */
+	movi	a0, init_mm
 	j	8b
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
@@ -1820,7 +1888,7 @@ ENDPROC(system_call)
 	mov	a12, a0
 	.endr
 #endif
-	_entry	a1, 48
+	_entry	a1, 16
 #if XCHAL_NUM_AREGS % 12 == 0
 	mov	a8, a8
 #elif XCHAL_NUM_AREGS % 12 == 4
@@ -1844,7 +1912,7 @@ ENDPROC(system_call)
 
 ENTRY(_switch_to)
 
-	entry	a1, 16
+	entry	a1, 48
 
 	mov	a11, a3			# and 'next' (a3)
 
@@ -1864,10 +1932,8 @@ ENTRY(_switch_to)
 
 	/* Disable ints while we manipulate the stack pointer. */
 
-	rsil	a14, LOCKLEVEL
-	rsr	a3, excsave1
+	irq_save a14, a3
 	rsync
-	s32i	a3, a3, EXC_TABLE_FIXUP	/* enter critical section */
 
 	/* Switch CPENABLE */
 
@@ -1888,9 +1954,7 @@ ENTRY(_switch_to)
 	 */
 
 	rsr	a3, excsave1		# exc_table
-	movi	a6, 0
 	addi	a7, a5, PT_REGS_OFFSET
-	s32i	a6, a3, EXC_TABLE_FIXUP
 	s32i	a7, a3, EXC_TABLE_KSTK
 
 	/* restore context of the task 'next' */

@@ -1330,7 +1330,7 @@ static int aes_decipher(u8 *key, uint	hdrlen,
 		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
 
 		for (j = 0; j < 16; j++)
-			 pframe[payload_index++] = chain_buffer[j];
+			pframe[payload_index++] = chain_buffer[j];
 	}
 
 	if (payload_remainder > 0) {    /* If there is a short final block, then pad it,*/

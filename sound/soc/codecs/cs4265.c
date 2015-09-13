@@ -60,23 +60,7 @@ static const struct reg_default cs4265_reg_defaults[] = {
 static bool cs4265_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS4265_PWRCTL:
-	case CS4265_DAC_CTL:
-	case CS4265_ADC_CTL:
-	case CS4265_MCLK_FREQ:
-	case CS4265_SIG_SEL:
-	case CS4265_CHB_PGA_CTL:
-	case CS4265_CHA_PGA_CTL:
-	case CS4265_ADC_CTL2:
-	case CS4265_DAC_CHA_VOL:
-	case CS4265_DAC_CHB_VOL:
-	case CS4265_DAC_CTL2:
-	case CS4265_SPDIF_CTL1:
-	case CS4265_SPDIF_CTL2:
-	case CS4265_INT_MASK:
-	case CS4265_STATUS_MODE_MSB:
-	case CS4265_STATUS_MODE_LSB:
-	case CS4265_CHIP_ID:
+	case CS4265_CHIP_ID ... CS4265_SPDIF_CTL2:
 		return true;
 	default:
 		return false;
@@ -457,14 +441,14 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_RIGHT_J:
 		if (params_width(params) == 16) {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
-				CS4265_DAC_CTL_DIF, (1 << 5));
+				CS4265_DAC_CTL_DIF, (2 << 4));
 			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
-				CS4265_SPDIF_CTL2_DIF, (1 << 7));
+				CS4265_SPDIF_CTL2_DIF, (2 << 6));
 		} else {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
-				CS4265_DAC_CTL_DIF, (3 << 5));
+				CS4265_DAC_CTL_DIF, (3 << 4));
 			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
-				CS4265_SPDIF_CTL2_DIF, (1 << 7));
+				CS4265_SPDIF_CTL2_DIF, (3 << 6));
 		}
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -473,7 +457,7 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, CS4265_ADC_CTL,
 			CS4265_ADC_DIF, 0);
 		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
-			CS4265_SPDIF_CTL2_DIF, (1 << 6));
+			CS4265_SPDIF_CTL2_DIF, 0);
 
 		break;
 	default:
@@ -658,7 +642,6 @@ MODULE_DEVICE_TABLE(i2c, cs4265_id);
 static struct i2c_driver cs4265_i2c_driver = {
 	.driver = {
 		.name = "cs4265",
-		.owner = THIS_MODULE,
 		.of_match_table = cs4265_of_match,
 	},
 	.id_table = cs4265_id,

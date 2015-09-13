@@ -67,7 +67,7 @@ struct miscdevice  {
 };
 
 extern int misc_register(struct miscdevice *misc);
-extern int misc_deregister(struct miscdevice *misc);
+extern void misc_deregister(struct miscdevice *misc);
 
 #define MODULE_ALIAS_MISCDEV(minor)				\
 	MODULE_ALIAS("char-major-" __stringify(MISC_MAJOR)	\

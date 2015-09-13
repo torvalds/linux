@@ -284,9 +284,9 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
  * Flags for lockdep annotations.
  *
  * XFS_LOCK_PARENT - for directory operations that require locking a
- * parent directory inode and a child entry inode.  The parent gets locked
- * with this flag so it gets a lockdep subclass of 1 and the child entry
- * lock will have a lockdep subclass of 0.
+ * parent directory inode and a child entry inode. IOLOCK requires nesting,
+ * MMAPLOCK does not support this class, ILOCK requires a single subclass
+ * to differentiate parent from child.
  *
  * XFS_LOCK_RTBITMAP/XFS_LOCK_RTSUM - the realtime device bitmap and summary
  * inodes do not participate in the normal lock order, and thus have their
@@ -295,30 +295,63 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
  * XFS_LOCK_INUMORDER - for locking several inodes at the some time
  * with xfs_lock_inodes().  This flag is used as the starting subclass
  * and each subsequent lock acquired will increment the subclass by one.
- * So the first lock acquired will have a lockdep subclass of 4, the
- * second lock will have a lockdep subclass of 5, and so on. It is
- * the responsibility of the class builder to shift this to the correct
- * portion of the lock_mode lockdep mask.
+ * However, MAX_LOCKDEP_SUBCLASSES == 8, which means we are greatly
+ * limited to the subclasses we can represent via nesting. We need at least
+ * 5 inodes nest depth for the ILOCK through rename, and we also have to support
+ * XFS_ILOCK_PARENT, which gives 6 subclasses. Then we have XFS_ILOCK_RTBITMAP
+ * and XFS_ILOCK_RTSUM, which are another 2 unique subclasses, so that's all
+ * 8 subclasses supported by lockdep.
+ *
+ * This also means we have to number the sub-classes in the lowest bits of
+ * the mask we keep, and we have to ensure we never exceed 3 bits of lockdep
+ * mask and we can't use bit-masking to build the subclasses. What a mess.
+ *
+ * Bit layout:
+ *
+ * Bit		Lock Region
+ * 16-19	XFS_IOLOCK_SHIFT dependencies
+ * 20-23	XFS_MMAPLOCK_SHIFT dependencies
+ * 24-31	XFS_ILOCK_SHIFT dependencies
+ *
+ * IOLOCK values
+ *
+ * 0-3		subclass value
+ * 4-7		PARENT subclass values
+ *
+ * MMAPLOCK values
+ *
+ * 0-3		subclass value
+ * 4-7		unused
+ *
+ * ILOCK values
+ * 0-4		subclass values
+ * 5		PARENT subclass (not nestable)
+ * 6		RTBITMAP subclass (not nestable)
+ * 7		RTSUM subclass (not nestable)
+ * 
  */
-#define XFS_LOCK_PARENT		1
-#define XFS_LOCK_RTBITMAP	2
-#define XFS_LOCK_RTSUM		3
-#define XFS_LOCK_INUMORDER	4
+#define XFS_IOLOCK_SHIFT		16
+#define XFS_IOLOCK_PARENT_VAL		4
+#define XFS_IOLOCK_MAX_SUBCLASS		(XFS_IOLOCK_PARENT_VAL - 1)
+#define XFS_IOLOCK_DEP_MASK		0x000f0000
+#define	XFS_IOLOCK_PARENT		(XFS_IOLOCK_PARENT_VAL << XFS_IOLOCK_SHIFT)
 
-#define XFS_IOLOCK_SHIFT	16
-#define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
+#define XFS_MMAPLOCK_SHIFT		20
+#define XFS_MMAPLOCK_NUMORDER		0
+#define XFS_MMAPLOCK_MAX_SUBCLASS	3
+#define XFS_MMAPLOCK_DEP_MASK		0x00f00000
 
-#define XFS_MMAPLOCK_SHIFT	20
+#define XFS_ILOCK_SHIFT			24
+#define XFS_ILOCK_PARENT_VAL		5
+#define XFS_ILOCK_MAX_SUBCLASS		(XFS_ILOCK_PARENT_VAL - 1)
+#define XFS_ILOCK_RTBITMAP_VAL		6
+#define XFS_ILOCK_RTSUM_VAL		7
+#define XFS_ILOCK_DEP_MASK		0xff000000
+#define	XFS_ILOCK_PARENT		(XFS_ILOCK_PARENT_VAL << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTBITMAP		(XFS_ILOCK_RTBITMAP_VAL << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTSUM			(XFS_ILOCK_RTSUM_VAL << XFS_ILOCK_SHIFT)
 
-#define XFS_ILOCK_SHIFT		24
-#define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
-#define	XFS_ILOCK_RTBITMAP	(XFS_LOCK_RTBITMAP << XFS_ILOCK_SHIFT)
-#define	XFS_ILOCK_RTSUM		(XFS_LOCK_RTSUM << XFS_ILOCK_SHIFT)
-
-#define XFS_IOLOCK_DEP_MASK	0x000f0000
-#define XFS_MMAPLOCK_DEP_MASK	0x00f00000
-#define XFS_ILOCK_DEP_MASK	0xff000000
-#define XFS_LOCK_DEP_MASK	(XFS_IOLOCK_DEP_MASK | \
+#define XFS_LOCK_SUBCLASS_MASK	(XFS_IOLOCK_DEP_MASK | \
 				 XFS_MMAPLOCK_DEP_MASK | \
 				 XFS_ILOCK_DEP_MASK)
 

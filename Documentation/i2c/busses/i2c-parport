@@ -20,6 +20,7 @@ It currently supports the following devices:
  * (type=5) Analog Devices evaluation boards: ADM1025, ADM1030, ADM1031
  * (type=6) Barco LPT->DVI (K5800236) adapter
  * (type=7) One For All JP1 parallel port adapter
+ * (type=8) VCT-jig
 
 These devices use different pinout configurations, so you have to tell
 the driver what you have, using the type module parameter. There is no

@@ -437,7 +437,10 @@ static struct page *rb_alloc_aux_page(int node, int order)
 
 	if (page && order) {
 		/*
-		 * Communicate the allocation size to the driver
+		 * Communicate the allocation size to the driver:
+		 * if we managed to secure a high-order allocation,
+		 * set its first page's private to this order;
+		 * !PagePrivate(page) means it's just a normal page.
 		 */
 		split_page(page, order);
 		SetPagePrivate(page);
@@ -559,11 +562,13 @@ static void __rb_free_aux(struct ring_buffer *rb)
 		rb->aux_priv = NULL;
 	}
 
-	for (pg = 0; pg < rb->aux_nr_pages; pg++)
-		rb_free_aux_page(rb, pg);
+	if (rb->aux_nr_pages) {
+		for (pg = 0; pg < rb->aux_nr_pages; pg++)
+			rb_free_aux_page(rb, pg);
 
-	kfree(rb->aux_pages);
-	rb->aux_nr_pages = 0;
+		kfree(rb->aux_pages);
+		rb->aux_nr_pages = 0;
+	}
 }
 
 void rb_free_aux(struct ring_buffer *rb)

@@ -1099,11 +1099,11 @@ TRACE_EVENT(f2fs_lookup_extent_tree_start,
 TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
 
 	TP_PROTO(struct inode *inode, unsigned int pgofs,
-						struct extent_node *en),
+						struct extent_info *ei),
 
-	TP_ARGS(inode, pgofs, en),
+	TP_ARGS(inode, pgofs, ei),
 
-	TP_CONDITION(en),
+	TP_CONDITION(ei),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -1118,9 +1118,9 @@ TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
 		__entry->pgofs = pgofs;
-		__entry->fofs = en->ei.fofs;
-		__entry->blk = en->ei.blk;
-		__entry->len = en->ei.len;
+		__entry->fofs = ei->fofs;
+		__entry->blk = ei->blk;
+		__entry->len = ei->len;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, "

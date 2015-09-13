@@ -1,4 +1,4 @@
-uint32_t gf100_pce_data[] = {
+uint32_t gf100_ce_data[] = {
 /* 0x0000: ctx_object */
 	0x00000000,
 /* 0x0004: ctx_query_address_high */
@@ -171,7 +171,7 @@ uint32_t gf100_pce_data[] = {
 	0x00000800,
 };
 
-uint32_t gf100_pce_code[] = {
+uint32_t gf100_ce_code[] = {
 /* 0x0000: main */
 	0x04fe04bd,
 	0x3517f000,

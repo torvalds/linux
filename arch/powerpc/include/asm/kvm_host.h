@@ -205,8 +205,10 @@ struct revmap_entry {
  */
 #define KVMPPC_RMAP_LOCK_BIT	63
 #define KVMPPC_RMAP_RC_SHIFT	32
+#define KVMPPC_RMAP_CHG_SHIFT	48
 #define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
 #define KVMPPC_RMAP_CHANGED	(HPTE_R_C << KVMPPC_RMAP_RC_SHIFT)
+#define KVMPPC_RMAP_CHG_ORDER	(0x3ful << KVMPPC_RMAP_CHG_SHIFT)
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
@@ -278,7 +280,9 @@ struct kvmppc_vcore {
 	u16 last_cpu;
 	u8 vcore_state;
 	u8 in_guest;
+	struct kvmppc_vcore *master_vcore;
 	struct list_head runnable_threads;
+	struct list_head preempt_list;
 	spinlock_t lock;
 	wait_queue_head_t wq;
 	spinlock_t stoltb_lock;	/* protects stolen_tb and preempt_tb */
@@ -300,12 +304,21 @@ struct kvmppc_vcore {
 #define VCORE_EXIT_MAP(vc)	((vc)->entry_exit_map >> 8)
 #define VCORE_IS_EXITING(vc)	(VCORE_EXIT_MAP(vc) != 0)
 
-/* Values for vcore_state */
+/* This bit is used when a vcore exit is triggered from outside the vcore */
+#define VCORE_EXIT_REQ		0x10000
+
+/*
+ * Values for vcore_state.
+ * Note that these are arranged such that lower values
+ * (< VCORE_SLEEPING) don't require stolen time accounting
+ * on load/unload, and higher values do.
+ */
 #define VCORE_INACTIVE	0
-#define VCORE_SLEEPING	1
-#define VCORE_PREEMPT	2
-#define VCORE_RUNNING	3
-#define VCORE_EXITING	4
+#define VCORE_PREEMPT	1
+#define VCORE_PIGGYBACK	2
+#define VCORE_SLEEPING	3
+#define VCORE_RUNNING	4
+#define VCORE_EXITING	5
 
 /*
  * Struct used to manage memory for a virtual processor area
@@ -473,7 +486,7 @@ struct kvm_vcpu_arch {
 	ulong ciabr;
 	ulong cfar;
 	ulong ppr;
-	ulong pspb;
+	u32 pspb;
 	ulong fscr;
 	ulong shadow_fscr;
 	ulong ebbhr;
@@ -619,6 +632,7 @@ struct kvm_vcpu_arch {
 	int trap;
 	int state;
 	int ptid;
+	int thread_cpu;
 	bool timer_running;
 	wait_queue_head_t cpu_run;
 

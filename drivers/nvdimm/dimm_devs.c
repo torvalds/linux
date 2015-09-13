@@ -241,10 +241,7 @@ void nvdimm_drvdata_release(struct kref *kref)
 		nvdimm_free_dpa(ndd, res);
 	nvdimm_bus_unlock(dev);
 
-	if (ndd->data && is_vmalloc_addr(ndd->data))
-		vfree(ndd->data);
-	else
-		kfree(ndd->data);
+	kvfree(ndd->data);
 	kfree(ndd);
 	put_device(dev);
 }

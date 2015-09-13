@@ -204,6 +204,20 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 		 * attach this handle to a new transaction.
 		 */
 		atomic_sub(total, &t->t_outstanding_credits);
+
+		/*
+		 * Is the number of reserved credits in the current transaction too
+		 * big to fit this handle? Wait until reserved credits are freed.
+		 */
+		if (atomic_read(&journal->j_reserved_credits) + total >
+		    journal->j_max_transaction_buffers) {
+			read_unlock(&journal->j_state_lock);
+			wait_event(journal->j_wait_reserved,
+				   atomic_read(&journal->j_reserved_credits) + total <=
+				   journal->j_max_transaction_buffers);
+			return 1;
+		}
+
 		wait_transaction_locked(journal);
 		return 1;
 	}
@@ -262,19 +276,23 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	int		rsv_blocks = 0;
 	unsigned long ts = jiffies;
 
-	/*
-	 * 1/2 of transaction can be reserved so we can practically handle
-	 * only 1/2 of maximum transaction size per operation
-	 */
-	if (WARN_ON(blocks > journal->j_max_transaction_buffers / 2)) {
-		printk(KERN_ERR "JBD2: %s wants too many credits (%d > %d)\n",
-		       current->comm, blocks,
-		       journal->j_max_transaction_buffers / 2);
-		return -ENOSPC;
-	}
-
 	if (handle->h_rsv_handle)
 		rsv_blocks = handle->h_rsv_handle->h_buffer_credits;
+
+	/*
+	 * Limit the number of reserved credits to 1/2 of maximum transaction
+	 * size and limit the number of total credits to not exceed maximum
+	 * transaction size per operation.
+	 */
+	if ((rsv_blocks > journal->j_max_transaction_buffers / 2) ||
+	    (rsv_blocks + blocks > journal->j_max_transaction_buffers)) {
+		printk(KERN_ERR "JBD2: %s wants too many credits "
+		       "credits:%d rsv_credits:%d max:%d\n",
+		       current->comm, blocks, rsv_blocks,
+		       journal->j_max_transaction_buffers);
+		WARN_ON(1);
+		return -ENOSPC;
+	}
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
@@ -1280,8 +1298,6 @@ void jbd2_buffer_abort_trigger(struct journal_head *jh,
 	triggers->t_abort(triggers, jh2bh(jh));
 }
 
-
-
 /**
  * int jbd2_journal_dirty_metadata() -  mark a buffer as containing dirty metadata
  * @handle: transaction to add buffer to.
@@ -1314,12 +1330,41 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 
 	if (is_handle_aborted(handle))
 		return -EROFS;
-	journal = transaction->t_journal;
-	jh = jbd2_journal_grab_journal_head(bh);
-	if (!jh) {
+	if (!buffer_jbd(bh)) {
 		ret = -EUCLEAN;
 		goto out;
 	}
+	/*
+	 * We don't grab jh reference here since the buffer must be part
+	 * of the running transaction.
+	 */
+	jh = bh2jh(bh);
+	/*
+	 * This and the following assertions are unreliable since we may see jh
+	 * in inconsistent state unless we grab bh_state lock. But this is
+	 * crucial to catch bugs so let's do a reliable check until the
+	 * lockless handling is fully proven.
+	 */
+	if (jh->b_transaction != transaction &&
+	    jh->b_next_transaction != transaction) {
+		jbd_lock_bh_state(bh);
+		J_ASSERT_JH(jh, jh->b_transaction == transaction ||
+				jh->b_next_transaction == transaction);
+		jbd_unlock_bh_state(bh);
+	}
+	if (jh->b_modified == 1) {
+		/* If it's in our transaction it must be in BJ_Metadata list. */
+		if (jh->b_transaction == transaction &&
+		    jh->b_jlist != BJ_Metadata) {
+			jbd_lock_bh_state(bh);
+			J_ASSERT_JH(jh, jh->b_transaction != transaction ||
+					jh->b_jlist == BJ_Metadata);
+			jbd_unlock_bh_state(bh);
+		}
+		goto out;
+	}
+
+	journal = transaction->t_journal;
 	jbd_debug(5, "journal_head %p\n", jh);
 	JBUFFER_TRACE(jh, "entry");
 
@@ -1410,7 +1455,6 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 	spin_unlock(&journal->j_list_lock);
 out_unlock_bh:
 	jbd_unlock_bh_state(bh);
-	jbd2_journal_put_journal_head(jh);
 out:
 	JBUFFER_TRACE(jh, "exit");
 	return ret;

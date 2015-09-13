@@ -537,7 +537,7 @@ static struct phy *exynos5_usbdrd_phy_xlate(struct device *dev,
 	return phy_drd->phys[args->args[0]].phy;
 }
 
-static struct phy_ops exynos5_usbdrd_phy_ops = {
+static const struct phy_ops exynos5_usbdrd_phy_ops = {
 	.init		= exynos5_usbdrd_phy_init,
 	.exit		= exynos5_usbdrd_phy_exit,
 	.power_on	= exynos5_usbdrd_phy_power_on,

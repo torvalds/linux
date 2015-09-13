@@ -210,7 +210,7 @@ int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl8821a_firmware_header *pfwheader;
+	struct rtlwifi_firmware_header *pfwheader;
 	u8 *pfwdata;
 	u32 fwsize;
 	int err;
@@ -228,8 +228,8 @@ int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 			return 1;
 
 		pfwheader =
-		  (struct rtl8821a_firmware_header *)rtlhal->wowlan_firmware;
-		rtlhal->fw_version = pfwheader->version;
+		  (struct rtlwifi_firmware_header *)rtlhal->wowlan_firmware;
+		rtlhal->fw_version = le16_to_cpu(pfwheader->version);
 		rtlhal->fw_subversion = pfwheader->subversion;
 		pfwdata = (u8 *)rtlhal->wowlan_firmware;
 		fwsize = rtlhal->wowlan_fwsize;
@@ -238,8 +238,8 @@ int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 			return 1;
 
 		pfwheader =
-		  (struct rtl8821a_firmware_header *)rtlhal->pfirmware;
-		rtlhal->fw_version = pfwheader->version;
+		  (struct rtlwifi_firmware_header *)rtlhal->pfirmware;
+		rtlhal->fw_version = le16_to_cpu(pfwheader->version);
 		rtlhal->fw_subversion = pfwheader->subversion;
 		pfwdata = (u8 *)rtlhal->pfirmware;
 		fwsize = rtlhal->fwsize;
@@ -255,8 +255,8 @@ int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 			 "Firmware Version(%d), Signature(%#x)\n",
 			 pfwheader->version, pfwheader->signature);
 
-		pfwdata = pfwdata + sizeof(struct rtl8821a_firmware_header);
-		fwsize = fwsize - sizeof(struct rtl8821a_firmware_header);
+		pfwdata = pfwdata + sizeof(struct rtlwifi_firmware_header);
+		fwsize = fwsize - sizeof(struct rtlwifi_firmware_header);
 	}
 
 	if (rtlhal->mac_func_enable) {

@@ -1,7 +1,9 @@
 #ifndef __NVKM_MSVLD_H__
 #define __NVKM_MSVLD_H__
-#include <core/engine.h>
-extern struct nvkm_oclass g98_msvld_oclass;
-extern struct nvkm_oclass gf100_msvld_oclass;
-extern struct nvkm_oclass gk104_msvld_oclass;
+#include <engine/falcon.h>
+int g98_msvld_new(struct nvkm_device *, int, struct nvkm_engine **);
+int gt215_msvld_new(struct nvkm_device *, int, struct nvkm_engine **);
+int mcp89_msvld_new(struct nvkm_device *, int, struct nvkm_engine **);
+int gf100_msvld_new(struct nvkm_device *, int, struct nvkm_engine **);
+int gk104_msvld_new(struct nvkm_device *, int, struct nvkm_engine **);
 #endif

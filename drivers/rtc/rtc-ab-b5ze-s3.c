@@ -1009,6 +1009,7 @@ static const struct of_device_id abb5zes3_dt_match[] = {
 	{ .compatible = "abracon,abb5zes3" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, abb5zes3_dt_match);
 #endif
 
 static const struct i2c_device_id abb5zes3_id[] = {
@@ -1020,7 +1021,6 @@ MODULE_DEVICE_TABLE(i2c, abb5zes3_id);
 static struct i2c_driver abb5zes3_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &abb5zes3_rtc_pm_ops,
 		.of_match_table = of_match_ptr(abb5zes3_dt_match),
 	},

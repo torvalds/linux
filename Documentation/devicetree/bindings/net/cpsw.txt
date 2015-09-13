@@ -2,7 +2,11 @@ TI SoC Ethernet Switch Controller Device Tree Bindings
 ------------------------------------------------------
 
 Required properties:
-- compatible		: Should be "ti,cpsw"
+- compatible		: Should be one of the below:-
+			  "ti,cpsw" for backward compatible
+			  "ti,am335x-cpsw" for AM335x controllers
+			  "ti,am4372-cpsw" for AM437x controllers
+			  "ti,dra7-cpsw" for DRA7x controllers
 - reg			: physical base address and size of the cpsw
 			  registers map
 - interrupts		: property with a value describing the interrupt

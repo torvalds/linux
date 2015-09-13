@@ -40,21 +40,19 @@ nvkm_acpi_ntfy(struct notifier_block *nb, unsigned long val, void *data)
 }
 #endif
 
-int
-nvkm_acpi_fini(struct nvkm_device *device, bool suspend)
+void
+nvkm_acpi_fini(struct nvkm_device *device)
 {
 #ifdef CONFIG_ACPI
 	unregister_acpi_notifier(&device->acpi.nb);
 #endif
-	return 0;
 }
 
-int
+void
 nvkm_acpi_init(struct nvkm_device *device)
 {
 #ifdef CONFIG_ACPI
 	device->acpi.nb.notifier_call = nvkm_acpi_ntfy;
 	register_acpi_notifier(&device->acpi.nb);
 #endif
-	return 0;
 }

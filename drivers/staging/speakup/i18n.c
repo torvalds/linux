@@ -1,5 +1,6 @@
 /* Internationalization implementation.  Includes definitions of English
- * string arrays, and the i18n pointer. */
+ * string arrays, and the i18n pointer.
+ */
 
 #include <linux/slab.h>		/* For kmalloc. */
 #include <linux/ctype.h>

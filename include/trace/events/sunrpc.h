@@ -529,18 +529,21 @@ TRACE_EVENT(svc_xprt_do_enqueue,
 
 	TP_STRUCT__entry(
 		__field(struct svc_xprt *, xprt)
-		__field(struct svc_rqst *, rqst)
+		__field_struct(struct sockaddr_storage, ss)
+		__field(int, pid)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
-		__entry->rqst = rqst;
+		xprt ? memcpy(&__entry->ss, &xprt->xpt_remote, sizeof(__entry->ss)) : memset(&__entry->ss, 0, sizeof(__entry->ss));
+		__entry->pid = rqst? rqst->rq_task->pid : 0;
+		__entry->flags = xprt ? xprt->xpt_flags : 0;
 	),
 
 	TP_printk("xprt=0x%p addr=%pIScp pid=%d flags=%s", __entry->xprt,
-		(struct sockaddr *)&__entry->xprt->xpt_remote,
-		__entry->rqst ? __entry->rqst->rq_task->pid : 0,
-		show_svc_xprt_flags(__entry->xprt->xpt_flags))
+		(struct sockaddr *)&__entry->ss,
+		__entry->pid, show_svc_xprt_flags(__entry->flags))
 );
 
 TRACE_EVENT(svc_xprt_dequeue,
@@ -589,16 +592,20 @@ TRACE_EVENT(svc_handle_xprt,
 	TP_STRUCT__entry(
 		__field(struct svc_xprt *, xprt)
 		__field(int, len)
+		__field_struct(struct sockaddr_storage, ss)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
+		xprt ? memcpy(&__entry->ss, &xprt->xpt_remote, sizeof(__entry->ss)) : memset(&__entry->ss, 0, sizeof(__entry->ss));
 		__entry->len = len;
+		__entry->flags = xprt ? xprt->xpt_flags : 0;
 	),
 
 	TP_printk("xprt=0x%p addr=%pIScp len=%d flags=%s", __entry->xprt,
-		(struct sockaddr *)&__entry->xprt->xpt_remote, __entry->len,
-		show_svc_xprt_flags(__entry->xprt->xpt_flags))
+		(struct sockaddr *)&__entry->ss,
+		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
 #endif /* _TRACE_SUNRPC_H */
 

@@ -11,6 +11,19 @@ Optional properties:
 			"peripheral" and "otg". In case this attribute isn't
 			passed via DT, USB DRD controllers should default to
 			OTG.
+ - otg-rev: tells usb driver the release number of the OTG and EH supplement
+			with which the device and its descriptors are compliant,
+			in binary-coded decimal (i.e. 2.0 is 0200H). This
+			property is used if any real OTG features(HNP/SRP/ADP)
+			is enabled, if ADP is required, otg-rev should be
+			0x0200 or above.
+ - hnp-disable: tells OTG controllers we want to disable OTG HNP, normally HNP
+			is the basic function of real OTG except you want it
+			to be a srp-capable only B device.
+ - srp-disable: tells OTG controllers we want to disable OTG SRP, SRP is
+			optional for OTG device.
+ - adp-disable: tells OTG controllers we want to disable OTG ADP, ADP is
+			optional for OTG device.
 
 This is an attribute to a USB controller such as:
 
@@ -21,4 +34,6 @@ dwc3@4a030000 {
 	usb-phy = <&usb2_phy>, <&usb3,phy>;
 	maximum-speed = "super-speed";
 	dr_mode = "otg";
+	otg-rev = <0x0200>;
+	adp-disable;
 };

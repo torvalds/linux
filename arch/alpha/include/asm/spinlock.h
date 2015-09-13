@@ -16,6 +16,11 @@
 #define arch_spin_unlock_wait(x) \
 		do { cpu_relax(); } while ((x)->lock)
 
+static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+        return lock.lock == 0;
+}
+
 static inline void arch_spin_unlock(arch_spinlock_t * lock)
 {
 	mb();

@@ -1,0 +1,180 @@
+
+		Section 1 Overview
+
+The Media Oriented Systems Transport (MOST) driver gives Linux applications
+access a MOST network: The Automotive Information Backbone and the de-facto
+standard for high-bandwidth automotive multimedia networking.
+
+MOST defines the protocol, hardware and software layers necessary to allow
+for the efficient and low-cost transport of control, real-time and packet
+data using a single medium (physical layer). Media currently in use are
+fiber optics, unshielded twisted pair cables (UTP) and coax cables. MOST
+also supports various speed grades up to 150 Mbps.
+For more information on MOST, visit the MOST Cooperation website:
+www.mostcooperation.com.
+
+Cars continue to evolve into sophisticated consumer electronics platforms,
+increasing the demand for reliable and simple solutions to support audio,
+video and data communications. MOST can be used to connect multiple
+consumer devices via optical or electrical physical layers directly to one
+another or in a network configuration. As a synchronous network, MOST
+provides excellent Quality of Service and seamless connectivity for
+audio/video streaming. Therefore, the driver perfectly fits to the mission
+of Automotive Grade Linux to create open source software solutions for
+automotive applications.
+
+The driver consists basically of three layers. The hardware layer, the
+core layer and the application layer. The core layer consists of the core
+module only. This module handles the communication flow through all three
+layers, the configuration of the driver, the configuration interface
+representation in sysfs, and the buffer management.
+For each of the other two layers a selection of modules is provided. These
+modules can arbitrarily be combined to meet the needs of the desired
+system architecture. A module of the hardware layer is referred to as an
+HDM (hardware dependent module). Each module of this layer handles exactly
+one of the peripheral interfaces of a network interface controller (e.g.
+USB, MediaLB, I2C). A module of the application layer is referred to as an
+AIM (application interfacing module). The modules of this layer give access
+to MOST via one the following ways: character devices, ALSA, Networking or
+V4L2.
+
+To physically access MOST, an Intelligent Network Interface Controller
+(INIC) is needed. For more information on available controllers visit:
+www.microchip.com
+
+
+
+		Section 1.1 Hardware Layer
+
+The hardware layer contains so called hardware dependent modules (HDM). For each
+peripheral interface the hardware supports the driver has a suitable module
+that handles the interface.
+
+The HDMs encapsulate the peripheral interface specific knowledge of the driver
+and provides an easy way of extending the number of supported interfaces.
+Currently the following HDMs are available:
+
+	1) MediaLB (DIM2)
+	   Host wants to communicate with hardware via MediaLB.
+
+	2) I2C
+	   Host wants to communicate with the hardware via I2C.
+
+	3) USB
+	   Host wants to communicate with the hardware via USB.
+
+
+		Section 1.2 Core Layer
+
+The core layer contains the mostcore module only, which processes the driver
+configuration via sysfs, buffer management and data forwarding.
+
+
+
+		Section 1.2 Application Layer
+
+The application layer contains so called application interfacing modules (AIM).
+Depending on how the driver should interface to the application, one or more
+suitable modules can be selected.
+
+The AIMs encapsulate the application interface specific knowledge of the driver
+and provides access to user space or other kernel subsystems.
+Currently the following AIMs are available
+
+	1) Character Device
+	   Applications can access the driver by means of character devices.
+
+	2) Networking
+	   Standard networking applications (e.g. iperf) can by used to access
+	   the driver via the networking subsystem.
+
+	3) Video4Linux (v4l2)
+	   Standard video applications (e.g. VLC) can by used to access the
+	   driver via the V4L subsystem.
+
+	4) Advanced Linux Sound Architecture (ALSA)
+	   Standard sound applications (e.g. aplay, arecord, audacity) can by
+	   used to access the driver via the ALSA subsystem.
+
+
+
+		Section 2 Configuration
+
+See ABI/sysfs-class-most.txt
+
+
+
+		Section 3 USB Padding
+
+When transceiving synchronous or isochronous data, the number of packets per USB
+transaction and the sub-buffer size need to be configured. These values
+are needed for the driver to process buffer padding, as expected by hardware,
+which is for performance optimization purposes of the USB transmission.
+
+When transmitting synchronous data the allocated channel width needs to be
+written to 'set_subbuffer_size'. Additionally, the number of MOST frames that
+should travel to the host within one USB transaction need to be written to
+'packets_per_xact'.
+
+Internally the synchronous threshold is calculated as follows:
+
+	frame_size = set_subbuffer_size * packets_per_xact
+
+In case 'packets_per_xact' is set to 0xFF the maximum number of packets,
+allocated within one MOST frame, is calculated that fit into _one_ 512 byte
+USB full packet.
+
+	frame_size = floor(MTU_USB / bandwidth_sync) * bandwidth_sync
+
+This frame_size is the number of synchronous data within an USB transaction,
+which renders MTU_USB - frame_size bytes for padding.
+
+When transmitting isochronous AVP data the desired packet size needs to be
+written to 'set_subbuffer_size' and hardware will always expect two isochronous
+packets within one USB transaction. This renders
+
+	MTU_USB - (2 * set_subbuffer_size)
+
+bytes for padding.
+
+Note that at least 2 times set_subbuffer_size bytes for isochronous data or
+set_subbuffer_size times packts_per_xact bytes for synchronous data need to be
+put in the transmission buffer and passed to the driver.
+
+Since HDMs are allowed to change a chosen configuration to best fit its
+constraints, it is recommended to always double check the configuration and read
+back the previously written files.
+
+
+
+		Section 4 Routing Channels
+
+To connect a channel that has been configured as outlined above to an AIM and
+make it accessible to user space applications, the attribute file 'add_link' is
+used. To actually bind a channel to the AIM a string needs to be written to the
+file that complies with the following syntax:
+
+	"most_device:channel_name:link_name[.param]"
+
+The example above links the channel "channel_name" of the device "most_device"
+to the AIM. In case the AIM interfaces the VFS this would also create a device
+node "link_name" in the /dev directory. The parameter "param" is an AIM dependent
+string, which can be omitted in case the used AIM does not make any use of it.
+
+Cdev AIM example:
+        $ echo "mdev0:ep_81:my_rx_channel" >add_link
+        $ echo "mdev0:ep_81" >add_link
+
+
+Sound/ALSA AIM example:
+
+The sound/ALSA AIM needs an additional parameter to determine the audio resolution
+that is going to be used. The following strings can be used:
+
+	- "1x8" (Mono)
+	- "2x16" (16-bit stereo)
+	- "2x24" (24-bit stereo)
+	- "2x32" (32-bit stereo)
+
+        $ echo "mdev0:ep_81:audio_rx.2x16" >add_link
+        $ echo "mdev0:ep_81" >add_link

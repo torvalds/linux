@@ -455,12 +455,11 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 	struct cl_io *io    = ios->cis_io;
 	struct inode *inode = ccc_object_inode(io->ci_obj);
 
-	if (cl_io_is_trunc(io)) {
+	if (cl_io_is_trunc(io))
 		/* Truncate in memory pages - they must be clean pages
 		 * because osc has already notified to destroy osc_extents. */
 		vvp_do_vmtruncate(inode, io->u.ci_setattr.sa_attr.lvb_size);
-		inode_dio_write_done(inode);
-	}
+
 	mutex_unlock(&inode->i_mutex);
 }
 

@@ -71,6 +71,18 @@
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
 		};
+
+		uart_clk: uart_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <73728000>;
+		};
+
+		i2c_clk: i2c_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <50000000>;
+		};
 	};
 
 	soc {
@@ -86,10 +98,154 @@
 			#size-cells = <1>;
 		};
 
+		serial0: serial@54006800 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006800 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart0>;
+			interrupts = <0 33 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial1: serial@54006900 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006900 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart1>;
+			interrupts = <0 35 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial2: serial@54006a00 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006a00 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart2>;
+			interrupts = <0 37 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		serial3: serial@54006b00 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006b00 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart3>;
+			interrupts = <0 29 4>;
+			clocks = <&uart_clk>;
+			fifo-size = <64>;
+		};
+
+		i2c0: i2c@58780000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58780000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c0>;
+			interrupts = <0 41 4>;
+			clocks = <&i2c_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c1: i2c@58781000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58781000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c1>;
+			interrupts = <0 42 4>;
+			clocks = <&i2c_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c2: i2c@58782000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58782000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c2>;
+			interrupts = <0 43 4>;
+			clocks = <&i2c_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c3: i2c@58783000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58783000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c3>;
+			interrupts = <0 44 4>;
+			clocks = <&i2c_clk>;
+			clock-frequency = <100000>;
+		};
+
+		/* i2c4 does not exist */
+
+		/* chip-internal connection for DMD */
+		i2c5: i2c@58785000 {
+			compatible = "socionext,uniphier-fi2c";
+			reg = <0x58785000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 25 4>;
+			clocks = <&i2c_clk>;
+			clock-frequency = <400000>;
+		};
+
+		/* chip-internal connection for HDMI */
+		i2c6: i2c@58786000 {
+			compatible = "socionext,uniphier-fi2c";
+			reg = <0x58786000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 26 4>;
+			clocks = <&i2c_clk>;
+			clock-frequency = <400000>;
+		};
+
 		system-bus-controller-misc@59800000 {
 			compatible = "socionext,uniphier-system-bus-controller-misc",
 				     "syscon";
 			reg = <0x59800000 0x2000>;
+		};
+
+		usb2: usb@5a800100 {
+			compatible = "socionext,uniphier-ehci", "generic-ehci";
+			status = "disabled";
+			reg = <0x5a800100 0x100>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2>;
+			interrupts = <0 80 4>;
+		};
+
+		usb3: usb@5a810100 {
+			compatible = "socionext,uniphier-ehci", "generic-ehci";
+			status = "disabled";
+			reg = <0x5a810100 0x100>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb3>;
+			interrupts = <0 81 4>;
+		};
+
+		pinctrl: pinctrl@5f801000 {
+			compatible = "socionext,ph1-pro4-pinctrl",
+				     "syscon";
+			reg = <0x5f801000 0xe00>;
 		};
 
 		timer@60000200 {
@@ -115,3 +271,5 @@
 		};
 	};
 };
+
+/include/ "uniphier-pinctrl.dtsi"

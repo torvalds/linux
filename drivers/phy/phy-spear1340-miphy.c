@@ -189,7 +189,7 @@ static const struct of_device_id spear1340_miphy_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, spear1340_miphy_of_match);
 
-static struct phy_ops spear1340_miphy_ops = {
+static const struct phy_ops spear1340_miphy_ops = {
 	.init = spear1340_miphy_init,
 	.exit = spear1340_miphy_exit,
 	.owner = THIS_MODULE,

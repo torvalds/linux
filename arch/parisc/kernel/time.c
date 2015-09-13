@@ -202,7 +202,6 @@ static struct clocksource clocksource_cr16 = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-#ifdef CONFIG_SMP
 int update_cr16_clocksource(void)
 {
 	/* since the cr16 cycle counters are not synchronized across CPUs,
@@ -214,12 +213,6 @@ int update_cr16_clocksource(void)
 
 	return 0;
 }
-#else
-int update_cr16_clocksource(void)
-{
-	return 0; /* no change */
-}
-#endif /*CONFIG_SMP*/
 
 void __init start_cpu_itimer(void)
 {
@@ -231,20 +224,14 @@ void __init start_cpu_itimer(void)
 	per_cpu(cpu_data, cpu).it_value = next_tick;
 }
 
-static struct platform_device rtc_generic_dev = {
-	.name = "rtc-generic",
-	.id = -1,
-};
-
 static int __init rtc_init(void)
 {
-	if (platform_device_register(&rtc_generic_dev) < 0)
-		printk(KERN_ERR "unable to register rtc device...\n");
+	struct platform_device *pdev;
 
-	/* not necessarily an error */
-	return 0;
+	pdev = platform_device_register_simple("rtc-generic", -1, NULL, 0);
+	return PTR_ERR_OR_ZERO(pdev);
 }
-module_init(rtc_init);
+device_initcall(rtc_init);
 
 void read_persistent_clock(struct timespec *ts)
 {

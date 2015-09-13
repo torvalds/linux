@@ -109,6 +109,20 @@
 			brcm,int-fwd-mask = <0x70000>;
 		};
 
+		irq0_aon_intc: interrupt-controller@417280 {
+			compatible = "brcm,bcm7120-l2-intc";
+			reg = <0x417280 0x8>;
+			interrupt-parent = <&gic>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 0x46 0x0>,
+				     <GIC_SPI 0x44 0x0>,
+				     <GIC_SPI 0x49 0x0>;
+			brcm,int-map-mask = <0x1e3 0x18000000 0x100000>;
+			brcm,int-fwd-mask = <0x0>;
+			brcm,irq-can-wake;
+		};
+
 		hif_intr2_intc: interrupt-controller@3e1000 {
 			compatible = "brcm,l2-intc";
 			reg = <0x3e1000 0x30>;
@@ -117,6 +131,16 @@
 			interrupts = <GIC_SPI 0x20 0x0>;
 			interrupt-parent = <&gic>;
 			interrupt-names = "hif";
+		};
+
+                aon_pm_l2_intc: interrupt-controller@410640 {
+			compatible = "brcm,l2-intc";
+			reg = <0x410640 0x30>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupts = <GIC_SPI 0x40 0x0>;
+			interrupt-parent = <&gic>;
+			brcm,irq-can-wake;
 		};
 
 		nand: nand@3e2800 {
@@ -167,6 +191,32 @@
 				#phy-cells = <0>;
 			};
 		};
+
+		upg_gio: gpio@40a700 {
+			compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+			reg = <0x40a700 0x80>;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			interrupt-controller;
+			interrupt-parent = <&irq0_intc>;
+			interrupts = <6>;
+			brcm,gpio-bank-widths = <32 32 32 24>;
+		};
+
+		upg_gio_aon: gpio@4172c0 {
+			compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+			reg = <0x4172c0 0x40>;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			interrupt-controller;
+			interrupts-extended = <&irq0_aon_intc 0x6>,
+					      <&aon_pm_l2_intc 0x5>;
+			wakeup-source;
+			brcm,gpio-bank-widths = <18 4>;
+		};
+
 	};
 
 	smpboot {

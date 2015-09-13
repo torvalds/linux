@@ -882,8 +882,6 @@ static ssize_t show_protocols(struct device *device,
 	} else {
 		enabled = dev->enabled_wakeup_protocols;
 		allowed = dev->allowed_wakeup_protocols;
-		if (dev->encode_wakeup && !allowed)
-			allowed = ir_raw_get_encode_protocols();
 	}
 
 	mutex_unlock(&dev->lock);
@@ -1428,16 +1426,13 @@ int rc_register_device(struct rc_dev *dev)
 		path ? path : "N/A");
 	kfree(path);
 
-	if (dev->driver_type == RC_DRIVER_IR_RAW || dev->encode_wakeup) {
+	if (dev->driver_type == RC_DRIVER_IR_RAW) {
 		/* Load raw decoders, if they aren't already */
 		if (!raw_init) {
 			IR_dprintk(1, "Loading raw decoders\n");
 			ir_raw_init();
 			raw_init = true;
 		}
-	}
-
-	if (dev->driver_type == RC_DRIVER_IR_RAW) {
 		/* calls ir_register_device so unlock mutex here*/
 		mutex_unlock(&dev->lock);
 		rc = ir_raw_event_register(dev);

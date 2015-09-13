@@ -87,8 +87,8 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
 				uint32_t flags);
-void drm_atomic_helper_connector_dpms(struct drm_connector *connector,
-				      int mode);
+int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
+				     int mode);
 
 /* default implementations for state handling */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc);

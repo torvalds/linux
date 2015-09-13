@@ -197,9 +197,21 @@ done:
 	return IRQ_HANDLED;
 }
 
+static IIO_CONST_ATTR(scale_available, "0.005722 0.152590");
+
+static struct attribute *isl29125_attributes[] = {
+	&iio_const_attr_scale_available.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group isl29125_attribute_group = {
+	.attrs = isl29125_attributes,
+};
+
 static const struct iio_info isl29125_info = {
 	.read_raw = isl29125_read_raw,
 	.write_raw = isl29125_write_raw,
+	.attrs = &isl29125_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 
@@ -334,7 +346,6 @@ static struct i2c_driver isl29125_driver = {
 	.driver = {
 		.name	= ISL29125_DRV_NAME,
 		.pm	= &isl29125_pm_ops,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= isl29125_probe,
 	.remove		= isl29125_remove,

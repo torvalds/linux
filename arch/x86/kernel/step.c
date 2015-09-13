@@ -5,6 +5,7 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <asm/desc.h>
+#include <asm/mmu_context.h>
 
 unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs)
 {
@@ -17,6 +18,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		return addr;
 	}
 
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
 	/*
 	 * We'll assume that the code segments in the GDT
 	 * are all zero-based. That is largely true: the
@@ -27,13 +29,14 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		struct desc_struct *desc;
 		unsigned long base;
 
-		seg &= ~7UL;
+		seg >>= 3;
 
 		mutex_lock(&child->mm->context.lock);
-		if (unlikely((seg >> 3) >= child->mm->context.size))
+		if (unlikely(!child->mm->context.ldt ||
+			     seg >= child->mm->context.ldt->size))
 			addr = -1L; /* bogus selector, access would fault */
 		else {
-			desc = child->mm->context.ldt + seg;
+			desc = &child->mm->context.ldt->entries[seg];
 			base = get_desc_base(desc);
 
 			/* 16-bit code segment? */
@@ -43,6 +46,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		}
 		mutex_unlock(&child->mm->context.lock);
 	}
+#endif
 
 	return addr;
 }

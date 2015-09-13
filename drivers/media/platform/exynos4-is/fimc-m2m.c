@@ -188,7 +188,7 @@ static int fimc_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 	/*
-	 * Return number of non-contigous planes (plane buffers)
+	 * Return number of non-contiguous planes (plane buffers)
 	 * depending on the configured color format.
 	 */
 	if (!f->fmt)

@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2014 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2014-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,14 +26,9 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_resource_priv.h"
 
 #define VMW_CMDBUF_RES_MAN_HT_ORDER 12
-
-enum vmw_cmdbuf_res_state {
-	VMW_CMDBUF_RES_COMMITED,
-	VMW_CMDBUF_RES_ADD,
-	VMW_CMDBUF_RES_DEL
-};
 
 /**
  * struct vmw_cmdbuf_res - Command buffer managed resource entry.
@@ -132,9 +127,12 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 
 	list_for_each_entry_safe(entry, next, list, head) {
 		list_del(&entry->head);
+		if (entry->res->func->commit_notify)
+			entry->res->func->commit_notify(entry->res,
+							entry->state);
 		switch (entry->state) {
 		case VMW_CMDBUF_RES_ADD:
-			entry->state = VMW_CMDBUF_RES_COMMITED;
+			entry->state = VMW_CMDBUF_RES_COMMITTED;
 			list_add_tail(&entry->head, &entry->man->list);
 			break;
 		case VMW_CMDBUF_RES_DEL:
@@ -175,7 +173,7 @@ void vmw_cmdbuf_res_revert(struct list_head *list)
 						 &entry->hash);
 			list_del(&entry->head);
 			list_add_tail(&entry->head, &entry->man->list);
-			entry->state = VMW_CMDBUF_RES_COMMITED;
+			entry->state = VMW_CMDBUF_RES_COMMITTED;
 			break;
 		default:
 			BUG();
@@ -231,6 +229,9 @@ out_invalid_key:
  * @res_type: The resource type.
  * @user_key: The user-space id of the resource.
  * @list: The staging list.
+ * @res_p: If the resource is in an already committed state, points to the
+ * struct vmw_resource on successful return. The pointer will be
+ * non ref-counted.
  *
  * This function looks up the struct vmw_cmdbuf_res entry from the manager
  * hash table and, if it exists, removes it. Depending on its current staging
@@ -240,7 +241,8 @@ out_invalid_key:
 int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 			  enum vmw_cmdbuf_res_type res_type,
 			  u32 user_key,
-			  struct list_head *list)
+			  struct list_head *list,
+			  struct vmw_resource **res_p)
 {
 	struct vmw_cmdbuf_res *entry;
 	struct drm_hash_item *hash;
@@ -256,12 +258,14 @@ int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 	switch (entry->state) {
 	case VMW_CMDBUF_RES_ADD:
 		vmw_cmdbuf_res_free(man, entry);
+		*res_p = NULL;
 		break;
-	case VMW_CMDBUF_RES_COMMITED:
+	case VMW_CMDBUF_RES_COMMITTED:
 		(void) drm_ht_remove_item(&man->resources, &entry->hash);
 		list_del(&entry->head);
 		entry->state = VMW_CMDBUF_RES_DEL;
 		list_add_tail(&entry->head, list);
+		*res_p = entry->res;
 		break;
 	default:
 		BUG();

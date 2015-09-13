@@ -57,7 +57,6 @@ KEY_CONF_FILE(keylen, D);
 KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
 KEY_FILE(flags, X);
-KEY_FILE(tx_rx_count, D);
 KEY_READ(ifindex, sdata->name, "%s\n");
 KEY_OPS(ifindex);
 
@@ -310,7 +309,6 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(keyidx);
 	DEBUGFS_ADD(hw_key_idx);
-	DEBUGFS_ADD(tx_rx_count);
 	DEBUGFS_ADD(algorithm);
 	DEBUGFS_ADD(tx_spec);
 	DEBUGFS_ADD(rx_spec);

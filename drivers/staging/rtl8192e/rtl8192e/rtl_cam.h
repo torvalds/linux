@@ -28,12 +28,14 @@
 #include <linux/types.h>
 struct net_device;
 
-void CamResetAllEntry(struct net_device *dev);
-void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
-	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
-void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
-	       const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh);
-void CamRestoreAllEntry(struct net_device *dev);
+void rtl92e_cam_reset(struct net_device *dev);
+void rtl92e_enable_hw_security_config(struct net_device *dev);
+void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
+		    u16 KeyType, const u8 *MacAddr, u8 DefaultKey,
+		    u32 *KeyContent);
+void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
+		      u16 KeyType, const u8 *MacAddr, u8 DefaultKey,
+		      u32 *KeyContent, u8 is_mesh);
+void rtl92e_cam_restore(struct net_device *dev);
 
 #endif
