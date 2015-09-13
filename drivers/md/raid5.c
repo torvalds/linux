@@ -2271,8 +2271,7 @@ static void shrink_stripes(struct r5conf *conf)
 	       drop_one_stripe(conf))
 		;
 
-	if (conf->slab_cache)
-		kmem_cache_destroy(conf->slab_cache);
+	kmem_cache_destroy(conf->slab_cache);
 	conf->slab_cache = NULL;
 }
 
