@@ -222,6 +222,7 @@ static void __bts_event_start(struct perf_event *event)
 	if (!buf || bts_buffer_is_full(buf, bts))
 		return;
 
+	event->hw.itrace_started = 1;
 	event->hw.state = 0;
 
 	if (!buf->snapshot)
