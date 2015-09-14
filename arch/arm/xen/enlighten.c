@@ -284,7 +284,7 @@ void xen_arch_resume(void) { }
 void xen_arch_suspend(void) { }
 
 
-/* In the hypervisor.S file. */
+/* In the hypercall.S file. */
 EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_grant_table_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_xen_version);
