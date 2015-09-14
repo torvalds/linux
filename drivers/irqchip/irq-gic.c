@@ -341,7 +341,7 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
+static void gic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct gic_chip_data *chip_data = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -360,7 +360,7 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 
 	cascade_irq = irq_find_mapping(chip_data->domain, gic_irq);
 	if (unlikely(gic_irq < 32 || gic_irq > 1020))
-		handle_bad_irq(cascade_irq, desc);
+		handle_bad_irq(desc);
 	else
 		generic_handle_irq(cascade_irq);
 

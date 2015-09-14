@@ -192,10 +192,8 @@ void mpc85xx_cds_fixup_bus(struct pci_bus *bus)
 }
 
 #ifdef CONFIG_PPC_I8259
-static void mpc85xx_8259_cascade_handler(unsigned int __irq,
-					 struct irq_desc *desc)
+static void mpc85xx_8259_cascade_handler(struct irq_desc *desc)
 {
-	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ)
@@ -203,7 +201,7 @@ static void mpc85xx_8259_cascade_handler(unsigned int __irq,
 		generic_handle_irq(cascade_irq);
 
 	/* check for any interrupts from the shared IRQ line */
-	handle_fasteoi_irq(irq, desc);
+	handle_fasteoi_irq(desc);
 }
 
 static irqreturn_t mpc85xx_8259_cascade_action(int irq, void *dev_id)

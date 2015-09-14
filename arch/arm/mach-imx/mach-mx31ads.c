@@ -154,7 +154,7 @@ static inline void mxc_init_imx_uart(void)
 	imx31_add_imx_uart0(&uart_pdata);
 }
 
-static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
+static void mx31ads_expio_irq_handler(struct irq_desc *desc)
 {
 	u32 imr_val;
 	u32 int_valid;

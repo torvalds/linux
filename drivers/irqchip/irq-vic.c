@@ -225,7 +225,7 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 	return handled;
 }
 
-static void vic_handle_irq_cascaded(unsigned int irq, struct irq_desc *desc)
+static void vic_handle_irq_cascaded(struct irq_desc *desc)
 {
 	u32 stat, hwirq;
 	struct irq_chip *host_chip = irq_desc_get_chip(desc);

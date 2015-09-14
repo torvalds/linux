@@ -99,7 +99,7 @@ static void iic_ioexc_eoi(struct irq_data *d)
 {
 }
 
-static void iic_ioexc_cascade(unsigned int __irq, struct irq_desc *desc)
+static void iic_ioexc_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct cbe_iic_regs __iomem *node_iic =

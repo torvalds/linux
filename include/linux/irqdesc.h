@@ -135,9 +135,9 @@ static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
  * Architectures call this to let the generic IRQ layer
  * handle an interrupt.
  */
-static inline void generic_handle_irq_desc(unsigned int irq, struct irq_desc *desc)
+static inline void generic_handle_irq_desc(struct irq_desc *desc)
 {
-	desc->handle_irq(irq, desc);
+	desc->handle_irq(desc);
 }
 
 int generic_handle_irq(unsigned int irq);

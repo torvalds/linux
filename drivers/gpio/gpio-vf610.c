@@ -120,7 +120,7 @@ static int vf610_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 	return pinctrl_gpio_direction_output(chip->base + gpio);
 }
 
-static void vf610_gpio_irq_handler(u32 irq, struct irq_desc *desc)
+static void vf610_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct vf610_gpio_port *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);

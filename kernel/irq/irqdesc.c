@@ -347,7 +347,7 @@ int generic_handle_irq(unsigned int irq)
 
 	if (!desc)
 		return -EINVAL;
-	generic_handle_irq_desc(irq, desc);
+	generic_handle_irq_desc(desc);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);

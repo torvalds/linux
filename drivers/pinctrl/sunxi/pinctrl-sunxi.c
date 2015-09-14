@@ -740,7 +740,7 @@ static struct irq_domain_ops sunxi_pinctrl_irq_domain_ops = {
 	.xlate		= sunxi_pinctrl_irq_of_xlate,
 };
 
-static void sunxi_pinctrl_irq_handler(unsigned __irq, struct irq_desc *desc)
+static void sunxi_pinctrl_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
