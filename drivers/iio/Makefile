@@ -13,6 +13,7 @@ obj-y += accel/
 obj-y += adc/
 obj-y += amplifiers/
 obj-y += buffer/
+obj-y += chemical/
 obj-y += common/
 obj-y += dac/
 obj-y += gyro/
