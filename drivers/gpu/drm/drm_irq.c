@@ -83,13 +83,11 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
 
 	assert_spin_locked(&dev->vblank_time_lock);
 
-	if (t_vblank) {
-		/* All writers hold the spinlock, but readers are serialized by
-		 * the latching of vblank->count below.
-		 */
-		tslot = vblank->count + vblank_count_inc;
-		vblanktimestamp(dev, pipe, tslot) = *t_vblank;
-	}
+	/* All writers hold the spinlock, but readers are serialized by
+	 * the latching of vblank->count below.
+	 */
+	tslot = vblank->count + vblank_count_inc;
+	vblanktimestamp(dev, pipe, tslot) = *t_vblank;
 
 	/*
 	 * vblank timestamp updates are protected on the write side with
