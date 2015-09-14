@@ -3427,7 +3427,7 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 /**
- *  @brief      WILC_WFI_change_station
+ *  @brief      change_station
  *  @details    Modify a given station.
  *  @param[in]
  *  @return     int : Return 0 on Success.
@@ -3435,8 +3435,8 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
-				   const u8 *mac, struct station_parameters *params)
+static int change_station(struct wiphy *wiphy, struct net_device *dev,
+			  const u8 *mac, struct station_parameters *params)
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3576,7 +3576,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.stop_ap = stop_ap,
 	.add_station = add_station,
 	.del_station = del_station,
-	.change_station = WILC_WFI_change_station,
+	.change_station = change_station,
 	#endif /* WILC_AP_EXTERNAL_MLME*/
 	.get_station = WILC_WFI_get_station,
 	.dump_station = WILC_WFI_dump_station,
