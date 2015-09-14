@@ -2118,11 +2118,20 @@ static int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss)
 	struct md_op_data	*op_data;
 	int			 rc;
 
+	/* Detect out-of range masks */
+	if ((hss->hss_setmask | hss->hss_clearmask) & ~HSM_FLAGS_MASK)
+		return -EINVAL;
+
 	/* Non-root users are forbidden to set or clear flags which are
 	 * NOT defined in HSM_USER_MASK. */
 	if (((hss->hss_setmask | hss->hss_clearmask) & ~HSM_USER_MASK) &&
 	    !capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
+
+	/* Detect out-of range archive id */
+	if ((hss->hss_valid & HSS_ARCHIVE_ID) &&
+	    (hss->hss_archive_id > LL_HSM_MAX_ARCHIVE))
+		return -EINVAL;
 
 	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, hss);

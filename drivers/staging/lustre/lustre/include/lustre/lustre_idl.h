@@ -365,6 +365,13 @@ static inline __u64 fid_ver_oid(const struct lu_fid *fid)
 	return ((__u64)fid_ver(fid) << 32 | fid_oid(fid));
 }
 
+/* copytool uses a 32b bitmask field to encode archive-Ids during register
+ * with MDT thru kuc.
+ * archive num = 0 => all
+ * archive num from 1 to 32
+ */
+#define LL_HSM_MAX_ARCHIVE (sizeof(__u32) * 8)
+
 /**
  * Note that reserved SEQ numbers below 12 will conflict with ldiskfs
  * inodes in the IGIF namespace, so these reserved SEQ numbers can be
