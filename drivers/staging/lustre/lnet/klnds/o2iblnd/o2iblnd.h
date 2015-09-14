@@ -912,9 +912,6 @@ struct ib_mr *kiblnd_find_dma_mr(kib_hca_dev_t *hdev,
 				 __u64 addr, __u64 size);
 void kiblnd_map_rx_descs(kib_conn_t *conn);
 void kiblnd_unmap_rx_descs(kib_conn_t *conn);
-int kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx,
-		  kib_rdma_desc_t *rd, int nfrags);
-void kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx);
 void kiblnd_pool_free_node(kib_pool_t *pool, struct list_head *node);
 struct list_head *kiblnd_pool_alloc_node(kib_poolset_t *ps);
 
