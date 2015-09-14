@@ -3199,6 +3199,13 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Celes"),
 		},
 	},
+	{
+		.ident = "Google Ultima",
+		.callback = strago_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Ultima"),
+		},
+	},
 	{ }
 };
 
