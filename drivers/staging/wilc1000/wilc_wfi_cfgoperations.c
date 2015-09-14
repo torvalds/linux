@@ -1511,7 +1511,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 /**
- *  @brief      WILC_WFI_get_key
+ *  @brief      get_key
  *  @details    Get information about the key with the given parameters.
  *                      @mac_addr will be %NULL when requesting information for a group
  *                      key. All pointers given to the @callback function need not be valid
@@ -1523,9 +1523,9 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-			    bool pairwise,
-			    const u8 *mac_addr, void *cookie, void (*callback)(void *cookie, struct key_params *))
+static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
+		   bool pairwise,
+		   const u8 *mac_addr, void *cookie, void (*callback)(void *cookie, struct key_params *))
 {
 
 	s32 s32Error = WILC_SUCCESS;
@@ -3564,7 +3564,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.disconnect = disconnect,
 	.add_key = add_key,
 	.del_key = del_key,
-	.get_key = WILC_WFI_get_key,
+	.get_key = get_key,
 	.set_default_key = WILC_WFI_set_default_key,
 	#ifdef WILC_AP_EXTERNAL_MLME
 	.add_virtual_intf = WILC_WFI_add_virt_intf,
