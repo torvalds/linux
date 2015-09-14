@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
+#include <linux/list_sort.h>
 
 #include <asm/div64.h>
 
@@ -843,6 +844,50 @@ static const struct file_operations gb_loopback_debugfs_dev_latency_ops = {
 	.release	= single_release,
 };
 
+static int gb_loopback_bus_id_compare(void *priv, struct list_head *lha,
+				      struct list_head *lhb)
+{
+	struct gb_loopback *a = list_entry(lha, struct gb_loopback, entry);
+	struct gb_loopback *b = list_entry(lhb, struct gb_loopback, entry);
+	struct gb_connection *ca = a->connection;
+	struct gb_connection *cb = b->connection;
+
+	if (ca->bundle->intf->module->module_id <
+	    cb->bundle->intf->module->module_id)
+		return -1;
+	if (cb->bundle->intf->module->module_id <
+	    ca->bundle->intf->module->module_id)
+		return 1;
+	if (ca->bundle->intf->interface_id < cb->bundle->intf->interface_id)
+		return -1;
+	if (cb->bundle->intf->interface_id < ca->bundle->intf->interface_id)
+		return 1;
+	if (ca->bundle->id < cb->bundle->id)
+		return -1;
+	if (cb->bundle->id < ca->bundle->id)
+		return 1;
+	if (ca->intf_cport_id < cb->intf_cport_id)
+		return -1;
+	else if (cb->intf_cport_id < ca->intf_cport_id)
+		return 1;
+
+	return 0;
+}
+
+static void gb_loopback_insert_id(struct gb_loopback *gb)
+{
+	struct gb_loopback *gb_list;
+	u32 new_lbid = 0;
+
+	/* perform an insertion sort */
+	list_add_tail(&gb->entry, &gb_dev.list);
+	list_sort(NULL, &gb_dev.list, gb_loopback_bus_id_compare);
+	list_for_each_entry(gb_list, &gb_dev.list, entry) {
+		gb_list->lbid = 1 << new_lbid;
+		new_lbid++;
+	}
+}
+
 #define DEBUGFS_NAMELEN 32
 
 static int gb_loopback_connection_init(struct gb_connection *connection)
@@ -908,14 +953,13 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 
 	/* Fork worker thread */
 	mutex_init(&gb->mutex);
-	gb->lbid = 1 << gb_dev.count;
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
 		goto out_kfifo1;
 	}
 
-	list_add_tail(&gb->entry, &gb_dev.list);
+	gb_loopback_insert_id(gb);
 	gb_dev.count++;
 	mutex_unlock(&gb_dev.mutex);
 	return 0;
