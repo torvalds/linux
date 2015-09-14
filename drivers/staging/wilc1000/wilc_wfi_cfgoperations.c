@@ -806,7 +806,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 }
 
 /**
- *  @brief      WILC_WFI_CfgConnect
+ *  @brief      connect
  *  @details    Connect to the ESS with the specified parameters. When connected,
  *                      call cfg80211_connect_result() with status code %WLAN_STATUS_SUCCESS.
  *                      If the connection fails for some reason, call cfg80211_connect_result()
@@ -817,8 +817,8 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
-			       struct cfg80211_connect_params *sme)
+static int connect(struct wiphy *wiphy, struct net_device *dev,
+		   struct cfg80211_connect_params *sme)
 {
 	s32 s32Error = WILC_SUCCESS;
 	u32 i;
@@ -3560,7 +3560,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 
 	.set_monitor_channel = set_channel,
 	.scan = scan,
-	.connect = WILC_WFI_CfgConnect,
+	.connect = connect,
 	.disconnect = WILC_WFI_disconnect,
 	.add_key = WILC_WFI_add_key,
 	.del_key = WILC_WFI_del_key,
