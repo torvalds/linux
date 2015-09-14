@@ -29,7 +29,7 @@ int camsys_soc_init(void)
 	camsys_soc_p->soc_cfg = camsys_rk3368_cfg;
 	camsys_err("camsys_soc_init exit!");
 #else
-	if (soc_is_rk3288()) {
+	if (cpu_is_rk3288()) {
 	        strlcpy(camsys_soc_p->name,"camsys_rk3288",31);
         camsys_soc_p->soc_cfg = camsys_rk3288_cfg;	
 	} else {
