@@ -179,6 +179,9 @@ struct nf_bridge_info {
 	u8			bridged_dnat:1;
 	__u16			frag_max_size;
 	struct net_device	*physindev;
+
+	/* always valid & non-NULL from FORWARD on, for physdev match */
+	struct net_device	*physoutdev;
 	union {
 		/* prerouting: detect dnat in orig/reply direction */
 		__be32          ipv4_daddr;
@@ -189,9 +192,6 @@ struct nf_bridge_info {
 		 * skb is out in neigh layer.
 		 */
 		char neigh_header[8];
-
-		/* always valid & non-NULL from FORWARD on, for physdev match */
-		struct net_device *physoutdev;
 	};
 };
 #endif
