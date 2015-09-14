@@ -84,12 +84,6 @@ void cfs_timer_init(struct timer_list *t, cfs_timer_func_t *func, void *arg)
 }
 EXPORT_SYMBOL(cfs_timer_init);
 
-void cfs_timer_done(struct timer_list *t)
-{
-	return;
-}
-EXPORT_SYMBOL(cfs_timer_done);
-
 void cfs_timer_arm(struct timer_list *t, unsigned long deadline)
 {
 	mod_timer(t, deadline);
