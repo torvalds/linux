@@ -634,8 +634,9 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv, int size,
 
 	dev_priv->fbc.uncompressed_size = size;
 
-	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
-		      size);
+	DRM_DEBUG_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
+		      dev_priv->fbc.compressed_fb.size,
+		      dev_priv->fbc.threshold);
 
 	return 0;
 
