@@ -524,6 +524,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 				return -ENOMEM;
 			}
 			response = operation->response->payload;
+			response->len = cpu_to_le32(len);
 			memcpy(response->data, request->data, len);
 		}
 		return 0;
