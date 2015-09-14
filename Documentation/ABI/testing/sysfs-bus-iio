@@ -1471,3 +1471,11 @@ KernelVersion:	4.3
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled no offset etc.) percentage reading of a substance.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistanceX_raw
+KernelVersion:	4.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) resistance reading that can be processed
+		into an ohm value.
