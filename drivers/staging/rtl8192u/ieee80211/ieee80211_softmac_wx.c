@@ -178,7 +178,7 @@ out:
 }
 EXPORT_SYMBOL(ieee80211_wx_set_wap);
 
- int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
+int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
 {
 	int len, ret = 0;
 	unsigned long flags;
@@ -438,7 +438,7 @@ out:
 }
 EXPORT_SYMBOL(ieee80211_wx_set_essid);
 
- int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
+int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 
@@ -447,7 +447,7 @@ EXPORT_SYMBOL(ieee80211_wx_set_essid);
 }
 EXPORT_SYMBOL(ieee80211_wx_get_mode);
 
- int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
+int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
@@ -587,7 +587,7 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 		/* ieee->current_network.dtim_period * ieee->current_network.beacon_interval * 1024; */
 	}
 
-       if ((ieee->ps & (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST)) == (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST))
+	if ((ieee->ps & (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST)) == (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST))
 		wrqu->power.flags |= IW_POWER_ALL_R;
 	else if (ieee->ps & IEEE80211_PS_MBCAST)
 		wrqu->power.flags |= IW_POWER_MULTICAST_R;
