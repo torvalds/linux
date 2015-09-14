@@ -2043,7 +2043,8 @@ out:
 		else if (vcpu->halt_poll_ns < halt_poll_ns &&
 			block_ns < halt_poll_ns)
 			grow_halt_poll_ns(vcpu);
-	}
+	} else
+		vcpu->halt_poll_ns = 0;
 
 	trace_kvm_vcpu_wakeup(block_ns, waited);
 }
