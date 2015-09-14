@@ -1874,52 +1874,51 @@ ksocknal_push_peer(ksock_peer_t *peer)
 	}
 }
 
-static int
-ksocknal_push(lnet_ni_t *ni, lnet_process_id_t id)
+static int ksocknal_push(lnet_ni_t *ni, lnet_process_id_t id)
 {
-	ksock_peer_t *peer;
+	struct list_head *start;
+	struct list_head *end;
 	struct list_head *tmp;
-	int index;
-	int i;
-	int j;
 	int rc = -ENOENT;
+	unsigned int hsize = ksocknal_data.ksnd_peer_hash_size;
 
-	for (i = 0; i < ksocknal_data.ksnd_peer_hash_size; i++) {
-		for (j = 0; ; j++) {
+	if (id.nid == LNET_NID_ANY) {
+		start = &ksocknal_data.ksnd_peers[0];
+		end = &ksocknal_data.ksnd_peers[hsize - 1];
+	} else {
+		start = end = ksocknal_nid2peerlist(id.nid);
+	}
+
+	for (tmp = start; tmp <= end; tmp++) {
+		int peer_off; /* searching offset in peer hash table */
+
+		for (peer_off = 0; ; peer_off++) {
+			ksock_peer_t *peer;
+			int i = 0;
+
 			read_lock(&ksocknal_data.ksnd_global_lock);
-
-			index = 0;
-			peer = NULL;
-
-			list_for_each(tmp, &ksocknal_data.ksnd_peers[i]) {
-				peer = list_entry(tmp, ksock_peer_t,
-						      ksnp_list);
-
+			list_for_each_entry(peer, tmp, ksnp_list) {
 				if (!((id.nid == LNET_NID_ANY ||
 				       id.nid == peer->ksnp_id.nid) &&
 				      (id.pid == LNET_PID_ANY ||
-				       id.pid == peer->ksnp_id.pid))) {
-					peer = NULL;
+				       id.pid == peer->ksnp_id.pid)))
 					continue;
-				}
 
-				if (index++ == j) {
+				if (i++ == peer_off) {
 					ksocknal_peer_addref(peer);
 					break;
 				}
 			}
-
 			read_unlock(&ksocknal_data.ksnd_global_lock);
 
-			if (peer != NULL) {
-				rc = 0;
-				ksocknal_push_peer(peer);
-				ksocknal_peer_decref(peer);
-			}
+			if (i == 0) /* no match */
+				break;
+
+			rc = 0;
+			ksocknal_push_peer(peer);
+			ksocknal_peer_decref(peer);
 		}
-
 	}
-
 	return rc;
 }
 
