@@ -120,7 +120,8 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
  * Note: caller must hold dev->vbl_lock since this reads & writes
  * device vblank fields.
  */
-static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe)
+static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
+				    unsigned long flags)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	u32 cur_vblank, diff;
@@ -141,7 +142,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe)
 	 */
 	do {
 		cur_vblank = dev->driver->get_vblank_counter(dev, pipe);
-		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, 0);
+		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, flags);
 	} while (cur_vblank != dev->driver->get_vblank_counter(dev, pipe));
 
 	/* Deal with counter wrap */
@@ -207,7 +208,7 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	 */
 	if (!vblank->enabled &&
 	    drm_get_last_vbltimestamp(dev, pipe, &tvblank, 0)) {
-		drm_update_vblank_count(dev, pipe);
+		drm_update_vblank_count(dev, pipe, 0);
 		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 		return;
 	}
@@ -1027,7 +1028,7 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 			atomic_dec(&vblank->refcount);
 		else {
 			vblank->enabled = true;
-			drm_update_vblank_count(dev, pipe);
+			drm_update_vblank_count(dev, pipe, 0);
 		}
 	}
 
