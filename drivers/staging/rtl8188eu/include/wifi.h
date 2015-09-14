@@ -20,13 +20,6 @@
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
-
-#ifdef BIT
-/* error	"BIT define occurred earlier elsewhere!\n" */
-#undef BIT
-#endif
-#define BIT(x)	(1 << (x))
-
 #define WLAN_IEEE_OUI_LEN	3
 #define WLAN_CRC_LEN		4
 #define WLAN_BSSID_LEN		6

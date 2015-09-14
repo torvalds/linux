@@ -4177,10 +4177,13 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("+mgt_dispatcher: type(0x%x) subtype(0x%x)\n",
-		  GetFrameType(pframe), GetFrameSubType(pframe)));
+		  (unsigned int)GetFrameType(pframe),
+		  (unsigned int)GetFrameSubType(pframe)));
 
 	if (GetFrameType(pframe) != WIFI_MGT_TYPE) {
-		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("mgt_dispatcher: type(0x%x) error!\n", GetFrameType(pframe)));
+		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
+			 ("mgt_dispatcher: type(0x%x) error!\n",
+			  (unsigned int)GetFrameType(pframe)));
 		return;
 	}
 
