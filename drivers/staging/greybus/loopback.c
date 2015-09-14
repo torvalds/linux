@@ -380,22 +380,43 @@ static int gb_loopback_active(struct gb_loopback *gb)
 	return (gb_dev.mask == 0 || (gb_dev.mask & gb->lbid));
 }
 
-static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
+static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
+				      void *request, int request_size,
+				      void *response, int response_size)
 {
+	struct gb_operation *operation;
 	struct timeval ts, te;
-	struct gb_loopback_transfer_request *request;
-	int retval;
-
-	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
-
-	request->len = cpu_to_le32(len);
+	int ret;
 
 	do_gettimeofday(&ts);
-	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_SINK,
-				   request, len + sizeof(*request), NULL, 0);
+	operation = gb_operation_create(gb->connection, type, request_size,
+					response_size, GFP_KERNEL);
+	if (!operation) {
+		ret = -ENOMEM;
+		goto error;
+	}
 
+	if (request_size)
+		memcpy(operation->request->payload, request, request_size);
+
+	ret = gb_operation_request_send_sync(operation);
+	if (ret) {
+		dev_err(&gb->connection->dev,
+			"synchronous operation failed: %d\n", ret);
+	} else {
+		if (response_size == operation->response->payload_size) {
+			memcpy(response, operation->response->payload,
+			       response_size);
+		} else {
+			dev_err(&gb->connection->dev,
+				"response size %zu expected %d\n",
+				operation->response->payload_size,
+				response_size);
+		}
+	}
+	gb_operation_destroy(operation);
+
+error:
 	do_gettimeofday(&te);
 
 	/* Calculate the total time the message took */
@@ -407,14 +428,28 @@ static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
 	gb_connection_pop_timestamp(gb->connection, &te);
 	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
 
+	return ret;
+}
 
+static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
+{
+	struct gb_loopback_transfer_request *request;
+	int retval;
+
+	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->len = cpu_to_le32(len);
+	retval = gb_loopback_operation_sync(gb, GB_LOOPBACK_TYPE_SINK,
+					    request, len + sizeof(*request),
+					    NULL, 0);
 	kfree(request);
 	return retval;
 }
 
 static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 {
-	struct timeval ts, te;
 	struct gb_loopback_transfer_request *request;
 	struct gb_loopback_transfer_response *response;
 	int retval;
@@ -431,22 +466,9 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 	memset(request->data, 0x5A, len);
 
 	request->len = cpu_to_le32(len);
-
-	do_gettimeofday(&ts);
-	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_TRANSFER,
-				   request, len + sizeof(*request),
-				   response, len + sizeof(*response));
-	do_gettimeofday(&te);
-
-	/* Calculate the total time the message took */
-	gb_loopback_push_latency_ts(gb, &ts, &te);
-	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
-
-	/* Calculate non-greybus related component of the latency */
-	gb_connection_pop_timestamp(gb->connection, &ts);
-	gb_connection_pop_timestamp(gb->connection, &te);
-	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
-
+	retval = gb_loopback_operation_sync(gb, GB_LOOPBACK_TYPE_TRANSFER,
+					    request, len + sizeof(*request),
+					    response, len + sizeof(*response));
 	if (retval)
 		goto gb_error;
 
@@ -464,24 +486,8 @@ gb_error:
 
 static int gb_loopback_ping(struct gb_loopback *gb)
 {
-	struct timeval ts, te;
-	int retval;
-
-	do_gettimeofday(&ts);
-	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_PING,
-				   NULL, 0, NULL, 0);
-	do_gettimeofday(&te);
-
-	/* Calculate the total time the message took */
-	gb_loopback_push_latency_ts(gb, &ts, &te);
-	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
-
-	/* Calculate non-greybus related component of the latency */
-	gb_connection_pop_timestamp(gb->connection, &ts);
-	gb_connection_pop_timestamp(gb->connection, &te);
-	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
-
-	return retval;
+	return gb_loopback_operation_sync(gb, GB_LOOPBACK_TYPE_PING,
+					  NULL, 0, NULL, 0);
 }
 
 static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
