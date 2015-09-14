@@ -25,6 +25,7 @@ struct gb_sdio_host {
 	void			*xfer_buffer;
 	spinlock_t		xfer;	/* lock to cancel ongoing transfer */
 	bool			xfer_stop;
+	struct workqueue_struct	*mrq_workqueue;
 	struct work_struct	mrqwork;
 	u8			queued_events;
 	bool			removed;
@@ -32,7 +33,6 @@ struct gb_sdio_host {
 	bool			read_only;
 };
 
-static struct workqueue_struct *gb_sdio_mrq_workqueue;
 
 #define GB_SDIO_RSP_R1_R5_R6_R7	(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
 				 GB_SDIO_RSP_OPCODE)
@@ -497,7 +497,7 @@ static void gb_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto out;
 	}
 
-	queue_work(gb_sdio_mrq_workqueue, &host->mrqwork);
+	queue_work(host->mrq_workqueue, &host->mrqwork);
 
 	mutex_unlock(&host->lock);
 	return;
@@ -710,7 +710,12 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	}
 	mutex_init(&host->lock);
 	spin_lock_init(&host->xfer);
-	gb_sdio_mrq_workqueue = alloc_workqueue("gb_sdio_mrq", 0, 1);
+	host->mrq_workqueue = alloc_workqueue("mmc-%s", 0, 1,
+						dev_name(&connection->dev));
+	if (!host->mrq_workqueue) {
+		ret = -ENOMEM;
+		goto free_buffer;
+	}
 	INIT_WORK(&host->mrqwork, gb_sdio_mrq_work);
 
 	ret = mmc_add_host(mmc);
@@ -723,9 +728,9 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	return ret;
 
 free_work:
-	destroy_workqueue(gb_sdio_mrq_workqueue);
+	destroy_workqueue(host->mrq_workqueue);
+free_buffer:
 	kfree(host->xfer_buffer);
-
 free_mmc:
 	connection->private = NULL;
 	mmc_free_host(mmc);
@@ -747,8 +752,8 @@ static void gb_sdio_connection_exit(struct gb_connection *connection)
 	connection->private = NULL;
 	mutex_unlock(&host->lock);
 
-	flush_workqueue(gb_sdio_mrq_workqueue);
-	destroy_workqueue(gb_sdio_mrq_workqueue);
+	flush_workqueue(host->mrq_workqueue);
+	destroy_workqueue(host->mrq_workqueue);
 	mmc_remove_host(mmc);
 	kfree(host->xfer_buffer);
 	mmc_free_host(mmc);
