@@ -955,8 +955,8 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
 	debugfs_remove(gb->file);
 	list_del(&gb->entry);
-	kfree(gb);
 	mutex_unlock(&gb_dev.mutex);
+	kfree(gb);
 }
 
 static struct gb_protocol loopback_protocol = {
