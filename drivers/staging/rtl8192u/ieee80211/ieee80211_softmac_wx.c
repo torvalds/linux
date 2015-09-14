@@ -92,11 +92,11 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 
 	if (ieee->current_network.channel == 0)
 		return -1;
-	//NM 0.7.0 will not accept channel any more.
+	/* NM 0.7.0 will not accept channel any more. */
 	fwrq->m = ieee80211_wlan_frequencies[ieee->current_network.channel-1] * 100000;
 	fwrq->e = 1;
-//	fwrq->m = ieee->current_network.channel;
-//	fwrq->e = 0;
+	/* fwrq->m = ieee->current_network.channel; */
+	/* fwrq->e = 0; */
 
 	return 0;
 }
@@ -140,7 +140,7 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 	int ret = 0;
 	unsigned long flags;
 
-	short ifup = ieee->proto_started;//dev->flags & IFF_UP;
+	short ifup = ieee->proto_started; /* dev->flags & IFF_UP; */
 	struct sockaddr *temp = (struct sockaddr *)awrq;
 
 	ieee->sync_scan_hurryup = 1;
@@ -222,7 +222,7 @@ int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
 	u32 target_rate = wrqu->bitrate.value;
 
 	ieee->rate = target_rate/100000;
-	//FIXME: we might want to limit rate also in management protocols.
+	/* FIXME: we might want to limit rate also in management protocols. */
 	return 0;
 }
 EXPORT_SYMBOL(ieee80211_wx_set_rate);
@@ -342,7 +342,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	ieee->InitialGainHandler(ieee->dev, IG_Restore);
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
-	// To prevent the immediately calling watch_dog after scan.
+	/* To prevent the immediately calling watch_dog after scan. */
 	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0)
 	{
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
@@ -417,7 +417,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (wrqu->essid.flags && wrqu->essid.length) {
-		//first flush current network.ssid
+		/* first flush current network.ssid */
 		len = ((wrqu->essid.length-1) < IW_ESSID_MAX_SIZE) ? (wrqu->essid.length-1) : IW_ESSID_MAX_SIZE;
 		strncpy(ieee->current_network.ssid, extra, len+1);
 		ieee->current_network.ssid_len = len+1;
@@ -524,15 +524,15 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		goto exit;
 	}
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
-		//ieee->ps_period = wrqu->power.value / 1000;
+		/* ieee->ps_period = wrqu->power.value / 1000; */
 		ieee->ps_timeout = wrqu->power.value / 1000;
 	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD) {
 
-		//ieee->ps_timeout = wrqu->power.value / 1000;
+		/* ieee->ps_timeout = wrqu->power.value / 1000; */
 		ieee->ps_period = wrqu->power.value / 1000;
-		//wrq->value / 1024;
+		/* wrq->value / 1024; */
 
 	}
 	switch (wrqu->power.flags & IW_POWER_MODE) {
@@ -547,7 +547,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		break;
 
 	case IW_POWER_ON:
-	//	ieee->ps = IEEE80211_PS_DISABLED;
+		/* ieee->ps = IEEE80211_PS_DISABLED; */
 		break;
 
 	default:
@@ -580,11 +580,11 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 		wrqu->power.flags = IW_POWER_TIMEOUT;
 		wrqu->power.value = ieee->ps_timeout * 1000;
 	} else {
-//		ret = -EOPNOTSUPP;
-//		goto exit;
+		/* ret = -EOPNOTSUPP; */
+		/* goto exit; */
 		wrqu->power.flags = IW_POWER_PERIOD;
 		wrqu->power.value = ieee->ps_period * 1000;
-//ieee->current_network.dtim_period * ieee->current_network.beacon_interval * 1024;
+		/* ieee->current_network.dtim_period * ieee->current_network.beacon_interval * 1024; */
 	}
 
        if ((ieee->ps & (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST)) == (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST))
