@@ -593,11 +593,11 @@ static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 		mdc_obd->obd_force = obd->obd_force;
 		mdc_obd->obd_fail = obd->obd_fail;
 		mdc_obd->obd_no_recov = obd->obd_no_recov;
-	}
 
-	if (lmv->lmv_tgts_kobj)
-		sysfs_remove_link(lmv->lmv_tgts_kobj,
-				  mdc_obd->obd_name);
+		if (lmv->lmv_tgts_kobj)
+			sysfs_remove_link(lmv->lmv_tgts_kobj,
+					  mdc_obd->obd_name);
+	}
 
 	rc = obd_fid_fini(tgt->ltd_exp->exp_obd);
 	if (rc)
