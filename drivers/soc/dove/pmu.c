@@ -232,7 +232,7 @@ static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u32 done = ~0;
 
 	if (stat == 0) {
-		handle_bad_irq(irq, desc);
+		handle_bad_irq(irq_desc_get_irq(desc), desc);
 		return;
 	}
 
