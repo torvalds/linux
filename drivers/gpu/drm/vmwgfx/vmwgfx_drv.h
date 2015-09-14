@@ -376,7 +376,6 @@ struct vmw_private {
 	uint32_t initial_width;
 	uint32_t initial_height;
 	u32 __iomem *mmio_virt;
-	int mmio_mtrr;
 	uint32_t capabilities;
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
