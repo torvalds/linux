@@ -694,12 +694,11 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					  unsigned flags,
 					  const struct drm_display_mode *mode)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct timeval tv_etime;
 	ktime_t stime, etime;
 	int vbl_status;
 	int vpos, hpos, i;
-	int framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
+	int delta_ns, duration_ns;
 	bool invbl;
 
 	if (pipe >= dev->num_crtcs) {
@@ -713,15 +712,10 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		return -EIO;
 	}
 
-	/* Durations of frames, lines, pixels in nanoseconds. */
-	framedur_ns = vblank->framedur_ns;
-	linedur_ns  = vblank->linedur_ns;
-	pixeldur_ns = vblank->pixeldur_ns;
-
 	/* If mode timing undefined, just return as no-op:
 	 * Happens during initial modesetting of a crtc.
 	 */
-	if (framedur_ns == 0) {
+	if (mode->crtc_clock == 0) {
 		DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
 		return -EAGAIN;
 	}
@@ -738,8 +732,10 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		 * Get vertical and horizontal scanout position vpos, hpos,
 		 * and bounding timestamps stime, etime, pre/post query.
 		 */
-		vbl_status = dev->driver->get_scanout_position(dev, pipe, flags, &vpos,
-							       &hpos, &stime, &etime);
+		vbl_status = dev->driver->get_scanout_position(dev, pipe, flags,
+							       &vpos, &hpos,
+							       &stime, &etime,
+							       mode);
 
 		/* Return as no-op if scanout query unsupported or failed. */
 		if (!(vbl_status & DRM_SCANOUTPOS_VALID)) {
@@ -776,7 +772,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 * since start of scanout at first display scanline. delta_ns
 	 * can be negative if start of scanout hasn't happened yet.
 	 */
-	delta_ns = vpos * linedur_ns + hpos * pixeldur_ns;
+	delta_ns = div_s64(1000000LL * (vpos * mode->crtc_htotal + hpos),
+			   mode->crtc_clock);
 
 	if (!drm_timestamp_monotonic)
 		etime = ktime_mono_to_real(etime);

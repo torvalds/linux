@@ -133,7 +133,8 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 
 int
 nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
-			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
+			   const struct drm_display_mode *mode)
 {
 	struct drm_crtc *crtc;
 

@@ -482,6 +482,7 @@ struct drm_driver {
 	 *               scanout position query. Can be NULL to skip timestamp.
 	 * \param *etime Target location for timestamp taken immediately after
 	 *               scanout position query. Can be NULL to skip timestamp.
+	 * \param mode Current display timings.
 	 *
 	 * Returns vpos as a positive number while in active scanout area.
 	 * Returns vpos as a negative number inside vblank, counting the number
@@ -499,8 +500,9 @@ struct drm_driver {
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, int crtc,
 				     unsigned int flags,
-				     int *vpos, int *hpos, ktime_t *stime,
-				     ktime_t *etime);
+				     int *vpos, int *hpos,
+				     ktime_t *stime, ktime_t *etime,
+				     const struct drm_display_mode *mode);
 
 	/**
 	 * Called by \c drm_get_last_vbltimestamp. Should return a precise
