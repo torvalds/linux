@@ -34,6 +34,7 @@ struct gb_loopback_stats {
 
 struct gb_loopback_device {
 	struct dentry *root;
+	struct dentry *file;
 	u32 count;
 
 	struct kfifo kfifo;
@@ -860,9 +861,9 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	if (!gb_dev.count) {
 		snprintf(name, sizeof(name), "raw_latency_endo0:%d",
 			 connection->bundle->intf->module->module_id);
-		debugfs_create_file(name, S_IFREG | S_IRUGO,
-				    gb_dev.root, &gb_dev,
-				    &gb_loopback_debugfs_dev_latency_ops);
+		gb_dev.file = debugfs_create_file(name, S_IFREG | S_IRUGO,
+						  gb_dev.root, &gb_dev,
+				  &gb_loopback_debugfs_dev_latency_ops);
 		retval = sysfs_create_groups(kobj, loopback_dev_groups);
 		if (retval)
 			goto out_sysfs;
@@ -925,8 +926,10 @@ out_kfifo0:
 out_sysfs_conn:
 	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
 out_sysfs_dev:
-	if (!gb_dev.count)
+	if (!gb_dev.count) {
 		sysfs_remove_groups(kobj, loopback_dev_groups);
+		debugfs_remove(gb_dev.file);
+	}
 	debugfs_remove(gb->file);
 	connection->private = NULL;
 out_sysfs:
@@ -950,8 +953,10 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
 	gb_dev.count--;
-	if (!gb_dev.count)
+	if (!gb_dev.count) {
 		sysfs_remove_groups(kobj, loopback_dev_groups);
+		debugfs_remove(gb_dev.file);
+	}
 	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
 	debugfs_remove(gb->file);
 	list_del(&gb->entry);
