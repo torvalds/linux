@@ -115,7 +115,14 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("peripheral_clk", &div4_clks[DIV4_P]),
 
 	/* MSTP clocks */
-	CLKDEV_CON_ID("sci_ick", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.0", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.1", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.2", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.3", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.4", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.5", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.6", &mstp_clks[MSTP77]),
+	CLKDEV_ICK_ID("fck", "sh-sci.7", &mstp_clks[MSTP77]),
 	CLKDEV_CON_ID("vdc3", &mstp_clks[MSTP74]),
 	CLKDEV_ICK_ID("fck", "sh-cmt-16.0", &mstp_clks[MSTP72]),
 	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP60]),
