@@ -2306,6 +2306,7 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	u_int y_bottom;
 	unsigned int fr_xoff, fr_yoff, fr_w, fr_h;
 	unsigned int x_crop = 0, y_crop = 0;
+	unsigned int sec_buf_off = 0, trd_buf_off = 0;
 	unsigned long base, ipu_base = 0, active_alpha_phy_addr = 0;
 	bool loc_alpha_en = false;
 	int fb_stride;
@@ -2393,7 +2394,6 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 	if (mxc_fbi->cur_prefetch) {
-		unsigned int sec_buf_off = 0, trd_buf_off = 0;
 		ipu_get_channel_offset(fbi_to_pixfmt(info, true),
 				       info->var.xres,
 				       fr_h,
@@ -2405,9 +2405,6 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 				       &trd_buf_off);
 		if (mxc_fbi->resolve)
 			sec_buf_off = mxc_fbi->gpu_sec_buf_off;
-		ipu_pre_set_fb_buffer(mxc_fbi->pre_num, base,
-				      x_crop, y_crop,
-				      sec_buf_off, trd_buf_off);
 	} else {
 		ipu_base = base;
 	}
@@ -2485,6 +2482,10 @@ next:
 
 			ipu_select_buffer(mxc_fbi->ipu, mxc_fbi->ipu_ch,
 					  IPU_INPUT_BUFFER, mxc_fbi->cur_ipu_buf);
+		} else {
+			ipu_pre_set_fb_buffer(mxc_fbi->pre_num, base,
+					      x_crop, y_crop,
+					      sec_buf_off, trd_buf_off);
 		}
 		ipu_clear_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_irq);
 		ipu_enable_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_irq);
