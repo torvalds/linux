@@ -76,12 +76,14 @@ module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 static void store_vblank(struct drm_device *dev, unsigned int pipe,
 			 u32 vblank_count_inc,
-			 struct timeval *t_vblank)
+			 struct timeval *t_vblank, u32 last)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	u32 tslot;
 
 	assert_spin_locked(&dev->vblank_time_lock);
+
+	vblank->last = last;
 
 	/* All writers hold the spinlock, but readers are serialized by
 	 * the latching of vblank->count below.
@@ -100,6 +102,54 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
 	smp_wmb();
 	vblank->count += vblank_count_inc;
 	smp_wmb();
+}
+
+/**
+ * drm_reset_vblank_timestamp - reset the last timestamp to the last vblank
+ * @dev: DRM device
+ * @pipe: index of CRTC for which to reset the timestamp
+ *
+ * Reset the stored timestamp for the current vblank count to correspond
+ * to the last vblank occurred.
+ *
+ * Only to be called from drm_vblank_on().
+ *
+ * Note: caller must hold dev->vbl_lock since this reads & writes
+ * device vblank fields.
+ */
+static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe)
+{
+	u32 cur_vblank;
+	bool rc;
+	struct timeval t_vblank;
+	int count = DRM_TIMESTAMP_MAXRETRIES;
+
+	spin_lock(&dev->vblank_time_lock);
+
+	/*
+	 * sample the current counter to avoid random jumps
+	 * when drm_vblank_enable() applies the diff
+	 */
+	do {
+		cur_vblank = dev->driver->get_vblank_counter(dev, pipe);
+		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, 0);
+	} while (cur_vblank != dev->driver->get_vblank_counter(dev, pipe) && --count > 0);
+
+	/*
+	 * Only reinitialize corresponding vblank timestamp if high-precision query
+	 * available and didn't fail. Otherwise reinitialize delayed at next vblank
+	 * interrupt and assign 0 for now, to mark the vblanktimestamp as invalid.
+	 */
+	if (!rc)
+		t_vblank = (struct timeval) {0, 0};
+
+	/*
+	 * +1 to make sure user will never see the same
+	 * vblank counter value before and after a modeset
+	 */
+	store_vblank(dev, pipe, 1, &t_vblank, cur_vblank);
+
+	spin_unlock(&dev->vblank_time_lock);
 }
 
 /**
@@ -126,6 +176,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	bool rc;
 	struct timeval t_vblank;
 	int count = DRM_TIMESTAMP_MAXRETRIES;
+	int framedur_ns = vblank->framedur_ns;
 
 	/*
 	 * Interrupts were disabled prior to this call, so deal with counter
@@ -144,20 +195,40 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, flags);
 	} while (cur_vblank != dev->driver->get_vblank_counter(dev, pipe) && --count > 0);
 
-	/* Deal with counter wrap */
-	diff = cur_vblank - vblank->last;
-	if (cur_vblank < vblank->last) {
-		diff += dev->max_vblank_count + 1;
+	if (dev->max_vblank_count != 0) {
+		/* trust the hw counter when it's around */
+		diff = (cur_vblank - vblank->last) & dev->max_vblank_count;
+	} else if (rc && framedur_ns) {
+		const struct timeval *t_old;
+		u64 diff_ns;
 
-		DRM_DEBUG("last_vblank[%u]=0x%x, cur_vblank=0x%x => diff=0x%x\n",
-			  pipe, vblank->last, cur_vblank, diff);
+		t_old = &vblanktimestamp(dev, pipe, vblank->count);
+		diff_ns = timeval_to_ns(&t_vblank) - timeval_to_ns(t_old);
+
+		/*
+		 * Figure out how many vblanks we've missed based
+		 * on the difference in the timestamps and the
+		 * frame/field duration.
+		 */
+		diff = DIV_ROUND_CLOSEST_ULL(diff_ns, framedur_ns);
+
+		if (diff == 0 && flags & DRM_CALLED_FROM_VBLIRQ)
+			DRM_DEBUG("crtc %u: Redundant vblirq ignored."
+				  " diff_ns = %lld, framedur_ns = %d)\n",
+				  pipe, (long long) diff_ns, framedur_ns);
+	} else {
+		/* some kind of default for drivers w/o accurate vbl timestamping */
+		diff = (flags & DRM_CALLED_FROM_VBLIRQ) != 0;
 	}
 
-	DRM_DEBUG("updating vblank count on crtc %u, missed %d\n",
-		  pipe, diff);
+	DRM_DEBUG("updating vblank count on crtc %u:"
+		  " current=%u, diff=%u, hw=%u hw_last=%u\n",
+		  pipe, vblank->count, diff, cur_vblank, vblank->last);
 
-	if (diff == 0)
+	if (diff == 0) {
+		WARN_ON_ONCE(cur_vblank != vblank->last);
 		return;
+	}
 
 	/*
 	 * Only reinitialize corresponding vblank timestamp if high-precision query
@@ -167,7 +238,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	if (!rc)
 		t_vblank = (struct timeval) {0, 0};
 
-	store_vblank(dev, pipe, diff, &t_vblank);
+	store_vblank(dev, pipe, diff, &t_vblank, cur_vblank);
 }
 
 /*
@@ -180,37 +251,12 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	unsigned long irqflags;
-	u32 vblcount;
-	s64 diff_ns;
-	bool vblrc;
-	struct timeval tvblank;
-	int count = DRM_TIMESTAMP_MAXRETRIES;
 
 	/* Prevent vblank irq processing while disabling vblank irqs,
 	 * so no updates of timestamps or count can happen after we've
 	 * disabled. Needed to prevent races in case of delayed irq's.
 	 */
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
-
-	/*
-	 * If the vblank interrupt was already disabled update the count
-	 * and timestamp to maintain the appearance that the counter
-	 * has been ticking all along until this time. This makes the
-	 * count account for the entire time between drm_vblank_on() and
-	 * drm_vblank_off().
-	 *
-	 * But only do this if precise vblank timestamps are available.
-	 * Otherwise we might read a totally bogus timestamp since drivers
-	 * lacking precise timestamp support rely upon sampling the system clock
-	 * at vblank interrupt time. Which obviously won't work out well if the
-	 * vblank interrupt is disabled.
-	 */
-	if (!vblank->enabled &&
-	    drm_get_last_vbltimestamp(dev, pipe, &tvblank, 0)) {
-		drm_update_vblank_count(dev, pipe, 0);
-		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
-		return;
-	}
 
 	/*
 	 * Only disable vblank interrupts if they're enabled. This avoids
@@ -222,47 +268,13 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 		vblank->enabled = false;
 	}
 
-	/* No further vblank irq's will be processed after
-	 * this point. Get current hardware vblank count and
-	 * vblank timestamp, repeat until they are consistent.
-	 *
-	 * FIXME: There is still a race condition here and in
-	 * drm_update_vblank_count() which can cause off-by-one
-	 * reinitialization of software vblank counter. If gpu
-	 * vblank counter doesn't increment exactly at the leading
-	 * edge of a vblank interval, then we can lose 1 count if
-	 * we happen to execute between start of vblank and the
-	 * delayed gpu counter increment.
+	/*
+	 * Always update the count and timestamp to maintain the
+	 * appearance that the counter has been ticking all along until
+	 * this time. This makes the count account for the entire time
+	 * between drm_vblank_on() and drm_vblank_off().
 	 */
-	do {
-		vblank->last = dev->driver->get_vblank_counter(dev, pipe);
-		vblrc = drm_get_last_vbltimestamp(dev, pipe, &tvblank, 0);
-	} while (vblank->last != dev->driver->get_vblank_counter(dev, pipe) && (--count) && vblrc);
-
-	if (!count)
-		vblrc = 0;
-
-	/* Compute time difference to stored timestamp of last vblank
-	 * as updated by last invocation of drm_handle_vblank() in vblank irq.
-	 */
-	vblcount = vblank->count;
-	diff_ns = timeval_to_ns(&tvblank) -
-		  timeval_to_ns(&vblanktimestamp(dev, pipe, vblcount));
-
-	/* If there is at least 1 msec difference between the last stored
-	 * timestamp and tvblank, then we are currently executing our
-	 * disable inside a new vblank interval, the tvblank timestamp
-	 * corresponds to this new vblank interval and the irq handler
-	 * for this vblank didn't run yet and won't run due to our disable.
-	 * Therefore we need to do the job of drm_handle_vblank() and
-	 * increment the vblank counter by one to account for this vblank.
-	 *
-	 * Skip this step if there isn't any high precision timestamp
-	 * available. In that case we can't account for this and just
-	 * hope for the best.
-	 */
-	if (vblrc && (abs64(diff_ns) > 1000000))
-		store_vblank(dev, pipe, 1, &tvblank);
+	drm_update_vblank_count(dev, pipe, 0);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
@@ -1325,16 +1337,8 @@ void drm_vblank_on(struct drm_device *dev, unsigned int pipe)
 		vblank->inmodeset = 0;
 	}
 
-	/*
-	 * sample the current counter to avoid random jumps
-	 * when drm_vblank_enable() applies the diff
-	 *
-	 * -1 to make sure user will never see the same
-	 * vblank counter value before and after a modeset
-	 */
-	vblank->last =
-		(dev->driver->get_vblank_counter(dev, pipe) - 1) &
-		dev->max_vblank_count;
+	drm_reset_vblank_timestamp(dev, pipe);
+
 	/*
 	 * re-enable interrupts if there are users left, or the
 	 * user wishes vblank interrupts to be enabled all the time.
@@ -1717,9 +1721,6 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
 bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-	u32 vblcount;
-	s64 diff_ns;
-	struct timeval tvblank;
 	unsigned long irqflags;
 
 	if (WARN_ON_ONCE(!dev->num_crtcs))
@@ -1743,32 +1744,7 @@ bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 		return false;
 	}
 
-	/* Fetch corresponding timestamp for this vblank interval from
-	 * driver and store it in proper slot of timestamp ringbuffer.
-	 */
-
-	/* Get current timestamp and count. */
-	vblcount = vblank->count;
-	drm_get_last_vbltimestamp(dev, pipe, &tvblank, DRM_CALLED_FROM_VBLIRQ);
-
-	/* Compute time difference to timestamp of last vblank */
-	diff_ns = timeval_to_ns(&tvblank) -
-		  timeval_to_ns(&vblanktimestamp(dev, pipe, vblcount));
-
-	/* Update vblank timestamp and count if at least
-	 * DRM_REDUNDANT_VBLIRQ_THRESH_NS nanoseconds
-	 * difference between last stored timestamp and current
-	 * timestamp. A smaller difference means basically
-	 * identical timestamps. Happens if this vblank has
-	 * been already processed and this is a redundant call,
-	 * e.g., due to spurious vblank interrupts. We need to
-	 * ignore those for accounting.
-	 */
-	if (abs64(diff_ns) > DRM_REDUNDANT_VBLIRQ_THRESH_NS)
-		store_vblank(dev, pipe, 1, &tvblank);
-	else
-		DRM_DEBUG("crtc %u: Redundant vblirq ignored. diff_ns = %d\n",
-			  pipe, (int) diff_ns);
+	drm_update_vblank_count(dev, pipe, DRM_CALLED_FROM_VBLIRQ);
 
 	spin_unlock(&dev->vblank_time_lock);
 
