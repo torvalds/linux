@@ -394,12 +394,12 @@ static struct mms114_platform_data *mms114_parse_dt(struct device *dev)
 	if (of_property_read_u32(np, "x-size", &pdata->x_size)) {
 		dev_err(dev, "failed to get x-size property\n");
 		return NULL;
-	};
+	}
 
 	if (of_property_read_u32(np, "y-size", &pdata->y_size)) {
 		dev_err(dev, "failed to get y-size property\n");
 		return NULL;
-	};
+	}
 
 	of_property_read_u32(np, "contact-threshold",
 				&pdata->contact_threshold);
