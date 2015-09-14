@@ -148,8 +148,8 @@ static void gb_vibrator_connection_exit(struct gb_connection *connection)
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	sysfs_remove_group(&vib->dev->kobj, vibrator_groups[0]);
 #endif
-	ida_simple_remove(&minors, vib->minor);
 	device_unregister(vib->dev);
+	ida_simple_remove(&minors, vib->minor);
 	kfree(vib);
 }
 
