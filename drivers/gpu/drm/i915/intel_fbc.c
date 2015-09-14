@@ -308,6 +308,18 @@ bool intel_fbc_enabled(struct drm_i915_private *dev_priv)
 	return dev_priv->fbc.enabled;
 }
 
+static void intel_fbc_enable(struct intel_crtc *crtc,
+			     const struct drm_framebuffer *fb)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	dev_priv->fbc.enable_fbc(crtc);
+
+	dev_priv->fbc.crtc = crtc;
+	dev_priv->fbc.fb_id = fb->base.id;
+	dev_priv->fbc.y = crtc->base.y;
+}
+
 static void intel_fbc_work_fn(struct work_struct *__work)
 {
 	struct intel_fbc_work *work =
@@ -321,13 +333,8 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
 		 */
-		if (crtc_fb == work->fb) {
-			dev_priv->fbc.enable_fbc(work->crtc);
-
-			dev_priv->fbc.crtc = work->crtc;
-			dev_priv->fbc.fb_id = crtc_fb->base.id;
-			dev_priv->fbc.y = work->crtc->base.y;
-		}
+		if (crtc_fb == work->fb)
+			intel_fbc_enable(work->crtc, work->fb);
 
 		dev_priv->fbc.fbc_work = NULL;
 	}
@@ -361,7 +368,7 @@ static void intel_fbc_cancel_work(struct drm_i915_private *dev_priv)
 	dev_priv->fbc.fbc_work = NULL;
 }
 
-static void intel_fbc_enable(struct intel_crtc *crtc)
+static void intel_fbc_schedule_enable(struct intel_crtc *crtc)
 {
 	struct intel_fbc_work *work;
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
@@ -373,7 +380,7 @@ static void intel_fbc_enable(struct intel_crtc *crtc)
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL) {
 		DRM_ERROR("Failed to allocate FBC work structure\n");
-		dev_priv->fbc.enable_fbc(crtc);
+		intel_fbc_enable(crtc, crtc->base.primary->fb);
 		return;
 	}
 
@@ -824,7 +831,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		__intel_fbc_disable(dev_priv);
 	}
 
-	intel_fbc_enable(intel_crtc);
+	intel_fbc_schedule_enable(intel_crtc);
 	dev_priv->fbc.no_fbc_reason = FBC_OK;
 	return;
 
