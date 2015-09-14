@@ -1932,7 +1932,7 @@ static int set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 /**
- *  @brief      WILC_WFI_del_pmksa
+ *  @brief      del_pmksa
  *  @details    Delete a cached PMKID.
  *  @param[in]
  *  @return     int : Return 0 on Success
@@ -1940,8 +1940,8 @@ static int set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
-			      struct cfg80211_pmksa *pmksa)
+static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
+		     struct cfg80211_pmksa *pmksa)
 {
 
 	u32 i;
@@ -3584,7 +3584,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.set_wiphy_params = set_wiphy_params,
 
 	.set_pmksa = set_pmksa,
-	.del_pmksa = WILC_WFI_del_pmksa,
+	.del_pmksa = del_pmksa,
 	.flush_pmksa = WILC_WFI_flush_pmksa,
 #ifdef WILC_P2P
 	.remain_on_channel = WILC_WFI_remain_on_channel,
