@@ -373,7 +373,7 @@ int mmc_of_parse(struct mmc_host *host)
 					   0, &cd_gpio_invert);
 		if (!ret)
 			dev_info(host->parent, "Got CD GPIO\n");
-		else if (ret != -ENOENT)
+		else if (ret != -ENOENT && ret != -ENOSYS)
 			return ret;
 
 		/*
@@ -397,7 +397,7 @@ int mmc_of_parse(struct mmc_host *host)
 	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
 	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
-	else if (ret != -ENOENT)
+	else if (ret != -ENOENT && ret != -ENOSYS)
 		return ret;
 
 	/* See the comment on CD inversion above */
