@@ -2760,7 +2760,7 @@ static int    WILC_WFI_set_cqm_rssi_config(struct wiphy *wiphy,
 
 }
 /**
- *  @brief      WILC_WFI_dump_station
+ *  @brief      dump_station
  *  @details    Configure connection quality monitor RSSI threshold.
  *  @param[in]   struct wiphy *wiphy:
  *  @param[in]	struct net_device *dev
@@ -2772,8 +2772,8 @@ static int    WILC_WFI_set_cqm_rssi_config(struct wiphy *wiphy,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_dump_station(struct wiphy *wiphy, struct net_device *dev,
-				 int idx, u8 *mac, struct station_info *sinfo)
+static int dump_station(struct wiphy *wiphy, struct net_device *dev,
+			int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct WILC_WFI_priv *priv;
 
@@ -3579,7 +3579,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.change_station = change_station,
 	#endif /* WILC_AP_EXTERNAL_MLME*/
 	.get_station = get_station,
-	.dump_station = WILC_WFI_dump_station,
+	.dump_station = dump_station,
 	.change_bss = WILC_WFI_change_bss,
 	.set_wiphy_params = WILC_WFI_set_wiphy_params,
 
