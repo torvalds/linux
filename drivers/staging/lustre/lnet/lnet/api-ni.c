@@ -1262,7 +1262,7 @@ LNetNIInit(lnet_pid_t requested_pid)
 	if (rc != 0)
 		goto failed4;
 
-	lnet_proc_init();
+	lnet_router_debugfs_init();
 	goto out;
 
  failed4:
@@ -1305,7 +1305,7 @@ LNetNIFini(void)
 	} else {
 		LASSERT(!the_lnet.ln_niinit_self);
 
-		lnet_proc_fini();
+		lnet_router_debugfs_fini();
 		lnet_router_checker_stop();
 		lnet_ping_target_fini();
 

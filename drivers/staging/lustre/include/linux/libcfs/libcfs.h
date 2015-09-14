@@ -161,4 +161,12 @@ extern struct cfs_psdev_ops libcfs_psdev_ops;
 
 extern struct cfs_wi_sched *cfs_sched_rehash;
 
+struct lnet_debugfs_symlink_def {
+	char *name;
+	char *target;
+};
+
+void lustre_insert_debugfs(struct ctl_table *table,
+			   const struct lnet_debugfs_symlink_def *symlinks);
+
 #endif /* _LIBCFS_H */
