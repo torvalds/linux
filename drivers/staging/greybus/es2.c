@@ -123,7 +123,7 @@ static void cport_out_callback(struct urb *urb);
 static void usb_log_enable(struct es1_ap_dev *es1);
 static void usb_log_disable(struct es1_ap_dev *es1);
 
-static int cport_to_ep(struct es1_ap_dev *es1, u16 cport_id)
+static int cport_to_ep_pair(struct es1_ap_dev *es1, u16 cport_id)
 {
 	if (cport_id >= es1->hd->num_cports)
 		return 0;
@@ -132,38 +132,38 @@ static int cport_to_ep(struct es1_ap_dev *es1, u16 cport_id)
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
 
-static int ep_in_use(struct es1_ap_dev *es1, int bulk_ep_set)
+static int ep_pair_in_use(struct es1_ap_dev *es1, int ep_pair)
 {
 	int i;
 
 	for (i = 0; i < es1->hd->num_cports; i++) {
-		if (es1->cport_to_ep[i] == bulk_ep_set)
+		if (es1->cport_to_ep[i] == ep_pair)
 			return 1;
 	}
 	return 0;
 }
 
 int map_cport_to_ep(struct es1_ap_dev *es1,
-				u16 cport_id, int bulk_ep_set)
+				u16 cport_id, int ep_pair)
 {
 	int retval;
 	struct cport_to_ep *cport_to_ep;
 
-	if (bulk_ep_set < 0 || bulk_ep_set >= NUM_BULKS)
+	if (ep_pair < 0 || ep_pair >= NUM_BULKS)
 		return -EINVAL;
 	if (cport_id >= es1->hd->num_cports)
 		return -EINVAL;
-	if (bulk_ep_set && ep_in_use(es1, bulk_ep_set))
+	if (ep_pair && ep_pair_in_use(es1, ep_pair))
 		return -EINVAL;
 
 	cport_to_ep = kmalloc(sizeof(*cport_to_ep), GFP_KERNEL);
 	if (!cport_to_ep)
 		return -ENOMEM;
 
-	es1->cport_to_ep[cport_id] = bulk_ep_set;
+	es1->cport_to_ep[cport_id] = ep_pair;
 	cport_to_ep->cport_id = cpu_to_le16(cport_id);
-	cport_to_ep->endpoint_in = es1->cport_in[bulk_ep_set].endpoint;
-	cport_to_ep->endpoint_out = es1->cport_out[bulk_ep_set].endpoint;
+	cport_to_ep->endpoint_in = es1->cport_in[ep_pair].endpoint;
+	cport_to_ep->endpoint_out = es1->cport_out[ep_pair].endpoint;
 
 	retval = usb_control_msg(es1->usb_dev,
 				 usb_sndctrlpipe(es1->usb_dev, 0),
@@ -275,7 +275,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
-	int bulk_ep_set;
+	int ep_pair;
 	unsigned long flags;
 
 	/*
@@ -302,10 +302,10 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 
 	buffer_size = sizeof(*message->header) + message->payload_size;
 
-	bulk_ep_set = cport_to_ep(es1, cport_id);
+	ep_pair = cport_to_ep_pair(es1, cport_id);
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev,
-					  es1->cport_out[bulk_ep_set].endpoint),
+					  es1->cport_out[ep_pair].endpoint),
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
