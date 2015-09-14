@@ -355,7 +355,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	if (!input_dev)
 		return -ENOMEM;
 
-	input_dev->name = "iMX6UL TouchScreen Controller";
+	input_dev->name = "iMX6UL Touchscreen Controller";
 	input_dev->id.bustype = BUS_HOST;
 
 	input_dev->open = imx6ul_tsc_open;
