@@ -1802,7 +1802,7 @@ static int  WILC_WFI_disassoc(struct wiphy *wiphy, struct net_device *dev,
 }
 
 /**
- *  @brief      WILC_WFI_set_wiphy_params
+ *  @brief      set_wiphy_params
  *  @details    Notify that wiphy parameters have changed;
  *  @param[in]   Changed bitfield (see &enum wiphy_params_flags) describes which values
  *                      have changed.
@@ -1811,7 +1811,7 @@ static int  WILC_WFI_disassoc(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
 	s32 s32Error = WILC_SUCCESS;
 	tstrCfgParamVal pstrCfgParamVal;
@@ -3581,7 +3581,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.get_station = get_station,
 	.dump_station = dump_station,
 	.change_bss = change_bss,
-	.set_wiphy_params = WILC_WFI_set_wiphy_params,
+	.set_wiphy_params = set_wiphy_params,
 
 	.set_pmksa = WILC_WFI_set_pmksa,
 	.del_pmksa = WILC_WFI_del_pmksa,
