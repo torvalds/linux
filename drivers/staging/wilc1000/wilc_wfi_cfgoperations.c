@@ -3498,7 +3498,7 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 
 
 /**
- *  @brief      WILC_WFI_add_virt_intf
+ *  @brief      add_virtual_intf
  *  @details
  *  @param[in]
  *  @return     int : Return 0 on Success.
@@ -3506,10 +3506,10 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 JUL 2012
  *  @version	1.0
  */
-struct wireless_dev *WILC_WFI_add_virt_intf(struct wiphy *wiphy, const char *name,
-						unsigned char name_assign_type,
-						enum nl80211_iftype type, u32 *flags,
-						struct vif_params *params)
+struct wireless_dev *add_virtual_intf(struct wiphy *wiphy, const char *name,
+				      unsigned char name_assign_type,
+				      enum nl80211_iftype type, u32 *flags,
+				      struct vif_params *params)
 {
 	perInterface_wlan_t *nic;
 	struct WILC_WFI_priv *priv;
@@ -3567,7 +3567,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.get_key = get_key,
 	.set_default_key = set_default_key,
 	#ifdef WILC_AP_EXTERNAL_MLME
-	.add_virtual_intf = WILC_WFI_add_virt_intf,
+	.add_virtual_intf = add_virtual_intf,
 	.del_virtual_intf = WILC_WFI_del_virt_intf,
 	.change_virtual_intf = WILC_WFI_change_virt_intf,
 
