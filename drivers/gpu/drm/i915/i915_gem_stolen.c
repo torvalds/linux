@@ -42,9 +42,9 @@
  * for is a boon.
  */
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *node, u64 size,
-				unsigned alignment)
+int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
+					 struct drm_mm_node *node, u64 size,
+					 unsigned alignment, u64 start, u64 end)
 {
 	int ret;
 
@@ -52,11 +52,21 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 		return -ENODEV;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node, size, alignment,
-				 DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node, size,
+					  alignment, start, end,
+					  DRM_MM_SEARCH_DEFAULT);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 
 	return ret;
+}
+
+int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
+				struct drm_mm_node *node, u64 size,
+				unsigned alignment)
+{
+	return i915_gem_stolen_insert_node_in_range(dev_priv, node, size,
+					alignment, 0,
+					dev_priv->gtt.stolen_usable_size);
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
@@ -355,9 +365,11 @@ int i915_gem_init_stolen(struct drm_device *dev)
 		      dev_priv->gtt.stolen_size >> 10,
 		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
 
+	dev_priv->gtt.stolen_usable_size = dev_priv->gtt.stolen_size -
+					   reserved_total;
+
 	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
-		    reserved_total);
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_usable_size);
 
 	return 0;
 }

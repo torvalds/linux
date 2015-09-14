@@ -551,6 +551,16 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 {
 	int compression_threshold = 1;
 	int ret;
+	u64 end;
+
+	/* The FBC hardware for BDW/SKL doesn't have access to the stolen
+	 * reserved range size, so it always assumes the maximum (8mb) is used.
+	 * If we enable FBC using a CFB on that memory range we'll get FIFO
+	 * underruns, even if that range is not reserved by the BIOS. */
+	if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv))
+		end = dev_priv->gtt.stolen_size - 8 * 1024 * 1024;
+	else
+		end = dev_priv->gtt.stolen_usable_size;
 
 	/* HACK: This code depends on what we will do in *_enable_fbc. If that
 	 * code changes, this code needs to change as well.
@@ -560,7 +570,8 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 */
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
-	ret = i915_gem_stolen_insert_node(dev_priv, node, size <<= 1, 4096);
+	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size <<= 1,
+						   4096, 0, end);
 	if (ret == 0)
 		return compression_threshold;
 
@@ -570,7 +581,8 @@ again:
 	    (fb_cpp == 2 && compression_threshold == 2))
 		return 0;
 
-	ret = i915_gem_stolen_insert_node(dev_priv, node, size >>= 1, 4096);
+	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size >>= 1,
+						   4096, 0, end);
 	if (ret && INTEL_INFO(dev_priv)->gen <= 4) {
 		return 0;
 	} else if (ret) {
