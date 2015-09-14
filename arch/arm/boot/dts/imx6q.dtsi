@@ -91,6 +91,7 @@
 			interrupts = <0 107 0x04>, <0 112 0x4>, <0 113 0x4>, <0 114 0x4>;
 			interrupt-names = "irq_busfreq_0", "irq_busfreq_1", "irq_busfreq_2", "irq_busfreq_3";
 			fsl,max_ddr_freq = <528000000>;
+		};
                 gpu@00130000 {
 			compatible = "fsl,imx6q-gpu";
 			reg = <0x00130000 0x4000>, <0x00134000 0x4000>,
