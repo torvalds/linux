@@ -98,6 +98,24 @@
 };
 
 &cpu0 {
+	/*
+	 * on i.MX6UL, no seperated VDD_ARM_IN and VDD_SOC_IN,
+	 * to align with other platform and use the same cpufreq
+	 * driver, still use the seperated OPP define for arm
+	 * and soc.
+	 */
+	operating-points = <
+		/* kHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	fsl,soc-operating-points = <
+		/* KHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
 	arm-supply = <&sw1a_reg>;
 	soc-supply = <&sw1a_reg>;
 	fsl,arm-soc-shared = <1>;
