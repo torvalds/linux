@@ -1064,7 +1064,7 @@ done:
 
 
 /**
- *  @brief      WILC_WFI_disconnect
+ *  @brief      disconnect
  *  @details    Disconnect from the BSS/ESS.
  *  @param[in]
  *  @return     int : Return 0 on Success
@@ -1072,7 +1072,7 @@ done:
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_code)
+static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_code)
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3561,7 +3561,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.set_monitor_channel = set_channel,
 	.scan = scan,
 	.connect = connect,
-	.disconnect = WILC_WFI_disconnect,
+	.disconnect = disconnect,
 	.add_key = WILC_WFI_add_key,
 	.del_key = WILC_WFI_del_key,
 	.get_key = WILC_WFI_get_key,
