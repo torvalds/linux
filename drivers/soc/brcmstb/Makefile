@@ -1,1 +1,1 @@
-obj-y				+= common.o
+obj-y				+= common.o biuctrl.o
