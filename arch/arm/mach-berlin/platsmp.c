@@ -14,6 +14,7 @@
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
@@ -98,8 +99,32 @@ unmap_scu:
 	iounmap(scu_base);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static void berlin_cpu_die(unsigned int cpu)
+{
+	v7_exit_coherency_flush(louis);
+	while (1)
+		cpu_do_idle();
+}
+
+static int berlin_cpu_kill(unsigned int cpu)
+{
+	u32 val;
+
+	val = readl(cpu_ctrl + CPU_RESET_NON_SC);
+	val &= ~BIT(cpu_logical_map(cpu));
+	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
+
+	return 1;
+}
+#endif
+
 static struct smp_operations berlin_smp_ops __initdata = {
 	.smp_prepare_cpus	= berlin_smp_prepare_cpus,
 	.smp_boot_secondary	= berlin_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= berlin_cpu_die,
+	.cpu_kill		= berlin_cpu_kill,
+#endif
 };
 CPU_METHOD_OF_DECLARE(berlin_smp, "marvell,berlin-smp", &berlin_smp_ops);
