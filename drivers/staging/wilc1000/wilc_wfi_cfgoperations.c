@@ -3206,7 +3206,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
  */
 
 /**
- *  @brief      WILC_WFI_start_ap
+ *  @brief      start_ap
  *  @details    Add a beacon with given parameters, @head, @interval
  *                      and @dtim_period will be valid, @tail is optional.
  *  @param[in]   wiphy
@@ -3217,8 +3217,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
  *  @date	23 JUL 2013
  *  @version	1.0
  */
-static int WILC_WFI_start_ap(struct wiphy *wiphy, struct net_device *dev,
-			     struct cfg80211_ap_settings *settings)
+static int start_ap(struct wiphy *wiphy, struct net_device *dev,
+		    struct cfg80211_ap_settings *settings)
 {
 	struct cfg80211_beacon_data *beacon = &(settings->beacon);
 	struct WILC_WFI_priv *priv;
@@ -3571,7 +3571,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.del_virtual_intf = del_virtual_intf,
 	.change_virtual_intf = change_virtual_intf,
 
-	.start_ap = WILC_WFI_start_ap,
+	.start_ap = start_ap,
 	.change_beacon = WILC_WFI_change_beacon,
 	.stop_ap = WILC_WFI_stop_ap,
 	.add_station = WILC_WFI_add_station,
