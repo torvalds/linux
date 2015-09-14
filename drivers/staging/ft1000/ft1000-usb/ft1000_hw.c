@@ -1546,7 +1546,7 @@ int ft1000_poll(void *dev_id)
 					       FT1000_REG_MAG_WATERMARK);
 			/* ring doorbell to tell DSP that
 			 * ASIC is out of reset
-			 * */
+			 */
 			status = ft1000_write_register(dev,
 						       FT1000_ASIC_RESET_DSP,
 						       FT1000_REG_DOORBELL);
