@@ -1566,7 +1566,7 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 }
 
 /**
- *  @brief      WILC_WFI_set_default_key
+ *  @brief      set_default_key
  *  @details    Set the default management frame key on an interface
  *  @param[in]
  *  @return     int : Return 0 on Success.
@@ -1574,8 +1574,8 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-				    bool unicast, bool multicast)
+static int set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
+			   bool unicast, bool multicast)
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3565,7 +3565,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.add_key = add_key,
 	.del_key = del_key,
 	.get_key = get_key,
-	.set_default_key = WILC_WFI_set_default_key,
+	.set_default_key = set_default_key,
 	#ifdef WILC_AP_EXTERNAL_MLME
 	.add_virtual_intf = WILC_WFI_add_virt_intf,
 	.del_virtual_intf = WILC_WFI_del_virt_intf,
