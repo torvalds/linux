@@ -9,6 +9,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/kmemleak.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -1438,6 +1439,11 @@ static void blk_mq_free_rq_map(struct blk_mq_tag_set *set,
 	while (!list_empty(&tags->page_list)) {
 		page = list_first_entry(&tags->page_list, struct page, lru);
 		list_del_init(&page->lru);
+		/*
+		 * Remove kmemleak object previously allocated in
+		 * blk_mq_init_rq_map().
+		 */
+		kmemleak_free(page_address(page));
 		__free_pages(page, page->private);
 	}
 
@@ -1510,6 +1516,11 @@ static struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 		list_add_tail(&page->lru, &tags->page_list);
 
 		p = page_address(page);
+		/*
+		 * Allow kmemleak to scan these pages as they contain pointers
+		 * to additional allocations like via ops->init_request().
+		 */
+		kmemleak_alloc(p, order_to_size(this_order), 1, GFP_KERNEL);
 		entries_per_page = order_to_size(this_order) / rq_size;
 		to_do = min(entries_per_page, set->queue_depth - i);
 		left -= to_do * rq_size;
