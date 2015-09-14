@@ -412,7 +412,7 @@ static int isr_bh_routine(void *vp)
 			break;
 		}
 		PRINT_D(INT_DBG, "Interrupt received BH\n");
-		if (g_linux_wlan->oup.wlan_handle_rx_isr != 0)
+		if (g_linux_wlan->oup.wlan_handle_rx_isr != NULL)
 			g_linux_wlan->oup.wlan_handle_rx_isr();
 		else
 			PRINT_ER("wlan_handle_rx_isr() hasn't been initialized\n");
@@ -1284,7 +1284,7 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 #elif (RX_BH_TYPE == RX_BH_KTHREAD)
 	PRINT_D(INIT_DBG, "Creating kthread for Rxq BH\n");
 	g_linux_wlan->rx_bh_thread = kthread_run(isr_bh_routine, (void *)g_linux_wlan, "K_RXQ_BH");
-	if (g_linux_wlan->rx_bh_thread == 0) {
+	if (g_linux_wlan->rx_bh_thread == NULL) {
 		PRINT_ER("couldn't create RX BH thread\n");
 		ret = -ENOBUFS;
 		goto _fail_;
@@ -1309,7 +1309,7 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 	/* create tx task */
 	PRINT_D(INIT_DBG, "Creating kthread for transmission\n");
 	g_linux_wlan->txq_thread = kthread_run(linux_wlan_txq_task, (void *)g_linux_wlan, "K_TXQ_TASK");
-	if (g_linux_wlan->txq_thread == 0) {
+	if (g_linux_wlan->txq_thread == NULL) {
 		PRINT_ER("couldn't create TXQ thread\n");
 		ret = -ENOBUFS;
 		goto _fail_2;

@@ -525,7 +525,7 @@ u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 			u16index += (IE_HDR_LEN + pu8msa[u16index + 1]);
 	}
 
-	return 0;
+	return NULL;
 }
 
 /* This function gets the current channel information from
@@ -587,7 +587,7 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 	u16 u16WidID = (u16)WID_NIL;
 	u16 u16WidLen  = 0;
-	u8  *pu8WidVal = 0;
+	u8  *pu8WidVal = NULL;
 
 	u8MsgType = pu8MsgBuffer[0];
 
@@ -614,10 +614,10 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 	/* parse the WID value of the WID "WID_NEWORK_INFO" */
 	{
-		u8  *pu8msa = 0;
+		u8  *pu8msa = NULL;
 		u16 u16RxLen = 0;
-		u8 *pu8TimElm = 0;
-		u8 *pu8IEs = 0;
+		u8 *pu8TimElm = NULL;
+		u8 *pu8IEs = NULL;
 		u16 u16IEsLen = 0;
 		u8 u8index = 0;
 		u32 u32Tsf_Lo;
@@ -670,7 +670,7 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 		/* Get DTIM Period */
 		pu8TimElm = get_tim_elm(pu8msa, (u16RxLen + FCS_LEN), u8index);
-		if (pu8TimElm != 0)
+		if (pu8TimElm != NULL)
 			pstrNetworkInfo->u8DtimPeriod = pu8TimElm[3];
 		pu8IEs = &pu8msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
 		u16IEsLen = u16RxLen - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
@@ -743,7 +743,7 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 	s32 s32Error = WILC_SUCCESS;
 	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	u16 u16AssocRespLen = 0;
-	u8 *pu8IEs = 0;
+	u8 *pu8IEs = NULL;
 	u16 u16IEsLen = 0;
 
 	pstrConnectRespInfo = kmalloc(sizeof(tstrConnectRespInfo), GFP_KERNEL);
