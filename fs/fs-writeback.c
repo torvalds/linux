@@ -1380,6 +1380,10 @@ static long writeback_chunk_size(struct bdi_writeback *wb,
  * Write a portion of b_io inodes which belong to @sb.
  *
  * Return the number of pages and/or inodes written.
+ *
+ * NOTE! This is called with wb->list_lock held, and will
+ * unlock and relock that for each inode it ends up doing
+ * IO for.
  */
 static long writeback_sb_inodes(struct super_block *sb,
 				struct bdi_writeback *wb,
@@ -1398,9 +1402,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 	unsigned long start_time = jiffies;
 	long write_chunk;
 	long wrote = 0;  /* count both pages and inodes */
-	struct blk_plug plug;
 
-	blk_start_plug(&plug);
 	while (!list_empty(&wb->b_io)) {
 		struct inode *inode = wb_inode(wb->b_io.prev);
 
@@ -1498,7 +1500,6 @@ static long writeback_sb_inodes(struct super_block *sb,
 				break;
 		}
 	}
-	blk_finish_plug(&plug);
 	return wrote;
 }
 
@@ -1545,12 +1546,15 @@ static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 		.range_cyclic	= 1,
 		.reason		= reason,
 	};
+	struct blk_plug plug;
 
+	blk_start_plug(&plug);
 	spin_lock(&wb->list_lock);
 	if (list_empty(&wb->b_io))
 		queue_io(wb, &work);
 	__writeback_inodes_wb(wb, &work);
 	spin_unlock(&wb->list_lock);
+	blk_finish_plug(&plug);
 
 	return nr_pages - work.nr_pages;
 }
@@ -1578,10 +1582,12 @@ static long wb_writeback(struct bdi_writeback *wb,
 	unsigned long oldest_jif;
 	struct inode *inode;
 	long progress;
+	struct blk_plug plug;
 
 	oldest_jif = jiffies;
 	work->older_than_this = &oldest_jif;
 
+	blk_start_plug(&plug);
 	spin_lock(&wb->list_lock);
 	for (;;) {
 		/*
@@ -1661,6 +1667,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		}
 	}
 	spin_unlock(&wb->list_lock);
+	blk_finish_plug(&plug);
 
 	return nr_pages - work->nr_pages;
 }

@@ -6,7 +6,7 @@
  *         Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  * Creation Date:  October 11, 2006
  *
- * mpi2_ioc.h Version:  02.00.23
+ * mpi2_ioc.h Version:  02.00.24
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -132,6 +132,7 @@
  *			Added MPI2_IOCFACTS_CAPABILITY_RDPQ_ARRAY_CAPABLE.
  *			Added MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY.
  *			Added Encrypted Hash Extended Image.
+ * 12-05-13  02.00.24  Added MPI25_HASH_IMAGE_TYPE_BIOS.
  * --------------------------------------------------------------------------
  */
 
@@ -1598,6 +1599,7 @@ Mpi25EncryptedHashEntry_t, *pMpi25EncryptedHashEntry_t;
 /* values for HashImageType */
 #define MPI25_HASH_IMAGE_TYPE_UNUSED		(0x00)
 #define MPI25_HASH_IMAGE_TYPE_FIRMWARE		(0x01)
+#define MPI25_HASH_IMAGE_TYPE_BIOS              (0x02)
 
 /* values for HashAlgorithm */
 #define MPI25_HASH_ALGORITHM_UNUSED		(0x00)

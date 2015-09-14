@@ -522,10 +522,9 @@ static inline int ntb_mw_clear_trans(struct ntb_dev *ntb, int idx)
  * @speed:	OUT - The link speed expressed as PCIe generation number.
  * @width:	OUT - The link width expressed as the number of PCIe lanes.
  *
- * Set the translation of a memory window.  The peer may access local memory
- * through the window starting at the address, up to the size.  The address
- * must be aligned to the alignment specified by ntb_mw_get_range().  The size
- * must be aligned to the size alignment specified by ntb_mw_get_range().
+ * Get the current state of the ntb link.  It is recommended to query the link
+ * state once after every link event.  It is safe to query the link state in
+ * the context of the link event callback.
  *
  * Return: One if the link is up, zero if the link is down, otherwise a
  *		negative value indicating the error number.
@@ -795,7 +794,7 @@ static inline int ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 }
 
 /**
- * ntb_peer_db_clear() - clear bits in the local doorbell register
+ * ntb_peer_db_clear() - clear bits in the peer doorbell register
  * @ntb:	NTB device context.
  * @db_bits:	Doorbell bits to clear.
  *
