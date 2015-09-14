@@ -450,7 +450,7 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 		goto gb_error;
 
 	if (memcmp(request->data, response->data, len)) {
-		pr_info("%s: Loopback Data doesn't match\n", __func__);
+		dev_err(&gb->connection->dev, "Loopback Data doesn't match\n");
 		retval = -EREMOTEIO;
 	}
 
