@@ -664,15 +664,6 @@ struct drm_i915_display_funcs {
 	/* render clock increase/decrease */
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
-
-	int (*setup_backlight)(struct intel_connector *connector, enum pipe pipe);
-	uint32_t (*get_backlight)(struct intel_connector *connector);
-	void (*set_backlight)(struct intel_connector *connector,
-			      uint32_t level);
-	void (*disable_backlight)(struct intel_connector *connector);
-	void (*enable_backlight)(struct intel_connector *connector);
-	uint32_t (*backlight_hz_to_pwm)(struct intel_connector *connector,
-					uint32_t hz);
 };
 
 enum forcewake_domain_id {

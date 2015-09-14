@@ -182,9 +182,17 @@ struct intel_panel {
 		struct pwm_device *pwm;
 
 		struct backlight_device *device;
-	} backlight;
 
-	void (*backlight_power)(struct intel_connector *, bool enable);
+		/* Connector and platform specific backlight functions */
+		int (*setup)(struct intel_connector *connector, enum pipe pipe);
+		uint32_t (*get)(struct intel_connector *connector);
+		void (*set)(struct intel_connector *connector, uint32_t level);
+		void (*disable)(struct intel_connector *connector);
+		void (*enable)(struct intel_connector *connector);
+		uint32_t (*hz_to_pwm)(struct intel_connector *connector,
+				      uint32_t hz);
+		void (*power)(struct intel_connector *, bool enable);
+	} backlight;
 };
 
 struct intel_connector {
@@ -1333,7 +1341,6 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 void intel_panel_enable_backlight(struct intel_connector *connector);
 void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_connector *connector);
-void intel_panel_init_backlight_funcs(struct drm_device *dev);
 enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 extern struct drm_display_mode *intel_find_panel_downclock(
 				struct drm_device *dev,
