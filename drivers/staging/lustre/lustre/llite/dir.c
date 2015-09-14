@@ -1734,6 +1734,9 @@ out_quotactl:
 	}
 	case OBD_IOC_CHANGELOG_SEND:
 	case OBD_IOC_CHANGELOG_CLEAR:
+		if (!capable(CFS_CAP_SYS_ADMIN))
+			return -EPERM;
+
 		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void *)arg,
 				    sizeof(struct ioc_changelog));
 		return rc;
