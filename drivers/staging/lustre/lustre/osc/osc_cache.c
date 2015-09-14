@@ -1934,7 +1934,7 @@ static int get_write_extents(struct osc_object *obj, struct list_head *rpclist)
 
 static int
 osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
-		   struct osc_object *osc, pdl_policy_t pol)
+		   struct osc_object *osc)
 {
 	LIST_HEAD(rpclist);
 	struct osc_extent *ext;
@@ -1986,7 +1986,7 @@ osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
 
 	if (!list_empty(&rpclist)) {
 		LASSERT(page_count > 0);
-		rc = osc_build_rpc(env, cli, &rpclist, OBD_BRW_WRITE, pol);
+		rc = osc_build_rpc(env, cli, &rpclist, OBD_BRW_WRITE);
 		LASSERT(list_empty(&rpclist));
 	}
 
@@ -2006,7 +2006,7 @@ osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
  */
 static int
 osc_send_read_rpc(const struct lu_env *env, struct client_obd *cli,
-		  struct osc_object *osc, pdl_policy_t pol)
+		  struct osc_object *osc)
 {
 	struct osc_extent *ext;
 	struct osc_extent *next;
@@ -2033,7 +2033,7 @@ osc_send_read_rpc(const struct lu_env *env, struct client_obd *cli,
 		osc_object_unlock(osc);
 
 		LASSERT(page_count > 0);
-		rc = osc_build_rpc(env, cli, &rpclist, OBD_BRW_READ, pol);
+		rc = osc_build_rpc(env, cli, &rpclist, OBD_BRW_READ);
 		LASSERT(list_empty(&rpclist));
 
 		osc_object_lock(osc);
@@ -2079,8 +2079,7 @@ static struct osc_object *osc_next_obj(struct client_obd *cli)
 }
 
 /* called with the loi list lock held */
-static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
-			   pdl_policy_t pol)
+static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli)
 {
 	struct osc_object *osc;
 	int rc = 0;
@@ -2109,7 +2108,7 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 		 * do io on writes while there are cache waiters */
 		osc_object_lock(osc);
 		if (osc_makes_rpc(cli, osc, OBD_BRW_WRITE)) {
-			rc = osc_send_write_rpc(env, cli, osc, pol);
+			rc = osc_send_write_rpc(env, cli, osc);
 			if (rc < 0) {
 				CERROR("Write request failed with %d\n", rc);
 
@@ -2133,7 +2132,7 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 			}
 		}
 		if (osc_makes_rpc(cli, osc, OBD_BRW_READ)) {
-			rc = osc_send_read_rpc(env, cli, osc, pol);
+			rc = osc_send_read_rpc(env, cli, osc);
 			if (rc < 0)
 				CERROR("Read request failed with %d\n", rc);
 		}
@@ -2149,7 +2148,7 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 }
 
 static int osc_io_unplug0(const struct lu_env *env, struct client_obd *cli,
-			  struct osc_object *osc, pdl_policy_t pol, int async)
+			  struct osc_object *osc, int async)
 {
 	int rc = 0;
 
@@ -2161,7 +2160,7 @@ static int osc_io_unplug0(const struct lu_env *env, struct client_obd *cli,
 		 * potential stack overrun problem. LU-2859 */
 		atomic_inc(&cli->cl_lru_shrinkers);
 		client_obd_list_lock(&cli->cl_loi_list_lock);
-		osc_check_rpcs(env, cli, pol);
+		osc_check_rpcs(env, cli);
 		client_obd_list_unlock(&cli->cl_loi_list_lock);
 		atomic_dec(&cli->cl_lru_shrinkers);
 	} else {
@@ -2175,14 +2174,13 @@ static int osc_io_unplug0(const struct lu_env *env, struct client_obd *cli,
 static int osc_io_unplug_async(const struct lu_env *env,
 			       struct client_obd *cli, struct osc_object *osc)
 {
-	/* XXX: policy is no use actually. */
-	return osc_io_unplug0(env, cli, osc, PDL_POLICY_ROUND, 1);
+	return osc_io_unplug0(env, cli, osc, 1);
 }
 
 void osc_io_unplug(const struct lu_env *env, struct client_obd *cli,
-		   struct osc_object *osc, pdl_policy_t pol)
+		   struct osc_object *osc)
 {
-	(void)osc_io_unplug0(env, cli, osc, pol, 0);
+	(void)osc_io_unplug0(env, cli, osc, 0);
 }
 
 int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
@@ -2922,7 +2920,7 @@ int osc_cache_writeback_range(const struct lu_env *env, struct osc_object *obj,
 	}
 
 	if (unplug)
-		osc_io_unplug(env, osc_cli(obj), obj, PDL_POLICY_ROUND);
+		osc_io_unplug(env, osc_cli(obj), obj);
 
 	if (hp || discard) {
 		int rc;

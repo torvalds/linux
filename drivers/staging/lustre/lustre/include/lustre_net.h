@@ -2191,21 +2191,29 @@ struct ptlrpcd_ctl {
 	 */
 	struct lu_env	       pc_env;
 	/**
+	 * CPT the thread is bound on.
+	 */
+	int				pc_cpt;
+	/**
 	 * Index of ptlrpcd thread in the array.
 	 */
-	int			 pc_index;
-	/**
-	 * Number of the ptlrpcd's partners.
-	 */
-	int			 pc_npartners;
+	int				pc_index;
 	/**
 	 * Pointer to the array of partners' ptlrpcd_ctl structure.
 	 */
 	struct ptlrpcd_ctl	**pc_partners;
 	/**
+	 * Number of the ptlrpcd's partners.
+	 */
+	int				pc_npartners;
+	/**
 	 * Record the partner index to be processed next.
 	 */
 	int			 pc_cursor;
+	/**
+	 * Error code if the thread failed to fully start.
+	 */
+	int				pc_error;
 };
 
 /* Bits for pc_flags */
@@ -2228,10 +2236,6 @@ enum ptlrpcd_ctl_flags {
 	 * This is a recovery ptlrpc thread.
 	 */
 	LIOD_RECOVERY    = 1 << 3,
-	/**
-	 * The ptlrpcd is bound to some CPU core.
-	 */
-	LIOD_BIND	= 1 << 4,
 };
 
 /**
@@ -2903,43 +2907,11 @@ void ptlrpc_pinger_ir_down(void);
 /** @} */
 int ptlrpc_pinger_suppress_pings(void);
 
-/* ptlrpc daemon bind policy */
-typedef enum {
-	/* all ptlrpcd threads are free mode */
-	PDB_POLICY_NONE	  = 1,
-	/* all ptlrpcd threads are bound mode */
-	PDB_POLICY_FULL	  = 2,
-	/* <free1 bound1> <free2 bound2> ... <freeN boundN> */
-	PDB_POLICY_PAIR	  = 3,
-	/* <free1 bound1> <bound1 free2> ... <freeN boundN> <boundN free1>,
-	 * means each ptlrpcd[X] has two partners: thread[X-1] and thread[X+1].
-	 * If kernel supports NUMA, pthrpcd threads are binded and
-	 * grouped by NUMA node */
-	PDB_POLICY_NEIGHBOR      = 4,
-} pdb_policy_t;
-
-/* ptlrpc daemon load policy
- * It is caller's duty to specify how to push the async RPC into some ptlrpcd
- * queue, but it is not enforced, affected by "ptlrpcd_bind_policy". If it is
- * "PDB_POLICY_FULL", then the RPC will be processed by the selected ptlrpcd,
- * Otherwise, the RPC may be processed by the selected ptlrpcd or its partner,
- * depends on which is scheduled firstly, to accelerate the RPC processing. */
-typedef enum {
-	/* on the same CPU core as the caller */
-	PDL_POLICY_SAME	 = 1,
-	/* within the same CPU partition, but not the same core as the caller */
-	PDL_POLICY_LOCAL	= 2,
-	/* round-robin on all CPU cores, but not the same core as the caller */
-	PDL_POLICY_ROUND	= 3,
-	/* the specified CPU core is preferred, but not enforced */
-	PDL_POLICY_PREFERRED    = 4,
-} pdl_policy_t;
-
 /* ptlrpc/ptlrpcd.c */
 void ptlrpcd_stop(struct ptlrpcd_ctl *pc, int force);
 void ptlrpcd_free(struct ptlrpcd_ctl *pc);
 void ptlrpcd_wake(struct ptlrpc_request *req);
-void ptlrpcd_add_req(struct ptlrpc_request *req, pdl_policy_t policy, int idx);
+void ptlrpcd_add_req(struct ptlrpc_request *req);
 void ptlrpcd_add_rqset(struct ptlrpc_request_set *set);
 int ptlrpcd_addref(void);
 void ptlrpcd_decref(void);

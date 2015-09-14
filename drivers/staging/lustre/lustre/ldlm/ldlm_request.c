@@ -1212,12 +1212,12 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 
 		ptlrpc_request_set_replen(req);
 		if (flags & LCF_ASYNC) {
-			ptlrpcd_add_req(req, PDL_POLICY_LOCAL, -1);
+			ptlrpcd_add_req(req);
 			sent = count;
 			goto out;
-		} else {
-			rc = ptlrpc_queue_wait(req);
 		}
+
+		rc = ptlrpc_queue_wait(req);
 		if (rc == LUSTRE_ESTALE) {
 			CDEBUG(D_DLMTRACE, "client/server (nid %s) out of sync -- not fatal\n",
 			       libcfs_nid2str(req->rq_import->
@@ -2223,7 +2223,7 @@ static int replay_one_lock(struct obd_import *imp, struct ldlm_lock *lock)
 	aa = ptlrpc_req_async_args(req);
 	aa->lock_handle = body->lock_handle[0];
 	req->rq_interpret_reply = (ptlrpc_interpterer_t)replay_lock_interpret;
-	ptlrpcd_add_req(req, PDL_POLICY_LOCAL, -1);
+	ptlrpcd_add_req(req);
 
 	return 0;
 }

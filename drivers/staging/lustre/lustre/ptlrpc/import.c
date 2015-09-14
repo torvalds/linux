@@ -742,12 +742,11 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	DEBUG_REQ(D_RPCTRACE, request, "(re)connect request (timeout %d)",
 		  request->rq_timeout);
-	ptlrpcd_add_req(request, PDL_POLICY_ROUND, -1);
+	ptlrpcd_add_req(request);
 	rc = 0;
 out:
-	if (rc != 0) {
+	if (rc != 0)
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_DISCON);
-	}
 
 	return rc;
 }
@@ -1257,7 +1256,7 @@ static int signal_completed_replay(struct obd_import *imp)
 		req->rq_timeout *= 3;
 	req->rq_interpret_reply = completed_replay_interpret;
 
-	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
+	ptlrpcd_add_req(req);
 	return 0;
 }
 

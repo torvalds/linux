@@ -105,7 +105,7 @@ static int ptlrpc_ping(struct obd_import *imp)
 
 	DEBUG_REQ(D_INFO, req, "pinging %s->%s",
 		  imp->imp_obd->obd_uuid.uuid, obd2cli_tgt(imp->imp_obd));
-	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
+	ptlrpcd_add_req(req);
 
 	return 0;
 }
