@@ -217,7 +217,7 @@ static inline void idma64_writel(struct idma64 *idma64, int offset, u32 value)
 	idma64_writel(idma64, IDMA64_##reg, (value))
 
 /**
- * struct idma64_chip - representation of DesignWare DMA controller hardware
+ * struct idma64_chip - representation of iDMA 64-bit controller hardware
  * @dev:		struct device of the DMA controller
  * @irq:		irq line
  * @regs:		memory mapped I/O space
