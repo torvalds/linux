@@ -1403,7 +1403,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 }
 
 /**
- *  @brief      WILC_WFI_del_key
+ *  @brief      del_key
  *  @details    Remove a key given the @mac_addr (%NULL for a group key)
  *                      and @key_index, return -ENOENT if the key doesn't exist.
  *  @param[in]
@@ -1412,10 +1412,10 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
-			    u8 key_index,
-			    bool pairwise,
-			    const u8 *mac_addr)
+static int del_key(struct wiphy *wiphy, struct net_device *netdev,
+		   u8 key_index,
+		   bool pairwise,
+		   const u8 *mac_addr)
 {
 	struct WILC_WFI_priv *priv;
 	s32 s32Error = WILC_SUCCESS;
@@ -3563,7 +3563,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.connect = connect,
 	.disconnect = disconnect,
 	.add_key = add_key,
-	.del_key = WILC_WFI_del_key,
+	.del_key = del_key,
 	.get_key = WILC_WFI_get_key,
 	.set_default_key = WILC_WFI_set_default_key,
 	#ifdef WILC_AP_EXTERNAL_MLME
