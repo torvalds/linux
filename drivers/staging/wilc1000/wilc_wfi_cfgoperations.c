@@ -1710,7 +1710,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 
 /**
- *  @brief      WILC_WFI_change_bss
+ *  @brief      change_bss
  *  @details    Modify parameters for a given BSS.
  *  @param[in]
  *   -use_cts_prot: Whether to use CTS protection
@@ -1730,8 +1730,8 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int  WILC_WFI_change_bss(struct wiphy *wiphy, struct net_device *dev,
-				struct bss_parameters *params)
+static int change_bss(struct wiphy *wiphy, struct net_device *dev,
+		      struct bss_parameters *params)
 {
 	PRINT_D(CFG80211_DBG, "Changing Bss parametrs\n");
 	return 0;
@@ -3580,7 +3580,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	#endif /* WILC_AP_EXTERNAL_MLME*/
 	.get_station = get_station,
 	.dump_station = dump_station,
-	.change_bss = WILC_WFI_change_bss,
+	.change_bss = change_bss,
 	.set_wiphy_params = WILC_WFI_set_wiphy_params,
 
 	.set_pmksa = WILC_WFI_set_pmksa,
