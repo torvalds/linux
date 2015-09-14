@@ -931,11 +931,8 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	}
 
 	/* Create per-connection sysfs and debugfs data-points */
-	snprintf(name, sizeof(name), "raw_latency_endo0:%d:%d:%d:%d",
-		connection->bundle->intf->module->module_id,
-		connection->bundle->intf->interface_id,
-		connection->bundle->id,
-		connection->intf_cport_id);
+	snprintf(name, sizeof(name), "raw_latency_endo0:%s",
+		 dev_name(&connection->dev));
 	gb->file = debugfs_create_file(name, S_IFREG | S_IRUGO, gb_dev.root, gb,
 				       &gb_loopback_debugfs_latency_ops);
 	gb->connection = connection;
