@@ -886,13 +886,15 @@ static enum drm_connector_status qxl_conn_detect(
 		drm_connector_to_qxl_output(connector);
 	struct drm_device *ddev = connector->dev;
 	struct qxl_device *qdev = ddev->dev_private;
-	int connected;
+	bool connected = false;
 
 	/* The first monitor is always connected */
-	connected = (output->index == 0) ||
-		    (qdev->client_monitors_config &&
-		     qdev->client_monitors_config->count > output->index &&
-		     qxl_head_enabled(&qdev->client_monitors_config->heads[output->index]));
+	if (!qdev->client_monitors_config) {
+		if (output->index == 0)
+			connected = true;
+	} else
+		connected = qdev->client_monitors_config->count > output->index &&
+		     qxl_head_enabled(&qdev->client_monitors_config->heads[output->index]);
 
 	DRM_DEBUG("#%d connected: %d\n", output->index, connected);
 	if (!connected)
