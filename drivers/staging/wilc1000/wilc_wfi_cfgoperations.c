@@ -3539,7 +3539,7 @@ struct wireless_dev *add_virtual_intf(struct wiphy *wiphy, const char *name,
 }
 
 /**
- *  @brief      WILC_WFI_del_virt_intf
+ *  @brief      del_virtual_intf
  *  @details
  *  @param[in]
  *  @return     int : Return 0 on Success.
@@ -3547,7 +3547,7 @@ struct wireless_dev *add_virtual_intf(struct wiphy *wiphy, const char *name,
  *  @date	01 JUL 2012
  *  @version	1.0
  */
-int WILC_WFI_del_virt_intf(struct wiphy *wiphy, struct wireless_dev *wdev)      /* tony for v3.8 support */
+int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)      /* tony for v3.8 support */
 {
 	PRINT_D(HOSTAPD_DBG, "Deleting virtual interface\n");
 	return WILC_SUCCESS;
@@ -3568,7 +3568,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.set_default_key = set_default_key,
 	#ifdef WILC_AP_EXTERNAL_MLME
 	.add_virtual_intf = add_virtual_intf,
-	.del_virtual_intf = WILC_WFI_del_virt_intf,
+	.del_virtual_intf = del_virtual_intf,
 	.change_virtual_intf = WILC_WFI_change_virt_intf,
 
 	.start_ap = WILC_WFI_start_ap,
