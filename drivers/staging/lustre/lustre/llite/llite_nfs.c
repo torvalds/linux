@@ -168,11 +168,8 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 		spin_unlock(&lli->lli_lock);
 	}
 
+	/* N.B. d_obtain_alias() drops inode ref on error */
 	result = d_obtain_alias(inode);
-	if (IS_ERR(result)) {
-		iput(inode);
-		return result;
-	}
 
 	return result;
 }
