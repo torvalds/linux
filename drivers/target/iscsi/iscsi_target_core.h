@@ -589,6 +589,7 @@ struct iscsi_conn {
 	int			bitmap_id;
 	int			rx_thread_active;
 	struct task_struct	*rx_thread;
+	struct completion	rx_login_comp;
 	int			tx_thread_active;
 	struct task_struct	*tx_thread;
 	/* list_head for session connection list */
