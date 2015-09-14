@@ -272,8 +272,6 @@ static void gen7_fbc_enable(struct intel_crtc *crtc)
 	if (dev_priv->fbc.false_color)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
 
-	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
 	if (IS_IVYBRIDGE(dev_priv)) {
 		/* WaFbcAsynchFlipDisableFbcQueue:ivb */
 		I915_WRITE(ILK_DISPLAY_CHICKEN1,
@@ -285,6 +283,8 @@ static void gen7_fbc_enable(struct intel_crtc *crtc)
 			   I915_READ(CHICKEN_PIPESL_1(crtc->pipe)) |
 			   HSW_FBCQ_DIS);
 	}
+
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	I915_WRITE(SNB_DPFC_CTL_SA,
 		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
