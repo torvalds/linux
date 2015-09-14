@@ -1619,7 +1619,7 @@ static int WILC_WFI_dump_survey(struct wiphy *wiphy, struct net_device *netdev,
 
 
 /**
- *  @brief      WILC_WFI_get_station
+ *  @brief      get_station
  *  @details    Get station information for the station identified by @mac
  *  @param[in]   NONE
  *  @return     int : Return 0 on Success.
@@ -1628,8 +1628,8 @@ static int WILC_WFI_dump_survey(struct wiphy *wiphy, struct net_device *netdev,
  *  @version	1.0
  */
 
-static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
-				const u8 *mac, struct station_info *sinfo)
+static int get_station(struct wiphy *wiphy, struct net_device *dev,
+		       const u8 *mac, struct station_info *sinfo)
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3578,7 +3578,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.del_station = del_station,
 	.change_station = change_station,
 	#endif /* WILC_AP_EXTERNAL_MLME*/
-	.get_station = WILC_WFI_get_station,
+	.get_station = get_station,
 	.dump_station = WILC_WFI_dump_station,
 	.change_bss = WILC_WFI_change_bss,
 	.set_wiphy_params = WILC_WFI_set_wiphy_params,
