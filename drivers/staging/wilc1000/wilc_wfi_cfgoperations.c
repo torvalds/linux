@@ -2652,9 +2652,9 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 	return s32Error;
 }
 
-int   WILC_WFI_mgmt_tx_cancel_wait(struct wiphy *wiphy,
-				   struct wireless_dev *wdev,
-				   u64 cookie)
+int mgmt_tx_cancel_wait(struct wiphy *wiphy,
+			struct wireless_dev *wdev,
+			u64 cookie)
 {
 	struct WILC_WFI_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
@@ -3589,7 +3589,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 #ifdef WILC_P2P
 	.remain_on_channel = remain_on_channel,
 	.cancel_remain_on_channel = cancel_remain_on_channel,
-	.mgmt_tx_cancel_wait = WILC_WFI_mgmt_tx_cancel_wait,
+	.mgmt_tx_cancel_wait = mgmt_tx_cancel_wait,
 	.mgmt_tx = WILC_WFI_mgmt_tx,
 	.mgmt_frame_register = WILC_WFI_frame_register,
 	.set_power_mgmt = WILC_WFI_set_power_mgmt,
