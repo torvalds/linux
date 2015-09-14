@@ -416,7 +416,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	}
 
 	adc_irq = platform_get_irq(pdev, 1);
-	if (adc_irq <= 0) {
+	if (adc_irq < 0) {
 		dev_err(&pdev->dev, "no adc irq resource?\n");
 		return adc_irq;
 	}
