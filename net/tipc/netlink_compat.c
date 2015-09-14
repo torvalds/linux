@@ -1114,7 +1114,7 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	len = nlmsg_attrlen(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN);
-	if (TLV_GET_LEN(msg.req) && !TLV_OK(msg.req, len)) {
+	if (len && !TLV_OK(msg.req, len)) {
 		msg.rep = tipc_get_err_tlv(TIPC_CFG_NOT_SUPPORTED);
 		err = -EOPNOTSUPP;
 		goto send;

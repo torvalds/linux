@@ -248,7 +248,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	lcdc_write(sdev, LDDDSR, value);
 
 	/* Setup planes. */
-	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
+	drm_for_each_legacy_plane(plane, dev) {
 		if (plane->crtc == crtc)
 			shmob_drm_plane_setup(plane);
 	}

@@ -35,6 +35,36 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
+static void amdgpu_flip_wait_fence(struct amdgpu_device *adev,
+				   struct fence **f)
+{
+	struct amdgpu_fence *fence;
+	long r;
+
+	if (*f == NULL)
+		return;
+
+	fence = to_amdgpu_fence(*f);
+	if (fence) {
+		r = fence_wait(&fence->base, false);
+		if (r == -EDEADLK) {
+			up_read(&adev->exclusive_lock);
+			r = amdgpu_gpu_reset(adev);
+			down_read(&adev->exclusive_lock);
+		}
+	} else
+		r = fence_wait(*f, false);
+
+	if (r)
+		DRM_ERROR("failed to wait on page flip fence (%ld)!\n", r);
+
+	/* We continue with the page flip even if we failed to wait on
+	 * the fence, otherwise the DRM core and userspace will be
+	 * confused about which BO the CRTC is scanning out
+	 */
+	fence_put(*f);
+	*f = NULL;
+}
 
 static void amdgpu_flip_work_func(struct work_struct *__work)
 {
@@ -44,34 +74,13 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
 
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
-	struct amdgpu_fence *fence;
 	unsigned long flags;
-	int r;
+	unsigned i;
 
 	down_read(&adev->exclusive_lock);
-	if (work->fence) {
-		fence = to_amdgpu_fence(work->fence);
-		if (fence) {
-			r = amdgpu_fence_wait(fence, false);
-			if (r == -EDEADLK) {
-				up_read(&adev->exclusive_lock);
-				r = amdgpu_gpu_reset(adev);
-				down_read(&adev->exclusive_lock);
-			}
-		} else
-			r = fence_wait(work->fence, false);
-
-		if (r)
-			DRM_ERROR("failed to wait on page flip fence (%d)!\n", r);
-
-		/* We continue with the page flip even if we failed to wait on
-		 * the fence, otherwise the DRM core and userspace will be
-		 * confused about which BO the CRTC is scanning out
-		 */
-
-		fence_put(work->fence);
-		work->fence = NULL;
-	}
+	amdgpu_flip_wait_fence(adev, &work->excl);
+	for (i = 0; i < work->shared_count; ++i)
+		amdgpu_flip_wait_fence(adev, &work->shared[i]);
 
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
@@ -108,6 +117,7 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
+	kfree(work->shared);
 	kfree(work);
 }
 
@@ -127,7 +137,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	u64 tiling_flags;
 	u64 base;
-	int r;
+	int i, r;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
@@ -167,7 +177,19 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	work->fence = fence_get(reservation_object_get_excl(new_rbo->tbo.resv));
+	r = reservation_object_get_fences_rcu(new_rbo->tbo.resv, &work->excl,
+					      &work->shared_count,
+					      &work->shared);
+	if (unlikely(r != 0)) {
+		amdgpu_bo_unreserve(new_rbo);
+		DRM_ERROR("failed to get fences for buffer\n");
+		goto cleanup;
+	}
+
+	fence_get(work->excl);
+	for (i = 0; i < work->shared_count; ++i)
+		fence_get(work->shared[i]);
+
 	amdgpu_bo_get_tiling_flags(new_rbo, &tiling_flags);
 	amdgpu_bo_unreserve(new_rbo);
 
@@ -212,7 +234,10 @@ pflip_cleanup:
 
 cleanup:
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
-	fence_put(work->fence);
+	fence_put(work->excl);
+	for (i = 0; i < work->shared_count; ++i)
+		fence_put(work->shared[i]);
+	kfree(work->shared);
 	kfree(work);
 
 	return r;

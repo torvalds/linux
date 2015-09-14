@@ -239,6 +239,11 @@ static ssize_t gpio_keys_attr_store_helper(struct gpio_keys_drvdata *ddata,
 		}
 	}
 
+	if (i == ddata->pdata->nbuttons) {
+		error = -EINVAL;
+		goto out;
+	}
+
 	mutex_lock(&ddata->disable_lock);
 
 	for (i = 0; i < ddata->pdata->nbuttons; i++) {
@@ -655,7 +660,9 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 		if (of_property_read_u32(pp, "linux,input-type", &button->type))
 			button->type = EV_KEY;
 
-		button->wakeup = !!of_get_property(pp, "gpio-key,wakeup", NULL);
+		button->wakeup = of_property_read_bool(pp, "wakeup-source") ||
+				 /* legacy name */
+				 of_property_read_bool(pp, "gpio-key,wakeup");
 
 		button->can_disable = !!of_get_property(pp, "linux,can-disable", NULL);
 

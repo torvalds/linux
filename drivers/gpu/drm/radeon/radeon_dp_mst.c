@@ -246,9 +246,10 @@ radeon_dp_mst_connector_destroy(struct drm_connector *connector)
 	kfree(radeon_connector);
 }
 
-static void radeon_connector_dpms(struct drm_connector *connector, int mode)
+static int radeon_connector_dpms(struct drm_connector *connector, int mode)
 {
 	DRM_DEBUG_KMS("\n");
+	return 0;
 }
 
 static const struct drm_connector_funcs radeon_dp_mst_connector_funcs = {
@@ -284,11 +285,10 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
 	drm_mode_connector_set_path_property(connector, pathprop);
-	drm_reinit_primary_mode_group(dev);
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	radeon_fb_add_connector(rdev, connector);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	drm_connector_register(connector);
 	return connector;
@@ -303,14 +303,12 @@ static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	drm_connector_unregister(connector);
 	/* need to nuke the connector */
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	/* dpms off */
 	radeon_fb_remove_connector(rdev, connector);
 
 	drm_connector_cleanup(connector);
-	mutex_unlock(&dev->mode_config.mutex);
-	drm_reinit_primary_mode_group(dev);
-
+	drm_modeset_unlock_all(dev);
 
 	kfree(connector);
 	DRM_DEBUG_KMS("\n");

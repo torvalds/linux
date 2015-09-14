@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/watchdog.h>
+#include <linux/nmi.h>
 
 #include <asm/cpufeature.h>
 #include <asm/hardirq.h>
@@ -3627,7 +3627,10 @@ static __init int fixup_ht_bug(void)
 		return 0;
 	}
 
-	watchdog_nmi_disable_all();
+	if (lockup_detector_suspend() != 0) {
+		pr_debug("failed to disable PMU erratum BJ122, BV98, HSD29 workaround\n");
+		return 0;
+	}
 
 	x86_pmu.flags &= ~(PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED);
 
@@ -3635,7 +3638,7 @@ static __init int fixup_ht_bug(void)
 	x86_pmu.commit_scheduling = NULL;
 	x86_pmu.stop_scheduling = NULL;
 
-	watchdog_nmi_enable_all();
+	lockup_detector_resume();
 
 	get_online_cpus();
 

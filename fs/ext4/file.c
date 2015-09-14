@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/path.h>
+#include <linux/dax.h>
 #include <linux/quotaops.h>
 #include <linux/pagevec.h>
 #include <linux/uio.h>
@@ -195,7 +196,7 @@ out:
 static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
 {
 	struct inode *inode = bh->b_assoc_map->host;
-	/* XXX: breaks on 32-bit > 16GB. Is that even supported? */
+	/* XXX: breaks on 32-bit > 16TB. Is that even supported? */
 	loff_t offset = (loff_t)(uintptr_t)bh->b_private << inode->i_blkbits;
 	int err;
 	if (!uptodate)
@@ -206,17 +207,74 @@ static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
 
 static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext4_get_block, ext4_end_io_unwritten);
-					/* Is this the right get_block? */
+	int result;
+	handle_t *handle = NULL;
+	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+	bool write = vmf->flags & FAULT_FLAG_WRITE;
+
+	if (write) {
+		sb_start_pagefault(sb);
+		file_update_time(vma->vm_file);
+		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
+						EXT4_DATA_TRANS_BLOCKS(sb));
+	}
+
+	if (IS_ERR(handle))
+		result = VM_FAULT_SIGBUS;
+	else
+		result = __dax_fault(vma, vmf, ext4_get_block_dax,
+						ext4_end_io_unwritten);
+
+	if (write) {
+		if (!IS_ERR(handle))
+			ext4_journal_stop(handle);
+		sb_end_pagefault(sb);
+	}
+
+	return result;
+}
+
+static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+						pmd_t *pmd, unsigned int flags)
+{
+	int result;
+	handle_t *handle = NULL;
+	struct inode *inode = file_inode(vma->vm_file);
+	struct super_block *sb = inode->i_sb;
+	bool write = flags & FAULT_FLAG_WRITE;
+
+	if (write) {
+		sb_start_pagefault(sb);
+		file_update_time(vma->vm_file);
+		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
+				ext4_chunk_trans_blocks(inode,
+							PMD_SIZE / PAGE_SIZE));
+	}
+
+	if (IS_ERR(handle))
+		result = VM_FAULT_SIGBUS;
+	else
+		result = __dax_pmd_fault(vma, addr, pmd, flags,
+				ext4_get_block_dax, ext4_end_io_unwritten);
+
+	if (write) {
+		if (!IS_ERR(handle))
+			ext4_journal_stop(handle);
+		sb_end_pagefault(sb);
+	}
+
+	return result;
 }
 
 static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext4_get_block, ext4_end_io_unwritten);
+	return dax_mkwrite(vma, vmf, ext4_get_block_dax,
+				ext4_end_io_unwritten);
 }
 
 static const struct vm_operations_struct ext4_dax_vm_ops = {
 	.fault		= ext4_dax_fault,
+	.pmd_fault	= ext4_dax_pmd_fault,
 	.page_mkwrite	= ext4_dax_mkwrite,
 	.pfn_mkwrite	= dax_pfn_mkwrite,
 };
@@ -244,7 +302,7 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	file_accessed(file);
 	if (IS_DAX(file_inode(file))) {
 		vma->vm_ops = &ext4_dax_vm_ops;
-		vma->vm_flags |= VM_MIXEDMAP;
+		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
 	} else {
 		vma->vm_ops = &ext4_file_vm_ops;
 	}

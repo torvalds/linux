@@ -391,7 +391,6 @@ static SIMPLE_DEV_PM_OPS(max77686_pm, max77686_suspend, max77686_resume);
 static struct i2c_driver max77686_i2c_driver = {
 	.driver = {
 		   .name = "max77686",
-		   .owner = THIS_MODULE,
 		   .pm = &max77686_pm,
 		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
 	},

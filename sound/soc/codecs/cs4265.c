@@ -60,23 +60,7 @@ static const struct reg_default cs4265_reg_defaults[] = {
 static bool cs4265_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS4265_PWRCTL:
-	case CS4265_DAC_CTL:
-	case CS4265_ADC_CTL:
-	case CS4265_MCLK_FREQ:
-	case CS4265_SIG_SEL:
-	case CS4265_CHB_PGA_CTL:
-	case CS4265_CHA_PGA_CTL:
-	case CS4265_ADC_CTL2:
-	case CS4265_DAC_CHA_VOL:
-	case CS4265_DAC_CHB_VOL:
-	case CS4265_DAC_CTL2:
-	case CS4265_SPDIF_CTL1:
-	case CS4265_SPDIF_CTL2:
-	case CS4265_INT_MASK:
-	case CS4265_STATUS_MODE_MSB:
-	case CS4265_STATUS_MODE_LSB:
-	case CS4265_CHIP_ID:
+	case CS4265_CHIP_ID ... CS4265_SPDIF_CTL2:
 		return true;
 	default:
 		return false;
@@ -658,7 +642,6 @@ MODULE_DEVICE_TABLE(i2c, cs4265_id);
 static struct i2c_driver cs4265_i2c_driver = {
 	.driver = {
 		.name = "cs4265",
-		.owner = THIS_MODULE,
 		.of_match_table = cs4265_of_match,
 	},
 	.id_table = cs4265_id,

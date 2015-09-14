@@ -1,0 +1,42 @@
+menu "Certificates for signature checking"
+
+config MODULE_SIG_KEY
+	string "File name or PKCS#11 URI of module signing key"
+	default "certs/signing_key.pem"
+	depends on MODULE_SIG
+	help
+         Provide the file name of a private key/certificate in PEM format,
+         or a PKCS#11 URI according to RFC7512. The file should contain, or
+         the URI should identify, both the certificate and its corresponding
+         private key.
+
+         If this option is unchanged from its default "certs/signing_key.pem",
+         then the kernel will automatically generate the private key and
+         certificate as described in Documentation/module-signing.txt
+
+config SYSTEM_TRUSTED_KEYRING
+	bool "Provide system-wide ring of trusted keys"
+	depends on KEYS
+	help
+	  Provide a system keyring to which trusted keys can be added.  Keys in
+	  the keyring are considered to be trusted.  Keys may be added at will
+	  by the kernel from compiled-in data and from hardware key stores, but
+	  userspace may only add extra keys if those keys can be verified by
+	  keys already in the keyring.
+
+	  Keys in this keyring are used by module signature checking.
+
+config SYSTEM_TRUSTED_KEYS
+	string "Additional X.509 keys for default system keyring"
+	depends on SYSTEM_TRUSTED_KEYRING
+	help
+	  If set, this option should be the filename of a PEM-formatted file
+	  containing trusted X.509 certificates to be included in the default
+	  system keyring. Any certificate used for module signing is implicitly
+	  also trusted.
+
+	  NOTE: If you previously provided keys for the system keyring in the
+	  form of DER-encoded *.x509 files in the top-level build directory,
+	  those are no longer used. You will need to set this option instead.
+
+endmenu

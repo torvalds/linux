@@ -274,7 +274,7 @@ void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 		" for conn " FMT_CONN "\n",
 		__func__, ARG_TUPLE(&tuple), ARG_CONN(cp));
 
-	h = nf_conntrack_find_get(ip_vs_conn_net(cp), NF_CT_DEFAULT_ZONE,
+	h = nf_conntrack_find_get(ip_vs_conn_net(cp), &nf_ct_zone_dflt,
 				  &tuple);
 	if (h) {
 		ct = nf_ct_tuplehash_to_ctrack(h);

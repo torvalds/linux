@@ -115,6 +115,11 @@ struct ipmi_smi_handlers {
 	   implement it. */
 	void (*set_need_watch)(void *send_info, bool enable);
 
+	/*
+	 * Called when flushing all pending messages.
+	 */
+	void (*flush_messages)(void *send_info);
+
 	/* Called when the interface should go into "run to
 	   completion" mode.  If this call sets the value to true, the
 	   interface should make sure that all messages are flushed
@@ -207,7 +212,7 @@ static inline int ipmi_demangle_device_id(const unsigned char *data,
    upper layer until the start_processing() function in the handlers
    is called, and the lower layer must get the interface from that
    call. */
-int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
+int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *dev,

@@ -553,7 +553,8 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 
 void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		   const struct in6_addr *solicit,
-		   const struct in6_addr *daddr, const struct in6_addr *saddr)
+		   const struct in6_addr *daddr, const struct in6_addr *saddr,
+		   struct sk_buff *oskb)
 {
 	struct sk_buff *skb;
 	struct in6_addr addr_buf;
@@ -588,6 +589,9 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	if (inc_opt)
 		ndisc_fill_addr_option(skb, ND_OPT_SOURCE_LL_ADDR,
 				       dev->dev_addr);
+
+	if (!(dev->priv_flags & IFF_XMIT_DST_RELEASE) && oskb)
+		skb_dst_copy(skb, oskb);
 
 	ndisc_send_skb(skb, daddr, saddr);
 }
@@ -675,12 +679,12 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				  __func__, target);
 		}
-		ndisc_send_ns(dev, neigh, target, target, saddr);
+		ndisc_send_ns(dev, neigh, target, target, saddr, skb);
 	} else if ((probes -= NEIGH_VAR(neigh->parms, APP_PROBES)) < 0) {
 		neigh_app_ns(neigh);
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
-		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr);
+		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr, skb);
 	}
 }
 
@@ -1074,6 +1078,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	struct ndisc_options ndopts;
 	int optlen;
 	unsigned int pref = 0;
+	__u32 old_if_flags;
+	bool send_ifinfo_notify = false;
 
 	__u8 *opt = (__u8 *)(ra_msg + 1);
 
@@ -1144,12 +1150,16 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	 * Remember the managed/otherconf flags from most recently
 	 * received RA message (RFC 2462) -- yoshfuji
 	 */
+	old_if_flags = in6_dev->if_flags;
 	in6_dev->if_flags = (in6_dev->if_flags & ~(IF_RA_MANAGED |
 				IF_RA_OTHERCONF)) |
 				(ra_msg->icmph.icmp6_addrconf_managed ?
 					IF_RA_MANAGED : 0) |
 				(ra_msg->icmph.icmp6_addrconf_other ?
 					IF_RA_OTHERCONF : 0);
+
+	if (old_if_flags != in6_dev->if_flags)
+		send_ifinfo_notify = true;
 
 	if (!in6_dev->cnf.accept_ra_defrtr) {
 		ND_PRINTK(2, info,
@@ -1225,18 +1235,16 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 
 	if (rt)
 		rt6_set_expires(rt, jiffies + (HZ * lifetime));
-	if (ra_msg->icmph.icmp6_hop_limit) {
-		/* Only set hop_limit on the interface if it is higher than
-		 * the current hop_limit.
-		 */
-		if (in6_dev->cnf.hop_limit < ra_msg->icmph.icmp6_hop_limit) {
+	if (in6_dev->cnf.accept_ra_min_hop_limit < 256 &&
+	    ra_msg->icmph.icmp6_hop_limit) {
+		if (in6_dev->cnf.accept_ra_min_hop_limit <= ra_msg->icmph.icmp6_hop_limit) {
 			in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
+			if (rt)
+				dst_metric_set(&rt->dst, RTAX_HOPLIMIT,
+					       ra_msg->icmph.icmp6_hop_limit);
 		} else {
-			ND_PRINTK(2, warn, "RA: Got route advertisement with lower hop_limit than current\n");
+			ND_PRINTK(2, warn, "RA: Got route advertisement with lower hop_limit than minimum\n");
 		}
-		if (rt)
-			dst_metric_set(&rt->dst, RTAX_HOPLIMIT,
-				       ra_msg->icmph.icmp6_hop_limit);
 	}
 
 skip_defrtr:
@@ -1254,7 +1262,7 @@ skip_defrtr:
 				rtime = HZ/10;
 			NEIGH_VAR_SET(in6_dev->nd_parms, RETRANS_TIME, rtime);
 			in6_dev->tstamp = jiffies;
-			inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
+			send_ifinfo_notify = true;
 		}
 
 		rtime = ntohl(ra_msg->reachable_time);
@@ -1271,10 +1279,16 @@ skip_defrtr:
 					      GC_STALETIME, 3 * rtime);
 				in6_dev->nd_parms->reachable_time = neigh_rand_reach_time(rtime);
 				in6_dev->tstamp = jiffies;
-				inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
+				send_ifinfo_notify = true;
 			}
 		}
 	}
+
+	/*
+	 *	Send a notify if RA changed managed/otherconf flags or timer settings
+	 */
+	if (send_ifinfo_notify)
+		inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
 
 skip_linkparms:
 

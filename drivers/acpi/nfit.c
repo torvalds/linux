@@ -20,6 +20,7 @@
 #include <linux/sort.h>
 #include <linux/pmem.h>
 #include <linux/io.h>
+#include <asm/cacheflush.h>
 #include "nfit.h"
 
 /*
@@ -764,9 +765,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	struct acpi_device *adev, *adev_dimm;
 	struct device *dev = acpi_desc->dev;
 	const u8 *uuid = to_nfit_uuid(NFIT_DEV_DIMM);
-	unsigned long long sta;
-	int i, rc = -ENODEV;
-	acpi_status status;
+	int i;
 
 	nfit_mem->dsm_mask = acpi_desc->dimm_dsm_force_en;
 	adev = to_acpi_dev(acpi_desc);
@@ -781,25 +780,11 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		return force_enable_dimms ? 0 : -ENODEV;
 	}
 
-	status = acpi_evaluate_integer(adev_dimm->handle, "_STA", NULL, &sta);
-	if (status == AE_NOT_FOUND) {
-		dev_dbg(dev, "%s missing _STA, assuming enabled...\n",
-				dev_name(&adev_dimm->dev));
-		rc = 0;
-	} else if (ACPI_FAILURE(status))
-		dev_err(dev, "%s failed to retrieve_STA, disabling...\n",
-				dev_name(&adev_dimm->dev));
-	else if ((sta & ACPI_STA_DEVICE_ENABLED) == 0)
-		dev_info(dev, "%s disabled by firmware\n",
-				dev_name(&adev_dimm->dev));
-	else
-		rc = 0;
-
 	for (i = ND_CMD_SMART; i <= ND_CMD_VENDOR; i++)
 		if (acpi_check_dsm(adev_dimm->handle, uuid, 1, 1ULL << i))
 			set_bit(i, &nfit_mem->dsm_mask);
 
-	return force_enable_dimms ? 0 : rc;
+	return 0;
 }
 
 static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
@@ -868,6 +853,7 @@ static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 	struct acpi_device *adev;
 	int i;
 
+	nd_desc->dsm_mask = acpi_desc->bus_dsm_force_en;
 	adev = to_acpi_dev(acpi_desc);
 	if (!adev)
 		return;
@@ -1032,7 +1018,7 @@ static u32 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 	if (mmio->num_lines)
 		offset = to_interleave_offset(offset, mmio);
 
-	return readl(mmio->base + offset);
+	return readl(mmio->addr.base + offset);
 }
 
 static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
@@ -1057,11 +1043,11 @@ static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
 	if (mmio->num_lines)
 		offset = to_interleave_offset(offset, mmio);
 
-	writeq(cmd, mmio->base + offset);
+	writeq(cmd, mmio->addr.base + offset);
 	wmb_blk(nfit_blk);
 
 	if (nfit_blk->dimm_flags & ND_BLK_DCR_LATCH)
-		readq(mmio->base + offset);
+		readq(mmio->addr.base + offset);
 }
 
 static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
@@ -1093,11 +1079,16 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 		}
 
 		if (rw)
-			memcpy_to_pmem(mmio->aperture + offset,
+			memcpy_to_pmem(mmio->addr.aperture + offset,
 					iobuf + copied, c);
-		else
+		else {
+			if (nfit_blk->dimm_flags & ND_BLK_READ_FLUSH)
+				mmio_flush_range((void __force *)
+					mmio->addr.aperture + offset, c);
+
 			memcpy_from_pmem(iobuf + copied,
-					mmio->aperture + offset, c);
+					mmio->addr.aperture + offset, c);
+		}
 
 		copied += c;
 		len -= c;
@@ -1144,7 +1135,10 @@ static void nfit_spa_mapping_release(struct kref *kref)
 
 	WARN_ON(!mutex_is_locked(&acpi_desc->spa_map_mutex));
 	dev_dbg(acpi_desc->dev, "%s: SPA%d\n", __func__, spa->range_index);
-	iounmap(spa_map->iomem);
+	if (spa_map->type == SPA_MAP_APERTURE)
+		memunmap((void __force *)spa_map->addr.aperture);
+	else
+		iounmap(spa_map->addr.base);
 	release_mem_region(spa->address, spa->length);
 	list_del(&spa_map->list);
 	kfree(spa_map);
@@ -1190,7 +1184,7 @@ static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
 	spa_map = find_spa_mapping(acpi_desc, spa);
 	if (spa_map) {
 		kref_get(&spa_map->kref);
-		return spa_map->iomem;
+		return spa_map->addr.base;
 	}
 
 	spa_map = kzalloc(sizeof(*spa_map), GFP_KERNEL);
@@ -1206,20 +1200,19 @@ static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
 	if (!res)
 		goto err_mem;
 
-	if (type == SPA_MAP_APERTURE) {
-		/*
-		 * TODO: memremap_pmem() support, but that requires cache
-		 * flushing when the aperture is moved.
-		 */
-		spa_map->iomem = ioremap_wc(start, n);
-	} else
-		spa_map->iomem = ioremap_nocache(start, n);
+	spa_map->type = type;
+	if (type == SPA_MAP_APERTURE)
+		spa_map->addr.aperture = (void __pmem *)memremap(start, n,
+							ARCH_MEMREMAP_PMEM);
+	else
+		spa_map->addr.base = ioremap_nocache(start, n);
 
-	if (!spa_map->iomem)
+
+	if (!spa_map->addr.base)
 		goto err_map;
 
 	list_add_tail(&spa_map->list, &acpi_desc->spa_maps);
-	return spa_map->iomem;
+	return spa_map->addr.base;
 
  err_map:
 	release_mem_region(start, n);
@@ -1282,7 +1275,7 @@ static int acpi_nfit_blk_get_flags(struct nvdimm_bus_descriptor *nd_desc,
 		nfit_blk->dimm_flags = flags.flags;
 	else if (rc == -ENOTTY) {
 		/* fall back to a conservative default */
-		nfit_blk->dimm_flags = ND_BLK_DCR_LATCH;
+		nfit_blk->dimm_flags = ND_BLK_DCR_LATCH | ND_BLK_READ_FLUSH;
 		rc = 0;
 	} else
 		rc = -ENXIO;
@@ -1322,9 +1315,9 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	/* map block aperture memory */
 	nfit_blk->bdw_offset = nfit_mem->bdw->offset;
 	mmio = &nfit_blk->mmio[BDW];
-	mmio->base = nfit_spa_map(acpi_desc, nfit_mem->spa_bdw,
+	mmio->addr.base = nfit_spa_map(acpi_desc, nfit_mem->spa_bdw,
 			SPA_MAP_APERTURE);
-	if (!mmio->base) {
+	if (!mmio->addr.base) {
 		dev_dbg(dev, "%s: %s failed to map bdw\n", __func__,
 				nvdimm_name(nvdimm));
 		return -ENOMEM;
@@ -1345,9 +1338,9 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	nfit_blk->cmd_offset = nfit_mem->dcr->command_offset;
 	nfit_blk->stat_offset = nfit_mem->dcr->status_offset;
 	mmio = &nfit_blk->mmio[DCR];
-	mmio->base = nfit_spa_map(acpi_desc, nfit_mem->spa_dcr,
+	mmio->addr.base = nfit_spa_map(acpi_desc, nfit_mem->spa_dcr,
 			SPA_MAP_CONTROL);
-	if (!mmio->base) {
+	if (!mmio->addr.base) {
 		dev_dbg(dev, "%s: %s failed to map dcr\n", __func__,
 				nvdimm_name(nvdimm));
 		return -ENOMEM;
@@ -1379,7 +1372,7 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 			return -ENOMEM;
 	}
 
-	if (!arch_has_pmem_api() && !nfit_blk->nvdimm_flush)
+	if (!arch_has_wmb_pmem() && !nfit_blk->nvdimm_flush)
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
 	if (mmio->line_size == 0)
@@ -1414,7 +1407,7 @@ static void acpi_nfit_blk_region_disable(struct nvdimm_bus *nvdimm_bus,
 	for (i = 0; i < 2; i++) {
 		struct nfit_blk_mmio *mmio = &nfit_blk->mmio[i];
 
-		if (mmio->base)
+		if (mmio->addr.base)
 			nfit_spa_unmap(acpi_desc, mmio->spa);
 	}
 	nd_blk_region_set_provider_data(ndbr, NULL);

@@ -303,3 +303,10 @@ mips_pci_controller:
 	if (!register_vsmp_smp_ops())
 		return;
 }
+
+void platform_early_l2_init(void)
+{
+	/* L2 configuration lives in the CM3 */
+	if (mips_cm_revision() >= CM_REV_CM3)
+		mips_cm_probe();
+}

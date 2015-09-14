@@ -853,12 +853,9 @@ static void iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				     SAM_STAT_CHECK_CONDITION;
 			scsi_build_sense_buffer(1, sc->sense_buffer,
 						ILLEGAL_REQUEST, 0x10, ascq);
-			sc->sense_buffer[7] = 0xc; /* Additional sense length */
-			sc->sense_buffer[8] = 0;   /* Information desc type */
-			sc->sense_buffer[9] = 0xa; /* Additional desc length */
-			sc->sense_buffer[10] = 0x80; /* Validity bit */
-
-			put_unaligned_be64(sector, &sc->sense_buffer[12]);
+			scsi_set_sense_information(sc->sense_buffer,
+						   SCSI_SENSE_BUFFERSIZE,
+						   sector);
 			goto out;
 		}
 	}

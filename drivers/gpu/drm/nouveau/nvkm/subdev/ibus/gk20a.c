@@ -22,89 +22,68 @@
 #include <subdev/ibus.h>
 #include <subdev/timer.h>
 
-struct gk20a_ibus_priv {
-	struct nvkm_ibus base;
-};
-
 static void
-gk20a_ibus_init_priv_ring(struct gk20a_ibus_priv *priv)
+gk20a_ibus_init_ibus_ring(struct nvkm_subdev *ibus)
 {
-	nv_mask(priv, 0x137250, 0x3f, 0);
+	struct nvkm_device *device = ibus->device;
+	nvkm_mask(device, 0x137250, 0x3f, 0);
 
-	nv_mask(priv, 0x000200, 0x20, 0);
+	nvkm_mask(device, 0x000200, 0x20, 0);
 	usleep_range(20, 30);
-	nv_mask(priv, 0x000200, 0x20, 0x20);
+	nvkm_mask(device, 0x000200, 0x20, 0x20);
 
-	nv_wr32(priv, 0x12004c, 0x4);
-	nv_wr32(priv, 0x122204, 0x2);
-	nv_rd32(priv, 0x122204);
+	nvkm_wr32(device, 0x12004c, 0x4);
+	nvkm_wr32(device, 0x122204, 0x2);
+	nvkm_rd32(device, 0x122204);
 
 	/*
 	 * Bug: increase clock timeout to avoid operation failure at high
 	 * gpcclk rate.
 	 */
-	nv_wr32(priv, 0x122354, 0x800);
-	nv_wr32(priv, 0x128328, 0x800);
-	nv_wr32(priv, 0x124320, 0x800);
+	nvkm_wr32(device, 0x122354, 0x800);
+	nvkm_wr32(device, 0x128328, 0x800);
+	nvkm_wr32(device, 0x124320, 0x800);
 }
 
 static void
-gk20a_ibus_intr(struct nvkm_subdev *subdev)
+gk20a_ibus_intr(struct nvkm_subdev *ibus)
 {
-	struct gk20a_ibus_priv *priv = (void *)subdev;
-	u32 status0 = nv_rd32(priv, 0x120058);
+	struct nvkm_device *device = ibus->device;
+	u32 status0 = nvkm_rd32(device, 0x120058);
 
 	if (status0 & 0x7) {
-		nv_debug(priv, "resetting priv ring\n");
-		gk20a_ibus_init_priv_ring(priv);
+		nvkm_debug(ibus, "resetting ibus ring\n");
+		gk20a_ibus_init_ibus_ring(ibus);
 	}
 
 	/* Acknowledge interrupt */
-	nv_mask(priv, 0x12004c, 0x2, 0x2);
-
-	if (!nv_wait(subdev, 0x12004c, 0x3f, 0x00))
-		nv_warn(priv, "timeout waiting for ringmaster ack\n");
+	nvkm_mask(device, 0x12004c, 0x2, 0x2);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x12004c) & 0x0000003f))
+			break;
+	);
 }
 
 static int
-gk20a_ibus_init(struct nvkm_object *object)
+gk20a_ibus_init(struct nvkm_subdev *ibus)
 {
-	struct gk20a_ibus_priv *priv = (void *)object;
-	int ret;
-
-	ret = _nvkm_ibus_init(object);
-	if (ret)
-		return ret;
-
-	gk20a_ibus_init_priv_ring(priv);
-
+	gk20a_ibus_init_ibus_ring(ibus);
 	return 0;
 }
 
-static int
-gk20a_ibus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
-{
-	struct gk20a_ibus_priv *priv;
-	int ret;
-
-	ret = nvkm_ibus_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->intr = gk20a_ibus_intr;
-	return 0;
-}
-
-struct nvkm_oclass
-gk20a_ibus_oclass = {
-	.handle = NV_SUBDEV(IBUS, 0xea),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_ibus_ctor,
-		.dtor = _nvkm_ibus_dtor,
-		.init = gk20a_ibus_init,
-		.fini = _nvkm_ibus_fini,
-	},
+static const struct nvkm_subdev_func
+gk20a_ibus = {
+	.init = gk20a_ibus_init,
+	.intr = gk20a_ibus_intr,
 };
+
+int
+gk20a_ibus_new(struct nvkm_device *device, int index,
+	       struct nvkm_subdev **pibus)
+{
+	struct nvkm_subdev *ibus;
+	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&gk20a_ibus, device, index, 0, ibus);
+	return 0;
+}

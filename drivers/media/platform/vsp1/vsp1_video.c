@@ -1,7 +1,7 @@
 /*
  * vsp1_video.c  --  R-Car VSP1 Video Node
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -245,7 +245,7 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	 * the datasheet, strides not aligned to a multiple of 128 bytes result
 	 * in image corruption.
 	 */
-	for (i = 0; i < max(info->planes, 2U); ++i) {
+	for (i = 0; i < min(info->planes, 2U); ++i) {
 		unsigned int hsub = i > 0 ? info->hsub : 1;
 		unsigned int vsub = i > 0 ? info->vsub : 1;
 		unsigned int align = 128;
@@ -514,6 +514,18 @@ static void vsp1_pipeline_run(struct vsp1_pipeline *pipe)
 	pipe->buffers_ready = 0;
 }
 
+static bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe)
+{
+	unsigned long flags;
+	bool stopped;
+
+	spin_lock_irqsave(&pipe->irqlock, flags);
+	stopped = pipe->state == VSP1_PIPELINE_STOPPED,
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
+
+	return stopped;
+}
+
 static int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_entity *entity;
@@ -525,7 +537,7 @@ static int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 		pipe->state = VSP1_PIPELINE_STOPPING;
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
-	ret = wait_event_timeout(pipe->wq, pipe->state == VSP1_PIPELINE_STOPPED,
+	ret = wait_event_timeout(pipe->wq, vsp1_pipeline_stopped(pipe),
 				 msecs_to_jiffies(500));
 	ret = ret == 0 ? -ETIMEDOUT : 0;
 
@@ -700,6 +712,73 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 
 		pad = &entity->pads[entity->source_pad];
 		pad = media_entity_remote_pad(pad);
+	}
+}
+
+void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
+{
+	unsigned long flags;
+	unsigned int i;
+	int ret;
+
+	/* To avoid increasing the system suspend time needlessly, loop over the
+	 * pipelines twice, first to set them all to the stopping state, and then
+	 * to wait for the stop to complete.
+	 */
+	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		if (pipe == NULL)
+			continue;
+
+		spin_lock_irqsave(&pipe->irqlock, flags);
+		if (pipe->state == VSP1_PIPELINE_RUNNING)
+			pipe->state = VSP1_PIPELINE_STOPPING;
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
+	}
+
+	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		if (pipe == NULL)
+			continue;
+
+		ret = wait_event_timeout(pipe->wq, vsp1_pipeline_stopped(pipe),
+					 msecs_to_jiffies(500));
+		if (ret == 0)
+			dev_warn(vsp1->dev, "pipeline %u stop timeout\n",
+				 wpf->entity.index);
+	}
+}
+
+void vsp1_pipelines_resume(struct vsp1_device *vsp1)
+{
+	unsigned int i;
+
+	/* Resume pipeline all running pipelines. */
+	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		if (pipe == NULL)
+			continue;
+
+		if (vsp1_pipeline_ready(pipe))
+			vsp1_pipeline_run(pipe);
 	}
 }
 

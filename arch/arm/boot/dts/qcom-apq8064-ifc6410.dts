@@ -10,6 +10,10 @@
 		serial1 = &gsbi6_serial;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	soc {
 		pinctrl@800000 {
 			card_detect: card_detect {

@@ -4,6 +4,7 @@
 #include <linux/scatterlist.h>
 
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_common.h>
 struct scsi_device;
 struct Scsi_Host;
 
@@ -21,13 +22,8 @@ static inline bool scsi_sense_is_deferred(const struct scsi_sense_hdr *sshdr)
 	return ((sshdr->response_code >= 0x70) && (sshdr->response_code & 1));
 }
 
-extern const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
-				       int desc_type);
-
 extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 				   u64 * info_out);
-
-extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
 
 extern int scsi_ioctl_reset(struct scsi_device *, int __user *);
 

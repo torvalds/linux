@@ -101,7 +101,6 @@ static const struct isp_res_mapping isp_res_maps[] = {
 			0x0000, /* csi2a, len 0x0170 */
 			0x0170, /* csiphy2, len 0x000c */
 		},
-		.syscon_offset = 0xdc,
 		.phy_type = ISP_PHY_TYPE_3430,
 	},
 	{
@@ -124,7 +123,6 @@ static const struct isp_res_mapping isp_res_maps[] = {
 			0x0570, /* csiphy1, len 0x000c */
 			0x05c0, /* csi2c, len 0x0040 (2nd area) */
 		},
-		.syscon_offset = 0x2f0,
 		.phy_type = ISP_PHY_TYPE_3630,
 	},
 };
@@ -829,14 +827,14 @@ static int isp_pipeline_link_notify(struct media_link *link, u32 flags,
 	int ret;
 
 	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-	    !(link->flags & MEDIA_LNK_FL_ENABLED)) {
+	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		/* Powering off entities is assumed to never fail. */
 		isp_pipeline_pm_power(source, -sink_use);
 		isp_pipeline_pm_power(sink, -source_use);
 		return 0;
 	}
 
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
 		(flags & MEDIA_LNK_FL_ENABLED)) {
 
 		ret = isp_pipeline_pm_power(source, sink_use);
@@ -1796,47 +1794,6 @@ static void isp_unregister_entities(struct isp_device *isp)
 	media_device_unregister(&isp->media_dev);
 }
 
-/*
- * isp_register_subdev - Register a sub-device
- * @isp: OMAP3 ISP device
- * @isp_subdev: platform data related to a sub-device
- *
- * Register an I2C sub-device which has not been registered by other
- * means (such as the Device Tree).
- *
- * Return a pointer to the sub-device if it has been successfully
- * registered, or NULL otherwise.
- */
-static struct v4l2_subdev *
-isp_register_subdev(struct isp_device *isp,
-		    struct isp_platform_subdev *isp_subdev)
-{
-	struct i2c_adapter *adapter;
-	struct v4l2_subdev *sd;
-
-	if (isp_subdev->board_info == NULL)
-		return NULL;
-
-	adapter = i2c_get_adapter(isp_subdev->i2c_adapter_id);
-	if (adapter == NULL) {
-		dev_err(isp->dev,
-			"%s: Unable to get I2C adapter %d for device %s\n",
-			__func__, isp_subdev->i2c_adapter_id,
-			isp_subdev->board_info->type);
-		return NULL;
-	}
-
-	sd = v4l2_i2c_new_subdev_board(&isp->v4l2_dev, adapter,
-				       isp_subdev->board_info, NULL);
-	if (sd == NULL) {
-		dev_err(isp->dev, "%s: Unable to register subdev %s\n",
-			__func__, isp_subdev->board_info->type);
-		return NULL;
-	}
-
-	return sd;
-}
-
 static int isp_link_entity(
 	struct isp_device *isp, struct media_entity *entity,
 	enum isp_interface_type interface)
@@ -1910,8 +1867,6 @@ static int isp_link_entity(
 
 static int isp_register_entities(struct isp_device *isp)
 {
-	struct isp_platform_data *pdata = isp->pdata;
-	struct isp_platform_subdev *isp_subdev;
 	int ret;
 
 	isp->media_dev.dev = isp->dev;
@@ -1968,42 +1923,9 @@ static int isp_register_entities(struct isp_device *isp)
 	if (ret < 0)
 		goto done;
 
-	/*
-	 * Device Tree --- the external sub-devices will be registered
-	 * later. The same goes for the sub-device node registration.
-	 */
-	if (isp->dev->of_node)
-		return 0;
-
-	/* Register external entities */
-	for (isp_subdev = pdata ? pdata->subdevs : NULL;
-	     isp_subdev && isp_subdev->board_info; isp_subdev++) {
-		struct v4l2_subdev *sd;
-
-		sd = isp_register_subdev(isp, isp_subdev);
-
-		/*
-		 * No bus information --- this is either a flash or a
-		 * lens subdev.
-		 */
-		if (!sd || !isp_subdev->bus)
-			continue;
-
-		sd->host_priv = isp_subdev->bus;
-
-		ret = isp_link_entity(isp, &sd->entity,
-				      isp_subdev->bus->interface);
-		if (ret < 0)
-			goto done;
-	}
-
-	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
-
 done:
-	if (ret < 0) {
+	if (ret < 0)
 		isp_unregister_entities(isp);
-		v4l2_async_notifier_unregister(&isp->notifier);
-	}
 
 	return ret;
 }
@@ -2404,37 +2326,24 @@ static int isp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
-		ret = of_property_read_u32(pdev->dev.of_node, "ti,phy-type",
-					   &isp->phy_type);
-		if (ret)
-			return ret;
+	ret = of_property_read_u32(pdev->dev.of_node, "ti,phy-type",
+				   &isp->phy_type);
+	if (ret)
+		return ret;
 
-		isp->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-							      "syscon");
-		if (IS_ERR(isp->syscon))
-			return PTR_ERR(isp->syscon);
+	isp->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						      "syscon");
+	if (IS_ERR(isp->syscon))
+		return PTR_ERR(isp->syscon);
 
-		ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1,
-						 &isp->syscon_offset);
-		if (ret)
-			return ret;
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1,
+					 &isp->syscon_offset);
+	if (ret)
+		return ret;
 
-		ret = isp_of_parse_nodes(&pdev->dev, &isp->notifier);
-		if (ret < 0)
-			return ret;
-		ret = v4l2_async_notifier_register(&isp->v4l2_dev,
-						   &isp->notifier);
-		if (ret)
-			return ret;
-	} else {
-		isp->pdata = pdev->dev.platform_data;
-		isp->syscon = syscon_regmap_lookup_by_pdevname("syscon.0");
-		if (IS_ERR(isp->syscon))
-			return PTR_ERR(isp->syscon);
-		dev_warn(&pdev->dev,
-			 "Platform data support is deprecated! Please move to DT now!\n");
-	}
+	ret = isp_of_parse_nodes(&pdev->dev, &isp->notifier);
+	if (ret < 0)
+		return ret;
 
 	isp->autoidle = autoidle;
 
@@ -2513,11 +2422,6 @@ static int isp_probe(struct platform_device *pdev)
 		goto error_isp;
 	}
 
-	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node) {
-		isp->syscon_offset = isp_res_maps[m].syscon_offset;
-		isp->phy_type = isp_res_maps[m].phy_type;
-	}
-
 	for (i = 1; i < OMAP3_ISP_IOMEM_CSI2A_REGS1; i++)
 		isp->mmio_base[i] =
 			isp->mmio_base[0] + isp_res_maps[m].offset[i];
@@ -2557,18 +2461,24 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_iommu;
 
-	isp->notifier.bound = isp_subdev_notifier_bound;
-	isp->notifier.complete = isp_subdev_notifier_complete;
-
 	ret = isp_register_entities(isp);
 	if (ret < 0)
 		goto error_modules;
+
+	isp->notifier.bound = isp_subdev_notifier_bound;
+	isp->notifier.complete = isp_subdev_notifier_complete;
+
+	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);
+	if (ret)
+		goto error_register_entities;
 
 	isp_core_init(isp, 1);
 	omap3isp_put(isp);
 
 	return 0;
 
+error_register_entities:
+	isp_unregister_entities(isp);
 error_modules:
 	isp_cleanup_modules(isp);
 error_iommu:

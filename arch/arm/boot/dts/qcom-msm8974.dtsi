@@ -259,7 +259,7 @@
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
-		serial@f991e000 {
+		blsp1_uart2: serial@f991e000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf991e000 0x1000>;
 			interrupts = <0 108 0x0>;

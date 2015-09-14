@@ -427,10 +427,10 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
 		writel(pintmask, &pint_regs->edge_set);
-		__irq_set_handler_locked(irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	} else {
 		writel(pintmask, &pint_regs->edge_clear);
-		__irq_set_handler_locked(irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	}
 
 out:

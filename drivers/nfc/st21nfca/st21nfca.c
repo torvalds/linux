@@ -148,14 +148,14 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 				ST21NFCA_DEVICE_MGNT_GATE,
 				ST21NFCA_DEVICE_MGNT_PIPE);
 	if (r < 0)
-		goto free_info;
+		return r;
 
 	/* Get pipe list */
 	r = nfc_hci_send_cmd(hdev, ST21NFCA_DEVICE_MGNT_GATE,
 			ST21NFCA_DM_GETINFO, pipe_list, sizeof(pipe_list),
 			&skb_pipe_list);
 	if (r < 0)
-		goto free_info;
+		return r;
 
 	/* Complete the existing gate_pipe table */
 	for (i = 0; i < skb_pipe_list->len; i++) {
@@ -181,6 +181,7 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 			info->src_host_id != ST21NFCA_ESE_HOST_ID) {
 			pr_err("Unexpected apdu_reader pipe on host %x\n",
 				info->src_host_id);
+			kfree_skb(skb_pipe_info);
 			continue;
 		}
 
@@ -200,6 +201,7 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 			hdev->pipes[st21nfca_gates[j].pipe].dest_host =
 							info->src_host_id;
 		}
+		kfree_skb(skb_pipe_info);
 	}
 
 	/*
@@ -214,13 +216,12 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 					st21nfca_gates[i].gate,
 					st21nfca_gates[i].pipe);
 			if (r < 0)
-				goto free_info;
+				goto free_list;
 		}
 	}
 
 	memcpy(hdev->init_data.gates, st21nfca_gates, sizeof(st21nfca_gates));
-free_info:
-	kfree_skb(skb_pipe_info);
+free_list:
 	kfree_skb(skb_pipe_list);
 	return r;
 }

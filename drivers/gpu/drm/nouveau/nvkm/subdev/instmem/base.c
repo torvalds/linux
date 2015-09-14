@@ -23,124 +23,291 @@
  */
 #include "priv.h"
 
-#include <core/engine.h>
+#include <core/memory.h>
+#include <subdev/bar.h>
 
 /******************************************************************************
  * instmem object base implementation
  *****************************************************************************/
+#define nvkm_instobj(p) container_of((p), struct nvkm_instobj, memory)
 
-void
-_nvkm_instobj_dtor(struct nvkm_object *object)
+struct nvkm_instobj {
+	struct nvkm_memory memory;
+	struct nvkm_memory *parent;
+	struct nvkm_instmem *imem;
+	struct list_head head;
+	u32 *suspend;
+	void __iomem *map;
+};
+
+static enum nvkm_memory_target
+nvkm_instobj_target(struct nvkm_memory *memory)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(object);
-	struct nvkm_instobj *iobj = (void *)object;
-
-	mutex_lock(&nv_subdev(imem)->mutex);
-	list_del(&iobj->head);
-	mutex_unlock(&nv_subdev(imem)->mutex);
-
-	return nvkm_object_destroy(&iobj->base);
+	memory = nvkm_instobj(memory)->parent;
+	return nvkm_memory_target(memory);
 }
 
-int
-nvkm_instobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, int length, void **pobject)
+static u64
+nvkm_instobj_addr(struct nvkm_memory *memory)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(parent);
+	memory = nvkm_instobj(memory)->parent;
+	return nvkm_memory_addr(memory);
+}
+
+static u64
+nvkm_instobj_size(struct nvkm_memory *memory)
+{
+	memory = nvkm_instobj(memory)->parent;
+	return nvkm_memory_size(memory);
+}
+
+static void
+nvkm_instobj_release(struct nvkm_memory *memory)
+{
+	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	nvkm_bar_flush(iobj->imem->subdev.device->bar);
+}
+
+static void __iomem *
+nvkm_instobj_acquire(struct nvkm_memory *memory)
+{
+	return nvkm_instobj(memory)->map;
+}
+
+static u32
+nvkm_instobj_rd32(struct nvkm_memory *memory, u64 offset)
+{
+	return ioread32_native(nvkm_instobj(memory)->map + offset);
+}
+
+static void
+nvkm_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
+{
+	iowrite32_native(data, nvkm_instobj(memory)->map + offset);
+}
+
+static void
+nvkm_instobj_map(struct nvkm_memory *memory, struct nvkm_vma *vma, u64 offset)
+{
+	memory = nvkm_instobj(memory)->parent;
+	nvkm_memory_map(memory, vma, offset);
+}
+
+static void *
+nvkm_instobj_dtor(struct nvkm_memory *memory)
+{
+	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	list_del(&iobj->head);
+	nvkm_memory_del(&iobj->parent);
+	return iobj;
+}
+
+const struct nvkm_memory_func
+nvkm_instobj_func = {
+	.dtor = nvkm_instobj_dtor,
+	.target = nvkm_instobj_target,
+	.addr = nvkm_instobj_addr,
+	.size = nvkm_instobj_size,
+	.acquire = nvkm_instobj_acquire,
+	.release = nvkm_instobj_release,
+	.rd32 = nvkm_instobj_rd32,
+	.wr32 = nvkm_instobj_wr32,
+	.map = nvkm_instobj_map,
+};
+
+static void
+nvkm_instobj_boot(struct nvkm_memory *memory, struct nvkm_vm *vm)
+{
+	memory = nvkm_instobj(memory)->parent;
+	nvkm_memory_boot(memory, vm);
+}
+
+static void
+nvkm_instobj_release_slow(struct nvkm_memory *memory)
+{
+	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	nvkm_instobj_release(memory);
+	nvkm_done(iobj->parent);
+}
+
+static void __iomem *
+nvkm_instobj_acquire_slow(struct nvkm_memory *memory)
+{
+	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	iobj->map = nvkm_kmap(iobj->parent);
+	if (iobj->map)
+		memory->func = &nvkm_instobj_func;
+	return iobj->map;
+}
+
+static u32
+nvkm_instobj_rd32_slow(struct nvkm_memory *memory, u64 offset)
+{
+	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	return nvkm_ro32(iobj->parent, offset);
+}
+
+static void
+nvkm_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
+{
+	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	return nvkm_wo32(iobj->parent, offset, data);
+}
+
+const struct nvkm_memory_func
+nvkm_instobj_func_slow = {
+	.dtor = nvkm_instobj_dtor,
+	.target = nvkm_instobj_target,
+	.addr = nvkm_instobj_addr,
+	.size = nvkm_instobj_size,
+	.boot = nvkm_instobj_boot,
+	.acquire = nvkm_instobj_acquire_slow,
+	.release = nvkm_instobj_release_slow,
+	.rd32 = nvkm_instobj_rd32_slow,
+	.wr32 = nvkm_instobj_wr32_slow,
+	.map = nvkm_instobj_map,
+};
+
+int
+nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
+		 struct nvkm_memory **pmemory)
+{
+	struct nvkm_memory *memory = NULL;
 	struct nvkm_instobj *iobj;
+	u32 offset;
 	int ret;
 
-	ret = nvkm_object_create_(parent, engine, oclass, NV_MEMOBJ_CLASS,
-				  length, pobject);
-	iobj = *pobject;
+	ret = imem->func->memory_new(imem, size, align, zero, &memory);
 	if (ret)
-		return ret;
+		goto done;
 
-	mutex_lock(&imem->base.mutex);
-	list_add(&iobj->head, &imem->list);
-	mutex_unlock(&imem->base.mutex);
-	return 0;
+	if (!imem->func->persistent) {
+		if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL))) {
+			ret = -ENOMEM;
+			goto done;
+		}
+
+		nvkm_memory_ctor(&nvkm_instobj_func_slow, &iobj->memory);
+		iobj->parent = memory;
+		iobj->imem = imem;
+		list_add_tail(&iobj->head, &imem->list);
+		memory = &iobj->memory;
+	}
+
+	if (!imem->func->zero && zero) {
+		void __iomem *map = nvkm_kmap(memory);
+		if (unlikely(!map)) {
+			for (offset = 0; offset < size; offset += 4)
+				nvkm_wo32(memory, offset, 0x00000000);
+		} else {
+			memset_io(map, 0x00, size);
+		}
+		nvkm_done(memory);
+	}
+
+done:
+	if (ret)
+		nvkm_memory_del(&memory);
+	*pmemory = memory;
+	return ret;
 }
 
 /******************************************************************************
  * instmem subdev base implementation
  *****************************************************************************/
 
-static int
-nvkm_instmem_alloc(struct nvkm_instmem *imem, struct nvkm_object *parent,
-		   u32 size, u32 align, struct nvkm_object **pobject)
+u32
+nvkm_instmem_rd32(struct nvkm_instmem *imem, u32 addr)
 {
-	struct nvkm_instmem_impl *impl = (void *)imem->base.object.oclass;
-	struct nvkm_instobj_args args = { .size = size, .align = align };
-	return nvkm_object_ctor(parent, &parent->engine->subdev.object,
-				impl->instobj, &args, sizeof(args), pobject);
+	return imem->func->rd32(imem, addr);
 }
 
-int
-_nvkm_instmem_fini(struct nvkm_object *object, bool suspend)
+void
+nvkm_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 {
-	struct nvkm_instmem *imem = (void *)object;
+	return imem->func->wr32(imem, addr, data);
+}
+
+static int
+nvkm_instmem_fini(struct nvkm_subdev *subdev, bool suspend)
+{
+	struct nvkm_instmem *imem = nvkm_instmem(subdev);
 	struct nvkm_instobj *iobj;
-	int i, ret = 0;
+	int i;
+
+	if (imem->func->fini)
+		imem->func->fini(imem);
 
 	if (suspend) {
-		mutex_lock(&imem->base.mutex);
 		list_for_each_entry(iobj, &imem->list, head) {
-			iobj->suspend = vmalloc(iobj->size);
-			if (!iobj->suspend) {
-				ret = -ENOMEM;
-				break;
-			}
+			struct nvkm_memory *memory = iobj->parent;
+			u64 size = nvkm_memory_size(memory);
 
-			for (i = 0; i < iobj->size; i += 4)
-				iobj->suspend[i / 4] = nv_ro32(iobj, i);
+			iobj->suspend = vmalloc(size);
+			if (!iobj->suspend)
+				return -ENOMEM;
+
+			for (i = 0; i < size; i += 4)
+				iobj->suspend[i / 4] = nvkm_ro32(memory, i);
 		}
-		mutex_unlock(&imem->base.mutex);
-		if (ret)
-			return ret;
 	}
 
-	return nvkm_subdev_fini(&imem->base, suspend);
+	return 0;
 }
 
-int
-_nvkm_instmem_init(struct nvkm_object *object)
+static int
+nvkm_instmem_oneinit(struct nvkm_subdev *subdev)
 {
-	struct nvkm_instmem *imem = (void *)object;
+	struct nvkm_instmem *imem = nvkm_instmem(subdev);
+	if (imem->func->oneinit)
+		return imem->func->oneinit(imem);
+	return 0;
+}
+
+static int
+nvkm_instmem_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_instmem *imem = nvkm_instmem(subdev);
 	struct nvkm_instobj *iobj;
-	int ret, i;
+	int i;
 
-	ret = nvkm_subdev_init(&imem->base);
-	if (ret)
-		return ret;
-
-	mutex_lock(&imem->base.mutex);
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend) {
-			for (i = 0; i < iobj->size; i += 4)
-				nv_wo32(iobj, i, iobj->suspend[i / 4]);
+			struct nvkm_memory *memory = iobj->parent;
+			u64 size = nvkm_memory_size(memory);
+			for (i = 0; i < size; i += 4)
+				nvkm_wo32(memory, i, iobj->suspend[i / 4]);
 			vfree(iobj->suspend);
 			iobj->suspend = NULL;
 		}
 	}
-	mutex_unlock(&imem->base.mutex);
+
 	return 0;
 }
 
-int
-nvkm_instmem_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, int length, void **pobject)
+static void *
+nvkm_instmem_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_instmem *imem;
-	int ret;
+	struct nvkm_instmem *imem = nvkm_instmem(subdev);
+	if (imem->func->dtor)
+		return imem->func->dtor(imem);
+	return imem;
+}
 
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "INSTMEM",
-				  "instmem", length, pobject);
-	imem = *pobject;
-	if (ret)
-		return ret;
+static const struct nvkm_subdev_func
+nvkm_instmem = {
+	.dtor = nvkm_instmem_dtor,
+	.oneinit = nvkm_instmem_oneinit,
+	.init = nvkm_instmem_init,
+	.fini = nvkm_instmem_fini,
+};
 
+void
+nvkm_instmem_ctor(const struct nvkm_instmem_func *func,
+		  struct nvkm_device *device, int index,
+		  struct nvkm_instmem *imem)
+{
+	nvkm_subdev_ctor(&nvkm_instmem, device, index, 0, &imem->subdev);
+	imem->func = func;
 	INIT_LIST_HEAD(&imem->list);
-	imem->alloc = nvkm_instmem_alloc;
-	return 0;
 }

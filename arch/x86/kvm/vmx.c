@@ -1264,7 +1264,7 @@ static void vmcs_load(struct vmcs *vmcs)
 		       vmcs, phys_addr);
 }
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 /*
  * This bitmap is used to indicate whether the vmclear
  * operation is enabled on all cpus. All disabled by
@@ -1302,7 +1302,7 @@ static void crash_vmclear_local_loaded_vmcss(void)
 #else
 static inline void crash_enable_local_vmclear(int cpu) { }
 static inline void crash_disable_local_vmclear(int cpu) { }
-#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_KEXEC_CORE */
 
 static void __loaded_vmcs_clear(void *arg)
 {
@@ -3150,7 +3150,7 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 	struct page *pages;
 	struct vmcs *vmcs;
 
-	pages = alloc_pages_exact_node(node, GFP_KERNEL, vmcs_config.order);
+	pages = __alloc_pages_node(node, GFP_KERNEL, vmcs_config.order);
 	if (!pages)
 		return NULL;
 	vmcs = page_address(pages);
@@ -10411,7 +10411,7 @@ static int __init vmx_init(void)
 	if (r)
 		return r;
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	rcu_assign_pointer(crash_vmclear_loaded_vmcss,
 			   crash_vmclear_local_loaded_vmcss);
 #endif
@@ -10421,7 +10421,7 @@ static int __init vmx_init(void)
 
 static void __exit vmx_exit(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	RCU_INIT_POINTER(crash_vmclear_loaded_vmcss, NULL);
 	synchronize_rcu();
 #endif

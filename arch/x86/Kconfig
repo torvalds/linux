@@ -27,7 +27,8 @@ config X86
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_HAS_PMEM_API
+	select ARCH_HAS_PMEM_API		if X86_64
+	select ARCH_HAS_MMIO_FLUSH
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
@@ -41,6 +42,7 @@ config X86
 	select ARCH_USE_CMPXCHG_LOCKREF		if X86_64
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH if SMP
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
@@ -1449,10 +1451,14 @@ config ILLEGAL_POINTER_VALUE
 
 source "mm/Kconfig"
 
+config X86_PMEM_LEGACY_DEVICE
+	bool
+
 config X86_PMEM_LEGACY
-	bool "Support non-standard NVDIMMs and ADR protected memory"
+	tristate "Support non-standard NVDIMMs and ADR protected memory"
 	depends on PHYS_ADDR_T_64BIT
 	depends on BLK_DEV
+	select X86_PMEM_LEGACY_DEVICE
 	select LIBNVDIMM
 	help
 	  Treat memory marked using the non-standard e820 type of 12 as used
@@ -1748,6 +1754,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
+	select KEXEC_CORE
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -1764,8 +1771,8 @@ config KEXEC
 
 config KEXEC_FILE
 	bool "kexec file based system call"
+	select KEXEC_CORE
 	select BUILD_BIN2C
-	depends on KEXEC
 	depends on X86_64
 	depends on CRYPTO=y
 	depends on CRYPTO_SHA256=y

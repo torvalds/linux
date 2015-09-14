@@ -64,7 +64,7 @@ enum ds1511reg {
 #define DS1511_KIE	0x04
 #define DS1511_WDE	0x02
 #define DS1511_WDS	0x01
-#define DS1511_RAM_MAX	0xff
+#define DS1511_RAM_MAX	0x100
 
 #define RTC_CMD		DS1511_CONTROL_B
 #define RTC_CMD1	DS1511_CONTROL_A
@@ -159,7 +159,7 @@ ds1511_wdog_set(unsigned long deciseconds)
 	/*
 	 * set wdog enable and wdog 'steering' bit to issue a reset
 	 */
-	rtc_write(DS1511_WDE | DS1511_WDS, RTC_CMD);
+	rtc_write(rtc_read(RTC_CMD) | DS1511_WDE | DS1511_WDS, RTC_CMD);
 }
 
 void
@@ -407,25 +407,9 @@ ds1511_nvram_read(struct file *filp, struct kobject *kobj,
 {
 	ssize_t count;
 
-	/*
-	 * if count is more than one, turn on "burst" mode
-	 * turn it off when you're done
-	 */
-	if (size > 1)
-		rtc_write((rtc_read(RTC_CMD) | DS1511_BME), RTC_CMD);
-
-	if (pos > DS1511_RAM_MAX)
-		pos = DS1511_RAM_MAX;
-
-	if (size + pos > DS1511_RAM_MAX + 1)
-		size = DS1511_RAM_MAX - pos + 1;
-
 	rtc_write(pos, DS1511_RAMADDR_LSB);
-	for (count = 0; size > 0; count++, size--)
+	for (count = 0; count < size; count++)
 		*buf++ = rtc_read(DS1511_RAMDATA);
-
-	if (count > 1)
-		rtc_write((rtc_read(RTC_CMD) & ~DS1511_BME), RTC_CMD);
 
 	return count;
 }
@@ -437,25 +421,9 @@ ds1511_nvram_write(struct file *filp, struct kobject *kobj,
 {
 	ssize_t count;
 
-	/*
-	 * if count is more than one, turn on "burst" mode
-	 * turn it off when you're done
-	 */
-	if (size > 1)
-		rtc_write((rtc_read(RTC_CMD) | DS1511_BME), RTC_CMD);
-
-	if (pos > DS1511_RAM_MAX)
-		pos = DS1511_RAM_MAX;
-
-	if (size + pos > DS1511_RAM_MAX + 1)
-		size = DS1511_RAM_MAX - pos + 1;
-
 	rtc_write(pos, DS1511_RAMADDR_LSB);
-	for (count = 0; size > 0; count++, size--)
+	for (count = 0; count < size; count++)
 		rtc_write(*buf++, DS1511_RAMDATA);
-
-	if (count > 1)
-		rtc_write((rtc_read(RTC_CMD) & ~DS1511_BME), RTC_CMD);
 
 	return count;
 }
@@ -490,7 +458,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	/*
 	 * turn on the clock and the crystal, etc.
 	 */
-	rtc_write(0, RTC_CMD);
+	rtc_write(DS1511_BME, RTC_CMD);
 	rtc_write(0, RTC_CMD1);
 	/*
 	 * clear the wdog counter

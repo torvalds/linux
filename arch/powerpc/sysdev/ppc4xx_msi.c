@@ -93,7 +93,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (!msi_data->msi_virqs)
 		return -ENOMEM;
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		int_no = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 		if (int_no >= 0)
 			break;
@@ -127,7 +127,7 @@ void ppc4xx_teardown_msi_irqs(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "PCIE-MSI: tearing down msi irqs\n");
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		if (entry->irq == NO_IRQ)
 			continue;
 		irq_set_msi_desc(entry->irq, NULL);

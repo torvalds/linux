@@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
 }
 
-static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
+bool __init_memblock memblock_overlaps_region(struct memblock_type *type,
 					phys_addr_t base, phys_addr_t size)
 {
 	unsigned long i;
@@ -103,7 +103,7 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
 			break;
 	}
 
-	return (i < type->cnt) ? i : -1;
+	return i < type->cnt;
 }
 
 /*
@@ -566,6 +566,10 @@ repeat:
 		 * area, insert that portion.
 		 */
 		if (rbase > base) {
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+			WARN_ON(nid != memblock_get_region_node(rgn));
+#endif
+			WARN_ON(flags != rgn->flags);
 			nr_new++;
 			if (insert)
 				memblock_insert_region(type, i++, base,
@@ -611,14 +615,14 @@ static int __init_memblock memblock_add_region(phys_addr_t base,
 						int nid,
 						unsigned long flags)
 {
-	struct memblock_type *_rgn = &memblock.memory;
+	struct memblock_type *type = &memblock.memory;
 
 	memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
 		     (unsigned long long)base,
 		     (unsigned long long)base + size - 1,
 		     flags, (void *)_RET_IP_);
 
-	return memblock_add_range(_rgn, base, size, nid, flags);
+	return memblock_add_range(type, base, size, nid, flags);
 }
 
 int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
@@ -758,7 +762,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
  *
  * This function isolates region [@base, @base + @size), and sets/clears flag
  *
- * Return 0 on succees, -errno on failure.
+ * Return 0 on success, -errno on failure.
  */
 static int __init_memblock memblock_setclr_flag(phys_addr_t base,
 				phys_addr_t size, int set, int flag)
@@ -785,7 +789,7 @@ static int __init_memblock memblock_setclr_flag(phys_addr_t base,
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return 0 on succees, -errno on failure.
+ * Return 0 on success, -errno on failure.
  */
 int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
 {
@@ -797,7 +801,7 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return 0 on succees, -errno on failure.
+ * Return 0 on success, -errno on failure.
  */
 int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
 {
@@ -809,7 +813,7 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * Return 0 on succees, -errno on failure.
+ * Return 0 on success, -errno on failure.
  */
 int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
 {
@@ -831,10 +835,10 @@ void __init_memblock __next_reserved_mem_region(u64 *idx,
 					   phys_addr_t *out_start,
 					   phys_addr_t *out_end)
 {
-	struct memblock_type *rsv = &memblock.reserved;
+	struct memblock_type *type = &memblock.reserved;
 
-	if (*idx >= 0 && *idx < rsv->cnt) {
-		struct memblock_region *r = &rsv->regions[*idx];
+	if (*idx >= 0 && *idx < type->cnt) {
+		struct memblock_region *r = &type->regions[*idx];
 		phys_addr_t base = r->base;
 		phys_addr_t size = r->size;
 
@@ -972,7 +976,7 @@ void __init_memblock __next_mem_range(u64 *idx, int nid, ulong flags,
  * in type_b.
  *
  * @idx: pointer to u64 loop variable
- * @nid: nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: node selector, %NUMA_NO_NODE for all nodes
  * @flags: pick from blocks based on memory attributes
  * @type_a: pointer to memblock_type from where the range is taken
  * @type_b: pointer to memblock_type which excludes memory from being taken
@@ -1562,12 +1566,12 @@ int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size
  * Check if the region [@base, @base+@size) intersects a reserved memory block.
  *
  * RETURNS:
- * 0 if false, non-zero if true
+ * True if they intersect, false if not.
  */
-int __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)
+bool __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)
 {
 	memblock_cap_size(base, &size);
-	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
+	return memblock_overlaps_region(&memblock.reserved, base, size);
 }
 
 void __init_memblock memblock_trim_memory(phys_addr_t align)

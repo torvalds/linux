@@ -1668,7 +1668,6 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
 
 	switch (val) {
 	case CPUFREQ_ADJUST:
-	case CPUFREQ_INCOMPATIBLE:
 		pr_debug("min dma period: %d ps, "
 			"new clock %d kHz\n", pxafb_display_dma_period(var),
 			policy->max);

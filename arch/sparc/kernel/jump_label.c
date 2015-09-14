@@ -16,7 +16,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 	u32 val;
 	u32 *insn = (u32 *) (unsigned long) entry->code;
 
-	if (type == JUMP_LABEL_ENABLE) {
+	if (type == JUMP_LABEL_JMP) {
 		s32 off = (s32)entry->target - (s32)entry->code;
 
 #ifdef CONFIG_SPARC64

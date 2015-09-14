@@ -59,6 +59,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <0>;
+		gpio-ranges = <&pinctrl 0 0 32>;
 		clocks = <&pclk>;
 	};
 
@@ -72,6 +73,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <1>;
+		gpio-ranges = <&pinctrl 0 32 32>;
 		clocks = <&pclk>;
 	};
 
@@ -85,12 +87,14 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <2>;
+		gpio-ranges = <&pinctrl 0 64 32>;
 		clocks = <&pclk>;
 	};
 
 	gpio3: gpio@101e7000 {
 		compatible = "st,nomadik-gpio";
 		reg =  <0x101e7000 0x80>;
+		ngpio = <28>;
 		interrupt-parent = <&vica>;
 		interrupts = <9>;
 		interrupt-controller;
@@ -98,11 +102,13 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <3>;
+		gpio-ranges = <&pinctrl 0 96 28>;
 		clocks = <&pclk>;
 	};
 
-	pinctrl {
+	pinctrl: pinctrl {
 		compatible = "stericsson,stn8815-pinctrl";
+		nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>;
 		/* Pin configurations */
 		uart1 {
 			uart1_default_mux: uart1_mux {

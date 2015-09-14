@@ -16,6 +16,5 @@ generic-y += sections.h
 generic-y += segment.h
 generic-y += serial.h
 generic-y += trace_clock.h
-generic-y += ucontext.h
 generic-y += user.h
 generic-y += xor.h

@@ -234,7 +234,6 @@ MODULE_DEVICE_TABLE(i2c, tw9906_id);
 
 static struct i2c_driver tw9906_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tw9906",
 	},
 	.probe = tw9906_probe,

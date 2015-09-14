@@ -19,7 +19,7 @@ static uint32_t drm_crtc_port_mask(struct drm_device *dev,
 	unsigned int index = 0;
 	struct drm_crtc *tmp;
 
-	list_for_each_entry(tmp, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(tmp, dev) {
 		if (tmp->port == port)
 			return 1 << index;
 

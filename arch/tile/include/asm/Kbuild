@@ -28,6 +28,7 @@ generic-y += poll.h
 generic-y += posix_types.h
 generic-y += preempt.h
 generic-y += resource.h
+generic-y += seccomp.h
 generic-y += sembuf.h
 generic-y += serial.h
 generic-y += shmbuf.h

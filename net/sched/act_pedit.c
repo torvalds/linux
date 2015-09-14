@@ -57,7 +57,8 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (!tcf_hash_check(parm->index, a, bind)) {
 		if (!parm->nkeys)
 			return -EINVAL;
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p),
+				      bind, false);
 		if (ret)
 			return ret;
 		p = to_pedit(a);

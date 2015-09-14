@@ -1819,11 +1819,12 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
 
-	if (ctx->state != MFCINST_GOT_INST) {
-		mfc_err("inavlid state: %d\n", ctx->state);
-		return -EINVAL;
-	}
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		if (ctx->state != MFCINST_GOT_INST) {
+			mfc_err("inavlid state: %d\n", ctx->state);
+			return -EINVAL;
+		}
+
 		if (ctx->dst_fmt)
 			*plane_count = ctx->dst_fmt->num_planes;
 		else

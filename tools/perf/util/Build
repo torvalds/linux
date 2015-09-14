@@ -75,6 +75,7 @@ libperf-y += record.o
 libperf-y += srcline.o
 libperf-y += data.o
 libperf-$(CONFIG_X86) += tsc.o
+libperf-$(CONFIG_AUXTRACE) += tsc.o
 libperf-y += cloexec.o
 libperf-y += thread-stack.o
 libperf-$(CONFIG_AUXTRACE) += auxtrace.o
@@ -82,6 +83,7 @@ libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
 libperf-$(CONFIG_AUXTRACE) += intel-pt.o
 libperf-$(CONFIG_AUXTRACE) += intel-bts.o
 libperf-y += parse-branch-options.o
+libperf-y += parse-regs-options.o
 
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
 libperf-$(CONFIG_LIBELF) += probe-file.o

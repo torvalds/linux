@@ -153,9 +153,6 @@
 #define _ECHOAUDIO_H_
 
 
-#define TRUE 1
-#define FALSE 0
-
 #include "echoaudio_dsp.h"
 
 
@@ -378,8 +375,8 @@ struct echoaudio {
 					 */
 	u8 output_clock;		/* Layla20 only */
 	char meters_enabled;		/* VU-meters status */
-	char asic_loaded;		/* Set TRUE when ASIC loaded */
-	char bad_board;			/* Set TRUE if DSP won't load */
+	char asic_loaded;		/* Set true when ASIC loaded */
+	char bad_board;			/* Set true if DSP won't load */
 	char professional_spdif;	/* 0 = consumer; 1 = professional */
 	char non_audio_spdif;		/* 3G - only */
 	char digital_in_automute;	/* Gina24, Layla24, Mona - only */

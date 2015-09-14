@@ -1,0 +1,7 @@
+NEC LCD Technologies,Ltd. WQVGA TFT LCD panel
+
+Required properties:
+- compatible: should be "nec,nl4827hc19-05b"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

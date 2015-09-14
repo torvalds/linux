@@ -565,6 +565,17 @@ config LEDS_BLINKM
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
 
+config LEDS_POWERNV
+	tristate "LED support for PowerNV Platform"
+	depends on LEDS_CLASS
+	depends on PPC_POWERNV
+	depends on OF
+	help
+	  This option enables support for the system LEDs present on
+	  PowerNV platforms. Say 'y' to enable this support in kernel.
+	  To compile this driver as a module, choose 'm' here: the module
+	  will be called leds-powernv.
+
 config LEDS_SYSCON
 	bool "LED support for LEDs on system controllers"
 	depends on LEDS_CLASS=y
@@ -582,14 +593,6 @@ config LEDS_VERSATILE
 	help
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
-
-config LEDS_PM8941_WLED
-	tristate "LED support for the Qualcomm PM8941 WLED block"
-	depends on LEDS_CLASS
-	select REGMAP
-	help
-	  This option enables support for the 'White' LED block
-	  on Qualcomm PM8941 PMICs.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

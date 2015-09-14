@@ -29,7 +29,7 @@ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
 static void dcssblk_release(struct gendisk *disk, fmode_t mode);
 static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
 static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-				 void **kaddr, unsigned long *pfn, long size);
+			 void __pmem **kaddr, unsigned long *pfn);
 
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
@@ -826,6 +826,8 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 	unsigned long source_addr;
 	unsigned long bytes_done;
 
+	blk_queue_split(q, &bio, q->bio_split);
+
 	bytes_done = 0;
 	dev_info = bio->bi_bdev->bd_disk->private_data;
 	if (dev_info == NULL)
@@ -871,7 +873,7 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		}
 		bytes_done += bvec.bv_len;
 	}
-	bio_endio(bio, 0);
+	bio_endio(bio);
 	return;
 fail:
 	bio_io_error(bio);
@@ -879,18 +881,20 @@ fail:
 
 static long
 dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
-			void **kaddr, unsigned long *pfn, long size)
+			void __pmem **kaddr, unsigned long *pfn)
 {
 	struct dcssblk_dev_info *dev_info;
 	unsigned long offset, dev_sz;
+	void *addr;
 
 	dev_info = bdev->bd_disk->private_data;
 	if (!dev_info)
 		return -ENODEV;
 	dev_sz = dev_info->end - dev_info->start;
 	offset = secnum * 512;
-	*kaddr = (void *) (dev_info->start + offset);
-	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+	addr = (void *) (dev_info->start + offset);
+	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
+	*kaddr = (void __pmem *) addr;
 
 	return dev_sz - offset;
 }

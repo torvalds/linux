@@ -5,6 +5,9 @@
 
 menu "Firmware Drivers"
 
+config ARM_PSCI_FW
+	bool
+
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
 	depends on X86

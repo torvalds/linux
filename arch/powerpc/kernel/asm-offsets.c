@@ -213,7 +213,6 @@ int main(void)
 		offsetof(struct tlb_core_data, esel_max));
 	DEFINE(TCD_ESEL_FIRST,
 		offsetof(struct tlb_core_data, esel_first));
-	DEFINE(TCD_LOCK, offsetof(struct tlb_core_data, lock));
 #endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PPC_STD_MMU_64
@@ -512,6 +511,8 @@ int main(void)
 	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa.pinned_addr));
 	DEFINE(VCPU_VPA_DIRTY, offsetof(struct kvm_vcpu, arch.vpa.dirty));
 	DEFINE(VCPU_HEIR, offsetof(struct kvm_vcpu, arch.emul_inst));
+	DEFINE(VCPU_CPU, offsetof(struct kvm_vcpu, cpu));
+	DEFINE(VCPU_THREAD_CPU, offsetof(struct kvm_vcpu, arch.thread_cpu));
 #endif
 #ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
@@ -674,7 +675,14 @@ int main(void)
 	HSTATE_FIELD(HSTATE_DSCR, host_dscr);
 	HSTATE_FIELD(HSTATE_DABR, dabr);
 	HSTATE_FIELD(HSTATE_DECEXP, dec_expires);
+	HSTATE_FIELD(HSTATE_SPLIT_MODE, kvm_split_mode);
 	DEFINE(IPI_PRIORITY, IPI_PRIORITY);
+	DEFINE(KVM_SPLIT_RPR, offsetof(struct kvm_split_mode, rpr));
+	DEFINE(KVM_SPLIT_PMMAR, offsetof(struct kvm_split_mode, pmmar));
+	DEFINE(KVM_SPLIT_LDBAR, offsetof(struct kvm_split_mode, ldbar));
+	DEFINE(KVM_SPLIT_SIZE, offsetof(struct kvm_split_mode, subcore_size));
+	DEFINE(KVM_SPLIT_DO_NAP, offsetof(struct kvm_split_mode, do_nap));
+	DEFINE(KVM_SPLIT_NAPPED, offsetof(struct kvm_split_mode, napped));
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #ifdef CONFIG_PPC_BOOK3S_64

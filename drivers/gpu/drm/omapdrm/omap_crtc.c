@@ -388,11 +388,13 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 }
 
-static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
+static void omap_crtc_atomic_begin(struct drm_crtc *crtc,
+                                  struct drm_crtc_state *old_crtc_state)
 {
 }
 
-static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
+static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
+                                  struct drm_crtc_state *old_crtc_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 

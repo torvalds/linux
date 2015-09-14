@@ -140,12 +140,10 @@ int mantis_dma_init(struct mantis_pci *mantis)
 		/* Stop RISC Engine */
 		mmwrite(0, MANTIS_DMA_CTL);
 
-		goto err;
+		return err;
 	}
 
 	return 0;
-err:
-	return err;
 }
 EXPORT_SYMBOL_GPL(mantis_dma_init);
 

@@ -154,7 +154,6 @@ static struct i2c_driver lp3943_driver = {
 	.remove = lp3943_remove,
 	.driver = {
 		.name = "lp3943",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(lp3943_of_match),
 	},
 	.id_table = lp3943_ids,

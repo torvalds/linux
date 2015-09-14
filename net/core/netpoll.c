@@ -380,6 +380,8 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	static atomic_t ip_ident;
 	struct ipv6hdr *ip6h;
 
+	WARN_ON_ONCE(!irqs_disabled());
+
 	udp_len = len + sizeof(*udph);
 	if (np->ipv6)
 		ip_len = udp_len + sizeof(*ip6h);

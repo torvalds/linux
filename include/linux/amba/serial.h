@@ -33,14 +33,12 @@
 #define UART01x_DR		0x00	/* Data read or written from the interface. */
 #define UART01x_RSR		0x04	/* Receive status register (Read). */
 #define UART01x_ECR		0x04	/* Error clear register (Write). */
-#define ZX_UART01x_DR		0x04	/* Data read or written from the interface. */
 #define UART010_LCRH		0x08	/* Line control register, high byte. */
 #define ST_UART011_DMAWM	0x08    /* DMA watermark configure register. */
 #define UART010_LCRM		0x0C	/* Line control register, middle byte. */
 #define ST_UART011_TIMEOUT	0x0C    /* Timeout period register. */
 #define UART010_LCRL		0x10	/* Line control register, low byte. */
 #define UART010_CR		0x14	/* Control register. */
-#define ZX_UART01x_FR		0x14	/* Flag register (Read only). */
 #define UART01x_FR		0x18	/* Flag register (Read only). */
 #define UART010_IIR		0x1C	/* Interrupt identification register (Read). */
 #define UART010_ICR		0x1C	/* Interrupt clear register (Write). */
@@ -51,21 +49,13 @@
 #define UART011_LCRH		0x2c	/* Line control register. */
 #define ST_UART011_LCRH_TX	0x2c    /* Tx Line control register. */
 #define UART011_CR		0x30	/* Control register. */
-#define ZX_UART011_LCRH_TX	0x30    /* Tx Line control register. */
 #define UART011_IFLS		0x34	/* Interrupt fifo level select. */
-#define ZX_UART011_CR		0x34	/* Control register. */
-#define ZX_UART011_IFLS		0x38	/* Interrupt fifo level select. */
 #define UART011_IMSC		0x38	/* Interrupt mask. */
 #define UART011_RIS		0x3c	/* Raw interrupt status. */
 #define UART011_MIS		0x40	/* Masked interrupt status. */
-#define ZX_UART011_IMSC		0x40	/* Interrupt mask. */
 #define UART011_ICR		0x44	/* Interrupt clear register. */
-#define ZX_UART011_RIS		0x44	/* Raw interrupt status. */
 #define UART011_DMACR		0x48	/* DMA control register. */
-#define ZX_UART011_MIS		0x48	/* Masked interrupt status. */
-#define ZX_UART011_ICR		0x4c	/* Interrupt clear register. */
 #define ST_UART011_XFCR		0x50	/* XON/XOFF control register. */
-#define ZX_UART011_DMACR	0x50	/* DMA control register. */
 #define ST_UART011_XON1		0x54	/* XON1 register. */
 #define ST_UART011_XON2		0x58	/* XON2 register. */
 #define ST_UART011_XOFF1	0x5C	/* XON1 register. */
@@ -85,19 +75,15 @@
 #define UART01x_RSR_PE 		0x02
 #define UART01x_RSR_FE 		0x01
 
-#define ZX_UART01x_FR_BUSY	0x300
 #define UART011_FR_RI		0x100
 #define UART011_FR_TXFE		0x080
 #define UART011_FR_RXFF		0x040
 #define UART01x_FR_TXFF		0x020
 #define UART01x_FR_RXFE		0x010
 #define UART01x_FR_BUSY		0x008
-#define ZX_UART01x_FR_DSR       0x008
 #define UART01x_FR_DCD 		0x004
 #define UART01x_FR_DSR 		0x002
-#define ZX_UART01x_FR_CTS	0x002
 #define UART01x_FR_CTS 		0x001
-#define ZX_UART011_FR_RI	0x001
 #define UART01x_FR_TMSK		(UART01x_FR_TXFF + UART01x_FR_BUSY)
 
 #define UART011_CR_CTSEN	0x8000	/* CTS hardware flow control */

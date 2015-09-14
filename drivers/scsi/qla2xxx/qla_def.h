@@ -3061,6 +3061,7 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP2031	0x2031
 #define PCI_DEVICE_ID_QLOGIC_ISP2071	0x2071
 #define PCI_DEVICE_ID_QLOGIC_ISP2271	0x2271
+#define PCI_DEVICE_ID_QLOGIC_ISP2261	0x2261
 
 	uint32_t	device_type;
 #define DT_ISP2100                      BIT_0
@@ -3084,7 +3085,8 @@ struct qla_hw_data {
 #define DT_ISP8044			BIT_18
 #define DT_ISP2071			BIT_19
 #define DT_ISP2271			BIT_20
-#define DT_ISP_LAST			(DT_ISP2271 << 1)
+#define DT_ISP2261			BIT_21
+#define DT_ISP_LAST			(DT_ISP2261 << 1)
 
 #define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
@@ -3116,6 +3118,7 @@ struct qla_hw_data {
 #define IS_QLAFX00(ha)	(DT_MASK(ha) & DT_ISPFX00)
 #define IS_QLA2071(ha)	(DT_MASK(ha) & DT_ISP2071)
 #define IS_QLA2271(ha)	(DT_MASK(ha) & DT_ISP2271)
+#define IS_QLA2261(ha)	(DT_MASK(ha) & DT_ISP2261)
 
 #define IS_QLA23XX(ha)  (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
 			IS_QLA6312(ha) || IS_QLA6322(ha))
@@ -3124,7 +3127,7 @@ struct qla_hw_data {
 #define IS_QLA25XX(ha)  (IS_QLA2532(ha))
 #define IS_QLA83XX(ha)	(IS_QLA2031(ha) || IS_QLA8031(ha))
 #define IS_QLA84XX(ha)  (IS_QLA8432(ha))
-#define IS_QLA27XX(ha)  (IS_QLA2071(ha) || IS_QLA2271(ha))
+#define IS_QLA27XX(ha)  (IS_QLA2071(ha) || IS_QLA2271(ha) || IS_QLA2261(ha))
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
 #define IS_CNA_CAPABLE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha) || \
@@ -3166,6 +3169,7 @@ struct qla_hw_data {
 #define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
 #define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha))
 #define IS_DPORT_CAPABLE(ha)  (IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_FAWWN_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -3288,6 +3292,7 @@ struct qla_hw_data {
 	uint8_t		mpi_version[3];
 	uint32_t	mpi_capabilities;
 	uint8_t		phy_version[3];
+	uint8_t		pep_version[3];
 
 	/* Firmware dump template */
 	void		*fw_dump_template;
@@ -3420,9 +3425,9 @@ struct qla_hw_data {
 	mempool_t       *ctx_mempool;
 #define FCP_CMND_DMA_POOL_SIZE 512
 
-	unsigned long	nx_pcibase;		/* Base I/O address */
-	uint8_t		*nxdb_rd_ptr;		/* Doorbell read pointer */
-	unsigned long	nxdb_wr_ptr;		/* Door bell write pointer */
+	void __iomem	*nx_pcibase;		/* Base I/O address */
+	void __iomem	*nxdb_rd_ptr;		/* Doorbell read pointer */
+	void __iomem	*nxdb_wr_ptr;		/* Door bell write pointer */
 
 	uint32_t	crb_win;
 	uint32_t	curr_window;

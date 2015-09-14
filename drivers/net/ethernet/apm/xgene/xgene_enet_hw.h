@@ -193,12 +193,16 @@ enum xgene_enet_rm {
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define NV_POS				50
+#define NV_LEN				1
+#define LL_POS				51
+#define LL_LEN				1
 #define LERR_POS			60
 #define LERR_LEN			3
 #define STASH_POS			52
 #define STASH_LEN			2
 #define BUFDATALEN_POS			48
-#define BUFDATALEN_LEN			12
+#define BUFDATALEN_LEN			15
 #define DATAADDR_POS			0
 #define DATAADDR_LEN			42
 #define COHERENT_POS			63
@@ -215,9 +219,19 @@ enum xgene_enet_rm {
 #define IPHDR_LEN			6
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
+#define ET_POS				23	/* Enable TSO */
 #define IS_POS				24	/* IP protocol select */
 #define IS_LEN				1
 #define TYPE_ETH_WORK_MESSAGE_POS	44
+#define LL_BYTES_MSB_POS		56
+#define LL_BYTES_MSB_LEN		8
+#define LL_BYTES_LSB_POS		48
+#define LL_BYTES_LSB_LEN		12
+#define LL_LEN_POS			48
+#define LL_LEN_LEN			8
+#define DATALEN_MASK			GENMASK(11, 0)
+
+#define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
 
 struct xgene_enet_raw_desc {
 	__le64 m0;
