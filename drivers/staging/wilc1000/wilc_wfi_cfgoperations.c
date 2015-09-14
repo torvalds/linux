@@ -712,7 +712,7 @@ static int set_channel(struct wiphy *wiphy,
 }
 
 /**
- *  @brief      WILC_WFI_CfgScan
+ *  @brief      scan
  *  @details    Request to do a scan. If returning zero, the scan request is given
  *                      the driver, and will be valid until passed to cfg80211_scan_done().
  *                      For scan results, call cfg80211_inform_bss(); you can call this outside
@@ -728,7 +728,7 @@ static int set_channel(struct wiphy *wiphy,
  *	kernel version 3.8.8 supported
  *	tony, sswd, WILC-KR, 2013-10-29
  */
-static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
+static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct WILC_WFI_priv *priv;
 	u32 i;
@@ -3559,7 +3559,7 @@ int WILC_WFI_del_virt_intf(struct wiphy *wiphy, struct wireless_dev *wdev)      
 static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 
 	.set_monitor_channel = set_channel,
-	.scan = WILC_WFI_CfgScan,
+	.scan = scan,
 	.connect = WILC_WFI_CfgConnect,
 	.disconnect = WILC_WFI_disconnect,
 	.add_key = WILC_WFI_add_key,
