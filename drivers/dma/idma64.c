@@ -257,7 +257,7 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		dar = config->dst_addr;
 		ctllo |= IDMA64C_CTLL_DST_FIX | IDMA64C_CTLL_SRC_INC |
 			 IDMA64C_CTLL_FC_M2P;
-		src_width = min_t(u32, 2, __ffs(sar | hw->len));
+		src_width = __ffs(sar | hw->len | 4);
 		dst_width = __ffs(config->dst_addr_width);
 	} else {	/* DMA_DEV_TO_MEM */
 		sar = config->src_addr;
@@ -265,7 +265,7 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		ctllo |= IDMA64C_CTLL_DST_INC | IDMA64C_CTLL_SRC_FIX |
 			 IDMA64C_CTLL_FC_P2M;
 		src_width = __ffs(config->src_addr_width);
-		dst_width = min_t(u32, 2, __ffs(dar | hw->len));
+		dst_width = __ffs(dar | hw->len | 4);
 	}
 
 	lli->sar = sar;
