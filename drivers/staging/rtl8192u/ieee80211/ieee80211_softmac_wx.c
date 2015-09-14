@@ -72,9 +72,8 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 
 		if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 			if (ieee->state == IEEE80211_LINKED) {
-
-			ieee80211_stop_send_beacons(ieee);
-			ieee80211_start_send_beacons(ieee);
+				ieee80211_stop_send_beacons(ieee);
+				ieee80211_start_send_beacons(ieee);
 			}
 	}
 
