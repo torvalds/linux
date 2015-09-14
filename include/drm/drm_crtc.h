@@ -413,9 +413,6 @@ struct drm_crtc_funcs {
  * @funcs: CRTC control functions
  * @gamma_size: size of gamma ramp
  * @gamma_store: gamma ramp values
- * @framedur_ns: precise frame timing
- * @linedur_ns: precise line timing
- * @pixeldur_ns: precise pixel timing
  * @helper_private: mid-layer private data
  * @properties: property tracking for this CRTC
  * @state: current atomic state for this CRTC
@@ -467,9 +464,6 @@ struct drm_crtc {
 	/* CRTC gamma size for reporting to userspace */
 	uint32_t gamma_size;
 	uint16_t *gamma_store;
-
-	/* Constants needed for precise vblank and swap timestamping. */
-	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	const void *helper_private;

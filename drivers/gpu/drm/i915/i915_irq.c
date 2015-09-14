@@ -810,7 +810,6 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     crtc,
 						     &crtc->hwmode);
 }
 

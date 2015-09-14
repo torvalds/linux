@@ -603,6 +603,7 @@ int drm_control(struct drm_device *dev, void *data,
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
 {
+	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
 	int linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
 	int dotclock = mode->crtc_clock;
 
@@ -628,9 +629,9 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 		DRM_ERROR("crtc %u: Can't calculate constants, dotclock = 0!\n",
 			  crtc->base.id);
 
-	crtc->pixeldur_ns = pixeldur_ns;
-	crtc->linedur_ns  = linedur_ns;
-	crtc->framedur_ns = framedur_ns;
+	vblank->pixeldur_ns = pixeldur_ns;
+	vblank->linedur_ns  = linedur_ns;
+	vblank->framedur_ns = framedur_ns;
 
 	DRM_DEBUG("crtc %u: hwmode: htotal %d, vtotal %d, vdisplay %d\n",
 		  crtc->base.id, mode->crtc_htotal,
@@ -651,7 +652,6 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * @flags: Flags to pass to driver:
  *         0 = Default,
  *         DRM_CALLED_FROM_VBLIRQ = If function is called from vbl IRQ handler
- * @refcrtc: CRTC which defines scanout timing
  * @mode: mode which defines the scanout timings
  *
  * Implements calculation of exact vblank timestamps from given drm_display_mode
@@ -692,9 +692,9 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					  int *max_error,
 					  struct timeval *vblank_time,
 					  unsigned flags,
-					  const struct drm_crtc *refcrtc,
 					  const struct drm_display_mode *mode)
 {
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct timeval tv_etime;
 	ktime_t stime, etime;
 	int vbl_status;
@@ -714,9 +714,9 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	}
 
 	/* Durations of frames, lines, pixels in nanoseconds. */
-	framedur_ns = refcrtc->framedur_ns;
-	linedur_ns  = refcrtc->linedur_ns;
-	pixeldur_ns = refcrtc->pixeldur_ns;
+	framedur_ns = vblank->framedur_ns;
+	linedur_ns  = vblank->linedur_ns;
+	pixeldur_ns = vblank->pixeldur_ns;
 
 	/* If mode timing undefined, just return as no-op:
 	 * Happens during initial modesetting of a crtc.

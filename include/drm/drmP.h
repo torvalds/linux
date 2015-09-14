@@ -701,6 +701,9 @@ struct drm_vblank_crtc {
 	u32 last_wait;			/* Last vblank seqno waited per CRTC */
 	unsigned int inmodeset;		/* Display driver is setting mode */
 	unsigned int pipe;		/* crtc index */
+	int framedur_ns;		/* frame/field duration in ns */
+	int linedur_ns;			/* line duration in ns */
+	int pixeldur_ns;		/* pixel duration in ns */
 	bool enabled;			/* so we don't call enable more than
 					   once per disable */
 };
@@ -951,7 +954,6 @@ extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 						 unsigned int pipe, int *max_error,
 						 struct timeval *vblank_time,
 						 unsigned flags,
-						 const struct drm_crtc *refcrtc,
 						 const struct drm_display_mode *mode);
 extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 					    const struct drm_display_mode *mode);
