@@ -2730,6 +2730,9 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 			(intel_crtc->config->pipe_src_w - 1) * pixel_size;
 	}
 
+	intel_crtc->adjusted_x = x;
+	intel_crtc->adjusted_y = y;
+
 	I915_WRITE(reg, dspcntr);
 
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
@@ -2829,6 +2832,9 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 				(intel_crtc->config->pipe_src_w - 1) * pixel_size;
 		}
 	}
+
+	intel_crtc->adjusted_x = x;
+	intel_crtc->adjusted_y = y;
 
 	I915_WRITE(reg, dspcntr);
 
@@ -3081,6 +3087,9 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 		plane_size = (src_h - 1) << 16 | (src_w - 1);
 	}
 	plane_offset = y_offset << 16 | x_offset;
+
+	intel_crtc->adjusted_x = x_offset;
+	intel_crtc->adjusted_y = y_offset;
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
 	I915_WRITE(PLANE_OFFSET(pipe, 0), plane_offset);

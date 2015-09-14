@@ -41,6 +41,19 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
+/*
+ * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
+ * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
+ * origin so the x and y offsets can actually fit the registers. As a
+ * consequence, the fence doesn't really start exactly at the display plane
+ * address we program because it starts at the real start of the buffer, so we
+ * have to take this into consideration here.
+ */
+static unsigned int get_crtc_fence_y_offset(struct intel_crtc *crtc)
+{
+	return crtc->base.y - crtc->adjusted_y;
+}
+
 static void i8xx_fbc_disable(struct drm_i915_private *dev_priv)
 {
 	u32 fbc_ctl;
@@ -97,7 +110,7 @@ static void i8xx_fbc_enable(struct intel_crtc *crtc)
 		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
 		fbc_ctl2 |= FBC_CTL_PLANE(crtc->plane);
 		I915_WRITE(FBC_CONTROL2, fbc_ctl2);
-		I915_WRITE(FBC_FENCE_OFF, crtc->base.y);
+		I915_WRITE(FBC_FENCE_OFF, get_crtc_fence_y_offset(crtc));
 	}
 
 	/* enable it... */
@@ -135,7 +148,7 @@ static void g4x_fbc_enable(struct intel_crtc *crtc)
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 	dpfc_ctl |= DPFC_CTL_FENCE_EN | obj->fence_reg;
 
-	I915_WRITE(DPFC_FENCE_YOFF, crtc->base.y);
+	I915_WRITE(DPFC_FENCE_YOFF, get_crtc_fence_y_offset(crtc));
 
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -177,6 +190,7 @@ static void ilk_fbc_enable(struct intel_crtc *crtc)
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
+	unsigned int y_offset;
 
 	dev_priv->fbc.enabled = true;
 
@@ -200,7 +214,8 @@ static void ilk_fbc_enable(struct intel_crtc *crtc)
 	if (IS_GEN5(dev_priv))
 		dpfc_ctl |= obj->fence_reg;
 
-	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->base.y);
+	y_offset = get_crtc_fence_y_offset(crtc);
+	I915_WRITE(ILK_DPFC_FENCE_YOFF, y_offset);
 	I915_WRITE(ILK_FBC_RT_BASE, i915_gem_obj_ggtt_offset(obj) | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -208,7 +223,7 @@ static void ilk_fbc_enable(struct intel_crtc *crtc)
 	if (IS_GEN6(dev_priv)) {
 		I915_WRITE(SNB_DPFC_CTL_SA,
 			   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
-		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->base.y);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, y_offset);
 	}
 
 	intel_fbc_nuke(dev_priv);
@@ -288,7 +303,7 @@ static void gen7_fbc_enable(struct intel_crtc *crtc)
 
 	I915_WRITE(SNB_DPFC_CTL_SA,
 		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
-	I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->base.y);
+	I915_WRITE(DPFC_CPU_FENCE_OFFSET, get_crtc_fence_y_offset(crtc));
 
 	intel_fbc_nuke(dev_priv);
 

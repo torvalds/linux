@@ -537,6 +537,8 @@ struct intel_crtc {
 	 * gen4+ this only adjusts up to a tile, offsets within a tile are
 	 * handled in the hw itself (with the TILEOFF register). */
 	unsigned long dspaddr_offset;
+	int adjusted_x;
+	int adjusted_y;
 
 	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
