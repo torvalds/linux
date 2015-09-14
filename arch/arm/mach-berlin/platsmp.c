@@ -17,7 +17,12 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
-#define CPU_RESET		0x00
+/*
+ * There are two reset registers, one with self-clearing (SC)
+ * reset and one with non-self-clearing reset (NON_SC).
+ */
+#define CPU_RESET_SC		0x00
+#define CPU_RESET_NON_SC	0x20
 
 #define RESET_VECT		0x00
 #define SW_RESET_ADDR		0x94
@@ -30,9 +35,11 @@ static inline void berlin_perform_reset_cpu(unsigned int cpu)
 {
 	u32 val;
 
-	val = readl(cpu_ctrl + CPU_RESET);
+	val = readl(cpu_ctrl + CPU_RESET_NON_SC);
+	val &= ~BIT(cpu_logical_map(cpu));
+	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
 	val |= BIT(cpu_logical_map(cpu));
-	writel(val, cpu_ctrl + CPU_RESET);
+	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
 }
 
 static int berlin_boot_secondary(unsigned int cpu, struct task_struct *idle)
