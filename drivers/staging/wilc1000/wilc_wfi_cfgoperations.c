@@ -3278,7 +3278,7 @@ static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
 }
 
 /**
- *  @brief      WILC_WFI_stop_ap
+ *  @brief      stop_ap
  *  @details    Remove beacon configuration and stop sending the beacon.
  *  @param[in]
  *  @return     int : Return 0 on Success.
@@ -3286,7 +3286,7 @@ static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
  *  @date	23 JUL 2013
  *  @version	1.0
  */
-static int  WILC_WFI_stop_ap(struct wiphy *wiphy, struct net_device *dev)
+static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3573,7 +3573,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 
 	.start_ap = start_ap,
 	.change_beacon = change_beacon,
-	.stop_ap = WILC_WFI_stop_ap,
+	.stop_ap = stop_ap,
 	.add_station = WILC_WFI_add_station,
 	.del_station = WILC_WFI_del_station,
 	.change_station = WILC_WFI_change_station,
