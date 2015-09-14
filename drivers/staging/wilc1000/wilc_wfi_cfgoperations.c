@@ -1112,7 +1112,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 }
 
 /**
- *  @brief      WILC_WFI_add_key
+ *  @brief      add_key
  *  @details    Add a key with the given parameters. @mac_addr will be %NULL
  *                      when adding a group key.
  *  @param[in] key : key buffer; TKIP: 16-byte temporal key, 8-byte Tx Mic key, 8-byte Rx Mic Key
@@ -1121,9 +1121,9 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-			    bool pairwise,
-			    const u8 *mac_addr, struct key_params *params)
+static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
+		   bool pairwise,
+		   const u8 *mac_addr, struct key_params *params)
 
 {
 	s32 s32Error = WILC_SUCCESS, KeyLen = params->key_len;
@@ -2933,19 +2933,19 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 				PRINT_D(CFG80211_DBG, "gtk %x %x %x\n", g_key_gtk_params.key[0],
 					g_key_gtk_params.key[1],
 					g_key_gtk_params.key[2]);
-				WILC_WFI_add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
-						 g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
-						 g_add_ptk_key_params.key_idx,
-						 g_add_ptk_key_params.pairwise,
-						 g_add_ptk_key_params.mac_addr,
-						 (struct key_params *)(&g_key_ptk_params));
+				add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
+					g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
+					g_add_ptk_key_params.key_idx,
+					g_add_ptk_key_params.pairwise,
+					g_add_ptk_key_params.mac_addr,
+					(struct key_params *)(&g_key_ptk_params));
 
-				WILC_WFI_add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
-						 g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
-						 g_add_gtk_key_params.key_idx,
-						 g_add_gtk_key_params.pairwise,
-						 g_add_gtk_key_params.mac_addr,
-						 (struct key_params *)(&g_key_gtk_params));
+				add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
+					g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
+					g_add_gtk_key_params.key_idx,
+					g_add_gtk_key_params.pairwise,
+					g_add_gtk_key_params.mac_addr,
+					(struct key_params *)(&g_key_gtk_params));
 			}
 
 			/*BugID_4847: registered frames in firmware are now*/
@@ -3019,19 +3019,19 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 				PRINT_D(CFG80211_DBG, "gtk %x %x %x\n", g_key_gtk_params.key[0],
 					g_key_gtk_params.key[1],
 					g_key_gtk_params.key[2]);
-				WILC_WFI_add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
-						 g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
-						 g_add_ptk_key_params.key_idx,
-						 g_add_ptk_key_params.pairwise,
-						 g_add_ptk_key_params.mac_addr,
-						 (struct key_params *)(&g_key_ptk_params));
+				add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
+					g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
+					g_add_ptk_key_params.key_idx,
+					g_add_ptk_key_params.pairwise,
+					g_add_ptk_key_params.mac_addr,
+					(struct key_params *)(&g_key_ptk_params));
 
-				WILC_WFI_add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
-						 g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
-						 g_add_gtk_key_params.key_idx,
-						 g_add_gtk_key_params.pairwise,
-						 g_add_gtk_key_params.mac_addr,
-						 (struct key_params *)(&g_key_gtk_params));
+				add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
+					g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
+					g_add_gtk_key_params.key_idx,
+					g_add_gtk_key_params.pairwise,
+					g_add_gtk_key_params.mac_addr,
+					(struct key_params *)(&g_key_gtk_params));
 			}
 
 			/*Refresh scan, to refresh the scan results to the wpa_supplicant. Set MachHw to false to enable further key installments*/
@@ -3150,19 +3150,19 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 				g_key_gtk_params.key[2],
 				g_key_gtk_params.cipher);
 			#if 1
-			WILC_WFI_add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
-					 g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
-					 g_add_ptk_key_params.key_idx,
-					 g_add_ptk_key_params.pairwise,
-					 g_add_ptk_key_params.mac_addr,
-					 (struct key_params *)(&g_key_ptk_params));
+			add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
+				g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
+				g_add_ptk_key_params.key_idx,
+				g_add_ptk_key_params.pairwise,
+				g_add_ptk_key_params.mac_addr,
+				(struct key_params *)(&g_key_ptk_params));
 
-			WILC_WFI_add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
-					 g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
-					 g_add_gtk_key_params.key_idx,
-					 g_add_gtk_key_params.pairwise,
-					 g_add_gtk_key_params.mac_addr,
-					 (struct key_params *)(&g_key_gtk_params));
+			add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
+				g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
+				g_add_gtk_key_params.key_idx,
+				g_add_gtk_key_params.pairwise,
+				g_add_gtk_key_params.mac_addr,
+				(struct key_params *)(&g_key_gtk_params));
 			#endif
 		}
 		#endif
@@ -3562,7 +3562,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.scan = scan,
 	.connect = connect,
 	.disconnect = disconnect,
-	.add_key = WILC_WFI_add_key,
+	.add_key = add_key,
 	.del_key = WILC_WFI_del_key,
 	.get_key = WILC_WFI_get_key,
 	.set_default_key = WILC_WFI_set_default_key,
