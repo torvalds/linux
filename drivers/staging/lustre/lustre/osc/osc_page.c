@@ -818,7 +818,6 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	int rc;
 
 	LASSERT(cache != NULL);
-	LASSERT(!list_empty(&cache->ccc_lru));
 
 	rc = osc_lru_shrink(cli, lru_shrink_min);
 	if (rc != 0) {
@@ -835,6 +834,8 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	/* Reclaim LRU slots from other client_obd as it can't free enough
 	 * from its own. This should rarely happen. */
 	spin_lock(&cache->ccc_lru_lock);
+	LASSERT(!list_empty(&cache->ccc_lru));
+
 	cache->ccc_lru_shrinkers++;
 	list_move_tail(&cli->cl_lru_osc, &cache->ccc_lru);
 
