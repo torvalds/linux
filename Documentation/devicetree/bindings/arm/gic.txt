@@ -59,6 +59,21 @@ Optional
   regions, used when the GIC doesn't have banked registers. The offset is
   cpu-offset * cpu-nr.
 
+- clocks        : List of phandle and clock-specific pairs, one for each entry
+  in clock-names.
+- clock-names   : List of names for the GIC clock input(s). Valid clock names
+  depend on the GIC variant:
+	"ic_clk" (for "arm,arm11mp-gic")
+	"PERIPHCLKEN" (for "arm,cortex-a15-gic")
+	"PERIPHCLK", "PERIPHCLKEN" (for "arm,cortex-a9-gic")
+	"clk" (for "arm,gic-400")
+	"gclk" (for "arm,pl390")
+
+- power-domains : A phandle and PM domain specifier as defined by bindings of
+		  the power controller specified by phandle, used when the GIC
+		  is part of a Power or Clock Domain.
+
+
 Example:
 
 	intc: interrupt-controller@fff11000 {
