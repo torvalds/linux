@@ -70,8 +70,8 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 		ieee->current_network.channel = fwrq->m;
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
-		if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
-			if(ieee->state == IEEE80211_LINKED) {
+		if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
+			if (ieee->state == IEEE80211_LINKED) {
 
 			ieee80211_stop_send_beacons(ieee);
 			ieee80211_start_send_beacons(ieee);
@@ -352,7 +352,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
 
-	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
+	if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		ieee80211_start_send_beacons(ieee);
 
 	netif_carrier_on(ieee->dev);
@@ -408,7 +408,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 		goto out;
 	}
 
-	if(proto_started)
+	if (proto_started)
 		ieee80211_stop_protocol(ieee);
 
 
@@ -459,7 +459,7 @@ EXPORT_SYMBOL(ieee80211_wx_get_mode);
 
 	down(&ieee->wx_sem);
 
-	if(enable)
+	if (enable)
 		ieee->raw_tx = 1;
 	else
 		ieee->raw_tx = 0;
@@ -476,7 +476,7 @@ EXPORT_SYMBOL(ieee80211_wx_get_mode);
 			netif_carrier_on(ieee->dev);
 		}
 
-		if(prev && ieee->raw_tx == 1)
+		if (prev && ieee->raw_tx == 1)
 			netif_carrier_off(ieee->dev);
 	}
 
