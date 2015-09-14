@@ -11,13 +11,14 @@ have PPIs or SGIs.
 Main node required properties:
 
 - compatible : should be one of:
-	"arm,gic-400"
-	"arm,cortex-a15-gic"
-	"arm,cortex-a9-gic"
-	"arm,cortex-a7-gic"
-	"arm,arm11mp-gic"
-	"brcm,brahma-b15-gic"
 	"arm,arm1176jzf-devchip-gic"
+	"arm,arm11mp-gic"
+	"arm,cortex-a15-gic"
+	"arm,cortex-a7-gic"
+	"arm,cortex-a9-gic"
+	"arm,gic-400"
+	"arm,pl390"
+	"brcm,brahma-b15-gic"
 	"qcom,msm-8660-qgic"
 	"qcom,msm-qgic2"
 - interrupt-controller : Identifies the node as an interrupt controller
