@@ -750,8 +750,8 @@ static void gb_sdio_connection_exit(struct gb_connection *connection)
 	flush_workqueue(gb_sdio_mrq_workqueue);
 	destroy_workqueue(gb_sdio_mrq_workqueue);
 	mmc_remove_host(mmc);
-	mmc_free_host(mmc);
 	kfree(host->xfer_buffer);
+	mmc_free_host(mmc);
 }
 
 static struct gb_protocol sdio_protocol = {
