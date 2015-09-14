@@ -691,11 +691,6 @@ static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(net, sk, skb);
 }
-static int br_nf_push_frag_xmit_sk(struct sock *sk, struct sk_buff *skb)
-{
-	struct net *net = dev_net(skb_dst(skb)->dev);
-	return br_nf_push_frag_xmit(net, sk, skb);
-}
 #endif
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
