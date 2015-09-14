@@ -482,6 +482,8 @@ const char *intel_no_fbc_reason_str(enum no_fbc_reason reason)
 		return "Kernel debugger is active";
 	case FBC_BAD_STRIDE:
 		return "framebuffer stride not supported";
+	case FBC_PIXEL_RATE:
+		return "pixel rate is too big";
 	default:
 		MISSING_CASE(reason);
 		return "unknown reason";
@@ -825,6 +827,14 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	/* If the kernel debugger is active, always disable compression */
 	if (in_dbg_master()) {
 		set_no_fbc_reason(dev_priv, FBC_IN_DBG_MASTER);
+		goto out_disable;
+	}
+
+	/* WaFbcExceedCdClockThreshold:hsw,bdw */
+	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
+	    ilk_pipe_pixel_rate(intel_crtc->config) >=
+	    dev_priv->cdclk_freq * 95 / 100) {
+		set_no_fbc_reason(dev_priv, FBC_PIXEL_RATE);
 		goto out_disable;
 	}
 

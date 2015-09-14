@@ -949,6 +949,7 @@ struct i915_fbc {
 		FBC_ROTATION, /* rotation is not supported */
 		FBC_IN_DBG_MASTER, /* kernel debugger is active */
 		FBC_BAD_STRIDE, /* stride is not supported */
+		FBC_PIXEL_RATE, /* pixel rate is too big */
 	} no_fbc_reason;
 
 	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
