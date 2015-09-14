@@ -2444,7 +2444,7 @@ static int remain_on_channel(struct wiphy *wiphy,
 }
 
 /**
- *  @brief      WILC_WFI_cancel_remain_on_channel
+ *  @brief      cancel_remain_on_channel
  *  @details    Cancel an on-going remain-on-channel operation.
  *                      This allows the operation to be terminated prior to timeout based on
  *                      the duration value.
@@ -2456,9 +2456,9 @@ static int remain_on_channel(struct wiphy *wiphy,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int   WILC_WFI_cancel_remain_on_channel(struct wiphy *wiphy,
-					       struct wireless_dev *wdev,
-					       u64 cookie)
+static int cancel_remain_on_channel(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    u64 cookie)
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3588,7 +3588,7 @@ static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
 	.flush_pmksa = flush_pmksa,
 #ifdef WILC_P2P
 	.remain_on_channel = remain_on_channel,
-	.cancel_remain_on_channel = WILC_WFI_cancel_remain_on_channel,
+	.cancel_remain_on_channel = cancel_remain_on_channel,
 	.mgmt_tx_cancel_wait = WILC_WFI_mgmt_tx_cancel_wait,
 	.mgmt_tx = WILC_WFI_mgmt_tx,
 	.mgmt_frame_register = WILC_WFI_frame_register,
