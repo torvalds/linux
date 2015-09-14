@@ -537,27 +537,7 @@ static inline int rcu_read_lock_sched_held(void)
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-/* Deprecate rcu_lockdep_assert():  Use RCU_LOCKDEP_WARN() instead. */
-static inline void __attribute((deprecated)) deprecate_rcu_lockdep_assert(void)
-{
-}
-
 #ifdef CONFIG_PROVE_RCU
-
-/**
- * rcu_lockdep_assert - emit lockdep splat if specified condition not met
- * @c: condition to check
- * @s: informative message
- */
-#define rcu_lockdep_assert(c, s)					\
-	do {								\
-		static bool __section(.data.unlikely) __warned;		\
-		deprecate_rcu_lockdep_assert();				\
-		if (debug_lockdep_rcu_enabled() && !__warned && !(c)) {	\
-			__warned = true;				\
-			lockdep_rcu_suspicious(__FILE__, __LINE__, s);	\
-		}							\
-	} while (0)
 
 /**
  * RCU_LOCKDEP_WARN - emit lockdep splat if specified condition is met
@@ -596,7 +576,6 @@ static inline void rcu_preempt_sleep_check(void)
 
 #else /* #ifdef CONFIG_PROVE_RCU */
 
-#define rcu_lockdep_assert(c, s) deprecate_rcu_lockdep_assert()
 #define RCU_LOCKDEP_WARN(c, s) do { } while (0)
 #define rcu_sleep_check() do { } while (0)
 
