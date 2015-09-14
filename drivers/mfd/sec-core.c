@@ -278,6 +278,8 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 	 * not parsed here.
 	 */
 
+	pd->manual_poweroff = of_property_read_bool(dev->of_node,
+						"samsung,s2mps11-acokb-ground");
 	return pd;
 }
 #else
@@ -440,6 +442,33 @@ static int sec_pmic_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static void sec_pmic_shutdown(struct i2c_client *i2c)
+{
+	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
+	unsigned int reg, mask;
+
+	if (!sec_pmic->pdata->manual_poweroff)
+		return;
+
+	switch (sec_pmic->device_type) {
+	case S2MPS11X:
+		reg = S2MPS11_REG_CTRL1;
+		mask = S2MPS11_CTRL1_PWRHOLD_MASK;
+		break;
+	default:
+		/*
+		 * Currently only one board with S2MPS11 needs this, so just
+		 * ignore the rest.
+		 */
+		dev_warn(sec_pmic->dev,
+			"Unsupported device %lu for manual power off\n",
+			sec_pmic->device_type);
+		return;
+	}
+
+	regmap_update_bits(sec_pmic->regmap_pmic, reg, mask, 0);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int sec_pmic_suspend(struct device *dev)
 {
@@ -491,6 +520,7 @@ static struct i2c_driver sec_pmic_driver = {
 	},
 	.probe = sec_pmic_probe,
 	.remove = sec_pmic_remove,
+	.shutdown = sec_pmic_shutdown,
 	.id_table = sec_pmic_id,
 };
 

@@ -132,6 +132,8 @@ struct sec_platform_data {
 	int				buck2_init;
 	int				buck3_init;
 	int				buck4_init;
+	/* Whether or not manually set PWRHOLD to low during shutdown. */
+	bool				manual_poweroff;
 };
 
 /**
