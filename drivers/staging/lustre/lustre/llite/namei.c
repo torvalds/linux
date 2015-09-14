@@ -409,7 +409,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 {
 	struct inode *inode = NULL;
 	__u64 bits = 0;
-	int rc;
+	int rc = 0;
 
 	/* NB 1 request reference will be taken away by ll_intent_lock()
 	 * when I return */
@@ -439,8 +439,10 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		struct dentry *alias;
 
 		alias = ll_splice_alias(inode, *de);
-		if (IS_ERR(alias))
-			return PTR_ERR(alias);
+		if (IS_ERR(alias)) {
+			rc = PTR_ERR(alias);
+			goto out;
+		}
 		*de = alias;
 	} else if (!it_disposition(it, DISP_LOOKUP_NEG)  &&
 		   !it_disposition(it, DISP_OPEN_CREATE)) {
@@ -471,7 +473,11 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		}
 	}
 
-	return 0;
+out:
+	if (rc != 0 && it->it_op & IT_OPEN)
+		ll_open_cleanup((*de)->d_sb, request);
+
+	return rc;
 }
 
 static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,

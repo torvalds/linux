@@ -1973,6 +1973,47 @@ int ll_remount_fs(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+/**
+ * Cleanup the open handle that is cached on MDT-side.
+ *
+ * For open case, the client side open handling thread may hit error
+ * after the MDT grant the open. Under such case, the client should
+ * send close RPC to the MDT as cleanup; otherwise, the open handle
+ * on the MDT will be leaked there until the client umount or evicted.
+ *
+ * In further, if someone unlinked the file, because the open handle
+ * holds the reference on such file/object, then it will block the
+ * subsequent threads that want to locate such object via FID.
+ *
+ * \param[in] sb	super block for this file-system
+ * \param[in] open_req	pointer to the original open request
+ */
+void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req)
+{
+	struct mdt_body			*body;
+	struct md_op_data		*op_data;
+	struct ptlrpc_request		*close_req = NULL;
+	struct obd_export		*exp	   = ll_s2sbi(sb)->ll_md_exp;
+
+	body = req_capsule_server_get(&open_req->rq_pill, &RMF_MDT_BODY);
+	OBD_ALLOC_PTR(op_data);
+	if (!op_data) {
+		CWARN("%s: cannot allocate op_data to release open handle for "
+		      DFID "\n",
+		      ll_get_fsname(sb, NULL, 0), PFID(&body->fid1));
+
+		return;
+	}
+
+	op_data->op_fid1 = body->fid1;
+	op_data->op_ioepoch = body->ioepoch;
+	op_data->op_handle = body->handle;
+	op_data->op_mod_time = get_seconds();
+	md_close(exp, op_data, NULL, &close_req);
+	ptlrpc_req_finished(close_req);
+	ll_finish_md_op_data(op_data);
+}
+
 int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 		  struct super_block *sb, struct lookup_intent *it)
 {
@@ -1985,7 +2026,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	rc = md_get_lustre_md(sbi->ll_md_exp, req, sbi->ll_dt_exp,
 			      sbi->ll_md_exp, &md);
 	if (rc)
-		return rc;
+		goto cleanup;
 
 	if (*inode) {
 		ll_update_inode(*inode, &md);
@@ -2047,6 +2088,11 @@ out:
 	if (md.lsm != NULL)
 		obd_free_memmd(sbi->ll_dt_exp, &md.lsm);
 	md_free_lustre_md(sbi->ll_md_exp, &md);
+
+cleanup:
+	if (rc != 0 && it && it->it_op & IT_OPEN)
+		ll_open_cleanup(sb ? sb : (*inode)->i_sb, req);
+
 	return rc;
 }
 
