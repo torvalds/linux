@@ -306,8 +306,6 @@ struct obd_import {
 	__u32		     imp_msg_magic;
 	__u32		     imp_msghdr_flags;       /* adjusted based on server capability */
 
-	struct ptlrpc_request_pool *imp_rq_pool;	  /* emergency request pool */
-
 	struct imp_at	     imp_at;		 /* adaptive timeout data */
 	time_t		    imp_last_reply_time;    /* for health check */
 };

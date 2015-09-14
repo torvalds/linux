@@ -1663,7 +1663,6 @@ static void obd_zombie_export_add(struct obd_export *exp)
 static void obd_zombie_import_add(struct obd_import *imp)
 {
 	LASSERT(!imp->imp_sec);
-	LASSERT(!imp->imp_rq_pool);
 	spin_lock(&obd_zombie_impexp_lock);
 	LASSERT(list_empty(&imp->imp_zombie_chain));
 	zombies_count++;

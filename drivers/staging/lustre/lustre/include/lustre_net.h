@@ -500,7 +500,7 @@ struct ptlrpc_request_pool {
 	/** Maximum message size that would fit into a request from this pool */
 	int prp_rq_size;
 	/** Function to allocate more requests for this pool */
-	void (*prp_populate)(struct ptlrpc_request_pool *, int);
+	int (*prp_populate)(struct ptlrpc_request_pool *, int);
 };
 
 struct lu_context;
@@ -2381,11 +2381,11 @@ void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
 			    struct ptlrpc_request *req);
 
 void ptlrpc_free_rq_pool(struct ptlrpc_request_pool *pool);
-void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq);
+int ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq);
 
 struct ptlrpc_request_pool *
 ptlrpc_init_rq_pool(int, int,
-		    void (*populate_pool)(struct ptlrpc_request_pool *, int));
+		    int (*populate_pool)(struct ptlrpc_request_pool *, int));
 
 void ptlrpc_at_set_req_timeout(struct ptlrpc_request *req);
 struct ptlrpc_request *ptlrpc_request_alloc(struct obd_import *imp,
@@ -2957,7 +2957,6 @@ void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes);
 
 /* ptlrpc/llog_client.c */
 extern struct llog_operations llog_client_ops;
-
 /** @} net */
 
 #endif

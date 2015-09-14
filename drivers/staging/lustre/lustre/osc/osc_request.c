@@ -50,8 +50,17 @@
 #include "../include/lustre_param.h"
 #include "../include/lustre_fid.h"
 #include "../include/obd_class.h"
+#include "../include/obd.h"
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
+
+atomic_t osc_pool_req_count;
+unsigned int osc_reqpool_maxreqcount;
+struct ptlrpc_request_pool *osc_rq_pool;
+
+/* max memory used for request pool, unit is MB */
+static unsigned int osc_reqpool_mem_max = 5;
+module_param(osc_reqpool_mem_max, uint, 0444);
 
 struct osc_brw_async_args {
 	struct obdo       *aa_oa;
@@ -1268,7 +1277,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	if ((cmd & OBD_BRW_WRITE) != 0) {
 		opc = OST_WRITE;
 		req = ptlrpc_request_alloc_pool(cli->cl_import,
-						cli->cl_import->imp_rq_pool,
+						osc_rq_pool,
 						&RQF_OST_BRW_WRITE);
 	} else {
 		opc = OST_READ;
@@ -3163,6 +3172,9 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct client_obd *cli = &obd->u.cli;
 	void *handler;
 	int rc;
+	int adding;
+	int added;
+	int req_count;
 
 	rc = ptlrpcd_addref();
 	if (rc)
@@ -3191,15 +3203,20 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		ptlrpc_lprocfs_register_obd(obd);
 	}
 
-	/* We need to allocate a few requests more, because
-	 * brw_interpret tries to create new requests before freeing
-	 * previous ones, Ideally we want to have 2x max_rpcs_in_flight
-	 * reserved, but I'm afraid that might be too much wasted RAM
-	 * in fact, so 2 is just my guess and still should work. */
-	cli->cl_import->imp_rq_pool =
-		ptlrpc_init_rq_pool(cli->cl_max_rpcs_in_flight + 2,
-				    OST_MAXREQSIZE,
-				    ptlrpc_add_rqs_to_pool);
+	/*
+	 * We try to control the total number of requests with a upper limit
+	 * osc_reqpool_maxreqcount. There might be some race which will cause
+	 * over-limit allocation, but it is fine.
+	 */
+	req_count = atomic_read(&osc_pool_req_count);
+	if (req_count < osc_reqpool_maxreqcount) {
+		adding = cli->cl_max_rpcs_in_flight + 2;
+		if (req_count + adding > osc_reqpool_maxreqcount)
+			adding = osc_reqpool_maxreqcount - req_count;
+
+		added = ptlrpc_add_rqs_to_pool(osc_rq_pool, adding);
+		atomic_add(added, &osc_pool_req_count);
+	}
 
 	INIT_LIST_HEAD(&cli->cl_grant_shrink_list);
 	ns_register_cancel(obd->obd_namespace, osc_cancel_for_recovery);
@@ -3339,6 +3356,8 @@ extern struct lock_class_key osc_ast_guard_class;
 static int __init osc_init(void)
 {
 	struct lprocfs_static_vars lvars = { NULL };
+	unsigned int reqpool_size;
+	unsigned int reqsize;
 	int rc;
 
 	/* print an address of _any_ initialized kernel symbol from this
@@ -3354,14 +3373,45 @@ static int __init osc_init(void)
 
 	rc = class_register_type(&osc_obd_ops, NULL,
 				 LUSTRE_OSC_NAME, &osc_device_type);
-	if (rc) {
-		lu_kmem_fini(osc_caches);
-		return rc;
-	}
+	if (rc)
+		goto out_kmem;
 
 	spin_lock_init(&osc_ast_guard);
 	lockdep_set_class(&osc_ast_guard, &osc_ast_guard_class);
 
+	/* This is obviously too much memory, only prevent overflow here */
+	if (osc_reqpool_mem_max >= 1 << 12 || osc_reqpool_mem_max == 0) {
+		rc = -EINVAL;
+		goto out_type;
+	}
+
+	reqpool_size = osc_reqpool_mem_max << 20;
+
+	reqsize = 1;
+	while (reqsize < OST_MAXREQSIZE)
+		reqsize = reqsize << 1;
+
+	/*
+	 * We don't enlarge the request count in OSC pool according to
+	 * cl_max_rpcs_in_flight. The allocation from the pool will only be
+	 * tried after normal allocation failed. So a small OSC pool won't
+	 * cause much performance degression in most of cases.
+	 */
+	osc_reqpool_maxreqcount = reqpool_size / reqsize;
+
+	atomic_set(&osc_pool_req_count, 0);
+	osc_rq_pool = ptlrpc_init_rq_pool(0, OST_MAXREQSIZE,
+					  ptlrpc_add_rqs_to_pool);
+
+	if (osc_rq_pool)
+		return 0;
+
+	rc = -ENOMEM;
+
+out_type:
+	class_unregister_type(LUSTRE_OSC_NAME);
+out_kmem:
+	lu_kmem_fini(osc_caches);
 	return rc;
 }
 
@@ -3369,6 +3419,7 @@ static void /*__exit*/ osc_exit(void)
 {
 	class_unregister_type(LUSTRE_OSC_NAME);
 	lu_kmem_fini(osc_caches);
+	ptlrpc_free_rq_pool(osc_rq_pool);
 }
 
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");

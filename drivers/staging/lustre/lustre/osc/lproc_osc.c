@@ -96,9 +96,9 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct client_obd *cli = &dev->u.cli;
-	struct ptlrpc_request_pool *pool = cli->cl_import->imp_rq_pool;
 	int rc;
 	unsigned long val;
+	int adding, added, req_count;
 
 	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
@@ -107,8 +107,19 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	if (val < 1 || val > OSC_MAX_RIF_MAX)
 		return -ERANGE;
 
-	if (pool && val > cli->cl_max_rpcs_in_flight)
-		pool->prp_populate(pool, val-cli->cl_max_rpcs_in_flight);
+	adding = val - cli->cl_max_rpcs_in_flight;
+	req_count = atomic_read(&osc_pool_req_count);
+	if (adding > 0 && req_count < osc_reqpool_maxreqcount) {
+		/*
+		 * There might be some race which will cause over-limit
+		 * allocation, but it is fine.
+		 */
+		if (req_count + adding > osc_reqpool_maxreqcount)
+			adding = osc_reqpool_maxreqcount - req_count;
+
+		added = osc_rq_pool->prp_populate(osc_rq_pool, adding);
+		atomic_add(added, &osc_pool_req_count);
+	}
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_rpcs_in_flight = val;
