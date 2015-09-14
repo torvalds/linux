@@ -277,7 +277,7 @@ static void gen7_fbc_enable(struct intel_crtc *crtc)
 		I915_WRITE(ILK_DISPLAY_CHICKEN1,
 			   I915_READ(ILK_DISPLAY_CHICKEN1) |
 			   ILK_FBCQ_DIS);
-	} else {
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
 		I915_WRITE(CHICKEN_PIPESL_1(crtc->pipe),
 			   I915_READ(CHICKEN_PIPESL_1(crtc->pipe)) |
