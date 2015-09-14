@@ -74,11 +74,11 @@ module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
-static void store_vblank(struct drm_device *dev, int crtc,
+static void store_vblank(struct drm_device *dev, unsigned int pipe,
 			 u32 vblank_count_inc,
 			 struct timeval *t_vblank)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	u32 tslot;
 
 	assert_spin_locked(&dev->vblank_time_lock);
@@ -88,7 +88,7 @@ static void store_vblank(struct drm_device *dev, int crtc,
 		 * the latching of vblank->count below.
 		 */
 		tslot = vblank->count + vblank_count_inc;
-		vblanktimestamp(dev, crtc, tslot) = *t_vblank;
+		vblanktimestamp(dev, pipe, tslot) = *t_vblank;
 	}
 
 	/*
@@ -110,7 +110,7 @@ static void store_vblank(struct drm_device *dev, int crtc,
  * @pipe: counter to update
  *
  * Call back into the driver to update the appropriate vblank counter
- * (specified by @crtc).  Deal with wraparound, if it occurred, and
+ * (specified by @pipe).  Deal with wraparound, if it occurred, and
  * update the last read value so we can deal with wraparound on the next
  * call if necessary.
  *
@@ -1154,8 +1154,8 @@ EXPORT_SYMBOL(drm_crtc_vblank_put);
  * @dev: DRM device
  * @pipe: CRTC index
  *
- * This waits for one vblank to pass on @crtc, using the irq driver interfaces.
- * It is a failure to call this when the vblank irq for @crtc is disabled, e.g.
+ * This waits for one vblank to pass on @pipe, using the irq driver interfaces.
+ * It is a failure to call this when the vblank irq for @pipe is disabled, e.g.
  * due to lack of driver support or because the crtc is off.
  */
 void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
@@ -1288,8 +1288,8 @@ void drm_crtc_vblank_reset(struct drm_crtc *drm_crtc)
 {
 	struct drm_device *dev = drm_crtc->dev;
 	unsigned long irqflags;
-	int crtc = drm_crtc_index(drm_crtc);
-	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
+	unsigned int pipe = drm_crtc_index(drm_crtc);
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/*
