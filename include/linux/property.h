@@ -40,6 +40,8 @@ int device_property_read_string_array(struct device *dev, const char *propname,
 				      const char **val, size_t nval);
 int device_property_read_string(struct device *dev, const char *propname,
 				const char **val);
+int device_property_match_string(struct device *dev,
+				 const char *propname, const char *string);
 
 bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname);
 int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,
@@ -59,6 +61,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 				      size_t nval);
 int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val);
+int fwnode_property_match_string(struct fwnode_handle *fwnode,
+				 const char *propname, const char *string);
 
 struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child);
