@@ -143,7 +143,7 @@ static int ep_pair_in_use(struct es1_ap_dev *es1, int ep_pair)
 	return 0;
 }
 
-int map_cport_to_ep(struct es1_ap_dev *es1,
+static int map_cport_to_ep(struct es1_ap_dev *es1,
 				u16 cport_id, int ep_pair)
 {
 	int retval;
@@ -180,7 +180,7 @@ int map_cport_to_ep(struct es1_ap_dev *es1,
 	return retval;
 }
 
-int unmap_cport(struct es1_ap_dev *es1, u16 cport_id)
+static int unmap_cport(struct es1_ap_dev *es1, u16 cport_id)
 {
 	return map_cport_to_ep(es1, cport_id, 0);
 }
