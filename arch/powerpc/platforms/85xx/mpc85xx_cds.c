@@ -192,9 +192,10 @@ void mpc85xx_cds_fixup_bus(struct pci_bus *bus)
 }
 
 #ifdef CONFIG_PPC_I8259
-static void mpc85xx_8259_cascade_handler(unsigned int irq,
+static void mpc85xx_8259_cascade_handler(unsigned int __irq,
 					 struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ)
