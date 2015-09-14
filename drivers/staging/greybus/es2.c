@@ -108,6 +108,12 @@ struct es1_ap_dev {
 	int *cport_to_ep;
 };
 
+/**
+ * cport_to_ep - information about cport to endpoints mapping
+ * @cport_id: the id of cport to map to endpoints
+ * @endpoint_in: the endpoint number to use for in transfer
+ * @endpoint_out: he endpoint number to use for out transfer
+ */
 struct cport_to_ep {
 	__le16 cport_id;
 	__u8 endpoint_in;
@@ -123,6 +129,7 @@ static void cport_out_callback(struct urb *urb);
 static void usb_log_enable(struct es1_ap_dev *es1);
 static void usb_log_disable(struct es1_ap_dev *es1);
 
+/* Get the endpoints pair mapped to the cport */
 static int cport_to_ep_pair(struct es1_ap_dev *es1, u16 cport_id)
 {
 	if (cport_id >= es1->hd->num_cports)
@@ -132,6 +139,7 @@ static int cport_to_ep_pair(struct es1_ap_dev *es1, u16 cport_id)
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
 
+/* Test if the endpoints pair is already mapped to a cport */
 static int ep_pair_in_use(struct es1_ap_dev *es1, int ep_pair)
 {
 	int i;
@@ -143,6 +151,7 @@ static int ep_pair_in_use(struct es1_ap_dev *es1, int ep_pair)
 	return 0;
 }
 
+/* Configure the endpoint mapping and send the request to APBridge */
 static int map_cport_to_ep(struct es1_ap_dev *es1,
 				u16 cport_id, int ep_pair)
 {
@@ -180,6 +189,7 @@ static int map_cport_to_ep(struct es1_ap_dev *es1,
 	return retval;
 }
 
+/* Unmap a cport: use the muxed endpoints pair */
 static int unmap_cport(struct es1_ap_dev *es1, u16 cport_id)
 {
 	return map_cport_to_ep(es1, cport_id, 0);
