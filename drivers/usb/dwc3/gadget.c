@@ -1072,6 +1072,22 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	list_add_tail(&req->list, &dep->request_list);
 
 	/*
+	 * If there are no pending requests and the endpoint isn't already
+	 * busy, we will just start the request straight away.
+	 *
+	 * This will save one IRQ (XFER_NOT_READY) and possibly make it a
+	 * little bit faster.
+	 */
+	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+			!(dep->flags & DWC3_EP_BUSY)) {
+		ret = __dwc3_gadget_kick_transfer(dep, 0, true);
+		if (ret && ret != -EBUSY)
+			dev_dbg(dwc->dev, "%s: failed to kick transfers\n",
+					dep->name);
+		return ret;
+	}
+
+	/*
 	 * There are a few special cases:
 	 *
 	 * 1. XferNotReady with empty list of requests. We need to kick the
