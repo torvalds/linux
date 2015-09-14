@@ -347,7 +347,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	int tsc_irq;
 	int adc_irq;
 
-	tsc = devm_kzalloc(&pdev->dev, sizeof(struct imx6ul_tsc), GFP_KERNEL);
+	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
 	if (!tsc)
 		return -ENOMEM;
 
