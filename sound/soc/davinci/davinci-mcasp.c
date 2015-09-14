@@ -663,7 +663,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	u8 rx_ser = 0;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
-	int active_serializers, numevt, n;
+	int active_serializers, numevt;
 	u32 reg;
 	/* Default configuration */
 	if (mcasp->version < MCASP_VERSION_3)
@@ -745,9 +745,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	 * The number of words for numevt need to be in steps of active
 	 * serializers.
 	 */
-	n = numevt % active_serializers;
-	if (n)
-		numevt += (active_serializers - n);
+	numevt = (numevt / active_serializers) * active_serializers;
+
 	while (period_words % numevt && numevt > 0)
 		numevt -= active_serializers;
 	if (numevt <= 0)
