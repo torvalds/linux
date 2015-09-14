@@ -864,21 +864,18 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 				    gb_dev.root, &gb_dev,
 				    &gb_loopback_debugfs_dev_latency_ops);
 		retval = sysfs_create_groups(kobj, loopback_dev_groups);
-		if (retval) {
-			mutex_unlock(&gb_dev.mutex);
+		if (retval)
 			goto out_sysfs;
-		}
+
 		/* Calculate maximum payload */
 		gb_dev.size_max = gb_operation_get_payload_size_max(connection);
 		if (gb_dev.size_max <=
 			sizeof(struct gb_loopback_transfer_request)) {
 			retval = -EINVAL;
-			mutex_unlock(&gb_dev.mutex);
 			goto out_sysfs;
 		}
 		gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
 	}
-	mutex_unlock(&gb_dev.mutex);
 
 	/* Create per-connection sysfs and debugfs data-points */
 	snprintf(name, sizeof(name), "raw_latency_endo0:%d:%d:%d:%d",
@@ -916,10 +913,9 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		goto out_kfifo1;
 	}
 
-	mutex_lock(&gb_dev.mutex);
 	list_add_tail(&gb->entry, &gb_dev.list);
-	mutex_unlock(&gb_dev.mutex);
 	gb_dev.count++;
+	mutex_unlock(&gb_dev.mutex);
 	return 0;
 
 out_kfifo1:
@@ -934,6 +930,7 @@ out_sysfs_dev:
 	debugfs_remove(gb->file);
 	connection->private = NULL;
 out_sysfs:
+	mutex_unlock(&gb_dev.mutex);
 	kfree(gb);
 
 	return retval;
