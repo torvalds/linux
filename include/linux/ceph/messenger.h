@@ -8,6 +8,7 @@
 #include <linux/radix-tree.h>
 #include <linux/uio.h>
 #include <linux/workqueue.h>
+#include <net/net_namespace.h>
 
 #include <linux/ceph/types.h>
 #include <linux/ceph/buffer.h>
@@ -56,6 +57,7 @@ struct ceph_messenger {
 	struct ceph_entity_addr my_enc_addr;
 
 	atomic_t stopping;
+	possible_net_t net;
 	bool nocrc;
 	bool tcp_nodelay;
 
@@ -246,6 +248,8 @@ struct ceph_connection {
 	int in_base_pos;     /* bytes read */
 	__le64 in_temp_ack;  /* for reading an ack */
 
+	struct timespec last_keepalive_ack;
+
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
 };
@@ -267,6 +271,7 @@ extern void ceph_messenger_init(struct ceph_messenger *msgr,
 			u64 required_features,
 			bool nocrc,
 			bool tcp_nodelay);
+extern void ceph_messenger_fini(struct ceph_messenger *msgr);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,
 			const struct ceph_connection_operations *ops,
@@ -282,6 +287,8 @@ extern void ceph_msg_revoke(struct ceph_msg *msg);
 extern void ceph_msg_revoke_incoming(struct ceph_msg *msg);
 
 extern void ceph_con_keepalive(struct ceph_connection *con);
+extern bool ceph_con_keepalive_expired(struct ceph_connection *con,
+				       unsigned long interval);
 
 extern void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 				size_t length, size_t alignment);

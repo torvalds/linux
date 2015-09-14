@@ -82,6 +82,9 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+        bool
+
 config PPC
 	bool
 	default y
@@ -155,6 +158,8 @@ config PPC
 	select HAVE_PERF_EVENTS_NMI if PPC64
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
+	select HAVE_ARCH_SECCOMP_FILTER
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -415,6 +420,7 @@ config PPC64_SUPPORTS_MEMORY_FAILURE
 config KEXEC
 	bool "kexec system call"
 	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP))
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -514,11 +520,6 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
-config PPC_HAS_HASH_64K
-	bool
-	depends on PPC64
-	default n
-
 config STDBINUTILS
 	bool "Using standard binutils settings"
 	depends on 44x
@@ -560,16 +561,16 @@ config PPC_4K_PAGES
 	bool "4k page size"
 
 config PPC_16K_PAGES
-	bool "16k page size" if 44x || PPC_8xx
+	bool "16k page size"
+	depends on 44x || PPC_8xx
 
 config PPC_64K_PAGES
-	bool "64k page size" if 44x || PPC_STD_MMU_64 || PPC_BOOK3E_64
-	depends on !PPC_FSL_BOOK3E
-	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
+	bool "64k page size"
+	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
 
 config PPC_256K_PAGES
-	bool "256k page size" if 44x
-	depends on !STDBINUTILS
+	bool "256k page size"
+	depends on 44x && !STDBINUTILS
 	help
 	  Make the page size 256k.
 

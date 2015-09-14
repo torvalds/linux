@@ -440,14 +440,6 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 		       q->limits.alignment_offset,
 		       (unsigned long long) start << SECTOR_SHIFT);
 
-	/*
-	 * Check if merge fn is supported.
-	 * If not we'll force DM to use PAGE_SIZE or
-	 * smaller I/O, just to be safe.
-	 */
-	if (dm_queue_merge_is_compulsory(q) && !ti->type->merge)
-		blk_limits_max_hw_sectors(limits,
-					  (unsigned int) (PAGE_SIZE >> 9));
 	return 0;
 }
 
@@ -1388,14 +1380,6 @@ static int queue_supports_sg_merge(struct dm_target *ti, struct dm_dev *dev,
 	return q && !test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags);
 }
 
-static int queue_supports_sg_gaps(struct dm_target *ti, struct dm_dev *dev,
-				  sector_t start, sector_t len, void *data)
-{
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-
-	return q && !test_bit(QUEUE_FLAG_SG_GAPS, &q->queue_flags);
-}
-
 static bool dm_table_all_devices_attribute(struct dm_table *t,
 					   iterate_devices_callout_fn func)
 {
@@ -1515,11 +1499,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		queue_flag_clear_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
-
-	if (dm_table_all_devices_attribute(t, queue_supports_sg_gaps))
-		queue_flag_clear_unlocked(QUEUE_FLAG_SG_GAPS, q);
-	else
-		queue_flag_set_unlocked(QUEUE_FLAG_SG_GAPS, q);
 
 	dm_table_set_integrity(t);
 

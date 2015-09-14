@@ -32,17 +32,6 @@
 
 static struct ctl_table_header *lnet_table_header;
 
-#define CTL_LNET	 (0x100)
-enum {
-	PSDEV_LNET_STATS = 100,
-	PSDEV_LNET_ROUTES,
-	PSDEV_LNET_ROUTERS,
-	PSDEV_LNET_PEERS,
-	PSDEV_LNET_BUFFERS,
-	PSDEV_LNET_NIS,
-	PSDEV_LNET_PTL_ROTOR,
-};
-
 #define LNET_LOFFT_BITS		(sizeof(loff_t) * 8)
 /*
  * NB: max allowed LNET_CPT_BITS is 8 on 64-bit system and 2 on 32-bit system

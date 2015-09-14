@@ -88,7 +88,7 @@
 #define VERS_MAXTL	_AC(0x000000000000ff00,UL) /* Max Trap Level.	*/
 #define VERS_MAXWIN	_AC(0x000000000000001f,UL) /* Max RegWindow Idx.*/
 
-/* Compatability Feature Register (%asr26), SPARC-T4 and later  */
+/* Compatibility Feature Register (%asr26), SPARC-T4 and later  */
 #define CFR_AES		_AC(0x0000000000000001,UL) /* Supports AES opcodes     */
 #define CFR_DES		_AC(0x0000000000000002,UL) /* Supports DES opcodes     */
 #define CFR_KASUMI	_AC(0x0000000000000004,UL) /* Supports KASUMI opcodes  */

@@ -133,5 +133,6 @@ void tipc_bclink_wakeup_users(struct net *net);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 void tipc_bclink_input(struct net *net);
+void tipc_bclink_sync_state(struct tipc_node *n, struct tipc_msg *msg);
 
 #endif

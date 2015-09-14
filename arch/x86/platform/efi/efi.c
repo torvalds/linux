@@ -650,7 +650,7 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 
 static void __init save_runtime_map(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	void *tmp, *p, *q = NULL;
 	int count = 0;
@@ -748,7 +748,7 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 
 static void __init kexec_enter_virtual_mode(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	void *p;
 
@@ -972,6 +972,11 @@ u64 efi_mem_attributes(unsigned long phys_addr)
 
 static int __init arch_parse_efi_cmdline(char *str)
 {
+	if (!str) {
+		pr_warn("need at least one option\n");
+		return -EINVAL;
+	}
+
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
 	if (parse_option_str(str, "debug"))

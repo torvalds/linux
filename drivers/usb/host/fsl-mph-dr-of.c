@@ -69,6 +69,8 @@ static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 		return FSL_USB2_PHY_UTMI;
 	if (!strcasecmp(phy_type, "utmi_wide"))
 		return FSL_USB2_PHY_UTMI_WIDE;
+	if (!strcasecmp(phy_type, "utmi_dual"))
+		return FSL_USB2_PHY_UTMI_DUAL;
 	if (!strcasecmp(phy_type, "serial"))
 		return FSL_USB2_PHY_SERIAL;
 
@@ -119,9 +121,9 @@ error:
 
 static const struct of_device_id fsl_usb2_mph_dr_of_match[];
 
-static int usb_get_ver_info(struct device_node *np)
+static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
 {
-	int ver = -1;
+	enum fsl_usb2_controller_ver ver = FSL_USB_VER_NONE;
 
 	/*
 	 * returns 1 for usb controller version 1.6
@@ -142,7 +144,7 @@ static int usb_get_ver_info(struct device_node *np)
 		else /* for previous controller versions */
 			ver = FSL_USB_VER_OLD;
 
-		if (ver > -1)
+		if (ver > FSL_USB_VER_NONE)
 			return ver;
 	}
 
@@ -214,8 +216,27 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	pdata->phy_mode = determine_usb_phy(prop);
 	pdata->controller_ver = usb_get_ver_info(np);
 
+	/* Activate Erratum by reading property in device tree */
+	if (of_get_property(np, "fsl,usb-erratum-a007792", NULL))
+		pdata->has_fsl_erratum_a007792 = 1;
+	else
+		pdata->has_fsl_erratum_a007792 = 0;
+	if (of_get_property(np, "fsl,usb-erratum-a005275", NULL))
+		pdata->has_fsl_erratum_a005275 = 1;
+	else
+		pdata->has_fsl_erratum_a005275 = 0;
+
+	/*
+	 * Determine whether phy_clk_valid needs to be checked
+	 * by reading property in device tree
+	 */
+	if (of_get_property(np, "phy-clk-valid", NULL))
+		pdata->check_phy_clk_valid = 1;
+	else
+		pdata->check_phy_clk_valid = 0;
+
 	if (pdata->have_sysif_regs) {
-		if (pdata->controller_ver < 0) {
+		if (pdata->controller_ver == FSL_USB_VER_NONE) {
 			dev_warn(&ofdev->dev, "Could not get controller version\n");
 			return -ENODEV;
 		}

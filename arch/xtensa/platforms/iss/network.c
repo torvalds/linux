@@ -105,13 +105,17 @@ static char *split_if_spec(char *str, ...)
 
 	va_start(ap, str);
 	while ((arg = va_arg(ap, char**)) != NULL) {
-		if (*str == '\0')
+		if (*str == '\0') {
+			va_end(ap);
 			return NULL;
+		}
 		end = strchr(str, ',');
 		if (end != str)
 			*arg = str;
-		if (end == NULL)
+		if (end == NULL) {
+			va_end(ap);
 			return NULL;
+		}
 		*end++ = '\0';
 		str = end;
 	}

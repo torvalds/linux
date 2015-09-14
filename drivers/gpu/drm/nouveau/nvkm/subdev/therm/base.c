@@ -23,21 +23,26 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
+int
+nvkm_therm_temp_get(struct nvkm_therm *therm)
+{
+	if (therm->func->temp_get)
+		return therm->func->temp_get(therm);
+	return -ENODEV;
+}
 
 static int
 nvkm_therm_update_trip(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	struct nvbios_therm_trip_point *trip = priv->fan->bios.trip,
+	struct nvbios_therm_trip_point *trip = therm->fan->bios.trip,
 				       *cur_trip = NULL,
-				       *last_trip = priv->last_trip;
-	u8  temp = therm->temp_get(therm);
+				       *last_trip = therm->last_trip;
+	u8  temp = therm->func->temp_get(therm);
 	u16 duty, i;
 
 	/* look for the trip point corresponding to the current temperature */
 	cur_trip = NULL;
-	for (i = 0; i < priv->fan->bios.nr_fan_trip; i++) {
+	for (i = 0; i < therm->fan->bios.nr_fan_trip; i++) {
 		if (temp >= trip[i].temp)
 			cur_trip = &trip[i];
 	}
@@ -49,10 +54,10 @@ nvkm_therm_update_trip(struct nvkm_therm *therm)
 
 	if (cur_trip) {
 		duty = cur_trip->fan_duty;
-		priv->last_trip = cur_trip;
+		therm->last_trip = cur_trip;
 	} else {
 		duty = 0;
-		priv->last_trip = NULL;
+		therm->last_trip = NULL;
 	}
 
 	return duty;
@@ -61,51 +66,50 @@ nvkm_therm_update_trip(struct nvkm_therm *therm)
 static int
 nvkm_therm_update_linear(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	u8  linear_min_temp = priv->fan->bios.linear_min_temp;
-	u8  linear_max_temp = priv->fan->bios.linear_max_temp;
-	u8  temp = therm->temp_get(therm);
+	u8  linear_min_temp = therm->fan->bios.linear_min_temp;
+	u8  linear_max_temp = therm->fan->bios.linear_max_temp;
+	u8  temp = therm->func->temp_get(therm);
 	u16 duty;
 
 	/* handle the non-linear part first */
 	if (temp < linear_min_temp)
-		return priv->fan->bios.min_duty;
+		return therm->fan->bios.min_duty;
 	else if (temp > linear_max_temp)
-		return priv->fan->bios.max_duty;
+		return therm->fan->bios.max_duty;
 
 	/* we are in the linear zone */
 	duty  = (temp - linear_min_temp);
-	duty *= (priv->fan->bios.max_duty - priv->fan->bios.min_duty);
+	duty *= (therm->fan->bios.max_duty - therm->fan->bios.min_duty);
 	duty /= (linear_max_temp - linear_min_temp);
-	duty += priv->fan->bios.min_duty;
+	duty += therm->fan->bios.min_duty;
 	return duty;
 }
 
 static void
 nvkm_therm_update(struct nvkm_therm *therm, int mode)
 {
-	struct nvkm_timer *ptimer = nvkm_timer(therm);
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_subdev *subdev = &therm->subdev;
+	struct nvkm_timer *tmr = subdev->device->timer;
 	unsigned long flags;
 	bool immd = true;
 	bool poll = true;
 	int duty = -1;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&therm->lock, flags);
 	if (mode < 0)
-		mode = priv->mode;
-	priv->mode = mode;
+		mode = therm->mode;
+	therm->mode = mode;
 
 	switch (mode) {
 	case NVKM_THERM_CTRL_MANUAL:
-		ptimer->alarm_cancel(ptimer, &priv->alarm);
+		nvkm_timer_alarm_cancel(tmr, &therm->alarm);
 		duty = nvkm_therm_fan_get(therm);
 		if (duty < 0)
 			duty = 100;
 		poll = false;
 		break;
 	case NVKM_THERM_CTRL_AUTO:
-		switch(priv->fan->bios.fan_mode) {
+		switch(therm->fan->bios.fan_mode) {
 		case NVBIOS_THERM_FAN_TRIP:
 			duty = nvkm_therm_update_trip(therm);
 			break;
@@ -113,8 +117,8 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 			duty = nvkm_therm_update_linear(therm);
 			break;
 		case NVBIOS_THERM_FAN_OTHER:
-			if (priv->cstate)
-				duty = priv->cstate;
+			if (therm->cstate)
+				duty = therm->cstate;
 			poll = false;
 			break;
 		}
@@ -122,29 +126,29 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 		break;
 	case NVKM_THERM_CTRL_NONE:
 	default:
-		ptimer->alarm_cancel(ptimer, &priv->alarm);
+		nvkm_timer_alarm_cancel(tmr, &therm->alarm);
 		poll = false;
 	}
 
-	if (list_empty(&priv->alarm.head) && poll)
-		ptimer->alarm(ptimer, 1000000000ULL, &priv->alarm);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	if (list_empty(&therm->alarm.head) && poll)
+		nvkm_timer_alarm(tmr, 1000000000ULL, &therm->alarm);
+	spin_unlock_irqrestore(&therm->lock, flags);
 
 	if (duty >= 0) {
-		nv_debug(therm, "FAN target request: %d%%\n", duty);
+		nvkm_debug(subdev, "FAN target request: %d%%\n", duty);
 		nvkm_therm_fan_set(therm, immd, duty);
 	}
 }
 
 int
-nvkm_therm_cstate(struct nvkm_therm *ptherm, int fan, int dir)
+nvkm_therm_cstate(struct nvkm_therm *therm, int fan, int dir)
 {
-	struct nvkm_therm_priv *priv = (void *)ptherm;
-	if (!dir || (dir < 0 && fan < priv->cstate) ||
-		    (dir > 0 && fan > priv->cstate)) {
-		nv_debug(ptherm, "default fan speed -> %d%%\n", fan);
-		priv->cstate = fan;
-		nvkm_therm_update(ptherm, -1);
+	struct nvkm_subdev *subdev = &therm->subdev;
+	if (!dir || (dir < 0 && fan < therm->cstate) ||
+		    (dir > 0 && fan > therm->cstate)) {
+		nvkm_debug(subdev, "default fan speed -> %d%%\n", fan);
+		therm->cstate = fan;
+		nvkm_therm_update(therm, -1);
 	}
 	return 0;
 }
@@ -152,16 +156,16 @@ nvkm_therm_cstate(struct nvkm_therm *ptherm, int fan, int dir)
 static void
 nvkm_therm_alarm(struct nvkm_alarm *alarm)
 {
-	struct nvkm_therm_priv *priv =
-	       container_of(alarm, struct nvkm_therm_priv, alarm);
-	nvkm_therm_update(&priv->base, -1);
+	struct nvkm_therm *therm =
+	       container_of(alarm, struct nvkm_therm, alarm);
+	nvkm_therm_update(therm, -1);
 }
 
 int
 nvkm_therm_fan_mode(struct nvkm_therm *therm, int mode)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-	struct nvkm_device *device = nv_device(therm);
+	struct nvkm_subdev *subdev = &therm->subdev;
+	struct nvkm_device *device = subdev->device;
 	static const char *name[] = {
 		"disabled",
 		"manual",
@@ -171,51 +175,49 @@ nvkm_therm_fan_mode(struct nvkm_therm *therm, int mode)
 	/* The default PPWR ucode on fermi interferes with fan management */
 	if ((mode >= ARRAY_SIZE(name)) ||
 	    (mode != NVKM_THERM_CTRL_NONE && device->card_type >= NV_C0 &&
-	     !nvkm_subdev(device, NVDEV_SUBDEV_PMU)))
+	     !device->pmu))
 		return -EINVAL;
 
 	/* do not allow automatic fan management if the thermal sensor is
 	 * not available */
-	if (mode == NVKM_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
+	if (mode == NVKM_THERM_CTRL_AUTO &&
+	    therm->func->temp_get(therm) < 0)
 		return -EINVAL;
 
-	if (priv->mode == mode)
+	if (therm->mode == mode)
 		return 0;
 
-	nv_info(therm, "fan management: %s\n", name[mode]);
+	nvkm_debug(subdev, "fan management: %s\n", name[mode]);
 	nvkm_therm_update(therm, mode);
 	return 0;
 }
 
 int
-nvkm_therm_attr_get(struct nvkm_therm *therm,
-		       enum nvkm_therm_attr_type type)
+nvkm_therm_attr_get(struct nvkm_therm *therm, enum nvkm_therm_attr_type type)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-
 	switch (type) {
 	case NVKM_THERM_ATTR_FAN_MIN_DUTY:
-		return priv->fan->bios.min_duty;
+		return therm->fan->bios.min_duty;
 	case NVKM_THERM_ATTR_FAN_MAX_DUTY:
-		return priv->fan->bios.max_duty;
+		return therm->fan->bios.max_duty;
 	case NVKM_THERM_ATTR_FAN_MODE:
-		return priv->mode;
+		return therm->mode;
 	case NVKM_THERM_ATTR_THRS_FAN_BOOST:
-		return priv->bios_sensor.thrs_fan_boost.temp;
+		return therm->bios_sensor.thrs_fan_boost.temp;
 	case NVKM_THERM_ATTR_THRS_FAN_BOOST_HYST:
-		return priv->bios_sensor.thrs_fan_boost.hysteresis;
+		return therm->bios_sensor.thrs_fan_boost.hysteresis;
 	case NVKM_THERM_ATTR_THRS_DOWN_CLK:
-		return priv->bios_sensor.thrs_down_clock.temp;
+		return therm->bios_sensor.thrs_down_clock.temp;
 	case NVKM_THERM_ATTR_THRS_DOWN_CLK_HYST:
-		return priv->bios_sensor.thrs_down_clock.hysteresis;
+		return therm->bios_sensor.thrs_down_clock.hysteresis;
 	case NVKM_THERM_ATTR_THRS_CRITICAL:
-		return priv->bios_sensor.thrs_critical.temp;
+		return therm->bios_sensor.thrs_critical.temp;
 	case NVKM_THERM_ATTR_THRS_CRITICAL_HYST:
-		return priv->bios_sensor.thrs_critical.hysteresis;
+		return therm->bios_sensor.thrs_critical.hysteresis;
 	case NVKM_THERM_ATTR_THRS_SHUTDOWN:
-		return priv->bios_sensor.thrs_shutdown.temp;
+		return therm->bios_sensor.thrs_shutdown.temp;
 	case NVKM_THERM_ATTR_THRS_SHUTDOWN_HYST:
-		return priv->bios_sensor.thrs_shutdown.hysteresis;
+		return therm->bios_sensor.thrs_shutdown.hysteresis;
 	}
 
 	return -EINVAL;
@@ -225,143 +227,156 @@ int
 nvkm_therm_attr_set(struct nvkm_therm *therm,
 		    enum nvkm_therm_attr_type type, int value)
 {
-	struct nvkm_therm_priv *priv = (void *)therm;
-
 	switch (type) {
 	case NVKM_THERM_ATTR_FAN_MIN_DUTY:
 		if (value < 0)
 			value = 0;
-		if (value > priv->fan->bios.max_duty)
-			value = priv->fan->bios.max_duty;
-		priv->fan->bios.min_duty = value;
+		if (value > therm->fan->bios.max_duty)
+			value = therm->fan->bios.max_duty;
+		therm->fan->bios.min_duty = value;
 		return 0;
 	case NVKM_THERM_ATTR_FAN_MAX_DUTY:
 		if (value < 0)
 			value = 0;
-		if (value < priv->fan->bios.min_duty)
-			value = priv->fan->bios.min_duty;
-		priv->fan->bios.max_duty = value;
+		if (value < therm->fan->bios.min_duty)
+			value = therm->fan->bios.min_duty;
+		therm->fan->bios.max_duty = value;
 		return 0;
 	case NVKM_THERM_ATTR_FAN_MODE:
 		return nvkm_therm_fan_mode(therm, value);
 	case NVKM_THERM_ATTR_THRS_FAN_BOOST:
-		priv->bios_sensor.thrs_fan_boost.temp = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_fan_boost.temp = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_FAN_BOOST_HYST:
-		priv->bios_sensor.thrs_fan_boost.hysteresis = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_fan_boost.hysteresis = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_DOWN_CLK:
-		priv->bios_sensor.thrs_down_clock.temp = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_down_clock.temp = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_DOWN_CLK_HYST:
-		priv->bios_sensor.thrs_down_clock.hysteresis = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_down_clock.hysteresis = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_CRITICAL:
-		priv->bios_sensor.thrs_critical.temp = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_critical.temp = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_CRITICAL_HYST:
-		priv->bios_sensor.thrs_critical.hysteresis = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_critical.hysteresis = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_SHUTDOWN:
-		priv->bios_sensor.thrs_shutdown.temp = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_shutdown.temp = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	case NVKM_THERM_ATTR_THRS_SHUTDOWN_HYST:
-		priv->bios_sensor.thrs_shutdown.hysteresis = value;
-		priv->sensor.program_alarms(therm);
+		therm->bios_sensor.thrs_shutdown.hysteresis = value;
+		therm->func->program_alarms(therm);
 		return 0;
 	}
 
 	return -EINVAL;
 }
 
-int
-_nvkm_therm_init(struct nvkm_object *object)
+static void
+nvkm_therm_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_therm *therm = (void *)object;
-	struct nvkm_therm_priv *priv = (void *)therm;
-	int ret;
-
-	ret = nvkm_subdev_init(&therm->base);
-	if (ret)
-		return ret;
-
-	if (priv->suspend >= 0) {
-		/* restore the pwm value only when on manual or auto mode */
-		if (priv->suspend > 0)
-			nvkm_therm_fan_set(therm, true, priv->fan->percent);
-
-		nvkm_therm_fan_mode(therm, priv->suspend);
-	}
-	nvkm_therm_sensor_init(therm);
-	nvkm_therm_fan_init(therm);
-	return 0;
+	struct nvkm_therm *therm = nvkm_therm(subdev);
+	if (therm->func->intr)
+		therm->func->intr(therm);
 }
 
-int
-_nvkm_therm_fini(struct nvkm_object *object, bool suspend)
+static int
+nvkm_therm_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct nvkm_therm *therm = (void *)object;
-	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_therm *therm = nvkm_therm(subdev);
+
+	if (therm->func->fini)
+		therm->func->fini(therm);
 
 	nvkm_therm_fan_fini(therm, suspend);
 	nvkm_therm_sensor_fini(therm, suspend);
+
 	if (suspend) {
-		priv->suspend = priv->mode;
-		priv->mode = NVKM_THERM_CTRL_NONE;
+		therm->suspend = therm->mode;
+		therm->mode = NVKM_THERM_CTRL_NONE;
 	}
 
-	return nvkm_subdev_fini(&therm->base, suspend);
-}
-
-int
-nvkm_therm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		   struct nvkm_oclass *oclass, int length, void **pobject)
-{
-	struct nvkm_therm_priv *priv;
-	int ret;
-
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PTHERM",
-				  "therm", length, pobject);
-	priv = *pobject;
-	if (ret)
-		return ret;
-
-	nvkm_alarm_init(&priv->alarm, nvkm_therm_alarm);
-	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->sensor.alarm_program_lock);
-
-	priv->base.fan_get = nvkm_therm_fan_user_get;
-	priv->base.fan_set = nvkm_therm_fan_user_set;
-	priv->base.fan_sense = nvkm_therm_fan_sense;
-	priv->base.attr_get = nvkm_therm_attr_get;
-	priv->base.attr_set = nvkm_therm_attr_set;
-	priv->mode = priv->suspend = -1; /* undefined */
 	return 0;
 }
 
-int
-nvkm_therm_preinit(struct nvkm_therm *therm)
+static int
+nvkm_therm_oneinit(struct nvkm_subdev *subdev)
 {
+	struct nvkm_therm *therm = nvkm_therm(subdev);
 	nvkm_therm_sensor_ctor(therm);
 	nvkm_therm_ic_ctor(therm);
 	nvkm_therm_fan_ctor(therm);
-
 	nvkm_therm_fan_mode(therm, NVKM_THERM_CTRL_AUTO);
 	nvkm_therm_sensor_preinit(therm);
 	return 0;
 }
 
-void
-_nvkm_therm_dtor(struct nvkm_object *object)
+static int
+nvkm_therm_init(struct nvkm_subdev *subdev)
 {
-	struct nvkm_therm_priv *priv = (void *)object;
-	kfree(priv->fan);
-	nvkm_subdev_destroy(&priv->base.base);
+	struct nvkm_therm *therm = nvkm_therm(subdev);
+
+	therm->func->init(therm);
+
+	if (therm->suspend >= 0) {
+		/* restore the pwm value only when on manual or auto mode */
+		if (therm->suspend > 0)
+			nvkm_therm_fan_set(therm, true, therm->fan->percent);
+
+		nvkm_therm_fan_mode(therm, therm->suspend);
+	}
+
+	nvkm_therm_sensor_init(therm);
+	nvkm_therm_fan_init(therm);
+	return 0;
+}
+
+static void *
+nvkm_therm_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_therm *therm = nvkm_therm(subdev);
+	kfree(therm->fan);
+	return therm;
+}
+
+static const struct nvkm_subdev_func
+nvkm_therm = {
+	.dtor = nvkm_therm_dtor,
+	.oneinit = nvkm_therm_oneinit,
+	.init = nvkm_therm_init,
+	.fini = nvkm_therm_fini,
+	.intr = nvkm_therm_intr,
+};
+
+int
+nvkm_therm_new_(const struct nvkm_therm_func *func, struct nvkm_device *device,
+		int index, struct nvkm_therm **ptherm)
+{
+	struct nvkm_therm *therm;
+
+	if (!(therm = *ptherm = kzalloc(sizeof(*therm), GFP_KERNEL)))
+		return -ENOMEM;
+
+	nvkm_subdev_ctor(&nvkm_therm, device, index, 0, &therm->subdev);
+	therm->func = func;
+
+	nvkm_alarm_init(&therm->alarm, nvkm_therm_alarm);
+	spin_lock_init(&therm->lock);
+	spin_lock_init(&therm->sensor.alarm_program_lock);
+
+	therm->fan_get = nvkm_therm_fan_user_get;
+	therm->fan_set = nvkm_therm_fan_user_set;
+	therm->attr_get = nvkm_therm_attr_get;
+	therm->attr_set = nvkm_therm_attr_set;
+	therm->mode = therm->suspend = -1; /* undefined */
+	return 0;
 }

@@ -473,7 +473,8 @@ xfs_bulkstat(
 		 * pending error, then we are done.
 		 */
 del_cursor:
-		xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
+		xfs_btree_del_cursor(cur, error ?
+					  XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 		xfs_buf_relse(agbp);
 		if (error)
 			break;

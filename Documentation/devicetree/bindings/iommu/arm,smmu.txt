@@ -43,6 +43,12 @@ conditions.
 
 ** System MMU optional properties:
 
+- dma-coherent  : Present if page table walks made by the SMMU are
+                  cache coherent with the CPU.
+
+                  NOTE: this only applies to the SMMU itself, not
+                  masters connected upstream of the SMMU.
+
 - calxeda,smmu-secure-config-access : Enable proper handling of buggy
                   implementations that always use secure access to
                   SMMU configuration registers. In this case non-secure

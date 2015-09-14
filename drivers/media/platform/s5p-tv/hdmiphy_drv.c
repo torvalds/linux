@@ -315,7 +315,6 @@ MODULE_DEVICE_TABLE(i2c, hdmiphy_id);
 static struct i2c_driver hdmiphy_driver = {
 	.driver = {
 		.name	= "s5p-hdmiphy",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hdmiphy_probe,
 	.remove		= hdmiphy_remove,

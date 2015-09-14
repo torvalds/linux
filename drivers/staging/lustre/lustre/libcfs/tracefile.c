@@ -937,18 +937,6 @@ int cfs_trace_set_debug_mb(int mb)
 	return 0;
 }
 
-int cfs_trace_set_debug_mb_usrstr(void __user *usr_str, int usr_str_nob)
-{
-	char     str[32];
-	int      rc;
-
-	rc = cfs_trace_copyin_string(str, sizeof(str), usr_str, usr_str_nob);
-	if (rc < 0)
-		return rc;
-
-	return cfs_trace_set_debug_mb(simple_strtoul(str, NULL, 0));
-}
-
 int cfs_trace_get_debug_mb(void)
 {
 	int i;

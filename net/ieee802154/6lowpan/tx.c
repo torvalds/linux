@@ -112,7 +112,7 @@ lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
 
 	frag = lowpan_alloc_frag(skb, frag_hdrlen + len, wpan_hdr);
 	if (IS_ERR(frag))
-		return -PTR_ERR(frag);
+		return PTR_ERR(frag);
 
 	memcpy(skb_put(frag, frag_hdrlen), frag_hdr, frag_hdrlen);
 	memcpy(skb_put(frag, len), skb_network_header(skb) + offset, len);
@@ -224,7 +224,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		da.mode = IEEE802154_ADDR_LONG;
 		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
-		cb->ackreq = wpan_dev->frame_retries >= 0;
+		cb->ackreq = wpan_dev->ackreq;
 	}
 
 	return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,

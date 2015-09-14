@@ -916,12 +916,6 @@ config DEBUG_RT_MUTEXES
 	 This allows rt mutex semantics violations and rt mutex related
 	 deadlocks (lockups) to be detected and reported automatically.
 
-config RT_MUTEX_TESTER
-	bool "Built-in scriptable tester for rt-mutexes"
-	depends on DEBUG_KERNEL && RT_MUTEXES && BROKEN
-	help
-	  This option enables a rt-mutex tester.
-
 config DEBUG_SPINLOCK
 	bool "Spinlock and rw-lock debugging: basic checks"
 	depends on DEBUG_KERNEL
@@ -1353,20 +1347,6 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
-config RCU_CPU_STALL_INFO
-	bool "Print additional diagnostics on RCU CPU stall"
-	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
-	default y
-	help
-	  For each stalled CPU that is aware of the current RCU grace
-	  period, print out additional per-CPU diagnostic information
-	  regarding scheduling-clock ticks, idle state, and,
-	  for RCU_FAST_NO_HZ kernels, idle-entry state.
-
-	  Say N if you are unsure.
-
-	  Say Y if you want to enable such diagnostics.
-
 config RCU_TRACE
 	bool "Enable tracing for RCU"
 	depends on DEBUG_KERNEL
@@ -1379,7 +1359,7 @@ config RCU_TRACE
 	  Say N if you are unsure.
 
 config RCU_EQS_DEBUG
-	bool "Use this when adding any sort of NO_HZ support to your arch"
+	bool "Provide debugging asserts for adding NO_HZ support to an arch"
 	depends on DEBUG_KERNEL
 	help
 	  This option provides consistency checks in RCU's handling of
@@ -1541,6 +1521,13 @@ config FAIL_MMC_REQUEST
 	  useful to test the error handling in the mmc block device
 	  and to test how the mmc host driver handles retries from
 	  the block device.
+
+config FAIL_FUTEX
+	bool "Fault-injection capability for futexes"
+	select DEBUG_FS
+	depends on FAULT_INJECTION && FUTEX
+	help
+	  Provide fault-injection capability for futexes.
 
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
@@ -1839,6 +1826,15 @@ config MEMTEST
 	        ...
 	        memtest=17, mean do 17 test patterns.
 	  If you are unsure how to answer this question, answer N.
+
+config TEST_STATIC_KEYS
+	tristate "Test static keys"
+	default n
+	depends on m
+	help
+	  Test the static key interfaces.
+
+	  If unsure, say N.
 
 source "samples/Kconfig"
 

@@ -112,9 +112,10 @@ static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
 	unsigned long addr;
 
 	phb = pci_bus_to_host(bus);
-	afu = (struct cxl_afu *)phb->private_data;
 	if (phb == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+	afu = (struct cxl_afu *)phb->private_data;
+
 	if (cxl_pcie_cfg_record(bus->number, devfn) > afu->crs_num)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if (offset >= (unsigned long)phb->cfg_data)
@@ -137,6 +138,26 @@ static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
 	return 0;
 }
 
+
+static inline bool cxl_config_link_ok(struct pci_bus *bus)
+{
+	struct pci_controller *phb;
+	struct cxl_afu *afu;
+
+	/* Config space IO is based on phb->cfg_addr, which is based on
+	 * afu_desc_mmio. This isn't safe to read/write when the link
+	 * goes down, as EEH tears down MMIO space.
+	 *
+	 * Check if the link is OK before proceeding.
+	 */
+
+	phb = pci_bus_to_host(bus);
+	if (phb == NULL)
+		return false;
+	afu = (struct cxl_afu *)phb->private_data;
+	return cxl_adapter_link_ok(afu->adapter);
+}
+
 static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				int offset, int len, u32 *val)
 {
@@ -148,6 +169,9 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				  &mask, &shift);
 	if (rc)
 		return rc;
+
+	if (!cxl_config_link_ok(bus))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Can only read 32 bits */
 	*val = (in_le32(ioaddr) >> shift) & mask;
@@ -165,6 +189,9 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 				  &mask, &shift);
 	if (rc)
 		return rc;
+
+	if (!cxl_config_link_ok(bus))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Can only write 32 bits so do read-modify-write */
 	mask <<= shift;
@@ -239,6 +266,14 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	return 0;
 }
 
+void cxl_pci_vphb_reconfigure(struct cxl_afu *afu)
+{
+	/* When we are reconfigured, the AFU's MMIO space is unmapped
+	 * and remapped. We need to reflect this in the PHB's view of
+	 * the world.
+	 */
+	afu->phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
+}
 
 void cxl_pci_vphb_remove(struct cxl_afu *afu)
 {

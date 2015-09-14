@@ -53,7 +53,8 @@ config ADXRS450
 config BMG160
 	tristate "BOSCH BMG160 Gyro Sensor"
 	depends on I2C
-	select IIO_TRIGGERED_BUFFER if IIO_BUFFER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Bosch BMG160 Tri-axis Gyro Sensor
 	  driver. This driver also supports BMI055 gyroscope.

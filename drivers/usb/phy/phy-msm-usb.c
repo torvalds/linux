@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
@@ -32,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reboot.h>
 #include <linux/reset.h>
 
 #include <linux/usb.h>
@@ -1471,6 +1473,14 @@ static int msm_otg_vbus_notifier(struct notifier_block *nb, unsigned long event,
 	else
 		clear_bit(B_SESS_VLD, &motg->inputs);
 
+	if (test_bit(B_SESS_VLD, &motg->inputs)) {
+		/* Switch D+/D- lines to Device connector */
+		gpiod_set_value_cansleep(motg->switch_gpio, 0);
+	} else {
+		/* Switch D+/D- lines to Hub */
+		gpiod_set_value_cansleep(motg->switch_gpio, 1);
+	}
+
 	schedule_work(&motg->sm_work);
 
 	return NOTIFY_DONE;
@@ -1546,6 +1556,11 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	motg->manual_pullup = of_property_read_bool(node, "qcom,manual-pullup");
 
+	motg->switch_gpio = devm_gpiod_get_optional(&pdev->dev, "switch",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(motg->switch_gpio))
+		return PTR_ERR(motg->switch_gpio);
+
 	ext_id = ERR_PTR(-ENODEV);
 	ext_vbus = ERR_PTR(-ENODEV);
 	if (of_property_read_bool(node, "extcon")) {
@@ -1561,15 +1576,16 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	}
 
 	if (!IS_ERR(ext_vbus)) {
+		motg->vbus.extcon = ext_vbus;
 		motg->vbus.nb.notifier_call = msm_otg_vbus_notifier;
-		ret = extcon_register_interest(&motg->vbus.conn, ext_vbus->name,
-					       "USB", &motg->vbus.nb);
+		ret = extcon_register_notifier(ext_vbus, EXTCON_USB,
+						&motg->vbus.nb);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "register VBUS notifier failed\n");
 			return ret;
 		}
 
-		ret = extcon_get_cable_state(ext_vbus, "USB");
+		ret = extcon_get_cable_state_(ext_vbus, EXTCON_USB);
 		if (ret)
 			set_bit(B_SESS_VLD, &motg->inputs);
 		else
@@ -1577,15 +1593,16 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	}
 
 	if (!IS_ERR(ext_id)) {
+		motg->id.extcon = ext_id;
 		motg->id.nb.notifier_call = msm_otg_id_notifier;
-		ret = extcon_register_interest(&motg->id.conn, ext_id->name,
-					       "USB-HOST", &motg->id.nb);
+		ret = extcon_register_notifier(ext_id, EXTCON_USB_HOST,
+						&motg->id.nb);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "register ID notifier failed\n");
 			return ret;
 		}
 
-		ret = extcon_get_cable_state(ext_id, "USB-HOST");
+		ret = extcon_get_cable_state_(ext_id, EXTCON_USB_HOST);
 		if (ret)
 			clear_bit(ID, &motg->inputs);
 		else
@@ -1613,6 +1630,19 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 		pdata->phy_init_sz = words;
 
 	return 0;
+}
+
+static int msm_otg_reboot_notify(struct notifier_block *this,
+				 unsigned long code, void *unused)
+{
+	struct msm_otg *motg = container_of(this, struct msm_otg, reboot);
+
+	/*
+	 * Ensure that D+/D- lines are routed to uB connector, so
+	 * we could load bootloader/kernel at next reboot
+	 */
+	gpiod_set_value_cansleep(motg->switch_gpio, 0);
+	return NOTIFY_DONE;
 }
 
 static int msm_otg_probe(struct platform_device *pdev)
@@ -1779,6 +1809,17 @@ static int msm_otg_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev, "Can not create mode change file\n");
 	}
 
+	if (test_bit(B_SESS_VLD, &motg->inputs)) {
+		/* Switch D+/D- lines to Device connector */
+		gpiod_set_value_cansleep(motg->switch_gpio, 0);
+	} else {
+		/* Switch D+/D- lines to Hub */
+		gpiod_set_value_cansleep(motg->switch_gpio, 1);
+	}
+
+	motg->reboot.notifier_call = msm_otg_reboot_notify;
+	register_reboot_notifier(&motg->reboot);
+
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -1805,10 +1846,16 @@ static int msm_otg_remove(struct platform_device *pdev)
 	if (phy->otg->host || phy->otg->gadget)
 		return -EBUSY;
 
-	if (motg->id.conn.edev)
-		extcon_unregister_interest(&motg->id.conn);
-	if (motg->vbus.conn.edev)
-		extcon_unregister_interest(&motg->vbus.conn);
+	unregister_reboot_notifier(&motg->reboot);
+
+	/*
+	 * Ensure that D+/D- lines are routed to uB connector, so
+	 * we could load bootloader/kernel at next reboot
+	 */
+	gpiod_set_value_cansleep(motg->switch_gpio, 0);
+
+	extcon_unregister_notifier(motg->id.extcon, EXTCON_USB_HOST, &motg->id.nb);
+	extcon_unregister_notifier(motg->vbus.extcon, EXTCON_USB, &motg->vbus.nb);
 
 	msm_otg_debugfs_cleanup();
 	cancel_delayed_work_sync(&motg->chg_work);

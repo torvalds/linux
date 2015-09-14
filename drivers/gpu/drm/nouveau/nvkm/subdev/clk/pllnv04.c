@@ -37,7 +37,7 @@ getMNP_single(struct nvkm_subdev *subdev, struct nvbios_pll *info, int clk,
 	 * "clk" parameter in kHz
 	 * returns calculated clock
 	 */
-	struct nvkm_bios *bios = nvkm_bios(subdev);
+	struct nvkm_bios *bios = subdev->device->bios;
 	int minvco = info->vco1.min_freq, maxvco = info->vco1.max_freq;
 	int minM = info->vco1.min_m, maxM = info->vco1.max_m;
 	int minN = info->vco1.min_n, maxN = info->vco1.max_n;
@@ -136,7 +136,7 @@ getMNP_double(struct nvkm_subdev *subdev, struct nvbios_pll *info, int clk,
 	 * "clk" parameter in kHz
 	 * returns calculated clock
 	 */
-	int chip_version = nvkm_bios(subdev)->version.chip;
+	int chip_version = subdev->device->bios->version.chip;
 	int minvco1 = info->vco1.min_freq, maxvco1 = info->vco1.max_freq;
 	int minvco2 = info->vco2.min_freq, maxvco2 = info->vco2.max_freq;
 	int minU1 = info->vco1.min_inputfreq, minU2 = info->vco2.min_inputfreq;
@@ -240,6 +240,6 @@ nv04_pll_calc(struct nvkm_subdev *subdev, struct nvbios_pll *info, u32 freq,
 	}
 
 	if (!ret)
-		nv_error(subdev, "unable to compute acceptable pll values\n");
+		nvkm_error(subdev, "unable to compute acceptable pll values\n");
 	return ret;
 }

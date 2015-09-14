@@ -22,6 +22,12 @@ struct blk_flush_queue {
 	struct list_head	flush_queue[2];
 	struct list_head	flush_data_in_flight;
 	struct request		*flush_rq;
+
+	/*
+	 * flush_rq shares tag with this rq, both can't be active
+	 * at the same time
+	 */
+	struct request		*orig_rq;
 	spinlock_t		mq_flush_lock;
 };
 
@@ -266,15 +272,10 @@ static inline struct io_context *create_io_context(gfp_t gfp_mask, int node)
  * Internal throttling interface
  */
 #ifdef CONFIG_BLK_DEV_THROTTLING
-extern bool blk_throtl_bio(struct request_queue *q, struct bio *bio);
 extern void blk_throtl_drain(struct request_queue *q);
 extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
 #else /* CONFIG_BLK_DEV_THROTTLING */
-static inline bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
-{
-	return false;
-}
 static inline void blk_throtl_drain(struct request_queue *q) { }
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline void blk_throtl_exit(struct request_queue *q) { }

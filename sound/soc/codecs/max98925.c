@@ -271,8 +271,6 @@ static inline int max98925_rate_value(struct snd_soc_codec *codec,
 			break;
 		}
 	}
-	dev_dbg(codec->dev, "%s: sample rate is %d, returning %d\n",
-				__func__, rate_table[i].rate, *value);
 	return ret;
 }
 
@@ -432,7 +430,7 @@ static int max98925_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
 
-	switch (snd_pcm_format_width(params_format(params))) {
+	switch (params_width(params)) {
 	case 16:
 		regmap_update_bits(max98925->regmap,
 				MAX98925_FORMAT,
@@ -523,7 +521,6 @@ static int max98925_probe(struct snd_soc_codec *codec)
 	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
 
 	max98925->codec = codec;
-	codec->control_data = max98925->regmap;
 	regmap_write(max98925->regmap, MAX98925_GLOBAL_ENABLE, 0x00);
 	/* It's not the default but we need to set DAI_DLY */
 	regmap_write(max98925->regmap,
@@ -639,7 +636,6 @@ MODULE_DEVICE_TABLE(of, max98925_of_match);
 static struct i2c_driver max98925_i2c_driver = {
 	.driver = {
 		.name = "max98925",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(max98925_of_match),
 		.pm = NULL,
 	},

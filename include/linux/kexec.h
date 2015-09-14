@@ -16,7 +16,7 @@
 
 #include <uapi/linux/kexec.h>
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 #include <linux/list.h>
 #include <linux/linkage.h>
 #include <linux/compat.h>
@@ -318,12 +318,24 @@ int crash_shrink_memory(unsigned long new_size);
 size_t crash_get_memory_size(void);
 void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
 
-#else /* !CONFIG_KEXEC */
+int __weak arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
+					 unsigned long buf_len);
+void * __weak arch_kexec_kernel_image_load(struct kimage *image);
+int __weak arch_kimage_file_post_load_cleanup(struct kimage *image);
+int __weak arch_kexec_kernel_verify_sig(struct kimage *image, void *buf,
+					unsigned long buf_len);
+int __weak arch_kexec_apply_relocations_add(const Elf_Ehdr *ehdr,
+					Elf_Shdr *sechdrs, unsigned int relsec);
+int __weak arch_kexec_apply_relocations(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
+					unsigned int relsec);
+
+#else /* !CONFIG_KEXEC_CORE */
 struct pt_regs;
 struct task_struct;
 static inline void crash_kexec(struct pt_regs *regs) { }
 static inline int kexec_should_crash(struct task_struct *p) { return 0; }
-#endif /* CONFIG_KEXEC */
+#define kexec_in_progress false
+#endif /* CONFIG_KEXEC_CORE */
 
 #endif /* !defined(__ASSEBMLY__) */
 

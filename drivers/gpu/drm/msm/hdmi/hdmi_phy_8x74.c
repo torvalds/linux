@@ -19,7 +19,6 @@
 
 struct hdmi_phy_8x74 {
 	struct hdmi_phy base;
-	struct hdmi *hdmi;
 	void __iomem *mmio;
 };
 #define to_hdmi_phy_8x74(x) container_of(x, struct hdmi_phy_8x74, base)
@@ -39,59 +38,6 @@ static void hdmi_phy_8x74_destroy(struct hdmi_phy *phy)
 {
 	struct hdmi_phy_8x74 *phy_8x74 = to_hdmi_phy_8x74(phy);
 	kfree(phy_8x74);
-}
-
-static void hdmi_phy_8x74_reset(struct hdmi_phy *phy)
-{
-	struct hdmi_phy_8x74 *phy_8x74 = to_hdmi_phy_8x74(phy);
-	struct hdmi *hdmi = phy_8x74->hdmi;
-	unsigned int val;
-
-	/* NOTE that HDMI_PHY_CTL is in core mmio, not phy mmio: */
-
-	val = hdmi_read(hdmi, REG_HDMI_PHY_CTRL);
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET);
-	} else {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET);
-	}
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
-	} else {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET_PLL);
-	}
-
-	msleep(100);
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET);
-	} else {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET);
-	}
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET_PLL);
-	} else {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
-	}
 }
 
 static void hdmi_phy_8x74_powerup(struct hdmi_phy *phy,
@@ -117,7 +63,6 @@ static void hdmi_phy_8x74_powerdown(struct hdmi_phy *phy)
 
 static const struct hdmi_phy_funcs hdmi_phy_8x74_funcs = {
 		.destroy = hdmi_phy_8x74_destroy,
-		.reset = hdmi_phy_8x74_reset,
 		.powerup = hdmi_phy_8x74_powerup,
 		.powerdown = hdmi_phy_8x74_powerdown,
 };
@@ -137,8 +82,6 @@ struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi)
 	phy = &phy_8x74->base;
 
 	phy->funcs = &hdmi_phy_8x74_funcs;
-
-	phy_8x74->hdmi = hdmi;
 
 	/* for 8x74, the phy mmio is mapped separately: */
 	phy_8x74->mmio = msm_ioremap(hdmi->pdev,

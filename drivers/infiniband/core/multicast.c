@@ -43,7 +43,7 @@
 #include "sa.h"
 
 static void mcast_add_one(struct ib_device *device);
-static void mcast_remove_one(struct ib_device *device);
+static void mcast_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client mcast_client = {
 	.name   = "ib_multicast",
@@ -812,12 +812,8 @@ static void mcast_add_one(struct ib_device *device)
 	if (!dev)
 		return;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH)
-		dev->start_port = dev->end_port = 0;
-	else {
-		dev->start_port = 1;
-		dev->end_port = device->phys_port_cnt;
-	}
+	dev->start_port = rdma_start_port(device);
+	dev->end_port = rdma_end_port(device);
 
 	for (i = 0; i <= dev->end_port - dev->start_port; i++) {
 		if (!rdma_cap_ib_mcast(device, dev->start_port + i))
@@ -844,13 +840,12 @@ static void mcast_add_one(struct ib_device *device)
 	ib_register_event_handler(&dev->event_handler);
 }
 
-static void mcast_remove_one(struct ib_device *device)
+static void mcast_remove_one(struct ib_device *device, void *client_data)
 {
-	struct mcast_device *dev;
+	struct mcast_device *dev = client_data;
 	struct mcast_port *port;
 	int i;
 
-	dev = ib_get_client_data(device, &mcast_client);
 	if (!dev)
 		return;
 

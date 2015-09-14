@@ -915,18 +915,27 @@ void ath_offchannel_next(struct ath_softc *sc)
 	}
 }
 
-void ath_roc_complete(struct ath_softc *sc, bool abort)
+void ath_roc_complete(struct ath_softc *sc, enum ath_roc_complete_reason reason)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	if (abort)
-		ath_dbg(common, CHAN_CTX, "RoC aborted\n");
-	else
-		ath_dbg(common, CHAN_CTX, "RoC expired\n");
-
 	sc->offchannel.roc_vif = NULL;
 	sc->offchannel.roc_chan = NULL;
-	ieee80211_remain_on_channel_expired(sc->hw);
+
+	switch (reason) {
+	case ATH_ROC_COMPLETE_ABORT:
+		ath_dbg(common, CHAN_CTX, "RoC aborted\n");
+		ieee80211_remain_on_channel_expired(sc->hw);
+		break;
+	case ATH_ROC_COMPLETE_EXPIRE:
+		ath_dbg(common, CHAN_CTX, "RoC expired\n");
+		ieee80211_remain_on_channel_expired(sc->hw);
+		break;
+	case ATH_ROC_COMPLETE_CANCEL:
+		ath_dbg(common, CHAN_CTX, "RoC canceled\n");
+		break;
+	}
+
 	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
 }
@@ -1058,7 +1067,7 @@ static void ath_offchannel_timer(unsigned long data)
 	case ATH_OFFCHANNEL_ROC_START:
 	case ATH_OFFCHANNEL_ROC_WAIT:
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_DONE;
-		ath_roc_complete(sc, false);
+		ath_roc_complete(sc, ATH_ROC_COMPLETE_EXPIRE);
 		break;
 	default:
 		break;

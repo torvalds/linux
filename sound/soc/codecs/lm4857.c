@@ -142,7 +142,6 @@ MODULE_DEVICE_TABLE(i2c, lm4857_i2c_id);
 static struct i2c_driver lm4857_i2c_driver = {
 	.driver = {
 		.name = "lm4857",
-		.owner = THIS_MODULE,
 	},
 	.probe = lm4857_i2c_probe,
 	.id_table = lm4857_i2c_id,

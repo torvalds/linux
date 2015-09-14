@@ -101,6 +101,7 @@ struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
 	case G200_SE_B:
 	case G200_EV:
 	case G200_WB:
+	case G200_EW3:
 		data = 1;
 		clock = 2;
 		break;

@@ -298,8 +298,8 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 
 	/* enable FCoE hash filter */
 	val = rd32(hw, I40E_PFQF_HENA(1));
-	val |= 1 << (I40E_FILTER_PCTYPE_FCOE_OX - 32);
-	val |= 1 << (I40E_FILTER_PCTYPE_FCOE_RX - 32);
+	val |= BIT(I40E_FILTER_PCTYPE_FCOE_OX - 32);
+	val |= BIT(I40E_FILTER_PCTYPE_FCOE_RX - 32);
 	val &= I40E_PFQF_HENA_PTYPE_ENA_MASK;
 	wr32(hw, I40E_PFQF_HENA(1), val);
 
@@ -308,10 +308,10 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 	pf->num_fcoe_qps = I40E_DEFAULT_FCOE;
 
 	/* Reserve 4K DDP contexts and 20K filter size for FCoE */
-	pf->fcoe_hmc_cntx_num = (1 << I40E_DMA_CNTX_SIZE_4K) *
-				 I40E_DMA_CNTX_BASE_SIZE;
+	pf->fcoe_hmc_cntx_num = BIT(I40E_DMA_CNTX_SIZE_4K) *
+				I40E_DMA_CNTX_BASE_SIZE;
 	pf->fcoe_hmc_filt_num = pf->fcoe_hmc_cntx_num +
-				(1 << I40E_HASH_FILTER_SIZE_16K) *
+				BIT(I40E_HASH_FILTER_SIZE_16K) *
 				I40E_HASH_FILTER_BASE_SIZE;
 
 	/* FCoE object: max 16K filter buckets and 4K DMA contexts */
@@ -348,7 +348,7 @@ u8 i40e_get_fcoe_tc_map(struct i40e_pf *pf)
 		if (app.selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
 		    app.protocolid == ETH_P_FCOE) {
 			tc = dcbcfg->etscfg.prioritytable[app.priority];
-			enabled_tc |= (1 << tc);
+			enabled_tc |= BIT(tc);
 			break;
 		}
 	}

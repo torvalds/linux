@@ -244,7 +244,8 @@ static struct irq_chip qe_ic_irq_chip = {
 	.irq_mask_ack = qe_ic_mask_irq,
 };
 
-static int qe_ic_host_match(struct irq_domain *h, struct device_node *node)
+static int qe_ic_host_match(struct irq_domain *h, struct device_node *node,
+			    enum irq_domain_bus_token bus_token)
 {
 	/* Exact match, unless qe_ic node is NULL */
 	return h->of_node == NULL || h->of_node == node;

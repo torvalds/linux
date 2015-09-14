@@ -22,8 +22,8 @@
 #define __AUDIT_ARCH_LE		0x40000000
 
 #ifndef CONFIG_AUDITSYSCALL
-# define sysexit_audit		ia32_ret_from_sys_call
-# define sysretl_audit		ia32_ret_from_sys_call
+# define sysexit_audit		ia32_ret_from_sys_call_irqs_off
+# define sysretl_audit		ia32_ret_from_sys_call_irqs_off
 #endif
 
 	.section .entry.text, "ax"
@@ -140,7 +140,9 @@ sysexit_from_sys_call:
 	 */
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	movl	RIP(%rsp), %ecx		/* User %eip */
-	RESTORE_RSI_RDI
+	movq    RAX(%rsp), %rax
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
 	xorl	%edx, %edx		/* Do not leak kernel information */
 	xorq	%r8, %r8
 	xorq	%r9, %r9
@@ -205,14 +207,13 @@ sysexit_from_sys_call:
 	movl	RDX(%rsp), %edx		/* arg3 */
 	movl	RSI(%rsp), %ecx		/* arg4 */
 	movl	RDI(%rsp), %r8d		/* arg5 */
-	movl	%ebp, %r9d		/* arg6 */
 	.endm
 
 	.macro auditsys_exit exit
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	ia32_ret_from_sys_call
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
+	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	ia32_ret_from_sys_call
 	movl	%eax, %esi		/* second arg, syscall return value */
 	cmpl	$-MAX_ERRNO, %eax	/* is it an error ? */
 	jbe	1f
@@ -220,7 +221,6 @@ sysexit_from_sys_call:
 1:	setbe	%al			/* 1 if error, 0 if not */
 	movzbl	%al, %edi		/* zero-extend that into %edi */
 	call	__audit_syscall_exit
-	movq	RAX(%rsp), %rax		/* reload syscall return value */
 	movl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %edi
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -231,11 +231,12 @@ sysexit_from_sys_call:
 	movq	%rax, R10(%rsp)
 	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	jmp	int_with_check
+	jmp	int_ret_from_sys_call_irqs_off
 	.endm
 
 sysenter_auditsys:
 	auditsys_entry_common
+	movl	%ebp, %r9d		/* reload 6th syscall arg */
 	jmp	sysenter_dispatch
 
 sysexit_audit:
@@ -336,7 +337,7 @@ ENTRY(entry_SYSCALL_compat)
 	 * 32-bit zero extended:
 	 */
 	ASM_STAC
-1:	movl	(%r8), %ebp
+1:	movl	(%r8), %r9d
 	_ASM_EXTABLE(1b, ia32_badarg)
 	ASM_CLAC
 	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
@@ -346,7 +347,7 @@ ENTRY(entry_SYSCALL_compat)
 cstar_do_call:
 	/* 32-bit syscall -> 64-bit C ABI argument conversion */
 	movl	%edi, %r8d		/* arg5 */
-	movl	%ebp, %r9d		/* arg6 */
+	/* r9 already loaded */		/* arg6 */
 	xchg	%ecx, %esi		/* rsi:arg2, rcx:arg4 */
 	movl	%ebx, %edi		/* arg1 */
 	movl	%edx, %edx		/* arg3 (zero extension) */
@@ -358,7 +359,6 @@ cstar_dispatch:
 	call	*ia32_sys_call_table(, %rax, 8)
 	movq	%rax, RAX(%rsp)
 1:
-	movl	RCX(%rsp), %ebp
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -366,9 +366,12 @@ cstar_dispatch:
 
 sysretl_from_sys_call:
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	RESTORE_RSI_RDI_RDX
+	movl	RDX(%rsp), %edx
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
 	movl	RIP(%rsp), %ecx
 	movl	EFLAGS(%rsp), %r11d
+	movq    RAX(%rsp), %rax
 	xorq	%r10, %r10
 	xorq	%r9, %r9
 	xorq	%r8, %r8
@@ -392,7 +395,9 @@ sysretl_from_sys_call:
 
 #ifdef CONFIG_AUDITSYSCALL
 cstar_auditsys:
+	movl	%r9d, R9(%rsp)		/* register to be clobbered by call */
 	auditsys_entry_common
+	movl	R9(%rsp), %r9d		/* reload 6th syscall arg */
 	jmp	cstar_dispatch
 
 sysretl_audit:
@@ -404,14 +409,16 @@ cstar_tracesys:
 	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jz	cstar_auditsys
 #endif
+	xchgl	%r9d, %ebp
 	SAVE_EXTRA_REGS
 	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
-	movq	%rax, R9(%rsp)
+	movq	%r9, R9(%rsp)
 	movq	%rax, R8(%rsp)
 	movq	%rsp, %rdi		/* &pt_regs -> arg1 */
 	call	syscall_trace_enter
+	movl	R9(%rsp), %r9d
 
 	/* Reload arg registers from stack. (see sysenter_tracesys) */
 	movl	RCX(%rsp), %ecx
@@ -421,12 +428,53 @@ cstar_tracesys:
 	movl	%eax, %eax		/* zero extension */
 
 	RESTORE_EXTRA_REGS
+	xchgl	%ebp, %r9d
 	jmp	cstar_do_call
 END(entry_SYSCALL_compat)
 
 ia32_badarg:
-	ASM_CLAC
-	movq	$-EFAULT, RAX(%rsp)
+	/*
+	 * So far, we've entered kernel mode, set AC, turned on IRQs, and
+	 * saved C regs except r8-r11.  We haven't done any of the other
+	 * standard entry work, though.  We want to bail, but we shouldn't
+	 * treat this as a syscall entry since we don't even know what the
+	 * args are.  Instead, treat this as a non-syscall entry, finish
+	 * the entry work, and immediately exit after setting AX = -EFAULT.
+	 *
+	 * We're really just being polite here.  Killing the task outright
+	 * would be a reasonable action, too.  Given that the only valid
+	 * way to have gotten here is through the vDSO, and we already know
+	 * that the stack pointer is bad, the task isn't going to survive
+	 * for long no matter what we do.
+	 */
+
+	ASM_CLAC			/* undo STAC */
+	movq	$-EFAULT, RAX(%rsp)	/* return -EFAULT if possible */
+
+	/* Fill in the rest of pt_regs */
+	xorl	%eax, %eax
+	movq	%rax, R11(%rsp)
+	movq	%rax, R10(%rsp)
+	movq	%rax, R9(%rsp)
+	movq	%rax, R8(%rsp)
+	SAVE_EXTRA_REGS
+
+	/* Turn IRQs back off. */
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	TRACE_IRQS_OFF
+
+	/* Now finish entering normal kernel mode. */
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+
+	/* And exit again. */
+	jmp retint_user
+
+ia32_ret_from_sys_call_irqs_off:
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
+
 ia32_ret_from_sys_call:
 	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)

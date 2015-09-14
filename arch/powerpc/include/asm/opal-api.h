@@ -154,7 +154,10 @@
 #define OPAL_FLASH_WRITE			111
 #define OPAL_FLASH_ERASE			112
 #define OPAL_PRD_MSG				113
-#define OPAL_LAST				113
+#define OPAL_LEDS_GET_INDICATOR			114
+#define OPAL_LEDS_SET_INDICATOR			115
+#define OPAL_CEC_REBOOT2			116
+#define OPAL_LAST				116
 
 /* Device tree flags */
 
@@ -340,6 +343,18 @@ enum OpalPciResetState {
 	OPAL_ASSERT_RESET   = 1
 };
 
+enum OpalSlotLedType {
+	OPAL_SLOT_LED_TYPE_ID = 0,	/* IDENTIFY LED */
+	OPAL_SLOT_LED_TYPE_FAULT = 1,	/* FAULT LED */
+	OPAL_SLOT_LED_TYPE_ATTN = 2,	/* System Attention LED */
+	OPAL_SLOT_LED_TYPE_MAX = 3
+};
+
+enum OpalSlotLedState {
+	OPAL_SLOT_LED_STATE_OFF = 0,	/* LED is OFF */
+	OPAL_SLOT_LED_STATE_ON = 1	/* LED is ON */
+};
+
 /*
  * Address cycle types for LPC accesses. These also correspond
  * to the content of the first cell of the "reg" property for
@@ -361,6 +376,7 @@ enum opal_msg_type {
 	OPAL_MSG_HMI_EVT,
 	OPAL_MSG_DPO,
 	OPAL_MSG_PRD,
+	OPAL_MSG_OCC,
 	OPAL_MSG_TYPE_MAX,
 };
 
@@ -437,6 +453,7 @@ struct OpalMemoryErrorData {
 /* HMI interrupt event */
 enum OpalHMI_Version {
 	OpalHMIEvt_V1 = 1,
+	OpalHMIEvt_V2 = 2,
 };
 
 enum OpalHMI_Severity {
@@ -467,6 +484,49 @@ enum OpalHMI_ErrType {
 	OpalHMI_ERROR_CAPP_RECOVERY,
 };
 
+enum OpalHMI_XstopType {
+	CHECKSTOP_TYPE_UNKNOWN	=	0,
+	CHECKSTOP_TYPE_CORE	=	1,
+	CHECKSTOP_TYPE_NX	=	2,
+};
+
+enum OpalHMI_CoreXstopReason {
+	CORE_CHECKSTOP_IFU_REGFILE		= 0x00000001,
+	CORE_CHECKSTOP_IFU_LOGIC		= 0x00000002,
+	CORE_CHECKSTOP_PC_DURING_RECOV		= 0x00000004,
+	CORE_CHECKSTOP_ISU_REGFILE		= 0x00000008,
+	CORE_CHECKSTOP_ISU_LOGIC		= 0x00000010,
+	CORE_CHECKSTOP_FXU_LOGIC		= 0x00000020,
+	CORE_CHECKSTOP_VSU_LOGIC		= 0x00000040,
+	CORE_CHECKSTOP_PC_RECOV_IN_MAINT_MODE	= 0x00000080,
+	CORE_CHECKSTOP_LSU_REGFILE		= 0x00000100,
+	CORE_CHECKSTOP_PC_FWD_PROGRESS		= 0x00000200,
+	CORE_CHECKSTOP_LSU_LOGIC		= 0x00000400,
+	CORE_CHECKSTOP_PC_LOGIC			= 0x00000800,
+	CORE_CHECKSTOP_PC_HYP_RESOURCE		= 0x00001000,
+	CORE_CHECKSTOP_PC_HANG_RECOV_FAILED	= 0x00002000,
+	CORE_CHECKSTOP_PC_AMBI_HANG_DETECTED	= 0x00004000,
+	CORE_CHECKSTOP_PC_DEBUG_TRIG_ERR_INJ	= 0x00008000,
+	CORE_CHECKSTOP_PC_SPRD_HYP_ERR_INJ	= 0x00010000,
+};
+
+enum OpalHMI_NestAccelXstopReason {
+	NX_CHECKSTOP_SHM_INVAL_STATE_ERR	= 0x00000001,
+	NX_CHECKSTOP_DMA_INVAL_STATE_ERR_1	= 0x00000002,
+	NX_CHECKSTOP_DMA_INVAL_STATE_ERR_2	= 0x00000004,
+	NX_CHECKSTOP_DMA_CH0_INVAL_STATE_ERR	= 0x00000008,
+	NX_CHECKSTOP_DMA_CH1_INVAL_STATE_ERR	= 0x00000010,
+	NX_CHECKSTOP_DMA_CH2_INVAL_STATE_ERR	= 0x00000020,
+	NX_CHECKSTOP_DMA_CH3_INVAL_STATE_ERR	= 0x00000040,
+	NX_CHECKSTOP_DMA_CH4_INVAL_STATE_ERR	= 0x00000080,
+	NX_CHECKSTOP_DMA_CH5_INVAL_STATE_ERR	= 0x00000100,
+	NX_CHECKSTOP_DMA_CH6_INVAL_STATE_ERR	= 0x00000200,
+	NX_CHECKSTOP_DMA_CH7_INVAL_STATE_ERR	= 0x00000400,
+	NX_CHECKSTOP_DMA_CRB_UE			= 0x00000800,
+	NX_CHECKSTOP_DMA_CRB_SUE		= 0x00001000,
+	NX_CHECKSTOP_PBI_ISN_UE			= 0x00002000,
+};
+
 struct OpalHMIEvent {
 	uint8_t		version;	/* 0x00 */
 	uint8_t		severity;	/* 0x01 */
@@ -477,6 +537,23 @@ struct OpalHMIEvent {
 	__be64		hmer;
 	/* TFMR register. Valid only for TFAC and TFMR_PARITY error type. */
 	__be64		tfmr;
+
+	/* version 2 and later */
+	union {
+		/*
+		 * checkstop info (Core/NX).
+		 * Valid for OpalHMI_ERROR_MALFUNC_ALERT.
+		 */
+		struct {
+			uint8_t	xstop_type;	/* enum OpalHMI_XstopType */
+			uint8_t reserved_1[3];
+			__be32  xstop_reason;
+			union {
+				__be32 pir;	/* for CHECKSTOP_TYPE_CORE */
+				__be32 chip_id;	/* for CHECKSTOP_TYPE_NX */
+			} u;
+		} xstop_error;
+	} u;
 };
 
 enum {
@@ -700,6 +777,17 @@ struct opal_prd_msg_header {
 
 struct opal_prd_msg;
 
+#define OCC_RESET                       0
+#define OCC_LOAD                        1
+#define OCC_THROTTLE                    2
+#define OCC_MAX_THROTTLE_STATUS         5
+
+struct opal_occ_msg {
+	__be64 type;
+	__be64 chip;
+	__be64 throttle_status;
+};
+
 /*
  * SG entries
  *
@@ -754,6 +842,52 @@ struct opal_i2c_request {
 	__be32 subaddr;		/* Sub-address if any */
 	__be32 size;			/* Data size */
 	__be64 buffer_ra;		/* Buffer real address */
+};
+
+/*
+ * EPOW status sharing (OPAL and the host)
+ *
+ * The host will pass on OPAL, a buffer of length OPAL_SYSEPOW_MAX
+ * with individual elements being 16 bits wide to fetch the system
+ * wide EPOW status. Each element in the buffer will contain the
+ * EPOW status in it's bit representation for a particular EPOW sub
+ * class as defiend here. So multiple detailed EPOW status bits
+ * specific for any sub class can be represented in a single buffer
+ * element as it's bit representation.
+ */
+
+/* System EPOW type */
+enum OpalSysEpow {
+	OPAL_SYSEPOW_POWER	= 0,	/* Power EPOW */
+	OPAL_SYSEPOW_TEMP	= 1,	/* Temperature EPOW */
+	OPAL_SYSEPOW_COOLING	= 2,	/* Cooling EPOW */
+	OPAL_SYSEPOW_MAX	= 3,	/* Max EPOW categories */
+};
+
+/* Power EPOW */
+enum OpalSysPower {
+	OPAL_SYSPOWER_UPS	= 0x0001, /* System on UPS power */
+	OPAL_SYSPOWER_CHNG	= 0x0002, /* System power config change */
+	OPAL_SYSPOWER_FAIL	= 0x0004, /* System impending power failure */
+	OPAL_SYSPOWER_INCL	= 0x0008, /* System incomplete power */
+};
+
+/* Temperature EPOW */
+enum OpalSysTemp {
+	OPAL_SYSTEMP_AMB	= 0x0001, /* System over ambient temperature */
+	OPAL_SYSTEMP_INT	= 0x0002, /* System over internal temperature */
+	OPAL_SYSTEMP_HMD	= 0x0004, /* System over ambient humidity */
+};
+
+/* Cooling EPOW */
+enum OpalSysCooling {
+	OPAL_SYSCOOL_INSF	= 0x0001, /* System insufficient cooling */
+};
+
+/* Argument to OPAL_CEC_REBOOT2() */
+enum {
+	OPAL_REBOOT_NORMAL		= 0,
+	OPAL_REBOOT_PLATFORM_ERROR	= 1,
 };
 
 #endif /* __ASSEMBLY__ */

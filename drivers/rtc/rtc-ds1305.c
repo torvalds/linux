@@ -538,15 +538,6 @@ ds1305_nvram_read(struct file *filp, struct kobject *kobj,
 
 	spi = container_of(kobj, struct spi_device, dev.kobj);
 
-	if (unlikely(off >= DS1305_NVRAM_LEN))
-		return 0;
-	if (count >= DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN;
-	if ((off + count) > DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN - off;
-	if (unlikely(!count))
-		return count;
-
 	addr = DS1305_NVRAM + off;
 	msg_init(&m, x, &addr, count, NULL, buf);
 
@@ -568,15 +559,6 @@ ds1305_nvram_write(struct file *filp, struct kobject *kobj,
 	int			status;
 
 	spi = container_of(kobj, struct spi_device, dev.kobj);
-
-	if (unlikely(off >= DS1305_NVRAM_LEN))
-		return -EFBIG;
-	if (count >= DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN;
-	if ((off + count) > DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN - off;
-	if (unlikely(!count))
-		return count;
 
 	addr = (DS1305_WRITE | DS1305_NVRAM) + off;
 	msg_init(&m, x, &addr, count, buf, NULL);

@@ -369,8 +369,8 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 		return;
 	}
 
-	if (work_pending(&blkif->persistent_purge_work)) {
-		pr_alert_ratelimited("Scheduled work from previous purge is still pending, cannot purge list\n");
+	if (work_busy(&blkif->persistent_purge_work)) {
+		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cannot purge list\n");
 		return;
 	}
 
@@ -1078,9 +1078,9 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 /*
  * bio callback.
  */
-static void end_block_io_op(struct bio *bio, int error)
+static void end_block_io_op(struct bio *bio)
 {
-	__end_block_io_op(bio->bi_private, error);
+	__end_block_io_op(bio->bi_private, bio->bi_error);
 	bio_put(bio);
 }
 

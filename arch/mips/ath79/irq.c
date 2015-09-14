@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/of_irq.h>
-#include "../../../drivers/irqchip/irqchip.h"
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
@@ -124,8 +123,6 @@ static void ar934x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 {
 	u32 status;
 
-	disable_irq_nosync(irq);
-
 	status = ath79_reset_rr(AR934X_RESET_REG_PCIE_WMAC_INT_STATUS);
 
 	if (status & AR934X_PCIE_WMAC_INT_PCIE_ALL) {
@@ -137,8 +134,6 @@ static void ar934x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 	} else {
 		spurious_interrupt();
 	}
-
-	enable_irq(irq);
 }
 
 static void ar934x_ip2_irq_init(void)
@@ -157,14 +152,12 @@ static void qca955x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 {
 	u32 status;
 
-	disable_irq_nosync(irq);
-
 	status = ath79_reset_rr(QCA955X_RESET_REG_EXT_INT_STATUS);
 	status &= QCA955X_EXT_INT_PCIE_RC1_ALL | QCA955X_EXT_INT_WMAC_ALL;
 
 	if (status == 0) {
 		spurious_interrupt();
-		goto enable;
+		return;
 	}
 
 	if (status & QCA955X_EXT_INT_PCIE_RC1_ALL) {
@@ -176,16 +169,11 @@ static void qca955x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 		/* TODO: flush DDR? */
 		generic_handle_irq(ATH79_IP2_IRQ(1));
 	}
-
-enable:
-	enable_irq(irq);
 }
 
 static void qca955x_ip3_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 {
 	u32 status;
-
-	disable_irq_nosync(irq);
 
 	status = ath79_reset_rr(QCA955X_RESET_REG_EXT_INT_STATUS);
 	status &= QCA955X_EXT_INT_PCIE_RC2_ALL |
@@ -194,7 +182,7 @@ static void qca955x_ip3_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 
 	if (status == 0) {
 		spurious_interrupt();
-		goto enable;
+		return;
 	}
 
 	if (status & QCA955X_EXT_INT_USB1) {
@@ -211,9 +199,6 @@ static void qca955x_ip3_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 		/* TODO: flush DDR? */
 		generic_handle_irq(ATH79_IP3_IRQ(2));
 	}
-
-enable:
-	enable_irq(irq);
 }
 
 static void qca955x_irq_init(void)

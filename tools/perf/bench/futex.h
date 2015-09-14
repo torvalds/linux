@@ -56,6 +56,26 @@ futex_wake(u_int32_t *uaddr, int nr_wake, int opflags)
 }
 
 /**
+ * futex_lock_pi() - block on uaddr as a PI mutex
+ * @detect:	whether (1) or not (0) to perform deadlock detection
+ */
+static inline int
+futex_lock_pi(u_int32_t *uaddr, struct timespec *timeout, int detect,
+	      int opflags)
+{
+	return futex(uaddr, FUTEX_LOCK_PI, detect, timeout, NULL, 0, opflags);
+}
+
+/**
+ * futex_unlock_pi() - release uaddr as a PI mutex, waking the top waiter
+ */
+static inline int
+futex_unlock_pi(u_int32_t *uaddr, int opflags)
+{
+	return futex(uaddr, FUTEX_UNLOCK_PI, 0, NULL, NULL, 0, opflags);
+}
+
+/**
 * futex_cmp_requeue() - requeue tasks from uaddr to uaddr2
 * @nr_wake:        wake up to this many tasks
 * @nr_requeue:        requeue up to this many tasks

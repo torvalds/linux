@@ -977,6 +977,11 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
+int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
+			resource_size_t min, resource_size_t max,
+			resource_size_t size, resource_size_t align,
+			bool fb_overlap_ok);
+
 /**
  * VMBUS_DEVICE - macro used to describe a specific hyperv vmbus device
  *
@@ -1232,8 +1237,6 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					int);
 
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
-
-extern struct resource hyperv_mmio;
 
 /*
  * Negotiated version with the Host.

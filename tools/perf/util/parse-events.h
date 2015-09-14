@@ -34,6 +34,7 @@ extern int parse_events(struct perf_evlist *evlist, const char *str,
 			struct parse_events_error *error);
 extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
+extern int exclude_perf(const struct option *opt, const char *arg, int unset);
 
 #define EVENTS_HELP_MAX (128*1024)
 
@@ -61,7 +62,11 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_CONFIG2,
 	PARSE_EVENTS__TERM_TYPE_NAME,
 	PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD,
+	PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ,
 	PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE,
+	PARSE_EVENTS__TERM_TYPE_TIME,
+	PARSE_EVENTS__TERM_TYPE_CALLGRAPH,
+	PARSE_EVENTS__TERM_TYPE_STACKSIZE,
 };
 
 struct parse_events_term {

@@ -175,20 +175,8 @@ static notrace cycle_t vread_pvclock(int *mode)
 
 notrace static cycle_t vread_tsc(void)
 {
-	cycle_t ret;
-	u64 last;
-
-	/*
-	 * Empirically, a fence (of type that depends on the CPU)
-	 * before rdtsc is enough to ensure that rdtsc is ordered
-	 * with respect to loads.  The various CPU manuals are unclear
-	 * as to whether rdtsc can be reordered with later loads,
-	 * but no one has ever seen it happen.
-	 */
-	rdtsc_barrier();
-	ret = (cycle_t)__native_read_tsc();
-
-	last = gtod->cycle_last;
+	cycle_t ret = (cycle_t)rdtsc_ordered();
+	u64 last = gtod->cycle_last;
 
 	if (likely(ret >= last))
 		return ret;

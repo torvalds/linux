@@ -11,6 +11,7 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -18,8 +19,6 @@
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-
-#include "irqchip.h"
 
 #define CLPS711X_INTSR1	(0x0240)
 #define CLPS711X_INTMR1	(0x0280)

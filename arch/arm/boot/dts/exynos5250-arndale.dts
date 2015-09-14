@@ -117,6 +117,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 &dp {
 	status = "okay";
 	samsung,color-space = <0>;

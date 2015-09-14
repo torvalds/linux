@@ -3,10 +3,16 @@ ltc2978
 Required properties:
 - compatible: should contain one of:
   * "lltc,ltc2974"
+  * "lltc,ltc2975"
   * "lltc,ltc2977"
   * "lltc,ltc2978"
+  * "lltc,ltc2980"
   * "lltc,ltc3880"
+  * "lltc,ltc3882"
   * "lltc,ltc3883"
+  * "lltc,ltc3886"
+  * "lltc,ltc3887"
+  * "lltc,ltm2987"
   * "lltc,ltm4676"
 - reg: I2C slave address
 
@@ -17,10 +23,10 @@ Optional properties:
   standard binding for regulators; see regulator.txt.
 
 Valid names of regulators depend on number of supplies supported per device:
-  * ltc2974 : vout0 - vout3
-  * ltc2977 : vout0 - vout7
+  * ltc2974, ltc2975 : vout0 - vout3
+  * ltc2977, ltc2980, ltm2987 : vout0 - vout7
   * ltc2978 : vout0 - vout7
-  * ltc3880 : vout0 - vout1
+  * ltc3880, ltc3882, ltc3886 : vout0 - vout1
   * ltc3883 : vout0
   * ltm4676 : vout0 - vout1
 

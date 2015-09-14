@@ -873,7 +873,6 @@ MODULE_DEVICE_TABLE(i2c, si476x_id);
 static struct i2c_driver si476x_core_driver = {
 	.driver		= {
 		.name	= "si476x-core",
-		.owner  = THIS_MODULE,
 	},
 	.probe		= si476x_core_probe,
 	.remove         = si476x_core_remove,

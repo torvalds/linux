@@ -97,8 +97,6 @@ DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 DEFINE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-atomic_t init_deasserted;
-
 static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 {
 	unsigned long flags;
@@ -146,16 +144,11 @@ static void smp_callin(void)
 
 	/*
 	 * If waken up by an INIT in an 82489DX configuration
-	 * we may get here before an INIT-deassert IPI reaches
-	 * our local APIC.  We have to wait for the IPI or we'll
-	 * lock up on an APIC access.
-	 *
-	 * Since CPU0 is not wakened up by INIT, it doesn't wait for the IPI.
+	 * cpu_callout_mask guarantees we don't get here before
+	 * an INIT_deassert IPI reaches our local APIC, so it is
+	 * now safe to touch our local APIC.
 	 */
 	cpuid = smp_processor_id();
-	if (apic->wait_for_init_deassert && cpuid)
-		while (!atomic_read(&init_deasserted))
-			cpu_relax();
 
 	/*
 	 * (This works even if the APIC is not enabled.)
@@ -169,11 +162,6 @@ static void smp_callin(void)
 	 * boards)
 	 */
 	apic_ap_setup();
-
-	/*
-	 * Need to setup vector mappings before we enable interrupts.
-	 */
-	setup_vector_irq(smp_processor_id());
 
 	/*
 	 * Save our processor parameters. Note: this information
@@ -239,18 +227,13 @@ static void notrace start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	/*
-	 * Enable the espfix hack for this CPU
-	 */
-#ifdef CONFIG_X86_ESPFIX64
-	init_espfix_ap();
-#endif
-
-	/*
-	 * We need to hold vector_lock so there the set of online cpus
-	 * does not change while we are assigning vectors to cpus.  Holding
-	 * this lock ensures we don't half assign or remove an irq from a cpu.
+	 * Lock vector_lock and initialize the vectors on this cpu
+	 * before setting the cpu online. We must set it online with
+	 * vector_lock held to prevent a concurrent setup/teardown
+	 * from seeing a half valid vector space.
 	 */
 	lock_vector_lock();
+	setup_vector_irq(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
 	cpu_set_state_online(smp_processor_id());
@@ -630,7 +613,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	send_status = safe_apic_wait_icr_idle();
 
 	mb();
-	atomic_set(&init_deasserted, 1);
 
 	/*
 	 * Should we send STARTUP IPIs ?
@@ -675,7 +657,8 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		/*
 		 * Give the other CPU some time to accept the IPI.
 		 */
-		udelay(300);
+		if (init_udelay)
+			udelay(300);
 
 		pr_debug("Startup point 1\n");
 
@@ -685,7 +668,8 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		/*
 		 * Give the other CPU some time to accept the IPI.
 		 */
-		udelay(200);
+		if (init_udelay)
+			udelay(200);
 
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
@@ -854,6 +838,13 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
 
+	/*
+	 * Enable the espfix hack for this CPU
+	*/
+#ifdef CONFIG_X86_ESPFIX64
+	init_espfix_ap(cpu);
+#endif
+
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
 
@@ -861,8 +852,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	 * This grunge runs the startup process for
 	 * the targeted processor.
 	 */
-
-	atomic_set(&init_deasserted, 0);
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 
@@ -901,7 +890,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 
 	if (!boot_error) {
 		/*
-		 * Wait 10s total for a response from AP
+		 * Wait 10s total for first sign of life from AP
 		 */
 		boot_error = -1;
 		timeout = jiffies + 10*HZ;
@@ -914,7 +903,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 				boot_error = 0;
 				break;
 			}
-			udelay(100);
 			schedule();
 		}
 	}
@@ -930,7 +918,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 			 * for the MTRR work(triggered by the AP coming online)
 			 * to be completed in the stop machine context.
 			 */
-			udelay(100);
 			schedule();
 		}
 	}
@@ -995,8 +982,17 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	common_cpu_up(cpu, tidle);
 
+	/*
+	 * We have to walk the irq descriptors to setup the vector
+	 * space for the cpu which comes online.  Prevent irq
+	 * alloc/free across the bringup.
+	 */
+	irq_lock_sparse();
+
 	err = do_boot_cpu(apicid, cpu, tidle);
+
 	if (err) {
+		irq_unlock_sparse();
 		pr_err("do_boot_cpu failed(%d) to wakeup CPU#%u\n", err, cpu);
 		return -EIO;
 	}
@@ -1013,6 +1009,8 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		cpu_relax();
 		touch_nmi_watchdog();
 	}
+
+	irq_unlock_sparse();
 
 	return 0;
 }
@@ -1350,7 +1348,7 @@ static void remove_siblinginfo(int cpu)
 	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);
 }
 
-static void __ref remove_cpu_from_maps(int cpu)
+static void remove_cpu_from_maps(int cpu)
 {
 	set_cpu_online(cpu, false);
 	cpumask_clear_cpu(cpu, cpu_callout_mask);

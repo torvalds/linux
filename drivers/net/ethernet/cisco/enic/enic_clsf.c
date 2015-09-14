@@ -177,7 +177,7 @@ int enic_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	int res, i;
 
 	enic = netdev_priv(dev);
-	res = skb_flow_dissect_flow_keys(skb, &keys);
+	res = skb_flow_dissect_flow_keys(skb, &keys, 0);
 	if (!res || keys.basic.n_proto != htons(ETH_P_IP) ||
 	    (keys.basic.ip_proto != IPPROTO_TCP &&
 	     keys.basic.ip_proto != IPPROTO_UDP))

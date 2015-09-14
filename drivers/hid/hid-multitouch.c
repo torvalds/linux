@@ -778,8 +778,15 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	/*
 	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
 	 * for the stylus.
+	 * The check for mt_report_id ensures we don't process
+	 * HID_DG_CONTACTCOUNT from the pen report as it is outside the physical
+	 * collection, but within the report ID.
 	 */
 	if (field->physical == HID_DG_STYLUS)
+		return 0;
+	else if ((field->physical == 0) &&
+		 (field->report->id != td->mt_report_id) &&
+		 (td->mt_report_id != -1))
 		return 0;
 
 	if (field->application == HID_DG_TOUCHSCREEN ||
@@ -1137,6 +1144,14 @@ static const struct hid_device_id mt_devices[] = {
 	{  .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_CHUNGHWAT,
 			USB_DEVICE_ID_CHUNGHWAT_MULTITOUCH) },
+
+	/* CJTouch panels */
+	{ .driver_data = MT_CLS_NSMU,
+		MT_USB_DEVICE(USB_VENDOR_ID_CJTOUCH,
+			USB_DEVICE_ID_CJTOUCH_MULTI_TOUCH_0020) },
+	{ .driver_data = MT_CLS_NSMU,
+		MT_USB_DEVICE(USB_VENDOR_ID_CJTOUCH,
+			USB_DEVICE_ID_CJTOUCH_MULTI_TOUCH_0040) },
 
 	/* CVTouch panels */
 	{ .driver_data = MT_CLS_NSMU,

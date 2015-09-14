@@ -1554,8 +1554,7 @@ static int wlanhdr_to_ethhdr (struct recv_frame *precvframe)
 	ether_addr_copy(ptr + ETH_ALEN, pattrib->src);
 
 	if (!bsnaphdr) {
-		len = htons(len);
-		memcpy(ptr + 12, &len, 2);
+		put_unaligned_be16(len, ptr + 12);
 	}
 
 

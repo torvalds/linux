@@ -303,7 +303,8 @@ static void xgbe_set_buffer_data(struct xgbe_buffer_data *bd,
 	get_page(pa->pages);
 	bd->pa = *pa;
 
-	bd->dma = pa->pages_dma + pa->pages_offset;
+	bd->dma_base = pa->pages_dma;
+	bd->dma_off = pa->pages_offset;
 	bd->dma_len = len;
 
 	pa->pages_offset += len;

@@ -179,7 +179,7 @@ static unsigned int sfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 		return sfq_hash(q, skb) + 1;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tc_classify(skb, fl, &res);
+	result = tc_classify(skb, fl, &res, false);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
@@ -306,10 +306,10 @@ drop:
 		len = qdisc_pkt_len(skb);
 		slot->backlog -= len;
 		sfq_dec(q, x);
-		kfree_skb(skb);
 		sch->q.qlen--;
 		qdisc_qstats_drop(sch);
 		qdisc_qstats_backlog_dec(sch, skb);
+		kfree_skb(skb);
 		return len;
 	}
 

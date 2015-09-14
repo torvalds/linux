@@ -234,25 +234,35 @@
 /*
  * Endpoint definition helpers
  */
-#define USB_EP_DEF(addr, bname, dir, type, maxpkt) \
-{ .usb_ep = { .name = bname, .ops = &pxa_ep_ops, .maxpacket = maxpkt, }, \
+#define USB_EP_DEF(addr, bname, dir, type, maxpkt, ctype, cdir) \
+{ .usb_ep = {	.name = bname, .ops = &pxa_ep_ops, .maxpacket = maxpkt, \
+		.caps = USB_EP_CAPS(ctype, cdir), }, \
   .desc = {	.bEndpointAddress = addr | (dir ? USB_DIR_IN : 0), \
-		.bmAttributes = type, \
+		.bmAttributes = USB_ENDPOINT_XFER_ ## type, \
 		.wMaxPacketSize = maxpkt, }, \
   .dev = &memory \
 }
-#define USB_EP_BULK(addr, bname, dir) \
-  USB_EP_DEF(addr, bname, dir, USB_ENDPOINT_XFER_BULK, BULK_FIFO_SIZE)
-#define USB_EP_ISO(addr, bname, dir) \
-  USB_EP_DEF(addr, bname, dir, USB_ENDPOINT_XFER_ISOC, ISO_FIFO_SIZE)
-#define USB_EP_INT(addr, bname, dir) \
-  USB_EP_DEF(addr, bname, dir, USB_ENDPOINT_XFER_INT, INT_FIFO_SIZE)
-#define USB_EP_IN_BULK(n)	USB_EP_BULK(n, "ep" #n "in-bulk", 1)
-#define USB_EP_OUT_BULK(n)	USB_EP_BULK(n, "ep" #n "out-bulk", 0)
-#define USB_EP_IN_ISO(n)	USB_EP_ISO(n,  "ep" #n "in-iso", 1)
-#define USB_EP_OUT_ISO(n)	USB_EP_ISO(n,  "ep" #n "out-iso", 0)
-#define USB_EP_IN_INT(n)	USB_EP_INT(n,  "ep" #n "in-int", 1)
-#define USB_EP_CTRL		USB_EP_DEF(0,  "ep0", 0, 0, EP0_FIFO_SIZE)
+#define USB_EP_BULK(addr, bname, dir, cdir) \
+	USB_EP_DEF(addr, bname, dir, BULK, BULK_FIFO_SIZE, \
+		USB_EP_CAPS_TYPE_BULK, cdir)
+#define USB_EP_ISO(addr, bname, dir, cdir) \
+	USB_EP_DEF(addr, bname, dir, ISOC, ISO_FIFO_SIZE, \
+		USB_EP_CAPS_TYPE_ISO, cdir)
+#define USB_EP_INT(addr, bname, dir, cdir) \
+	USB_EP_DEF(addr, bname, dir, INT, INT_FIFO_SIZE, \
+		USB_EP_CAPS_TYPE_INT, cdir)
+#define USB_EP_IN_BULK(n)	USB_EP_BULK(n, "ep" #n "in-bulk", 1, \
+					USB_EP_CAPS_DIR_IN)
+#define USB_EP_OUT_BULK(n)	USB_EP_BULK(n, "ep" #n "out-bulk", 0, \
+					USB_EP_CAPS_DIR_OUT)
+#define USB_EP_IN_ISO(n)	USB_EP_ISO(n,  "ep" #n "in-iso", 1, \
+					USB_EP_CAPS_DIR_IN)
+#define USB_EP_OUT_ISO(n)	USB_EP_ISO(n,  "ep" #n "out-iso", 0, \
+					USB_EP_CAPS_DIR_OUT)
+#define USB_EP_IN_INT(n)	USB_EP_INT(n,  "ep" #n "in-int", 1, \
+					USB_EP_CAPS_DIR_IN)
+#define USB_EP_CTRL	USB_EP_DEF(0,  "ep0", 0, CONTROL, EP0_FIFO_SIZE, \
+				USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)
 
 #define PXA_EP_DEF(_idx, _addr, dir, _type, maxpkt, _config, iface, altset) \
 { \

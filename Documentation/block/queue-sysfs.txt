@@ -20,7 +20,7 @@ This shows the size of internal allocation of the device in bytes, if
 reported by the device. A value of '0' means device does not support
 the discard functionality.
 
-discard_max_bytes (RO)
+discard_max_hw_bytes (RO)
 ----------------------
 Devices that support discard functionality may have internal limits on
 the number of bytes that can be trimmed or unmapped in a single operation.
@@ -28,6 +28,14 @@ The discard_max_bytes parameter is set by the device driver to the maximum
 number of bytes that can be discarded in a single operation. Discard
 requests issued to the device must not exceed this limit. A discard_max_bytes
 value of 0 means that the device does not support discard functionality.
+
+discard_max_bytes (RW)
+----------------------
+While discard_max_hw_bytes is the hardware limit for the device, this
+setting is the software limit. Some devices exhibit large latencies when
+large discards are issued, setting this value lower will make Linux issue
+smaller discards and potentially help reduce latencies induced by large
+discard operations.
 
 discard_zeroes_data (RO)
 ------------------------

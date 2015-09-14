@@ -268,8 +268,7 @@ int conf_read_simple(const char *name, int def)
 			goto load;
 		sym_add_change_count(1);
 		if (!sym_defconfig_list) {
-			if (modules_sym)
-				sym_calc_value(modules_sym);
+			sym_calc_value(modules_sym);
 			return 1;
 		}
 
@@ -404,9 +403,7 @@ setsym:
 	}
 	free(line);
 	fclose(in);
-
-	if (modules_sym)
-		sym_calc_value(modules_sym);
+	sym_calc_value(modules_sym);
 	return 0;
 }
 

@@ -15,12 +15,11 @@
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-
-#include "irqchip.h"
 
 #define COMBINER_ENABLE_SET	0x0
 #define COMBINER_ENABLE_CLEAR	0x4
@@ -66,10 +65,12 @@ static void combiner_unmask_irq(struct irq_data *data)
 	__raw_writel(mask, combiner_base(data) + COMBINER_ENABLE_SET);
 }
 
-static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
+static void combiner_handle_cascade_irq(unsigned int __irq,
+					struct irq_desc *desc)
 {
-	struct combiner_chip_data *chip_data = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct combiner_chip_data *chip_data = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int cascade_irq, combiner_irq;
 	unsigned long status;
 
@@ -122,9 +123,8 @@ static struct irq_chip combiner_chip = {
 static void __init combiner_cascade_irq(struct combiner_chip_data *combiner_data,
 					unsigned int irq)
 {
-	if (irq_set_handler_data(irq, combiner_data) != 0)
-		BUG();
-	irq_set_chained_handler(irq, combiner_handle_cascade_irq);
+	irq_set_chained_handler_and_data(irq, combiner_handle_cascade_irq,
+					 combiner_data);
 }
 
 static void __init combiner_init_one(struct combiner_chip_data *combiner_data,
@@ -185,14 +185,14 @@ static void __init combiner_init(void __iomem *combiner_base,
 
 	combiner_data = kcalloc(max_nr, sizeof (*combiner_data), GFP_KERNEL);
 	if (!combiner_data) {
-		pr_warning("%s: could not allocate combiner data\n", __func__);
+		pr_warn("%s: could not allocate combiner data\n", __func__);
 		return;
 	}
 
 	combiner_irq_domain = irq_domain_add_linear(np, nr_irq,
 				&combiner_irq_domain_ops, combiner_data);
 	if (WARN_ON(!combiner_irq_domain)) {
-		pr_warning("%s: irq domain init failed\n", __func__);
+		pr_warn("%s: irq domain init failed\n", __func__);
 		return;
 	}
 

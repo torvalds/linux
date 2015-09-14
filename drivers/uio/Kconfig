@@ -127,7 +127,7 @@ config UIO_FSL_ELBC_GPCM_NETX5152
 config UIO_PRUSS
 	tristate "Texas Instruments PRUSS driver"
 	select GENERIC_ALLOCATOR
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
 	help
 	  PRUSS driver for OMAPL138/DA850/AM18XX devices
 	  PRUSS driver requires user space components, examples and user space

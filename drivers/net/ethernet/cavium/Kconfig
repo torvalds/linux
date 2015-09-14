@@ -16,7 +16,6 @@ if NET_VENDOR_CAVIUM
 config THUNDER_NIC_PF
 	tristate "Thunder Physical function driver"
 	depends on 64BIT
-	default ARCH_THUNDER
 	select THUNDER_NIC_BGX
 	---help---
 	  This driver supports Thunder's NIC physical function.
@@ -29,14 +28,14 @@ config THUNDER_NIC_PF
 config THUNDER_NIC_VF
 	tristate "Thunder Virtual function driver"
 	depends on 64BIT
-	default ARCH_THUNDER
 	---help---
 	  This driver supports Thunder's NIC virtual function
 
 config	THUNDER_NIC_BGX
 	tristate "Thunder MAC interface driver (BGX)"
 	depends on 64BIT
-	default ARCH_THUNDER
+	select PHYLIB
+	select MDIO_OCTEON
 	---help---
 	  This driver supports programming and controlling of MAC
 	  interface from NIC physical function driver.

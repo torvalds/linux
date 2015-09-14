@@ -49,7 +49,6 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
-	struct iser_device  *device = iser_task->iser_conn->ib_conn.device;
 	struct iser_mem_reg *mem_reg;
 	int err;
 	struct iser_hdr *hdr = &iser_task->desc.iser_header;
@@ -73,7 +72,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 			return err;
 	}
 
-	err = device->iser_reg_rdma_mem(iser_task, ISER_DIR_IN);
+	err = iser_reg_rdma_mem(iser_task, ISER_DIR_IN);
 	if (err) {
 		iser_err("Failed to set up Data-IN RDMA\n");
 		return err;
@@ -103,7 +102,6 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 		       unsigned int edtl)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
-	struct iser_device  *device = iser_task->iser_conn->ib_conn.device;
 	struct iser_mem_reg *mem_reg;
 	int err;
 	struct iser_hdr *hdr = &iser_task->desc.iser_header;
@@ -128,7 +126,7 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 			return err;
 	}
 
-	err = device->iser_reg_rdma_mem(iser_task, ISER_DIR_OUT);
+	err = iser_reg_rdma_mem(iser_task, ISER_DIR_OUT);
 	if (err != 0) {
 		iser_err("Failed to register write cmd RDMA mem\n");
 		return err;
@@ -170,13 +168,7 @@ static void iser_create_send_desc(struct iser_conn	*iser_conn,
 
 	memset(&tx_desc->iser_header, 0, sizeof(struct iser_hdr));
 	tx_desc->iser_header.flags = ISER_VER;
-
 	tx_desc->num_sge = 1;
-
-	if (tx_desc->tx_sg[0].lkey != device->mr->lkey) {
-		tx_desc->tx_sg[0].lkey = device->mr->lkey;
-		iser_dbg("sdesc %p lkey mismatch, fixing\n", tx_desc);
-	}
 }
 
 static void iser_free_login_buf(struct iser_conn *iser_conn)
@@ -266,7 +258,8 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 	iser_conn->qp_max_recv_dtos_mask = session->cmds_max - 1; /* cmds_max is 2^N */
 	iser_conn->min_posted_rx = iser_conn->qp_max_recv_dtos >> 2;
 
-	if (device->iser_alloc_rdma_reg_res(ib_conn, session->scsi_cmds_max))
+	if (device->reg_ops->alloc_reg_res(ib_conn, session->scsi_cmds_max,
+					   iser_conn->scsi_sg_tablesize))
 		goto create_rdma_reg_res_failed;
 
 	if (iser_alloc_login_buf(iser_conn))
@@ -291,7 +284,7 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 		rx_sg = &rx_desc->rx_sg;
 		rx_sg->addr   = rx_desc->dma_addr;
 		rx_sg->length = ISER_RX_PAYLOAD_SIZE;
-		rx_sg->lkey   = device->mr->lkey;
+		rx_sg->lkey   = device->pd->local_dma_lkey;
 	}
 
 	iser_conn->rx_desc_head = 0;
@@ -307,7 +300,7 @@ rx_desc_dma_map_failed:
 rx_desc_alloc_fail:
 	iser_free_login_buf(iser_conn);
 alloc_login_buf_fail:
-	device->iser_free_rdma_reg_res(ib_conn);
+	device->reg_ops->free_reg_res(ib_conn);
 create_rdma_reg_res_failed:
 	iser_err("failed allocating rx descriptors / data buffers\n");
 	return -ENOMEM;
@@ -320,8 +313,8 @@ void iser_free_rx_descriptors(struct iser_conn *iser_conn)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
 
-	if (device->iser_free_rdma_reg_res)
-		device->iser_free_rdma_reg_res(ib_conn);
+	if (device->reg_ops->free_reg_res)
+		device->reg_ops->free_reg_res(ib_conn);
 
 	rx_desc = iser_conn->rx_descs;
 	for (i = 0; i < iser_conn->qp_max_recv_dtos; i++, rx_desc++)
@@ -454,7 +447,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	unsigned long buf_offset;
 	unsigned long data_seg_len;
 	uint32_t itt;
-	int err = 0;
+	int err;
 	struct ib_sge *tx_dsg;
 
 	itt = (__force uint32_t)hdr->itt;
@@ -475,7 +468,9 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	memcpy(&tx_desc->iscsi_header, hdr, sizeof(struct iscsi_hdr));
 
 	/* build the tx desc */
-	iser_initialize_task_headers(task, tx_desc);
+	err = iser_initialize_task_headers(task, tx_desc);
+	if (err)
+		goto send_data_out_error;
 
 	mem_reg = &iser_task->rdma_reg[ISER_DIR_OUT];
 	tx_dsg = &tx_desc->tx_sg[1];
@@ -502,7 +497,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 
 send_data_out_error:
 	kmem_cache_free(ig.desc_cache, tx_desc);
-	iser_err("conn %p failed err %d\n",conn, err);
+	iser_err("conn %p failed err %d\n", conn, err);
 	return err;
 }
 
@@ -543,7 +538,7 @@ int iser_send_control(struct iscsi_conn *conn,
 
 		tx_dsg->addr    = iser_conn->login_req_dma;
 		tx_dsg->length  = task->data_count;
-		tx_dsg->lkey    = device->mr->lkey;
+		tx_dsg->lkey    = device->pd->local_dma_lkey;
 		mdesc->num_sge = 2;
 	}
 
@@ -666,7 +661,6 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 
 void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 {
-	struct iser_device *device = iser_task->iser_conn->ib_conn.device;
 	int is_rdma_data_aligned = 1;
 	int is_rdma_prot_aligned = 1;
 	int prot_count = scsi_prot_sg_count(iser_task->sc);
@@ -703,7 +697,7 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	}
 
 	if (iser_task->dir[ISER_DIR_IN]) {
-		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
+		iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
 		if (is_rdma_data_aligned)
 			iser_dma_unmap_task_data(iser_task,
 						 &iser_task->data[ISER_DIR_IN],
@@ -715,7 +709,7 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	}
 
 	if (iser_task->dir[ISER_DIR_OUT]) {
-		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_OUT);
+		iser_unreg_rdma_mem(iser_task, ISER_DIR_OUT);
 		if (is_rdma_data_aligned)
 			iser_dma_unmap_task_data(iser_task,
 						 &iser_task->data[ISER_DIR_OUT],

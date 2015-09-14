@@ -97,13 +97,7 @@ static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 
 struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
 {
-	struct pinctrl_dev *pctldev;
-
-	pctldev = get_pinctrl_dev_from_of_node(np);
-	if (!pctldev)
-		return NULL;
-
-	return pctldev;
+	return get_pinctrl_dev_from_of_node(np);
 }
 
 static int dt_to_map_one_config(struct pinctrl *p, const char *statename,

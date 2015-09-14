@@ -35,7 +35,8 @@ struct r8a7779_pm_domain {
 	struct rcar_sysc_ch ch;
 };
 
-static inline struct rcar_sysc_ch *to_r8a7779_ch(struct generic_pm_domain *d)
+static inline
+const struct rcar_sysc_ch *to_r8a7779_ch(struct generic_pm_domain *d)
 {
 	return &container_of(d, struct r8a7779_pm_domain, genpd)->ch;
 }
@@ -83,7 +84,6 @@ static void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd)
 {
 	struct generic_pm_domain *genpd = &r8a7779_pd->genpd;
 
-	genpd->flags = GENPD_FLAG_PM_CLK;
 	pm_genpd_init(genpd, NULL, false);
 	genpd->dev_ops.active_wakeup = pd_active_wakeup;
 	genpd->power_off = pd_power_down;

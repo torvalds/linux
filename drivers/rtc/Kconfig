@@ -945,11 +945,11 @@ config RTC_DRV_DA9055
 	  will be called rtc-da9055
 
 config RTC_DRV_DA9063
-	tristate "Dialog Semiconductor DA9063 RTC"
-	depends on MFD_DA9063
+	tristate "Dialog Semiconductor DA9063/DA9062 RTC"
+	depends on MFD_DA9063 || MFD_DA9062
 	help
 	  If you say yes here you will get support for the RTC subsystem
-	  of the Dialog Semiconductor DA9063.
+	  for the Dialog Semiconductor PMIC chips DA9063 and DA9062.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-da9063".
@@ -1115,6 +1115,13 @@ config RTC_DRV_OPAL
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-opal.
+
+config RTC_DRV_ZYNQMP
+	tristate "Xilinx Zynq Ultrascale+ MPSoC RTC"
+	depends on OF
+	help
+	  If you say yes here you get support for the RTC controller found on
+	  Xilinx Zynq Ultrascale+ MPSoC.
 
 comment "on-CPU RTC drivers"
 
@@ -1306,11 +1313,13 @@ config RTC_DRV_GENERIC
 	  just say Y.
 
 config RTC_DRV_PXA
-	tristate "PXA27x/PXA3xx"
-	depends on ARCH_PXA
-	help
-	 If you say Y here you will get access to the real time clock
-	 built into your PXA27x or PXA3xx CPU.
+       tristate "PXA27x/PXA3xx"
+       depends on ARCH_PXA
+       select RTC_DRV_SA1100
+       help
+         If you say Y here you will get access to the real time clock
+         built into your PXA27x or PXA3xx CPU. This RTC is actually 2 RTCs
+         consisting of an SA1100 compatible RTC and the extended PXA RTC.
 
 	 This RTC driver uses PXA RTC registers available since pxa27x
 	 series (RDxR, RYxR) instead of legacy RCNR, RTAR.
@@ -1456,6 +1465,18 @@ config RTC_DRV_JZ4740
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
 
+config RTC_DRV_LPC24XX
+	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  This enables support for the NXP RTC found which can be found on
+	  NXP LPC178x/18xx/408x/43xx devices.
+
+	  If you have one of the devices above enable this driver to use
+	  the hardware RTC. This driver can also be buillt as a module. If
+	  so, the module will be called rtc-lpc24xx.
+
 config RTC_DRV_LPC32XX
 	depends on ARCH_LPC32XX
 	tristate "NXP LPC32XX RTC"
@@ -1523,6 +1544,7 @@ config RTC_DRV_MXC
 
 config RTC_DRV_SNVS
 	tristate "Freescale SNVS RTC support"
+	select REGMAP_MMIO
 	depends on HAS_IOMEM
 	depends on OF
 	help

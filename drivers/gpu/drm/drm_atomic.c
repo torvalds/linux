@@ -153,9 +153,15 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		if (!connector)
 			continue;
 
-		WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
-
-		connector->funcs->atomic_destroy_state(connector,
+		/*
+		 * FIXME: Async commits can race with connector unplugging and
+		 * there's currently nothing that prevents cleanup up state for
+		 * deleted connectors. As long as the callback doesn't look at
+		 * the connector we'll be fine though, so make sure that's the
+		 * case by setting all connector pointers to NULL.
+		 */
+		state->connector_states[i]->connector = NULL;
+		connector->funcs->atomic_destroy_state(NULL,
 						       state->connector_states[i]);
 		state->connectors[i] = NULL;
 		state->connector_states[i] = NULL;
@@ -1063,7 +1069,7 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	 * Changed connectors are already in @state, so only need to look at the
 	 * current configuration.
 	 */
-	list_for_each_entry(connector, &config->connector_list, head) {
+	drm_for_each_connector(connector, state->dev) {
 		if (connector->state->crtc != crtc)
 			continue;
 
@@ -1463,24 +1469,18 @@ retry:
 
 		if (get_user(obj_id, objs_ptr + copied_objs)) {
 			ret = -EFAULT;
-			goto fail;
+			goto out;
 		}
 
 		obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_ANY);
 		if (!obj || !obj->properties) {
 			ret = -ENOENT;
-			goto fail;
-		}
-
-		if (obj->type == DRM_MODE_OBJECT_PLANE) {
-			plane = obj_to_plane(obj);
-			plane_mask |= (1 << drm_plane_index(plane));
-			plane->old_fb = plane->fb;
+			goto out;
 		}
 
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
 			ret = -EFAULT;
-			goto fail;
+			goto out;
 		}
 
 		copied_objs++;
@@ -1492,27 +1492,34 @@ retry:
 
 			if (get_user(prop_id, props_ptr + copied_props)) {
 				ret = -EFAULT;
-				goto fail;
+				goto out;
 			}
 
 			prop = drm_property_find(dev, prop_id);
 			if (!prop) {
 				ret = -ENOENT;
-				goto fail;
+				goto out;
 			}
 
 			if (copy_from_user(&prop_value,
 					   prop_values_ptr + copied_props,
 					   sizeof(prop_value))) {
 				ret = -EFAULT;
-				goto fail;
+				goto out;
 			}
 
 			ret = atomic_set_prop(state, obj, prop, prop_value);
 			if (ret)
-				goto fail;
+				goto out;
 
 			copied_props++;
+		}
+
+		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props &&
+		    !(arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+			plane = obj_to_plane(obj);
+			plane_mask |= (1 << drm_plane_index(plane));
+			plane->old_fb = plane->fb;
 		}
 	}
 
@@ -1523,7 +1530,7 @@ retry:
 			e = create_vblank_event(dev, file_priv, arg->user_data);
 			if (!e) {
 				ret = -ENOMEM;
-				goto fail;
+				goto out;
 			}
 
 			crtc_state->event = e;
@@ -1531,15 +1538,18 @@ retry:
 	}
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
+		/*
+		 * Unlike commit, check_only does not clean up state.
+		 * Below we call drm_atomic_state_free for it.
+		 */
 		ret = drm_atomic_check_only(state);
-		/* _check_only() does not free state, unlike _commit() */
-		drm_atomic_state_free(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_async_commit(state);
 	} else {
 		ret = drm_atomic_commit(state);
 	}
 
+out:
 	/* if succeeded, fixup legacy plane crtc/fb ptrs before dropping
 	 * locks (ie. while it is still safe to deref plane->state).  We
 	 * need to do this here because the driver entry points cannot
@@ -1552,41 +1562,40 @@ retry:
 				drm_framebuffer_reference(new_fb);
 			plane->fb = new_fb;
 			plane->crtc = plane->state->crtc;
-		} else {
-			plane->old_fb = NULL;
+
+			if (plane->old_fb)
+				drm_framebuffer_unreference(plane->old_fb);
 		}
-		if (plane->old_fb) {
-			drm_framebuffer_unreference(plane->old_fb);
-			plane->old_fb = NULL;
-		}
+		plane->old_fb = NULL;
 	}
 
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	if (ret && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		/*
+		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually exclusive,
+		 * if they weren't, this code should be called on success
+		 * for TEST_ONLY too.
+		 */
 
-	return ret;
-
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			destroy_vblank_event(dev, file_priv, crtc_state->event);
-			crtc_state->event = NULL;
+			if (!crtc_state->event)
+				continue;
+
+			destroy_vblank_event(dev, file_priv,
+					     crtc_state->event);
 		}
 	}
 
-	drm_atomic_state_free(state);
+	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	if (ret || arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
+		drm_atomic_state_free(state);
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_modeset_backoff(&ctx);
-
-	goto retry;
 }

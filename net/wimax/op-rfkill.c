@@ -135,8 +135,7 @@ EXPORT_SYMBOL_GPL(wimax_report_rfkill_hw);
  * @state: New state of the RF kill switch. %WIMAX_RF_ON radio on,
  *     %WIMAX_RF_OFF radio off.
  *
- * Reports changes in the software RF switch state to the the WiMAX
- * stack.
+ * Reports changes in the software RF switch state to the WiMAX stack.
  *
  * The main use is during initialization, so the driver can query the
  * device for its current software radio kill switch state and feed it

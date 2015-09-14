@@ -24,19 +24,27 @@
 #include "dvb_frontend.h"
 #include "tda10071.h"
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
-struct tda10071_priv {
-	struct i2c_adapter *i2c;
+struct tda10071_dev {
 	struct dvb_frontend fe;
 	struct i2c_client *client;
-	struct tda10071_config cfg;
+	struct regmap *regmap;
+	struct mutex cmd_execute_mutex;
+	u32 clk;
+	u16 i2c_wr_max;
+	u8 ts_mode;
+	bool spec_inv;
+	u8 pll_multiplier;
+	u8 tuner_i2c_addr;
 
-	u8 meas_count[2];
-	u32 ber;
-	u32 ucb;
+	u8 meas_count;
+	u32 dvbv3_ber;
 	enum fe_status fe_status;
 	enum fe_delivery_system delivery_system;
 	bool warm; /* FW running */
+	u64 post_bit_error;
+	u64 block_error;
 };
 
 static struct tda10071_modcod {

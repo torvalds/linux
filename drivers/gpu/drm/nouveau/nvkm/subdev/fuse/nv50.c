@@ -23,54 +23,29 @@
  */
 #include "priv.h"
 
-struct nv50_fuse_priv {
-	struct nvkm_fuse base;
-
-	spinlock_t fuse_enable_lock;
-};
-
 static u32
-nv50_fuse_rd32(struct nvkm_object *object, u64 addr)
+nv50_fuse_read(struct nvkm_fuse *fuse, u32 addr)
 {
-	struct nv50_fuse_priv *priv = (void *)object;
+	struct nvkm_device *device = fuse->subdev.device;
 	unsigned long flags;
 	u32 fuse_enable, val;
 
 	/* racy if another part of nvkm start writing to this reg */
-	spin_lock_irqsave(&priv->fuse_enable_lock, flags);
-	fuse_enable = nv_mask(priv, 0x1084, 0x800, 0x800);
-	val = nv_rd32(priv, 0x21000 + addr);
-	nv_wr32(priv, 0x1084, fuse_enable);
-	spin_unlock_irqrestore(&priv->fuse_enable_lock, flags);
+	spin_lock_irqsave(&fuse->lock, flags);
+	fuse_enable = nvkm_mask(device, 0x001084, 0x800, 0x800);
+	val = nvkm_rd32(device, 0x021000 + addr);
+	nvkm_wr32(device, 0x001084, fuse_enable);
+	spin_unlock_irqrestore(&fuse->lock, flags);
 	return val;
 }
 
-
-static int
-nv50_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nv50_fuse_priv *priv;
-	int ret;
-
-	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	spin_lock_init(&priv->fuse_enable_lock);
-	return 0;
-}
-
-struct nvkm_oclass
-nv50_fuse_oclass = {
-	.handle = NV_SUBDEV(FUSE, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_fuse_ctor,
-		.dtor = _nvkm_fuse_dtor,
-		.init = _nvkm_fuse_init,
-		.fini = _nvkm_fuse_fini,
-		.rd32 = nv50_fuse_rd32,
-	},
+static const struct nvkm_fuse_func
+nv50_fuse = {
+	.read = &nv50_fuse_read,
 };
+
+int
+nv50_fuse_new(struct nvkm_device *device, int index, struct nvkm_fuse **pfuse)
+{
+	return nvkm_fuse_new_(&nv50_fuse, device, index, pfuse);
+}

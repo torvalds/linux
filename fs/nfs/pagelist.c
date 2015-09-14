@@ -77,8 +77,8 @@ EXPORT_SYMBOL_GPL(nfs_pgheader_init);
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
 {
 	spin_lock(&hdr->lock);
-	if (pos < hdr->io_start + hdr->good_bytes) {
-		set_bit(NFS_IOHDR_ERROR, &hdr->flags);
+	if (!test_and_set_bit(NFS_IOHDR_ERROR, &hdr->flags)
+	    || pos < hdr->io_start + hdr->good_bytes) {
 		clear_bit(NFS_IOHDR_EOF, &hdr->flags);
 		hdr->good_bytes = pos - hdr->io_start;
 		hdr->error = error;
@@ -1100,8 +1100,6 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 		mirror->pg_base = 0;
 		mirror->pg_recoalesce = 0;
 
-		desc->pg_moreio = 0;
-
 		while (!list_empty(&head)) {
 			struct nfs_page *req;
 
@@ -1109,8 +1107,11 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 			nfs_list_remove_request(req);
 			if (__nfs_pageio_add_request(desc, req))
 				continue;
-			if (desc->pg_error < 0)
+			if (desc->pg_error < 0) {
+				list_splice_tail(&head, &mirror->pg_list);
+				mirror->pg_recoalesce = 1;
 				return 0;
+			}
 			break;
 		}
 	} while (mirror->pg_recoalesce);

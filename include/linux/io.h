@@ -20,10 +20,13 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/bug.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include <asm/page.h>
 
 struct device;
+struct resource;
 
 __visible void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
@@ -80,6 +83,27 @@ int check_signature(const volatile void __iomem *io_addr,
 			const unsigned char *signature, int length);
 void devm_ioremap_release(struct device *dev, void *res);
 
+void *devm_memremap(struct device *dev, resource_size_t offset,
+		size_t size, unsigned long flags);
+void devm_memunmap(struct device *dev, void *addr);
+
+void *__devm_memremap_pages(struct device *dev, struct resource *res);
+
+#ifdef CONFIG_ZONE_DEVICE
+void *devm_memremap_pages(struct device *dev, struct resource *res);
+#else
+static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
+{
+	/*
+	 * Fail attempts to call devm_memremap_pages() without
+	 * ZONE_DEVICE support enabled, this requires callers to fall
+	 * back to plain devm_memremap() based on config
+	 */
+	WARN_ON_ONCE(1);
+	return ERR_PTR(-ENXIO);
+}
+#endif
+
 /*
  * Some systems do not have legacy ISA devices.
  * /dev/port is not a valid interface on these systems.
@@ -120,5 +144,14 @@ static inline int arch_phys_wc_index(int handle)
 #define arch_phys_wc_index arch_phys_wc_index
 #endif
 #endif
+
+enum {
+	/* See memremap() kernel-doc for usage description... */
+	MEMREMAP_WB = 1 << 0,
+	MEMREMAP_WT = 1 << 1,
+};
+
+void *memremap(resource_size_t offset, size_t size, unsigned long flags);
+void memunmap(void *addr);
 
 #endif /* _LINUX_IO_H */

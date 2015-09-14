@@ -8,6 +8,7 @@ extern struct page_ext_operations page_owner_ops;
 extern void __reset_page_owner(struct page *page, unsigned int order);
 extern void __set_page_owner(struct page *page,
 			unsigned int order, gfp_t gfp_mask);
+extern gfp_t __get_page_owner_gfp(struct page *page);
 
 static inline void reset_page_owner(struct page *page, unsigned int order)
 {
@@ -25,6 +26,14 @@ static inline void set_page_owner(struct page *page,
 
 	__set_page_owner(page, order, gfp_mask);
 }
+
+static inline gfp_t get_page_owner_gfp(struct page *page)
+{
+	if (likely(!page_owner_inited))
+		return 0;
+
+	return __get_page_owner_gfp(page);
+}
 #else
 static inline void reset_page_owner(struct page *page, unsigned int order)
 {
@@ -32,6 +41,10 @@ static inline void reset_page_owner(struct page *page, unsigned int order)
 static inline void set_page_owner(struct page *page,
 			unsigned int order, gfp_t gfp_mask)
 {
+}
+static inline gfp_t get_page_owner_gfp(struct page *page)
+{
+	return 0;
 }
 
 #endif /* CONFIG_PAGE_OWNER */

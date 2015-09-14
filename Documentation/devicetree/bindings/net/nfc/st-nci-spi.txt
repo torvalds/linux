@@ -1,0 +1,31 @@
+* STMicroelectronics SAS. ST NCI NFC Controller
+
+Required properties:
+- compatible: Should be "st,st21nfcb-spi"
+- spi-max-frequency: Maximum SPI frequency (<= 10000000).
+- interrupt-parent: phandle for the interrupt gpio controller
+- interrupts: GPIO interrupt to which the chip is connected
+- reset-gpios: Output GPIO pin used to reset the ST21NFCB
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+
+Example (for ARM-based BeagleBoard xM with ST21NFCB on SPI4):
+
+&mcspi4 {
+
+	status = "okay";
+
+	st21nfcb: st21nfcb@0 {
+
+		compatible = "st,st21nfcb-spi";
+
+		clock-frequency = <4000000>;
+
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_EDGE_RISING>;
+
+		reset-gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
+	};
+};

@@ -91,36 +91,25 @@ static struct regmap_bus regmap_spmi_base = {
 	.val_format_endian_default	= REGMAP_ENDIAN_NATIVE,
 };
 
-/**
- * regmap_init_spmi_base(): Create regmap for the Base register space
- * @sdev:	SPMI device that will be interacted with
- * @config:	Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.
- */
-struct regmap *regmap_init_spmi_base(struct spmi_device *sdev,
-				     const struct regmap_config *config)
+struct regmap *__regmap_init_spmi_base(struct spmi_device *sdev,
+				       const struct regmap_config *config,
+				       struct lock_class_key *lock_key,
+				       const char *lock_name)
 {
-	return regmap_init(&sdev->dev, &regmap_spmi_base, sdev, config);
+	return __regmap_init(&sdev->dev, &regmap_spmi_base, sdev, config,
+			     lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(regmap_init_spmi_base);
+EXPORT_SYMBOL_GPL(__regmap_init_spmi_base);
 
-/**
- * devm_regmap_init_spmi_base(): Create managed regmap for Base register space
- * @sdev:	SPMI device that will be interacted with
- * @config:	Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  The regmap will be automatically freed by the
- * device management code.
- */
-struct regmap *devm_regmap_init_spmi_base(struct spmi_device *sdev,
-					  const struct regmap_config *config)
+struct regmap *__devm_regmap_init_spmi_base(struct spmi_device *sdev,
+					    const struct regmap_config *config,
+					    struct lock_class_key *lock_key,
+					    const char *lock_name)
 {
-	return devm_regmap_init(&sdev->dev, &regmap_spmi_base, sdev, config);
+	return __devm_regmap_init(&sdev->dev, &regmap_spmi_base, sdev, config,
+				  lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init_spmi_base);
+EXPORT_SYMBOL_GPL(__devm_regmap_init_spmi_base);
 
 static int regmap_spmi_ext_read(void *context,
 				const void *reg, size_t reg_size,
@@ -222,35 +211,24 @@ static struct regmap_bus regmap_spmi_ext = {
 	.val_format_endian_default	= REGMAP_ENDIAN_NATIVE,
 };
 
-/**
- * regmap_init_spmi_ext(): Create regmap for Ext register space
- * @sdev:	Device that will be interacted with
- * @config:	Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.
- */
-struct regmap *regmap_init_spmi_ext(struct spmi_device *sdev,
-				    const struct regmap_config *config)
+struct regmap *__regmap_init_spmi_ext(struct spmi_device *sdev,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name)
 {
-	return regmap_init(&sdev->dev, &regmap_spmi_ext, sdev, config);
+	return __regmap_init(&sdev->dev, &regmap_spmi_ext, sdev, config,
+			     lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(regmap_init_spmi_ext);
+EXPORT_SYMBOL_GPL(__regmap_init_spmi_ext);
 
-/**
- * devm_regmap_init_spmi_ext(): Create managed regmap for Ext register space
- * @sdev:	SPMI device that will be interacted with
- * @config:	Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  The regmap will be automatically freed by the
- * device management code.
- */
-struct regmap *devm_regmap_init_spmi_ext(struct spmi_device *sdev,
-				     const struct regmap_config *config)
+struct regmap *__devm_regmap_init_spmi_ext(struct spmi_device *sdev,
+					   const struct regmap_config *config,
+					   struct lock_class_key *lock_key,
+					   const char *lock_name)
 {
-	return devm_regmap_init(&sdev->dev, &regmap_spmi_ext, sdev, config);
+	return __devm_regmap_init(&sdev->dev, &regmap_spmi_ext, sdev, config,
+				  lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init_spmi_ext);
+EXPORT_SYMBOL_GPL(__devm_regmap_init_spmi_ext);
 
 MODULE_LICENSE("GPL");

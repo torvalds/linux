@@ -76,7 +76,7 @@ static inline bool is_link_local_ether_addr(const u8 *addr)
 
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
 	return (((*(const u32 *)addr) ^ (*(const u32 *)b)) |
-		((a[2] ^ b[2]) & m)) == 0;
+		(__force int)((a[2] ^ b[2]) & m)) == 0;
 #else
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
 #endif

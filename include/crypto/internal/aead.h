@@ -1,7 +1,7 @@
 /*
  * AEAD: Authenticated Encryption with Associated Data
  * 
- * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
+ * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,7 @@
 struct rtattr;
 
 struct aead_instance {
+	void (*free)(struct aead_instance *inst);
 	union {
 		struct {
 			char head[offsetof(struct aead_alg, base)];
@@ -34,18 +35,13 @@ struct crypto_aead_spawn {
 	struct crypto_spawn base;
 };
 
-extern const struct crypto_type crypto_aead_type;
-extern const struct crypto_type crypto_nivaead_type;
+struct aead_queue {
+	struct crypto_queue base;
+};
 
 static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);
-}
-
-static inline struct crypto_instance *crypto_aead_alg_instance(
-	struct crypto_aead *aead)
-{
-	return crypto_tfm_alg_instance(&aead->base);
 }
 
 static inline struct crypto_instance *aead_crypto_instance(
@@ -61,7 +57,7 @@ static inline struct aead_instance *aead_instance(struct crypto_instance *inst)
 
 static inline struct aead_instance *aead_alg_instance(struct crypto_aead *aead)
 {
-	return aead_instance(crypto_aead_alg_instance(aead));
+	return aead_instance(crypto_tfm_alg_instance(&aead->base));
 }
 
 static inline void *aead_instance_ctx(struct aead_instance *inst)
@@ -90,20 +86,12 @@ static inline void crypto_set_aead_spawn(
 	crypto_set_spawn(&spawn->base, inst);
 }
 
-struct crypto_alg *crypto_lookup_aead(const char *name, u32 type, u32 mask);
-
 int crypto_grab_aead(struct crypto_aead_spawn *spawn, const char *name,
 		     u32 type, u32 mask);
 
 static inline void crypto_drop_aead(struct crypto_aead_spawn *spawn)
 {
 	crypto_drop_spawn(&spawn->base);
-}
-
-static inline struct crypto_alg *crypto_aead_spawn_alg(
-	struct crypto_aead_spawn *spawn)
-{
-	return spawn->base.alg;
 }
 
 static inline struct aead_alg *crypto_spawn_aead_alg(
@@ -118,43 +106,51 @@ static inline struct crypto_aead *crypto_spawn_aead(
 	return crypto_spawn_tfm2(&spawn->base);
 }
 
-struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
-				       struct rtattr **tb, u32 type, u32 mask);
-void aead_geniv_free(struct aead_instance *inst);
-int aead_geniv_init(struct crypto_tfm *tfm);
-void aead_geniv_exit(struct crypto_tfm *tfm);
-
-static inline struct crypto_aead *aead_geniv_base(struct crypto_aead *geniv)
-{
-	return geniv->child;
-}
-
-static inline void *aead_givcrypt_reqctx(struct aead_givcrypt_request *req)
-{
-	return aead_request_ctx(&req->areq);
-}
-
-static inline void aead_givcrypt_complete(struct aead_givcrypt_request *req,
-					  int err)
-{
-	aead_request_complete(&req->areq, err);
-}
-
 static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 					   unsigned int reqsize)
 {
-	crypto_aead_crt(aead)->reqsize = reqsize;
+	aead->reqsize = reqsize;
 }
 
 static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
 {
-	return alg->base.cra_aead.encrypt ? alg->base.cra_aead.maxauthsize :
-					    alg->maxauthsize;
+	return alg->maxauthsize;
 }
 
 static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
 {
 	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
+}
+
+static inline void aead_init_queue(struct aead_queue *queue,
+				   unsigned int max_qlen)
+{
+	crypto_init_queue(&queue->base, max_qlen);
+}
+
+static inline int aead_enqueue_request(struct aead_queue *queue,
+				       struct aead_request *request)
+{
+	return crypto_enqueue_request(&queue->base, &request->base);
+}
+
+static inline struct aead_request *aead_dequeue_request(
+	struct aead_queue *queue)
+{
+	struct crypto_async_request *req;
+
+	req = crypto_dequeue_request(&queue->base);
+
+	return req ? container_of(req, struct aead_request, base) : NULL;
+}
+
+static inline struct aead_request *aead_get_backlog(struct aead_queue *queue)
+{
+	struct crypto_async_request *req;
+
+	req = crypto_get_backlog(&queue->base);
+
+	return req ? container_of(req, struct aead_request, base) : NULL;
 }
 
 int crypto_register_aead(struct aead_alg *alg);

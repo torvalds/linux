@@ -4,7 +4,7 @@
  * Copyright (c) 2013 ELAN Microelectronics Corp.
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
- * Version: 1.5.9
+ * Version: 1.6.0
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -40,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.5.9"
+#define ELAN_DRIVER_VERSION	"1.6.0"
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -84,7 +84,7 @@ struct elan_tp_data {
 	int			pressure_adjustment;
 	u8			mode;
 	u8			ic_type;
-	u16			fw_vaildpage_count;
+	u16			fw_validpage_count;
 	u16			fw_signature_address;
 
 	bool			irq_wake;
@@ -94,25 +94,28 @@ struct elan_tp_data {
 	bool			baseline_ready;
 };
 
-static int elan_get_fwinfo(u8 ic_type, u16 *vaildpage_count,
+static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
 			   u16 *signature_address)
 {
-	switch(ic_type) {
+	switch (iap_version) {
+	case 0x08:
+		*validpage_count = 512;
+		break;
 	case 0x09:
-		*vaildpage_count = 768;
+		*validpage_count = 768;
 		break;
 	case 0x0D:
-		*vaildpage_count = 896;
+		*validpage_count = 896;
 		break;
 	default:
 		/* unknown ic type clear value */
-		*vaildpage_count = 0;
+		*validpage_count = 0;
 		*signature_address = 0;
 		return -ENXIO;
 	}
 
 	*signature_address =
-		(*vaildpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
+		(*validpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
 
 	return 0;
 }
@@ -261,11 +264,11 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = elan_get_fwinfo(data->ic_type, &data->fw_vaildpage_count,
+	error = elan_get_fwinfo(data->iap_version, &data->fw_validpage_count,
 				&data->fw_signature_address);
 	if (error) {
 		dev_err(&data->client->dev,
-			"unknown ic type %d\n", data->ic_type);
+			"unknown iap version %d\n", data->iap_version);
 		return error;
 	}
 
@@ -353,7 +356,7 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 	iap_start_addr = get_unaligned_le16(&fw->data[ETP_IAP_START_ADDR * 2]);
 
 	boot_page_count = (iap_start_addr * 2) / ETP_FW_PAGE_SIZE;
-	for (i = boot_page_count; i < data->fw_vaildpage_count; i++) {
+	for (i = boot_page_count; i < data->fw_validpage_count; i++) {
 		u16 checksum = 0;
 		const u8 *page = &fw->data[i * ETP_FW_PAGE_SIZE];
 
@@ -771,7 +774,7 @@ static const struct attribute_group *elan_sysfs_groups[] = {
  */
 static void elan_report_contact(struct elan_tp_data *data,
 				int contact_num, bool contact_valid,
-				bool hover_event, u8 *finger_data)
+				u8 *finger_data)
 {
 	struct input_dev *input = data->input;
 	unsigned int pos_x, pos_y;
@@ -815,9 +818,7 @@ static void elan_report_contact(struct elan_tp_data *data,
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
 		input_report_abs(input, ABS_MT_POSITION_X, pos_x);
 		input_report_abs(input, ABS_MT_POSITION_Y, data->max_y - pos_y);
-		input_report_abs(input, ABS_MT_DISTANCE, hover_event);
-		input_report_abs(input, ABS_MT_PRESSURE,
-				 hover_event ? 0 : scaled_pressure);
+		input_report_abs(input, ABS_MT_PRESSURE, scaled_pressure);
 		input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
@@ -839,14 +840,14 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	hover_event = hover_info & 0x40;
 	for (i = 0; i < ETP_MAX_FINGERS; i++) {
 		contact_valid = tp_info & (1U << (3 + i));
-		elan_report_contact(data, i, contact_valid, hover_event,
-				    finger_data);
+		elan_report_contact(data, i, contact_valid, finger_data);
 
 		if (contact_valid)
 			finger_data += ETP_FINGER_DATA_LEN;
 	}
 
 	input_report_key(input, BTN_LEFT, tp_info & 0x01);
+	input_report_abs(input, ABS_DISTANCE, hover_event != 0);
 	input_mt_report_pointer_emulation(input, true);
 	input_sync(input);
 }
@@ -922,6 +923,7 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	input_abs_set_res(input, ABS_Y, data->y_res);
 	input_set_abs_params(input, ABS_PRESSURE, 0, ETP_MAX_PRESSURE, 0, 0);
 	input_set_abs_params(input, ABS_TOOL_WIDTH, 0, ETP_FINGER_WIDTH, 0, 0);
+	input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
 
 	/* And MT parameters */
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, data->max_x, 0, 0);
@@ -934,7 +936,6 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 			     ETP_FINGER_WIDTH * max_width, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0,
 			     ETP_FINGER_WIDTH * min_width, 0, 0);
-	input_set_abs_params(input, ABS_MT_DISTANCE, 0, 1, 0, 0);
 
 	data->input = input;
 
@@ -1167,6 +1168,9 @@ MODULE_DEVICE_TABLE(i2c, elan_id);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id elan_acpi_id[] = {
 	{ "ELAN0000", 0 },
+	{ "ELAN0100", 0 },
+	{ "ELAN0600", 0 },
+	{ "ELAN1000", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, elan_acpi_id);
@@ -1183,10 +1187,10 @@ MODULE_DEVICE_TABLE(of, elan_of_match);
 static struct i2c_driver elan_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &elan_pm_ops,
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= elan_probe,
 	.id_table	= elan_id,

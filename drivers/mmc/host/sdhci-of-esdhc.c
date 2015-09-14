@@ -208,6 +208,12 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock == 0)
 		return;
 
+	/* Workaround to start pre_div at 2 for VNN < VENDOR_V_23 */
+	temp = esdhc_readw(host, SDHCI_HOST_VERSION);
+	temp = (temp & SDHCI_VENDOR_VER_MASK) >> SDHCI_VENDOR_VER_SHIFT;
+	if (temp < VENDOR_V_23)
+		pre_div = 2;
+
 	/* Workaround to reduce the clock frequency for p1010 esdhc */
 	if (of_find_compatible_node(NULL, NULL, "fsl,p1010-esdhc")) {
 		if (clock > 20000000)
