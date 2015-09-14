@@ -470,7 +470,7 @@ int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 
 	if (arg->buffer_handle != SVGA3D_INVALID_ID) {
 		ret = vmw_user_dmabuf_lookup(tfile, arg->buffer_handle,
-					     &buffer);
+					     &buffer, NULL);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Could not find buffer for shader "
 				  "creation.\n");

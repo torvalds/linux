@@ -1458,6 +1458,9 @@ static void __exit vmwgfx_exit(void)
 	drm_pci_exit(&driver, &vmw_pci_driver);
 }
 
+MODULE_INFO(vmw_patch, "ed7d78b2");
+MODULE_INFO(vmw_patch, "54c12bc3");
+
 module_init(vmwgfx_init);
 module_exit(vmwgfx_exit);
 
