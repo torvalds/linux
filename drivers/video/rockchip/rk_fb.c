@@ -3398,6 +3398,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct fb_info *info = NULL;
 	struct rk_fb_par *fb_par = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
+	struct rk_lcdc_win *win;
 	char name[6] = {0};
 	int i, win_id;
 	static bool load_screen = false;
@@ -3540,6 +3541,13 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		mutex_unlock(&dev_drv->switch_screen);
 		return 0;
 	} else {
+		if (dev_drv->uboot_logo) {
+			if (dev_drv->cur_screen->mode.xres !=
+				screen->mode.xres ||
+			    dev_drv->cur_screen->mode.yres !=
+				screen->mode.yres)
+				load_screen = 1;
+		}
 		if (dev_drv->screen1)
 			dev_drv->cur_screen = dev_drv->screen1;
 
@@ -3556,33 +3564,33 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			info = rk_fb->fb[dev_drv->fb_index_base + i];
 			fb_par = (struct rk_fb_par *)info->par;
 			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
-			if (dev_drv->win[win_id]) {
-				if (fb_par->state) {
-					dev_drv->ops->load_screen(dev_drv, 1);
+			win = dev_drv->win[win_id];
+			if (win && fb_par->state) {
+				dev_drv->ops->load_screen(dev_drv, 1);
 
-					info->var.activate |= FB_ACTIVATE_FORCE;
-					if (rk_fb->disp_mode == ONE_DUAL) {
-						info->var.grayscale &= 0xff;
-						info->var.grayscale |=
-							(dev_drv->cur_screen->xsize << 8) +
-							(dev_drv->cur_screen->ysize << 20);
-					}
-					if (dev_drv->uboot_logo) {
-						for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-							if (dev_drv->win[i] && dev_drv->win[i]->state &&
-							    dev_drv->ops->win_direct_en)
-								dev_drv->ops->win_direct_en(dev_drv, i, 0);
-						}
-					} else if (!dev_drv->win[win_id]->state) {
-						dev_drv->ops->open(dev_drv, win_id, 1);
-						dev_drv->suspend_flag = 0;
-						mutex_lock(&dev_drv->win_config);
-						info->var.xoffset = 0;
-						info->var.yoffset = 0;
-						info->fbops->fb_set_par(info);
-						info->fbops->fb_pan_display(&info->var, info);
-						mutex_unlock(&dev_drv->win_config);
-					}
+				info->var.activate |= FB_ACTIVATE_FORCE;
+				if (rk_fb->disp_mode == ONE_DUAL) {
+					info->var.grayscale &= 0xff;
+					info->var.grayscale |=
+						(dev_drv->cur_screen->xsize << 8) +
+						(dev_drv->cur_screen->ysize << 20);
+				}
+				if (dev_drv->uboot_logo && win->state) {
+					win->area[0].xpos = 0;
+					win->area[0].ypos = 0;
+					win->area[0].xsize = screen->mode.xres;
+					win->area[0].ysize = screen->mode.yres;
+					dev_drv->ops->set_par(dev_drv, i);
+					dev_drv->ops->cfg_done(dev_drv);
+				} else if (!dev_drv->win[win_id]->state) {
+					dev_drv->ops->open(dev_drv, win_id, 1);
+					dev_drv->suspend_flag = 0;
+					mutex_lock(&dev_drv->win_config);
+					info->var.xoffset = 0;
+					info->var.yoffset = 0;
+					info->fbops->fb_set_par(info);
+					info->fbops->fb_pan_display(&info->var, info);
+					mutex_unlock(&dev_drv->win_config);
 				}
 			}
 		}
