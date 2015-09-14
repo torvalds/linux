@@ -92,8 +92,6 @@ struct sci_port {
 	struct timer_list	break_timer;
 	int			break_flag;
 
-	/* Interface clock */
-	struct clk		*iclk;
 	/* Function clock */
 	struct clk		*fclk;
 
@@ -457,9 +455,8 @@ static void sci_port_enable(struct sci_port *sci_port)
 
 	pm_runtime_get_sync(sci_port->port.dev);
 
-	clk_prepare_enable(sci_port->iclk);
-	sci_port->port.uartclk = clk_get_rate(sci_port->iclk);
 	clk_prepare_enable(sci_port->fclk);
+	sci_port->port.uartclk = clk_get_rate(sci_port->fclk);
 }
 
 static void sci_port_disable(struct sci_port *sci_port)
@@ -476,7 +473,6 @@ static void sci_port_disable(struct sci_port *sci_port)
 	sci_port->break_flag = 0;
 
 	clk_disable_unprepare(sci_port->fclk);
-	clk_disable_unprepare(sci_port->iclk);
 
 	pm_runtime_put_sync(sci_port->port.dev);
 }
@@ -1622,7 +1618,7 @@ static int sci_notifier(struct notifier_block *self,
 		struct uart_port *port = &sci_port->port;
 
 		spin_lock_irqsave(&port->lock, flags);
-		port->uartclk = clk_get_rate(sci_port->iclk);
+		port->uartclk = clk_get_rate(sci_port->fclk);
 		spin_unlock_irqrestore(&port->lock, flags);
 	}
 
@@ -2241,6 +2237,42 @@ static struct uart_ops sci_uart_ops = {
 #endif
 };
 
+static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
+{
+	/* Get the SCI functional clock. It's called "fck" on ARM. */
+	sci_port->fclk = clk_get(dev, "fck");
+	if (PTR_ERR(sci_port->fclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (!IS_ERR(sci_port->fclk))
+		return 0;
+
+	/*
+	 * But it used to be called "sci_ick", and we need to maintain DT
+	 * backward compatibility.
+	 */
+	sci_port->fclk = clk_get(dev, "sci_ick");
+	if (PTR_ERR(sci_port->fclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (!IS_ERR(sci_port->fclk))
+		return 0;
+
+	/* SH has historically named the clock "sci_fck". */
+	sci_port->fclk = clk_get(dev, "sci_fck");
+	if (!IS_ERR(sci_port->fclk))
+		return 0;
+
+	/*
+	 * Not all SH platforms declare a clock lookup entry for SCI devices,
+	 * in which case we need to get the global "peripheral_clk" clock.
+	 */
+	sci_port->fclk = clk_get(dev, "peripheral_clk");
+	if (!IS_ERR(sci_port->fclk))
+		return 0;
+
+	dev_err(dev, "failed to get functional clock\n");
+	return PTR_ERR(sci_port->fclk);
+}
+
 static int sci_init_single(struct platform_device *dev,
 			   struct sci_port *sci_port, unsigned int index,
 			   struct plat_sci_port *p, bool early)
@@ -2333,22 +2365,9 @@ static int sci_init_single(struct platform_device *dev,
 		sci_port->sampling_rate = p->sampling_rate;
 
 	if (!early) {
-		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
-		if (IS_ERR(sci_port->iclk)) {
-			sci_port->iclk = clk_get(&dev->dev, "peripheral_clk");
-			if (IS_ERR(sci_port->iclk)) {
-				dev_err(&dev->dev, "can't get iclk\n");
-				return PTR_ERR(sci_port->iclk);
-			}
-		}
-
-		/*
-		 * The function clock is optional, ignore it if we can't
-		 * find it.
-		 */
-		sci_port->fclk = clk_get(&dev->dev, "sci_fck");
-		if (IS_ERR(sci_port->fclk))
-			sci_port->fclk = NULL;
+		ret = sci_init_clocks(sci_port, &dev->dev);
+		if (ret < 0)
+			return ret;
 
 		port->dev = &dev->dev;
 
@@ -2405,7 +2424,6 @@ static int sci_init_single(struct platform_device *dev,
 
 static void sci_cleanup_single(struct sci_port *port)
 {
-	clk_put(port->iclk);
 	clk_put(port->fclk);
 
 	pm_runtime_disable(port->port.dev);

@@ -42,7 +42,7 @@ Required properties:
 
   - clocks: Must contain a phandle and clock-specifier pair for each entry
     in clock-names.
-  - clock-names: Must contain "sci_ick" for the SCIx UART interface clock.
+  - clock-names: Must contain "fck" for the SCIx UART functional clock.
 
 Note: Each enabled SCIx UART should have an alias correctly numbered in the
 "aliases" node.
@@ -63,7 +63,7 @@ Example:
 		interrupt-parent = <&gic>;
 		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFA0>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		dmas = <&dmac0 0x21>, <&dmac0 0x22>;
 		dma-names = "tx", "rx";
 	};
