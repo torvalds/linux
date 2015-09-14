@@ -76,7 +76,7 @@ struct mmc_pwrseq *mmc_pwrseq_emmc_alloc(struct mmc_host *host,
 	if (!pwrseq)
 		return ERR_PTR(-ENOMEM);
 
-	pwrseq->reset_gpio = gpiod_get_index(dev, "reset", 0, GPIOD_OUT_LOW);
+	pwrseq->reset_gpio = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pwrseq->reset_gpio)) {
 		ret = PTR_ERR(pwrseq->reset_gpio);
 		goto free;
