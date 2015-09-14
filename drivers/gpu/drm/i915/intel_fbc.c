@@ -480,6 +480,8 @@ const char *intel_no_fbc_reason_str(enum no_fbc_reason reason)
 		return "rotation unsupported";
 	case FBC_IN_DBG_MASTER:
 		return "Kernel debugger is active";
+	case FBC_BAD_STRIDE:
+		return "framebuffer stride not supported";
 	default:
 		MISSING_CASE(reason);
 		return "unknown reason";
@@ -671,6 +673,27 @@ static int intel_fbc_setup_cfb(struct drm_i915_private *dev_priv, int size,
 	return intel_fbc_alloc_cfb(dev_priv, size, fb_cpp);
 }
 
+static bool stride_is_valid(struct drm_i915_private *dev_priv,
+			    unsigned int stride)
+{
+	/* These should have been caught earlier. */
+	WARN_ON(stride < 512);
+	WARN_ON((stride & (64 - 1)) != 0);
+
+	/* Below are the additional FBC restrictions. */
+
+	if (IS_GEN2(dev_priv) || IS_GEN3(dev_priv))
+		return stride == 4096 || stride == 8192;
+
+	if (IS_GEN4(dev_priv) && !IS_G4X(dev_priv) && stride < 2048)
+		return false;
+
+	if (stride > 16384)
+		return false;
+
+	return true;
+}
+
 /**
  * __intel_fbc_update - enable/disable FBC as needed, unlocked
  * @dev_priv: i915 device instance
@@ -778,6 +801,11 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
 	    crtc->primary->state->rotation != BIT(DRM_ROTATE_0)) {
 		set_no_fbc_reason(dev_priv, FBC_ROTATION);
+		goto out_disable;
+	}
+
+	if (!stride_is_valid(dev_priv, fb->pitches[0])) {
+		set_no_fbc_reason(dev_priv, FBC_BAD_STRIDE);
 		goto out_disable;
 	}
 
