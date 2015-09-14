@@ -554,9 +554,9 @@ struct fld;
 
 struct lu_site_bkt_data {
 	/**
-	 * number of busy object on this bucket
+	 * number of object in this bucket on the lsb_lru list.
 	 */
-	long		      lsb_busy;
+	long			lsb_lru_len;
 	/**
 	 * LRU list, updated on each access to object. Protected by
 	 * bucket lock of lu_site::ls_obj_hash.

@@ -113,8 +113,6 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 		return;
 	}
 
-	LASSERT(bkt->lsb_busy > 0);
-	bkt->lsb_busy--;
 	/*
 	 * When last reference is released, iterate over object
 	 * layers, and notify them that object is no longer busy.
@@ -127,6 +125,7 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 	if (!lu_object_is_dying(top)) {
 		LASSERT(list_empty(&top->loh_lru));
 		list_add_tail(&top->loh_lru, &bkt->lsb_lru);
+		bkt->lsb_lru_len++;
 		cfs_hash_bd_unlock(site->ls_obj_hash, &bd, 1);
 		return;
 	}
@@ -179,7 +178,13 @@ void lu_object_unhash(const struct lu_env *env, struct lu_object *o)
 		struct cfs_hash_bd bd;
 
 		cfs_hash_bd_get_and_lock(obj_hash, &top->loh_fid, &bd, 1);
+		if (!list_empty(&top->loh_lru)) {
+			struct lu_site_bkt_data *bkt;
+
 		list_del_init(&top->loh_lru);
+			bkt = cfs_hash_bd_extra_get(obj_hash, &bd);
+			bkt->lsb_lru_len--;
+		}
 		cfs_hash_bd_del_locked(obj_hash, &bd, &top->loh_hash);
 		cfs_hash_bd_unlock(obj_hash, &bd, 1);
 	}
@@ -349,6 +354,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 			cfs_hash_bd_del_locked(s->ls_obj_hash,
 					       &bd2, &h->loh_hash);
 			list_move(&h->loh_lru, &dispose);
+			bkt->lsb_lru_len--;
 			if (did_sth == 0)
 				did_sth = 1;
 
@@ -561,7 +567,10 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	if (likely(!lu_object_is_dying(h))) {
 		cfs_hash_get(s->ls_obj_hash, hnode);
 		lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_HIT);
+		if (!list_empty(&h->loh_lru)) {
 		list_del_init(&h->loh_lru);
+			bkt->lsb_lru_len--;
+		}
 		return lu_object_top(h);
 	}
 
@@ -599,7 +608,6 @@ static struct lu_object *lu_object_new(const struct lu_env *env,
 	struct lu_object	*o;
 	struct cfs_hash	      *hs;
 	struct cfs_hash_bd	    bd;
-	struct lu_site_bkt_data *bkt;
 
 	o = lu_object_alloc(env, dev, f, conf);
 	if (IS_ERR(o))
@@ -607,9 +615,7 @@ static struct lu_object *lu_object_new(const struct lu_env *env,
 
 	hs = dev->ld_site->ls_obj_hash;
 	cfs_hash_bd_get_and_lock(hs, (void *)f, &bd, 1);
-	bkt = cfs_hash_bd_extra_get(hs, &bd);
 	cfs_hash_bd_add_locked(hs, &bd, &o->lo_header->loh_hash);
-	bkt->lsb_busy++;
 	cfs_hash_bd_unlock(hs, &bd, 1);
 	return o;
 }
@@ -675,11 +681,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 
 	shadow = htable_lookup(s, &bd, f, waiter, &version);
 	if (likely(PTR_ERR(shadow) == -ENOENT)) {
-		struct lu_site_bkt_data *bkt;
-
-		bkt = cfs_hash_bd_extra_get(hs, &bd);
 		cfs_hash_bd_add_locked(hs, &bd, &o->lo_header->loh_hash);
-		bkt->lsb_busy++;
 		cfs_hash_bd_unlock(hs, &bd, 1);
 		return o;
 	}
@@ -926,14 +928,7 @@ static void lu_obj_hop_get(struct cfs_hash *hs, struct hlist_node *hnode)
 	struct lu_object_header *h;
 
 	h = hlist_entry(hnode, struct lu_object_header, loh_hash);
-	if (atomic_add_return(1, &h->loh_ref) == 1) {
-		struct lu_site_bkt_data *bkt;
-		struct cfs_hash_bd	    bd;
-
-		cfs_hash_bd_get(hs, &h->loh_fid, &bd);
-		bkt = cfs_hash_bd_extra_get(hs, &bd);
-		bkt->lsb_busy++;
-	}
+	atomic_inc(&h->loh_ref);
 }
 
 static void lu_obj_hop_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
@@ -1802,7 +1797,8 @@ static void lu_site_stats_get(struct cfs_hash *hs,
 		struct hlist_head	*hhead;
 
 		cfs_hash_bd_lock(hs, &bd, 1);
-		stats->lss_busy  += bkt->lsb_busy;
+		stats->lss_busy  +=
+			cfs_hash_bd_count_get(&bd) - bkt->lsb_lru_len;
 		stats->lss_total += cfs_hash_bd_count_get(&bd);
 		stats->lss_max_search = max((int)stats->lss_max_search,
 					    cfs_hash_bd_depmax_get(&bd));
@@ -2067,7 +2063,6 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 {
 	struct lu_site		*s = o->lo_dev->ld_site;
 	struct lu_fid		*old = &o->lo_header->loh_fid;
-	struct lu_site_bkt_data	*bkt;
 	struct lu_object	*shadow;
 	wait_queue_t		 waiter;
 	struct cfs_hash		*hs;
@@ -2082,9 +2077,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 	/* supposed to be unique */
 	LASSERT(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT);
 	*old = *fid;
-	bkt = cfs_hash_bd_extra_get(hs, &bd);
 	cfs_hash_bd_add_locked(hs, &bd, &o->lo_header->loh_hash);
-	bkt->lsb_busy++;
 	cfs_hash_bd_unlock(hs, &bd, 1);
 }
 EXPORT_SYMBOL(lu_object_assign_fid);
