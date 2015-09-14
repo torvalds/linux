@@ -695,10 +695,10 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 {
 	struct timeval tv_etime;
 	ktime_t stime, etime;
-	int vbl_status;
+	unsigned int vbl_status;
+	int ret = DRM_VBLANKTIME_SCANOUTPOS_METHOD;
 	int vpos, hpos, i;
 	int delta_ns, duration_ns;
-	bool invbl;
 
 	if (pipe >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
@@ -738,7 +738,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 
 		/* Return as no-op if scanout query unsupported or failed. */
 		if (!(vbl_status & DRM_SCANOUTPOS_VALID)) {
-			DRM_DEBUG("crtc %u : scanoutpos query failed [%d].\n",
+			DRM_DEBUG("crtc %u : scanoutpos query failed [0x%x].\n",
 				  pipe, vbl_status);
 			return -EIO;
 		}
@@ -765,7 +765,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 * within vblank area, counting down the number of lines until
 	 * start of scanout.
 	 */
-	invbl = vbl_status & DRM_SCANOUTPOS_IN_VBLANK;
+	if (vbl_status & DRM_SCANOUTPOS_IN_VBLANK)
+		ret |= DRM_VBLANKTIME_IN_VBLANK;
 
 	/* Convert scanout position into elapsed time at raw_time query
 	 * since start of scanout at first display scanline. delta_ns
@@ -788,17 +789,13 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		etime = ktime_sub_ns(etime, delta_ns);
 	*vblank_time = ktime_to_timeval(etime);
 
-	DRM_DEBUG("crtc %u : v %d p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
-		  pipe, (int)vbl_status, hpos, vpos,
+	DRM_DEBUG("crtc %u : v 0x%x p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
+		  pipe, vbl_status, hpos, vpos,
 		  (long)tv_etime.tv_sec, (long)tv_etime.tv_usec,
 		  (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
 		  duration_ns/1000, i);
 
-	vbl_status = DRM_VBLANKTIME_SCANOUTPOS_METHOD;
-	if (invbl)
-		vbl_status |= DRM_VBLANKTIME_IN_VBLANK;
-
-	return vbl_status;
+	return ret;
 }
 EXPORT_SYMBOL(drm_calc_vbltimestamp_from_scanoutpos);
 
