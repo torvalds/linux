@@ -901,7 +901,7 @@ void ps3_disable_pm(u32 cpu)
 	result = lv1_stop_lpm(lpm_priv->lpm_id, &tmp);
 
 	if (result) {
-		if(result != LV1_WRONG_STATE)
+		if (result != LV1_WRONG_STATE)
 			dev_err(sbd_core(), "%s:%u: lv1_stop_lpm failed: %s\n",
 				__func__, __LINE__, ps3_result(result));
 		return;
