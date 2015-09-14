@@ -27,6 +27,11 @@
 #include <linux/module.h>
 
 #define DEFAULT_FBDEFIO_DELAY_MS 50
+#ifdef CONFIG_DRM_CMA_FBDEV_BUFFER_NUM
+#define FBDEV_BUFFER_NUM CONFIG_DRM_CMA_FBDEV_BUFFER_NUM
+#else
+#define FBDEV_BUFFER_NUM 1
+#endif
 
 struct drm_fb_cma {
 	struct drm_framebuffer		fb;
@@ -403,7 +408,7 @@ int drm_fbdev_cma_create_with_funcs(struct drm_fb_helper *helper,
 	bytes_per_pixel = DIV_ROUND_UP(sizes->surface_bpp, 8);
 
 	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
+	mode_cmd.height = sizes->surface_height * FBDEV_BUFFER_NUM;
 	mode_cmd.pitches[0] = sizes->surface_width * bytes_per_pixel;
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 		sizes->surface_depth);
