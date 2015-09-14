@@ -327,8 +327,14 @@ static void powernv_cpufreq_throttle_check(void *data)
 		if (chips[i].throttled)
 			goto next;
 		chips[i].throttled = true;
-		pr_info("CPU %d on Chip %u has Pmax reduced to %d\n", cpu,
-			chips[i].id, pmsr_pmax);
+		if (pmsr_pmax < powernv_pstate_info.nominal)
+			pr_crit("CPU %d on Chip %u has Pmax reduced below nominal frequency (%d < %d)\n",
+				cpu, chips[i].id, pmsr_pmax,
+				powernv_pstate_info.nominal);
+		else
+			pr_info("CPU %d on Chip %u has Pmax reduced below turbo frequency (%d < %d)\n",
+				cpu, chips[i].id, pmsr_pmax,
+				powernv_pstate_info.max);
 	} else if (chips[i].throttled) {
 		chips[i].throttled = false;
 		pr_info("CPU %d on Chip %u has Pmax restored to %d\n", cpu,
