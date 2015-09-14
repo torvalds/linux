@@ -952,14 +952,13 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	connection->private = NULL;
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
+	gb_dev.count--;
 	if (!gb_dev.count)
 		sysfs_remove_groups(kobj, loopback_dev_groups);
 	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
 	debugfs_remove(gb->file);
 	list_del(&gb->entry);
 	kfree(gb);
-	gb_dev.count--;
-
 	mutex_unlock(&gb_dev.mutex);
 }
 
