@@ -829,10 +829,8 @@ static void zcrypt_msgtype6_receive(struct ap_device *ap_dev,
 	int length;
 
 	/* Copy the reply message to the request message buffer. */
-	if (IS_ERR(reply)) {
-		memcpy(msg->message, &error_reply, sizeof(error_reply));
-		goto out;
-	}
+	if (!reply)
+		goto out;	/* ap_msg->rc indicates the error */
 	t86r = reply->message;
 	if (t86r->hdr.type == TYPE86_RSP_CODE &&
 		 t86r->cprbx.cprb_ver_id == 0x02) {
@@ -880,10 +878,8 @@ static void zcrypt_msgtype6_receive_ep11(struct ap_device *ap_dev,
 	int length;
 
 	/* Copy the reply message to the request message buffer. */
-	if (IS_ERR(reply)) {
-		memcpy(msg->message, &error_reply, sizeof(error_reply));
-		goto out;
-	}
+	if (!reply)
+		goto out;	/* ap_msg->rc indicates the error */
 	t86r = reply->message;
 	if (t86r->hdr.type == TYPE86_RSP_CODE &&
 	    t86r->cprbx.cprb_ver_id == 0x04) {
@@ -935,10 +931,13 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_device *zdev,
 	init_completion(&resp_type.work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
-	if (rc == 0)
-		rc = convert_response_ica(zdev, &ap_msg, mex->outputdata,
-					  mex->outputdatalength);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response_ica(zdev, &ap_msg,
+						  mex->outputdata,
+						  mex->outputdatalength);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:
@@ -976,10 +975,13 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_device *zdev,
 	init_completion(&resp_type.work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
-	if (rc == 0)
-		rc = convert_response_ica(zdev, &ap_msg, crt->outputdata,
-					  crt->outputdatalength);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response_ica(zdev, &ap_msg,
+						  crt->outputdata,
+						  crt->outputdatalength);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:
@@ -1017,9 +1019,11 @@ static long zcrypt_msgtype6_send_cprb(struct zcrypt_device *zdev,
 	init_completion(&resp_type.work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
-	if (rc == 0)
-		rc = convert_response_xcrb(zdev, &ap_msg, xcRB);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response_xcrb(zdev, &ap_msg, xcRB);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:
@@ -1057,9 +1061,12 @@ static long zcrypt_msgtype6_send_ep11_cprb(struct zcrypt_device *zdev,
 	init_completion(&resp_type.work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
-	if (rc == 0)
-		rc = convert_response_ep11_xcrb(zdev, &ap_msg, xcrb);
-	else /* Signal pending. */
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response_ep11_xcrb(zdev, &ap_msg, xcrb);
+	} else
+		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 
 out_free:
@@ -1096,9 +1103,11 @@ static long zcrypt_msgtype6_rng(struct zcrypt_device *zdev,
 	init_completion(&resp_type.work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
-	if (rc == 0)
-		rc = convert_response_rng(zdev, &ap_msg, buffer);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response_rng(zdev, &ap_msg, buffer);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 	kfree(ap_msg.message);

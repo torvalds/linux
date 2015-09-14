@@ -461,10 +461,8 @@ static void zcrypt_pcicc_receive(struct ap_device *ap_dev,
 	int length;
 
 	/* Copy the reply message to the request message buffer. */
-	if (IS_ERR(reply)) {
-		memcpy(msg->message, &error_reply, sizeof(error_reply));
-		goto out;
-	}
+	if (!reply)
+		goto out;	/* ap_msg->rc indicates the error */
 	t86r = reply->message;
 	if (t86r->hdr.type == TYPE86_RSP_CODE &&
 		 t86r->cprb.cprb_ver_id == 0x01) {
@@ -508,10 +506,12 @@ static long zcrypt_pcicc_modexpo(struct zcrypt_device *zdev,
 	init_completion(&work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&work);
-	if (rc == 0)
-		rc = convert_response(zdev, &ap_msg, mex->outputdata,
-				      mex->outputdatalength);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response(zdev, &ap_msg, mex->outputdata,
+					      mex->outputdatalength);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:
@@ -548,10 +548,12 @@ static long zcrypt_pcicc_modexpo_crt(struct zcrypt_device *zdev,
 	init_completion(&work);
 	ap_queue_message(zdev->ap_dev, &ap_msg);
 	rc = wait_for_completion_interruptible(&work);
-	if (rc == 0)
-		rc = convert_response(zdev, &ap_msg, crt->outputdata,
-				      crt->outputdatalength);
-	else
+	if (rc == 0) {
+		rc = ap_msg.rc;
+		if (rc == 0)
+			rc = convert_response(zdev, &ap_msg, crt->outputdata,
+					      crt->outputdatalength);
+	} else
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:

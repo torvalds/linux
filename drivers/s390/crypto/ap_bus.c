@@ -1027,12 +1027,14 @@ static void __ap_flush_queue(struct ap_device *ap_dev)
 	list_for_each_entry_safe(ap_msg, next, &ap_dev->pendingq, list) {
 		list_del_init(&ap_msg->list);
 		ap_dev->pendingq_count--;
-		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->rc = -EAGAIN;
+		ap_msg->receive(ap_dev, ap_msg, NULL);
 	}
 	list_for_each_entry_safe(ap_msg, next, &ap_dev->requestq, list) {
 		list_del_init(&ap_msg->list);
 		ap_dev->requestq_count--;
-		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->rc = -EAGAIN;
+		ap_msg->receive(ap_dev, ap_msg, NULL);
 	}
 }
 
@@ -1690,10 +1692,12 @@ static int __ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_ms
 			return -EBUSY;
 		case AP_RESPONSE_REQ_FAC_NOT_INST:
 		case AP_RESPONSE_MESSAGE_TOO_BIG:
-			ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-EINVAL));
+			ap_msg->rc = -EINVAL;
+			ap_msg->receive(ap_dev, ap_msg, NULL);
 			return -EINVAL;
 		default:	/* Device is gone. */
-			ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+			ap_msg->rc = -ENODEV;
+			ap_msg->receive(ap_dev, ap_msg, NULL);
 			return -ENODEV;
 		}
 	} else {
@@ -1726,7 +1730,8 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 		if (rc == -ENODEV)
 			ap_dev->unregistered = 1;
 	} else {
-		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->rc = -ENODEV;
+		ap_msg->receive(ap_dev, ap_msg, NULL);
 		rc = -ENODEV;
 	}
 	spin_unlock_bh(&ap_dev->lock);

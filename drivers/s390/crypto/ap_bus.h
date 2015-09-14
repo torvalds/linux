@@ -187,6 +187,7 @@ struct ap_message {
 	unsigned long long psmid;	/* Message id. */
 	void *message;			/* Pointer to message buffer. */
 	size_t length;			/* Message length. */
+	int rc;				/* Return code for this message */
 
 	void *private;			/* ap driver private pointer. */
 	unsigned int special:1;		/* Used for special commands. */
@@ -219,6 +220,7 @@ static inline void ap_init_message(struct ap_message *ap_msg)
 {
 	ap_msg->psmid = 0;
 	ap_msg->length = 0;
+	ap_msg->rc = 0;
 	ap_msg->special = 0;
 	ap_msg->receive = NULL;
 }
