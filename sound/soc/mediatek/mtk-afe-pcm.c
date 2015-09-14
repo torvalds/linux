@@ -549,6 +549,23 @@ static int mtk_afe_dais_startup(struct snd_pcm_substream *substream,
 	memif->substream = substream;
 
 	snd_soc_set_runtime_hwparams(substream, &mtk_afe_hardware);
+
+	/*
+	 * Capture cannot use ping-pong buffer since hw_ptr at IRQ may be
+	 * smaller than period_size due to AFE's internal buffer.
+	 * This easily leads to overrun when avail_min is period_size.
+	 * One more period can hold the possible unread buffer.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		ret = snd_pcm_hw_constraint_minmax(runtime,
+						   SNDRV_PCM_HW_PARAM_PERIODS,
+						   3,
+						   mtk_afe_hardware.periods_max);
+		if (ret < 0) {
+			dev_err(afe->dev, "hw_constraint_minmax failed\n");
+			return ret;
+		}
+	}
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
