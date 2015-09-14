@@ -3874,7 +3874,13 @@ get_immediate:
 	}
 
 transport_err:
-	iscsit_take_action_for_connection_exit(conn);
+	/*
+	 * Avoid the normal connection failure code-path if this connection
+	 * is still within LOGIN mode, and iscsi_np process context is
+	 * responsible for cleaning up the early connection failure.
+	 */
+	if (conn->conn_state != TARG_CONN_STATE_IN_LOGIN)
+		iscsit_take_action_for_connection_exit(conn);
 out:
 	return 0;
 }
@@ -3956,7 +3962,7 @@ reject:
 
 int iscsi_target_rx_thread(void *arg)
 {
-	int ret;
+	int ret, rc;
 	u8 buffer[ISCSI_HDR_LEN], opcode;
 	u32 checksum = 0, digest = 0;
 	struct iscsi_conn *conn = arg;
@@ -3966,10 +3972,16 @@ int iscsi_target_rx_thread(void *arg)
 	 * connection recovery / failure event can be triggered externally.
 	 */
 	allow_signal(SIGINT);
+	/*
+	 * Wait for iscsi_post_login_handler() to complete before allowing
+	 * incoming iscsi/tcp socket I/O, and/or failing the connection.
+	 */
+	rc = wait_for_completion_interruptible(&conn->rx_login_comp);
+	if (rc < 0)
+		return 0;
 
 	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND) {
 		struct completion comp;
-		int rc;
 
 		init_completion(&comp);
 		rc = wait_for_completion_interruptible(&comp);
