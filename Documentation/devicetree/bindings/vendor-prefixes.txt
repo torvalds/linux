@@ -183,6 +183,7 @@ sbs	Smart Battery System
 schindler	Schindler
 seagate	Seagate Technology PLC
 semtech	Semtech Corporation
+sgx	SGX Sensortech
 sil	Silicon Image
 silabs	Silicon Laboratories
 siliconmitus	Silicon Mitus, Inc.
