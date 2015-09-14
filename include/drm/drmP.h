@@ -705,7 +705,6 @@ struct drm_vblank_crtc {
 	unsigned int pipe;		/* crtc index */
 	int framedur_ns;		/* frame/field duration in ns */
 	int linedur_ns;			/* line duration in ns */
-	int pixeldur_ns;		/* pixel duration in ns */
 	bool enabled;			/* so we don't call enable more than
 					   once per disable */
 };

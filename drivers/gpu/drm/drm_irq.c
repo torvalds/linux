@@ -604,7 +604,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
 {
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
-	int linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
+	int linedur_ns = 0, framedur_ns = 0;
 	int dotclock = mode->crtc_clock;
 
 	/* Valid dotclock? */
@@ -613,10 +613,9 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 
 		/*
 		 * Convert scanline length in pixels and video
-		 * dot clock to line duration, frame duration
-		 * and pixel duration in nanoseconds:
+		 * dot clock to line duration and frame duration
+		 * in nanoseconds:
 		 */
-		pixeldur_ns = 1000000 / dotclock;
 		linedur_ns  = div_u64((u64) mode->crtc_htotal * 1000000, dotclock);
 		framedur_ns = div_u64((u64) frame_size * 1000000, dotclock);
 
@@ -629,16 +628,14 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 		DRM_ERROR("crtc %u: Can't calculate constants, dotclock = 0!\n",
 			  crtc->base.id);
 
-	vblank->pixeldur_ns = pixeldur_ns;
 	vblank->linedur_ns  = linedur_ns;
 	vblank->framedur_ns = framedur_ns;
 
 	DRM_DEBUG("crtc %u: hwmode: htotal %d, vtotal %d, vdisplay %d\n",
 		  crtc->base.id, mode->crtc_htotal,
 		  mode->crtc_vtotal, mode->crtc_vdisplay);
-	DRM_DEBUG("crtc %u: clock %d kHz framedur %d linedur %d, pixeldur %d\n",
-		  crtc->base.id, dotclock, framedur_ns,
-		  linedur_ns, pixeldur_ns);
+	DRM_DEBUG("crtc %u: clock %d kHz framedur %d linedur %d\n",
+		  crtc->base.id, dotclock, framedur_ns, linedur_ns);
 }
 EXPORT_SYMBOL(drm_calc_timestamping_constants);
 
