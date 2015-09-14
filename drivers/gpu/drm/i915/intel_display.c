@@ -12459,9 +12459,9 @@ intel_pipe_config_compare(struct drm_device *dev,
 			PIPE_CONF_CHECK_X(pch_pfit.pos);
 			PIPE_CONF_CHECK_X(pch_pfit.size);
 		}
-	}
 
-	PIPE_CONF_CHECK_I(scaler_state.scaler_id);
+		PIPE_CONF_CHECK_I(scaler_state.scaler_id);
+	}
 
 	/* BDW+ don't expose a synchronous way to read the state */
 	if (IS_HASWELL(dev))
