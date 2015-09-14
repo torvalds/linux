@@ -14,6 +14,13 @@
 	model = "Freescale i.MX6 SoloX Sabre Auto Board";
 	compatible = "fsl,imx6sx-sabreauto", "fsl,imx6sx";
 
+	max7310_reset: max7310-reset {
+		compatible = "gpio-reset";
+		reset-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <1>;
+		#reset-cells = <0>;
+	};
+
 	memory {
 		reg = <0x80000000 0x80000000>;
 	};
@@ -105,6 +112,34 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+};
+
+&i2c3 {
+        clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3_2>;
+	status = "okay";
+
+	max7310_a: gpio@30 {
+		compatible = "maxim,max7310";
+		reg = <0x30>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		resets = <&max7310_reset>;
+	};
+
+	max7310_b: gpio@32 {
+		compatible = "maxim,max7310";
+		reg = <0x32>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		resets = <&max7310_reset>;
+	};
+};
+
+&pcie {
+	reset-gpio = <&max7310_b 3 0>;
+	status = "okay";
 };
 
 &uart1 {
@@ -212,6 +247,13 @@
 			fsl,pins = <
 				MX6SX_PAD_GPIO1_IO03__I2C2_SDA          0x4001b8b1
 				MX6SX_PAD_GPIO1_IO02__I2C2_SCL          0x4001b8b1
+			>;
+		};
+
+		pinctrl_i2c3_2: i2c3grp-2 {
+			fsl,pins = <
+				MX6SX_PAD_KEY_ROW4__I2C3_SDA            0x4001b8b1
+				MX6SX_PAD_KEY_COL4__I2C3_SCL            0x4001b8b1
 			>;
 		};
 

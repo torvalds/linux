@@ -658,9 +658,9 @@
 					anatop-max-voltage = <1450000>;
 				};
 
-				reg_pcie: regulator-vddpcie@140 {
+				reg_pcie_phy: regulator-vddpcie-phy@140 {
 					compatible = "fsl,anatop-regulator";
-					regulator-name = "vddpcie";
+					regulator-name = "vddpcie-phy";
 					regulator-min-microvolt = <725000>;
 					regulator-max-microvolt = <1450000>;
 					anatop-reg-offset = <0x140>;
@@ -776,6 +776,15 @@
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
 				fsl,mf-mix-wakeup-irq = <0x7c00000 0x3d00 0x0 0x400240>;
+				clocks = <&clks IMX6SX_CLK_GPU>, <&clks IMX6SX_CLK_IPG>,
+					<&clks IMX6SX_CLK_PXP_AXI>, <&clks IMX6SX_CLK_DISPLAY_AXI>,
+					<&clks IMX6SX_CLK_LCDIF1_PIX>, <&clks IMX6SX_CLK_LCDIF_APB>,
+					<&clks IMX6SX_CLK_LCDIF2_PIX>, <&clks IMX6SX_CLK_CSI>,
+					<&clks IMX6SX_CLK_VADC>;
+				clock-names = "gpu3d_core", "ipg", "pxp_axi", "disp_axi", "lcdif1_pix",
+						"lcdif_axi", "lcdif2_pix", "csi_mclk";
+				pcie-phy-supply = <&reg_pcie_phy>;
+				#power-domain-cells = <1>;
 			};
 
 			iomuxc: iomuxc@020e0000 {
@@ -1319,24 +1328,29 @@
 
 		pcie: pcie@0x08000000 {
 			compatible = "fsl,imx6sx-pcie", "snps,dw-pcie";
-			reg = <0x08ffc000 0x4000>; /* DBI */
+			reg = <0x08ffc000 0x4000>, <0x08f00000 0x80000>;
+			reg-names = "dbi", "config";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-				  /* configuration space */
-			ranges = <0x00000800 0 0x08f00000 0x08f00000 0 0x00080000
-				  /* downstream I/O */
-				  0x81000000 0 0          0x08f80000 0 0x00010000
-				  /* non-prefetchable memory */
-				  0x82000000 0 0x08000000 0x08000000 0 0x00f00000>;
+			ranges = <0x81000000 0 0          0x08f80000 0 0x00010000 /* downstream I/O */
+				  0x82000000 0 0x08000000 0x08000000 0 0x00f00000>; /* non-prefetchable memory */
 			num-lanes = <1>;
-			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clks IMX6SX_CLK_PCIE_REF_125M>,
-				 <&clks IMX6SX_CLK_PCIE_AXI>,
+			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 2 &intc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 3 &intc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 4 &intc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6SX_CLK_PCIE_AXI>,
 				 <&clks IMX6SX_CLK_LVDS1_OUT>,
+				 <&clks IMX6SX_CLK_PCIE_REF_125M>,
 				 <&clks IMX6SX_CLK_DISPLAY_AXI>;
-			clock-names = "pcie_ref_125m", "pcie_axi",
-				      "lvds_gate", "display_axi";
+			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_inbound_axi";
+			pcie-phy-supply = <&reg_pcie_phy>;
+			power-domains = <&gpc 2>;
 			status = "disabled";
 		};
 	};
