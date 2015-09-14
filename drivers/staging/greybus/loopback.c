@@ -873,7 +873,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		if (gb_dev.size_max <=
 			sizeof(struct gb_loopback_transfer_request)) {
 			retval = -EINVAL;
-			goto out_sysfs;
+			goto out_sysfs_dev;
 		}
 		gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
 	}
