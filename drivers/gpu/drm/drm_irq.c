@@ -127,6 +127,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	u32 cur_vblank, diff;
 	bool rc;
 	struct timeval t_vblank;
+	int count = DRM_TIMESTAMP_MAXRETRIES;
 
 	/*
 	 * Interrupts were disabled prior to this call, so deal with counter
@@ -143,7 +144,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	do {
 		cur_vblank = dev->driver->get_vblank_counter(dev, pipe);
 		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, flags);
-	} while (cur_vblank != dev->driver->get_vblank_counter(dev, pipe));
+	} while (cur_vblank != dev->driver->get_vblank_counter(dev, pipe) && --count > 0);
 
 	/* Deal with counter wrap */
 	diff = cur_vblank - vblank->last;
@@ -914,6 +915,7 @@ u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 			      struct timeval *vblanktime)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	int count = DRM_TIMESTAMP_MAXRETRIES;
 	u32 cur_vblank;
 
 	if (WARN_ON(pipe >= dev->num_crtcs))
@@ -929,7 +931,7 @@ u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 		smp_rmb();
 		*vblanktime = vblanktimestamp(dev, pipe, cur_vblank);
 		smp_rmb();
-	} while (cur_vblank != vblank->count);
+	} while (cur_vblank != vblank->count && --count > 0);
 
 	return cur_vblank;
 }
