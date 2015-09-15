@@ -129,6 +129,39 @@ struct cgs_firmware_info {
 
 typedef unsigned long cgs_handle_t;
 
+#define CGS_ACPI_METHOD_ATCS          0x53435441
+#define CGS_ACPI_METHOD_ATIF          0x46495441
+#define CGS_ACPI_METHOD_ATPX          0x58505441
+#define CGS_ACPI_FIELD_METHOD_NAME                      0x00000001
+#define CGS_ACPI_FIELD_INPUT_ARGUMENT_COUNT             0x00000002
+#define CGS_ACPI_MAX_BUFFER_SIZE     256
+#define CGS_ACPI_TYPE_ANY                      0x00
+#define CGS_ACPI_TYPE_INTEGER               0x01
+#define CGS_ACPI_TYPE_STRING                0x02
+#define CGS_ACPI_TYPE_BUFFER                0x03
+#define CGS_ACPI_TYPE_PACKAGE               0x04
+
+struct cgs_acpi_method_argument {
+	uint32_t type;
+	uint32_t method_length;
+	uint32_t data_length;
+	union{
+		uint32_t value;
+		void *pointer;
+	};
+};
+
+struct cgs_acpi_method_info {
+	uint32_t size;
+	uint32_t field;
+	uint32_t input_count;
+	uint32_t name;
+	struct cgs_acpi_method_argument *pinput_argument;
+	uint32_t output_count;
+	struct cgs_acpi_method_argument *poutput_argument;
+	uint32_t padding[9];
+};
+
 /**
  * cgs_gpu_mem_info() - Return information about memory heaps
  * @cgs_device: opaque device handle
@@ -493,6 +526,13 @@ typedef int(*cgs_set_clockgating_state)(void *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state);
 
+typedef int (*cgs_call_acpi_method)(void *cgs_device,
+					uint32_t acpi_method,
+					uint32_t acpi_function,
+					void *pinput, void *poutput,
+					uint32_t output_count,
+					uint32_t input_size,
+					uint32_t output_size);
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_gpu_mem_info_t gpu_mem_info;
@@ -533,7 +573,8 @@ struct cgs_ops {
 	/* cg pg interface*/
 	cgs_set_powergating_state set_powergating_state;
 	cgs_set_clockgating_state set_clockgating_state;
-	/* ACPI (TODO) */
+	/* ACPI */
+	cgs_call_acpi_method call_acpi_method;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -620,5 +661,7 @@ struct cgs_device
 	CGS_CALL(set_powergating_state, dev, block_type, state)
 #define cgs_set_clockgating_state(dev, block_type, state)	\
 	CGS_CALL(set_clockgating_state, dev, block_type, state)
+#define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
+	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
 
 #endif /* _CGS_COMMON_H */

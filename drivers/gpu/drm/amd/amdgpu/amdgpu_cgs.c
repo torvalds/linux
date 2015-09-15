@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/acpi.h>
 #include <drm/drmP.h>
 #include <linux/firmware.h>
 #include <drm/amdgpu_drm.h>
@@ -31,7 +32,6 @@
 #include "cgs_linux.h"
 #include "atom.h"
 #include "amdgpu_ucode.h"
-
 
 struct amdgpu_cgs_device {
 	struct cgs_device base;
@@ -736,6 +736,221 @@ static int amdgpu_cgs_get_firmware_info(void *cgs_device,
 	return 0;
 }
 
+/** \brief evaluate acpi namespace object, handle or pathname must be valid
+ *  \param cgs_device
+ *  \param info input/output arguments for the control method
+ *  \return status
+ */
+
+#if defined(CONFIG_ACPI)
+static int amdgpu_cgs_acpi_eval_object(void *cgs_device,
+				    struct cgs_acpi_method_info *info)
+{
+	CGS_FUNC_ADEV;
+	acpi_handle handle;
+	struct acpi_object_list input;
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *params = NULL;
+	union acpi_object *obj = NULL;
+	uint8_t name[5] = {'\0'};
+	struct cgs_acpi_method_argument *argument = NULL;
+	uint32_t i, count;
+	acpi_status status;
+	int result;
+	uint32_t func_no = 0xFFFFFFFF;
+
+	handle = ACPI_HANDLE(&adev->pdev->dev);
+	if (!handle)
+		return -ENODEV;
+
+	memset(&input, 0, sizeof(struct acpi_object_list));
+
+	/* validate input info */
+	if (info->size != sizeof(struct cgs_acpi_method_info))
+		return -EINVAL;
+
+	input.count = info->input_count;
+	if (info->input_count > 0) {
+		if (info->pinput_argument == NULL)
+			return -EINVAL;
+			argument = info->pinput_argument;
+			func_no = argument->value;
+			for (i = 0; i < info->input_count; i++) {
+				if (((argument->type == ACPI_TYPE_STRING) ||
+					(argument->type == ACPI_TYPE_BUFFER))
+					&& (argument->pointer == NULL))
+					return -EINVAL;
+				argument++;
+			}
+	}
+
+	if (info->output_count > 0) {
+		if (info->poutput_argument == NULL)
+			return -EINVAL;
+		argument = info->poutput_argument;
+		for (i = 0; i < info->output_count; i++) {
+			if (((argument->type == ACPI_TYPE_STRING) ||
+				(argument->type == ACPI_TYPE_BUFFER))
+				&& (argument->pointer == NULL))
+				return -EINVAL;
+			argument++;
+		}
+	}
+
+	/* The path name passed to acpi_evaluate_object should be null terminated */
+	if ((info->field & CGS_ACPI_FIELD_METHOD_NAME) != 0) {
+		strncpy(name, (char *)&(info->name), sizeof(uint32_t));
+		name[4] = '\0';
+	}
+
+	/* parse input parameters */
+	if (input.count > 0) {
+		input.pointer = params =
+				kzalloc(sizeof(union acpi_object) * input.count, GFP_KERNEL);
+		if (params == NULL)
+			return -EINVAL;
+
+		argument = info->pinput_argument;
+
+		for (i = 0; i < input.count; i++) {
+			params->type = argument->type;
+			switch (params->type) {
+			case ACPI_TYPE_INTEGER:
+				params->integer.value = argument->value;
+				break;
+			case ACPI_TYPE_STRING:
+				params->string.length = argument->method_length;
+				params->string.pointer = argument->pointer;
+				break;
+			case ACPI_TYPE_BUFFER:
+				params->buffer.length = argument->method_length;
+				params->buffer.pointer = argument->pointer;
+				break;
+			default:
+				break;
+			}
+			params++;
+			argument++;
+		}
+	}
+
+	/* parse output info */
+	count = info->output_count;
+	argument = info->poutput_argument;
+
+	/* evaluate the acpi method */
+	status = acpi_evaluate_object(handle, name, &input, &output);
+
+	if (ACPI_FAILURE(status)) {
+		result = -EIO;
+		goto error;
+	}
+
+	/* return the output info */
+	obj = output.pointer;
+
+	if (count > 1) {
+		if ((obj->type != ACPI_TYPE_PACKAGE) ||
+			(obj->package.count != count)) {
+			result = -EIO;
+			goto error;
+		}
+		params = obj->package.elements;
+	} else
+		params = obj;
+
+	if (params == NULL) {
+		result = -EIO;
+		goto error;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (argument->type != params->type) {
+			result = -EIO;
+			goto error;
+		}
+		switch (params->type) {
+		case ACPI_TYPE_INTEGER:
+			argument->value = params->integer.value;
+			break;
+		case ACPI_TYPE_STRING:
+			if ((params->string.length != argument->data_length) ||
+				(params->string.pointer == NULL)) {
+				result = -EIO;
+				goto error;
+			}
+			strncpy(argument->pointer,
+				params->string.pointer,
+				params->string.length);
+			break;
+		case ACPI_TYPE_BUFFER:
+			if (params->buffer.pointer == NULL) {
+				result = -EIO;
+				goto error;
+			}
+			memcpy(argument->pointer,
+				params->buffer.pointer,
+				argument->data_length);
+			break;
+		default:
+			break;
+		}
+		argument++;
+		params++;
+	}
+
+error:
+	if (obj != NULL)
+		kfree(obj);
+	kfree((void *)input.pointer);
+	return result;
+}
+#else
+static int amdgpu_cgs_acpi_eval_object(void *cgs_device,
+				struct cgs_acpi_method_info *info)
+{
+	return -EIO;
+}
+#endif
+
+int amdgpu_cgs_call_acpi_method(void *cgs_device,
+					uint32_t acpi_method,
+					uint32_t acpi_function,
+					void *pinput, void *poutput,
+					uint32_t output_count,
+					uint32_t input_size,
+					uint32_t output_size)
+{
+	struct cgs_acpi_method_argument acpi_input[2] = { {0}, {0} };
+	struct cgs_acpi_method_argument acpi_output = {0};
+	struct cgs_acpi_method_info info = {0};
+
+	acpi_input[0].type = CGS_ACPI_TYPE_INTEGER;
+	acpi_input[0].method_length = sizeof(uint32_t);
+	acpi_input[0].data_length = sizeof(uint32_t);
+	acpi_input[0].value = acpi_function;
+
+	acpi_input[1].type = CGS_ACPI_TYPE_BUFFER;
+	acpi_input[1].method_length = CGS_ACPI_MAX_BUFFER_SIZE;
+	acpi_input[1].data_length = input_size;
+	acpi_input[1].pointer = pinput;
+
+	acpi_output.type = CGS_ACPI_TYPE_BUFFER;
+	acpi_output.method_length = CGS_ACPI_MAX_BUFFER_SIZE;
+	acpi_output.data_length = output_size;
+	acpi_output.pointer = poutput;
+
+	info.size = sizeof(struct cgs_acpi_method_info);
+	info.field = CGS_ACPI_FIELD_METHOD_NAME | CGS_ACPI_FIELD_INPUT_ARGUMENT_COUNT;
+	info.input_count = 2;
+	info.name = acpi_method;
+	info.pinput_argument = acpi_input;
+	info.output_count = output_count;
+	info.poutput_argument = &acpi_output;
+
+	return amdgpu_cgs_acpi_eval_object(cgs_device, &info);
+}
+
 static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_gpu_mem_info,
 	amdgpu_cgs_gmap_kmem,
@@ -768,7 +983,8 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_set_camera_voltages,
 	amdgpu_cgs_get_firmware_info,
 	amdgpu_cgs_set_powergating_state,
-	amdgpu_cgs_set_clockgating_state
+	amdgpu_cgs_set_clockgating_state,
+	amdgpu_cgs_call_acpi_method,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
