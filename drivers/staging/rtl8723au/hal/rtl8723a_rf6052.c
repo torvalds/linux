@@ -103,34 +103,24 @@ void rtl823a_phy_rf6052setccktxpower(struct rtw_adapter *Adapter,
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	u32 TxAGC[2] = {0, 0}, tmpval = 0;
-	bool TurboScanOff = false;
 	u8 idx1, idx2;
 	u8 *ptr;
-
-	/*  According to SD3 eechou's suggestion, we need to disable
-	    turbo scan for RU. */
-	/*  Otherwise, external PA will be broken if power index > 0x20. */
-	if (pHalData->EEPROMRegulatory != 0 || pHalData->ExternalPA)
-		TurboScanOff = true;
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		TxAGC[RF_PATH_A] = 0x3f3f3f3f;
 		TxAGC[RF_PATH_B] = 0x3f3f3f3f;
 
-		TurboScanOff = true;/* disable turbo scan */
-
-		if (TurboScanOff) {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] = pPowerlevel[idx1] |
-					(pPowerlevel[idx1] << 8) |
-					(pPowerlevel[idx1] << 16) |
-					(pPowerlevel[idx1] << 24);
-				/*  2010/10/18 MH For external PA module.
-				    We need to limit power index to be less
-				    than 0x20. */
-				if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
-					TxAGC[idx1] = 0x20;
-			}
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			TxAGC[idx1] = pPowerlevel[idx1] |
+				(pPowerlevel[idx1] << 8) |
+				(pPowerlevel[idx1] << 16) |
+				(pPowerlevel[idx1] << 24);
+			/*
+			 * 2010/10/18 MH For external PA module. We need
+			 * to limit power index to be less than 0x20.
+			 */
+			if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
+				TxAGC[idx1] = 0x20;
 		}
 	} else {
 /*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx
