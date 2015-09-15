@@ -278,8 +278,9 @@ static int gb_svc_version_request(struct gb_operation *op)
 	}
 
 	version = op->response->payload;
-	version->major = GB_SVC_VERSION_MAJOR;
-	version->minor = GB_SVC_VERSION_MINOR;
+	version->major = connection->module_major;
+	version->minor = connection->module_minor;
+
 	return 0;
 }
 
