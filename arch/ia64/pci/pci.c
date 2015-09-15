@@ -533,9 +533,10 @@ void pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
-	if (b->self)
+	if (b->self) {
+		pci_read_bridge_bases(b);
 		pcibios_fixup_bridge_resources(b->self);
-
+	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
 	platform_pci_fixup_bus(b);

@@ -855,9 +855,6 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 			child->bridge_ctl = bctl;
 		}
 
-		/* Read and initialize bridge resources */
-		pci_read_bridge_bases(child);
-
 		cmax = pci_scan_child_bus(child);
 		if (cmax > subordinate)
 			dev_warn(&dev->dev, "bridge has subordinate %02x but max busn %02x\n",
@@ -918,9 +915,6 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 
 		if (!is_cardbus) {
 			child->bridge_ctl = bctl;
-
-			/* Read and initialize bridge resources */
-			pci_read_bridge_bases(child);
 			max = pci_scan_child_bus(child);
 		} else {
 			/*

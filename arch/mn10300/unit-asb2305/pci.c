@@ -324,6 +324,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	if (bus->self) {
+		pci_read_bridge_bases(bus);
 		pcibios_fixup_bridge_resources(bus->self);
 	}
 
