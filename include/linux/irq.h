@@ -151,10 +151,6 @@ struct irq_common_data {
  *			methods, to allow shared chip implementations
  * @msi_desc:		MSI descriptor
  * @affinity:		IRQ affinity on SMP
- *
- * The fields here need to overlay the ones in irq_desc until we
- * cleaned up the direct references and switched everything over to
- * irq_data.
  */
 struct irq_data {
 	u32			mask;
