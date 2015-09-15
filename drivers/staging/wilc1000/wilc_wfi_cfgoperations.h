@@ -47,7 +47,6 @@
 #define		GAS_INTIAL_RSP					0x0b
 
 #define		INVALID_CHANNEL					0
-/* #define FORCE_P2P_CLIENT */
 #endif
 
 #define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
