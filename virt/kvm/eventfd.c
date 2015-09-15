@@ -914,9 +914,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		return -EINVAL;
 
 	/* ioeventfd with no length can't be combined with DATAMATCH */
-	if (!args->len &&
-	    args->flags & (KVM_IOEVENTFD_FLAG_PIO |
-			   KVM_IOEVENTFD_FLAG_DATAMATCH))
+	if (!args->len && (args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH))
 		return -EINVAL;
 
 	ret = kvm_assign_ioeventfd_idx(kvm, bus_idx, args);

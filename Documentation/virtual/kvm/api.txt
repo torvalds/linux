@@ -1604,7 +1604,7 @@ provided event instead of triggering an exit.
 struct kvm_ioeventfd {
 	__u64 datamatch;
 	__u64 addr;        /* legal pio/mmio address */
-	__u32 len;         /* 1, 2, 4, or 8 bytes    */
+	__u32 len;         /* 0, 1, 2, 4, or 8 bytes    */
 	__s32 fd;
 	__u32 flags;
 	__u8  pad[36];
@@ -1627,6 +1627,10 @@ to the registered address is equal to datamatch in struct kvm_ioeventfd.
 For virtio-ccw devices, addr contains the subchannel id and datamatch the
 virtqueue index.
 
+With KVM_CAP_IOEVENTFD_ANY_LENGTH, a zero length ioeventfd is allowed, and
+the kernel will ignore the length of guest write and may get a faster vmexit.
+The speedup may only apply to specific architectures, but the ioeventfd will
+work anyway.
 
 4.60 KVM_DIRTY_TLB
 
