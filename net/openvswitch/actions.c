@@ -645,11 +645,6 @@ static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *sk
 	ovs_vport_send(vport, skb);
 	return 0;
 }
-static int ovs_vport_output_sk(struct sock *sk, struct sk_buff *skb)
-{
-	struct net *net = dev_net(skb_dst(skb)->dev);
-	return ovs_vport_output(net, sk, skb);
-}
 
 static unsigned int
 ovs_dst_get_mtu(const struct dst_entry *dst)
