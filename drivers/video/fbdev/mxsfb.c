@@ -529,8 +529,6 @@ static void mxsfb_enable_controller(struct fb_info *fb_info)
 		}
 	}
 
-	pm_runtime_get_sync(&host->pdev->dev);
-
 	/* the pixel clock should be disabled before
 	 * trying to set its clock rate successfully.
 	 */
@@ -609,8 +607,6 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 
 	reg = readl(host->base + LCDC_VDCTRL4);
 	writel(reg & ~VDCTRL4_SYNC_SIGNALS_ON, host->base + LCDC_VDCTRL4);
-
-	pm_runtime_put_sync_suspend(&host->pdev->dev);
 
 	host->enabled = 0;
 
@@ -898,8 +894,12 @@ static int mxsfb_blank(int blank, struct fb_info *fb_info)
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_NORMAL:
-		if (host->enabled)
+		if (host->enabled) {
 			mxsfb_disable_controller(fb_info);
+			pm_runtime_put_noidle(&host->pdev->dev);
+			pm_runtime_put_sync_suspend(&host->pdev->dev);
+			pm_runtime_get_noresume(&host->pdev->dev);
+		}
 
 		clk_disable_disp_axi(host);
 		clk_disable_axi(host);
@@ -909,10 +909,13 @@ static int mxsfb_blank(int blank, struct fb_info *fb_info)
 	case FB_BLANK_UNBLANK:
 		fb_info->var.activate = (fb_info->var.activate & ~FB_ACTIVATE_MASK) |
 				FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+
+		clk_enable_pix(host);
+		clk_enable_axi(host);
+		clk_enable_disp_axi(host);
+
 		if (!host->enabled) {
-			clk_enable_pix(host);
-			clk_enable_axi(host);
-			clk_enable_disp_axi(host);
+			pm_runtime_get_sync(&host->pdev->dev);
 
 			writel(0, host->base + LCDC_CTRL);
 			mxsfb_set_par(&host->fb_info);
