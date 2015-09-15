@@ -29,6 +29,8 @@
 #include <linux/tty.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
@@ -152,3 +154,5 @@ int __init early_serial8250_setup(struct earlycon_device *device,
 }
 EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
+OF_EARLYCON_DECLARE(ns16550, "ns16550", early_serial8250_setup);
+OF_EARLYCON_DECLARE(ns16550a, "ns16550a", early_serial8250_setup);
