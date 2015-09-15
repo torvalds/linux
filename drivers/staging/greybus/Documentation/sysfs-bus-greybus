@@ -1,46 +1,54 @@
-What:		/sys/bus/greybus/device/endo
+What:		/sys/bus/greybus/device/endoE
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The "root" endo for the Greybus device tree. XXX is
-		replaced with the numeric value of the endo layout
-		scheme as documented in the ARA Module Developer Kit.
+		The "root" endo devices for the Greybus device tree. E
+		is replaced with a 2 byte number representing the endo,
+		mostly 0.
 
-What:		/sys/bus/greybus/device/endo/id
+What:		/sys/bus/greybus/device/endoE/id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The Endo ID, which is a 2-byte hexadecimal value
-		defined by the the Endo layout scheme, documented in
+		defined by the Endo layout scheme, documented in
 		the ARA Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo/ap_intf_id
+What:		/sys/bus/greybus/device/endoE/ap_intf_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The AP interface ID, a small non-zero integer which
+		The AP interface ID, a 1-byte non-zero integer which
 		defines the position of the AP module on the Endo.
 		The interface positions are defined in the ARA
 		Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo/svc/serial_number
+What:		/sys/bus/greybus/device/endoE/svc/serial_number
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The serial number of the SVC device
 
-What:		/sys/bus/greybus/device/endo/svc/version
+What:		/sys/bus/greybus/device/endoE/svc/version
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The version number of the firmware in the SVC device.
 
-What:		/sys/bus/greybus/device/endo/../epm
+What:		/sys/bus/greybus/device/endoE:M
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		A module slot on the endoE, M is replaced by a 1-byte
+		number representing the module slot.
+
+What:		/sys/bus/greybus/device/endoE:M/epm
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -50,7 +58,7 @@ Description:
 		Writing 1 to it turns it on, writing 0 to it turns it
 		off.  Reading the value returns if it is on or off.
 
-What:		/sys/bus/greybus/device/endo/.../power_control
+What:		/sys/bus/greybus/device/endoE:M/power_control
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -60,7 +68,7 @@ Description:
 		to the module, writing 0 to it turns power off to the
 		module.  Reading the value returns if it is on or off.
 
-What:		/sys/bus/greybus/device/endo/.../present
+What:		/sys/bus/greybus/device/endoE:M/present
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -70,49 +78,108 @@ Description:
 		This is read-only, 1 means a module is present, 0 means
 		no module is present.
 
-What:		/sys/bus/greybus/device/.../product
+What:		/sys/bus/greybus/device/endoE:M:I
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		Product ID of a Greybus interface block.
+		An Interface I on the module slot M on the endoE, I is
+		replaced by a 1-byte number representing the interface.
 
-What:		/sys/bus/greybus/device/.../product_string
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Product ID string of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/.../unique_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Unique ID of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/.../vendor
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Vendor ID of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/.../vendor_string
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Vendor ID string of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/.../device_id
+What:		/sys/bus/greybus/device/endoE:M:I/device_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The device ID of a Greybus interface block.
 
-What:		/sys/bus/greybus/device/.../state
+What:		/sys/bus/greybus/device/endoE:M:I/product
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Product ID of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/endoE:M:I/product_string
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Product ID string of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/endoE:M:I/unique_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Unique ID of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/endoE:M:I/vendor
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Vendor ID of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/endoE:M:I/vendor_string
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Vendor ID string of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		A bundle B on the Interface I, B is replaced by a 1-byte
+		number representing the bundle.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B/class
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The greybus class of the bundle B.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B/state
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		A bundle has a state that is managed by the userspace
+		Endo process.  This file allows that Endo to signal
+		other Android HALs that the state of the bundle has
+		changed to a specific value.  When written to, any
+		process watching the file will be woken up, and the new
+		value can be read. It's a "poor-man's IPC", yes, but
+		simplifies the Android userspace code immensely.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B:C
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		A cport C within bundle B, C is replaced by a 2-byte
+		number representing the cport.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B:C/ap_cport_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The cport ID of the AP, to which cport of the module is
+		connected.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B:C/protocol_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The protocol ID of a Greybus cport.
+
+What:		/sys/bus/greybus/device/endoE:M:I:B:C/state
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -125,31 +192,3 @@ Description:
 		2 - enabled
 		3 - error
 		4 - destroying
-
-What:		/sys/bus/greybus/device/.../ap_cport_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The cport ID of the AP, to which cport of the module is
-		connected.
-
-What:		/sys/bus/greybus/device/.../protocol_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The protocol ID of a Greybus connection.
-
-What:		/sys/bus/greybus/device/.../state
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		A bundle has a state that is managed by the userspace
-		Endo process.  This file allows that Endo to signal
-		other Android HALs that the state of the bundle has
-		changed to a specific value.  When written to, any
-		process watching the file will be woken up, and the new
-		value can be read. It's a "poor-man's IPC", yes, but
-		simplifies the Android userspace code immensely.
