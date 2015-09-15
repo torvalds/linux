@@ -130,8 +130,8 @@
 #define I2S		(3 << 0)
 
 /* MD_CTL2 */
-#define FS(val)		(((val & 0x7) << 0) | ((val & 0x8) << 2))
-#define PS(val)		((val & 0x3) << 6)
+#define FSs(val)	(((val & 0x7) << 0) | ((val & 0x8) << 2))
+#define PSs(val)	((val & 0x3) << 6)
 
 /* MD_CTL3 */
 #define BST1		(1 << 3)
@@ -458,7 +458,8 @@ static int ak4642_set_mcko(struct snd_soc_codec *codec,
 	for (ps = 0; ps < ARRAY_SIZE(ps_list); ps++) {
 		for (fs = 0; fs < ARRAY_SIZE(fs_list); fs++) {
 			if (frequency == ps_list[ps] * fs_list[fs]) {
-				snd_soc_write(codec, MD_CTL2, PS(ps) | FS(fs));
+				snd_soc_write(codec, MD_CTL2,
+					      PSs(ps) | FSs(fs));
 				return 0;
 			}
 		}
