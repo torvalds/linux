@@ -1348,6 +1348,7 @@ static int transfer(struct dummy_hcd *dum_hcd, struct urb *urb,
 {
 	struct dummy		*dum = dum_hcd->dum;
 	struct dummy_request	*req;
+	int			sent = 0;
 
 top:
 	/* if there's no request queued, the device is NAKing; return */
@@ -1402,6 +1403,7 @@ top:
 				req->req.status = len;
 			} else {
 				limit -= len;
+				sent += len;
 				urb->actual_length += len;
 				req->req.actual += len;
 			}
@@ -1472,7 +1474,7 @@ top:
 		if (rescan)
 			goto top;
 	}
-	return limit;
+	return sent;
 }
 
 static int periodic_bytes(struct dummy *dum, struct dummy_ep *ep)
@@ -1902,7 +1904,7 @@ restart:
 		default:
 treat_control_like_bulk:
 			ep->last_io = jiffies;
-			total = transfer(dum_hcd, urb, ep, limit, &status);
+			total -= transfer(dum_hcd, urb, ep, limit, &status);
 			break;
 		}
 
