@@ -186,7 +186,7 @@ static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
 
-	pr_info("open net device %s\n", dev->name);
+	netdev_info(dev, "open net device\n");
 
 	BUG_ON(nd->dev != dev);
 
@@ -196,12 +196,12 @@ static int most_nd_open(struct net_device *dev)
 	BUG_ON(!nd->tx.linked || !nd->rx.linked);
 
 	if (most_start_channel(nd->iface, nd->rx.ch_id)) {
-		pr_err("most_start_channel() failed\n");
+		netdev_err(dev, "most_start_channel() failed\n");
 		return -EBUSY;
 	}
 
 	if (most_start_channel(nd->iface, nd->tx.ch_id)) {
-		pr_err("most_start_channel() failed\n");
+		netdev_err(dev, "most_start_channel() failed\n");
 		most_stop_channel(nd->iface, nd->rx.ch_id);
 		return -EBUSY;
 	}
@@ -222,7 +222,7 @@ static int most_nd_stop(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
 
-	pr_info("stop net device %s\n", dev->name);
+	netdev_info(dev, "stop net device\n");
 
 	BUG_ON(nd->dev != dev);
 	netif_stop_queue(dev);
@@ -281,7 +281,7 @@ static const struct net_device_ops most_nd_ops = {
 
 static void most_nd_setup(struct net_device *dev)
 {
-	pr_info("setup net device %s\n", dev->name);
+	netdev_info(dev, "setup net device\n");
 	ether_setup(dev);
 	dev->netdev_ops = &most_nd_ops;
 }
