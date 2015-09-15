@@ -74,7 +74,8 @@ struct crb_control_area {
 	u32 int_enable;
 	u32 int_sts;
 	u32 cmd_size;
-	u64 cmd_pa;
+	u32 cmd_pa_low;
+	u32 cmd_pa_high;
 	u32 rsp_size;
 	u64 rsp_pa;
 } __packed;
@@ -273,8 +274,8 @@ static int crb_acpi_add(struct acpi_device *device)
 		return -ENOMEM;
 	}
 
-	memcpy_fromio(&pa, &priv->cca->cmd_pa, 8);
-	pa = le64_to_cpu(pa);
+	pa = ((u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_high)) << 32) |
+		(u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_low));
 	priv->cmd = devm_ioremap_nocache(dev, pa,
 					 ioread32(&priv->cca->cmd_size));
 	if (!priv->cmd) {
