@@ -131,9 +131,8 @@ EXPORT_SYMBOL(devm_memremap);
 
 void devm_memunmap(struct device *dev, void *addr)
 {
-	WARN_ON(devres_destroy(dev, devm_memremap_release, devm_memremap_match,
-			       addr));
-	memunmap(addr);
+	WARN_ON(devres_release(dev, devm_memremap_release,
+				devm_memremap_match, addr));
 }
 EXPORT_SYMBOL(devm_memunmap);
 
