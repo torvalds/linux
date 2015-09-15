@@ -500,7 +500,7 @@ static int calc_phase_step(uint32_t src, uint32_t dst, uint32_t *out_phase)
 
 static int calc_scalex_steps(struct drm_plane *plane,
 		uint32_t pixel_format, uint32_t src, uint32_t dest,
-		uint32_t phasex_steps[2])
+		uint32_t phasex_steps[COMP_MAX])
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct device *dev = mdp5_kms->dev->dev;
@@ -516,15 +516,16 @@ static int calc_scalex_steps(struct drm_plane *plane,
 
 	hsub = drm_format_horz_chroma_subsampling(pixel_format);
 
-	phasex_steps[0] = phasex_step;
-	phasex_steps[1] = phasex_step / hsub;
+	phasex_steps[COMP_0]   = phasex_step;
+	phasex_steps[COMP_3]   = phasex_step;
+	phasex_steps[COMP_1_2] = phasex_step / hsub;
 
 	return 0;
 }
 
 static int calc_scaley_steps(struct drm_plane *plane,
 		uint32_t pixel_format, uint32_t src, uint32_t dest,
-		uint32_t phasey_steps[2])
+		uint32_t phasey_steps[COMP_MAX])
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct device *dev = mdp5_kms->dev->dev;
@@ -540,8 +541,9 @@ static int calc_scaley_steps(struct drm_plane *plane,
 
 	vsub = drm_format_vert_chroma_subsampling(pixel_format);
 
-	phasey_steps[0] = phasey_step;
-	phasey_steps[1] = phasey_step / vsub;
+	phasey_steps[COMP_0]   = phasey_step;
+	phasey_steps[COMP_3]   = phasey_step;
+	phasey_steps[COMP_1_2] = phasey_step / vsub;
 
 	return 0;
 }
@@ -593,8 +595,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
-	/* below array -> index 0: comp 0/3 ; index 1: comp 1/2 */
-	uint32_t phasex_step[2] = {0,}, phasey_step[2] = {0,};
+	uint32_t phasex_step[COMP_MAX] = {0,}, phasey_step[COMP_MAX] = {0,};
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
 	bool vflip, hflip;
@@ -702,13 +703,13 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 
 	if (mdp5_plane->caps & MDP_PIPE_CAP_SCALE) {
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_X(pipe),
-				phasex_step[0]);
+				phasex_step[COMP_0]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_Y(pipe),
-				phasey_step[0]);
+				phasey_step[COMP_0]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_X(pipe),
-				phasex_step[1]);
+				phasex_step[COMP_1_2]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_Y(pipe),
-				phasey_step[1]);
+				phasey_step[COMP_1_2]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_DECIMATION(pipe),
 				MDP5_PIPE_DECIMATION_VERT(vdecm) |
 				MDP5_PIPE_DECIMATION_HORZ(hdecm));
