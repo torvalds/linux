@@ -1,8 +1,6 @@
 #include "host_interface.h"
 #include "coreconfigurator.h"
 
-extern s32 TransportInit(void);
-extern s32 TransportDeInit(void);
 extern u8 connecting;
 
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
