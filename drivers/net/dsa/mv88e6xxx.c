@@ -1036,13 +1036,9 @@ out:
 	return ret;
 }
 
-static int _mv88e6xxx_atu_cmd(struct dsa_switch *ds, int fid, u16 cmd)
+static int _mv88e6xxx_atu_cmd(struct dsa_switch *ds, u16 cmd)
 {
 	int ret;
-
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID, fid);
-	if (ret < 0)
-		return ret;
 
 	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_OP, cmd);
 	if (ret < 0)
@@ -1051,15 +1047,98 @@ static int _mv88e6xxx_atu_cmd(struct dsa_switch *ds, int fid, u16 cmd)
 	return _mv88e6xxx_atu_wait(ds);
 }
 
+static int _mv88e6xxx_atu_data_write(struct dsa_switch *ds,
+				     struct mv88e6xxx_atu_entry *entry)
+{
+	u16 data = entry->state & GLOBAL_ATU_DATA_STATE_MASK;
+
+	if (entry->state != GLOBAL_ATU_DATA_STATE_UNUSED) {
+		unsigned int mask, shift;
+
+		if (entry->trunk) {
+			data |= GLOBAL_ATU_DATA_TRUNK;
+			mask = GLOBAL_ATU_DATA_TRUNK_ID_MASK;
+			shift = GLOBAL_ATU_DATA_TRUNK_ID_SHIFT;
+		} else {
+			mask = GLOBAL_ATU_DATA_PORT_VECTOR_MASK;
+			shift = GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT;
+		}
+
+		data |= (entry->portv_trunkid << shift) & mask;
+	}
+
+	return _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_DATA, data);
+}
+
+static int _mv88e6xxx_atu_flush_move(struct dsa_switch *ds,
+				     struct mv88e6xxx_atu_entry *entry,
+				     bool static_too)
+{
+	int op;
+	int err;
+
+	err = _mv88e6xxx_atu_wait(ds);
+	if (err)
+		return err;
+
+	err = _mv88e6xxx_atu_data_write(ds, entry);
+	if (err)
+		return err;
+
+	if (entry->fid) {
+		err = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID,
+					   entry->fid);
+		if (err)
+			return err;
+
+		op = static_too ? GLOBAL_ATU_OP_FLUSH_MOVE_ALL_DB :
+			GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC_DB;
+	} else {
+		op = static_too ? GLOBAL_ATU_OP_FLUSH_MOVE_ALL :
+			GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC;
+	}
+
+	return _mv88e6xxx_atu_cmd(ds, op);
+}
+
+static int _mv88e6xxx_atu_flush(struct dsa_switch *ds, u16 fid, bool static_too)
+{
+	struct mv88e6xxx_atu_entry entry = {
+		.fid = fid,
+		.state = 0, /* EntryState bits must be 0 */
+	};
+
+	return _mv88e6xxx_atu_flush_move(ds, &entry, static_too);
+}
+
 static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
 {
-	int ret;
+	return _mv88e6xxx_atu_flush(ds, fid, false);
+}
 
-	ret = _mv88e6xxx_atu_wait(ds);
-	if (ret < 0)
-		return ret;
+static int _mv88e6xxx_atu_move(struct dsa_switch *ds, u16 fid, int from_port,
+			       int to_port, bool static_too)
+{
+	struct mv88e6xxx_atu_entry entry = {
+		.trunk = false,
+		.fid = fid,
+	};
 
-	return _mv88e6xxx_atu_cmd(ds, fid, GLOBAL_ATU_OP_FLUSH_NON_STATIC_DB);
+	/* EntryState bits must be 0xF */
+	entry.state = GLOBAL_ATU_DATA_STATE_MASK;
+
+	/* ToPort and FromPort are respectively in PortVec bits 7:4 and 3:0 */
+	entry.portv_trunkid = (to_port & 0x0f) << 4;
+	entry.portv_trunkid |= from_port & 0x0f;
+
+	return _mv88e6xxx_atu_flush_move(ds, &entry, static_too);
+}
+
+static int _mv88e6xxx_atu_remove(struct dsa_switch *ds, u16 fid, int port,
+				 bool static_too)
+{
+	/* Destination port 0xF means remove the entries */
+	return _mv88e6xxx_atu_move(ds, fid, port, 0x0f, static_too);
 }
 
 static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
@@ -1084,7 +1163,7 @@ static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 		 */
 		if (oldstate >= PORT_CONTROL_STATE_LEARNING &&
 		    state <= PORT_CONTROL_STATE_BLOCKING) {
-			ret = _mv88e6xxx_flush_fid(ds, ps->fid[port]);
+			ret = _mv88e6xxx_atu_remove(ds, 0, port, false);
 			if (ret)
 				goto abort;
 		}
@@ -1576,7 +1655,8 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 			return -ENOSPC;
 		}
 
-		err = _mv88e6xxx_flush_fid(ds, vlan.fid);
+		/* Clear all MAC addresses from the new database */
+		err = _mv88e6xxx_atu_flush(ds, vlan.fid, true);
 		if (err)
 			return err;
 
@@ -1650,6 +1730,10 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	vlan.valid = keep;
 	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_atu_remove(ds, vlan.fid, port, false);
 	if (err)
 		goto unlock;
 
@@ -1761,7 +1845,6 @@ static int _mv88e6xxx_atu_mac_read(struct dsa_switch *ds, unsigned char *addr)
 static int _mv88e6xxx_atu_load(struct dsa_switch *ds,
 			       struct mv88e6xxx_atu_entry *entry)
 {
-	u16 reg = 0;
 	int ret;
 
 	ret = _mv88e6xxx_atu_wait(ds);
@@ -1772,28 +1855,15 @@ static int _mv88e6xxx_atu_load(struct dsa_switch *ds,
 	if (ret < 0)
 		return ret;
 
-	if (entry->state != GLOBAL_ATU_DATA_STATE_UNUSED) {
-		unsigned int mask, shift;
-
-		if (entry->trunk) {
-			reg |= GLOBAL_ATU_DATA_TRUNK;
-			mask = GLOBAL_ATU_DATA_TRUNK_ID_MASK;
-			shift = GLOBAL_ATU_DATA_TRUNK_ID_SHIFT;
-		} else {
-			mask = GLOBAL_ATU_DATA_PORT_VECTOR_MASK;
-			shift = GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT;
-		}
-
-		reg |= (entry->portv_trunkid << shift) & mask;
-	}
-
-	reg |= entry->state & GLOBAL_ATU_DATA_STATE_MASK;
-
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_DATA, reg);
+	ret = _mv88e6xxx_atu_data_write(ds, entry);
 	if (ret < 0)
 		return ret;
 
-	return _mv88e6xxx_atu_cmd(ds, entry->fid, GLOBAL_ATU_OP_LOAD_DB);
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID, entry->fid);
+	if (ret < 0)
+		return ret;
+
+	return _mv88e6xxx_atu_cmd(ds, GLOBAL_ATU_OP_LOAD_DB);
 }
 
 static int _mv88e6xxx_port_vid_to_fid(struct dsa_switch *ds, int port, u16 vid)
@@ -1884,7 +1954,11 @@ static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
 	if (ret < 0)
 		return ret;
 
-	ret = _mv88e6xxx_atu_cmd(ds, fid, GLOBAL_ATU_OP_GET_NEXT_DB);
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID, fid);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_atu_cmd(ds, GLOBAL_ATU_OP_GET_NEXT_DB);
 	if (ret < 0)
 		return ret;
 
@@ -2308,9 +2382,15 @@ static int mv88e6xxx_atu_show_db(struct seq_file *s, struct dsa_switch *ds,
 		return ret;
 
 	do {
-		ret = _mv88e6xxx_atu_cmd(ds, dbnum, GLOBAL_ATU_OP_GET_NEXT_DB);
+		ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID,
+					   dbnum);
 		if (ret < 0)
 			return ret;
+
+		ret = _mv88e6xxx_atu_cmd(ds, GLOBAL_ATU_OP_GET_NEXT_DB);
+		if (ret < 0)
+			return ret;
+
 		data = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_ATU_DATA);
 		if (data < 0)
 			return data;
@@ -2632,6 +2712,11 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 	/* Wait for the flush to complete. */
 	mutex_lock(&ps->smi_mutex);
 	ret = _mv88e6xxx_stats_wait(ds);
+	if (ret < 0)
+		goto unlock;
+
+	/* Clear all ATU entries */
+	ret = _mv88e6xxx_atu_flush(ds, 0, true);
 	if (ret < 0)
 		goto unlock;
 
