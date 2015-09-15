@@ -465,6 +465,14 @@
 			clock-output-names = "ir1";
 		};
 
+		keypad_clk: clk@01c200c4 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod0-clk";
+			reg = <0x01c200c4 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "keypad";
+		};
+
 		usb_clk: clk@01c200cc {
 			#clock-cells = <1>;
 			#reset-cells = <1>;
