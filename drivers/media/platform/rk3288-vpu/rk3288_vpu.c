@@ -387,7 +387,7 @@ static int rk3288_vpu_open(struct file *filp)
 	q = &ctx->vq_dst;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	q->drv_priv = &ctx->fh;
-	q->io_modes = VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->lock = &dev->vpu_mutex;
 	q->buf_struct_size = sizeof(struct rk3288_vpu_buf);
 
@@ -409,7 +409,7 @@ static int rk3288_vpu_open(struct file *filp)
 	q = &ctx->vq_src;
 	q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	q->drv_priv = &ctx->fh;
-	q->io_modes = VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->lock = &dev->vpu_mutex;
 	q->buf_struct_size = sizeof(struct rk3288_vpu_buf);
 
