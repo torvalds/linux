@@ -65,11 +65,6 @@ static inline void memcpy_from_pmem(void *dst, void __pmem const *src, size_t si
 	memcpy(dst, (void __force const *) src, size);
 }
 
-static inline void memunmap_pmem(struct device *dev, void __pmem *addr)
-{
-	devm_memunmap(dev, (void __force *) addr);
-}
-
 static inline bool arch_has_pmem_api(void)
 {
 	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API);
@@ -93,7 +88,7 @@ static inline bool arch_has_wmb_pmem(void)
  * These defaults seek to offer decent performance and minimize the
  * window between i/o completion and writes being durable on media.
  * However, it is undefined / architecture specific whether
- * default_memremap_pmem + default_memcpy_to_pmem is sufficient for
+ * ARCH_MEMREMAP_PMEM + default_memcpy_to_pmem is sufficient for
  * making data durable relative to i/o completion.
  */
 static inline void default_memcpy_to_pmem(void __pmem *dst, const void *src,
@@ -114,25 +109,6 @@ static inline void default_clear_pmem(void __pmem *addr, size_t size)
 		clear_page((void __force *)addr);
 	else
 		memset((void __force *)addr, 0, size);
-}
-
-/**
- * memremap_pmem - map physical persistent memory for pmem api
- * @offset: physical address of persistent memory
- * @size: size of the mapping
- *
- * Establish a mapping of the architecture specific memory type expected
- * by memcpy_to_pmem() and wmb_pmem().  For example, it may be
- * the case that an uncacheable or writethrough mapping is sufficient,
- * or a writeback mapping provided memcpy_to_pmem() and
- * wmb_pmem() arrange for the data to be written through the
- * cache to persistent media.
- */
-static inline void __pmem *memremap_pmem(struct device *dev,
-		resource_size_t offset, unsigned long size)
-{
-	return (void __pmem *) devm_memremap(dev, offset, size,
-			ARCH_MEMREMAP_PMEM);
 }
 
 /**

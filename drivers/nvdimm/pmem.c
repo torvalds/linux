@@ -157,8 +157,9 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 			return addr;
 		pmem->virt_addr = (void __pmem *) addr;
 	} else {
-		pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr,
-				pmem->size);
+		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
+				pmem->phys_addr, pmem->size,
+				ARCH_MEMREMAP_PMEM);
 		if (!pmem->virt_addr)
 			return ERR_PTR(-ENXIO);
 	}
@@ -363,8 +364,8 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
 
 	/* establish pfn range for lookup, and switch to direct map */
 	pmem = dev_get_drvdata(dev);
-	memunmap_pmem(dev, pmem->virt_addr);
-	pmem->virt_addr = (void __pmem *)devm_memremap_pages(dev, &nsio->res);
+	devm_memunmap(dev, (void __force *) pmem->virt_addr);
+	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res);
 	if (IS_ERR(pmem->virt_addr)) {
 		rc = PTR_ERR(pmem->virt_addr);
 		goto err;
