@@ -586,6 +586,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
+			iommu_domain_free(config->platform.iommu);
 			goto fail;
 		}
 
