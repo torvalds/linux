@@ -338,6 +338,10 @@ struct btrfs_raid_attr {
 	int ncopies;		/* how many copies to data has */
 };
 
+extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
+
+extern const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES];
+
 struct map_lookup {
 	u64 type;
 	int io_align;
