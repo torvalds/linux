@@ -2075,6 +2075,8 @@ static int mxc_vidioc_streamon(struct file *file, void *fh,
 	hrtimer_init(&vout->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	vout->timer.function = mxc_vout_timer_handler;
 	vout->timer_stop = true;
+	vout->frame_count = 0;
+	vout->vdi_frame_cnt = 0;
 
 	vout->start_ktime = hrtimer_cb_get_time(&vout->timer);
 
