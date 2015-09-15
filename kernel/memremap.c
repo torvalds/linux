@@ -116,7 +116,7 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
 
 	ptr = devres_alloc(devm_memremap_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	addr = memremap(offset, size, flags);
 	if (addr) {
