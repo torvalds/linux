@@ -77,13 +77,13 @@ typedef struct _tstrStatistics {
 
 
 typedef enum {
-	HOST_IF_IDLE					= 0,
-	HOST_IF_SCANNING				= 1,
-	HOST_IF_CONNECTING				= 2,
-	HOST_IF_WAITING_CONN_RESP		= 3,
-	HOST_IF_CONNECTED				= 4,
-	HOST_IF_P2P_LISTEN				= 5,
-	HOST_IF_FORCE_32BIT			= 0xFFFFFFFF
+	HOST_IF_IDLE			= 0,
+	HOST_IF_SCANNING		= 1,
+	HOST_IF_CONNECTING		= 2,
+	HOST_IF_WAITING_CONN_RESP	= 3,
+	HOST_IF_CONNECTED		= 4,
+	HOST_IF_P2P_LISTEN		= 5,
+	HOST_IF_FORCE_32BIT		= 0xFFFFFFFF
 } tenuHostIFstate;
 
 typedef struct _tstrHostIFpmkid {
@@ -97,19 +97,19 @@ typedef struct _tstrHostIFpmkidAttr {
 } tstrHostIFpmkidAttr;
 
 typedef enum {
-	AUTORATE	 = 0,
-	MBPS_1	     = 1,
-	MBPS_2	     = 2,
-	MBPS_5_5	     = 5,
-	MBPS_11	     = 11,
-	MBPS_6	     = 6,
-	MBPS_9	     = 9,
-	MBPS_12	     = 12,
-	MBPS_18	     = 18,
-	MBPS_24	     = 24,
-	MBPS_36	     = 36,
-	MBPS_48	     = 48,
-	MBPS_54	     = 54
+	AUTORATE	= 0,
+	MBPS_1		= 1,
+	MBPS_2		= 2,
+	MBPS_5_5	= 5,
+	MBPS_11		= 11,
+	MBPS_6		= 6,
+	MBPS_9		= 9,
+	MBPS_12		= 12,
+	MBPS_18		= 18,
+	MBPS_24		= 24,
+	MBPS_36		= 36,
+	MBPS_48		= 48,
+	MBPS_54		= 54
 } CURRENT_TX_RATE_T;
 
 typedef struct {
@@ -140,23 +140,23 @@ typedef struct {
 typedef enum {
 	RETRY_SHORT		= 1 << 0,
 	RETRY_LONG		= 1 << 1,
-	FRAG_THRESHOLD	= 1 << 2,
-	RTS_THRESHOLD	= 1 << 3,
-	BSS_TYPE  = 1 << 4,
-	AUTH_TYPE = 1 << 5,
-	AUTHEN_TIMEOUT = 1 << 6,
-	POWER_MANAGEMENT = 1 << 7,
-	PREAMBLE = 1 << 8,
-	SHORT_SLOT_ALLOWED = 1 << 9,
-	TXOP_PROT_DISABLE = 1 << 10,
-	BEACON_INTERVAL = 1 << 11,
-	DTIM_PERIOD = 1 << 12,
-	SITE_SURVEY = 1 << 13,
-	SITE_SURVEY_SCAN_TIME = 1 << 14,
-	ACTIVE_SCANTIME = 1 << 15,
-	PASSIVE_SCANTIME = 1 << 16,
-	CURRENT_TX_RATE = 1 << 17,
-	HT_ENABLE = 1 << 18,
+	FRAG_THRESHOLD		= 1 << 2,
+	RTS_THRESHOLD		= 1 << 3,
+	BSS_TYPE		= 1 << 4,
+	AUTH_TYPE		= 1 << 5,
+	AUTHEN_TIMEOUT		= 1 << 6,
+	POWER_MANAGEMENT	= 1 << 7,
+	PREAMBLE		= 1 << 8,
+	SHORT_SLOT_ALLOWED	= 1 << 9,
+	TXOP_PROT_DISABLE	= 1 << 10,
+	BEACON_INTERVAL		= 1 << 11,
+	DTIM_PERIOD		= 1 << 12,
+	SITE_SURVEY		= 1 << 13,
+	SITE_SURVEY_SCAN_TIME	= 1 << 14,
+	ACTIVE_SCANTIME		= 1 << 15,
+	PASSIVE_SCANTIME	= 1 << 16,
+	CURRENT_TX_RATE		= 1 << 17,
+	HT_ENABLE		= 1 << 18,
 } tenuCfgParam;
 
 typedef struct {
@@ -172,7 +172,7 @@ typedef enum {SCAN_EVENT_NETWORK_FOUND  = 0,
 typedef enum {
 	CONN_DISCONN_EVENT_CONN_RESP		= 0,
 	CONN_DISCONN_EVENT_DISCONN_NOTIF	= 1,
-	CONN_DISCONN_EVENT_FORCE_32BIT	 = 0xFFFFFFFF
+	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 } tenuConnDisconnEvent;
 
 typedef enum {
