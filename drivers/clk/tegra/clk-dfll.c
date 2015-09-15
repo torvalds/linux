@@ -1000,24 +1000,25 @@ static unsigned long dfll_clk_recalc_rate(struct clk_hw *hw,
 	return td->last_unrounded_rate;
 }
 
-static long dfll_clk_round_rate(struct clk_hw *hw,
-				unsigned long rate,
-				unsigned long *parent_rate)
+/* Must use determine_rate since it allows for rates exceeding 2^31-1 */
+static int dfll_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *clk_req)
 {
 	struct tegra_dfll *td = clk_hw_to_dfll(hw);
 	struct dfll_rate_req req;
 	int ret;
 
-	ret = dfll_calculate_rate_request(td, &req, rate);
+	ret = dfll_calculate_rate_request(td, &req, clk_req->rate);
 	if (ret)
 		return ret;
 
 	/*
-	 * Don't return the rounded rate, since it doesn't really matter as
+	 * Don't set the rounded rate, since it doesn't really matter as
 	 * the output rate will be voltage controlled anyway, and cpufreq
 	 * freaks out if any rounding happens.
 	 */
-	return rate;
+
+	return 0;
 }
 
 static int dfll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -1033,7 +1034,7 @@ static const struct clk_ops dfll_clk_ops = {
 	.enable		= dfll_clk_enable,
 	.disable	= dfll_clk_disable,
 	.recalc_rate	= dfll_clk_recalc_rate,
-	.round_rate	= dfll_clk_round_rate,
+	.determine_rate	= dfll_clk_determine_rate,
 	.set_rate	= dfll_clk_set_rate,
 };
 
