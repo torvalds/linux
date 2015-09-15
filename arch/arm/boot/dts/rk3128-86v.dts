@@ -69,7 +69,7 @@
 		status = "okay";
 	};
 
-      rockchip_suspend {
+	rockchip_suspend: rockchip_suspend {
                            rockchip,ctrbits = <
                            (0
                            |RKPM_CTR_PWR_DMNS

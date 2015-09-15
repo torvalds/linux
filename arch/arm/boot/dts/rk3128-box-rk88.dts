@@ -93,7 +93,8 @@
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
 		rockchip,usb-mode = <1>;
 	};
-	 rockchip_suspend {
+
+	rockchip_suspend: rockchip_suspend {
                 rockchip,ctrbits = <
                         (0
                         |RKPM_CTR_PWR_DMNS

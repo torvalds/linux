@@ -24,12 +24,12 @@
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
 		//host_drv_gpio = <&gpio2 GPIO_B4 GPIO_ACTIVE_LOW>;
-		//otg_drv_gpio = <&gpio2 GPIO_B6 GPIO_ACTIVE_LOW>; 
+		//otg_drv_gpio = <&gpio2 GPIO_B6 GPIO_ACTIVE_LOW>;
 
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 		};
-		
+
         wireless-wlan {
         compatible = "wlan-platdata";
 
@@ -50,9 +50,9 @@
         //WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
 
         status = "okay";
-    }; 
-    
-    	rockchip_suspend {
+    };
+
+	rockchip_suspend: rockchip_suspend {
                 rockchip,ctrbits = <
                         (0
                         |RKPM_CTR_PWR_DMNS
@@ -68,7 +68,7 @@
                 >;
                 rockchip,pmic-suspend_gpios = <0>;
         };
-	
+
     chosen {
 	bootargs = "vmalloc=496M cma=4M rockchip_jtag";
        };
