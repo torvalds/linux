@@ -48,7 +48,7 @@
 
 struct rk808 *g_rk808;
 #define DCDC_RAISE_VOL_BYSTEP 1
-#define DCDC_VOL_STEP 25000  //25mv
+#define DCDC_VOL_STEP 12500  /*12.5mv*/
 
 static struct mfd_cell rk808s[] = {
 	{
@@ -514,7 +514,7 @@ static int rk808_dcdc_set_voltage(struct regulator_dev *dev,
 					val = rk808_dcdc_select_min_voltage(dev,vol_temp,vol_temp,buck);
 				//	printk("rk808_dcdc_set_voltage buck = %d vol_temp= %d old_voltage= %d min_uV =%d \n",buck,vol_temp,old_voltage,min_uV);
 					ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);	
-				}while(vol_temp != max_uV);
+				} while (vol_temp < max_uV);
 			}
 			else{
 				val = rk808_dcdc_select_min_voltage(dev,min_uV,max_uV,buck);
