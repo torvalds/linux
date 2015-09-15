@@ -1101,6 +1101,7 @@ static int setup(struct spi_device *spi)
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
 	unsigned int clk_div;
 	uint tx_thres, tx_hi_thres, rx_thres;
+	u32 cr0;
 
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
@@ -1193,8 +1194,6 @@ static int setup(struct spi_device *spi)
 
 	clk_div = pxa2xx_ssp_get_clk_div(drv_data, chip, spi->max_speed_hz);
 
-	chip->cr0 = pxa2xx_configure_sscr0(drv_data, clk_div,
-					   spi->bits_per_word);
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		chip->threshold = (QUARK_X1000_SSCR1_RxTresh(rx_thres)
@@ -1216,15 +1215,16 @@ static int setup(struct spi_device *spi)
 		chip->cr1 |= SSCR1_LBM;
 
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
+	cr0 = pxa2xx_configure_sscr0(drv_data, clk_div, spi->bits_per_word);
 	if (!pxa25x_ssp_comp(drv_data))
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
 			drv_data->max_clk_rate
-				/ (1 + ((chip->cr0 & SSCR0_SCR(0xfff)) >> 8)),
+				/ (1 + ((cr0 & SSCR0_SCR(0xfff)) >> 8)),
 			chip->enable_dma ? "DMA" : "PIO");
 	else
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
 			drv_data->max_clk_rate / 2
-				/ (1 + ((chip->cr0 & SSCR0_SCR(0x0ff)) >> 8)),
+				/ (1 + ((cr0 & SSCR0_SCR(0x0ff)) >> 8)),
 			chip->enable_dma ? "DMA" : "PIO");
 
 	if (spi->bits_per_word <= 8) {
@@ -1236,8 +1236,6 @@ static int setup(struct spi_device *spi)
 		chip->read = u16_reader;
 		chip->write = u16_writer;
 	} else if (spi->bits_per_word <= 32) {
-		if (!is_quark_x1000_ssp(drv_data))
-			chip->cr0 |= SSCR0_EDSS;
 		chip->n_bytes = 4;
 		chip->read = u32_reader;
 		chip->write = u32_writer;
