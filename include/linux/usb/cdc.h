@@ -40,7 +40,7 @@ struct usb_cdc_parsed_header {
 	bool phonet_magic_present;
 };
 
-
+struct usb_interface;
 int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
 				struct usb_interface *intf,
 				u8 *buffer,
