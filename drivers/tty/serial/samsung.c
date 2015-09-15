@@ -621,15 +621,11 @@ finish:
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
+static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 {
-	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
-	unsigned long flags;
 	int max_count = port->fifosize;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	while (max_count-- > 0) {
 		ufcon = rd_regl(port, S3C2410_UFCON);
@@ -654,9 +650,7 @@ static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 					ufcon |= S3C2410_UFCON_RESETRX;
 					wr_regl(port, S3C2410_UFCON, ufcon);
 					rx_enabled(port) = 1;
-					spin_unlock_irqrestore(&port->lock,
-							flags);
-					goto out;
+					return;
 				}
 				continue;
 			}
@@ -702,10 +696,19 @@ static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 				 ch, flag);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
 	tty_flip_buffer_push(&port->state->port);
+}
 
-out:
+static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
+{
+	struct s3c24xx_uart_port *ourport = dev_id;
+	struct uart_port *port = &ourport->port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	s3c24xx_serial_rx_drain_fifo(ourport);
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	return IRQ_HANDLED;
 }
 
