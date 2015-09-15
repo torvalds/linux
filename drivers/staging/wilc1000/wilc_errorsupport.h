@@ -37,10 +37,9 @@
 
 
 
-#define WILC_IS_ERR(__status__) (__status__ < WILC_SUCCESS)
 
 #define WILC_ERRORCHECK(__status__) do { \
-		if (WILC_IS_ERR(__status__)) { \
+		if (__status__ < WILC_SUCCESS) { \
 			PRINT_ER("PRINT_ER(%d)\n", __status__);	\
 			goto ERRORHANDLER; \
 		} \
@@ -60,6 +59,6 @@
 
 #define WILC_CATCH(__status__) \
 ERRORHANDLER: \
-	if (WILC_IS_ERR(__status__)) \
+	if (__status__ < WILC_SUCCESS) \
 
 #endif
