@@ -3576,10 +3576,18 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 						(dev_drv->cur_screen->ysize << 20);
 				}
 				if (dev_drv->uboot_logo && win->state) {
-					win->area[0].xpos = 0;
-					win->area[0].ypos = 0;
-					win->area[0].xsize = screen->mode.xres;
-					win->area[0].ysize = screen->mode.yres;
+					if (win->area[0].xpos ||
+					    win->area[0].ypos) {
+						win->area[0].xpos =
+							(screen->mode.xres -
+							 win->area[0].xsize)/2;
+						win->area[0].ypos =
+							(screen->mode.yres -
+							 win->area[0].ysize)/2;
+					} else {
+						win->area[0].xsize = screen->mode.xres;
+						win->area[0].ysize = screen->mode.yres;
+					}
 					dev_drv->ops->set_par(dev_drv, i);
 					dev_drv->ops->cfg_done(dev_drv);
 				} else if (!dev_drv->win[win_id]->state) {
