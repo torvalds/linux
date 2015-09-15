@@ -78,12 +78,12 @@ typedef struct {
 	uint32_t address: 17;
 	uint32_t count: 9;
 	/* } bit; */
-	uint8_t *buffer;
+	u8 *buffer;
 	uint32_t block_size;
 } sdio_cmd53_t;
 
 typedef struct {
-	void (*os_debug)(uint8_t *);
+	void (*os_debug)(u8 *);
 	int (*os_wait)(void *, u32);
 } wilc_wlan_os_func_t;
 
@@ -100,15 +100,15 @@ typedef struct {
 		} sdio;
 		struct {
 			int (*spi_max_speed)(void);
-			int (*spi_tx)(uint8_t *, uint32_t);
-			int (*spi_rx)(uint8_t *, uint32_t);
-			int (*spi_trx)(uint8_t *, uint8_t *, uint32_t);
+			int (*spi_tx)(u8 *, uint32_t);
+			int (*spi_rx)(u8 *, uint32_t);
+			int (*spi_trx)(u8 *, u8 *, uint32_t);
 		} spi;
 	} u;
 } wilc_wlan_io_func_t;
 
 typedef struct {
-	void (*rx_indicate)(uint8_t *, uint32_t, uint32_t);
+	void (*rx_indicate)(u8 *, uint32_t, uint32_t);
 	void (*rx_complete)(void);
 } wilc_wlan_net_func_t;
 
@@ -156,7 +156,7 @@ typedef struct {
 struct tx_complete_data {
 	int size;
 	void *buff;
-	uint8_t *pBssid;
+	u8 *pBssid;
 	struct sk_buff *skb;
 };
 
@@ -166,20 +166,20 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define WILC_TX_ERR_NO_BUF (-2)
 
 typedef struct {
-	int (*wlan_firmware_download)(const uint8_t *, uint32_t);
+	int (*wlan_firmware_download)(const u8 *, uint32_t);
 	int (*wlan_start)(void);
 	int (*wlan_stop)(void);
-	int (*wlan_add_to_tx_que)(void *, uint8_t *, uint32_t, wilc_tx_complete_func_t);
+	int (*wlan_add_to_tx_que)(void *, u8 *, uint32_t, wilc_tx_complete_func_t);
 	int (*wlan_handle_tx_que)(uint32_t *);
 	void (*wlan_handle_rx_que)(void);
 	void (*wlan_handle_rx_isr)(void);
 	void (*wlan_cleanup)(void);
-	int (*wlan_cfg_set)(int, uint32_t, uint8_t *, uint32_t, int, uint32_t);
+	int (*wlan_cfg_set)(int, uint32_t, u8 *, uint32_t, int, uint32_t);
 	int (*wlan_cfg_get)(int, uint32_t, int, uint32_t);
-	int (*wlan_cfg_get_value)(uint32_t, uint8_t *, uint32_t);
+	int (*wlan_cfg_get_value)(uint32_t, u8 *, uint32_t);
 	/*Bug3959: transmitting mgmt frames received from host*/
 	#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
-	int (*wlan_add_mgmt_to_tx_que)(void *, uint8_t *, uint32_t, wilc_tx_complete_func_t);
+	int (*wlan_add_mgmt_to_tx_que)(void *, u8 *, uint32_t, wilc_tx_complete_func_t);
 	#endif
 } wilc_wlan_oup_t;
 
@@ -939,7 +939,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup);
 
 void wilc_bus_set_max_speed(void);
 void wilc_bus_set_default_speed(void);
-uint32_t wilc_get_chipid(uint8_t update);
+uint32_t wilc_get_chipid(u8 update);
 
 
 #endif

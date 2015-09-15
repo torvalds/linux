@@ -19,8 +19,8 @@
 extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
 extern wilc_cfg_func_t mac_cfg;
-extern void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size);
-uint32_t wilc_get_chipid(uint8_t update);
+extern void WILC_WFI_mgmt_rx(u8 *buff, uint32_t size);
+uint32_t wilc_get_chipid(u8 update);
 u16 Set_machw_change_vir_if(bool bValue);
 
 
@@ -57,14 +57,14 @@ typedef struct {
 	 **/
 	#ifdef MEMORY_STATIC
 	uint32_t rx_buffer_size;
-	uint8_t *rx_buffer;
+	u8 *rx_buffer;
 	uint32_t rx_buffer_offset;
 	#endif
 	/**
 	 *      TX buffer
 	 **/
 	uint32_t tx_buffer_size;
-	uint8_t *tx_buffer;
+	u8 *tx_buffer;
 	uint32_t tx_buffer_offset;
 
 	/**
@@ -374,8 +374,8 @@ static __inline int remove_TCP_related(void)
 static __inline int tcp_process(struct txq_entry_t *tqe)
 {
 	int ret;
-	uint8_t *eth_hdr_ptr;
-	uint8_t *buffer = tqe->buffer;
+	u8 *eth_hdr_ptr;
+	u8 *buffer = tqe->buffer;
 	unsigned short h_proto;
 	int i;
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
@@ -386,15 +386,15 @@ static __inline int tcp_process(struct txq_entry_t *tqe)
 	eth_hdr_ptr = &buffer[0];
 	h_proto = ntohs(*((unsigned short *)&eth_hdr_ptr[12]));
 	if (h_proto == 0x0800) { /* IP */
-		uint8_t *ip_hdr_ptr;
-		uint8_t protocol;
+		u8 *ip_hdr_ptr;
+		u8 protocol;
 
 		ip_hdr_ptr = &buffer[ETHERNET_HDR_LEN];
 		protocol = ip_hdr_ptr[9];
 
 
 		if (protocol == 0x06) {
-			uint8_t *tcp_hdr_ptr;
+			u8 *tcp_hdr_ptr;
 			uint32_t IHL, Total_Length, Data_offset;
 
 			tcp_hdr_ptr = &ip_hdr_ptr[IP_HDR_LEN];
@@ -494,7 +494,7 @@ bool is_TCP_ACK_Filter_Enabled(void)
 }
 #endif
 
-static int wilc_wlan_txq_add_cfg_pkt(uint8_t *buffer, uint32_t buffer_size)
+static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, uint32_t buffer_size)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	struct txq_entry_t *tqe;
@@ -531,7 +531,7 @@ static int wilc_wlan_txq_add_cfg_pkt(uint8_t *buffer, uint32_t buffer_size)
 	return 1;
 }
 
-static int wilc_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffer_size, wilc_tx_complete_func_t func)
+static int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, uint32_t buffer_size, wilc_tx_complete_func_t func)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	struct txq_entry_t *tqe;
@@ -563,7 +563,7 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffe
 }
 /*Bug3959: transmitting mgmt frames received from host*/
 #if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
-int wilc_wlan_txq_add_mgmt_pkt(void *priv, uint8_t *buffer, uint32_t buffer_size, wilc_tx_complete_func_t func)
+int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, uint32_t buffer_size, wilc_tx_complete_func_t func)
 {
 
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
@@ -856,7 +856,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 	int i, entries = 0;
 	uint32_t sum;
 	uint32_t reg;
-	uint8_t *txb = p->tx_buffer;
+	u8 *txb = p->tx_buffer;
 	uint32_t offset = 0;
 	int vmm_sz = 0;
 	struct txq_entry_t *tqe;
@@ -981,7 +981,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 			/**
 			 * write to vmm table
 			 **/
-			ret = p->hif_func.hif_block_tx(WILC_VMM_TBL_RX_SHADOW_BASE, (uint8_t *)vmm_table, ((i + 1) * 4)); /* Bug 4477 fix */
+			ret = p->hif_func.hif_block_tx(WILC_VMM_TBL_RX_SHADOW_BASE, (u8 *)vmm_table, ((i + 1) * 4)); /* Bug 4477 fix */
 			if (!ret) {
 				wilc_debug(N_ERR, "ERR block TX of VMM table.\n");
 				break;
@@ -1166,7 +1166,7 @@ static void wilc_wlan_handle_rxq(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	int offset = 0, size, has_packet = 0;
-	uint8_t *buffer;
+	u8 *buffer;
 	struct rxq_entry_t *rqe;
 
 	p->rxq_exit = 0;
@@ -1331,7 +1331,7 @@ static void wilc_wlan_handle_isr_ext(uint32_t int_status)
 #ifdef MEMORY_STATIC
 	uint32_t offset = p->rx_buffer_offset;
 #endif
-	uint8_t *buffer = NULL;
+	u8 *buffer = NULL;
 	uint32_t size;
 	uint32_t retries = 0;
 	int ret = 0;
@@ -1459,12 +1459,12 @@ void wilc_handle_isr(void)
  *      Firmware download
  *
  ********************************************/
-static int wilc_wlan_firmware_download(const uint8_t *buffer, uint32_t buffer_size)
+static int wilc_wlan_firmware_download(const u8 *buffer, uint32_t buffer_size)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	uint32_t offset;
 	uint32_t addr, size, size2, blksz;
-	uint8_t *dma_buffer;
+	u8 *dma_buffer;
 	int ret = 0;
 
 	blksz = (1ul << 12); /* Bug 4703: 4KB Good enough size for most platforms = PAGE_SIZE. */
@@ -1667,7 +1667,7 @@ static int wilc_wlan_stop(void)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	uint32_t reg = 0;
 	int ret;
-	uint8_t timeout = 10;
+	u8 timeout = 10;
 	/**
 	 *      TODO: stop the firmware, need a re-download
 	 **/
@@ -1815,12 +1815,12 @@ static int wilc_wlan_cfg_commit(int type, uint32_t drvHandler)
 		cfg->wid_header[0] = 'Q';
 	}
 	cfg->wid_header[1] = seq_no;    /* sequence number */
-	cfg->wid_header[2] = (uint8_t)total_len;
-	cfg->wid_header[3] = (uint8_t)(total_len >> 8);
-	cfg->wid_header[4] = (uint8_t)driver_handler;
-	cfg->wid_header[5] = (uint8_t)(driver_handler >> 8);
-	cfg->wid_header[6] = (uint8_t)(driver_handler >> 16);
-	cfg->wid_header[7] = (uint8_t)(driver_handler >> 24);
+	cfg->wid_header[2] = (u8)total_len;
+	cfg->wid_header[3] = (u8)(total_len >> 8);
+	cfg->wid_header[4] = (u8)driver_handler;
+	cfg->wid_header[5] = (u8)(driver_handler >> 8);
+	cfg->wid_header[6] = (u8)(driver_handler >> 16);
+	cfg->wid_header[7] = (u8)(driver_handler >> 24);
 	p->cfg_seq_no = seq_no;
 
 	/**
@@ -1834,7 +1834,7 @@ static int wilc_wlan_cfg_commit(int type, uint32_t drvHandler)
 	return 0;
 }
 
-static int wilc_wlan_cfg_set(int start, uint32_t wid, uint8_t *buffer, uint32_t buffer_size, int commit, uint32_t drvHandler)
+static int wilc_wlan_cfg_set(int start, uint32_t wid, u8 *buffer, uint32_t buffer_size, int commit, uint32_t drvHandler)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	uint32_t offset;
@@ -1912,7 +1912,7 @@ static int wilc_wlan_cfg_get(int start, uint32_t wid, int commit, uint32_t drvHa
 	return ret_size;
 }
 
-static int wilc_wlan_cfg_get_val(uint32_t wid, uint8_t *buffer, uint32_t buffer_size)
+static int wilc_wlan_cfg_get_val(uint32_t wid, u8 *buffer, uint32_t buffer_size)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	int ret;
@@ -1980,7 +1980,7 @@ uint32_t init_chip(void)
 
 }
 
-uint32_t wilc_get_chipid(uint8_t update)
+uint32_t wilc_get_chipid(u8 update)
 {
 	static uint32_t chipid;
 	/* SDIO can't read into global variables */
@@ -2017,7 +2017,7 @@ _fail_:
 }
 
 #ifdef COMPLEMENT_BOOT
-uint8_t core_11b_ready(void)
+u8 core_11b_ready(void)
 {
 	uint32_t reg_val;
 

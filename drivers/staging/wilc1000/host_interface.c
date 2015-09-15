@@ -7460,7 +7460,7 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSt
 	return s32Error;
 }
 #endif /*WILC_AP_EXTERNAL_MLME*/
-uint32_t wilc_get_chipid(uint8_t);
+uint32_t wilc_get_chipid(u8);
 
 s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Timeout)
 {

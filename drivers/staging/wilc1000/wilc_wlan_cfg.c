@@ -22,23 +22,23 @@ typedef struct {
 	wilc_debug_func dPrint;
 
 	int mac_status;
-	uint8_t mac_address[7];
-	uint8_t ip_address[5];
-	uint8_t bssid[7];
-	uint8_t ssid[34];
-	uint8_t firmware_version[129];
-	uint8_t supp_rate[24];
-	uint8_t wep_key[28];
-	uint8_t i_psk[66];
-	uint8_t hardwareProductVersion[33];
-	uint8_t phyversion[17];
-	uint8_t supp_username[21];
-	uint8_t supp_password[64];
-	uint8_t assoc_req[256];
-	uint8_t assoc_rsp[256];
-	uint8_t firmware_info[8];
-	uint8_t scan_result[256];
-	uint8_t scan_result1[256];
+	u8 mac_address[7];
+	u8 ip_address[5];
+	u8 bssid[7];
+	u8 ssid[34];
+	u8 firmware_version[129];
+	u8 supp_rate[24];
+	u8 wep_key[28];
+	u8 i_psk[66];
+	u8 hardwareProductVersion[33];
+	u8 phyversion[17];
+	u8 supp_username[21];
+	u8 supp_password[64];
+	u8 assoc_req[256];
+	u8 assoc_rsp[256];
+	u8 firmware_info[8];
+	u8 scan_result[256];
+	u8 scan_result1[256];
 } wilc_mac_cfg_t;
 
 static wilc_mac_cfg_t g_mac;
@@ -160,72 +160,72 @@ static wilc_cfg_str_t g_cfg_str[] = {
  *
  ********************************************/
 
-static int wilc_wlan_cfg_set_byte(uint8_t *frame, uint32_t offset, uint16_t id, uint8_t val8)
+static int wilc_wlan_cfg_set_byte(u8 *frame, uint32_t offset, uint16_t id, u8 val8)
 {
-	uint8_t *buf;
+	u8 *buf;
 
 	if ((offset + 4) >= MAX_CFG_FRAME_SIZE)
 		return 0;
 
 	buf = &frame[offset];
 
-	buf[0] = (uint8_t)id;
-	buf[1] = (uint8_t)(id >> 8);
+	buf[0] = (u8)id;
+	buf[1] = (u8)(id >> 8);
 	buf[2] = 1;
 	buf[3] = val8;
 	return 4;
 }
 
-static int wilc_wlan_cfg_set_hword(uint8_t *frame, uint32_t offset, uint16_t id, uint16_t val16)
+static int wilc_wlan_cfg_set_hword(u8 *frame, uint32_t offset, uint16_t id, uint16_t val16)
 {
-	uint8_t *buf;
+	u8 *buf;
 
 	if ((offset + 5) >= MAX_CFG_FRAME_SIZE)
 		return 0;
 
 	buf = &frame[offset];
 
-	buf[0] = (uint8_t)id;
-	buf[1] = (uint8_t)(id >> 8);
+	buf[0] = (u8)id;
+	buf[1] = (u8)(id >> 8);
 	buf[2] = 2;
-	buf[3] = (uint8_t)val16;
-	buf[4] = (uint8_t)(val16 >> 8);
+	buf[3] = (u8)val16;
+	buf[4] = (u8)(val16 >> 8);
 
 	return 5;
 }
 
-static int wilc_wlan_cfg_set_word(uint8_t *frame, uint32_t offset, uint16_t id, uint32_t val32)
+static int wilc_wlan_cfg_set_word(u8 *frame, uint32_t offset, uint16_t id, uint32_t val32)
 {
-	uint8_t *buf;
+	u8 *buf;
 
 	if ((offset + 7) >= MAX_CFG_FRAME_SIZE)
 		return 0;
 
 	buf = &frame[offset];
 
-	buf[0] = (uint8_t)id;
-	buf[1] = (uint8_t)(id >> 8);
+	buf[0] = (u8)id;
+	buf[1] = (u8)(id >> 8);
 	buf[2] = 4;
-	buf[3] = (uint8_t)val32;
-	buf[4] = (uint8_t)(val32 >> 8);
-	buf[5] = (uint8_t)(val32 >> 16);
-	buf[6] = (uint8_t)(val32 >> 24);
+	buf[3] = (u8)val32;
+	buf[4] = (u8)(val32 >> 8);
+	buf[5] = (u8)(val32 >> 16);
+	buf[6] = (u8)(val32 >> 24);
 
 	return 7;
 }
 
-static int wilc_wlan_cfg_set_str(uint8_t *frame, uint32_t offset, uint16_t id, uint8_t *str, uint32_t size)
+static int wilc_wlan_cfg_set_str(u8 *frame, uint32_t offset, uint16_t id, u8 *str, uint32_t size)
 {
-	uint8_t *buf;
+	u8 *buf;
 
 	if ((offset + size + 3) >= MAX_CFG_FRAME_SIZE)
 		return 0;
 
 	buf = &frame[offset];
 
-	buf[0] = (uint8_t)id;
-	buf[1] = (uint8_t)(id >> 8);
-	buf[2] = (uint8_t)size;
+	buf[0] = (u8)id;
+	buf[1] = (u8)(id >> 8);
+	buf[2] = (u8)size;
 
 	if ((str != NULL) && (size != 0))
 		memcpy(&buf[3], str, size);
@@ -233,20 +233,20 @@ static int wilc_wlan_cfg_set_str(uint8_t *frame, uint32_t offset, uint16_t id, u
 	return (size + 3);
 }
 
-static int wilc_wlan_cfg_set_bin(uint8_t *frame, uint32_t offset, uint16_t id, uint8_t *b, uint32_t size)
+static int wilc_wlan_cfg_set_bin(u8 *frame, uint32_t offset, uint16_t id, u8 *b, uint32_t size)
 {
-	uint8_t *buf;
+	u8 *buf;
 	uint32_t i;
-	uint8_t checksum = 0;
+	u8 checksum = 0;
 
 	if ((offset + size + 5) >= MAX_CFG_FRAME_SIZE)
 		return 0;
 
 	buf = &frame[offset];
-	buf[0] = (uint8_t)id;
-	buf[1] = (uint8_t)(id >> 8);
-	buf[2] = (uint8_t)size;
-	buf[3] = (uint8_t)(size >> 8);
+	buf[0] = (u8)id;
+	buf[1] = (u8)(id >> 8);
+	buf[2] = (u8)size;
+	buf[3] = (u8)(size >> 8);
 
 	if ((b != NULL) && (size != 0)) {
 		memcpy(&buf[4], b, size);
@@ -266,7 +266,7 @@ static int wilc_wlan_cfg_set_bin(uint8_t *frame, uint32_t offset, uint16_t id, u
  *
  ********************************************/
 
-static void wilc_wlan_parse_response_frame(uint8_t *info, int size)
+static void wilc_wlan_parse_response_frame(u8 *info, int size)
 {
 	uint32_t wid, len = 0, i = 0;
 	static int seq;
@@ -361,7 +361,7 @@ static void wilc_wlan_parse_response_frame(uint8_t *info, int size)
 	}
 }
 
-static int wilc_wlan_parse_info_frame(uint8_t *info, int size)
+static int wilc_wlan_parse_info_frame(u8 *info, int size)
 {
 	wilc_mac_cfg_t *pd = (wilc_mac_cfg_t *)&g_mac;
 	uint32_t wid, len;
@@ -385,9 +385,9 @@ static int wilc_wlan_parse_info_frame(uint8_t *info, int size)
  *
  ********************************************/
 
-static int wilc_wlan_cfg_set_wid(uint8_t *frame, uint32_t offset, uint16_t id, uint8_t *buf, int size)
+static int wilc_wlan_cfg_set_wid(u8 *frame, uint32_t offset, uint16_t id, u8 *buf, int size)
 {
-	uint8_t type = (id >> 12) & 0xf;
+	u8 type = (id >> 12) & 0xf;
 	int ret = 0;
 
 	if (type == 0) {                                        /* byte command */
@@ -410,22 +410,22 @@ static int wilc_wlan_cfg_set_wid(uint8_t *frame, uint32_t offset, uint16_t id, u
 	return ret;
 }
 
-static int wilc_wlan_cfg_get_wid(uint8_t *frame, uint32_t offset, uint16_t id)
+static int wilc_wlan_cfg_get_wid(u8 *frame, uint32_t offset, uint16_t id)
 {
-	uint8_t *buf;
+	u8 *buf;
 
 	if ((offset + 2) >= MAX_CFG_FRAME_SIZE)
 		return 0;
 
 	buf = &frame[offset];
 
-	buf[0] = (uint8_t)id;
-	buf[1] = (uint8_t)(id >> 8);
+	buf[0] = (u8)id;
+	buf[1] = (u8)(id >> 8);
 
 	return 2;
 }
 
-static int wilc_wlan_cfg_get_wid_value(uint16_t wid, uint8_t *buffer, uint32_t buffer_size)
+static int wilc_wlan_cfg_get_wid_value(uint16_t wid, u8 *buffer, uint32_t buffer_size)
 {
 	uint32_t type = (wid >> 12) & 0xf;
 	int i, ret = 0;
@@ -504,11 +504,11 @@ static int wilc_wlan_cfg_get_wid_value(uint16_t wid, uint8_t *buffer, uint32_t b
 	return ret;
 }
 
-static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *rsp)
+static int wilc_wlan_cfg_indicate_rx(u8 *frame, int size, wilc_cfg_rsp_t *rsp)
 {
 	int ret = 1;
-	uint8_t msg_type;
-	uint8_t msg_id;
+	u8 msg_type;
+	u8 msg_id;
 
 	msg_type = frame[0];
 	msg_id = frame[1];      /* seq no */

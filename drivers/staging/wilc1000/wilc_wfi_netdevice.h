@@ -171,8 +171,8 @@ typedef struct {
 } struct_frame_reg;
 
 typedef struct {
-	uint8_t aSrcAddress[ETH_ALEN];
-	uint8_t aBSSID[ETH_ALEN];
+	u8 aSrcAddress[ETH_ALEN];
+	u8 aBSSID[ETH_ALEN];
 	tstrWILC_WFIDrv *drvHandler;
 	struct net_device *wilc_netdev;
 } tstrInterfaceInfo;
@@ -184,9 +184,9 @@ typedef struct {
 	#endif
 	wilc_wlan_oup_t oup;
 	int close;
-	uint8_t u8NoIfcs;
+	u8 u8NoIfcs;
 	tstrInterfaceInfo strInterfaceInfo[NUM_CONCURRENT_IFC];
-	uint8_t open_ifcs;
+	u8 open_ifcs;
 	struct mutex txq_cs;
 
 	/*Added by Amr - BugID_4720*/
@@ -229,7 +229,7 @@ typedef struct {
 } linux_wlan_t;
 
 typedef struct {
-	uint8_t u8IfIdx;
+	u8 u8IfIdx;
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;

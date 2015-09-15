@@ -164,9 +164,9 @@ void clear_shadow_scan(void *pUserVoid)
 
 uint32_t get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
 {
-	uint8_t i;
+	u8 i;
 	int rssi_v = 0;
-	uint8_t num_rssi = (pstrNetworkInfo->strRssi.u8Full) ? NUM_RSSI : (pstrNetworkInfo->strRssi.u8Index);
+	u8 num_rssi = (pstrNetworkInfo->strRssi.u8Full) ? NUM_RSSI : (pstrNetworkInfo->strRssi.u8Index);
 
 	for (i = 0; i < num_rssi; i++)
 		rssi_v += pstrNetworkInfo->strRssi.as8RSSI[i];
@@ -175,7 +175,7 @@ uint32_t get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
 	return rssi_v;
 }
 
-void refresh_scan(void *pUserVoid, uint8_t all, bool bDirectScan)
+void refresh_scan(void *pUserVoid, u8 all, bool bDirectScan)
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;
@@ -302,7 +302,7 @@ void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, vo
 {
 	int8_t ap_found = is_network_in_shadow(pstrNetworkInfo, pUserVoid);
 	uint32_t ap_index = 0;
-	uint8_t rssi_index = 0;
+	u8 rssi_index = 0;
 
 	if (u32LastScannedNtwrksCountShadow >= MAX_NUM_SCANNED_NETWORKS_SHADOW) {
 		PRINT_D(CFG80211_DBG, "Shadow network reached its maximum limit\n");
@@ -525,7 +525,7 @@ int WILC_WFI_Set_PMKSA(u8 *bssid, struct wilc_priv *priv)
 
 
 }
-int linux_wlan_set_bssid(struct net_device *wilc_netdev, uint8_t *pBSSID);
+int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID);
 
 
 /**
@@ -1079,7 +1079,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	#ifdef WILC_P2P
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	#endif
-	uint8_t NullBssid[ETH_ALEN] = {0};
+	u8 NullBssid[ETH_ALEN] = {0};
 
 	connecting = 0;
 	priv = wiphy_priv(wiphy);
@@ -2198,7 +2198,7 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftype)
  *  @version		1.0
  */
 
-void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
+void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, uint32_t size)
 {
 
 	struct wilc_priv *priv;

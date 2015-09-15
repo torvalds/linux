@@ -110,11 +110,11 @@ static struct semaphore close_exit_sync;
 
 static int wlan_deinit_locks(linux_wlan_t *nic);
 static void wlan_deinitialize_threads(linux_wlan_t *nic);
-extern void WILC_WFI_monitor_rx(uint8_t *buff, uint32_t size);
-extern void WILC_WFI_p2p_rx(struct net_device *dev, uint8_t *buff, uint32_t size);
+extern void WILC_WFI_monitor_rx(u8 *buff, uint32_t size);
+extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, uint32_t size);
 
 static void linux_wlan_tx_complete(void *priv, int status);
-void frmw_to_linux(uint8_t *buff, uint32_t size, uint32_t pkt_offset);
+void frmw_to_linux(u8 *buff, uint32_t size, uint32_t pkt_offset);
 static int  mac_init_fn(struct net_device *ndev);
 int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
 int  mac_open(struct net_device *ndev);
@@ -485,7 +485,7 @@ static void deinit_irq(linux_wlan_t *nic)
 /*
  *      OS functions
  */
-static void linux_wlan_dbg(uint8_t *buff)
+static void linux_wlan_dbg(u8 *buff)
 {
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
@@ -529,9 +529,9 @@ static void linux_wlan_mac_indicate(int flag)
 
 }
 
-struct net_device *GetIfHandler(uint8_t *pMacHeader)
+struct net_device *GetIfHandler(u8 *pMacHeader)
 {
-	uint8_t *Bssid, *Bssid1;
+	u8 *Bssid, *Bssid1;
 	int i = 0;
 
 	Bssid  = pMacHeader + 10;
@@ -559,7 +559,7 @@ struct net_device *GetIfHandler(uint8_t *pMacHeader)
 	return NULL;
 }
 
-int linux_wlan_set_bssid(struct net_device *wilc_netdev, uint8_t *pBSSID)
+int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID)
 {
 	int i = 0;
 	int ret = -1;
@@ -580,9 +580,9 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, uint8_t *pBSSID)
 /*Function to get number of connected interfaces*/
 int linux_wlan_get_num_conn_ifcs(void)
 {
-	uint8_t i = 0;
-	uint8_t null_bssid[6] = {0};
-	uint8_t ret_val = 0;
+	u8 i = 0;
+	u8 null_bssid[6] = {0};
+	u8 ret_val = 0;
 
 	for (i = 0; i < g_linux_wlan->u8NoIfcs; i++) {
 		if (memcmp(g_linux_wlan->strInterfaceInfo[i].aBSSID, null_bssid, 6))
@@ -1380,13 +1380,13 @@ static void wlan_deinitialize_threads(linux_wlan_t *nic)
 #ifdef COMPLEMENT_BOOT
 
 extern volatile int probe;
-extern uint8_t core_11b_ready(void);
+extern u8 core_11b_ready(void);
 
 #define READY_CHECK_THRESHOLD		30
 extern void wilc_wlan_global_reset(void);
-uint8_t wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi,	wilc_wlan_oup_t *nwo, linux_wlan_t *nic)
+u8 wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi,	wilc_wlan_oup_t *nwo, linux_wlan_t *nic)
 {
-	uint8_t trials = 0;
+	u8 trials = 0;
 
 	while ((core_11b_ready() && (READY_CHECK_THRESHOLD > (trials++)))) {
 		PRINT_D(INIT_DBG, "11b core not ready yet: %u\n", trials);
@@ -1969,7 +1969,7 @@ done:
 	return s32Error;
 }
 
-void frmw_to_linux(uint8_t *buff, uint32_t size, uint32_t pkt_offset)
+void frmw_to_linux(u8 *buff, uint32_t size, uint32_t pkt_offset)
 {
 
 	unsigned int frame_len = 0;
@@ -2048,7 +2048,7 @@ void frmw_to_linux(uint8_t *buff, uint32_t size, uint32_t pkt_offset)
 		#endif
 }
 
-void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size)
+void WILC_WFI_mgmt_rx(u8 *buff, uint32_t size)
 {
 	int i = 0;
 	perInterface_wlan_t *nic;

@@ -50,21 +50,21 @@ static int sdio_set_func0_csa_address(uint32_t adr)
 	cmd.function = 0;
 	cmd.raw = 0;
 	cmd.address = 0x10c;
-	cmd.data = (uint8_t)adr;
+	cmd.data = (u8)adr;
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x10c data...\n");
 		goto _fail_;
 	}
 
 	cmd.address = 0x10d;
-	cmd.data = (uint8_t)(adr >> 8);
+	cmd.data = (u8)(adr >> 8);
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x10d data...\n");
 		goto _fail_;
 	}
 
 	cmd.address = 0x10e;
-	cmd.data = (uint8_t)(adr >> 16);
+	cmd.data = (u8)(adr >> 16);
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x10e data...\n");
 		goto _fail_;
@@ -86,7 +86,7 @@ static int sdio_set_func0_csa_address_byte0(uint32_t adr)
 	cmd.function = 0;
 	cmd.raw = 0;
 	cmd.address = 0x10c;
-	cmd.data = (uint8_t)adr;
+	cmd.data = (u8)adr;
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x10c data...\n");
 		goto _fail_;
@@ -105,14 +105,14 @@ static int sdio_set_func0_block_size(uint32_t block_size)
 	cmd.function = 0;
 	cmd.raw = 0;
 	cmd.address = 0x10;
-	cmd.data = (uint8_t)block_size;
+	cmd.data = (u8)block_size;
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x10 data...\n");
 		goto _fail_;
 	}
 
 	cmd.address = 0x11;
-	cmd.data = (uint8_t)(block_size >> 8);
+	cmd.data = (u8)(block_size >> 8);
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x11 data...\n");
 		goto _fail_;
@@ -137,13 +137,13 @@ static int sdio_set_func1_block_size(uint32_t block_size)
 	cmd.function = 0;
 	cmd.raw = 0;
 	cmd.address = 0x110;
-	cmd.data = (uint8_t)block_size;
+	cmd.data = (u8)block_size;
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x110 data...\n");
 		goto _fail_;
 	}
 	cmd.address = 0x111;
-	cmd.data = (uint8_t)(block_size >> 8);
+	cmd.data = (u8)(block_size >> 8);
 	if (!g_sdio.sdio_cmd52(&cmd)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x111 data...\n");
 		goto _fail_;
@@ -276,7 +276,7 @@ static int sdio_write_reg(uint32_t addr, uint32_t data)
 		cmd.block_mode = 0;
 		cmd.increment = 1;
 		cmd.count = 4;
-		cmd.buffer = (uint8_t *)&data;
+		cmd.buffer = (u8 *)&data;
 		cmd.block_size = g_sdio.block_size; /* johnny : prevent it from setting unexpected value */
 
 		if (!g_sdio.sdio_cmd53(&cmd)) {
@@ -292,7 +292,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
+static int sdio_write(uint32_t addr, u8 *buf, uint32_t size)
 {
 	uint32_t block_size = g_sdio.block_size;
 	sdio_cmd53_t cmd;
@@ -402,7 +402,7 @@ static int sdio_read_reg(uint32_t addr, uint32_t *data)
 		cmd.block_mode = 0;
 		cmd.increment = 1;
 		cmd.count = 4;
-		cmd.buffer = (uint8_t *)data;
+		cmd.buffer = (u8 *)data;
 
 		cmd.block_size = g_sdio.block_size; /* johnny : prevent it from setting unexpected value */
 
@@ -423,7 +423,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
+static int sdio_read(uint32_t addr, u8 *buf, uint32_t size)
 {
 	uint32_t block_size = g_sdio.block_size;
 	sdio_cmd53_t cmd;

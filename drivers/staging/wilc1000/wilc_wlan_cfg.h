@@ -27,7 +27,7 @@ typedef struct {
 
 typedef struct {
 	uint32_t id;
-	uint8_t *str;
+	u8 *str;
 } wilc_cfg_str_t;
 
 #endif

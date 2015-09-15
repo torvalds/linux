@@ -115,7 +115,7 @@ int linux_spi_init(void *vp)
 
 #if defined(TXRX_PHASE_SIZE)
 
-int linux_spi_write(uint8_t *b, uint32_t len)
+int linux_spi_write(u8 *b, uint32_t len)
 {
 	int ret;
 
@@ -194,7 +194,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 }
 
 #else
-int linux_spi_write(uint8_t *b, uint32_t len)
+int linux_spi_write(u8 *b, uint32_t len)
 {
 
 	int ret;
