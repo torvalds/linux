@@ -1226,20 +1226,46 @@ int enable_cmf(struct ccw_device *cdev)
 {
 	int ret;
 
+	device_lock(&cdev->dev);
 	ret = cmbops->alloc(cdev);
-	cmbops->reset(cdev);
 	if (ret)
-		return ret;
-	ret = cmbops->set(cdev, 2);
+		goto out;
+	cmbops->reset(cdev);
+	ret = sysfs_create_group(&cdev->dev.kobj, cmbops->attr_group);
 	if (ret) {
 		cmbops->free(cdev);
-		return ret;
+		goto out;
 	}
-	ret = sysfs_create_group(&cdev->dev.kobj, cmbops->attr_group);
-	if (!ret)
-		return 0;
-	cmbops->set(cdev, 0);  //FIXME: this can fail
+	ret = cmbops->set(cdev, 2);
+	if (ret) {
+		sysfs_remove_group(&cdev->dev.kobj, cmbops->attr_group);
+		cmbops->free(cdev);
+	}
+out:
+	device_unlock(&cdev->dev);
+	return ret;
+}
+
+/**
+ * __disable_cmf() - switch off the channel measurement for a specific device
+ *  @cdev:	The ccw device to be disabled
+ *
+ *  Returns %0 for success or a negative error value.
+ *
+ *  Context:
+ *    non-atomic, device_lock() held.
+ */
+int __disable_cmf(struct ccw_device *cdev)
+{
+	int ret;
+
+	ret = cmbops->set(cdev, 0);
+	if (ret)
+		return ret;
+
+	sysfs_remove_group(&cdev->dev.kobj, cmbops->attr_group);
 	cmbops->free(cdev);
+
 	return ret;
 }
 
@@ -1256,11 +1282,10 @@ int disable_cmf(struct ccw_device *cdev)
 {
 	int ret;
 
-	ret = cmbops->set(cdev, 0);
-	if (ret)
-		return ret;
-	cmbops->free(cdev);
-	sysfs_remove_group(&cdev->dev.kobj, cmbops->attr_group);
+	device_lock(&cdev->dev);
+	ret = __disable_cmf(cdev);
+	device_unlock(&cdev->dev);
+
 	return ret;
 }
 

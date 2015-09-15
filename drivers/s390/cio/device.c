@@ -1797,7 +1797,7 @@ static void ccw_device_shutdown(struct device *dev)
 	cdev = to_ccwdev(dev);
 	if (cdev->drv && cdev->drv->shutdown)
 		cdev->drv->shutdown(cdev);
-	disable_cmf(cdev);
+	__disable_cmf(cdev);
 }
 
 static int ccw_device_pm_prepare(struct device *dev)
