@@ -25,6 +25,9 @@
  */
 bool events_check_enabled __read_mostly;
 
+/* First wakeup IRQ seen by the kernel in the last cycle. */
+unsigned int pm_wakeup_irq __read_mostly;
+
 /* If set and the system is suspending, terminate the suspend. */
 static bool pm_abort_suspend __read_mostly;
 
@@ -868,6 +871,15 @@ EXPORT_SYMBOL_GPL(pm_system_wakeup);
 void pm_wakeup_clear(void)
 {
 	pm_abort_suspend = false;
+	pm_wakeup_irq = 0;
+}
+
+void pm_system_irq_wakeup(unsigned int irq_number)
+{
+	if (pm_wakeup_irq == 0) {
+		pm_wakeup_irq = irq_number;
+		pm_system_wakeup();
+	}
 }
 
 /**
