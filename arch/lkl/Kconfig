@@ -1,0 +1,82 @@
+config LKL
+       def_bool y
+       depends on !SMP && !MMU && !COREDUMP && !AUDITSYSCALL && !SECCOMP && !TRACEPOINTS && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
+       select ARCH_THREAD_INFO_ALLOCATOR
+       select RWSEM_GENERIC_SPINLOCK
+       select GENERIC_ATOMIC64
+       select SEMAPHORE_SLEEPERS
+       select GENERIC_TIME
+       select GENERIC_FIND_NEXT_BIT
+       select GENERIC_HWEIGHT
+       select GENERIC_HARDIRQS
+       select FLATMEM
+       select FLAT_NODE_MEM_MAP
+       select GENERIC_CLOCKEVENTS
+       select GENERIC_CPU_DEVICES
+       select NO_HZ_IDLE
+       select NO_PREEMPT
+       select ARCH_WANT_FRAME_POINTERS
+       select PHYS_ADDR_T_64BIT if 64BIT
+       select 64BIT if OUTPUT_FORMAT = "elf64-x86-64"
+
+config OUTPUTFORMAT
+       string
+       option env="OUTPUT_FORMAT"
+
+config OUTPUT_FORMAT
+       string "Output format"
+       default OUTPUTFORMAT
+
+config ARCH_DMA_ADDR_T_64BIT
+       def_bool 64BIT
+
+config 64BIT
+       def_bool n
+
+config BIG_ENDIAN
+       def_bool n
+
+config NO_DMA
+       def_bool y
+
+config GENERIC_CSUM
+       def_bool y
+
+config GENERIC_HWEIGHT
+       def_bool y
+
+config NO_IOPORT_MAP
+       def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+source init/Kconfig
+
+source net/Kconfig
+
+source drivers/base/Kconfig
+
+source drivers/virtio/Kconfig
+
+source drivers/block/Kconfig
+
+source fs/Kconfig
+
+source mm/Kconfig
+
+source kernel/Kconfig.preempt
+
+source kernel/Kconfig.locks
+
+source kernel/Kconfig.hz
+
+source security/Kconfig
+
+source crypto/Kconfig
+
+source lib/Kconfig
+
+source lib/Kconfig.debug
+
