@@ -1634,6 +1634,12 @@ int mac_open(struct net_device *ndev)
 	int i = 0;
 	struct WILC_WFI_priv *priv;
 
+#ifdef WILC_SPI
+	if (!g_linux_wlan || !g_linux_wlan->wilc_spidev) {
+		netdev_err(ndev, "wilc1000: SPI device not ready\n");
+		return -ENODEV;
+	}
+#endif
 	nic = netdev_priv(ndev);
 	priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
 	PRINT_D(INIT_DBG, "MAC OPEN[%p]\n", ndev);
