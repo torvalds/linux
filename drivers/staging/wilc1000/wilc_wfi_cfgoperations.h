@@ -21,7 +21,6 @@
 #define TKIP			BIT(6)
 
 #ifdef WILC_P2P
-/* #define	USE_SUPPLICANT_GO_INTENT */
 
 /*Public action frame index IDs*/
 #define		FRAME_TYPE_ID					0
