@@ -1216,7 +1216,9 @@ static void hdmi_dev_config_avi(struct hdmi_dev *hdmi_dev,
 		     v_FC_QUAN_RANGE(rgb_quan_range));
 
 	/* Set AVI infoFrame Data byte4 */
-	if ((vpara->vic > 92 && vpara->vic < 96) || (vpara->vic == 98))
+	if ((vpara->vic > 92 && vpara->vic < 96) ||
+	    (vpara->vic == 98) ||
+	    (vpara->vic & HDMI_VIDEO_DMT))
 		hdmi_writel(hdmi_dev, FC_AVIVID, 0);
 	else
 		hdmi_writel(hdmi_dev, FC_AVIVID, vpara->vic & 0xff);

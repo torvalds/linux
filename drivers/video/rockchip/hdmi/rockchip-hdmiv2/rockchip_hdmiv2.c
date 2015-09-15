@@ -470,7 +470,8 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 				SUPPORT_4K |
 				SUPPORT_4K_4096 |
 				SUPPORT_YUV420 |
-				SUPPORT_YCBCR_INPUT;
+				SUPPORT_YCBCR_INPUT |
+				SUPPORT_VESA_DMT;
 	}
 	hdmi_dev->hdmi =
 		rockchip_hdmi_register(&rk_hdmi_property, &rk_hdmi_ops);
