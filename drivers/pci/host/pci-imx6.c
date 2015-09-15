@@ -113,6 +113,14 @@ static inline bool is_imx6sx_pcie(struct imx6_pcie *imx6_pcie)
 	return of_device_is_compatible(np, "fsl,imx6sx-pcie");
 }
 
+static inline bool is_imx6qp_pcie(struct imx6_pcie *imx6_pcie)
+{
+	struct pcie_port *pp = &imx6_pcie->pp;
+	struct device_node *np = pp->dev->of_node;
+
+	return of_device_is_compatible(np, "fsl,imx6qp-pcie");
+}
+
 static int pcie_phy_poll_ack(void __iomem *dbi_base, int exp_val)
 {
 	u32 val;
@@ -269,6 +277,9 @@ static int imx6_pcie_assert_core_reset(struct pcie_port *pp)
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
 				IMX6SX_GPR5_PCIE_BTNRST,
 				IMX6SX_GPR5_PCIE_BTNRST);
+	} else if (is_imx6qp_pcie(imx6_pcie)) {
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
+				IMX6Q_GPR1_PCIE_SW_RST, IMX6Q_GPR1_PCIE_SW_RST);
 	} else {
 		/*
 		 * If the bootloader already enabled the link we need some
@@ -381,8 +392,9 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 	/* Some boards don't have PCIe reset GPIO. */
 	if (gpio_is_valid(imx6_pcie->reset_gpio)) {
 		gpio_set_value_cansleep(imx6_pcie->reset_gpio, 0);
-		mdelay(100);
+		mdelay(20);
 		gpio_set_value_cansleep(imx6_pcie->reset_gpio, 1);
+		mdelay(20);
 	}
 
 	/*
@@ -400,6 +412,14 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 	} else if (is_imx6sx_pcie(imx6_pcie)) {
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
 				IMX6SX_GPR5_PCIE_BTNRST, 0);
+	} else if (is_imx6qp_pcie(imx6_pcie)) {
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
+				IMX6Q_GPR1_PCIE_SW_RST, 0);
+		/*
+		 * some delay are required by 6qp, after the SW_RST is
+		 * cleared, before access the cfg register.
+		 */
+		udelay(200);
 	}
 
 	return 0;
@@ -914,6 +934,12 @@ static void pci_imx_pm_turn_off(struct imx6_pcie *imx6_pcie)
 				IMX6SX_GPR12_PCIE_PM_TURN_OFF);
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				IMX6SX_GPR12_PCIE_PM_TURN_OFF, 0);
+	} else if (is_imx6qp_pcie(imx6_pcie)) {
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				IMX6Q_GPR12_PCIE_PM_TURN_OFF,
+				IMX6Q_GPR12_PCIE_PM_TURN_OFF);
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				IMX6Q_GPR12_PCIE_PM_TURN_OFF, 0);
 	} else {
 		pr_info("Info: don't support pm_turn_off yet.\n");
 		return;
@@ -934,21 +960,30 @@ static int pci_imx_suspend_noirq(struct device *dev)
 
 	pci_imx_pm_turn_off(imx6_pcie);
 
-	if (is_imx6sx_pcie(imx6_pcie) || is_imx7d_pcie(imx6_pcie)) {
+	if (is_imx6sx_pcie(imx6_pcie) || is_imx7d_pcie(imx6_pcie)
+			|| is_imx6qp_pcie(imx6_pcie)) {
 		/* Disable clks */
 		clk_disable_unprepare(imx6_pcie->pcie);
 		clk_disable_unprepare(imx6_pcie->pcie_phy);
 		clk_disable_unprepare(imx6_pcie->pcie_bus);
 		if (is_imx6sx_pcie(imx6_pcie))
 			clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
-		else
+		else if (is_imx7d_pcie(imx6_pcie))
 			/* turn off external osc input */
 			regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 					BIT(5), BIT(5));
+		else if (is_imx6qp_pcie(imx6_pcie)) {
+			regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
+					IMX6Q_GPR1_PCIE_REF_CLK_EN, 0);
+			regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
+					IMX6Q_GPR1_PCIE_TEST_PD,
+					IMX6Q_GPR1_PCIE_TEST_PD);
+		}
 		release_bus_freq(BUS_FREQ_HIGH);
 
 		/* Power down PCIe PHY. */
-		regulator_disable(imx6_pcie->pcie_phy_regulator);
+		if (imx6_pcie->pcie_phy_regulator != NULL)
+			regulator_disable(imx6_pcie->pcie_phy_regulator);
 		if (gpio_is_valid(imx6_pcie->power_on_gpio))
 			gpio_set_value_cansleep(imx6_pcie->power_on_gpio, 0);
 	} else {
@@ -972,7 +1007,8 @@ static int pci_imx_resume_noirq(struct device *dev)
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 	struct pcie_port *pp = &imx6_pcie->pp;
 
-	if (is_imx6sx_pcie(imx6_pcie) || is_imx7d_pcie(imx6_pcie)) {
+	if (is_imx6sx_pcie(imx6_pcie) || is_imx7d_pcie(imx6_pcie)
+			|| is_imx6qp_pcie(imx6_pcie)) {
 		if (is_imx7d_pcie(imx6_pcie))
 			regmap_update_bits(imx6_pcie->reg_src, 0x2c, BIT(6), 0);
 		else
@@ -1006,7 +1042,7 @@ static int pci_imx_resume_noirq(struct device *dev)
 					IMX6Q_GPR12_PCIE_CTL_2);
 		}
 
-		ret = imx6_pcie_wait_for_link(pp);
+		ret = imx6_pcie_start_link(pp);
 		if (ret < 0)
 			pr_info("pcie link is down after resume.\n");
 	} else {
@@ -1335,6 +1371,7 @@ static const struct of_device_id imx6_pcie_of_match[] = {
 	{ .compatible = "fsl,imx6q-pcie", },
 	{ .compatible = "fsl,imx6sx-pcie", },
 	{ .compatible = "fsl,imx7d-pcie", },
+	{ .compatible = "fsl,imx6qp-pcie", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx6_pcie_of_match);
