@@ -453,7 +453,7 @@ static int spi_cmd_complete(u8 cmd, uint32_t adr, u8 *b, uint32_t sz, u8 clockle
 	if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)
 	    || (cmd == CMD_DMA_READ) || (cmd == CMD_DMA_EXT_READ)) {
 		int retry;
-		/* uint16_t crc1, crc2; */
+		/* u16 crc1, crc2; */
 		u8 crc[2];
 		/**
 		 * Data Respnose header

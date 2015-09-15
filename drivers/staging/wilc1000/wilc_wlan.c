@@ -285,9 +285,9 @@ struct Ack_session_info;
 struct Ack_session_info {
 	uint32_t Ack_seq_num;
 	uint32_t Bigger_Ack_num;
-	uint16_t src_port;
-	uint16_t dst_port;
-	uint16_t status;
+	u16 src_port;
+	u16 dst_port;
+	u16 status;
 };
 
 typedef struct {
@@ -1848,7 +1848,7 @@ static int wilc_wlan_cfg_set(int start, uint32_t wid, u8 *buffer, uint32_t buffe
 		p->cfg_frame_offset = 0;
 
 	offset = p->cfg_frame_offset;
-	ret_size = p->cif_func.cfg_wid_set(p->cfg_frame.frame, offset, (uint16_t)wid, buffer, buffer_size);
+	ret_size = p->cif_func.cfg_wid_set(p->cfg_frame.frame, offset, (u16)wid, buffer, buffer_size);
 	offset += ret_size;
 	p->cfg_frame_offset = offset;
 
@@ -1887,7 +1887,7 @@ static int wilc_wlan_cfg_get(int start, uint32_t wid, int commit, uint32_t drvHa
 		p->cfg_frame_offset = 0;
 
 	offset = p->cfg_frame_offset;
-	ret_size = p->cif_func.cfg_wid_get(p->cfg_frame.frame, offset, (uint16_t)wid);
+	ret_size = p->cif_func.cfg_wid_get(p->cfg_frame.frame, offset, (u16)wid);
 	offset += ret_size;
 	p->cfg_frame_offset = offset;
 
@@ -1917,7 +1917,7 @@ static int wilc_wlan_cfg_get_val(uint32_t wid, u8 *buffer, uint32_t buffer_size)
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	int ret;
 
-	ret = p->cif_func.cfg_wid_get_val((uint16_t)wid, buffer, buffer_size);
+	ret = p->cif_func.cfg_wid_get_val((u16)wid, buffer, buffer_size);
 
 	return ret;
 }

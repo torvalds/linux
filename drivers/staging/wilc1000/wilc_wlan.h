@@ -304,9 +304,9 @@ typedef struct {
 } wilc_cfg_rsp_t;
 
 typedef struct {
-	int (*cfg_wid_set)(u8 *, uint32_t, uint16_t, u8 *, int);
-	int (*cfg_wid_get)(u8 *, uint32_t, uint16_t);
-	int (*cfg_wid_get_val)(uint16_t, u8 *, uint32_t);
+	int (*cfg_wid_set)(u8 *, uint32_t, u16, u8 *, int);
+	int (*cfg_wid_get)(u8 *, uint32_t, u16);
+	int (*cfg_wid_get_val)(u16, u8 *, uint32_t);
 	int (*rx_indicate)(u8 *, int, wilc_cfg_rsp_t *);
 	int (*cfg_init)(wilc_debug_func);
 } wilc_cfg_func_t;
