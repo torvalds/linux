@@ -634,7 +634,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	}
 
 	if (!fl6->flowi6_mark)
-		dst = ip6_tnl_dst_check(tunnel);
+		dst = ip6_tnl_dst_get(tunnel);
 
 	if (!dst) {
 		ndst = ip6_route_output(net, NULL, fl6);
@@ -763,7 +763,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 
 	ip6tunnel_xmit(NULL, skb, dev);
 	if (ndst)
-		ip6_tnl_dst_store(tunnel, ndst);
+		ip6_tnl_dst_set(tunnel, ndst);
 	return 0;
 tx_err_link_failure:
 	stats->tx_carrier_errors++;

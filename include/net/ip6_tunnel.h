@@ -60,9 +60,9 @@ struct ipv6_tlv_tnl_enc_lim {
 	__u8 encap_limit;	/* tunnel encapsulation limit   */
 } __packed;
 
-struct dst_entry *ip6_tnl_dst_check(struct ip6_tnl *t);
+struct dst_entry *ip6_tnl_dst_get(struct ip6_tnl *t);
 void ip6_tnl_dst_reset(struct ip6_tnl *t);
-void ip6_tnl_dst_store(struct ip6_tnl *t, struct dst_entry *dst);
+void ip6_tnl_dst_set(struct ip6_tnl *t, struct dst_entry *dst);
 int ip6_tnl_rcv_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		const struct in6_addr *raddr);
 int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
