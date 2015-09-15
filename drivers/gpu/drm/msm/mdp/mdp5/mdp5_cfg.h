@@ -61,7 +61,7 @@ struct mdp5_smp_block {
 	int mmb_size;			/* MMB: size in bytes */
 	uint32_t clients[MAX_CLIENTS];	/* SMP port allocation /pipe */
 	mdp5_smp_state_t reserved_state;/* SMP MMBs statically allocated */
-	int reserved[MAX_CLIENTS];	/* # of MMBs allocated per client */
+	uint8_t reserved[MAX_CLIENTS];	/* # of MMBs allocated per client */
 };
 
 #define MDP5_INTF_NUM_MAX	5
