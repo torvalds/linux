@@ -181,8 +181,8 @@ static void serial_clock_vote(unsigned long vote, struct hci_uart *hu)
 		else
 			__serial_clock_off(hu->tty);
 
-		BT_DBG("Vote serial clock %s(%s)", new_vote? "true" : "false",
-		       vote? "true" : "false");
+		BT_DBG("Vote serial clock %s(%s)", new_vote ? "true" : "false",
+		       vote ? "true" : "false");
 
 		diff = jiffies_to_msecs(jiffies - qca->vote_last_jif);
 
@@ -821,7 +821,7 @@ static struct sk_buff *qca_dequeue(struct hci_uart *hu)
 
 static uint8_t qca_get_baudrate_value(int speed)
 {
-	switch(speed) {
+	switch (speed) {
 	case 9600:
 		return QCA_BAUDRATE_9600;
 	case 19200:
