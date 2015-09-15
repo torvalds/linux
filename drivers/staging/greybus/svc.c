@@ -183,9 +183,9 @@ int gb_svc_connection_create(struct gb_svc *svc,
 	struct gb_svc_conn_create_request request;
 
 	request.intf1_id = intf1_id;
-	request.cport1_id = cport1_id;
+	request.cport1_id = cpu_to_le16(cport1_id);
 	request.intf2_id = intf2_id;
-	request.cport2_id = cport2_id;
+	request.cport2_id = cpu_to_le16(cport2_id);
 	/*
 	 * XXX: fix connections paramaters to TC0 and all CPort flags
 	 * for now.
@@ -206,9 +206,9 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 	int ret;
 
 	request.intf1_id = intf1_id;
-	request.cport1_id = cport1_id;
+	request.cport1_id = cpu_to_le16(cport1_id);
 	request.intf2_id = intf2_id;
-	request.cport2_id = cport2_id;
+	request.cport2_id = cpu_to_le16(cport2_id);
 
 	ret = gb_operation_sync(connection, GB_SVC_TYPE_CONN_DESTROY,
 				&request, sizeof(request), NULL, 0);

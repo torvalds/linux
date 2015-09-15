@@ -791,9 +791,9 @@ struct gb_svc_intf_reset_request {
 
 struct gb_svc_conn_create_request {
 	__u8	intf1_id;
-	__u16	cport1_id;
+	__le16	cport1_id;
 	__u8	intf2_id;
-	__u16	cport2_id;
+	__le16	cport2_id;
 	__u8	tc;
 	__u8	flags;
 } __packed;
@@ -801,32 +801,32 @@ struct gb_svc_conn_create_request {
 
 struct gb_svc_conn_destroy_request {
 	__u8	intf1_id;
-	__u16	cport1_id;
+	__le16	cport1_id;
 	__u8	intf2_id;
-	__u16	cport2_id;
+	__le16	cport2_id;
 } __packed;
 /* connection destroy response has no payload */
 
 struct gb_svc_dme_peer_get_request {
 	__u8	intf_id;
-	__u16	attr;
-	__u16	selector;
+	__le16	attr;
+	__le16	selector;
 } __packed;
 
 struct gb_svc_dme_peer_get_response {
-	__u16	result_code;
-	__u32	attr_value;
+	__le16	result_code;
+	__le32	attr_value;
 } __packed;
 
 struct gb_svc_dme_peer_set_request {
 	__u8	intf_id;
-	__u16	attr;
-	__u16	selector;
-	__u32	value;
+	__le16	attr;
+	__le16	selector;
+	__le32	value;
 } __packed;
 
 struct gb_svc_dme_peer_set_response {
-	__u16	result_code;
+	__le16	result_code;
 } __packed;
 
 struct gb_svc_route_create_request {
