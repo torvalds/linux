@@ -129,6 +129,24 @@ TRACE_EVENT(kvm_pio,
 );
 
 /*
+ * Tracepoint for fast mmio.
+ */
+TRACE_EVENT(kvm_fast_mmio,
+	TP_PROTO(u64 gpa),
+	TP_ARGS(gpa),
+
+	TP_STRUCT__entry(
+		__field(u64,	gpa)
+	),
+
+	TP_fast_assign(
+		__entry->gpa		= gpa;
+	),
+
+	TP_printk("fast mmio at gpa 0x%llx", __entry->gpa)
+);
+
+/*
  * Tracepoint for cpuid.
  */
 TRACE_EVENT(kvm_cpuid,
