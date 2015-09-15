@@ -8686,9 +8686,14 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 					exec_control);
 		}
 
-		if (nested && !vmx->rdtscp_enabled)
-			vmx->nested.nested_vmx_secondary_ctls_high &=
-				~SECONDARY_EXEC_RDTSCP;
+		if (nested) {
+			if (vmx->rdtscp_enabled)
+				vmx->nested.nested_vmx_secondary_ctls_high |=
+					SECONDARY_EXEC_RDTSCP;
+			else
+				vmx->nested.nested_vmx_secondary_ctls_high &=
+					~SECONDARY_EXEC_RDTSCP;
+		}
 	}
 
 	/* Exposing INVPCID only when PCID is exposed */
