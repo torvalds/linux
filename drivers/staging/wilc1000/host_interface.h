@@ -65,14 +65,6 @@
 #define WILC_ADD_STA_LENGTH	40 /* Not including the rates field cause it has variable length*/
 #define SCAN_EVENT_DONE_ABORTED
 #define NUM_CONCURRENT_IFC 2
-/*****************************************************************************/
-/* Data Types                                                                */
-/*****************************************************************************/
-/* typedef unsigned char	uint8; */
-/* typedef signed char     int8; */
-/* typedef unsigned short	uint16; */
-/* typedef unsigned long   uint32; */
-/* typedef uint32   Bool; */
 
 typedef struct {
 	u16 cfg_wid;
@@ -192,7 +184,6 @@ typedef enum {
 typedef enum {
 	WEP,
 	WPARxGtk,
-	/* WPATxGtk, */
 	WPAPtk,
 	PMKSA,
 } tenuKeyType;
@@ -350,8 +341,6 @@ typedef struct {
 
 	tenuHostIFstate enuHostIFstate;
 
-	/* bool bPendingConnRequest; */
-
 	#ifndef CONNECT_DIRECT
 	u32 u32SurveyResultsCount;
 	wid_site_survey_reslts_s astrSurveyResults[MAX_NUM_SCANNED_NETWORKS];
@@ -413,8 +402,6 @@ typedef struct {
 	u16 u16FlagsMask;               /*<! Determines which of u16FlagsSet were changed>*/
 	u16 u16FlagsSet;                /*<! Decoded according to tenuWILC_StaFlag */
 } tstrWILC_AddStaParam;
-
-/* extern void CfgDisconnected(void* pUserVoid, u16 u16reason, u8 * ie, size_t ie_len); */
 
 /*****************************************************************************/
 /*																			 */

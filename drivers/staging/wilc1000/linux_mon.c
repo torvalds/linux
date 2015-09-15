@@ -16,7 +16,6 @@
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;
 	u8 rate;
-	/* u32 channel; */
 } __attribute__((packed));
 
 struct wilc_wfi_radiotap_cb_hdr {
@@ -24,7 +23,6 @@ struct wilc_wfi_radiotap_cb_hdr {
 	u8 rate;
 	u8 dump;
 	u16 tx_flags;
-	/* u32 channel; */
 } __attribute__((packed));
 
 extern linux_wlan_t *g_linux_wlan;
@@ -62,10 +60,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
 
 	PRINT_INFO(HOSTAPD_DBG, "In monitor interface receive function\n");
-
-	/*   struct wilc_priv *priv = netdev_priv(dev); */
-
-	/*   priv = wiphy_priv(priv->dev->ieee80211_ptr->wiphy); */
 
 	/* Bug 4601 */
 	if (wilc_wfi_mon == NULL)
@@ -124,30 +118,19 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 			return;
 		}
 
-		/* skb = skb_copy_expand(tx_skb, sizeof(*hdr), 0, GFP_ATOMIC); */
-		/* if (skb == NULL) */
-		/*      return; */
-
 		memcpy(skb_put(skb, size), buff, size);
 		hdr = (struct wilc_wfi_radiotap_hdr *) skb_push(skb, sizeof(*hdr));
 		memset(hdr, 0, sizeof(struct wilc_wfi_radiotap_hdr));
 		hdr->hdr.it_version = 0; /* PKTHDR_RADIOTAP_VERSION; */
-		/* hdr->hdr.it_pad = 0; */
 		hdr->hdr.it_len = cpu_to_le16(sizeof(struct wilc_wfi_radiotap_hdr));
 		PRINT_INFO(HOSTAPD_DBG, "Radiotap len %d\n", hdr->hdr.it_len);
 		hdr->hdr.it_present = cpu_to_le32
 				(1 << IEEE80211_RADIOTAP_RATE);                   /* | */
-		/* (1 << IEEE80211_RADIOTAP_CHANNEL)); */
 		PRINT_INFO(HOSTAPD_DBG, "Presentflags %d\n", hdr->hdr.it_present);
 		hdr->rate = 5; /* txrate->bitrate / 5; */
 
 	}
 
-/*	if(INFO || if(skb->data[9] == 0x00 || skb->data[9] == 0xb0))
- *      {
- *              for(i=0;i<skb->len;i++)
- *                      PRINT_INFO(HOSTAPD_DBG,"Mon RxData[%d] = %02x\n",i,skb->data[i]);
- *      }*/
 
 
 	skb->dev = wilc_wfi_mon;
@@ -170,9 +153,6 @@ struct tx_complete_mon_data {
 static void mgmt_tx_complete(void *priv, int status)
 {
 
-	/* struct sk_buff *skb2; */
-	/* struct wilc_wfi_radiotap_cb_hdr *cb_hdr; */
-
 	struct tx_complete_mon_data *pv_data = (struct tx_complete_mon_data *)priv;
 	u8 *buf =  pv_data->buff;
 
@@ -186,35 +166,6 @@ static void mgmt_tx_complete(void *priv, int status)
 	}
 
 
-/*			//(skb->data[9] == 0x00 || skb->data[9] == 0xb0 || skb->data[9] == 0x40 ||  skb->data[9] == 0xd0 )
- *      {
- *              skb2 = dev_alloc_skb(pv_data->size+sizeof(struct wilc_wfi_radiotap_cb_hdr));
- *
- *              memcpy(skb_put(skb2,pv_data->size),pv_data->buff, pv_data->size);
- *
- *              cb_hdr = (struct wilc_wfi_radiotap_cb_hdr *) skb_push(skb2, sizeof(*cb_hdr));
- *              memset(cb_hdr, 0, sizeof(struct wilc_wfi_radiotap_cb_hdr));
- *
- *               cb_hdr->hdr.it_version = 0;//PKTHDR_RADIOTAP_VERSION;
- *
- *              cb_hdr->hdr.it_len = cpu_to_le16(sizeof(struct wilc_wfi_radiotap_cb_hdr));
- *
- *       cb_hdr->hdr.it_present = cpu_to_le32(
- *                                        (1 << IEEE80211_RADIOTAP_RATE) |
- *                                       (1 << IEEE80211_RADIOTAP_TX_FLAGS));
- *
- *              cb_hdr->rate = 5;//txrate->bitrate / 5;
- *              cb_hdr->tx_flags = 0x0004;
- *
- *              skb2->dev = wilc_wfi_mon;
- *              skb_set_mac_header(skb2, 0);
- *              skb2->ip_summed = CHECKSUM_UNNECESSARY;
- *              skb2->pkt_type = PACKET_OTHERHOST;
- *              skb2->protocol = htons(ETH_P_802_2);
- *              memset(skb2->cb, 0, sizeof(skb2->cb));
- *
- *              netif_rx(skb2);
- *      }*/
 
 	/* incase of fully hosting mode, the freeing will be done in response to the cfg packet */
 	kfree(pv_data->buff);
@@ -275,8 +226,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	/* Bug 4601 */
 	if (wilc_wfi_mon == NULL)
 		return WILC_FAIL;
-
-	/* if(skb->data[3] == 0x10 || skb->data[3] == 0xb0) */
 
 	mon_priv = netdev_priv(wilc_wfi_mon);
 
@@ -355,7 +304,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	} else
 		ret = mac_xmit(skb, mon_priv->real_ndev);
 
-	/* return NETDEV_TX_OK; */
 	return ret;
 }
 
@@ -377,7 +325,6 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 {
 
 	dev->netdev_ops = &wilc_wfi_netdev_ops;
-	/* dev->destructor = free_netdev; */
 	PRINT_INFO(CORECONFIG_DBG, "In Ethernet setup function\n");
 	ether_setup(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
@@ -385,12 +332,7 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 	eth_zero_addr(dev->dev_addr);
 
 	{
-		/* u8 * mac_add; */
 		unsigned char mac_add[] = {0x00, 0x50, 0xc2, 0x5e, 0x10, 0x8f};
-		/* priv = wiphy_priv(priv->dev->ieee80211_ptr->wiphy); */
-		/* mac_add = (u8*)WILC_MALLOC(ETH_ALEN); */
-		/* status = host_int_get_MacAddress(priv->hWILCWFIDrv,mac_add); */
-		/* mac_add[ETH_ALEN-1]+=1; */
 		memcpy(dev->dev_addr, mac_add, ETH_ALEN);
 	}
 
@@ -467,7 +409,6 @@ int WILC_WFI_deinit_mon_interface(void)
 		}
 		PRINT_D(HOSTAPD_DBG, "Unregister netdev\n");
 		unregister_netdev(wilc_wfi_mon);
-		/* free_netdev(wilc_wfi_mon); */
 
 		if (rollback_lock) {
 			rtnl_lock();

@@ -753,9 +753,7 @@ static int sdio_read_int(u32 *int_status)
 	 *      Read IRQ flags
 	 **/
 #ifndef WILC_SDIO_IRQ_GPIO
-	/* cmd.read_write = 0; */
 	cmd.function = 1;
-	/* cmd.raw = 0; */
 	cmd.address = 0x04;
 	cmd.data = 0;
 	g_sdio.sdio_cmd52(&cmd);

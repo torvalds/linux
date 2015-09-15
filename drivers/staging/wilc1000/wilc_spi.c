@@ -10,10 +10,6 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-/*
- * #include <linux/kernel.h>
- * #include <linux/string.h>
- */
 typedef struct {
 	void *os_context;
 	int (*spi_tx)(u8 *, u32);
