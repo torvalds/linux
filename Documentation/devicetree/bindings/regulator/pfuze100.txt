@@ -3,6 +3,8 @@ PFUZE100 family of regulators
 Required properties:
 - compatible: "fsl,pfuze100", "fsl,pfuze200", "fsl,pfuze3000"
 - reg: I2C slave address
+- fsl,lpsr-mode: some registers need to be saved and restored in lpsr mode
+  for pfuze3000
 
 Required child node:
 - regulators: This is the list of child nodes that specify the regulator
