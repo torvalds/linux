@@ -948,7 +948,6 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 		dwc3_trace(trace_dwc3_gadget, "%s: endpoint busy", dep->name);
 		return -EBUSY;
 	}
-	dep->flags &= ~DWC3_EP_PENDING_REQUEST;
 
 	/*
 	 * If we are getting here after a short-out-packet we don't enqueue any
@@ -1117,6 +1116,10 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 		if (ret && ret != -EBUSY)
 			dev_dbg(dwc->dev, "%s: failed to kick transfers\n",
 					dep->name);
+
+		if (!ret)
+			dep->flags &= ~DWC3_EP_PENDING_REQUEST;
+
 		return ret;
 	}
 
