@@ -1023,7 +1023,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 			u8 *pn = seq.ccmp.pn;
 
 			ieee80211_get_key_rx_seq(key, i, &seq);
-			aes_sc->pn = cpu_to_le64(
+			aes_sc[i].pn = cpu_to_le64(
 					(u64)pn[5] |
 					((u64)pn[4] << 8) |
 					((u64)pn[3] << 16) |
