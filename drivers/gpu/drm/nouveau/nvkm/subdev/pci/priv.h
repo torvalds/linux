@@ -12,6 +12,18 @@ struct nvkm_pci_func {
 	void (*wr08)(struct nvkm_pci *, u16 addr, u8 data);
 	void (*wr32)(struct nvkm_pci *, u16 addr, u32 data);
 	void (*msi_rearm)(struct nvkm_pci *);
+
+	struct {
+		int (*init)(struct nvkm_pci *);
+		int (*set_link)(struct nvkm_pci *, enum nvkm_pcie_speed, u8);
+
+		enum nvkm_pcie_speed (*max_speed)(struct nvkm_pci *);
+		enum nvkm_pcie_speed (*cur_speed)(struct nvkm_pci *);
+
+		void (*set_version)(struct nvkm_pci *, u8);
+		int (*version)(struct nvkm_pci *);
+		int (*version_supported)(struct nvkm_pci *);
+	} pcie;
 };
 
 u32 nv40_pci_rd32(struct nvkm_pci *, u16);
@@ -22,4 +34,8 @@ void nv40_pci_msi_rearm(struct nvkm_pci *);
 void nv46_pci_msi_rearm(struct nvkm_pci *);
 
 void g84_pci_init(struct nvkm_pci *pci);
+
+/* pcie functions */
+int nvkm_pcie_oneinit(struct nvkm_pci *);
+int nvkm_pcie_init(struct nvkm_pci *);
 #endif
