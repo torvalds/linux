@@ -95,7 +95,6 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 	max = vblank_start - 1;
 
 	local_irq_disable();
-	crtc->start_vbl_count = 0;
 
 	if (min <= 0 || max <= 0)
 		return;
@@ -134,11 +133,15 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 	drm_crtc_vblank_put(&crtc->base);
 
-	crtc->start_vbl_time = ktime_get();
-	crtc->start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+	crtc->debug.min_vbl = min;
+	crtc->debug.max_vbl = max;
+	crtc->debug.scanline_start = scanline;
+	crtc->debug.start_vbl_time = ktime_get();
+	crtc->debug.start_vbl_count =
+		dev->driver->get_vblank_counter(dev, pipe);
 
 	trace_i915_pipe_update_vblank_evaded(crtc, min, max,
-					     crtc->start_vbl_count);
+					     crtc->debug.start_vbl_count);
 }
 
 /**
@@ -154,6 +157,7 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
+	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 	ktime_t end_vbl_time = ktime_get();
 
@@ -161,10 +165,15 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 
 	local_irq_enable();
 
-	if (crtc->start_vbl_count && crtc->start_vbl_count != end_vbl_count)
-		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us\n",
-			  pipe_name(pipe), crtc->start_vbl_count, end_vbl_count,
-			  ktime_us_delta(end_vbl_time, crtc->start_vbl_time));
+	if (crtc->debug.start_vbl_count &&
+	    crtc->debug.start_vbl_count != end_vbl_count) {
+		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us, min %d, max %d, scanline start %d, end %d\n",
+			  pipe_name(pipe), crtc->debug.start_vbl_count,
+			  end_vbl_count,
+			  ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
+			  crtc->debug.min_vbl, crtc->debug.max_vbl,
+			  crtc->debug.scanline_start, scanline_end);
+	}
 }
 
 static void
