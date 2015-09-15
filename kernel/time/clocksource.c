@@ -217,7 +217,7 @@ static void clocksource_watchdog(unsigned long data)
 			continue;
 
 		/* Check the deviation from the watchdog clocksource. */
-		if ((abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD)) {
+		if (abs64(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD) {
 			pr_warn("timekeeping watchdog: Marking clocksource '%s' as unstable because the skew is too large:\n",
 				cs->name);
 			pr_warn("                      '%s' wd_now: %llx wd_last: %llx mask: %llx\n",
