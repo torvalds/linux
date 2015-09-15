@@ -737,7 +737,7 @@ u16 sdma_get_descq_cnt(void)
 	 */
 	if (!is_power_of_2(count))
 		return SDMA_DESCQ_CNT;
-	if (count < 64 && count > 32768)
+	if (count < 64 || count > 32768)
 		return SDMA_DESCQ_CNT;
 	return count;
 }
