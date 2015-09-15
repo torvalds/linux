@@ -394,7 +394,7 @@ do_insert:
 	return en;
 }
 
-unsigned int f2fs_update_extent_tree_range(struct inode *inode,
+static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 				pgoff_t fofs, block_t blkaddr, unsigned int len)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
