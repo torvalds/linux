@@ -309,34 +309,29 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	cr0 = chip->cr0;
 
 	/* Handle per transfer options for bpw and speed */
-	if (transfer->speed_hz) {
-		speed = chip->speed_hz;
+	speed = chip->speed_hz;
+	if ((transfer->speed_hz != speed) || !chip->clk_div) {
+		speed = transfer->speed_hz;
 
-		if ((transfer->speed_hz != speed) || !chip->clk_div) {
-			speed = transfer->speed_hz;
+		/* clk_div doesn't support odd number */
+		clk_div = (dws->max_freq / speed + 1) & 0xfffe;
 
-			/* clk_div doesn't support odd number */
-			clk_div = (dws->max_freq / speed + 1) & 0xfffe;
+		chip->speed_hz = speed;
+		chip->clk_div = clk_div;
 
-			chip->speed_hz = speed;
-			chip->clk_div = clk_div;
-
-			spi_set_clk(dws, chip->clk_div);
-		}
+		spi_set_clk(dws, chip->clk_div);
 	}
-	if (transfer->bits_per_word) {
-		if (transfer->bits_per_word == 8) {
-			dws->n_bytes = 1;
-			dws->dma_width = 1;
-		} else if (transfer->bits_per_word == 16) {
-			dws->n_bytes = 2;
-			dws->dma_width = 2;
-		}
-		cr0 = (transfer->bits_per_word - 1)
-			| (chip->type << SPI_FRF_OFFSET)
-			| (spi->mode << SPI_MODE_OFFSET)
-			| (chip->tmode << SPI_TMOD_OFFSET);
+	if (transfer->bits_per_word == 8) {
+		dws->n_bytes = 1;
+		dws->dma_width = 1;
+	} else if (transfer->bits_per_word == 16) {
+		dws->n_bytes = 2;
+		dws->dma_width = 2;
 	}
+	cr0 = (transfer->bits_per_word - 1)
+		| (chip->type << SPI_FRF_OFFSET)
+		| (spi->mode << SPI_MODE_OFFSET)
+		| (chip->tmode << SPI_TMOD_OFFSET);
 
 	/*
 	 * Adjust transfer mode if necessary. Requires platform dependent
