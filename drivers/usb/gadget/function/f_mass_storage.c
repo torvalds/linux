@@ -2662,10 +2662,12 @@ EXPORT_SYMBOL_GPL(fsg_common_put);
 /* check if fsg_num_buffers is within a valid range */
 static inline int fsg_num_buffers_validate(unsigned int fsg_num_buffers)
 {
-	if (fsg_num_buffers >= 2 && fsg_num_buffers <= 4)
+#define FSG_MAX_NUM_BUFFERS	32
+
+	if (fsg_num_buffers >= 2 && fsg_num_buffers <= FSG_MAX_NUM_BUFFERS)
 		return 0;
 	pr_err("fsg_num_buffers %u is out of range (%d to %d)\n",
-	       fsg_num_buffers, 2, 4);
+	       fsg_num_buffers, 2, FSG_MAX_NUM_BUFFERS);
 	return -EINVAL;
 }
 
