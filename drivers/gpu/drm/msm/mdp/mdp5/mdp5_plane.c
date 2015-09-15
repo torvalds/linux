@@ -705,10 +705,12 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
 
 	/* Request some memory from the SMP: */
-	ret = mdp5_smp_request(mdp5_kms->smp,
-			mdp5_plane->pipe, format, src_w, false);
-	if (ret)
-		return ret;
+	if (mdp5_kms->smp) {
+		ret = mdp5_smp_request(mdp5_kms->smp,
+				mdp5_plane->pipe, format, src_w, false);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Currently we update the hw for allocations/requests immediately,
@@ -716,7 +718,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	 * would move into atomic->check_plane_state(), while updating the
 	 * hw would remain here:
 	 */
-	mdp5_smp_configure(mdp5_kms->smp, pipe);
+	if (mdp5_kms->smp)
+		mdp5_smp_configure(mdp5_kms->smp, pipe);
 
 	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, phasex_step);
 	if (ret)
@@ -835,7 +838,8 @@ void mdp5_plane_complete_flip(struct drm_plane *plane)
 
 	DBG("%s: complete flip", mdp5_plane->name);
 
-	mdp5_smp_commit(mdp5_kms->smp, pipe);
+	if (mdp5_kms->smp)
+		mdp5_smp_commit(mdp5_kms->smp, pipe);
 
 	to_mdp5_plane_state(plane->state)->pending = false;
 }
@@ -861,7 +865,7 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
 
-	if (!plane_enabled(plane->state)) {
+	if (!plane_enabled(plane->state) && mdp5_kms->smp) {
 		DBG("%s: free SMP", mdp5_plane->name);
 		mdp5_smp_release(mdp5_kms->smp, pipe);
 	}

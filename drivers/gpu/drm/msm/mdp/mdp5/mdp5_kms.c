@@ -554,15 +554,23 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	}
 
 	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+	mdp5_kms->caps = config->hw->mdp.caps;
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
 
-	mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
-	if (IS_ERR(mdp5_kms->smp)) {
-		ret = PTR_ERR(mdp5_kms->smp);
-		mdp5_kms->smp = NULL;
-		goto fail;
+	/*
+	 * Some chipsets have a Shared Memory Pool (SMP), while others
+	 * have dedicated latency buffering per source pipe instead;
+	 * this section initializes the SMP:
+	 */
+	if (mdp5_kms->caps & MDP_CAP_SMP) {
+		mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
+		if (IS_ERR(mdp5_kms->smp)) {
+			ret = PTR_ERR(mdp5_kms->smp);
+			mdp5_kms->smp = NULL;
+			goto fail;
+		}
 	}
 
 	mdp5_kms->ctlm = mdp5_ctlm_init(dev, mdp5_kms->mmio, mdp5_kms->cfg);
