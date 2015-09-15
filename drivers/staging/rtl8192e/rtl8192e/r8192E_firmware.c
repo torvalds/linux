@@ -273,6 +273,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 				    sizeof(pfirmware->firmware_buf[i])) {
 					RT_TRACE(COMP_FIRMWARE,
 						 "img file size exceed the container struct buffer fail!\n");
+					release_firmware(fw_entry);
 					goto download_firmware_fail;
 				}
 
