@@ -499,7 +499,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 /*
  * Routine to create a TLB entry
  */
-void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
+void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 {
 	unsigned long flags;
 	unsigned int asid_or_sasid, rwx;
@@ -535,9 +535,9 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 
 	local_irq_save(flags);
 
-	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), address);
+	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), vaddr);
 
-	address &= PAGE_MASK;
+	vaddr &= PAGE_MASK;
 
 	/* update this PTE credentials */
 	pte_val(*ptep) |= (_PAGE_PRESENT | _PAGE_ACCESSED);
@@ -547,7 +547,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	/* ASID for this task */
 	asid_or_sasid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	pd0 = address | asid_or_sasid | (pte_val(*ptep) & PTE_BITS_IN_PD0);
+	pd0 = vaddr | asid_or_sasid | (pte_val(*ptep) & PTE_BITS_IN_PD0);
 
 	/*
 	 * ARC MMU provides fully orthogonal access bits for K/U mode,
@@ -583,7 +583,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
 {
 	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
-	unsigned long paddr = pte_val(*ptep) & PAGE_MASK;
+	phys_addr_t paddr = pte_val(*ptep) & PAGE_MASK;
 	struct page *page = pfn_to_page(pte_pfn(*ptep));
 
 	create_tlb(vma, vaddr, ptep);
