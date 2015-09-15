@@ -3556,7 +3556,7 @@ int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)      /* ton
 
 
 #endif /*WILC_AP_EXTERNAL_MLME*/
-static struct cfg80211_ops WILC_WFI_cfg80211_ops = {
+static struct cfg80211_ops wilc_cfg80211_ops = {
 
 	.set_monitor_channel = set_channel,
 	.scan = scan,
@@ -3669,7 +3669,7 @@ struct wireless_dev *WILC_WFI_CfgAlloc(void)
 	}
 
 	/*Creating a new wiphy, linking wireless structure with the wiphy structure*/
-	wdev->wiphy = wiphy_new(&WILC_WFI_cfg80211_ops, sizeof(struct WILC_WFI_priv));
+	wdev->wiphy = wiphy_new(&wilc_cfg80211_ops, sizeof(struct WILC_WFI_priv));
 	if (!wdev->wiphy) {
 		PRINT_ER("Cannot allocate wiphy\n");
 		goto _fail_mem_;
