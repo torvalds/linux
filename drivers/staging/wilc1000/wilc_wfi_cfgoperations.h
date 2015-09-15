@@ -23,34 +23,34 @@
 #ifdef WILC_P2P
 
 /*Public action frame index IDs*/
-#define		FRAME_TYPE_ID					0
-#define		ACTION_CAT_ID					24
-#define		ACTION_SUBTYPE_ID				25
-#define		P2P_PUB_ACTION_SUBTYPE          30
+#define FRAME_TYPE_ID			0
+#define ACTION_CAT_ID			24
+#define ACTION_SUBTYPE_ID		25
+#define P2P_PUB_ACTION_SUBTYPE		30
 
 /*Public action frame Attribute IDs*/
-#define		ACTION_FRAME					0xd0
-#define		GO_INTENT_ATTR_ID			0x04
-#define		CHANLIST_ATTR_ID		0x0b
-#define		OPERCHAN_ATTR_ID                0x11
-#define		PUB_ACTION_ATTR_ID			0x04
-#define		P2PELEM_ATTR_ID                     0xdd
+#define ACTION_FRAME			0xd0
+#define GO_INTENT_ATTR_ID		0x04
+#define CHANLIST_ATTR_ID		0x0b
+#define OPERCHAN_ATTR_ID		0x11
+#define PUB_ACTION_ATTR_ID		0x04
+#define P2PELEM_ATTR_ID			0xdd
 
 /*Public action subtype values*/
-#define		GO_NEG_REQ					0x00
-#define		GO_NEG_RSP					0x01
-#define		GO_NEG_CONF					0x02
-#define		P2P_INV_REQ                         0x03
-#define		P2P_INV_RSP				0x04
-#define		PUBLIC_ACT_VENDORSPEC		0x09
-#define		GAS_INTIAL_REQ					0x0a
-#define		GAS_INTIAL_RSP					0x0b
+#define GO_NEG_REQ			0x00
+#define GO_NEG_RSP			0x01
+#define GO_NEG_CONF			0x02
+#define P2P_INV_REQ			0x03
+#define P2P_INV_RSP			0x04
+#define PUBLIC_ACT_VENDORSPEC		0x09
+#define GAS_INTIAL_REQ			0x0a
+#define GAS_INTIAL_RSP			0x0b
 
-#define		INVALID_CHANNEL					0
+#define INVALID_CHANNEL			0
 #endif
 
 #define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
-#define SCAN_RESULT_EXPIRE				(40 * HZ)
+#define SCAN_RESULT_EXPIRE		(40 * HZ)
 
 static const u32 cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
@@ -105,8 +105,8 @@ int WILC_WFI_deinit_mon_interface(void);
 struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_device *real_dev);
 
 #ifdef TCP_ENHANCEMENTS
-#define TCP_ACK_FILTER_LINK_SPEED_THRESH 54
-#define DEFAULT_LINK_SPEED 72
+#define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
+#define DEFAULT_LINK_SPEED			72
 void Enable_TCP_ACK_Filter(bool value);
 #endif
 
