@@ -1245,7 +1245,7 @@ static void ip6gre_tunnel_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 }
 
-static int ip6gre_tunnel_init(struct net_device *dev)
+static int ip6gre_tunnel_init_common(struct net_device *dev)
 {
 	struct ip6_tnl *tunnel;
 
@@ -1255,15 +1255,29 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 	tunnel->net = dev_net(dev);
 	strcpy(tunnel->parms.name, dev->name);
 
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+	if (!dev->tstats)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int ip6gre_tunnel_init(struct net_device *dev)
+{
+	struct ip6_tnl *tunnel;
+	int ret;
+
+	ret = ip6gre_tunnel_init_common(dev);
+	if (ret)
+		return ret;
+
+	tunnel = netdev_priv(dev);
+
 	memcpy(dev->dev_addr, &tunnel->parms.laddr, sizeof(struct in6_addr));
 	memcpy(dev->broadcast, &tunnel->parms.raddr, sizeof(struct in6_addr));
 
 	if (ipv6_addr_any(&tunnel->parms.raddr))
 		dev->header_ops = &ip6gre_header_ops;
-
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -1460,18 +1474,15 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 static int ip6gre_tap_init(struct net_device *dev)
 {
 	struct ip6_tnl *tunnel;
+	int ret;
+
+	ret = ip6gre_tunnel_init_common(dev);
+	if (ret)
+		return ret;
 
 	tunnel = netdev_priv(dev);
 
-	tunnel->dev = dev;
-	tunnel->net = dev_net(dev);
-	strcpy(tunnel->parms.name, dev->name);
-
 	ip6gre_tnl_link_config(tunnel, 1);
-
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
 
 	return 0;
 }
