@@ -126,36 +126,89 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
  * Locking : hash tables are protected by RCU and RTNL
  */
 
+static void __ip6_tnl_per_cpu_dst_set(struct ip6_tnl_dst *idst,
+				      struct dst_entry *dst)
+{
+	dst_release(idst->dst);
+	if (dst) {
+		dst_hold(dst);
+		idst->cookie = rt6_get_cookie((struct rt6_info *)dst);
+	} else {
+		idst->cookie = 0;
+	}
+	idst->dst = dst;
+}
+
+static void ip6_tnl_per_cpu_dst_set(struct ip6_tnl_dst *idst,
+				    struct dst_entry *dst)
+{
+
+	spin_lock_bh(&idst->lock);
+	__ip6_tnl_per_cpu_dst_set(idst, dst);
+	spin_unlock_bh(&idst->lock);
+}
+
 struct dst_entry *ip6_tnl_dst_get(struct ip6_tnl *t)
 {
-	struct dst_entry *dst = t->dst_cache;
+	struct ip6_tnl_dst *idst;
+	struct dst_entry *dst;
 
-	if (dst && dst->obsolete &&
-	    !dst->ops->check(dst, t->dst_cookie)) {
-		t->dst_cache = NULL;
-		dst_release(dst);
-		return NULL;
+	idst = raw_cpu_ptr(t->dst_cache);
+	spin_lock_bh(&idst->lock);
+	dst = idst->dst;
+	if (dst) {
+		if (!dst->obsolete || dst->ops->check(dst, idst->cookie)) {
+			dst_hold(idst->dst);
+		} else {
+			__ip6_tnl_per_cpu_dst_set(idst, NULL);
+			dst = NULL;
+		}
 	}
-
+	spin_unlock_bh(&idst->lock);
 	return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_tnl_dst_get);
 
 void ip6_tnl_dst_reset(struct ip6_tnl *t)
 {
-	dst_release(t->dst_cache);
-	t->dst_cache = NULL;
+	int i;
+
+	for_each_possible_cpu(i)
+		ip6_tnl_per_cpu_dst_set(raw_cpu_ptr(t->dst_cache), NULL);
 }
 EXPORT_SYMBOL_GPL(ip6_tnl_dst_reset);
 
 void ip6_tnl_dst_set(struct ip6_tnl *t, struct dst_entry *dst)
 {
-	struct rt6_info *rt = (struct rt6_info *) dst;
-	t->dst_cookie = rt6_get_cookie(rt);
-	dst_release(t->dst_cache);
-	t->dst_cache = dst;
+	ip6_tnl_per_cpu_dst_set(raw_cpu_ptr(t->dst_cache), dst);
+
 }
 EXPORT_SYMBOL_GPL(ip6_tnl_dst_set);
+
+void ip6_tnl_dst_destroy(struct ip6_tnl *t)
+{
+	if (!t->dst_cache)
+		return;
+
+	ip6_tnl_dst_reset(t);
+	free_percpu(t->dst_cache);
+}
+EXPORT_SYMBOL_GPL(ip6_tnl_dst_destroy);
+
+int ip6_tnl_dst_init(struct ip6_tnl *t)
+{
+	int i;
+
+	t->dst_cache = alloc_percpu(struct ip6_tnl_dst);
+	if (!t->dst_cache)
+		return -ENOMEM;
+
+	for_each_possible_cpu(i)
+		spin_lock_init(&per_cpu_ptr(t->dst_cache, i)->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ip6_tnl_dst_init);
 
 /**
  * ip6_tnl_lookup - fetch tunnel matching the end-point addresses
@@ -271,6 +324,9 @@ ip6_tnl_unlink(struct ip6_tnl_net *ip6n, struct ip6_tnl *t)
 
 static void ip6_dev_free(struct net_device *dev)
 {
+	struct ip6_tnl *t = netdev_priv(dev);
+
+	ip6_tnl_dst_destroy(t);
 	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
@@ -1016,17 +1072,17 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		goto tx_err_link_failure;
 
 	if (!dst) {
-		ndst = ip6_route_output(net, NULL, fl6);
+		dst = ip6_route_output(net, NULL, fl6);
 
-		if (ndst->error)
+		if (dst->error)
 			goto tx_err_link_failure;
-		ndst = xfrm_lookup(net, ndst, flowi6_to_flowi(fl6), NULL, 0);
-		if (IS_ERR(ndst)) {
-			err = PTR_ERR(ndst);
-			ndst = NULL;
+		dst = xfrm_lookup(net, dst, flowi6_to_flowi(fl6), NULL, 0);
+		if (IS_ERR(dst)) {
+			err = PTR_ERR(dst);
+			dst = NULL;
 			goto tx_err_link_failure;
 		}
-		dst = ndst;
+		ndst = dst;
 	}
 
 	tdev = dst->dev;
@@ -1072,12 +1128,11 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		consume_skb(skb);
 		skb = new_skb;
 	}
-	if (fl6->flowi6_mark) {
-		skb_dst_set(skb, dst);
-		ndst = NULL;
-	} else {
-		skb_dst_set_noref(skb, dst);
-	}
+
+	if (!fl6->flowi6_mark && ndst)
+		ip6_tnl_dst_set(t, ndst);
+	skb_dst_set(skb, dst);
+
 	skb->transport_header = skb->network_header;
 
 	proto = fl6->flowi6_proto;
@@ -1101,14 +1156,12 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	ipv6h->saddr = fl6->saddr;
 	ipv6h->daddr = fl6->daddr;
 	ip6tunnel_xmit(NULL, skb, dev);
-	if (ndst)
-		ip6_tnl_dst_set(t, ndst);
 	return 0;
 tx_err_link_failure:
 	stats->tx_carrier_errors++;
 	dst_link_failure(skb);
 tx_err_dst_release:
-	dst_release(ndst);
+	dst_release(dst);
 	return err;
 }
 
@@ -1573,12 +1626,21 @@ static inline int
 ip6_tnl_dev_init_gen(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
+	int ret;
 
 	t->dev = dev;
 	t->net = dev_net(dev);
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	ret = ip6_tnl_dst_init(t);
+	if (ret) {
+		free_percpu(dev->tstats);
+		dev->tstats = NULL;
+		return ret;
+	}
+
 	return 0;
 }
 
