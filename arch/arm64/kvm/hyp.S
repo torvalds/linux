@@ -433,20 +433,13 @@
 	mrs	x5, ifsr32_el2
 	stp	x4, x5, [x3]
 
-	skip_fpsimd_state x8, 3f
+	skip_fpsimd_state x8, 2f
 	mrs	x6, fpexc32_el2
 	str	x6, [x3, #16]
-3:
-	skip_debug_state x8, 2f
+2:
+	skip_debug_state x8, 1f
 	mrs	x7, dbgvcr32_el2
 	str	x7, [x3, #24]
-2:
-	skip_tee_state x8, 1f
-
-	add	x3, x2, #CPU_SYSREG_OFFSET(TEECR32_EL1)
-	mrs	x4, teecr32_el1
-	mrs	x5, teehbr32_el1
-	stp	x4, x5, [x3]
 1:
 .endm
 
@@ -466,16 +459,9 @@
 	msr	dacr32_el2, x4
 	msr	ifsr32_el2, x5
 
-	skip_debug_state x8, 2f
+	skip_debug_state x8, 1f
 	ldr	x7, [x3, #24]
 	msr	dbgvcr32_el2, x7
-2:
-	skip_tee_state x8, 1f
-
-	add	x3, x2, #CPU_SYSREG_OFFSET(TEECR32_EL1)
-	ldp	x4, x5, [x3]
-	msr	teecr32_el1, x4
-	msr	teehbr32_el1, x5
 1:
 .endm
 

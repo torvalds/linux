@@ -539,13 +539,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b110),
 	  trap_dbgauthstatus_el1 },
 
-	/* TEECR32_EL1 */
-	{ Op0(0b10), Op1(0b010), CRn(0b0000), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, TEECR32_EL1, 0 },
-	/* TEEHBR32_EL1 */
-	{ Op0(0b10), Op1(0b010), CRn(0b0001), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, TEEHBR32_EL1, 0 },
-
 	/* MDCCSR_EL1 */
 	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0001), Op2(0b000),
 	  trap_raz_wi },
