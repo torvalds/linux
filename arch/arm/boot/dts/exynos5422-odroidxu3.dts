@@ -12,6 +12,7 @@
 
 /dts-v1/;
 #include "exynos5422-odroidxu3-common.dtsi"
+#include "exynos5422-odroidxu3-audio.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU3";
