@@ -145,29 +145,10 @@ static inline bool cascading_gic_irq(struct irq_data *d)
 	void *data = irq_data_get_irq_handler_data(d);
 
 	/*
-	 * If handler_data pointing to one of the secondary GICs, then
-	 * this is a cascading interrupt, and it cannot possibly be
-	 * forwarded.
+	 * If handler_data is set, this is a cascading interrupt, and
+	 * it cannot possibly be forwarded.
 	 */
-	if (data >= (void *)(gic_data + 1) &&
-	    data <  (void *)(gic_data + MAX_GIC_NR))
-		return true;
-
-	return false;
-}
-
-static inline bool forwarded_irq(struct irq_data *d)
-{
-	/*
-	 * A forwarded interrupt:
-	 * - is on the primary GIC
-	 * - has its handler_data set to a value
-	 * - that isn't a secondary GIC
-	 */
-	if (d->handler_data && !cascading_gic_irq(d))
-		return true;
-
-	return false;
+	return data != NULL;
 }
 
 /*
@@ -201,7 +182,7 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 	 * disabled/masked will not get "stuck", because there is
 	 * noone to deactivate it (guest is being terminated).
 	 */
-	if (forwarded_irq(d))
+	if (irqd_is_forwarded_to_vcpu(d))
 		gic_poke_irq(d, GIC_DIST_ACTIVE_CLEAR);
 }
 
@@ -218,7 +199,7 @@ static void gic_eoi_irq(struct irq_data *d)
 static void gic_eoimode1_eoi_irq(struct irq_data *d)
 {
 	/* Do not deactivate an IRQ forwarded to a vcpu. */
-	if (forwarded_irq(d))
+	if (irqd_is_forwarded_to_vcpu(d))
 		return;
 
 	writel_relaxed(gic_irq(d), gic_cpu_base(d) + GIC_CPU_DEACTIVATE);
@@ -296,7 +277,10 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 	if (cascading_gic_irq(d))
 		return -EINVAL;
 
-	d->handler_data = vcpu;
+	if (vcpu)
+		irqd_set_forwarded_to_vcpu(d);
+	else
+		irqd_clr_forwarded_to_vcpu(d);
 	return 0;
 }
 
