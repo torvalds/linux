@@ -126,45 +126,48 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
  * Locking : hash tables are protected by RCU and RTNL
  */
 
-static void __ip6_tnl_per_cpu_dst_set(struct ip6_tnl_dst *idst,
-				      struct dst_entry *dst)
+static void ip6_tnl_per_cpu_dst_set(struct ip6_tnl_dst *idst,
+				    struct dst_entry *dst)
 {
-	dst_release(idst->dst);
+	write_seqlock_bh(&idst->lock);
+	dst_release(rcu_dereference_protected(
+			    idst->dst,
+			    lockdep_is_held(&idst->lock.lock)));
 	if (dst) {
 		dst_hold(dst);
 		idst->cookie = rt6_get_cookie((struct rt6_info *)dst);
 	} else {
 		idst->cookie = 0;
 	}
-	idst->dst = dst;
-}
-
-static void ip6_tnl_per_cpu_dst_set(struct ip6_tnl_dst *idst,
-				    struct dst_entry *dst)
-{
-
-	spin_lock_bh(&idst->lock);
-	__ip6_tnl_per_cpu_dst_set(idst, dst);
-	spin_unlock_bh(&idst->lock);
+	rcu_assign_pointer(idst->dst, dst);
+	write_sequnlock_bh(&idst->lock);
 }
 
 struct dst_entry *ip6_tnl_dst_get(struct ip6_tnl *t)
 {
 	struct ip6_tnl_dst *idst;
 	struct dst_entry *dst;
+	unsigned int seq;
+	u32 cookie;
 
 	idst = raw_cpu_ptr(t->dst_cache);
-	spin_lock_bh(&idst->lock);
-	dst = idst->dst;
-	if (dst) {
-		if (!dst->obsolete || dst->ops->check(dst, idst->cookie)) {
-			dst_hold(idst->dst);
-		} else {
-			__ip6_tnl_per_cpu_dst_set(idst, NULL);
-			dst = NULL;
-		}
+
+	rcu_read_lock();
+	do {
+		seq = read_seqbegin(&idst->lock);
+		dst = rcu_dereference(idst->dst);
+		cookie = idst->cookie;
+	} while (read_seqretry(&idst->lock, seq));
+
+	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
+		dst = NULL;
+	rcu_read_unlock();
+
+	if (dst && dst->obsolete && !dst->ops->check(dst, cookie)) {
+		ip6_tnl_per_cpu_dst_set(idst, NULL);
+		dst_release(dst);
+		dst = NULL;
 	}
-	spin_unlock_bh(&idst->lock);
 	return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_tnl_dst_get);
@@ -204,7 +207,7 @@ int ip6_tnl_dst_init(struct ip6_tnl *t)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i)
-		spin_lock_init(&per_cpu_ptr(t->dst_cache, i)->lock);
+		seqlock_init(&per_cpu_ptr(t->dst_cache, i)->lock);
 
 	return 0;
 }

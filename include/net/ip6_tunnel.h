@@ -33,8 +33,8 @@ struct __ip6_tnl_parm {
 };
 
 struct ip6_tnl_dst {
-	spinlock_t lock;
-	struct dst_entry *dst;
+	seqlock_t lock;
+	struct dst_entry __rcu *dst;
 	u32 cookie;
 };
 
