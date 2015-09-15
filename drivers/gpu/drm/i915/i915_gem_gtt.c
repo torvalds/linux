@@ -3449,18 +3449,16 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 }
 
 static struct sg_table *
-intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
+intel_rotate_fb_obj_pages(const struct intel_rotation_info *rot_info,
 			  struct drm_i915_gem_object *obj)
 {
 	const size_t n_pages = obj->base.size / PAGE_SIZE;
-	unsigned int size_pages = rot_info->plane[0].width * rot_info->plane[0].height;
-	unsigned int size_pages_uv;
+	unsigned int size = intel_rotation_info_size(rot_info);
 	struct sgt_iter sgt_iter;
 	dma_addr_t dma_addr;
 	unsigned long i;
 	dma_addr_t *page_addr_list;
 	struct sg_table *st;
-	unsigned int uv_start_page;
 	struct scatterlist *sg;
 	int ret = -ENOMEM;
 
@@ -3471,18 +3469,12 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 
-	/* Account for UV plane with NV12. */
-	if (rot_info->pixel_format == DRM_FORMAT_NV12)
-		size_pages_uv = rot_info->plane[1].width * rot_info->plane[1].height;
-	else
-		size_pages_uv = 0;
-
 	/* Allocate target SG list. */
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
 		goto err_st_alloc;
 
-	ret = sg_alloc_table(st, size_pages + size_pages_uv, GFP_KERNEL);
+	ret = sg_alloc_table(st, size, GFP_KERNEL);
 	if (ret)
 		goto err_sg_alloc;
 
@@ -3495,32 +3487,14 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 	st->nents = 0;
 	sg = st->sgl;
 
-	/* Rotate the pages. */
-	sg = rotate_pages(page_addr_list, 0,
-			  rot_info->plane[0].width, rot_info->plane[0].height,
-			  rot_info->plane[0].width,
-			  st, sg);
-
-	/* Append the UV plane if NV12. */
-	if (rot_info->pixel_format == DRM_FORMAT_NV12) {
-		uv_start_page = size_pages;
-
-		/* Check for tile-row un-alignment. */
-		if (offset_in_page(rot_info->uv_offset))
-			uv_start_page--;
-
-		rot_info->uv_start_page = uv_start_page;
-
-		sg = rotate_pages(page_addr_list, rot_info->uv_start_page,
-				  rot_info->plane[1].width, rot_info->plane[1].height,
-				  rot_info->plane[1].width,
-				  st, sg);
+	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++) {
+		sg = rotate_pages(page_addr_list, rot_info->plane[i].offset,
+				  rot_info->plane[i].width, rot_info->plane[i].height,
+				  rot_info->plane[i].stride, st, sg);
 	}
 
-	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages (%u plane 0)).\n",
-		      obj->base.size, rot_info->plane[0].width,
-		      rot_info->plane[0].height, size_pages + size_pages_uv,
-		      size_pages);
+	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages)\n",
+		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
 
 	drm_free_large(page_addr_list);
 
@@ -3531,10 +3505,9 @@ err_sg_alloc:
 err_st_alloc:
 	drm_free_large(page_addr_list);
 
-	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%d) (%ux%u tiles, %u pages (%u plane 0))\n",
-		      obj->base.size, ret, rot_info->plane[0].width,
-		      rot_info->plane[0].height, size_pages + size_pages_uv,
-		      size_pages);
+	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%ux%u tiles, %u pages)\n",
+		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
+
 	return ERR_PTR(ret);
 }
 

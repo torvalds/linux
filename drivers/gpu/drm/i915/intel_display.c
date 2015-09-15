@@ -2147,33 +2147,6 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 	}
 }
 
-static void
-intel_fill_fb_info(struct drm_i915_private *dev_priv,
-		   struct drm_framebuffer *fb)
-{
-	struct intel_rotation_info *info = &to_intel_framebuffer(fb)->rot_info;
-	unsigned int tile_size, tile_width, tile_height, cpp;
-
-	tile_size = intel_tile_size(dev_priv);
-
-	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	intel_tile_dims(dev_priv, &tile_width, &tile_height,
-			fb->modifier[0], cpp);
-
-	info->plane[0].width = DIV_ROUND_UP(fb->pitches[0], tile_width * cpp);
-	info->plane[0].height = DIV_ROUND_UP(fb->height, tile_height);
-
-	if (info->pixel_format == DRM_FORMAT_NV12) {
-		cpp = drm_format_plane_cpp(fb->pixel_format, 1);
-		intel_tile_dims(dev_priv, &tile_width, &tile_height,
-				fb->modifier[1], cpp);
-
-		info->uv_offset = fb->offsets[1];
-		info->plane[1].width = DIV_ROUND_UP(fb->pitches[1], tile_width * cpp);
-		info->plane[1].height = DIV_ROUND_UP(fb->height / 2, tile_height);
-	}
-}
-
 static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_priv)
 {
 	if (INTEL_INFO(dev_priv)->gen >= 9)
@@ -2295,6 +2268,42 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 }
 
 /*
+ * Convert the x/y offsets into a linear offset.
+ * Only valid with 0/180 degree rotation, which is fine since linear
+ * offset is only used with linear buffers on pre-hsw and tiled buffers
+ * with gen2/3, and 90/270 degree rotations isn't supported on any of them.
+ */
+u32 intel_fb_xy_to_linear(int x, int y,
+			  const struct drm_framebuffer *fb, int plane)
+{
+	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int pitch = fb->pitches[plane];
+
+	return y * pitch + x * cpp;
+}
+
+/*
+ * Add the x/y offsets derived from fb->offsets[] to the user
+ * specified plane src x/y offsets. The resulting x/y offsets
+ * specify the start of scanout from the beginning of the gtt mapping.
+ */
+void intel_add_fb_offsets(int *x, int *y,
+			  const struct drm_framebuffer *fb, int plane,
+			  unsigned int rotation)
+
+{
+	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+
+	if (intel_rotation_90_or_270(rotation)) {
+		*x += intel_fb->rotated[plane].x;
+		*y += intel_fb->rotated[plane].y;
+	} else {
+		*x += intel_fb->normal[plane].x;
+		*y += intel_fb->normal[plane].y;
+	}
+}
+
+/*
  * Adjust the tile offset by moving the difference into
  * the x/y offsets.
  *
@@ -2330,18 +2339,24 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
  * In the 90/270 rotated case, x and y are assumed
  * to be already rotated to match the rotated GTT view, and
  * pitch is the tile_height aligned framebuffer height.
+ *
+ * This function is used when computing the derived information
+ * under intel_framebuffer, so using any of that information
+ * here is not allowed. Anything under drm_framebuffer can be
+ * used. This is why the user has to pass in the pitch since it
+ * is specified in the rotated orientation.
  */
-u32 intel_compute_tile_offset(int *x, int *y,
-			      const struct drm_framebuffer *fb, int plane,
-			      unsigned int pitch,
-			      unsigned int rotation)
+static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
+				      int *x, int *y,
+				      const struct drm_framebuffer *fb, int plane,
+				      unsigned int pitch,
+				      unsigned int rotation,
+				      u32 alignment)
 {
-	const struct drm_i915_private *dev_priv = to_i915(fb->dev);
 	uint64_t fb_modifier = fb->modifier[plane];
 	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
-	u32 offset, offset_aligned, alignment;
+	u32 offset, offset_aligned;
 
-	alignment = intel_surf_alignment(dev_priv, fb_modifier);
 	if (alignment)
 		alignment--;
 
@@ -2381,6 +2396,141 @@ u32 intel_compute_tile_offset(int *x, int *y,
 	}
 
 	return offset_aligned;
+}
+
+u32 intel_compute_tile_offset(int *x, int *y,
+			      const struct drm_framebuffer *fb, int plane,
+			      unsigned int pitch,
+			      unsigned int rotation)
+{
+	const struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	u32 alignment = intel_surf_alignment(dev_priv, fb->modifier[plane]);
+
+	return _intel_compute_tile_offset(dev_priv, x, y, fb, plane, pitch,
+					  rotation, alignment);
+}
+
+/* Convert the fb->offset[] linear offset into x/y offsets */
+static void intel_fb_offset_to_xy(int *x, int *y,
+				  const struct drm_framebuffer *fb, int plane)
+{
+	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int pitch = fb->pitches[plane];
+	u32 linear_offset = fb->offsets[plane];
+
+	*y = linear_offset / pitch;
+	*x = linear_offset % pitch / cpp;
+}
+
+static int
+intel_fill_fb_info(struct drm_i915_private *dev_priv,
+		   struct drm_framebuffer *fb)
+{
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct intel_rotation_info *rot_info = &intel_fb->rot_info;
+	u32 gtt_offset_rotated = 0;
+	unsigned int max_size = 0;
+	uint32_t format = fb->pixel_format;
+	int i, num_planes = drm_format_num_planes(format);
+	unsigned int tile_size = intel_tile_size(dev_priv);
+
+	for (i = 0; i < num_planes; i++) {
+		unsigned int width, height;
+		unsigned int cpp, size;
+		u32 offset;
+		int x, y;
+
+		cpp = drm_format_plane_cpp(format, i);
+		width = drm_format_plane_width(fb->width, format, i);
+		height = drm_format_plane_height(fb->height, format, i);
+
+		intel_fb_offset_to_xy(&x, &y, fb, i);
+
+		/*
+		 * First pixel of the framebuffer from
+		 * the start of the normal gtt mapping.
+		 */
+		intel_fb->normal[i].x = x;
+		intel_fb->normal[i].y = y;
+
+		offset = _intel_compute_tile_offset(dev_priv, &x, &y,
+						    fb, 0, fb->pitches[i],
+						    BIT(DRM_ROTATE_0), tile_size);
+		offset /= tile_size;
+
+		if (fb->modifier[i] != DRM_FORMAT_MOD_NONE) {
+			unsigned int tile_width, tile_height;
+			unsigned int pitch_tiles;
+			struct drm_rect r;
+
+			intel_tile_dims(dev_priv, &tile_width, &tile_height,
+					fb->modifier[i], cpp);
+
+			rot_info->plane[i].offset = offset;
+			rot_info->plane[i].stride = DIV_ROUND_UP(fb->pitches[i], tile_width * cpp);
+			rot_info->plane[i].width = DIV_ROUND_UP(x + width, tile_width);
+			rot_info->plane[i].height = DIV_ROUND_UP(y + height, tile_height);
+
+			intel_fb->rotated[i].pitch =
+				rot_info->plane[i].height * tile_height;
+
+			/* how many tiles does this plane need */
+			size = rot_info->plane[i].stride * rot_info->plane[i].height;
+			/*
+			 * If the plane isn't horizontally tile aligned,
+			 * we need one more tile.
+			 */
+			if (x != 0)
+				size++;
+
+			/* rotate the x/y offsets to match the GTT view */
+			r.x1 = x;
+			r.y1 = y;
+			r.x2 = x + width;
+			r.y2 = y + height;
+			drm_rect_rotate(&r,
+					rot_info->plane[i].width * tile_width,
+					rot_info->plane[i].height * tile_height,
+					BIT(DRM_ROTATE_270));
+			x = r.x1;
+			y = r.y1;
+
+			/* rotate the tile dimensions to match the GTT view */
+			pitch_tiles = intel_fb->rotated[i].pitch / tile_height;
+			swap(tile_width, tile_height);
+
+			/*
+			 * We only keep the x/y offsets, so push all of the
+			 * gtt offset into the x/y offsets.
+			 */
+			intel_adjust_tile_offset(&x, &y, tile_size,
+						 tile_width, tile_height, pitch_tiles,
+						 gtt_offset_rotated * tile_size, 0);
+
+			gtt_offset_rotated += rot_info->plane[i].width * rot_info->plane[i].height;
+
+			/*
+			 * First pixel of the framebuffer from
+			 * the start of the rotated gtt mapping.
+			 */
+			intel_fb->rotated[i].x = x;
+			intel_fb->rotated[i].y = y;
+		} else {
+			size = DIV_ROUND_UP((y + height) * fb->pitches[i] +
+					    x * cpp, tile_size);
+		}
+
+		/* how many tiles in total needed in the bo */
+		max_size = max(max_size, offset + size);
+	}
+
+	if (max_size * tile_size > to_intel_framebuffer(fb)->obj->base.size) {
+		DRM_DEBUG("fb too big for bo (need %u bytes, have %zu bytes)\n",
+			  max_size * tile_size, to_intel_framebuffer(fb)->obj->base.size);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int i9xx_format_to_fourcc(int format)
@@ -2618,7 +2768,6 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
 	unsigned int rotation = plane_state->base.rotation;
-	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	int x = plane_state->src.x1 >> 16;
 	int y = plane_state->src.y1 >> 16;
 
@@ -2677,29 +2826,24 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	if (IS_G4X(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	linear_offset = y * fb->pitches[0] + x * cpp;
+	intel_add_fb_offsets(&x, &y, fb, 0, rotation);
 
-	if (INTEL_INFO(dev)->gen >= 4) {
+	if (INTEL_INFO(dev)->gen >= 4)
 		intel_crtc->dspaddr_offset =
 			intel_compute_tile_offset(&x, &y, fb, 0,
 						  fb->pitches[0], rotation);
-		linear_offset -= intel_crtc->dspaddr_offset;
-	} else {
-		intel_crtc->dspaddr_offset = linear_offset;
-	}
 
 	if (rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		x += (crtc_state->pipe_src_w - 1);
 		y += (crtc_state->pipe_src_h - 1);
-
-		/* Finding the last pixel of the last line of the display
-		data and adding to linear_offset*/
-		linear_offset +=
-			(crtc_state->pipe_src_h - 1) * fb->pitches[0] +
-			(crtc_state->pipe_src_w - 1) * cpp;
 	}
+
+	linear_offset = intel_fb_xy_to_linear(x, y, fb, 0);
+
+	if (INTEL_INFO(dev)->gen < 4)
+		intel_crtc->dspaddr_offset = linear_offset;
 
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
@@ -2709,7 +2853,8 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPSURF(plane),
-			   i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
+			   intel_fb_gtt_offset(fb, rotation) +
+			   intel_crtc->dspaddr_offset);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	} else
@@ -2747,7 +2892,6 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
 	unsigned int rotation = plane_state->base.rotation;
-	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	int x = plane_state->src.x1 >> 16;
 	int y = plane_state->src.y1 >> 16;
 
@@ -2786,25 +2930,22 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
-	linear_offset = y * fb->pitches[0] + x * cpp;
+	intel_add_fb_offsets(&x, &y, fb, 0, rotation);
+
 	intel_crtc->dspaddr_offset =
 		intel_compute_tile_offset(&x, &y, fb, 0,
 					  fb->pitches[0], rotation);
-	linear_offset -= intel_crtc->dspaddr_offset;
+
 	if (rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
 			x += (crtc_state->pipe_src_w - 1);
 			y += (crtc_state->pipe_src_h - 1);
-
-			/* Finding the last pixel of the last line of the display
-			data and adding to linear_offset*/
-			linear_offset +=
-				(crtc_state->pipe_src_h - 1) * fb->pitches[0] +
-				(crtc_state->pipe_src_w - 1) * cpp;
 		}
 	}
+
+	linear_offset = intel_fb_xy_to_linear(x, y, fb, 0);
 
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
@@ -2813,7 +2954,8 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_WRITE(DSPSURF(plane),
-		   i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
+		   intel_fb_gtt_offset(fb, rotation) +
+		   intel_crtc->dspaddr_offset);
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
@@ -2835,28 +2977,16 @@ u32 intel_fb_stride_alignment(const struct drm_i915_private *dev_priv,
 	}
 }
 
-u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
-			   struct drm_i915_gem_object *obj,
-			   unsigned int plane)
+u32 intel_fb_gtt_offset(struct drm_framebuffer *fb,
+			unsigned int rotation)
 {
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
-	struct i915_vma *vma;
 	u64 offset;
 
-	intel_fill_fb_ggtt_view(&view, intel_plane->base.state->fb,
-				intel_plane->base.state->rotation);
+	intel_fill_fb_ggtt_view(&view, fb, rotation);
 
-	vma = i915_gem_obj_to_ggtt_view(obj, &view);
-	if (WARN(!vma, "ggtt vma for display object not found! (view=%u)\n",
-		view.type))
-		return -1;
-
-	offset = vma->node.start;
-
-	if (plane == 1) {
-		offset += vma->ggtt_view.params.rotated.uv_start_page *
-			  PAGE_SIZE;
-	}
+	offset = i915_gem_obj_ggtt_offset_view(obj, &view);
 
 	WARN_ON(upper_32_bits(offset));
 
@@ -2979,12 +3109,9 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = plane_state->base.fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int pipe = intel_crtc->pipe;
 	u32 plane_ctl, stride_div, stride;
-	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation = plane_state->base.rotation;
-	int x_offset, y_offset;
 	u32 surf_addr;
 	int scaler_id = plane_state->scaler_id;
 	int src_x = plane_state->src.x1 >> 16;
@@ -3005,36 +3132,49 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
-	stride_div = intel_fb_stride_alignment(dev_priv, fb->modifier[0],
-					       fb->pixel_format);
-	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj, 0);
-
-	WARN_ON(drm_rect_width(&plane_state->src) == 0);
-
 	if (intel_rotation_90_or_270(rotation)) {
+		struct drm_rect r = {
+			.x1 = src_x,
+			.x2 = src_x + src_w,
+			.y1 = src_y,
+			.y2 = src_y + src_h,
+		};
 		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
-		/* stride = Surface height in tiles */
-		tile_height = intel_tile_height(dev_priv, fb->modifier[0], cpp);
-		stride = DIV_ROUND_UP(fb->height, tile_height);
-		x_offset = stride * tile_height - src_y - src_h;
-		y_offset = src_x;
-		plane_size = (src_w - 1) << 16 | (src_h - 1);
+		/* Rotate src coordinates to match rotated GTT view */
+		drm_rect_rotate(&r, fb->width, fb->height, BIT(DRM_ROTATE_270));
+
+		src_x = r.x1;
+		src_y = r.y1;
+		src_w = drm_rect_width(&r);
+		src_h = drm_rect_height(&r);
+
+		stride_div = intel_tile_height(dev_priv, fb->modifier[0], cpp);
+		stride = intel_fb->rotated[0].pitch;
 	} else {
-		stride = fb->pitches[0] / stride_div;
-		x_offset = src_x;
-		y_offset = src_y;
-		plane_size = (src_h - 1) << 16 | (src_w - 1);
+		stride_div = intel_fb_stride_alignment(dev_priv, fb->modifier[0],
+						       fb->pixel_format);
+		stride = fb->pitches[0];
 	}
-	plane_offset = y_offset << 16 | x_offset;
 
-	intel_crtc->adjusted_x = x_offset;
-	intel_crtc->adjusted_y = y_offset;
+	intel_add_fb_offsets(&src_x, &src_y, fb, 0, rotation);
+	surf_addr = intel_compute_tile_offset(&src_x, &src_y, fb, 0,
+					      stride, rotation);
+
+	/* Sizes are 0 based */
+	src_w--;
+	src_h--;
+	dst_w--;
+	dst_h--;
+
+	intel_crtc->adjusted_x = src_x;
+	intel_crtc->adjusted_y = src_y;
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
-	I915_WRITE(PLANE_OFFSET(pipe, 0), plane_offset);
-	I915_WRITE(PLANE_SIZE(pipe, 0), plane_size);
-	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
+	I915_WRITE(PLANE_OFFSET(pipe, 0), (src_y << 16) | src_x);
+	I915_WRITE(PLANE_STRIDE(pipe, 0), stride / stride_div);
+	I915_WRITE(PLANE_SIZE(pipe, 0), (src_h << 16) | src_w);
 
 	if (scaler_id >= 0) {
 		uint32_t ps_ctrl = 0;
@@ -3051,7 +3191,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 		I915_WRITE(PLANE_POS(pipe, 0), (dst_y << 16) | dst_x);
 	}
 
-	I915_WRITE(PLANE_SURF(pipe, 0), surf_addr);
+	I915_WRITE(PLANE_SURF(pipe, 0),
+		   intel_fb_gtt_offset(fb, rotation) + surf_addr);
 
 	POSTING_READ(PLANE_SURF(pipe, 0));
 }
@@ -11462,7 +11603,7 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_framebuffer *fb = intel_crtc->base.primary->fb;
 	const enum pipe pipe = intel_crtc->pipe;
-	u32 ctl, stride, tile_height;
+	u32 ctl, stride;
 
 	ctl = I915_READ(PLANE_CTL(pipe, 0));
 	ctl &= ~PLANE_CTL_TILED_MASK;
@@ -11487,9 +11628,11 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
 	if (intel_rotation_90_or_270(rotation)) {
-		/* stride = Surface height in tiles */
-		tile_height = intel_tile_height(dev_priv, fb->modifier[0], 0);
-		stride = DIV_ROUND_UP(fb->height, tile_height);
+		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+
+		stride = intel_fb->rotated[0].pitch /
+			intel_tile_height(dev_priv, fb->modifier[0], cpp);
 	} else {
 		stride = fb->pitches[0] /
 			intel_fb_stride_alignment(dev_priv, fb->modifier[0],
@@ -11769,8 +11912,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_pending;
 
-	work->gtt_offset = intel_plane_obj_offset(to_intel_plane(primary),
-						  obj, 0);
+	work->gtt_offset = intel_fb_gtt_offset(fb, primary->state->rotation);
 	work->gtt_offset += intel_crtc->dspaddr_offset;
 	work->rotation = crtc->primary->state->rotation;
 
@@ -15040,7 +15182,6 @@ static int intel_framebuffer_init(struct drm_device *dev,
 				  struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned int aligned_height;
 	int ret;
 	u32 pitch_limit, stride_alignment;
 
@@ -15166,17 +15307,12 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
-	aligned_height = intel_fb_align_height(dev, mode_cmd->height,
-					       mode_cmd->pixel_format,
-					       mode_cmd->modifier[0]);
-	/* FIXME drm helper for size checks (especially planar formats)? */
-	if (obj->base.size < aligned_height * mode_cmd->pitches[0])
-		return -EINVAL;
-
 	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
 	intel_fb->obj = obj;
 
-	intel_fill_fb_info(dev_priv, &intel_fb->base);
+	ret = intel_fill_fb_info(dev_priv, &intel_fb->base);
+	if (ret)
+		return ret;
 
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {

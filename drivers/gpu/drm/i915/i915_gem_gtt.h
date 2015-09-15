@@ -139,12 +139,9 @@ enum i915_ggtt_view_type {
 };
 
 struct intel_rotation_info {
-	unsigned int uv_offset;
-	uint32_t pixel_format;
-	unsigned int uv_start_page;
 	struct {
 		/* tiles */
-		unsigned int width, height;
+		unsigned int width, height, stride, offset;
 	} plane[2];
 };
 
