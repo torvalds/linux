@@ -46,40 +46,6 @@
 		reset-gpios = <&gpd1 0 1>;
 	};
 
-	pwmleds {
-		compatible = "pwm-leds";
-
-		greenled {
-			label = "green:mmc0";
-			pwms = <&pwm 1 2000000 0>;
-			pwm-names = "pwm1";
-			/*
-			 * Green LED is much brighter than the others
-			 * so limit its max brightness
-			 */
-			max_brightness = <127>;
-			linux,default-trigger = "mmc0";
-		};
-
-		blueled {
-			label = "blue:heartbeat";
-			pwms = <&pwm 2 2000000 0>;
-			pwm-names = "pwm2";
-			max_brightness = <255>;
-			linux,default-trigger = "heartbeat";
-		};
-	};
-
-	gpioleds {
-		compatible = "gpio-leds";
-		redled {
-			label = "red:microSD";
-			gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-			linux,default-trigger = "mmc1";
-		};
-	};
-
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm 0 20972 0>;
@@ -417,18 +383,6 @@
 	};
 };
 
-&pwm {
-	/*
-	 * PWM 0 -- fan
-	 * PWM 1 -- Green LED
-	 * PWM 2 -- Blue LED
-	 * PWM 3 -- on MIPI connector for backlight
-	 */
-	pinctrl-0 = <&pwm0_out &pwm1_out &pwm2_out &pwm3_out>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
 &tmu_cpu0 {
 	vtmu-supply = <&ldo7_reg>;
 	status = "okay";
@@ -464,9 +418,7 @@
 	dr_mode = "host";
 };
 
-&usbdrd_dwc3_1 {
-	dr_mode = "otg";
-};
+/* usbdrd_dwc3_1 mode customized in each board */
 
 &usbdrd3_0 {
 	vdd33-supply = <&ldo9_reg>;
