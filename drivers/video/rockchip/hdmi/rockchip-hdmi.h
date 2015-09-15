@@ -8,11 +8,9 @@
 #include <linux/switch.h>
 #endif
 
-#define HDMI_VIDEO_NORMAL				(0 << 8)
-#define HDMI_VIDEO_EXT					(1 << 8)
-#define HDMI_VIDEO_3D					(2 << 8)
-#define HDMI_VIDEO_DVI					(3 << 8)
-#define HDMI_VIDEO_YUV420				(4 << 8)
+#define HDMI_VIDEO_NORMAL				0
+#define HDMI_VIDEO_DMT					(1 << 9)
+#define HDMI_VIDEO_YUV420				(1 << 10)
 #define HDMI_VIC_MASK					(0xFF)
 #define HDMI_TYPE_MASK					(0xFF << 8)
 #define HDMI_MAX_ID					4
@@ -356,6 +354,7 @@ enum rk_hdmi_feature {
 	SUPPORT_HDCP		=	(1 << 10),
 	SUPPORT_HDCP2		=	(1 << 11),
 	SUPPORT_YCBCR_INPUT	=	(1 << 12),
+	SUPPORT_VESA_DMT	=	(1 << 13)
 };
 
 struct hdmi_property {

@@ -86,8 +86,17 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	video->sink_hdmi = hdmi->edid.sink_hdmi;
 	video->format_3d = hdmi->mode_3d;
 	video->colorimetry = hdmi->colorimetry;
+
+	if (hdmi->autoset)
+		hdmi->vic = hdmi_find_best_mode(hdmi, 0);
+	else
+		hdmi->vic = hdmi_find_best_mode(hdmi, hdmi->vic);
+
+	if (hdmi->vic == 0)
+		hdmi->vic = hdmi->property->defaultmode;
+
 	/* For DVI, output RGB */
-	if (hdmi->edid.sink_hdmi == 0) {
+	if (video->sink_hdmi == 0) {
 		video->color_output = HDMI_COLOR_RGB_0_255;
 	} else {
 		if (hdmi->colormode == HDMI_COLOR_AUTO) {
@@ -124,8 +133,14 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		else if (video->color_output == HDMI_COLOR_YCBCR420)
 			video->color_input = HDMI_COLOR_YCBCR420;
 	}
+
+	if (hdmi->vic & HDMI_VIDEO_DMT) {
+		video->vic = hdmi->vic;
+		video->color_output_depth = 8;
+	} else {
+		video->vic = hdmi->vic & HDMI_VIC_MASK;
+	}
 	hdmi_set_lcdc(hdmi);
-	video->vic = hdmi->vic & HDMI_VIC_MASK;
 	if (hdmi->ops->setvideo)
 		hdmi->ops->setvideo(hdmi, video);
 }

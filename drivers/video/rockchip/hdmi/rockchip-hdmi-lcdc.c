@@ -29,11 +29,20 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 	{ {	"3840x2160p@60Hz",	60,	3840,	2160,	594000000,	296,	176,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	97,	HDMI_3840X2160P_60HZ_4_3,	1,	OUT_P888},
 	{ {	"4096x2160p@50Hz",	50,	4096,	2160,	594000000,	128,	968,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	101,	0,				1,	OUT_P888},
 	{ {	"4096x2160p@60Hz",	60,	4096,	2160,	594000000,	128,	88,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	102,	0,				1,	OUT_P888},
+	{ {	"800x600p@60Hz",	60,	800,	600,	40000000,	88,	40,	23,	1,	128,	4,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	1 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1024x768p@60Hz",	60,	1024,	768,	65000000,	160,	24,	29,	3,	136,	6,			0,				0,	0	},	2 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1280x960p@60Hz",	60,	1280,	960,	108000000,	312,	96,	36,	1,	112,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	3 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1280x1024p@60Hz",	60,	1280,	1024,	108000000,	248,	48,	38,	1,	112,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	4 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1360x768p@60Hz",	60,	1360,	768,	85500000,	256,	64,	18,	3,	112,	6,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	5 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1366x768p@60Hz",	60,	1366,	768,	85500000,	213,	70,	24,	3,	143,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	6 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1440x900p@60Hz",	60,	1440,	900,	106500000,	232,	80,	25,	3,	152,	6,		FB_SYNC_VERT_HIGH_ACT,			0,	0	},	7 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1600x900p@60Hz",	60,	1600,	900,	108000000,	96,	24,	96,	1,	80,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	0,	0	},	8 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
+	{ {	"1680x1050@60Hz",	60,	1680,	1050,	146250000,	280,	104,	30,	3,	176,	6,		FB_SYNC_VERT_HIGH_ACT,			0,	0	},	9 | HDMI_VIDEO_DMT,	0,		1,	OUT_P888},
 };
 
 static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 {
-	int i;
+	int i, vic;
 	struct fb_videomode *mode;
 
 	if (screen == NULL || hdmi == NULL)
@@ -42,9 +51,13 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 	if (hdmi->vic == 0)
 		hdmi->vic = hdmi->property->defaultmode;
 
+	if (hdmi->vic & HDMI_VIDEO_DMT)
+		vic = hdmi->vic;
+	else
+		vic = hdmi->vic & HDMI_VIC_MASK;
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-		if (hdmi_mode[i].vic == (hdmi->vic & HDMI_VIC_MASK) ||
-		    hdmi_mode[i].vic_2nd == (hdmi->vic & HDMI_VIC_MASK))
+		if (hdmi_mode[i].vic == vic ||
+		    hdmi_mode[i].vic_2nd == vic)
 			break;
 	}
 	if (i == ARRAY_SIZE(hdmi_mode))
@@ -182,14 +195,6 @@ int hdmi_set_lcdc(struct hdmi *hdmi)
 	int rc = 0;
 	struct rk_screen screen;
 
-	if (hdmi->autoset)
-		hdmi->vic = hdmi_find_best_mode(hdmi, 0);
-	else
-		hdmi->vic = hdmi_find_best_mode(hdmi, hdmi->vic);
-
-	if (hdmi->vic == 0)
-		hdmi->vic = hdmi->property->defaultmode;
-
 	rc = hdmi_set_info(&screen, hdmi);
 
 	if (rc == 0) {
@@ -257,7 +262,7 @@ int hdmi_add_vic(int vic, struct list_head *head)
 	struct display_modelist *modelist;
 	int found = 0, v;
 
-/*	DBG("%s vic %d", __FUNCTION__, vic); */
+	/*pr_info("%s vic %d\n", __FUNCTION__, vic);*/
 	if (vic == 0)
 		return -1;
 
@@ -346,7 +351,14 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 		modelist = list_entry(pos, struct display_modelist, list);
 		/*pr_info("%s vic %d\n", __function__, modelist->vic);*/
 		for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-			vic = modelist->vic & HDMI_VIC_MASK;
+			if (modelist->vic & HDMI_VIDEO_DMT) {
+				if (feature & SUPPORT_VESA_DMT)
+					vic = modelist->vic;
+				else
+					continue;
+			} else {
+				vic = modelist->vic & HDMI_VIC_MASK;
+			}
 			if (vic == hdmi_mode[i].vic ||
 			    vic == hdmi_mode[i].vic_2nd) {
 				if ((feature & SUPPORT_4K) == 0 &&
@@ -484,7 +496,8 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 				   just list common hdmi foramt. */
 				if (mode->xres > 3840 ||
 				    mode->refresh < 50 ||
-				    mode->vmode == FB_VMODE_INTERLACED)
+				    mode->vmode == FB_VMODE_INTERLACED ||
+				    hdmi_mode[i].vic & HDMI_VIDEO_DMT)
 					continue;
 			}
 			if ((feature & SUPPORT_TMDS_600M) == 0 &&
@@ -511,7 +524,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 		   block, so we need to check first block data.*/
 		if (specs && specs->modedb_len) {
 			for (i = 0; i < specs->modedb_len; i++) {
-				modedb = &specs->modedb[0];
+				modedb = &specs->modedb[i];
 				pixclock = hdmi_videomode_to_vic(modedb);
 				if (pixclock)
 					hdmi_add_vic(pixclock, head);
@@ -531,7 +544,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 int hdmi_videomode_to_vic(struct fb_videomode *vmode)
 {
 	struct fb_videomode *mode;
-	unsigned char vic = 0;
+	unsigned int vic = 0;
 	int i = 0;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
@@ -579,14 +592,17 @@ const struct hdmi_video_timing *hdmi_vic2timing(int vic)
  */
 const struct fb_videomode *hdmi_vic_to_videomode(int vic)
 {
-	int i;
+	int i, vid;
 
 	if (vic == 0)
 		return NULL;
-
+	else if (vic & HDMI_VIDEO_DMT)
+		vid = vic;
+	else
+		vid = vic & HDMI_VIC_MASK;
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-		if (hdmi_mode[i].vic == (vic & HDMI_VIC_MASK) ||
-		    hdmi_mode[i].vic_2nd == (vic & HDMI_VIC_MASK))
+		if (hdmi_mode[i].vic == vid ||
+		    hdmi_mode[i].vic_2nd == vid)
 			return &hdmi_mode[i].mode;
 	}
 	return NULL;
@@ -607,6 +623,8 @@ void hdmi_init_modelist(struct hdmi *hdmi)
 	feature = hdmi->property->feature;
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
+		if (hdmi_mode[i].vic & HDMI_VIDEO_DMT)
+			continue;
 		if ((feature & SUPPORT_TMDS_600M) == 0 &&
 		    hdmi_mode[i].mode.pixclock > 340000000)
 			continue;
