@@ -988,17 +988,17 @@ static struct pvtm_info rk3288v2_arm_pvtm_info = {
 };
 
 static struct cpufreq_frequency_table rk3368v0_arm_b_pvtm_table[] = {
-	{.frequency = 216000,  .index = 9537},
-	{.frequency = 312000,  .index = 9537},
-	{.frequency = 408000,  .index = 9537},
-	{.frequency = 600000,  .index = 9537},
-	{.frequency = 696000,  .index = 9537},
-	{.frequency = 816000,  .index = 10800},
-	{.frequency = 1008000,  .index = 13096},
-	{.frequency = 1200000,  .index = 15700},
-	{.frequency = 1296000,  .index = 17026},
-	{.frequency = 1416000,  .index = 19353},
-	{.frequency = 1512000,  .index = 20527},
+	{.frequency = 216000,  .index = 9891},
+	{.frequency = 312000,  .index = 9891},
+	{.frequency = 408000,  .index = 9891},
+	{.frequency = 600000,  .index = 9891},
+	{.frequency = 696000,  .index = 10115},
+	{.frequency = 816000,  .index = 11014},
+	{.frequency = 1008000,  .index = 13650},
+	{.frequency = 1200000,  .index = 16520},
+	{.frequency = 1296000,  .index = 17856},
+	{.frequency = 1416000,  .index = 19662},
+	{.frequency = 1512000,  .index = 21069},
 	{.frequency = CPUFREQ_TABLE_END, .index = 1},
 };
 
@@ -1011,22 +1011,22 @@ static struct pvtm_info rk3368v0_arm_b_pvtm_info = {
 	.sample_time_us = 1000,
 	.volt_step_uv = 12500,
 	.delta_pvtm_by_volt = 350,
-	.delta_pvtm_by_temp = 11,
+	.delta_pvtm_by_temp = 12,
 	.volt_margin_uv = 50000,
-	.min_volt_uv = 900000,
-	.max_volt_uv = 1350000,
+	.min_volt_uv = 925000,
+	.max_volt_uv = 1375000,
 	.cluster = 0,
 };
 
 static struct cpufreq_frequency_table rk3368v0_arm_l_pvtm_table[] = {
-	{.frequency = 216000,  .index = 9598},
-	{.frequency = 312000,  .index = 9598},
-	{.frequency = 408000,  .index = 9598},
-	{.frequency = 600000,  .index = 9598},
-	{.frequency = 696000,  .index = 10781},
-	{.frequency = 816000,  .index = 12276},
-	{.frequency = 1008000,  .index = 15100},
-	{.frequency = 1200000,  .index = 17688},
+	{.frequency = 216000,  .index = 9913},
+	{.frequency = 312000,  .index = 9913},
+	{.frequency = 408000,  .index = 9913},
+	{.frequency = 600000,  .index = 9913},
+	{.frequency = 696000,  .index = 11056},
+	{.frequency = 816000,  .index = 12816},
+	{.frequency = 1008000,  .index = 15613},
+	{.frequency = 1200000,  .index = 18329},
 	{.frequency = CPUFREQ_TABLE_END, .index = 1},
 };
 
@@ -1039,10 +1039,10 @@ static struct pvtm_info rk3368v0_arm_l_pvtm_info = {
 	.sample_time_us = 1000,
 	.volt_step_uv = 12500,
 	.delta_pvtm_by_volt = 350,
-	.delta_pvtm_by_temp = 10,
+	.delta_pvtm_by_temp = 12,
 	.volt_margin_uv = 50000,
-	.min_volt_uv = 900000,
-	.max_volt_uv = 1350000,
+	.min_volt_uv = 925000,
+	.max_volt_uv = 1375000,
 	.cluster = 1,
 };
 
