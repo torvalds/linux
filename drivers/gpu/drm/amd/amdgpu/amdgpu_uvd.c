@@ -543,46 +543,60 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		return -EINVAL;
 	}
 
-	if (msg_type == 1) {
+	switch (msg_type) {
+	case 0:
+		/* it's a create msg, calc image size (width * height) */
+		amdgpu_bo_kunmap(bo);
+
+		/* try to alloc a new handle */
+		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+			if (atomic_read(&adev->uvd.handles[i]) == handle) {
+				DRM_ERROR("Handle 0x%x already in use!\n", handle);
+				return -EINVAL;
+			}
+
+			if (!atomic_cmpxchg(&adev->uvd.handles[i], 0, handle)) {
+				adev->uvd.filp[i] = ctx->parser->filp;
+				return 0;
+			}
+		}
+
+		DRM_ERROR("No more free UVD handles!\n");
+		return -EINVAL;
+
+	case 1:
 		/* it's a decode msg, calc buffer sizes */
 		r = amdgpu_uvd_cs_msg_decode(msg, ctx->buf_sizes);
 		amdgpu_bo_kunmap(bo);
 		if (r)
 			return r;
 
-	} else if (msg_type == 2) {
+		/* validate the handle */
+		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+			if (atomic_read(&adev->uvd.handles[i]) == handle) {
+				if (adev->uvd.filp[i] != ctx->parser->filp) {
+					DRM_ERROR("UVD handle collision detected!\n");
+					return -EINVAL;
+				}
+				return 0;
+			}
+		}
+
+		DRM_ERROR("Invalid UVD handle 0x%x!\n", handle);
+		return -ENOENT;
+
+	case 2:
 		/* it's a destroy msg, free the handle */
 		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
 			atomic_cmpxchg(&adev->uvd.handles[i], handle, 0);
 		amdgpu_bo_kunmap(bo);
 		return 0;
-	} else {
-		/* it's a create msg */
-		amdgpu_bo_kunmap(bo);
 
-		if (msg_type != 0) {
-			DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
-			return -EINVAL;
-		}
-
-		/* it's a create msg, no special handling needed */
+	default:
+		DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
+		return -EINVAL;
 	}
-
-	/* create or decode, validate the handle */
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
-		if (atomic_read(&adev->uvd.handles[i]) == handle)
-			return 0;
-	}
-
-	/* handle not found try to alloc a new one */
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
-		if (!atomic_cmpxchg(&adev->uvd.handles[i], 0, handle)) {
-			adev->uvd.filp[i] = ctx->parser->filp;
-			return 0;
-		}
-	}
-
-	DRM_ERROR("No more free UVD handles!\n");
+	BUG();
 	return -EINVAL;
 }
 
