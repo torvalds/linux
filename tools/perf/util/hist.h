@@ -20,6 +20,7 @@ enum hist_filter {
 	HIST_FILTER__SYMBOL,
 	HIST_FILTER__GUEST,
 	HIST_FILTER__HOST,
+	HIST_FILTER__SOCKET,
 };
 
 enum hist_column {
@@ -29,6 +30,7 @@ enum hist_column {
 	HISTC_COMM,
 	HISTC_PARENT,
 	HISTC_CPU,
+	HISTC_SOCKET,
 	HISTC_SRCLINE,
 	HISTC_SRCFILE,
 	HISTC_MISPREDICT,
@@ -70,6 +72,7 @@ struct hists {
 	struct events_stats	stats;
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
+	int			socket_filter;
 };
 
 struct hist_entry_iter;
@@ -144,11 +147,12 @@ size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp);
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
+void hists__filter_by_socket(struct hists *hists);
 
 static inline bool hists__has_filter(struct hists *hists)
 {
 	return hists->thread_filter || hists->dso_filter ||
-		hists->symbol_filter_str;
+		hists->symbol_filter_str || (hists->socket_filter > -1);
 }
 
 u16 hists__col_len(struct hists *hists, enum hist_column col);

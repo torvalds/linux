@@ -24,9 +24,6 @@
 #include "build-id.h"
 #include "data.h"
 
-static u32 header_argc;
-static const char **header_argv;
-
 /*
  * magic2 = "PERFILE2"
  * must be a numerical value to let the endianness
@@ -136,37 +133,6 @@ static char *do_read_string(int fd, struct perf_header *ph)
 
 	free(buf);
 	return NULL;
-}
-
-int
-perf_header__set_cmdline(int argc, const char **argv)
-{
-	int i;
-
-	/*
-	 * If header_argv has already been set, do not override it.
-	 * This allows a command to set the cmdline, parse args and
-	 * then call another builtin function that implements a
-	 * command -- e.g, cmd_kvm calling cmd_record.
-	 */
-	if (header_argv)
-		return 0;
-
-	header_argc = (u32)argc;
-
-	/* do not include NULL termination */
-	header_argv = calloc(argc, sizeof(char *));
-	if (!header_argv)
-		return -ENOMEM;
-
-	/*
-	 * must copy argv contents because it gets moved
-	 * around during option parsing
-	 */
-	for (i = 0; i < argc ; i++)
-		header_argv[i] = argv[i];
-
-	return 0;
 }
 
 static int write_tracing_data(int fd, struct perf_header *h __maybe_unused,
@@ -405,8 +371,8 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 {
 	char buf[MAXPATHLEN];
 	char proc[32];
-	u32 i, n;
-	int ret;
+	u32 n;
+	int i, ret;
 
 	/*
 	 * actual atual path to perf binary
@@ -420,7 +386,7 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	buf[ret] = '\0';
 
 	/* account for binary path */
-	n = header_argc + 1;
+	n = perf_env.nr_cmdline + 1;
 
 	ret = do_write(fd, &n, sizeof(n));
 	if (ret < 0)
@@ -430,8 +396,8 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	if (ret < 0)
 		return ret;
 
-	for (i = 0 ; i < header_argc; i++) {
-		ret = do_write_string(fd, header_argv[i]);
+	for (i = 0 ; i < perf_env.nr_cmdline; i++) {
+		ret = do_write_string(fd, perf_env.cmdline_argv[i]);
 		if (ret < 0)
 			return ret;
 	}
@@ -449,8 +415,6 @@ struct cpu_topo {
 	u32 thread_sib;
 	char **core_siblings;
 	char **thread_siblings;
-	int *core_id;
-	int *phy_pkg_id;
 };
 
 static int build_cpu_topo(struct cpu_topo *tp, int cpu)
@@ -513,9 +477,6 @@ try_threads:
 	}
 	ret = 0;
 done:
-	tp->core_id[cpu] = cpu_map__get_core_id(cpu);
-	tp->phy_pkg_id[cpu] = cpu_map__get_socket_id(cpu);
-
 	if(fp)
 		fclose(fp);
 	free(buf);
@@ -543,7 +504,7 @@ static struct cpu_topo *build_cpu_topology(void)
 	struct cpu_topo *tp;
 	void *addr;
 	u32 nr, i;
-	size_t sz, sz_id;
+	size_t sz;
 	long ncpus;
 	int ret = -1;
 
@@ -554,9 +515,8 @@ static struct cpu_topo *build_cpu_topology(void)
 	nr = (u32)(ncpus & UINT_MAX);
 
 	sz = nr * sizeof(char *);
-	sz_id = nr * sizeof(int);
 
-	addr = calloc(1, sizeof(*tp) + 2 * sz + 2 * sz_id);
+	addr = calloc(1, sizeof(*tp) + 2 * sz);
 	if (!addr)
 		return NULL;
 
@@ -566,10 +526,6 @@ static struct cpu_topo *build_cpu_topology(void)
 	tp->core_siblings = addr;
 	addr += sz;
 	tp->thread_siblings = addr;
-	addr += sz;
-	tp->core_id = addr;
-	addr += sz_id;
-	tp->phy_pkg_id = addr;
 
 	for (i = 0; i < nr; i++) {
 		ret = build_cpu_topo(tp, i);
@@ -588,7 +544,7 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 {
 	struct cpu_topo *tp;
 	u32 i;
-	int ret;
+	int ret, j;
 
 	tp = build_cpu_topology();
 	if (!tp)
@@ -613,11 +569,17 @@ static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
 			break;
 	}
 
-	for (i = 0; i < tp->cpu_nr; i++) {
-		ret = do_write(fd, &tp->core_id[i], sizeof(int));
+	ret = perf_env__read_cpu_topology_map(&perf_env);
+	if (ret < 0)
+		goto done;
+
+	for (j = 0; j < perf_env.nr_cpus_avail; j++) {
+		ret = do_write(fd, &perf_env.cpu[j].core_id,
+			       sizeof(perf_env.cpu[j].core_id));
 		if (ret < 0)
 			return ret;
-		ret = do_write(fd, &tp->phy_pkg_id[i], sizeof(int));
+		ret = do_write(fd, &perf_env.cpu[j].socket_id,
+			       sizeof(perf_env.cpu[j].socket_id));
 		if (ret < 0)
 			return ret;
 	}
@@ -1821,6 +1783,9 @@ static int process_pmu_mappings(struct perf_file_section *section __maybe_unused
 		/* include a NULL character at the end */
 		strbuf_add(&sb, "", 1);
 
+		if (!strcmp(name, "msr"))
+			ph->env.msr_pmu_type = type;
+
 		free(name);
 		pmu_num--;
 	}
@@ -2599,6 +2564,7 @@ int perf_session__read_header(struct perf_session *session)
 		return -ENOMEM;
 
 	session->evlist->env = &header->env;
+	session->machines.host.env = &header->env;
 	if (perf_data_file__is_pipe(file))
 		return perf_header__read_pipe(session);
 

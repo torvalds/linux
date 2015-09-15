@@ -211,7 +211,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (!objdump_path) {
-		ret = perf_session_env__lookup_objdump(&session->header.env);
+		ret = perf_env__lookup_objdump(&session->header.env);
 		if (ret)
 			goto out;
 	}

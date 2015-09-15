@@ -35,6 +35,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->last_match = NULL;
 
 	machine->vdso_info = NULL;
+	machine->env = NULL;
 
 	machine->pid = pid;
 

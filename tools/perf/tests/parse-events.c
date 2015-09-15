@@ -3,11 +3,10 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <api/fs/fs.h>
-#include <api/fs/tracefs.h>
-#include <api/fs/debugfs.h>
 #include "tests.h"
 #include "debug.h"
 #include <linux/hw_breakpoint.h>
+#include <api/fs/fs.h>
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
@@ -1262,23 +1261,11 @@ test__checkevent_breakpoint_len_rw_modifier(struct perf_evlist *evlist)
 
 static int count_tracepoints(void)
 {
-	char events_path[PATH_MAX];
 	struct dirent *events_ent;
-	const char *mountpoint;
 	DIR *events_dir;
 	int cnt = 0;
 
-	mountpoint = tracefs_find_mountpoint();
-	if (mountpoint) {
-		scnprintf(events_path, PATH_MAX, "%s/events",
-			  mountpoint);
-	} else {
-		mountpoint = debugfs_find_mountpoint();
-		scnprintf(events_path, PATH_MAX, "%s/tracing/events",
-			  mountpoint);
-	}
-
-	events_dir = opendir(events_path);
+	events_dir = opendir(tracing_events_path);
 
 	TEST_ASSERT_VAL("Can't open events dir", events_dir);
 
@@ -1295,7 +1282,7 @@ static int count_tracepoints(void)
 			continue;
 
 		scnprintf(sys_path, PATH_MAX, "%s/%s",
-			  events_path, events_ent->d_name);
+			  tracing_events_path, events_ent->d_name);
 
 		sys_dir = opendir(sys_path);
 		TEST_ASSERT_VAL("Can't open sys dir", sys_dir);

@@ -952,7 +952,7 @@ static int __cmd_top(struct perf_top *top)
 	machines__set_symbol_filter(&top->session->machines, symbol_filter);
 
 	if (!objdump_path) {
-		ret = perf_session_env__lookup_objdump(&top->session->header.env);
+		ret = perf_env__lookup_objdump(&top->session->header.env);
 		if (ret)
 			goto out_delete;
 	}
@@ -963,6 +963,13 @@ static int __cmd_top(struct perf_top *top)
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false, opts->proc_map_timeout);
+
+	if (sort__has_socket) {
+		ret = perf_env__read_cpu_topology_map(&perf_env);
+		if (ret < 0)
+			goto out_err_cpu_topo;
+	}
+
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;
@@ -1020,6 +1027,14 @@ out_delete:
 	top->session = NULL;
 
 	return ret;
+
+out_err_cpu_topo: {
+	char errbuf[BUFSIZ];
+	const char *err = strerror_r(-ret, errbuf, sizeof(errbuf));
+
+	ui__error("Could not read the CPU topology map: %s\n", err);
+	goto out_delete;
+}
 }
 
 static int

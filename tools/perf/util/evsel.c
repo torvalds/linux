@@ -9,7 +9,7 @@
 
 #include <byteswap.h>
 #include <linux/bitops.h>
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>

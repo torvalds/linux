@@ -129,7 +129,6 @@ union u64_swap {
 struct cpu_map;
 struct target;
 struct thread_map;
-struct perf_evlist;
 struct record_opts;
 
 static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)

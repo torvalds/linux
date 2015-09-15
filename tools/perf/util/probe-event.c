@@ -40,8 +40,7 @@
 #include "color.h"
 #include "symbol.h"
 #include "thread.h"
-#include <api/fs/debugfs.h>
-#include <api/fs/tracefs.h>
+#include <api/fs/fs.h>
 #include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"
 #include "probe-finder.h"
@@ -2054,7 +2053,7 @@ static void kprobe_blacklist__delete(struct list_head *blacklist)
 static int kprobe_blacklist__load(struct list_head *blacklist)
 {
 	struct kprobe_blacklist_node *node;
-	const char *__debugfs = debugfs_find_mountpoint();
+	const char *__debugfs = debugfs__mountpoint();
 	char buf[PATH_MAX], *p;
 	FILE *fp;
 	int ret;
