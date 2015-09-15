@@ -573,7 +573,7 @@ static void enable_rx_pio(struct s3c24xx_uart_port *ourport)
 	ourport->rx_mode = S3C24XX_RX_PIO;
 }
 
-static irqreturn_t s3c24xx_serial_rx_chars_dma(int irq, void *dev_id)
+static irqreturn_t s3c24xx_serial_rx_chars_dma(void *dev_id)
 {
 	unsigned int utrstat, ufstat, received;
 	struct s3c24xx_uart_port *ourport = dev_id;
@@ -621,7 +621,7 @@ finish:
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t s3c24xx_serial_rx_chars_pio(int irq, void *dev_id)
+static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
@@ -718,8 +718,8 @@ static irqreturn_t s3c24xx_serial_rx_chars(int irq, void *dev_id)
 	struct s3c24xx_uart_port *ourport = dev_id;
 
 	if (ourport->dma && ourport->dma->rx_chan)
-		return s3c24xx_serial_rx_chars_dma(irq, dev_id);
-	return s3c24xx_serial_rx_chars_pio(irq, dev_id);
+		return s3c24xx_serial_rx_chars_dma(dev_id);
+	return s3c24xx_serial_rx_chars_pio(dev_id);
 }
 
 static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
