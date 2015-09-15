@@ -1012,11 +1012,10 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		case HFI1_SNOOP_IOCSETLINKSTATE_EXTRA:
 			memset(&link_info, 0, sizeof(link_info));
 
-			ret = copy_from_user(&link_info,
+			if (copy_from_user(&link_info,
 				(struct hfi1_link_info __user *)arg,
-				sizeof(link_info));
-			if (ret)
-				break;
+				sizeof(link_info)))
+				ret = -EFAULT;
 
 			value = link_info.port_state;
 			index = link_info.port_number;
@@ -1080,9 +1079,10 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		case HFI1_SNOOP_IOCGETLINKSTATE_EXTRA:
 			if (cmd == HFI1_SNOOP_IOCGETLINKSTATE_EXTRA) {
 				memset(&link_info, 0, sizeof(link_info));
-				ret = copy_from_user(&link_info,
+				if (copy_from_user(&link_info,
 					(struct hfi1_link_info __user *)arg,
-					sizeof(link_info));
+					sizeof(link_info)))
+					ret = -EFAULT;
 				index = link_info.port_number;
 			} else {
 				ret = __get_user(index, (int __user *) arg);
@@ -1114,9 +1114,10 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 							ppd->link_speed_active;
 				link_info.link_width_active =
 							ppd->link_width_active;
-				ret = copy_to_user(
+				if (copy_to_user(
 					(struct hfi1_link_info __user *)arg,
-					&link_info, sizeof(link_info));
+					&link_info, sizeof(link_info)))
+					ret = -EFAULT;
 			} else {
 				ret = __put_user(value, (int __user *)arg);
 			}
@@ -1142,10 +1143,9 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			snoop_dbg("Setting filter");
 			/* just copy command structure */
 			argp = (unsigned long *)arg;
-			ret = copy_from_user(&filter_cmd, (void __user *)argp,
-					     sizeof(filter_cmd));
-			if (ret < 0) {
-				pr_alert("Error copying filter command\n");
+			if (copy_from_user(&filter_cmd, (void __user *)argp,
+					     sizeof(filter_cmd))) {
+				ret = -EFAULT;
 				break;
 			}
 			if (filter_cmd.opcode >= HFI1_MAX_FILTERS) {
@@ -1167,12 +1167,11 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 			/* copy remaining data from userspace */
-			ret = copy_from_user((u8 *)filter_value,
+			if (copy_from_user((u8 *)filter_value,
 					(void __user *)filter_cmd.value_ptr,
-					filter_cmd.length);
-			if (ret < 0) {
+					filter_cmd.length)) {
 				kfree(filter_value);
-				pr_alert("Error copying filter data\n");
+				ret = -EFAULT;
 				break;
 			}
 			/* Drain packets first */
