@@ -129,6 +129,7 @@ static const struct of_device_id ppc4xx_rng_match[] = {
 	{ .compatible = "amcc,ppc440epx-rng", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ppc4xx_rng_match);
 
 static struct platform_driver ppc4xx_rng_driver = {
 	.driver = {
