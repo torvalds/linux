@@ -548,39 +548,119 @@ static int calc_scaley_steps(struct drm_plane *plane,
 	return 0;
 }
 
-static uint32_t get_scale_config(enum mdp_chroma_samp_type chroma_sample,
-		uint32_t src, uint32_t dest, bool hor)
+static uint32_t get_scale_config(const struct mdp_format *format,
+		uint32_t src, uint32_t dst, bool horz)
 {
-	uint32_t y_filter =   (src <= dest) ? SCALE_FILTER_CA  : SCALE_FILTER_PCMN;
-	uint32_t y_a_filter = (src <= dest) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
-	uint32_t uv_filter = ((src / 2) <= dest) ? /* 2x upsample */
-			SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
-	uint32_t value = 0;
+	bool scaling = format->is_yuv ? true : (src != dst);
+	uint32_t sub, pix_fmt = format->base.pixel_format;
+	uint32_t ya_filter, uv_filter;
+	bool yuv = format->is_yuv;
 
-	if (chroma_sample == CHROMA_420 || chroma_sample == CHROMA_H2V1) {
-		if (hor)
-			value = MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
-				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(y_filter) |
-				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(y_a_filter) |
-				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2(uv_filter);
-		else
-			value = MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
-				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(y_filter) |
-				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(y_a_filter) |
-				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2(uv_filter);
-	} else if (src != dest) {
-		if (hor)
-			value = MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
-				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(y_a_filter) |
-				MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(y_a_filter);
-		else
-			value = MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
-				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(y_a_filter) |
-				MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(y_a_filter);
+	if (!scaling)
+		return 0;
+
+	if (yuv) {
+		sub = horz ? drm_format_horz_chroma_subsampling(pix_fmt) :
+			     drm_format_vert_chroma_subsampling(pix_fmt);
+		uv_filter = ((src / sub) <= dst) ?
+				   SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
 	}
+	ya_filter = (src <= dst) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
 
-	return value;
+	if (horz)
+		return  MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
+			MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(ya_filter) |
+			MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(ya_filter) |
+			COND(yuv, MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2(uv_filter));
+	else
+		return  MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
+			MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(ya_filter) |
+			MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(ya_filter) |
+			COND(yuv, MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2(uv_filter));
 }
+
+static void calc_pixel_ext(const struct mdp_format *format,
+		uint32_t src, uint32_t dst, uint32_t phase_step[2],
+		int pix_ext_edge1[COMP_MAX], int pix_ext_edge2[COMP_MAX],
+		bool horz)
+{
+	bool scaling = format->is_yuv ? true : (src != dst);
+	int i;
+
+	/*
+	 * Note:
+	 * We assume here that:
+	 *     1. PCMN filter is used for downscale
+	 *     2. bilinear filter is used for upscale
+	 *     3. we are in a single pipe configuration
+	 */
+
+	for (i = 0; i < COMP_MAX; i++) {
+		pix_ext_edge1[i] = 0;
+		pix_ext_edge2[i] = scaling ? 1 : 0;
+	}
+}
+
+static void mdp5_write_pixel_ext(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
+	const struct mdp_format *format,
+	uint32_t src_w, int pe_left[COMP_MAX], int pe_right[COMP_MAX],
+	uint32_t src_h, int pe_top[COMP_MAX], int pe_bottom[COMP_MAX])
+{
+	uint32_t pix_fmt = format->base.pixel_format;
+	uint32_t lr, tb, req;
+	int i;
+
+	for (i = 0; i < COMP_MAX; i++) {
+		uint32_t roi_w = src_w;
+		uint32_t roi_h = src_h;
+
+		if (format->is_yuv && i == COMP_1_2) {
+			roi_w /= drm_format_horz_chroma_subsampling(pix_fmt);
+			roi_h /= drm_format_vert_chroma_subsampling(pix_fmt);
+		}
+
+		lr  = (pe_left[i] >= 0) ?
+			MDP5_PIPE_SW_PIX_EXT_LR_LEFT_RPT(pe_left[i]) :
+			MDP5_PIPE_SW_PIX_EXT_LR_LEFT_OVF(pe_left[i]);
+
+		lr |= (pe_right[i] >= 0) ?
+			MDP5_PIPE_SW_PIX_EXT_LR_RIGHT_RPT(pe_right[i]) :
+			MDP5_PIPE_SW_PIX_EXT_LR_RIGHT_OVF(pe_right[i]);
+
+		tb  = (pe_top[i] >= 0) ?
+			MDP5_PIPE_SW_PIX_EXT_TB_TOP_RPT(pe_top[i]) :
+			MDP5_PIPE_SW_PIX_EXT_TB_TOP_OVF(pe_top[i]);
+
+		tb |= (pe_bottom[i] >= 0) ?
+			MDP5_PIPE_SW_PIX_EXT_TB_BOTTOM_RPT(pe_bottom[i]) :
+			MDP5_PIPE_SW_PIX_EXT_TB_BOTTOM_OVF(pe_bottom[i]);
+
+		req  = MDP5_PIPE_SW_PIX_EXT_REQ_PIXELS_LEFT_RIGHT(roi_w +
+				pe_left[i] + pe_right[i]);
+
+		req |= MDP5_PIPE_SW_PIX_EXT_REQ_PIXELS_TOP_BOTTOM(roi_h +
+				pe_top[i] + pe_bottom[i]);
+
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SW_PIX_EXT_LR(pipe, i), lr);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SW_PIX_EXT_TB(pipe, i), tb);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SW_PIX_EXT_REQ_PIXELS(pipe, i), req);
+
+		DBG("comp-%d (L/R): rpt=%d/%d, ovf=%d/%d, req=%d", i,
+			FIELD(lr,  MDP5_PIPE_SW_PIX_EXT_LR_LEFT_RPT),
+			FIELD(lr,  MDP5_PIPE_SW_PIX_EXT_LR_RIGHT_RPT),
+			FIELD(lr,  MDP5_PIPE_SW_PIX_EXT_LR_LEFT_OVF),
+			FIELD(lr,  MDP5_PIPE_SW_PIX_EXT_LR_RIGHT_OVF),
+			FIELD(req, MDP5_PIPE_SW_PIX_EXT_REQ_PIXELS_LEFT_RIGHT));
+
+		DBG("comp-%d (T/B): rpt=%d/%d, ovf=%d/%d, req=%d", i,
+			FIELD(tb,  MDP5_PIPE_SW_PIX_EXT_TB_TOP_RPT),
+			FIELD(tb,  MDP5_PIPE_SW_PIX_EXT_TB_BOTTOM_RPT),
+			FIELD(tb,  MDP5_PIPE_SW_PIX_EXT_TB_TOP_OVF),
+			FIELD(tb,  MDP5_PIPE_SW_PIX_EXT_TB_BOTTOM_OVF),
+			FIELD(req, MDP5_PIPE_SW_PIX_EXT_REQ_PIXELS_TOP_BOTTOM));
+	}
+}
+
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -596,6 +676,9 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
 	uint32_t phasex_step[COMP_MAX] = {0,}, phasey_step[COMP_MAX] = {0,};
+	bool pe = mdp5_plane->caps & MDP_PIPE_CAP_SW_PIX_EXT;
+	int pe_left[COMP_MAX], pe_right[COMP_MAX];
+	int pe_top[COMP_MAX], pe_bottom[COMP_MAX];
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
 	bool vflip, hflip;
@@ -643,11 +726,18 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
+	if (mdp5_plane->caps & MDP_PIPE_CAP_SW_PIX_EXT) {
+		calc_pixel_ext(format, src_w, crtc_w, phasex_step,
+					 pe_left, pe_right, true);
+		calc_pixel_ext(format, src_h, crtc_h, phasey_step,
+					pe_top, pe_bottom, false);
+	}
+
 	/* TODO calc hdecm, vdecm */
 
 	/* SCALE is used to both scale and up-sample chroma components */
-	config |= get_scale_config(format->chroma_sample, src_w, crtc_w, true);
-	config |= get_scale_config(format->chroma_sample, src_h, crtc_h, false);
+	config |= get_scale_config(format, src_w, crtc_w, true);
+	config |= get_scale_config(format, src_h, crtc_h, false);
 	DBG("scale config = %x", config);
 
 	hflip = !!(pstate->rotation & BIT(DRM_REFLECT_X));
@@ -696,10 +786,16 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_OP_MODE(pipe),
 			(hflip ? MDP5_PIPE_SRC_OP_MODE_FLIP_LR : 0) |
 			(vflip ? MDP5_PIPE_SRC_OP_MODE_FLIP_UD : 0) |
+			COND(pe, MDP5_PIPE_SRC_OP_MODE_SW_PIX_EXT_OVERRIDE) |
 			MDP5_PIPE_SRC_OP_MODE_BWC(BWC_LOSSLESS));
 
 	/* not using secure mode: */
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_ADDR_SW_STATUS(pipe), 0);
+
+	if (mdp5_plane->caps & MDP_PIPE_CAP_SW_PIX_EXT)
+		mdp5_write_pixel_ext(mdp5_kms, pipe, format,
+				src_w, pe_left, pe_right,
+				src_h, pe_top, pe_bottom);
 
 	if (mdp5_plane->caps & MDP_PIPE_CAP_SCALE) {
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_X(pipe),
