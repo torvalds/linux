@@ -11,14 +11,14 @@
 #include "wilc_wfi_netdevice.h"
 
 /* The following macros describe the bitfield map used by the firmware to determine its 11i mode */
-#define NO_ENCRYPT			0
-#define ENCRYPT_ENABLED	(1 << 0)
-#define WEP					(1 << 1)
-#define WEP_EXTENDED		(1 << 2)
-#define WPA					(1 << 3)
-#define WPA2				(1 << 4)
-#define AES					(1 << 5)
-#define TKIP					(1 << 6)
+#define NO_ENCRYPT		0
+#define ENCRYPT_ENABLED		BIT(0)
+#define WEP			BIT(1)
+#define WEP_EXTENDED		BIT(2)
+#define WPA			BIT(3)
+#define WPA2			BIT(4)
+#define AES			BIT(5)
+#define TKIP			BIT(6)
 
 #ifdef WILC_P2P
 /* #define	USE_SUPPLICANT_GO_INTENT */
