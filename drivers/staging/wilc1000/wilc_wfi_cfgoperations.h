@@ -33,9 +33,6 @@
 #define		GO_INTENT_ATTR_ID			0x04
 #define		CHANLIST_ATTR_ID		0x0b
 #define		OPERCHAN_ATTR_ID                0x11
-#ifdef	USE_SUPPLICANT_GO_INTENT
-#define	GROUP_BSSID_ATTR_ID			0x07
-#endif
 #define		PUB_ACTION_ATTR_ID			0x04
 #define		P2PELEM_ATTR_ID                     0xdd
 
@@ -50,13 +47,7 @@
 #define		GAS_INTIAL_RSP					0x0b
 
 #define		INVALID_CHANNEL					0
-#ifdef	USE_SUPPLICANT_GO_INTENT
-#define		SUPPLICANT_GO_INTENT			6
-#define		GET_GO_INTENT(a)				(((a) >> 1) & 0x0f)
-#define		GET_TIE_BREAKER(a)			(((a)) & 0x01)
-#else
 /* #define FORCE_P2P_CLIENT */
-#endif
 #endif
 
 #define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
