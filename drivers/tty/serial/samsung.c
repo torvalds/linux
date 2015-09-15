@@ -676,7 +676,7 @@ static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 				dbg("break!\n");
 				port->icount.brk++;
 				if (uart_handle_break(port))
-					goto ignore_char;
+					continue; /* Ignore character */
 			}
 
 			if (uerstat & S3C2410_UERSTAT_FRAME)
@@ -696,13 +696,10 @@ static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 		}
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			continue; /* Ignore character */
 
 		uart_insert_char(port, uerstat, S3C2410_UERSTAT_OVERRUN,
 				 ch, flag);
-
-ignore_char:
-		continue;
 	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
