@@ -875,14 +875,14 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 
 	if (xt->src_inc) {
 		if (xt->src_sgl)
-			chan_cc |=  AT_XDMAC_CC_SAM_UBS_DS_AM;
+			chan_cc |=  AT_XDMAC_CC_SAM_UBS_AM;
 		else
 			chan_cc |=  AT_XDMAC_CC_SAM_INCREMENTED_AM;
 	}
 
 	if (xt->dst_inc) {
 		if (xt->dst_sgl)
-			chan_cc |=  AT_XDMAC_CC_DAM_UBS_DS_AM;
+			chan_cc |=  AT_XDMAC_CC_DAM_UBS_AM;
 		else
 			chan_cc |=  AT_XDMAC_CC_DAM_INCREMENTED_AM;
 	}
