@@ -532,7 +532,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	 * for clkout
 	 */
 	if (!count) {
-		clk = clk_register_fixed_rate(dev, clkout_name[i],
+		clk = clk_register_fixed_rate(dev, clkout_name[CLKOUT],
 					      parent_clk_name,
 					      (parent_clk_name) ?
 					      0 : CLK_IS_ROOT, req_rate);
