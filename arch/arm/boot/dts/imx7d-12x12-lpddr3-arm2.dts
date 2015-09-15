@@ -237,6 +237,7 @@
 	pmic: pfuze3000@08 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
+		fsl,lpsr-mode;
 
 		regulators {
 			sw1a_reg: sw1a {
