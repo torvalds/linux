@@ -3394,7 +3394,6 @@ F:	drivers/staging/dgnc/
 
 DIGI EPCA PCI PRODUCTS
 M:	Lidza Louina <lidza.louina@gmail.com>
-M:	Mark Hounschell <markh@compro.net>
 M:	Daeseok Youn <daeseok.youn@gmail.com>
 L:	driverdev-devel@linuxdriverproject.org
 S:	Maintained
