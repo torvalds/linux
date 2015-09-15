@@ -958,6 +958,10 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 							xt, xt->sgl);
 		for (i = 0; i < xt->numf; i++)
 			at_xdmac_increment_block_count(chan, first);
+
+		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
+			__func__, first, first);
+		list_add_tail(&first->desc_node, &first->descs_list);
 	} else {
 		for (i = 0; i < xt->frame_size; i++) {
 			size_t src_icg = 0, dst_icg = 0;
