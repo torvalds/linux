@@ -19,10 +19,6 @@
 
 #define IP_ALEN  4
 
-#define BIT2                    ((u32)(1 << 2))
-#define BIT1                    ((u32)(1 << 1))
-#define BIT0                    ((u32)(1 << 0))
-
 #define IDLE_MODE	0x00
 #define AP_MODE		0x01
 #define STATION_MODE	0x02
@@ -36,9 +32,9 @@
 #define MIN_SCAN_TIME				10
 #define MAX_SCAN_TIME				1200
 #define DEFAULT_SCAN				0
-#define USER_SCAN					BIT0
-#define OBSS_PERIODIC_SCAN			BIT1
-#define OBSS_ONETIME_SCAN			BIT2
+#define USER_SCAN				BIT(0)
+#define OBSS_PERIODIC_SCAN			BIT(1)
+#define OBSS_ONETIME_SCAN			BIT(2)
 #define GTK_RX_KEY_BUFF_LEN			24
 #define ADDKEY						0x1
 #define REMOVEKEY					0x2
