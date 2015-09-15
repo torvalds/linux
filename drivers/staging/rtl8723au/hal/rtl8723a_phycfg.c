@@ -748,31 +748,6 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 	return rtStatus;
 }
 
-static void getTxPowerIndex(struct rtw_adapter *Adapter,
-			    u8 channel,	u8 *cckPowerLevel,  u8 *ofdmPowerLevel)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u8 index = (channel - 1);
-	/*  1. CCK */
-	cckPowerLevel[RF_PATH_A] = pHalData->TxPwrLevelCck[RF_PATH_A][index];
-	cckPowerLevel[RF_PATH_B] = pHalData->TxPwrLevelCck[RF_PATH_B][index];
-
-	/*  2. OFDM for 1S or 2S */
-	if (GET_RF_TYPE(Adapter) == RF_1T2R || GET_RF_TYPE(Adapter) == RF_1T1R) {
-		/*  Read HT 40 OFDM TX power */
-		ofdmPowerLevel[RF_PATH_A] =
-			pHalData->TxPwrLevelHT40_1S[RF_PATH_A][index];
-		ofdmPowerLevel[RF_PATH_B] =
-			pHalData->TxPwrLevelHT40_1S[RF_PATH_B][index];
-	} else if (GET_RF_TYPE(Adapter) == RF_2T2R) {
-		/*  Read HT 40 OFDM TX power */
-		ofdmPowerLevel[RF_PATH_A] =
-			pHalData->TxPwrLevelHT40_2S[RF_PATH_A][index];
-		ofdmPowerLevel[RF_PATH_B] =
-			pHalData->TxPwrLevelHT40_2S[RF_PATH_B][index];
-	}
-}
-
 /*-----------------------------------------------------------------------------
  * Function:    SetTxPowerLevel8723A()
  *
@@ -791,12 +766,29 @@ void PHY_SetTxPowerLevel8723A(struct rtw_adapter *Adapter, u8 channel)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	u8 cckPowerLevel[2], ofdmPowerLevel[2];	/*  [0]:RF-A, [1]:RF-B */
+	int index = channel - 1;
 
 	if (pHalData->bTXPowerDataReadFromEEPORM == false)
 		return;
 
-	getTxPowerIndex(Adapter, channel, &cckPowerLevel[0],
-			&ofdmPowerLevel[0]);
+	/*  1. CCK */
+	cckPowerLevel[RF_PATH_A] = pHalData->TxPwrLevelCck[RF_PATH_A][index];
+	cckPowerLevel[RF_PATH_B] = pHalData->TxPwrLevelCck[RF_PATH_B][index];
+
+	/*  2. OFDM for 1S or 2S */
+	if (GET_RF_TYPE(Adapter) == RF_1T2R || GET_RF_TYPE(Adapter) == RF_1T1R) {
+		/*  Read HT 40 OFDM TX power */
+		ofdmPowerLevel[RF_PATH_A] =
+			pHalData->TxPwrLevelHT40_1S[RF_PATH_A][index];
+		ofdmPowerLevel[RF_PATH_B] =
+			pHalData->TxPwrLevelHT40_1S[RF_PATH_B][index];
+	} else if (GET_RF_TYPE(Adapter) == RF_2T2R) {
+		/*  Read HT 40 OFDM TX power */
+		ofdmPowerLevel[RF_PATH_A] =
+			pHalData->TxPwrLevelHT40_2S[RF_PATH_A][index];
+		ofdmPowerLevel[RF_PATH_B] =
+			pHalData->TxPwrLevelHT40_2S[RF_PATH_B][index];
+	}
 
 	rtl823a_phy_rf6052setccktxpower(Adapter, &cckPowerLevel[0]);
 	rtl8723a_PHY_RF6052SetOFDMTxPower(Adapter, &ofdmPowerLevel[0], channel);
