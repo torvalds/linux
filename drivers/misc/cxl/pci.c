@@ -1046,8 +1046,6 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int slice;
 	int rc;
 
-	pci_dev_get(dev);
-
 	if (cxl_verbose)
 		dump_cxl_config_space(dev);
 
