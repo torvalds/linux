@@ -1429,15 +1429,24 @@ top:
 					req->req.status = 0;
 			}
 
-		/* many requests terminate without a short packet */
+		/*
+		 * many requests terminate without a short packet.
+		 * send a zlp if demanded by flags.
+		 */
 		} else {
-			if (req->req.length == req->req.actual
-					&& !req->req.zero)
-				req->req.status = 0;
-			if (urb->transfer_buffer_length == urb->actual_length
-					&& !(urb->transfer_flags
-						& URB_ZERO_PACKET))
-				*status = 0;
+			if (req->req.length == req->req.actual) {
+				if (req->req.zero && to_host)
+					rescan = 1;
+				else
+					req->req.status = 0;
+			}
+			if (urb->transfer_buffer_length == urb->actual_length) {
+				if (urb->transfer_flags & URB_ZERO_PACKET &&
+				    !to_host)
+					rescan = 1;
+				else
+					*status = 0;
+			}
 		}
 
 		/* device side completion --> continuable */
