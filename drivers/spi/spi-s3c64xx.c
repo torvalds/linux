@@ -683,7 +683,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 
 	/* Only BPW and Speed may change across transfers */
 	bpw = xfer->bits_per_word;
-	speed = xfer->speed_hz ? : spi->max_speed_hz;
+	speed = xfer->speed_hz;
 
 	if (bpw != sdd->cur_bpw || speed != sdd->cur_speed) {
 		sdd->cur_bpw = bpw;
