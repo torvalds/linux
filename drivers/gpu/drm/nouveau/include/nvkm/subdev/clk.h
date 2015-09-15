@@ -2,6 +2,7 @@
 #define __NVKM_CLK_H__
 #include <core/subdev.h>
 #include <core/notify.h>
+#include <subdev/pci.h>
 struct nvbios_pll;
 struct nvkm_pll_vals;
 
@@ -59,6 +60,8 @@ struct nvkm_pstate {
 	struct nvkm_cstate base;
 	u8 pstate;
 	u8 fanspeed;
+	enum nvkm_pcie_speed pcie_speed;
+	u8 pcie_width;
 };
 
 struct nvkm_domain {

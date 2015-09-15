@@ -330,6 +330,8 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 
 	pstate->pstate = perfE.pstate;
 	pstate->fanspeed = perfE.fanspeed;
+	pstate->pcie_speed = perfE.pcie_speed;
+	pstate->pcie_width = perfE.pcie_width;
 	cstate->voltage = perfE.voltage;
 	cstate->domain[nv_clk_src_core] = perfE.core;
 	cstate->domain[nv_clk_src_shader] = perfE.shader;
