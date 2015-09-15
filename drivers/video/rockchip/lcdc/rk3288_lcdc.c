@@ -343,6 +343,22 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 			case WIN0_CBR_MST:
 				win0->area[0].cbr_start = val;
 				break;
+			case DSP_VACT_ST_END:
+				if (support_uboot_display()) {
+					screen->mode.yres =
+					(val & 0x1fff) - ((val >> 16) & 0x1fff);
+					win0->area[0].ypos =
+					st_y - ((val >> 16) & 0x1fff);
+				}
+				break;
+			case DSP_HACT_ST_END:
+				if (support_uboot_display()) {
+					screen->mode.xres =
+					(val & 0x1fff) - ((val >> 16) & 0x1fff);
+					win0->area[0].xpos =
+					st_x - ((val >> 16) & 0x1fff);
+				}
+				break;
 			default:
 				break;
 		}
