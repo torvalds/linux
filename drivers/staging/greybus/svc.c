@@ -24,6 +24,7 @@ enum gb_svc_state {
 struct gb_svc {
 	struct gb_connection	*connection;
 	enum gb_svc_state	state;
+	struct ida		device_id_map;
 };
 
 struct svc_hotplug {
@@ -32,7 +33,6 @@ struct svc_hotplug {
 	struct gb_svc_intf_hotplug_request data;
 };
 
-static struct ida greybus_svc_device_id_map;
 
 /*
  * AP's SVC cport is required early to get messages from the SVC. This happens
@@ -369,7 +369,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	 * XXX Do we need to allocate device ID for SVC or the AP here? And what
 	 * XXX about an AP with multiple interface blocks?
 	 */
-	device_id = ida_simple_get(&greybus_svc_device_id_map,
+	device_id = ida_simple_get(&svc->device_id_map,
 				   GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
 	if (device_id < 0) {
 		ret = device_id;
@@ -413,7 +413,7 @@ svc_id_free:
 	 * XXX anymore.
 	 */
 ida_put:
-	ida_simple_remove(&greybus_svc_device_id_map, device_id);
+	ida_simple_remove(&svc->device_id_map, device_id);
 destroy_interface:
 	gb_interface_remove(hd, intf_id);
 free_svc_hotplug:
@@ -490,7 +490,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 	 */
 	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
 
-	ida_simple_remove(&greybus_svc_device_id_map, device_id);
+	ida_simple_remove(&svc->device_id_map, device_id);
 
 	return 0;
 }
@@ -594,7 +594,7 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	WARN_ON(connection->hd->initial_svc_connection);
 	connection->hd->initial_svc_connection = connection;
 
-	ida_init(&greybus_svc_device_id_map);
+	ida_init(&svc->device_id_map);
 
 	return 0;
 }
@@ -603,6 +603,7 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
+	ida_destroy(&svc->device_id_map);
 	connection->hd->svc = NULL;
 	connection->private = NULL;
 	kfree(svc);
