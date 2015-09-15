@@ -73,7 +73,7 @@ static const struct regulator_linear_range dcdc4_ranges[] = {
 };
 
 static struct tps_info tps65218_pmic_regs[] = {
-	TPS65218_INFO(DCDC1, "DCDC1", 850000, 167500),
+	TPS65218_INFO(DCDC1, "DCDC1", 850000, 1675000),
 	TPS65218_INFO(DCDC2, "DCDC2", 850000, 1675000),
 	TPS65218_INFO(DCDC3, "DCDC3", 900000, 3400000),
 	TPS65218_INFO(DCDC4, "DCDC4", 1175000, 3400000),
