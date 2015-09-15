@@ -2028,11 +2028,7 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 
 	while (index < len) {
 		if (buf[index] == GO_INTENT_ATTR_ID) {
-			#ifdef FORCE_P2P_CLIENT
-			buf[index + 3] = (buf[index + 3]  & 0x01) | (0x0f << 1);
-			#else
 			buf[index + 3] = (buf[index + 3]  & 0x01) | (0x00 << 1);
-			#endif
 		}
 
 		if (buf[index] ==  CHANLIST_ATTR_ID)
@@ -2085,11 +2081,7 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftype)
 
 	while (index < len) {
 		if (buf[index] == GO_INTENT_ATTR_ID) {
-			#ifdef FORCE_P2P_CLIENT
-			buf[index + 3] = (buf[index + 3]  & 0x01) | (0x00 << 1);
-			#else
 			buf[index + 3] = (buf[index + 3]  & 0x01) | (0x0f << 1);
-			#endif
 
 			break;
 		}
