@@ -1385,12 +1385,15 @@ top:
 			if (len == 0)
 				break;
 
-			/* use an extra pass for the final short packet */
-			if (len > ep->ep.maxpacket) {
-				rescan = 1;
-				len -= (len % ep->ep.maxpacket);
+			/* send multiple of maxpacket first, then remainder */
+			if (len >= ep->ep.maxpacket) {
+				is_short = 0;
+				if (len % ep->ep.maxpacket)
+					rescan = 1;
+				len -= len % ep->ep.maxpacket;
+			} else {
+				is_short = 1;
 			}
-			is_short = (len % ep->ep.maxpacket) != 0;
 
 			len = dummy_perform_transfer(urb, req, len);
 
