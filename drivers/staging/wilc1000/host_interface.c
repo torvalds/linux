@@ -637,7 +637,7 @@ static int get_id_from_handler(tstrWILC_WFIDrv *handler)
 
 static tstrWILC_WFIDrv *get_handler_from_id(int id)
 {
-	if (id <= 0 || id > ARRAY_SIZE(wfidrv_list))
+	if (id <= 0 || id >= ARRAY_SIZE(wfidrv_list))
 		return NULL;
 	return wfidrv_list[id];
 }
