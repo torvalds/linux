@@ -921,14 +921,8 @@ static void pump_transfers(unsigned long data)
 	cr0 = chip->cr0;
 	if (transfer->speed_hz || transfer->bits_per_word) {
 
-		bits = chip->bits_per_word;
-		speed = chip->speed_hz;
-
-		if (transfer->speed_hz)
-			speed = transfer->speed_hz;
-
-		if (transfer->bits_per_word)
-			bits = transfer->bits_per_word;
+		bits = transfer->bits_per_word;
+		speed = transfer->speed_hz;
 
 		clk_div = pxa2xx_ssp_get_clk_div(drv_data, chip, speed);
 
@@ -1200,7 +1194,6 @@ static int setup(struct spi_device *spi)
 	}
 
 	clk_div = pxa2xx_ssp_get_clk_div(drv_data, chip, spi->max_speed_hz);
-	chip->speed_hz = spi->max_speed_hz;
 
 	chip->cr0 = pxa2xx_configure_sscr0(drv_data, clk_div,
 					   spi->bits_per_word);
@@ -1251,7 +1244,6 @@ static int setup(struct spi_device *spi)
 		chip->read = u32_reader;
 		chip->write = u32_writer;
 	}
-	chip->bits_per_word = spi->bits_per_word;
 
 	spi_set_ctldata(spi, chip);
 
