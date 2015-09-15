@@ -85,7 +85,7 @@ out:
  * This function recursively checks all the fathers of the device passed as
  * argument looking for a batman-adv soft interface.
  *
- * Returns true if the device is descendant of a batman-adv mesh interface (or
+ * Return: true if the device is descendant of a batman-adv mesh interface (or
  * if it is a batman-adv interface itself), false otherwise
  */
 static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
@@ -136,7 +136,7 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
  *  interface
  * @net_device: the device to check
  *
- * Returns true if the net device is a 802.11 wireless device, false otherwise.
+ * Return: true if the net device is a 802.11 wireless device, false otherwise.
  */
 bool batadv_is_wifi_netdev(struct net_device *net_device)
 {
@@ -401,7 +401,8 @@ batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
  *
  * Invoke ndo_del_slave on master passing slave as argument. In this way slave
  * is free'd and master can correctly change its internal state.
- * Return 0 on success, a negative value representing the error otherwise
+ *
+ * Return: 0 on success, a negative value representing the error otherwise
  */
 static int batadv_master_del_slave(struct batadv_hard_iface *slave,
 				   struct net_device *master)

@@ -24,7 +24,10 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-/* Returns 1 if the corresponding bit in the given seq_bits indicates true
+/**
+ * batadv_test_bit
+ *
+ * Return: 1 if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno. Otherwise returns 0.
  */
 static inline int batadv_test_bit(const unsigned long *seq_bits,
@@ -48,8 +51,10 @@ static inline void batadv_set_bit(unsigned long *seq_bits, s32 n)
 	set_bit(n, seq_bits); /* turn the position on */
 }
 
-/* receive and process one packet, returns 1 if received seq_num is considered
- * new, 0 if old
+/**
+ * batadv_bit_get_packet - receive and process one packet
+ *
+ * Return: 1 if received seq_num is considered new, 0 if old
  */
 int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 			  int set_mark);

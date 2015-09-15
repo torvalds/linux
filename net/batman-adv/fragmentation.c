@@ -85,7 +85,7 @@ void batadv_frag_purge_orig(struct batadv_orig_node *orig_node,
 /**
  * batadv_frag_size_limit - maximum possible size of packet to be fragmented
  *
- * Returns the maximum size of payload that can be fragmented.
+ * Return: the maximum size of payload that can be fragmented.
  */
 static int batadv_frag_size_limit(void)
 {
@@ -107,7 +107,7 @@ static int batadv_frag_size_limit(void)
  *
  * Caller must hold chain->lock.
  *
- * Returns true if chain is empty and caller can just insert the new fragment
+ * Return: true if chain is empty and caller can just insert the new fragment
  * without searching for the right position.
  */
 static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
@@ -136,7 +136,7 @@ static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
  * Insert a new fragment into the reverse ordered chain in the right table
  * entry. The hash table entry is cleared if "old" fragments exist in it.
  *
- * Returns true if skb is buffered, false on error. If the chain has all the
+ * Return: true if skb is buffered, false on error. If the chain has all the
  * fragments needed to merge the packet, the chain is moved to the passed head
  * to avoid locking the chain in the table.
  */
@@ -246,7 +246,7 @@ err:
  * Expand the first skb in the chain and copy the content of the remaining
  * skb's into the expanded one. After doing so, clear the chain.
  *
- * Returns the merged skb or NULL on error.
+ * Return: the merged skb or NULL on error.
  */
 static struct sk_buff *
 batadv_frag_merge_packets(struct hlist_head *chain)
@@ -306,6 +306,9 @@ free:
  * There are three possible outcomes: 1) Packet is merged: Return true and
  * set *skb to merged packet; 2) Packet is buffered: Return true and set *skb
  * to NULL; 3) Error: Return false and leave skb as is.
+ *
+ * Return: true when packet is merged or buffered, false when skb is not not
+ * used.
  */
 bool batadv_frag_skb_buffer(struct sk_buff **skb,
 			    struct batadv_orig_node *orig_node_src)
@@ -343,7 +346,7 @@ out_err:
  * will exceed the MTU towards the next-hop. If so, the fragment is forwarded
  * without merging it.
  *
- * Returns true if the fragment is consumed/forwarded, false otherwise.
+ * Return: true if the fragment is consumed/forwarded, false otherwise.
  */
 bool batadv_frag_skb_fwd(struct sk_buff *skb,
 			 struct batadv_hard_iface *recv_if,
@@ -398,7 +401,7 @@ out:
  * passed mtu and the old one with the rest. The new skb contains data from the
  * tail of the old skb.
  *
- * Returns the new fragment, NULL on error.
+ * Return: the new fragment, NULL on error.
  */
 static struct sk_buff *batadv_frag_create(struct sk_buff *skb,
 					  struct batadv_frag_packet *frag_head,
@@ -432,7 +435,7 @@ err:
  * @orig_node: final destination of the created fragments
  * @neigh_node: next-hop of the created fragments
  *
- * Returns true on success, false otherwise.
+ * Return: true on success, false otherwise.
  */
 bool batadv_frag_send_packet(struct sk_buff *skb,
 			     struct batadv_orig_node *orig_node,

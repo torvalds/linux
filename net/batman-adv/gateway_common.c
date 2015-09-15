@@ -38,7 +38,7 @@
  * @description: text shown when throughput string cannot be parsed
  * @throughput: pointer holding the returned throughput information
  *
- * Returns false on parse error and true otherwise.
+ * Return: false on parse error and true otherwise.
  */
 static bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
 				    const char *description, u32 *throughput)

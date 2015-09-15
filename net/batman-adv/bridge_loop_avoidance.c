@@ -58,7 +58,11 @@ static void
 batadv_bla_send_announce(struct batadv_priv *bat_priv,
 			 struct batadv_bla_backbone_gw *backbone_gw);
 
-/* return the index of the claim */
+/**
+ * batadv_choose_claim
+ *
+ * Return: the index of the claim
+ */
 static inline u32 batadv_choose_claim(const void *data, u32 size)
 {
 	struct batadv_bla_claim *claim = (struct batadv_bla_claim *)data;
@@ -70,7 +74,11 @@ static inline u32 batadv_choose_claim(const void *data, u32 size)
 	return hash % size;
 }
 
-/* return the index of the backbone gateway */
+/**
+ * batadv_choose_backbone_gw
+ *
+ * Return: the index of the backbone gateway
+ */
 static inline u32 batadv_choose_backbone_gw(const void *data, u32 size)
 {
 	const struct batadv_bla_claim *claim = (struct batadv_bla_claim *)data;
@@ -145,8 +153,9 @@ static void batadv_claim_free_ref(struct batadv_bla_claim *claim)
  * @bat_priv: the bat priv with all the soft interface information
  * @data: search data (may be local/static data)
  *
- * looks for a claim in the hash, and returns it if found
- * or NULL otherwise.
+ * looks for a claim in the hash
+ *
+ * Return: claim if found or NULL otherwise.
  */
 static struct batadv_bla_claim
 *batadv_claim_hash_find(struct batadv_priv *bat_priv,
@@ -186,7 +195,7 @@ static struct batadv_bla_claim
  * @addr: the address of the originator
  * @vid: the VLAN ID
  *
- * Returns claim if found or NULL otherwise.
+ * Return: claim if found or NULL otherwise.
  */
 static struct batadv_bla_backbone_gw *
 batadv_backbone_hash_find(struct batadv_priv *bat_priv, u8 *addr,
@@ -666,7 +675,11 @@ static void batadv_bla_del_claim(struct batadv_priv *bat_priv,
 	batadv_claim_free_ref(claim);
 }
 
-/* check for ANNOUNCE frame, return 1 if handled */
+/**
+ * batadv_handle_announce - check for ANNOUNCE frame
+ *
+ * Return: 1 if handled
+ */
 static int batadv_handle_announce(struct batadv_priv *bat_priv, u8 *an_addr,
 				  u8 *backbone_addr, unsigned short vid)
 {
@@ -716,7 +729,11 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv, u8 *an_addr,
 	return 1;
 }
 
-/* check for REQUEST frame, return 1 if handled */
+/**
+ * batadv_handle_request - check for REQUEST frame
+ *
+ * Return: 1 if handled
+ */
 static int batadv_handle_request(struct batadv_priv *bat_priv,
 				 struct batadv_hard_iface *primary_if,
 				 u8 *backbone_addr, struct ethhdr *ethhdr,
@@ -740,7 +757,11 @@ static int batadv_handle_request(struct batadv_priv *bat_priv,
 	return 1;
 }
 
-/* check for UNCLAIM frame, return 1 if handled */
+/**
+ * batadv_handle_unclaim - check for UNCLAIM frame
+ *
+ * Return: 1 if handled
+ */
 static int batadv_handle_unclaim(struct batadv_priv *bat_priv,
 				 struct batadv_hard_iface *primary_if,
 				 u8 *backbone_addr, u8 *claim_addr,
@@ -769,7 +790,11 @@ static int batadv_handle_unclaim(struct batadv_priv *bat_priv,
 	return 1;
 }
 
-/* check for CLAIM frame, return 1 if handled */
+/**
+ * batadv_handle_claim - check for CLAIM frame
+ *
+ * Return: 1 if handled
+ */
 static int batadv_handle_claim(struct batadv_priv *bat_priv,
 			       struct batadv_hard_iface *primary_if,
 			       u8 *backbone_addr, u8 *claim_addr,
@@ -809,7 +834,7 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
  * This function also applies the group ID of the sender
  * if it is in the same mesh.
  *
- * returns:
+ * Return:
  *	2  - if it is a claim packet and on the same group
  *	1  - if is a claim packet from another group
  *	0  - if it is not a claim packet
@@ -880,7 +905,7 @@ static int batadv_check_claim_group(struct batadv_priv *bat_priv,
  *
  * Check if this is a claim frame, and process it accordingly.
  *
- * returns 1 if it was a claim frame, otherwise return 0 to
+ * Return: 1 if it was a claim frame, otherwise return 0 to
  * tell the callee that it can use the frame on its own.
  */
 static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
@@ -1397,7 +1422,7 @@ out:
  *
  * Check if the originator is a gateway for the VLAN identified by vid.
  *
- * Returns true if orig is a backbone for this vid, false otherwise.
+ * Return: true if orig is a backbone for this vid, false otherwise.
  */
 bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
 				    unsigned short vid)
@@ -1436,9 +1461,10 @@ bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
  * @orig_node: the orig_node of the frame
  * @hdr_size: maximum length of the frame
  *
- * bla_is_backbone_gw inspects the skb for the VLAN ID and returns 1
- * if the orig_node is also a gateway on the soft interface, otherwise it
- * returns 0.
+ * bla_is_backbone_gw inspects the skb for the VLAN ID
+ *
+ * Return: 1 if the orig_node is also a gateway on the soft interface, otherwise
+ * it returns 0.
  */
 int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 			      struct batadv_orig_node *orig_node, int hdr_size)
@@ -1498,8 +1524,9 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
  *  * we have to race for a claim
  *  * if the frame is allowed on the LAN
  *
- * in these cases, the skb is further handled by this function and
- * returns 1, otherwise it returns 0 and the caller shall further
+ * in these cases, the skb is further handled by this function
+ *
+ * Return: 1 if handled, otherwise it returns 0 and the caller shall further
  * process the skb.
  */
 int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
@@ -1592,11 +1619,12 @@ out:
  *  * a claim was received which has to be processed
  *  * the frame is allowed on the mesh
  *
- * in these cases, the skb is further handled by this function and
- * returns 1, otherwise it returns 0 and the caller shall further
- * process the skb.
+ * in these cases, the skb is further handled by this function.
  *
  * This call might reallocate skb data.
+ *
+ * Return: 1 if handled, otherwise it returns 0 and the caller shall further
+ * process the skb.
  */
 int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		  unsigned short vid)

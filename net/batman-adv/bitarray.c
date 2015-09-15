@@ -31,7 +31,7 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 
 /* receive and process one packet within the sequence number window.
  *
- * returns:
+ * Return:
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */

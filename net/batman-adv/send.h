@@ -69,7 +69,7 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
  * header via the translation table. Wrap the given skb into a batman-adv
  * unicast header. Then send this frame to the according destination node.
  *
- * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb, u8 *dst_hint,
@@ -92,7 +92,7 @@ static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
  * unicast-4addr header. Then send this frame to the according destination
  * node.
  *
- * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 static inline int batadv_send_skb_via_tt_4addr(struct batadv_priv *bat_priv,
 					       struct sk_buff *skb,

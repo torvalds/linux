@@ -273,9 +273,12 @@ static inline void _batadv_dbg(int type __always_unused,
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
 
-/* returns 1 if they are the same ethernet addr
+/**
+ * batadv_compare_eth - Compare two not u16 aligned Ethernet addresses
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
+ *
+ * Return: 1 if they are the same ethernet addr
  */
 static inline bool batadv_compare_eth(const void *data1, const void *data2)
 {
@@ -287,7 +290,7 @@ static inline bool batadv_compare_eth(const void *data1, const void *data2)
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
  *
- * Returns true if current time is after timestamp + timeout
+ * Return: true if current time is after timestamp + timeout
  */
 static inline bool batadv_has_timed_out(unsigned long timestamp,
 					unsigned int timeout)
@@ -326,7 +329,11 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
 
-/* Sum and return the cpu-local counters for index 'idx' */
+/**
+ * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
+ *
+ * Return: sum of all cpu-local counters
+ */
 static inline u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
 {
 	u64 *counters, sum = 0;
