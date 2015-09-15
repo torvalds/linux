@@ -200,7 +200,7 @@ static int DebuggingThreadTask(void *vp)
 static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct in_ifaddr *dev_iface = (struct in_ifaddr *)ptr;
-	struct WILC_WFI_priv *priv;
+	struct wilc_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	struct net_device *dev;
 	u8 *pIP_Add_buff;
@@ -831,7 +831,7 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 	unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xff};
 
 	/*BugID_5077*/
-	struct WILC_WFI_priv *priv;
+	struct wilc_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 
 	PRINT_D(TX_DBG, "Start configuring Firmware\n");
@@ -1629,7 +1629,7 @@ int mac_open(struct net_device *ndev)
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
 	int i = 0;
-	struct WILC_WFI_priv *priv;
+	struct wilc_priv *priv;
 
 #ifdef WILC_SPI
 	if (!g_linux_wlan || !g_linux_wlan->wilc_spidev) {
@@ -1707,7 +1707,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 {
 
 	struct netdev_hw_addr *ha;
-	struct WILC_WFI_priv *priv;
+	struct wilc_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	int i = 0;
 
@@ -1840,7 +1840,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 int mac_close(struct net_device *ndev)
 {
-	struct WILC_WFI_priv *priv;
+	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 
@@ -1908,7 +1908,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	s8 rssi;
 	u32 size = 0, length = 0;
 	perInterface_wlan_t *nic;
-	struct WILC_WFI_priv *priv;
+	struct wilc_priv *priv;
 	s32 s32Error = WILC_SUCCESS;
 
 	/* struct iwreq *wrq = (struct iwreq *) req;	// tony moved to case SIOCSIWPRIV */

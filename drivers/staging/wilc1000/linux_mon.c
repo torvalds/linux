@@ -63,7 +63,7 @@ void WILC_WFI_monitor_rx(uint8_t *buff, uint32_t size)
 
 	PRINT_INFO(HOSTAPD_DBG, "In monitor interface receive function\n");
 
-	/*   struct WILC_WFI_priv *priv = netdev_priv(dev); */
+	/*   struct wilc_priv *priv = netdev_priv(dev); */
 
 	/*   priv = wiphy_priv(priv->dev->ieee80211_ptr->wiphy); */
 

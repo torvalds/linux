@@ -116,7 +116,7 @@ struct wilc_wfi_p2pListenParams {
 
 #endif  /*WILC_P2P*/
 
-struct WILC_WFI_priv {
+struct wilc_priv {
 	struct wireless_dev *wdev;
 	struct cfg80211_scan_request *pstrScanReq;
 
