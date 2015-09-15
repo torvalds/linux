@@ -448,11 +448,6 @@ static int dw_spi_setup(struct spi_device *spi)
 	}
 	chip->bits_per_word = spi->bits_per_word;
 
-	if (!spi->max_speed_hz) {
-		dev_err(&spi->dev, "No max speed HZ parameter\n");
-		return -EINVAL;
-	}
-
 	chip->tmode = 0; /* Tx & Rx */
 	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
 	chip->cr0 = (chip->bits_per_word - 1)
