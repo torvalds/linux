@@ -1494,6 +1494,8 @@ static int iep_reg_address_translate(iep_service_info *pservice, struct iep_reg 
 void iep_config(iep_session *session, struct IEP_MSG *iep_msg)
 {
 	struct iep_reg *reg = kzalloc(sizeof(struct iep_reg), GFP_KERNEL);
+	int w;
+	int h;
 
 	reg->session = session;
 	iep_msg->base = reg->reg;
@@ -1567,6 +1569,16 @@ void iep_config(iep_session *session, struct IEP_MSG *iep_msg)
 		}
 	}
 #endif
+	/* workaround for iommu enable case when 4k video input */
+	w = (iep_msg->src.act_w + 15) & (0xfffffff0);
+	h = (iep_msg->src.act_h + 15) & (0xfffffff0);
+	if (w > 1920 && iep_msg->src.format == IEP_FORMAT_YCbCr_420_SP)
+		reg->reg[33] = reg->reg[32] + w * h;
+
+	w = (iep_msg->dst.act_w + 15) & (0xfffffff0);
+	h = (iep_msg->dst.act_h + 15) & (0xfffffff0);
+	if (w > 1920 && iep_msg->dst.format == IEP_FORMAT_YCbCr_420_SP)
+		reg->reg[45] = reg->reg[44] + w * h;
 
 	mutex_lock(&iep_service.lock);
 
