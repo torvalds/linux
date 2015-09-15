@@ -1421,7 +1421,7 @@ top:
 					*status = -EOVERFLOW;
 				else
 					*status = 0;
-			} else if (!to_host) {
+			} else {
 				*status = 0;
 				if (host_len > dev_len)
 					req->req.status = -EOVERFLOW;
