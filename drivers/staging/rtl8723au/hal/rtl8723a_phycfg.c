@@ -773,11 +773,6 @@ static void getTxPowerIndex(struct rtw_adapter *Adapter,
 	}
 }
 
-static void ccxPowerIndexCheck(struct rtw_adapter *Adapter, u8 channel,
-			       u8 *cckPowerLevel, u8 *ofdmPowerLevel)
-{
-}
-
 /*-----------------------------------------------------------------------------
  * Function:    SetTxPowerLevel8723A()
  *
@@ -802,9 +797,6 @@ void PHY_SetTxPowerLevel8723A(struct rtw_adapter *Adapter, u8 channel)
 
 	getTxPowerIndex(Adapter, channel, &cckPowerLevel[0],
 			&ofdmPowerLevel[0]);
-
-	ccxPowerIndexCheck(Adapter, channel, &cckPowerLevel[0],
-			   &ofdmPowerLevel[0]);
 
 	rtl823a_phy_rf6052setccktxpower(Adapter, &cckPowerLevel[0]);
 	rtl8723a_PHY_RF6052SetOFDMTxPower(Adapter, &ofdmPowerLevel[0], channel);
