@@ -3449,22 +3449,31 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
 {
-	if ((flags & (BTRFS_BLOCK_GROUP_DUP |
-		      BTRFS_BLOCK_GROUP_RAID0 |
-		      BTRFS_AVAIL_ALLOC_BIT_SINGLE)) ||
-	    ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0))
-		return 0;
+	int raid_type;
+	int min_tolerated = INT_MAX;
 
-	if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
-		     BTRFS_BLOCK_GROUP_RAID5 |
-		     BTRFS_BLOCK_GROUP_RAID10))
-		return 1;
+	if ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0 ||
+	    (flags & BTRFS_AVAIL_ALLOC_BIT_SINGLE))
+		min_tolerated = min(min_tolerated,
+				    btrfs_raid_array[BTRFS_RAID_SINGLE].
+				    tolerated_failures);
 
-	if (flags & BTRFS_BLOCK_GROUP_RAID6)
-		return 2;
+	for (raid_type = 0; raid_type < BTRFS_NR_RAID_TYPES; raid_type++) {
+		if (raid_type == BTRFS_RAID_SINGLE)
+			continue;
+		if (!(flags & btrfs_raid_group[raid_type]))
+			continue;
+		min_tolerated = min(min_tolerated,
+				    btrfs_raid_array[raid_type].
+				    tolerated_failures);
+	}
 
-	pr_warn("BTRFS: unknown raid type: %llu\n", flags);
-	return 0;
+	if (min_tolerated == INT_MAX) {
+		pr_warn("BTRFS: unknown raid flag: %llu\n", flags);
+		min_tolerated = 0;
+	}
+
+	return min_tolerated;
 }
 
 int btrfs_calc_num_tolerated_disk_barrier_failures(
