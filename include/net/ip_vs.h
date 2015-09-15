@@ -998,6 +998,7 @@ struct netns_ipvs {
 	int			sysctl_backup_only;
 	int			sysctl_conn_reuse_mode;
 	int			sysctl_schedule_icmp;
+	int			sysctl_ignore_tunneled;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -1121,6 +1122,11 @@ static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_schedule_icmp;
 }
 
+static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_ignore_tunneled;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1194,6 +1200,11 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 }
 
 static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
+{
+	return 0;
+}
+
+static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
 {
 	return 0;
 }

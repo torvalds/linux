@@ -1760,8 +1760,16 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 
 	/* Protocol supported? */
 	pd = ip_vs_proto_data_get(net, iph.protocol);
-	if (unlikely(!pd))
+	if (unlikely(!pd)) {
+		/* The only way we'll see this packet again is if it's
+		 * encapsulated, so mark it with ipvs_property=1 so we
+		 * skip it if we're ignoring tunneled packets
+		 */
+		if (sysctl_ignore_tunneled(ipvs))
+			skb->ipvs_property = 1;
+
 		return NF_ACCEPT;
+	}
 	pp = pd->pp;
 	/*
 	 * Check if the packet belongs to an existing connection entry
