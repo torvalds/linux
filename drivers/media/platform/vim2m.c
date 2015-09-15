@@ -233,12 +233,9 @@ static int device_process(struct vim2m_ctx *ctx,
 
 	out_vb->v4l2_buf.sequence = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE)->sequence++;
 	in_vb->v4l2_buf.sequence = q_data->sequence++;
-	memcpy(&out_vb->v4l2_buf.timestamp,
-			&in_vb->v4l2_buf.timestamp,
-			sizeof(struct timeval));
+	out_vb->v4l2_buf.timestamp = in_vb->v4l2_buf.timestamp;
 	if (in_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TIMECODE)
-		memcpy(&out_vb->v4l2_buf.timecode, &in_vb->v4l2_buf.timecode,
-			sizeof(struct v4l2_timecode));
+		out_vb->v4l2_buf.timecode = in_vb->v4l2_buf.timecode;
 	out_vb->v4l2_buf.field = in_vb->v4l2_buf.field;
 	out_vb->v4l2_buf.flags = in_vb->v4l2_buf.flags &
 		(V4L2_BUF_FLAG_TIMECODE |
