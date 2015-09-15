@@ -38,7 +38,7 @@
  #define MAX_SPEED 6000000
 #endif /* WILC_ASIC_A0 */
 
-static uint32_t SPEED = MIN_SPEED;
+static u32 SPEED = MIN_SPEED;
 
 struct spi_device *wilc_spi_dev;
 void linux_spi_deinit(void *vp);
@@ -115,7 +115,7 @@ int linux_spi_init(void *vp)
 
 #if defined(TXRX_PHASE_SIZE)
 
-int linux_spi_write(u8 *b, uint32_t len)
+int linux_spi_write(u8 *b, u32 len)
 {
 	int ret;
 
@@ -194,7 +194,7 @@ int linux_spi_write(u8 *b, uint32_t len)
 }
 
 #else
-int linux_spi_write(u8 *b, uint32_t len)
+int linux_spi_write(u8 *b, u32 len)
 {
 
 	int ret;

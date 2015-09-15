@@ -110,11 +110,11 @@ static struct semaphore close_exit_sync;
 
 static int wlan_deinit_locks(linux_wlan_t *nic);
 static void wlan_deinitialize_threads(linux_wlan_t *nic);
-extern void WILC_WFI_monitor_rx(u8 *buff, uint32_t size);
-extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, uint32_t size);
+extern void WILC_WFI_monitor_rx(u8 *buff, u32 size);
+extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
 
 static void linux_wlan_tx_complete(void *priv, int status);
-void frmw_to_linux(u8 *buff, uint32_t size, uint32_t pkt_offset);
+void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset);
 static int  mac_init_fn(struct net_device *ndev);
 int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
 int  mac_open(struct net_device *ndev);
@@ -1969,7 +1969,7 @@ done:
 	return s32Error;
 }
 
-void frmw_to_linux(u8 *buff, uint32_t size, uint32_t pkt_offset)
+void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
 {
 
 	unsigned int frame_len = 0;
@@ -2048,7 +2048,7 @@ void frmw_to_linux(u8 *buff, uint32_t size, uint32_t pkt_offset)
 		#endif
 }
 
-void WILC_WFI_mgmt_rx(u8 *buff, uint32_t size)
+void WILC_WFI_mgmt_rx(u8 *buff, u32 size)
 {
 	int i = 0;
 	perInterface_wlan_t *nic;

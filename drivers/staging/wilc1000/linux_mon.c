@@ -54,9 +54,9 @@ u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 #define IS_MGMT_STATUS_SUCCES			0x040
 #define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
-void WILC_WFI_monitor_rx(u8 *buff, uint32_t size)
+void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 {
-	uint32_t header, pkt_offset;
+	u32 header, pkt_offset;
 	struct sk_buff *skb = NULL;
 	struct wilc_wfi_radiotap_hdr *hdr;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;

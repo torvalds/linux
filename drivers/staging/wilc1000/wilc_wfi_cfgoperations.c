@@ -162,7 +162,7 @@ void clear_shadow_scan(void *pUserVoid)
 
 }
 
-uint32_t get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
+u32 get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
 {
 	u8 i;
 	int rssi_v = 0;
@@ -301,7 +301,7 @@ int8_t is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
 void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, void *pJoinParams)
 {
 	int8_t ap_found = is_network_in_shadow(pstrNetworkInfo, pUserVoid);
-	uint32_t ap_index = 0;
+	u32 ap_index = 0;
 	u8 rssi_index = 0;
 
 	if (u32LastScannedNtwrksCountShadow >= MAX_NUM_SCANNED_NETWORKS_SHADOW) {
@@ -2198,7 +2198,7 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftype)
  *  @version		1.0
  */
 
-void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, uint32_t size)
+void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 {
 
 	struct wilc_priv *priv;

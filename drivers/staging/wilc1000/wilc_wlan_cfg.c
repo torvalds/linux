@@ -160,7 +160,7 @@ static wilc_cfg_str_t g_cfg_str[] = {
  *
  ********************************************/
 
-static int wilc_wlan_cfg_set_byte(u8 *frame, uint32_t offset, u16 id, u8 val8)
+static int wilc_wlan_cfg_set_byte(u8 *frame, u32 offset, u16 id, u8 val8)
 {
 	u8 *buf;
 
@@ -176,7 +176,7 @@ static int wilc_wlan_cfg_set_byte(u8 *frame, uint32_t offset, u16 id, u8 val8)
 	return 4;
 }
 
-static int wilc_wlan_cfg_set_hword(u8 *frame, uint32_t offset, u16 id, u16 val16)
+static int wilc_wlan_cfg_set_hword(u8 *frame, u32 offset, u16 id, u16 val16)
 {
 	u8 *buf;
 
@@ -194,7 +194,7 @@ static int wilc_wlan_cfg_set_hword(u8 *frame, uint32_t offset, u16 id, u16 val16
 	return 5;
 }
 
-static int wilc_wlan_cfg_set_word(u8 *frame, uint32_t offset, u16 id, uint32_t val32)
+static int wilc_wlan_cfg_set_word(u8 *frame, u32 offset, u16 id, u32 val32)
 {
 	u8 *buf;
 
@@ -214,7 +214,7 @@ static int wilc_wlan_cfg_set_word(u8 *frame, uint32_t offset, u16 id, uint32_t v
 	return 7;
 }
 
-static int wilc_wlan_cfg_set_str(u8 *frame, uint32_t offset, u16 id, u8 *str, uint32_t size)
+static int wilc_wlan_cfg_set_str(u8 *frame, u32 offset, u16 id, u8 *str, u32 size)
 {
 	u8 *buf;
 
@@ -233,10 +233,10 @@ static int wilc_wlan_cfg_set_str(u8 *frame, uint32_t offset, u16 id, u8 *str, ui
 	return (size + 3);
 }
 
-static int wilc_wlan_cfg_set_bin(u8 *frame, uint32_t offset, u16 id, u8 *b, uint32_t size)
+static int wilc_wlan_cfg_set_bin(u8 *frame, u32 offset, u16 id, u8 *b, u32 size)
 {
 	u8 *buf;
-	uint32_t i;
+	u32 i;
 	u8 checksum = 0;
 
 	if ((offset + size + 5) >= MAX_CFG_FRAME_SIZE)
@@ -268,7 +268,7 @@ static int wilc_wlan_cfg_set_bin(u8 *frame, uint32_t offset, u16 id, u8 *b, uint
 
 static void wilc_wlan_parse_response_frame(u8 *info, int size)
 {
-	uint32_t wid, len = 0, i = 0;
+	u32 wid, len = 0, i = 0;
 	static int seq;
 
 	while (size > 0) {
@@ -364,7 +364,7 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 static int wilc_wlan_parse_info_frame(u8 *info, int size)
 {
 	wilc_mac_cfg_t *pd = (wilc_mac_cfg_t *)&g_mac;
-	uint32_t wid, len;
+	u32 wid, len;
 	int type = WILC_CFG_RSP_STATUS;
 
 	wid = info[0] | (info[1] << 8);
@@ -385,7 +385,7 @@ static int wilc_wlan_parse_info_frame(u8 *info, int size)
  *
  ********************************************/
 
-static int wilc_wlan_cfg_set_wid(u8 *frame, uint32_t offset, u16 id, u8 *buf, int size)
+static int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size)
 {
 	u8 type = (id >> 12) & 0xf;
 	int ret = 0;
@@ -398,7 +398,7 @@ static int wilc_wlan_cfg_set_wid(u8 *frame, uint32_t offset, u16 id, u8 *buf, in
 			ret = wilc_wlan_cfg_set_hword(frame, offset, id, *((u16 *)buf));
 	} else if (type == 2) {                 /* word command */
 		if (size >= 4)
-			ret = wilc_wlan_cfg_set_word(frame, offset, id, *((uint32_t *)buf));
+			ret = wilc_wlan_cfg_set_word(frame, offset, id, *((u32 *)buf));
 	} else if (type == 3) {                 /* string command */
 		ret = wilc_wlan_cfg_set_str(frame, offset, id, buf, size);
 	} else if (type == 4) {                 /* binary command */
@@ -410,7 +410,7 @@ static int wilc_wlan_cfg_set_wid(u8 *frame, uint32_t offset, u16 id, u8 *buf, in
 	return ret;
 }
 
-static int wilc_wlan_cfg_get_wid(u8 *frame, uint32_t offset, u16 id)
+static int wilc_wlan_cfg_get_wid(u8 *frame, u32 offset, u16 id)
 {
 	u8 *buf;
 
@@ -425,13 +425,13 @@ static int wilc_wlan_cfg_get_wid(u8 *frame, uint32_t offset, u16 id)
 	return 2;
 }
 
-static int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, uint32_t buffer_size)
+static int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, u32 buffer_size)
 {
-	uint32_t type = (wid >> 12) & 0xf;
+	u32 type = (wid >> 12) & 0xf;
 	int i, ret = 0;
 
 	if (wid == WID_STATUS) {
-		*((uint32_t *)buffer) = g_mac.mac_status;
+		*((u32 *)buffer) = g_mac.mac_status;
 		return 4;
 	}
 
@@ -478,7 +478,7 @@ static int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, uint32_t buffer_size
 				break;
 
 			if (g_cfg_str[i].id == wid) {
-				uint32_t size =  g_cfg_str[i].str[0];
+				u32 size =  g_cfg_str[i].str[0];
 
 				if (buffer_size >= size) {
 					if (g_cfg_str[i].id == WID_SITE_SURVEY_RESULTS)	{

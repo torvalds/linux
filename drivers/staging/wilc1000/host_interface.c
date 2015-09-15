@@ -3380,7 +3380,7 @@ static void Handle_GetLinkspeed(tstrWILC_WFIDrv *drvHandler)
 s32 Handle_GetStatistics(tstrWILC_WFIDrv *drvHandler, tstrStatistics *pstrStatistics)
 {
 	tstrWID strWIDList[5];
-	uint32_t u32WidsCount = 0, s32Error = 0;
+	u32 u32WidsCount = 0, s32Error = 0;
 
 	strWIDList[u32WidsCount].u16WIDid = WID_LINKSPEED;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
@@ -7460,7 +7460,7 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSt
 	return s32Error;
 }
 #endif /*WILC_AP_EXTERNAL_MLME*/
-uint32_t wilc_get_chipid(u8);
+u32 wilc_get_chipid(u8);
 
 s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Timeout)
 {

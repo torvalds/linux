@@ -15,7 +15,7 @@
 typedef struct {
 	void *os_context;
 	wilc_wlan_os_func_t os_func;
-	uint32_t block_size;
+	u32 block_size;
 	int (*sdio_cmd52)(sdio_cmd52_t *);
 	int (*sdio_cmd53)(sdio_cmd53_t *);
 	int (*sdio_set_max_speed)(void);
@@ -29,8 +29,8 @@ typedef struct {
 static wilc_sdio_t g_sdio;
 
 #ifdef WILC_SDIO_IRQ_GPIO
-static int sdio_write_reg(uint32_t addr, uint32_t data);
-static int sdio_read_reg(uint32_t addr, uint32_t *data);
+static int sdio_write_reg(u32 addr, u32 data);
+static int sdio_read_reg(u32 addr, u32 *data);
 #endif
 
 /********************************************
@@ -39,7 +39,7 @@ static int sdio_read_reg(uint32_t addr, uint32_t *data);
  *
  ********************************************/
 
-static int sdio_set_func0_csa_address(uint32_t adr)
+static int sdio_set_func0_csa_address(u32 adr)
 {
 	sdio_cmd52_t cmd;
 
@@ -75,7 +75,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_set_func0_csa_address_byte0(uint32_t adr)
+static int sdio_set_func0_csa_address_byte0(u32 adr)
 {
 	sdio_cmd52_t cmd;
 
@@ -97,7 +97,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_set_func0_block_size(uint32_t block_size)
+static int sdio_set_func0_block_size(u32 block_size)
 {
 	sdio_cmd52_t cmd;
 
@@ -129,7 +129,7 @@ _fail_:
  *
  ********************************************/
 
-static int sdio_set_func1_block_size(uint32_t block_size)
+static int sdio_set_func1_block_size(u32 block_size)
 {
 	sdio_cmd52_t cmd;
 
@@ -157,7 +157,7 @@ _fail_:
 static int sdio_clear_int(void)
 {
 #ifndef WILC_SDIO_IRQ_GPIO
-	/* uint32_t sts; */
+	/* u32 sts; */
 	sdio_cmd52_t cmd;
 
 	cmd.read_write = 0;
@@ -169,7 +169,7 @@ static int sdio_clear_int(void)
 
 	return cmd.data;
 #else
-	uint32_t reg;
+	u32 reg;
 
 	if (!sdio_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
@@ -182,9 +182,9 @@ static int sdio_clear_int(void)
 
 }
 
-uint32_t sdio_xfer_cnt(void)
+u32 sdio_xfer_cnt(void)
 {
-	uint32_t cnt = 0;
+	u32 cnt = 0;
 	sdio_cmd52_t cmd;
 
 	cmd.read_write = 0;
@@ -243,7 +243,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_write_reg(uint32_t addr, uint32_t data)
+static int sdio_write_reg(u32 addr, u32 data)
 {
 #ifdef BIG_ENDIAN
 	data = BYTE_SWAP(data);
@@ -292,9 +292,9 @@ _fail_:
 	return 0;
 }
 
-static int sdio_write(uint32_t addr, u8 *buf, uint32_t size)
+static int sdio_write(u32 addr, u8 *buf, u32 size)
 {
-	uint32_t block_size = g_sdio.block_size;
+	u32 block_size = g_sdio.block_size;
 	sdio_cmd53_t cmd;
 	int nblk, nleft;
 
@@ -376,7 +376,7 @@ _fail_:
 	return 0;
 }
 
-static int sdio_read_reg(uint32_t addr, uint32_t *data)
+static int sdio_read_reg(u32 addr, u32 *data)
 {
 	if ((addr >= 0xf0) && (addr <= 0xff)) {
 		sdio_cmd52_t cmd;
@@ -423,9 +423,9 @@ _fail_:
 	return 0;
 }
 
-static int sdio_read(uint32_t addr, u8 *buf, uint32_t size)
+static int sdio_read(u32 addr, u8 *buf, u32 size)
 {
-	uint32_t block_size = g_sdio.block_size;
+	u32 block_size = g_sdio.block_size;
 	sdio_cmd53_t cmd;
 	int nblk, nleft;
 
@@ -520,7 +520,7 @@ static int sdio_deinit(void *pv)
 
 static int sdio_sync(void)
 {
-	uint32_t reg;
+	u32 reg;
 
 	/**
 	 *      Disable power sequencer
@@ -538,7 +538,7 @@ static int sdio_sync(void)
 
 #ifdef WILC_SDIO_IRQ_GPIO
 	{
-		uint32_t reg;
+		u32 reg;
 		int ret;
 
 		/**
@@ -580,7 +580,7 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 {
 	sdio_cmd52_t cmd;
 	int loop;
-	uint32_t chipid;
+	u32 chipid;
 
 	memset(&g_sdio, 0, sizeof(wilc_sdio_t));
 
@@ -712,10 +712,10 @@ static void sdio_set_default_speed(void)
 	g_sdio.sdio_set_default_speed();
 }
 
-static int sdio_read_size(uint32_t *size)
+static int sdio_read_size(u32 *size)
 {
 
-	uint32_t tmp;
+	u32 tmp;
 	sdio_cmd52_t cmd;
 
 	/**
@@ -741,10 +741,10 @@ static int sdio_read_size(uint32_t *size)
 	return 1;
 }
 
-static int sdio_read_int(uint32_t *int_status)
+static int sdio_read_int(u32 *int_status)
 {
 
-	uint32_t tmp;
+	u32 tmp;
 	sdio_cmd52_t cmd;
 
 	sdio_read_size(&tmp);
@@ -784,7 +784,7 @@ static int sdio_read_int(uint32_t *int_status)
 	}
 #else
 	{
-		uint32_t irq_flags;
+		u32 irq_flags;
 
 		cmd.read_write = 0;
 		cmd.function = 0;
@@ -803,16 +803,16 @@ static int sdio_read_int(uint32_t *int_status)
 	return 1;
 }
 
-static int sdio_clear_int_ext(uint32_t val)
+static int sdio_clear_int_ext(u32 val)
 {
 	int ret;
 
 	if (g_sdio.has_thrpt_enh3) {
-		uint32_t reg;
+		u32 reg;
 
 #ifdef WILC_SDIO_IRQ_GPIO
 		{
-			uint32_t flags;
+			u32 flags;
 
 			flags = val & ((1 << MAX_NUN_INT_THRPT_ENH2) - 1);
 			reg = flags;
@@ -850,7 +850,7 @@ static int sdio_clear_int_ext(uint32_t val)
 		{
 			/* see below. has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
 			/* Cannot clear multiple interrupts. Must clear each interrupt individually */
-			uint32_t flags;
+			u32 flags;
 
 			flags = val & ((1 << MAX_NUM_INT) - 1);
 			if (flags) {
@@ -890,7 +890,7 @@ static int sdio_clear_int_ext(uint32_t val)
 #endif /* WILC_SDIO_IRQ_GPIO */
 
 		{
-			uint32_t vmm_ctl;
+			u32 vmm_ctl;
 
 			vmm_ctl = 0;
 			/* select VMM table 0 */
@@ -927,7 +927,7 @@ _fail_:
 
 static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 {
-	uint32_t reg;
+	u32 reg;
 
 	if (nint > MAX_NUM_INT) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Too many interupts (%d)...\n", nint);
@@ -956,7 +956,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 
 #ifdef WILC_SDIO_IRQ_GPIO
 	{
-		uint32_t reg;
+		u32 reg;
 		int ret, i;
 
 		/**

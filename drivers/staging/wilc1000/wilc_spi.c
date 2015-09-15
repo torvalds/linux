@@ -16,9 +16,9 @@
  */
 typedef struct {
 	void *os_context;
-	int (*spi_tx)(u8 *, uint32_t);
-	int (*spi_rx)(u8 *, uint32_t);
-	int (*spi_trx)(u8 *, u8 *, uint32_t);
+	int (*spi_tx)(u8 *, u32);
+	int (*spi_rx)(u8 *, u32);
+	int (*spi_trx)(u8 *, u8 *, u32);
 	int (*spi_max_speed)(void);
 	wilc_debug_func dPrint;
 	int crc_off;
@@ -28,8 +28,8 @@ typedef struct {
 
 static wilc_spi_t g_spi;
 
-static int spi_read(uint32_t, u8 *, uint32_t);
-static int spi_write(uint32_t, u8 *, uint32_t);
+static int spi_read(u32, u8 *, u32);
+static int spi_write(u32, u8 *, u32);
 
 /********************************************
  *
@@ -77,7 +77,7 @@ static u8 crc7_byte(u8 crc, u8 data)
 	return crc7_syndrome_table[(crc << 1) ^ data];
 }
 
-static u8 crc7(u8 crc, const u8 *buffer, uint32_t len)
+static u8 crc7(u8 crc, const u8 *buffer, u32 len)
 {
 	while (len--)
 		crc = crc7_byte(crc, *buffer++);
@@ -114,7 +114,7 @@ static u8 crc7(u8 crc, const u8 *buffer, uint32_t len)
 #define DATA_PKT_SZ_8K				(8 * 1024)
 #define DATA_PKT_SZ					DATA_PKT_SZ_8K
 
-static int spi_cmd(u8 cmd, uint32_t adr, uint32_t data, uint32_t sz, u8 clockless)
+static int spi_cmd(u8 cmd, u32 adr, u32 data, u32 sz, u8 clockless)
 {
 	u8 bc[9];
 	int len = 5;
@@ -271,11 +271,11 @@ _fail_:
 	return result;
 }
 
-static int spi_cmd_complete(u8 cmd, uint32_t adr, u8 *b, uint32_t sz, u8 clockless)
+static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 {
 	u8 wb[32], rb[32];
 	u8 wix, rix;
-	uint32_t len2;
+	u32 len2;
 	u8 rsp;
 	int len = 0;
 	int result = N_OK;
@@ -610,7 +610,7 @@ _error_:
 	return result;
 }
 
-static int spi_data_read(u8 *b, uint32_t sz)
+static int spi_data_read(u8 *b, u32 sz)
 {
 	int retry, ix, nbytes;
 	int result = N_OK;
@@ -678,7 +678,7 @@ static int spi_data_read(u8 *b, uint32_t sz)
 	return result;
 }
 
-static int spi_data_write(u8 *b, uint32_t sz)
+static int spi_data_write(u8 *b, u32 sz)
 {
 	int ix, nbytes;
 	int result = 1;
@@ -755,7 +755,7 @@ static int spi_data_write(u8 *b, uint32_t sz)
  *
  ********************************************/
 
-static int spi_internal_write(uint32_t adr, uint32_t dat)
+static int spi_internal_write(u32 adr, u32 dat)
 {
 	int result;
 
@@ -787,7 +787,7 @@ static int spi_internal_write(uint32_t adr, uint32_t dat)
 	return result;
 }
 
-static int spi_internal_read(uint32_t adr, uint32_t *data)
+static int spi_internal_read(u32 adr, u32 *data)
 {
 	int result;
 
@@ -834,7 +834,7 @@ static int spi_internal_read(uint32_t adr, uint32_t *data)
  *
  ********************************************/
 
-static int spi_write_reg(uint32_t addr, uint32_t data)
+static int spi_write_reg(u32 addr, u32 data)
 {
 	int result = N_OK;
 	u8 cmd = CMD_SINGLE_WRITE;
@@ -877,7 +877,7 @@ static int spi_write_reg(uint32_t addr, uint32_t data)
 
 }
 
-static int spi_write(uint32_t addr, u8 *buf, uint32_t size)
+static int spi_write(u32 addr, u8 *buf, u32 size)
 {
 	int result;
 	u8 cmd = CMD_DMA_EXT_WRITE;
@@ -922,7 +922,7 @@ static int spi_write(uint32_t addr, u8 *buf, uint32_t size)
 	return 1;
 }
 
-static int spi_read_reg(uint32_t addr, uint32_t *data)
+static int spi_read_reg(u32 addr, u32 *data)
 {
 	int result = N_OK;
 	u8 cmd = CMD_SINGLE_READ;
@@ -968,7 +968,7 @@ static int spi_read_reg(uint32_t addr, uint32_t *data)
 	return 1;
 }
 
-static int spi_read(uint32_t addr, u8 *buf, uint32_t size)
+static int spi_read(u32 addr, u8 *buf, u32 size)
 {
 	u8 cmd = CMD_DMA_EXT_READ;
 	int result;
@@ -1020,7 +1020,7 @@ static int spi_read(uint32_t addr, u8 *buf, uint32_t size)
 
 static int spi_clear_int(void)
 {
-	uint32_t reg;
+	u32 reg;
 
 	if (!spi_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
 		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
@@ -1041,7 +1041,7 @@ static int spi_deinit(void *pv)
 
 static int spi_sync(void)
 {
-	uint32_t reg;
+	u32 reg;
 	int ret;
 
 	/**
@@ -1079,8 +1079,8 @@ static int spi_sync(void)
 
 static int spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 {
-	uint32_t reg;
-	uint32_t chipid;
+	u32 reg;
+	u32 chipid;
 
 	static int isinit;
 
@@ -1165,7 +1165,7 @@ static void spi_default_bus_speed(void)
 {
 }
 
-static int spi_read_size(uint32_t *size)
+static int spi_read_size(u32 *size)
 {
 	int ret;
 
@@ -1173,8 +1173,8 @@ static int spi_read_size(uint32_t *size)
 		ret = spi_internal_read(0xe840 - WILC_SPI_REG_BASE, size);
 		*size = *size  & IRQ_DMA_WD_CNT_MASK;
 	} else {
-		uint32_t tmp;
-		uint32_t byte_cnt;
+		u32 tmp;
+		u32 byte_cnt;
 
 		ret = spi_read_reg(WILC_VMM_TO_HOST_SIZE, &byte_cnt);
 		if (!ret) {
@@ -1193,15 +1193,15 @@ _fail_:
 
 
 
-static int spi_read_int(uint32_t *int_status)
+static int spi_read_int(u32 *int_status)
 {
 	int ret;
 
 	if (g_spi.has_thrpt_enh) {
 		ret = spi_internal_read(0xe840 - WILC_SPI_REG_BASE, int_status);
 	} else {
-		uint32_t tmp;
-		uint32_t byte_cnt;
+		u32 tmp;
+		u32 byte_cnt;
 
 		ret = spi_read_reg(WILC_VMM_TO_HOST_SIZE, &byte_cnt);
 		if (!ret) {
@@ -1215,7 +1215,7 @@ static int spi_read_int(uint32_t *int_status)
 
 			j = 0;
 			do {
-				uint32_t irq_flags;
+				u32 irq_flags;
 
 				happended = 0;
 
@@ -1228,7 +1228,7 @@ static int spi_read_int(uint32_t *int_status)
 				}
 
 				{
-					uint32_t unkmown_mask;
+					u32 unkmown_mask;
 
 					unkmown_mask = ~((1ul << g_spi.nint) - 1);
 
@@ -1249,14 +1249,14 @@ _fail_:
 	return ret;
 }
 
-static int spi_clear_int_ext(uint32_t val)
+static int spi_clear_int_ext(u32 val)
 {
 	int ret;
 
 	if (g_spi.has_thrpt_enh) {
 		ret = spi_internal_write(0xe844 - WILC_SPI_REG_BASE, val);
 	} else {
-		uint32_t flags;
+		u32 flags;
 
 		flags = val & ((1 << MAX_NUM_INT) - 1);
 		if (flags) {
@@ -1283,7 +1283,7 @@ static int spi_clear_int_ext(uint32_t val)
 		}
 
 		{
-			uint32_t tbl_ctl;
+			u32 tbl_ctl;
 
 			tbl_ctl = 0;
 			/* select VMM table 0 */
@@ -1317,7 +1317,7 @@ _fail_:
 
 static int spi_sync_ext(int nint /*  how mant interrupts to enable. */)
 {
-	uint32_t reg;
+	u32 reg;
 	int ret, i;
 
 	if (nint > MAX_NUM_INT) {

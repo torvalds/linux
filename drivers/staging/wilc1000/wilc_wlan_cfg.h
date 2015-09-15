@@ -21,12 +21,12 @@ typedef struct {
 } wilc_cfg_hword_t;
 
 typedef struct {
-	uint32_t id;
-	uint32_t val;
+	u32 id;
+	u32 val;
 } wilc_cfg_word_t;
 
 typedef struct {
-	uint32_t id;
+	u32 id;
 	u8 *str;
 } wilc_cfg_str_t;
 

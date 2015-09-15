@@ -227,7 +227,7 @@
  *      Debug Type
  *
  ********************************************/
-typedef void (*wilc_debug_func)(uint32_t, char *, ...);
+typedef void (*wilc_debug_func)(u32, char *, ...);
 
 /********************************************
  *
@@ -262,17 +262,17 @@ struct rxq_entry_t {
 typedef struct {
 	int (*hif_init)(wilc_wlan_inp_t *, wilc_debug_func);
 	int (*hif_deinit)(void *);
-	int (*hif_read_reg)(uint32_t, uint32_t *);
-	int (*hif_write_reg)(uint32_t, uint32_t);
-	int (*hif_block_rx)(uint32_t, u8 *, uint32_t);
-	int (*hif_block_tx)(uint32_t, u8 *, uint32_t);
+	int (*hif_read_reg)(u32, u32 *);
+	int (*hif_write_reg)(u32, u32);
+	int (*hif_block_rx)(u32, u8 *, u32);
+	int (*hif_block_tx)(u32, u8 *, u32);
 	int (*hif_sync)(void);
 	int (*hif_clear_int)(void);
-	int (*hif_read_int)(uint32_t *);
-	int (*hif_clear_int_ext)(uint32_t);
-	int (*hif_read_size)(uint32_t *);
-	int (*hif_block_tx_ext)(uint32_t, u8 *, uint32_t);
-	int (*hif_block_rx_ext)(uint32_t, u8 *, uint32_t);
+	int (*hif_read_int)(u32 *);
+	int (*hif_clear_int_ext)(u32);
+	int (*hif_read_size)(u32 *);
+	int (*hif_block_tx_ext)(u32, u8 *, u32);
+	int (*hif_block_rx_ext)(u32, u8 *, u32);
 	int (*hif_sync_ext)(int);
 	void (*hif_set_max_bus_speed)(void);
 	void (*hif_set_default_bus_speed)(void);
@@ -295,18 +295,18 @@ typedef struct {
 } wilc_cfg_frame_t;
 
 typedef struct {
-	int (*wlan_tx)(u8 *, uint32_t, wilc_tx_complete_func_t);
+	int (*wlan_tx)(u8 *, u32, wilc_tx_complete_func_t);
 } wilc_wlan_cfg_func_t;
 
 typedef struct {
 	int type;
-	uint32_t seq_no;
+	u32 seq_no;
 } wilc_cfg_rsp_t;
 
 typedef struct {
-	int (*cfg_wid_set)(u8 *, uint32_t, u16, u8 *, int);
-	int (*cfg_wid_get)(u8 *, uint32_t, u16);
-	int (*cfg_wid_get_val)(u16, u8 *, uint32_t);
+	int (*cfg_wid_set)(u8 *, u32, u16, u8 *, int);
+	int (*cfg_wid_get)(u8 *, u32, u16);
+	int (*cfg_wid_get_val)(u16, u8 *, u32);
 	int (*rx_indicate)(u8 *, int, wilc_cfg_rsp_t *);
 	int (*cfg_init)(wilc_debug_func);
 } wilc_cfg_func_t;
