@@ -90,6 +90,14 @@ static int virtio_gpu_crtc_cursor_set(struct drm_crtc *crtc,
 					   cpu_to_le32(64),
 					   cpu_to_le32(64),
 					   0, 0, &fence);
+	ret = virtio_gpu_object_reserve(qobj, false);
+	if (!ret) {
+		reservation_object_add_excl_fence(qobj->tbo.resv,
+						  &fence->f);
+		fence_put(&fence->f);
+		virtio_gpu_object_unreserve(qobj);
+		virtio_gpu_object_wait(qobj, false);
+	}
 
 	output->cursor.hdr.type = cpu_to_le32(VIRTIO_GPU_CMD_UPDATE_CURSOR);
 	output->cursor.resource_id = cpu_to_le32(qobj->hw_res_handle);
