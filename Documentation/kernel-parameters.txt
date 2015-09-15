@@ -973,6 +973,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlycon=	[KNL] Output early console device and options.
 
+			When used with no options, the early console is
+			determined by the stdout-path property in device
+			tree's chosen node.
+
 		cdns,<addr>
 			Start an early, polled-mode console on a cadence serial
 			port at the specified address. The cadence serial port
