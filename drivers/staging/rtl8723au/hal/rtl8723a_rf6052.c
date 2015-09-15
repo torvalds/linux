@@ -184,7 +184,7 @@ static void getPowerBase(struct rtw_adapter *Adapter, u8 *pPowerLevel,
 			 u8 Channel, u32 *OfdmBase, u32 *MCSBase)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u32 powerBase0, powerBase1;
+	u32 ofdm, mcs;
 	u8 Legacy_pwrdiff = 0;
 	s8 HT20_pwrdiff = 0;
 	u8 i, powerlevel[2];
@@ -192,11 +192,10 @@ static void getPowerBase(struct rtw_adapter *Adapter, u8 *pPowerLevel,
 	for (i = 0; i < 2; i++) {
 		powerlevel[i] = pPowerLevel[i];
 		Legacy_pwrdiff = pHalData->TxPwrLegacyHtDiff[i][Channel-1];
-		powerBase0 = powerlevel[i] + Legacy_pwrdiff;
+		ofdm = powerlevel[i] + Legacy_pwrdiff;
 
-		powerBase0 = powerBase0 << 24 | powerBase0 << 16 |
-			powerBase0 << 8 | powerBase0;
-		*(OfdmBase + i) = powerBase0;
+		ofdm = ofdm << 24 | ofdm << 16 | ofdm << 8 | ofdm;
+		*(OfdmBase + i) = ofdm;
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -205,10 +204,9 @@ static void getPowerBase(struct rtw_adapter *Adapter, u8 *pPowerLevel,
 			HT20_pwrdiff = pHalData->TxPwrHt20Diff[i][Channel-1];
 			powerlevel[i] += HT20_pwrdiff;
 		}
-		powerBase1 = powerlevel[i];
-		powerBase1 = powerBase1 << 24 | powerBase1 << 16 |
-			powerBase1 << 8 | powerBase1;
-		*(MCSBase + i) = powerBase1;
+		mcs = powerlevel[i];
+		mcs = mcs << 24 | mcs << 16 | mcs << 8 | mcs;
+		*(MCSBase + i) = mcs;
 	}
 }
 
