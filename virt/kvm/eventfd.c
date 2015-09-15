@@ -771,40 +771,14 @@ static enum kvm_bus ioeventfd_bus_from_flags(__u32 flags)
 	return KVM_MMIO_BUS;
 }
 
-static int
-kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+static int kvm_assign_ioeventfd_idx(struct kvm *kvm,
+				enum kvm_bus bus_idx,
+				struct kvm_ioeventfd *args)
 {
-	enum kvm_bus              bus_idx;
-	struct _ioeventfd        *p;
-	struct eventfd_ctx       *eventfd;
-	int                       ret;
 
-	bus_idx = ioeventfd_bus_from_flags(args->flags);
-	/* must be natural-word sized, or 0 to ignore length */
-	switch (args->len) {
-	case 0:
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* check for range overflow */
-	if (args->addr + args->len < args->addr)
-		return -EINVAL;
-
-	/* check for extra flags that we don't understand */
-	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
-		return -EINVAL;
-
-	/* ioeventfd with no length can't be combined with DATAMATCH */
-	if (!args->len &&
-	    args->flags & (KVM_IOEVENTFD_FLAG_PIO |
-			   KVM_IOEVENTFD_FLAG_DATAMATCH))
-		return -EINVAL;
+	struct eventfd_ctx *eventfd;
+	struct _ioeventfd *p;
+	int ret;
 
 	eventfd = eventfd_ctx_fdget(args->fd);
 	if (IS_ERR(eventfd))
@@ -873,14 +847,13 @@ fail:
 }
 
 static int
-kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
+			   struct kvm_ioeventfd *args)
 {
-	enum kvm_bus              bus_idx;
 	struct _ioeventfd        *p, *tmp;
 	struct eventfd_ctx       *eventfd;
 	int                       ret = -ENOENT;
 
-	bus_idx = ioeventfd_bus_from_flags(args->flags);
 	eventfd = eventfd_ctx_fdget(args->fd);
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
@@ -916,6 +889,48 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	eventfd_ctx_put(eventfd);
 
 	return ret;
+}
+
+static int kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	enum kvm_bus bus_idx = ioeventfd_bus_from_flags(args->flags);
+
+	return kvm_deassign_ioeventfd_idx(kvm, bus_idx, args);
+}
+
+static int
+kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	enum kvm_bus              bus_idx;
+
+	bus_idx = ioeventfd_bus_from_flags(args->flags);
+	/* must be natural-word sized, or 0 to ignore length */
+	switch (args->len) {
+	case 0:
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* check for range overflow */
+	if (args->addr + args->len < args->addr)
+		return -EINVAL;
+
+	/* check for extra flags that we don't understand */
+	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
+		return -EINVAL;
+
+	/* ioeventfd with no length can't be combined with DATAMATCH */
+	if (!args->len &&
+	    args->flags & (KVM_IOEVENTFD_FLAG_PIO |
+			   KVM_IOEVENTFD_FLAG_DATAMATCH))
+		return -EINVAL;
+
+	return kvm_assign_ioeventfd_idx(kvm, bus_idx, args);
 }
 
 int
