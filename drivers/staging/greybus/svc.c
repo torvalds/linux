@@ -256,30 +256,31 @@ static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 static int gb_svc_version_request(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_protocol_version_response *version;
+	struct gb_protocol_version_request *request;
+	struct gb_protocol_version_response *response;
 	struct device *dev = &connection->dev;
 
-	version = op->request->payload;
+	request = op->request->payload;
 
-	if (version->major > GB_SVC_VERSION_MAJOR) {
+	if (request->major > GB_SVC_VERSION_MAJOR) {
 		dev_err(&connection->dev,
 			"unsupported major version (%hhu > %hhu)\n",
-			version->major, GB_SVC_VERSION_MAJOR);
+			request->major, GB_SVC_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
 
-	connection->module_major = version->major;
-	connection->module_minor = version->minor;
+	connection->module_major = request->major;
+	connection->module_minor = request->minor;
 
-	if (!gb_operation_response_alloc(op, sizeof(*version), GFP_KERNEL)) {
+	if (!gb_operation_response_alloc(op, sizeof(*response), GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n",
 				__func__);
 		return -ENOMEM;
 	}
 
-	version = op->response->payload;
-	version->major = connection->module_major;
-	version->minor = connection->module_minor;
+	response = op->response->payload;
+	response->major = connection->module_major;
+	response->minor = connection->module_minor;
 
 	return 0;
 }

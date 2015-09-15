@@ -165,30 +165,31 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 
 int gb_protocol_get_version(struct gb_connection *connection)
 {
-	struct gb_protocol_version_response version;
+	struct gb_protocol_version_request request;
+	struct gb_protocol_version_response response;
 	int retval;
 
-	version.major = connection->protocol->major;
-	version.minor = connection->protocol->minor;
+	request.major = connection->protocol->major;
+	request.minor = connection->protocol->minor;
 
 	retval = gb_operation_sync(connection, GB_REQUEST_TYPE_PROTOCOL_VERSION,
-				   &version, sizeof(version), &version,
-				   sizeof(version));
+				   &request, sizeof(request), &response,
+				   sizeof(response));
 	if (retval)
 		return retval;
 
-	if (version.major > connection->protocol->major) {
+	if (response.major > connection->protocol->major) {
 		dev_err(&connection->dev,
 			"unsupported major version (%hhu > %hhu)\n",
-			version.major, connection->protocol->major);
+			response.major, connection->protocol->major);
 		return -ENOTSUPP;
 	}
 
-	connection->module_major = version.major;
-	connection->module_minor = version.minor;
+	connection->module_major = response.major;
+	connection->module_minor = response.minor;
 
 	dev_dbg(&connection->dev, "version_major = %u version_minor = %u\n",
-		version.major, version.minor);
+		response.major, response.minor);
 
 	return 0;
 }

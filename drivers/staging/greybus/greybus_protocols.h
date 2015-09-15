@@ -103,9 +103,11 @@ struct gb_operation_msg_hdr {
 #define GB_REQUEST_TYPE_INVALID			0x00
 #define GB_REQUEST_TYPE_PROTOCOL_VERSION	0x01
 
-/* Control Protocol */
+struct gb_protocol_version_request {
+	__u8	major;
+	__u8	minor;
+} __packed;
 
-/* version request has no payload */
 struct gb_protocol_version_response {
 	__u8	major;
 	__u8	minor;
@@ -748,7 +750,10 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_ROUTE_CREATE	0x0b
 #define GB_SVC_TYPE_ROUTE_DESTROY	0x0c
 
-/* SVC version request/response have same payload as gb_protocol_version_response */
+/*
+ * SVC version request/response has the same payload as
+ * gb_protocol_version_request/response.
+ */
 
 /* SVC protocol hello request */
 struct gb_svc_hello_request {
