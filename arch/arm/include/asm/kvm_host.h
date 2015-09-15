@@ -148,6 +148,7 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 
