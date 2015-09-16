@@ -187,8 +187,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 	return exynos_gem_obj->size;
 }
 
-
-struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
+static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 						      unsigned long size)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;

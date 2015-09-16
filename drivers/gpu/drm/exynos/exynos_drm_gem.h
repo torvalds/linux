@@ -61,10 +61,6 @@ struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 /* destroy a buffer with gem object */
 void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
 
-/* create a private gem object and initialize it. */
-struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
-						      unsigned long size);
-
 /* create a new buffer with gem object */
 struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 						unsigned int flags,
