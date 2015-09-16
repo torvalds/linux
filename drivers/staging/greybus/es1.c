@@ -48,9 +48,6 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
  */
 #define NUM_CPORT_OUT_URB	8
 
-/* vendor request AP message */
-#define REQUEST_SVC		0x01
-
 /* vendor request APB1 log */
 #define REQUEST_LOG		0x02
 
