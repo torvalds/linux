@@ -140,7 +140,7 @@ static int __xfrm6_output(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_NETFILTER
 	if (!x) {
 		IP6CB(skb)->flags |= IP6SKB_REROUTED;
-		return dst_output_sk(sk, skb);
+		return dst_output(sk, skb);
 	}
 #endif
 

@@ -149,7 +149,7 @@ static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
 	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
-		       NULL, skb_dst(skb)->dev, dst_output_sk);
+		       NULL, skb_dst(skb)->dev, dst_output);
 }
 
 int __ip6_local_out(struct sk_buff *skb)
@@ -164,7 +164,7 @@ int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 
 	err = __ip6_local_out_sk(sk, skb);
 	if (likely(err == 1))
-		err = dst_output_sk(sk, skb);
+		err = dst_output(sk, skb);
 
 	return err;
 }

@@ -87,7 +87,7 @@ static int __xfrm4_output(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_NETFILTER
 	if (!x) {
 		IPCB(skb)->flags |= IPSKB_REROUTED;
-		return dst_output_sk(sk, skb);
+		return dst_output(sk, skb);
 	}
 #endif
 

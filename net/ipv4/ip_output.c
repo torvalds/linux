@@ -102,7 +102,7 @@ static int __ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
 	return nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, sk, skb, NULL,
-		       skb_dst(skb)->dev, dst_output_sk);
+		       skb_dst(skb)->dev, dst_output);
 }
 
 int __ip_local_out(struct sk_buff *skb)
@@ -116,7 +116,7 @@ int ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
 
 	err = __ip_local_out(skb);
 	if (likely(err == 1))
-		err = dst_output_sk(sk, skb);
+		err = dst_output(sk, skb);
 
 	return err;
 }
@@ -271,7 +271,7 @@ static int ip_finish_output(struct sock *sk, struct sk_buff *skb)
 	/* Policy lookup after SNAT yielded a new policy */
 	if (skb_dst(skb)->xfrm) {
 		IPCB(skb)->flags |= IPSKB_REROUTED;
-		return dst_output_sk(sk, skb);
+		return dst_output(sk, skb);
 	}
 #endif
 	mtu = ip_skb_dst_mtu(skb);

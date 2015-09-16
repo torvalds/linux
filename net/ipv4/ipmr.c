@@ -1688,7 +1688,7 @@ static inline int ipmr_forward_finish(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
 
-	return dst_output_sk(sk, skb);
+	return dst_output(sk, skb);
 }
 
 /*

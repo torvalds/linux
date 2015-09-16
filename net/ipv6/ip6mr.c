@@ -1991,7 +1991,7 @@ static inline int ip6mr_forward2_finish(struct sock *sk, struct sk_buff *skb)
 			 IPSTATS_MIB_OUTFORWDATAGRAMS);
 	IP6_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTOCTETS, skb->len);
-	return dst_output_sk(sk, skb);
+	return dst_output(sk, skb);
 }
 
 /*
