@@ -44,6 +44,7 @@
  */
 /dts-v1/;
 #include "sama5d2.dtsi"
+#include "sama5d2-pinfunc.h"
 
 / {
 	model = "Atmel SAMA5D2 Xplained";
@@ -92,6 +93,8 @@
 
 		apb {
 			spi0: spi@f8000000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi0_default>;
 				status = "okay";
 
 				m25p80@0 {
@@ -102,31 +105,89 @@
 			};
 
 			macb0: ethernet@f8008000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_default>;
 				phy-mode = "rmii";
 				status = "okay";
 			};
 
 			uart1: serial@f8020000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1_default>;
 				status = "okay";
 			};
 
 			i2c0: i2c@f8028000 {
 				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c0_default>;
 				status = "okay";
 			};
 
 			uart3: serial@fc008000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart3_default>;
 				status = "okay";
 			};
 
 			i2c1: i2c@fc028000 {
 				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1_default>;
 				status = "okay";
 
 				at24@54 {
 					compatible = "atmel,24c02";
 					reg = <0x54>;
 					pagesize = <16>;
+				};
+			};
+
+			pinctrl@fc038000 {
+				pinctrl_i2c0_default: i2c0_default {
+					pinmux = <PIN_PD21__TWD0>,
+						 <PIN_PD22__TWCK0>;
+					bias-disable;
+				};
+
+				pinctrl_i2c1_default: i2c1_default {
+					pinmux = <PIN_PD4__TWD1>,
+						 <PIN_PD5__TWCK1>;
+					bias-disable;
+				};
+
+				pinctrl_macb0_default: macb0_default {
+					pinmux = <PIN_PB14__GTXCK>,
+						 <PIN_PB15__GTXEN>,
+						 <PIN_PB16__GRXDV>,
+						 <PIN_PB17__GRXER>,
+						 <PIN_PB18__GRX0>,
+						 <PIN_PB19__GRX1>,
+						 <PIN_PB20__GTX0>,
+						 <PIN_PB21__GTX1>,
+						 <PIN_PB22__GMDC>,
+						 <PIN_PB23__GMDIO>;
+					bias-disable;
+				};
+
+				pinctrl_spi0_default: spi0_default {
+					pinmux = <PIN_PA14__SPI0_SPCK>,
+						 <PIN_PA15__SPI0_MOSI>,
+						 <PIN_PA16__SPI0_MISO>,
+						 <PIN_PA17__SPI0_NPCS0>;
+					bias-disable;
+				};
+
+				pinctrl_uart1_default: uart1_default {
+					pinmux = <PIN_PD2__URXD1>,
+						 <PIN_PD3__UTXD1>;
+					bias-disable;
+				};
+
+				pinctrl_uart3_default: uart3_default {
+					pinmux = <PIN_PB11__URXD3>,
+						 <PIN_PB12__UTXD3>;
+					bias-disable;
 				};
 			};
 		};
