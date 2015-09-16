@@ -2018,14 +2018,6 @@ static struct usb_configuration usbg_config_driver = {
 	.bmAttributes           = USB_CONFIG_ATT_SELFPOWER,
 };
 
-static void give_back_ep(struct usb_ep **pep)
-{
-	struct usb_ep *ep = *pep;
-	if (!ep)
-		return;
-	ep->driver_data = NULL;
-}
-
 static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_uas		*fu = to_f_uas(f);
@@ -2045,29 +2037,24 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 			&uasp_bi_ep_comp_desc);
 	if (!ep)
 		goto ep_fail;
-
-	ep->driver_data = fu;
 	fu->ep_in = ep;
 
 	ep = usb_ep_autoconfig_ss(gadget, &uasp_ss_bo_desc,
 			&uasp_bo_ep_comp_desc);
 	if (!ep)
 		goto ep_fail;
-	ep->driver_data = fu;
 	fu->ep_out = ep;
 
 	ep = usb_ep_autoconfig_ss(gadget, &uasp_ss_status_desc,
 			&uasp_status_in_ep_comp_desc);
 	if (!ep)
 		goto ep_fail;
-	ep->driver_data = fu;
 	fu->ep_status = ep;
 
 	ep = usb_ep_autoconfig_ss(gadget, &uasp_ss_cmd_desc,
 			&uasp_cmd_comp_desc);
 	if (!ep)
 		goto ep_fail;
-	ep->driver_data = fu;
 	fu->ep_cmd = ep;
 
 	/* Assume endpoint addresses are the same for both speeds */
@@ -2091,11 +2078,6 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 ep_fail:
 	pr_err("Can't claim all required eps\n");
-
-	give_back_ep(&fu->ep_in);
-	give_back_ep(&fu->ep_out);
-	give_back_ep(&fu->ep_status);
-	give_back_ep(&fu->ep_cmd);
 	return -ENOTSUPP;
 }
 
