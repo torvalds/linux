@@ -148,6 +148,12 @@
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \
 					 ((r) & 0xFFF) << 16 | \
 					 ((t) & 0xFFF))
+/* HCON register defines */
+#define DMA_INTERFACE_IDMA		(0x0)
+#define DMA_INTERFACE_DWDMA		(0x1)
+#define DMA_INTERFACE_GDMA		(0x2)
+#define DMA_INTERFACE_NODMA		(0x3)
+#define SDMMC_GET_TRANS_MODE(x)		(((x)>>16) & 0x3)
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
