@@ -589,6 +589,7 @@ struct rk_lcdc_driver {
 	int  id;
 	int  prop;
 	struct device *dev;
+	u32 version;
 
 	struct rk_lcdc_win *win[RK_MAX_FB_SUPPORT];
 	int lcdc_win_num;
