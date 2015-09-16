@@ -1181,6 +1181,7 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	struct hfi1_filedata *fd = fp->private_data;
 	int ret = 0;
 
+	memset(&cinfo, 0, sizeof(cinfo));
 	ret = hfi1_get_base_kinfo(uctxt, &cinfo);
 	if (ret < 0)
 		goto done;
