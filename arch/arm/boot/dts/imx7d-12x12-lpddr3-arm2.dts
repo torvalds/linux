@@ -105,6 +105,16 @@
 	arm-supply = <&sw1a_reg>;
 };
 
+&epdc {
+        pinctrl-names = "default", "sleep";
+        pinctrl-0 = <&pinctrl_epdc_0>;
+        pinctrl-1 = <&pinctrl_epdc_0>;
+        V3P3-supply = <&V3P3_reg>;
+        VCOM-supply = <&VCOM_reg>;
+        DISPLAY-supply = <&DISPLAY_reg>;
+        status = "okay";
+};
+
 &epxp {
 	status = "okay";
 };
@@ -166,7 +176,7 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c1 {
@@ -278,6 +288,72 @@
 		#gpio-cells = <2>;
 	};
 
+	max17135@48 {
+		compatible = "maxim,max17135";
+		reg = <0x48>;
+		vneg_pwrup = <1>;
+		gvee_pwrup = <2>;
+		vpos_pwrup = <10>;
+		gvdd_pwrup = <12>;
+		gvdd_pwrdn = <1>;
+		vpos_pwrdn = <2>;
+		gvee_pwrdn = <8>;
+		vneg_pwrdn = <10>;
+		gpio_pmic_pwrgood = <&gpio2 31 0>;
+		gpio_pmic_vcom_ctrl = <&gpio4 14 0>;
+		gpio_pmic_wakeup = <&gpio4 23 0>;
+		gpio_pmic_v3p3 = <&gpio4 20 0>;
+		gpio_pmic_intr = <&gpio4 18 0>;
+
+		regulators {
+			DISPLAY_reg: DISPLAY {
+				regulator-name = "DISPLAY";
+			};
+
+			GVDD_reg: GVDD {
+				/* 20v */
+				regulator-name = "GVDD";
+			};
+
+			GVEE_reg: GVEE {
+				/* -22v */
+				regulator-name = "GVEE";
+			};
+
+			HVINN_reg: HVINN {
+				/* -22v */
+				regulator-name = "HVINN";
+			};
+
+			HVINP_reg: HVINP {
+				/* 20v */
+				regulator-name = "HVINP";
+			};
+
+			VCOM_reg: VCOM {
+				regulator-name = "VCOM";
+				/* 2's-compliment, -4325000 */
+				regulator-min-microvolt = <0xffbe0178>;
+				/* 2's-compliment, -500000 */
+				regulator-max-microvolt = <0xfff85ee0>;
+			};
+
+			VNEG_reg: VNEG {
+				/* -15v */
+				regulator-name = "VNEG";
+			};
+
+			VPOS_reg: VPOS {
+				/* 15v */
+				regulator-name = "VPOS";
+			};
+
+			V3P3_reg: V3P3 {
+				regulator-name = "V3P3";
+			};
+		};
+	};
+
 	codec: wm8958@1a {
 		compatible = "wlf,wm8958";
 		reg = <0x1a>;
@@ -356,6 +432,42 @@
 				MX7D_PAD_EPDC_SDOE__ENET2_RGMII_RD2     0x1
 				MX7D_PAD_EPDC_SDSHR__ENET2_RGMII_RD3    0x1
 				MX7D_PAD_EPDC_SDCE0__ENET2_RGMII_RX_CTL 0x1
+			>;
+		};
+
+		pinctrl_epdc_0: epdcgrp-0 {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA00__EPDC_DATA0  0x2
+				MX7D_PAD_EPDC_DATA01__EPDC_DATA1  0x2
+				MX7D_PAD_EPDC_DATA02__EPDC_DATA2  0x2
+				MX7D_PAD_EPDC_DATA03__EPDC_DATA3  0x2
+				MX7D_PAD_EPDC_DATA04__EPDC_DATA4  0x2
+				MX7D_PAD_EPDC_DATA05__EPDC_DATA5  0x2
+				MX7D_PAD_EPDC_DATA06__EPDC_DATA6  0x2
+				MX7D_PAD_EPDC_DATA07__EPDC_DATA7  0x2
+				MX7D_PAD_EPDC_DATA08__EPDC_DATA8  0x2
+				MX7D_PAD_EPDC_DATA09__EPDC_DATA9  0x2
+				MX7D_PAD_EPDC_DATA10__EPDC_DATA10 0x2
+				MX7D_PAD_EPDC_DATA11__EPDC_DATA11 0x2
+				MX7D_PAD_EPDC_DATA12__EPDC_DATA12 0x2
+				MX7D_PAD_EPDC_DATA13__EPDC_DATA13 0x2
+				MX7D_PAD_EPDC_DATA14__EPDC_DATA14 0x2
+				MX7D_PAD_EPDC_DATA15__EPDC_DATA15 0x2
+				MX7D_PAD_EPDC_SDCLK__EPDC_SDCLK   0x2
+				MX7D_PAD_EPDC_SDLE__EPDC_SDLE     0x2
+				MX7D_PAD_EPDC_SDOE__EPDC_SDOE     0x2
+				MX7D_PAD_EPDC_SDSHR__EPDC_SDSHR   0x2
+				MX7D_PAD_EPDC_SDCE0__EPDC_SDCE0   0x2
+				MX7D_PAD_EPDC_SDCE1__EPDC_SDCE1   0x2
+				MX7D_PAD_EPDC_SDCE2__EPDC_SDCE2   0x2
+				MX7D_PAD_EPDC_SDCE3__EPDC_SDCE3   0x2
+				MX7D_PAD_EPDC_GDCLK__EPDC_GDCLK   0x2
+				MX7D_PAD_EPDC_GDOE__EPDC_GDOE     0x2
+				MX7D_PAD_EPDC_GDRL__EPDC_GDRL     0x2
+				MX7D_PAD_EPDC_GDSP__EPDC_GDSP     0x2
+				MX7D_PAD_EPDC_BDR0__EPDC_BDR0     0x2
+				MX7D_PAD_EPDC_BDR1__EPDC_BDR1     0x2
+				MX7D_PAD_ECSPI1_MISO__GPIO4_IO18  0x80000000  /* pwr int */
 			>;
 		};
 
