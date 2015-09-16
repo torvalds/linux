@@ -863,29 +863,33 @@ static void drm_dp_destroy_port(struct kref *kref)
 {
 	struct drm_dp_mst_port *port = container_of(kref, struct drm_dp_mst_port, kref);
 	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
+
 	if (!port->input) {
 		port->vcpi.num_slots = 0;
 
 		kfree(port->cached_edid);
 
-		/* we can't destroy the connector here, as
-		   we might be holding the mode_config.mutex
-		   from an EDID retrieval */
+		/*
+		 * The only time we don't have a connector
+		 * on an output port is if the connector init
+		 * fails.
+		 */
 		if (port->connector) {
+			/* we can't destroy the connector here, as
+			 * we might be holding the mode_config.mutex
+			 * from an EDID retrieval */
+
 			mutex_lock(&mgr->destroy_connector_lock);
 			list_add(&port->next, &mgr->destroy_connector_list);
 			mutex_unlock(&mgr->destroy_connector_lock);
 			schedule_work(&mgr->destroy_connector_work);
 			return;
 		}
+		/* no need to clean up vcpi
+		 * as if we have no connector we never setup a vcpi */
 		drm_dp_port_teardown_pdt(port, port->pdt);
-
-		if (!port->input && port->vcpi.vcpi > 0)
-			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 	}
 	kfree(port);
-
-	(*mgr->cbs->hotplug)(mgr);
 }
 
 static void drm_dp_put_port(struct drm_dp_mst_port *port)
@@ -1116,12 +1120,21 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 
 		build_mst_prop_path(mstb, port->port_num, proppath, sizeof(proppath));
 		port->connector = (*mstb->mgr->cbs->add_connector)(mstb->mgr, port, proppath);
-
+		if (!port->connector) {
+			/* remove it from the port list */
+			mutex_lock(&mstb->mgr->lock);
+			list_del(&port->next);
+			mutex_unlock(&mstb->mgr->lock);
+			/* drop port list reference */
+			drm_dp_put_port(port);
+			goto out;
+		}
 		if (port->port_num >= 8) {
 			port->cached_edid = drm_get_edid(port->connector, &port->aux.ddc);
 		}
 	}
 
+out:
 	/* put reference to this port */
 	drm_dp_put_port(port);
 }
@@ -2672,7 +2685,7 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 {
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, destroy_connector_work);
 	struct drm_dp_mst_port *port;
-
+	bool send_hotplug = false;
 	/*
 	 * Not a regular list traverse as we have to drop the destroy
 	 * connector lock before destroying the connector, to avoid AB->BA
@@ -2695,7 +2708,10 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		if (!port->input && port->vcpi.vcpi > 0)
 			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 		kfree(port);
+		send_hotplug = true;
 	}
+	if (send_hotplug)
+		(*mgr->cbs->hotplug)(mgr);
 }
 
 /**
