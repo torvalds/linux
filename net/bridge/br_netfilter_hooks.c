@@ -668,7 +668,7 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 }
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
-static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
+static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct brnf_frag_data *data;
 	int err;
@@ -691,6 +691,11 @@ static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(sk, skb);
+}
+static int br_nf_push_frag_xmit_sk(struct sock *sk, struct sk_buff *skb)
+{
+	struct net *net = dev_net(skb_dst(skb)->dev);
+	return br_nf_push_frag_xmit(net, sk, skb);
 }
 #endif
 
@@ -760,7 +765,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
 						 data->size);
 
-		return br_nf_ip_fragment(net, sk, skb, br_nf_push_frag_xmit);
+		return br_nf_ip_fragment(net, sk, skb, br_nf_push_frag_xmit_sk);
 	}
 #endif
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
@@ -783,7 +788,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 						 data->size);
 
 		if (v6ops)
-			return v6ops->fragment(sk, skb, br_nf_push_frag_xmit);
+			return v6ops->fragment(sk, skb, br_nf_push_frag_xmit_sk);
 
 		kfree_skb(skb);
 		return -EMSGSIZE;
