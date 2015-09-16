@@ -267,6 +267,8 @@ struct arcnet_local {
 	struct led_trigger *recon_led_trig;
 	char recon_led_trig_name[ARCNET_LED_NAME_SZ];
 
+	struct timer_list	timer;
+
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of
 	 * which can be used for either sending or receiving.  The new dynamic

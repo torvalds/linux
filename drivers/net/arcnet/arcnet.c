@@ -381,6 +381,16 @@ static void arcdev_setup(struct net_device *dev)
 	dev->flags = IFF_BROADCAST;
 }
 
+static void arcnet_timer(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *)data;
+
+	if (!netif_carrier_ok(dev)) {
+		netif_carrier_on(dev);
+		netdev_info(dev, "link up\n");
+	}
+}
+
 struct net_device *alloc_arcdev(const char *name)
 {
 	struct net_device *dev;
@@ -392,6 +402,9 @@ struct net_device *alloc_arcdev(const char *name)
 		struct arcnet_local *lp = netdev_priv(dev);
 
 		spin_lock_init(&lp->lock);
+		init_timer(&lp->timer);
+		lp->timer.data = (unsigned long) dev;
+		lp->timer.function = arcnet_timer;
 	}
 
 	return dev;
@@ -490,7 +503,9 @@ int arcnet_open(struct net_device *dev)
 	lp->hw.intmask(dev, lp->intmask);
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
+	netif_carrier_off(dev);
 	netif_start_queue(dev);
+	mod_timer(&lp->timer, jiffies + msecs_to_jiffies(1000));
 
 	arcnet_led_event(dev, ARCNET_LED_EVENT_OPEN);
 	return 0;
@@ -507,7 +522,10 @@ int arcnet_close(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 
 	arcnet_led_event(dev, ARCNET_LED_EVENT_STOP);
+	del_timer_sync(&lp->timer);
+
 	netif_stop_queue(dev);
+	netif_carrier_off(dev);
 
 	/* flush TX and disable RX */
 	lp->hw.intmask(dev, 0);
@@ -908,6 +926,12 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 
 			arc_printk(D_RECON, dev, "Network reconfiguration detected (status=%Xh)\n",
 				   status);
+			if (netif_carrier_ok(dev)) {
+				netif_carrier_off(dev);
+				netdev_info(dev, "link down\n");
+			}
+			mod_timer(&lp->timer, jiffies + msecs_to_jiffies(1000));
+
 			arcnet_led_event(dev, ARCNET_LED_EVENT_RECON);
 			/* MYRECON bit is at bit 7 of diagstatus */
 			if (diagstatus & 0x80)
@@ -959,6 +983,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			lp->num_recons = lp->network_down = 0;
 
 			arc_printk(D_DURING, dev, "not recon: clearing counters anyway.\n");
+			netif_carrier_on(dev);
 		}
 
 		if (didsomething)
