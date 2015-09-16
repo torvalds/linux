@@ -695,18 +695,17 @@ static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 #endif
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
-static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
-			     int (*output)(struct sock *, struct sk_buff *))
+static int
+br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+		  int (*output)(struct sock *, struct sk_buff *))
 {
 	unsigned int mtu = ip_skb_dst_mtu(skb);
 	struct iphdr *iph = ip_hdr(skb);
-	struct rtable *rt = skb_rtable(skb);
-	struct net_device *dev = rt->dst.dev;
 
 	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) ||
 		     (IPCB(skb)->frag_max_size &&
 		      IPCB(skb)->frag_max_size > mtu))) {
-		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
+		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
@@ -726,6 +725,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge;
 	unsigned int mtu_reserved;
+	struct net *net = dev_net(skb_dst(skb)->dev);
 
 	mtu_reserved = nf_bridge_mtu_reduction(skb);
 
@@ -760,7 +760,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
 						 data->size);
 
-		return br_nf_ip_fragment(sk, skb, br_nf_push_frag_xmit);
+		return br_nf_ip_fragment(net, sk, skb, br_nf_push_frag_xmit);
 	}
 #endif
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
