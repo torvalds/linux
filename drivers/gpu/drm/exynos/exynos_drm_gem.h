@@ -39,6 +39,7 @@
  *	- this address could be physical address without IOMMU and
  *	device address with IOMMU.
  * @pages: Array of backing pages.
+ * @sgt: Imported sg_table.
  *
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
@@ -52,6 +53,7 @@ struct exynos_drm_gem_obj {
 	dma_addr_t		dma_addr;
 	struct dma_attrs	dma_attrs;
 	struct page		**pages;
+	struct sg_table		*sgt;
 };
 
 struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);

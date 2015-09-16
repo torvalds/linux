@@ -157,11 +157,10 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	 * once dmabuf's refcount becomes 0.
 	 */
 	if (obj->import_attach)
-		goto out;
+		drm_prime_gem_destroy(obj, exynos_gem_obj->sgt);
+	else
+		exynos_drm_free_buf(exynos_gem_obj);
 
-	exynos_drm_free_buf(exynos_gem_obj);
-
-out:
 	drm_gem_free_mmap_offset(obj);
 
 	/* release file pointer to gem object. */
@@ -588,6 +587,8 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 			npages);
 	if (ret < 0)
 		goto err_free_large;
+
+	exynos_gem_obj->sgt = sgt;
 
 	if (sgt->nents == 1) {
 		/* always physically continuous memory if sgt->nents is 1. */
