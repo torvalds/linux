@@ -2359,9 +2359,9 @@
 #define ARIZONA_ACCDET_SRC_MASK                  0x2000  /* ACCDET_SRC */
 #define ARIZONA_ACCDET_SRC_SHIFT                     13  /* ACCDET_SRC */
 #define ARIZONA_ACCDET_SRC_WIDTH                      1  /* ACCDET_SRC */
-#define ARIZONA_ACCDET_MODE_MASK                 0x0003  /* ACCDET_MODE - [1:0] */
-#define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [1:0] */
-#define ARIZONA_ACCDET_MODE_WIDTH                     2  /* ACCDET_MODE - [1:0] */
+#define ARIZONA_ACCDET_MODE_MASK                 0x0007  /* ACCDET_MODE - [2:0] */
+#define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [2:0] */
+#define ARIZONA_ACCDET_MODE_WIDTH                     3  /* ACCDET_MODE - [2:0] */
 
 /*
  * R667 (0x29B) - Headphone Detect 1
