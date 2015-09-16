@@ -500,10 +500,9 @@ static int ip_fragment(struct sock *sk, struct sk_buff *skb,
 	if (unlikely(!skb->ignore_df ||
 		     (IPCB(skb)->frag_max_size &&
 		      IPCB(skb)->frag_max_size > mtu))) {
-		struct rtable *rt = skb_rtable(skb);
-		struct net_device *dev = rt->dst.dev;
+		struct net *net = dev_net(skb_rtable(skb)->dst.dev);
 
-		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
+		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(mtu));
 		kfree_skb(skb);
