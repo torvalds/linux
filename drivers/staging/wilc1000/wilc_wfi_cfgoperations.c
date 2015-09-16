@@ -132,7 +132,6 @@ struct wilc_wfi_key g_key_gtk_params;
 struct add_key_params g_add_ptk_key_params;
 struct wilc_wfi_key g_key_ptk_params;
 struct wilc_wfi_wep_key g_key_wep_params;
-u8 g_flushing_in_progress;
 bool g_ptk_keys_saved;
 bool g_gtk_keys_saved;
 bool g_wep_keys_saved;
