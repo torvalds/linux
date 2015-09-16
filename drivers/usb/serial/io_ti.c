@@ -442,7 +442,6 @@ static int write_boot_mem(struct edgeport_serial *serial,
 	return status;
 }
 
-
 /* Write edgeport I2C memory to TI chip	*/
 static int write_i2c_mem(struct edgeport_serial *serial,
 		int start_address, int length, __u8 address_type, __u8 *buffer)
@@ -631,8 +630,6 @@ static int write_rom(struct edgeport_serial *serial, int start_address,
 						serial->TI_I2C_Type, buffer);
 	return -EINVAL;
 }
-
-
 
 /* Read a descriptor header from I2C based on type */
 static int get_descriptor_addr(struct edgeport_serial *serial,
@@ -1514,7 +1511,6 @@ stayinbootmode:
 	return 0;
 }
 
-
 static int ti_do_config(struct edgeport_port *port, int feature, int on)
 {
 	int port_number = port->port->port_number;
@@ -1524,7 +1520,6 @@ static int ti_do_config(struct edgeport_port *port, int feature, int on)
 			feature, (__u8)(UMPM_UART1_PORT + port_number),
 			on, NULL, 0);
 }
-
 
 static int restore_mcr(struct edgeport_port *port, __u8 mcr)
 {
@@ -1630,7 +1625,6 @@ static void handle_new_lsr(struct edgeport_port *edge_port, int lsr_data,
 	if (new_lsr & LSR_FRM_ERR)
 		icount->frame++;
 }
-
 
 static void edge_interrupt_callback(struct urb *urb)
 {
