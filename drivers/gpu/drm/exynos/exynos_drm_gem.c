@@ -118,8 +118,6 @@ static void exynos_drm_free_buf(struct exynos_drm_gem_obj *obj)
 	} else
 		dma_free_attrs(dev->dev, obj->size, obj->pages,
 				(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
-
-	obj->dma_addr = (dma_addr_t)NULL;
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -167,7 +165,6 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	drm_gem_object_release(obj);
 
 	kfree(exynos_gem_obj);
-	exynos_gem_obj = NULL;
 }
 
 unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
