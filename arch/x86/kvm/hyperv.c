@@ -41,6 +41,7 @@ static bool kvm_hv_msr_partition_wide(u32 msr)
 	case HV_X64_MSR_TIME_REF_COUNT:
 	case HV_X64_MSR_CRASH_CTL:
 	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
+	case HV_X64_MSR_RESET:
 		r = true;
 		break;
 	}
@@ -163,6 +164,12 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 						 data);
 	case HV_X64_MSR_CRASH_CTL:
 		return kvm_hv_msr_set_crash_ctl(vcpu, data, host);
+	case HV_X64_MSR_RESET:
+		if (data == 1) {
+			vcpu_debug(vcpu, "hyper-v reset requested\n");
+			kvm_make_request(KVM_REQ_HV_RESET, vcpu);
+		}
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -241,6 +248,9 @@ static int kvm_hv_get_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 						 pdata);
 	case HV_X64_MSR_CRASH_CTL:
 		return kvm_hv_msr_get_crash_ctl(vcpu, pdata);
+	case HV_X64_MSR_RESET:
+		data = 0;
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
