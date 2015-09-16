@@ -2460,13 +2460,14 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	if (!cgrp)
 		return -ENODEV;
 
-	percpu_down_write(&cgroup_threadgroup_rwsem);
+retry_find_task:
 	rcu_read_lock();
 	if (pid) {
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
+			rcu_read_unlock();
 			ret = -ESRCH;
-			goto out_unlock_rcu;
+			goto out_unlock_cgroup;
 		}
 	} else {
 		tsk = current;
@@ -2482,23 +2483,37 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	 */
 	if (tsk == kthreadd_task || (tsk->flags & PF_NO_SETAFFINITY)) {
 		ret = -EINVAL;
-		goto out_unlock_rcu;
+		rcu_read_unlock();
+		goto out_unlock_cgroup;
 	}
 
 	get_task_struct(tsk);
 	rcu_read_unlock();
 
+	percpu_down_write(&cgroup_threadgroup_rwsem);
+	if (threadgroup) {
+		if (!thread_group_leader(tsk)) {
+			/*
+			 * a race with de_thread from another thread's exec()
+			 * may strip us of our leadership, if this happens,
+			 * there is no choice but to throw this task away and
+			 * try again; this is
+			 * "double-double-toil-and-trouble-check locking".
+			 */
+			percpu_up_write(&cgroup_threadgroup_rwsem);
+			put_task_struct(tsk);
+			goto retry_find_task;
+		}
+	}
+
 	ret = cgroup_procs_write_permission(tsk, cgrp, of);
 	if (!ret)
 		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
 
-	put_task_struct(tsk);
-	goto out_unlock_threadgroup;
-
-out_unlock_rcu:
-	rcu_read_unlock();
-out_unlock_threadgroup:
 	percpu_up_write(&cgroup_threadgroup_rwsem);
+
+	put_task_struct(tsk);
+out_unlock_cgroup:
 	cgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
 }
@@ -2643,8 +2658,6 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	percpu_down_write(&cgroup_threadgroup_rwsem);
-
 	/* look up all csses currently attached to @cgrp's subtree */
 	down_read(&css_set_rwsem);
 	css_for_each_descendant_pre(css, cgroup_css(cgrp, NULL)) {
@@ -2700,8 +2713,17 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 				goto out_finish;
 			last_task = task;
 
+			percpu_down_write(&cgroup_threadgroup_rwsem);
+			/* raced against de_thread() from another thread? */
+			if (!thread_group_leader(task)) {
+				percpu_up_write(&cgroup_threadgroup_rwsem);
+				put_task_struct(task);
+				continue;
+			}
+
 			ret = cgroup_migrate(src_cset->dfl_cgrp, task, true);
 
+			percpu_up_write(&cgroup_threadgroup_rwsem);
 			put_task_struct(task);
 
 			if (WARN(ret, "cgroup: failed to update controllers for the default hierarchy (%d), further operations may crash or hang\n", ret))
@@ -2711,7 +2733,6 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 
 out_finish:
 	cgroup_migrate_finish(&preloaded_csets);
-	percpu_up_write(&cgroup_threadgroup_rwsem);
 	return ret;
 }
 
