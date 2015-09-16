@@ -17,7 +17,6 @@
 /* Constants                                                                 */
 /*****************************************************************************/
 #define INLINE static __inline
-#define PHY_802_11n
 #define MAX_CFG_PKTLEN     1450
 #define MSG_HEADER_LEN     4
 #define QUERY_MSG_TYPE     'Q'
@@ -551,7 +550,6 @@ u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
 
 u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
 {
-#ifdef PHY_802_11n
 #ifdef FIVE_GHZ_BAND
 	/* Get the current channel as its not set in */
 	/* 802.11a beacons/probe response            */
@@ -561,9 +559,6 @@ u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
 	/* the beacon/probe response frame          */
 	return get_current_channel_802_11n(pu8msa, u16RxLen);
 #endif /* FIVE_GHZ_BAND */
-#else
-	return 0;
-#endif /* PHY_802_11n */
 }
 
 /**
