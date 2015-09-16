@@ -20,7 +20,7 @@
 
 #include "common.h"
 
-static const char *r7s72100_boards_compat_dt[] __initdata = {
+static const char *const r7s72100_boards_compat_dt[] __initconst = {
 	"renesas,r7s72100",
 	NULL,
 };

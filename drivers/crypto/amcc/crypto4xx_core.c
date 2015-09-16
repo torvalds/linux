@@ -1113,7 +1113,7 @@ static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
 	struct device *dev = (struct device *)data;
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);
 
-	if (core_dev->dev->ce_base == 0)
+	if (!core_dev->dev->ce_base)
 		return 0;
 
 	writel(PPC4XX_INTERRUPT_CLR,

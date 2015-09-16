@@ -12,30 +12,57 @@
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <misc/cxl.h>
+#include <linux/fs.h>
 
 #include "cxl.h"
 
 struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 {
+	struct address_space *mapping;
 	struct cxl_afu *afu;
 	struct cxl_context  *ctx;
 	int rc;
 
 	afu = cxl_pci_to_afu(dev);
 
+	get_device(&afu->dev);
 	ctx = cxl_context_alloc();
-	if (IS_ERR(ctx))
-		return ctx;
+	if (IS_ERR(ctx)) {
+		rc = PTR_ERR(ctx);
+		goto err_dev;
+	}
+
+	ctx->kernelapi = true;
+
+	/*
+	 * Make our own address space since we won't have one from the
+	 * filesystem like the user api has, and even if we do associate a file
+	 * with this context we don't want to use the global anonymous inode's
+	 * address space as that can invalidate unrelated users:
+	 */
+	mapping = kmalloc(sizeof(struct address_space), GFP_KERNEL);
+	if (!mapping) {
+		rc = -ENOMEM;
+		goto err_ctx;
+	}
+	address_space_init_once(mapping);
 
 	/* Make it a slave context.  We can promote it later? */
-	rc = cxl_context_init(ctx, afu, false, NULL);
-	if (rc) {
-		kfree(ctx);
-		return ERR_PTR(-ENOMEM);
-	}
+	rc = cxl_context_init(ctx, afu, false, mapping);
+	if (rc)
+		goto err_mapping;
+
 	cxl_assign_psn_space(ctx);
 
 	return ctx;
+
+err_mapping:
+	kfree(mapping);
+err_ctx:
+	kfree(ctx);
+err_dev:
+	put_device(&afu->dev);
+	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(cxl_dev_context_init);
 
@@ -57,8 +84,10 @@ EXPORT_SYMBOL_GPL(cxl_get_phys_dev);
 
 int cxl_release_context(struct cxl_context *ctx)
 {
-	if (ctx->status != CLOSED)
+	if (ctx->status >= STARTED)
 		return -EBUSY;
+
+	put_device(&ctx->afu->dev);
 
 	cxl_context_free(ctx);
 
@@ -159,7 +188,6 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 	}
 
 	ctx->status = STARTED;
-	get_device(&ctx->afu->dev);
 out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;
@@ -175,12 +203,7 @@ EXPORT_SYMBOL_GPL(cxl_process_element);
 /* Stop a context.  Returns 0 on success, otherwise -Errno */
 int cxl_stop_context(struct cxl_context *ctx)
 {
-	int rc;
-
-	rc = __detach_context(ctx);
-	if (!rc)
-		put_device(&ctx->afu->dev);
-	return rc;
+	return __detach_context(ctx);
 }
 EXPORT_SYMBOL_GPL(cxl_stop_context);
 
@@ -257,9 +280,16 @@ struct file *cxl_get_fd(struct cxl_context *ctx, struct file_operations *fops,
 
 	file = anon_inode_getfile("cxl", fops, ctx, flags);
 	if (IS_ERR(file))
-		put_unused_fd(fdtmp);
+		goto err_fd;
+
+	file->f_mapping = ctx->mapping;
+
 	*fd = fdtmp;
 	return file;
+
+err_fd:
+	put_unused_fd(fdtmp);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(cxl_get_fd);
 
@@ -329,3 +359,10 @@ int cxl_afu_reset(struct cxl_context *ctx)
 	return cxl_afu_check_and_enable(afu);
 }
 EXPORT_SYMBOL_GPL(cxl_afu_reset);
+
+void cxl_perst_reloads_same_image(struct cxl_afu *afu,
+				  bool perst_reloads_same_image)
+{
+	afu->adapter->perst_same_image = perst_reloads_same_image;
+}
+EXPORT_SYMBOL_GPL(cxl_perst_reloads_same_image);

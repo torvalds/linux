@@ -109,6 +109,11 @@ struct tipc_net {
 	atomic_t subscription_count;
 };
 
+static inline struct tipc_net *tipc_net(struct net *net)
+{
+	return net_generic(net, tipc_net_id);
+}
+
 static inline u16 mod(u16 x)
 {
 	return x & 0xffffu;
@@ -127,6 +132,11 @@ static inline int more(u16 left, u16 right)
 static inline int less(u16 left, u16 right)
 {
 	return less_eq(left, right) && (mod(right) != mod(left));
+}
+
+static inline int in_range(u16 val, u16 min, u16 max)
+{
+	return !less(val, min) && !more(val, max);
 }
 
 #ifdef CONFIG_SYSCTL

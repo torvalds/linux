@@ -30,7 +30,7 @@ static void derive_crypt_complete(struct crypto_async_request *req, int rc)
 
 /**
  * ext4_derive_key_aes() - Derive a key using AES-128-ECB
- * @deriving_key: Encryption key used for derivatio.
+ * @deriving_key: Encryption key used for derivation.
  * @source_key:   Source key to which to apply derivation.
  * @derived_key:  Derived key.
  *
@@ -220,6 +220,8 @@ retry:
 	BUG_ON(master_key->size != EXT4_AES_256_XTS_KEY_SIZE);
 	res = ext4_derive_key_aes(ctx.nonce, master_key->raw,
 				  raw_key);
+	if (res)
+		goto out;
 got_key:
 	ctfm = crypto_alloc_ablkcipher(cipher_str, 0, 0);
 	if (!ctfm || IS_ERR(ctfm)) {

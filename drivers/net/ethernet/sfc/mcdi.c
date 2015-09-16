@@ -1779,15 +1779,31 @@ int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
 	return rc;
 }
 
-int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled)
+int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled,
+			    unsigned int *flags)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_WORKAROUND_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_WORKAROUND_EXT_OUT_LEN);
+	size_t outlen;
+	int rc;
 
 	BUILD_BUG_ON(MC_CMD_WORKAROUND_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_TYPE, type);
 	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_ENABLED, enabled);
-	return efx_mcdi_rpc(efx, MC_CMD_WORKAROUND, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
+	rc = efx_mcdi_rpc(efx, MC_CMD_WORKAROUND, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+
+	if (!flags)
+		return 0;
+
+	if (outlen >= MC_CMD_WORKAROUND_EXT_OUT_LEN)
+		*flags = MCDI_DWORD(outbuf, WORKAROUND_EXT_OUT_FLAGS);
+	else
+		*flags = 0;
+
+	return 0;
 }
 
 int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
@@ -1816,7 +1832,11 @@ int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
 	return 0;
 
 fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	/* Older firmware lacks GET_WORKAROUNDS and this isn't especially
+	 * terrifying.  The call site will have to deal with it though.
+	 */
+	netif_printk(efx, hw, rc == -ENOSYS ? KERN_DEBUG : KERN_ERR,
+		     efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 

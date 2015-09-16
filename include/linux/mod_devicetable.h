@@ -189,6 +189,8 @@ struct css_device_id {
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
 	kernel_ulong_t driver_data;
+	__u32 cls;
+	__u32 cls_msk;
 };
 
 #define PNP_ID_LEN	8
@@ -251,7 +253,7 @@ struct pcmcia_device_id {
 
 	__u32 		prod_id_hash[4];
 
-	/* not matched against in kernelspace*/
+	/* not matched against in kernelspace */
 	const char *	prod_id[4];
 
 	/* not matched against */

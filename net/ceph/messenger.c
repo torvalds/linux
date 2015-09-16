@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
@@ -162,6 +163,7 @@ static struct kmem_cache	*ceph_msg_data_cache;
 static char tag_msg = CEPH_MSGR_TAG_MSG;
 static char tag_ack = CEPH_MSGR_TAG_ACK;
 static char tag_keepalive = CEPH_MSGR_TAG_KEEPALIVE;
+static char tag_keepalive2 = CEPH_MSGR_TAG_KEEPALIVE2;
 
 #ifdef CONFIG_LOCKDEP
 static struct lock_class_key socket_class;
@@ -175,7 +177,7 @@ static struct lock_class_key socket_class;
 
 static void queue_con(struct ceph_connection *con);
 static void cancel_con(struct ceph_connection *con);
-static void con_work(struct work_struct *);
+static void ceph_con_workfn(struct work_struct *);
 static void con_fault(struct ceph_connection *con);
 
 /*
@@ -275,21 +277,21 @@ static void _ceph_msgr_exit(void)
 		ceph_msgr_wq = NULL;
 	}
 
-	ceph_msgr_slab_exit();
-
 	BUG_ON(zero_page == NULL);
 	page_cache_release(zero_page);
 	zero_page = NULL;
+
+	ceph_msgr_slab_exit();
 }
 
 int ceph_msgr_init(void)
 {
+	if (ceph_msgr_slab_init())
+		return -ENOMEM;
+
 	BUG_ON(zero_page != NULL);
 	zero_page = ZERO_PAGE(0);
 	page_cache_get(zero_page);
-
-	if (ceph_msgr_slab_init())
-		return -ENOMEM;
 
 	/*
 	 * The number of active work items is limited by the number of
@@ -479,7 +481,7 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(&init_net, con->peer_addr.in_addr.ss_family,
+	ret = sock_create_kern(read_pnet(&con->msgr->net), paddr->ss_family,
 			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
@@ -748,7 +750,7 @@ void ceph_con_init(struct ceph_connection *con, void *private,
 	mutex_init(&con->mutex);
 	INIT_LIST_HEAD(&con->out_queue);
 	INIT_LIST_HEAD(&con->out_sent);
-	INIT_DELAYED_WORK(&con->work, con_work);
+	INIT_DELAYED_WORK(&con->work, ceph_con_workfn);
 
 	con->state = CON_STATE_CLOSED;
 }
@@ -1350,7 +1352,15 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 {
 	dout("prepare_write_keepalive %p\n", con);
 	con_out_kvec_reset(con);
-	con_out_kvec_add(con, sizeof (tag_keepalive), &tag_keepalive);
+	if (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2) {
+		struct timespec ts = CURRENT_TIME;
+		struct ceph_timespec ceph_ts;
+		ceph_encode_timespec(&ceph_ts, &ts);
+		con_out_kvec_add(con, sizeof(tag_keepalive2), &tag_keepalive2);
+		con_out_kvec_add(con, sizeof(ceph_ts), &ceph_ts);
+	} else {
+		con_out_kvec_add(con, sizeof(tag_keepalive), &tag_keepalive);
+	}
 	con_flag_set(con, CON_FLAG_WRITE_PENDING);
 }
 
@@ -1624,6 +1634,12 @@ static void prepare_read_tag(struct ceph_connection *con)
 	con->in_tag = CEPH_MSGR_TAG_READY;
 }
 
+static void prepare_read_keepalive_ack(struct ceph_connection *con)
+{
+	dout("prepare_read_keepalive_ack %p\n", con);
+	con->in_base_pos = 0;
+}
+
 /*
  * Prepare to read a message.
  */
@@ -1731,17 +1747,17 @@ static int verify_hello(struct ceph_connection *con)
 
 static bool addr_is_blank(struct sockaddr_storage *ss)
 {
+	struct in_addr *addr = &((struct sockaddr_in *)ss)->sin_addr;
+	struct in6_addr *addr6 = &((struct sockaddr_in6 *)ss)->sin6_addr;
+
 	switch (ss->ss_family) {
 	case AF_INET:
-		return ((struct sockaddr_in *)ss)->sin_addr.s_addr == 0;
+		return addr->s_addr == htonl(INADDR_ANY);
 	case AF_INET6:
-		return
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[0] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[1] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[2] == 0 &&
-		     ((struct sockaddr_in6 *)ss)->sin6_addr.s6_addr32[3] == 0;
+		return ipv6_addr_any(addr6);
+	default:
+		return true;
 	}
-	return false;
 }
 
 static int addr_port(struct sockaddr_storage *ss)
@@ -2321,13 +2337,6 @@ static int read_partial_message(struct ceph_connection *con)
 			return ret;
 
 		BUG_ON(!con->in_msg ^ skip);
-		if (con->in_msg && data_len > con->in_msg->data_length) {
-			pr_warn("%s skipping long message (%u > %zd)\n",
-				__func__, data_len, con->in_msg->data_length);
-			ceph_msg_put(con->in_msg);
-			con->in_msg = NULL;
-			skip = 1;
-		}
 		if (skip) {
 			/* skip this message */
 			dout("alloc_msg said skip message\n");
@@ -2456,6 +2465,17 @@ static void process_message(struct ceph_connection *con)
 	mutex_lock(&con->mutex);
 }
 
+static int read_keepalive_ack(struct ceph_connection *con)
+{
+	struct ceph_timespec ceph_ts;
+	size_t size = sizeof(ceph_ts);
+	int ret = read_partial(con, size, size, &ceph_ts);
+	if (ret <= 0)
+		return ret;
+	ceph_decode_timespec(&con->last_keepalive_ack, &ceph_ts);
+	prepare_read_tag(con);
+	return 1;
+}
 
 /*
  * Write something to the socket.  Called in a worker thread when the
@@ -2525,6 +2545,10 @@ more_kvec:
 
 do_next:
 	if (con->state == CON_STATE_OPEN) {
+		if (con_flag_test_and_clear(con, CON_FLAG_KEEPALIVE_PENDING)) {
+			prepare_write_keepalive(con);
+			goto more;
+		}
 		/* is anything else pending? */
 		if (!list_empty(&con->out_queue)) {
 			prepare_write_message(con);
@@ -2532,10 +2556,6 @@ do_next:
 		}
 		if (con->in_seq > con->in_seq_acked) {
 			prepare_write_ack(con);
-			goto more;
-		}
-		if (con_flag_test_and_clear(con, CON_FLAG_KEEPALIVE_PENDING)) {
-			prepare_write_keepalive(con);
 			goto more;
 		}
 	}
@@ -2640,6 +2660,9 @@ more:
 		case CEPH_MSGR_TAG_ACK:
 			prepare_read_ack(con);
 			break;
+		case CEPH_MSGR_TAG_KEEPALIVE2_ACK:
+			prepare_read_keepalive_ack(con);
+			break;
 		case CEPH_MSGR_TAG_CLOSE:
 			con_close_socket(con);
 			con->state = CON_STATE_CLOSED;
@@ -2681,6 +2704,12 @@ more:
 		if (ret <= 0)
 			goto out;
 		process_ack(con);
+		goto more;
+	}
+	if (con->in_tag == CEPH_MSGR_TAG_KEEPALIVE2_ACK) {
+		ret = read_keepalive_ack(con);
+		if (ret <= 0)
+			goto out;
 		goto more;
 	}
 
@@ -2798,7 +2827,7 @@ static void con_fault_finish(struct ceph_connection *con)
 /*
  * Do some work on a connection.  Drop a connection ref when we're done.
  */
-static void con_work(struct work_struct *work)
+static void ceph_con_workfn(struct work_struct *work)
 {
 	struct ceph_connection *con = container_of(work, struct ceph_connection,
 						   work.work);
@@ -2944,10 +2973,17 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	msgr->tcp_nodelay = tcp_nodelay;
 
 	atomic_set(&msgr->stopping, 0);
+	write_pnet(&msgr->net, get_net(current->nsproxy->net_ns));
 
 	dout("%s %p\n", __func__, msgr);
 }
 EXPORT_SYMBOL(ceph_messenger_init);
+
+void ceph_messenger_fini(struct ceph_messenger *msgr)
+{
+	put_net(read_pnet(&msgr->net));
+}
+EXPORT_SYMBOL(ceph_messenger_fini);
 
 static void clear_standby(struct ceph_connection *con)
 {
@@ -3092,6 +3128,20 @@ void ceph_con_keepalive(struct ceph_connection *con)
 		queue_con(con);
 }
 EXPORT_SYMBOL(ceph_con_keepalive);
+
+bool ceph_con_keepalive_expired(struct ceph_connection *con,
+			       unsigned long interval)
+{
+	if (interval > 0 &&
+	    (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2)) {
+		struct timespec now = CURRENT_TIME;
+		struct timespec ts;
+		jiffies_to_timespec(interval, &ts);
+		ts = timespec_add(con->last_keepalive_ack, ts);
+		return timespec_compare(&now, &ts) >= 0;
+	}
+	return false;
+}
 
 static struct ceph_msg_data *ceph_msg_data_create(enum ceph_msg_data_type type)
 {

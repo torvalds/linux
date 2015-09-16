@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/slab.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -37,7 +38,7 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 		div = socfpgaclk->fixed_div;
 	} else if (socfpgaclk->div_reg) {
 		div = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
-		div &= div_mask(socfpgaclk->width);
+		div &= GENMASK(socfpgaclk->width - 1, 0);
 		div += 1;
 	} else {
 		div = ((readl(socfpgaclk->hw.reg) & 0x7ff) + 1);

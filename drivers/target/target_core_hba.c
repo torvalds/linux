@@ -84,8 +84,16 @@ void target_backend_unregister(const struct target_backend_ops *ops)
 	list_for_each_entry(tb, &backend_list, list) {
 		if (tb->ops == ops) {
 			list_del(&tb->list);
+			mutex_unlock(&backend_mutex);
+			/*
+			 * Wait for any outstanding backend driver ->rcu_head
+			 * callbacks to complete post TBO->free_device() ->
+			 * call_rcu(), before allowing backend driver module
+			 * unload of target_backend_ops->owner to proceed.
+			 */
+			rcu_barrier();
 			kfree(tb);
-			break;
+			return;
 		}
 	}
 	mutex_unlock(&backend_mutex);
@@ -175,4 +183,9 @@ core_delete_hba(struct se_hba *hba)
 	hba->backend = NULL;
 	kfree(hba);
 	return 0;
+}
+
+bool target_sense_desc_format(struct se_device *dev)
+{
+	return dev->transport->get_blocks(dev) > U32_MAX;
 }

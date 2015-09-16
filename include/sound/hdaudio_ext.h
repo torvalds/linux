@@ -34,6 +34,7 @@ int snd_hdac_ext_bus_init(struct hdac_ext_bus *sbus, struct device *dev,
 void snd_hdac_ext_bus_exit(struct hdac_ext_bus *sbus);
 int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *sbus, int addr);
 void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev);
+void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus);
 
 #define ebus_to_hbus(ebus)	(&(ebus)->bus)
 #define hbus_to_ebus(_bus) \
@@ -62,6 +63,8 @@ enum hdac_ext_stream_type {
  * @hstream: hdac_stream
  * @pphc_addr: processing pipe host stream pointer
  * @pplc_addr: processing pipe link stream pointer
+ * @spib_addr: software position in buffers stream pointer
+ * @fifo_addr: software position Max fifos stream pointer
  * @decoupled: stream host and link is decoupled
  * @link_locked: link is locked
  * @link_prepared: link is prepared
@@ -72,6 +75,9 @@ struct hdac_ext_stream {
 
 	void __iomem *pphc_addr;
 	void __iomem *pplc_addr;
+
+	void __iomem *spib_addr;
+	void __iomem *fifo_addr;
 
 	bool decoupled:1;
 	bool link_locked:1;
@@ -99,6 +105,11 @@ void snd_hdac_ext_stream_decouple(struct hdac_ext_bus *bus,
 				struct hdac_ext_stream *azx_dev, bool decouple);
 void snd_hdac_ext_stop_streams(struct hdac_ext_bus *sbus);
 
+int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream, u32 value);
+int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream);
+
 void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hstream);
 void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hstream);
 void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hstream);
@@ -115,6 +126,7 @@ struct hdac_ext_link {
 
 int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *link);
 int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_power_down_all(struct hdac_ext_bus *ebus);
 void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
 				 int stream);
 void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
@@ -128,5 +140,64 @@ void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
 #define snd_hdac_updatew(addr, reg, mask, val)		\
 	writew(((readw(addr + reg) & ~(mask)) | (val)), \
 		addr + reg)
+
+
+struct hdac_ext_device;
+
+/* ops common to all codec drivers */
+struct hdac_ext_codec_ops {
+	int (*build_controls)(struct hdac_ext_device *dev);
+	int (*init)(struct hdac_ext_device *dev);
+	void (*free)(struct hdac_ext_device *dev);
+};
+
+struct hda_dai_map {
+	char *dai_name;
+	hda_nid_t nid;
+	u32	maxbps;
+};
+
+#define HDA_MAX_NIDS 16
+
+/**
+ * struct hdac_ext_device - HDAC Ext device
+ *
+ * @hdac: hdac core device
+ * @nid_list - the dai map which matches the dai-name with the nid
+ * @map_cur_idx - the idx in use in dai_map
+ * @ops - the hda codec ops common to all codec drivers
+ * @pvt_data - private data, for asoc contains asoc codec object
+ */
+struct hdac_ext_device {
+	struct hdac_device hdac;
+	struct hdac_ext_bus *ebus;
+
+	/* soc-dai to nid map */
+	struct hda_dai_map nid_list[HDA_MAX_NIDS];
+	unsigned int map_cur_idx;
+
+	/* codec ops */
+	struct hdac_ext_codec_ops ops;
+
+	void *private_data;
+};
+
+#define to_ehdac_device(dev) (container_of((dev), \
+				 struct hdac_ext_device, hdac))
+/*
+ * HD-audio codec base driver
+ */
+struct hdac_ext_driver {
+	struct hdac_driver hdac;
+
+	int	(*probe)(struct hdac_ext_device *dev);
+	int	(*remove)(struct hdac_ext_device *dev);
+	void	(*shutdown)(struct hdac_ext_device *dev);
+};
+
+int snd_hda_ext_driver_register(struct hdac_ext_driver *drv);
+void snd_hda_ext_driver_unregister(struct hdac_ext_driver *drv);
+
+#define to_ehdac_driver(_drv) container_of(_drv, struct hdac_ext_driver, hdac)
 
 #endif /* __SOUND_HDAUDIO_EXT_H */

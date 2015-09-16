@@ -1,5 +1,5 @@
 ///
-/// Removes unneeded variable used to store return value.
+/// Remove unneeded variable used to store return value.
 ///
 // Confidence: Moderate
 // Copyright: (C) 2012 Peter Senna Tschudin, INRIA/LIP6.  GPLv2.

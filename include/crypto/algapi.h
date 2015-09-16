@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 
 struct crypto_aead;
+struct crypto_instance;
 struct module;
 struct rtattr;
 struct seq_file;
@@ -30,6 +31,7 @@ struct crypto_type {
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
 	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
+	void (*free)(struct crypto_instance *inst);
 
 	unsigned int type;
 	unsigned int maskclear;
@@ -180,7 +182,6 @@ struct crypto_instance *crypto_alloc_instance(const char *name,
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
-void *__crypto_dequeue_request(struct crypto_queue *queue, unsigned int offset);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
 

@@ -29,7 +29,7 @@ dma_cookie_t vchan_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&vc->lock, flags);
 	cookie = dma_cookie_assign(tx);
 
-	list_move_tail(&vd->node, &vc->desc_submitted);
+	list_add_tail(&vd->node, &vc->desc_submitted);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
 	dev_dbg(vc->chan.device->dev, "vchan %p: txd %p[%x]: submitted\n",
@@ -83,10 +83,8 @@ static void vchan_complete(unsigned long arg)
 		cb_data = vd->tx.callback_param;
 
 		list_del(&vd->node);
-		if (async_tx_test_ack(&vd->tx))
-			list_add(&vd->node, &vc->desc_allocated);
-		else
-			vc->desc_free(vd);
+
+		vc->desc_free(vd);
 
 		if (cb)
 			cb(cb_data);
@@ -98,13 +96,9 @@ void vchan_dma_desc_free_list(struct virt_dma_chan *vc, struct list_head *head)
 	while (!list_empty(head)) {
 		struct virt_dma_desc *vd = list_first_entry(head,
 			struct virt_dma_desc, node);
-		if (async_tx_test_ack(&vd->tx)) {
-			list_move_tail(&vd->node, &vc->desc_allocated);
-		} else {
-			dev_dbg(vc->chan.device->dev, "txd %p: freeing\n", vd);
-			list_del(&vd->node);
-			vc->desc_free(vd);
-		}
+		list_del(&vd->node);
+		dev_dbg(vc->chan.device->dev, "txd %p: freeing\n", vd);
+		vc->desc_free(vd);
 	}
 }
 EXPORT_SYMBOL_GPL(vchan_dma_desc_free_list);
@@ -114,7 +108,6 @@ void vchan_init(struct virt_dma_chan *vc, struct dma_device *dmadev)
 	dma_cookie_init(&vc->chan);
 
 	spin_lock_init(&vc->lock);
-	INIT_LIST_HEAD(&vc->desc_allocated);
 	INIT_LIST_HEAD(&vc->desc_submitted);
 	INIT_LIST_HEAD(&vc->desc_issued);
 	INIT_LIST_HEAD(&vc->desc_completed);

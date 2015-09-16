@@ -580,7 +580,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 
 	list.addr = tun_qp->tx_ring[tun_tx_ix].buf.map;
 	list.length = sizeof (struct mlx4_rcv_tunnel_mad);
-	list.lkey = tun_ctx->mr->lkey;
+	list.lkey = tun_ctx->pd->local_dma_lkey;
 
 	wr.wr.ud.ah = ah;
 	wr.wr.ud.port_num = port;
@@ -860,21 +860,31 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	const struct ib_mad *in_mad = (const struct ib_mad *)in;
 	struct ib_mad *out_mad = (struct ib_mad *)out;
+	enum rdma_link_layer link = rdma_port_get_link_layer(ibdev, port_num);
 
-	BUG_ON(in_mad_size != sizeof(*in_mad) ||
-	       *out_mad_size != sizeof(*out_mad));
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
-	switch (rdma_port_get_link_layer(ibdev, port_num)) {
-	case IB_LINK_LAYER_INFINIBAND:
-		if (!mlx4_is_slave(dev->dev))
-			return ib_process_mad(ibdev, mad_flags, port_num, in_wc,
-					      in_grh, in_mad, out_mad);
-	case IB_LINK_LAYER_ETHERNET:
-		return iboe_process_mad(ibdev, mad_flags, port_num, in_wc,
-					  in_grh, in_mad, out_mad);
-	default:
-		return -EINVAL;
+	/* iboe_process_mad() which uses the HCA flow-counters to implement IB PMA
+	 * queries, should be called only by VFs and for that specific purpose
+	 */
+	if (link == IB_LINK_LAYER_INFINIBAND) {
+		if (mlx4_is_slave(dev->dev) &&
+		    in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT &&
+		    in_mad->mad_hdr.attr_id == IB_PMA_PORT_COUNTERS)
+			return iboe_process_mad(ibdev, mad_flags, port_num, in_wc,
+						in_grh, in_mad, out_mad);
+
+		return ib_process_mad(ibdev, mad_flags, port_num, in_wc,
+				      in_grh, in_mad, out_mad);
 	}
+
+	if (link == IB_LINK_LAYER_ETHERNET)
+		return iboe_process_mad(ibdev, mad_flags, port_num, in_wc,
+					in_grh, in_mad, out_mad);
+
+	return -EINVAL;
 }
 
 static void send_handler(struct ib_mad_agent *agent,
@@ -1123,7 +1133,7 @@ static int mlx4_ib_post_pv_qp_buf(struct mlx4_ib_demux_pv_ctx *ctx,
 
 	sg_list.addr = tun_qp->ring[index].map;
 	sg_list.length = size;
-	sg_list.lkey = ctx->mr->lkey;
+	sg_list.lkey = ctx->pd->local_dma_lkey;
 
 	recv_wr.next = NULL;
 	recv_wr.sg_list = &sg_list;
@@ -1234,7 +1244,7 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 
 	list.addr = sqp->tx_ring[wire_tx_ix].buf.map;
 	list.length = sizeof (struct mlx4_mad_snd_buf);
-	list.lkey = sqp_ctx->mr->lkey;
+	list.lkey = sqp_ctx->pd->local_dma_lkey;
 
 	wr.wr.ud.ah = ah;
 	wr.wr.ud.port_num = port;
@@ -1817,19 +1827,12 @@ static int create_pv_resources(struct ib_device *ibdev, int slave, int port,
 		goto err_cq;
 	}
 
-	ctx->mr = ib_get_dma_mr(ctx->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(ctx->mr)) {
-		ret = PTR_ERR(ctx->mr);
-		pr_err("Couldn't get tunnel DMA MR (%d)\n", ret);
-		goto err_pd;
-	}
-
 	if (ctx->has_smi) {
 		ret = create_pv_sqp(ctx, IB_QPT_SMI, create_tun);
 		if (ret) {
 			pr_err("Couldn't create %s QP0 (%d)\n",
 			       create_tun ? "tunnel for" : "",  ret);
-			goto err_mr;
+			goto err_pd;
 		}
 	}
 
@@ -1865,10 +1868,6 @@ err_qp0:
 	if (ctx->has_smi)
 		ib_destroy_qp(ctx->qp[0].qp);
 	ctx->qp[0].qp = NULL;
-
-err_mr:
-	ib_dereg_mr(ctx->mr);
-	ctx->mr = NULL;
 
 err_pd:
 	ib_dealloc_pd(ctx->pd);
@@ -1906,8 +1905,6 @@ static void destroy_pv_resources(struct mlx4_ib_dev *dev, int slave, int port,
 		ib_destroy_qp(ctx->qp[1].qp);
 		ctx->qp[1].qp = NULL;
 		mlx4_ib_free_pv_qp_bufs(ctx, IB_QPT_GSI, 1);
-		ib_dereg_mr(ctx->mr);
-		ctx->mr = NULL;
 		ib_dealloc_pd(ctx->pd);
 		ctx->pd = NULL;
 		ib_destroy_cq(ctx->cq);
@@ -2040,8 +2037,6 @@ static void mlx4_ib_free_sqp_ctx(struct mlx4_ib_demux_pv_ctx *sqp_ctx)
 		ib_destroy_qp(sqp_ctx->qp[1].qp);
 		sqp_ctx->qp[1].qp = NULL;
 		mlx4_ib_free_pv_qp_bufs(sqp_ctx, IB_QPT_GSI, 0);
-		ib_dereg_mr(sqp_ctx->mr);
-		sqp_ctx->mr = NULL;
 		ib_dealloc_pd(sqp_ctx->pd);
 		sqp_ctx->pd = NULL;
 		ib_destroy_cq(sqp_ctx->cq);

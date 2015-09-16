@@ -200,6 +200,7 @@ int kvm_assign_device(struct kvm *kvm, struct pci_dev *pdev)
 			goto out_unmap;
 	}
 
+	kvm_arch_start_assignment(kvm);
 	pci_set_dev_assigned(pdev);
 
 	dev_info(&pdev->dev, "kvm assign device\n");
@@ -224,6 +225,7 @@ int kvm_deassign_device(struct kvm *kvm, struct pci_dev *pdev)
 	iommu_detach_device(domain, &pdev->dev);
 
 	pci_clear_dev_assigned(pdev);
+	kvm_arch_end_assignment(kvm);
 
 	dev_info(&pdev->dev, "kvm deassign device\n");
 

@@ -2412,8 +2412,9 @@ int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 	const struct ib_mad *in_mad = (const struct ib_mad *)in;
 	struct ib_mad *out_mad = (struct ib_mad *)out;
 
-	BUG_ON(in_mad_size != sizeof(*in_mad) ||
-	       *out_mad_size != sizeof(*out_mad));
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:

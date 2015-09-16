@@ -879,6 +879,11 @@ static const struct tty_operations mips_ejtag_fdc_tty_ops = {
 	.chars_in_buffer	= mips_ejtag_fdc_tty_chars_in_buffer,
 };
 
+int __weak get_c0_fdc_int(void)
+{
+	return -1;
+}
+
 static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 {
 	int ret, nport;
@@ -967,9 +972,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	wake_up_process(priv->thread);
 
 	/* Look for an FDC IRQ */
-	priv->irq = -1;
-	if (get_c0_fdc_int)
-		priv->irq = get_c0_fdc_int();
+	priv->irq = get_c0_fdc_int();
 
 	/* Try requesting the IRQ */
 	if (priv->irq >= 0) {

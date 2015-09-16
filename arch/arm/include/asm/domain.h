@@ -34,15 +34,14 @@
  */
 #ifndef CONFIG_IO_36
 #define DOMAIN_KERNEL	0
-#define DOMAIN_TABLE	0
 #define DOMAIN_USER	1
 #define DOMAIN_IO	2
 #else
 #define DOMAIN_KERNEL	2
-#define DOMAIN_TABLE	2
 #define DOMAIN_USER	1
 #define DOMAIN_IO	0
 #endif
+#define DOMAIN_VECTORS	3
 
 /*
  * Domain types
@@ -55,11 +54,46 @@
 #define DOMAIN_MANAGER	1
 #endif
 
-#define domain_val(dom,type)	((type) << (2*(dom)))
+#define domain_mask(dom)	((3) << (2 * (dom)))
+#define domain_val(dom,type)	((type) << (2 * (dom)))
+
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+#define DACR_INIT \
+	(domain_val(DOMAIN_USER, DOMAIN_NOACCESS) | \
+	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
+	 domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
+	 domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT))
+#else
+#define DACR_INIT \
+	(domain_val(DOMAIN_USER, DOMAIN_CLIENT) | \
+	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
+	 domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
+	 domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT))
+#endif
+
+#define __DACR_DEFAULT \
+	domain_val(DOMAIN_KERNEL, DOMAIN_CLIENT) | \
+	domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
+	domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT)
+
+#define DACR_UACCESS_DISABLE	\
+	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
+#define DACR_UACCESS_ENABLE	\
+	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_CLIENT))
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_CPU_USE_DOMAINS
+static inline unsigned int get_domain(void)
+{
+	unsigned int domain;
+
+	asm(
+	"mrc	p15, 0, %0, c3, c0	@ get domain"
+	 : "=r" (domain));
+
+	return domain;
+}
+
 static inline void set_domain(unsigned val)
 {
 	asm volatile(
@@ -68,17 +102,16 @@ static inline void set_domain(unsigned val)
 	isb();
 }
 
+#ifdef CONFIG_CPU_USE_DOMAINS
 #define modify_domain(dom,type)					\
 	do {							\
-	struct thread_info *thread = current_thread_info();	\
-	unsigned int domain = thread->cpu_domain;		\
-	domain &= ~domain_val(dom, DOMAIN_MANAGER);		\
-	thread->cpu_domain = domain | domain_val(dom, type);	\
-	set_domain(thread->cpu_domain);				\
+		unsigned int domain = get_domain();		\
+		domain &= ~domain_mask(dom);			\
+		domain = domain | domain_val(dom, type);	\
+		set_domain(domain);				\
 	} while (0)
 
 #else
-static inline void set_domain(unsigned val) { }
 static inline void modify_domain(unsigned dom, unsigned type)	{ }
 #endif
 

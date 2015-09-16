@@ -21,8 +21,7 @@
  *
  */
 #include "priv.h"
-
-#include <core/device.h>
+#include <core/pci.h>
 
 #if defined(__powerpc__)
 struct priv {
@@ -44,7 +43,7 @@ of_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 static void *
 of_init(struct nvkm_bios *bios, const char *name)
 {
-	struct pci_dev *pdev = nv_device(bios)->pdev;
+	struct pci_dev *pdev = bios->subdev.device->func->pci(bios->subdev.device)->pdev;
 	struct device_node *dn;
 	struct priv *priv;
 	if (!(dn = pci_device_to_OF_node(pdev)))

@@ -131,4 +131,10 @@ static inline __be32 fh_getattr(struct svc_fh *fh, struct kstat *stat)
 	return nfserrno(vfs_getattr(&p, stat));
 }
 
+static inline int nfsd_create_is_exclusive(int createmode)
+{
+	return createmode == NFS3_CREATE_EXCLUSIVE
+	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
+}
+
 #endif /* LINUX_NFSD_VFS_H */

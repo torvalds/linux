@@ -278,6 +278,7 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr, unsigned l
 }
 
 #define ioremap_wc ioremap_nocache
+#define ioremap_uc ioremap_nocache
 
 extern void iounmap(void volatile __iomem *addr);
 

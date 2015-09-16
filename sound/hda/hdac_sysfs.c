@@ -321,8 +321,7 @@ static void widget_tree_free(struct hdac_device *codec)
 			free_widget_node(*p, &widget_node_group);
 		kfree(tree->nodes);
 	}
-	if (tree->root)
-		kobject_put(tree->root);
+	kobject_put(tree->root);
 	kfree(tree);
 	codec->widgets = NULL;
 }
@@ -390,6 +389,9 @@ static int widget_tree_create(struct hdac_device *codec)
 int hda_widget_sysfs_init(struct hdac_device *codec)
 {
 	int err;
+
+	if (codec->widgets)
+		return 0; /* already created */
 
 	err = widget_tree_create(codec);
 	if (err < 0) {

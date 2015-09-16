@@ -165,7 +165,7 @@ static const struct i2c_device_id rt5033_battery_id[] = {
 	{ "rt5033-battery", },
 	{ }
 };
-MODULE_DEVICE_TABLE(platform, rt5033_battery_id);
+MODULE_DEVICE_TABLE(i2c, rt5033_battery_id);
 
 static struct i2c_driver rt5033_battery_driver = {
 	.driver = {

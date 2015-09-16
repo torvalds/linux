@@ -400,9 +400,9 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 {
 	bool match = false;
 
-	rcu_lockdep_assert(rcu_read_lock_held() ||
-			   lockdep_is_held(&devcgroup_mutex),
-			   "device_cgroup:verify_new_ex called without proper synchronization");
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&
+			 lockdep_is_held(&devcgroup_mutex),
+			 "device_cgroup:verify_new_ex called without proper synchronization");
 
 	if (dev_cgroup->behavior == DEVCG_DEFAULT_ALLOW) {
 		if (behavior == DEVCG_DEFAULT_ALLOW) {

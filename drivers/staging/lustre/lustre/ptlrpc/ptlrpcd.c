@@ -739,7 +739,7 @@ static int ptlrpcd_init(void)
 
 	size = offsetof(struct ptlrpcd, pd_threads[nthreads]);
 	ptlrpcds = kzalloc(size, GFP_NOFS);
-	if (ptlrpcds == NULL) {
+	if (!ptlrpcds) {
 		rc = -ENOMEM;
 		goto out;
 	}

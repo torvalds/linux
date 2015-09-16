@@ -48,6 +48,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 
 config KEXEC
 	def_bool y
+	select KEXEC_CORE
 
 config AUDIT_ARCH
 	def_bool y
@@ -99,18 +100,22 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_WANTS_PROT_NUMA_PROT_NONE
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS2
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES if !SMP
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_EARLY_PFN_TO_NID
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
@@ -152,6 +157,7 @@ config S390
 	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
+
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -384,6 +390,76 @@ config HOTPLUG_CPU
 
 config SCHED_SMT
 	def_bool n
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.	Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.	See memmap_init_zone()
+# for details. <- They meant memory holes!
+config NODES_SPAN_OTHER_NODES
+	def_bool NUMA
+
+config NUMA
+	bool "NUMA support"
+	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	default n
+	help
+	  Enable NUMA support
+
+	  This option adds NUMA support to the kernel.
+
+	  An operation mode can be selected by appending
+	  numa=<method> to the kernel command line.
+
+	  The default behaviour is identical to appending numa=plain to
+	  the command line. This will create just one node with all
+	  available memory and all CPUs in it.
+
+config NODES_SHIFT
+	int "Maximum NUMA nodes (as a power of 2)"
+	range 1 10
+	depends on NUMA
+	default "4"
+	help
+	  Specify the maximum number of NUMA nodes available on the target
+	  system. Increases memory reserved to accommodate various tables.
+
+menu "Select NUMA modes"
+	depends on NUMA
+
+config NUMA_EMU
+	bool "NUMA emulation"
+	default y
+	help
+	  Numa emulation mode will split the available system memory into
+	  equal chunks which then are distributed over the configured number
+	  of nodes in a round-robin manner.
+
+	  The number of fake nodes is limited by the number of available memory
+	  chunks (i.e. memory size / fake size) and the number of supported
+	  nodes in the kernel.
+
+	  The CPUs are assigned to the nodes in a way that partially respects
+	  the original machine topology (if supported by the machine).
+	  Fair distribution of the CPUs is not guaranteed.
+
+config EMU_SIZE
+	hex "NUMA emulation memory chunk size"
+	default 0x10000000
+	range 0x400000 0x100000000
+	depends on NUMA_EMU
+	help
+	  Select the default size by which the memory is chopped and then
+	  assigned to emulated NUMA nodes.
+
+	  This can be overridden by specifying
+
+	  emu_size=<n>
+
+	  on the kernel command line where also suffixes K, M, G, and T are
+	  supported.
+
+endmenu
 
 config SCHED_MC
 	def_bool n

@@ -222,7 +222,7 @@ static void end_cmd(struct nullb_cmd *cmd)
 		blk_end_request_all(cmd->rq, 0);
 		break;
 	case NULL_Q_BIO:
-		bio_endio(cmd->bio, 0);
+		bio_endio(cmd->bio);
 		break;
 	}
 
@@ -240,19 +240,19 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 	while ((entry = llist_del_all(&cq->list)) != NULL) {
 		entry = llist_reverse_order(entry);
 		do {
+			struct request_queue *q = NULL;
+
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
 			entry = entry->next;
+			if (cmd->rq)
+				q = cmd->rq->q;
 			end_cmd(cmd);
 
-			if (cmd->rq) {
-				struct request_queue *q = cmd->rq->q;
-
-				if (!q->mq_ops && blk_queue_stopped(q)) {
-					spin_lock(q->queue_lock);
-					if (blk_queue_stopped(q))
-						blk_start_queue(q);
-					spin_unlock(q->queue_lock);
-				}
+			if (q && !q->mq_ops && blk_queue_stopped(q)) {
+				spin_lock(q->queue_lock);
+				if (blk_queue_stopped(q))
+					blk_start_queue(q);
+				spin_unlock(q->queue_lock);
 			}
 		} while (entry);
 	}

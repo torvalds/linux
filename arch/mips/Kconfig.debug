@@ -87,15 +87,6 @@ config SB1XXX_CORELIS
 	  Select compile flags that produce code that can be processed by the
 	  Corelis mksym utility and UDB Emulator.
 
-config RUNTIME_DEBUG
-	bool "Enable run-time debugging"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here, some debugging macros will do run-time checking.
-	  If you say N here, those macros will mostly turn to no-ops.  See
-	  arch/mips/include/asm/debug.h for debugging macros.
-	  If unsure, say N.
-
 config DEBUG_ZBOOT
 	bool "Enable compressed kernel support debugging"
 	depends on DEBUG_KERNEL && SYS_SUPPORTS_ZBOOT

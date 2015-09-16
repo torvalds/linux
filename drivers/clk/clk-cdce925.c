@@ -10,6 +10,7 @@
  * Copyright (C) 2014, Topic Embedded Products
  * Licenced under GPL
  */
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/module.h>

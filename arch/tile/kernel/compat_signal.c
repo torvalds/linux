@@ -113,8 +113,6 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
 	if (!access_ok(VERIFY_READ, from, sizeof(struct compat_siginfo)))
 		return -EFAULT;
 
-	memset(to, 0, sizeof(*to));
-
 	err = __get_user(to->si_signo, &from->si_signo);
 	err |= __get_user(to->si_errno, &from->si_errno);
 	err |= __get_user(to->si_code, &from->si_code);

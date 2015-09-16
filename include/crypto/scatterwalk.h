@@ -25,14 +25,6 @@
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 
-static inline void scatterwalk_sg_chain(struct scatterlist *sg1, int num,
-					struct scatterlist *sg2)
-{
-	sg_set_page(&sg1[num - 1], (void *)sg2, 0, 0);
-	sg1[num - 1].page_link &= ~0x02;
-	sg1[num - 1].page_link |= 0x01;
-}
-
 static inline void scatterwalk_crypto_chain(struct scatterlist *head,
 					    struct scatterlist *sg,
 					    int chain, int num)
@@ -43,7 +35,7 @@ static inline void scatterwalk_crypto_chain(struct scatterlist *head,
 	}
 
 	if (sg)
-		scatterwalk_sg_chain(head, num, sg);
+		sg_chain(head, num, sg);
 	else
 		sg_mark_end(head);
 }

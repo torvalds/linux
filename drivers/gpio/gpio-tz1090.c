@@ -510,8 +510,8 @@ static int tz1090_gpio_bank_probe(struct tz1090_gpio_bank_info *info)
 	gc->chip_types[1].chip.flags		= IRQCHIP_MASK_ON_SUSPEND;
 
 	/* Setup chained handler for this GPIO bank */
-	irq_set_handler_data(bank->irq, bank);
-	irq_set_chained_handler(bank->irq, tz1090_gpio_irq_handler);
+	irq_set_chained_handler_and_data(bank->irq, tz1090_gpio_irq_handler,
+					 bank);
 
 	return 0;
 }

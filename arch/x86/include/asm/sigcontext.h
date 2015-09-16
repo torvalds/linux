@@ -57,9 +57,9 @@ struct sigcontext {
 	unsigned long ip;
 	unsigned long flags;
 	unsigned short cs;
-	unsigned short __pad2;	/* Was called gs, but was always zero. */
-	unsigned short __pad1;	/* Was called fs, but was always zero. */
-	unsigned short ss;
+	unsigned short gs;
+	unsigned short fs;
+	unsigned short __pad0;
 	unsigned long err;
 	unsigned long trapno;
 	unsigned long oldmask;

@@ -67,7 +67,7 @@ void intc_set_prio_level(unsigned int irq, unsigned int level)
 
 static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
 {
-	generic_handle_irq((unsigned int)irq_get_handler_data(irq));
+	generic_handle_irq((unsigned int)irq_desc_get_handler_data(desc));
 }
 
 static void __init intc_register_irq(struct intc_desc *desc,

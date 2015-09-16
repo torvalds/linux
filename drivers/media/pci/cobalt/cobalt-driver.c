@@ -339,15 +339,16 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	}
 
 	if (pcie_link_get_lanes(cobalt) != 8) {
-		cobalt_err("PCI Express link width is not 8 lanes (%d)\n",
+		cobalt_warn("PCI Express link width is %d lanes.\n",
 				pcie_link_get_lanes(cobalt));
 		if (pcie_bus_link_get_lanes(cobalt) < 8)
-			cobalt_err("The current slot only supports %d lanes, at least 8 are needed\n",
+			cobalt_warn("The current slot only supports %d lanes, for best performance 8 are needed\n",
 					pcie_bus_link_get_lanes(cobalt));
-		else
+		if (pcie_link_get_lanes(cobalt) != pcie_bus_link_get_lanes(cobalt)) {
 			cobalt_err("The card is most likely not seated correctly in the PCIe slot\n");
-		ret = -EIO;
-		goto err_disable;
+			ret = -EIO;
+			goto err_disable;
+		}
 	}
 
 	if (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(64))) {

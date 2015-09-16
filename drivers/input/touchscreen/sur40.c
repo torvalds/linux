@@ -581,6 +581,7 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->alloc_ctx = vb2_dma_sg_init_ctx(sur40->dev);
 	if (IS_ERR(sur40->alloc_ctx)) {
 		dev_err(sur40->dev, "Can't allocate buffer context");
+		error = PTR_ERR(sur40->alloc_ctx);
 		goto err_unreg_v4l2;
 	}
 

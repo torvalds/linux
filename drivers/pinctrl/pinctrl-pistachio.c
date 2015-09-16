@@ -1310,9 +1310,11 @@ static int pistachio_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	return 0;
 }
 
-static void pistachio_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pistachio_gpio_irq_handler(unsigned int __irq,
+				       struct irq_desc *desc)
 {
-	struct gpio_chip *gc = irq_get_handler_data(irq);
+	unsigned int irq = irq_desc_get_irq(desc);
+	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct pistachio_gpio_bank *bank = gc_to_bank(gc);
 	struct irq_chip *chip = irq_get_chip(irq);
 	unsigned long pending;

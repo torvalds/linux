@@ -31,11 +31,8 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
+#include "cifs_ioctl.h"
 #include <linux/btrfs.h>
-
-#define CIFS_IOCTL_MAGIC	0xCF
-#define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
-#define CIFS_IOC_SET_INTEGRITY  _IO(CIFS_IOCTL_MAGIC, 4)
 
 static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd, u64 off, u64 len, u64 destoff,
@@ -135,6 +132,43 @@ out_drop_write:
 	return rc;
 }
 
+static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
+				void __user *arg)
+{
+	int rc = 0;
+	struct smb_mnt_fs_info *fsinf;
+
+	fsinf = kzalloc(sizeof(struct smb_mnt_fs_info), GFP_KERNEL);
+	if (fsinf == NULL)
+		return -ENOMEM;
+
+	fsinf->version = 1;
+	fsinf->protocol_id = tcon->ses->server->vals->protocol_id;
+	fsinf->device_characteristics =
+			le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics);
+	fsinf->device_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
+	fsinf->fs_attributes = le32_to_cpu(tcon->fsAttrInfo.Attributes);
+	fsinf->max_path_component =
+		le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength);
+#ifdef CONFIG_CIFS_SMB2
+	fsinf->vol_serial_number = tcon->vol_serial_number;
+	fsinf->vol_create_time = le64_to_cpu(tcon->vol_create_time);
+	fsinf->share_flags = tcon->share_flags;
+	fsinf->share_caps = le32_to_cpu(tcon->capabilities);
+	fsinf->sector_flags = tcon->ss_flags;
+	fsinf->optimal_sector_size = tcon->perf_sector_size;
+	fsinf->max_bytes_chunk = tcon->max_bytes_chunk;
+	fsinf->maximal_access = tcon->maximal_access;
+#endif /* SMB2 */
+	fsinf->cifs_posix_caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
+
+	if (copy_to_user(arg, fsinf, sizeof(struct smb_mnt_fs_info)))
+		rc = -EFAULT;
+
+	kfree(fsinf);
+	return rc;
+}
+
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = file_inode(filep);
@@ -147,8 +181,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	__u64   caps;
 
 	xid = get_xid();
-
-	cifs_dbg(FYI, "ioctl file %p  cmd %u  arg %lu\n", filep, command, arg);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -227,6 +259,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 						tcon, pSMBFile);
 			else
 				rc = -EOPNOTSUPP;
+			break;
+		case CIFS_IOC_GET_MNT_INFO:
+			tcon = tlink_tcon(pSMBFile->tlink);
+			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

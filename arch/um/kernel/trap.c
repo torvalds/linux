@@ -173,7 +173,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 void fatal_sigsegv(void)
 {
 	force_sigsegv(SIGSEGV, current);
-	do_signal();
+	do_signal(&current->thread.regs);
 	/*
 	 * This is to tell gcc that we're not returning - do_signal
 	 * can, in general, return, but in this case, it's not, since

@@ -302,7 +302,7 @@ static void srpt_get_iou(struct ib_dm_mad *mad)
 	int i;
 
 	ioui = (struct ib_dm_iou_info *)mad->data;
-	ioui->change_id = __constant_cpu_to_be16(1);
+	ioui->change_id = cpu_to_be16(1);
 	ioui->max_controllers = 16;
 
 	/* set present for slot 1 and empty for the rest */
@@ -330,13 +330,13 @@ static void srpt_get_ioc(struct srpt_port *sport, u32 slot,
 
 	if (!slot || slot > 16) {
 		mad->mad_hdr.status
-			= __constant_cpu_to_be16(DM_MAD_STATUS_INVALID_FIELD);
+			= cpu_to_be16(DM_MAD_STATUS_INVALID_FIELD);
 		return;
 	}
 
 	if (slot > 2) {
 		mad->mad_hdr.status
-			= __constant_cpu_to_be16(DM_MAD_STATUS_NO_IOC);
+			= cpu_to_be16(DM_MAD_STATUS_NO_IOC);
 		return;
 	}
 
@@ -348,10 +348,10 @@ static void srpt_get_ioc(struct srpt_port *sport, u32 slot,
 	iocp->device_version = cpu_to_be16(sdev->dev_attr.hw_ver);
 	iocp->subsys_vendor_id = cpu_to_be32(sdev->dev_attr.vendor_id);
 	iocp->subsys_device_id = 0x0;
-	iocp->io_class = __constant_cpu_to_be16(SRP_REV16A_IB_IO_CLASS);
-	iocp->io_subclass = __constant_cpu_to_be16(SRP_IO_SUBCLASS);
-	iocp->protocol = __constant_cpu_to_be16(SRP_PROTOCOL);
-	iocp->protocol_version = __constant_cpu_to_be16(SRP_PROTOCOL_VERSION);
+	iocp->io_class = cpu_to_be16(SRP_REV16A_IB_IO_CLASS);
+	iocp->io_subclass = cpu_to_be16(SRP_IO_SUBCLASS);
+	iocp->protocol = cpu_to_be16(SRP_PROTOCOL);
+	iocp->protocol_version = cpu_to_be16(SRP_PROTOCOL_VERSION);
 	iocp->send_queue_depth = cpu_to_be16(sdev->srq_size);
 	iocp->rdma_read_depth = 4;
 	iocp->send_size = cpu_to_be32(srp_max_req_size);
@@ -379,13 +379,13 @@ static void srpt_get_svc_entries(u64 ioc_guid,
 
 	if (!slot || slot > 16) {
 		mad->mad_hdr.status
-			= __constant_cpu_to_be16(DM_MAD_STATUS_INVALID_FIELD);
+			= cpu_to_be16(DM_MAD_STATUS_INVALID_FIELD);
 		return;
 	}
 
 	if (slot > 2 || lo > hi || hi > 1) {
 		mad->mad_hdr.status
-			= __constant_cpu_to_be16(DM_MAD_STATUS_NO_IOC);
+			= cpu_to_be16(DM_MAD_STATUS_NO_IOC);
 		return;
 	}
 
@@ -436,7 +436,7 @@ static void srpt_mgmt_method_get(struct srpt_port *sp, struct ib_mad *rq_mad,
 		break;
 	default:
 		rsp_mad->mad_hdr.status =
-		    __constant_cpu_to_be16(DM_MAD_STATUS_UNSUP_METHOD_ATTR);
+		    cpu_to_be16(DM_MAD_STATUS_UNSUP_METHOD_ATTR);
 		break;
 	}
 }
@@ -493,11 +493,11 @@ static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
 		break;
 	case IB_MGMT_METHOD_SET:
 		dm_mad->mad_hdr.status =
-		    __constant_cpu_to_be16(DM_MAD_STATUS_UNSUP_METHOD_ATTR);
+		    cpu_to_be16(DM_MAD_STATUS_UNSUP_METHOD_ATTR);
 		break;
 	default:
 		dm_mad->mad_hdr.status =
-		    __constant_cpu_to_be16(DM_MAD_STATUS_UNSUP_METHOD);
+		    cpu_to_be16(DM_MAD_STATUS_UNSUP_METHOD);
 		break;
 	}
 
@@ -783,7 +783,7 @@ static int srpt_post_recv(struct srpt_device *sdev,
 
 	list.addr = ioctx->ioctx.dma;
 	list.length = srp_max_req_size;
-	list.lkey = sdev->mr->lkey;
+	list.lkey = sdev->pd->local_dma_lkey;
 
 	wr.next = NULL;
 	wr.sg_list = &list;
@@ -818,7 +818,7 @@ static int srpt_post_send(struct srpt_rdma_ch *ch,
 
 	list.addr = ioctx->ioctx.dma;
 	list.length = len;
-	list.lkey = sdev->mr->lkey;
+	list.lkey = sdev->pd->local_dma_lkey;
 
 	wr.next = NULL;
 	wr.wr_id = encode_wr_id(SRPT_SEND, ioctx->ioctx.index);
@@ -1206,7 +1206,7 @@ static int srpt_map_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 
 		while (rsize > 0 && tsize > 0) {
 			sge->addr = dma_addr;
-			sge->lkey = ch->sport->sdev->mr->lkey;
+			sge->lkey = ch->sport->sdev->pd->local_dma_lkey;
 
 			if (rsize >= dma_len) {
 				sge->length =
@@ -1535,7 +1535,7 @@ static int srpt_build_cmd_rsp(struct srpt_rdma_ch *ch,
 	memset(srp_rsp, 0, sizeof *srp_rsp);
 	srp_rsp->opcode = SRP_RSP;
 	srp_rsp->req_lim_delta =
-		__constant_cpu_to_be32(1 + atomic_xchg(&ch->req_lim_delta, 0));
+		cpu_to_be32(1 + atomic_xchg(&ch->req_lim_delta, 0));
 	srp_rsp->tag = tag;
 	srp_rsp->status = status;
 
@@ -1585,8 +1585,8 @@ static int srpt_build_tskmgmt_rsp(struct srpt_rdma_ch *ch,
 	memset(srp_rsp, 0, sizeof *srp_rsp);
 
 	srp_rsp->opcode = SRP_RSP;
-	srp_rsp->req_lim_delta = __constant_cpu_to_be32(1
-				    + atomic_xchg(&ch->req_lim_delta, 0));
+	srp_rsp->req_lim_delta =
+		cpu_to_be32(1 + atomic_xchg(&ch->req_lim_delta, 0));
 	srp_rsp->tag = tag;
 
 	srp_rsp->flags |= SRP_RSP_FLAG_RSPVALID;
@@ -1630,7 +1630,7 @@ static uint64_t srpt_unpack_lun(const uint8_t *lun, int len)
 	switch (len) {
 	case 8:
 		if ((*((__be64 *)lun) &
-		     __constant_cpu_to_be64(0x0000FFFFFFFFFFFFLL)) != 0)
+		     cpu_to_be64(0x0000FFFFFFFFFFFFLL)) != 0)
 			goto out_err;
 		break;
 	case 4:
@@ -2449,8 +2449,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	}
 
 	if (it_iu_len > srp_max_req_size || it_iu_len < 64) {
-		rej->reason = __constant_cpu_to_be32(
-				SRP_LOGIN_REJ_REQ_IT_IU_LENGTH_TOO_LARGE);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_REQ_IT_IU_LENGTH_TOO_LARGE);
 		ret = -EINVAL;
 		pr_err("rejected SRP_LOGIN_REQ because its"
 		       " length (%d bytes) is out of range (%d .. %d)\n",
@@ -2459,8 +2459,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	}
 
 	if (!sport->enabled) {
-		rej->reason = __constant_cpu_to_be32(
-			     SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		ret = -EINVAL;
 		pr_err("rejected SRP_LOGIN_REQ because the target port"
 		       " has not yet been enabled\n");
@@ -2505,8 +2505,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	if (*(__be64 *)req->target_port_id != cpu_to_be64(srpt_service_guid)
 	    || *(__be64 *)(req->target_port_id + 8) !=
 	       cpu_to_be64(srpt_service_guid)) {
-		rej->reason = __constant_cpu_to_be32(
-				SRP_LOGIN_REJ_UNABLE_ASSOCIATE_CHANNEL);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_UNABLE_ASSOCIATE_CHANNEL);
 		ret = -ENOMEM;
 		pr_err("rejected SRP_LOGIN_REQ because it"
 		       " has an invalid target port identifier.\n");
@@ -2515,8 +2515,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 
 	ch = kzalloc(sizeof *ch, GFP_KERNEL);
 	if (!ch) {
-		rej->reason = __constant_cpu_to_be32(
-					SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_err("rejected SRP_LOGIN_REQ because no memory.\n");
 		ret = -ENOMEM;
 		goto reject;
@@ -2552,8 +2552,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 
 	ret = srpt_create_ch_ib(ch);
 	if (ret) {
-		rej->reason = __constant_cpu_to_be32(
-				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_err("rejected SRP_LOGIN_REQ because creating"
 		       " a new RDMA channel failed.\n");
 		goto free_ring;
@@ -2561,8 +2561,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 
 	ret = srpt_ch_qp_rtr(ch, ch->qp);
 	if (ret) {
-		rej->reason = __constant_cpu_to_be32(
-				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
+		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_err("rejected SRP_LOGIN_REQ because enabling"
 		       " RTR failed (error code = %d)\n", ret);
 		goto destroy_ib;
@@ -2580,15 +2579,15 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	if (!nacl) {
 		pr_info("Rejected login because no ACL has been"
 			" configured yet for initiator %s.\n", ch->sess_name);
-		rej->reason = __constant_cpu_to_be32(
-				SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
 		goto destroy_ib;
 	}
 
 	ch->sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(ch->sess)) {
-		rej->reason = __constant_cpu_to_be32(
-				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
+		rej->reason = cpu_to_be32(
+			      SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_debug("Failed to create session\n");
 		goto deregister_session;
 	}
@@ -2604,8 +2603,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	rsp->max_it_iu_len = req->req_it_iu_len;
 	rsp->max_ti_iu_len = req->req_it_iu_len;
 	ch->max_ti_iu_len = it_iu_len;
-	rsp->buf_fmt = __constant_cpu_to_be16(SRP_BUF_FORMAT_DIRECT
-					      | SRP_BUF_FORMAT_INDIRECT);
+	rsp->buf_fmt = cpu_to_be16(SRP_BUF_FORMAT_DIRECT
+				   | SRP_BUF_FORMAT_INDIRECT);
 	rsp->req_lim_delta = cpu_to_be32(ch->rq_size);
 	atomic_set(&ch->req_lim, ch->rq_size);
 	atomic_set(&ch->req_lim_delta, 0);
@@ -2655,8 +2654,8 @@ free_ch:
 reject:
 	rej->opcode = SRP_LOGIN_REJ;
 	rej->tag = req->tag;
-	rej->buf_fmt = __constant_cpu_to_be16(SRP_BUF_FORMAT_DIRECT
-					      | SRP_BUF_FORMAT_INDIRECT);
+	rej->buf_fmt = cpu_to_be16(SRP_BUF_FORMAT_DIRECT
+				   | SRP_BUF_FORMAT_INDIRECT);
 
 	ib_send_cm_rej(cm_id, IB_CM_REJ_CONSUMER_DEFINED, NULL, 0,
 			     (void *)rej, sizeof *rej);
@@ -3212,10 +3211,6 @@ static void srpt_add_one(struct ib_device *device)
 	if (IS_ERR(sdev->pd))
 		goto free_dev;
 
-	sdev->mr = ib_get_dma_mr(sdev->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(sdev->mr))
-		goto err_pd;
-
 	sdev->srq_size = min(srpt_srq_size, sdev->dev_attr.max_srq_wr);
 
 	srq_attr.event_handler = srpt_srq_event;
@@ -3227,7 +3222,7 @@ static void srpt_add_one(struct ib_device *device)
 
 	sdev->srq = ib_create_srq(sdev->pd, &srq_attr);
 	if (IS_ERR(sdev->srq))
-		goto err_mr;
+		goto err_pd;
 
 	pr_debug("%s: create SRQ #wr= %d max_allow=%d dev= %s\n",
 		 __func__, sdev->srq_size, sdev->dev_attr.max_srq_wr,
@@ -3251,7 +3246,7 @@ static void srpt_add_one(struct ib_device *device)
 	 * in the system as service_id; therefore, the target_id will change
 	 * if this HCA is gone bad and replaced by different HCA
 	 */
-	if (ib_cm_listen(sdev->cm_id, cpu_to_be64(srpt_service_guid), 0, NULL))
+	if (ib_cm_listen(sdev->cm_id, cpu_to_be64(srpt_service_guid), 0))
 		goto err_cm;
 
 	INIT_IB_EVENT_HANDLER(&sdev->event_handler, sdev->device,
@@ -3312,8 +3307,6 @@ err_cm:
 	ib_destroy_cm_id(sdev->cm_id);
 err_srq:
 	ib_destroy_srq(sdev->srq);
-err_mr:
-	ib_dereg_mr(sdev->mr);
 err_pd:
 	ib_dealloc_pd(sdev->pd);
 free_dev:
@@ -3327,12 +3320,11 @@ err:
 /**
  * srpt_remove_one() - InfiniBand device removal callback function.
  */
-static void srpt_remove_one(struct ib_device *device)
+static void srpt_remove_one(struct ib_device *device, void *client_data)
 {
-	struct srpt_device *sdev;
+	struct srpt_device *sdev = client_data;
 	int i;
 
-	sdev = ib_get_client_data(device, &srpt_client);
 	if (!sdev) {
 		pr_info("%s(%s): nothing to do.\n", __func__, device->name);
 		return;
@@ -3359,7 +3351,6 @@ static void srpt_remove_one(struct ib_device *device)
 	srpt_release_sdev(sdev);
 
 	ib_destroy_srq(sdev->srq);
-	ib_dereg_mr(sdev->mr);
 	ib_dealloc_pd(sdev->pd);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)sdev->ioctx_ring, sdev,

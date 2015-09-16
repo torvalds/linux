@@ -20,15 +20,6 @@
 extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 
 /*
- * computes the checksum of the TCP/UDP pseudo-header
- * returns a 16-bit checksum, already complemented
- */
-extern __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
-					unsigned short len,
-					unsigned short proto,
-					__wsum sum);
-
-/*
  * computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)
  *
@@ -124,6 +115,34 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	: "=r" (sum)
 	: "r" (daddr), "r"(saddr), "r"(proto + len), "0"(sum));
 	return sum;
+#endif
+}
+
+/*
+ * computes the checksum of the TCP/UDP pseudo-header
+ * returns a 16-bit checksum, already complemented
+ */
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
+					unsigned short len,
+					unsigned short proto,
+					__wsum sum)
+{
+	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+}
+
+#define HAVE_ARCH_CSUM_ADD
+static inline __wsum csum_add(__wsum csum, __wsum addend)
+{
+#ifdef __powerpc64__
+	u64 res = (__force u64)csum;
+
+	res += (__force u64)addend;
+	return (__force __wsum)((u32)res + (res >> 32));
+#else
+	asm("addc %0,%0,%1;"
+	    "addze %0,%0;"
+	    : "+r" (csum) : "r" (addend));
+	return csum;
 #endif
 }
 

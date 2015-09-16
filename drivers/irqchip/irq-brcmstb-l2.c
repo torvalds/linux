@@ -32,8 +32,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 
-#include "irqchip.h"
-
 /* Register offsets in the L2 interrupt controller */
 #define CPU_STATUS	0x00
 #define CPU_SET		0x04
@@ -51,11 +49,13 @@ struct brcmstb_l2_intc_data {
 	u32 saved_mask; /* for suspend/resume */
 };
 
-static void brcmstb_l2_intc_irq_handle(unsigned int irq, struct irq_desc *desc)
+static void brcmstb_l2_intc_irq_handle(unsigned int __irq,
+				       struct irq_desc *desc)
 {
 	struct brcmstb_l2_intc_data *b = irq_desc_get_handler_data(desc);
 	struct irq_chip_generic *gc = irq_get_domain_generic_chip(b->domain, 0);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 	u32 status;
 
 	chained_irq_enter(chip, desc);
@@ -172,8 +172,8 @@ int __init brcmstb_l2_intc_of_init(struct device_node *np,
 	}
 
 	/* Set the IRQ chaining logic */
-	irq_set_handler_data(data->parent_irq, data);
-	irq_set_chained_handler(data->parent_irq, brcmstb_l2_intc_irq_handle);
+	irq_set_chained_handler_and_data(data->parent_irq,
+					 brcmstb_l2_intc_irq_handle, data);
 
 	gc = irq_get_domain_generic_chip(data->domain, 0);
 	gc->reg_base = data->base;

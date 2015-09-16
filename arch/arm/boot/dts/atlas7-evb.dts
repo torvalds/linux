@@ -10,6 +10,9 @@
 
 /include/ "atlas7.dtsi"
 
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "CSR SiRFatlas7 Evaluation Board";
 	compatible = "sirf,atlas7-cb", "sirf,atlas7";
@@ -106,5 +109,20 @@
 				};
 			};
 		};
+
+		gpio_keys {
+			compatible = "gpio-keys";
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rearview_key {
+				label = "rearview key";
+				linux,code = <KEY_CAMERA>;
+				gpios = <&gpio_1 3 GPIO_ACTIVE_LOW>;
+				debounce_interval = <100>;
+			};
+		};
+
 	};
 };

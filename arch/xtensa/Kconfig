@@ -14,12 +14,15 @@ config XTENSA
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
+	select HAVE_DMA_API_DEBUG
+	select HAVE_DMA_ATTRS
 	select HAVE_FUNCTION_TRACER
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
+	select PERF_USE_VMALLOC
 	select VIRT_TO_BUS
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
@@ -61,17 +64,12 @@ config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config MMU
-	bool
-	default n if !XTENSA_VARIANT_CUSTOM
-	default XTENSA_VARIANT_MMU if XTENSA_VARIANT_CUSTOM
+	def_bool n
 
 config VARIANT_IRQ_SWITCH
 	def_bool n
 
 config HAVE_XTENSA_GPIO32
-	def_bool n
-
-config MAY_HAVE_SMP
 	def_bool n
 
 menu "Processor type and features"
@@ -100,7 +98,6 @@ config XTENSA_VARIANT_DC233C
 
 config XTENSA_VARIANT_CUSTOM
 	bool "Custom Xtensa processor configuration"
-	select MAY_HAVE_SMP
 	select HAVE_XTENSA_GPIO32
 	help
 	  Select this variant to use a custom Xtensa processor configuration.
@@ -126,9 +123,20 @@ config XTENSA_VARIANT_MMU
 	bool "Core variant has a Full MMU (TLB, Pages, Protection, etc)"
 	depends on XTENSA_VARIANT_CUSTOM
 	default y
+	select MMU
 	help
 	  Build a Conventional Kernel with full MMU support,
 	  ie: it supports a TLB with auto-loading, page protection.
+
+config XTENSA_VARIANT_HAVE_PERF_EVENTS
+	bool "Core variant has Performance Monitor Module"
+	depends on XTENSA_VARIANT_CUSTOM
+	default n
+	help
+	  Enable if core variant has Performance Monitor Module with
+	  External Registers Interface.
+
+	  If unsure, say N.
 
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in use space"
@@ -143,7 +151,7 @@ source "kernel/Kconfig.preempt"
 
 config HAVE_SMP
 	bool "System Supports SMP (MX)"
-	depends on MAY_HAVE_SMP
+	depends on XTENSA_VARIANT_CUSTOM
 	select XTENSA_MX
 	help
 	  This option is use to indicate that the system-on-a-chip (SOC)

@@ -791,7 +791,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 		return ret;
 
 	if (sai->sai_on_imx)
-		return imx_pcm_dma_init(pdev);
+		return imx_pcm_dma_init(pdev, IMX_SAI_DMABUF_SIZE);
 	else
 		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 }

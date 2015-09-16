@@ -409,8 +409,8 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	cd-gpios = <&gpio1 4 0>;
-	wp-gpios = <&gpio1 2 0>;
+	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 	status = "disabled";
 };
 
@@ -418,7 +418,7 @@
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_usdhc3
 		     &pinctrl_usdhc3_cdwp>;
-        cd-gpios = <&gpio1 27 0>;
-        wp-gpios = <&gpio1 29 0>;
+	cd-gpios = <&gpio1 27 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
         status = "disabled";
 };

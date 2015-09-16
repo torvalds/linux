@@ -1,0 +1,4 @@
+7/2015
+
+The amso1100 driver has been deprecated and moved to drivers/staging.
+It will be removed in the 4.6 merge window.

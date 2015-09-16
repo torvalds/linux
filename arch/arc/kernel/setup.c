@@ -47,6 +47,7 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_perip uncached_space;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+	unsigned long perip_space;
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
@@ -56,7 +57,12 @@ static void read_arc_build_cfg_regs(void)
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-	BUG_ON((uncached_space.start << 24) != ARC_UNCACHED_ADDR_SPACE);
+        if (uncached_space.ver < 3)
+		perip_space = uncached_space.start << 24;
+	else
+		perip_space = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
+
+	BUG_ON(perip_space != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
@@ -142,17 +148,22 @@ static void read_arc_build_cfg_regs(void)
 }
 
 static const struct cpuinfo_data arc_cpu_tbl[] = {
+#ifdef CONFIG_ISA_ARCOMPACT
 	{ {0x20, "ARC 600"      }, 0x2F},
 	{ {0x30, "ARC 700"      }, 0x33},
 	{ {0x34, "ARC 700 R4.10"}, 0x34},
 	{ {0x35, "ARC 700 R4.11"}, 0x35},
-	{ {0x50, "ARC HS38"	}, 0x51},
+#else
+	{ {0x50, "ARC HS38 R2.0"}, 0x51},
+	{ {0x52, "ARC HS38 R2.1"}, 0x52},
+#endif
 	{ {0x00, NULL		} }
 };
 
-#define IS_AVAIL1(v, str)	((v) ? str : "")
-#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "" : "(not used) ")
-#define IS_AVAIL2(v, str, cfg)  IS_AVAIL1(v, str), IS_AVAIL1(v, IS_USED(cfg))
+#define IS_AVAIL1(v, s)		((v) ? s : "")
+#define IS_USED_RUN(v)		((v) ? "" : "(not used) ")
+#define IS_USED_CFG(cfg)	IS_USED_RUN(IS_ENABLED(cfg))
+#define IS_AVAIL2(v, s, cfg)	IS_AVAIL1(v, s), IS_AVAIL1(v, IS_USED_CFG(cfg))
 
 static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
@@ -226,7 +237,7 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
 		}
 		n += scnprintf(buf + n, len - n, "%s",
-			       IS_USED(CONFIG_ARC_HAS_HW_MPY));
+			       IS_USED_CFG(CONFIG_ARC_HAS_HW_MPY));
 	}
 
 	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
@@ -325,6 +336,10 @@ static void arc_chk_core_config(void)
 		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
 	else if (!cpu->extn.fpu_dp && fpu_enabled)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
+
+	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
+	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
+		panic("llock/scond livelock workaround missing\n");
 }
 
 /*

@@ -267,6 +267,7 @@ static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 
 	/* CPUs which do not require the workaround */
 	case CPU_P5600:
+	case CPU_I6400:
 		return 0;
 
 	default:
@@ -671,6 +672,7 @@ static int __init cps_pm_init(void)
 	case CPU_PROAPTIV:
 	case CPU_M5150:
 	case CPU_P5600:
+	case CPU_I6400:
 		stype_intervention = 0x2;
 		stype_memory = 0x3;
 		stype_ordering = 0x10;

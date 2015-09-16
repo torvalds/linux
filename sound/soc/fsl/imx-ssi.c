@@ -603,7 +603,7 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	ssi->fiq_params.dma_params_tx = &ssi->dma_params_tx;
 
 	ssi->fiq_init = imx_pcm_fiq_init(pdev, &ssi->fiq_params);
-	ssi->dma_init = imx_pcm_dma_init(pdev);
+	ssi->dma_init = imx_pcm_dma_init(pdev, IMX_SSI_DMABUF_SIZE);
 
 	if (ssi->fiq_init && ssi->dma_init) {
 		ret = ssi->fiq_init;

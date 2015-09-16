@@ -94,7 +94,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		return PTR_ERR(bio);
 
 	if (map_data && map_data->null_mapped)
-		bio->bi_flags |= (1 << BIO_NULL_MAPPED);
+		bio_set_flag(bio, BIO_NULL_MAPPED);
 
 	if (bio->bi_iter.bi_size != iter->count) {
 		/*
@@ -103,7 +103,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		 * normal IO completion path
 		 */
 		bio_get(bio);
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		__blk_rq_unmap_user(bio);
 		return -EINVAL;
 	}

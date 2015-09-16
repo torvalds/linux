@@ -171,8 +171,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (err < 0)
 		goto fbdev;
 
-	drm_mode_config_reset(drm);
-
 	/*
 	 * We don't use the drm_irq_install() helpers provided by the DRM
 	 * core, so we need to set this manually in order to allow the
@@ -182,10 +180,13 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	/* syncpoints are used for full 32-bit hardware VBLANK counters */
 	drm->max_vblank_count = 0xffffffff;
+	drm->vblank_disable_allowed = true;
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)
 		goto device;
+
+	drm_mode_config_reset(drm);
 
 	err = tegra_drm_fb_init(drm);
 	if (err < 0)
@@ -1037,9 +1038,8 @@ static int host1x_drm_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops host1x_drm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(host1x_drm_suspend, host1x_drm_resume)
-};
+static SIMPLE_DEV_PM_OPS(host1x_drm_pm_ops, host1x_drm_suspend,
+			 host1x_drm_resume);
 
 static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra20-dc", },
@@ -1056,6 +1056,12 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra124-dc", },
 	{ .compatible = "nvidia,tegra124-sor", },
 	{ .compatible = "nvidia,tegra124-hdmi", },
+	{ .compatible = "nvidia,tegra124-dsi", },
+	{ .compatible = "nvidia,tegra132-dsi", },
+	{ .compatible = "nvidia,tegra210-dc", },
+	{ .compatible = "nvidia,tegra210-dsi", },
+	{ .compatible = "nvidia,tegra210-sor", },
+	{ .compatible = "nvidia,tegra210-sor1", },
 	{ /* sentinel */ }
 };
 

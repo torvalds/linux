@@ -180,7 +180,7 @@ static void nd_blk_make_request(struct request_queue *q, struct bio *bio)
 	 * another kernel subsystem, and we just pass it through.
 	 */
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		err = -EIO;
+		bio->bi_error = -EIO;
 		goto out;
 	}
 
@@ -199,6 +199,7 @@ static void nd_blk_make_request(struct request_queue *q, struct bio *bio)
 					"io error in %s sector %lld, len %d,\n",
 					(rw == READ) ? "READ" : "WRITE",
 					(unsigned long long) iter.bi_sector, len);
+			bio->bi_error = err;
 			break;
 		}
 	}
@@ -206,7 +207,7 @@ static void nd_blk_make_request(struct request_queue *q, struct bio *bio)
 		nd_iostat_end(bio, start);
 
  out:
-	bio_endio(bio, err);
+	bio_endio(bio);
 }
 
 static int nd_blk_rw_bytes(struct nd_namespace_common *ndns,

@@ -286,8 +286,7 @@ static void metag_internal_irq_init_cpu(struct metag_internal_irq_priv *priv,
 	int irq = tbisig_map(signum);
 
 	/* Register the multiplexed IRQ handler */
-	irq_set_handler_data(irq, priv);
-	irq_set_chained_handler(irq, metag_internal_irq_demux);
+	irq_set_chained_handler_and_data(irq, metag_internal_irq_demux, priv);
 	irq_set_irq_type(irq, IRQ_TYPE_LEVEL_LOW);
 }
 

@@ -40,6 +40,11 @@ enum nfit_uuids {
 	NFIT_UUID_MAX,
 };
 
+enum {
+	ND_BLK_READ_FLUSH = 1,
+	ND_BLK_DCR_LATCH = 2,
+};
+
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
@@ -60,6 +65,11 @@ struct nfit_idt {
 	struct list_head list;
 };
 
+struct nfit_flush {
+	struct acpi_nfit_flush_address *flush;
+	struct list_head list;
+};
+
 struct nfit_memdev {
 	struct acpi_nfit_memory_map *memdev;
 	struct list_head list;
@@ -77,6 +87,7 @@ struct nfit_mem {
 	struct acpi_nfit_system_address *spa_bdw;
 	struct acpi_nfit_interleave *idt_dcr;
 	struct acpi_nfit_interleave *idt_bdw;
+	struct nfit_flush *nfit_flush;
 	struct list_head list;
 	struct acpi_device *adev;
 	unsigned long dsm_mask;
@@ -88,6 +99,7 @@ struct acpi_nfit_desc {
 	struct mutex spa_map_mutex;
 	struct list_head spa_maps;
 	struct list_head memdevs;
+	struct list_head flushes;
 	struct list_head dimms;
 	struct list_head spas;
 	struct list_head dcrs;
@@ -96,6 +108,7 @@ struct acpi_nfit_desc {
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
 	unsigned long dimm_dsm_force_en;
+	unsigned long bus_dsm_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
@@ -105,12 +118,16 @@ enum nd_blk_mmio_selector {
 	DCR,
 };
 
+struct nd_blk_addr {
+	union {
+		void __iomem *base;
+		void __pmem  *aperture;
+	};
+};
+
 struct nfit_blk {
 	struct nfit_blk_mmio {
-		union {
-			void __iomem *base;
-			void *aperture;
-		};
+		struct nd_blk_addr addr;
 		u64 size;
 		u64 base_offset;
 		u32 line_size;
@@ -123,6 +140,13 @@ struct nfit_blk {
 	u64 bdw_offset; /* post interleave offset */
 	u64 stat_offset;
 	u64 cmd_offset;
+	void __iomem *nvdimm_flush;
+	u32 dimm_flags;
+};
+
+enum spa_map_type {
+	SPA_MAP_CONTROL,
+	SPA_MAP_APERTURE,
 };
 
 struct nfit_spa_mapping {
@@ -130,7 +154,8 @@ struct nfit_spa_mapping {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
 	struct kref kref;
-	void __iomem *iomem;
+	enum spa_map_type type;
+	struct nd_blk_addr addr;
 };
 
 static inline struct nfit_spa_mapping *to_spa_map(struct kref *kref)

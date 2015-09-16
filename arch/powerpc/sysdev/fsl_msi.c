@@ -129,7 +129,7 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 	struct msi_desc *entry;
 	struct fsl_msi *msi_data;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->irq == NO_IRQ)
 			continue;
 		msi_data = irq_get_chip_data(entry->irq);
@@ -219,7 +219,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		}
 	}
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		/*
 		 * Loop over all the MSI devices until we find one that has an
 		 * available interrupt.

@@ -254,6 +254,8 @@ struct link_qual {
 	int tx_failed;
 };
 
+DECLARE_EWMA(rssi, 1024, 8)
+
 /*
  * Antenna settings about the currently active link.
  */
@@ -285,7 +287,7 @@ struct link_ant {
 	 * Similar to the avg_rssi in the link_qual structure
 	 * this value is updated by using the walking average.
 	 */
-	struct ewma rssi_ant;
+	struct ewma_rssi rssi_ant;
 };
 
 /*
@@ -314,7 +316,7 @@ struct link {
 	/*
 	 * Currently active average RSSI value
 	 */
-	struct ewma avg_rssi;
+	struct ewma_rssi avg_rssi;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.

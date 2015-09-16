@@ -818,10 +818,9 @@ static int setup_glist(struct lio *lio)
 	INIT_LIST_HEAD(&lio->glist);
 
 	for (i = 0; i < lio->tx_qsize; i++) {
-		g = kmalloc(sizeof(*g), GFP_KERNEL);
+		g = kzalloc(sizeof(*g), GFP_KERNEL);
 		if (!g)
 			break;
-		memset(g, 0, sizeof(struct octnic_gather));
 
 		g->sg_size =
 			((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);

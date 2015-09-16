@@ -15,13 +15,12 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/firmware.h>
-#include <linux/gpio.h>
+#include <linux/property.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -54,7 +53,7 @@ static const struct regmap_range_cfg rt5677_ranges[] = {
 	},
 };
 
-static const struct reg_default init_list[] = {
+static const struct reg_sequence init_list[] = {
 	{RT5677_ASRC_12,	0x0018},
 	{RT5677_PR_BASE + 0x3d,	0x364d},
 	{RT5677_PR_BASE + 0x17,	0x4fc0},
@@ -746,14 +745,14 @@ static int rt5677_set_dsp_vad(struct snd_soc_codec *codec, bool on)
 		ret = request_firmware(&rt5677->fw1, RT5677_FIRMWARE1,
 			codec->dev);
 		if (ret == 0) {
-			rt5677_spi_burst_write(0x50000000, rt5677->fw1);
+			rt5677_spi_write_firmware(0x50000000, rt5677->fw1);
 			release_firmware(rt5677->fw1);
 		}
 
 		ret = request_firmware(&rt5677->fw2, RT5677_FIRMWARE2,
 			codec->dev);
 		if (ret == 0) {
-			rt5677_spi_burst_write(0x60000000, rt5677->fw2);
+			rt5677_spi_write_firmware(0x60000000, rt5677->fw2);
 			release_firmware(rt5677->fw2);
 		}
 
@@ -789,16 +788,15 @@ static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
 static const DECLARE_TLV_DB_SCALE(st_vol_tlv, -4650, 150, 0);
 
 /* {0, +20, +24, +30, +35, +40, +44, +50, +52} dB */
-static unsigned int bst_tlv[] = {
-	TLV_DB_RANGE_HEAD(7),
+static const DECLARE_TLV_DB_RANGE(bst_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(2000, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(2400, 0, 0),
 	3, 5, TLV_DB_SCALE_ITEM(3000, 500, 0),
 	6, 6, TLV_DB_SCALE_ITEM(4400, 0, 0),
 	7, 7, TLV_DB_SCALE_ITEM(5000, 0, 0),
-	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0),
-};
+	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0)
+);
 
 static int rt5677_dsp_vad_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -917,8 +915,11 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
-	int idx = rl6231_calc_dmic_clk(rt5677->lrck[RT5677_AIF1] << 8);
+	int idx, rate;
 
+	rate = rt5677->sysclk / rl6231_get_pre_div(rt5677->regmap,
+		RT5677_CLK_TREE_CTRL1, RT5677_I2S_PD1_SFT);
+	idx = rl6231_calc_dmic_clk(rate);
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");
 	else
@@ -4764,10 +4765,8 @@ static int rt5677_remove(struct snd_soc_codec *codec)
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
 	regmap_write(rt5677->regmap, RT5677_RESET, 0x10ec);
-	if (gpio_is_valid(rt5677->pow_ldo2))
-		gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
-	if (gpio_is_valid(rt5677->reset_pin))
-		gpio_set_value_cansleep(rt5677->reset_pin, 0);
+	gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
+	gpiod_set_value_cansleep(rt5677->reset_pin, 0);
 
 	return 0;
 }
@@ -4781,10 +4780,8 @@ static int rt5677_suspend(struct snd_soc_codec *codec)
 		regcache_cache_only(rt5677->regmap, true);
 		regcache_mark_dirty(rt5677->regmap);
 
-		if (gpio_is_valid(rt5677->pow_ldo2))
-			gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
-		if (gpio_is_valid(rt5677->reset_pin))
-			gpio_set_value_cansleep(rt5677->reset_pin, 0);
+		gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
+		gpiod_set_value_cansleep(rt5677->reset_pin, 0);
 	}
 
 	return 0;
@@ -4795,12 +4792,9 @@ static int rt5677_resume(struct snd_soc_codec *codec)
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
 	if (!rt5677->dsp_vad_en) {
-		if (gpio_is_valid(rt5677->pow_ldo2))
-			gpio_set_value_cansleep(rt5677->pow_ldo2, 1);
-		if (gpio_is_valid(rt5677->reset_pin))
-			gpio_set_value_cansleep(rt5677->reset_pin, 1);
-		if (gpio_is_valid(rt5677->pow_ldo2) ||
-		    gpio_is_valid(rt5677->reset_pin))
+		gpiod_set_value_cansleep(rt5677->pow_ldo2, 1);
+		gpiod_set_value_cansleep(rt5677->reset_pin, 1);
+		if (rt5677->pow_ldo2 || rt5677->reset_pin)
 			msleep(10);
 
 		regcache_cache_only(rt5677->regmap, false);
@@ -4863,7 +4857,7 @@ static int rt5677_write(void *context, unsigned int reg, unsigned int val)
 #define RT5677_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-static struct snd_soc_dai_ops rt5677_aif_dai_ops = {
+static const struct snd_soc_dai_ops rt5677_aif_dai_ops = {
 	.hw_params = rt5677_hw_params,
 	.set_fmt = rt5677_set_dai_fmt,
 	.set_sysclk = rt5677_set_dai_sysclk,
@@ -5024,45 +5018,29 @@ static const struct i2c_device_id rt5677_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
-static int rt5677_parse_dt(struct rt5677_priv *rt5677, struct device_node *np)
+static void rt5677_read_device_properties(struct rt5677_priv *rt5677,
+		struct device *dev)
 {
-	rt5677->pdata.in1_diff = of_property_read_bool(np,
-					"realtek,in1-differential");
-	rt5677->pdata.in2_diff = of_property_read_bool(np,
-					"realtek,in2-differential");
-	rt5677->pdata.lout1_diff = of_property_read_bool(np,
-					"realtek,lout1-differential");
-	rt5677->pdata.lout2_diff = of_property_read_bool(np,
-					"realtek,lout2-differential");
-	rt5677->pdata.lout3_diff = of_property_read_bool(np,
-					"realtek,lout3-differential");
+	rt5677->pdata.in1_diff = device_property_read_bool(dev,
+			"realtek,in1-differential");
+	rt5677->pdata.in2_diff = device_property_read_bool(dev,
+			"realtek,in2-differential");
+	rt5677->pdata.lout1_diff = device_property_read_bool(dev,
+			"realtek,lout1-differential");
+	rt5677->pdata.lout2_diff = device_property_read_bool(dev,
+			"realtek,lout2-differential");
+	rt5677->pdata.lout3_diff = device_property_read_bool(dev,
+			"realtek,lout3-differential");
 
-	rt5677->pow_ldo2 = of_get_named_gpio(np,
-					"realtek,pow-ldo2-gpio", 0);
-	rt5677->reset_pin = of_get_named_gpio(np,
-					"realtek,reset-gpio", 0);
+	device_property_read_u8_array(dev, "realtek,gpio-config",
+			rt5677->pdata.gpio_config, RT5677_GPIO_NUM);
 
-	/*
-	 * POW_LDO2 is optional (it may be statically tied on the board).
-	 * -ENOENT means that the property doesn't exist, i.e. there is no
-	 * GPIO, so is not an error. Any other error code means the property
-	 * exists, but could not be parsed.
-	 */
-	if (!gpio_is_valid(rt5677->pow_ldo2) &&
-			(rt5677->pow_ldo2 != -ENOENT))
-		return rt5677->pow_ldo2;
-	if (!gpio_is_valid(rt5677->reset_pin) &&
-			(rt5677->reset_pin != -ENOENT))
-		return rt5677->reset_pin;
-
-	of_property_read_u8_array(np, "realtek,gpio-config",
-		rt5677->pdata.gpio_config, RT5677_GPIO_NUM);
-
-	of_property_read_u32(np, "realtek,jd1-gpio", &rt5677->pdata.jd1_gpio);
-	of_property_read_u32(np, "realtek,jd2-gpio", &rt5677->pdata.jd2_gpio);
-	of_property_read_u32(np, "realtek,jd3-gpio", &rt5677->pdata.jd3_gpio);
-
-	return 0;
+	device_property_read_u32(dev, "realtek,jd1-gpio",
+			&rt5677->pdata.jd1_gpio);
+	device_property_read_u32(dev, "realtek,jd2-gpio",
+			&rt5677->pdata.jd2_gpio);
+	device_property_read_u32(dev, "realtek,jd3-gpio",
+			&rt5677->pdata.jd3_gpio);
 }
 
 static struct regmap_irq rt5677_irqs[] = {
@@ -5145,43 +5123,29 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5677->pdata = *pdata;
+	else
+		rt5677_read_device_properties(rt5677, &i2c->dev);
 
-	if (i2c->dev.of_node) {
-		ret = rt5677_parse_dt(rt5677, i2c->dev.of_node);
-		if (ret) {
-			dev_err(&i2c->dev, "Failed to parse device tree: %d\n",
-				ret);
-			return ret;
-		}
-	} else {
-		rt5677->pow_ldo2 = -EINVAL;
-		rt5677->reset_pin = -EINVAL;
+	/* pow-ldo2 and reset are optional. The codec pins may be statically
+	 * connected on the board without gpios. If the gpio device property
+	 * isn't specified, devm_gpiod_get_optional returns NULL.
+	 */
+	rt5677->pow_ldo2 = devm_gpiod_get_optional(&i2c->dev,
+			"realtek,pow-ldo2", GPIOD_OUT_HIGH);
+	if (IS_ERR(rt5677->pow_ldo2)) {
+		ret = PTR_ERR(rt5677->pow_ldo2);
+		dev_err(&i2c->dev, "Failed to request POW_LDO2: %d\n", ret);
+		return ret;
+	}
+	rt5677->reset_pin = devm_gpiod_get_optional(&i2c->dev,
+			"realtek,reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(rt5677->reset_pin)) {
+		ret = PTR_ERR(rt5677->reset_pin);
+		dev_err(&i2c->dev, "Failed to request RESET: %d\n", ret);
+		return ret;
 	}
 
-	if (gpio_is_valid(rt5677->pow_ldo2)) {
-		ret = devm_gpio_request_one(&i2c->dev, rt5677->pow_ldo2,
-					    GPIOF_OUT_INIT_HIGH,
-					    "RT5677 POW_LDO2");
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to request POW_LDO2 %d: %d\n",
-				rt5677->pow_ldo2, ret);
-			return ret;
-		}
-	}
-
-	if (gpio_is_valid(rt5677->reset_pin)) {
-		ret = devm_gpio_request_one(&i2c->dev, rt5677->reset_pin,
-					    GPIOF_OUT_INIT_HIGH,
-					    "RT5677 RESET");
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to request RESET %d: %d\n",
-				rt5677->reset_pin, ret);
-			return ret;
-		}
-	}
-
-	if (gpio_is_valid(rt5677->pow_ldo2) ||
-	    gpio_is_valid(rt5677->reset_pin)) {
+	if (rt5677->pow_ldo2 || rt5677->reset_pin) {
 		/* Wait a while until I2C bus becomes available. The datasheet
 		 * does not specify the exact we should wait but startup
 		 * sequence mentiones at least a few milliseconds.
@@ -5209,7 +5173,7 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt5677->regmap, RT5677_VENDOR_ID2, &val);
 	if (val != RT5677_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5677\n", val);
+			"Device with ID register %#x is not rt5677\n", val);
 		return -ENODEV;
 	}
 
@@ -5273,7 +5237,6 @@ static int rt5677_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver rt5677_i2c_driver = {
 	.driver = {
 		.name = "rt5677",
-		.owner = THIS_MODULE,
 	},
 	.probe = rt5677_i2c_probe,
 	.remove   = rt5677_i2c_remove,

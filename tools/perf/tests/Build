@@ -32,6 +32,7 @@ perf-y += sample-parsing.o
 perf-y += parse-no-sample-id-all.o
 perf-y += kmod-path.o
 perf-y += thread-map.o
+perf-y += llvm.o
 
 perf-$(CONFIG_X86) += perf-time-to-tsc.o
 

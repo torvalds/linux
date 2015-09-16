@@ -30,6 +30,7 @@
 struct pbias_reg_info {
 	u32 enable;
 	u32 enable_mask;
+	u32 disable_val;
 	u32 vmode;
 	unsigned int enable_time;
 	char *name;
@@ -62,6 +63,7 @@ static const struct pbias_reg_info pbias_mmc_omap2430 = {
 	.enable = BIT(1),
 	.enable_mask = BIT(1),
 	.vmode = BIT(0),
+	.disable_val = 0,
 	.enable_time = 100,
 	.name = "pbias_mmc_omap2430"
 };
@@ -77,6 +79,7 @@ static const struct pbias_reg_info pbias_sim_omap3 = {
 static const struct pbias_reg_info pbias_mmc_omap4 = {
 	.enable = BIT(26) | BIT(22),
 	.enable_mask = BIT(26) | BIT(25) | BIT(22),
+	.disable_val = BIT(25),
 	.vmode = BIT(21),
 	.enable_time = 100,
 	.name = "pbias_mmc_omap4"
@@ -85,6 +88,7 @@ static const struct pbias_reg_info pbias_mmc_omap4 = {
 static const struct pbias_reg_info pbias_mmc_omap5 = {
 	.enable = BIT(27) | BIT(26),
 	.enable_mask = BIT(27) | BIT(25) | BIT(26),
+	.disable_val = BIT(25),
 	.vmode = BIT(21),
 	.enable_time = 100,
 	.name = "pbias_mmc_omap5"
@@ -159,6 +163,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 		drvdata[data_idx].desc.enable_reg = res->start;
 		drvdata[data_idx].desc.enable_mask = info->enable_mask;
 		drvdata[data_idx].desc.enable_val = info->enable;
+		drvdata[data_idx].desc.disable_val = info->disable_val;
 
 		cfg.init_data = pbias_matches[idx].init_data;
 		cfg.driver_data = &drvdata[data_idx];

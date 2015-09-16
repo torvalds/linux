@@ -321,8 +321,8 @@ static void ar724x_pci_irq_init(struct ar724x_pci_controller *apc,
 		irq_set_chip_data(i, apc);
 	}
 
-	irq_set_handler_data(apc->irq, apc);
-	irq_set_chained_handler(apc->irq, ar724x_pci_irq_handler);
+	irq_set_chained_handler_and_data(apc->irq, ar724x_pci_irq_handler,
+					 apc);
 }
 
 static int ar724x_pci_probe(struct platform_device *pdev)

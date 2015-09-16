@@ -24,6 +24,7 @@
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
 #include <linux/perf_event.h>
+#include <linux/kthread.h>
 
 /*
  * The run state of the lockup detectors is controlled by the content of the
@@ -66,7 +67,26 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 #define for_each_watchdog_cpu(cpu) \
 	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
 
+/*
+ * The 'watchdog_running' variable is set to 1 when the watchdog threads
+ * are registered/started and is set to 0 when the watchdog threads are
+ * unregistered/stopped, so it is an indicator whether the threads exist.
+ */
 static int __read_mostly watchdog_running;
+/*
+ * If a subsystem has a need to deactivate the watchdog temporarily, it
+ * can use the suspend/resume interface to achieve this. The content of
+ * the 'watchdog_suspended' variable reflects this state. Existing threads
+ * are parked/unparked by the lockup_detector_{suspend|resume} functions
+ * (see comment blocks pertaining to those functions for further details).
+ *
+ * 'watchdog_suspended' also prevents threads from being registered/started
+ * or unregistered/stopped via parameters in /proc/sys/kernel, so the state
+ * of 'watchdog_running' cannot change while the watchdog is deactivated
+ * temporarily (see related code in 'proc' handlers).
+ */
+static int __read_mostly watchdog_suspended;
+
 static u64 __read_mostly sample_period;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
@@ -613,46 +633,9 @@ static void watchdog_nmi_disable(unsigned int cpu)
 	}
 }
 
-void watchdog_nmi_enable_all(void)
-{
-	int cpu;
-
-	mutex_lock(&watchdog_proc_mutex);
-
-	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
-		goto unlock;
-
-	get_online_cpus();
-	for_each_watchdog_cpu(cpu)
-		watchdog_nmi_enable(cpu);
-	put_online_cpus();
-
-unlock:
-	mutex_unlock(&watchdog_proc_mutex);
-}
-
-void watchdog_nmi_disable_all(void)
-{
-	int cpu;
-
-	mutex_lock(&watchdog_proc_mutex);
-
-	if (!watchdog_running)
-		goto unlock;
-
-	get_online_cpus();
-	for_each_watchdog_cpu(cpu)
-		watchdog_nmi_disable(cpu);
-	put_online_cpus();
-
-unlock:
-	mutex_unlock(&watchdog_proc_mutex);
-}
 #else
 static int watchdog_nmi_enable(unsigned int cpu) { return 0; }
 static void watchdog_nmi_disable(unsigned int cpu) { return; }
-void watchdog_nmi_enable_all(void) {}
-void watchdog_nmi_disable_all(void) {}
 #endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
 static struct smp_hotplug_thread watchdog_threads = {
@@ -666,46 +649,89 @@ static struct smp_hotplug_thread watchdog_threads = {
 	.unpark			= watchdog_enable,
 };
 
-static void restart_watchdog_hrtimer(void *info)
+/*
+ * park all watchdog threads that are specified in 'watchdog_cpumask'
+ */
+static int watchdog_park_threads(void)
 {
-	struct hrtimer *hrtimer = raw_cpu_ptr(&watchdog_hrtimer);
-	int ret;
+	int cpu, ret = 0;
 
-	/*
-	 * No need to cancel and restart hrtimer if it is currently executing
-	 * because it will reprogram itself with the new period now.
-	 * We should never see it unqueued here because we are running per-cpu
-	 * with interrupts disabled.
-	 */
-	ret = hrtimer_try_to_cancel(hrtimer);
-	if (ret == 1)
-		hrtimer_start(hrtimer, ns_to_ktime(sample_period),
-				HRTIMER_MODE_REL_PINNED);
+	get_online_cpus();
+	for_each_watchdog_cpu(cpu) {
+		ret = kthread_park(per_cpu(softlockup_watchdog, cpu));
+		if (ret)
+			break;
+	}
+	if (ret) {
+		for_each_watchdog_cpu(cpu)
+			kthread_unpark(per_cpu(softlockup_watchdog, cpu));
+	}
+	put_online_cpus();
+
+	return ret;
 }
 
-static void update_watchdog(int cpu)
-{
-	/*
-	 * Make sure that perf event counter will adopt to a new
-	 * sampling period. Updating the sampling period directly would
-	 * be much nicer but we do not have an API for that now so
-	 * let's use a big hammer.
-	 * Hrtimer will adopt the new period on the next tick but this
-	 * might be late already so we have to restart the timer as well.
-	 */
-	watchdog_nmi_disable(cpu);
-	smp_call_function_single(cpu, restart_watchdog_hrtimer, NULL, 1);
-	watchdog_nmi_enable(cpu);
-}
-
-static void update_watchdog_all_cpus(void)
+/*
+ * unpark all watchdog threads that are specified in 'watchdog_cpumask'
+ */
+static void watchdog_unpark_threads(void)
 {
 	int cpu;
 
 	get_online_cpus();
 	for_each_watchdog_cpu(cpu)
-		update_watchdog(cpu);
+		kthread_unpark(per_cpu(softlockup_watchdog, cpu));
 	put_online_cpus();
+}
+
+/*
+ * Suspend the hard and soft lockup detector by parking the watchdog threads.
+ */
+int lockup_detector_suspend(void)
+{
+	int ret = 0;
+
+	mutex_lock(&watchdog_proc_mutex);
+	/*
+	 * Multiple suspend requests can be active in parallel (counted by
+	 * the 'watchdog_suspended' variable). If the watchdog threads are
+	 * running, the first caller takes care that they will be parked.
+	 * The state of 'watchdog_running' cannot change while a suspend
+	 * request is active (see related code in 'proc' handlers).
+	 */
+	if (watchdog_running && !watchdog_suspended)
+		ret = watchdog_park_threads();
+
+	if (ret == 0)
+		watchdog_suspended++;
+
+	mutex_unlock(&watchdog_proc_mutex);
+
+	return ret;
+}
+
+/*
+ * Resume the hard and soft lockup detector by unparking the watchdog threads.
+ */
+void lockup_detector_resume(void)
+{
+	mutex_lock(&watchdog_proc_mutex);
+
+	watchdog_suspended--;
+	/*
+	 * The watchdog threads are unparked if they were previously running
+	 * and if there is no more active suspend request.
+	 */
+	if (watchdog_running && !watchdog_suspended)
+		watchdog_unpark_threads();
+
+	mutex_unlock(&watchdog_proc_mutex);
+}
+
+static void update_watchdog_all_cpus(void)
+{
+	watchdog_park_threads();
+	watchdog_unpark_threads();
 }
 
 static int watchdog_enable_all_cpus(void)
@@ -713,15 +739,12 @@ static int watchdog_enable_all_cpus(void)
 	int err = 0;
 
 	if (!watchdog_running) {
-		err = smpboot_register_percpu_thread(&watchdog_threads);
+		err = smpboot_register_percpu_thread_cpumask(&watchdog_threads,
+							     &watchdog_cpumask);
 		if (err)
 			pr_err("Failed to create watchdog threads, disabled\n");
-		else {
-			if (smpboot_update_cpumask_percpu_thread(
-				    &watchdog_threads, &watchdog_cpumask))
-				pr_err("Failed to set cpumask for watchdog threads\n");
+		else
 			watchdog_running = 1;
-		}
 	} else {
 		/*
 		 * Enable/disable the lockup detectors or
@@ -786,6 +809,12 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 	int *watchdog_param = (int *)table->data;
 
 	mutex_lock(&watchdog_proc_mutex);
+
+	if (watchdog_suspended) {
+		/* no parameter changes allowed while watchdog is suspended */
+		err = -EAGAIN;
+		goto out;
+	}
 
 	/*
 	 * If the parameter is being read return the state of the corresponding
@@ -872,6 +901,12 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 
 	mutex_lock(&watchdog_proc_mutex);
 
+	if (watchdog_suspended) {
+		/* no parameter changes allowed while watchdog is suspended */
+		err = -EAGAIN;
+		goto out;
+	}
+
 	old = ACCESS_ONCE(watchdog_thresh);
 	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
@@ -903,6 +938,13 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 	int err;
 
 	mutex_lock(&watchdog_proc_mutex);
+
+	if (watchdog_suspended) {
+		/* no parameter changes allowed while watchdog is suspended */
+		err = -EAGAIN;
+		goto out;
+	}
+
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
 	if (!err && write) {
 		/* Remove impossible cpus to keep sysctl output cleaner. */
@@ -920,6 +962,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 				pr_err("cpumask update failed\n");
 		}
 	}
+out:
 	mutex_unlock(&watchdog_proc_mutex);
 	return err;
 }
@@ -932,10 +975,8 @@ void __init lockup_detector_init(void)
 
 #ifdef CONFIG_NO_HZ_FULL
 	if (tick_nohz_full_enabled()) {
-		if (!cpumask_empty(tick_nohz_full_mask))
-			pr_info("Disabling watchdog on nohz_full cores by default\n");
-		cpumask_andnot(&watchdog_cpumask, cpu_possible_mask,
-			       tick_nohz_full_mask);
+		pr_info("Disabling watchdog on nohz_full cores by default\n");
+		cpumask_copy(&watchdog_cpumask, housekeeping_mask);
 	} else
 		cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
 #else

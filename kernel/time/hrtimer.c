@@ -183,7 +183,7 @@ struct hrtimer_cpu_base *get_target_base(struct hrtimer_cpu_base *base,
 					 int pinned)
 {
 	if (pinned || !base->migration_enabled)
-		return this_cpu_ptr(&hrtimer_bases);
+		return base;
 	return &per_cpu(hrtimer_bases, get_nohz_timer_target());
 }
 #else
@@ -191,23 +191,32 @@ static inline
 struct hrtimer_cpu_base *get_target_base(struct hrtimer_cpu_base *base,
 					 int pinned)
 {
-	return this_cpu_ptr(&hrtimer_bases);
+	return base;
 }
 #endif
 
 /*
- * Switch the timer base to the current CPU when possible.
+ * We switch the timer base to a power-optimized selected CPU target,
+ * if:
+ *	- NO_HZ_COMMON is enabled
+ *	- timer migration is enabled
+ *	- the timer callback is not running
+ *	- the timer is not the first expiring timer on the new target
+ *
+ * If one of the above requirements is not fulfilled we move the timer
+ * to the current CPU or leave it on the previously assigned CPU if
+ * the timer callback is currently running.
  */
 static inline struct hrtimer_clock_base *
 switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
 		    int pinned)
 {
-	struct hrtimer_cpu_base *new_cpu_base, *this_base;
+	struct hrtimer_cpu_base *new_cpu_base, *this_cpu_base;
 	struct hrtimer_clock_base *new_base;
 	int basenum = base->index;
 
-	this_base = this_cpu_ptr(&hrtimer_bases);
-	new_cpu_base = get_target_base(this_base, pinned);
+	this_cpu_base = this_cpu_ptr(&hrtimer_bases);
+	new_cpu_base = get_target_base(this_cpu_base, pinned);
 again:
 	new_base = &new_cpu_base->clock_base[basenum];
 
@@ -229,19 +238,19 @@ again:
 		raw_spin_unlock(&base->cpu_base->lock);
 		raw_spin_lock(&new_base->cpu_base->lock);
 
-		if (new_cpu_base != this_base &&
+		if (new_cpu_base != this_cpu_base &&
 		    hrtimer_check_target(timer, new_base)) {
 			raw_spin_unlock(&new_base->cpu_base->lock);
 			raw_spin_lock(&base->cpu_base->lock);
-			new_cpu_base = this_base;
+			new_cpu_base = this_cpu_base;
 			timer->base = base;
 			goto again;
 		}
 		timer->base = new_base;
 	} else {
-		if (new_cpu_base != this_base &&
+		if (new_cpu_base != this_cpu_base &&
 		    hrtimer_check_target(timer, new_base)) {
-			new_cpu_base = this_base;
+			new_cpu_base = this_cpu_base;
 			goto again;
 		}
 	}
@@ -679,14 +688,14 @@ static void retrigger_next_event(void *arg)
 /*
  * Switch to high resolution mode
  */
-static int hrtimer_switch_to_hres(void)
+static void hrtimer_switch_to_hres(void)
 {
 	struct hrtimer_cpu_base *base = this_cpu_ptr(&hrtimer_bases);
 
 	if (tick_init_highres()) {
 		printk(KERN_WARNING "Could not switch to high resolution "
 				    "mode on CPU %d\n", base->cpu);
-		return 0;
+		return;
 	}
 	base->hres_active = 1;
 	hrtimer_resolution = HIGH_RES_NSEC;
@@ -694,7 +703,6 @@ static int hrtimer_switch_to_hres(void)
 	tick_setup_sched_timer();
 	/* "Retrigger" the interrupt to get things going */
 	retrigger_next_event(NULL);
-	return 1;
 }
 
 static void clock_was_set_work(struct work_struct *work)
@@ -718,7 +726,7 @@ void clock_was_set_delayed(void)
 static inline int __hrtimer_hres_active(struct hrtimer_cpu_base *b) { return 0; }
 static inline int hrtimer_hres_active(void) { return 0; }
 static inline int hrtimer_is_hres_enabled(void) { return 0; }
-static inline int hrtimer_switch_to_hres(void) { return 0; }
+static inline void hrtimer_switch_to_hres(void) { }
 static inline void
 hrtimer_force_reprogram(struct hrtimer_cpu_base *base, int skip_equal) { }
 static inline int hrtimer_reprogram(struct hrtimer *timer,

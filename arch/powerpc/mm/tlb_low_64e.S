@@ -308,11 +308,11 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	 *
 	 * MAS6:IND should be already set based on MAS4
 	 */
-1:	lbarx	r15,0,r11
 	lhz	r10,PACAPACAINDEX(r13)
-	cmpdi	r15,0
-	cmpdi	cr1,r15,1	/* set cr1.eq = 0 for non-recursive */
 	addi	r10,r10,1
+	crclr	cr1*4+eq	/* set cr1.eq = 0 for non-recursive */
+1:	lbarx	r15,0,r11
+	cmpdi	r15,0
 	bne	2f
 	stbcx.	r10,0,r11
 	bne	1b
@@ -320,9 +320,9 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	.subsection 1
 2:	cmpd	cr1,r15,r10	/* recursive lock due to mcheck/crit/etc? */
 	beq	cr1,3b		/* unlock will happen if cr1.eq = 0 */
-	lbz	r15,0(r11)
+10:	lbz	r15,0(r11)
 	cmpdi	r15,0
-	bne	2b
+	bne	10b
 	b	1b
 	.previous
 

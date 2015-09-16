@@ -61,11 +61,21 @@ MODULE_VERSION(NTB_NETDEV_VER);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 
+/* Time in usecs for tx resource reaper */
+static unsigned int tx_time = 1;
+
+/* Number of descriptors to free before resuming tx */
+static unsigned int tx_start = 10;
+
+/* Number of descriptors still available before stop upper layer tx */
+static unsigned int tx_stop = 5;
+
 struct ntb_netdev {
 	struct list_head list;
 	struct pci_dev *pdev;
 	struct net_device *ndev;
 	struct ntb_transport_qp *qp;
+	struct timer_list tx_timer;
 };
 
 #define	NTB_TX_TIMEOUT_MS	1000
@@ -102,6 +112,12 @@ static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 
 	netdev_dbg(ndev, "%s: %d byte payload received\n", __func__, len);
 
+	if (len < 0) {
+		ndev->stats.rx_errors++;
+		ndev->stats.rx_length_errors++;
+		goto enqueue_again;
+	}
+
 	skb_put(skb, len);
 	skb->protocol = eth_type_trans(skb, ndev);
 	skb->ip_summed = CHECKSUM_NONE;
@@ -121,6 +137,7 @@ static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 		return;
 	}
 
+enqueue_again:
 	rc = ntb_transport_rx_enqueue(qp, skb, skb->data, ndev->mtu + ETH_HLEN);
 	if (rc) {
 		dev_kfree_skb(skb);
@@ -129,11 +146,42 @@ static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 	}
 }
 
+static int __ntb_netdev_maybe_stop_tx(struct net_device *netdev,
+				      struct ntb_transport_qp *qp, int size)
+{
+	struct ntb_netdev *dev = netdev_priv(netdev);
+
+	netif_stop_queue(netdev);
+	/* Make sure to see the latest value of ntb_transport_tx_free_entry()
+	 * since the queue was last started.
+	 */
+	smp_mb();
+
+	if (likely(ntb_transport_tx_free_entry(qp) < size)) {
+		mod_timer(&dev->tx_timer, jiffies + usecs_to_jiffies(tx_time));
+		return -EBUSY;
+	}
+
+	netif_start_queue(netdev);
+	return 0;
+}
+
+static int ntb_netdev_maybe_stop_tx(struct net_device *ndev,
+				    struct ntb_transport_qp *qp, int size)
+{
+	if (netif_queue_stopped(ndev) ||
+	    (ntb_transport_tx_free_entry(qp) >= size))
+		return 0;
+
+	return __ntb_netdev_maybe_stop_tx(ndev, qp, size);
+}
+
 static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 				  void *data, int len)
 {
 	struct net_device *ndev = qp_data;
 	struct sk_buff *skb;
+	struct ntb_netdev *dev = netdev_priv(ndev);
 
 	skb = data;
 	if (!skb || !ndev)
@@ -148,6 +196,15 @@ static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 	}
 
 	dev_kfree_skb(skb);
+
+	if (ntb_transport_tx_free_entry(dev->qp) >= tx_start) {
+		/* Make sure anybody stopping the queue after this sees the new
+		 * value of ntb_transport_tx_free_entry()
+		 */
+		smp_mb();
+		if (netif_queue_stopped(ndev))
+			netif_wake_queue(ndev);
+	}
 }
 
 static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
@@ -156,9 +213,14 @@ static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
 	struct ntb_netdev *dev = netdev_priv(ndev);
 	int rc;
 
+	ntb_netdev_maybe_stop_tx(ndev, dev->qp, tx_stop);
+
 	rc = ntb_transport_tx_enqueue(dev->qp, skb, skb->data, skb->len);
 	if (rc)
 		goto err;
+
+	/* check for next submit */
+	ntb_netdev_maybe_stop_tx(ndev, dev->qp, tx_stop);
 
 	return NETDEV_TX_OK;
 
@@ -166,6 +228,23 @@ err:
 	ndev->stats.tx_dropped++;
 	ndev->stats.tx_errors++;
 	return NETDEV_TX_BUSY;
+}
+
+static void ntb_netdev_tx_timer(unsigned long data)
+{
+	struct net_device *ndev = (struct net_device *)data;
+	struct ntb_netdev *dev = netdev_priv(ndev);
+
+	if (ntb_transport_tx_free_entry(dev->qp) < tx_stop) {
+		mod_timer(&dev->tx_timer, jiffies + msecs_to_jiffies(tx_time));
+	} else {
+		/* Make sure anybody stopping the queue after this sees the new
+		 * value of ntb_transport_tx_free_entry()
+		 */
+		smp_mb();
+		if (netif_queue_stopped(ndev))
+			netif_wake_queue(ndev);
+	}
 }
 
 static int ntb_netdev_open(struct net_device *ndev)
@@ -184,14 +263,17 @@ static int ntb_netdev_open(struct net_device *ndev)
 
 		rc = ntb_transport_rx_enqueue(dev->qp, skb, skb->data,
 					      ndev->mtu + ETH_HLEN);
-		if (rc == -EINVAL) {
+		if (rc) {
 			dev_kfree_skb(skb);
 			goto err;
 		}
 	}
 
+	setup_timer(&dev->tx_timer, ntb_netdev_tx_timer, (unsigned long)ndev);
+
 	netif_carrier_off(ndev);
 	ntb_transport_link_up(dev->qp);
+	netif_start_queue(ndev);
 
 	return 0;
 
@@ -211,6 +293,8 @@ static int ntb_netdev_close(struct net_device *ndev)
 
 	while ((skb = ntb_transport_rx_remove(dev->qp, &len)))
 		dev_kfree_skb(skb);
+
+	del_timer_sync(&dev->tx_timer);
 
 	return 0;
 }
