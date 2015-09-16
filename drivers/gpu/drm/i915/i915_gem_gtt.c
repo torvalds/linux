@@ -2121,6 +2121,16 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 		return gen8_ppgtt_init(ppgtt);
 }
 
+static void i915_address_space_init(struct i915_address_space *vm,
+				    struct drm_i915_private *dev_priv)
+{
+	drm_mm_init(&vm->mm, vm->start, vm->total);
+	vm->dev = dev_priv->dev;
+	INIT_LIST_HEAD(&vm->active_list);
+	INIT_LIST_HEAD(&vm->inactive_list);
+	list_add_tail(&vm->global_link, &dev_priv->vm_list);
+}
+
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2129,9 +2139,7 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	ret = __hw_ppgtt_init(dev, ppgtt);
 	if (ret == 0) {
 		kref_init(&ppgtt->ref);
-		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
-			    ppgtt->base.total);
-		i915_init_vm(dev_priv, &ppgtt->base);
+		i915_address_space_init(&ppgtt->base, dev_priv);
 	}
 
 	return ret;
@@ -2618,11 +2626,13 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	BUG_ON(mappable_end > end);
 
-	/* Subtract the guard page ... */
-	drm_mm_init(&ggtt_vm->mm, start, end - start - PAGE_SIZE);
+	ggtt_vm->start = start;
 
-	dev_priv->gtt.base.start = start;
-	dev_priv->gtt.base.total = end - start;
+	/* Subtract the guard page before address space initialization to
+	 * shrink the range used by drm_mm */
+	ggtt_vm->total = end - start - PAGE_SIZE;
+	i915_address_space_init(ggtt_vm, dev_priv);
+	ggtt_vm->total += PAGE_SIZE;
 
 	if (intel_vgpu_active(dev)) {
 		ret = intel_vgt_balloon(dev);
@@ -2631,7 +2641,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	}
 
 	if (!HAS_LLC(dev))
-		dev_priv->gtt.base.mm.color_adjust = i915_gtt_color_adjust;
+		ggtt_vm->mm.color_adjust = i915_gtt_color_adjust;
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
