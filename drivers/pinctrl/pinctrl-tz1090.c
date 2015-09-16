@@ -1661,7 +1661,7 @@ static int tz1090_pinconf_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Only input bias parameters supported */
 	pu = &tz1090_pinconf_pullup[pin];
@@ -1790,7 +1790,7 @@ static int tz1090_pinconf_group_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Calculate field information */
 	*shift = g->slw_bit * *width;
