@@ -563,7 +563,7 @@ static void add_offloaded_reg(struct vub300_mmc_host *vub300,
 			i += 1;
 			continue;
 		}
-	};
+	}
 	__add_offloaded_reg_to_fifo(vub300, register_access, func);
 }
 
@@ -1372,7 +1372,7 @@ static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
 		l += snprintf(vub300->vub_name + l,
 			      sizeof(vub300->vub_name) - l, "_%04X%04X",
 			      sf->vendor, sf->device);
-	};
+	}
 	snprintf(vub300->vub_name + l, sizeof(vub300->vub_name) - l, ".bin");
 	dev_info(&vub300->udev->dev, "requesting offload firmware %s\n",
 		 vub300->vub_name);
@@ -1893,7 +1893,7 @@ static int satisfy_request_from_offloaded_data(struct vub300_mmc_host *vub300,
 			i += 1;
 			continue;
 		}
-	};
+	}
 	if (vub300->total_offload_count == 0)
 		return 0;
 	else if (vub300->fn[func].offload_count == 0)
