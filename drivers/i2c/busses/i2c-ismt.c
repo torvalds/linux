@@ -165,7 +165,7 @@ struct ismt_desc {
 
 struct ismt_priv {
 	struct i2c_adapter adapter;
-	void *smba;				/* PCI BAR */
+	void __iomem *smba;			/* PCI BAR */
 	struct pci_dev *pci_dev;
 	struct ismt_desc *hw;			/* descriptor virt base addr */
 	dma_addr_t io_rng_dma;			/* descriptor HW base addr */
