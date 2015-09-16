@@ -1390,11 +1390,8 @@ static void __floating_irq_kick(struct kvm *kvm, u64 type)
 
 static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 {
-	struct kvm_s390_float_interrupt *fi;
 	u64 type = READ_ONCE(inti->type);
 	int rc;
-
-	fi = &kvm->arch.float_int;
 
 	switch (type) {
 	case KVM_S390_MCHK:
