@@ -14,8 +14,6 @@
 #ifndef _PCIE_IPROC_H
 #define _PCIE_IPROC_H
 
-#define IPROC_PCIE_MAX_NUM_IRQS 6
-
 /**
  * iProc PCIe device
  * @dev: pointer to device data structure
@@ -34,7 +32,6 @@ struct iproc_pcie {
 #endif
 	struct pci_bus *root_bus;
 	struct phy *phy;
-	int irqs[IPROC_PCIE_MAX_NUM_IRQS];
 	int (*map_irq)(const struct pci_dev *, u8, u8);
 };
 
