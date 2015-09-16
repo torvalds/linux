@@ -3143,11 +3143,11 @@ out:
 	return rc;
 }
 
-int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb)
+int dev_queue_xmit(struct sk_buff *skb)
 {
 	return __dev_queue_xmit(skb, NULL);
 }
-EXPORT_SYMBOL(dev_queue_xmit_sk);
+EXPORT_SYMBOL(dev_queue_xmit);
 
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 {
