@@ -809,7 +809,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			cmd->error = -EINVAL;
 
 			goto done;
-		};
+		}
 	}
 
 	/*
