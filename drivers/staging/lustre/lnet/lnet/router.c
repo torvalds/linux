@@ -1497,7 +1497,7 @@ lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 	unsigned long now = cfs_time_current();
 	int cpt = lnet_cpt_of_nid(nid);
 
-	LASSERT(!in_interrupt ());
+	LASSERT(!in_interrupt());
 
 	CDEBUG(D_NET, "%s notifying %s: %s\n",
 		(ni == NULL) ? "userspace" : libcfs_nid2str(ni->ni_nid),
