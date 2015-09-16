@@ -20,11 +20,11 @@
  * iProc PCIe device
  * @dev: pointer to device data structure
  * @base: PCIe host controller I/O register base
- * @resources: linked list of all PCI resources
  * @sysdata: Per PCI controller data (ARM-specific)
  * @root_bus: pointer to root bus
  * @phy: optional PHY device that controls the Serdes
  * @irqs: interrupt IDs
+ * @map_irq: function callback to map interrupts
  */
 struct iproc_pcie {
 	struct device *dev;
