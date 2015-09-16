@@ -1118,9 +1118,11 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 					   msecs_to_jiffies(HPDET_DEBOUNCE));
 		}
 
-		regmap_update_bits(arizona->regmap,
-				   ARIZONA_JACK_DETECT_DEBOUNCE,
-				   ARIZONA_MICD_CLAMP_DB | ARIZONA_JD1_DB, 0);
+		if (info->micd_clamp || !arizona->pdata.jd_invert)
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_JACK_DETECT_DEBOUNCE,
+					   ARIZONA_MICD_CLAMP_DB |
+					   ARIZONA_JD1_DB, 0);
 	} else {
 		dev_dbg(arizona->dev, "Detected jack removal\n");
 
