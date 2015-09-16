@@ -947,44 +947,11 @@ static void ismt_remove(struct pci_dev *pdev)
 	i2c_del_adapter(&priv->adapter);
 }
 
-/**
- * ismt_suspend() - place the device in suspend
- * @pdev: PCI-Express device
- * @mesg: PM message
- */
-#ifdef CONFIG_PM
-static int ismt_suspend(struct pci_dev *pdev, pm_message_t mesg)
-{
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
-	return 0;
-}
-
-/**
- * ismt_resume() - PCI resume code
- * @pdev: PCI-Express device
- */
-static int ismt_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	return pci_enable_device(pdev);
-}
-
-#else
-
-#define ismt_suspend NULL
-#define ismt_resume NULL
-
-#endif
-
 static struct pci_driver ismt_driver = {
 	.name = "ismt_smbus",
 	.id_table = ismt_ids,
 	.probe = ismt_probe,
 	.remove = ismt_remove,
-	.suspend = ismt_suspend,
-	.resume = ismt_resume,
 };
 
 module_pci_driver(ismt_driver);
