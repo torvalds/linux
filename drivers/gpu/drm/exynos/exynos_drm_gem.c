@@ -77,7 +77,8 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem_obj *obj)
 
 		start_addr = obj->dma_addr;
 		while (i < nr_pages) {
-			obj->pages[i] = phys_to_page(start_addr);
+			obj->pages[i] = pfn_to_page(dma_to_pfn(dev->dev,
+							       start_addr));
 			start_addr += PAGE_SIZE;
 			i++;
 		}
