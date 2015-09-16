@@ -4268,29 +4268,28 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 	return r;
 }
 
-static void allocate_vpid(struct vcpu_vmx *vmx)
+static int allocate_vpid(void)
 {
 	int vpid;
 
-	vmx->vpid = 0;
 	if (!enable_vpid)
-		return;
+		return 0;
 	spin_lock(&vmx_vpid_lock);
 	vpid = find_first_zero_bit(vmx_vpid_bitmap, VMX_NR_VPIDS);
-	if (vpid < VMX_NR_VPIDS) {
-		vmx->vpid = vpid;
+	if (vpid < VMX_NR_VPIDS)
 		__set_bit(vpid, vmx_vpid_bitmap);
-	}
+	else
+		vpid = 0;
 	spin_unlock(&vmx_vpid_lock);
+	return vpid;
 }
 
-static void free_vpid(struct vcpu_vmx *vmx)
+static void free_vpid(int vpid)
 {
-	if (!enable_vpid)
+	if (!enable_vpid || vpid == 0)
 		return;
 	spin_lock(&vmx_vpid_lock);
-	if (vmx->vpid != 0)
-		__clear_bit(vmx->vpid, vmx_vpid_bitmap);
+	__clear_bit(vpid, vmx_vpid_bitmap);
 	spin_unlock(&vmx_vpid_lock);
 }
 
@@ -8629,7 +8628,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 
 	if (enable_pml)
 		vmx_disable_pml(vmx);
-	free_vpid(vmx);
+	free_vpid(vmx->vpid);
 	leave_guest_mode(vcpu);
 	vmx_load_vmcs01(vcpu);
 	free_nested(vmx);
@@ -8648,7 +8647,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
 
-	allocate_vpid(vmx);
+	vmx->vpid = allocate_vpid();
 
 	err = kvm_vcpu_init(&vmx->vcpu, kvm, id);
 	if (err)
@@ -8724,7 +8723,7 @@ free_msrs:
 uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
 free_vcpu:
-	free_vpid(vmx);
+	free_vpid(vmx->vpid);
 	kmem_cache_free(kvm_vcpu_cache, vmx);
 	return ERR_PTR(err);
 }
