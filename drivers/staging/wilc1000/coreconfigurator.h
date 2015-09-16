@@ -180,7 +180,6 @@ s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZ
 s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
-s32 SendRawPacket(s8 *pspacket, s32 s32PacketLen);
 void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
