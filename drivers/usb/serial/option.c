@@ -48,7 +48,6 @@ static int  option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id);
 static int option_attach(struct usb_serial *serial);
 static void option_release(struct usb_serial *serial);
-static int option_send_setup(struct usb_serial_port *port);
 static void option_instat_callback(struct urb *urb);
 
 /* Vendor and product IDs */
@@ -1890,7 +1889,7 @@ static int option_attach(struct usb_serial *serial)
 
 	if (!blacklist || !test_bit(iface_desc->bInterfaceNumber,
 						&blacklist->sendsetup)) {
-		data->send_setup = option_send_setup;
+		data->use_send_setup = 1;
 	}
 	spin_lock_init(&data->susp_lock);
 
@@ -1959,39 +1958,6 @@ static void option_instat_callback(struct urb *urb)
 			dev_dbg(dev, "%s: resubmit intr urb failed. (%d)\n",
 				__func__, err);
 	}
-}
-
-/** send RTS/DTR state to the port.
- *
- * This is exactly the same as SET_CONTROL_LINE_STATE from the PSTN
- * CDC.
-*/
-static int option_send_setup(struct usb_serial_port *port)
-{
-	struct usb_serial *serial = port->serial;
-	struct usb_wwan_port_private *portdata;
-	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
-	int val = 0;
-	int res;
-
-	portdata = usb_get_serial_port_data(port);
-
-	if (portdata->dtr_state)
-		val |= 0x01;
-	if (portdata->rts_state)
-		val |= 0x02;
-
-	res = usb_autopm_get_interface(serial->interface);
-	if (res)
-		return res;
-
-	res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				0x22, 0x21, val, ifNum, NULL,
-				0, USB_CTRL_SET_TIMEOUT);
-
-	usb_autopm_put_interface(serial->interface);
-
-	return res;
 }
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
