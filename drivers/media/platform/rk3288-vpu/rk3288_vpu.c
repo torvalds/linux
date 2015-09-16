@@ -391,10 +391,12 @@ static int rk3288_vpu_open(struct file *filp)
 	q->lock = &dev->vpu_mutex;
 	q->buf_struct_size = sizeof(struct rk3288_vpu_buf);
 
-	if (vdev == dev->vfd_enc)
+	if (vdev == dev->vfd_enc) {
 		q->ops = get_enc_queue_ops();
-	else if (vdev == dev->vfd_dec)
+	} else if (vdev == dev->vfd_dec) {
 		q->ops = get_dec_queue_ops();
+		q->use_dma_bidirectional = 1;
+	}
 
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
