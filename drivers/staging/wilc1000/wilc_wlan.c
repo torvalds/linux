@@ -2160,7 +2160,6 @@ _fail_:
 
 }
 
-#define BIT31 (1 << 31)
 u16 Set_machw_change_vir_if(bool bValue)
 {
 	u16 ret;
@@ -2174,9 +2173,9 @@ u16 Set_machw_change_vir_if(bool bValue)
 	}
 
 	if (bValue)
-		reg |= (BIT31);
+		reg |= BIT(31);
 	else
-		reg &= ~(BIT31);
+		reg &= ~BIT(31);
 
 	ret = (&g_wlan)->hif_func.hif_write_reg(WILC_CHANGING_VIR_IF, reg);
 
