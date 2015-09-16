@@ -206,7 +206,7 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (alt > 1)
 			goto fail;
 
-		if (obex->port.in->driver_data) {
+		if (obex->port.in->enabled) {
 			dev_dbg(&cdev->gadget->dev,
 				"reset obex ttyGS%d\n", obex->port_num);
 			gserial_disconnect(&obex->port);
@@ -348,13 +348,11 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	obex->port.in = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &obex_fs_ep_out_desc);
 	if (!ep)
 		goto fail;
 	obex->port.out = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -378,12 +376,6 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	/* we might as well release our claims on endpoints */
-	if (obex->port.out)
-		obex->port.out->driver_data = NULL;
-	if (obex->port.in)
-		obex->port.in->driver_data = NULL;
-
 	ERROR(cdev, "%s/%p: can't bind, err %d\n", f->name, f, status);
 
 	return status;
