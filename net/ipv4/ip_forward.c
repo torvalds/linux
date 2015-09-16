@@ -81,6 +81,7 @@ int ip_forward(struct sk_buff *skb)
 	struct iphdr *iph;	/* Our header */
 	struct rtable *rt;	/* Route we use */
 	struct ip_options *opt	= &(IPCB(skb)->opt);
+	struct net *net;
 
 	/* that should never happen */
 	if (skb->pkt_type != PACKET_HOST)
@@ -99,6 +100,7 @@ int ip_forward(struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 
 	skb_forward_csum(skb);
+	net = dev_net(skb->dev);
 
 	/*
 	 *	According to the RFC, we must first decrease the TTL field. If
@@ -119,7 +121,7 @@ int ip_forward(struct sk_buff *skb)
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
 	mtu = ip_dst_mtu_maybe_forward(&rt->dst, true);
 	if (ip_exceeds_mtu(skb, mtu)) {
-		IP_INC_STATS(dev_net(rt->dst.dev), IPSTATS_MIB_FRAGFAILS);
+		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(mtu));
 		goto drop;
@@ -155,7 +157,7 @@ sr_failed:
 
 too_many_hops:
 	/* Tell the sender its packet died... */
-	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_INHDRERRORS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
 	icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
 drop:
 	kfree_skb(skb);
