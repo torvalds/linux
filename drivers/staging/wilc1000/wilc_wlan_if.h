@@ -137,7 +137,6 @@ typedef struct {
 	u32 rx_buffer_size;
 #endif
 	void *rxq_critical_section;
-	void *rxq_wait_event;
 
 	struct semaphore *cfg_wait_event;
 } wilc_wlan_os_context_t;

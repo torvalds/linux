@@ -187,7 +187,6 @@ typedef struct {
 	struct mutex rxq_cs;
 	struct mutex hif_cs;
 
-	struct semaphore rxq_event;
 	struct semaphore cfg_event;
 	struct semaphore sync_event;
 	struct semaphore txq_event;

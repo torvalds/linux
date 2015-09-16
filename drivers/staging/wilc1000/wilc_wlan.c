@@ -90,7 +90,6 @@ typedef struct {
 	struct rxq_entry_t *rxq_head;
 	struct rxq_entry_t *rxq_tail;
 	int rxq_entries;
-	void *rxq_wait;
 	int rxq_exit;
 
 
@@ -1398,7 +1397,6 @@ _end_:
 				rqe->buffer_size = size;
 				PRINT_D(RX_DBG, "rxq entery Size= %d - Address = %p\n", rqe->buffer_size, rqe->buffer);
 				wilc_wlan_rxq_add(rqe);
-				up(p->rxq_wait);
 			}
 		} else {
 #ifndef MEMORY_STATIC
@@ -2049,7 +2047,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 	g_wlan.rxq_lock = inp->os_context.rxq_critical_section;
 	g_wlan.txq_wait = inp->os_context.txq_wait_event;
-	g_wlan.rxq_wait = inp->os_context.rxq_wait_event;
 	g_wlan.cfg_wait = inp->os_context.cfg_wait_event;
 	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
 #if defined (MEMORY_STATIC)

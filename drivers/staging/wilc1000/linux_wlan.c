@@ -1088,10 +1088,6 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 		  #endif
 		#endif
 
-		/* not sure if the following unlocks are needed or not*/
-		if (&g_linux_wlan->rxq_event != NULL)
-			up(&g_linux_wlan->rxq_event);
-
 		if (&g_linux_wlan->txq_event != NULL)
 			up(&g_linux_wlan->txq_event);
 
@@ -1156,7 +1152,6 @@ int wlan_init_locks(linux_wlan_t *p_nic)
 	sema_init(&g_linux_wlan->txq_add_to_head_cs, 1);
 
 	sema_init(&g_linux_wlan->txq_event, 0);
-	sema_init(&g_linux_wlan->rxq_event, 0);
 
 	sema_init(&g_linux_wlan->cfg_event, 0);
 	sema_init(&g_linux_wlan->sync_event, 0);
@@ -1207,7 +1202,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_context.rx_buffer_size = LINUX_RX_SIZE;
 #endif
 	nwi->os_context.rxq_critical_section = (void *)&g_linux_wlan->rxq_cs;
-	nwi->os_context.rxq_wait_event = (void *)&g_linux_wlan->rxq_event;
 	nwi->os_context.cfg_wait_event = (void *)&g_linux_wlan->cfg_event;
 
 	nwi->os_func.os_debug = linux_wlan_dbg;
@@ -1282,7 +1276,6 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 _fail_2:
 	/*De-Initialize 2nd thread*/
 	g_linux_wlan->close = 1;
-	up(&g_linux_wlan->rxq_event);
 	kthread_stop(g_linux_wlan->rxq_thread);
 
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
@@ -1301,8 +1294,6 @@ static void wlan_deinitialize_threads(linux_wlan_t *nic)
 
 	g_linux_wlan->close = 1;
 	PRINT_D(INIT_DBG, "Deinitializing Threads\n");
-	if (&g_linux_wlan->rxq_event != NULL)
-		up(&g_linux_wlan->rxq_event);
 
 	if (g_linux_wlan->rxq_thread != NULL) {
 		kthread_stop(g_linux_wlan->rxq_thread);
