@@ -58,7 +58,7 @@ ip6t_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
 	ret = ip6t_do_table(skb, NF_INET_LOCAL_OUT, state,
-			    dev_net(state->out)->ipv6.ip6table_mangle);
+			    state->net->ipv6.ip6table_mangle);
 
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (!ipv6_addr_equal(&ipv6_hdr(skb)->saddr, &saddr) ||
@@ -83,10 +83,10 @@ ip6table_mangle_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		return ip6t_mangle_out(skb, state);
 	if (ops->hooknum == NF_INET_POST_ROUTING)
 		return ip6t_do_table(skb, ops->hooknum, state,
-				     dev_net(state->out)->ipv6.ip6table_mangle);
+				     state->net->ipv6.ip6table_mangle);
 	/* INPUT/FORWARD */
 	return ip6t_do_table(skb, ops->hooknum, state,
-			     dev_net(state->in)->ipv6.ip6table_mangle);
+			     state->net->ipv6.ip6table_mangle);
 }
 
 static struct nf_hook_ops *mangle_ops __read_mostly;

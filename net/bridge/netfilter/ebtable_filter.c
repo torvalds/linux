@@ -61,7 +61,7 @@ ebt_in_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	    const struct nf_hook_state *state)
 {
 	return ebt_do_table(ops->hooknum, skb, state->in, state->out,
-			    dev_net(state->in)->xt.frame_filter);
+			    state->net->xt.frame_filter);
 }
 
 static unsigned int
@@ -69,7 +69,7 @@ ebt_out_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
 	return ebt_do_table(ops->hooknum, skb, state->in, state->out,
-			    dev_net(state->out)->xt.frame_filter);
+			    state->net->xt.frame_filter);
 }
 
 static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
