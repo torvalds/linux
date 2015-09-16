@@ -1129,7 +1129,9 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		}
 		if (port->port_num >= 8) {
 			port->cached_edid = drm_get_edid(port->connector, &port->aux.ddc);
+			drm_mode_connector_set_tile_property(port->connector);
 		}
+		(*mstb->mgr->cbs->register_connector)(port->connector);
 	}
 
 out:
@@ -2276,10 +2278,10 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 
 	if (port->cached_edid)
 		edid = drm_edid_duplicate(port->cached_edid);
-	else
+	else {
 		edid = drm_get_edid(connector, &port->aux.ddc);
-
-	drm_mode_connector_set_tile_property(connector);
+		drm_mode_connector_set_tile_property(connector);
+	}
 	drm_dp_put_port(port);
 	return edid;
 }
