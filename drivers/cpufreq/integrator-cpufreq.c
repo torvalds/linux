@@ -221,6 +221,8 @@ static const struct of_device_id integrator_cpufreq_match[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(of, integrator_cpufreq_match);
+
 static struct platform_driver integrator_cpufreq_driver = {
 	.driver = {
 		.name = "integrator-cpufreq",
