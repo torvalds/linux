@@ -70,3 +70,7 @@
 &xgenet1 {
 	status = "ok";
 };
+
+&mmc0 {
+	status = "ok";
+};
