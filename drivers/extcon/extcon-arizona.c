@@ -1310,6 +1310,10 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		info->micd_num_modes = ARRAY_SIZE(micd_default_modes);
 	}
 
+	if (arizona->pdata.gpsw > 0)
+		regmap_update_bits(arizona->regmap, ARIZONA_GP_SWITCH_1,
+				ARIZONA_SW1_MODE_MASK, arizona->pdata.gpsw);
+
 	if (arizona->pdata.micd_pol_gpio > 0) {
 		if (info->micd_modes[0].gpio)
 			mode = GPIOF_OUT_INIT_HIGH;
