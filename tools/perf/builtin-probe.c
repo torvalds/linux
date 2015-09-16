@@ -380,8 +380,11 @@ static int perf_del_probe_events(struct strfilter *filter)
 		goto out;
 
 	klist = strlist__new(NULL, NULL);
-	if (!klist)
-		return -ENOMEM;
+	ulist = strlist__new(NULL, NULL);
+	if (!klist || !ulist) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	ret = probe_file__get_events(kfd, filter, klist);
 	if (ret == 0) {
