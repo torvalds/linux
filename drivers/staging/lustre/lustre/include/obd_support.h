@@ -608,27 +608,6 @@ do {									      \
 #define OBD_CPT_ALLOC_PTR(ptr, cptab, cpt)				      \
 	OBD_CPT_ALLOC(ptr, cptab, cpt, sizeof(*(ptr)))
 
-# define __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)			      \
-do {									      \
-	(ptr) = cptab == NULL ?						      \
-		vzalloc(size) :						      \
-		vzalloc_node(size, cfs_cpt_spread_node(cptab, cpt));	      \
-	if (unlikely((ptr) == NULL)) {					\
-		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	   \
-		       (int)(size));					  \
-		CERROR("%llu total bytes allocated by Lustre\n",	      \
-		       obd_memory_sum());				      \
-	} else {							      \
-		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
-	}								     \
-} while (0)
-
-# define OBD_VMALLOC(ptr, size)						      \
-	 __OBD_VMALLOC_VEROBSE(ptr, NULL, 0, size)
-# define OBD_CPT_VMALLOC(ptr, cptab, cpt, size)				      \
-	 __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)
-
-
 #define OBD_ALLOC_LARGE(ptr, size)					    \
 do {									  \
 	ptr = libcfs_kvzalloc(size, GFP_NOFS);				  \
@@ -676,14 +655,6 @@ do {									      \
 	call_rcu(&__h->h_rcu, class_handle_free_cb);			      \
 	POISON_PTR(ptr);						      \
 } while (0)
-
-
-#define OBD_VFREE(ptr, size)				\
-	do {						\
-		OBD_FREE_PRE(ptr, size, "vfreed");	\
-		vfree(ptr);			\
-		POISON_PTR(ptr);			\
-	} while (0)
 
 /* we memset() the slab object to 0 when allocation succeeds, so DO NOT
  * HAVE A CTOR THAT DOES ANYTHING.  its work will be cleared here.  we'd
