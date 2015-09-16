@@ -1284,21 +1284,6 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 	}
 #endif
 
-#ifndef TCP_ENHANCEMENTS
-	/* create rx task */
-	PRINT_D(INIT_DBG, "Creating kthread for reception\n");
-	g_linux_wlan->rxq_thread = kthread_run(linux_wlan_rxq_task, (void *)g_linux_wlan, "K_RXQ_TASK");
-	if (g_linux_wlan->rxq_thread == 0) {
-		PRINT_ER("couldn't create RXQ thread\n");
-		ret = -ENOBUFS;
-		goto _fail_1;
-	}
-
-	/* wait for RXQ task to start. */
-	down(&g_linux_wlan->rxq_thread_started);
-
-#endif
-
 	/* create tx task */
 	PRINT_D(INIT_DBG, "Creating kthread for transmission\n");
 	g_linux_wlan->txq_thread = kthread_run(linux_wlan_txq_task, (void *)g_linux_wlan, "K_TXQ_TASK");
@@ -1327,9 +1312,6 @@ _fail_2:
 	up(&g_linux_wlan->rxq_event);
 	kthread_stop(g_linux_wlan->rxq_thread);
 
-#ifndef TCP_ENHANCEMENTS
-_fail_1:
-#endif
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
 	/*De-Initialize 1st thread*/
 	g_linux_wlan->close = 1;
@@ -1970,10 +1952,6 @@ void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
 	int stats;
 	unsigned char *buff_to_send = NULL;
 	struct sk_buff *skb;
-#ifndef TCP_ENHANCEMENTS
-	char *pu8UdpBuffer;
-	struct iphdr *ih;
-#endif
 	struct net_device *wilc_netdev;
 	perInterface_wlan_t *nic;
 
@@ -2019,16 +1997,6 @@ void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
 		/* nic = netdev_priv(wilc_netdev); */
 
 		skb->protocol = eth_type_trans(skb, wilc_netdev);
-			#ifndef TCP_ENHANCEMENTS
-		/*get source and dest ip addresses*/
-		ih = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
-
-		pu8UdpBuffer = (char *)ih + sizeof(struct iphdr);
-		if (buff_to_send[35] == 67 && buff_to_send[37] == 68)
-			PRINT_D(RX_DBG, "DHCP Message received\n");
-		if (buff_to_send[12] == 0x88 && buff_to_send[13] == 0x8e)
-			PRINT_D(GENERIC_DBG, "eapol received\n");
-			#endif
 		/* Send the packet to the stack by giving it to the bridge */
 		nic->netstats.rx_packets++;
 		nic->netstats.rx_bytes += frame_len;
@@ -2036,10 +2004,6 @@ void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
 		stats = netif_rx(skb);
 		PRINT_D(RX_DBG, "netif_rx ret value is: %d\n", stats);
 	}
-		#ifndef TCP_ENHANCEMENTS
-	else
-		PRINT_ER("Discard sending packet with len = %d\n", size);
-		#endif
 }
 
 void WILC_WFI_mgmt_rx(u8 *buff, u32 size)

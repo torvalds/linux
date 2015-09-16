@@ -12,7 +12,6 @@
 #define WILC_WLAN_IF_H
 
 /*bug 3887: [AP] Allow Management frames to be passed to the host*/
-#define TCP_ENHANCEMENTS
 /* #define MEMORY_STATIC */
 /* #define USE_OLD_SPI_SW */
 

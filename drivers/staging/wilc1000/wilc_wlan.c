@@ -480,7 +480,6 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 }
 #endif
 
-#ifdef TCP_ENHANCEMENTS
 bool EnableTCPAckFilter = false;
 
 void Enable_TCP_ACK_Filter(bool value)
@@ -492,7 +491,6 @@ bool is_TCP_ACK_Filter_Enabled(void)
 {
 	return EnableTCPAckFilter;
 }
-#endif
 
 static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 {
@@ -552,10 +550,8 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size, wi
 	PRINT_D(TX_DBG, "Adding mgmt packet at the Queue tail\n");
 #ifdef TCP_ACK_FILTER
 	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
-#ifdef TCP_ENHANCEMENTS
 	if (is_TCP_ACK_Filter_Enabled())
-#endif
-	tcp_process(tqe);
+		tcp_process(tqe);
 #endif
 	wilc_wlan_txq_add_to_tail(tqe);
 	/*return number of itemes in the queue*/
@@ -1410,9 +1406,7 @@ _end_:
 #endif
 		}
 	}
-#ifdef TCP_ENHANCEMENTS
 	wilc_wlan_handle_rxq();
-#endif
 }
 
 void wilc_handle_isr(void)
