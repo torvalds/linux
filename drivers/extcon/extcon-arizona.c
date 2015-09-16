@@ -1057,7 +1057,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 	mutex_lock(&info->lock);
 
-	if (arizona->pdata.jd_gpio5) {
+	if (info->micd_clamp) {
 		mask = ARIZONA_MICD_CLAMP_STS;
 		present = 0;
 	} else {
@@ -1504,7 +1504,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	pm_runtime_idle(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	if (arizona->pdata.jd_gpio5) {
+	if (info->micd_clamp) {
 		jack_irq_rise = ARIZONA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = ARIZONA_IRQ_MICD_CLAMP_FALL;
 	} else {
@@ -1609,7 +1609,7 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 			   ARIZONA_MICD_CLAMP_CONTROL,
 			   ARIZONA_MICD_CLAMP_MODE_MASK, 0);
 
-	if (arizona->pdata.jd_gpio5) {
+	if (info->micd_clamp) {
 		jack_irq_rise = ARIZONA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = ARIZONA_IRQ_MICD_CLAMP_FALL;
 	} else {
