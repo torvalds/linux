@@ -59,3 +59,19 @@ config HANNSTAR_CABC
 	  function.  This function turns backlight density of a
 	  display panel automatically according to the content
 	  shown on the panel.
+
+config FB_MXC_EINK_PANEL
+	depends on FB_MXC
+	depends on DMA_ENGINE
+	select FB_DEFERRED_IO
+	tristate "E-Ink Panel Framebuffer"
+
+config FB_MXC_EINK_V2_PANEL
+	depends on FB_MXC
+	depends on DMA_ENGINE
+	select FB_DEFERRED_IO
+	tristate "E-Ink Panel Framebuffer based on EPDC V2"
+
+config FB_MXC_EINK_AUTO_UPDATE_MODE
+	bool "E-Ink Auto-update Mode Support"
+	depends on FB_MXC_EINK_PANEL
