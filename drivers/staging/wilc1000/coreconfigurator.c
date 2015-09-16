@@ -152,7 +152,7 @@ typedef struct {
 
 /* This function extracts the beacon period field from the beacon or probe   */
 /* response frame.                                                           */
-INLINE u16 get_beacon_period(u8 *data)
+static inline u16 get_beacon_period(u8 *data)
 {
 	u16 bcn_per = 0;
 
@@ -162,7 +162,7 @@ INLINE u16 get_beacon_period(u8 *data)
 	return bcn_per;
 }
 
-INLINE u32 get_beacon_timestamp_lo(u8 *data)
+static inline u32 get_beacon_timestamp_lo(u8 *data)
 {
 	u32 time_stamp = 0;
 	u32 index    = MAC_HDR_LEN;
@@ -175,7 +175,7 @@ INLINE u32 get_beacon_timestamp_lo(u8 *data)
 	return time_stamp;
 }
 
-INLINE u32 get_beacon_timestamp_hi(u8 *data)
+static inline u32 get_beacon_timestamp_hi(u8 *data)
 {
 	u32 time_stamp = 0;
 	u32 index    = (MAC_HDR_LEN + 4);
@@ -191,7 +191,7 @@ INLINE u32 get_beacon_timestamp_hi(u8 *data)
 /* This function extracts the 'frame type and sub type' bits from the MAC    */
 /* header of the input frame.                                                */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE tenuFrmSubtype get_sub_type(u8 *header)
+static inline tenuFrmSubtype get_sub_type(u8 *header)
 {
 	return ((tenuFrmSubtype)(header[0] & 0xFC));
 }
@@ -199,7 +199,7 @@ INLINE tenuFrmSubtype get_sub_type(u8 *header)
 /* This function extracts the 'to ds' bit from the MAC header of the input   */
 /* frame.                                                                    */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE u8 get_to_ds(u8 *header)
+static inline u8 get_to_ds(u8 *header)
 {
 	return (header[1] & 0x01);
 }
@@ -207,28 +207,28 @@ INLINE u8 get_to_ds(u8 *header)
 /* This function extracts the 'from ds' bit from the MAC header of the input */
 /* frame.                                                                    */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE u8 get_from_ds(u8 *header)
+static inline u8 get_from_ds(u8 *header)
 {
 	return ((header[1] & 0x02) >> 1);
 }
 
 /* This function extracts the MAC Address in 'address1' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
-INLINE void get_address1(u8 *pu8msa, u8 *addr)
+static inline void get_address1(u8 *pu8msa, u8 *addr)
 {
 	memcpy(addr, pu8msa + 4, 6);
 }
 
 /* This function extracts the MAC Address in 'address2' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
-INLINE void get_address2(u8 *pu8msa, u8 *addr)
+static inline void get_address2(u8 *pu8msa, u8 *addr)
 {
 	memcpy(addr, pu8msa + 10, 6);
 }
 
 /* This function extracts the MAC Address in 'address3' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
-INLINE void get_address3(u8 *pu8msa, u8 *addr)
+static inline void get_address3(u8 *pu8msa, u8 *addr)
 {
 	memcpy(addr, pu8msa + 16, 6);
 }
@@ -236,7 +236,7 @@ INLINE void get_address3(u8 *pu8msa, u8 *addr)
 /* This function extracts the BSSID from the incoming WLAN packet based on   */
 /* the 'from ds' bit, and updates the MAC Address in the allocated 'addr'    */
 /* variable.                                                                 */
-INLINE void get_BSSID(u8 *data, u8 *bssid)
+static inline void get_BSSID(u8 *data, u8 *bssid)
 {
 	if (get_from_ds(data) == 1)
 		get_address2(data, bssid);
@@ -247,7 +247,7 @@ INLINE void get_BSSID(u8 *data, u8 *bssid)
 }
 
 /* This function extracts the SSID from a beacon/probe response frame        */
-INLINE void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
+static inline void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
 {
 	u8 len = 0;
 	u8 i   = 0;
@@ -273,7 +273,7 @@ INLINE void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
 
 /* This function extracts the capability info field from the beacon or probe */
 /* response frame.                                                           */
-INLINE u16 get_cap_info(u8 *data)
+static inline u16 get_cap_info(u8 *data)
 {
 	u16 cap_info = 0;
 	u16 index    = MAC_HDR_LEN;
@@ -294,7 +294,7 @@ INLINE u16 get_cap_info(u8 *data)
 
 /* This function extracts the capability info field from the Association */
 /* response frame.                                                                       */
-INLINE u16 get_assoc_resp_cap_info(u8 *data)
+static inline u16 get_assoc_resp_cap_info(u8 *data)
 {
 	u16 cap_info = 0;
 
@@ -306,7 +306,7 @@ INLINE u16 get_assoc_resp_cap_info(u8 *data)
 
 /* This funcion extracts the association status code from the incoming       */
 /* association response frame and returns association status code            */
-INLINE u16 get_asoc_status(u8 *data)
+static inline u16 get_asoc_status(u8 *data)
 {
 	u16 asoc_status = 0;
 
@@ -318,7 +318,7 @@ INLINE u16 get_asoc_status(u8 *data)
 
 /* This function extracts association ID from the incoming association       */
 /* response frame							                                     */
-INLINE u16 get_asoc_id(u8 *data)
+static inline u16 get_asoc_id(u8 *data)
 {
 	u16 asoc_id = 0;
 

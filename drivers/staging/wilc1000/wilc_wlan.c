@@ -97,8 +97,8 @@ typedef struct {
 
 static wilc_wlan_dev_t g_wlan;
 
-INLINE void chip_allow_sleep(void);
-INLINE void chip_wakeup(void);
+static inline void chip_allow_sleep(void);
+static inline void chip_wakeup(void);
 /********************************************
  *
  *      Debug
@@ -125,10 +125,10 @@ static void wilc_debug(u32 flag, char *fmt, ...)
 static CHIP_PS_STATE_T genuChipPSstate = CHIP_WAKEDUP;
 
 /*BugID_5213*/
-/*acquire_bus() and release_bus() are made INLINE functions*/
+/*acquire_bus() and release_bus() are made static inline functions*/
 /*as a temporary workaround to fix a problem of receiving*/
 /*unknown interrupt from FW*/
-INLINE void acquire_bus(BUS_ACQUIRE_T acquire)
+static inline void acquire_bus(BUS_ACQUIRE_T acquire)
 {
 
 	mutex_lock(g_wlan.hif_lock);
@@ -141,7 +141,7 @@ INLINE void acquire_bus(BUS_ACQUIRE_T acquire)
 	}
 
 }
-INLINE void release_bus(BUS_RELEASE_T release)
+static inline void release_bus(BUS_RELEASE_T release)
 {
 	#ifdef WILC_OPTIMIZE_SLEEP_INT
 	if (release == RELEASE_ALLOW_SLEEP)
@@ -673,7 +673,7 @@ static struct rxq_entry_t *wilc_wlan_rxq_remove(void)
 
 #ifdef WILC_OPTIMIZE_SLEEP_INT
 
-INLINE void chip_allow_sleep(void)
+static inline void chip_allow_sleep(void)
 {
 	u32 reg = 0;
 
@@ -683,7 +683,7 @@ INLINE void chip_allow_sleep(void)
 	g_wlan.hif_func.hif_write_reg(0xf0, reg & ~(1 << 0));
 }
 
-INLINE void chip_wakeup(void)
+static inline void chip_wakeup(void)
 {
 	u32 reg, clk_status_reg, trials = 0;
 	u32 sleep_time;
@@ -762,7 +762,7 @@ INLINE void chip_wakeup(void)
 	genuChipPSstate = CHIP_WAKEDUP;
 }
 #else
-INLINE void chip_wakeup(void)
+static inline void chip_wakeup(void)
 {
 	u32 reg, trials = 0;
 
