@@ -12,14 +12,6 @@
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/io.h>
-#include <linux/kernel.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
@@ -61,8 +53,6 @@ struct clk_pll_layout {
 struct clk_pll {
 	struct clk_hw hw;
 	struct regmap *regmap;
-	unsigned int irq;
-	wait_queue_head_t wait;
 	u8 id;
 	u8 div;
 	u8 range;
@@ -70,16 +60,6 @@ struct clk_pll {
 	const struct clk_pll_layout *layout;
 	const struct clk_pll_characteristics *characteristics;
 };
-
-static irqreturn_t clk_pll_irq_handler(int irq, void *dev_id)
-{
-	struct clk_pll *pll = (struct clk_pll *)dev_id;
-
-	wake_up(&pll->wait);
-	disable_irq_nosync(pll->irq);
-
-	return IRQ_HANDLED;
-}
 
 static inline bool clk_pll_ready(struct regmap *regmap, int id)
 {
@@ -127,11 +107,8 @@ static int clk_pll_prepare(struct clk_hw *hw)
 			(out << PLL_OUT_SHIFT) |
 			((pll->mul & layout->mul_mask) << layout->mul_shift));
 
-	while (!clk_pll_ready(regmap, pll->id)) {
-		enable_irq(pll->irq);
-		wait_event(pll->wait,
-			   clk_pll_ready(regmap, pll->id));
-	}
+	while (!clk_pll_ready(regmap, pll->id))
+		cpu_relax();
 
 	return 0;
 }
@@ -320,7 +297,7 @@ static const struct clk_ops pll_ops = {
 };
 
 static struct clk * __init
-at91_clk_register_pll(struct regmap *regmap, unsigned int irq, const char *name,
+at91_clk_register_pll(struct regmap *regmap, const char *name,
 		      const char *parent_name, u8 id,
 		      const struct clk_pll_layout *layout,
 		      const struct clk_pll_characteristics *characteristics)
@@ -328,7 +305,6 @@ at91_clk_register_pll(struct regmap *regmap, unsigned int irq, const char *name,
 	struct clk_pll *pll;
 	struct clk *clk = NULL;
 	struct clk_init_data init;
-	int ret;
 	int offset = PLL_REG(id);
 	unsigned int pllr;
 
@@ -350,22 +326,12 @@ at91_clk_register_pll(struct regmap *regmap, unsigned int irq, const char *name,
 	pll->layout = layout;
 	pll->characteristics = characteristics;
 	pll->regmap = regmap;
-	pll->irq = irq;
 	regmap_read(regmap, offset, &pllr);
 	pll->div = PLL_DIV(pllr);
 	pll->mul = PLL_MUL(pllr, layout);
-	init_waitqueue_head(&pll->wait);
-	irq_set_status_flags(pll->irq, IRQ_NOAUTOEN);
-	ret = request_irq(pll->irq, clk_pll_irq_handler, IRQF_TRIGGER_HIGH,
-			  id ? "clk-pllb" : "clk-plla", pll);
-	if (ret) {
-		kfree(pll);
-		return ERR_PTR(ret);
-	}
 
 	clk = clk_register(NULL, &pll->hw);
 	if (IS_ERR(clk)) {
-		free_irq(pll->irq, pll);
 		kfree(pll);
 	}
 
@@ -499,7 +465,6 @@ of_at91_clk_pll_setup(struct device_node *np,
 		      const struct clk_pll_layout *layout)
 {
 	u32 id;
-	unsigned int irq;
 	struct clk *clk;
 	struct regmap *regmap;
 	const char *parent_name;
@@ -521,11 +486,7 @@ of_at91_clk_pll_setup(struct device_node *np,
 	if (!characteristics)
 		return;
 
-	irq = irq_of_parse_and_map(np, 0);
-	if (!irq)
-		return;
-
-	clk = at91_clk_register_pll(regmap, irq, name, parent_name, id, layout,
+	clk = at91_clk_register_pll(regmap, name, parent_name, id, layout,
 				    characteristics);
 	if (IS_ERR(clk))
 		goto out_free_characteristics;

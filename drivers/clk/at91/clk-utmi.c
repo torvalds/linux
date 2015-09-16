@@ -11,14 +11,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/io.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
@@ -29,21 +22,9 @@
 struct clk_utmi {
 	struct clk_hw hw;
 	struct regmap *regmap;
-	unsigned int irq;
-	wait_queue_head_t wait;
 };
 
 #define to_clk_utmi(hw) container_of(hw, struct clk_utmi, hw)
-
-static irqreturn_t clk_utmi_irq_handler(int irq, void *dev_id)
-{
-	struct clk_utmi *utmi = (struct clk_utmi *)dev_id;
-
-	wake_up(&utmi->wait);
-	disable_irq_nosync(utmi->irq);
-
-	return IRQ_HANDLED;
-}
 
 static inline bool clk_utmi_ready(struct regmap *regmap)
 {
@@ -62,11 +43,8 @@ static int clk_utmi_prepare(struct clk_hw *hw)
 
 	regmap_update_bits(utmi->regmap, AT91_CKGR_UCKR, uckr, uckr);
 
-	while (!clk_utmi_ready(utmi->regmap)) {
-		enable_irq(utmi->irq);
-		wait_event(utmi->wait,
-			   clk_utmi_ready(utmi->regmap));
-	}
+	while (!clk_utmi_ready(utmi->regmap))
+		cpu_relax();
 
 	return 0;
 }
@@ -100,10 +78,9 @@ static const struct clk_ops utmi_ops = {
 };
 
 static struct clk * __init
-at91_clk_register_utmi(struct regmap *regmap, unsigned int irq,
+at91_clk_register_utmi(struct regmap *regmap,
 		       const char *name, const char *parent_name)
 {
-	int ret;
 	struct clk_utmi *utmi;
 	struct clk *clk = NULL;
 	struct clk_init_data init;
@@ -120,28 +97,16 @@ at91_clk_register_utmi(struct regmap *regmap, unsigned int irq,
 
 	utmi->hw.init = &init;
 	utmi->regmap = regmap;
-	utmi->irq = irq;
-	init_waitqueue_head(&utmi->wait);
-	irq_set_status_flags(utmi->irq, IRQ_NOAUTOEN);
-	ret = request_irq(utmi->irq, clk_utmi_irq_handler,
-			  IRQF_TRIGGER_HIGH, "clk-utmi", utmi);
-	if (ret) {
-		kfree(utmi);
-		return ERR_PTR(ret);
-	}
 
 	clk = clk_register(NULL, &utmi->hw);
-	if (IS_ERR(clk)) {
-		free_irq(utmi->irq, utmi);
+	if (IS_ERR(clk))
 		kfree(utmi);
-	}
 
 	return clk;
 }
 
 static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
 {
-	unsigned int irq;
 	struct clk *clk;
 	const char *parent_name;
 	const char *name = np->name;
@@ -151,15 +116,11 @@ static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
 
 	of_property_read_string(np, "clock-output-names", &name);
 
-	irq = irq_of_parse_and_map(np, 0);
-	if (!irq)
-		return;
-
 	regmap = syscon_node_to_regmap(of_get_parent(np));
 	if (IS_ERR(regmap))
 		return;
 
-	clk = at91_clk_register_utmi(regmap, irq, name, parent_name);
+	clk = at91_clk_register_utmi(regmap, name, parent_name);
 	if (IS_ERR(clk))
 		return;
 

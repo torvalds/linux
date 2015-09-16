@@ -12,13 +12,6 @@
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/io.h>
-#include <linux/irq.h>
-#include <linux/of_irq.h>
-#include <linux/interrupt.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
@@ -32,23 +25,12 @@
 struct clk_system {
 	struct clk_hw hw;
 	struct regmap *regmap;
-	unsigned int irq;
-	wait_queue_head_t wait;
 	u8 id;
 };
 
 static inline int is_pck(int id)
 {
 	return (id >= 8) && (id <= 15);
-}
-static irqreturn_t clk_system_irq_handler(int irq, void *dev_id)
-{
-	struct clk_system *sys = (struct clk_system *)dev_id;
-
-	wake_up(&sys->wait);
-	disable_irq_nosync(sys->irq);
-
-	return IRQ_HANDLED;
 }
 
 static inline bool clk_system_ready(struct regmap *regmap, int id)
@@ -69,15 +51,9 @@ static int clk_system_prepare(struct clk_hw *hw)
 	if (!is_pck(sys->id))
 		return 0;
 
-	while (!clk_system_ready(sys->regmap, sys->id)) {
-		if (sys->irq) {
-			enable_irq(sys->irq);
-			wait_event(sys->wait,
-				   clk_system_ready(sys->regmap, sys->id));
-		} else {
-			cpu_relax();
-		}
-	}
+	while (!clk_system_ready(sys->regmap, sys->id))
+		cpu_relax();
+
 	return 0;
 }
 
@@ -114,12 +90,11 @@ static const struct clk_ops system_ops = {
 
 static struct clk * __init
 at91_clk_register_system(struct regmap *regmap, const char *name,
-			 const char *parent_name, u8 id, int irq)
+			 const char *parent_name, u8 id)
 {
 	struct clk_system *sys;
 	struct clk *clk = NULL;
 	struct clk_init_data init;
-	int ret;
 
 	if (!parent_name || id > SYSTEM_MAX_ID)
 		return ERR_PTR(-EINVAL);
@@ -137,24 +112,10 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 	sys->id = id;
 	sys->hw.init = &init;
 	sys->regmap = regmap;
-	sys->irq = irq;
-	if (irq) {
-		init_waitqueue_head(&sys->wait);
-		irq_set_status_flags(sys->irq, IRQ_NOAUTOEN);
-		ret = request_irq(sys->irq, clk_system_irq_handler,
-				IRQF_TRIGGER_HIGH, name, sys);
-		if (ret) {
-			kfree(sys);
-			return ERR_PTR(ret);
-		}
-	}
 
 	clk = clk_register(NULL, &sys->hw);
-	if (IS_ERR(clk)) {
-		if (irq)
-			free_irq(sys->irq, sys);
+	if (IS_ERR(clk))
 		kfree(sys);
-	}
 
 	return clk;
 }
@@ -162,7 +123,6 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 {
 	int num;
-	int irq = 0;
 	u32 id;
 	struct clk *clk;
 	const char *name;
@@ -185,13 +145,9 @@ static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 		if (of_property_read_string(np, "clock-output-names", &name))
 			name = sysclknp->name;
 
-		if (is_pck(id))
-			irq = irq_of_parse_and_map(sysclknp, 0);
-
 		parent_name = of_clk_get_parent_name(sysclknp, 0);
 
-		clk = at91_clk_register_system(regmap, name, parent_name, id,
-					       irq);
+		clk = at91_clk_register_system(regmap, name, parent_name, id);
 		if (IS_ERR(clk))
 			continue;
 

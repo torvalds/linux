@@ -32,10 +32,7 @@ struct at91_pmc_caps {
 
 struct at91_pmc {
 	struct regmap *regmap;
-	int virq;
 	const struct at91_pmc_caps *caps;
-	struct irq_domain *irqdomain;
-	u32 imr;
 };
 
 int of_at91_get_clk_range(struct device_node *np, const char *propname,
