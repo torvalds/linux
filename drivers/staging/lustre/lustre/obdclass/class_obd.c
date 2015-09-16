@@ -64,8 +64,6 @@ EXPORT_SYMBOL(obd_pages);
 static DEFINE_SPINLOCK(obd_updatemax_lock);
 
 /* The following are visible and mutable through /proc/sys/lustre/. */
-unsigned int obd_alloc_fail_rate;
-EXPORT_SYMBOL(obd_alloc_fail_rate);
 unsigned int obd_debug_peer_on_timeout;
 EXPORT_SYMBOL(obd_debug_peer_on_timeout);
 unsigned int obd_dump_on_timeout;
@@ -131,25 +129,6 @@ int lustre_get_jobid(char *jobid)
 	return -ENOENT;
 }
 EXPORT_SYMBOL(lustre_get_jobid);
-
-int obd_alloc_fail(const void *ptr, const char *name, const char *type,
-		   size_t size, const char *file, int line)
-{
-	if (ptr == NULL ||
-	    (cfs_rand() & OBD_ALLOC_FAIL_MASK) < obd_alloc_fail_rate) {
-		CERROR("%s%salloc of %s (%llu bytes) failed at %s:%d\n",
-		       ptr ? "force " : "", type, name, (__u64)size, file,
-		       line);
-		CERROR("%llu total bytes and %llu total pages"
-			" (%llu bytes) allocated by Lustre\n",
-		       obd_memory_sum(),
-		       obd_pages_sum() << PAGE_CACHE_SHIFT,
-		       obd_pages_sum());
-		return 1;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(obd_alloc_fail);
 
 static inline void obd_data2conn(struct lustre_handle *conn,
 				 struct obd_ioctl_data *data)
