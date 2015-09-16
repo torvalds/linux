@@ -1126,7 +1126,7 @@ struct lu_context_key {
 								  \
 		CLASSERT(PAGE_CACHE_SIZE >= sizeof (*value));       \
 								  \
-		OBD_ALLOC_PTR(value);			     \
+		value = kzalloc(sizeof(*value), GFP_NOFS);	\
 		if (value == NULL)				\
 			value = ERR_PTR(-ENOMEM);		 \
 								  \
@@ -1140,7 +1140,7 @@ struct lu_context_key {
 	{								   \
 		type *info = data;					  \
 									    \
-		OBD_FREE_PTR(info);					 \
+		kfree(info);					 \
 	}								   \
 	struct __##mod##__dummy_fini {; } /* semicolon catcher */
 
