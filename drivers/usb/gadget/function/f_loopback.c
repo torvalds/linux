@@ -195,12 +195,10 @@ autoconf_fail:
 			f->name, cdev->gadget->name);
 		return -ENODEV;
 	}
-	loop->in_ep->driver_data = cdev;	/* claim */
 
 	loop->out_ep = usb_ep_autoconfig(cdev->gadget, &fs_loop_sink_desc);
 	if (!loop->out_ep)
 		goto autoconf_fail;
-	loop->out_ep->driver_data = cdev;	/* claim */
 
 	/* support high speed hardware */
 	hs_loop_source_desc.bEndpointAddress =
@@ -364,8 +362,7 @@ static int loopback_set_alt(struct usb_function *f,
 	struct usb_composite_dev *cdev = f->config->cdev;
 
 	/* we know alt is zero */
-	if (loop->in_ep->driver_data)
-		disable_loopback(loop);
+	disable_loopback(loop);
 	return enable_loopback(cdev, loop);
 }
 
