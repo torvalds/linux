@@ -634,11 +634,6 @@ do {									  \
 	ptr = libcfs_kvzalloc(size, GFP_NOFS);				  \
 } while (0)
 
-#define OBD_CPT_ALLOC_LARGE(ptr, cptab, cpt, size)			      \
-do {									      \
-	ptr = libcfs_kvzalloc_cpt(cptab, cpt, size, GFP_NOFS);		      \
-} while (0)
-
 #define OBD_FREE_LARGE(ptr, size)					     \
 do {									  \
 	(void)(size);							\

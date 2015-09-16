@@ -86,8 +86,10 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	rqbd->rqbd_cbid.cbid_fn = request_in_callback;
 	rqbd->rqbd_cbid.cbid_arg = rqbd;
 	INIT_LIST_HEAD(&rqbd->rqbd_reqs);
-	OBD_CPT_ALLOC_LARGE(rqbd->rqbd_buffer, svc->srv_cptable,
-			    svcpt->scp_cpt, svc->srv_buf_size);
+	rqbd->rqbd_buffer = libcfs_kvzalloc_cpt(svc->srv_cptable,
+						svcpt->scp_cpt,
+						svc->srv_buf_size,
+						GFP_KERNEL);
 	if (rqbd->rqbd_buffer == NULL) {
 		kfree(rqbd);
 		return NULL;
