@@ -1912,6 +1912,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP2_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP3_SHORT_CIRCUIT_CTRL:
+	case ARIZONA_HP_TEST_CTRL_1:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
@@ -2857,6 +2858,7 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
+	case ARIZONA_HP_TEST_CTRL_1:
 	case ARIZONA_SLIMBUS_RX_PORT_STATUS:
 	case ARIZONA_SLIMBUS_TX_PORT_STATUS:
 	case ARIZONA_INTERRUPT_STATUS_1:

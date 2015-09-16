@@ -242,6 +242,7 @@
 #define ARIZONA_HP1_SHORT_CIRCUIT_CTRL           0x4A0
 #define ARIZONA_HP2_SHORT_CIRCUIT_CTRL           0x4A1
 #define ARIZONA_HP3_SHORT_CIRCUIT_CTRL           0x4A2
+#define ARIZONA_HP_TEST_CTRL_1                   0x4A4
 #define ARIZONA_SPK_CTRL_2                       0x4B5
 #define ARIZONA_SPK_CTRL_3                       0x4B6
 #define ARIZONA_DAC_COMP_1                       0x4DC
@@ -3700,6 +3701,13 @@
 #define ARIZONA_HP3_SC_ENA_MASK                  0x1000  /* HP3_SC_ENA */
 #define ARIZONA_HP3_SC_ENA_SHIFT                     12  /* HP3_SC_ENA */
 #define ARIZONA_HP3_SC_ENA_WIDTH                      1  /* HP3_SC_ENA */
+
+/*
+ * R1188 (0x4A4) HP Test Ctrl 1
+ */
+#define ARIZONA_HP1_TST_CAP_SEL_MASK             0x0003  /* HP1_TST_CAP_SEL - [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_SHIFT                 0  /* HP1_TST_CAP_SEL - [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_WIDTH                 2  /* HP1_TST_CAP_SEL - [1:0] */
 
 /*
  * R1244 (0x4DC) - DAC comp 1
