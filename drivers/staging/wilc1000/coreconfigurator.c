@@ -13,6 +13,7 @@
 /* File Includes                                                             */
 /*****************************************************************************/
 #include "coreconfigurator.h"
+#include <linux/errno.h>
 /*****************************************************************************/
 /* Constants                                                                 */
 /*****************************************************************************/
@@ -429,7 +430,7 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 	/* Check whether the received message type is 'N' */
 	if ('N' != u8MsgType) {
 		PRINT_ER("Received Message format incorrect.\n");
-		WILC_ERRORREPORT(s32Error, WILC_FAIL);
+		return -EFAULT;
 	}
 
 	/* Extract message ID */
@@ -525,7 +526,6 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 	*ppstrNetworkInfo = pstrNetworkInfo;
 
-ERRORHANDLER:
 	return s32Error;
 }
 

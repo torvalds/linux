@@ -59,11 +59,15 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 	Message *pstrMessage = NULL;
 
 	if ((!pHandle) || (u32SendBufferSize == 0) || (!pvSendBuffer)) {
-		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
+		PRINT_ER("pHandle or pvSendBuffer is null\n");
+		s32RetStatus = -EFAULT;
+		goto ERRORHANDLER;
 	}
 
 	if (pHandle->bExiting) {
-		WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
+		PRINT_ER("pHandle fail\n");
+		s32RetStatus = -EFAULT;
+		goto ERRORHANDLER;
 	}
 
 	spin_lock_irqsave(&pHandle->strCriticalSection, flags);
@@ -97,13 +101,11 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 
 	up(&pHandle->hSem);
 
-	WILC_CATCH(s32RetStatus)
-	{
-		/* error occured, free any allocations */
-		if (pstrMessage) {
-			kfree(pstrMessage->pvBuffer);
-			kfree(pstrMessage);
-		}
+ERRORHANDLER:
+	/* error occured, free any allocations */
+	if (pstrMessage) {
+		kfree(pstrMessage->pvBuffer);
+		kfree(pstrMessage);
 	}
 
 	return s32RetStatus;
@@ -125,11 +127,13 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 
 	if ((!pHandle) || (u32RecvBufferSize == 0)
 	    || (!pvRecvBuffer) || (!pu32ReceivedLength)) {
-		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
+		PRINT_ER("pHandle or pvRecvBuffer is null\n");
+		return -EINVAL;
 	}
 
 	if (pHandle->bExiting) {
-		WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
+		PRINT_ER("pHandle fail\n");
+		return -EFAULT;
 	}
 
 	spin_lock_irqsave(&pHandle->strCriticalSection, flags);
@@ -138,52 +142,44 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 
 	down(&pHandle->hSem);
 
-	if (s32RetStatus == WILC_TIMEOUT) {
-		/* timed out, just exit without consumeing the message */
-		spin_lock_irqsave(&pHandle->strCriticalSection, flags);
-		pHandle->u32ReceiversCount--;
-		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
-	} else {
-		/* other non-timeout scenarios */
-		if (s32RetStatus) {
-			PRINT_ER("Non-timeout\n");
-			return s32RetStatus;
-		}
-
-		if (pHandle->bExiting) {
-			WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
-		}
-
-		spin_lock_irqsave(&pHandle->strCriticalSection, flags);
-
-		pstrMessage = pHandle->pstrMessageList;
-		if (!pstrMessage) {
-			spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
-			WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
-		}
-		/* check buffer size */
-		if (u32RecvBufferSize < pstrMessage->u32Length)	{
-			spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
-			up(&pHandle->hSem);
-			WILC_ERRORREPORT(s32RetStatus, WILC_BUFFER_OVERFLOW);
-		}
-
-		/* consume the message */
-		pHandle->u32ReceiversCount--;
-		memcpy(pvRecvBuffer, pstrMessage->pvBuffer, pstrMessage->u32Length);
-		*pu32ReceivedLength = pstrMessage->u32Length;
-
-		pHandle->pstrMessageList = pstrMessage->pstrNext;
-
-		kfree(pstrMessage->pvBuffer);
-		kfree(pstrMessage);
-
-		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
+	/* other non-timeout scenarios */
+	if (s32RetStatus) {
+		PRINT_ER("Non-timeout\n");
+		return s32RetStatus;
 	}
 
-	WILC_CATCH(s32RetStatus)
-	{
+	if (pHandle->bExiting) {
+		PRINT_ER("pHandle fail\n");
+		return -EFAULT;
 	}
+
+	spin_lock_irqsave(&pHandle->strCriticalSection, flags);
+
+	pstrMessage = pHandle->pstrMessageList;
+	if (!pstrMessage) {
+		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
+		PRINT_ER("pstrMessage is null\n");
+		return -EFAULT;
+	}
+	/* check buffer size */
+	if (u32RecvBufferSize < pstrMessage->u32Length)	{
+		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
+		up(&pHandle->hSem);
+		PRINT_ER("u32RecvBufferSize overflow\n");
+		return -EOVERFLOW;
+	}
+
+	/* consume the message */
+	pHandle->u32ReceiversCount--;
+	memcpy(pvRecvBuffer, pstrMessage->pvBuffer, pstrMessage->u32Length);
+	*pu32ReceivedLength = pstrMessage->u32Length;
+
+	pHandle->pstrMessageList = pstrMessage->pstrNext;
+
+	kfree(pstrMessage->pvBuffer);
+	kfree(pstrMessage);
+
+	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
 	return s32RetStatus;
 }

@@ -374,7 +374,6 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 	struct wiphy *wiphy;
 	s32 s32Freq;
 	struct ieee80211_channel *channel;
-	s32 s32Error = WILC_SUCCESS;
 	struct cfg80211_bss *bss = NULL;
 
 	priv = (struct wilc_priv *)pUserVoid;
@@ -391,7 +390,8 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			     ||
 			     (((s32)pstrNetworkInfo->s8rssi) * 100) > 100)
 			    ) {
-				WILC_ERRORREPORT(s32Error, WILC_FAIL);
+				PRINT_ER("wiphy signal type fial\n");
+				return;
 			}
 
 			if (pstrNetworkInfo != NULL) {
@@ -484,11 +484,6 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			}
 			up(&(priv->hSemScanReq));
 		}
-	}
-
-
-	WILC_CATCH(s32Error)
-	{
 	}
 }
 
