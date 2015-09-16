@@ -586,7 +586,7 @@ static void ncm_ep0out_complete(struct usb_ep *ep, struct usb_request *req)
 	unsigned		in_size;
 	struct usb_function	*f = req->context;
 	struct f_ncm		*ncm = func_to_ncm(f);
-	struct usb_composite_dev *cdev = ep->driver_data;
+	struct usb_composite_dev *cdev = f->config->cdev;
 
 	req->context = NULL;
 	if (req->status || req->actual != req->length) {
