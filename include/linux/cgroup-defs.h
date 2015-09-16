@@ -473,8 +473,31 @@ struct cgroup_subsys {
 	unsigned int depends_on;
 };
 
-void cgroup_threadgroup_change_begin(struct task_struct *tsk);
-void cgroup_threadgroup_change_end(struct task_struct *tsk);
+extern struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
+
+/**
+ * cgroup_threadgroup_change_begin - threadgroup exclusion for cgroups
+ * @tsk: target task
+ *
+ * Called from threadgroup_change_begin() and allows cgroup operations to
+ * synchronize against threadgroup changes using a percpu_rw_semaphore.
+ */
+static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk)
+{
+	percpu_down_read(&cgroup_threadgroup_rwsem);
+}
+
+/**
+ * cgroup_threadgroup_change_end - threadgroup exclusion for cgroups
+ * @tsk: target task
+ *
+ * Called from threadgroup_change_end().  Counterpart of
+ * cgroup_threadcgroup_change_begin().
+ */
+static inline void cgroup_threadgroup_change_end(struct task_struct *tsk)
+{
+	percpu_up_read(&cgroup_threadgroup_rwsem);
+}
 
 #else	/* CONFIG_CGROUPS */
 
