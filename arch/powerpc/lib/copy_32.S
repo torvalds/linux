@@ -128,6 +128,10 @@ _GLOBAL(memset)
  * the destination area is cacheable.
  * We only use this version if the source and dest don't overlap.
  * -- paulus.
+ *
+ * During early init, cache might not be active yet, so dcbz cannot be used.
+ * We therefore jump to generic_memcpy which doesn't use dcbz. This jump is
+ * replaced by a nop once cache is active. This is done in machine_init()
  */
 _GLOBAL(memmove)
 	cmplw	0,r3,r4
@@ -135,6 +139,7 @@ _GLOBAL(memmove)
 	/* fall through */
 
 _GLOBAL(memcpy)
+	b	generic_memcpy
 	add	r7,r3,r5		/* test if the src & dst overlap */
 	add	r8,r4,r5
 	cmplw	0,r4,r7

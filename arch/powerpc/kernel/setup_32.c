@@ -38,6 +38,7 @@
 #include <asm/udbg.h>
 #include <asm/mmu_context.h>
 #include <asm/epapr_hcalls.h>
+#include <asm/code-patching.h>
 
 #define DBG(fmt...)
 
@@ -115,6 +116,8 @@ notrace void __init machine_init(u64 dt_ptr)
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
+
+	patch_instruction((unsigned int *)&memcpy, PPC_INST_NOP);
 
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
