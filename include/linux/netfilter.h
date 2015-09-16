@@ -54,6 +54,7 @@ struct nf_hook_state {
 	struct net_device *in;
 	struct net_device *out;
 	struct sock *sk;
+	struct net *net;
 	struct list_head *hook_list;
 	int (*okfn)(struct sock *, struct sk_buff *);
 };
@@ -65,6 +66,7 @@ static inline void nf_hook_state_init(struct nf_hook_state *p,
 				      struct net_device *indev,
 				      struct net_device *outdev,
 				      struct sock *sk,
+				      struct net *net,
 				      int (*okfn)(struct sock *, struct sk_buff *))
 {
 	p->hook = hook;
@@ -73,6 +75,7 @@ static inline void nf_hook_state_init(struct nf_hook_state *p,
 	p->in = indev;
 	p->out = outdev;
 	p->sk = sk;
+	p->net = net;
 	p->hook_list = hook_list;
 	p->okfn = okfn;
 }
@@ -181,7 +184,7 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 		struct nf_hook_state state;
 
 		nf_hook_state_init(&state, hook_list, hook, thresh,
-				   pf, indev, outdev, sk, okfn);
+				   pf, indev, outdev, sk, net, okfn);
 		return nf_hook_slow(skb, &state);
 	}
 	return 1;
