@@ -498,6 +498,51 @@ static void bcmgenet_set_msglevel(struct net_device *dev, u32 level)
 	priv->msg_enable = level;
 }
 
+static int bcmgenet_get_coalesce(struct net_device *dev,
+				 struct ethtool_coalesce *ec)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	ec->tx_max_coalesced_frames =
+		bcmgenet_tdma_ring_readl(priv, DESC_INDEX,
+					 DMA_MBUF_DONE_THRESH);
+
+	return 0;
+}
+
+static int bcmgenet_set_coalesce(struct net_device *dev,
+				 struct ethtool_coalesce *ec)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	unsigned int i;
+
+	if (ec->tx_max_coalesced_frames > DMA_INTR_THRESHOLD_MASK ||
+	    ec->tx_max_coalesced_frames == 0)
+		return -EINVAL;
+
+	/* GENET TDMA hardware does not support a configurable timeout, but will
+	 * always generate an interrupt either after MBDONE packets have been
+	 * transmitted, or when the ring is emtpy.
+	 */
+	if (ec->tx_coalesce_usecs || ec->tx_coalesce_usecs_high ||
+	    ec->tx_coalesce_usecs_irq || ec->tx_coalesce_usecs_high ||
+	    ec->tx_coalesce_usecs_low)
+		return -EOPNOTSUPP;
+
+	/* Program all TX queues with the same values, as there is no
+	 * ethtool knob to do coalescing on a per-queue basis
+	 */
+	for (i = 0; i < priv->hw_params->tx_queues; i++)
+		bcmgenet_tdma_ring_writel(priv, i,
+					  ec->tx_max_coalesced_frames,
+					  DMA_MBUF_DONE_THRESH);
+	bcmgenet_tdma_ring_writel(priv, DESC_INDEX,
+				  ec->tx_max_coalesced_frames,
+				  DMA_MBUF_DONE_THRESH);
+
+	return 0;
+}
+
 /* standard ethtool support functions. */
 enum bcmgenet_stat_type {
 	BCMGENET_STAT_NETDEV = -1,
@@ -844,6 +889,8 @@ static struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_eee		= bcmgenet_get_eee,
 	.set_eee		= bcmgenet_set_eee,
 	.nway_reset		= bcmgenet_nway_reset,
+	.get_coalesce		= bcmgenet_get_coalesce,
+	.set_coalesce		= bcmgenet_set_coalesce,
 };
 
 /* Power down the unimac, based on mode. */
