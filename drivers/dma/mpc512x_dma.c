@@ -1073,6 +1073,7 @@ static const struct of_device_id mpc_dma_match[] = {
 	{ .compatible = "fsl,mpc8308-dma", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc_dma_match);
 
 static struct platform_driver mpc_dma_driver = {
 	.probe		= mpc_dma_probe,
