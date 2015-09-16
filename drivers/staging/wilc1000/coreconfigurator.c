@@ -139,12 +139,6 @@ typedef struct {
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
-static struct semaphore SemHandleSendPkt;
-static struct semaphore SemHandlePktResp;
-
-
-static tstrConfigPktInfo gstrConfigPktInfo;
-
 /* WID Switches */
 static tstrWID gastrWIDs[] = {
 	{WID_FIRMWARE_VERSION,          WID_STR},
@@ -476,11 +470,6 @@ s32 CoreConfiguratorInit(void)
 
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit()\n");
 
-	sema_init(&SemHandleSendPkt, 1);
-	sema_init(&SemHandlePktResp, 0);
-
-
-	memset((void *)(&gstrConfigPktInfo), 0, sizeof(tstrConfigPktInfo));
 	return s32Error;
 }
 
