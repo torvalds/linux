@@ -53,16 +53,6 @@ EXPORT_SYMBOL(obd_devs);
 struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
-__u64 obd_max_pages;
-EXPORT_SYMBOL(obd_max_pages);
-__u64 obd_max_alloc;
-EXPORT_SYMBOL(obd_max_alloc);
-__u64 obd_alloc;
-EXPORT_SYMBOL(obd_alloc);
-__u64 obd_pages;
-EXPORT_SYMBOL(obd_pages);
-static DEFINE_SPINLOCK(obd_updatemax_lock);
-
 /* The following are visible and mutable through /proc/sys/lustre/. */
 unsigned int obd_debug_peer_on_timeout;
 EXPORT_SYMBOL(obd_debug_peer_on_timeout);
@@ -572,54 +562,12 @@ static int __init init_obdclass(void)
 	return err;
 }
 
-void obd_update_maxusage(void)
-{
-	__u64 max1, max2;
-
-	max1 = obd_pages_sum();
-	max2 = obd_memory_sum();
-
-	spin_lock(&obd_updatemax_lock);
-	if (max1 > obd_max_pages)
-		obd_max_pages = max1;
-	if (max2 > obd_max_alloc)
-		obd_max_alloc = max2;
-	spin_unlock(&obd_updatemax_lock);
-}
-EXPORT_SYMBOL(obd_update_maxusage);
-
-__u64 obd_memory_max(void)
-{
-	__u64 ret;
-
-	spin_lock(&obd_updatemax_lock);
-	ret = obd_max_alloc;
-	spin_unlock(&obd_updatemax_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(obd_memory_max);
-
-__u64 obd_pages_max(void)
-{
-	__u64 ret;
-
-	spin_lock(&obd_updatemax_lock);
-	ret = obd_max_pages;
-	spin_unlock(&obd_updatemax_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(obd_pages_max);
-
 /* liblustre doesn't call cleanup_obdclass, apparently.  we carry on in this
  * ifdef to the end of the file to cover module and versioning goo.*/
 static void cleanup_obdclass(void)
 {
 	int i;
 	int lustre_unregister_fs(void);
-	__u64 memory_leaked, pages_leaked;
-	__u64 memory_max, pages_max;
 
 	lustre_unregister_fs();
 
@@ -645,19 +593,7 @@ static void cleanup_obdclass(void)
 	class_exit_uuidlist();
 	obd_zombie_impexp_stop();
 
-	memory_leaked = obd_memory_sum();
-	pages_leaked = obd_pages_sum();
-
-	memory_max = obd_memory_max();
-	pages_max = obd_pages_max();
-
 	lprocfs_free_stats(&obd_memory);
-	CDEBUG((memory_leaked) ? D_ERROR : D_INFO,
-	       "obd_memory max: %llu, leaked: %llu\n",
-	       memory_max, memory_leaked);
-	CDEBUG((pages_leaked) ? D_ERROR : D_INFO,
-	       "obd_memory_pages max: %llu, leaked: %llu\n",
-	       pages_max, pages_leaked);
 }
 
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");

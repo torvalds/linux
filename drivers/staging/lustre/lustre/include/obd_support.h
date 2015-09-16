@@ -494,50 +494,6 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_ONCE			   CFS_FAIL_ONCE
 #define OBD_FAILED			      CFS_FAILED
 
-void obd_update_maxusage(void);
-
-#define obd_memory_add(size)						  \
-	lprocfs_counter_add(obd_memory, OBD_MEMORY_STAT, (long)(size))
-#define obd_memory_sub(size)						  \
-	lprocfs_counter_sub(obd_memory, OBD_MEMORY_STAT, (long)(size))
-#define obd_memory_sum()						      \
-	lprocfs_stats_collector(obd_memory, OBD_MEMORY_STAT,		  \
-				LPROCFS_FIELDS_FLAGS_SUM)
-#define obd_pages_add(order)						  \
-	lprocfs_counter_add(obd_memory, OBD_MEMORY_PAGES_STAT,		\
-			    (long)(1 << (order)))
-#define obd_pages_sub(order)						  \
-	lprocfs_counter_sub(obd_memory, OBD_MEMORY_PAGES_STAT,		\
-			    (long)(1 << (order)))
-#define obd_pages_sum()						       \
-	lprocfs_stats_collector(obd_memory, OBD_MEMORY_PAGES_STAT,	    \
-				LPROCFS_FIELDS_FLAGS_SUM)
-
-__u64 obd_memory_max(void);
-__u64 obd_pages_max(void);
-
-#define OBD_DEBUG_MEMUSAGE (1)
-
-#if OBD_DEBUG_MEMUSAGE
-#define OBD_ALLOC_POST(ptr, size, name)				 \
-		obd_memory_add(size);				   \
-		CDEBUG(D_MALLOC, name " '" #ptr "': %d at %p.\n",       \
-		       (int)(size), ptr)
-
-#define OBD_FREE_PRE(ptr, size, name)				   \
-	LASSERT(ptr);						   \
-	obd_memory_sub(size);					   \
-	CDEBUG(D_MALLOC, name " '" #ptr "': %d at %p.\n",	       \
-	       (int)(size), ptr);				       \
-	POISON(ptr, 0x5a, size)
-
-#else /* !OBD_DEBUG_MEMUSAGE */
-
-#define OBD_ALLOC_POST(ptr, size, name) ((void)0)
-#define OBD_FREE_PRE(ptr, size, name)   ((void)0)
-
-#endif /* !OBD_DEBUG_MEMUSAGE */
-
 #ifdef CONFIG_DEBUG_SLAB
 #define POISON(ptr, c, s) do {} while (0)
 #define POISON_PTR(ptr)  ((void)0)
@@ -583,8 +539,6 @@ do {									      \
 		kmem_cache_alloc(slab, type | __GFP_ZERO) :		\
 		kmem_cache_alloc_node(slab, type | __GFP_ZERO,		\
 				      cfs_cpt_spread_node(cptab, cpt));	\
-	if (likely(ptr))						\
-		OBD_ALLOC_POST(ptr, size, "slab-alloced");		    \
 } while (0)
 
 #define OBD_SLAB_ALLOC_GFP(ptr, slab, size, flags)			      \
@@ -594,7 +548,6 @@ do {									      \
 
 #define OBD_SLAB_FREE(ptr, slab, size)					\
 do {									  \
-	OBD_FREE_PRE(ptr, size, "slab-freed");				\
 	kmem_cache_free(slab, ptr);					\
 	POISON_PTR(ptr);						      \
 } while (0)
@@ -629,17 +582,7 @@ do {									      \
 	(ptr) = (cptab) == NULL ?					      \
 		alloc_page(gfp_mask) :				      \
 		alloc_pages_node(cfs_cpt_spread_node(cptab, cpt), gfp_mask, 0);\
-	if (unlikely((ptr) == NULL)) {					\
-		CERROR("alloc_pages of '" #ptr "' %d page(s) / %llu bytes "\
-		       "failed\n", (int)1,				    \
-		       (__u64)(1 << PAGE_CACHE_SHIFT));			 \
-		CERROR("%llu total bytes and %llu total pages "	   \
-		       "(%llu bytes) allocated by Lustre\n",		      \
-		       obd_memory_sum(),				      \
-		       obd_pages_sum() << PAGE_CACHE_SHIFT,		     \
-		       obd_pages_sum());				       \
-	} else {							      \
-		obd_pages_add(0);					     \
+	if (ptr) {					\
 		CDEBUG(D_MALLOC, "alloc_pages '" #ptr "': %d page(s) / "      \
 		       "%llu bytes at %p.\n",				\
 		       (int)1,						\
@@ -655,7 +598,6 @@ do {									      \
 #define OBD_PAGE_FREE(ptr)						    \
 do {									  \
 	LASSERT(ptr);							 \
-	obd_pages_sub(0);						     \
 	CDEBUG(D_MALLOC, "free_pages '" #ptr "': %d page(s) / %llu bytes " \
 	       "at %p.\n",						    \
 	       (int)1, (__u64)(1 << PAGE_CACHE_SHIFT),			  \
