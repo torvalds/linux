@@ -110,6 +110,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  * This is called very early on the boot process, after a minimal
  * MMU environment has been set up but before MMU_init is called.
  */
+extern unsigned int memset_nocache_branch; /* Insn to be replaced by NOP */
+
 notrace void __init machine_init(u64 dt_ptr)
 {
 	lockdep_init();
@@ -118,6 +120,7 @@ notrace void __init machine_init(u64 dt_ptr)
 	udbg_early_init();
 
 	patch_instruction((unsigned int *)&memcpy, PPC_INST_NOP);
+	patch_instruction(&memset_nocache_branch, PPC_INST_NOP);
 
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
