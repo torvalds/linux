@@ -1082,7 +1082,7 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 			goto fail;
 		stats->ls_biggest_alloc_num = 1;
 	} else if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0) {
-		/* alloc all percpu data, currently only obd_memory use this */
+		/* alloc all percpu data */
 		for (i = 0; i < num_entry; ++i)
 			if (lprocfs_stats_alloc_one(stats, i) < 0)
 				goto fail;

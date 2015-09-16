@@ -43,13 +43,6 @@
 #include "lprocfs_status.h"
 
 /* global variables */
-extern struct lprocfs_stats *obd_memory;
-enum {
-	OBD_MEMORY_STAT = 0,
-	OBD_MEMORY_PAGES_STAT = 1,
-	OBD_STATS_NUM,
-};
-
 extern unsigned int obd_debug_peer_on_timeout;
 extern unsigned int obd_dump_on_timeout;
 extern unsigned int obd_dump_on_eviction;
