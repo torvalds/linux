@@ -1276,7 +1276,6 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 _fail_2:
 	/*De-Initialize 2nd thread*/
 	g_linux_wlan->close = 1;
-	kthread_stop(g_linux_wlan->rxq_thread);
 
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
 	/*De-Initialize 1st thread*/
@@ -1294,11 +1293,6 @@ static void wlan_deinitialize_threads(linux_wlan_t *nic)
 
 	g_linux_wlan->close = 1;
 	PRINT_D(INIT_DBG, "Deinitializing Threads\n");
-
-	if (g_linux_wlan->rxq_thread != NULL) {
-		kthread_stop(g_linux_wlan->rxq_thread);
-		g_linux_wlan->rxq_thread = NULL;
-	}
 
 	if (&g_linux_wlan->txq_event != NULL)
 		up(&g_linux_wlan->txq_event);

@@ -199,7 +199,6 @@ typedef struct {
 #endif
 	struct semaphore txq_thread_started;
 
-	struct task_struct *rxq_thread;
 	struct task_struct *txq_thread;
 
 	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
