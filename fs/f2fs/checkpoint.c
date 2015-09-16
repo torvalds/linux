@@ -1000,6 +1000,11 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	start_blk = __start_cp_addr(sbi);
 
+	/* need to wait for end_io results */
+	wait_on_all_pages_writeback(sbi);
+	if (unlikely(f2fs_cp_error(sbi)))
+		return;
+
 	/* write out checkpoint buffer at block 0 */
 	update_meta_page(sbi, ckpt, start_blk++);
 
