@@ -394,7 +394,7 @@ bridged_dnat:
 				nf_bridge_push_encap_header(skb);
 				NF_HOOK_THRESH(NFPROTO_BRIDGE,
 					       NF_BR_PRE_ROUTING,
-					       sk, skb, skb->dev, NULL,
+					       net, sk, skb, skb->dev, NULL,
 					       br_nf_pre_routing_finish_bridge,
 					       1);
 				return 0;
@@ -414,7 +414,7 @@ bridged_dnat:
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, sk, skb,
+	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, net, sk, skb,
 		       skb->dev, NULL,
 		       br_handle_frame_finish, 1);
 
@@ -512,7 +512,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 
 	skb->protocol = htons(ETH_P_IP);
 
-	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, state->sk, skb,
+	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, state->net, state->sk, skb,
 		skb->dev, NULL,
 		br_nf_pre_routing_finish);
 
@@ -539,6 +539,7 @@ static unsigned int br_nf_local_in(const struct nf_hook_ops *ops,
 static int br_nf_forward_finish(struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+	struct net *net = dev_net(skb->dev);
 	struct net_device *in;
 
 	if (!IS_ARP(skb) && !IS_VLAN_ARP(skb)) {
@@ -560,7 +561,7 @@ static int br_nf_forward_finish(struct sock *sk, struct sk_buff *skb)
 	}
 	nf_bridge_push_encap_header(skb);
 
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_FORWARD, sk, skb,
+	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_FORWARD, net, sk, skb,
 		       in, skb->dev, br_forward_finish, 1);
 	return 0;
 }
@@ -627,7 +628,7 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 	else
 		skb->protocol = htons(ETH_P_IPV6);
 
-	NF_HOOK(pf, NF_INET_FORWARD, NULL, skb,
+	NF_HOOK(pf, NF_INET_FORWARD, state->net, NULL, skb,
 		brnf_get_logical_dev(skb, state->in),
 		parent,	br_nf_forward_finish);
 
@@ -662,7 +663,7 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 	}
 	*d = state->in;
-	NF_HOOK(NFPROTO_ARP, NF_ARP_FORWARD, state->sk, skb,
+	NF_HOOK(NFPROTO_ARP, NF_ARP_FORWARD, state->net, state->sk, skb,
 		state->in, state->out, br_nf_forward_finish);
 
 	return NF_STOLEN;
@@ -842,7 +843,7 @@ static unsigned int br_nf_post_routing(const struct nf_hook_ops *ops,
 	else
 		skb->protocol = htons(ETH_P_IPV6);
 
-	NF_HOOK(pf, NF_INET_POST_ROUTING, state->sk, skb,
+	NF_HOOK(pf, NF_INET_POST_ROUTING, state->net, state->sk, skb,
 		NULL, realoutdev,
 		br_nf_dev_queue_xmit);
 

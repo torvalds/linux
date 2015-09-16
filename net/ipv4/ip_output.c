@@ -97,12 +97,14 @@ EXPORT_SYMBOL(ip_send_check);
 
 static int __ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct iphdr *iph = ip_hdr(skb);
 
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
-	return nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, sk, skb, NULL,
-		       skb_dst(skb)->dev, dst_output);
+	return nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT,
+		       net, sk, skb, NULL, skb_dst(skb)->dev,
+		       dst_output);
 }
 
 int __ip_local_out(struct sk_buff *skb)
@@ -322,7 +324,7 @@ int ip_mc_output(struct sock *sk, struct sk_buff *skb)
 			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 			if (newskb)
 				NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,
-					sk, newskb, NULL, newskb->dev,
+					net, sk, newskb, NULL, newskb->dev,
 					dev_loopback_xmit);
 		}
 
@@ -337,12 +339,14 @@ int ip_mc_output(struct sock *sk, struct sk_buff *skb)
 	if (rt->rt_flags&RTCF_BROADCAST) {
 		struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 		if (newskb)
-			NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING, sk, newskb,
-				NULL, newskb->dev, dev_loopback_xmit);
+			NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,
+				net, sk, newskb, NULL, newskb->dev,
+				dev_loopback_xmit);
 	}
 
-	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, sk, skb, NULL,
-			    skb->dev, ip_finish_output,
+	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,
+			    net, sk, skb, NULL, skb->dev,
+			    ip_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
@@ -356,8 +360,8 @@ int ip_output(struct sock *sk, struct sk_buff *skb)
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_IP);
 
-	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, sk, skb,
-			    NULL, dev,
+	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,
+			    net, sk, skb, NULL, dev,
 			    ip_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }

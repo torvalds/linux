@@ -83,7 +83,7 @@ static int ip6_finish_output2(struct sock *sk, struct sk_buff *skb)
 			 */
 			if (newskb)
 				NF_HOOK(NFPROTO_IPV6, NF_INET_POST_ROUTING,
-					sk, newskb, NULL, newskb->dev,
+					net, sk, newskb, NULL, newskb->dev,
 					dev_loopback_xmit);
 
 			if (ipv6_hdr(skb)->hop_limit == 0) {
@@ -142,8 +142,8 @@ int ip6_output(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 
-	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING, sk, skb,
-			    NULL, dev,
+	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
+			    net, sk, skb, NULL, dev,
 			    ip6_finish_output,
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
@@ -223,8 +223,9 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	if ((skb->len <= mtu) || skb->ignore_df || skb_is_gso(skb)) {
 		IP6_UPD_PO_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			      IPSTATS_MIB_OUT, skb->len);
-		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
-			       NULL, dst->dev, dst_output);
+		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
+			       net, sk, skb, NULL, dst->dev,
+			       dst_output);
 	}
 
 	skb->dev = dst->dev;
@@ -511,8 +512,8 @@ int ip6_forward(struct sk_buff *skb)
 
 	IP6_INC_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
 	IP6_ADD_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTOCTETS, skb->len);
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD, NULL, skb,
-		       skb->dev, dst->dev,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
+		       net, NULL, skb, skb->dev, dst->dev,
 		       ip6_forward_finish);
 
 error:

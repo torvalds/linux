@@ -131,6 +131,7 @@ out:
 
 int xfrm_output_resume(struct sk_buff *skb, int err)
 {
+	struct net *net = xs_net(skb_dst(skb)->xfrm);
 	while (likely((err = xfrm_output_one(skb, err)) == 0)) {
 		nf_reset(skb);
 
@@ -142,7 +143,7 @@ int xfrm_output_resume(struct sk_buff *skb, int err)
 			return dst_output(skb->sk, skb);
 
 		err = nf_hook(skb_dst(skb)->ops->family,
-			      NF_INET_POST_ROUTING, skb->sk, skb,
+			      NF_INET_POST_ROUTING, net, skb->sk, skb,
 			      NULL, skb_dst(skb)->dev, xfrm_output2);
 		if (unlikely(err != 1))
 			goto out;

@@ -166,6 +166,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
 	struct net_device *dev = skb->dev;
+	struct net *net = dev_net(dev);
 	const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 
 	nf_bridge->frag_max_size = IP6CB(skb)->frag_max_size;
@@ -189,7 +190,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
 			nf_bridge_update_protocol(skb);
 			nf_bridge_push_encap_header(skb);
 			NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
-				       sk, skb, skb->dev, NULL,
+				       net, sk, skb, skb->dev, NULL,
 				       br_nf_pre_routing_finish_bridge,
 				       1);
 			return 0;
@@ -208,7 +209,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, sk, skb,
+	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, net, sk, skb,
 		       skb->dev, NULL,
 		       br_handle_frame_finish, 1);
 
@@ -237,7 +238,7 @@ unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
 	nf_bridge->ipv6_daddr = ipv6_hdr(skb)->daddr;
 
 	skb->protocol = htons(ETH_P_IPV6);
-	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, state->sk, skb,
+	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, state->net, state->sk, skb,
 		skb->dev, NULL,
 		br_nf_pre_routing_finish_ipv6);
 

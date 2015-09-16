@@ -2064,8 +2064,8 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 
 	IP6CB(skb)->flags |= IP6SKB_FORWARDED;
 
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD, NULL, skb,
-		       skb->dev, dev,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
+		       net, NULL, skb, skb->dev, dev,
 		       ip6mr_forward2_finish);
 
 out_free:

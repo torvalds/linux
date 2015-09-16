@@ -814,8 +814,8 @@ free_out:
 
 int dn_nsp_rx(struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_IN, NULL, skb,
-		       skb->dev, NULL,
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_IN,
+		       &init_net, NULL, skb, skb->dev, NULL,
 		       dn_nsp_rx_packet);
 }
 

@@ -60,8 +60,8 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	if (!skb)
 		return NET_RX_DROP;
 
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
-		       indev, NULL,
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+		       dev_net(indev), NULL, skb, indev, NULL,
 		       br_netif_receive_skb);
 }
 
@@ -283,8 +283,9 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		}
 
 		/* Deliver packet to local host only */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
-			    skb->dev, NULL, br_handle_local_finish)) {
+		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
+			    br_handle_local_finish)) {
 			return RX_HANDLER_CONSUMED; /* consumed by filter */
 		} else {
 			*pskb = skb;
@@ -308,8 +309,8 @@ forward:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
-		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, NULL, skb,
-			skb->dev, NULL,
+		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
+			dev_net(skb->dev), NULL, skb, skb->dev, NULL,
 			br_handle_frame_finish);
 		break;
 	default:

@@ -59,8 +59,8 @@ static void br_send_bpdu(struct net_bridge_port *p,
 
 	skb_reset_mac_header(skb);
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, NULL, skb,
-		NULL, skb->dev,
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT,
+		dev_net(p->dev), NULL, skb, NULL, skb->dev,
 		br_send_bpdu_finish);
 }
 

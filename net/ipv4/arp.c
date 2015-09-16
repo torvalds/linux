@@ -632,8 +632,9 @@ static int arp_xmit_finish(struct sock *sk, struct sk_buff *skb)
 void arp_xmit(struct sk_buff *skb)
 {
 	/* Send it off, maybe filter it using firewalling first.  */
-	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT, NULL, skb,
-		NULL, skb->dev, arp_xmit_finish);
+	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT,
+		dev_net(skb->dev), NULL, skb, NULL, skb->dev,
+		arp_xmit_finish);
 }
 EXPORT_SYMBOL(arp_xmit);
 
@@ -897,8 +898,9 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
-	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, NULL, skb,
-		       dev, NULL, arp_process);
+	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN,
+		       dev_net(dev), NULL, skb, dev, NULL,
+		       arp_process);
 
 consumeskb:
 	consume_skb(skb);

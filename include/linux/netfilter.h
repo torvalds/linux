@@ -190,12 +190,11 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 	return 1;
 }
 
-static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sock *sk,
-			  struct sk_buff *skb, struct net_device *indev,
-			  struct net_device *outdev,
+static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
+			  struct sock *sk, struct sk_buff *skb,
+			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sock *, struct sk_buff *))
 {
-	struct net *net = dev_net(indev ? indev : outdev);
 	return nf_hook_thresh(pf, hook, net, sk, skb, indev, outdev, okfn, INT_MIN);
 }
                    
@@ -217,12 +216,11 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sock *sk,
 */
 
 static inline int
-NF_HOOK_THRESH(uint8_t pf, unsigned int hook, struct sock *sk,
+NF_HOOK_THRESH(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	       struct sk_buff *skb, struct net_device *in,
 	       struct net_device *out,
 	       int (*okfn)(struct sock *, struct sk_buff *), int thresh)
 {
-	struct net *net = dev_net(in ? in : out);
 	int ret = nf_hook_thresh(pf, hook, net, sk, skb, in, out, okfn, thresh);
 	if (ret == 1)
 		ret = okfn(sk, skb);
@@ -230,11 +228,10 @@ NF_HOOK_THRESH(uint8_t pf, unsigned int hook, struct sock *sk,
 }
 
 static inline int
-NF_HOOK_COND(uint8_t pf, unsigned int hook, struct sock *sk,
+NF_HOOK_COND(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	     struct sk_buff *skb, struct net_device *in, struct net_device *out,
 	     int (*okfn)(struct sock *, struct sk_buff *), bool cond)
 {
-	struct net *net = dev_net(in ? in : out);
 	int ret;
 
 	if (!cond ||
@@ -244,11 +241,11 @@ NF_HOOK_COND(uint8_t pf, unsigned int hook, struct sock *sk,
 }
 
 static inline int
-NF_HOOK(uint8_t pf, unsigned int hook, struct sock *sk, struct sk_buff *skb,
+NF_HOOK(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk, struct sk_buff *skb,
 	struct net_device *in, struct net_device *out,
 	int (*okfn)(struct sock *, struct sk_buff *))
 {
-	return NF_HOOK_THRESH(pf, hook, sk, skb, in, out, okfn, INT_MIN);
+	return NF_HOOK_THRESH(pf, hook, net, sk, skb, in, out, okfn, INT_MIN);
 }
 
 /* Call setsockopt() */
@@ -348,11 +345,11 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 }
 
 #else /* !CONFIG_NETFILTER */
-#define NF_HOOK(pf, hook, sk, skb, indev, outdev, okfn) (okfn)(sk, skb)
-#define NF_HOOK_COND(pf, hook, sk, skb, indev, outdev, okfn, cond) (okfn)(sk, skb)
-static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sock *sk,
-			  struct sk_buff *skb, struct net_device *indev,
-			  struct net_device *outdev,
+#define NF_HOOK(pf, hook, net, sk, skb, indev, outdev, okfn) (okfn)(sk, skb)
+#define NF_HOOK_COND(pf, hook, net, sk, skb, indev, outdev, okfn, cond) (okfn)(sk, skb)
+static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
+			  struct sock *sk, struct sk_buff *skb,
+			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sock *, struct sk_buff *))
 {
 	return 1;
