@@ -60,6 +60,12 @@
 #define SYS_RC_INTX_EN               0x330
 #define SYS_RC_INTX_MASK             0xf
 
+#define PCIE_LINK_STATUS_OFFSET      0xf0c
+#define PCIE_PHYLINKUP_SHIFT         3
+#define PCIE_PHYLINKUP               BIT(PCIE_PHYLINKUP_SHIFT)
+#define PCIE_DL_ACTIVE_SHIFT         2
+#define PCIE_DL_ACTIVE               BIT(PCIE_DL_ACTIVE_SHIFT)
+
 static inline struct iproc_pcie *iproc_data(struct pci_bus *bus)
 {
 	struct iproc_pcie *pcie;
@@ -138,9 +144,15 @@ static void iproc_pcie_reset(struct iproc_pcie *pcie)
 static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 {
 	u8 hdr_type;
-	u32 link_ctrl;
+	u32 link_ctrl, class, val;
 	u16 pos, link_status;
-	int link_is_active = 0;
+	bool link_is_active = false;
+
+	val = readl(pcie->base + PCIE_LINK_STATUS_OFFSET);
+	if (!(val & PCIE_PHYLINKUP) || !(val & PCIE_DL_ACTIVE)) {
+		dev_err(pcie->dev, "PHY or data link is INACTIVE!\n");
+		return -ENODEV;
+	}
 
 	/* make sure we are not in EP mode */
 	pci_bus_read_config_byte(bus, 0, PCI_HEADER_TYPE, &hdr_type);
@@ -150,14 +162,19 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 	}
 
 	/* force class to PCI_CLASS_BRIDGE_PCI (0x0604) */
-	pci_bus_write_config_word(bus, 0, PCI_CLASS_DEVICE,
-				  PCI_CLASS_BRIDGE_PCI);
+#define PCI_BRIDGE_CTRL_REG_OFFSET 0x43c
+#define PCI_CLASS_BRIDGE_MASK      0xffff00
+#define PCI_CLASS_BRIDGE_SHIFT     8
+	pci_bus_read_config_dword(bus, 0, PCI_BRIDGE_CTRL_REG_OFFSET, &class);
+	class &= ~PCI_CLASS_BRIDGE_MASK;
+	class |= (PCI_CLASS_BRIDGE_PCI << PCI_CLASS_BRIDGE_SHIFT);
+	pci_bus_write_config_dword(bus, 0, PCI_BRIDGE_CTRL_REG_OFFSET, class);
 
 	/* check link status to see if link is active */
 	pos = pci_bus_find_capability(bus, 0, PCI_CAP_ID_EXP);
 	pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA, &link_status);
 	if (link_status & PCI_EXP_LNKSTA_NLW)
-		link_is_active = 1;
+		link_is_active = true;
 
 	if (!link_is_active) {
 		/* try GEN 1 link speed */
@@ -181,7 +198,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 			pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA,
 						 &link_status);
 			if (link_status & PCI_EXP_LNKSTA_NLW)
-				link_is_active = 1;
+				link_is_active = true;
 		}
 	}
 
