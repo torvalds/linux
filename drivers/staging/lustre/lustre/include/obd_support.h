@@ -551,23 +551,6 @@ __u64 obd_pages_max(void);
 #define OBD_ALLOC_FAIL_MASK ((1 << OBD_ALLOC_FAIL_BITS) - 1)
 #define OBD_ALLOC_FAIL_MULT (OBD_ALLOC_FAIL_MASK / 100)
 
-#if defined(LUSTRE_UTILS) /* this version is for utils only */
-#define __OBD_MALLOC_VERBOSE(ptr, cptab, cpt, size, flags)		      \
-do {									      \
-	(ptr) = (cptab) == NULL ?					      \
-		kmalloc(size, flags) :				      \
-		kmalloc_node(size, flags, cfs_cpt_spread_node(cptab, cpt));   \
-	if (unlikely((ptr) == NULL)) {					\
-		CERROR("kmalloc of '" #ptr "' (%d bytes) failed at %s:%d\n",  \
-		       (int)(size), __FILE__, __LINE__);		      \
-	} else {							      \
-		memset(ptr, 0, size);					      \
-		CDEBUG(D_MALLOC, "kmalloced '" #ptr "': %d at %p\n",	      \
-		       (int)(size), ptr);				      \
-	}								      \
-} while (0)
-
-#else /* this version is for the kernel and liblustre */
 #define OBD_FREE_RTN0(ptr)						    \
 ({									    \
 	kfree(ptr);							\
@@ -589,7 +572,6 @@ do {									      \
 		OBD_ALLOC_POST(ptr, size, "kmalloced");		       \
 	}								     \
 } while (0)
-#endif
 
 #define OBD_ALLOC_GFP(ptr, size, gfp_mask)				      \
 	__OBD_MALLOC_VERBOSE(ptr, NULL, 0, size, gfp_mask)
