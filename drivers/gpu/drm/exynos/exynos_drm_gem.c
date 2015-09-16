@@ -56,24 +56,25 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem_obj *obj)
 	nr_pages = obj->size >> PAGE_SHIFT;
 
 	if (!is_drm_iommu_supported(dev)) {
-		dma_addr_t start_addr;
-		unsigned int i = 0;
-
 		obj->pages = drm_calloc_large(nr_pages, sizeof(struct page *));
 		if (!obj->pages) {
 			DRM_ERROR("failed to allocate pages.\n");
 			return -ENOMEM;
 		}
+	}
 
-		obj->cookie = dma_alloc_attrs(dev->dev,
-					obj->size,
-					&obj->dma_addr, GFP_KERNEL,
-					&obj->dma_attrs);
-		if (!obj->cookie) {
-			DRM_ERROR("failed to allocate buffer.\n");
+	obj->cookie = dma_alloc_attrs(dev->dev, obj->size, &obj->dma_addr,
+				      GFP_KERNEL, &obj->dma_attrs);
+	if (!obj->cookie) {
+		DRM_ERROR("failed to allocate buffer.\n");
+		if (obj->pages)
 			drm_free_large(obj->pages);
-			return -ENOMEM;
-		}
+		return -ENOMEM;
+	}
+
+	if (obj->pages) {
+		dma_addr_t start_addr;
+		unsigned int i = 0;
 
 		start_addr = obj->dma_addr;
 		while (i < nr_pages) {
@@ -83,13 +84,7 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem_obj *obj)
 			i++;
 		}
 	} else {
-		obj->pages = dma_alloc_attrs(dev->dev, obj->size,
-					&obj->dma_addr, GFP_KERNEL,
-					&obj->dma_attrs);
-		if (!obj->pages) {
-			DRM_ERROR("failed to allocate buffer.\n");
-			return -ENOMEM;
-		}
+		obj->pages = obj->cookie;
 	}
 
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
@@ -111,13 +106,11 @@ static void exynos_drm_free_buf(struct exynos_drm_gem_obj *obj)
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)obj->dma_addr, obj->size);
 
-	if (!is_drm_iommu_supported(dev)) {
-		dma_free_attrs(dev->dev, obj->size, obj->cookie,
-				(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
+	dma_free_attrs(dev->dev, obj->size, obj->cookie,
+			(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
+
+	if (!is_drm_iommu_supported(dev))
 		drm_free_large(obj->pages);
-	} else
-		dma_free_attrs(dev->dev, obj->size, obj->pages,
-				(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -398,6 +391,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_mode_create_dumb *args)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
+	unsigned int flags;
 	int ret;
 
 	/*
@@ -409,16 +403,12 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	if (is_drm_iommu_supported(dev)) {
-		exynos_gem_obj = exynos_drm_gem_create(dev,
-			EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
-			args->size);
-	} else {
-		exynos_gem_obj = exynos_drm_gem_create(dev,
-			EXYNOS_BO_CONTIG | EXYNOS_BO_WC,
-			args->size);
-	}
+	if (is_drm_iommu_supported(dev))
+		flags = EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC;
+	else
+		flags = EXYNOS_BO_CONTIG | EXYNOS_BO_WC;
 
+	exynos_gem_obj = exynos_drm_gem_create(dev, flags, args->size);
 	if (IS_ERR(exynos_gem_obj)) {
 		dev_warn(dev->dev, "FB allocation failed.\n");
 		return PTR_ERR(exynos_gem_obj);
