@@ -541,7 +541,7 @@ config USB_NET_INT51X1
 
 config USB_CDC_PHONET
 	tristate "CDC Phonet support"
-	depends on PHONET
+	depends on PHONET && USB_USBNET
 	help
 	  Choose this option to support the Phonet interface to a Nokia
 	  cellular modem, as found on most Nokia handsets with the
