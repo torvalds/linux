@@ -2063,8 +2063,12 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	if (q->buf_struct_size == 0)
 		q->buf_struct_size = sizeof(struct vb2_buffer);
 
-	q->dma_dir = q->is_output
-		   ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	if (q->is_output)
+		q->dma_dir = DMA_TO_DEVICE;
+	else
+		q->dma_dir = q->use_dma_bidirectional
+			   ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_queue_init);
