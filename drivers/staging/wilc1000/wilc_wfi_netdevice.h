@@ -100,7 +100,6 @@ struct sta_info {
 	u8 au8Sta_AssociatedBss[MAX_NUM_STA][ETH_ALEN];
 };
 
-#ifdef WILC_P2P
 /*Parameters needed for host interface for  remaining on channel*/
 struct wilc_wfi_p2pListenParams {
 	struct ieee80211_channel *pstrListenChan;
@@ -110,16 +109,12 @@ struct wilc_wfi_p2pListenParams {
 	u32 u32ListenSessionID;
 };
 
-#endif  /*WILC_P2P*/
-
 struct wilc_priv {
 	struct wireless_dev *wdev;
 	struct cfg80211_scan_request *pstrScanReq;
 
-	#ifdef WILC_P2P
 	struct wilc_wfi_p2pListenParams strRemainOnChanParams;
 	u64 u64tx_cookie;
-	#endif
 
 	bool bCfgScanning;
 	u32 u32RcvdChCount;
@@ -229,9 +224,7 @@ typedef struct {
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
-	#ifdef WILC_P2P
 	struct_frame_reg g_struct_frame_reg[num_reg_frame];
-	#endif
 	struct net_device *wilc_netdev;
 	struct net_device_stats netstats;
 

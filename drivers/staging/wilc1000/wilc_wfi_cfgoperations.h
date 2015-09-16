@@ -20,8 +20,6 @@
 #define AES			BIT(5)
 #define TKIP			BIT(6)
 
-#ifdef WILC_P2P
-
 /*Public action frame index IDs*/
 #define FRAME_TYPE_ID			0
 #define ACTION_CAT_ID			24
@@ -47,7 +45,6 @@
 #define GAS_INTIAL_RSP			0x0b
 
 #define INVALID_CHANNEL			0
-#endif
 
 #define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
 #define SCAN_RESULT_EXPIRE		(40 * HZ)

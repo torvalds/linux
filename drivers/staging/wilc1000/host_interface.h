@@ -193,10 +193,8 @@ typedef void (*tWILCpfConnectResult)(tenuConnDisconnEvent,
 				     tstrDisconnectNotifInfo *,
 				     void *);
 
-#ifdef WILC_P2P
 typedef void (*tWILCpfRemainOnChanExpired)(void *, u32);  /*Remain on channel expiration callback function*/
 typedef void (*tWILCpfRemainOnChanReady)(void *); /*Remain on channel callback function*/
-#endif
 
 /* typedef u32 WILC_WFIDrvHandle; */
 typedef struct {
@@ -284,7 +282,6 @@ typedef struct {
 	u16 u16SessionTimeout;
 } tstrHostIfBASessionInfo;
 
-#ifdef WILC_P2P
 typedef struct {
 	u16 u16Channel;
 	u32 u32duration;
@@ -317,7 +314,6 @@ enum p2p_listen_state {
 	P2P_GRP_FORMATION
 };
 
-#endif
 typedef struct {
 	/* Scan user structure */
 	tstrWILC_UsrScanReq strWILC_UsrScanReq;
@@ -325,13 +321,11 @@ typedef struct {
 	/* Connect User structure */
 	tstrWILC_UsrConnReq strWILC_UsrConnReq;
 
-	#ifdef WILC_P2P
 	/*Remain on channel struvture*/
 	tstrHostIfRemainOnChan strHostIfRemainOnChan;
 	u8 u8RemainOnChan_pendingreq;
 	u64 u64P2p_MgmtTimeout;
 	u8 u8P2PConnect;
-	#endif
 
 	tenuHostIFstate enuHostIFstate;
 
@@ -354,9 +348,7 @@ typedef struct {
 /* timer handlers */
 	struct timer_list hScanTimer;
 	struct timer_list hConnectTimer;
-	#ifdef WILC_P2P
 	struct timer_list hRemainOnChannel;
-	#endif
 
 	bool IFC_UP;
 } tstrWILC_WFIDrv;
@@ -1194,7 +1186,6 @@ s32 host_int_del_All_Rx_BASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char T
  */
 s32 host_int_get_ipaddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8IPAddr, u8 idx);
 
-#ifdef WILC_P2P
 /**
  *  @brief           host_int_remain_on_channel
  *  @details
@@ -1232,7 +1223,6 @@ s32 host_int_ListenStateExpired(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID);
  *  @version	1.0
  */
 s32 host_int_frame_register(tstrWILC_WFIDrv *hWFIDrv, u16 u16FrameType, bool bReg);
-#endif
 /**
  *  @brief           host_int_set_wfi_drv_handler
  *  @details

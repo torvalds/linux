@@ -111,9 +111,7 @@ typedef struct {
 #ifdef AGING_ALG
 	u8 u8Found;
 #endif
-#ifdef WILC_P2P
 	u32 u32Tsf; /* time-stamp [Low only 32 bit] */
-#endif
 	u8 *pu8IEs;
 	u16 u16IEsLen;
 	void *pJoinParams;

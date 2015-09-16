@@ -12,7 +12,6 @@
 #define WILC_WLAN_IF_H
 
 /*bug 3887: [AP] Allow Management frames to be passed to the host*/
-#define WILC_P2P
 #define TCP_ENHANCEMENTS
 /* #define MEMORY_STATIC */
 /* #define USE_OLD_SPI_SW */
@@ -177,9 +176,7 @@ typedef struct {
 	int (*wlan_cfg_get)(int, u32, int, u32);
 	int (*wlan_cfg_get_value)(u32, u8 *, u32);
 	/*Bug3959: transmitting mgmt frames received from host*/
-	#if defined(WILC_P2P)
 	int (*wlan_add_mgmt_to_tx_que)(void *, u8 *, u32, wilc_tx_complete_func_t);
-	#endif
 } wilc_wlan_oup_t;
 
 /********************************************
@@ -201,9 +198,7 @@ typedef enum {
 	RSN_IE = 48,
 	WPA_IE = 221,
 	WMM_IE = 221,
-	#ifdef WILC_P2P
 	P2P_IE = 221,
-	#endif
 } BEACON_IE;
 #endif
 typedef enum {
@@ -880,13 +875,9 @@ typedef enum {
 	WID_HUT_TEST_ID                    = 0x3081,
 	WID_PMKID_INFO                     = 0x3082,
 	WID_FIRMWARE_INFO                  = 0x3083,
-	#ifdef WILC_P2P
 	WID_REGISTER_FRAME                = 0x3084,
-	#endif
 	WID_DEL_ALL_STA          = 0x3085,
-	 #ifdef WILC_P2P
 	WID_REMAIN_ON_CHAN  = 0x3996,
-	#endif
 	/*BugID_4156*/
 	WID_SSID_PROBE_REQ = 0x3997,
 	/*BugID_4124 WID to trigger modified Join Request using SSID and BSSID instead of bssListIdx (used by WID_JOIN_REQ)*/

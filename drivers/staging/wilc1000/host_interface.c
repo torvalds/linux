@@ -443,10 +443,8 @@ typedef union _tuniHostIFmsgBody {
 	tstrHostIfSetMacAddress strHostIfSetMacAddress;
 	tstrHostIfGetMacAddress strHostIfGetMacAddress;
 	tstrHostIfBASessionInfo strHostIfBASessionInfo;
-	#ifdef WILC_P2P
 	tstrHostIfRemainOnChan strHostIfRemainOnChan;
 	tstrHostIfRegisterFrame strHostIfRegisterFrame;
-	#endif
 	char *pUserData;
 	tstrHostIFDelAllSta strHostIFDelAllSta;
 } tuniHostIFmsgBody;
@@ -497,7 +495,6 @@ typedef struct _tstrJoinBssParam {
 	u8 rsn_auth_policy[3];
 	u8 rsn_cap[2];
 	struct _tstrJoinParam *nextJoinBss;
-	#ifdef WILC_P2P
 	u32 tsf;
 	u8 u8NoaEnbaled;
 	u8 u8OppEnable;
@@ -507,7 +504,6 @@ typedef struct _tstrJoinBssParam {
 	u8 au8Duration[4];
 	u8 au8Interval[4];
 	u8 au8StartTime[4];
-	#endif
 } tstrJoinBssParam;
 /*Bug4218: Parsing Join Param*/
 /*a linked list table containing needed join parameters entries for each AP found in most recent scan*/
@@ -1312,9 +1308,6 @@ static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler, tstrHostIFscanAttr *pstrHost
 	pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = pstrHostIFscanAttr->pfScanResult;
 	pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid = pstrHostIFscanAttr->pvUserArg;
 
-	#ifdef WILC_P2P
-	#endif
-
 	if ((pstrWFIDrv->enuHostIFstate >= HOST_IF_SCANNING) && (pstrWFIDrv->enuHostIFstate < HOST_IF_CONNECTED)) {
 		/* here we either in HOST_IF_SCANNING, HOST_IF_WAITING_CONN_REQ or HOST_IF_WAITING_CONN_RESP */
 		PRINT_D(GENERIC_DBG, "Don't scan we are already in [%d] state\n", pstrWFIDrv->enuHostIFstate);
@@ -1953,7 +1946,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	/*BugID_5137*/
 	*(pu8CurrByte++) = REAL_JOIN_REQ;
 
-		#ifdef WILC_P2P
 	*(pu8CurrByte++) = ptstrJoinBssParam->u8NoaEnbaled;
 	if (ptstrJoinBssParam->u8NoaEnbaled) {
 		PRINT_D(HOSTINF_DBG, "NOA present\n");
@@ -1986,8 +1978,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 
 	} else
 		PRINT_D(HOSTINF_DBG, "NOA not present\n");
-	#endif
-
 
 	/* keep the buffer at the start of the allocated pointer to use it with the free*/
 	pu8CurrByte = strWIDList[u32WidsCount].ps8WidVal;
@@ -3787,7 +3777,6 @@ ERRORHANDLER:
 	kfree(strWID.ps8WidVal);
 }
 
-#ifdef WILC_P2P
 /**
  *  @brief Handle_RemainOnChan
  *  @details        Sending config packet to edit station
@@ -4009,8 +3998,6 @@ static void ListenTimerCB(unsigned long arg)
 	if (s32Error)
 		PRINT_ER("wilc_mq_send fail\n");
 }
-#endif
-
 
 /**
  *  @brief Handle_EditStation
@@ -4409,10 +4396,8 @@ static int hostIFthread(void *pvArg)
 
 			Handle_ScanDone(strHostIFmsg.drvHandler, SCAN_EVENT_DONE);
 
-				#ifdef WILC_P2P
 			if (pstrWFIDrv->u8RemainOnChan_pendingreq)
 				Handle_RemainOnChan(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfRemainOnChan);
-				#endif
 
 			break;
 
@@ -4500,7 +4485,6 @@ static int hostIFthread(void *pvArg)
 			Handle_GetMacAddress(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfGetMacAddress);
 			break;
 
-#ifdef WILC_P2P
 		case HOST_IF_MSG_REMAIN_ON_CHAN:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_REMAIN_ON_CHAN\n");
 			Handle_RemainOnChan(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfRemainOnChan);
@@ -4515,7 +4499,6 @@ static int hostIFthread(void *pvArg)
 			Handle_ListenStateExpired(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfRemainOnChan);
 			break;
 
-			#endif
 		case HOST_IF_MSG_SET_MULTICAST_FILTER:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_SET_MULTICAST_FILTER\n");
 			Handle_SetMulticastFilter(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfSetMulti);
@@ -6479,10 +6462,8 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 
 	setup_timer(&pstrWFIDrv->hConnectTimer, TimerCB_Connect, 0);
 
-	#ifdef WILC_P2P
 	/*Remain on channel timer*/
 	setup_timer(&pstrWFIDrv->hRemainOnChannel, ListenTimerCB, 0);
-	#endif
 
 	sema_init(&(pstrWFIDrv->gtOsCfgValuesSem), 1);
 	down(&(pstrWFIDrv->gtOsCfgValuesSem));
@@ -6498,12 +6479,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	pstrWFIDrv->strCfgValues.passive_scan_time = PASSIVE_SCAN_TIME;
 	pstrWFIDrv->strCfgValues.curr_tx_rate = AUTORATE;
 
-
-	#ifdef WILC_P2P
-
 	pstrWFIDrv->u64P2p_MgmtTimeout = 0;
-
-	#endif
 
 	PRINT_INFO(HOSTINF_DBG, "Initialization values, Site survey value: %d\n Scan source: %d\n Active scan time: %d\n Passive scan time: %d\nCurrent tx Rate = %d\n",
 
@@ -6531,9 +6507,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 _fail_mem_:
 	if (pstrWFIDrv != NULL)
 		kfree(pstrWFIDrv);
-#ifdef WILC_P2P
 	del_timer_sync(&pstrWFIDrv->hRemainOnChannel);
-#endif
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 	del_timer_sync(&pstrWFIDrv->hConnectTimer);
@@ -6601,10 +6575,8 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
-	#ifdef WILC_P2P
 	/*Destroy Remain-onchannel Timer*/
 	del_timer_sync(&pstrWFIDrv->hRemainOnChannel);
-	#endif
 
 	host_int_set_wfi_drv_handler(NULL);
 	down(&hSemDeinitDrvHandle);
@@ -6829,7 +6801,6 @@ void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length)
 
 }
 
-#ifdef WILC_P2P
 /**
  *  @brief              host_int_remain_on_channel
  *  @details
@@ -6966,7 +6937,6 @@ s32 host_int_frame_register(tstrWILC_WFIDrv *hWFIDrv, u16 u16FrameType, bool bRe
 
 
 }
-#endif
 
 /**
  *  @brief host_int_add_beacon
@@ -7446,7 +7416,6 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				index += pu8IEs[index + 1] + 2;
 				continue;
 			}
-			#ifdef WILC_P2P
 			else if ((pu8IEs[index] == P2P_IE) && /* P2P Element ID */
 				 (pu8IEs[index + 2] == 0x50) && (pu8IEs[index + 3] == 0x6f) &&
 				 (pu8IEs[index + 4] == 0x9a) && /* OUI */
@@ -7483,7 +7452,6 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				continue;
 
 			}
-			#endif
 			else if ((pu8IEs[index] == RSN_IE) ||
 				 ((pu8IEs[index] == WPA_IE) && (pu8IEs[index + 2] == 0x00) &&
 				  (pu8IEs[index + 3] == 0x50) && (pu8IEs[index + 4] == 0xF2) &&

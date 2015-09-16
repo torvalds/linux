@@ -94,7 +94,6 @@ static struct ieee80211_rate WILC_WFI_rates[] = {
 	RATETAB_ENT(540, 12, 0),
 };
 
-#ifdef WILC_P2P
 struct p2p_mgmt_data {
 	int size;
 	u8 *buff;
@@ -111,7 +110,6 @@ u8 u8P2Plocalrandom = 0x01;
 u8 u8P2Precvrandom = 0x00;
 u8 u8P2P_vendorspec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 bool bWilc_ie;
-#endif
 
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
 	.channels = WILC_WFI_2ghz_channels,
@@ -550,18 +548,14 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 {
 	struct wilc_priv *priv;
 	struct net_device *dev;
-	#ifdef WILC_P2P
 	tstrWILC_WFIDrv *pstrWFIDrv;
-	#endif
 	u8 NullBssid[ETH_ALEN] = {0};
 
 	connecting = 0;
 
 	priv = (struct wilc_priv *)pUserVoid;
 	dev = priv->dev;
-	#ifdef WILC_P2P
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
-	#endif
 
 	if (enuConnDisconnEvent == CONN_DISCONN_EVENT_CONN_RESP) {
 		/*Initialization*/
@@ -581,10 +575,8 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 
 			/*BugID_5457*/
 			/*Invalidate u8WLANChannel value on wlan0 disconnect*/
-			#ifdef WILC_P2P
 			if (!pstrWFIDrv->u8P2PConnect)
 				u8WLANChannel = INVALID_CHANNEL;
-			#endif
 
 			PRINT_ER("Unspecified failure: Connection status %d : MAC status = %d\n", u16ConnectStatus, u8MacStatus);
 		}
@@ -649,10 +641,8 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 
 		/*BugID_5457*/
 		/*Invalidate u8WLANChannel value on wlan0 disconnect*/
-		#ifdef WILC_P2P
 		if (!pstrWFIDrv->u8P2PConnect)
 			u8WLANChannel = INVALID_CHANNEL;
-		#endif
 		/*BugID_5315*/
 		/*Incase "P2P CLIENT Connected" send deauthentication reason by 3 to force the WPA_SUPPLICANT to directly change
 		 *      virtual interface to station*/
@@ -838,13 +828,11 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	host_int_set_wfi_drv_handler(priv->hWILCWFIDrv);
 
 	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
-	#ifdef WILC_P2P
 	if (!(strncmp(sme->ssid, "DIRECT-", 7))) {
 		PRINT_D(CFG80211_DBG, "Connected to Direct network,OBSS disabled\n");
 		pstrWFIDrv->u8P2PConnect = 1;
 	} else
 		pstrWFIDrv->u8P2PConnect = 0;
-	#endif
 	PRINT_INFO(CFG80211_DBG, "Required SSID = %s\n , AuthType = %d\n", sme->ssid, sme->auth_type);
 
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
@@ -1074,9 +1062,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 {
 	s32 s32Error = 0;
 	struct wilc_priv *priv;
-	#ifdef WILC_P2P
 	tstrWILC_WFIDrv *pstrWFIDrv;
-	#endif
 	u8 NullBssid[ETH_ALEN] = {0};
 
 	connecting = 0;
@@ -1084,11 +1070,9 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 
 	/*BugID_5457*/
 	/*Invalidate u8WLANChannel value on wlan0 disconnect*/
-	#ifdef WILC_P2P
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
 	if (!pstrWFIDrv->u8P2PConnect)
 		u8WLANChannel = INVALID_CHANNEL;
-	#endif
 	linux_wlan_set_bssid(priv->dev, NullBssid);
 
 	PRINT_D(CFG80211_DBG, "Disconnecting with reason code(%d)\n", reason_code);
@@ -1096,9 +1080,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	u8P2Plocalrandom = 0x01;
 	u8P2Precvrandom = 0x00;
 	bWilc_ie = false;
-	#ifdef WILC_P2P
 	pstrWFIDrv->u64P2p_MgmtTimeout = 0;
-	#endif
 
 	s32Error = host_int_disconnect(priv->hWILCWFIDrv, reason_code);
 	if (s32Error != 0) {
@@ -1987,7 +1969,6 @@ static int flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return 0;
 }
 
-#ifdef WILC_P2P
 
 /**
  *  @brief      WILC_WFI_CfgParseRxAction
@@ -2650,7 +2631,6 @@ void    WILC_WFI_frame_register(struct wiphy *wiphy,
 
 
 }
-#endif /*WILC_P2P*/
 
 /**
  *  @brief      WILC_WFI_set_cqm_rssi_config
@@ -2759,9 +2739,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	perInterface_wlan_t *nic;
 	u8 interface_type;
 	u16 TID = 0;
-	#ifdef WILC_P2P
 	u8 i;
-	#endif
 
 	nic = netdev_priv(dev);
 	priv = wiphy_priv(wiphy);
@@ -2799,7 +2777,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		/*Remove the enteries of the previously connected clients*/
 		memset(priv->assoc_stainfo.au8Sta_AssociatedBss, 0, MAX_NUM_STA * ETH_ALEN);
-		#ifdef WILC_P2P
 		interface_type = nic->iftype;
 		nic->iftype = STATION_MODE;
 
@@ -2875,7 +2852,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			bEnablePS = true;
 			host_int_set_power_mgmt(priv->hWILCWFIDrv, 1, 0);
 		}
-		#endif
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -2889,8 +2865,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		nic->monitor_flag = 0;
-
-		#ifdef WILC_P2P
 
 		PRINT_D(HOSTAPD_DBG, "Downloading P2P_CONCURRENCY_FIRMWARE\n");
 		nic->iftype = CLIENT_MODE;
@@ -2962,7 +2936,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				}
 			}
 		}
-		#endif
 		break;
 
 	case NL80211_IFTYPE_AP:
@@ -2975,7 +2948,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		PRINT_D(HOSTAPD_DBG, "Downloading AP firmware\n");
 		linux_wlan_get_firmware(nic);
-		#ifdef WILC_P2P
 		/*If wilc is running, then close-open to actually get new firmware running (serves P2P)*/
 		if (g_linux_wlan->wilc1000_initialized)	{
 			nic->iftype = AP_MODE;
@@ -2993,7 +2965,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 							nic->g_struct_frame_reg[i].reg);
 			}
 		}
-		#endif
 		break;
 
 	case NL80211_IFTYPE_P2P_GO:
@@ -3017,7 +2988,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		PRINT_D(CORECONFIG_DBG, "priv->hWILCWFIDrv[%p]\n", priv->hWILCWFIDrv);
 
-		#ifdef WILC_P2P
 		PRINT_D(HOSTAPD_DBG, "Downloading P2P_CONCURRENCY_FIRMWARE\n");
 
 
@@ -3090,7 +3060,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 							nic->g_struct_frame_reg[i].reg);
 			}
 		}
-		#endif
 		break;
 
 	default:
@@ -3487,7 +3456,6 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.set_pmksa = set_pmksa,
 	.del_pmksa = del_pmksa,
 	.flush_pmksa = flush_pmksa,
-#ifdef WILC_P2P
 	.remain_on_channel = remain_on_channel,
 	.cancel_remain_on_channel = cancel_remain_on_channel,
 	.mgmt_tx_cancel_wait = mgmt_tx_cancel_wait,
@@ -3495,7 +3463,6 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.mgmt_frame_register = WILC_WFI_frame_register,
 	.set_power_mgmt = WILC_WFI_set_power_mgmt,
 	.set_cqm_rssi_config = WILC_WFI_set_cqm_rssi_config,
-#endif
 
 };
 
@@ -3643,15 +3610,11 @@ struct wireless_dev *WILC_WFI_WiphyRegister(struct net_device *net)
 	/*Setting default managment types: for register action frame:  */
 	wdev->wiphy->mgmt_stypes = wilc_wfi_cfg80211_mgmt_types;
 
-#ifdef WILC_P2P
 	wdev->wiphy->max_remain_on_channel_duration = 500;
 	/*Setting the wiphy interfcae mode and type before registering the wiphy*/
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP) | BIT(NL80211_IFTYPE_MONITOR) | BIT(NL80211_IFTYPE_P2P_GO) |
 		BIT(NL80211_IFTYPE_P2P_CLIENT);
 	wdev->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-#else
-	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP) | BIT(NL80211_IFTYPE_MONITOR);
-#endif
 	wdev->iftype = NL80211_IFTYPE_STATION;
 
 

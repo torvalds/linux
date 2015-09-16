@@ -561,8 +561,8 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size, wi
 	/*return number of itemes in the queue*/
 	return p->txq_entries;
 }
+
 /*Bug3959: transmitting mgmt frames received from host*/
-#if defined(WILC_P2P)
 int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_complete_func_t func)
 {
 
@@ -588,7 +588,7 @@ int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_
 	wilc_wlan_txq_add_to_tail(tqe);
 	return 1;
 }
-#endif /* WILC_P2P */
+
 static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
@@ -1213,7 +1213,6 @@ static void wilc_wlan_handle_rxq(void)
 			}
 
 /*bug 3887: [AP] Allow Management frames to be passed to the host*/
-			#if defined(WILC_P2P)
 			#define IS_MANAGMEMENT				0x100
 			#define IS_MANAGMEMENT_CALLBACK			0x080
 			#define IS_MGMT_STATUS_SUCCES			0x040
@@ -1227,7 +1226,6 @@ static void wilc_wlan_handle_rxq(void)
 			}
 			/* BUG4530 fix */
 			else
-			#endif
 			{
 
 				if (!is_cfg_packet) {
@@ -2145,9 +2143,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	oup->wlan_cfg_get_value = wilc_wlan_cfg_get_val;
 
 	/*Bug3959: transmitting mgmt frames received from host*/
-	#if defined(WILC_P2P)
 	oup->wlan_add_mgmt_to_tx_que = wilc_wlan_txq_add_mgmt_pkt;
-	#endif
 
 	if (!init_chip()) {
 		/* EIO	5 */

@@ -2058,12 +2058,10 @@ void WILC_WFI_mgmt_rx(u8 *buff, u32 size)
 		}
 	}
 
-	#ifdef WILC_P2P
 	nic = netdev_priv(g_linux_wlan->strInterfaceInfo[1].wilc_netdev); /* p2p0 */
 	if ((buff[0] == nic->g_struct_frame_reg[0].frame_type && nic->g_struct_frame_reg[0].reg) ||
 	    (buff[0] == nic->g_struct_frame_reg[1].frame_type && nic->g_struct_frame_reg[1].reg))
 		WILC_WFI_p2p_rx(g_linux_wlan->strInterfaceInfo[1].wilc_netdev, buff, size);
-	#endif
 }
 
 int wilc_netdev_init(void)

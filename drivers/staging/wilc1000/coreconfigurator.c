@@ -476,11 +476,9 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 		/* Get the cap_info */
 		pstrNetworkInfo->u16CapInfo = get_cap_info(pu8msa);
-		#ifdef WILC_P2P
 		/* Get time-stamp [Low only 32 bit] */
 		pstrNetworkInfo->u32Tsf = get_beacon_timestamp_lo(pu8msa);
 		PRINT_D(CORECONFIG_DBG, "TSF :%x\n", pstrNetworkInfo->u32Tsf);
-		#endif
 
 		/* Get full time-stamp [Low and High 64 bit] */
 		u32Tsf_Lo = get_beacon_timestamp_lo(pu8msa);
