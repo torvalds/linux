@@ -1,6 +1,7 @@
 
 #include "wilc_msgqueue.h"
 #include <linux/spinlock.h>
+#include <linux/errno.h>
 
 /*!
  *  @author		syounan
@@ -69,11 +70,15 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 
 	/* construct a new message */
 	pstrMessage = kmalloc(sizeof(Message), GFP_ATOMIC);
-	WILC_NULLCHECK(s32RetStatus, pstrMessage);
+	if (!pstrMessage)
+		return -ENOMEM;
 	pstrMessage->u32Length = u32SendBufferSize;
 	pstrMessage->pstrNext = NULL;
 	pstrMessage->pvBuffer = kmalloc(u32SendBufferSize, GFP_ATOMIC);
-	WILC_NULLCHECK(s32RetStatus, pstrMessage->pvBuffer);
+	if (!pstrMessage->pvBuffer) {
+		s32RetStatus = -ENOMEM;
+		goto ERRORHANDLER;
+	}
 	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
 	/* add it to the message queue */

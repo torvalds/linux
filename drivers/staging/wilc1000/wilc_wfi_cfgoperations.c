@@ -15,7 +15,7 @@
 #ifdef WILC_SDIO
 #include "linux_wlan_sdio.h"    /* tony : for set_wiphy_dev() */
 #endif
-
+#include <linux/errno.h>
 
 #define IS_MANAGMEMENT				0x100
 #define IS_MANAGMEMENT_CALLBACK			0x080
@@ -381,7 +381,10 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 	if (priv->bCfgScanning == true) {
 		if (enuScanEvent == SCAN_EVENT_NETWORK_FOUND) {
 			wiphy = priv->dev->ieee80211_ptr->wiphy;
-			WILC_NULLCHECK(s32Error, wiphy);
+
+			if (!wiphy)
+				return;
+
 			if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC
 			    &&
 			    ((((s32)pstrNetworkInfo->s8rssi) * 100) < 0
@@ -395,7 +398,8 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				s32Freq = ieee80211_channel_to_frequency((s32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
-				WILC_NULLCHECK(s32Error, channel);
+				if (!channel)
+					return;
 
 				PRINT_INFO(CFG80211_DBG, "Network Info:: CHANNEL Frequency: %d, RSSI: %d, CapabilityInfo: %d,"
 					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)pstrNetworkInfo->s8rssi) * 100),
@@ -3217,8 +3221,8 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct wilc_priv *priv;
 	u8 NullBssid[ETH_ALEN] = {0};
 
-
-	WILC_NULLCHECK(s32Error, wiphy);
+	if (!wiphy)
+		return -EFAULT;
 
 	priv = wiphy_priv(wiphy);
 
@@ -3254,8 +3258,8 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 	tstrWILC_AddStaParam strStaParams = { {0} };
 	perInterface_wlan_t *nic;
 
-
-	WILC_NULLCHECK(s32Error, wiphy);
+	if (!wiphy)
+		return -EFAULT;
 
 	priv = wiphy_priv(wiphy);
 	nic = netdev_priv(dev);
@@ -3325,7 +3329,8 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
 
-	WILC_NULLCHECK(s32Error, wiphy);
+	if (!wiphy)
+		return -EFAULT;
 
 	priv = wiphy_priv(wiphy);
 	nic = netdev_priv(dev);
@@ -3371,7 +3376,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 
 	PRINT_D(HOSTAPD_DBG, "Change station paramters\n");
 
-	WILC_NULLCHECK(s32Error, wiphy);
+	if (!wiphy)
+		return -EFAULT;
 
 	priv = wiphy_priv(wiphy);
 	nic = netdev_priv(dev);

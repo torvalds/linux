@@ -51,12 +51,6 @@
 		goto ERRORHANDLER; \
 } while (0)
 
-#define  WILC_NULLCHECK(__status__, __ptr__)	do { \
-		if (__ptr__ == NULL) { \
-			WILC_ERRORREPORT(__status__, WILC_NULL_PTR); \
-		} \
-} while (0)
-
 #define WILC_CATCH(__status__) \
 ERRORHANDLER: \
 	if (__status__ < WILC_SUCCESS) \
