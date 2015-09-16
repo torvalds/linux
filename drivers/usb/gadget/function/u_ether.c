@@ -1149,7 +1149,6 @@ void gether_disconnect(struct gether *link)
 		spin_lock(&dev->req_lock);
 	}
 	spin_unlock(&dev->req_lock);
-	link->in_ep->driver_data = NULL;
 	link->in_ep->desc = NULL;
 
 	usb_ep_disable(link->out_ep);
@@ -1164,7 +1163,6 @@ void gether_disconnect(struct gether *link)
 		spin_lock(&dev->req_lock);
 	}
 	spin_unlock(&dev->req_lock);
-	link->out_ep->driver_data = NULL;
 	link->out_ep->desc = NULL;
 
 	/* finish forgetting about this USB link episode */
