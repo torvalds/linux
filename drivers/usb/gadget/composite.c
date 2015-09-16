@@ -839,9 +839,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 		}
 	}
 
-	/* set_alt(), or next bind(), sets up
-	 * ep->driver_data as needed.
-	 */
+	/* set_alt(), or next bind(), sets up ep->claimed as needed */
 	usb_ep_autoconfig_reset(cdev->gadget);
 
 done:
