@@ -145,9 +145,6 @@ extern atomic_t DEBUG_LEVEL;
 		#define MODALIAS	"wilc_spi3"
 		#define GPIO_NUM	133
 	#endif
-#elif defined(PANDA_BOARD)
-	#define MODALIAS	"WILC_SPI"
-	#define GPIO_NUM	139
 #elif defined(PLAT_WMS8304)             /* rachel */
 	#define MODALIAS	"wilc_spi"
 	#define GPIO_NUM	139

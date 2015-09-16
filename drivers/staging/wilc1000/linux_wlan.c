@@ -435,10 +435,6 @@ static int init_irq(linux_wlan_t *p_nic)
  *
  * ex) nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
  */
-#elif defined(PANDA_BOARD)
-		gpio_export(GPIO_NUM, 1);
-		nic->dev_irq_num = OMAP_GPIO_IRQ(GPIO_NUM);
-		irq_set_irq_type(nic->dev_irq_num, IRQ_TYPE_LEVEL_LOW);
 #else
 		nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
 #endif

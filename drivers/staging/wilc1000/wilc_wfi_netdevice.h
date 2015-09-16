@@ -80,11 +80,7 @@ struct WILC_WFI_stats {
  * LPC3131 which is important to get the MAC start status when you are blocked
  * inside linux_wlan_firmware_download() which blocks mac_open().
  */
-#if defined(PANDA_BOARD)
- #define RX_BH_TYPE  RX_BH_THREADED_IRQ
-#else
  #define RX_BH_TYPE  RX_BH_KTHREAD
-#endif
 
 struct wilc_wfi_key {
 	u8 *key;
