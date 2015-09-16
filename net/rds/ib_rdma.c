@@ -522,8 +522,7 @@ static void rds_ib_teardown_mr(struct rds_ib_mr *ibmr)
 
 	__rds_ib_teardown_mr(ibmr);
 	if (pinned) {
-		struct rds_ib_device *rds_ibdev = ibmr->device;
-		struct rds_ib_mr_pool *pool = rds_ibdev->mr_pool;
+		struct rds_ib_mr_pool *pool = ibmr->pool;
 
 		atomic_sub(pinned, &pool->free_pinned);
 	}
@@ -717,8 +716,8 @@ static void rds_ib_mr_pool_flush_worker(struct work_struct *work)
 void rds_ib_free_mr(void *trans_private, int invalidate)
 {
 	struct rds_ib_mr *ibmr = trans_private;
+	struct rds_ib_mr_pool *pool = ibmr->pool;
 	struct rds_ib_device *rds_ibdev = ibmr->device;
-	struct rds_ib_mr_pool *pool = rds_ibdev->mr_pool;
 
 	rdsdebug("RDS/IB: free_mr nents %u\n", ibmr->sg_len);
 
