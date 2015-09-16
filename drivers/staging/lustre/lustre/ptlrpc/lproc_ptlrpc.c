@@ -1223,7 +1223,7 @@ int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 		return -ENOMEM;
 
 	/*
-	 * OBD_ALLOC() will zero kbuf, but we only copy BUFLEN - 1
+	 * kzalloc() will zero kbuf, but we only copy BUFLEN - 1
 	 * bytes into kbuf, to ensure that the string is NUL-terminated.
 	 * UUID_MAX should include a trailing NUL already.
 	 */

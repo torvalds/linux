@@ -694,7 +694,7 @@ out_och_free:
 	if (rc) {
 		if (och_p && *och_p) {
 			kfree(*och_p);
-			*och_p = NULL; /* OBD_FREE writes some magic there */
+			*och_p = NULL;
 			(*och_usecount)--;
 		}
 		mutex_unlock(&lli->lli_och_mutex);
