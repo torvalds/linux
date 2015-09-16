@@ -1835,10 +1835,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&option_1port_device, NULL
 };
 
-struct option_private {
-	u8 bInterfaceNumber;
-};
-
 module_usb_serial_driver(serial_drivers, option_ids);
 
 static int option_probe(struct usb_serial *serial,
@@ -1882,25 +1878,15 @@ static int option_attach(struct usb_serial *serial)
 	struct usb_interface_descriptor *iface_desc;
 	const struct option_blacklist_info *blacklist;
 	struct usb_wwan_intf_private *data;
-	struct option_private *priv;
 
 	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		kfree(data);
-		return -ENOMEM;
-	}
-
 	/* Retrieve blacklist info stored at probe. */
 	blacklist = usb_get_serial_data(serial);
 
 	iface_desc = &serial->interface->cur_altsetting->desc;
-
-	priv->bInterfaceNumber = iface_desc->bInterfaceNumber;
-	data->private = priv;
 
 	if (!blacklist || !test_bit(iface_desc->bInterfaceNumber,
 						&blacklist->sendsetup)) {
@@ -1916,9 +1902,7 @@ static int option_attach(struct usb_serial *serial)
 static void option_release(struct usb_serial *serial)
 {
 	struct usb_wwan_intf_private *intfdata = usb_get_serial_data(serial);
-	struct option_private *priv = intfdata->private;
 
-	kfree(priv);
 	kfree(intfdata);
 }
 
@@ -1985,9 +1969,8 @@ static void option_instat_callback(struct urb *urb)
 static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	struct usb_wwan_intf_private *intfdata = usb_get_serial_data(serial);
-	struct option_private *priv = intfdata->private;
 	struct usb_wwan_port_private *portdata;
+	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	int val = 0;
 	int res;
 
@@ -2003,7 +1986,7 @@ static int option_send_setup(struct usb_serial_port *port)
 		return res;
 
 	res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				0x22, 0x21, val, priv->bInterfaceNumber, NULL,
+				0x22, 0x21, val, ifNum, NULL,
 				0, USB_CTRL_SET_TIMEOUT);
 
 	usb_autopm_put_interface(serial->interface);
