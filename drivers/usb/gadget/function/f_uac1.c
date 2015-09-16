@@ -593,7 +593,6 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 				return err;
 
 			usb_ep_enable(out_ep);
-			out_ep->driver_data = audio;
 			audio->copy_buf = f_audio_buffer_alloc(audio_buf_size);
 			if (IS_ERR(audio->copy_buf))
 				return -ENOMEM;
@@ -718,7 +717,6 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	audio->out_ep = ep;
 	audio->out_ep->desc = &as_out_ep_desc;
-	ep->driver_data = cdev;	/* claim */
 
 	status = -ENOMEM;
 
@@ -730,8 +728,6 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 fail:
 	gaudio_cleanup(&audio->card);
-	if (ep)
-		ep->driver_data = NULL;
 	return status;
 }
 
