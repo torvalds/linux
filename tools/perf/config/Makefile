@@ -109,6 +109,10 @@ endif
 # include ARCH specific config
 -include $(src-perf)/arch/$(ARCH)/Makefile
 
+ifdef PERF_HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET
+  CFLAGS += -DHAVE_ARCH_REGS_QUERY_REGISTER_OFFSET
+endif
+
 include $(src-perf)/config/utilities.mak
 
 ifeq ($(call get-executable,$(FLEX)),)

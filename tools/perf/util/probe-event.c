@@ -71,7 +71,7 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 static struct machine *host_machine;
 
 /* Initialize symbol maps and path of vmlinux/modules */
-static int init_symbol_maps(bool user_only)
+int init_probe_symbol_maps(bool user_only)
 {
 	int ret;
 
@@ -101,7 +101,7 @@ out:
 	return ret;
 }
 
-static void exit_symbol_maps(void)
+void exit_probe_symbol_maps(void)
 {
 	if (host_machine) {
 		machine__delete(host_machine);
@@ -859,11 +859,11 @@ int show_line_range(struct line_range *lr, const char *module, bool user)
 {
 	int ret;
 
-	ret = init_symbol_maps(user);
+	ret = init_probe_symbol_maps(user);
 	if (ret < 0)
 		return ret;
 	ret = __show_line_range(lr, module, user);
-	exit_symbol_maps();
+	exit_probe_symbol_maps();
 
 	return ret;
 }
@@ -941,7 +941,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	int i, ret = 0;
 	struct debuginfo *dinfo;
 
-	ret = init_symbol_maps(pevs->uprobes);
+	ret = init_probe_symbol_maps(pevs->uprobes);
 	if (ret < 0)
 		return ret;
 
@@ -958,7 +958,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 
 	debuginfo__delete(dinfo);
 out:
-	exit_symbol_maps();
+	exit_probe_symbol_maps();
 	return ret;
 }
 
@@ -2262,7 +2262,7 @@ int show_perf_probe_events(struct strfilter *filter)
 
 	setup_pager();
 
-	ret = init_symbol_maps(false);
+	ret = init_probe_symbol_maps(false);
 	if (ret < 0)
 		return ret;
 
@@ -2278,7 +2278,7 @@ int show_perf_probe_events(struct strfilter *filter)
 		close(kp_fd);
 	if (up_fd > 0)
 		close(up_fd);
-	exit_symbol_maps();
+	exit_probe_symbol_maps();
 
 	return ret;
 }
@@ -2746,10 +2746,6 @@ int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int i, ret;
 
-	ret = init_symbol_maps(pevs->uprobes);
-	if (ret < 0)
-		return ret;
-
 	/* Loop 1: convert all events */
 	for (i = 0; i < npevs; i++) {
 		/* Init kprobe blacklist if needed */
@@ -2792,14 +2788,17 @@ void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 			clear_probe_trace_event(&pevs[i].tevs[j]);
 		zfree(&pevs[i].tevs);
 		pevs[i].ntevs = 0;
+		clear_perf_probe_event(&pevs[i]);
 	}
-
-	exit_symbol_maps();
 }
 
 int add_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int ret;
+
+	ret = init_probe_symbol_maps(pevs->uprobes);
+	if (ret < 0)
+		return ret;
 
 	ret = convert_perf_probe_events(pevs, npevs);
 	if (ret == 0)
@@ -2807,6 +2806,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 
 	cleanup_perf_probe_events(pevs, npevs);
 
+	exit_probe_symbol_maps();
 	return ret;
 }
 
@@ -2866,7 +2866,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 	struct map *map;
 	int ret;
 
-	ret = init_symbol_maps(user);
+	ret = init_probe_symbol_maps(user);
 	if (ret < 0)
 		return ret;
 
@@ -2896,7 +2896,7 @@ end:
 	if (user) {
 		map__put(map);
 	}
-	exit_symbol_maps();
+	exit_probe_symbol_maps();
 
 	return ret;
 }

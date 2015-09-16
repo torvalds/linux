@@ -1,4 +1,5 @@
 #include <api/fs/fs.h>
+#include <linux/err.h>
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"
@@ -31,7 +32,7 @@ int test__openat_syscall_event_on_all_cpus(void)
 	CPU_ZERO(&cpu_set);
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
-	if (evsel == NULL) {
+	if (IS_ERR(evsel)) {
 		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
 		pr_err("%s\n", errbuf);
 		goto out_thread_map_delete;
