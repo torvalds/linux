@@ -599,15 +599,6 @@ do {									      \
 #define OBD_ALLOC_PTR(ptr) OBD_ALLOC(ptr, sizeof(*(ptr)))
 #define OBD_ALLOC_PTR_WAIT(ptr) OBD_ALLOC_WAIT(ptr, sizeof(*(ptr)))
 
-#define OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, gfp_mask)		      \
-	__OBD_MALLOC_VERBOSE(ptr, cptab, cpt, size, gfp_mask)
-
-#define OBD_CPT_ALLOC(ptr, cptab, cpt, size)				      \
-	OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, GFP_NOFS)
-
-#define OBD_CPT_ALLOC_PTR(ptr, cptab, cpt)				      \
-	OBD_CPT_ALLOC(ptr, cptab, cpt, sizeof(*(ptr)))
-
 #define OBD_ALLOC_LARGE(ptr, size)					    \
 do {									  \
 	ptr = libcfs_kvzalloc(size, GFP_NOFS);				  \
