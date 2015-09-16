@@ -12,10 +12,6 @@ Optional properties:
 - vbus-supply: reference to the VBUS regulator
 - maximum-speed: limit the maximum connection speed to "full-speed".
 - tpl-support: TPL (Targeted Peripheral List) feature for targeted hosts
-- fsl,usbmisc: (FSL only) phandler of non-core register device, with one
-  argument that indicate usb controller index
-- disable-over-current: (FSL only) disable over current detect
-- external-vbus-divider: (FSL only) enables off-chip resistor divider for Vbus
 - itc-setting: interrupt threshold control register control, the setting
   should be aligned with ITC bits at register USBCMD.
 - ahb-burst-config: it is vendor dependent, the required value should be
@@ -42,6 +38,12 @@ Optional properties:
   be specified.
 - phy-clkgate-delay-us: the delay time (us) between putting the PHY into
   low power mode and gating the PHY clock.
+
+i.mx specific properties
+- fsl,usbmisc: phandler of non-core register device, with one
+  argument that indicate usb controller index
+- disable-over-current: disable over current detect
+- external-vbus-divider: enables off-chip resistor divider for Vbus
 
 Example:
 
