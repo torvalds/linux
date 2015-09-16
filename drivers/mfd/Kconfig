@@ -446,6 +446,14 @@ config MFD_MAX14577
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX17135
+	tristate "Maxim MAX17135 EPD PMIC core"
+	depends on I2C
+
+	help
+	  This is the MAX17135 PMIC support. It includes
+	  core support for communication with the MAX17135 chip.
+
 config MFD_MAX77686
 	bool "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C=y
