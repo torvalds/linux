@@ -1,6 +1,7 @@
 
 #include "wilc_msgqueue.h"
 #include <linux/spinlock.h>
+#include "linux_wlan_common.h"
 #include <linux/errno.h>
 
 /*!
