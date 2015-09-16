@@ -198,7 +198,6 @@ typedef struct {
 	struct task_struct *rx_bh_thread;
 	struct semaphore rx_sem;
 #endif
-	struct semaphore rxq_thread_started;
 	struct semaphore txq_thread_started;
 
 	struct task_struct *rxq_thread;

@@ -1161,7 +1161,6 @@ int wlan_init_locks(linux_wlan_t *p_nic)
 	sema_init(&g_linux_wlan->cfg_event, 0);
 	sema_init(&g_linux_wlan->sync_event, 0);
 
-	sema_init(&g_linux_wlan->rxq_thread_started, 0);
 	sema_init(&g_linux_wlan->txq_thread_started, 0);
 
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
