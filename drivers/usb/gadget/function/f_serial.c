@@ -153,7 +153,7 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	/* we know alt == 0, so this is an activation or a reset */
 
-	if (gser->port.in->driver_data) {
+	if (gser->port.in->enabled) {
 		dev_dbg(&cdev->gadget->dev,
 			"reset generic ttyGS%d\n", gser->port_num);
 		gserial_disconnect(&gser->port);
@@ -219,13 +219,11 @@ static int gser_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	gser->port.in = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &gser_fs_out_desc);
 	if (!ep)
 		goto fail;
 	gser->port.out = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -249,12 +247,6 @@ static int gser_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	/* we might as well release our claims on endpoints */
-	if (gser->port.out)
-		gser->port.out->driver_data = NULL;
-	if (gser->port.in)
-		gser->port.in->driver_data = NULL;
-
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
 
 	return status;
