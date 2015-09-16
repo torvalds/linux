@@ -989,7 +989,7 @@ static int check_fw_sanity(struct edgeport_serial *serial,
 static int download_fw(struct edgeport_serial *serial,
 		const struct firmware *fw)
 {
-	struct device *dev = &serial->serial->dev->dev;
+	struct device *dev = &serial->serial->interface->dev;
 	int status = 0;
 	int start_address;
 	struct edge_ti_manuf_descriptor *ti_manuf_desc;
