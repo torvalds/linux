@@ -991,18 +991,30 @@ static int check_fw_sanity(struct edgeport_serial *serial,
  * This routine downloads the main operating code into the TI5052, using the
  * boot code already burned into E2PROM or ROM.
  */
-static int download_fw(struct edgeport_serial *serial,
-		const struct firmware *fw)
+static int download_fw(struct edgeport_serial *serial)
 {
 	struct device *dev = &serial->serial->interface->dev;
 	int status = 0;
 	struct usb_interface_descriptor *interface;
-	struct edgeport_fw_hdr *fw_hdr = (struct edgeport_fw_hdr *)fw->data;
+	const struct firmware *fw;
+	const char *fw_name = "edgeport/down3.bin";
+	struct edgeport_fw_hdr *fw_hdr;
 
-	if (check_fw_sanity(serial, fw))
-		return -EINVAL;
+	status = request_firmware(&fw, fw_name, dev);
+	if (status) {
+		dev_err(dev, "Failed to load image \"%s\" err %d\n",
+				fw_name, status);
+		return status;
+	}
 
-	/* If on-board version is newer, "fw_version" will be updated below. */
+	if (check_fw_sanity(serial, fw)) {
+		status = -EINVAL;
+		goto out;
+	}
+
+	fw_hdr = (struct edgeport_fw_hdr *)fw->data;
+
+	/* If on-board version is newer, "fw_version" will be updated later. */
 	serial->fw_version = (fw_hdr->major_version << 8) +
 			fw_hdr->minor_version;
 
@@ -1017,12 +1029,13 @@ static int download_fw(struct edgeport_serial *serial,
 
 	status = choose_config(serial->serial->dev);
 	if (status)
-		return status;
+		goto out;
 
 	interface = &serial->serial->interface->cur_altsetting->desc;
 	if (!interface) {
 		dev_err(dev, "%s - no interface set, error!\n", __func__);
-		return -ENODEV;
+		status = -ENODEV;
+		goto out;
 	}
 
 	/*
@@ -1032,13 +1045,16 @@ static int download_fw(struct edgeport_serial *serial,
 	 */
 	if (interface->bNumEndpoints > 1) {
 		serial->product_info.TiMode = TI_MODE_DOWNLOAD;
-		return do_download_mode(serial, fw);
+		status = do_download_mode(serial, fw);
+	} else {
+		/* Otherwise we will remain in configuring mode */
+		serial->product_info.TiMode = TI_MODE_CONFIGURING;
+		status = do_boot_mode(serial, fw);
 	}
 
-	/* Otherwise we will remain in configuring mode */
-	serial->product_info.TiMode = TI_MODE_CONFIGURING;
-	return do_boot_mode(serial, fw);
-
+out:
+	release_firmware(fw);
+	return status;
 }
 
 static int do_download_mode(struct edgeport_serial *serial,
@@ -2494,9 +2510,6 @@ static int edge_startup(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial;
 	int status;
-	const struct firmware *fw;
-	const char *fw_name = "edgeport/down3.bin";
-	struct device *dev = &serial->interface->dev;
 	u16 product_id;
 
 	/* create our private serial structure */
@@ -2508,16 +2521,7 @@ static int edge_startup(struct usb_serial *serial)
 	edge_serial->serial = serial;
 	usb_set_serial_data(serial, edge_serial);
 
-	status = request_firmware(&fw, fw_name, dev);
-	if (status) {
-		dev_err(dev, "Failed to load image \"%s\" err %d\n",
-				fw_name, status);
-		kfree(edge_serial);
-		return status;
-	}
-
-	status = download_fw(edge_serial, fw);
-	release_firmware(fw);
+	status = download_fw(edge_serial);
 	if (status) {
 		kfree(edge_serial);
 		return status;
