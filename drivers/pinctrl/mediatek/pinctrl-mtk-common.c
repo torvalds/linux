@@ -1436,7 +1436,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		irq_set_chip_and_handler(virq, &mtk_pinctrl_irq_chip,
 			handle_level_irq);
 		irq_set_chip_data(virq, pctl);
-	};
+	}
 
 	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
 	return 0;
