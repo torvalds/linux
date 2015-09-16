@@ -66,26 +66,6 @@ struct ghes_edac_dimm_fill {
 	unsigned count;
 };
 
-char *memory_type[] = {
-	[MEM_EMPTY] = "EMPTY",
-	[MEM_RESERVED] = "RESERVED",
-	[MEM_UNKNOWN] = "UNKNOWN",
-	[MEM_FPM] = "FPM",
-	[MEM_EDO] = "EDO",
-	[MEM_BEDO] = "BEDO",
-	[MEM_SDR] = "SDR",
-	[MEM_RDR] = "RDR",
-	[MEM_DDR] = "DDR",
-	[MEM_RDDR] = "RDDR",
-	[MEM_RMBS] = "RMBS",
-	[MEM_DDR2] = "DDR2",
-	[MEM_FB_DDR2] = "FB_DDR2",
-	[MEM_RDDR2] = "RDDR2",
-	[MEM_XDR] = "XDR",
-	[MEM_DDR3] = "DDR3",
-	[MEM_RDDR3] = "RDDR3",
-};
-
 static void ghes_edac_count_dimms(const struct dmi_header *dh, void *arg)
 {
 	int *num_dimm = arg;
@@ -173,7 +153,7 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 
 		if (dimm->nr_pages) {
 			edac_dbg(1, "DIMM%i: %s size = %d MB%s\n",
-				dimm_fill->count, memory_type[dimm->mtype],
+				dimm_fill->count, edac_mem_types[dimm->mtype],
 				PAGES_TO_MiB(dimm->nr_pages),
 				(dimm->edac_mode != EDAC_NONE) ? "(ECC)" : "");
 			edac_dbg(2, "\ttype %d, detail 0x%02x, width %d(total %d)\n",
