@@ -17,14 +17,6 @@
 /* Constants                                                                 */
 /*****************************************************************************/
 #define INLINE static __inline
-#define MAX_CFG_PKTLEN     1450
-#define MSG_HEADER_LEN     4
-#define QUERY_MSG_TYPE     'Q'
-#define WRITE_MSG_TYPE     'W'
-#define RESP_MSG_TYPE      'R'
-#define WRITE_RESP_SUCCESS 1
-#define INVALID         255
-#define MAC_ADDR_LEN    6
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 							BEACON_INTERVAL_LEN + CAP_INFO_LEN)
 
