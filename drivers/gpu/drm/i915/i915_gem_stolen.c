@@ -196,6 +196,29 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 	drm_mm_takedown(&dev_priv->mm.stolen);
 }
 
+static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				    unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
+				     CTG_STOLEN_RESERVED :
+				     ELK_STOLEN_RESERVED);
+	unsigned long stolen_top = dev_priv->mm.stolen_base +
+		dev_priv->gtt.stolen_size;
+
+	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
+
+	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
+
+	/* On these platforms, the register doesn't have a size field, so the
+	 * size is the distance between the base and the top of the stolen
+	 * memory. We also have the genuine case where base is zero and there's
+	 * nothing reserved. */
+	if (*base == 0)
+		*size = 0;
+	else
+		*size = stolen_top - *base;
+}
+
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     unsigned long *base, unsigned long *size)
 {
@@ -315,10 +338,12 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
 	case 3:
+		break;
 	case 4:
-		if (!IS_G4X(dev))
-			break;
-		/* fall through */
+		if (IS_G4X(dev))
+			g4x_get_stolen_reserved(dev_priv, &reserved_base,
+						&reserved_size);
+		break;
 	case 5:
 		/* Assume the gen6 maximum for the older platforms. */
 		reserved_size = 1024 * 1024;

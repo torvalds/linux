@@ -2494,6 +2494,11 @@ enum skl_disp_power_wells {
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
+#define CTG_STOLEN_RESERVED		(MCHBAR_MIRROR_BASE + 0x34)
+#define ELK_STOLEN_RESERVED		(MCHBAR_MIRROR_BASE + 0x48)
+#define G4X_STOLEN_RESERVED_ADDR1_MASK	(0xFFFF << 16)
+#define G4X_STOLEN_RESERVED_ADDR2_MASK	(0xFFF << 4)
+
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
 #define DCLK (MCHBAR_MIRROR_BASE_SNB + 0x5e04)
 
