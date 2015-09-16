@@ -1059,10 +1059,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 	if (arizona->pdata.jd_gpio5) {
 		mask = ARIZONA_MICD_CLAMP_STS;
-		if (arizona->pdata.jd_invert)
-			present = ARIZONA_MICD_CLAMP_STS;
-		else
-			present = 0;
+		present = 0;
 	} else {
 		mask = ARIZONA_JD1_STS;
 		if (arizona->pdata.jd_invert)
