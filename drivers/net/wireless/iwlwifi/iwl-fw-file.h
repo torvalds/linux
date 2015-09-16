@@ -254,6 +254,8 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
  *	instead of 3.
  * @IWL_UCODE_TLV_API_TX_POWER_CHAIN: TX power API has larger command size
  *	(command version 3) that supports per-chain limits
+ *
+ * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = (__force iwl_ucode_tlv_api_t)3,
@@ -264,6 +266,12 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_NEW_VERSION		= (__force iwl_ucode_tlv_api_t)20,
 	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= (__force iwl_ucode_tlv_api_t)24,
 	IWL_UCODE_TLV_API_TX_POWER_CHAIN	= (__force iwl_ucode_tlv_api_t)27,
+
+	NUM_IWL_UCODE_TLV_API
+#ifdef __CHECKER__
+		/* sparse says it cannot increment the previous enum member */
+		= 128
+#endif
 };
 
 typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
@@ -298,6 +306,8 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan
+ *
+ * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= (__force iwl_ucode_tlv_capa_t)0,
@@ -320,6 +330,12 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
 	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
+
+	NUM_IWL_UCODE_TLV_CAPA
+#ifdef __CHECKER__
+		/* sparse says it cannot increment the previous enum member */
+		= 128
+#endif
 };
 
 /* The default calibrate table size if not specified by firmware file */
@@ -329,9 +345,6 @@ enum iwl_ucode_tlv_capa {
 
 /* The default max probe length if not specified by the firmware file */
 #define IWL_DEFAULT_MAX_PROBE_LENGTH	200
-
-#define IWL_API_MAX_BITS		64
-#define IWL_CAPABILITIES_MAX_BITS	64
 
 /*
  * For 16.0 uCode and above, there is no differentiation between sections,
