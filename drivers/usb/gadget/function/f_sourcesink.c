@@ -311,13 +311,9 @@ static void disable_ep(struct usb_composite_dev *cdev, struct usb_ep *ep)
 {
 	int			value;
 
-	if (ep->driver_data) {
-		value = usb_ep_disable(ep);
-		if (value < 0)
-			DBG(cdev, "disable %s --> %d\n",
-					ep->name, value);
-		ep->driver_data = NULL;
-	}
+	value = usb_ep_disable(ep);
+	if (value < 0)
+		DBG(cdev, "disable %s --> %d\n", ep->name, value);
 }
 
 void disable_endpoints(struct usb_composite_dev *cdev,
@@ -355,12 +351,10 @@ autoconf_fail:
 			f->name, cdev->gadget->name);
 		return -ENODEV;
 	}
-	ss->in_ep->driver_data = cdev;	/* claim */
 
 	ss->out_ep = usb_ep_autoconfig(cdev->gadget, &fs_sink_desc);
 	if (!ss->out_ep)
 		goto autoconf_fail;
-	ss->out_ep->driver_data = cdev;	/* claim */
 
 	/* sanity check the isoc module parameters */
 	if (isoc_interval < 1)
@@ -384,13 +378,10 @@ autoconf_fail:
 	ss->iso_in_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_source_desc);
 	if (!ss->iso_in_ep)
 		goto no_iso;
-	ss->iso_in_ep->driver_data = cdev;	/* claim */
 
 	ss->iso_out_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_sink_desc);
-	if (ss->iso_out_ep) {
-		ss->iso_out_ep->driver_data = cdev;	/* claim */
-	} else {
-		ss->iso_in_ep->driver_data = NULL;
+	if (!ss->iso_out_ep) {
+		usb_ep_autoconfig_release(ss->iso_in_ep);
 		ss->iso_in_ep = NULL;
 no_iso:
 		/*
@@ -685,7 +676,6 @@ enable_source_sink(struct usb_composite_dev *cdev, struct f_sourcesink *ss,
 fail:
 		ep = ss->in_ep;
 		usb_ep_disable(ep);
-		ep->driver_data = NULL;
 		return result;
 	}
 
@@ -704,7 +694,6 @@ fail:
 fail2:
 		ep = ss->out_ep;
 		usb_ep_disable(ep);
-		ep->driver_data = NULL;
 		goto fail;
 	}
 
@@ -726,10 +715,8 @@ fail2:
 		if (result < 0) {
 fail3:
 			ep = ss->iso_in_ep;
-			if (ep) {
+			if (ep)
 				usb_ep_disable(ep);
-				ep->driver_data = NULL;
-			}
 			goto fail2;
 		}
 	}
@@ -748,7 +735,6 @@ fail3:
 		result = source_sink_start_ep(ss, false, true, speed);
 		if (result < 0) {
 			usb_ep_disable(ep);
-			ep->driver_data = NULL;
 			goto fail3;
 		}
 	}
@@ -765,8 +751,7 @@ static int sourcesink_set_alt(struct usb_function *f,
 	struct f_sourcesink		*ss = func_to_ss(f);
 	struct usb_composite_dev	*cdev = f->config->cdev;
 
-	if (ss->in_ep->driver_data)
-		disable_source_sink(ss);
+	disable_source_sink(ss);
 	return enable_source_sink(cdev, ss, alt);
 }
 
