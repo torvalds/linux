@@ -973,6 +973,39 @@ static int sunxi_nfc_hw_ecc_read_page(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
+static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
+					 struct nand_chip *chip,
+					 u32 data_offs, u32 readlen,
+					 u8 *bufpoi, int page)
+{
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	int ret, i, cur_off = 0;
+	unsigned int max_bitflips = 0;
+
+	sunxi_nfc_hw_ecc_enable(mtd);
+
+	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	for (i = data_offs / ecc->size;
+	     i < DIV_ROUND_UP(data_offs + readlen, ecc->size); i++) {
+		int data_off = i * ecc->size;
+		int oob_off = i * (ecc->bytes + 4);
+		u8 *data = bufpoi + data_off;
+		u8 *oob = chip->oob_poi + oob_off;
+
+		ret = sunxi_nfc_hw_ecc_read_chunk(mtd, data, data_off,
+						  oob,
+						  oob_off + mtd->writesize,
+						  &cur_off, &max_bitflips,
+						  !i, page);
+		if (ret < 0)
+			return ret;
+	}
+
+	sunxi_nfc_hw_ecc_disable(mtd);
+
+	return max_bitflips;
+}
+
 static int sunxi_nfc_hw_ecc_write_page(struct mtd_info *mtd,
 				       struct nand_chip *chip,
 				       const uint8_t *buf, int oob_required,
@@ -1389,6 +1422,7 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	ecc->write_page = sunxi_nfc_hw_ecc_write_page;
 	ecc->read_oob_raw = nand_read_oob_std;
 	ecc->write_oob_raw = nand_write_oob_std;
+	ecc->read_subpage = sunxi_nfc_hw_ecc_read_subpage;
 	layout = ecc->layout;
 	nsectors = mtd->writesize / ecc->size;
 
@@ -1634,6 +1668,8 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 
 	if (nand->options & NAND_NEED_SCRAMBLING)
 		nand->options |= NAND_NO_SUBPAGE_WRITE;
+
+	nand->options |= NAND_SUBPAGE_READ;
 
 	ret = sunxi_nand_chip_init_timings(chip, np);
 	if (ret) {
