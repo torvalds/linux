@@ -7,6 +7,8 @@
  * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
  */
+#ifndef __LINUX_USB_CDC_H
+#define __LINUX_USB_CDC_H
 
 #include <uapi/linux/usb/cdc.h>
 
@@ -45,3 +47,5 @@ int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
 				struct usb_interface *intf,
 				u8 *buffer,
 				int buflen);
+
+#endif /* __LINUX_USB_CDC_H */
