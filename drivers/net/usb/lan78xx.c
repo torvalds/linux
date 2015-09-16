@@ -2002,7 +2002,7 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 			netdev_warn(dev->net, "timeout waiting for PHY Reset");
 			return -EIO;
 		}
-	} while (buf & PMT_CTL_PHY_RST_);
+	} while ((buf & PMT_CTL_PHY_RST_) || !(buf & PMT_CTL_READY_));
 
 	lan78xx_mii_init(dev);
 
