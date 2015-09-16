@@ -1408,7 +1408,7 @@ static inline struct md_open_data *obd_mod_alloc(void)
 {
 	struct md_open_data *mod;
 
-	OBD_ALLOC_PTR(mod);
+	mod = kzalloc(sizeof(*mod), GFP_NOFS);
 	if (mod == NULL)
 		return NULL;
 	atomic_set(&mod->mod_refcount, 1);
@@ -1421,7 +1421,7 @@ static inline struct md_open_data *obd_mod_alloc(void)
 	if (atomic_dec_and_test(&(mod)->mod_refcount)) {	  \
 		if ((mod)->mod_open_req)			  \
 			ptlrpc_req_finished((mod)->mod_open_req);   \
-		OBD_FREE_PTR(mod);			      \
+		kfree(mod);			      \
 	}						       \
 })
 

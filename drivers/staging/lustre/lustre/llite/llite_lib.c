@@ -1996,7 +1996,7 @@ void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req)
 	struct obd_export		*exp	   = ll_s2sbi(sb)->ll_md_exp;
 
 	body = req_capsule_server_get(&open_req->rq_pill, &RMF_MDT_BODY);
-	OBD_ALLOC_PTR(op_data);
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
 	if (!op_data) {
 		CWARN("%s: cannot allocate op_data to release open handle for "
 		      DFID "\n",
