@@ -172,7 +172,6 @@ struct ismt_priv {
 	u8 head;				/* ring buffer head pointer */
 	struct completion cmp;			/* interrupt completion */
 	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX + 1];	/* temp R/W data buffer */
-	bool using_msi;				/* type of interrupt flag */
 };
 
 /**
@@ -398,7 +397,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 	desc->tgtaddr_rw = ISMT_DESC_ADDR_RW(addr, read_write);
 
 	/* Initialize common control bits */
-	if (likely(priv->using_msi))
+	if (likely(pci_dev_msi_enabled(priv->pci_dev)))
 		desc->control = ISMT_DESC_INT | ISMT_DESC_FAIR;
 	else
 		desc->control = ISMT_DESC_FAIR;
@@ -806,7 +805,6 @@ static int ismt_int_init(struct ismt_priv *priv)
 		goto intx;
 	}
 
-	priv->using_msi = true;
 	goto done;
 
 	/* Try using legacy interrupts */
@@ -821,8 +819,6 @@ intx:
 		dev_err(&priv->pci_dev->dev, "no usable interrupts\n");
 		return -ENODEV;
 	}
-
-	priv->using_msi = false;
 
 done:
 	return 0;
