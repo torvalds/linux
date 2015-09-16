@@ -435,6 +435,7 @@ struct vb2_buf_ops {
  *		when a buffer with the V4L2_BUF_FLAG_LAST is dequeued.
  * @fileio:	file io emulator internal data, used only if emulator is active
  * @threadio:	thread io internal data, used only if thread is active
+ * @dma_dir:	DMA direction to use for buffers on this queue
  */
 struct vb2_queue {
 	unsigned int			type;
@@ -483,6 +484,7 @@ struct vb2_queue {
 
 	struct vb2_fileio_data		*fileio;
 	struct vb2_threadio_data	*threadio;
+	enum dma_data_direction		dma_dir;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/*
