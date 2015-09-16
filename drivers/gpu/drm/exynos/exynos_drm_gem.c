@@ -331,7 +331,8 @@ int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem_obj *exynos_gem_obj,
 
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)
-{	struct exynos_drm_gem_obj *exynos_gem_obj;
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct drm_exynos_gem_info *args = data;
 	struct drm_gem_object *obj;
 
