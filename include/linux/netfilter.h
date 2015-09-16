@@ -344,15 +344,6 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, sk, skb, indev, outdev, okfn) (okfn)(sk, skb)
 #define NF_HOOK_COND(pf, hook, sk, skb, indev, outdev, okfn, cond) (okfn)(sk, skb)
-static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
-				 struct sock *sk,
-				 struct sk_buff *skb,
-				 struct net_device *indev,
-				 struct net_device *outdev,
-				 int (*okfn)(struct sock *sk, struct sk_buff *), int thresh)
-{
-	return okfn(sk, skb);
-}
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sock *sk,
 			  struct sk_buff *skb, struct net_device *indev,
 			  struct net_device *outdev,
