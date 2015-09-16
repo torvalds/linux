@@ -44,14 +44,11 @@
 /* Operating Mode: GET */
 #define GET_CFG              1
 
-#define MAX_PACKET_BUFF_SIZE 1596
-
 #define MAX_STRING_LEN               256
 #define MAX_SURVEY_RESULT_FRAG_SIZE  MAX_STRING_LEN
 #define SURVEY_RESULT_LENGTH         44
 #define MAX_ASSOC_RESP_FRAME_SIZE    MAX_STRING_LEN
 
-#define STATUS_MSG_LEN               12
 #define MAC_CONNECTED                1
 #define MAC_DISCONNECTED             0
 
