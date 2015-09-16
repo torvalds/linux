@@ -184,19 +184,6 @@ static inline void __irq_set_handler_locked(unsigned int irq,
 	desc->handle_irq = handler;
 }
 
-/* caller has locked the irq_desc and both params are valid */
-static inline void
-__irq_set_chip_handler_name_locked(unsigned int irq, struct irq_chip *chip,
-				   irq_flow_handler_t handler, const char *name)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-	irq_desc_get_irq_data(desc)->chip = chip;
-	desc->handle_irq = handler;
-	desc->name = name;
-}
-
 /**
  * irq_set_handler_locked - Set irq handler from a locked region
  * @data:	Pointer to the irq_data structure which identifies the irq
