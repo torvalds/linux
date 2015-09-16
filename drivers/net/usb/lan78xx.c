@@ -30,6 +30,7 @@
 #include <linux/ipv6.h>
 #include <linux/mdio.h>
 #include <net/ip6_checksum.h>
+#include <linux/microchipphy.h>
 #include "lan78xx.h"
 
 #define DRIVER_AUTHOR	"WOOJUNG HUH <woojung.huh@microchip.com>"
@@ -837,8 +838,7 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 	u32 buf;
 
 	/* clear PHY interrupt status */
-	/* VTSE PHY */
-	ret = phy_read(phydev, PHY_VTSE_INT_STS);
+	ret = phy_read(phydev, LAN88XX_INT_STS);
 	if (unlikely(ret < 0))
 		return -EIO;
 
@@ -866,7 +866,7 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		phy_ethtool_gset(phydev, &ecmd);
 
-		ret = phy_read(phydev, PHY_VTSE_INT_STS);
+		ret = phy_read(phydev, LAN88XX_INT_STS);
 
 		if (dev->udev->speed == USB_SPEED_SUPER) {
 			if (ethtool_cmd_speed(&ecmd) == 1000) {
@@ -1188,18 +1188,18 @@ static int lan78xx_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
 
 	ret = phy_ethtool_gset(phydev, cmd);
 
-	phy_write(phydev, PHY_EXT_GPIO_PAGE, PHY_EXT_GPIO_PAGE_SPACE_1);
-	buf = phy_read(phydev, PHY_EXT_MODE_CTRL);
-	phy_write(phydev, PHY_EXT_GPIO_PAGE, PHY_EXT_GPIO_PAGE_SPACE_0);
+	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_1);
+	buf = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
+	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_0);
 
-	buf &= PHY_EXT_MODE_CTRL_MDIX_MASK_;
-	if (buf == PHY_EXT_MODE_CTRL_AUTO_MDIX_) {
+	buf &= LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
+	if (buf == LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_) {
 		cmd->eth_tp_mdix = ETH_TP_MDI_AUTO;
 		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
-	} else if (buf == PHY_EXT_MODE_CTRL_MDI_) {
+	} else if (buf == LAN88XX_EXT_MODE_CTRL_MDI_) {
 		cmd->eth_tp_mdix = ETH_TP_MDI;
 		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI;
-	} else if (buf == PHY_EXT_MODE_CTRL_MDI_X_) {
+	} else if (buf == LAN88XX_EXT_MODE_CTRL_MDI_X_) {
 		cmd->eth_tp_mdix = ETH_TP_MDI_X;
 		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_X;
 	}
@@ -1222,32 +1222,32 @@ static int lan78xx_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
 
 	if (dev->mdix_ctrl != cmd->eth_tp_mdix_ctrl) {
 		if (cmd->eth_tp_mdix_ctrl == ETH_TP_MDI) {
-			phy_write(phydev, PHY_EXT_GPIO_PAGE,
-				  PHY_EXT_GPIO_PAGE_SPACE_1);
-			temp = phy_read(phydev, PHY_EXT_MODE_CTRL);
-			temp &= ~PHY_EXT_MODE_CTRL_MDIX_MASK_;
-			phy_write(phydev, PHY_EXT_MODE_CTRL,
-				  temp | PHY_EXT_MODE_CTRL_MDI_);
-			phy_write(phydev, PHY_EXT_GPIO_PAGE,
-				  PHY_EXT_GPIO_PAGE_SPACE_0);
+			phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
+				  LAN88XX_EXT_PAGE_SPACE_1);
+			temp = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
+			temp &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
+			phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
+				  temp | LAN88XX_EXT_MODE_CTRL_MDI_);
+			phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
+				  LAN88XX_EXT_PAGE_SPACE_0);
 		} else if (cmd->eth_tp_mdix_ctrl == ETH_TP_MDI_X) {
-			phy_write(phydev, PHY_EXT_GPIO_PAGE,
-				  PHY_EXT_GPIO_PAGE_SPACE_1);
-			temp = phy_read(phydev, PHY_EXT_MODE_CTRL);
-			temp &= ~PHY_EXT_MODE_CTRL_MDIX_MASK_;
-			phy_write(phydev, PHY_EXT_MODE_CTRL,
-				  temp | PHY_EXT_MODE_CTRL_MDI_X_);
-			phy_write(phydev, PHY_EXT_GPIO_PAGE,
-				  PHY_EXT_GPIO_PAGE_SPACE_0);
+			phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
+				  LAN88XX_EXT_PAGE_SPACE_1);
+			temp = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
+			temp &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
+			phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
+				  temp | LAN88XX_EXT_MODE_CTRL_MDI_X_);
+			phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
+				  LAN88XX_EXT_PAGE_SPACE_0);
 		} else if (cmd->eth_tp_mdix_ctrl == ETH_TP_MDI_AUTO) {
-			phy_write(phydev, PHY_EXT_GPIO_PAGE,
-				  PHY_EXT_GPIO_PAGE_SPACE_1);
-			temp = phy_read(phydev, PHY_EXT_MODE_CTRL);
-			temp &= ~PHY_EXT_MODE_CTRL_MDIX_MASK_;
-			phy_write(phydev, PHY_EXT_MODE_CTRL,
-				  temp | PHY_EXT_MODE_CTRL_AUTO_MDIX_);
-			phy_write(phydev, PHY_EXT_GPIO_PAGE,
-				  PHY_EXT_GPIO_PAGE_SPACE_0);
+			phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
+				  LAN88XX_EXT_PAGE_SPACE_1);
+			temp = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
+			temp &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
+			phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
+				  temp | LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_);
+			phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
+				  LAN88XX_EXT_PAGE_SPACE_0);
 		}
 	}
 
@@ -1504,12 +1504,12 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	}
 
 	/* set to AUTOMDIX */
-	phy_write(phydev, PHY_EXT_GPIO_PAGE, PHY_EXT_GPIO_PAGE_SPACE_1);
-	ret = phy_read(phydev, PHY_EXT_MODE_CTRL);
-	ret &= ~PHY_EXT_MODE_CTRL_MDIX_MASK_;
-	phy_write(phydev, PHY_EXT_MODE_CTRL,
-		  ret | PHY_EXT_MODE_CTRL_AUTO_MDIX_);
-	phy_write(phydev, PHY_EXT_GPIO_PAGE, PHY_EXT_GPIO_PAGE_SPACE_0);
+	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_1);
+	ret = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
+	ret &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
+	phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
+		  ret | LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_);
+	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_0);
 	dev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
 	/* MAC doesn't support 1000T Half */
