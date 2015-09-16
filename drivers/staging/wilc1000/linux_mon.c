@@ -11,7 +11,6 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-#ifdef WILC_AP_EXTERNAL_MLME
 
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;
@@ -419,4 +418,3 @@ int WILC_WFI_deinit_mon_interface(void)
 	return 0;
 
 }
-#endif /* WILC_AP_EXTERNAL_MLME */

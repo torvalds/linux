@@ -563,10 +563,8 @@ static s8 gs8lnkspd;
 static u8 gu8Chnl;
 static u8 gs8SetIP[2][4];
 static u8 gs8GetIP[2][4];
-#ifdef WILC_AP_EXTERNAL_MLME
 static u32 gu32InactiveTime;
 static u8 gu8DelBcn;
-#endif
 static u32 gu32WidConnRstHack;
 
 /*BugID_5137*/
@@ -2728,9 +2726,7 @@ static int Handle_Key(tstrWILC_WFIDrv *drvHandler, tstrHostIFkeyAttr *pstrHostIF
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
-	#ifdef WILC_AP_EXTERNAL_MLME
 	tstrWID strWIDList[5];
-	#endif
 	u8 i;
 	u8 *pu8keybuf;
 	s8 s8idxarray[1];
@@ -2743,7 +2739,6 @@ static int Handle_Key(tstrWILC_WFIDrv *drvHandler, tstrHostIFkeyAttr *pstrHostIF
 
 	case WEP:
 
-#ifdef WILC_AP_EXTERNAL_MLME
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY_AP)	{
 
 			PRINT_D(HOSTINF_DBG, "Handling WEP key\n");
@@ -2791,7 +2786,6 @@ static int Handle_Key(tstrWILC_WFIDrv *drvHandler, tstrHostIFkeyAttr *pstrHostIF
 
 
 		}
-#endif
 
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY) {
 			PRINT_D(HOSTINF_DBG, "Handling WEP key\n");
@@ -2844,7 +2838,6 @@ static int Handle_Key(tstrWILC_WFIDrv *drvHandler, tstrHostIFkeyAttr *pstrHostIF
 		break;
 
 	case WPARxGtk:
-			#ifdef WILC_AP_EXTERNAL_MLME
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY_AP)	{
 			pu8keybuf = kmalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (pu8keybuf == NULL) {
@@ -2894,7 +2887,6 @@ static int Handle_Key(tstrWILC_WFIDrv *drvHandler, tstrHostIFkeyAttr *pstrHostIF
 			/* ///////////////////////// */
 		}
 
-			#endif
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY) {
 			PRINT_D(HOSTINF_DBG, "Handling group key(Rx) function\n");
 
@@ -2949,7 +2941,6 @@ _WPARxGtk_end_case_:
 		break;
 
 	case WPAPtk:
-		#ifdef WILC_AP_EXTERNAL_MLME
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY_AP)	{
 
 
@@ -2997,7 +2988,6 @@ _WPARxGtk_end_case_:
 			up(&(pstrWFIDrv->hSemTestKeyBlock));
 			/* ///////////////////////// */
 		}
-		#endif
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY) {
 
 
@@ -3394,10 +3384,6 @@ s32 Handle_GetStatistics(tstrWILC_WFIDrv *drvHandler, tstrStatistics *pstrStatis
 	return 0;
 
 }
-
-
-#ifdef WILC_AP_EXTERNAL_MLME
-
 
 /**
  *  @brief Handle_Get_InActiveTime
@@ -3800,7 +3786,6 @@ ERRORHANDLER:
 	kfree(pstrStationParam->pu8Rates);
 	kfree(strWID.ps8WidVal);
 }
-#endif /*WILC_AP_EXTERNAL_MLME*/
 
 #ifdef WILC_P2P
 /**
@@ -4447,7 +4432,6 @@ static int hostIFthread(void *pvArg)
 			Handle_GetChnl(strHostIFmsg.drvHandler);
 			break;
 
-#ifdef WILC_AP_EXTERNAL_MLME
 		case HOST_IF_MSG_ADD_BEACON:
 			Handle_AddBeacon(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIFSetBeacon);
 			break;
@@ -4472,7 +4456,6 @@ static int hostIFthread(void *pvArg)
 			Handle_Get_InActiveTime(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfStaInactiveT);
 			break;
 
-#endif /*WILC_AP_EXTERNAL_MLME*/
 		case HOST_IF_MSG_SCAN_TIMER_FIRED:
 			PRINT_D(HOSTINF_DBG, "Scan Timeout\n");
 
@@ -4781,7 +4764,6 @@ s32 host_int_add_wep_key_bss_sta(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, 
 
 }
 
-#ifdef WILC_AP_EXTERNAL_MLME
 /**
  *
  *  @brief              host_int_add_wep_key_bss_ap
@@ -4854,7 +4836,7 @@ s32 host_int_add_wep_key_bss_ap(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, u
 	return s32Error;
 
 }
-#endif
+
 /**
  *  @brief              adds ptk Key
  *  @details
@@ -4896,13 +4878,11 @@ s32 host_int_add_ptk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8Ptk, u8 u8PtkKeylen,
 
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_KEY;
 	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WPAPtk;
-	#ifdef WILC_AP_EXTERNAL_MLME
 	if (mode == AP_MODE) {
 		strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY_AP;
 		strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.
 		uniHostIFkeyAttr.strHostIFwpaAttr.u8keyidx = u8Idx;
 	}
-	#endif
 	if (mode == STATION_MODE)
 		strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY;
 
@@ -5003,12 +4983,10 @@ s32 host_int_add_rx_gtk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8RxGtk, u8 u8GtkKe
 	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WPARxGtk;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-    #ifdef WILC_AP_EXTERNAL_MLME
 	if (mode == AP_MODE) {
 		strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY_AP;
 		strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.uniHostIFkeyAttr.strHostIFwpaAttr.u8Ciphermode = u8Ciphermode;
 	}
-    #endif
 	if (mode == STATION_MODE)
 		strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY;
 
@@ -5912,7 +5890,6 @@ s32 host_int_test_set_int_wid(tstrWILC_WFIDrv *hWFIDrv, u32 u32TestMemAddr)
 	return s32Error;
 }
 
-#ifdef WILC_AP_EXTERNAL_MLME
 /**
  *  @brief              host_int_get_inactive_time
  *  @details
@@ -5955,7 +5932,7 @@ s32 host_int_get_inactive_time(tstrWILC_WFIDrv *hWFIDrv, const u8 *mac, u32 *pu3
 
 	return s32Error;
 }
-#endif
+
 /**
  *  @brief              host_int_test_get_int_wid
  *  @details    Test function for getting wids
@@ -6991,7 +6968,6 @@ s32 host_int_frame_register(tstrWILC_WFIDrv *hWFIDrv, u16 u16FrameType, bool bRe
 }
 #endif
 
-#ifdef WILC_AP_EXTERNAL_MLME
 /**
  *  @brief host_int_add_beacon
  *  @details       Setting add beacon params in message queue
@@ -7298,7 +7274,7 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSt
 
 	return s32Error;
 }
-#endif /*WILC_AP_EXTERNAL_MLME*/
+
 u32 wilc_get_chipid(u8);
 
 s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Timeout)

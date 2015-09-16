@@ -139,10 +139,8 @@
 #define WILC_CFG_PKT	1
 #define WILC_NET_PKT 0
 /*Bug3959: transmitting mgmt frames received from host*/
-#ifdef WILC_AP_EXTERNAL_MLME
 #define WILC_MGMT_PKT 2
 
-#endif /*WILC_AP_EXTERNAL_MLME*/
 #define WILC_CFG_SET 1
 #define WILC_CFG_QUERY 0
 

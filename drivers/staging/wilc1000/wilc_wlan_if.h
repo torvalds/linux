@@ -12,7 +12,6 @@
 #define WILC_WLAN_IF_H
 
 /*bug 3887: [AP] Allow Management frames to be passed to the host*/
-#define WILC_AP_EXTERNAL_MLME
 #define WILC_P2P
 #define TCP_ENHANCEMENTS
 /* #define MEMORY_STATIC */
@@ -178,7 +177,7 @@ typedef struct {
 	int (*wlan_cfg_get)(int, u32, int, u32);
 	int (*wlan_cfg_get_value)(u32, u8 *, u32);
 	/*Bug3959: transmitting mgmt frames received from host*/
-	#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
+	#if defined(WILC_P2P)
 	int (*wlan_add_mgmt_to_tx_que)(void *, u8 *, u32, wilc_tx_complete_func_t);
 	#endif
 } wilc_wlan_oup_t;
@@ -771,9 +770,7 @@ typedef enum {
 	/* SCAN Complete notification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
-#ifdef WILC_AP_EXTERNAL_MLME
 	WID_DEL_BEACON					= 0x00CA,
-#endif
 
 	WID_LOGTerminal_Switch					= 0x00CD,
 	/* EMAC Short WID list */

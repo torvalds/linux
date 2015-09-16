@@ -1886,9 +1886,7 @@ int mac_close(struct net_device *ndev)
 		PRINT_D(GENERIC_DBG, "Deinitializing wilc1000\n");
 		g_linux_wlan->close = 1;
 		wilc1000_wlan_deinit(g_linux_wlan);
-		#ifdef WILC_AP_EXTERNAL_MLME
 		WILC_WFI_deinit_mon_interface();
-		#endif
 	}
 
 	up(&close_exit_sync);
@@ -2247,10 +2245,8 @@ static void __exit exit_wilc_driver(void)
 		}
 	}
 
-#ifdef WILC_AP_EXTERNAL_MLME
 	/* Bug 4600 : WILC_WFI_deinit_mon_interface was already called at mac_close */
 	/* WILC_WFI_deinit_mon_interface(); */
-#endif
 
 	/* if(g_linux_wlan->open_ifcs==0) */
 	{

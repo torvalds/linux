@@ -562,7 +562,7 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size, wi
 	return p->txq_entries;
 }
 /*Bug3959: transmitting mgmt frames received from host*/
-#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
+#if defined(WILC_P2P)
 int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_complete_func_t func)
 {
 
@@ -588,7 +588,7 @@ int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_
 	wilc_wlan_txq_add_to_tail(tqe);
 	return 1;
 }
-#endif /*WILC_AP_EXTERNAL_MLME*/
+#endif /* WILC_P2P */
 static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
@@ -896,11 +896,9 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				else if (tqe->type == WILC_NET_PKT) {
 					vmm_sz = ETH_ETHERNET_HDR_OFFSET;
 				}
-#ifdef WILC_AP_EXTERNAL_MLME
 				else {
 					vmm_sz = HOST_HDR_OFFSET;
 				}
-#endif
 				vmm_sz += tqe->buffer_size;
 				PRINT_D(TX_DBG, "VMM Size before alignment = %d\n", vmm_sz);
 				if (vmm_sz & 0x3) {                                                                                                     /* has to be word aligned */
@@ -1081,12 +1079,10 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				header = (tqe->type << 31) | (tqe->buffer_size << 15) | vmm_sz;
 				/*Bug3959: transmitting mgmt frames received from host*/
 				/*setting bit 30 in the host header to indicate mgmt frame*/
-#ifdef WILC_AP_EXTERNAL_MLME
 				if (tqe->type == WILC_MGMT_PKT)
 					header |= (1 << 30);
 				else
 					header &= ~(1 << 30);
-#endif
 
 #ifdef BIG_ENDIAN
 				header = BYTE_SWAP(header);
@@ -1217,7 +1213,7 @@ static void wilc_wlan_handle_rxq(void)
 			}
 
 /*bug 3887: [AP] Allow Management frames to be passed to the host*/
-			#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
+			#if defined(WILC_P2P)
 			#define IS_MANAGMEMENT				0x100
 			#define IS_MANAGMEMENT_CALLBACK			0x080
 			#define IS_MGMT_STATUS_SUCCES			0x040
@@ -2149,7 +2145,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	oup->wlan_cfg_get_value = wilc_wlan_cfg_get_val;
 
 	/*Bug3959: transmitting mgmt frames received from host*/
-	#if defined(WILC_AP_EXTERNAL_MLME) || defined(WILC_P2P)
+	#if defined(WILC_P2P)
 	oup->wlan_add_mgmt_to_tx_que = wilc_wlan_txq_add_mgmt_pkt;
 	#endif
 

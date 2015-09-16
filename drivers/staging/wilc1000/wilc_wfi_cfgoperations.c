@@ -1130,11 +1130,9 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	const u8 *pu8RxMic = NULL;
 	const u8 *pu8TxMic = NULL;
 	u8 u8mode = NO_ENCRYPT;
-	#ifdef WILC_AP_EXTERNAL_MLME
 	u8 u8gmode = NO_ENCRYPT;
 	u8 u8pmode = NO_ENCRYPT;
 	AUTHTYPE_T tenuAuth_type = ANY;
-	#endif
 
 	priv = wiphy_priv(wiphy);
 
@@ -1151,7 +1149,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	switch (params->cipher)	{
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-				#ifdef WILC_AP_EXTERNAL_MLME
 		if (priv->wdev->iftype == NL80211_IFTYPE_AP) {
 
 			priv->WILC_WFI_wep_default = key_index;
@@ -1174,7 +1171,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 			host_int_add_wep_key_bss_ap(priv->hWILCWFIDrv, params->key, params->key_len, key_index, u8mode, tenuAuth_type);
 			break;
 		}
-				#endif
 		if (memcmp(params->key, priv->WILC_WFI_wep_key[key_index], params->key_len)) {
 			priv->WILC_WFI_wep_default = key_index;
 			priv->WILC_WFI_wep_key_len[key_index] = params->key_len;
@@ -1193,7 +1189,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
-				#ifdef WILC_AP_EXTERNAL_MLME
 		if (priv->wdev->iftype == NL80211_IFTYPE_AP || priv->wdev->iftype == NL80211_IFTYPE_P2P_GO) {
 
 			if (priv->wilc_gtk[key_index] == NULL) {
@@ -1304,7 +1299,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 			}
 			break;
 		}
-				#endif
 
 		{
 			u8mode = 0;
@@ -1435,7 +1429,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 
 		/*freeing memory allocated by "wilc_gtk" and "wilc_ptk" in "WILC_WIFI_ADD_KEY"*/
 
-	#ifdef WILC_AP_EXTERNAL_MLME
 		if ((priv->wilc_gtk[key_index]) != NULL) {
 
 			if (priv->wilc_gtk[key_index]->key != NULL) {
@@ -1469,7 +1462,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 			kfree(priv->wilc_ptk[key_index]);
 			priv->wilc_ptk[key_index] = NULL;
 		}
-	#endif
 
 		/*Delete saved PTK and GTK keys params, if any*/
 		if (g_key_ptk_params.key != NULL) {
@@ -1632,15 +1624,12 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 	s32 s32Error = 0;
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
-	#ifdef WILC_AP_EXTERNAL_MLME
 	u32 i = 0;
 	u32 associatedsta = 0;
 	u32 inactive_time = 0;
-	#endif
 	priv = wiphy_priv(wiphy);
 	nic = netdev_priv(dev);
 
-	#ifdef WILC_AP_EXTERNAL_MLME
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
 		PRINT_D(HOSTAPD_DBG, "Getting station parameters\n");
 
@@ -1669,7 +1658,6 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(CFG80211_DBG, "Inactive time %d\n", sinfo->inactive_time);
 
 	}
-	#endif
 
 	if (nic->iftype == STATION_MODE) {
 		tstrStatistics strStatistics;
@@ -2749,7 +2737,7 @@ int WILC_WFI_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 
 }
-#ifdef WILC_AP_EXTERNAL_MLME
+
 /**
  *  @brief      change_virtual_intf
  *  @details    Change type/configuration of virtual interface,
@@ -3471,9 +3459,6 @@ int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)      /* ton
 	return 0;
 }
 
-
-
-#endif /*WILC_AP_EXTERNAL_MLME*/
 static struct cfg80211_ops wilc_cfg80211_ops = {
 
 	.set_monitor_channel = set_channel,
@@ -3484,7 +3469,6 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.del_key = del_key,
 	.get_key = get_key,
 	.set_default_key = set_default_key,
-	#ifdef WILC_AP_EXTERNAL_MLME
 	.add_virtual_intf = add_virtual_intf,
 	.del_virtual_intf = del_virtual_intf,
 	.change_virtual_intf = change_virtual_intf,
@@ -3495,7 +3479,6 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.add_station = add_station,
 	.del_station = del_station,
 	.change_station = change_station,
-	#endif /* WILC_AP_EXTERNAL_MLME*/
 	.get_station = get_station,
 	.dump_station = dump_station,
 	.change_bss = change_bss,
@@ -3594,14 +3577,12 @@ struct wireless_dev *WILC_WFI_CfgAlloc(void)
 
 	}
 
-	#ifdef WILC_AP_EXTERNAL_MLME
 	/* enable 802.11n HT */
 	WILC_WFI_band_2ghz.ht_cap.ht_supported = 1;
 	WILC_WFI_band_2ghz.ht_cap.cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 	WILC_WFI_band_2ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 	WILC_WFI_band_2ghz.ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K;
 	WILC_WFI_band_2ghz.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
-	#endif
 
 	/*wiphy bands*/
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &WILC_WFI_band_2ghz;
