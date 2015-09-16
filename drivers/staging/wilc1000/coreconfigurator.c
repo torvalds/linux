@@ -136,14 +136,6 @@ typedef struct {
 /* Extern Variable Declarations                                              */
 /*****************************************************************************/
 
-
-/*****************************************************************************/
-/* Extern Function Declarations                                              */
-/*****************************************************************************/
-extern s32 SendRawPacket(s8 *ps8Packet, s32 s32PacketLen);
-extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
-extern void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
-extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
