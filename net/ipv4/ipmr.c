@@ -1681,9 +1681,10 @@ static void ip_encap(struct net *net, struct sk_buff *skb,
 static inline int ipmr_forward_finish(struct sock *sk, struct sk_buff *skb)
 {
 	struct ip_options *opt = &(IPCB(skb)->opt);
+	struct net *net = dev_net(skb_dst(skb)->dev);
 
-	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTOCTETS, skb->len);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP_ADD_STATS_BH(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
