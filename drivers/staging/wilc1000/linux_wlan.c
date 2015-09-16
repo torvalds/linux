@@ -587,32 +587,6 @@ int linux_wlan_get_num_conn_ifcs(void)
 	return ret_val;
 }
 
-static int linux_wlan_rxq_task(void *vp)
-{
-
-	/* inform wilc1000_wlan_init that RXQ task is started. */
-	up(&g_linux_wlan->rxq_thread_started);
-	while (1) {
-		down(&g_linux_wlan->rxq_event);
-		/* wait_for_completion(&g_linux_wlan->rxq_event); */
-
-		if (g_linux_wlan->close) {
-			/*Unlock the mutex in the mac_close function to indicate the exiting of the RX thread */
-			up(&g_linux_wlan->rxq_thread_started);
-
-			while (!kthread_should_stop())
-				schedule();
-
-			PRINT_D(RX_DBG, " RX thread stopped\n");
-			break;
-		}
-		PRINT_D(RX_DBG, "Calling wlan_handle_rx_que()\n");
-
-		g_linux_wlan->oup.wlan_handle_rx_que();
-	}
-	return 0;
-}
-
 #define USE_TX_BACKOFF_DELAY_IF_NO_BUFFERS
 
 static int linux_wlan_txq_task(void *vp)
