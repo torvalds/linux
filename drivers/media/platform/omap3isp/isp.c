@@ -2599,6 +2599,7 @@ static const struct of_device_id omap3isp_of_table[] = {
 	{ .compatible = "ti,omap3-isp" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, omap3isp_of_table);
 
 static struct platform_driver omap3isp_driver = {
 	.probe = isp_probe,
