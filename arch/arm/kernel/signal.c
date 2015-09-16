@@ -343,7 +343,6 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		 */
 		thumb = handler & 1;
 
-#if __LINUX_ARM_ARCH__ >= 6
 		/*
 		 * Clear the If-Then Thumb-2 execution state.  ARM spec
 		 * requires this to be all 000s in ARM mode.  Snapdragon
@@ -352,11 +351,10 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		 *
 		 * We must do this whenever we are running on a Thumb-2
 		 * capable CPU, which includes ARMv6T2.  However, we elect
-		 * to do this whenever we're on an ARMv6 or later CPU for
-		 * simplicity.
+		 * to always do this to simplify the code; this field is
+		 * marked UNK/SBZP for older architectures.
 		 */
 		cpsr &= ~PSR_IT_MASK;
-#endif
 
 		if (thumb) {
 			cpsr |= PSR_T_BIT;
