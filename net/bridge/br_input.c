@@ -26,6 +26,11 @@
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
 
+static int br_netif_receive_skb(struct sock *sk, struct sk_buff *skb)
+{
+	return netif_receive_skb(skb);
+}
+
 static int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
@@ -57,7 +62,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
 		       indev, NULL,
-		       netif_receive_skb_sk);
+		       br_netif_receive_skb);
 }
 
 static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
