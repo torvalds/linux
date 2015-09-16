@@ -4,6 +4,7 @@
 #include <asm/ptrace.h>
 
 struct pt_regs {
+	void *irq_data;
 };
 
 struct sigcontext {
