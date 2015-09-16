@@ -31,6 +31,8 @@
 #include "pcie-iproc.h"
 
 #define CLK_CONTROL_OFFSET           0x000
+#define EP_PERST_SOURCE_SELECT_SHIFT 2
+#define EP_PERST_SOURCE_SELECT       BIT(EP_PERST_SOURCE_SELECT_SHIFT)
 #define EP_MODE_SURVIVE_PERST_SHIFT  1
 #define EP_MODE_SURVIVE_PERST        BIT(EP_MODE_SURVIVE_PERST_SHIFT)
 #define RC_PCIE_RST_OUTPUT_SHIFT     0
@@ -119,15 +121,18 @@ static void iproc_pcie_reset(struct iproc_pcie *pcie)
 	u32 val;
 
 	/*
-	 * Configure the PCIe controller as root complex and send a downstream
-	 * reset
+	 * Select perst_b signal as reset source. Put the device into reset,
+	 * and then bring it out of reset
 	 */
-	val = EP_MODE_SURVIVE_PERST | RC_PCIE_RST_OUTPUT;
+	val = readl(pcie->base + CLK_CONTROL_OFFSET);
+	val &= ~EP_PERST_SOURCE_SELECT & ~EP_MODE_SURVIVE_PERST &
+		~RC_PCIE_RST_OUTPUT;
 	writel(val, pcie->base + CLK_CONTROL_OFFSET);
 	udelay(250);
-	val &= ~EP_MODE_SURVIVE_PERST;
+
+	val |= RC_PCIE_RST_OUTPUT;
 	writel(val, pcie->base + CLK_CONTROL_OFFSET);
-	msleep(250);
+	msleep(100);
 }
 
 static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
