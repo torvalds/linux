@@ -38,13 +38,6 @@
 
 
 
-#define WILC_ERRORCHECK(__status__) do { \
-		if (__status__ < WILC_SUCCESS) { \
-			PRINT_ER("PRINT_ER(%d)\n", __status__);	\
-			goto ERRORHANDLER; \
-		} \
-} while (0)
-
 #define WILC_ERRORREPORT(__status__, __err__) do { \
 		PRINT_ER("PRINT_ER(%d)\n", __err__); \
 		__status__ = __err__; \

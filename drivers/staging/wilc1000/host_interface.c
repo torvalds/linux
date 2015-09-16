@@ -7247,7 +7247,8 @@ s32 host_int_del_beacon(tstrWILC_WFIDrv *hWFIDrv)
 	PRINT_D(HOSTINF_DBG, "Setting deleting beacon message queue params\n");
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg));
-	WILC_ERRORCHECK(s32Error);
+	if (s32Error)
+		PRINT_ER("wilc_mq_send fail\n");
 
 	WILC_CATCH(s32Error)
 	{

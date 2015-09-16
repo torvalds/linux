@@ -145,7 +145,10 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 	} else {
 		/* other non-timeout scenarios */
-		WILC_ERRORCHECK(s32RetStatus);
+		if (s32RetStatus) {
+			PRINT_ER("Non-timeout\n");
+			return s32RetStatus;
+		}
 
 		if (pHandle->bExiting) {
 			WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);

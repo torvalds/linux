@@ -3233,11 +3233,9 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	s32Error = host_int_del_beacon(priv->hWILCWFIDrv);
 
-	WILC_ERRORCHECK(s32Error);
+	if (s32Error)
+		PRINT_ER("Host delete beacon fail\n");
 
-	WILC_CATCH(s32Error)
-	{
-	}
 	return s32Error;
 }
 
@@ -3303,12 +3301,10 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
 
 		s32Error = host_int_add_station(priv->hWILCWFIDrv, &strStaParams);
-		WILC_ERRORCHECK(s32Error);
+		if (s32Error)
+			PRINT_ER("Host add station fail\n");
 	}
 
-	WILC_CATCH(s32Error)
-	{
-	}
 	return s32Error;
 }
 
@@ -3348,10 +3344,8 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 
 		s32Error = host_int_del_station(priv->hWILCWFIDrv, mac);
 
-		WILC_ERRORCHECK(s32Error);
-	}
-	WILC_CATCH(s32Error)
-	{
+		if (s32Error)
+			PRINT_ER("Host delete station fail\n");
 	}
 	return s32Error;
 }
@@ -3419,10 +3413,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
 
 		s32Error = host_int_edit_station(priv->hWILCWFIDrv, &strStaParams);
-		WILC_ERRORCHECK(s32Error);
-	}
-	WILC_CATCH(s32Error)
-	{
+		if (s32Error)
+			PRINT_ER("Host edit station fail\n");
 	}
 	return s32Error;
 }
