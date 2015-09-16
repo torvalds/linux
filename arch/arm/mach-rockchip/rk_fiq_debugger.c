@@ -126,6 +126,9 @@ static int debug_getc(struct platform_device *pdev)
 {
 	unsigned int lsr;
 	struct rk_fiq_debugger *t;
+	unsigned int temp;
+	static unsigned int n;
+	static char buf[32];
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
@@ -133,11 +136,23 @@ static int debug_getc(struct platform_device *pdev)
 
 	if (lsr & UART_LSR_BI || t->break_seen) {
 		t->break_seen = false;
-		return FIQ_DEBUGGER_BREAK;
+		return FIQ_DEBUGGER_NO_CHAR;
 	}
 
-	if (lsr & UART_LSR_DR)
-		return rk_fiq_read(t, UART_RX);
+	if (lsr & UART_LSR_DR) {
+		temp = rk_fiq_read(t, UART_RX);
+		buf[n & 0x1f] = temp;
+		n++;
+		if (temp == 'q' && n > 2) {
+			if ((buf[(n - 2) & 0x1f] == 'i') &&
+			    (buf[(n - 3) & 0x1f] == 'f'))
+				return FIQ_DEBUGGER_BREAK;
+			else
+				return temp;
+		} else {
+			return temp;
+		}
+	}
 
 	return FIQ_DEBUGGER_NO_CHAR;
 }
