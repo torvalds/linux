@@ -785,8 +785,7 @@ exit:
 }
 
 /* Build firmware header used for firmware update */
-static int build_i2c_fw_hdr(u8 *header, struct device *dev,
-		const struct firmware *fw)
+static int build_i2c_fw_hdr(u8 *header, const struct firmware *fw)
 {
 	__u8 *buffer;
 	int buffer_size;
@@ -1245,7 +1244,7 @@ static int download_fw(struct edgeport_serial *serial,
 			 * UMP Ram to I2C and the firmware will update the
 			 * record type from 0xf2 to 0x02.
 			 */
-			status = build_i2c_fw_hdr(header, dev, fw);
+			status = build_i2c_fw_hdr(header, fw);
 			if (status) {
 				kfree(vheader);
 				kfree(header);
