@@ -121,7 +121,7 @@ static int ip6_finish_output2(struct sock *sk, struct sk_buff *skb)
 	return -EINVAL;
 }
 
-static int ip6_finish_output(struct sock *sk, struct sk_buff *skb)
+static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	if ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
 	    dst_allfrag(skb_dst(skb)) ||
@@ -225,7 +225,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 			      IPSTATS_MIB_OUT, skb->len);
 		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
 			       net, sk, skb, NULL, dst->dev,
-			       dst_output);
+			       dst_output_okfn);
 	}
 
 	skb->dev = dst->dev;
@@ -317,7 +317,8 @@ static int ip6_forward_proxy_check(struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ip6_forward_finish(struct sock *sk, struct sk_buff *skb)
+static inline int ip6_forward_finish(struct net *net, struct sock *sk,
+				     struct sk_buff *skb)
 {
 	skb_sender_cpu_clear(skb);
 	return dst_output(sk, skb);

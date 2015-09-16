@@ -47,7 +47,7 @@
 #include <net/inet_ecn.h>
 #include <net/dst_metadata.h>
 
-int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb)
+int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	if (sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
 		const struct inet6_protocol *ipprot;
@@ -199,9 +199,8 @@ drop:
  */
 
 
-static int ip6_input_finish(struct sock *sk, struct sk_buff *skb)
+static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct inet6_protocol *ipprot;
 	struct inet6_dev *idev;
 	unsigned int nhoff;

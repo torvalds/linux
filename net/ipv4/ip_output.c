@@ -104,7 +104,7 @@ static int __ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
 	ip_send_check(iph);
 	return nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT,
 		       net, sk, skb, NULL, skb_dst(skb)->dev,
-		       dst_output);
+		       dst_output_okfn);
 }
 
 int __ip_local_out(struct sk_buff *skb)
@@ -266,7 +266,7 @@ static int ip_finish_output_gso(struct sock *sk, struct sk_buff *skb,
 	return ret;
 }
 
-static int ip_finish_output(struct sock *sk, struct sk_buff *skb)
+static int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	unsigned int mtu;
 

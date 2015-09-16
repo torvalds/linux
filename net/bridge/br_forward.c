@@ -35,7 +35,7 @@ static inline int should_deliver(const struct net_bridge_port *p,
 		p->state == BR_STATE_FORWARDING;
 }
 
-int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb)
+int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	if (!is_skb_forwardable(skb->dev, skb))
 		goto drop;
@@ -65,9 +65,8 @@ drop:
 }
 EXPORT_SYMBOL_GPL(br_dev_queue_push_xmit);
 
-int br_forward_finish(struct sock *sk, struct sk_buff *skb)
+int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb->dev);
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING,
 		       net, sk, skb, NULL, skb->dev,
 		       br_dev_queue_push_xmit);

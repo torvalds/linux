@@ -256,7 +256,7 @@ void nf_bridge_update_protocol(struct sk_buff *skb)
  * don't, we use the neighbour framework to find out. In both cases, we make
  * sure that br_handle_frame_finish() is called afterwards.
  */
-int br_nf_pre_routing_finish_bridge(struct sock *sk, struct sk_buff *skb)
+int br_nf_pre_routing_finish_bridge(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct neighbour *neigh;
 	struct dst_entry *dst;
@@ -273,7 +273,7 @@ int br_nf_pre_routing_finish_bridge(struct sock *sk, struct sk_buff *skb)
 		if (neigh->hh.hh_len) {
 			neigh_hh_bridge(&neigh->hh, skb);
 			skb->dev = nf_bridge->physindev;
-			ret = br_handle_frame_finish(sk, skb);
+			ret = br_handle_frame_finish(net, sk, skb);
 		} else {
 			/* the neighbour function below overwrites the complete
 			 * MAC header, so we save the Ethernet source address and
@@ -342,11 +342,10 @@ br_nf_ipv4_daddr_was_changed(const struct sk_buff *skb,
  * device, we proceed as if ip_route_input() succeeded. If it differs from the
  * logical bridge port or if ip_route_output_key() fails we drop the packet.
  */
-static int br_nf_pre_routing_finish(struct sock *sk, struct sk_buff *skb)
+static int br_nf_pre_routing_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct iphdr *iph = ip_hdr(skb);
-	struct net *net = dev_net(dev);
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
 	int err;
@@ -536,10 +535,9 @@ static unsigned int br_nf_local_in(const struct nf_hook_ops *ops,
 }
 
 /* PF_BRIDGE/FORWARD *************************************************/
-static int br_nf_forward_finish(struct sock *sk, struct sk_buff *skb)
+static int br_nf_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
-	struct net *net = dev_net(skb->dev);
 	struct net_device *in;
 
 	if (!IS_ARP(skb) && !IS_VLAN_ARP(skb)) {
@@ -692,7 +690,7 @@ static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff
 	__skb_push(skb, data->encap_size);
 
 	nf_bridge_info_free(skb);
-	return br_dev_queue_push_xmit(sk, skb);
+	return br_dev_queue_push_xmit(net, sk, skb);
 }
 static int br_nf_push_frag_xmit_sk(struct sock *sk, struct sk_buff *skb)
 {
@@ -728,17 +726,16 @@ static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 	return 0;
 }
 
-static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
+static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge;
 	unsigned int mtu_reserved;
-	struct net *net = dev_net(skb_dst(skb)->dev);
 
 	mtu_reserved = nf_bridge_mtu_reduction(skb);
 
 	if (skb_is_gso(skb) || skb->len + mtu_reserved <= skb->dev->mtu) {
 		nf_bridge_info_free(skb);
-		return br_dev_queue_push_xmit(sk, skb);
+		return br_dev_queue_push_xmit(net, sk, skb);
 	}
 
 	nf_bridge = nf_bridge_info_get(skb);
@@ -797,7 +794,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 	}
 #endif
 	nf_bridge_info_free(skb);
-	return br_dev_queue_push_xmit(sk, skb);
+	return br_dev_queue_push_xmit(net, sk, skb);
  drop:
 	kfree_skb(skb);
 	return 0;
@@ -887,7 +884,7 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 	skb->dev = nf_bridge->physindev;
 
 	nf_bridge->physoutdev = NULL;
-	br_handle_frame_finish(NULL, skb);
+	br_handle_frame_finish(dev_net(skb->dev), NULL, skb);
 }
 
 static int br_nf_dev_xmit(struct sk_buff *skb)

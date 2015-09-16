@@ -253,7 +253,7 @@ static netdev_tx_t vrf_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* modelled after ip_finish_output2 */
-static int vrf_finish_output(struct sock *sk, struct sk_buff *skb)
+static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct rtable *rt = (struct rtable *)dst;

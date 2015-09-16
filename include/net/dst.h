@@ -458,6 +458,10 @@ static inline int dst_output(struct sock *sk, struct sk_buff *skb)
 {
 	return skb_dst(skb)->output(sk, skb);
 }
+static inline int dst_output_okfn(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	return dst_output(sk, skb);
+}
 
 /* Input packet from network to transport.  */
 static inline int dst_input(struct sk_buff *skb)

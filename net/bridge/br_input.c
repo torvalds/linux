@@ -26,7 +26,8 @@
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
 
-static int br_netif_receive_skb(struct sock *sk, struct sk_buff *skb)
+static int
+br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	return netif_receive_skb(skb);
 }
@@ -125,7 +126,7 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 }
 
 /* note: already called with rcu_read_lock */
-int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb)
+int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
@@ -213,7 +214,7 @@ drop:
 EXPORT_SYMBOL_GPL(br_handle_frame_finish);
 
 /* note: already called with rcu_read_lock */
-static int br_handle_local_finish(struct sock *sk, struct sk_buff *skb)
+static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	u16 vid = 0;

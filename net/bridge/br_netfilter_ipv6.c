@@ -161,12 +161,11 @@ br_nf_ipv6_daddr_was_changed(const struct sk_buff *skb,
  * for br_nf_pre_routing_finish(), same logic is used here but
  * equivalent IPv6 function ip6_route_input() called indirectly.
  */
-static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
+static int br_nf_pre_routing_finish_ipv6(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
 	struct net_device *dev = skb->dev;
-	struct net *net = dev_net(dev);
 	const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 
 	nf_bridge->frag_max_size = IP6CB(skb)->frag_max_size;

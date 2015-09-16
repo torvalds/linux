@@ -30,7 +30,8 @@
 
 #define LLC_RESERVE sizeof(struct llc_pdu_un)
 
-static int br_send_bpdu_finish(struct sock *sk, struct sk_buff *skb)
+static int br_send_bpdu_finish(struct net *net, struct sock *sk,
+			       struct sk_buff *skb)
 {
 	return dev_queue_xmit(skb);
 }

@@ -151,7 +151,7 @@ static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 
 	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
 		       net, sk, skb, NULL, skb_dst(skb)->dev,
-		       dst_output);
+		       dst_output_okfn);
 }
 
 int __ip6_local_out(struct sk_buff *skb)

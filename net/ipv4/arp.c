@@ -621,7 +621,7 @@ out:
 }
 EXPORT_SYMBOL(arp_create);
 
-static int arp_xmit_finish(struct sock *sk, struct sk_buff *skb)
+static int arp_xmit_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	return dev_queue_xmit(skb);
 }
@@ -642,7 +642,7 @@ EXPORT_SYMBOL(arp_xmit);
  *	Process an arp request.
  */
 
-static int arp_process(struct sock *sk, struct sk_buff *skb)
+static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -654,7 +654,6 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 	u16 dev_type = dev->type;
 	int addr_type;
 	struct neighbour *n;
-	struct net *net = dev_net(dev);
 	bool is_garp = false;
 
 	/* arp_rcv below verifies the ARP header and verifies the device
@@ -865,7 +864,7 @@ out:
 
 static void parp_redo(struct sk_buff *skb)
 {
-	arp_process(NULL, skb);
+	arp_process(dev_net(skb->dev), NULL, skb);
 }
 
 

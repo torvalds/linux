@@ -188,10 +188,8 @@ bool ip_call_ra_chain(struct sk_buff *skb)
 	return false;
 }
 
-static int ip_local_deliver_finish(struct sock *sk, struct sk_buff *skb)
+static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb->dev);
-
 	__skb_pull(skb, skb_network_header_len(skb));
 
 	rcu_read_lock();
@@ -311,10 +309,9 @@ drop:
 int sysctl_ip_early_demux __read_mostly = 1;
 EXPORT_SYMBOL(sysctl_ip_early_demux);
 
-static int ip_rcv_finish(struct sock *sk, struct sk_buff *skb)
+static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	struct net *net = dev_net(skb->dev);
 	struct rtable *rt;
 
 	if (sysctl_ip_early_demux && !skb_dst(skb) && !skb->sk) {

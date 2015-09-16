@@ -714,7 +714,8 @@ out:
 	return ret;
 }
 
-static int dn_nsp_rx_packet(struct sock *sk2, struct sk_buff *skb)
+static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
+			    struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	struct sock *sk = NULL;
