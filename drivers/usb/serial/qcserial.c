@@ -175,6 +175,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	__u8 nintf;
 	__u8 ifnum;
 	int altsetting = -1;
+	bool sendsetup = false;
 
 	nintf = serial->dev->actconfig->desc.bNumInterfaces;
 	dev_dbg(dev, "Num Interfaces = %d\n", nintf);
@@ -286,6 +287,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			break;
 		case 3:
 			dev_dbg(dev, "Modem port found\n");
+			sendsetup = true;
 			break;
 		default:
 			/* don't claim any unsupported interface */
@@ -337,16 +339,24 @@ done:
 		}
 	}
 
+	if (!retval)
+		usb_set_serial_data(serial, (void *)(unsigned long)sendsetup);
+
 	return retval;
 }
 
 static int qc_attach(struct usb_serial *serial)
 {
 	struct usb_wwan_intf_private *data;
+	bool sendsetup;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
+	sendsetup = !!(unsigned long)(usb_get_serial_data(serial));
+	if (sendsetup)
+		data->use_send_setup = 1;
 
 	spin_lock_init(&data->susp_lock);
 
@@ -374,6 +384,7 @@ static struct usb_serial_driver qcdevice = {
 	.probe               = qcprobe,
 	.open		     = usb_wwan_open,
 	.close		     = usb_wwan_close,
+	.dtr_rts	     = usb_wwan_dtr_rts,
 	.write		     = usb_wwan_write,
 	.write_room	     = usb_wwan_write_room,
 	.chars_in_buffer     = usb_wwan_chars_in_buffer,
