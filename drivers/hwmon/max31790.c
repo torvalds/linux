@@ -174,12 +174,12 @@ static ssize_t get_fan(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max31790_data *data = max31790_update_device(dev);
-	int sr = get_tach_period(data->fan_dynamics[attr->index]);
-	int rpm;
+	int sr, rpm;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	sr = get_tach_period(data->fan_dynamics[attr->index]);
 	rpm = RPM_FROM_REG(data->tach[attr->index], sr);
 
 	return sprintf(buf, "%d\n", rpm);
@@ -190,12 +190,12 @@ static ssize_t get_fan_target(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max31790_data *data = max31790_update_device(dev);
-	int sr = get_tach_period(data->fan_dynamics[attr->index]);
-	int rpm;
+	int sr, rpm;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	sr = get_tach_period(data->fan_dynamics[attr->index]);
 	rpm = RPM_FROM_REG(data->target_count[attr->index], sr);
 
 	return sprintf(buf, "%d\n", rpm);
