@@ -281,12 +281,6 @@ int lustre_start_mgc(struct super_block *sb)
 		}
 
 		recov_bk = 0;
-		/* If we are restarting the MGS, don't try to keep the MGC's
-		   old connection, or registration will fail. */
-		if (IS_MGS(lsi)) {
-			CDEBUG(D_MOUNT, "New MGS with live MGC\n");
-			recov_bk = 1;
-		}
 
 		/* Try all connections, but only once (again).
 		   We don't want to block another target from starting

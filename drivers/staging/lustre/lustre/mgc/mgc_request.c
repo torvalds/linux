@@ -248,16 +248,8 @@ static struct config_llog_data *config_recover_log_add(struct obd_device *obd,
 	struct super_block *sb)
 {
 	struct config_llog_instance lcfg = *cfg;
-	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct config_llog_data *cld;
 	char logname[32];
-
-	if (IS_OST(lsi))
-		return NULL;
-
-	/* for osp-on-ost, see lustre_start_osp() */
-	if (IS_MDT(lsi) && lcfg.cfg_instance)
-		return NULL;
 
 	/* we have to use different llog for clients and mdts for cmd
 	 * where only clients are notified if one of cmd server restarts */

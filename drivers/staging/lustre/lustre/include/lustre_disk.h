@@ -177,9 +177,6 @@ struct lustre_disk_data {
 };
 
 
-#define IS_MDT(data)    ((data)->lsi_flags & LDD_F_SV_TYPE_MDT)
-#define IS_OST(data)    ((data)->lsi_flags & LDD_F_SV_TYPE_OST)
-#define IS_MGS(data)    ((data)->lsi_flags & LDD_F_SV_TYPE_MGS)
 #define MT_STR(data)    mt_str((data)->ldd_mount_type)
 
 /* Make the mdt/ost server obd name based on the filesystem name */
