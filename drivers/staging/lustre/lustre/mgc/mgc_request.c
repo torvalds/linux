@@ -263,14 +263,8 @@ static struct config_llog_data *config_recover_log_add(struct obd_device *obd,
 	 * where only clients are notified if one of cmd server restarts */
 	LASSERT(strlen(fsname) < sizeof(logname) / 2);
 	strcpy(logname, fsname);
-	if (IS_SERVER(lsi)) { /* mdt */
-		LASSERT(lcfg.cfg_instance == NULL);
-		lcfg.cfg_instance = sb;
-		strcat(logname, "-mdtir");
-	} else {
-		LASSERT(lcfg.cfg_instance != NULL);
-		strcat(logname, "-cliir");
-	}
+	LASSERT(lcfg.cfg_instance);
+	strcat(logname, "-cliir");
 
 	cld = do_config_log_add(obd, logname, CONFIG_T_RECOVER, &lcfg, sb);
 	return cld;
@@ -899,12 +893,6 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 	req_capsule_set_size(&req->rq_pill, &RMF_DLM_LVB, RCL_SERVER, 0);
 	ptlrpc_request_set_replen(req);
 
-	/* check if this is server or client */
-	if (cld->cld_cfg.cfg_sb) {
-		struct lustre_sb_info *lsi = s2lsi(cld->cld_cfg.cfg_sb);
-		if (lsi && IS_SERVER(lsi))
-			short_limit = 1;
-	}
 	/* Limit how long we will wait for the enqueue to complete */
 	req->rq_delay_limit = short_limit ? 5 : MGC_ENQUEUE_LIMIT;
 	rc = ldlm_cli_enqueue(exp, &req, &einfo, &cld->cld_resid, NULL, flags,
@@ -1112,7 +1100,6 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 				  void *data, int datalen, bool mne_swab)
 {
 	struct config_llog_instance *cfg = &cld->cld_cfg;
-	struct lustre_sb_info       *lsi = s2lsi(cfg->cfg_sb);
 	struct mgs_nidtbl_entry *entry;
 	struct lustre_cfg       *lcfg;
 	struct lustre_cfg_bufs   bufs;
@@ -1131,21 +1118,10 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	if (!inst)
 		return -ENOMEM;
 
-	if (!IS_SERVER(lsi)) {
-		pos = snprintf(inst, PAGE_CACHE_SIZE, "%p", cfg->cfg_instance);
-		if (pos >= PAGE_CACHE_SIZE) {
-			kfree(inst);
-			return -E2BIG;
-		}
-	} else {
-		LASSERT(IS_MDT(lsi));
-		rc = server_name2svname(lsi->lsi_svname, inst, NULL,
-					PAGE_CACHE_SIZE);
-		if (rc) {
-			kfree(inst);
-			return -EINVAL;
-		}
-		pos = strlen(inst);
+	pos = snprintf(inst, PAGE_CACHE_SIZE, "%p", cfg->cfg_instance);
+	if (pos >= PAGE_CACHE_SIZE) {
+		kfree(inst);
+		return -E2BIG;
 	}
 
 	++pos;
