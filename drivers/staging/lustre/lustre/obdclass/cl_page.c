@@ -283,8 +283,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 	struct cl_page	  *page;
 	struct lu_object_header *head;
 
-	OBD_ALLOC_GFP(page, cl_object_header(o)->coh_page_bufsize,
-			GFP_NOFS);
+	page = kzalloc(cl_object_header(o)->coh_page_bufsize, GFP_NOFS);
 	if (page != NULL) {
 		int result = 0;
 
