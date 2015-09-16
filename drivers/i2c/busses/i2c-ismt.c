@@ -817,7 +817,7 @@ intx:
 			       priv);
 	if (err) {
 		dev_err(&priv->pci_dev->dev, "no usable interrupts\n");
-		return -ENODEV;
+		return err;
 	}
 
 done:
