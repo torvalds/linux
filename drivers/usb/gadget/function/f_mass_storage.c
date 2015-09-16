@@ -2258,12 +2258,10 @@ reset:
 		/* Disable the endpoints */
 		if (fsg->bulk_in_enabled) {
 			usb_ep_disable(fsg->bulk_in);
-			fsg->bulk_in->driver_data = NULL;
 			fsg->bulk_in_enabled = 0;
 		}
 		if (fsg->bulk_out_enabled) {
 			usb_ep_disable(fsg->bulk_out);
-			fsg->bulk_out->driver_data = NULL;
 			fsg->bulk_out_enabled = 0;
 		}
 
@@ -3072,13 +3070,11 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_in_desc);
 	if (!ep)
 		goto autoconf_fail;
-	ep->driver_data = fsg->common;	/* claim the endpoint */
 	fsg->bulk_in = ep;
 
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_out_desc);
 	if (!ep)
 		goto autoconf_fail;
-	ep->driver_data = fsg->common;	/* claim the endpoint */
 	fsg->bulk_out = ep;
 
 	/* Assume endpoint addresses are the same for both speeds */
