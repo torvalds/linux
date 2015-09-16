@@ -29,8 +29,6 @@
 #define NUM_11N_HUT_SWITCHES    0
 #endif /* MAC_802_11N */
 
-extern u16 g_num_total_switches;
-
 #define MAC_HDR_LEN             24          /* No Address4 - non-ESS         */
 #define MAX_SSID_LEN            33
 #define FCS_LEN                 4
