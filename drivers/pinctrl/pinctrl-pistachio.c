@@ -1303,9 +1303,9 @@ static int pistachio_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	}
 
 	if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(data->irq, handle_level_irq);
+		irq_set_handler_locked(data, handle_level_irq);
 	else
-		__irq_set_handler_locked(data->irq, handle_edge_irq);
+		irq_set_handler_locked(data, handle_edge_irq);
 
 	return 0;
 }
