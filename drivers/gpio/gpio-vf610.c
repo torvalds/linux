@@ -176,9 +176,9 @@ static int vf610_gpio_irq_set_type(struct irq_data *d, u32 type)
 	port->irqc[d->hwirq] = irqc;
 
 	if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	else
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return 0;
 }
