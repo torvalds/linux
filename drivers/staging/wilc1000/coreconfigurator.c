@@ -550,15 +550,9 @@ u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
 
 u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
 {
-#ifdef FIVE_GHZ_BAND
-	/* Get the current channel as its not set in */
-	/* 802.11a beacons/probe response            */
-	return (get_rf_channel() + 1);
-#else /* FIVE_GHZ_BAND */
 	/* Extract current channel information from */
 	/* the beacon/probe response frame          */
 	return get_current_channel_802_11n(pu8msa, u16RxLen);
-#endif /* FIVE_GHZ_BAND */
 }
 
 /**
