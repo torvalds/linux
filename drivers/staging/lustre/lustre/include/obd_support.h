@@ -551,48 +551,6 @@ __u64 obd_pages_max(void);
 #define OBD_ALLOC_FAIL_MASK ((1 << OBD_ALLOC_FAIL_BITS) - 1)
 #define OBD_ALLOC_FAIL_MULT (OBD_ALLOC_FAIL_MASK / 100)
 
-#define OBD_FREE_RTN0(ptr)						    \
-({									    \
-	kfree(ptr);							\
-	(ptr) = NULL;							 \
-	0;								    \
-})
-
-#define __OBD_MALLOC_VERBOSE(ptr, cptab, cpt, size, flags)		      \
-do {									      \
-	(ptr) = (cptab) == NULL ?					      \
-		kmalloc(size, flags | __GFP_ZERO) :			      \
-		kmalloc_node(size, flags | __GFP_ZERO,			      \
-			     cfs_cpt_spread_node(cptab, cpt));		      \
-	if (likely((ptr) != NULL &&					   \
-		   (!HAS_FAIL_ALLOC_FLAG || obd_alloc_fail_rate == 0 ||       \
-		    !obd_alloc_fail(ptr, #ptr, "km", size,		    \
-				    __FILE__, __LINE__) ||		    \
-		    OBD_FREE_RTN0(ptr)))) {				    \
-		OBD_ALLOC_POST(ptr, size, "kmalloced");		       \
-	}								     \
-} while (0)
-
-#define OBD_ALLOC_GFP(ptr, size, gfp_mask)				      \
-	__OBD_MALLOC_VERBOSE(ptr, NULL, 0, size, gfp_mask)
-
-#define OBD_ALLOC(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_NOFS)
-#define OBD_ALLOC_WAIT(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_KERNEL)
-#define OBD_ALLOC_PTR(ptr) OBD_ALLOC(ptr, sizeof(*(ptr)))
-#define OBD_ALLOC_PTR_WAIT(ptr) OBD_ALLOC_WAIT(ptr, sizeof(*(ptr)))
-
-#define OBD_ALLOC_LARGE(ptr, size)					    \
-do {									  \
-	ptr = libcfs_kvzalloc(size, GFP_NOFS);				  \
-} while (0)
-
-#define OBD_FREE_LARGE(ptr, size)					     \
-do {									  \
-	(void)(size);							\
-	kvfree(ptr);							  \
-} while (0)
-
-
 #ifdef CONFIG_DEBUG_SLAB
 #define POISON(ptr, c, s) do {} while (0)
 #define POISON_PTR(ptr)  ((void)0)
@@ -609,14 +567,6 @@ do {									  \
 #else
 #define POISON_PAGE(page, val) do { } while (0)
 #endif
-
-#define OBD_FREE(ptr, size)						   \
-do {									  \
-	OBD_FREE_PRE(ptr, size, "kfreed");				    \
-	kfree(ptr);							\
-	POISON_PTR(ptr);						      \
-} while (0)
-
 
 #define OBD_FREE_RCU(ptr, size, handle)					      \
 do {									      \
@@ -659,8 +609,6 @@ do {									      \
 	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, NULL, 0, size, flags)
 #define OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, flags)	      \
 	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, cptab, cpt, size, flags)
-
-#define OBD_FREE_PTR(ptr) OBD_FREE(ptr, sizeof(*(ptr)))
 
 #define OBD_SLAB_FREE(ptr, slab, size)					\
 do {									  \
