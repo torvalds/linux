@@ -340,7 +340,7 @@ INLINE u16 get_asoc_id(u8 *data)
 
 s32 CoreConfiguratorInit(void)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit()\n");
 
@@ -415,7 +415,7 @@ u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
  */
 s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
 	u8 u8MsgType = 0;
 	u8 u8MsgID = 0;
@@ -541,21 +541,21 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
  */
 s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 
 	if (pstrNetworkInfo != NULL) {
 		if (pstrNetworkInfo->pu8IEs != NULL) {
 			kfree(pstrNetworkInfo->pu8IEs);
 			pstrNetworkInfo->pu8IEs = NULL;
 		} else {
-			s32Error = WILC_FAIL;
+			s32Error = -EFAULT;
 		}
 
 		kfree(pstrNetworkInfo);
 		pstrNetworkInfo = NULL;
 
 	} else {
-		s32Error = WILC_FAIL;
+		s32Error = -EFAULT;
 	}
 
 	return s32Error;
@@ -575,7 +575,7 @@ s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
 s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	u16 u16AssocRespLen = 0;
 	u8 *pu8IEs = NULL;
@@ -632,21 +632,21 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
  */
 s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 
 	if (pstrConnectRespInfo != NULL) {
 		if (pstrConnectRespInfo->pu8RespIEs != NULL) {
 			kfree(pstrConnectRespInfo->pu8RespIEs);
 			pstrConnectRespInfo->pu8RespIEs = NULL;
 		} else {
-			s32Error = WILC_FAIL;
+			s32Error = -EFAULT;
 		}
 
 		kfree(pstrConnectRespInfo);
 		pstrConnectRespInfo = NULL;
 
 	} else {
-		s32Error = WILC_FAIL;
+		s32Error = -EFAULT;
 	}
 
 	return s32Error;
@@ -657,7 +657,7 @@ s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZ
 			       wid_site_survey_reslts_s **ppstrSurveyResults,
 			       u32 *pu32SurveyResultsCount)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
 	u32 u32SurveyResultsCount = 0;
 	u32 u32SurveyBytesLength = 0;
@@ -712,7 +712,7 @@ ERRORHANDLER:
 
 s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 
 	if (pstrSurveyResults != NULL) {
 		kfree(pstrSurveyResults);
@@ -734,7 +734,7 @@ s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 
 s32 CoreConfiguratorDeInit(void)
 {
-	s32 s32Error = WILC_SUCCESS;
+	s32 s32Error = 0;
 
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit()\n");
 

@@ -178,21 +178,21 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 
 	if (dev == NULL) {
 		PRINT_D(HOSTAPD_DBG, "ERROR: dev == NULL\n");
-		return WILC_FAIL;
+		return -EFAULT;
 	}
 
 	netif_stop_queue(dev);
 	mgmt_tx = kmalloc(sizeof(struct tx_complete_mon_data), GFP_ATOMIC);
 	if (mgmt_tx == NULL) {
 		PRINT_ER("Failed to allocate memory for mgmt_tx structure\n");
-		return WILC_FAIL;
+		return -EFAULT;
 	}
 
 	mgmt_tx->buff = kmalloc(len, GFP_ATOMIC);
 	if (mgmt_tx->buff == NULL) {
 		PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
 		kfree(mgmt_tx);
-		return WILC_FAIL;
+		return -EFAULT;
 
 	}
 
@@ -225,13 +225,13 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 
 	/* Bug 4601 */
 	if (wilc_wfi_mon == NULL)
-		return WILC_FAIL;
+		return -EFAULT;
 
 	mon_priv = netdev_priv(wilc_wfi_mon);
 
 	if (mon_priv == NULL) {
 		PRINT_ER("Monitor interface private structure is NULL\n");
-		return WILC_FAIL;
+		return -EFAULT;
 	}
 
 
@@ -351,7 +351,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
 {
 
 
-	u32 ret = WILC_SUCCESS;
+	u32 ret = 0;
 	struct WILC_WFI_mon_priv *priv;
 
 	/*If monitor interface is already initialized, return it*/
@@ -416,7 +416,7 @@ int WILC_WFI_deinit_mon_interface(void)
 		}
 		wilc_wfi_mon = NULL;
 	}
-	return WILC_SUCCESS;
+	return 0;
 
 }
 #endif /* WILC_AP_EXTERNAL_MLME */

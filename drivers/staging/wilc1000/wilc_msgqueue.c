@@ -16,7 +16,7 @@ int wilc_mq_create(WILC_MsgQueueHandle *pHandle)
 	pHandle->pstrMessageList = NULL;
 	pHandle->u32ReceiversCount = 0;
 	pHandle->bExiting = false;
-	return WILC_SUCCESS;
+	return 0;
 }
 
 /*!
@@ -42,7 +42,7 @@ int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
 		pHandle->pstrMessageList = pstrMessge;
 	}
 
-	return WILC_SUCCESS;
+	return 0;
 }
 
 /*!
@@ -54,7 +54,7 @@ int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
 int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 			     const void *pvSendBuffer, u32 u32SendBufferSize)
 {
-	int s32RetStatus = WILC_SUCCESS;
+	int s32RetStatus = 0;
 	unsigned long flags;
 	Message *pstrMessage = NULL;
 
@@ -122,7 +122,7 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 			     u32 *pu32ReceivedLength)
 {
 	Message *pstrMessage;
-	int s32RetStatus = WILC_SUCCESS;
+	int s32RetStatus = 0;
 	unsigned long flags;
 
 	if ((!pHandle) || (u32RecvBufferSize == 0)
