@@ -87,6 +87,7 @@ enum {
 #define TC_ACT_STOLEN		4
 #define TC_ACT_QUEUED		5
 #define TC_ACT_REPEAT		6
+#define TC_ACT_REDIRECT		7
 #define TC_ACT_JUMP		0x10000000
 
 /* Action type identifiers*/

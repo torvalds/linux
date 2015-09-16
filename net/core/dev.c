@@ -3670,6 +3670,14 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	case TC_ACT_QUEUED:
 		kfree_skb(skb);
 		return NULL;
+	case TC_ACT_REDIRECT:
+		/* skb_mac_header check was done by cls/act_bpf, so
+		 * we can safely push the L2 header back before
+		 * redirecting to another netdev
+		 */
+		__skb_push(skb, skb->mac_len);
+		skb_do_redirect(skb);
+		return NULL;
 	default:
 		break;
 	}

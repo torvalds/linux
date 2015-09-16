@@ -1427,6 +1427,48 @@ const struct bpf_func_proto bpf_clone_redirect_proto = {
 	.arg3_type      = ARG_ANYTHING,
 };
 
+struct redirect_info {
+	u32 ifindex;
+	u32 flags;
+};
+
+static DEFINE_PER_CPU(struct redirect_info, redirect_info);
+static u64 bpf_redirect(u64 ifindex, u64 flags, u64 r3, u64 r4, u64 r5)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+
+	ri->ifindex = ifindex;
+	ri->flags = flags;
+	return TC_ACT_REDIRECT;
+}
+
+int skb_do_redirect(struct sk_buff *skb)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct net_device *dev;
+
+	dev = dev_get_by_index_rcu(dev_net(skb->dev), ri->ifindex);
+	ri->ifindex = 0;
+	if (unlikely(!dev)) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	if (BPF_IS_REDIRECT_INGRESS(ri->flags))
+		return dev_forward_skb(dev, skb);
+
+	skb->dev = dev;
+	return dev_queue_xmit(skb);
+}
+
+const struct bpf_func_proto bpf_redirect_proto = {
+	.func           = bpf_redirect,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_ANYTHING,
+	.arg2_type      = ARG_ANYTHING,
+};
+
 static u64 bpf_get_cgroup_classid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	return task_get_classid((struct sk_buff *) (unsigned long) r1);
@@ -1607,6 +1649,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_skb_get_tunnel_key_proto;
 	case BPF_FUNC_skb_set_tunnel_key:
 		return bpf_get_skb_set_tunnel_key_proto();
+	case BPF_FUNC_redirect:
+		return &bpf_redirect_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}

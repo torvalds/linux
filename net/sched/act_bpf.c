@@ -72,6 +72,7 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 	case TC_ACT_PIPE:
 	case TC_ACT_RECLASSIFY:
 	case TC_ACT_OK:
+	case TC_ACT_REDIRECT:
 		action = filter_res;
 		break;
 	case TC_ACT_SHOT:
