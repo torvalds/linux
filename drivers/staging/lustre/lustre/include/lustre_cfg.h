@@ -231,8 +231,8 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 	char *ptr;
 	int i;
 
-	OBD_ALLOC(lcfg, lustre_cfg_len(bufs->lcfg_bufcount,
-				       bufs->lcfg_buflen));
+	lcfg = kzalloc(lustre_cfg_len(bufs->lcfg_bufcount, bufs->lcfg_buflen),
+		       GFP_NOFS);
 	if (!lcfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -254,7 +254,7 @@ static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
 
 	len = lustre_cfg_len(lcfg->lcfg_bufcount, lcfg->lcfg_buflens);
 
-	OBD_FREE(lcfg, len);
+	kfree(lcfg);
 	return;
 }
 
