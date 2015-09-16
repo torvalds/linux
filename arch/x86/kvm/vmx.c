@@ -6144,6 +6144,8 @@ static __init int hardware_setup(void)
 	memcpy(vmx_msr_bitmap_longmode_x2apic,
 			vmx_msr_bitmap_longmode, PAGE_SIZE);
 
+	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
+
 	if (enable_apicv) {
 		for (msr = 0x800; msr <= 0x8ff; msr++)
 			vmx_disable_intercept_msr_read_x2apic(msr);
