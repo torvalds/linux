@@ -27,6 +27,7 @@
 #include <linux/pci_hotplug.h>
 #include <asm-generic/pci-bridge.h>
 #include <asm/setup.h>
+#include <linux/aer.h>
 #include "pci.h"
 
 const char *pci_power_names[] = {
@@ -1098,6 +1099,8 @@ void pci_restore_state(struct pci_dev *dev)
 	pci_restore_pcie_state(dev);
 	pci_restore_ats_state(dev);
 	pci_restore_vc_state(dev);
+
+	pci_cleanup_aer_error_status_regs(dev);
 
 	pci_restore_config_space(dev);
 
