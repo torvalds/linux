@@ -911,7 +911,6 @@ struct drm_bridge_funcs {
  * @next: the next bridge in the encoder chain
  * @of_node: device node pointer to the bridge
  * @list: to keep track of all added bridges
- * @base: base mode object
  * @funcs: control functions
  * @driver_private: pointer to the bridge driver's internal context
  */
