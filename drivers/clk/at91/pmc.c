@@ -20,6 +20,15 @@
 
 #include "pmc.h"
 
+struct at91_pmc_caps {
+	u32 available_irqs;
+};
+
+struct at91_pmc {
+	struct regmap *regmap;
+	const struct at91_pmc_caps *caps;
+};
+
 void __iomem *at91_pmc_base;
 EXPORT_SYMBOL_GPL(at91_pmc_base);
 
