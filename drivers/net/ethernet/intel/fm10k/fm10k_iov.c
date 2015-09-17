@@ -228,9 +228,6 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 		hw->iov.ops.set_lport(hw, vf_info, i,
 				      FM10K_VF_FLAG_MULTI_CAPABLE);
 
-		/* assign our default vid to the VF following reset */
-		vf_info->sw_vid = hw->mac.default_vid;
-
 		/* mailbox is disconnected so we don't send a message */
 		hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
 

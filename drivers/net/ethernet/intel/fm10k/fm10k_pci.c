@@ -170,6 +170,21 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 	/* reassociate interrupts */
 	fm10k_mbx_request_irq(interface);
 
+	/* update hardware address for VFs if perm_addr has changed */
+	if (hw->mac.type == fm10k_mac_vf) {
+		if (is_valid_ether_addr(hw->mac.perm_addr)) {
+			ether_addr_copy(hw->mac.addr, hw->mac.perm_addr);
+			ether_addr_copy(netdev->perm_addr, hw->mac.perm_addr);
+			ether_addr_copy(netdev->dev_addr, hw->mac.perm_addr);
+			netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
+		}
+
+		if (hw->mac.vlan_override)
+			netdev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+		else
+			netdev->features |= NETIF_F_HW_VLAN_CTAG_RX;
+	}
+
 	/* reset clock */
 	fm10k_ts_reset(interface);
 
@@ -663,6 +678,10 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	/* assign default VLAN to queue */
 	ring->vid = hw->mac.default_vid;
 
+	/* if we have an active VLAN, disable default VID */
+	if (test_bit(hw->mac.default_vid, interface->active_vlans))
+		ring->vid |= FM10K_VLAN_CLEAR;
+
 	/* Map interrupt */
 	if (ring->q_vector) {
 		rxint = ring->q_vector->v_idx + NON_Q_VECTORS(hw);
@@ -861,10 +880,12 @@ void fm10k_netpoll(struct net_device *netdev)
 
 #endif
 #define FM10K_ERR_MSG(type) case (type): error = #type; break
-static void fm10k_print_fault(struct fm10k_intfc *interface, int type,
+static void fm10k_handle_fault(struct fm10k_intfc *interface, int type,
 			      struct fm10k_fault *fault)
 {
 	struct pci_dev *pdev = interface->pdev;
+	struct fm10k_hw *hw = &interface->hw;
+	struct fm10k_iov_data *iov_data = interface->iov_data;
 	char *error;
 
 	switch (type) {
@@ -918,6 +939,30 @@ static void fm10k_print_fault(struct fm10k_intfc *interface, int type,
 		 "%s Address: 0x%llx SpecInfo: 0x%x Func: %02x.%0x\n",
 		 error, fault->address, fault->specinfo,
 		 PCI_SLOT(fault->func), PCI_FUNC(fault->func));
+
+	/* For VF faults, clear out the respective LPORT, reset the queue
+	 * resources, and then reconnect to the mailbox. This allows the
+	 * VF in question to resume behavior. For transient faults that are
+	 * the result of non-malicious behavior this will log the fault and
+	 * allow the VF to resume functionality. Obviously for malicious VFs
+	 * they will be able to attempt malicious behavior again. In this
+	 * case, the system administrator will need to step in and manually
+	 * remove or disable the VF in question.
+	 */
+	if (fault->func && iov_data) {
+		int vf = fault->func - 1;
+		struct fm10k_vf_info *vf_info = &iov_data->vf_info[vf];
+
+		hw->iov.ops.reset_lport(hw, vf_info);
+		hw->iov.ops.reset_resources(hw, vf_info);
+
+		/* reset_lport disables the VF, so re-enable it */
+		hw->iov.ops.set_lport(hw, vf_info, vf,
+				      FM10K_VF_FLAG_MULTI_CAPABLE);
+
+		/* reset_resources will disconnect from the mbx  */
+		vf_info->mbx.ops.connect(hw, &vf_info->mbx);
+	}
 }
 
 static void fm10k_report_fault(struct fm10k_intfc *interface, u32 eicr)
@@ -941,7 +986,7 @@ static void fm10k_report_fault(struct fm10k_intfc *interface, u32 eicr)
 			continue;
 		}
 
-		fm10k_print_fault(interface, type, &fault);
+		fm10k_handle_fault(interface, type, &fault);
 	}
 }
 
@@ -1705,22 +1750,86 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 
 static void fm10k_slot_warn(struct fm10k_intfc *interface)
 {
-	struct device *dev = &interface->pdev->dev;
+	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
+	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
 	struct fm10k_hw *hw = &interface->hw;
+	int max_gts = 0, expected_gts = 0;
 
-	if (hw->mac.ops.is_slot_appropriate(hw))
+	if (pcie_get_minimum_link(interface->pdev, &speed, &width) ||
+	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN) {
+		dev_warn(&interface->pdev->dev,
+			 "Unable to determine PCI Express bandwidth.\n");
 		return;
+	}
 
-	dev_warn(dev,
-		 "For optimal performance, a %s %s slot is recommended.\n",
-		 (hw->bus_caps.width == fm10k_bus_width_pcie_x1 ? "x1" :
-		  hw->bus_caps.width == fm10k_bus_width_pcie_x4 ? "x4" :
-		  "x8"),
-		 (hw->bus_caps.speed == fm10k_bus_speed_2500 ? "2.5GT/s" :
-		  hw->bus_caps.speed == fm10k_bus_speed_5000 ? "5.0GT/s" :
-		  "8.0GT/s"));
-	dev_warn(dev,
-		 "A slot with more lanes and/or higher speed is suggested.\n");
+	switch (speed) {
+	case PCIE_SPEED_2_5GT:
+		/* 8b/10b encoding reduces max throughput by 20% */
+		max_gts = 2 * width;
+		break;
+	case PCIE_SPEED_5_0GT:
+		/* 8b/10b encoding reduces max throughput by 20% */
+		max_gts = 4 * width;
+		break;
+	case PCIE_SPEED_8_0GT:
+		/* 128b/130b encoding has less than 2% impact on throughput */
+		max_gts = 8 * width;
+		break;
+	default:
+		dev_warn(&interface->pdev->dev,
+			 "Unable to determine PCI Express bandwidth.\n");
+		return;
+	}
+
+	dev_info(&interface->pdev->dev,
+		 "PCI Express bandwidth of %dGT/s available\n",
+		 max_gts);
+	dev_info(&interface->pdev->dev,
+		 "(Speed:%s, Width: x%d, Encoding Loss:%s, Payload:%s)\n",
+		 (speed == PCIE_SPEED_8_0GT ? "8.0GT/s" :
+		  speed == PCIE_SPEED_5_0GT ? "5.0GT/s" :
+		  speed == PCIE_SPEED_2_5GT ? "2.5GT/s" :
+		  "Unknown"),
+		 hw->bus.width,
+		 (speed == PCIE_SPEED_2_5GT ? "20%" :
+		  speed == PCIE_SPEED_5_0GT ? "20%" :
+		  speed == PCIE_SPEED_8_0GT ? "<2%" :
+		  "Unknown"),
+		 (hw->bus.payload == fm10k_bus_payload_128 ? "128B" :
+		  hw->bus.payload == fm10k_bus_payload_256 ? "256B" :
+		  hw->bus.payload == fm10k_bus_payload_512 ? "512B" :
+		  "Unknown"));
+
+	switch (hw->bus_caps.speed) {
+	case fm10k_bus_speed_2500:
+		/* 8b/10b encoding reduces max throughput by 20% */
+		expected_gts = 2 * hw->bus_caps.width;
+		break;
+	case fm10k_bus_speed_5000:
+		/* 8b/10b encoding reduces max throughput by 20% */
+		expected_gts = 4 * hw->bus_caps.width;
+		break;
+	case fm10k_bus_speed_8000:
+		/* 128b/130b encoding has less than 2% impact on throughput */
+		expected_gts = 8 * hw->bus_caps.width;
+		break;
+	default:
+		dev_warn(&interface->pdev->dev,
+			 "Unable to determine expected PCI Express bandwidth.\n");
+		return;
+	}
+
+	if (max_gts < expected_gts) {
+		dev_warn(&interface->pdev->dev,
+			 "This device requires %dGT/s of bandwidth for optimal performance.\n",
+			 expected_gts);
+		dev_warn(&interface->pdev->dev,
+			 "A %sslot with x%d lanes is suggested.\n",
+			 (hw->bus_caps.speed == fm10k_bus_speed_2500 ? "2.5GT/s " :
+			  hw->bus_caps.speed == fm10k_bus_speed_5000 ? "5.0GT/s " :
+			  hw->bus_caps.speed == fm10k_bus_speed_8000 ? "8.0GT/s " : ""),
+			 hw->bus_caps.width);
+	}
 }
 
 /**
@@ -1739,7 +1848,6 @@ static int fm10k_probe(struct pci_dev *pdev,
 {
 	struct net_device *netdev;
 	struct fm10k_intfc *interface;
-	struct fm10k_hw *hw;
 	int err;
 
 	err = pci_enable_device_mem(pdev);
@@ -1783,7 +1891,6 @@ static int fm10k_probe(struct pci_dev *pdev,
 
 	interface->netdev = netdev;
 	interface->pdev = pdev;
-	hw = &interface->hw;
 
 	interface->uc_addr = ioremap(pci_resource_start(pdev, 0),
 				     FM10K_UC_ADDR_SIZE);
@@ -1825,23 +1932,11 @@ static int fm10k_probe(struct pci_dev *pdev,
 	/* Register PTP interface */
 	fm10k_ptp_register(interface);
 
-	/* print bus type/speed/width info */
-	dev_info(&pdev->dev, "(PCI Express:%s Width: %s Payload: %s)\n",
-		 (hw->bus.speed == fm10k_bus_speed_8000 ? "8.0GT/s" :
-		  hw->bus.speed == fm10k_bus_speed_5000 ? "5.0GT/s" :
-		  hw->bus.speed == fm10k_bus_speed_2500 ? "2.5GT/s" :
-		  "Unknown"),
-		 (hw->bus.width == fm10k_bus_width_pcie_x8 ? "x8" :
-		  hw->bus.width == fm10k_bus_width_pcie_x4 ? "x4" :
-		  hw->bus.width == fm10k_bus_width_pcie_x1 ? "x1" :
-		  "Unknown"),
-		 (hw->bus.payload == fm10k_bus_payload_128 ? "128B" :
-		  hw->bus.payload == fm10k_bus_payload_256 ? "256B" :
-		  hw->bus.payload == fm10k_bus_payload_512 ? "512B" :
-		  "Unknown"));
-
 	/* print warning for non-optimal configurations */
 	fm10k_slot_warn(interface);
+
+	/* report MAC address for logging */
+	dev_info(&pdev->dev, "%pM\n", netdev->dev_addr);
 
 	/* enable SR-IOV after registering netdev to enforce PF/VF ordering */
 	fm10k_iov_configure(pdev, 0);
@@ -1983,6 +2078,16 @@ static int fm10k_resume(struct pci_dev *pdev)
 	if (err)
 		return err;
 
+	/* assume host is not ready, to prevent race with watchdog in case we
+	 * actually don't have connection to the switch
+	 */
+	interface->host_ready = false;
+	fm10k_watchdog_host_not_ready(interface);
+
+	/* clear the service task disable bit to allow service task to start */
+	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	fm10k_service_event_schedule(interface);
+
 	/* restore SR-IOV interface */
 	fm10k_iov_resume(pdev);
 
@@ -2009,6 +2114,15 @@ static int fm10k_suspend(struct pci_dev *pdev,
 	netif_device_detach(netdev);
 
 	fm10k_iov_suspend(pdev);
+
+	/* the watchdog tasks may read registers, which will appear like a
+	 * surprise-remove event once the PCI device is disabled. This will
+	 * cause us to close the netdevice, so we don't retain the open/closed
+	 * state post-resume. Prevent this by disabling the service task while
+	 * suspended, until we actually resume.
+	 */
+	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	cancel_work_sync(&interface->service_task);
 
 	rtnl_lock();
 
