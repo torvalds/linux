@@ -374,9 +374,6 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 		return ret;
 	}
 
-	if (hd->driver->connection_create)
-		hd->driver->connection_create(connection);
-
 	return 0;
 }
 
@@ -385,9 +382,6 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
 	if (connection->protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)
 		return;
-
-	if (connection->hd->driver->connection_destroy)
-		connection->hd->driver->connection_destroy(connection);
 
 	gb_svc_connection_destroy(connection->hd->svc,
 				  connection->hd->endo->ap_intf_id,
