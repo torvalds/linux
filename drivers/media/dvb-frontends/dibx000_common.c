@@ -502,16 +502,6 @@ void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst)
 }
 EXPORT_SYMBOL(dibx000_exit_i2c_master);
 
-
-u32 systime(void)
-{
-	struct timespec t;
-
-	t = current_kernel_time();
-	return (t.tv_sec * 10000) + (t.tv_nsec / 100000);
-}
-EXPORT_SYMBOL(systime);
-
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Common function the DiBcom demodulator family");
 MODULE_LICENSE("GPL");
