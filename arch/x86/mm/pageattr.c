@@ -414,18 +414,28 @@ pmd_t *lookup_pmd_address(unsigned long address)
 phys_addr_t slow_virt_to_phys(void *__virt_addr)
 {
 	unsigned long virt_addr = (unsigned long)__virt_addr;
-	phys_addr_t phys_addr;
-	unsigned long offset;
+	unsigned long phys_addr, offset;
 	enum pg_level level;
-	unsigned long pmask;
 	pte_t *pte;
 
 	pte = lookup_address(virt_addr, &level);
 	BUG_ON(!pte);
-	pmask = page_level_mask(level);
-	offset = virt_addr & ~pmask;
-	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
-	return (phys_addr | offset);
+
+	switch (level) {
+	case PG_LEVEL_1G:
+		phys_addr = pud_pfn(*(pud_t *)pte) << PAGE_SHIFT;
+		offset = virt_addr & ~PUD_PAGE_MASK;
+		break;
+	case PG_LEVEL_2M:
+		phys_addr = pmd_pfn(*(pmd_t *)pte) << PAGE_SHIFT;
+		offset = virt_addr & ~PMD_PAGE_MASK;
+		break;
+	default:
+		phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
+		offset = virt_addr & ~PAGE_MASK;
+	}
+
+	return (phys_addr_t)(phys_addr | offset);
 }
 EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 
