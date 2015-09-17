@@ -468,7 +468,7 @@ static int
 try_preserve_large_page(pte_t *kpte, unsigned long address,
 			struct cpa_data *cpa)
 {
-	unsigned long nextpage_addr, numpages, pmask, psize, addr, pfn;
+	unsigned long nextpage_addr, numpages, pmask, psize, addr, pfn, old_pfn;
 	pte_t new_pte, old_pte, *tmp;
 	pgprot_t old_prot, new_prot, req_prot;
 	int i, do_split = 1;
@@ -488,16 +488,20 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 
 	switch (level) {
 	case PG_LEVEL_2M:
-#ifdef CONFIG_X86_64
+		old_prot = pmd_pgprot(*(pmd_t *)kpte);
+		old_pfn = pmd_pfn(*(pmd_t *)kpte);
+		break;
 	case PG_LEVEL_1G:
-#endif
-		psize = page_level_size(level);
-		pmask = page_level_mask(level);
+		old_prot = pud_pgprot(*(pud_t *)kpte);
+		old_pfn = pud_pfn(*(pud_t *)kpte);
 		break;
 	default:
 		do_split = -EINVAL;
 		goto out_unlock;
 	}
+
+	psize = page_level_size(level);
+	pmask = page_level_mask(level);
 
 	/*
 	 * Calculate the number of pages, which fit into this large
@@ -514,7 +518,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * up accordingly.
 	 */
 	old_pte = *kpte;
-	old_prot = req_prot = pgprot_large_2_4k(pte_pgprot(old_pte));
+	old_prot = req_prot = pgprot_large_2_4k(old_prot);
 
 	pgprot_val(req_prot) &= ~pgprot_val(cpa->mask_clr);
 	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
@@ -540,10 +544,10 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	req_prot = canon_pgprot(req_prot);
 
 	/*
-	 * old_pte points to the large page base address. So we need
+	 * old_pfn points to the large page base pfn. So we need
 	 * to add the offset of the virtual address:
 	 */
-	pfn = pte_pfn(old_pte) + ((address & (psize - 1)) >> PAGE_SHIFT);
+	pfn = old_pfn + ((address & (psize - 1)) >> PAGE_SHIFT);
 	cpa->pfn = pfn;
 
 	new_prot = static_protections(req_prot, address, pfn);
@@ -554,7 +558,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * the pages in the range we try to preserve:
 	 */
 	addr = address & pmask;
-	pfn = pte_pfn(old_pte);
+	pfn = old_pfn;
 	for (i = 0; i < (psize >> PAGE_SHIFT); i++, addr += PAGE_SIZE, pfn++) {
 		pgprot_t chk_prot = static_protections(req_prot, addr, pfn);
 
@@ -584,7 +588,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 		 * The address is aligned and the number of pages
 		 * covers the full page.
 		 */
-		new_pte = pfn_pte(pte_pfn(old_pte), new_prot);
+		new_pte = pfn_pte(old_pfn, new_prot);
 		__set_pmd_pte(kpte, address, new_pte);
 		cpa->flags |= CPA_FLUSHTLB;
 		do_split = 0;
