@@ -467,7 +467,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	struct tty_struct *tty;
 	struct tty_ldisc *disc;
 
-	tty = port->itty;
+	tty = READ_ONCE(port->itty);
 	if (tty == NULL)
 		return;
 
