@@ -758,6 +758,45 @@ static int amdgpu_cgs_query_system_info(void *cgs_device,
 	return 0;
 }
 
+static int amdgpu_cgs_get_active_displays_info(void *cgs_device,
+					  struct cgs_display_info *info)
+{
+	CGS_FUNC_ADEV;
+	struct amdgpu_crtc *amdgpu_crtc;
+	struct drm_device *ddev = adev->ddev;
+	struct drm_crtc *crtc;
+	uint32_t line_time_us, vblank_lines;
+
+	if (info == NULL)
+		return -EINVAL;
+
+	if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
+		list_for_each_entry(crtc,
+				&ddev->mode_config.crtc_list, head) {
+			amdgpu_crtc = to_amdgpu_crtc(crtc);
+			if (crtc->enabled) {
+				info->active_display_mask |= (1 << amdgpu_crtc->crtc_id);
+				info->display_count++;
+			}
+			if (info->mode_info != NULL &&
+				crtc->enabled && amdgpu_crtc->enabled &&
+				amdgpu_crtc->hw_mode.clock) {
+				line_time_us = (amdgpu_crtc->hw_mode.crtc_htotal * 1000) /
+							amdgpu_crtc->hw_mode.clock;
+				vblank_lines = amdgpu_crtc->hw_mode.crtc_vblank_end -
+							amdgpu_crtc->hw_mode.crtc_vdisplay +
+							(amdgpu_crtc->v_border * 2);
+				info->mode_info->vblank_time_us = vblank_lines * line_time_us;
+				info->mode_info->refresh_rate = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
+				info->mode_info->ref_clock = adev->clock.spll.reference_freq;
+				info->mode_info++;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /** \brief evaluate acpi namespace object, handle or pathname must be valid
  *  \param cgs_device
  *  \param info input/output arguments for the control method
@@ -1006,6 +1045,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_get_firmware_info,
 	amdgpu_cgs_set_powergating_state,
 	amdgpu_cgs_set_clockgating_state,
+	amdgpu_cgs_get_active_displays_info,
 	amdgpu_cgs_call_acpi_method,
 	amdgpu_cgs_query_system_info,
 };

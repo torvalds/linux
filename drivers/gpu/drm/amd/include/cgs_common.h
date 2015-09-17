@@ -142,6 +142,18 @@ struct cgs_firmware_info {
 	void			*kptr;
 };
 
+struct cgs_mode_info {
+	uint32_t		refresh_rate;
+	uint32_t		ref_clock;
+	uint32_t		vblank_time_us;
+};
+
+struct cgs_display_info {
+	uint32_t		display_count;
+	uint32_t		active_display_mask;
+	struct cgs_mode_info *mode_info;
+};
+
 typedef unsigned long cgs_handle_t;
 
 #define CGS_ACPI_METHOD_ATCS          0x53435441
@@ -541,6 +553,10 @@ typedef int(*cgs_set_clockgating_state)(void *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state);
 
+typedef int(*cgs_get_active_displays_info)(
+					void *cgs_device,
+					struct cgs_display_info *info);
+
 typedef int (*cgs_call_acpi_method)(void *cgs_device,
 					uint32_t acpi_method,
 					uint32_t acpi_function,
@@ -592,6 +608,8 @@ struct cgs_ops {
 	/* cg pg interface*/
 	cgs_set_powergating_state set_powergating_state;
 	cgs_set_clockgating_state set_clockgating_state;
+	/* display manager */
+	cgs_get_active_displays_info get_active_displays_info;
 	/* ACPI */
 	cgs_call_acpi_method call_acpi_method;
 	/* get system info */
@@ -682,6 +700,8 @@ struct cgs_device
 	CGS_CALL(set_powergating_state, dev, block_type, state)
 #define cgs_set_clockgating_state(dev, block_type, state)	\
 	CGS_CALL(set_clockgating_state, dev, block_type, state)
+#define cgs_get_active_displays_info(dev, info)	\
+	CGS_CALL(get_active_displays_info, dev, info)
 #define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
 	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
 #define cgs_query_system_info(dev, sys_info)	\
