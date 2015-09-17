@@ -325,12 +325,14 @@ void zcomp_destroy(struct zcomp *comp)
  * allocate new zcomp and initialize it. return compressing
  * backend pointer or ERR_PTR if things went bad. ERR_PTR(-EINVAL)
  * if requested algorithm is not supported, ERR_PTR(-ENOMEM) in
- * case of allocation error.
+ * case of allocation error, or any other error potentially
+ * returned by functions zcomp_strm_{multi,single}_create.
  */
 struct zcomp *zcomp_create(const char *compress, int max_strm)
 {
 	struct zcomp *comp;
 	struct zcomp_backend *backend;
+	int error;
 
 	backend = find_backend(compress);
 	if (!backend)
@@ -342,12 +344,12 @@ struct zcomp *zcomp_create(const char *compress, int max_strm)
 
 	comp->backend = backend;
 	if (max_strm > 1)
-		zcomp_strm_multi_create(comp, max_strm);
+		error = zcomp_strm_multi_create(comp, max_strm);
 	else
-		zcomp_strm_single_create(comp);
-	if (!comp->stream) {
+		error = zcomp_strm_single_create(comp);
+	if (error) {
 		kfree(comp);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(error);
 	}
 	return comp;
 }
