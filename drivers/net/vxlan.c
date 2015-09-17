@@ -2636,8 +2636,11 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 		dst->remote_ip.sa.sa_family = AF_INET;
 
 	if (dst->remote_ip.sa.sa_family == AF_INET6 ||
-	    vxlan->cfg.saddr.sa.sa_family == AF_INET6)
+	    vxlan->cfg.saddr.sa.sa_family == AF_INET6) {
+		if (!IS_ENABLED(CONFIG_IPV6))
+			return -EPFNOSUPPORT;
 		use_ipv6 = true;
+	}
 
 	if (conf->remote_ifindex) {
 		struct net_device *lowerdev
