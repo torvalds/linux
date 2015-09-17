@@ -55,4 +55,12 @@ config HNS_DSAF
 	  acceleration engine support. The engine is used in Hisilicon hip05,
 	  Hi1610 and further ICT SoC
 
+config HNS_ENET
+	tristate "Hisilicon HNS Ethernet Device Support"
+	select PHYLIB
+	select HNS
+	---help---
+	  This selects the general ethernet driver for HNS.  This module make
+	  use of any HNS AE driver, such as HNS_DSAF
+
 endif # NET_VENDOR_HISILICON
