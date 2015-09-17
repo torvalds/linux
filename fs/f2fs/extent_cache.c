@@ -155,11 +155,12 @@ static unsigned int __free_extent_tree(struct f2fs_sb_info *sbi,
 	return count - et->count;
 }
 
-static void __drop_largest_extent(struct inode *inode, pgoff_t fofs)
+static void __drop_largest_extent(struct inode *inode,
+					pgoff_t fofs, unsigned int len)
 {
 	struct extent_info *largest = &F2FS_I(inode)->extent_tree->largest;
 
-	if (largest->fofs <= fofs && largest->fofs + largest->len > fofs)
+	if (fofs < largest->fofs + largest->len && fofs + len > largest->fofs)
 		largest->len = 0;
 }
 
@@ -168,7 +169,7 @@ void f2fs_drop_largest_extent(struct inode *inode, pgoff_t fofs)
 	if (!f2fs_may_extent_tree(inode))
 		return;
 
-	__drop_largest_extent(inode, fofs);
+	__drop_largest_extent(inode, fofs, 1);
 }
 
 void f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext)
@@ -422,7 +423,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 	dei.len = 0;
 
 	/* we do not guarantee that the largest extent is cached all the time */
-	__drop_largest_extent(inode, fofs);
+	__drop_largest_extent(inode, fofs, len);
 
 	/* 1. lookup first extent node in range [fofs, fofs + len - 1] */
 	en = __lookup_extent_tree_ret(et, fofs, &prev_en, &next_en,
