@@ -881,8 +881,11 @@ static void xs_xprt_free(struct rpc_xprt *xprt)
  */
 static void xs_destroy(struct rpc_xprt *xprt)
 {
+	struct sock_xprt *transport = container_of(xprt,
+			struct sock_xprt, xprt);
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
+	cancel_delayed_work_sync(&transport->connect_worker);
 	xs_close(xprt);
 	xs_xprt_free(xprt);
 	module_put(THIS_MODULE);
