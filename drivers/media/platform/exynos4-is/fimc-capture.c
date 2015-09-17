@@ -183,8 +183,6 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 	struct v4l2_subdev *csis = p->subdevs[IDX_CSIS];
 	struct fimc_frame *f = &cap->ctx->d_frame;
 	struct fimc_vid_buffer *v_buf;
-	struct timeval *tv;
-	struct timespec ts;
 
 	if (test_and_clear_bit(ST_CAPT_SHUT, &fimc->state)) {
 		wake_up(&fimc->irq_queue);
@@ -193,13 +191,9 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 
 	if (!list_empty(&cap->active_buf_q) &&
 	    test_bit(ST_CAPT_RUN, &fimc->state) && deq_buf) {
-		ktime_get_real_ts(&ts);
-
 		v_buf = fimc_active_queue_pop(cap);
 
-		tv = &v_buf->vb.v4l2_buf.timestamp;
-		tv->tv_sec = ts.tv_sec;
-		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+		v4l2_get_timestamp(&v_buf->vb.v4l2_buf.timestamp);
 		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
 
 		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
