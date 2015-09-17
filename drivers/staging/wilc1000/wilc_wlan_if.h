@@ -127,7 +127,6 @@ typedef struct {
 	u32 tx_buffer_size;
 	void *txq_critical_section;
 
-	/*Added by Amr - BugID_4720*/
 	void *txq_add_to_head_critical_section;
 	void *txq_spin_lock;
 
@@ -626,7 +625,6 @@ typedef enum {
 	/*  --------------------------------------------------------------------        */
 	WID_LINK_LOSS_THRESHOLD            = 0x0037,
 
-	/*BugID_4978*/
 	WID_ABORT_RUNNING_SCAN = 0x003E,
 
 	/* NMAC Character WID list */
@@ -875,12 +873,9 @@ typedef enum {
 	WID_REGISTER_FRAME                = 0x3084,
 	WID_DEL_ALL_STA          = 0x3085,
 	WID_REMAIN_ON_CHAN  = 0x3996,
-	/*BugID_4156*/
 	WID_SSID_PROBE_REQ = 0x3997,
-	/*BugID_4124 WID to trigger modified Join Request using SSID and BSSID instead of bssListIdx (used by WID_JOIN_REQ)*/
 	WID_JOIN_REQ_EXTENDED		 = 0x3998,
 
-	/* BugID 4951: WID toset IP address in firmware */
 	WID_IP_ADDRESS					= 0x3999,
 
 
@@ -900,19 +895,15 @@ typedef enum {
 	WID_11N_AUTORATE_TABLE             = 0x4080,
 
 
-	/*Added here by Amr - BugID 4134*/
 	WID_SCAN_CHANNEL_LIST                      = 0x4084,
 
-	/*BugID_3746 WID to add IE to be added in next probe request*/
 	WID_INFO_ELEMENT_PROBE	 = 0x4085,
-	/*BugID_3746 WID to add IE to be added in next associate request*/
 	WID_INFO_ELEMENT_ASSOCIATE	 = 0x4086,
 	WID_ADD_STA					 = 0X4087,
 	WID_REMOVE_STA				 = 0X4088,
 	WID_EDIT_STA					 = 0X4089,
 	WID_ADD_BEACON				= 0x408a,
 
-	/* BugID 5108 */
 	WID_SETUP_MULTICAST_FILTER	= 0x408b,
 
 	/* Miscellaneous WIDs */

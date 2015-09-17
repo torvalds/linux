@@ -54,7 +54,6 @@
  *
  ********************************************/
 #define WILC_PERIPH_REG_BASE 0x1000
-/*BugID_5137*/
 #define WILC_CHANGING_VIR_IF                     (0x108c)
 #define WILC_CHIPID	(WILC_PERIPH_REG_BASE)
 #define WILC_GLB_RESET_0 (WILC_PERIPH_REG_BASE + 0x400)

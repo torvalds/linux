@@ -7,7 +7,6 @@ extern u8 connecting;
 extern struct timer_list hDuringIpTimer;
 #endif
 
-/*BugID_5137*/
 extern u8 g_wilc_initialized;
 /*****************************************************************************/
 /*								Macros                                       */
@@ -173,7 +172,6 @@ typedef struct _tstrHostIFscanAttr {
 	size_t IEsLen;
 	tWILCpfScanResult pfScanResult;
 	void *pvUserArg;
-	/*BugID_4189*/
 	tstrHiddenNetwork strHiddenNetwork;
 
 } tstrHostIFscanAttr;
@@ -563,7 +561,6 @@ static u32 gu32InactiveTime;
 static u8 gu8DelBcn;
 static u32 gu32WidConnRstHack;
 
-/*BugID_5137*/
 u8 *gu8FlushedJoinReq;
 u8 *gu8FlushedInfoElemAsoc;
 u8 gu8Flushed11iMode;
@@ -888,7 +885,6 @@ static s32 Handle_SetMacAddress(tstrWILC_WFIDrv *drvHandler, tstrHostIfSetMacAdd
 }
 
 
-/*BugID_5213*/
 /**
  *  @brief Handle_GetMacAddress
  *  @details    Getting mac address
@@ -1330,7 +1326,6 @@ static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler, tstrHostIFscanAttr *pstrHost
 
 	pstrWFIDrv->strWILC_UsrScanReq.u32RcvdChCount = 0;
 
-	/*BugID_4189*/
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_SSID_PROBE_REQ;
 	strWIDList[u32WidsCount].enuWIDtype = WID_STR;
 
@@ -1474,7 +1469,6 @@ static s32 Handle_ScanDone(tstrWILC_WFIDrv *drvHandler, tenuScanEvent enuEvent)
 
 	PRINT_D(HOSTINF_DBG, "in Handle_ScanDone()\n");
 
-	/*BugID_4978*/
 	/*Ask FW to abort the running scan, if any*/
 	if (enuEvent == SCAN_EVENT_ABORTED) {
 		PRINT_D(GENERIC_DBG, "Abort running scan\n");
@@ -1772,7 +1766,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 		strWIDList[u32WidsCount].s32ValueSize = pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen;
 		u32WidsCount++;
 
-		/*BugID_5137*/
 		if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
 
 			gu32FlushedInfoElemAsocSize = pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen;
@@ -1787,7 +1780,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrWFIDrv->strWILC_UsrConnReq.u8security));
 	u32WidsCount++;
 
-	/*BugID_5137*/
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
 		gu8Flushed11iMode = pstrWFIDrv->strWILC_UsrConnReq.u8security;
 
@@ -1800,7 +1792,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type);
 	u32WidsCount++;
 
-	/*BugID_5137*/
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
 		gu8FlushedAuthType = (u8)pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type;
 
@@ -1857,7 +1848,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	strWIDList[u32WidsCount].s32ValueSize = 112; /* 79; */
 	strWIDList[u32WidsCount].ps8WidVal = kmalloc(strWIDList[u32WidsCount].s32ValueSize, GFP_KERNEL);
 
-	/*BugID_5137*/
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
 		gu32FlushedJoinReqSize = strWIDList[u32WidsCount].s32ValueSize;
 		gu8FlushedJoinReq = kmalloc(gu32FlushedJoinReqSize, GFP_KERNEL);
@@ -1943,7 +1933,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	memcpy(pu8CurrByte, ptstrJoinBssParam->rsn_cap, sizeof(ptstrJoinBssParam->rsn_cap));
 	pu8CurrByte += sizeof(ptstrJoinBssParam->rsn_cap);
 
-	/*BugID_5137*/
 	*(pu8CurrByte++) = REAL_JOIN_REQ;
 
 	*(pu8CurrByte++) = ptstrJoinBssParam->u8NoaEnbaled;
@@ -1993,7 +1982,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	gu32WidConnRstHack = 0;
 	/* ////////////////////// */
 
-	/*BugID_5137*/
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
 		memcpy(gu8FlushedJoinReq, pu8CurrByte, gu32FlushedJoinReqSize);
 		gu8FlushedJoinReqDrvHandler = pstrWFIDrv;
@@ -2244,7 +2232,6 @@ static s32 Handle_ConnectTimeout(tstrWILC_WFIDrv *drvHandler)
 	}
 
 	memset(u8ConnectedSSID, 0, ETH_ALEN);
-	/*BugID_5213*/
 	/*Freeing flushed join request params on connect timeout*/
 	if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == drvHandler) {
 		kfree(gu8FlushedJoinReq);
@@ -2666,7 +2653,6 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 				pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = NULL;
 			}
 
-			/*BugID_5213*/
 			/*Freeing flushed join request params on receiving*/
 			/*MAC_DISCONNECTED while connected*/
 			if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == drvHandler) {
@@ -3125,7 +3111,6 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 
 		if (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult != NULL)	{
 
-			/*BugID_5193*/
 			/*Stop connect timer, if connection in progress*/
 			if (pstrWFIDrv->enuHostIFstate == HOST_IF_WAITING_CONN_RESP) {
 				PRINT_D(HOSTINF_DBG, "Upper layer requested termination of connection\n");
@@ -3164,7 +3149,6 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 		}
 
 
-		/*BugID_5137*/
 		if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == drvHandler) {
 			kfree(gu8FlushedJoinReq);
 			gu8FlushedJoinReq = NULL;
@@ -3931,7 +3915,6 @@ static u32 Handle_ListenStateExpired(tstrWILC_WFIDrv *drvHandler, tstrHostIfRema
 
 	PRINT_D(HOSTINF_DBG, "CANCEL REMAIN ON CHAN\n");
 
-	/*BugID_5477*/
 	/*Make sure we are already in listen state*/
 	/*This is to handle duplicate expiry messages (listen timer fired and supplicant called cancel_remain_on_channel())*/
 	if (P2P_LISTEN_STATE) {
@@ -4084,7 +4067,6 @@ ERRORHANDLER:
 }
 
 
-/*BugID_5222*/
 /**
  *  @brief                      Handle_AddBASession
  *  @details            Add block ack session
@@ -4174,7 +4156,6 @@ static s32 Handle_AddBASession(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionI
 }
 
 
-/*BugID_5222*/
 /**
  *  @brief                      Handle_DelBASession
  *  @details            Delete block ack session
@@ -4239,7 +4220,6 @@ static s32 Handle_DelBASession(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionI
 	if (strWID.ps8WidVal != NULL)
 		kfree(strWID.ps8WidVal);
 
-	/*BugID_5222*/
 	up(&hWaitResponse);
 
 	return s32Error;
@@ -4294,7 +4274,6 @@ static s32 Handle_DelAllRxBASessions(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASe
 	if (strWID.ps8WidVal != NULL)
 		kfree(strWID.ps8WidVal);
 
-	/*BugID_5222*/
 	up(&hWaitResponse);
 
 	return s32Error;
@@ -4355,7 +4334,6 @@ static int hostIFthread(void *pvArg)
 			Handle_Connect(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIFconnectAttr);
 			break;
 
-		/*BugID_5137*/
 		case HOST_IF_MSG_FLUSH_CONNECT:
 			Handle_FlushConnect(strHostIFmsg.drvHandler);
 			break;
@@ -4389,7 +4367,6 @@ static int hostIFthread(void *pvArg)
 			del_timer(&pstrWFIDrv->hScanTimer);
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
-			/*BugID_5213*/
 			/*Allow chip sleep, only if both interfaces are not connected*/
 			if (!linux_wlan_get_num_conn_ifcs())
 				chip_sleep_manually(INFINITE_SLEEP_TIME);
@@ -4475,12 +4452,10 @@ static int hostIFthread(void *pvArg)
 			Handle_get_IPAddress(strHostIFmsg.drvHandler, strHostIFmsg.uniHostIFmsgBody.strHostIfSetIP.au8IPAddr, strHostIFmsg.uniHostIFmsgBody.strHostIfSetIP.idx);
 			break;
 
-		/*BugID_5077*/
 		case HOST_IF_MSG_SET_MAC_ADDRESS:
 			Handle_SetMacAddress(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfSetMacAddress);
 			break;
 
-		/*BugID_5213*/
 		case HOST_IF_MSG_GET_MAC_ADDRESS:
 			Handle_GetMacAddress(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfGetMacAddress);
 			break;
@@ -4504,7 +4479,6 @@ static int hostIFthread(void *pvArg)
 			Handle_SetMulticastFilter(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfSetMulti);
 			break;
 
-		/*BugID_5222*/
 		case HOST_IF_MSG_ADD_BA_SESSION:
 			Handle_AddBASession(strHostIFmsg.drvHandler, &strHostIFmsg.uniHostIFmsgBody.strHostIfBASessionInfo);
 			break;
@@ -6421,7 +6395,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	if (clients_count == 0)	{
 		sema_init(&hSemHostIFthrdEnd, 0);
 		sema_init(&hSemDeinitDrvHandle, 0);
-		/*BugID_5348*/
 		sema_init(&hSemHostIntDeinit, 1);
 	}
 
@@ -6544,7 +6517,6 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	 *      return 0;
 	 * }*/
 
-	/*BugID_5348*/
 
 	if (pstrWFIDrv == NULL)	{
 		PRINT_ER("pstrWFIDrv = NULL\n");
@@ -6556,7 +6528,6 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	terminated_handle = pstrWFIDrv;
 	PRINT_D(HOSTINF_DBG, "De-initializing host interface for client %d\n", clients_count);
 
-	/*BugID_5348*/
 	/*Destroy all timers before acquiring hSemDeinitDrvHandle*/
 	/*to guarantee handling all messages befor proceeding*/
 	if (del_timer_sync(&pstrWFIDrv->hScanTimer)) {
@@ -6703,7 +6674,6 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	int id;
 	tstrWILC_WFIDrv *pstrWFIDrv = NULL;
 
-	/*BugID_5348*/
 	down(&hSemHostIntDeinit);
 
 	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
@@ -6713,7 +6683,6 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 
 	if (pstrWFIDrv == NULL || pstrWFIDrv == terminated_handle) {
 		PRINT_D(HOSTINF_DBG, "Wifi driver handler is equal to NULL\n");
-		/*BugID_5348*/
 		up(&hSemHostIntDeinit);
 		return;
 	}
@@ -6721,7 +6690,6 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	if (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult == NULL) {
 		/* received mac status is not needed when there is no current Connect Request */
 		PRINT_ER("Received mac status is not needed when there is no current Connect Reques\n");
-		/*BugID_5348*/
 		up(&hSemHostIntDeinit);
 		return;
 	}
@@ -6744,7 +6712,6 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	if (s32Error)
 		PRINT_ER("Error in sending message queue asynchronous message info: Error(%d)\n", s32Error);
 
-	/*BugID_5348*/
 	up(&hSemHostIntDeinit);
 }
 
@@ -7126,7 +7093,6 @@ s32 host_int_del_station(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8MacAddr)
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_DEL_STATION;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	/*BugID_4795: Handling situation of deleting all stations*/
 	if (pu8MacAddr == NULL)
 		memset(pstrDelStationMsg->au8MacAddr, 255, ETH_ALEN);
 	else
@@ -7604,7 +7570,6 @@ s32 host_int_delBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TID)
 	if (s32Error)
 		PRINT_ER("wilc_mq_send fail\n");
 
-	/*BugID_5222*/
 	down(&hWaitResponse);
 
 	return s32Error;
@@ -7635,7 +7600,6 @@ s32 host_int_del_All_Rx_BASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char T
 	if (s32Error)
 		PRINT_ER("wilc_mq_send fail\n");
 
-	/*BugID_5222*/
 	down(&hWaitResponse);
 
 	return s32Error;

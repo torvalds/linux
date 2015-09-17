@@ -180,7 +180,6 @@ typedef struct {
 	u8 open_ifcs;
 	struct mutex txq_cs;
 
-	/*Added by Amr - BugID_4720*/
 	struct semaphore txq_add_to_head_cs;
 	spinlock_t txq_spinlock;
 

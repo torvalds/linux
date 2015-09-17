@@ -572,7 +572,6 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID)
 	return ret;
 }
 
-/*BugID_5213*/
 /*Function to get number of connected interfaces*/
 int linux_wlan_get_num_conn_ifcs(void)
 {
@@ -679,7 +678,6 @@ int linux_wlan_get_firmware(perInterface_wlan_t *p_nic)
 	else if (nic->iftype == STATION_MODE)
 		firmware = STA_FIRMWARE;
 
-	/*BugID_5137*/
 	else {
 		PRINT_D(INIT_DBG, "Get P2P_CONCURRENCY_FIRMWARE\n");
 		firmware = P2P_CONCURRENCY_FIRMWARE;
@@ -800,7 +798,6 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 	unsigned char c_val[64];
 	unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xff};
 
-	/*BugID_5077*/
 	struct wilc_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 
@@ -1147,7 +1144,6 @@ int wlan_init_locks(linux_wlan_t *p_nic)
 	mutex_init(&g_linux_wlan->rxq_cs);
 	mutex_init(&g_linux_wlan->txq_cs);
 
-	/*Added by Amr - BugID_4720*/
 	spin_lock_init(&g_linux_wlan->txq_spinlock);
 	sema_init(&g_linux_wlan->txq_add_to_head_cs, 1);
 
@@ -1190,10 +1186,8 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_context.tx_buffer_size = LINUX_TX_SIZE;
 	nwi->os_context.txq_critical_section = (void *)&g_linux_wlan->txq_cs;
 
-	/*Added by Amr - BugID_4720*/
 	nwi->os_context.txq_add_to_head_critical_section = (void *)&g_linux_wlan->txq_add_to_head_cs;
 
-	/*Added by Amr - BugID_4720*/
 	nwi->os_context.txq_spin_lock = (void *)&g_linux_wlan->txq_spinlock;
 
 	nwi->os_context.txq_wait_event = (void *)&g_linux_wlan->txq_event;
@@ -1559,7 +1553,6 @@ int mac_open(struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
 
-	/*BugID_5213*/
 	/*No need for setting mac address here anymore,*/
 	/*Just set it in init_test_config()*/
 	unsigned char mac_add[ETH_ALEN] = {0};
@@ -1969,7 +1962,6 @@ void WILC_WFI_mgmt_rx(u8 *buff, u32 size)
 	int i = 0;
 	perInterface_wlan_t *nic;
 
-	/*BugID_5450*/
 	/*Pass the frame on the monitor interface, if any.*/
 	/*Otherwise, pass it on p2p0 netdev, if registered on it*/
 	for (i = 0; i < g_linux_wlan->u8NoIfcs; i++) {

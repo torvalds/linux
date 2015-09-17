@@ -12,7 +12,6 @@ enum debug_region {
 	RX_debug,
 	Lock_debug,
 	Tcp_enhance,
-	/*Added by amr - BugID_4720*/
 	Spin_debug,
 
 	Init_debug,

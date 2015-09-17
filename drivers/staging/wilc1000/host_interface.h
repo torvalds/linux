@@ -216,7 +216,6 @@ typedef struct _tstrRcvdNetworkInfo {
 	u32 u32Length;
 } tstrRcvdNetworkInfo;
 
-/*BugID_4156*/
 typedef struct _tstrHiddenNetworkInfo {
 	u8  *pu8ssid;
 	u8 u8ssidlen;
@@ -264,17 +263,14 @@ typedef struct {
 	u32 u32Mode;
 } tstrHostIfSetOperationMode;
 
-/*BugID_5077*/
 typedef struct {
 	u8 u8MacAddress[ETH_ALEN];
 } tstrHostIfSetMacAddress;
 
-/*BugID_5213*/
 typedef struct {
 	u8 *u8MacAddress;
 } tstrHostIfGetMacAddress;
 
-/*BugID_5222*/
 typedef struct {
 	u8 au8Bssid[ETH_ALEN];
 	u8 u8Ted;

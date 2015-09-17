@@ -71,7 +71,6 @@ typedef struct {
 	 **/
 	void *txq_lock;
 
-	/*Added by Amr - BugID_4720*/
 	struct semaphore *txq_add_to_head_lock;
 	void *txq_spinlock;
 	unsigned long txq_spinlock_flags;
@@ -123,7 +122,6 @@ static void wilc_debug(u32 flag, char *fmt, ...)
 
 static CHIP_PS_STATE_T genuChipPSstate = CHIP_WAKEDUP;
 
-/*BugID_5213*/
 /*acquire_bus() and release_bus() are made static inline functions*/
 /*as a temporary workaround to fix a problem of receiving*/
 /*unknown interrupt from FW*/
@@ -193,7 +191,6 @@ static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 		}
 		p->txq_entries -= 1;
 
-		/*Added by Amr - BugID_4720*/
 
 
 
@@ -208,7 +205,6 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
-	/*Added by Amr - BugID_4720*/
 	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	if (p->txq_head == NULL) {
@@ -225,7 +221,6 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 	p->txq_entries += 1;
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
-	/*Added by Amr - BugID_4720*/
 	spin_unlock_irqrestore(p->txq_spinlock, flags);
 
 	/**
@@ -240,7 +235,6 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
-	/*Added by Amr - BugID_4720*/
 	if (p->os_func.os_wait(p->txq_add_to_head_lock, CFG_PKTS_TIMEOUT))
 		return -1;
 
@@ -260,7 +254,6 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	p->txq_entries += 1;
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
-	/*Added by Amr - BugID_4720*/
 	spin_unlock_irqrestore(p->txq_spinlock, flags);
 	up(p->txq_add_to_head_lock);
 
@@ -271,7 +264,6 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	up(p->txq_wait);
 	PRINT_D(TX_DBG, "Wake up the txq_handler\n");
 
-	/*Added by Amr - BugID_4720*/
 	return 0;
 
 }
@@ -521,7 +513,6 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 	 **/
 	PRINT_D(TX_DBG, "Adding the config packet at the Queue tail\n");
 
-	/*Edited by Amr - BugID_4720*/
 	if (wilc_wlan_txq_add_to_head(tqe))
 		return 0;
 	return 1;
@@ -589,12 +580,10 @@ static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 	struct txq_entry_t *tqe;
 	unsigned long flags;
 
-	/*Added by Amr - BugID_4720*/
 	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	tqe = p->txq_head;
 
-	/*Added by Amr - BugID_4720*/
 	spin_unlock_irqrestore(p->txq_spinlock, flags);
 
 
@@ -605,11 +594,9 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
-	/*Added by Amr - BugID_4720*/
 	spin_lock_irqsave(p->txq_spinlock, flags);
 
 	tqe = tqe->next;
-	/*Added by Amr - BugID_4720*/
 	spin_unlock_irqrestore(p->txq_spinlock, flags);
 
 
@@ -864,7 +851,6 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 		if (p->quit)
 			break;
 
-		/*Added by Amr - BugID_4720*/
 		p->os_func.os_wait(p->txq_add_to_head_lock, CFG_PKTS_TIMEOUT);
 #ifdef	TCP_ACK_FILTER
 		wilc_wlan_txq_filter_dup_tcp_ack();
@@ -1142,7 +1128,6 @@ _end_:
 		if (ret != 1)
 			break;
 	} while (0);
-	/*Added by Amr - BugID_4720*/
 	up(p->txq_add_to_head_lock);
 
 	p->txq_exit = 1;
@@ -1581,13 +1566,11 @@ static int wilc_wlan_start(void)
 	reg |= WILC_HAVE_LEGACY_RF_SETTINGS;
 
 
-/*BugID_5257*/
 /*Set oscillator frequency*/
 #ifdef XTAL_24
 	reg |= WILC_HAVE_XTAL_24;
 #endif
 
-/*BugID_5271*/
 /*Enable/Disable GPIO configuration for FW logs*/
 #ifdef DISABLE_WILC_UART
 	reg |= WILC_HAVE_DISABLE_WILC_UART;
@@ -1812,7 +1795,6 @@ static int wilc_wlan_cfg_commit(int type, u32 drvHandler)
 	 *      Add to TX queue
 	 **/
 
-	/*Edited by Amr - BugID_4720*/
 	if (!wilc_wlan_txq_add_cfg_pkt(&cfg->wid_header[0], total_len))
 		return -1;
 
@@ -1842,9 +1824,8 @@ static int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size, in
 		PRINT_D(RX_DBG, "Processing cfg_set()\n");
 		p->cfg_frame_in_use = 1;
 
-		/*Edited by Amr - BugID_4720*/
 		if (wilc_wlan_cfg_commit(WILC_CFG_SET, drvHandler))
-			ret_size = 0;   /* BugID_5213 */
+			ret_size = 0;
 
 		if (p->os_func.os_wait(p->cfg_wait, CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Set Timed Out\n");
@@ -1879,9 +1860,8 @@ static int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 	if (commit) {
 		p->cfg_frame_in_use = 1;
 
-		/*Edited by Amr - BugID_4720*/
 		if (wilc_wlan_cfg_commit(WILC_CFG_QUERY, drvHandler))
-			ret_size = 0;   /* BugID_5213 */
+			ret_size = 0;
 
 
 		if (p->os_func.os_wait(p->cfg_wait, CFG_PKTS_TIMEOUT)) {
@@ -2038,10 +2018,8 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	g_wlan.hif_lock = inp->os_context.hif_critical_section;
 	g_wlan.txq_lock = inp->os_context.txq_critical_section;
 
-	/*Added by Amr - BugID_4720*/
 	g_wlan.txq_add_to_head_lock = inp->os_context.txq_add_to_head_critical_section;
 
-	/*Added by Amr - BugID_4720*/
 	g_wlan.txq_spinlock = inp->os_context.txq_spin_lock;
 
 	g_wlan.rxq_lock = inp->os_context.rxq_critical_section;
