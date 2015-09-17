@@ -125,10 +125,8 @@ int linux_spi_write(u8 *b, u32 len)
 		int remainder = len % TXRX_PHASE_SIZE;
 
 		char *r_buffer = kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
-
-		if (!r_buffer) {
-			PRINT_ER("Failed to allocate memory for r_buffer\n");
-		}
+		if (!r_buffer)
+			return -ENOMEM;
 
 		if (blk) {
 			while (i < blk)	{
@@ -208,10 +206,9 @@ int linux_spi_write(u8 *b, u32 len)
 			.delay_usecs = 0,
 		};
 		char *r_buffer = kzalloc(len, GFP_KERNEL);
+		if (!r_buffer)
+			return -ENOMEM;
 
-		if (!r_buffer) {
-			PRINT_ER("Failed to allocate memory for r_buffer\n");
-		}
 		tr.rx_buf = r_buffer;
 		PRINT_D(BUS_DBG, "Request writing %d bytes\n", len);
 
@@ -257,10 +254,8 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 		int remainder = rlen % TXRX_PHASE_SIZE;
 
 		char *t_buffer = kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
-
-		if (!t_buffer) {
-			PRINT_ER("Failed to allocate memory for t_buffer\n");
-		}
+		if (!t_buffer)
+			return -ENOMEM;
 
 		if (blk) {
 			while (i < blk)	{
@@ -337,10 +332,9 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 
 		};
 		char *t_buffer = kzalloc(rlen, GFP_KERNEL);
+		if (!t_buffer)
+			return -ENOMEM;
 
-		if (!t_buffer) {
-			PRINT_ER("Failed to allocate memory for t_buffer\n");
-		}
 		tr.tx_buf = t_buffer;
 
 		memset(&msg, 0, sizeof(msg));
