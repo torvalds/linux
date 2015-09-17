@@ -11186,7 +11186,7 @@ F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
 
 VME SUBSYSTEM
-M:	Martyn Welch <martyn.welch@ge.com>
+M:	Martyn Welch <martyn@welchs.me.uk>
 M:	Manohar Vanga <manohar.vanga@gmail.com>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	devel@driverdev.osuosl.org
