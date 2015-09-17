@@ -158,24 +158,63 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	gpiois = readb(chip->base + GPIOIS);
 	gpioibe = readb(chip->base + GPIOIBE);
 
+	if ((trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) &&
+	    (trigger & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
+	{
+		dev_err(gc->dev,
+			"trying to configure line %d for both level and edge "
+			"detection, choose one!\n",
+			offset);
+		return -EINVAL;
+	}
+
 	if (trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
+		bool polarity = trigger & IRQ_TYPE_LEVEL_HIGH;
+
+		/* Disable edge detection */
+		gpioibe &= ~bit;
+		/* Enable level detection */
 		gpiois |= bit;
-		if (trigger & IRQ_TYPE_LEVEL_HIGH)
+		/* Select polarity */
+		if (polarity)
 			gpioiev |= bit;
 		else
 			gpioiev &= ~bit;
-	} else
-		gpiois &= ~bit;
 
-	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
-		/* Setting this makes GPIOEV be ignored */
+		dev_dbg(gc->dev, "line %d: IRQ on %s level\n",
+			offset,
+			polarity ? "HIGH" : "LOW");
+	} else if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
+		/* Disable level detection */
+		gpiois &= ~bit;
+		/* Select both edges, setting this makes GPIOEV be ignored */
 		gpioibe |= bit;
-	else {
+
+		dev_dbg(gc->dev, "line %d: IRQ on both edges\n", offset);
+	} else if ((trigger & IRQ_TYPE_EDGE_RISING) ||
+		   (trigger & IRQ_TYPE_EDGE_FALLING)) {
+		bool rising = trigger & IRQ_TYPE_EDGE_RISING;
+
+		/* Disable level detection */
+		gpiois &= ~bit;
+		/* Clear detection on both edges */
 		gpioibe &= ~bit;
-		if (trigger & IRQ_TYPE_EDGE_RISING)
+		/* Select edge */
+		if (rising)
 			gpioiev |= bit;
-		else if (trigger & IRQ_TYPE_EDGE_FALLING)
+		else
 			gpioiev &= ~bit;
+
+		dev_dbg(gc->dev, "line %d: IRQ on %s edge\n",
+			offset,
+			rising ? "RISING" : "FALLING");
+	} else {
+		/* No trigger: disable everything */
+		gpiois &= ~bit;
+		gpioibe &= ~bit;
+		gpioiev &= ~bit;
+		dev_warn(gc->dev, "no trigger selected for line %d\n",
+			 offset);
 	}
 
 	writeb(gpiois, chip->base + GPIOIS);
