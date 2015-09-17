@@ -933,6 +933,19 @@ static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
 }
 
+static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
+{
+	/* For now we only use this mode to differentiate between
+	 * slave transports, which handle D0i3 entry in suspend by
+	 * themselves in conjunction with runtime PM D0i3.  So, this
+	 * function is used to check whether we need to do anything
+	 * when entering suspend or if the transport layer has already
+	 * done it.
+	 */
+	return (mvm->trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3) &&
+		(mvm->trans->runtime_pm_mode != IWL_PLAT_PM_MODE_D0I3);
+}
+
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 {
 	bool nvm_lar = mvm->nvm_data->lar_enabled;

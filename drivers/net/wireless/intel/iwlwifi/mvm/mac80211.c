@@ -1087,15 +1087,13 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 static void iwl_mvm_resume_complete(struct iwl_mvm *mvm)
 {
-	if (!iwl_mvm_is_d0i3_supported(mvm))
-		return;
-
-	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND)
-		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
-					!test_bit(IWL_MVM_STATUS_IN_D0I3,
-						  &mvm->status),
-					HZ))
-			WARN_ONCE(1, "D0i3 exit on resume timed out\n");
+	if (iwl_mvm_is_d0i3_supported(mvm) &&
+	    iwl_mvm_enter_d0i3_on_suspend(mvm))
+		WARN_ONCE(!wait_event_timeout(mvm->d0i3_exit_waitq,
+					      !test_bit(IWL_MVM_STATUS_IN_D0I3,
+							&mvm->status),
+					      HZ),
+			  "D0i3 exit on resume timed out\n");
 }
 
 static void

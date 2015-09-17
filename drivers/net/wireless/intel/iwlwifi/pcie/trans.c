@@ -1213,7 +1213,7 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (trans->wowlan_d0i3) {
+	if (trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3) {
 		/* Enable persistence mode to avoid reset */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
@@ -1237,7 +1237,7 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-	if (!trans->wowlan_d0i3) {
+	if (trans->system_pm_mode == IWL_PLAT_PM_MODE_D3) {
 		/*
 		 * reset TX queues -- some of their registers reset during S3
 		 * so if we don't reset everything here the D3 image would try
@@ -1286,7 +1286,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 
 	iwl_pcie_set_pwr(trans, false);
 
-	if (trans->wowlan_d0i3) {
+	if (trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3) {
 		iwl_clear_bit(trans, CSR_GP_CNTRL,
 			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	} else {
@@ -2677,7 +2677,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	}
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
-	trans->d0i3_mode = IWL_D0I3_MODE_ON_SUSPEND;
 
 	return trans;
 

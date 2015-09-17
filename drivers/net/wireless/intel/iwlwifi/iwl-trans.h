@@ -669,18 +669,61 @@ enum iwl_trans_state {
 };
 
 /**
- * enum iwl_d0i3_mode - d0i3 mode
+ * DOC: Platform power management
  *
- * @IWL_D0I3_MODE_OFF - d0i3 is disabled
- * @IWL_D0I3_MODE_ON_IDLE - enter d0i3 when device is idle
- *	(e.g. no active references)
- * @IWL_D0I3_MODE_ON_SUSPEND - enter d0i3 only on suspend
- *	(in case of 'any' trigger)
+ * There are two types of platform power management: system-wide
+ * (WoWLAN) and runtime.
+ *
+ * In system-wide power management the entire platform goes into a low
+ * power state (e.g. idle or suspend to RAM) at the same time and the
+ * device is configured as a wakeup source for the entire platform.
+ * This is usually triggered by userspace activity (e.g. the user
+ * presses the suspend button or a power management daemon decides to
+ * put the platform in low power mode).  The device's behavior in this
+ * mode is dictated by the wake-on-WLAN configuration.
+ *
+ * In runtime power management, only the devices which are themselves
+ * idle enter a low power state.  This is done at runtime, which means
+ * that the entire system is still running normally.  This mode is
+ * usually triggered automatically by the device driver and requires
+ * the ability to enter and exit the low power modes in a very short
+ * time, so there is not much impact in usability.
+ *
+ * The terms used for the device's behavior are as follows:
+ *
+ *	- D0: the device is fully powered and the host is awake;
+ *	- D3: the device is in low power mode and only reacts to
+ *		specific events (e.g. magic-packet received or scan
+ *		results found);
+ *	- D0I3: the device is in low power mode and reacts to any
+ *		activity (e.g. RX);
+ *
+ * These terms reflect the power modes in the firmware and are not to
+ * be confused with the physical device power state.  The NIC can be
+ * in D0I3 mode even if, for instance, the PCI device is in D3 state.
  */
-enum iwl_d0i3_mode {
-	IWL_D0I3_MODE_OFF = 0,
-	IWL_D0I3_MODE_ON_IDLE,
-	IWL_D0I3_MODE_ON_SUSPEND,
+
+/**
+ * enum iwl_plat_pm_mode - platform power management mode
+ *
+ * This enumeration describes the device's platform power management
+ * behavior when in idle mode (i.e. runtime power management) or when
+ * in system-wide suspend (i.e WoWLAN).
+ *
+ * @IWL_PLAT_PM_MODE_DISABLED: power management is disabled for this
+ *	device.  At runtime, this means that nothing happens and the
+ *	device always remains in active.  In system-wide suspend mode,
+ *	it means that the all connections will be closed automatically
+ *	by mac80211 before the platform is suspended.
+ * @IWL_PLAT_PM_MODE_D3: the device goes into D3 mode (i.e. WoWLAN).
+ *	For runtime power management, this mode is not officially
+ *	supported.
+ * @IWL_PLAT_PM_MODE_D0I3: the device goes into D0I3 mode.
+ */
+enum iwl_plat_pm_mode {
+	IWL_PLAT_PM_MODE_DISABLED,
+	IWL_PLAT_PM_MODE_D3,
+	IWL_PLAT_PM_MODE_D0I3,
 };
 
 /**
@@ -720,6 +763,12 @@ enum iwl_d0i3_mode {
  *	the opmode.
  * @paging_download_buf: Buffer used for copying all of the pages before
  *	downloading them to the FW. The buffer is allocated in the opmode
+ * @system_pm_mode: the system-wide power management mode in use.
+ *	This mode is set dynamically, depending on the WoWLAN values
+ *	configured from the userspace at runtime.
+ * @runtime_pm_mode: the runtime power management mode in use.  This
+ *	mode is set during the initialization phase and is not
+ *	supposed to change during runtime.
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -770,9 +819,8 @@ struct iwl_trans {
 	struct iwl_fw_paging *paging_db;
 	void *paging_download_buf;
 
-	enum iwl_d0i3_mode d0i3_mode;
-
-	bool wowlan_d0i3;
+	enum iwl_plat_pm_mode system_pm_mode;
+	enum iwl_plat_pm_mode runtime_pm_mode;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

@@ -1183,19 +1183,20 @@ remove_notif:
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_trans *trans = mvm->trans;
 	int ret;
 
 	/* make sure the d0i3 exit work is not pending */
 	flush_work(&mvm->d0i3_exit_work);
 
-	ret = iwl_trans_suspend(mvm->trans);
+	ret = iwl_trans_suspend(trans);
 	if (ret)
 		return ret;
 
-	mvm->trans->wowlan_d0i3 = wowlan->any;
-	if (mvm->trans->wowlan_d0i3) {
-		/* 'any' trigger means d0i3 usage */
-		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
+	if (wowlan->any) {
+		trans->system_pm_mode = IWL_PLAT_PM_MODE_D0I3;
+
+		if (iwl_mvm_enter_d0i3_on_suspend(mvm)) {
 			ret = iwl_mvm_enter_d0i3_sync(mvm);
 
 			if (ret)
@@ -1206,10 +1207,12 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
 
-		iwl_trans_d3_suspend(mvm->trans, false);
+		iwl_trans_d3_suspend(trans, false);
 
 		return 0;
 	}
+
+	trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
 
 	return __iwl_mvm_suspend(hw, wowlan, false);
 }
@@ -1973,8 +1976,9 @@ static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
 {
 	bool exit_now;
 	enum iwl_d3_status d3_status;
+	struct iwl_trans *trans = mvm->trans;
 
-	iwl_trans_d3_resume(mvm->trans, &d3_status, false);
+	iwl_trans_d3_resume(trans, &d3_status, false);
 
 	/*
 	 * make sure to clear D0I3_DEFER_WAKEUP before
@@ -1991,9 +1995,9 @@ static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
 		_iwl_mvm_exit_d0i3(mvm);
 	}
 
-	iwl_trans_resume(mvm->trans);
+	iwl_trans_resume(trans);
 
-	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
+	if (iwl_mvm_enter_d0i3_on_suspend(mvm)) {
 		int ret = iwl_mvm_exit_d0i3(mvm->hw->priv);
 
 		if (ret)
@@ -2009,12 +2013,16 @@ static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
 
-	/* 'any' trigger means d0i3 was used */
-	if (hw->wiphy->wowlan_config->any)
-		return iwl_mvm_resume_d0i3(mvm);
+	if (mvm->trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3)
+		ret = iwl_mvm_resume_d0i3(mvm);
 	else
-		return iwl_mvm_resume_d3(mvm);
+		ret = iwl_mvm_resume_d3(mvm);
+
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
+
+	return ret;
 }
 
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)
@@ -2037,6 +2045,8 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 
 	ieee80211_stop_queues(mvm->hw);
 	synchronize_net();
+
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
 
 	/* start pseudo D3 */
 	rtnl_lock();
@@ -2092,9 +2102,13 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	int remaining_time = 10;
 
 	mvm->d3_test_active = false;
+
 	rtnl_lock();
 	__iwl_mvm_resume(mvm, true);
 	rtnl_unlock();
+
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
+
 	iwl_abort_notification_waits(&mvm->notif_wait);
 	ieee80211_restart_hw(mvm->hw);
 
