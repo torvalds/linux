@@ -125,14 +125,14 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		}
 	}
 	pr_info("hdmi output corlor mode is %d\n", video->color_output);
-	video->color_input = HDMI_COLOR_RGB_0_255;
-	if (hdmi->property->feature & SUPPORT_YCBCR_INPUT) {
-		if (video->color_output == HDMI_COLOR_YCBCR444 ||
-		    video->color_output == HDMI_COLOR_YCBCR422)
-			video->color_input = HDMI_COLOR_YCBCR444;
-		else if (video->color_output == HDMI_COLOR_YCBCR420)
-			video->color_input = HDMI_COLOR_YCBCR420;
-	}
+	if ((hdmi->property->feature & SUPPORT_YCBCR_INPUT) &&
+	    (video->color_output == HDMI_COLOR_YCBCR444 ||
+	     video->color_output == HDMI_COLOR_YCBCR422))
+	     video->color_input = HDMI_COLOR_YCBCR444;
+	else if (video->color_output == HDMI_COLOR_YCBCR420)
+		video->color_input = HDMI_COLOR_YCBCR420;
+	else
+		video->color_input = HDMI_COLOR_RGB_0_255;
 
 	if (hdmi->vic & HDMI_VIDEO_DMT) {
 		video->vic = hdmi->vic;
