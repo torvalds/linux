@@ -102,7 +102,9 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 	if (WARN_ON(drm_crtc_vblank_get(&crtc->base)))
 		return;
 
-	trace_i915_pipe_update_start(crtc, min, max);
+	crtc->debug.min_vbl = min;
+	crtc->debug.max_vbl = max;
+	trace_i915_pipe_update_start(crtc);
 
 	for (;;) {
 		/*
@@ -133,15 +135,12 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 	drm_crtc_vblank_put(&crtc->base);
 
-	crtc->debug.min_vbl = min;
-	crtc->debug.max_vbl = max;
 	crtc->debug.scanline_start = scanline;
 	crtc->debug.start_vbl_time = ktime_get();
 	crtc->debug.start_vbl_count =
 		dev->driver->get_vblank_counter(dev, pipe);
 
-	trace_i915_pipe_update_vblank_evaded(crtc, min, max,
-					     crtc->debug.start_vbl_count);
+	trace_i915_pipe_update_vblank_evaded(crtc);
 }
 
 /**
@@ -161,7 +160,7 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 	ktime_t end_vbl_time = ktime_get();
 
-	trace_i915_pipe_update_end(crtc, end_vbl_count);
+	trace_i915_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
 	local_irq_enable();
 
