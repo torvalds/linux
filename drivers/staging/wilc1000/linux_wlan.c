@@ -979,17 +979,11 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 #endif
 
 		PRINT_D(INIT_DBG, "Disabling IRQ\n");
-		#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-		#else
-		  #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
-
-		  #else
+#ifdef WILC_SDIO
 		mutex_lock(&g_linux_wlan->hif_cs);
 		disable_sdio_interrupt();
 		mutex_unlock(&g_linux_wlan->hif_cs);
-		  #endif
-		#endif
-
+#endif
 		if (&g_linux_wlan->txq_event != NULL)
 			up(&g_linux_wlan->txq_event);
 
