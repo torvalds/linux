@@ -1028,6 +1028,7 @@ void vme_bus_error_handler(struct vme_bridge *bridge,
 {
 	struct list_head *handler_pos = NULL;
 	struct vme_error_handler *handler;
+	int handler_triggered = 0;
 	u32 aspace = vme_get_aspace(am);
 
 	list_for_each(handler_pos, &bridge->vme_error_handlers) {
@@ -1040,8 +1041,14 @@ void vme_bus_error_handler(struct vme_bridge *bridge,
 				handler->first_error = address;
 			if (handler->num_errors != UINT_MAX)
 				handler->num_errors++;
+			handler_triggered = 1;
 		}
 	}
+
+	if (!handler_triggered)
+		dev_err(bridge->parent,
+			"Unhandled VME access error at address 0x%llx\n",
+			address);
 }
 EXPORT_SYMBOL(vme_bus_error_handler);
 
