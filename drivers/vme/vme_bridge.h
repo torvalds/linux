@@ -166,6 +166,12 @@ struct vme_bridge {
 		void *vaddr, dma_addr_t dma);
 };
 
+void vme_bus_error_handler(struct vme_bridge *bridge,
+			   unsigned long long address, u32 attributes);
+struct vme_bus_error *vme_find_error(struct vme_bridge *bridge, u32 aspace,
+				     unsigned long long address, size_t count);
+void vme_clear_errors(struct vme_bridge *bridge, u32 aspace,
+		      unsigned long long address, size_t count);
 void vme_irq_handler(struct vme_bridge *, int, int);
 
 int vme_register_bridge(struct vme_bridge *);

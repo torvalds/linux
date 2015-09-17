@@ -169,7 +169,6 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 	unsigned int error_addr_high, error_addr_low;
 	unsigned long long error_addr;
 	u32 error_attrib;
-	struct vme_bus_error *error = NULL;
 	struct tsi148_driver *bridge;
 
 	bridge = tsi148_bridge->driver_priv;
@@ -186,23 +185,12 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 			"Occurred\n");
 	}
 
-	if (err_chk) {
-		error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
-		if (error) {
-			error->address = error_addr;
-			error->attributes = error_attrib;
-			list_add_tail(&error->list, &tsi148_bridge->vme_errors);
-		} else {
-			dev_err(tsi148_bridge->parent,
-				"Unable to alloc memory for VMEbus Error reporting\n");
-		}
-	}
-
-	if (!error) {
+	if (err_chk)
+		vme_bus_error_handler(tsi148_bridge, error_addr, error_attrib);
+	else
 		dev_err(tsi148_bridge->parent,
 			"VME Bus Error at address: 0x%llx, attributes: %08x\n",
 			error_addr, error_attrib);
-	}
 
 	/* Clear Status */
 	iowrite32be(TSI148_LCSR_VEAT_VESCL, bridge->base + TSI148_LCSR_VEAT);
@@ -480,73 +468,6 @@ static int tsi148_irq_generate(struct vme_bridge *tsi148_bridge, int level,
 	mutex_unlock(&bridge->vme_int);
 
 	return 0;
-}
-
-/*
- * Find the first error in this address range
- */
-static struct vme_bus_error *tsi148_find_error(struct vme_bridge *tsi148_bridge,
-	u32 aspace, unsigned long long address, size_t count)
-{
-	struct list_head *err_pos;
-	struct vme_bus_error *vme_err, *valid = NULL;
-	unsigned long long bound;
-
-	bound = address + count;
-
-	/*
-	 * XXX We are currently not looking at the address space when parsing
-	 *     for errors. This is because parsing the Address Modifier Codes
-	 *     is going to be quite resource intensive to do properly. We
-	 *     should be OK just looking at the addresses and this is certainly
-	 *     much better than what we had before.
-	 */
-	err_pos = NULL;
-	/* Iterate through errors */
-	list_for_each(err_pos, &tsi148_bridge->vme_errors) {
-		vme_err = list_entry(err_pos, struct vme_bus_error, list);
-		if ((vme_err->address >= address) &&
-			(vme_err->address < bound)) {
-
-			valid = vme_err;
-			break;
-		}
-	}
-
-	return valid;
-}
-
-/*
- * Clear errors in the provided address range.
- */
-static void tsi148_clear_errors(struct vme_bridge *tsi148_bridge,
-	u32 aspace, unsigned long long address, size_t count)
-{
-	struct list_head *err_pos, *temp;
-	struct vme_bus_error *vme_err;
-	unsigned long long bound;
-
-	bound = address + count;
-
-	/*
-	 * XXX We are currently not looking at the address space when parsing
-	 *     for errors. This is because parsing the Address Modifier Codes
-	 *     is going to be quite resource intensive to do properly. We
-	 *     should be OK just looking at the addresses and this is certainly
-	 *     much better than what we had before.
-	 */
-	err_pos = NULL;
-	/* Iterate through errors */
-	list_for_each_safe(err_pos, temp, &tsi148_bridge->vme_errors) {
-		vme_err = list_entry(err_pos, struct vme_bus_error, list);
-
-		if ((vme_err->address >= address) &&
-			(vme_err->address < bound)) {
-
-			list_del(err_pos);
-			kfree(vme_err);
-		}
-	}
 }
 
 /*
@@ -1323,14 +1244,14 @@ out:
 	__tsi148_master_get(image, &enabled, &vme_base, &size, &aspace, &cycle,
 		&dwidth);
 
-	vme_err = tsi148_find_error(tsi148_bridge, aspace, vme_base + offset,
+	vme_err = vme_find_error(tsi148_bridge, aspace, vme_base + offset,
 		count);
 	if (vme_err != NULL) {
 		dev_err(image->parent->parent, "First VME read error detected "
 			"an at address 0x%llx\n", vme_err->address);
 		retval = vme_err->address - (vme_base + offset);
 		/* Clear down save errors in this address range */
-		tsi148_clear_errors(tsi148_bridge, aspace, vme_base + offset,
+		vme_clear_errors(tsi148_bridge, aspace, vme_base + offset,
 			count);
 	}
 
@@ -1422,14 +1343,14 @@ out:
 
 	ioread16(bridge->flush_image->kern_base + 0x7F000);
 
-	vme_err = tsi148_find_error(tsi148_bridge, aspace, vme_base + offset,
+	vme_err = vme_find_error(tsi148_bridge, aspace, vme_base + offset,
 		count);
 	if (vme_err != NULL) {
 		dev_warn(tsi148_bridge->parent, "First VME write error detected"
 			" an at address 0x%llx\n", vme_err->address);
 		retval = vme_err->address - (vme_base + offset);
 		/* Clear down save errors in this address range */
-		tsi148_clear_errors(tsi148_bridge, aspace, vme_base + offset,
+		vme_clear_errors(tsi148_bridge, aspace, vme_base + offset,
 			count);
 	}
 

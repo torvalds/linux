@@ -990,6 +990,92 @@ int vme_dma_free(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_dma_free);
 
+void vme_bus_error_handler(struct vme_bridge *bridge,
+			   unsigned long long address, u32 attributes)
+{
+	struct vme_bus_error *error;
+
+	error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
+	if (error) {
+		error->address = address;
+		error->attributes = attributes;
+		list_add_tail(&error->list, &bridge->vme_errors);
+	} else {
+		dev_err(bridge->parent,
+			"Unable to alloc memory for VMEbus Error reporting\n");
+	}
+}
+EXPORT_SYMBOL(vme_bus_error_handler);
+
+/*
+ * Find the first error in this address range
+ */
+struct vme_bus_error *vme_find_error(struct vme_bridge *bridge, u32 aspace,
+				     unsigned long long address, size_t count)
+{
+	struct list_head *err_pos;
+	struct vme_bus_error *vme_err, *valid = NULL;
+	unsigned long long bound;
+
+	bound = address + count;
+
+	/*
+	 * XXX We are currently not looking at the address space when parsing
+	 *     for errors. This is because parsing the Address Modifier Codes
+	 *     is going to be quite resource intensive to do properly. We
+	 *     should be OK just looking at the addresses and this is certainly
+	 *     much better than what we had before.
+	 */
+	err_pos = NULL;
+	/* Iterate through errors */
+	list_for_each(err_pos, &bridge->vme_errors) {
+		vme_err = list_entry(err_pos, struct vme_bus_error, list);
+		if ((vme_err->address >= address) &&
+			(vme_err->address < bound)) {
+
+			valid = vme_err;
+			break;
+		}
+	}
+
+	return valid;
+}
+EXPORT_SYMBOL(vme_find_error);
+
+/*
+ * Clear errors in the provided address range.
+ */
+void vme_clear_errors(struct vme_bridge *bridge, u32 aspace,
+		      unsigned long long address, size_t count)
+{
+	struct list_head *err_pos, *temp;
+	struct vme_bus_error *vme_err;
+	unsigned long long bound;
+
+	bound = address + count;
+
+	/*
+	 * XXX We are currently not looking at the address space when parsing
+	 *     for errors. This is because parsing the Address Modifier Codes
+	 *     is going to be quite resource intensive to do properly. We
+	 *     should be OK just looking at the addresses and this is certainly
+	 *     much better than what we had before.
+	 */
+	err_pos = NULL;
+	/* Iterate through errors */
+	list_for_each_safe(err_pos, temp, &bridge->vme_errors) {
+		vme_err = list_entry(err_pos, struct vme_bus_error, list);
+
+		if ((vme_err->address >= address) &&
+			(vme_err->address < bound)) {
+
+			list_del(err_pos);
+			kfree(vme_err);
+		}
+	}
+}
+EXPORT_SYMBOL(vme_clear_errors);
+
 void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 {
 	void (*call)(int, int, void *);
