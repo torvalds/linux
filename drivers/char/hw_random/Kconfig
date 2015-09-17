@@ -10,7 +10,7 @@ menuconfig HW_RANDOM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rng-core.  This provides a device
-	  that's usually called /dev/hw_random, and which exposes one
+	  that's usually called /dev/hwrng, and which exposes one
 	  of possibly several hardware random number generators.
 
 	  These hardware random number generators do not feed directly
