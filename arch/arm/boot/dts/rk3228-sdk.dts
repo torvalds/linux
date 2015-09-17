@@ -1,0 +1,13 @@
+/dts-v1/;
+
+#include "rk3228.dtsi"
+
+/ {
+	chosen {
+		bootargs = "vmalloc=496M";
+	};
+
+	fiq-debugger {
+		status = "disabled";
+	};
+};
