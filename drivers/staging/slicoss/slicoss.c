@@ -1717,14 +1717,14 @@ static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb)
  * will also complete asynchronously.
  *
  */
-static void slic_link_event_handler(struct adapter *adapter)
+static int slic_link_event_handler(struct adapter *adapter)
 {
 	int status;
 	struct slic_shmem *pshmem;
 
 	if (adapter->state != ADAPT_UP) {
 		/* Adapter is not operational.  Ignore.  */
-		return;
+		return -ENODEV;
 	}
 
 	pshmem = (struct slic_shmem *)(unsigned long)adapter->phys_shmem;
@@ -1740,6 +1740,7 @@ static void slic_link_event_handler(struct adapter *adapter)
 		(u32) &pshmem->linkstatus,	/* no 4GB wrap guaranteed */
 				  0, 0, 0);
 #endif
+	return status;
 }
 
 static void slic_init_cleanup(struct adapter *adapter)
