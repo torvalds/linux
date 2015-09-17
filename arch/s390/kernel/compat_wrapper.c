@@ -52,12 +52,12 @@
  * the regular system call wrappers.
  */
 #define COMPAT_SYSCALL_WRAPx(x, name, ...)					\
-	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));		\
-	asmlinkage long compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__));\
-	asmlinkage long compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__))	\
-	{									\
-		return sys##name(__MAP(x,__SC_COMPAT_CAST,__VA_ARGS__));	\
-	}
+asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));			\
+asmlinkage long notrace compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__));\
+asmlinkage long notrace compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__))	\
+{										\
+	return sys##name(__MAP(x,__SC_COMPAT_CAST,__VA_ARGS__));		\
+}
 
 COMPAT_SYSCALL_WRAP1(exit, int, error_code);
 COMPAT_SYSCALL_WRAP1(close, unsigned int, fd);
