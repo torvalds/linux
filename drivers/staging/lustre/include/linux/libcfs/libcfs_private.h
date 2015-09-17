@@ -79,7 +79,7 @@ do {									\
 
 #define KLASSERT(e) LASSERT(e)
 
-void lbug_with_loc(struct libcfs_debug_msg_data *)__attribute__((noreturn));
+void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *);
 
 #define LBUG()							  \
 do {								    \
