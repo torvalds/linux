@@ -405,7 +405,7 @@ static int gb_connection_init(struct gb_connection *connection)
 			dev_err(&connection->dev,
 				"Failed to connect CPort-%d (%d)\n",
 				cport_id, ret);
-			goto svc_destroy;
+			goto err_svc_destroy;
 		}
 	}
 
@@ -424,21 +424,23 @@ static int gb_connection_init(struct gb_connection *connection)
 			dev_err(&connection->dev,
 				"Failed to get version CPort-%d (%d)\n",
 				cport_id, ret);
-			goto disconnect;
+			goto err_disconnect;
 		}
 	}
 
 	ret = protocol->connection_init(connection);
-	if (!ret)
-		return 0;
+	if (ret)
+		goto err_disconnect;
 
-disconnect:
+	return 0;
+
+err_disconnect:
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_ERROR;
 	spin_unlock_irq(&connection->lock);
 
 	gb_connection_disconnected(connection);
-svc_destroy:
+err_svc_destroy:
 	gb_connection_svc_connection_destroy(connection);
 
 	return ret;
