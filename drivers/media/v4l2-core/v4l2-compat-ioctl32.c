@@ -147,6 +147,20 @@ static inline int put_v4l2_sliced_vbi_format(struct v4l2_sliced_vbi_format *kp, 
 	return 0;
 }
 
+static inline int get_v4l2_sdr_format(struct v4l2_sdr_format *kp, struct v4l2_sdr_format __user *up)
+{
+	if (copy_from_user(kp, up, sizeof(struct v4l2_sdr_format)))
+		return -EFAULT;
+	return 0;
+}
+
+static inline int put_v4l2_sdr_format(struct v4l2_sdr_format *kp, struct v4l2_sdr_format __user *up)
+{
+	if (copy_to_user(up, kp, sizeof(struct v4l2_sdr_format)))
+		return -EFAULT;
+	return 0;
+}
+
 struct v4l2_format32 {
 	__u32	type;	/* enum v4l2_buf_type */
 	union {
@@ -155,6 +169,7 @@ struct v4l2_format32 {
 		struct v4l2_window32	win;
 		struct v4l2_vbi_format	vbi;
 		struct v4l2_sliced_vbi_format	sliced;
+		struct v4l2_sdr_format	sdr;
 		__u8	raw_data[200];        /* user-defined */
 	} fmt;
 };
@@ -198,8 +213,10 @@ static int __get_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __us
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
 		return get_v4l2_sliced_vbi_format(&kp->fmt.sliced, &up->fmt.sliced);
+	case V4L2_BUF_TYPE_SDR_CAPTURE:
+		return get_v4l2_sdr_format(&kp->fmt.sdr, &up->fmt.sdr);
 	default:
-		printk(KERN_INFO "compat_ioctl32: unexpected VIDIOC_FMT type %d\n",
+		pr_info("compat_ioctl32: unexpected VIDIOC_FMT type %d\n",
 								kp->type);
 		return -EINVAL;
 	}
@@ -242,8 +259,10 @@ static int __put_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __us
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
 		return put_v4l2_sliced_vbi_format(&kp->fmt.sliced, &up->fmt.sliced);
+	case V4L2_BUF_TYPE_SDR_CAPTURE:
+		return put_v4l2_sdr_format(&kp->fmt.sdr, &up->fmt.sdr);
 	default:
-		printk(KERN_INFO "compat_ioctl32: unexpected VIDIOC_FMT type %d\n",
+		pr_info("compat_ioctl32: unexpected VIDIOC_FMT type %d\n",
 								kp->type);
 		return -EINVAL;
 	}
