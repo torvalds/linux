@@ -26,9 +26,9 @@ static inline ino_t u32_to_ino_t(__u32 uino)
  */
 typedef struct svc_fh {
 	struct knfsd_fh		fh_handle;	/* FH data */
+	int			fh_maxsize;	/* max size for fh_handle */
 	struct dentry *		fh_dentry;	/* validated dentry */
 	struct svc_export *	fh_export;	/* export pointer */
-	int			fh_maxsize;	/* max size for fh_handle */
 
 	unsigned char		fh_locked;	/* inode locked by us */
 	unsigned char		fh_want_write;	/* remount protection taken */
