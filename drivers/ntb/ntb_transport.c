@@ -1996,23 +1996,24 @@ EXPORT_SYMBOL_GPL(ntb_transport_qp_num);
  */
 unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp)
 {
-	unsigned int max;
+	unsigned int max_size;
 	unsigned int copy_align;
+	struct dma_chan *rx_chan, *tx_chan;
 
 	if (!qp)
 		return 0;
 
-	if (!qp->tx_dma_chan && !qp->rx_dma_chan)
-		return qp->tx_max_frame - sizeof(struct ntb_payload_header);
+	rx_chan = qp->rx_dma_chan;
+	tx_chan = qp->tx_dma_chan;
 
-	copy_align = max(qp->tx_dma_chan->device->copy_align,
-			 qp->rx_dma_chan->device->copy_align);
+	copy_align = max(rx_chan ? rx_chan->device->copy_align : 0,
+			 tx_chan ? tx_chan->device->copy_align : 0);
 
 	/* If DMA engine usage is possible, try to find the max size for that */
-	max = qp->tx_max_frame - sizeof(struct ntb_payload_header);
-	max -= max % (1 << copy_align);
+	max_size = qp->tx_max_frame - sizeof(struct ntb_payload_header);
+	max_size = round_down(max_size, 1 << copy_align);
 
-	return max;
+	return max_size;
 }
 EXPORT_SYMBOL_GPL(ntb_transport_max_size);
 
