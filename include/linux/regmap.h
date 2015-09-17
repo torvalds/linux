@@ -800,6 +800,8 @@ struct regmap_irq {
  *
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
+ * @unmask_base:  Base unmask register address. for chips who have
+ *                separate mask and unmask registers
  * @ack_base:    Base ack address. If zero then the chip is clear on read.
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
@@ -820,6 +822,7 @@ struct regmap_irq_chip {
 
 	unsigned int status_base;
 	unsigned int mask_base;
+	unsigned int unmask_base;
 	unsigned int ack_base;
 	unsigned int wake_base;
 	unsigned int irq_reg_stride;
