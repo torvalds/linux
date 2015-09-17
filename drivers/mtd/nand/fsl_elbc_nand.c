@@ -946,6 +946,7 @@ static const struct of_device_id fsl_elbc_nand_match[] = {
 	{ .compatible = "fsl,elbc-fcm-nand", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, fsl_elbc_nand_match);
 
 static struct platform_driver fsl_elbc_nand_driver = {
 	.driver = {
