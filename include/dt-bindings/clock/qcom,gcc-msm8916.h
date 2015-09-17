@@ -155,6 +155,9 @@
 #define BIMC_DDR_CLK_SRC			138
 #define GCC_APSS_TCU_CLK			139
 #define GCC_GFX_TCU_CLK				140
+#define BIMC_GPU_CLK_SRC			141
+#define GCC_BIMC_GFX_CLK			142
+#define GCC_BIMC_GPU_CLK			143
 
 /* Indexes for GDSCs */
 #define BIMC_GDSC				0
