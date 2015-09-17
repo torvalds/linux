@@ -33,8 +33,6 @@ typedef struct __MessageQueue_struct {
 
 
 
-/*Time represented in 64 bit format*/
-typedef time_t WILC_Time;
 
 
 /*******************************************************************
