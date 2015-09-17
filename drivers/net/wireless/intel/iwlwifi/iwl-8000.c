@@ -154,7 +154,6 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.base_params = &iwl8000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,		\
-	.d0i3 = true,							\
 	.features = NETIF_F_RXCSUM,					\
 	.non_shared_ant = ANT_A,					\
 	.dccm_offset = IWL8260_DCCM_OFFSET,				\

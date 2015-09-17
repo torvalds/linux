@@ -916,11 +916,10 @@ iwl_mvm_sta_from_staid_protected(struct iwl_mvm *mvm, u8 sta_id)
 
 static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 {
-	return mvm->trans->cfg->d0i3 &&
-	       mvm->trans->d0i3_mode != IWL_D0I3_MODE_OFF &&
-	       !iwlwifi_mod_params.d0i3_disable &&
-	       fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
+	return mvm->trans->d0i3_mode != IWL_D0I3_MODE_OFF &&
+		!iwlwifi_mod_params.d0i3_disable &&
+		fw_has_capa(&mvm->fw->ucode_capa,
+			    IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
