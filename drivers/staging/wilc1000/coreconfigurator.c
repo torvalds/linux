@@ -17,7 +17,6 @@
 /*****************************************************************************/
 /* Constants                                                                 */
 /*****************************************************************************/
-#define INLINE static __inline
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 							BEACON_INTERVAL_LEN + CAP_INFO_LEN)
 

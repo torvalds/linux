@@ -9,7 +9,6 @@
 
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
-#define INLINE static __inline
 
 /********************************************
  *
