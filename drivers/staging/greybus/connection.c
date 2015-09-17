@@ -284,6 +284,34 @@ err_remove_ida:
 	return NULL;
 }
 
+static int gb_connection_hd_cport_enable(struct gb_connection *connection)
+{
+	struct greybus_host_device *hd = connection->hd;
+	int ret;
+
+	if (!hd->driver->cport_enable)
+		return 0;
+
+	ret = hd->driver->cport_enable(hd, connection->hd_cport_id);
+	if (ret) {
+		dev_err(&connection->dev,
+				"failed to enable host cport: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void gb_connection_hd_cport_disable(struct gb_connection *connection)
+{
+	struct greybus_host_device *hd = connection->hd;
+
+	if (!hd->driver->cport_disable)
+		return;
+
+	hd->driver->cport_disable(hd, connection->hd_cport_id);
+}
+
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id)
 {
@@ -439,9 +467,13 @@ static int gb_connection_init(struct gb_connection *connection)
 	struct gb_protocol *protocol = connection->protocol;
 	int ret;
 
-	ret = gb_connection_svc_connection_create(connection);
+	ret = gb_connection_hd_cport_enable(connection);
 	if (ret)
 		return ret;
+
+	ret = gb_connection_svc_connection_create(connection);
+	if (ret)
+		goto err_hd_cport_disable;
 
 	ret = gb_connection_control_connected(connection);
 	if (ret)
@@ -470,6 +502,8 @@ err_disconnect:
 	gb_connection_control_disconnected(connection);
 err_svc_destroy:
 	gb_connection_svc_connection_destroy(connection);
+err_hd_cport_disable:
+	gb_connection_hd_cport_disable(connection);
 
 	return ret;
 }
@@ -492,6 +526,7 @@ static void gb_connection_exit(struct gb_connection *connection)
 	connection->protocol->connection_exit(connection);
 	gb_connection_control_disconnected(connection);
 	gb_connection_svc_connection_destroy(connection);
+	gb_connection_hd_cport_disable(connection);
 }
 
 /*
