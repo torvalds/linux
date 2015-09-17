@@ -38,7 +38,7 @@ static inline char *bfd_demangle(void __maybe_unused *v,
 #endif
 
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
-int elf_getphdrnum(Elf *elf, size_t *dst)
+static int elf_getphdrnum(Elf *elf, size_t *dst)
 {
 	GElf_Ehdr gehdr;
 	GElf_Ehdr *ehdr;
