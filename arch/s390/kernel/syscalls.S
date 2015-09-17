@@ -365,3 +365,20 @@ SYSCALL(sys_s390_pci_mmio_read,compat_sys_s390_pci_mmio_read)
 SYSCALL(sys_execveat,compat_sys_execveat)
 SYSCALL(sys_userfaultfd,sys_userfaultfd)		/* 355 */
 SYSCALL(sys_membarrier,sys_membarrier)
+SYSCALL(sys_recvmmsg,compat_sys_recvmmsg)
+SYSCALL(sys_sendmmsg,compat_sys_sendmmsg)
+SYSCALL(sys_socket,sys_socket)
+SYSCALL(sys_socketpair,compat_sys_socketpair)		/* 360 */
+SYSCALL(sys_bind,sys_bind)
+SYSCALL(sys_connect,sys_connect)
+SYSCALL(sys_listen,sys_listen)
+SYSCALL(sys_accept4,sys_accept4)
+SYSCALL(sys_getsockopt,compat_sys_getsockopt)		/* 365 */
+SYSCALL(sys_setsockopt,compat_sys_setsockopt)
+SYSCALL(sys_getsockname,compat_sys_getsockname)
+SYSCALL(sys_getpeername,compat_sys_getpeername)
+SYSCALL(sys_sendto,compat_sys_sendto)
+SYSCALL(sys_sendmsg,compat_sys_sendmsg)			/* 370 */
+SYSCALL(sys_recvfrom,compat_sys_recvfrom)
+SYSCALL(sys_recvmsg,compat_sys_recvmsg)
+SYSCALL(sys_shutdown,sys_shutdown)
