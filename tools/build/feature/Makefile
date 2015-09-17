@@ -19,6 +19,7 @@ FILES=					\
 	test-libelf-getphdrnum.bin	\
 	test-libelf-mmap.bin		\
 	test-libnuma.bin		\
+	test-numa_num_possible_cpus.bin	\
 	test-libperl.bin		\
 	test-libpython.bin		\
 	test-libpython-version.bin	\
@@ -85,6 +86,9 @@ test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
 
 test-libnuma.bin:
+	$(BUILD) -lnuma
+
+test-numa_num_possible_cpus.bin:
 	$(BUILD) -lnuma
 
 test-libunwind.bin:

@@ -573,9 +573,14 @@ ifndef NO_LIBNUMA
     msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev);
     NO_LIBNUMA := 1
   else
-    CFLAGS += -DHAVE_LIBNUMA_SUPPORT
-    EXTLIBS += -lnuma
-    $(call detected,CONFIG_NUMA)
+    ifeq ($(feature-numa_num_possible_cpus), 0)
+      msg := $(warning Old numa library found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev >= 2.0.8);
+      NO_LIBNUMA := 1
+    else
+      CFLAGS += -DHAVE_LIBNUMA_SUPPORT
+      EXTLIBS += -lnuma
+      $(call detected,CONFIG_NUMA)
+    endif
   endif
 endif
 

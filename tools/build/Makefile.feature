@@ -41,6 +41,7 @@ FEATURE_TESTS ?=			\
 	libelf-getphdrnum		\
 	libelf-mmap			\
 	libnuma				\
+	numa_num_possible_cpus		\
 	libperl				\
 	libpython			\
 	libpython-version		\
@@ -61,6 +62,7 @@ FEATURE_DISPLAY ?=			\
 	libbfd				\
 	libelf				\
 	libnuma				\
+	numa_num_possible_cpus		\
 	libperl				\
 	libpython			\
 	libslang			\
