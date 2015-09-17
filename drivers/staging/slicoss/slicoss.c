@@ -2379,7 +2379,22 @@ static int slic_if_init(struct adapter *adapter, unsigned long *flags)
 	slic_reg32_write(&slic_regs->slic_icr, ICR_INT_ON, FLUSH);
 
 	slic_link_config(adapter, LINK_AUTOSPEED, LINK_AUTOD);
-	slic_link_event_handler(adapter);
+	rc = slic_link_event_handler(adapter);
+	if (rc) {
+		/* disable interrupts then clear pending events */
+		slic_reg32_write(&slic_regs->slic_icr, ICR_INT_OFF, FLUSH);
+		slic_reg32_write(&slic_regs->slic_isr, 0, FLUSH);
+		if (adapter->pingtimerset) {
+			del_timer(&adapter->pingtimer);
+			adapter->pingtimerset = 0;
+		}
+		if (card->loadtimerset) {
+			del_timer(&card->loadtimer);
+			card->loadtimerset = 0;
+		}
+		adapter->state = ADAPT_DOWN;
+		slic_adapter_freeresources(adapter);
+	}
 
 err:
 	return rc;
