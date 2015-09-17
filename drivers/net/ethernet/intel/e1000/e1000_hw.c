@@ -683,7 +683,7 @@ static s32 e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
 	}
 
 	ret_val = e1000_read_eeprom(hw, EEPROM_SERDES_AMPLITUDE, 1,
-	                            &eeprom_data);
+				    &eeprom_data);
 	if (ret_val) {
 		return ret_val;
 	}
@@ -1652,7 +1652,7 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		mii_1000t_ctrl_reg = 0;
 	} else {
 		ret_val = e1000_write_phy_reg(hw, PHY_1000T_CTRL,
-		                              mii_1000t_ctrl_reg);
+					      mii_1000t_ctrl_reg);
 		if (ret_val)
 			return ret_val;
 	}
@@ -2193,8 +2193,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			else if (!(mii_nway_adv_reg & NWAY_AR_PAUSE) &&
 				 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
 				 (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
-				 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR))
-			{
+				 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 				hw->fc = E1000_FC_TX_PAUSE;
 				e_dbg
 				    ("Flow Control = TX PAUSE frames only.\n");
@@ -2210,8 +2209,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			else if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
 				 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
 				 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
-				 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR))
-			{
+				 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 				hw->fc = E1000_FC_RX_PAUSE;
 				e_dbg
 				    ("Flow Control = RX PAUSE frames only.\n");
@@ -3449,7 +3447,7 @@ s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info)
 	if (hw->phy_type == e1000_phy_igp)
 		return e1000_phy_igp_get_info(hw, phy_info);
 	else if ((hw->phy_type == e1000_phy_8211) ||
-	         (hw->phy_type == e1000_phy_8201))
+		 (hw->phy_type == e1000_phy_8201))
 		return E1000_SUCCESS;
 	else
 		return e1000_phy_m88_get_info(hw, phy_info);
@@ -3896,7 +3894,7 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 
 	if (hw->mac_type == e1000_ce4100) {
 		GBE_CONFIG_FLASH_READ(GBE_CONFIG_BASE_VIRT, offset, words,
-		                      data);
+				      data);
 		return E1000_SUCCESS;
 	}
 
@@ -4067,7 +4065,7 @@ static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 
 	if (hw->mac_type == e1000_ce4100) {
 		GBE_CONFIG_FLASH_WRITE(GBE_CONFIG_BASE_VIRT, offset, words,
-		                       data);
+				       data);
 		return E1000_SUCCESS;
 	}
 
