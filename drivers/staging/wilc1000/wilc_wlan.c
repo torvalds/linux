@@ -316,13 +316,13 @@ u32 Pending_Acks;
 
 
 
-static __inline int Init_TCP_tracking(void)
+static inline int Init_TCP_tracking(void)
 {
 
 	return 0;
 
 }
-static __inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
+static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
 	Acks_keep_track_info[Opened_TCP_session].Ack_seq_num = seq;
 	Acks_keep_track_info[Opened_TCP_session].Bigger_Ack_num = 0;
@@ -334,7 +334,7 @@ static __inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 	return 0;
 }
 
-static __inline int Update_TCP_track_session(u32 index, u32 Ack)
+static inline int Update_TCP_track_session(u32 index, u32 Ack)
 {
 
 	if (Ack > Acks_keep_track_info[index].Bigger_Ack_num) {
@@ -343,7 +343,7 @@ static __inline int Update_TCP_track_session(u32 index, u32 Ack)
 	return 0;
 
 }
-static __inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_entry_t  *txqe)
+static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_entry_t  *txqe)
 {
 	Statisitcs_totalAcks++;
 	if (Pending_Acks < MAX_PENDING_ACKS) {
@@ -358,7 +358,7 @@ static __inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_e
 	}
 	return 0;
 }
-static __inline int remove_TCP_related(void)
+static inline int remove_TCP_related(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
@@ -369,7 +369,7 @@ static __inline int remove_TCP_related(void)
 	return 0;
 }
 
-static __inline int tcp_process(struct txq_entry_t *tqe)
+static inline int tcp_process(struct txq_entry_t *tqe)
 {
 	int ret;
 	u8 *eth_hdr_ptr;
