@@ -98,10 +98,7 @@
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <4>;
 	status = "okay";
-};
 
-&fimd {
-	status = "okay";
 	display-timings {
 		native-mode = <&timing0>;
 		timing0: timing@0 {
@@ -116,6 +113,10 @@
 			vsync-len = <6>;
 		};
 	};
+};
+
+&fimd {
+	status = "okay";
 };
 
 &hdmi {
