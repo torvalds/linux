@@ -5,6 +5,7 @@ obj-y += rk312x.o
 obj-y += rk3126b.o
 obj-y += rk3188.o
 obj-y += rk3288.o
+obj-y += rk3228.o
 ifneq ($(CONFIG_ARM_TRUSTZONE),y)
 obj-y += ddr_freq.o
 endif

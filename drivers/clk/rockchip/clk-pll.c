@@ -232,9 +232,10 @@ static const struct pll_clk_set rk3036plus_pll_com_table[] = {
 static const struct pll_clk_set rk312xplus_pll_com_table[] = {
 	/*_RK3036_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 1, 0),*/
 	/*_RK3036_PLL_SET_CLKS(798000, 2, 133, 2, 1, 1, 0),*/
+	_RK3036_PLL_SET_CLKS(1000000, 3, 125, 1,  1, 1, 0),
 	_RK3036_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
-	_RK3036_PLL_SET_CLKS(500000, 6, 250, 2, 1, 1, 0),
-	_RK3036_PLL_SET_CLKS(400000, 6, 400, 2, 2, 1, 0),
+	_RK3036_PLL_SET_CLKS(500000, 3, 125, 2, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(400000, 3, 200, 2, 2, 1, 0),
 };
 
 static const struct apll_clk_set rk3368_apllb_table[] = {
@@ -1960,7 +1961,7 @@ static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
 	/************select apll******************/
 	cru_writel(RK3036_CORE_SEL_PLL(0), RK3036_CRU_CLKSELS_CON(0));
 	/**************return slow mode***********/
-	/*cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);*/
+	cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);
 
 	cru_writel(RK3036_CLK_CORE_DIV(1), RK3036_CRU_CLKSELS_CON(0));
 
@@ -2054,7 +2055,7 @@ static int clk_cpll_set_rate_312xplus(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (clk_set->rate == rate) {
-		clk_debug("cpll get a rate\n");
+		clk_debug("cpll get a rate %ld\n", rate);
 		rk3036_pll_clk_set_rate(clk_set, hw);
 
 	} else {
