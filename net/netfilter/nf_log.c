@@ -113,6 +113,7 @@ void nf_log_unregister(struct nf_logger *logger)
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		RCU_INIT_POINTER(loggers[i][logger->type], NULL);
 	mutex_unlock(&nf_log_mutex);
+	synchronize_rcu();
 }
 EXPORT_SYMBOL(nf_log_unregister);
 
