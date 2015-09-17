@@ -368,6 +368,29 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 				  connection->intf_cport_id);
 }
 
+/* Inform Interface about active CPorts */
+static int gb_connection_control_connected(struct gb_connection *connection)
+{
+	struct gb_protocol *protocol = connection->protocol;
+	struct gb_control *control;
+	u16 cport_id = connection->intf_cport_id;
+	int ret;
+
+	if (protocol->flags & GB_PROTOCOL_SKIP_CONTROL_CONNECTED)
+		return 0;
+
+	control = connection->bundle->intf->control;
+
+	ret = gb_control_connected_operation(control, cport_id);
+	if (ret) {
+		dev_err(&connection->dev,
+				"failed to connect cport: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /* Inform Interface about inactive CPorts */
 static void
 gb_connection_control_disconnected(struct gb_connection *connection)
@@ -399,18 +422,9 @@ static int gb_connection_init(struct gb_connection *connection)
 	if (ret)
 		return ret;
 
-	/* Inform Interface about active CPorts */
-	if (!(protocol->flags & GB_PROTOCOL_SKIP_CONTROL_CONNECTED)) {
-		struct gb_control *control = connection->bundle->intf->control;
-
-		ret = gb_control_connected_operation(control, cport_id);
-		if (ret) {
-			dev_err(&connection->dev,
-				"Failed to connect CPort-%d (%d)\n",
-				cport_id, ret);
-			goto err_svc_destroy;
-		}
-	}
+	ret = gb_connection_control_connected(connection);
+	if (ret)
+		goto err_svc_destroy;
 
 	/* Need to enable the connection to initialize it */
 	spin_lock_irq(&connection->lock);
