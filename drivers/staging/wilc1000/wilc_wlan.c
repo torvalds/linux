@@ -1418,9 +1418,6 @@ void wilc_handle_isr(void)
 #endif
 		wilc_unknown_isr_ext();
 	}
-#if ((!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO))
-	linux_wlan_enable_irq();
-#endif
 	release_bus(RELEASE_ALLOW_SLEEP);
 }
 

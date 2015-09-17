@@ -167,7 +167,4 @@ extern atomic_t DEBUG_LEVEL;
 	#define MODALIAS	"WILC_SPI"
 	#define GPIO_NUM	0x44
 #endif
-
-
-void linux_wlan_enable_irq(void);
 #endif

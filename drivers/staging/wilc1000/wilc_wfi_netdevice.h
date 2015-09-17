@@ -71,16 +71,7 @@ struct WILC_WFI_stats {
  * packets in and out, so there is place for a packet
  */
 
-#define RX_BH_KTHREAD 0
-#define RX_BH_WORK_QUEUE 1
-#define RX_BH_THREADED_IRQ 2
 #define num_reg_frame 2
-/*
- * If you use RX_BH_WORK_QUEUE on LPC3131: You may lose the first interrupt on
- * LPC3131 which is important to get the MAC start status when you are blocked
- * inside linux_wlan_firmware_download() which blocks mac_open().
- */
- #define RX_BH_TYPE  RX_BH_KTHREAD
 
 struct wilc_wfi_key {
 	u8 *key;
@@ -190,12 +181,6 @@ typedef struct {
 	struct semaphore sync_event;
 	struct semaphore txq_event;
 
-#if (RX_BH_TYPE == RX_BH_WORK_QUEUE)
-	struct work_struct rx_work_queue;
-#elif (RX_BH_TYPE == RX_BH_KTHREAD)
-	struct task_struct *rx_bh_thread;
-	struct semaphore rx_sem;
-#endif
 	struct semaphore txq_thread_started;
 
 	struct task_struct *txq_thread;
