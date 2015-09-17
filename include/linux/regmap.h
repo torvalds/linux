@@ -809,6 +809,7 @@ struct regmap_irq {
  * @init_ack_masked: Ack all masked interrupts once during initalization.
  * @mask_invert: Inverted mask register: cleared bits are masked out.
  * @use_ack:     Use @ack register even if it is zero.
+ * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
@@ -829,6 +830,7 @@ struct regmap_irq_chip {
 	bool init_ack_masked:1;
 	bool mask_invert:1;
 	bool use_ack:1;
+	bool ack_invert:1;
 	bool wake_invert:1;
 	bool runtime_pm:1;
 

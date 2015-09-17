@@ -133,7 +133,11 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		if (d->mask_buf[i] && (d->chip->ack_base || d->chip->use_ack)) {
 			reg = d->chip->ack_base +
 				(i * map->reg_stride * d->irq_reg_stride);
-			ret = regmap_write(map, reg, d->mask_buf[i]);
+			/* some chips ack by write 0 */
+			if (d->chip->ack_invert)
+				ret = regmap_write(map, reg, ~d->mask_buf[i]);
+			else
+				ret = regmap_write(map, reg, d->mask_buf[i]);
 			if (ret != 0)
 				dev_err(d->map->dev, "Failed to ack 0x%x: %d\n",
 					reg, ret);
@@ -470,7 +474,11 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		if (d->status_buf[i] && (chip->ack_base || chip->use_ack)) {
 			reg = chip->ack_base +
 				(i * map->reg_stride * d->irq_reg_stride);
-			ret = regmap_write(map, reg,
+			if (chip->ack_invert)
+				ret = regmap_write(map, reg,
+					~(d->status_buf[i] & d->mask_buf[i]));
+			else
+				ret = regmap_write(map, reg,
 					d->status_buf[i] & d->mask_buf[i]);
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to ack 0x%x: %d\n",
