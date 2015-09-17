@@ -1458,6 +1458,7 @@ static const struct of_device_id mxcnd_dt_ids[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
 
 static int __init mxcnd_probe_dt(struct mxc_nand_host *host)
 {
