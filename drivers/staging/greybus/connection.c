@@ -321,6 +321,37 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 	spin_unlock_irq(&connection->lock);
 }
 
+/*
+ * Request the SVC to create a connection from AP's cport to interface's
+ * cport.
+ */
+static int
+gb_connection_svc_connection_create(struct gb_connection *connection)
+{
+	struct greybus_host_device *hd = connection->hd;
+	struct gb_protocol *protocol = connection->protocol;
+	int ret;
+
+	if (protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)
+		return 0;
+
+	ret = gb_svc_connection_create(hd->svc,
+			hd->endo->ap_intf_id,
+			connection->hd_cport_id,
+			connection->bundle->intf->interface_id,
+			connection->intf_cport_id);
+	if (ret) {
+		dev_err(&connection->dev,
+				"failed to create svc connection: %d\n", ret);
+		return ret;
+	}
+
+	if (hd->driver->connection_create)
+		hd->driver->connection_create(connection);
+
+	return 0;
+}
+
 static void
 gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
@@ -358,29 +389,13 @@ static void gb_connection_disconnected(struct gb_connection *connection)
 static int gb_connection_init(struct gb_connection *connection)
 {
 	int cport_id = connection->intf_cport_id;
-	struct greybus_host_device *hd = connection->hd;
 	struct gb_protocol *protocol = connection->protocol;
 	int ret;
 
-	/*
-	 * Request the SVC to create a connection from AP's cport to interface's
-	 * cport.
-	 */
-	if (!(protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)) {
-		ret = gb_svc_connection_create(hd->svc,
-				hd->endo->ap_intf_id, connection->hd_cport_id,
-				connection->bundle->intf->interface_id,
-				cport_id);
-		if (ret) {
-			dev_err(&connection->dev,
-				"%s: Failed to create svc connection (%d)\n",
-				__func__, ret);
-			return ret;
-		}
+	ret = gb_connection_svc_connection_create(connection);
+	if (ret)
+		return ret;
 
-		if (hd->driver->connection_create)
-			hd->driver->connection_create(connection);
-	}
 	/* Inform Interface about active CPorts */
 	if (!(protocol->flags & GB_PROTOCOL_SKIP_CONTROL_CONNECTED)) {
 		struct gb_control *control = connection->bundle->intf->control;
