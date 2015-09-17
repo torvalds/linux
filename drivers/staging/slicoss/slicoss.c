@@ -2624,7 +2624,8 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				else
 					duplex = 0;
 				slic_link_config(adapter, speed, duplex);
-				slic_link_event_handler(adapter);
+				if (slic_link_event_handler(adapter))
+					return -EFAULT;
 			}
 		}
 		return 0;
