@@ -2110,7 +2110,8 @@ static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
 
 		if (isr & ISR_LEVENT) {
 			adapter->linkevent_interrupts++;
-			slic_link_event_handler(adapter);
+			if (slic_link_event_handler(adapter))
+				adapter->linkevent_interrupts--;
 		}
 
 		if ((isr & ISR_UPC) || (isr & ISR_UPCERR) ||
