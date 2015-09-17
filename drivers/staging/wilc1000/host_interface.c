@@ -1,5 +1,6 @@
 #include "host_interface.h"
 #include "coreconfigurator.h"
+#include "wilc_wlan_if.h"
 
 extern u8 connecting;
 
@@ -7210,8 +7211,6 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSt
 
 	return s32Error;
 }
-
-u32 wilc_get_chipid(u8);
 
 s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Timeout)
 {
