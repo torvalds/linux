@@ -5,7 +5,7 @@
 config NET_VENDOR_HISILICON
 	bool "Hisilicon devices"
 	default y
-	depends on ARM
+	depends on ARM || ARM64
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -27,8 +27,16 @@ config HIP04_ETH
 	select PHYLIB
 	select MARVELL_PHY
 	select MFD_SYSCON
+	select HNS_MDIO
 	---help---
 	  If you wish to compile a kernel for a hardware with hisilicon p04 SoC and
 	  want to use the internal ethernet then you should answer Y to this.
+
+config HNS_MDIO
+	tristate "Hisilicon HNS MDIO device Support"
+	select MDIO
+	---help---
+	  This selects the HNS MDIO support. It is needed by HNS_DSAF to access
+	  the PHY
 
 endif # NET_VENDOR_HISILICON
