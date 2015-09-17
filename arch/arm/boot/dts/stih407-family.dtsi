@@ -610,5 +610,19 @@
 			clocks		= <&clk_sysin>;
 			st,pwm-num-chan = <4>;
 		};
+
+		rng10: rng@08a89000 {
+			compatible      = "st,rng";
+			reg		= <0x08a89000 0x1000>;
+			clocks          = <&clk_sysin>;
+			status		= "okay";
+		};
+
+		rng11: rng@08a8a000 {
+			compatible      = "st,rng";
+			reg		= <0x08a8a000 0x1000>;
+			clocks          = <&clk_sysin>;
+			status		= "okay";
+		};
 	};
 };
