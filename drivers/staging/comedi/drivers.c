@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direction.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 
