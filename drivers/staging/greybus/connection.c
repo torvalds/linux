@@ -412,9 +412,30 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 	}
 }
 
+/*
+ * Request protocol version supported by the module. We don't need to do
+ * this for SVC as that is initiated by the SVC.
+ */
+static int gb_connection_protocol_get_version(struct gb_connection *connection)
+{
+	struct gb_protocol *protocol = connection->protocol;
+	int ret;
+
+	if (protocol->flags & GB_PROTOCOL_SKIP_VERSION)
+		return 0;
+
+	ret = gb_protocol_get_version(connection);
+	if (ret) {
+		dev_err(&connection->dev,
+				"failed to get protocol version: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int gb_connection_init(struct gb_connection *connection)
 {
-	int cport_id = connection->intf_cport_id;
 	struct gb_protocol *protocol = connection->protocol;
 	int ret;
 
@@ -431,19 +452,9 @@ static int gb_connection_init(struct gb_connection *connection)
 	connection->state = GB_CONNECTION_STATE_ENABLED;
 	spin_unlock_irq(&connection->lock);
 
-	/*
-	 * Request protocol version supported by the module. We don't need to do
-	 * this for SVC as that is initiated by the SVC.
-	 */
-	if (!(protocol->flags & GB_PROTOCOL_SKIP_VERSION)) {
-		ret = gb_protocol_get_version(connection);
-		if (ret) {
-			dev_err(&connection->dev,
-				"Failed to get version CPort-%d (%d)\n",
-				cport_id, ret);
-			goto err_disconnect;
-		}
-	}
+	ret = gb_connection_protocol_get_version(connection);
+	if (ret)
+		goto err_disconnect;
 
 	ret = protocol->connection_init(connection);
 	if (ret)
