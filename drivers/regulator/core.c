@@ -1394,15 +1394,15 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return 0;
 
 	r = regulator_dev_lookup(dev, rdev->supply_name, &ret);
-	if (ret == -ENODEV) {
-		/*
-		 * No supply was specified for this regulator and
-		 * there will never be one.
-		 */
-		return 0;
-	}
-
 	if (!r) {
+		if (ret == -ENODEV) {
+			/*
+			 * No supply was specified for this regulator and
+			 * there will never be one.
+			 */
+			return 0;
+		}
+
 		if (have_full_constraints()) {
 			r = dummy_regulator_rdev;
 		} else {
