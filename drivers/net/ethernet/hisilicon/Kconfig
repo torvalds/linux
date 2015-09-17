@@ -39,4 +39,11 @@ config HNS_MDIO
 	  This selects the HNS MDIO support. It is needed by HNS_DSAF to access
 	  the PHY
 
+config HNS
+	tristate "Hisilicon Network Subsystem Support (Framework)"
+	---help---
+	  This selects the framework support for Hisilicon Network Subsystem. It
+	  is needed by any driver which provides HNS acceleration engine or make
+	  use of the engine
+
 endif # NET_VENDOR_HISILICON
