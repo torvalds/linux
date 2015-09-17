@@ -41,6 +41,7 @@ struct intel_gvt_mpt {
 	int (*detect_host)(void);
 	int (*attach_vgpu)(void *vgpu, unsigned long *handle);
 	void (*detach_vgpu)(unsigned long handle);
+	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);
 };
 
 extern struct intel_gvt_mpt xengt_mpt;

@@ -30,8 +30,7 @@
 #define gvt_dbg_core(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: core: "fmt, ##args)
 
-/*
- * Other GVT debug stuff will be introduced in the GVT device model patches.
- */
+#define gvt_dbg_irq(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: irq: "fmt, ##args)
 
 #endif

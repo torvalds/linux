@@ -79,4 +79,42 @@ static inline void intel_gvt_hypervisor_detach_vgpu(struct intel_vgpu *vgpu)
 	intel_gvt_host.mpt->detach_vgpu(vgpu->handle);
 }
 
+#define MSI_CAP_CONTROL(offset) (offset + 2)
+#define MSI_CAP_ADDRESS(offset) (offset + 4)
+#define MSI_CAP_DATA(offset) (offset + 8)
+#define MSI_CAP_EN 0x1
+
+/**
+ * intel_gvt_hypervisor_inject_msi - inject a MSI interrupt into vGPU
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
+{
+	unsigned long offset = vgpu->gvt->device_info.msi_cap_offset;
+	u16 control, data;
+	u32 addr;
+	int ret;
+
+	control = *(u16 *)(vgpu_cfg_space(vgpu) + MSI_CAP_CONTROL(offset));
+	addr = *(u32 *)(vgpu_cfg_space(vgpu) + MSI_CAP_ADDRESS(offset));
+	data = *(u16 *)(vgpu_cfg_space(vgpu) + MSI_CAP_DATA(offset));
+
+	/* Do not generate MSI if MSIEN is disable */
+	if (!(control & MSI_CAP_EN))
+		return 0;
+
+	if (WARN(control & GENMASK(15, 1), "only support one MSI format\n"))
+		return -EINVAL;
+
+	gvt_dbg_irq("vgpu%d: inject msi address %x data%x\n", vgpu->id, addr,
+		    data);
+
+	ret = intel_gvt_host.mpt->inject_msi(vgpu->handle, addr, data);
+	if (ret)
+		return ret;
+	return 0;
+}
+
 #endif /* _GVT_MPT_H_ */

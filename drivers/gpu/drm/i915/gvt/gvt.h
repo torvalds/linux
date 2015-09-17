@@ -37,6 +37,7 @@
 #include "hypercall.h"
 #include "mmio.h"
 #include "reg.h"
+#include "interrupt.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -56,9 +57,10 @@ extern struct intel_gvt_host intel_gvt_host;
 /* Describe per-platform limitations. */
 struct intel_gvt_device_info {
 	u32 max_support_vgpus;
-	u32 mmio_size;
 	u32 cfg_space_size;
+	u32 mmio_size;
 	u32 mmio_bar;
+	unsigned long msi_cap_offset;
 };
 
 /* GM resources owned by a vGPU */
@@ -98,6 +100,10 @@ struct intel_vgpu_cfg_space {
 
 #define vgpu_cfg_space(vgpu) ((vgpu)->cfg_space.virtual_cfg_space)
 
+struct intel_vgpu_irq {
+	bool irq_warn_once[INTEL_GVT_EVENT_MAX];
+};
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	int id;
@@ -109,6 +115,7 @@ struct intel_vgpu {
 	struct intel_vgpu_gm gm;
 	struct intel_vgpu_cfg_space cfg_space;
 	struct intel_vgpu_mmio mmio;
+	struct intel_vgpu_irq irq;
 };
 
 struct intel_gvt_gm {
@@ -145,6 +152,7 @@ struct intel_gvt {
 	struct intel_gvt_fence fence;
 	struct intel_gvt_mmio mmio;
 	struct intel_gvt_firmware firmware;
+	struct intel_gvt_irq irq;
 };
 
 void intel_gvt_free_firmware(struct intel_gvt *gvt);
