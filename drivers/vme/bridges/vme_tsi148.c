@@ -169,6 +169,7 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 	unsigned int error_addr_high, error_addr_low;
 	unsigned long long error_addr;
 	u32 error_attrib;
+	int error_am;
 	struct tsi148_driver *bridge;
 
 	bridge = tsi148_bridge->driver_priv;
@@ -176,6 +177,7 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 	error_addr_high = ioread32be(bridge->base + TSI148_LCSR_VEAU);
 	error_addr_low = ioread32be(bridge->base + TSI148_LCSR_VEAL);
 	error_attrib = ioread32be(bridge->base + TSI148_LCSR_VEAT);
+	error_am = (error_attrib & TSI148_LCSR_VEAT_AM_M) >> 8;
 
 	reg_join(error_addr_high, error_addr_low, &error_addr);
 
@@ -186,7 +188,7 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 	}
 
 	if (err_chk)
-		vme_bus_error_handler(tsi148_bridge, error_addr, error_attrib);
+		vme_bus_error_handler(tsi148_bridge, error_addr, error_am);
 	else
 		dev_err(tsi148_bridge->parent,
 			"VME Bus Error at address: 0x%llx, attributes: %08x\n",

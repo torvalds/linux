@@ -77,8 +77,8 @@ struct vme_lm_resource {
 
 struct vme_bus_error {
 	struct list_head list;
+	u32 aspace;
 	unsigned long long address;
-	u32 attributes;
 };
 
 struct vme_callback {
@@ -167,7 +167,7 @@ struct vme_bridge {
 };
 
 void vme_bus_error_handler(struct vme_bridge *bridge,
-			   unsigned long long address, u32 attributes);
+			   unsigned long long address, int am);
 struct vme_bus_error *vme_find_error(struct vme_bridge *bridge, u32 aspace,
 				     unsigned long long address, size_t count);
 void vme_clear_errors(struct vme_bridge *bridge, u32 aspace,

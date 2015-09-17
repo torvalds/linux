@@ -223,6 +223,39 @@ int vme_check_window(u32 aspace, unsigned long long vme_base,
 }
 EXPORT_SYMBOL(vme_check_window);
 
+static u32 vme_get_aspace(int am)
+{
+	switch (am) {
+	case 0x29:
+	case 0x2D:
+		return VME_A16;
+	case 0x38:
+	case 0x39:
+	case 0x3A:
+	case 0x3B:
+	case 0x3C:
+	case 0x3D:
+	case 0x3E:
+	case 0x3F:
+		return VME_A24;
+	case 0x8:
+	case 0x9:
+	case 0xA:
+	case 0xB:
+	case 0xC:
+	case 0xD:
+	case 0xE:
+	case 0xF:
+		return VME_A32;
+	case 0x0:
+	case 0x1:
+	case 0x3:
+		return VME_A64;
+	}
+
+	return 0;
+}
+
 /*
  * Request a slave image with specific attributes, return some unique
  * identifier.
@@ -991,14 +1024,14 @@ int vme_dma_free(struct vme_resource *resource)
 EXPORT_SYMBOL(vme_dma_free);
 
 void vme_bus_error_handler(struct vme_bridge *bridge,
-			   unsigned long long address, u32 attributes)
+			   unsigned long long address, int am)
 {
 	struct vme_bus_error *error;
 
 	error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
 	if (error) {
+		error->aspace = vme_get_aspace(am);
 		error->address = address;
-		error->attributes = attributes;
 		list_add_tail(&error->list, &bridge->vme_errors);
 	} else {
 		dev_err(bridge->parent,
@@ -1019,19 +1052,13 @@ struct vme_bus_error *vme_find_error(struct vme_bridge *bridge, u32 aspace,
 
 	bound = address + count;
 
-	/*
-	 * XXX We are currently not looking at the address space when parsing
-	 *     for errors. This is because parsing the Address Modifier Codes
-	 *     is going to be quite resource intensive to do properly. We
-	 *     should be OK just looking at the addresses and this is certainly
-	 *     much better than what we had before.
-	 */
 	err_pos = NULL;
 	/* Iterate through errors */
 	list_for_each(err_pos, &bridge->vme_errors) {
 		vme_err = list_entry(err_pos, struct vme_bus_error, list);
-		if ((vme_err->address >= address) &&
-			(vme_err->address < bound)) {
+		if ((vme_err->aspace == aspace) &&
+		    (vme_err->address >= address) &&
+		    (vme_err->address < bound)) {
 
 			valid = vme_err;
 			break;
@@ -1054,20 +1081,14 @@ void vme_clear_errors(struct vme_bridge *bridge, u32 aspace,
 
 	bound = address + count;
 
-	/*
-	 * XXX We are currently not looking at the address space when parsing
-	 *     for errors. This is because parsing the Address Modifier Codes
-	 *     is going to be quite resource intensive to do properly. We
-	 *     should be OK just looking at the addresses and this is certainly
-	 *     much better than what we had before.
-	 */
 	err_pos = NULL;
 	/* Iterate through errors */
 	list_for_each_safe(err_pos, temp, &bridge->vme_errors) {
 		vme_err = list_entry(err_pos, struct vme_bus_error, list);
 
-		if ((vme_err->address >= address) &&
-			(vme_err->address < bound)) {
+		if ((vme_err->aspace == aspace) &&
+		    (vme_err->address >= address) &&
+		    (vme_err->address < bound)) {
 
 			list_del(err_pos);
 			kfree(vme_err);
