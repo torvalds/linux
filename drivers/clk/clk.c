@@ -1685,7 +1685,7 @@ static struct clk_core *__clk_init_parent(struct clk_core *core)
 			"%s: multi-parent clocks must implement .get_parent\n",
 			__func__);
 		goto out;
-	};
+	}
 
 	/*
 	 * Do our best to cache parent clocks in core->parents.  This prevents
