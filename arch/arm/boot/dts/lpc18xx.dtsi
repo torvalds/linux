@@ -223,6 +223,14 @@
 			#reset-cells = <1>;
 		};
 
+		watchdog@40080000 {
+			compatible = "nxp,lpc1850-wwdt";
+			reg = <0x40080000 0x24>;
+			interrupts = <49>;
+			clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_WWDT>;
+			clock-names = "wdtclk", "reg";
+		};
+
 		uart0: serial@40081000 {
 			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x40081000 0x1000>;
