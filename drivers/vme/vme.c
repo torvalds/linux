@@ -1026,76 +1026,52 @@ EXPORT_SYMBOL(vme_dma_free);
 void vme_bus_error_handler(struct vme_bridge *bridge,
 			   unsigned long long address, int am)
 {
-	struct vme_bus_error *error;
+	struct list_head *handler_pos = NULL;
+	struct vme_error_handler *handler;
+	u32 aspace = vme_get_aspace(am);
 
-	error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
-	if (error) {
-		error->aspace = vme_get_aspace(am);
-		error->address = address;
-		list_add_tail(&error->list, &bridge->vme_errors);
-	} else {
-		dev_err(bridge->parent,
-			"Unable to alloc memory for VMEbus Error reporting\n");
+	list_for_each(handler_pos, &bridge->vme_error_handlers) {
+		handler = list_entry(handler_pos, struct vme_error_handler,
+				     list);
+		if ((aspace == handler->aspace) &&
+		    (address >= handler->start) &&
+		    (address < handler->end)) {
+			if (!handler->num_errors)
+				handler->first_error = address;
+			if (handler->num_errors != UINT_MAX)
+				handler->num_errors++;
+		}
 	}
 }
 EXPORT_SYMBOL(vme_bus_error_handler);
 
-/*
- * Find the first error in this address range
- */
-struct vme_bus_error *vme_find_error(struct vme_bridge *bridge, u32 aspace,
-				     unsigned long long address, size_t count)
+struct vme_error_handler *vme_register_error_handler(
+	struct vme_bridge *bridge, u32 aspace,
+	unsigned long long address, size_t len)
 {
-	struct list_head *err_pos;
-	struct vme_bus_error *vme_err, *valid = NULL;
-	unsigned long long bound;
+	struct vme_error_handler *handler;
 
-	bound = address + count;
+	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
+	if (!handler)
+		return NULL;
 
-	err_pos = NULL;
-	/* Iterate through errors */
-	list_for_each(err_pos, &bridge->vme_errors) {
-		vme_err = list_entry(err_pos, struct vme_bus_error, list);
-		if ((vme_err->aspace == aspace) &&
-		    (vme_err->address >= address) &&
-		    (vme_err->address < bound)) {
+	handler->aspace = aspace;
+	handler->start = address;
+	handler->end = address + len;
+	handler->num_errors = 0;
+	handler->first_error = 0;
+	list_add_tail(&handler->list, &bridge->vme_error_handlers);
 
-			valid = vme_err;
-			break;
-		}
-	}
-
-	return valid;
+	return handler;
 }
-EXPORT_SYMBOL(vme_find_error);
+EXPORT_SYMBOL(vme_register_error_handler);
 
-/*
- * Clear errors in the provided address range.
- */
-void vme_clear_errors(struct vme_bridge *bridge, u32 aspace,
-		      unsigned long long address, size_t count)
+void vme_unregister_error_handler(struct vme_error_handler *handler)
 {
-	struct list_head *err_pos, *temp;
-	struct vme_bus_error *vme_err;
-	unsigned long long bound;
-
-	bound = address + count;
-
-	err_pos = NULL;
-	/* Iterate through errors */
-	list_for_each_safe(err_pos, temp, &bridge->vme_errors) {
-		vme_err = list_entry(err_pos, struct vme_bus_error, list);
-
-		if ((vme_err->aspace == aspace) &&
-		    (vme_err->address >= address) &&
-		    (vme_err->address < bound)) {
-
-			list_del(err_pos);
-			kfree(vme_err);
-		}
-	}
+	list_del(&handler->list);
+	kfree(handler);
 }
-EXPORT_SYMBOL(vme_clear_errors);
+EXPORT_SYMBOL(vme_unregister_error_handler);
 
 void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 {

@@ -204,8 +204,7 @@ static int ca91cx42_irq_init(struct vme_bridge *ca91cx42_bridge)
 	/* Need pdev */
 	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
 
-	/* Initialise list for VME bus errors */
-	INIT_LIST_HEAD(&ca91cx42_bridge->vme_errors);
+	INIT_LIST_HEAD(&ca91cx42_bridge->vme_error_handlers);
 
 	mutex_init(&ca91cx42_bridge->irq_mtx);
 

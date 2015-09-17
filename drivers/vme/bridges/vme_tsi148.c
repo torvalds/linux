@@ -314,8 +314,7 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 
 	bridge = tsi148_bridge->driver_priv;
 
-	/* Initialise list for VME bus errors */
-	INIT_LIST_HEAD(&tsi148_bridge->vme_errors);
+	INIT_LIST_HEAD(&tsi148_bridge->vme_error_handlers);
 
 	mutex_init(&tsi148_bridge->irq_mtx);
 
@@ -1187,7 +1186,7 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	int retval, enabled;
 	unsigned long long vme_base, size;
 	u32 aspace, cycle, dwidth;
-	struct vme_bus_error *vme_err = NULL;
+	struct vme_error_handler *handler;
 	struct vme_bridge *tsi148_bridge;
 	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
@@ -1196,6 +1195,17 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	tsi148_bridge = image->parent;
 
 	spin_lock(&image->lock);
+
+	if (err_chk) {
+		__tsi148_master_get(image, &enabled, &vme_base, &size, &aspace,
+				    &cycle, &dwidth);
+		handler = vme_register_error_handler(tsi148_bridge, aspace,
+						     vme_base + offset, count);
+		if (!handler) {
+			spin_unlock(&image->lock);
+			return -ENOMEM;
+		}
+	}
 
 	/* The following code handles VME address alignment. We cannot use
 	 * memcpy_xxx here because it may cut data transfers in to 8-bit
@@ -1240,24 +1250,16 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 out:
 	retval = count;
 
-	if (!err_chk)
-		goto skip_chk;
-
-	__tsi148_master_get(image, &enabled, &vme_base, &size, &aspace, &cycle,
-		&dwidth);
-
-	vme_err = vme_find_error(tsi148_bridge, aspace, vme_base + offset,
-		count);
-	if (vme_err != NULL) {
-		dev_err(image->parent->parent, "First VME read error detected "
-			"an at address 0x%llx\n", vme_err->address);
-		retval = vme_err->address - (vme_base + offset);
-		/* Clear down save errors in this address range */
-		vme_clear_errors(tsi148_bridge, aspace, vme_base + offset,
-			count);
+	if (err_chk) {
+		if (handler->num_errors) {
+			dev_err(image->parent->parent,
+				"First VME read error detected an at address 0x%llx\n",
+				handler->first_error);
+			retval = handler->first_error - (vme_base + offset);
+		}
+		vme_unregister_error_handler(handler);
 	}
 
-skip_chk:
 	spin_unlock(&image->lock);
 
 	return retval;
@@ -1274,7 +1276,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	unsigned int done = 0;
 	unsigned int count32;
 
-	struct vme_bus_error *vme_err = NULL;
+	struct vme_error_handler *handler;
 	struct vme_bridge *tsi148_bridge;
 	struct tsi148_driver *bridge;
 
@@ -1283,6 +1285,17 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	bridge = tsi148_bridge->driver_priv;
 
 	spin_lock(&image->lock);
+
+	if (err_chk) {
+		__tsi148_master_get(image, &enabled, &vme_base, &size, &aspace,
+				    &cycle, &dwidth);
+		handler = vme_register_error_handler(tsi148_bridge, aspace,
+						     vme_base + offset, count);
+		if (!handler) {
+			spin_unlock(&image->lock);
+			return -ENOMEM;
+		}
+	}
 
 	/* Here we apply for the same strategy we do in master_read
 	 * function in order to assure the correct cycles.
@@ -1333,30 +1346,18 @@ out:
 	 * We check for saved errors in the written address range/space.
 	 */
 
-	if (!err_chk)
-		goto skip_chk;
+	if (err_chk) {
+		ioread16(bridge->flush_image->kern_base + 0x7F000);
 
-	/*
-	 * Get window info first, to maximise the time that the buffers may
-	 * fluch on their own
-	 */
-	__tsi148_master_get(image, &enabled, &vme_base, &size, &aspace, &cycle,
-		&dwidth);
-
-	ioread16(bridge->flush_image->kern_base + 0x7F000);
-
-	vme_err = vme_find_error(tsi148_bridge, aspace, vme_base + offset,
-		count);
-	if (vme_err != NULL) {
-		dev_warn(tsi148_bridge->parent, "First VME write error detected"
-			" an at address 0x%llx\n", vme_err->address);
-		retval = vme_err->address - (vme_base + offset);
-		/* Clear down save errors in this address range */
-		vme_clear_errors(tsi148_bridge, aspace, vme_base + offset,
-			count);
+		if (handler->num_errors) {
+			dev_warn(tsi148_bridge->parent,
+				 "First VME write error detected an at address 0x%llx\n",
+				 handler->first_error);
+			retval = handler->first_error - (vme_base + offset);
+		}
+		vme_unregister_error_handler(handler);
 	}
 
-skip_chk:
 	spin_unlock(&image->lock);
 
 	return retval;
