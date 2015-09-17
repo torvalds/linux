@@ -292,7 +292,7 @@ int hfi1_diag_add(struct hfi1_devdata *dd)
 	if (atomic_inc_return(&diagpkt_count) == 1) {
 		ret = hfi1_cdev_init(HFI1_DIAGPKT_MINOR, name,
 				     &diagpkt_file_ops, &diagpkt_cdev,
-				     &diagpkt_device);
+				     &diagpkt_device, false);
 	}
 
 	return ret;
@@ -592,7 +592,8 @@ static int hfi1_snoop_add(struct hfi1_devdata *dd, const char *name)
 
 	ret = hfi1_cdev_init(HFI1_SNOOP_CAPTURE_BASE + dd->unit, name,
 			     &snoop_file_ops,
-			     &dd->hfi1_snoop.cdev, &dd->hfi1_snoop.class_dev);
+			     &dd->hfi1_snoop.cdev, &dd->hfi1_snoop.class_dev,
+			     false);
 
 	if (ret) {
 		dd_dev_err(dd, "Couldn't create %s device: %d", name, ret);
