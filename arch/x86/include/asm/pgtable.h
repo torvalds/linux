@@ -379,7 +379,9 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 	return __pgprot(preservebits | addbits);
 }
 
-#define pte_pgprot(x) __pgprot(pte_flags(x) & PTE_FLAGS_MASK)
+#define pte_pgprot(x) __pgprot(pte_flags(x))
+#define pmd_pgprot(x) __pgprot(pmd_flags(x))
+#define pud_pgprot(x) __pgprot(pud_flags(x))
 
 #define canon_pgprot(p) __pgprot(massage_pgprot(p))
 
