@@ -288,7 +288,7 @@ int vgic_v3_probe(struct device_node *vgic_node,
 
 	vgic->vctrl_base = NULL;
 	vgic->type = VGIC_V3;
-	vgic->max_gic_vcpus = KVM_MAX_VCPUS;
+	vgic->max_gic_vcpus = VGIC_V3_MAX_CPUS;
 
 	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
 		 vcpu_res.start, vgic->maint_irq);
