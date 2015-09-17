@@ -254,8 +254,6 @@ static irqreturn_t flite_irq_handler(int irq, void *priv)
 	struct fimc_lite *fimc = priv;
 	struct flite_buffer *vbuf;
 	unsigned long flags;
-	struct timeval *tv;
-	struct timespec ts;
 	u32 intsrc;
 
 	spin_lock_irqsave(&fimc->slock, flags);
@@ -294,10 +292,7 @@ static irqreturn_t flite_irq_handler(int irq, void *priv)
 	    test_bit(ST_FLITE_RUN, &fimc->state) &&
 	    !list_empty(&fimc->active_buf_q)) {
 		vbuf = fimc_lite_active_queue_pop(fimc);
-		ktime_get_ts(&ts);
-		tv = &vbuf->vb.v4l2_buf.timestamp;
-		tv->tv_sec = ts.tv_sec;
-		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+		v4l2_get_timestamp(&vbuf->vb.v4l2_buf.timestamp);
 		vbuf->vb.v4l2_buf.sequence = fimc->frame_count++;
 		flite_hw_mask_dma_buffer(fimc, vbuf->index);
 		vb2_buffer_done(&vbuf->vb, VB2_BUF_STATE_DONE);

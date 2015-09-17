@@ -328,23 +328,17 @@ irqreturn_t s3c_camif_irq_handler(int irq, void *priv)
 	    !list_empty(&vp->active_buf_q)) {
 		unsigned int index;
 		struct camif_buffer *vbuf;
-		struct timeval *tv;
-		struct timespec ts;
 		/*
 		 * Get previous DMA write buffer index:
 		 * 0 => DMA buffer 0, 2;
 		 * 1 => DMA buffer 1, 3.
 		 */
 		index = (CISTATUS_FRAMECNT(status) + 2) & 1;
-
-		ktime_get_ts(&ts);
 		vbuf = camif_active_queue_peek(vp, index);
 
 		if (!WARN_ON(vbuf == NULL)) {
 			/* Dequeue a filled buffer */
-			tv = &vbuf->vb.v4l2_buf.timestamp;
-			tv->tv_sec = ts.tv_sec;
-			tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+			v4l2_get_timestamp(&vbuf->vb.v4l2_buf.timestamp);
 			vbuf->vb.v4l2_buf.sequence = vp->frame_sequence++;
 			vb2_buffer_done(&vbuf->vb, VB2_BUF_STATE_DONE);
 

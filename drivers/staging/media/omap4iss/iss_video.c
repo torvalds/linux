@@ -420,7 +420,6 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	enum iss_pipeline_state state;
 	struct iss_buffer *buf;
 	unsigned long flags;
-	struct timespec ts;
 
 	spin_lock_irqsave(&video->qlock, flags);
 	if (WARN_ON(list_empty(&video->dmaqueue))) {
@@ -433,9 +432,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&video->qlock, flags);
 
-	ktime_get_ts(&ts);
-	buf->vb.v4l2_buf.timestamp.tv_sec = ts.tv_sec;
-	buf->vb.v4l2_buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
 	/* Do frame number propagation only if this is the output video node.
 	 * Frame number either comes from the CSI receivers or it gets
