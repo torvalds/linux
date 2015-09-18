@@ -1110,10 +1110,10 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "%d86", c->x86);
 
-	printk(KERN_CONT " (fam: %02x, model: %02x", c->x86, c->x86_model);
+	printk(KERN_CONT " (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
-		printk(KERN_CONT ", stepping: %02x)\n", c->x86_mask);
+		printk(KERN_CONT ", stepping: 0x%x)\n", c->x86_mask);
 	else
 		printk(KERN_CONT ")\n");
 

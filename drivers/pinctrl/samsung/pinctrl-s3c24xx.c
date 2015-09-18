@@ -361,7 +361,7 @@ static inline void s3c24xx_demux_eint(struct irq_desc *desc,
 				      u32 offset, u32 range)
 {
 	struct s3c24xx_eint_data *data = irq_desc_get_handler_data(desc);
-	struct irq_chip *chip = irq_desc_get_irq_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct samsung_pinctrl_drv_data *d = data->drvdata;
 	unsigned int pend, mask;
 

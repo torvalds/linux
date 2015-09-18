@@ -59,7 +59,11 @@ void string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	}
 
 	exp = divisor[units] / (u32)blk_size;
-	if (size >= exp) {
+	/*
+	 * size must be strictly greater than exp here to ensure that remainder
+	 * is greater than divisor[units] coming out of the if below.
+	 */
+	if (size > exp) {
 		remainder = do_div(size, divisor[units]);
 		remainder *= blk_size;
 		i++;
