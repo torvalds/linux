@@ -354,6 +354,7 @@ static const struct of_device_id of_platform_serial_table[] = {
 #endif
 	{ /* end of list */ },
 };
+MODULE_DEVICE_TABLE(of, of_platform_serial_table);
 
 static struct platform_driver of_platform_serial_driver = {
 	.driver = {
