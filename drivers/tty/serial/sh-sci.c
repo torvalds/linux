@@ -1296,9 +1296,14 @@ static void rx_timer_fn(unsigned long arg)
 	}
 
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
-	if (status == DMA_COMPLETE)
+	if (status == DMA_COMPLETE) {
 		dev_dbg(port->dev, "Cookie %d #%d has already completed\n",
 			s->active_rx, active);
+		spin_unlock_irqrestore(&port->lock, flags);
+
+		/* Let packet complete handler take care of the packet */
+		return;
+	}
 
 	/* Handle incomplete DMA receive */
 	dmaengine_terminate_all(s->chan_rx);
