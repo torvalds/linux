@@ -646,30 +646,9 @@ static inline void drv_sta_statistics(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline int drv_conf_tx(struct ieee80211_local *local,
-			      struct ieee80211_sub_if_data *sdata, u16 ac,
-			      const struct ieee80211_tx_queue_params *params)
-{
-	int ret = -EOPNOTSUPP;
-
-	might_sleep();
-
-	if (!check_sdata_in_driver(sdata))
-		return -EIO;
-
-	if (WARN_ONCE(params->cw_min == 0 ||
-		      params->cw_min > params->cw_max,
-		      "%s: invalid CW_min/CW_max: %d/%d\n",
-		      sdata->name, params->cw_min, params->cw_max))
-		return -EINVAL;
-
-	trace_drv_conf_tx(local, sdata, ac, params);
-	if (local->ops->conf_tx)
-		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
-					  ac, params);
-	trace_drv_return_int(local, ret);
-	return ret;
-}
+int drv_conf_tx(struct ieee80211_local *local,
+		struct ieee80211_sub_if_data *sdata, u16 ac,
+		const struct ieee80211_tx_queue_params *params);
 
 static inline u64 drv_get_tsf(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata)
