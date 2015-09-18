@@ -250,7 +250,7 @@ static const struct reg_sequence wm5110_revd_patch[] = {
 };
 
 /* Add extra headphone write sequence locations */
-static const struct reg_default wm5110_reve_patch[] = {
+static const struct reg_sequence wm5110_reve_patch[] = {
 	{ 0x80, 0x3 },
 	{ 0x80, 0x3 },
 	{ 0x4b, 0x138 },

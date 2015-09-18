@@ -21,7 +21,7 @@
 #define WM8998_NUM_AOD_ISR 2
 #define WM8998_NUM_ISR 5
 
-static const struct reg_default wm8998_rev_a_patch[] = {
+static const struct reg_sequence wm8998_rev_a_patch[] = {
 	{ 0x0212, 0x0000 },
 	{ 0x0211, 0x0014 },
 	{ 0x04E4, 0x0E0D },
