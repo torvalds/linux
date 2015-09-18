@@ -4313,10 +4313,10 @@ static void ironlake_enable_drps(struct drm_device *dev)
 
 	ironlake_set_drps(dev, fstart);
 
-	dev_priv->ips.last_count1 = I915_READ(0x112e4) + I915_READ(0x112e8) +
-		I915_READ(0x112e0);
+	dev_priv->ips.last_count1 = I915_READ(DMIEC) +
+		I915_READ(DDREC) + I915_READ(CSIEC);
 	dev_priv->ips.last_time1 = jiffies_to_msecs(jiffies);
-	dev_priv->ips.last_count2 = I915_READ(0x112f4);
+	dev_priv->ips.last_count2 = I915_READ(GFXEC);
 	dev_priv->ips.last_time2 = ktime_get_raw_ns();
 
 	spin_unlock_irq(&mchdev_lock);
