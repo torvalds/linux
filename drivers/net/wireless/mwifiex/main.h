@@ -817,6 +817,7 @@ struct mwifiex_if_ops {
 	void (*submit_rem_rx_urbs)(struct mwifiex_adapter *adapter);
 	void (*deaggr_pkt)(struct mwifiex_adapter *, struct sk_buff *);
 	void (*multi_port_resync)(struct mwifiex_adapter *);
+	bool (*is_port_ready)(struct mwifiex_private *);
 };
 
 struct mwifiex_adapter {

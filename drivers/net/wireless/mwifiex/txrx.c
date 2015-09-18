@@ -116,7 +116,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 			local_tx_pd = (struct txpd *)(head_ptr + hroom);
 		if (adapter->iface_type == MWIFIEX_USB) {
 			ret = adapter->if_ops.host_to_card(adapter,
-							   MWIFIEX_USB_EP_DATA,
+							   priv->usb_port,
 							   skb, NULL);
 		} else {
 			ret = adapter->if_ops.host_to_card(adapter,
@@ -189,7 +189,7 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 
 	if (adapter->iface_type == MWIFIEX_USB) {
 		ret = adapter->if_ops.host_to_card(adapter,
-						   MWIFIEX_USB_EP_DATA,
+						   priv->usb_port,
 						   skb, NULL);
 	} else {
 		ret = adapter->if_ops.host_to_card(adapter,

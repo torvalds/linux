@@ -259,7 +259,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	}
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
 						   skb_aggr, NULL);
 	} else {
 		if (skb_src)

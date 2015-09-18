@@ -452,7 +452,21 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 
 int mwifiex_bypass_txlist_empty(struct mwifiex_adapter *adapter)
 {
-	return atomic_read(&adapter->bypass_tx_pending) ? false : true;
+	struct mwifiex_private *priv;
+	int i;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (!priv)
+			continue;
+		if (adapter->if_ops.is_port_ready &&
+		    !adapter->if_ops.is_port_ready(priv))
+			continue;
+		if (!skb_queue_empty(&priv->bypass_txq))
+			return false;
+	}
+
+	return true;
 }
 
 /*
@@ -466,9 +480,14 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		priv = adapter->priv[i];
-		if (priv && !priv->port_open)
+		if (!priv)
 			continue;
-		if (priv && atomic_read(&priv->wmm.tx_pkts_queued))
+		if (!priv->port_open)
+			continue;
+		if (adapter->if_ops.is_port_ready &&
+		    !adapter->if_ops.is_port_ready(priv))
+			continue;
+		if (atomic_read(&priv->wmm.tx_pkts_queued))
 			return false;
 	}
 
@@ -1091,6 +1110,10 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 			    (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0))
 				continue;
 
+			if (adapter->if_ops.is_port_ready &&
+			    !adapter->if_ops.is_port_ready(priv_tmp))
+				continue;
+
 			/* iterate over the WMM queues of the BSS */
 			hqp = &priv_tmp->wmm.highest_queued_prio;
 			for (i = atomic_read(hqp); i >= LOW_PRIO_TID; --i) {
@@ -1326,7 +1349,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
 						   skb, NULL);
 	} else {
 		tx_param.next_pkt_len =
@@ -1466,6 +1489,13 @@ void mwifiex_process_bypass_tx(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		priv = adapter->priv[i];
+
+		if (!priv)
+			continue;
+
+		if (adapter->if_ops.is_port_ready &&
+		    !adapter->if_ops.is_port_ready(priv))
+			continue;
 
 		if (skb_queue_empty(&priv->bypass_txq))
 			continue;

@@ -282,6 +282,7 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 			port = &card->port[i];
 			if (context->ep == port->tx_data_ep) {
 				atomic_dec(&port->tx_data_urb_pending);
+				port->block_status = false;
 				break;
 			}
 		}
@@ -823,6 +824,31 @@ static void mwifiex_usb_port_resync(struct mwifiex_adapter *adapter)
 	}
 }
 
+static bool mwifiex_usb_is_port_ready(struct mwifiex_private *priv)
+{
+	struct usb_card_rec *card = priv->adapter->card;
+	int idx;
+
+	for (idx = 0; idx < MWIFIEX_TX_DATA_PORT; idx++) {
+		if (priv->usb_port == card->port[idx].tx_data_ep)
+			return !card->port[idx].block_status;
+	}
+
+	return false;
+}
+
+static inline u8 mwifiex_usb_data_sent(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = adapter->card;
+	int i;
+
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++)
+		if (!card->port[i].block_status)
+			return false;
+
+	return true;
+}
+
 /* This function write a command/data packet to card. */
 static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 				    struct sk_buff *skb,
@@ -833,7 +859,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_tx_data_port *port = NULL;
 	u8 *data = (u8 *)skb->data;
 	struct urb *tx_urb;
-	int idx;
+	int idx, ret;
 
 	if (adapter->is_suspended) {
 		mwifiex_dbg(adapter, ERROR,
@@ -856,8 +882,9 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 				port = &card->port[idx];
 				if (atomic_read(&port->tx_data_urb_pending)
 				    >= MWIFIEX_TX_DATA_URB) {
-					adapter->data_sent = true;
-					return -EBUSY;
+					port->block_status = true;
+					ret = -EBUSY;
+					goto done;
 				}
 				if (port->tx_data_ix >= MWIFIEX_TX_DATA_URB)
 					port->tx_data_ix = 0;
@@ -895,7 +922,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 			atomic_dec(&card->tx_cmd_urb_pending);
 		} else {
 			atomic_dec(&port->tx_data_urb_pending);
-			adapter->data_sent = false;
+			port->block_status = false;
 			if (port->tx_data_ix)
 				port->tx_data_ix--;
 			else
@@ -907,12 +934,19 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		if (ep != card->tx_cmd_ep &&
 		    atomic_read(&port->tx_data_urb_pending) ==
 							MWIFIEX_TX_DATA_URB) {
-			adapter->data_sent = true;
-			return -ENOSR;
+			port->block_status = true;
+			ret = -ENOSR;
+			goto done;
 		}
 	}
 
 	return -EINPROGRESS;
+
+done:
+	if (ep != card->tx_cmd_ep)
+		adapter->data_sent = mwifiex_usb_data_sent(adapter);
+
+	return ret;
 }
 
 /* This function register usb device and initialize parameter. */
@@ -1189,6 +1223,7 @@ static struct mwifiex_if_ops usb_ops = {
 	.host_to_card =		mwifiex_usb_host_to_card,
 	.submit_rem_rx_urbs =	mwifiex_usb_submit_rem_rx_urbs,
 	.multi_port_resync =	mwifiex_usb_port_resync,
+	.is_port_ready =	mwifiex_usb_is_port_ready,
 };
 
 /* This function initializes the USB driver module.
