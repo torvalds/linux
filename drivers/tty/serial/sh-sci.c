@@ -1810,6 +1810,14 @@ static void sci_shutdown(struct uart_port *port)
 	sci_stop_tx(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	if (s->chan_rx) {
+		dev_dbg(port->dev, "%s(%d) deleting rx_timer\n", __func__,
+			port->line);
+		del_timer_sync(&s->rx_timer);
+	}
+#endif
+
 	sci_free_dma(port);
 	sci_free_irq(s);
 }
