@@ -860,6 +860,8 @@ struct mwifiex_adapter {
 	u8 more_task_flag;
 	u16 tx_buf_size;
 	u16 curr_tx_buf_size;
+	/* sdio single port rx aggregation capability */
+	bool host_disable_sdio_rx_aggr;
 	bool sdio_rx_aggr_enable;
 	u16 sdio_rx_block_size;
 	u32 ioport;
