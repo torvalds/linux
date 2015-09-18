@@ -130,7 +130,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 
 	switch (ret) {
 	case -ENOSR:
-		mwifiex_dbg(adapter, ERROR, "data: -ENOSR is returned\n");
+		mwifiex_dbg(adapter, DATA, "data: -ENOSR is returned\n");
 		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
