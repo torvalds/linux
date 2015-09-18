@@ -112,8 +112,6 @@ struct sci_port {
 	struct scatterlist		sg_rx[2];
 	void				*rx_buf[2];
 	size_t				buf_len_rx;
-	struct sh_dmae_slave		param_tx;
-	struct sh_dmae_slave		param_rx;
 	struct work_struct		work_tx;
 	struct timer_list		rx_timer;
 	unsigned int			rx_timeout;
@@ -1263,17 +1261,6 @@ static void work_fn_tx(struct work_struct *work)
 	dma_async_issue_pending(chan);
 }
 
-static bool filter(struct dma_chan *chan, void *slave)
-{
-	struct sh_dmae_slave *param = slave;
-
-	dev_dbg(chan->device->dev, "%s: slave ID %d\n",
-		__func__, param->shdma_slave.slave_id);
-
-	chan->private = &param->shdma_slave;
-	return true;
-}
-
 static void rx_timer_fn(unsigned long arg)
 {
 	struct sci_port *s = (struct sci_port *)arg;
@@ -1347,28 +1334,62 @@ static void rx_timer_fn(unsigned long arg)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void sci_request_dma(struct uart_port *port)
+static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
+					     enum dma_transfer_direction dir,
+					     unsigned int id)
 {
-	struct sci_port *s = to_sci_port(port);
-	struct sh_dmae_slave *param;
-	struct dma_chan *chan;
 	dma_cap_mask_t mask;
-
-	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
-
-	if (s->cfg->dma_slave_tx <= 0 || s->cfg->dma_slave_rx <= 0)
-		return;
+	struct dma_chan *chan;
+	struct dma_slave_config cfg;
+	int ret;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	param = &s->param_tx;
+	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+					(void *)(unsigned long)id, port->dev,
+					dir == DMA_MEM_TO_DEV ? "tx" : "rx");
+	if (!chan) {
+		dev_warn(port->dev,
+			 "dma_request_slave_channel_compat failed\n");
+		return NULL;
+	}
 
-	/* Slave ID, e.g., SHDMA_SLAVE_SCIF0_TX */
-	param->shdma_slave.slave_id = s->cfg->dma_slave_tx;
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.direction = dir;
+	if (dir == DMA_MEM_TO_DEV) {
+		cfg.dst_addr = port->mapbase +
+			(sci_getreg(port, SCxTDR)->offset << port->regshift);
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	} else {
+		cfg.src_addr = port->mapbase +
+			(sci_getreg(port, SCxRDR)->offset << port->regshift);
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	}
+
+	ret = dmaengine_slave_config(chan, &cfg);
+	if (ret) {
+		dev_warn(port->dev, "dmaengine_slave_config failed %d\n", ret);
+		dma_release_channel(chan);
+		return NULL;
+	}
+
+	return chan;
+}
+
+static void sci_request_dma(struct uart_port *port)
+{
+	struct sci_port *s = to_sci_port(port);
+	struct dma_chan *chan;
+
+	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
+
+	if (!port->dev->of_node &&
+	    (s->cfg->dma_slave_tx <= 0 || s->cfg->dma_slave_rx <= 0))
+		return;
 
 	s->cookie_tx = -EINVAL;
-	chan = dma_request_channel(mask, filter, param);
+	chan = sci_request_dma_chan(port, DMA_MEM_TO_DEV, s->cfg->dma_slave_tx);
 	dev_dbg(port->dev, "%s: TX: got channel %p\n", __func__, chan);
 	if (chan) {
 		s->chan_tx = chan;
@@ -1390,12 +1411,7 @@ static void sci_request_dma(struct uart_port *port)
 		INIT_WORK(&s->work_tx, work_fn_tx);
 	}
 
-	param = &s->param_rx;
-
-	/* Slave ID, e.g., SHDMA_SLAVE_SCIF0_RX */
-	param->shdma_slave.slave_id = s->cfg->dma_slave_rx;
-
-	chan = dma_request_channel(mask, filter, param);
+	chan = sci_request_dma_chan(port, DMA_DEV_TO_MEM, s->cfg->dma_slave_rx);
 	dev_dbg(port->dev, "%s: RX: got channel %p\n", __func__, chan);
 	if (chan) {
 		unsigned int i;
