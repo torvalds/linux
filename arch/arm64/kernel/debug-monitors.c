@@ -201,7 +201,7 @@ void unregister_step_hook(struct step_hook *hook)
 }
 
 /*
- * Call registered single step handers
+ * Call registered single step handlers
  * There is no Syndrome info to check for determining the handler.
  * So we call all the registered handlers, until the right handler is
  * found which returns zero.
