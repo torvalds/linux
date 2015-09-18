@@ -111,9 +111,9 @@ struct ebt_table {
 extern struct ebt_table *ebt_register_table(struct net *net,
 					    const struct ebt_table *table);
 extern void ebt_unregister_table(struct net *net, struct ebt_table *table);
-extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
-   const struct net_device *in, const struct net_device *out,
-   struct ebt_table *table);
+extern unsigned int ebt_do_table(struct sk_buff *skb,
+				 const struct nf_hook_state *state,
+				 struct ebt_table *table);
 
 /* Used in the kernel match() functions */
 #define FWINV(bool,invflg) ((bool) ^ !!(info->invflags & invflg))
