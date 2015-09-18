@@ -1278,6 +1278,12 @@ static void btmrvl_sdio_dump_firmware(struct btmrvl_private *priv)
 
 		if (memory_size == 0) {
 			BT_INFO("Firmware dump finished!");
+			sdio_writeb(card->func, FW_DUMP_READ_DONE,
+				    card->reg->fw_dump_ctrl, &ret);
+			if (ret) {
+				BT_ERR("SDIO Write MEMDUMP_FINISH ERR");
+				goto done;
+			}
 			break;
 		}
 
