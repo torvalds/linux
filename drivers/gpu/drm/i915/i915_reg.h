@@ -4991,20 +4991,20 @@ enum skl_disp_power_wells {
 #define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
 #define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
 
-/* VBIOS flags */
-#define SWF00			(dev_priv->info.display_mmio_offset + 0x71410)
-#define SWF01			(dev_priv->info.display_mmio_offset + 0x71414)
-#define SWF02			(dev_priv->info.display_mmio_offset + 0x71418)
-#define SWF03			(dev_priv->info.display_mmio_offset + 0x7141c)
-#define SWF04			(dev_priv->info.display_mmio_offset + 0x71420)
-#define SWF05			(dev_priv->info.display_mmio_offset + 0x71424)
-#define SWF06			(dev_priv->info.display_mmio_offset + 0x71428)
-#define SWF10			(dev_priv->info.display_mmio_offset + 0x70410)
-#define SWF11			(dev_priv->info.display_mmio_offset + 0x70414)
-#define SWF14			(dev_priv->info.display_mmio_offset + 0x71420)
-#define SWF30			(dev_priv->info.display_mmio_offset + 0x72414)
-#define SWF31			(dev_priv->info.display_mmio_offset + 0x72418)
-#define SWF32			(dev_priv->info.display_mmio_offset + 0x7241c)
+/*
+ * VBIOS flags
+ * gen2:
+ * [00:06] alm,mgm
+ * [10:16] all
+ * [30:32] alm,mgm
+ * gen3+:
+ * [00:0f] all
+ * [10:1f] all
+ * [30:32] all
+ */
+#define SWF0(i)	(dev_priv->info.display_mmio_offset + 0x70410 + (i) * 4)
+#define SWF1(i)	(dev_priv->info.display_mmio_offset + 0x71410 + (i) * 4)
+#define SWF3(i)	(dev_priv->info.display_mmio_offset + 0x72414 + (i) * 4)
 
 /* Pipe B */
 #define _PIPEBDSL		(dev_priv->info.display_mmio_offset + 0x71000)
