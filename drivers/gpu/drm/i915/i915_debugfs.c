@@ -2231,10 +2231,9 @@ static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 	for_each_ring(ring, dev_priv, unused) {
 		seq_printf(m, "%s\n", ring->name);
 		for (i = 0; i < 4; i++) {
-			u32 offset = 0x270 + i * 8;
-			u64 pdp = I915_READ(ring->mmio_base + offset + 4);
+			u64 pdp = I915_READ(GEN8_RING_PDP_UDW(ring, i));
 			pdp <<= 32;
-			pdp |= I915_READ(ring->mmio_base + offset);
+			pdp |= I915_READ(GEN8_RING_PDP_LDW(ring, i));
 			seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
 		}
 	}
