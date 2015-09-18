@@ -1356,14 +1356,14 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 				       ra_list_flags);
 		break;
 	case -1:
-		if (adapter->iface_type != MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->data_sent = false;
 		mwifiex_dbg(adapter, ERROR, "host_to_card failed: %#x\n", ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		if (adapter->iface_type != MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->data_sent = false;
 		break;
 	case 0:

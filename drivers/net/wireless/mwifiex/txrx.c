@@ -142,7 +142,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		if (adapter->iface_type != MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->data_sent = false;
 		mwifiex_dbg(adapter, ERROR,
 			    "mwifiex_write_data_async failed: 0x%X\n",
@@ -151,7 +151,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		if (adapter->iface_type != MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->data_sent = false;
 		break;
 	case 0:
@@ -222,7 +222,7 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		if (adapter->iface_type != MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->data_sent = false;
 		mwifiex_dbg(adapter, ERROR,
 			    "mwifiex_write_data_async failed: 0x%X\n", ret);
@@ -230,7 +230,7 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		if (adapter->iface_type != MWIFIEX_PCIE)
+		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->data_sent = false;
 		break;
 	case 0:

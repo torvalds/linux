@@ -174,6 +174,7 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	local_tx_pd->bss_type = priv->bss_type;
 
 	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->data_sent = true;
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
 						   skb, NULL);
 	} else {
@@ -191,7 +192,8 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 		adapter->dbg.num_tx_host_to_card_failure++;
 		break;
 	case -1:
-		adapter->data_sent = false;
+		if (adapter->iface_type == MWIFIEX_USB)
+			adapter->data_sent = false;
 		dev_kfree_skb_any(skb);
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: host_to_card failed: ret=%d\n",
@@ -206,6 +208,8 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 		adapter->tx_lock_flag = true;
 		break;
 	case -EINPROGRESS:
+		if (adapter->iface_type == MWIFIEX_USB)
+			adapter->data_sent = false;
 		adapter->tx_lock_flag = true;
 		break;
 	default:
