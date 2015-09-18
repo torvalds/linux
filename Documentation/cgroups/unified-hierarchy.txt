@@ -341,11 +341,11 @@ is riddled with issues.
   unnecessarily complicated and probably done this way because event
   delivery itself was expensive.
 
-Unified hierarchy implements an interface file "cgroup.populated"
-which can be used to monitor whether the cgroup's subhierarchy has
-tasks in it or not.  Its value is 0 if there is no task in the cgroup
-and its descendants; otherwise, 1.  poll and [id]notify events are
-triggered when the value changes.
+Unified hierarchy implements "populated" field in "cgroup.events"
+interface file which can be used to monitor whether the cgroup's
+subhierarchy has tasks in it or not.  Its value is 0 if there is no
+task in the cgroup and its descendants; otherwise, 1.  poll and
+[id]notify events are triggered when the value changes.
 
 This is significantly lighter and simpler and trivially allows
 delegating management of subhierarchy - subhierarchy monitoring can
@@ -434,6 +434,11 @@ may be specified in any order and not all pairs have to be specified.
   the default settings should be keyed with "default" and appear as
   the first entry in the file.  Specific entries can use "default" as
   its value to indicate inheritance of the default value.
+
+- For events which are not very high frequency, an interface file
+  "events" should be created which lists event key value pairs.
+  Whenever a notifiable event happens, file modified event should be
+  generated on the file.
 
 
 5-4. Per-Controller Changes
