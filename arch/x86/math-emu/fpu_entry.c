@@ -40,6 +40,8 @@
 
 #define __BAD__ FPU_illegal	/* Illegal on an 80486, causes SIGILL */
 
+/* f(u)comi(p) are enabled if CPUID(1).EDX(15) "cmov" is set */
+
 /* WARNING: "u" entries are not documented by Intel in their 80486 manual
    and may not work on FPU clones or later Intel FPUs.
    Changes to support them provided by Linus Torvalds. */
@@ -57,10 +59,10 @@ static FUNC const st_instr_table[64] = {
 /* d8..f */	fcompst,/*u*/	fstp_i,		fcompp,		fstp_i,/*u*/
 /* e0..7 */	fsub__,		FPU_etc,	__BAD__,	finit_,
 /* e0..7 */	fsubri,		fucom_,		fsubrp,		fstsw_,
-/* e8..f */	fsubr_,		fconst,		fucompp,	__BAD__,
-/* e8..f */	fsub_i,		fucomp,		fsubp_,		__BAD__,
-/* f0..7 */	fdiv__,		FPU_triga,	__BAD__,	__BAD__,
-/* f0..7 */	fdivri,		__BAD__,	fdivrp,		__BAD__,
+/* e8..f */	fsubr_,		fconst,		fucompp,	fucomi_,
+/* e8..f */	fsub_i,		fucomp,		fsubp_,		fucomip,
+/* f0..7 */	fdiv__,		FPU_triga,	__BAD__,	fcomi_,
+/* f0..7 */	fdivri,		__BAD__,	fdivrp,		fcomip,
 /* f8..f */	fdivr_,		FPU_trigb,	__BAD__,	__BAD__,
 /* f8..f */	fdiv_i,		__BAD__,	fdivp_,		__BAD__,
 };
@@ -77,14 +79,15 @@ static FUNC const st_instr_table[64] = {
 #define _REGIn 0		/* Uses st(0) and st(rm), but handle checks later */
 
 static u_char const type_table[64] = {
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _REGi_,
-	_REGI_, _REGIn, _null_, _null_, _REGIi, _REGI_, _REGIp, _REGI_,
-	_REGIc, _NONE_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
-	_REGIc, _REG0_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
-	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
-	_REGI_, _NONE_, _REGIc, _null_, _REGIi, _REGIc, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_
+/* Opcode:	d8	d9	da	db	dc	dd	de	df */
+/* c0..7 */	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _REGi_,
+/* c8..f */	_REGI_, _REGIn, _null_, _null_, _REGIi, _REGI_, _REGIp, _REGI_,
+/* d0..7 */	_REGIc, _NONE_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
+/* d8..f */	_REGIc, _REG0_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
+/* e0..7 */	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
+/* e8..f */	_REGI_, _NONE_, _REGIc, _REGIc, _REGIi, _REGIc, _REGIp, _REGIc,
+/* f0..7 */	_REGI_, _NONE_, _null_, _REGIc, _REGIi, _null_, _REGIp, _REGIc,
+/* f8..f */	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
 };
 
 #ifdef RE_ENTRANT_CHECKING

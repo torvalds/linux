@@ -108,6 +108,10 @@ extern void fcompp(void);
 extern void fucom_(void);
 extern void fucomp(void);
 extern void fucompp(void);
+extern void fcomi_(void);
+extern void fcomip(void);
+extern void fucomi_(void);
+extern void fucomip(void);
 /* reg_constant.c */
 extern void fconst(void);
 /* reg_ld_str.c */
