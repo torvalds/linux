@@ -1,0 +1,179 @@
+/*
+ * Keymile kmcoge4 Device Tree Source, based on the P2041RDB DTS
+ *
+ * (C) Copyright 2014
+ * Valentin Longchamp, Keymile AG, valentin.longchamp@keymile.com
+ *
+ * Copyright 2011 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "p2041si-pre.dtsi"
+
+/ {
+	model = "keymile,kmcoge4";
+	compatible = "keymile,kmcoge4", "keymile,kmp204x";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	memory {
+		device_type = "memory";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+		};
+		qman_fqd: qman-fqd {
+			size = <0 0x400000>;
+			alignment = <0 0x400000>;
+		};
+		qman_pfdr: qman-pfdr {
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+		};
+	};
+
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01008000>;
+	};
+
+	bportals: bman-portals@ff4000000 {
+		ranges = <0x0 0xf 0xf4000000 0x200000>;
+	};
+
+	qportals: qman-portals@ff4200000 {
+		ranges = <0x0 0xf 0xf4200000 0x200000>;
+	};
+
+	soc: soc@ffe000000 {
+		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
+		reg = <0xf 0xfe000000 0 0x00001000>;
+		spi@110000 {
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spansion,s25fl256s1";
+				reg = <0>;
+				spi-max-frequency = <20000000>; /* input clock */
+			};
+
+			network_clock@1 {
+				compatible = "zarlink,zl30343";
+				reg = <1>;
+				spi-max-frequency = <8000000>;
+			};
+
+			flash@2 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "micron,m25p32";
+				reg = <2>;
+				spi-max-frequency = <15000000>;
+			};
+		};
+
+		i2c@119000 {
+			status = "disabled";
+		};
+
+		i2c@119100 {
+			status = "disabled";
+		};
+
+		usb0: usb@210000 {
+			status = "disabled";
+		};
+
+		usb1: usb@211000 {
+			status = "disabled";
+		};
+
+		sata@220000 {
+			status = "disabled";
+		};
+
+		sata@221000 {
+			status = "disabled";
+		};
+	};
+
+	rio: rapidio@ffe0c0000 {
+		status = "disabled";
+	};
+
+	lbc: localbus@ffe124000 {
+		reg = <0xf 0xfe124000 0 0x1000>;
+		ranges = <0 0 0xf 0xffa00000 0x00040000		/* LB 0 */
+			  1 0 0xf 0xfb000000 0x00010000		/* LB 1 */
+			  2 0 0xf 0xd0000000 0x10000000		/* LB 2 */
+			  3 0 0xf 0xe0000000 0x10000000>;	/* LB 3 */
+
+		nand@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,elbc-fcm-nand";
+			reg = <0 0 0x40000>;
+		};
+
+		board-control@1,0 {
+			compatible = "keymile,qriox";
+			reg = <1 0 0x80>;
+		};
+
+		chassis-mgmt@3,0 {
+			compatible = "keymile,bfticu";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <3 0 0x100>;
+			interrupt-parent = <&mpic>;
+			interrupts = <6 1 0 0>;
+		};
+	};
+
+	pci0: pcie@ffe200000 {
+		reg = <0xf 0xfe200000 0 0x1000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0x0 0x20000000
+			  0x01000000 0 0x00000000 0xf 0xf8000000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci1: pcie@ffe201000 {
+		status = "disabled";
+	};
+
+	pci2: pcie@ffe202000 {
+		reg = <0xf 0xfe202000 0 0x1000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x20000000 0 0x20000000
+			  0x01000000 0 0x00000000 0xf 0xf8010000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+};
+
+/include/ "p2041si-post.dtsi"
