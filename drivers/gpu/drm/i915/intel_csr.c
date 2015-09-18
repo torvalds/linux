@@ -50,7 +50,7 @@ MODULE_FIRMWARE(I915_CSR_BXT);
 /*
 * SKL CSR registers for DC5 and DC6
 */
-#define CSR_PROGRAM_BASE		0x80000
+#define CSR_PROGRAM(i)			(0x80000 + (i) * 4)
 #define CSR_SSP_BASE_ADDR_GEN9		0x00002FC0
 #define CSR_HTP_ADDR_SKL		0x00500034
 #define CSR_SSP_BASE			0x8F074
@@ -268,8 +268,7 @@ void intel_csr_load_program(struct drm_device *dev)
 	mutex_lock(&dev_priv->csr_lock);
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)
-		I915_WRITE(CSR_PROGRAM_BASE + i * 4,
-			payload[i]);
+		I915_WRITE(CSR_PROGRAM(i), payload[i]);
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
@@ -471,7 +470,7 @@ void assert_csr_loaded(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE(intel_csr_load_status_get(dev_priv) != FW_LOADED,
 		  "CSR is not loaded.\n");
-	WARN_ONCE(!I915_READ(CSR_PROGRAM_BASE),
+	WARN_ONCE(!I915_READ(CSR_PROGRAM(0)),
 		  "CSR program storage start is NULL\n");
 	WARN_ONCE(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
 	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
