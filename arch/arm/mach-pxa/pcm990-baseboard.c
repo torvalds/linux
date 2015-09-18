@@ -284,7 +284,7 @@ static struct irq_chip pcm990_irq_chip = {
 	.irq_unmask	= pcm990_unmask_irq,
 };
 
-static void pcm990_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void pcm990_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq;
 	unsigned long pending;

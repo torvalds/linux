@@ -4489,7 +4489,7 @@ static struct irq_chip atlas7_gpio_irq_chip = {
 	.irq_set_type = atlas7_gpio_irq_type,
 };
 
-static void atlas7_gpio_handle_irq(unsigned int __irq, struct irq_desc *desc)
+static void atlas7_gpio_handle_irq(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct atlas7_gpio_chip *a7gc = to_atlas7_gpio(gc);
@@ -4512,7 +4512,7 @@ static void atlas7_gpio_handle_irq(unsigned int __irq, struct irq_desc *desc)
 	if (!status) {
 		pr_warn("%s: gpio [%s] status %#x no interrupt is flaged\n",
 			__func__, gc->label, status);
-		handle_bad_irq(irq, desc);
+		handle_bad_irq(desc);
 		return;
 	}
 

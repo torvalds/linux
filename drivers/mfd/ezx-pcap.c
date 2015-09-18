@@ -205,7 +205,7 @@ static void pcap_isr_work(struct work_struct *work)
 	} while (gpio_get_value(pdata->gpio));
 }
 
-static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pcap_irq_handler(struct irq_desc *desc)
 {
 	struct pcap_chip *pcap = irq_desc_get_handler_data(desc);
 

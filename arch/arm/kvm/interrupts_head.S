@@ -515,8 +515,7 @@ ARM_BE8(rev	r6, r6  )
 
 	mrc	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
 	str	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
-	bic	r2, #1			@ Clear ENABLE
-	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+
 	isb
 
 	mrrc	p15, 3, rr_lo_hi(r2, r3), c14	@ CNTV_CVAL
@@ -529,6 +528,9 @@ ARM_BE8(rev	r6, r6  )
 	mcrr	p15, 4, r2, r2, c14	@ CNTVOFF
 
 1:
+	mov	r2, #0			@ Clear ENABLE
+	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+
 	@ Allow physical timer/counter access for the host
 	mrc	p15, 4, r2, c14, c1, 0	@ CNTHCTL
 	orr	r2, r2, #(CNTHCTL_PL1PCEN | CNTHCTL_PL1PCTEN)
