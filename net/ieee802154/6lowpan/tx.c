@@ -87,8 +87,8 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 		skb_reset_network_header(frag);
 		*mac_cb(frag) = *mac_cb(skb);
 
-		rc = dev_hard_header(frag, wdev, 0, &master_hdr->dest,
-				     &master_hdr->source, size);
+		rc = wpan_dev_hard_header(frag, wdev, &master_hdr->dest,
+					  &master_hdr->source, size);
 		if (rc < 0) {
 			kfree_skb(frag);
 			return ERR_PTR(rc);
@@ -228,8 +228,8 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 		cb->ackreq = wpan_dev->ackreq;
 	}
 
-	return dev_hard_header(skb, lowpan_dev_info(ldev)->wdev, ETH_P_IPV6,
-			       (void *)&da, (void *)&sa, 0);
+	return wpan_dev_hard_header(skb, lowpan_dev_info(ldev)->wdev, &da, &sa,
+				    0);
 }
 
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)

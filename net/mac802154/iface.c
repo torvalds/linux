@@ -367,12 +367,11 @@ static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
 	return 0;
 }
 
-static int mac802154_header_create(struct sk_buff *skb,
-				   struct net_device *dev,
-				   unsigned short type,
-				   const void *daddr,
-				   const void *saddr,
-				   unsigned len)
+static int ieee802154_header_create(struct sk_buff *skb,
+				    struct net_device *dev,
+				    const struct ieee802154_addr *daddr,
+				    const struct ieee802154_addr *saddr,
+				    unsigned len)
 {
 	struct ieee802154_hdr hdr;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
@@ -423,24 +422,91 @@ static int mac802154_header_create(struct sk_buff *skb,
 	return hlen;
 }
 
+static const struct wpan_dev_header_ops ieee802154_header_ops = {
+	.create		= ieee802154_header_create,
+};
+
+/* This header create functionality assumes a 8 byte array for
+ * source and destination pointer at maximum. To adapt this for
+ * the 802.15.4 dataframe header we use extended address handling
+ * here only and intra pan connection. fc fields are mostly fallback
+ * handling. For provide dev_hard_header for dgram sockets.
+ */
+static int mac802154_header_create(struct sk_buff *skb,
+				   struct net_device *dev,
+				   unsigned short type,
+				   const void *daddr,
+				   const void *saddr,
+				   unsigned len)
+{
+	struct ieee802154_hdr hdr;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_mac_cb cb = { };
+	int hlen;
+
+	if (!daddr)
+		return -EINVAL;
+
+	memset(&hdr.fc, 0, sizeof(hdr.fc));
+	hdr.fc.type = IEEE802154_FC_TYPE_DATA;
+	hdr.fc.ack_request = wpan_dev->ackreq;
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
+
+	/* TODO currently a workaround to give zero cb block to set
+	 * security parameters defaults according MIB.
+	 */
+	if (mac802154_set_header_security(sdata, &hdr, &cb) < 0)
+		return -EINVAL;
+
+	hdr.dest.pan_id = wpan_dev->pan_id;
+	hdr.dest.mode = IEEE802154_ADDR_LONG;
+	memcpy(&hdr.dest.extended_addr, daddr, IEEE802154_EXTENDED_ADDR_LEN);
+
+	hdr.source.pan_id = hdr.dest.pan_id;
+	hdr.source.mode = IEEE802154_ADDR_LONG;
+
+	if (!saddr)
+		hdr.source.extended_addr = wpan_dev->extended_addr;
+	else
+		memcpy(&hdr.source.extended_addr, saddr,
+		       IEEE802154_EXTENDED_ADDR_LEN);
+
+	hlen = ieee802154_hdr_push(skb, &hdr);
+	if (hlen < 0)
+		return -EINVAL;
+
+	skb_reset_mac_header(skb);
+	skb->mac_len = hlen;
+
+	if (len > ieee802154_max_payload(&hdr))
+		return -EMSGSIZE;
+
+	return hlen;
+}
+
 static int
 mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	struct ieee802154_hdr hdr;
-	struct ieee802154_addr *addr = (struct ieee802154_addr *)haddr;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
 		pr_debug("malformed packet\n");
 		return 0;
 	}
 
-	*addr = hdr.source;
-	return sizeof(*addr);
+	if (hdr.source.mode == IEEE802154_ADDR_LONG) {
+		memcpy(haddr, &hdr.source.extended_addr,
+		       IEEE802154_EXTENDED_ADDR_LEN);
+		return IEEE802154_EXTENDED_ADDR_LEN;
+	}
+
+	return 0;
 }
 
-static struct header_ops mac802154_header_ops = {
-	.create		= mac802154_header_create,
-	.parse		= mac802154_header_parse,
+static const struct header_ops mac802154_header_ops = {
+	.create         = mac802154_header_create,
+	.parse          = mac802154_header_parse,
 };
 
 static const struct net_device_ops mac802154_wpan_ops = {
@@ -513,6 +579,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
 		wpan_dev->promiscuous_mode = false;
+		wpan_dev->header_ops = &ieee802154_header_ops;
 
 		mutex_init(&sdata->sec_mtx);
 

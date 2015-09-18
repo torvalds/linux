@@ -167,6 +167,26 @@ struct wpan_phy {
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
+struct ieee802154_addr {
+	u8 mode;
+	__le16 pan_id;
+	union {
+		__le16 short_addr;
+		__le64 extended_addr;
+	};
+};
+
+struct wpan_dev_header_ops {
+	/* TODO create callback currently assumes ieee802154_mac_cb inside
+	 * skb->cb. This should be changed to give these information as
+	 * parameter.
+	 */
+	int	(*create)(struct sk_buff *skb, struct net_device *dev,
+			  const struct ieee802154_addr *daddr,
+			  const struct ieee802154_addr *saddr,
+			  unsigned int len);
+};
+
 struct wpan_dev {
 	struct wpan_phy *wpan_phy;
 	int iftype;
@@ -174,6 +194,8 @@ struct wpan_dev {
 	/* the remainder of this struct should be private to cfg802154 */
 	struct list_head list;
 	struct net_device *netdev;
+
+	const struct wpan_dev_header_ops *header_ops;
 
 	/* lowpan interface, set when the wpan_dev belongs to one lowpan_dev */
 	struct net_device *lowpan_dev;
@@ -204,6 +226,17 @@ struct wpan_dev {
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
+
+static inline int
+wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
+		     const struct ieee802154_addr *daddr,
+		     const struct ieee802154_addr *saddr,
+		     unsigned int len)
+{
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+
+	return wpan_dev->header_ops->create(skb, dev, daddr, saddr, len);
+}
 
 struct wpan_phy *
 wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size);

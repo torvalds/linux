@@ -676,8 +676,8 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	cb->seclevel = ro->seclevel;
 	cb->seclevel_override = ro->seclevel_override;
 
-	err = dev_hard_header(skb, dev, ETH_P_IEEE802154, &dst_addr,
-			      ro->bound ? &ro->src_addr : NULL, size);
+	err = wpan_dev_hard_header(skb, dev, &dst_addr,
+				   ro->bound ? &ro->src_addr : NULL, size);
 	if (err < 0)
 		goto out_skb;
 

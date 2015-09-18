@@ -50,15 +50,6 @@ struct ieee802154_sechdr {
 	};
 };
 
-struct ieee802154_addr {
-	u8 mode;
-	__le16 pan_id;
-	union {
-		__le16 short_addr;
-		__le64 extended_addr;
-	};
-};
-
 struct ieee802154_hdr_fc {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	u16 type:3,
