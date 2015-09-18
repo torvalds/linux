@@ -2241,6 +2241,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	brcmf_dbg(TRACE, "delete P2P vif\n");
 	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
 
+	brcmf_cfg80211_arm_vif_event(cfg, vif);
 	switch (vif->wdev.iftype) {
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (test_bit(BRCMF_VIF_STATUS_DISCONNECTING, &vif->sme_state))
@@ -2257,8 +2258,6 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 			return 0;
 		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
-		brcmf_remove_interface(vif->ifp);
-		return 0;
 	default:
 		return -ENOTSUPP;
 	}
@@ -2270,10 +2269,11 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		wait_for_completion_timeout(&cfg->vif_disabled,
 					    msecs_to_jiffies(500));
 
-	brcmf_vif_clear_mgmt_ies(vif);
-
-	brcmf_cfg80211_arm_vif_event(cfg, vif);
-	err = brcmf_p2p_release_p2p_if(vif);
+	err = 0;
+	if (vif->wdev.iftype != NL80211_IFTYPE_P2P_DEVICE) {
+		brcmf_vif_clear_mgmt_ies(vif);
+		err = brcmf_p2p_release_p2p_if(vif);
+	}
 	if (!err) {
 		/* wait for firmware event */
 		err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_DEL,
@@ -2283,8 +2283,12 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		else
 			err = 0;
 	}
+	if (err)
+		brcmf_remove_interface(vif->ifp);
+
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
-	p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = NULL;
+	if (vif->wdev.iftype != NL80211_IFTYPE_P2P_DEVICE)
+		p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = NULL;
 
 	return err;
 }
@@ -2333,7 +2337,9 @@ void brcmf_p2p_stop_device(struct wiphy *wiphy, struct wireless_dev *wdev)
 	 */
 	if (p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif == vif) {
 		mutex_lock(&cfg->usr_sync);
-		(void)brcmf_p2p_deinit_discovery(p2p);
+		/* Set the discovery state to SCAN */
+		(void)brcmf_p2p_set_discover_state(vif->ifp,
+						   WL_P2P_DISC_ST_SCAN, 0, 0);
 		brcmf_abort_scanning(cfg);
 		clear_bit(BRCMF_VIF_STATUS_READY, &vif->sme_state);
 		mutex_unlock(&cfg->usr_sync);
