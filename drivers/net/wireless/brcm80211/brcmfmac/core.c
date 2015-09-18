@@ -1044,7 +1044,8 @@ int brcmf_bus_start(struct device *dev)
 
 	brcmf_fws_add_interface(ifp);
 
-	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev);
+	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev,
+					     brcmf_p2p_enable);
 	if (drvr->config == NULL) {
 		ret = -ENOMEM;
 		goto fail;

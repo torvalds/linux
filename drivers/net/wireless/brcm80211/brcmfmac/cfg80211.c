@@ -6127,7 +6127,8 @@ static void brcmf_free_wiphy(struct wiphy *wiphy)
 }
 
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
-						  struct device *busdev)
+						  struct device *busdev,
+						  bool p2pdev_forced)
 {
 	struct net_device *ndev = brcmf_get_ifp(drvr, 0)->ndev;
 	struct brcmf_cfg80211_info *cfg;
@@ -6219,7 +6220,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 			*cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
 
-	err = brcmf_p2p_attach(cfg);
+	err = brcmf_p2p_attach(cfg, p2pdev_forced);
 	if (err) {
 		brcmf_err("P2P initilisation failed (%d)\n", err);
 		goto wiphy_unreg_out;
