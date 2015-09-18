@@ -565,6 +565,7 @@ bool tcp_schedule_loss_probe(struct sock *sk);
 /* tcp_input.c */
 void tcp_resume_early_retransmit(struct sock *sk);
 void tcp_rearm_rto(struct sock *sk);
+void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req);
 void tcp_reset(struct sock *sk);
 
 /* tcp_timer.c */
