@@ -1304,7 +1304,7 @@ static void denali_cmdfunc(struct mtd_info *mtd, unsigned int cmd, int col,
 		 */
 		addr = MODE_11 | BANK(denali->flash_bank);
 		index_addr(denali, addr | 0, 0x90);
-		index_addr(denali, addr | 1, 0);
+		index_addr(denali, addr | 1, col);
 		for (i = 0; i < 8; i++) {
 			index_addr_read_data(denali, addr | 2, &id);
 			write_byte_to_buf(denali, id);
