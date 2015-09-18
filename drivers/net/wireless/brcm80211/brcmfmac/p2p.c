@@ -2327,11 +2327,17 @@ void brcmf_p2p_stop_device(struct wiphy *wiphy, struct wireless_dev *wdev)
 	struct brcmf_cfg80211_vif *vif;
 
 	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
-	mutex_lock(&cfg->usr_sync);
-	(void)brcmf_p2p_deinit_discovery(p2p);
-	brcmf_abort_scanning(cfg);
-	clear_bit(BRCMF_VIF_STATUS_READY, &vif->sme_state);
-	mutex_unlock(&cfg->usr_sync);
+	/* This call can be result of the unregister_wdev call. In that case
+	 * we dont want to do anything anymore. Just return. The config vif
+	 * will have been cleared at this point.
+	 */
+	if (p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif == vif) {
+		mutex_lock(&cfg->usr_sync);
+		(void)brcmf_p2p_deinit_discovery(p2p);
+		brcmf_abort_scanning(cfg);
+		clear_bit(BRCMF_VIF_STATUS_READY, &vif->sme_state);
+		mutex_unlock(&cfg->usr_sync);
+	}
 }
 
 /**
