@@ -3150,6 +3150,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			spin_unlock_irq(&sh->stripe_lock);
 			if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
 				wake_up(&conf->wait_for_overlap);
+			if (bi)
+				s->to_read--;
 			while (bi && bi->bi_iter.bi_sector <
 			       sh->dev[i].sector + STRIPE_SECTORS) {
 				struct bio *nextbi =
@@ -3169,6 +3171,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		 */
 		clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	}
+	s->to_write = 0;
+	s->written = 0;
 
 	if (test_and_clear_bit(STRIPE_FULL_WRITE, &sh->state))
 		if (atomic_dec_and_test(&conf->pending_full_writes))
