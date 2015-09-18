@@ -2507,7 +2507,7 @@ struct drm_i915_cmd_table {
 
 #define BXT_REVID_A0		(0x0)
 #define BXT_REVID_B0		(0x3)
-#define BXT_REVID_C0		(0x6)
+#define BXT_REVID_C0		(0x9)
 
 /*
  * The genX designation typically refers to the render engine, so render
