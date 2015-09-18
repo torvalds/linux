@@ -83,7 +83,7 @@ static unsigned int ipv4_conntrack_defrag(const struct nf_hook_ops *ops,
 	/* Gather fragments. */
 	if (ip_is_fragment(ip_hdr(skb))) {
 		enum ip_defrag_users user =
-			nf_ct_defrag_user(ops->hooknum, skb);
+			nf_ct_defrag_user(state->hook, skb);
 
 		if (nf_ct_ipv4_gather_frags(skb, user))
 			return NF_STOLEN;

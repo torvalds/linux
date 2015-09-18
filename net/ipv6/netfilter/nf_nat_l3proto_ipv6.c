@@ -272,7 +272,7 @@ nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn_nat *nat;
-	enum nf_nat_manip_type maniptype = HOOK2MANIP(ops->hooknum);
+	enum nf_nat_manip_type maniptype = HOOK2MANIP(state->hook);
 	__be16 frag_off;
 	int hdrlen;
 	u8 nexthdr;
@@ -303,7 +303,7 @@ nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 
 		if (hdrlen >= 0 && nexthdr == IPPROTO_ICMPV6) {
 			if (!nf_nat_icmpv6_reply_translation(skb, ct, ctinfo,
-							     ops->hooknum,
+							     state->hook,
 							     hdrlen))
 				return NF_DROP;
 			else
@@ -321,17 +321,17 @@ nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 			if (ret != NF_ACCEPT)
 				return ret;
 
-			if (nf_nat_initialized(ct, HOOK2MANIP(ops->hooknum)))
+			if (nf_nat_initialized(ct, HOOK2MANIP(state->hook)))
 				break;
 
-			ret = nf_nat_alloc_null_binding(ct, ops->hooknum);
+			ret = nf_nat_alloc_null_binding(ct, state->hook);
 			if (ret != NF_ACCEPT)
 				return ret;
 		} else {
 			pr_debug("Already setup manip %s for ct %p\n",
 				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
 				 ct);
-			if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, state->out))
+			if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
 				goto oif_changed;
 		}
 		break;
@@ -340,11 +340,11 @@ nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		/* ESTABLISHED */
 		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
 			     ctinfo == IP_CT_ESTABLISHED_REPLY);
-		if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, state->out))
+		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
 			goto oif_changed;
 	}
 
-	return nf_nat_packet(ct, ctinfo, ops->hooknum, skb);
+	return nf_nat_packet(ct, ctinfo, state->hook, skb);
 
 oif_changed:
 	nf_ct_kill_acct(ct, ctinfo, skb);
