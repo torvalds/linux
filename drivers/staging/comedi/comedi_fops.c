@@ -43,15 +43,15 @@
 
 #include "comedi_internal.h"
 
-/**
+/*
  * comedi_subdevice "runflags"
- * @COMEDI_SRF_RT:		DEPRECATED: command is running real-time
- * @COMEDI_SRF_ERROR:		indicates an COMEDI_CB_ERROR event has occurred
+ * COMEDI_SRF_RT:		DEPRECATED: command is running real-time
+ * COMEDI_SRF_ERROR:		indicates an COMEDI_CB_ERROR event has occurred
  *				since the last command was started
- * @COMEDI_SRF_RUNNING:		command is running
- * @COMEDI_SRF_FREE_SPRIV:	free s->private on detach
+ * COMEDI_SRF_RUNNING:		command is running
+ * COMEDI_SRF_FREE_SPRIV:	free s->private on detach
  *
- * @COMEDI_SRF_BUSY_MASK:	runflags that indicate the subdevice is "busy"
+ * COMEDI_SRF_BUSY_MASK:	runflags that indicate the subdevice is "busy"
  */
 #define COMEDI_SRF_RT		BIT(1)
 #define COMEDI_SRF_ERROR	BIT(2)
