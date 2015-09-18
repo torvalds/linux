@@ -114,35 +114,28 @@ struct fsl_ssi_rxtx_reg_val {
 	struct fsl_ssi_reg_val tx;
 };
 
+static const struct reg_default fsl_ssi_reg_defaults[] = {
+	{0x10, 0x00000000},
+	{0x18, 0x00003003},
+	{0x1c, 0x00000200},
+	{0x20, 0x00000200},
+	{0x24, 0x00040000},
+	{0x28, 0x00040000},
+	{0x38, 0x00000000},
+	{0x48, 0x00000000},
+	{0x4c, 0x00000000},
+	{0x54, 0x00000000},
+	{0x58, 0x00000000},
+};
+
 static bool fsl_ssi_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CCSR_SSI_STX0:
-	case CCSR_SSI_STX1:
-	case CCSR_SSI_SRX0:
-	case CCSR_SSI_SRX1:
-	case CCSR_SSI_SCR:
-	case CCSR_SSI_SISR:
-	case CCSR_SSI_SIER:
-	case CCSR_SSI_STCR:
-	case CCSR_SSI_SRCR:
-	case CCSR_SSI_STCCR:
-	case CCSR_SSI_SRCCR:
-	case CCSR_SSI_SFCSR:
-	case CCSR_SSI_STR:
-	case CCSR_SSI_SOR:
-	case CCSR_SSI_SACNT:
-	case CCSR_SSI_SACADD:
-	case CCSR_SSI_SACDAT:
-	case CCSR_SSI_SATAG:
-	case CCSR_SSI_STMSK:
-	case CCSR_SSI_SRMSK:
-	case CCSR_SSI_SACCST:
 	case CCSR_SSI_SACCEN:
 	case CCSR_SSI_SACCDIS:
-		return true;
-	default:
 		return false;
+	default:
+		return true;
 	}
 }
 
@@ -163,35 +156,17 @@ static bool fsl_ssi_volatile_reg(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	}
-
 }
 
 static bool fsl_ssi_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CCSR_SSI_STX0:
-	case CCSR_SSI_STX1:
-	case CCSR_SSI_SCR:
-	case CCSR_SSI_SISR:
-	case CCSR_SSI_SIER:
-	case CCSR_SSI_STCR:
-	case CCSR_SSI_SRCR:
-	case CCSR_SSI_STCCR:
-	case CCSR_SSI_SRCCR:
-	case CCSR_SSI_SFCSR:
-	case CCSR_SSI_STR:
-	case CCSR_SSI_SOR:
-	case CCSR_SSI_SACNT:
-	case CCSR_SSI_SACADD:
-	case CCSR_SSI_SACDAT:
-	case CCSR_SSI_SATAG:
-	case CCSR_SSI_STMSK:
-	case CCSR_SSI_SRMSK:
-	case CCSR_SSI_SACCEN:
-	case CCSR_SSI_SACCDIS:
-		return true;
-	default:
+	case CCSR_SSI_SRX0:
+	case CCSR_SSI_SRX1:
+	case CCSR_SSI_SACCST:
 		return false;
+	default:
+		return true;
 	}
 }
 
@@ -201,6 +176,8 @@ static const struct regmap_config fsl_ssi_regconfig = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
+	.reg_defaults = fsl_ssi_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(fsl_ssi_reg_defaults),
 	.readable_reg = fsl_ssi_readable_reg,
 	.volatile_reg = fsl_ssi_volatile_reg,
 	.writeable_reg = fsl_ssi_writeable_reg,
