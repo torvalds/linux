@@ -300,8 +300,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 			goto event_free;
 		}
 
-		if ((event->code == BRCMF_E_TDLS_PEER_EVENT) &&
-		    (emsg.bsscfgidx == 1))
+		if (event->code == BRCMF_E_TDLS_PEER_EVENT)
 			ifp = drvr->iflist[0];
 		else
 			ifp = drvr->iflist[emsg.bsscfgidx];
