@@ -897,6 +897,9 @@ struct kvm_x86_ops {
 					   gfn_t offset, unsigned long mask);
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;
+
+	int (*update_pi_irte)(struct kvm *kvm, unsigned int host_irq,
+			      uint32_t guest_irq, bool set);
 };
 
 struct kvm_arch_async_pf {
