@@ -742,6 +742,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	int err, active_logs;
 	bool need_restart_gc = false;
 	bool need_stop_gc = false;
+	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
 
 	sync_filesystem(sb);
 
@@ -766,6 +767,14 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	if (f2fs_readonly(sb) && (*flags & MS_RDONLY))
 		goto skip;
+
+	/* disallow enable/disable extent_cache dynamically */
+	if (no_extent_cache == !!test_opt(sbi, EXTENT_CACHE)) {
+		err = -EINVAL;
+		f2fs_msg(sbi->sb, KERN_WARNING,
+				"switch extent_cache option is not allowed");
+		goto restore_opts;
+	}
 
 	/*
 	 * We stop the GC thread if FS is mounted as RO
