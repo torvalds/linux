@@ -4082,14 +4082,10 @@ enum skl_disp_power_wells {
 # define TV_CC_DATA_1_MASK		0x0000007f
 # define TV_CC_DATA_1_SHIFT		0
 
-#define TV_H_LUMA_0		0x68100
-#define TV_H_LUMA_59		0x681ec
-#define TV_H_CHROMA_0		0x68200
-#define TV_H_CHROMA_59		0x682ec
-#define TV_V_LUMA_0		0x68300
-#define TV_V_LUMA_42		0x683a8
-#define TV_V_CHROMA_0		0x68400
-#define TV_V_CHROMA_42		0x684a8
+#define TV_H_LUMA(i)		(0x68100 + (i) * 4) /* 60 registers */
+#define TV_H_CHROMA(i)		(0x68200 + (i) * 4) /* 60 registers */
+#define TV_V_LUMA(i)		(0x68300 + (i) * 4) /* 43 registers */
+#define TV_V_CHROMA(i)		(0x68400 + (i) * 4) /* 43 registers */
 
 /* Display Port */
 #define DP_A				0x64000 /* eDP */
