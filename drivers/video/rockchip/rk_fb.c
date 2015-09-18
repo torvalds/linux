@@ -3410,10 +3410,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 	/* get lcdc driver */
 	sprintf(name, "lcdc%d", lcdc_id);
-	if (rk_fb->disp_mode != DUAL)
-		dev_drv = rk_fb->lcdc_dev_drv[0];
-	else
-		dev_drv = rk_get_lcdc_drv(name);
+	dev_drv = rk_get_lcdc_drv(name);
 
 	if (dev_drv == NULL) {
 		printk(KERN_ERR "%s driver not found!", name);
