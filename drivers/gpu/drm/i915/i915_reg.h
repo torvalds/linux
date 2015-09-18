@@ -2485,8 +2485,8 @@ enum skl_disp_power_wells {
 #define PALETTE_A_OFFSET 0xa000
 #define PALETTE_B_OFFSET 0xa800
 #define CHV_PALETTE_C_OFFSET 0xc000
-#define PALETTE(pipe) (dev_priv->info.palette_offsets[pipe] + \
-		       dev_priv->info.display_mmio_offset)
+#define PALETTE(pipe, i) (dev_priv->info.palette_offsets[pipe] + \
+			  dev_priv->info.display_mmio_offset + (i) * 4)
 
 /* MCH MMIO space */
 
@@ -5641,7 +5641,7 @@ enum skl_disp_power_wells {
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800
-#define LGC_PALETTE(pipe) _PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B)
+#define LGC_PALETTE(pipe, i) (_PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B) + (i) * 4)
 
 #define _GAMMA_MODE_A		0x4a480
 #define _GAMMA_MODE_B		0x4ac80

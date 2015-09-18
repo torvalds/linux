@@ -4593,7 +4593,6 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	int palreg = PALETTE(pipe);
 	int i;
 	bool reenable_ips = false;
 
@@ -4608,10 +4607,6 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 			assert_pll_enabled(dev_priv, pipe);
 	}
 
-	/* use legacy palette for Ironlake */
-	if (!HAS_GMCH_DISPLAY(dev))
-		palreg = LGC_PALETTE(pipe);
-
 	/* Workaround : Do not read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 */
@@ -4623,7 +4618,14 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	}
 
 	for (i = 0; i < 256; i++) {
-		I915_WRITE(palreg + 4 * i,
+		u32 palreg;
+
+		if (HAS_GMCH_DISPLAY(dev))
+			palreg = PALETTE(pipe, i);
+		else
+			palreg = LGC_PALETTE(pipe, i);
+
+		I915_WRITE(palreg,
 			   (intel_crtc->lut_r[i] << 16) |
 			   (intel_crtc->lut_g[i] << 8) |
 			   intel_crtc->lut_b[i]);
