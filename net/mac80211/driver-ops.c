@@ -8,6 +8,60 @@
 #include "trace.h"
 #include "driver-ops.h"
 
+int drv_add_interface(struct ieee80211_local *local,
+		      struct ieee80211_sub_if_data *sdata)
+{
+	int ret;
+
+	might_sleep();
+
+	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		    (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+		     !ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF) &&
+		     !(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))))
+		return -EINVAL;
+
+	trace_drv_add_interface(local, sdata);
+	ret = local->ops->add_interface(&local->hw, &sdata->vif);
+	trace_drv_return_int(local, ret);
+
+	if (ret == 0)
+		sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
+
+	return ret;
+}
+
+int drv_change_interface(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata,
+			 enum nl80211_iftype type, bool p2p)
+{
+	int ret;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_change_interface(local, sdata, type, p2p);
+	ret = local->ops->change_interface(&local->hw, &sdata->vif, type, p2p);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+void drv_remove_interface(struct ieee80211_local *local,
+			  struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_remove_interface(local, sdata);
+	local->ops->remove_interface(&local->hw, &sdata->vif);
+	sdata->flags &= ~IEEE80211_SDATA_IN_DRIVER;
+	trace_drv_return_void(local);
+}
+
 __must_check
 int drv_sta_state(struct ieee80211_local *local,
 		  struct ieee80211_sub_if_data *sdata,
