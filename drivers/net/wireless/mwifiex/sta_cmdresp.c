@@ -1128,6 +1128,17 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_11n_addba_resp(priv, resp);
 		break;
 	case HostCmd_CMD_RECONFIGURE_TX_BUFF:
+		if (0xffff == (u16)le16_to_cpu(resp->params.tx_buf.buff_size)) {
+			if (adapter->iface_type == MWIFIEX_USB &&
+			    adapter->usb_mc_setup) {
+				if (adapter->if_ops.multi_port_resync)
+					adapter->if_ops.
+						multi_port_resync(adapter);
+				adapter->usb_mc_setup = false;
+				adapter->tx_lock_flag = false;
+			}
+			break;
+		}
 		adapter->tx_buf_size = (u16) le16_to_cpu(resp->params.
 							     tx_buf.buff_size);
 		adapter->tx_buf_size = (adapter->tx_buf_size

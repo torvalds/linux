@@ -290,6 +290,9 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 					    urb->status ? -1 : 0);
 	}
 
+	if (card->mc_resync_flag)
+		mwifiex_multi_chan_resync(adapter);
+
 	mwifiex_queue_main_work(adapter);
 
 	return;
@@ -671,6 +674,10 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 		if (!port->tx_data_ep)
 			continue;
 		port->tx_data_ix = 0;
+		if (port->tx_data_ep == MWIFIEX_USB_EP_DATA)
+			port->block_status = false;
+		else
+			port->block_status = true;
 		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
 			port->tx_data_list[j].adapter = adapter;
 			port->tx_data_list[j].ep = port->tx_data_ep;
@@ -767,6 +774,53 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 	*len = actual_length;
 
 	return ret;
+}
+
+static void mwifiex_usb_port_resync(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = adapter->card;
+	u8 active_port = MWIFIEX_USB_EP_DATA;
+	struct mwifiex_private *priv = NULL;
+	int i;
+
+	if (adapter->usb_mc_status) {
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP &&
+			     !priv->bss_started) ||
+			    (priv->bss_role == MWIFIEX_BSS_ROLE_STA &&
+			     !priv->media_connected))
+				priv->usb_port = MWIFIEX_USB_EP_DATA;
+		}
+		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++)
+			card->port[i].block_status = false;
+	} else {
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP &&
+			     priv->bss_started) ||
+			    (priv->bss_role == MWIFIEX_BSS_ROLE_STA &&
+			     priv->media_connected)) {
+				active_port = priv->usb_port;
+				break;
+			}
+		}
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (priv)
+				priv->usb_port = active_port;
+		}
+		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+			if (active_port == card->port[i].tx_data_ep)
+				card->port[i].block_status = false;
+			else
+				card->port[i].block_status = true;
+		}
+	}
 }
 
 /* This function write a command/data packet to card. */
@@ -903,6 +957,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->usb_mc_status = false;
+	adapter->usb_mc_setup = false;
 
 	return 0;
 }
@@ -1133,6 +1188,7 @@ static struct mwifiex_if_ops usb_ops = {
 	.event_complete =	mwifiex_usb_cmd_event_complete,
 	.host_to_card =		mwifiex_usb_host_to_card,
 	.submit_rem_rx_urbs =	mwifiex_usb_submit_rem_rx_urbs,
+	.multi_port_resync =	mwifiex_usb_port_resync,
 };
 
 /* This function initializes the USB driver module.

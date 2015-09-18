@@ -381,6 +381,11 @@ void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 			       sizeof(struct mwifiex_ie_types_header));
 	}
 
+	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->tx_lock_flag = true;
+		adapter->usb_mc_setup = true;
+		mwifiex_multi_chan_resync(adapter);
+	}
 }
 
 void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,

@@ -816,6 +816,7 @@ struct mwifiex_if_ops {
 	void (*iface_work)(struct work_struct *work);
 	void (*submit_rem_rx_urbs)(struct mwifiex_adapter *adapter);
 	void (*deaggr_pkt)(struct mwifiex_adapter *, struct sk_buff *);
+	void (*multi_port_resync)(struct mwifiex_adapter *);
 };
 
 struct mwifiex_adapter {
@@ -991,6 +992,7 @@ struct mwifiex_adapter {
 	bool drcs_enabled;
 	u8 active_scan_triggered;
 	bool usb_mc_status;
+	bool usb_mc_setup;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1564,6 +1566,7 @@ void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
 				    struct sk_buff *event);
 void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 				      struct sk_buff *event_skb);
+void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
