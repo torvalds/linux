@@ -252,6 +252,18 @@ static void irqfd_update(struct kvm *kvm, struct kvm_kernel_irqfd *irqfd)
 	write_seqcount_end(&irqfd->irq_entry_sc);
 }
 
+#ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
+void __attribute__((weak)) kvm_arch_irq_bypass_stop(
+				struct irq_bypass_consumer *cons)
+{
+}
+
+void __attribute__((weak)) kvm_arch_irq_bypass_start(
+				struct irq_bypass_consumer *cons)
+{
+}
+#endif
+
 static int
 kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 {
