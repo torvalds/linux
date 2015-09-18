@@ -127,7 +127,14 @@
 				};
 			};
 
-			uart_pins: uart_pins {
+			gsbi6_uart_2pins: gsbi6_uart_2pins {
+				mux {
+					pins = "gpio14", "gpio15";
+					function = "gsbi6";
+				};
+			};
+
+			gsbi6_uart_4pins: gsbi6_uart_4pins {
 				mux {
 					pins = "gpio14", "gpio15", "gpio16", "gpio17";
 					function = "gsbi6";

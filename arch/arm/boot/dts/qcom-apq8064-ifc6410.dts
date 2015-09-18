@@ -145,7 +145,7 @@
 			serial@16540000 {
 				status = "ok";
 				pinctrl-names = "default";
-				pinctrl-0 = <&uart_pins>;
+				pinctrl-0 = <&gsbi6_uart_4pins>;
 			};
 		};
 
