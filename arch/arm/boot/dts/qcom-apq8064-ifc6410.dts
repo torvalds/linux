@@ -26,6 +26,18 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&notify_led>;
+
+		led@1 {
+			label = "apq8064:green:user1";
+			gpios = <&pm8921_gpio 18 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
 	soc {
 		pinctrl@800000 {
 			card_detect: card_detect {
@@ -225,6 +237,15 @@
 					wlan_default_gpios: wlan-gpios {
 						pios {
 							pins = "gpio43";
+							function = "normal";
+							bias-disable;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+
+					notify_led: nled {
+						pios {
+							pins = "gpio18";
 							function = "normal";
 							bias-disable;
 							power-source = <PM8921_GPIO_S4>;
