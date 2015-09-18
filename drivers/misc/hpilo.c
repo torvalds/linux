@@ -906,7 +906,7 @@ MODULE_AUTHOR("David Altobelli <david.altobelli@hp.com>");
 MODULE_LICENSE("GPL v2");
 
 module_param(max_ccb, uint, 0444);
-MODULE_PARM_DESC(max_ccb, "Maximum number of HP iLO channels to attach (16)");
+MODULE_PARM_DESC(max_ccb, "Maximum number of HP iLO channels to attach (8-24)(default=16)");
 
 module_init(ilo_init);
 module_exit(ilo_exit);
