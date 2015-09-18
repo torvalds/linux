@@ -62,7 +62,7 @@ static int ds1390_get_reg(struct device *dev, unsigned char address,
 	if (status != 0)
 		return status;
 
-	*data = chip->txrx_buf[1];
+	*data = chip->txrx_buf[0];
 
 	return 0;
 }
