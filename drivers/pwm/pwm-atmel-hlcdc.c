@@ -236,6 +236,7 @@ static const struct of_device_id atmel_hlcdc_dt_ids[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, atmel_hlcdc_dt_ids);
 
 static int atmel_hlcdc_pwm_probe(struct platform_device *pdev)
 {
