@@ -920,7 +920,8 @@ static int f2fs_mpage_readpages(struct address_space *mapping,
 			map.m_lblk = block_in_file;
 			map.m_len = last_block - block_in_file;
 
-			if (f2fs_map_blocks(inode, &map, 0, false))
+			if (f2fs_map_blocks(inode, &map, 0,
+							F2FS_GET_BLOCK_READ))
 				goto set_error_page;
 		}
 got_it:
