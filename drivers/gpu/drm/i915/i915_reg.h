@@ -105,7 +105,7 @@
 #define  GRDOM_RESET_STATUS (1<<1)
 #define  GRDOM_RESET_ENABLE (1<<0)
 
-#define ILK_GDSR 0x2ca4 /* MCHBAR offset */
+#define ILK_GDSR (MCHBAR_MIRROR_BASE + 0x2ca4)
 #define  ILK_GRDOM_FULL		(0<<1)
 #define  ILK_GRDOM_RENDER	(1<<1)
 #define  ILK_GRDOM_MEDIA	(3<<1)
