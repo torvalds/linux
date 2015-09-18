@@ -160,7 +160,6 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 		ra_list->tdls_link = false;
 		ra_list->ba_status = BA_SETUP_NONE;
 		ra_list->amsdu_in_ampdu = false;
-		ra_list->tx_paused = false;
 		if (!mwifiex_queuing_ra_based(priv)) {
 			if (mwifiex_is_tdls_link_setup
 				(mwifiex_get_tdls_link_status(priv, ra))) {
@@ -173,6 +172,8 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 		} else {
 			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 			node = mwifiex_get_sta_entry(priv, ra);
+			if (node)
+				ra_list->tx_paused = node->tx_pause;
 			ra_list->is_11n_enabled =
 				      mwifiex_is_sta_11n_enabled(priv, node);
 			if (ra_list->is_11n_enabled)
@@ -737,7 +738,11 @@ mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv, const u8 *ra_addr)
 		if (!ra_list)
 			continue;
 		mwifiex_wmm_del_pkts_in_ralist_node(priv, ra_list);
-		atomic_sub(ra_list->total_pkt_count, &priv->wmm.tx_pkts_queued);
+		if (ra_list->tx_paused)
+			priv->wmm.pkts_paused[i] -= ra_list->total_pkt_count;
+		else
+			atomic_sub(ra_list->total_pkt_count,
+				   &priv->wmm.tx_pkts_queued);
 		list_del(&ra_list->list);
 		kfree(ra_list);
 	}
