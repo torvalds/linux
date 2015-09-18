@@ -663,10 +663,8 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		}
 
 		img_swap = kzalloc(len, GFP_KERNEL | GFP_DMA);
-		if (!img_swap) {
-			kfree(out);
-			goto abort;
-		}
+		if (!img_swap)
+			goto abort_out;
 
 		/* We need to re-order for 0010 */
 		byte_swap_64((u64 *)&pll_rec, img_swap, len);
@@ -681,20 +679,16 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		spi_message_add_tail(&t, &m);
 
 		ret = spi_sync(spi, &m);
-		if (ret != 0) {
+		if (ret) {
 			dev_err(codec->dev, "First PLL write failed: %d\n", ret);
-			kfree(img_swap);
-			kfree(out);
-			goto abort;
+			goto abort_swap;
 		}
 
 		/* Use a second send of the message to get the return status */
 		ret = spi_sync(spi, &m);
-		if (ret != 0) {
+		if (ret) {
 			dev_err(codec->dev, "Second PLL write failed: %d\n", ret);
-			kfree(img_swap);
-			kfree(out);
-			goto abort;
+			goto abort_swap;
 		}
 
 		p = (u32 *)out;
@@ -727,6 +721,10 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 
 	return 0;
 
+abort_swap:
+	kfree(img_swap);
+abort_out:
+	kfree(out);
 abort:
 	/* Put the chip back into reset */
 	wm0010_halt(codec);
