@@ -258,7 +258,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	/* Copy RSA signature from the fw image to HW for verification */
 	sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, UOS_RSA_SIG_SIZE, offset);
 	for (i = 0; i < UOS_RSA_SIG_SIZE / sizeof(u32); i++)
-		I915_WRITE(UOS_RSA_SCRATCH_0 + i * sizeof(u32), rsa[i]);
+		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
 
 	/* Set the source address for the new blob */
 	offset = i915_gem_obj_ggtt_offset(fw_obj);
