@@ -858,6 +858,8 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		break;
 	}
 
+	adapter->usb_mc_status = false;
+
 	return 0;
 }
 

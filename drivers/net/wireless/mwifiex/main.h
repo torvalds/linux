@@ -519,6 +519,7 @@ struct mwifiex_private {
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
 	u8 port_open;
+	u8 usb_port;
 	u32 num_tx_timeout;
 	/* track consecutive timeout */
 	u8 tx_timeout_cnt;
@@ -989,6 +990,7 @@ struct mwifiex_adapter {
 	u8 coex_rx_win_size;
 	bool drcs_enabled;
 	u8 active_scan_triggered;
+	bool usb_mc_status;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
