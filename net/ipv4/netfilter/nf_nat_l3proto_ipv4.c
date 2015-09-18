@@ -255,9 +255,9 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_icmp_reply_translation);
 
 unsigned int
-nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
-	       unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+	       unsigned int (*do_chain)(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state,
 					struct nf_conn *ct))
@@ -308,7 +308,7 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			ret = do_chain(ops, skb, state, ct);
+			ret = do_chain(priv, skb, state, ct);
 			if (ret != NF_ACCEPT)
 				return ret;
 
@@ -345,9 +345,9 @@ oif_changed:
 EXPORT_SYMBOL_GPL(nf_nat_ipv4_fn);
 
 unsigned int
-nf_nat_ipv4_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv4_in(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
-	       unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+	       unsigned int (*do_chain)(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state,
 					 struct nf_conn *ct))
@@ -355,7 +355,7 @@ nf_nat_ipv4_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	unsigned int ret;
 	__be32 daddr = ip_hdr(skb)->daddr;
 
-	ret = nf_nat_ipv4_fn(ops, skb, state, do_chain);
+	ret = nf_nat_ipv4_fn(priv, skb, state, do_chain);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    daddr != ip_hdr(skb)->daddr)
 		skb_dst_drop(skb);
@@ -365,9 +365,9 @@ nf_nat_ipv4_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_ipv4_in);
 
 unsigned int
-nf_nat_ipv4_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
 		const struct nf_hook_state *state,
-		unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+		unsigned int (*do_chain)(void *priv,
 					  struct sk_buff *skb,
 					  const struct nf_hook_state *state,
 					  struct nf_conn *ct))
@@ -384,7 +384,7 @@ nf_nat_ipv4_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
-	ret = nf_nat_ipv4_fn(ops, skb, state, do_chain);
+	ret = nf_nat_ipv4_fn(priv, skb, state, do_chain);
 #ifdef CONFIG_XFRM
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    !(IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED) &&
@@ -407,9 +407,9 @@ nf_nat_ipv4_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_ipv4_out);
 
 unsigned int
-nf_nat_ipv4_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv4_local_fn(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state,
-		     unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+		     unsigned int (*do_chain)(void *priv,
 					       struct sk_buff *skb,
 					       const struct nf_hook_state *state,
 					       struct nf_conn *ct))
@@ -424,7 +424,7 @@ nf_nat_ipv4_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
-	ret = nf_nat_ipv4_fn(ops, skb, state, do_chain);
+	ret = nf_nat_ipv4_fn(priv, skb, state, do_chain);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);

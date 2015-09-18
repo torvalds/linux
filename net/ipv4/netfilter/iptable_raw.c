@@ -20,7 +20,7 @@ static const struct xt_table packet_raw = {
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-iptable_raw_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+iptable_raw_hook(void *priv, struct sk_buff *skb,
 		 const struct nf_hook_state *state)
 {
 	if (state->hook == NF_INET_LOCAL_OUT &&

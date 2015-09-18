@@ -21,7 +21,7 @@
 #include <net/route.h>
 #include <net/ip.h>
 
-static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
+static unsigned int nf_route_table_hook(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
@@ -45,7 +45,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = nft_do_chain(&pkt, ops);
+	ret = nft_do_chain(&pkt, priv);
 	if (ret != NF_DROP && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);
 

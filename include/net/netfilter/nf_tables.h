@@ -816,8 +816,7 @@ int nft_register_basechain(struct nft_base_chain *basechain,
 void nft_unregister_basechain(struct nft_base_chain *basechain,
 			      unsigned int hook_nops);
 
-unsigned int nft_do_chain(struct nft_pktinfo *pkt,
-			  const struct nf_hook_ops *ops);
+unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
 
 /**
  *	struct nft_table - nf_tables table

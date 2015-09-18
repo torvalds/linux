@@ -57,14 +57,14 @@ static const struct ebt_table frame_filter = {
 };
 
 static unsigned int
-ebt_in_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ebt_in_hook(void *priv, struct sk_buff *skb,
 	    const struct nf_hook_state *state)
 {
 	return ebt_do_table(skb, state, state->net->xt.frame_filter);
 }
 
 static unsigned int
-ebt_out_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ebt_out_hook(void *priv, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
 	return ebt_do_table(skb, state, state->net->xt.frame_filter);

@@ -109,9 +109,9 @@ struct nft_jumpstack {
 };
 
 unsigned int
-nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
+nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 {
-	const struct nft_chain *chain = ops->priv, *basechain = chain;
+	const struct nft_chain *chain = priv, *basechain = chain;
 	const struct net *net = pkt->net;
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;

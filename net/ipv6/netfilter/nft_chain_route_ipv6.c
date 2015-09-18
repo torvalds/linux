@@ -22,7 +22,7 @@
 #include <net/netfilter/nf_tables_ipv6.h>
 #include <net/route.h>
 
-static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
+static unsigned int nf_route_table_hook(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
@@ -45,7 +45,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u32 *)ipv6_hdr(skb));
 
-	ret = nft_do_chain(&pkt, ops);
+	ret = nft_do_chain(&pkt, priv);
 	if (ret != NF_DROP && ret != NF_QUEUE &&
 	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
 	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||

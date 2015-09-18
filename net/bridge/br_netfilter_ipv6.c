@@ -218,7 +218,7 @@ static int br_nf_pre_routing_finish_ipv6(struct net *net, struct sock *sk, struc
 /* Replicate the checks that IPv6 does on packet reception and pass the packet
  * to ip6tables.
  */
-unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
+unsigned int br_nf_pre_routing_ipv6(void *priv,
 				    struct sk_buff *skb,
 				    const struct nf_hook_state *state)
 {

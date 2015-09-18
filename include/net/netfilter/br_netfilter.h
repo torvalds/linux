@@ -46,7 +46,7 @@ void br_netfilter_enable(void);
 
 #if IS_ENABLED(CONFIG_IPV6)
 int br_validate_ipv6(struct sk_buff *skb);
-unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
+unsigned int br_nf_pre_routing_ipv6(void *priv,
 				    struct sk_buff *skb,
 				    const struct nf_hook_state *state);
 #else

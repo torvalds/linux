@@ -78,7 +78,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-iptable_mangle_hook(const struct nf_hook_ops *ops,
+iptable_mangle_hook(void *priv,
 		     struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {

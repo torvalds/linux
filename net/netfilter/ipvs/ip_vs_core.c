@@ -1311,7 +1311,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
  *	Check if packet is reply for established ip_vs_conn.
  */
 static unsigned int
-ip_vs_reply4(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_reply4(void *priv, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
 	return ip_vs_out(state->hook, skb, AF_INET);
@@ -1322,7 +1322,7 @@ ip_vs_reply4(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *	Check if packet is reply for established ip_vs_conn.
  */
 static unsigned int
-ip_vs_local_reply4(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_local_reply4(void *priv, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
 	return ip_vs_out(state->hook, skb, AF_INET);
@@ -1336,7 +1336,7 @@ ip_vs_local_reply4(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *	Check if packet is reply for established ip_vs_conn.
  */
 static unsigned int
-ip_vs_reply6(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_reply6(void *priv, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
 	return ip_vs_out(state->hook, skb, AF_INET6);
@@ -1347,7 +1347,7 @@ ip_vs_reply6(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *	Check if packet is reply for established ip_vs_conn.
  */
 static unsigned int
-ip_vs_local_reply6(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_local_reply6(void *priv, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
 	return ip_vs_out(state->hook, skb, AF_INET6);
@@ -1847,7 +1847,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
  *	Schedule and forward packets from remote clients
  */
 static unsigned int
-ip_vs_remote_request4(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_remote_request4(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
 	return ip_vs_in(state->hook, skb, AF_INET);
@@ -1858,7 +1858,7 @@ ip_vs_remote_request4(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *	Schedule and forward packets from local clients
  */
 static unsigned int
-ip_vs_local_request4(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_local_request4(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
 	return ip_vs_in(state->hook, skb, AF_INET);
@@ -1871,7 +1871,7 @@ ip_vs_local_request4(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *	Schedule and forward packets from remote clients
  */
 static unsigned int
-ip_vs_remote_request6(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_remote_request6(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
 	return ip_vs_in(state->hook, skb, AF_INET6);
@@ -1882,7 +1882,7 @@ ip_vs_remote_request6(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *	Schedule and forward packets from local clients
  */
 static unsigned int
-ip_vs_local_request6(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_local_request6(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
 	return ip_vs_in(state->hook, skb, AF_INET6);
@@ -1901,7 +1901,7 @@ ip_vs_local_request6(const struct nf_hook_ops *ops, struct sk_buff *skb,
  *      and send them to ip_vs_in_icmp.
  */
 static unsigned int
-ip_vs_forward_icmp(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_forward_icmp(void *priv, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
 	int r;
@@ -1917,12 +1917,12 @@ ip_vs_forward_icmp(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
-	return ip_vs_in_icmp(skb, &r, ops->hooknum);
+	return ip_vs_in_icmp(skb, &r, state->hook);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
 static unsigned int
-ip_vs_forward_icmp_v6(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ip_vs_forward_icmp_v6(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
 	int r;
@@ -1940,7 +1940,7 @@ ip_vs_forward_icmp_v6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
-	return ip_vs_in_icmp_v6(skb, &r, ops->hooknum, &iphdr);
+	return ip_vs_in_icmp_v6(skb, &r, state->hook, &iphdr);
 }
 #endif
 

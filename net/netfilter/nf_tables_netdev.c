@@ -89,7 +89,7 @@ static inline void nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 }
 
 static unsigned int
-nft_do_chain_netdev(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 		    const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
@@ -106,7 +106,7 @@ nft_do_chain_netdev(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		break;
 	}
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
 static struct nft_af_info nft_af_netdev __read_mostly = {

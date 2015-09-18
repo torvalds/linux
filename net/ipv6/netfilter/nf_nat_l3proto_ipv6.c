@@ -262,9 +262,9 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_icmpv6_reply_translation);
 
 unsigned int
-nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
-	       unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+	       unsigned int (*do_chain)(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state,
 					struct nf_conn *ct))
@@ -317,7 +317,7 @@ nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			ret = do_chain(ops, skb, state, ct);
+			ret = do_chain(priv, skb, state, ct);
 			if (ret != NF_ACCEPT)
 				return ret;
 
@@ -353,9 +353,9 @@ oif_changed:
 EXPORT_SYMBOL_GPL(nf_nat_ipv6_fn);
 
 unsigned int
-nf_nat_ipv6_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv6_in(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
-	       unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+	       unsigned int (*do_chain)(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state,
 					struct nf_conn *ct))
@@ -363,7 +363,7 @@ nf_nat_ipv6_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	unsigned int ret;
 	struct in6_addr daddr = ipv6_hdr(skb)->daddr;
 
-	ret = nf_nat_ipv6_fn(ops, skb, state, do_chain);
+	ret = nf_nat_ipv6_fn(priv, skb, state, do_chain);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    ipv6_addr_cmp(&daddr, &ipv6_hdr(skb)->daddr))
 		skb_dst_drop(skb);
@@ -373,9 +373,9 @@ nf_nat_ipv6_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_ipv6_in);
 
 unsigned int
-nf_nat_ipv6_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv6_out(void *priv, struct sk_buff *skb,
 		const struct nf_hook_state *state,
-		unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+		unsigned int (*do_chain)(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state,
 					 struct nf_conn *ct))
@@ -391,7 +391,7 @@ nf_nat_ipv6_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (skb->len < sizeof(struct ipv6hdr))
 		return NF_ACCEPT;
 
-	ret = nf_nat_ipv6_fn(ops, skb, state, do_chain);
+	ret = nf_nat_ipv6_fn(priv, skb, state, do_chain);
 #ifdef CONFIG_XFRM
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    !(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
@@ -414,9 +414,9 @@ nf_nat_ipv6_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_ipv6_out);
 
 unsigned int
-nf_nat_ipv6_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state,
-		     unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+		     unsigned int (*do_chain)(void *priv,
 					      struct sk_buff *skb,
 					      const struct nf_hook_state *state,
 					      struct nf_conn *ct))
@@ -430,7 +430,7 @@ nf_nat_ipv6_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (skb->len < sizeof(struct ipv6hdr))
 		return NF_ACCEPT;
 
-	ret = nf_nat_ipv6_fn(ops, skb, state, do_chain);
+	ret = nf_nat_ipv6_fn(priv, skb, state, do_chain);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);

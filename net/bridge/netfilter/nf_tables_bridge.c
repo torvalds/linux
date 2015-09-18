@@ -87,7 +87,7 @@ static inline void nft_bridge_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 }
 
 static unsigned int
-nft_do_chain_bridge(const struct nf_hook_ops *ops,
+nft_do_chain_bridge(void *priv,
 		    struct sk_buff *skb,
 		    const struct nf_hook_state *state)
 {
@@ -105,7 +105,7 @@ nft_do_chain_bridge(const struct nf_hook_ops *ops,
 		break;
 	}
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
 static struct nft_af_info nft_af_bridge __read_mostly = {

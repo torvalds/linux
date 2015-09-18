@@ -37,7 +37,7 @@ static const struct xt_table security_table = {
 };
 
 static unsigned int
-iptable_security_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+iptable_security_hook(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
 	if (state->hook == NF_INET_LOCAL_OUT &&
