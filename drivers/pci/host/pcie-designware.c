@@ -205,12 +205,16 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 
 void dw_pcie_msi_init(struct pcie_port *pp)
 {
+	u64 msi_target;
+
 	pp->msi_data = __get_free_pages(GFP_KERNEL, 0);
+	msi_target = virt_to_phys((void *)pp->msi_data);
 
 	/* program the msi_data */
 	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_LO, 4,
-			virt_to_phys((void *)pp->msi_data));
-	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4, 0);
+			    (u32)(msi_target & 0xffffffff));
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4,
+			    (u32)(msi_target >> 32 & 0xffffffff));
 }
 
 static void dw_pcie_msi_clear_irq(struct pcie_port *pp, int irq)
@@ -299,12 +303,15 @@ no_valid_irq:
 static void dw_msi_setup_msg(struct pcie_port *pp, unsigned int irq, u32 pos)
 {
 	struct msi_msg msg;
+	u64 msi_target;
 
 	if (pp->ops->get_msi_addr)
-		msg.address_lo = pp->ops->get_msi_addr(pp);
+		msi_target = pp->ops->get_msi_addr(pp);
 	else
-		msg.address_lo = virt_to_phys((void *)pp->msi_data);
-	msg.address_hi = 0x0;
+		msi_target = virt_to_phys((void *)pp->msi_data);
+
+	msg.address_lo = (u32)(msi_target & 0xffffffff);
+	msg.address_hi = (u32)(msi_target >> 32 & 0xffffffff);
 
 	if (pp->ops->get_msi_data)
 		msg.data = pp->ops->get_msi_data(pp, pos);
