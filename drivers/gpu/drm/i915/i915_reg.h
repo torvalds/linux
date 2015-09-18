@@ -7197,7 +7197,8 @@ enum skl_disp_power_wells {
 /* DDI Buffer Translations */
 #define DDI_BUF_TRANS_A				0x64E00
 #define DDI_BUF_TRANS_B				0x64E60
-#define DDI_BUF_TRANS(port) _PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B)
+#define DDI_BUF_TRANS_LO(port, i) (_PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B) + (i) * 8)
+#define DDI_BUF_TRANS_HI(port, i) (_PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B) + (i) * 8 + 4)
 
 /* Sideband Interface (SBI) is programmed indirectly, via
  * SBI_ADDR, which contains the register offset; and SBI_DATA,
