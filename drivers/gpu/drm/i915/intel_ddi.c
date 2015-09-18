@@ -608,7 +608,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	 *
 	 * WaFDIAutoLinkSetTimingOverrride:hsw
 	 */
-	I915_WRITE(_FDI_RXA_MISC, FDI_RX_PWRDN_LANE1_VAL(2) |
+	I915_WRITE(FDI_RX_MISC(PIPE_A), FDI_RX_PWRDN_LANE1_VAL(2) |
 				  FDI_RX_PWRDN_LANE0_VAL(2) |
 				  FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
 
@@ -616,13 +616,13 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	rx_ctl_val = dev_priv->fdi_rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
 		     FDI_RX_PLL_ENABLE |
 		     FDI_DP_PORT_WIDTH(intel_crtc->config->fdi_lanes);
-	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
-	POSTING_READ(_FDI_RXA_CTL);
+	I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
+	POSTING_READ(FDI_RX_CTL(PIPE_A));
 	udelay(220);
 
 	/* Switch from Rawclk to PCDclk */
 	rx_ctl_val |= FDI_PCDCLK;
-	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
+	I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
 
 	/* Configure Port Clock Select */
 	I915_WRITE(PORT_CLK_SEL(PORT_E), intel_crtc->config->ddi_pll_sel);
@@ -651,21 +651,21 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		udelay(600);
 
 		/* Program PCH FDI Receiver TU */
-		I915_WRITE(_FDI_RXA_TUSIZE1, TU_SIZE(64));
+		I915_WRITE(FDI_RX_TUSIZE1(PIPE_A), TU_SIZE(64));
 
 		/* Enable PCH FDI Receiver with auto-training */
 		rx_ctl_val |= FDI_RX_ENABLE | FDI_LINK_TRAIN_AUTO;
-		I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
-		POSTING_READ(_FDI_RXA_CTL);
+		I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
+		POSTING_READ(FDI_RX_CTL(PIPE_A));
 
 		/* Wait for FDI receiver lane calibration */
 		udelay(30);
 
 		/* Unset FDI_RX_MISC pwrdn lanes */
-		temp = I915_READ(_FDI_RXA_MISC);
+		temp = I915_READ(FDI_RX_MISC(PIPE_A));
 		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
-		I915_WRITE(_FDI_RXA_MISC, temp);
-		POSTING_READ(_FDI_RXA_MISC);
+		I915_WRITE(FDI_RX_MISC(PIPE_A), temp);
+		POSTING_READ(FDI_RX_MISC(PIPE_A));
 
 		/* Wait for FDI auto training time */
 		udelay(5);
@@ -699,15 +699,15 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
 
 		rx_ctl_val &= ~FDI_RX_ENABLE;
-		I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
-		POSTING_READ(_FDI_RXA_CTL);
+		I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
+		POSTING_READ(FDI_RX_CTL(PIPE_A));
 
 		/* Reset FDI_RX_MISC pwrdn lanes */
-		temp = I915_READ(_FDI_RXA_MISC);
+		temp = I915_READ(FDI_RX_MISC(PIPE_A));
 		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
 		temp |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
-		I915_WRITE(_FDI_RXA_MISC, temp);
-		POSTING_READ(_FDI_RXA_MISC);
+		I915_WRITE(FDI_RX_MISC(PIPE_A), temp);
+		POSTING_READ(FDI_RX_MISC(PIPE_A));
 	}
 
 	DRM_ERROR("FDI link training failed!\n");
@@ -3023,22 +3023,22 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 
 	intel_ddi_post_disable(intel_encoder);
 
-	val = I915_READ(_FDI_RXA_CTL);
+	val = I915_READ(FDI_RX_CTL(PIPE_A));
 	val &= ~FDI_RX_ENABLE;
-	I915_WRITE(_FDI_RXA_CTL, val);
+	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 
-	val = I915_READ(_FDI_RXA_MISC);
+	val = I915_READ(FDI_RX_MISC(PIPE_A));
 	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
 	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
-	I915_WRITE(_FDI_RXA_MISC, val);
+	I915_WRITE(FDI_RX_MISC(PIPE_A), val);
 
-	val = I915_READ(_FDI_RXA_CTL);
+	val = I915_READ(FDI_RX_CTL(PIPE_A));
 	val &= ~FDI_PCDCLK;
-	I915_WRITE(_FDI_RXA_CTL, val);
+	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 
-	val = I915_READ(_FDI_RXA_CTL);
+	val = I915_READ(FDI_RX_CTL(PIPE_A));
 	val &= ~FDI_RX_PLL_ENABLE;
-	I915_WRITE(_FDI_RXA_CTL, val);
+	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,
