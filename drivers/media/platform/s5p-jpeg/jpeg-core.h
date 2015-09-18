@@ -20,6 +20,8 @@
 
 #define S5P_JPEG_M2M_NAME		"s5p-jpeg"
 
+#define JPEG_MAX_CLOCKS			4
+
 /* JPEG compression quality setting */
 #define S5P_JPEG_COMPR_QUAL_BEST	0
 #define S5P_JPEG_COMPR_QUAL_WORST	3
@@ -100,8 +102,7 @@ enum  exynos4_jpeg_img_quality_level {
  * @m2m_dev:		v4l2 mem2mem device data
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
- * @clk:		JPEG IP clock
- * @sclk:		Exynos3250 JPEG IP special clock
+ * @clocks:		JPEG IP clock(s)
  * @dev:		JPEG IP struct device
  * @alloc_ctx:		videobuf2 memory allocator's context
  * @variant:		driver variant to be used
@@ -121,8 +122,7 @@ struct s5p_jpeg {
 	void __iomem		*regs;
 	unsigned int		irq;
 	enum exynos4_jpeg_result irq_ret;
-	struct clk		*clk;
-	struct clk		*sclk;
+	struct clk		*clocks[JPEG_MAX_CLOCKS];
 	struct device		*dev;
 	void			*alloc_ctx;
 	struct s5p_jpeg_variant *variant;
@@ -136,6 +136,8 @@ struct s5p_jpeg_variant {
 	unsigned int		htbl_reinit:1;
 	struct v4l2_m2m_ops	*m2m_ops;
 	irqreturn_t		(*jpeg_irq)(int irq, void *priv);
+	const char		*clk_names[JPEG_MAX_CLOCKS];
+	int			num_clocks;
 };
 
 /**

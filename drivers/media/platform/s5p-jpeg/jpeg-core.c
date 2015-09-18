@@ -2455,7 +2455,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg;
 	struct resource *res;
-	int ret;
+	int i, ret;
 
 	/* JPEG IP abstraction struct */
 	jpeg = devm_kzalloc(&pdev->dev, sizeof(struct s5p_jpeg), GFP_KERNEL);
@@ -2490,23 +2490,21 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	}
 
 	/* clocks */
-	jpeg->clk = clk_get(&pdev->dev, "jpeg");
-	if (IS_ERR(jpeg->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
-		ret = PTR_ERR(jpeg->clk);
-		return ret;
+	for (i = 0; i < jpeg->variant->num_clocks; i++) {
+		jpeg->clocks[i] = devm_clk_get(&pdev->dev,
+					      jpeg->variant->clk_names[i]);
+		if (IS_ERR(jpeg->clocks[i])) {
+			dev_err(&pdev->dev, "failed to get clock: %s\n",
+				jpeg->variant->clk_names[i]);
+			return PTR_ERR(jpeg->clocks[i]);
+		}
 	}
-	dev_dbg(&pdev->dev, "clock source %p\n", jpeg->clk);
-
-	jpeg->sclk = clk_get(&pdev->dev, "sclk");
-	if (IS_ERR(jpeg->sclk))
-		dev_info(&pdev->dev, "sclk clock not available\n");
 
 	/* v4l2 device */
 	ret = v4l2_device_register(&pdev->dev, &jpeg->v4l2_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register v4l2 device\n");
-		goto clk_get_rollback;
+		return ret;
 	}
 
 	/* mem2mem device */
@@ -2603,17 +2601,13 @@ m2m_init_rollback:
 device_register_rollback:
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
-clk_get_rollback:
-	clk_put(jpeg->clk);
-	if (!IS_ERR(jpeg->sclk))
-		clk_put(jpeg->sclk);
-
 	return ret;
 }
 
 static int s5p_jpeg_remove(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg = platform_get_drvdata(pdev);
+	int i;
 
 	pm_runtime_disable(jpeg->dev);
 
@@ -2624,14 +2618,9 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
 	if (!pm_runtime_status_suspended(&pdev->dev)) {
-		clk_disable_unprepare(jpeg->clk);
-		if (!IS_ERR(jpeg->sclk))
-			clk_disable_unprepare(jpeg->sclk);
+		for (i = jpeg->variant->num_clocks - 1; i >= 0; i--)
+			clk_disable_unprepare(jpeg->clocks[i]);
 	}
-
-	clk_put(jpeg->clk);
-	if (!IS_ERR(jpeg->sclk))
-		clk_put(jpeg->sclk);
 
 	return 0;
 }
@@ -2640,10 +2629,10 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 static int s5p_jpeg_runtime_suspend(struct device *dev)
 {
 	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
+	int i;
 
-	clk_disable_unprepare(jpeg->clk);
-	if (!IS_ERR(jpeg->sclk))
-		clk_disable_unprepare(jpeg->sclk);
+	for (i = jpeg->variant->num_clocks - 1; i >= 0; i--)
+		clk_disable_unprepare(jpeg->clocks[i]);
 
 	return 0;
 }
@@ -2652,16 +2641,15 @@ static int s5p_jpeg_runtime_resume(struct device *dev)
 {
 	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
 	unsigned long flags;
-	int ret;
+	int i, ret;
 
-	ret = clk_prepare_enable(jpeg->clk);
-	if (ret < 0)
-		return ret;
-
-	if (!IS_ERR(jpeg->sclk)) {
-		ret = clk_prepare_enable(jpeg->sclk);
-		if (ret < 0)
+	for (i = 0; i < jpeg->variant->num_clocks; i++) {
+		ret = clk_prepare_enable(jpeg->clocks[i]);
+		if (ret) {
+			while (--i > 0)
+				clk_disable_unprepare(jpeg->clocks[i]);
 			return ret;
+		}
 	}
 
 	spin_lock_irqsave(&jpeg->slock, flags);
@@ -2715,6 +2703,8 @@ static struct s5p_jpeg_variant s5p_jpeg_drvdata = {
 	.jpeg_irq	= s5p_jpeg_irq,
 	.m2m_ops	= &s5p_jpeg_m2m_ops,
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_S5P,
+	.clk_names	= {"jpeg"},
+	.num_clocks	= 1,
 };
 
 static struct s5p_jpeg_variant exynos3250_jpeg_drvdata = {
@@ -2723,6 +2713,8 @@ static struct s5p_jpeg_variant exynos3250_jpeg_drvdata = {
 	.m2m_ops	= &exynos3250_jpeg_m2m_ops,
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS3250,
 	.hw3250_compat	= 1,
+	.clk_names	= {"jpeg", "sclk"},
+	.num_clocks	= 2,
 };
 
 static struct s5p_jpeg_variant exynos4_jpeg_drvdata = {
@@ -2731,6 +2723,8 @@ static struct s5p_jpeg_variant exynos4_jpeg_drvdata = {
 	.m2m_ops	= &exynos4_jpeg_m2m_ops,
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS4,
 	.htbl_reinit	= 1,
+	.clk_names	= {"jpeg"},
+	.num_clocks	= 1,
 };
 
 static struct s5p_jpeg_variant exynos5420_jpeg_drvdata = {
@@ -2740,6 +2734,8 @@ static struct s5p_jpeg_variant exynos5420_jpeg_drvdata = {
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS3250,	/* intentionally 3250 */
 	.hw3250_compat	= 1,
 	.htbl_reinit	= 1,
+	.clk_names	= {"jpeg"},
+	.num_clocks	= 1,
 };
 
 static const struct of_device_id samsung_jpeg_match[] = {
