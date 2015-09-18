@@ -2859,14 +2859,14 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		adapter->curr_iface_comb.sta_intf++;
+		adapter->curr_iface_comb.sta_intf--;
 		break;
 	case NL80211_IFTYPE_AP:
-		adapter->curr_iface_comb.uap_intf++;
+		adapter->curr_iface_comb.uap_intf--;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
-		adapter->curr_iface_comb.p2p_intf++;
+		adapter->curr_iface_comb.p2p_intf--;
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,
