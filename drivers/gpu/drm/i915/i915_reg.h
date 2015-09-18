@@ -2579,7 +2579,7 @@ enum skl_disp_power_wells {
 #define   TSFS_INTR_MASK	0x000000ff
 
 #define CRSTANDVID		0x11100
-#define PXVFREQ_BASE		0x11110 /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
+#define PXVFREQ(i)		(0x11110 + (i) * 4) /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
 #define   PXVFREQ_PX_MASK	0x7f000000
 #define   PXVFREQ_PX_SHIFT	24
 #define VIDFREQ_BASE		0x11110
@@ -2763,8 +2763,8 @@ enum skl_disp_power_wells {
 #define CSIEW0			0x11250
 #define CSIEW1			0x11254
 #define CSIEW2			0x11258
-#define PEW			0x1125c
-#define DEW			0x11270
+#define PEW(i)			(0x1125c + (i) * 4) /* 5 registers */
+#define DEW(i)			(0x11270 + (i) * 4) /* 3 registers */
 #define MCHAFE			0x112c0
 #define CSIEC			0x112e0
 #define DMIEC			0x112e4
@@ -2788,8 +2788,8 @@ enum skl_disp_power_wells {
 #define EG5			0x11624
 #define EG6			0x11628
 #define EG7			0x1162c
-#define PXW			0x11664
-#define PXWL			0x11680
+#define PXW(i)			(0x11664 + (i) * 4) /* 4 registers */
+#define PXWL(i)			(0x11680 + (i) * 4) /* 8 registers */
 #define LCFUSE02		0x116c0
 #define   LCFUSE_HIV_MASK	0x000000ff
 #define CSIPLL0			0x12c10
