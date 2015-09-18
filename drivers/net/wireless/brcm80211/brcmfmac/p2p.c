@@ -2084,11 +2084,13 @@ static struct wireless_dev *brcmf_p2p_create_p2pdev(struct brcmf_p2p_info *p2p,
 	brcmf_p2p_set_firmware(pri_ifp, p2p->dev_addr);
 
 	brcmf_cfg80211_arm_vif_event(p2p->cfg, p2p_vif);
+	brcmf_fweh_p2pdev_setup(pri_ifp, true);
 
 	/* Initialize P2P Discovery in the firmware */
 	err = brcmf_fil_iovar_int_set(pri_ifp, "p2p_disc", 1);
 	if (err < 0) {
 		brcmf_err("set p2p_disc error\n");
+		brcmf_fweh_p2pdev_setup(pri_ifp, false);
 		brcmf_cfg80211_arm_vif_event(p2p->cfg, NULL);
 		goto fail;
 	}
@@ -2097,6 +2099,7 @@ static struct wireless_dev *brcmf_p2p_create_p2pdev(struct brcmf_p2p_info *p2p,
 	err = brcmf_cfg80211_wait_vif_event_timeout(p2p->cfg, BRCMF_E_IF_ADD,
 						    msecs_to_jiffies(1500));
 	brcmf_cfg80211_arm_vif_event(p2p->cfg, NULL);
+	brcmf_fweh_p2pdev_setup(pri_ifp, false);
 	if (!err) {
 		brcmf_err("timeout occurred\n");
 		err = -EIO;
@@ -2396,6 +2399,8 @@ s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg, bool p2pdev_forced)
 		memcpy(p2p_ifp->mac_addr, p2p->dev_addr, ETH_ALEN);
 		brcmf_p2p_set_firmware(pri_ifp, p2p->dev_addr);
 
+		brcmf_fweh_p2pdev_setup(pri_ifp, true);
+
 		/* Initialize P2P Discovery in the firmware */
 		err = brcmf_fil_iovar_int_set(pri_ifp, "p2p_disc", 1);
 		if (err < 0) {
@@ -2422,8 +2427,9 @@ s32 brcmf_p2p_attach(struct brcmf_cfg80211_info *cfg, bool p2pdev_forced)
 		INIT_WORK(&p2p->afx_hdl.afx_work, brcmf_p2p_afx_handler);
 		init_completion(&p2p->afx_hdl.act_frm_scan);
 		init_completion(&p2p->wait_next_af);
-	}
 exit:
+		brcmf_fweh_p2pdev_setup(pri_ifp, false);
+	}
 	return err;
 }
 

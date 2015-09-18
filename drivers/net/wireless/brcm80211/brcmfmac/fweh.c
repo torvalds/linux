@@ -188,11 +188,13 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 
 	/* The P2P Device interface event must not be ignored contrary to what
 	 * firmware tells us. Older firmware uses p2p noif, with sta role.
-	 * This should be accepted.
+	 * This should be accepted when p2pdev_setup is ongoing. TDLS setup will
+	 * use the same ifevent and should be ignored.
 	 */
 	is_p2pdev = ((ifevent->flags & BRCMF_E_IF_FLAG_NOIF) &&
 		     (ifevent->role == BRCMF_E_IF_ROLE_P2P_CLIENT ||
-		      ifevent->role == BRCMF_E_IF_ROLE_STA));
+		      ((ifevent->role == BRCMF_E_IF_ROLE_STA) &&
+		       (drvr->fweh.p2pdev_setup_ongoing))));
 	if (!is_p2pdev && (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
 		brcmf_dbg(EVENT, "event can be ignored\n");
 		return;
@@ -313,6 +315,17 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 event_free:
 		kfree(event);
 	}
+}
+
+/**
+ * brcmf_fweh_p2pdev_setup() - P2P device setup ongoing (or not).
+ *
+ * @ifp: ifp on which setup is taking place or finished.
+ * @ongoing: p2p device setup in progress (or not).
+ */
+void brcmf_fweh_p2pdev_setup(struct brcmf_if *ifp, bool ongoing)
+{
+	ifp->drvr->fweh.p2pdev_setup_ongoing = ongoing;
 }
 
 /**
