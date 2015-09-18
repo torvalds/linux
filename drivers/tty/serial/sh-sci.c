@@ -1104,6 +1104,7 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 static void sci_dma_rx_complete(void *arg)
 {
 	struct sci_port *s = arg;
+	struct dma_chan *chan = s->chan_rx;
 	struct uart_port *port = &s->port;
 	struct dma_async_tx_descriptor *desc;
 	unsigned long flags;
@@ -1136,6 +1137,8 @@ static void sci_dma_rx_complete(void *arg)
 		goto fail;
 
 	s->active_rx = s->cookie_rx[!active];
+
+	dma_async_issue_pending(chan);
 
 	dev_dbg(port->dev, "%s: cookie %d #%d, new active cookie %d\n",
 		__func__, s->cookie_rx[active], active, s->active_rx);
