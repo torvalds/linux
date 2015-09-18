@@ -154,7 +154,7 @@ static void mxs_flip_edge(struct mxs_gpio_port *port, u32 gpio)
 }
 
 /* MXS has one interrupt *per* gpio port */
-static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
+static void mxs_gpio_irq_handler(struct irq_desc *desc)
 {
 	u32 irq_stat;
 	struct mxs_gpio_port *port = irq_desc_get_handler_data(desc);

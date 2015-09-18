@@ -98,7 +98,7 @@ static struct irq_chip egpio_muxed_chip = {
 	.irq_unmask	= egpio_unmask,
 };
 
-static void egpio_handler(unsigned int irq, struct irq_desc *desc)
+static void egpio_handler(struct irq_desc *desc)
 {
 	struct egpio_info *ei = irq_desc_get_handler_data(desc);
 	int irqpin;

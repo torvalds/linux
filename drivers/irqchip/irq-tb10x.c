@@ -97,7 +97,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	return IRQ_SET_MASK_OK;
 }
 
-static void tb10x_irq_cascade(unsigned int __irq, struct irq_desc *desc)
+static void tb10x_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	unsigned int irq = irq_desc_get_irq(desc);

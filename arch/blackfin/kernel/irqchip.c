@@ -107,7 +107,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	 * than crashing, do something sensible.
 	 */
 	if (irq >= NR_IRQS)
-		handle_bad_irq(irq, &bad_irq_desc);
+		handle_bad_irq(&bad_irq_desc);
 	else
 		generic_handle_irq(irq);
 
