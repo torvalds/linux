@@ -1386,7 +1386,6 @@ static void sci_request_dma(struct uart_port *port)
 				 "Failed to allocate Rx dma buffer, using PIO\n");
 			dma_release_channel(chan);
 			s->chan_rx = NULL;
-			sci_start_rx(port);
 			return;
 		}
 
