@@ -51,7 +51,7 @@ int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
 {
-	int pkt_len = skb->len;
+	int pkt_len = skb->len - skb_inner_network_offset(skb);
 	struct iphdr *iph;
 	int err;
 
