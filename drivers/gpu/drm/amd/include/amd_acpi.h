@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef AMDGPU_ACPI_H
-#define AMDGPU_ACPI_H
+#ifndef AMD_ACPI_H
+#define AMD_ACPI_H
 
 #define ACPI_AC_CLASS           "ac_adapter"
 

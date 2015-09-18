@@ -29,7 +29,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
-#include "amdgpu_acpi.h"
+#include "amd_acpi.h"
 #include "atom.h"
 
 extern void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
