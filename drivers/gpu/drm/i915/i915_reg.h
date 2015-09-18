@@ -2840,8 +2840,11 @@ enum skl_disp_power_wells {
 
 #define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
+#define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
 #define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
-				INTERVAL_1_33_US(us) : \
+				(IS_BROXTON(dev_priv) ? \
+				INTERVAL_0_833_US(us) : \
+				INTERVAL_1_33_US(us)) : \
 				INTERVAL_1_28_US(us))
 
 /*
