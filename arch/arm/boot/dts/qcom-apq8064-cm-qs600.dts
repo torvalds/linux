@@ -88,7 +88,7 @@
 				status = "okay";
 				clock-frequency = <200000>;
 
-				eeprom: eeprom@50 {
+				eeprom@50 {
 					compatible = "24c02";
 					reg = <0x50>;
 					pagesize = <32>;
