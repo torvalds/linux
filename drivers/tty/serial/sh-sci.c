@@ -1277,6 +1277,7 @@ static bool filter(struct dma_chan *chan, void *slave)
 static void rx_timer_fn(unsigned long arg)
 {
 	struct sci_port *s = (struct sci_port *)arg;
+	struct dma_chan *chan = s->chan_rx;
 	struct uart_port *port = &s->port;
 	struct dma_tx_state state;
 	enum dma_status status;
@@ -1302,6 +1303,21 @@ static void rx_timer_fn(unsigned long arg)
 		spin_unlock_irqrestore(&port->lock, flags);
 
 		/* Let packet complete handler take care of the packet */
+		return;
+	}
+
+	dmaengine_pause(chan);
+
+	/*
+	 * sometimes DMA transfer doesn't stop even if it is stopped and
+	 * data keeps on coming until transaction is complete so check
+	 * for DMA_COMPLETE again
+	 * Let packet complete handler take care of the packet
+	 */
+	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
+	if (status == DMA_COMPLETE) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		dev_dbg(port->dev, "Transaction complete after DMA engine was stopped");
 		return;
 	}
 
