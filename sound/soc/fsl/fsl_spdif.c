@@ -996,6 +996,14 @@ static const struct snd_soc_component_driver fsl_spdif_component = {
 };
 
 /* FSL SPDIF REGMAP */
+static const struct reg_default fsl_spdif_reg_defaults[] = {
+	{0x0,  0x00000400},
+	{0x4,  0x00000000},
+	{0xc,  0x00000000},
+	{0x34, 0x00000000},
+	{0x38, 0x00000000},
+	{0x50, 0x00020f00},
+};
 
 static bool fsl_spdif_readable_reg(struct device *dev, unsigned int reg)
 {
@@ -1039,7 +1047,6 @@ static bool fsl_spdif_volatile_reg(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	}
-
 }
 
 static bool fsl_spdif_writeable_reg(struct device *dev, unsigned int reg)
@@ -1067,6 +1074,8 @@ static const struct regmap_config fsl_spdif_regmap_config = {
 	.val_bits = 32,
 
 	.max_register = REG_SPDIF_STC,
+	.reg_defaults = fsl_spdif_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(fsl_spdif_reg_defaults),
 	.readable_reg = fsl_spdif_readable_reg,
 	.volatile_reg = fsl_spdif_volatile_reg,
 	.writeable_reg = fsl_spdif_writeable_reg,
