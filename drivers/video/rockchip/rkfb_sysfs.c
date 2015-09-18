@@ -38,7 +38,7 @@
 #include <linux/rockchip_ion.h>
 #endif
 #include "bmp_helper.h"
-
+#include <linux/delay.h>
 struct rkfb_sys_trace {
 	int num_frames;
 	int count_frame;
@@ -128,6 +128,14 @@ static void fill_buffer(void *handle, void *vaddr, int size)
 
 	if (filp)
 		vfs_write(filp, vaddr, size, &filp->f_pos);
+}
+
+static void read_buffer(void *handle, void *vaddr, int size, loff_t pos)
+{
+	struct file *filp = handle;
+
+	if (filp)
+		vfs_read(filp, vaddr, size, &pos);
 }
 
 static int dump_win(struct ion_client *ion_client,
@@ -462,6 +470,145 @@ static ssize_t set_dump_buffer(struct device *dev,
 		trace->mask_area = mask_area;
 	}
 out:
+
+	return count;
+}
+
+static ssize_t show_dsp_buffer(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	ssize_t size;
+
+	size = snprintf(buf, PAGE_SIZE,
+			"you can display a picture store in "
+			"/data/fb0.bin use the following cmd:\n"
+			"echo n xsize ysize format > dsp_buf\n"
+			"n: picture number"
+			"xsize: picture horizontal size\n"
+			"ysize: picture vertical size\n"
+			"format:\n"
+			"    RGBA=1,RGBX=2,RGB=3,YUV420SP=17");
+
+	return size;
+}
+extern int __close_fd(struct files_struct *files, unsigned fd);
+
+static ssize_t set_dsp_buffer(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+	struct rk_fb *rk_fb = dev_get_drvdata(fbi->device);
+	struct file *filp;
+	mm_segment_t old_fs;
+	int width, height, frame_num;
+	int i, j, flags, fd;
+	const char *start = buf;
+	struct ion_handle *handle = NULL;
+	char __iomem *screen_base;
+	struct rk_fb_win_cfg_data win_config;
+	struct rk_screen *screen = dev_drv->cur_screen;
+	int space_max = 10;
+	int format;
+	size_t mem_size = 0;
+	char *name = "/data/fb0.bin";
+	struct sync_fence *acq_fence;
+	struct files_struct *files = current->files;
+
+	frame_num = simple_strtoul(start, NULL, 10);
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	width = simple_strtoul(start, NULL, 10);
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	height = simple_strtoul(start, NULL, 10);
+
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	format = simple_strtoul(start, NULL, 10);
+
+	pr_info("frame_num=%d,w=%d,h=%d,file=%s,format=%d\n",
+		frame_num, width, height, name, format);
+	flags = O_RDWR | O_CREAT | O_NONBLOCK;
+	filp = filp_open(name, flags, 0x600);
+	if (!filp)
+		pr_err("fail to create %s\n", name);
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	mem_size = width * height * 4 * frame_num;
+	if (dev_drv->iommu_enabled)
+		handle = ion_alloc(rk_fb->ion_client, mem_size, 0,
+				   ION_HEAP(ION_VMALLOC_HEAP_ID), 0);
+	else
+		handle = ion_alloc(rk_fb->ion_client, mem_size, 0,
+				   ION_HEAP(ION_CMA_HEAP_ID), 0);
+	if (IS_ERR(handle)) {
+		pr_err("failed to ion_alloc:%ld\n", PTR_ERR(handle));
+		return -ENOMEM;
+	}
+	fd = ion_share_dma_buf_fd(rk_fb->ion_client, handle);
+	if (fd < 0) {
+		pr_err("ion_share_dma_buf_fd failed, fd=%d\n", fd);
+		return fd;
+	}
+	screen_base = ion_map_kernel(rk_fb->ion_client, handle);
+	read_buffer(filp, screen_base, mem_size, 0);
+
+	memset(&win_config, 0, sizeof(win_config));
+	win_config.wait_fs = 0;
+	win_config.win_par[0].win_id = 0;
+	win_config.win_par[0].z_order = 0;
+	win_config.win_par[0].area_par[0].data_format = format;
+	win_config.win_par[0].area_par[0].ion_fd = fd;
+	win_config.win_par[0].area_par[0].x_offset = 0;
+	win_config.win_par[0].area_par[0].y_offset = 0;
+	win_config.win_par[0].area_par[0].xpos = 0;
+	win_config.win_par[0].area_par[0].ypos = 0;
+	win_config.win_par[0].area_par[0].xsize = screen->mode.xres;
+	win_config.win_par[0].area_par[0].ysize = screen->mode.yres;
+	win_config.win_par[0].area_par[0].xact = width;
+	win_config.win_par[0].area_par[0].yact = height;
+	win_config.win_par[0].area_par[0].xvir = width;
+	win_config.win_par[0].area_par[0].yvir = height;
+
+	for (i = 0; i < frame_num; i++) {
+		win_config.win_par[0].area_par[0].y_offset = height * i;
+		fbi->fbops->fb_ioctl(fbi, RK_FBIOSET_CONFIG_DONE,
+				     (unsigned long)(&win_config));
+		for (j = 0; j < RK_MAX_BUF_NUM; j++) {
+			if (win_config.rel_fence_fd[j] > 0) {
+				acq_fence =
+				sync_fence_fdget(win_config.rel_fence_fd[j]);
+				sync_fence_put(acq_fence);
+			}
+		}
+
+		if (win_config.ret_fence_fd > 0){
+			acq_fence =
+			sync_fence_fdget(win_config.ret_fence_fd);
+			sync_fence_put(acq_fence);
+		}
+	}
+
+	ion_unmap_kernel(rk_fb->ion_client, handle);
+	ion_free(rk_fb->ion_client, handle);
+	__close_fd(files, fd);
+
+	set_fs(old_fs);
+	filp_close(filp, NULL);
 
 	return count;
 }
@@ -1060,6 +1207,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
 	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
 	__ATTR(dump_buf, S_IRUGO | S_IWUSR, show_dump_buffer, set_dump_buffer),
+	__ATTR(dsp_buf, S_IRUGO | S_IWUSR, show_dsp_buffer, set_dsp_buffer),
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
 	__ATTR(dual_mode, S_IRUGO, show_dual_mode, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
