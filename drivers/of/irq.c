@@ -580,26 +580,6 @@ err:
 }
 
 /**
- * of_msi_configure - Set the msi_domain field of a device
- * @dev: device structure to associate with an MSI irq domain
- * @np: device node for that device
- */
-void of_msi_configure(struct device *dev, struct device_node *np)
-{
-	struct device_node *msi_np;
-	struct irq_domain *d;
-
-	msi_np = of_parse_phandle(np, "msi-parent", 0);
-	if (!msi_np)
-		return;
-
-	d = irq_find_matching_host(msi_np, DOMAIN_BUS_PLATFORM_MSI);
-	if (!d)
-		d = irq_find_host(msi_np);
-	dev_set_msi_domain(dev, d);
-}
-
-/**
  * of_msi_map_rid - Map a MSI requester ID for a device.
  * @dev: device for which the mapping is to be done.
  * @msi_np: device node of the expected msi controller.
@@ -740,4 +720,15 @@ struct irq_domain *of_msi_get_domain(struct device *dev,
 	}
 
 	return NULL;
+}
+
+/**
+ * of_msi_configure - Set the msi_domain field of a device
+ * @dev: device structure to associate with an MSI irq domain
+ * @np: device node for that device
+ */
+void of_msi_configure(struct device *dev, struct device_node *np)
+{
+	dev_set_msi_domain(dev,
+			   of_msi_get_domain(dev, np, DOMAIN_BUS_PLATFORM_MSI));
 }
