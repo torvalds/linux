@@ -319,6 +319,7 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_device *vdev,
 
 	if (vdev->ctx[vector].trigger) {
 		free_irq(irq, vdev->ctx[vector].trigger);
+		irq_bypass_unregister_producer(&vdev->ctx[vector].producer);
 		kfree(vdev->ctx[vector].name);
 		eventfd_ctx_put(vdev->ctx[vector].trigger);
 		vdev->ctx[vector].trigger = NULL;
@@ -359,6 +360,14 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_device *vdev,
 		eventfd_ctx_put(trigger);
 		return ret;
 	}
+
+	vdev->ctx[vector].producer.token = trigger;
+	vdev->ctx[vector].producer.irq = irq;
+	ret = irq_bypass_register_producer(&vdev->ctx[vector].producer);
+	if (unlikely(ret))
+		dev_info(&pdev->dev,
+		"irq bypass producer (token %p) registration fails: %d\n",
+		vdev->ctx[vector].producer.token, ret);
 
 	vdev->ctx[vector].trigger = trigger;
 
