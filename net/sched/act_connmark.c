@@ -68,7 +68,7 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-			       proto, &tuple))
+			       proto, ca->net, &tuple))
 		goto out;
 
 	zone.id = ca->zone;
