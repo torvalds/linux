@@ -1583,8 +1583,6 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 
 		memset(dst + 1, 0, sizeof(*xdst) - sizeof(*dst));
 		xdst->flo.ops = &xfrm_bundle_fc_ops;
-		if (afinfo->init_dst)
-			afinfo->init_dst(net, xdst);
 	} else
 		xdst = ERR_PTR(-ENOBUFS);
 
@@ -1947,7 +1945,7 @@ static void xfrm_policy_queue_process(unsigned long arg)
 		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 
-		dst_output(skb);
+		dst_output(skb->sk, skb);
 	}
 
 out:

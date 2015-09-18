@@ -2915,9 +2915,11 @@ EXPORT_SYMBOL(xmit_recursion);
 
 /**
  *	dev_loopback_xmit - loop back @skb
+ *	@net: network namespace this loopback is happening in
+ *	@sk:  sk needed to be a netfilter okfn
  *	@skb: buffer to transmit
  */
-int dev_loopback_xmit(struct sock *sk, struct sk_buff *skb)
+int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	skb_reset_mac_header(skb);
 	__skb_pull(skb, skb_network_offset(skb));
@@ -3143,11 +3145,11 @@ out:
 	return rc;
 }
 
-int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb)
+int dev_queue_xmit(struct sk_buff *skb)
 {
 	return __dev_queue_xmit(skb, NULL);
 }
-EXPORT_SYMBOL(dev_queue_xmit_sk);
+EXPORT_SYMBOL(dev_queue_xmit);
 
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 {
@@ -3982,13 +3984,13 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
  *	NET_RX_SUCCESS: no congestion
  *	NET_RX_DROP: packet was dropped
  */
-int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb)
+int netif_receive_skb(struct sk_buff *skb)
 {
 	trace_netif_receive_skb_entry(skb);
 
 	return netif_receive_skb_internal(skb);
 }
-EXPORT_SYMBOL(netif_receive_skb_sk);
+EXPORT_SYMBOL(netif_receive_skb);
 
 /* Network device is going away, flush any packets still pending
  * Called with irqs disabled.

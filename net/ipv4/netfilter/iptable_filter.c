@@ -36,16 +36,14 @@ static unsigned int
 iptable_filter_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		    const struct nf_hook_state *state)
 {
-	const struct net *net;
-
 	if (ops->hooknum == NF_INET_LOCAL_OUT &&
 	    (skb->len < sizeof(struct iphdr) ||
 	     ip_hdrlen(skb) < sizeof(struct iphdr)))
 		/* root is playing with raw sockets. */
 		return NF_ACCEPT;
 
-	net = dev_net(state->in ? state->in : state->out);
-	return ipt_do_table(skb, ops->hooknum, state, net->ipv4.iptable_filter);
+	return ipt_do_table(skb, ops->hooknum, state,
+			    state->net->ipv4.iptable_filter);
 }
 
 static struct nf_hook_ops *filter_ops __read_mostly;

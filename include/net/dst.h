@@ -454,13 +454,13 @@ static inline void dst_set_expires(struct dst_entry *dst, int timeout)
 }
 
 /* Output packet to network from transport.  */
-static inline int dst_output_sk(struct sock *sk, struct sk_buff *skb)
+static inline int dst_output(struct sock *sk, struct sk_buff *skb)
 {
 	return skb_dst(skb)->output(sk, skb);
 }
-static inline int dst_output(struct sk_buff *skb)
+static inline int dst_output_okfn(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return dst_output_sk(skb->sk, skb);
+	return dst_output(sk, skb);
 }
 
 /* Input packet from network to transport.  */

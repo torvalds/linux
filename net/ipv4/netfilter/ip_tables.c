@@ -246,7 +246,8 @@ get_chainname_rulenum(const struct ipt_entry *s, const struct ipt_entry *e,
 	return 0;
 }
 
-static void trace_packet(const struct sk_buff *skb,
+static void trace_packet(struct net *net,
+			 const struct sk_buff *skb,
 			 unsigned int hook,
 			 const struct net_device *in,
 			 const struct net_device *out,
@@ -258,7 +259,6 @@ static void trace_packet(const struct sk_buff *skb,
 	const char *hookname, *chainname, *comment;
 	const struct ipt_entry *iter;
 	unsigned int rulenum = 0;
-	struct net *net = dev_net(in ? in : out);
 
 	root = get_entry(private->entries, private->hook_entry[hook]);
 
@@ -378,8 +378,8 @@ ipt_do_table(struct sk_buff *skb,
 #if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE)
 		/* The packet is traced: log it */
 		if (unlikely(skb->nf_trace))
-			trace_packet(skb, hook, state->in, state->out,
-				     table->name, private, e);
+			trace_packet(state->net, skb, hook, state->in,
+				     state->out, table->name, private, e);
 #endif
 		/* Standard target? */
 		if (!t->u.kernel.target->target) {

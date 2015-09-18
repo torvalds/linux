@@ -2212,12 +2212,8 @@ int dev_open(struct net_device *dev);
 int dev_close(struct net_device *dev);
 int dev_close_many(struct list_head *head, bool unlink);
 void dev_disable_lro(struct net_device *dev);
-int dev_loopback_xmit(struct sock *sk, struct sk_buff *newskb);
-int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb);
-static inline int dev_queue_xmit(struct sk_buff *skb)
-{
-	return dev_queue_xmit_sk(skb->sk, skb);
-}
+int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *newskb);
+int dev_queue_xmit(struct sk_buff *skb);
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv);
 int register_netdevice(struct net_device *dev);
 void unregister_netdevice_queue(struct net_device *dev, struct list_head *head);
@@ -2989,11 +2985,7 @@ static inline void dev_consume_skb_any(struct sk_buff *skb)
 
 int netif_rx(struct sk_buff *skb);
 int netif_rx_ni(struct sk_buff *skb);
-int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb);
-static inline int netif_receive_skb(struct sk_buff *skb)
-{
-	return netif_receive_skb_sk(skb->sk, skb);
-}
+int netif_receive_skb(struct sk_buff *skb);
 gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb);
 void napi_gro_flush(struct napi_struct *napi, bool flush_old);
 struct sk_buff *napi_get_frags(struct napi_struct *napi);

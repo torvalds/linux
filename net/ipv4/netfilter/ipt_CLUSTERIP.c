@@ -514,7 +514,7 @@ arp_mangle(const struct nf_hook_ops *ops,
 	struct arphdr *arp = arp_hdr(skb);
 	struct arp_payload *payload;
 	struct clusterip_config *c;
-	struct net *net = dev_net(state->in ? state->in : state->out);
+	struct net *net = state->net;
 
 	/* we don't care about non-ethernet and non-ipv4 ARP */
 	if (arp->ar_hrd != htons(ARPHRD_ETHER) ||

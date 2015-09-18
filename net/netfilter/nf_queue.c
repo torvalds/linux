@@ -215,7 +215,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	case NF_ACCEPT:
 	case NF_STOP:
 		local_bh_disable();
-		entry->state.okfn(entry->state.sk, skb);
+		entry->state.okfn(entry->state.net, entry->state.sk, skb);
 		local_bh_enable();
 		break;
 	case NF_QUEUE:

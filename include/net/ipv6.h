@@ -807,7 +807,7 @@ static inline u8 ip6_tclass(__be32 flowinfo)
 int ipv6_rcv(struct sk_buff *skb, struct net_device *dev,
 	     struct packet_type *pt, struct net_device *orig_dev);
 
-int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb);
+int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 /*
  *	upper-layer output functions

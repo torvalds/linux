@@ -670,8 +670,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct nfqnl_instance *queue;
 	struct sk_buff *skb, *segs;
 	int err = -ENOBUFS;
-	struct net *net = dev_net(entry->state.in ?
-				  entry->state.in : entry->state.out);
+	struct net *net = entry->state.net;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
 	/* rcu_read_lock()ed by nf_hook_slow() */

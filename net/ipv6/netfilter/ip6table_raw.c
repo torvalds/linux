@@ -22,9 +22,8 @@ static unsigned int
 ip6table_raw_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		  const struct nf_hook_state *state)
 {
-	const struct net *net = dev_net(state->in ? state->in : state->out);
-
-	return ip6t_do_table(skb, ops->hooknum, state, net->ipv6.ip6table_raw);
+	return ip6t_do_table(skb, ops->hooknum, state,
+			     state->net->ipv6.ip6table_raw);
 }
 
 static struct nf_hook_ops *rawtable_ops __read_mostly;
