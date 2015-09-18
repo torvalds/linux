@@ -1597,9 +1597,6 @@ static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 	case FILE_MEMORY_PRESSURE_ENABLED:
 		cpuset_memory_pressure_enabled = !!val;
 		break;
-	case FILE_MEMORY_PRESSURE:
-		retval = -EACCES;
-		break;
 	case FILE_SPREAD_PAGE:
 		retval = update_flag(CS_SPREAD_PAGE, cs, val);
 		break;
@@ -1866,9 +1863,6 @@ static struct cftype files[] = {
 	{
 		.name = "memory_pressure",
 		.read_u64 = cpuset_read_u64,
-		.write_u64 = cpuset_write_u64,
-		.private = FILE_MEMORY_PRESSURE,
-		.mode = S_IRUGO,
 	},
 
 	{

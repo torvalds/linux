@@ -76,6 +76,7 @@ enum {
 	CFTYPE_ONLY_ON_ROOT	= (1 << 0),	/* only create on root cgrp */
 	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
 	CFTYPE_NO_PREFIX	= (1 << 3),	/* (DON'T USE FOR NEW FILES) no subsys prefix */
+	CFTYPE_WORLD_WRITABLE	= (1 << 4),	/* (DON'T USE FOR NEW FILES) S_IWUGO */
 
 	/* internal flags, do not use outside cgroup core proper */
 	__CFTYPE_ONLY_ON_DFL	= (1 << 16),	/* only on default hierarchy */
@@ -324,11 +325,6 @@ struct cftype {
 	 */
 	char name[MAX_CFTYPE_NAME];
 	unsigned long private;
-	/*
-	 * If not 0, file mode is set to this value, otherwise it will
-	 * be figured out automatically
-	 */
-	umode_t mode;
 
 	/*
 	 * The maximum length of string, excluding trailing nul, that can

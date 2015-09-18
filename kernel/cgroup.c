@@ -1139,23 +1139,21 @@ static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
  * cgroup_file_mode - deduce file mode of a control file
  * @cft: the control file in question
  *
- * returns cft->mode if ->mode is not 0
- * returns S_IRUGO|S_IWUSR if it has both a read and a write handler
- * returns S_IRUGO if it has only a read handler
- * returns S_IWUSR if it has only a write hander
+ * S_IRUGO for read, S_IWUSR for write.
  */
 static umode_t cgroup_file_mode(const struct cftype *cft)
 {
 	umode_t mode = 0;
 
-	if (cft->mode)
-		return cft->mode;
-
 	if (cft->read_u64 || cft->read_s64 || cft->seq_show)
 		mode |= S_IRUGO;
 
-	if (cft->write_u64 || cft->write_s64 || cft->write)
-		mode |= S_IWUSR;
+	if (cft->write_u64 || cft->write_s64 || cft->write) {
+		if (cft->flags & CFTYPE_WORLD_WRITABLE)
+			mode |= S_IWUGO;
+		else
+			mode |= S_IWUSR;
+	}
 
 	return mode;
 }
@@ -4371,7 +4369,6 @@ static struct cftype cgroup_dfl_base_files[] = {
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_PROCS,
 		.write = cgroup_procs_write,
-		.mode = S_IRUGO | S_IWUSR,
 	},
 	{
 		.name = "cgroup.controllers",
@@ -4406,7 +4403,6 @@ static struct cftype cgroup_legacy_base_files[] = {
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_PROCS,
 		.write = cgroup_procs_write,
-		.mode = S_IRUGO | S_IWUSR,
 	},
 	{
 		.name = "cgroup.clone_children",
@@ -4426,7 +4422,6 @@ static struct cftype cgroup_legacy_base_files[] = {
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_TASKS,
 		.write = cgroup_tasks_write,
-		.mode = S_IRUGO | S_IWUSR,
 	},
 	{
 		.name = "notify_on_release",

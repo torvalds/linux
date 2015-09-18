@@ -4060,8 +4060,7 @@ static struct cftype mem_cgroup_legacy_files[] = {
 	{
 		.name = "cgroup.event_control",		/* XXX: for compat */
 		.write = memcg_write_event_control,
-		.flags = CFTYPE_NO_PREFIX,
-		.mode = S_IWUGO,
+		.flags = CFTYPE_NO_PREFIX | CFTYPE_WORLD_WRITABLE,
 	},
 	{
 		.name = "swappiness",
