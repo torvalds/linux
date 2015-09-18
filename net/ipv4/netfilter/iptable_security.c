@@ -40,14 +40,13 @@ static unsigned int
 iptable_security_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	if (ops->hooknum == NF_INET_LOCAL_OUT &&
+	if (state->hook == NF_INET_LOCAL_OUT &&
 	    (skb->len < sizeof(struct iphdr) ||
 	     ip_hdrlen(skb) < sizeof(struct iphdr)))
 		/* Somebody is playing with raw sockets. */
 		return NF_ACCEPT;
 
-	return ipt_do_table(skb, ops->hooknum, state,
-			    state->net->ipv4.iptable_security);
+	return ipt_do_table(skb, state, state->net->ipv4.iptable_security);
 }
 
 static struct nf_hook_ops *sectbl_ops __read_mostly;

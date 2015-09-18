@@ -35,8 +35,7 @@ static unsigned int
 ip6table_filter_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	return ip6t_do_table(skb, ops->hooknum, state,
-			     state->net->ipv6.ip6table_filter);
+	return ip6t_do_table(skb, state, state->net->ipv6.ip6table_filter);
 }
 
 static struct nf_hook_ops *filter_ops __read_mostly;

@@ -30,8 +30,7 @@ static unsigned int
 arptable_filter_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	return arpt_do_table(skb, ops->hooknum, state,
-			     state->net->ipv4.arptable_filter);
+	return arpt_do_table(skb, state, state->net->ipv4.arptable_filter);
 }
 
 static struct nf_hook_ops *arpfilter_ops __read_mostly;
