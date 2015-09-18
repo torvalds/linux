@@ -19,8 +19,8 @@
 
 #define ATOMIC_INIT(i)  { (i) }
 
-#define atomic_read(v)		ACCESS_ONCE((v)->counter)
-#define atomic_set(v, i)	(((v)->counter) = i)
+#define atomic_read(v)		READ_ONCE((v)->counter)
+#define atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
 
 #define ATOMIC_OP_RETURN(op, asm_op, asm_con)				\
 static inline int __atomic_##op##_return(int i, atomic_t *v)		\

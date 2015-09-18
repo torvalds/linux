@@ -27,8 +27,8 @@
  * strex/ldrex monitor on some implementations. The reason we can use it for
  * atomic_set() is the clrex or dummy strex done on every exception return.
  */
-#define atomic_read(v)	ACCESS_ONCE((v)->counter)
-#define atomic_set(v,i)	(((v)->counter) = (i))
+#define atomic_read(v)	READ_ONCE((v)->counter)
+#define atomic_set(v,i)	WRITE_ONCE(((v)->counter), (i))
 
 #if __LINUX_ARM_ARCH__ >= 6
 

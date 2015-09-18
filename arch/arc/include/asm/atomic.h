@@ -17,11 +17,11 @@
 #include <asm/barrier.h>
 #include <asm/smp.h>
 
-#define atomic_read(v)  ((v)->counter)
+#define atomic_read(v)  READ_ONCE((v)->counter)
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
-#define atomic_set(v, i) (((v)->counter) = (i))
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #ifdef CONFIG_ARC_STAR_9000923308
 
@@ -107,7 +107,7 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 #ifndef CONFIG_SMP
 
  /* violating atomic_xxx API locking protocol in UP for optimization sake */
-#define atomic_set(v, i) (((v)->counter) = (i))
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #else
 
@@ -125,7 +125,7 @@ static inline void atomic_set(atomic_t *v, int i)
 	unsigned long flags;
 
 	atomic_ops_lock(flags);
-	v->counter = i;
+	WRITE_ONCE(v->counter, i);
 	atomic_ops_unlock(flags);
 }
 
