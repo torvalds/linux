@@ -451,7 +451,6 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 }
 #endif
 
-#include <asm-generic/atomic-long.h>
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #endif
@@ -462,5 +461,7 @@ static inline void atomic64_andnot(long long i, atomic64_t *v)
 	atomic64_and(~i, v);
 }
 #endif
+
+#include <asm-generic/atomic-long.h>
 
 #endif /* _LINUX_ATOMIC_H */
