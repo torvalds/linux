@@ -53,6 +53,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define BRCMF_RXREORDER_EXPIDX_VALID		0x08
 #define BRCMF_RXREORDER_NEW_HOLE		0x10
 
+#define BRCMF_BSSIDX_INVALID			-1
+
 /* Error bits */
 int brcmf_msg_level;
 module_param_named(debug, brcmf_msg_level, int, S_IRUSR | S_IWUSR);
@@ -837,7 +839,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
 		/* store mapping ifidx to bssidx */
-		drvr->if2bss[ifidx] = bssidx;
+		if (drvr->if2bss[ifidx] == BRCMF_BSSIDX_INVALID)
+			drvr->if2bss[ifidx] = bssidx;
 	}
 
 	ifp->drvr = drvr;
@@ -862,15 +865,15 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	struct brcmf_if *ifp;
 
 	ifp = drvr->iflist[bssidx];
-	drvr->if2bss[ifp->ifidx] = -1;
 	drvr->iflist[bssidx] = NULL;
 	if (!ifp) {
 		brcmf_err("Null interface, idx=%d\n", bssidx);
 		return;
 	}
 	brcmf_dbg(TRACE, "Enter, idx=%d, ifidx=%d\n", bssidx, ifp->ifidx);
+	if (drvr->if2bss[ifp->ifidx] == bssidx)
+		drvr->if2bss[ifp->ifidx] = BRCMF_BSSIDX_INVALID;
 	if (ifp->ndev) {
-		drvr->if2bss[ifp->ifidx] = -1;
 		if (bssidx == 0) {
 			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
 				rtnl_lock();
@@ -926,6 +929,7 @@ int brcmf_attach(struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
+	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -934,7 +938,9 @@ int brcmf_attach(struct device *dev)
 	if (!drvr)
 		return -ENOMEM;
 
-	memset(drvr->if2bss, 0xFF, sizeof(drvr->if2bss));
+	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
+		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
+
 	mutex_init(&drvr->proto_block);
 
 	/* Link to bus module */
