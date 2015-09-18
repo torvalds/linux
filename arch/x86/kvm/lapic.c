@@ -755,6 +755,65 @@ out:
 	return ret;
 }
 
+bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
+			struct kvm_vcpu **dest_vcpu)
+{
+	struct kvm_apic_map *map;
+	bool ret = false;
+	struct kvm_lapic *dst = NULL;
+
+	if (irq->shorthand)
+		return false;
+
+	rcu_read_lock();
+	map = rcu_dereference(kvm->arch.apic_map);
+
+	if (!map)
+		goto out;
+
+	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
+		if (irq->dest_id == 0xFF)
+			goto out;
+
+		if (irq->dest_id >= ARRAY_SIZE(map->phys_map))
+			goto out;
+
+		dst = map->phys_map[irq->dest_id];
+		if (dst && kvm_apic_present(dst->vcpu))
+			*dest_vcpu = dst->vcpu;
+		else
+			goto out;
+	} else {
+		u16 cid;
+		unsigned long bitmap = 1;
+		int i, r = 0;
+
+		if (!kvm_apic_logical_map_valid(map))
+			goto out;
+
+		apic_logical_id(map, irq->dest_id, &cid, (u16 *)&bitmap);
+
+		if (cid >= ARRAY_SIZE(map->logical_map))
+			goto out;
+
+		for_each_set_bit(i, &bitmap, 16) {
+			dst = map->logical_map[cid][i];
+			if (++r == 2)
+				goto out;
+		}
+
+		if (dst && kvm_apic_present(dst->vcpu))
+			*dest_vcpu = dst->vcpu;
+		else
+			goto out;
+	}
+
+	ret = true;
+out:
+	rcu_read_unlock();
+	return ret;
+}
+
 /*
  * Add a pending IRQ into lapic.
  * Return 1 if successfully added and 0 if discarded.

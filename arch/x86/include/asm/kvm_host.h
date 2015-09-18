@@ -1241,4 +1241,7 @@ int x86_set_memory_region(struct kvm *kvm,
 bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu);
 bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 
+bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
+			     struct kvm_vcpu **dest_vcpu);
+
 #endif /* _ASM_X86_KVM_HOST_H */
