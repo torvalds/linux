@@ -547,10 +547,16 @@ static void f_midi_transmit(struct f_midi *midi, struct usb_request *req)
 		}
 	}
 
-	if (req->length > 0)
-		usb_ep_queue(ep, req, GFP_ATOMIC);
-	else
+	if (req->length > 0) {
+		int err;
+
+		err = usb_ep_queue(ep, req, GFP_ATOMIC);
+		if (err < 0)
+			ERROR(midi, "%s queue req: %d\n",
+			      midi->in_ep->name, err);
+	} else {
 		free_ep_req(ep, req);
+	}
 }
 
 static void f_midi_in_tasklet(unsigned long data)
