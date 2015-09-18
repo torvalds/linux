@@ -6640,8 +6640,8 @@ static void lpt_init_clock_gating(struct drm_device *dev)
 			   PCH_LP_PARTITION_LEVEL_DISABLE);
 
 	/* WADPOClockGatingDisable:hsw */
-	I915_WRITE(_TRANSA_CHICKEN1,
-		   I915_READ(_TRANSA_CHICKEN1) |
+	I915_WRITE(TRANS_CHICKEN1(PIPE_A),
+		   I915_READ(TRANS_CHICKEN1(PIPE_A)) |
 		   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
