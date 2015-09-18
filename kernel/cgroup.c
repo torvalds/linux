@@ -1116,7 +1116,6 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
  * update of a tasks cgroup pointer by cgroup_attach_task()
  */
 
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask);
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops;
 static const struct file_operations proc_cgroupstats_operations;
 
@@ -1331,6 +1330,37 @@ static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 		list_for_each_entry(cfts, &ss->cfts, node)
 			cgroup_addrm_files(cgrp, cfts, false);
 	}
+}
+
+/**
+ * cgroup_populate_dir - create subsys files in a cgroup directory
+ * @cgrp: target cgroup
+ * @subsys_mask: mask of the subsystem ids whose files should be added
+ *
+ * On failure, no file is added.
+ */
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
+{
+	struct cgroup_subsys *ss;
+	int i, ret = 0;
+
+	/* process cftsets of each subsystem */
+	for_each_subsys(ss, i) {
+		struct cftype *cfts;
+
+		if (!(subsys_mask & (1 << i)))
+			continue;
+
+		list_for_each_entry(cfts, &ss->cfts, node) {
+			ret = cgroup_addrm_files(cgrp, cfts, true);
+			if (ret < 0)
+				goto err;
+		}
+	}
+	return 0;
+err:
+	cgroup_clear_dir(cgrp, subsys_mask);
+	return ret;
 }
 
 static int rebind_subsystems(struct cgroup_root *dst_root,
@@ -4437,37 +4467,6 @@ static struct cftype cgroup_legacy_base_files[] = {
 	},
 	{ }	/* terminate */
 };
-
-/**
- * cgroup_populate_dir - create subsys files in a cgroup directory
- * @cgrp: target cgroup
- * @subsys_mask: mask of the subsystem ids whose files should be added
- *
- * On failure, no file is added.
- */
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
-{
-	struct cgroup_subsys *ss;
-	int i, ret = 0;
-
-	/* process cftsets of each subsystem */
-	for_each_subsys(ss, i) {
-		struct cftype *cfts;
-
-		if (!(subsys_mask & (1 << i)))
-			continue;
-
-		list_for_each_entry(cfts, &ss->cfts, node) {
-			ret = cgroup_addrm_files(cgrp, cfts, true);
-			if (ret < 0)
-				goto err;
-		}
-	}
-	return 0;
-err:
-	cgroup_clear_dir(cgrp, subsys_mask);
-	return ret;
-}
 
 /*
  * css destruction is four-stage process.
