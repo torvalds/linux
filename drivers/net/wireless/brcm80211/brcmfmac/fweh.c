@@ -186,11 +186,13 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
 		  ifevent->flags, ifevent->role);
 
-	/* The P2P Device interface event must not be ignored
-	 * contrary to what firmware tells us.
+	/* The P2P Device interface event must not be ignored contrary to what
+	 * firmware tells us. Older firmware uses p2p noif, with sta role.
+	 * This should be accepted.
 	 */
-	is_p2pdev = (ifevent->flags & BRCMF_E_IF_FLAG_NOIF) &&
-		    ifevent->role == BRCMF_E_IF_ROLE_P2P_CLIENT;
+	is_p2pdev = ((ifevent->flags & BRCMF_E_IF_FLAG_NOIF) &&
+		     (ifevent->role == BRCMF_E_IF_ROLE_P2P_CLIENT ||
+		      ifevent->role == BRCMF_E_IF_ROLE_STA));
 	if (!is_p2pdev && (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
 		brcmf_dbg(EVENT, "event can be ignored\n");
 		return;
