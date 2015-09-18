@@ -259,7 +259,6 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	}
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		adapter->data_sent = true;
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
 						   skb_aggr, NULL);
 	} else {
@@ -300,16 +299,12 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		if (adapter->iface_type == MWIFIEX_USB)
-			adapter->data_sent = false;
 		mwifiex_dbg(adapter, ERROR, "%s: host_to_card failed: %#x\n",
 			    __func__, ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb_aggr, 1, ret);
 		return 0;
 	case -EINPROGRESS:
-		if (adapter->iface_type == MWIFIEX_USB)
-			adapter->data_sent = false;
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb_aggr, 1, ret);

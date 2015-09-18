@@ -277,6 +277,7 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 		mwifiex_dbg(adapter, DATA,
 			    "%s: DATA\n", __func__);
 		atomic_dec(&card->tx_data_urb_pending);
+		adapter->data_sent = false;
 		mwifiex_write_data_complete(adapter, context->skb, 0,
 					    urb->status ? -1 : 0);
 	}
@@ -759,6 +760,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 
 	if (ep == card->tx_data_ep &&
 	    atomic_read(&card->tx_data_urb_pending) >= MWIFIEX_TX_DATA_URB) {
+		adapter->data_sent = true;
 		return -EBUSY;
 	}
 
@@ -795,6 +797,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 			atomic_dec(&card->tx_cmd_urb_pending);
 		} else {
 			atomic_dec(&card->tx_data_urb_pending);
+			adapter->data_sent = false;
 			if (card->tx_data_ix)
 				card->tx_data_ix--;
 			else
@@ -805,8 +808,10 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	} else {
 		if (ep == card->tx_data_ep &&
 		    atomic_read(&card->tx_data_urb_pending) ==
-							MWIFIEX_TX_DATA_URB)
+							MWIFIEX_TX_DATA_URB) {
+			adapter->data_sent = true;
 			return -ENOSR;
+		}
 	}
 
 	return -EINPROGRESS;
