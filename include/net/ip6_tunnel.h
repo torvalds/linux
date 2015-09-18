@@ -86,7 +86,7 @@ static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 	struct net_device_stats *stats = &dev->stats;
 	int pkt_len, err;
 
-	pkt_len = skb->len;
+	pkt_len = skb->len - skb_inner_network_offset(skb);
 	err = ip6_local_out_sk(sk, skb);
 
 	if (net_xmit_eval(err) == 0) {
