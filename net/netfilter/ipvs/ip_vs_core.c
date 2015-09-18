@@ -1314,7 +1314,7 @@ static unsigned int
 ip_vs_reply4(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
-	return ip_vs_out(ops->hooknum, skb, AF_INET);
+	return ip_vs_out(state->hook, skb, AF_INET);
 }
 
 /*
@@ -1325,7 +1325,7 @@ static unsigned int
 ip_vs_local_reply4(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
-	return ip_vs_out(ops->hooknum, skb, AF_INET);
+	return ip_vs_out(state->hook, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1339,7 +1339,7 @@ static unsigned int
 ip_vs_reply6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
-	return ip_vs_out(ops->hooknum, skb, AF_INET6);
+	return ip_vs_out(state->hook, skb, AF_INET6);
 }
 
 /*
@@ -1350,7 +1350,7 @@ static unsigned int
 ip_vs_local_reply6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
-	return ip_vs_out(ops->hooknum, skb, AF_INET6);
+	return ip_vs_out(state->hook, skb, AF_INET6);
 }
 
 #endif
@@ -1850,7 +1850,7 @@ static unsigned int
 ip_vs_remote_request4(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	return ip_vs_in(ops->hooknum, skb, AF_INET);
+	return ip_vs_in(state->hook, skb, AF_INET);
 }
 
 /*
@@ -1861,7 +1861,7 @@ static unsigned int
 ip_vs_local_request4(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	return ip_vs_in(ops->hooknum, skb, AF_INET);
+	return ip_vs_in(state->hook, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1874,7 +1874,7 @@ static unsigned int
 ip_vs_remote_request6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	return ip_vs_in(ops->hooknum, skb, AF_INET6);
+	return ip_vs_in(state->hook, skb, AF_INET6);
 }
 
 /*
@@ -1885,7 +1885,7 @@ static unsigned int
 ip_vs_local_request6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	return ip_vs_in(ops->hooknum, skb, AF_INET6);
+	return ip_vs_in(state->hook, skb, AF_INET6);
 }
 
 #endif
