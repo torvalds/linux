@@ -1539,6 +1539,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.d0i3_disable = true,
+	.d0i3_entry_delay = 1000,
 #ifndef CONFIG_IWLWIFI_UAPSD
 	.uapsd_disable = true,
 #endif /* CONFIG_IWLWIFI_UAPSD */
@@ -1704,3 +1705,7 @@ MODULE_PARM_DESC(power_level,
 module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
+
+module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_entry_delay,
+		   uint, S_IRUGO);
+MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
