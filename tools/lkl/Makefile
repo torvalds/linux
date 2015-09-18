@@ -7,14 +7,17 @@ LD=$(CROSS_COMPILE)ld
 endif
 
 lib_source = $(filter-out %-host.c,$(wildcard lib/*.c))
+source = $(wildcard tests/*.c)
 ifneq (,$(filter $(shell $(LD) -r -print-output-format),elf64-x86-64 elf32-i386))
 lib_source += lib/posix-host.c
 LDFLAGS += -lpthread -lrt
 endif
 
 lib_objs = $(patsubst %.c,%.o, $(lib_source)) lib/lkl.o
+objs = $(patsubst %.c,%.o, $(source))
+execs = $(patsubst %.c,%, $(source))
 
-all: lib/liblkl.a
+all: lib/liblkl.a $(execs)
 
 lib/liblkl.a: $(lib_objs)
 	$(AR) -rc $@ $^
@@ -31,4 +34,4 @@ $(objs): lib/lkl.o
 $(execs): lib/liblkl.a
 
 clean:
-	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs)
+	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs) $(objs) $(execs)
