@@ -668,6 +668,24 @@ static const struct snd_soc_component_driver fsl_esai_component = {
 	.name		= "fsl-esai",
 };
 
+static const struct reg_default fsl_esai_reg_defaults[] = {
+	{0x8,  0x00000000},
+	{0x10, 0x00000000},
+	{0x18, 0x00000000},
+	{0x98, 0x00000000},
+	{0xd0, 0x00000000},
+	{0xd4, 0x00000000},
+	{0xd8, 0x00000000},
+	{0xdc, 0x00000000},
+	{0xe0, 0x00000000},
+	{0xe4, 0x0000ffff},
+	{0xe8, 0x0000ffff},
+	{0xec, 0x0000ffff},
+	{0xf0, 0x0000ffff},
+	{0xf8, 0x00000000},
+	{0xfc, 0x00000000},
+};
+
 static bool fsl_esai_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -723,7 +741,6 @@ static bool fsl_esai_volatile_reg(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	}
-
 }
 
 static bool fsl_esai_writeable_reg(struct device *dev, unsigned int reg)
@@ -763,6 +780,8 @@ static const struct regmap_config fsl_esai_regmap_config = {
 	.val_bits = 32,
 
 	.max_register = REG_ESAI_PCRC,
+	.reg_defaults = fsl_esai_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(fsl_esai_reg_defaults),
 	.readable_reg = fsl_esai_readable_reg,
 	.volatile_reg = fsl_esai_volatile_reg,
 	.writeable_reg = fsl_esai_writeable_reg,
