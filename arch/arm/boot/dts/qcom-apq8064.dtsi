@@ -365,6 +365,14 @@
 					<136 1>, <137 1>, <138 1>, <139 1>;
 				};
 
+				rtc@11d {
+					compatible = "qcom,pm8921-rtc";
+					interrupt-parent = <&pmicintc>;
+					interrupts = <39 1>;
+					reg = <0x11d>;
+					allow-set-time;
+				};
+
 			};
 		};
 
