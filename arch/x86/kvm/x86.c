@@ -51,6 +51,8 @@
 #include <linux/pci.h>
 #include <linux/timekeeper_internal.h>
 #include <linux/pvclock_gtod.h>
+#include <linux/kvm_irqfd.h>
+#include <linux/irqbypass.h>
 #include <trace/events/kvm.h>
 
 #define CREATE_TRACE_POINTS
@@ -8078,6 +8080,57 @@ bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 	return atomic_read(&kvm->arch.noncoherent_dma_count);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
+
+int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
+				      struct irq_bypass_producer *prod)
+{
+	struct kvm_kernel_irqfd *irqfd =
+		container_of(cons, struct kvm_kernel_irqfd, consumer);
+
+	if (kvm_x86_ops->update_pi_irte) {
+		irqfd->producer = prod;
+		return kvm_x86_ops->update_pi_irte(irqfd->kvm,
+				prod->irq, irqfd->gsi, 1);
+	}
+
+	return -EINVAL;
+}
+
+void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
+				      struct irq_bypass_producer *prod)
+{
+	int ret;
+	struct kvm_kernel_irqfd *irqfd =
+		container_of(cons, struct kvm_kernel_irqfd, consumer);
+
+	if (!kvm_x86_ops->update_pi_irte) {
+		WARN_ON(irqfd->producer != NULL);
+		return;
+	}
+
+	WARN_ON(irqfd->producer != prod);
+	irqfd->producer = NULL;
+
+	/*
+	 * When producer of consumer is unregistered, we change back to
+	 * remapped mode, so we can re-use the current implementation
+	 * when the irq is masked/disabed or the consumer side (KVM
+	 * int this case doesn't want to receive the interrupts.
+	*/
+	ret = kvm_x86_ops->update_pi_irte(irqfd->kvm, prod->irq, irqfd->gsi, 0);
+	if (ret)
+		printk(KERN_INFO "irq bypass consumer (token %p) unregistration"
+		       " fails: %d\n", irqfd->consumer.token, ret);
+}
+
+int kvm_arch_update_irqfd_routing(struct kvm *kvm, unsigned int host_irq,
+				   uint32_t guest_irq, bool set)
+{
+	if (!kvm_x86_ops->update_pi_irte)
+		return -EINVAL;
+
+	return kvm_x86_ops->update_pi_irte(kvm, host_irq, guest_irq, set);
+}
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_fast_mmio);

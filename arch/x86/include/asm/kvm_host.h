@@ -24,6 +24,7 @@
 #include <linux/perf_event.h>
 #include <linux/pvclock_gtod.h>
 #include <linux/clocksource.h>
+#include <linux/irqbypass.h>
 
 #include <asm/pvclock-abi.h>
 #include <asm/desc.h>
