@@ -13989,7 +13989,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 * On SKL pre-D0 the strap isn't connected, so we assume
 		 * it's there.
 		 */
-		found = I915_READ(DDI_BUF_CTL_A) & DDI_INIT_DISPLAY_DETECTED;
+		found = I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_INIT_DISPLAY_DETECTED;
 		/* WaIgnoreDDIAStrap: skl */
 		if (found || IS_SKYLAKE(dev))
 			intel_ddi_init(dev, PORT_A);
