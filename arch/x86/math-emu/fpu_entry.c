@@ -40,30 +40,29 @@
 
 #define __BAD__ FPU_illegal	/* Illegal on an 80486, causes SIGILL */
 
-/* WARNING: These codes are not documented by Intel in their 80486 manual
-   and may not work on FPU clones or later Intel FPUs. */
-
-/* Changes to support the un-doc codes provided by Linus Torvalds. */
-
-#define _d9_d8_ fstp_i		/* unofficial code (19) */
-#define _dc_d0_ fcom_st		/* unofficial code (14) */
-#define _dc_d8_ fcompst		/* unofficial code (1c) */
-#define _dd_c8_ fxch_i		/* unofficial code (0d) */
-#define _de_d0_ fcompst		/* unofficial code (16) */
-#define _df_c0_ ffreep		/* unofficial code (07) ffree + pop */
-#define _df_c8_ fxch_i		/* unofficial code (0f) */
-#define _df_d0_ fstp_i		/* unofficial code (17) */
-#define _df_d8_ fstp_i		/* unofficial code (1f) */
+/* WARNING: "u" entries are not documented by Intel in their 80486 manual
+   and may not work on FPU clones or later Intel FPUs.
+   Changes to support them provided by Linus Torvalds. */
 
 static FUNC const st_instr_table[64] = {
-	fadd__, fld_i_, __BAD__, __BAD__, fadd_i, ffree_, faddp_, _df_c0_,
-	fmul__, fxch_i, __BAD__, __BAD__, fmul_i, _dd_c8_, fmulp_, _df_c8_,
-	fcom_st, fp_nop, __BAD__, __BAD__, _dc_d0_, fst_i_, _de_d0_, _df_d0_,
-	fcompst, _d9_d8_, __BAD__, __BAD__, _dc_d8_, fstp_i, fcompp, _df_d8_,
-	fsub__, FPU_etc, __BAD__, finit_, fsubri, fucom_, fsubrp, fstsw_,
-	fsubr_, fconst, fucompp, __BAD__, fsub_i, fucomp, fsubp_, __BAD__,
-	fdiv__, FPU_triga, __BAD__, __BAD__, fdivri, __BAD__, fdivrp, __BAD__,
-	fdivr_, FPU_trigb, __BAD__, __BAD__, fdiv_i, __BAD__, fdivp_, __BAD__,
+/* Opcode:	d8		d9		da		db */
+/*		dc		dd		de		df */
+/* c0..7 */	fadd__,		fld_i_,		__BAD__,	__BAD__,
+/* c0..7 */	fadd_i,		ffree_,		faddp_,		ffreep,/*u*/
+/* c8..f */	fmul__,		fxch_i,		__BAD__,	__BAD__,
+/* c8..f */	fmul_i,		fxch_i,/*u*/	fmulp_,		fxch_i,/*u*/
+/* d0..7 */	fcom_st,	fp_nop,		__BAD__,	__BAD__,
+/* d0..7 */	fcom_st,/*u*/	fst_i_,		fcompst,/*u*/	fstp_i,/*u*/
+/* d8..f */	fcompst,	fstp_i,/*u*/	__BAD__,	__BAD__,
+/* d8..f */	fcompst,/*u*/	fstp_i,		fcompp,		fstp_i,/*u*/
+/* e0..7 */	fsub__,		FPU_etc,	__BAD__,	finit_,
+/* e0..7 */	fsubri,		fucom_,		fsubrp,		fstsw_,
+/* e8..f */	fsubr_,		fconst,		fucompp,	__BAD__,
+/* e8..f */	fsub_i,		fucomp,		fsubp_,		__BAD__,
+/* f0..7 */	fdiv__,		FPU_triga,	__BAD__,	__BAD__,
+/* f0..7 */	fdivri,		__BAD__,	fdivrp,		__BAD__,
+/* f8..f */	fdivr_,		FPU_trigb,	__BAD__,	__BAD__,
+/* f8..f */	fdiv_i,		__BAD__,	fdivp_,		__BAD__,
 };
 
 #define _NONE_ 0		/* Take no special action */
