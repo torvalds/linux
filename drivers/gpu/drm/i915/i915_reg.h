@@ -1527,7 +1527,7 @@ enum skl_disp_power_wells {
 #define GEN7_GFX_PEND_TLB0	0x4034
 #define GEN7_GFX_PEND_TLB1	0x4038
 /* L3, CVS, ZTLB, RCC, CASC LRA min, max values */
-#define GEN7_LRA_LIMITS_BASE	0x403C
+#define GEN7_LRA_LIMITS(i)	(0x403C + (i) * 4)
 #define GEN7_LRA_LIMITS_REG_NUM	13
 #define GEN7_MEDIA_MAX_REQ_COUNT	0x4070
 #define GEN7_GFX_MAX_REQ_COUNT		0x4074
@@ -6813,7 +6813,7 @@ enum skl_disp_power_wells {
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
 
-#define GEN7_GT_SCRATCH_BASE			0x4F100
+#define GEN7_GT_SCRATCH(i)			(0x4F100 + (i) * 4)
 #define GEN7_GT_SCRATCH_REG_NUM			8
 
 #define VLV_GTLC_SURVIVABILITY_REG              0x130098
