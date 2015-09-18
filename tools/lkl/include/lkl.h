@@ -12,4 +12,12 @@ static inline long lkl_sys_lseek(unsigned int fd, __lkl__kernel_loff_t off,
 	return lkl_sys_llseek(fd, off >> 32, off & 0xffffffff, res, whence);
 }
 
+/**
+ * lkl_strerror - returns a string describing the given error code
+ *
+ * @err - error code
+ * @returns - string for the given error code
+ */
+const char *lkl_strerror(int err);
+
 #endif
