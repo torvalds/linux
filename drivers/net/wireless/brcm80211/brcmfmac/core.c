@@ -887,6 +887,16 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 			cancel_work_sync(&ifp->multicast_work);
 		}
 		brcmf_net_detach(ifp->ndev);
+	} else {
+		/* Only p2p device interfaces which get dynamically created
+		 * end up here. In this case the p2p module should be informed
+		 * about the removal of the interface within the firmware. If
+		 * not then p2p commands towards the firmware will cause some
+		 * serious troublesome side effects. The p2p module will clean
+		 * up the ifp if needed.
+		 */
+		brcmf_p2p_ifp_removed(ifp);
+		kfree(ifp);
 	}
 }
 
@@ -894,7 +904,8 @@ void brcmf_remove_interface(struct brcmf_if *ifp)
 {
 	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bssidx] != ifp))
 		return;
-
+	brcmf_dbg(TRACE, "Enter, bssidx=%d, ifidx=%d\n", ifp->bssidx,
+		  ifp->ifidx);
 	brcmf_fws_del_interface(ifp);
 	brcmf_del_if(ifp->drvr, ifp->bssidx);
 }

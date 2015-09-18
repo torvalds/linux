@@ -2131,20 +2131,6 @@ fail:
 }
 
 /**
- * brcmf_p2p_delete_p2pdev() - delete P2P_DEVICE virtual interface.
- *
- * @vif: virtual interface object to delete.
- */
-static void brcmf_p2p_delete_p2pdev(struct brcmf_p2p_info *p2p,
-				    struct brcmf_cfg80211_vif *vif)
-{
-	cfg80211_unregister_wdev(&vif->wdev);
-	p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
-	brcmf_remove_interface(vif->ifp);
-	brcmf_free_vif(vif);
-}
-
-/**
  * brcmf_p2p_add_vif() - create a new P2P virtual interface.
  *
  * @wiphy: wiphy device of new interface.
@@ -2267,9 +2253,11 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		break;
 
 	case NL80211_IFTYPE_P2P_DEVICE:
+		if (!p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif)
+			return 0;
 		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
-		brcmf_p2p_delete_p2pdev(p2p, vif);
+		brcmf_remove_interface(vif->ifp);
 		return 0;
 	default:
 		return -ENOTSUPP;
@@ -2299,6 +2287,21 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = NULL;
 
 	return err;
+}
+
+void brcmf_p2p_ifp_removed(struct brcmf_if *ifp)
+{
+	struct brcmf_cfg80211_info *cfg;
+	struct brcmf_cfg80211_vif *vif;
+
+	brcmf_dbg(INFO, "P2P: device interface removed\n");
+	vif = ifp->vif;
+	cfg = wdev_to_cfg(&vif->wdev);
+	cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
+	rtnl_lock();
+	cfg80211_unregister_wdev(&vif->wdev);
+	rtnl_unlock();
+	brcmf_free_vif(vif);
 }
 
 int brcmf_p2p_start_device(struct wiphy *wiphy, struct wireless_dev *wdev)
@@ -2425,10 +2428,7 @@ void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 	if (vif != NULL) {
 		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
-		/* remove discovery interface */
-		rtnl_lock();
-		brcmf_p2p_delete_p2pdev(p2p, vif);
-		rtnl_unlock();
+		brcmf_remove_interface(vif->ifp);
 	}
 	/* just set it all to zero */
 	memset(p2p, 0, sizeof(*p2p));
