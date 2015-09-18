@@ -66,6 +66,8 @@
 					isi_0: endpoint@0 {
 						remote-endpoint = <&ov2640_0>;
 						bus-width = <8>;
+						vsync-active = <1>;
+						hsync-active = <1>;
 					};
 				};
 			};
