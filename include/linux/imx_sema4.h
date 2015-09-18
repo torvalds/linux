@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -57,8 +57,27 @@ struct imx_sema4_mutex_device {
 
 struct imx_sema4_mutex *
 	imx_sema4_mutex_create(u32 dev_num, u32 mutex_num);
+#ifdef CONFIG_IMX_SEMA4
 int imx_sema4_mutex_destroy(struct imx_sema4_mutex *mutex_ptr);
 int imx_sema4_mutex_trylock(struct imx_sema4_mutex *mutex_ptr);
 int imx_sema4_mutex_lock(struct imx_sema4_mutex *mutex_ptr);
 int imx_sema4_mutex_unlock(struct imx_sema4_mutex *mutex_ptr);
+#else
+static inline int imx_sema4_mutex_destroy(struct imx_sema4_mutex *mutex_ptr)
+{
+	return 0;
+}
+static inline int imx_sema4_mutex_trylock(struct imx_sema4_mutex *mutex_ptr)
+{
+	return 0;
+}
+static inline int imx_sema4_mutex_lock(struct imx_sema4_mutex *mutex_ptr)
+{
+	return 0;
+}
+static inline int imx_sema4_mutex_unlock(struct imx_sema4_mutex *mutex_ptr)
+{
+	return 0;
+}
+#endif
 #endif /* __LINUX_IMX_SEMA4_H__ */
